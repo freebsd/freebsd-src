@@ -66,6 +66,7 @@ struct callout newnfsd_callout;
 int nfsrv_lughashsize = 100;
 struct mtx nfsrv_dslock_mtx;
 struct mtx nfsrv_dsclock_mtx;
+struct mtx nfsrv_dsrmlock_mtx;
 struct nfsdevicehead nfsrv_devidhead;
 void (*nfsd_call_servertimer)(void) = NULL;
 void (*ncl_call_invalcaches)(struct vnode *) = NULL;
@@ -697,7 +698,8 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		mtx_init(&nfsrv_nfsuserdsock.nr_mtx, "nfsuserd", NULL,
 		    MTX_DEF);
 		mtx_init(&nfsrv_dslock_mtx, "nfs4ds", NULL, MTX_DEF);
-		mtx_init(&nfsrv_dsclock_mtx, "nfs4ds", NULL, MTX_DEF);
+		mtx_init(&nfsrv_dsclock_mtx, "nfsdsc", NULL, MTX_DEF);
+		mtx_init(&nfsrv_dsrmlock_mtx, "nfsdsrm", NULL, MTX_DEF);
 		TAILQ_INIT(&nfsrv_devidhead);
 		callout_init(&newnfsd_callout, 1);
 		newnfs_init();
@@ -727,6 +729,7 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		mtx_destroy(&nfsrv_nfsuserdsock.nr_mtx);
 		mtx_destroy(&nfsrv_dslock_mtx);
 		mtx_destroy(&nfsrv_dsclock_mtx);
+		mtx_destroy(&nfsrv_dsrmlock_mtx);
 		loaded = 0;
 		break;
 	default:

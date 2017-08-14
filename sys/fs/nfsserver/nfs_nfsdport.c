@@ -68,6 +68,7 @@ extern struct nfslayouthash *nfslayouthash;
 extern int nfsrv_layouthashsize;
 extern struct mtx nfsrv_dslock_mtx;
 extern struct mtx nfsrv_dsclock_mtx;
+extern struct mtx nfsrv_dsrmlock_mtx;
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
 NFSSTATESPINLOCK;
@@ -99,8 +100,8 @@ extern struct nfsdevicehead nfsrv_devidhead;
 static void nfsrv_pnfscreate(struct vnode *, struct vattr *, struct ucred *,
     NFSPROC_T *);
 static void nfsrv_pnfsremovesetup(struct vnode *, NFSPROC_T *, struct vnode **,
-    fhandle_t *, char *);
-static void nfsrv_pnfsremove(struct vnode *, fhandle_t *, char *, NFSPROC_T *);
+    int *, char *);
+static void nfsrv_pnfsremove(struct vnode **, int, char *, NFSPROC_T *);
 static int nfsrv_proxyds(struct nfsrv_descript *, struct vnode *, off_t, int,
     struct ucred *, struct thread *, int, struct mbuf **, char *,
     struct mbuf **, struct nfsvattr *, struct acl *);
@@ -1199,25 +1200,25 @@ int
 nfsvno_removesub(struct nameidata *ndp, int is_v4, struct ucred *cred,
     struct thread *p, struct nfsexstuff *exp)
 {
-	struct vnode *vp, *dsdvp;
-	fhandle_t fh;
-	int error = 0;
+	struct vnode *vp, *dsdvp[NFSDEV_MAXMIRRORS];
+	int error = 0, i, mirrorcnt;
 	char fname[PNFS_FILENAME_LEN + 1];
 
 	vp = ndp->ni_vp;
-	dsdvp = NULL;
+	dsdvp[0] = NULL;
 	if (vp->v_type == VDIR)
 		error = NFSERR_ISDIR;
 	else if (is_v4)
 		error = nfsrv_checkremove(vp, 1, p);
 	if (error == 0)
-		nfsrv_pnfsremovesetup(vp, p, &dsdvp, &fh, fname);
+		nfsrv_pnfsremovesetup(vp, p, dsdvp, &mirrorcnt, fname);
 	if (!error)
 		error = VOP_REMOVE(ndp->ni_dvp, vp, &ndp->ni_cnd);
-	if (dsdvp != NULL) {
+	if (dsdvp[0] != NULL) {
 		if (error == 0)
-			nfsrv_pnfsremove(dsdvp, &fh, fname, p);
-		NFSVOPUNLOCK(dsdvp, 0);
+			nfsrv_pnfsremove(dsdvp, mirrorcnt, fname, p);
+		for (i = 0; i < mirrorcnt; i++)
+			NFSVOPUNLOCK(dsdvp[i], 0);
 	}
 	if (ndp->ni_dvp == vp)
 		vrele(ndp->ni_dvp);
@@ -1278,12 +1279,11 @@ int
 nfsvno_rename(struct nameidata *fromndp, struct nameidata *tondp,
     u_int32_t ndstat, u_int32_t ndflag, struct ucred *cred, struct thread *p)
 {
-	struct vnode *fvp, *tvp, *tdvp, *dsdvp;
-	fhandle_t fh;
-	int error = 0;
+	struct vnode *fvp, *tvp, *tdvp, *dsdvp[NFSDEV_MAXMIRRORS];
+	int error = 0, i, mirrorcnt;
 	char fname[PNFS_FILENAME_LEN + 1];
 
-	dsdvp = NULL;
+	dsdvp[0] = NULL;
 	fvp = fromndp->ni_vp;
 	if (ndstat) {
 		vrele(fromndp->ni_dvp);
@@ -1359,9 +1359,9 @@ nfsvno_rename(struct nameidata *fromndp, struct nameidata *tondp,
 		nfsd_recalldelegation(fvp, p);
 	}
 	if (error == 0 && tvp != NULL) {
-		nfsrv_pnfsremovesetup(tvp, p, &dsdvp, &fh, fname);
+		nfsrv_pnfsremovesetup(tvp, p, dsdvp, &mirrorcnt, fname);
 		NFSD_DEBUG(4, "nfsvno_rename: pnfsremovesetup"
-		    " dsdvp=%p\n", dsdvp);
+		    " dsdvp=%p\n", dsdvp[0]);
 	}
 out:
 	if (!error) {
@@ -1382,16 +1382,17 @@ out:
 	}
 
 	/*
-	 * If dsdvp != NULL, it was set up by nfsrv_pnfsremovesetup() and
+	 * If dsdvp[0] != NULL, it was set up by nfsrv_pnfsremovesetup() and
 	 * if the rename succeeded, the DS file for the tvp needs to be
 	 * removed.
 	 */
-	if (dsdvp != NULL) {
+	if (dsdvp[0] != NULL) {
 		if (error == 0) {
-			nfsrv_pnfsremove(dsdvp, &fh, fname, p);
+			nfsrv_pnfsremove(dsdvp, mirrorcnt, fname, p);
 			NFSD_DEBUG(4, "nfsvno_rename: pnfsremove\n");
 		}
-		NFSVOPUNLOCK(dsdvp, 0);
+		for (i = 0; i < mirrorcnt; i++)
+			NFSVOPUNLOCK(dsdvp[i], 0);
 	}
 
 	vrele(tondp->ni_startdir);
@@ -3849,16 +3850,15 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
  */
 static void
 nfsrv_pnfsremovesetup(struct vnode *vp, NFSPROC_T *p, struct vnode **dvpp,
-    fhandle_t *fhp, char *fname)
+    int *mirrorcntp, char *fname)
 {
-	struct vnode *dvp[NFSDEV_MAXMIRRORS];
 	struct nfsmount *nmp[NFSDEV_MAXMIRRORS];
 	struct vattr va;
 	struct ucred *tcred;
 	char *buf;
-	int buflen, error, mirrorcnt;
+	int buflen, error;
 
-	*dvpp = NULL;
+	dvpp[0] = NULL;
 	/* If not an exported regular file or not a pNFS server, just return. */
 	NFSDDSLOCK();
 	if (vp->v_type != VREG || (vp->v_mount->mnt_flag & MNT_EXPORTED) == 0 ||
@@ -3882,19 +3882,72 @@ nfsrv_pnfsremovesetup(struct vnode *vp, NFSPROC_T *p, struct vnode **dvpp,
 	buflen = 1024;
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	/* Get the directory vnode for the DS mount and the file handle. */
-	error = nfsrv_dsgetsockmnt(vp, LK_EXCLUSIVE, buf, buflen, &mirrorcnt, p,
-	    dvp, nmp, NULL, NULL, fname);
-	if (error == 0) {
-		error = nfsvno_getfh(vp, fhp, p);
-		if (error != 0) {
-			NFSVOPUNLOCK(dvp[0], 0);
-			printf("pNFS: nfsrv_pnfsremovesetup getfh=%d\n", error);
-		}
-	} else
-		printf("pNFS: nfsrv_pnfsremovesetup getsockmnt=%d\n", error);
+	error = nfsrv_dsgetsockmnt(vp, LK_EXCLUSIVE, buf, buflen, mirrorcntp, p,
+	    dvpp, nmp, NULL, NULL, fname);
 	free(buf, M_TEMP);
-	if (error == 0)
-		*dvpp = dvp[0];
+	if (error != 0)
+		printf("pNFS: nfsrv_pnfsremovesetup getsockmnt=%d\n", error);
+}
+
+/*
+ * Remove a DS data file for nfsrv_pnfsremove(). Called for each mirror.
+ * The arguments are in a structure, so that they can be passed through
+ * kproc_create() for a kernel process to execute this function.
+ */
+struct nfsrvdsremove {
+	struct ucred		*tcred;
+	struct vnode		*dvp;
+	NFSPROC_T		*p;
+	int			haskproc;
+	char			fname[PNFS_FILENAME_LEN + 1];
+};
+
+static void
+nfsrv_dsremove(struct nfsrvdsremove *dsrm)
+{
+	struct nameidata named;
+	struct vnode *nvp;
+	char *bufp;
+	u_long *hashp;
+	int error;
+
+	named.ni_cnd.cn_nameiop = DELETE;
+	named.ni_cnd.cn_lkflags = LK_EXCLUSIVE | LK_RETRY;
+	named.ni_cnd.cn_cred = dsrm->tcred;
+	named.ni_cnd.cn_thread = dsrm->p;
+	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF |
+	    SAVENAME;
+	nfsvno_setpathbuf(&named, &bufp, &hashp);
+	named.ni_cnd.cn_nameptr = bufp;
+	named.ni_cnd.cn_namelen = strlen(dsrm->fname);
+	strlcpy(bufp, dsrm->fname, NAME_MAX);
+	NFSD_DEBUG(4, "nfsrv_pnfsremove: filename=%s\n", bufp);
+	error = VOP_LOOKUP(dsrm->dvp, &nvp, &named.ni_cnd);
+	NFSD_DEBUG(4, "nfsrv_pnfsremove: aft LOOKUP=%d\n", error);
+	if (error == 0) {
+		error = VOP_REMOVE(dsrm->dvp, nvp, &named.ni_cnd);
+		vput(nvp);
+	}
+	nfsvno_relpathbuf(&named);
+	if (error != 0)
+		printf("pNFS: nfsrv_pnfsremove failed=%d\n", error);
+}
+
+/*
+ * Start up the thread that will execute nfsrv_dsremove().
+ */
+static void
+start_dsremove(void *arg)
+{
+	struct nfsrvdsremove *dsrm;
+
+	dsrm = (struct nfsrvdsremove *)arg;
+	nfsrv_dsremove(dsrm);
+	NFSDSRMLOCK();
+	dsrm->haskproc = 0;
+	wakeup(dsrm);
+	NFSDSRMUNLOCK();
+	kproc_exit(0);
 }
 
 /*
@@ -3903,37 +3956,59 @@ nfsrv_pnfsremovesetup(struct vnode *vp, NFSPROC_T *p, struct vnode **dvpp,
  * removed to set up the dvp and fill in the FH.
  */
 static void
-nfsrv_pnfsremove(struct vnode *dvp, fhandle_t *fhp, char *fname, NFSPROC_T *p)
+nfsrv_pnfsremove(struct vnode **dvp, int mirrorcnt, char *fname, NFSPROC_T *p)
 {
-	struct vnode *nvp;
-	struct nameidata named;
 	struct ucred *tcred;
-	char *bufp;
-	u_long *hashp;
-	int error;
+	struct nfsrvdsremove *dsrm, *tdsrm;
+	int haskproc, i, ret;
 
-	/* Look up the data file and remove it. */
 	tcred = newnfs_getcred();
-	named.ni_cnd.cn_nameiop = DELETE;
-	named.ni_cnd.cn_lkflags = LK_EXCLUSIVE | LK_RETRY;
-	named.ni_cnd.cn_cred = tcred;
-	named.ni_cnd.cn_thread = p;
-	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF | SAVENAME;
-	nfsvno_setpathbuf(&named, &bufp, &hashp);
-	named.ni_cnd.cn_nameptr = bufp;
-	named.ni_cnd.cn_namelen = strlen(fname);
-	strlcpy(bufp, fname, NAME_MAX);
-	NFSD_DEBUG(4, "nfsrv_pnfsremove: filename=%s\n", bufp);
-	error = VOP_LOOKUP(dvp, &nvp, &named.ni_cnd);
-	NFSD_DEBUG(4, "nfsrv_pnfsremove: aft LOOKUP=%d\n", error);
-	if (error == 0) {
-		error = VOP_REMOVE(dvp, nvp, &named.ni_cnd);
-		vput(nvp);
+	tdsrm = dsrm = malloc(sizeof(*dsrm) * NFSDEV_MAXMIRRORS, M_TEMP,
+	    M_WAITOK);
+	/*
+	 * Remove the file on each DS mirror, using kernel process(es) for the
+	 * additional mirrors.
+	 */
+	haskproc = 0;
+	for (i = 0; i < mirrorcnt; i++, tdsrm++) {
+		tdsrm->tcred = tcred;
+		tdsrm->p = p;
+		tdsrm->dvp = dvp[i];
+		strlcpy(tdsrm->fname, fname, PNFS_FILENAME_LEN + 1);
+
+		/*
+		 * Do the last remove outselves instead of forking a process.
+		 * (This avoids creating kernel processes unless mirrors are
+		 *  in use.)
+		 * tdsrm->haskproc marks a create with a kernel process.
+		 * haskproc is set non-zero to indicate at least one kernel
+		 * process has been created.
+		 */
+		ret = ENXIO;
+		if (i < mirrorcnt - 1) {
+			tdsrm->haskproc = 1;
+			ret = kproc_create(start_dsremove, (void *)tdsrm, NULL,
+			    0, 0, "nfsdpnfs");
+		}
+		if (ret == 0)
+			haskproc = 1;
+		else {
+			tdsrm->haskproc = 0;
+			nfsrv_dsremove(tdsrm);
+		}
+	}
+	if (haskproc != 0) {
+		/* Wait for kernel proc(s) to complete. */
+		NFSDSRMLOCK();
+		for (tdsrm = dsrm, i = 0; i < mirrorcnt; i++, tdsrm++) {
+			while (tdsrm->haskproc != 0)
+				mtx_sleep(tdsrm, NFSDSRMLOCKMUTEXPTR, PVFS,
+				    "nfsprm", 0);
+		}
+		NFSDSRMUNLOCK();
 	}
 	NFSFREECRED(tcred);
-	nfsvno_relpathbuf(&named);
-	if (error != 0)
-		printf("pNFS: nfsrv_pnfsremove failed=%d\n", error);
+	free(dsrm, M_TEMP);
 }
 
 /*
@@ -4194,8 +4269,10 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int buflen,
 		 * the one(s) prior to the failure will have locked dvp's that
 		 * need to be unlocked.
 		 */
-		for (j = 1; j < i; j++)
-			NFSVOPUNLOCK(*dvpp++, 0);
+		for (j = 1; j < i; j++) {
+			NFSVOPUNLOCK(*dvpp, 0);
+			*dvpp++ = NULL;
+		}
 	}
 	return (error);
 }
