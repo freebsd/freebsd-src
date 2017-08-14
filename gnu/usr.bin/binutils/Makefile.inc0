@@ -16,7 +16,7 @@ TARGET_VENDOR?=	unknown
 TARGET_OS?=	freebsd
 BINUTILS_ARCH=${TARGET_ARCH:C/amd64/x86_64/}
 TARGET_TUPLE?=	${BINUTILS_ARCH}-${TARGET_VENDOR}-${TARGET_OS}
-.if ${TARGET_ARCH} == "armeb" || ${TARGET_ARCH} == "armv6eb" || \
+.if ${TARGET_ARCH:Marm*eb} != "" || \
 	(${TARGET_CPUARCH} == "mips" && ${TARGET_ARCH:Mmips*el*} == "")
 TARGET_BIG_ENDIAN=t
 .endif

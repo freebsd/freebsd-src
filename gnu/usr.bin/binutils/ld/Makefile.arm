@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if ${TARGET_ARCH} == "armeb" || ${TARGET_ARCH} == "armv6eb"
+.if ${TARGET_ARCH:Marm*eb} != ""
 NATIVE_EMULATION= armelfb_fbsd
 .else
 NATIVE_EMULATION= armelf_fbsd
