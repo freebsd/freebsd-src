@@ -580,6 +580,12 @@ hn_rss_key_default[NDIS_HASH_KEYSIZE_TOEPLITZ] = {
 };
 #endif	/* !RSS */
 
+static const struct hyperv_guid	hn_guid = {
+	.hv_guid = {
+	    0x63, 0x51, 0x61, 0xf8, 0x3e, 0xdf, 0xc5, 0x46,
+	    0x91, 0x3f, 0xf2, 0xd2, 0xf9, 0x65, 0xed, 0x0e }
+};
+
 static device_method_t hn_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		hn_probe),
@@ -1711,18 +1717,11 @@ hn_ifnet_lnkevent(void *xsc, struct ifnet *ifp, int link_state)
 		if_link_state_change(sc->hn_ifp, link_state);
 }
 
-/* {F8615163-DF3E-46c5-913F-F2D2F965ED0E} */
-static const struct hyperv_guid g_net_vsc_device_type = {
-	.hv_guid = {0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46,
-		0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E}
-};
-
 static int
 hn_probe(device_t dev)
 {
 
-	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev,
-	    &g_net_vsc_device_type) == 0) {
+	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev, &hn_guid) == 0) {
 		device_set_desc(dev, "Hyper-V Network Interface");
 		return BUS_PROBE_DEFAULT;
 	}
