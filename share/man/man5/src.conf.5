@@ -1043,6 +1043,16 @@ MTA selector.
 Set to not install
 .Xr make 1
 and related support files.
+.It Va WITHOUT_MAKE_CHECK_USE_SANDBOX
+Set to not execute
+.Dq Li "make check"
+in limited sandbox mode.
+This option should be paired with
+.Va WITH_INSTALL_AS_USER
+if executed as an unprivileged user.
+See
+.Xr tests 7
+for more details.
 .It Va WITHOUT_MAN
 Set to not build manual pages.
 When set, these options are also in effect:
