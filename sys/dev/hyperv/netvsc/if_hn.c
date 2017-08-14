@@ -1266,16 +1266,37 @@ hn_xpnt_vf_input(struct ifnet *vf_ifp, struct mbuf *m)
 	rm_runlock(&hn_vfmap_lock, &pt);
 
 	if (hn_ifp != NULL) {
-		/*
-		 * Fix up rcvif and go through hn(4)'s if_input and 
-		 * increase ipackets.
-		 */
 		for (mn = m; mn != NULL; mn = mn->m_nextpkt) {
-			/* Allow tapping on the VF. */
+			/*
+			 * Allow tapping on the VF.
+			 */
 			ETHER_BPF_MTAP(vf_ifp, mn);
+
+			/*
+			 * Update VF stats.
+			 */
+			if ((vf_ifp->if_capenable & IFCAP_HWSTATS) == 0) {
+				if_inc_counter(vf_ifp, IFCOUNTER_IBYTES,
+				    mn->m_pkthdr.len);
+			}
+			/*
+			 * XXX IFCOUNTER_IMCAST
+			 * This stat updating is kinda invasive, since it
+			 * requires two checks on the mbuf: the length check
+			 * and the ethernet header check.  As of this write,
+			 * all multicast packets go directly to hn(4), which
+			 * makes imcast stat updating in the VF a try in vian.
+			 */
+
+			/*
+			 * Fix up rcvif and increase hn(4)'s ipackets.
+			 */
 			mn->m_pkthdr.rcvif = hn_ifp;
 			if_inc_counter(hn_ifp, IFCOUNTER_IPACKETS, 1);
 		}
+		/*
+		 * Go through hn(4)'s if_input.
+		 */
 		hn_ifp->if_input(hn_ifp, m);
 	} else {
 		/*
