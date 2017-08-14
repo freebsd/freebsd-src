@@ -173,6 +173,7 @@ libkern.${LIBC_ARCH}:: ${KMSRCS}
 	${CP} ${.ALLSRC} ${DESTDIR}/sys/libkern/${LIBC_ARCH}
 .endif
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>

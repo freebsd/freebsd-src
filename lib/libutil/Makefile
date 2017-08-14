@@ -85,6 +85,7 @@ MLINKS+=pw_util.3 pw_copy.3 \
 	pw_util.3 pw_tempname.3 \
 	pw_util.3 pw_tmp.3
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>
