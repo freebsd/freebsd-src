@@ -301,6 +301,13 @@ lint: ${SRCS:M*.c}
 .include <bsd.man.mk>
 .endif
 
+.if defined(HAS_TESTS)
+MAKE+=			MK_MAKE_CHECK_USE_SANDBOX=yes
+SUBDIR_TARGETS+=	check
+TESTS_LD_LIBRARY_PATH+=	${.OBJDIR}
+TESTS_PATH+=		${.OBJDIR}
+.endif
+
 .if defined(PROG)
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
 .endif
