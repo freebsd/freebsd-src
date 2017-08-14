@@ -124,11 +124,45 @@ out:
 	return err;
 }
 
+static void mlx4_en_fold_software_stats(struct net_device *dev)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+	u64 packets, bytes;
+	int i;
+
+	if (!priv->port_up || mlx4_is_master(mdev->dev))
+		return;
+
+	packets = 0;
+	bytes = 0;
+	for (i = 0; i < priv->rx_ring_num; i++) {
+		const struct mlx4_en_rx_ring *ring = priv->rx_ring[i];
+
+		packets += READ_ONCE(ring->packets);
+		bytes += READ_ONCE(ring->bytes);
+	}
+	priv->pkstats.rx_packets = packets;
+	priv->pkstats.rx_bytes = bytes;
+
+	packets = 0;
+	bytes = 0;
+	for (i = 0; i < priv->tx_ring_num; i++) {
+		const struct mlx4_en_tx_ring *ring = priv->tx_ring[i];
+
+		packets += READ_ONCE(ring->packets);
+		bytes += READ_ONCE(ring->bytes);
+	}
+	priv->pkstats.tx_packets = packets;
+	priv->pkstats.tx_bytes = bytes;
+}
+
 int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 {
 	struct mlx4_en_stat_out_mbox *mlx4_en_stats;
 	struct mlx4_en_stat_out_flow_control_mbox *flowstats;
-	struct mlx4_en_priv *priv = netdev_priv(mdev->pndev[port]);
+	struct net_device *dev = mdev->pndev[port];
+	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_vport_stats *vport_stats = &priv->vport_stats;
 	struct mlx4_cmd_mailbox *mailbox = NULL;
 	struct mlx4_cmd_mailbox *mailbox_flow = NULL;
@@ -138,7 +172,6 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	int do_if_stat = 1;
 	unsigned long period = (unsigned long) (jiffies - priv->last_ifq_jiffies);
 	struct mlx4_en_vport_stats tmp_vport_stats;
-        struct net_device *dev;
 
 	if (jiffies_to_msecs(period) < EN_IFQ_MIN_INTERVAL ||
 				priv->counter_index == 0xff)
@@ -523,8 +556,12 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 			be64_to_cpu(flowstats[i].tx_pause_transition);
 	}
 
-	memset(&tmp_vport_stats, 0, sizeof(tmp_vport_stats));
+	mlx4_en_fold_software_stats(dev);
+
 	spin_unlock(&priv->stats_lock);
+
+	memset(&tmp_vport_stats, 0, sizeof(tmp_vport_stats));
+
 	err = mlx4_get_vport_ethtool_stats(mdev->dev, port,
 					   &tmp_vport_stats, reset);
 	spin_lock(&priv->stats_lock);
@@ -547,19 +584,37 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 		vport_stats->tx_errors = tmp_vport_stats.tx_errors;
 	}
 
-	if (!mlx4_is_mfunc(mdev->dev)) {
-		/* netdevice stats format */
-                dev                     = mdev->pndev[port];
-		dev->if_ipackets        = priv->pkstats.rx_packets;
-		dev->if_opackets        = priv->pkstats.tx_packets;
-		dev->if_ibytes          = priv->pkstats.rx_bytes;
-		dev->if_obytes          = priv->pkstats.tx_bytes;
-		dev->if_ierrors         = priv->pkstats.rx_errors;
-		dev->if_iqdrops         = priv->pkstats.rx_dropped;
-		dev->if_imcasts         = priv->pkstats.rx_multicast_packets;
-                dev->if_omcasts         = priv->pkstats.tx_multicast_packets;
-                dev->if_collisions      = 0;
+#if __FreeBSD_version >= 1100000
+	if (reset == 0) {
+		if_inc_counter(dev, IFCOUNTER_IPACKETS,
+		    priv->pkstats.rx_packets - priv->pkstats_last.rx_packets);
+		if_inc_counter(dev, IFCOUNTER_OPACKETS,
+		    priv->pkstats.tx_packets - priv->pkstats_last.tx_packets);
+		if_inc_counter(dev, IFCOUNTER_IBYTES,
+		    priv->pkstats.rx_bytes - priv->pkstats_last.rx_bytes);
+		if_inc_counter(dev, IFCOUNTER_OBYTES,
+		    priv->pkstats.tx_bytes - priv->pkstats_last.tx_bytes);
+		if_inc_counter(dev, IFCOUNTER_IERRORS,
+		    priv->pkstats.rx_errors - priv->pkstats_last.rx_errors);
+		if_inc_counter(dev, IFCOUNTER_IQDROPS,
+		    priv->pkstats.rx_dropped - priv->pkstats_last.rx_dropped);
+		if_inc_counter(dev, IFCOUNTER_IMCASTS,
+		    priv->pkstats.rx_multicast_packets - priv->pkstats_last.rx_multicast_packets);
+		if_inc_counter(dev, IFCOUNTER_OMCASTS,
+		    priv->pkstats.tx_multicast_packets - priv->pkstats_last.tx_multicast_packets);
 	}
+	priv->pkstats_last = priv->pkstats;
+#else
+	dev->if_ipackets        = priv->pkstats.rx_packets;
+	dev->if_opackets        = priv->pkstats.tx_packets;
+	dev->if_ibytes          = priv->pkstats.rx_bytes;
+	dev->if_obytes          = priv->pkstats.tx_bytes;
+	dev->if_ierrors         = priv->pkstats.rx_errors;
+	dev->if_iqdrops         = priv->pkstats.rx_dropped;
+	dev->if_imcasts         = priv->pkstats.rx_multicast_packets;
+	dev->if_omcasts         = priv->pkstats.tx_multicast_packets;
+	dev->if_collisions      = 0;
+#endif
 
 	spin_unlock(&priv->stats_lock);
 
