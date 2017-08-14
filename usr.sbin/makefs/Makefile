@@ -35,6 +35,7 @@ SRCS+=	ffs_tables.c
 CFLAGS+=	-I${SRCTOP}/lib/libnetbsd
 LIBADD=		netbsd util sbuf
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>
