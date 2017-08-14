@@ -46,6 +46,7 @@ LIBADD=	util
 
 WARNS?=	2
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

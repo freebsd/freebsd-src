@@ -38,6 +38,7 @@ MLINKS+=kvm_read.3 kvm_read2.3 kvm_read.3 kvm_write.3
 
 .include <src.opts.mk>
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}=	tests
 
 .include <bsd.lib.mk>

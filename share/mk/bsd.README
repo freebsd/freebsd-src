@@ -566,7 +566,7 @@ It has seven targets:
 	all:
 		build the test programs.
 	check:
-		runs the test programs from CHECKDIR with kyua test.
+		runs the test programs with kyua test.
 
 		The beforecheck and aftercheck targets will be invoked, if
 		defined, to execute commands before and after the realcheck
@@ -574,8 +574,6 @@ It has seven targets:
 
 		The devel/kyua package must be installed before invoking this
 		target.
-
-		See CHECKDIR for more details.
 	clean:
 		remove the test programs and any object files.
 	cleandir:
@@ -602,10 +600,6 @@ ATF_TESTS_C	The names of the ATF C test programs to build.
 ATF_TESTS_CXX	The names of the ATF C++ test programs to build.
 
 ATF_TESTS_SH	The names of the ATF sh test programs to build.
-
-CHECKDIR	The directory that 'make check' executes tests from.
-
-		The value of CHECKDIR defaults to .OBJDIR.
 
 KYUAFILE	If 'auto' (the default), generate a Kyuafile out of the
 		test programs defined in the Makefile.  If 'yes', then a

@@ -123,16 +123,16 @@ void panic(const char *ctl, ...);
  */
 static daddr_t	blst_leaf_alloc(blmeta_t *scan, daddr_t blk, int count,
 		    daddr_t cursor);
-static daddr_t	blst_meta_alloc(blmeta_t *scan, daddr_t blk, daddr_t count,
-		    daddr_t radix, daddr_t cursor);
+static daddr_t	blst_meta_alloc(blmeta_t *scan, daddr_t cursor, daddr_t count,
+		    u_daddr_t radix);
 static void blst_leaf_free(blmeta_t *scan, daddr_t relblk, int count);
 static void blst_meta_free(blmeta_t *scan, daddr_t freeBlk, daddr_t count,
-		    daddr_t radix, daddr_t blk);
+		    u_daddr_t radix);
 static void blst_copy(blmeta_t *scan, daddr_t blk, daddr_t radix,
 		    blist_t dest, daddr_t count);
 static daddr_t blst_leaf_fill(blmeta_t *scan, daddr_t blk, int count);
 static daddr_t blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count,
-		    daddr_t radix, daddr_t blk);
+		    u_daddr_t radix);
 static daddr_t	blst_radix_init(blmeta_t *scan, daddr_t radix, daddr_t count);
 #ifndef _KERNEL
 static void	blst_radix_print(blmeta_t *scan, daddr_t blk, daddr_t radix,
@@ -247,8 +247,8 @@ blist_alloc(blist_t bl, daddr_t count)
 	 * reduce the hint, stopping further iterations.
 	 */
 	while (count <= bl->bl_root->bm_bighint) {
-		blk = blst_meta_alloc(bl->bl_root, 0, count, bl->bl_radix,
-		    bl->bl_cursor);
+		blk = blst_meta_alloc(bl->bl_root, bl->bl_cursor, count,
+		    bl->bl_radix);
 		if (blk != SWAPBLK_NONE) {
 			bl->bl_cursor = blk + count;
 			return (blk);
@@ -280,7 +280,7 @@ void
 blist_free(blist_t bl, daddr_t blkno, daddr_t count)
 {
 
-	blst_meta_free(bl->bl_root, blkno, count, bl->bl_radix, 0);
+	blst_meta_free(bl->bl_root, blkno, count, bl->bl_radix);
 }
 
 /*
@@ -293,7 +293,7 @@ daddr_t
 blist_fill(blist_t bl, daddr_t blkno, daddr_t count)
 {
 
-	return (blst_meta_fill(bl->bl_root, blkno, count, bl->bl_radix, 0));
+	return (blst_meta_fill(bl->bl_root, blkno, count, bl->bl_radix));
 }
 
 /*
@@ -447,13 +447,13 @@ blst_leaf_alloc(blmeta_t *scan, daddr_t blk, int count, daddr_t cursor)
  *	and we have a few optimizations strewn in as well.
  */
 static daddr_t
-blst_meta_alloc(blmeta_t *scan, daddr_t blk, daddr_t count, daddr_t radix,
-    daddr_t cursor)
+blst_meta_alloc(blmeta_t *scan, daddr_t cursor, daddr_t count, u_daddr_t radix)
 {
-	daddr_t i, next_skip, r, skip;
+	daddr_t blk, i, next_skip, r, skip;
 	int child;
 	bool scan_from_start;
 
+	blk = cursor & -radix;
 	if (radix == BLIST_BMAP_RADIX)
 		return (blst_leaf_alloc(scan, blk, count, cursor));
 	if (scan->u.bmu_avail < count) {
@@ -505,8 +505,8 @@ blst_meta_alloc(blmeta_t *scan, daddr_t blk, daddr_t count, daddr_t radix,
 			/*
 			 * The allocation might fit in the i'th subtree.
 			 */
-			r = blst_meta_alloc(&scan[i], blk, count, radix,
-			    cursor > blk ? cursor : blk);
+			r = blst_meta_alloc(&scan[i],
+			    cursor > blk ? cursor : blk, count, radix);
 			if (r != SWAPBLK_NONE) {
 				scan->u.bmu_avail -= count;
 				return (r);
@@ -574,10 +574,9 @@ blst_leaf_free(blmeta_t *scan, daddr_t blk, int count)
  *	range).
  */
 static void
-blst_meta_free(blmeta_t *scan, daddr_t freeBlk, daddr_t count, daddr_t radix,
-    daddr_t blk)
+blst_meta_free(blmeta_t *scan, daddr_t freeBlk, daddr_t count, u_daddr_t radix)
 {
-	daddr_t i, next_skip, skip, v;
+	daddr_t blk, i, next_skip, skip, v;
 	int child;
 
 	if (scan->bm_bighint == (daddr_t)-1)
@@ -628,6 +627,7 @@ blst_meta_free(blmeta_t *scan, daddr_t freeBlk, daddr_t count, daddr_t radix,
 	 * Break the free down into its components
 	 */
 
+	blk = freeBlk & -radix;
 	radix /= BLIST_META_RADIX;
 
 	child = (freeBlk - blk) / radix;
@@ -637,7 +637,7 @@ blst_meta_free(blmeta_t *scan, daddr_t freeBlk, daddr_t count, daddr_t radix,
 		v = blk + radix - freeBlk;
 		if (v > count)
 			v = count;
-		blst_meta_free(&scan[i], freeBlk, v, radix, blk);
+		blst_meta_free(&scan[i], freeBlk, v, radix);
 		if (scan->bm_bighint < scan[i].bm_bighint)
 			scan->bm_bighint = scan[i].bm_bighint;
 		count -= v;
@@ -755,10 +755,9 @@ blst_leaf_fill(blmeta_t *scan, daddr_t blk, int count)
  *	number of blocks allocated by the call.
  */
 static daddr_t
-blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count, daddr_t radix,
-    daddr_t blk)
+blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count, u_daddr_t radix)
 {
-	daddr_t i, nblks, next_skip, skip, v;
+	daddr_t blk, i, nblks, next_skip, skip, v;
 	int child;
 
 	if (scan->bm_bighint == (daddr_t)-1)
@@ -783,6 +782,7 @@ blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count, daddr_t radix,
 	}
 	skip = radix_to_skip(radix);
 	next_skip = skip / BLIST_META_RADIX;
+	blk = allocBlk & -radix;
 
 	/*
 	 * An ALL-FREE meta node requires special handling before allocating
@@ -814,7 +814,7 @@ blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count, daddr_t radix,
 		v = blk + radix - allocBlk;
 		if (v > count)
 			v = count;
-		nblks += blst_meta_fill(&scan[i], allocBlk, v, radix, blk);
+		nblks += blst_meta_fill(&scan[i], allocBlk, v, radix);
 		count -= v;
 		allocBlk += v;
 		blk += radix;
