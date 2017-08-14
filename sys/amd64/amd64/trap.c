@@ -822,10 +822,24 @@ dblfault_handler(struct trapframe *frame)
 	if (dtrace_doubletrap_func != NULL)
 		(*dtrace_doubletrap_func)();
 #endif
-	printf("\nFatal double fault\n");
-	printf("rip = 0x%lx\n", frame->tf_rip);
-	printf("rsp = 0x%lx\n", frame->tf_rsp);
-	printf("rbp = 0x%lx\n", frame->tf_rbp);
+	printf("\nFatal double fault\n"
+	    "rip %#lx rsp %#lx rbp %#lx\n"
+	    "rax %#lx rdx %#lx rbx %#lx\n"
+	    "rcx %#lx rsi %#lx rdi %#lx\n"
+	    "r8 %#lx r9 %#lx r10 %#lx\n"
+	    "r11 %#lx r12 %#lx r13 %#lx\n"
+	    "r14 %#lx r15 %#lx rflags %#lx\n"
+	    "cs %#lx ss %#lx ds %#hx es %#hx fs %#hx gs %#hx\n"
+	    "fsbase %#lx gsbase %#lx kgsbase %#lx\n",
+	    frame->tf_rip, frame->tf_rsp, frame->tf_rbp,
+	    frame->tf_rax, frame->tf_rdx, frame->tf_rbx,
+	    frame->tf_rcx, frame->tf_rdi, frame->tf_rsi,
+	    frame->tf_r8, frame->tf_r9, frame->tf_r10,
+	    frame->tf_r11, frame->tf_r12, frame->tf_r13,
+	    frame->tf_r14, frame->tf_r15, frame->tf_rflags,
+	    frame->tf_cs, frame->tf_ss, frame->tf_ds, frame->tf_es,
+	    frame->tf_fs, frame->tf_gs,
+	    rdmsr(MSR_FSBASE), rdmsr(MSR_GSBASE), rdmsr(MSR_KGSBASE));
 #ifdef SMP
 	/* two separate prints in case of a trap on an unmapped page */
 	printf("cpuid = %d; ", PCPU_GET(cpuid));
