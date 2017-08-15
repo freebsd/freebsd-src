@@ -1540,15 +1540,32 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 vm_page_t
 vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 {
-	vm_page_t m, mpred;
+
+	return (vm_page_alloc_after(object, pindex, req, object != NULL ?
+	    vm_radix_lookup_le(&object->rtree, pindex) : NULL));
+}
+
+/*
+ * Allocate a page in the specified object with the given page index.  To
+ * optimize insertion of the page into the object, the caller must also specifiy
+ * the resident page in the object with largest index smaller than the given
+ * page index, or NULL if no such page exists.
+ */
+vm_page_t
+vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex, int req,
+    vm_page_t mpred)
+{
+	vm_page_t m;
 	int flags, req_class;
 
-	mpred = NULL;	/* XXX: pacify gcc */
 	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0) &&
 	    (object != NULL || (req & VM_ALLOC_SBUSY) == 0) &&
 	    ((req & (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)) !=
 	    (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)),
-	    ("vm_page_alloc: inconsistent object(%p)/req(%x)", object, req));
+	    ("inconsistent object(%p)/req(%x)", object, req));
+	KASSERT(mpred == NULL || mpred->pindex < pindex,
+	    ("mpred %p doesn't precede pindex 0x%jx", mpred,
+	    (uintmax_t)pindex));
 	if (object != NULL)
 		VM_OBJECT_ASSERT_WLOCKED(object);
 
@@ -1559,12 +1576,6 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	 */
 	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
 		req_class = VM_ALLOC_SYSTEM;
-
-	if (object != NULL) {
-		mpred = vm_radix_lookup_le(&object->rtree, pindex);
-		KASSERT(mpred == NULL || mpred->pindex != pindex,
-		   ("vm_page_alloc: pindex already allocated"));
-	}
 
 	/*
 	 * Allocate a page if the number of free pages exceeds the minimum
@@ -1612,7 +1623,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	/*
 	 *  At this point we had better have found a good page.
 	 */
-	KASSERT(m != NULL, ("vm_page_alloc: missing page"));
+	KASSERT(m != NULL, ("missing page"));
 	vm_phys_freecnt_adj(m, -1);
 	mtx_unlock(&vm_page_queue_free_mtx);
 	vm_page_alloc_check(m);
@@ -3185,7 +3196,7 @@ int
 vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
     vm_page_t *ma, int count)
 {
-	vm_page_t m;
+	vm_page_t m, mpred;
 	int i;
 	bool sleep;
 
@@ -3202,7 +3213,12 @@ vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
 		return (0);
 	i = 0;
 retrylookup:
-	m = vm_page_lookup(object, pindex + i);
+	m = vm_radix_lookup_le(&object->rtree, pindex + i);
+	if (m == NULL || m->pindex != pindex + i) {
+		mpred = m;
+		m = NULL;
+	} else
+		mpred = TAILQ_PREV(m, pglist, listq);
 	for (; i < count; i++) {
 		if (m != NULL) {
 			sleep = (allocflags & VM_ALLOC_IGN_SBUSY) != 0 ?
@@ -3234,8 +3250,9 @@ retrylookup:
 			if ((allocflags & VM_ALLOC_SBUSY) != 0)
 				vm_page_sbusy(m);
 		} else {
-			m = vm_page_alloc(object, pindex + i, (allocflags &
-			    ~VM_ALLOC_IGN_SBUSY) | VM_ALLOC_COUNT(count - i));
+			m = vm_page_alloc_after(object, pindex + i,
+			    (allocflags & ~VM_ALLOC_IGN_SBUSY) |
+			    VM_ALLOC_COUNT(count - i), mpred);
 			if (m == NULL) {
 				if ((allocflags & VM_ALLOC_NOWAIT) != 0)
 					break;
@@ -3250,7 +3267,7 @@ retrylookup:
 				pmap_zero_page(m);
 			m->valid = VM_PAGE_BITS_ALL;
 		}
-		ma[i] = m;
+		ma[i] = mpred = m;
 		m = vm_page_next(m);
 	}
 	return (i);
