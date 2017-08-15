@@ -11,9 +11,6 @@ LDADD=	-lkadm5srv -lhdb -lkrb5 -lhx509 -lroken ${LIBVERS} \
 	-lasn1 -lcrypto -lcrypt -lcom_err ${LDAPLDADD}
 LDFLAGS=${LDAPLDFLAGS}
 
-foo::
-	echo ${LIBHX509}
-
 .include <bsd.prog.mk>
 
 .PATH: ${KRB5DIR}/lib/kadm5
