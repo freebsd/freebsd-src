@@ -92,7 +92,7 @@ _CHERI_COMMON_FLAGS+= -Wno-deprecated-declarations
 .if ${WANT_CHERI} == "pure" || ${WANT_CHERI} == "sandbox"
 OBJCOPY:=	objcopy
 MIPS_ABI=	purecap
-_CHERI_COMMON_FLAGS+=	-mxgot -fpic
+_CHERI_COMMON_FLAGS+=	-fpic
 LIBDIR:=	/usr/libcheri
 ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}/worldcheri${SRCTOP}
 CFLAGS+=	${CHERI_OPTIMIZATION_FLAGS:U-O2} -ftls-model=local-exec
