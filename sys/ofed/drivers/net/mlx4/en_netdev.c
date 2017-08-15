@@ -2682,6 +2682,8 @@ static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_chksum_offload",
 	    CTLFLAG_RD, &priv->port_stats.tx_chksum_offload,
 	    "TX checksum offloads");
+	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "defrag_attempts", CTLFLAG_RD,
+	    &priv->port_stats.defrag_attempts, "Oversized chains defragged");
 
 	/* Could strdup the names and add in a loop.  This is simpler. */
 	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_bytes", CTLFLAG_RD,
@@ -2775,6 +2777,10 @@ static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 		    CTLFLAG_RD, &tx_ring->packets, "TX packets");
 		SYSCTL_ADD_ULONG(ctx, ring_list, OID_AUTO, "bytes",
 		    CTLFLAG_RD, &tx_ring->bytes, "TX bytes");
+		SYSCTL_ADD_ULONG(ctx, ring_list, OID_AUTO, "tso_packets",
+		    CTLFLAG_RD, &tx_ring->tso_packets, "TSO packets");
+		SYSCTL_ADD_ULONG(ctx, ring_list, OID_AUTO, "defrag_attempts",
+		    CTLFLAG_RD, &tx_ring->defrag_attempts, "Oversized chains defragged");
 	}
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
