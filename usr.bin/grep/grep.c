@@ -361,6 +361,9 @@ main(int argc, char *argv[])
 	} else if (pn[0] == 'l' && pn[1] == 'z') {
 		filebehave = FILE_LZMA;
 		pn += 2;
+	} else if (pn[0] == 'r') {
+		dirbehave = DIR_RECURSE;
+		Hflag = true;
 	} else if (pn[0] == 'z') {
 		filebehave = FILE_GZIP;
 		pn += 1;
