@@ -2,6 +2,9 @@
 
 .PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common ${.CURDIR}/../../common
 
+.include <src.opts.mk>
+MK_COVERAGE=	no
+
 FILES=		gptboot
 MAN=		gptboot.8
 

@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 .include <bsd.own.mk>
+MK_COVERAGE=	no
 
 .PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../gptboot \
 		${.CURDIR}/../zfsboot ${.CURDIR}/../common \
