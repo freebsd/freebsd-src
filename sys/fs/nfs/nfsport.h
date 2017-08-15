@@ -719,6 +719,9 @@ void nfsrvd_rcv(struct socket *, void *, int);
 #define	NFSDSRMLOCKMUTEXPTR	(&nfsrv_dsrmlock_mtx)
 #define	NFSDSRMLOCK()		mtx_lock(&nfsrv_dsrmlock_mtx)
 #define	NFSDSRMUNLOCK()		mtx_unlock(&nfsrv_dsrmlock_mtx)
+#define	NFSDWRPCLOCKMUTEXPTR	(&nfsrv_dwrpclock_mtx)
+#define	NFSDWRPCLOCK()		mtx_lock(&nfsrv_dwrpclock_mtx)
+#define	NFSDWRPCUNLOCK()	mtx_unlock(&nfsrv_dwrpclock_mtx)
 
 /*
  * Use these macros to initialize/free a mutex.
