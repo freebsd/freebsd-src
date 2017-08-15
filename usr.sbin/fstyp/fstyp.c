@@ -66,7 +66,7 @@ static struct {
 #ifdef HAVE_ZFS
 	{ "zfs", &fstyp_zfs, true },
 #endif
-	{ NULL, NULL, NULL }
+	{ NULL, NULL, false }
 };
 
 void *
