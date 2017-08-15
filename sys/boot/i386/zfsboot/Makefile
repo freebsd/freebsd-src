@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+MK_COVERAGE=	no
+
 .PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common \
 		${.CURDIR}/../../common ${.CURDIR}/../../../crypto/skein
 

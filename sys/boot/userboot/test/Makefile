@@ -4,6 +4,7 @@
 MAN=
 
 .include <bsd.own.mk>
+MK_COVERAGE=	no
 MK_SSP=		no
 
 PROG=		test
