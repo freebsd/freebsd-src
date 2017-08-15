@@ -287,7 +287,7 @@ outsizes(FILE *cfile)
 
 	fprintf(cfile, "static const short nodesize[%d] = {\n", ntypes);
 	for (i = 0 ; i < ntypes ; i++) {
-		fprintf(cfile, "      ALIGN(sizeof (struct %s)),\n", nodestr[i]->tag);
+		fprintf(cfile, "      (size_t)ALIGN(sizeof (struct %s)),\n", nodestr[i]->tag);
 	}
 	fprintf(cfile, "};\n");
 }
