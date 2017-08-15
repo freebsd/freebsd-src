@@ -260,6 +260,9 @@
 
       <para revision="321964"><application>bmake</application> has
 	been updated to version 20170720.</para>
+
+      <para revision="322244"><filename>pci_vendors</filename> has
+	been updated to version 2017.07.27.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
