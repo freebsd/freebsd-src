@@ -812,8 +812,8 @@ p4_config_pmc(int cpu, int ri, struct pmc *pm)
 	mtx_lock_spin(&pc->pc_mtx);
 	cfgflags = P4_PCPU_GET_CFGFLAGS(pc,ri);
 
-	KASSERT(cfgflags >= 0 || cfgflags <= 3,
-	    ("[p4,%d] illegal cfgflags cfg=%d on cpu=%d ri=%d", __LINE__,
+	KASSERT((cfgflags & ~0x3) == 0,
+	    ("[p4,%d] illegal cfgflags cfg=%#x on cpu=%d ri=%d", __LINE__,
 		cfgflags, cpu, ri));
 
 	KASSERT(cfgflags == 0 || phw->phw_pmc,
@@ -838,8 +838,8 @@ p4_config_pmc(int cpu, int ri, struct pmc *pm)
 			phw->phw_pmc = NULL;
 	}
 
-	KASSERT(cfgflags >= 0 || cfgflags <= 3,
-	    ("[p4,%d] illegal runcount cfg=%d on cpu=%d ri=%d", __LINE__,
+	KASSERT((cfgflags & ~0x3) == 0,
+	    ("[p4,%d] illegal runcount cfg=%#x on cpu=%d ri=%d", __LINE__,
 		cfgflags, cpu, ri));
 
 	P4_PCPU_SET_CFGFLAGS(pc,ri,cfgflags);
