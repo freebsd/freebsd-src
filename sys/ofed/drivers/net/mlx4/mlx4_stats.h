@@ -126,6 +126,7 @@ struct mlx4_en_port_stats {
 	unsigned long rx_chksum_good;
 	unsigned long rx_chksum_none;
 	unsigned long tx_chksum_offload;
+	unsigned long defrag_attempts;
 };
 
 struct mlx4_en_perf_stats {
