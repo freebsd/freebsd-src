@@ -1,4 +1,4 @@
-/*	$Id: roff.h,v 1.52 2017/06/07 23:29:49 schwarze Exp $	*/
+/*	$Id: roff.h,v 1.58 2017/07/08 14:51:05 schwarze Exp $	*/
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -24,12 +24,6 @@ enum	roff_macroset {
 	MACROSET_NONE = 0,
 	MACROSET_MDOC,
 	MACROSET_MAN
-};
-
-enum	mdoc_os {
-	MDOC_OS_OTHER = 0,
-	MDOC_OS_NETBSD,
-	MDOC_OS_OPENBSD
 };
 
 enum	roff_sec {
@@ -77,6 +71,8 @@ enum	roff_tok {
 	ROFF_ft,
 	ROFF_ll,
 	ROFF_mc,
+	ROFF_po,
+	ROFF_rj,
 	ROFF_sp,
 	ROFF_ta,
 	ROFF_ti,
@@ -244,7 +240,6 @@ enum	roff_tok {
 	ROFF_pm,
 	ROFF_pn,
 	ROFF_pnr,
-	ROFF_po,
 	ROFF_ps,
 	ROFF_psbb,
 	ROFF_pshape,
@@ -257,7 +252,6 @@ enum	roff_tok {
 	ROFF_return,
 	ROFF_rfschar,
 	ROFF_rhang,
-	ROFF_rj,
 	ROFF_rm,
 	ROFF_rn,
 	ROFF_rnn,
@@ -473,6 +467,8 @@ enum	roff_tok {
 	MAN_EE,
 	MAN_UR,
 	MAN_UE,
+	MAN_MT,
+	MAN_ME,
 	MAN_MAX
 };
 
@@ -503,7 +499,7 @@ struct	roff_node {
 	union mdoc_data	 *norm;    /* Normalized arguments. */
 	char		 *string;  /* TEXT */
 	const struct tbl_span *span; /* TBL */
-	const struct eqn *eqn;	   /* EQN */
+	struct eqn_box	 *eqn;     /* EQN */
 	int		  line;    /* Input file line number. */
 	int		  pos;     /* Input file column number. */
 	int		  flags;
@@ -534,7 +530,8 @@ struct	roff_meta {
 	char		 *name;    /* Leading manual name. */
 	char		 *date;    /* Normalized date. */
 	int		  hasbody; /* Document is not empty. */
-	enum mdoc_os	  os_e;    /* Operating system. */
+	int		  rcsids;  /* Bits indexed by enum mandoc_os. */
+	enum mandoc_os	  os_e;    /* Operating system. */
 };
 
 struct	roff_man {
@@ -543,7 +540,7 @@ struct	roff_man {
 	struct roff	 *roff;    /* Roff parser state data. */
 	struct ohash	 *mdocmac; /* Mdoc macro lookup table. */
 	struct ohash	 *manmac;  /* Man macro lookup table. */
-	const char	 *defos;   /* Default operating system. */
+	const char	 *os_s;    /* Default operating system. */
 	struct roff_node *first;   /* The first node parsed. */
 	struct roff_node *last;    /* The last node parsed. */
 	struct roff_node *last_es; /* The most recent Es node. */

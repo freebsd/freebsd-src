@@ -1169,9 +1169,17 @@ intr_bind_irq(device_t dev, struct resource *res, int cpu)
 u_int
 intr_irq_next_cpu(u_int last_cpu, cpuset_t *cpumask)
 {
+	u_int cpu;
 
-	if (!irq_assign_cpu || mp_ncpus == 1)
-		return (PCPU_GET(cpuid));
+	KASSERT(!CPU_EMPTY(cpumask), ("%s: Empty CPU mask", __func__));
+	if (!irq_assign_cpu || mp_ncpus == 1) {
+		cpu = PCPU_GET(cpuid);
+
+		if (CPU_ISSET(cpu, cpumask))
+			return (curcpu);
+
+		return (CPU_FFS(cpumask) - 1);
+	}
 
 	do {
 		last_cpu++;

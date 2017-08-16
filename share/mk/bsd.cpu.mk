@@ -111,10 +111,9 @@ _CPUCFLAGS = -march=armv5te -D__XSCALE__
 .  elif ${CPUTYPE:M*soft*} != ""
 _CPUCFLAGS = -mfloat-abi=softfp
 .  elif ${CPUTYPE} == "armv6"
-# Not sure we still need ARM_ARCH_6=1 here.
-_CPUCFLAGS = -march=${CPUTYPE} -DARM_ARCH_6=1
+_CPUCFLAGS = -march=${CPUTYPE}
 .  elif ${CPUTYPE} == "cortexa"
-_CPUCFLAGS = -march=armv7 -DARM_ARCH_6=1 -mfpu=vfp
+_CPUCFLAGS = -march=armv7 -mfpu=vfp
 .  elif ${CPUTYPE:Marmv[4567]*} != ""
 # Handle all the armvX types that FreeBSD runs:
 #	armv4, armv4t, armv5, armv5te, armv6, armv6t2, armv7, armv7-a, armv7ve
@@ -364,8 +363,11 @@ CFLAGS += -mcpu=8540 -Wa,-me500 -mspe=yes -mabi=spe -mfloat-gprs=double
 
 .if ${MACHINE_CPUARCH} == "riscv"
 .if ${TARGET_ARCH:Mriscv*sf}
-CFLAGS += -mno-float
-ACFLAGS += -mno-float
+CFLAGS += -march=rv64imac -mabi=lp64
+ACFLAGS += -march=rv64imac -mabi=lp64
+.else
+CFLAGS += -march=rv64imafdc -mabi=lp64
+ACFLAGS += -march=rv64imafdc -mabi=lp64
 .endif
 .endif
 
@@ -396,7 +398,7 @@ CFLAGS_NO_SIMD= -mno-mmx -mno-sse
 .endif
 CFLAGS_NO_SIMD += ${CFLAGS_NO_SIMD.${COMPILER_TYPE}}
 
-# Add in any architecture-specific CFLAGS.  
+# Add in any architecture-specific CFLAGS.
 # These come from make.conf or the command line or the environment.
 CFLAGS += ${CFLAGS.${MACHINE_ARCH}}
 CXXFLAGS += ${CXXFLAGS.${MACHINE_ARCH}}

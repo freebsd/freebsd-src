@@ -139,11 +139,11 @@ device		twl_clks		# twl external clocks
 
 # i2c RTCs
 device		ds1307			# Dallas DS1307 RTC and compatible
-device		ds133x			# Dallas DS1337, DS1338 and DS1339 RTC
+device		ds13rtc			# All Dallas/Maxim DS13xx RTCs
 device		ds1672			# Dallas DS1672 RTC
 device		ds3231			# Dallas DS3231 RTC + temperature
 device		nxprtc			# NXP RTCs: PCA/PFC212x PCA/PCF85xx
-device		s35390a			# Seiko Instruments S-35390A RTC
+device		s35390a			# Seiko s3539x RTCs
 
 # GPIO
 device		gpio

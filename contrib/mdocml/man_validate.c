@@ -47,11 +47,12 @@ static	void	  check_text(CHKARGS);
 
 static	void	  post_AT(CHKARGS);
 static	void	  post_IP(CHKARGS);
-static	void	  post_vs(CHKARGS);
 static	void	  post_OP(CHKARGS);
 static	void	  post_TH(CHKARGS);
 static	void	  post_UC(CHKARGS);
 static	void	  post_UR(CHKARGS);
+static	void	  post_in(CHKARGS);
+static	void	  post_vs(CHKARGS);
 
 static	const v_check __man_valids[MAN_MAX - MAN_TH] = {
 	post_TH,    /* TH */
@@ -82,12 +83,14 @@ static	const v_check __man_valids[MAN_MAX - MAN_TH] = {
 	post_UC,    /* UC */
 	NULL,       /* PD */
 	post_AT,    /* AT */
-	NULL,       /* in */
+	post_in,    /* in */
 	post_OP,    /* OP */
 	NULL,       /* EX */
 	NULL,       /* EE */
 	post_UR,    /* UR */
 	NULL,       /* UE */
+	post_UR,    /* MT */
+	NULL,       /* ME */
 };
 static	const v_check *man_valids = __man_valids - MAN_TH;
 
@@ -167,8 +170,14 @@ check_root(CHKARGS)
 		man->meta.title = mandoc_strdup("");
 		man->meta.msec = mandoc_strdup("");
 		man->meta.date = man->quick ? mandoc_strdup("") :
-		    mandoc_normdate(man->parse, NULL, n->line, n->pos);
+		    mandoc_normdate(man, NULL, n->line, n->pos);
 	}
+
+	if (man->meta.os_e &&
+	    (man->meta.rcsids & (1 << man->meta.os_e)) == 0)
+		mandoc_msg(MANDOCERR_RCS_MISSING, man->parse, 0, 0,
+		    man->meta.os_e == MANDOC_OS_OPENBSD ?
+		    "(OpenBSD)" : "(NetBSD)");
 }
 
 static void
@@ -202,10 +211,9 @@ post_OP(CHKARGS)
 static void
 post_UR(CHKARGS)
 {
-
 	if (n->type == ROFFT_HEAD && n->child == NULL)
-		mandoc_vmsg(MANDOCERR_UR_NOHEAD, man->parse,
-		    n->line, n->pos, "UR");
+		mandoc_msg(MANDOCERR_UR_NOHEAD, man->parse,
+		    n->line, n->pos, roff_name[n->tok]);
 	check_part(man, n);
 }
 
@@ -323,8 +331,7 @@ post_TH(CHKARGS)
 	if (n && n->string && '\0' != n->string[0]) {
 		man->meta.date = man->quick ?
 		    mandoc_strdup(n->string) :
-		    mandoc_normdate(man->parse, n->string,
-			n->line, n->pos);
+		    mandoc_normdate(man, n->string, n->line, n->pos);
 	} else {
 		man->meta.date = mandoc_strdup("");
 		mandoc_msg(MANDOCERR_DATE_MISSING, man->parse,
@@ -336,8 +343,14 @@ post_TH(CHKARGS)
 
 	if (n && (n = n->next))
 		man->meta.os = mandoc_strdup(n->string);
-	else if (man->defos != NULL)
-		man->meta.os = mandoc_strdup(man->defos);
+	else if (man->os_s != NULL)
+		man->meta.os = mandoc_strdup(man->os_s);
+	if (man->meta.os_e == MANDOC_OS_OTHER && man->meta.os != NULL) {
+		if (strstr(man->meta.os, "OpenBSD") != NULL)
+			man->meta.os_e = MANDOC_OS_OPENBSD;
+		else if (strstr(man->meta.os, "NetBSD") != NULL)
+			man->meta.os_e = MANDOC_OS_NETBSD;
+	}
 
 	/* TITLE MSEC DATE OS ->VOL<- */
 	/* If missing, use the default VOL name for MSEC. */
@@ -433,6 +446,22 @@ post_AT(CHKARGS)
 
 	free(man->meta.os);
 	man->meta.os = mandoc_strdup(p);
+}
+
+static void
+post_in(CHKARGS)
+{
+	char	*s;
+
+	if (n->parent->tok != MAN_TP ||
+	    n->parent->type != ROFFT_HEAD ||
+	    n->child == NULL ||
+	    *n->child->string == '+' ||
+	    *n->child->string == '-')
+		return;
+	mandoc_asprintf(&s, "+%s", n->child->string);
+	free(n->child->string);
+	n->child->string = s;
 }
 
 static void

@@ -1403,7 +1403,8 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 
 		while (tlen > 0) {
 			/* length check */
-			if (xisr->sadb_x_ipsecrequest_len < sizeof(*xisr)) {
+			if (xisr->sadb_x_ipsecrequest_len < sizeof(*xisr) ||
+			    xisr->sadb_x_ipsecrequest_len > tlen) {
 				ipseclog((LOG_DEBUG, "%s: invalid ipsecrequest "
 					"length.\n", __func__));
 				key_freesp(&newsp);
@@ -1517,10 +1518,12 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 			if (xisr->sadb_x_ipsecrequest_len > sizeof(*xisr)) {
 				struct sockaddr *paddr;
 
+				len = tlen - sizeof(*xisr);
 				paddr = (struct sockaddr *)(xisr + 1);
 				/* validity check */
-				if (paddr->sa_len
-				    > sizeof(isr->saidx.src)) {
+				if (len < sizeof(struct sockaddr) ||
+				    len < 2 * paddr->sa_len ||
+				    paddr->sa_len > sizeof(isr->saidx.src)) {
 					ipseclog((LOG_DEBUG, "%s: invalid "
 						"request address length.\n",
 						__func__));
@@ -1528,13 +1531,26 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 					*error = EINVAL;
 					return NULL;
 				}
+				/*
+				 * Request length should be enough to keep
+				 * source and destination addresses.
+				 */
+				if (xisr->sadb_x_ipsecrequest_len <
+				    sizeof(*xisr) + 2 * paddr->sa_len) {
+					ipseclog((LOG_DEBUG, "%s: invalid "
+					    "ipsecrequest length.\n",
+					    __func__));
+					key_freesp(&newsp);
+					*error = EINVAL;
+					return (NULL);
+				}
 				bcopy(paddr, &isr->saidx.src, paddr->sa_len);
 				paddr = (struct sockaddr *)((caddr_t)paddr +
 				    paddr->sa_len);
 
 				/* validity check */
-				if (paddr->sa_len
-				    > sizeof(isr->saidx.dst)) {
+				if (paddr->sa_len !=
+				    isr->saidx.src.sa.sa_len) {
 					ipseclog((LOG_DEBUG, "%s: invalid "
 						"request address length.\n",
 						__func__));

@@ -1,4 +1,4 @@
-.\"	$Id: mandoc.1,v 1.196 2017/06/08 00:23:30 schwarze Exp $
+.\"	$Id: mandoc.1,v 1.217 2017/07/20 15:26:41 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2012, 2014-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: June 8 2017 $
+.Dd $Mdocdate: July 20 2017 $
 .Dt MANDOC 1
 .Os
 .Sh NAME
@@ -75,11 +75,6 @@ and for the
 .Xr man 7
 .Ic \&TH
 macro.
-This can also be used to perform style checks according to the
-conventions of one operating system while running on a different
-operating system; see
-.Sx Style messages
-for details.
 .It Fl K Ar encoding
 Specify the input encoding.
 The supported
@@ -151,14 +146,33 @@ to be reported on the standard error output and to affect the exit status.
 The
 .Ar level
 can be
+.Cm base ,
 .Cm style ,
 .Cm warning ,
 .Cm error ,
 or
-.Cm unsupp ;
+.Cm unsupp .
+The
+.Cm base
+level automatically derives the operating system from the contents of the
+.Ic \&Os
+macro, from the
+.Fl Ios
+command line option, or from the
+.Xr uname 3
+return value.
+The levels
+.Cm openbsd
+and
+.Cm netbsd
+are variants of
+.Cm base
+that bypass autodetection and request validation of base system
+conventions for a particular operating system.
+The level
 .Cm all
 is an alias for
-.Cm style .
+.Cm base .
 By default,
 .Nm
 is silent.
@@ -224,7 +238,9 @@ See
 .It Fl T Cm lint
 Parse only: produce no output.
 Implies
-.Fl W Cm style .
+.Fl W Cm all
+and redirects parser messages, which usually appear
+on standard error output, to standard output.
 .It Fl T Cm locale
 Encode output using the current locale.
 This is the default.
@@ -301,8 +317,7 @@ Increasing this is not recommended; it may result in degraded formatting,
 for example overfull lines or ugly line breaks.
 .It Cm width Ns = Ns Ar width
 The output width is set to
-.Ar width ,
-which will normalise to \(>=58.
+.Ar width .
 .El
 .Ss HTML Output
 Output produced by
@@ -597,19 +612,23 @@ option:
 .Pp
 .Bl -tag -width Ds -compact
 .It 0
-No style suggestions, warnings or errors occurred, or those that
-did were ignored because they were lower than the requested
+No base system convention violations, style suggestions, warnings,
+or errors occurred, or those that did were ignored because they
+were lower than the requested
 .Ar level .
 .It 1
-At least one style suggestion occurred, but no warning or error, and
+At least one base system convention violation or style suggestion
+occurred, but no warning or error, and
+.Fl W Cm base
+or
 .Fl W Cm style
 was specified.
 .It 2
 At least one warning occurred, but no error, and
 .Fl W Cm warning
-or
-.Fl W Cm style
-was specified.
+or a lower
+.Ar level
+was requested.
 .It 3
 At least one parsing error occurred,
 but no unsupported feature was encountered, and
@@ -637,7 +656,7 @@ to exit at once, possibly in the middle of parsing or formatting a file.
 Note that selecting
 .Fl T Cm lint
 output mode implies
-.Fl W Cm style .
+.Fl W Cm all .
 .Sh EXAMPLES
 To page manuals to the terminal:
 .Pp
@@ -670,12 +689,19 @@ parser:
 Messages displayed by
 .Nm
 follow this format:
-.Pp
-.D1 Nm Ns : Ar file : Ns Ar line : Ns Ar column : level : message : macro args
+.Bd -ragged -offset indent
+.Nm :
+.Ar file : Ns Ar line : Ns Ar column : level : message : macro args
+.Pq Ar os
+.Ed
 .Pp
 Line and column numbers start at 1.
 Both are omitted for messages referring to an input file as a whole.
 Macro names and arguments are omitted where meaningless.
+The
+.Ar os
+operating system specifier is omitted for messages that are relevant
+for all operating systems.
 Fatal messages about invalid command line arguments
 or operating system errors, for example when memory is exhausted,
 may also omit the
@@ -695,32 +721,13 @@ so using GNU troff instead of
 .Nm
 to process the file may be preferable.
 .It Cm error
-An input file contains invalid syntax that cannot be safely interpreted.
-By discarding part of the input or inserting missing tokens,
-the parser is able to continue, and the error does not prevent
-generation of formatted output, but typically, preparing that
-output involves information loss, broken document structure
-or unintended formatting, no matter whether
-.Nm
-or GNU troff is used.
-In many cases, the output of
-.Nm
-and GNU troff is identical, but in some,
-.Nm
-is more resilient than GNU troff with respect to malformed input.
-.Pp
-Non-existent or unreadable input files are also reported on the
-.Cm error
-level.
-In that case, the parser cannot even be started and no output
-is produced from those input files.
+Indicates a risk of information loss or severe misformatting,
+in most cases caused by serious syntax errors.
 .It Cm warning
-An input file uses obsolete, discouraged or non-portable syntax.
-All the same, the meaning of the input is unambiguous and a correct
-rendering can be produced.
-Documents causing warnings may render poorly when using other
-formatting tools instead of
-.Nm .
+Indicates a risk that the information shown or its formatting
+may mismatch the author's intent in minor ways.
+Additionally, syntax errors are classified at least as warnings,
+even if they do not usually cause misformatting.
 .It Cm style
 An input file uses dubious or discouraged style.
 This is not a complaint about the syntax, and probably neither
@@ -733,9 +740,21 @@ so it may occasionally issue bogus suggestions.
 Please use your good judgement to decide whether any particular
 .Cm style
 suggestion really justifies a change to the input file.
+.It Cm base
+A convertion used in the base system of a specific operating system
+is not adhered to.
+These are not markup mistakes, and neither the quality of formatting
+nor portability are in danger.
+Messages of the
+.Cm base
+level are printed with the more intuitive
+.Cm style
+.Ar level
+tag.
 .El
 .Pp
 Messages of the
+.Cm base ,
 .Cm style ,
 .Cm warning ,
 .Cm error ,
@@ -747,9 +766,15 @@ are hidden unless their level, or a lower level, is requested using a
 option or
 .Fl T Cm lint
 output mode.
-.Ss Style messages
-As indicated below, some style checks are only performed if a
-specific operating system name occurs in the arguments of the
+.Pp
+As indicated below, all
+.Cm base
+and some
+.Cm style
+checks are only performed if a specific operating system name occurs
+in the arguments of the
+.Fl W
+command line option, of the
 .Ic \&Os
 macro, of the
 .Fl Ios
@@ -757,7 +782,98 @@ command line option, or, if neither are present, in the return value
 of the
 .Xr uname 3
 function.
+.Ss Conventions for base system manuals
 .Bl -ohang
+.It Sy "Mdocdate found"
+.Pq mdoc , Nx
+The
+.Ic \&Dd
+macro uses CVS
+.Ic Mdocdate
+keyword substitution, which is not supported by the
+.Nx
+base system.
+Consider using the conventional
+.Dq "Month dd, yyyy"
+format instead.
+.It Sy "Mdocdate missing"
+.Pq mdoc , Ox
+The
+.Ic \&Dd
+macro does not use CVS
+.Ic Mdocdate
+keyword substitution, but using it is conventionally expected in the
+.Ox
+base system.
+.It Sy "unknown architecture"
+.Pq mdoc , Ox , Nx
+The third argument of the
+.Ic \&Dt
+macro does not match any of the architectures this operating system
+is running on.
+.It Sy "operating system explicitly specified"
+.Pq mdoc , Ox , Nx
+The
+.Ic \&Os
+macro has an argument.
+In the base system, it is conventionally left blank.
+.It Sy "RCS id missing"
+.Pq Ox , Nx
+The manual page lacks the comment line with the RCS identifier
+generated by CVS
+.Ic OpenBSD
+or
+.Ic NetBSD
+keyword substitution as conventionally used in these operating systems.
+.It Sy "referenced manual not found"
+.Pq mdoc
+An
+.Ic \&Xr
+macro references a manual page that is not found in the base system.
+The path to look for base system manuals is configurable at compile
+time and defaults to
+.Pa /usr/share/man : /usr/X11R6/man .
+.El
+.Ss Style suggestions
+.Bl -ohang
+.It Sy "legacy man(7) date format"
+.Pq mdoc
+The
+.Ic \&Dd
+macro uses the legacy
+.Xr man 7
+date format
+.Dq yyyy-dd-mm .
+Consider using the conventional
+.Xr mdoc 7
+date format
+.Dq "Month dd, yyyy"
+instead.
+.It Sy "lower case character in document title"
+.Pq mdoc , man
+The title is still used as given in the
+.Ic \&Dt
+or
+.Ic \&TH
+macro.
+.It Sy "duplicate RCS id"
+A single manual page contains two copies of the RCS identifier for
+the same operating system.
+Consider deleting the later instance and moving the first one up
+to the top of the page.
+.It Sy "typo in section name"
+.Pq mdoc
+Fuzzy string matching revealed that the argument of an
+.Ic \&Sh
+macro is similar, but not identical to a standard section name.
+.It Sy "unterminated quoted argument"
+.Pq roff
+Macro arguments can be enclosed in double quote characters
+such that space characters and macro names contained in the quoted
+argument need not be escaped.
+The closing quote of the last argument of a macro can be omitted.
+However, omitting it is not recommended because it makes the code
+harder to read.
 .It Sy "useless macro"
 .Pq mdoc
 A
@@ -793,11 +909,55 @@ list contains two consecutive
 entries describing the same
 .Ic \&Er
 number.
-.It Sy "description line ends with a full stop"
+.It Sy "trailing delimiter"
 .Pq mdoc
-Do not use punctuation at the end of an
-.Ic \&Nd
-block.
+The last argument of an
+.Ic \&Ex , \&Fo , \&Nd , \&Nm , \&Os , \&Sh , \&Ss , \&St ,
+or
+.Ic \&Sx
+macro ends with a trailing delimiter.
+This is usually bad style and often indicates typos.
+Most likely, the delimiter can be removed.
+.It Sy "no blank before trailing delimiter"
+.Pq mdoc
+The last argument of a macro that supports trailing delimiter
+arguments is longer than one byte and ends with a trailing delimiter.
+Consider inserting a blank such that the delimiter becomes a separate
+argument, thus moving it out of the scope of the macro.
+.It Sy "fill mode already enabled, skipping"
+.Pq man
+A
+.Ic \&fi
+request occurs even though the document is still in fill mode,
+or already switched back to fill mode.
+It has no effect.
+.It Sy "fill mode already disabled, skipping"
+.Pq man
+An
+.Ic \&nf
+request occurs even though the document already switched to no-fill mode
+and did not switch back to fill mode yet.
+It has no effect.
+.It Sy "function name without markup"
+.Pq mdoc
+A word followed by an empty pair of parentheses occurs on a text line.
+Consider using an
+.Ic \&Fn
+or
+.Ic \&Xr
+macro.
+.It Sy "whitespace at end of input line"
+.Pq mdoc , man , roff
+Whitespace at the end of input lines is almost never semantically
+significant \(em but in the odd case where it might be, it is
+extremely confusing when reviewing and maintaining documents.
+.It Sy "bad comment style"
+.Pq roff
+Comment lines start with a dot, a backslash, and a double-quote character.
+The
+.Nm
+utility treats the line as a comment line even without the backslash,
+but leaving out the backslash might not be portable.
 .El
 .Ss Warnings related to the document prologue
 .Bl -ohang
@@ -813,13 +973,6 @@ macro before the first non-prologue macro.
 There is no
 .Ic \&TH
 macro, or it has no arguments.
-.It Sy "lower case character in document title"
-.Pq mdoc , man
-The title is still used as given in the
-.Ic \&Dt
-or
-.Ic \&TH
-macro.
 .It Sy "missing manual section, using \(dq\(dq"
 .Pq mdoc , man
 A
@@ -855,13 +1008,17 @@ The date given in a
 or
 .Ic \&TH
 macro does not follow the conventional format.
+.It Sy "date in the future, using it anyway"
+.Pq mdoc , man
+The date given in a
+.Ic \&Dd
+or
+.Ic \&TH
+macro is more than a day ahead of the current system
+.Xr time 3 .
 .It Sy "missing Os macro, using \(dq\(dq"
 .Pq mdoc
 The default or current system is not shown in this case.
-.It Sy "duplicate prologue macro"
-.Pq mdoc
-One of the prologue macros occurs more than once.
-The last instance overrides all previous ones.
 .It Sy "late prologue macro"
 .Pq mdoc
 A
@@ -869,17 +1026,6 @@ A
 or
 .Ic \&Os
 macro occurs after some non-prologue macro, but still takes effect.
-.It Sy "skipping late title macro"
-.Pq mdoc
-The
-.Ic \&Dt
-macro appears after the first non-prologue macro.
-Traditional formatters cannot handle this because
-they write the page header before parsing the document body.
-Even though this technical restriction does not apply to
-.Nm ,
-traditional semantics is preserved.
-The late macro is discarded including its arguments.
 .It Sy "prologue macros out of order"
 .Pq mdoc
 The prologue macros are not given in the conventional order
@@ -971,6 +1117,24 @@ The same standard section title occurs more than once.
 .Pq mdoc
 A standard section header occurs in a section of the manual
 where it normally isn't useful.
+.It Sy "cross reference to self"
+.Pq mdoc
+An
+.Ic \&Xr
+macro refers to a name and section matching the section of the present
+manual page and a name mentioned in an
+.Ic \&Nm
+macro in the NAME or SYNOPSIS section, or in an
+.Ic \&Fn
+or
+.Ic \&Fo
+macro in the SYNOPSIS.
+Consider using
+.Ic \&Nm
+or
+.Ic \&Fn
+instead of
+.Ic \&Xr .
 .It Sy "unusual Xr order"
 .Pq mdoc
 In the SEE ALSO section, an
@@ -1057,7 +1221,9 @@ The paragraph macro is moved after the end of the list.
 .Pq mdoc
 An input line begins with an
 .Ic \&Ns
-macro.
+macro, or the next argument after an
+.Ic \&Ns
+macro is an isolated closing delimiter.
 The macro is ignored.
 .It Sy "blocks badly nested"
 .Pq mdoc
@@ -1098,20 +1264,12 @@ list block contains text or macros before the first
 .Ic \&It
 macro.
 The offending children are moved before the beginning of the list.
-.It Sy "fill mode already enabled, skipping"
-.Pq man
-A
-.Ic \&fi
-request occurs even though the document is still in fill mode,
-or already switched back to fill mode.
-It has no effect.
-.It Sy "fill mode already disabled, skipping"
-.Pq man
-An
-.Ic \&nf
-request occurs even though the document already switched to no-fill mode
-and did not switch back to fill mode yet.
-It has no effect.
+.It Sy "first macro on line"
+Inside a
+.Ic \&Bl Fl column
+list, a
+.Ic \&Ta
+macro occurs as the first macro on a line, which is not portable.
 .It Sy "line scope broken"
 .Pq man
 While parsing the next-line scope of the previous macro,
@@ -1165,6 +1323,7 @@ A
 .Ic \&Bl ,
 .Ic \&D1 ,
 .Ic \&Dl ,
+.Ic \&MT ,
 .Ic \&RS ,
 or
 .Ic \&UR
@@ -1242,6 +1401,17 @@ list, an
 .Ic \&It
 block is empty.
 An empty list item is shown.
+.It Sy "missing argument, using next line"
+.Pq mdoc
+An
+.Ic \&It
+macro in a
+.Ic \&Bd Fl column
+list has no arguments.
+While
+.Nm
+uses the text or macros of the following line, if any, for the cell,
+other formatters may misformat the list.
 .It Sy "missing font type, using \efR"
 .Pq mdoc
 A
@@ -1300,6 +1470,8 @@ An empty pair of square brackets is shown.
 .It Sy "missing resource identifier, using \(dq\(dq"
 .Pq man
 The
+.Ic \&MT
+or
 .Ic \&UR
 macro is invoked without any argument.
 An empty pair of angle brackets is shown.
@@ -1311,14 +1483,6 @@ An empty box is inserted.
 .El
 .Ss "Warnings related to bad macro arguments"
 .Bl -ohang
-.It Sy "unterminated quoted argument"
-.Pq roff
-Macro arguments can be enclosed in double quote characters
-such that space characters and macro names contained in the quoted
-argument need not be escaped.
-The closing quote of the last argument of a macro can be omitted.
-However, omitting it is not recommended because it makes the code
-harder to read.
 .It Sy "duplicate argument"
 .Pq mdoc
 A
@@ -1460,22 +1624,10 @@ As an implementation dependent choice, tab characters on text lines
 are passed through to the formatters in any case.
 Given that the text before the tab character will be filled,
 it is hard to predict which tab stop position the tab will advance to.
-.It Sy "whitespace at end of input line"
-.Pq mdoc , man , roff
-Whitespace at the end of input lines is almost never semantically
-significant \(em but in the odd case where it might be, it is
-extremely confusing when reviewing and maintaining documents.
 .It Sy "new sentence, new line"
 .Pq mdoc
 A new sentence starts in the middle of a text line.
 Start it on a new input line to help formatters produce correct spacing.
-.It Sy "bad comment style"
-.Pq roff
-Comment lines start with a dot, a backslash, and a double-quote character.
-The
-.Nm
-utility treats the line as a comment line even without the backslash,
-but leaving out the backslash might not be portable.
 .It Sy "invalid escape sequence"
 .Pq roff
 An escape sequence has an invalid opening argument delimiter, lacks the
@@ -1582,6 +1734,21 @@ and any remaining cells stay empty.
 .El
 .Ss "Errors related to roff, mdoc, and man code"
 .Bl -ohang
+.It Sy "duplicate prologue macro"
+.Pq mdoc
+One of the prologue macros occurs more than once.
+The last instance overrides all previous ones.
+.It Sy "skipping late title macro"
+.Pq mdoc
+The
+.Ic \&Dt
+macro appears after the first non-prologue macro.
+Traditional formatters cannot handle this because
+they write the page header before parsing the document body.
+Even though this technical restriction does not apply to
+.Nm ,
+traditional semantics is preserved.
+The late macro is discarded including its arguments.
 .It Sy "input stack limit exceeded, infinite loop?"
 .Pq roff
 Explicit recursion limits are implemented for the following features,
@@ -1652,7 +1819,7 @@ An
 .Xr mdoc 7
 block closing macro, a
 .Xr man 7
-.Ic \&RE
+.Ic \&ME , \&RE
 or
 .Ic \&UE
 macro, an
@@ -1686,7 +1853,7 @@ At the end of the document, an explicit
 block, a
 .Xr man 7
 next-line scope or
-.Ic \&RS
+.Ic \&MT , \&RS
 or
 .Ic \&UR
 block, an equation, table, or
@@ -1858,6 +2025,7 @@ A macro or request is invoked with too many arguments:
 .Bl -dash -offset 2n -width 2n -compact
 .It
 .Ic \&Fo ,
+.Ic \&MT ,
 .Ic \&PD ,
 .Ic \&RS ,
 .Ic \&UR ,

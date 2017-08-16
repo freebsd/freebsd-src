@@ -400,13 +400,16 @@ struct tunable_str {
 #define	TUNABLE_STR_FETCH(path, var, size)			\
 	getenv_string((path), (var), (size))
 
+typedef void (*ich_func_t)(void *_arg);
+
 struct intr_config_hook {
 	TAILQ_ENTRY(intr_config_hook) ich_links;
-	void	(*ich_func)(void *arg);
-	void	*ich_arg;
+	ich_func_t	ich_func;
+	void		*ich_arg;
 };
 
 int	config_intrhook_establish(struct intr_config_hook *hook);
 void	config_intrhook_disestablish(struct intr_config_hook *hook);
+void	config_intrhook_oneshot(ich_func_t _func, void *_arg);
 
 #endif /* !_SYS_KERNEL_H_*/

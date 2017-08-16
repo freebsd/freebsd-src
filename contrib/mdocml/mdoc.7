@@ -1,4 +1,4 @@
-.\"	$Id: mdoc.7,v 1.264 2017/05/05 15:54:59 schwarze Exp $
+.\"	$Id: mdoc.7,v 1.269 2017/07/20 16:24:53 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010, 2011, 2013-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: May 5 2017 $
+.Dd $Mdocdate: July 20 2017 $
 .Dt MDOC 7
 .Os
 .Sh NAME
@@ -477,7 +477,7 @@ in the alphabetical
 .It Sx \&Sm Ta switch horizontal spacing mode: Op Cm on | off
 .It Sx \&Bk , \&Ek Ta keep block: Fl words
 .El
-.Ss Semantic markup for command line utilities:
+.Ss Semantic markup for command line utilities
 .Bl -column "Brq, Bro, Brc" description
 .It Sx \&Nm Ta start a SYNOPSIS block with the name of a utility
 .It Sx \&Fl Ta command line options (flags) (>=0 arguments)
@@ -488,7 +488,7 @@ in the alphabetical
 .It Sx \&Ev Ta environmental variable (>0 arguments)
 .It Sx \&Pa Ta file system path (>=0 arguments)
 .El
-.Ss Semantic markup for function libraries:
+.Ss Semantic markup for function libraries
 .Bl -column "Brq, Bro, Brc" description
 .It Sx \&Lb Ta function library (one argument)
 .It Sx \&In Ta include file (one argument)
@@ -509,7 +509,7 @@ in the alphabetical
 .It Sx \&Er Ta error constant (>0 arguments)
 .It Sx \&Ev Ta environmental variable (>0 arguments)
 .El
-.Ss Various semantic markup:
+.Ss Various semantic markup
 .Bl -column "Brq, Bro, Brc" description
 .It Sx \&An Ta author name (>0 arguments)
 .It Sx \&Lk Ta hyperlink: Ar uri Op Ar name
@@ -735,7 +735,7 @@ A version of
 .At .
 .It Cm III
 .At III .
-.It Cm V[.[1-4]]?
+.It Cm V | V.[1-4]
 A version of
 .At V .
 .El
@@ -1850,10 +1850,10 @@ The tab cell delimiter may only be used within the
 .Sx \&It
 line itself; on following lines, only the
 .Sx \&Ta
-macro can be used to delimit cells, and
+macro can be used to delimit cells, and portability requires that
 .Sx \&Ta
-is only recognised as a macro when called by other macros,
-not as the first macro on a line.
+is called by other macros: some parsers do not recognize it when
+it appears as the first macro on a line.
 .Pp
 Note that quoted strings may span tab-delimited cells on an
 .Sx \&It
@@ -2575,11 +2575,6 @@ The second and last Technical Corrigendum.
 .br
 This standard is also called
 X/Open Portability Guide version 7.
-.Pp
-.It \-p1003.1-2013
-.St -p1003.1-2013
-.br
-This is the first Technical Corrigendum.
 .El
 .It Other standards
 .Pp
@@ -3203,7 +3198,7 @@ but produces large indentations.
 .Xr tbl 7
 .Pp
 The web page
-.Lk http://mdocml.bsd.lv/mdoc/ "extended documentation for the mdoc language"
+.Lk http://mandoc.bsd.lv/mdoc/ "extended documentation for the mdoc language"
 provides a few tutorial-style pages for beginners, an extensive style
 guide for advanced authors, and an alphabetic index helping to choose
 the best macros for various kinds of content.

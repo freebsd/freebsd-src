@@ -84,6 +84,8 @@ __FBSDID("$FreeBSD$");
 #define BIOS_RESET		(0x0f)
 #define BIOS_WARM		(0x0a)
 
+static MALLOC_DEFINE(M_CPUS, "cpus", "CPU items");
+
 /* lock region used by kernel profiling */
 int	mcount_lock;
 
@@ -132,9 +134,13 @@ volatile int aps_ready = 0;
  * Store data from cpu_add() until later in the boot when we actually setup
  * the APs.
  */
-struct cpu_info cpu_info[MAX_APIC_ID + 1];
-int apic_cpuids[MAX_APIC_ID + 1];
+struct cpu_info *cpu_info;
+int *apic_cpuids;
 int cpu_apic_ids[MAXCPU];
+_Static_assert(MAXCPU <= MAX_APIC_ID,
+    "MAXCPU cannot be larger that MAX_APIC_ID");
+_Static_assert(xAPIC_MAX_APIC_ID <= MAX_APIC_ID,
+    "xAPIC_MAX_APIC_ID cannot be larger that MAX_APIC_ID");
 
 /* Holds pending bitmap based IPIs per CPU */
 volatile u_int cpu_ipi_pending[MAXCPU];
@@ -546,7 +552,7 @@ topo_probe(void)
 	nlayers++;
 
 	topo_init_root(&topo_root);
-	for (i = 0; i <= MAX_APIC_ID; ++i) {
+	for (i = 0; i <= max_apic_id; ++i) {
 		if (!cpu_info[i].cpu_present)
 			continue;
 
@@ -803,6 +809,19 @@ cpu_topo(void)
 	return (cg_root);
 }
 
+static void
+cpu_alloc(void *dummy __unused)
+{
+	/*
+	 * Dynamically allocate the arrays that depend on the
+	 * maximum APIC ID.
+	 */
+	cpu_info = malloc(sizeof(*cpu_info) * (max_apic_id + 1), M_CPUS,
+	    M_WAITOK | M_ZERO);
+	apic_cpuids = malloc(sizeof(*apic_cpuids) * (max_apic_id + 1), M_CPUS,
+	    M_WAITOK | M_ZERO);
+}
+SYSINIT(cpu_alloc, SI_SUB_CPU, SI_ORDER_FIRST, cpu_alloc, NULL);
 
 /*
  * Add a logical CPU to the topology.
@@ -811,26 +830,22 @@ void
 cpu_add(u_int apic_id, char boot_cpu)
 {
 
-	if (apic_id > MAX_APIC_ID) {
+	if (apic_id > max_apic_id) {
 		panic("SMP: APIC ID %d too high", apic_id);
 		return;
 	}
-	KASSERT(cpu_info[apic_id].cpu_present == 0, ("CPU %d added twice",
+	KASSERT(cpu_info[apic_id].cpu_present == 0, ("CPU %u added twice",
 	    apic_id));
 	cpu_info[apic_id].cpu_present = 1;
 	if (boot_cpu) {
 		KASSERT(boot_cpu_id == -1,
-		    ("CPU %d claims to be BSP, but CPU %d already is", apic_id,
+		    ("CPU %u claims to be BSP, but CPU %u already is", apic_id,
 		    boot_cpu_id));
 		boot_cpu_id = apic_id;
 		cpu_info[apic_id].cpu_bsp = 1;
 	}
-	if (mp_ncpus < MAXCPU) {
-		mp_ncpus++;
-		mp_maxid = mp_ncpus - 1;
-	}
 	if (bootverbose)
-		printf("SMP: Added CPU %d (%s)\n", apic_id, boot_cpu ? "BSP" :
+		printf("SMP: Added CPU %u (%s)\n", apic_id, boot_cpu ? "BSP" :
 		    "AP");
 }
 

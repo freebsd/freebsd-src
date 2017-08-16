@@ -1,4 +1,4 @@
-/*	$Id: lib.c,v 1.13 2015/10/06 18:32:19 schwarze Exp $ */
+/*	$Id: lib.c,v 1.14 2017/06/24 14:38:32 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -20,6 +20,7 @@
 
 #include <string.h>
 
+#include "mandoc.h"
 #include "roff.h"
 #include "mdoc.h"
 #include "libmdoc.h"

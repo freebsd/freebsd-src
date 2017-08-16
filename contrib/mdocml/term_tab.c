@@ -52,7 +52,7 @@ term_tab_set(const struct termp *p, const char *arg)
 		recording_period = 0;
 		if (tabs.d == 0) {
 			a2roffsu(".8i", &su, SCALE_IN);
-			tabs.d = term_hspan(p, &su) / 24;
+			tabs.d = term_hen(p, &su);
 		}
 		return;
 	}
@@ -81,11 +81,26 @@ term_tab_set(const struct termp *p, const char *arg)
 
 	/* Append the new position. */
 
-	pos = term_hspan(p, &su);
+	pos = term_hen(p, &su);
 	tl->t[tl->n] = pos;
 	if (add && tl->n)
 		tl->t[tl->n] += tl->t[tl->n - 1];
 	tl->n++;
+}
+
+/*
+ * Simplified version without a parser,
+ * never incremental, never periodic, for use by tbl(7).
+ */
+void
+term_tab_iset(size_t inc)
+{
+	if (tabs.a.n >= tabs.a.s) {
+		tabs.a.s += 8;
+		tabs.a.t = mandoc_reallocarray(tabs.a.t, tabs.a.s,
+		    sizeof(*tabs.a.t));
+	}
+	tabs.a.t[tabs.a.n++] = inc;
 }
 
 size_t
@@ -97,10 +112,6 @@ term_tab_next(size_t prev)
 		if (i == tabs.a.n) {
 			if (tabs.p.n == 0)
 				return prev;
-/*
-				return i ? prev :
-				    (prev / tabs.d + 1) * tabs.d;
- */
 			tabs.a.n += tabs.p.n;
 			if (tabs.a.s < tabs.a.n) {
 				tabs.a.s = tabs.a.n;
@@ -111,7 +122,7 @@ term_tab_next(size_t prev)
 				tabs.a.t[i + j] = tabs.p.t[j] +
 				    (i ? tabs.a.t[i - 1] : 0);
 		}
-		if (prev < tabs.a.t[i] / 24)
-			return tabs.a.t[i] / 24;
+		if (prev < tabs.a.t[i])
+			return tabs.a.t[i];
 	}
 }

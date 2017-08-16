@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_radix.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
@@ -332,7 +333,7 @@ int
 kmem_back(vm_object_t object, vm_offset_t addr, vm_size_t size, int flags)
 {
 	vm_offset_t offset, i;
-	vm_page_t m;
+	vm_page_t m, mpred;
 	int pflags;
 
 	KASSERT(object == kmem_object || object == kernel_object,
@@ -341,10 +342,13 @@ kmem_back(vm_object_t object, vm_offset_t addr, vm_size_t size, int flags)
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	pflags = malloc2vm_flags(flags) | VM_ALLOC_NOBUSY | VM_ALLOC_WIRED;
 
-	VM_OBJECT_WLOCK(object);
-	for (i = 0; i < size; i += PAGE_SIZE) {
+	i = 0;
 retry:
-		m = vm_page_alloc(object, atop(offset + i), pflags);
+	VM_OBJECT_WLOCK(object);
+	mpred = vm_radix_lookup_le(&object->rtree, atop(offset + i));
+	for (; i < size; i += PAGE_SIZE, mpred = m) {
+		m = vm_page_alloc_after(object, atop(offset + i), pflags,
+		    mpred);
 
 		/*
 		 * Ran out of space, free everything up and return. Don't need
@@ -355,7 +359,6 @@ retry:
 			VM_OBJECT_WUNLOCK(object);
 			if ((flags & M_NOWAIT) == 0) {
 				VM_WAIT;
-				VM_OBJECT_WLOCK(object);
 				goto retry;
 			}
 			kmem_unback(object, addr, i);
@@ -386,17 +389,19 @@ retry:
 void
 kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 {
-	vm_page_t m;
-	vm_offset_t i, offset;
+	vm_page_t m, next;
+	vm_offset_t end, offset;
 
 	KASSERT(object == kmem_object || object == kernel_object,
 	    ("kmem_unback: only supports kernel objects."));
 
 	pmap_remove(kernel_pmap, addr, addr + size);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
+	end = offset + size;
 	VM_OBJECT_WLOCK(object);
-	for (i = 0; i < size; i += PAGE_SIZE) {
-		m = vm_page_lookup(object, atop(offset + i));
+	for (m = vm_page_lookup(object, atop(offset)); offset < end;
+	    offset += PAGE_SIZE, m = next) {
+		next = vm_page_next(m);
 		vm_page_unwire(m, PQ_NONE);
 		vm_page_free(m);
 	}

@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/mm.h>
 #include <linux/preempt.h>
 
-#if defined(__amd64__) || defined(__aarch64__) || defined(__riscv__)
+#if defined(__amd64__) || defined(__aarch64__) || defined(__riscv)
 #define	LINUXKPI_HAVE_DMAP
 #else
 #undef	LINUXKPI_HAVE_DMAP

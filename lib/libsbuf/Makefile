@@ -14,6 +14,7 @@ VERSION_DEF=	${.CURDIR}/Version.def
 
 .PATH:	${SRCTOP}/sys/kern
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+=	tests
 
 .include <bsd.lib.mk>

@@ -428,8 +428,15 @@ static struct lock_object invl_gen_ts = {
 	.lo_name = "invlts",
 };
 
+static bool
+pmap_not_in_di(void)
+{
+
+	return (curthread->td_md.md_invl_gen.gen == 0);
+}
+
 #define	PMAP_ASSERT_NOT_IN_DI() \
-    KASSERT(curthread->td_md.md_invl_gen.gen == 0, ("DI already started"))
+    KASSERT(pmap_not_in_di(), ("DI already started"))
 
 /*
  * Start a new Delayed Invalidation (DI) block of code, executed by
@@ -2856,6 +2863,19 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_spare, CTLFLAG_RD, &pv_entry_spare, 0,
 	"Current number of spare pv entries");
 #endif
 
+static void
+reclaim_pv_chunk_leave_pmap(pmap_t pmap, pmap_t locked_pmap, bool start_di)
+{
+
+	if (pmap == NULL)
+		return;
+	pmap_invalidate_all(pmap);
+	if (pmap != locked_pmap)
+		PMAP_UNLOCK(pmap);
+	if (start_di)
+		pmap_delayed_invl_finished();
+}
+
 /*
  * We are in a serious low memory condition.  Resort to
  * drastic measures to free some pages so we can allocate
@@ -2883,6 +2903,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 	struct spglist free;
 	uint64_t inuse;
 	int bit, field, freed;
+	bool start_di;
 
 	PMAP_LOCK_ASSERT(locked_pmap, MA_OWNED);
 	KASSERT(lockp != NULL, ("reclaim_pv_chunk: lockp is NULL"));
@@ -2891,19 +2912,21 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 	PG_G = PG_A = PG_M = PG_RW = 0;
 	SLIST_INIT(&free);
 	TAILQ_INIT(&new_tail);
-	pmap_delayed_invl_started();
+
+	/*
+	 * A delayed invalidation block should already be active if
+	 * pmap_advise() or pmap_remove() called this function by way
+	 * of pmap_demote_pde_locked().
+	 */
+	start_di = pmap_not_in_di();
+
 	mtx_lock(&pv_chunks_mutex);
 	while ((pc = TAILQ_FIRST(&pv_chunks)) != NULL && SLIST_EMPTY(&free)) {
 		TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
 		mtx_unlock(&pv_chunks_mutex);
 		if (pmap != pc->pc_pmap) {
-			if (pmap != NULL) {
-				pmap_invalidate_all(pmap);
-				if (pmap != locked_pmap)
-					PMAP_UNLOCK(pmap);
-			}
-			pmap_delayed_invl_finished();
-			pmap_delayed_invl_started();
+			reclaim_pv_chunk_leave_pmap(pmap, locked_pmap,
+			    start_di);
 			pmap = pc->pc_pmap;
 			/* Avoid deadlock and lock recursion. */
 			if (pmap > locked_pmap) {
@@ -2920,6 +2943,8 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 			PG_A = pmap_accessed_bit(pmap);
 			PG_M = pmap_modified_bit(pmap);
 			PG_RW = pmap_rw_bit(pmap);
+			if (start_di)
+				pmap_delayed_invl_started();
 		}
 
 		/*
@@ -2994,12 +3019,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 	}
 	TAILQ_CONCAT(&pv_chunks, &new_tail, pc_lru);
 	mtx_unlock(&pv_chunks_mutex);
-	if (pmap != NULL) {
-		pmap_invalidate_all(pmap);
-		if (pmap != locked_pmap)
-			PMAP_UNLOCK(pmap);
-	}
-	pmap_delayed_invl_finished();
+	reclaim_pv_chunk_leave_pmap(pmap, locked_pmap, start_di);
 	if (m_pc == NULL && !SLIST_EMPTY(&free)) {
 		m_pc = SLIST_FIRST(&free);
 		SLIST_REMOVE_HEAD(&free, plinks.s.ss);
@@ -4085,6 +4105,26 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	PG_RW = pmap_rw_bit(pmap);
 	anychanged = FALSE;
 
+	/*
+	 * Although this function delays and batches the invalidation
+	 * of stale TLB entries, it does not need to call
+	 * pmap_delayed_invl_started() and
+	 * pmap_delayed_invl_finished(), because it does not
+	 * ordinarily destroy mappings.  Stale TLB entries from
+	 * protection-only changes need only be invalidated before the
+	 * pmap lock is released, because protection-only changes do
+	 * not destroy PV entries.  Even operations that iterate over
+	 * a physical page's PV list of mappings, like
+	 * pmap_remove_write(), acquire the pmap lock for each
+	 * mapping.  Consequently, for protection-only changes, the
+	 * pmap lock suffices to synchronize both page table and TLB
+	 * updates.
+	 *
+	 * This function only destroys a mapping if pmap_demote_pde()
+	 * fails.  In that case, stale TLB entries are immediately
+	 * invalidated.
+	 */
+	
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
 
@@ -5469,6 +5509,15 @@ pmap_page_is_mapped(vm_page_t m)
  * no processor is currently accessing the user address space.  In
  * particular, a page table entry's dirty bit won't change state once
  * this function starts.
+ *
+ * Although this function destroys all of the pmap's managed,
+ * non-wired mappings, it can delay and batch the invalidation of TLB
+ * entries without calling pmap_delayed_invl_started() and
+ * pmap_delayed_invl_finished().  Because the pmap is not active on
+ * any other processor, none of these TLB entries will ever be used
+ * before their eventual invalidation.  Consequently, there is no need
+ * for either pmap_remove_all() or pmap_remove_write() to wait for
+ * that eventual TLB invalidation.
  */
 void
 pmap_remove_pages(pmap_t pmap)

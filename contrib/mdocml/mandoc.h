@@ -1,4 +1,4 @@
-/*	$Id: mandoc.h,v 1.226 2017/06/08 18:11:22 schwarze Exp $ */
+/*	$Id: mandoc.h,v 1.245 2017/07/08 14:51:04 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -44,28 +44,46 @@ enum	mandoclevel {
 enum	mandocerr {
 	MANDOCERR_OK,
 
+	MANDOCERR_BASE, /* ===== start of base system conventions ===== */
+
+	MANDOCERR_MDOCDATE, /* Mdocdate found: Dd ... */
+	MANDOCERR_MDOCDATE_MISSING, /* Mdocdate missing: Dd ... */
+	MANDOCERR_ARCH_BAD,  /* unknown architecture: Dt ... arch */
+	MANDOCERR_OS_ARG,  /* operating system explicitly specified: Os ... */
+	MANDOCERR_RCS_MISSING, /* RCS id missing */
+	MANDOCERR_XR_BAD,  /* referenced manual not found: Xr name sec */
+
 	MANDOCERR_STYLE, /* ===== start of style suggestions ===== */
 
+	MANDOCERR_DATE_LEGACY, /* legacy man(7) date format: Dd ... */
+	MANDOCERR_TITLE_CASE, /* lower case character in document title */
+	MANDOCERR_RCS_REP, /* duplicate RCS id: ... */
+	MANDOCERR_SEC_TYPO,  /* typo in section name: Sh ... */
+	MANDOCERR_ARG_QUOTE, /* unterminated quoted argument */
 	MANDOCERR_MACRO_USELESS, /* useless macro: macro */
 	MANDOCERR_BX, /* consider using OS macro: macro */
 	MANDOCERR_ER_ORDER, /* errnos out of order: Er ... */
 	MANDOCERR_ER_REP, /* duplicate errno: Er ... */
-	MANDOCERR_ND_DOT, /* description line ends with a full stop */
+	MANDOCERR_DELIM, /* trailing delimiter: macro ... */
+	MANDOCERR_DELIM_NB, /* no blank before trailing delimiter: macro ... */
+	MANDOCERR_FI_SKIP, /* fill mode already enabled, skipping: fi */
+	MANDOCERR_NF_SKIP, /* fill mode already disabled, skipping: nf */
+	MANDOCERR_FUNC, /* function name without markup: name() */
+	MANDOCERR_SPACE_EOL, /* whitespace at end of input line */
+	MANDOCERR_COMMENT_BAD, /* bad comment style */
 
 	MANDOCERR_WARNING, /* ===== start of warnings ===== */
 
 	/* related to the prologue */
 	MANDOCERR_DT_NOTITLE, /* missing manual title, using UNTITLED: line */
 	MANDOCERR_TH_NOTITLE, /* missing manual title, using "": [macro] */
-	MANDOCERR_TITLE_CASE, /* lower case character in document title */
 	MANDOCERR_MSEC_MISSING, /* missing manual section, using "": macro */
 	MANDOCERR_MSEC_BAD, /* unknown manual section: Dt ... section */
 	MANDOCERR_DATE_MISSING, /* missing date, using today's date */
 	MANDOCERR_DATE_BAD, /* cannot parse date, using it verbatim: date */
+	MANDOCERR_DATE_FUTURE, /* date in the future, using it anyway: date */
 	MANDOCERR_OS_MISSING, /* missing Os macro, using "" */
-	MANDOCERR_PROLOG_REP, /* duplicate prologue macro: macro */
 	MANDOCERR_PROLOG_LATE, /* late prologue macro: macro */
-	MANDOCERR_DT_LATE, /* skipping late title macro: Dt args */
 	MANDOCERR_PROLOG_ORDER, /* prologue macros out of order: macros */
 
 	/* related to document structure */
@@ -83,6 +101,7 @@ enum	mandocerr {
 	MANDOCERR_SEC_ORDER, /* sections out of conventional order: Sh title */
 	MANDOCERR_SEC_REP, /* duplicate section title: Sh title */
 	MANDOCERR_SEC_MSEC, /* unexpected section: Sh title for ... only */
+	MANDOCERR_XR_SELF,  /* cross reference to self: Xr name sec */
 	MANDOCERR_XR_ORDER, /* unusual Xr order: ... after ... */
 	MANDOCERR_XR_PUNCT, /* unusual Xr punctuation: ... after ... */
 	MANDOCERR_AN_MISSING, /* AUTHORS section without An macro */
@@ -96,8 +115,7 @@ enum	mandocerr {
 	MANDOCERR_BLK_NEST, /* blocks badly nested: macro ... */
 	MANDOCERR_BD_NEST, /* nested displays are not portable: macro ... */
 	MANDOCERR_BL_MOVE, /* moving content out of list: macro */
-	MANDOCERR_FI_SKIP, /* fill mode already enabled, skipping: fi */
-	MANDOCERR_NF_SKIP, /* fill mode already disabled, skipping: nf */
+	MANDOCERR_TA_LINE, /* first macro on line: Ta */
 	MANDOCERR_BLK_LINE, /* line scope broken: macro breaks macro */
 	MANDOCERR_BLK_BLANK, /* skipping blank line in line scope */
 
@@ -114,6 +132,7 @@ enum	mandocerr {
 	MANDOCERR_FO_NOHEAD, /* missing function name, using "": Fo */
 	MANDOCERR_IT_NOHEAD, /* empty head in list item: Bl -type It */
 	MANDOCERR_IT_NOBODY, /* empty list item: Bl -type It */
+	MANDOCERR_IT_NOARG, /* missing argument, using next line: Bl -c It */
 	MANDOCERR_BF_NOFONT, /* missing font type, using \fR: Bf */
 	MANDOCERR_BF_BADFONT, /* unknown font type, using \fR: Bf font */
 	MANDOCERR_PF_SKIP, /* nothing follows prefix: Pf arg */
@@ -125,7 +144,6 @@ enum	mandocerr {
 	MANDOCERR_EQN_NOBOX, /* missing eqn box, using "": op */
 
 	/* related to bad arguments */
-	MANDOCERR_ARG_QUOTE, /* unterminated quoted argument */
 	MANDOCERR_ARG_REP, /* duplicate argument: macro arg */
 	MANDOCERR_AN_REP, /* skipping duplicate argument: An -arg */
 	MANDOCERR_BD_REP, /* skipping duplicate display type: Bd -type */
@@ -144,9 +162,7 @@ enum	mandocerr {
 	/* related to plain text */
 	MANDOCERR_FI_BLANK, /* blank line in fill mode, using .sp */
 	MANDOCERR_FI_TAB, /* tab in filled text */
-	MANDOCERR_SPACE_EOL, /* whitespace at end of input line */
 	MANDOCERR_EOS, /* new sentence, new line */
-	MANDOCERR_COMMENT_BAD, /* bad comment style */
 	MANDOCERR_ESC_BAD, /* invalid escape sequence: esc */
 	MANDOCERR_STR_UNDEF, /* undefined string, using "": name */
 
@@ -172,6 +188,8 @@ enum	mandocerr {
 
 	/* related to document structure and macros */
 	MANDOCERR_FILE, /* cannot open file */
+	MANDOCERR_PROLOG_REP, /* duplicate prologue macro: macro */
+	MANDOCERR_DT_LATE, /* skipping late title macro: Dt args */
 	MANDOCERR_ROFFLOOP, /* input stack limit exceeded, infinite loop? */
 	MANDOCERR_CHAR_BAD, /* skipping bad character: number */
 	MANDOCERR_MACRO, /* skipping unknown macro: macro */
@@ -316,11 +334,9 @@ struct	tbl_span {
 };
 
 enum	eqn_boxt {
-	EQN_ROOT, /* root of parse tree */
 	EQN_TEXT, /* text (number, variable, whatever) */
 	EQN_SUBEXPR, /* nested `eqn' subexpression */
 	EQN_LIST, /* list (braces, etc.) */
-	EQN_LISTONE, /* singleton list */
 	EQN_PILE, /* vertical pile */
 	EQN_MATRIX /* pile of piles */
 };
@@ -386,17 +402,6 @@ struct	eqn_box {
 };
 
 /*
- * An equation consists of a tree of expressions starting at a given
- * line and position.
- */
-struct	eqn {
-	char		 *name; /* identifier (or NULL) */
-	struct eqn_box	 *root; /* root mathematical expression */
-	int		  ln; /* invocation line */
-	int		  pos; /* invocation position */
-};
-
-/*
  * Parse options.
  */
 #define	MPARSE_MDOC	1  /* assume -mdoc */
@@ -405,6 +410,12 @@ struct	eqn {
 #define	MPARSE_QUICK	8  /* abort the parse early */
 #define	MPARSE_UTF8	16 /* accept UTF-8 input */
 #define	MPARSE_LATIN1	32 /* accept ISO-LATIN-1 input */
+
+enum	mandoc_os {
+	MANDOC_OS_OTHER = 0,
+	MANDOC_OS_NETBSD,
+	MANDOC_OS_OPENBSD
+};
 
 enum	mandoc_esc {
 	ESCAPE_ERROR = 0, /* bail! unparsable escape */
@@ -418,6 +429,7 @@ enum	mandoc_esc {
 	ESCAPE_FONTPREV, /* previous font mode */
 	ESCAPE_NUMBERED, /* a numbered glyph */
 	ESCAPE_UNICODE, /* a unicode codepoint */
+	ESCAPE_BREAK, /* break the output line */
 	ESCAPE_NOSPACE, /* suppress space if the last on a line */
 	ESCAPE_HORIZ, /* horizontal movement */
 	ESCAPE_HLINE, /* horizontal line drawing */
@@ -440,7 +452,8 @@ const char	 *mchars_uc2str(int);
 int		  mchars_num2uc(const char *, size_t);
 int		  mchars_spec2cp(const char *, size_t);
 const char	 *mchars_spec2str(const char *, size_t, size_t *);
-struct mparse	 *mparse_alloc(int, enum mandoclevel, mandocmsg, const char *);
+struct mparse	 *mparse_alloc(int, enum mandocerr, mandocmsg,
+			enum mandoc_os, const char *);
 void		  mparse_free(struct mparse *);
 void		  mparse_keep(struct mparse *);
 int		  mparse_open(struct mparse *, const char *);

@@ -58,6 +58,7 @@ MALLOC_DEFINE(M_NVME, "nvme", "nvme(4) memory allocations");
 static int    nvme_probe(device_t);
 static int    nvme_attach(device_t);
 static int    nvme_detach(device_t);
+static int    nvme_shutdown(device_t);
 static int    nvme_modevent(module_t mod, int type, void *arg);
 
 static devclass_t nvme_devclass;
@@ -67,6 +68,7 @@ static device_method_t nvme_pci_methods[] = {
 	DEVMETHOD(device_probe,     nvme_probe),
 	DEVMETHOD(device_attach,    nvme_attach),
 	DEVMETHOD(device_detach,    nvme_detach),
+	DEVMETHOD(device_shutdown,  nvme_shutdown),
 	{ 0, 0 }
 };
 
@@ -179,22 +181,15 @@ nvme_unload(void)
 {
 }
 
-static void
-nvme_shutdown(void)
+static int
+nvme_shutdown(device_t dev)
 {
-	device_t		*devlist;
 	struct nvme_controller	*ctrlr;
-	int			dev, devcount;
 
-	if (devclass_get_devices(nvme_devclass, &devlist, &devcount))
-		return;
+	ctrlr = DEVICE2SOFTC(dev);
+	nvme_ctrlr_shutdown(ctrlr);
 
-	for (dev = 0; dev < devcount; dev++) {
-		ctrlr = DEVICE2SOFTC(devlist[dev]);
-		nvme_ctrlr_shutdown(ctrlr);
-	}
-
-	free(devlist, M_TEMP);
+	return (0);
 }
 
 static int
@@ -207,9 +202,6 @@ nvme_modevent(module_t mod, int type, void *arg)
 		break;
 	case MOD_UNLOAD:
 		nvme_unload();
-		break;
-	case MOD_SHUTDOWN:
-		nvme_shutdown();
 		break;
 	default:
 		break;

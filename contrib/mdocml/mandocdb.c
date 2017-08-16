@@ -1,4 +1,4 @@
-/*	$Id: mandocdb.c,v 1.250 2017/05/17 22:27:12 schwarze Exp $ */
+/*	$Id: mandocdb.c,v 1.253 2017/07/28 14:48:25 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -420,7 +420,8 @@ mandocdb(int argc, char *argv[])
 
 	exitcode = (int)MANDOCLEVEL_OK;
 	mchars_alloc();
-	mp = mparse_alloc(mparse_options, MANDOCLEVEL_BADARG, NULL, NULL);
+	mp = mparse_alloc(mparse_options, MANDOCERR_MAX, NULL,
+	    MANDOC_OS_OTHER, NULL);
 	mandoc_ohash_init(&mpages, 6, offsetof(struct mpage, inodev));
 	mandoc_ohash_init(&mlinks, 6, offsetof(struct mlink, file));
 
@@ -2129,7 +2130,7 @@ dbwrite(struct dba *dba)
 
 	dba_array_start(dba->pages);
 	if (dba_array_next(dba->pages) == NULL) {
-		if (unlink(MANDOC_DB) == -1)
+		if (unlink(MANDOC_DB) == -1 && errno != ENOENT)
 			say(MANDOC_DB, "&unlink");
 		return;
 	}

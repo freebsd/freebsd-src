@@ -130,26 +130,26 @@ SYSCTL_PROC(_kern_geom_journal, OID_AUTO, record_entries,
 SYSCTL_UINT(_kern_geom_journal, OID_AUTO, optimize, CTLFLAG_RW,
     &g_journal_do_optimize, 0, "Try to combine bios on flush and copy");
 
-static u_int g_journal_cache_used = 0;
-static u_int g_journal_cache_limit = 64 * 1024 * 1024;
+static u_long g_journal_cache_used = 0;
+static u_long g_journal_cache_limit = 64 * 1024 * 1024;
 static u_int g_journal_cache_divisor = 2;
 static u_int g_journal_cache_switch = 90;
 static u_int g_journal_cache_misses = 0;
 static u_int g_journal_cache_alloc_failures = 0;
-static u_int g_journal_cache_low = 0;
+static u_long g_journal_cache_low = 0;
 
 static SYSCTL_NODE(_kern_geom_journal, OID_AUTO, cache, CTLFLAG_RW, 0,
     "GEOM_JOURNAL cache");
-SYSCTL_UINT(_kern_geom_journal_cache, OID_AUTO, used, CTLFLAG_RD,
+SYSCTL_ULONG(_kern_geom_journal_cache, OID_AUTO, used, CTLFLAG_RD,
     &g_journal_cache_used, 0, "Number of allocated bytes");
 static int
 g_journal_cache_limit_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	u_int limit;
+	u_long limit;
 	int error;
 
 	limit = g_journal_cache_limit;
-	error = sysctl_handle_int(oidp, &limit, 0, req);
+	error = sysctl_handle_long(oidp, &limit, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	g_journal_cache_limit = limit;
@@ -157,7 +157,7 @@ g_journal_cache_limit_sysctl(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_kern_geom_journal_cache, OID_AUTO, limit,
-    CTLTYPE_UINT | CTLFLAG_RWTUN, NULL, 0, g_journal_cache_limit_sysctl, "I",
+    CTLTYPE_ULONG | CTLFLAG_RWTUN, NULL, 0, g_journal_cache_limit_sysctl, "I",
     "Maximum number of allocated bytes");
 SYSCTL_UINT(_kern_geom_journal_cache, OID_AUTO, divisor, CTLFLAG_RDTUN,
     &g_journal_cache_divisor, 0,
@@ -1236,7 +1236,7 @@ g_journal_flush(struct g_journal_softc *sc)
 	struct g_provider *pp;
 	struct bio **bioq;
 	struct bio *bp, *fbp, *pbp;
-	off_t joffset, size;
+	off_t joffset;
 	u_char *data, hash[16];
 	MD5_CTX ctx;
 	u_int i;
@@ -1244,7 +1244,6 @@ g_journal_flush(struct g_journal_softc *sc)
 	if (sc->sc_current_count == 0)
 		return;
 
-	size = 0;
 	pp = sc->sc_jprovider;
 	GJ_VALIDATE_OFFSET(sc->sc_journal_offset, sc);
 	joffset = sc->sc_journal_offset;
@@ -1261,7 +1260,7 @@ g_journal_flush(struct g_journal_softc *sc)
 	strlcpy(hdr.jrh_magic, GJ_RECORD_HEADER_MAGIC, sizeof(hdr.jrh_magic));
 
 	bioq = &sc->sc_active.jj_queue;
-	pbp = sc->sc_flush_queue;
+	GJQ_LAST(sc->sc_flush_queue, pbp);
 
 	fbp = g_alloc_bio();
 	fbp->bio_parent = NULL;
@@ -1294,7 +1293,6 @@ g_journal_flush(struct g_journal_softc *sc)
 		ent->je_offset = bp->bio_offset;
 		ent->je_joffset = joffset;
 		ent->je_length = bp->bio_length;
-		size += ent->je_length;
 
 		data = bp->bio_data;
 		if (sc->sc_flags & GJF_DEVICE_CHECKSUM)
@@ -1516,49 +1514,10 @@ g_journal_read_find(struct bio *head, int sorted, struct bio *pbp, off_t ostart,
 }
 
 /*
- * Try to find requested data in cache.
- */
-static struct bio *
-g_journal_read_queue_find(struct bio_queue *head, struct bio *pbp, off_t ostart,
-    off_t oend)
-{
-	off_t cstart, cend;
-	struct bio *bp;
-
-	TAILQ_FOREACH(bp, head, bio_queue) {
-		cstart = MAX(ostart, bp->bio_offset);
-		cend = MIN(oend, bp->bio_offset + bp->bio_length);
-		if (cend <= ostart)
-			continue;
-		else if (cstart >= oend)
-			continue;
-		KASSERT(bp->bio_data != NULL,
-		    ("%s: bio_data == NULL", __func__));
-		GJ_DEBUG(3, "READ(%p): (%jd, %jd) (bp=%p)", head, cstart, cend,
-		    bp);
-		bcopy(bp->bio_data + cstart - bp->bio_offset,
-		    pbp->bio_data + cstart - pbp->bio_offset, cend - cstart);
-		pbp->bio_completed += cend - cstart;
-		if (pbp->bio_completed == pbp->bio_length) {
-			/*
-			 * Cool, the whole request was in cache, deliver happy
-			 * message.
-			 */
-			g_io_deliver(pbp, 0);
-			return (pbp);
-		}
-		break;
-	}
-	return (bp);
-}
-
-/*
- * This function is used for colecting data on read.
+ * This function is used for collecting data on read.
  * The complexity is because parts of the data can be stored in four different
  * places:
- * - in delayed requests
  * - in memory - the data not yet send to the active journal provider
- * - in requests which are going to be sent to the active journal
  * - in the active journal
  * - in the inactive journal
  * - in the data provider
@@ -1576,20 +1535,14 @@ g_journal_read(struct g_journal_softc *sc, struct bio *pbp, off_t ostart,
 	cstart = cend = -1;
 	bp = NULL;
 	head = NULL;
-	for (i = 0; i <= 5; i++) {
+	for (i = 1; i <= 5; i++) {
 		switch (i) {
-		case 0:	/* Delayed requests. */
-			head = NULL;
-			sorted = 0;
-			break;
 		case 1:	/* Not-yet-send data. */
 			head = sc->sc_current_queue;
 			sorted = 1;
 			break;
-		case 2:	/* In-flight to the active journal. */
-			head = sc->sc_flush_queue;
-			sorted = 0;
-			break;
+		case 2: /* Skip flush queue as they are also in active queue */
+			continue;
 		case 3:	/* Active journal. */
 			head = sc->sc_active.jj_queue;
 			sorted = 1;
@@ -1608,10 +1561,7 @@ g_journal_read(struct g_journal_softc *sc, struct bio *pbp, off_t ostart,
 		default:
 			panic("gjournal %s: i=%d", __func__, i);
 		}
-		if (i == 0)
-			bp = g_journal_read_queue_find(&sc->sc_delayed_queue.queue, pbp, ostart, oend);
-		else
-			bp = g_journal_read_find(head, sorted, pbp, ostart, oend);
+		bp = g_journal_read_find(head, sorted, pbp, ostart, oend);
 		if (bp == pbp) { /* Got the whole request. */
 			GJ_DEBUG(2, "Got the whole request from %u.", i);
 			return;
@@ -3046,9 +2996,9 @@ g_journal_switcher(void *arg)
 			kproc_exit(0);
 		}
 		if (error == 0 && g_journal_sync_requested == 0) {
-			GJ_DEBUG(1, "Out of cache, force switch (used=%u "
-			    "limit=%u).", g_journal_cache_used,
-			    g_journal_cache_limit);
+			GJ_DEBUG(1, "Out of cache, force switch (used=%jd "
+			    "limit=%jd).", (intmax_t)g_journal_cache_used,
+			    (intmax_t)g_journal_cache_limit);
 		}
 		GJ_TIMER_START(1, &bt);
 		g_journal_do_switch(mp);
