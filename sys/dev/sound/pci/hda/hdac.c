@@ -97,6 +97,8 @@ static const struct {
 	{ HDA_INTEL_KBLKLP,  "Intel Kabylake-LP",	0, 0 },
 	{ HDA_INTEL_SRPT,    "Intel Sunrise Point",	0, 0 },
 	{ HDA_INTEL_KBLK,    "Intel Kabylake",	0, 0 },
+	{ HDA_INTEL_KBLKH,   "Intel Kabylake-H",	0, 0 },
+	{ HDA_INTEL_CFLK,    "Intel Coffelake",	0, 0 },
 	{ HDA_INTEL_82801F,  "Intel 82801F",	0, 0 },
 	{ HDA_INTEL_63XXESB, "Intel 631x/632xESB",	0, 0 },
 	{ HDA_INTEL_82801G,  "Intel 82801G",	0, 0 },
