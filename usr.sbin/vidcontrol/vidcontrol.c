@@ -154,7 +154,7 @@ revert(void)
 
 	ioctl(0, VT_ACTIVATE, cur_info.active_vty);
 
-	fprintf(stderr, "\033[=%dA", cur_info.console_info.mv_ovscan);
+	ioctl(0, KDSBORDER, cur_info.console_info.mv_ovscan);
 	fprintf(stderr, "\033[=%dH", cur_info.console_info.mv_rev.fore);
 	fprintf(stderr, "\033[=%dI", cur_info.console_info.mv_rev.back);
 
@@ -910,11 +910,15 @@ set_border_color(char *arg)
 {
 	int color;
 
-	if ((color = get_color_number(arg)) != -1) {
-		fprintf(stderr, "\033[=%dA", color);
+	color = get_color_number(arg);
+	if (color == -1) {
+		revert();
+		errx(1, "invalid color '%s'", arg);
 	}
-	else
-		usage();
+	if (ioctl(0, KDSBORDER, color) != 0) {
+		revert();
+		err(1, "ioctl(KD_SBORDER)");
+	}
 }
 
 static void
