@@ -739,7 +739,7 @@ main(int argc, char *argv[])
 	if ((aargc == 0 || aargc == 1) && !Hflag)
 		hflag = true;
 
-	if (aargc == 0)
+	if (aargc == 0 && dirbehave != DIR_RECURSE)
 		exit(!procfile("-"));
 
 	if (dirbehave == DIR_RECURSE)
