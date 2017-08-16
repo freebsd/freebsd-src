@@ -226,10 +226,116 @@ context2_body()
 	atf_check -o file:"$(atf_get_srcdir)/d_context2_c.out" \
 	    grep -z -C1 cod test1 test2
 }
+# Begin FreeBSD
+atf_test_case oflag_zerolen
+oflag_zerolen_head()
+{
+	atf_set "descr" "Check behavior of zero-length matches with -o flag (PR 195763)"
+}
+oflag_zerolen_body()
+{
+	atf_check -o file:"$(atf_get_srcdir)/d_oflag_zerolen_a.out" \
+	    grep -Eo '(^|:)0*' "$(atf_get_srcdir)/d_oflag_zerolen_a.in"
+
+	atf_check -o file:"$(atf_get_srcdir)/d_oflag_zerolen_b.out" \
+	    grep -Eo '(^|:)0*' "$(atf_get_srcdir)/d_oflag_zerolen_b.in"
+
+	atf_check -o file:"$(atf_get_srcdir)/d_oflag_zerolen_c.out" \
+	    grep -Eo '[[:alnum:]]*' "$(atf_get_srcdir)/d_oflag_zerolen_c.in"
+
+	atf_check -o empty grep -Eo '' "$(atf_get_srcdir)/d_oflag_zerolen_d.in"
+
+	atf_check -o file:"$(atf_get_srcdir)/d_oflag_zerolen_e.out" \
+	    grep -o -e 'ab' -e 'bc' "$(atf_get_srcdir)/d_oflag_zerolen_e.in"
+
+	atf_check -o file:"$(atf_get_srcdir)/d_oflag_zerolen_e.out" \
+	    grep -o -e 'bc' -e 'ab' "$(atf_get_srcdir)/d_oflag_zerolen_e.in"
+}
+
+atf_test_case xflag
+xflag_head()
+{
+	atf_set "descr" "Check that we actually get a match with -x flag (PR 180990)"
+}
+xflag_body()
+{
+	echo 128 > match_file
+	seq 1 128 > pattern_file
+	grep -xf pattern_file match_file
+}
+
+atf_test_case color
+color_head()
+{
+	atf_set "descr" "Check --color support"
+}
+color_body()
+{
+	echo 'abcd*' > grepfile
+	echo 'abc$' >> grepfile
+	echo '^abc' >> grepfile
+
+	atf_check -o file:"$(atf_get_srcdir)/d_color_a.out" \
+	    grep --color=auto -e '.*' -e 'a' "$(atf_get_srcdir)/d_color_a.in"
+
+	atf_check -o file:"$(atf_get_srcdir)/d_color_b.out" \
+	    grep --color=auto -f grepfile "$(atf_get_srcdir)/d_color_b.in"
+
+	atf_check -o file:"$(atf_get_srcdir)/d_color_c.out" \
+	    grep --color=always -f grepfile "$(atf_get_srcdir)/d_color_b.in"
+}
+
+atf_test_case f_file_empty
+f_file_empty_head()
+{
+	atf_set "descr" "Check for handling of a null byte in empty file, specified by -f (PR 202022)"
+}
+f_file_empty_body()
+{
+	printf "\0\n" > nulpat
+
+	atf_check -s exit:1 grep -f nulpat "$(atf_get_srcdir)/d_f_file_empty.in"
+}
+
+atf_test_case escmap
+escmap_head()
+{
+	atf_set "descr" "Check proper handling of escaped vs. unescaped dot expressions (PR 175314)"
+}
+escmap_body()
+{
+	atf_check -s exit:1 grep -o 'f.o\.' "$(atf_get_srcdir)/d_escmap.in"
+	atf_check -o not-empty grep -o 'f.o.' "$(atf_get_srcdir)/d_escmap.in"
+}
+
+atf_test_case egrep_empty_invalid
+egrep_empty_invalid_head()
+{
+	atf_set "descr" "Check for handling of an invalid empty pattern (PR 194823)"
+}
+egrep_empty_invalid_body()
+{
+	atf_check -s exit:1 egrep '{' /dev/null
+}
+
+atf_test_case zerolen
+zerolen_head()
+{
+	atf_set "descr" "Check for successful zero-length matches with ^$"
+}
+zerolen_body()
+{
+	printf "Eggs\n\nCheese" > test1
+
+	atf_check -o inline:"\n" grep -e "^$" test1
+
+	atf_check -o inline:"Eggs\nCheese\n" grep -v -e "^$" test1
+}
+# End FreeBSD
 
 atf_init_test_cases()
 {
-	atf_add_test_case basic 
+	atf_add_test_case basic
 	atf_add_test_case binary
 	atf_add_test_case recurse
 	atf_add_test_case recurse_symlink
@@ -245,4 +351,13 @@ atf_init_test_cases()
 	atf_add_test_case zgrep
 	atf_add_test_case nonexistent
 	atf_add_test_case context2
+# Begin FreeBSD
+	atf_add_test_case oflag_zerolen
+	atf_add_test_case xflag
+	atf_add_test_case color
+	atf_add_test_case f_file_empty
+	atf_add_test_case escmap
+	atf_add_test_case egrep_empty_invalid
+	atf_add_test_case zerolen
+# End FreeBSD
 }

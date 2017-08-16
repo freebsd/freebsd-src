@@ -271,28 +271,32 @@ static int
 procline(struct str *l, int nottext)
 {
 	regmatch_t matches[MAX_LINE_MATCHES];
-	regmatch_t pmatch;
-	size_t st = 0;
+	regmatch_t pmatch, lastmatch;
+	size_t st = 0, nst = 0;
 	unsigned int i;
-	int c = 0, m = 0, r = 0;
+	int c = 0, m = 0, r = 0, lastmatches = 0, leflags = eflags;
+	int startm = 0;
+
+	/* Initialize to avoid a false positive warning from GCC. */
+	lastmatch.rm_so = lastmatch.rm_eo = 0;
 
 	/* Loop to process the whole line */
 	while (st <= l->len) {
-		pmatch.rm_so = st;
-		pmatch.rm_eo = l->len;
-
+		lastmatches = 0;
+		startm = m;
+		if (st > 0)
+			leflags |= REG_NOTBOL;
 		/* Loop to compare with all the patterns */
 		for (i = 0; i < patterns; i++) {
+			pmatch.rm_so = st;
+			pmatch.rm_eo = l->len;
 			if (fg_pattern[i].pattern)
 				r = fastexec(&fg_pattern[i],
-				    l->dat, 1, &pmatch, eflags);
+				    l->dat, 1, &pmatch, leflags);
 			else
 				r = regexec(&r_pattern[i], l->dat, 1,
-				    &pmatch, eflags);
+				    &pmatch, leflags);
 			r = (r == 0) ? 0 : REG_NOMATCH;
-			st = (cflags & REG_NOSUB)
-				? (size_t)l->len
-				: (size_t)pmatch.rm_eo;
 			if (r == REG_NOMATCH)
 				continue;
 			/* Check for full match */
@@ -319,10 +323,26 @@ procline(struct str *l, int nottext)
 					r = REG_NOMATCH;
 			}
 			if (r == 0) {
+				lastmatches++;
+				lastmatch = pmatch;
 				if (m == 0)
 					c++;
-				if (m < MAX_LINE_MATCHES)
-					matches[m++] = pmatch;
+
+				if (m < MAX_LINE_MATCHES) {
+					/* Replace previous match if the new one is earlier and/or longer */
+					if (m > startm) {
+						if (pmatch.rm_so < matches[m-1].rm_so ||
+						    (pmatch.rm_so == matches[m-1].rm_so && (pmatch.rm_eo - pmatch.rm_so) > (matches[m-1].rm_eo - matches[m-1].rm_so))) {
+							matches[m-1] = pmatch;
+							nst = pmatch.rm_eo;
+						}
+					} else {
+						/* Advance as normal if not */
+						matches[m++] = pmatch;
+						nst = pmatch.rm_eo;
+					}
+				}
+
 				/* matches - skip further patterns */
 				if ((color == NULL && !oflag) ||
 				    qflag || lflag)
@@ -339,8 +359,19 @@ procline(struct str *l, int nottext)
 		if (!wflag && ((color == NULL && !oflag) || qflag || lflag || Lflag))
 			break;
 
-		if (st == (size_t)pmatch.rm_so)
-			break; 	/* No matches */
+		/* If we didn't have any matches or REG_NOSUB set */
+		if (lastmatches == 0 || (cflags & REG_NOSUB))
+			nst = l->len;
+
+		if (lastmatches == 0)
+			/* No matches */
+			break;
+		else if (st == nst && lastmatch.rm_so == lastmatch.rm_eo)
+			/* Zero-length match -- advance one more so we don't get stuck */
+			nst++;
+
+		/* Advance st based on previous matches */
+		st = nst;
 	}
 
 
@@ -439,6 +470,10 @@ printline(struct str *line, int sep, regmatch_t *matches, int m)
 	size_t a = 0;
 	int i, n = 0;
 
+	/* If matchall, everything matches but don't actually print for -o */
+	if (oflag && matchall)
+		return;
+
 	if (!hflag) {
 		if (!nullflag) {
 			fputs(line->file, stdout);
@@ -465,6 +500,9 @@ printline(struct str *line, int sep, regmatch_t *matches, int m)
 	/* --color and -o */
 	if ((oflag || color) && m > 0) {
 		for (i = 0; i < m; i++) {
+			/* Don't output zero length matches */
+			if (matches[i].rm_so == matches[i].rm_eo)
+				continue;
 			if (!oflag)
 				fwrite(line->dat + a, matches[i].rm_so - a, 1,
 				    stdout);
