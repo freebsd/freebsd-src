@@ -12,7 +12,7 @@ SRCS=	libpng_sb.c
 WARNS?=	6
 
 .ifdef LIBCHERI
-NEED_CHERI=pure
+NEED_CHERI=	pure
 .else
 NEED_CHERI=	hybrid
 .endif

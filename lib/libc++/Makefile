@@ -81,11 +81,12 @@ CXXFLAGS+=	-std=c++11
 .endif
 
 LIBADD+=	cxxrt
-.ifdef LIBCHERI
 
+.ifdef LIBCHERI
 # XXXAR: why is this needed?
 LDFLAGS+=	-L../libcxxrt
 .endif
+
 INCSGROUPS=	STD EXP EXT
 
 STD_HEADERS+=	__bit_reference
