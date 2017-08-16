@@ -39,7 +39,7 @@ TEST_INTERFACE.${_T}= atf
 .endfor
 .endif
 
-.if !empty(ATF_TESTS_CXX) && !defined(LIBCHERI)
+.if !empty(ATF_TESTS_CXX)
 PROGS_CXX+= ${ATF_TESTS_CXX}
 _TESTS+= ${ATF_TESTS_CXX}
 .for _T in ${ATF_TESTS_CXX}
