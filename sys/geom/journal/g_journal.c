@@ -133,7 +133,7 @@ SYSCTL_UINT(_kern_geom_journal, OID_AUTO, optimize, CTLFLAG_RW,
 
 static u_long g_journal_cache_used = 0;
 static u_long g_journal_cache_limit = 64 * 1024 * 1024;
-TUNABLE_INT("kern.geom.journal.cache.limit", &g_journal_cache_limit);
+TUNABLE_LONG("kern.geom.journal.cache.limit", &g_journal_cache_limit);
 static u_int g_journal_cache_divisor = 2;
 TUNABLE_INT("kern.geom.journal.cache.divisor", &g_journal_cache_divisor);
 static u_int g_journal_cache_switch = 90;
