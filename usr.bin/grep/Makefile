@@ -15,10 +15,14 @@ bsdgrep.1: grep.1
 .endif
 SRCS=	file.c grep.c queue.c util.c
 
-# Extra files ported backported form some regex improvements
+.if ${MK_BSD_GREP_FASTMATCH} == "yes"
+# Extra files ported backported for some regex improvements
 .PATH: ${.CURDIR}/regex
 SRCS+=	fastmatch.c hashtable.c tre-compile.c tre-fastmatch.c
 CFLAGS+=-I${.CURDIR}/regex
+.else
+CFLAGS+= -DWITHOUT_FASTMATCH
+.endif
 
 CFLAGS.gcc+= --param max-inline-insns-single=500
 
