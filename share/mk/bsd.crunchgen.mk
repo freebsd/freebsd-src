@@ -114,7 +114,7 @@ CRUNCHENV+= MK_TESTS=no \
 ${OUTPUTS:[1]}: .META
 ${OUTPUTS:[2..-1]}: .NOMETA
 ${OUTPUTS}: ${CONF}
-	MAKE=${MAKE} ${CRUNCHENV:NMK_AUTO_OBJ=*} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
+	MAKE="${MAKE}" ${CRUNCHENV:NMK_AUTO_OBJ=*} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
 	    MK_AUTO_OBJ=${MK_AUTO_OBJ} \
 	    ${CRUNCHGEN} -fq -m ${OUTMK} -c ${OUTC} ${CONF}
 	# Avoid redundantly calling 'make objs' which we've done by our
