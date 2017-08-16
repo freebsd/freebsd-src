@@ -3786,8 +3786,8 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 		tdsc->va = va;
 		tdsc->dvp = dvp[i];
 		tdsc->haskproc = 1;
-		ret = kproc_create(start_dscreate, (void *)tdsc, NULL,
-		    0, 0, "nfsdpnfs");
+		ret = kproc_create(start_dscreate, (void *)tdsc, NULL, 0, 0,
+		    "nfsdpcr");
 		if (ret == 0)
 			haskproc = 1;
 		else {
@@ -3912,8 +3912,7 @@ nfsrv_dsremove(struct vnode *dvp, char *fname, struct ucred *tcred,
 	named.ni_cnd.cn_lkflags = LK_EXCLUSIVE | LK_RETRY;
 	named.ni_cnd.cn_cred = tcred;
 	named.ni_cnd.cn_thread = p;
-	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF |
-	    SAVENAME;
+	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF | SAVENAME;
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	named.ni_cnd.cn_nameptr = bufp;
 	named.ni_cnd.cn_namelen = strlen(fname);
@@ -3974,14 +3973,13 @@ nfsrv_pnfsremove(struct vnode **dvp, int mirrorcnt, char *fname, NFSPROC_T *p)
 		tdsrm->dvp = dvp[i];
 		strlcpy(tdsrm->fname, fname, PNFS_FILENAME_LEN + 1);
 		tdsrm->haskproc = 1;
-		ret = kproc_create(start_dsremove, (void *)tdsrm, NULL,
-		    0, 0, "nfsdpnfs");
+		ret = kproc_create(start_dsremove, (void *)tdsrm, NULL, 0, 0,
+		    "nfsdprm");
 		if (ret == 0)
 			haskproc = 1;
 		else {
 			tdsrm->haskproc = 0;
-			nfsrv_dsremove(tdsrm->dvp, tdsrm->fname, tdsrm->tcred,
-			    tdsrm->p);
+			nfsrv_dsremove(dvp[i], fname, tcred, p);
 		}
 	}
 	nfsrv_dsremove(dvp[mirrorcnt - 1], fname, tcred, p);
@@ -4405,25 +4403,35 @@ struct nfsrvwritedsdorpc {
 	struct ucred		*cred;
 	NFSPROC_T		*p;
 	struct mbuf		*m;
-	nfsv4stateid_t		st;
 	int			haskproc;
 	int			err;
 };
 
 static int
 nfsrv_writedsdorpc(struct nfsmount *nmp, fhandle_t *fhp, off_t off, int len,
-    nfsv4stateid_t *stp, struct nfsvattr *nap, struct mbuf *m,
-    struct ucred *cred, NFSPROC_T *p)
+    struct nfsvattr *nap, struct mbuf *m, struct ucred *cred, NFSPROC_T *p)
 {
 	uint32_t *tl;
 	struct nfsrv_descript *nd;
 	nfsattrbit_t attrbits;
+	nfsv4stateid_t st;
 	int commit, error, retlen;
 
 	nd = malloc(sizeof(*nd), M_TEMP, M_WAITOK | M_ZERO);
 	nfscl_reqstart(nd, NFSPROC_WRITE, nmp, (u_int8_t *)fhp,
 	    sizeof(fhandle_t), NULL, NULL);
-	nfsm_stateidtom(nd, stp, NFSSTATEID_PUTSTATEID);
+
+	/*
+	 * Use a stateid where other is an alternating 01010 pattern and
+	 * seqid is 0xffffffff.  This value is not defined as special by
+	 * the RFC and is used by the FreeBSD NFS server to indicate an
+	 * MDS->DS proxy operation.
+	 */
+	st.other[0] = 0x55555555;
+	st.other[1] = 0x55555555;
+	st.other[2] = 0x55555555;
+	st.seqid = 0xffffffff;
+	nfsm_stateidtom(nd, &st, NFSSTATEID_PUTSTATEID);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_HYPER + 2 * NFSX_UNSIGNED);
 	txdr_hyper(off, tl);
 	tl += 2;
@@ -4466,9 +4474,8 @@ nfsrv_writedsdorpc(struct nfsmount *nmp, fhandle_t *fhp, off_t off, int len,
 	/* Get rid of weak cache consistency data for now. */
 	if ((nd->nd_flag & (ND_NOMOREDATA | ND_NFSV4 | ND_V4WCCATTR)) ==
 	    (ND_NFSV4 | ND_V4WCCATTR)) {
-		error = nfsv4_loadattr(nd, NULL, nap, NULL,
-		    NULL, 0, NULL, NULL, NULL, NULL, NULL, 0,
-		    NULL, NULL, NULL, NULL, NULL);
+		error = nfsv4_loadattr(nd, NULL, nap, NULL, NULL, 0, NULL, NULL,
+		    NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL);
 		NFSD_DEBUG(4, "nfsrv_writedsdorpc: wcc attr=%d\n", error);
 		if (error != 0)
 			goto nfsmout;
@@ -4498,9 +4505,8 @@ nfsrv_writedsdorpc(struct nfsmount *nmp, fhandle_t *fhp, off_t off, int len,
 	 */
 	if (error == 0) {
 		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
-		error = nfsv4_loadattr(nd, NULL, nap, NULL, NULL, 0,
-		    NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL,
-		    NULL, NULL);
+		error = nfsv4_loadattr(nd, NULL, nap, NULL, NULL, 0, NULL, NULL,
+		    NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL);
 	}
 	NFSD_DEBUG(4, "nfsrv_writedsdorpc: aft loadattr=%d\n", error);
 nfsmout:
@@ -4520,7 +4526,7 @@ start_writedsdorpc(void *arg)
 
 	drpc = (struct nfsrvwritedsdorpc *)arg;
 	drpc->err = nfsrv_writedsdorpc(drpc->nmp, &drpc->fh, drpc->off,
-	    drpc->len, &drpc->st, NULL, drpc->m, drpc->cred, drpc->p);
+	    drpc->len, NULL, drpc->m, drpc->cred, drpc->p);
 	NFSDWRPCLOCK();
 	drpc->haskproc = 0;
 	wakeup(drpc);
@@ -4534,7 +4540,6 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
     char *cp)
 {
 	struct nfsrvwritedsdorpc *drpc, *tdrpc;
-	nfsv4stateid_t st;
 	struct nfsvattr na;
 	struct mbuf *m;
 	int error, haskproc, i, offs, ret, mirrorcnt = 1;
@@ -4551,24 +4556,12 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 	NFSD_DEBUG(4, "nfsrv_writedsrpc: mcopy offs=%d len=%d\n", offs, len);
 
 	/*
-	 * Use a stateid where other is an alternating 01010 pattern and
-	 * seqid is 0xffffffff.  This value is not defined as special by
-	 * the RFC and is used by the FreeBSD NFS server to indicate an
-	 * MDS->DS proxy operation.
-	 */
-	st.other[0] = 0x55555555;
-	st.other[1] = 0x55555555;
-	st.other[2] = 0x55555555;
-	st.seqid = 0xffffffff;
-
-	/*
 	 * Do the write RPC for every DS, using a separate kernel process
 	 * for every DS except the last one.
 	 */
 	haskproc = 0;
 	error = 0;
 	for (i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
-		tdrpc->st = st;
 		tdrpc->fh = *fhp;
 		tdrpc->off = off;
 		tdrpc->len = len;
@@ -4577,20 +4570,20 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 		tdrpc->p = p;
 		tdrpc->m = m_copym(*mpp, offs, NFSM_RNDUP(len), M_WAITOK);
 		tdrpc->haskproc = 1;
-		ret = kproc_create(start_writedsdorpc, (void *)tdrpc,
-		    NULL, 0, 0, "nfsdpnfs");
+		ret = kproc_create(start_writedsdorpc, (void *)tdrpc, NULL, 0,
+		    0, "nfsdpw");
 		if (ret == 0)
 			haskproc = 1;
 		else {
 			tdrpc->haskproc = 0;
-			ret = nfsrv_writedsdorpc(nmp, fhp, off, len, &st, NULL,
+			ret = nfsrv_writedsdorpc(nmp, fhp, off, len, NULL,
 			    tdrpc->m, cred, p);
 			if (error == 0 && ret != 0)
 				error = ret;
 		}
 	}
 	m = m_copym(*mpp, offs, NFSM_RNDUP(len), M_WAITOK);
-	ret = nfsrv_writedsdorpc(nmp, fhp, off, len, &st, &na, m, cred, p);
+	ret = nfsrv_writedsdorpc(nmp, fhp, off, len, &na, m, cred, p);
 	if (error == 0 && ret != 0)
 		error = ret;
 	if (error == 0)
