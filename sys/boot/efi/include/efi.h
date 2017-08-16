@@ -54,4 +54,10 @@ Revision History
 #include "efierr.h"
 #include "efigop.h"
 
+/*
+ * FreeBSD UUID
+ */
+#define FREEBSD_BOOT_VAR_GUID \
+	{ 0xCFEE69AD, 0xA0DE, 0x47A9, {0x93, 0xA8, 0xF6, 0x31, 0x06, 0xF8, 0xAE, 0x99} }
+
 #endif
