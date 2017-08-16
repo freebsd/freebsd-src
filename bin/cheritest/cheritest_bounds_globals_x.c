@@ -60,7 +60,6 @@
  * these globals.
  */
 
-#ifdef __CHERI_PURE_CAPABILITY__
 /* Integer types. */
 extern uint8_t		 extern_global_uint8;
 uint8_t			 extern_global_uint8;
@@ -93,4 +92,3 @@ uint8_t			 extern_global_array256[256];
 
 extern uint8_t		 extern_global_array65536[65536];
 uint8_t			 extern_global_array65536[65536];
-#endif /* __CHERI_PURE_CAPABILITY__ */

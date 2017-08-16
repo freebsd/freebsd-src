@@ -71,8 +71,6 @@
  * XXXRW: For now, no expectations about non-CheriABI code.
  */
 
-#ifdef __CHERI_PURE_CAPABILITY__
-
 /*
  * Template for a test function, which assumes there is a global (test) and
  * corresponding statically initialised pointer (testp).  Check that both
@@ -518,5 +516,3 @@ TEST_DYNAMIC_BOUNDS(extern_global_uint64, sizeof(uint64_t));
 TEST_DYNAMIC_BOUNDS(extern_global_array1, sizeof(uint8_t[1]));
 TEST_DYNAMIC_BOUNDS(extern_global_array65537, sizeof(uint8_t[65537]));
 TEST_DYNAMIC_BOUNDS(extern_global_array256, sizeof(uint8_t[256]));
-
-#endif /* __CHERI_PURE_CAPABILITY__ */

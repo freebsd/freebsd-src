@@ -136,7 +136,6 @@ void	cheritest_failure_errx(const char *msg, ...) __dead2  __printflike(1, 2);
 void	cheritest_success(void) __dead2;
 void	signal_handler_clear(int sig);
 
-#ifdef __CHERI_PURE_CAPABILITY__
 /* cheritest_bounds_globals.c */
 void	test_bounds_global_static_uint8(const struct cheri_test *ctp);
 void	test_bounds_global_uint8(const struct cheri_test *ctp);
@@ -190,7 +189,6 @@ void	test_bounds_extern_global_array65537(const struct cheri_test *ctp);
 void	test_bounds_extern_global_array16(const struct cheri_test *ctp);
 void	test_bounds_extern_global_array256(const struct cheri_test *ctp);
 void	test_bounds_extern_global_array65536(const struct cheri_test *ctp);
-#endif /* __CHERI_PURE_CAPABILITY__ */
 
 /* cheritest_bounds_heap.c */
 void	test_bounds_calloc(const struct cheri_test *ctp);
