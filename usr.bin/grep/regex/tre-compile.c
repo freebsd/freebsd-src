@@ -9,8 +9,6 @@
 #include <string.h>
 #include <wchar.h>
 
-#include "xmalloc.h"
-
 int
 tre_convert_pattern(const char *regex, size_t n, tre_char_t **w,
 		    size_t *wn)
@@ -19,7 +17,7 @@ tre_convert_pattern(const char *regex, size_t n, tre_char_t **w,
   tre_char_t *wregex;
   size_t wlen;
 
-  wregex = xmalloc(sizeof(tre_char_t) * (n + 1));
+  wregex = malloc(sizeof(tre_char_t) * (n + 1));
   if (wregex == NULL)
     return REG_ESPACE;
 
@@ -60,13 +58,13 @@ tre_convert_pattern(const char *regex, size_t n, tre_char_t **w,
 		consumed = 1;
 	      else
 		{
-		  xfree(wregex);
+		  free(wregex);
 		  return REG_BADPAT;
 		}
 	      break;
 	    case -1:
 	      DPRINT(("mbrtowc: error %d: %s.\n", errno, strerror(errno)));
-	      xfree(wregex);
+	      free(wregex);
 	      return REG_BADPAT;
 	    case -2:
 	      /* The last character wasn't complete.  Let's not call it a
@@ -98,6 +96,6 @@ void
 tre_free_pattern(tre_char_t *wregex)
 {
 #if TRE_WCHAR
-  xfree(wregex);
+  free(wregex);
 #endif
 }
