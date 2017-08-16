@@ -154,10 +154,10 @@ __FBSDID("$FreeBSD$");
 
 #include <amd64/sgx/sgxvar.h>
 
-#define	DEBUG
-#undef	DEBUG
+#define	SGX_DEBUG
+#undef	SGX_DEBUG
 
-#ifdef	DEBUG
+#ifdef	SGX_DEBUG
 #define	dprintf(fmt, ...)	printf(fmt, ##__VA_ARGS__)
 #else
 #define	dprintf(fmt, ...)
