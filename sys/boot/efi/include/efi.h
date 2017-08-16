@@ -54,10 +54,4 @@ Revision History
 #include "efierr.h"
 #include "efigop.h"
 
-#define EFI_STRINGIZE(a)                #a 
-#define EFI_PROTOCOL_DEFINITION(a)      EFI_STRINGIZE(Protocol/a/a.h) 
-
-#define EFI_GUID_DEFINITION(a) EFI_STRINGIZE(Guid/a/a##.h) 
-#define EFI_GUID_STRING(guidpointer, shortstring, longstring)
-
 #endif
