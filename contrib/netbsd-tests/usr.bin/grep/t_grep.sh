@@ -159,12 +159,6 @@ context_head()
 }
 context_body()
 {
-	# Begin FreeBSD
-	grep_type
-	if [ $? -eq $GREP_TYPE_BSD ]; then
-		atf_expect_fail "this test doesn't pass with BSD grep yet"
-	fi
-	# End FreeBSD
 	cp $(atf_get_srcdir)/d_context_*.* .
 
 	atf_check -o file:d_context_a.out grep -C2 bamboo d_context_a.in
@@ -226,12 +220,6 @@ context2_head()
 }
 context2_body()
 {
-	# Begin FreeBSD
-	grep_type
-	if [ $? -eq $GREP_TYPE_BSD ]; then
-		atf_expect_fail "this test doesn't pass with BSD grep yet"
-	fi
-	# End FreeBSD
 	printf "haddock\000cod\000plaice\000" > test1
 	printf "mackeral\000cod\000crab\000" > test2
 
@@ -375,7 +363,7 @@ egrep_empty_invalid_head()
 }
 egrep_empty_invalid_body()
 {
-	atf_check -s exit:1 egrep '{' /dev/null
+	atf_check -e ignore -s not-exit:0 egrep '{' /dev/null
 }
 
 atf_test_case zerolen
@@ -390,6 +378,66 @@ zerolen_body()
 	atf_check -o inline:"\n" grep -e "^$" test1
 
 	atf_check -o inline:"Eggs\nCheese\n" grep -v -e "^$" test1
+}
+
+atf_test_case fgrep_sanity
+fgrep_sanity_head()
+{
+	atf_set "descr" "Check for fgrep sanity, literal expressions only"
+}
+fgrep_sanity_body()
+{
+	printf "Foo" > test1
+
+	atf_check -o inline:"Foo\n" fgrep -e "Foo" test1
+
+	atf_check -s exit:1 -o empty fgrep -e "Fo." test1
+}
+
+atf_test_case egrep_sanity
+egrep_sanity_head()
+{
+	atf_set "descr" "Check for egrep sanity, EREs only"
+}
+egrep_sanity_body()
+{
+	printf "Foobar(ed)" > test1
+	printf "M{1}" > test2
+
+	atf_check -o inline:"Foo\n" egrep -o -e "F.." test1
+
+	atf_check -o inline:"Foobar\n" egrep -o -e "F[a-z]*" test1
+
+	atf_check -o inline:"Fo\n" egrep -o -e "F(o|p)" test1
+
+	atf_check -o inline:"(ed)\n" egrep -o -e "\(ed\)" test1
+
+	atf_check -o inline:"M\n" egrep -o -e "M{1}" test2
+
+	atf_check -o inline:"M{1}\n" egrep -o -e "M\{1\}" test2
+}
+
+atf_test_case grep_sanity
+grep_sanity_head()
+{
+	atf_set "descr" "Check for basic grep sanity, BREs only"
+}
+grep_sanity_body()
+{
+	printf "Foobar(ed)" > test1
+	printf "M{1}" > test2
+
+	atf_check -o inline:"Foo\n" grep -o -e "F.." test1
+
+	atf_check -o inline:"Foobar\n" grep -o -e "F[a-z]*" test1
+
+	atf_check -o inline:"Fo\n" grep -o -e "F\(o\)" test1
+
+	atf_check -o inline:"(ed)\n" grep -o -e "(ed)" test1
+
+	atf_check -o inline:"M{1}\n" grep -o -e "M{1}" test2
+
+	atf_check -o inline:"M\n" grep -o -e "M\{1\}" test2
 }
 # End FreeBSD
 
@@ -419,5 +467,8 @@ atf_init_test_cases()
 	atf_add_test_case escmap
 	atf_add_test_case egrep_empty_invalid
 	atf_add_test_case zerolen
+	atf_add_test_case fgrep_sanity
+	atf_add_test_case egrep_sanity
+	atf_add_test_case grep_sanity
 # End FreeBSD
 }
