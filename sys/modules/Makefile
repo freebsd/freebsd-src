@@ -346,6 +346,8 @@ SUBDIR=	\
 	${_sf} \
 	${_sfxge} \
 	sge \
+	${_sgx} \
+	${_sgx_linux} \
 	siba_bwn \
 	siftr \
 	siis \
@@ -709,6 +711,8 @@ _qlxgb=		qlxgb
 _qlxgbe=	qlxgbe
 _qlnx=		qlnx
 _sfxge=		sfxge
+_sgx=		sgx
+_sgx_linux=	sgx_linux
 
 .if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm
