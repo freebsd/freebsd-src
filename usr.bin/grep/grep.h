@@ -90,6 +90,7 @@ struct file {
 };
 
 struct str {
+	off_t		 boff;
 	off_t		 off;
 	size_t		 len;
 	char		*dat;
