@@ -85,7 +85,7 @@ SHARED_CXXFLAGS+= ${_COV_FLAG}
 
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
 # .pico used for PIC object files
-.SUFFIXES: .out .o .bc .ll .po .pico .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
+.SUFFIXES: .out .o .bc .ll .po .pico .ppico .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
 
 .if !defined(PICFLAG)
 .if ${MACHINE_CPUARCH} == "sparc64"
@@ -105,21 +105,28 @@ PO_FLAG=-pg
 	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
+.c.ppico:
+	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS:N${_COV_FLAG}} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
+
 .cc.po .C.po .cpp.po .cxx.po:
 	${CXX} ${PO_FLAG} ${STATIC_CXXFLAGS} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.pico .C.pico .cpp.pico .cxx.pico:
 	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
+.cc.ppico .C.ppico .cpp.ppico .cxx.ppico:
+	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS:N${_COV_FLAG}} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+
 .f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
-.f.pico:
+.f.pico .f.ppico:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
-.s.po .s.pico:
+.s.po .s.pico .s.ppico:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
@@ -133,12 +140,17 @@ PO_FLAG=-pg
 	    ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
+.asm.ppico:
+	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${PICFLAG} -DPIC \
+	    ${CFLAGS:N${_COV_FLAG}} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
+
 .S.po:
 	${CC:N${CCACHE_BIN}} -DPROF ${PO_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
 	    -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.S.pico:
+.S.pico .S.ppico:
 	${CC:N${CCACHE_BIN}} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} \
 	    -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
@@ -229,6 +241,11 @@ lib${LIB_PRIVATE}${LIB}.ll: ${LLOBJS}
 SOBJS+=		${OBJS:.o=.pico}
 DEPENDOBJS+=	${SOBJS}
 CLEANFILES+=	${SOBJS}
+.if defined(INSTALL_PIC_ARCHIVE) && ${MK_COVERAGE} != "no"
+SPOBJS:=	${SOBJS:.pico=.ppico}
+DEPENDOBJS+=	${SPOBJS}
+CLEANFILES+=	${SPOBJS}
+.endif
 .endif
 
 .if defined(SHLIB_NAME)
@@ -246,7 +263,7 @@ SOLINKOPTS+=	-Wl,--fatal-warnings
 SOLINKOPTS+=	-Wl,--warn-shared-textrel
 
 .if target(beforelinking)
-beforelinking: ${SOBJS}
+beforelinking: ${SOBJS} ${SPOBJS}
 ${SHLIB_NAME_FULL}: beforelinking
 .endif
 
@@ -294,10 +311,10 @@ ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
 _LIBS+=		lib${LIB_PRIVATE}${LIB}_pic.a
 
-lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS}
+lib${LIB_PRIVATE}${LIB}_pic.a: ${SPOBJS}
 	@${ECHO} building special pic ${LIB} library
 	@rm -f ${.TARGET}
-	${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
+	${AR} ${ARFLAGS} ${.TARGET} ${SPOBJS} ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
@@ -466,6 +483,7 @@ OBJS_DEPEND_GUESS.${_S:R}.po+=	${_S}
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 .for _S in ${SRCS:N*.[hly]}
 OBJS_DEPEND_GUESS.${_S:R}.pico+=	${_S}
+OBJS_DEPEND_GUESS.${_S:R}.ppico+=	${_S}
 .endfor
 .endif
 
