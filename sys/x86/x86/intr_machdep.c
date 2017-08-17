@@ -75,12 +75,14 @@ typedef void (*mask_fn)(void *);
 
 static int intrcnt_index;
 static struct intsrc *interrupt_sources[NUM_IO_INTS];
+#ifdef SMP
 static struct intsrc *interrupt_sorted[NUM_IO_INTS];
 CTASSERT(sizeof(interrupt_sources) == sizeof(interrupt_sorted));
 static int intrbalance;
 SYSCTL_INT(_hw, OID_AUTO, intrbalance, CTLFLAG_RW, &intrbalance, 0,
     "Interrupt auto-balance interval (seconds).  Zero disables.");
 static struct timeout_task intrbalance_task;
+#endif
 static struct sx intrsrc_lock;
 static struct mtx intrpic_lock;
 static struct mtx intrcnt_lock;
