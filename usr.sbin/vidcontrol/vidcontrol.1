@@ -125,15 +125,123 @@ Set border color to
 This option may not be always supported by the video driver.
 .It Fl C
 Clear the history buffer.
-.It Fl c Cm normal | blink | destructive
+.It Fl c Ar setting Ns Op , Ns Ar setting ...
 Change the cursor appearance.
-The cursor is either an inverting block
-.Pq Cm normal
-that can optionally
-.Cm blink ,
-or it can be like the old hardware cursor
-.Pq Cm destructive .
-The latter is actually a simulation.
+The change is specified by a non-empty comma-separated list of
+.Cm setting Ns s .
+Each
+.Cm setting
+overrides or modifies previous ones in left to right order.
+.Pp
+The following override
+.Cm setting Ns s
+are available:
+.Bl -tag -width indent
+.It Cm block
+Set to a block covering 1 character cell,
+with a configuration-dependent coloring
+that should be at worst inverse video.
+.It Cm blinkingblock
+Set to a blinking
+.Cm block .
+.It Cm underline
+Set to
+.Cm height
+scanlines starting at
+.Cm base .
+This only gives an underline in normal configurations.
+.It Cm blinkingunderline
+Set to a blinking
+.Cm underline .
+.It Cm base Ns = Ns Ar value, Cm height Ns = Ns Ar value
+Set the specified scanline parameters.
+These parameters are only active in so-called
+.Cm char ( underline )
+mode.
+.Cm value
+is an integer in any base supported by
+.Xr strtol 3 .
+Setting
+.Cm height
+to 0 turns off the cursor in
+.Cm char
+mode.
+Negative
+.Ar value Ns s
+are silently ignored.
+Positive
+.Ar value Ns s
+are clamped to fit in the character cell when the cursor is drawn.
+.El
+.Pp
+The following override
+.Cm setting Ns s
+are provided for backwards compatibility:
+.Bl -tag -width indent
+.It Cm normal
+Old name for
+.Cm block .
+.It Cm blink
+Old name for
+.Cm blinkingblock .
+.It Cm destructive
+Bad old name for
+.Cm blinkingunderline .
+The so-called
+.Cm destructive
+cursor was only destructive due to a bug that was fixed in
+.Fx 4.1.0 .
+The destruction in the non-blinking case was so large that
+this case was not supported by
+.Nm ,
+so no backwards compatible name is needed for this case.
+.El
+.Pp
+The following modifier
+.Cm setting Ns s
+are available:
+.Bl -tag -width indent
+.It Cm blinking , noblinking
+Set or clear the blinking attribute.
+.It Cm char , nochar
+Set or clear the so-called
+.Cm char
+attribute.
+Names in this section follow the bad old names of
+flags in the implementation.
+.Cm char
+now means
+.Do
+activate the scanline parameters,
+and implement them using the best available method
+(at worst, actually use the old
+.Cm char
+method with its destruction fixed if it is configured,
+else silently ignore this flag).
+.Dc
+.It Cm hidden , nohidden
+Set or clear the hidden attribute.
+.It Cm local
+Apply the changes (except for the
+.Cm local
+and
+.Cm reset
+control flags)
+to the current vty.
+The default is to apply them to all vtys.
+.It Cm reset
+Reset everything.
+The default is to not reset.
+When the
+.Cm local
+parameter is specified, the resetting is for the 
+current local settings to the current global settings.
+Otherwise, the resetting is for the current global
+settings to defaults configured a boot time.
+Beware that the scanline parameters and not automatically
+scaled by the font size and resetting tends to undo manual
+fixups for this.
+.El
 .It Fl d
 Print out current output screen map.
 .It Xo
