@@ -49,7 +49,7 @@ struct qentry {
 };
 
 static STAILQ_HEAD(, qentry)	queue = STAILQ_HEAD_INITIALIZER(queue);
-static unsigned long long	count;
+static long long		count;
 
 static struct qentry	*dequeue(void);
 
