@@ -745,6 +745,7 @@ vm_page_sunbusy(vm_page_t m)
 {
 	u_int x;
 
+	vm_page_lock_assert(m, MA_NOTOWNED);
 	vm_page_assert_sbusied(m);
 
 	for (;;) {
