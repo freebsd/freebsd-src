@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2017
+.Dd August 17, 2017
 .Dt SBUF 9
 .Os
 .Sh NAME
@@ -271,6 +271,14 @@ This indicates that the storage buffer may be extended as necessary, so long
 as resources allow, to hold additional data.
 .It Dv SBUF_INCLUDENUL
 This causes the final nulterm byte to be counted in the length of the data.
+.It Dv SBUF_DRAINTOEOR
+Treat top-level sections started with
+.Fn sbuf_start_section
+as a record boundary marker that will be used during drain operations to avoid
+records being split.
+If a record grows sufficiently large such that it fills the
+.Fa sbuf
+and therefore cannot be drained without being split, an error of EDEADLK is set.
 .El
 .Pp
 Note that if
