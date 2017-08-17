@@ -574,6 +574,46 @@ binary_flags_body()
 	atf_check -o inline:"A\000B\000C\n" grep --binary-files=text 'B' test1
 	atf_check -s exit:1 grep --binary-files=without-match 'B' test2
 }
+
+atf_test_case mmap
+mmap_head()
+{
+	atf_set "descr" "Check basic matching with --mmap flag"
+}
+mmap_body()
+{
+	grep_type
+	if [ $? -eq $GREP_TYPE_GNU ]; then
+		atf_expect_fail "gnu grep from ports has no --mmap option"
+	fi
+
+	printf "A\nB\nC\n" > test1
+
+	atf_check -s exit:0 -o inline:"B\n" grep --mmap -oe "B" test1
+	atf_check -s exit:1 grep --mmap -e "Z" test1
+}
+
+atf_test_case mmap_eof_not_eol
+mmap_eof_not_eol_head()
+{
+	atf_set "descr" "Check --mmap flag handling of encountering EOF without EOL (PR 165471, 219402)"
+}
+mmap_eof_not_eol_body()
+{
+	grep_type
+	if [ $? -eq $GREP_TYPE_GNU ]; then
+		atf_expect_fail "gnu grep from ports has no --mmap option"
+	fi
+
+	printf "ABC" > test1
+	jot -b " "  -s "" 4096 >> test2
+
+	atf_check -s exit:0 -o inline:"B\n" grep --mmap -oe "B" test1
+	# Dependency on jemalloc(3) to detect buffer overflow, otherwise this
+	# unreliably produces a SIGSEGV or SIGBUS
+	atf_check -s exit:0 -o not-empty \
+	    env MALLOC_CONF="redzone:true" grep --mmap -e " " test2
+}
 # End FreeBSD
 
 atf_init_test_cases()
@@ -610,5 +650,7 @@ atf_init_test_cases()
 	atf_add_test_case grep_nomatch_flags
 	atf_add_test_case binary_flags
 	atf_add_test_case badcontext
+	atf_add_test_case mmap
+	atf_add_test_case mmap_eof_not_eol
 # End FreeBSD
 }
