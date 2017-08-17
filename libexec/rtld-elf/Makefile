@@ -6,6 +6,7 @@
 
 .include <src.opts.mk>
 PACKAGE=	clibs
+MK_COVERAGE=	no
 MK_SSP=		no
 
 PROG?=		ld-elf.so.1
