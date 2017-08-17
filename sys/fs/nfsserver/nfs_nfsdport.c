@@ -70,6 +70,8 @@ extern struct mtx nfsrv_dslock_mtx;
 extern struct mtx nfsrv_dsclock_mtx;
 extern struct mtx nfsrv_dsrmlock_mtx;
 extern struct mtx nfsrv_dwrpclock_mtx;
+extern struct mtx nfsrv_dsrpclock_mtx;
+extern struct mtx nfsrv_darpclock_mtx;
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
 NFSSTATESPINLOCK;
@@ -113,11 +115,12 @@ static int nfsrv_setextattr(struct vnode *, struct nfsvattr *, NFSPROC_T *);
 static int nfsrv_readdsrpc(fhandle_t *, off_t, int, struct ucred *,
     NFSPROC_T *, struct nfsmount *, struct mbuf **, struct mbuf **);
 static int nfsrv_writedsrpc(fhandle_t *, off_t, int, struct ucred *,
-    NFSPROC_T *, struct vnode *, struct nfsmount *, struct mbuf **, char *);
+    NFSPROC_T *, struct vnode *, struct nfsmount **, int, struct mbuf **,
+    char *);
 static int nfsrv_setacldsrpc(fhandle_t *, struct ucred *, NFSPROC_T *,
-    struct vnode *, struct nfsmount *, struct acl *);
+    struct vnode *, struct nfsmount **, int, struct acl *);
 static int nfsrv_setattrdsrpc(fhandle_t *, struct ucred *, NFSPROC_T *,
-    struct vnode *, struct nfsmount *, struct nfsvattr *);
+    struct vnode *, struct nfsmount **, int, struct nfsvattr *);
 static int nfsrv_getattrdsrpc(fhandle_t *, struct ucred *, NFSPROC_T *,
     struct vnode *, struct nfsmount *, struct nfsvattr *);
 static int nfsrv_putfhname(fhandle_t *, char *);
@@ -4061,7 +4064,7 @@ nfsrv_proxyds(struct nfsrv_descript *nd, struct vnode *vp, off_t off, int cnt,
 	struct vnode *dvp[NFSDEV_MAXMIRRORS];
 	struct pnfsdsattr dsattr;
 	char *buf;
-	int buflen, error, mirrorcnt;
+	int buflen, error, i, mirrorcnt;
 
 	NFSD_DEBUG(4, "in nfsrv_proxyds\n");
 	/*
@@ -4134,17 +4137,18 @@ nfsrv_proxyds(struct nfsrv_descript *nd, struct vnode *vp, off_t off, int cnt,
 			    mpp, mpp2);
 		else if (ioproc == NFSPROC_WRITEDS)
 			error = nfsrv_writedsrpc(fh, off, cnt, cred, p, vp,
-			    nmp[0], mpp, cp);
+			    &nmp[0], mirrorcnt, mpp, cp);
 		else if (ioproc == NFSPROC_SETATTR)
-			error = nfsrv_setattrdsrpc(fh, cred, p, vp, nmp[0],
-			    nap);
+			error = nfsrv_setattrdsrpc(fh, cred, p, vp, &nmp[0],
+			    mirrorcnt, nap);
 		else if (ioproc == NFSPROC_SETACL)
-			error = nfsrv_setacldsrpc(fh, cred, p, vp, nmp[0],
-			    aclp);
+			error = nfsrv_setacldsrpc(fh, cred, p, vp, &nmp[0],
+			    mirrorcnt, aclp);
 		else
-			error = nfsrv_getattrdsrpc(fh, cred, p, vp, nmp[0],
-			    nap);
-		NFSVOPUNLOCK(dvp[0], 0);
+			error = nfsrv_getattrdsrpc(&fh[mirrorcnt - 1], cred, p,
+			    vp, nmp[mirrorcnt - 1], nap);
+		for (i = 0; i < mirrorcnt; i++)
+			NFSVOPUNLOCK(dvp[i], 0);
 		NFSD_DEBUG(4, "nfsrv_proxyds: aft RPC=%d\n", error);
 	} else {
 		/* Return ENOENT for any Extended Attribute error. */
@@ -4536,13 +4540,13 @@ start_writedsdorpc(void *arg)
 
 static int
 nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
-    NFSPROC_T *p, struct vnode *vp, struct nfsmount *nmp, struct mbuf **mpp,
-    char *cp)
+    NFSPROC_T *p, struct vnode *vp, struct nfsmount **nmpp, int mirrorcnt,
+    struct mbuf **mpp, char *cp)
 {
 	struct nfsrvwritedsdorpc *drpc, *tdrpc;
 	struct nfsvattr na;
 	struct mbuf *m;
-	int error, haskproc, i, offs, ret, mirrorcnt = 1;
+	int error, haskproc, i, offs, ret;
 
 	NFSD_DEBUG(4, "in nfsrv_writedsrpc\n");
 	KASSERT(*mpp != NULL, ("nfsrv_writedsrpc: NULL mbuf chain"));
@@ -4565,7 +4569,7 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 		tdrpc->fh = *fhp;
 		tdrpc->off = off;
 		tdrpc->len = len;
-		tdrpc->nmp = nmp;
+		tdrpc->nmp = *nmpp;
 		tdrpc->cred = cred;
 		tdrpc->p = p;
 		tdrpc->m = m_copym(*mpp, offs, NFSM_RNDUP(len), M_WAITOK);
@@ -4576,14 +4580,16 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 			haskproc = 1;
 		else {
 			tdrpc->haskproc = 0;
-			ret = nfsrv_writedsdorpc(nmp, fhp, off, len, NULL,
+			ret = nfsrv_writedsdorpc(*nmpp, fhp, off, len, NULL,
 			    tdrpc->m, cred, p);
 			if (error == 0 && ret != 0)
 				error = ret;
 		}
+		nmpp++;
+		fhp++;
 	}
 	m = m_copym(*mpp, offs, NFSM_RNDUP(len), M_WAITOK);
-	ret = nfsrv_writedsdorpc(nmp, fhp, off, len, &na, m, cred, p);
+	ret = nfsrv_writedsdorpc(*nmpp, fhp, off, len, &na, m, cred, p);
 	if (error == 0 && ret != 0)
 		error = ret;
 	if (error == 0)
@@ -4607,17 +4613,17 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 }
 
 static int
-nfsrv_setattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
-    struct vnode *vp, struct nfsmount *nmp, struct nfsvattr *nap)
+nfsrv_setattrdsdorpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
+    struct vnode *vp, struct nfsmount *nmp, struct nfsvattr *nap,
+    struct nfsvattr *dsnap)
 {
 	uint32_t *tl;
 	struct nfsrv_descript *nd;
 	nfsv4stateid_t st;
 	nfsattrbit_t attrbits;
-	struct nfsvattr na;
 	int error;
 
-	NFSD_DEBUG(4, "in nfsrv_setattrdsrpc\n");
+	NFSD_DEBUG(4, "in nfsrv_setattrdsdorpc\n");
 	nd = malloc(sizeof(*nd), M_TEMP, M_WAITOK | M_ZERO);
 	/*
 	 * Use a stateid where other is an alternating 01010 pattern and
@@ -4649,15 +4655,14 @@ nfsrv_setattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 		free(nd, M_TEMP);
 		return (error);
 	}
-	NFSD_DEBUG(4, "nfsrv_setattrdsrpc: aft setattrrpc=%d\n",
+	NFSD_DEBUG(4, "nfsrv_setattrdsdorpc: aft setattrrpc=%d\n",
 	    nd->nd_repstat);
 	/* Get rid of weak cache consistency data for now. */
 	if ((nd->nd_flag & (ND_NOMOREDATA | ND_NFSV4 | ND_V4WCCATTR)) ==
 	    (ND_NFSV4 | ND_V4WCCATTR)) {
-		error = nfsv4_loadattr(nd, NULL, &na, NULL,
-		    NULL, 0, NULL, NULL, NULL, NULL, NULL, 0,
-		    NULL, NULL, NULL, NULL, NULL);
-		NFSD_DEBUG(4, "nfsrv_setattrdsrpc: wcc attr=%d\n", error);
+		error = nfsv4_loadattr(nd, NULL, dsnap, NULL, NULL, 0, NULL,
+		    NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL);
+		NFSD_DEBUG(4, "nfsrv_setattrdsdorpc: wcc attr=%d\n", error);
 		if (error != 0)
 			goto nfsmout;
 		/*
@@ -4679,18 +4684,109 @@ nfsrv_setattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	 */
 	if (error == 0) {
 		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
-		error = nfsv4_loadattr(nd, NULL, &na, NULL, NULL, 0,
-		    NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL,
-		    NULL, NULL);
+		error = nfsv4_loadattr(nd, NULL, dsnap, NULL, NULL, 0, NULL,
+		    NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL);
 	}
-	NFSD_DEBUG(4, "nfsrv_setattrdsrpc: aft setattr loadattr=%d\n", error);
-	if (error == 0)
-		error = nfsrv_setextattr(vp, &na, p);
-	NFSD_DEBUG(4, "nfsrv_setattrdsrpc: aft setextat=%d\n", error);
+	NFSD_DEBUG(4, "nfsrv_setattrdsdorpc: aft setattr loadattr=%d\n", error);
 nfsmout:
 	m_freem(nd->nd_mrep);
 	free(nd, M_TEMP);
-	NFSD_DEBUG(4, "nfsrv_setattrdsrpc error=%d\n", error);
+	NFSD_DEBUG(4, "nfsrv_setattrdsdorpc error=%d\n", error);
+	return (error);
+}
+
+struct nfsrvsetattrdsdorpc {
+	fhandle_t		fh;
+	struct nfsmount		*nmp;
+	struct vnode		*vp;
+	struct ucred		*cred;
+	NFSPROC_T		*p;
+	struct nfsvattr		na;
+	struct nfsvattr		dsna;
+	int			haskproc;
+	int			err;
+};
+
+/*
+ * Start up the thread that will execute nfsrv_setattrdsdorpc().
+ */
+static void
+start_setattrdsdorpc(void *arg)
+{
+	struct nfsrvsetattrdsdorpc *drpc;
+
+	drpc = (struct nfsrvsetattrdsdorpc *)arg;
+	drpc->err = nfsrv_setattrdsdorpc(&drpc->fh, drpc->cred, drpc->p,
+	    drpc->vp, drpc->nmp, &drpc->na, &drpc->dsna);
+	NFSDSRPCLOCK();
+	drpc->haskproc = 0;
+	wakeup(drpc);
+	NFSDSRPCUNLOCK();
+	kproc_exit(0);
+}
+
+static int
+nfsrv_setattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
+    struct vnode *vp, struct nfsmount **nmpp, int mirrorcnt,
+    struct nfsvattr *nap)
+{
+	struct nfsrvsetattrdsdorpc *drpc, *tdrpc;
+	struct nfsvattr na;
+	int error, haskproc, i, ret;
+
+	NFSD_DEBUG(4, "in nfsrv_setattrdsrpc\n");
+	drpc = NULL;
+	if (mirrorcnt > 1)
+		tdrpc = drpc = malloc(sizeof(*drpc) * (mirrorcnt - 1), M_TEMP,
+		    M_WAITOK);
+
+	/*
+	 * Do the setattr RPC for every DS, using a separate kernel process
+	 * for every DS except the last one.
+	 */
+	haskproc = 0;
+	error = 0;
+	for (i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
+		tdrpc->fh = *fhp;
+		tdrpc->nmp = *nmpp;
+		tdrpc->vp = vp;
+		tdrpc->cred = cred;
+		tdrpc->p = p;
+		tdrpc->na = *nap;
+		tdrpc->haskproc = 1;
+		ret = kproc_create(start_setattrdsdorpc, (void *)tdrpc, NULL, 0,
+		    0, "nfsdps");
+		if (ret == 0)
+			haskproc = 1;
+		else {
+			tdrpc->haskproc = 0;
+			ret = nfsrv_setattrdsdorpc(fhp, cred, p, vp, *nmpp, nap,
+			    &na);
+			if (error == 0 && ret != 0)
+				error = ret;
+		}
+		nmpp++;
+		fhp++;
+	}
+	ret = nfsrv_setattrdsdorpc(fhp, cred, p, vp, *nmpp, nap, &na);
+	if (error == 0 && ret != 0)
+		error = ret;
+	if (error == 0)
+		error = nfsrv_setextattr(vp, &na, p);
+	NFSD_DEBUG(4, "nfsrv_setattrdsrpc: aft setextat=%d\n", error);
+	if (haskproc != 0) {
+		/* Wait for kernel proc(s) to complete. */
+		NFSDSRPCLOCK();
+		for (tdrpc = drpc, i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
+			while (tdrpc->haskproc != 0)
+				mtx_sleep(tdrpc, NFSDSRPCLOCKMUTEXPTR, PVFS,
+				    "nfsps", 0);
+			if (error == 0 && tdrpc->err != 0)
+				error = tdrpc->err;
+		}
+		NFSDSRPCUNLOCK();
+	}
+	free(drpc, M_TEMP);
 	return (error);
 }
 
@@ -4698,7 +4794,7 @@ nfsmout:
  * Do a Setattr of an NFSv4 ACL on the DS file.
  */
 static int
-nfsrv_setacldsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
+nfsrv_setacldsdorpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
     struct vnode *vp, struct nfsmount *nmp, struct acl *aclp)
 {
 	struct nfsrv_descript *nd;
@@ -4706,7 +4802,7 @@ nfsrv_setacldsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	nfsattrbit_t attrbits;
 	int error;
 
-	NFSD_DEBUG(4, "in nfsrv_setacldsrpc\n");
+	NFSD_DEBUG(4, "in nfsrv_setacldsdorpc\n");
 	nd = malloc(sizeof(*nd), M_TEMP, M_WAITOK | M_ZERO);
 	/*
 	 * Use a stateid where other is an alternating 01010 pattern and
@@ -4736,11 +4832,101 @@ nfsrv_setacldsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 		free(nd, M_TEMP);
 		return (error);
 	}
-	NFSD_DEBUG(4, "nfsrv_setacldsrpc: aft setaclrpc=%d\n",
+	NFSD_DEBUG(4, "nfsrv_setacldsdorpc: aft setaclrpc=%d\n",
 	    nd->nd_repstat);
 	error = nd->nd_repstat;
 	m_freem(nd->nd_mrep);
 	free(nd, M_TEMP);
+	return (error);
+}
+
+struct nfsrvsetacldsdorpc {
+	fhandle_t		fh;
+	struct nfsmount		*nmp;
+	struct vnode		*vp;
+	struct ucred		*cred;
+	NFSPROC_T		*p;
+	struct acl		*aclp;
+	int			haskproc;
+	int			err;
+};
+
+/*
+ * Start up the thread that will execute nfsrv_setacldsdorpc().
+ */
+static void
+start_setacldsdorpc(void *arg)
+{
+	struct nfsrvsetacldsdorpc *drpc;
+
+	drpc = (struct nfsrvsetacldsdorpc *)arg;
+	drpc->err = nfsrv_setacldsdorpc(&drpc->fh, drpc->cred, drpc->p,
+	    drpc->vp, drpc->nmp, drpc->aclp);
+	NFSDARPCLOCK();
+	drpc->haskproc = 0;
+	wakeup(drpc);
+	NFSDARPCUNLOCK();
+	kproc_exit(0);
+}
+
+static int
+nfsrv_setacldsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
+    struct vnode *vp, struct nfsmount **nmpp, int mirrorcnt, struct acl *aclp)
+{
+	struct nfsrvsetacldsdorpc *drpc, *tdrpc;
+	int error, haskproc, i, ret;
+
+	NFSD_DEBUG(4, "in nfsrv_setacldsrpc\n");
+	drpc = NULL;
+	if (mirrorcnt > 1)
+		tdrpc = drpc = malloc(sizeof(*drpc) * (mirrorcnt - 1), M_TEMP,
+		    M_WAITOK);
+
+	/*
+	 * Do the setattr RPC for every DS, using a separate kernel process
+	 * for every DS except the last one.
+	 */
+	haskproc = 0;
+	error = 0;
+	for (i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
+		tdrpc->fh = *fhp;
+		tdrpc->nmp = *nmpp;
+		tdrpc->vp = vp;
+		tdrpc->cred = cred;
+		tdrpc->p = p;
+		tdrpc->aclp = aclp;
+		tdrpc->haskproc = 1;
+		ret = kproc_create(start_setacldsdorpc, (void *)tdrpc, NULL, 0,
+		    0, "nfsdpa");
+		if (ret == 0)
+			haskproc = 1;
+		else {
+			tdrpc->haskproc = 0;
+			ret = nfsrv_setacldsdorpc(fhp, cred, p, vp, *nmpp,
+			    aclp);
+			if (error == 0 && ret != 0)
+				error = ret;
+		}
+		nmpp++;
+		fhp++;
+	}
+	ret = nfsrv_setacldsdorpc(fhp, cred, p, vp, *nmpp, aclp);
+	if (error == 0 && ret != 0)
+		error = ret;
+	NFSD_DEBUG(4, "nfsrv_setacldsrpc: aft setextat=%d\n", error);
+	if (haskproc != 0) {
+		/* Wait for kernel proc(s) to complete. */
+		NFSDARPCLOCK();
+		for (tdrpc = drpc, i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
+			while (tdrpc->haskproc != 0)
+				mtx_sleep(tdrpc, NFSDARPCLOCKMUTEXPTR, PVFS,
+				    "nfspa", 0);
+			if (error == 0 && tdrpc->err != 0)
+				error = tdrpc->err;
+		}
+		NFSDARPCUNLOCK();
+	}
+	free(drpc, M_TEMP);
 	return (error);
 }
 
