@@ -37,17 +37,13 @@ MK_DEBUG_FILES=	no
 .if defined(CRUNCH_CFLAGS)
 CFLAGS+=${CRUNCH_CFLAGS}
 .else
-.if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
-    empty(DEBUG_FLAGS:M-gdwarf-*)
+.if ${MK_DEBUG_FILES} != "no"
+.if empty(DEBUG_FLAGS:M-g) && empty(DEBUG_FLAGS:M-gdwarf-*)
 CFLAGS+= -g
 CXXFLAGS+= -g
 CTFFLAGS+= -g
 .endif
-.if ${MK_COVERAGE} != "no" && \
-    (${CFLAGS:M-g*} != "" || ${CXXFLAGS:M-g*})
-_COV_FLAG= --coverage
-CFLAGS+= ${_COV_FLAG}
-CXXFLAGS+= ${_COV_FLAG}
+_WANTS_DEBUG=
 .endif
 .endif
 
@@ -64,6 +60,12 @@ TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
 
 .if defined(NO_SHARED) && (${NO_SHARED} != "no" && ${NO_SHARED} != "NO")
 LDFLAGS+= -static
+.else
+.if defined(_WANTS_DEBUG) && ${MK_COVERAGE} != "no"
+_COV_FLAG= --coverage
+CFLAGS+= ${_COV_FLAG}
+CXXFLAGS+= ${_COV_FLAG}
+.endif
 .endif
 
 .if ${MK_DEBUG_FILES} != "no"
@@ -251,7 +253,7 @@ _proginstall:
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},coverage} -d ${DESTDIR}${COVERAGEDIR}/
 .endif
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},coverage} -o ${BINOWN} -g ${BINGRP} -m ${DEBUGMODE} \
-	    ${PROGNAME}.full ${DESTDIR}${COVERAGEDIR}/${PROGNAME}
+	    ${PROG_FULL} ${DESTDIR}${COVERAGEDIR}/${PROGNAME}
 .endif
 .if defined(DEBUGMKDIR)
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},debug} -d ${DESTDIR}${DEBUGFILEDIR}/
