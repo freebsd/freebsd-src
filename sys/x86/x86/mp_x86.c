@@ -155,6 +155,7 @@ SYSCTL_INT(_machdep, OID_AUTO, hyperthreading_allowed, CTLFLAG_RDTUN,
 static struct topo_node topo_root;
 
 static int pkg_id_shift;
+static int node_id_shift;
 static int core_id_shift;
 static int disabled_cpus;
 
@@ -274,6 +275,15 @@ topo_probe_amd(void)
 		cpuid_count(0x8000001e, 0, p);
 		share_count = ((p[1] >> 8) & 0xff) + 1;
 		core_id_shift = mask_width(share_count);
+
+		/*
+		 * For Zen (17h), gather Nodes per Processor.  Each node is a
+		 * Zeppelin die; TR and EPYC CPUs will have multiple dies per
+		 * package.  Communication latency between dies is higher than
+		 * within them.
+		 */
+		nodes_per_socket = ((p[2] >> 8) & 0x7) + 1;
+		node_id_shift = pkg_id_shift - mask_width(nodes_per_socket);
 	}
 
 	if ((amd_feature2 & AMDID2_TOPOLOGY) != 0) {
@@ -483,7 +493,7 @@ topo_probe(void)
 		int type;
 		int subtype;
 		int id_shift;
-	} topo_layers[MAX_CACHE_LEVELS + 3];
+	} topo_layers[MAX_CACHE_LEVELS + 4];
 	struct topo_node *parent;
 	struct topo_node *node;
 	int layer;
@@ -515,6 +525,15 @@ topo_probe(void)
 		printf("Package ID shift: %u\n", topo_layers[nlayers].id_shift);
 	nlayers++;
 
+	if (pkg_id_shift > node_id_shift && node_id_shift != 0) {
+		topo_layers[nlayers].type = TOPO_TYPE_GROUP;
+		topo_layers[nlayers].id_shift = node_id_shift;
+		if (bootverbose)
+			printf("Node ID shift: %u\n",
+			    topo_layers[nlayers].id_shift);
+		nlayers++;
+	}
+
 	/*
 	 * Consider all caches to be within a package/chip
 	 * and "in front" of all sub-components like
@@ -522,6 +541,9 @@ topo_probe(void)
 	 */
 	for (i = MAX_CACHE_LEVELS - 1; i >= 0; --i) {
 		if (caches[i].present) {
+			if (node_id_shift != 0)
+				KASSERT(caches[i].id_shift <= node_id_shift,
+					("bug in APIC topology discovery"));
 			KASSERT(caches[i].id_shift <= pkg_id_shift,
 				("bug in APIC topology discovery"));
 			KASSERT(caches[i].id_shift >= core_id_shift,
@@ -720,7 +742,8 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 	int ncores;
 	int i;
 
-	KASSERT(root->type == TOPO_TYPE_SYSTEM || root->type == TOPO_TYPE_CACHE,
+	KASSERT(root->type == TOPO_TYPE_SYSTEM || root->type == TOPO_TYPE_CACHE ||
+	    root->type == TOPO_TYPE_GROUP,
 	    ("x86topo_add_sched_group: bad type: %u", root->type));
 	CPU_COPY(&root->cpuset, &cg_root->cg_mask);
 	cg_root->cg_count = root->cpu_count;
@@ -760,7 +783,8 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 	nchildren = 0;
 	node = root;
 	while (node != NULL) {
-		if (node->type != TOPO_TYPE_CACHE ||
+		if ((node->type != TOPO_TYPE_GROUP &&
+		    node->type != TOPO_TYPE_CACHE) ||
 		    (root->type != TOPO_TYPE_SYSTEM &&
 		    CPU_CMP(&node->cpuset, &root->cpuset) == 0)) {
 			node = topo_next_node(root, node);
@@ -780,7 +804,8 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 	node = root;
 	i = 0;
 	while (node != NULL) {
-		if (node->type != TOPO_TYPE_CACHE ||
+		if ((node->type != TOPO_TYPE_GROUP &&
+		    node->type != TOPO_TYPE_CACHE) ||
 		    (root->type != TOPO_TYPE_SYSTEM &&
 		    CPU_CMP(&node->cpuset, &root->cpuset) == 0)) {
 			node = topo_next_node(root, node);
