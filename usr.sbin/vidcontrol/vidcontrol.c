@@ -193,14 +193,15 @@ static void
 usage(void)
 {
 	if (vt4_mode)
-		fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
+		fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: vidcontrol [-CHPpx] [-b color] [-c appearance] [-f [[size] file]]",
 "                  [-g geometry] [-h size] [-i active | adapter | mode]",
-"                  [-M char] [-m on | off] [-r foreground background]",
-"                  [-S on | off] [-s number] [-T xterm | cons25] [-t N | off]",
-"                  [mode] [foreground [background]] [show]");
+"                  [-M char] [-m on | off]",
+"                  [-r foreground background] [-S on | off] [-s number]",
+"                  [-T xterm | cons25] [-t N | off] [mode]",
+"                  [foreground [background]] [show]");
 	else
-		fprintf(stderr, "%s\n%s\n%s\n%s\n%s%s\n\n",
+		fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: vidcontrol [-CdHLPpx] [-b color] [-c appearance] [-f [size] file]",
 "                  [-g geometry] [-h size] [-i active | adapter | mode]",
 "                  [-l screen_map] [-M char] [-m on | off]",
