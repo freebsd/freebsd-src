@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 19, 2012
+.Dd August 18, 2017
 .Dt BGE 4
 .Os
 .Sh NAME
@@ -159,6 +159,10 @@ following:
 .It
 3Com 3c996-T (10/100/1000baseTX)
 .It
+Apple Thunderbolt Display (10/100/1000baseTX)
+.It
+Apple Thunderbolt to Gigabit Ethernet Adapter (10/100/1000baseTX)
+.It
 Dell PowerEdge 1750 integrated BCM5704C NIC (10/100/1000baseTX)
 .It
 Dell PowerEdge 2550 integrated BCM5700 NIC (10/100/1000baseTX)
@@ -236,6 +240,9 @@ during initialization.
 The driver failed to initialize PCI shared memory mapping.
 This might
 happen if the card is not in a bus-master slot.
+.It "bge%d: firmware handshake timed out, found 0xffffffff"
+The device was physically disconnected from the system, or there is a problem with
+the device causing it to stop responding to the host it is attached to.
 .It "bge%d: no memory for jumbo buffers!"
 The driver failed to allocate memory for jumbo frames during
 initialization.
@@ -262,3 +269,12 @@ The
 .Nm
 driver was written by
 .An Bill Paul Aq Mt wpaul@windriver.com .
+.Sh BUGS
+Hotplug is not currently supported in
+.Fx ,
+hence, Thunderbolt interfaces need to be connected prior to system power up on
+Apple systems in order for the interface to be detected.
+Also, due to the lack of hotplug support, Thunderbolt-based interfaces must not be removed
+while the system is up as the kernel is currently unable to cope with a
+.Nm
+interface disappearing.
