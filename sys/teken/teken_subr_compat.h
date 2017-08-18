@@ -27,7 +27,7 @@
  */
 
 static void
-teken_subr_cons25_set_adapter_border(teken_t *t, unsigned int c)
+teken_subr_cons25_set_border(teken_t *t, unsigned int c)
 {
 
 	teken_funcs_param(t, TP_SETBORDER, c);
@@ -44,7 +44,7 @@ static const teken_color_t cons25_colors[8] = { TC_BLACK, TC_BLUE,
     TC_GREEN, TC_CYAN, TC_RED, TC_MAGENTA, TC_BROWN, TC_WHITE };
 
 static void
-teken_subr_cons25_set_adapter_background(teken_t *t, unsigned int c)
+teken_subr_cons25_set_default_background(teken_t *t, unsigned int c)
 {
 
 	t->t_defattr.ta_bgcolor = cons25_colors[c % 8] | (c & 8);
@@ -52,7 +52,7 @@ teken_subr_cons25_set_adapter_background(teken_t *t, unsigned int c)
 }
 
 static void
-teken_subr_cons25_set_adapter_foreground(teken_t *t, unsigned int c)
+teken_subr_cons25_set_default_foreground(teken_t *t, unsigned int c)
 {
 
 	t->t_defattr.ta_fgcolor = cons25_colors[c % 8] | (c & 8);
