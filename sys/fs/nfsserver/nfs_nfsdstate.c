@@ -6596,8 +6596,8 @@ int
 nfsrv_getdevinfo(char *devid, int layouttype, uint32_t *maxcnt,
     uint32_t *notify, int *devaddrlen, char **devaddr)
 {
-	struct nfsdevice *ds;
-	int i;
+	struct nfsdevice *ds, *mds;
+	int done, i;
 
 	if (layouttype != NFSLAYOUT_NFSV4_1_FILES)
 		return (NFSERR_UNKNLAYOUTTYPE);
@@ -6607,8 +6607,19 @@ nfsrv_getdevinfo(char *devid, int layouttype, uint32_t *maxcnt,
 	 * away, but the order changes in the list.  As such, the lock only
 	 * needs to be held during the search through the list.
 	 */
+	done = 0;
 	NFSDDSLOCK();
 	TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
+		TAILQ_FOREACH(mds, &ds->nfsdev_mirrors, nfsdev_list) {
+			if (NFSBCMP(devid, mds->nfsdev_deviceid,
+			    NFSX_V4DEVICEID) == 0) {
+				ds = mds;
+				done = 1;
+				break;
+			}
+		}
+		if (done != 0)
+			break;
 		if (NFSBCMP(devid, ds->nfsdev_deviceid, NFSX_V4DEVICEID) == 0)
 			break;
 	}
