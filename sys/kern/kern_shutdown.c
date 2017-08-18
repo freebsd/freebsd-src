@@ -1152,51 +1152,25 @@ dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
 }
 
 static int
-dump_pad(struct dumperinfo *di, void *virtual, size_t length, void **buf,
-    size_t *size)
-{
-
-	if (length > di->blocksize)
-		return (ENOMEM);
-
-	*size = di->blocksize;
-	if (length == di->blocksize) {
-		*buf = virtual;
-	} else {
-		*buf = di->blockbuf;
-		memcpy(*buf, virtual, length);
-		memset((uint8_t *)*buf + length, 0, di->blocksize - length);
-	}
-
-	return (0);
-}
-
-static int
-dump_raw_write_pad(struct dumperinfo *di, void *virtual, vm_offset_t physical,
-    off_t offset, size_t length, size_t *size)
-{
-	void *buf;
-	int error;
-
-	error = dump_pad(di, virtual, length, &buf, size);
-	if (error != 0)
-		return (error);
-
-	return (dump_raw_write(di, buf, physical, offset, *size));
-}
-
-static int
 dump_write_header(struct dumperinfo *di, struct kerneldumpheader *kdh,
     vm_offset_t physical, off_t offset)
 {
-	size_t size;
-	int ret;
+	void *buf;
+	size_t hdrsz;
 
-	ret = dump_raw_write_pad(di, kdh, physical, offset, sizeof(*kdh),
-	    &size);
-	if (ret == 0 && size != di->blocksize)
-		ret = EINVAL;
-	return (ret);
+	hdrsz = sizeof(*kdh);
+	if (hdrsz > di->blocksize)
+		return (ENOMEM);
+
+	if (hdrsz == di->blocksize)
+		buf = kdh;
+	else {
+		buf = di->blockbuf;
+		memset(buf, 0, di->blocksize);
+		memcpy(buf, kdh, hdrsz);
+	}
+
+	return (dump_raw_write(di, buf, physical, offset, di->blocksize));
 }
 
 /*
