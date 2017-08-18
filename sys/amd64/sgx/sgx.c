@@ -1132,15 +1132,15 @@ sgx_load(void)
 	if ((cpu_stdext_feature & CPUID_STDEXT_SGX) == 0)
 		return (ENXIO);
 
-	mtx_init(&sc->mtx_encls, "SGX ENCLS", NULL, MTX_DEF);
-	mtx_init(&sc->mtx, "SGX driver", NULL, MTX_DEF);
-
 	error = sgx_get_epc_area(sc);
 	if (error) {
 		printf("%s: Failed to get Processor Reserved Memory area.\n",
 		    __func__);
 		return (ENXIO);
 	}
+
+	mtx_init(&sc->mtx_encls, "SGX ENCLS", NULL, MTX_DEF);
+	mtx_init(&sc->mtx, "SGX driver", NULL, MTX_DEF);
 
 	TAILQ_INIT(&sc->enclaves);
 
@@ -1161,6 +1161,9 @@ sgx_unload(void)
 	struct sgx_softc *sc;
 
 	sc = &sgx_sc;
+
+	if ((sc->state & SGX_STATE_RUNNING) == 0)
+		return (0);
 
 	mtx_lock(&sc->mtx);
 	if (!TAILQ_EMPTY(&sc->enclaves)) {
