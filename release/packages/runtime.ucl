@@ -27,10 +27,6 @@ deps: {
     "FreeBSD-clibs": {
         origin: "base"
         version: "%VERSION%"
-    },
-    "FreeBSD-kernel-%KERNCONF%": {
-        origin: "base"
-        version: "%VERSION%"
     }
 }
 directories {

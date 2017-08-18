@@ -416,7 +416,7 @@ DB_SHOW_COMMAND(ktr, db_ktr_all)
 	tstate.first = -1;
 	db_ktr_verbose = 0;
 	db_ktr_verbose |= (strchr(modif, 'v') != NULL) ? 2 : 0;
-	db_ktr_verbose |= (strchr(modif, 'V') != NULL) ? 1 : 0; /* just timestap please */
+	db_ktr_verbose |= (strchr(modif, 'V') != NULL) ? 1 : 0; /* just timestamp please */
 	if (strchr(modif, 'a') != NULL) {
 		db_disable_pager();
 		while (cncheckc() == -1)

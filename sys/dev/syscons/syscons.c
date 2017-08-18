@@ -934,7 +934,7 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	splx(s);
 	return 0;
 
-    case CONS_CURSORTYPE:   	/* set cursor type (obsolete) */
+    case CONS_CURSORTYPE:   	/* set cursor type (old interface + HIDDEN) */
 	s = spltty();
 	*(int *)data &= CONS_CURSOR_ATTRS;
 	sc_change_cursor_shape(scp, *(int *)data, -1, -1);

@@ -187,11 +187,14 @@ IDTVEC(ill)
 	cmpl	$0,dtrace_invop_jump_addr
 	je	norm_ill
 
-	/* Check if this is a user fault. */
-	cmpl	$GSEL_KPL, 4(%esp)	/* Check the code segment. */
-
-	/* If so, just handle it as a normal trap. */
+	/*
+	 * Check if this is a user fault. If so, just handle it as a normal
+	 * trap.
+	 */
+	cmpl	$GSEL_KPL, 4(%esp)	/* Check the code segment */
 	jne	norm_ill
+	testl	$PSL_VM, 8(%esp)	/* and vm86 mode. */
+	jnz	norm_ill
 
 	/*
 	 * This is a kernel instruction fault that might have been caused

@@ -506,7 +506,7 @@ ptable_bsdread(struct ptable *table, void *dev, diskread_t dread)
 			break;
 		entry->part.start = le32toh(part->p_offset) - raw_offset;
 		entry->part.end = entry->part.start +
-		    le32toh(part->p_size) + 1;
+		    le32toh(part->p_size) - 1;
 		entry->part.type = bsd_parttype(part->p_fstype);
 		entry->part.index = i; /* starts from zero */
 		entry->type.bsd = part->p_fstype;

@@ -464,7 +464,8 @@ void vm_page_free_zero(vm_page_t m);
 
 void vm_page_activate (vm_page_t);
 void vm_page_advise(vm_page_t m, int advice);
-vm_page_t vm_page_alloc (vm_object_t, vm_pindex_t, int);
+vm_page_t vm_page_alloc(vm_object_t, vm_pindex_t, int);
+vm_page_t vm_page_alloc_after(vm_object_t, vm_pindex_t, int, vm_page_t);
 vm_page_t vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
     u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
     vm_paddr_t boundary, vm_memattr_t memattr);
