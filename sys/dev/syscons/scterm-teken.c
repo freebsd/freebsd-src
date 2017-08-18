@@ -673,14 +673,60 @@ scteken_copy(void *arg, const teken_rect_t *r, const teken_pos_t *p)
 static void
 scteken_param(void *arg, int cmd, unsigned int value)
 {
+	static int cattrs[] = {
+		0,					/* block */
+		CONS_BLINK_CURSOR,			/* blinking block */
+		CONS_CHAR_CURSOR,			/* underline */
+		CONS_CHAR_CURSOR | CONS_BLINK_CURSOR,	/* blinking underline */
+		CONS_RESET_CURSOR,			/* reset to default */
+		CONS_HIDDEN_CURSOR,			/* hide cursor */
+	};
+	static int tcattrs[] = {
+		CONS_RESET_CURSOR | CONS_LOCAL_CURSOR,	/* normal */
+		CONS_HIDDEN_CURSOR | CONS_LOCAL_CURSOR,	/* invisible */
+		CONS_BLINK_CURSOR | CONS_LOCAL_CURSOR,	/* very visible */
+	};
 	scr_stat *scp = arg;
-	int flags;
+	int flags, n, v0, v1, v2;
 
 	switch (cmd) {
 	case TP_SETBORDER:
 		scp->border = value & 0xff;
 		if (scp == scp->sc->cur_scp)
 			sc_set_border(scp, scp->border);
+		break;
+	case TP_SETGLOBALCURSOR:
+		n = value & 0xff;
+		v0 = (value >> 8) & 0xff;
+		v1 = (value >> 16) & 0xff;
+		v2 = (value >> 24) & 0xff;
+		switch (n) {
+		case 1:	/* flags only */
+			if (v0 < sizeof(cattrs) / sizeof(cattrs[0]))
+				v0 = cattrs[v0];
+			else /* backward compatibility */
+				v0 = cattrs[v0 & 0x3];
+			sc_change_cursor_shape(scp, v0, -1, -1);
+			break;
+		case 2:
+			v2 = 0;
+			v0 &= 0x1f;	/* backward compatibility */
+			v1 &= 0x1f;
+			/* FALL THROUGH */
+		case 3:	/* base and height */
+			if (v2 == 0)	/* count from top */
+				sc_change_cursor_shape(scp, -1,
+				    scp->font_size - v1 - 1,
+				    v1 - v0 + 1);
+			else if (v2 == 1) /* count from bottom */
+				sc_change_cursor_shape(scp, -1,
+				    v0, v1 - v0 + 1);
+			break;
+		}
+		break;
+	case TP_SETLOCALCURSOR:
+		if (value < sizeof(tcattrs) / sizeof(tcattrs[0]))
+			sc_change_cursor_shape(scp, tcattrs[value], -1, -1);
 		break;
 	case TP_SHOWCURSOR:
 		if (value != 0)
