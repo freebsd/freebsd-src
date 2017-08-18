@@ -1193,13 +1193,8 @@ mprsas_complete_all_commands(struct mpr_softc *sc)
 			completed = 1;
 		}
 
-		if (cm->cm_sc->io_cmds_active != 0) {
+		if (cm->cm_sc->io_cmds_active != 0)
 			cm->cm_sc->io_cmds_active--;
-		} else {
-			mpr_dprint(cm->cm_sc, MPR_INFO, "Warning: "
-			    "io_cmds_active is out of sync - resynching to "
-			    "0\n");
-		}
 		
 		if ((completed == 0) && (cm->cm_state != MPR_CM_STATE_FREE)) {
 			/* this should never happen, but if it does, log */
@@ -2677,7 +2672,7 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 		if ((sassc->flags & MPRSAS_QUEUE_FROZEN) == 0) {
 			xpt_freeze_simq(sassc->sim, 1);
 			sassc->flags |= MPRSAS_QUEUE_FROZEN;
-			mpr_dprint(sc, MPR_INFO, "Error sending command, "
+			mpr_dprint(sc, MPR_XINFO, "Error sending command, "
 			    "freezing SIM queue\n");
 		}
 	}

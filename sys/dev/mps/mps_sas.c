@@ -1131,13 +1131,8 @@ mpssas_complete_all_commands(struct mps_softc *sc)
 			completed = 1;
 		}
 
-		if (cm->cm_sc->io_cmds_active != 0) {
+		if (cm->cm_sc->io_cmds_active != 0)
 			cm->cm_sc->io_cmds_active--;
-		} else {
-			mps_dprint(cm->cm_sc, MPS_INFO, "Warning: "
-			    "io_cmds_active is out of sync - resynching to "
-			    "0\n");
-		}
 		
 		if ((completed == 0) && (cm->cm_state != MPS_CM_STATE_FREE)) {
 			/* this should never happen, but if it does, log */

@@ -139,7 +139,7 @@ mprsas_evt_handler(struct mpr_softc *sc, uintptr_t data,
 	u16 sz;
 
 	mpr_dprint(sc, MPR_TRACE, "%s\n", __func__);
-	mpr_print_evt_sas(sc, event);
+	MPR_DPRINT_EVENT(sc, sas, event);
 	mprsas_record_event(sc, event);
 
 	fw_event = malloc(sizeof(struct mpr_fw_event_work), M_MPR,
@@ -324,7 +324,7 @@ mprsas_fw_work(struct mpr_softc *sc, struct mpr_fw_event_work *fw_event)
 			{
 				// build RAID Action message
 				Mpi2RaidActionRequest_t	*action;
-				Mpi2RaidActionReply_t *reply;
+				Mpi2RaidActionReply_t *reply = NULL;
 				struct mpr_command *cm;
 				int error = 0;
 				if ((cm = mpr_alloc_command(sc)) == NULL) {
@@ -344,8 +344,10 @@ mprsas_fw_work(struct mpr_softc *sc, struct mpr_fw_event_work *fw_event)
 				action->PhysDiskNum = element->PhysDiskNum;
 				cm->cm_desc.Default.RequestFlags =
 				    MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
-				error = mpr_request_polled(sc, cm);
-				reply = (Mpi2RaidActionReply_t *)cm->cm_reply;
+				error = mpr_request_polled(sc, &cm);
+				if (cm != NULL)
+					reply = (Mpi2RaidActionReply_t *)
+					    cm->cm_reply;
 				if (error || (reply == NULL)) {
 					/* FIXME */
 					/*
@@ -1132,12 +1134,14 @@ mprsas_get_sata_identify(struct mpr_softc *sc, u16 handle,
 	    "command\n", __func__);
 	callout_reset(&cm->cm_callout, MPR_ATA_ID_TIMEOUT * hz,
 	    mprsas_ata_id_timeout, cm);
-	error = mpr_wait_command(sc, cm, 60, CAN_SLEEP);
+	error = mpr_wait_command(sc, &cm, 60, CAN_SLEEP);
 	mpr_dprint(sc, MPR_XINFO, "%s stop timeout counter for SATA ID "
 	    "command\n", __func__);
+	/* XXX KDM need to fix the case where this command is destroyed */
 	callout_stop(&cm->cm_callout);
 
-	reply = (Mpi2SataPassthroughReply_t *)cm->cm_reply;
+	if (cm != NULL)
+		reply = (Mpi2SataPassthroughReply_t *)cm->cm_reply;
 	if (error || (reply == NULL)) {
 		/* FIXME */
 		/*
@@ -1603,7 +1607,7 @@ mprsas_ir_shutdown(struct mpr_softc *sc)
 	action->Action = MPI2_RAID_ACTION_SYSTEM_SHUTDOWN_INITIATED;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	mpr_lock(sc);
-	mpr_wait_command(sc, cm, 5, CAN_SLEEP);
+	mpr_wait_command(sc, &cm, 5, CAN_SLEEP);
 	mpr_unlock(sc);
 
 	/*

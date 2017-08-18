@@ -271,9 +271,11 @@ struct mps_softc {
 #define MPS_FLAGS_DIAGRESET	(1 << 4)
 #define	MPS_FLAGS_ATTACH_DONE	(1 << 5)
 #define	MPS_FLAGS_WD_AVAILABLE	(1 << 6)
+#define	MPS_FLAGS_REALLOCATED	(1 << 7)
 	u_int				mps_debug;
 	u_int				disable_msix;
 	u_int				disable_msi;
+	u_int				msi_msgs;
 	int				tm_cmds_active;
 	int				io_cmds_active;
 	int				io_cmds_highwater;
@@ -671,6 +673,7 @@ mps_unmask_intr(struct mps_softc *sc)
 int mps_pci_setup_interrupts(struct mps_softc *sc);
 int mps_pci_restore(struct mps_softc *sc);
 
+void mps_get_tunables(struct mps_softc *sc);
 int mps_attach(struct mps_softc *sc);
 int mps_free(struct mps_softc *sc);
 void mps_intr(void *);
@@ -695,7 +698,7 @@ void mpssas_record_event(struct mps_softc *sc,
     MPI2_EVENT_NOTIFICATION_REPLY *event_reply);
 
 int mps_map_command(struct mps_softc *sc, struct mps_command *cm);
-int mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
+int mps_wait_command(struct mps_softc *sc, struct mps_command **cm, int timeout,
     int sleep_flag);
 
 int mps_config_get_bios_pg3(struct mps_softc *sc, Mpi2ConfigReply_t
