@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2015
+.Dd August 18, 2017
 .Dt KINFO_GETVMMAP 3
 .Os
 .Sh NAME
@@ -58,6 +58,13 @@ with the
 mib.
 While the kernel returns a packed structure, this function expands the
 data into a fixed record format.
+.Sh CAVEAT
+.Fn kinfo_getvmmap
+calls can cause significant CPU consumption because calculating the residency
+counts requires iterating over all memory pages of the process.
+Setting the sysctl variable
+.Va kern.proc_vmmap_skip_resident_count
+to 1 prevents this calculation.
 .Sh RETURN VALUES
 On success the
 .Fn kinfo_getvmmap
