@@ -2920,7 +2920,7 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	     instruction.  May want to add this support in the future.  */
 	}
       /* Never set the bit for $0, which is always zero.  */
-      mips_gprmask &= ~1 << 0;
+      mips_gprmask &= ~(1 << 0);
     }
   else
     {
