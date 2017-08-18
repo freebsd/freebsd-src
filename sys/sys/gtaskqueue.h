@@ -80,21 +80,6 @@ int	taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride);
 #define TASKQGROUP_DECLARE(name)			\
 extern struct taskqgroup *qgroup_##name
 
-#ifdef EARLY_AP_STARTUP
-#define TASKQGROUP_DEFINE(name, cnt, stride)				\
-									\
-struct taskqgroup *qgroup_##name;					\
-									\
-static void								\
-taskqgroup_define_##name(void *arg)					\
-{									\
-	qgroup_##name = taskqgroup_create(#name);			\
-	taskqgroup_adjust(qgroup_##name, (cnt), (stride));		\
-}									\
-									\
-SYSINIT(taskqgroup_##name, SI_SUB_INIT_IF, SI_ORDER_FIRST,		\
-	taskqgroup_define_##name, NULL)
-#else /* !EARLY_AP_STARTUP */
 #define TASKQGROUP_DEFINE(name, cnt, stride)				\
 									\
 struct taskqgroup *qgroup_##name;					\
@@ -105,7 +90,7 @@ taskqgroup_define_##name(void *arg)					\
 	qgroup_##name = taskqgroup_create(#name);			\
 }									\
 									\
-SYSINIT(taskqgroup_##name, SI_SUB_INIT_IF, SI_ORDER_FIRST,		\
+SYSINIT(taskqgroup_##name, SI_SUB_TASKQ, SI_ORDER_FIRST,		\
 	taskqgroup_define_##name, NULL);				\
 									\
 static void								\
@@ -116,7 +101,6 @@ taskqgroup_adjust_##name(void *arg)					\
 									\
 SYSINIT(taskqgroup_adj_##name, SI_SUB_SMP, SI_ORDER_ANY,		\
 	taskqgroup_adjust_##name, NULL)
-#endif /* EARLY_AP_STARTUP */
 
 TASKQGROUP_DECLARE(net);
 TASKQGROUP_DECLARE(softirq);
