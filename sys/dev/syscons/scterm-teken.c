@@ -674,6 +674,7 @@ static void
 scteken_param(void *arg, int cmd, unsigned int value)
 {
 	scr_stat *scp = arg;
+	int flags;
 
 	switch (cmd) {
 	case TP_SETBORDER:
@@ -682,13 +683,11 @@ scteken_param(void *arg, int cmd, unsigned int value)
 			sc_set_border(scp, scp->border);
 		break;
 	case TP_SHOWCURSOR:
-		if (value) {
-			sc_change_cursor_shape(scp,
-			    CONS_RESET_CURSOR|CONS_LOCAL_CURSOR, -1, -1);
-		} else {
-			sc_change_cursor_shape(scp,
-			    CONS_HIDDEN_CURSOR|CONS_LOCAL_CURSOR, -1, -1);
-		}
+		if (value != 0)
+			flags = scp->curr_curs_attr.flags & ~CONS_HIDDEN_CURSOR;
+		else
+			flags = scp->curr_curs_attr.flags | CONS_HIDDEN_CURSOR;
+		sc_change_cursor_shape(scp, flags | CONS_LOCAL_CURSOR, -1, -1);
 		break;
 	case TP_SWITCHVT:
 		sc_switch_scr(scp->sc, value);
