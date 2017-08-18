@@ -68,6 +68,7 @@ static int	mps_pci_resume(device_t);
 static void	mps_pci_free(struct mps_softc *);
 static int	mps_alloc_msix(struct mps_softc *sc, int msgs);
 static int	mps_alloc_msi(struct mps_softc *sc, int msgs);
+static int	mps_pci_alloc_interrupts(struct mps_softc *sc);
 
 static device_method_t mps_methods[] = {
 	DEVMETHOD(device_probe,		mps_pci_probe),
@@ -191,6 +192,8 @@ mps_pci_attach(device_t dev)
 	m = mps_find_ident(dev);
 	sc->mps_flags = m->flags;
 
+	mps_get_tunables(sc);
+
 	/* Twiddle basic PCI config bits for a sanity check */
 	pci_enable_busmaster(dev);
 
@@ -221,9 +224,39 @@ mps_pci_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-	if ((error = mps_attach(sc)) != 0)
+	if (((error = mps_pci_alloc_interrupts(sc)) != 0) ||
+	    ((error = mps_attach(sc)) != 0))
 		mps_pci_free(sc);
 
+	return (error);
+}
+
+/*
+ * Allocate, but don't assign interrupts early.  Doing it before requesting
+ * the IOCFacts message informs the firmware that we want to do MSI-X
+ * multiqueue.  We might not use all of the available messages, but there's
+ * no reason to re-alloc if we don't.
+ */
+static int
+mps_pci_alloc_interrupts(struct mps_softc *sc)
+{
+	device_t dev;
+	int error, msgs;
+
+	dev = sc->mps_dev;
+	error = 0;
+	msgs = 0;
+
+	if ((sc->disable_msix == 0) &&
+	    ((msgs = pci_msix_count(dev)) >= MPS_MSI_COUNT))
+		error = mps_alloc_msix(sc, MPS_MSI_COUNT);
+	if ((error != 0) && (sc->disable_msi == 0) &&
+	    ((msgs = pci_msi_count(dev)) >= MPS_MSI_COUNT))
+		error = mps_alloc_msi(sc, MPS_MSI_COUNT);
+	if (error != 0)
+		msgs = 0;
+
+	sc->msi_msgs = msgs;
 	return (error);
 }
 
@@ -231,18 +264,12 @@ int
 mps_pci_setup_interrupts(struct mps_softc *sc)
 {
 	device_t dev;
-	int i, error, msgs;
+	int i, error;
 
 	dev = sc->mps_dev;
 	error = ENXIO;
-	if ((sc->disable_msix == 0) &&
-	    ((msgs = pci_msix_count(dev)) >= MPS_MSI_COUNT))
-		error = mps_alloc_msix(sc, MPS_MSI_COUNT);
-	if ((error != 0) && (sc->disable_msi == 0) &&
-	    ((msgs = pci_msi_count(dev)) >= MPS_MSI_COUNT))
-		error = mps_alloc_msi(sc, MPS_MSI_COUNT);
 
-	if (error != 0) {
+	if (sc->msi_msgs == 0) {
 		sc->mps_flags |= MPS_FLAGS_INTX;
 		sc->mps_irq_rid[0] = 0;
 		sc->mps_irq[0] = bus_alloc_resource_any(dev, SYS_RES_IRQ,
