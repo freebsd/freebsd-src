@@ -1174,7 +1174,7 @@ static void
 parse_dsserver(const char *optarg, struct nfsd_nfsd_args *nfsdargp)
 {
 	char *ad, *cp, *cp2, *dsaddr, *dshost, *dspath, *dsvol, nfsprt[9];
-	char *mirror, mirrorstr[NFSDEV_MIRRORSTR + 1];
+	char *mirror, mirrorstr[NFSDEV_MIRRORSTR + 1], *cp3;
 	int adsiz, dsaddrcnt, dshostcnt, dspathcnt, ecode, hostsiz, pathsiz;
 	int mirrorcnt, mirrorstrsiz, mirrorindex;
 	size_t dsaddrsiz, dshostsiz, dspathsiz, nfsprtsiz, mirrorsiz;
@@ -1215,12 +1215,26 @@ parse_dsserver(const char *optarg, struct nfsd_nfsd_args *nfsdargp)
 	mirrorindex = 0;
 	/* Loop around for each DS server name. */
 	do {
+		/*
+		 * If the next DS is separated from the current one with a '#',
+		 * it is a mirror. If the next DS is separated from the current
+		 * one with a ',', it is not a mirror of the previous DS.
+		 */
 		cp2 = strchr(cp, ',');
+		cp3 = strchr(cp, '#');
+		if (cp3 != NULL && (cp2 == NULL || cp3 < cp2))
+			cp2 = cp3;	/* A mirror of the previous DS. */
+		else
+			cp3 = NULL;	/* Not a mirror of the previous DS. */
 		if (cp2 != NULL) {
+			/* Not the last DS in the list. */
 			*cp2++ = '\0';
 			if (*cp2 == '\0')
 				usage();
+			if (cp3 == NULL)
+				mirrorindex++;	/* Increment if not a mirror. */
 		}
+
 		dsvol = strchr(cp, ':');
 		if (dsvol == NULL || *(dsvol + 1) == '\0')
 			usage();
@@ -1281,7 +1295,7 @@ printf("pnfs path=%s\n", dsvol);
 
 		/* Append this mirrorindex to mirror. */
 		if (snprintf(mirrorstr, NFSDEV_MIRRORSTR + 1, "%d",
-		    mirrorindex++) > NFSDEV_MIRRORSTR)
+		    mirrorindex) > NFSDEV_MIRRORSTR)
 			errx(1, "Too many mirrors");
 		mirrorstrsiz = strlen(mirrorstr);
 		if (mirrorcnt + mirrorstrsiz + 1 > mirrorsiz) {
