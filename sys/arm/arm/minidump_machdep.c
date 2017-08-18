@@ -245,8 +245,8 @@ minidumpsys(struct dumperinfo *di)
 #else
 	mdhdr.mmuformat = MINIDUMP_MMU_FORMAT_V4;
 #endif
-	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_ARM_VERSION, dumpsize,
-	    kerneldumpcrypto_dumpkeysize(di->kdc), di->blocksize);
+	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_ARM_VERSION,
+	    dumpsize);
 
 	printf("Physical memory: %u MB\n", ptoa((uintmax_t)physmem) / 1048576);
 	printf("Dumping %llu MB:", (long long)dumpsize >> 20);

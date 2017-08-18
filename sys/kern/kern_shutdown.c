@@ -895,14 +895,10 @@ failed:
 	free(kdc, M_EKCD);
 	return (NULL);
 }
-#endif /* EKCD */
 
 static int
 kerneldumpcrypto_init(struct kerneldumpcrypto *kdc)
 {
-#ifndef EKCD
-	return (0);
-#else
 	uint8_t hash[SHA256_DIGEST_LENGTH];
 	SHA256_CTX ctx;
 	struct kerneldumpkey *kdk;
@@ -942,21 +938,17 @@ kerneldumpcrypto_init(struct kerneldumpcrypto *kdc)
 out:
 	explicit_bzero(hash, sizeof(hash));
 	return (error);
-#endif
 }
 
-uint32_t
+static uint32_t
 kerneldumpcrypto_dumpkeysize(const struct kerneldumpcrypto *kdc)
 {
 
-#ifdef EKCD
 	if (kdc == NULL)
 		return (0);
 	return (kdc->kdc_dumpkeysize);
-#else
-	return (0);
-#endif
 }
+#endif /* EKCD */
 
 /* Registration of dumpers */
 int
@@ -1034,6 +1026,20 @@ dump_check_bounds(struct dumperinfo *di, off_t offset, size_t length)
 	}
 
 	return (0);
+}
+
+/* Call dumper with bounds checking. */
+static int
+dump_raw_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
+    off_t offset, size_t length)
+{
+	int error;
+
+	error = dump_check_bounds(di, offset, length);
+	if (error != 0)
+		return (error);
+
+	return (di->dumper(di->priv, virtual, physical, offset, length));
 }
 
 #ifdef EKCD
@@ -1115,21 +1121,20 @@ dump_encrypted_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
 
 	return (0);
 }
-#endif /* EKCD */
 
-/* Call dumper with bounds checking. */
 static int
-dump_raw_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
-    off_t offset, size_t length)
+dump_write_key(struct dumperinfo *di, vm_offset_t physical, off_t offset)
 {
-	int error;
+	struct kerneldumpcrypto *kdc;
 
-	error = dump_check_bounds(di, offset, length);
-	if (error != 0)
-		return (error);
+	kdc = di->kdc;
+	if (kdc == NULL)
+		return (0);
 
-	return (di->dumper(di->priv, virtual, physical, offset, length));
+	return (dump_raw_write(di, kdc->kdc_dumpkey, physical, offset,
+	    kdc->kdc_dumpkeysize));
 }
+#endif /* EKCD */
 
 int
 dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
@@ -1194,23 +1199,6 @@ dump_write_header(struct dumperinfo *di, struct kerneldumpheader *kdh,
 	return (ret);
 }
 
-static int
-dump_write_key(struct dumperinfo *di, vm_offset_t physical, off_t offset)
-{
-#ifndef EKCD
-	return (0);
-#else /* EKCD */
-	struct kerneldumpcrypto *kdc;
-
-	kdc = di->kdc;
-	if (kdc == NULL)
-		return (0);
-
-	return (dump_raw_write(di, kdc->kdc_dumpkey, physical, offset,
-	    kdc->kdc_dumpkeysize));
-#endif /* !EKCD */
-}
-
 /*
  * Don't touch the first SIZEOF_METADATA bytes on the dump device.  This is to
  * protect us from metadata and metadata from us.
@@ -1226,14 +1214,19 @@ int
 dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh, off_t *dumplop)
 {
 	uint64_t dumpsize;
+	uint32_t keysize;
 	int error;
 
+#ifdef EKCD
 	error = kerneldumpcrypto_init(di->kdc);
 	if (error != 0)
 		return (error);
+	keysize = kerneldumpcrypto_dumpkeysize(di->kdc);
+#else
+	keysize = 0;
+#endif
 
-	dumpsize = dtoh64(kdh->dumplength) + 2 * di->blocksize +
-	    kerneldumpcrypto_dumpkeysize(di->kdc);
+	dumpsize = dtoh64(kdh->dumplength) + 2 * di->blocksize + keysize;
 	if (di->mediasize < SIZEOF_METADATA + dumpsize)
 		return (E2BIG);
 
@@ -1244,10 +1237,12 @@ dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh, off_t *dumplop)
 		return (error);
 	*dumplop += di->blocksize;
 
+#ifdef EKCD
 	error = dump_write_key(di, 0, *dumplop);
 	if (error != 0)
 		return (error);
-	*dumplop += kerneldumpcrypto_dumpkeysize(di->kdc);
+	*dumplop += keysize;
+#endif
 
 	return (0);
 }
@@ -1270,8 +1265,8 @@ dump_finish(struct dumperinfo *di, struct kerneldumpheader *kdh, off_t dumplo)
 }
 
 void
-mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
-    uint64_t dumplen, uint32_t dumpkeysize, uint32_t blksz)
+dump_init_header(const struct dumperinfo *di, struct kerneldumpheader *kdh,
+    char *magic, uint32_t archver, uint64_t dumplen)
 {
 	size_t dstsize;
 
@@ -1282,8 +1277,12 @@ mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
 	kdh->architectureversion = htod32(archver);
 	kdh->dumplength = htod64(dumplen);
 	kdh->dumptime = htod64(time_second);
-	kdh->dumpkeysize = htod32(dumpkeysize);
-	kdh->blocksize = htod32(blksz);
+#ifdef EKCD
+	kdh->dumpkeysize = htod32(kerneldumpcrypto_dumpkeysize(di->kdc));
+#else
+	kdh->dumpkeysize = 0;
+#endif
+	kdh->blocksize = htod32(di->blocksize);
 	strlcpy(kdh->hostname, prison0.pr_hostname, sizeof(kdh->hostname));
 	dstsize = sizeof(kdh->versionstring);
 	if (strlcpy(kdh->versionstring, version, dstsize) >= dstsize)
