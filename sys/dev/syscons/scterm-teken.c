@@ -676,6 +676,11 @@ scteken_param(void *arg, int cmd, unsigned int value)
 	scr_stat *scp = arg;
 
 	switch (cmd) {
+	case TP_SETBORDER:
+		scp->border = value & 0xff;
+		if (scp == scp->sc->cur_scp)
+			sc_set_border(scp, scp->border);
+		break;
 	case TP_SHOWCURSOR:
 		if (value) {
 			sc_change_cursor_shape(scp,

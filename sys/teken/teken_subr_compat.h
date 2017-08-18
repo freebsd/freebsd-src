@@ -27,6 +27,13 @@
  */
 
 static void
+teken_subr_cons25_set_adapter_border(teken_t *t, unsigned int c)
+{
+
+	teken_funcs_param(t, TP_SETBORDER, c);
+}
+
+static void
 teken_subr_cons25_set_cursor_type(teken_t *t, unsigned int type)
 {
 

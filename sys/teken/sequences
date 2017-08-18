@@ -101,6 +101,7 @@ TBC	Tab Clear				^[ [ g		r
 VPA	Vertical Position Absolute		^[ [ d		n
 
 # Cons25 compatibility sequences
+C25ADX	Cons25 set adapter border		^[ [ = A	r
 C25ADBG	Cons25 set adapter background		^[ [ = G	r
 C25ADFG	Cons25 set adapter foreground		^[ [ = F	r
 C25BLPD	Cons25 set bell pitch duration		^[ [ = B	r r
