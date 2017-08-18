@@ -58,7 +58,7 @@ struct sandbox_metadata {
 	uint64_t	_sbm_reserved1;			/* Offset: 24 */
 	struct cheri_object	sbm_system_object;	/* Offset: 32 */
 #if __has_feature(capabilities)
-	__capability vm_offset_t	*sbm_vtable;		/* Cap-offset: 2 */
+	__capability vm_offset_t	*sbm_vtable;	/* Cap-offset: 2 */
 	__capability void	*sbm_stackcap;		/* Cap-offset: 3 */
 #else
 	struct chericap	sbm_vtable;
@@ -75,8 +75,8 @@ extern int sb_verbose;
 
 /**
  * The CHERI error number variable.  If the stack is forcibly unwound as the
- * result of signal delivery during a ccall invocation, this will be set to the
- * signal number of the signal inside the sandbox.  If a ccall invocation
+ * result of signal delivery during a ccall invocation, this will be set to
+ * the signal number of the signal inside the sandbox.  If a ccall invocation
  * returns normally then this value is unmodified.
  */
 extern _Thread_local int cherierrno;
@@ -90,8 +90,8 @@ extern _Thread_local int cherierrno;
 namespace cheri
 {
 	/**
-	 * Sandbox exception class.  In C++ mode, error returns from cross-domain
-	 * calls will be translated into exceptions.
+	 * Sandbox exception class.  In C++ mode, error returns from
+	 * cross-domain calls will be translated into exceptions.
 	 */
 	class sandbox_invoke_failure : public std::exception
 	{
@@ -101,9 +101,10 @@ namespace cheri
 		int errno;
 		public:
 		sandbox_invoke_failure(int e) : errno(e) {}
+
 		/**
-		 * Returns the error code, which should be the `cherierrno` value from
-		 * a failed ccall.
+		 * Returns the error code, which should be the `cherierrno`
+		 * value from a failed ccall.
 		 */
 		int error_code() { return errno; }
 		virtual const char* what() const _NOEXCEPT LIBCHERI_OVERRIDE;
