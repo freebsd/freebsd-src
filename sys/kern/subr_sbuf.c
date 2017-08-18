@@ -369,8 +369,8 @@ sbuf_drain(struct sbuf *s)
 		return (s->s_error = EDEADLK);
 	len = s->s_drain_func(s->s_drain_arg, s->s_buf,
 	    SBUF_DODRAINTOEOR(s) ? s->s_rec_off : s->s_len);
-	if (len < 0) {
-		s->s_error = -len;
+	if (len <= 0) {
+		s->s_error = len ? -len : EDEADLK;
 		return (s->s_error);
 	}
 	KASSERT(len > 0 && len <= s->s_len,
@@ -640,9 +640,9 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 			break;
 		/* Cannot print with the current available space. */
 		if (s->s_drain_func != NULL && s->s_len > 0)
-			error = sbuf_drain(s);
-		else
-			error = sbuf_extend(s, len - SBUF_FREESPACE(s));
+			error = sbuf_drain(s); /* sbuf_drain() sets s_error. */
+		else if (sbuf_extend(s, len - SBUF_FREESPACE(s)) != 0)
+			s->s_error = error = ENOMEM;
 	} while (error == 0);
 
 	/*
@@ -659,8 +659,6 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 	s->s_len += len;
 	if (SBUF_ISSECTION(s))
 		s->s_sect_len += len;
-	if (!SBUF_HASROOM(s) && !SBUF_CANEXTEND(s))
-		s->s_error = ENOMEM;
 
 	KASSERT(s->s_len < s->s_size,
 	    ("wrote past end of sbuf (%d >= %d)", s->s_len, s->s_size));
