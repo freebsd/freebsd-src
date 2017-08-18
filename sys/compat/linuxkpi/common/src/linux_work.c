@@ -577,7 +577,7 @@ linux_work_init(void *arg)
 	system_power_efficient_wq = linux_system_short_wq;
 	system_unbound_wq = linux_system_short_wq;
 }
-SYSINIT(linux_work_init, SI_SUB_INIT_IF, SI_ORDER_THIRD, linux_work_init, NULL);
+SYSINIT(linux_work_init, SI_SUB_TASKQ, SI_ORDER_THIRD, linux_work_init, NULL);
 
 static void
 linux_work_uninit(void *arg)
@@ -591,4 +591,4 @@ linux_work_uninit(void *arg)
 	system_power_efficient_wq = NULL;
 	system_unbound_wq = NULL;
 }
-SYSUNINIT(linux_work_uninit, SI_SUB_INIT_IF, SI_ORDER_THIRD, linux_work_uninit, NULL);
+SYSUNINIT(linux_work_uninit, SI_SUB_TASKQ, SI_ORDER_THIRD, linux_work_uninit, NULL);

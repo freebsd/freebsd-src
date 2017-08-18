@@ -239,6 +239,8 @@ int blen;
         warnx("could not close %s", bootpfile);
       return(1);
 #else
+      if (fclose(bpf))
+        warnx("could not close %s", bootpfile);
       return(0);	/* ENOTSUP */
 #endif
     }

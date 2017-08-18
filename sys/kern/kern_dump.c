@@ -49,12 +49,6 @@ __FBSDID("$FreeBSD$");
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
-/*
- * Don't touch the first SIZEOF_METADATA bytes on the dump device. This
- * is to protect us from metadata and to protect metadata from us.
- */
-#define	SIZEOF_METADATA		(64*1024)
-
 #define	MD_ALIGN(x)	roundup2((off_t)(x), PAGE_SIZE)
 
 off_t dumplo;
@@ -347,38 +341,15 @@ dumpsys_generic(struct dumperinfo *di)
 	dumpsize += fileofs;
 	hdrgap = fileofs - roundup2((off_t)hdrsz, di->blocksize);
 
-	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + di->blocksize * 2 +
-	    kerneldumpcrypto_dumpkeysize(di->kdc)) {
-		error = ENOSPC;
-		goto fail;
-	}
-	dumplo = di->mediaoffset + di->mediasize - dumpsize;
-	dumplo -= di->blocksize * 2;
-	dumplo -= kerneldumpcrypto_dumpkeysize(di->kdc);
-
-	/* Initialize kernel dump crypto. */
-	error = kerneldumpcrypto_init(di->kdc);
-	if (error)
-		goto fail;
-
-	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_ARCH_VERSION, dumpsize,
-	    kerneldumpcrypto_dumpkeysize(di->kdc), di->blocksize);
+	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_ARCH_VERSION,
+	    dumpsize);
 
 	printf("Dumping %ju MB (%d chunks)\n", (uintmax_t)dumpsize >> 20,
 	    ehdr.e_phnum - DUMPSYS_NUM_AUX_HDRS);
 
-	/* Dump leader */
-	error = dump_write_header(di, &kdh, 0, dumplo);
-	if (error)
+	error = dump_start(di, &kdh, &dumplo);
+	if (error != 0)
 		goto fail;
-	dumplo += di->blocksize;
-
-	/* Dump key */
-	error = dump_write_key(di, 0, dumplo);
-	if (error)
-		goto fail;
-	dumplo += kerneldumpcrypto_dumpkeysize(di->kdc);
 
 	/* Dump ELF header */
 	error = dumpsys_buf_write(di, (char*)&ehdr, sizeof(ehdr));
@@ -410,14 +381,10 @@ dumpsys_generic(struct dumperinfo *di)
 	if (error < 0)
 		goto fail;
 
-	/* Dump trailer */
-	error = dump_write_header(di, &kdh, 0, dumplo);
-	if (error)
+	error = dump_finish(di, &kdh, dumplo);
+	if (error != 0)
 		goto fail;
-	dumplo += di->blocksize;
 
-	/* Signal completion, signoff and exit stage left. */
-	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
 	return (0);
 
@@ -427,7 +394,7 @@ dumpsys_generic(struct dumperinfo *di)
 
 	if (error == ECANCELED)
 		printf("\nDump aborted\n");
-	else if (error == ENOSPC)
+	else if (error == E2BIG || error == ENOSPC)
 		printf("\nDump failed. Partition too small.\n");
 	else
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);

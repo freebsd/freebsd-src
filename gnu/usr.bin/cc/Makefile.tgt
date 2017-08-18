@@ -14,7 +14,7 @@ GCC_CPU=${TARGET_CPUARCH:C/amd64/i386/:C/powerpc/rs6000/:C/sparc64/sparc/}
 .if ${TARGET_ARCH} == "sparc64"
 TARGET_CPU_DEFAULT= TARGET_CPU_ultrasparc
 .endif
-.if ${TARGET_ARCH} == "armeb" || ${TARGET_ARCH} == "armv6eb" || \
+.if ${TARGET_ARCH:Marm*eb} != "" || \
 	(${TARGET_CPUARCH} == "mips" && ${TARGET_ARCH:Mmips*el*} == "")
 TARGET_BIG_ENDIAN=t
 .endif

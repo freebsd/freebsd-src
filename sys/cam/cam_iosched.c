@@ -130,13 +130,13 @@ typedef int l_tick_t(struct iop_stats *);
 
 /*
  * Called to see if the limiter thinks this IOP can be allowed to
- * proceed. If so, the limiter assumes that the while IOP proceeded
+ * proceed. If so, the limiter assumes that the IOP proceeded
  * and makes any accounting of it that's needed.
  */
 typedef int l_iop_t(struct iop_stats *, struct bio *);
 
 /*
- * Called when an I/O completes so the limiter can updates its
+ * Called when an I/O completes so the limiter can update its
  * accounting. Pending I/Os may complete in any order (even when
  * sent to the hardware at the same time), so the limiter may not
  * make any assumptions other than this I/O has completed. If it
@@ -493,8 +493,8 @@ cam_iosched_bw_caniop(struct iop_stats *ios, struct bio *bp)
 {
 	/*
 	 * So if we have any more bw quota left, allow it,
-	 * otherwise wait. Not, we'll go negative and that's
-	 * OK. We'll just get a lettle less next quota.
+	 * otherwise wait. Note, we'll go negative and that's
+	 * OK. We'll just get a little less next quota.
 	 *
 	 * Note on going negative: that allows us to process
 	 * requests in order better, since we won't allow
@@ -639,7 +639,7 @@ cam_iosched_cl_maybe_steer(struct control_loop *clp)
 		 * ~10. At .25 it only takes ~8. However some preliminary data
 		 * from the SSD drives suggests a reasponse time in 10's of
 		 * seconds before latency drops regardless of the new write
-		 * rate. Careful observation will be reqiured to tune this
+		 * rate. Careful observation will be required to tune this
 		 * effectively.
 		 *
 		 * Also, when there's no read traffic, we jack up the write
@@ -1214,7 +1214,7 @@ cam_iosched_put_back_trim(struct cam_iosched_softc *isc, struct bio *bp)
  * gets the next trim from the trim queue.
  *
  * Assumes we're called with the periph lock held.  It removes this
- * trim from the queue and the device must explicitly reinstert it
+ * trim from the queue and the device must explicitly reinsert it
  * should the need arise.
  */
 struct bio *
@@ -1235,9 +1235,9 @@ cam_iosched_next_trim(struct cam_iosched_softc *isc)
 }
 
 /*
- * gets the an available trim from the trim queue, if there's no trim
+ * gets an available trim from the trim queue, if there's no trim
  * already pending. It removes this trim from the queue and the device
- * must explicitly reinstert it should the need arise.
+ * must explicitly reinsert it should the need arise.
  *
  * Assumes we're called with the periph lock held.
  */
@@ -1476,7 +1476,7 @@ cam_iosched_clr_work_flags(struct cam_iosched_softc *isc, uint32_t flags)
 #ifdef CAM_IOSCHED_DYNAMIC
 /*
  * After the method presented in Jack Crenshaw's 1998 article "Integer
- * Suqare Roots," reprinted at
+ * Square Roots," reprinted at
  * http://www.embedded.com/electronics-blogs/programmer-s-toolbox/4219659/Integer-Square-Roots
  * and well worth the read. Briefly, we find the power of 4 that's the
  * largest smaller than val. We then check each smaller power of 4 to
@@ -1485,7 +1485,7 @@ cam_iosched_clr_work_flags(struct cam_iosched_softc *isc, uint32_t flags)
  * accumulating the right answer. It could also have been accumulated
  * using a separate root counter, but this code is smaller and faster
  * than that method. This method is also integer size invariant.
- * It returns floor(sqrt((float)val)), or the larget integer less than
+ * It returns floor(sqrt((float)val)), or the largest integer less than
  * or equal to the square root.
  */
 static uint64_t
@@ -1553,7 +1553,7 @@ cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency)
 		iop->latencies[i]++; 	 /* Put all > 1024ms values into the last bucket. */
 
 	/*
-	 * Classic expoentially decaying average with a tiny alpha
+	 * Classic exponentially decaying average with a tiny alpha
 	 * (2 ^ -alpha_bits). For more info see the NIST statistical
 	 * handbook.
 	 *
