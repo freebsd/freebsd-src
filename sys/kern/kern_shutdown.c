@@ -897,7 +897,7 @@ failed:
 }
 #endif /* EKCD */
 
-int
+static int
 kerneldumpcrypto_init(struct kerneldumpcrypto *kdc)
 {
 #ifndef EKCD
@@ -1180,21 +1180,7 @@ dump_raw_write_pad(struct dumperinfo *di, void *virtual, vm_offset_t physical,
 	return (dump_raw_write(di, buf, physical, offset, *size));
 }
 
-int
-dump_write_pad(struct dumperinfo *di, void *virtual, vm_offset_t physical,
-    off_t offset, size_t length, size_t *size)
-{
-	void *buf;
-	int error;
-
-	error = dump_pad(di, virtual, length, &buf, size);
-	if (error != 0)
-		return (error);
-
-	return (dump_write(di, buf, physical, offset, *size));
-}
-
-int
+static int
 dump_write_header(struct dumperinfo *di, struct kerneldumpheader *kdh,
     vm_offset_t physical, off_t offset)
 {
@@ -1208,7 +1194,7 @@ dump_write_header(struct dumperinfo *di, struct kerneldumpheader *kdh,
 	return (ret);
 }
 
-int
+static int
 dump_write_key(struct dumperinfo *di, vm_offset_t physical, off_t offset)
 {
 #ifndef EKCD
@@ -1223,6 +1209,64 @@ dump_write_key(struct dumperinfo *di, vm_offset_t physical, off_t offset)
 	return (dump_raw_write(di, kdc->kdc_dumpkey, physical, offset,
 	    kdc->kdc_dumpkeysize));
 #endif /* !EKCD */
+}
+
+/*
+ * Don't touch the first SIZEOF_METADATA bytes on the dump device.  This is to
+ * protect us from metadata and metadata from us.
+ */
+#define	SIZEOF_METADATA		(64 * 1024)
+
+/*
+ * Do some preliminary setup for a kernel dump: verify that we have enough space
+ * on the dump device, write the leading header, and optionally write the crypto
+ * key.
+ */
+int
+dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh, off_t *dumplop)
+{
+	uint64_t dumpsize;
+	int error;
+
+	error = kerneldumpcrypto_init(di->kdc);
+	if (error != 0)
+		return (error);
+
+	dumpsize = dtoh64(kdh->dumplength) + 2 * di->blocksize +
+	    kerneldumpcrypto_dumpkeysize(di->kdc);
+	if (di->mediasize < SIZEOF_METADATA + dumpsize)
+		return (E2BIG);
+
+	*dumplop = di->mediaoffset + di->mediasize - dumpsize;
+
+	error = dump_write_header(di, kdh, 0, *dumplop);
+	if (error != 0)
+		return (error);
+	*dumplop += di->blocksize;
+
+	error = dump_write_key(di, 0, *dumplop);
+	if (error != 0)
+		return (error);
+	*dumplop += kerneldumpcrypto_dumpkeysize(di->kdc);
+
+	return (0);
+}
+
+/*
+ * Write the trailing kernel dump header and signal to the lower layers that the
+ * dump has completed.
+ */
+int
+dump_finish(struct dumperinfo *di, struct kerneldumpheader *kdh, off_t dumplo)
+{
+	int error;
+
+	error = dump_write_header(di, kdh, 0, dumplo);
+	if (error != 0)
+		return (error);
+
+	(void)dump_write(di, NULL, 0, 0, 0);
+	return (0);
 }
 
 void

@@ -58,12 +58,6 @@ __FBSDID("$FreeBSD$");
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
-/*
- * Don't touch the first SIZEOF_METADATA bytes on the dump device. This
- * is to protect us from metadata and to protect metadata from us.
- */
-#define	SIZEOF_METADATA		(64*1024)
-
 uint64_t *vm_page_dump;
 int vm_page_dump_size;
 
@@ -281,21 +275,7 @@ minidumpsys(struct dumperinfo *di)
 	}
 	dumpsize += PAGE_SIZE;
 
-	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + di->blocksize * 2 +
-	    kerneldumpcrypto_dumpkeysize(di->kdc)) {
-		error = E2BIG;
-		goto fail;
-	}
-	dumplo = di->mediaoffset + di->mediasize - dumpsize;
-	dumplo -= di->blocksize * 2;
-	dumplo -= kerneldumpcrypto_dumpkeysize(di->kdc);
 	progress = dumpsize;
-
-	/* Initialize kernel dump crypto. */
-	error = kerneldumpcrypto_init(di->kdc);
-	if (error)
-		goto fail;
 
 	/* Initialize mdhdr */
 	bzero(&mdhdr, sizeof(mdhdr));
@@ -315,17 +295,9 @@ minidumpsys(struct dumperinfo *di)
 	printf("Dumping %llu out of %ju MB:", (long long)dumpsize >> 20,
 	    ptoa((uintmax_t)physmem) / 1048576);
 
-	/* Dump leader */
-	error = dump_write_header(di, &kdh, 0, dumplo);
-	if (error)
+	error = dump_start(di, &kdh, &dumplo);
+	if (error != 0)
 		goto fail;
-	dumplo += di->blocksize;
-
-	/* Dump key */
-	error = dump_write_key(di, 0, dumplo);
-	if (error)
-		goto fail;
-	dumplo += kerneldumpcrypto_dumpkeysize(di->kdc);
 
 	/* Dump my header */
 	bzero(&tmpbuffer, sizeof(tmpbuffer));
@@ -423,18 +395,14 @@ minidumpsys(struct dumperinfo *di)
 	if (error)
 		goto fail;
 
-	/* Dump trailer */
-	error = dump_write_header(di, &kdh, 0, dumplo);
-	if (error)
+	error = dump_finish(di, &kdh, dumplo);
+	if (error != 0)
 		goto fail;
-	dumplo += di->blocksize;
 
-	/* Signal completion, signoff and exit stage left. */
-	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
 	return (0);
 
- fail:
+fail:
 	if (error < 0)
 		error = -error;
 
