@@ -261,8 +261,8 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.ptesize = ptesize;
 	mdhdr.kernbase = VM_MIN_KERNEL_ADDRESS;
 
-	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_MIPS_VERSION, dumpsize,
-	    kerneldumpcrypto_dumpkeysize(di->kdc), di->blocksize);
+	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_MIPS_VERSION,
+	    dumpsize);
 
 	printf("Dumping %llu out of %ju MB:", (long long)dumpsize >> 20,
 	    ptoa((uintmax_t)physmem) / 1048576);

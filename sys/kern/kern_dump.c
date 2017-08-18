@@ -341,8 +341,8 @@ dumpsys_generic(struct dumperinfo *di)
 	dumpsize += fileofs;
 	hdrgap = fileofs - roundup2((off_t)hdrsz, di->blocksize);
 
-	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_ARCH_VERSION, dumpsize,
-	    kerneldumpcrypto_dumpkeysize(di->kdc), di->blocksize);
+	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_ARCH_VERSION,
+	    dumpsize);
 
 	printf("Dumping %ju MB (%d chunks)\n", (uintmax_t)dumpsize >> 20,
 	    ehdr.e_phnum - DUMPSYS_NUM_AUX_HDRS);
