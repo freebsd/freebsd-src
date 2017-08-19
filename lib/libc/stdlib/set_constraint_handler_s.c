@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include "un-namespace.h"
 #include "libc_private.h"
 
@@ -81,10 +83,14 @@ __throw_constraint_handler_s(const char * restrict msg, errno_t error)
 }
 
 void
-abort_handler_s(const char * restrict msg __unused,
-    void * restrict ptr __unused, errno_t error __unused)
+abort_handler_s(const char * restrict msg, void * restrict ptr __unused,
+    errno_t error __unused)
 {
+	static const char ahs[] = "abort_handler_s : ";
 
+	(void) _write(STDERR_FILENO, ahs, sizeof(ahs) - 1);
+	(void) _write(STDERR_FILENO, msg, strlen(msg));
+	(void) _write(STDERR_FILENO, "\n", 1);
 	abort();
 }
 

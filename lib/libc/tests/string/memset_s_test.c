@@ -109,13 +109,18 @@ ATF_TC_BODY(n_lt_smax, tc)
 	assert(b[2] == 3);
 }
 
-/* n > smax */
+/* n > smax, handler */
 ATF_TC_WITHOUT_HEAD(n_gt_smax);
 ATF_TC_BODY(n_gt_smax, tc)
 {
 	char b[3] = {1, 2, 3};
 
-	assert(memset_s(&b[0], 1, 9, 3) == 0);
+	e = 0;
+	m = NULL;
+	set_constraint_handler_s(h);
+	assert(memset_s(&b[0], 1, 9, 3) != 0);
+	assert(e > 0);
+	assert(strcmp(m, "memset_s : n > smax") == 0);
 	assert(b[0] == 9);
 	assert(b[1] == 2);
 	assert(b[2] == 3);
