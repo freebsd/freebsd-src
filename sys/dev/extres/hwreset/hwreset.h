@@ -40,8 +40,6 @@ typedef struct hwreset *hwreset_t;
  * Provider interface
  */
 #ifdef FDT
-int hwreset_default_ofw_map(device_t provider_dev, phandle_t xref, int ncells,
-    pcell_t *cells, intptr_t *id);
 void hwreset_register_ofw_provider(device_t provider_dev);
 void hwreset_unregister_ofw_provider(device_t provider_dev);
 #endif
