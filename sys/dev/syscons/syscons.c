@@ -3208,14 +3208,8 @@ scinit(int unit, int flags)
 	scp->cursor_pos = scp->cursor_oldpos = row*scp->xsize + col;
 	(*scp->tsw->te_sync)(scp);
 
-	/* Sync BIOS cursor shape to s/w (sc only). */
-	if (bios_value.cursor_end < scp->font_size)
-	    sc->dflt_curs_attr.base = scp->font_size - 
-					  bios_value.cursor_end - 1;
-	else
-	    sc->dflt_curs_attr.base = 0;
-	i = bios_value.cursor_end - bios_value.cursor_start + 1;
-	sc->dflt_curs_attr.height = imin(i, scp->font_size);
+	sc->dflt_curs_attr.base = 0;
+	sc->dflt_curs_attr.height = howmany(scp->font_size, 8);
 	sc->dflt_curs_attr.flags = 0;
 	sc->curs_attr = sc->dflt_curs_attr;
 	scp->curr_curs_attr = scp->dflt_curs_attr = sc->curs_attr;
