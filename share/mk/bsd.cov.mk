@@ -12,7 +12,7 @@ CLEANFILES+=	${GCNOS}
 
 .for _gcno in ${GCNOS}
 _gcno_dir=	${COVERAGEDIR}${_gcno:H:tA}
-GCNOS_${_gcno:T}DIR=	${_gcno_dir}
+GCNOSDIR_${_gcno:T}=	${_gcno_dir}
 .if !target(${DESTDIR}${_gcno_dir})
 beforeinstall: ${DESTDIR}${_gcno_dir}
 ${DESTDIR}${_gcno_dir}:
