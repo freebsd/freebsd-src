@@ -1,9 +1,5 @@
 # $FreeBSD$
 
-# XXX (ngie): doesn't build with coverage today; COV_CXXFLAGS is getting passed
-# down improperly, resulting in a -Werror issue with strsignal in debug.c.
-MK_COVERAGE?=	no
-
 .include <src.opts.mk>
 
 GCCVER=	4.2
@@ -25,7 +21,6 @@ CFLAGS+=	-I${GCCLIB}/include -I${SRCDIR}/include -I.
 CFLAGS+=	-frandom-seed=RepeatabilityConsideredGood
 CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections \
 		-Wno-deprecated
-COV_CXXFLAGS=	${CXXFLAGS:N-ffunction-sections}
 PO_CXXFLAGS=	${CXXFLAGS:N-ffunction-sections}
 
 LIBADD+=	m
