@@ -302,6 +302,7 @@ NLSNAME?=	${PROG}
 
 .include <bsd.confs.mk>
 .if defined(_COV_FLAG)
+COV_OBJS=	${OBJS}
 .include <bsd.cov.mk>
 .endif
 .include <bsd.files.mk>
