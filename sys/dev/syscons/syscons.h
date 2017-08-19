@@ -516,8 +516,6 @@ typedef struct sc_renderer {
 		       SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
 typedef struct {
-	int		cursor_start;
-	int		cursor_end;
 	int		shift_state;
 	int		bell_pitch;
 } bios_values_t;
