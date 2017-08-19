@@ -630,36 +630,26 @@ parse_cursor_params(char *param, struct cshape *shape)
 	param = dupparam = strdup(param);
 	type = shape->shape[0];
 	while ((word = strsep(&param, ",")) != NULL) {
-		if (strcmp(word, "block") == 0)
+		if (strcmp(word, "normal") == 0)
 			type = 0;
-		else if (strcmp(word, "underline") == 0)
-			type = CONS_CHAR_CURSOR;
-		else if (strcmp(word, "blinkingblock") == 0)
-			type = CONS_BLINK_CURSOR;
-		else if (strcmp(word, "blinkingunderline") == 0)
-			type = CONS_BLINK_CURSOR | CONS_CHAR_CURSOR;
-		else if (strncmp(word, "base=", 5) == 0)
-			shape->shape[1] = strtol(word + 5, NULL, 0);
-		else if (strncmp(word, "height=", 7) == 0)
-			shape->shape[2] = strtol(word + 7, NULL, 0);
-		else if (strcmp(word, "blinking") == 0)
-			type |= CONS_BLINK_CURSOR;
-		else if (strcmp(word, "normal") == 0)
-			type = 0;
-		else if (strcmp(word, "blink") == 0)
-			type = CONS_BLINK_CURSOR;
 		else if (strcmp(word, "destructive") == 0)
 			type = CONS_BLINK_CURSOR | CONS_CHAR_CURSOR;
-		else if (strcmp(word, "noblinking") == 0)
+		else if (strcmp(word, "blink") == 0)
+			type |= CONS_BLINK_CURSOR;
+		else if (strcmp(word, "noblink") == 0)
 			type &= ~CONS_BLINK_CURSOR;
-		else if (strcmp(word, "char") == 0)
-			type |= CONS_CHAR_CURSOR;
-		else if (strcmp(word, "nochar") == 0)
+		else if (strcmp(word, "block") == 0)
 			type &= ~CONS_CHAR_CURSOR;
+		else if (strcmp(word, "noblock") == 0)
+			type |= CONS_CHAR_CURSOR;
 		else if (strcmp(word, "hidden") == 0)
 			type |= CONS_HIDDEN_CURSOR;
 		else if (strcmp(word, "nohidden") == 0)
 			type &= ~CONS_HIDDEN_CURSOR;
+		else if (strncmp(word, "base=", 5) == 0)
+			shape->shape[1] = strtol(word + 5, NULL, 0);
+		else if (strncmp(word, "height=", 7) == 0)
+			shape->shape[2] = strtol(word + 7, NULL, 0);
 		else if (strcmp(word, "local") == 0)
 			type |= CONS_LOCAL_CURSOR;
 		else if (strcmp(word, "reset") == 0)
