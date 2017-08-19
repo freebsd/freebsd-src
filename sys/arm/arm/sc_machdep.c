@@ -78,9 +78,6 @@ sc_get_softc(int unit, int flags)
 void
 sc_get_bios_values(bios_values_t *values)
 {
-	values->cursor_start = 0;
-	values->cursor_end = 32;
-	values->shift_state = 0;
 }
 
 int
