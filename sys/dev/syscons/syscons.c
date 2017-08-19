@@ -943,12 +943,18 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	return 0;
 
     case CONS_GETCURSORSHAPE:   /* get cursor shape (new interface) */
-	switch (((int *)data)[0] & CONS_LOCAL_CURSOR) {
+	switch (((int *)data)[0] & (CONS_DEFAULT_CURSOR | CONS_LOCAL_CURSOR)) {
 	case 0:
 	    cap = &sc->curs_attr;
 	    break;
 	case CONS_LOCAL_CURSOR:
 	    cap = &scp->base_curs_attr;
+	    break;
+	case CONS_DEFAULT_CURSOR:
+	    cap = &sc->dflt_curs_attr;
+	    break;
+	case CONS_DEFAULT_CURSOR | CONS_LOCAL_CURSOR:
+	    cap = &scp->dflt_curs_attr;
 	    break;
 	}
 	((int *)data)[1] = cap->base;
@@ -3030,7 +3036,10 @@ change_cursor_shape(scr_stat *scp, int flags, int base, int height)
 
     if (flags & CONS_RESET_CURSOR)
 	scp->base_curs_attr = scp->dflt_curs_attr;
-    else
+    else if (flags & CONS_DEFAULT_CURSOR) {
+	sc_adjust_ca(&scp->dflt_curs_attr, flags, base, height);
+	scp->base_curs_attr = scp->dflt_curs_attr;
+    } else
 	sc_adjust_ca(&scp->base_curs_attr, flags, base, height);
 
     if ((scp == scp->sc->cur_scp) && !ISGRAPHSC(scp)) {
@@ -3062,7 +3071,10 @@ sc_change_cursor_shape(scr_stat *scp, int flags, int base, int height)
     sc = scp->sc;
     if (flags & CONS_RESET_CURSOR)
 	sc->curs_attr = sc->dflt_curs_attr;
-    else
+    else if (flags & CONS_DEFAULT_CURSOR) {
+	sc_adjust_ca(&sc->dflt_curs_attr, flags, base, height);
+	sc->curs_attr = sc->dflt_curs_attr;
+    } else
 	sc_adjust_ca(&sc->curs_attr, flags, base, height);
 
     for (i = sc->first_vty; i < sc->first_vty + sc->vtys; ++i) {
