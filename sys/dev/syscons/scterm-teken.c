@@ -730,9 +730,9 @@ scteken_param(void *arg, int cmd, unsigned int value)
 		break;
 	case TP_SHOWCURSOR:
 		if (value != 0)
-			flags = scp->curr_curs_attr.flags & ~CONS_HIDDEN_CURSOR;
+			flags = scp->base_curs_attr.flags & ~CONS_HIDDEN_CURSOR;
 		else
-			flags = scp->curr_curs_attr.flags | CONS_HIDDEN_CURSOR;
+			flags = scp->base_curs_attr.flags | CONS_HIDDEN_CURSOR;
 		sc_change_cursor_shape(scp, flags | CONS_LOCAL_CURSOR, -1, -1);
 		break;
 	case TP_SWITCHVT:
