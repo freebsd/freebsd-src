@@ -453,6 +453,7 @@ _libinstall:
 .if !defined(LIBRARIES_ONLY)
 .include <bsd.nls.mk>
 .if defined(_COV_FLAG)
+COV_OBJS=	${SOBJS}
 .include <bsd.cov.mk>
 .endif
 .include <bsd.files.mk>
