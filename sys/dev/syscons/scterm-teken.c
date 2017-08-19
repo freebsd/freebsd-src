@@ -684,7 +684,6 @@ scteken_param(void *arg, int cmd, unsigned int value)
 	static int tcattrs[] = {
 		CONS_RESET_CURSOR | CONS_LOCAL_CURSOR,	/* normal */
 		CONS_HIDDEN_CURSOR | CONS_LOCAL_CURSOR,	/* invisible */
-		CONS_BLINK_CURSOR | CONS_LOCAL_CURSOR,	/* very visible */
 	};
 	scr_stat *scp = arg;
 	int flags, n, v0, v1, v2;
@@ -727,6 +726,13 @@ scteken_param(void *arg, int cmd, unsigned int value)
 	case TP_SETLOCALCURSOR:
 		if (value < sizeof(tcattrs) / sizeof(tcattrs[0]))
 			sc_change_cursor_shape(scp, tcattrs[value], -1, -1);
+		else if (value == 2) {
+			sc_change_cursor_shape(scp,
+			    CONS_RESET_CURSOR | CONS_LOCAL_CURSOR, -1, -1);
+			flags = scp->base_curs_attr.flags ^ CONS_BLINK_CURSOR;
+			sc_change_cursor_shape(scp,
+			    flags | CONS_LOCAL_CURSOR, -1, -1);
+		}
 		break;
 	case TP_SHOWCURSOR:
 		if (value != 0)
