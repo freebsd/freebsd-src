@@ -47,6 +47,7 @@ extern struct mtx nfsrv_dslock_mtx;
 extern int nfsd_debuglevel;
 extern u_int nfsrv_dsdirsize;
 extern struct nfsdevicehead nfsrv_devidhead;
+extern int nfsrv_doflexfile;
 NFSV4ROOTLOCKMUTEX;
 NFSSTATESPINLOCK;
 
@@ -6851,8 +6852,10 @@ nfsrv_setdsserver(char *dspathp, char *mirrorp, NFSPROC_T *p,
 				i++;
 			if (i > NFSDEV_MAXMIRRORS)
 				error = ENXIO;
-			else if (i > nfsrv_maxpnfsmirror)
+			else if (i > nfsrv_maxpnfsmirror) {
 				nfsrv_maxpnfsmirror = i;
+				nfsrv_doflexfile = 1;	/* Force Flex File. */
+			}
 			break;
 		}
 	}
