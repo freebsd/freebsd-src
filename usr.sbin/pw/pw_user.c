@@ -1087,10 +1087,10 @@ split_groups(StringList **groups, char *groupsstr)
 	char *p;
 	char tok[] = ", \t";
 
+	if (*groups == NULL)
+		*groups = sl_init();
 	for (p = strtok(groupsstr, tok); p != NULL; p = strtok(NULL, tok)) {
 		grp = group_from_name_or_id(p);
-		if (*groups == NULL)
-			*groups = sl_init();
 		sl_add(*groups, newstr(grp->gr_name));
 	}
 }
