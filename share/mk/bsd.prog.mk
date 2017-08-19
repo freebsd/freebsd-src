@@ -83,8 +83,8 @@ DEBUGFILEDIR=	${DEBUGDIR}${BINDIR}
 DEBUGFILEDIR?=	${BINDIR}/.debug
 .endif
 .if ${MK_COVERAGE} != "no"
-COVERAGEDIR=	${COVDIR}${BINDIR}
-.if !exists(${DESTDIR}${COVERAGEDIR})
+_COVERAGEDIR=	${COVERAGEDIR}${BINDIR}
+.if !exists(${DESTDIR}${_COVERAGEDIR})
 COVERAGEMKDIR=
 .endif
 .endif
@@ -250,10 +250,10 @@ _proginstall:
 .if ${MK_DEBUG_FILES} != "no"
 .if ${MK_COVERAGE} != "no"
 .if defined(COVERAGEMKDIR)
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},coverage} -d ${DESTDIR}${COVERAGEDIR}/
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},coverage} -d ${DESTDIR}${_COVERAGEDIR}/
 .endif
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},coverage} -o ${BINOWN} -g ${BINGRP} -m ${DEBUGMODE} \
-	    ${PROG_FULL} ${DESTDIR}${COVERAGEDIR}/${PROGNAME}
+	    ${PROG_FULL} ${DESTDIR}${_COVERAGEDIR}/${PROGNAME}
 .endif
 .if defined(DEBUGMKDIR)
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},debug} -d ${DESTDIR}${DEBUGFILEDIR}/
