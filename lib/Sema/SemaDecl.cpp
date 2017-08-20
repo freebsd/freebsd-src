@@ -6999,6 +6999,21 @@ void Sema::CheckShadow(NamedDecl *D, NamedDecl *ShadowedDecl,
           return;
         }
       }
+
+      if (cast<VarDecl>(ShadowedDecl)->hasLocalStorage()) {
+        // A variable can't shadow a local variable in an enclosing scope, if
+        // they are separated by a non-capturing declaration context.
+        for (DeclContext *ParentDC = NewDC;
+             ParentDC && !ParentDC->Equals(OldDC);
+             ParentDC = getLambdaAwareParentOfDeclContext(ParentDC)) {
+          // Only block literals, captured statements, and lambda expressions
+          // can capture; other scopes don't.
+          if (!isa<BlockDecl>(ParentDC) && !isa<CapturedDecl>(ParentDC) &&
+              !isLambdaCallOperator(ParentDC)) {
+            return;
+          }
+        }
+      }
     }
   }
 
@@ -12075,8 +12090,9 @@ Decl *Sema::ActOnStartOfFunctionDef(Scope *FnBodyScope, Decl *D,
     FD->setInvalidDecl();
   }
 
-  // See if this is a redefinition.
-  if (!FD->isLateTemplateParsed()) {
+  // See if this is a redefinition. If 'will have body' is already set, then
+  // these checks were already performed when it was set.
+  if (!FD->willHaveBody() && !FD->isLateTemplateParsed()) {
     CheckForFunctionRedefinition(FD, nullptr, SkipBody);
 
     // If we're skipping the body, we're done. Don't enter the scope.
@@ -13278,6 +13294,7 @@ Decl *Sema::ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK,
         AddMsStructLayoutForRecord(RD);
       }
     }
+    New->setLexicalDeclContext(CurContext);
     return New;
   };
 
