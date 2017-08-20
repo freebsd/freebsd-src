@@ -96,6 +96,7 @@ initarm_late_init(void)
 	}
 }
 
+#ifdef SOC_BCM2835
 /*
  * Set up static device mappings.
  * All on-chip peripherals exist in a 16MB range starting at 0x20000000.
@@ -108,6 +109,17 @@ initarm_devmap_init(void)
 	arm_devmap_add_entry(0x20000000, 0x01000000);
 	return (0);
 }
+#endif
+
+#ifdef SOC_BCM2836
+static int
+initarm_devmap_init(void)
+{
+
+	arm_devmap_add_entry(0x3f000000, 0x01000000);
+	return (0);
+}
+#endif
 
 struct arm32_dma_range *
 bus_dma_get_range(void)

@@ -29,45 +29,26 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bio.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
-#include <sys/endian.h>
+#include <sys/consio.h>
+#include <sys/fbio.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
-#include <sys/kthread.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/mutex.h>
-#include <sys/queue.h>
-#include <sys/resource.h>
-#include <sys/rman.h>
-#include <sys/time.h>
-#include <sys/timetc.h>
-#include <sys/fbio.h>
-#include <sys/consio.h>
 
-#include <sys/kdb.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
-#include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
-#include <machine/resource.h>
-#include <machine/intr.h>
-
+#include <dev/fb/fbreg.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/fb/fbreg.h>
 #include <dev/syscons/syscons.h>
 
-#include <arm/broadcom/bcm2835/bcm2835_mbox.h>
-#include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
+#include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 
 #include "mbox_if.h"
-
-#define	BCMFB_FONT_HEIGHT	16
 
 struct argb {
 	uint8_t		a;
@@ -101,40 +82,15 @@ static u_char mouse_pointer[16] = {
         0x0c, 0x0c, 0x06, 0x06, 0x00, 0x00, 0x00, 0x00
 };
 
-#define FB_WIDTH		640
-#define FB_HEIGHT		480
-#define FB_DEPTH		24
-
-struct bcm_fb_config {
-	uint32_t	xres;
-	uint32_t	yres;
-	uint32_t	vxres;
-	uint32_t	vyres;
-	uint32_t	pitch;
-	uint32_t	bpp;
-	uint32_t	xoffset;
-	uint32_t	yoffset;
-	/* Filled by videocore */
-	uint32_t	base;
-	uint32_t	screen_size;
-};
+#define	BCMFB_FONT_HEIGHT	16
+#define	BCMFB_FONT_WIDTH	8
+#define	FB_WIDTH		640
+#define	FB_HEIGHT		480
+#define	FB_DEPTH		24
 
 struct bcmsc_softc {
-	device_t		dev;
-	struct cdev *		cdev;
-	struct mtx		mtx;
-	bus_dma_tag_t		dma_tag;
-	bus_dmamap_t		dma_map;
-	struct bcm_fb_config*	fb_config;
-	bus_addr_t		fb_config_phys;
-	struct intr_config_hook	init_hook;
-
-};
-
-struct video_adapter_softc {
 	/* Videoadpater part */
 	video_adapter_t	va;
-	int		console;
 
 	intptr_t	fb_addr;
 	intptr_t	fb_paddr;
@@ -149,118 +105,36 @@ struct video_adapter_softc {
 	unsigned int	ymargin;
 
 	unsigned char	*font;
+	int		fbswap;
 	int		initialized;
 };
 
-static struct bcmsc_softc *bcmsc_softc;
-static struct video_adapter_softc va_softc;
+static struct bcmsc_softc bcmsc;
 
-#define	bcm_fb_lock(_sc)	mtx_lock(&(_sc)->mtx)
-#define	bcm_fb_unlock(_sc)	mtx_unlock(&(_sc)->mtx)
-#define	bcm_fb_lock_assert(sc)	mtx_assert(&(_sc)->mtx, MA_OWNED)
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-fb",		1},
+	{"brcm,bcm2708-fb",		1},
+	{NULL,				0}
+};
 
 static int bcm_fb_probe(device_t);
 static int bcm_fb_attach(device_t);
-static void bcm_fb_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err);
 static void bcmfb_update_margins(video_adapter_t *adp);
 static int bcmfb_configure(int);
-
-static void
-bcm_fb_init(void *arg)
-{
-	struct bcmsc_softc *sc = arg;
-	struct video_adapter_softc *va_sc = &va_softc;
-	int err;
-	volatile struct bcm_fb_config*	fb_config = sc->fb_config;
-	phandle_t node;
-	pcell_t cell;
-	device_t mbox;
-
-	node = ofw_bus_get_node(sc->dev);
-
-	fb_config->xres = 0;
-	fb_config->yres = 0;
-	fb_config->bpp = 0;
-
-	if ((OF_getprop(node, "broadcom,width", &cell, sizeof(cell))) > 0)
-		fb_config->xres = (int)fdt32_to_cpu(cell);
-	if (fb_config->xres == 0)
-		fb_config->xres = FB_WIDTH;
-
-	if ((OF_getprop(node, "broadcom,height", &cell, sizeof(cell))) > 0)
-		fb_config->yres = (uint32_t)fdt32_to_cpu(cell);
-	if (fb_config->yres == 0)
-		fb_config->yres = FB_HEIGHT;
-
-	if ((OF_getprop(node, "broadcom,depth", &cell, sizeof(cell))) > 0)
-		fb_config->bpp = (uint32_t)fdt32_to_cpu(cell);
-	if (fb_config->bpp == 0)
-		fb_config->bpp = FB_DEPTH;
-
-	fb_config->vxres = 0;
-	fb_config->vyres = 0;
-	fb_config->xoffset = 0;
-	fb_config->yoffset = 0;
-	fb_config->base = 0;
-	fb_config->pitch = 0;
-	fb_config->screen_size = 0;
-
-	bus_dmamap_sync(sc->dma_tag, sc->dma_map,
-		BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
-
-	mbox = devclass_get_device(devclass_find("mbox"), 0);
-	if (mbox) {
-		MBOX_WRITE(mbox, BCM2835_MBOX_CHAN_FB, sc->fb_config_phys);
-		MBOX_READ(mbox, BCM2835_MBOX_CHAN_FB, &err);
-	}
-	bus_dmamap_sync(sc->dma_tag, sc->dma_map,
-		BUS_DMASYNC_POSTREAD);
-
-	if (fb_config->base != 0) {
-		device_printf(sc->dev, "%dx%d(%dx%d@%d,%d) %dbpp\n", 
-			fb_config->xres, fb_config->yres,
-			fb_config->vxres, fb_config->vyres,
-			fb_config->xoffset, fb_config->yoffset,
-			fb_config->bpp);
-
-
-		device_printf(sc->dev, "pitch %d, base 0x%08x, screen_size %d\n", 
-			fb_config->pitch, fb_config->base,
-			fb_config->screen_size);
-
-		va_sc->fb_addr = (intptr_t)pmap_mapdev(fb_config->base, fb_config->screen_size);
-		va_sc->fb_paddr = fb_config->base;
-		va_sc->fb_size = fb_config->screen_size;
-		va_sc->depth = fb_config->bpp;
-		va_sc->stride = fb_config->pitch;
-
-		va_sc->width = fb_config->xres;
-		va_sc->height = fb_config->yres;
-		bcmfb_update_margins(&va_sc->va);
-	}
-	else {
-		device_printf(sc->dev, "Failed to set framebuffer info\n");
-		return;
-	}
-
-	config_intrhook_disestablish(&sc->init_hook);
-}
 
 static int
 bcm_fb_probe(device_t dev)
 {
-	int error = 0;
+	int error;
 
-	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-fb"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "BCM2835 framebuffer device");
-
 	error = sc_probe_unit(device_get_unit(dev), 
 	    device_get_flags(dev) | SC_AUTODETECT_KBD);
 	if (error != 0)
 		return (error);
-
 
 	return (BUS_PROBE_DEFAULT);
 }
@@ -268,81 +142,48 @@ bcm_fb_probe(device_t dev)
 static int
 bcm_fb_attach(device_t dev)
 {
-	struct bcmsc_softc *sc = device_get_softc(dev);
-	int dma_size = sizeof(struct bcm_fb_config);
-	int err;
+	struct bcm2835_fb_config fb;
+	struct bcmsc_softc *sc;
 
-	if (bcmsc_softc)
+	sc = (struct bcmsc_softc *)vid_get_adapter(vid_find_adapter(
+	    "bcmfb", 0));
+	if (sc != NULL)
+		device_set_softc(dev, sc);
+	else
+		sc = device_get_softc(dev);
+
+	memset(&fb, 0, sizeof(fb));
+	if (bcm2835_mbox_fb_get_w_h(&fb) != 0)
+		return (ENXIO);
+	fb.bpp = FB_DEPTH;
+	fb.vxres = fb.xres;
+	fb.vyres = fb.yres;
+	fb.xoffset = fb.yoffset = 0;
+	if (bcm2835_mbox_fb_init(&fb) != 0)
 		return (ENXIO);
 
-	bcmsc_softc = sc;
+	sc->fb_addr = (intptr_t)pmap_mapdev(fb.base, fb.size);
+	sc->fb_paddr = fb.base;
+	sc->fb_size = fb.size;
+	sc->depth = fb.bpp;
+	sc->stride = fb.pitch;
+	sc->width = fb.xres;
+	sc->height = fb.yres;
+	bcmfb_update_margins(&sc->va);
 
-	sc->dev = dev;
-	mtx_init(&sc->mtx, "bcm2835fb", "fb", MTX_DEF);
-
-	err = bus_dma_tag_create(
-	    bus_get_dma_tag(sc->dev),
-	    PAGE_SIZE, 0,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    dma_size, 1,		/* maxsize, nsegments */
-	    dma_size, 0,		/* maxsegsize, flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
-	    &sc->dma_tag);
-
-	err = bus_dmamem_alloc(sc->dma_tag, (void **)&sc->fb_config,
-	    0, &sc->dma_map);
-	if (err) {
-		device_printf(dev, "cannot allocate framebuffer\n");
-		goto fail;
-	}
-
-	err = bus_dmamap_load(sc->dma_tag, sc->dma_map, sc->fb_config,
-	    dma_size, bcm_fb_dmamap_cb, &sc->fb_config_phys, BUS_DMA_NOWAIT);
-
-	if (err) {
-		device_printf(dev, "cannot load DMA map\n");
-		goto fail;
-	}
-
-	err = (sc_attach_unit(device_get_unit(dev),
-	    device_get_flags(dev) | SC_AUTODETECT_KBD));
-
-	if (err) {
+	if (sc_attach_unit(device_get_unit(dev),
+	    device_get_flags(dev) | SC_AUTODETECT_KBD) != 0) {
 		device_printf(dev, "failed to attach syscons\n");
-		goto fail;
+		return (ENXIO);
 	}
 
-	/* 
-	 * We have to wait until interrupts are enabled. 
-	 * Mailbox relies on it to get data from VideoCore
-	 */
-        sc->init_hook.ich_func = bcm_fb_init;
-        sc->init_hook.ich_arg = sc;
-
-        if (config_intrhook_establish(&sc->init_hook) != 0) {
-		device_printf(dev, "failed to establish intrhook\n");
-                return (ENOMEM);
-	}
+	device_printf(dev, "%dx%d(%dx%d@%d,%d) %dbpp\n", fb.xres, fb.yres,
+	    fb.vxres, fb.vyres, fb.xoffset, fb.yoffset, fb.bpp);
+	device_printf(dev,
+	    "fbswap: %d, pitch %d, base 0x%08x, screen_size %d\n",
+	    sc->fbswap, fb.pitch, fb.base, fb.size);
 
 	return (0);
-
-fail:
-	return (ENXIO);
-}
-
-
-static void
-bcm_fb_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
-{
-	bus_addr_t *addr;
-
-	if (err)
-		return;
-
-	addr = (bus_addr_t*)arg;
-	*addr = PHYS_TO_VCBUS(segs[0].ds_addr);
 }
 
 static device_method_t bcm_fb_methods[] = {
@@ -362,6 +203,7 @@ static driver_t bcm_fb_driver = {
 };
 
 DRIVER_MODULE(bcm2835fb, ofwbus, bcm_fb_driver, bcm_fb_devclass, 0, 0);
+DRIVER_MODULE(bcm2835fb, simplebus, bcm_fb_driver, bcm_fb_devclass, 0, 0);
 
 /*
  * Video driver routines and glue.
@@ -505,13 +347,13 @@ bcmrend_set_cursor(scr_stat* scp, int base, int height, int blink)
 static void
 bcmrend_draw_cursor(scr_stat* scp, int off, int blink, int on, int flip)
 {
-	video_adapter_t* adp = scp->sc->adp;
-	struct video_adapter_softc *sc;
-	int row, col;
+	int bytes, col, i, j, row;
+	struct bcmsc_softc *sc;
 	uint8_t *addr;
-	int i, j, bytes;
+	video_adapter_t *adp;
 
-	sc = (struct video_adapter_softc *)adp;
+	adp = scp->sc->adp;
+	sc = (struct bcmsc_softc *)adp;
 
 	if (scp->curs_attr.height <= 0)
 		return;
@@ -530,8 +372,7 @@ bcmrend_draw_cursor(scr_stat* scp, int off, int blink, int on, int flip)
 	    + (row + sc->ymargin)*(sc->stride)
 	    + (sc->depth/8) * (col + sc->xmargin);
 
-	bytes = sc->depth/8;
-
+	bytes = sc->depth / 8;
 	/* our cursor consists of simply inverting the char under it */
 	for (i = 0; i < adp->va_info.vi_cheight; i++) {
 		for (j = 0; j < adp->va_info.vi_cwidth; j++) {
@@ -578,56 +419,80 @@ extern u_char dflt_font_16[];
 static void
 bcmfb_update_margins(video_adapter_t *adp)
 {
-	struct video_adapter_softc *sc;
+	struct bcmsc_softc *sc;
 	video_info_t *vi;
 
-	sc = (struct video_adapter_softc *)adp;
+	sc = (struct bcmsc_softc *)adp;
 	vi = &adp->va_info;
 
 	sc->xmargin = (sc->width - (vi->vi_width * vi->vi_cwidth)) / 2;
-	sc->ymargin = (sc->height - (vi->vi_height * vi->vi_cheight))/2;
+	sc->ymargin = (sc->height - (vi->vi_height * vi->vi_cheight)) / 2;
 }
 
 static int
 bcmfb_configure(int flags)
 {
-	struct video_adapter_softc *va_sc;
-
-	va_sc = &va_softc;
-	phandle_t display, root;
+	char bootargs[2048], *n, *p, *v;
 	pcell_t cell;
+	phandle_t chosen, display, root;
+	struct bcmsc_softc *sc;
 
-	if (va_sc->initialized)
+	sc = &bcmsc;
+	if (sc->initialized)
 		return (0);
 
-	va_sc->width = 0;
-	va_sc->height = 0;
+	sc->width = 0;
+	sc->height = 0;
 
 	/*
 	 * It seems there is no way to let syscons framework know
 	 * that framebuffer resolution has changed. So just try
-	 * to fetch data from FDT and go with defaults if failed
+	 * to fetch data from FDT bootargs, FDT display data and
+	 * finally go with defaults if everything else has failed.
 	 */
+	chosen = OF_finddevice("/chosen");
+	if (chosen != 0 &&
+	    OF_getprop(chosen, "bootargs", &bootargs, sizeof(bootargs)) > 0) {
+		p = bootargs;
+		while ((v = strsep(&p, " ")) != NULL) {
+			if (*v == '\0')
+				continue;
+			n = strsep(&v, "=");
+			if (strcmp(n, "bcm2708_fb.fbwidth") == 0 && v != NULL)
+				sc->width = (unsigned int)strtol(v, NULL, 0);
+			else if (strcmp(n, "bcm2708_fb.fbheight") == 0 &&
+			    v != NULL)
+				sc->height = (unsigned int)strtol(v, NULL, 0);
+			else if (strcmp(n, "bcm2708_fb.fbswap") == 0 &&
+			    v != NULL)
+				if (*v == '1')
+					sc->fbswap = 1;
+		}
+	}
+
 	root = OF_finddevice("/");
 	if ((root != 0) && 
 	    (display = fdt_find_compatible(root, "broadcom,bcm2835-fb", 1))) {
-		if ((OF_getprop(display, "broadcom,width", 
-		    &cell, sizeof(cell))) > 0)
-			va_sc->width = (int)fdt32_to_cpu(cell);
+		if (sc->width == 0) {
+			if ((OF_getprop(display, "broadcom,width", 
+			    &cell, sizeof(cell))) > 0)
+				sc->width = (int)fdt32_to_cpu(cell);
+		}
 
-		if ((OF_getprop(display, "broadcom,height", 
-		    &cell, sizeof(cell))) > 0)
-			va_sc->height = (int)fdt32_to_cpu(cell);
+		if (sc->height == 0) {
+			if ((OF_getprop(display, "broadcom,height", 
+			    &cell, sizeof(cell))) > 0)
+				sc->height = (int)fdt32_to_cpu(cell);
+		}
 	}
 
-	if (va_sc->width == 0)
-		va_sc->width = FB_WIDTH;
-	if (va_sc->height == 0)
-		va_sc->height = FB_HEIGHT;
+	if (sc->width == 0)
+		sc->width = FB_WIDTH;
+	if (sc->height == 0)
+		sc->height = FB_HEIGHT;
 
-	bcmfb_init(0, &va_sc->va, 0);
-
-	va_sc->initialized = 1;
+	bcmfb_init(0, &sc->va, 0);
+	sc->initialized = 1;
 
 	return (0);
 }
@@ -642,20 +507,19 @@ bcmfb_probe(int unit, video_adapter_t **adp, void *arg, int flags)
 static int
 bcmfb_init(int unit, video_adapter_t *adp, int flags)
 {
-	struct video_adapter_softc *sc;
+	struct bcmsc_softc *sc;
 	video_info_t *vi;
 
-	sc = (struct video_adapter_softc *)adp;
+	sc = (struct bcmsc_softc *)adp;
 	vi = &adp->va_info;
 
 	vid_init_struct(adp, "bcmfb", -1, unit);
 
 	sc->font = dflt_font_16;
 	vi->vi_cheight = BCMFB_FONT_HEIGHT;
-	vi->vi_cwidth = 8;
-
-	vi->vi_width = sc->width/8;
-	vi->vi_height = sc->height/vi->vi_cheight;
+	vi->vi_cwidth = BCMFB_FONT_WIDTH;
+	vi->vi_width = sc->width / vi->vi_cwidth;
+	vi->vi_height = sc->height / vi->vi_cheight;
 
 	/*
 	 * Clamp width/height to syscons maximums
@@ -666,8 +530,7 @@ bcmfb_init(int unit, video_adapter_t *adp, int flags)
 		vi->vi_height = ROW;
 
 	sc->xmargin = (sc->width - (vi->vi_width * vi->vi_cwidth)) / 2;
-	sc->ymargin = (sc->height - (vi->vi_height * vi->vi_cheight))/2;
-
+	sc->ymargin = (sc->height - (vi->vi_height * vi->vi_cheight)) / 2;
 
 	adp->va_window = (vm_offset_t) bcmfb_static_window;
 	adp->va_flags |= V_ADP_FONT /* | V_ADP_COLOR | V_ADP_MODECHANGE */;
@@ -707,8 +570,9 @@ static int
 bcmfb_load_font(video_adapter_t *adp, int page, int size, int width,
     u_char *data, int c, int count)
 {
-	struct video_adapter_softc *sc = (struct video_adapter_softc *)adp;
+	struct bcmsc_softc *sc;
 
+	sc = (struct bcmsc_softc *)adp;
 	sc->font = data;
 
 	return (0);
@@ -781,9 +645,9 @@ static int
 bcmfb_blank_display(video_adapter_t *adp, int mode)
 {
 
-	struct video_adapter_softc *sc;
+	struct bcmsc_softc *sc;
 
-	sc = (struct video_adapter_softc *)adp;
+	sc = (struct bcmsc_softc *)adp;
 	if (sc && sc->fb_addr)
 		memset((void*)sc->fb_addr, 0, sc->fb_size);
 
@@ -794,9 +658,9 @@ static int
 bcmfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
     int prot, vm_memattr_t *memattr)
 {
-	struct video_adapter_softc *sc;
+	struct bcmsc_softc *sc;
 
-	sc = (struct video_adapter_softc *)adp;
+	sc = (struct bcmsc_softc *)adp;
 
 	/*
 	 * This might be a legacy VGA mem request: if so, just point it at the
@@ -813,10 +677,10 @@ bcmfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 static int
 bcmfb_ioctl(video_adapter_t *adp, u_long cmd, caddr_t data)
 {
-	struct video_adapter_softc *sc;
+	struct bcmsc_softc *sc;
 	struct fbtype *fb;
 
-	sc = (struct video_adapter_softc *)adp;
+	sc = (struct bcmsc_softc *)adp;
 
 	switch (cmd) {
 	case FBIOGTYPE:
@@ -898,16 +762,13 @@ bcmfb_putp(video_adapter_t *adp, vm_offset_t off, uint32_t p, uint32_t a,
 static int
 bcmfb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 {
-	struct video_adapter_softc *sc;
-	int row;
-	int col;
-	int i, j, k;
-	uint8_t *addr;
+	int bytes, col, i, j, k, row;
+	struct bcmsc_softc *sc;
 	u_char *p;
-	uint8_t fg, bg, color;
+	uint8_t *addr, fg, bg, color;
 	uint16_t rgb;
 
-	sc = (struct video_adapter_softc *)adp;
+	sc = (struct bcmsc_softc *)adp;
 
 	if (sc->fb_addr == 0)
 		return (0);
@@ -922,6 +783,7 @@ bcmfb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 	fg = a & 0xf ;
 	bg = (a >> 4) & 0xf;
 
+	bytes = sc->depth / 8;
 	for (i = 0; i < BCMFB_FONT_HEIGHT; i++) {
 		for (j = 0, k = 7; j < 8; j++, k--) {
 			if ((p[i] & (1 << k)) == 0)
@@ -931,22 +793,32 @@ bcmfb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 
 			switch (sc->depth) {
 			case 32:
-				addr[4*j+0] = bcmfb_palette[color].r;
-				addr[4*j+1] = bcmfb_palette[color].g;
-				addr[4*j+2] = bcmfb_palette[color].b;
-				addr[4*j+3] = bcmfb_palette[color].a;
-				break;
 			case 24:
-				addr[3*j] = bcmfb_palette[color].r;
-				addr[3*j+1] = bcmfb_palette[color].g;
-				addr[3*j+2] = bcmfb_palette[color].b;
+				if (sc->fbswap) {
+					addr[bytes * j + 0] =
+					    bcmfb_palette[color].b;
+					addr[bytes * j + 1] =
+					    bcmfb_palette[color].g;
+					addr[bytes * j + 2] =
+					    bcmfb_palette[color].r;
+				} else {
+					addr[bytes * j + 0] =
+					    bcmfb_palette[color].r;
+					addr[bytes * j + 1] =
+					    bcmfb_palette[color].g;
+					addr[bytes * j + 2] =
+					    bcmfb_palette[color].b;
+				}
+				if (sc->depth == 32)
+					addr[bytes * j + 3] =
+					    bcmfb_palette[color].a;
 				break;
 			case 16:
 				rgb = (bcmfb_palette[color].r >> 3) << 11;
 				rgb |= (bcmfb_palette[color].g >> 2) << 5;
 				rgb |= (bcmfb_palette[color].b >> 3);
-				addr[2*j] = rgb & 0xff;
-				addr[2*j + 1] = (rgb >> 8) & 0xff;
+				addr[bytes * j] = rgb & 0xff;
+				addr[bytes * j + 1] = (rgb >> 8) & 0xff;
 			default:
 				/* Not supported yet */
 				break;

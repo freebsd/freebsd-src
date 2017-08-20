@@ -52,6 +52,13 @@ __FBSDID("$FreeBSD$");
 
 #include "iicbus_if.h"
 
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-bsc",	1},
+	{"brcm,bcm2708-i2c",		1},
+	{"brcm,bcm2835-i2c",		1},
+	{NULL,				0}
+};
+
 static void bcm_bsc_intr(void *);
 static int bcm_bsc_detach(device_t);
 
@@ -214,7 +221,7 @@ bcm_bsc_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-bsc"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "BCM2708/2835 BSC controller");
@@ -247,7 +254,7 @@ bcm_bsc_attach(device_t dev)
 	/* Check the unit we are attaching by its base address. */
 	start = rman_get_start(sc->sc_mem_res);
 	for (i = 0; i < nitems(bcm_bsc_pins); i++) {
-		if (bcm_bsc_pins[i].start == start)
+		if (bcm_bsc_pins[i].start == (start & BCM_BSC_BASE_MASK))
 			break;
 	}
 	if (i == nitems(bcm_bsc_pins)) {

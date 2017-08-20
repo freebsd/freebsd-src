@@ -1537,6 +1537,9 @@ smsc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 #ifdef FDT
+/*
+ * This is FreeBSD-specific compatibility strings for RPi/RPi2
+ */
 static phandle_t
 smsc_fdt_find_eth_node(phandle_t start)
 {
@@ -1548,11 +1551,68 @@ smsc_fdt_find_eth_node(phandle_t start)
 		    fdt_is_compatible(node, "usb,device"))
 			return (node);
 		child = smsc_fdt_find_eth_node(node);
-		if (child != 0)
+		if (child != -1)
 			return (child);
 	}
 
-	return (0);
+	return (-1);
+}
+
+/*
+ * Check if node's path is <*>/usb/hub/ethernet
+ */
+static int
+smsc_fdt_is_usb_eth(phandle_t node)
+{
+	char name[16];
+	int len;
+
+	memset(name, 0, sizeof(name));
+	len = OF_getprop(node, "name", name, sizeof(name));
+	if (len <= 0)
+		return (0);
+
+	if (strcmp(name, "ethernet"))
+		return (0);
+
+	node = OF_parent(node);
+	if (node == -1)
+		return (0);
+	len = OF_getprop(node, "name", name, sizeof(name));
+	if (len <= 0)
+		return (0);
+
+	if (strcmp(name, "hub"))
+		return (0);
+
+	node = OF_parent(node);
+	if (node == -1)
+		return (0);
+	len = OF_getprop(node, "name", name, sizeof(name));
+	if (len <= 0)
+		return (0);
+
+	if (strcmp(name, "usb"))
+		return (0);
+
+	return (1);
+}
+
+static phandle_t
+smsc_fdt_find_eth_node_by_path(phandle_t start)
+{
+	phandle_t child, node;
+
+	/* Traverse through entire tree to find usb ethernet nodes. */
+	for (node = OF_child(start); node != 0; node = OF_peer(node)) {
+		if (smsc_fdt_is_usb_eth(node))
+			return (node);
+		child = smsc_fdt_find_eth_node_by_path(node);
+		if (child != -1)
+			return (child);
+	}
+
+	return (-1);
 }
 
 /**
@@ -1568,8 +1628,14 @@ smsc_fdt_find_mac(unsigned char *mac)
 
 	root = OF_finddevice("/");
 	node = smsc_fdt_find_eth_node(root);
-	if (node != 0) {
+	/*
+	 * If it's not FreeBSD FDT blob for RPi, try more
+	 *     generic .../usb/hub/ethernet
+	 */
+	if (node == -1)
+		node = smsc_fdt_find_eth_node_by_path(root);
 
+	if (node != -1) {
 		/* Check if there is property */
 		if ((len = OF_getproplen(node, "local-mac-address")) > 0) {
 			if (len != ETHER_ADDR_LEN)

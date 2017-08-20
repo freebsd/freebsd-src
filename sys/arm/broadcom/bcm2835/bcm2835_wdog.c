@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/broadcom/bcm2835/bcm2835_wdog.h>
 
-#define	BCM2835_PASWORD		0x5a
+#define	BCM2835_PASSWORD	0x5a
 
 #define BCM2835_WDOG_RESET	0
 #define BCM2835_PASSWORD_MASK	0xff000000
@@ -54,8 +54,8 @@ __FBSDID("$FreeBSD$");
 #define BCM2835_WDOG_TIME_MASK	0x000fffff
 #define BCM2835_WDOG_TIME_SHIFT	0
 
-#define	READ(_sc, _r) bus_space_read_4((_sc)->bst, (_sc)->bsh, (_r))
-#define	WRITE(_sc, _r, _v) bus_space_write_4((_sc)->bst, (_sc)->bsh, (_r), (_v))
+#define	READ(_sc, _r) bus_space_read_4((_sc)->bst, (_sc)->bsh, (_r) + (_sc)->regs_offset)
+#define	WRITE(_sc, _r, _v) bus_space_write_4((_sc)->bst, (_sc)->bsh, (_r) + (_sc)->regs_offset, (_v))
 
 #define BCM2835_RSTC_WRCFG_CLR		0xffffffcf
 #define BCM2835_RSTC_WRCFG_SET		0x00000030
@@ -77,6 +77,17 @@ struct bcmwd_softc {
 	int			wdog_period;
 	char			wdog_passwd;
 	struct mtx		mtx;
+	int			regs_offset;
+};
+
+#define	BSD_DTB		1
+#define	UPSTREAM_DTB	2
+#define	UPSTREAM_DTB_REGS_OFFSET	0x1c
+
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-wdt",	BSD_DTB},
+	{"brcm,bcm2835-pm-wdt",		UPSTREAM_DTB},
+	{NULL,				0}
 };
 
 static void bcmwd_watchdog_fn(void *private, u_int cmd, int *error);
@@ -88,12 +99,12 @@ bcmwd_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "broadcom,bcm2835-wdt")) {
-		device_set_desc(dev, "BCM2708/2835 Watchdog");
-		return (BUS_PROBE_DEFAULT);
-	}
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
 
-	return (ENXIO);
+	device_set_desc(dev, "BCM2708/2835 Watchdog");
+
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -107,7 +118,7 @@ bcmwd_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->wdog_period = 7;
-	sc->wdog_passwd = BCM2835_PASWORD;
+	sc->wdog_passwd = BCM2835_PASSWORD;
 	sc->wdog_armed = 0;
 	sc->dev = dev;
 
@@ -120,6 +131,11 @@ bcmwd_attach(device_t dev)
 
 	sc->bst = rman_get_bustag(sc->res);
 	sc->bsh = rman_get_bushandle(sc->res);
+
+	/* compensate base address difference */
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data
+	   == UPSTREAM_DTB)
+		sc->regs_offset = UPSTREAM_DTB_REGS_OFFSET;
 
 	bcmwd_lsc = sc;
 	mtx_init(&sc->mtx, "BCM2835 Watchdog", "bcmwd", MTX_DEF);
@@ -150,27 +166,27 @@ bcmwd_watchdog_fn(void *private, u_int cmd, int *error)
 			device_printf(sc->dev,
 			    "Can't arm, timeout must be between 1-15 seconds\n");
 			WRITE(sc, BCM2835_RSTC_REG, 
-			    (BCM2835_PASWORD << BCM2835_PASSWORD_SHIFT) |
+			    (BCM2835_PASSWORD << BCM2835_PASSWORD_SHIFT) |
 			    BCM2835_RSTC_RESET);
 			mtx_unlock(&sc->mtx);
 			return;
 		}
 
 		ticks = (sec << 16) & BCM2835_WDOG_TIME_MASK;
-		reg = (BCM2835_PASWORD << BCM2835_PASSWORD_SHIFT) | ticks;
+		reg = (BCM2835_PASSWORD << BCM2835_PASSWORD_SHIFT) | ticks;
 		WRITE(sc, BCM2835_WDOG_REG, reg);
 
 		reg = READ(sc, BCM2835_RSTC_REG);
 		reg &= BCM2835_RSTC_WRCFG_CLR;
 		reg |= BCM2835_RSTC_WRCFG_FULL_RESET;
-		reg |= (BCM2835_PASWORD << BCM2835_PASSWORD_SHIFT);
+		reg |= (BCM2835_PASSWORD << BCM2835_PASSWORD_SHIFT);
 		WRITE(sc, BCM2835_RSTC_REG, reg);
 
 		*error = 0;
 	}
 	else
 		WRITE(sc, BCM2835_RSTC_REG, 
-		    (BCM2835_PASWORD << BCM2835_PASSWORD_SHIFT) |
+		    (BCM2835_PASSWORD << BCM2835_PASSWORD_SHIFT) |
 		    BCM2835_RSTC_RESET);
 
 	mtx_unlock(&sc->mtx);
@@ -184,11 +200,11 @@ bcmwd_watchdog_reset()
 		return;
 
 	WRITE(bcmwd_lsc, BCM2835_WDOG_REG,
-	    (BCM2835_PASWORD << BCM2835_PASSWORD_SHIFT) | 10);
+	    (BCM2835_PASSWORD << BCM2835_PASSWORD_SHIFT) | 10);
 
 	WRITE(bcmwd_lsc, BCM2835_RSTC_REG,
 	    (READ(bcmwd_lsc, BCM2835_RSTC_REG) & BCM2835_RSTC_WRCFG_CLR) |
-		(BCM2835_PASWORD << BCM2835_PASSWORD_SHIFT) |
+		(BCM2835_PASSWORD << BCM2835_PASSWORD_SHIFT) |
 		BCM2835_RSTC_WRCFG_FULL_RESET);
 }
 
