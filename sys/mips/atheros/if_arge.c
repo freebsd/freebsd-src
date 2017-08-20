@@ -1515,6 +1515,7 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 		sc->stats.tx_pkts_unaligned++;
 		m = m_defrag(*m_head, M_NOWAIT);
 		if (m == NULL) {
+			m_freem(*m_head);
 			*m_head = NULL;
 			return (ENOBUFS);
 		}
