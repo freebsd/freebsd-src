@@ -203,10 +203,13 @@ struct csum {
  * compatible/incompatible features
  */
 #define	EXT2F_COMPAT_PREALLOC		0x0001
+#define	EXT2F_COMPAT_IMAGIC_INODES	0x0002
 #define	EXT2F_COMPAT_HASJOURNAL		0x0004
 #define	EXT2F_COMPAT_EXT_ATTR		0x0008
 #define	EXT2F_COMPAT_RESIZE		0x0010
 #define	EXT2F_COMPAT_DIRHASHINDEX	0x0020
+#define	EXT2F_COMPAT_LAZY_BG		0x0040
+#define	EXT2F_COMPAT_EXCLUDE_BITMAP	0x0100
 #define	EXT2F_COMPAT_SPARSESUPER2	0x0200
 
 #define	EXT2F_ROCOMPAT_SPARSESUPER	0x0001
@@ -216,15 +219,18 @@ struct csum {
 #define	EXT2F_ROCOMPAT_GDT_CSUM		0x0010
 #define	EXT2F_ROCOMPAT_DIR_NLINK	0x0020
 #define	EXT2F_ROCOMPAT_EXTRA_ISIZE	0x0040
+#define	EXT2F_ROCOMPAT_HAS_SNAPSHOT	0x0080
 #define	EXT2F_ROCOMPAT_QUOTA		0x0100
 #define	EXT2F_ROCOMPAT_BIGALLOC		0x0200
 #define	EXT2F_ROCOMPAT_METADATA_CKSUM	0x0400
+#define	EXT2F_ROCOMPAT_REPLICA		0x0800
 #define	EXT2F_ROCOMPAT_READONLY		0x1000
 #define	EXT2F_ROCOMPAT_PROJECT		0x2000
 
 #define	EXT2F_INCOMPAT_COMP		0x0001
 #define	EXT2F_INCOMPAT_FTYPE		0x0002
 #define	EXT2F_INCOMPAT_RECOVER		0x0004
+#define	EXT2F_INCOMPAT_JOURNAL_DEV	0x0008
 #define	EXT2F_INCOMPAT_META_BG		0x0010
 #define	EXT2F_INCOMPAT_EXTENTS		0x0040
 #define	EXT2F_INCOMPAT_64BIT		0x0080
@@ -236,6 +242,58 @@ struct csum {
 #define	EXT2F_INCOMPAT_LARGEDIR		0x4000
 #define	EXT2F_INCOMPAT_INLINE_DATA	0x8000
 #define	EXT2F_INCOMPAT_ENCRYPT		0x10000
+
+struct ext2_feature
+{
+	int mask;
+	const char *name;
+};
+
+static const struct ext2_feature compat[] = {
+	{ EXT2F_COMPAT_PREALLOC,       "dir_prealloc"    },
+	{ EXT2F_COMPAT_IMAGIC_INODES,  "imagic_inodes"   },
+	{ EXT2F_COMPAT_HASJOURNAL,     "has_journal"     },
+	{ EXT2F_COMPAT_EXT_ATTR,       "ext_attr"        },
+	{ EXT2F_COMPAT_RESIZE,         "resize_inode"    },
+	{ EXT2F_COMPAT_DIRHASHINDEX,   "dir_index"       },
+	{ EXT2F_COMPAT_EXCLUDE_BITMAP, "snapshot_bitmap" },
+	{ EXT2F_COMPAT_SPARSESUPER2,   "sparse_super2"   }
+};
+
+static const struct ext2_feature ro_compat[] = {
+	{ EXT2F_ROCOMPAT_SPARSESUPER,    "sparse_super"  },
+	{ EXT2F_ROCOMPAT_LARGEFILE,      "large_file"    },
+	{ EXT2F_ROCOMPAT_BTREE_DIR,      "btree_dir"     },
+	{ EXT2F_ROCOMPAT_HUGE_FILE,      "huge_file"     },
+	{ EXT2F_ROCOMPAT_GDT_CSUM,       "uninit_groups" },
+	{ EXT2F_ROCOMPAT_DIR_NLINK,      "dir_nlink"     },
+	{ EXT2F_ROCOMPAT_EXTRA_ISIZE,    "extra_isize"   },
+	{ EXT2F_ROCOMPAT_HAS_SNAPSHOT,   "snapshot"      },
+	{ EXT2F_ROCOMPAT_QUOTA,          "quota"         },
+	{ EXT2F_ROCOMPAT_BIGALLOC,       "bigalloc"      },
+	{ EXT2F_ROCOMPAT_METADATA_CKSUM, "metadata_csum" },
+	{ EXT2F_ROCOMPAT_REPLICA,        "replica"       },
+	{ EXT2F_ROCOMPAT_READONLY,       "ro"            },
+	{ EXT2F_ROCOMPAT_PROJECT,        "project"       }
+};
+
+static const struct ext2_feature incompat[] = {
+	{ EXT2F_INCOMPAT_COMP,        "compression"        },
+	{ EXT2F_INCOMPAT_FTYPE,       "filetype"           },
+	{ EXT2F_INCOMPAT_RECOVER,     "needs_recovery"     },
+	{ EXT2F_INCOMPAT_JOURNAL_DEV, "journal_dev"        },
+	{ EXT2F_INCOMPAT_META_BG,     "meta_bg"            },
+	{ EXT2F_INCOMPAT_EXTENTS,     "extents"            },
+	{ EXT2F_INCOMPAT_64BIT,       "64bit"              },
+	{ EXT2F_INCOMPAT_MMP,         "mmp"                },
+	{ EXT2F_INCOMPAT_FLEX_BG,     "flex_bg"            },
+	{ EXT2F_INCOMPAT_EA_INODE,    "ea_inode"           },
+	{ EXT2F_INCOMPAT_DIRDATA,     "dirdata"            },
+	{ EXT2F_INCOMPAT_CSUM_SEED,   "metadata_csum_seed" },
+	{ EXT2F_INCOMPAT_LARGEDIR,    "large_dir"          },
+	{ EXT2F_INCOMPAT_INLINE_DATA, "inline_data"        },
+	{ EXT2F_INCOMPAT_ENCRYPT,     "encrypt"            }
+};
 
 /*
  * Features supported in this implementation
