@@ -35,30 +35,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
-#include <sys/endian.h>
+#include <sys/fbio.h>
 #include <sys/kernel.h>
-#include <sys/kthread.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/mutex.h>
-#include <sys/queue.h>
-#include <sys/resource.h>
-#include <sys/rman.h>
-#include <sys/time.h>
-#include <sys/timetc.h>
-#include <sys/fbio.h>
-#include <sys/consio.h>
 
-#include <sys/kdb.h>
-
-#include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
-#include <machine/fdt.h>
-#include <machine/resource.h>
-#include <machine/intr.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -66,146 +49,158 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fb/fbreg.h>
 #include <dev/vt/vt.h>
+#include <dev/vt/colors/vt_termcolors.h>
 
-#include <arm/broadcom/bcm2835/bcm2835_mbox.h>
-#include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
+#include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 
 #include "fb_if.h"
 #include "mbox_if.h"
 
-#define FB_WIDTH		640
-#define FB_HEIGHT		480
-#define FB_DEPTH		24
-
-struct bcm_fb_config {
-	uint32_t	xres;
-	uint32_t	yres;
-	uint32_t	vxres;
-	uint32_t	vyres;
-	uint32_t	pitch;
-	uint32_t	bpp;
-	uint32_t	xoffset;
-	uint32_t	yoffset;
-	/* Filled by videocore */
-	uint32_t	base;
-	uint32_t	screen_size;
-};
+#define	FB_DEPTH		24
 
 struct bcmsc_softc {
-	device_t		dev;
-	struct fb_info 		*info;
-	bus_dma_tag_t		dma_tag;
-	bus_dmamap_t		dma_map;
-	struct bcm_fb_config*	fb_config;
-	bus_addr_t		fb_config_phys;
-	struct intr_config_hook	init_hook;
+	struct fb_info 			info;
+	int				fbswap;
+	struct bcm2835_fb_config	fb;
+	device_t			dev;
+};
+
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-fb",		1},
+	{"brcm,bcm2708-fb",		1},
+	{NULL,				0}
 };
 
 static int bcm_fb_probe(device_t);
 static int bcm_fb_attach(device_t);
-static void bcm_fb_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg,
-    int err);
+
+static int
+bcm_fb_init(struct bcmsc_softc *sc, struct bcm2835_fb_config *fb)
+{
+	int err;
+
+	err = 0;
+
+	memset(fb, 0, sizeof(*fb));
+	if (bcm2835_mbox_fb_get_w_h(fb) != 0)
+		return (ENXIO);
+	fb->bpp = FB_DEPTH;
+
+	fb->vxres = fb->xres;
+	fb->vyres = fb->yres;
+	fb->xoffset = fb->yoffset = 0;
+
+	if ((err = bcm2835_mbox_fb_init(fb)) != 0) {
+		device_printf(sc->dev, "bcm2835_mbox_fb_init failed, err=%d\n", err);
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
+static int
+bcm_fb_setup_fbd(struct bcmsc_softc *sc)
+{
+	struct bcm2835_fb_config fb;
+	device_t fbd;
+	int err;
+
+	err = bcm_fb_init(sc, &fb);
+	if (err)
+		return (err);
+
+	memset(&sc->info, 0, sizeof(sc->info));
+	sc->info.fb_name = device_get_nameunit(sc->dev);
+
+	sc->info.fb_vbase = (intptr_t)pmap_mapdev(fb.base, fb.size);
+	sc->info.fb_pbase = fb.base;
+	sc->info.fb_size = fb.size;
+	sc->info.fb_bpp = sc->info.fb_depth = fb.bpp;
+	sc->info.fb_stride = fb.pitch;
+	sc->info.fb_width = fb.xres;
+	sc->info.fb_height = fb.yres;
+#ifdef VM_MEMATTR_WRITE_COMBINING
+	sc->info.fb_flags = FB_FLAG_MEMATTR;
+	sc->info.fb_memattr = VM_MEMATTR_WRITE_COMBINING;
+#endif
+
+	if (sc->fbswap) {
+		switch (sc->info.fb_bpp) {
+		case 24:
+			vt_generate_cons_palette(sc->info.fb_cmap,
+			    COLOR_FORMAT_RGB, 0xff, 0, 0xff, 8, 0xff, 16);
+			sc->info.fb_cmsize = 16;
+			break;
+		case 32:
+			vt_generate_cons_palette(sc->info.fb_cmap,
+			    COLOR_FORMAT_RGB, 0xff, 16, 0xff, 8, 0xff, 0);
+			sc->info.fb_cmsize = 16;
+			break;
+		}
+	}
+
+	fbd = device_add_child(sc->dev, "fbd", device_get_unit(sc->dev));
+	if (fbd == NULL) {
+		device_printf(sc->dev, "Failed to add fbd child\n");
+		pmap_unmapdev(sc->info.fb_vbase, sc->info.fb_size);
+		return (ENXIO);
+	} else if (device_probe_and_attach(fbd) != 0) {
+		device_printf(sc->dev, "Failed to attach fbd device\n");
+		device_delete_child(sc->dev, fbd);
+		pmap_unmapdev(sc->info.fb_vbase, sc->info.fb_size);
+		return (ENXIO);
+	}
+
+	device_printf(sc->dev, "%dx%d(%dx%d@%d,%d) %dbpp\n", fb.xres, fb.yres,
+	    fb.vxres, fb.vyres, fb.xoffset, fb.yoffset, fb.bpp);
+	device_printf(sc->dev,
+	    "fbswap: %d, pitch %d, base 0x%08x, screen_size %d\n",
+	    sc->fbswap, fb.pitch, fb.base, fb.size);
+
+	return (0);
+}
+
+static int
+bcm_fb_resync_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct bcmsc_softc *sc = arg1;
+	struct bcm2835_fb_config fb;
+	int val;
+	int err;
+
+	val = 0;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err || !req->newptr) /* error || read request */
+		return (err);
+
+	bcm_fb_init(sc, &fb);
+
+	return (0);
+}
 
 static void
-bcm_fb_init(void *arg)
+bcm_fb_sysctl_init(struct bcmsc_softc *sc)
 {
-	volatile struct bcm_fb_config *fb_config;
-	struct bcmsc_softc *sc;
-	struct fb_info *info;
-	phandle_t node;
-	pcell_t cell;
-	device_t mbox;
-	device_t fbd;
-	int err = 0;
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree_node;
+	struct sysctl_oid_list *tree;
 
-	sc = arg;
-	fb_config = sc->fb_config;
-	node = ofw_bus_get_node(sc->dev);
-
-	fb_config->xres = 0;
-	fb_config->yres = 0;
-	fb_config->bpp = 0;
-	fb_config->vxres = 0;
-	fb_config->vyres = 0;
-	fb_config->xoffset = 0;
-	fb_config->yoffset = 0;
-	fb_config->base = 0;
-	fb_config->pitch = 0;
-	fb_config->screen_size = 0;
-
-	if ((OF_getprop(node, "broadcom,width", &cell, sizeof(cell))) > 0)
-		fb_config->xres = (int)fdt32_to_cpu(cell);
-	if (fb_config->xres == 0)
-		fb_config->xres = FB_WIDTH;
-
-	if ((OF_getprop(node, "broadcom,height", &cell, sizeof(cell))) > 0)
-		fb_config->yres = (uint32_t)fdt32_to_cpu(cell);
-	if (fb_config->yres == 0)
-		fb_config->yres = FB_HEIGHT;
-
-	if ((OF_getprop(node, "broadcom,depth", &cell, sizeof(cell))) > 0)
-		fb_config->bpp = (uint32_t)fdt32_to_cpu(cell);
-	if (fb_config->bpp == 0)
-		fb_config->bpp = FB_DEPTH;
-
-	bus_dmamap_sync(sc->dma_tag, sc->dma_map,
-		BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
-
-	mbox = devclass_get_device(devclass_find("mbox"), 0);
-	if (mbox) {
-		MBOX_WRITE(mbox, BCM2835_MBOX_CHAN_FB, sc->fb_config_phys);
-		MBOX_READ(mbox, BCM2835_MBOX_CHAN_FB, &err);
-	}
-	bus_dmamap_sync(sc->dma_tag, sc->dma_map,
-		BUS_DMASYNC_POSTREAD);
-
-	if (fb_config->base != 0) {
-		device_printf(sc->dev, "%dx%d(%dx%d@%d,%d) %dbpp\n",
-			fb_config->xres, fb_config->yres,
-			fb_config->vxres, fb_config->vyres,
-			fb_config->xoffset, fb_config->yoffset,
-			fb_config->bpp);
-
-		device_printf(sc->dev, "pitch %d, base 0x%08x, screen_size %d\n",
-			fb_config->pitch, fb_config->base,
-			fb_config->screen_size);
-
-		info = malloc(sizeof(struct fb_info), M_DEVBUF,
-		    M_WAITOK | M_ZERO);
-		info->fb_name = device_get_nameunit(sc->dev);
-		info->fb_vbase = (intptr_t)pmap_mapdev(fb_config->base,
-		    fb_config->screen_size);
-		info->fb_pbase = fb_config->base;
-		info->fb_size = fb_config->screen_size;
-		info->fb_bpp = info->fb_depth = fb_config->bpp;
-		info->fb_stride = fb_config->pitch;
-		info->fb_width = fb_config->xres;
-		info->fb_height = fb_config->yres;
-
-		sc->info = info;
-
-		fbd = device_add_child(sc->dev, "fbd",
-		    device_get_unit(sc->dev));
-		if (fbd == NULL) {
-			device_printf(sc->dev, "Failed to add fbd child\n");
-			return;
-		}
-		if (device_probe_and_attach(fbd) != 0) {
-			device_printf(sc->dev, "Failed to attach fbd device\n");
-			return;
-		}
-	} else {
-		device_printf(sc->dev, "Failed to set framebuffer info\n");
-		return;
-	}
-
-	config_intrhook_disestablish(&sc->init_hook);
+	/*
+	 * Add system sysctl tree/handlers.
+	 */
+	ctx = device_get_sysctl_ctx(sc->dev);
+	tree_node = device_get_sysctl_tree(sc->dev);
+	tree = SYSCTL_CHILDREN(tree_node);
+	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "resync",
+	    CTLFLAG_RW | CTLTYPE_UINT, sc, sizeof(*sc),
+	    bcm_fb_resync_sysctl, "IU", "Set to resync framebuffer with VC");
 }
 
 static int
 bcm_fb_probe(device_t dev)
 {
-	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-fb"))
+
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "BCM2835 VT framebuffer driver");
@@ -216,66 +211,37 @@ bcm_fb_probe(device_t dev)
 static int
 bcm_fb_attach(device_t dev)
 {
-	struct bcmsc_softc *sc = device_get_softc(dev);
-	int dma_size = sizeof(struct bcm_fb_config);
+	char bootargs[2048], *n, *p, *v;
 	int err;
+	phandle_t chosen;
+	struct bcmsc_softc *sc;
 
+	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	err = bus_dma_tag_create(
-	    bus_get_dma_tag(sc->dev),
-	    PAGE_SIZE, 0,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    dma_size, 1,		/* maxsize, nsegments */
-	    dma_size, 0,		/* maxsegsize, flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
-	    &sc->dma_tag);
+	/* Newer firmware versions needs an inverted color palette. */
+	sc->fbswap = 0;
+	chosen = OF_finddevice("/chosen");
+	if (chosen != 0 &&
+	    OF_getprop(chosen, "bootargs", &bootargs, sizeof(bootargs)) > 0) {
+		p = bootargs;
+		while ((v = strsep(&p, " ")) != NULL) {
+			if (*v == '\0')
+				continue;
+			n = strsep(&v, "=");
+			if (strcmp(n, "bcm2708_fb.fbswap") == 0 && v != NULL)
+				if (*v == '1')
+					sc->fbswap = 1;
+                }
+        }
 
-	err = bus_dmamem_alloc(sc->dma_tag, (void **)&sc->fb_config, 0,
-	    &sc->dma_map);
-	if (err) {
-		device_printf(dev, "cannot allocate framebuffer\n");
-		goto fail;
-	}
+	bcm_fb_sysctl_init(sc);
 
-	err = bus_dmamap_load(sc->dma_tag, sc->dma_map, sc->fb_config,
-	    dma_size, bcm_fb_dmamap_cb, &sc->fb_config_phys, BUS_DMA_NOWAIT);
-
-	if (err) {
-		device_printf(dev, "cannot load DMA map\n");
-		goto fail;
-	}
-
-	/*
-	 * We have to wait until interrupts are enabled.
-	 * Mailbox relies on it to get data from VideoCore
-	 */
-        sc->init_hook.ich_func = bcm_fb_init;
-        sc->init_hook.ich_arg = sc;
-
-        if (config_intrhook_establish(&sc->init_hook) != 0) {
-		device_printf(dev, "failed to establish intrhook\n");
-                return (ENOMEM);
-	}
+	err = bcm_fb_setup_fbd(sc);
+	if (err)
+		return (err);
 
 	return (0);
-
-fail:
-	return (ENXIO);
-}
-
-static void
-bcm_fb_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
-{
-	bus_addr_t *addr;
-
-	if (err)
-		return;
-
-	addr = (bus_addr_t*)arg;
-	*addr = PHYS_TO_VCBUS(segs[0].ds_addr);
 }
 
 static struct fb_info *
@@ -285,7 +251,7 @@ bcm_fb_helper_getinfo(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	return (sc->info);
+	return (&sc->info);
 }
 
 static device_method_t bcm_fb_methods[] = {
@@ -308,3 +274,4 @@ static driver_t bcm_fb_driver = {
 };
 
 DRIVER_MODULE(bcm2835fb, ofwbus, bcm_fb_driver, bcm_fb_devclass, 0, 0);
+DRIVER_MODULE(bcm2835fb, simplebus, bcm_fb_driver, bcm_fb_devclass, 0, 0);

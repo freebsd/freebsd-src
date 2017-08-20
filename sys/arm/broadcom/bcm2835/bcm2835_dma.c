@@ -104,6 +104,15 @@ __FBSDID("$FreeBSD$");
 /* relative offset from BCM_VC_DMA0_BASE (p.39) */
 #define	BCM_DMA_CH(n)		(0x100*(n))
 
+/* channels used by GPU */
+#define	BCM_DMA_CH_BULK		0
+#define	BCM_DMA_CH_FAST1	2
+#define	BCM_DMA_CH_FAST2	3
+
+#define	BCM_DMA_CH_GPU_MASK	((1 << BCM_DMA_CH_BULK) |	\
+				 (1 << BCM_DMA_CH_FAST1) |	\
+				 (1 << BCM_DMA_CH_FAST2))
+
 /* DMA Control Block - 256bit aligned (p.40) */
 struct bcm_dma_cb {
 	uint32_t info;		/* Transfer Information */
@@ -143,6 +152,13 @@ struct bcm_dma_softc {
 };
 
 static struct bcm_dma_softc *bcm_dma_sc = NULL;
+static uint32_t bcm_dma_channel_mask;
+
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-dma",	1},
+	{"brcm,bcm2835-dma",		1},
+	{NULL,				0}
+};
 
 static void
 bcm_dmamap_cb(void *arg, bus_dma_segment_t *segs,
@@ -205,16 +221,32 @@ static int
 bcm_dma_init(device_t dev)
 {
 	struct bcm_dma_softc *sc = device_get_softc(dev);
-	uint32_t mask;
+	uint32_t reg;
 	struct bcm_dma_ch *ch;
 	void *cb_virt;
 	vm_paddr_t cb_phys;
 	int err;
 	int i;
 
-	/* disable and clear interrupt status */
-	bus_write_4(sc->sc_mem, BCM_DMA_ENABLE, 0);
-	bus_write_4(sc->sc_mem, BCM_DMA_INT_STATUS, 0);
+	/*
+	 * Only channels set in bcm_dma_channel_mask can be controlled by us.
+	 * The others are out of our control as well as the corresponding bits
+	 * in both BCM_DMA_ENABLE and BCM_DMA_INT_STATUS global registers. As
+	 * these registers are RW ones, there is no safe way how to write only
+	 * the bits which can be controlled by us.
+	 *
+	 * Fortunately, after reset, all channels are enabled in BCM_DMA_ENABLE
+	 * register and all statuses are cleared in BCM_DMA_INT_STATUS one.
+	 * Not touching these registers is a trade off between correct
+	 * initialization which does not count on anything and not messing up
+	 * something we have no control over.
+	 */
+	reg = bus_read_4(sc->sc_mem, BCM_DMA_ENABLE);
+	if ((reg & bcm_dma_channel_mask) != bcm_dma_channel_mask)
+		device_printf(dev, "channels are not enabled\n");
+	reg = bus_read_4(sc->sc_mem, BCM_DMA_INT_STATUS);
+	if ((reg & bcm_dma_channel_mask) != 0)
+		device_printf(dev, "statuses are not cleared\n");
 
 	/* Allocate DMA chunks control blocks */
 	/* p.40 of spec - control block should be 32-bit aligned */
@@ -227,13 +259,20 @@ bcm_dma_init(device_t dev)
 	    &sc->sc_dma_tag);
 
 	if (err) {
-		device_printf(dev, "failed allocate DMA tag");
+		device_printf(dev, "failed allocate DMA tag\n");
 		return (err);
 	}
 
 	/* setup initial settings */
 	for (i = 0; i < BCM_DMA_CH_MAX; i++) {
 		ch = &sc->sc_dma_ch[i];
+
+		bzero(ch, sizeof(struct bcm_dma_ch));
+		ch->ch = i;
+		ch->flags = BCM_DMA_CH_UNMAP;
+
+		if ((bcm_dma_channel_mask & (1 << i)) == 0)
+			continue;
 
 		err = bus_dmamem_alloc(sc->sc_dma_tag, &cb_virt,
 		    BUS_DMA_WAITOK | BUS_DMA_COHERENT | BUS_DMA_ZERO,
@@ -263,32 +302,14 @@ bcm_dma_init(device_t dev)
 			break;
 		}
 
-		bzero(ch, sizeof(struct bcm_dma_ch));
-		ch->ch = i;
 		ch->cb = cb_virt;
 		ch->vc_cb = cb_phys;
-		ch->intr_func = NULL;
-		ch->intr_arg = NULL;
-		ch->flags = BCM_DMA_CH_UNMAP;
-
+		ch->flags = BCM_DMA_CH_FREE;
 		ch->cb->info = INFO_WAIT_RESP;
 
 		/* reset DMA engine */
-		bcm_dma_reset(dev, i);
+		bus_write_4(sc->sc_mem, BCM_DMA_CS(i), CS_RESET);
 	}
-
-	/* now use DMA2/DMA3 only */
-	sc->sc_dma_ch[2].flags = BCM_DMA_CH_FREE;
-	sc->sc_dma_ch[3].flags = BCM_DMA_CH_FREE;
-
-	/* enable DMAs */
-	mask = 0;
-
-	for (i = 0; i < BCM_DMA_CH_MAX; i++)
-		if (sc->sc_dma_ch[i].flags & BCM_DMA_CH_FREE)
-			mask |= (1 << i);
-
-	bus_write_4(sc->sc_mem, BCM_DMA_ENABLE, mask);
 
 	return (0);
 }
@@ -599,8 +620,11 @@ bcm_dma_intr(void *arg)
 	/* my interrupt? */
 	cs = bus_read_4(sc->sc_mem, BCM_DMA_CS(ch->ch));
 
-	if (!(cs & (CS_INT | CS_ERR)))
+	if (!(cs & (CS_INT | CS_ERR))) {
+		device_printf(sc->sc_dev,
+		    "unexpected DMA intr CH=%d, CS=%x\n", ch->ch, cs);
 		return;
+	}
 
 	/* running? */
 	if (!(ch->flags & BCM_DMA_CH_USED)) {
@@ -640,7 +664,7 @@ bcm_dma_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-dma"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "BCM2835 DMA Controller");
@@ -651,6 +675,7 @@ static int
 bcm_dma_attach(device_t dev)
 {
 	struct bcm_dma_softc *sc = device_get_softc(dev);
+	phandle_t node;
 	int rid, err = 0;
 	int i;
 
@@ -664,6 +689,19 @@ bcm_dma_attach(device_t dev)
 		sc->sc_intrhand[i] = NULL;
 	}
 
+	/* Get DMA channel mask. */
+	node = ofw_bus_get_node(sc->sc_dev);
+	if (OF_getencprop(node, "brcm,dma-channel-mask", &bcm_dma_channel_mask,
+	    sizeof(bcm_dma_channel_mask)) == -1 &&
+	    OF_getencprop(node, "broadcom,channels", &bcm_dma_channel_mask,
+	    sizeof(bcm_dma_channel_mask)) == -1) {
+		device_printf(dev, "could not get channel mask property\n");
+		return (ENXIO);
+	}
+
+	/* Mask out channels used by GPU. */
+	bcm_dma_channel_mask &= ~BCM_DMA_CH_GPU_MASK;
+
 	/* DMA0 - DMA14 */
 	rid = 0;
 	sc->sc_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -674,6 +712,9 @@ bcm_dma_attach(device_t dev)
 
 	/* IRQ DMA0 - DMA11 XXX NOT USE DMA12(spurious?) */
 	for (rid = 0; rid < BCM_DMA_CH_MAX; rid++) {
+		if ((bcm_dma_channel_mask & (1 << rid)) == 0)
+			continue;
+
 		sc->sc_irq[rid] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 						       RF_ACTIVE);
 		if (sc->sc_irq[rid] == NULL) {

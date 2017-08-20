@@ -1,7 +1,5 @@
 /*-
- * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
- * Copyright (c) 2013 Luiz Otavio O Souza <loos@freebsd.org>
- * All rights reserved.
+ * Copyright (c) 2012 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,45 +25,15 @@
  * $FreeBSD$
  */
 
-#ifndef _BCM2835_BSCVAR_H
-#define _BCM2835_BSCVAR_H
+#ifndef _DWC_OTG_FDT_H_
+#define	_DWC_OTG_FDT_H_
 
-struct {
-	uint32_t	sda;
-	uint32_t	scl;
-	unsigned long	start;
-} bcm_bsc_pins[] = {
-	{ 0, 1, 0x205000 },	/* BSC0 GPIO pins and base address. */
-	{ 2, 3, 0x804000 }	/* BSC1 GPIO pins and base address. */
-};
-#define	BCM_BSC_BASE_MASK	0x00ffffff
-
-struct bcm_bsc_softc {
-	device_t		sc_dev;
-	device_t		sc_iicbus;
-	struct mtx		sc_mtx;
-	struct resource *	sc_mem_res;
-	struct resource *	sc_irq_res;
-	bus_space_tag_t		sc_bst;
-	bus_space_handle_t	sc_bsh;
-	uint16_t		sc_resid;
-	uint8_t			*sc_data;
-	uint8_t			sc_flags;
-	void *			sc_intrhand;
+struct dwc_otg_fdt_softc {
+	struct dwc_otg_softc sc_otg;	/* must be first */
 };
 
-#define	BCM_I2C_BUSY		0x01
-#define	BCM_I2C_READ		0x02
-#define	BCM_I2C_ERROR		0x04
+extern driver_t dwc_otg_driver;
 
-#define	BCM_BSC_WRITE(_sc, _off, _val)		\
-    bus_space_write_4((_sc)->sc_bst, (_sc)->sc_bsh, _off, _val)
-#define	BCM_BSC_READ(_sc, _off)			\
-    bus_space_read_4((_sc)->sc_bst, (_sc)->sc_bsh, _off)
+device_attach_t dwc_otg_attach;
 
-#define	BCM_BSC_LOCK(_sc)			\
-    mtx_lock(&(_sc)->sc_mtx)
-#define	BCM_BSC_UNLOCK(_sc)			\
-    mtx_unlock(&(_sc)->sc_mtx)
-
-#endif	/* _BCM2835_BSCVAR_H_ */
+#endif

@@ -59,6 +59,12 @@ __FBSDID("$FreeBSD$");
 
 #include "spibus_if.h"
 
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-spi",	1},
+	{"brcm,bcm2835-spi",		1},
+	{NULL,				0}
+};
+
 static void bcm_spi_intr(void *);
 
 #ifdef	BCM_SPI_DEBUG
@@ -234,7 +240,7 @@ bcm_spi_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-spi"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "BCM2708/2835 SPI controller");
@@ -428,6 +434,15 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz, 
 	    ("TX/RX data sizes should be equal"));
 
+	/* Get the proper chip select for this child. */
+	spibus_get_cs(child, &cs);
+	if (cs < 0 || cs > 2) {
+		device_printf(dev,
+		    "Invalid chip select %d requested by %s\n", cs,
+		    device_get_nameunit(child));
+		return (EINVAL);
+	}
+
 	BCM_SPI_LOCK(sc);
 
 	/* If the controller is in use wait until it is available. */
@@ -441,16 +456,6 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	bcm_spi_modifyreg(sc, SPI_CS,
 	    SPI_CS_CLEAR_RXFIFO | SPI_CS_CLEAR_TXFIFO,
 	    SPI_CS_CLEAR_RXFIFO | SPI_CS_CLEAR_TXFIFO);
-
-	/* Get the proper chip select for this child. */
-	spibus_get_cs(child, &cs);
-	if (cs < 0 || cs > 2) {
-		device_printf(dev,
-		    "Invalid chip select %d requested by %s\n", cs,
-		    device_get_nameunit(child));
-		BCM_SPI_UNLOCK(sc);
-		return (EINVAL);
-	}
 
 	/* Save a pointer to the SPI command. */
 	sc->sc_cmd = cmd;
@@ -472,8 +477,10 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	/* Make sure the SPI engine and interrupts are disabled. */
 	bcm_spi_modifyreg(sc, SPI_CS, SPI_CS_TA | SPI_CS_INTR | SPI_CS_INTD, 0);
 
-	/* Clear the controller flags. */
+	/* Release the controller and wakeup the next thread waiting for it. */
 	sc->sc_flags = 0;
+	wakeup_one(dev);
+	BCM_SPI_UNLOCK(sc);
 
 	/*
 	 * Check for transfer timeout.  The SPI controller doesn't
@@ -483,8 +490,6 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 		device_printf(sc->sc_dev, "SPI error\n");
 		err = EIO;
 	}
-
-	BCM_SPI_UNLOCK(sc);
 
 	return (err);
 }

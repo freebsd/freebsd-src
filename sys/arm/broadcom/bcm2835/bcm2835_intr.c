@@ -45,6 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#ifdef SOC_BCM2836
+#include <arm/broadcom/bcm2835/bcm2836.h>
+#endif
+
 #define	INTC_PENDING_BASIC	0x00
 #define	INTC_PENDING_BANK1	0x04
 #define	INTC_PENDING_BANK2	0x08
@@ -60,10 +64,13 @@ __FBSDID("$FreeBSD$");
 #define	BANK1_END	(BANK1_START + 32 - 1)
 #define	BANK2_START	(BANK1_START + 32)
 #define	BANK2_END	(BANK2_START + 32 - 1)
+#define	BANK3_START	(BANK2_START + 32)
+#define	BANK3_END	(BANK3_START + 32 - 1)
 
 #define	IS_IRQ_BASIC(n)	(((n) >= 0) && ((n) < BANK1_START))
 #define	IS_IRQ_BANK1(n)	(((n) >= BANK1_START) && ((n) <= BANK1_END))
 #define	IS_IRQ_BANK2(n)	(((n) >= BANK2_START) && ((n) <= BANK2_END))
+#define	ID_IRQ_BCM2836(n) (((n) >= BANK3_START) && ((n) <= BANK3_END))
 #define	IRQ_BANK1(n)	((n) - BANK1_START)
 #define	IRQ_BANK2(n)	((n) - BANK2_START)
 
@@ -82,10 +89,10 @@ struct bcm_intc_softc {
 
 static struct bcm_intc_softc *bcm_intc_sc = NULL;
 
-#define	intc_read_4(reg)		\
-    bus_space_read_4(bcm_intc_sc->intc_bst, bcm_intc_sc->intc_bsh, reg)
-#define	intc_write_4(reg, val)		\
-    bus_space_write_4(bcm_intc_sc->intc_bst, bcm_intc_sc->intc_bsh, reg, val)
+#define	intc_read_4(_sc, reg)		\
+    bus_space_read_4((_sc)->intc_bst, (_sc)->intc_bsh, (reg))
+#define	intc_write_4(_sc, reg, val)		\
+    bus_space_write_4((_sc)->intc_bst, (_sc)->intc_bsh, (reg), (val))
 
 static int
 bcm_intc_probe(device_t dev)
@@ -94,7 +101,8 @@ bcm_intc_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-armctrl-ic"))
+	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-armctrl-ic") &&
+	    !ofw_bus_is_compatible(dev, "brcm,bcm2836-armctrl-ic"))
 		return (ENXIO);
 	device_set_desc(dev, "BCM2835 Interrupt Controller");
 	return (BUS_PROBE_DEFAULT);
@@ -139,54 +147,76 @@ static driver_t bcm_intc_driver = {
 
 static devclass_t bcm_intc_devclass;
 
-DRIVER_MODULE(intc, simplebus, bcm_intc_driver, bcm_intc_devclass, 0, 0);
+EARLY_DRIVER_MODULE(intc, simplebus, bcm_intc_driver, bcm_intc_devclass,
+    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 
 int
 arm_get_next_irq(int last_irq)
 {
+	struct bcm_intc_softc *sc = bcm_intc_sc;
 	uint32_t pending;
 	int32_t irq = last_irq + 1;
+#ifdef SOC_BCM2836
+	int ret;
+#endif
 
 	/* Sanity check */
 	if (irq < 0)
 		irq = 0;
-	
+
+#ifdef SOC_BCM2836
+	if ((ret = bcm2836_get_next_irq(irq)) >= 0)
+		return (ret + BANK3_START);
+#endif
+
 	/* TODO: should we mask last_irq? */
-	pending = intc_read_4(INTC_PENDING_BASIC);
-	while (irq < BANK1_START) {
-		if (pending & (1 << irq))
-			return irq;
-		irq++;
+	if (irq < BANK1_START) {
+		pending = intc_read_4(sc, INTC_PENDING_BASIC);
+		if ((pending & 0xFF) == 0) {
+			irq  = BANK1_START;	/* skip to next bank */
+		} else do {
+			if (pending & (1 << irq))
+				return irq;
+			irq++;
+		} while (irq < BANK1_START);
 	}
-
-	pending = intc_read_4(INTC_PENDING_BANK1);
-	while (irq < BANK2_START) {
-		if (pending & (1 << IRQ_BANK1(irq)))
-			return irq;
-		irq++;
+	if (irq < BANK2_START) {
+		pending = intc_read_4(sc, INTC_PENDING_BANK1);
+		if (pending == 0) {
+			irq  = BANK2_START;	/* skip to next bank */
+		} else do {
+			if (pending & (1 << IRQ_BANK1(irq)))
+				return irq;
+			irq++;
+		} while (irq < BANK2_START);
 	}
-
-	pending = intc_read_4(INTC_PENDING_BANK2);
-	while (irq <= BANK2_END) {
-		if (pending & (1 << IRQ_BANK2(irq)))
-			return irq;
-		irq++;
+	if (irq < BANK3_START) {
+		pending = intc_read_4(sc, INTC_PENDING_BANK2);
+		if (pending != 0) do {
+			if (pending & (1 << IRQ_BANK2(irq)))
+				return irq;
+			irq++;
+		} while (irq < BANK3_START);
 	}
-
 	return (-1);
 }
 
 void
 arm_mask_irq(uintptr_t nb)
 {
+	struct bcm_intc_softc *sc = bcm_intc_sc;
 	dprintf("%s: %d\n", __func__, nb);
 
 	if (IS_IRQ_BASIC(nb))
-		intc_write_4(INTC_DISABLE_BASIC, (1 << nb));
+		intc_write_4(sc, INTC_DISABLE_BASIC, (1 << nb));
 	else if (IS_IRQ_BANK1(nb))
-		intc_write_4(INTC_DISABLE_BANK1, (1 << IRQ_BANK1(nb)));
+		intc_write_4(sc, INTC_DISABLE_BANK1, (1 << IRQ_BANK1(nb)));
 	else if (IS_IRQ_BANK2(nb))
-		intc_write_4(INTC_DISABLE_BANK2, (1 << IRQ_BANK2(nb)));
+		intc_write_4(sc, INTC_DISABLE_BANK2, (1 << IRQ_BANK2(nb)));
+#ifdef SOC_BCM2836
+	else if (ID_IRQ_BCM2836(nb))
+		bcm2836_mask_irq(nb - BANK3_START);
+#endif
 	else
 		printf("arm_mask_irq: Invalid IRQ number: %d\n", nb);
 }
@@ -194,14 +224,19 @@ arm_mask_irq(uintptr_t nb)
 void
 arm_unmask_irq(uintptr_t nb)
 {
+	struct bcm_intc_softc *sc = bcm_intc_sc;
 	dprintf("%s: %d\n", __func__, nb);
 
 	if (IS_IRQ_BASIC(nb))
-		intc_write_4(INTC_ENABLE_BASIC, (1 << nb));
+		intc_write_4(sc, INTC_ENABLE_BASIC, (1 << nb));
 	else if (IS_IRQ_BANK1(nb))
-		intc_write_4(INTC_ENABLE_BANK1, (1 << IRQ_BANK1(nb)));
+		intc_write_4(sc, INTC_ENABLE_BANK1, (1 << IRQ_BANK1(nb)));
 	else if (IS_IRQ_BANK2(nb))
-		intc_write_4(INTC_ENABLE_BANK2, (1 << IRQ_BANK2(nb)));
+		intc_write_4(sc, INTC_ENABLE_BANK2, (1 << IRQ_BANK2(nb)));
+#ifdef SOC_BCM2836
+	else if (ID_IRQ_BCM2836(nb))
+		bcm2836_unmask_irq(nb - BANK3_START);
+#endif
 	else
 		printf("arm_mask_irq: Invalid IRQ number: %d\n", nb);
 }

@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "sdhci_if.h"
 
 #include "bcm2835_dma.h"
+#include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 #include "bcm2835_vcbus.h"
 
 #define	BCM2835_DEFAULT_SDHCI_FREQ	50
@@ -71,28 +72,24 @@ __FBSDID("$FreeBSD$");
 static int bcm2835_sdhci_hs = 1;
 static int bcm2835_sdhci_pio_mode = 0;
 
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-sdhci",	1},
+	{"brcm,bcm2835-mmc",		1},
+	{NULL,				0}
+};
+
 TUNABLE_INT("hw.bcm2835.sdhci.hs", &bcm2835_sdhci_hs);
 TUNABLE_INT("hw.bcm2835.sdhci.pio_mode", &bcm2835_sdhci_pio_mode);
 
 struct bcm_sdhci_softc {
 	device_t		sc_dev;
-	struct mtx		sc_mtx;
 	struct resource *	sc_mem_res;
 	struct resource *	sc_irq_res;
 	bus_space_tag_t		sc_bst;
 	bus_space_handle_t	sc_bsh;
 	void *			sc_intrhand;
 	struct mmc_request *	sc_req;
-	struct mmc_data *	sc_data;
-	uint32_t		sc_flags;
-#define	LPC_SD_FLAGS_IGNORECRC		(1 << 0)
-	int			sc_xfer_direction;
-#define	DIRECTION_READ		0
-#define	DIRECTION_WRITE		1
-	int			sc_xfer_done;
-	int			sc_bus_busy;
 	struct sdhci_slot	sc_slot;
-	int			sc_dma_inuse;
 	int			sc_dma_ch;
 	bus_dma_tag_t		sc_dma_tag;
 	bus_dmamap_t		sc_dma_map;
@@ -112,11 +109,6 @@ static void bcm_sdhci_intr(void *);
 
 static int bcm_sdhci_get_ro(device_t, device_t);
 static void bcm_sdhci_dma_intr(int ch, void *arg);
-
-#define	bcm_sdhci_lock(_sc)						\
-    mtx_lock(&_sc->sc_mtx);
-#define	bcm_sdhci_unlock(_sc)						\
-    mtx_unlock(&_sc->sc_mtx);
 
 static void
 bcm_sdhci_dmacb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
@@ -141,10 +133,11 @@ bcm_sdhci_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-sdhci"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Broadcom 2708 SDHCI controller");
+
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -155,20 +148,37 @@ bcm_sdhci_attach(device_t dev)
 	int rid, err;
 	phandle_t node;
 	pcell_t cell;
-	int default_freq;
+	u_int default_freq;
 
 	sc->sc_dev = dev;
 	sc->sc_req = NULL;
-	err = 0;
 
-	default_freq = BCM2835_DEFAULT_SDHCI_FREQ;
-	node = ofw_bus_get_node(sc->sc_dev);
-	if ((OF_getprop(node, "clock-frequency", &cell, sizeof(cell))) > 0)
-		default_freq = (int)fdt32_to_cpu(cell)/1000000;
+	err = bcm2835_mbox_set_power_state(BCM2835_MBOX_POWER_ID_EMMC,
+	    TRUE);
+	if (err != 0) {
+		if (bootverbose)
+			device_printf(dev, "Unable to enable the power\n");
+		return (err);
+	}
 
-	dprintf("SDHCI frequency: %dMHz\n", default_freq);
+	default_freq = 0;
+	err = bcm2835_mbox_get_clock_rate(BCM2835_MBOX_CLOCK_ID_EMMC,
+	    &default_freq);
+	if (err == 0) {
+		/* Convert to MHz */
+		default_freq /= 1000000;
+	}
+	if (default_freq == 0) {
+		node = ofw_bus_get_node(sc->sc_dev);
+		if ((OF_getencprop(node, "clock-frequency", &cell,
+		    sizeof(cell))) > 0)
+			default_freq = cell / 1000000;
+	}
+	if (default_freq == 0)
+		default_freq = BCM2835_DEFAULT_SDHCI_FREQ;
 
-	mtx_init(&sc->sc_mtx, "bcm sdhci", "sdhci", MTX_DEF);
+	if (bootverbose)
+		device_printf(dev, "SDHCI frequency: %dMHz\n", default_freq);
 
 	rid = 0;
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
@@ -212,11 +222,7 @@ bcm_sdhci_attach(device_t dev)
  
 	sdhci_init_slot(dev, &sc->sc_slot, 0);
 
-	sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_FAST1);
-	if (sc->sc_dma_ch == BCM_DMA_CH_INVALID)
-		sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_FAST2);
-	if (sc->sc_dma_ch == BCM_DMA_CH_INVALID)
-		sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_ANY);
+	sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_ANY);
 	if (sc->sc_dma_ch == BCM_DMA_CH_INVALID)
 		goto fail;
 
@@ -258,7 +264,6 @@ fail:
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
-	mtx_destroy(&sc->sc_mtx);
 
 	return (err);
 }

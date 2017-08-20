@@ -63,14 +63,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 
 #include <dev/usb/controller/dwc_otg.h>
+#include <dev/usb/controller/dwc_otg_fdt.h>
 
 static device_probe_t dwc_otg_probe;
-static device_attach_t dwc_otg_attach;
 static device_detach_t dwc_otg_detach;
-
-struct dwc_otg_super_softc {
-	struct dwc_otg_softc sc_otg;	/* must be first */
-};
 
 static int
 dwc_otg_probe(device_t dev)
@@ -84,13 +80,13 @@ dwc_otg_probe(device_t dev)
 
 	device_set_desc(dev, "DWC OTG 2.0 integrated USB controller");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
-static int
+int
 dwc_otg_attach(device_t dev)
 {
-	struct dwc_otg_super_softc *sc = device_get_softc(dev);
+	struct dwc_otg_fdt_softc *sc = device_get_softc(dev);
 	int err;
 	int rid;
 
@@ -117,7 +113,12 @@ dwc_otg_attach(device_t dev)
 	sc->sc_otg.sc_io_hdl = rman_get_bushandle(sc->sc_otg.sc_io_res);
 	sc->sc_otg.sc_io_size = rman_get_size(sc->sc_otg.sc_io_res);
 
-	rid = 0;
+
+	/*
+	 * brcm,bcm2708-usb FDT provides two interrupts,
+	 * we need only second one (VC_USB)
+	 */
+	rid = ofw_bus_is_compatible(dev, "brcm,bcm2708-usb") ? 1 : 0;
 	sc->sc_otg.sc_irq_res =
 	    bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->sc_otg.sc_irq_res == NULL)
@@ -153,7 +154,7 @@ error:
 static int
 dwc_otg_detach(device_t dev)
 {
-	struct dwc_otg_super_softc *sc = device_get_softc(dev);
+	struct dwc_otg_fdt_softc *sc = device_get_softc(dev);
 	int err;
 
 	/* during module unload there are lots of children leftover */
@@ -198,10 +199,10 @@ static device_method_t dwc_otg_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t dwc_otg_driver = {
+driver_t dwc_otg_driver = {
 	.name = "dwcotg",
 	.methods = dwc_otg_methods,
-	.size = sizeof(struct dwc_otg_super_softc),
+	.size = sizeof(struct dwc_otg_fdt_softc),
 };
 
 static devclass_t dwc_otg_devclass;
