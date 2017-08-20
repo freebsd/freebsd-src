@@ -117,6 +117,18 @@ Changes to the X86 Target
 
 * Added support for AMD Lightweight Profiling (LWP) instructions.
 
+* Avoid using slow LEA instructions.
+
+* Use alternative sequences for multiply by constant.
+
+* Improved lowering of strided shuffles.
+
+* Improved the AVX512 cost model used by the vectorizer.
+
+* Fix scalar code performance when AVX512 is enabled by making i1's illegal.
+
+* Fixed many inline assembly bugs.
+
 Changes to the AMDGPU Target
 -----------------------------
 
@@ -160,7 +172,29 @@ Changes to the C API
 External Open Source Projects Using LLVM 5
 ==========================================
 
-* A project...
+Zig Programming Language
+------------------------
+
+`Zig <http://ziglang.org>`_  is an open-source programming language designed
+for robustness, optimality, and clarity. It integrates closely with C and is
+intended to eventually take the place of C. It uses LLVM to produce highly
+optimized native code and to cross-compile for any target out of the box. Zig
+is in alpha; with a beta release expected in September.
+
+LDC - the LLVM-based D compiler
+-------------------------------
+
+`D <http://dlang.org>`_ is a language with C-like syntax and static typing. It
+pragmatically combines efficiency, control, and modeling power, with safety and
+programmer productivity. D supports powerful concepts like Compile-Time Function
+Execution (CTFE) and Template Meta-Programming, provides an innovative approach
+to concurrency and offers many classical paradigms.
+
+`LDC <http://wiki.dlang.org/LDC>`_ uses the frontend from the reference compiler
+combined with LLVM as backend to produce efficient native code. LDC targets
+x86/x86_64 systems like Linux, OS X, FreeBSD and Windows and also Linux on ARM
+and PowerPC (32/64 bit). Ports to other architectures like AArch64 and MIPS64
+are underway.
 
 
 Additional Information
