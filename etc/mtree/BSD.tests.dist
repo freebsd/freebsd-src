@@ -316,6 +316,18 @@
         ..
         libcam
         ..
+        libcasper
+            services
+                cap_dns
+                ..
+                cap_grp
+                ..
+                cap_pwd
+                ..
+                cap_sysctl
+                ..
+            ..
+        ..
         libcrypt
         ..
         libdevdctl
