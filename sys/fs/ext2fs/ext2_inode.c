@@ -53,6 +53,7 @@
 #include <fs/ext2fs/ext2fs.h>
 #include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/ext2_extern.h>
+#include <fs/ext2fs/ext2_extattr.h>
 
 static int ext2_indirtrunc(struct inode *, daddr_t, daddr_t,
 	    daddr_t, int, e4fs_daddr_t *);
@@ -487,6 +488,7 @@ ext2_inactive(struct vop_inactive_args *ap)
 	if (ip->i_mode == 0)
 		goto out;
 	if (ip->i_nlink <= 0) {
+		ext2_extattr_free(ip);
 		error = ext2_truncate(vp, (off_t)0, 0, NOCRED, td);
 		ip->i_rdev = 0;
 		mode = ip->i_mode;
