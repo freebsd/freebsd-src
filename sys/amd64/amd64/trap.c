@@ -405,9 +405,8 @@ trap(struct trapframe *frame)
 		case T_DTRACE_RET:
 			enable_intr();
 			fill_frame_regs(frame, &regs);
-			if (dtrace_return_probe_ptr != NULL &&
-			    dtrace_return_probe_ptr(&regs) == 0)
-				return;
+			if (dtrace_return_probe_ptr != NULL)
+				dtrace_return_probe_ptr(&regs);
 			return;
 #endif
 		}
