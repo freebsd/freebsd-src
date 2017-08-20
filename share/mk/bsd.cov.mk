@@ -4,7 +4,12 @@
 
 FILESGROUPS?=	FILES
 
-GCNOS=		${COV_OBJS:.o=.gcno}
+cov_objs_no_suffixes=	${COV_OBJS:R}
+.for src in ${COV_SRCS:R}
+.if ${cov_objs_no_suffixes:M${src}}
+GCNOS+=	${src}.gcno
+.endif
+.endfor
 
 .if !empty(GCNOS)
 GCNOS:=		${GCNOS:O:u}
