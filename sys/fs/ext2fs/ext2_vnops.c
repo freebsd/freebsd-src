@@ -64,6 +64,7 @@
 #include <sys/event.h>
 #include <sys/conf.h>
 #include <sys/file.h>
+#include <sys/extattr.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -79,11 +80,13 @@
 
 #include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/inode.h>
+#include <fs/ext2fs/ext2_acl.h>
 #include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2fs.h>
 #include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_dir.h>
 #include <fs/ext2fs/ext2_mount.h>
+#include <fs/ext2fs/ext2_extattr.h>
 
 static int ext2_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
 static void ext2_itimes_locked(struct vnode *);
@@ -114,6 +117,10 @@ static vop_setattr_t	ext2_setattr;
 static vop_strategy_t	ext2_strategy;
 static vop_symlink_t	ext2_symlink;
 static vop_write_t	ext2_write;
+static vop_deleteextattr_t	ext2_deleteextattr;
+static vop_getextattr_t	ext2_getextattr;
+static vop_listextattr_t	ext2_listextattr;
+static vop_setextattr_t	ext2_setextattr;
 static vop_vptofh_t	ext2_vptofh;
 static vop_close_t	ext2fifo_close;
 static vop_kqfilter_t	ext2fifo_kqfilter;
@@ -152,6 +159,15 @@ struct vop_vector ext2_vnodeops = {
 	.vop_strategy =		ext2_strategy,
 	.vop_symlink =		ext2_symlink,
 	.vop_write =		ext2_write,
+	.vop_deleteextattr =	ext2_deleteextattr,
+	.vop_getextattr =	ext2_getextattr,
+	.vop_listextattr =	ext2_listextattr,
+	.vop_setextattr =	ext2_setextattr,
+#ifdef UFS_ACL
+	.vop_getacl =		ext2_getacl,
+	.vop_setacl =		ext2_setacl,
+	.vop_aclcheck =		ext2_aclcheck,
+#endif /* UFS_ACL */
 	.vop_vptofh =		ext2_vptofh,
 };
 
@@ -1072,6 +1088,153 @@ out:
 	return (error);
 }
 
+#ifdef UFS_ACL
+static int
+ext2_do_posix1e_acl_inheritance_dir(struct vnode *dvp, struct vnode *tvp,
+    mode_t dmode, struct ucred *cred, struct thread *td)
+{
+	int error;
+	struct inode *ip = VTOI(tvp);
+	struct acl *dacl, *acl;
+
+	acl = acl_alloc(M_WAITOK);
+	dacl = acl_alloc(M_WAITOK);
+
+	/*
+	 * Retrieve default ACL from parent, if any.
+	 */
+	error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cred, td);
+	switch (error) {
+	case 0:
+		/*
+		 * Retrieved a default ACL, so merge mode and ACL if
+		 * necessary.  If the ACL is empty, fall through to
+		 * the "not defined or available" case.
+		 */
+		if (acl->acl_cnt != 0) {
+			dmode = acl_posix1e_newfilemode(dmode, acl);
+			ip->i_mode = dmode;
+			*dacl = *acl;
+			ext2_sync_acl_from_inode(ip, acl);
+			break;
+		}
+		/* FALLTHROUGH */
+
+	case EOPNOTSUPP:
+		/*
+		 * Just use the mode as-is.
+		 */
+		ip->i_mode = dmode;
+		error = 0;
+		goto out;
+
+	default:
+		goto out;
+	}
+
+	error = VOP_SETACL(tvp, ACL_TYPE_ACCESS, acl, cred, td);
+	if (error == 0)
+		error = VOP_SETACL(tvp, ACL_TYPE_DEFAULT, dacl, cred, td);
+	switch (error) {
+	case 0:
+		break;
+
+	case EOPNOTSUPP:
+		/*
+		 * XXX: This should not happen, as EOPNOTSUPP above
+		 * was supposed to free acl.
+		 */
+#ifdef DEBUG
+		printf("ext2_mkdir: VOP_GETACL() but no VOP_SETACL()\n");
+#endif	/* DEBUG */
+		break;
+
+	default:
+		goto out;
+	}
+
+out:
+	acl_free(acl);
+	acl_free(dacl);
+
+	return (error);
+}
+
+static int
+ext2_do_posix1e_acl_inheritance_file(struct vnode *dvp, struct vnode *tvp,
+    mode_t mode, struct ucred *cred, struct thread *td)
+{
+	int error;
+	struct inode *ip = VTOI(tvp);
+	struct acl *acl;
+
+	acl = acl_alloc(M_WAITOK);
+
+	/*
+	 * Retrieve default ACL for parent, if any.
+	 */
+	error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cred, td);
+	switch (error) {
+	case 0:
+		/*
+		 * Retrieved a default ACL, so merge mode and ACL if
+		 * necessary.
+		 */
+		if (acl->acl_cnt != 0) {
+			/*
+			 * Two possible ways for default ACL to not
+			 * be present.  First, the EA can be
+			 * undefined, or second, the default ACL can
+			 * be blank.  If it's blank, fall through to
+			 * the it's not defined case.
+			 */
+			mode = acl_posix1e_newfilemode(mode, acl);
+			ip->i_mode = mode;
+			ext2_sync_acl_from_inode(ip, acl);
+			break;
+		}
+		/* FALLTHROUGH */
+
+	case EOPNOTSUPP:
+		/*
+		 * Just use the mode as-is.
+		 */
+		ip->i_mode = mode;
+		error = 0;
+		goto out;
+
+	default:
+		goto out;
+	}
+
+	error = VOP_SETACL(tvp, ACL_TYPE_ACCESS, acl, cred, td);
+	switch (error) {
+	case 0:
+		break;
+
+	case EOPNOTSUPP:
+		/*
+		 * XXX: This should not happen, as EOPNOTSUPP above was
+		 * supposed to free acl.
+		 */
+		printf("ufs_do_posix1e_acl_inheritance_file: VOP_GETACL() "
+		    "but no VOP_SETACL()\n");
+		/* panic("ufs_do_posix1e_acl_inheritance_file: VOP_GETACL() "
+		    "but no VOP_SETACL()"); */
+		break;
+
+	default:
+		goto out;
+	}
+
+out:
+	acl_free(acl);
+
+	return (error);
+}
+
+#endif /* UFS_ACL */
+
 /*
  * Mkdir system call
  */
@@ -1180,6 +1343,16 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 		ip->i_size = DIRBLKSIZ;
 		ip->i_flag |= IN_CHANGE;
 	}
+
+#ifdef UFS_ACL
+	if (dvp->v_mount->mnt_flag & MNT_ACLS) {
+		error = ext2_do_posix1e_acl_inheritance_dir(dvp, tvp, dmode,
+		    cnp->cn_cred, cnp->cn_thread);
+		if (error)
+			goto bad;
+	}
+
+#endif /* UFS_ACL */
 
 	/* Directory set up, now install its entry in the parent directory. */
 	error = ext2_direnter(ip, dvp, cnp);
@@ -1435,6 +1608,22 @@ ext2_pathconf(struct vop_pathconf_args *ap)
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 1;
 		break;
+
+#ifdef UFS_ACL
+	case _PC_ACL_EXTENDED:
+		if (ap->a_vp->v_mount->mnt_flag & MNT_ACLS)
+			*ap->a_retval = 1;
+		else
+			*ap->a_retval = 0;
+		break;
+	case _PC_ACL_PATH_MAX:
+		if (ap->a_vp->v_mount->mnt_flag & MNT_ACLS)
+			*ap->a_retval = ACL_MAX_ENTRIES;
+		else
+			*ap->a_retval = 3;
+		break;
+#endif /* UFS_ACL */
+
 	case _PC_MIN_HOLE_SIZE:
 		*ap->a_retval = ap->a_vp->v_mount->mnt_stat.f_iosize;
 		break;
@@ -1475,6 +1664,169 @@ ext2_pathconf(struct vop_pathconf_args *ap)
 		error = EINVAL;
 		break;
 	}
+	return (error);
+}
+
+/*
+ * Vnode operation to remove a named attribute.
+ */
+static int
+ext2_deleteextattr(struct vop_deleteextattr_args *ap)
+{
+	struct inode *ip;
+	struct m_ext2fs *fs;
+	int error;
+
+	ip = VTOI(ap->a_vp);
+	fs = ip->i_e2fs;
+
+	if (!EXT2_HAS_COMPAT_FEATURE(ip->i_e2fs, EXT2F_COMPAT_EXT_ATTR))
+		return (EOPNOTSUPP);
+
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+		return (EOPNOTSUPP);
+
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VWRITE);
+	if (error)
+		return (error);
+
+	error = ENOATTR;
+
+	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
+		error = ext2_extattr_inode_delete(ip, ap->a_attrnamespace, ap->a_name);
+		if (error != ENOATTR)
+			return (error);
+	}
+
+	if (ip->i_facl)
+		error = ext2_extattr_block_delete(ip, ap->a_attrnamespace, ap->a_name);
+
+	return (error);
+}
+
+/*
+ * Vnode operation to retrieve a named extended attribute.
+ */
+static int
+ext2_getextattr(struct vop_getextattr_args *ap)
+{
+	struct inode *ip;
+	struct m_ext2fs *fs;
+	int error;
+
+	ip = VTOI(ap->a_vp);
+	fs = ip->i_e2fs;
+
+	if (!EXT2_HAS_COMPAT_FEATURE(ip->i_e2fs, EXT2F_COMPAT_EXT_ATTR))
+		return (EOPNOTSUPP);
+
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+		return (EOPNOTSUPP);
+
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VREAD);
+	if (error)
+		return (error);
+
+	if (ap->a_size != NULL)
+		*ap->a_size = 0;
+
+	error = ENOATTR;
+
+	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
+		error = ext2_extattr_inode_get(ip, ap->a_attrnamespace,
+		    ap->a_name, ap->a_uio, ap->a_size);
+		if (error != ENOATTR)
+			return (error);
+	}
+
+	if (ip->i_facl)
+		error = ext2_extattr_block_get(ip, ap->a_attrnamespace,
+		    ap->a_name, ap->a_uio, ap->a_size);
+
+	return (error);
+}
+
+/*
+ * Vnode operation to retrieve extended attributes on a vnode.
+ */
+static int
+ext2_listextattr(struct vop_listextattr_args *ap)
+{
+	struct inode *ip;
+	struct m_ext2fs *fs;
+	int error;
+
+	ip = VTOI(ap->a_vp);
+	fs = ip->i_e2fs;
+
+	if (!EXT2_HAS_COMPAT_FEATURE(ip->i_e2fs, EXT2F_COMPAT_EXT_ATTR))
+		return (EOPNOTSUPP);
+
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+		return (EOPNOTSUPP);
+
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VREAD);
+	if (error)
+		return (error);
+
+	if (ap->a_size != NULL)
+		*ap->a_size = 0;
+
+	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
+		error = ext2_extattr_inode_list(ip, ap->a_attrnamespace,
+		    ap->a_uio, ap->a_size);
+		if (error)
+			return (error);
+	}
+
+	if (ip->i_facl)
+		error = ext2_extattr_block_list(ip, ap->a_attrnamespace,
+		    ap->a_uio, ap->a_size);
+
+	return (error);
+}
+
+/*
+ * Vnode operation to set a named attribute.
+ */
+static int
+ext2_setextattr(struct vop_setextattr_args *ap)
+{
+	struct inode *ip;
+	struct m_ext2fs *fs;
+	int error;
+
+	ip = VTOI(ap->a_vp);
+	fs = ip->i_e2fs;
+
+	if (!EXT2_HAS_COMPAT_FEATURE(ip->i_e2fs, EXT2F_COMPAT_EXT_ATTR))
+		return (EOPNOTSUPP);
+
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+		return (EOPNOTSUPP);
+
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VWRITE);
+	if (error)
+		return (error);
+
+	error = ext2_extattr_valid_attrname(ap->a_attrnamespace, ap->a_name);
+	if (error)
+		return (error);
+
+	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
+		error = ext2_extattr_inode_set(ip, ap->a_attrnamespace,
+		    ap->a_name, ap->a_uio);
+		if (error != ENOSPC)
+			return (error);
+	}
+
+	error = ext2_extattr_block_set(ip, ap->a_attrnamespace,
+	    ap->a_name, ap->a_uio);
+
 	return (error);
 }
 
@@ -1585,6 +1937,16 @@ ext2_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 	error = ext2_update(tvp, !DOINGASYNC(tvp));
 	if (error)
 		goto bad;
+
+#ifdef UFS_ACL
+	if (dvp->v_mount->mnt_flag & MNT_ACLS) {
+		error = ext2_do_posix1e_acl_inheritance_file(dvp, tvp, mode,
+		    cnp->cn_cred, cnp->cn_thread);
+		if (error)
+			goto bad;
+	}
+#endif /* UFS_ACL */
+
 	error = ext2_direnter(ip, dvp, cnp);
 	if (error)
 		goto bad;

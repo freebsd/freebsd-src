@@ -51,6 +51,7 @@ struct vnode;
 int	ext2_add_entry(struct vnode *, struct ext2fs_direct_2 *);
 int	ext2_alloc(struct inode *, daddr_t, e4fs_daddr_t, int,
 	    struct ucred *, e4fs_daddr_t *);
+daddr_t ext2_allocfacl(struct inode *ip);
 int	ext2_balloc(struct inode *,
 	    e2fs_lbn_t, int, struct ucred *, struct buf **, int);
 int	ext2_blkatoff(struct vnode *, off_t, char **, struct buf **);
