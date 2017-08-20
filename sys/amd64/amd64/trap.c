@@ -609,17 +609,20 @@ trap_check(struct trapframe *frame)
 }
 
 static int
-trap_pfault(frame, usermode)
-	struct trapframe *frame;
-	int usermode;
+trap_pfault(struct trapframe *frame, int usermode)
 {
-	vm_offset_t va;
+	struct thread *td;
+	struct proc *p;
 	vm_map_t map;
-	int rv = 0;
+	vm_offset_t va;
+	int rv;
 	vm_prot_t ftype;
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
-	vm_offset_t eva = frame->tf_addr;
+	vm_offset_t eva;
+
+	td = curthread;
+	p = td->td_proc;
+	eva = frame->tf_addr;
+	rv = 0;
 
 	if (__predict_false((td->td_pflags & TDP_NOFAULTING) != 0)) {
 		/*
