@@ -563,7 +563,8 @@ ipsec4_setspidx_ipaddr(const struct mbuf *m, struct secpolicyindex *spidx)
 }
 
 static struct secpolicy *
-ipsec4_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir)
+ipsec4_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir,
+    int needport)
 {
 	struct secpolicyindex spidx;
 	struct secpolicy *sp;
@@ -573,7 +574,7 @@ ipsec4_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir)
 		/* Make an index to look for a policy. */
 		ipsec4_setspidx_ipaddr(m, &spidx);
 		/* Fill ports in spidx if we have inpcb. */
-		ipsec4_get_ulp(m, &spidx, inp != NULL);
+		ipsec4_get_ulp(m, &spidx, needport);
 		spidx.dir = dir;
 		sp = key_allocsp(&spidx, dir);
 	}
@@ -586,12 +587,13 @@ ipsec4_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir)
  * Check security policy for *OUTBOUND* IPv4 packet.
  */
 struct secpolicy *
-ipsec4_checkpolicy(const struct mbuf *m, struct inpcb *inp, int *error)
+ipsec4_checkpolicy(const struct mbuf *m, struct inpcb *inp, int *error,
+    int needport)
 {
 	struct secpolicy *sp;
 
 	*error = 0;
-	sp = ipsec4_getpolicy(m, inp, IPSEC_DIR_OUTBOUND);
+	sp = ipsec4_getpolicy(m, inp, IPSEC_DIR_OUTBOUND, needport);
 	if (sp != NULL)
 		sp = ipsec_checkpolicy(sp, inp, error);
 	if (sp == NULL) {
@@ -623,7 +625,7 @@ ipsec4_in_reject(const struct mbuf *m, struct inpcb *inp)
 	struct secpolicy *sp;
 	int result;
 
-	sp = ipsec4_getpolicy(m, inp, IPSEC_DIR_INBOUND);
+	sp = ipsec4_getpolicy(m, inp, IPSEC_DIR_INBOUND, 0);
 	result = ipsec_in_reject(sp, inp, m);
 	key_freesp(&sp);
 	if (result != 0)
@@ -731,7 +733,8 @@ ipsec6_setspidx_ipaddr(const struct mbuf *m, struct secpolicyindex *spidx)
 }
 
 static struct secpolicy *
-ipsec6_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir)
+ipsec6_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir,
+    int needport)
 {
 	struct secpolicyindex spidx;
 	struct secpolicy *sp;
@@ -741,7 +744,7 @@ ipsec6_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir)
 		/* Make an index to look for a policy. */
 		ipsec6_setspidx_ipaddr(m, &spidx);
 		/* Fill ports in spidx if we have inpcb. */
-		ipsec6_get_ulp(m, &spidx, inp != NULL);
+		ipsec6_get_ulp(m, &spidx, needport);
 		spidx.dir = dir;
 		sp = key_allocsp(&spidx, dir);
 	}
@@ -754,12 +757,13 @@ ipsec6_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir)
  * Check security policy for *OUTBOUND* IPv6 packet.
  */
 struct secpolicy *
-ipsec6_checkpolicy(const struct mbuf *m, struct inpcb *inp, int *error)
+ipsec6_checkpolicy(const struct mbuf *m, struct inpcb *inp, int *error,
+    int needport)
 {
 	struct secpolicy *sp;
 
 	*error = 0;
-	sp = ipsec6_getpolicy(m, inp, IPSEC_DIR_OUTBOUND);
+	sp = ipsec6_getpolicy(m, inp, IPSEC_DIR_OUTBOUND, needport);
 	if (sp != NULL)
 		sp = ipsec_checkpolicy(sp, inp, error);
 	if (sp == NULL) {
@@ -791,7 +795,7 @@ ipsec6_in_reject(const struct mbuf *m, struct inpcb *inp)
 	struct secpolicy *sp;
 	int result;
 
-	sp = ipsec6_getpolicy(m, inp, IPSEC_DIR_INBOUND);
+	sp = ipsec6_getpolicy(m, inp, IPSEC_DIR_INBOUND, 0);
 	result = ipsec_in_reject(sp, inp, m);
 	key_freesp(&sp);
 	if (result)

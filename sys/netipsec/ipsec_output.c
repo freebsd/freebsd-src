@@ -297,7 +297,7 @@ ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 	int error;
 
 	/* Lookup for the corresponding outbound security policy */
-	sp = ipsec4_checkpolicy(m, inp, &error);
+	sp = ipsec4_checkpolicy(m, inp, &error, !forwarding);
 	if (sp == NULL) {
 		if (error == -EINVAL) {
 			/* Discarded by policy. */
@@ -599,7 +599,7 @@ ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 	int error;
 
 	/* Lookup for the corresponding outbound security policy */
-	sp = ipsec6_checkpolicy(m, inp, &error);
+	sp = ipsec6_checkpolicy(m, inp, &error, !forwarding);
 	if (sp == NULL) {
 		if (error == -EINVAL) {
 			/* Discarded by policy. */
