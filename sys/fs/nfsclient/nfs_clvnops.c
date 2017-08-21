@@ -520,8 +520,6 @@ nfs_open(struct vop_open_args *ap)
 	if (np->n_flag & NMODIFIED) {
 		mtx_unlock(&np->n_mtx);
 		error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
-		if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0)
-			return (EBADF);
 		if (error == EINTR || error == EIO) {
 			if (NFS_ISV4(vp))
 				(void) nfsrpc_close(vp, 0, ap->a_td);
@@ -558,8 +556,6 @@ nfs_open(struct vop_open_args *ap)
 				np->n_direofoffset = 0;
 			mtx_unlock(&np->n_mtx);
 			error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
-			if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0)
-				return (EBADF);
 			if (error == EINTR || error == EIO) {
 				if (NFS_ISV4(vp))
 					(void) nfsrpc_close(vp, 0, ap->a_td);
@@ -580,8 +576,6 @@ nfs_open(struct vop_open_args *ap)
 		if (np->n_directio_opens == 0) {
 			mtx_unlock(&np->n_mtx);
 			error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
-			if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0)
-				return (EBADF);
 			if (error) {
 				if (NFS_ISV4(vp))
 					(void) nfsrpc_close(vp, 0, ap->a_td);
@@ -722,8 +716,6 @@ nfs_close(struct vop_close_args *ap)
 			}
 		} else {
 			error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
-			if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0)
-				return (EBADF);
 		}
 		mtx_lock(&np->n_mtx);
 	    }
@@ -942,9 +934,7 @@ nfs_setattr(struct vop_setattr_args *ap)
 			    mtx_unlock(&np->n_mtx);
 			    error = ncl_vinvalbuf(vp, vap->va_size == 0 ?
 			        0 : V_SAVE, td, 1);
-			    if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0)
-				    error = EBADF;
- 			    if (error != 0) {
+			    if (error != 0) {
 				    vnode_pager_setsize(vp, tsize);
 				    return (error);
 			    }
@@ -971,8 +961,6 @@ nfs_setattr(struct vop_setattr_args *ap)
 		    (np->n_flag & NMODIFIED) && vp->v_type == VREG) {
 			mtx_unlock(&np->n_mtx);
 			error = ncl_vinvalbuf(vp, V_SAVE, td, 1);
-			if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0)
-				return (EBADF);
 			if (error == EINTR || error == EIO)
 				return (error);
 		} else
@@ -1676,9 +1664,7 @@ nfs_remove(struct vop_remove_args *ap)
 		 * unnecessary delayed writes later.
 		 */
 		error = ncl_vinvalbuf(vp, 0, cnp->cn_thread, 1);
-		if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0)
-			error = EBADF;
-		else if (error != EINTR && error != EIO)
+		if (error != EINTR && error != EIO)
 			/* Do the rpc */
 			error = nfs_removerpc(dvp, vp, cnp->cn_nameptr,
 			    cnp->cn_namelen, cnp->cn_cred, cnp->cn_thread);
@@ -3089,10 +3075,6 @@ nfs_advlock(struct vop_advlock_args *ap)
 			if ((np->n_flag & NMODIFIED) || ret ||
 			    np->n_change != va.va_filerev) {
 				(void) ncl_vinvalbuf(vp, V_SAVE, td, 1);
-				if ((vp->v_iflag & VI_DOOMED) != 0) {
-					NFSVOPUNLOCK(vp, 0);
-					return (EBADF);
-				}
 				np->n_attrstamp = 0;
 				KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 				ret = VOP_GETATTR(vp, &va, cred);

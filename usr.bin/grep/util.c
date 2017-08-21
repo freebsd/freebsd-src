@@ -443,7 +443,7 @@ procline(struct parsec *pc)
 				 */
 				if (r == REG_NOMATCH &&
 				    (retry == pc->lnstart ||
-				    pmatch.rm_so + 1 < retry))
+				    (unsigned int)pmatch.rm_so + 1 < retry))
 					retry = pmatch.rm_so + 1;
 				if (r == REG_NOMATCH)
 					continue;

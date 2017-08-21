@@ -27,17 +27,46 @@
  */
 
 static void
-teken_subr_cons25_set_cursor_type(teken_t *t, unsigned int type)
+teken_subr_cons25_set_border(teken_t *t, unsigned int c)
 {
 
-	teken_funcs_param(t, TP_SHOWCURSOR, type != 1);
+	teken_funcs_param(t, TP_SETBORDER, c);
+}
+
+static void
+teken_subr_cons25_set_global_cursor_shape(teken_t *t, unsigned int ncmds,
+    unsigned int cmds[])
+{
+	unsigned int code, i;
+
+	/*
+	 * Pack the args to work around API deficiencies.  This requires
+	 * knowing too much about the low level to be fully compatible.
+	 * Returning when ncmds > 3 is necessary and happens to be
+	 * compatible.  Discarding high bits is necessary and happens to
+	 * be incompatible only for invalid args when ncmds == 3.
+	 */
+	if (ncmds > 3)
+		return;
+	code = 0;
+	for (i = ncmds; i > 0; i--)
+		code = (code << 8) | (cmds[i - 1] & 0xff);
+	code = (code << 8) | ncmds;
+	teken_funcs_param(t, TP_SETGLOBALCURSOR, code);
+}
+
+static void
+teken_subr_cons25_set_local_cursor_type(teken_t *t, unsigned int type)
+{
+
+	teken_funcs_param(t, TP_SETLOCALCURSOR, type);
 }
 
 static const teken_color_t cons25_colors[8] = { TC_BLACK, TC_BLUE,
     TC_GREEN, TC_CYAN, TC_RED, TC_MAGENTA, TC_BROWN, TC_WHITE };
 
 static void
-teken_subr_cons25_set_adapter_background(teken_t *t, unsigned int c)
+teken_subr_cons25_set_default_background(teken_t *t, unsigned int c)
 {
 
 	t->t_defattr.ta_bgcolor = cons25_colors[c % 8] | (c & 8);
@@ -45,7 +74,7 @@ teken_subr_cons25_set_adapter_background(teken_t *t, unsigned int c)
 }
 
 static void
-teken_subr_cons25_set_adapter_foreground(teken_t *t, unsigned int c)
+teken_subr_cons25_set_default_foreground(teken_t *t, unsigned int c)
 {
 
 	t->t_defattr.ta_fgcolor = cons25_colors[c % 8] | (c & 8);

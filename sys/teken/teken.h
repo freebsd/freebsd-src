@@ -101,6 +101,9 @@ typedef void tf_param_t(void *, int, unsigned int);
 #define	TP_SETBELLPD_PITCH(pd)		((pd) >> 16)
 #define	TP_SETBELLPD_DURATION(pd)	((pd) & 0xffff)
 #define	TP_MOUSE	6
+#define	TP_SETBORDER	7
+#define	TP_SETLOCALCURSOR	8
+#define	TP_SETGLOBALCURSOR	9
 typedef void tf_respond_t(void *, const void *, size_t);
 
 typedef struct {

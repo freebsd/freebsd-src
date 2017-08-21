@@ -52,18 +52,11 @@ __FBSDID("$FreeBSD$");
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
-/*
- * Don't touch the first SIZEOF_METADATA bytes on the dump device. This
- * is to protect us from metadata and to protect metadata from us.
- */
-#define	SIZEOF_METADATA		(64*1024)
-
 uint32_t *vm_page_dump;
 int vm_page_dump_size;
 
 static struct kerneldumpheader kdh;
 static off_t dumplo;
-static off_t origdumplo;
 
 /* Handle chunked writes. */
 static uint64_t counter, progress, dumpsize;
@@ -241,7 +234,6 @@ minidumpsys(struct dumperinfo *di)
 	dumpsize = ptesize;
 	dumpsize += round_page(msgbufp->msg_size);
 	dumpsize += round_page(vm_page_dump_size);
-
 	for (i = 0; i < vm_page_dump_size / sizeof(*vm_page_dump); i++) {
 		bits = vm_page_dump[i];
 		while (bits) {
@@ -256,25 +248,9 @@ minidumpsys(struct dumperinfo *di)
 			bits &= ~(1ul << bit);
 		}
 	}
-
 	dumpsize += PAGE_SIZE;
 
-	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + di->blocksize * 2 +
-	    kerneldumpcrypto_dumpkeysize(di->kdc)) {
-		error = ENOSPC;
-		goto fail;
-	}
-
-	origdumplo = dumplo = di->mediaoffset + di->mediasize - dumpsize;
-	dumplo -= di->blocksize * 2;
-	dumplo -= kerneldumpcrypto_dumpkeysize(di->kdc);
 	progress = dumpsize;
-
-	/* Initialize kernel dump crypto. */
-	error = kerneldumpcrypto_init(di->kdc);
-	if (error)
-		goto fail;
 
 	/* Initialize mdhdr */
 	bzero(&mdhdr, sizeof(mdhdr));
@@ -285,23 +261,15 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.ptesize = ptesize;
 	mdhdr.kernbase = VM_MIN_KERNEL_ADDRESS;
 
-	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_MIPS_VERSION, dumpsize,
-	    kerneldumpcrypto_dumpkeysize(di->kdc), di->blocksize);
+	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_MIPS_VERSION,
+	    dumpsize);
 
 	printf("Dumping %llu out of %ju MB:", (long long)dumpsize >> 20,
 	    ptoa((uintmax_t)physmem) / 1048576);
 
-	/* Dump leader */
-	error = dump_write_header(di, &kdh, 0, dumplo);
-	if (error)
+	error = dump_start(di, &kdh, &dumplo);
+	if (error != 0)
 		goto fail;
-	dumplo += di->blocksize;
-
-	/* Dump key */
-	error = dump_write_key(di, 0, dumplo);
-	if (error)
-		goto fail;
-	dumplo += kerneldumpcrypto_dumpkeysize(di->kdc);
 
 	/* Dump my header */
 	bzero(tmpbuffer, sizeof(tmpbuffer));
@@ -329,8 +297,7 @@ minidumpsys(struct dumperinfo *di)
 		if (!count) {
 			prev_pte = (vm_offset_t)pte;
 			count++;
-		}
-		else {
+		} else {
 			if ((vm_offset_t)pte == (prev_pte + count * PAGE_SIZE))
 				count++;
 			else {
@@ -368,14 +335,10 @@ minidumpsys(struct dumperinfo *di)
 		}
 	}
 
-	/* Dump trailer */
-	error = dump_write_header(di, &kdh, 0, dumplo);
-	if (error)
+	error = dump_finish(di, &kdh, dumplo);
+	if (error != 0)
 		goto fail;
-	dumplo += di->blocksize;
 
-	/* Signal completion, signoff and exit stage left. */
-	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
 	return (0);
 
@@ -385,7 +348,7 @@ fail:
 
 	if (error == ECANCELED)
 		printf("\nDump aborted\n");
-	else if (error == ENOSPC)
+	else if (error == E2BIG || error == ENOSPC)
 		printf("\nDump failed. Partition too small.\n");
 	else
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);

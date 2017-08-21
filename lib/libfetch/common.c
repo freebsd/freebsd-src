@@ -291,7 +291,7 @@ fetch_resolve(const char *addr, int port, int af)
 			goto syserr;
 		service = sbuf;
 	} else if (*sep != '\0') {
-		service = sep;
+		service = sep + 1;
 	} else {
 		service = NULL;
 	}

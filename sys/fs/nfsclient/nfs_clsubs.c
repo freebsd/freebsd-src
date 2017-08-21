@@ -135,30 +135,33 @@ ncl_dircookie_unlock(struct nfsnode *np)
 	mtx_unlock(&np->n_mtx);
 }
 
-int
-ncl_upgrade_vnlock(struct vnode *vp)
+bool
+ncl_excl_start(struct vnode *vp)
 {
-	int old_lock;
+	struct nfsnode *np;
+	int vn_lk;
 
-	ASSERT_VOP_LOCKED(vp, "ncl_upgrade_vnlock");
-	old_lock = NFSVOPISLOCKED(vp);
-	if (old_lock != LK_EXCLUSIVE) {
-		KASSERT(old_lock == LK_SHARED,
-		    ("ncl_upgrade_vnlock: wrong old_lock %d", old_lock));
-		/* Upgrade to exclusive lock, this might block */
-		NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
-  	}
-	return (old_lock);
+	ASSERT_VOP_LOCKED(vp, "ncl_excl_start");
+	vn_lk = NFSVOPISLOCKED(vp);
+	if (vn_lk == LK_EXCLUSIVE)
+		return (false);
+	KASSERT(vn_lk == LK_SHARED,
+	    ("ncl_excl_start: wrong vnode lock %d", vn_lk));
+	/* Ensure exclusive access, this might block */
+	np = VTONFS(vp);
+	lockmgr(&np->n_excl, LK_EXCLUSIVE, NULL);
+	return (true);
 }
 
 void
-ncl_downgrade_vnlock(struct vnode *vp, int old_lock)
+ncl_excl_finish(struct vnode *vp, bool old_lock)
 {
-	if (old_lock != LK_EXCLUSIVE) {
-		KASSERT(old_lock == LK_SHARED, ("wrong old_lock %d", old_lock));
-		/* Downgrade from exclusive lock. */
-		NFSVOPLOCK(vp, LK_DOWNGRADE | LK_RETRY);
-  	}
+	struct nfsnode *np;
+
+	if (!old_lock)
+		return;
+	np = VTONFS(vp);
+	lockmgr(&np->n_excl, LK_RELEASE, NULL);
 }
 
 #ifdef NFS_ACDEBUG

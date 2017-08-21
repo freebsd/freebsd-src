@@ -70,7 +70,9 @@
 #include <vm/vm_object.h>
 #include <vm/pmap.h>
 
+#ifndef prefetch
 #define	prefetch(x)
+#endif
 
 #define LINUX_LIST_HEAD_INIT(name) { &(name), &(name) }
 
