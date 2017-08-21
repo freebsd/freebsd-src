@@ -834,6 +834,85 @@ intr_restore(register_t rflags)
 	write_rflags(rflags);
 }
 
+enum {
+	SGX_ECREATE	= 0x0,
+	SGX_EADD	= 0x1,
+	SGX_EINIT	= 0x2,
+	SGX_EREMOVE	= 0x3,
+	SGX_EDGBRD	= 0x4,
+	SGX_EDGBWR	= 0x5,
+	SGX_EEXTEND	= 0x6,
+	SGX_ELDU	= 0x8,
+	SGX_EBLOCK	= 0x9,
+	SGX_EPA		= 0xA,
+	SGX_EWB		= 0xB,
+	SGX_ETRACK	= 0xC,
+};
+
+enum {
+	SGX_PT_SECS = 0x00,
+	SGX_PT_TCS  = 0x01,
+	SGX_PT_REG  = 0x02,
+	SGX_PT_VA   = 0x03,
+	SGX_PT_TRIM = 0x04,
+};
+
+int sgx_encls(uint32_t eax, uint64_t rbx, uint64_t rcx, uint64_t rdx);
+
+static __inline int
+sgx_ecreate(void *pginfo, void *secs)
+{
+
+	return (sgx_encls(SGX_ECREATE, (uint64_t)pginfo,
+	    (uint64_t)secs, 0));
+}
+
+static __inline int
+sgx_eadd(void *pginfo, void *epc)
+{
+
+	return (sgx_encls(SGX_EADD, (uint64_t)pginfo,
+	    (uint64_t)epc, 0));
+}
+
+static __inline int
+sgx_einit(void *sigstruct, void *secs, void *einittoken)
+{
+
+	return (sgx_encls(SGX_EINIT, (uint64_t)sigstruct,
+	    (uint64_t)secs, (uint64_t)einittoken));
+}
+
+static __inline int
+sgx_eextend(void *secs, void *epc)
+{
+
+	return (sgx_encls(SGX_EEXTEND, (uint64_t)secs,
+	    (uint64_t)epc, 0));
+}
+
+static __inline int
+sgx_epa(void *epc)
+{
+
+	return (sgx_encls(SGX_EPA, SGX_PT_VA, (uint64_t)epc, 0));
+}
+
+static __inline int
+sgx_eldu(uint64_t rbx, uint64_t rcx,
+    uint64_t rdx)
+{
+
+	return (sgx_encls(SGX_ELDU, rbx, rcx, rdx));
+}
+
+static __inline int
+sgx_eremove(void *epc)
+{
+
+	return (sgx_encls(SGX_EREMOVE, 0, (uint64_t)epc, 0));
+}
+
 #else /* !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */
 
 int	breakpoint(void);

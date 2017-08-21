@@ -103,11 +103,15 @@ typedef struct ssaver	ssaver_t;
 #define CONS_SSAVER	_IOW('c', 5, ssaver_t)
 #define CONS_GSAVER	_IOWR('c', 6, ssaver_t)
 
-/* set the text cursor type (obsolete, see CONS_CURSORSHAPE below) */
 /*
-#define CONS_BLINK_CURSOR (1 << 0)
-#define CONS_CHAR_CURSOR (1 << 1)
-*/
+ * Set the text cursor type.
+ *
+ * This is an old interface extended to support the CONS_HIDDEN_CURSOR bit.
+ * New code should use CONS_CURSORSHAPE.  CONS_CURSOR_ATTRS gives the 3
+ * bits supported by the (extended) old interface.  The old interface is
+ * especially unusable for hiding the cursor (even with its extension)
+ * since it changes the cursor on all vtys.
+ */
 #define CONS_CURSORTYPE	_IOW('c', 7, int)
 
 /* set the bell type to audible or visual */
