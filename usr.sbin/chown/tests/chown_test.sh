@@ -25,6 +25,13 @@
 #
 # $FreeBSD$
 
+get_filesystem()
+{
+	local mountpoint=$1
+
+	df -T $mountpoint | tail -n 1 | cut -wf 2
+}
+
 atf_test_case RH_flag
 RH_flag_head()
 {
@@ -98,6 +105,11 @@ f_flag_body()
 {
 	atf_check truncate -s 0 foo bar
 	atf_check chown 0:0 foo bar
+	case "$(get_filesystem .)" in
+	zfs)
+		atf_expect_fail "ZFS does not support UF_IMMUTABLE; returns EPERM"
+		;;
+	esac
 	atf_check chflags uchg foo
 	atf_check -e not-empty -s not-exit:0 chown 42:42 foo bar
 	atf_check -o inline:'0:0\n42:42\n' stat -f '%u:%g' foo bar
@@ -107,7 +119,7 @@ f_flag_body()
 
 f_flag_cleanup()
 {
-	atf_check chflags 0 foo
+	chflags 0 foo || :
 }
 
 atf_test_case h_flag
@@ -144,6 +156,11 @@ v_flag_body()
 	atf_check truncate -s 0 foo bar
 	atf_check chown 0:0 foo
 	atf_check chown 42:42 bar
+	case "$(get_filesystem .)" in
+	zfs)
+		atf_expect_fail "ZFS updates mode for foo unnecessarily"
+		;;
+	esac
 	atf_check -o 'inline:bar\n' chown -v 0:0 foo bar
 	atf_check chown -v 0:0 foo bar
 	for f in foo bar; do
