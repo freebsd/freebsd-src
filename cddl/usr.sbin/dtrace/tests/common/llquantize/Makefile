@@ -22,6 +22,7 @@ ${PACKAGE}FILES= \
      err.D_LLQUANT_LOWVAL.d  \
      err.D_LLQUANT_MAGRANGE.d  \
      err.D_LLQUANT_MAGTOOBIG.d  \
+     err.D_LLQUANT_MAGTOOBIG.offbyone.d  \
      err.D_LLQUANT_NSTEPMATCH.d  \
      err.D_LLQUANT_NSTEPTYPE.d  \
      err.D_LLQUANT_NSTEPVAL.d  \
