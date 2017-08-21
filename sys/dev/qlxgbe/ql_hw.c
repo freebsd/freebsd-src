@@ -72,87 +72,10 @@ static int qla_stop_nic_func(qla_host_t *ha);
 static int qla_query_fw_dcbx_caps(qla_host_t *ha);
 static int qla_set_port_config(qla_host_t *ha, uint32_t cfg_bits);
 static int qla_get_port_config(qla_host_t *ha, uint32_t *cfg_bits);
-static void qla_get_quick_stats(qla_host_t *ha);
 static int qla_set_cam_search_mode(qla_host_t *ha, uint32_t search_mode);
 static int qla_get_cam_search_mode(qla_host_t *ha);
 
 static void ql_minidump_free(qla_host_t *ha);
-
-
-static int
-qla_sysctl_get_drvr_stats(SYSCTL_HANDLER_ARGS)
-{
-        int err = 0, ret;
-        qla_host_t *ha;
-	uint32_t i;
-
-        err = sysctl_handle_int(oidp, &ret, 0, req);
-
-        if (err || !req->newptr)
-                return (err);
-
-        if (ret == 1) {
-
-                ha = (qla_host_t *)arg1;
-
-		for (i = 0; i < ha->hw.num_sds_rings; i++) {
-
-			device_printf(ha->pci_dev,
-				"%s: sds_ring[%d] = %p\n", __func__,i,
-				(void *)ha->hw.sds[i].intr_count);
-
-			device_printf(ha->pci_dev,
-				"%s: sds_ring[%d].spurious_intr_count = %p\n",
-				__func__,
-				i, (void *)ha->hw.sds[i].spurious_intr_count);
-
-			device_printf(ha->pci_dev,
-				"%s: sds_ring[%d].rx_free = %d\n", __func__,i,
-				ha->hw.sds[i].rx_free);
-		}
-
-		for (i = 0; i < ha->hw.num_tx_rings; i++) 
-			device_printf(ha->pci_dev,
-				"%s: tx[%d] = %p\n", __func__,i,
-				(void *)ha->tx_ring[i].count);
-
-		for (i = 0; i < ha->hw.num_rds_rings; i++)
-			device_printf(ha->pci_dev,
-				"%s: rds_ring[%d] = %p\n", __func__,i,
-				(void *)ha->hw.rds[i].count);
-
-		device_printf(ha->pci_dev, "%s: lro_pkt_count = %p\n", __func__,
-			(void *)ha->lro_pkt_count);
-
-		device_printf(ha->pci_dev, "%s: lro_bytes = %p\n", __func__,
-			(void *)ha->lro_bytes);
-
-#ifdef QL_ENABLE_ISCSI_TLV
-		device_printf(ha->pci_dev, "%s: iscsi_pkts = %p\n", __func__,
-			(void *)ha->hw.iscsi_pkt_count);
-#endif /* #ifdef QL_ENABLE_ISCSI_TLV */
-
-	}
-	return (err);
-}
-
-static int
-qla_sysctl_get_quick_stats(SYSCTL_HANDLER_ARGS)
-{
-	int err, ret = 0;
-	qla_host_t *ha;
-
-	err = sysctl_handle_int(oidp, &ret, 0, req);
-
-	if (err || !req->newptr)
-		return (err);
-
-	if (ret == 1) {
-		ha = (qla_host_t *)arg1;
-		qla_get_quick_stats(ha);
-	}
-	return (err);
-}
 
 #ifdef QL_DBG
 
@@ -183,9 +106,10 @@ qla_sysctl_stop_pegs(SYSCTL_HANDLER_ARGS)
 
 	if (ret == 1) {
 		ha = (qla_host_t *)arg1;
-		QLA_LOCK(ha);
-		qla_stop_pegs(ha);	
-		QLA_UNLOCK(ha);
+		if (QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT, 0) == 0) {
+			qla_stop_pegs(ha);	
+			QLA_UNLOCK(ha, __func__);
+		}
 	}
 
 	return err;
@@ -219,9 +143,9 @@ qla_sysctl_port_cfg(SYSCTL_HANDLER_ARGS)
         if (err || !req->newptr)
                 return (err);
 
-        if ((qla_validate_set_port_cfg_bit((uint32_t)ret) == 0)) {
+	ha = (qla_host_t *)arg1;
 
-                ha = (qla_host_t *)arg1;
+        if ((qla_validate_set_port_cfg_bit((uint32_t)ret) == 0)) {
 
                 err = qla_get_port_config(ha, &cfg_bits);
 
@@ -256,11 +180,19 @@ qla_sysctl_port_cfg(SYSCTL_HANDLER_ARGS)
                         cfg_bits |= Q8_PORT_CFG_BITS_STDPAUSE_RCV;
                 }
 
-                err = qla_set_port_config(ha, cfg_bits);
+		if (QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT, 0) == 0) {
+                	err = qla_set_port_config(ha, cfg_bits);
+			QLA_UNLOCK(ha, __func__);
+		} else {
+			device_printf(ha->pci_dev, "%s: failed\n", __func__);
+		}
         } else {
-                ha = (qla_host_t *)arg1;
-
-                err = qla_get_port_config(ha, &cfg_bits);
+		if (QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT, 0) == 0) {
+                	err = qla_get_port_config(ha, &cfg_bits);
+			QLA_UNLOCK(ha, __func__);
+		} else {
+			device_printf(ha->pci_dev, "%s: failed\n", __func__);
+		}
         }
 
 qla_sysctl_set_port_cfg_exit:
@@ -282,7 +214,14 @@ qla_sysctl_set_cam_search_mode(SYSCTL_HANDLER_ARGS)
 
 	if ((ret == Q8_HW_CONFIG_CAM_SEARCH_MODE_INTERNAL) ||
 		(ret == Q8_HW_CONFIG_CAM_SEARCH_MODE_AUTO)) {
-		err = qla_set_cam_search_mode(ha, (uint32_t)ret);
+
+		if (QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT, 0) == 0) {
+			err = qla_set_cam_search_mode(ha, (uint32_t)ret);
+			QLA_UNLOCK(ha, __func__);
+		} else {
+			device_printf(ha->pci_dev, "%s: failed\n", __func__);
+		}
+
 	} else {
 		device_printf(ha->pci_dev, "%s: ret = %d\n", __func__, ret);
 	}
@@ -302,11 +241,556 @@ qla_sysctl_get_cam_search_mode(SYSCTL_HANDLER_ARGS)
 		return (err);
 
 	ha = (qla_host_t *)arg1;
-	err = qla_get_cam_search_mode(ha);
+	if (QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT, 0) == 0) {
+		err = qla_get_cam_search_mode(ha);
+		QLA_UNLOCK(ha, __func__);
+	} else {
+		device_printf(ha->pci_dev, "%s: failed\n", __func__);
+	}
 
 	return (err);
 }
 
+static void
+qlnx_add_hw_mac_stats_sysctls(qla_host_t *ha)
+{
+        struct sysctl_ctx_list  *ctx;
+        struct sysctl_oid_list  *children;
+        struct sysctl_oid       *ctx_oid;
+
+        ctx = device_get_sysctl_ctx(ha->pci_dev);
+        children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
+
+        ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats_hw_mac",
+                        CTLFLAG_RD, NULL, "stats_hw_mac");
+        children = SYSCTL_CHILDREN(ctx_oid);
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "xmt_frames",
+                CTLFLAG_RD, &ha->hw.mac.xmt_frames,
+                "xmt_frames");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "xmt_bytes",
+                CTLFLAG_RD, &ha->hw.mac.xmt_bytes,
+                "xmt_frames");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "xmt_mcast_pkts",
+                CTLFLAG_RD, &ha->hw.mac.xmt_mcast_pkts,
+                "xmt_mcast_pkts");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "xmt_bcast_pkts",
+                CTLFLAG_RD, &ha->hw.mac.xmt_bcast_pkts,
+                "xmt_bcast_pkts");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "xmt_pause_frames",
+                CTLFLAG_RD, &ha->hw.mac.xmt_pause_frames,
+                "xmt_pause_frames");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "xmt_cntrl_pkts",
+                CTLFLAG_RD, &ha->hw.mac.xmt_cntrl_pkts,
+                "xmt_cntrl_pkts");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "xmt_pkt_lt_64bytes",
+                CTLFLAG_RD, &ha->hw.mac.xmt_pkt_lt_64bytes,
+                "xmt_pkt_lt_64bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "xmt_pkt_lt_127bytes",
+                CTLFLAG_RD, &ha->hw.mac.xmt_pkt_lt_127bytes,
+                "xmt_pkt_lt_127bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "xmt_pkt_lt_255bytes",
+                CTLFLAG_RD, &ha->hw.mac.xmt_pkt_lt_255bytes,
+                "xmt_pkt_lt_255bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "xmt_pkt_lt_511bytes",
+                CTLFLAG_RD, &ha->hw.mac.xmt_pkt_lt_511bytes,
+                "xmt_pkt_lt_511bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "xmt_pkt_lt_1023bytes",
+                CTLFLAG_RD, &ha->hw.mac.xmt_pkt_lt_1023bytes,
+                "xmt_pkt_lt_1023bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "xmt_pkt_lt_1518bytes",
+                CTLFLAG_RD, &ha->hw.mac.xmt_pkt_lt_1518bytes,
+                "xmt_pkt_lt_1518bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "xmt_pkt_gt_1518bytes",
+                CTLFLAG_RD, &ha->hw.mac.xmt_pkt_gt_1518bytes,
+                "xmt_pkt_gt_1518bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_frames",
+                CTLFLAG_RD, &ha->hw.mac.rcv_frames,
+                "rcv_frames");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_bytes",
+                CTLFLAG_RD, &ha->hw.mac.rcv_bytes,
+                "rcv_bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_mcast_pkts",
+                CTLFLAG_RD, &ha->hw.mac.rcv_mcast_pkts,
+                "rcv_mcast_pkts");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_bcast_pkts",
+                CTLFLAG_RD, &ha->hw.mac.rcv_bcast_pkts,
+                "rcv_bcast_pkts");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_pause_frames",
+                CTLFLAG_RD, &ha->hw.mac.rcv_pause_frames,
+                "rcv_pause_frames");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_cntrl_pkts",
+                CTLFLAG_RD, &ha->hw.mac.rcv_cntrl_pkts,
+                "rcv_cntrl_pkts");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_pkt_lt_64bytes",
+                CTLFLAG_RD, &ha->hw.mac.rcv_pkt_lt_64bytes,
+                "rcv_pkt_lt_64bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_pkt_lt_127bytes",
+                CTLFLAG_RD, &ha->hw.mac.rcv_pkt_lt_127bytes,
+                "rcv_pkt_lt_127bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_pkt_lt_255bytes",
+                CTLFLAG_RD, &ha->hw.mac.rcv_pkt_lt_255bytes,
+                "rcv_pkt_lt_255bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_pkt_lt_511bytes",
+                CTLFLAG_RD, &ha->hw.mac.rcv_pkt_lt_511bytes,
+                "rcv_pkt_lt_511bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_pkt_lt_1023bytes",
+                CTLFLAG_RD, &ha->hw.mac.rcv_pkt_lt_1023bytes,
+                "rcv_pkt_lt_1023bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_pkt_lt_1518bytes",
+                CTLFLAG_RD, &ha->hw.mac.rcv_pkt_lt_1518bytes,
+                "rcv_pkt_lt_1518bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_pkt_gt_1518bytes",
+                CTLFLAG_RD, &ha->hw.mac.rcv_pkt_gt_1518bytes,
+                "rcv_pkt_gt_1518bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_len_error",
+                CTLFLAG_RD, &ha->hw.mac.rcv_len_error,
+                "rcv_len_error");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_len_small",
+                CTLFLAG_RD, &ha->hw.mac.rcv_len_small,
+                "rcv_len_small");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_len_large",
+                CTLFLAG_RD, &ha->hw.mac.rcv_len_large,
+                "rcv_len_large");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_jabber",
+                CTLFLAG_RD, &ha->hw.mac.rcv_jabber,
+                "rcv_jabber");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rcv_dropped",
+                CTLFLAG_RD, &ha->hw.mac.rcv_dropped,
+                "rcv_dropped");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "fcs_error",
+                CTLFLAG_RD, &ha->hw.mac.fcs_error,
+                "fcs_error");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "align_error",
+                CTLFLAG_RD, &ha->hw.mac.align_error,
+                "align_error");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "eswitched_frames",
+                CTLFLAG_RD, &ha->hw.mac.eswitched_frames,
+                "eswitched_frames");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "eswitched_bytes",
+                CTLFLAG_RD, &ha->hw.mac.eswitched_bytes,
+                "eswitched_bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "eswitched_mcast_frames",
+                CTLFLAG_RD, &ha->hw.mac.eswitched_mcast_frames,
+                "eswitched_mcast_frames");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "eswitched_bcast_frames",
+                CTLFLAG_RD, &ha->hw.mac.eswitched_bcast_frames,
+                "eswitched_bcast_frames");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "eswitched_ucast_frames",
+                CTLFLAG_RD, &ha->hw.mac.eswitched_ucast_frames,
+                "eswitched_ucast_frames");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "eswitched_err_free_frames",
+                CTLFLAG_RD, &ha->hw.mac.eswitched_err_free_frames,
+                "eswitched_err_free_frames");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "eswitched_err_free_bytes",
+                CTLFLAG_RD, &ha->hw.mac.eswitched_err_free_bytes,
+                "eswitched_err_free_bytes");
+
+	return;
+}
+
+static void
+qlnx_add_hw_rcv_stats_sysctls(qla_host_t *ha)
+{
+        struct sysctl_ctx_list  *ctx;
+        struct sysctl_oid_list  *children;
+        struct sysctl_oid       *ctx_oid;
+
+        ctx = device_get_sysctl_ctx(ha->pci_dev);
+        children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
+
+        ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats_hw_rcv",
+                        CTLFLAG_RD, NULL, "stats_hw_rcv");
+        children = SYSCTL_CHILDREN(ctx_oid);
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "total_bytes",
+                CTLFLAG_RD, &ha->hw.rcv.total_bytes,
+                "total_bytes");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "total_pkts",
+                CTLFLAG_RD, &ha->hw.rcv.total_pkts,
+                "total_pkts");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "lro_pkt_count",
+                CTLFLAG_RD, &ha->hw.rcv.lro_pkt_count,
+                "lro_pkt_count");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "sw_pkt_count",
+                CTLFLAG_RD, &ha->hw.rcv.sw_pkt_count,
+                "sw_pkt_count");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "ip_chksum_err",
+                CTLFLAG_RD, &ha->hw.rcv.ip_chksum_err,
+                "ip_chksum_err");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "pkts_wo_acntxts",
+                CTLFLAG_RD, &ha->hw.rcv.pkts_wo_acntxts,
+                "pkts_wo_acntxts");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "pkts_dropped_no_sds_card",
+                CTLFLAG_RD, &ha->hw.rcv.pkts_dropped_no_sds_card,
+                "pkts_dropped_no_sds_card");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "pkts_dropped_no_sds_host",
+                CTLFLAG_RD, &ha->hw.rcv.pkts_dropped_no_sds_host,
+                "pkts_dropped_no_sds_host");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "oversized_pkts",
+                CTLFLAG_RD, &ha->hw.rcv.oversized_pkts,
+                "oversized_pkts");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "pkts_dropped_no_rds",
+                CTLFLAG_RD, &ha->hw.rcv.pkts_dropped_no_rds,
+                "pkts_dropped_no_rds");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "unxpctd_mcast_pkts",
+                CTLFLAG_RD, &ha->hw.rcv.unxpctd_mcast_pkts,
+                "unxpctd_mcast_pkts");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "re1_fbq_error",
+                CTLFLAG_RD, &ha->hw.rcv.re1_fbq_error,
+                "re1_fbq_error");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "invalid_mac_addr",
+                CTLFLAG_RD, &ha->hw.rcv.invalid_mac_addr,
+                "invalid_mac_addr");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rds_prime_trys",
+                CTLFLAG_RD, &ha->hw.rcv.rds_prime_trys,
+                "rds_prime_trys");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "rds_prime_success",
+                CTLFLAG_RD, &ha->hw.rcv.rds_prime_success,
+                "rds_prime_success");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "lro_flows_added",
+                CTLFLAG_RD, &ha->hw.rcv.lro_flows_added,
+                "lro_flows_added");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "lro_flows_deleted",
+                CTLFLAG_RD, &ha->hw.rcv.lro_flows_deleted,
+                "lro_flows_deleted");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "lro_flows_active",
+                CTLFLAG_RD, &ha->hw.rcv.lro_flows_active,
+                "lro_flows_active");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "pkts_droped_unknown",
+                CTLFLAG_RD, &ha->hw.rcv.pkts_droped_unknown,
+                "pkts_droped_unknown");
+
+        SYSCTL_ADD_QUAD(ctx, children,
+                OID_AUTO, "pkts_cnt_oversized",
+                CTLFLAG_RD, &ha->hw.rcv.pkts_cnt_oversized,
+                "pkts_cnt_oversized");
+
+	return;
+}
+
+static void
+qlnx_add_hw_xmt_stats_sysctls(qla_host_t *ha)
+{
+        struct sysctl_ctx_list  *ctx;
+        struct sysctl_oid_list  *children;
+        struct sysctl_oid_list  *node_children;
+        struct sysctl_oid       *ctx_oid;
+        int                     i;
+        uint8_t                 name_str[16];
+
+        ctx = device_get_sysctl_ctx(ha->pci_dev);
+        children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
+
+        ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats_hw_xmt",
+                        CTLFLAG_RD, NULL, "stats_hw_xmt");
+        children = SYSCTL_CHILDREN(ctx_oid);
+
+        for (i = 0; i < ha->hw.num_tx_rings; i++) {
+
+                bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
+                snprintf(name_str, sizeof(name_str), "%d", i);
+
+                ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, name_str,
+                        CTLFLAG_RD, NULL, name_str);
+                node_children = SYSCTL_CHILDREN(ctx_oid);
+
+                /* Tx Related */
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+			OID_AUTO, "total_bytes",
+                        CTLFLAG_RD, &ha->hw.xmt[i].total_bytes,
+                        "total_bytes");
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+			OID_AUTO, "total_pkts",
+                        CTLFLAG_RD, &ha->hw.xmt[i].total_pkts,
+                        "total_pkts");
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+			OID_AUTO, "errors",
+                        CTLFLAG_RD, &ha->hw.xmt[i].errors,
+                        "errors");
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+			OID_AUTO, "pkts_dropped",
+                        CTLFLAG_RD, &ha->hw.xmt[i].pkts_dropped,
+                        "pkts_dropped");
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+			OID_AUTO, "switch_pkts",
+                        CTLFLAG_RD, &ha->hw.xmt[i].switch_pkts,
+                        "switch_pkts");
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+			OID_AUTO, "num_buffers",
+                        CTLFLAG_RD, &ha->hw.xmt[i].num_buffers,
+                        "num_buffers");
+	}
+
+	return;
+}
+
+static void
+qlnx_add_hw_stats_sysctls(qla_host_t *ha)
+{
+	qlnx_add_hw_mac_stats_sysctls(ha);
+	qlnx_add_hw_rcv_stats_sysctls(ha);
+	qlnx_add_hw_xmt_stats_sysctls(ha);
+
+	return;
+}
+
+static void
+qlnx_add_drvr_sds_stats(qla_host_t *ha)
+{
+        struct sysctl_ctx_list  *ctx;
+        struct sysctl_oid_list  *children;
+        struct sysctl_oid_list  *node_children;
+        struct sysctl_oid       *ctx_oid;
+        int                     i;
+        uint8_t                 name_str[16];
+
+        ctx = device_get_sysctl_ctx(ha->pci_dev);
+        children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
+
+        ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats_drvr_sds",
+                        CTLFLAG_RD, NULL, "stats_drvr_sds");
+        children = SYSCTL_CHILDREN(ctx_oid);
+
+        for (i = 0; i < ha->hw.num_sds_rings; i++) {
+
+                bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
+                snprintf(name_str, sizeof(name_str), "%d", i);
+
+                ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, name_str,
+                        CTLFLAG_RD, NULL, name_str);
+                node_children = SYSCTL_CHILDREN(ctx_oid);
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+			OID_AUTO, "intr_count",
+                        CTLFLAG_RD, &ha->hw.sds[i].intr_count,
+                        "intr_count");
+
+                SYSCTL_ADD_UINT(ctx, node_children,
+			OID_AUTO, "rx_free",
+                        CTLFLAG_RD, &ha->hw.sds[i].rx_free,
+			ha->hw.sds[i].rx_free, "rx_free");
+	}
+
+	return;
+}
+static void
+qlnx_add_drvr_rds_stats(qla_host_t *ha)
+{
+        struct sysctl_ctx_list  *ctx;
+        struct sysctl_oid_list  *children;
+        struct sysctl_oid_list  *node_children;
+        struct sysctl_oid       *ctx_oid;
+        int                     i;
+        uint8_t                 name_str[16];
+
+        ctx = device_get_sysctl_ctx(ha->pci_dev);
+        children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
+
+        ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats_drvr_rds",
+                        CTLFLAG_RD, NULL, "stats_drvr_rds");
+        children = SYSCTL_CHILDREN(ctx_oid);
+
+        for (i = 0; i < ha->hw.num_rds_rings; i++) {
+
+                bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
+                snprintf(name_str, sizeof(name_str), "%d", i);
+
+                ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, name_str,
+                        CTLFLAG_RD, NULL, name_str);
+                node_children = SYSCTL_CHILDREN(ctx_oid);
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+			OID_AUTO, "count",
+                        CTLFLAG_RD, &ha->hw.rds[i].count,
+                        "count");
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+			OID_AUTO, "lro_pkt_count",
+                        CTLFLAG_RD, &ha->hw.rds[i].lro_pkt_count,
+                        "lro_pkt_count");
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+			OID_AUTO, "lro_bytes",
+                        CTLFLAG_RD, &ha->hw.rds[i].lro_bytes,
+                        "lro_bytes");
+	}
+
+	return;
+}
+
+static void
+qlnx_add_drvr_tx_stats(qla_host_t *ha)
+{
+        struct sysctl_ctx_list  *ctx;
+        struct sysctl_oid_list  *children;
+        struct sysctl_oid_list  *node_children;
+        struct sysctl_oid       *ctx_oid;
+        int                     i;
+        uint8_t                 name_str[16];
+
+        ctx = device_get_sysctl_ctx(ha->pci_dev);
+        children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
+
+        ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats_drvr_xmt",
+                        CTLFLAG_RD, NULL, "stats_drvr_xmt");
+        children = SYSCTL_CHILDREN(ctx_oid);
+
+        for (i = 0; i < ha->hw.num_tx_rings; i++) {
+
+                bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
+                snprintf(name_str, sizeof(name_str), "%d", i);
+
+                ctx_oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, name_str,
+                        CTLFLAG_RD, NULL, name_str);
+                node_children = SYSCTL_CHILDREN(ctx_oid);
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+			OID_AUTO, "count",
+                        CTLFLAG_RD, &ha->tx_ring[i].count,
+                        "count");
+
+#ifdef QL_ENABLE_ISCSI_TLV
+                SYSCTL_ADD_QUAD(ctx, node_children,
+			OID_AUTO, "iscsi_pkt_count",
+                        CTLFLAG_RD, &ha->tx_ring[i].iscsi_pkt_count,
+                        "iscsi_pkt_count");
+#endif /* #ifdef QL_ENABLE_ISCSI_TLV */
+	}
+
+	return;
+}
+
+static void
+qlnx_add_drvr_stats_sysctls(qla_host_t *ha)
+{
+	qlnx_add_drvr_sds_stats(ha);
+	qlnx_add_drvr_rds_stats(ha);
+	qlnx_add_drvr_tx_stats(ha);
+	return;
+}
 
 /*
  * Name: ql_hw_add_sysctls
@@ -318,10 +802,6 @@ ql_hw_add_sysctls(qla_host_t *ha)
         device_t	dev;
 
         dev = ha->pci_dev;
-
-	ha->hw.num_sds_rings = MAX_SDS_RINGS;
-	ha->hw.num_rds_rings = MAX_RDS_RINGS;
-	ha->hw.num_tx_rings = NUM_TX_RINGS;
 
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
 		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -342,18 +822,6 @@ ql_hw_add_sysctls(qla_host_t *ha)
                 SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
                 OID_AUTO, "tx_ring_index", CTLFLAG_RW, &ha->txr_idx,
 		ha->txr_idx, "Tx Ring Used");
-
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		OID_AUTO, "drvr_stats", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)ha, 0,
-		qla_sysctl_get_drvr_stats, "I", "Driver Maintained Statistics");
-
-        SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-                SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-                OID_AUTO, "quick_stats", CTLTYPE_INT | CTLFLAG_RW,
-                (void *)ha, 0,
-                qla_sysctl_get_quick_stats, "I", "Quick Statistics");
 
         SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
                 SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -514,6 +982,10 @@ ql_hw_add_sysctls(qla_host_t *ha)
                 ha->hw.user_pri_iscsi,
                 "VLAN Tag User Priority for iSCSI Packets");
 
+	qlnx_add_hw_stats_sysctls(ha);
+	qlnx_add_drvr_stats_sysctls(ha);
+
+	return;
 }
 
 void
@@ -1475,165 +1947,6 @@ qla_get_cam_search_mode(qla_host_t *ha)
 	return 0;
 }
 
-
-
-static void
-qla_xmt_stats(qla_host_t *ha, q80_xmt_stats_t *xstat, int i)
-{
-	device_t dev = ha->pci_dev;
-
-	if (i < ha->hw.num_tx_rings) {
-		device_printf(dev, "%s[%d]: total_bytes\t\t%" PRIu64 "\n",
-			__func__, i, xstat->total_bytes);
-		device_printf(dev, "%s[%d]: total_pkts\t\t%" PRIu64 "\n",
-			__func__, i, xstat->total_pkts);
-		device_printf(dev, "%s[%d]: errors\t\t%" PRIu64 "\n",
-			__func__, i, xstat->errors);
-		device_printf(dev, "%s[%d]: pkts_dropped\t%" PRIu64 "\n",
-			__func__, i, xstat->pkts_dropped);
-		device_printf(dev, "%s[%d]: switch_pkts\t\t%" PRIu64 "\n",
-			__func__, i, xstat->switch_pkts);
-		device_printf(dev, "%s[%d]: num_buffers\t\t%" PRIu64 "\n",
-			__func__, i, xstat->num_buffers);
-	} else {
-		device_printf(dev, "%s: total_bytes\t\t\t%" PRIu64 "\n",
-			__func__, xstat->total_bytes);
-		device_printf(dev, "%s: total_pkts\t\t\t%" PRIu64 "\n",
-			__func__, xstat->total_pkts);
-		device_printf(dev, "%s: errors\t\t\t%" PRIu64 "\n",
-			__func__, xstat->errors);
-		device_printf(dev, "%s: pkts_dropped\t\t\t%" PRIu64 "\n",
-			__func__, xstat->pkts_dropped);
-		device_printf(dev, "%s: switch_pkts\t\t\t%" PRIu64 "\n",
-			__func__, xstat->switch_pkts);
-		device_printf(dev, "%s: num_buffers\t\t\t%" PRIu64 "\n",
-			__func__, xstat->num_buffers);
-	}
-}
-
-static void
-qla_rcv_stats(qla_host_t *ha, q80_rcv_stats_t *rstat)
-{
-	device_t dev = ha->pci_dev;
-
-	device_printf(dev, "%s: total_bytes\t\t\t%" PRIu64 "\n", __func__,
-		rstat->total_bytes);
-	device_printf(dev, "%s: total_pkts\t\t\t%" PRIu64 "\n", __func__,
-		rstat->total_pkts);
-	device_printf(dev, "%s: lro_pkt_count\t\t%" PRIu64 "\n", __func__,
-		rstat->lro_pkt_count);
-	device_printf(dev, "%s: sw_pkt_count\t\t\t%" PRIu64 "\n", __func__,
-		rstat->sw_pkt_count);
-	device_printf(dev, "%s: ip_chksum_err\t\t%" PRIu64 "\n", __func__,
-		rstat->ip_chksum_err);
-	device_printf(dev, "%s: pkts_wo_acntxts\t\t%" PRIu64 "\n", __func__,
-		rstat->pkts_wo_acntxts);
-	device_printf(dev, "%s: pkts_dropped_no_sds_card\t%" PRIu64 "\n",
-		__func__, rstat->pkts_dropped_no_sds_card);
-	device_printf(dev, "%s: pkts_dropped_no_sds_host\t%" PRIu64 "\n",
-		__func__, rstat->pkts_dropped_no_sds_host);
-	device_printf(dev, "%s: oversized_pkts\t\t%" PRIu64 "\n", __func__,
-		rstat->oversized_pkts);
-	device_printf(dev, "%s: pkts_dropped_no_rds\t\t%" PRIu64 "\n",
-		__func__, rstat->pkts_dropped_no_rds);
-	device_printf(dev, "%s: unxpctd_mcast_pkts\t\t%" PRIu64 "\n",
-		__func__, rstat->unxpctd_mcast_pkts);
-	device_printf(dev, "%s: re1_fbq_error\t\t%" PRIu64 "\n", __func__,
-		rstat->re1_fbq_error);
-	device_printf(dev, "%s: invalid_mac_addr\t\t%" PRIu64 "\n", __func__,
-		rstat->invalid_mac_addr);
-	device_printf(dev, "%s: rds_prime_trys\t\t%" PRIu64 "\n", __func__,
-		rstat->rds_prime_trys);
-	device_printf(dev, "%s: rds_prime_success\t\t%" PRIu64 "\n", __func__,
-		rstat->rds_prime_success);
-	device_printf(dev, "%s: lro_flows_added\t\t%" PRIu64 "\n", __func__,
-		rstat->lro_flows_added);
-	device_printf(dev, "%s: lro_flows_deleted\t\t%" PRIu64 "\n", __func__,
-		rstat->lro_flows_deleted);
-	device_printf(dev, "%s: lro_flows_active\t\t%" PRIu64 "\n", __func__,
-		rstat->lro_flows_active);
-	device_printf(dev, "%s: pkts_droped_unknown\t\t%" PRIu64 "\n",
-		__func__, rstat->pkts_droped_unknown);
-	device_printf(dev, "%s: pkts_cnt_oversized\t\t%" PRIu64 "\n",
-		__func__, rstat->pkts_cnt_oversized);
-}
-
-static void
-qla_mac_stats(qla_host_t *ha, q80_mac_stats_t *mstat)
-{
-	device_t dev = ha->pci_dev;
-
-	device_printf(dev, "%s: xmt_frames\t\t\t%" PRIu64 "\n", __func__,
-		mstat->xmt_frames);
-	device_printf(dev, "%s: xmt_bytes\t\t\t%" PRIu64 "\n", __func__,
-		mstat->xmt_bytes);
-	device_printf(dev, "%s: xmt_mcast_pkts\t\t%" PRIu64 "\n", __func__,
-		mstat->xmt_mcast_pkts);
-	device_printf(dev, "%s: xmt_bcast_pkts\t\t%" PRIu64 "\n", __func__,
-		mstat->xmt_bcast_pkts);
-	device_printf(dev, "%s: xmt_pause_frames\t\t%" PRIu64 "\n", __func__,
-		mstat->xmt_pause_frames);
-	device_printf(dev, "%s: xmt_cntrl_pkts\t\t%" PRIu64 "\n", __func__,
-		mstat->xmt_cntrl_pkts);
-	device_printf(dev, "%s: xmt_pkt_lt_64bytes\t\t%" PRIu64 "\n",
-		__func__, mstat->xmt_pkt_lt_64bytes);
-	device_printf(dev, "%s: xmt_pkt_lt_127bytes\t\t%" PRIu64 "\n",
-		__func__, mstat->xmt_pkt_lt_127bytes);
-	device_printf(dev, "%s: xmt_pkt_lt_255bytes\t\t%" PRIu64 "\n",
-		__func__, mstat->xmt_pkt_lt_255bytes);
-	device_printf(dev, "%s: xmt_pkt_lt_511bytes\t\t%" PRIu64 "\n",
-		__func__, mstat->xmt_pkt_lt_511bytes);
-	device_printf(dev, "%s: xmt_pkt_lt_1023bytes\t\t%" PRIu64 "\n",
-		__func__, mstat->xmt_pkt_lt_1023bytes);
-	device_printf(dev, "%s: xmt_pkt_lt_1518bytes\t\t%" PRIu64 "\n",
-		__func__, mstat->xmt_pkt_lt_1518bytes);
-	device_printf(dev, "%s: xmt_pkt_gt_1518bytes\t\t%" PRIu64 "\n",
-		__func__, mstat->xmt_pkt_gt_1518bytes);
-
-	device_printf(dev, "%s: rcv_frames\t\t\t%" PRIu64 "\n", __func__,
-		mstat->rcv_frames);
-	device_printf(dev, "%s: rcv_bytes\t\t\t%" PRIu64 "\n", __func__,
-		mstat->rcv_bytes);
-	device_printf(dev, "%s: rcv_mcast_pkts\t\t%" PRIu64 "\n", __func__,
-		mstat->rcv_mcast_pkts);
-	device_printf(dev, "%s: rcv_bcast_pkts\t\t%" PRIu64 "\n", __func__,
-		mstat->rcv_bcast_pkts);
-	device_printf(dev, "%s: rcv_pause_frames\t\t%" PRIu64 "\n", __func__,
-		mstat->rcv_pause_frames);
-	device_printf(dev, "%s: rcv_cntrl_pkts\t\t%" PRIu64 "\n", __func__,
-		mstat->rcv_cntrl_pkts);
-	device_printf(dev, "%s: rcv_pkt_lt_64bytes\t\t%" PRIu64 "\n",
-		__func__, mstat->rcv_pkt_lt_64bytes);
-	device_printf(dev, "%s: rcv_pkt_lt_127bytes\t\t%" PRIu64 "\n",
-		__func__, mstat->rcv_pkt_lt_127bytes);
-	device_printf(dev, "%s: rcv_pkt_lt_255bytes\t\t%" PRIu64 "\n",
-		__func__, mstat->rcv_pkt_lt_255bytes);
-	device_printf(dev, "%s: rcv_pkt_lt_511bytes\t\t%" PRIu64 "\n",
-		__func__, mstat->rcv_pkt_lt_511bytes);
-	device_printf(dev, "%s: rcv_pkt_lt_1023bytes\t\t%" PRIu64 "\n",
-		__func__, mstat->rcv_pkt_lt_1023bytes);
-	device_printf(dev, "%s: rcv_pkt_lt_1518bytes\t\t%" PRIu64 "\n",
-		__func__, mstat->rcv_pkt_lt_1518bytes);
-	device_printf(dev, "%s: rcv_pkt_gt_1518bytes\t\t%" PRIu64 "\n",
-		__func__, mstat->rcv_pkt_gt_1518bytes);
-
-	device_printf(dev, "%s: rcv_len_error\t\t%" PRIu64 "\n", __func__,
-		mstat->rcv_len_error);
-	device_printf(dev, "%s: rcv_len_small\t\t%" PRIu64 "\n", __func__,
-		mstat->rcv_len_small);
-	device_printf(dev, "%s: rcv_len_large\t\t%" PRIu64 "\n", __func__,
-		mstat->rcv_len_large);
-	device_printf(dev, "%s: rcv_jabber\t\t\t%" PRIu64 "\n", __func__,
-		mstat->rcv_jabber);
-	device_printf(dev, "%s: rcv_dropped\t\t\t%" PRIu64 "\n", __func__,
-		mstat->rcv_dropped);
-	device_printf(dev, "%s: fcs_error\t\t\t%" PRIu64 "\n", __func__,
-		mstat->fcs_error);
-	device_printf(dev, "%s: align_error\t\t\t%" PRIu64 "\n", __func__,
-		mstat->align_error);
-}
-
-
 static int
 qla_get_hw_stats(qla_host_t *ha, uint32_t cmd, uint32_t rsp_size)
 {
@@ -1679,6 +1992,20 @@ ql_get_stats(qla_host_t *ha)
 	q80_rcv_stats_t		*rstat;
 	uint32_t		cmd;
 	int			i;
+	struct ifnet *ifp = ha->ifp;
+
+	if (ifp == NULL)
+		return;
+
+	if (QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT, 0) != 0) {
+		device_printf(ha->pci_dev, "%s: failed\n", __func__);
+		return;
+	}
+
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		QLA_UNLOCK(ha, __func__);
+		return;
+	}
 
 	stat_rsp = (q80_get_stats_rsp_t *)ha->hw.mbox;
 	/*
@@ -1689,9 +2016,12 @@ ql_get_stats(qla_host_t *ha)
 
 	cmd |= ((ha->pci_func & 0x1) << 16);
 
+	if (ha->qla_watchdog_pause)
+		goto ql_get_stats_exit;
+
 	if (qla_get_hw_stats(ha, cmd, sizeof (q80_get_stats_rsp_t)) == 0) {
 		mstat = (q80_mac_stats_t *)&stat_rsp->u.mac;
-		qla_mac_stats(ha, mstat);
+		bcopy(mstat, &ha->hw.mac, sizeof(q80_mac_stats_t));
 	} else {
                 device_printf(ha->pci_dev, "%s: mac failed [0x%08x]\n",
 			__func__, ha->hw.mbox[0]);
@@ -1703,17 +2033,24 @@ ql_get_stats(qla_host_t *ha)
 //	cmd |= Q8_GET_STATS_CMD_CLEAR;
 	cmd |= (ha->hw.rcv_cntxt_id << 16);
 
+	if (ha->qla_watchdog_pause)
+		goto ql_get_stats_exit;
+
 	if (qla_get_hw_stats(ha, cmd, sizeof (q80_get_stats_rsp_t)) == 0) {
 		rstat = (q80_rcv_stats_t *)&stat_rsp->u.rcv;
-		qla_rcv_stats(ha, rstat);
+		bcopy(rstat, &ha->hw.rcv, sizeof(q80_rcv_stats_t));
 	} else {
                 device_printf(ha->pci_dev, "%s: rcv failed [0x%08x]\n",
 			__func__, ha->hw.mbox[0]);
 	}
+
+	if (ha->qla_watchdog_pause)
+		goto ql_get_stats_exit;
 	/*
 	 * Get XMT Statistics
 	 */
-	for (i = 0 ; i < ha->hw.num_tx_rings; i++) {
+	for (i = 0 ; ((i < ha->hw.num_tx_rings) && (!ha->qla_watchdog_pause));
+		i++) {
 		cmd = Q8_GET_STATS_CMD_XMT | Q8_GET_STATS_CMD_TYPE_CNTXT;
 //		cmd |= Q8_GET_STATS_CMD_CLEAR;
 		cmd |= (ha->hw.tx_cntxt[i].tx_cntxt_id << 16);
@@ -1721,45 +2058,16 @@ ql_get_stats(qla_host_t *ha)
 		if (qla_get_hw_stats(ha, cmd, sizeof(q80_get_stats_rsp_t))
 			== 0) {
 			xstat = (q80_xmt_stats_t *)&stat_rsp->u.xmt;
-			qla_xmt_stats(ha, xstat, i);
+			bcopy(xstat, &ha->hw.xmt[i], sizeof(q80_xmt_stats_t));
 		} else {
 			device_printf(ha->pci_dev, "%s: xmt failed [0x%08x]\n",
 				__func__, ha->hw.mbox[0]);
 		}
 	}
-	return;
-}
 
-static void
-qla_get_quick_stats(qla_host_t *ha)
-{
-	q80_get_mac_rcv_xmt_stats_rsp_t *stat_rsp;
-	q80_mac_stats_t         *mstat;
-	q80_xmt_stats_t         *xstat;
-	q80_rcv_stats_t         *rstat;
-	uint32_t                cmd;
+ql_get_stats_exit:
+	QLA_UNLOCK(ha, __func__);
 
-	stat_rsp = (q80_get_mac_rcv_xmt_stats_rsp_t *)ha->hw.mbox;
-
-	cmd = Q8_GET_STATS_CMD_TYPE_ALL;
-//      cmd |= Q8_GET_STATS_CMD_CLEAR;
-
-//      cmd |= ((ha->pci_func & 0x3) << 16);
-	cmd |= (0xFFFF << 16);
-
-	if (qla_get_hw_stats(ha, cmd,
-			sizeof (q80_get_mac_rcv_xmt_stats_rsp_t)) == 0) {
-
-		mstat = (q80_mac_stats_t *)&stat_rsp->mac;
-		rstat = (q80_rcv_stats_t *)&stat_rsp->rcv;
-		xstat = (q80_xmt_stats_t *)&stat_rsp->xmt;
-		qla_mac_stats(ha, mstat);
-		qla_rcv_stats(ha, rstat);
-		qla_xmt_stats(ha, xstat, ha->hw.num_tx_rings);
-	} else {
-		device_printf(ha->pci_dev, "%s: failed [0x%08x]\n",
-			__func__, ha->hw.mbox[0]);
-	}
 	return;
 }
 
@@ -1909,7 +2217,8 @@ qla_tx_chksum(qla_host_t *ha, struct mbuf *mp, uint32_t *op_code,
 
 	*op_code = 0;
 
-	if ((mp->m_pkthdr.csum_flags & (CSUM_TCP|CSUM_UDP)) == 0)
+	if ((mp->m_pkthdr.csum_flags &
+		(CSUM_TCP|CSUM_UDP|CSUM_TCP_IPV6 | CSUM_UDP_IPV6)) == 0)
 		return (-1);
 
 	eh = mtod(mp, struct ether_vlan_header *);
@@ -2054,9 +2363,6 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 	} else {
 		(void)qla_tx_chksum(ha, mp, &op_code, &tcp_hdr_off);
 	}
-
-	if (iscsi_pdu)
-		ha->hw.iscsi_pkt_count++;
 
 	if (hw->tx_cntxt[txr_idx].txr_free <= (num_tx_cmds + QLA_TX_MIN_FREE)) {
 		ql_hw_tx_done_locked(ha, txr_idx);
@@ -2468,7 +2774,6 @@ ql_init_hw_if(qla_host_t *ha)
 		QL_UPDATE_RDS_PRODUCER_INDEX(ha, rdesc->prod_std,\
 			rdesc->rx_next);
 	}
-
 
 	/*
 	 * Create Transmit Context
@@ -3334,31 +3639,6 @@ ql_update_link_state(qla_host_t *ha)
 	return;
 }
 
-void
-ql_hw_stop_rcv(qla_host_t *ha)
-{
-	int i, done, count = 100;
-
-	ha->flags.stop_rcv = 1;
-
-	while (count) {
-		done = 1;
-		for (i = 0; i < ha->hw.num_sds_rings; i++) {
-			if (ha->hw.sds[i].rcv_active)
-				done = 0;
-		}
-		if (done)
-			break;
-		else 
-			qla_mdelay(__func__, 10);
-		count--;
-	}
-	if (!count)
-		device_printf(ha->pci_dev, "%s: Counter expired.\n", __func__);
-
-	return;
-}
-
 int
 ql_hw_check_health(qla_host_t *ha)
 {
@@ -3391,12 +3671,15 @@ ql_hw_check_health(qla_host_t *ha)
 
 	ha->hw.hbeat_failure++;
 
+	
+	if ((ha->dbg_level & 0x8000) && (ha->hw.hbeat_failure == 1))
+		device_printf(ha->pci_dev, "%s: Heartbeat Failue 1[0x%08x]\n",
+			__func__, val);
 	if (ha->hw.hbeat_failure < 2) /* we ignore the first failure */
 		return 0;
-	else
+	else 
 		device_printf(ha->pci_dev, "%s: Heartbeat Failue [0x%08x]\n",
 			__func__, val);
-
 
 	return -1;
 }
