@@ -14059,7 +14059,7 @@ softdep_count_dependencies(bp, wantcount)
 	}
 out:
 	FREE_LOCK(ump);
-	return retval;
+	return (retval);
 }
 
 /*
