@@ -32,6 +32,7 @@ SRCF+=		divdi3
 SRCF+=		divmoddi4
 SRCF+=		divmodsi4
 SRCF+=		divsc3
+SRCF+=		divsi3
 SRCF+=		divtc3
 SRCF+=		divti3
 SRCF+=		divxc3
@@ -78,6 +79,7 @@ SRCF+=		int_util
 SRCF+=		lshrdi3
 SRCF+=		lshrti3
 SRCF+=		moddi3
+SRCF+=		modsi3
 SRCF+=		modti3
 SRCF+=		muldc3
 SRCF+=		muldi3
@@ -120,8 +122,10 @@ SRCF+=		udivdi3
 SRCF+=		udivmoddi4
 SRCF+=		udivmodsi4
 SRCF+=		udivmodti4
+SRCF+=		udivsi3
 SRCF+=		udivti3
 SRCF+=		umoddi3
+SRCF+=		umodsi3
 SRCF+=		umodti3
 
 # __cpu_model support, only used on x86
@@ -174,13 +178,6 @@ SRCF+=		truncdfsf2
 .if ${MACHINE_CPUARCH} != "arm"
 SRCF+=		comparedf2
 SRCF+=		comparesf2
-.endif
-
-.if ${MACHINE_CPUARCH} != "mips"
-SRCF+=		divsi3
-SRCF+=		modsi3
-SRCF+=		udivsi3
-SRCF+=		umodsi3
 .endif
 
 # FreeBSD-specific atomic intrinsics.
