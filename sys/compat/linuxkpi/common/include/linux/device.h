@@ -113,6 +113,9 @@ struct device {
 	unsigned int	msix;
 	unsigned int	msix_max;
 	const struct attribute_group **groups;
+
+	spinlock_t	devres_lock;
+	struct list_head devres_head;
 };
 
 extern struct device linux_root_device;
@@ -290,6 +293,9 @@ device_initialize(struct device *dev)
 	dev->bsddev = bsddev;
 	MPASS(dev->bsddev != NULL);
 	kobject_init(&dev->kobj, &linux_dev_ktype);
+
+	spin_lock_init(&dev->devres_lock);
+	INIT_LIST_HEAD(&dev->devres_head);
 }
 
 static inline int

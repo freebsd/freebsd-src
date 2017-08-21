@@ -8,4 +8,6 @@ LIBADD+=	nv
 
 WARNS?=		3
 
+TEST_METADATA.sysctl_test+=	required_user="root"
+
 .include <bsd.test.mk>

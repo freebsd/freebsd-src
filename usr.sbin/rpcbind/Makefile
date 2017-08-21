@@ -23,6 +23,7 @@ CFLAGS+= -DLIBWRAP
 LIBADD+= wrap
 .endif
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 WARNS?=	1

@@ -374,7 +374,7 @@ gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 	switch (which) {
 	case GICV3_IVAR_NIRQS:
-		*result = sc->gic_nirqs;
+		*result = (NIRQ - sc->gic_nirqs) / sc->gic_nchildren;
 		return (0);
 	case GICV3_IVAR_REDIST_VADDR:
 		*result = (uintptr_t)rman_get_virtual(

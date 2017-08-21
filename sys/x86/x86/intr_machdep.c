@@ -45,10 +45,14 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
+#include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
+#include <sys/taskqueue.h>
 #include <sys/vmmeter.h>
 #include <machine/clock.h>
 #include <machine/intr_machdep.h>
@@ -71,6 +75,14 @@ typedef void (*mask_fn)(void *);
 
 static int intrcnt_index;
 static struct intsrc *interrupt_sources[NUM_IO_INTS];
+#ifdef SMP
+static struct intsrc *interrupt_sorted[NUM_IO_INTS];
+CTASSERT(sizeof(interrupt_sources) == sizeof(interrupt_sorted));
+static int intrbalance;
+SYSCTL_INT(_hw, OID_AUTO, intrbalance, CTLFLAG_RW, &intrbalance, 0,
+    "Interrupt auto-balance interval (seconds).  Zero disables.");
+static struct timeout_task intrbalance_task;
+#endif
 static struct sx intrsrc_lock;
 static struct mtx intrpic_lock;
 static struct mtx intrcnt_lock;
@@ -325,6 +337,8 @@ intr_assign_cpu(void *arg, int cpu)
 		isrc = arg;
 		sx_xlock(&intrsrc_lock);
 		error = isrc->is_pic->pic_assign_cpu(isrc, cpu_apic_ids[cpu]);
+		if (error == 0)
+			isrc->is_cpu = cpu;
 		sx_xunlock(&intrsrc_lock);
 	} else
 		error = 0;
@@ -559,6 +573,7 @@ static void
 intr_shuffle_irqs(void *arg __unused)
 {
 	struct intsrc *isrc;
+	u_int cpu;
 	int i;
 
 	/* Don't bother on UP. */
@@ -578,13 +593,15 @@ intr_shuffle_irqs(void *arg __unused)
 			 * this is careful to only advance the
 			 * round-robin if the CPU assignment succeeds.
 			 */
-			if (isrc->is_event->ie_cpu != NOCPU)
-				(void)isrc->is_pic->pic_assign_cpu(isrc,
-				    cpu_apic_ids[isrc->is_event->ie_cpu]);
-			else if (isrc->is_pic->pic_assign_cpu(isrc,
-				cpu_apic_ids[current_cpu]) == 0)
-				(void)intr_next_cpu();
-
+			cpu = isrc->is_event->ie_cpu;
+			if (cpu == NOCPU)
+				cpu = current_cpu;
+			if (isrc->is_pic->pic_assign_cpu(isrc,
+			    cpu_apic_ids[cpu]) == 0) {
+				isrc->is_cpu = cpu;
+				if (isrc->is_event->ie_cpu == NOCPU)
+					intr_next_cpu();
+			}
 		}
 	}
 	sx_xunlock(&intrsrc_lock);
@@ -592,6 +609,123 @@ intr_shuffle_irqs(void *arg __unused)
 SYSINIT(intr_shuffle_irqs, SI_SUB_SMP, SI_ORDER_SECOND, intr_shuffle_irqs,
     NULL);
 #endif
+
+/*
+ * TODO: Export this information in a non-MD fashion, integrate with vmstat -i.
+ */
+static int
+sysctl_hw_intrs(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sbuf;
+	struct intsrc *isrc;
+	int error;
+	int i;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+	sx_slock(&intrsrc_lock);
+	for (i = 0; i < NUM_IO_INTS; i++) {
+		isrc = interrupt_sources[i];
+		if (isrc == NULL)
+			continue;
+		sbuf_printf(&sbuf, "%s:%d @%d: %ld\n",
+		    isrc->is_event->ie_fullname,
+		    isrc->is_index,
+		    isrc->is_cpu,
+		    *isrc->is_count);
+	}
+
+	sx_sunlock(&intrsrc_lock);
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+	return (error);
+}
+SYSCTL_PROC(_hw, OID_AUTO, intrs, CTLTYPE_STRING | CTLFLAG_RW,
+    0, 0, sysctl_hw_intrs, "A", "interrupt:number @cpu: count");
+
+/*
+ * Compare two, possibly NULL, entries in the interrupt source array
+ * by load.
+ */
+static int
+intrcmp(const void *one, const void *two)
+{
+	const struct intsrc *i1, *i2;
+
+	i1 = *(const struct intsrc * const *)one;
+	i2 = *(const struct intsrc * const *)two;
+	if (i1 != NULL && i2 != NULL)
+		return (*i1->is_count - *i2->is_count);
+	if (i1 != NULL)
+		return (1);
+	if (i2 != NULL)
+		return (-1);
+	return (0);
+}
+
+/*
+ * Balance IRQs across available CPUs according to load.
+ */
+static void
+intr_balance(void *dummy __unused, int pending __unused)
+{
+	struct intsrc *isrc;
+	int interval;
+	u_int cpu;
+	int i;
+
+	interval = intrbalance;
+	if (interval == 0)
+		goto out;
+
+	/*
+	 * Sort interrupts according to count.
+	 */
+	sx_xlock(&intrsrc_lock);
+	memcpy(interrupt_sorted, interrupt_sources, sizeof(interrupt_sorted));
+	qsort(interrupt_sorted, NUM_IO_INTS, sizeof(interrupt_sorted[0]),
+	    intrcmp);
+
+	/*
+	 * Restart the scan from the same location to avoid moving in the
+	 * common case.
+	 */
+	current_cpu = 0;
+
+	/*
+	 * Assign round-robin from most loaded to least.
+	 */
+	for (i = NUM_IO_INTS - 1; i >= 0; i--) {
+		isrc = interrupt_sorted[i];
+		if (isrc == NULL  || isrc->is_event->ie_cpu != NOCPU)
+			continue;
+		cpu = current_cpu;
+		intr_next_cpu();
+		if (isrc->is_cpu != cpu &&
+		    isrc->is_pic->pic_assign_cpu(isrc,
+		    cpu_apic_ids[cpu]) == 0)
+			isrc->is_cpu = cpu;
+	}
+	sx_xunlock(&intrsrc_lock);
+out:
+	taskqueue_enqueue_timeout(taskqueue_thread, &intrbalance_task,
+	    interval ? hz * interval : hz * 60);
+
+}
+
+static void
+intr_balance_init(void *dummy __unused)
+{
+
+	TIMEOUT_TASK_INIT(taskqueue_thread, &intrbalance_task, 0, intr_balance,
+	    NULL);
+	taskqueue_enqueue_timeout(taskqueue_thread, &intrbalance_task, hz);
+}
+SYSINIT(intr_balance_init, SI_SUB_SMP, SI_ORDER_ANY, intr_balance_init, NULL);
+
 #else
 /*
  * Always route interrupts to the current processor in the UP case.

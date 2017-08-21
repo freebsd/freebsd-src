@@ -50,9 +50,10 @@ struct qlnx_ivec {
 
 typedef struct qlnx_ivec qlnx_ivec_t;
 
-//#define QLNX_MAX_RSS	30
-#define QLNX_MAX_RSS	16
-#define QLNX_MAX_TC	1
+//#define QLNX_MAX_RSS		30
+#define QLNX_MAX_RSS		36
+#define QLNX_DEFAULT_RSS	16
+#define QLNX_MAX_TC		1
 
 enum QLNX_STATE {
         QLNX_STATE_CLOSED,
@@ -201,6 +202,17 @@ struct qlnx_fastpath {
 	uint64_t		tx_pkts_freed;
 	uint64_t		tx_pkts_transmitted;
 	uint64_t		tx_pkts_completed;
+	uint64_t		tx_tso_pkts;
+	uint64_t		tx_non_tso_pkts;
+
+#ifdef QLNX_TRACE_PERF_DATA
+	uint64_t		tx_pkts_trans_ctx;
+	uint64_t		tx_pkts_compl_ctx;
+	uint64_t		tx_pkts_trans_fp;
+	uint64_t		tx_pkts_compl_fp;
+	uint64_t		tx_pkts_compl_intr;
+#endif
+
 	uint64_t		tx_lso_wnd_min_len;
 	uint64_t		tx_defrag;
 	uint64_t		tx_nsegs_gt_elem_left;
@@ -209,6 +221,13 @@ struct qlnx_fastpath {
 	uint32_t		tx_tso_max_pkt_len;
 	uint32_t		tx_tso_min_pkt_len;
 	uint64_t		tx_pkts[QLNX_FP_MAX_SEGS];
+
+#ifdef QLNX_TRACE_PERF_DATA
+	uint64_t		tx_pkts_hist[QLNX_FP_MAX_SEGS];
+	uint64_t		tx_comInt[QLNX_FP_MAX_SEGS];
+	uint64_t		tx_pkts_q[QLNX_FP_MAX_SEGS];
+#endif
+
 	uint64_t		err_tx_nsegs_gt_elem_left;
         uint64_t                err_tx_dmamap_create;
         uint64_t                err_tx_defrag_dmamap_load;
@@ -301,7 +320,12 @@ typedef struct qlnx_link_output qlnx_link_output_t;
 #define QLNX_MFW_VERSION_LENGTH 32
 #define QLNX_STORMFW_VERSION_LENGTH 32
 
-#define QLNX_TX_ELEM_RESERVE	2
+#define QLNX_TX_ELEM_RESERVE		2
+#define QLNX_TX_ELEM_THRESH		128
+#define QLNX_TX_ELEM_MAX_THRESH		512
+#define QLNX_TX_ELEM_MIN_THRESH		32
+#define QLNX_TX_COMPL_THRESH		32
+
 
 #define QLNX_TPA_MAX_AGG_BUFFERS             (20)
 
@@ -454,6 +478,7 @@ struct qlnx_host {
 	qlnx_storm_stats_t	storm_stats[QLNX_STORM_STATS_TOTAL];
 	uint32_t		storm_stats_index;
 	uint32_t		storm_stats_enable;
+	uint32_t		storm_stats_gather;
 
 	uint32_t		personality;
 };
@@ -470,7 +495,10 @@ typedef struct qlnx_host qlnx_host_t;
 
 #define QLNX_MAX_MTU			9000
 #define QLNX_MAX_SEGMENTS_NON_TSO	(ETH_TX_MAX_BDS_PER_NON_LSO_PACKET - 1)
-#define QLNX_MAX_TSO_FRAME_SIZE		((64 * 1024 - 1) + 22)
+//#define QLNX_MAX_TSO_FRAME_SIZE		((64 * 1024 - 1) + 22)
+#define QLNX_MAX_TSO_FRAME_SIZE		65536
+#define QLNX_MAX_TX_MBUF_SIZE		65536    /* bytes - bd_len = 16bits */
+
 
 #define QL_MAC_CMP(mac1, mac2)    \
         ((((*(uint32_t *) mac1) == (*(uint32_t *) mac2) && \
@@ -702,6 +730,18 @@ extern void qlnx_fill_link(struct ecore_hwfn *hwfn,
 #define CQE_HAS_VLAN(flags) \
         ((flags) & (PARSING_AND_ERR_FLAGS_TAG8021QEXIST_MASK \
                 << PARSING_AND_ERR_FLAGS_TAG8021QEXIST_SHIFT))
+
+#if defined(__i386__) || defined(__amd64__)
+
+static __inline
+void prefetch(void *x)
+{
+        __asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
+}
+
+#else
+#define prefetch(x)
+#endif
 
 
 #endif /* #ifndef _QLNX_DEF_H_ */

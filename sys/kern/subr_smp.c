@@ -823,7 +823,7 @@ smp_no_rendezvous_barrier(void *dummy)
 }
 
 /*
- * Wait specified idle threads to switch once.  This ensures that even
+ * Wait for specified idle threads to switch once.  This ensures that even
  * preempted threads have cycled through the switch function once,
  * exiting their codepaths.  This allows us to change global pointers
  * with no other synchronization.

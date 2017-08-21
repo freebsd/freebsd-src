@@ -58,7 +58,7 @@
 #define	KERNELDUMP_ENC_NONE		0
 #define	KERNELDUMP_ENC_AES_256_CBC	1
 
-#define	KERNELDUMP_BUFFER_SIZE		1024
+#define	KERNELDUMP_BUFFER_SIZE		4096
 #define	KERNELDUMP_IV_MAX_SIZE		32
 #define	KERNELDUMP_KEY_MAX_SIZE		64
 #define	KERNELDUMP_ENCKEY_MAX_SIZE	(16384 / 8)
@@ -124,12 +124,6 @@ struct dump_pa {
 	vm_paddr_t pa_start;
 	vm_paddr_t pa_size;
 };
-
-int kerneldumpcrypto_init(struct kerneldumpcrypto *kdc);
-uint32_t kerneldumpcrypto_dumpkeysize(const struct kerneldumpcrypto *kdc);
-
-void mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
-    uint64_t dumplen, uint32_t dumpkeysize, uint32_t blksz);
 
 int dumpsys_generic(struct dumperinfo *);
 

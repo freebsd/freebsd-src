@@ -313,7 +313,7 @@ typedef struct scr_stat {
 	int		cursor_pos;		/* cursor buffer position */
 	int		cursor_oldpos;		/* cursor old buffer position */
 	struct cursor_attr dflt_curs_attr;
-	struct cursor_attr curr_curs_attr;
+	struct cursor_attr base_curs_attr;
 	struct cursor_attr curs_attr;
 
 	int		mouse_pos;		/* mouse buffer position */
@@ -516,8 +516,6 @@ typedef struct sc_renderer {
 		       SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
 typedef struct {
-	int		cursor_start;
-	int		cursor_end;
 	int		shift_state;
 	int		bell_pitch;
 } bios_values_t;

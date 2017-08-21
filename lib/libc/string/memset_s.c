@@ -42,22 +42,25 @@ memset_s(void *s, rsize_t smax, int c, rsize_t n)
 	volatile unsigned char *dst;
 
 	ret = EINVAL;
-	lim = smax;
+	lim = n < smax ? n : smax;
 	v = (unsigned char)c;
 	dst = (unsigned char *)s;
 	if (s == NULL) {
 		__throw_constraint_handler_s("memset_s : s is NULL", ret);
 	} else if (smax > RSIZE_MAX) {
 		__throw_constraint_handler_s("memset_s : smax > RSIZE_MAX",
-		     ret);
+		    ret);
 	} else if (n > RSIZE_MAX) {
 		__throw_constraint_handler_s("memset_s : n > RSIZE_MAX", ret);
 	} else {
-		if (n < smax)
-			lim = n;
 		while (lim > 0)
 			dst[--lim] = v;
-		ret = 0;
+		if (n > smax) {
+			__throw_constraint_handler_s("memset_s : n > smax",
+			    ret);
+		} else {
+			ret = 0;
+		}
 	}
 	return (ret);
 }

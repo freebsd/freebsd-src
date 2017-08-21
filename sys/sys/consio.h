@@ -103,11 +103,15 @@ typedef struct ssaver	ssaver_t;
 #define CONS_SSAVER	_IOW('c', 5, ssaver_t)
 #define CONS_GSAVER	_IOWR('c', 6, ssaver_t)
 
-/* set the text cursor type (obsolete, see CONS_CURSORSHAPE below) */
 /*
-#define CONS_BLINK_CURSOR (1 << 0)
-#define CONS_CHAR_CURSOR (1 << 1)
-*/
+ * Set the text cursor type.
+ *
+ * This is an old interface extended to support the CONS_HIDDEN_CURSOR bit.
+ * New code should use CONS_CURSORSHAPE.  CONS_CURSOR_ATTRS gives the 3
+ * bits supported by the (extended) old interface.  The old interface is
+ * especially unusable for hiding the cursor (even with its extension)
+ * since it changes the cursor on all vtys.
+ */
 #define CONS_CURSORTYPE	_IOW('c', 7, int)
 
 /* set the bell type to audible or visual */
@@ -183,9 +187,10 @@ typedef struct mouse_info mouse_info_t;
 #define CONS_HIDDEN_CURSOR	(1 << 2)
 #define CONS_CURSOR_ATTRS	(CONS_BLINK_CURSOR | CONS_CHAR_CURSOR |	\
 				 CONS_HIDDEN_CURSOR)
+#define CONS_DEFAULT_CURSOR	(1 << 28)
+#define CONS_SHAPEONLY_CURSOR	(1 << 29)
 #define CONS_RESET_CURSOR	(1 << 30)
 #define CONS_LOCAL_CURSOR	(1U << 31)
-#define CONS_CURSOR_FLAGS	(CONS_RESET_CURSOR | CONS_LOCAL_CURSOR)
 struct cshape {
 	/* shape[0]: flags, shape[1]: base, shape[2]: height */
 	int		shape[3];

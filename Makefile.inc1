@@ -346,6 +346,12 @@ SVN=   ${_P}/${_S}
 . endfor
 .endif
 SVNFLAGS?=	-r HEAD
+.if !defined(VCS_REVISION) && empty(VCS_REVISION)
+_VCS_REVISION?=	$$(eval ${SVNVERSION_CMD} ${SRCDIR})
+. if !empty(_VCS_REVISION)
+VCS_REVISION=	$$(echo r${_VCS_REVISION})
+. endif
+.endif
 
 .if !defined(OSRELDATE)
 .if exists(/usr/include/osreldate.h)
@@ -1493,20 +1499,24 @@ packagekernel: .PHONY
 	    @${DESTDIR}/${DISTDIR}/kernel.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
 .endif
+.if ${MK_DEBUG_FILES} != "no"
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - --include '*/*/*.debug' \
 	    @${DESTDIR}/${DISTDIR}/kernel.meta | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
+.endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - --exclude '*.debug' \
 	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.${_kernel}.txz
+.if ${MK_DEBUG_FILES} != "no"
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - --include '*/*/*.debug' \
 	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz
+.endif
 .endfor
 .endif
 .else
@@ -1515,17 +1525,21 @@ packagekernel: .PHONY
 	    tar cvf - --exclude '*.debug' . | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
 .endif
+.if ${MK_DEBUG_FILES} != "no"
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - --include '*/*/*.debug' $$(eval find .) | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
+.endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - --exclude '*.debug' . | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.${_kernel}.txz
+.if ${MK_DEBUG_FILES} != "no"
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - --include '*/*/*.debug' $$(eval find .) | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz
+.endif
 .endfor
 .endif
 .endif
@@ -1618,9 +1632,9 @@ create-world-package-${pkgname}: .PHONY
 	@awk -F\" ' \
 		/^name/ { printf("===> Creating %s-", $$2); next } \
 		/^version/ { print $$2; next } \
-		' ${WSTAGEDIR}/${pkgname}.ucl ;
+		' ${WSTAGEDIR}/${pkgname}.ucl
 	@if [ "${pkgname}" == "runtime" ]; then \
-		sed -i '' -e "s/%KERNCONF%/${INSTALLKERNEL:tl}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
+		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
 	fi
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${WSTAGEDIR}/${pkgname}.ucl \
@@ -1632,7 +1646,10 @@ create-world-package-${pkgname}: .PHONY
 create-kernel-packages:	.PHONY
 _default_flavor=	-default
 .if exists(${KSTAGEDIR}/kernel.meta)
-. for flavor in "" -debug
+. if ${MK_DEBUG_FILES} != "no"
+_debug=-debug
+. endif
+. for flavor in "" ${_debug}
 create-kernel-packages: create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}
 create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap .PHONY
 	@cd ${KSTAGEDIR}/${DISTDIR} ; \
@@ -1647,6 +1664,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		-e "s/%DESC%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
 		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
 		-e "s/%PWD_MKDB_ENDIAN%/$${pwd_arg}/g" \
+		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
 		${SRCDIR}/release/packages/kernel.ucl \
 		> ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
 	awk -F\" ' \
@@ -1663,7 +1681,10 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 . for _kernel in ${BUILDKERNELS:[2..-1]}
 .  if exists(${KSTAGEDIR}/kernel.${_kernel}.meta)
-.   for flavor in "" -debug
+.   if ${MK_DEBUG_FILES} != "no"
+_debug=-debug
+.   endif
+.   for flavor in "" ${_debug}
 create-kernel-packages: create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kernel}
 create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kernel}: _pkgbootstrap .PHONY
 	@cd ${KSTAGEDIR}/kernel.${_kernel} ; \
@@ -1678,6 +1699,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		-e "s/%DESC%/FreeBSD ${_kernel} kernel ${flavor}/" \
 		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
 		-e "s/%PWD_MKDB_ENDIAN%/$${pwd_arg}/g" \
+		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
 		${SRCDIR}/release/packages/kernel.ucl \
 		> ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
 	awk -F\" ' \

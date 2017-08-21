@@ -346,6 +346,8 @@ SUBDIR=	\
 	${_sf} \
 	${_sfxge} \
 	sge \
+	${_sgx} \
+	${_sgx_linux} \
 	siba_bwn \
 	siftr \
 	siis \
@@ -566,7 +568,9 @@ _an=		an
 _aout=		aout
 _bios=		bios
 _bktr=		bktr
+.if ${MK_SOURCELESS_UCODE} != "no"
 _bxe=		bxe
+.endif
 _cardbus=	cardbus
 _cbb=		cbb
 _cpuctl=	cpuctl
@@ -706,9 +710,13 @@ _ntb=		ntb
 _pms=		pms
 _qlxge=		qlxge
 _qlxgb=		qlxgb
+.if ${MK_SOURCELESS_UCODE} != "no"
 _qlxgbe=	qlxgbe
+.endif
 _qlnx=		qlnx
 _sfxge=		sfxge
+_sgx=		sgx
+_sgx_linux=	sgx_linux
 
 .if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm
