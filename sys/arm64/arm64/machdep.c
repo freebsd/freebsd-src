@@ -213,7 +213,8 @@ fill_fpregs(struct thread *td, struct fpreg *regs)
 		 * If we have just been running VFP instructions we will
 		 * need to save the state to memcpy it below.
 		 */
-		vfp_save_state(td, pcb);
+		if (td == curthread)
+			vfp_save_state(td, pcb);
 
 		memcpy(regs->fp_q, pcb->pcb_vfp, sizeof(regs->fp_q));
 		regs->fp_cr = pcb->pcb_fpcr;
