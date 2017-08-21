@@ -190,7 +190,7 @@ cheri_capability_set_user_stc(void * __capability *cp)
 
 	/*
 	 * For now, initialise stack as ambient with identical rights as $ddc.
-	 * In the future, we will likely want to change this to be local
+	 * In the future, we will may want to change this to be local
 	 * (non-global).
 	 */
 	cheri_capability_set_user_ddc(cp);
@@ -238,8 +238,8 @@ cheri_capability_set_user_sigcode(void * __capability *cp, struct sysentvec *se)
 		base = se->sv_sigcode_base;
 	} else {
 		/*
-		 * XXX: true for mips64 and mip64-cheriabi without
-		 * shared page support...
+		 * XXX: true for mips64 and mip64-cheriabi without shared-page
+		 * support...
 		 */
 		base = (uintptr_t)se->sv_psstrings - szsigcode;
 		base = rounddown2(base, sizeof(struct chericap));
@@ -277,7 +277,7 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	    __func__));
 
 	/*
-	 * XXXRW: Experimental CHERI ABI initialises $ddc with full user
+	 * XXXRW: Experimental CheriABI initialises $ddc with full user
 	 * privilege, and all other user-accessible capability registers with
 	 * no rights at all.  The runtime linker/compiler/application can
 	 * propagate around rights as required.

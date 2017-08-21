@@ -108,7 +108,8 @@ cheri_exccode_string(uint8_t exccode)
 }
 
 static inline void
-cheri_copy_and_validate(void * __capability *dst, void * __capability *src, register_t *capvalid, int which)
+cheri_copy_and_validate(void * __capability *dst, void * __capability *src,
+    register_t *capvalid, int which)
 {
 
 	*capvalid |= cheri_gettag(*src) << which;

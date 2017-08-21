@@ -802,11 +802,12 @@ cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param)
 	    MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_COP_2_BIT;
 
 	/*
-	 * We don't perform valiation on the new pcc or stack capabilities
+	 * We don't perform validation on the new pcc or stack capabilities
 	 * and just let the caller fail on return if they are bogus.
 	 */
 	frame->stc = param->stack_base;
 	td->td_frame->sp = param->stack_size;
+
 	/*
 	 * XXX-BD: cpu_set_upcall() copies the cheri_signal struct.  Do we
 	 * want to point it at our stack instead?
