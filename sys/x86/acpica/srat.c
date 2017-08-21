@@ -443,7 +443,12 @@ parse_srat(void)
 	    ("Not enough memory for SRAT table items"));
 	phys_avail[idx + 1] = addr - 1;
 
-	cpus = (struct cpu_info *)PHYS_TO_DMAP(addr);
+	/*
+	 * We cannot rely on PHYS_TO_DMAP because this code is also used in
+	 * i386, so use pmap_mapbios to map the memory, this will end up using
+	 * the default memory attribute (WB), and the DMAP when available.
+	 */
+	cpus = (struct cpu_info *)pmap_mapbios(addr, size);
 
 	/*
 	 * Make a pass over the table to populate the cpus[] and
@@ -529,6 +534,10 @@ srat_set_cpus(void *dummy)
 			printf("SRAT: CPU %u has memory domain %d\n", i,
 			    cpu->domain);
 	}
+
+	/* Last usage of the cpus array, unmap it. */
+	pmap_unmapbios((vm_offset_t)cpus, sizeof(*cpus) * (max_apic_id + 1));
+	cpus = NULL;
 }
 SYSINIT(srat_set_cpus, SI_SUB_CPU, SI_ORDER_ANY, srat_set_cpus, NULL);
 

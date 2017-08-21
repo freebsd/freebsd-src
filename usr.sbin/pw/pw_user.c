@@ -1087,10 +1087,10 @@ split_groups(StringList **groups, char *groupsstr)
 	char *p;
 	char tok[] = ", \t";
 
+	if (*groups == NULL)
+		*groups = sl_init();
 	for (p = strtok(groupsstr, tok); p != NULL; p = strtok(NULL, tok)) {
 		grp = group_from_name_or_id(p);
-		if (*groups == NULL)
-			*groups = sl_init();
 		sl_add(*groups, newstr(grp->gr_name));
 	}
 }
@@ -1202,7 +1202,7 @@ pw_user_add(int argc, char **argv, char *arg1)
 		if (arg1[strspn(arg1, "0123456789")] == '\0')
 			id = pw_checkid(arg1, UID_MAX);
 		else
-			name = arg1;
+			name = pw_checkname(arg1, 0);
 	}
 
 	while ((ch = getopt(argc, argv, args)) != -1) {
@@ -1214,7 +1214,7 @@ pw_user_add(int argc, char **argv, char *arg1)
 			quiet = true;
 			break;
 		case 'n':
-			name = optarg;
+			name = pw_checkname(optarg, 0);
 			break;
 		case 'u':
 			userid = optarg;

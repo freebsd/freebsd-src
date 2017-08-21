@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Microsoft Corp.
+ * Copyright (c) 2016-2017 Microsoft Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,6 +63,7 @@ struct hn_rx_ring {
 	struct hn_tx_ring *hn_txr;
 	void		*hn_pktbuf;
 	int		hn_pktbuf_len;
+	int		hn_rx_flags;	/* HN_RX_FLAG_ */
 	uint8_t		*hn_rxbuf;	/* shadow sc->hn_rxbuf */
 	int		hn_rx_idx;
 
@@ -82,7 +83,6 @@ struct hn_rx_ring {
 
 	/* Rarely used stuffs */
 	struct sysctl_oid *hn_rx_sysctl_tree;
-	int		hn_rx_flags;
 
 	void		*hn_br;		/* TX/RX bufring */
 	struct hyperv_dma hn_br_dma;
@@ -96,6 +96,7 @@ struct hn_rx_ring {
 
 #define HN_RX_FLAG_ATTACHED	0x0001
 #define HN_RX_FLAG_BR_REF	0x0002
+#define HN_RX_FLAG_XPNT_VF	0x0004
 
 struct hn_tx_ring {
 #ifndef HN_USE_TXDESC_BUFRING

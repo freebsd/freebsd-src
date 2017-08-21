@@ -1031,14 +1031,14 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 	if (flags & INTR_SOLO) {
 		error = iscr_setup_filter(isrc, name, (intr_irq_filter_t *)filt,
 		    arg, cookiep);
-		debugf("irq %u setup filter error %d on %s\n", irq, error,
+		debugf("irq %u setup filter error %d on %s\n", isrc->isrc_irq, error,
 		    name);
 	} else
 #endif
 		{
 		error = isrc_add_handler(isrc, name, filt, hand, arg, flags,
 		    cookiep);
-		debugf("irq %u add handler error %d on %s\n", irq, error, name);
+		debugf("irq %u add handler error %d on %s\n", isrc->isrc_irq, error, name);
 	}
 	if (error != 0)
 		return (error);
@@ -1169,9 +1169,17 @@ intr_bind_irq(device_t dev, struct resource *res, int cpu)
 u_int
 intr_irq_next_cpu(u_int last_cpu, cpuset_t *cpumask)
 {
+	u_int cpu;
 
-	if (!irq_assign_cpu || mp_ncpus == 1)
-		return (PCPU_GET(cpuid));
+	KASSERT(!CPU_EMPTY(cpumask), ("%s: Empty CPU mask", __func__));
+	if (!irq_assign_cpu || mp_ncpus == 1) {
+		cpu = PCPU_GET(cpuid);
+
+		if (CPU_ISSET(cpu, cpumask))
+			return (curcpu);
+
+		return (CPU_FFS(cpumask) - 1);
+	}
 
 	do {
 		last_cpu++;

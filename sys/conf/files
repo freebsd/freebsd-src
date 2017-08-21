@@ -1399,7 +1399,7 @@ t4fw.fw			optional cxgbe					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
 t5fw_cfg.c		optional cxgbe					\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk t5fw_cfg.fw:t5fw_cfg t5fw_cfg_uwire.fw:t5fw_cfg_uwire t4fw.fw:t4fw -mt5fw_cfg -c${.TARGET}" \
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk t5fw_cfg.fw:t5fw_cfg t5fw_cfg_uwire.fw:t5fw_cfg_uwire t5fw.fw:t5fw -mt5fw_cfg -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
 	clean		"t5fw_cfg.c"
 t5fw_cfg.fwo		optional cxgbe					\
@@ -1752,8 +1752,7 @@ dev/ida/ida_disk.c		optional ida
 dev/ida/ida_pci.c		optional ida pci
 dev/iicbus/ad7418.c		optional ad7418
 dev/iicbus/ds1307.c		optional ds1307
-dev/iicbus/ds133x.c		optional ds133x
-dev/iicbus/ds1374.c		optional ds1374
+dev/iicbus/ds13rtc.c		optional ds13rtc | ds133x | ds1374
 dev/iicbus/ds1672.c		optional ds1672
 dev/iicbus/ds3231.c		optional ds3231
 dev/iicbus/icee.c		optional icee
@@ -3221,6 +3220,7 @@ dev/usb/input/uep.c		optional uep
 dev/usb/input/uhid.c		optional uhid
 dev/usb/input/ukbd.c		optional ukbd
 dev/usb/input/ums.c		optional ums
+dev/usb/input/wmt.c		optional wmt
 dev/usb/input/wsp.c		optional wsp
 #
 # USB quirks

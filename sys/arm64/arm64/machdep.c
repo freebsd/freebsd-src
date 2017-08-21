@@ -222,7 +222,8 @@ fill_fpregs(struct thread *td, struct fpreg *regs)
 		 * If we have just been running VFP instructions we will
 		 * need to save the state to memcpy it below.
 		 */
-		vfp_save_state(td, pcb);
+		if (td == curthread)
+			vfp_save_state(td, pcb);
 
 		KASSERT(pcb->pcb_fpusaved == &pcb->pcb_fpustate,
 		    ("Called fill_fpregs while the kernel is using the VFP"));
@@ -256,22 +257,24 @@ int
 fill_dbregs(struct thread *td, struct dbreg *regs)
 {
 
-	panic("ARM64TODO: fill_dbregs");
+	printf("ARM64TODO: fill_dbregs");
+	return (EDOOFUS);
 }
 
 int
 set_dbregs(struct thread *td, struct dbreg *regs)
 {
 
-	panic("ARM64TODO: set_dbregs");
+	printf("ARM64TODO: set_dbregs");
+	return (EDOOFUS);
 }
 
 int
 ptrace_set_pc(struct thread *td, u_long addr)
 {
 
-	panic("ARM64TODO: ptrace_set_pc");
-	return (0);
+	printf("ARM64TODO: ptrace_set_pc");
+	return (EDOOFUS);
 }
 
 int
@@ -1050,11 +1053,24 @@ initarm(struct arm64_bootparams *abp)
 	mutex_init();
 	init_param2(physmem);
 
-	dbg_monitor_init();
+	dbg_init();
 	kdb_init();
 	pan_enable();
 
 	early_boot = 0;
+}
+
+void
+dbg_init(void)
+{
+
+	/* Clear OS lock */
+	WRITE_SPECIALREG(OSLAR_EL1, 0);
+
+	/* This permits DDB to use debug registers for watchpoints. */
+	dbg_monitor_init();
+
+	/* TODO: Eventually will need to initialize debug registers here. */
 }
 
 #ifdef DDB

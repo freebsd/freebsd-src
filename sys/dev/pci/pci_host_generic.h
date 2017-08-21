@@ -66,8 +66,6 @@ struct generic_pcie_core_softc {
 
 DECLARE_CLASS(generic_pcie_core_driver);
 
-struct resource *pci_host_generic_core_alloc_resource(device_t,
-    device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 int pci_host_generic_core_attach(device_t);
 struct resource *pci_host_generic_core_alloc_resource(device_t, device_t, int,
     int *, rman_res_t, rman_res_t, rman_res_t, u_int);

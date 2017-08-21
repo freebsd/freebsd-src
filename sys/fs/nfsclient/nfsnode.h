@@ -92,6 +92,8 @@ struct nfs_accesscache {
  */
 struct nfsnode {
 	struct mtx 		n_mtx;		/* Protects all of these members */
+	struct lock		n_excl;		/* Exclusive helper for shared
+						   vnode lock */
 	u_quad_t		n_size;		/* Current size of file */
 	u_quad_t		n_brev;		/* Modify rev when cached */
 	u_quad_t		n_lrev;		/* Modify rev for lease */
@@ -184,8 +186,8 @@ int	ncl_removeit(struct sillyrename *, struct vnode *);
 int	ncl_nget(struct mount *, u_int8_t *, int, struct nfsnode **, int);
 nfsuint64 *ncl_getcookie(struct nfsnode *, off_t, int);
 void	ncl_invaldir(struct vnode *);
-int	ncl_upgrade_vnlock(struct vnode *);
-void	ncl_downgrade_vnlock(struct vnode *, int);
+bool	ncl_excl_start(struct vnode *);
+void	ncl_excl_finish(struct vnode *, bool old_lock);
 void	ncl_dircookie_lock(struct nfsnode *);
 void	ncl_dircookie_unlock(struct nfsnode *);
 

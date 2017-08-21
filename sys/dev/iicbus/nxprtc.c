@@ -191,15 +191,26 @@ struct nxprtc_softc {
 	u_int		chiptype;	/* Type of PCF85xx chip */
 	uint8_t		secaddr;	/* Address of seconds register */
 	uint8_t		tmcaddr;	/* Address of timer count register */
-	uint8_t		slave_addr;	/* PCF85xx slave address */
 	bool		use_timer;	/* Use timer for fractional sec */
 };
 
 #define	SC_F_CPOL	(1 << 0)	/* Century bit means 19xx */
 #define	SC_F_AMPM	(1 << 1)	/* Use PM flag in hours reg */
 
+/*
+ * We use the compat_data table to look up hint strings in the non-FDT case, so
+ * define the struct locally when we don't get it from ofw_bus_subr.h.
+ */
 #ifdef FDT
-static struct ofw_compat_data compat_data[] = {
+typedef struct ofw_compat_data nxprtc_compat_data;
+#else
+typedef struct {
+	const char *ocd_str;
+	uintptr_t  ocd_data;
+} nxprtc_compat_data;
+#endif
+
+static nxprtc_compat_data compat_data[] = {
 	{"nxp,pca2129",     TYPE_PCA2129},
 	{"nxp,pca8565",     TYPE_PCA8565},
 	{"nxp,pcf2127",     TYPE_PCF2127},
@@ -214,7 +225,6 @@ static struct ofw_compat_data compat_data[] = {
 
 	{NULL,              TYPE_NONE},
 };
-#endif
 
 static int
 read_reg(struct nxprtc_softc *sc, uint8_t reg, uint8_t *val)
@@ -476,19 +486,25 @@ nxprtc_start(void *dev)
 	case TYPE_PCF2127:
 		if (pcf8523_start(sc) != 0)
 			return;
-		if (pcf2127_start_timer(sc) != 0)
+		if (pcf2127_start_timer(sc) != 0) {
+			device_printf(sc->dev, "cannot set up timer\n");
 			return;
+		}
 		break;
 	case TYPE_PCF8523:
 		if (pcf8523_start(sc) != 0)
 			return;
-		if (pcf8523_start_timer(sc) != 0)
+		if (pcf8523_start_timer(sc) != 0) {
+			device_printf(sc->dev, "cannot set up timer\n");
 			return;
+		}
 		break;
 	case TYPE_PCA8565:
 	case TYPE_PCF8563:
-		if (pcf8563_start_timer(sc) != 0)
+		if (pcf8563_start_timer(sc) != 0) {
+			device_printf(sc->dev, "cannot set up timer\n");
 			return;
+		}
 		break;
 	default:
 		device_printf(sc->dev, "missing init code for this chiptype\n");
@@ -685,24 +701,59 @@ errout:
 }
 
 static int
+nxprtc_get_chiptype(device_t dev)
+{
+#ifdef FDT
+
+	return (ofw_bus_search_compatible(dev, compat_data)->ocd_data);
+#else
+	nxprtc_compat_data *cdata;
+	const char *htype;
+	int chiptype;
+
+	/*
+	 * If given a chiptype hint string, loop through the ofw compat data
+	 * comparing the hinted chip type to the compat strings.  The table end
+	 * marker ocd_data is TYPE_NONE.
+	 */
+	if (resource_string_value(device_get_name(dev), 
+	    device_get_unit(dev), "compatible", &htype) == 0) {
+		for (cdata = compat_data; cdata->ocd_str != NULL; ++cdata) {
+			if (strcmp(htype, cdata->ocd_str) == 0)
+				break;
+		}
+		chiptype = cdata->ocd_data;
+	} else
+		chiptype = TYPE_NONE;
+
+	/*
+	 * On non-FDT systems the historical behavior of this driver was to
+	 * assume a PCF8563; keep doing that for compatibility.
+	 */
+	if (chiptype == TYPE_NONE)
+		return (TYPE_PCF8563);
+	else
+		return (chiptype);
+#endif
+}
+
+static int
 nxprtc_probe(device_t dev)
 {
-	int chiptype;
+	int chiptype, rv;
 
 #ifdef FDT
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-
-	chiptype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
-	if (chiptype == TYPE_NONE)
-		return (ENXIO);
+	rv = BUS_PROBE_GENERIC;
 #else
-	/* Historically the non-FDT driver supports only PCF8563. */
-	chiptype = TYPE_PCF8563;
+	rv = BUS_PROBE_NOWILDCARD;
 #endif
-	device_set_desc(dev, desc_strings[chiptype]);
+	if ((chiptype = nxprtc_get_chiptype(dev)) == TYPE_NONE)
+		return (ENXIO);
 
-	return (BUS_PROBE_DEFAULT);
+	device_set_desc(dev, desc_strings[chiptype]);
+	return (rv);
 }
 
 static int
@@ -713,21 +764,9 @@ nxprtc_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->busdev = device_get_parent(dev);
-	sc->slave_addr = iicbus_get_addr(dev);
 
-	/*
-	 * We need to know what kind of chip we're driving.  Historically the
-	 * non-FDT driver supported only PCF8563.  There is no machine-readable
-	 * identifier in the chip so we would need a set of hints defined to use
-	 * the other chips on non-FDT systems.
-	 */
-#ifdef FDT
-	sc->chiptype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
-#else
-	sc->chiptype = TYPE_PCF8563;
-	if (sc->slave_addr == 0)
-		sc->slave_addr = PCF8563_ADDR;
-#endif
+	/* We need to know what kind of chip we're driving. */
+	sc->chiptype = nxprtc_get_chiptype(dev);
 
 	/* The features and some register addresses vary by chip type. */
 	switch (sc->chiptype) {

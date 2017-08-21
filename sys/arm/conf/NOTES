@@ -36,6 +36,7 @@ options 	SOC_MV_DISCOVERY
 options 	SOC_MV_KIRKWOOD
 options 	SOC_MV_ORION
 
+options 	ARM_MANY_BOARD
 device		at91_board_bwct
 device		at91_board_ethernut5
 device		at91_board_hl200

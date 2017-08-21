@@ -20,5 +20,5 @@ _installlinks:
 .endfor
 .for s t in ${SYMLINKS}
 	@${ECHO} "${t} -> ${s}" ;\
-	${INSTALL_SYMLINK} ${TAG_ARGS} ${s} ${DESTDIR}/${t}
+	${INSTALL_SYMLINK} ${TAG_ARGS} ${s} ${DESTDIR}${t}
 .endfor
