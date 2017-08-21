@@ -185,21 +185,29 @@ calltrap:
 #ifdef KDTRACE_HOOKS
 	SUPERALIGN_TEXT
 IDTVEC(ill)
-	/* Check if there is no DTrace hook registered. */
-	cmpl	$0,dtrace_invop_jump_addr
+	/*
+	 * Check if a DTrace hook is registered.  The default (data) segment
+	 * cannot be used for this since %ds is not known good until we
+	 * verify that the entry was from kernel mode.
+	 */
+	cmpl	$0,%ss:dtrace_invop_jump_addr
 	je	norm_ill
 
-	/* Check if this is a user fault. */
-	cmpl	$GSEL_KPL, 4(%esp)	/* Check the code segment. */
-
-	/* If so, just handle it as a normal trap. */
+	/*
+	 * Check if this is a user fault.  If so, just handle it as a normal
+	 * trap.
+	 */
+	cmpl	$GSEL_KPL, 4(%esp)	/* Check the code segment */
 	jne	norm_ill
+	testl	$PSL_VM, 8(%esp)	/* and vm86 mode. */
+	jnz	norm_ill
 
 	/*
 	 * This is a kernel instruction fault that might have been caused
 	 * by a DTrace provider.
 	 */
-	pushal				/* Push all registers onto the stack. */
+	pushal
+	cld
 
 	/*
 	 * Set our jump address for the jump back in the event that
