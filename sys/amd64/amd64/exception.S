@@ -187,12 +187,13 @@ alltraps_testi:
 	jz	alltraps_pushregs_no_rdi
 	sti
 alltraps_pushregs_no_rdi:
-	movq	%rsi,TF_RSI(%rsp)
 	movq	%rdx,TF_RDX(%rsp)
+	movq	%rax,TF_RAX(%rsp)
+alltraps_pushregs_no_rax:
+	movq	%rsi,TF_RSI(%rsp)
 	movq	%rcx,TF_RCX(%rsp)
 	movq	%r8,TF_R8(%rsp)
 	movq	%r9,TF_R9(%rsp)
-	movq	%rax,TF_RAX(%rsp)
 	movq	%rbx,TF_RBX(%rsp)
 	movq	%rbp,TF_RBP(%rsp)
 	movq	%r10,TF_R10(%rsp)
@@ -326,22 +327,44 @@ IDTVEC(prot)
 prot_addrf:
 	movq	$0,TF_ADDR(%rsp)
 	movq	%rdi,TF_RDI(%rsp)	/* free up a GP register */
-	leaq	doreti_iret(%rip),%rdi
-	cmpq	%rdi,TF_RIP(%rsp)
-	je	1f			/* kernel but with user gsbase!! */
-	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
-	jz	2f			/* already running with kernel GS.base */
-1:	swapgs
-2:	movq	PCPU(CURPCB),%rdi
-	orl	$PCB_FULL_IRET,PCB_FLAGS(%rdi)	/* always full iret from GPF */
+	movq	%rax,TF_RAX(%rsp)
+	movq	%rdx,TF_RDX(%rsp)
 	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
+	leaq	doreti_iret(%rip),%rdi
+	cmpq	%rdi,TF_RIP(%rsp)
+	je	5f			/* kernel but with user gsbase!! */
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
+	jz	6f			/* already running with kernel GS.base */
+	testb	$CPUID_STDEXT_FSGSBASE,cpu_stdext_feature(%rip)
+	jz	2f
+	cmpw	$KUF32SEL,TF_FS(%rsp)
+	jne	1f
+	rdfsbaseq %rax
+1:	cmpw	$KUG32SEL,TF_GS(%rsp)
+	jne	2f
+	rdgsbaseq %rdx
+2:	swapgs
+	movq	PCPU(CURPCB),%rdi
+	testb	$CPUID_STDEXT_FSGSBASE,cpu_stdext_feature(%rip)
+	jz	4f
+	cmpw	$KUF32SEL,TF_FS(%rsp)
+	jne	3f
+	movq	%rax,PCB_FSBASE(%rdi)
+3:	cmpw	$KUG32SEL,TF_GS(%rsp)
+	jne	4f
+	movq	%rdx,PCB_GSBASE(%rdi)
+4:	orl	$PCB_FULL_IRET,PCB_FLAGS(%rdi)	/* always full iret from GPF */
 	movw	%es,TF_ES(%rsp)
 	movw	%ds,TF_DS(%rsp)
 	testl	$PSL_I,TF_RFLAGS(%rsp)
-	jz	alltraps_pushregs_no_rdi
+	jz	alltraps_pushregs_no_rax
 	sti
-	jmp	alltraps_pushregs_no_rdi
+	jmp	alltraps_pushregs_no_rax
+
+5:	swapgs
+6:	movq	PCPU(CURPCB),%rdi
+	jmp	4b
 
 /*
  * Fast syscall entry point.  We enter here with just our new %cs/%ss set,
@@ -349,8 +372,8 @@ prot_addrf:
  * pointer.  We have to juggle a few things around to find our stack etc.
  * swapgs gives us access to our PCPU space only.
  *
- * We do not support invoking this from a custom %cs or %ss (e.g. using
- * entries from an LDT).
+ * We do not support invoking this from a custom segment registers,
+ * esp. %cs, %ss, %fs, %gs, e.g. using entries from an LDT.
  */
 IDTVEC(fast_syscall)
 	swapgs
@@ -503,6 +526,23 @@ IDTVEC(nmi)
 nmi_fromuserspace:
 	incl	%ebx
 	swapgs
+	testb	$CPUID_STDEXT_FSGSBASE,cpu_stdext_feature(%rip)
+	jz	2f
+	movq	PCPU(CURPCB),%rdi
+	testq	%rdi,%rdi
+	jz	2f
+	cmpw	$KUF32SEL,TF_FS(%rsp)
+	jne	1f
+	rdfsbaseq %rax
+	movq	%rax,PCB_FSBASE(%rdi)
+1:	cmpw	$KUG32SEL,TF_GS(%rsp)
+	jne	2f
+	movl	$MSR_KGSBASE,%ecx
+	rdmsr
+	shlq	$32,%rdx
+	orq	%rdx,%rax
+	movq	%rax,PCB_GSBASE(%rdi)
+2:
 /* Note: this label is also used by ddb and gdb: */
 nmi_calltrap:
 	FAKE_MCOUNT(TF_RIP(%rsp))
@@ -705,6 +745,7 @@ doreti_exit:
 	jz	ld_regs
 	testl	$PCB_FULL_IRET,PCB_FLAGS(%r8)
 	jz	ld_regs
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%r8)
 	testl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	je	set_segs
 

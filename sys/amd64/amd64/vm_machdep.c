@@ -238,7 +238,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	pcb2->pcb_tssp = NULL;
 
 	/* New segment registers. */
-	set_pcb_flags(pcb2, PCB_FULL_IRET);
+	set_pcb_flags_raw(pcb2, PCB_FULL_IRET);
 
 	/* Copy the LDT, if necessary. */
 	mdp1 = &td1->td_proc->p_md;
@@ -439,7 +439,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
 	bcopy(get_pcb_user_save_td(td0), pcb2->pcb_save,
 	    cpu_max_ext_state_size);
-	set_pcb_flags(pcb2, PCB_FULL_IRET);
+	set_pcb_flags_raw(pcb2, PCB_FULL_IRET);
 
 	/*
 	 * Create a new fresh stack for the new thread.
