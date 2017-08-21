@@ -573,7 +573,6 @@ ipsec4_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir,
 	if (sp == NULL && key_havesp(dir)) {
 		/* Make an index to look for a policy. */
 		ipsec4_setspidx_ipaddr(m, &spidx);
-		/* Fill ports in spidx if we have inpcb. */
 		ipsec4_get_ulp(m, &spidx, needport);
 		spidx.dir = dir;
 		sp = key_allocsp(&spidx, dir);
@@ -743,7 +742,6 @@ ipsec6_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir,
 	if (sp == NULL && key_havesp(dir)) {
 		/* Make an index to look for a policy. */
 		ipsec6_setspidx_ipaddr(m, &spidx);
-		/* Fill ports in spidx if we have inpcb. */
 		ipsec6_get_ulp(m, &spidx, needport);
 		spidx.dir = dir;
 		sp = key_allocsp(&spidx, dir);
