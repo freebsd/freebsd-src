@@ -91,9 +91,9 @@ ENTRY(cpu_throw)
 	isb
 
 	/* Invalidate the TLB */
-	dsb	sy
-	tlbi	vmalle1is
-	dsb	sy
+	dsb	ishst
+	tlbi	vmalle1
+	dsb	ish
 	isb
 
 	/* If we are single stepping, enable it */
@@ -192,9 +192,9 @@ ENTRY(cpu_switch)
 	isb
 
 	/* Invalidate the TLB */
-	dsb	sy
-	tlbi	vmalle1is
-	dsb	sy
+	dsb	ishst
+	tlbi	vmalle1
+	dsb	ish
 	isb
 
 	/*
