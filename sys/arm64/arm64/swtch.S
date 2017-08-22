@@ -86,7 +86,8 @@ ENTRY(cpu_throw)
 	 */
 
 	/* Switch to the new pmap */
-	ldr	x5, [x4, #PCB_L0ADDR]
+	ldr	x28, [x1, #TD_PROC]
+	ldr	x5, [x28, #(P_MD + MD_L0ADDR)]
 	msr	ttbr0_el1, x5
 	isb
 
@@ -186,8 +187,15 @@ ENTRY(cpu_switch)
 	 * to a user process.
 	 */
 
+	/*
+	 * Load the proc pointers. If these are the same then we are in the
+	 * same process so don't need to switch page tables or issue a
+	 * TLB invalidate.
+	 */
+	ldr	x28, [x1, #TD_PROC]
+
 	/* Switch to the new pmap */
-	ldr	x5, [x4, #PCB_L0ADDR]
+	ldr	x5, [x28, #(P_MD + MD_L0ADDR)]
 	msr	ttbr0_el1, x5
 	isb
 

@@ -50,12 +50,15 @@ ASSYM(PCB_SINGLE_STEP_SHIFT, PCB_SINGLE_STEP_SHIFT);
 ASSYM(PCB_REGS, offsetof(struct pcb, pcb_x));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
 ASSYM(PCB_TPIDRRO, offsetof(struct pcb, pcb_tpidrro_el0));
-ASSYM(PCB_L0ADDR, offsetof(struct pcb, pcb_l0addr));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 
+ASSYM(P_MD, offsetof(struct proc, p_md));
+ASSYM(MD_L0ADDR, offsetof(struct mdproc, md_l0addr));
+
 ASSYM(SF_UC, offsetof(struct sigframe, sf_uc));
 
+ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
