@@ -40,7 +40,7 @@ struct mdthread {
 };
 
 struct mdproc {
-	int dummy;
+	vm_offset_t	md_l0addr;
 };
 
 #define	KINFO_PROC_SIZE	1088
