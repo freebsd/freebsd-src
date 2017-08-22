@@ -187,11 +187,7 @@ ENTRY(cpu_switch)
 	 * to a user process.
 	 */
 
-	/*
-	 * Load the proc pointers. If these are the same then we are in the
-	 * same process so don't need to switch page tables or issue a
-	 * TLB invalidate.
-	 */
+	/* Load the new proc address */
 	ldr	x28, [x1, #TD_PROC]
 
 	/* Switch to the new pmap */
