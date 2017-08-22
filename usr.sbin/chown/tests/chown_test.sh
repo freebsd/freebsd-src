@@ -156,11 +156,6 @@ v_flag_body()
 	atf_check truncate -s 0 foo bar
 	atf_check chown 0:0 foo
 	atf_check chown 42:42 bar
-	case "$(get_filesystem .)" in
-	zfs)
-		atf_expect_fail "ZFS updates mode for foo unnecessarily"
-		;;
-	esac
 	atf_check -o 'inline:bar\n' chown -v 0:0 foo bar
 	atf_check chown -v 0:0 foo bar
 	for f in foo bar; do
