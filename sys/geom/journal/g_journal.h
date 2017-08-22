@@ -182,6 +182,17 @@ struct g_journal_softc {
 		(pbp)->bio_next = (bp);					\
 	}								\
 } while (0)
+#define GJQ_LAST(head, bp) do {						\
+	struct bio *_bp;						\
+									\
+	if ((head) == NULL) {						\
+		(bp) = (head);						\
+		break;							\
+	}								\
+	for (_bp = (head); _bp->bio_next != NULL; _bp = _bp->bio_next)	\
+		continue;						\
+	(bp) = (_bp);							\
+} while (0)
 #define	GJQ_FIRST(head)	(head)
 #define	GJQ_REMOVE(head, bp)	do {					\
 	struct bio *_bp;						\
