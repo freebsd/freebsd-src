@@ -374,9 +374,8 @@ struct ext2_gd {
 	uint16_t ext4bgd_csum;		/* group descriptor checksum */
 };
 
-
-/* EXT2FS metadatas are stored in little-endian byte order. These macros
- * helps reading these metadatas
+/* EXT2FS metadata is stored in little-endian byte order. These macros
+ * help reading it.
  */
 
 #define	e2fs_cgload(old, new, size) memcpy((new), (old), (size));
