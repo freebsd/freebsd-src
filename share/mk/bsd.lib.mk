@@ -69,8 +69,8 @@ TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
 
 .if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
     empty(DEBUG_FLAGS:M-gdwarf*)
-SHARED_CFLAGS+= -g
-SHARED_CXXFLAGS+= -g
+CFLAGS+= ${DEBUG_FILES_CFLAGS}
+CXXFLAGS+= ${DEBUG_FILES_CFLAGS}
 CTFFLAGS+= -g
 .endif
 
