@@ -16,6 +16,19 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20170822:
+	Since the switch to GPT disk labels, fsck for UFS/FFS has been
+	unable to automatically find alternate superblocks. As of r322806,
+	the information needed to find alternate superblocks has been
+	moved to the end of the area reserved for the boot block.
+	Filesystems created with a newfs of this vintage or later
+	will create the recovery information. If you have a filesystem
+	created prior to this change and wish to have a recovery block
+	created for your filesystem, you can do so by running fsck in
+	forground mode (i.e., do not use the -p or -y options). As it
+	starts, fsck will ask ``SAVE DATA TO FIND ALTERNATE SUPERBLOCKS''
+	to which you should answer yes.
+
 20170518:
 	arm64 builds now use the base system LLD 4.0.0 linker by default,
 	instead of requiring that the aarch64-binutils port or package be
