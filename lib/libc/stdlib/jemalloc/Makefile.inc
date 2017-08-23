@@ -2,10 +2,10 @@
 
 .PATH: ${LIBC_SRCTOP}/stdlib/jemalloc
 
-JEMALLOCSRCS:= jemalloc.c arena.c atomic.c base.c bitmap.c chunk.c \
-	chunk_dss.c chunk_mmap.c ckh.c ctl.c extent.c hash.c huge.c mb.c \
-	mutex.c nstime.c pages.c prng.c prof.c quarantine.c rtree.c spin.c \
-	stats.c tcache.c ticker.c tsd.c util.c witness.c
+JEMALLOCSRCS:= jemalloc.c arena.c background_thread.c base.c bitmap.c ckh.c \
+	ctl.c extent.c extent_dss.c extent_mmap.c hash.c hooks.c large.c \
+	malloc_io.c mutex.c mutex_pool.c nstime.c pages.c prng.c prof.c \
+	rtree.c spin.c stats.c sz.c tcache.c ticker.c tsd.c witness.c
 
 SYM_MAPS+=${LIBC_SRCTOP}/stdlib/jemalloc/Symbol.map
 
