@@ -234,6 +234,20 @@ struct fsck_cmd {
 };
 
 /*
+ * A recovery structure placed at the end of the boot block area by newfs
+ * that can be used by fsck to search for alternate superblocks.
+ */
+#define RESID	(4096 - 20)	/* disk sector size minus recovery area size */
+struct fsrecovery {
+	char	block[RESID];	/* unused part of sector */
+	int32_t	fsr_magic;	/* magic number */
+	int32_t	fsr_fsbtodb;	/* fsbtodb and dbtofsb shift constant */
+	int32_t	fsr_sblkno;	/* offset of super-block in filesys */
+	int32_t	fsr_fpg;	/* blocks per group * fs_frag */
+	u_int32_t fsr_ncg;	/* number of cylinder groups */
+};
+
+/*
  * Per cylinder group information; summarized in blocks allocated
  * from first cylinder group data blocks.  These blocks have to be
  * read in from fs_csaddr (size fs_cssize) in addition to the
