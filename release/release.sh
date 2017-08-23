@@ -384,7 +384,7 @@ main() {
 	while getopts c: opt; do
 		case ${opt} in
 			c)
-				RELEASECONF="${OPTARG}"
+				RELEASECONF="$(realpath ${OPTARG})"
 				;;
 			\?)
 				usage
