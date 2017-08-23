@@ -175,7 +175,7 @@ zpool_add_006_pos_head()
 {
 	atf_set "descr" "'zpool add [-f]' can add large numbers of vdevs to the specified pool without any errors."
 	atf_set "require.config" disks_are_physical
-	atf_set "require.progs"  zfs mkfile zpool
+	atf_set "require.progs"  zfs zpool
 	atf_set "timeout" 2400
 }
 zpool_add_006_pos_body()

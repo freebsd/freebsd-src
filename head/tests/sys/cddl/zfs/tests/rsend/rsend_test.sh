@@ -261,7 +261,7 @@ rsend_009_pos_head()
 {
 	atf_set "descr" "Verify zfs receive can handle out of space correctly."
 	atf_set "require.config" at_least_2_disks
-	atf_set "require.progs"  mkfile zpool zfs
+	atf_set "require.progs"  zpool zfs
 	atf_set "timeout" 2700
 }
 rsend_009_pos_body()

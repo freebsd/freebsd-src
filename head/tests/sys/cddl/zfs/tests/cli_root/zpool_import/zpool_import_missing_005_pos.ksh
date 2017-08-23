@@ -91,10 +91,10 @@ function cleanup
 }
 log_onexit cleanup
 
-log_must $MKFILE 64m $REGULAR
-log_must $MKFILE 64m $LOG
-log_must $MKFILE 64m $CACHE
-log_must $MKFILE 64m $SPARE
+log_must $TRUNCATE -s 64m $REGULAR
+log_must $TRUNCATE -s 64m $LOG
+log_must $TRUNCATE -s 64m $CACHE
+log_must $TRUNCATE -s 64m $SPARE
 log_must $MDCONFIG -t vnode -a -f $REGULAR -u $REGULAR_U
 log_must $MDCONFIG -t vnode -a -f $LOG -u $LOG_U
 log_must $MDCONFIG -t vnode -a -f $CACHE -u $CACHE_U

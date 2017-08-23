@@ -108,7 +108,6 @@
 #/usr/sbin/metainit
 #/usr/sbin/metastat
 /bin/mkdir
-/usr/local/sbin/mkfile
 /sbin/mknod
 #/usr/sbin/modinfo
 #/usr/sbin/modunload
@@ -154,6 +153,7 @@
 /usr/bin/touch
 /usr/bin/tr
 /usr/bin/true
+/usr/bin/truncate
 /sbin/tunefs
 #/usr/sbin/ufsdump
 #/usr/sbin/ufsrestore

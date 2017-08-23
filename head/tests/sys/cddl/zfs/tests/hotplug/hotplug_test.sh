@@ -28,7 +28,7 @@ atf_test_case hotplug_001_pos cleanup
 hotplug_001_pos_head()
 {
 	atf_set "descr" "When removing a device from a redundant pool, the device'sstate will be indicated as 'REMOVED'. No FMA faulty message."
-	atf_set "require.progs"  mkfile zpool lofiadm
+	atf_set "require.progs"  zpool lofiadm
 	atf_set "timeout" 1800
 }
 hotplug_001_pos_body()
@@ -56,7 +56,7 @@ atf_test_case hotplug_002_pos cleanup
 hotplug_002_pos_head()
 {
 	atf_set "descr" "When removing and reinserting a device, the device status isONLINE with no FMA errors."
-	atf_set "require.progs"  mkfile zpool lofiadm
+	atf_set "require.progs"  zpool lofiadm
 	atf_set "timeout" 1800
 }
 hotplug_002_pos_body()
@@ -84,7 +84,7 @@ atf_test_case hotplug_003_pos cleanup
 hotplug_003_pos_head()
 {
 	atf_set "descr" "Having removed a device from a redundant pool and inserted a newdevice, the new device state will be 'ONLINE' when autoreplace is on,\and 'UNAVAIL' when autoreplace is off"
-	atf_set "require.progs"  mkfile zpool lofiadm
+	atf_set "require.progs"  zpool lofiadm
 	atf_set "timeout" 1800
 }
 hotplug_003_pos_body()
@@ -112,7 +112,7 @@ atf_test_case hotplug_004_pos cleanup
 hotplug_004_pos_head()
 {
 	atf_set "descr" "When device replacement fails, the original device's state willbe 'UNAVAIL' and an FMA fault will be generated."
-	atf_set "require.progs"  mkfile zpool lofiadm
+	atf_set "require.progs"  zpool lofiadm
 	atf_set "timeout" 1800
 }
 hotplug_004_pos_body()
@@ -140,7 +140,7 @@ atf_test_case hotplug_005_pos cleanup
 hotplug_005_pos_head()
 {
 	atf_set "descr" "Regarding of autoreplace, when removing offline device andreinserting again. This device's status is 'ONLINE'.  \No FMA fault was generated."
-	atf_set "require.progs"  mkfile zpool lofiadm
+	atf_set "require.progs"  zpool lofiadm
 	atf_set "timeout" 1800
 }
 hotplug_005_pos_body()
@@ -168,7 +168,7 @@ atf_test_case hotplug_006_pos cleanup
 hotplug_006_pos_head()
 {
 	atf_set "descr" "When unsetting/setting autoreplace, then replacing device, verifythe device's status is 'UNAVAIL/ONLINE'. No FMA fault is generated."
-	atf_set "require.progs"  mkfile zpool lofiadm
+	atf_set "require.progs"  zpool lofiadm
 	atf_set "timeout" 1800
 }
 hotplug_006_pos_body()
@@ -196,7 +196,7 @@ atf_test_case hotplug_007_pos cleanup
 hotplug_007_pos_head()
 {
 	atf_set "descr" "When autoreplace is 'on', replacing the device with a smaller one.Verify the device's status is 'UNAVAIL'. FMA fault has been generated."
-	atf_set "require.progs"  mkfile zpool lofiadm
+	atf_set "require.progs"  zpool lofiadm
 	atf_set "timeout" 1800
 }
 hotplug_007_pos_body()
@@ -224,7 +224,7 @@ atf_test_case hotplug_008_pos cleanup
 hotplug_008_pos_head()
 {
 	atf_set "descr" "When removing hotspare device, verify device status is 'REMOVED'."
-	atf_set "require.progs"  mkfile zpool lofiadm
+	atf_set "require.progs"  zpool lofiadm
 	atf_set "timeout" 1800
 }
 hotplug_008_pos_body()
@@ -252,7 +252,7 @@ atf_test_case hotplug_009_pos cleanup
 hotplug_009_pos_head()
 {
 	atf_set "descr" "Power off machine and replacing device, verify device status isONLINE when autoreplace is on and UNAVAIL when autoreplace is off"
-	atf_set "require.progs"  mkfile zpool lofiadm svcadm svcs
+	atf_set "require.progs"  zpool lofiadm svcadm svcs
 	atf_set "timeout" 1800
 }
 hotplug_009_pos_body()
@@ -280,7 +280,7 @@ atf_test_case hotplug_010_pos cleanup
 hotplug_010_pos_head()
 {
 	atf_set "descr" "Removing device offlined and reinserting onlined,verify the device status ONLINE."
-	atf_set "require.progs"  mkfile zpool lofiadm svcadm svcs
+	atf_set "require.progs"  zpool lofiadm svcadm svcs
 	atf_set "timeout" 1800
 }
 hotplug_010_pos_body()
@@ -308,7 +308,7 @@ atf_test_case hotplug_011_pos cleanup
 hotplug_011_pos_head()
 {
 	atf_set "descr" "Removing device offlined, verify device status is UNAVAIL,when the system is onlined."
-	atf_set "require.progs"  mkfile zpool lofiadm svcadm svcs
+	atf_set "require.progs"  zpool lofiadm svcadm svcs
 	atf_set "timeout" 1800
 }
 hotplug_011_pos_body()

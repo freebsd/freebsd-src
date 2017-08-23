@@ -28,7 +28,7 @@ atf_test_case zfs_promote_001_pos cleanup
 zfs_promote_001_pos_head()
 {
 	atf_set "descr" "'zfs promote' can promote a clone filesystem."
-	atf_set "require.progs"  zfs mkfile
+	atf_set "require.progs"  zfs
 }
 zfs_promote_001_pos_body()
 {
@@ -55,7 +55,7 @@ atf_test_case zfs_promote_002_pos cleanup
 zfs_promote_002_pos_head()
 {
 	atf_set "descr" "'zfs promote' can deal with multiple snapshots in a filesystem."
-	atf_set "require.progs"  zfs mkfile
+	atf_set "require.progs"  zfs
 }
 zfs_promote_002_pos_body()
 {
@@ -82,7 +82,7 @@ atf_test_case zfs_promote_003_pos cleanup
 zfs_promote_003_pos_head()
 {
 	atf_set "descr" "'zfs promote' can deal with multi-point snapshots."
-	atf_set "require.progs"  zfs mkfile
+	atf_set "require.progs"  zfs
 }
 zfs_promote_003_pos_body()
 {
@@ -109,7 +109,7 @@ atf_test_case zfs_promote_004_pos cleanup
 zfs_promote_004_pos_head()
 {
 	atf_set "descr" "'zfs promote' can deal with multi-level clone."
-	atf_set "require.progs"  zfs mkfile
+	atf_set "require.progs"  zfs
 }
 zfs_promote_004_pos_body()
 {
@@ -190,7 +190,7 @@ atf_test_case zfs_promote_007_neg cleanup
 zfs_promote_007_neg_head()
 {
 	atf_set "descr" "'zfs promote' can deal with name conflicts."
-	atf_set "require.progs"  zfs mkfile
+	atf_set "require.progs"  zfs
 }
 zfs_promote_007_neg_body()
 {

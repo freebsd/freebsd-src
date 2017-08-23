@@ -28,7 +28,7 @@ atf_test_case groupspace_001_pos cleanup
 groupspace_001_pos_head()
 {
 	atf_set "descr" "Check the zfs groupspace with all possible parameters"
-	atf_set "require.progs"  zfs mkfile runwattr
+	atf_set "require.progs"  zfs runwattr
 }
 groupspace_001_pos_body()
 {
@@ -55,7 +55,7 @@ atf_test_case groupspace_002_pos cleanup
 groupspace_002_pos_head()
 {
 	atf_set "descr" "Check the zfs groupspace used and quota"
-	atf_set "require.progs"  zfs mkfile runwattr
+	atf_set "require.progs"  zfs runwattr
 }
 groupspace_002_pos_body()
 {
@@ -82,7 +82,7 @@ atf_test_case userquota_001_pos cleanup
 userquota_001_pos_head()
 {
 	atf_set "descr" "If write operation overwrite {user|group}quota size, it will fail"
-	atf_set "require.progs"  zfs mkfile runwattr
+	atf_set "require.progs"  zfs runwattr
 }
 userquota_001_pos_body()
 {
@@ -109,7 +109,7 @@ atf_test_case userquota_002_pos cleanup
 userquota_002_pos_head()
 {
 	atf_set "descr" "the userquota and groupquota can be set during zpool,zfs creation"
-	atf_set "require.progs"  mkfile zpool zfs
+	atf_set "require.progs"  zpool zfs
 }
 userquota_002_pos_body()
 {
@@ -163,7 +163,7 @@ atf_test_case userquota_004_pos cleanup
 userquota_004_pos_head()
 {
 	atf_set "descr" "Check the basic function of {user|group} used"
-	atf_set "require.progs"  mkfile runwattr
+	atf_set "require.progs"  runwattr
 }
 userquota_004_pos_body()
 {
@@ -244,7 +244,7 @@ atf_test_case userquota_007_pos cleanup
 userquota_007_pos_head()
 {
 	atf_set "descr" "Check set user|group quota to larger than the quota size of a fs"
-	atf_set "require.progs"  zfs mkfile runwattr
+	atf_set "require.progs"  zfs runwattr
 }
 userquota_007_pos_body()
 {
@@ -325,7 +325,7 @@ atf_test_case userquota_010_pos cleanup
 userquota_010_pos_head()
 {
 	atf_set "descr" "overwrite any of the {user|group}quota size, it will fail"
-	atf_set "require.progs"  zfs mkfile runwattr
+	atf_set "require.progs"  zfs runwattr
 }
 userquota_010_pos_body()
 {
@@ -406,7 +406,7 @@ atf_test_case userspace_001_pos cleanup
 userspace_001_pos_head()
 {
 	atf_set "descr" "Check the zfs userspace with all possible parameters"
-	atf_set "require.progs"  zfs mkfile runwattr
+	atf_set "require.progs"  zfs runwattr
 }
 userspace_001_pos_body()
 {
@@ -433,7 +433,7 @@ atf_test_case userspace_002_pos cleanup
 userspace_002_pos_head()
 {
 	atf_set "descr" "Check the zfs userspace used and quota"
-	atf_set "require.progs"  zfs mkfile runwattr
+	atf_set "require.progs"  zfs runwattr
 }
 userspace_002_pos_body()
 {

@@ -220,7 +220,7 @@ atf_test_case zfs_mount_008_pos cleanup
 zfs_mount_008_pos_head()
 {
 	atf_set "descr" "Verify 'zfs mount -O' will override existing mount point."
-	atf_set "require.progs"  zfs mkfile
+	atf_set "require.progs"  zfs
 }
 zfs_mount_008_pos_body()
 {

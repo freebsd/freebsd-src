@@ -78,7 +78,7 @@ atf_test_case zfs_receive_003_pos cleanup
 zfs_receive_003_pos_head()
 {
 	atf_set "descr" "'zfs recv -F' to force rollback."
-	atf_set "require.progs"  zfs mkfile
+	atf_set "require.progs"  zfs
 }
 zfs_receive_003_pos_body()
 {
@@ -153,7 +153,7 @@ atf_test_case zfs_receive_006_pos cleanup
 zfs_receive_006_pos_head()
 {
 	atf_set "descr" "'zfs recv -d <fs>' should succeed no matter ancestor filesystemexists."
-	atf_set "require.progs"  zfs mkfile
+	atf_set "require.progs"  zfs
 }
 zfs_receive_006_pos_body()
 {
@@ -178,7 +178,7 @@ atf_test_case zfs_receive_007_neg cleanup
 zfs_receive_007_neg_head()
 {
 	atf_set "descr" "'zfs recv -F' should fail if the incremental stream does not match"
-	atf_set "require.progs"  zfs mkfile
+	atf_set "require.progs"  zfs
 }
 zfs_receive_007_neg_body()
 {
@@ -203,7 +203,7 @@ atf_test_case zfs_receive_008_pos cleanup
 zfs_receive_008_pos_head()
 {
 	atf_set "descr" "Verifying 'zfs receive -vn [<filesystem|snapshot>]and zfs receive -vn -d <filesystem>'"
-	atf_set "require.progs"  zfs mkfile
+	atf_set "require.progs"  zfs
 }
 zfs_receive_008_pos_body()
 {

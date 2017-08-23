@@ -28,7 +28,7 @@ atf_test_case zpool_clear_001_pos cleanup
 zpool_clear_001_pos_head()
 {
 	atf_set "descr" "Verify 'zpool clear' can clear errors of a storage pool."
-	atf_set "require.progs"  mkfile zpool zfs
+	atf_set "require.progs"  zpool zfs
 	atf_set "timeout" 2100
 }
 zpool_clear_001_pos_body()
@@ -54,7 +54,7 @@ atf_test_case zpool_clear_002_neg cleanup
 zpool_clear_002_neg_head()
 {
 	atf_set "descr" "Execute 'zpool clear' using invalid parameters."
-	atf_set "require.progs"  mkfile zpool
+	atf_set "require.progs"  zpool
 	atf_set "timeout" 2100
 }
 zpool_clear_002_neg_body()
@@ -80,7 +80,7 @@ atf_test_case zpool_clear_003_neg cleanup
 zpool_clear_003_neg_head()
 {
 	atf_set "descr" "Verify 'zpool clear' cannot clear error for available spare devices."
-	atf_set "require.progs"  mkfile zpool
+	atf_set "require.progs"  zpool
 	atf_set "timeout" 2100
 }
 zpool_clear_003_neg_body()
@@ -105,7 +105,7 @@ atf_test_case zpool_clear_004_pos cleanup
 zpool_clear_004_pos_head()
 {
 	atf_set "descr" "Verify 'zpool clear' can work on spare vdevs"
-	atf_set "require.progs"  mkfile zpool
+	atf_set "require.progs"  zpool
 	atf_set "timeout" 2100
 }
 zpool_clear_004_pos_body()

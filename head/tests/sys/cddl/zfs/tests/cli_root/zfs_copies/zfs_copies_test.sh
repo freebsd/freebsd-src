@@ -55,7 +55,7 @@ atf_test_case zfs_copies_002_pos cleanup
 zfs_copies_002_pos_head()
 {
 	atf_set "descr" "Verify that the space used by multiple copies is charged correctly."
-	atf_set "require.progs"  zfs mkfile
+	atf_set "require.progs"  zfs
 }
 zfs_copies_002_pos_body()
 {
@@ -164,7 +164,7 @@ atf_test_case zfs_copies_006_pos cleanup
 zfs_copies_006_pos_head()
 {
 	atf_set "descr" "Verify that ZFS volume space used by multiple copies is charged correctly."
-	atf_set "require.progs"  mkfile zfs
+	atf_set "require.progs"  zfs
 }
 zfs_copies_006_pos_body()
 {

@@ -28,7 +28,7 @@ atf_test_case history_001_pos
 history_001_pos_head()
 {
 	atf_set "descr" "Verify zpool sub-commands which modify state are logged."
-	atf_set "require.progs"  mkfile zpool nawk
+	atf_set "require.progs"  zpool nawk
 	atf_set "timeout" 1800
 }
 history_001_pos_body()

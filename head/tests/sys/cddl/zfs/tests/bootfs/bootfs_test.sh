@@ -28,7 +28,7 @@ atf_test_case bootfs_001_pos
 bootfs_001_pos_head()
 {
 	atf_set "descr" "Valid datasets are accepted as bootfs property values"
-	atf_set "require.progs"  mkfile zpool zfs
+	atf_set "require.progs"  zpool zfs
 }
 bootfs_001_pos_body()
 {
@@ -60,7 +60,7 @@ atf_test_case bootfs_003_pos
 bootfs_003_pos_head()
 {
 	atf_set "descr" "Valid pool names are accepted by zpool set bootfs"
-	atf_set "require.progs"  mkfile zpool zfs
+	atf_set "require.progs"  zpool zfs
 }
 bootfs_003_pos_body()
 {
@@ -76,7 +76,7 @@ atf_test_case bootfs_004_neg
 bootfs_004_neg_head()
 {
 	atf_set "descr" "Invalid pool names are rejected by zpool set bootfs"
-	atf_set "require.progs"  mkfile zpool zfs
+	atf_set "require.progs"  zpool zfs
 }
 bootfs_004_neg_body()
 {
@@ -108,7 +108,7 @@ atf_test_case bootfs_006_pos
 bootfs_006_pos_head()
 {
 	atf_set "descr" "Pools of correct vdev types accept boot property"
-	atf_set "require.progs"  zfs zpool mkfile
+	atf_set "require.progs"  zfs zpool
 }
 bootfs_006_pos_body()
 {
@@ -140,7 +140,7 @@ atf_test_case bootfs_008_neg
 bootfs_008_neg_head()
 {
 	atf_set "descr" "setting bootfs on a dataset which has gzip compression enabled will fail"
-	atf_set "require.progs"  mkfile zpool zfs
+	atf_set "require.progs"  zpool zfs
 }
 bootfs_008_neg_body()
 {

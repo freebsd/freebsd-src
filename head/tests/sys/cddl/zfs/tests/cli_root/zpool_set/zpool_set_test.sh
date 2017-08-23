@@ -43,7 +43,7 @@ atf_test_case zpool_set_002_neg
 zpool_set_002_neg_head()
 {
 	atf_set "descr" "Malformed zpool set commands are rejected"
-	atf_set "require.progs"  mkfile zpool zfs
+	atf_set "require.progs"  zpool zfs
 }
 zpool_set_002_neg_body()
 {
@@ -58,7 +58,7 @@ atf_test_case zpool_set_003_neg
 zpool_set_003_neg_head()
 {
 	atf_set "descr" "zpool set cannot set a readonly property"
-	atf_set "require.progs"  mkfile zpool
+	atf_set "require.progs"  zpool
 }
 zpool_set_003_neg_body()
 {

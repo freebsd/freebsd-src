@@ -95,7 +95,7 @@ l_arch=`uname -m`
 
 # create bunches of block files to create pools
 for file in ${poolfile[*]}; do 
-	log_must $MKFILE $FILESZ $file
+	log_must $TRUNCATE -s $FILESZ $file
 done
 for type in ${pooltype[*]}; do
 	case $type in

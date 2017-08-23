@@ -53,7 +53,7 @@ atf_test_case compress_003_pos cleanup
 compress_003_pos_head()
 {
 	atf_set "descr" "Changing blocksize doesn't casue system panic with compression settings"
-	atf_set "require.progs"  zfs mkfile
+	atf_set "require.progs"  zfs
 }
 compress_003_pos_body()
 {

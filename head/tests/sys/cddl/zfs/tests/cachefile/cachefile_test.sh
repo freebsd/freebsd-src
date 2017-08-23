@@ -79,7 +79,7 @@ atf_test_case cachefile_004_pos
 cachefile_004_pos_head()
 {
 	atf_set "descr" "Verify set, export and destroy when cachefile is set on pool."
-	atf_set "require.progs"  mkfile zpool
+	atf_set "require.progs"  zpool
 }
 cachefile_004_pos_body()
 {

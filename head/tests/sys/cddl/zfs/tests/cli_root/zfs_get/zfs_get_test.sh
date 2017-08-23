@@ -116,7 +116,7 @@ atf_test_case zfs_get_004_pos cleanup
 zfs_get_004_pos_head()
 {
 	atf_set "descr" "Verify the functions of 'zfs get all' work."
-	atf_set "require.progs"  zfs zpool mkfile
+	atf_set "require.progs"  zfs zpool
 }
 zfs_get_004_pos_body()
 {

@@ -62,7 +62,7 @@ for rhost in $TESTHOSTS; do
 
 	#Initially, create a storage pool for zfs send/recv testing.
 	poolfile=$RTEST_ROOT/$progdirname/$RTESTFILE
-	rsh_status "" $rhost "$MKFILE $FILESZ $poolfile"
+	rsh_status "" $rhost "$TRUNCATE -s $FILESZ $poolfile"
 	(( $? != 0 )) && \
 		log_fail "Creating $FILESZ file in $rhost failed."
 	rsh_status "" $rhost "$ZPOOL create $RTESTPOOL $poolfile" 

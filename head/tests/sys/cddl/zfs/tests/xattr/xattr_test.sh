@@ -325,7 +325,7 @@ atf_test_case xattr_012_pos cleanup
 xattr_012_pos_head()
 {
 	atf_set "descr" "xattr file sizes count towards normal disk usage"
-	atf_set "require.progs"  mkfile svcadm zfs runat zpool svcs
+	atf_set "require.progs"  svcadm zfs runat zpool svcs
 }
 xattr_012_pos_body()
 {

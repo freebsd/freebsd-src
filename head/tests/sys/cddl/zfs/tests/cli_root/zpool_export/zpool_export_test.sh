@@ -103,7 +103,7 @@ atf_test_case zpool_export_004_pos cleanup
 zpool_export_004_pos_head()
 {
 	atf_set "descr" "Verify zpool export succeed or fail with spare."
-	atf_set "require.progs"  mkfile zpool
+	atf_set "require.progs"  zpool
 }
 zpool_export_004_pos_body()
 {

@@ -60,7 +60,7 @@ zfsd_degrade_001_pos_head()
 {
 	atf_set "descr" "ZFS will degrade a vdev that produces checksum errors"
 	atf_set "require.config" at_least_2_disks
-	atf_set "require.progs"  mkfile zpool zfsd
+	atf_set "require.progs"  zpool zfsd
 	atf_set "timeout" 300
 }
 zfsd_degrade_001_pos_body()
@@ -90,7 +90,7 @@ zfsd_degrade_002_pos_head()
 {
 	atf_set "descr" "ZFS will degrade a spare that produces checksum errors"
 	atf_set "require.config" at_least_3_disks
-	atf_set "require.progs"  mkfile zpool zfsd
+	atf_set "require.progs"  zpool zfsd
 	atf_set "timeout" 300
 }
 zfsd_degrade_002_pos_body()

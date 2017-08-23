@@ -53,7 +53,7 @@ atf_test_case zpool_002_pos cleanup
 zpool_002_pos_head()
 {
 	atf_set "descr" "With ZFS_ABORT set, all zpool commands can abort and generate a core file."
-	atf_set "require.progs"  mkfile zpool coreadm
+	atf_set "require.progs"  zpool coreadm
 }
 zpool_002_pos_body()
 {

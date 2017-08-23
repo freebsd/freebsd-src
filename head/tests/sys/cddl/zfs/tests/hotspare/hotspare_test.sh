@@ -225,7 +225,7 @@ atf_test_case hotspare_detach_001_pos cleanup
 hotspare_detach_001_pos_head()
 {
 	atf_set "descr" "'zpool detach <pool> <vdev> ...' should deactivate the spared-in hot spare device successfully."
-	atf_set "require.progs"  mkfile zpool
+	atf_set "require.progs"  zpool
 	atf_set "timeout" 3600
 }
 hotspare_detach_001_pos_body()
@@ -618,7 +618,7 @@ atf_test_case hotspare_replace_002_neg cleanup
 hotspare_replace_002_neg_head()
 {
 	atf_set "descr" "'zpool replace <pool> <odev> <ndev>' should fail while the hot spares smaller than the basic vdev."
-	atf_set "require.progs"  mkfile zpool
+	atf_set "require.progs"  zpool
 	atf_set "timeout" 3600
 }
 hotspare_replace_002_neg_body()
@@ -676,7 +676,7 @@ atf_test_case hotspare_scrub_001_pos cleanup
 hotspare_scrub_001_pos_head()
 {
 	atf_set "descr" "'zpool scrub <pool>' should runs successfully regardlessthe hotspare is only in list or activated."
-	atf_set "require.progs"  mkfile zpool
+	atf_set "require.progs"  zpool
 	atf_set "timeout" 3600
 }
 hotspare_scrub_001_pos_body()
@@ -704,7 +704,7 @@ atf_test_case hotspare_scrub_002_pos cleanup
 hotspare_scrub_002_pos_head()
 {
 	atf_set "descr" "'zpool scrub' scans spare vdevs"
-	atf_set "require.progs"  mkfile zpool
+	atf_set "require.progs"  zpool
 }
 hotspare_scrub_002_pos_body()
 {

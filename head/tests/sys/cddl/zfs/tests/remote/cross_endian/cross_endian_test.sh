@@ -28,7 +28,7 @@ atf_test_case cross_endian_001_pos cleanup
 cross_endian_001_pos_head()
 {
 	atf_set "descr" "Verify any storage pools can be moved between any architecturesystems."
-	atf_set "require.progs"  mkfile zpool rsh zfs rcp
+	atf_set "require.progs"  zpool rsh zfs rcp
 }
 cross_endian_001_pos_body()
 {
@@ -55,7 +55,7 @@ atf_test_case cross_endian_002_pos cleanup
 cross_endian_002_pos_head()
 {
 	atf_set "descr" "Verify any storage pools can be moved between any architecturesystems."
-	atf_set "require.progs"  zfs rcp rsh zpool mkfile
+	atf_set "require.progs"  zfs rcp rsh zpool
 }
 cross_endian_002_pos_body()
 {

@@ -70,8 +70,8 @@ function cleanup
 log_assert "Verify zfs receive can handle out of space correctly."
 log_onexit cleanup
 
-log_must $MKFILE 100M $TESTDIR/bfile
-log_must $MKFILE 64M  $TESTDIR/sfile
+log_must $TRUNCATE -s 100M $TESTDIR/bfile
+log_must $TRUNCATE -s 64M  $TESTDIR/sfile
 log_must $ZPOOL create bpool $TESTDIR/bfile
 log_must $ZPOOL create spool $TESTDIR/sfile
 
@@ -80,7 +80,7 @@ log_must $ZPOOL create spool $TESTDIR/sfile
 #
 log_must $ZFS create bpool/fs
 mntpnt=$(get_prop mountpoint bpool/fs)
-log_must $MKFILE 30M $mntpnt/file
+log_must $TRUNCATE -s 30M $mntpnt/file
 
 log_must $ZFS snapshot bpool/fs@snap
 log_must eval "$ZFS send -R bpool/fs@snap > $BACKDIR/fs-R"

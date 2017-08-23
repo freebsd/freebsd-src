@@ -29,7 +29,7 @@ zpool_create_001_pos_head()
 {
 	atf_set "descr" "'zpool create <pool> <vspec> ...' can successfully createa new pool with a name in ZFS namespace."
 	atf_set "require.config" disks_are_physical
-	atf_set "require.progs"  mkfile zpool
+	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
 zpool_create_001_pos_body()
@@ -58,7 +58,7 @@ zpool_create_002_pos_head()
 {
 	atf_set "descr" "'zpool create -f <pool> <vspec> ...' can successfully createa new pool in some cases."
 	atf_set "require.config" disks_are_physical
-	atf_set "require.progs"  mkfile zpool
+	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
 zpool_create_002_pos_body()
@@ -116,7 +116,7 @@ zpool_create_004_pos_head()
 {
 	atf_set "descr" "'zpool create [-f]' can create a storage pool with large numbers of vdevswithout any errors."
 	atf_set "require.config" disks_are_physical
-	atf_set "require.progs"  zfs mkfile zpool
+	atf_set "require.progs"  zfs zpool
 	atf_set "timeout" 2400
 }
 zpool_create_004_pos_body()
@@ -145,7 +145,7 @@ zpool_create_005_pos_head()
 {
 	atf_set "descr" "'zpool create [-R root][-m mountpoint] <pool> <vdev> ...' can createan alternate pool or a new pool mounted at the specified mountpoint."
 	atf_set "require.config" disks_are_physical
-	atf_set "require.progs"  mkfile zpool zfs
+	atf_set "require.progs"  zpool zfs
 	atf_set "timeout" 2400
 }
 zpool_create_005_pos_body()
@@ -174,7 +174,7 @@ zpool_create_006_pos_head()
 {
 	atf_set "descr" "Verify 'zpool create' succeed with keywords combination."
 	atf_set "require.config" disks_are_physical
-	atf_set "require.progs"  mkfile zpool
+	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
 zpool_create_006_pos_body()
@@ -290,7 +290,7 @@ zpool_create_010_neg_head()
 {
 	atf_set "descr" "'zpool create' should return an error with VDEVs <64mb"
 	atf_set "require.config" disks_are_physical
-	atf_set "require.progs"  zfs mkfile zpool
+	atf_set "require.progs"  zfs zpool
 	atf_set "timeout" 2400
 }
 zpool_create_010_neg_body()
@@ -406,7 +406,7 @@ zpool_create_014_neg_head()
 {
 	atf_set "descr" "'zpool create' should fail with regular file in swap."
 	atf_set "require.config" disks_are_physical
-	atf_set "require.progs"  zfs mkfile swap zpool
+	atf_set "require.progs"  zfs swap zpool
 	atf_set "timeout" 2400
 }
 zpool_create_014_neg_body()

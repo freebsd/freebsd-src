@@ -136,7 +136,7 @@ atf_test_case zfs_rename_005_neg cleanup
 zfs_rename_005_neg_head()
 {
 	atf_set "descr" "'zfs rename' should fail while datasets are within different pool."
-	atf_set "require.progs"  mkfile zfs
+	atf_set "require.progs"  zfs
 }
 zfs_rename_005_neg_body()
 {

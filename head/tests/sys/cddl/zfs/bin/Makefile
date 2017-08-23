@@ -44,6 +44,7 @@ PROGS+=		file_check
 PROGS+=		file_trunc
 PROGS+=		file_write
 PROGS+=		largest_file
+PROGS+=		mkfile
 PROGS+=		mktree
 PROGS+=		mmapwrite
 PROGS+=		randfree_file

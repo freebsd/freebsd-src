@@ -454,7 +454,7 @@ atf_test_case snapshot_014_pos cleanup
 snapshot_014_pos_head()
 {
 	atf_set "descr" "Verify creating/destroying snapshots do things clean"
-	atf_set "require.progs"  zfs mkfile
+	atf_set "require.progs"  zfs
 }
 snapshot_014_pos_body()
 {
@@ -479,7 +479,7 @@ atf_test_case snapshot_015_pos cleanup
 snapshot_015_pos_head()
 {
 	atf_set "descr" "Verify snapshot can be created via mkdir in .zfs/snapshot."
-	atf_set "require.progs"  zfs mkfile
+	atf_set "require.progs"  zfs
 }
 snapshot_015_pos_body()
 {
@@ -531,7 +531,7 @@ atf_test_case snapshot_017_pos cleanup
 snapshot_017_pos_head()
 {
 	atf_set "descr" "Directory structure of snapshots reflects filesystem structure."
-	atf_set "require.progs"  zfs mkfile
+	atf_set "require.progs"  zfs
 }
 snapshot_017_pos_body()
 {
@@ -556,7 +556,7 @@ atf_test_case snapshot_018_pos cleanup
 snapshot_018_pos_head()
 {
 	atf_set "descr" "Snapshot directory supports ACL operations"
-	atf_set "require.progs" zfs mkfile getfacl getconf sha1
+	atf_set "require.progs" zfs getfacl getconf sha1
 }
 snapshot_018_pos_body()
 {

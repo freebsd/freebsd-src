@@ -40,7 +40,7 @@ if [[ -d $VDEV_DIR ]]; then
 fi
 
 log_must $MKDIR -p $VDEV_DIR
-log_must $MKFILE 100M $DEV_FILES $SPARE_FILES $NEWFILE
+log_must $TRUNCATE -s 100M $DEV_FILES $SPARE_FILES $NEWFILE
 log_must create_lofi_device $DEV_FILES $SPARE_FILES
 
 #
