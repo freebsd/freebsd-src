@@ -2,6 +2,8 @@
 
 .include <bsd.own.mk>
 
+.if make(*clean) || make(*install)
+
 FILESGROUPS?=	FILES
 
 cov_objs_no_suffixes=	${COV_OBJS:R}
@@ -25,4 +27,6 @@ ${DESTDIR}${_gcno_dir}:
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},coverage} -d ${.TARGET}
 .endif
 .endfor
+.endif
+
 .endif
