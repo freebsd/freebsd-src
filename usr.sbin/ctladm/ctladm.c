@@ -3958,7 +3958,7 @@ usage(int error)
 "-q                       : omit header in list output\n"
 "-x                       : output port list in XML format\n"
 "portlist options:\n"
-"-f fronetnd              : specify frontend type\n"
+"-f frontend              : specify frontend type\n"
 "-i                       : report target and initiators addresses\n"
 "-l                       : report LUN mapping\n"
 "-p targ_port             : specify target port number\n"
