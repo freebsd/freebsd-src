@@ -824,6 +824,7 @@ camdd_buf_sg_create(struct camdd_buf *buf, int iovec, uint32_t sector_size,
 	struct camdd_buf_data *data;
 	uint8_t *extra_buf = NULL;
 	size_t extra_buf_len = 0;
+	int extra_buf_attached = 0;
 	int i, retval = 0;
 
 	data = &buf->buf_type_spec.data;
@@ -913,6 +914,7 @@ camdd_buf_sg_create(struct camdd_buf *buf, int iovec, uint32_t sector_size,
 			data->iovec[i].iov_base = extra_buf;
 			data->iovec[i].iov_len = extra_buf_len;
 		}
+		extra_buf_attached = 1;
 		i++;
 	}
 	if ((tmp_buf != NULL) || (i != data->sg_count)) {
@@ -926,6 +928,14 @@ bailout:
 	if (retval == 0) {
 		*num_sectors_used = (data->fill_len + extra_buf_len) /
 		    sector_size;
+	} else if (extra_buf_attached == 0) {
+		/*
+		 * If extra_buf isn't attached yet, we need to free it
+		 * to avoid leaking.
+		 */
+		free(extra_buf);
+		data->extra_buf = 0;
+		data->sg_count--;
 	}
 	return (retval);
 }
