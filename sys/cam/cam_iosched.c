@@ -233,7 +233,7 @@ struct iop_stats {
 	uint32_t	state_flags;
 #define IOP_RATE_LIMITED		1u
 
-#define LAT_BUCKETS 12			/* < 1ms < 2ms ... 512ms < 1024ms > 1024ms */
+#define LAT_BUCKETS 15			/* < 1ms < 2ms ... < 2^(n-1)ms >= 2^(n-1)ms*/
 	uint64_t	latencies[LAT_BUCKETS];
 
 	struct cam_iosched_softc *softc;
@@ -1520,7 +1520,7 @@ isqrt64(uint64_t val)
 	return res;
 }
 
-static sbintime_t latencies[] = {
+static sbintime_t latencies[LAT_BUCKETS - 1] = {
 	SBT_1MS <<  0,
 	SBT_1MS <<  1,
 	SBT_1MS <<  2,
@@ -1531,7 +1531,10 @@ static sbintime_t latencies[] = {
 	SBT_1MS <<  7,
 	SBT_1MS <<  8,
 	SBT_1MS <<  9,
-	SBT_1MS << 10
+	SBT_1MS << 10,
+	SBT_1MS << 11,
+	SBT_1MS << 12,
+	SBT_1MS << 13		/* 8.192s */
 };
 
 static void
