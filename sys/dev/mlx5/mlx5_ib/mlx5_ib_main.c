@@ -856,7 +856,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	else if (reqlen == sizeof(struct mlx5_ib_alloc_ucontext_req_v2))
 		ver = 2;
 	else {
-		mlx5_ib_err(dev, "request malformed, reqlen: %ld\n", reqlen);
+		mlx5_ib_err(dev, "request malformed, reqlen: %ld\n", (long)reqlen);
 		return ERR_PTR(-EINVAL);
 	}
 
