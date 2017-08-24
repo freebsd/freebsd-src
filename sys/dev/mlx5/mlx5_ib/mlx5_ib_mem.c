@@ -29,6 +29,8 @@
 #include <rdma/ib_umem.h>
 #include "mlx5_ib.h"
 
+CTASSERT(sizeof(uintptr_t) == sizeof(unsigned long));
+
 /* @umem: umem object to scan
  * @addr: ib virtual address requested by the user
  * @count: number of PAGE_SIZE pages covered by umem
@@ -40,7 +42,7 @@
 void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr, int *count, int *shift,
 			int *ncont, int *order)
 {
-	uintptr_t tmp;
+	unsigned long tmp;
 	unsigned long m;
 	int i, k;
 	u64 base = 0;
