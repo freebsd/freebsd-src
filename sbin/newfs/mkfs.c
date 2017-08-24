@@ -121,6 +121,7 @@ mkfs(struct partition *pp, char *fsys)
 	ino_t maxinum;
 	int minfragsperinode;	/* minimum ratio of frags to inodes */
 	char tmpbuf[100];	/* XXX this will break in about 2,500 years */
+	struct fsrecovery fsr;
 	union {
 		struct fs fdummy;
 		char cdummy[SBLOCKSIZE];
@@ -618,6 +619,25 @@ restart:
 			sblock.fs_cssize - i < sblock.fs_bsize ?
 			sblock.fs_cssize - i : sblock.fs_bsize,
 			((char *)fscs) + i);
+	/*
+	 * Read the last sector of the boot block, replace the last
+	 * 20 bytes with the recovery information, then write it back.
+	 * The recovery information only works for UFS2 filesystems.
+	 */
+	if (sblock.fs_magic == FS_UFS2_MAGIC) {
+		i = bread(&disk,
+		    part_ofs + (SBLOCK_UFS2 - sizeof(fsr)) / disk.d_bsize,
+		    (char *)&fsr, sizeof(fsr));
+		if (i == -1)
+			err(1, "can't read recovery area: %s", disk.d_error);
+		fsr.fsr_magic = sblock.fs_magic;
+		fsr.fsr_fpg = sblock.fs_fpg;
+		fsr.fsr_fsbtodb = sblock.fs_fsbtodb;
+		fsr.fsr_sblkno = sblock.fs_sblkno;
+		fsr.fsr_ncg = sblock.fs_ncg;
+		wtfs((SBLOCK_UFS2 - sizeof(fsr)) / disk.d_bsize, sizeof(fsr),
+		    (char *)&fsr);
+	}
 	/*
 	 * Update information about this partition in pack
 	 * label, to that it may be updated on disk.

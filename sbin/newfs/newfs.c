@@ -117,11 +117,9 @@ static u_char   bootarea[BBSIZE];
 static int	is_file;		/* work on a file, not a device */
 static char	*dkname;
 static char	*disktype;
-static int	unlabeled;
 
 static void getfssize(intmax_t *, const char *p, intmax_t, intmax_t);
 static struct disklabel *getdisklabel(char *s);
-static void rewritelabel(char *s, struct disklabel *lp);
 static void usage(void);
 static int expand_number_int(const char *buf, int *num);
 
@@ -403,12 +401,6 @@ main(int argc, char *argv[])
 			pp->p_size *= secperblk;
 	}
 	mkfs(pp, special);
-	if (!unlabeled) {
-		if (realsectorsize != DEV_BSIZE)
-			pp->p_size /= realsectorsize / DEV_BSIZE;
-		if (!Nflag && bcmp(pp, &oldpartition, sizeof(oldpartition)))
-			rewritelabel(special, lp);
-	}
 	ufs_disk_close(&disk);
 	if (!jflag)
 		exit(0);
@@ -452,34 +444,12 @@ getdisklabel(char *s)
 		return &lab;
 	}
 
-	if (ioctl(disk.d_fd, DIOCGDINFO, (char *)&lab) != -1)
-		return (&lab);
-	unlabeled++;
 	if (disktype) {
 		lp = getdiskbyname(disktype);
 		if (lp != NULL)
 			return (lp);
 	}
 	return (NULL);
-}
-
-void
-rewritelabel(char *s, struct disklabel *lp)
-{
-	if (unlabeled)
-		return;
-	lp->d_checksum = 0;
-	lp->d_checksum = dkcksum(lp);
-	if (is_file) {
-		bsd_disklabel_le_enc(bootarea + 0 /* labeloffset */ +
-			1 /* labelsoffset */ * sectorsize, lp);
-		lseek(disk.d_fd, 0, SEEK_SET);
-		if (write(disk.d_fd, bootarea, BBSIZE) != BBSIZE)
-			errx(1, "cannot write label");
-		return;
-	}
-	if (ioctl(disk.d_fd, DIOCWDINFO, (char *)lp) == -1)
-		warn("ioctl (WDINFO): %s: can't rewrite disk label", s);
 }
 
 static void
