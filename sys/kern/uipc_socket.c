@@ -3769,13 +3769,14 @@ soisdisconnected(struct socket *so)
 	so->so_state |= SS_ISDISCONNECTED;
 
 	if (!SOLISTENING(so)) {
+		SOCK_UNLOCK(so);
 		SOCKBUF_LOCK(&so->so_rcv);
 		socantrcvmore_locked(so);
 		SOCKBUF_LOCK(&so->so_snd);
 		sbdrop_locked(&so->so_snd, sbused(&so->so_snd));
 		socantsendmore_locked(so);
-	}
-	SOCK_UNLOCK(so);
+	} else
+		SOCK_UNLOCK(so);
 	wakeup(&so->so_timeo);
 }
 
