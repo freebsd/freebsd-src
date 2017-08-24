@@ -2921,25 +2921,35 @@ qlnx_tso_check(struct qlnx_fastpath *fp, bus_dma_segment_t *segs, int nsegs,
 {
 	int			i;
 	uint32_t		sum, nbds_in_hdr = 1;
-	bus_dma_segment_t	*t_segs = segs;
+	uint32_t		window;
+        bus_dma_segment_t	*s_seg;
 
-	/* count the number of segments spanned by TCP header */
+	/* If the header spans mulitple segments, skip those segments */
+
+	if (nsegs < ETH_TX_LSO_WINDOW_BDS_NUM)
+		return (0);
 
 	i = 0;
-	while ((i < nsegs) && (offset > t_segs->ds_len)) {
-		nbds_in_hdr++;
-		offset = offset - t_segs->ds_len;
-		t_segs++;
+
+	while ((i < nsegs) && (offset >= segs->ds_len)) {
+		offset = offset - segs->ds_len;
+		segs++;
 		i++;
+		nbds_in_hdr++;
 	}
 
-	while (nsegs >= QLNX_MAX_SEGMENTS_NON_TSO) {
+	window = ETH_TX_LSO_WINDOW_BDS_NUM - nbds_in_hdr;
+
+	nsegs = nsegs - i;
+
+	while (nsegs >= window) {
 
 		sum = 0;
+		s_seg = segs;
 
-		for (i = 0; i < (ETH_TX_LSO_WINDOW_BDS_NUM - nbds_in_hdr); i++){
-			sum += segs->ds_len;
-			segs++;
+		for (i = 0; i < window; i++){
+			sum += s_seg->ds_len;
+			s_seg++;
 		}
 
 		if (sum < ETH_TX_LSO_WINDOW_MIN_LEN) {
@@ -2947,7 +2957,8 @@ qlnx_tso_check(struct qlnx_fastpath *fp, bus_dma_segment_t *segs, int nsegs,
 			return (-1);
 		}
 
-		nsegs -= QLNX_MAX_SEGMENTS_NON_TSO;
+		nsegs = nsegs - 1;
+		segs++;
 	}
 
 	return (0);
