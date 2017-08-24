@@ -44,10 +44,12 @@ __FBSDID("$FreeBSD$");
 #include "opt_procdesc.h"
 
 #include <sys/param.h>
+#include <sys/ctype.h>
 #include <sys/systm.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/acct.h>
+#include <sys/bus.h>
 #include <sys/capsicum.h>
 #include <sys/condvar.h>
 #include <sys/event.h>
@@ -182,6 +184,10 @@ SYSCTL_INT(_kern, OID_AUTO, coredump, CTLFLAG_RW,
 static int	set_core_nodump_flag = 0;
 SYSCTL_INT(_kern, OID_AUTO, nodump_coredump, CTLFLAG_RW, &set_core_nodump_flag,
 	0, "Enable setting the NODUMP flag on coredump files");
+
+static int	coredump_devctl = 0;
+SYSCTL_INT(_kern, OID_AUTO, coredump_devctl, CTLFLAG_RW, &coredump_devctl,
+	0, "Generate a devctl notification when processes coredump");
 
 /*
  * Signal properties and actions.
@@ -3317,6 +3323,24 @@ out:
 	return (0);
 }
 
+static int
+coredump_sanitise_path(const char *path)
+{
+	size_t i;
+
+	/*
+	 * Only send a subset of ASCII to devd(8) because it
+	 * might pass these strings to sh -c.
+	 */
+	for (i = 0; path[i]; i++)
+		if (!(isalpha(path[i]) || isdigit(path[i])) &&
+		    path[i] != '/' && path[i] != '.' &&
+		    path[i] != '-')
+			return (0);
+
+	return (1);
+}
+
 /*
  * Dump a process' core.  The main routine does some
  * policy checking, and creates the name of the coredump;
@@ -3338,6 +3362,11 @@ coredump(struct thread *td)
 	char *name;			/* name of corefile */
 	off_t limit;
 	int compress;
+	char *data = NULL;
+	char *fullpath, *freepath = NULL;
+	size_t len;
+	static const char comm_name[] = "comm=";
+	static const char core_name[] = "core=";
 
 #ifdef COMPRESS_USER_CORES
 	compress = compress_user_cores;
@@ -3380,7 +3409,7 @@ restart:
 	    vattr.va_nlink != 1) {
 		VOP_UNLOCK(vp, 0);
 		error = EFAULT;
-		goto close;
+		goto out;
 	}
 
 	VOP_UNLOCK(vp, 0);
@@ -3425,14 +3454,39 @@ restart:
 		lf.l_type = F_UNLCK;
 		VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
 	}
-close:
+
+	/*
+	 * Notify the userland helper that a process triggered a core dump.
+	 * This allows the helper to run an automated debugging session.
+	 */
+	if (error != 0 || coredump_devctl == 0)
+		goto out;
+	len = MAXPATHLEN * 2 + sizeof(comm_name) - 1 +
+	    sizeof(' ') + sizeof(core_name) - 1;
+	data = malloc(len, M_TEMP, M_WAITOK);
+	if (vn_fullpath_global(td, p->p_textvp, &fullpath, &freepath) != 0)
+		goto out;
+	if (!coredump_sanitise_path(fullpath))
+		goto out;
+	snprintf(data, len, "%s%s ", comm_name, fullpath);
+	free(freepath, M_TEMP);
+	freepath = NULL;
+	if (vn_fullpath_global(td, vp, &fullpath, &freepath) != 0)
+		goto out;
+	if (!coredump_sanitise_path(fullpath))
+		goto out;
+	strlcat(data, core_name, len);
+	strlcat(data, fullpath, len);
+	devctl_notify("kernel", "signal", "coredump", data);
+out:
 	error1 = vn_close(vp, FWRITE, cred, td);
 	if (error == 0)
 		error = error1;
-out:
 #ifdef AUDIT
 	audit_proc_coredump(td, name, error);
 #endif
+	free(freepath, M_TEMP);
+	free(data, M_TEMP);
 	free(name, M_TEMP);
 	return (error);
 }
