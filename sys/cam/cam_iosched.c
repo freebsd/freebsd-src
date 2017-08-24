@@ -1428,7 +1428,8 @@ cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
 	}
 
 	if (!(bp->bio_flags & BIO_ERROR))
-		cam_iosched_io_metric_update(isc, done_ccb->ccb_h.qos.sim_data,
+		cam_iosched_io_metric_update(isc,
+		    cam_iosched_sbintime_t(done_ccb->ccb_h.qos.periph_data),
 		    bp->bio_cmd, bp->bio_bcount);
 #endif
 	return retval;
