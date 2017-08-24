@@ -36,6 +36,7 @@
 #include <sys/cdefs.h>
 #include <sys/time.h>
 #include <sys/fs/zfs.h>
+#include <sys/vdev_impl.h>
 
 #include <syslog.h>
 
@@ -93,6 +94,7 @@ DevfsEvent::ReadLabel(int devFd, bool &inUse, bool &degraded)
 	pool_state_t poolState;
 	char        *poolName;
 	boolean_t    b_inuse;
+	int          nlabels;
 
 	inUse    = false;
 	degraded = false;
@@ -105,8 +107,16 @@ DevfsEvent::ReadLabel(int devFd, bool &inUse, bool &degraded)
 		if (poolName != NULL)
 			free(poolName);
 
-		if (zpool_read_label(devFd, &devLabel) != 0
-		 || devLabel == NULL)
+		nlabels = zpool_read_all_labels(devFd, &devLabel);
+		/*
+		 * If we find a disk with fewer than the maximum number of
+		 * labels, it might be the whole disk of a partitioned disk
+		 * where ZFS resides on a partition.  In that case, we should do
+		 * nothing and wait for the partition to appear.  Or, the disk
+		 * might be damaged.  In that case, zfsd should do nothing and
+		 * wait for the sysadmin to decide.
+		 */
+		if (nlabels != VDEV_LABELS || devLabel == NULL)
 			return (NULL);
 
 		try {
