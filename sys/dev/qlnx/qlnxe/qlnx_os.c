@@ -94,6 +94,8 @@ static int qlnx_get_ifq_snd_maxlen(qlnx_host_t *ha);
 static uint32_t qlnx_get_optics(qlnx_host_t *ha,
 			struct qlnx_link_output *if_link);
 static int qlnx_transmit(struct ifnet *ifp, struct mbuf  *mp);
+static int qlnx_transmit_locked(struct ifnet *ifp, struct qlnx_fastpath *fp,
+		struct mbuf *mp);
 static void qlnx_qflush(struct ifnet *ifp);
 
 static int qlnx_alloc_parent_dma_tag(qlnx_host_t *ha);
@@ -133,6 +135,8 @@ static void qlnx_timer(void *arg);
 static int qlnx_alloc_tx_br(qlnx_host_t *ha, struct qlnx_fastpath *fp);
 static void qlnx_free_tx_br(qlnx_host_t *ha, struct qlnx_fastpath *fp);
 static void qlnx_trigger_dump(qlnx_host_t *ha);
+static uint16_t qlnx_num_tx_compl(qlnx_host_t *ha, struct qlnx_fastpath *fp,
+			struct qlnx_tx_queue *txq);
 static void qlnx_tx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 		struct qlnx_tx_queue *txq);
 static int qlnx_rx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp, int budget,
@@ -214,6 +218,12 @@ char qlnx_name_str[NAME_SIZE];
 #ifndef QLOGIC_PCI_DEVICE_ID_8070
 #define QLOGIC_PCI_DEVICE_ID_8070	0x8070
 #endif
+
+SYSCTL_NODE(_hw, OID_AUTO, qlnxe, CTLFLAG_RD, 0, "qlnxe driver parameters");
+/* Number of Queues: 0 (Auto) or 1 to 32 (fixed queue number) */
+static int qlnxe_queue_count = QLNX_DEFAULT_RSS;
+SYSCTL_INT(_hw_qlnxe, OID_AUTO, queue_count, CTLFLAG_RDTUN,
+		&qlnxe_queue_count, 0, "Multi-Queue queue count");
 
 static int
 qlnx_valid_device(device_t dev)
@@ -300,6 +310,25 @@ qlnx_pci_probe(device_t dev)
         }
 
         return (BUS_PROBE_DEFAULT);
+}
+
+static uint16_t
+qlnx_num_tx_compl(qlnx_host_t *ha, struct qlnx_fastpath *fp,
+	struct qlnx_tx_queue *txq)
+{
+	u16 hw_bd_cons;
+	u16 ecore_cons_idx;
+	uint16_t diff;
+
+	hw_bd_cons = le16toh(*txq->hw_cons_ptr);
+
+	ecore_cons_idx = ecore_chain_get_cons_idx(&txq->tx_pbl);
+	if (hw_bd_cons < ecore_cons_idx) {
+		diff = (1 << 16) - (ecore_cons_idx - hw_bd_cons);
+	} else {
+		diff = hw_bd_cons - ecore_cons_idx;
+	}
+	return diff;
 }
 
 
@@ -395,20 +424,23 @@ qlnx_fp_taskqueue(void *context, int pending)
         struct qlnx_fastpath	*fp;
         qlnx_host_t		*ha;
         struct ifnet		*ifp;
-        struct mbuf		*mp;
-        int			ret;
-	struct thread		*cthread;
 
 #ifdef QLNX_RCV_IN_TASKQ
 	int			lro_enable;
 	int			rx_int = 0, total_rx_count = 0;
-
+	struct thread		*cthread;
 #endif /* #ifdef QLNX_RCV_IN_TASKQ */
 
         fp = context;
 
         if (fp == NULL)
                 return;
+
+        ha = (qlnx_host_t *)fp->edev;
+
+        ifp = ha->ifp;
+
+#ifdef QLNX_RCV_IN_TASKQ
 
 	cthread = curthread;
 
@@ -419,111 +451,80 @@ qlnx_fp_taskqueue(void *context, int pending)
 
 	thread_unlock(cthread);
 
-        ha = (qlnx_host_t *)fp->edev;
+	lro_enable = ifp->if_capenable & IFCAP_LRO;
 
-        ifp = ha->ifp;
+	rx_int = qlnx_rx_int(ha, fp, ha->rx_pkt_threshold, lro_enable);
 
-#ifdef QLNX_RCV_IN_TASKQ
-	{
-		lro_enable = ifp->if_capenable & IFCAP_LRO;
-
-		rx_int = qlnx_rx_int(ha, fp, ha->rx_pkt_threshold, lro_enable);
-
-		if (rx_int) {
-			fp->rx_pkts += rx_int;
-			total_rx_count += rx_int;
-		}
+	if (rx_int) {
+		fp->rx_pkts += rx_int;
+		total_rx_count += rx_int;
+	}
 
 #ifdef QLNX_SOFT_LRO
-		{
-			struct lro_ctrl *lro;
-	
-			lro = &fp->rxq->lro;
+	{
+		struct lro_ctrl *lro;
 
-			if (lro_enable && total_rx_count) {
+		lro = &fp->rxq->lro;
+
+		if (lro_enable && total_rx_count) {
 
 #if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO)
 
-				if (ha->dbg_trace_lro_cnt) {
-					if (lro->lro_mbuf_count & ~1023)
-						fp->lro_cnt_1024++;
-					else if (lro->lro_mbuf_count & ~511)
-						fp->lro_cnt_512++;
-					else if (lro->lro_mbuf_count & ~255)
-						fp->lro_cnt_256++;
-					else if (lro->lro_mbuf_count & ~127)
-						fp->lro_cnt_128++;
-					else if (lro->lro_mbuf_count & ~63)
-						fp->lro_cnt_64++;
-				}
-				tcp_lro_flush_all(lro);
+			if (ha->dbg_trace_lro_cnt) {
+				if (lro->lro_mbuf_count & ~1023)
+					fp->lro_cnt_1024++;
+				else if (lro->lro_mbuf_count & ~511)
+					fp->lro_cnt_512++;
+				else if (lro->lro_mbuf_count & ~255)
+					fp->lro_cnt_256++;
+				else if (lro->lro_mbuf_count & ~127)
+					fp->lro_cnt_128++;
+				else if (lro->lro_mbuf_count & ~63)
+					fp->lro_cnt_64++;
+			}
+			tcp_lro_flush_all(lro);
 
 #else
-				struct lro_entry *queued;
+			struct lro_entry *queued;
 
-				while ((!SLIST_EMPTY(&lro->lro_active))) {
-					queued = SLIST_FIRST(&lro->lro_active);
-					SLIST_REMOVE_HEAD(&lro->lro_active, next);
-					tcp_lro_flush(lro, queued);
-				}
-#endif /* #if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO) */
+			while ((!SLIST_EMPTY(&lro->lro_active))) {
+				queued = SLIST_FIRST(&lro->lro_active);
+				SLIST_REMOVE_HEAD(&lro->lro_active, next);
+				tcp_lro_flush(lro, queued);
 			}
+#endif /* #if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO) */
 		}
+	}
 #endif /* #ifdef QLNX_SOFT_LRO */
 
-		ecore_sb_update_sb_idx(fp->sb_info);
-		rmb();
-	}
+	ecore_sb_update_sb_idx(fp->sb_info);
+	rmb();
 
 #endif /* #ifdef QLNX_RCV_IN_TASKQ */
 
-        mtx_lock(&fp->tx_mtx);
+        if(ifp->if_drv_flags & IFF_DRV_RUNNING) {
 
-        if (((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-                IFF_DRV_RUNNING) || (!ha->link_up)) {
+                if (!drbr_empty(ifp, fp->tx_br)) {
 
-                mtx_unlock(&fp->tx_mtx);
-                goto qlnx_fp_taskqueue_exit;
-        }
+                        if(mtx_trylock(&fp->tx_mtx)) {
 
-        mp = drbr_peek(ifp, fp->tx_br);
+#ifdef QLNX_TRACE_PERF_DATA
+                                tx_pkts = fp->tx_pkts_transmitted;
+                                tx_compl = fp->tx_pkts_completed;
+#endif
 
-        while (mp != NULL) {
+                                qlnx_transmit_locked(ifp, fp, NULL);
 
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			ret = qlnx_send(ha, fp, &mp);
-		} else {
-			ret = -1;
-		}
-
-                if (ret) {
-
-                        if (mp != NULL) {
-                                drbr_putback(ifp, fp->tx_br, mp);
-                        } else {
-                                fp->tx_pkts_processed++;
-                                drbr_advance(ifp, fp->tx_br);
+#ifdef QLNX_TRACE_PERF_DATA
+                                fp->tx_pkts_trans_fp +=
+					(fp->tx_pkts_transmitted - tx_pkts);
+                                fp->tx_pkts_compl_fp +=
+					(fp->tx_pkts_completed - tx_compl);
+#endif
+                                mtx_unlock(&fp->tx_mtx);
                         }
-
-                        mtx_unlock(&fp->tx_mtx);
-
-                        goto qlnx_fp_taskqueue_exit;
-
-                } else {
-                        drbr_advance(ifp, fp->tx_br);
-                        fp->tx_pkts_transmitted++;
-                        fp->tx_pkts_processed++;
                 }
-
-		if (fp->tx_ring_full)
-			break;
-
-                mp = drbr_peek(ifp, fp->tx_br);
         }
-
-        mtx_unlock(&fp->tx_mtx);
-
-qlnx_fp_taskqueue_exit:
 
 #ifdef QLNX_RCV_IN_TASKQ
 	if (rx_int) {
@@ -537,7 +538,7 @@ qlnx_fp_taskqueue_exit:
 	}
 #endif /* #ifdef QLNX_RCV_IN_TASKQ */
 
-        QL_DPRINT2(ha, "exit ret = %d\n", ret);
+        QL_DPRINT2(ha, "exit \n");
         return;
 }
 
@@ -607,6 +608,17 @@ qlnx_drain_fp_taskqueues(qlnx_host_t *ha)
 			taskqueue_drain(fp->fp_taskqueue, &fp->fp_task);
 			QLNX_LOCK(ha);
 		}
+	}
+	return;
+}
+
+static void
+qlnx_get_params(qlnx_host_t *ha)
+{
+	if ((qlnxe_queue_count < 0) || (qlnxe_queue_count > QLNX_MAX_RSS)) {
+		device_printf(ha->pci_dev, "invalid queue_count value (%d)\n",
+			qlnxe_queue_count);
+		qlnxe_queue_count = 0;
 	}
 	return;
 }
@@ -706,10 +718,21 @@ qlnx_pci_attach(device_t dev)
 	if (qlnx_init_hw(ha) != 0)
 		goto qlnx_pci_attach_err;
 
+	qlnx_get_params(ha);
+
+	if((pci_get_device(dev) == QLOGIC_PCI_DEVICE_ID_1644) &&
+		(qlnxe_queue_count == QLNX_DEFAULT_RSS)) {
+		qlnxe_queue_count = QLNX_MAX_RSS;
+	}
+
 	/*
 	 * Allocate MSI-x vectors
 	 */
-	ha->num_rss = QLNX_MAX_RSS;
+	if(qlnxe_queue_count == 0)
+		ha->num_rss = QLNX_DEFAULT_RSS;
+	 else
+		ha->num_rss = qlnxe_queue_count;
+
 	ha->num_tc = QLNX_MAX_TC;
 
         ha->msix_count = pci_msix_count(dev);
@@ -1236,6 +1259,44 @@ qlnx_add_fp_stats_sysctls(qlnx_host_t *ha)
 			CTLFLAG_RD, &ha->fp_array[i].tx_pkts_completed,
 			"No. of transmit completions");
 
+                SYSCTL_ADD_QUAD(ctx, node_children,
+                        OID_AUTO, "tx_non_tso_pkts",
+                        CTLFLAG_RD, &ha->fp_array[i].tx_non_tso_pkts,
+                        "No. of non LSO transmited packets");
+
+#ifdef QLNX_TRACE_PERF_DATA
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+                        OID_AUTO, "tx_pkts_trans_ctx",
+                        CTLFLAG_RD, &ha->fp_array[i].tx_pkts_trans_ctx,
+                        "No. of transmitted packets in transmit context");
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+                        OID_AUTO, "tx_pkts_compl_ctx",
+                        CTLFLAG_RD, &ha->fp_array[i].tx_pkts_compl_ctx,
+                        "No. of transmit completions in transmit context");
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+                        OID_AUTO, "tx_pkts_trans_fp",
+                        CTLFLAG_RD, &ha->fp_array[i].tx_pkts_trans_fp,
+                        "No. of transmitted packets in taskqueue");
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+                        OID_AUTO, "tx_pkts_compl_fp",
+                        CTLFLAG_RD, &ha->fp_array[i].tx_pkts_compl_fp,
+                        "No. of transmit completions in taskqueue");
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+                        OID_AUTO, "tx_pkts_compl_intr",
+                        CTLFLAG_RD, &ha->fp_array[i].tx_pkts_compl_intr,
+                        "No. of transmit completions in interrupt ctx");
+#endif
+
+                SYSCTL_ADD_QUAD(ctx, node_children,
+                        OID_AUTO, "tx_tso_pkts",
+                        CTLFLAG_RD, &ha->fp_array[i].tx_tso_pkts,
+                        "No. of LSO transmited packets");
+
 		SYSCTL_ADD_QUAD(ctx, node_children,
 			OID_AUTO, "tx_lso_wnd_min_len",
 			CTLFLAG_RD, &ha->fp_array[i].tx_lso_wnd_min_len,
@@ -1283,6 +1344,39 @@ qlnx_add_fp_stats_sysctls(qlnx_host_t *ha)
 				OID_AUTO, name_str, CTLFLAG_RD,
 				&ha->fp_array[i].tx_pkts[j], name_str);
 		}
+
+#ifdef QLNX_TRACE_PERF_DATA
+                for (j = 0; j < 18; j++) {
+
+                        bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
+                        snprintf(name_str, sizeof(name_str),
+                                "tx_pkts_hist_%02d", (j+1));
+
+                        SYSCTL_ADD_QUAD(ctx, node_children,
+                                OID_AUTO, name_str, CTLFLAG_RD,
+                                &ha->fp_array[i].tx_pkts_hist[j], name_str);
+                }
+                for (j = 0; j < 5; j++) {
+
+                        bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
+                        snprintf(name_str, sizeof(name_str),
+                                "tx_comInt_%02d", (j+1));
+
+                        SYSCTL_ADD_QUAD(ctx, node_children,
+                                OID_AUTO, name_str, CTLFLAG_RD,
+                                &ha->fp_array[i].tx_comInt[j], name_str);
+                }
+                for (j = 0; j < 18; j++) {
+
+                        bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
+                        snprintf(name_str, sizeof(name_str),
+                                "tx_pkts_q_%02d", (j+1));
+
+                        SYSCTL_ADD_QUAD(ctx, node_children,
+                                OID_AUTO, name_str, CTLFLAG_RD,
+                                &ha->fp_array[i].tx_pkts_q[j], name_str);
+                }
+#endif
 
 		SYSCTL_ADD_QUAD(ctx, node_children,
 			OID_AUTO, "err_tx_nsegs_gt_elem_left",
@@ -1979,6 +2073,12 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 	ifp->if_capabilities |= IFCAP_TSO6;
 	ifp->if_capabilities |= IFCAP_LRO;
 
+	ifp->if_hw_tsomax =  QLNX_MAX_TSO_FRAME_SIZE -
+				(ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	ifp->if_hw_tsomaxsegcount = QLNX_MAX_SEGMENTS - 1 /* hdr */;
+	ifp->if_hw_tsomaxsegsize = QLNX_MAX_TX_MBUF_SIZE;
+
+
         ifp->if_capenable = ifp->if_capabilities;
 
 	ifp->if_hwassist = CSUM_IP;
@@ -2543,6 +2643,7 @@ qlnx_tx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 	u16 hw_bd_cons;
 	u16 ecore_cons_idx;
 	uint16_t diff;
+	uint16_t idx, idx2;
 
 	hw_bd_cons = le16toh(*txq->hw_cons_ptr);
 
@@ -2580,6 +2681,11 @@ qlnx_tx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 			qlnx_trigger_dump(ha);
 		}
 
+		idx = (txq->sw_tx_cons + 1) & (TX_RING_SIZE - 1);
+		idx2 = (txq->sw_tx_cons + 2) & (TX_RING_SIZE - 1);
+		prefetch(txq->sw_tx_ring[idx].mp);
+		prefetch(txq->sw_tx_ring[idx2].mp);
+
 		qlnx_free_tx_pkt(ha, fp, txq);
 
 		txq->sw_tx_cons = (txq->sw_tx_cons + 1) & (TX_RING_SIZE - 1);
@@ -2588,11 +2694,70 @@ qlnx_tx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 }
 
 static int
+qlnx_transmit_locked(struct ifnet *ifp,struct qlnx_fastpath  *fp, struct mbuf  *mp)
+{
+        int                     ret = 0;
+        struct qlnx_tx_queue    *txq;
+        qlnx_host_t *           ha;
+        uint16_t elem_left;
+
+        txq = fp->txq[0];
+        ha = (qlnx_host_t *)fp->edev;
+
+
+        if ((!(ifp->if_drv_flags & IFF_DRV_RUNNING)) || (!ha->link_up)) {
+                if(mp != NULL)
+                        ret = drbr_enqueue(ifp, fp->tx_br, mp);
+                return (ret);
+        }
+
+        if(mp != NULL)
+                ret  = drbr_enqueue(ifp, fp->tx_br, mp);
+
+        mp = drbr_peek(ifp, fp->tx_br);
+
+        while (mp != NULL) {
+
+                if (qlnx_send(ha, fp, &mp)) {
+
+                        if (mp != NULL) {
+                                drbr_putback(ifp, fp->tx_br, mp);
+                        } else {
+                                fp->tx_pkts_processed++;
+                                drbr_advance(ifp, fp->tx_br);
+                        }
+                        goto qlnx_transmit_locked_exit;
+
+                } else {
+                        drbr_advance(ifp, fp->tx_br);
+                        fp->tx_pkts_transmitted++;
+                        fp->tx_pkts_processed++;
+                }
+
+                mp = drbr_peek(ifp, fp->tx_br);
+        }
+
+qlnx_transmit_locked_exit:
+        if((qlnx_num_tx_compl(ha,fp, fp->txq[0]) > QLNX_TX_COMPL_THRESH) ||
+                ((int)(elem_left = ecore_chain_get_elem_left(&txq->tx_pbl))
+                                        < QLNX_TX_ELEM_MAX_THRESH))
+                (void)qlnx_tx_int(ha, fp, fp->txq[0]);
+
+        QL_DPRINT2(ha, "%s: exit ret = %d\n", __func__, ret);
+        return ret;
+}
+
+
+static int
 qlnx_transmit(struct ifnet *ifp, struct mbuf  *mp)
 {
         qlnx_host_t		*ha = (qlnx_host_t *)ifp->if_softc;
         struct qlnx_fastpath	*fp;
         int			rss_id = 0, ret = 0;
+
+#ifdef QLNX_TRACEPERF_DATA
+        uint64_t tx_pkts = 0, tx_compl = 0;
+#endif
 
         QL_DPRINT2(ha, "enter\n");
 
@@ -2611,14 +2776,26 @@ qlnx_transmit(struct ifnet *ifp, struct mbuf  *mp)
                 goto qlnx_transmit_exit;
         }
 
-        if (mp != NULL) {
-                ret = drbr_enqueue(ifp, fp->tx_br, mp);
+        if (mtx_trylock(&fp->tx_mtx)) {
+
+#ifdef QLNX_TRACEPERF_DATA
+                        tx_pkts = fp->tx_pkts_transmitted;
+                        tx_compl = fp->tx_pkts_completed;
+#endif
+
+                        ret = qlnx_transmit_locked(ifp, fp, mp);
+
+#ifdef QLNX_TRACEPERF_DATA
+                        fp->tx_pkts_trans_ctx += (fp->tx_pkts_transmitted - tx_pkts);
+                        fp->tx_pkts_compl_ctx += (fp->tx_pkts_completed - tx_compl);
+#endif
+                        mtx_unlock(&fp->tx_mtx);
+        } else {
+                if (mp != NULL && (fp->fp_taskqueue != NULL)) {
+                        ret = drbr_enqueue(ifp, fp->tx_br, mp);
+                        taskqueue_enqueue(fp->fp_taskqueue, &fp->fp_task);
+                }
         }
-
-        if (fp->fp_taskqueue != NULL)
-                taskqueue_enqueue(fp->fp_taskqueue, &fp->fp_task);
-
-        ret = 0;
 
 qlnx_transmit_exit:
 
@@ -2799,6 +2976,10 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 	uint32_t		nbds_in_hdr = 0;
 	uint32_t		offset = 0;
 
+#ifdef QLNX_TRACE_PERF_DATA
+        uint16_t                bd_used;
+#endif
+
 	QL_DPRINT8(ha, "enter\n");
 
 	if (!ha->link_up)
@@ -2811,14 +2992,14 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 
 	txq = fp->txq[0];
 
-	if (fp->tx_ring_full) {
-		elem_left = ecore_chain_get_elem_left(&txq->tx_pbl);
+        if ((int)(elem_left = ecore_chain_get_elem_left(&txq->tx_pbl)) <
+		QLNX_TX_ELEM_MIN_THRESH) {
 
-		if (elem_left < (TX_RING_SIZE >> 4)) 
-			return (-1);
-		else 
-			fp->tx_ring_full = 0;
-	}
+                fp->tx_nsegs_gt_elem_left++;
+                fp->err_tx_nsegs_gt_elem_left++;
+
+                return (ENOBUFS);
+        }
 
 	idx = txq->sw_tx_prod;
 
@@ -2829,14 +3010,18 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 			BUS_DMA_NOWAIT);
 
 	if (ha->dbg_trace_tso_pkt_len) {
-		if (!fp->tx_tso_min_pkt_len) {
-			fp->tx_tso_min_pkt_len = m_head->m_pkthdr.len;
-			fp->tx_tso_min_pkt_len = m_head->m_pkthdr.len;
-		} else {
-			if (fp->tx_tso_min_pkt_len > m_head->m_pkthdr.len)
+		if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
+			if (!fp->tx_tso_min_pkt_len) {
 				fp->tx_tso_min_pkt_len = m_head->m_pkthdr.len;
-			if (fp->tx_tso_max_pkt_len < m_head->m_pkthdr.len)
-				fp->tx_tso_max_pkt_len = m_head->m_pkthdr.len;
+				fp->tx_tso_min_pkt_len = m_head->m_pkthdr.len;
+			} else {
+				if (fp->tx_tso_min_pkt_len > m_head->m_pkthdr.len)
+					fp->tx_tso_min_pkt_len =
+						m_head->m_pkthdr.len;
+				if (fp->tx_tso_max_pkt_len < m_head->m_pkthdr.len)
+					fp->tx_tso_max_pkt_len =
+						m_head->m_pkthdr.len;
+			}
 		}
 	}
 
@@ -2923,6 +3108,105 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 			fp->tx_pkts[(QLNX_FP_MAX_SEGS - 1)]++; 
 	}
 
+#ifdef QLNX_TRACE_PERF_DATA
+        if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
+                if(m_head->m_pkthdr.len <= 2048)
+                        fp->tx_pkts_hist[0]++;
+                else if((m_head->m_pkthdr.len > 2048) &&
+				(m_head->m_pkthdr.len <= 4096))
+                        fp->tx_pkts_hist[1]++;
+                else if((m_head->m_pkthdr.len > 4096) &&
+				(m_head->m_pkthdr.len <= 8192))
+                        fp->tx_pkts_hist[2]++;
+                else if((m_head->m_pkthdr.len > 8192) &&
+				(m_head->m_pkthdr.len <= 12288 ))
+                        fp->tx_pkts_hist[3]++;
+                else if((m_head->m_pkthdr.len > 11288) &&
+				(m_head->m_pkthdr.len <= 16394))
+                        fp->tx_pkts_hist[4]++;
+                else if((m_head->m_pkthdr.len > 16384) &&
+				(m_head->m_pkthdr.len <= 20480))
+                        fp->tx_pkts_hist[5]++;
+                else if((m_head->m_pkthdr.len > 20480) &&
+				(m_head->m_pkthdr.len <= 24576))
+                        fp->tx_pkts_hist[6]++;
+                else if((m_head->m_pkthdr.len > 24576) &&
+				(m_head->m_pkthdr.len <= 28672))
+                        fp->tx_pkts_hist[7]++;
+                else if((m_head->m_pkthdr.len > 28762) &&
+				(m_head->m_pkthdr.len <= 32768))
+                        fp->tx_pkts_hist[8]++;
+                else if((m_head->m_pkthdr.len > 32768) &&
+				(m_head->m_pkthdr.len <= 36864))
+                        fp->tx_pkts_hist[9]++;
+                else if((m_head->m_pkthdr.len > 36864) &&
+				(m_head->m_pkthdr.len <= 40960))
+                        fp->tx_pkts_hist[10]++;
+                else if((m_head->m_pkthdr.len > 40960) &&
+				(m_head->m_pkthdr.len <= 45056))
+                        fp->tx_pkts_hist[11]++;
+                else if((m_head->m_pkthdr.len > 45056) &&
+				(m_head->m_pkthdr.len <= 49152))
+                        fp->tx_pkts_hist[12]++;
+                else if((m_head->m_pkthdr.len > 49512) && 
+				m_head->m_pkthdr.len <= 53248))
+                        fp->tx_pkts_hist[13]++;
+                else if((m_head->m_pkthdr.len > 53248) &&
+				(m_head->m_pkthdr.len <= 57344))
+                        fp->tx_pkts_hist[14]++;
+                else if((m_head->m_pkthdr.len > 53248) &&
+				(m_head->m_pkthdr.len <= 57344))
+                        fp->tx_pkts_hist[15]++;
+                else if((m_head->m_pkthdr.len > 57344) &&
+				(m_head->m_pkthdr.len <= 61440))
+                        fp->tx_pkts_hist[16]++;
+                else
+                        fp->tx_pkts_hist[17]++;
+        }
+
+        if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
+
+                elem_left =  ecore_chain_get_elem_left(&txq->tx_pbl);
+                bd_used = TX_RING_SIZE - elem_left;
+
+                if(bd_used <= 100)
+                        fp->tx_pkts_q[0]++;
+                else if((bd_used > 100) && (bd_used <= 500))
+                        fp->tx_pkts_q[1]++;
+                else if((bd_used > 500) && (bd_used <= 1000))
+                        fp->tx_pkts_q[2]++;
+                else if((bd_used > 1000) && (bd_used <= 2000))
+                        fp->tx_pkts_q[3]++;
+                else if((bd_used > 3000) && (bd_used <= 4000))
+                        fp->tx_pkts_q[4]++;
+                else if((bd_used > 4000) && (bd_used <= 5000))
+                        fp->tx_pkts_q[5]++;
+                else if((bd_used > 6000) && (bd_used <= 7000))
+                        fp->tx_pkts_q[6]++;
+                else if((bd_used > 7000) && (bd_used <= 8000))
+                        fp->tx_pkts_q[7]++;
+                else if((bd_used > 8000) && (bd_used <= 9000))
+                        fp->tx_pkts_q[8]++;
+                else if((bd_used > 9000) && (bd_used <= 10000))
+                        fp->tx_pkts_q[9]++;
+                else if((bd_used > 10000) && (bd_used <= 11000))
+                        fp->tx_pkts_q[10]++;
+                else if((bd_used > 11000) && (bd_used <= 12000))
+                        fp->tx_pkts_q[11]++;
+                else if((bd_used > 12000) && (bd_used <= 13000))
+                        fp->tx_pkts_q[12]++;
+                else if((bd_used > 13000) && (bd_used <= 14000))
+                        fp->tx_pkts_q[13]++;
+                else if((bd_used > 14000) && (bd_used <= 15000))
+                        fp->tx_pkts_q[14]++;
+               else if((bd_used > 15000) && (bd_used <= 16000))
+                        fp->tx_pkts_q[15]++;
+                else
+                        fp->tx_pkts_q[16]++;
+        }
+
+#endif /* end of QLNX_TRACE_PERF_DATA */
+
 	if ((nsegs + QLNX_TX_ELEM_RESERVE) >
 		(int)(elem_left = ecore_chain_get_elem_left(&txq->tx_pbl))) {
 
@@ -2943,7 +3227,8 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 
 			fp->err_tx_nsegs_gt_elem_left++;
 			fp->tx_ring_full = 1;
-			ha->storm_stats_enable = 1;
+			if (ha->storm_stats_enable)
+				ha->storm_stats_gather = 1;
 			return (ENOBUFS);
 		}
 	}
@@ -3131,6 +3416,7 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 			third_bd->data.bitfields |=
 				(nbds_in_hdr<<ETH_TX_DATA_3RD_BD_HDR_NBD_SHIFT);
 		}
+		fp->tx_tso_pkts++;
 	} else {
 		segs++;
 		for (seg_idx = 1; seg_idx < nsegs; seg_idx++) {
@@ -3147,6 +3433,7 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 				 << ETH_TX_DATA_1ST_BD_PKT_LEN_SHIFT;
 		first_bd->data.bitfields =
 			htole16(first_bd->data.bitfields);
+		fp->tx_non_tso_pkts++;
 	}
 
 
@@ -4303,8 +4590,10 @@ qlnx_fp_isr(void *arg)
 		if (fp->fp_taskqueue != NULL)
 			taskqueue_enqueue(fp->fp_taskqueue, &fp->fp_task);
 #else
-		int	rx_int = 0, total_rx_count = 0;
-		int 	lro_enable, tc;
+		int			rx_int = 0, total_rx_count = 0;
+		int 			lro_enable, tc;
+		struct qlnx_tx_queue	*txq;
+		uint16_t		elem_left;
 
 		lro_enable = ha->ifp->if_capenable & IFCAP_LRO;
 
@@ -4312,10 +4601,36 @@ qlnx_fp_isr(void *arg)
 
                 do {
                         for (tc = 0; tc < ha->num_tc; tc++) {
-                                if (mtx_trylock(&fp->tx_mtx)) {
-                                        qlnx_tx_int(ha, fp, fp->txq[tc]);
-                                        mtx_unlock(&fp->tx_mtx);
-                                }
+
+				txq = fp->txq[tc];
+
+				if((int)(elem_left =
+					ecore_chain_get_elem_left(&txq->tx_pbl)) <
+						QLNX_TX_ELEM_THRESH)  {
+
+                                	if (mtx_trylock(&fp->tx_mtx)) {
+#ifdef QLNX_TRACE_PERF_DATA
+						tx_compl = fp->tx_pkts_completed;
+#endif
+
+						qlnx_tx_int(ha, fp, fp->txq[tc]);
+#ifdef QLNX_TRACE_PERF_DATA
+						fp->tx_pkts_compl_intr +=
+							(fp->tx_pkts_completed - tx_compl);
+						if ((fp->tx_pkts_completed - tx_compl) <= 32)
+							fp->tx_comInt[0]++;
+						else if (((fp->tx_pkts_completed - tx_compl) > 32) &&
+							((fp->tx_pkts_completed - tx_compl) <= 64))
+							fp->tx_comInt[1]++;
+						else if(((fp->tx_pkts_completed - tx_compl) > 64) &&
+							((fp->tx_pkts_completed - tx_compl) <= 128))
+							fp->tx_comInt[2]++;
+						else if(((fp->tx_pkts_completed - tx_compl) > 128))
+							fp->tx_comInt[3]++;
+#endif
+						mtx_unlock(&fp->tx_mtx);
+					}
+				}
                         }
 
                         rx_int = qlnx_rx_int(ha, fp, ha->rx_pkt_threshold,
@@ -4327,7 +4642,6 @@ qlnx_fp_isr(void *arg)
                         }
 
                 } while (rx_int);
-
 
 #ifdef QLNX_SOFT_LRO
                 {
@@ -4608,8 +4922,8 @@ qlnx_alloc_tx_dma_tag(qlnx_host_t *ha)
                 NULL, NULL,      /* filter, filterarg */
                 QLNX_MAX_TSO_FRAME_SIZE,     /* maxsize */
                 QLNX_MAX_SEGMENTS,        /* nsegments */
-                (PAGE_SIZE * 4),        /* maxsegsize */
-                BUS_DMA_ALLOCNOW,        /* flags */
+                QLNX_MAX_TX_MBUF_SIZE,	  /* maxsegsize */
+                0,        /* flags */
                 NULL,    /* lockfunc */
                 NULL,    /* lockfuncarg */
                 &ha->tx_tag)) {
@@ -4642,7 +4956,7 @@ qlnx_alloc_rx_dma_tag(qlnx_host_t *ha)
                         MJUM9BYTES,     /* maxsize */
                         1,        /* nsegments */
                         MJUM9BYTES,        /* maxsegsize */
-                        BUS_DMA_ALLOCNOW,        /* flags */
+                        0,        /* flags */
                         NULL,    /* lockfunc */
                         NULL,    /* lockfuncarg */
                         &ha->rx_tag)) {
@@ -5255,6 +5569,14 @@ qlnx_init_fp(qlnx_host_t *ha)
 		fp->tx_pkts_freed = 0;
 		fp->tx_pkts_transmitted = 0;
 		fp->tx_pkts_completed = 0;
+
+#ifdef QLNX_TRACE_PERF_DATA
+		fp->tx_pkts_trans_ctx = 0;
+		fp->tx_pkts_compl_ctx = 0;
+		fp->tx_pkts_trans_fp = 0;
+		fp->tx_pkts_compl_fp = 0;
+		fp->tx_pkts_compl_intr = 0;
+#endif
 		fp->tx_lso_wnd_min_len = 0;
 		fp->tx_defrag = 0;
 		fp->tx_nsegs_gt_elem_left = 0;
@@ -6606,7 +6928,7 @@ qlnx_timer(void *arg)
 
        	ecore_get_vport_stats(&ha->cdev, &ha->hw_stats);
 
-	if (ha->storm_stats_enable)
+	if (ha->storm_stats_gather)
 		qlnx_sample_storm_stats(ha);
 
 	callout_reset(&ha->qlnx_callout, hz, qlnx_timer, ha);
@@ -6855,7 +7177,7 @@ qlnx_sample_storm_stats(qlnx_host_t *ha)
         struct ecore_hwfn	*hwfn;
 
 	if (ha->storm_stats_index >= QLNX_STORM_STATS_SAMPLES_PER_HWFN) {
-		ha->storm_stats_enable = 0;
+		ha->storm_stats_gather = 0;
 		return;
 	}
 
