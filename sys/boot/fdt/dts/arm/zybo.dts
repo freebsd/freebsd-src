@@ -30,7 +30,7 @@
 
 / {
 	model = "zybo";
-	compatible = "digilent,zybo";
+	compatible = "digilent,zybo", "xlnx,zynq-7000";
 
 	memory {
 		// First megabyte isn't accessible by all interconnect masters.
