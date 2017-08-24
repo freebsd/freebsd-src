@@ -157,9 +157,6 @@ static void	init_turnstile0(void *dummy);
 #ifdef TURNSTILE_PROFILING
 static void	init_turnstile_profiling(void *arg);
 #endif
-#ifdef DDB
-static void	print_sleepchain(struct thread *td, const char *prefix);
-#endif
 static void	propagate_priority(struct thread *td);
 static int	turnstile_adjust_thread(struct turnstile *ts,
 		    struct thread *td);
