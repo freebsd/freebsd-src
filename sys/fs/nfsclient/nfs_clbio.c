@@ -1342,7 +1342,7 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 
 	if ((nmp->nm_flag & NFSMNT_INT) == 0)
 		intrflg = 0;
-	if ((nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF))
+	if (NFSCL_FORCEDISM(nmp->nm_mountp))
 		intrflg = 1;
 	if (intrflg) {
 		slpflag = PCATCH;

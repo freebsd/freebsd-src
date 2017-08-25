@@ -665,7 +665,7 @@ nfs_close(struct vop_close_args *ap)
 	int error = 0, ret, localcred = 0;
 	int fmode = ap->a_fflag;
 
-	if ((vp->v_mount->mnt_kern_flag & MNTK_UNMOUNTF))
+	if (NFSCL_FORCEDISM(vp->v_mount))
 		return (0);
 	/*
 	 * During shutdown, a_cred isn't valid, so just use root.

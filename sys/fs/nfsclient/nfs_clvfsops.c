@@ -1775,7 +1775,7 @@ nfs_sync(struct mount *mp, int waitfor)
 	 * the umount(2) syscall doesn't get stuck in VFS_SYNC() before
 	 * calling VFS_UNMOUNT().
 	 */
-	if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+	if (NFSCL_FORCEDISM(mp)) {
 		MNT_IUNLOCK(mp);
 		return (EBADF);
 	}

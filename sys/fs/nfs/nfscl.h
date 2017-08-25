@@ -59,6 +59,9 @@ struct nfsv4node {
 #define	NFSCL_RENEW(l)	(((l) < 2) ? 1 : ((l) / 2))
 #define	NFSCL_LEASE(r)	((r) * 2)
 
+/* This macro checks to see if a forced dismount is about to occur. */
+#define	NFSCL_FORCEDISM(m)	(((m)->mnt_kern_flag & MNTK_UNMOUNTF) != 0)
+
 /*
  * These flag bits are used for the argument to nfscl_fillsattr() to
  * indicate special handling of the attributes.
