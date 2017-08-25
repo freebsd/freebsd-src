@@ -31,10 +31,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/proc.h>
 
 #include <machine/clock.h>
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
+#include <machine/pcb.h>
 #include <machine/specialreg.h>
 #include <machine/vmm.h>
 
@@ -356,7 +358,8 @@ vmx_msr_guest_enter(struct vmx *vmx, int vcpuid)
 {
 	uint64_t *guest_msrs = vmx->guest_msrs[vcpuid];
 
-	/* Save host MSRs (if any) and restore guest MSRs */
+	/* Save host MSRs (in particular, KGSBASE) and restore guest MSRs */
+	update_pcb_bases(curpcb);
 	wrmsr(MSR_LSTAR, guest_msrs[IDX_MSR_LSTAR]);
 	wrmsr(MSR_CSTAR, guest_msrs[IDX_MSR_CSTAR]);
 	wrmsr(MSR_STAR, guest_msrs[IDX_MSR_STAR]);

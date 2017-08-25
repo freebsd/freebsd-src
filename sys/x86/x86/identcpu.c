@@ -1423,18 +1423,15 @@ finishidentcpu(void)
 		cpu_stdext_feature = regs[1];
 
 		/*
-		 * Some hypervisors fail to filter out unsupported
-		 * extended features.  For now, disable the
+		 * Some hypervisors failed to filter out unsupported
+		 * extended features.  Allow to disable the
 		 * extensions, activation of which requires setting a
 		 * bit in CR4, and which VM monitors do not support.
 		 */
-		if (cpu_feature2 & CPUID2_HV) {
-			cpu_stdext_disable = CPUID_STDEXT_FSGSBASE |
-			    CPUID_STDEXT_SMEP;
-		} else
-			cpu_stdext_disable = 0;
+		cpu_stdext_disable = 0;
 		TUNABLE_INT_FETCH("hw.cpu_stdext_disable", &cpu_stdext_disable);
 		cpu_stdext_feature &= ~cpu_stdext_disable;
+
 		cpu_stdext_feature2 = regs[2];
 	}
 

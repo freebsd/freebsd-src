@@ -19,7 +19,7 @@
  *
  * Defined types:  load_avg for load averages, pctcpu for cpu percentages.
  */
-#if defined(mips) && !(defined(NetBSD) || defined(FreeBSD))
+#if defined(__mips__) && !(defined(__NetBSD__) || defined(__FreeBSD__))
 # include <sys/fixpoint.h>
 # if defined(FBITS) && !defined(FSCALE)
 #  define FSCALE (1 << FBITS)	/* RISC/os on mips */
