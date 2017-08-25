@@ -69,6 +69,8 @@ union cap_lo_register {
 	} bits __packed;
 } __packed;
 
+CTASSERT(sizeof(union cap_lo_register) == 4);
+
 union cap_hi_register {
 	uint32_t	raw;
 	struct {
@@ -92,6 +94,8 @@ union cap_hi_register {
 		uint32_t reserved1	: 8;
 	} bits __packed;
 } __packed;
+
+CTASSERT(sizeof(union cap_hi_register) == 4);
 
 union cc_register {
 	uint32_t	raw;
@@ -123,6 +127,8 @@ union cc_register {
 	} bits __packed;
 } __packed;
 
+CTASSERT(sizeof(union cc_register) == 4);
+
 enum shn_value {
 	NVME_SHN_NORMAL		= 0x1,
 	NVME_SHN_ABRUPT		= 0x2,
@@ -144,6 +150,8 @@ union csts_register {
 	} bits __packed;
 } __packed;
 
+CTASSERT(sizeof(union csts_register) == 4);
+
 enum shst_value {
 	NVME_SHST_NORMAL	= 0x0,
 	NVME_SHST_OCCURRING	= 0x1,
@@ -164,6 +172,8 @@ union aqa_register {
 		uint32_t reserved2	: 4;
 	} bits __packed;
 } __packed;
+
+CTASSERT(sizeof(union aqa_register) == 4);
 
 struct nvme_registers
 {
@@ -198,6 +208,8 @@ struct nvme_registers
 	} doorbell[1] __packed;
 } __packed;
 
+CTASSERT(sizeof(struct nvme_registers) == 0x1008);
+
 struct nvme_command
 {
 	/* dword 0 */
@@ -231,6 +243,8 @@ struct nvme_command
 	uint32_t cdw15;		/* command-specific */
 } __packed;
 
+CTASSERT(sizeof(struct nvme_command) == 16 * 4);
+
 struct nvme_status {
 
 	uint16_t p	:  1;	/* phase tag */
@@ -240,6 +254,8 @@ struct nvme_status {
 	uint16_t m	:  1;	/* more */
 	uint16_t dnr	:  1;	/* do not retry */
 } __packed;
+
+CTASSERT(sizeof(struct nvme_status) == 2);
 
 struct nvme_completion {
 
@@ -258,12 +274,16 @@ struct nvme_completion {
 	struct nvme_status	status;
 } __packed;
 
+CTASSERT(sizeof(struct nvme_completion) == 4 * 4);
+
 struct nvme_dsm_range {
 
 	uint32_t attributes;
 	uint32_t length;
 	uint64_t starting_lba;
 } __packed;
+
+CTASSERT(sizeof(struct nvme_dsm_range) == 16);
 
 /* status code types */
 enum nvme_status_code_type {
@@ -422,6 +442,8 @@ struct nvme_power_state {
 	uint8_t		aps      : 2;		/* Active Power Scale */
 	uint8_t		ps_rsvd10[9];
 } __packed;
+
+CTASSERT(sizeof(struct nvme_power_state) == 32);
 
 #define NVME_SERIAL_NUMBER_LENGTH	20
 #define NVME_MODEL_NUMBER_LENGTH	40
@@ -583,6 +605,8 @@ struct nvme_controller_data {
 	uint8_t			vs[1024];
 } __packed __aligned(4);
 
+CTASSERT(sizeof(struct nvme_controller_data) == 4096);
+
 struct nvme_namespace_data {
 
 	/** namespace size */
@@ -673,6 +697,8 @@ struct nvme_namespace_data {
 	uint8_t			vendor_specific[3712];
 } __packed __aligned(4);
 
+CTASSERT(sizeof(struct nvme_namespace_data) == 4096);
+
 enum nvme_log_page {
 
 	/* 0x00 - reserved */
@@ -715,6 +741,8 @@ struct nvme_error_information_entry {
 	uint8_t			reserved[35];
 } __packed __aligned(4);
 
+CTASSERT(sizeof(struct nvme_error_information_entry) == 64);
+
 union nvme_critical_warning_state {
 
 	uint8_t		raw;
@@ -728,6 +756,8 @@ union nvme_critical_warning_state {
 		uint8_t	reserved		: 3;
 	} __packed bits;
 } __packed;
+
+CTASSERT(sizeof(union nvme_critical_warning_state) == 1);
 
 struct nvme_health_information_page {
 
@@ -765,6 +795,8 @@ struct nvme_health_information_page {
 	uint8_t			reserved2[296];
 } __packed __aligned(4);
 
+CTASSERT(sizeof(struct nvme_health_information_page) == 512);
+
 struct nvme_firmware_page {
 
 	struct {
@@ -776,6 +808,8 @@ struct nvme_firmware_page {
 	uint64_t		revision[7]; /* revisions for 7 slots */
 	uint8_t			reserved2[448];
 } __packed __aligned(4);
+
+CTASSERT(sizeof(struct nvme_firmware_page) == 512);
 
 struct intel_log_temp_stats
 {
@@ -789,6 +823,8 @@ struct intel_log_temp_stats
 	uint64_t	min_oper_temp;
 	uint64_t	est_offset;
 } __packed __aligned(4);
+
+CTASSERT(sizeof(struct intel_log_temp_stats) == 13 * 8);
 
 #define NVME_TEST_MAX_THREADS	128
 
