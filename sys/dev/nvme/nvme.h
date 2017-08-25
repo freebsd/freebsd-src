@@ -69,7 +69,7 @@ union cap_lo_register {
 	} bits __packed;
 } __packed;
 
-CTASSERT(sizeof(union cap_lo_register) == 4);
+_Static_assert(sizeof(union cap_lo_register) == 4, "bad size for cap_lo_register");
 
 union cap_hi_register {
 	uint32_t	raw;
@@ -95,7 +95,7 @@ union cap_hi_register {
 	} bits __packed;
 } __packed;
 
-CTASSERT(sizeof(union cap_hi_register) == 4);
+_Static_assert(sizeof(union cap_hi_register) == 4, "bad size of cap_hi_register");
 
 union cc_register {
 	uint32_t	raw;
@@ -127,7 +127,7 @@ union cc_register {
 	} bits __packed;
 } __packed;
 
-CTASSERT(sizeof(union cc_register) == 4);
+_Static_assert(sizeof(union cc_register) == 4, "bad size for cc_register");
 
 enum shn_value {
 	NVME_SHN_NORMAL		= 0x1,
@@ -150,7 +150,7 @@ union csts_register {
 	} bits __packed;
 } __packed;
 
-CTASSERT(sizeof(union csts_register) == 4);
+_Static_assert(sizeof(union csts_register) == 4, "bad size for csts_register");
 
 enum shst_value {
 	NVME_SHST_NORMAL	= 0x0,
@@ -173,7 +173,7 @@ union aqa_register {
 	} bits __packed;
 } __packed;
 
-CTASSERT(sizeof(union aqa_register) == 4);
+_Static_assert(sizeof(union aqa_register) == 4, "bad size for aqa_resgister");
 
 struct nvme_registers
 {
@@ -208,7 +208,7 @@ struct nvme_registers
 	} doorbell[1] __packed;
 } __packed;
 
-CTASSERT(sizeof(struct nvme_registers) == 0x1008);
+_Static_assert(sizeof(struct nvme_registers) == 0x1008, "bad size for nvme_registers");
 
 struct nvme_command
 {
@@ -243,7 +243,7 @@ struct nvme_command
 	uint32_t cdw15;		/* command-specific */
 } __packed;
 
-CTASSERT(sizeof(struct nvme_command) == 16 * 4);
+_Static_assert(sizeof(struct nvme_command) == 16 * 4, "bad size for nvme_command");
 
 struct nvme_status {
 
@@ -255,7 +255,7 @@ struct nvme_status {
 	uint16_t dnr	:  1;	/* do not retry */
 } __packed;
 
-CTASSERT(sizeof(struct nvme_status) == 2);
+_Static_assert(sizeof(struct nvme_status) == 2, "bad size for nvme_status");
 
 struct nvme_completion {
 
@@ -274,7 +274,7 @@ struct nvme_completion {
 	struct nvme_status	status;
 } __packed;
 
-CTASSERT(sizeof(struct nvme_completion) == 4 * 4);
+_Static_assert(sizeof(struct nvme_completion) == 4 * 4, "bad size for nvme_completion");
 
 struct nvme_dsm_range {
 
@@ -283,7 +283,7 @@ struct nvme_dsm_range {
 	uint64_t starting_lba;
 } __packed;
 
-CTASSERT(sizeof(struct nvme_dsm_range) == 16);
+_Static_assert(sizeof(struct nvme_dsm_range) == 16, "bad size for nvme_dsm_ranage");
 
 /* status code types */
 enum nvme_status_code_type {
@@ -443,7 +443,7 @@ struct nvme_power_state {
 	uint8_t		ps_rsvd10[9];
 } __packed;
 
-CTASSERT(sizeof(struct nvme_power_state) == 32);
+_Static_assert(sizeof(struct nvme_power_state) == 32, "bad size for nvme_power_state");
 
 #define NVME_SERIAL_NUMBER_LENGTH	20
 #define NVME_MODEL_NUMBER_LENGTH	40
@@ -605,7 +605,7 @@ struct nvme_controller_data {
 	uint8_t			vs[1024];
 } __packed __aligned(4);
 
-CTASSERT(sizeof(struct nvme_controller_data) == 4096);
+_Static_assert(sizeof(struct nvme_controller_data) == 4096, "bad size for nvme_controller_data");
 
 struct nvme_namespace_data {
 
@@ -697,7 +697,7 @@ struct nvme_namespace_data {
 	uint8_t			vendor_specific[3712];
 } __packed __aligned(4);
 
-CTASSERT(sizeof(struct nvme_namespace_data) == 4096);
+_Static_assert(sizeof(struct nvme_namespace_data) == 4096, "bad size for nvme_namepsace_data");
 
 enum nvme_log_page {
 
@@ -741,7 +741,7 @@ struct nvme_error_information_entry {
 	uint8_t			reserved[35];
 } __packed __aligned(4);
 
-CTASSERT(sizeof(struct nvme_error_information_entry) == 64);
+_Static_assert(sizeof(struct nvme_error_information_entry) == 64, "bad size for nvme_error_information_entry");
 
 union nvme_critical_warning_state {
 
@@ -757,7 +757,7 @@ union nvme_critical_warning_state {
 	} __packed bits;
 } __packed;
 
-CTASSERT(sizeof(union nvme_critical_warning_state) == 1);
+_Static_assert(sizeof(union nvme_critical_warning_state) == 1, "bad size for nvme_critical_warning_state");
 
 struct nvme_health_information_page {
 
@@ -795,7 +795,7 @@ struct nvme_health_information_page {
 	uint8_t			reserved2[296];
 } __packed __aligned(4);
 
-CTASSERT(sizeof(struct nvme_health_information_page) == 512);
+_Static_assert(sizeof(struct nvme_health_information_page) == 512, "bad size for nvme_health_information_page");
 
 struct nvme_firmware_page {
 
@@ -809,7 +809,7 @@ struct nvme_firmware_page {
 	uint8_t			reserved2[448];
 } __packed __aligned(4);
 
-CTASSERT(sizeof(struct nvme_firmware_page) == 512);
+_Static_assert(sizeof(struct nvme_firmware_page) == 512, "bad size for nvme_firmware_page");
 
 struct intel_log_temp_stats
 {
@@ -824,7 +824,7 @@ struct intel_log_temp_stats
 	uint64_t	est_offset;
 } __packed __aligned(4);
 
-CTASSERT(sizeof(struct intel_log_temp_stats) == 13 * 8);
+_Static_assert(sizeof(struct intel_log_temp_stats) == 13 * 8, "bad size for intel_log_temp_stats");
 
 #define NVME_TEST_MAX_THREADS	128
 
