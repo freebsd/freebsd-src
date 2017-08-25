@@ -119,8 +119,8 @@ ATF_TC_BODY(lio_listio_empty_nowait_thread, tc)
 	struct aiocb *list = NULL;
 	struct sigevent sev;
 
-	atf_tc_expect_fail("Bug 220459 - lio_listio(2) doesn't support"
-	    " SIGEV_THREAD");
+	atf_tc_expect_timeout("Bug 220398 - lio_listio(2) never sends"
+	    "asynchronous notification if nent==0");
 	ATF_REQUIRE_EQ(0, sem_init(&completions, false, 0));
 	bzero(&sev, sizeof(sev));
 	sev.sigev_notify = SIGEV_THREAD;
