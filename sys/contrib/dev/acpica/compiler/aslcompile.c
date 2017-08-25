@@ -568,7 +568,7 @@ AslCompilerSignon (
 
     /* Running compiler or disassembler? */
 
-    if (Gbl_DisasmFlag)
+    if (AcpiGbl_DisasmFlag)
     {
         UtilityName = AML_DISASSEMBLER_NAME;
     }
@@ -815,6 +815,7 @@ CmCleanupAndExit (
     BOOLEAN                 DeleteAmlFile = FALSE;
 
 
+    AslCheckExpectedExceptions ();
     AePrintErrorLog (ASL_FILE_STDERR);
     if (Gbl_DebugFlag)
     {

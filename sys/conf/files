@@ -340,6 +340,7 @@ contrib/dev/acpica/components/dispatcher/dsmethod.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dsmthdat.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dsobject.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dsopcode.c	optional acpi
+contrib/dev/acpica/components/dispatcher/dspkginit.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dsutils.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dswexec.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dswload.c	optional acpi
@@ -477,6 +478,7 @@ contrib/dev/acpica/components/utilities/utobject.c	optional acpi
 contrib/dev/acpica/components/utilities/utosi.c		optional acpi
 contrib/dev/acpica/components/utilities/utownerid.c	optional acpi
 contrib/dev/acpica/components/utilities/utpredef.c	optional acpi
+contrib/dev/acpica/components/utilities/utresdecode.c	optional acpi acpi_debug
 contrib/dev/acpica/components/utilities/utresrc.c	optional acpi
 contrib/dev/acpica/components/utilities/utstate.c	optional acpi
 contrib/dev/acpica/components/utilities/utstring.c	optional acpi

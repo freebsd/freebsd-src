@@ -316,11 +316,6 @@ FlGenerateFilename (
      */
     NewFilename = UtStringCacheCalloc ((ACPI_SIZE)
         strlen (InputFilename) + strlen (Suffix) + 2);
-    if (!NewFilename)
-    {
-        return (NULL);
-    }
-
     strcpy (NewFilename, InputFilename);
 
     /* Try to find the last dot in the filename */
@@ -364,11 +359,6 @@ FlStrdup (
 
 
     NewString = UtStringCacheCalloc ((ACPI_SIZE) strlen (String) + 1);
-    if (!NewString)
-    {
-        return (NULL);
-    }
-
     strcpy (NewString, String);
     return (NewString);
 }

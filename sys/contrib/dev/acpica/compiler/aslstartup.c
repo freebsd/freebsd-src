@@ -237,7 +237,7 @@ AslInitializeGlobals (
     {
         Gbl_CommentState.SpacesBefore          = 0;
         Gbl_CommentState.CommentType           = 1;
-        Gbl_CommentState.Latest_Parse_Node     = NULL;
+        Gbl_CommentState.LatestParseOp          = NULL;
         Gbl_CommentState.ParsingParenBraceNode = NULL;
         Gbl_CommentState.CaptureComments       = TRUE;
     }
@@ -315,6 +315,11 @@ AslDetectSourceFileType (
 
         Type = ASL_INPUT_TYPE_BINARY_ACPI_TABLE;
         goto Cleanup;
+    }
+    else
+    {
+        fprintf (stderr,
+            "Binary file does not contain a valid ACPI table\n");
     }
 
     Type = ASL_INPUT_TYPE_BINARY;
@@ -456,7 +461,7 @@ AslDoOneFile (
     /*
      * AML Disassembly (Optional)
      */
-    if (Gbl_DisasmFlag)
+    if (AcpiGbl_DisasmFlag)
     {
         Status = AslDoDisassembly ();
         if (Status != AE_CTRL_CONTINUE)
@@ -581,7 +586,7 @@ AslDoOneFile (
         CvDbgPrint ("OUTPUTFILENAME: %s\n", Gbl_OutputFilenamePrefix);
             Gbl_Files[ASL_FILE_INPUT].Filename =
                 Gbl_Files[ASL_FILE_AML_OUTPUT].Filename;
-
+            AcpiGbl_DisasmFlag = TRUE;
             fprintf (stderr, "\n");
             AslDoDisassembly ();
 
@@ -601,7 +606,7 @@ AslDoOneFile (
 
         FlCloseFile (ASL_FILE_INPUT);
         Gbl_DoCompile = FALSE;
-        Gbl_DisasmFlag = TRUE;
+        AcpiGbl_DisasmFlag = TRUE;
         Status = AslDoDisassembly ();
         return (Status);
 

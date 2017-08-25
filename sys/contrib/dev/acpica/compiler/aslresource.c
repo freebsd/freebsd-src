@@ -573,7 +573,7 @@ RsCreateResourceField (
 {
 
     Op->Asl.ExternalName = Name;
-    Op->Asl.CompileFlags |= NODE_IS_RESOURCE_FIELD;
+    Op->Asl.CompileFlags |= OP_IS_RESOURCE_FIELD;
 
     Op->Asl.Value.Tag.BitOffset = (ByteOffset * 8) + BitOffset;
     Op->Asl.Value.Tag.BitLength = BitLength;
@@ -719,9 +719,9 @@ RsCheckListForDuplicates (
                 {
                     /* Emit error only once per duplicate node */
 
-                    if (!(NextOp->Asl.CompileFlags & NODE_IS_DUPLICATE))
+                    if (!(NextOp->Asl.CompileFlags & OP_IS_DUPLICATE))
                     {
-                        NextOp->Asl.CompileFlags |= NODE_IS_DUPLICATE;
+                        NextOp->Asl.CompileFlags |= OP_IS_DUPLICATE;
                         AslError (ASL_ERROR, ASL_MSG_DUPLICATE_ITEM,
                             NextOp, NULL);
                     }
@@ -990,6 +990,31 @@ RsDoOneResourceDescriptor (
         Rnode = RsDoUartSerialBusDescriptor (Info);
         break;
 
+    case PARSEOP_PINCONFIG:
+
+        Rnode = RsDoPinConfigDescriptor (Info);
+        break;
+
+    case PARSEOP_PINFUNCTION:
+
+        Rnode = RsDoPinFunctionDescriptor (Info);
+        break;
+
+    case PARSEOP_PINGROUP:
+
+        Rnode = RsDoPinGroupDescriptor (Info);
+        break;
+
+    case PARSEOP_PINGROUPFUNCTION:
+
+        Rnode = RsDoPinGroupFunctionDescriptor (Info);
+        break;
+
+    case PARSEOP_PINGROUPCONFIG:
+
+        Rnode = RsDoPinGroupConfigDescriptor (Info);
+        break;
+
     case PARSEOP_DEFAULT_ARG:
 
         /* Just ignore any of these, they are used as fillers/placeholders */
@@ -1008,7 +1033,7 @@ RsDoOneResourceDescriptor (
      * references to the descriptor can be resolved.
      */
     Info->DescriptorTypeOp->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
-    Info->DescriptorTypeOp->Asl.CompileFlags = NODE_IS_RESOURCE_DESC;
+    Info->DescriptorTypeOp->Asl.CompileFlags = OP_IS_RESOURCE_DESC;
     Info->DescriptorTypeOp->Asl.Value.Integer = Info->CurrentByteOffset;
 
     if (Rnode)
@@ -1107,7 +1132,7 @@ RsDoResourceTemplate (
 
     if (Op->Asl.Parent)
     {
-        Op->Asl.Parent->Asl.CompileFlags |= NODE_IS_RESOURCE_DESC;
+        Op->Asl.Parent->Asl.CompileFlags |= OP_IS_RESOURCE_DESC;
     }
 
     /* ResourceTemplate Opcode is first (Op) */
@@ -1146,7 +1171,7 @@ RsDoResourceTemplate (
         Info.DescriptorTypeOp = DescriptorTypeOp;
         Info.CurrentByteOffset = CurrentByteOffset;
 
-        DescriptorTypeOp->Asl.CompileFlags |= NODE_IS_RESOURCE_DESC;
+        DescriptorTypeOp->Asl.CompileFlags |= OP_IS_RESOURCE_DESC;
         Rnode = RsDoOneResourceDescriptor (&Info, &State);
 
         /*
@@ -1181,7 +1206,7 @@ RsDoResourceTemplate (
      */
     Op->Asl.ParseOpcode               = PARSEOP_BUFFER;
     Op->Asl.AmlOpcode                 = AML_BUFFER_OP;
-    Op->Asl.CompileFlags              = NODE_AML_PACKAGE | NODE_IS_RESOURCE_DESC;
+    Op->Asl.CompileFlags              = OP_AML_PACKAGE | OP_IS_RESOURCE_DESC;
     UtSetParseOpName (Op);
 
     BufferLengthOp->Asl.ParseOpcode   = PARSEOP_INTEGER;
@@ -1194,7 +1219,7 @@ RsDoResourceTemplate (
     BufferOp->Asl.AmlOpcodeLength     = 0;
     BufferOp->Asl.AmlLength           = CurrentByteOffset;
     BufferOp->Asl.Value.Buffer        = (UINT8 *) HeadRnode.Next;
-    BufferOp->Asl.CompileFlags       |= NODE_IS_RESOURCE_DATA;
+    BufferOp->Asl.CompileFlags       |= OP_IS_RESOURCE_DATA;
     UtSetParseOpName (BufferOp);
 
     return;

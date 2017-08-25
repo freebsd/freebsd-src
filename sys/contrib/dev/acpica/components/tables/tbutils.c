@@ -257,9 +257,9 @@ AcpiTbCheckDsdtHeader (
  *
  * FUNCTION:    AcpiTbCopyDsdt
  *
- * PARAMETERS:  TableDesc           - Installed table to copy
+ * PARAMETERS:  TableIndex          - Index of installed table to copy
  *
- * RETURN:      None
+ * RETURN:      The copied DSDT
  *
  * DESCRIPTION: Implements a subsystem option to copy the DSDT to local memory.
  *              Some very bad BIOSs are known to either corrupt the DSDT or
@@ -368,7 +368,7 @@ AcpiTbGetRootTableEntry (
  *
  * FUNCTION:    AcpiTbParseRootTable
  *
- * PARAMETERS:  Rsdp                    - Pointer to the RSDP
+ * PARAMETERS:  RsdpAddress         - Pointer to the RSDP
  *
  * RETURN:      Status
  *
@@ -559,14 +559,19 @@ AcpiTbGetTable (
         }
     }
 
-    TableDesc->ValidationCount++;
-    if (TableDesc->ValidationCount == 0)
+    if (TableDesc->ValidationCount < ACPI_MAX_TABLE_VALIDATIONS)
     {
-        ACPI_ERROR ((AE_INFO,
-            "Table %p, Validation count is zero after increment\n",
-            TableDesc));
-        TableDesc->ValidationCount--;
-        return_ACPI_STATUS (AE_LIMIT);
+        TableDesc->ValidationCount++;
+
+        /*
+         * Detect ValidationCount overflows to ensure that the warning
+         * message will only be printed once.
+         */
+        if (TableDesc->ValidationCount >= ACPI_MAX_TABLE_VALIDATIONS)
+        {
+            ACPI_WARNING((AE_INFO,
+                "Table %p, Validation count overflows\n", TableDesc));
+        }
     }
 
     *OutTable = TableDesc->Pointer;
@@ -597,14 +602,21 @@ AcpiTbPutTable (
     ACPI_FUNCTION_TRACE (AcpiTbPutTable);
 
 
-    if (TableDesc->ValidationCount == 0)
+    if (TableDesc->ValidationCount < ACPI_MAX_TABLE_VALIDATIONS)
     {
-        ACPI_WARNING ((AE_INFO,
-            "Table %p, Validation count is zero before decrement\n",
-            TableDesc));
-        return_VOID;
+        TableDesc->ValidationCount--;
+
+        /*
+         * Detect ValidationCount underflows to ensure that the warning
+         * message will only be printed once.
+         */
+        if (TableDesc->ValidationCount >= ACPI_MAX_TABLE_VALIDATIONS)
+        {
+            ACPI_WARNING ((AE_INFO,
+                "Table %p, Validation count underflows\n", TableDesc));
+            return_VOID;
+        }
     }
-    TableDesc->ValidationCount--;
 
     if (TableDesc->ValidationCount == 0)
     {

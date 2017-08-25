@@ -165,8 +165,8 @@ NoEcho('
  * to handle output from preprocessors
  */
 AslCode
-    : DefinitionBlockList           {$<n>$ = TrLinkChildren (
-                                        TrCreateLeafNode (PARSEOP_ASL_CODE),1, $1);}
+    : DefinitionBlockList           {$<n>$ = TrLinkOpChildren (
+                                        TrCreateLeafOp (PARSEOP_ASL_CODE),1, $1);}
     | error                         {YYABORT; $$ = NULL;}
     ;
 
@@ -192,22 +192,22 @@ AslCode
  */
 DefinitionBlockTerm
     : PARSEOP_DEFINITION_BLOCK
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_DEFINITION_BLOCK); COMMENT_CAPTURE_OFF;}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_DEFINITION_BLOCK); COMMENT_CAPTURE_OFF;}
         String ','
         String ','
         ByteConst ','
         String ','
         String ','
         DWordConst
-        PARSEOP_CLOSE_PAREN         {TrSetEndLineNumber ($<n>3); COMMENT_CAPTURE_ON;}
-            '{' TermList '}'        {$$ = TrLinkChildren ($<n>3,7,
+        PARSEOP_CLOSE_PAREN         {TrSetOpEndLineNumber ($<n>3); COMMENT_CAPTURE_ON;}
+            '{' TermList '}'        {$$ = TrLinkOpChildren ($<n>3,7,
                                         $4,$6,$8,$10,$12,$14,$18);}
     ;
 
 DefinitionBlockList
     : DefinitionBlockTerm
     | DefinitionBlockTerm
-        DefinitionBlockList         {$$ = TrLinkPeerNodes (2, $1,$2);}
+        DefinitionBlockList         {$$ = TrLinkPeerOps (2, $1,$2);}
     ;
 
 
@@ -217,21 +217,21 @@ DefinitionBlockList
 
 NameString
     : NameSeg                       {}
-    | PARSEOP_NAMESTRING            {$$ = TrCreateValuedLeafNode (PARSEOP_NAMESTRING, (ACPI_NATIVE_INT) $1);}
-    | PARSEOP_IO                    {$$ = TrCreateValuedLeafNode (PARSEOP_NAMESTRING, (ACPI_NATIVE_INT) "IO");}
-    | PARSEOP_DMA                   {$$ = TrCreateValuedLeafNode (PARSEOP_NAMESTRING, (ACPI_NATIVE_INT) "DMA");}
-    | PARSEOP_IRQ                   {$$ = TrCreateValuedLeafNode (PARSEOP_NAMESTRING, (ACPI_NATIVE_INT) "IRQ");}
-    | PARSEOP_FOR                   {$$ = TrCreateValuedLeafNode (PARSEOP_NAMESTRING, (ACPI_NATIVE_INT) "FOR");}
+    | PARSEOP_NAMESTRING            {$$ = TrCreateValuedLeafOp (PARSEOP_NAMESTRING, (ACPI_NATIVE_INT) $1);}
+    | PARSEOP_IO                    {$$ = TrCreateValuedLeafOp (PARSEOP_NAMESTRING, (ACPI_NATIVE_INT) "IO");}
+    | PARSEOP_DMA                   {$$ = TrCreateValuedLeafOp (PARSEOP_NAMESTRING, (ACPI_NATIVE_INT) "DMA");}
+    | PARSEOP_IRQ                   {$$ = TrCreateValuedLeafOp (PARSEOP_NAMESTRING, (ACPI_NATIVE_INT) "IRQ");}
+    | PARSEOP_FOR                   {$$ = TrCreateValuedLeafOp (PARSEOP_NAMESTRING, (ACPI_NATIVE_INT) "FOR");}
     ;
 /*
 NameSeg
-    : PARSEOP_NAMESEG               {$$ = TrCreateValuedLeafNode (PARSEOP_NAMESEG, (ACPI_NATIVE_INT)
+    : PARSEOP_NAMESEG               {$$ = TrCreateValuedLeafOp (PARSEOP_NAMESEG, (ACPI_NATIVE_INT)
                                         TrNormalizeNameSeg ($1));}
     ;
 */
 
 NameSeg
-    : PARSEOP_NAMESEG               {$$ = TrCreateValuedLeafNode (PARSEOP_NAMESEG,
+    : PARSEOP_NAMESEG               {$$ = TrCreateValuedLeafOp (PARSEOP_NAMESEG,
                                         (ACPI_NATIVE_INT) AslCompilerlval.s);}
     ;
 
@@ -242,8 +242,8 @@ Term
     : Object                        {}
     | Type1Opcode                   {}
     | Type2Opcode                   {}
-    | Type2IntegerOpcode            {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);}
-    | Type2StringOpcode             {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);}
+    | Type2IntegerOpcode            {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);}
+    | Type2StringOpcode             {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);}
     | Type2BufferOpcode             {}
     | Type2BufferOrStringOpcode     {}
     | error                         {$$ = AslDoError(); yyclearin;}
@@ -256,47 +256,45 @@ SuperName
     ;
 
 Target
-    :                               {$$ = TrCreateNullTarget ();} /* Placeholder is a ZeroOp object */
-    | ','                           {$$ = TrCreateNullTarget ();} /* Placeholder is a ZeroOp object */
-    | ',' SuperName                 {$$ = TrSetNodeFlags ($2, NODE_IS_TARGET);}
+    :                               {$$ = TrCreateNullTargetOp ();} /* Placeholder is a ZeroOp object */
+    | ','                           {$$ = TrCreateNullTargetOp ();} /* Placeholder is a ZeroOp object */
+    | ',' SuperName                 {$$ = TrSetOpFlags ($2, OP_IS_TARGET);}
     ;
 
 RequiredTarget
-    : ',' SuperName                 {$$ = TrSetNodeFlags ($2, NODE_IS_TARGET);}
+    : ',' SuperName                 {$$ = TrSetOpFlags ($2, OP_IS_TARGET);}
     ;
 
 TermArg
-    : SimpleName                    {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
-    | Type2Opcode                   {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
-    | DataObject                    {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
-/*
+    : SimpleName                    {$$ = TrSetOpFlags ($1, OP_IS_TERM_ARG);}
+    | Type2Opcode                   {$$ = TrSetOpFlags ($1, OP_IS_TERM_ARG);}
+    | DataObject                    {$$ = TrSetOpFlags ($1, OP_IS_TERM_ARG);}
     | PARSEOP_OPEN_PAREN
         TermArg
-        PARSEOP_CLOSE_PAREN         {}
-*/
+        PARSEOP_CLOSE_PAREN         {$$ = TrSetOpFlags ($2, OP_IS_TERM_ARG);}
     ;
 
 /*
  NOTE: Removed from TermArg due to reduce/reduce conflicts:
-    | Type2IntegerOpcode            {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
-    | Type2StringOpcode             {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
-    | Type2BufferOpcode             {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
-    | Type2BufferOrStringOpcode     {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
+    | Type2IntegerOpcode            {$$ = TrSetOpFlags ($1, OP_IS_TERM_ARG);}
+    | Type2StringOpcode             {$$ = TrSetOpFlags ($1, OP_IS_TERM_ARG);}
+    | Type2BufferOpcode             {$$ = TrSetOpFlags ($1, OP_IS_TERM_ARG);}
+    | Type2BufferOrStringOpcode     {$$ = TrSetOpFlags ($1, OP_IS_TERM_ARG);}
 
 */
 
 MethodInvocationTerm
     : NameString
-        PARSEOP_OPEN_PAREN          {TrUpdateNode (PARSEOP_METHODCALL, $1); COMMENT_CAPTURE_OFF;}
+        PARSEOP_OPEN_PAREN          {TrSetOpIntegerValue (PARSEOP_METHODCALL, $1); COMMENT_CAPTURE_OFF;}
         ArgList
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildNode ($1,$4); COMMENT_CAPTURE_ON;}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildOp ($1,$4); COMMENT_CAPTURE_ON;}
     ;
 
 /* OptionalCount must appear before ByteList or an incorrect reduction will result */
 
 OptionalCount
-    :                               {$$ = TrCreateLeafNode (PARSEOP_ONES);}       /* Placeholder is a OnesOp object */
-    | ','                           {$$ = TrCreateLeafNode (PARSEOP_ONES);}       /* Placeholder is a OnesOp object */
+    :                               {$$ = TrCreateLeafOp (PARSEOP_ONES);}       /* Placeholder is a OnesOp object */
+    | ','                           {$$ = TrCreateLeafOp (PARSEOP_ONES);}       /* Placeholder is a OnesOp object */
     | ',' TermArg                   {$$ = $2;}
     ;
 
@@ -336,14 +334,14 @@ OptionalDataCount
 
 TermList
     :                               {$$ = NULL;}
-    | TermList Term                 {$$ = TrLinkPeerNode (
-                                        TrSetNodeFlags ($1, NODE_RESULT_NOT_USED),$2);}
-    | TermList Term ';'             {$$ = TrLinkPeerNode (
-                                        TrSetNodeFlags ($1, NODE_RESULT_NOT_USED),$2);}
-    | TermList ';' Term             {$$ = TrLinkPeerNode (
-                                        TrSetNodeFlags ($1, NODE_RESULT_NOT_USED),$3);}
-    | TermList ';' Term ';'         {$$ = TrLinkPeerNode (
-                                        TrSetNodeFlags ($1, NODE_RESULT_NOT_USED),$3);}
+    | TermList Term                 {$$ = TrLinkPeerOp (
+                                        TrSetOpFlags ($1, OP_RESULT_NOT_USED),$2);}
+    | TermList Term ';'             {$$ = TrLinkPeerOp (
+                                        TrSetOpFlags ($1, OP_RESULT_NOT_USED),$2);}
+    | TermList ';' Term             {$$ = TrLinkPeerOp (
+                                        TrSetOpFlags ($1, OP_RESULT_NOT_USED),$3);}
+    | TermList ';' Term ';'         {$$ = TrLinkPeerOp (
+                                        TrSetOpFlags ($1, OP_RESULT_NOT_USED),$3);}
     ;
 
 ArgList
@@ -351,7 +349,7 @@ ArgList
     | TermArg
     | ArgList ','                   /* Allows a trailing comma at list end */
     | ArgList ','
-        TermArg                     {$$ = TrLinkPeerNode ($1,$3);}
+        TermArg                     {$$ = TrLinkPeerOp ($1,$3);}
     ;
 
 ByteList
@@ -359,7 +357,7 @@ ByteList
     | ByteConstExpr
     | ByteList ','                  /* Allows a trailing comma at list end */
     | ByteList ','
-        ByteConstExpr               {$$ = TrLinkPeerNode ($1,$3);}
+        ByteConstExpr               {$$ = TrLinkPeerOp ($1,$3);}
     ;
 
 DWordList
@@ -367,7 +365,7 @@ DWordList
     | DWordConstExpr
     | DWordList ','                 /* Allows a trailing comma at list end */
     | DWordList ','
-        DWordConstExpr              {$$ = TrLinkPeerNode ($1,$3);}
+        DWordConstExpr              {$$ = TrLinkPeerOp ($1,$3);}
     ;
 
 FieldUnitList
@@ -375,7 +373,7 @@ FieldUnitList
     | FieldUnit
     | FieldUnitList ','             /* Allows a trailing comma at list end */
     | FieldUnitList ','
-        FieldUnit                   {$$ = TrLinkPeerNode ($1,$3);}
+        FieldUnit                   {$$ = TrLinkPeerOp ($1,$3);}
     ;
 
 FieldUnit
@@ -386,16 +384,16 @@ FieldUnit
     ;
 
 FieldUnitEntry
-    : ',' AmlPackageLengthTerm      {$$ = TrCreateNode (PARSEOP_RESERVED_BYTES,1,$2);}
+    : ',' AmlPackageLengthTerm      {$$ = TrCreateOp (PARSEOP_RESERVED_BYTES,1,$2);}
     | NameSeg ','
-        AmlPackageLengthTerm        {$$ = TrLinkChildNode ($1,$3);}
+        AmlPackageLengthTerm        {$$ = TrLinkChildOp ($1,$3);}
     ;
 
 Object
     : CompilerDirective             {}
     | NamedObject                   {}
     | NameSpaceModifier             {}
-//    | StructureTerm                 {}
+/*    | StructureTerm                 {} */
     ;
 
 PackageList
@@ -403,7 +401,7 @@ PackageList
     | PackageElement
     | PackageList ','               /* Allows a trailing comma at list end */
     | PackageList ','
-        PackageElement              {$$ = TrLinkPeerNode ($1,$3);}
+        PackageElement              {$$ = TrLinkPeerOp ($1,$3);}
     ;
 
 PackageElement
@@ -417,7 +415,7 @@ ParameterTypePackage
     :                               {$$ = NULL;}
     | ObjectTypeKeyword             {$$ = $1;}
     | ParameterTypePackage ','
-        ObjectTypeKeyword           {$$ = TrLinkPeerNodes (2,$1,$3);}
+        ObjectTypeKeyword           {$$ = TrLinkPeerOps (2,$1,$3);}
     ;
 
 ParameterTypePackageList
@@ -427,9 +425,9 @@ ParameterTypePackageList
     ;
 
 OptionalParameterTypePackage
-    :                               {$$ = TrCreateLeafNode (PARSEOP_DEFAULT_ARG);}
-    | ',' ParameterTypePackageList  {$$ = TrLinkChildren (
-                                        TrCreateLeafNode (PARSEOP_DEFAULT_ARG),1,$2);}
+    :                               {$$ = TrCreateLeafOp (PARSEOP_DEFAULT_ARG);}
+    | ',' ParameterTypePackageList  {$$ = TrLinkOpChildren (
+                                        TrCreateLeafOp (PARSEOP_DEFAULT_ARG),1,$2);}
     ;
 
     /* Rules for specifying the types for method arguments */
@@ -437,7 +435,7 @@ OptionalParameterTypePackage
 ParameterTypesPackage
     : ParameterTypePackageList      {$$ = $1;}
     | ParameterTypesPackage ','
-        ParameterTypePackageList    {$$ = TrLinkPeerNodes (2,$1,$3);}
+        ParameterTypePackageList    {$$ = TrLinkPeerOps (2,$1,$3);}
     ;
 
 ParameterTypesPackageList
@@ -447,9 +445,9 @@ ParameterTypesPackageList
     ;
 
 OptionalParameterTypesPackage
-    :                               {$$ = TrCreateLeafNode (PARSEOP_DEFAULT_ARG);}
-    | ',' ParameterTypesPackageList {$$ = TrLinkChildren (
-                                        TrCreateLeafNode (PARSEOP_DEFAULT_ARG),1,$2);}
+    :                               {$$ = TrCreateLeafOp (PARSEOP_DEFAULT_ARG);}
+    | ',' ParameterTypesPackageList {$$ = TrLinkOpChildren (
+                                        TrCreateLeafOp (PARSEOP_DEFAULT_ARG),1,$2);}
     ;
 
 /*
@@ -460,9 +458,9 @@ CaseDefaultTermList
     | CaseTerm                      {}
     | DefaultTerm                   {}
     | CaseDefaultTermList
-        CaseTerm                    {$$ = TrLinkPeerNode ($1,$2);}
+        CaseTerm                    {$$ = TrLinkPeerOp ($1,$2);}
     | CaseDefaultTermList
-        DefaultTerm                 {$$ = TrLinkPeerNode ($1,$2);}
+        DefaultTerm                 {$$ = TrLinkPeerOp ($1,$2);}
 
 /* Original - attempts to force zero or one default term within the switch */
 
@@ -471,16 +469,16 @@ CaseDefaultTermList
     :                               {$$ = NULL;}
     | CaseTermList
         DefaultTerm
-        CaseTermList                {$$ = TrLinkPeerNode ($1,TrLinkPeerNode ($2, $3));}
+        CaseTermList                {$$ = TrLinkPeerOp ($1,TrLinkPeerOp ($2, $3));}
     | CaseTermList
-        CaseTerm                    {$$ = TrLinkPeerNode ($1,$2);}
+        CaseTerm                    {$$ = TrLinkPeerOp ($1,$2);}
     ;
 
 CaseTermList
     :                               {$$ = NULL;}
     | CaseTerm                      {}
     | CaseTermList
-        CaseTerm                    {$$ = TrLinkPeerNode ($1,$2);}
+        CaseTerm                    {$$ = TrLinkPeerOp ($1,$2);}
     ;
 */
 
@@ -499,9 +497,9 @@ DataObject
     ;
 
 BufferData
-    : Type5Opcode                   {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);}
-    | Type2BufferOrStringOpcode     {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);}
-    | Type2BufferOpcode             {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);}
+    : Type5Opcode                   {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);}
+    | Type2BufferOrStringOpcode     {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);}
+    | Type2BufferOpcode             {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);}
     | BufferTerm                    {}
     ;
 
@@ -510,35 +508,35 @@ PackageData
     ;
 
 IntegerData
-    : Type2IntegerOpcode            {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);}
-    | Type3Opcode                   {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);}
+    : Type2IntegerOpcode            {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);}
+    | Type3Opcode                   {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);}
     | Integer                       {}
     | ConstTerm                     {}
     ;
 
 StringData
-    : Type2StringOpcode             {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);}
+    : Type2StringOpcode             {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);}
     | String                        {}
     ;
 
 ByteConst
-    : Integer                       {$$ = TrUpdateNode (PARSEOP_BYTECONST, $1);}
+    : Integer                       {$$ = TrSetOpIntegerValue (PARSEOP_BYTECONST, $1);}
     ;
 
 WordConst
-    : Integer                       {$$ = TrUpdateNode (PARSEOP_WORDCONST, $1);}
+    : Integer                       {$$ = TrSetOpIntegerValue (PARSEOP_WORDCONST, $1);}
     ;
 
 DWordConst
-    : Integer                       {$$ = TrUpdateNode (PARSEOP_DWORDCONST, $1);}
+    : Integer                       {$$ = TrSetOpIntegerValue (PARSEOP_DWORDCONST, $1);}
     ;
 
 QWordConst
-    : Integer                       {$$ = TrUpdateNode (PARSEOP_QWORDCONST, $1);}
+    : Integer                       {$$ = TrSetOpIntegerValue (PARSEOP_QWORDCONST, $1);}
     ;
 
 /*
- * The NODE_COMPILE_TIME_CONST flag in the following constant expressions
+ * The OP_COMPILE_TIME_CONST flag in the following constant expressions
  * enables compile-time constant folding to reduce the Type3Opcodes/Type2IntegerOpcodes
  * to simple integers. It is an error if these types of expressions cannot be
  * reduced, since the AML grammar for ****ConstExpr requires a simple constant.
@@ -546,63 +544,64 @@ QWordConst
  * constant folding code in the node AmlLength field.
  */
 ByteConstExpr
-    : Type3Opcode                   {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);
-                                        TrSetNodeAmlLength ($1, 1);}
-    | Type2IntegerOpcode            {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);
-                                        TrSetNodeAmlLength ($1, 1);}
-    | ConstExprTerm                 {$$ = TrUpdateNode (PARSEOP_BYTECONST, $1);}
+    : Type3Opcode                   {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);
+                                        TrSetOpAmlLength ($1, 1);}
+    | Type2IntegerOpcode            {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);
+                                        TrSetOpAmlLength ($1, 1);}
+    | ConstExprTerm                 {$$ = TrSetOpIntegerValue (PARSEOP_BYTECONST, $1);}
     | ByteConst                     {}
     ;
 
 WordConstExpr
-    : Type3Opcode                   {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);
-                                        TrSetNodeAmlLength ($1, 2);}
-    | Type2IntegerOpcode            {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);
-                                        TrSetNodeAmlLength ($1, 2);}
-    | ConstExprTerm                 {$$ = TrUpdateNode (PARSEOP_WORDCONST, $1);}
+    : Type3Opcode                   {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);
+                                        TrSetOpAmlLength ($1, 2);}
+    | Type2IntegerOpcode            {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);
+                                        TrSetOpAmlLength ($1, 2);}
+    | ConstExprTerm                 {$$ = TrSetOpIntegerValue (PARSEOP_WORDCONST, $1);}
     | WordConst                     {}
     ;
 
 DWordConstExpr
-    : Type3Opcode                   {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);
-                                        TrSetNodeAmlLength ($1, 4);}
-    | Type2IntegerOpcode            {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);
-                                        TrSetNodeAmlLength ($1, 4);}
-    | ConstExprTerm                 {$$ = TrUpdateNode (PARSEOP_DWORDCONST, $1);}
+    : Type3Opcode                   {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);
+                                        TrSetOpAmlLength ($1, 4);}
+    | Type2IntegerOpcode            {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);
+                                        TrSetOpAmlLength ($1, 4);}
+    | ConstExprTerm                 {$$ = TrSetOpIntegerValue (PARSEOP_DWORDCONST, $1);}
     | DWordConst                    {}
     ;
 
 QWordConstExpr
-    : Type3Opcode                   {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);
-                                        TrSetNodeAmlLength ($1, 8);}
-    | Type2IntegerOpcode            {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);
-                                        TrSetNodeAmlLength ($1, 8);}
-    | ConstExprTerm                 {$$ = TrUpdateNode (PARSEOP_QWORDCONST, $1);}
+    : Type3Opcode                   {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);
+                                        TrSetOpAmlLength ($1, 8);}
+    | Type2IntegerOpcode            {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);
+                                        TrSetOpAmlLength ($1, 8);}
+    | ConstExprTerm                 {$$ = TrSetOpIntegerValue (PARSEOP_QWORDCONST, $1);}
     | QWordConst                    {}
     ;
 
 ConstTerm
     : ConstExprTerm                 {}
-    | PARSEOP_REVISION              {$$ = TrCreateLeafNode (PARSEOP_REVISION);}
+    | PARSEOP_REVISION              {$$ = TrCreateLeafOp (PARSEOP_REVISION);}
     ;
 
 ConstExprTerm
-    : PARSEOP_ZERO                  {$$ = TrCreateValuedLeafNode (PARSEOP_ZERO, 0);}
-    | PARSEOP_ONE                   {$$ = TrCreateValuedLeafNode (PARSEOP_ONE, 1);}
-    | PARSEOP_ONES                  {$$ = TrCreateValuedLeafNode (PARSEOP_ONES, ACPI_UINT64_MAX);}
-    | PARSEOP___DATE__              {$$ = TrCreateConstantLeafNode (PARSEOP___DATE__);}
-    | PARSEOP___FILE__              {$$ = TrCreateConstantLeafNode (PARSEOP___FILE__);}
-    | PARSEOP___LINE__              {$$ = TrCreateConstantLeafNode (PARSEOP___LINE__);}
-    | PARSEOP___PATH__              {$$ = TrCreateConstantLeafNode (PARSEOP___PATH__);}
+    : PARSEOP_ZERO                  {$$ = TrCreateValuedLeafOp (PARSEOP_ZERO, 0);}
+    | PARSEOP_ONE                   {$$ = TrCreateValuedLeafOp (PARSEOP_ONE, 1);}
+    | PARSEOP_ONES                  {$$ = TrCreateValuedLeafOp (PARSEOP_ONES, ACPI_UINT64_MAX);}
+    | PARSEOP___DATE__              {$$ = TrCreateConstantLeafOp (PARSEOP___DATE__);}
+    | PARSEOP___FILE__              {$$ = TrCreateConstantLeafOp (PARSEOP___FILE__);}
+    | PARSEOP___LINE__              {$$ = TrCreateConstantLeafOp (PARSEOP___LINE__);}
+    | PARSEOP___PATH__              {$$ = TrCreateConstantLeafOp (PARSEOP___PATH__);}
+    | PARSEOP___METHOD__            {$$ = TrCreateConstantLeafOp (PARSEOP___METHOD__);}
     ;
 
 Integer
-    : PARSEOP_INTEGER               {$$ = TrCreateValuedLeafNode (PARSEOP_INTEGER,
+    : PARSEOP_INTEGER               {$$ = TrCreateValuedLeafOp (PARSEOP_INTEGER,
                                         AslCompilerlval.i);}
     ;
 
 String
-    : PARSEOP_STRING_LITERAL        {$$ = TrCreateValuedLeafNode (PARSEOP_STRING_LITERAL,
+    : PARSEOP_STRING_LITERAL        {$$ = TrCreateValuedLeafOp (PARSEOP_STRING_LITERAL,
                                         (ACPI_NATIVE_INT) AslCompilerlval.s);}
     ;
 
@@ -644,7 +643,7 @@ NamedObject
 NameSpaceModifier
     : AliasTerm                     {}
     | NameTerm                      {}
-//    | NameTermAslPlus               {}
+/*    | NameTermAslPlus               {} */
     | ScopeTerm                     {}
     ;
 
@@ -741,7 +740,7 @@ Type2Opcode
  * Type 3/4/5 opcodes
  */
 Type2IntegerOpcode                  /* "Type3" opcodes */
-    : Expression                    {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);}
+    : Expression                    {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);}
     | AddTerm                       {}
     | AndTerm                       {}
     | DecTerm                       {}
@@ -751,8 +750,8 @@ Type2IntegerOpcode                  /* "Type3" opcodes */
     | FromBCDTerm                   {}
     | IncTerm                       {}
     | IndexTerm                     {}
-//    | StructureIndexTerm            {}
-//    | StructurePointerTerm          {}
+/*    | StructureIndexTerm            {} */
+/*    | StructurePointerTerm          {} */
     | LAndTerm                      {}
     | LEqualTerm                    {}
     | LGreaterTerm                  {}
@@ -790,7 +789,7 @@ Type2BufferOpcode                   /* "Type5" Opcodes */
     ;
 
 Type2BufferOrStringOpcode
-    : ConcatTerm                    {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);}
+    : ConcatTerm                    {$$ = TrSetOpFlags ($1, OP_COMPILE_TIME_CONST);}
     | PrintfTerm                    {}
     | FprintfTerm                   {}
     | MidTerm                       {}
@@ -827,8 +826,8 @@ Type6Opcode
     | DerefOfTerm                   {}
     | IndexTerm                     {}
     | IndexExpTerm                  {}
-//    | StructureIndexTerm            {}
-//    | StructurePointerTerm          {}
+/*    | StructureIndexTerm            {} */
+/*    | StructurePointerTerm          {} */
     | MethodInvocationTerm          {}
     ;
 
@@ -840,7 +839,7 @@ Type6Opcode
  ******************************************************************************/
 
 AmlPackageLengthTerm
-    : Integer                       {$$ = TrUpdateNode (PARSEOP_PACKAGE_LENGTH,
+    : Integer                       {$$ = TrSetOpIntegerValue (PARSEOP_PACKAGE_LENGTH,
                                         (ACPI_PARSE_OBJECT *) $1);}
     ;
 
@@ -855,14 +854,14 @@ TermArgItem
     ;
 
 OptionalReference
-    :                               {$$ = TrCreateLeafNode (PARSEOP_ZERO);}       /* Placeholder is a ZeroOp object */
-    | ','                           {$$ = TrCreateLeafNode (PARSEOP_ZERO);}       /* Placeholder is a ZeroOp object */
+    :                               {$$ = TrCreateLeafOp (PARSEOP_ZERO);}       /* Placeholder is a ZeroOp object */
+    | ','                           {$$ = TrCreateLeafOp (PARSEOP_ZERO);}       /* Placeholder is a ZeroOp object */
     | ',' TermArg                   {$$ = $2;}
     ;
 
 OptionalReturnArg
-    :                               {$$ = TrSetNodeFlags (TrCreateLeafNode (PARSEOP_ZERO),
-                                            NODE_IS_NULL_RETURN);}       /* Placeholder is a ZeroOp object */
+    :                               {$$ = TrSetOpFlags (TrCreateLeafOp (PARSEOP_ZERO),
+                                            OP_IS_NULL_RETURN);}       /* Placeholder is a ZeroOp object */
     | TermArg                       {$$ = $1;}
     ;
 
@@ -873,7 +872,7 @@ OptionalSerializeRuleKeyword
     ;
 
 OptionalTermArg
-    :                               {$$ = TrCreateLeafNode (PARSEOP_DEFAULT_ARG);}
+    :                               {$$ = TrCreateLeafOp (PARSEOP_DEFAULT_ARG);}
     | TermArg                       {$$ = $1;}
     ;
 

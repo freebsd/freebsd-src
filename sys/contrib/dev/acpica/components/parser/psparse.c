@@ -164,6 +164,7 @@
 #include <contrib/dev/acpica/include/acdispat.h>
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acinterp.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 #define _COMPONENT          ACPI_PARSER
         ACPI_MODULE_NAME    ("psparse")
@@ -664,8 +665,17 @@ AcpiPsParseAml (
             /* Either the method parse or actual execution failed */
 
             AcpiExExitInterpreter ();
-            ACPI_ERROR_METHOD ("Method parse/execution failed",
-                WalkState->MethodNode, NULL, Status);
+            if (Status == AE_ABORT_METHOD)
+            {
+                AcpiNsPrintNodePathname (
+                    WalkState->MethodNode, "Method aborted:");
+                AcpiOsPrintf ("\n");
+            }
+            else
+            {
+                ACPI_ERROR_METHOD ("Method parse/execution failed",
+                    WalkState->MethodNode, NULL, Status);
+            }
             AcpiExEnterInterpreter ();
 
             /* Check for possible multi-thread reentrancy problem */

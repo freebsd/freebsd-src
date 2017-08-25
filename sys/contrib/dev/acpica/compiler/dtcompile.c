@@ -486,18 +486,21 @@ DtCompileDataTable (
     }
     else if (TableData->TableInfo)
     {
-        /* Simple table, just walk the info table */
+        /* Simple table, just walk the info table, unless its empty */
 
-        Subtable = NULL;
-        Status = DtCompileTable (FieldList, TableData->TableInfo,
-            &Subtable, TRUE);
-        if (ACPI_FAILURE (Status))
+        if (FieldList && *FieldList)
         {
-            return (Status);
-        }
+            Subtable = NULL;
+            Status = DtCompileTable (FieldList, TableData->TableInfo,
+                &Subtable, TRUE);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
 
-        DtInsertSubtable (Gbl_RootTable, Subtable);
-        DtPopSubtable ();
+            DtInsertSubtable (Gbl_RootTable, Subtable);
+            DtPopSubtable ();
+        }
     }
     else
     {

@@ -984,9 +984,9 @@ AcpiOsWaitSemaphore (
 {
     ACPI_STATUS         Status = AE_OK;
     sem_t               *Sem = (sem_t *) Handle;
+    int                 RetVal;
 #ifndef ACPI_USE_ALTERNATE_TIMEOUT
     struct timespec     Time;
-    int                 RetVal;
 #endif
 
 
@@ -1016,11 +1016,16 @@ AcpiOsWaitSemaphore (
 
     case ACPI_WAIT_FOREVER:
 
-        if (sem_wait (Sem))
+        while (((RetVal = sem_wait (Sem)) == -1) && (errno == EINTR))
+        {
+            continue;   /* Restart if interrupted */
+        }
+        if (RetVal != 0)
         {
             Status = (AE_TIME);
         }
         break;
+
 
     /* Wait with MsecTimeout */
 
@@ -1075,7 +1080,8 @@ AcpiOsWaitSemaphore (
 
         while (((RetVal = sem_timedwait (Sem, &Time)) == -1) && (errno == EINTR))
         {
-            continue;
+            continue;   /* Restart if interrupted */
+
         }
 
         if (RetVal != 0)

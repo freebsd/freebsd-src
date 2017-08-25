@@ -197,8 +197,12 @@ static ACPI_RESOURCE_HANDLER    AcpiGbl_DmResourceDispatch [] =
     AcpiDmQwordDescriptor,          /* 0x0A, ACPI_RESOURCE_NAME_QWORD_ADDRESS_SPACE */
     AcpiDmExtendedDescriptor,       /* 0x0B, ACPI_RESOURCE_NAME_EXTENDED_ADDRESS_SPACE */
     AcpiDmGpioDescriptor,           /* 0x0C, ACPI_RESOURCE_NAME_GPIO */
-    NULL,                           /* 0x0D, Reserved */
-    AcpiDmSerialBusDescriptor       /* 0x0E, ACPI_RESOURCE_NAME_SERIAL_BUS */
+    AcpiDmPinFunctionDescriptor,    /* 0x0D, ACPI_RESOURCE_NAME_PIN_FUNCTION */
+    AcpiDmSerialBusDescriptor,      /* 0x0E, ACPI_RESOURCE_NAME_SERIAL_BUS */
+    AcpiDmPinConfigDescriptor,      /* 0x0F, ACPI_RESOURCE_NAME_PIN_CONFIG */
+    AcpiDmPinGroupDescriptor,       /* 0x10, ACPI_RESOURCE_NAME_PIN_GROUP */
+    AcpiDmPinGroupFunctionDescriptor, /* 0x11, ACPI_RESOURCE_NAME_PIN_GROUP_FUNCTION */
+    AcpiDmPinGroupConfigDescriptor, /* 0x12, ACPI_RESOURCE_NAME_PIN_GROUP_CONFIG */
 };
 
 
@@ -540,6 +544,15 @@ AcpiDmIsResourceTemplate (
      * intialization byte list. Because the resource macros will create
      * a buffer of the exact required length (buffer length will be equal
      * to the actual length).
+     *
+     * NOTE (April 2017): Resource templates with this issue have been
+     * seen in the field. We still don't want to attempt to disassemble
+     * a buffer like this to a resource template because this output
+     * would not match the original input buffer (it would be shorter
+     * than the original when the disassembled code is recompiled).
+     * Basically, a buffer like this appears to be hand crafted in the
+     * first place, so just emitting a buffer object instead of a
+     * resource template more closely resembles the original ASL code.
      */
     if (DeclaredBufferLength != BufferLength)
     {
