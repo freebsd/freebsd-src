@@ -251,6 +251,8 @@ blist_alloc(blist_t bl, daddr_t count)
 		    bl->bl_radix);
 		if (blk != SWAPBLK_NONE) {
 			bl->bl_cursor = blk + count;
+			if (bl->bl_cursor == bl->bl_blocks)
+				bl->bl_cursor = 0;
 			return (blk);
 		} else if (bl->bl_cursor != 0)
 			bl->bl_cursor = 0;
