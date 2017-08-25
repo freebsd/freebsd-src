@@ -44,6 +44,11 @@ os_pages_map(void *addr, size_t size, size_t alignment, bool *commit) {
 	assert(ALIGNMENT_ADDR2BASE(addr, os_page) == addr);
 	assert(ALIGNMENT_CEILING(size, os_page) == size);
 	assert(size != 0);
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* Non-NULL addresses don't work in CheriABI */
+	if (addr != NULL)
+		return (NULL);
+#endif
 
 	if (os_overcommits) {
 		*commit = true;
