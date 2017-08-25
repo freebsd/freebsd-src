@@ -116,7 +116,8 @@ bool ConstantFPSDNode::isValueValidForType(EVT VT,
 //                              ISD Namespace
 //===----------------------------------------------------------------------===//
 
-bool ISD::isConstantSplatVector(const SDNode *N, APInt &SplatVal) {
+bool ISD::isConstantSplatVector(const SDNode *N, APInt &SplatVal,
+                                bool AllowShrink) {
   auto *BV = dyn_cast<BuildVectorSDNode>(N);
   if (!BV)
     return false;
@@ -124,9 +125,11 @@ bool ISD::isConstantSplatVector(const SDNode *N, APInt &SplatVal) {
   APInt SplatUndef;
   unsigned SplatBitSize;
   bool HasUndefs;
-  EVT EltVT = N->getValueType(0).getVectorElementType();
-  return BV->isConstantSplat(SplatVal, SplatUndef, SplatBitSize, HasUndefs) &&
-         EltVT.getSizeInBits() >= SplatBitSize;
+  unsigned EltSize = N->getValueType(0).getVectorElementType().getSizeInBits();
+  unsigned MinSplatBits = AllowShrink ? 0 : EltSize;
+  return BV->isConstantSplat(SplatVal, SplatUndef, SplatBitSize, HasUndefs,
+                             MinSplatBits) &&
+         EltSize >= SplatBitSize;
 }
 
 // FIXME: AllOnes and AllZeros duplicate a lot of code. Could these be
@@ -7262,22 +7265,23 @@ void SelectionDAG::TransferDbgValues(SDValue From, SDValue To) {
     AddDbgValue(I, ToNode, false);
 }
 
-void SelectionDAG::makeEquivalentMemoryOrdering(LoadSDNode *OldLoad,
-                                                SDValue NewMemOp) {
+SDValue SelectionDAG::makeEquivalentMemoryOrdering(LoadSDNode *OldLoad,
+                                                   SDValue NewMemOp) {
   assert(isa<MemSDNode>(NewMemOp.getNode()) && "Expected a memop node");
-  if (!OldLoad->hasAnyUseOfValue(1))
-    return;
-
   // The new memory operation must have the same position as the old load in
   // terms of memory dependency. Create a TokenFactor for the old load and new
   // memory operation and update uses of the old load's output chain to use that
   // TokenFactor.
   SDValue OldChain = SDValue(OldLoad, 1);
   SDValue NewChain = SDValue(NewMemOp.getNode(), 1);
+  if (!OldLoad->hasAnyUseOfValue(1))
+    return NewChain;
+
   SDValue TokenFactor =
       getNode(ISD::TokenFactor, SDLoc(OldLoad), MVT::Other, OldChain, NewChain);
   ReplaceAllUsesOfValueWith(OldChain, TokenFactor);
   UpdateNodeOperands(TokenFactor.getNode(), OldChain, NewChain);
+  return TokenFactor;
 }
 
 //===----------------------------------------------------------------------===//

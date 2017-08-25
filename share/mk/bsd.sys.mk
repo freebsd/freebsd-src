@@ -212,6 +212,10 @@ SSP_CFLAGS?=	-fstack-protector
 CFLAGS+=	${SSP_CFLAGS}
 .endif # SSP && !ARM && !MIPS
 
+# Additional flags passed in CFLAGS and CXXFLAGS when MK_DEBUG_FILES is
+# enabled.
+DEBUG_FILES_CFLAGS?= -g
+
 # Allow user-specified additional warning flags, plus compiler and file
 # specific flag overrides, unless we've overriden this...
 .if ${MK_WARNS} != "no"

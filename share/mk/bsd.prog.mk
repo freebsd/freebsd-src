@@ -39,7 +39,7 @@ CFLAGS+=${CRUNCH_CFLAGS}
 .else
 .if ${MK_DEBUG_FILES} != "no"
 .if empty(DEBUG_FLAGS:M-g) && empty(DEBUG_FLAGS:M-gdwarf-*)
-CFLAGS+= -g
+CFLAGS+= ${DEBUG_FILES_CFLAGS}
 CXXFLAGS+= -g
 CTFFLAGS+= -g
 .endif

@@ -3927,7 +3927,7 @@ iflib_vlan_register(void *arg, if_t ifp, uint16_t vtag)
 	IFDI_VLAN_REGISTER(ctx, vtag);
 	/* Re-init to load the changes */
 	if (if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER)
-		iflib_init_locked(ctx);
+		iflib_if_init_locked(ctx);
 	CTX_UNLOCK(ctx);
 }
 
@@ -3946,7 +3946,7 @@ iflib_vlan_unregister(void *arg, if_t ifp, uint16_t vtag)
 	IFDI_VLAN_UNREGISTER(ctx, vtag);
 	/* Re-init to load the changes */
 	if (if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER)
-		iflib_init_locked(ctx);
+		iflib_if_init_locked(ctx);
 	CTX_UNLOCK(ctx);
 }
 

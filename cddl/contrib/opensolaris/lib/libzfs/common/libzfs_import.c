@@ -914,6 +914,65 @@ zpool_read_label(int fd, nvlist_t **config)
 	return (0);
 }
 
+/*
+ * Given a file descriptor, read the label information and return an nvlist
+ * describing the configuration, if there is one.
+ * returns the number of valid labels found
+ */
+int
+zpool_read_all_labels(int fd, nvlist_t **config)
+{
+	struct stat64 statbuf;
+	int l;
+	vdev_label_t *label;
+	uint64_t state, txg, size;
+	int nlabels = 0;
+
+	*config = NULL;
+
+	if (fstat64(fd, &statbuf) == -1)
+		return (0);
+	size = P2ALIGN_TYPED(statbuf.st_size, sizeof (vdev_label_t), uint64_t);
+
+	if ((label = malloc(sizeof (vdev_label_t))) == NULL)
+		return (0);
+
+	for (l = 0; l < VDEV_LABELS; l++) {
+		nvlist_t *temp = NULL;
+
+		/* TODO: use aio_read so we can read al 4 labels in parallel */
+		if (pread64(fd, label, sizeof (vdev_label_t),
+		    label_offset(size, l)) != sizeof (vdev_label_t))
+			continue;
+
+		if (nvlist_unpack(label->vl_vdev_phys.vp_nvlist,
+		    sizeof (label->vl_vdev_phys.vp_nvlist), &temp, 0) != 0)
+			continue;
+
+		if (nvlist_lookup_uint64(temp, ZPOOL_CONFIG_POOL_STATE,
+		    &state) != 0 || state > POOL_STATE_L2CACHE) {
+			nvlist_free(temp);
+			temp = NULL;
+			continue;
+		}
+
+		if (state != POOL_STATE_SPARE && state != POOL_STATE_L2CACHE &&
+		    (nvlist_lookup_uint64(temp, ZPOOL_CONFIG_POOL_TXG,
+		    &txg) != 0 || txg == 0)) {
+			nvlist_free(temp);
+			temp = NULL;
+			continue;
+		}
+		if (temp)
+			*config = temp;
+
+		nlabels++;
+	}
+
+	free(label);
+	return (nlabels);
+}
+
 typedef struct rdsk_node {
 	char *rn_name;
 	int rn_dfd;

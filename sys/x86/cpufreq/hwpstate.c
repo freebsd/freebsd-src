@@ -83,6 +83,10 @@ __FBSDID("$FreeBSD$");
 #define	AMD_10H_11H_CUR_DID(msr)		(((msr) >> 6) & 0x07)
 #define	AMD_10H_11H_CUR_FID(msr)		((msr) & 0x3F)
 
+#define	AMD_17H_CUR_VID(msr)			(((msr) >> 14) & 0xFF)
+#define	AMD_17H_CUR_DID(msr)			(((msr) >> 8) & 0x3F)
+#define	AMD_17H_CUR_FID(msr)			((msr) & 0xFF)
+
 #define	HWPSTATE_DEBUG(dev, msg...)			\
 	do{						\
 		if(hwpstate_verbose)			\
@@ -426,6 +430,15 @@ hwpstate_get_info_from_msr(device_t dev)
 		case 0x15:
 		case 0x16:
 			hwpstate_set[i].freq = (100 * (fid + 0x10)) >> did;
+			break;
+		case 0x17:
+			did = AMD_17H_CUR_DID(msr);
+			if (did == 0) {
+				HWPSTATE_DEBUG(dev, "unexpected did: 0\n");
+				did = 1;
+			}
+			fid = AMD_17H_CUR_FID(msr);
+			hwpstate_set[i].freq = (200 * fid) / did;
 			break;
 		default:
 			HWPSTATE_DEBUG(dev, "get_info_from_msr: AMD family"

@@ -93,6 +93,7 @@ static int      ixv_configure_interrupts(struct adapter *);
 static void     ixv_free_pci_resources(struct adapter *);
 static void     ixv_local_timer(void *);
 static void     ixv_setup_interface(device_t, struct adapter *);
+static int      ixv_negotiate_api(struct adapter *);
 
 static void     ixv_initialize_transmit_units(struct adapter *);
 static void     ixv_initialize_receive_units(struct adapter *);
@@ -384,11 +385,10 @@ ixv_attach(device_t dev)
 	}
 
 	/* Negotiate mailbox API version */
-	error = ixgbevf_negotiate_api_version(hw, ixgbe_mbox_api_12);
+	error = ixv_negotiate_api(adapter);
 	if (error) {
-		device_printf(dev, "MBX API 1.2 negotiation failed! Error %d\n",
-		    error);
-		error = EIO;
+		device_printf(dev,
+		    "Mailbox API negotiation failed during attach!\n");
 		goto err_out;
 	}
 
@@ -584,10 +584,12 @@ ixv_init_locked(struct adapter *adapter)
 
 	/* Reset VF and renegotiate mailbox API version */
 	hw->mac.ops.reset_hw(hw);
-	error = ixgbevf_negotiate_api_version(hw, ixgbe_mbox_api_12);
-	if (error)
-		device_printf(dev, "MBX API 1.2 negotiation failed! Error %d\n",
-		    error);
+	error = ixv_negotiate_api(adapter);
+	if (error) {
+		device_printf(dev,
+		    "Mailbox API negotiation failed in init_locked!\n");
+		return;
+	}
 
 	ixv_initialize_transmit_units(adapter);
 
@@ -873,6 +875,31 @@ ixv_media_change(struct ifnet *ifp)
 
 	return (0);
 } /* ixv_media_change */
+
+
+/************************************************************************
+ * ixv_negotiate_api
+ *
+ *   Negotiate the Mailbox API with the PF;
+ *   start with the most featured API first.
+ ************************************************************************/
+static int
+ixv_negotiate_api(struct adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int             mbx_api[] = { ixgbe_mbox_api_11,
+	                              ixgbe_mbox_api_10,
+	                              ixgbe_mbox_api_unknown };
+	int             i = 0;
+
+	while (mbx_api[i] != ixgbe_mbox_api_unknown) {
+		if (ixgbevf_negotiate_api_version(hw, mbx_api[i]) == 0)
+			return (0);
+		i++;
+	}
+
+	return (EINVAL);
+} /* ixv_negotiate_api */
 
 
 /************************************************************************

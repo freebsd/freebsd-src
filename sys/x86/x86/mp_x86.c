@@ -662,18 +662,23 @@ cpu_mp_announce(void)
 {
 	struct topo_node *node;
 	const char *hyperthread;
-	int pkg_count;
-	int cores_per_pkg;
-	int thrs_per_core;
+	struct topo_analysis topology;
 
 	printf("FreeBSD/SMP: ");
-	if (topo_analyze(&topo_root, 1, &pkg_count,
-	    &cores_per_pkg, &thrs_per_core)) {
-		printf("%d package(s)", pkg_count);
-		if (cores_per_pkg > 0)
-			printf(" x %d core(s)", cores_per_pkg);
-		if (thrs_per_core > 1)
-		    printf(" x %d hardware threads", thrs_per_core);
+	if (topo_analyze(&topo_root, 1, &topology)) {
+		printf("%d package(s)", topology.entities[TOPO_LEVEL_PKG]);
+		if (topology.entities[TOPO_LEVEL_GROUP] > 1)
+			printf(" x %d groups",
+			    topology.entities[TOPO_LEVEL_GROUP]);
+		if (topology.entities[TOPO_LEVEL_CACHEGROUP] > 1)
+			printf(" x %d cache groups",
+			    topology.entities[TOPO_LEVEL_CACHEGROUP]);
+		if (topology.entities[TOPO_LEVEL_CORE] > 0)
+			printf(" x %d core(s)",
+			    topology.entities[TOPO_LEVEL_CORE]);
+		if (topology.entities[TOPO_LEVEL_THREAD] > 1)
+			printf(" x %d hardware threads",
+			    topology.entities[TOPO_LEVEL_THREAD]);
 	} else {
 		printf("Non-uniform topology");
 	}
@@ -681,13 +686,21 @@ cpu_mp_announce(void)
 
 	if (disabled_cpus) {
 		printf("FreeBSD/SMP Online: ");
-		if (topo_analyze(&topo_root, 0, &pkg_count,
-		    &cores_per_pkg, &thrs_per_core)) {
-			printf("%d package(s)", pkg_count);
-			if (cores_per_pkg > 0)
-				printf(" x %d core(s)", cores_per_pkg);
-			if (thrs_per_core > 1)
-			    printf(" x %d hardware threads", thrs_per_core);
+		if (topo_analyze(&topo_root, 0, &topology)) {
+			printf("%d package(s)",
+			    topology.entities[TOPO_LEVEL_PKG]);
+			if (topology.entities[TOPO_LEVEL_GROUP] > 1)
+				printf(" x %d groups",
+				    topology.entities[TOPO_LEVEL_GROUP]);
+			if (topology.entities[TOPO_LEVEL_CACHEGROUP] > 1)
+				printf(" x %d cache groups",
+				    topology.entities[TOPO_LEVEL_CACHEGROUP]);
+			if (topology.entities[TOPO_LEVEL_CORE] > 0)
+				printf(" x %d core(s)",
+				    topology.entities[TOPO_LEVEL_CORE]);
+			if (topology.entities[TOPO_LEVEL_THREAD] > 1)
+				printf(" x %d hardware threads",
+				    topology.entities[TOPO_LEVEL_THREAD]);
 		} else {
 			printf("Non-uniform topology");
 		}

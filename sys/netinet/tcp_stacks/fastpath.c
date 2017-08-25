@@ -1831,24 +1831,6 @@ tcp_do_segment_fastslow(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (TSTMP_GT(to.to_tsecr, tcp_ts_getticks()))
 			to.to_tsecr = 0;
 	}
-	/*
-	 * If timestamps were negotiated during SYN/ACK they should
-	 * appear on every segment during this session and vice versa.
-	 */
-	if ((tp->t_flags & TF_RCVD_TSTMP) && !(to.to_flags & TOF_TS)) {
-		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
-			log(LOG_DEBUG, "%s; %s: Timestamp missing, "
-			    "no action\n", s, __func__);
-			free(s, M_TCPLOG);
-		}
-	}
-	if (!(tp->t_flags & TF_RCVD_TSTMP) && (to.to_flags & TOF_TS)) {
-		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
-			log(LOG_DEBUG, "%s; %s: Timestamp not expected, "
-			    "no action\n", s, __func__);
-			free(s, M_TCPLOG);
-		}
-	}
 
 	/*
 	 * Process options only when we get SYN/ACK back. The SYN case
@@ -1879,6 +1861,26 @@ tcp_do_segment_fastslow(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		    (to.to_flags & TOF_SACKPERM) == 0)
 			tp->t_flags &= ~TF_SACK_PERMIT;
 	}
+
+	/*
+	 * If timestamps were negotiated during SYN/ACK they should
+	 * appear on every segment during this session and vice versa.
+	 */
+	if ((tp->t_flags & TF_RCVD_TSTMP) && !(to.to_flags & TOF_TS)) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: Timestamp missing, "
+			    "no action\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
+	}
+	if (!(tp->t_flags & TF_RCVD_TSTMP) && (to.to_flags & TOF_TS)) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: Timestamp not expected, "
+			    "no action\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
+	}
+
 	can_enter = 0;
 	if (__predict_true((tlen == 0))) {
 		/*
@@ -2306,24 +2308,6 @@ tcp_do_segment_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (TSTMP_GT(to.to_tsecr, tcp_ts_getticks()))
 			to.to_tsecr = 0;
 	}
-	/*
-	 * If timestamps were negotiated during SYN/ACK they should
-	 * appear on every segment during this session and vice versa.
-	 */
-	if ((tp->t_flags & TF_RCVD_TSTMP) && !(to.to_flags & TOF_TS)) {
-		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
-			log(LOG_DEBUG, "%s; %s: Timestamp missing, "
-			    "no action\n", s, __func__);
-			free(s, M_TCPLOG);
-		}
-	}
-	if (!(tp->t_flags & TF_RCVD_TSTMP) && (to.to_flags & TOF_TS)) {
-		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
-			log(LOG_DEBUG, "%s; %s: Timestamp not expected, "
-			    "no action\n", s, __func__);
-			free(s, M_TCPLOG);
-		}
-	}
 
 	/*
 	 * Process options only when we get SYN/ACK back. The SYN case
@@ -2354,6 +2338,26 @@ tcp_do_segment_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		    (to.to_flags & TOF_SACKPERM) == 0)
 			tp->t_flags &= ~TF_SACK_PERMIT;
 	}
+
+	/*
+	 * If timestamps were negotiated during SYN/ACK they should
+	 * appear on every segment during this session and vice versa.
+	 */
+	if ((tp->t_flags & TF_RCVD_TSTMP) && !(to.to_flags & TOF_TS)) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: Timestamp missing, "
+			    "no action\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
+	}
+	if (!(tp->t_flags & TF_RCVD_TSTMP) && (to.to_flags & TOF_TS)) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: Timestamp not expected, "
+			    "no action\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
+	}
+
 	/*
 	 * Header prediction: check for the two common cases
 	 * of a uni-directional data xfer.  If the packet has
