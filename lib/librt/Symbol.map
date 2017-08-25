@@ -26,6 +26,7 @@ FBSD_1.0 {
 };
 
 FBSD_1.5 {
+	lio_listio;
 	mq_getfd_np;
 	timer_oshandle_np;
 };
