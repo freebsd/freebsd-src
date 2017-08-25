@@ -279,6 +279,7 @@ ext2_mount(struct mount *mp)
 static int
 ext2_check_sb_compat(struct ext2fs *es, struct cdev *dev, int ronly)
 {
+	uint32_t i, mask;
 
 	if (es->e2fs_magic != E2FS_MAGIC) {
 		printf("ext2fs: %s: wrong magic number %#x (expected %#x)\n",
@@ -286,17 +287,29 @@ ext2_check_sb_compat(struct ext2fs *es, struct cdev *dev, int ronly)
 		return (1);
 	}
 	if (es->e2fs_rev > E2FS_REV0) {
-		if (es->e2fs_features_incompat & ~(EXT2F_INCOMPAT_SUPP |
-						   EXT4F_RO_INCOMPAT_SUPP)) {
-			printf(
-"WARNING: mount of %s denied due to unsupported optional features\n",
-			    devtoname(dev));
+		mask = es->e2fs_features_incompat & ~(EXT2F_INCOMPAT_SUPP |
+		    EXT4F_RO_INCOMPAT_SUPP);
+		if (mask) {
+			printf("WARNING: mount of %s denied due to "
+			    "unsupported optional features:\n", devtoname(dev));
+			for (i = 0;
+			    i < sizeof(incompat)/sizeof(struct ext2_feature);
+			    i++)
+				if (mask & incompat[i].mask)
+					printf("%s ", incompat[i].name);
+			printf("\n");
 			return (1);
 		}
-		if (!ronly &&
-		    (es->e2fs_features_rocompat & ~EXT2F_ROCOMPAT_SUPP)) {
+		mask = es->e2fs_features_rocompat & ~EXT2F_ROCOMPAT_SUPP;
+		if (!ronly && mask) {
 			printf("WARNING: R/W mount of %s denied due to "
-			    "unsupported optional features\n", devtoname(dev));
+			    "unsupported optional features:\n", devtoname(dev));
+			for (i = 0;
+			    i < sizeof(ro_compat)/sizeof(struct ext2_feature);
+			    i++)
+				if (mask & ro_compat[i].mask)
+					printf("%s ", ro_compat[i].name);
+			printf("\n");
 			return (1);
 		}
 	}
@@ -349,6 +362,13 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		printf("ext2fs: no space for extra inode timestamps\n");
 		return (EINVAL);
 	}
+	/* Check for group descriptor size */
+	if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_64BIT) &&
+	    (es->e3fs_desc_size != sizeof(struct ext2_gd))) {
+		printf("ext2fs: group descriptor size unsupported %d\n",
+		    es->e3fs_desc_size);
+		return (EINVAL);
+	}
 
 	fs->e2fs_ipb = fs->e2fs_bsize / EXT2_INODE_SIZE(fs);
 	fs->e2fs_itpg = fs->e2fs_ipg / fs->e2fs_ipb;
@@ -386,6 +406,12 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		    fs->e2fs_bsize);
 		brelse(bp);
 		bp = NULL;
+	}
+	/* Verify cg csum */
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM)) {
+		error = ext2_gd_csum_verify(fs, devvp->v_rdev);
+		if (error)
+			return (error);
 	}
 	/* Initialization for the ext2 Orlov allocator variant. */
 	fs->e2fs_total_dir = 0;
@@ -781,7 +807,7 @@ ext2_statfs(struct mount *mp, struct statfs *sbp)
 	if (fs->e2fs->e2fs_rev > E2FS_REV0 &&
 	    fs->e2fs->e2fs_features_rocompat & EXT2F_ROCOMPAT_SPARSESUPER) {
 		for (i = 0, ngroups = 0; i < fs->e2fs_gcount; i++) {
-			if (cg_has_sb(i))
+			if (ext2_cg_has_sb(fs, i))
 				ngroups++;
 		}
 	} else {
@@ -1062,6 +1088,11 @@ ext2_cgupdate(struct ext2mount *mp, int waitfor)
 	int i, error = 0, allerror = 0;
 
 	allerror = ext2_sbupdate(mp, waitfor);
+
+	/* Update gd csums */
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM))
+		ext2_gd_csum_set(fs);
+
 	for (i = 0; i < fs->e2fs_gdbcount; i++) {
 		bp = getblk(mp->um_devvp, fsbtodb(fs,
 		    fs->e2fs->e2fs_first_dblock +

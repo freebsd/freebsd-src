@@ -183,9 +183,14 @@ AcpiNsCheckArgumentTypes (
     UINT32                      i;
 
 
-    /* If not a predefined name, cannot typecheck args */
-
-    if (!Info->Predefined)
+    /*
+     * If not a predefined name, cannot typecheck args, because
+     * we have no idea what argument types are expected.
+     * Also, ignore typecheck if warnings/errors if this method
+     * has already been evaluated at least once -- in order
+     * to suppress repetitive messages.
+     */
+    if (!Info->Predefined || (Info->Node->Flags & ANOBJ_EVALUATED))
     {
         return;
     }
@@ -207,6 +212,10 @@ AcpiNsCheckArgumentTypes (
                 "Found [%s], ACPI requires [%s]", (i + 1),
                 AcpiUtGetTypeName (UserArgType),
                 AcpiUtGetTypeName (ArgType)));
+
+            /* Prevent any additional typechecking for this method */
+
+            Info->Node->Flags |= ANOBJ_EVALUATED;
         }
     }
 }
@@ -238,7 +247,7 @@ AcpiNsCheckAcpiCompliance (
     UINT32                      RequiredParamCount;
 
 
-    if (!Predefined)
+    if (!Predefined || (Node->Flags & ANOBJ_EVALUATED))
     {
         return;
     }
@@ -331,6 +340,11 @@ AcpiNsCheckArgumentCount (
     UINT32                      AmlParamCount;
     UINT32                      RequiredParamCount;
 
+
+    if (Node->Flags & ANOBJ_EVALUATED)
+    {
+        return;
+    }
 
     if (!Predefined)
     {

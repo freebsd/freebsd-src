@@ -315,13 +315,21 @@ LdLoadFieldElements (
                         Child->Asl.Value.String);
                     return (Status);
                 }
-
-                /*
-                 * The name already exists in this scope
-                 * But continue processing the elements
-                 */
-                AslError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Child,
-                    Child->Asl.Value.String);
+                else if (Status == AE_ALREADY_EXISTS &&
+                    (Node->Flags & ANOBJ_IS_EXTERNAL) &&
+                    Node->OwnerId != WalkState->OwnerId)
+                {
+                    Node->Type = (UINT8) ACPI_TYPE_LOCAL_REGION_FIELD;
+                }
+                else
+                {
+                    /*
+                     * The name already exists in this scope
+                     * But continue processing the elements
+                     */
+                    AslError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Child,
+                        Child->Asl.Value.String);
+                }
             }
             else
             {
@@ -458,11 +466,29 @@ LdNamespace1Begin (
     ACPI_PARSE_OBJECT       *Arg;
     UINT32                  i;
     BOOLEAN                 ForceNewScope = FALSE;
+    ACPI_OWNER_ID           OwnerId = 0;
 
 
     ACPI_FUNCTION_NAME (LdNamespace1Begin);
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Op %p [%s]\n",
         Op, Op->Asl.ParseOpName));
+
+    if (Op->Asl.ParseOpcode == PARSEOP_DEFINITION_BLOCK)
+    {
+        /*
+         * Allocate an OwnerId for this block. This helps identify the owners
+         * of each namespace node. This is used in determining whether if
+         * certain external declarations cause redefinition errors.
+         */
+        Status = AcpiUtAllocateOwnerId (&OwnerId);
+        WalkState->OwnerId = OwnerId;
+        if (ACPI_FAILURE (Status))
+        {
+            AslCoreSubsystemError (Op, Status,
+                "Failure to allocate owner ID to this definition block.", FALSE);
+            return_ACPI_STATUS (Status);
+        }
+    }
 
     /*
      * We are only interested in opcodes that have an associated name
@@ -539,7 +565,7 @@ LdNamespace1Begin (
          * a new scope so that the resource subfield names can be entered into
          * the namespace underneath this name
          */
-        if (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DESC)
+        if (Op->Asl.CompileFlags & OP_IS_RESOURCE_DESC)
         {
             ForceNewScope = TRUE;
         }
@@ -589,7 +615,7 @@ LdNamespace1Begin (
 
     case PARSEOP_DEFAULT_ARG:
 
-        if (Op->Asl.CompileFlags == NODE_IS_RESOURCE_DESC)
+        if (Op->Asl.CompileFlags == OP_IS_RESOURCE_DESC)
         {
             Status = LdLoadResourceElements (Op, WalkState);
             return_ACPI_STATUS (Status);
@@ -778,7 +804,9 @@ LdNamespace1Begin (
             {
                 /*
                  * Allow one create on an object or segment that was
-                 * previously declared External
+                 * previously declared External only if WalkState->OwnerId and
+                 * Node->OwnerId are found in different tables (meaning that
+                 * they have differnt OwnerIds).
                  */
                 Node->Flags &= ~ANOBJ_IS_EXTERNAL;
                 Node->Type = (UINT8) ObjectType;
@@ -795,6 +823,17 @@ LdNamespace1Begin (
                 }
 
                 Status = AE_OK;
+
+                if (Node->OwnerId == WalkState->OwnerId &&
+                    !(Node->Flags & IMPLICIT_EXTERNAL))
+                {
+                    AslError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Op,
+                        Op->Asl.ExternalName);
+                }
+                if (Node->Flags & IMPLICIT_EXTERNAL)
+                {
+                    Node->Flags &= ~IMPLICIT_EXTERNAL;
+                }
             }
             else if (!(Node->Flags & ANOBJ_IS_EXTERNAL) &&
                      (Op->Asl.ParseOpcode == PARSEOP_EXTERNAL))
@@ -802,15 +841,52 @@ LdNamespace1Begin (
                 /*
                  * Allow externals in same scope as the definition of the
                  * actual object. Similar to C. Allows multiple definition
-                 * blocks that refer to each other in the same file.
+                 * blocks that refer to each other in the same file. However,
+                 * do not allow name declaration and an external declaration
+                 * within the same table. This is considered a re-declaration.
                  */
                 Status = AE_OK;
+
+                if (Node->OwnerId == WalkState->OwnerId)
+                {
+                    AslError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Op,
+                        Op->Asl.ExternalName);
+                }
             }
             else if ((Node->Flags & ANOBJ_IS_EXTERNAL) &&
                      (Op->Asl.ParseOpcode == PARSEOP_EXTERNAL) &&
                      (ObjectType == ACPI_TYPE_ANY))
             {
-                /* Allow update of externals of unknown type. */
+                /*
+                 * Allow update of externals of unknown type.
+                 * In the case that multiple definition blocks are being
+                 * parsed, updating the OwnerId allows enables subsequent calls
+                 * of this method to understand which table the most recent
+                 * external declaration was seen. Without this OwnerId update,
+                 * code like the following is allowed to compile:
+                 *
+                 * DefinitionBlock("externtest.aml", "DSDT", 0x02, "Intel", "Many", 0x00000001)
+                 * {
+                 *     External(ERRS,methodobj)
+                 *     Method (MAIN)
+                 *     {
+                 *         Name(NUM2, 0)
+                 *         ERRS(1,2,3)
+                 *     }
+                 * }
+                 *
+                 * DefinitionBlock("externtest.aml", "SSDT", 0x02, "Intel", "Many", 0x00000001)
+                 * {
+                 *     if (0)
+                 *     {
+                 *         External(ERRS,methodobj)
+                 *     }
+                 *     Method (ERRS,3)
+                 *     {}
+                 *
+                 * }
+                 */
+                Node->OwnerId = WalkState->OwnerId;
 
                 if (AcpiNsOpensScope (ActualObjectType))
                 {
@@ -930,7 +1006,7 @@ LdNamespace2Begin (
     /* Get the type to determine if we should push the scope */
 
     if ((Op->Asl.ParseOpcode == PARSEOP_DEFAULT_ARG) &&
-        (Op->Asl.CompileFlags == NODE_IS_RESOURCE_DESC))
+        (Op->Asl.CompileFlags == OP_IS_RESOURCE_DESC))
     {
         ObjectType = ACPI_TYPE_LOCAL_RESOURCE;
     }
@@ -943,7 +1019,7 @@ LdNamespace2Begin (
 
     if (Op->Asl.ParseOpcode == PARSEOP_NAME)
     {
-        if (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DESC)
+        if (Op->Asl.CompileFlags & OP_IS_RESOURCE_DESC)
         {
             ForceNewScope = TRUE;
         }
@@ -1054,7 +1130,7 @@ LdCommonNamespaceEnd (
     /* Get the type to determine if we should pop the scope */
 
     if ((Op->Asl.ParseOpcode == PARSEOP_DEFAULT_ARG) &&
-        (Op->Asl.CompileFlags == NODE_IS_RESOURCE_DESC))
+        (Op->Asl.CompileFlags == OP_IS_RESOURCE_DESC))
     {
         /* TBD: Merge into AcpiDsMapNamedOpcodeToDataType */
 
@@ -1069,7 +1145,7 @@ LdCommonNamespaceEnd (
 
     if (Op->Asl.ParseOpcode == PARSEOP_NAME)
     {
-        if (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DESC)
+        if (Op->Asl.CompileFlags & OP_IS_RESOURCE_DESC)
         {
             ForceNewScope = TRUE;
         }

@@ -413,7 +413,7 @@ LkGetNameOp (
         /* Name must appear as the last parameter */
 
         NameOp = Op->Asl.Child;
-        while (!(NameOp->Asl.CompileFlags & NODE_IS_NAME_DECLARATION))
+        while (!(NameOp->Asl.CompileFlags & OP_IS_NAME_DECLARATION))
         {
             NameOp = NameOp->Asl.Next;
         }

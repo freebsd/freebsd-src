@@ -351,6 +351,7 @@ typedef enum
     ASL_MSG_ARG_NOT_USED,
     ASL_MSG_CONSTANT_REQUIRED,
     ASL_MSG_CROSS_TABLE_SCOPE,
+    ASL_MSG_EXCEPTION_NOT_RECEIVED,
 
     /* These messages are used by the Data Table compiler only */
 

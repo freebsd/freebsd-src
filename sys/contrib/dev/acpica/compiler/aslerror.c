@@ -160,6 +160,16 @@ static void
 AeAddToErrorLog (
     ASL_ERROR_MSG           *Enode);
 
+static BOOLEAN
+AslIsExceptionExpected (
+    UINT8                   Level,
+    UINT16                  MessageId);
+
+static BOOLEAN
+AslIsExceptionDisabled (
+    UINT8                   Level,
+    UINT16                  MessageId);
+
 
 /*******************************************************************************
  *
@@ -806,6 +816,115 @@ AslCommonError (
     return;
 }
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AslIsExceptionIgnored
+ *
+ * PARAMETERS:  Level               - Seriousness (Warning/error, etc.)
+ *              MessageId           - Index into global message buffer
+ *
+ * RETURN:      BOOLEAN
+ *
+ * DESCRIPTION: Check if a particular exception is ignored. In this case it
+ *              means that the exception is (expected or disabled.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AslIsExceptionIgnored (
+    UINT8                   Level,
+    UINT16                  MessageId)
+{
+    BOOLEAN ExceptionIgnored;
+
+
+    /* Note: this allows exception to be disabled and expected */
+
+    ExceptionIgnored = AslIsExceptionDisabled (Level, MessageId);
+    ExceptionIgnored |= AslIsExceptionExpected (Level, MessageId);
+
+    return (Gbl_AllExceptionsDisabled || ExceptionIgnored);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AslCheckExpectException
+ *
+ * PARAMETERS:  none
+ *
+ * RETURN:      none
+ *
+ * DESCRIPTION: Check the global expected messages table and raise an error
+ *              for each message that has not been received.
+ *
+ ******************************************************************************/
+
+void
+AslCheckExpectedExceptions (
+    void)
+{
+    UINT8 i;
+
+    for (i = 0; i < Gbl_ExpectedMessagesIndex; ++i)
+    {
+        if (!Gbl_ExpectedMessages[i].MessageReceived)
+        {
+            AslError (ASL_ERROR, ASL_MSG_EXCEPTION_NOT_RECEIVED, NULL,
+                Gbl_ExpectedMessages[i].MessageIdStr);
+        }
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AslExpectException
+ *
+ * PARAMETERS:  MessageIdString     - ID of excepted exception during compile
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Enter a message ID into the global expected messages table
+ *              If these messages are not raised during the compilation, throw
+ *              an error.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AslExpectException (
+    char                    *MessageIdString)
+{
+    UINT32                  MessageId;
+
+
+    /* Convert argument to an integer and validate it */
+
+    MessageId = (UINT32) strtoul (MessageIdString, NULL, 0);
+
+    if (MessageId > 6999)
+    {
+        printf ("\"%s\" is not a valid warning/remark/erro ID\n",
+            MessageIdString);
+        return (AE_BAD_PARAMETER);
+    }
+
+    /* Insert value into the global expected message array */
+
+    if (Gbl_ExpectedMessagesIndex >= ASL_MAX_EXPECTED_MESSAGES)
+    {
+        printf ("Too many messages have been registered as expected (max %u)\n",
+            ASL_MAX_DISABLED_MESSAGES);
+        return (AE_LIMIT);
+    }
+
+    Gbl_ExpectedMessages[Gbl_ExpectedMessagesIndex].MessageId = MessageId;
+    Gbl_ExpectedMessages[Gbl_ExpectedMessagesIndex].MessageIdStr = MessageIdString;
+    Gbl_ExpectedMessages[Gbl_ExpectedMessagesIndex].MessageReceived = FALSE;
+    Gbl_ExpectedMessagesIndex++;
+    return (AE_OK);
+}
+
 
 /*******************************************************************************
  *
@@ -866,7 +985,48 @@ AslDisableException (
  *
  ******************************************************************************/
 
-BOOLEAN
+static BOOLEAN
+AslIsExceptionExpected (
+    UINT8                   Level,
+    UINT16                  MessageId)
+{
+    UINT32                  EncodedMessageId;
+    UINT32                  i;
+
+
+    /*
+     * Mark this exception as received
+     */
+    EncodedMessageId = AeBuildFullExceptionCode (Level, MessageId);
+    for (i = 0; i < Gbl_ExpectedMessagesIndex; i++)
+    {
+        /* Simple implementation via fixed array */
+
+        if (EncodedMessageId == Gbl_ExpectedMessages[i].MessageId)
+        {
+            return (Gbl_ExpectedMessages[i].MessageReceived = TRUE);
+        }
+    }
+
+    return (FALSE);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AslIsExceptionDisabled
+ *
+ * PARAMETERS:  Level               - Seriousness (Warning/error, etc.)
+ *              MessageId           - Index into global message buffer
+ *
+ * RETURN:      TRUE if exception/message should be ignored
+ *
+ * DESCRIPTION: Check if the user has specified options such that this
+ *              exception should be ignored
+ *
+ ******************************************************************************/
+
+static BOOLEAN
 AslIsExceptionDisabled (
     UINT8                   Level,
     UINT16                  MessageId)
@@ -940,8 +1100,7 @@ AslError (
 
     /* Check if user wants to ignore this exception */
 
-    if (Gbl_AllExceptionsDisabled ||
-        AslIsExceptionDisabled (Level, MessageId))
+    if (AslIsExceptionIgnored (Level, MessageId))
     {
         return;
     }

@@ -6,6 +6,7 @@ SRCS= \
 mlx5_alloc.c \
 mlx5_cmd.c \
 mlx5_cq.c \
+mlx5_diagnostics.c \
 mlx5_eq.c \
 mlx5_eswitch_vacl.c \
 mlx5_flow_table.c \

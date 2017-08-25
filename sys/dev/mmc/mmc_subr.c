@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #define	LOG_PPS		5 /* Log no more than 5 errors per second. */
 
 int
-mmc_wait_for_cmd(device_t brdev, device_t reqdev, struct mmc_command *cmd,
+mmc_wait_for_cmd(device_t busdev, device_t dev, struct mmc_command *cmd,
     int retries)
 {
 	struct mmc_request mreq;
@@ -87,14 +87,14 @@ mmc_wait_for_cmd(device_t brdev, device_t reqdev, struct mmc_command *cmd,
 		if (cmd->data != NULL)
 			cmd->data->mrq = &mreq;
 		mreq.cmd = cmd;
-		if (MMCBUS_WAIT_FOR_REQUEST(brdev, reqdev, &mreq) != 0)
+		if (MMCBUS_WAIT_FOR_REQUEST(busdev, dev, &mreq) != 0)
 			err = MMC_ERR_FAILED;
 		else
 			err = cmd->error;
 	} while (err != MMC_ERR_NONE && retries-- > 0);
 
-	if (err != MMC_ERR_NONE && brdev == reqdev) {
-		sc = device_get_softc(brdev);
+	if (err != MMC_ERR_NONE && busdev == dev) {
+		sc = device_get_softc(busdev);
 		if (sc->squelched == 0 && ppsratecheck(&sc->log_time,
 		    &sc->log_count, LOG_PPS)) {
 			device_printf(sc->dev, "CMD%d failed, RESULT: %d\n",
@@ -106,14 +106,14 @@ mmc_wait_for_cmd(device_t brdev, device_t reqdev, struct mmc_command *cmd,
 }
 
 int
-mmc_wait_for_app_cmd(device_t brdev, device_t reqdev, uint16_t rca,
+mmc_wait_for_app_cmd(device_t busdev, device_t dev, uint16_t rca,
     struct mmc_command *cmd, int retries)
 {
 	struct mmc_command appcmd;
 	struct mmc_softc *sc;
 	int err;
 
-	sc = device_get_softc(brdev);
+	sc = device_get_softc(busdev);
 
 	/* Squelch error reporting at lower levels, we report below. */
 	sc->squelched++;
@@ -122,14 +122,14 @@ mmc_wait_for_app_cmd(device_t brdev, device_t reqdev, uint16_t rca,
 		appcmd.opcode = MMC_APP_CMD;
 		appcmd.arg = (uint32_t)rca << 16;
 		appcmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-		if (mmc_wait_for_cmd(brdev, reqdev, &appcmd, 0) != 0)
+		if (mmc_wait_for_cmd(busdev, dev, &appcmd, 0) != 0)
 			err = MMC_ERR_FAILED;
 		else
 			err = appcmd.error;
 		if (err == MMC_ERR_NONE) {
 			if (!(appcmd.resp[0] & R1_APP_CMD))
 				err = MMC_ERR_FAILED;
-			else if (mmc_wait_for_cmd(brdev, reqdev, cmd, 0) != 0)
+			else if (mmc_wait_for_cmd(busdev, dev, cmd, 0) != 0)
 				err = MMC_ERR_FAILED;
 			else
 				err = cmd->error;
@@ -137,8 +137,7 @@ mmc_wait_for_app_cmd(device_t brdev, device_t reqdev, uint16_t rca,
 	} while (err != MMC_ERR_NONE && retries-- > 0);
 	sc->squelched--;
 
-	if (err != MMC_ERR_NONE && brdev == reqdev) {
-		sc = device_get_softc(brdev);
+	if (err != MMC_ERR_NONE && busdev == dev) {
 		if (sc->squelched == 0 && ppsratecheck(&sc->log_time,
 		    &sc->log_count, LOG_PPS)) {
 			device_printf(sc->dev, "ACMD%d failed, RESULT: %d\n",
@@ -150,13 +149,16 @@ mmc_wait_for_app_cmd(device_t brdev, device_t reqdev, uint16_t rca,
 }
 
 int
-mmc_switch(device_t brdev, device_t reqdev, uint16_t rca, uint8_t set,
+mmc_switch(device_t busdev, device_t dev, uint16_t rca, uint8_t set,
     uint8_t index, uint8_t value, u_int timeout, bool status)
 {
 	struct mmc_command cmd;
+	struct mmc_softc *sc;
 	int err;
 
 	KASSERT(timeout != 0, ("%s: no timeout", __func__));
+
+	sc = device_get_softc(busdev);
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = MMC_SWITCH_FUNC;
@@ -167,19 +169,28 @@ mmc_switch(device_t brdev, device_t reqdev, uint16_t rca, uint8_t set,
 	 * exceeds the maximum host timeout, use a R1 instead of a R1B
 	 * response in order to keep the hardware from timing out.
 	 */
-	if (mmcbr_get_caps(brdev) & MMC_CAP_WAIT_WHILE_BUSY &&
-	    timeout > mmcbr_get_max_busy_timeout(brdev))
+	if (mmcbr_get_caps(busdev) & MMC_CAP_WAIT_WHILE_BUSY &&
+	    timeout > mmcbr_get_max_busy_timeout(busdev))
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 	else
 		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
-	err = mmc_wait_for_cmd(brdev, reqdev, &cmd, CMD_RETRIES);
+	/*
+	 * Pause re-tuning so it won't interfere with the busy state and also
+	 * so that the result of CMD13 will always refer to switching rather
+	 * than to a tuning command that may have snuck in between.
+	 */
+	sc->retune_paused++;
+	err = mmc_wait_for_cmd(busdev, dev, &cmd, CMD_RETRIES);
 	if (err != MMC_ERR_NONE || status == false)
-		return (err);
-	return (mmc_switch_status(brdev, reqdev, rca, timeout));
+		goto out;
+	err = mmc_switch_status(busdev, dev, rca, timeout);
+out:
+	sc->retune_paused--;
+	return (err);
 }
 
 int
-mmc_switch_status(device_t brdev, device_t reqdev, uint16_t rca, u_int timeout)
+mmc_switch_status(device_t busdev, device_t dev, uint16_t rca, u_int timeout)
 {
 	struct timeval cur, end;
 	int err;
@@ -192,8 +203,9 @@ mmc_switch_status(device_t brdev, device_t reqdev, uint16_t rca, u_int timeout)
 	 * type MMC_CAP_WAIT_WHILE_BUSY will issue mmc_send_status() only
 	 * once and then exit the loop.
 	 */
+	end.tv_sec = end.tv_usec = 0;
 	for (;;) {
-		err = mmc_send_status(brdev, reqdev, rca, &status);
+		err = mmc_send_status(busdev, dev, rca, &status);
 		if (err != MMC_ERR_NONE)
 			break;
 		if (R1_CURRENT_STATE(status) == R1_STATE_TRAN)
@@ -208,13 +220,13 @@ mmc_switch_status(device_t brdev, device_t reqdev, uint16_t rca, u_int timeout)
 			break;
 		}
 	}
-	if (err == MMC_ERR_NONE && R1_CURRENT_STATE(status) == R1_SWITCH_ERROR)
+	if (err == MMC_ERR_NONE && (status & R1_SWITCH_ERROR) != 0)
 		return (MMC_ERR_FAILED);
 	return (err);
 }
 
 int
-mmc_send_ext_csd(device_t brdev, device_t reqdev, uint8_t *rawextcsd)
+mmc_send_ext_csd(device_t busdev, device_t dev, uint8_t *rawextcsd)
 {
 	struct mmc_command cmd;
 	struct mmc_data data;
@@ -232,12 +244,12 @@ mmc_send_ext_csd(device_t brdev, device_t reqdev, uint8_t *rawextcsd)
 	data.len = MMC_EXTCSD_SIZE;
 	data.flags = MMC_DATA_READ;
 
-	err = mmc_wait_for_cmd(brdev, reqdev, &cmd, CMD_RETRIES);
+	err = mmc_wait_for_cmd(busdev, dev, &cmd, CMD_RETRIES);
 	return (err);
 }
 
 int
-mmc_send_status(device_t brdev, device_t reqdev, uint16_t rca, uint32_t *status)
+mmc_send_status(device_t busdev, device_t dev, uint16_t rca, uint32_t *status)
 {
 	struct mmc_command cmd;
 	int err;
@@ -246,7 +258,7 @@ mmc_send_status(device_t brdev, device_t reqdev, uint16_t rca, uint32_t *status)
 	cmd.opcode = MMC_SEND_STATUS;
 	cmd.arg = (uint32_t)rca << 16;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-	err = mmc_wait_for_cmd(brdev, reqdev, &cmd, CMD_RETRIES);
+	err = mmc_wait_for_cmd(busdev, dev, &cmd, CMD_RETRIES);
 	*status = cmd.resp[0];
 	return (err);
 }

@@ -175,6 +175,36 @@ AcCheckTextModeCorruption (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcDeleteTableList
+ *
+ * PARAMETERS:  ListHead            - List to delete
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Delete a list of tables. This is useful for removing memory
+ *              allocated by AcGetAllTablesFromFile
+ *
+ ******************************************************************************/
+
+void
+AcDeleteTableList (
+    ACPI_NEW_TABLE_DESC     *ListHead)
+{
+    ACPI_NEW_TABLE_DESC     *Current = ListHead;
+    ACPI_NEW_TABLE_DESC     *Previous = Current;
+
+
+    while (Current)
+    {
+        Current = Current->Next;
+        AcpiOsFree (Previous);
+        Previous = Current;
+    }
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcGetAllTablesFromFile
  *
  * PARAMETERS:  Filename            - Table filename
@@ -531,8 +561,6 @@ AcValidateTableHeader (
 
     if (!AcpiUtValidNameseg (TableHeader.Signature))
     {
-        fprintf (stderr, "Invalid table signature: 0x%8.8X\n",
-            *ACPI_CAST_PTR (UINT32, TableHeader.Signature));
         return (AE_BAD_SIGNATURE);
     }
 

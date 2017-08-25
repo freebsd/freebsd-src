@@ -51,6 +51,7 @@ struct vnode;
 int	ext2_add_entry(struct vnode *, struct ext2fs_direct_2 *);
 int	ext2_alloc(struct inode *, daddr_t, e4fs_daddr_t, int,
 	    struct ucred *, e4fs_daddr_t *);
+daddr_t ext2_allocfacl(struct inode *ip);
 int	ext2_balloc(struct inode *,
 	    e2fs_lbn_t, int, struct ucred *, struct buf **, int);
 int	ext2_blkatoff(struct vnode *, off_t, char **, struct buf **);
@@ -84,7 +85,7 @@ int	ext2_dirrewrite(struct inode *,
 		struct inode *, struct componentname *);
 int	ext2_dirempty(struct inode *, ino_t, struct ucred *);
 int	ext2_checkpath(struct inode *, struct inode *, struct ucred *);
-int	cg_has_sb(int i);
+int	ext2_cg_has_sb(struct m_ext2fs *fs, int cg);
 int	ext2_inactive(struct vop_inactive_args *);
 int	ext2_htree_add_entry(struct vnode *, struct ext2fs_direct_2 *,
 	    struct componentname *);
@@ -97,6 +98,8 @@ int	ext2_htree_lookup(struct inode *, const char *, int, struct buf **,
 	    int *, doff_t *, doff_t *, doff_t *, struct ext2fs_searchslot *);
 int	ext2_search_dirblock(struct inode *, void *, int *, const char *, int,
 	    int *, doff_t *, doff_t *, doff_t *, struct ext2fs_searchslot *);
+int	ext2_gd_csum_verify(struct m_ext2fs *fs, struct cdev *dev);
+void	ext2_gd_csum_set(struct m_ext2fs *fs);
 
 
 /* Flags to low-level allocation routines.

@@ -133,5 +133,18 @@ pctrie_is_empty(struct pctrie *ptree)
 	return (ptree->pt_root == 0);
 }
 
+/*
+ * These widths should allow the pointers to a node's children to fit within
+ * a single cache line.  The extra levels from a narrow width should not be
+ * a problem thanks to path compression.
+ */
+#ifdef __LP64__
+#define	PCTRIE_WIDTH	4
+#else
+#define	PCTRIE_WIDTH	3
+#endif
+
+#define	PCTRIE_COUNT	(1 << PCTRIE_WIDTH)
+
 #endif /* _KERNEL */
 #endif /* !_SYS_PCTRIE_H_ */

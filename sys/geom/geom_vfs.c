@@ -168,7 +168,7 @@ g_vfs_strategy(struct bufobj *bo, struct buf *bp)
 	sc = cp->geom->softc;
 
 	/*
-	 * If the provider has orphaned us, just return EXIO.
+	 * If the provider has orphaned us, just return ENXIO.
 	 */
 	mtx_lock(&sc->sc_mtx);
 	if (sc->sc_orphaned) {

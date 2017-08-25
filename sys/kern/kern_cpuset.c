@@ -1063,7 +1063,7 @@ kern_cpuset_getid(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	tmpid = set->cs_id;
 	cpuset_rel(set);
 	if (error == 0)
-		error = copyout(&tmpid, setid, sizeof(id));
+		error = copyout(&tmpid, setid, sizeof(tmpid));
 
 	return (error);
 }

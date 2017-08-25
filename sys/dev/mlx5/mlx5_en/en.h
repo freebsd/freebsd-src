@@ -63,6 +63,7 @@
 #include <dev/mlx5/qp.h>
 #include <dev/mlx5/cq.h>
 #include <dev/mlx5/vport.h>
+#include <dev/mlx5/diagnostics.h>
 
 #include <dev/mlx5/mlx5_core/wq.h>
 #include <dev/mlx5/mlx5_core/transobj.h>
@@ -402,10 +403,13 @@ struct mlx5e_params {
   m(+1, u64 tx_coalesce_usecs, "tx_coalesce_usecs", "Limit in usec for joining tx packets") \
   m(+1, u64 tx_coalesce_pkts, "tx_coalesce_pkts", "Maximum number of tx packets to join") \
   m(+1, u64 tx_coalesce_mode, "tx_coalesce_mode", "0: EQE mode 1: CQE mode") \
+  m(+1, u64 tx_bufring_disable, "tx_bufring_disable", "0: Enable bufring 1: Disable bufring") \
   m(+1, u64 tx_completion_fact, "tx_completion_fact", "1..MAX: Completion event ratio") \
   m(+1, u64 tx_completion_fact_max, "tx_completion_fact_max", "Maximum completion event ratio") \
   m(+1, u64 hw_lro, "hw_lro", "set to enable hw_lro") \
-  m(+1, u64 cqe_zipping, "cqe_zipping", "0 : CQE zipping disabled")
+  m(+1, u64 cqe_zipping, "cqe_zipping", "0 : CQE zipping disabled") \
+  m(+1, u64 diag_pci_enable, "diag_pci_enable", "0: Disabled 1: Enabled") \
+  m(+1, u64 diag_general_enable, "diag_general_enable", "0: Disabled 1: Enabled")
 
 #define	MLX5E_PARAMS_NUM (0 MLX5E_PARAMS(MLX5E_STATS_COUNT))
 
@@ -507,10 +511,11 @@ struct mlx5e_sq {
 	u16	bf_offset;
 	u16	cev_counter;		/* completion event counter */
 	u16	cev_factor;		/* completion event factor */
-	u32	cev_next_state;		/* next completion event state */
+	u16	cev_next_state;		/* next completion event state */
 #define	MLX5E_CEV_STATE_INITIAL 0	/* timer not started */
 #define	MLX5E_CEV_STATE_SEND_NOPS 1	/* send NOPs */
 #define	MLX5E_CEV_STATE_HOLD_NOPS 2	/* don't send NOPs yet */
+	u16	stopped;		/* set if SQ is stopped */
 	struct callout cev_callout;
 	union {
 		u32	d32[2];
@@ -544,8 +549,10 @@ struct mlx5e_sq {
 static inline bool
 mlx5e_sq_has_room_for(struct mlx5e_sq *sq, u16 n)
 {
-	return ((sq->wq.sz_m1 & (sq->cc - sq->pc)) >= n ||
-	    sq->cc == sq->pc);
+	u16 cc = sq->cc;
+	u16 pc = sq->pc;
+
+	return ((sq->wq.sz_m1 & (cc - pc)) >= n || cc == pc);
 }
 
 struct mlx5e_channel {
@@ -656,6 +663,8 @@ struct mlx5e_priv {
 
 	struct mlx5e_params params;
 	struct mlx5e_params_ethtool params_ethtool;
+	union mlx5_core_pci_diagnostics params_pci;
+	union mlx5_core_general_diagnostics params_general;
 	struct mtx async_events_mtx;	/* sync hw events */
 	struct work_struct update_stats_work;
 	struct work_struct update_carrier_work;

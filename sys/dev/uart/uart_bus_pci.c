@@ -86,6 +86,8 @@ static const struct pci_id pci_ns8250_ids[] = {
 { 0x103c, 0x3301, 0xffff, 0, "HP iLO serial port", 0x10 },
 { 0x11c1, 0x0480, 0xffff, 0, "Agere Systems Venus Modem (V90, 56KFlex)", 0x14 },
 { 0x115d, 0x0103, 0xffff, 0, "Xircom Cardbus Ethernet + 56k Modem", 0x10 },
+{ 0x125b, 0x9100, 0xa000, 0x1000,
+	"ASIX AX99100 PCIe 1/2/3/4-port RS-232/422/485", 0x10 },
 { 0x1282, 0x6585, 0xffff, 0, "Davicom 56PDV PCI Modem", 0x10 },
 { 0x12b9, 0x1008, 0xffff, 0, "3Com 56K FaxModem Model 5610", 0x10 },
 { 0x131f, 0x1000, 0xffff, 0, "Siig CyberSerial (1-port) 16550", 0x18 },
