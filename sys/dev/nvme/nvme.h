@@ -490,7 +490,27 @@ struct nvme_controller_data {
 	/** Controller ID */
 	uint16_t		ctrlr_id;
 
-	uint8_t			reserved1[176];
+	/** Version */
+	uint32_t		ver;
+
+	/** RTD3 Resume Latency */
+	uint32_t		rtd3r;
+
+	/** RTD3 Enter Latency */
+	uint32_t		rtd3e;
+
+	/** Optional Asynchronous Events Supported */
+	uint32_t		oaes;	/* bitfield really */
+
+	/** Controller Attributes */
+	uint32_t		ctratt;	/* bitfield really */
+
+	uint8_t			reserved1[12];
+
+	/** FRU Globally Unique Identifier */
+	uint8_t			fguid[16];
+
+	uint8_t			reserved2[128];
 
 	/* bytes 256-511: admin command set attributes */
 
@@ -550,7 +570,28 @@ struct nvme_controller_data {
 		uint8_t		avscc_rsvd  : 7;
 	} __packed avscc;
 
-	uint8_t			reserved2[15];
+	/** Autonomous Power State Transition Attributes */
+	struct {
+		/* Autonmous Power State Transitions supported */
+		uint8_t		apst_supp : 1;
+
+		uint8_t		apsta_rsvd : 7;
+	} __packed apsta;
+
+	/** Warning Composite Temperature Threshold */
+	uint16_t		wctemp;
+
+	/** Critical Composite Temperature Threshold */
+	uint16_t		cctemp;
+
+	/** Maximum Time for Firmware Activation */
+	uint16_t		mtfa;
+
+	/** Host Memory Buffer Preferred Size */
+	uint32_t		hmpre;
+
+	/** Host Memory Buffer Minimum Size */
+	uint32_t		hmmin;
 
 	/** Name space capabilities  */
 	struct {
@@ -559,7 +600,34 @@ struct nvme_controller_data {
 		uint8_t    unvmcap[16];
 	} __packed untncap;
 
-	uint8_t reserved3[200];
+	/** Replay Protected Memory Block Support */
+	uint32_t		rpmbs; /* Really a bitfield */
+
+	/** Extended Device Self-test Time */
+	uint16_t		edstt;
+
+	/** Device Self-test Options */
+	uint8_t			dsto; /* Really a bitfield */
+
+	/** Firmware Update Granularity */
+	uint8_t			fwug;
+
+	/** Keep Alive Support */
+	uint16_t		kas;
+
+	/** Host Controlled Thermal Management Attributes */
+	uint16_t		hctma; /* Really a bitfield */
+
+	/** Minimum Thermal Management Temperature */
+	uint16_t		mntmt;
+
+	/** Maximum Thermal Management Temperature */
+	uint16_t		mxtmt;
+
+	/** Sanitize Capabilities */
+	uint32_t		sanicap; /* Really a bitfield */
+
+	uint8_t reserved3[180];
 	/* bytes 512-703: nvm command set attributes */
 
 	/** submission queue entry size */
@@ -574,7 +642,8 @@ struct nvme_controller_data {
 		uint8_t		max : 4;
 	} __packed cqes;
 
-	uint8_t			reserved4[2];
+	/** Maximum Outstanding Commands */
+	uint16_t		maxcmd;
 
 	/** number of namespaces */
 	uint32_t		nn;
