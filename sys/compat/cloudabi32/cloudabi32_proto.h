@@ -259,22 +259,6 @@ struct cloudabi_sys_sock_accept_args {
 	char sock_l_[PADL_(cloudabi_fd_t)]; cloudabi_fd_t sock; char sock_r_[PADR_(cloudabi_fd_t)];
 	char unused_l_[PADL_(void *)]; void * unused; char unused_r_[PADR_(void *)];
 };
-struct cloudabi_sys_sock_bind_args {
-	char sock_l_[PADL_(cloudabi_fd_t)]; cloudabi_fd_t sock; char sock_r_[PADR_(cloudabi_fd_t)];
-	char fd_l_[PADL_(cloudabi_fd_t)]; cloudabi_fd_t fd; char fd_r_[PADR_(cloudabi_fd_t)];
-	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char path_len_l_[PADL_(size_t)]; size_t path_len; char path_len_r_[PADR_(size_t)];
-};
-struct cloudabi_sys_sock_connect_args {
-	char sock_l_[PADL_(cloudabi_fd_t)]; cloudabi_fd_t sock; char sock_r_[PADR_(cloudabi_fd_t)];
-	char fd_l_[PADL_(cloudabi_fd_t)]; cloudabi_fd_t fd; char fd_r_[PADR_(cloudabi_fd_t)];
-	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
-	char path_len_l_[PADL_(size_t)]; size_t path_len; char path_len_r_[PADR_(size_t)];
-};
-struct cloudabi_sys_sock_listen_args {
-	char sock_l_[PADL_(cloudabi_fd_t)]; cloudabi_fd_t sock; char sock_r_[PADR_(cloudabi_fd_t)];
-	char backlog_l_[PADL_(cloudabi_backlog_t)]; cloudabi_backlog_t backlog; char backlog_r_[PADR_(cloudabi_backlog_t)];
-};
 struct cloudabi32_sys_sock_recv_args {
 	char sock_l_[PADL_(cloudabi_fd_t)]; cloudabi_fd_t sock; char sock_r_[PADR_(cloudabi_fd_t)];
 	char in_l_[PADL_(const cloudabi32_recv_in_t *)]; const cloudabi32_recv_in_t * in; char in_r_[PADR_(const cloudabi32_recv_in_t *)];
@@ -349,9 +333,6 @@ int	cloudabi_sys_proc_fork(struct thread *, struct cloudabi_sys_proc_fork_args *
 int	cloudabi_sys_proc_raise(struct thread *, struct cloudabi_sys_proc_raise_args *);
 int	cloudabi_sys_random_get(struct thread *, struct cloudabi_sys_random_get_args *);
 int	cloudabi_sys_sock_accept(struct thread *, struct cloudabi_sys_sock_accept_args *);
-int	cloudabi_sys_sock_bind(struct thread *, struct cloudabi_sys_sock_bind_args *);
-int	cloudabi_sys_sock_connect(struct thread *, struct cloudabi_sys_sock_connect_args *);
-int	cloudabi_sys_sock_listen(struct thread *, struct cloudabi_sys_sock_listen_args *);
 int	cloudabi32_sys_sock_recv(struct thread *, struct cloudabi32_sys_sock_recv_args *);
 int	cloudabi32_sys_sock_send(struct thread *, struct cloudabi32_sys_sock_send_args *);
 int	cloudabi_sys_sock_shutdown(struct thread *, struct cloudabi_sys_sock_shutdown_args *);
@@ -440,9 +421,6 @@ int	cloudabi_sys_thread_yield(struct thread *, struct cloudabi_sys_thread_yield_
 #define	CLOUDABI32_SYS_AUE_cloudabi_sys_proc_raise	AUE_NULL
 #define	CLOUDABI32_SYS_AUE_cloudabi_sys_random_get	AUE_NULL
 #define	CLOUDABI32_SYS_AUE_cloudabi_sys_sock_accept	AUE_NULL
-#define	CLOUDABI32_SYS_AUE_cloudabi_sys_sock_bind	AUE_NULL
-#define	CLOUDABI32_SYS_AUE_cloudabi_sys_sock_connect	AUE_NULL
-#define	CLOUDABI32_SYS_AUE_cloudabi_sys_sock_listen	AUE_NULL
 #define	CLOUDABI32_SYS_AUE_cloudabi32_sys_sock_recv	AUE_NULL
 #define	CLOUDABI32_SYS_AUE_cloudabi32_sys_sock_send	AUE_NULL
 #define	CLOUDABI32_SYS_AUE_cloudabi_sys_sock_shutdown	AUE_NULL
