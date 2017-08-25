@@ -333,9 +333,9 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	 * presaged the firmware crashing ...
 	 */
 	if (ctl & F_MBMSGVALID) {
-		CH_ERR(adap, "found VALID command in mbox %u: "
-		       "%llx %llx %llx %llx %llx %llx %llx %llx\n", mbox,
-		       (unsigned long long)t4_read_reg64(adap, data_reg),
+		CH_ERR(adap, "found VALID command in mbox %u: %016llx %016llx "
+		       "%016llx %016llx %016llx %016llx %016llx %016llx\n",
+		       mbox, (unsigned long long)t4_read_reg64(adap, data_reg),
 		       (unsigned long long)t4_read_reg64(adap, data_reg + 8),
 		       (unsigned long long)t4_read_reg64(adap, data_reg + 16),
 		       (unsigned long long)t4_read_reg64(adap, data_reg + 24),
