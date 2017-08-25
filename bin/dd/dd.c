@@ -204,10 +204,10 @@ setup(void)
 	 * record oriented I/O, only need a single buffer.
 	 */
 	if (!(ddflags & (C_BLOCK | C_UNBLOCK))) {
-		if ((in.db = malloc(out.dbsz + in.dbsz - 1)) == NULL)
+		if ((in.db = malloc((size_t)out.dbsz + in.dbsz - 1)) == NULL)
 			err(1, "input buffer");
 		out.db = in.db;
-	} else if ((in.db = malloc(MAX(in.dbsz, cbsz) + cbsz)) == NULL ||
+	} else if ((in.db = malloc(MAX((size_t)in.dbsz, cbsz) + cbsz)) == NULL ||
 	    (out.db = malloc(out.dbsz + cbsz)) == NULL)
 		err(1, "output buffer");
 
@@ -405,7 +405,7 @@ dd_in(void)
 			++st.in_full;
 
 		/* Handle full input blocks. */
-		} else if ((size_t)n == in.dbsz) {
+		} else if ((size_t)n == (size_t)in.dbsz) {
 			in.dbcnt += in.dbrcnt = n;
 			++st.in_full;
 
@@ -562,7 +562,7 @@ dd_out(int force)
 			outp += nw;
 			st.bytes += nw;
 
-			if ((size_t)nw == n && n == out.dbsz)
+			if ((size_t)nw == n && n == (size_t)out.dbsz)
 				++st.out_full;
 			else
 				++st.out_part;
