@@ -7,7 +7,8 @@ SRCS+=	start.S \
 
 .PATH:	${.CURDIR}/../../i386/libi386
 SRCS+=	nullconsole.c \
-	comconsole.c
+	comconsole.c \
+	spinconsole.c
 
-CFLAGS+=	-fPIC
+CFLAGS+=	-fPIC -DTERM_EMU
 LDFLAGS+=	-Wl,-znocombreloc
