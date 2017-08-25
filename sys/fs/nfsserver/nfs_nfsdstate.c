@@ -36,7 +36,6 @@ int nfsrv_issuedelegs = 0;
 int nfsrv_dolocallocks = 0;
 struct nfsv4lock nfsv4rootfs_lock;
 time_t nfsdev_time = 0;
-int nfsrv_maxpnfsmirror = 1;
 
 extern int newnfs_numnfsd;
 extern struct nfsstatsv1 nfsstatsv1;
@@ -48,6 +47,7 @@ extern int nfsd_debuglevel;
 extern u_int nfsrv_dsdirsize;
 extern struct nfsdevicehead nfsrv_devidhead;
 extern int nfsrv_doflexfile;
+extern int nfsrv_maxpnfsmirror;
 NFSV4ROOTLOCKMUTEX;
 NFSSTATESPINLOCK;
 
@@ -6369,8 +6369,14 @@ nfsrv_filelayout(struct nfsrv_descript *nd, int iomode, fhandle_t *fhp,
 	return (lyp);
 }
 
+#define	FLEX_OWNERID	"999"
 /*
  * Generate a Flex File Layout.
+ * The FLEX_OWNERID can be any string of 3 decimal digits. Although this
+ * string goes on the wire, it isn't supposed to be used by the client,
+ * since this server uses tight coupling.
+ * The Linux Flexible File Layout client driver doesn't like a Null string
+ * for these.
  */
 static struct nfslayout *
 nfsrv_flexlayout(struct nfsrv_descript *nd, int iomode, int mirrorcnt,
@@ -6411,10 +6417,12 @@ nfsrv_flexlayout(struct nfsrv_descript *nd, int iomode, int mirrorcnt,
 		NFSBCOPY(dsfhp, tl, sizeof(*dsfhp));
 		tl += (NFSM_RNDUP(NFSX_V4PNFSFH) / NFSX_UNSIGNED);
 		dsfhp++;
-		*tl++ = 0;				/* Nil Owner. */
-		*tl++ = 0;				/* Nil Owner_group. */
+		*tl++ = txdr_unsigned(strlen(FLEX_OWNERID));	/* Any uid. */
+		NFSBCOPY(FLEX_OWNERID, tl++, NFSX_UNSIGNED);
+		*tl++ = txdr_unsigned(strlen(FLEX_OWNERID));	/* Any gid. */
+		NFSBCOPY(FLEX_OWNERID, tl++, NFSX_UNSIGNED);
 	}
-	*tl++ = txdr_unsigned(NFSFLEXFLAG_NOIO_MDS);	/* ff_flags. */
+	*tl++ = txdr_unsigned(0);		/* ff_flags. */
 	*tl = txdr_unsigned(60);		/* Status interval hint. */
 	lyp->lay_layoutlen = NFSX_V4FLEXLAYOUT(mirrorcnt);
 	return (lyp);
@@ -6598,9 +6606,11 @@ nfsrv_getdevinfo(char *devid, int layouttype, uint32_t *maxcnt,
     uint32_t *notify, int *devaddrlen, char **devaddr)
 {
 	struct nfsdevice *ds, *mds;
-	int done, i;
+	int done;
 
-	if (layouttype != NFSLAYOUT_NFSV4_1_FILES)
+	if ((layouttype != NFSLAYOUT_NFSV4_1_FILES && layouttype !=
+	     NFSLAYOUT_FLEXFILE) ||
+	    (nfsrv_maxpnfsmirror > 1 && layouttype == NFSLAYOUT_NFSV4_1_FILES))
 		return (NFSERR_UNKNLAYOUTTYPE);
 
 	/*
@@ -6651,10 +6661,6 @@ nfsrv_getdevinfo(char *devid, int layouttype, uint32_t *maxcnt,
 		*maxcnt = NFSM_RNDUP(*devaddrlen) + 3 * NFSX_UNSIGNED;
 		return (NFSERR_TOOSMALL);
 	}
-
-	/* No notifies for now. */
-	for (i = 0; i < NFSV4_NOTIFYBITMAP; i++)
-		*notify++ = 0;
 	return (0);
 }
 
@@ -6912,12 +6918,11 @@ nfsrv_allocdevid(struct nfsdevice *ds, char *addr, char *dnshost)
 	 * as defined for Flexible File Layout) in XDR.
 	 */
 	addrlen = NFSM_RNDUP(strlen(addr)) + NFSM_RNDUP(strlen(netprot)) +
-	    10 * NFSX_UNSIGNED;
+	    9 * NFSX_UNSIGNED;
 	ds->nfsdev_flexaddrlen = addrlen;
 	tl = malloc(addrlen, M_NFSDSTATE, M_WAITOK | M_ZERO);
 	ds->nfsdev_flexaddr = (char *)tl;
-	*tl++ = txdr_unsigned(1);		/* One multipath list */
-	*tl++ = txdr_unsigned(1);		/* with one entry in it. */
+	*tl++ = txdr_unsigned(1);		/* One multipath entry. */
 	/* The netaddr for this one entry. */
 	*tl++ = txdr_unsigned(strlen(netprot));
 	NFSBCOPY(netprot, tl, strlen(netprot));

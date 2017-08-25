@@ -68,8 +68,8 @@ SYSCTL_DECL(_vfs_nfsd);
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, async, CTLFLAG_RW, &nfs_async, 0,
     "Tell client that writes were synced even though they were not");
 extern int	nfsrv_doflexfile;
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_flexfile, CTLFLAG_RW,
-    &nfsrv_doflexfile, 0, "Enable generation of Flex File Layouts for pNFS");
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, default_flexfile, CTLFLAG_RW,
+    &nfsrv_doflexfile, 0, "Make Flex File Layout the default for pNFS");
 
 /*
  * This list defines the GSS mechanisms supported.
@@ -4373,9 +4373,9 @@ nfsrvd_layoutget(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 
 	layp = NULL;
-	if (layouttype == NFSLAYOUT_NFSV4_1_FILES && nfsrv_doflexfile == 0)
+	if (layouttype == NFSLAYOUT_NFSV4_1_FILES && nfsrv_maxpnfsmirror == 1)
 		layp = malloc(NFSX_V4FILELAYOUT, M_TEMP, M_WAITOK);
-	else if (layouttype == NFSLAYOUT_FLEXFILE && nfsrv_doflexfile != 0)
+	else if (layouttype == NFSLAYOUT_FLEXFILE)
 		layp = malloc(NFSX_V4FLEXLAYOUT(nfsrv_maxpnfsmirror), M_TEMP,
 		    M_WAITOK);
 	else
@@ -4610,13 +4610,17 @@ nfsrvd_getdevinfo(struct nfsrv_descript *nd, __unused int isdgram,
 	cnt = fxdr_unsigned(int, *tl);
 	NFSD_DEBUG(4, "getdevinfo ltyp=%d maxcnt=%u bitcnt=%d\n", layouttype,
 	    maxcnt, cnt);
-	if (cnt > NFSV4_NOTIFYBITMAP) {
+	if (cnt > NFSV4_NOTIFYBITMAP || cnt < 0) {
 		nd->nd_repstat = NFSERR_INVAL;
 		goto nfsmout;
 	}
-	NFSM_DISSECT(tl, uint32_t *, cnt * NFSX_UNSIGNED);
-	for (i = 0; i < cnt; i++)
-		notify[i] = fxdr_unsigned(uint32_t, *tl++);
+	if (cnt > 0) {
+		NFSM_DISSECT(tl, uint32_t *, cnt * NFSX_UNSIGNED);
+		for (i = 0; i < cnt; i++)
+			notify[i] = fxdr_unsigned(uint32_t, *tl++);
+	}
+	for (i = cnt; i < NFSV4_NOTIFYBITMAP; i++)
+		notify[i] = 0;
 
 	/*
 	 * Check that the device id is not stale.  Device ids are recreated

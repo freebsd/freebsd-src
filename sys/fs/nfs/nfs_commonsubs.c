@@ -69,6 +69,7 @@ int nfsrv_lease = NFSRV_LEASE;
 int ncl_mbuf_mlen = MLEN;
 int nfsd_enable_stringtouid = 0;
 int nfsrv_doflexfile = 0;
+int nfsrv_maxpnfsmirror = 1;
 static int nfs_enable_uidtostring = 0;
 NFSNAMEIDMUTEX;
 NFSSOCKMUTEX;
@@ -1803,18 +1804,17 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			attrsum += NFSX_UNSIGNED;
 			i = fxdr_unsigned(int, *tl);
 			if (i > 0) {
-				if (nfsrv_doflexfile != 0)
-					m = NFSLAYOUT_FLEXFILE;
-				else
-					m = NFSLAYOUT_NFSV4_1_FILES;
 				NFSM_DISSECT(tl, u_int32_t *, i *
 				    NFSX_UNSIGNED);
 				attrsum += i * NFSX_UNSIGNED;
-				for (j = 0; j < i; j++) {
-					k = fxdr_unsigned(int, *tl++);
-					if (compare && !(*retcmpp) && k != m)
-						*retcmpp = NFSERR_NOTSAME;
-				}
+				j = fxdr_unsigned(int, *tl);
+				if (i == 1 && compare && !(*retcmpp) &&
+				    (((nfsrv_doflexfile != 0 ||
+				       nfsrv_maxpnfsmirror > 1) &&
+				      j != NFSLAYOUT_FLEXFILE) ||
+				    (nfsrv_doflexfile == 0 &&
+				     j != NFSLAYOUT_NFSV4_1_FILES)))
+					*retcmpp = NFSERR_NOTSAME;
 			}
 			NFSDDSLOCK();
 			if (TAILQ_EMPTY(&nfsrv_devidhead)) {
@@ -2591,7 +2591,8 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			if (siz == 2) {
 				NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(1);	/* One entry. */
-				if (nfsrv_doflexfile != 0)
+				if (nfsrv_doflexfile != 0 ||
+				    nfsrv_maxpnfsmirror > 1)
 					*tl = txdr_unsigned(NFSLAYOUT_FLEXFILE);
 				else
 					*tl = txdr_unsigned(

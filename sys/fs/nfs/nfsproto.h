@@ -263,7 +263,7 @@
 				 NFSX_HYPER + NFSM_RNDUP(NFSX_V4PNFSFH))
 #define	NFSX_V4FLEXLAYOUT(m)	(NFSX_HYPER + 3 * NFSX_UNSIGNED +		\
     ((m) * (NFSX_V4DEVICEID + NFSX_STATEID + NFSM_RNDUP(NFSX_V4PNFSFH) +	\
-    6 * NFSX_UNSIGNED)))
+    8 * NFSX_UNSIGNED)))
 
 /* sizes common to multiple NFS versions */
 #define	NFSX_FHMAX		(NFSX_V4FHMAX)
