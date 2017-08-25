@@ -70,6 +70,7 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_pctrie.h>
 #include <sys/_rwlock.h>
 
 #include <vm/_vm_radix.h>
@@ -151,13 +152,12 @@ struct vm_object {
 		 *		     the handle changed and hash-chain
 		 *		     invalid.
 		 *
-		 *	swp_bcount - number of swap 'swblock' metablocks, each
-		 *		     contains up to 16 swapblk assignments.
-		 *		     see vm/swap_pager.h
+		 *	swp_blks -   pc-trie of the allocated swap blocks.
+		 *
 		 */
 		struct {
 			void *swp_tmpfs;
-			int swp_bcount;
+			struct pctrie swp_blks;
 		} swp;
 	} un_pager;
 	struct ucred *cred;
