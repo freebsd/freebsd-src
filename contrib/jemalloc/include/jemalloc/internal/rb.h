@@ -22,8 +22,10 @@
 #ifndef RB_H_
 #define RB_H_
 
+#ifndef __CHERI_PURE_CAPABILITY__
 #ifndef __PGI
 #define RB_COMPACT
+#endif
 #endif
 
 #ifdef RB_COMPACT
