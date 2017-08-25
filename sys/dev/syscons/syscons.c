@@ -1933,6 +1933,7 @@ sc_cnputc(struct consdev *cd, int c)
     u_char buf[1];
     scr_stat *scp = sc_console;
     void *oldts, *ts;
+    struct sc_term_sw *oldtsw;
 #ifndef SC_NO_HISTORY
 #if 0
     struct tty *tp;
