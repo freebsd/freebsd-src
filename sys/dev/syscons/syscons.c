@@ -98,7 +98,8 @@ static	int		sc_console_unit = -1;
 static	int		sc_saver_keyb_only = 1;
 static  scr_stat    	*sc_console;
 static  struct consdev	*sc_consptr;
-static	void		*kernel_console_ts[MAXCPU];
+static	void		*sc_kts[MAXCPU];
+static	struct sc_term_sw *sc_ktsw;
 static	scr_stat	main_console;
 static	struct tty 	*main_devs[MAXCONS];
 
@@ -564,6 +565,7 @@ sc_attach_unit(int unit, int flags)
 	scinit(unit, flags);
 
 	if (sc_console->tsw->te_size > 0) {
+	    sc_ktsw = sc_console->tsw;
 	    /* assert(sc_console->ts != NULL); */
 	    oldts = sc_console->ts;
 	    for (i = 0; i <= mp_maxid; i++) {
@@ -573,7 +575,7 @@ sc_attach_unit(int unit, int flags)
 		sc_console->ts = ts;
 		(*sc_console->tsw->te_default_attr)(sc_console, sc_kattrtab[i],
 						    SC_KERNEL_CONS_REV_ATTR);
-		kernel_console_ts[i] = ts;
+		sc_kts[i] = ts;
 	    }
 	    sc_console->ts = oldts;
     	    (*sc_console->tsw->te_default_attr)(sc_console, SC_NORM_ATTR,
@@ -1728,11 +1730,14 @@ sc_cnterm(struct consdev *cp)
     sccnupdate(sc_console);
 #endif
 
-    for (i = 0; i <= mp_maxid; i++) {
-	ts = kernel_console_ts[i];
-	kernel_console_ts[i] = NULL;
-	(*sc_console->tsw->te_term)(sc_console, &ts);
-	free(ts, M_DEVBUF);
+    if (sc_ktsw != NULL) {
+	for (i = 0; i <= mp_maxid; i++) {
+	    ts = sc_kts[i];
+	    sc_kts[i] = NULL;
+	    (*sc_ktsw->te_term)(sc_console, &ts);
+	    free(ts, M_DEVBUF);
+	}
+	sc_ktsw = NULL;
     }
     scterm(sc_console_unit, SC_KERNEL_CONSOLE);
     sc_console_unit = -1;
@@ -1992,13 +1997,16 @@ sc_cnputc(struct consdev *cd, int c)
 	    sizeof(sc_cnputc_log))
 	    continue;
 	/* Console output has a per-CPU "input" state.  Switch for it. */
+	oldtsw = scp->tsw;
 	oldts = scp->ts;
-	ts = kernel_console_ts[PCPU_GET(cpuid)];
+	ts = sc_kts[PCPU_GET(cpuid)];
 	if (ts != NULL) {
+	    scp->tsw = sc_ktsw;
 	    scp->ts = ts;
 	    (*scp->tsw->te_sync)(scp);
 	}
 	sc_puts(scp, buf, 1);
+	scp->tsw = oldtsw;
 	scp->ts = oldts;
 	(*scp->tsw->te_sync)(scp);
     }
