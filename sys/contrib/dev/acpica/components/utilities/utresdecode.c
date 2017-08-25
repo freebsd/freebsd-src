@@ -1,8 +1,8 @@
-/******************************************************************************
+/*******************************************************************************
  *
- * Name: actables.h - ACPI table management
+ * Module Name: utresdecode - Resource descriptor keyword strings
  *
- *****************************************************************************/
+ ******************************************************************************/
 
 /******************************************************************************
  *
@@ -149,242 +149,313 @@
  *
  *****************************************************************************/
 
-#ifndef __ACTABLES_H__
-#define __ACTABLES_H__
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acresrc.h>
 
 
-ACPI_STATUS
-AcpiAllocateRootTable (
-    UINT32                  InitialTableCount);
+#define _COMPONENT          ACPI_UTILITIES
+        ACPI_MODULE_NAME    ("utresdecode")
 
-/*
- * tbxfroot - Root pointer utilities
- */
-UINT32
-AcpiTbGetRsdpLength (
-    ACPI_TABLE_RSDP         *Rsdp);
 
-ACPI_STATUS
-AcpiTbValidateRsdp (
-    ACPI_TABLE_RSDP         *Rsdp);
-
-UINT8 *
-AcpiTbScanMemoryForRsdp (
-    UINT8                   *StartAddress,
-    UINT32                  Length);
-
+#if defined (ACPI_DEBUG_OUTPUT) || \
+    defined (ACPI_DISASSEMBLER) || \
+    defined (ACPI_DEBUGGER)
 
 /*
- * tbdata - table data structure management
+ * Strings used to decode resource descriptors.
+ * Used by both the disassembler and the debugger resource dump routines
  */
-ACPI_STATUS
-AcpiTbGetNextTableDescriptor (
-    UINT32                  *TableIndex,
-    ACPI_TABLE_DESC         **TableDesc);
+const char                      *AcpiGbl_BmDecode[] =
+{
+    "NotBusMaster",
+    "BusMaster"
+};
 
-void
-AcpiTbInitTableDescriptor (
-    ACPI_TABLE_DESC         *TableDesc,
-    ACPI_PHYSICAL_ADDRESS   Address,
-    UINT8                   Flags,
-    ACPI_TABLE_HEADER       *Table);
+const char                      *AcpiGbl_ConfigDecode[] =
+{
+    "0 - Good Configuration",
+    "1 - Acceptable Configuration",
+    "2 - Suboptimal Configuration",
+    "3 - ***Invalid Configuration***",
+};
 
-ACPI_STATUS
-AcpiTbAcquireTempTable (
-    ACPI_TABLE_DESC         *TableDesc,
-    ACPI_PHYSICAL_ADDRESS   Address,
-    UINT8                   Flags);
+const char                      *AcpiGbl_ConsumeDecode[] =
+{
+    "ResourceProducer",
+    "ResourceConsumer"
+};
 
-void
-AcpiTbReleaseTempTable (
-    ACPI_TABLE_DESC         *TableDesc);
+const char                      *AcpiGbl_DecDecode[] =
+{
+    "PosDecode",
+    "SubDecode"
+};
 
-ACPI_STATUS
-AcpiTbValidateTempTable (
-    ACPI_TABLE_DESC         *TableDesc);
+const char                      *AcpiGbl_HeDecode[] =
+{
+    "Level",
+    "Edge"
+};
 
-ACPI_STATUS
-AcpiTbVerifyTempTable (
-    ACPI_TABLE_DESC         *TableDesc,
-    char                    *Signature,
-    UINT32                  *TableIndex);
+const char                      *AcpiGbl_IoDecode[] =
+{
+    "Decode10",
+    "Decode16"
+};
 
-BOOLEAN
-AcpiTbIsTableLoaded (
-    UINT32                  TableIndex);
+const char                      *AcpiGbl_LlDecode[] =
+{
+    "ActiveHigh",
+    "ActiveLow",
+    "ActiveBoth",
+    "Reserved"
+};
 
-void
-AcpiTbSetTableLoadedFlag (
-    UINT32                  TableIndex,
-    BOOLEAN                 IsLoaded);
+const char                      *AcpiGbl_MaxDecode[] =
+{
+    "MaxNotFixed",
+    "MaxFixed"
+};
 
+const char                      *AcpiGbl_MemDecode[] =
+{
+    "NonCacheable",
+    "Cacheable",
+    "WriteCombining",
+    "Prefetchable"
+};
 
-/*
- * tbfadt - FADT parse/convert/validate
- */
-void
-AcpiTbParseFadt (
-    void);
+const char                      *AcpiGbl_MinDecode[] =
+{
+    "MinNotFixed",
+    "MinFixed"
+};
 
-void
-AcpiTbCreateLocalFadt (
-    ACPI_TABLE_HEADER       *Table,
-    UINT32                  Length);
+const char                      *AcpiGbl_MtpDecode[] =
+{
+    "AddressRangeMemory",
+    "AddressRangeReserved",
+    "AddressRangeACPI",
+    "AddressRangeNVS"
+};
 
+const char                      *AcpiGbl_RngDecode[] =
+{
+    "InvalidRanges",
+    "NonISAOnlyRanges",
+    "ISAOnlyRanges",
+    "EntireRange"
+};
 
-/*
- * tbfind - find ACPI table
- */
-ACPI_STATUS
-AcpiTbFindTable (
-    char                    *Signature,
-    char                    *OemId,
-    char                    *OemTableId,
-    UINT32                  *TableIndex);
+const char                      *AcpiGbl_RwDecode[] =
+{
+    "ReadOnly",
+    "ReadWrite"
+};
 
+const char                      *AcpiGbl_ShrDecode[] =
+{
+    "Exclusive",
+    "Shared",
+    "ExclusiveAndWake",         /* ACPI 5.0 */
+    "SharedAndWake"             /* ACPI 5.0 */
+};
 
-/*
- * tbinstal - Table removal and deletion
- */
-ACPI_STATUS
-AcpiTbResizeRootTableList (
-    void);
+const char                      *AcpiGbl_SizDecode[] =
+{
+    "Transfer8",
+    "Transfer8_16",
+    "Transfer16",
+    "InvalidSize"
+};
 
-ACPI_STATUS
-AcpiTbValidateTable (
-    ACPI_TABLE_DESC         *TableDesc);
+const char                      *AcpiGbl_TrsDecode[] =
+{
+    "DenseTranslation",
+    "SparseTranslation"
+};
 
-void
-AcpiTbInvalidateTable (
-    ACPI_TABLE_DESC         *TableDesc);
+const char                      *AcpiGbl_TtpDecode[] =
+{
+    "TypeStatic",
+    "TypeTranslation"
+};
 
-void
-AcpiTbOverrideTable (
-    ACPI_TABLE_DESC         *OldTableDesc);
+const char                      *AcpiGbl_TypDecode[] =
+{
+    "Compatibility",
+    "TypeA",
+    "TypeB",
+    "TypeF"
+};
 
-ACPI_STATUS
-AcpiTbAcquireTable (
-    ACPI_TABLE_DESC         *TableDesc,
-    ACPI_TABLE_HEADER       **TablePtr,
-    UINT32                  *TableLength,
-    UINT8                   *TableFlags);
+const char                      *AcpiGbl_PpcDecode[] =
+{
+    "PullDefault",
+    "PullUp",
+    "PullDown",
+    "PullNone"
+};
 
-void
-AcpiTbReleaseTable (
-    ACPI_TABLE_HEADER       *Table,
-    UINT32                  TableLength,
-    UINT8                   TableFlags);
+const char                      *AcpiGbl_IorDecode[] =
+{
+    "IoRestrictionNone",
+    "IoRestrictionInputOnly",
+    "IoRestrictionOutputOnly",
+    "IoRestrictionNoneAndPreserve"
+};
 
-ACPI_STATUS
-AcpiTbInstallStandardTable (
-    ACPI_PHYSICAL_ADDRESS   Address,
-    UINT8                   Flags,
-    BOOLEAN                 Reload,
-    BOOLEAN                 Override,
-    UINT32                  *TableIndex);
+const char                      *AcpiGbl_DtsDecode[] =
+{
+    "Width8bit",
+    "Width16bit",
+    "Width32bit",
+    "Width64bit",
+    "Width128bit",
+    "Width256bit",
+};
 
-void
-AcpiTbUninstallTable (
-    ACPI_TABLE_DESC        *TableDesc);
+/* GPIO connection type */
 
-ACPI_STATUS
-AcpiTbLoadTable (
-    UINT32                  TableIndex,
-    ACPI_NAMESPACE_NODE     *ParentNode);
+const char                      *AcpiGbl_CtDecode[] =
+{
+    "Interrupt",
+    "I/O"
+};
 
-ACPI_STATUS
-AcpiTbInstallAndLoadTable (
-    ACPI_PHYSICAL_ADDRESS   Address,
-    UINT8                   Flags,
-    BOOLEAN                 Override,
-    UINT32                  *TableIndex);
+/* Serial bus type */
 
-ACPI_STATUS
-AcpiTbUnloadTable (
-    UINT32                  TableIndex);
+const char                      *AcpiGbl_SbtDecode[] =
+{
+    "/* UNKNOWN serial bus type */",
+    "I2C",
+    "SPI",
+    "UART"
+};
 
-void
-AcpiTbNotifyTable (
-    UINT32                          Event,
-    void                            *Table);
+/* I2C serial bus access mode */
 
-void
-AcpiTbTerminate (
-    void);
+const char                      *AcpiGbl_AmDecode[] =
+{
+    "AddressingMode7Bit",
+    "AddressingMode10Bit"
+};
 
-ACPI_STATUS
-AcpiTbDeleteNamespaceByOwner (
-    UINT32                  TableIndex);
+/* I2C serial bus slave mode */
 
-ACPI_STATUS
-AcpiTbAllocateOwnerId (
-    UINT32                  TableIndex);
+const char                      *AcpiGbl_SmDecode[] =
+{
+    "ControllerInitiated",
+    "DeviceInitiated"
+};
 
-ACPI_STATUS
-AcpiTbReleaseOwnerId (
-    UINT32                  TableIndex);
+/* SPI serial bus wire mode */
 
-ACPI_STATUS
-AcpiTbGetOwnerId (
-    UINT32                  TableIndex,
-    ACPI_OWNER_ID           *OwnerId);
+const char                      *AcpiGbl_WmDecode[] =
+{
+    "FourWireMode",
+    "ThreeWireMode"
+};
 
+/* SPI serial clock phase */
 
-/*
- * tbutils - table manager utilities
- */
-ACPI_STATUS
-AcpiTbInitializeFacs (
-    void);
+const char                      *AcpiGbl_CphDecode[] =
+{
+    "ClockPhaseFirst",
+    "ClockPhaseSecond"
+};
 
-void
-AcpiTbPrintTableHeader(
-    ACPI_PHYSICAL_ADDRESS   Address,
-    ACPI_TABLE_HEADER       *Header);
+/* SPI serial bus clock polarity */
 
-UINT8
-AcpiTbChecksum (
-    UINT8                   *Buffer,
-    UINT32                  Length);
+const char                      *AcpiGbl_CpoDecode[] =
+{
+    "ClockPolarityLow",
+    "ClockPolarityHigh"
+};
 
-ACPI_STATUS
-AcpiTbVerifyChecksum (
-    ACPI_TABLE_HEADER       *Table,
-    UINT32                  Length);
+/* SPI serial bus device polarity */
 
-void
-AcpiTbCheckDsdtHeader (
-    void);
+const char                      *AcpiGbl_DpDecode[] =
+{
+    "PolarityLow",
+    "PolarityHigh"
+};
 
-ACPI_TABLE_HEADER *
-AcpiTbCopyDsdt (
-    UINT32                  TableIndex);
+/* UART serial bus endian */
 
-void
-AcpiTbInstallTableWithOverride (
-    ACPI_TABLE_DESC         *NewTableDesc,
-    BOOLEAN                 Override,
-    UINT32                  *TableIndex);
+const char                      *AcpiGbl_EdDecode[] =
+{
+    "LittleEndian",
+    "BigEndian"
+};
 
-ACPI_STATUS
-AcpiTbParseRootTable (
-    ACPI_PHYSICAL_ADDRESS   RsdpAddress);
+/* UART serial bus bits per byte */
 
-ACPI_STATUS
-AcpiTbGetTable (
-    ACPI_TABLE_DESC        *TableDesc,
-    ACPI_TABLE_HEADER      **OutTable);
+const char                      *AcpiGbl_BpbDecode[] =
+{
+    "DataBitsFive",
+    "DataBitsSix",
+    "DataBitsSeven",
+    "DataBitsEight",
+    "DataBitsNine",
+    "/* UNKNOWN Bits per byte */",
+    "/* UNKNOWN Bits per byte */",
+    "/* UNKNOWN Bits per byte */"
+};
 
-void
-AcpiTbPutTable (
-    ACPI_TABLE_DESC        *TableDesc);
+/* UART serial bus stop bits */
 
+const char                      *AcpiGbl_SbDecode[] =
+{
+    "StopBitsZero",
+    "StopBitsOne",
+    "StopBitsOnePlusHalf",
+    "StopBitsTwo"
+};
 
-/*
- * tbxfload
- */
-ACPI_STATUS
-AcpiTbLoadNamespace (
-    void);
+/* UART serial bus flow control */
 
-#endif /* __ACTABLES_H__ */
+const char                      *AcpiGbl_FcDecode[] =
+{
+    "FlowControlNone",
+    "FlowControlHardware",
+    "FlowControlXON",
+    "/* UNKNOWN flow control keyword */"
+};
+
+/* UART serial bus parity type */
+
+const char                      *AcpiGbl_PtDecode[] =
+{
+    "ParityTypeNone",
+    "ParityTypeEven",
+    "ParityTypeOdd",
+    "ParityTypeMark",
+    "ParityTypeSpace",
+    "/* UNKNOWN parity keyword */",
+    "/* UNKNOWN parity keyword */",
+    "/* UNKNOWN parity keyword */"
+};
+
+/* PinConfig type */
+
+const char                      *AcpiGbl_PtypDecode[] =
+{
+    "Default",
+    "Bias Pull-up",
+    "Bias Pull-down",
+    "Bias Default",
+    "Bias Disable",
+    "Bias High Impedance",
+    "Bias Bus Hold",
+    "Drive Open Drain",
+    "Drive Open Source",
+    "Drive Push Pull",
+    "Drive Strength",
+    "Slew Rate",
+    "Input Debounce",
+    "Input Schmitt Trigger",
+};
+
+#endif

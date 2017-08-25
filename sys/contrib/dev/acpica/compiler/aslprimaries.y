@@ -166,7 +166,7 @@ AccessAsTerm
         PARSEOP_OPEN_PAREN
         AccessTypeKeyword
         OptionalAccessAttribTerm
-        PARSEOP_CLOSE_PAREN         {$$ = TrCreateNode (PARSEOP_ACCESSAS,2,$3,$4);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrCreateOp (PARSEOP_ACCESSAS,2,$3,$4);}
     | PARSEOP_ACCESSAS
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -174,10 +174,10 @@ AccessAsTerm
 
 AcquireTerm
     : PARSEOP_ACQUIRE
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_ACQUIRE);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp(PARSEOP_ACQUIRE);}
         SuperName
         ',' WordConstExpr
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$6);}
     | PARSEOP_ACQUIRE
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -185,11 +185,11 @@ AcquireTerm
 
 AddTerm
     : PARSEOP_ADD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_ADD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_ADD);}
         TermArg
         TermArgItem
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,$6);}
     | PARSEOP_ADD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -197,11 +197,11 @@ AddTerm
 
 AliasTerm
     : PARSEOP_ALIAS
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_ALIAS);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_ALIAS);}
         NameString
         NameStringItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,
-                                        TrSetNodeFlags ($5, NODE_IS_NAME_DECLARATION));}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,
+                                        TrSetOpFlags ($5, OP_IS_NAME_DECLARATION));}
     | PARSEOP_ALIAS
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -209,29 +209,29 @@ AliasTerm
 
 AndTerm
     : PARSEOP_AND
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_AND);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_AND);}
         TermArg
         TermArgItem
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,$6);}
     | PARSEOP_AND
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 ArgTerm
-    : PARSEOP_ARG0                  {$$ = TrCreateLeafNode (PARSEOP_ARG0);}
-    | PARSEOP_ARG1                  {$$ = TrCreateLeafNode (PARSEOP_ARG1);}
-    | PARSEOP_ARG2                  {$$ = TrCreateLeafNode (PARSEOP_ARG2);}
-    | PARSEOP_ARG3                  {$$ = TrCreateLeafNode (PARSEOP_ARG3);}
-    | PARSEOP_ARG4                  {$$ = TrCreateLeafNode (PARSEOP_ARG4);}
-    | PARSEOP_ARG5                  {$$ = TrCreateLeafNode (PARSEOP_ARG5);}
-    | PARSEOP_ARG6                  {$$ = TrCreateLeafNode (PARSEOP_ARG6);}
+    : PARSEOP_ARG0                  {$$ = TrCreateLeafOp (PARSEOP_ARG0);}
+    | PARSEOP_ARG1                  {$$ = TrCreateLeafOp (PARSEOP_ARG1);}
+    | PARSEOP_ARG2                  {$$ = TrCreateLeafOp (PARSEOP_ARG2);}
+    | PARSEOP_ARG3                  {$$ = TrCreateLeafOp (PARSEOP_ARG3);}
+    | PARSEOP_ARG4                  {$$ = TrCreateLeafOp (PARSEOP_ARG4);}
+    | PARSEOP_ARG5                  {$$ = TrCreateLeafOp (PARSEOP_ARG5);}
+    | PARSEOP_ARG6                  {$$ = TrCreateLeafOp (PARSEOP_ARG6);}
     ;
 
 BankFieldTerm
     : PARSEOP_BANKFIELD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_BANKFIELD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_BANKFIELD);}
         NameString
         NameStringItem
         TermArgItem
@@ -239,7 +239,7 @@ BankFieldTerm
         ',' LockRuleKeyword
         ',' UpdateRuleKeyword
         PARSEOP_CLOSE_PAREN '{'
-            FieldUnitList '}'       {$$ = TrLinkChildren ($<n>3,7,
+            FieldUnitList '}'       {$$ = TrLinkOpChildren ($<n>3,7,
                                         $4,$5,$6,$8,$10,$12,$15);}
     | PARSEOP_BANKFIELD
         PARSEOP_OPEN_PAREN
@@ -248,17 +248,17 @@ BankFieldTerm
     ;
 
 BreakTerm
-    : PARSEOP_BREAK                 {$$ = TrCreateNode (PARSEOP_BREAK, 0);}
+    : PARSEOP_BREAK                 {$$ = TrCreateOp (PARSEOP_BREAK, 0);}
     ;
 
 BreakPointTerm
-    : PARSEOP_BREAKPOINT            {$$ = TrCreateNode (PARSEOP_BREAKPOINT, 0);}
+    : PARSEOP_BREAKPOINT            {$$ = TrCreateOp (PARSEOP_BREAKPOINT, 0);}
     ;
 
 BufferTerm
-    : PARSEOP_BUFFER                {$<n>$ = TrCreateLeafNode (PARSEOP_BUFFER); COMMENT_CAPTURE_OFF; }
+    : PARSEOP_BUFFER                {$<n>$ = TrCreateLeafOp (PARSEOP_BUFFER); COMMENT_CAPTURE_OFF; }
         OptionalDataCount
-        '{' BufferTermData '}'      {$$ = TrLinkChildren ($<n>2,2,$3,$5); COMMENT_CAPTURE_ON;}
+        '{' BufferTermData '}'      {$$ = TrLinkOpChildren ($<n>2,2,$3,$5); COMMENT_CAPTURE_ON;}
     ;
 
 BufferTermData
@@ -268,10 +268,10 @@ BufferTermData
 
 CaseTerm
     : PARSEOP_CASE
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_CASE);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_CASE);}
         DataObject
         PARSEOP_CLOSE_PAREN '{'
-            TermList '}'            {$$ = TrLinkChildren ($<n>3,2,$4,$7);}
+            TermList '}'            {$$ = TrLinkOpChildren ($<n>3,2,$4,$7);}
     | PARSEOP_CASE
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -279,11 +279,11 @@ CaseTerm
 
 ConcatTerm
     : PARSEOP_CONCATENATE
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_CONCATENATE);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_CONCATENATE);}
         TermArg
         TermArgItem
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,$6);}
     | PARSEOP_CONCATENATE
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -291,12 +291,12 @@ ConcatTerm
 
 ConcatResTerm
     : PARSEOP_CONCATENATERESTEMPLATE
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (
                                         PARSEOP_CONCATENATERESTEMPLATE);}
         TermArg
         TermArgItem
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,$6);}
     | PARSEOP_CONCATENATERESTEMPLATE
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -304,10 +304,10 @@ ConcatResTerm
 
 CondRefOfTerm
     : PARSEOP_CONDREFOF
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_CONDREFOF);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_CONDREFOF);}
         CondRefOfSource
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_CONDREFOF
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -317,15 +317,15 @@ ConnectionTerm
     : PARSEOP_CONNECTION
         PARSEOP_OPEN_PAREN
         NameString
-        PARSEOP_CLOSE_PAREN         {$$ = TrCreateNode (PARSEOP_CONNECTION,1,$3);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrCreateOp (PARSEOP_CONNECTION,1,$3);}
     | PARSEOP_CONNECTION
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_CONNECTION);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_CONNECTION);}
         ResourceMacroTerm
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3, 1,
-                                        TrLinkChildren (
-                                            TrCreateLeafNode (PARSEOP_RESOURCETEMPLATE), 3,
-                                            TrCreateLeafNode (PARSEOP_DEFAULT_ARG),
-                                            TrCreateLeafNode (PARSEOP_DEFAULT_ARG),
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3, 1,
+                                        TrLinkOpChildren (
+                                            TrCreateLeafOp (PARSEOP_RESOURCETEMPLATE), 3,
+                                            TrCreateLeafOp (PARSEOP_DEFAULT_ARG),
+                                            TrCreateLeafOp (PARSEOP_DEFAULT_ARG),
                                             $4));}
     | PARSEOP_CONNECTION
         PARSEOP_OPEN_PAREN
@@ -333,16 +333,16 @@ ConnectionTerm
     ;
 
 ContinueTerm
-    : PARSEOP_CONTINUE              {$$ = TrCreateNode (PARSEOP_CONTINUE, 0);}
+    : PARSEOP_CONTINUE              {$$ = TrCreateOp (PARSEOP_CONTINUE, 0);}
     ;
 
 CopyObjectTerm
     : PARSEOP_COPYOBJECT
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_COPYOBJECT);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_COPYOBJECT);}
         TermArg
         ',' SimpleName
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,
-                                        TrSetNodeFlags ($6, NODE_IS_TARGET));}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,
+                                        TrSetOpFlags ($6, OP_IS_TARGET));}
     | PARSEOP_COPYOBJECT
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -350,12 +350,12 @@ CopyObjectTerm
 
 CreateBitFieldTerm
     : PARSEOP_CREATEBITFIELD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_CREATEBITFIELD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_CREATEBITFIELD);}
         TermArg
         TermArgItem
         NameStringItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,
-                                        TrSetNodeFlags ($6, NODE_IS_NAME_DECLARATION));}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,
+                                        TrSetOpFlags ($6, OP_IS_NAME_DECLARATION));}
     | PARSEOP_CREATEBITFIELD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -363,12 +363,12 @@ CreateBitFieldTerm
 
 CreateByteFieldTerm
     : PARSEOP_CREATEBYTEFIELD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_CREATEBYTEFIELD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_CREATEBYTEFIELD);}
         TermArg
         TermArgItem
         NameStringItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,
-                                        TrSetNodeFlags ($6, NODE_IS_NAME_DECLARATION));}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,
+                                        TrSetOpFlags ($6, OP_IS_NAME_DECLARATION));}
     | PARSEOP_CREATEBYTEFIELD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -376,12 +376,12 @@ CreateByteFieldTerm
 
 CreateDWordFieldTerm
     : PARSEOP_CREATEDWORDFIELD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_CREATEDWORDFIELD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_CREATEDWORDFIELD);}
         TermArg
         TermArgItem
         NameStringItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,
-                                        TrSetNodeFlags ($6, NODE_IS_NAME_DECLARATION));}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,
+                                        TrSetOpFlags ($6, OP_IS_NAME_DECLARATION));}
     | PARSEOP_CREATEDWORDFIELD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -389,13 +389,13 @@ CreateDWordFieldTerm
 
 CreateFieldTerm
     : PARSEOP_CREATEFIELD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_CREATEFIELD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_CREATEFIELD);}
         TermArg
         TermArgItem
         TermArgItem
         NameStringItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,4,$4,$5,$6,
-                                        TrSetNodeFlags ($7, NODE_IS_NAME_DECLARATION));}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,4,$4,$5,$6,
+                                        TrSetOpFlags ($7, OP_IS_NAME_DECLARATION));}
     | PARSEOP_CREATEFIELD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -403,12 +403,12 @@ CreateFieldTerm
 
 CreateQWordFieldTerm
     : PARSEOP_CREATEQWORDFIELD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_CREATEQWORDFIELD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_CREATEQWORDFIELD);}
         TermArg
         TermArgItem
         NameStringItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,
-                                        TrSetNodeFlags ($6, NODE_IS_NAME_DECLARATION));}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,
+                                        TrSetOpFlags ($6, OP_IS_NAME_DECLARATION));}
     | PARSEOP_CREATEQWORDFIELD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -416,12 +416,12 @@ CreateQWordFieldTerm
 
 CreateWordFieldTerm
     : PARSEOP_CREATEWORDFIELD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_CREATEWORDFIELD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_CREATEWORDFIELD);}
         TermArg
         TermArgItem
         NameStringItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,
-                                        TrSetNodeFlags ($6, NODE_IS_NAME_DECLARATION));}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,
+                                        TrSetOpFlags ($6, OP_IS_NAME_DECLARATION));}
     | PARSEOP_CREATEWORDFIELD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -429,44 +429,44 @@ CreateWordFieldTerm
 
 DataRegionTerm
     : PARSEOP_DATATABLEREGION
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_DATATABLEREGION);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_DATATABLEREGION);}
         NameString
         TermArgItem
         TermArgItem
         TermArgItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,4,
-                                        TrSetNodeFlags ($4, NODE_IS_NAME_DECLARATION),$5,$6,$7);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,4,
+                                        TrSetOpFlags ($4, OP_IS_NAME_DECLARATION),$5,$6,$7);}
     | PARSEOP_DATATABLEREGION
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 DebugTerm
-    : PARSEOP_DEBUG                 {$$ = TrCreateLeafNode (PARSEOP_DEBUG);}
+    : PARSEOP_DEBUG                 {$$ = TrCreateLeafOp (PARSEOP_DEBUG);}
     ;
 
 DecTerm
     : PARSEOP_DECREMENT
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_DECREMENT);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_DECREMENT);}
         SuperName
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,$4);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,$4);}
     | PARSEOP_DECREMENT
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 DefaultTerm
-    : PARSEOP_DEFAULT '{'           {$<n>$ = TrCreateLeafNode (PARSEOP_DEFAULT);}
-        TermList '}'                {$$ = TrLinkChildren ($<n>3,1,$4);}
+    : PARSEOP_DEFAULT '{'           {$<n>$ = TrCreateLeafOp (PARSEOP_DEFAULT);}
+        TermList '}'                {$$ = TrLinkOpChildren ($<n>3,1,$4);}
     | PARSEOP_DEFAULT '{'
         error '}'                   {$$ = AslDoError(); yyclearin;}
     ;
 
 DerefOfTerm
     : PARSEOP_DEREFOF
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_DEREFOF);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_DEREFOF);}
         DerefOfSource
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,$4);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,$4);}
     | PARSEOP_DEREFOF
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -474,11 +474,11 @@ DerefOfTerm
 
 DeviceTerm
     : PARSEOP_DEVICE
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_DEVICE);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_DEVICE);}
         NameString
         PARSEOP_CLOSE_PAREN '{'
-            TermList '}'            {$$ = TrLinkChildren ($<n>3,2,
-                                        TrSetNodeFlags ($4, NODE_IS_NAME_DECLARATION),$7);}
+            TermList '}'            {$$ = TrLinkOpChildren ($<n>3,2,
+                                        TrSetOpFlags ($4, OP_IS_NAME_DECLARATION),$7);}
     | PARSEOP_DEVICE
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -486,12 +486,12 @@ DeviceTerm
 
 DivideTerm
     : PARSEOP_DIVIDE
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_DIVIDE);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_DIVIDE);}
         TermArg
         TermArgItem
         Target
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,4,$4,$5,$6,$7);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,4,$4,$5,$6,$7);}
     | PARSEOP_DIVIDE
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -501,21 +501,21 @@ EISAIDTerm
     : PARSEOP_EISAID
         PARSEOP_OPEN_PAREN
         StringData
-        PARSEOP_CLOSE_PAREN         {$$ = TrUpdateNode (PARSEOP_EISAID, $3);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrSetOpIntegerValue (PARSEOP_EISAID, $3);}
     | PARSEOP_EISAID
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 ElseIfTerm
-    : IfTerm ElseTerm               {$$ = TrLinkPeerNode ($1,$2);}
+    : IfTerm ElseTerm               {$$ = TrLinkPeerOp ($1,$2);}
     ;
 
 ElseTerm
     :                               {$$ = NULL;}
     | PARSEOP_ELSE '{'
-        TermList           {$<n>$ = TrCreateLeafNode (PARSEOP_ELSE);}
-        '}'                {$$ = TrLinkChildren ($<n>4,1,$3);}
+        TermList           {$<n>$ = TrCreateLeafOp (PARSEOP_ELSE);}
+        '}'                {$$ = TrLinkOpChildren ($<n>4,1,$3);}
 
     | PARSEOP_ELSE '{'
         error '}'                   {$$ = AslDoError(); yyclearin;}
@@ -524,12 +524,12 @@ ElseTerm
         error                       {$$ = AslDoError(); yyclearin;}
 
     | PARSEOP_ELSEIF
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_ELSE);}
-        TermArg                     {$<n>$ = TrCreateLeafNode (PARSEOP_IF);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_ELSE);}
+        TermArg                     {$<n>$ = TrCreateLeafOp (PARSEOP_IF);}
         PARSEOP_CLOSE_PAREN '{'
-            TermList '}'            {TrLinkChildren ($<n>5,2,$4,$8);}
-        ElseTerm                    {TrLinkPeerNode ($<n>5,$11);}
-                                    {$$ = TrLinkChildren ($<n>3,1,$<n>5);}
+            TermList '}'            {TrLinkOpChildren ($<n>5,2,$4,$8);}
+        ElseTerm                    {TrLinkPeerOp ($<n>5,$11);}
+                                    {$$ = TrLinkOpChildren ($<n>3,1,$<n>5);}
 
     | PARSEOP_ELSEIF
         PARSEOP_OPEN_PAREN
@@ -541,10 +541,10 @@ ElseTerm
 
 EventTerm
     : PARSEOP_EVENT
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_EVENT);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_EVENT);}
         NameString
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,
-                                        TrSetNodeFlags ($4, NODE_IS_NAME_DECLARATION));}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,
+                                        TrSetOpFlags ($4, OP_IS_NAME_DECLARATION));}
     | PARSEOP_EVENT
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -557,7 +557,7 @@ ExternalTerm
         OptionalObjectTypeKeyword
         OptionalParameterTypePackage
         OptionalParameterTypesPackage
-        PARSEOP_CLOSE_PAREN         {$$ = TrCreateNode (PARSEOP_EXTERNAL,4,$3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrCreateOp (PARSEOP_EXTERNAL,4,$3,$4,$5,$6);}
     | PARSEOP_EXTERNAL
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -565,11 +565,11 @@ ExternalTerm
 
 FatalTerm
     : PARSEOP_FATAL
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_FATAL);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_FATAL);}
         ByteConstExpr
         ',' DWordConstExpr
         TermArgItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$6,$7);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$6,$7);}
     | PARSEOP_FATAL
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -577,13 +577,13 @@ FatalTerm
 
 FieldTerm
     : PARSEOP_FIELD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_FIELD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_FIELD);}
         NameString
         ',' AccessTypeKeyword
         ',' LockRuleKeyword
         ',' UpdateRuleKeyword
         PARSEOP_CLOSE_PAREN '{'
-            FieldUnitList '}'       {$$ = TrLinkChildren ($<n>3,5,$4,$6,$8,$10,$13);}
+            FieldUnitList '}'       {$$ = TrLinkOpChildren ($<n>3,5,$4,$6,$8,$10,$13);}
     | PARSEOP_FIELD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN
@@ -592,10 +592,10 @@ FieldTerm
 
 FindSetLeftBitTerm
     : PARSEOP_FINDSETLEFTBIT
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_FINDSETLEFTBIT);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_FINDSETLEFTBIT);}
         TermArg
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_FINDSETLEFTBIT
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -603,10 +603,10 @@ FindSetLeftBitTerm
 
 FindSetRightBitTerm
     : PARSEOP_FINDSETRIGHTBIT
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_FINDSETRIGHTBIT);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_FINDSETRIGHTBIT);}
         TermArg
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_FINDSETRIGHTBIT
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -615,29 +615,29 @@ FindSetRightBitTerm
     /* Convert a For() loop to a While() loop */
 ForTerm
     : PARSEOP_FOR
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_WHILE);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_WHILE);}
         OptionalTermArg ','         {}
         OptionalPredicate ','
-        OptionalTermArg             {$<n>$ = TrLinkPeerNode ($4,$<n>3);
-                                            TrSetParent ($9,$<n>3);}                /* New parent is WHILE */
+        OptionalTermArg             {$<n>$ = TrLinkPeerOp ($4,$<n>3);
+                                            TrSetOpParent ($9,$<n>3);}                /* New parent is WHILE */
         PARSEOP_CLOSE_PAREN
-        '{' TermList '}'            {$<n>$ = TrLinkChildren ($<n>3,2,$7,$13);}
-                                    {$<n>$ = TrLinkPeerNode ($13,$9);
+        '{' TermList '}'            {$<n>$ = TrLinkOpChildren ($<n>3,2,$7,$13);}
+                                    {$<n>$ = TrLinkPeerOp ($13,$9);
                                         $$ = $<n>10;}
     ;
 
 OptionalPredicate
-    :                               {$$ = TrCreateValuedLeafNode (PARSEOP_INTEGER, 1);}
+    :                               {$$ = TrCreateValuedLeafOp (PARSEOP_INTEGER, 1);}
     | TermArg                       {$$ = $1;}
     ;
 
 FprintfTerm
     : PARSEOP_FPRINTF
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_FPRINTF);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_FPRINTF);}
         TermArg ','
         StringData
         PrintfArgList
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$6,$7);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$6,$7);}
     | PARSEOP_FPRINTF
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -645,10 +645,10 @@ FprintfTerm
 
 FromBCDTerm
     : PARSEOP_FROMBCD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_FROMBCD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_FROMBCD);}
         TermArg
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_FROMBCD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -656,16 +656,16 @@ FromBCDTerm
 
 FunctionTerm
     : PARSEOP_FUNCTION
-        PARSEOP_OPEN_PAREN          {COMMENT_CAPTURE_OFF; $<n>$ = TrCreateLeafNode (PARSEOP_METHOD); }
+        PARSEOP_OPEN_PAREN          {COMMENT_CAPTURE_OFF; $<n>$ = TrCreateLeafOp (PARSEOP_METHOD); }
         NameString
         OptionalParameterTypePackage
         OptionalParameterTypesPackage
         PARSEOP_CLOSE_PAREN '{'     {COMMENT_CAPTURE_ON; }
-            TermList '}'            {$$ = TrLinkChildren ($<n>3,7,
-                                        TrSetNodeFlags ($4, NODE_IS_NAME_DECLARATION),
-                                        TrCreateValuedLeafNode (PARSEOP_BYTECONST, 0),
-                                        TrCreateLeafNode (PARSEOP_SERIALIZERULE_NOTSERIAL),
-                                        TrCreateValuedLeafNode (PARSEOP_BYTECONST, 0),$5,$6,$10);}
+            TermList '}'            {$$ = TrLinkOpChildren ($<n>3,7,
+                                        TrSetOpFlags ($4, OP_IS_NAME_DECLARATION),
+                                        TrCreateValuedLeafOp (PARSEOP_BYTECONST, 0),
+                                        TrCreateLeafOp (PARSEOP_SERIALIZERULE_NOTSERIAL),
+                                        TrCreateValuedLeafOp (PARSEOP_BYTECONST, 0),$5,$6,$10);}
     | PARSEOP_FUNCTION
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -673,10 +673,10 @@ FunctionTerm
 
 IfTerm
     : PARSEOP_IF
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_IF);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_IF);}
         TermArg
         PARSEOP_CLOSE_PAREN '{'
-            TermList '}'            {$$ = TrLinkChildren ($<n>3,2,$4,$7);}
+            TermList '}'            {$$ = TrLinkOpChildren ($<n>3,2,$4,$7);}
 
     | PARSEOP_IF
         PARSEOP_OPEN_PAREN
@@ -687,20 +687,20 @@ IncludeTerm
     : PARSEOP_INCLUDE
         PARSEOP_OPEN_PAREN
         String
-        PARSEOP_CLOSE_PAREN         {$$ = TrUpdateNode (PARSEOP_INCLUDE, $3);
+        PARSEOP_CLOSE_PAREN         {$$ = TrSetOpIntegerValue (PARSEOP_INCLUDE, $3);
                                         FlOpenIncludeFile ($3);}
     ;
 
 IncludeEndTerm
-    : PARSEOP_INCLUDE_END           {$<n>$ = TrCreateLeafNode (PARSEOP_INCLUDE_END);
-                                        TrSetCurrentFilename ($$);}
+    : PARSEOP_INCLUDE_END           {$<n>$ = TrCreateLeafOp (PARSEOP_INCLUDE_END);
+                                        TrSetOpCurrentFilename ($$);}
     ;
 
 IncTerm
     : PARSEOP_INCREMENT
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_INCREMENT);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_INCREMENT);}
         SuperName
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,$4);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,$4);}
     | PARSEOP_INCREMENT
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -708,14 +708,14 @@ IncTerm
 
 IndexFieldTerm
     : PARSEOP_INDEXFIELD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_INDEXFIELD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_INDEXFIELD);}
         NameString
         NameStringItem
         ',' AccessTypeKeyword
         ',' LockRuleKeyword
         ',' UpdateRuleKeyword
         PARSEOP_CLOSE_PAREN '{'
-            FieldUnitList '}'       {$$ = TrLinkChildren ($<n>3,6,$4,$5,$7,$9,$11,$14);}
+            FieldUnitList '}'       {$$ = TrLinkOpChildren ($<n>3,6,$4,$5,$7,$9,$11,$14);}
     | PARSEOP_INDEXFIELD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN
@@ -724,11 +724,11 @@ IndexFieldTerm
 
 IndexTerm
     : PARSEOP_INDEX
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_INDEX);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_INDEX);}
         TermArg
         TermArgItem
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,$6);}
     | PARSEOP_INDEX
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -736,10 +736,10 @@ IndexTerm
 
 LAndTerm
     : PARSEOP_LAND
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_LAND);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_LAND);}
         TermArg
         TermArgItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_LAND
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -747,10 +747,10 @@ LAndTerm
 
 LEqualTerm
     : PARSEOP_LEQUAL
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_LEQUAL);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_LEQUAL);}
         TermArg
         TermArgItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_LEQUAL
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -758,11 +758,11 @@ LEqualTerm
 
 LGreaterEqualTerm
     : PARSEOP_LGREATEREQUAL
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_LLESS);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_LLESS);}
         TermArg
         TermArgItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrCreateNode (PARSEOP_LNOT, 1,
-                                        TrLinkChildren ($<n>3,2,$4,$5));}
+        PARSEOP_CLOSE_PAREN         {$$ = TrCreateOp (PARSEOP_LNOT, 1,
+                                        TrLinkOpChildren ($<n>3,2,$4,$5));}
     | PARSEOP_LGREATEREQUAL
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -770,10 +770,10 @@ LGreaterEqualTerm
 
 LGreaterTerm
     : PARSEOP_LGREATER
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_LGREATER);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_LGREATER);}
         TermArg
         TermArgItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_LGREATER
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -781,11 +781,11 @@ LGreaterTerm
 
 LLessEqualTerm
     : PARSEOP_LLESSEQUAL
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_LGREATER);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_LGREATER);}
         TermArg
         TermArgItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrCreateNode (PARSEOP_LNOT, 1,
-                                        TrLinkChildren ($<n>3,2,$4,$5));}
+        PARSEOP_CLOSE_PAREN         {$$ = TrCreateOp (PARSEOP_LNOT, 1,
+                                        TrLinkOpChildren ($<n>3,2,$4,$5));}
     | PARSEOP_LLESSEQUAL
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -793,10 +793,10 @@ LLessEqualTerm
 
 LLessTerm
     : PARSEOP_LLESS
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_LLESS);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_LLESS);}
         TermArg
         TermArgItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_LLESS
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -804,11 +804,11 @@ LLessTerm
 
 LNotEqualTerm
     : PARSEOP_LNOTEQUAL
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_LEQUAL);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_LEQUAL);}
         TermArg
         TermArgItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrCreateNode (PARSEOP_LNOT, 1,
-                                        TrLinkChildren ($<n>3,2,$4,$5));}
+        PARSEOP_CLOSE_PAREN         {$$ = TrCreateOp (PARSEOP_LNOT, 1,
+                                        TrLinkOpChildren ($<n>3,2,$4,$5));}
     | PARSEOP_LNOTEQUAL
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -816,9 +816,9 @@ LNotEqualTerm
 
 LNotTerm
     : PARSEOP_LNOT
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_LNOT);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_LNOT);}
         TermArg
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,$4);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,$4);}
     | PARSEOP_LNOT
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -826,14 +826,14 @@ LNotTerm
 
 LoadTableTerm
     : PARSEOP_LOADTABLE
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_LOADTABLE);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_LOADTABLE);}
         TermArg
         TermArgItem
         TermArgItem
         OptionalListString
         OptionalListString
         OptionalReference
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,6,$4,$5,$6,$7,$8,$9);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,6,$4,$5,$6,$7,$8,$9);}
     | PARSEOP_LOADTABLE
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -841,32 +841,32 @@ LoadTableTerm
 
 LoadTerm
     : PARSEOP_LOAD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_LOAD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_LOAD);}
         NameString
         RequiredTarget
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_LOAD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 LocalTerm
-    : PARSEOP_LOCAL0                {$$ = TrCreateLeafNode (PARSEOP_LOCAL0);}
-    | PARSEOP_LOCAL1                {$$ = TrCreateLeafNode (PARSEOP_LOCAL1);}
-    | PARSEOP_LOCAL2                {$$ = TrCreateLeafNode (PARSEOP_LOCAL2);}
-    | PARSEOP_LOCAL3                {$$ = TrCreateLeafNode (PARSEOP_LOCAL3);}
-    | PARSEOP_LOCAL4                {$$ = TrCreateLeafNode (PARSEOP_LOCAL4);}
-    | PARSEOP_LOCAL5                {$$ = TrCreateLeafNode (PARSEOP_LOCAL5);}
-    | PARSEOP_LOCAL6                {$$ = TrCreateLeafNode (PARSEOP_LOCAL6);}
-    | PARSEOP_LOCAL7                {$$ = TrCreateLeafNode (PARSEOP_LOCAL7);}
+    : PARSEOP_LOCAL0                {$$ = TrCreateLeafOp (PARSEOP_LOCAL0);}
+    | PARSEOP_LOCAL1                {$$ = TrCreateLeafOp (PARSEOP_LOCAL1);}
+    | PARSEOP_LOCAL2                {$$ = TrCreateLeafOp (PARSEOP_LOCAL2);}
+    | PARSEOP_LOCAL3                {$$ = TrCreateLeafOp (PARSEOP_LOCAL3);}
+    | PARSEOP_LOCAL4                {$$ = TrCreateLeafOp (PARSEOP_LOCAL4);}
+    | PARSEOP_LOCAL5                {$$ = TrCreateLeafOp (PARSEOP_LOCAL5);}
+    | PARSEOP_LOCAL6                {$$ = TrCreateLeafOp (PARSEOP_LOCAL6);}
+    | PARSEOP_LOCAL7                {$$ = TrCreateLeafOp (PARSEOP_LOCAL7);}
     ;
 
 LOrTerm
     : PARSEOP_LOR
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_LOR);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_LOR);}
         TermArg
         TermArgItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_LOR
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -874,14 +874,14 @@ LOrTerm
 
 MatchTerm
     : PARSEOP_MATCH
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_MATCH);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_MATCH);}
         TermArg
         ',' MatchOpKeyword
         TermArgItem
         ',' MatchOpKeyword
         TermArgItem
         TermArgItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,6,$4,$6,$7,$9,$10,$11);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,6,$4,$6,$7,$9,$10,$11);}
     | PARSEOP_MATCH
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -889,7 +889,7 @@ MatchTerm
 
 MethodTerm
     : PARSEOP_METHOD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_METHOD); COMMENT_CAPTURE_OFF;}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_METHOD); COMMENT_CAPTURE_OFF;}
         NameString
         OptionalByteConstExpr       {UtCheckIntegerRange ($5, 0, 7);}
         OptionalSerializeRuleKeyword
@@ -897,8 +897,8 @@ MethodTerm
         OptionalParameterTypePackage
         OptionalParameterTypesPackage
         PARSEOP_CLOSE_PAREN '{'     {COMMENT_CAPTURE_ON;}
-            TermList '}'            {$$ = TrLinkChildren ($<n>3,7,
-                                        TrSetNodeFlags ($4, NODE_IS_NAME_DECLARATION),
+            TermList '}'            {$$ = TrLinkOpChildren ($<n>3,7,
+                                        TrSetOpFlags ($4, OP_IS_NAME_DECLARATION),
                                         $5,$7,$8,$9,$10,$14);}
     | PARSEOP_METHOD
         PARSEOP_OPEN_PAREN
@@ -907,12 +907,12 @@ MethodTerm
 
 MidTerm
     : PARSEOP_MID
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_MID);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_MID);}
         TermArg
         TermArgItem
         TermArgItem
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,4,$4,$5,$6,$7);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,4,$4,$5,$6,$7);}
     | PARSEOP_MID
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -920,11 +920,11 @@ MidTerm
 
 ModTerm
     : PARSEOP_MOD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_MOD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_MOD);}
         TermArg
         TermArgItem
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,$6);}
     | PARSEOP_MOD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -932,11 +932,11 @@ ModTerm
 
 MultiplyTerm
     : PARSEOP_MULTIPLY
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_MULTIPLY);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_MULTIPLY);}
         TermArg
         TermArgItem
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,$6);}
     | PARSEOP_MULTIPLY
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -944,11 +944,11 @@ MultiplyTerm
 
 MutexTerm
     : PARSEOP_MUTEX
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_MUTEX);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_MUTEX);}
         NameString
         ',' ByteConstExpr
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,
-                                        TrSetNodeFlags ($4, NODE_IS_NAME_DECLARATION),$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,
+                                        TrSetOpFlags ($4, OP_IS_NAME_DECLARATION),$6);}
     | PARSEOP_MUTEX
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -956,11 +956,11 @@ MutexTerm
 
 NameTerm
     : PARSEOP_NAME
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_NAME);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_NAME);}
         NameString
         ',' DataObject
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,
-                                        TrSetNodeFlags ($4, NODE_IS_NAME_DECLARATION),$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,
+                                        TrSetOpFlags ($4, OP_IS_NAME_DECLARATION),$6);}
     | PARSEOP_NAME
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -968,27 +968,27 @@ NameTerm
 
 NAndTerm
     : PARSEOP_NAND
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_NAND);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_NAND);}
         TermArg
         TermArgItem
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,$6);}
     | PARSEOP_NAND
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 NoOpTerm
-    : PARSEOP_NOOP                  {$$ = TrCreateNode (PARSEOP_NOOP, 0);}
+    : PARSEOP_NOOP                  {$$ = TrCreateOp (PARSEOP_NOOP, 0);}
     ;
 
 NOrTerm
     : PARSEOP_NOR
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_NOR);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_NOR);}
         TermArg
         TermArgItem
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,$6);}
     | PARSEOP_NOR
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -996,10 +996,10 @@ NOrTerm
 
 NotifyTerm
     : PARSEOP_NOTIFY
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_NOTIFY);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_NOTIFY);}
         SuperName
         TermArgItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_NOTIFY
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1007,10 +1007,10 @@ NotifyTerm
 
 NotTerm
     : PARSEOP_NOT
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_NOT);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_NOT);}
         TermArg
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_NOT
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1018,9 +1018,9 @@ NotTerm
 
 ObjectTypeTerm
     : PARSEOP_OBJECTTYPE
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_OBJECTTYPE);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_OBJECTTYPE);}
         ObjectTypeSource
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,$4);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,$4);}
     | PARSEOP_OBJECTTYPE
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1030,7 +1030,7 @@ OffsetTerm
     : PARSEOP_OFFSET
         PARSEOP_OPEN_PAREN
         AmlPackageLengthTerm
-        PARSEOP_CLOSE_PAREN         {$$ = TrCreateNode (PARSEOP_OFFSET,1,$3);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrCreateOp (PARSEOP_OFFSET,1,$3);}
     | PARSEOP_OFFSET
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1038,13 +1038,13 @@ OffsetTerm
 
 OpRegionTerm
     : PARSEOP_OPERATIONREGION
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_OPERATIONREGION);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_OPERATIONREGION);}
         NameString
         ',' OpRegionSpaceIdTerm
         TermArgItem
         TermArgItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,4,
-                                        TrSetNodeFlags ($4, NODE_IS_NAME_DECLARATION),
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,4,
+                                        TrSetOpFlags ($4, OP_IS_NAME_DECLARATION),
                                         $6,$7,$8);}
     | PARSEOP_OPERATIONREGION
         PARSEOP_OPEN_PAREN
@@ -1058,30 +1058,30 @@ OpRegionSpaceIdTerm
 
 OrTerm
     : PARSEOP_OR
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_OR);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_OR);}
         TermArg
         TermArgItem
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,$6);}
     | PARSEOP_OR
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 PackageTerm
-    : PARSEOP_PACKAGE               {$<n>$ = TrCreateLeafNode (PARSEOP_VAR_PACKAGE);}
+    : PARSEOP_PACKAGE               {$<n>$ = TrCreateLeafOp (PARSEOP_VAR_PACKAGE);}
         OptionalDataCount
-        '{' PackageList '}'         {$$ = TrLinkChildren ($<n>2,2,$3,$5);}
+        '{' PackageList '}'         {$$ = TrLinkOpChildren ($<n>2,2,$3,$5);}
 
 PowerResTerm
     : PARSEOP_POWERRESOURCE
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_POWERRESOURCE);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_POWERRESOURCE);}
         NameString
         ',' ByteConstExpr
         ',' WordConstExpr
         PARSEOP_CLOSE_PAREN '{'
-            TermList '}'            {$$ = TrLinkChildren ($<n>3,4,
-                                        TrSetNodeFlags ($4, NODE_IS_NAME_DECLARATION),
+            TermList '}'            {$$ = TrLinkOpChildren ($<n>3,4,
+                                        TrSetOpFlags ($4, OP_IS_NAME_DECLARATION),
                                         $6,$8,$11);}
     | PARSEOP_POWERRESOURCE
         PARSEOP_OPEN_PAREN
@@ -1090,10 +1090,10 @@ PowerResTerm
 
 PrintfTerm
     : PARSEOP_PRINTF
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_PRINTF);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_PRINTF);}
         StringData
         PrintfArgList
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_PRINTF
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1103,19 +1103,19 @@ PrintfArgList
     :                               {$$ = NULL;}
     | TermArg                       {$$ = $1;}
     | PrintfArgList ','
-       TermArg                      {$$ = TrLinkPeerNode ($1, $3);}
+       TermArg                      {$$ = TrLinkPeerOp ($1, $3);}
     ;
 
 ProcessorTerm
     : PARSEOP_PROCESSOR
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_PROCESSOR);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_PROCESSOR);}
         NameString
         ',' ByteConstExpr
         OptionalDWordConstExpr
         OptionalByteConstExpr
         PARSEOP_CLOSE_PAREN '{'
-            TermList '}'            {$$ = TrLinkChildren ($<n>3,5,
-                                        TrSetNodeFlags ($4, NODE_IS_NAME_DECLARATION),
+            TermList '}'            {$$ = TrLinkOpChildren ($<n>3,5,
+                                        TrSetOpFlags ($4, OP_IS_NAME_DECLARATION),
                                         $6,$7,$8,$11);}
     | PARSEOP_PROCESSOR
         PARSEOP_OPEN_PAREN
@@ -1124,10 +1124,10 @@ ProcessorTerm
 
 RawDataBufferTerm
     : PARSEOP_DATABUFFER
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_DATABUFFER);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_DATABUFFER);}
         OptionalWordConst
         PARSEOP_CLOSE_PAREN '{'
-            ByteList '}'            {$$ = TrLinkChildren ($<n>3,2,$4,$7);}
+            ByteList '}'            {$$ = TrLinkOpChildren ($<n>3,2,$4,$7);}
     | PARSEOP_DATABUFFER
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1139,10 +1139,10 @@ RawDataBufferTerm
  */
 RefOfTerm
     : PARSEOP_REFOF
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_REFOF);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_REFOF);}
         RefOfSource
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,
-                                        TrSetNodeFlags ($4, NODE_IS_TARGET));}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,
+                                        TrSetOpFlags ($4, OP_IS_TARGET));}
     | PARSEOP_REFOF
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1150,9 +1150,9 @@ RefOfTerm
 
 ReleaseTerm
     : PARSEOP_RELEASE
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_RELEASE);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_RELEASE);}
         SuperName
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,$4);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,$4);}
     | PARSEOP_RELEASE
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1160,9 +1160,9 @@ ReleaseTerm
 
 ResetTerm
     : PARSEOP_RESET
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_RESET);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_RESET);}
         SuperName
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,$4);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,$4);}
     | PARSEOP_RESET
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1170,13 +1170,13 @@ ResetTerm
 
 ReturnTerm
     : PARSEOP_RETURN
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_RETURN);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_RETURN);}
         OptionalReturnArg
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,$4);}
-    | PARSEOP_RETURN                {$$ = TrLinkChildren (
-                                        TrCreateLeafNode (PARSEOP_RETURN),1,
-                                        TrSetNodeFlags (TrCreateLeafNode (PARSEOP_ZERO),
-                                            NODE_IS_NULL_RETURN));}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,$4);}
+    | PARSEOP_RETURN                {$$ = TrLinkOpChildren (
+                                        TrCreateLeafOp (PARSEOP_RETURN),1,
+                                        TrSetOpFlags (TrCreateLeafOp (PARSEOP_ZERO),
+                                            OP_IS_NULL_RETURN));}
     | PARSEOP_RETURN
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1184,11 +1184,11 @@ ReturnTerm
 
 ScopeTerm
     : PARSEOP_SCOPE
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_SCOPE);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_SCOPE);}
         NameString
         PARSEOP_CLOSE_PAREN '{'
-            TermList '}'            {$$ = TrLinkChildren ($<n>3,2,
-                                        TrSetNodeFlags ($4, NODE_IS_NAME_DECLARATION),$7);}
+            TermList '}'            {$$ = TrLinkOpChildren ($<n>3,2,
+                                        TrSetOpFlags ($4, OP_IS_NAME_DECLARATION),$7);}
     | PARSEOP_SCOPE
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1196,11 +1196,11 @@ ScopeTerm
 
 ShiftLeftTerm
     : PARSEOP_SHIFTLEFT
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_SHIFTLEFT);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_SHIFTLEFT);}
         TermArg
         TermArgItem
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,$6);}
     | PARSEOP_SHIFTLEFT
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1208,11 +1208,11 @@ ShiftLeftTerm
 
 ShiftRightTerm
     : PARSEOP_SHIFTRIGHT
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_SHIFTRIGHT);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_SHIFTRIGHT);}
         TermArg
         TermArgItem
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,$6);}
     | PARSEOP_SHIFTRIGHT
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1220,9 +1220,9 @@ ShiftRightTerm
 
 SignalTerm
     : PARSEOP_SIGNAL
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_SIGNAL);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_SIGNAL);}
         SuperName
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,$4);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,$4);}
     | PARSEOP_SIGNAL
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1230,9 +1230,9 @@ SignalTerm
 
 SizeOfTerm
     : PARSEOP_SIZEOF
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_SIZEOF);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_SIZEOF);}
         SuperName
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,$4);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,$4);}
     | PARSEOP_SIZEOF
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1240,9 +1240,9 @@ SizeOfTerm
 
 SleepTerm
     : PARSEOP_SLEEP
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_SLEEP);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_SLEEP);}
         TermArg
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,$4);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,$4);}
     | PARSEOP_SLEEP
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1250,9 +1250,9 @@ SleepTerm
 
 StallTerm
     : PARSEOP_STALL
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_STALL);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_STALL);}
         TermArg
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,$4);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,$4);}
     | PARSEOP_STALL
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1260,11 +1260,11 @@ StallTerm
 
 StoreTerm
     : PARSEOP_STORE
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_STORE);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_STORE);}
         TermArg
         ',' SuperName
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,
-                                            TrSetNodeFlags ($6, NODE_IS_TARGET));}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,
+                                            TrSetOpFlags ($6, OP_IS_TARGET));}
     | PARSEOP_STORE
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1272,11 +1272,11 @@ StoreTerm
 
 SubtractTerm
     : PARSEOP_SUBTRACT
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_SUBTRACT);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_SUBTRACT);}
         TermArg
         TermArgItem
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,$6);}
     | PARSEOP_SUBTRACT
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1284,10 +1284,10 @@ SubtractTerm
 
 SwitchTerm
     : PARSEOP_SWITCH
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_SWITCH);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_SWITCH);}
         TermArg
         PARSEOP_CLOSE_PAREN '{'
-            CaseDefaultTermList '}' {$$ = TrLinkChildren ($<n>3,2,$4,$7);}
+            CaseDefaultTermList '}' {$$ = TrLinkOpChildren ($<n>3,2,$4,$7);}
     | PARSEOP_SWITCH
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1295,11 +1295,11 @@ SwitchTerm
 
 ThermalZoneTerm
     : PARSEOP_THERMALZONE
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_THERMALZONE);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_THERMALZONE);}
         NameString
         PARSEOP_CLOSE_PAREN '{'
-            TermList '}'            {$$ = TrLinkChildren ($<n>3,2,
-                                        TrSetNodeFlags ($4, NODE_IS_NAME_DECLARATION),$7);}
+            TermList '}'            {$$ = TrLinkOpChildren ($<n>3,2,
+                                        TrSetOpFlags ($4, OP_IS_NAME_DECLARATION),$7);}
     | PARSEOP_THERMALZONE
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1307,10 +1307,10 @@ ThermalZoneTerm
 
 TimerTerm
     : PARSEOP_TIMER
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_TIMER);}
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,0);}
-    | PARSEOP_TIMER                 {$$ = TrLinkChildren (
-                                        TrCreateLeafNode (PARSEOP_TIMER),0);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_TIMER);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,0);}
+    | PARSEOP_TIMER                 {$$ = TrLinkOpChildren (
+                                        TrCreateLeafOp (PARSEOP_TIMER),0);}
     | PARSEOP_TIMER
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1318,10 +1318,10 @@ TimerTerm
 
 ToBCDTerm
     : PARSEOP_TOBCD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_TOBCD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_TOBCD);}
         TermArg
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_TOBCD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1329,10 +1329,10 @@ ToBCDTerm
 
 ToBufferTerm
     : PARSEOP_TOBUFFER
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_TOBUFFER);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_TOBUFFER);}
         TermArg
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_TOBUFFER
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1340,10 +1340,10 @@ ToBufferTerm
 
 ToDecimalStringTerm
     : PARSEOP_TODECIMALSTRING
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_TODECIMALSTRING);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_TODECIMALSTRING);}
         TermArg
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_TODECIMALSTRING
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1351,10 +1351,10 @@ ToDecimalStringTerm
 
 ToHexStringTerm
     : PARSEOP_TOHEXSTRING
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_TOHEXSTRING);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_TOHEXSTRING);}
         TermArg
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_TOHEXSTRING
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1362,10 +1362,10 @@ ToHexStringTerm
 
 ToIntegerTerm
     : PARSEOP_TOINTEGER
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_TOINTEGER);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_TOINTEGER);}
         TermArg
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_TOINTEGER
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1373,9 +1373,9 @@ ToIntegerTerm
 
 ToPLDTerm
     : PARSEOP_TOPLD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_TOPLD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_TOPLD);}
         PldKeywordList
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,$4);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,$4);}
     | PARSEOP_TOPLD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1384,26 +1384,26 @@ ToPLDTerm
 PldKeywordList
     :                               {$$ = NULL;}
     | PldKeyword
-        PARSEOP_EXP_EQUALS Integer  {$$ = TrLinkChildren ($1,1,$3);}
+        PARSEOP_EXP_EQUALS Integer  {$$ = TrLinkOpChildren ($1,1,$3);}
     | PldKeyword
-        PARSEOP_EXP_EQUALS String   {$$ = TrLinkChildren ($1,1,$3);}
+        PARSEOP_EXP_EQUALS String   {$$ = TrLinkOpChildren ($1,1,$3);}
     | PldKeywordList ','            /* Allows a trailing comma at list end */
     | PldKeywordList ','
         PldKeyword
-        PARSEOP_EXP_EQUALS Integer  {$$ = TrLinkPeerNode ($1,TrLinkChildren ($3,1,$5));}
+        PARSEOP_EXP_EQUALS Integer  {$$ = TrLinkPeerOp ($1,TrLinkOpChildren ($3,1,$5));}
     | PldKeywordList ','
         PldKeyword
-        PARSEOP_EXP_EQUALS String   {$$ = TrLinkPeerNode ($1,TrLinkChildren ($3,1,$5));}
+        PARSEOP_EXP_EQUALS String   {$$ = TrLinkPeerOp ($1,TrLinkOpChildren ($3,1,$5));}
     ;
 
 
 ToStringTerm
     : PARSEOP_TOSTRING
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_TOSTRING);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_TOSTRING);}
         TermArg
         OptionalCount
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,$6);}
     | PARSEOP_TOSTRING
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1413,7 +1413,7 @@ ToUUIDTerm
     : PARSEOP_TOUUID
         PARSEOP_OPEN_PAREN
         StringData
-        PARSEOP_CLOSE_PAREN         {$$ = TrUpdateNode (PARSEOP_TOUUID, $3);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrSetOpIntegerValue (PARSEOP_TOUUID, $3);}
     | PARSEOP_TOUUID
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1421,9 +1421,9 @@ ToUUIDTerm
 
 UnicodeTerm
     : PARSEOP_UNICODE
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_UNICODE);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_UNICODE);}
         StringData
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,0,$4);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,0,$4);}
     | PARSEOP_UNICODE
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1431,9 +1431,9 @@ UnicodeTerm
 
 UnloadTerm
     : PARSEOP_UNLOAD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_UNLOAD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_UNLOAD);}
         SuperName
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,1,$4);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,1,$4);}
     | PARSEOP_UNLOAD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1441,10 +1441,10 @@ UnloadTerm
 
 WaitTerm
     : PARSEOP_WAIT
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_WAIT);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_WAIT);}
         SuperName
         TermArgItem
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_WAIT
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1452,11 +1452,11 @@ WaitTerm
 
 XOrTerm
     : PARSEOP_XOR
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_XOR);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_XOR);}
         TermArg
         TermArgItem
         Target
-        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,3,$4,$5,$6);}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$5,$6);}
     | PARSEOP_XOR
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -1464,10 +1464,10 @@ XOrTerm
 
 WhileTerm
     : PARSEOP_WHILE
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_WHILE);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_WHILE);}
         TermArg
         PARSEOP_CLOSE_PAREN
-            '{' TermList '}'        {$$ = TrLinkChildren ($<n>3,2,$4,$7);}
+            '{' TermList '}'        {$$ = TrLinkOpChildren ($<n>3,2,$4,$7);}
     | PARSEOP_WHILE
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}

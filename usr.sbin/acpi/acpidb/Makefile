@@ -18,8 +18,9 @@ SRCS+=	dmbuffer.c dmcstyle.c dmdeferred.c dmnames.c dmopcode.c	\
 
 # components/dispatcher
 SRCS+=	dsargs.c dscontrol.c dsdebug.c dsfield.c dsinit.c	\
-	dsmethod.c dsmthdat.c dsobject.c dsopcode.c dsutils.c	\
-	dswexec.c dswload.c dswload2.c dswscope.c dswstate.c
+	dsmethod.c dsmthdat.c dsobject.c dsopcode.c dspkginit.c	\
+	dsutils.c dswexec.c dswload.c dswload2.c dswscope.c	\
+	dswstate.c
 
 # components/events
 SRCS+=	evevent.c evglock.c evgpe.c evgpeblk.c evgpeinit.c	\
@@ -64,9 +65,9 @@ SRCS+=	utaddress.c utalloc.c utascii.c utbuffer.c utcache.c	\
 	utcopy.c utdebug.c utdecode.c utdelete.c uterror.c	\
 	uteval.c utexcep.c utglobal.c uthex.c utids.c utinit.c	\
 	utlock.c utmath.c utmisc.c utmutex.c utnonansi.c	\
-	utobject.c utosi.c utownerid.c utpredef.c utresrc.c	\
-	utstate.c utstring.c utstrtoul64.c uttrack.c utuuid.c	\
-	utxface.c utxferror.c utxfinit.c
+	utobject.c utosi.c utownerid.c utpredef.c utresdecode.c	\
+	utresrc.c utstate.c utstring.c utstrtoul64.c uttrack.c	\
+	utuuid.c utxface.c utxferror.c utxfinit.c
 
 # os_specific/service_layers
 SRCS+=	osgendbg.c osunixxf.c

@@ -180,7 +180,6 @@ Usage (
     ACPI_OPTION ("-@  <file>",      "Specify command file");
     ACPI_OPTION ("-I  <dir>",       "Specify additional include directory");
     ACPI_OPTION ("-p  <prefix>",    "Specify path/filename prefix for all output files");
-    ACPI_OPTION ("-ca <file>",      "convert a given ASL file to ASL+ (retains comments)");
     ACPI_OPTION ("-v",              "Display compiler version");
     ACPI_OPTION ("-vo",             "Enable optimization comments");
     ACPI_OPTION ("-vs",             "Disable signon");
@@ -205,10 +204,11 @@ Usage (
     ACPI_OPTION ("-vi",             "Less verbose errors and warnings for use with IDEs");
     ACPI_OPTION ("-vr",             "Disable remarks");
     ACPI_OPTION ("-vw <messageid>", "Disable specific warning or remark");
+    ACPI_OPTION ("-vx <messageid>", "Expect a specific warning, remark, or error");
     ACPI_OPTION ("-w <1|2|3>",      "Set warning reporting level");
     ACPI_OPTION ("-we",             "Report warnings as errors");
 
-    printf ("\nAML Code Generation (*.aml):\n");
+    printf ("\nAML Bytecode Generation (*.aml):\n");
     ACPI_OPTION ("-oa",             "Disable all optimizations (compatibility mode)");
     ACPI_OPTION ("-of",             "Disable constant folding");
     ACPI_OPTION ("-oi",             "Disable integer optimization to Zero/One/Ones");
@@ -225,19 +225,23 @@ Usage (
     ACPI_OPTION ("-ls",             "Create combined source file (expanded includes) (*.src)");
     ACPI_OPTION ("-lx",             "Create cross-reference file (*.xrf)");
 
-    printf ("\nFirmware Support - C Output:\n");
+    printf ("\nFirmware Support - C Text Output:\n");
     ACPI_OPTION ("-tc",             "Create hex AML table in C (*.hex)");
     ACPI_OPTION ("-sc",             "Create named hex AML arrays in C (*.c)");
     ACPI_OPTION ("-ic",             "Create include file in C for -sc symbols (*.h)");
     ACPI_OPTION ("-so",             "Create namespace AML offset table in C (*.offset.h)");
 
-    printf ("\nFirmware Support - Assembler Output:\n");
+    printf ("\nFirmware Support - Assembler Text Output:\n");
     ACPI_OPTION ("-ta",             "Create hex AML table in assembler (*.hex)");
     ACPI_OPTION ("-sa",             "Create named hex AML arrays in assembler (*.asm)");
     ACPI_OPTION ("-ia",             "Create include file in assembler for -sa symbols (*.inc)");
 
-    printf ("\nFirmware Support - ASL Output:\n");
+    printf ("\nFirmware Support - ASL Text Output:\n");
     ACPI_OPTION ("-ts",             "Create hex AML table in ASL (Buffer object) (*.hex)");
+
+    printf ("\nLegacy-ASL to ASL+ Converter:\n");
+    ACPI_OPTION ("-ca <file>",      "Convert legacy-ASL source file to new ASL+ file");
+    ACPI_OPTION ("",                "  (Original comments are passed through to ASL+ file)");
 
     printf ("\nData Table Compiler:\n");
     ACPI_OPTION ("-G",              "Compile custom table that contains generic operators");
