@@ -1313,6 +1313,8 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	cap_rights_t rights;
 	char *buf;
 	int error;
+	struct mount *mp;
+	struct nfsmount *nmp;
 
 	if (uap->flag & NFSSVC_CBADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
@@ -1367,6 +1369,56 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 			    dumpmntopts.ndmnt_blen);
 			free(buf, M_TEMP);
 		}
+	} else if (uap->flag & NFSSVC_FORCEDISM) {
+		buf = malloc(MNAMELEN + 1, M_TEMP, M_WAITOK);
+		error = copyinstr(uap->argp, buf, MNAMELEN + 1, NULL);
+		if (error == 0) {
+			nmp = NULL;
+			mtx_lock(&mountlist_mtx);
+			TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+				if (strcmp(mp->mnt_stat.f_mntonname, buf) ==
+				    0 && strcmp(mp->mnt_stat.f_fstypename,
+				    "nfs") == 0 && mp->mnt_data != NULL) {
+					nmp = VFSTONFS(mp);
+					mtx_lock(&nmp->nm_mtx);
+					if ((nmp->nm_privflag &
+					    NFSMNTP_FORCEDISM) == 0) {
+						nmp->nm_privflag |= 
+						   (NFSMNTP_FORCEDISM |
+						    NFSMNTP_CANCELRPCS);
+						mtx_unlock(&nmp->nm_mtx);
+					} else {
+						nmp = NULL;
+						mtx_unlock(&nmp->nm_mtx);
+					}
+					break;
+				}
+			}
+			mtx_unlock(&mountlist_mtx);
+
+			if (nmp != NULL) {
+				/*
+				 * Call newnfs_nmcancelreqs() to cause
+				 * any RPCs in progress on the mount point to
+				 * fail.
+				 * This will cause any process waiting for an
+				 * RPC to complete while holding a vnode lock
+				 * on the mounted-on vnode (such as "df" or
+				 * a non-forced "umount") to fail.
+				 * This will unlock the mounted-on vnode so
+				 * a forced dismount can succeed.
+				 * Then clear NFSMNTP_CANCELRPCS and wakeup(),
+				 * so that nfs_unmount() can complete.
+				 */
+				newnfs_nmcancelreqs(nmp);
+				mtx_lock(&nmp->nm_mtx);
+				nmp->nm_privflag &= ~NFSMNTP_CANCELRPCS;
+				wakeup(nmp);
+				mtx_unlock(&nmp->nm_mtx);
+			} else
+				error = EINVAL;
+		}
+		free(buf, M_TEMP);
 	} else {
 		error = EINVAL;
 	}
