@@ -76,6 +76,13 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/stdarg.h>
 
+#if defined(__amd64__) || defined(__i386__)
+#include <machine/vmparam.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#endif
+
 #include <dev/kbd/kbdreg.h>
 #include <dev/fb/fbreg.h>
 #include <dev/fb/splashreg.h>
@@ -137,8 +144,6 @@ static	int		sc_no_suspend_vtswitch = 0;
 static	int		sc_susp_scr;
 
 static SYSCTL_NODE(_hw, OID_AUTO, syscons, CTLFLAG_RD, 0, "syscons");
-SYSCTL_OPAQUE(_hw_syscons, OID_AUTO, kattr, CTLFLAG_RW,
-    &sc_kattrtab, sizeof(sc_kattrtab), "CU", "kernel console attributes");
 static SYSCTL_NODE(_hw_syscons, OID_AUTO, saver, CTLFLAG_RD, 0, "saver");
 SYSCTL_INT(_hw_syscons_saver, OID_AUTO, keybonly, CTLFLAG_RW,
     &sc_saver_keyb_only, 0, "screen saver interrupted by input only");
@@ -277,16 +282,17 @@ ec_putc(int c)
 	if (sc_console == NULL) {
 #if !defined(__amd64__) && !defined(__i386__)
 		return;
-#endif
+#else
 		/*
 		 * This is enough for ec_putc() to work very early on x86
 		 * if the kernel starts in normal color text mode.
 		 */
-		fb = 0xb8000;
+		fb = KERNBASE + 0xb8000;
 		xsize = 80;
 		ysize = 25;
+#endif
 	} else {
-		if (main_console.status & GRAPHICS_MODE)
+		if (!ISTEXTSC(&main_console))
 			return;
 		fb = main_console.sc->adp->va_window;
 		xsize = main_console.xsize;
@@ -4159,7 +4165,7 @@ static int
 sc_kattr(void)
 {
     if (sc_console == NULL)
-	return (SC_KERNEL_CONS_ATTR);
+	return (SC_KERNEL_CONS_ATTR);	/* for very early, before pcpu */
     return (sc_kattrtab[PCPU_GET(cpuid) % nitems(sc_kattrtab)]);
 }
 
