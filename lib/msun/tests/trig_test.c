@@ -158,11 +158,6 @@ ATF_TC_BODY(reduction, tc)
 	};
 #endif
 
-#if defined(__clang__) && \
-	((__clang_major__ >= 5))
-	atf_tc_expect_fail("test fails with clang 5.0+ - bug 220989");
-#endif
-
 	unsigned i;
 
 	for (i = 0; i < nitems(f_pi_odd); i++) {
