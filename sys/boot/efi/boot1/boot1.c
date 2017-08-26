@@ -47,8 +47,6 @@ static const boot_module_t *boot_modules[] =
 /* The initial number of handles used to query EFI for partitions. */
 #define NUM_HANDLES_INIT	24
 
-EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab);
-
 EFI_SYSTEM_TABLE *systab;
 EFI_BOOT_SERVICES *bs;
 static EFI_HANDLE *image;
