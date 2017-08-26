@@ -76,13 +76,15 @@ CFLAGS+=	-fPIC
 LDFLAGS+=	-Wl,-znocombreloc
 .endif
 
+LIBEFI=		${.OBJDIR}/../libefi/libefi.a
+
 #
 # Add libstand for the runtime functions used by the compiler - for example
 # __aeabi_* (arm) or __divdi3 (i386).
 # as well as required string and memory functions for all platforms.
 #
-DPADD+=		${LIBSTAND}
-LDADD+=		-lstand
+DPADD+=		${LIBEFI} ${LIBSTAND}
+LDADD+=		${LIBEFI} -lstand
 
 DPADD+=		${LDSCRIPT}
 

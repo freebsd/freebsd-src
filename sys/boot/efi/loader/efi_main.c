@@ -32,11 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <efilib.h>
 #include <stand.h>
 
-EFI_HANDLE		IH;
-EFI_SYSTEM_TABLE	*ST;
-EFI_BOOT_SERVICES	*BS;
-EFI_RUNTIME_SERVICES	*RS;
-
 static EFI_PHYSICAL_ADDRESS heap;
 static UINTN heapsize;
 

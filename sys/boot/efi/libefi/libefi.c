@@ -32,7 +32,10 @@ __FBSDID("$FreeBSD$");
 #include <efilib.h>
 #include <stand.h>
 
-extern EFI_SYSTEM_TABLE *ST;
+EFI_HANDLE		IH;
+EFI_SYSTEM_TABLE	*ST;
+EFI_BOOT_SERVICES	*BS;
+EFI_RUNTIME_SERVICES	*RS;
 
 void *
 efi_get_table(EFI_GUID *tbl)

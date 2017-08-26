@@ -47,11 +47,6 @@ static const boot_module_t *boot_modules[] =
 /* The initial number of handles used to query EFI for partitions. */
 #define NUM_HANDLES_INIT	24
 
-EFI_HANDLE		IH;
-EFI_SYSTEM_TABLE	*ST;
-EFI_BOOT_SERVICES	*BS;
-EFI_RUNTIME_SERVICES	*RS;
-
 static EFI_GUID BlockIoProtocolGUID = BLOCK_IO_PROTOCOL;
 static EFI_GUID DevicePathGUID = DEVICE_PATH_PROTOCOL;
 static EFI_GUID LoadedImageGUID = LOADED_IMAGE_PROTOCOL;
