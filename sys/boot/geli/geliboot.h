@@ -48,6 +48,8 @@
 
 extern void pwgets(char *buf, int n, int hide);
 
+struct dsk;
+
 void geli_init(void);
 int geli_taste(int read_func(void *vdev, void *priv, off_t off,
     void *buf, size_t bytes), struct dsk *dsk, daddr_t lastsector);
