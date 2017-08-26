@@ -66,9 +66,7 @@ arg_skipword(CHAR16 *argp)
 	return (argp);
 }
 
-void efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table);
-
-void
+EFI_STATUS
 efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 {
 	static EFI_GUID image_protocol = LOADED_IMAGE_PROTOCOL;
@@ -184,4 +182,5 @@ efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 
 	status = main(argc, argv);
 	exit(status);
+	return (status);
 }
