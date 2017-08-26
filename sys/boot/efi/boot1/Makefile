@@ -10,7 +10,6 @@ PROG=		boot1.sym
 INTERNALPROG=
 WARNS?=		6
 
-.if ${MK_ZFS} != "no"
 # Disable warnings that are currently incompatible with the zfs boot code
 CWARNFLAGS.zfs_module.c += -Wno-array-bounds
 CWARNFLAGS.zfs_module.c += -Wno-cast-align
@@ -24,7 +23,6 @@ CWARNFLAGS.skein.c += -Wno-cast-align
 CWARNFLAGS.skein.c += -Wno-missing-variable-declarations
 .else if ${COMPILER_TYPE} == "gcc"
 CWARNFLAGS.skein.c += -Wno-missing-declarations
-.endif
 .endif
 
 # architecture-specific loader code
