@@ -650,10 +650,21 @@ parse_cursor_params(char *param, struct cshape *shape)
 			shape->shape[1] = strtol(word + 5, NULL, 0);
 		else if (strncmp(word, "height=", 7) == 0)
 			shape->shape[2] = strtol(word + 7, NULL, 0);
+		else if (strcmp(word, "charcolors") == 0)
+			type |= CONS_CHARCURSOR_COLORS;
+		else if (strcmp(word, "mousecolors") == 0)
+			type |= CONS_MOUSECURSOR_COLORS;
+		else if (strcmp(word, "default") == 0)
+			type |= CONS_DEFAULT_CURSOR;
+		else if (strcmp(word, "shapeonly") == 0)
+			type |= CONS_SHAPEONLY_CURSOR;
 		else if (strcmp(word, "local") == 0)
 			type |= CONS_LOCAL_CURSOR;
 		else if (strcmp(word, "reset") == 0)
 			type |= CONS_RESET_CURSOR;
+		else if (strcmp(word, "show") == 0)
+			printf("flags %#x, base %d, height %d\n",
+			    type, shape->shape[1], shape->shape[2]);
 		else {
 			revert();
 			errx(1,
@@ -676,11 +687,13 @@ set_cursor_type(char *param)
 {
 	struct cshape shape;
 
-	/* Determine if the new setting is local (default to non-local). */
+	/* Dry run to determine color, default and local flags. */
 	shape.shape[0] = 0;
+	shape.shape[1] = -1;
+	shape.shape[2] = -1;
 	parse_cursor_params(param, &shape);
 
-	/* Get the relevant shape (the local flag is the only input arg). */
+	/* Get the relevant old setting. */
 	if (ioctl(0, CONS_GETCURSORSHAPE, &shape) != 0) {
 		revert();
 		err(1, "ioctl(CONS_GETCURSORSHAPE)");

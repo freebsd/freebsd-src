@@ -41,15 +41,13 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <bootstrap.h>
 
-extern void get_pos(int *x, int *y);
-extern void curs_move(int *_x, int *_y, int x, int y);
-extern void vidc_biosputchar(int c);
-
 static void	spinc_probe(struct console *cp);
 static int	spinc_init(int arg);
 static void	spinc_putchar(int c);
 static int	spinc_getchar(void);
 static int	spinc_ischar(void);
+
+extern struct console *consoles[];
 
 struct console spinconsole = {
 	"spinconsole",
@@ -62,47 +60,53 @@ struct console spinconsole = {
 	spinc_ischar
 };
 
+static struct console *parent = NULL;
+
 static void
 spinc_probe(struct console *cp)
 {
-	cp->c_flags |= (C_PRESENTIN | C_PRESENTOUT);
+
+	if (parent == NULL)
+		parent = consoles[0];
+	parent->c_probe(cp);
 }
 
 static int
 spinc_init(int arg)
 {
-	return(0);
+
+	return(parent->c_init(arg));
 }
 
 static void
 spinc_putchar(int c)
 {
-	static int curx, cury;
 	static unsigned tw_chars = 0x5C2D2F7C;    /* "\-/|" */
-	static time_t lasttime;
+	static time_t lasttime = 0;
 	time_t now;
 
-	now = time(NULL);
+	now = time(0);
 	if (now < (lasttime + 1))
 		return;
-	lasttime = now;
 #ifdef TERM_EMU
-	get_pos(&curx, &cury);
-	if (curx > 0)
-		curs_move(&curx, &cury, curx - 1, cury);
+	if (lasttime > 0)
+		parent->c_out('\b');
 #endif
-	vidc_biosputchar((char)tw_chars);
+	lasttime = now;
+	parent->c_out((char)tw_chars);
 	tw_chars = (tw_chars >> 8) | ((tw_chars & (unsigned long)0xFF) << 24);
 }
 
 static int
 spinc_getchar(void)
 {
+
 	return(-1);
 }
 
 static int
 spinc_ischar(void)
 {
+
 	return(0);
 }

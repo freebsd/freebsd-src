@@ -13937,9 +13937,9 @@ softdep_count_dependencies(bp, wantcount)
 	 */
 retry:
 	if (vp->v_type == VCHR) {
-		VOP_LOCK(vp, LK_RETRY | LK_EXCLUSIVE);
+		VI_LOCK(vp);
 		mp = vp->v_type == VCHR ? vp->v_rdev->si_mountpt : NULL;
-		VOP_UNLOCK(vp, 0);
+		VI_UNLOCK(vp);
 		if (mp == NULL)
 			goto retry;
 	} else if (vp->v_type == VREG) {
