@@ -46,12 +46,11 @@
 #define	GELI_MAX_KEYS			64
 #define GELI_PW_MAXLEN			256
 
-extern void pwgets(char *buf, int n);
+extern void pwgets(char *buf, int n, int hide);
 
 void geli_init(void);
 int geli_taste(int read_func(void *vdev, void *priv, off_t off,
     void *buf, size_t bytes), struct dsk *dsk, daddr_t lastsector);
-int geli_attach(struct dsk *dskp, const char *passphrase, const u_char *mkeyp);
 int is_geli(struct dsk *dsk);
 int geli_read(struct dsk *dsk, off_t offset, u_char *buf, size_t bytes);
 int geli_decrypt(u_int algo, u_char *data, size_t datasize,
