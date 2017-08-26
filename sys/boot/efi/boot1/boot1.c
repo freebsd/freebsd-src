@@ -88,7 +88,7 @@ Free(void *buf, const char *file __unused, int line __unused)
 static BOOLEAN
 nodes_match(EFI_DEVICE_PATH *imgpath, EFI_DEVICE_PATH *devpath)
 {
-	int len;
+	size_t len;
 
 	if (imgpath == NULL || imgpath->Type != devpath->Type ||
 	    imgpath->SubType != devpath->SubType)
