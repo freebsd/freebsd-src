@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/systm.h>
-#include <sys/un.h>
 
 #include <net/vnet.h>
 
@@ -49,69 +48,12 @@ __FBSDID("$FreeBSD$");
 #include <compat/cloudabi/cloudabi_proto.h>
 #include <compat/cloudabi/cloudabi_util.h>
 
-/* Copies a pathname into a UNIX socket address structure. */
-static int
-copyin_sockaddr_un(const char *path, size_t pathlen, struct sockaddr_un *sun)
-{
-	int error;
-
-	/* Copy in pathname string if there's enough space. */
-	if (pathlen >= sizeof(sun->sun_path))
-		return (ENAMETOOLONG);
-	error = copyin(path, &sun->sun_path, pathlen);
-	if (error != 0)
-		return (error);
-	if (memchr(sun->sun_path, '\0', pathlen) != NULL)
-		return (EINVAL);
-
-	/* Initialize the rest of the socket address. */
-	sun->sun_path[pathlen] = '\0';
-	sun->sun_family = AF_UNIX;
-	sun->sun_len = sizeof(*sun);
-	return (0);
-}
-
 int
 cloudabi_sys_sock_accept(struct thread *td,
     struct cloudabi_sys_sock_accept_args *uap)
 {
 
 	return (kern_accept(td, uap->sock, NULL, NULL, NULL));
-}
-
-int
-cloudabi_sys_sock_bind(struct thread *td,
-    struct cloudabi_sys_sock_bind_args *uap)
-{
-	struct sockaddr_un sun;
-	int error;
-
-	error = copyin_sockaddr_un(uap->path, uap->path_len, &sun);
-	if (error != 0)
-		return (error);
-	return (kern_bindat(td, uap->fd, uap->sock, (struct sockaddr *)&sun));
-}
-
-int
-cloudabi_sys_sock_connect(struct thread *td,
-    struct cloudabi_sys_sock_connect_args *uap)
-{
-	struct sockaddr_un sun;
-	int error;
-
-	error = copyin_sockaddr_un(uap->path, uap->path_len, &sun);
-	if (error != 0)
-		return (error);
-	return (kern_connectat(td, uap->fd, uap->sock,
-	    (struct sockaddr *)&sun));
-}
-
-int
-cloudabi_sys_sock_listen(struct thread *td,
-    struct cloudabi_sys_sock_listen_args *uap)
-{
-
-	return (kern_listen(td, uap->sock, uap->backlog));
 }
 
 int
@@ -174,10 +116,7 @@ cloudabi_sock_recv(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
     cloudabi_riflags_t flags, size_t *rdatalen, size_t *rfdslen,
     cloudabi_roflags_t *rflags)
 {
-	struct sockaddr_storage ss;
 	struct msghdr hdr = {
-		.msg_name = &ss,
-		.msg_namelen = sizeof(ss),
 		.msg_iov = data,
 		.msg_iovlen = datalen,
 	};

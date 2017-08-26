@@ -76,6 +76,13 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/stdarg.h>
 
+#if defined(__amd64__) || defined(__i386__)
+#include <machine/vmparam.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#endif
+
 #include <dev/kbd/kbdreg.h>
 #include <dev/fb/fbreg.h>
 #include <dev/fb/splashreg.h>
@@ -137,8 +144,6 @@ static	int		sc_no_suspend_vtswitch = 0;
 static	int		sc_susp_scr;
 
 static SYSCTL_NODE(_hw, OID_AUTO, syscons, CTLFLAG_RD, 0, "syscons");
-SYSCTL_OPAQUE(_hw_syscons, OID_AUTO, kattr, CTLFLAG_RW,
-    &sc_kattrtab, sizeof(sc_kattrtab), "CU", "kernel console attributes");
 static SYSCTL_NODE(_hw_syscons, OID_AUTO, saver, CTLFLAG_RD, 0, "saver");
 SYSCTL_INT(_hw_syscons_saver, OID_AUTO, keybonly, CTLFLAG_RW,
     &sc_saver_keyb_only, 0, "screen saver interrupted by input only");
@@ -277,16 +282,17 @@ ec_putc(int c)
 	if (sc_console == NULL) {
 #if !defined(__amd64__) && !defined(__i386__)
 		return;
-#endif
+#else
 		/*
 		 * This is enough for ec_putc() to work very early on x86
 		 * if the kernel starts in normal color text mode.
 		 */
-		fb = 0xb8000;
+		fb = KERNBASE + 0xb8000;
 		xsize = 80;
 		ysize = 25;
+#endif
 	} else {
-		if (main_console.status & GRAPHICS_MODE)
+		if (!ISTEXTSC(&main_console))
 			return;
 		fb = main_console.sc->adp->va_window;
 		xsize = main_console.xsize;
@@ -959,8 +965,16 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	    cap = &scp->dflt_curs_attr;
 	    break;
 	}
-	((int *)data)[1] = cap->base;
-	((int *)data)[2] = cap->height;
+	if (((int *)data)[0] & CONS_CHARCURSOR_COLORS) {
+	    ((int *)data)[1] = cap->bg[0];
+	    ((int *)data)[2] = cap->bg[1];
+	} else if (((int *)data)[0] & CONS_MOUSECURSOR_COLORS) {
+	    ((int *)data)[1] = cap->mouse_ba;
+	    ((int *)data)[2] = cap->mouse_ia;
+	} else {
+	    ((int *)data)[1] = cap->base;
+	    ((int *)data)[2] = cap->height;
+	}
 	((int *)data)[0] = cap->flags;
 	return 0;
 
@@ -3025,8 +3039,12 @@ sc_set_cursor_image(scr_stat *scp)
 static void
 sc_adjust_ca(struct cursor_attr *cap, int flags, int base, int height)
 {
-    if (0) {
-	/* Dummy clause to avoid changing indentation later. */
+    if (flags & CONS_CHARCURSOR_COLORS) {
+	cap->bg[0] = base & 0xff;
+	cap->bg[1] = height & 0xff;
+    } else if (flags & CONS_MOUSECURSOR_COLORS) {
+	cap->mouse_ba = base & 0xff;
+	cap->mouse_ia = height & 0xff;
     } else {
 	if (base >= 0)
 	    cap->base = base;
@@ -3243,8 +3261,14 @@ scinit(int unit, int flags)
 	sc->dflt_curs_attr.base = 0;
 	sc->dflt_curs_attr.height = howmany(scp->font_size, 8);
 	sc->dflt_curs_attr.flags = 0;
+	sc->dflt_curs_attr.bg[0] = FG_RED;
+	sc->dflt_curs_attr.bg[1] = FG_LIGHTGREY;
+	sc->dflt_curs_attr.bg[2] = FG_BLUE;
+	sc->dflt_curs_attr.mouse_ba = FG_WHITE;
+	sc->dflt_curs_attr.mouse_ia = FG_RED;
 	sc->curs_attr = sc->dflt_curs_attr;
 	scp->base_curs_attr = scp->dflt_curs_attr = sc->curs_attr;
+	scp->curs_attr = scp->base_curs_attr;
 
 #ifndef SC_NO_SYSMOUSE
 	sc_mouse_move(scp, scp->xpixel/2, scp->ypixel/2);
@@ -4141,7 +4165,7 @@ static int
 sc_kattr(void)
 {
     if (sc_console == NULL)
-	return (SC_KERNEL_CONS_ATTR);
+	return (SC_KERNEL_CONS_ATTR);	/* for very early, before pcpu */
     return (sc_kattrtab[PCPU_GET(cpuid) % nitems(sc_kattrtab)]);
 }
 
