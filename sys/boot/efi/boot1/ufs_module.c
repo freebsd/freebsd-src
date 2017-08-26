@@ -101,8 +101,13 @@ load(const char *filepath, dev_info_t *dev, void **bufp, size_t *bufsize)
 	ssize_t read;
 	void *buf;
 
-	DPRINTF("Loading '%s' from %s\n", filepath, devpath_str(dev->devpath));
-
+#ifdef EFI_DEBUG
+	{
+		CHAR16 *text = efi_devpath_name(dev->devpath);
+		DPRINTF("Loading '%s' from %S\n", filepath, text);
+		efi_free_devpath_name(text);
+	}
+#endif
 	if (init_dev(dev) < 0) {
 		DPRINTF("Failed to init device\n");
 		return (EFI_UNSUPPORTED);

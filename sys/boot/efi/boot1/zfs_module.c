@@ -150,9 +150,14 @@ load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 
 	spa = devinfo->devdata;
 
-	DPRINTF("load: '%s' spa: '%s', devpath: %s\n", filepath, spa->spa_name,
-	    devpath_str(devinfo->devpath));
-
+#ifdef EFI_DEBUG
+	{
+		CHAR16 *text = efi_devpath_name(devinfo->devpath);
+		DPRINTF("load: '%s' spa: '%s', devpath: %S\n", filepath,
+		    spa->spa_name, text);
+		efi_free_devpath_name(text);
+	}
+#endif
 	if ((err = zfs_spa_init(spa)) != 0) {
 		DPRINTF("Failed to load pool '%s' (%d)\n", spa->spa_name, err);
 		return (EFI_NOT_FOUND);

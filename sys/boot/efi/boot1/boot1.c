@@ -136,178 +136,6 @@ devpath_last(EFI_DEVICE_PATH *devpath)
 }
 
 /*
- * devpath_node_str is a basic output method for a devpath node which
- * only understands a subset of the available sub types.
- *
- * If we switch to UEFI 2.x then we should update it to use:
- * EFI_DEVICE_PATH_TO_TEXT_PROTOCOL.
- */
-static int
-devpath_node_str(char *buf, size_t size, EFI_DEVICE_PATH *devpath)
-{
-
-	switch (devpath->Type) {
-	case MESSAGING_DEVICE_PATH:
-		switch (devpath->SubType) {
-		case MSG_ATAPI_DP: {
-			ATAPI_DEVICE_PATH *atapi;
-
-			atapi = (ATAPI_DEVICE_PATH *)(void *)devpath;
-			return snprintf(buf, size, "ata(%s,%s,0x%x)",
-			    (atapi->PrimarySecondary == 1) ?  "Sec" : "Pri",
-			    (atapi->SlaveMaster == 1) ?  "Slave" : "Master",
-			    atapi->Lun);
-		}
-		case MSG_USB_DP: {
-			USB_DEVICE_PATH *usb;
-
-			usb = (USB_DEVICE_PATH *)devpath;
-			return snprintf(buf, size, "usb(0x%02x,0x%02x)",
-			    usb->ParentPortNumber, usb->InterfaceNumber);
-		}
-		case MSG_SCSI_DP: {
-			SCSI_DEVICE_PATH *scsi;
-
-			scsi = (SCSI_DEVICE_PATH *)(void *)devpath;
-			return snprintf(buf, size, "scsi(0x%02x,0x%02x)",
-			    scsi->Pun, scsi->Lun);
-		}
-		case MSG_SATA_DP: {
-			SATA_DEVICE_PATH *sata;
-
-			sata = (SATA_DEVICE_PATH *)(void *)devpath;
-			return snprintf(buf, size, "sata(0x%x,0x%x,0x%x)",
-			    sata->HBAPortNumber, sata->PortMultiplierPortNumber,
-			    sata->Lun);
-		}
-		default:
-			return snprintf(buf, size, "msg(0x%02x)",
-			    devpath->SubType);
-		}
-		break;
-	case HARDWARE_DEVICE_PATH:
-		switch (devpath->SubType) {
-		case HW_PCI_DP: {
-			PCI_DEVICE_PATH *pci;
-
-			pci = (PCI_DEVICE_PATH *)devpath;
-			return snprintf(buf, size, "pci(0x%02x,0x%02x)",
-			    pci->Device, pci->Function);
-		}
-		default:
-			return snprintf(buf, size, "hw(0x%02x)",
-			    devpath->SubType);
-		}
-		break;
-	case ACPI_DEVICE_PATH: {
-		ACPI_HID_DEVICE_PATH *acpi;
-
-		acpi = (ACPI_HID_DEVICE_PATH *)(void *)devpath;
-		if ((acpi->HID & PNP_EISA_ID_MASK) == PNP_EISA_ID_CONST) {
-			switch (EISA_ID_TO_NUM(acpi->HID)) {
-			case 0x0a03:
-				return snprintf(buf, size, "pciroot(0x%x)",
-				    acpi->UID);
-			case 0x0a08:
-				return snprintf(buf, size, "pcieroot(0x%x)",
-				    acpi->UID);
-			case 0x0604:
-				return snprintf(buf, size, "floppy(0x%x)",
-				    acpi->UID);
-			case 0x0301:
-				return snprintf(buf, size, "keyboard(0x%x)",
-				    acpi->UID);
-			case 0x0501:
-				return snprintf(buf, size, "serial(0x%x)",
-				    acpi->UID);
-			case 0x0401:
-				return snprintf(buf, size, "parallelport(0x%x)",
-				    acpi->UID);
-			default:
-				return snprintf(buf, size, "acpi(pnp%04x,0x%x)",
-				    EISA_ID_TO_NUM(acpi->HID), acpi->UID);
-			}
-		}
-
-		return snprintf(buf, size, "acpi(0x%08x,0x%x)", acpi->HID,
-		    acpi->UID);
-	}
-	case MEDIA_DEVICE_PATH:
-		switch (devpath->SubType) {
-		case MEDIA_CDROM_DP: {
-			CDROM_DEVICE_PATH *cdrom;
-
-			cdrom = (CDROM_DEVICE_PATH *)(void *)devpath;
-			return snprintf(buf, size, "cdrom(%x)",
-			    cdrom->BootEntry);
-		}
-		case MEDIA_HARDDRIVE_DP: {
-			HARDDRIVE_DEVICE_PATH *hd;
-
-			hd = (HARDDRIVE_DEVICE_PATH *)(void *)devpath;
-			return snprintf(buf, size, "hd(%x)",
-			    hd->PartitionNumber);
-		}
-		default:
-			return snprintf(buf, size, "media(0x%02x)",
-			    devpath->SubType);
-		}
-	case BBS_DEVICE_PATH:
-		return snprintf(buf, size, "bbs(0x%02x)", devpath->SubType);
-	case END_DEVICE_PATH_TYPE:
-		return (0);
-	}
-
-	return snprintf(buf, size, "type(0x%02x, 0x%02x)", devpath->Type,
-	    devpath->SubType);
-}
-
-/*
- * devpath_strlcat appends a text description of devpath to buf but not more
- * than size - 1 characters followed by NUL-terminator.
- */
-int
-devpath_strlcat(char *buf, size_t size, EFI_DEVICE_PATH *devpath)
-{
-	size_t len, used;
-	const char *sep;
-
-	sep = "";
-	used = 0;
-	while (!IsDevicePathEnd(devpath)) {
-		len = snprintf(buf, size - used, "%s", sep);
-		used += len;
-		if (used > size)
-			return (used);
-		buf += len;
-
-		len = devpath_node_str(buf, size - used, devpath);
-		used += len;
-		if (used > size)
-			return (used);
-		buf += len;
-		devpath = NextDevicePathNode(devpath);
-		sep = ":";
-	}
-
-	return (used);
-}
-
-/*
- * devpath_str is convenience method which returns the text description of
- * devpath using a static buffer, so it isn't thread safe!
- */
-char *
-devpath_str(EFI_DEVICE_PATH *devpath)
-{
-	static char buf[256];
-
-	devpath_strlcat(buf, sizeof(buf), devpath);
-
-	return buf;
-}
-
-/*
  * load_loader attempts to load the loader image data.
  *
  * It tries each module and its respective devices, identified by mod->probe,
@@ -470,9 +298,13 @@ probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath, BOOLEAN *preferred)
 		    EFI_ERROR_CODE(status));
 		return (status);
 	}
-
-	DPRINTF("probing: %s\n", devpath_str(devpath));
-
+#ifdef EFI_DEBUG
+	{
+		CHAR16 *text = efi_devpath_name(devpath);
+		DPRINTF("probing: %S\n", text);
+		efi_free_devpath_name(text);
+	}
+#endif
 	status = BS->HandleProtocol(h, &BlockIoProtocolGUID, (void **)&blkio);
 	if (status == EFI_UNSUPPORTED)
 		return (status);
@@ -646,7 +478,13 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 		if (status != EFI_SUCCESS)
 			DPRINTF("Failed to get image DevicePath (%lu)\n",
 			    EFI_ERROR_CODE(status));
-		DPRINTF("boot1 imagepath: %s\n", devpath_str(imgpath));
+#ifdef EFI_DEBUG
+		{
+			CHAR16 *text = efi_devpath_name(imgpath);
+			DPRINTF("boot1 imagepath: %S\n", text);
+			efi_free_devpath_name(text);
+		}
+#endif
 	}
 
 	for (i = 0; i < nhandles; i++)
