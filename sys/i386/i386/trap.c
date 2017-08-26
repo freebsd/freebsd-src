@@ -107,8 +107,8 @@ PMC_SOFT_DEFINE( , , page_fault, write);
 #include <sys/dtrace_bsd.h>
 #endif
 
-extern void trap(struct trapframe *frame);
-extern void syscall(struct trapframe *frame);
+void trap(struct trapframe *frame);
+void syscall(struct trapframe *frame);
 
 static int trap_pfault(struct trapframe *, int, vm_offset_t);
 static void trap_fatal(struct trapframe *, vm_offset_t);
