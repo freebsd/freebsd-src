@@ -92,12 +92,13 @@
  * does not have dedicated bit counting instructions.
  */
 #if defined(__FreeBSD__) && (defined(__sparc64__) || \
-    defined(__mips_n64) || defined(__mips_o64) || defined(__riscv))
+    defined(__mips_n32) || defined(__mips_n64) || defined(__mips_o64) || \
+    defined(__riscv))
 si_int __clzsi2(si_int);
 si_int __ctzsi2(si_int);
 #define	__builtin_clz __clzsi2
 #define	__builtin_ctz __ctzsi2
-#endif /* FreeBSD && (sparc64 || mips_n64 || mips_o64) */
+#endif /* FreeBSD && (sparc64 || mips_n32 || mips_n64 || mips_o64 || riscv) */
 
 COMPILER_RT_ABI si_int __paritysi2(si_int a);
 COMPILER_RT_ABI si_int __paritydi2(di_int a);
