@@ -798,7 +798,8 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 		if ((mpr_config_get_sas_device_pg0(sc, &tmp_mpi_reply,
 		     &parent_config_page, MPI2_SAS_DEVICE_PGAD_FORM_HANDLE,
 		     le16toh(config_page.ParentDevHandle)))) {
-			printf("%s: error reading SAS device %#x page0\n",
+			mpr_dprint(sc, MPR_MAPPING|MPR_FAULT,
+			   "%s: error reading SAS device %#x page0\n",
 			    __func__, le16toh(config_page.ParentDevHandle));
 		} else {
 			parent_sas_address = parent_config_page.SASAddress.High;
@@ -810,8 +811,8 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 	/* TODO Check proper endianness */
 	sas_address = config_page.SASAddress.High;
 	sas_address = (sas_address << 32) | config_page.SASAddress.Low;
-	mpr_dprint(sc, MPR_INFO, "SAS Address from SAS device page0 = %jx\n",
-	    sas_address);
+	mpr_dprint(sc, MPR_MAPPING, "Handle 0x%04x SAS Address from SAS device "
+	    "page0 = %jx\n", handle, sas_address);
 
 	/*
 	 * Always get SATA Identify information because this is used to
@@ -822,12 +823,13 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 		ret = mprsas_get_sas_address_for_sata_disk(sc, &sas_address,
 		    handle, device_info, &is_SATA_SSD);
 		if (ret) {
-			mpr_dprint(sc, MPR_ERROR, "%s: failed to get disk type "
-			    "(SSD or HDD) for SATA device with handle 0x%04x\n",
+			mpr_dprint(sc, MPR_MAPPING|MPR_ERROR,
+			    "%s: failed to get disk type (SSD or HDD) for SATA "
+			    "device with handle 0x%04x\n",
 			    __func__, handle);
 		} else {
-			mpr_dprint(sc, MPR_INFO, "SAS Address from SATA "
-			    "device = %jx\n", sas_address);
+			mpr_dprint(sc, MPR_MAPPING, "Handle 0x%04x SAS Address "
+			    "from SATA device = %jx\n", handle, sas_address);
 		}
 	}
 
@@ -870,8 +872,8 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 	targ = &sassc->targets[id];
 	if (!(targ->flags & MPR_TARGET_FLAGS_RAID_COMPONENT)) {
 		if (mprsas_check_id(sassc, id) != 0) {
-			device_printf(sc->mpr_dev, "Excluding target id %d\n",
-			    id);
+			mpr_dprint(sc, MPR_MAPPING|MPR_INFO,
+			    "Excluding target id %d\n", id);
 			error = ENXIO;
 			goto out;
 		}
@@ -884,8 +886,6 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 		}
 	}
 
-	mpr_dprint(sc, MPR_MAPPING, "SAS Address from SAS device page0 = %jx\n",
-	    sas_address);
 	targ->devinfo = device_info;
 	targ->devname = le32toh(config_page.DeviceName.High);
 	targ->devname = (targ->devname << 32) | 
@@ -1292,7 +1292,8 @@ mprsas_add_pcie_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 	    __func__, id);
 
 	if (mprsas_check_id(sassc, id) != 0) {
-		device_printf(sc->mpr_dev, "Excluding target id %d\n", id);
+		mpr_dprint(sc, MPR_MAPPING|MPR_INFO,
+		    "Excluding target id %d\n", id);
 		error = ENXIO;
 		goto out;
 	}
