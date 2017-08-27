@@ -115,7 +115,7 @@ static char mpt2_reset_magic[] = { 0x00, 0x0f, 0x04, 0x0b, 0x02, 0x07, 0x0d };
 /* 
  * Added this union to smoothly convert le64toh cm->cm_desc.Words.
  * Compiler only supports uint64_t to be passed as an argument.
- * Otherwise it will through this error:
+ * Otherwise it will throw this error:
  * "aggregate value used where an integer was expected"
  */
 typedef union _reply_descriptor {
@@ -145,7 +145,7 @@ mpr_diag_reset(struct mpr_softc *sc,int sleep_flag)
 	int i, error, tries = 0;
 	uint8_t first_wait_done = FALSE;
 
-	mpr_dprint(sc, MPR_TRACE, "%s\n", __func__);
+	mpr_dprint(sc, MPR_INIT, "%s entered\n", __func__);
 
 	/* Clear any pending interrupts */
 	mpr_regwrite(sc, MPI2_HOST_INTERRUPT_STATUS_OFFSET, 0x0);
@@ -161,6 +161,7 @@ mpr_diag_reset(struct mpr_softc *sc,int sleep_flag)
 #endif //__FreeBSD_version >= 1000029
 		sleep_flag = NO_SLEEP;
 
+	mpr_dprint(sc, MPR_INIT, "sequence start, sleep_flag=%d\n", sleep_flag);
 	/* Push the magic sequence */
 	error = ETIMEDOUT;
 	while (tries++ < 20) {
@@ -183,12 +184,17 @@ mpr_diag_reset(struct mpr_softc *sc,int sleep_flag)
 			break;
 		}
 	}
-	if (error)
+	if (error) {
+		mpr_dprint(sc, MPR_INIT, "sequence failed, error=%d, exit\n",
+		    error);
 		return (error);
+	}
 
 	/* Send the actual reset.  XXX need to refresh the reg? */
-	mpr_regwrite(sc, MPI2_HOST_DIAGNOSTIC_OFFSET,
-	    reg | MPI2_DIAG_RESET_ADAPTER);
+	reg |= MPI2_DIAG_RESET_ADAPTER;
+	mpr_dprint(sc, MPR_INIT, "sequence success, sending reset, reg= 0x%x\n",
+	    reg);
+	mpr_regwrite(sc, MPI2_HOST_DIAGNOSTIC_OFFSET, reg);
 
 	/* Wait up to 300 seconds in 50ms intervals */
 	error = ETIMEDOUT;
@@ -224,10 +230,14 @@ mpr_diag_reset(struct mpr_softc *sc,int sleep_flag)
 			break;
 		}
 	}
-	if (error)
+	if (error) {
+		mpr_dprint(sc, MPR_INIT, "reset failed, error= %d, exit\n",
+		    error);
 		return (error);
+	}
 
 	mpr_regwrite(sc, MPI2_WRITE_SEQUENCE_OFFSET, 0x0);
+	mpr_dprint(sc, MPR_INIT, "diag reset success, exit\n");
 
 	return (0);
 }
@@ -235,20 +245,25 @@ mpr_diag_reset(struct mpr_softc *sc,int sleep_flag)
 static int
 mpr_message_unit_reset(struct mpr_softc *sc, int sleep_flag)
 {
+	int error;
 
 	MPR_FUNCTRACE(sc);
 
+	mpr_dprint(sc, MPR_INIT, "%s entered\n", __func__);
+
+	error = 0;
 	mpr_regwrite(sc, MPI2_DOORBELL_OFFSET,
 	    MPI2_FUNCTION_IOC_MESSAGE_UNIT_RESET <<
 	    MPI2_DOORBELL_FUNCTION_SHIFT);
 
 	if (mpr_wait_db_ack(sc, 5, sleep_flag) != 0) {
-		mpr_dprint(sc, MPR_FAULT, "Doorbell handshake failed : <%s>\n",
-				__func__);
-		return (ETIMEDOUT);
+		mpr_dprint(sc, MPR_INIT|MPR_FAULT,
+		    "Doorbell handshake failed\n");
+		error = ETIMEDOUT;
 	}
 
-	return (0);
+	mpr_dprint(sc, MPR_INIT, "%s exit\n", __func__);
+	return (error);
 }
 
 static int
@@ -264,15 +279,21 @@ mpr_transition_ready(struct mpr_softc *sc)
 	    ? CAN_SLEEP : NO_SLEEP;
 
 	error = 0;
+
+	mpr_dprint(sc, MPR_INIT, "%s entered, sleep_flags= %d\n",
+	    __func__, sleep_flags);
+
 	while (tries++ < 1200) {
 		reg = mpr_regread(sc, MPI2_DOORBELL_OFFSET);
-		mpr_dprint(sc, MPR_INIT, "Doorbell= 0x%x\n", reg);
+		mpr_dprint(sc, MPR_INIT, "  Doorbell= 0x%x\n", reg);
 
 		/*
 		 * Ensure the IOC is ready to talk.  If it's not, try
 		 * resetting it.
 		 */
 		if (reg & MPI2_DOORBELL_USED) {
+			mpr_dprint(sc, MPR_INIT, "  Not ready, sending diag "
+			    "reset\n");
 			mpr_diag_reset(sc, sleep_flags);
 			DELAY(50000);
 			continue;
@@ -281,9 +302,11 @@ mpr_transition_ready(struct mpr_softc *sc)
 		/* Is the adapter owned by another peer? */
 		if ((reg & MPI2_DOORBELL_WHO_INIT_MASK) ==
 		    (MPI2_WHOINIT_PCI_PEER << MPI2_DOORBELL_WHO_INIT_SHIFT)) {
-			device_printf(sc->mpr_dev, "IOC is under the control "
-			    "of another peer host, aborting initialization.\n");
-			return (ENXIO);
+			mpr_dprint(sc, MPR_INIT|MPR_FAULT, "IOC is under the "
+			    "control of another peer host, aborting "
+			    "initialization.\n");
+			error = ENXIO;
+			break;
 		}
 		
 		state = reg & MPI2_IOC_STATE_MASK;
@@ -292,7 +315,8 @@ mpr_transition_ready(struct mpr_softc *sc)
 			error = 0;
 			break;
 		} else if (state == MPI2_IOC_STATE_FAULT) {
-			mpr_dprint(sc, MPR_FAULT, "IOC in fault state 0x%x\n",
+			mpr_dprint(sc, MPR_INIT|MPR_FAULT, "IOC in fault "
+			    "state 0x%x, resetting\n",
 			    state & MPI2_DOORBELL_FAULT_CODE_MASK);
 			mpr_diag_reset(sc, sleep_flags);
 		} else if (state == MPI2_IOC_STATE_OPERATIONAL) {
@@ -300,10 +324,10 @@ mpr_transition_ready(struct mpr_softc *sc)
 			mpr_message_unit_reset(sc, sleep_flags);
 		} else if (state == MPI2_IOC_STATE_RESET) {
 			/* Wait a bit, IOC might be in transition */
-			mpr_dprint(sc, MPR_FAULT,
+			mpr_dprint(sc, MPR_INIT|MPR_FAULT,
 			    "IOC in unexpected reset state\n");
 		} else {
-			mpr_dprint(sc, MPR_FAULT,
+			mpr_dprint(sc, MPR_INIT|MPR_FAULT,
 			    "IOC in unknown state 0x%x\n", state);
 			error = EINVAL;
 			break;
@@ -314,7 +338,9 @@ mpr_transition_ready(struct mpr_softc *sc)
 	}
 
 	if (error)
-		device_printf(sc->mpr_dev, "Cannot transition IOC to ready\n");
+		mpr_dprint(sc, MPR_INIT|MPR_FAULT,
+		    "Cannot transition IOC to ready\n");
+	mpr_dprint(sc, MPR_INIT, "%s exit\n", __func__);
 	return (error);
 }
 
@@ -328,18 +354,21 @@ mpr_transition_operational(struct mpr_softc *sc)
 
 	error = 0;
 	reg = mpr_regread(sc, MPI2_DOORBELL_OFFSET);
-	mpr_dprint(sc, MPR_INIT, "Doorbell= 0x%x\n", reg);
+	mpr_dprint(sc, MPR_INIT, "%s entered, Doorbell= 0x%x\n", __func__, reg);
 
 	state = reg & MPI2_IOC_STATE_MASK;
 	if (state != MPI2_IOC_STATE_READY) {
+		mpr_dprint(sc, MPR_INIT, "IOC not ready\n");
 		if ((error = mpr_transition_ready(sc)) != 0) {
-			mpr_dprint(sc, MPR_FAULT, 
-			    "%s failed to transition ready\n", __func__);
+			mpr_dprint(sc, MPR_INIT|MPR_FAULT, 
+			    "failed to transition ready, exit\n");
 			return (error);
 		}
 	}
 
 	error = mpr_send_iocinit(sc);
+	mpr_dprint(sc, MPR_INIT, "%s exit\n", __func__);
+
 	return (error);
 }
 
@@ -358,7 +387,7 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 	Mpi2IOCFactsReply_t saved_facts;
 	uint8_t saved_mode, reallocating;
 
-	mpr_dprint(sc, MPR_TRACE, "%s\n", __func__);
+	mpr_dprint(sc, MPR_INIT|MPR_TRACE, "%s entered\n", __func__);
 
 	/* Save old IOC Facts and then only reallocate if Facts have changed */
 	if (!attaching) {
@@ -372,8 +401,8 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 	 */
 	if ((error = mpr_get_iocfacts(sc, sc->facts)) != 0) {
 		if (attaching) {
-			mpr_dprint(sc, MPR_FAULT, "%s failed to get IOC Facts "
-			    "with error %d\n", __func__, error);
+			mpr_dprint(sc, MPR_INIT|MPR_FAULT, "Failed to get "
+			    "IOC Facts with error %d, exit\n", error);
 			return (error);
 		} else {
 			panic("%s failed to get IOC Facts with error %d\n",
@@ -390,9 +419,10 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 	    sc->facts->FWVersion.Struct.Unit,
 	    sc->facts->FWVersion.Struct.Dev);
 
-	mpr_printf(sc, "Firmware: %s, Driver: %s\n", sc->fw_version,
+	mpr_dprint(sc, MPR_INFO, "Firmware: %s, Driver: %s\n", sc->fw_version,
 	    MPR_DRIVER_VERSION);
-	mpr_printf(sc, "IOCCapabilities: %b\n", sc->facts->IOCCapabilities,
+	mpr_dprint(sc, MPR_INFO,
+	    "IOCCapabilities: %b\n", sc->facts->IOCCapabilities,
 	    "\20" "\3ScsiTaskFull" "\4DiagTrace" "\5SnapBuf" "\6ExtBuf"
 	    "\7EEDP" "\10BiDirTarg" "\11Multicast" "\14TransRetry" "\15IR"
 	    "\16EventReplay" "\17RaidAccel" "\20MSIXIndex" "\21HostDisc"
@@ -405,16 +435,15 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 	 * but it doesn't hurt to do it again.  Only do this if attaching, not
 	 * for a Diag Reset.
 	 */
-	if (attaching) {
-		if ((sc->facts->IOCCapabilities &
-		    MPI2_IOCFACTS_CAPABILITY_EVENT_REPLAY) == 0) {
-			mpr_diag_reset(sc, NO_SLEEP);
-			if ((error = mpr_transition_ready(sc)) != 0) {
-				mpr_dprint(sc, MPR_FAULT, "%s failed to "
-				    "transition to ready with error %d\n",
-				    __func__, error);
-				return (error);
-			}
+	if (attaching && ((sc->facts->IOCCapabilities &
+	    MPI2_IOCFACTS_CAPABILITY_EVENT_REPLAY) == 0)) {
+		mpr_dprint(sc, MPR_INIT, "No event replay, resetting\n");
+		mpr_diag_reset(sc, NO_SLEEP);
+		if ((error = mpr_transition_ready(sc)) != 0) {
+			mpr_dprint(sc, MPR_INIT|MPR_FAULT, "Failed to "
+			    "transition to ready with error %d, exit\n",
+			    error);
+			return (error);
 		}
 	}
 
@@ -429,8 +458,8 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 		sc->ir_firmware = 1;
 	if (!attaching) {
 		if (sc->ir_firmware != saved_mode) {
-			mpr_dprint(sc, MPR_FAULT, "%s new IR/IT mode in IOC "
-			    "Facts does not match previous mode\n", __func__);
+			mpr_dprint(sc, MPR_INIT|MPR_FAULT, "new IR/IT mode "
+			    "in IOC Facts does not match previous mode\n");
 		}
 	}
 
@@ -540,8 +569,9 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 		    ((error = mpr_alloc_replies(sc)) != 0) ||
 		    ((error = mpr_alloc_requests(sc)) != 0)) {
 			if (attaching ) {
-				mpr_dprint(sc, MPR_FAULT, "%s failed to alloc "
-				    "queues with error %d\n", __func__, error);
+				mpr_dprint(sc, MPR_INIT|MPR_ERROR,
+				    "Failed to alloc queues with error %d\n",
+				    error);
 				mpr_free(sc);
 				return (error);
 			} else {
@@ -563,8 +593,8 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 	error = mpr_transition_operational(sc);
 	if (error != 0) {
 		if (attaching) {
-			mpr_printf(sc, "%s failed to transition to operational "
-			    "with error %d\n", __func__, error);
+			mpr_dprint(sc, MPR_INIT|MPR_FAULT, "Failed to "
+			    "transition to operational with error %d\n", error);
 			mpr_free(sc);
 			return (error);
 		} else {
@@ -592,18 +622,20 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 	 */
 	/* XXX Should be dynamic so that IM/IR and user modules can attach */
 	if (attaching) {
+		mpr_dprint(sc, MPR_INIT, "Attaching subsystems\n");
 		if (((error = mpr_attach_log(sc)) != 0) ||
 		    ((error = mpr_attach_sas(sc)) != 0) ||
 		    ((error = mpr_attach_user(sc)) != 0)) {
-			mpr_printf(sc, "%s failed to attach all subsystems: "
-			    "error %d\n", __func__, error);
+			mpr_dprint(sc, MPR_INIT|MPR_ERROR,
+			    "Failed to attach all subsystems: error %d\n", 
+			    error);
 			mpr_free(sc);
 			return (error);
 		}
 
 		if ((error = mpr_pci_setup_interrupts(sc)) != 0) {
-			mpr_printf(sc, "%s failed to setup interrupts\n",
-			    __func__);
+			mpr_dprint(sc, MPR_INIT|MPR_ERROR,
+			    "Failed to setup interrupts\n");
 			mpr_free(sc);
 			return (error);
 		}
@@ -706,14 +738,14 @@ mpr_reinit(struct mpr_softc *sc)
 
 	mtx_assert(&sc->mpr_mtx, MA_OWNED);
 
+	mpr_dprint(sc, MPR_INIT|MPR_INFO, "Reinitializing controller\n");
 	if (sc->mpr_flags & MPR_FLAGS_DIAGRESET) {
-		mpr_dprint(sc, MPR_INIT, "%s reset already in progress\n",
-		    __func__);
+		mpr_dprint(sc, MPR_INIT, "Reset already in progress\n");
 		return 0;
 	}
 
-	mpr_dprint(sc, MPR_INFO, "Reinitializing controller,\n");
-	/* make sure the completion callbacks can recognize they're getting
+	/*
+	 * Make sure the completion callbacks can recognize they're getting
 	 * a NULL cm_reply due to a reset.
 	 */
 	sc->mpr_flags |= MPR_FLAGS_DIAGRESET;
@@ -721,7 +753,7 @@ mpr_reinit(struct mpr_softc *sc)
 	/*
 	 * Mask interrupts here.
 	 */
-	mpr_dprint(sc, MPR_INIT, "%s mask interrupts\n", __func__);
+	mpr_dprint(sc, MPR_INIT, "Masking interrupts and resetting\n");
 	mpr_mask_intr(sc);
 
 	error = mpr_diag_reset(sc, CAN_SLEEP);
@@ -776,9 +808,10 @@ mpr_reinit(struct mpr_softc *sc)
 	mpr_reregister_events(sc);
 
 	/* the end of discovery will release the simq, so we're done. */
-	mpr_dprint(sc, MPR_INFO, "%s finished sc %p post %u free %u\n", 
-	    __func__, sc, sc->replypostindex, sc->replyfreeindex);
+	mpr_dprint(sc, MPR_INIT|MPR_XINFO, "Finished sc %p post %u free %u\n", 
+	    sc, sc->replypostindex, sc->replyfreeindex);
 	mprsas_release_simq_reinit(sassc);
+	mpr_dprint(sc, MPR_INIT, "%s exit error= %d\n", __func__, error);
 
 	return 0;
 }
@@ -800,7 +833,7 @@ mpr_wait_db_ack(struct mpr_softc *sc, int timeout, int sleep_flag)
 	do {
 		int_status = mpr_regread(sc, MPI2_HOST_INTERRUPT_STATUS_OFFSET);
 		if (!(int_status & MPI2_HIS_SYS2IOC_DB_STATUS)) {
-			mpr_dprint(sc, MPR_INIT, "%s: successful count(%d), "
+			mpr_dprint(sc, MPR_TRACE, "%s: successful count(%d), "
 			    "timeout(%d)\n", __func__, count, timeout);
 			return 0;
 		} else if (int_status & MPI2_HIS_IOC2SYS_DB_STATUS) {
@@ -1022,6 +1055,7 @@ mpr_get_iocfacts(struct mpr_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 	int error, req_sz, reply_sz;
 
 	MPR_FUNCTRACE(sc);
+	mpr_dprint(sc, MPR_INIT, "%s entered\n", __func__);
 
 	req_sz = sizeof(MPI2_IOC_FACTS_REQUEST);
 	reply_sz = sizeof(MPI2_IOC_FACTS_REPLY);
@@ -1031,6 +1065,7 @@ mpr_get_iocfacts(struct mpr_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 	request.Function = MPI2_FUNCTION_IOC_FACTS;
 	error = mpr_request_sync(sc, &request, reply, req_sz, reply_sz, 5);
 
+	mpr_dprint(sc, MPR_INIT, "%s exit, error= %d\n", __func__, error);
 	return (error);
 }
 
@@ -1044,6 +1079,7 @@ mpr_send_iocinit(struct mpr_softc *sc)
 	uint64_t time_in_msec;
 
 	MPR_FUNCTRACE(sc);
+	mpr_dprint(sc, MPR_INIT, "%s entered\n", __func__);
 
 	req_sz = sizeof(MPI2_IOC_INIT_REQUEST);
 	reply_sz = sizeof(MPI2_IOC_INIT_REPLY);
@@ -1083,6 +1119,7 @@ mpr_send_iocinit(struct mpr_softc *sc)
 		error = ENXIO;
 
 	mpr_dprint(sc, MPR_INIT, "IOCInit status= 0x%x\n", reply.IOCStatus);
+	mpr_dprint(sc, MPR_INIT, "%s exit\n", __func__);
 	return (error);
 }
 
@@ -1130,12 +1167,12 @@ mpr_alloc_queues(struct mpr_softc *sc)
                                 0,			/* flags */
                                 NULL, NULL,		/* lockfunc, lockarg */
                                 &sc->queues_dmat)) {
-		device_printf(sc->mpr_dev, "Cannot allocate queues DMA tag\n");
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate queues DMA tag\n");
 		return (ENOMEM);
         }
         if (bus_dmamem_alloc(sc->queues_dmat, (void **)&queues, BUS_DMA_NOWAIT,
 	    &sc->queues_map)) {
-		device_printf(sc->mpr_dev, "Cannot allocate queues memory\n");
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate queues memory\n");
 		return (ENOMEM);
         }
         bzero(queues, qsize);
@@ -1174,12 +1211,12 @@ mpr_alloc_replies(struct mpr_softc *sc)
                                 0,			/* flags */
                                 NULL, NULL,		/* lockfunc, lockarg */
                                 &sc->reply_dmat)) {
-		device_printf(sc->mpr_dev, "Cannot allocate replies DMA tag\n");
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate replies DMA tag\n");
 		return (ENOMEM);
         }
         if (bus_dmamem_alloc(sc->reply_dmat, (void **)&sc->reply_frames,
 	    BUS_DMA_NOWAIT, &sc->reply_map)) {
-		device_printf(sc->mpr_dev, "Cannot allocate replies memory\n");
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate replies memory\n");
 		return (ENOMEM);
         }
         bzero(sc->reply_frames, rsize);
@@ -1208,12 +1245,12 @@ mpr_alloc_requests(struct mpr_softc *sc)
                                 0,			/* flags */
                                 NULL, NULL,		/* lockfunc, lockarg */
                                 &sc->req_dmat)) {
-		device_printf(sc->mpr_dev, "Cannot allocate request DMA tag\n");
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate request DMA tag\n");
 		return (ENOMEM);
         }
         if (bus_dmamem_alloc(sc->req_dmat, (void **)&sc->req_frames,
 	    BUS_DMA_NOWAIT, &sc->req_map)) {
-		device_printf(sc->mpr_dev, "Cannot allocate request memory\n");
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate request memory\n");
 		return (ENOMEM);
         }
         bzero(sc->req_frames, rsize);
@@ -1253,12 +1290,12 @@ mpr_alloc_requests(struct mpr_softc *sc)
                                 0,			/* flags */
                                 NULL, NULL,		/* lockfunc, lockarg */
                                 &sc->chain_dmat)) {
-		device_printf(sc->mpr_dev, "Cannot allocate chain DMA tag\n");
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate chain DMA tag\n");
 		return (ENOMEM);
         }
         if (bus_dmamem_alloc(sc->chain_dmat, (void **)&sc->chain_frames,
 	    BUS_DMA_NOWAIT, &sc->chain_map)) {
-		device_printf(sc->mpr_dev, "Cannot allocate chain memory\n");
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate chain memory\n");
 		return (ENOMEM);
         }
         bzero(sc->chain_frames, rsize);
@@ -1277,12 +1314,12 @@ mpr_alloc_requests(struct mpr_softc *sc)
                                 0,			/* flags */
                                 NULL, NULL,		/* lockfunc, lockarg */
                                 &sc->sense_dmat)) {
-		device_printf(sc->mpr_dev, "Cannot allocate sense DMA tag\n");
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate sense DMA tag\n");
 		return (ENOMEM);
         }
         if (bus_dmamem_alloc(sc->sense_dmat, (void **)&sc->sense_frames,
 	    BUS_DMA_NOWAIT, &sc->sense_map)) {
-		device_printf(sc->mpr_dev, "Cannot allocate sense memory\n");
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate sense memory\n");
 		return (ENOMEM);
         }
         bzero(sc->sense_frames, rsize);
@@ -1292,8 +1329,7 @@ mpr_alloc_requests(struct mpr_softc *sc)
 	sc->chains = malloc(sizeof(struct mpr_chain) * sc->max_chains, M_MPR,
 	    M_WAITOK | M_ZERO);
 	if (!sc->chains) {
-		device_printf(sc->mpr_dev, "Cannot allocate memory %s %d\n",
-		    __func__, __LINE__);
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate chain memory\n");
 		return (ENOMEM);
 	}
 	for (i = 0; i < sc->max_chains; i++) {
@@ -1330,7 +1366,7 @@ mpr_alloc_requests(struct mpr_softc *sc)
                                 busdma_lock_mutex,	/* lockfunc */
 				&sc->mpr_mtx,		/* lockarg */
                                 &sc->buffer_dmat)) {
-		device_printf(sc->mpr_dev, "Cannot allocate buffer DMA tag\n");
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate buffer DMA tag\n");
 		return (ENOMEM);
         }
 
@@ -1341,8 +1377,7 @@ mpr_alloc_requests(struct mpr_softc *sc)
 	sc->commands = malloc(sizeof(struct mpr_command) * sc->num_reqs,
 	    M_MPR, M_WAITOK | M_ZERO);
 	if (!sc->commands) {
-		device_printf(sc->mpr_dev, "Cannot allocate memory %s %d\n",
-		    __func__, __LINE__);
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate command memory\n");
 		return (ENOMEM);
 	}
 	for (i = 1; i < sc->num_reqs; i++) {
@@ -1428,13 +1463,13 @@ mpr_alloc_nvme_prp_pages(struct mpr_softc *sc)
 				0,			/* flags */
 				NULL, NULL,		/* lockfunc, lockarg */
 				&sc->prp_page_dmat)) {
-		device_printf(sc->mpr_dev, "Cannot allocate NVMe PRP DMA "
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate NVMe PRP DMA "
 		    "tag\n");
 		return (ENOMEM);
 	}
 	if (bus_dmamem_alloc(sc->prp_page_dmat, (void **)&sc->prp_pages,
 	    BUS_DMA_NOWAIT, &sc->prp_page_map)) {
-		device_printf(sc->mpr_dev, "Cannot allocate NVMe PRP memory\n");
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate NVMe PRP memory\n");
 		return (ENOMEM);
 	}
 	bzero(sc->prp_pages, rsize);
@@ -1664,6 +1699,7 @@ mpr_attach(struct mpr_softc *sc)
 	int error;
 
 	MPR_FUNCTRACE(sc);
+	mpr_dprint(sc, MPR_INIT, "%s entered\n", __func__);
 
 	mtx_init(&sc->mpr_mtx, "MPR lock", NULL, MTX_DEF);
 	callout_init_mtx(&sc->periodic, &sc->mpr_mtx, 0);
@@ -1672,15 +1708,16 @@ mpr_attach(struct mpr_softc *sc)
 	timevalclear(&sc->lastfail);
 
 	if ((error = mpr_transition_ready(sc)) != 0) {
-		mpr_printf(sc, "%s failed to transition ready\n", __func__);
+		mpr_dprint(sc, MPR_INIT|MPR_FAULT,
+		    "Failed to transition ready\n");
 		return (error);
 	}
 
 	sc->facts = malloc(sizeof(MPI2_IOC_FACTS_REPLY), M_MPR,
 	    M_ZERO|M_NOWAIT);
 	if (!sc->facts) {
-		device_printf(sc->mpr_dev, "Cannot allocate memory %s %d\n",
-		    __func__, __LINE__);
+		mpr_dprint(sc, MPR_INIT|MPR_FAULT,
+		    "Cannot allocate memory, exit\n");
 		return (ENOMEM);
 	}
 
@@ -1692,8 +1729,8 @@ mpr_attach(struct mpr_softc *sc)
 	 * memory.  If this fails, any allocated memory should already be freed.
 	 */
 	if ((error = mpr_iocfacts_allocate(sc, TRUE)) != 0) {
-		mpr_dprint(sc, MPR_FAULT, "%s IOC Facts based allocation "
-		    "failed with error %d\n", __func__, error);
+		mpr_dprint(sc, MPR_INIT|MPR_FAULT, "IOC Facts allocation "
+		    "failed with error %d\n", error);
 		return (error);
 	}
 
@@ -1708,7 +1745,8 @@ mpr_attach(struct mpr_softc *sc)
 	sc->mpr_ich.ich_func = mpr_startup;
 	sc->mpr_ich.ich_arg = sc;
 	if (config_intrhook_establish(&sc->mpr_ich) != 0) {
-		mpr_dprint(sc, MPR_ERROR, "Cannot establish MPR config hook\n");
+		mpr_dprint(sc, MPR_INIT|MPR_ERROR,
+		    "Cannot establish MPR config hook\n");
 		error = EINVAL;
 	}
 
@@ -1719,12 +1757,13 @@ mpr_attach(struct mpr_softc *sc)
 	    mprsas_ir_shutdown, sc, SHUTDOWN_PRI_DEFAULT);
 
 	if (sc->shutdown_eh == NULL)
-		mpr_dprint(sc, MPR_ERROR, "shutdown event registration "
-		    "failed\n");
+		mpr_dprint(sc, MPR_INIT|MPR_ERROR,
+		    "shutdown event registration failed\n");
 
 	mpr_setup_sysctl(sc);
 
 	sc->mpr_flags |= MPR_FLAGS_ATTACH_DONE;
+	mpr_dprint(sc, MPR_INIT, "%s exit error= %d\n", __func__, error);
 
 	return (error);
 }
@@ -1736,6 +1775,7 @@ mpr_startup(void *arg)
 	struct mpr_softc *sc;
 
 	sc = (struct mpr_softc *)arg;
+	mpr_dprint(sc, MPR_INIT, "%s entered\n", __func__);
 
 	mpr_lock(sc);
 	mpr_unmask_intr(sc);
@@ -1745,6 +1785,7 @@ mpr_startup(void *arg)
 	mpr_mapping_initialize(sc);
 	mprsas_startup(sc);
 	mpr_unlock(sc);
+	mpr_dprint(sc, MPR_INIT, "%s exit\n", __func__);
 }
 
 /* Periodic watchdog.  Is called with the driver lock already held. */
@@ -1831,6 +1872,7 @@ mpr_free(struct mpr_softc *sc)
 {
 	int error;
 
+	mpr_dprint(sc, MPR_INIT, "%s entered\n", __func__);
 	/* Turn off the watchdog */
 	mpr_lock(sc);
 	sc->mpr_flags |= MPR_FLAGS_SHUTDOWN;
@@ -1840,8 +1882,11 @@ mpr_free(struct mpr_softc *sc)
 	callout_drain(&sc->device_check_callout);
 
 	if (((error = mpr_detach_log(sc)) != 0) ||
-	    ((error = mpr_detach_sas(sc)) != 0))
+	    ((error = mpr_detach_sas(sc)) != 0)) {
+		mpr_dprint(sc, MPR_INIT|MPR_FAULT, "failed to detach "
+		    "subsystems, error= %d, exit\n", error);
 		return (error);
+	}
 
 	mpr_detach_user(sc);
 
@@ -1870,6 +1915,7 @@ mpr_free(struct mpr_softc *sc)
 		EVENTHANDLER_DEREGISTER(shutdown_final, sc->shutdown_eh);
 
 	mtx_destroy(&sc->mpr_mtx);
+	mpr_dprint(sc, MPR_INIT, "%s exit\n", __func__);
 
 	return (0);
 }
@@ -2215,8 +2261,8 @@ mpr_register_events(struct mpr_softc *sc, uint8_t *mask,
 
 	eh = malloc(sizeof(struct mpr_event_handle), M_MPR, M_WAITOK|M_ZERO);
 	if (!eh) {
-		device_printf(sc->mpr_dev, "Cannot allocate memory %s %d\n",
-		    __func__, __LINE__);
+		mpr_dprint(sc, MPR_EVENT|MPR_ERROR,
+		    "Cannot allocate event memory\n");
 		return (ENOMEM);
 	}
 	eh->callback = cb;
@@ -2760,13 +2806,11 @@ mpr_check_pcie_native_sgl(struct mpr_softc *sc, struct mpr_command *cm,
 		 * boundary if this is not the first page. If so, this is not
 		 * expected so have FW build the SGL.
 		 */
-		if (i) {
-			if ((uint32_t)paddr & page_mask) {
-				mpr_dprint(sc, MPR_ERROR, "Unaligned SGE while "
-				    "building NVMe PRPs, low address is 0x%x\n",
-				    (uint32_t)paddr);
-				return 1;
-			}
+		if ((i != 0) && (((uint32_t)paddr & page_mask) != 0)) {
+			mpr_dprint(sc, MPR_ERROR, "Unaligned SGE while "
+			    "building NVMe PRPs, low address is 0x%x\n",
+			    (uint32_t)paddr);
+			return 1;
 		}
 
 		/* Apart from last SGE, if any other SGE boundary is not page

@@ -1188,9 +1188,6 @@ _mapping_get_dev_info(struct mpr_softc *sc,
 				    "disk type (SSD or HDD) and SAS Address "
 				    "for SATA device with handle 0x%04x\n",
 				    __func__, phy_change->dev_handle);
-			} else {
-				mpr_dprint(sc, MPR_INFO, "SAS Address for SATA "
-				    "device = %jx\n", sas_address);
 			}
 		}
 
