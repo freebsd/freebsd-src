@@ -199,6 +199,12 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_LM5,
 						PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_V5, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_LM4,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_V4, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_LM5,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_V5, PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
 };
@@ -5274,6 +5280,8 @@ em_get_wakeup(device_t dev)
 	case e1000_ich10lan:
 	case e1000_pchlan:
 	case e1000_pch2lan:
+	case e1000_pch_lpt:
+	case e1000_pch_spt:
 		apme_mask = E1000_WUC_APME;
 		adapter->has_amt = TRUE;
 		eeprom_data = E1000_READ_REG(&adapter->hw, E1000_WUC);
@@ -5322,7 +5330,7 @@ em_enable_wakeup(device_t dev)
 {
 	struct adapter	*adapter = device_get_softc(dev);
 	if_t ifp = adapter->ifp;
-	u32		pmc, ctrl, ctrl_ext, rctl;
+	u32		pmc, ctrl, ctrl_ext, rctl, wuc;
 	u16     	status;
 
 	if ((pci_find_cap(dev, PCIY_PMG, &pmc) != 0))
@@ -5332,7 +5340,9 @@ em_enable_wakeup(device_t dev)
 	ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
 	ctrl |= (E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN3);
 	E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
-	E1000_WRITE_REG(&adapter->hw, E1000_WUC, E1000_WUC_PME_EN);
+	wuc = E1000_READ_REG(&adapter->hw, E1000_WUC);
+	wuc |= E1000_WUC_PME_EN;
+ 	E1000_WRITE_REG(&adapter->hw, E1000_WUC, wuc);
 
 	if ((adapter->hw.mac.type == e1000_ich8lan) ||
 	    (adapter->hw.mac.type == e1000_pchlan) ||
@@ -5363,8 +5373,10 @@ em_enable_wakeup(device_t dev)
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, rctl);
 	}
 
-	if ((adapter->hw.mac.type == e1000_pchlan) ||
-	    (adapter->hw.mac.type == e1000_pch2lan)) {
+	if ((adapter->hw.mac.type == e1000_pchlan)  ||
+	    (adapter->hw.mac.type == e1000_pch2lan) ||
+	    (adapter->hw.mac.type == e1000_pch_lpt) ||
+	    (adapter->hw.mac.type == e1000_pch_spt)) {
 		if (em_enable_phy_wakeup(adapter))
 			return;
 	} else {
