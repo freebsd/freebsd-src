@@ -1984,8 +1984,12 @@ _gcc_tools= gnu/usr.bin/cc/cc_tools
 _rescue=rescue/rescue
 .endif
 
+.if ${MK_TCSH} != "no"
+_tcsh=bin/csh
+.endif
+
 .for _tool in \
-    bin/csh \
+    ${_tcsh} \
     bin/sh \
     ${LOCAL_TOOL_DIRS} \
     lib/ncurses/ncurses \
@@ -2143,7 +2147,7 @@ native-xtools: .PHONY
     bin/cat \
     bin/chmod \
     bin/cp \
-    bin/csh \
+    ${_tcsh} \
     bin/echo \
     bin/expr \
     bin/hostname \
