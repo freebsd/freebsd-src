@@ -156,7 +156,7 @@ r92c_get_txpower(struct rtwn_softc *sc, int chain,
 	}
 }
 
-static void
+void
 r92c_write_txpower(struct rtwn_softc *sc, int chain,
     uint8_t power[RTWN_RIDX_COUNT])
 {
