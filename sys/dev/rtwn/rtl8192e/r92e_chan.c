@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/if_rtwn_ridx.h>
 #include <dev/rtwn/if_rtwn_rx.h>
 
+#include <dev/rtwn/rtl8192c/r92c.h>
+
 #include <dev/rtwn/rtl8192e/r92e.h>
 #include <dev/rtwn/rtl8192e/r92e_reg.h>
 #include <dev/rtwn/rtl8192e/r92e_var.h>
@@ -144,69 +146,6 @@ r92e_get_txpower(struct rtwn_softc *sc, int chain, struct ieee80211_channel *c,
 #endif
 }
 
-
-static void
-r92e_write_txpower(struct rtwn_softc *sc, int chain,
-    uint8_t power[RTWN_RIDX_COUNT])
-{
-	uint32_t reg;
-
-	/* Write per-CCK rate Tx power. */
-	if (chain == 0) {
-		reg = rtwn_bb_read(sc, R92C_TXAGC_A_CCK1_MCS32);
-		reg = RW(reg, R92C_TXAGC_A_CCK1,  power[RTWN_RIDX_CCK1]);
-		rtwn_bb_write(sc, R92C_TXAGC_A_CCK1_MCS32, reg);
-		reg = rtwn_bb_read(sc, R92C_TXAGC_B_CCK11_A_CCK2_11);
-		reg = RW(reg, R92C_TXAGC_A_CCK2,  power[RTWN_RIDX_CCK2]);
-		reg = RW(reg, R92C_TXAGC_A_CCK55, power[RTWN_RIDX_CCK55]);
-		reg = RW(reg, R92C_TXAGC_A_CCK11, power[RTWN_RIDX_CCK11]);
-		rtwn_bb_write(sc, R92C_TXAGC_B_CCK11_A_CCK2_11, reg);
-	} else {
-		reg = rtwn_bb_read(sc, R92C_TXAGC_B_CCK1_55_MCS32);
-		reg = RW(reg, R92C_TXAGC_B_CCK1,  power[RTWN_RIDX_CCK1]);
-		reg = RW(reg, R92C_TXAGC_B_CCK2,  power[RTWN_RIDX_CCK2]);
-		reg = RW(reg, R92C_TXAGC_B_CCK55, power[RTWN_RIDX_CCK55]);
-		rtwn_bb_write(sc, R92C_TXAGC_B_CCK1_55_MCS32, reg);
-		reg = rtwn_bb_read(sc, R92C_TXAGC_B_CCK11_A_CCK2_11);
-		reg = RW(reg, R92C_TXAGC_B_CCK11, power[RTWN_RIDX_CCK11]);
-		rtwn_bb_write(sc, R92C_TXAGC_B_CCK11_A_CCK2_11, reg);
-	}
-	/* Write per-OFDM rate Tx power. */
-	rtwn_bb_write(sc, R92C_TXAGC_RATE18_06(chain),
-	    SM(R92C_TXAGC_RATE06, power[RTWN_RIDX_OFDM6]) |
-	    SM(R92C_TXAGC_RATE09, power[RTWN_RIDX_OFDM9]) |
-	    SM(R92C_TXAGC_RATE12, power[RTWN_RIDX_OFDM12]) |
-	    SM(R92C_TXAGC_RATE18, power[RTWN_RIDX_OFDM18]));
-	rtwn_bb_write(sc, R92C_TXAGC_RATE54_24(chain),
-	    SM(R92C_TXAGC_RATE24, power[RTWN_RIDX_OFDM24]) |
-	    SM(R92C_TXAGC_RATE36, power[RTWN_RIDX_OFDM36]) |
-	    SM(R92C_TXAGC_RATE48, power[RTWN_RIDX_OFDM48]) |
-	    SM(R92C_TXAGC_RATE54, power[RTWN_RIDX_OFDM54]));
-	/* Write per-MCS Tx power. */
-	rtwn_bb_write(sc, R92C_TXAGC_MCS03_MCS00(chain),
-	    SM(R92C_TXAGC_MCS00,  power[RTWN_RIDX_MCS(0)]) |
-	    SM(R92C_TXAGC_MCS01,  power[RTWN_RIDX_MCS(1)]) |
-	    SM(R92C_TXAGC_MCS02,  power[RTWN_RIDX_MCS(2)]) |
-	    SM(R92C_TXAGC_MCS03,  power[RTWN_RIDX_MCS(3)]));
-	rtwn_bb_write(sc, R92C_TXAGC_MCS07_MCS04(chain),
-	    SM(R92C_TXAGC_MCS04,  power[RTWN_RIDX_MCS(4)]) |
-	    SM(R92C_TXAGC_MCS05,  power[RTWN_RIDX_MCS(5)]) |
-	    SM(R92C_TXAGC_MCS06,  power[RTWN_RIDX_MCS(6)]) |
-	    SM(R92C_TXAGC_MCS07,  power[RTWN_RIDX_MCS(7)]));
-	if (sc->ntxchains >= 2) {
-		rtwn_bb_write(sc, R92C_TXAGC_MCS11_MCS08(chain),
-		    SM(R92C_TXAGC_MCS08,  power[RTWN_RIDX_MCS(8)]) |
-		    SM(R92C_TXAGC_MCS09,  power[RTWN_RIDX_MCS(9)]) |
-		    SM(R92C_TXAGC_MCS10,  power[RTWN_RIDX_MCS(10)]) |
-		    SM(R92C_TXAGC_MCS11,  power[RTWN_RIDX_MCS(11)]));
-		rtwn_bb_write(sc, R92C_TXAGC_MCS15_MCS12(chain),
-		    SM(R92C_TXAGC_MCS12,  power[RTWN_RIDX_MCS(12)]) |
-		    SM(R92C_TXAGC_MCS13,  power[RTWN_RIDX_MCS(13)]) |
-		    SM(R92C_TXAGC_MCS14,  power[RTWN_RIDX_MCS(14)]) |
-		    SM(R92C_TXAGC_MCS15,  power[RTWN_RIDX_MCS(15)]));
-	}
-}
-
 static void
 r92e_set_txpower(struct rtwn_softc *sc, struct ieee80211_channel *c)
 {
@@ -218,7 +157,7 @@ r92e_set_txpower(struct rtwn_softc *sc, struct ieee80211_channel *c)
 		/* Compute per-rate Tx power values. */
 		r92e_get_txpower(sc, i, c, power);
 		/* Write per-rate Tx power values to hardware. */
-		r92e_write_txpower(sc, i, power);
+		r92c_write_txpower(sc, i, power);
 	}
 }
 
