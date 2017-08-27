@@ -82,7 +82,7 @@ r92c_get_power_group(struct rtwn_softc *sc, struct ieee80211_channel *c)
 /* XXX recheck */
 void
 r92c_get_txpower(struct rtwn_softc *sc, int chain,
-    struct ieee80211_channel *c, uint16_t power[RTWN_RIDX_COUNT])
+    struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
 {
 	struct r92c_softc *rs = sc->sc_priv;
 	struct rtwn_r92c_txpwr *rt = rs->rs_txpwr;
@@ -158,7 +158,7 @@ r92c_get_txpower(struct rtwn_softc *sc, int chain,
 
 static void
 r92c_write_txpower(struct rtwn_softc *sc, int chain,
-    uint16_t power[RTWN_RIDX_COUNT])
+    uint8_t power[RTWN_RIDX_COUNT])
 {
 	uint32_t reg;
 
@@ -221,7 +221,7 @@ r92c_write_txpower(struct rtwn_softc *sc, int chain,
 static void
 r92c_set_txpower(struct rtwn_softc *sc, struct ieee80211_channel *c)
 {
-	uint16_t power[RTWN_RIDX_COUNT];
+	uint8_t power[RTWN_RIDX_COUNT];
 	int i;
 
 	for (i = 0; i < sc->ntxchains; i++) {
