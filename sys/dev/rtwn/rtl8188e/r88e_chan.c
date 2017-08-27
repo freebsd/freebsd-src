@@ -85,7 +85,7 @@ r88e_get_power_group(struct rtwn_softc *sc, struct ieee80211_channel *c)
 
 void
 r88e_get_txpower(struct rtwn_softc *sc, int chain,
-    struct ieee80211_channel *c, uint16_t power[RTWN_RIDX_COUNT])
+    struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
 {
 	struct r92c_softc *rs = sc->sc_priv;
 	const struct rtwn_r88e_txpwr *rt = rs->rs_txpwr;
