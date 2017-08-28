@@ -107,7 +107,7 @@ r12a_tx_protection(struct rtwn_softc *sc, struct r12a_tx_desc *txd,
 
 	if (mode == IEEE80211_PROT_CTSONLY ||
 	    mode == IEEE80211_PROT_RTSCTS) {
-		if (ridx >= RTWN_RIDX_MCS(0))
+		if (ridx >= RTWN_RIDX_HT_MCS(0))
 			rate = rtwn_ctl_mcsrate(ic->ic_rt, ridx);
 		else
 			rate = ieee80211_ctl_rate(ic->ic_rt, ridx2rate[ridx]);
@@ -292,7 +292,7 @@ r12a_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 				txd->txdw5 |= htole32(R12A_TXDW5_DATA_SHORT);
 
 			prot = IEEE80211_PROT_NONE;
-			if (ridx >= RTWN_RIDX_MCS(0)) {
+			if (ridx >= RTWN_RIDX_HT_MCS(0)) {
 				r12a_tx_set_ht40(sc, txd, ni);
 				r12a_tx_set_sgi(sc, txd, ni);
 				r12a_tx_set_ldpc(sc, txd, ni);
