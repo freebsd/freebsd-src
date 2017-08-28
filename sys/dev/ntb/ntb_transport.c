@@ -835,6 +835,7 @@ static void
 ntb_transport_rxc_db(void *arg, int pending __unused)
 {
 	struct ntb_transport_qp *qp = arg;
+	uint64_t qp_mask = 1ull << qp->qp_num;
 	int rc;
 
 	CTR0(KTR_NTB, "RX: transport_rx");
@@ -843,11 +844,13 @@ again:
 		;
 	CTR1(KTR_NTB, "RX: process_rxc returned %d", rc);
 
-	if ((ntb_db_read(qp->dev) & (1ull << qp->qp_num)) != 0) {
+	if ((ntb_db_read(qp->dev) & qp_mask) != 0) {
 		/* If db is set, clear it and check queue once more. */
-		ntb_db_clear(qp->dev, 1ull << qp->qp_num);
+		ntb_db_clear(qp->dev, qp_mask);
 		goto again;
 	}
+	if (qp->link_is_up)
+		ntb_db_clear_mask(qp->dev, qp_mask);
 }
 
 static int
@@ -1009,6 +1012,8 @@ ntb_transport_doorbell_callback(void *data, uint32_t vector)
 	vec_mask &= nt->qp_bitmap;
 	if ((vec_mask & (vec_mask - 1)) != 0)
 		vec_mask &= ntb_db_read(nt->dev);
+	if (vec_mask != 0)
+		ntb_db_set_mask(nt->dev, vec_mask);
 	while (vec_mask != 0) {
 		qp_num = ffsll(vec_mask) - 1;
 
