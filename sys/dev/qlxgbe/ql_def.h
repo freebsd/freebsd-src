@@ -110,6 +110,7 @@ typedef struct qla_ivec qla_ivec_t;
 typedef struct _qla_tx_ring {
 	qla_tx_buf_t	tx_buf[NUM_TX_DESCRIPTORS];
 	uint64_t	count;
+	uint64_t	iscsi_pkt_count;
 } qla_tx_ring_t;
 
 typedef struct _qla_tx_fp {
@@ -129,19 +130,20 @@ typedef struct _qla_tx_fp {
 struct qla_host {
         volatile struct {
                 volatile uint32_t
-			qla_interface_up        :1,
 			qla_callout_init	:1,
 			qla_watchdog_active	:1,
-			qla_watchdog_exit	:1,
-			qla_watchdog_pause	:1,
-			stop_rcv		:1,
 			parent_tag		:1,
 			lock_init		:1;
         } flags;
 
+	volatile uint32_t	qla_interface_up;
+	volatile uint32_t	stop_rcv;
+	volatile uint32_t	qla_watchdog_exit;
 	volatile uint32_t	qla_watchdog_exited;
+	volatile uint32_t	qla_watchdog_pause;
 	volatile uint32_t	qla_watchdog_paused;
 	volatile uint32_t	qla_initiate_recovery;
+	volatile uint32_t	qla_detach_active;
 
 	device_t		pci_dev;
 
@@ -182,6 +184,7 @@ struct qla_host {
 
 	struct mtx		hw_lock;
 	volatile uint32_t	hw_lock_held;
+	uint64_t		hw_lock_failed;
 
 	/* transmit and receive buffers */
 	uint32_t		txr_idx; /* index of the current tx ring */
@@ -221,6 +224,9 @@ struct qla_host {
 	uint64_t		tx_tso_frames;
 	uint64_t		hw_vlan_tx_frames;
 
+	struct task             stats_task;
+	struct taskqueue	*stats_tq;
+	
         uint32_t                fw_ver_major;
         uint32_t                fw_ver_minor;
         uint32_t                fw_ver_sub;
@@ -260,9 +266,7 @@ typedef struct qla_host qla_host_t;
 #define QL_ALIGN(size, align) (size + (align - 1)) & ~(align - 1);
 #define QL_MIN(x, y) ((x < y) ? x : y)
 
-#define QL_RUNNING(ifp) \
-		((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) == \
-			IFF_DRV_RUNNING)
+#define QL_RUNNING(ifp) (ifp->if_drv_flags & IFF_DRV_RUNNING)
 
 /* Return 0, if identical, else 1 */
 #define QL_MAC_CMP(mac1, mac2)    \
