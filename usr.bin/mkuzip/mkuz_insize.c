@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Maxim Sobolev <sobomax@FreeBSD.org>
+ * Copyright (c) 2004-2016 Maxim Sobolev <sobomax@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,21 +22,63 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-struct mkuz_conveyor;
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-struct mkuz_cfg {
-    int fdr;
-    int fdw;
-    int verbose;
-    int no_zcomp;
-    int en_dedup;
-    int nworkers;
-    int blksz;
-    const char *iname;
-    off_t isize;
-    const struct mkuz_format *handler;
-};
+#include <sys/disk.h>
+#include <sys/ioctl.h>
+#include <sys/param.h>
+#include <sys/mount.h>
+#include <sys/stat.h>
+#include <err.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#include "mkuz_cfg.h"
+#include "mkuz_insize.h"
+
+off_t
+mkuz_get_insize(struct mkuz_cfg *cfp)
+{
+	int ffd;
+	off_t ms;
+	struct stat sb;
+	struct statfs statfsbuf;
+
+	if (fstat(cfp->fdr, &sb) != 0) {
+		warn("fstat(%s)", cfp->iname);
+		return (-1);
+	}
+	if ((sb.st_flags & SF_SNAPSHOT) != 0) {
+		if (fstatfs(cfp->fdr, &statfsbuf) != 0) {
+			warn("fstatfs(%s)", cfp->iname);
+			return (-1);
+		}
+		ffd = open(statfsbuf.f_mntfromname, O_RDONLY);
+		if (ffd < 0) {
+			warn("open(%s, O_RDONLY)", statfsbuf.f_mntfromname);
+			close(ffd);
+			return (-1);
+		}
+		if (ioctl(ffd, DIOCGMEDIASIZE, &ms) < 0) {
+			warn("ioctl(DIOCGMEDIASIZE)");
+			close(ffd);
+			return (-1);
+		}
+		close(ffd);
+		sb.st_size = ms;
+	} else if (S_ISCHR(sb.st_mode)) {
+		if (ioctl(cfp->fdr, DIOCGMEDIASIZE, &ms) < 0) {
+			warn("ioctl(DIOCGMEDIASIZE)");
+			return (-1);
+		}
+		sb.st_size = ms;
+	} else if (!S_ISREG(sb.st_mode)) {
+		warnx("%s: not a character device or regular file\n",
+			cfp->iname);
+		return (-1);
+	}
+	return (sb.st_size);
+}
