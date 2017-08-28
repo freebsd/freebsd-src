@@ -51,7 +51,7 @@
 #include <crypto/rijndael/rijndael-api-fst.h>
 
 /* AES-XTS implementation */
-#define _STAND
+#define _STAND 1
 #define STAND_H /* We don't want stand.h in {gpt,zfs,gptzfs}boot */
 #include <opencrypto/xform_enc.h>
 

@@ -51,6 +51,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170826:
+       During boot the geli passphrase will be hidden. To restore previous
+       behavior see geli(8) configuration options.
+
 20170825:
 	Move PMTUD blackhole counters to TCPSTATS and remove them from bare
 	sysctl values.  Minor nit, but requires a rebuild of both world/kernel
