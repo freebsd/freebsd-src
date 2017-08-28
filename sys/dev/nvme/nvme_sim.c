@@ -253,7 +253,7 @@ nvme_sim_new_controller(struct nvme_controller *ctrlr)
 	int unit;
 	struct nvme_sim_softc *sc = NULL;
 
-	max_trans = ctrlr->num_io_queues;
+	max_trans = ctrlr->max_hw_pend_io;
 	unit = device_get_unit(ctrlr->dev);
 	devq = cam_simq_alloc(max_trans);
 	if (devq == NULL)
