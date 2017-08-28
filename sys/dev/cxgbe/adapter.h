@@ -186,7 +186,6 @@ struct vi_info {
 	struct port_info *pi;
 
 	struct ifnet *ifp;
-	struct ifmedia media;
 
 	unsigned long flags;
 	int if_flags;
@@ -288,6 +287,7 @@ struct port_info {
 
 	struct link_config link_cfg;
 	struct link_config old_link_cfg;
+	struct ifmedia media;
 
 	struct timeval last_refreshed;
  	struct port_stats stats;

@@ -1047,6 +1047,10 @@ t4_attach(device_t dev)
 			n1g++;
 		}
 
+		/* All VIs on this port share this media. */
+		ifmedia_init(&pi->media, IFM_IMASK, cxgbe_media_change,
+		    cxgbe_media_status);
+
 		pi->dev = device_add_child(dev, sc->names->ifnet_name, -1);
 		if (pi->dev == NULL) {
 			device_printf(dev,
@@ -1517,10 +1521,6 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 	ifp->if_hw_tsomaxsegcount = TX_SGL_SEGS;
 	ifp->if_hw_tsomaxsegsize = 65536;
 
-	/* Initialize ifmedia for this VI */
-	ifmedia_init(&vi->media, IFM_IMASK, cxgbe_media_change,
-	    cxgbe_media_status);
-
 	vi->vlan_c = EVENTHANDLER_REGISTER(vlan_config, cxgbe_vlan_config, ifp,
 	    EVENTHANDLER_PRI_ANY);
 
@@ -1601,7 +1601,6 @@ cxgbe_vi_detach(struct vi_info *vi)
 	callout_drain(&vi->tick);
 	vi_full_uninit(vi);
 
-	ifmedia_removeall(&vi->media);
 	if_free(vi->ifp);
 	vi->ifp = NULL;
 }
@@ -1628,6 +1627,7 @@ cxgbe_detach(device_t dev)
 
 	cxgbe_vi_detach(&pi->vi[0]);
 	callout_drain(&pi->tick);
+	ifmedia_removeall(&pi->media);
 
 	end_synchronized_op(sc, 0);
 
@@ -1651,7 +1651,8 @@ cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 {
 	int rc = 0, mtu, flags, can_sleep;
 	struct vi_info *vi = ifp->if_softc;
-	struct adapter *sc = vi->pi->adapter;
+	struct port_info *pi = vi->pi;
+	struct adapter *sc = pi->adapter;
 	struct ifreq *ifr = (struct ifreq *)data;
 	uint32_t mask;
 
@@ -1831,7 +1832,7 @@ fail:
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 	case SIOCGIFXMEDIA:
-		ifmedia_ioctl(ifp, ifr, &vi->media, cmd);
+		ifmedia_ioctl(ifp, ifr, &pi->media, cmd);
 		break;
 
 	case SIOCGI2C: {
@@ -1851,7 +1852,7 @@ fail:
 		rc = begin_synchronized_op(sc, vi, SLEEP_OK | INTR_OK, "t4i2c");
 		if (rc)
 			return (rc);
-		rc = -t4_i2c_rd(sc, sc->mbox, vi->pi->port_id, i2c.dev_addr,
+		rc = -t4_i2c_rd(sc, sc->mbox, pi->port_id, i2c.dev_addr,
 		    i2c.offset, i2c.len, &i2c.data[0]);
 		end_synchronized_op(sc, 0);
 		if (rc == 0)
@@ -2073,13 +2074,11 @@ cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 		PORT_LOCK(pi);
 		if (pi->up_vis == 0) {
 			t4_update_port_info(pi);
-			build_medialist(pi, &vi->media);
+			build_medialist(pi, &pi->media);
 		}
 		PORT_UNLOCK(pi);
 		end_synchronized_op(pi->adapter, 0);
 	}
-
-	cur = vi->media.ifm_cur;
 
 	ifmr->ifm_status = IFM_AVALID;
 	if (lc->link_ok == 0)
@@ -2093,7 +2092,8 @@ cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 		ifmr->ifm_active |= IFM_ETH_TXPAUSE;
 
 	/* active and current will differ iff current media is autoselect. */
-	if (IFM_SUBTYPE(cur->ifm_media) != IFM_AUTO)
+	cur = pi->media.ifm_cur;
+	if (cur != NULL && IFM_SUBTYPE(cur->ifm_media) != IFM_AUTO)
 		return;
 
 	ifmr->ifm_active = IFM_ETHER | IFM_FDX;
@@ -4271,7 +4271,7 @@ cxgbe_init_synchronized(struct vi_info *vi)
 	PORT_LOCK(pi);
 	if (pi->up_vis++ == 0) {
 		t4_update_port_info(pi);
-		build_medialist(vi->pi, &vi->media);
+		build_medialist(pi, &pi->media);
 		init_l1cfg(pi);
 	}
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -9289,22 +9289,20 @@ t4_os_pci_restore_state(struct adapter *sc)
 void
 t4_os_portmod_changed(struct port_info *pi)
 {
+	struct adapter *sc = pi->adapter;
 	struct vi_info *vi;
 	struct ifnet *ifp;
-	int v;
 	static const char *mod_str[] = {
 		NULL, "LR", "SR", "ER", "TWINAX", "active TWINAX", "LRM"
 	};
 
 	PORT_LOCK(pi);
-	for_each_vi(pi, v, vi) {
-		build_medialist(pi, &vi->media);
-	}
+	build_medialist(pi, &pi->media);
 	PORT_UNLOCK(pi);
 	vi = &pi->vi[0];
-	if (begin_synchronized_op(pi->adapter, vi, HOLD_LOCK, "t4mod") == 0) {
+	if (begin_synchronized_op(sc, vi, HOLD_LOCK, "t4mod") == 0) {
 		init_l1cfg(pi);
-		end_synchronized_op(pi->adapter, LOCK_HELD);
+		end_synchronized_op(sc, LOCK_HELD);
 	}
 
 	ifp = vi->ifp;
