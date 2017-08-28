@@ -102,7 +102,7 @@ r92e_get_txpower(struct rtwn_softc *sc, int chain, struct ieee80211_channel *c,
 		return;
 	}
 
-	max_mcs = RTWN_RIDX_MCS(sc->ntxchains * 8 - 1);
+	max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
 
 	/* XXX regulatory */
 	/* XXX net80211 regulatory */
@@ -124,7 +124,7 @@ r92e_get_txpower(struct rtwn_softc *sc, int chain, struct ieee80211_channel *c,
 		else
 			pwr_diff = rs->bw20_tx_pwr_diff_2g[chain][i];
 
-		min_mcs = RTWN_RIDX_MCS(i * 8);
+		min_mcs = RTWN_RIDX_HT_MCS(i * 8);
 		for (ridx = min_mcs; ridx <= max_mcs; ridx++)
 			power[ridx] += pwr_diff;
 
