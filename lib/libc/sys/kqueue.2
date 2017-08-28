@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2016
+.Dd June 22, 2017
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -335,33 +335,18 @@ identical to the
 .Dv EVFILT_READ
 case.
 .It Dv EVFILT_AIO
-The sigevent portion of the AIO request is filled in, with
-.Va sigev_notify_kqueue
-containing the descriptor of the kqueue that the event should
-be attached to,
-.Va sigev_notify_kevent_flags
-containing the kevent flags which should be
-.Dv EV_ONESHOT ,
-.Dv EV_CLEAR
-or
-.Dv EV_DISPATCH ,
-.Va sigev_value
-containing the udata value, and
-.Va sigev_notify
-set to
-.Dv SIGEV_KEVENT .
-When the
-.Fn aio_*
-system call is made, the event will be registered
-with the specified kqueue, and the
-.Va ident
-argument set to the
-.Fa struct aiocb
-returned by the
-.Fn aio_*
-system call.
+Events for this filter are not registered with
+.Fn kevent
+directly but are registered via the
+.Va aio_sigevent
+member of an asychronous I/O request when it is scheduled via an asychronous I/O
+system call such as
+.Fn aio_read .
 The filter returns under the same conditions as
 .Fn aio_error .
+For more details on this filter see
+.Xr sigevent 3 and
+.Xr aio 4 .
 .It Dv EVFILT_VNODE
 Takes a file descriptor as the identifier and the events to watch for in
 .Va fflags ,
