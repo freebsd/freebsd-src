@@ -286,6 +286,9 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	__be64 cmd_rpl[MBOX_LEN/8];
 	u32 pcie_fw;
 
+	if (adap->flags & CHK_MBOX_ACCESS)
+		ASSERT_SYNCHRONIZED_OP(adap);
+
 	if ((size & 15) || size > MBOX_LEN)
 		return -EINVAL;
 
