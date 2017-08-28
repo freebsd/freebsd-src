@@ -2134,29 +2134,24 @@ vcxgbe_probe(device_t dev)
 }
 
 static int
-vcxgbe_attach(device_t dev)
+alloc_extra_vi(struct adapter *sc, struct port_info *pi, struct vi_info *vi)
 {
-	struct vi_info *vi;
-	struct port_info *pi;
-	struct adapter *sc;
 	int func, index, rc;
-	u32 param, val;
+	uint32_t param, val;
 
-	vi = device_get_softc(dev);
-	pi = vi->pi;
-	sc = pi->adapter;
+	ASSERT_SYNCHRONIZED_OP(sc);
 
 	index = vi - pi->vi;
 	MPASS(index > 0);	/* This function deals with _extra_ VIs only */
 	KASSERT(index < nitems(vi_mac_funcs),
 	    ("%s: VI %s doesn't have a MAC func", __func__,
-	    device_get_nameunit(dev)));
+	    device_get_nameunit(vi->dev)));
 	func = vi_mac_funcs[index];
 	rc = t4_alloc_vi_func(sc, sc->mbox, pi->tx_chan, sc->pf, 0, 1,
 	    vi->hw_addr, &vi->rss_size, func, 0);
 	if (rc < 0) {
-		device_printf(dev, "Failed to allocate virtual interface "
-		    "for port %d: %d\n", pi->port_id, -rc);
+		device_printf(vi->dev, "failed to allocate virtual interface %d"
+		    "for port %d: %d\n", index, pi->port_id, -rc);
 		return (-rc);
 	}
 	vi->viid = rc;
@@ -2165,6 +2160,19 @@ vcxgbe_attach(device_t dev)
 	else
 		vi->smt_idx = (rc & 0x7f);
 
+	if (vi->rss_size == 1) {
+		/*
+		 * This VI didn't get a slice of the RSS table.  Reduce the
+		 * number of VIs being created (hw.cxgbe.num_vis) or modify the
+		 * configuration file (nvi, rssnvi for this PF) if this is a
+		 * problem.
+		 */
+		device_printf(vi->dev, "RSS table not available.\n");
+		vi->rss_base = 0xffff;
+
+		return (0);
+	}
+
 	param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
 	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_RSSINFO) |
 	    V_FW_PARAMS_PARAM_YZ(vi->viid);
@@ -2172,9 +2180,32 @@ vcxgbe_attach(device_t dev)
 	if (rc)
 		vi->rss_base = 0xffff;
 	else {
-		/* MPASS((val >> 16) == rss_size); */
+		MPASS((val >> 16) == vi->rss_size);
 		vi->rss_base = val & 0xffff;
 	}
+
+	return (0);
+}
+
+static int
+vcxgbe_attach(device_t dev)
+{
+	struct vi_info *vi;
+	struct port_info *pi;
+	struct adapter *sc;
+	int rc;
+
+	vi = device_get_softc(dev);
+	pi = vi->pi;
+	sc = pi->adapter;
+
+	rc = begin_synchronized_op(sc, vi, SLEEP_OK | INTR_OK, "t4via");
+	if (rc)
+		return (rc);
+	rc = alloc_extra_vi(sc, pi, vi);
+	end_synchronized_op(sc, 0);
+	if (rc)
+		return (rc);
 
 	rc = cxgbe_vi_attach(dev, vi);
 	if (rc) {
