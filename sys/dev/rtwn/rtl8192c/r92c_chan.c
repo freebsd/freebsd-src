@@ -99,7 +99,7 @@ r92c_get_txpower(struct rtwn_softc *sc, int chain,
 
 	/* XXX net80211 regulatory */
 
-	max_mcs = RTWN_RIDX_MCS(sc->ntxchains * 8 - 1);
+	max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
 	KASSERT(max_mcs <= RTWN_RIDX_COUNT, ("increase ridx limit\n"));
 
 	memset(power, 0, max_mcs * sizeof(power[0]));
@@ -146,7 +146,7 @@ r92c_get_txpower(struct rtwn_softc *sc, int chain,
 		diff = rt->ht20_tx_pwr_diff[chain][group];
 		htpow += diff;	/* HT40->HT20 correction. */
 	}
-	for (ridx = RTWN_RIDX_MCS(0); ridx <= max_mcs; ridx++)
+	for (ridx = RTWN_RIDX_HT_MCS(0); ridx <= max_mcs; ridx++)
 		power[ridx] += htpow;
 
 	/* Apply max limit. */
@@ -195,26 +195,26 @@ r92c_write_txpower(struct rtwn_softc *sc, int chain,
 	    SM(R92C_TXAGC_RATE54, power[RTWN_RIDX_OFDM54]));
 	/* Write per-MCS Tx power. */
 	rtwn_bb_write(sc, R92C_TXAGC_MCS03_MCS00(chain),
-	    SM(R92C_TXAGC_MCS00,  power[RTWN_RIDX_MCS(0)]) |
-	    SM(R92C_TXAGC_MCS01,  power[RTWN_RIDX_MCS(1)]) |
-	    SM(R92C_TXAGC_MCS02,  power[RTWN_RIDX_MCS(2)]) |
-	    SM(R92C_TXAGC_MCS03,  power[RTWN_RIDX_MCS(3)]));
+	    SM(R92C_TXAGC_MCS00,  power[RTWN_RIDX_HT_MCS(0)]) |
+	    SM(R92C_TXAGC_MCS01,  power[RTWN_RIDX_HT_MCS(1)]) |
+	    SM(R92C_TXAGC_MCS02,  power[RTWN_RIDX_HT_MCS(2)]) |
+	    SM(R92C_TXAGC_MCS03,  power[RTWN_RIDX_HT_MCS(3)]));
 	rtwn_bb_write(sc, R92C_TXAGC_MCS07_MCS04(chain),
-	    SM(R92C_TXAGC_MCS04,  power[RTWN_RIDX_MCS(4)]) |
-	    SM(R92C_TXAGC_MCS05,  power[RTWN_RIDX_MCS(5)]) |
-	    SM(R92C_TXAGC_MCS06,  power[RTWN_RIDX_MCS(6)]) |
-	    SM(R92C_TXAGC_MCS07,  power[RTWN_RIDX_MCS(7)]));
+	    SM(R92C_TXAGC_MCS04,  power[RTWN_RIDX_HT_MCS(4)]) |
+	    SM(R92C_TXAGC_MCS05,  power[RTWN_RIDX_HT_MCS(5)]) |
+	    SM(R92C_TXAGC_MCS06,  power[RTWN_RIDX_HT_MCS(6)]) |
+	    SM(R92C_TXAGC_MCS07,  power[RTWN_RIDX_HT_MCS(7)]));
 	if (sc->ntxchains >= 2) {
 		rtwn_bb_write(sc, R92C_TXAGC_MCS11_MCS08(chain),
-		    SM(R92C_TXAGC_MCS08,  power[RTWN_RIDX_MCS(8)]) |
-		    SM(R92C_TXAGC_MCS09,  power[RTWN_RIDX_MCS(9)]) |
-		    SM(R92C_TXAGC_MCS10,  power[RTWN_RIDX_MCS(10)]) |
-		    SM(R92C_TXAGC_MCS11,  power[RTWN_RIDX_MCS(11)]));
+		    SM(R92C_TXAGC_MCS08,  power[RTWN_RIDX_HT_MCS(8)]) |
+		    SM(R92C_TXAGC_MCS09,  power[RTWN_RIDX_HT_MCS(9)]) |
+		    SM(R92C_TXAGC_MCS10,  power[RTWN_RIDX_HT_MCS(10)]) |
+		    SM(R92C_TXAGC_MCS11,  power[RTWN_RIDX_HT_MCS(11)]));
 		rtwn_bb_write(sc, R92C_TXAGC_MCS15_MCS12(chain),
-		    SM(R92C_TXAGC_MCS12,  power[RTWN_RIDX_MCS(12)]) |
-		    SM(R92C_TXAGC_MCS13,  power[RTWN_RIDX_MCS(13)]) |
-		    SM(R92C_TXAGC_MCS14,  power[RTWN_RIDX_MCS(14)]) |
-		    SM(R92C_TXAGC_MCS15,  power[RTWN_RIDX_MCS(15)]));
+		    SM(R92C_TXAGC_MCS12,  power[RTWN_RIDX_HT_MCS(12)]) |
+		    SM(R92C_TXAGC_MCS13,  power[RTWN_RIDX_HT_MCS(13)]) |
+		    SM(R92C_TXAGC_MCS14,  power[RTWN_RIDX_HT_MCS(14)]) |
+		    SM(R92C_TXAGC_MCS15,  power[RTWN_RIDX_HT_MCS(15)]));
 	}
 }
 
@@ -231,7 +231,7 @@ r92c_set_txpower(struct rtwn_softc *sc, struct ieee80211_channel *c)
 		if (sc->sc_debug & RTWN_DEBUG_TXPWR) {
 			int max_mcs, ridx;
 
-			max_mcs = RTWN_RIDX_MCS(sc->ntxchains * 8 - 1);
+			max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
 
 			/* Dump per-rate Tx power values. */
 			printf("Tx power for chain %d:\n", i);
