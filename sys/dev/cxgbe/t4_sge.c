@@ -3306,7 +3306,10 @@ free_nm_rxq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq)
 {
 	struct adapter *sc = vi->pi->adapter;
 
-	MPASS(nm_rxq->iq_cntxt_id == INVALID_NM_RXQ_CNTXT_ID);
+	if (vi->flags & VI_INIT_DONE)
+		MPASS(nm_rxq->iq_cntxt_id == INVALID_NM_RXQ_CNTXT_ID);
+	else
+		MPASS(nm_rxq->iq_cntxt_id == 0);
 
 	free_ring(sc, nm_rxq->iq_desc_tag, nm_rxq->iq_desc_map, nm_rxq->iq_ba,
 	    nm_rxq->iq_desc);
@@ -3366,7 +3369,10 @@ free_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 {
 	struct adapter *sc = vi->pi->adapter;
 
-	MPASS(nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID);
+	if (vi->flags & VI_INIT_DONE)
+		MPASS(nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID);
+	else
+		MPASS(nm_txq->cntxt_id == 0);
 
 	free_ring(sc, nm_txq->desc_tag, nm_txq->desc_map, nm_txq->ba,
 	    nm_txq->desc);
