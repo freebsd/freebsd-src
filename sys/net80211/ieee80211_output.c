@@ -2500,7 +2500,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 			capinfo |= IEEE80211_CAPINFO_PRIVACY;
 		/*
 		 * NB: Some 11a AP's reject the request when
-		 *     short premable is set.
+		 *     short preamble is set.
 		 */
 		if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
 		    IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan))

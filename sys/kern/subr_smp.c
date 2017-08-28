@@ -630,6 +630,15 @@ smp_topo(void)
 		panic("Built bad topology at %p.  CPU mask (%s) != (%s)",
 		    top, cpusetobj_strprint(cpusetbuf, &top->cg_mask),
 		    cpusetobj_strprint(cpusetbuf2, &all_cpus));
+
+	/*
+	 * Collapse nonsense levels that may be created out of convenience by
+	 * the MD layers.  They cause extra work in the search functions.
+	 */
+	while (top->cg_children == 1) {
+		top = &top->cg_child[0];
+		top->cg_parent = NULL;
+	}
 	return (top);
 }
 

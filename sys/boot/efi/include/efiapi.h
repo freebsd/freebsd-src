@@ -353,7 +353,7 @@ EFI_STATUS
     IN EFI_STATUS                   ExitStatus,
     IN UINTN                        ExitDataSize,
     IN CHAR16                       *ExitData OPTIONAL
-    );
+    ) __dead2;
 
 typedef
 EFI_STATUS
