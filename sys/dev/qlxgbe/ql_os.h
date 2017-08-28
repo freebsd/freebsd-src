@@ -147,8 +147,8 @@ MALLOC_DECLARE(M_QLA83XXBUF);
 /*
  * Locks
  */
-#define QLA_LOCK(ha)		mtx_lock(&ha->hw_lock)
-#define QLA_UNLOCK(ha)		mtx_unlock(&ha->hw_lock)
+#define QLA_LOCK(ha, str, to_ms, no_sleep)	qla_lock(ha, str, to_ms, no_sleep)
+#define QLA_UNLOCK(ha, str)			qla_unlock(ha, str)
  
 /*
  * structure encapsulating a DMA buffer
