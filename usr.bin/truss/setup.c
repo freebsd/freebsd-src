@@ -585,7 +585,61 @@ report_new_child(struct trussinfo *info)
 }
 
 static void
-report_signal(struct trussinfo *info, siginfo_t *si)
+decode_siginfo(FILE *fp, siginfo_t *si)
+{
+	const char *str;
+
+	fprintf(fp, " code=");
+	str = sysdecode_sigcode(si->si_signo, si->si_code);
+	if (str == NULL)
+		fprintf(fp, "%d", si->si_code);
+	else
+		fprintf(fp, "%s", str);
+	switch (si->si_code) {
+	case SI_NOINFO:
+		break;
+	case SI_QUEUE:
+		fprintf(fp, " value=%p", si->si_value.sival_ptr);
+		/* FALLTHROUGH */
+	case SI_USER:
+	case SI_LWP:
+		fprintf(fp, " pid=%jd uid=%jd", (intmax_t)si->si_pid,
+		    (intmax_t)si->si_uid);
+		break;
+	case SI_TIMER:
+		fprintf(fp, " value=%p", si->si_value.sival_ptr);
+		fprintf(fp, " timerid=%d", si->si_timerid);
+		fprintf(fp, " overrun=%d", si->si_overrun);
+		if (si->si_errno != 0)
+			fprintf(fp, " errno=%d", si->si_errno);
+		break;
+	case SI_ASYNCIO:
+		fprintf(fp, " value=%p", si->si_value.sival_ptr);
+		break;
+	case SI_MESGQ:
+		fprintf(fp, " value=%p", si->si_value.sival_ptr);
+		fprintf(fp, " mqd=%d", si->si_mqd);
+		break;
+	default:
+		switch (si->si_signo) {
+		case SIGILL:
+		case SIGFPE:
+		case SIGSEGV:
+		case SIGBUS:
+			fprintf(fp, " trapno=%d", si->si_trapno);
+			fprintf(fp, " addr=%p", si->si_addr);
+			break;
+		case SIGCHLD:
+			fprintf(fp, " pid=%jd uid=%jd", (intmax_t)si->si_pid,
+			    (intmax_t)si->si_uid);
+			fprintf(fp, " status=%d", si->si_status);
+			break;
+		}
+	}
+}
+
+static void
+report_signal(struct trussinfo *info, siginfo_t *si, struct ptrace_lwpinfo *pl)
 {
 	struct threadinfo *t;
 	const char *signame;
@@ -596,7 +650,11 @@ report_signal(struct trussinfo *info, siginfo_t *si)
 	signame = sysdecode_signal(si->si_status);
 	if (signame == NULL)
 		signame = "?";
-	fprintf(info->outfile, "SIGNAL %u (%s)\n", si->si_status, signame);
+	fprintf(info->outfile, "SIGNAL %u (%s)", si->si_status, signame);
+	if (pl->pl_event == PL_EVENT_SIGNAL && pl->pl_flags & PL_FLAG_SI)
+		decode_siginfo(info->outfile, &pl->pl_siginfo);
+	fprintf(info->outfile, "\n");
+	
 }
 
 /*
@@ -673,7 +731,7 @@ eventloop(struct trussinfo *info)
 				pending_signal = 0;
 			} else {
 				if ((info->flags & NOSIGS) == 0)
-					report_signal(info, &si);
+					report_signal(info, &si, &pl);
 				pending_signal = si.si_status;
 			}
 			ptrace(PT_SYSCALL, si.si_pid, (caddr_t)1,
