@@ -1827,7 +1827,7 @@ swp_pager_meta_free(vm_object_t object, vm_pindex_t pindex, vm_pindex_t count)
 	int i;
 	bool empty;
 
-	VM_OBJECT_ASSERT_LOCKED(object);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	if (object->type != OBJT_SWAP || count == 0)
 		return;
 
@@ -1909,9 +1909,13 @@ swp_pager_meta_ctl(vm_object_t object, vm_pindex_t pindex, int flags)
 	daddr_t r1;
 	int i;
 
-	VM_OBJECT_ASSERT_LOCKED(object);
+	if ((flags & (SWM_FREE | SWM_POP)) != 0)
+		VM_OBJECT_ASSERT_WLOCKED(object);
+	else
+		VM_OBJECT_ASSERT_LOCKED(object);
+
 	/*
-	 * The meta data only exists of the object is OBJT_SWAP
+	 * The meta data only exists if the object is OBJT_SWAP
 	 * and even then might not be allocated yet.
 	 */
 	if (object->type != OBJT_SWAP)
