@@ -263,6 +263,7 @@ struct nvme_controller {
 
 	uint32_t		num_io_queues;
 	uint32_t		num_cpus_per_ioq;
+	uint32_t		max_hw_pend_io;
 
 	/* Fields for tracking progress during controller initialization. */
 	struct intr_config_hook	config_hook;
