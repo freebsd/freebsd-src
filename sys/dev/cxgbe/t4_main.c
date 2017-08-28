@@ -467,8 +467,9 @@ TUNABLE_INT("hw.cxl.write_combine", &t5_write_combine);
 static int t4_num_vis = 1;
 TUNABLE_INT("hw.cxgbe.num_vis", &t4_num_vis);
 
-/* Functions used by extra VIs to obtain unique MAC addresses for each VI. */
+/* Functions used by VIs to obtain unique MAC addresses for each VI. */
 static int vi_mac_funcs[] = {
+	FW_VI_FUNC_ETH,
 	FW_VI_FUNC_OFLD,
 	FW_VI_FUNC_IWARP,
 	FW_VI_FUNC_OPENISCSI,
@@ -2146,6 +2147,7 @@ vcxgbe_attach(device_t dev)
 	sc = pi->adapter;
 
 	index = vi - pi->vi;
+	MPASS(index > 0);	/* This function deals with _extra_ VIs only */
 	KASSERT(index < nitems(vi_mac_funcs),
 	    ("%s: VI %s doesn't have a MAC func", __func__,
 	    device_get_nameunit(dev)));
