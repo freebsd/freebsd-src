@@ -2834,8 +2834,6 @@ call_sim:
 			cgd->inq_data = dev->inq_data;
 			cgd->ident_data = dev->ident_data;
 			cgd->inq_flags = dev->inq_flags;
-			cgd->nvme_data = dev->nvme_data;
-			cgd->nvme_cdata = dev->nvme_cdata;
 			cgd->ccb_h.status = CAM_REQ_CMP;
 			cgd->serial_num_len = dev->serial_num_len;
 			if ((dev->serial_num_len > 0)
