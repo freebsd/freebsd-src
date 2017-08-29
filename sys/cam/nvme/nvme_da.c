@@ -684,21 +684,14 @@ ndaregister(struct cam_periph *periph, void *arg)
 	struct nda_softc *softc;
 	struct disk *disk;
 	struct ccb_pathinq cpi;
-	struct ccb_getdev *cgd;
 	const struct nvme_namespace_data *nsd;
 	const struct nvme_controller_data *cd;
 	char   announce_buf[80];
-//	caddr_t match;
 	u_int maxio;
 	int quirks;
 
-	cgd = (struct ccb_getdev *)arg;
-	if (cgd == NULL) {
-		printf("ndaregister: no getdev CCB, can't register device\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-	nsd = cgd->nvme_data;
-	cd = cgd->nvme_cdata;
+	nsd = nvme_get_identify_ns(periph);
+	cd = nvme_get_identify_cntrl(periph);
 
 	softc = (struct nda_softc *)malloc(sizeof(*softc), M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
@@ -719,19 +712,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 
 	periph->softc = softc;
 
-#if 0
-	/*
-	 * See if this device has any quirks.
-	 */
-	match = cam_quirkmatch((caddr_t)&cgd->ident_data,
-			       (caddr_t)nda_quirk_table,
-			       sizeof(nda_quirk_table)/sizeof(*nda_quirk_table),
-			       sizeof(*nda_quirk_table), ata_identify_match);
-	if (match != NULL)
-		softc->quirks = ((struct nda_quirk_entry *)match)->quirks;
-	else
-#endif
-		softc->quirks = NDA_Q_NONE;
+	softc->quirks = NDA_Q_NONE;
 
 	bzero(&cpi, sizeof(cpi));
 	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NONE);
