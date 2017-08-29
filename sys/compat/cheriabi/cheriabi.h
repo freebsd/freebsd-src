@@ -34,7 +34,9 @@
 #ifndef _COMPAT_CHERIABI_CHERIABI_H_
 #define _COMPAT_CHERIABI_CHERIABI_H_
 
+#include "opt_ktrace.h"
 #include <sys/ktrace.h>
+#include <sys/proc.h>
 
 #include <cheri/cheri.h>
 #include <cheri/cheric.h>
