@@ -57,18 +57,12 @@ SRCF+=		fixunsxfsi
 SRCF+=		fixunsxfti
 SRCF+=		fixxfdi
 SRCF+=		fixxfti
-SRCF+=		floatdidf
-SRCF+=		floatdisf
 SRCF+=		floatditf
-SRCF+=		floatdixf
 SRCF+=		floatsitf
 SRCF+=		floattidf
 SRCF+=		floattisf
 SRCF+=		floattixf
-SRCF+=		floatundidf
-SRCF+=		floatundisf
 SRCF+=		floatunditf
-SRCF+=		floatundixf
 SRCF+=		floatunsidf
 SRCF+=		floatunsisf
 SRCF+=		floatuntidf
@@ -127,6 +121,23 @@ SRCF+=		udivti3
 SRCF+=		umoddi3
 SRCF+=		umodsi3
 SRCF+=		umodti3
+
+# Avoid using SSE2 instructions on i386.
+.if ${MACHINE_CPUARCH} == "i386"
+SRCS+=		floatdidf.c
+SRCS+=		floatdisf.c
+SRCS+=		floatdixf.c
+SRCS+=		floatundidf.c
+SRCS+=		floatundisf.c
+SRCS+=		floatundixf.c
+.else
+SRCF+=		floatdidf
+SRCF+=		floatdisf
+SRCF+=		floatdixf
+SRCF+=		floatundidf
+SRCF+=		floatundisf
+SRCF+=		floatundixf
+.endif
 
 # __cpu_model support, only used on x86
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
