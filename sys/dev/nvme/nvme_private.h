@@ -135,6 +135,7 @@ struct nvme_completion_poll_status {
 #ifdef NVME_UNMAPPED_BIO_SUPPORT
 #define NVME_REQUEST_BIO	4
 #endif
+#define NVME_REQUEST_CCB        5
 
 struct nvme_request {
 
@@ -514,6 +515,20 @@ nvme_allocate_request_bio(struct bio *bio, nvme_cb_fn_t cb_fn, void *cb_arg)
 		req->payload_size = bio->bio_bcount;
 #endif
 	}
+	return (req);
+}
+
+static __inline struct nvme_request *
+nvme_allocate_request_ccb(union ccb *ccb, nvme_cb_fn_t cb_fn, void *cb_arg)
+{
+	struct nvme_request *req;
+
+	req = _nvme_allocate_request(cb_fn, cb_arg);
+	if (req != NULL) {
+		req->type = NVME_REQUEST_CCB;
+		req->u.payload = ccb;
+	}
+
 	return (req);
 }
 
