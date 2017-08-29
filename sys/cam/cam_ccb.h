@@ -831,7 +831,8 @@ struct ccb_nvmeio {
 	struct nvme_completion cpl;	/* NVME completion, per NVME standard */
 	uint8_t   *data_ptr;		/* Ptr to the data buf/SG list */
 	uint32_t  dxfer_len;		/* Data transfer length */
-	uint32_t  resid;		/* Transfer residual length: 2's comp unused ?*/
+	uint16_t  sglist_cnt;		/* Number of SG list entries */
+	uint16_t  unused;		/* padding for removed uint32_t */
 };
 
 /*
