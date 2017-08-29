@@ -220,7 +220,9 @@ OLD_DIRS+=usr/share/examples/bhyve
 
 .if ${MK_BINUTILS} == no
 OLD_FILES+=usr/bin/as
+.if ${MK_LLD_IS_LD} == no
 OLD_FILES+=usr/bin/ld
+.endif
 OLD_FILES+=usr/bin/ld.bfd
 .if ${MK_ELFCOPY_AS_OBJCOPY} == no
 OLD_FILES+=usr/bin/objcopy
