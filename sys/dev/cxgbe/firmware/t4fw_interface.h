@@ -86,6 +86,7 @@ enum fw_memtype {
 	FW_MEMTYPE_FLASH	= 0x4,
 	FW_MEMTYPE_INTERNAL	= 0x5,
 	FW_MEMTYPE_EXTMEM1	= 0x6,
+	FW_MEMTYPE_HMA          = 0x7,
 };
 
 /******************************************************************************
@@ -138,7 +139,6 @@ enum fw_wr_opcodes {
 	FW_ISCSI_TX_DATA_WR	= 0x45,
 	FW_PTP_TX_PKT_WR        = 0x46,
 	FW_TLSTX_DATA_WR	= 0x68,
-	FW_TLS_KEYCTX_TX_WR	= 0x69,
 	FW_CRYPTO_LOOKASIDE_WR	= 0x6d,
 	FW_COiSCSI_TGT_WR	= 0x70,
 	FW_COiSCSI_TGT_CONN_WR	= 0x71,
@@ -376,7 +376,7 @@ struct fw_filter2_wr {
 	__be16 fpm;
 	__be16 r7;
 	__u8   sma[6];
-	__u8   r8_hi[2];
+	__be16 r8;
 	__u8   filter_type_swapmac;
 	__u8   natmode_to_ulp_type;
 	__be16 newlport;
@@ -384,7 +384,7 @@ struct fw_filter2_wr {
 	__u8   newlip[16];
 	__u8   newfip[16];
 	__be32 natseqcheck;
-	__be32 dip_hit_vni;
+	__be32 r9;
 	__be64 r10;
 	__be64 r11;
 	__be64 r12;
@@ -607,19 +607,6 @@ struct fw_filter2_wr {
 #define V_FW_FILTER2_WR_ULP_TYPE(x)	((x) << S_FW_FILTER2_WR_ULP_TYPE)
 #define G_FW_FILTER2_WR_ULP_TYPE(x)	\
     (((x) >> S_FW_FILTER2_WR_ULP_TYPE) & M_FW_FILTER2_WR_ULP_TYPE)
-
-#define S_FW_FILTER2_WR_DIP_HIT		24
-#define M_FW_FILTER2_WR_DIP_HIT		0x1
-#define V_FW_FILTER2_WR_DIP_HIT(x)	((x) << S_FW_FILTER2_WR_DIP_HIT)
-#define G_FW_FILTER2_WR_DIP_HIT(x)	\
-    (((x) >> S_FW_FILTER2_WR_DIP_HIT) & M_FW_FILTER2_WR_DIP_HIT)
-#define F_FW_FILTER2_WR_DIP_HIT		V_FW_FILTER2_WR_DIP_HIT(1U)
-
-#define S_FW_FILTER2_WR_VNI		0
-#define M_FW_FILTER2_WR_VNI		0xffffff
-#define V_FW_FILTER2_WR_VNI(x)		((x) << S_FW_FILTER2_WR_VNI)
-#define G_FW_FILTER2_WR_VNI(x)		\
-    (((x) >> S_FW_FILTER2_WR_VNI) & M_FW_FILTER2_WR_VNI)
 
 #define S_FW_FILTER_WR_MACI	23
 #define M_FW_FILTER_WR_MACI	0x1ff
@@ -1192,7 +1179,8 @@ enum fw_ri_wr_opcode {
 	FW_RI_FAST_REGISTER		= 0xd,
 	FW_RI_LOCAL_INV			= 0xe,
 #endif
-	FW_RI_SGE_EC_CR_RETURN		= 0xf
+	FW_RI_SGE_EC_CR_RETURN		= 0xf,
+	FW_RI_WRITE_IMMEDIATE	= FW_RI_RDMA_INIT,
 };
 
 enum fw_ri_wr_flags {
@@ -1201,7 +1189,8 @@ enum fw_ri_wr_flags {
 	FW_RI_SOLICITED_EVENT_FLAG	= 0x04,
 	FW_RI_READ_FENCE_FLAG		= 0x08,
 	FW_RI_LOCAL_FENCE_FLAG		= 0x10,
-	FW_RI_RDMA_READ_INVALIDATE	= 0x20
+	FW_RI_RDMA_READ_INVALIDATE	= 0x20,
+	FW_RI_RDMA_WRITE_WITH_IMMEDIATE	= 0x40
 };
 
 enum fw_ri_mpa_attrs {
@@ -1453,6 +1442,13 @@ struct fw_ri_cqe {
 		__be32	stag;
 		__be32	msn;
 		} rcqe;
+		struct fw_ri_rcqe_imm {
+		__be32	qpid_n_stat_rxtx_type;
+		__be32	plen;
+		__be32	mo;
+		__be32	msn;
+		__u64	imm_data;
+		} imm_data_rcqe;
 	} u;
 };
 
@@ -1780,7 +1776,7 @@ struct fw_ri_rdma_write_wr {
 	__u16  wrid;
 	__u8   r1[3];
 	__u8   len16;
-	__be64 r2;
+	__u64  immd_data;
 	__be32 plen;
 	__be32 stag_sink;
 	__be64 to_sink;
@@ -3640,331 +3636,6 @@ struct fw_tlstx_data_wr {
     (((x) >> S_FW_TLSTX_DATA_WR_PDUSINPLENMAX) & \
      M_FW_TLSTX_DATA_WR_PDUSINPLENMAX)
 
-struct fw_tls_keyctx_tx_wr {
-        __be32 op_to_compl;
-        __be32 flowid_len16;
-        union fw_key_ctx {
-                struct fw_tx_keyctx_hdr {
-                        __u8   ctxlen;
-                        __u8   r2;
-                        __be16 dualck_to_txvalid;
-                        __u8   txsalt[4];
-                        __be64 r5;
-                } txhdr;
-                struct fw_rx_keyctx_hdr {
-                        __u8   flitcnt_hmacctrl;
-                        __u8   protover_ciphmode;
-                        __u8   authmode_to_rxvalid;
-                        __u8   ivpresent_to_rxmk_size;
-                        __u8   rxsalt[4];
-                        __be64 ivinsert_to_authinsrt;
-                } rxhdr;
-                struct fw_keyctx_clear {
-                        __be32 tx_key;
-                        __be32 rx_key;
-                } kctx_clr;
-        } u;
-        struct keys {
-                __u8   edkey[32];
-                __u8   ipad[64];
-                __u8   opad[64];
-        } keys;
-        __u8   reneg_to_write_rx;
-        __u8   protocol;
-        __be16 mfs;
-        __be32 ftid;
-};
-
-#define S_FW_TLS_KEYCTX_TX_WR_OPCODE    24
-#define M_FW_TLS_KEYCTX_TX_WR_OPCODE    0xff
-#define V_FW_TLS_KEYCTX_TX_WR_OPCODE(x) ((x) << S_FW_TLS_KEYCTX_TX_WR_OPCODE)
-#define G_FW_TLS_KEYCTX_TX_WR_OPCODE(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_OPCODE) & M_FW_TLS_KEYCTX_TX_WR_OPCODE)
-
-#define S_FW_TLS_KEYCTX_TX_WR_ATOMIC    23
-#define M_FW_TLS_KEYCTX_TX_WR_ATOMIC    0x1
-#define V_FW_TLS_KEYCTX_TX_WR_ATOMIC(x) ((x) << S_FW_TLS_KEYCTX_TX_WR_ATOMIC)
-#define G_FW_TLS_KEYCTX_TX_WR_ATOMIC(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_ATOMIC) & M_FW_TLS_KEYCTX_TX_WR_ATOMIC)
-#define F_FW_TLS_KEYCTX_TX_WR_ATOMIC    V_FW_TLS_KEYCTX_TX_WR_ATOMIC(1U)
-
-#define S_FW_TLS_KEYCTX_TX_WR_FLUSH     22
-#define M_FW_TLS_KEYCTX_TX_WR_FLUSH     0x1
-#define V_FW_TLS_KEYCTX_TX_WR_FLUSH(x)  ((x) << S_FW_TLS_KEYCTX_TX_WR_FLUSH)
-#define G_FW_TLS_KEYCTX_TX_WR_FLUSH(x)  \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_FLUSH) & M_FW_TLS_KEYCTX_TX_WR_FLUSH)
-#define F_FW_TLS_KEYCTX_TX_WR_FLUSH     V_FW_TLS_KEYCTX_TX_WR_FLUSH(1U)
-
-#define S_FW_TLS_KEYCTX_TX_WR_COMPL     21
-#define M_FW_TLS_KEYCTX_TX_WR_COMPL     0x1
-#define V_FW_TLS_KEYCTX_TX_WR_COMPL(x)  ((x) << S_FW_TLS_KEYCTX_TX_WR_COMPL)
-#define G_FW_TLS_KEYCTX_TX_WR_COMPL(x)  \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_COMPL) & M_FW_TLS_KEYCTX_TX_WR_COMPL)
-#define F_FW_TLS_KEYCTX_TX_WR_COMPL     V_FW_TLS_KEYCTX_TX_WR_COMPL(1U)
-
-#define S_FW_TLS_KEYCTX_TX_WR_FLOWID    8
-#define M_FW_TLS_KEYCTX_TX_WR_FLOWID    0xfffff
-#define V_FW_TLS_KEYCTX_TX_WR_FLOWID(x) ((x) << S_FW_TLS_KEYCTX_TX_WR_FLOWID)
-#define G_FW_TLS_KEYCTX_TX_WR_FLOWID(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_FLOWID) & M_FW_TLS_KEYCTX_TX_WR_FLOWID)
-
-#define S_FW_TLS_KEYCTX_TX_WR_LEN16     0
-#define M_FW_TLS_KEYCTX_TX_WR_LEN16     0xff
-#define V_FW_TLS_KEYCTX_TX_WR_LEN16(x)  ((x) << S_FW_TLS_KEYCTX_TX_WR_LEN16)
-#define G_FW_TLS_KEYCTX_TX_WR_LEN16(x)  \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_LEN16) & M_FW_TLS_KEYCTX_TX_WR_LEN16)
-
-#define S_FW_TLS_KEYCTX_TX_WR_DUALCK    12
-#define M_FW_TLS_KEYCTX_TX_WR_DUALCK    0x1
-#define V_FW_TLS_KEYCTX_TX_WR_DUALCK(x) ((x) << S_FW_TLS_KEYCTX_TX_WR_DUALCK)
-#define G_FW_TLS_KEYCTX_TX_WR_DUALCK(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_DUALCK) & M_FW_TLS_KEYCTX_TX_WR_DUALCK)
-#define F_FW_TLS_KEYCTX_TX_WR_DUALCK    V_FW_TLS_KEYCTX_TX_WR_DUALCK(1U)
-
-#define S_FW_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT 11
-#define M_FW_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT 0x1
-#define V_FW_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT)
-#define G_FW_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT) & \
-     M_FW_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT)
-#define F_FW_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT \
-    V_FW_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT(1U)
-
-#define S_FW_TLS_KEYCTX_TX_WR_SALT_PRESENT 10
-#define M_FW_TLS_KEYCTX_TX_WR_SALT_PRESENT 0x1
-#define V_FW_TLS_KEYCTX_TX_WR_SALT_PRESENT(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_SALT_PRESENT)
-#define G_FW_TLS_KEYCTX_TX_WR_SALT_PRESENT(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_SALT_PRESENT) & \
-     M_FW_TLS_KEYCTX_TX_WR_SALT_PRESENT)
-#define F_FW_TLS_KEYCTX_TX_WR_SALT_PRESENT \
-    V_FW_TLS_KEYCTX_TX_WR_SALT_PRESENT(1U)
-
-#define S_FW_TLS_KEYCTX_TX_WR_TXCK_SIZE 6
-#define M_FW_TLS_KEYCTX_TX_WR_TXCK_SIZE 0xf
-#define V_FW_TLS_KEYCTX_TX_WR_TXCK_SIZE(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_TXCK_SIZE)
-#define G_FW_TLS_KEYCTX_TX_WR_TXCK_SIZE(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_TXCK_SIZE) & \
-     M_FW_TLS_KEYCTX_TX_WR_TXCK_SIZE)
-
-#define S_FW_TLS_KEYCTX_TX_WR_TXMK_SIZE 2
-#define M_FW_TLS_KEYCTX_TX_WR_TXMK_SIZE 0xf
-#define V_FW_TLS_KEYCTX_TX_WR_TXMK_SIZE(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_TXMK_SIZE)
-#define G_FW_TLS_KEYCTX_TX_WR_TXMK_SIZE(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_TXMK_SIZE) & \
-     M_FW_TLS_KEYCTX_TX_WR_TXMK_SIZE)
-
-#define S_FW_TLS_KEYCTX_TX_WR_TXVALID   0
-#define M_FW_TLS_KEYCTX_TX_WR_TXVALID   0x1
-#define V_FW_TLS_KEYCTX_TX_WR_TXVALID(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_TXVALID)
-#define G_FW_TLS_KEYCTX_TX_WR_TXVALID(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_TXVALID) & M_FW_TLS_KEYCTX_TX_WR_TXVALID)
-#define F_FW_TLS_KEYCTX_TX_WR_TXVALID   V_FW_TLS_KEYCTX_TX_WR_TXVALID(1U)
-
-#define S_FW_TLS_KEYCTX_TX_WR_FLITCNT   3
-#define M_FW_TLS_KEYCTX_TX_WR_FLITCNT   0x1f
-#define V_FW_TLS_KEYCTX_TX_WR_FLITCNT(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_FLITCNT)
-#define G_FW_TLS_KEYCTX_TX_WR_FLITCNT(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_FLITCNT) & M_FW_TLS_KEYCTX_TX_WR_FLITCNT)
-
-#define S_FW_TLS_KEYCTX_TX_WR_HMACCTRL  0
-#define M_FW_TLS_KEYCTX_TX_WR_HMACCTRL  0x7
-#define V_FW_TLS_KEYCTX_TX_WR_HMACCTRL(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_HMACCTRL)
-#define G_FW_TLS_KEYCTX_TX_WR_HMACCTRL(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_HMACCTRL) & M_FW_TLS_KEYCTX_TX_WR_HMACCTRL)
-
-#define S_FW_TLS_KEYCTX_TX_WR_PROTOVER  4
-#define M_FW_TLS_KEYCTX_TX_WR_PROTOVER  0xf
-#define V_FW_TLS_KEYCTX_TX_WR_PROTOVER(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_PROTOVER)
-#define G_FW_TLS_KEYCTX_TX_WR_PROTOVER(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_PROTOVER) & M_FW_TLS_KEYCTX_TX_WR_PROTOVER)
-
-#define S_FW_TLS_KEYCTX_TX_WR_CIPHMODE  0
-#define M_FW_TLS_KEYCTX_TX_WR_CIPHMODE  0xf
-#define V_FW_TLS_KEYCTX_TX_WR_CIPHMODE(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_CIPHMODE)
-#define G_FW_TLS_KEYCTX_TX_WR_CIPHMODE(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_CIPHMODE) & M_FW_TLS_KEYCTX_TX_WR_CIPHMODE)
-
-#define S_FW_TLS_KEYCTX_TX_WR_AUTHMODE  4
-#define M_FW_TLS_KEYCTX_TX_WR_AUTHMODE  0xf
-#define V_FW_TLS_KEYCTX_TX_WR_AUTHMODE(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_AUTHMODE)
-#define G_FW_TLS_KEYCTX_TX_WR_AUTHMODE(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_AUTHMODE) & M_FW_TLS_KEYCTX_TX_WR_AUTHMODE)
-
-#define S_FW_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL 3
-#define M_FW_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL 0x1
-#define V_FW_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL)
-#define G_FW_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL) & \
-     M_FW_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL)
-#define F_FW_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL \
-    V_FW_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL(1U)
-
-#define S_FW_TLS_KEYCTX_TX_WR_SEQNUMCTRL 1
-#define M_FW_TLS_KEYCTX_TX_WR_SEQNUMCTRL 0x3
-#define V_FW_TLS_KEYCTX_TX_WR_SEQNUMCTRL(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_SEQNUMCTRL)
-#define G_FW_TLS_KEYCTX_TX_WR_SEQNUMCTRL(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_SEQNUMCTRL) & \
-     M_FW_TLS_KEYCTX_TX_WR_SEQNUMCTRL)
-
-#define S_FW_TLS_KEYCTX_TX_WR_RXVALID   0
-#define M_FW_TLS_KEYCTX_TX_WR_RXVALID   0x1
-#define V_FW_TLS_KEYCTX_TX_WR_RXVALID(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_RXVALID)
-#define G_FW_TLS_KEYCTX_TX_WR_RXVALID(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_RXVALID) & M_FW_TLS_KEYCTX_TX_WR_RXVALID)
-#define F_FW_TLS_KEYCTX_TX_WR_RXVALID   V_FW_TLS_KEYCTX_TX_WR_RXVALID(1U)
-
-#define S_FW_TLS_KEYCTX_TX_WR_IVPRESENT 7
-#define M_FW_TLS_KEYCTX_TX_WR_IVPRESENT 0x1
-#define V_FW_TLS_KEYCTX_TX_WR_IVPRESENT(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_IVPRESENT)
-#define G_FW_TLS_KEYCTX_TX_WR_IVPRESENT(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_IVPRESENT) & \
-     M_FW_TLS_KEYCTX_TX_WR_IVPRESENT)
-#define F_FW_TLS_KEYCTX_TX_WR_IVPRESENT V_FW_TLS_KEYCTX_TX_WR_IVPRESENT(1U)
-
-#define S_FW_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT 6
-#define M_FW_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT 0x1
-#define V_FW_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT)
-#define G_FW_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT) & \
-     M_FW_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT)
-#define F_FW_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT \
-    V_FW_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT(1U)
-
-#define S_FW_TLS_KEYCTX_TX_WR_RXCK_SIZE 3
-#define M_FW_TLS_KEYCTX_TX_WR_RXCK_SIZE 0x7
-#define V_FW_TLS_KEYCTX_TX_WR_RXCK_SIZE(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_RXCK_SIZE)
-#define G_FW_TLS_KEYCTX_TX_WR_RXCK_SIZE(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_RXCK_SIZE) & \
-     M_FW_TLS_KEYCTX_TX_WR_RXCK_SIZE)
-
-#define S_FW_TLS_KEYCTX_TX_WR_RXMK_SIZE 0
-#define M_FW_TLS_KEYCTX_TX_WR_RXMK_SIZE 0x7
-#define V_FW_TLS_KEYCTX_TX_WR_RXMK_SIZE(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_RXMK_SIZE)
-#define G_FW_TLS_KEYCTX_TX_WR_RXMK_SIZE(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_RXMK_SIZE) & \
-     M_FW_TLS_KEYCTX_TX_WR_RXMK_SIZE)
-
-#define S_FW_TLS_KEYCTX_TX_WR_IVINSERT  55
-#define M_FW_TLS_KEYCTX_TX_WR_IVINSERT  0x1ffULL
-#define V_FW_TLS_KEYCTX_TX_WR_IVINSERT(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_IVINSERT)
-#define G_FW_TLS_KEYCTX_TX_WR_IVINSERT(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_IVINSERT) & M_FW_TLS_KEYCTX_TX_WR_IVINSERT)
-
-#define S_FW_TLS_KEYCTX_TX_WR_AADSTRTOFST 47
-#define M_FW_TLS_KEYCTX_TX_WR_AADSTRTOFST 0xffULL
-#define V_FW_TLS_KEYCTX_TX_WR_AADSTRTOFST(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_AADSTRTOFST)
-#define G_FW_TLS_KEYCTX_TX_WR_AADSTRTOFST(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_AADSTRTOFST) & \
-     M_FW_TLS_KEYCTX_TX_WR_AADSTRTOFST)
-
-#define S_FW_TLS_KEYCTX_TX_WR_AADSTOPOFST 39
-#define M_FW_TLS_KEYCTX_TX_WR_AADSTOPOFST 0xffULL
-#define V_FW_TLS_KEYCTX_TX_WR_AADSTOPOFST(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_AADSTOPOFST)
-#define G_FW_TLS_KEYCTX_TX_WR_AADSTOPOFST(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_AADSTOPOFST) & \
-     M_FW_TLS_KEYCTX_TX_WR_AADSTOPOFST)
-
-#define S_FW_TLS_KEYCTX_TX_WR_CIPHERSRTOFST 30
-#define M_FW_TLS_KEYCTX_TX_WR_CIPHERSRTOFST 0x1ffULL
-#define V_FW_TLS_KEYCTX_TX_WR_CIPHERSRTOFST(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_CIPHERSRTOFST)
-#define G_FW_TLS_KEYCTX_TX_WR_CIPHERSRTOFST(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_CIPHERSRTOFST) & \
-     M_FW_TLS_KEYCTX_TX_WR_CIPHERSRTOFST)
-
-#define S_FW_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST 23
-#define M_FW_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST 0x7f
-#define V_FW_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST)
-#define G_FW_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST) & \
-     M_FW_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST)
-
-#define S_FW_TLS_KEYCTX_TX_WR_AUTHSRTOFST 14
-#define M_FW_TLS_KEYCTX_TX_WR_AUTHSRTOFST 0x1ff
-#define V_FW_TLS_KEYCTX_TX_WR_AUTHSRTOFST(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_AUTHSRTOFST)
-#define G_FW_TLS_KEYCTX_TX_WR_AUTHSRTOFST(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_AUTHSRTOFST) & \
-     M_FW_TLS_KEYCTX_TX_WR_AUTHSRTOFST)
-
-#define S_FW_TLS_KEYCTX_TX_WR_AUTHSTOPOFST 7
-#define M_FW_TLS_KEYCTX_TX_WR_AUTHSTOPOFST 0x7f
-#define V_FW_TLS_KEYCTX_TX_WR_AUTHSTOPOFST(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_AUTHSTOPOFST)
-#define G_FW_TLS_KEYCTX_TX_WR_AUTHSTOPOFST(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_AUTHSTOPOFST) & \
-     M_FW_TLS_KEYCTX_TX_WR_AUTHSTOPOFST)
-
-#define S_FW_TLS_KEYCTX_TX_WR_AUTHINSRT 0
-#define M_FW_TLS_KEYCTX_TX_WR_AUTHINSRT 0x7f
-#define V_FW_TLS_KEYCTX_TX_WR_AUTHINSRT(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_AUTHINSRT)
-#define G_FW_TLS_KEYCTX_TX_WR_AUTHINSRT(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_AUTHINSRT) & \
-     M_FW_TLS_KEYCTX_TX_WR_AUTHINSRT)
-
-#define S_FW_TLS_KEYCTX_TX_WR_RENEG     4
-#define M_FW_TLS_KEYCTX_TX_WR_RENEG     0x1
-#define V_FW_TLS_KEYCTX_TX_WR_RENEG(x)  ((x) << S_FW_TLS_KEYCTX_TX_WR_RENEG)
-#define G_FW_TLS_KEYCTX_TX_WR_RENEG(x)  \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_RENEG) & M_FW_TLS_KEYCTX_TX_WR_RENEG)
-#define F_FW_TLS_KEYCTX_TX_WR_RENEG     V_FW_TLS_KEYCTX_TX_WR_RENEG(1U)
-
-#define S_FW_TLS_KEYCTX_TX_WR_DELETE_TX 3
-#define M_FW_TLS_KEYCTX_TX_WR_DELETE_TX 0x1
-#define V_FW_TLS_KEYCTX_TX_WR_DELETE_TX(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_DELETE_TX)
-#define G_FW_TLS_KEYCTX_TX_WR_DELETE_TX(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_DELETE_TX) & \
-     M_FW_TLS_KEYCTX_TX_WR_DELETE_TX)
-#define F_FW_TLS_KEYCTX_TX_WR_DELETE_TX V_FW_TLS_KEYCTX_TX_WR_DELETE_TX(1U)
-
-#define S_FW_TLS_KEYCTX_TX_WR_DELETE_RX 2
-#define M_FW_TLS_KEYCTX_TX_WR_DELETE_RX 0x1
-#define V_FW_TLS_KEYCTX_TX_WR_DELETE_RX(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_DELETE_RX)
-#define G_FW_TLS_KEYCTX_TX_WR_DELETE_RX(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_DELETE_RX) & \
-     M_FW_TLS_KEYCTX_TX_WR_DELETE_RX)
-#define F_FW_TLS_KEYCTX_TX_WR_DELETE_RX V_FW_TLS_KEYCTX_TX_WR_DELETE_RX(1U)
-
-#define S_FW_TLS_KEYCTX_TX_WR_WRITE_TX  1
-#define M_FW_TLS_KEYCTX_TX_WR_WRITE_TX  0x1
-#define V_FW_TLS_KEYCTX_TX_WR_WRITE_TX(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_WRITE_TX)
-#define G_FW_TLS_KEYCTX_TX_WR_WRITE_TX(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_WRITE_TX) & M_FW_TLS_KEYCTX_TX_WR_WRITE_TX)
-#define F_FW_TLS_KEYCTX_TX_WR_WRITE_TX  V_FW_TLS_KEYCTX_TX_WR_WRITE_TX(1U)
-
-#define S_FW_TLS_KEYCTX_TX_WR_WRITE_RX  0
-#define M_FW_TLS_KEYCTX_TX_WR_WRITE_RX  0x1
-#define V_FW_TLS_KEYCTX_TX_WR_WRITE_RX(x) \
-    ((x) << S_FW_TLS_KEYCTX_TX_WR_WRITE_RX)
-#define G_FW_TLS_KEYCTX_TX_WR_WRITE_RX(x) \
-    (((x) >> S_FW_TLS_KEYCTX_TX_WR_WRITE_RX) & M_FW_TLS_KEYCTX_TX_WR_WRITE_RX)
-#define F_FW_TLS_KEYCTX_TX_WR_WRITE_RX  V_FW_TLS_KEYCTX_TX_WR_WRITE_RX(1U)
-
 struct fw_crypto_lookaside_wr {
         __be32 op_to_cctx_size;
         __be32 len16_pkd;
@@ -4161,6 +3832,7 @@ enum fw_cmd_opcodes {
 	FW_DCB_IEEE_CMD		       = 0x3a,
 	FW_DIAG_CMD		       = 0x3d,
 	FW_PTP_CMD                     = 0x3e,
+	FW_HMA_CMD                     = 0x3f,
 	FW_LASTC2E_CMD                 = 0x40,
 	FW_ERROR_CMD                   = 0x80,
 	FW_DEBUG_CMD                   = 0x81,
@@ -4803,6 +4475,10 @@ enum fw_params_param_dev {
 
 	FW_PARAMS_PARAM_DEV_MPSBGMAP	= 0x1E,
 	FW_PARAMS_PARAM_DEV_TPCHMAP	= 0x1F,
+	FW_PARAMS_PARAM_DEV_HMA_SIZE	= 0x20,
+	FW_PARAMS_PARAM_DEV_RDMA_WRITE_WITH_IMM	= 0x21,
+	FW_PARAMS_PARAM_DEV_RING_BACKBONE	= 0x22,
+	FW_PARAMS_PARAM_DEV_PPOD_EDRAM	= 0x23,
 };
 
 /*
@@ -4891,6 +4567,9 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_RAWF_END	= 0x37,
 	FW_PARAMS_PARAM_PFVF_RSSKEYINFO	= 0x38,
 	FW_PARAMS_PARAM_PFVF_NCRYPTO_LOOKASIDE = 0x39,
+	FW_PARAMS_PARAM_PFVF_PORT_CAPS32 = 0x3A,
+	FW_PARAMS_PARAM_PFVF_PPOD_EDRAM_START = 0x3B,
+	FW_PARAMS_PARAM_PFVF_PPOD_EDRAM_END = 0x3C,
 };
 
 /*
@@ -6546,6 +6225,7 @@ enum fw_vi_mac_entry_types {
 	FW_VI_MAC_TYPE_EXACTMAC,
 	FW_VI_MAC_TYPE_HASHVEC,
 	FW_VI_MAC_TYPE_RAW,
+	FW_VI_MAC_TYPE_EXACTMAC_VNI,
 };
 
 struct fw_vi_mac_cmd {
@@ -6566,6 +6246,14 @@ struct fw_vi_mac_cmd {
 			__be64 data0m_pkd;
 			__be32 data1m[2];
 		} raw;
+		struct fw_vi_mac_vni {
+			__be16 valid_to_idx;
+			__u8   macaddr[6];
+			__be16 r7;
+			__u8   macaddr_mask[6];
+			__be32 lookup_type_to_vni;
+			__be32 vni_mask_pkd;
+		} exact_vni[2];
 	} u;
 };
 
@@ -6631,6 +6319,32 @@ struct fw_vi_mac_cmd {
 #define V_FW_VI_MAC_CMD_DATA0(x)	((x) << S_FW_VI_MAC_CMD_DATA0)
 #define G_FW_VI_MAC_CMD_DATA0(x)	\
     (((x) >> S_FW_VI_MAC_CMD_DATA0) & M_FW_VI_MAC_CMD_DATA0)
+
+#define S_FW_VI_MAC_CMD_LOOKUP_TYPE	31
+#define M_FW_VI_MAC_CMD_LOOKUP_TYPE	0x1
+#define V_FW_VI_MAC_CMD_LOOKUP_TYPE(x)	((x) << S_FW_VI_MAC_CMD_LOOKUP_TYPE)
+#define G_FW_VI_MAC_CMD_LOOKUP_TYPE(x)	\
+    (((x) >> S_FW_VI_MAC_CMD_LOOKUP_TYPE) & M_FW_VI_MAC_CMD_LOOKUP_TYPE)
+#define F_FW_VI_MAC_CMD_LOOKUP_TYPE	V_FW_VI_MAC_CMD_LOOKUP_TYPE(1U)
+
+#define S_FW_VI_MAC_CMD_DIP_HIT		30
+#define M_FW_VI_MAC_CMD_DIP_HIT		0x1
+#define V_FW_VI_MAC_CMD_DIP_HIT(x)	((x) << S_FW_VI_MAC_CMD_DIP_HIT)
+#define G_FW_VI_MAC_CMD_DIP_HIT(x)	\
+    (((x) >> S_FW_VI_MAC_CMD_DIP_HIT) & M_FW_VI_MAC_CMD_DIP_HIT)
+#define F_FW_VI_MAC_CMD_DIP_HIT	V_FW_VI_MAC_CMD_DIP_HIT(1U)
+
+#define S_FW_VI_MAC_CMD_VNI	0
+#define M_FW_VI_MAC_CMD_VNI	0xffffff
+#define V_FW_VI_MAC_CMD_VNI(x)	((x) << S_FW_VI_MAC_CMD_VNI)
+#define G_FW_VI_MAC_CMD_VNI(x)	\
+    (((x) >> S_FW_VI_MAC_CMD_VNI) & M_FW_VI_MAC_CMD_VNI)
+
+#define S_FW_VI_MAC_CMD_VNI_MASK	0
+#define M_FW_VI_MAC_CMD_VNI_MASK	0xffffff
+#define V_FW_VI_MAC_CMD_VNI_MASK(x)	((x) << S_FW_VI_MAC_CMD_VNI_MASK)
+#define G_FW_VI_MAC_CMD_VNI_MASK(x)	\
+    (((x) >> S_FW_VI_MAC_CMD_VNI_MASK) & M_FW_VI_MAC_CMD_VNI_MASK)
 
 /* T4 max MTU supported */
 #define T4_MAX_MTU_SUPPORTED	9600
@@ -6915,7 +6629,7 @@ struct fw_acl_vlan_cmd {
     (((x) >> S_FW_ACL_VLAN_CMD_FM) & M_FW_ACL_VLAN_CMD_FM)
 #define F_FW_ACL_VLAN_CMD_FM		V_FW_ACL_VLAN_CMD_FM(1U)
 
-/* port capabilities bitmap */
+/* old 16-bit port capabilities bitmap (fw_port_cap16_t) */
 enum fw_port_cap {
 	FW_PORT_CAP_SPEED_100M		= 0x0001,
 	FW_PORT_CAP_SPEED_1G		= 0x0002,
@@ -6977,21 +6691,83 @@ enum fw_port_mdi {
 #define V_FW_PORT_CAP_MDI(x) ((x) << S_FW_PORT_CAP_MDI)
 #define G_FW_PORT_CAP_MDI(x) (((x) >> S_FW_PORT_CAP_MDI) & M_FW_PORT_CAP_MDI)
 
-#define S_FW_PORT_AUXLINFO_KX4	2
-#define M_FW_PORT_AUXLINFO_KX4	0x1
-#define V_FW_PORT_AUXLINFO_KX4(x) \
-    ((x) << S_FW_PORT_AUXLINFO_KX4)
-#define G_FW_PORT_AUXLINFO_KX4(x) \
-    (((x) >> S_FW_PORT_AUXLINFO_KX4) & M_FW_PORT_AUXLINFO_KX4)
-#define F_FW_PORT_AUXLINFO_KX4	V_FW_PORT_AUXLINFO_KX4(1U)
+/* new 32-bit port capabilities bitmap (fw_port_cap32_t) */
+#define	FW_PORT_CAP32_SPEED_100M	0x00000001UL
+#define	FW_PORT_CAP32_SPEED_1G		0x00000002UL
+#define	FW_PORT_CAP32_SPEED_10G		0x00000004UL
+#define	FW_PORT_CAP32_SPEED_25G		0x00000008UL
+#define	FW_PORT_CAP32_SPEED_40G		0x00000010UL
+#define	FW_PORT_CAP32_SPEED_50G		0x00000020UL
+#define	FW_PORT_CAP32_SPEED_100G	0x00000040UL
+#define	FW_PORT_CAP32_SPEED_200G	0x00000080UL
+#define	FW_PORT_CAP32_SPEED_400G	0x00000100UL
+#define	FW_PORT_CAP32_SPEED_RESERVED1	0x00000200UL
+#define	FW_PORT_CAP32_SPEED_RESERVED2	0x00000400UL
+#define	FW_PORT_CAP32_SPEED_RESERVED3	0x00000800UL
+#define	FW_PORT_CAP32_RESERVED1		0x0000f000UL
+#define	FW_PORT_CAP32_FC_RX		0x00010000UL
+#define	FW_PORT_CAP32_FC_TX		0x00020000UL
+#define	FW_PORT_CAP32_802_3_PAUSE	0x00040000UL
+#define	FW_PORT_CAP32_802_3_ASM_DIR	0x00080000UL
+#define	FW_PORT_CAP32_ANEG		0x00100000UL
+#define	FW_PORT_CAP32_MDIX		0x00200000UL
+#define	FW_PORT_CAP32_MDIAUTO		0x00400000UL
+#define	FW_PORT_CAP32_FEC_RS		0x00800000UL
+#define	FW_PORT_CAP32_FEC_BASER_RS	0x01000000UL
+#define	FW_PORT_CAP32_FEC_RESERVED1	0x02000000UL
+#define	FW_PORT_CAP32_FEC_RESERVED2	0x04000000UL
+#define	FW_PORT_CAP32_FEC_RESERVED3	0x08000000UL
+#define	FW_PORT_CAP32_RESERVED2		0xf0000000UL
 
-#define S_FW_PORT_AUXLINFO_KR	1
-#define M_FW_PORT_AUXLINFO_KR	0x1
-#define V_FW_PORT_AUXLINFO_KR(x) \
-    ((x) << S_FW_PORT_AUXLINFO_KR)
-#define G_FW_PORT_AUXLINFO_KR(x) \
-    (((x) >> S_FW_PORT_AUXLINFO_KR) & M_FW_PORT_AUXLINFO_KR)
-#define F_FW_PORT_AUXLINFO_KR	V_FW_PORT_AUXLINFO_KR(1U)
+#define S_FW_PORT_CAP32_SPEED	0
+#define M_FW_PORT_CAP32_SPEED	0xfff
+#define V_FW_PORT_CAP32_SPEED(x)	((x) << S_FW_PORT_CAP32_SPEED)
+#define G_FW_PORT_CAP32_SPEED(x) \
+    (((x) >> S_FW_PORT_CAP32_SPEED) & M_FW_PORT_CAP32_SPEED)
+
+#define S_FW_PORT_CAP32_FC	16
+#define M_FW_PORT_CAP32_FC	0x3
+#define V_FW_PORT_CAP32_FC(x)	((x) << S_FW_PORT_CAP32_FC)
+#define G_FW_PORT_CAP32_FC(x) \
+    (((x) >> S_FW_PORT_CAP32_FC) & M_FW_PORT_CAP32_FC)
+
+#define S_FW_PORT_CAP32_802_3	18
+#define M_FW_PORT_CAP32_802_3	0x3
+#define V_FW_PORT_CAP32_802_3(x)	((x) << S_FW_PORT_CAP32_802_3)
+#define G_FW_PORT_CAP32_802_3(x) \
+    (((x) >> S_FW_PORT_CAP32_802_3) & M_FW_PORT_CAP32_802_3)
+
+#define S_FW_PORT_CAP32_ANEG	20
+#define M_FW_PORT_CAP32_ANEG	0x1
+#define V_FW_PORT_CAP32_ANEG(x)	((x) << S_FW_PORT_CAP32_ANEG)
+#define G_FW_PORT_CAP32_ANEG(x) \
+    (((x) >> S_FW_PORT_CAP32_ANEG) & M_FW_PORT_CAP32_ANEG)
+
+enum fw_port_mdi32 {
+	FW_PORT_CAP32_MDI_UNCHANGED,
+	FW_PORT_CAP32_MDI_AUTO,
+	FW_PORT_CAP32_MDI_F_STRAIGHT,
+	FW_PORT_CAP32_MDI_F_CROSSOVER
+};
+
+#define S_FW_PORT_CAP32_MDI 21
+#define M_FW_PORT_CAP32_MDI 3
+#define V_FW_PORT_CAP32_MDI(x) ((x) << S_FW_PORT_CAP32_MDI)
+#define G_FW_PORT_CAP32_MDI(x) \
+    (((x) >> S_FW_PORT_CAP32_MDI) & M_FW_PORT_CAP32_MDI)
+
+#define S_FW_PORT_CAP32_FEC	23
+#define M_FW_PORT_CAP32_FEC	0x1f
+#define V_FW_PORT_CAP32_FEC(x)	((x) << S_FW_PORT_CAP32_FEC)
+#define G_FW_PORT_CAP32_FEC(x) \
+    (((x) >> S_FW_PORT_CAP32_FEC) & M_FW_PORT_CAP32_FEC)
+
+/* macros to isolate various 32-bit Port Capabilities sub-fields */
+#define CAP32_SPEED(__cap32) \
+	(V_FW_PORT_CAP32_SPEED(M_FW_PORT_CAP32_SPEED) & __cap32)
+
+#define CAP32_FEC(__cap32) \
+	(V_FW_PORT_CAP32_FEC(M_FW_PORT_CAP32_FEC) & __cap32)
 
 enum fw_port_action {
 	FW_PORT_ACTION_L1_CFG		= 0x0001,
@@ -7002,6 +6778,8 @@ enum fw_port_action {
 	FW_PORT_ACTION_DCB_READ_TRANS	= 0x0006,
 	FW_PORT_ACTION_DCB_READ_RECV	= 0x0007,
 	FW_PORT_ACTION_DCB_READ_DET	= 0x0008,
+	FW_PORT_ACTION_L1_CFG32		= 0x0009,
+	FW_PORT_ACTION_GET_PORT_INFO32	= 0x000a,
 	FW_PORT_ACTION_LOW_PWR_TO_NORMAL = 0x0010,
 	FW_PORT_ACTION_L1_LOW_PWR_EN	= 0x0011,
 	FW_PORT_ACTION_L2_WOL_MODE_EN	= 0x0012,
@@ -7018,7 +6796,6 @@ enum fw_port_action {
 	FW_PORT_ACTION_PHYXS_RESET	= 0x0043,
 	FW_PORT_ACTION_DTEXS_REEST	= 0x0044,
 	FW_PORT_ACTION_AN_RESET		= 0x0045,
-
 };
 
 enum fw_port_l2cfg_ctlbf {
@@ -7166,6 +6943,18 @@ struct fw_port_cmd {
 				__be64 r12;
 			} control;
 		} dcb;
+		struct fw_port_l1cfg32 {
+			__be32 rcap32;
+			__be32 r;
+		} l1cfg32;
+		struct fw_port_info32 {
+			__be32 lstatus32_to_cbllen32;
+			__be32 auxlinfo32_mtu32;
+			__be32 linkattr32;
+			__be32 pcaps32;
+			__be32 acaps32;
+			__be32 lpacaps32;
+		} info32;
 	} u;
 };
 
@@ -7308,6 +7097,22 @@ struct fw_port_cmd {
 #define G_FW_PORT_CMD_MODTYPE(x)	\
     (((x) >> S_FW_PORT_CMD_MODTYPE) & M_FW_PORT_CMD_MODTYPE)
 
+#define S_FW_PORT_AUXLINFO_KX4	2
+#define M_FW_PORT_AUXLINFO_KX4	0x1
+#define V_FW_PORT_AUXLINFO_KX4(x) \
+    ((x) << S_FW_PORT_AUXLINFO_KX4)
+#define G_FW_PORT_AUXLINFO_KX4(x) \
+    (((x) >> S_FW_PORT_AUXLINFO_KX4) & M_FW_PORT_AUXLINFO_KX4)
+#define F_FW_PORT_AUXLINFO_KX4	V_FW_PORT_AUXLINFO_KX4(1U)
+
+#define S_FW_PORT_AUXLINFO_KR	1
+#define M_FW_PORT_AUXLINFO_KR	0x1
+#define V_FW_PORT_AUXLINFO_KR(x) \
+    ((x) << S_FW_PORT_AUXLINFO_KR)
+#define G_FW_PORT_AUXLINFO_KR(x) \
+    (((x) >> S_FW_PORT_AUXLINFO_KR) & M_FW_PORT_AUXLINFO_KR)
+#define F_FW_PORT_AUXLINFO_KR	V_FW_PORT_AUXLINFO_KR(1U)
+
 #define S_FW_PORT_CMD_DCBXDIS		7
 #define M_FW_PORT_CMD_DCBXDIS		0x1
 #define V_FW_PORT_CMD_DCBXDIS(x)	((x) << S_FW_PORT_CMD_DCBXDIS)
@@ -7352,6 +7157,85 @@ struct fw_port_cmd {
 #define V_FW_PORT_CMD_APP_STATE(x)	((x) << S_FW_PORT_CMD_APP_STATE)
 #define G_FW_PORT_CMD_APP_STATE(x)	\
     (((x) >> S_FW_PORT_CMD_APP_STATE) & M_FW_PORT_CMD_APP_STATE)
+
+#define S_FW_PORT_CMD_LSTATUS32		31
+#define M_FW_PORT_CMD_LSTATUS32		0x1
+#define V_FW_PORT_CMD_LSTATUS32(x)	((x) << S_FW_PORT_CMD_LSTATUS32)
+#define G_FW_PORT_CMD_LSTATUS32(x)	\
+    (((x) >> S_FW_PORT_CMD_LSTATUS32) & M_FW_PORT_CMD_LSTATUS32)
+#define F_FW_PORT_CMD_LSTATUS32	V_FW_PORT_CMD_LSTATUS32(1U)
+
+#define S_FW_PORT_CMD_LINKDNRC32	28
+#define M_FW_PORT_CMD_LINKDNRC32	0x7
+#define V_FW_PORT_CMD_LINKDNRC32(x)	((x) << S_FW_PORT_CMD_LINKDNRC32)
+#define G_FW_PORT_CMD_LINKDNRC32(x)	\
+    (((x) >> S_FW_PORT_CMD_LINKDNRC32) & M_FW_PORT_CMD_LINKDNRC32)
+
+#define S_FW_PORT_CMD_DCBXDIS32		27
+#define M_FW_PORT_CMD_DCBXDIS32		0x1
+#define V_FW_PORT_CMD_DCBXDIS32(x)	((x) << S_FW_PORT_CMD_DCBXDIS32)
+#define G_FW_PORT_CMD_DCBXDIS32(x)	\
+    (((x) >> S_FW_PORT_CMD_DCBXDIS32) & M_FW_PORT_CMD_DCBXDIS32)
+#define F_FW_PORT_CMD_DCBXDIS32	V_FW_PORT_CMD_DCBXDIS32(1U)
+
+#define S_FW_PORT_CMD_MDIOCAP32		26
+#define M_FW_PORT_CMD_MDIOCAP32		0x1
+#define V_FW_PORT_CMD_MDIOCAP32(x)	((x) << S_FW_PORT_CMD_MDIOCAP32)
+#define G_FW_PORT_CMD_MDIOCAP32(x)	\
+    (((x) >> S_FW_PORT_CMD_MDIOCAP32) & M_FW_PORT_CMD_MDIOCAP32)
+#define F_FW_PORT_CMD_MDIOCAP32	V_FW_PORT_CMD_MDIOCAP32(1U)
+
+#define S_FW_PORT_CMD_MDIOADDR32	21
+#define M_FW_PORT_CMD_MDIOADDR32	0x1f
+#define V_FW_PORT_CMD_MDIOADDR32(x)	((x) << S_FW_PORT_CMD_MDIOADDR32)
+#define G_FW_PORT_CMD_MDIOADDR32(x)	\
+    (((x) >> S_FW_PORT_CMD_MDIOADDR32) & M_FW_PORT_CMD_MDIOADDR32)
+
+#define S_FW_PORT_CMD_PORTTYPE32	13
+#define M_FW_PORT_CMD_PORTTYPE32	0xff
+#define V_FW_PORT_CMD_PORTTYPE32(x)	((x) << S_FW_PORT_CMD_PORTTYPE32)
+#define G_FW_PORT_CMD_PORTTYPE32(x)	\
+    (((x) >> S_FW_PORT_CMD_PORTTYPE32) & M_FW_PORT_CMD_PORTTYPE32)
+
+#define S_FW_PORT_CMD_MODTYPE32		8
+#define M_FW_PORT_CMD_MODTYPE32		0x1f
+#define V_FW_PORT_CMD_MODTYPE32(x)	((x) << S_FW_PORT_CMD_MODTYPE32)
+#define G_FW_PORT_CMD_MODTYPE32(x)	\
+    (((x) >> S_FW_PORT_CMD_MODTYPE32) & M_FW_PORT_CMD_MODTYPE32)
+
+#define S_FW_PORT_CMD_CBLLEN32		0
+#define M_FW_PORT_CMD_CBLLEN32		0xff
+#define V_FW_PORT_CMD_CBLLEN32(x)	((x) << S_FW_PORT_CMD_CBLLEN32)
+#define G_FW_PORT_CMD_CBLLEN32(x)	\
+    (((x) >> S_FW_PORT_CMD_CBLLEN32) & M_FW_PORT_CMD_CBLLEN32)
+
+#define S_FW_PORT_CMD_AUXLINFO32	24
+#define M_FW_PORT_CMD_AUXLINFO32	0xff
+#define V_FW_PORT_CMD_AUXLINFO32(x)	((x) << S_FW_PORT_CMD_AUXLINFO32)
+#define G_FW_PORT_CMD_AUXLINFO32(x)	\
+    (((x) >> S_FW_PORT_CMD_AUXLINFO32) & M_FW_PORT_CMD_AUXLINFO32)
+
+#define S_FW_PORT_AUXLINFO32_KX4	2
+#define M_FW_PORT_AUXLINFO32_KX4	0x1
+#define V_FW_PORT_AUXLINFO32_KX4(x) \
+    ((x) << S_FW_PORT_AUXLINFO32_KX4)
+#define G_FW_PORT_AUXLINFO32_KX4(x) \
+    (((x) >> S_FW_PORT_AUXLINFO32_KX4) & M_FW_PORT_AUXLINFO32_KX4)
+#define F_FW_PORT_AUXLINFO32_KX4	V_FW_PORT_AUXLINFO32_KX4(1U)
+
+#define S_FW_PORT_AUXLINFO32_KR	1
+#define M_FW_PORT_AUXLINFO32_KR	0x1
+#define V_FW_PORT_AUXLINFO32_KR(x) \
+    ((x) << S_FW_PORT_AUXLINFO32_KR)
+#define G_FW_PORT_AUXLINFO32_KR(x) \
+    (((x) >> S_FW_PORT_AUXLINFO32_KR) & M_FW_PORT_AUXLINFO32_KR)
+#define F_FW_PORT_AUXLINFO32_KR	V_FW_PORT_AUXLINFO32_KR(1U)
+
+#define S_FW_PORT_CMD_MTU32	0
+#define M_FW_PORT_CMD_MTU32	0xffff
+#define V_FW_PORT_CMD_MTU32(x)	((x) << S_FW_PORT_CMD_MTU32)
+#define G_FW_PORT_CMD_MTU32(x)	\
+    (((x) >> S_FW_PORT_CMD_MTU32) & M_FW_PORT_CMD_MTU32)
 
 /*
  *	These are configured into the VPD and hence tools that generate
@@ -9232,6 +9116,59 @@ struct fw_diag_cmd {
 #define G_FW_DIAG_CMD_TYPE(x)		\
     (((x) >> S_FW_DIAG_CMD_TYPE) & M_FW_DIAG_CMD_TYPE)
 
+struct fw_hma_cmd {
+	__be32 op_pkd;
+	__be32 retval_len16;
+	__be32 mode_to_pcie_params;
+	__be32 naddr_size;
+	__be32 addr_size_pkd;
+	__be32 r6;
+	__be64 phy_address[5];
+};
+
+#define S_FW_HMA_CMD_MODE	31
+#define M_FW_HMA_CMD_MODE	0x1
+#define V_FW_HMA_CMD_MODE(x)	((x) << S_FW_HMA_CMD_MODE)
+#define G_FW_HMA_CMD_MODE(x)	\
+    (((x) >> S_FW_HMA_CMD_MODE) & M_FW_HMA_CMD_MODE)
+#define F_FW_HMA_CMD_MODE	V_FW_HMA_CMD_MODE(1U)
+
+#define S_FW_HMA_CMD_SOC	30
+#define M_FW_HMA_CMD_SOC	0x1
+#define V_FW_HMA_CMD_SOC(x)	((x) << S_FW_HMA_CMD_SOC)
+#define G_FW_HMA_CMD_SOC(x)	(((x) >> S_FW_HMA_CMD_SOC) & M_FW_HMA_CMD_SOC)
+#define F_FW_HMA_CMD_SOC	V_FW_HMA_CMD_SOC(1U)
+
+#define S_FW_HMA_CMD_EOC	29
+#define M_FW_HMA_CMD_EOC	0x1
+#define V_FW_HMA_CMD_EOC(x)	((x) << S_FW_HMA_CMD_EOC)
+#define G_FW_HMA_CMD_EOC(x)	(((x) >> S_FW_HMA_CMD_EOC) & M_FW_HMA_CMD_EOC)
+#define F_FW_HMA_CMD_EOC	V_FW_HMA_CMD_EOC(1U)
+
+#define S_FW_HMA_CMD_PCIE_PARAMS	0
+#define M_FW_HMA_CMD_PCIE_PARAMS	0x7ffffff
+#define V_FW_HMA_CMD_PCIE_PARAMS(x)	((x) << S_FW_HMA_CMD_PCIE_PARAMS)
+#define G_FW_HMA_CMD_PCIE_PARAMS(x)	\
+    (((x) >> S_FW_HMA_CMD_PCIE_PARAMS) & M_FW_HMA_CMD_PCIE_PARAMS)
+
+#define S_FW_HMA_CMD_NADDR	12
+#define M_FW_HMA_CMD_NADDR	0x3f
+#define V_FW_HMA_CMD_NADDR(x)	((x) << S_FW_HMA_CMD_NADDR)
+#define G_FW_HMA_CMD_NADDR(x)	\
+    (((x) >> S_FW_HMA_CMD_NADDR) & M_FW_HMA_CMD_NADDR)
+
+#define S_FW_HMA_CMD_SIZE	0
+#define M_FW_HMA_CMD_SIZE	0xfff
+#define V_FW_HMA_CMD_SIZE(x)	((x) << S_FW_HMA_CMD_SIZE)
+#define G_FW_HMA_CMD_SIZE(x)	\
+    (((x) >> S_FW_HMA_CMD_SIZE) & M_FW_HMA_CMD_SIZE)
+
+#define S_FW_HMA_CMD_ADDR_SIZE		11
+#define M_FW_HMA_CMD_ADDR_SIZE		0x1fffff
+#define V_FW_HMA_CMD_ADDR_SIZE(x)	((x) << S_FW_HMA_CMD_ADDR_SIZE)
+#define G_FW_HMA_CMD_ADDR_SIZE(x)	\
+    (((x) >> S_FW_HMA_CMD_ADDR_SIZE) & M_FW_HMA_CMD_ADDR_SIZE)
+
 /******************************************************************************
  *   P C I E   F W   R E G I S T E R
  **************************************/
@@ -9446,17 +9383,17 @@ enum fw_hdr_chip {
 enum {
 	T4FW_VERSION_MAJOR	= 0x01,
 	T4FW_VERSION_MINOR	= 0x10,
-	T4FW_VERSION_MICRO	= 0x2d,
+	T4FW_VERSION_MICRO	= 0x3b,
 	T4FW_VERSION_BUILD	= 0x00,
 
 	T5FW_VERSION_MAJOR	= 0x01,
 	T5FW_VERSION_MINOR	= 0x10,
-	T5FW_VERSION_MICRO	= 0x2d,
+	T5FW_VERSION_MICRO	= 0x3b,
 	T5FW_VERSION_BUILD	= 0x00,
 
 	T6FW_VERSION_MAJOR	= 0x01,
 	T6FW_VERSION_MINOR	= 0x10,
-	T6FW_VERSION_MICRO	= 0x2d,
+	T6FW_VERSION_MICRO	= 0x3b,
 	T6FW_VERSION_BUILD	= 0x00,
 };
 
