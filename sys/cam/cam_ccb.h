@@ -631,7 +631,7 @@ struct ccb_pathinq_settings_sas {
 };
 
 struct ccb_pathinq_settings_nvme {
-	uint16_t nsid;		/* Namespace ID for this path */
+	uint32_t nsid;		/* Namespace ID for this path */
 };
 
 #define	PATHINQ_SETTINGS_SIZE	128
