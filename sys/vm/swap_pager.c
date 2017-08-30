@@ -311,7 +311,7 @@ swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred)
 #define SWM_FREE	0x02	/* free, period			*/
 #define SWM_POP		0x04	/* pop out			*/
 
-int swap_pager_full = 2;	/* swap space exhaustion (task killing) */
+static int swap_pager_full = 2;	/* swap space exhaustion (task killing) */
 static int swap_pager_almost_full = 1; /* swap space exhaustion (w/hysteresis)*/
 static int nsw_rcount;		/* free read buffers			*/
 static int nsw_wcount_sync;	/* limit write buffers / synchronous	*/
