@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2016-2017 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2017 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -26,75 +26,64 @@
 .\" $FreeBSD$
 .\"
 .Dd August 30, 2017
-.Dt NTB_TRANSPORT 4
+.Dt NTB 4
 .Os
 .Sh NAME
-.Nm ntb_transport
-.Nd Packet-oriented transport for Non-Transparent Bridges
+.Nm ntb
+.Nd Non-Transparent Bridge subsystem
 .Sh SYNOPSIS
-To compile this driver into your kernel,
+To compile it into your kernel,
 place the following lines in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device ntb"
-.Cd "device ntb_transport"
 .Ed
 .Pp
-Or, to load the driver as a module at boot, place the following line in
+Or, to load it as a module at boot, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-ntb_transport_load="YES"
+ntb_load="YES"
 .Ed
 .Pp
 The following tunables are settable from the
 .Xr loader 8 :
 .Bl -ohang
-.It Va hw.ntb_transport.debug_level
+.It Va hw.ntb.debug_level
 Driver debug level.
 The default value is 0, higher means more verbose.
-.It Va hint.ntb_transport. Ns Ar X Ns Va .config
-Configures queues allocation for consumer devices, separated by commas.
-Each device can be configured as: "[<name>][:<queues>]", where:
+.It Va hint.ntb_hw. Ns Ar X Ns Va .config
+Configures NTB resources split between several consumer devices.
+Configuration of multiple consumer devices separated by commas.
+Each device can be configured as: "[<name>][:<mw>[:<spad>[:<db>]]]", where:
 .Va name
 is a name of the driver which should attach the device (empty means any),
-.Va queues
-is a number of queues to allocate (empty means automatic).
+.Va mw
+is a number of memory windows to allocate (empty means all available),
+.Va spad
+is a number of scratchpad registers to allocate (empty means all available),
+.Va db
+is a number of doorbells to allocate (empty means all available).
 The default configuration is empty string, which means single device
-with one queue per memory window allowing any driver attachment.
+with all available resources allowing any driver attachment.
 .El
 .Sh DESCRIPTION
+Non-Transparent Bridges allow to connect two computer systems with PCIe
+link(s), providing each of them limited access to others memory space,
+scratchpad registers and interrupts.
 The
 .Nm
-driver attaches on top of the
-.Nm ntb
-driver to utilize its resources to create set of bidirectional queues,
-delivering packets between the systems.
-The primary purpose of this is to be used by
-.Nm if_ntb
-network interface, but other consumers may also be developed using KPI.
-.Pp
-Each
-.Nm
-require from underlying
-.Nm ntb
-instance:
-.Bl -bullet -compact
-.It
-1 or more memory windows;
-.It
-6 scratchpads, plus 2 more for each additional memory window;
-.It
-1 doorbell for each memory window or configured queue.
-.El
+subsystem uses those resources provided in generic way by hardware drivers
+and splits them between multiple consumer drivers, according to specified
+configuration.
 .Sh SEE ALSO
 .Xr if_ntb 4 ,
-.Xr ntb 4 ,
+.Xr ntb_transport 4 ,
 .Xr ntb_hw_intel 4 ,
 .Xr ntb_hw_plx 4
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
-driver was developed by Intel and originally written by
+subsystem was developed by Intel and originally written by
 .An Carl Delsey Aq Mt carl@FreeBSD.org .
 Later improvements were done by
 .An Conrad E. Meyer Aq Mt cem@FreeBSD.org
