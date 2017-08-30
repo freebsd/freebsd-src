@@ -381,7 +381,7 @@ int iflib_dma_alloc_multi(if_ctx_t ctx, int *sizes, iflib_dma_info_t *dmalist, i
 void iflib_dma_free_multi(iflib_dma_info_t *dmalist, int count);
 
 
-struct mtx *iflib_ctx_lock_get(if_ctx_t);
+struct sx *iflib_ctx_lock_get(if_ctx_t);
 struct mtx *iflib_qset_lock_get(if_ctx_t, uint16_t);
 
 void iflib_led_create(if_ctx_t ctx);
