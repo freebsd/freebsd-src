@@ -732,7 +732,7 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	    ("CheriABI stack pointer not properly aligned"));
 
 	cheri_capability_set(&td->td_proc->p_md.md_cheri_mmap_cap,
-	    CHERI_CAP_USER_MMAP_PERMS, CHERI_CAP_USER_MMAP_BASE,
+	    CHERI_CAP_USER_MMAP_PERMS, (void *)CHERI_CAP_USER_MMAP_BASE,
 	    CHERI_CAP_USER_MMAP_LENGTH, CHERI_CAP_USER_MMAP_OFFSET);
 
 	td->td_frame->pc = imgp->entry_addr;
