@@ -32,7 +32,6 @@ zfs_mount_001_pos_head()
 }
 zfs_mount_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -42,7 +41,6 @@ zfs_mount_001_pos_body()
 }
 zfs_mount_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -59,7 +57,6 @@ zfs_mount_002_pos_head()
 }
 zfs_mount_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -69,7 +66,6 @@ zfs_mount_002_pos_body()
 }
 zfs_mount_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -86,7 +82,6 @@ zfs_mount_003_pos_head()
 }
 zfs_mount_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -96,7 +91,6 @@ zfs_mount_003_pos_body()
 }
 zfs_mount_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -113,7 +107,6 @@ zfs_mount_004_pos_head()
 }
 zfs_mount_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -123,7 +116,6 @@ zfs_mount_004_pos_body()
 }
 zfs_mount_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -141,7 +133,6 @@ zfs_mount_005_pos_head()
 zfs_mount_005_pos_body()
 {
 	[[ `uname -s` = "FreeBSD" ]] && atf_skip "Unlike Illumos, FreeBSD allows the behavior the prohibition of which is tested by this testcase"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -151,7 +142,6 @@ zfs_mount_005_pos_body()
 }
 zfs_mount_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -169,7 +159,6 @@ zfs_mount_006_pos_head()
 zfs_mount_006_pos_body()
 {
 	[[ `uname -s` = "FreeBSD" ]] && atf_skip "Unlike Illumos, FreeBSD allows the behavior the prohibition of which is tested by this testcase"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -179,7 +168,6 @@ zfs_mount_006_pos_body()
 }
 zfs_mount_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -197,7 +185,6 @@ zfs_mount_007_pos_head()
 zfs_mount_007_pos_body()
 {
 	atf_expect_fail "BUG26181: The remount mount option is broken in SpectraBSD"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -207,7 +194,6 @@ zfs_mount_007_pos_body()
 }
 zfs_mount_007_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -226,7 +212,6 @@ zfs_mount_008_pos_body()
 {
 	[[ `uname -s` = "FreeBSD" ]] && \
 		atf_skip "Overlay mounts are not supported on FreeBSD"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -236,7 +221,6 @@ zfs_mount_008_pos_body()
 }
 zfs_mount_008_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -253,7 +237,6 @@ zfs_mount_009_neg_head()
 }
 zfs_mount_009_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -266,7 +249,6 @@ zfs_mount_009_neg_body()
 }
 zfs_mount_009_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -284,7 +266,6 @@ zfs_mount_010_neg_head()
 zfs_mount_010_neg_body()
 {
 	[[ `uname -s` = "FreeBSD" ]] && atf_skip "Unlike Illumos, FreeBSD allows the behavior the prohibition of which is tested by this testcase"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -294,7 +275,6 @@ zfs_mount_010_neg_body()
 }
 zfs_mount_010_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -311,7 +291,6 @@ zfs_mount_011_neg_head()
 }
 zfs_mount_011_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -321,7 +300,6 @@ zfs_mount_011_neg_body()
 }
 zfs_mount_011_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -338,7 +316,6 @@ zfs_mount_all_001_pos_head()
 }
 zfs_mount_all_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
@@ -351,7 +328,6 @@ zfs_mount_all_001_pos_body()
 }
 zfs_mount_all_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg

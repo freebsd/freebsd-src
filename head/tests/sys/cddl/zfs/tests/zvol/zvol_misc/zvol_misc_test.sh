@@ -33,7 +33,6 @@ zvol_misc_001_neg_head()
 }
 zvol_misc_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -42,7 +41,6 @@ zvol_misc_001_neg_body()
 }
 zvol_misc_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -59,7 +57,6 @@ zvol_misc_002_pos_head()
 }
 zvol_misc_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -68,7 +65,6 @@ zvol_misc_002_pos_body()
 }
 zvol_misc_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -85,7 +81,6 @@ zvol_misc_003_neg_head()
 }
 zvol_misc_003_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -94,7 +89,6 @@ zvol_misc_003_neg_body()
 }
 zvol_misc_003_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -111,7 +105,6 @@ zvol_misc_004_pos_head()
 }
 zvol_misc_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -120,7 +113,6 @@ zvol_misc_004_pos_body()
 }
 zvol_misc_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -137,7 +129,6 @@ zvol_misc_005_neg_head()
 }
 zvol_misc_005_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -146,7 +137,6 @@ zvol_misc_005_neg_body()
 }
 zvol_misc_005_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -163,7 +153,6 @@ zvol_misc_006_pos_head()
 }
 zvol_misc_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -172,7 +161,6 @@ zvol_misc_006_pos_body()
 }
 zvol_misc_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -190,7 +178,6 @@ zvol_misc_007_pos_head()
 }
 zvol_misc_007_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -199,7 +186,6 @@ zvol_misc_007_pos_body()
 }
 zvol_misc_007_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -217,7 +203,6 @@ zvol_misc_008_pos_head()
 }
 zvol_misc_008_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -226,7 +211,6 @@ zvol_misc_008_pos_body()
 }
 zvol_misc_008_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -244,7 +228,6 @@ zvol_misc_009_pos_head()
 }
 zvol_misc_009_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 
@@ -253,7 +236,6 @@ zvol_misc_009_pos_body()
 }
 zvol_misc_009_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
 

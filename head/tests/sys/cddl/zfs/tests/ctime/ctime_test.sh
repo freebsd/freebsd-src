@@ -32,7 +32,6 @@ ctime_001_pos_head()
 }
 ctime_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/ctime.cfg
 
@@ -41,7 +40,6 @@ ctime_001_pos_body()
 }
 ctime_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/ctime.cfg
 

@@ -33,7 +33,6 @@ txg_integrity_001_pos_head()
 txg_integrity_001_pos_body()
 {
 	export PATH=$(atf_get_srcdir):$PATH
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/txg_integrity.cfg
 
@@ -46,7 +45,6 @@ txg_integrity_001_pos_body()
 }
 txg_integrity_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/txg_integrity.cfg
 
@@ -64,7 +62,6 @@ fsync_integrity_001_pos_head()
 fsync_integrity_001_pos_body()
 {
 	export PATH=$(atf_get_srcdir):$PATH
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/txg_integrity.cfg
 
@@ -77,7 +74,6 @@ fsync_integrity_001_pos_body()
 }
 fsync_integrity_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/txg_integrity.cfg
 	export DISK="/dev/md${TESTCASE_ID}"

@@ -32,7 +32,6 @@ refreserv_001_pos_head()
 }
 refreserv_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refreserv.cfg
 
@@ -41,7 +40,6 @@ refreserv_001_pos_body()
 }
 refreserv_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refreserv.cfg
 
@@ -58,7 +56,6 @@ refreserv_002_pos_head()
 refreserv_002_pos_body()
 {
 	atf_expect_fail "BUG25520 this test incorrectly assumes that the avail, reserv, and refreserv properties are exact values that apply to data but not metadata"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refreserv.cfg
 
@@ -67,7 +64,6 @@ refreserv_002_pos_body()
 }
 refreserv_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refreserv.cfg
 
@@ -83,7 +79,6 @@ refreserv_003_pos_head()
 }
 refreserv_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refreserv.cfg
 
@@ -92,7 +87,6 @@ refreserv_003_pos_body()
 }
 refreserv_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refreserv.cfg
 
@@ -109,7 +103,6 @@ refreserv_004_pos_head()
 refreserv_004_pos_body()
 {
 	atf_expect_fail "BUG25520 this test incorrectly assumes that the avail, reserv, and refreserv properties are exact values that apply to data but not metadata"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refreserv.cfg
 
@@ -118,7 +111,6 @@ refreserv_004_pos_body()
 }
 refreserv_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refreserv.cfg
 
@@ -134,7 +126,6 @@ refreserv_005_pos_head()
 }
 refreserv_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refreserv.cfg
 
@@ -143,7 +134,6 @@ refreserv_005_pos_body()
 }
 refreserv_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refreserv.cfg
 

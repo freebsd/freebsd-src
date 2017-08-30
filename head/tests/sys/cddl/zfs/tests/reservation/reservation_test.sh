@@ -32,7 +32,6 @@ reservation_001_pos_head()
 }
 reservation_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -42,7 +41,6 @@ reservation_001_pos_body()
 }
 reservation_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -59,7 +57,6 @@ reservation_002_pos_head()
 }
 reservation_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -69,7 +66,6 @@ reservation_002_pos_body()
 }
 reservation_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -86,7 +82,6 @@ reservation_003_pos_head()
 }
 reservation_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -96,7 +91,6 @@ reservation_003_pos_body()
 }
 reservation_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -113,7 +107,6 @@ reservation_004_pos_head()
 }
 reservation_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -123,7 +116,6 @@ reservation_004_pos_body()
 }
 reservation_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -140,7 +132,6 @@ reservation_005_pos_head()
 }
 reservation_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -150,7 +141,6 @@ reservation_005_pos_body()
 }
 reservation_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -167,7 +157,6 @@ reservation_006_pos_head()
 }
 reservation_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -177,7 +166,6 @@ reservation_006_pos_body()
 }
 reservation_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -194,7 +182,6 @@ reservation_007_pos_head()
 }
 reservation_007_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -204,7 +191,6 @@ reservation_007_pos_body()
 }
 reservation_007_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -222,7 +208,6 @@ reservation_008_pos_head()
 }
 reservation_008_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -232,7 +217,6 @@ reservation_008_pos_body()
 }
 reservation_008_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -250,7 +234,6 @@ reservation_009_pos_head()
 }
 reservation_009_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -260,7 +243,6 @@ reservation_009_pos_body()
 }
 reservation_009_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -278,7 +260,6 @@ reservation_010_pos_head()
 }
 reservation_010_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -288,7 +269,6 @@ reservation_010_pos_body()
 }
 reservation_010_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -305,7 +285,6 @@ reservation_011_pos_head()
 }
 reservation_011_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -315,7 +294,6 @@ reservation_011_pos_body()
 }
 reservation_011_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -333,7 +311,6 @@ reservation_012_pos_head()
 }
 reservation_012_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -343,7 +320,6 @@ reservation_012_pos_body()
 }
 reservation_012_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -360,7 +336,6 @@ reservation_013_pos_head()
 }
 reservation_013_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -370,7 +345,6 @@ reservation_013_pos_body()
 }
 reservation_013_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -387,7 +361,6 @@ reservation_014_pos_head()
 }
 reservation_014_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -397,7 +370,6 @@ reservation_014_pos_body()
 }
 reservation_014_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -415,7 +387,6 @@ reservation_015_pos_head()
 }
 reservation_015_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -425,7 +396,6 @@ reservation_015_pos_body()
 }
 reservation_015_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -443,7 +413,6 @@ reservation_016_pos_head()
 }
 reservation_016_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -453,7 +422,6 @@ reservation_016_pos_body()
 }
 reservation_016_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -470,7 +438,6 @@ reservation_017_pos_head()
 }
 reservation_017_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -480,7 +447,6 @@ reservation_017_pos_body()
 }
 reservation_017_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -497,7 +463,6 @@ reservation_018_pos_head()
 }
 reservation_018_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
@@ -507,7 +472,6 @@ reservation_018_pos_body()
 }
 reservation_018_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg

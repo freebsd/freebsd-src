@@ -32,7 +32,6 @@ refquota_001_pos_head()
 }
 refquota_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refquota.cfg
 
@@ -41,7 +40,6 @@ refquota_001_pos_body()
 }
 refquota_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refquota.cfg
 
@@ -57,7 +55,6 @@ refquota_002_pos_head()
 }
 refquota_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refquota.cfg
 
@@ -66,7 +63,6 @@ refquota_002_pos_body()
 }
 refquota_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refquota.cfg
 
@@ -82,7 +78,6 @@ refquota_003_pos_head()
 }
 refquota_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refquota.cfg
 
@@ -91,7 +86,6 @@ refquota_003_pos_body()
 }
 refquota_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refquota.cfg
 
@@ -107,7 +101,6 @@ refquota_004_pos_head()
 }
 refquota_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refquota.cfg
 
@@ -116,7 +109,6 @@ refquota_004_pos_body()
 }
 refquota_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refquota.cfg
 
@@ -132,7 +124,6 @@ refquota_005_pos_head()
 }
 refquota_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refquota.cfg
 
@@ -141,7 +132,6 @@ refquota_005_pos_body()
 }
 refquota_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refquota.cfg
 
@@ -157,7 +147,6 @@ refquota_006_neg_head()
 }
 refquota_006_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refquota.cfg
 
@@ -166,7 +155,6 @@ refquota_006_neg_body()
 }
 refquota_006_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refquota.cfg
 

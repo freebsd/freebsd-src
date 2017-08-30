@@ -32,7 +32,6 @@ compress_001_pos_head()
 }
 compress_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/compress.cfg
 
@@ -41,7 +40,6 @@ compress_001_pos_body()
 }
 compress_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/compress.cfg
 
@@ -57,7 +55,6 @@ compress_003_pos_head()
 }
 compress_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/compress.cfg
 
@@ -66,7 +63,6 @@ compress_003_pos_body()
 }
 compress_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/compress.cfg
 
@@ -85,7 +81,6 @@ compress_004_pos_body()
 	if [[ $(uname) = "FreeBSD" ]]; then
 		atf_skip "FreeBSD does not implement F_FREESP in fcntl()"
 	fi
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/compress.cfg
 
@@ -94,7 +89,6 @@ compress_004_pos_body()
 }
 compress_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/compress.cfg
 

@@ -32,7 +32,6 @@ zfs_clone_001_neg_head()
 }
 zfs_clone_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -41,7 +40,6 @@ zfs_clone_001_neg_body()
 }
 zfs_clone_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -57,7 +55,6 @@ zfs_clone_002_pos_head()
 }
 zfs_clone_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -66,7 +63,6 @@ zfs_clone_002_pos_body()
 }
 zfs_clone_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -82,7 +78,6 @@ zfs_clone_003_pos_head()
 }
 zfs_clone_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -91,7 +86,6 @@ zfs_clone_003_pos_body()
 }
 zfs_clone_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -107,7 +101,6 @@ zfs_clone_004_pos_head()
 }
 zfs_clone_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -116,7 +109,6 @@ zfs_clone_004_pos_body()
 }
 zfs_clone_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -132,7 +124,6 @@ zfs_clone_005_pos_head()
 }
 zfs_clone_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -141,7 +132,6 @@ zfs_clone_005_pos_body()
 }
 zfs_clone_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -157,7 +147,6 @@ zfs_clone_006_pos_head()
 }
 zfs_clone_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -166,7 +155,6 @@ zfs_clone_006_pos_body()
 }
 zfs_clone_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -182,7 +170,6 @@ zfs_clone_007_pos_head()
 }
 zfs_clone_007_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -191,7 +178,6 @@ zfs_clone_007_pos_body()
 }
 zfs_clone_007_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -207,7 +193,6 @@ zfs_clone_008_neg_head()
 }
 zfs_clone_008_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -216,7 +201,6 @@ zfs_clone_008_neg_body()
 }
 zfs_clone_008_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -232,7 +216,6 @@ zfs_clone_009_neg_head()
 }
 zfs_clone_009_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 
@@ -241,7 +224,6 @@ zfs_clone_009_neg_body()
 }
 zfs_clone_009_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_clone.cfg
 

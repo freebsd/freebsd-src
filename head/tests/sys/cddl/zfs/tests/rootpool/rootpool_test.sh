@@ -32,14 +32,12 @@ rootpool_001_pos_head()
 }
 rootpool_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/rootpool_001_pos.ksh || atf_fail "Testcase failed"
 }
 rootpool_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
@@ -57,14 +55,12 @@ rootpool_002_neg_body()
 {
 	atf_expect_fail "Destroying the root pool will panic FreeBSD BUG25145"
 	atf_fail "Prematurely fail the test so we don't cause a panic"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/rootpool_002_neg.ksh || atf_fail "Testcase failed"
 }
 rootpool_002_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
@@ -82,14 +78,12 @@ rootpool_003_neg_body()
 {
 	atf_expect_fail "Destroying the root pool will panic FreeBSD BUG25145"
 	atf_fail "Prematurely fail the test so we don't cause a panic"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/rootpool_003_neg.ksh || atf_fail "Testcase failed"
 }
 rootpool_003_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
@@ -105,14 +99,12 @@ rootpool_004_pos_head()
 rootpool_004_pos_body()
 {
 	atf_skip "The expected behavior of this test does not match the behavior of Illumos.  Illumos and FreeBSD behave identically in this regard, so the test is probably wrong"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/rootpool_004_pos.ksh || atf_fail "Testcase failed"
 }
 rootpool_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
@@ -128,14 +120,12 @@ rootpool_005_pos_head()
 rootpool_005_pos_body()
 {
 	atf_skip "FreeBSD does not place any special requirements on <rootpool>/ROOT"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/rootpool_005_pos.ksh || atf_fail "Testcase failed"
 }
 rootpool_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
@@ -151,14 +141,12 @@ rootpool_006_pos_head()
 rootpool_006_pos_body()
 {
 	atf_skip "The expected behavior of this test does not match the behavior of Illumos.  Illumos and FreeBSD behave identically in this regard, so the test is probably wrong"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/rootpool_006_pos.ksh || atf_fail "Testcase failed"
 }
 rootpool_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
@@ -174,14 +162,12 @@ rootpool_007_neg_head()
 }
 rootpool_007_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/rootpool_007_neg.ksh || atf_fail "Testcase failed"
 }
 rootpool_007_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"

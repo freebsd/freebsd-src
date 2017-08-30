@@ -38,6 +38,8 @@ export STF_SUITE=%%STFSUITEDIR%%
 # Turn ATF variables into environment variables
 export DISKS=`atf_config_get disks ""`
 export KEEP=`atf_config_get keep_pools "" | ${SED} -E 's/ +/|/g'`
+export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
+
 
 . $STF_SUITE/include/constants.cfg
 

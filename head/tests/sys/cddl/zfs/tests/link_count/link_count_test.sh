@@ -32,7 +32,6 @@ link_count_001_head()
 }
 link_count_001_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/link_count.cfg
 
@@ -41,7 +40,6 @@ link_count_001_body()
 }
 link_count_001_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/link_count.cfg
 

@@ -31,7 +31,6 @@ zvol_ENOSPC_001_pos_head()
 }
 zvol_ENOSPC_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_ENOSPC.cfg
 
@@ -40,7 +39,6 @@ zvol_ENOSPC_001_pos_body()
 }
 zvol_ENOSPC_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_ENOSPC.cfg
 

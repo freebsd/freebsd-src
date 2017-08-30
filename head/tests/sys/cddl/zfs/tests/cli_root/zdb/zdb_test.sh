@@ -32,7 +32,6 @@ zdb_001_neg_head()
 }
 zdb_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zdb.cfg
 
@@ -41,7 +40,6 @@ zdb_001_neg_body()
 }
 zdb_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zdb.cfg
 

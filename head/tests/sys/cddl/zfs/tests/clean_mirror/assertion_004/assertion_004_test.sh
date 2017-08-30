@@ -31,7 +31,6 @@ clean_mirror_004_pos_head()
 }
 clean_mirror_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../clean_mirror_common.kshlib
 	. $(atf_get_srcdir)/../default.cfg
@@ -41,7 +40,6 @@ clean_mirror_004_pos_body()
 }
 clean_mirror_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../clean_mirror_common.kshlib
 	. $(atf_get_srcdir)/../default.cfg

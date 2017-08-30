@@ -33,7 +33,6 @@ zpool_list_001_pos_head()
 }
 zpool_list_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	atf_expect_fail 'BUG26173: zpool man page and STF tests were never updated for removal of "used" property'
 
 	. $(atf_get_srcdir)/../../../include/default.cfg
@@ -44,7 +43,6 @@ zpool_list_001_pos_body()
 }
 zpool_list_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_list.cfg
 
@@ -61,7 +59,6 @@ zpool_list_002_neg_head()
 }
 zpool_list_002_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_list.cfg
 
@@ -70,7 +67,6 @@ zpool_list_002_neg_body()
 }
 zpool_list_002_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_list.cfg
 

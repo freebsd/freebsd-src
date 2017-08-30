@@ -33,7 +33,6 @@ history_001_pos_head()
 }
 history_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -50,7 +49,6 @@ history_002_pos_head()
 }
 history_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -60,7 +58,6 @@ history_002_pos_body()
 }
 history_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -78,7 +75,6 @@ history_003_pos_head()
 }
 history_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -88,7 +84,6 @@ history_003_pos_body()
 }
 history_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -106,7 +101,6 @@ history_004_pos_head()
 }
 history_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -116,7 +110,6 @@ history_004_pos_body()
 }
 history_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -134,7 +127,6 @@ history_005_neg_head()
 }
 history_005_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -144,7 +136,6 @@ history_005_neg_body()
 }
 history_005_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -162,7 +153,6 @@ history_006_neg_head()
 }
 history_006_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -172,7 +162,6 @@ history_006_neg_body()
 }
 history_006_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -190,7 +179,6 @@ history_007_pos_head()
 }
 history_007_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -200,7 +188,6 @@ history_007_pos_body()
 }
 history_007_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -218,7 +205,6 @@ history_008_pos_head()
 }
 history_008_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -228,7 +214,6 @@ history_008_pos_body()
 }
 history_008_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -246,7 +231,6 @@ history_009_pos_head()
 }
 history_009_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -256,7 +240,6 @@ history_009_pos_body()
 }
 history_009_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -274,7 +257,6 @@ history_010_pos_head()
 }
 history_010_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
@@ -284,7 +266,6 @@ history_010_pos_body()
 }
 history_010_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg

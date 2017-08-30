@@ -33,7 +33,6 @@ truncate_001_pos_head()
 }
 truncate_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/truncate.cfg
 
@@ -42,7 +41,6 @@ truncate_001_pos_body()
 }
 truncate_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/truncate.cfg
 
@@ -58,7 +56,6 @@ truncate_002_pos_head()
 }
 truncate_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/truncate.cfg
 
@@ -67,7 +64,6 @@ truncate_002_pos_body()
 }
 truncate_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/truncate.cfg
 

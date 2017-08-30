@@ -32,7 +32,6 @@ zvol_cli_001_pos_head()
 }
 zvol_cli_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_cli.cfg
 
@@ -41,7 +40,6 @@ zvol_cli_001_pos_body()
 }
 zvol_cli_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_cli.cfg
 
@@ -58,7 +56,6 @@ zvol_cli_002_pos_head()
 zvol_cli_002_pos_body()
 {
 	atf_expect_fail "REQ25548 Increase FreeBSDs mount path length limit"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_cli.cfg
 
@@ -67,7 +64,6 @@ zvol_cli_002_pos_body()
 }
 zvol_cli_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_cli.cfg
 
@@ -83,7 +79,6 @@ zvol_cli_003_neg_head()
 }
 zvol_cli_003_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_cli.cfg
 
@@ -92,7 +87,6 @@ zvol_cli_003_neg_body()
 }
 zvol_cli_003_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_cli.cfg
 

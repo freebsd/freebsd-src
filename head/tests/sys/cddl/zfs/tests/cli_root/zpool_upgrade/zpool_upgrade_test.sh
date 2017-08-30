@@ -34,7 +34,6 @@ zpool_upgrade_001_pos_head()
 }
 zpool_upgrade_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
@@ -44,7 +43,6 @@ zpool_upgrade_001_pos_body()
 }
 zpool_upgrade_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
@@ -92,7 +90,6 @@ zpool_upgrade_003_pos_head()
 }
 zpool_upgrade_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
@@ -102,7 +99,6 @@ zpool_upgrade_003_pos_body()
 }
 zpool_upgrade_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
@@ -121,7 +117,6 @@ zpool_upgrade_004_pos_head()
 }
 zpool_upgrade_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
@@ -134,7 +129,6 @@ zpool_upgrade_004_pos_body()
 }
 zpool_upgrade_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
@@ -153,7 +147,6 @@ zpool_upgrade_005_neg_head()
 }
 zpool_upgrade_005_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
@@ -163,7 +156,6 @@ zpool_upgrade_005_neg_body()
 }
 zpool_upgrade_005_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
@@ -182,7 +174,6 @@ zpool_upgrade_006_neg_head()
 }
 zpool_upgrade_006_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
@@ -192,7 +183,6 @@ zpool_upgrade_006_neg_body()
 }
 zpool_upgrade_006_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
@@ -242,7 +232,6 @@ zpool_upgrade_008_pos_head()
 }
 zpool_upgrade_008_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
@@ -252,7 +241,6 @@ zpool_upgrade_008_pos_body()
 }
 zpool_upgrade_008_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
@@ -271,7 +259,6 @@ zpool_upgrade_009_neg_head()
 }
 zpool_upgrade_009_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
@@ -281,7 +268,6 @@ zpool_upgrade_009_neg_body()
 }
 zpool_upgrade_009_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
 	. $(atf_get_srcdir)/zpool_upgrade.cfg

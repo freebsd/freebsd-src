@@ -32,7 +32,6 @@ utils_test_001_pos_head()
 }
 utils_test_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg
@@ -42,7 +41,6 @@ utils_test_001_pos_body()
 }
 utils_test_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg
@@ -59,7 +57,6 @@ utils_test_002_pos_head()
 }
 utils_test_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg
@@ -69,7 +66,6 @@ utils_test_002_pos_body()
 }
 utils_test_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg
@@ -86,7 +82,6 @@ utils_test_003_pos_head()
 }
 utils_test_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg
@@ -96,7 +91,6 @@ utils_test_003_pos_body()
 }
 utils_test_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg
@@ -114,7 +108,6 @@ utils_test_004_pos_head()
 utils_test_004_pos_body()
 {
 	atf_expect_fail "FreeBSD's quotaon utility exits 0 even when you supply a nonexistent filesystem"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg
@@ -124,7 +117,6 @@ utils_test_004_pos_body()
 }
 utils_test_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg
@@ -141,7 +133,6 @@ utils_test_005_pos_head()
 }
 utils_test_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg
@@ -151,7 +142,6 @@ utils_test_005_pos_body()
 }
 utils_test_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg
@@ -168,7 +158,6 @@ utils_test_006_pos_head()
 }
 utils_test_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg
@@ -178,7 +167,6 @@ utils_test_006_pos_body()
 }
 utils_test_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg
@@ -223,7 +211,6 @@ utils_test_008_pos_head()
 }
 utils_test_008_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg
@@ -233,7 +220,6 @@ utils_test_008_pos_body()
 }
 utils_test_008_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg
@@ -250,7 +236,6 @@ utils_test_009_pos_head()
 }
 utils_test_009_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg
@@ -260,7 +245,6 @@ utils_test_009_pos_body()
 }
 utils_test_009_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/utils_test.kshlib
 	. $(atf_get_srcdir)/utils_test.cfg

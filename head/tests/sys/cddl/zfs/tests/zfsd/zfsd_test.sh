@@ -34,7 +34,6 @@ zfsd_fault_001_pos_head()
 }
 zfsd_fault_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
 
@@ -47,7 +46,6 @@ zfsd_fault_001_pos_body()
 }
 zfsd_fault_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
 
@@ -65,7 +63,6 @@ zfsd_degrade_001_pos_head()
 }
 zfsd_degrade_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
 
@@ -78,7 +75,6 @@ zfsd_degrade_001_pos_body()
 }
 zfsd_degrade_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
 
@@ -96,7 +92,6 @@ zfsd_degrade_002_pos_head()
 zfsd_degrade_002_pos_body()
 {
 	atf_expect_fail "BUG25761 An active spare on a raidz array will incorrectly account its checksum errors"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
 
@@ -109,7 +104,6 @@ zfsd_degrade_002_pos_body()
 }
 zfsd_degrade_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
 
@@ -126,7 +120,6 @@ zfsd_hotspare_001_pos_head()
 }
 zfsd_hotspare_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -140,7 +133,6 @@ zfsd_hotspare_001_pos_body()
 }
 zfsd_hotspare_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -157,7 +149,6 @@ zfsd_hotspare_002_pos_head()
 }
 zfsd_hotspare_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -171,7 +162,6 @@ zfsd_hotspare_002_pos_body()
 }
 zfsd_hotspare_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -190,7 +180,6 @@ zfsd_hotspare_003_pos_head()
 }
 zfsd_hotspare_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -204,7 +193,6 @@ zfsd_hotspare_003_pos_body()
 }
 zfsd_hotspare_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -222,7 +210,6 @@ zfsd_hotspare_004_pos_head()
 }
 zfsd_hotspare_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -236,7 +223,6 @@ zfsd_hotspare_004_pos_body()
 }
 zfsd_hotspare_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -253,7 +239,6 @@ zfsd_hotspare_005_pos_head()
 }
 zfsd_hotspare_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -267,7 +252,6 @@ zfsd_hotspare_005_pos_body()
 }
 zfsd_hotspare_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -284,7 +268,6 @@ zfsd_hotspare_006_pos_head()
 }
 zfsd_hotspare_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -298,7 +281,6 @@ zfsd_hotspare_006_pos_body()
 }
 zfsd_hotspare_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -316,7 +298,6 @@ zfsd_hotspare_007_pos_head()
 }
 zfsd_hotspare_007_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -330,7 +311,6 @@ zfsd_hotspare_007_pos_body()
 }
 zfsd_hotspare_007_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -348,7 +328,6 @@ zfsd_autoreplace_001_neg_head()
 }
 zfsd_autoreplace_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -362,7 +341,6 @@ zfsd_autoreplace_001_neg_body()
 }
 zfsd_autoreplace_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -380,7 +358,6 @@ zfsd_autoreplace_002_pos_head()
 }
 zfsd_autoreplace_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -394,7 +371,6 @@ zfsd_autoreplace_002_pos_body()
 }
 zfsd_autoreplace_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -412,7 +388,6 @@ zfsd_autoreplace_003_pos_head()
 }
 zfsd_autoreplace_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -426,7 +401,6 @@ zfsd_autoreplace_003_pos_body()
 }
 zfsd_autoreplace_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -443,7 +417,6 @@ zfsd_replace_001_pos_head()
 }
 zfsd_replace_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
 
@@ -456,7 +429,6 @@ zfsd_replace_001_pos_body()
 }
 zfsd_replace_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
 
@@ -474,7 +446,6 @@ zfsd_replace_002_pos_head()
 zfsd_replace_002_pos_body()
 {
 	atf_expect_fail "ZFS hangs when an array becomes critical"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
 
@@ -487,7 +458,6 @@ zfsd_replace_002_pos_body()
 }
 zfsd_replace_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
 
@@ -503,7 +473,6 @@ zfsd_replace_003_pos_head()
 }
 zfsd_replace_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
 
@@ -516,7 +485,6 @@ zfsd_replace_003_pos_body()
 }
 zfsd_replace_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
 
@@ -532,7 +500,6 @@ zfsd_import_001_pos_head()
 }
 zfsd_import_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
@@ -546,7 +513,6 @@ zfsd_import_001_pos_body()
 }
 zfsd_import_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg

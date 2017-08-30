@@ -32,7 +32,6 @@ zfs_create_001_pos_head()
 }
 zfs_create_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -43,7 +42,6 @@ zfs_create_001_pos_body()
 }
 zfs_create_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -61,7 +59,6 @@ zfs_create_002_pos_head()
 }
 zfs_create_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -72,7 +69,6 @@ zfs_create_002_pos_body()
 }
 zfs_create_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -90,7 +86,6 @@ zfs_create_003_pos_head()
 }
 zfs_create_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -101,7 +96,6 @@ zfs_create_003_pos_body()
 }
 zfs_create_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -119,7 +113,6 @@ zfs_create_004_pos_head()
 }
 zfs_create_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -130,7 +123,6 @@ zfs_create_004_pos_body()
 }
 zfs_create_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -148,7 +140,6 @@ zfs_create_005_pos_head()
 }
 zfs_create_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -159,7 +150,6 @@ zfs_create_005_pos_body()
 }
 zfs_create_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -177,7 +167,6 @@ zfs_create_006_pos_head()
 }
 zfs_create_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -188,7 +177,6 @@ zfs_create_006_pos_body()
 }
 zfs_create_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -206,7 +194,6 @@ zfs_create_007_pos_head()
 }
 zfs_create_007_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -217,7 +204,6 @@ zfs_create_007_pos_body()
 }
 zfs_create_007_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -236,7 +222,6 @@ zfs_create_008_neg_head()
 zfs_create_008_neg_body()
 {
 	atf_expect_fail 'BUG26172: "zpool create" does not validate the sharenfs parameter'
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -247,7 +232,6 @@ zfs_create_008_neg_body()
 }
 zfs_create_008_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -265,7 +249,6 @@ zfs_create_009_neg_head()
 }
 zfs_create_009_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -276,7 +259,6 @@ zfs_create_009_neg_body()
 }
 zfs_create_009_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -294,7 +276,6 @@ zfs_create_010_neg_head()
 }
 zfs_create_010_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -305,7 +286,6 @@ zfs_create_010_neg_body()
 }
 zfs_create_010_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -323,7 +303,6 @@ zfs_create_011_pos_head()
 }
 zfs_create_011_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -334,7 +313,6 @@ zfs_create_011_pos_body()
 }
 zfs_create_011_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -352,7 +330,6 @@ zfs_create_012_pos_head()
 }
 zfs_create_012_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -363,7 +340,6 @@ zfs_create_012_pos_body()
 }
 zfs_create_012_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -382,7 +358,6 @@ zfs_create_013_pos_head()
 zfs_create_013_pos_body()
 {
 	atf_expect_fail "REQ25548 FreeBSD's mount path limit is too short"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
@@ -393,7 +368,6 @@ zfs_create_013_pos_body()
 }
 zfs_create_013_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib

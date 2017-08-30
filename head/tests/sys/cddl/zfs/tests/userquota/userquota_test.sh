@@ -32,7 +32,6 @@ groupspace_001_pos_head()
 }
 groupspace_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -42,7 +41,6 @@ groupspace_001_pos_body()
 }
 groupspace_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -59,7 +57,6 @@ groupspace_002_pos_head()
 }
 groupspace_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -69,7 +66,6 @@ groupspace_002_pos_body()
 }
 groupspace_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -86,7 +82,6 @@ userquota_001_pos_head()
 }
 userquota_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -96,7 +91,6 @@ userquota_001_pos_body()
 }
 userquota_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -113,7 +107,6 @@ userquota_002_pos_head()
 }
 userquota_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -123,7 +116,6 @@ userquota_002_pos_body()
 }
 userquota_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -140,7 +132,6 @@ userquota_003_pos_head()
 }
 userquota_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -150,7 +141,6 @@ userquota_003_pos_body()
 }
 userquota_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -167,7 +157,6 @@ userquota_004_pos_head()
 }
 userquota_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -177,7 +166,6 @@ userquota_004_pos_body()
 }
 userquota_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -194,7 +182,6 @@ userquota_005_neg_head()
 }
 userquota_005_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -204,7 +191,6 @@ userquota_005_neg_body()
 }
 userquota_005_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -221,7 +207,6 @@ userquota_006_pos_head()
 }
 userquota_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -231,7 +216,6 @@ userquota_006_pos_body()
 }
 userquota_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -248,7 +232,6 @@ userquota_007_pos_head()
 }
 userquota_007_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -258,7 +241,6 @@ userquota_007_pos_body()
 }
 userquota_007_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -275,7 +257,6 @@ userquota_008_pos_head()
 }
 userquota_008_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -285,7 +266,6 @@ userquota_008_pos_body()
 }
 userquota_008_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -302,7 +282,6 @@ userquota_009_pos_head()
 }
 userquota_009_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -312,7 +291,6 @@ userquota_009_pos_body()
 }
 userquota_009_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -329,7 +307,6 @@ userquota_010_pos_head()
 }
 userquota_010_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -339,7 +316,6 @@ userquota_010_pos_body()
 }
 userquota_010_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -356,7 +332,6 @@ userquota_011_pos_head()
 }
 userquota_011_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -366,7 +341,6 @@ userquota_011_pos_body()
 }
 userquota_011_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -383,7 +357,6 @@ userquota_012_neg_head()
 }
 userquota_012_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -393,7 +366,6 @@ userquota_012_neg_body()
 }
 userquota_012_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -410,7 +382,6 @@ userspace_001_pos_head()
 }
 userspace_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -420,7 +391,6 @@ userspace_001_pos_body()
 }
 userspace_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -437,7 +407,6 @@ userspace_002_pos_head()
 }
 userspace_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
@@ -447,7 +416,6 @@ userspace_002_pos_body()
 }
 userspace_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg

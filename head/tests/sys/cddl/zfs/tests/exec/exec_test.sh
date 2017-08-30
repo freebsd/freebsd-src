@@ -33,7 +33,6 @@ exec_001_pos_head()
 exec_001_pos_body()
 {
 	export PATH=$(atf_get_srcdir):$PATH
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
@@ -41,7 +40,6 @@ exec_001_pos_body()
 }
 exec_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
@@ -58,7 +56,6 @@ exec_002_neg_body()
 {
 	atf_expect_fail "FreeBSD does not enforce the exec property for mmap(): TeamTrack BUG25314"
 	PATH=$(atf_get_srcdir):$PATH
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
@@ -66,7 +63,6 @@ exec_002_neg_body()
 }
 exec_002_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"

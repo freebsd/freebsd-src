@@ -33,7 +33,6 @@ rebooting_001_pos_head()
 }
 rebooting_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/rebooting.cfg
 
@@ -42,7 +41,6 @@ rebooting_001_pos_body()
 }
 rebooting_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/rebooting.cfg
 

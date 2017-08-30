@@ -33,7 +33,6 @@ hotplug_001_pos_head()
 }
 hotplug_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -43,7 +42,6 @@ hotplug_001_pos_body()
 }
 hotplug_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -61,7 +59,6 @@ hotplug_002_pos_head()
 }
 hotplug_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -71,7 +68,6 @@ hotplug_002_pos_body()
 }
 hotplug_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -89,7 +85,6 @@ hotplug_003_pos_head()
 }
 hotplug_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -99,7 +94,6 @@ hotplug_003_pos_body()
 }
 hotplug_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -117,7 +111,6 @@ hotplug_004_pos_head()
 }
 hotplug_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -127,7 +120,6 @@ hotplug_004_pos_body()
 }
 hotplug_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -145,7 +137,6 @@ hotplug_005_pos_head()
 }
 hotplug_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -155,7 +146,6 @@ hotplug_005_pos_body()
 }
 hotplug_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -173,7 +163,6 @@ hotplug_006_pos_head()
 }
 hotplug_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -183,7 +172,6 @@ hotplug_006_pos_body()
 }
 hotplug_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -201,7 +189,6 @@ hotplug_007_pos_head()
 }
 hotplug_007_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -211,7 +198,6 @@ hotplug_007_pos_body()
 }
 hotplug_007_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -229,7 +215,6 @@ hotplug_008_pos_head()
 }
 hotplug_008_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -239,7 +224,6 @@ hotplug_008_pos_body()
 }
 hotplug_008_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -257,7 +241,6 @@ hotplug_009_pos_head()
 }
 hotplug_009_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -267,7 +250,6 @@ hotplug_009_pos_body()
 }
 hotplug_009_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -285,7 +267,6 @@ hotplug_010_pos_head()
 }
 hotplug_010_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -295,7 +276,6 @@ hotplug_010_pos_body()
 }
 hotplug_010_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -313,7 +293,6 @@ hotplug_011_pos_head()
 }
 hotplug_011_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
@@ -323,7 +302,6 @@ hotplug_011_pos_body()
 }
 hotplug_011_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg

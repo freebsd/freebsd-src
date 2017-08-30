@@ -33,7 +33,6 @@ cache_001_pos_head()
 }
 cache_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -43,7 +42,6 @@ cache_001_pos_body()
 }
 cache_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -61,7 +59,6 @@ cache_002_pos_head()
 }
 cache_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -71,7 +68,6 @@ cache_002_pos_body()
 }
 cache_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -89,7 +85,6 @@ cache_003_pos_head()
 }
 cache_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -99,7 +94,6 @@ cache_003_pos_body()
 }
 cache_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -117,7 +111,6 @@ cache_004_neg_head()
 }
 cache_004_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -127,7 +120,6 @@ cache_004_neg_body()
 }
 cache_004_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -145,7 +137,6 @@ cache_005_neg_head()
 }
 cache_005_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -155,7 +146,6 @@ cache_005_neg_body()
 }
 cache_005_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -173,7 +163,6 @@ cache_006_pos_head()
 }
 cache_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -183,7 +172,6 @@ cache_006_pos_body()
 }
 cache_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -201,7 +189,6 @@ cache_007_neg_head()
 }
 cache_007_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -211,7 +198,6 @@ cache_007_neg_body()
 }
 cache_007_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -229,7 +215,6 @@ cache_008_neg_head()
 }
 cache_008_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -239,7 +224,6 @@ cache_008_neg_body()
 }
 cache_008_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -257,7 +241,6 @@ cache_009_pos_head()
 }
 cache_009_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -267,7 +250,6 @@ cache_009_pos_body()
 }
 cache_009_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -285,7 +267,6 @@ cache_010_neg_head()
 }
 cache_010_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -295,7 +276,6 @@ cache_010_neg_body()
 }
 cache_010_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -313,7 +293,6 @@ cache_011_pos_head()
 }
 cache_011_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg
@@ -323,7 +302,6 @@ cache_011_pos_body()
 }
 cache_011_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/cache.kshlib
 	. $(atf_get_srcdir)/cache.cfg

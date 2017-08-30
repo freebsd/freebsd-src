@@ -33,7 +33,6 @@ poolversion_001_pos_head()
 }
 poolversion_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
@@ -41,7 +40,6 @@ poolversion_001_pos_body()
 }
 poolversion_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
@@ -57,7 +55,6 @@ poolversion_002_pos_head()
 }
 poolversion_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
@@ -65,7 +62,6 @@ poolversion_002_pos_body()
 }
 poolversion_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"

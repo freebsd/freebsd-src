@@ -33,7 +33,6 @@ scrub_mirror_001_pos_head()
 }
 scrub_mirror_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/scrub_mirror_common.kshlib
 	. $(atf_get_srcdir)/default.cfg
@@ -43,7 +42,6 @@ scrub_mirror_001_pos_body()
 }
 scrub_mirror_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/scrub_mirror_common.kshlib
 	. $(atf_get_srcdir)/default.cfg
@@ -61,7 +59,6 @@ scrub_mirror_002_pos_head()
 }
 scrub_mirror_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/scrub_mirror_common.kshlib
 	. $(atf_get_srcdir)/default.cfg
@@ -71,7 +68,6 @@ scrub_mirror_002_pos_body()
 }
 scrub_mirror_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/scrub_mirror_common.kshlib
 	. $(atf_get_srcdir)/default.cfg
@@ -89,7 +85,6 @@ scrub_mirror_003_pos_head()
 }
 scrub_mirror_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/scrub_mirror_common.kshlib
 	. $(atf_get_srcdir)/default.cfg
@@ -99,7 +94,6 @@ scrub_mirror_003_pos_body()
 }
 scrub_mirror_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/scrub_mirror_common.kshlib
 	. $(atf_get_srcdir)/default.cfg
@@ -117,7 +111,6 @@ scrub_mirror_004_pos_head()
 }
 scrub_mirror_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/scrub_mirror_common.kshlib
 	. $(atf_get_srcdir)/default.cfg
@@ -127,7 +120,6 @@ scrub_mirror_004_pos_body()
 }
 scrub_mirror_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/scrub_mirror_common.kshlib
 	. $(atf_get_srcdir)/default.cfg

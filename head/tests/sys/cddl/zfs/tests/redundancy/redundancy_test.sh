@@ -32,7 +32,6 @@ redundancy_001_pos_head()
 }
 redundancy_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/redundancy.kshlib
 	. $(atf_get_srcdir)/redundancy.cfg
@@ -42,7 +41,6 @@ redundancy_001_pos_body()
 }
 redundancy_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/redundancy.kshlib
 	. $(atf_get_srcdir)/redundancy.cfg
@@ -59,7 +57,6 @@ redundancy_002_pos_head()
 }
 redundancy_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/redundancy.kshlib
 	. $(atf_get_srcdir)/redundancy.cfg
@@ -69,7 +66,6 @@ redundancy_002_pos_body()
 }
 redundancy_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/redundancy.kshlib
 	. $(atf_get_srcdir)/redundancy.cfg
@@ -86,7 +82,6 @@ redundancy_003_pos_head()
 }
 redundancy_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/redundancy.kshlib
 	. $(atf_get_srcdir)/redundancy.cfg
@@ -96,7 +91,6 @@ redundancy_003_pos_body()
 }
 redundancy_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/redundancy.kshlib
 	. $(atf_get_srcdir)/redundancy.cfg
@@ -114,7 +108,6 @@ redundancy_004_neg_head()
 }
 redundancy_004_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/redundancy.kshlib
 	. $(atf_get_srcdir)/redundancy.cfg
@@ -124,7 +117,6 @@ redundancy_004_neg_body()
 }
 redundancy_004_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/redundancy.kshlib
 	. $(atf_get_srcdir)/redundancy.cfg

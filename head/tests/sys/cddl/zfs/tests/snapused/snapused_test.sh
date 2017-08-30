@@ -32,7 +32,6 @@ snapused_001_pos_head()
 }
 snapused_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapused.kshlib
 	. $(atf_get_srcdir)/snapused.cfg
@@ -42,7 +41,6 @@ snapused_001_pos_body()
 }
 snapused_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapused.kshlib
 	. $(atf_get_srcdir)/snapused.cfg
@@ -59,7 +57,6 @@ snapused_002_pos_head()
 }
 snapused_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapused.kshlib
 	. $(atf_get_srcdir)/snapused.cfg
@@ -69,7 +66,6 @@ snapused_002_pos_body()
 }
 snapused_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapused.kshlib
 	. $(atf_get_srcdir)/snapused.cfg
@@ -86,7 +82,6 @@ snapused_003_pos_head()
 }
 snapused_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapused.kshlib
 	. $(atf_get_srcdir)/snapused.cfg
@@ -96,7 +91,6 @@ snapused_003_pos_body()
 }
 snapused_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapused.kshlib
 	. $(atf_get_srcdir)/snapused.cfg
@@ -113,7 +107,6 @@ snapused_004_pos_head()
 }
 snapused_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapused.kshlib
 	. $(atf_get_srcdir)/snapused.cfg
@@ -123,7 +116,6 @@ snapused_004_pos_body()
 }
 snapused_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapused.kshlib
 	. $(atf_get_srcdir)/snapused.cfg
@@ -140,7 +132,6 @@ snapused_005_pos_head()
 }
 snapused_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapused.kshlib
 	. $(atf_get_srcdir)/snapused.cfg
@@ -150,7 +141,6 @@ snapused_005_pos_body()
 }
 snapused_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapused.kshlib
 	. $(atf_get_srcdir)/snapused.cfg

@@ -31,7 +31,6 @@ large_files_001_pos_head()
 }
 large_files_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/large_files.cfg
 
@@ -40,7 +39,6 @@ large_files_001_pos_body()
 }
 large_files_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/large_files.cfg
 

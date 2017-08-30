@@ -32,7 +32,6 @@ zpool_set_001_pos_head()
 }
 zpool_set_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/zpool_set_001_pos.ksh || atf_fail "Testcase failed"
@@ -47,7 +46,6 @@ zpool_set_002_neg_head()
 }
 zpool_set_002_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/zpool_set_002_neg.ksh || atf_fail "Testcase failed"
@@ -62,7 +60,6 @@ zpool_set_003_neg_head()
 }
 zpool_set_003_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/zpool_set_003_neg.ksh || atf_fail "Testcase failed"

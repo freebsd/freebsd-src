@@ -33,7 +33,6 @@ zfs_set_property_001_pos_head()
 zfs_set_property_001_pos_body()
 {
 	atf_skip "Due to changing zfs ls output, test needs a re-write."
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_property.cfg
 
@@ -42,7 +41,6 @@ zfs_set_property_001_pos_body()
 }
 zfs_set_property_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_property.cfg
 

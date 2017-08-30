@@ -32,7 +32,6 @@ zfs_inherit_001_neg_head()
 }
 zfs_inherit_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_inherit.cfg
 
@@ -41,7 +40,6 @@ zfs_inherit_001_neg_body()
 }
 zfs_inherit_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_inherit.cfg
 
@@ -57,7 +55,6 @@ zfs_inherit_002_neg_head()
 }
 zfs_inherit_002_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_inherit.cfg
 
@@ -66,7 +63,6 @@ zfs_inherit_002_neg_body()
 }
 zfs_inherit_002_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_inherit.cfg
 
@@ -82,7 +78,6 @@ zfs_inherit_003_pos_head()
 }
 zfs_inherit_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_inherit.cfg
 
@@ -91,7 +86,6 @@ zfs_inherit_003_pos_body()
 }
 zfs_inherit_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_inherit.cfg
 

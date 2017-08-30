@@ -33,7 +33,6 @@ inherit_001_pos_head()
 }
 inherit_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/inherit.kshlib
 	. $(atf_get_srcdir)/inherit.cfg
@@ -42,7 +41,6 @@ inherit_001_pos_body()
 }
 inherit_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"

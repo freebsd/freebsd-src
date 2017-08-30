@@ -32,7 +32,6 @@ zfs_get_001_pos_head()
 }
 zfs_get_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -43,7 +42,6 @@ zfs_get_001_pos_body()
 }
 zfs_get_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -61,7 +59,6 @@ zfs_get_002_pos_head()
 }
 zfs_get_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -72,7 +69,6 @@ zfs_get_002_pos_body()
 }
 zfs_get_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -91,7 +87,6 @@ zfs_get_003_pos_head()
 zfs_get_003_pos_body()
 {
 	atf_expect_fail "BUG26181: The remount mount option is broken in SpectraBSD"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -102,7 +97,6 @@ zfs_get_003_pos_body()
 }
 zfs_get_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -120,7 +114,6 @@ zfs_get_004_pos_head()
 }
 zfs_get_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -131,7 +124,6 @@ zfs_get_004_pos_body()
 }
 zfs_get_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -149,7 +141,6 @@ zfs_get_005_neg_head()
 }
 zfs_get_005_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -160,7 +151,6 @@ zfs_get_005_neg_body()
 }
 zfs_get_005_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -178,7 +168,6 @@ zfs_get_006_neg_head()
 }
 zfs_get_006_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -189,7 +178,6 @@ zfs_get_006_neg_body()
 }
 zfs_get_006_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -207,7 +195,6 @@ zfs_get_007_neg_head()
 }
 zfs_get_007_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -218,7 +205,6 @@ zfs_get_007_neg_body()
 }
 zfs_get_007_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -236,7 +222,6 @@ zfs_get_008_pos_head()
 }
 zfs_get_008_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -247,7 +232,6 @@ zfs_get_008_pos_body()
 }
 zfs_get_008_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -266,7 +250,6 @@ zfs_get_009_pos_head()
 }
 zfs_get_009_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -277,7 +260,6 @@ zfs_get_009_pos_body()
 }
 zfs_get_009_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -295,7 +277,6 @@ zfs_get_010_neg_head()
 }
 zfs_get_010_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
@@ -306,7 +287,6 @@ zfs_get_010_neg_body()
 }
 zfs_get_010_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib

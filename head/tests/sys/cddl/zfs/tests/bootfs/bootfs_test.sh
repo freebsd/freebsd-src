@@ -32,7 +32,6 @@ bootfs_001_pos_head()
 }
 bootfs_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/bootfs.cfg
 
@@ -48,7 +47,6 @@ bootfs_002_neg_head()
 }
 bootfs_002_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/bootfs.cfg
 
@@ -64,7 +62,6 @@ bootfs_003_pos_head()
 }
 bootfs_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/bootfs.cfg
 
@@ -80,7 +77,6 @@ bootfs_004_neg_head()
 }
 bootfs_004_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/bootfs.cfg
 
@@ -96,7 +92,6 @@ bootfs_005_neg_head()
 }
 bootfs_005_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/bootfs.cfg
 
@@ -112,7 +107,6 @@ bootfs_006_pos_head()
 }
 bootfs_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/bootfs.cfg
 
@@ -128,7 +122,6 @@ bootfs_007_pos_head()
 }
 bootfs_007_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/bootfs.cfg
 
@@ -144,7 +137,6 @@ bootfs_008_neg_head()
 }
 bootfs_008_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/bootfs.cfg
 
@@ -161,7 +153,6 @@ bootfs_009_neg_head()
 }
 bootfs_009_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/bootfs.cfg
 

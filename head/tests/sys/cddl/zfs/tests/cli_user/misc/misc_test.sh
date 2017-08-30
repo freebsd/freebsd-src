@@ -33,7 +33,6 @@ zdb_001_neg_head()
 }
 zdb_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -42,7 +41,6 @@ zdb_001_neg_body()
 }
 zdb_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -59,7 +57,6 @@ zfs_001_neg_head()
 }
 zfs_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -68,7 +65,6 @@ zfs_001_neg_body()
 }
 zfs_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -85,7 +81,6 @@ zfs_allow_001_neg_head()
 }
 zfs_allow_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -94,7 +89,6 @@ zfs_allow_001_neg_body()
 }
 zfs_allow_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -111,7 +105,6 @@ zfs_clone_001_neg_head()
 }
 zfs_clone_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -120,7 +113,6 @@ zfs_clone_001_neg_body()
 }
 zfs_clone_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -137,7 +129,6 @@ zfs_create_001_neg_head()
 }
 zfs_create_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -146,7 +137,6 @@ zfs_create_001_neg_body()
 }
 zfs_create_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -163,7 +153,6 @@ zfs_destroy_001_neg_head()
 }
 zfs_destroy_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -172,7 +161,6 @@ zfs_destroy_001_neg_body()
 }
 zfs_destroy_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -189,7 +177,6 @@ zfs_get_001_neg_head()
 }
 zfs_get_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -198,7 +185,6 @@ zfs_get_001_neg_body()
 }
 zfs_get_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -215,7 +201,6 @@ zfs_inherit_001_neg_head()
 }
 zfs_inherit_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -224,7 +209,6 @@ zfs_inherit_001_neg_body()
 }
 zfs_inherit_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -241,7 +225,6 @@ zfs_mount_001_neg_head()
 }
 zfs_mount_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -250,7 +233,6 @@ zfs_mount_001_neg_body()
 }
 zfs_mount_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -267,7 +249,6 @@ zfs_promote_001_neg_head()
 }
 zfs_promote_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -276,7 +257,6 @@ zfs_promote_001_neg_body()
 }
 zfs_promote_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -293,7 +273,6 @@ zfs_receive_001_neg_head()
 }
 zfs_receive_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -302,7 +281,6 @@ zfs_receive_001_neg_body()
 }
 zfs_receive_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -319,7 +297,6 @@ zfs_rename_001_neg_head()
 }
 zfs_rename_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -328,7 +305,6 @@ zfs_rename_001_neg_body()
 }
 zfs_rename_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -345,7 +321,6 @@ zfs_rollback_001_neg_head()
 }
 zfs_rollback_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -354,7 +329,6 @@ zfs_rollback_001_neg_body()
 }
 zfs_rollback_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -371,7 +345,6 @@ zfs_send_001_neg_head()
 }
 zfs_send_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -380,7 +353,6 @@ zfs_send_001_neg_body()
 }
 zfs_send_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -397,7 +369,6 @@ zfs_set_001_neg_head()
 }
 zfs_set_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -406,7 +377,6 @@ zfs_set_001_neg_body()
 }
 zfs_set_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -423,7 +393,6 @@ zfs_share_001_neg_head()
 }
 zfs_share_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -432,7 +401,6 @@ zfs_share_001_neg_body()
 }
 zfs_share_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -449,7 +417,6 @@ zfs_snapshot_001_neg_head()
 }
 zfs_snapshot_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -458,7 +425,6 @@ zfs_snapshot_001_neg_body()
 }
 zfs_snapshot_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -475,7 +441,6 @@ zfs_unallow_001_neg_head()
 }
 zfs_unallow_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -484,7 +449,6 @@ zfs_unallow_001_neg_body()
 }
 zfs_unallow_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -501,7 +465,6 @@ zfs_unmount_001_neg_head()
 }
 zfs_unmount_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -510,7 +473,6 @@ zfs_unmount_001_neg_body()
 }
 zfs_unmount_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -527,7 +489,6 @@ zfs_unshare_001_neg_head()
 }
 zfs_unshare_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -536,7 +497,6 @@ zfs_unshare_001_neg_body()
 }
 zfs_unshare_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -553,7 +513,6 @@ zfs_upgrade_001_neg_head()
 }
 zfs_upgrade_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -562,7 +521,6 @@ zfs_upgrade_001_neg_body()
 }
 zfs_upgrade_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -579,7 +537,6 @@ zpool_001_neg_head()
 }
 zpool_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -588,7 +545,6 @@ zpool_001_neg_body()
 }
 zpool_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -605,7 +561,6 @@ zpool_add_001_neg_head()
 }
 zpool_add_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -614,7 +569,6 @@ zpool_add_001_neg_body()
 }
 zpool_add_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -631,7 +585,6 @@ zpool_add_001_neg_head()
 }
 zpool_add_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -640,7 +593,6 @@ zpool_add_002_pos_body()
 }
 zpool_add_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -657,7 +609,6 @@ zpool_attach_001_neg_head()
 }
 zpool_attach_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -666,7 +617,6 @@ zpool_attach_001_neg_body()
 }
 zpool_attach_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -683,7 +633,6 @@ zpool_clear_001_neg_head()
 }
 zpool_clear_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -692,7 +641,6 @@ zpool_clear_001_neg_body()
 }
 zpool_clear_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -758,7 +706,6 @@ zpool_destroy_001_neg_head()
 }
 zpool_destroy_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -767,7 +714,6 @@ zpool_destroy_001_neg_body()
 }
 zpool_destroy_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -784,7 +730,6 @@ zpool_detach_001_neg_head()
 }
 zpool_detach_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -793,7 +738,6 @@ zpool_detach_001_neg_body()
 }
 zpool_detach_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -810,7 +754,6 @@ zpool_export_001_neg_head()
 }
 zpool_export_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -819,7 +762,6 @@ zpool_export_001_neg_body()
 }
 zpool_export_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -836,7 +778,6 @@ zpool_get_001_neg_head()
 }
 zpool_get_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -845,7 +786,6 @@ zpool_get_001_neg_body()
 }
 zpool_get_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -862,7 +802,6 @@ zpool_history_001_neg_head()
 }
 zpool_history_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -871,7 +810,6 @@ zpool_history_001_neg_body()
 }
 zpool_history_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -888,7 +826,6 @@ zpool_import_001_neg_head()
 }
 zpool_import_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -897,7 +834,6 @@ zpool_import_001_neg_body()
 }
 zpool_import_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -914,7 +850,6 @@ zpool_import_002_neg_head()
 }
 zpool_import_002_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -923,7 +858,6 @@ zpool_import_002_neg_body()
 }
 zpool_import_002_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -940,7 +874,6 @@ zpool_offline_001_neg_head()
 }
 zpool_offline_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -949,7 +882,6 @@ zpool_offline_001_neg_body()
 }
 zpool_offline_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -966,7 +898,6 @@ zpool_online_001_neg_head()
 }
 zpool_online_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -975,7 +906,6 @@ zpool_online_001_neg_body()
 }
 zpool_online_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -992,7 +922,6 @@ zpool_remove_001_neg_head()
 }
 zpool_remove_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -1001,7 +930,6 @@ zpool_remove_001_neg_body()
 }
 zpool_remove_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -1018,7 +946,6 @@ zpool_replace_001_neg_head()
 }
 zpool_replace_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -1027,7 +954,6 @@ zpool_replace_001_neg_body()
 }
 zpool_replace_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -1044,7 +970,6 @@ zpool_scrub_001_neg_head()
 }
 zpool_scrub_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -1053,7 +978,6 @@ zpool_scrub_001_neg_body()
 }
 zpool_scrub_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -1070,7 +994,6 @@ zpool_set_001_neg_head()
 }
 zpool_set_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -1079,7 +1002,6 @@ zpool_set_001_neg_body()
 }
 zpool_set_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -1096,7 +1018,6 @@ zpool_status_001_neg_head()
 }
 zpool_status_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -1105,7 +1026,6 @@ zpool_status_001_neg_body()
 }
 zpool_status_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -1122,7 +1042,6 @@ zpool_upgrade_001_neg_head()
 }
 zpool_upgrade_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -1131,7 +1050,6 @@ zpool_upgrade_001_neg_body()
 }
 zpool_upgrade_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 

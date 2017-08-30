@@ -60,7 +60,6 @@ zil_002_pos_head()
 }
 zil_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zil.kshlib
 	. $(atf_get_srcdir)/zil.cfg
@@ -70,7 +69,6 @@ zil_002_pos_body()
 }
 zil_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zil.kshlib
 	. $(atf_get_srcdir)/zil.cfg

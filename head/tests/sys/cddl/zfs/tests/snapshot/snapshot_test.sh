@@ -33,7 +33,6 @@ clone_001_pos_head()
 clone_001_pos_body()
 {
 	atf_expect_fail "Creating a pool on a zvol is not yet supported in FreeBSD"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -42,7 +41,6 @@ clone_001_pos_body()
 }
 clone_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -58,7 +56,6 @@ rollback_001_pos_head()
 }
 rollback_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -67,7 +64,6 @@ rollback_001_pos_body()
 }
 rollback_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -83,7 +79,6 @@ rollback_002_pos_head()
 }
 rollback_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -92,7 +87,6 @@ rollback_002_pos_body()
 }
 rollback_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -108,7 +102,6 @@ rollback_003_pos_head()
 }
 rollback_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -117,7 +110,6 @@ rollback_003_pos_body()
 }
 rollback_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -133,7 +125,6 @@ snapshot_001_pos_head()
 }
 snapshot_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -142,7 +133,6 @@ snapshot_001_pos_body()
 }
 snapshot_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -158,7 +148,6 @@ snapshot_002_pos_head()
 }
 snapshot_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -167,7 +156,6 @@ snapshot_002_pos_body()
 }
 snapshot_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -183,7 +171,6 @@ snapshot_003_pos_head()
 }
 snapshot_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -192,7 +179,6 @@ snapshot_003_pos_body()
 }
 snapshot_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -208,7 +194,6 @@ snapshot_004_pos_head()
 }
 snapshot_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -217,7 +202,6 @@ snapshot_004_pos_body()
 }
 snapshot_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -233,7 +217,6 @@ snapshot_005_pos_head()
 }
 snapshot_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -242,7 +225,6 @@ snapshot_005_pos_body()
 }
 snapshot_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -258,7 +240,6 @@ snapshot_006_pos_head()
 }
 snapshot_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -267,7 +248,6 @@ snapshot_006_pos_body()
 }
 snapshot_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -283,7 +263,6 @@ snapshot_007_pos_head()
 }
 snapshot_007_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -292,7 +271,6 @@ snapshot_007_pos_body()
 }
 snapshot_007_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -308,7 +286,6 @@ snapshot_008_pos_head()
 }
 snapshot_008_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -317,7 +294,6 @@ snapshot_008_pos_body()
 }
 snapshot_008_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -333,7 +309,6 @@ snapshot_009_pos_head()
 }
 snapshot_009_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -342,7 +317,6 @@ snapshot_009_pos_body()
 }
 snapshot_009_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -358,7 +332,6 @@ snapshot_010_pos_head()
 }
 snapshot_010_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -367,7 +340,6 @@ snapshot_010_pos_body()
 }
 snapshot_010_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -383,7 +355,6 @@ snapshot_011_pos_head()
 }
 snapshot_011_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -392,7 +363,6 @@ snapshot_011_pos_body()
 }
 snapshot_011_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -408,7 +378,6 @@ snapshot_012_pos_head()
 }
 snapshot_012_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -417,7 +386,6 @@ snapshot_012_pos_body()
 }
 snapshot_012_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -433,7 +401,6 @@ snapshot_013_pos_head()
 }
 snapshot_013_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -442,7 +409,6 @@ snapshot_013_pos_body()
 }
 snapshot_013_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -458,7 +424,6 @@ snapshot_014_pos_head()
 }
 snapshot_014_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -467,7 +432,6 @@ snapshot_014_pos_body()
 }
 snapshot_014_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -484,7 +448,6 @@ snapshot_015_pos_head()
 snapshot_015_pos_body()
 {
     atf_expect_fail "Not all directory operations on the .zfs/snapshot directory are yet supported by FreeBSD"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -493,7 +456,6 @@ snapshot_015_pos_body()
 }
 snapshot_015_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -510,7 +472,6 @@ snapshot_016_pos_head()
 snapshot_016_pos_body()
 {
 	atf_expect_fail "Not all directory operations on the .zfs/snapshot directory are yet supported by FreeBSD"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -519,7 +480,6 @@ snapshot_016_pos_body()
 }
 snapshot_016_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -535,7 +495,6 @@ snapshot_017_pos_head()
 }
 snapshot_017_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -544,7 +503,6 @@ snapshot_017_pos_body()
 }
 snapshot_017_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -560,7 +518,6 @@ snapshot_018_pos_head()
 }
 snapshot_018_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -569,7 +526,6 @@ snapshot_018_pos_body()
 }
 snapshot_018_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -586,7 +542,6 @@ snapshot_019_pos_head()
 }
 snapshot_019_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -595,7 +550,6 @@ snapshot_019_pos_body()
 }
 snapshot_019_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -611,7 +565,6 @@ snapshot_020_pos_head()
 snapshot_020_pos_body()
 {
 	atf_expect_fail "TeamTrack: P2_29644 zfs rename does not unmount snapshots in a ctldir"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
@@ -620,7 +573,6 @@ snapshot_020_pos_body()
 }
 snapshot_020_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 

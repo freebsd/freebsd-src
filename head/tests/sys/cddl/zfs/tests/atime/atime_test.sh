@@ -32,7 +32,6 @@ atime_001_pos_head()
 }
 atime_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/atime_common.kshlib
 	. $(atf_get_srcdir)/atime.cfg
@@ -42,7 +41,6 @@ atime_001_pos_body()
 }
 atime_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/atime_common.kshlib
 	. $(atf_get_srcdir)/atime.cfg
@@ -59,7 +57,6 @@ atime_002_neg_head()
 }
 atime_002_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/atime_common.kshlib
 	. $(atf_get_srcdir)/atime.cfg
@@ -69,7 +66,6 @@ atime_002_neg_body()
 }
 atime_002_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/atime_common.kshlib
 	. $(atf_get_srcdir)/atime.cfg

@@ -32,7 +32,6 @@ zfs_unshare_001_pos_head()
 }
 zfs_unshare_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_unshare.cfg
 
@@ -41,7 +40,6 @@ zfs_unshare_001_pos_body()
 }
 zfs_unshare_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_unshare.cfg
 
@@ -57,7 +55,6 @@ zfs_unshare_002_pos_head()
 }
 zfs_unshare_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_unshare.cfg
 
@@ -66,7 +63,6 @@ zfs_unshare_002_pos_body()
 }
 zfs_unshare_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_unshare.cfg
 
@@ -82,7 +78,6 @@ zfs_unshare_003_pos_head()
 }
 zfs_unshare_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_unshare.cfg
 
@@ -91,7 +86,6 @@ zfs_unshare_003_pos_body()
 }
 zfs_unshare_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_unshare.cfg
 
@@ -107,7 +101,6 @@ zfs_unshare_004_neg_head()
 }
 zfs_unshare_004_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_unshare.cfg
 
@@ -116,7 +109,6 @@ zfs_unshare_004_neg_body()
 }
 zfs_unshare_004_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_unshare.cfg
 
@@ -132,7 +124,6 @@ zfs_unshare_005_neg_head()
 }
 zfs_unshare_005_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_unshare.cfg
 
@@ -141,7 +132,6 @@ zfs_unshare_005_neg_body()
 }
 zfs_unshare_005_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_unshare.cfg
 

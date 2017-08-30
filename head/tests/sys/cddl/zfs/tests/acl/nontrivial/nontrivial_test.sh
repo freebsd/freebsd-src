@@ -32,7 +32,6 @@ zfs_acl_chmod_001_neg_head()
 }
 zfs_acl_chmod_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -41,7 +40,6 @@ zfs_acl_chmod_001_neg_body()
 }
 zfs_acl_chmod_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -58,7 +56,6 @@ zfs_acl_chmod_002_pos_head()
 }
 zfs_acl_chmod_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -67,7 +64,6 @@ zfs_acl_chmod_002_pos_body()
 }
 zfs_acl_chmod_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -84,7 +80,6 @@ zfs_acl_chmod_aclmode_001_pos_head()
 }
 zfs_acl_chmod_aclmode_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -93,7 +88,6 @@ zfs_acl_chmod_aclmode_001_pos_body()
 }
 zfs_acl_chmod_aclmode_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -109,7 +103,6 @@ zfs_acl_chmod_compact_001_pos_head()
 }
 zfs_acl_chmod_compact_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -118,7 +111,6 @@ zfs_acl_chmod_compact_001_pos_body()
 }
 zfs_acl_chmod_compact_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -134,7 +126,6 @@ zfs_acl_chmod_delete_001_pos_head()
 }
 zfs_acl_chmod_delete_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -143,7 +134,6 @@ zfs_acl_chmod_delete_001_pos_body()
 }
 zfs_acl_chmod_delete_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -159,7 +149,6 @@ zfs_acl_chmod_inherit_001_pos_head()
 }
 zfs_acl_chmod_inherit_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -168,7 +157,6 @@ zfs_acl_chmod_inherit_001_pos_body()
 }
 zfs_acl_chmod_inherit_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -185,7 +173,6 @@ zfs_acl_chmod_inherit_002_pos_head()
 }
 zfs_acl_chmod_inherit_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -194,7 +181,6 @@ zfs_acl_chmod_inherit_002_pos_body()
 }
 zfs_acl_chmod_inherit_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -211,7 +197,6 @@ zfs_acl_chmod_inherit_003_pos_head()
 }
 zfs_acl_chmod_inherit_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -220,7 +205,6 @@ zfs_acl_chmod_inherit_003_pos_body()
 }
 zfs_acl_chmod_inherit_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -237,7 +221,6 @@ zfs_acl_chmod_inherit_004_pos_head()
 }
 zfs_acl_chmod_inherit_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -246,7 +229,6 @@ zfs_acl_chmod_inherit_004_pos_body()
 }
 zfs_acl_chmod_inherit_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -262,7 +244,6 @@ zfs_acl_chmod_owner_001_pos_head()
 }
 zfs_acl_chmod_owner_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -271,7 +252,6 @@ zfs_acl_chmod_owner_001_pos_body()
 }
 zfs_acl_chmod_owner_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -287,7 +267,6 @@ zfs_acl_chmod_rwacl_001_pos_head()
 }
 zfs_acl_chmod_rwacl_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -296,7 +275,6 @@ zfs_acl_chmod_rwacl_001_pos_body()
 }
 zfs_acl_chmod_rwacl_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -312,7 +290,6 @@ zfs_acl_chmod_rwx_001_pos_head()
 }
 zfs_acl_chmod_rwx_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -321,7 +298,6 @@ zfs_acl_chmod_rwx_001_pos_body()
 }
 zfs_acl_chmod_rwx_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -337,7 +313,6 @@ zfs_acl_chmod_rwx_002_pos_head()
 }
 zfs_acl_chmod_rwx_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -346,7 +321,6 @@ zfs_acl_chmod_rwx_002_pos_body()
 }
 zfs_acl_chmod_rwx_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -362,7 +336,6 @@ zfs_acl_chmod_rwx_003_pos_head()
 }
 zfs_acl_chmod_rwx_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -371,7 +344,6 @@ zfs_acl_chmod_rwx_003_pos_body()
 }
 zfs_acl_chmod_rwx_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -387,7 +359,6 @@ zfs_acl_chmod_rwx_004_pos_head()
 }
 zfs_acl_chmod_rwx_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -396,7 +367,6 @@ zfs_acl_chmod_rwx_004_pos_body()
 }
 zfs_acl_chmod_rwx_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -413,7 +383,6 @@ zfs_acl_chmod_xattr_001_pos_head()
 }
 zfs_acl_chmod_xattr_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -422,7 +391,6 @@ zfs_acl_chmod_xattr_001_pos_body()
 }
 zfs_acl_chmod_xattr_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -439,7 +407,6 @@ zfs_acl_chmod_xattr_002_pos_head()
 }
 zfs_acl_chmod_xattr_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -448,7 +415,6 @@ zfs_acl_chmod_xattr_002_pos_body()
 }
 zfs_acl_chmod_xattr_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -465,7 +431,6 @@ zfs_acl_cp_001_pos_head()
 }
 zfs_acl_cp_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -474,7 +439,6 @@ zfs_acl_cp_001_pos_body()
 }
 zfs_acl_cp_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -491,7 +455,6 @@ zfs_acl_cp_002_pos_head()
 }
 zfs_acl_cp_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -500,7 +463,6 @@ zfs_acl_cp_002_pos_body()
 }
 zfs_acl_cp_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -517,7 +479,6 @@ zfs_acl_cpio_001_pos_head()
 }
 zfs_acl_cpio_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -526,7 +487,6 @@ zfs_acl_cpio_001_pos_body()
 }
 zfs_acl_cpio_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -543,7 +503,6 @@ zfs_acl_cpio_002_pos_head()
 }
 zfs_acl_cpio_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -552,7 +511,6 @@ zfs_acl_cpio_002_pos_body()
 }
 zfs_acl_cpio_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -568,7 +526,6 @@ zfs_acl_find_001_pos_head()
 }
 zfs_acl_find_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -577,7 +534,6 @@ zfs_acl_find_001_pos_body()
 }
 zfs_acl_find_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -593,7 +549,6 @@ zfs_acl_ls_001_pos_head()
 }
 zfs_acl_ls_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -602,7 +557,6 @@ zfs_acl_ls_001_pos_body()
 }
 zfs_acl_ls_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -618,7 +572,6 @@ zfs_acl_mv_001_pos_head()
 }
 zfs_acl_mv_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -627,7 +580,6 @@ zfs_acl_mv_001_pos_body()
 }
 zfs_acl_mv_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -644,7 +596,6 @@ zfs_acl_tar_001_pos_head()
 }
 zfs_acl_tar_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -653,7 +604,6 @@ zfs_acl_tar_001_pos_body()
 }
 zfs_acl_tar_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -670,7 +620,6 @@ zfs_acl_tar_002_pos_head()
 }
 zfs_acl_tar_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
@@ -679,7 +628,6 @@ zfs_acl_tar_002_pos_body()
 }
 zfs_acl_tar_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 

@@ -32,7 +32,6 @@ zfs_upgrade_001_pos_head()
 }
 zfs_upgrade_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
@@ -42,7 +41,6 @@ zfs_upgrade_001_pos_body()
 }
 zfs_upgrade_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
@@ -59,7 +57,6 @@ zfs_upgrade_002_pos_head()
 }
 zfs_upgrade_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
@@ -69,7 +66,6 @@ zfs_upgrade_002_pos_body()
 }
 zfs_upgrade_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
@@ -86,7 +82,6 @@ zfs_upgrade_003_pos_head()
 }
 zfs_upgrade_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
@@ -96,7 +91,6 @@ zfs_upgrade_003_pos_body()
 }
 zfs_upgrade_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
@@ -113,7 +107,6 @@ zfs_upgrade_004_pos_head()
 }
 zfs_upgrade_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
@@ -123,7 +116,6 @@ zfs_upgrade_004_pos_body()
 }
 zfs_upgrade_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
@@ -140,7 +132,6 @@ zfs_upgrade_005_pos_head()
 }
 zfs_upgrade_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
@@ -153,7 +144,6 @@ zfs_upgrade_005_pos_body()
 }
 zfs_upgrade_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
@@ -170,7 +160,6 @@ zfs_upgrade_006_neg_head()
 }
 zfs_upgrade_006_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
@@ -180,7 +169,6 @@ zfs_upgrade_006_neg_body()
 }
 zfs_upgrade_006_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
@@ -197,7 +185,6 @@ zfs_upgrade_007_neg_head()
 }
 zfs_upgrade_007_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
@@ -207,7 +194,6 @@ zfs_upgrade_007_neg_body()
 }
 zfs_upgrade_007_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib

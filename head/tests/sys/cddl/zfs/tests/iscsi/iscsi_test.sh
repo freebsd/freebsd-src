@@ -32,7 +32,6 @@ iscsi_001_pos_head()
 }
 iscsi_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/iscsi_common.kshlib
 	. $(atf_get_srcdir)/iscsi.cfg
@@ -42,7 +41,6 @@ iscsi_001_pos_body()
 }
 iscsi_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/iscsi_common.kshlib
 	. $(atf_get_srcdir)/iscsi.cfg
@@ -59,7 +57,6 @@ iscsi_002_neg_head()
 }
 iscsi_002_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/iscsi_common.kshlib
 	. $(atf_get_srcdir)/iscsi.cfg
@@ -69,7 +66,6 @@ iscsi_002_neg_body()
 }
 iscsi_002_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/iscsi_common.kshlib
 	. $(atf_get_srcdir)/iscsi.cfg
@@ -86,7 +82,6 @@ iscsi_003_neg_head()
 }
 iscsi_003_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/iscsi_common.kshlib
 	. $(atf_get_srcdir)/iscsi.cfg
@@ -96,7 +91,6 @@ iscsi_003_neg_body()
 }
 iscsi_003_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/iscsi_common.kshlib
 	. $(atf_get_srcdir)/iscsi.cfg
@@ -113,7 +107,6 @@ iscsi_004_pos_head()
 }
 iscsi_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/iscsi_common.kshlib
 	. $(atf_get_srcdir)/iscsi.cfg
@@ -123,7 +116,6 @@ iscsi_004_pos_body()
 }
 iscsi_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/iscsi_common.kshlib
 	. $(atf_get_srcdir)/iscsi.cfg
@@ -140,7 +132,6 @@ iscsi_005_pos_head()
 }
 iscsi_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/iscsi_common.kshlib
 	. $(atf_get_srcdir)/iscsi.cfg
@@ -150,7 +141,6 @@ iscsi_005_pos_body()
 }
 iscsi_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/iscsi_common.kshlib
 	. $(atf_get_srcdir)/iscsi.cfg
@@ -167,7 +157,6 @@ iscsi_006_neg_head()
 }
 iscsi_006_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/iscsi_common.kshlib
 	. $(atf_get_srcdir)/iscsi.cfg
@@ -177,7 +166,6 @@ iscsi_006_neg_body()
 }
 iscsi_006_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/iscsi_common.kshlib
 	. $(atf_get_srcdir)/iscsi.cfg

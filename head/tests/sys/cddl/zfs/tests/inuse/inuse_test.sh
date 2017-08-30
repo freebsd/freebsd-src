@@ -33,7 +33,6 @@ inuse_001_pos_head()
 }
 inuse_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/inuse.cfg
 
@@ -52,7 +51,6 @@ inuse_002_pos_head()
 }
 inuse_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/inuse.cfg
 
@@ -71,7 +69,6 @@ inuse_003_pos_head()
 }
 inuse_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/inuse.cfg
 
@@ -90,7 +87,6 @@ inuse_004_pos_head()
 }
 inuse_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/inuse.cfg
 
@@ -109,7 +105,6 @@ inuse_005_pos_head()
 inuse_005_pos_body()
 {
 	atf_expect_fail "REQ25571 ZFS does not open geoms in exclusive mode"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/inuse.cfg
 
@@ -128,7 +123,6 @@ inuse_006_pos_head()
 }
 inuse_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/inuse.cfg
 
@@ -147,7 +141,6 @@ inuse_007_pos_head()
 }
 inuse_007_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/inuse.cfg
 
@@ -166,7 +159,6 @@ inuse_008_pos_head()
 }
 inuse_008_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/inuse.cfg
 
@@ -185,7 +177,6 @@ inuse_009_pos_head()
 }
 inuse_009_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/inuse.cfg
 

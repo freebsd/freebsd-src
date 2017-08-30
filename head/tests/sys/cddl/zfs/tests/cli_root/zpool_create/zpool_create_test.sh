@@ -34,7 +34,6 @@ zpool_create_001_pos_head()
 }
 zpool_create_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -44,7 +43,6 @@ zpool_create_001_pos_body()
 }
 zpool_create_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -63,7 +61,6 @@ zpool_create_002_pos_head()
 }
 zpool_create_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -73,7 +70,6 @@ zpool_create_002_pos_body()
 }
 zpool_create_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -92,7 +88,6 @@ zpool_create_003_pos_head()
 }
 zpool_create_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -102,7 +97,6 @@ zpool_create_003_pos_body()
 }
 zpool_create_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -121,7 +115,6 @@ zpool_create_004_pos_head()
 }
 zpool_create_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -131,7 +124,6 @@ zpool_create_004_pos_body()
 }
 zpool_create_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -150,7 +142,6 @@ zpool_create_005_pos_head()
 }
 zpool_create_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -160,7 +151,6 @@ zpool_create_005_pos_body()
 }
 zpool_create_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -179,7 +169,6 @@ zpool_create_006_pos_head()
 }
 zpool_create_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -189,7 +178,6 @@ zpool_create_006_pos_body()
 }
 zpool_create_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -208,7 +196,6 @@ zpool_create_007_neg_head()
 }
 zpool_create_007_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -218,7 +205,6 @@ zpool_create_007_neg_body()
 }
 zpool_create_007_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -237,7 +223,6 @@ zpool_create_008_pos_head()
 }
 zpool_create_008_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -247,7 +232,6 @@ zpool_create_008_pos_body()
 }
 zpool_create_008_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -266,7 +250,6 @@ zpool_create_009_neg_head()
 }
 zpool_create_009_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -276,7 +259,6 @@ zpool_create_009_neg_body()
 }
 zpool_create_009_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -295,7 +277,6 @@ zpool_create_010_neg_head()
 }
 zpool_create_010_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -305,7 +286,6 @@ zpool_create_010_neg_body()
 }
 zpool_create_010_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -324,7 +304,6 @@ zpool_create_011_neg_head()
 }
 zpool_create_011_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -334,7 +313,6 @@ zpool_create_011_neg_body()
 }
 zpool_create_011_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -353,7 +331,6 @@ zpool_create_012_neg_head()
 }
 zpool_create_012_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -363,7 +340,6 @@ zpool_create_012_neg_body()
 }
 zpool_create_012_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -382,7 +358,6 @@ zpool_create_013_neg_head()
 }
 zpool_create_013_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -392,7 +367,6 @@ zpool_create_013_neg_body()
 }
 zpool_create_013_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -411,7 +385,6 @@ zpool_create_014_neg_head()
 }
 zpool_create_014_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -421,7 +394,6 @@ zpool_create_014_neg_body()
 }
 zpool_create_014_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -440,7 +412,6 @@ zpool_create_015_neg_head()
 }
 zpool_create_015_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -450,7 +421,6 @@ zpool_create_015_neg_body()
 }
 zpool_create_015_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -469,7 +439,6 @@ zpool_create_016_pos_head()
 }
 zpool_create_016_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -479,7 +448,6 @@ zpool_create_016_pos_body()
 }
 zpool_create_016_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -500,7 +468,6 @@ zpool_create_017_neg_body()
 {
 	[ `uname -s` = "FreeBSD" ] && atf_skip "FreeBSD does not consider creating pools on non-empty mountpoints a bug"
 
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -510,7 +477,6 @@ zpool_create_017_neg_body()
 }
 zpool_create_017_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -529,7 +495,6 @@ zpool_create_018_pos_head()
 }
 zpool_create_018_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -539,7 +504,6 @@ zpool_create_018_pos_body()
 }
 zpool_create_018_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -558,7 +522,6 @@ zpool_create_019_pos_head()
 }
 zpool_create_019_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -568,7 +531,6 @@ zpool_create_019_pos_body()
 }
 zpool_create_019_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -587,7 +549,6 @@ zpool_create_020_pos_head()
 }
 zpool_create_020_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -597,7 +558,6 @@ zpool_create_020_pos_body()
 }
 zpool_create_020_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -616,7 +576,6 @@ zpool_create_021_pos_head()
 }
 zpool_create_021_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -626,7 +585,6 @@ zpool_create_021_pos_body()
 }
 zpool_create_021_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -645,7 +603,6 @@ zpool_create_022_pos_head()
 }
 zpool_create_022_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -655,7 +612,6 @@ zpool_create_022_pos_body()
 }
 zpool_create_022_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -675,7 +631,6 @@ zpool_create_023_neg_head()
 zpool_create_023_neg_body()
 {
 	atf_expect_fail 'BUG26172: "zpool create" does not validate the sharenfs parameter'
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg
@@ -685,7 +640,6 @@ zpool_create_023_neg_body()
 }
 zpool_create_023_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_create.kshlib
 	. $(atf_get_srcdir)/zpool_create.cfg

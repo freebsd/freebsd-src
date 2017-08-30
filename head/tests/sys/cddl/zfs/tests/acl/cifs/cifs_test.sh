@@ -33,7 +33,6 @@ cifs_attr_001_pos_head()
 }
 cifs_attr_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/cifs.kshlib
 	. $(atf_get_srcdir)/../acl.cfg
@@ -43,7 +42,6 @@ cifs_attr_001_pos_body()
 }
 cifs_attr_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/cifs.kshlib
 	. $(atf_get_srcdir)/../acl.cfg
@@ -61,7 +59,6 @@ cifs_attr_002_pos_head()
 }
 cifs_attr_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/cifs.kshlib
 	. $(atf_get_srcdir)/../acl.cfg
@@ -71,7 +68,6 @@ cifs_attr_002_pos_body()
 }
 cifs_attr_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/cifs.kshlib
 	. $(atf_get_srcdir)/../acl.cfg
@@ -89,7 +85,6 @@ cifs_attr_003_pos_head()
 }
 cifs_attr_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/cifs.kshlib
 	. $(atf_get_srcdir)/../acl.cfg
@@ -99,7 +94,6 @@ cifs_attr_003_pos_body()
 }
 cifs_attr_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/cifs.kshlib
 	. $(atf_get_srcdir)/../acl.cfg

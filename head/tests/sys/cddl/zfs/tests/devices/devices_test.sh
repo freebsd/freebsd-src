@@ -33,7 +33,6 @@ devices_001_pos_head()
 devices_001_pos_body()
 {
 	atf_expect_fail "The devices property is not yet supported on FreeBSD"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/devices_common.kshlib
 	. $(atf_get_srcdir)/devices.cfg
@@ -43,7 +42,6 @@ devices_001_pos_body()
 }
 devices_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/devices_common.kshlib
 	. $(atf_get_srcdir)/devices.cfg
@@ -61,7 +59,6 @@ devices_002_neg_head()
 devices_002_neg_body()
 {
 	atf_expect_fail "The devices property is not yet supported on FreeBSD"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/devices_common.kshlib
 	. $(atf_get_srcdir)/devices.cfg
@@ -71,7 +68,6 @@ devices_002_neg_body()
 }
 devices_002_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/devices_common.kshlib
 	. $(atf_get_srcdir)/devices.cfg
@@ -87,7 +83,6 @@ devices_003_pos_head()
 }
 devices_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/devices_common.kshlib
 	. $(atf_get_srcdir)/devices.cfg
@@ -97,7 +92,6 @@ devices_003_pos_body()
 }
 devices_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/devices_common.kshlib
 	. $(atf_get_srcdir)/devices.cfg

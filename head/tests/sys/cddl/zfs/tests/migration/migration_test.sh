@@ -32,7 +32,6 @@ migration_001_pos_head()
 }
 migration_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -42,7 +41,6 @@ migration_001_pos_body()
 }
 migration_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -59,7 +57,6 @@ migration_002_pos_head()
 }
 migration_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -69,7 +66,6 @@ migration_002_pos_body()
 }
 migration_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -86,7 +82,6 @@ migration_003_pos_head()
 }
 migration_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -96,7 +91,6 @@ migration_003_pos_body()
 }
 migration_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -113,7 +107,6 @@ migration_004_pos_head()
 }
 migration_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -123,7 +116,6 @@ migration_004_pos_body()
 }
 migration_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -140,7 +132,6 @@ migration_005_pos_head()
 }
 migration_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -150,7 +141,6 @@ migration_005_pos_body()
 }
 migration_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -167,7 +157,6 @@ migration_006_pos_head()
 }
 migration_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -177,7 +166,6 @@ migration_006_pos_body()
 }
 migration_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -194,7 +182,6 @@ migration_007_pos_head()
 }
 migration_007_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -204,7 +191,6 @@ migration_007_pos_body()
 }
 migration_007_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -221,7 +207,6 @@ migration_008_pos_head()
 }
 migration_008_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -231,7 +216,6 @@ migration_008_pos_body()
 }
 migration_008_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -248,7 +232,6 @@ migration_009_pos_head()
 }
 migration_009_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -258,7 +241,6 @@ migration_009_pos_body()
 }
 migration_009_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -275,7 +257,6 @@ migration_010_pos_head()
 }
 migration_010_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -285,7 +266,6 @@ migration_010_pos_body()
 }
 migration_010_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -302,7 +282,6 @@ migration_011_pos_head()
 }
 migration_011_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -312,7 +291,6 @@ migration_011_pos_body()
 }
 migration_011_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -329,7 +307,6 @@ migration_012_pos_head()
 }
 migration_012_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg
@@ -339,7 +316,6 @@ migration_012_pos_body()
 }
 migration_012_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/migration.kshlib
 	. $(atf_get_srcdir)/migration.cfg

@@ -32,7 +32,6 @@ xattr_001_pos_head()
 }
 xattr_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -42,7 +41,6 @@ xattr_001_pos_body()
 }
 xattr_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -59,7 +57,6 @@ xattr_002_neg_head()
 }
 xattr_002_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -69,7 +66,6 @@ xattr_002_neg_body()
 }
 xattr_002_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -86,7 +82,6 @@ xattr_003_neg_head()
 }
 xattr_003_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -96,7 +91,6 @@ xattr_003_neg_body()
 }
 xattr_003_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -113,7 +107,6 @@ xattr_004_pos_head()
 }
 xattr_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -123,7 +116,6 @@ xattr_004_pos_body()
 }
 xattr_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -140,7 +132,6 @@ xattr_005_pos_head()
 }
 xattr_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -150,7 +141,6 @@ xattr_005_pos_body()
 }
 xattr_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -167,7 +157,6 @@ xattr_006_pos_head()
 }
 xattr_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -177,7 +166,6 @@ xattr_006_pos_body()
 }
 xattr_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -194,7 +182,6 @@ xattr_007_neg_head()
 }
 xattr_007_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -204,7 +191,6 @@ xattr_007_neg_body()
 }
 xattr_007_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -221,7 +207,6 @@ xattr_008_pos_head()
 }
 xattr_008_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -231,7 +216,6 @@ xattr_008_pos_body()
 }
 xattr_008_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -248,7 +232,6 @@ xattr_009_neg_head()
 }
 xattr_009_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -258,7 +241,6 @@ xattr_009_neg_body()
 }
 xattr_009_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -275,7 +257,6 @@ xattr_010_neg_head()
 }
 xattr_010_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -285,7 +266,6 @@ xattr_010_neg_body()
 }
 xattr_010_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -302,7 +282,6 @@ xattr_011_pos_head()
 }
 xattr_011_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -312,7 +291,6 @@ xattr_011_pos_body()
 }
 xattr_011_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -329,7 +307,6 @@ xattr_012_pos_head()
 }
 xattr_012_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -339,7 +316,6 @@ xattr_012_pos_body()
 }
 xattr_012_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -356,7 +332,6 @@ xattr_013_pos_head()
 }
 xattr_013_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg
@@ -366,7 +341,6 @@ xattr_013_pos_body()
 }
 xattr_013_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/xattr_common.kshlib
 	. $(atf_get_srcdir)/xattr.cfg

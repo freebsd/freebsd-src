@@ -34,7 +34,6 @@ zinject_001_pos_head()
 }
 zinject_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zinject.kshlib
 	. $(atf_get_srcdir)/zinject.cfg
@@ -44,7 +43,6 @@ zinject_001_pos_body()
 }
 zinject_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zinject.kshlib
 	. $(atf_get_srcdir)/zinject.cfg
@@ -63,7 +61,6 @@ zinject_002_pos_head()
 }
 zinject_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zinject.kshlib
 	. $(atf_get_srcdir)/zinject.cfg
@@ -73,7 +70,6 @@ zinject_002_pos_body()
 }
 zinject_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zinject.kshlib
 	. $(atf_get_srcdir)/zinject.cfg
@@ -92,7 +88,6 @@ zinject_003_pos_head()
 }
 zinject_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zinject.kshlib
 	. $(atf_get_srcdir)/zinject.cfg
@@ -102,7 +97,6 @@ zinject_003_pos_body()
 }
 zinject_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zinject.kshlib
 	. $(atf_get_srcdir)/zinject.cfg
@@ -121,7 +115,6 @@ zinject_004_pos_head()
 }
 zinject_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zinject.kshlib
 	. $(atf_get_srcdir)/zinject.cfg
@@ -131,7 +124,6 @@ zinject_004_pos_body()
 }
 zinject_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zinject.kshlib
 	. $(atf_get_srcdir)/zinject.cfg

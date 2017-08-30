@@ -34,7 +34,6 @@ rsend_001_pos_head()
 }
 rsend_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -44,7 +43,6 @@ rsend_001_pos_body()
 }
 rsend_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -63,7 +61,6 @@ rsend_002_pos_head()
 }
 rsend_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -73,7 +70,6 @@ rsend_002_pos_body()
 }
 rsend_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -92,7 +88,6 @@ rsend_003_pos_head()
 }
 rsend_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -102,7 +97,6 @@ rsend_003_pos_body()
 }
 rsend_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -121,7 +115,6 @@ rsend_004_pos_head()
 }
 rsend_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -131,7 +124,6 @@ rsend_004_pos_body()
 }
 rsend_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -150,7 +142,6 @@ rsend_005_pos_head()
 }
 rsend_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -160,7 +151,6 @@ rsend_005_pos_body()
 }
 rsend_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -179,7 +169,6 @@ rsend_006_pos_head()
 }
 rsend_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -189,7 +178,6 @@ rsend_006_pos_body()
 }
 rsend_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -208,7 +196,6 @@ rsend_007_pos_head()
 }
 rsend_007_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -218,7 +205,6 @@ rsend_007_pos_body()
 }
 rsend_007_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -237,7 +223,6 @@ rsend_008_pos_head()
 }
 rsend_008_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -247,7 +232,6 @@ rsend_008_pos_body()
 }
 rsend_008_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -266,7 +250,6 @@ rsend_009_pos_head()
 }
 rsend_009_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -276,7 +259,6 @@ rsend_009_pos_body()
 }
 rsend_009_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -295,7 +277,6 @@ rsend_010_pos_head()
 }
 rsend_010_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -305,7 +286,6 @@ rsend_010_pos_body()
 }
 rsend_010_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -324,7 +304,6 @@ rsend_011_pos_head()
 }
 rsend_011_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -334,7 +313,6 @@ rsend_011_pos_body()
 }
 rsend_011_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -353,7 +331,6 @@ rsend_012_pos_head()
 }
 rsend_012_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -363,7 +340,6 @@ rsend_012_pos_body()
 }
 rsend_012_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -382,7 +358,6 @@ rsend_013_pos_head()
 }
 rsend_013_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg
@@ -392,7 +367,6 @@ rsend_013_pos_body()
 }
 rsend_013_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/rsend.kshlib
 	. $(atf_get_srcdir)/rsend.cfg

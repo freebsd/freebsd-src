@@ -32,7 +32,6 @@ zfs_unallow_001_pos_head()
 }
 zfs_unallow_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg
@@ -42,7 +41,6 @@ zfs_unallow_001_pos_body()
 }
 zfs_unallow_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg
@@ -59,7 +57,6 @@ zfs_unallow_002_pos_head()
 }
 zfs_unallow_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg
@@ -69,7 +66,6 @@ zfs_unallow_002_pos_body()
 }
 zfs_unallow_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg
@@ -86,7 +82,6 @@ zfs_unallow_003_pos_head()
 }
 zfs_unallow_003_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg
@@ -96,7 +91,6 @@ zfs_unallow_003_pos_body()
 }
 zfs_unallow_003_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg
@@ -113,7 +107,6 @@ zfs_unallow_004_pos_head()
 }
 zfs_unallow_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg
@@ -123,7 +116,6 @@ zfs_unallow_004_pos_body()
 }
 zfs_unallow_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg
@@ -140,7 +132,6 @@ zfs_unallow_005_pos_head()
 }
 zfs_unallow_005_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg
@@ -150,7 +141,6 @@ zfs_unallow_005_pos_body()
 }
 zfs_unallow_005_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg
@@ -167,7 +157,6 @@ zfs_unallow_006_pos_head()
 }
 zfs_unallow_006_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg
@@ -177,7 +166,6 @@ zfs_unallow_006_pos_body()
 }
 zfs_unallow_006_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg
@@ -194,7 +182,6 @@ zfs_unallow_007_neg_head()
 }
 zfs_unallow_007_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg
@@ -204,7 +191,6 @@ zfs_unallow_007_neg_body()
 }
 zfs_unallow_007_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg
@@ -221,7 +207,6 @@ zfs_unallow_008_neg_head()
 }
 zfs_unallow_008_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg
@@ -231,7 +216,6 @@ zfs_unallow_008_neg_body()
 }
 zfs_unallow_008_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
     . $(atf_get_srcdir)/../delegate_common.kshlib
     . $(atf_get_srcdir)/../delegate.cfg

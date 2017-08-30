@@ -32,7 +32,6 @@ zpool_export_001_pos_head()
 }
 zpool_export_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_export.cfg
 
@@ -41,7 +40,6 @@ zpool_export_001_pos_body()
 }
 zpool_export_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_export.cfg
 
@@ -57,7 +55,6 @@ zpool_export_002_pos_head()
 }
 zpool_export_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_export.cfg
 
@@ -66,7 +63,6 @@ zpool_export_002_pos_body()
 }
 zpool_export_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_export.cfg
 
@@ -82,7 +78,6 @@ zpool_export_003_neg_head()
 }
 zpool_export_003_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_export.cfg
 
@@ -91,7 +86,6 @@ zpool_export_003_neg_body()
 }
 zpool_export_003_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_export.cfg
 
@@ -107,7 +101,6 @@ zpool_export_004_pos_head()
 }
 zpool_export_004_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_export.cfg
 
@@ -116,7 +109,6 @@ zpool_export_004_pos_body()
 }
 zpool_export_004_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_export.cfg
 

@@ -32,7 +32,6 @@ zfs_001_neg_head()
 }
 zfs_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_malformed.cfg
 
@@ -41,7 +40,6 @@ zfs_001_neg_body()
 }
 zfs_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_malformed.cfg
 
@@ -57,7 +55,6 @@ zfs_002_pos_head()
 }
 zfs_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_malformed.cfg
 
@@ -66,7 +63,6 @@ zfs_002_pos_body()
 }
 zfs_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_malformed.cfg
 
@@ -83,7 +79,6 @@ zfs_003_neg_head()
 zfs_003_neg_body()
 {
 	atf_skip "FreeBSD does not allow /dev/zfs to be renamed"
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_malformed.cfg
 
@@ -92,7 +87,6 @@ zfs_003_neg_body()
 }
 zfs_003_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_malformed.cfg
 

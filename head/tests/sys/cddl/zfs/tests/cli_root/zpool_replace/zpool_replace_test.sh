@@ -33,7 +33,6 @@ zpool_replace_001_neg_head()
 }
 zpool_replace_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_replace.cfg
 
@@ -42,7 +41,6 @@ zpool_replace_001_neg_body()
 }
 zpool_replace_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_replace.cfg
 
