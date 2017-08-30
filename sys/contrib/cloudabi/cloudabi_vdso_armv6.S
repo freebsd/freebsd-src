@@ -365,43 +365,27 @@ ENTRY(cloudabi_sys_random_get)
   bx lr
 END(cloudabi_sys_random_get)
 
-ENTRY(cloudabi_sys_sock_accept)
-  str r2, [sp, #-4]
-  mov ip, #44
-  swi 0
-  ldrcc r2, [sp, #-4]
-  strcc r0, [r2]
-  movcc r0, $0
-  bx lr
-END(cloudabi_sys_sock_accept)
-
 ENTRY(cloudabi_sys_sock_recv)
-  mov ip, #45
+  mov ip, #44
   swi 0
   bx lr
 END(cloudabi_sys_sock_recv)
 
 ENTRY(cloudabi_sys_sock_send)
-  mov ip, #46
+  mov ip, #45
   swi 0
   bx lr
 END(cloudabi_sys_sock_send)
 
 ENTRY(cloudabi_sys_sock_shutdown)
-  mov ip, #47
+  mov ip, #46
   swi 0
   bx lr
 END(cloudabi_sys_sock_shutdown)
 
-ENTRY(cloudabi_sys_sock_stat_get)
-  mov ip, #48
-  swi 0
-  bx lr
-END(cloudabi_sys_sock_stat_get)
-
 ENTRY(cloudabi_sys_thread_create)
   str r1, [sp, #-4]
-  mov ip, #49
+  mov ip, #47
   swi 0
   ldrcc r2, [sp, #-4]
   strcc r0, [r2]
@@ -410,12 +394,12 @@ ENTRY(cloudabi_sys_thread_create)
 END(cloudabi_sys_thread_create)
 
 ENTRY(cloudabi_sys_thread_exit)
-  mov ip, #50
+  mov ip, #48
   swi 0
 END(cloudabi_sys_thread_exit)
 
 ENTRY(cloudabi_sys_thread_yield)
-  mov ip, #51
+  mov ip, #49
   swi 0
   bx lr
 END(cloudabi_sys_thread_yield)
