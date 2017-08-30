@@ -49,14 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/cloudabi/cloudabi_util.h>
 
 int
-cloudabi_sys_sock_accept(struct thread *td,
-    struct cloudabi_sys_sock_accept_args *uap)
-{
-
-	return (kern_accept(td, uap->sock, NULL, NULL, NULL));
-}
-
-int
 cloudabi_sys_sock_shutdown(struct thread *td,
     struct cloudabi_sys_sock_shutdown_args *uap)
 {
@@ -77,37 +69,6 @@ cloudabi_sys_sock_shutdown(struct thread *td,
 	}
 
 	return (kern_shutdown(td, uap->sock, how));
-}
-
-int
-cloudabi_sys_sock_stat_get(struct thread *td,
-    struct cloudabi_sys_sock_stat_get_args *uap)
-{
-	cloudabi_sockstat_t ss = {};
-	cap_rights_t rights;
-	struct file *fp;
-	struct socket *so;
-	int error;
-
-	error = getsock_cap(td, uap->sock, cap_rights_init(&rights,
-	    CAP_GETSOCKOPT, CAP_GETPEERNAME, CAP_GETSOCKNAME), &fp, NULL, NULL);
-	if (error != 0)
-		return (error);
-	so = fp->f_data;
-
-	/* Set ss_error. */
-	SOCK_LOCK(so);
-	ss.ss_error = cloudabi_convert_errno(so->so_error);
-	if ((uap->flags & CLOUDABI_SOCKSTAT_CLEAR_ERROR) != 0)
-		so->so_error = 0;
-	SOCK_UNLOCK(so);
-
-	/* Set ss_state. */
-	if ((so->so_options & SO_ACCEPTCONN) != 0)
-		ss.ss_state |= CLOUDABI_SOCKSTATE_ACCEPTCONN;
-
-	fdrop(fp, td);
-	return (copyout(&ss, uap->buf, sizeof(ss)));
 }
 
 int

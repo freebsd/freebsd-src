@@ -282,9 +282,7 @@ typedef uint64_t cloudabi_rights_t;
 #define CLOUDABI_RIGHT_POLL_PROC_TERMINATE   0x0000000040000000
 #define CLOUDABI_RIGHT_POLL_WAIT             0x0000000080000000
 #define CLOUDABI_RIGHT_PROC_EXEC             0x0000000100000000
-#define CLOUDABI_RIGHT_SOCK_ACCEPT           0x0000000200000000
 #define CLOUDABI_RIGHT_SOCK_SHUTDOWN         0x0000008000000000
-#define CLOUDABI_RIGHT_SOCK_STAT_GET         0x0000010000000000
 
 typedef uint16_t cloudabi_roflags_t;
 #define CLOUDABI_SOCK_RECV_FDS_TRUNCATED  0x0001
@@ -327,12 +325,6 @@ typedef uint8_t cloudabi_signal_t;
 #define CLOUDABI_SIGVTALRM 24
 #define CLOUDABI_SIGXCPU   25
 #define CLOUDABI_SIGXFSZ   26
-
-typedef uint8_t cloudabi_ssflags_t;
-#define CLOUDABI_SOCKSTAT_CLEAR_ERROR 0x01
-
-typedef uint32_t cloudabi_sstate_t;
-#define CLOUDABI_SOCKSTATE_ACCEPTCONN 0x00000001
 
 typedef uint16_t cloudabi_subclockflags_t;
 #define CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME 0x0001
@@ -417,16 +409,5 @@ _Static_assert(offsetof(cloudabi_lookup_t, fd) == 0, "Incorrect layout");
 _Static_assert(offsetof(cloudabi_lookup_t, flags) == 4, "Incorrect layout");
 _Static_assert(sizeof(cloudabi_lookup_t) == 8, "Incorrect layout");
 _Static_assert(_Alignof(cloudabi_lookup_t) == 4, "Incorrect layout");
-
-typedef struct {
-  _Alignas(1) char ss_unused[40];
-  _Alignas(2) cloudabi_errno_t ss_error;
-  _Alignas(4) cloudabi_sstate_t ss_state;
-} cloudabi_sockstat_t;
-_Static_assert(offsetof(cloudabi_sockstat_t, ss_unused) == 0, "Incorrect layout");
-_Static_assert(offsetof(cloudabi_sockstat_t, ss_error) == 40, "Incorrect layout");
-_Static_assert(offsetof(cloudabi_sockstat_t, ss_state) == 44, "Incorrect layout");
-_Static_assert(sizeof(cloudabi_sockstat_t) == 48, "Incorrect layout");
-_Static_assert(_Alignof(cloudabi_sockstat_t) == 4, "Incorrect layout");
 
 #endif
