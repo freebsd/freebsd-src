@@ -657,7 +657,6 @@ zpool_create_001_neg_head()
 }
 zpool_create_001_neg_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
@@ -666,7 +665,6 @@ zpool_create_001_neg_body()
 }
 zpool_create_001_neg_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
@@ -682,7 +680,6 @@ zpool_create_002_pos_head()
 }
 zpool_create_002_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 
 	# No setup is required for this test.
@@ -690,7 +687,6 @@ zpool_create_002_pos_body()
 }
 zpool_create_002_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"

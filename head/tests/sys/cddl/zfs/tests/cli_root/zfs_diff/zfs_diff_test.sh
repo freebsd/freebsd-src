@@ -32,7 +32,6 @@ zfs_diff_001_pos_head()
 }
 zfs_diff_001_pos_body()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	atf_expect_fail "PR221234 ZFS diff does not properly display files that have been moved to a new directory."
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_diff.cfg
@@ -42,7 +41,6 @@ zfs_diff_001_pos_body()
 }
 zfs_diff_001_pos_cleanup()
 {
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_diff.cfg
 
