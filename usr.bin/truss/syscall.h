@@ -52,6 +52,7 @@ enum Argtype { None = 1, Hex, Octal, Int, UInt, LongHex, Name, Ptr, Stat, Stat11
 	Sockoptname, Msgflags, CapRights, PUInt, PQuadHex, Acltype,
 	Extattrnamespace, Minherit, Mlockall, Mountflags, Msync, Priowhich,
 	Ptraceop, Quotactlcmd, Reboothowto, Rtpriofunc, Schedpolicy, Schedparam,
+	PSig, Siginfo,
 
 	CloudABIAdvice, CloudABIClockID, ClouduABIFDSFlags,
 	CloudABIFDStat, CloudABIFileStat, CloudABIFileType,
