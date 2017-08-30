@@ -9191,7 +9191,7 @@ cudbg_dump(struct adapter *sc, struct t4_cudbg_dump *dump)
 	void *handle, *buf;
 
 	/* buf is large, don't block if no memory is available */
-	buf = malloc(dump->len, M_CXGBE, M_NOWAIT);
+	buf = malloc(dump->len, M_CXGBE, M_NOWAIT | M_ZERO);
 	if (buf == NULL)
 		return (ENOMEM);
 
