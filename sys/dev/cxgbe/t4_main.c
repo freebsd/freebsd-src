@@ -9049,7 +9049,14 @@ load_fw(struct adapter *sc, struct t4_data *fw)
 	if (rc)
 		return (rc);
 
-	if (sc->flags & FULL_INIT_DONE) {
+	/*
+	 * The firmware, with the sole exception of the memory parity error
+	 * handler, runs from memory and not flash.  It is almost always safe to
+	 * install a new firmware on a running system.  Just set bit 1 in
+	 * hw.cxgbe.dflags or dev.<nexus>.<n>.dflags first.
+	 */
+	if (sc->flags & FULL_INIT_DONE &&
+	    (sc->debug_flags & DF_LOAD_FW_ANYTIME) == 0) {
 		rc = EBUSY;
 		goto done;
 	}

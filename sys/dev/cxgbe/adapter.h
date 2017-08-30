@@ -172,7 +172,9 @@ enum {
 	INTR_ALL	= (INTR_RXQ | INTR_OFLD_RXQ),
 
 	/* adapter debug_flags */
-	DF_DUMP_MBOX	= (1 << 0),
+	DF_DUMP_MBOX		= (1 << 0),	/* Log all mbox cmd/rpl. */
+	DF_LOAD_FW_ANYTIME	= (1 << 1),	/* Allow LOAD_FW after init */
+	DF_DISABLE_TCB_CACHE	= (1 << 2),	/* Disable TCB cache (T6+) */
 };
 
 #define IS_DOOMED(vi)	((vi)->flags & DOOMED)
