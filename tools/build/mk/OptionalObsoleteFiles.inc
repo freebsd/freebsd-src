@@ -1583,6 +1583,22 @@ OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/libexec/cc1plus
 .endif
 
+.if ${MK_DEBUG_FILES} == no
+.if exists(${DESTDIR}/usr/lib/debug)
+DEBUG_DIRS!=find ${DESTDIR}/usr/lib/debug -mindepth 1 \
+    -type d \! -path "${DESTDIR}/usr/lib/debug/boot/*" \
+    | sed -e 's,^${DESTDIR}/,,'; echo
+DEBUG_FILES!=find ${DESTDIR}/usr/lib/debug \
+    \! -type d \! -path "${DESTDIR}/usr/lib/debug/boot/*" \! -name "lib*.so*" \
+    | sed -e 's,^${DESTDIR}/,,'; echo
+DEBUG_LIBS!=find ${DESTDIR}/usr/lib/debug \! -type d -name "lib*.so*" \
+    | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_DIRS+=${DEBUG_DIRS}
+OLD_FILES+=${DEBUG_FILES}
+OLD_LIBS+=${DEBUG_LIBS}
+.endif
+.endif
+
 .if ${MK_DIALOG} == no
 OLD_FILES+=usr/bin/dialog
 OLD_FILES+=usr/bin/dpv
