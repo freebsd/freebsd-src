@@ -584,7 +584,7 @@ report_new_child(struct trussinfo *info)
 	fprintf(info->outfile, "<new process>\n");
 }
 
-static void
+void
 decode_siginfo(FILE *fp, siginfo_t *si)
 {
 	const char *str;

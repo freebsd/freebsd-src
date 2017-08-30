@@ -462,11 +462,12 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "sigsuspend", .ret_type = 1, .nargs = 1,
 	  .args = { { Sigset | IN, 0 } } },
 	{ .name = "sigtimedwait", .ret_type = 1, .nargs = 3,
-	  .args = { { Sigset | IN, 0 }, { Ptr, 1 }, { Timespec | IN, 2 } } },
+	  .args = { { Sigset | IN, 0 }, { Siginfo | OUT, 1 },
+		    { Timespec | IN, 2 } } },
 	{ .name = "sigwait", .ret_type = 1, .nargs = 2,
-	  .args = { { Sigset | IN, 0 }, { Ptr, 1 } } },
+	  .args = { { Sigset | IN, 0 }, { PSig | OUT, 1 } } },
 	{ .name = "sigwaitinfo", .ret_type = 1, .nargs = 2,
-	  .args = { { Sigset | IN, 0 }, { Ptr, 1 } } },
+	  .args = { { Sigset | IN, 0 }, { Siginfo | OUT, 1 } } },
 	{ .name = "socket", .ret_type = 1, .nargs = 3,
 	  .args = { { Sockdomain, 0 }, { Socktype, 1 }, { Sockprotocol, 2 } } },
 	{ .name = "stat", .ret_type = 1, .nargs = 2,
@@ -510,7 +511,8 @@ static struct syscall decoded_syscalls[] = {
 		    { Rusage | OUT, 3 } } },
 	{ .name = "wait6", .ret_type = 1, .nargs = 6,
 	  .args = { { Idtype, 0 }, { Quad, 1 }, { ExitStatus | OUT, 2 },
-		    { Waitoptions, 3 }, { Rusage | OUT, 4 }, { Ptr, 5 } } },
+		    { Waitoptions, 3 }, { Rusage | OUT, 4 },
+		    { Siginfo | OUT, 5 } } },
 	{ .name = "write", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { BinString | IN, 1 }, { Sizet, 2 } } },
 
@@ -2161,6 +2163,28 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		    sizeof(sp)) != -1)
 			fprintf(fp, "{ %d }", sp.sched_priority);
 		else
+			fprintf(fp, "0x%lx", args[sc->offset]);
+		break;
+	}
+	case PSig: {
+		int sig;
+
+		if (get_struct(pid, (void *)args[sc->offset], &sig,
+		    sizeof(sig)) == 0) 
+			fprintf(fp, "{ %s }", strsig2(sig));
+		else
+			fprintf(fp, "0x%lx", args[sc->offset]);
+		break;
+	}
+	case Siginfo: {
+		siginfo_t si;
+
+		if (get_struct(pid, (void *)args[sc->offset], &si,
+		    sizeof(si)) != -1) {
+			fprintf(fp, "{ signo=%s", strsig2(si.si_signo));
+			decode_siginfo(fp, &si);
+			fprintf(fp, " }");
+		} else
 			fprintf(fp, "0x%lx", args[sc->offset]);
 		break;
 	}
