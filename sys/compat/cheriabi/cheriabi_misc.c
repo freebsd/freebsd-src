@@ -1801,7 +1801,7 @@ cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp)
 {
 	void * __capability *base;
 
-	base = (void * __capability *)*stack_base;
+	base = (void * __capability *)((void *)*stack_base);
 	base += imgp->args->argc + imgp->args->envc + 2;
 
 	cheriabi_set_auxargs(base, imgp);
