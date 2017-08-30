@@ -2014,26 +2014,16 @@ function set_disks
 	set -A disk_array $(find_disks $DISKS)
 	[[ -z "$DISK_ARRAY_LIMIT" ]] && typeset -i DISK_ARRAY_LIMIT=5
 
-	if (( ${#disk_array[*]} <= 1 )); then
-		export DISK=${DISKS%% *}
-		export DISK_ARRAY_NUM=1
-	else 
-		export DISK=""
-        	typeset -i i=0
-		while (( i < ${#disk_array[*]} && i <= $DISK_ARRAY_LIMIT )); do
-			export DISK${i}="${disk_array[$i]}"
-			DISKSARRAY="$DISKSARRAY ${disk_array[$i]}"
-			(( i = i + 1 ))
-		done
-		export DISK_ARRAY_NUM=$i
-		export DISKSARRAY
-	fi
-
-	if (( $DISK_ARRAY_NUM == 0 )); then
-		export disk=$DISK
-	else
-		export disk=$DISK0
-	fi
+	export DISK=""
+	typeset -i i=0
+	while (( i < ${#disk_array[*]} && i <= $DISK_ARRAY_LIMIT )); do
+		export DISK${i}="${disk_array[$i]}"
+		DISKSARRAY="$DISKSARRAY ${disk_array[$i]}"
+		(( i = i + 1 ))
+	done
+	export DISK_ARRAY_NUM=$i
+	export DISKSARRAY
+	export disk=$DISK0
 }
 
 #

@@ -64,8 +64,6 @@
 ###############################################################################
 
 verify_runnable "global"
-verify_disk_count "$DISKS" 5
-
 
 log_assert "A pool with the autoreplace property will replace disks by physical path"
 

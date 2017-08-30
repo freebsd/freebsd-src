@@ -55,7 +55,6 @@
 ################################################################################
 
 verify_runnable "global"
-verify_disk_count "$LDEV2"
 
 log_assert "Adding an extra cache device works."
 log_onexit cleanup

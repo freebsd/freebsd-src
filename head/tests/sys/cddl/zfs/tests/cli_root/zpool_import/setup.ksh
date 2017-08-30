@@ -30,7 +30,6 @@
 . $STF_SUITE/include/libtest.kshlib
 
 verify_runnable "global"
-verify_disk_count "$DISKS" 2
 
 DISK=${DISKS%% *}
 

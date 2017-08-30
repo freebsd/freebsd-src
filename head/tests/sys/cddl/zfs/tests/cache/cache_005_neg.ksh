@@ -55,7 +55,6 @@
 ################################################################################
 
 verify_runnable "global"
-verify_disk_count "$LDEV2"
 
 log_assert "Replacing a cache device fails."
 log_onexit cleanup

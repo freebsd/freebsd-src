@@ -54,7 +54,6 @@
 ################################################################################
 
 verify_runnable "global"
-verify_disk_count "$LDEV2"
 
 log_assert "A raidz/raidz2 cache can not be added to existed pool."
 log_onexit cleanup

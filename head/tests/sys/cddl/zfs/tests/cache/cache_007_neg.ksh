@@ -53,7 +53,6 @@
 ################################################################################
 
 verify_runnable "global"
-verify_disk_count "$LDEV2"
 
 log_assert "A mirror/raidz/raidz2 cache is not supported."
 log_onexit cleanup

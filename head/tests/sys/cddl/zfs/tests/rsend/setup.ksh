@@ -30,7 +30,6 @@
 . $STF_SUITE/tests/rsend/rsend.kshlib
 
 verify_runnable "both"
-verify_disk_count "$DISKS" 2
 
 #
 # Check if the system support 'send -R'

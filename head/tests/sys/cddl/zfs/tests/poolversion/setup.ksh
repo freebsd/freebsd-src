@@ -37,7 +37,6 @@ then
 	log_unsupported "zpool version property not supported on this system."
 fi
 
-verify_disk_count "$DISKS" 2
 DISKS_ARRAY=($DISKS)
 # create a version 1 pool
 log_must $ZPOOL create -f -o version=1 $TESTPOOL ${DISKS_ARRAY[0]}

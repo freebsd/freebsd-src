@@ -94,7 +94,7 @@ zfsd_degrade_002_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
 
-	verify_disk_count "$DISKS" 3
+	verify_disk_count "$DISKS" 5
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_degrade_002_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -504,6 +504,7 @@ zfsd_import_001_pos_body()
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
+	verify_disk_count "$DISKS" 5
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_import_001_pos.ksh || atf_fail "Testcase failed"
 	if [[ $? != 0 ]]; then

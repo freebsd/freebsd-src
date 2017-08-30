@@ -57,7 +57,6 @@
 ################################################################################
 
 verify_runnable "global"
-verify_disk_count "$LDEV2"
 
 log_assert "Exporting and importing pool with cache devices passes."
 log_onexit cleanup

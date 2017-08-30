@@ -54,7 +54,6 @@
 ################################################################################
 
 verify_runnable "global"
-verify_disk_count "$LDEV2"
 
 log_assert "Attaching a cache device fails."
 log_onexit cleanup

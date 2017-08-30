@@ -32,7 +32,6 @@
 
 verify_runnable "global"
 echo "list of disks: $DISKS"
-verify_disk_count "$DISKS" 2
 
 # Make sure that all of the disks that we've been given are attached to a
 # SAS expander, and that we can find the phy they're attached to.  This

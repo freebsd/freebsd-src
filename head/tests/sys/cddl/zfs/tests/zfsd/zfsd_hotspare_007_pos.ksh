@@ -60,8 +60,6 @@
 ###############################################################################
 
 verify_runnable "global"
-verify_disk_count "$DISKS" 5
-
 
 log_assert "zfsd will spare missing drives on startup"
 

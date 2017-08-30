@@ -66,12 +66,11 @@ function cleanup_testenv
 log_assert "Cache device can only be disk or slice."
 log_onexit cleanup_testenv
 
-dsk1=${DISKS%% *}
-log_must $ZPOOL create $TESTPOOL ${DISKS#$dsk1}
+log_must $ZPOOL create $TESTPOOL $VDEV
 
 # Add nomal disk
-log_must $ZPOOL add $TESTPOOL cache $dsk1
-log_must verify_cache_device $TESTPOOL $dsk1 'ONLINE'
+log_must $ZPOOL add $TESTPOOL cache ${LDEV}
+log_must verify_cache_device $TESTPOOL ${LDEV} 'ONLINE'
 # Add nomal file
 log_mustnot $ZPOOL add $TESTPOOL cache $VDEV2
 

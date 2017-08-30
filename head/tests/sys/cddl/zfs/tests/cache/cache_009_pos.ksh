@@ -55,7 +55,6 @@
 ################################################################################
 
 verify_runnable "global"
-verify_disk_count "$LDEV2"
 
 log_assert "Offline and online a cache device succeed."
 log_onexit cleanup

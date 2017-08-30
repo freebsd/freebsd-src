@@ -54,7 +54,6 @@
 ################################################################################
 
 verify_runnable "global"
-verify_disk_count "$LDEV2"
 
 function cleanup {
 	if datasetexists $TESTPOOL ; then
