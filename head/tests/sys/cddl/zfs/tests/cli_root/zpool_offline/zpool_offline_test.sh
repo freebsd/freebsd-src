@@ -28,7 +28,6 @@ atf_test_case zpool_offline_001_pos cleanup
 zpool_offline_001_pos_head()
 {
 	atf_set "descr" "Executing 'zpool offline' with correct options succeeds"
-	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool
 }
 zpool_offline_001_pos_body()
@@ -36,6 +35,7 @@ zpool_offline_001_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_offline.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_offline_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -52,7 +52,6 @@ atf_test_case zpool_offline_002_neg cleanup
 zpool_offline_002_neg_head()
 {
 	atf_set "descr" "Executing 'zpool offline' with bad options fails"
-	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool
 }
 zpool_offline_002_neg_body()
@@ -60,6 +59,7 @@ zpool_offline_002_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_offline.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_offline_002_neg.ksh || atf_fail "Testcase failed"
 }

@@ -3070,7 +3070,7 @@ function verify_disk_count
 	typeset -i count=$(get_word_count "$1")
 
 	if (( count < min )); then
-		log_untested "A minimum of $min disks is required to run." \
+		atf_skip "A minimum of $min disks is required to run." \
 			" You specified $count disk(s)"
 	fi
 }

@@ -28,7 +28,6 @@ atf_test_case zpool_detach_001_neg cleanup
 zpool_detach_001_neg_head()
 {
 	atf_set "descr" "Executing 'zpool detach' with bad options fails"
-	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool
 }
 zpool_detach_001_neg_body()
@@ -36,6 +35,7 @@ zpool_detach_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_detach.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_detach_001_neg.ksh || atf_fail "Testcase failed"
 }

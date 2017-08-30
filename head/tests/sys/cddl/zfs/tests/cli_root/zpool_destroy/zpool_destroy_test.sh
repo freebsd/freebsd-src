@@ -97,7 +97,6 @@ zpool_destroy_004_pos_head()
 {
 	atf_set "descr" "'zpool destroy -f' should work on active pools."
 	atf_set "require.progs" zfs zpool
-	atf_set "require.config" at_least_2_disks
 	atf_set "timeout" 2000
 }
 zpool_destroy_004_pos_body()
@@ -105,6 +104,7 @@ zpool_destroy_004_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_destroy.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/zpool_destroy_004_pos.ksh || atf_fail "Testcase failed"
 }
 zpool_destroy_004_pos_cleanup()

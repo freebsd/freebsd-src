@@ -69,7 +69,6 @@ function cleanup_testenv
 
 log_assert "Verify slog device can be disk, file, lofi device or any device " \
 	"that presents a block interface."
-verify_disk_count "$DISKS" 2
 log_onexit cleanup_testenv
 
 dsk1=${DISKS%% *}

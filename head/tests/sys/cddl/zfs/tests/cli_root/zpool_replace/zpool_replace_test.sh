@@ -28,7 +28,6 @@ atf_test_case zpool_replace_001_neg cleanup
 zpool_replace_001_neg_head()
 {
 	atf_set "descr" "Executing 'zpool replace' with bad options fails"
-	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool
 }
 zpool_replace_001_neg_body()
@@ -36,6 +35,7 @@ zpool_replace_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_replace.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_replace_001_neg.ksh || atf_fail "Testcase failed"
 }

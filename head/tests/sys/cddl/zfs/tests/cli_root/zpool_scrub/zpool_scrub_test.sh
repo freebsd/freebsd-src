@@ -28,7 +28,6 @@ atf_test_case zpool_scrub_001_neg cleanup
 zpool_scrub_001_neg_head()
 {
 	atf_set "descr" "Execute 'zpool scrub' using invalid parameters."
-	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool
 }
 zpool_scrub_001_neg_body()
@@ -36,6 +35,7 @@ zpool_scrub_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_scrub.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_scrub_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -52,7 +52,6 @@ atf_test_case zpool_scrub_002_pos cleanup
 zpool_scrub_002_pos_head()
 {
 	atf_set "descr" "Verify scrub -s works correctly."
-	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool
 }
 zpool_scrub_002_pos_body()
@@ -60,6 +59,7 @@ zpool_scrub_002_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_scrub.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_scrub_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -76,7 +76,6 @@ atf_test_case zpool_scrub_003_pos cleanup
 zpool_scrub_003_pos_head()
 {
 	atf_set "descr" "scrub command terminates the existing scrub process and starts a new scrub."
-	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool
 }
 zpool_scrub_003_pos_body()
@@ -84,6 +83,7 @@ zpool_scrub_003_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_scrub.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_scrub_003_pos.ksh || atf_fail "Testcase failed"
 }
@@ -100,7 +100,6 @@ atf_test_case zpool_scrub_004_pos cleanup
 zpool_scrub_004_pos_head()
 {
 	atf_set "descr" "Resilver prevent scrub from starting until the resilver completes"
-	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool
 }
 zpool_scrub_004_pos_body()
@@ -108,6 +107,7 @@ zpool_scrub_004_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_scrub.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_scrub_004_pos.ksh || atf_fail "Testcase failed"
 }
@@ -124,7 +124,6 @@ atf_test_case zpool_scrub_005_pos cleanup
 zpool_scrub_005_pos_head()
 {
 	atf_set "descr" "When scrubbing, detach device should not break system."
-	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool
 }
 zpool_scrub_005_pos_body()
@@ -132,6 +131,7 @@ zpool_scrub_005_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_scrub.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_scrub_005_pos.ksh || atf_fail "Testcase failed"
 }

@@ -603,7 +603,6 @@ hotspare_replace_003_neg_head()
 {
 	atf_set "descr" "'zpool replace' of disabled hotspares should result in ignoring them after destroy."
 	atf_set "require.progs"  camcontrol zpool
-	atf_set "require.config" at_least_5_disks
 	atf_set "timeout" 3600
 }
 hotspare_replace_003_neg_body()
@@ -613,6 +612,7 @@ hotspare_replace_003_neg_body()
 	. $(atf_get_srcdir)/hotspare.kshlib
 	. $(atf_get_srcdir)/hotspare.cfg
 
+	verify_disk_count "$DISKS" 5
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/hotspare_replace_003_neg.ksh || atf_fail "Testcase failed"
 }
@@ -681,7 +681,6 @@ atf_test_case hotspare_shared_001_pos cleanup
 hotspare_shared_001_pos_head()
 {
 	atf_set "descr" "'zpool add <pool> spare <vdev> ...' can add a disk as a shared spare to multiple pools."
-	atf_set "require.config" at_least_5_disks
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 3600
 }
@@ -691,6 +690,7 @@ hotspare_shared_001_pos_body()
 	. $(atf_get_srcdir)/hotspare.kshlib
 	. $(atf_get_srcdir)/hotspare.cfg
 
+	verify_disk_count "$DISKS" 5
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/hotspare_shared_001_pos.ksh || atf_fail "Testcase failed"
 }

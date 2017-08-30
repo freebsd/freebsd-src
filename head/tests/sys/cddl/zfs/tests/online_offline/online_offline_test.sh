@@ -28,7 +28,6 @@ atf_test_case online_offline_001_pos cleanup
 online_offline_001_pos_head()
 {
 	atf_set "descr" "Turning a disk offline and back online during I/O completes."
-	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool zdb
 	atf_set "timeout" 3600
 }
@@ -37,6 +36,7 @@ online_offline_001_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/online_offline.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/online_offline_001_pos.ksh || atf_fail "Testcase failed"
 }
 online_offline_001_pos_cleanup()
@@ -52,7 +52,6 @@ atf_test_case online_offline_002_neg cleanup
 online_offline_002_neg_head()
 {
 	atf_set "descr" "Offlining a disk should fail if the pool would go critical"
-	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool zdb
 	atf_set "timeout" 3600
 }
@@ -61,6 +60,7 @@ online_offline_002_neg_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/online_offline.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/online_offline_002_neg.ksh || atf_fail "Testcase failed"
 }
 online_offline_002_neg_cleanup()

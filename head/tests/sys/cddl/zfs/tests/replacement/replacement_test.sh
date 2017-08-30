@@ -28,7 +28,6 @@ atf_test_case replacement_001_pos cleanup
 replacement_001_pos_head()
 {
 	atf_set "descr" "Replacing a disk during I/O completes."
-	atf_set "require.config" at_least_3_disks
 	atf_set "require.progs"  zfs zpool zdb
 	atf_set "timeout" 3600
 }
@@ -36,6 +35,7 @@ replacement_001_pos_body()
 {
 	. $(atf_get_srcdir)/../../include/default.cfg
 
+	verify_disk_count "$DISKS" 3
 	ksh93 $(atf_get_srcdir)/replacement_001_pos.ksh || atf_fail "Testcase failed"
 }
 replacement_001_pos_cleanup()
@@ -50,7 +50,6 @@ atf_test_case replacement_002_pos cleanup
 replacement_002_pos_head()
 {
 	atf_set "descr" "Replacing a disk during I/O completes."
-	atf_set "require.config" at_least_3_disks
 	atf_set "require.progs"  zfs zpool zdb
 	atf_set "timeout" 3600
 }
@@ -58,6 +57,7 @@ replacement_002_pos_body()
 {
 	. $(atf_get_srcdir)/../../include/default.cfg
 
+	verify_disk_count "$DISKS" 3
 	ksh93 $(atf_get_srcdir)/replacement_002_pos.ksh || atf_fail "Testcase failed"
 }
 replacement_002_pos_cleanup()
@@ -72,7 +72,6 @@ atf_test_case replacement_003_pos cleanup
 replacement_003_pos_head()
 {
 	atf_set "descr" "Replacing a disk during I/O completes."
-	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zfs zpool zdb
 	atf_set "timeout" 3600
 }
@@ -80,6 +79,7 @@ replacement_003_pos_body()
 {
 	. $(atf_get_srcdir)/../../include/default.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/replacement_003_pos.ksh || atf_fail "Testcase failed"
 }
 replacement_003_pos_cleanup()

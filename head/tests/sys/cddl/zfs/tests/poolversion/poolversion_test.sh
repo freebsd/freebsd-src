@@ -28,13 +28,13 @@ atf_test_case poolversion_001_pos cleanup
 poolversion_001_pos_head()
 {
 	atf_set "descr" "zpool set version can upgrade a pool"
-	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool
 }
 poolversion_001_pos_body()
 {
 	. $(atf_get_srcdir)/../../include/default.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/poolversion_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -50,13 +50,13 @@ atf_test_case poolversion_002_pos cleanup
 poolversion_002_pos_head()
 {
 	atf_set "descr" "zpool set version can only increment pool version"
-	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool
 }
 poolversion_002_pos_body()
 {
 	. $(atf_get_srcdir)/../../include/default.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/poolversion_002_pos.ksh || atf_fail "Testcase failed"
 }
