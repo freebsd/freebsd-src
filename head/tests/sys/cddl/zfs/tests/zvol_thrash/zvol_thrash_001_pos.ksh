@@ -28,7 +28,6 @@
 # IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGES.
 #
-# $Id: //depot/SpectraBSD/stable/9/cddl/tools/regression/stc/src/suites/fs/zfs/tests/functional/sas_phy_thrash/sas_phy_thrash_001_pos.ksh#1 $
 # $FreeBSD$
 #
 

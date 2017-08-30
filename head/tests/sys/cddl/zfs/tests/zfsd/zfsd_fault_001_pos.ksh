@@ -24,7 +24,6 @@
 # Copyright (c) 2012,2013 Spectra Logic Corporation.  All rights reserved.
 # Use is subject to license terms.
 # 
-# $Id: //depot/SpectraBSD/stable/9/cddl/tools/regression/stc/src/suites/fs/zfs/tests/functional/soft_errors/soft_errors_001_pos.ksh#2 $
 # $FreeBSD$
 
 . $STF_SUITE/include/libtest.kshlib

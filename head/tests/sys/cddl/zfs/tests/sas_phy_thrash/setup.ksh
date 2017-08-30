@@ -26,7 +26,6 @@
 #
 # ident	"@(#)setup.ksh	1.3	09/05/19 SMI"
 #
-# $Id: //SpectraBSD/stable/tests/sys/cddl/zfs/tests/sas_phy_thrash/setup.ksh#2 $
 # $FreeBSD$
 
 . ${STF_SUITE}/include/libtest.kshlib

@@ -30,7 +30,6 @@
 # Portions taken from:
 # ident	"@(#)replacement_001_pos.ksh	1.4	08/02/27 SMI"
 #
-# $Id: //SpectraBSD/stable/tests/sys/cddl/zfs/tests/zfsd/zfsd_replace_001_pos.ksh#2 $
 # $FreeBSD$
 
 . $STF_SUITE/tests/hotspare/hotspare.kshlib

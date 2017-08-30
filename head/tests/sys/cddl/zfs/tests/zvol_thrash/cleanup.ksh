@@ -26,7 +26,6 @@
 #
 # ident	"@(#)cleanup.ksh	1.2	07/01/09 SMI"
 #
-# $Id: //depot/SpectraBSD/stable/9/cddl/tools/regression/stc/src/suites/fs/zfs/tests/functional/sas_phy_thrash/cleanup.ksh#1 $
 # $FreeBSD$
 
 . ${STF_SUITE}/include/libtest.kshlib

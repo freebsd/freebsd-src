@@ -30,7 +30,6 @@
 # Portions taken from:
 # ident	"@(#)replacement_001_pos.ksh	1.4	08/02/27 SMI"
 #
-# $Id: //SpectraBSD/stable/cddl/tools/regression/stc/src/suites/fs/zfs/tests/functional/zfsd/zfsd_replace_003_pos.ksh#1 $
 # $FreeBSD$
 
 . $STF_SUITE/include/libtest.kshlib
