@@ -1546,7 +1546,7 @@ dt_compile_agg(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 			    "divide a power of the factor\n");
 		}
 
-		for (i = 0, order = 1; i < args[2].value; i++) {
+		for (i = 0, order = 1; i <= args[2].value + 1; i++) {
 			if (order * args[0].value > order) {
 				order *= args[0].value;
 				continue;
@@ -1554,7 +1554,7 @@ dt_compile_agg(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 
 			dnerror(dnp, D_LLQUANT_MAGTOOBIG, "llquantize( ) "
 			    "factor (%d) raised to power of high magnitude "
-			    "(%d) overflows 64-bits\n", args[0].value,
+			    "(%d) plus 1 overflows 64-bits\n", args[0].value,
 			    args[2].value);
 		}
 
