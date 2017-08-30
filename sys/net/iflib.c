@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/limits.h>
 
+
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_types.h>
@@ -156,7 +157,7 @@ struct iflib_ctx {
 	if_shared_ctx_t ifc_sctx;
 	struct if_softc_ctx ifc_softc_ctx;
 
-	struct sx ifc_sx;
+	struct mtx ifc_mtx;
 
 	uint16_t ifc_nhwtxqs;
 	uint16_t ifc_nhwrxqs;
@@ -526,11 +527,12 @@ rxd_info_zero(if_rxd_info_t ri)
 
 #define CTX_ACTIVE(ctx) ((if_getdrvflags((ctx)->ifc_ifp) & IFF_DRV_RUNNING))
 
-#define CTX_LOCK_INIT(_sc, _name)  sx_init(&(_sc)->ifc_sx, _name)
+#define CTX_LOCK_INIT(_sc, _name)  mtx_init(&(_sc)->ifc_mtx, _name, "iflib ctx lock", MTX_DEF)
 
-#define CTX_LOCK(ctx) sx_xlock(&(ctx)->ifc_sx)
-#define CTX_UNLOCK(ctx) sx_xunlock(&(ctx)->ifc_sx)
-#define CTX_LOCK_DESTROY(ctx) sx_destroy(&(ctx)->ifc_sx)
+#define CTX_LOCK(ctx) mtx_lock(&(ctx)->ifc_mtx)
+#define CTX_UNLOCK(ctx) mtx_unlock(&(ctx)->ifc_mtx)
+#define CTX_LOCK_DESTROY(ctx) mtx_destroy(&(ctx)->ifc_mtx)
+
 
 #define CALLOUT_LOCK(txq)	mtx_lock(&txq->ift_mtx)
 #define CALLOUT_UNLOCK(txq) 	mtx_unlock(&txq->ift_mtx)
@@ -687,14 +689,7 @@ iflib_debug_reset(void)
 static void iflib_debug_reset(void) {}
 #endif
 
-typedef void async_gtask_fn_t(if_ctx_t ctx, void *arg);
 
-struct async_task_arg {
-	async_gtask_fn_t *ata_fn;
-	if_ctx_t ata_ctx;
-	void *ata_arg;
-	struct grouptask *ata_gtask;
-};
 
 #define IFLIB_DEBUG 0
 
@@ -716,12 +711,6 @@ static void iflib_ifmp_purge(iflib_txq_t txq);
 static void _iflib_pre_assert(if_softc_ctx_t scctx);
 static void iflib_stop(if_ctx_t ctx);
 static void iflib_if_init_locked(if_ctx_t ctx);
-static int async_if_ioctl(if_ctx_t ctx, u_long command, caddr_t data);
-static int iflib_config_async_gtask_dispatch(if_ctx_t ctx, async_gtask_fn_t *fn, char *name, void *arg);
-static void iflib_admin_reset_deferred(if_ctx_t ctx);
-
-
-
 #ifndef __NO_STRICT_ALIGNMENT
 static struct mbuf * iflib_fixup_rx(struct mbuf *m);
 #endif
@@ -1104,12 +1093,13 @@ iflib_netmap_intr(struct netmap_adapter *na, int onoff)
 	struct ifnet *ifp = na->ifp;
 	if_ctx_t ctx = ifp->if_softc;
 
-	/* XXX - do we need synchronization here?*/
+	CTX_LOCK(ctx);
 	if (onoff) {
 		IFDI_INTR_ENABLE(ctx);
 	} else {
 		IFDI_INTR_DISABLE(ctx);
 	}
+	CTX_UNLOCK(ctx);
 }
 
 
@@ -2100,25 +2090,6 @@ iflib_rx_sds_free(iflib_rxq_t rxq)
 	}
 }
 
-/* CONFIG context only */
-static void
-iflib_handle_hang(if_ctx_t ctx, void  *arg)
-{
-	iflib_txq_t txq = arg;
-
-	CTX_LOCK(ctx);
-	if_setdrvflagbits(ctx->ifc_ifp, IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
-	device_printf(ctx->ifc_dev,  "TX(%d) desc avail = %d, pidx = %d\n",
-				  txq->ift_id, TXQ_AVAIL(txq), txq->ift_pidx);
-
-	IFDI_WATCHDOG_RESET(ctx);
-	ctx->ifc_watchdog_events++;
-
-	ctx->ifc_flags |= IFC_DO_RESET;
-	iflib_admin_intr_deferred(ctx);
-	CTX_UNLOCK(ctx);
-}
-
 /*
  * MI independent logic
  *
@@ -2155,7 +2126,17 @@ iflib_timer(void *arg)
 		callout_reset_on(&txq->ift_timer, hz/2, iflib_timer, txq, txq->ift_timer.c_cpu);
 	return;
 hung:
-	iflib_config_async_gtask_dispatch(ctx, iflib_handle_hang, "hang handler", txq);
+	CTX_LOCK(ctx);
+	if_setdrvflagbits(ctx->ifc_ifp, IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
+	device_printf(ctx->ifc_dev,  "TX(%d) desc avail = %d, pidx = %d\n",
+				  txq->ift_id, TXQ_AVAIL(txq), txq->ift_pidx);
+
+	IFDI_WATCHDOG_RESET(ctx);
+	ctx->ifc_watchdog_events++;
+
+	ctx->ifc_flags |= IFC_DO_RESET;
+	iflib_admin_intr_deferred(ctx);
+	CTX_UNLOCK(ctx);
 }
 
 static void
@@ -2221,7 +2202,6 @@ iflib_init_locked(if_ctx_t ctx)
 			txq->ift_timer.c_cpu);
 }
 
-/* CONFIG context only */
 static int
 iflib_media_change(if_t ifp)
 {
@@ -2235,19 +2215,17 @@ iflib_media_change(if_t ifp)
 	return (err);
 }
 
-/* CONFIG context only */
 static void
 iflib_media_status(if_t ifp, struct ifmediareq *ifmr)
 {
 	if_ctx_t ctx = if_getsoftc(ifp);
 
-	iflib_admin_intr_deferred(ctx);
 	CTX_LOCK(ctx);
+	IFDI_UPDATE_ADMIN_STATUS(ctx);
 	IFDI_MEDIA_STATUS(ctx, ifmr);
 	CTX_UNLOCK(ctx);
 }
 
-/* CONFIG context only */
 static void
 iflib_stop(if_ctx_t ctx)
 {
@@ -2262,7 +2240,9 @@ iflib_stop(if_ctx_t ctx)
 	if_setdrvflagbits(ctx->ifc_ifp, IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
 
 	IFDI_INTR_DISABLE(ctx);
+	DELAY(1000);
 	IFDI_STOP(ctx);
+	DELAY(1000);
 
 	iflib_debug_reset();
 	/* Wait for current tx queue users to exit to disarm watchdog timer. */
@@ -2601,7 +2581,10 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		return true;
 	return (iflib_rxd_avail(ctx, rxq, *cidxp, 1));
 err:
-	iflib_admin_reset_deferred(ctx);
+	CTX_LOCK(ctx);
+	ctx->ifc_flags |= IFC_DO_RESET;
+	iflib_admin_intr_deferred(ctx);
+	CTX_UNLOCK(ctx);
 	return (false);
 }
 
@@ -3564,16 +3547,19 @@ _task_fn_rx(void *context)
 		GROUPTASK_ENQUEUE(&rxq->ifr_task);
 }
 
-/* CONFIG context only */
 static void
 _task_fn_admin(void *context)
 {
 	if_ctx_t ctx = context;
 	if_softc_ctx_t sctx = &ctx->ifc_softc_ctx;
 	iflib_txq_t txq;
-	int i, running;
+	int i;
 
-	running = !!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING);
+	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING)) {
+		if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_OACTIVE)) {
+			return;
+		}
+	}
 
 	CTX_LOCK(ctx);
 	for (txq = ctx->ifc_txqs, i = 0; i < sctx->isc_ntxqsets; i++, txq++) {
@@ -3581,27 +3567,23 @@ _task_fn_admin(void *context)
 		callout_stop(&txq->ift_timer);
 		CALLOUT_UNLOCK(txq);
 	}
-	if (running) {
-		for (txq = ctx->ifc_txqs, i = 0; i < sctx->isc_ntxqsets; i++, txq++)
-			callout_reset_on(&txq->ift_timer, hz/2, iflib_timer,
-			    txq, txq->ift_timer.c_cpu);
-		IFDI_LINK_INTR_ENABLE(ctx);
-	}
+	IFDI_UPDATE_ADMIN_STATUS(ctx);
+	for (txq = ctx->ifc_txqs, i = 0; i < sctx->isc_ntxqsets; i++, txq++)
+		callout_reset_on(&txq->ift_timer, hz/2, iflib_timer, txq, txq->ift_timer.c_cpu);
+	IFDI_LINK_INTR_ENABLE(ctx);
 	if (ctx->ifc_flags & IFC_DO_RESET) {
 		ctx->ifc_flags &= ~IFC_DO_RESET;
 		iflib_if_init_locked(ctx);
 	}
-	IFDI_UPDATE_ADMIN_STATUS(ctx);
 	CTX_UNLOCK(ctx);
 
-	if (LINK_ACTIVE(ctx) == 0 || !running)
+	if (LINK_ACTIVE(ctx) == 0)
 		return;
 	for (txq = ctx->ifc_txqs, i = 0; i < sctx->isc_ntxqsets; i++, txq++)
 		iflib_txq_check_drain(txq, IFLIB_RESTART_BUDGET);
 }
 
 
-/* CONFIG context only */
 static void
 _task_fn_iov(void *context)
 {
@@ -3731,7 +3713,6 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 	return (err);
 }
 
-/* CONFIG context only */
 static void
 iflib_if_qflush(if_t ifp)
 {
@@ -3815,12 +3796,29 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		CTX_UNLOCK(ctx);
 		break;
 	case SIOCSIFFLAGS:
-		err = async_if_ioctl(ctx, command, data);
+		CTX_LOCK(ctx);
+		if (if_getflags(ifp) & IFF_UP) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+				if ((if_getflags(ifp) ^ ctx->ifc_if_flags) &
+				    (IFF_PROMISC | IFF_ALLMULTI)) {
+					err = IFDI_PROMISC_SET(ctx, if_getflags(ifp));
+				}
+			} else
+				reinit = 1;
+		} else if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+			iflib_stop(ctx);
+		}
+		ctx->ifc_if_flags = if_getflags(ifp);
+		CTX_UNLOCK(ctx);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-			err = async_if_ioctl(ctx, command, data);
+			CTX_LOCK(ctx);
+			IFDI_INTR_DISABLE(ctx);
+			IFDI_MULTI_SET(ctx);
+			IFDI_INTR_ENABLE(ctx);
+			CTX_UNLOCK(ctx);
 		}
 		break;
 	case SIOCSIFMEDIA:
@@ -3914,7 +3912,6 @@ iflib_if_get_counter(if_t ifp, ift_counter cnt)
  *
  **********************************************************************/
 
-/* CONFIG context only */
 static void
 iflib_vlan_register(void *arg, if_t ifp, uint16_t vtag)
 {
@@ -3934,7 +3931,6 @@ iflib_vlan_register(void *arg, if_t ifp, uint16_t vtag)
 	CTX_UNLOCK(ctx);
 }
 
-/* CONFIG context only */
 static void
 iflib_vlan_unregister(void *arg, if_t ifp, uint16_t vtag)
 {
@@ -3954,7 +3950,6 @@ iflib_vlan_unregister(void *arg, if_t ifp, uint16_t vtag)
 	CTX_UNLOCK(ctx);
 }
 
-/* CONFIG context only */
 static void
 iflib_led_func(void *arg, int onoff)
 {
@@ -4099,10 +4094,8 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 			scctx->isc_ntxd[i] = sctx->isc_ntxd_max[i];
 		}
 	}
-	CTX_LOCK(ctx);
-	err = IFDI_ATTACH_PRE(ctx);
-	CTX_UNLOCK(ctx);
-	if (err) {
+
+	if ((err = IFDI_ATTACH_PRE(ctx)) != 0) {
 		device_printf(dev, "IFDI_ATTACH_PRE failed %d\n", err);
 		return (err);
 	}
@@ -4142,7 +4135,6 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 		if (!powerof2(scctx->isc_nrxd[i])) {
 			/* round down instead? */
 			device_printf(dev, "# rx descriptors must be a power of 2\n");
-
 			err = EINVAL;
 			goto fail;
 		}
@@ -4240,10 +4232,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 		}
 	}
 	ether_ifattach(ctx->ifc_ifp, ctx->ifc_mac);
-	CTX_LOCK(ctx);
-	err = IFDI_ATTACH_POST(ctx);
-	CTX_UNLOCK(ctx);
-	if (err) {
+	if ((err = IFDI_ATTACH_POST(ctx)) != 0) {
 		device_printf(dev, "IFDI_ATTACH_POST failed %d\n", err);
 		goto fail_detach;
 	}
@@ -4265,9 +4254,7 @@ fail_intr_free:
 fail_queues:
 	/* XXX free queues */
 fail:
-	CTX_LOCK(ctx);
 	IFDI_DETACH(ctx);
-	CTX_UNLOCK(ctx);
 	return (err);
 }
 
@@ -5125,22 +5112,6 @@ iflib_admin_intr_deferred(if_ctx_t ctx)
 	GROUPTASK_ENQUEUE(&ctx->ifc_admin_task);
 }
 
-/* CONFIG context only */
-static void
-iflib_handle_reset(if_ctx_t ctx, void *arg)
-{
-	CTX_LOCK(ctx);
-	ctx->ifc_flags |= IFC_DO_RESET;
-	iflib_admin_intr_deferred(ctx);
-	CTX_UNLOCK(ctx);
-}
-
-static void
-iflib_admin_reset_deferred(if_ctx_t ctx)
-{
-	iflib_config_async_gtask_dispatch(ctx, iflib_handle_reset, "reset handler", NULL);
-}
-
 void
 iflib_iov_intr_deferred(if_ctx_t ctx)
 {
@@ -5164,101 +5135,11 @@ iflib_config_gtask_init(if_ctx_t ctx, struct grouptask *gtask, gtask_fn_t *fn,
 	taskqgroup_attach(qgroup_if_config_tqg, gtask, gtask, -1, name);
 }
 
-static void
-iflib_multi_set(if_ctx_t ctx, void *arg)
-{
-	CTX_LOCK(ctx);
-	IFDI_INTR_DISABLE(ctx);
-	IFDI_MULTI_SET(ctx);
-	IFDI_INTR_ENABLE(ctx);
-	CTX_UNLOCK(ctx);
-}
-
-static void
-iflib_flags_set(if_ctx_t ctx, void *arg)
-{
-	int reinit, err;
-	if_t ifp = ctx->ifc_ifp;
-
-	err = reinit = 0;
-	CTX_LOCK(ctx);
-	if (if_getflags(ifp) & IFF_UP) {
-		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-			if ((if_getflags(ifp) ^ ctx->ifc_if_flags) &
-			    (IFF_PROMISC | IFF_ALLMULTI)) {
-				err = IFDI_PROMISC_SET(ctx, if_getflags(ifp));
-			}
-		} else
-			reinit = 1;
-	} else if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-		iflib_stop(ctx);
-	}
-	ctx->ifc_if_flags = if_getflags(ifp);
-	if (reinit)
-		iflib_if_init_locked(ctx);
-	CTX_UNLOCK(ctx);
-	if (err)
-		log(LOG_WARNING, "IFDI_PROMISC_SET returned %d\n", err);
-}
-
-static void
-async_gtask(void *ctx)
-{
-	struct async_task_arg *at_arg = ctx;
-	if_ctx_t if_ctx = at_arg->ata_ctx;
-	void *arg = at_arg->ata_arg;
-
-	at_arg->ata_fn(if_ctx, arg);
-	taskqgroup_detach(qgroup_if_config_tqg, at_arg->ata_gtask);
-	free(at_arg->ata_gtask, M_IFLIB);
-}
-
-static int
-iflib_config_async_gtask_dispatch(if_ctx_t ctx, async_gtask_fn_t *fn, char *name, void *arg)
-{
-	struct grouptask *gtask;
-	struct async_task_arg *at_arg;
-
-	if ((gtask = malloc(sizeof(struct grouptask) + sizeof(struct async_task_arg), M_IFLIB, M_NOWAIT|M_ZERO)) == NULL)
-		return (ENOMEM);
-
-	at_arg = (struct async_task_arg *)(gtask + 1);
-	at_arg->ata_fn = fn;
-	at_arg->ata_ctx = ctx;
-	at_arg->ata_arg = arg;
-	at_arg->ata_gtask = gtask;
-
-	GROUPTASK_INIT(gtask, 0, async_gtask, at_arg);
-	taskqgroup_attach(qgroup_if_config_tqg, gtask, gtask, -1, name);
-	GROUPTASK_ENQUEUE(gtask);
-	return (0);
-}
-
-static int
-async_if_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
-{
-	int rc;
-
-	switch (command) {
-	case SIOCADDMULTI:
-	case SIOCDELMULTI:
-		rc = iflib_config_async_gtask_dispatch(ctx, iflib_multi_set, "async_if_multi", NULL);
-		break;
-	case SIOCSIFFLAGS:
-		rc = iflib_config_async_gtask_dispatch(ctx, iflib_flags_set, "async_if_flags", NULL);
-		break;
-	default:
-		panic("unknown command %lx", command);
-	}
-	return (rc);
-}
-
-
 void
 iflib_config_gtask_deinit(struct grouptask *gtask)
 {
 
-	taskqgroup_detach(qgroup_if_config_tqg, gtask);
+	taskqgroup_detach(qgroup_if_config_tqg, gtask);	
 }
 
 void
@@ -5325,11 +5206,11 @@ iflib_add_int_delay_sysctl(if_ctx_t ctx, const char *name,
 	    info, 0, iflib_sysctl_int_delay, "I", description);
 }
 
-struct sx *
+struct mtx *
 iflib_ctx_lock_get(if_ctx_t ctx)
 {
 
-	return (&ctx->ifc_sx);
+	return (&ctx->ifc_mtx);
 }
 
 static int

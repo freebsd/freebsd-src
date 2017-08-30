@@ -717,7 +717,7 @@ em_if_attach_pre(if_ctx_t ctx)
 		return (ENXIO);
 	}
 
-	adapter->ctx = adapter->osdep.ctx = ctx;
+	adapter->ctx = ctx;
 	adapter->dev = adapter->osdep.dev = dev;
 	scctx = adapter->shared = iflib_get_softc_ctx(ctx);
 	adapter->media = iflib_get_media(ctx);
@@ -1664,6 +1664,13 @@ em_if_timer(if_ctx_t ctx, uint16_t qid)
 		return;
 
 	iflib_admin_intr_deferred(ctx);
+	/* Reset LAA into RAR[0] on 82571 */
+	if ((adapter->hw.mac.type == e1000_82571) &&
+	    e1000_get_laa_state_82571(&adapter->hw))
+		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
+
+	if (adapter->hw.mac.type < em_mac_min)
+		lem_smartspeed(adapter);
 
 	/* Mask to use in the irq trigger */
 	if (adapter->intr_type == IFLIB_INTR_MSIX) {
@@ -1773,14 +1780,6 @@ em_if_update_admin_status(if_ctx_t ctx)
 		printf("link state changed to down\n");
 	}
 	em_update_stats_counters(adapter);
-
-	/* Reset LAA into RAR[0] on 82571 */
-	if ((adapter->hw.mac.type == e1000_82571) &&
-	    e1000_get_laa_state_82571(&adapter->hw))
-		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
-
-	if (adapter->hw.mac.type < em_mac_min)
-		lem_smartspeed(adapter);
 
 	E1000_WRITE_REG(&adapter->hw, E1000_IMS, EM_MSIX_LINK | E1000_IMS_LSC);
 }
