@@ -60,6 +60,7 @@ vendor UNKNOWN2		0x0105	Unknown vendor
 vendor EGALAX2		0x0123	eGalax, Inc.
 vendor CHIPSBANK	0x0204	Chipsbank Microelectronics Co.
 vendor HUMAX		0x02ad	HUMAX
+vendor INTENSO		0x2109	INTENSO
 vendor LTS		0x0386	LTS
 vendor BWCT		0x03da	Bernd Walter Computer Technology
 vendor AOX		0x03e8	AOX
@@ -2498,6 +2499,9 @@ product INSYSTEM ISD110		0x0200	IDE Adapter ISD110
 product INSYSTEM ISD105		0x0202	IDE Adapter ISD105
 product INSYSTEM USBCABLE	0x081a	USB cable
 product INSYSTEM STORAGE_V2	0x5701	USB Storage Adapter V2
+
+/* Intenso products */
+product INTENSO MEMORY_BOX	0x0701	External disk
 
 /* Intel products */
 product INTEL EASYPC_CAMERA	0x0110	Easy PC Camera
