@@ -615,6 +615,16 @@ t4_tweak_chip_settings(struct adapter *sc)
 		else
 			v = V_TSCALE(tscale - 2);
 		t4_set_reg_field(sc, A_SGE_ITP_CONTROL, m, v);
+
+		if (sc->debug_flags & DF_DISABLE_TCB_CACHE) {
+			m = V_RDTHRESHOLD(M_RDTHRESHOLD) | F_WRTHRTHRESHEN |
+			    V_WRTHRTHRESH(M_WRTHRTHRESH);
+			t4_tp_pio_read(sc, &v, 1, A_TP_CMM_CONFIG, 1);
+			v &= ~m;
+			v |= V_RDTHRESHOLD(1) | F_WRTHRTHRESHEN |
+			    V_WRTHRTHRESH(16);
+			t4_tp_pio_write(sc, &v, 1, A_TP_CMM_CONFIG, 1);
+		}
 	}
 
 	/* 4K, 16K, 64K, 256K DDP "page sizes" for TDDP */
