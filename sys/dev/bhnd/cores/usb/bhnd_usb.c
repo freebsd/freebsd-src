@@ -162,9 +162,8 @@ bhnd_usb_attach(device_t dev)
 
 	if ( bhnd_get_device(dev) == BHND_COREID_USB20H) {
 
-		uint32_t rev;
+		uint32_t rev = bhnd_get_hwrev(dev);
 		BHND_INFO_DEV(dev, "USB HOST 2.0 setup for rev %d", rev);
-		rev = bhnd_get_hwrev(dev);
 		if (rev == 1/* ? == 2 */) {
 			/* SiBa code */
 
