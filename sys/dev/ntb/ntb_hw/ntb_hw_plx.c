@@ -316,8 +316,6 @@ ntb_plx_attach(device_t dev)
 		device_printf(dev, "Can't allocate configuration BAR.\n");
 		return (ENXIO);
 	}
-	pmap_change_attr((vm_offset_t)rman_get_start(sc->conf_res),
-	    rman_get_size(sc->conf_res), VM_MEMATTR_UNCACHEABLE);
 
 	/* Identify chip port we are connected to. */
 	val = bus_read_4(sc->conf_res, 0x360);
@@ -337,8 +335,6 @@ ntb_plx_attach(device_t dev)
 		mw->mw_size = rman_get_size(mw->mw_res);
 		mw->mw_vbase = rman_get_virtual(mw->mw_res);
 		mw->mw_map_mode = VM_MEMATTR_UNCACHEABLE;
-		pmap_change_attr((vm_offset_t)mw->mw_vbase, mw->mw_size,
-		    mw->mw_map_mode);
 		sc->mw_count++;
 
 		/* Skip over adjacent BAR for 64-bit BARs. */
