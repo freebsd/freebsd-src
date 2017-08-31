@@ -29,6 +29,8 @@ __FBSDID("$FreeBSD$");
 
 #include <efi.h>
 #include <eficonsctl.h>
+typedef CHAR16 efi_char;
+#include <efichar.h>
 
 #include "boot_module.h"
 #include "paths.h"
@@ -53,6 +55,7 @@ static EFI_GUID BlockIoProtocolGUID = BLOCK_IO_PROTOCOL;
 static EFI_GUID DevicePathGUID = DEVICE_PATH_PROTOCOL;
 static EFI_GUID LoadedImageGUID = LOADED_IMAGE_PROTOCOL;
 static EFI_GUID ConsoleControlGUID = EFI_CONSOLE_CONTROL_PROTOCOL_GUID;
+static EFI_GUID FreeBSDBootVarGUID = FREEBSD_BOOT_VAR_GUID;
 
 /*
  * Provide Malloc / Free backed by EFIs AllocatePool / FreePool which ensures
@@ -75,6 +78,34 @@ Free(void *buf, const char *file __unused, int line __unused)
 {
 	if (buf != NULL)
 		(void)BS->FreePool(buf);
+}
+
+static int
+wcslen(const CHAR16 *str)
+{
+	int i;
+
+	i = 0;
+	while (*str++)
+		i++;
+	return i;
+}
+
+static EFI_STATUS
+efi_setenv_freebsd_wcs(const char *varname, CHAR16 *valstr)
+{
+	CHAR16 *var = NULL;
+	size_t len;
+	EFI_STATUS rv;
+
+	utf8_to_ucs2(varname, &var, &len);
+	if (var == NULL)
+		return (EFI_OUT_OF_RESOURCES);
+	rv = RS->SetVariable(var, &FreeBSDBootVarGUID,
+	    EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
+	    wcslen(valstr) * 2, valstr);
+	free(var);
+	return (rv);
 }
 
 /*
@@ -394,6 +425,7 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	if (status == EFI_SUCCESS) {
 		text = efi_devpath_name(img->FilePath);
 		printf("   Load Path: %S\n", text);
+		efi_setenv_freebsd_wcs("Boot1Path", text);
 		efi_free_devpath_name(text);
 
 		status = BS->HandleProtocol(img->DeviceHandle, &DevicePathGUID,
@@ -404,6 +436,7 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 		} else {
 			text = efi_devpath_name(imgpath);
 			printf("   Load Device: %S\n", text);
+			efi_setenv_freebsd_wcs("Boot1Dev", text);
 			efi_free_devpath_name(text);
 		}
 
