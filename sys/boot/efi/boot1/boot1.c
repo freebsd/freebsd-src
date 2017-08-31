@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include "boot_module.h"
 #include "paths.h"
 
+static void efi_panic(EFI_STATUS s, const char *fmt, ...) __dead2 __printflike(2, 3);
+
 static const boot_module_t *boot_modules[] =
 {
 #ifdef EFI_ZFS_BOOT
@@ -275,11 +277,9 @@ probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath, BOOLEAN *preferred)
 
 	/* Run through each module, see if it can load this partition */
 	for (i = 0; i < NUM_BOOT_MODULES; i++) {
-		if ((status = BS->AllocatePool(EfiLoaderData,
-		    sizeof(*devinfo), (void **)&devinfo)) !=
-		    EFI_SUCCESS) {
-			DPRINTF("\nFailed to allocate devinfo (%lu)\n",
-			    EFI_ERROR_CODE(status));
+		devinfo = malloc(sizeof(*devinfo));
+		if (devinfo == NULL) {
+			DPRINTF("\nFailed to allocate devinfo\n");
 			continue;
 		}
 		devinfo->dev = blkio;
@@ -292,7 +292,7 @@ probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath, BOOLEAN *preferred)
 		status = boot_modules[i]->probe(devinfo);
 		if (status == EFI_SUCCESS)
 			return (EFI_SUCCESS);
-		(void)BS->FreePool(devinfo);
+		free(devinfo);
 	}
 
 	return (EFI_UNSUPPORTED);
@@ -411,10 +411,10 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 
 	/* Get all the device handles */
 	hsize = (UINTN)NUM_HANDLES_INIT * sizeof(EFI_HANDLE);
-	if ((status = BS->AllocatePool(EfiLoaderData, hsize, (void **)&handles))
-	    != EFI_SUCCESS)
-		panic("Failed to allocate %d handles (%lu)", NUM_HANDLES_INIT,
-		    EFI_ERROR_CODE(status));
+	handles = malloc(hsize);
+	if (handles == NULL) {
+		printf("Failed to allocate %d handles\n", NUM_HANDLES_INIT);
+	}
 
 	status = BS->LocateHandle(ByProtocol, &BlockIoProtocolGUID, NULL,
 	    &hsize, handles);
@@ -422,21 +422,19 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	case EFI_SUCCESS:
 		break;
 	case EFI_BUFFER_TOO_SMALL:
-		(void)BS->FreePool(handles);
-		if ((status = BS->AllocatePool(EfiLoaderData, hsize,
-		    (void **)&handles)) != EFI_SUCCESS) {
-			panic("Failed to allocate %zu handles (%lu)", hsize /
-			    sizeof(*handles), EFI_ERROR_CODE(status));
-		}
+		free(handles);
+		handles = malloc(hsize);
+		if (handles == NULL)
+			efi_panic(EFI_OUT_OF_RESOURCES, "Failed to allocate %d handles\n",
+			    NUM_HANDLES_INIT);
 		status = BS->LocateHandle(ByProtocol, &BlockIoProtocolGUID,
 		    NULL, &hsize, handles);
 		if (status != EFI_SUCCESS)
-			panic("Failed to get device handles (%lu)\n",
-			    EFI_ERROR_CODE(status));
+			efi_panic(status, "Failed to get device handles\n");
 		break;
 	default:
-		panic("Failed to get device handles (%lu)",
-		    EFI_ERROR_CODE(status));
+		efi_panic(status, "Failed to get device handles\n");
+		break;
 	}
 
 	/* Scan all partitions, probing with all modules. */
@@ -457,7 +455,7 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	try_boot();
 
 	/* If we get here, we're out of luck... */
-	panic("No bootable partitions found!");
+	efi_panic(EFI_LOAD_ERROR, "No bootable partitions found!");
 }
 
 /*
@@ -479,8 +477,12 @@ add_device(dev_info_t **devinfop, dev_info_t *devinfo)
 	dev->next = devinfo;
 }
 
-void
-panic(const char *fmt, ...)
+/*
+ * OK. We totally give up. Exit back to EFI with a sensible status so
+ * it can try the next option on the list.
+ */
+static void
+efi_panic(EFI_STATUS s, const char *fmt, ...)
 {
 	va_list ap;
 
@@ -490,7 +492,7 @@ panic(const char *fmt, ...)
 	va_end(ap);
 	printf("\n");
 
-	while (1) {}
+	BS->Exit(IH, s, 0, NULL);
 }
 
 void
