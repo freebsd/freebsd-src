@@ -264,6 +264,13 @@ ntb_set_ctx(device_t ntb, void *ctx, const struct ntb_ctx_ops *ctx_ops)
 	}
 	nc->ctx = ctx;
 	nc->ctx_ops = ctx_ops;
+
+	/*
+	 * If applicaiton driver asks for link events, generate fake one now
+	 * to let it update link state without races while we hold the lock.
+	 */
+	if (ctx_ops->link_event != NULL)
+		ctx_ops->link_event(ctx);
 	rm_wunlock(&nc->ctx_lock);
 
 	return (0);
