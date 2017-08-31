@@ -724,12 +724,6 @@ igb_detach(device_t dev)
 	igb_release_manageability(adapter);
 	igb_release_hw_control(adapter);
 
-	if (adapter->wol) {
-		E1000_WRITE_REG(&adapter->hw, E1000_WUC, E1000_WUC_PME_EN);
-		E1000_WRITE_REG(&adapter->hw, E1000_WUFC, adapter->wol);
-		igb_enable_wakeup(dev);
-	}
-
 	/* Unregister VLAN events */
 	if (adapter->vlan_attach != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_config, adapter->vlan_attach);
@@ -781,12 +775,7 @@ igb_suspend(device_t dev)
 
         igb_release_manageability(adapter);
 	igb_release_hw_control(adapter);
-
-        if (adapter->wol) {
-                E1000_WRITE_REG(&adapter->hw, E1000_WUC, E1000_WUC_PME_EN);
-                E1000_WRITE_REG(&adapter->hw, E1000_WUFC, adapter->wol);
-                igb_enable_wakeup(dev);
-        }
+	igb_enable_wakeup(dev);
 
 	IGB_CORE_UNLOCK(adapter);
 
@@ -1215,6 +1204,14 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (mask & IFCAP_LRO) {
 			ifp->if_capenable ^= IFCAP_LRO;
 			reinit = 1;
+		}
+		if (mask & IFCAP_WOL) {
+			if (mask & IFCAP_WOL_MAGIC)
+				ifp->if_capenable ^= IFCAP_WOL_MAGIC;
+			if (mask & IFCAP_WOL_MCAST)
+				ifp->if_capenable ^= IFCAP_WOL_MCAST;
+			if (mask & IFCAP_WOL_UCAST)
+				ifp->if_capenable ^= IFCAP_WOL_UCAST;
 		}
 		if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING))
 			igb_init(adapter);
@@ -2275,7 +2272,7 @@ igb_stop(void *arg)
 	}
 
 	e1000_reset_hw(&adapter->hw);
-	E1000_WRITE_REG(&adapter->hw, E1000_WUC, 0);
+	E1000_WRITE_REG(&adapter->hw, E1000_WUFC, 0);
 
 	e1000_led_off(&adapter->hw);
 	e1000_cleanup_led(&adapter->hw);
@@ -3031,7 +3028,7 @@ igb_reset(struct adapter *adapter)
 
 	/* Issue a global reset */
 	e1000_reset_hw(hw);
-	E1000_WRITE_REG(hw, E1000_WUC, 0);
+	E1000_WRITE_REG(hw, E1000_WUFC, 0);
 
 	/* Reset for AutoMediaDetect */
 	if (adapter->flags & IGB_MEDIA_RESET) {
@@ -3120,6 +3117,13 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING
 			  |  IFCAP_VLAN_HWTSO
 			  |  IFCAP_VLAN_MTU;
+
+	/*
+	 * Enable only WOL MAGIC by default if WOL is enabled in EEPROM.
+	 */
+	ifp->if_capabilities |= IFCAP_WOL;
+	if (adapter->wol)
+		ifp->if_capenable |= IFCAP_WOL_MAGIC;
 
 	/*
 	** Don't turn this on by default, if vlans are
@@ -5311,22 +5315,61 @@ igb_is_valid_ether_addr(uint8_t *addr)
 static void
 igb_enable_wakeup(device_t dev)
 {
-	u16     cap, status;
-	u8      id;
+	struct adapter	*adapter = device_get_softc(dev);
+	struct ifnet	*ifp = adapter->ifp;
+	u32		pmc, ctrl, ctrl_ext, rctl, wuc;
+	u16		status;
 
-	/* First find the capabilities pointer*/
-	cap = pci_read_config(dev, PCIR_CAP_PTR, 2);
-	/* Read the PM Capabilities */
-	id = pci_read_config(dev, cap, 1);
-	if (id != PCIY_PMG)     /* Something wrong */
+	if (pci_find_cap(dev, PCIY_PMG, &pmc) != 0)
 		return;
-	/* OK, we have the power capabilities, so
-	   now get the status register */
-	cap += PCIR_POWER_STATUS;
-	status = pci_read_config(dev, cap, 2);
-	status |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(dev, cap, status, 2);
-	return;
+
+	adapter->wol = E1000_READ_REG(&adapter->hw, E1000_WUFC);
+	if (ifp->if_capenable & IFCAP_WOL_MAGIC)
+		adapter->wol |=  E1000_WUFC_MAG;
+	else
+		adapter->wol &= ~E1000_WUFC_MAG;
+
+	if (ifp->if_capenable & IFCAP_WOL_MCAST) {
+		adapter->wol |=  E1000_WUFC_MC;
+		rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
+		rctl |= E1000_RCTL_MPE;
+		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, rctl);
+	} else
+		adapter->wol &= ~E1000_WUFC_MC;
+
+	if (ifp->if_capenable & IFCAP_WOL_UCAST)
+		adapter->wol |=  E1000_WUFC_EX;
+	else
+		adapter->wol &= ~E1000_WUFC_EX;
+
+	if (!(adapter->wol & (E1000_WUFC_EX | E1000_WUFC_MAG | E1000_WUFC_MC)))
+		goto pme;
+
+	/* Advertise the wakeup capability */
+	ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
+	ctrl |= (E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN3);
+	E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
+
+	/* Keep the laser running on Fiber adapters */
+	if (adapter->hw.phy.media_type == e1000_media_type_fiber ||
+	    adapter->hw.phy.media_type == e1000_media_type_internal_serdes) {
+		ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
+		ctrl_ext |= E1000_CTRL_EXT_SDP3_DATA;
+		E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT, ctrl_ext);
+	}
+
+	/* Enable wakeup by the MAC */
+	wuc = E1000_READ_REG(&adapter->hw, E1000_WUC);
+	wuc |= E1000_WUC_PME_EN | E1000_WUC_APME;
+	E1000_WRITE_REG(&adapter->hw, E1000_WUC, wuc);
+	E1000_WRITE_REG(&adapter->hw, E1000_WUFC, adapter->wol);
+
+pme:
+	status = pci_read_config(dev, pmc + PCIR_POWER_STATUS, 2);
+	status &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
+	if (ifp->if_capenable & IFCAP_WOL)
+		status |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
+	pci_write_config(dev, pmc + PCIR_POWER_STATUS, status, 2);
 }
 
 static void
