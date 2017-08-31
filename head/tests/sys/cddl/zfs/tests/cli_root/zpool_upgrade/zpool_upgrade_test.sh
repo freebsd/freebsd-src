@@ -199,7 +199,6 @@ zpool_upgrade_007_pos_head()
 }
 zpool_upgrade_007_pos_body()
 {
-	atf_fail "This test causes a panic on FreeBSD"
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
 	. $(atf_get_srcdir)/zpool_upgrade.cfg

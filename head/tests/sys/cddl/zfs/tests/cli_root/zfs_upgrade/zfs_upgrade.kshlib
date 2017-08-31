@@ -41,11 +41,22 @@ set -A spa_create_versions 9 15 24
 set -A zpl_upgrade_versions 3 4 5
 set -A spa_upgrade_versions 9 15 24
 
+function get_pool_version #pool
+{
+	typeset pool=$1
+	typeset vs=$(get_pool_prop version $pool)
+	if [ "$vs" = "-" ]; then
+		echo 5000
+	else
+		echo "$vs"
+	fi
+}
+
 function default_setup_datasets #rootfs
 {
 	typeset rootfs=$1
 	typeset pool=${rootfs%%/*}
-	typeset -i vp=$(get_pool_prop version $pool)
+	typeset -i vp=$(get_pool_version $pool)
 	typeset -i version	
 	typeset -i m
 	typeset -i spa_version
@@ -118,7 +129,7 @@ function default_check_zfs_upgrade #rootfs
 {
 	typeset rootfs=$1
 	typeset pool=${rootfs%%/*}
-	typeset -i vp=$(get_pool_prop version $pool)
+	typeset -i vp="$(get_pool_version $pool)"
 	typeset -i m
 	typeset -i spa_version
 	typeset -i zpl_version
@@ -151,7 +162,7 @@ function default_check_zfs_upgrade #rootfs
 			if (( spa_version != 0 )) && (( vp < spa_version )); then
 				log_mustnot eval '$ZFS upgrade $opt -a > /dev/null 2>&1'
 				log_must eval '$ZPOOL upgrade $pool > /dev/null 2>&1'
-				vp=$(get_pool_prop version $pool)
+				vp="$(get_pool_version $pool)"
 			fi
 		
 			log_must eval '$ZFS upgrade $opt -a > /dev/null 2>&1'
