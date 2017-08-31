@@ -47,6 +47,7 @@ OBJECTS = \
 	$(OBJDIR)/utmath.o\
 	$(OBJDIR)/utnonansi.o\
 	$(OBJDIR)/utstring.o\
+	$(OBJDIR)/utstrsuppt.o\
 	$(OBJDIR)/utstrtoul64.o\
 	$(OBJDIR)/utxferror.o
 

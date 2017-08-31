@@ -598,11 +598,6 @@ main (
         goto ErrorExit;
     }
 
-    /* ACPICA runtime configuration */
-
-    AcpiGbl_MaxLoopIterations = 400;
-
-
     /* Initialize the AML debugger */
 
     Status = AcpiInitializeDebugger ();

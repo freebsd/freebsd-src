@@ -250,6 +250,10 @@ extern const char                       *AcpiGbl_PtypDecode[];
 #define ACPI_MSG_SUFFIX \
     AcpiOsPrintf (" (%8.8X/%s-%u)\n", ACPI_CA_VERSION, ModuleName, LineNumber)
 
+/* Flags to indicate implicit or explicit string-to-integer conversion */
+
+#define ACPI_IMPLICIT_CONVERSION        TRUE
+#define ACPI_NO_IMPLICIT_CONVERSION     FALSE
 
 /* Types for Resource descriptor entries */
 
@@ -330,19 +334,57 @@ AcpiUtStricmp (
     char                    *String1,
     char                    *String2);
 
+
+/*
+ * utstrsuppt - string-to-integer conversion support functions
+ */
+ACPI_STATUS
+AcpiUtConvertOctalString (
+    char                    *String,
+    UINT64                  *ReturnValue);
+
+ACPI_STATUS
+AcpiUtConvertDecimalString (
+    char                    *String,
+    UINT64                  *ReturnValuePtr);
+
+ACPI_STATUS
+AcpiUtConvertHexString (
+    char                    *String,
+    UINT64                  *ReturnValuePtr);
+
+char
+AcpiUtRemoveWhitespace (
+    char                    **String);
+
+char
+AcpiUtRemoveLeadingZeros (
+    char                    **String);
+
+BOOLEAN
+AcpiUtDetectHexPrefix (
+    char                    **String);
+
+BOOLEAN
+AcpiUtDetectOctalPrefix (
+    char                    **String);
+
+
+/*
+ * utstrtoul64 - string-to-integer conversion functions
+ */
 ACPI_STATUS
 AcpiUtStrtoul64 (
     char                    *String,
-    UINT32                  Flags,
     UINT64                  *RetInteger);
 
-/*
- * Values for Flags above
- * Note: LIMIT values correspond to AcpiGbl_IntegerByteWidth values (4/8)
- */
-#define ACPI_STRTOUL_32BIT          0x04    /* 4 bytes */
-#define ACPI_STRTOUL_64BIT          0x08    /* 8 bytes */
-#define ACPI_STRTOUL_BASE16         0x10    /* Default: Base10/16 */
+UINT64
+AcpiUtExplicitStrtoul64 (
+    char                    *String);
+
+UINT64
+AcpiUtImplicitStrtoul64 (
+    char                    *String);
 
 
 /*

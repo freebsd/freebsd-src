@@ -628,15 +628,9 @@ DtCompileFlag (
     UINT64                  Value = 0;
     UINT32                  BitLength = 1;
     UINT8                   BitPosition = 0;
-    ACPI_STATUS             Status;
 
 
-    Status = AcpiUtStrtoul64 (Field->Value,
-        (ACPI_STRTOUL_64BIT | ACPI_STRTOUL_BASE16), &Value);
-    if (ACPI_FAILURE (Status))
-    {
-        DtError (ASL_ERROR, ASL_MSG_INVALID_HEX_INTEGER, Field, NULL);
-    }
+    Value = AcpiUtImplicitStrtoul64 (Field->Value);
 
     switch (Info->Opcode)
     {

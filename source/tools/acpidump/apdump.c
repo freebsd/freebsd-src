@@ -434,8 +434,7 @@ ApDumpTableByAddress (
 
     /* Convert argument to an integer physical address */
 
-    Status = AcpiUtStrtoul64 (AsciiAddress, ACPI_STRTOUL_64BIT,
-        &LongAddress);
+    Status = AcpiUtStrtoul64 (AsciiAddress, &LongAddress);
     if (ACPI_FAILURE (Status))
     {
         fprintf (stderr, "%s: Could not convert to a physical address\n",

@@ -230,6 +230,7 @@ extern BOOLEAN                  Gbl_IgnoreLoneLineFeeds;
 extern BOOLEAN                  Gbl_HasLoneLineFeeds;
 extern BOOLEAN                  Gbl_Cleanup;
 extern BOOLEAN                  Gbl_IgnoreTranslationEscapes;
+extern BOOLEAN                  Gbl_CheckAscii;
 extern void                     *Gbl_StructDefs;
 
 #define PARAM_LIST(pl)          pl
