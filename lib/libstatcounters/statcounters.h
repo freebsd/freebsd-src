@@ -41,7 +41,7 @@
 #endif
 
 // counters bank
-#define STATCOUNTERS_MAX_MOD_CNT 10
+#define STATCOUNTERS_MAX_MOD_CNT 12
 typedef struct statcounters_bank
 {
     uint64_t itlb_miss;

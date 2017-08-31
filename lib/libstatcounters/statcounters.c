@@ -105,16 +105,18 @@ enum
 // capability write, 9
 enum
 {
-    STATCOUNTERS_BYTE_READ   = 0,
-    STATCOUNTERS_BYTE_WRITE  = 1,
-    STATCOUNTERS_HWORD_READ  = 2,
-    STATCOUNTERS_HWORD_WRITE = 3,
-    STATCOUNTERS_WORD_READ   = 4,
-    STATCOUNTERS_WORD_WRITE  = 5,
-    STATCOUNTERS_DWORD_READ  = 6,
-    STATCOUNTERS_DWORD_WRITE = 7,
-    STATCOUNTERS_CAP_READ    = 8,
-    STATCOUNTERS_CAP_WRITE   = 9
+    STATCOUNTERS_BYTE_READ         = 0,
+    STATCOUNTERS_BYTE_WRITE        = 1,
+    STATCOUNTERS_HWORD_READ        = 2,
+    STATCOUNTERS_HWORD_WRITE       = 3,
+    STATCOUNTERS_WORD_READ         = 4,
+    STATCOUNTERS_WORD_WRITE        = 5,
+    STATCOUNTERS_DWORD_READ        = 6,
+    STATCOUNTERS_DWORD_WRITE       = 7,
+    STATCOUNTERS_CAP_READ          = 8,
+    STATCOUNTERS_CAP_WRITE         = 9,
+    STATCOUNTERS_CAP_READ_TAG_SET  = 10,
+    STATCOUNTERS_CAP_WRITE_TAG_SET = 11
 };
 //----------------------------------------------------------------------------
 // module type : MasterStats
@@ -169,6 +171,8 @@ DEFINE_GET_STAT_COUNTER(mem_dword_read,11,6);
 DEFINE_GET_STAT_COUNTER(mem_dword_write,11,7);
 DEFINE_GET_STAT_COUNTER(mem_cap_read,11,8);
 DEFINE_GET_STAT_COUNTER(mem_cap_write,11,9);
+DEFINE_GET_STAT_COUNTER(mem_cap_read_tag_set,11,10);
+DEFINE_GET_STAT_COUNTER(mem_cap_write_tag_set,11,11);
 DEFINE_GET_STAT_COUNTER(tagcache_write_hit,12,0);
 DEFINE_GET_STAT_COUNTER(tagcache_write_miss,12,1);
 DEFINE_GET_STAT_COUNTER(tagcache_read_hit,12,2);
@@ -300,6 +304,8 @@ int statcounters_sample (statcounters_bank_t * const cnt_bank)
     cnt_bank->mipsmem[STATCOUNTERS_DWORD_WRITE]           = get_mem_dword_write_count();
     cnt_bank->mipsmem[STATCOUNTERS_CAP_READ]              = get_mem_cap_read_count();
     cnt_bank->mipsmem[STATCOUNTERS_CAP_WRITE]             = get_mem_cap_write_count();
+    cnt_bank->mipsmem[STATCOUNTERS_CAP_READ_TAG_SET]      = get_mem_cap_read_tag_set_count();
+    cnt_bank->mipsmem[STATCOUNTERS_CAP_WRITE_TAG_SET]     = get_mem_cap_write_tag_set_count();
     cnt_bank->dtlb_miss                                   = get_dtlb_miss_count();
     cnt_bank->itlb_miss                                   = get_itlb_miss_count();
     cnt_bank->inst                                        = get_inst_count();
@@ -424,6 +430,8 @@ int statcounters_dump (
             fprintf(fp, "mipsmem_dword_write,");
             fprintf(fp, "mipsmem_cap_read,");
             fprintf(fp, "mipsmem_cap_write,");
+            fprintf(fp, "mipsmem_cap_read_tag_set,");
+            fprintf(fp, "mipsmem_cap_write_tag_set,");
             fprintf(fp, "l2cachemaster_read_req,");
             fprintf(fp, "l2cachemaster_write_req,");
             fprintf(fp, "l2cachemaster_write_req_flit,");
@@ -478,6 +486,8 @@ int statcounters_dump (
             fprintf(fp, "%lu,",b->mipsmem[STATCOUNTERS_DWORD_WRITE]);
             fprintf(fp, "%lu,",b->mipsmem[STATCOUNTERS_CAP_READ]);
             fprintf(fp, "%lu,",b->mipsmem[STATCOUNTERS_CAP_WRITE]);
+            fprintf(fp, "%lu,",b->mipsmem[STATCOUNTERS_CAP_READ_TAG_SET]);
+            fprintf(fp, "%lu,",b->mipsmem[STATCOUNTERS_CAP_WRITE_TAG_SET]);
             fprintf(fp, "%lu,",b->l2cachemaster[STATCOUNTERS_READ_REQ]);
             fprintf(fp, "%lu,",b->l2cachemaster[STATCOUNTERS_WRITE_REQ]);
             fprintf(fp, "%lu,",b->l2cachemaster[STATCOUNTERS_WRITE_REQ_FLIT]);
@@ -538,6 +548,8 @@ int statcounters_dump (
             fprintf(fp, "mem_dword_write:              \t%lu\n",b->mipsmem[STATCOUNTERS_DWORD_WRITE]);
             fprintf(fp, "mem_cap_read:                 \t%lu\n",b->mipsmem[STATCOUNTERS_CAP_READ]);
             fprintf(fp, "mem_cap_write:                \t%lu\n",b->mipsmem[STATCOUNTERS_CAP_WRITE]);
+            fprintf(fp, "mem_cap_read_tag_set:         \t%lu\n",b->mipsmem[STATCOUNTERS_CAP_READ_TAG_SET]);
+            fprintf(fp, "mem_cap_write_tag_set:        \t%lu\n",b->mipsmem[STATCOUNTERS_CAP_WRITE_TAG_SET]);
             fprintf(fp, "\n");
             fprintf(fp, "l2cachemaster_read_req:       \t%lu\n",b->l2cachemaster[STATCOUNTERS_READ_REQ]);
             fprintf(fp, "l2cachemaster_write_req:      \t%lu\n",b->l2cachemaster[STATCOUNTERS_WRITE_REQ]);
