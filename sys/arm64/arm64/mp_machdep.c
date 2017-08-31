@@ -67,12 +67,30 @@ __FBSDID("$FreeBSD$");
 #ifdef FDT
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_cpu.h>
 #endif
 
 #include <dev/psci/psci.h>
 
 #include "pic_if.h"
+
+#define	MP_QUIRK_CPULIST	0x01	/* The list of cpus may be wrong, */
+					/* don't panic if one fails to start */
+static uint32_t mp_quirks;
+
+#ifdef FDT
+static struct {
+	const char *compat;
+	uint32_t quirks;
+} fdt_quirks[] = {
+	{ "arm,foundation-aarch64",	MP_QUIRK_CPULIST },
+	{ "arm,fvp-base",		MP_QUIRK_CPULIST },
+	/* This is incorrect in some DTS files */
+	{ "arm,vfp-base",		MP_QUIRK_CPULIST },
+	{ NULL, 0 },
+};
+#endif
 
 typedef void intr_ipi_send_t(void *, cpuset_t, u_int);
 typedef void intr_ipi_handler_t(void *);
@@ -465,13 +483,16 @@ start_cpu(u_int id, uint64_t target_cpu)
 		 * start the requested CPU. If psci_cpu_on returns PSCI_MISSING
 		 * to indicate we are unable to use it to start the given CPU.
 		 */
-		KASSERT(err == PSCI_MISSING,
+		KASSERT(err == PSCI_MISSING ||
+		    (mp_quirks & MP_QUIRK_CPULIST) == MP_QUIRK_CPULIST,
 		    ("Failed to start CPU %u (%lx)\n", id, target_cpu));
 
 		pcpu_destroy(pcpup);
 		kmem_free(kernel_arena, (vm_offset_t)dpcpu[cpuid - 1],
 		    DPCPU_SIZE);
 		dpcpu[cpuid - 1] = NULL;
+		mp_ncpus--;
+
 		/* Notify the user that the CPU failed to start */
 		printf("Failed to start CPU %u (%lx)\n", id, target_cpu);
 	} else
@@ -556,6 +577,10 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 void
 cpu_mp_start(void)
 {
+#ifdef FDT
+	phandle_t node;
+	int i;
+#endif
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
@@ -570,6 +595,13 @@ cpu_mp_start(void)
 #endif
 #ifdef FDT
 	case ARM64_BUS_FDT:
+		node = OF_peer(0);
+		for (i = 0; fdt_quirks[i].compat != NULL; i++) {
+			if (ofw_bus_node_is_compatible(node,
+			    fdt_quirks[i].compat) != 0) {
+				mp_quirks = fdt_quirks[i].quirks;
+			}
+		}
 		KASSERT(cpu0 >= 0, ("Current CPU was not found"));
 		ofw_cpu_early_foreach(cpu_init_fdt, true);
 		break;
