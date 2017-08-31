@@ -344,6 +344,7 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	EFI_CONSOLE_CONTROL_PROTOCOL *ConsoleControl = NULL;
 	SIMPLE_TEXT_OUTPUT_INTERFACE *conout = NULL;
 	UINTN i, max_dim, best_mode, cols, rows, hsize, nhandles;
+	CHAR16 *text;
 
 	/* Basic initialization*/
 	ST = Xsystab;
@@ -387,6 +388,27 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	}
 	putchar('\n');
 
+	/* Determine the devpath of our image so we can prefer it. */
+	status = BS->HandleProtocol(IH, &LoadedImageGUID, (VOID**)&img);
+	imgpath = NULL;
+	if (status == EFI_SUCCESS) {
+		text = efi_devpath_name(img->FilePath);
+		printf("   Load Path: %S\n", text);
+		efi_free_devpath_name(text);
+
+		status = BS->HandleProtocol(img->DeviceHandle, &DevicePathGUID,
+		    (void **)&imgpath);
+		if (status != EFI_SUCCESS) {
+			DPRINTF("Failed to get image DevicePath (%lu)\n",
+			    EFI_ERROR_CODE(status));
+		} else {
+			text = efi_devpath_name(imgpath);
+			printf("   Load Device: %S\n", text);
+			efi_free_devpath_name(text);
+		}
+
+	}
+
 	/* Get all the device handles */
 	hsize = (UINTN)NUM_HANDLES_INIT * sizeof(EFI_HANDLE);
 	if ((status = BS->AllocatePool(EfiLoaderData, hsize, (void **)&handles))
@@ -421,24 +443,6 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	nhandles = hsize / sizeof(*handles);
 	printf("   Probing %zu block devices...", nhandles);
 	DPRINTF("\n");
-
-	/* Determine the devpath of our image so we can prefer it. */
-	status = BS->HandleProtocol(IH, &LoadedImageGUID, (VOID**)&img);
-	imgpath = NULL;
-	if (status == EFI_SUCCESS) {
-		status = BS->HandleProtocol(img->DeviceHandle, &DevicePathGUID,
-		    (void **)&imgpath);
-		if (status != EFI_SUCCESS)
-			DPRINTF("Failed to get image DevicePath (%lu)\n",
-			    EFI_ERROR_CODE(status));
-#ifdef EFI_DEBUG
-		{
-			CHAR16 *text = efi_devpath_name(imgpath);
-			DPRINTF("boot1 imagepath: %S\n", text);
-			efi_free_devpath_name(text);
-		}
-#endif
-	}
 
 	for (i = 0; i < nhandles; i++)
 		probe_handle_status(handles[i], imgpath);
