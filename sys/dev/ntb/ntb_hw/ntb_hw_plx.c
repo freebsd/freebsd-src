@@ -106,30 +106,35 @@ struct ntb_plx_softc {
 #define	PLX_NTX_LINK_OFFSET	0x01000
 
 /* Bases of NTx our/peer interface registers */
-#define	PLX_NTX_OUR(sc)				\
+#define	PLX_NTX_OUR_BASE(sc)				\
     (PLX_NTX_BASE(sc) + ((sc)->link ? PLX_NTX_LINK_OFFSET : 0))
-#define	PLX_NTX_PEER(sc)			\
+#define	PLX_NTX_PEER_BASE(sc)				\
     (PLX_NTX_BASE(sc) + ((sc)->link ? 0 : PLX_NTX_LINK_OFFSET))
 
 /* Read/write NTx our interface registers */
-#define NTX_READ(sc, reg)				\
-    bus_read_4((sc)->conf_res, PLX_NTX_OUR(sc) + (reg))
-#define NTX_WRITE(sc, reg, val)			\
-    bus_write_4((sc)->conf_res, PLX_NTX_OUR(sc) + (reg), (val))
+#define	NTX_READ(sc, reg)				\
+    bus_read_4((sc)->conf_res, PLX_NTX_OUR_BASE(sc) + (reg))
+#define	NTX_WRITE(sc, reg, val)				\
+    bus_write_4((sc)->conf_res, PLX_NTX_OUR_BASE(sc) + (reg), (val))
 
 /* Read/write NTx peer interface registers */
-#define PNTX_READ(sc, reg)				\
-    bus_read_4((sc)->conf_res, PLX_NTX_PEER(sc) + (reg))
-#define PNTX_WRITE(sc, reg, val)			\
-    bus_write_4((sc)->conf_res, PLX_NTX_PEER(sc) + (reg), (val))
+#define	PNTX_READ(sc, reg)				\
+    bus_read_4((sc)->conf_res, PLX_NTX_PEER_BASE(sc) + (reg))
+#define	PNTX_WRITE(sc, reg, val)			\
+    bus_write_4((sc)->conf_res, PLX_NTX_PEER_BASE(sc) + (reg), (val))
 
 /* Read/write B2B NTx registers */
-#define BNTX_READ(sc, reg)				\
+#define	BNTX_READ(sc, reg)				\
     bus_read_4((sc)->mw_info[(sc)->b2b_mw].mw_res,	\
     PLX_NTX_BASE(sc) + (reg))
-#define BNTX_WRITE(sc, reg, val)			\
+#define	BNTX_WRITE(sc, reg, val)			\
     bus_write_4((sc)->mw_info[(sc)->b2b_mw].mw_res,	\
     PLX_NTX_BASE(sc) + (reg), (val))
+
+#define	PLX_PORT_BASE(p)		((p) << 12)
+#define	PLX_STATION_PORT_BASE(sc)	PLX_PORT_BASE((sc)->port & ~7)
+
+#define	PLX_PORT_CONTROL(sc)		(PLX_STATION_PORT_BASE(sc) + 0x208)
 
 static int ntb_plx_init(device_t dev);
 static int ntb_plx_detach(device_t dev);
@@ -379,21 +384,16 @@ ntb_plx_attach(device_t dev)
 	 * Make sure they are present and enabled by writing to them.
 	 * XXX: Its a hack, but standard 8 registers are not enough.
 	 */
+	sc->spad_offp1 = sc->spad_off1 = PLX_NTX_OUR_BASE(sc) + 0xc6c;
+	sc->spad_offp2 = sc->spad_off2 = PLX_PORT_BASE(sc->ntx * 8) + 0x20c;
 	if (sc->b2b_mw >= 0) {
+		/* In NTB-to-NTB mode each side has own scratchpads. */
 		sc->spad_count1 = PLX_NUM_SPAD;
-		sc->spad_off1 = PLX_NTX_OUR(sc) + 0xc6c;
-		sc->spad_off2 = (sc->ntx == 0) ? 0x0020c : 0x0820c;
-		sc->spad_offp1 = sc->spad_off1;
-		sc->spad_offp2 = sc->spad_off2;
 		bus_write_4(sc->conf_res, sc->spad_off2, 0x12345678);
 		if (bus_read_4(sc->conf_res, sc->spad_off2) == 0x12345678)
 			sc->spad_count2 = PLX_NUM_SPAD_PATT;
 	} else {
-		sc->spad_count1 = PLX_NUM_SPAD / 2;
-		sc->spad_off1 = PLX_NTX_OUR(sc) + 0xc6c;
-		sc->spad_off2 = (sc->ntx == 0) ? 0x0020c : 0x0820c;
-		sc->spad_offp1 = sc->spad_off1;
-		sc->spad_offp2 = sc->spad_off2;
+		/* Otherwise we have share scratchpads with the peer. */
 		if (sc->link) {
 			sc->spad_off1 += PLX_NUM_SPAD / 2 * 4;
 			sc->spad_off2 += PLX_NUM_SPAD_PATT / 2 * 4;
@@ -401,6 +401,7 @@ ntb_plx_attach(device_t dev)
 			sc->spad_offp1 += PLX_NUM_SPAD / 2 * 4;
 			sc->spad_offp2 += PLX_NUM_SPAD_PATT / 2 * 4;
 		}
+		sc->spad_count1 = PLX_NUM_SPAD / 2;
 		bus_write_4(sc->conf_res, sc->spad_off2, 0x12345678);
 		if (bus_read_4(sc->conf_res, sc->spad_off2) == 0x12345678)
 			sc->spad_count2 = PLX_NUM_SPAD_PATT / 2;
@@ -473,7 +474,7 @@ ntb_plx_link_enable(device_t dev, enum ntb_speed speed __unused,
 		return (0);
 	}
 
-	reg = ((sc->port & ~7) << 12) | 0x208;
+	reg = PLX_PORT_CONTROL(sc);
 	val = bus_read_4(sc->conf_res, reg);
 	if ((val & (1 << (sc->port & 7))) == 0) {
 		/* If already enabled, generate fake link event and exit. */
@@ -495,7 +496,7 @@ ntb_plx_link_disable(device_t dev)
 	if (sc->link)
 		return (0);
 
-	reg = ((sc->port & ~7) << 12) | 0x208;
+	reg = PLX_PORT_CONTROL(sc);
 	val = bus_read_4(sc->conf_res, reg);
 	val |= (1 << (sc->port & 7));
 	bus_write_4(sc->conf_res, reg, val);
@@ -512,7 +513,7 @@ ntb_plx_link_enabled(device_t dev)
 	if (sc->link)
 		return (TRUE);
 
-	reg = ((sc->port & ~7) << 12) | 0x208;
+	reg = PLX_PORT_CONTROL(sc);
 	val = bus_read_4(sc->conf_res, reg);
 	return ((val & (1 << (sc->port & 7))) == 0);
 }
