@@ -267,7 +267,7 @@ iflib_get_sctx(if_ctx_t ctx)
 #define RX_SW_DESC_INUSE        (1 << 3)
 #define TX_SW_DESC_MAPPED       (1 << 4)
 
-#define	M_TOOBIG		M_UNUSED_8
+#define	M_TOOBIG		M_PROTO1
 
 typedef struct iflib_sw_rx_desc_array {
 	bus_dmamap_t	*ifsd_map;         /* bus_dma maps for packet */
