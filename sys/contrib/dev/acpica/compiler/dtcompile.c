@@ -319,6 +319,8 @@ DtInitialize (
         return (Status);
     }
 
+    AcpiUtSetIntegerWidth (2); /* Set width to 64 bits */
+
     Gbl_FieldList = NULL;
     Gbl_RootTable = NULL;
     Gbl_SubtableStack = NULL;

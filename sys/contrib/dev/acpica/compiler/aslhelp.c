@@ -203,7 +203,7 @@ Usage (
     ACPI_OPTION ("-ve",             "Report only errors (ignore warnings and remarks)");
     ACPI_OPTION ("-vi",             "Less verbose errors and warnings for use with IDEs");
     ACPI_OPTION ("-vr",             "Disable remarks");
-    ACPI_OPTION ("-vw <messageid>", "Disable specific warning or remark");
+    ACPI_OPTION ("-vw <messageid>", "Ignore specific error, warning or remark");
     ACPI_OPTION ("-vx <messageid>", "Expect a specific warning, remark, or error");
     ACPI_OPTION ("-w <1|2|3>",      "Set warning reporting level");
     ACPI_OPTION ("-we",             "Report warnings as errors");
