@@ -5416,6 +5416,12 @@ t4_sysctls(struct adapter *sc)
 		    NULL, "TOE parameters");
 		children = SYSCTL_CHILDREN(oid);
 
+		sc->tt.cong_algorithm = -1;
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "cong_algorithm",
+		    CTLFLAG_RW, &sc->tt.cong_algorithm, 0, "congestion control "
+		    "(-1 = default, 0 = reno, 1 = tahoe, 2 = newreno, "
+		    "3 = highspeed)");
+
 		sc->tt.sndbuf = 256 * 1024;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "sndbuf", CTLFLAG_RW,
 		    &sc->tt.sndbuf, 0, "max hardware send buffer size");

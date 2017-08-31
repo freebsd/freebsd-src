@@ -259,6 +259,9 @@ calc_opt2a(struct socket *so, struct toepcb *toep)
 	if (sc->tt.rx_coalesce)
 		opt2 |= V_RX_COALESCE(M_RX_COALESCE);
 
+	if (sc->tt.cong_algorithm != -1)
+		opt2 |= V_CONG_CNTRL(sc->tt.cong_algorithm & M_CONG_CNTRL);
+
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	if (toep->ulp_mode == ULP_MODE_TCPDDP)
 		opt2 |= F_RX_FC_VALID | F_RX_FC_DDP;
