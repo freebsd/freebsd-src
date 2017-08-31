@@ -290,11 +290,11 @@ Expression
 
       /* Default base for a non-prefixed integer is 10 */
 
-    | EXPOP_NUMBER                                  { AcpiUtStrtoul64 (PrParsertext, ACPI_STRTOUL_64BIT, &$$);}
+    | EXPOP_NUMBER                                  { AcpiUtStrtoul64 (PrParsertext, &$$);}
 
       /* Standard hex number (0x1234) */
 
-    | EXPOP_HEX_NUMBER                              { AcpiUtStrtoul64 (PrParsertext, (ACPI_STRTOUL_BASE16 | ACPI_STRTOUL_64BIT), &$$);}
+    | EXPOP_HEX_NUMBER                              { AcpiUtStrtoul64 (PrParsertext, &$$);}
     ;
 %%
 
