@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "efichar.h"
 
 /* options descriptor */
 static struct option longopts[] = {
@@ -58,13 +59,14 @@ static struct option longopts[] = {
 	{ "print",		no_argument,		NULL,	'p' },
 	{ "print-decimal",	no_argument,		NULL,	'd' },
 	{ "raw-guid",		no_argument,		NULL,   'R' },
+	{ "utf8",		no_argument,		NULL,	'u' },
 	{ "write",		no_argument,		NULL,	'w' },
 	{ NULL,			0,			NULL,	0 }
 };
 
 
 static int aflag, Aflag, bflag, dflag, Dflag, gflag, Hflag, Nflag,
-	lflag, Lflag, Rflag, wflag, pflag;
+	lflag, Lflag, Rflag, wflag, pflag, uflag;
 static char *varname;
 static u_long attrib = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS;
 
@@ -176,6 +178,27 @@ asciidump(uint8_t *data, size_t datalen)
 }
 
 static void
+utf8dump(uint8_t *data, size_t datalen)
+{
+	char *utf8 = NULL;
+	efi_char *ucs2;
+
+	/*
+	 * NUL terminate the string. Not all strings need it, but some
+	 * do and an extra NUL won't change what's printed.
+	 */
+	ucs2 = malloc(datalen + sizeof(efi_char));
+	memcpy(ucs2, data, datalen);
+	ucs2[datalen / sizeof(efi_char)] = 0;
+	ucs2_to_utf8(ucs2, &utf8);
+	if (!Nflag)
+		printf("\n");
+	printf("%s\n", utf8);
+	free(utf8);
+	free(ucs2);
+}
+
+static void
 hexdump(uint8_t *data, size_t datalen)
 {
 	size_t i;
@@ -245,6 +268,8 @@ print_var(efi_guid_t *guid, char *name)
 			printf("%s-%s", gname, name);
 		if (Aflag)
 			asciidump(data, datalen);
+		else if (uflag)
+			utf8dump(data, datalen);
 		else if (bflag)
 			bindump(data, datalen);
 		else if (dflag)
@@ -343,6 +368,9 @@ parse_args(int argc, char **argv)
 			break;
 		case 't':
 			attrib = strtoul(optarg, NULL, 16);
+			break;
+		case 'u':
+			uflag++;
 			break;
 		case 'w':
 			wflag++;
