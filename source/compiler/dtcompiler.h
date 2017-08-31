@@ -481,6 +481,10 @@ DtFatal (
     DT_FIELD                *FieldObject,
     char                    *ExtraMessage);
 
+UINT64
+DtDoConstant (
+    char                    *String);
+
 char*
 DtGetFieldValue (
     DT_FIELD                *Field);

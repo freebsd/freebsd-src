@@ -231,6 +231,7 @@ OBJECTS = \
 	$(OBJDIR)/utresrc.o\
 	$(OBJDIR)/utstate.o\
 	$(OBJDIR)/utstrtoul64.o\
+	$(OBJDIR)/utstrsuppt.o\
 	$(OBJDIR)/utstring.o\
 	$(OBJDIR)/utuuid.o\
 	$(OBJDIR)/utxface.o\

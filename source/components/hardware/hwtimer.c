@@ -215,6 +215,7 @@ AcpiGetTimer (
     UINT32                  *Ticks)
 {
     ACPI_STATUS             Status;
+    UINT64                  TimerValue;
 
 
     ACPI_FUNCTION_TRACE (AcpiGetTimer);
@@ -232,7 +233,14 @@ AcpiGetTimer (
         return_ACPI_STATUS (AE_SUPPORT);
     }
 
-    Status = AcpiHwRead (Ticks, &AcpiGbl_FADT.XPmTimerBlock);
+    Status = AcpiHwRead (&TimerValue, &AcpiGbl_FADT.XPmTimerBlock);
+    if (ACPI_SUCCESS (Status))
+    {
+        /* ACPI PM Timer is defined to be 32 bits (PM_TMR_LEN) */
+
+        *Ticks = (UINT32) TimerValue;
+    }
+
     return_ACPI_STATUS (Status);
 }
 

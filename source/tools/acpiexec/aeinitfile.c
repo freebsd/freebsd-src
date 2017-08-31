@@ -311,8 +311,7 @@ AeDoOneOverride (
 
     /* Extract the 64-bit integer */
 
-    Status = AcpiUtStrtoul64 (ValueString,
-        (ACPI_STRTOUL_BASE16 | ACPI_STRTOUL_64BIT), &Value);
+    Status = AcpiUtStrtoul64 (ValueString, &Value);
     if (ACPI_FAILURE (Status))
     {
         AcpiOsPrintf ("%s %s\n", ValueString,

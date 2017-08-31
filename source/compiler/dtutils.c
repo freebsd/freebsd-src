@@ -303,6 +303,38 @@ DtFatal (
 }
 
 
+/*******************************************************************************
+ *
+ * FUNCTION:    DtDoConstant
+ *
+ * PARAMETERS:  String              - Only hex constants are supported,
+ *                                    regardless of whether the 0x prefix
+ *                                    is used
+ *
+ * RETURN:      Converted Integer
+ *
+ * DESCRIPTION: Convert a string to an integer, with overflow/error checking.
+ *
+ ******************************************************************************/
+
+UINT64
+DtDoConstant (
+    char                    *String)
+{
+    UINT64                  ConvertedInteger;
+
+
+    /*
+     * TBD: The ImplicitStrtoul64 function does not report overflow
+     * conditions. The input string is simply truncated. If it is
+     * desired to report overflow to the table compiler, this should
+     * somehow be added here. Note: integers that are prefixed with 0x
+     * or not are both hex integers.
+     */
+    ConvertedInteger = AcpiUtImplicitStrtoul64 (String);
+    return (ConvertedInteger);
+}
+
 /******************************************************************************
  *
  * FUNCTION:    DtGetFieldValue

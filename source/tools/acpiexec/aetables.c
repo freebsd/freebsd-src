@@ -598,6 +598,14 @@ AeInstallTables (
     Status = AcpiInitializeTables (NULL, ACPI_MAX_INIT_TABLES, TRUE);
     ACPI_CHECK_OK (AcpiInitializeTables, Status);
 
+    /*
+     * The following code is prepared to test the deferred table
+     * verification mechanism. When AcpiGbl_EnableTableValidation is set
+     * to FALSE by default, AcpiReallocateRootTable() sets it back to TRUE
+     * and triggers the deferred table verification mechanism accordingly.
+     */
+    (void) AcpiReallocateRootTable ();
+
     if (AcpiGbl_LoadTestTables)
     {
         /* Test multiple table/UEFI support. First, get the headers */
