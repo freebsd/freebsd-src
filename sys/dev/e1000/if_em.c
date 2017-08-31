@@ -5330,33 +5330,12 @@ em_enable_wakeup(device_t dev)
 {
 	struct adapter	*adapter = device_get_softc(dev);
 	if_t ifp = adapter->ifp;
-	u32		pmc, ctrl, ctrl_ext, rctl, wuc;
+	int		error = 0;
+	u32		pmc, ctrl, ctrl_ext, rctl;
 	u16     	status;
 
-	if ((pci_find_cap(dev, PCIY_PMG, &pmc) != 0))
+	if (pci_find_cap(dev, PCIY_PMG, &pmc) != 0)
 		return;
-
-	/* Advertise the wakeup capability */
-	ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
-	ctrl |= (E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN3);
-	E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
-	wuc = E1000_READ_REG(&adapter->hw, E1000_WUC);
-	wuc |= E1000_WUC_PME_EN;
- 	E1000_WRITE_REG(&adapter->hw, E1000_WUC, wuc);
-
-	if ((adapter->hw.mac.type == e1000_ich8lan) ||
-	    (adapter->hw.mac.type == e1000_pchlan) ||
-	    (adapter->hw.mac.type == e1000_ich9lan) ||
-	    (adapter->hw.mac.type == e1000_ich10lan))
-		e1000_suspend_workarounds_ich8lan(&adapter->hw);
-
-	/* Keep the laser running on Fiber adapters */
-	if (adapter->hw.phy.media_type == e1000_media_type_fiber ||
-	    adapter->hw.phy.media_type == e1000_media_type_internal_serdes) {
-		ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
-		ctrl_ext |= E1000_CTRL_EXT_SDP3_DATA;
-		E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT, ctrl_ext);
-	}
 
 	/*
 	** Determine type of Wakeup: note that wol
@@ -5373,13 +5352,37 @@ em_enable_wakeup(device_t dev)
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, rctl);
 	}
 
+	if (!(adapter->wol & (E1000_WUFC_EX | E1000_WUFC_MAG | E1000_WUFC_MC)))
+		goto pme;
+
+	/* Advertise the wakeup capability */
+	ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
+	ctrl |= (E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN3);
+	E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
+
+	/* Keep the laser running on Fiber adapters */
+	if (adapter->hw.phy.media_type == e1000_media_type_fiber ||
+	    adapter->hw.phy.media_type == e1000_media_type_internal_serdes) {
+		ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
+		ctrl_ext |= E1000_CTRL_EXT_SDP3_DATA;
+		E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT, ctrl_ext);
+	}
+
+	if ((adapter->hw.mac.type == e1000_ich8lan) ||
+	    (adapter->hw.mac.type == e1000_pchlan) ||
+	    (adapter->hw.mac.type == e1000_ich9lan) ||
+	    (adapter->hw.mac.type == e1000_ich10lan))
+		e1000_suspend_workarounds_ich8lan(&adapter->hw);
+
 	if ((adapter->hw.mac.type == e1000_pchlan)  ||
 	    (adapter->hw.mac.type == e1000_pch2lan) ||
 	    (adapter->hw.mac.type == e1000_pch_lpt) ||
 	    (adapter->hw.mac.type == e1000_pch_spt)) {
-		if (em_enable_phy_wakeup(adapter))
-			return;
+		error = em_enable_phy_wakeup(adapter);
+		if (error)
+			goto pme;
 	} else {
+		/* Enable wakeup by the MAC */
 		E1000_WRITE_REG(&adapter->hw, E1000_WUC, E1000_WUC_PME_EN);
 		E1000_WRITE_REG(&adapter->hw, E1000_WUFC, adapter->wol);
 	}
@@ -5387,10 +5390,10 @@ em_enable_wakeup(device_t dev)
 	if (adapter->hw.phy.type == e1000_phy_igp_3)
 		e1000_igp3_phy_powerdown_workaround_ich8lan(&adapter->hw);
 
-        /* Request PME */
+pme:
         status = pci_read_config(dev, pmc + PCIR_POWER_STATUS, 2);
 	status &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
-	if (if_getcapenable(ifp) & IFCAP_WOL)
+	if (!error && (if_getcapenable(ifp) & IFCAP_WOL))
 		status |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
         pci_write_config(dev, pmc + PCIR_POWER_STATUS, status, 2);
 
