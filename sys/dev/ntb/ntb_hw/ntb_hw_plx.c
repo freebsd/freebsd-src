@@ -473,7 +473,7 @@ ntb_plx_link_enable(device_t dev, enum ntb_speed speed __unused,
 		return (0);
 	}
 
-	reg = (sc->port < 8) ? 0x00208 : 0x08208;
+	reg = ((sc->port & ~7) << 12) | 0x208;
 	val = bus_read_4(sc->conf_res, reg);
 	if ((val & (1 << (sc->port & 7))) == 0) {
 		/* If already enabled, generate fake link event and exit. */
@@ -495,7 +495,7 @@ ntb_plx_link_disable(device_t dev)
 	if (sc->link)
 		return (0);
 
-	reg = (sc->port < 8) ? 0x00208 : 0x08208;
+	reg = ((sc->port & ~7) << 12) | 0x208;
 	val = bus_read_4(sc->conf_res, reg);
 	val |= (1 << (sc->port & 7));
 	bus_write_4(sc->conf_res, reg, val);
@@ -512,7 +512,7 @@ ntb_plx_link_enabled(device_t dev)
 	if (sc->link)
 		return (TRUE);
 
-	reg = (sc->port < 8) ? 0x00208 : 0x08208;
+	reg = ((sc->port & ~7) << 12) | 0x208;
 	val = bus_read_4(sc->conf_res, reg);
 	return ((val & (1 << (sc->port & 7))) == 0);
 }
