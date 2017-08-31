@@ -1030,6 +1030,7 @@ typedef struct acpi_iort_smmu_gsi
     UINT32                  NSgIrptFlags;
     UINT32                  NSgCfgIrpt;
     UINT32                  NSgCfgIrptFlags;
+
 } ACPI_IORT_SMMU_GSI;
 
 
