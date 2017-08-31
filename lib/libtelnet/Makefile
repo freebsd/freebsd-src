@@ -23,8 +23,7 @@ CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DSRA
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
 SRCS+=		kerberos5.c
-CFLAGS+=	-DKRB5 -I${KRB5DIR}/lib/krb5 -I${KRB5OBJDIR} -I${ASN1OBJDIR}
-CFLAGS+=	-DFORWARD -Dnet_write=telnet_net_write
+CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
 .endif
 .endif
 
