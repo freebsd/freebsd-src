@@ -1,18 +1,12 @@
-=======================================
-Clang 5.0.0 (In-Progress) Release Notes
-=======================================
+=========================
+Clang 5.0.0 Release Notes
+=========================
 
 .. contents::
    :local:
    :depth: 2
 
 Written by the `LLVM Team <http://llvm.org/>`_
-
-.. warning::
-
-   These are in-progress notes for the upcoming Clang 5 release.
-   Release notes for previous releases can be found on
-   `the Download Page <http://releases.llvm.org/download.html>`_.
 
 Introduction
 ============
@@ -26,15 +20,9 @@ documentation <http://llvm.org/docs/ReleaseNotes.html>`_. All LLVM
 releases may be downloaded from the `LLVM releases web
 site <http://llvm.org/releases/>`_.
 
-For more information about Clang or LLVM, including information about
-the latest release, please check out the main please see the `Clang Web
-Site <http://clang.llvm.org>`_ or the `LLVM Web
-Site <http://llvm.org>`_.
-
-Note that if you are reading this file from a Subversion checkout or the
-main Clang web page, this document applies to the *next* release, not
-the current one. To see the release notes for a specific release, please
-see the `releases page <http://llvm.org/releases/>`_.
+For more information about Clang or LLVM, including information about the
+latest release, please see the `Clang Web Site <http://clang.llvm.org>`_ or the
+`LLVM Web Site <http://llvm.org>`_.
 
 What's New in Clang 5.0.0?
 ==========================
@@ -46,8 +34,6 @@ sections with improvements to Clang's support for those languages.
 
 Major New Features
 ------------------
-
--  ...
 
 C++ coroutines
 ^^^^^^^^^^^^^^
@@ -61,25 +47,25 @@ coroutine support. Here is `an example
 Improvements to Clang's diagnostics
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
--  -Wcast-qual was implemented for C++. C-style casts are now properly
+-  ``-Wcast-qual`` was implemented for C++. C-style casts are now properly
    diagnosed.
 
--  -Wunused-lambda-capture warns when a variable explicitly captured
+-  ``-Wunused-lambda-capture`` warns when a variable explicitly captured
    by a lambda is not used in the body of the lambda.
 
--  -Wstrict-prototypes is a new warning that warns about non-prototype
+-  ``-Wstrict-prototypes`` is a new warning that warns about non-prototype
    function and block declarations and types in C and Objective-C.
 
--  -Wunguarded-availability is a new warning that warns about uses of new
+-  ``-Wunguarded-availability`` is a new warning that warns about uses of new
    APIs that were introduced in a system whose version is newer than the
    deployment target version. A new Objective-C expression ``@available`` has
    been introduced to perform system version checking at runtime. This warning
    is off by default to prevent unexpected warnings in existing projects.
-   However, its less strict sibling -Wunguarded-availability-new is on by
+   However, its less strict sibling ``-Wunguarded-availability-new`` is on by
    default. It warns about unguarded uses of APIs only when they were introduced
    in or after macOS 10.13, iOS 11, tvOS 11 or watchOS 4.
 
--  The -Wdocumentation warning now allows the use of ``\param`` and
+-  The ``-Wdocumentation`` warning now allows the use of ``\param`` and
    ``\returns`` documentation directives in the documentation comments for
    declarations with a function or a block pointer type.
 
@@ -89,7 +75,8 @@ Improvements to Clang's diagnostics
 New Compiler Flags
 ------------------
 
-- --autocomplete was implemented to obtain a list of flags and its arguments. This is used for shell autocompletion.
+- ``--autocomplete`` was implemented to obtain a list of flags and its arguments.
+  This is used for shell autocompletion.
 
 Deprecated Compiler Flags
 -------------------------
@@ -97,9 +84,9 @@ Deprecated Compiler Flags
 The following options are deprecated and ignored. They will be removed in
 future versions of Clang.
 
-- -fslp-vectorize-aggressive used to enable the BB vectorizing pass. They have been superseeded
+- ``-fslp-vectorize-aggressive`` used to enable the BB vectorizing pass. They have been superseeded
   by the normal SLP vectorizer.
-- -fno-slp-vectorize-aggressive used to be the default behavior of clang.
+- ``-fno-slp-vectorize-aggressive`` used to be the default behavior of clang.
 
 New Pragmas in Clang
 -----------------------
@@ -117,14 +104,8 @@ Attribute Changes in Clang
 -  The ``overloadable`` attribute now allows at most one function with a given
    name to lack the ``overloadable`` attribute. This unmarked function will not
    have its name mangled.
--  The ```ms_abi`` attribute and the ``__builtin_ms_va_list`` types and builtins
+-  The ``ms_abi`` attribute and the ``__builtin_ms_va_list`` types and builtins
    are now supported on AArch64.
-
-Windows Support
----------------
-
-Clang's support for building native Windows programs ...
-
 
 C Language Changes in Clang
 ---------------------------
@@ -154,37 +135,42 @@ a vector expression--occurs when:
   vector's elements.
 
 - For compile time constant values, the above rule is weakened to consider the
-  value of the scalar constant rather than the constant's type.
-
-- Floating point constants with precise integral representations are not
-  implicitly converted to integer values, this is for compatability with GCC.
-
+  value of the scalar constant rather than the constant's type. However,
+  for compatibility with GCC, floating point constants with precise integral
+  representations are not implicitly converted to integer values.
 
 Currently the basic integer and floating point types with the following
 operators are supported: ``+``, ``/``, ``-``, ``*``, ``%``, ``>``, ``<``,
 ``>=``, ``<=``, ``==``, ``!=``, ``&``, ``|``, ``^`` and the corresponding
 assignment operators where applicable.
 
-...
-
-C11 Feature Support
-^^^^^^^^^^^^^^^^^^^
-
-...
 
 C++ Language Changes in Clang
 -----------------------------
+
+- We expect this to be the last Clang release that defaults to ``-std=gnu++98``
+  when using the GCC-compatible ``clang++`` driver. From Clang 6 onwards we
+  expect to use ``-std=gnu++14`` or a later standard by default, to match the
+  behavior of recent GCC releases. Users are encouraged to change their build
+  files to explicitly specify their desired C++ standard.
+
+- Support for the C++17 standard has been completed. This mode can be enabled
+  using ``-std=c++17`` (the old flag ``-std=c++1z`` is still supported for
+  compatibility).
+
+- When targeting a platform that uses the Itanium C++ ABI, Clang implements a
+  `recent change to the ABI`__ that passes objects of class type indirectly if they
+  have a non-trivial move constructor. Previous versions of Clang only
+  considered the copy constructor, resulting in an ABI change in rare cases,
+  but GCC has already implemented this change for several releases.
+  This affects all targets other than Windows and PS4. You can opt out of this
+  ABI change with ``-fclang-abi-compat=4.0``.
 
 - As mentioned in `C Language Changes in Clang`_, Clang's support for
   implicit scalar to vector conversions also applies to C++. Additionally
   the following operators are also supported: ``&&`` and ``||``.
 
-...
-
-C++1z Feature Support
-^^^^^^^^^^^^^^^^^^^^^
-
-...
+.. __: https://github.com/itanium-cxx-abi/cxx-abi/commit/7099637aba11fed6bdad7ee65bf4fd3f97fbf076
 
 Objective-C Language Changes in Clang
 -------------------------------------
@@ -240,25 +226,6 @@ The following new functionalities have been added:
 
 -  Added OpenCL types to ``CIndex``.
 
-OpenMP Support in Clang
-----------------------------------
-
-...
-
-Internal API Changes
---------------------
-
-These are major API changes that have happened since the 4.0.0 release of
-Clang. If upgrading an external codebase that uses Clang as a library,
-this section should help get you past the largest hurdles of upgrading.
-
--  ...
-
-AST Matchers
-------------
-
-...
-
 
 clang-format
 ------------
@@ -301,7 +268,7 @@ clang-format
   |   namespace A {     |   namespace A {     |
   |   int i;            |   int i;            |
   |   int j;            |   int j;            |
-  |   }                 |   }                 |
+  |   }                 |   } // namespace A  |
   +---------------------+---------------------+
 
 * Comment reflow support added. Overly long comment lines will now be reflown with the rest of
@@ -351,7 +318,7 @@ Undefined Behavior Sanitizer (UBSan)
 
 - The Undefined Behavior Sanitizer has a new check for pointer overflow. This
   check is on by default. The flag to control this functionality is
-  -fsanitize=pointer-overflow.
+  ``-fsanitize=pointer-overflow``.
 
   Pointer overflow is an indicator of undefined behavior: when a pointer
   indexing expression wraps around the address space, or produces other
@@ -359,10 +326,10 @@ Undefined Behavior Sanitizer (UBSan)
 
 - UBSan has several new checks which detect violations of nullability
   annotations. These checks are off by default. The flag to control this group
-  of checks is -fsanitize=nullability. The checks can be individially enabled
-  by -fsanitize=nullability-arg (which checks calls),
-  -fsanitize=nullability-assign (which checks assignments), and
-  -fsanitize=nullability-return (which checks return statements).
+  of checks is ``-fsanitize=nullability``. The checks can be individially enabled
+  by ``-fsanitize=nullability-arg`` (which checks calls),
+  ``-fsanitize=nullability-assign`` (which checks assignments), and
+  ``-fsanitize=nullability-return`` (which checks return statements).
 
 - UBSan can now detect invalid loads from bitfields and from ObjC BOOLs.
 
@@ -371,20 +338,11 @@ Undefined Behavior Sanitizer (UBSan)
   also avoid emitting unnecessary overflow checks in arithmetic expressions
   with promoted integer operands.
 
-Core Analysis Improvements
-==========================
-
-- ...
-
-New Issues Found
-================
-
-- ...
 
 Python Binding Changes
 ----------------------
 
-Python bindings now support both Python 2 and Python 3. 
+Python bindings now support both Python 2 and Python 3.
 
 The following methods have been added:
 
@@ -398,10 +356,6 @@ The following methods have been added:
 
 - ``get_exception_specification_kind`` has been added to ``Type``.
 
--  ...
-
-Significant Known Problems
-==========================
 
 Additional Information
 ======================
