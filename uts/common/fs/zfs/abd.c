@@ -157,6 +157,13 @@ extern vmem_t *zio_alloc_arena;
 kmem_cache_t *abd_chunk_cache;
 static kstat_t *abd_ksp;
 
+extern inline boolean_t abd_is_linear(abd_t *abd);
+extern inline void abd_copy(abd_t *dabd, abd_t *sabd, size_t size);
+extern inline void abd_copy_from_buf(abd_t *abd, const void *buf, size_t size);
+extern inline void abd_copy_to_buf(void* buf, abd_t *abd, size_t size);
+extern inline int abd_cmp_buf(abd_t *abd, const void *buf, size_t size);
+extern inline void abd_zero(abd_t *abd, size_t size);
+
 static void *
 abd_alloc_chunk()
 {
