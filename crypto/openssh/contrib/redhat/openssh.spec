@@ -1,4 +1,4 @@
-%define ver 7.3p1
+%define ver 7.2p2
 %define rel 1
 
 # OpenSSH privilege separation requires a user & group ID
@@ -358,6 +358,8 @@ fi
 %attr(0644,root,root) %{_mandir}/man1/ssh.1*
 %attr(0644,root,root) %{_mandir}/man5/ssh_config.5*
 %attr(0644,root,root) %config(noreplace) %{_sysconfdir}/ssh/ssh_config
+%attr(-,root,root) %{_bindir}/slogin
+%attr(-,root,root) %{_mandir}/man1/slogin.1*
 %if ! %{rescue}
 %attr(2755,root,nobody) %{_bindir}/ssh-agent
 %attr(0755,root,root) %{_bindir}/ssh-add

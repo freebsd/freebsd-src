@@ -1,4 +1,4 @@
-/* $OpenBSD: kexdh.c,v 1.26 2016/05/02 10:26:04 djm Exp $ */
+/* $OpenBSD: kexdh.c,v 1.25 2015/01/19 20:16:15 markus Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -43,7 +43,6 @@
 
 int
 kex_dh_hash(
-    int hash_alg,
     const char *client_version_string,
     const char *server_version_string,
     const u_char *ckexinit, size_t ckexinitlen,
@@ -57,7 +56,7 @@ kex_dh_hash(
 	struct sshbuf *b;
 	int r;
 
-	if (*hashlen < ssh_digest_bytes(hash_alg))
+	if (*hashlen < ssh_digest_bytes(SSH_DIGEST_SHA1))
 		return SSH_ERR_INVALID_ARGUMENT;
 	if ((b = sshbuf_new()) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
@@ -80,12 +79,12 @@ kex_dh_hash(
 #ifdef DEBUG_KEX
 	sshbuf_dump(b, stderr);
 #endif
-	if (ssh_digest_buffer(hash_alg, b, hash, *hashlen) != 0) {
+	if (ssh_digest_buffer(SSH_DIGEST_SHA1, b, hash, *hashlen) != 0) {
 		sshbuf_free(b);
 		return SSH_ERR_LIBCRYPTO_ERROR;
 	}
 	sshbuf_free(b);
-	*hashlen = ssh_digest_bytes(hash_alg);
+	*hashlen = ssh_digest_bytes(SSH_DIGEST_SHA1);
 #ifdef DEBUG_KEX
 	dump_digest("hash", hash, *hashlen);
 #endif

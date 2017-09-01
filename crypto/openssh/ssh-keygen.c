@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keygen.c,v 1.290 2016/05/02 09:36:42 djm Exp $ */
+/* $OpenBSD: ssh-keygen.c,v 1.288 2016/02/15 09:47:49 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -883,7 +883,7 @@ do_fingerprint(struct passwd *pw)
 	char *comment = NULL, *cp, *ep, line[SSH_MAX_PUBKEY_BYTES];
 	int i, invalid = 1;
 	const char *path;
-	u_long lnum = 0;
+	long int lnum = 0;
 
 	if (!have_identity)
 		ask_filename(pw, "Enter file in which the key is");
@@ -946,7 +946,7 @@ do_fingerprint(struct passwd *pw)
 		}
 		/* Retry after parsing leading hostname/key options */
 		if (public == NULL && (public = try_read_key(&cp)) == NULL) {
-			debug("%s:%lu: not a public key", path, lnum);
+			debug("%s:%ld: not a public key", path, lnum);
 			continue;
 		}
 
@@ -1599,12 +1599,6 @@ do_ca_sign(struct passwd *pw, int argc, char **argv)
 		ca = load_identity(tmp);
 	free(tmp);
 
-	if (key_type_name != NULL &&
-	    sshkey_type_from_name(key_type_name) != ca->type)  {
-		fatal("CA key type %s doesn't match specified %s",
-		    sshkey_ssh_name(ca), key_type_name);
-	}
-
 	for (i = 0; i < argc; i++) {
 		/* Split list of principals */
 		n = 0;
@@ -1646,8 +1640,8 @@ do_ca_sign(struct passwd *pw, int argc, char **argv)
 		    &public->cert->signature_key)) != 0)
 			fatal("key_from_private (ca key): %s", ssh_err(r));
 
-		if ((r = sshkey_certify(public, ca, key_type_name)) != 0)
-			fatal("Couldn't certify key %s: %s", tmp, ssh_err(r));
+		if (sshkey_certify(public, ca) != 0)
+			fatal("Couldn't not certify key %s", tmp);
 
 		if ((cp = strrchr(tmp, '.')) != NULL && strcmp(cp, ".pub") == 0)
 			*cp = '\0';
@@ -1926,7 +1920,7 @@ do_show_cert(struct passwd *pw)
 	FILE *f;
 	char *cp, line[SSH_MAX_PUBKEY_BYTES];
 	const char *path;
-	u_long lnum = 0;
+	long int lnum = 0;
 
 	if (!have_identity)
 		ask_filename(pw, "Enter file in which the key is");

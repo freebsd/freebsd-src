@@ -103,12 +103,6 @@ static const struct sock_filter preauth_insns[] = {
 		offsetof(struct seccomp_data, nr)),
 
 	/* Syscalls to non-fatally deny */
-#ifdef __NR_lstat
-	SC_DENY(lstat, EACCES),
-#endif
-#ifdef __NR_lstat64
-	SC_DENY(lstat64, EACCES),
-#endif
 #ifdef __NR_fstat
 	SC_DENY(fstat, EACCES),
 #endif

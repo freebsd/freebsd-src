@@ -26,12 +26,7 @@ done
 
 # Because sandbox is sensitive to changes in libc, especially malloc, retest
 # with every malloc.conf option (and none).
-if [ -z "TEST_MALLOC_OPTIONS" ]; then
-	mopts="A F G H J P R S X < >"
-else
-	mopts=`echo $TEST_MALLOC_OPTIONS | sed 's/./& /g'`
-fi
-for m in '' $mopts ; do
+for m in '' A F G H J P R S X '<' '>'; do
     for p in ${SSH_PROTOCOLS}; do
 	env MALLOC_OPTIONS="$m" ${SSH} -$p -F $OBJ/ssh_proxy 999.999.999.999 true
 	if [ $? -ne 0 ]; then

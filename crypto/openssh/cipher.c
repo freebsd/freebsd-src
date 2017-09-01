@@ -81,26 +81,18 @@ static const struct sshcipher ciphers[] = {
 #ifdef WITH_SSH1
 	{ "des",	SSH_CIPHER_DES, 8, 8, 0, 0, 0, 1, EVP_des_cbc },
 	{ "3des",	SSH_CIPHER_3DES, 8, 16, 0, 0, 0, 1, evp_ssh1_3des },
-# ifndef OPENSSL_NO_BF
 	{ "blowfish",	SSH_CIPHER_BLOWFISH, 8, 32, 0, 0, 0, 1, evp_ssh1_bf },
-# endif /* OPENSSL_NO_BF */
 #endif /* WITH_SSH1 */
 #ifdef WITH_OPENSSL
 	{ "none",	SSH_CIPHER_NONE, 8, 0, 0, 0, 0, 0, EVP_enc_null },
 	{ "3des-cbc",	SSH_CIPHER_SSH2, 8, 24, 0, 0, 0, 1, EVP_des_ede3_cbc },
-# ifndef OPENSSL_NO_BF
 	{ "blowfish-cbc",
 			SSH_CIPHER_SSH2, 8, 16, 0, 0, 0, 1, EVP_bf_cbc },
-# endif /* OPENSSL_NO_BF */
-# ifndef OPENSSL_NO_CAST
 	{ "cast128-cbc",
 			SSH_CIPHER_SSH2, 8, 16, 0, 0, 0, 1, EVP_cast5_cbc },
-# endif /* OPENSSL_NO_CAST */
-# ifndef OPENSSL_NO_RC4
 	{ "arcfour",	SSH_CIPHER_SSH2, 8, 16, 0, 0, 0, 0, EVP_rc4 },
 	{ "arcfour128",	SSH_CIPHER_SSH2, 8, 16, 0, 0, 1536, 0, EVP_rc4 },
 	{ "arcfour256",	SSH_CIPHER_SSH2, 8, 32, 0, 0, 1536, 0, EVP_rc4 },
-# endif /* OPENSSL_NO_RC4 */
 	{ "aes128-cbc",	SSH_CIPHER_SSH2, 16, 16, 0, 0, 0, 1, EVP_aes_128_cbc },
 	{ "aes192-cbc",	SSH_CIPHER_SSH2, 16, 24, 0, 0, 0, 1, EVP_aes_192_cbc },
 	{ "aes256-cbc",	SSH_CIPHER_SSH2, 16, 32, 0, 0, 0, 1, EVP_aes_256_cbc },
@@ -633,7 +625,7 @@ cipher_set_keyiv(struct sshcipher_ctx *cc, const u_char *iv)
 int
 cipher_get_keycontext(const struct sshcipher_ctx *cc, u_char *dat)
 {
-#if defined(WITH_OPENSSL) && !defined(OPENSSL_NO_RC4)
+#ifdef WITH_OPENSSL
 	const struct sshcipher *c = cc->cipher;
 	int plen = 0;
 
@@ -652,7 +644,7 @@ cipher_get_keycontext(const struct sshcipher_ctx *cc, u_char *dat)
 void
 cipher_set_keycontext(struct sshcipher_ctx *cc, const u_char *dat)
 {
-#if defined(WITH_OPENSSL) && !defined(OPENSSL_NO_RC4)
+#ifdef WITH_OPENSSL
 	const struct sshcipher *c = cc->cipher;
 	int plen;
 

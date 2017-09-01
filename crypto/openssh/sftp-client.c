@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.124 2016/05/25 23:48:45 schwarze Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.121 2016/02/11 02:21:34 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -53,7 +53,6 @@
 #include "atomicio.h"
 #include "progressmeter.h"
 #include "misc.h"
-#include "utf8.h"
 
 #include "sftp.h"
 #include "sftp-common.h"
@@ -516,7 +515,8 @@ do_lsreaddir(struct sftp_conn *conn, const char *path, int print_flag,
 	struct sshbuf *msg;
 	u_int count, id, i, expected_id, ents = 0;
 	size_t handle_len;
-	u_char type, *handle;
+	u_char type;
+	char *handle;
 	int status = SSH2_FX_FAILURE;
 	int r;
 
@@ -611,7 +611,7 @@ do_lsreaddir(struct sftp_conn *conn, const char *path, int print_flag,
 			}
 
 			if (print_flag)
-				mprintf("%s\n", longname);
+				printf("%s\n", longname);
 
 			/*
 			 * Directory entries should never contain '/'
@@ -1461,7 +1461,7 @@ download_dir_internal(struct sftp_conn *conn, const char *src, const char *dst,
 		return -1;
 	}
 	if (print_flag)
-		mprintf("Retrieving %s\n", src);
+		printf("Retrieving %s\n", src);
 
 	if (dirattrib->flags & SSH2_FILEXFER_ATTR_PERMISSIONS)
 		mode = dirattrib->perm & 01777;
@@ -1601,7 +1601,7 @@ do_upload(struct sftp_conn *conn, const char *local_path,
 	if (resume) {
 		/* Get remote file size if it exists */
 		if ((c = do_stat(conn, remote_path, 0)) == NULL) {
-			close(local_fd);
+			close(local_fd);                
 			return -1;
 		}
 
@@ -1794,7 +1794,7 @@ upload_dir_internal(struct sftp_conn *conn, const char *src, const char *dst,
 		return -1;
 	}
 	if (print_flag)
-		mprintf("Entering %s\n", src);
+		printf("Entering %s\n", src);
 
 	attrib_clear(&a);
 	stat_to_attrib(&sb, &a);

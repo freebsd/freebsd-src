@@ -82,7 +82,7 @@ LIBSSH_OBJS=${LIBOPENSSH_OBJS} \
 	compat.o crc32.o deattack.o fatal.o hostfile.o \
 	log.o match.o md-sha256.o moduli.o nchan.o packet.o opacket.o \
 	readpass.o rsa.o ttymodes.o xmalloc.o addrmatch.o \
-	atomicio.o key.o dispatch.o mac.o uidswap.o uuencode.o misc.o utf8.o \
+	atomicio.o key.o dispatch.o mac.o uidswap.o uuencode.o misc.o \
 	monitor_fdpass.o rijndael.o ssh-dss.o ssh-ecdsa.o ssh-rsa.o dh.o \
 	msg.o progressmeter.o dns.o entropy.o gss-genr.o umac.o umac128.o \
 	ssh-pkcs11.o smult_curve25519_ref.o \
@@ -92,7 +92,7 @@ LIBSSH_OBJS=${LIBOPENSSH_OBJS} \
 	kex.o kexdh.o kexgex.o kexecdh.o kexc25519.o \
 	kexdhc.o kexgexc.o kexecdhc.o kexc25519c.o \
 	kexdhs.o kexgexs.o kexecdhs.o kexc25519s.o \
-	platform-pledge.o platform-tracing.o
+	platform-pledge.o
 
 SSHOBJS= ssh.o readconf.o clientloop.o sshtty.o \
 	sshconnect.o sshconnect1.o sshconnect2.o mux.o
@@ -223,7 +223,7 @@ umac128.o:	umac.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o umac128.o -c $(srcdir)/umac.c \
 	    -DUMAC_OUTPUT_LEN=16 -Dumac_new=umac128_new \
 	    -Dumac_update=umac128_update -Dumac_final=umac128_final \
-	    -Dumac_delete=umac128_delete -Dumac_ctx=umac128_ctx
+	    -Dumac_delete=umac128_delete
 
 clean:	regressclean
 	rm -f *.o *.a $(TARGETS) logintest config.cache config.log
@@ -240,8 +240,6 @@ clean:	regressclean
 	rm -f regress/unittests/hostkeys/test_hostkeys
 	rm -f regress/unittests/kex/*.o
 	rm -f regress/unittests/kex/test_kex
-	rm -f regress/misc/kexfuzz/*.o
-	rm -f regress/misc/kexfuzz/kexfuzz
 	(cd openbsd-compat && $(MAKE) clean)
 
 distclean:	regressclean
@@ -262,7 +260,6 @@ distclean:	regressclean
 	rm -f regress/unittests/hostkeys/test_hostkeys
 	rm -f regress/unittests/kex/*.o
 	rm -f regress/unittests/kex/test_kex
-	rm -f regress/unittests/misc/kexfuzz
 	(cd openbsd-compat && $(MAKE) distclean)
 	if test -d pkg ; then \
 		rm -fr pkg ; \
@@ -422,27 +419,23 @@ regress-prep:
 		mkdir -p `pwd`/regress/unittests/hostkeys
 	[ -d `pwd`/regress/unittests/kex ] || \
 		mkdir -p `pwd`/regress/unittests/kex
-	[ -d `pwd`/regress/misc/kexfuzz ] || \
-		mkdir -p `pwd`/regress/misc/kexfuzz
 	[ -f `pwd`/regress/Makefile ] || \
 	    ln -s `cd $(srcdir) && pwd`/regress/Makefile `pwd`/regress/Makefile
 
-REGRESSLIBS=libssh.a $(LIBCOMPAT)
-
-regress/modpipe$(EXEEXT): $(srcdir)/regress/modpipe.c $(REGRESSLIBS)
-	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(srcdir)/regress/modpipe.c \
+regress/modpipe$(EXEEXT): $(srcdir)/regress/modpipe.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $? \
 	$(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
-regress/setuid-allowed$(EXEEXT): $(srcdir)/regress/setuid-allowed.c $(REGRESSLIBS)
-	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(srcdir)/regress/setuid-allowed.c \
+regress/setuid-allowed$(EXEEXT): $(srcdir)/regress/setuid-allowed.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $? \
 	$(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
-regress/netcat$(EXEEXT): $(srcdir)/regress/netcat.c $(REGRESSLIBS)
-	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(srcdir)/regress/netcat.c \
+regress/netcat$(EXEEXT): $(srcdir)/regress/netcat.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $? \
 	$(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
-regress/check-perm$(EXEEXT): $(srcdir)/regress/check-perm.c $(REGRESSLIBS)
-	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(srcdir)/regress/check-perm.c \
+regress/check-perm$(EXEEXT): $(srcdir)/regress/check-perm.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $? \
 	$(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
 UNITTESTS_TEST_HELPER_OBJS=\
@@ -512,14 +505,8 @@ regress/unittests/hostkeys/test_hostkeys$(EXEEXT): \
 	    regress/unittests/test_helper/libtest_helper.a \
 	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
-MISC_KEX_FUZZ_OBJS=\
-	regress/misc/kexfuzz/kexfuzz.o
-
-regress/misc/kexfuzz/kexfuzz$(EXEEXT): ${MISC_KEX_FUZZ_OBJS} libssh.a
-	$(LD) -o $@ $(LDFLAGS) $(MISC_KEX_FUZZ_OBJS) \
-	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
-
-regress-binaries: regress/modpipe$(EXEEXT) \
+REGRESS_BINARIES=\
+	regress/modpipe$(EXEEXT) \
 	regress/setuid-allowed$(EXEEXT) \
 	regress/netcat$(EXEEXT) \
 	regress/check-perm$(EXEEXT) \
@@ -527,10 +514,9 @@ regress-binaries: regress/modpipe$(EXEEXT) \
 	regress/unittests/sshkey/test_sshkey$(EXEEXT) \
 	regress/unittests/bitmap/test_bitmap$(EXEEXT) \
 	regress/unittests/hostkeys/test_hostkeys$(EXEEXT) \
-	regress/unittests/kex/test_kex$(EXEEXT) \
-	regress/misc/kexfuzz/kexfuzz$(EXEEXT)
+	regress/unittests/kex/test_kex$(EXEEXT)
 
-tests interop-tests t-exec: regress-prep regress-binaries $(TARGETS)
+tests interop-tests t-exec: regress-prep $(TARGETS) $(REGRESS_BINARIES)
 	BUILDDIR=`pwd`; \
 	TEST_SSH_SCP="$${BUILDDIR}/scp"; \
 	TEST_SSH_SSH="$${BUILDDIR}/ssh"; \
@@ -555,7 +541,6 @@ tests interop-tests t-exec: regress-prep regress-binaries $(TARGETS)
 		OBJ="$${BUILDDIR}/regress/" \
 		PATH="$${BUILDDIR}:$${PATH}" \
 		TEST_ENV=MALLOC_OPTIONS="@TEST_MALLOC_OPTIONS@" \
-		TEST_MALLOC_OPTIONS="@TEST_MALLOC_OPTIONS@" \
 		TEST_SSH_SCP="$${TEST_SSH_SCP}" \
 		TEST_SSH_SSH="$${TEST_SSH_SSH}" \
 		TEST_SSH_SSHD="$${TEST_SSH_SSHD}" \

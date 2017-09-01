@@ -100,29 +100,12 @@ DSA certificate
 
 ECDSA certificate
 
-    string    "ecdsa-sha2-nistp256-v01@openssh.com" |
-              "ecdsa-sha2-nistp384-v01@openssh.com" |
-              "ecdsa-sha2-nistp521-v01@openssh.com"
+    string    "ecdsa-sha2-nistp256@openssh.com" |
+              "ecdsa-sha2-nistp384@openssh.com" |
+              "ecdsa-sha2-nistp521@openssh.com"
     string    nonce
     string    curve
     string    public_key
-    uint64    serial
-    uint32    type
-    string    key id
-    string    valid principals
-    uint64    valid after
-    uint64    valid before
-    string    critical options
-    string    extensions
-    string    reserved
-    string    signature key
-    string    signature
-
-ED25519 certificate
-
-    string    "ssh-ed25519-cert-v01@openssh.com"
-    string    nonce
-    string    pk
     uint64    serial
     uint32    type
     string    key id
@@ -146,9 +129,6 @@ p, q, g, y are the DSA parameters as described in FIPS-186-2.
 curve and public key are respectively the ECDSA "[identifier]" and "Q"
 defined in section 3.1 of RFC5656.
 
-pk is the encoded Ed25519 public key as defined by
-draft-josefsson-eddsa-ed25519-03.
-
 serial is an optional certificate serial number set by the CA to
 provide an abbreviated way to refer to certificates from that CA.
 If a CA does not wish to number its certificates it must set this
@@ -166,7 +146,7 @@ strings packed inside it. These principals list the names for which this
 certificate is valid; hostnames for SSH_CERT_TYPE_HOST certificates and
 usernames for SSH_CERT_TYPE_USER certificates. As a special case, a
 zero-length "valid principals" field means the certificate is valid for
-any principal of the specified type.
+any principal of the specified type. XXX DNS wildcards?
 
 "valid after" and "valid before" specify a validity period for the
 certificate. Each represents a time in seconds since 1970-01-01
@@ -203,7 +183,7 @@ signature is computed over all preceding fields from the initial string
 up to, and including the signature key. Signatures are computed and
 encoded according to the rules defined for the CA's public key algorithm
 (RFC4253 section 6.6 for ssh-rsa and ssh-dss, RFC5656 for the ECDSA
-types), and draft-josefsson-eddsa-ed25519-03 for Ed25519.
+types).
 
 Critical options
 ----------------
@@ -223,9 +203,8 @@ option-specific information (see below). All options are
 "critical", if an implementation does not recognise a option
 then the validating party should refuse to accept the certificate.
 
-No critical options are defined for host certificates at present. The
-supported user certificate options and the contents and structure of
-their data fields are:
+The supported options and the contents and structure of their
+data fields are:
 
 Name                    Format        Description
 -----------------------------------------------------------------------------
@@ -254,9 +233,8 @@ as is the requirement that each name appear only once.
 If an implementation does not recognise an extension, then it should
 ignore it.
 
-No extensions are defined for host certificates at present. The
-supported user certificate extensions and the contents and structure of
-their data fields are:
+The supported extensions and the contents and structure of their data
+fields are:
 
 Name                    Format        Description
 -----------------------------------------------------------------------------
@@ -284,4 +262,4 @@ permit-user-rc          empty         Flag indicating that execution of
                                       of this script will not be permitted if
                                       this option is not present.
 
-$OpenBSD: PROTOCOL.certkeys,v 1.10 2016/05/03 10:27:59 djm Exp $
+$OpenBSD: PROTOCOL.certkeys,v 1.9 2012/03/28 07:23:22 djm Exp $

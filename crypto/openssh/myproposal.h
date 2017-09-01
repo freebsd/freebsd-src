@@ -68,18 +68,13 @@
 #endif
 
 #ifdef HAVE_EVP_SHA256
-# define KEX_SHA2_METHODS \
-	"diffie-hellman-group-exchange-sha256," \
-	"diffie-hellman-group16-sha512," \
-	"diffie-hellman-group18-sha512,"
-# define KEX_SHA2_GROUP14 \
-	"diffie-hellman-group14-sha256,"
+# define KEX_SHA256_METHODS \
+	"diffie-hellman-group-exchange-sha256,"
 #define	SHA2_HMAC_MODES \
 	"hmac-sha2-256," \
 	"hmac-sha2-512,"
 #else
-# define KEX_SHA2_METHODS
-# define KEX_SHA2_GROUP14
+# define KEX_SHA256_METHODS
 # define SHA2_HMAC_MODES
 #endif
 
@@ -92,15 +87,13 @@
 #define KEX_COMMON_KEX \
 	KEX_CURVE25519_METHODS \
 	KEX_ECDH_METHODS \
-	KEX_SHA2_METHODS
+	KEX_SHA256_METHODS
 
 #define KEX_SERVER_KEX KEX_COMMON_KEX \
-	KEX_SHA2_GROUP14 \
 	"diffie-hellman-group14-sha1" \
 
 #define KEX_CLIENT_KEX KEX_COMMON_KEX \
 	"diffie-hellman-group-exchange-sha1," \
-	KEX_SHA2_GROUP14 \
 	"diffie-hellman-group14-sha1"
 
 #define	KEX_DEFAULT_PK_ALG	\

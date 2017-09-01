@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.234 2016/07/18 11:35:33 markus Exp $ */
+/* $OpenBSD: packet.c,v 1.229 2016/02/17 22:20:14 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -53,7 +53,6 @@ __RCSID("$FreeBSD$");
 #include <arpa/inet.h>
 
 #include <errno.h>
-#include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -197,7 +196,6 @@ struct session_state {
 
 	/* XXX discard incoming data after MAC error */
 	u_int packet_discard;
-	size_t packet_discard_mac_already;
 	struct sshmac *packet_discard_mac;
 
 	/* Used in packet_read_poll2() */
@@ -299,7 +297,7 @@ ssh_packet_set_connection(struct ssh *ssh, int fd_in, int fd_out)
 	    (r = cipher_init(&state->receive_context, none,
 	    (const u_char *)"", 0, NULL, 0, CIPHER_DECRYPT)) != 0) {
 		error("%s: cipher_init failed: %s", __func__, ssh_err(r));
-		free(ssh); /* XXX need ssh_free_session_state? */
+		free(ssh);
 		return NULL;
 	}
 	state->newkeys[MODE_IN] = state->newkeys[MODE_OUT] = NULL;
@@ -335,18 +333,16 @@ ssh_packet_stop_discard(struct ssh *ssh)
 
 	if (state->packet_discard_mac) {
 		char buf[1024];
-		size_t dlen = PACKET_MAX_SIZE;
 
-		if (dlen > state->packet_discard_mac_already)
-			dlen -= state->packet_discard_mac_already;
 		memset(buf, 'a', sizeof(buf));
-		while (sshbuf_len(state->incoming_packet) < dlen)
+		while (sshbuf_len(state->incoming_packet) <
+		    PACKET_MAX_SIZE)
 			if ((r = sshbuf_put(state->incoming_packet, buf,
 			    sizeof(buf))) != 0)
 				return r;
 		(void) mac_compute(state->packet_discard_mac,
 		    state->p_read.seqnr,
-		    sshbuf_ptr(state->incoming_packet), dlen,
+		    sshbuf_ptr(state->incoming_packet), PACKET_MAX_SIZE,
 		    NULL, 0);
 	}
 	logit("Finished discarding for %.200s port %d",
@@ -356,7 +352,7 @@ ssh_packet_stop_discard(struct ssh *ssh)
 
 static int
 ssh_packet_start_discard(struct ssh *ssh, struct sshenc *enc,
-    struct sshmac *mac, size_t mac_already, u_int discard)
+    struct sshmac *mac, u_int packet_length, u_int discard)
 {
 	struct session_state *state = ssh->state;
 	int r;
@@ -366,16 +362,11 @@ ssh_packet_start_discard(struct ssh *ssh, struct sshenc *enc,
 			return r;
 		return SSH_ERR_MAC_INVALID;
 	}
-	/*
-	 * Record number of bytes over which the mac has already
-	 * been computed in order to minimize timing attacks.
-	 */
-	if (mac && mac->enabled) {
+	if (packet_length != PACKET_MAX_SIZE && mac && mac->enabled)
 		state->packet_discard_mac = mac;
-		state->packet_discard_mac_already = mac_already;
-	}
-	if (sshbuf_len(state->input) >= discard)
-		return ssh_packet_stop_discard(ssh);
+	if (sshbuf_len(state->input) >= discard &&
+	   (r = ssh_packet_stop_discard(ssh)) != 0)
+		return r;
 	state->packet_discard = discard - sshbuf_len(state->input);
 	return 0;
 }
@@ -388,9 +379,6 @@ ssh_packet_connection_is_on_socket(struct ssh *ssh)
 	struct session_state *state = ssh->state;
 	struct sockaddr_storage from, to;
 	socklen_t fromlen, tolen;
-
-	if (state->connection_in == -1 || state->connection_out == -1)
-		return 0;
 
 	/* filedescriptors in and out are the same, so it's a socket */
 	if (state->connection_in == state->connection_out)
@@ -481,14 +469,10 @@ ssh_remote_ipaddr(struct ssh *ssh)
 	if (ssh->remote_ipaddr == NULL) {
 		if (ssh_packet_connection_is_on_socket(ssh)) {
 			ssh->remote_ipaddr = get_peer_ipaddr(sock);
-			ssh->remote_port = get_peer_port(sock);
-			ssh->local_ipaddr = get_local_ipaddr(sock);
-			ssh->local_port = get_local_port(sock);
+			ssh->remote_port = get_sock_port(sock, 0);
 		} else {
 			ssh->remote_ipaddr = strdup("UNKNOWN");
-			ssh->remote_port = 65535;
-			ssh->local_ipaddr = strdup("UNKNOWN");
-			ssh->local_port = 65535;
+			ssh->remote_port = 0;
 		}
 	}
 	return ssh->remote_ipaddr;
@@ -501,27 +485,6 @@ ssh_remote_port(struct ssh *ssh)
 {
 	(void)ssh_remote_ipaddr(ssh); /* Will lookup and cache. */
 	return ssh->remote_port;
-}
-
-/*
- * Returns the IP-address of the local host as a string.  The returned
- * string must not be freed.
- */
-
-const char *
-ssh_local_ipaddr(struct ssh *ssh)
-{
-	(void)ssh_remote_ipaddr(ssh); /* Will lookup and cache. */
-	return ssh->local_ipaddr;
-}
-
-/* Returns the port number of the local host. */
-
-int
-ssh_local_port(struct ssh *ssh)
-{
-	(void)ssh_remote_ipaddr(ssh); /* Will lookup and cache. */
-	return ssh->local_port;
 }
 
 /* Closes the connection and clears and frees internal data structures. */
@@ -1180,7 +1143,7 @@ ssh_packet_send2_wrapped(struct ssh *ssh)
 {
 	struct session_state *state = ssh->state;
 	u_char type, *cp, macbuf[SSH_DIGEST_MAX_LENGTH];
-	u_char tmp, padlen, pad = 0;
+	u_char padlen, pad = 0;
 	u_int authlen = 0, aadlen = 0;
 	u_int len;
 	struct sshenc *enc   = NULL;
@@ -1238,24 +1201,14 @@ ssh_packet_send2_wrapped(struct ssh *ssh)
 	if (padlen < 4)
 		padlen += block_size;
 	if (state->extra_pad) {
-		tmp = state->extra_pad;
+		/* will wrap if extra_pad+padlen > 255 */
 		state->extra_pad =
 		    roundup(state->extra_pad, block_size);
-		/* check if roundup overflowed */
-		if (state->extra_pad < tmp)
-			return SSH_ERR_INVALID_ARGUMENT;
-		tmp = (len + padlen) % state->extra_pad;
-		/* Check whether pad calculation below will underflow */
-		if (tmp > state->extra_pad)
-			return SSH_ERR_INVALID_ARGUMENT;
-		pad = state->extra_pad - tmp;
+		pad = state->extra_pad -
+		    ((len + padlen) % state->extra_pad);
 		DBG(debug3("%s: adding %d (len %d padlen %d extra_pad %d)",
 		    __func__, pad, len, padlen, state->extra_pad));
-		tmp = padlen;
 		padlen += pad;
-		/* Check whether padlen calculation overflowed */
-		if (padlen < tmp)
-			return SSH_ERR_INVALID_ARGUMENT; /* overflow */
 		state->extra_pad = 0;
 	}
 	if ((r = sshbuf_reserve(state->outgoing_packet, padlen, &cp)) != 0)
@@ -1709,7 +1662,7 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 {
 	struct session_state *state = ssh->state;
 	u_int padlen, need;
-	u_char *cp;
+	u_char *cp, macbuf[SSH_DIGEST_MAX_LENGTH];
 	u_int maclen, aadlen = 0, authlen = 0, block_size;
 	struct sshenc *enc   = NULL;
 	struct sshmac *mac   = NULL;
@@ -1774,8 +1727,8 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 			sshbuf_dump(state->incoming_packet, stderr);
 #endif
 			logit("Bad packet length %u.", state->packlen);
-			return ssh_packet_start_discard(ssh, enc, mac, 0,
-			    PACKET_MAX_SIZE);
+			return ssh_packet_start_discard(ssh, enc, mac,
+			    state->packlen, PACKET_MAX_SIZE);
 		}
 		if ((r = sshbuf_consume(state->input, block_size)) != 0)
 			goto out;
@@ -1797,8 +1750,8 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 	if (need % block_size != 0) {
 		logit("padding error: need %d block %d mod %d",
 		    need, block_size, need % block_size);
-		return ssh_packet_start_discard(ssh, enc, mac, 0,
-		    PACKET_MAX_SIZE - block_size);
+		return ssh_packet_start_discard(ssh, enc, mac,
+		    state->packlen, PACKET_MAX_SIZE - block_size);
 	}
 	/*
 	 * check if the entire packet has been received and
@@ -1809,21 +1762,17 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 	 * 'maclen' bytes of message authentication code.
 	 */
 	if (sshbuf_len(state->input) < aadlen + need + authlen + maclen)
-		return 0; /* packet is incomplete */
+		return 0;
 #ifdef PACKET_DEBUG
 	fprintf(stderr, "read_poll enc/full: ");
 	sshbuf_dump(state->input, stderr);
 #endif
-	/* EtM: check mac over encrypted input */
+	/* EtM: compute mac over encrypted input */
 	if (mac && mac->enabled && mac->etm) {
-		if ((r = mac_check(mac, state->p_read.seqnr,
+		if ((r = mac_compute(mac, state->p_read.seqnr,
 		    sshbuf_ptr(state->input), aadlen + need,
-		    sshbuf_ptr(state->input) + aadlen + need + authlen,
-		    maclen)) != 0) {
-			if (r == SSH_ERR_MAC_INVALID)
-				logit("Corrupted MAC on input.");
+		    macbuf, sizeof(macbuf))) != 0)
 			goto out;
-		}
 	}
 	if ((r = sshbuf_reserve(state->incoming_packet, aadlen + need,
 	    &cp)) != 0)
@@ -1833,22 +1782,26 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 		goto out;
 	if ((r = sshbuf_consume(state->input, aadlen + need + authlen)) != 0)
 		goto out;
+	/*
+	 * compute MAC over seqnr and packet,
+	 * increment sequence number for incoming packet
+	 */
 	if (mac && mac->enabled) {
-		/* Not EtM: check MAC over cleartext */
-		if (!mac->etm && (r = mac_check(mac, state->p_read.seqnr,
-		    sshbuf_ptr(state->incoming_packet),
-		    sshbuf_len(state->incoming_packet),
-		    sshbuf_ptr(state->input), maclen)) != 0) {
-			if (r != SSH_ERR_MAC_INVALID)
+		if (!mac->etm)
+			if ((r = mac_compute(mac, state->p_read.seqnr,
+			    sshbuf_ptr(state->incoming_packet),
+			    sshbuf_len(state->incoming_packet),
+			    macbuf, sizeof(macbuf))) != 0)
 				goto out;
+		if (timingsafe_bcmp(macbuf, sshbuf_ptr(state->input),
+		    mac->mac_len) != 0) {
 			logit("Corrupted MAC on input.");
 			if (need > PACKET_MAX_SIZE)
 				return SSH_ERR_INTERNAL_ERROR;
 			return ssh_packet_start_discard(ssh, enc, mac,
-			    sshbuf_len(state->incoming_packet),
-			    PACKET_MAX_SIZE - need);
+			    state->packlen, PACKET_MAX_SIZE - need);
 		}
-		/* Remove MAC from input buffer */
+
 		DBG(debug("MAC #%d ok", state->p_read.seqnr));
 		if ((r = sshbuf_consume(state->input, mac->mac_len)) != 0)
 			goto out;
@@ -2093,19 +2046,24 @@ sshpkt_fatal(struct ssh *ssh, const char *tag, int r)
 {
 	switch (r) {
 	case SSH_ERR_CONN_CLOSED:
-		logdie("Connection closed by %.200s port %d",
+		logit("Connection closed by %.200s port %d",
 		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh));
+		cleanup_exit(255);
 	case SSH_ERR_CONN_TIMEOUT:
-		logdie("Connection %s %.200s port %d timed out",
+		logit("Connection %s %.200s port %d timed out",
 		    ssh->state->server_side ? "from" : "to",
 		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh));
+		cleanup_exit(255);
 	case SSH_ERR_DISCONNECTED:
-		logdie("Disconnected from %.200s port %d",
+		logit("Disconnected from %.200s port %d",
 		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh));
+		cleanup_exit(255);
 	case SSH_ERR_SYSTEM_ERROR:
-		if (errno == ECONNRESET)
-			logdie("Connection reset by %.200s port %d",
+		if (errno == ECONNRESET) {
+			logit("Connection reset by %.200s port %d",
 			    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh));
+			cleanup_exit(255);
+		}
 		/* FALLTHROUGH */
 	case SSH_ERR_NO_CIPHER_ALG_MATCH:
 	case SSH_ERR_NO_MAC_ALG_MATCH:
@@ -2113,14 +2071,14 @@ sshpkt_fatal(struct ssh *ssh, const char *tag, int r)
 	case SSH_ERR_NO_KEX_ALG_MATCH:
 	case SSH_ERR_NO_HOSTKEY_ALG_MATCH:
 		if (ssh && ssh->kex && ssh->kex->failed_choice) {
-			logdie("Unable to negotiate with %.200s port %d: %s. "
+			fatal("Unable to negotiate with %.200s port %d: %s. "
 			    "Their offer: %s", ssh_remote_ipaddr(ssh),
 			    ssh_remote_port(ssh), ssh_err(r),
 			    ssh->kex->failed_choice);
 		}
 		/* FALLTHROUGH */
 	default:
-		logdie("%s%sConnection %s %.200s port %d: %s",
+		fatal("%s%sConnection %s %.200s port %d: %s",
 		    tag != NULL ? tag : "", tag != NULL ? ": " : "",
 		    ssh->state->server_side ? "from" : "to",
 		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh), ssh_err(r));

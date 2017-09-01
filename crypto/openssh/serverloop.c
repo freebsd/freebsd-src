@@ -1,4 +1,4 @@
-/* $OpenBSD: serverloop.c,v 1.184 2016/03/07 19:02:43 djm Exp $ */
+/* $OpenBSD: serverloop.c,v 1.182 2016/02/08 10:57:07 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -276,7 +276,7 @@ client_alive_check(void)
  */
 static void
 wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
-    u_int *nallocp, u_int64_t max_time_ms)
+    u_int *nallocp, u_int64_t max_time_milliseconds)
 {
 	struct timeval tv, *tvp;
 	int ret;
@@ -288,9 +288,9 @@ wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 	channel_prepare_select(readsetp, writesetp, maxfdp, nallocp,
 	    &minwait_secs, 0);
 
-	/* XXX need proper deadline system for rekey/client alive */
 	if (minwait_secs != 0)
-		max_time_ms = MIN(max_time_ms, (u_int)minwait_secs * 1000);
+		max_time_milliseconds = MIN(max_time_milliseconds,
+		    (u_int)minwait_secs * 1000);
 
 	/*
 	 * if using client_alive, set the max timeout accordingly,
@@ -300,13 +300,11 @@ wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 	 * this could be randomized somewhat to make traffic
 	 * analysis more difficult, but we're not doing it yet.
 	 */
-	if (compat20 && options.client_alive_interval) {
-		uint64_t keepalive_ms =
-		    (uint64_t)options.client_alive_interval * 1000;
-
+	if (compat20 &&
+	    max_time_milliseconds == 0 && options.client_alive_interval) {
 		client_alive_scheduled = 1;
-		if (max_time_ms == 0 || max_time_ms > keepalive_ms)
-			max_time_ms = keepalive_ms;
+		max_time_milliseconds =
+		    (u_int64_t)options.client_alive_interval * 1000;
 	}
 
 	if (compat20) {
@@ -355,14 +353,14 @@ wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 	 * from it, then read as much as is available and exit.
 	 */
 	if (child_terminated && packet_not_very_much_data_to_write())
-		if (max_time_ms == 0 || client_alive_scheduled)
-			max_time_ms = 100;
+		if (max_time_milliseconds == 0 || client_alive_scheduled)
+			max_time_milliseconds = 100;
 
-	if (max_time_ms == 0)
+	if (max_time_milliseconds == 0)
 		tvp = NULL;
 	else {
-		tv.tv_sec = max_time_ms / 1000;
-		tv.tv_usec = 1000 * (max_time_ms % 1000);
+		tv.tv_sec = max_time_milliseconds / 1000;
+		tv.tv_usec = 1000 * (max_time_milliseconds % 1000);
 		tvp = &tv;
 	}
 
@@ -395,7 +393,6 @@ wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 static void
 process_input(fd_set *readset)
 {
-	struct ssh *ssh = active_state; /* XXX */
 	int len;
 	char buf[16384];
 
@@ -403,8 +400,8 @@ process_input(fd_set *readset)
 	if (FD_ISSET(connection_in, readset)) {
 		len = read(connection_in, buf, sizeof(buf));
 		if (len == 0) {
-			verbose("Connection closed by %.100s port %d",
-			    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh));
+			verbose("Connection closed by %.100s",
+			    get_remote_ipaddr());
 			connection_closed = 1;
 			if (compat20)
 				return;
@@ -413,9 +410,8 @@ process_input(fd_set *readset)
 			if (errno != EINTR && errno != EAGAIN &&
 			    errno != EWOULDBLOCK) {
 				verbose("Read error from remote host "
-				    "%.100s port %d: %.100s",
-				    ssh_remote_ipaddr(ssh),
-				    ssh_remote_port(ssh), strerror(errno));
+				    "%.100s: %.100s",
+				    get_remote_ipaddr(), strerror(errno));
 				cleanup_exit(255);
 			}
 		} else {
@@ -999,7 +995,7 @@ server_request_direct_streamlocal(void)
 
 	/* XXX fine grained permissions */
 	if ((options.allow_streamlocal_forwarding & FORWARD_LOCAL) != 0 &&
-	    !no_port_forwarding_flag) {
+	    !no_port_forwarding_flag && use_privsep) {
 		c = channel_connect_to_path(target,
 		    "direct-streamlocal@openssh.com", "direct-streamlocal");
 	} else {
@@ -1243,9 +1239,12 @@ server_input_global_request(int type, u_int32_t seq, void *ctxt)
 		/* check permissions */
 		if ((options.allow_tcp_forwarding & FORWARD_REMOTE) == 0 ||
 		    no_port_forwarding_flag ||
-		    (!want_reply && fwd.listen_port == 0) ||
-		    (fwd.listen_port != 0 && fwd.listen_port < IPPORT_RESERVED &&
-		    pw->pw_uid != 0)) {
+		    (!want_reply && fwd.listen_port == 0)
+#ifndef NO_IPPORT_RESERVED_CONCEPT
+		    || (fwd.listen_port != 0 && fwd.listen_port < IPPORT_RESERVED &&
+		    pw->pw_uid != 0)
+#endif
+		    ) {
 			success = 0;
 			packet_send_debug("Server has disabled port forwarding.");
 		} else {
@@ -1280,7 +1279,7 @@ server_input_global_request(int type, u_int32_t seq, void *ctxt)
 
 		/* check permissions */
 		if ((options.allow_streamlocal_forwarding & FORWARD_REMOTE) == 0
-		    || no_port_forwarding_flag) {
+		    || no_port_forwarding_flag || !use_privsep) {
 			success = 0;
 			packet_send_debug("Server has disabled port forwarding.");
 		} else {

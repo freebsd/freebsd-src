@@ -79,7 +79,7 @@
 /* Define if your snprintf is busted */
 /* #undef BROKEN_SNPRINTF */
 
-/* missing VIS_ALL */
+/* FreeBSD strnvis argument order is swapped compared to OpenBSD */
 #define BROKEN_STRNVIS 1
 
 /* tcgetattr with ICANON may hang */
@@ -404,15 +404,6 @@
 /* Define to 1 if you have the `endutxent' function. */
 #define HAVE_ENDUTXENT 1
 
-/* Define to 1 if you have the `err' function. */
-#define HAVE_ERR 1
-
-/* Define to 1 if you have the `errx' function. */
-#define HAVE_ERRX 1
-
-/* Define to 1 if you have the <err.h> header file. */
-#define HAVE_ERR_H 1
-
 /* Define if your system has /etc/default/login */
 /* #undef HAVE_ETC_DEFAULT_LOGIN */
 
@@ -680,9 +671,6 @@
 /* Define to 1 if you have the `krb5_get_error_message' function. */
 /* #undef HAVE_KRB5_GET_ERROR_MESSAGE */
 
-/* Define to 1 if you have the <langinfo.h> header file. */
-#define HAVE_LANGINFO_H 1
-
 /* Define to 1 if you have the <lastlog.h> header file. */
 /* #undef HAVE_LASTLOG_H */
 
@@ -773,9 +761,6 @@
 /* Define to 1 if you have the `mblen' function. */
 #define HAVE_MBLEN 1
 
-/* Define to 1 if you have the `mbtowc' function. */
-#define HAVE_MBTOWC 1
-
 /* Define to 1 if you have the `md5_crypt' function. */
 /* #undef HAVE_MD5_CRYPT */
 
@@ -820,9 +805,6 @@
 
 /* Define to 1 if you have the `ngetaddrinfo' function. */
 /* #undef HAVE_NGETADDRINFO */
-
-/* Define to 1 if you have the `nl_langinfo' function. */
-#define HAVE_NL_LANGINFO 1
 
 /* Define to 1 if you have the `nsleep' function. */
 /* #undef HAVE_NSLEEP */
@@ -983,9 +965,6 @@
 
 /* Define to 1 if you have the `setpcred' function. */
 /* #undef HAVE_SETPCRED */
-
-/* Define to 1 if you have the `setpflags' function. */
-/* #undef HAVE_SETPFLAGS */
 
 /* Define to 1 if you have the `setppriv' function. */
 /* #undef HAVE_SETPPRIV */
@@ -1377,15 +1356,6 @@
 /* Define to 1 if you have the `waitpid' function. */
 #define HAVE_WAITPID 1
 
-/* Define to 1 if you have the `warn' function. */
-#define HAVE_WARN 1
-
-/* Define to 1 if you have the <wchar.h> header file. */
-#define HAVE_WCHAR_H 1
-
-/* Define to 1 if you have the `wcwidth' function. */
-#define HAVE_WCWIDTH 1
-
 /* Define to 1 if you have the `_getlong' function. */
 #define HAVE__GETLONG 1
 
@@ -1438,7 +1408,7 @@
 /* #undef LASTLOG_WRITE_PUTUTXLINE */
 
 /* Define if you want TCP Wrappers support */
-#define LIBWRAP 1
+/* #undef LIBWRAP */
 
 /* Define to whatever link() returns for "not supported" if it doesn't return
    EOPNOTSUPP. */
@@ -1483,6 +1453,9 @@
 
 /* compiler does not accept __attribute__ on return types */
 /* #undef NO_ATTRIBUTE_ON_RETURN_TYPE */
+
+/* Define if the concept of ports only accessible to superusers isn't known */
+/* #undef NO_IPPORT_RESERVED_CONCEPT */
 
 /* Define if you don't want to use lastlog in session.c */
 /* #undef NO_SSH_LASTLOG */

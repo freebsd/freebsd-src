@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.376 2016/07/16 06:57:55 jmc Exp $
+.\" $OpenBSD: ssh.1,v 1.369 2016/02/17 07:38:19 jmc Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: July 16 2016 $
+.Dd $Mdocdate: February 17 2016 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -53,7 +53,6 @@
 .Op Fl F Ar configfile
 .Op Fl I Ar pkcs11
 .Op Fl i Ar identity_file
-.Op Fl J Oo Ar user Ns @ Oc Ns Ar host Ns Op : Ns Ar port
 .Op Fl L Ar address
 .Op Fl l Ar login_name
 .Op Fl m Ar mac_spec
@@ -314,24 +313,6 @@ by appending
 .Pa -cert.pub
 to identity filenames.
 .Pp
-.It Fl J Xo
-.Sm off
-.Op Ar user No @
-.Ar host
-.Op : Ar port
-.Sm on
-.Xc
-Connect to the target host by first making a
-.Nm
-connection to the jump
-.Ar host
-and then establishing a TCP forwarding to the ultimate destination from
-there.
-Multiple jump hops may be specified separated by comma characters.
-This is a shortcut to specify a
-.Cm ProxyJump
-configuration directive.
-.Pp
 .It Fl K
 Enables GSSAPI-based authentication and forwarding (delegation) of GSSAPI
 credentials to the server.
@@ -521,10 +502,8 @@ For full details of the options listed below, and their possible values, see
 .It HostKeyAlgorithms
 .It HostKeyAlias
 .It HostName
-.It IdentitiesOnly
-.It IdentityAgent
 .It IdentityFile
-.It Include
+.It IdentitiesOnly
 .It IPQoS
 .It KbdInteractiveAuthentication
 .It KbdInteractiveDevices
@@ -543,7 +522,6 @@ For full details of the options listed below, and their possible values, see
 .It PreferredAuthentications
 .It Protocol
 .It ProxyCommand
-.It ProxyJump
 .It ProxyUseFdpass
 .It PubkeyAcceptedKeyTypes
 .It PubkeyAuthentication
@@ -731,10 +709,7 @@ Implies
 .Fl T ,
 .Cm ExitOnForwardFailure
 and
-.Cm ClearAllForwardings ,
-though these can be overridden in the configuration file or using
-.Fl o
-command line options.
+.Cm ClearAllForwardings .
 .Pp
 .It Fl w Xo
 .Ar local_tun Ns Op : Ns Ar remote_tun

@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgexs.c,v 1.29 2016/06/08 02:13:01 dtucker Exp $ */
+/* $OpenBSD: kexgexs.c,v 1.26 2015/12/04 16:41:28 markus Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -89,7 +89,7 @@ input_kex_dh_gex_request(int type, u_int32_t seq, void *ctxt)
 	nbits = MIN(DH_GRP_MAX, nbits);
 
 	if (kex->max < kex->min || kex->nbits < kex->min ||
-	    kex->max < kex->nbits || kex->max < DH_GRP_MIN) {
+	    kex->max < kex->nbits) {
 		r = SSH_ERR_DH_GEX_OUT_OF_RANGE;
 		goto out;
 	}
