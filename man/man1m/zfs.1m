@@ -270,7 +270,8 @@ The
 .Nm
 command configures ZFS datasets within a ZFS storage pool, as described in
 .Xr zpool 1M .
-A dataset is identified by a unique path within the ZFS namespace. For example:
+A dataset is identified by a unique path within the ZFS namespace.
+For example:
 .Bd -literal
 pool/{filesystem,volume,snapshot}
 .Ed
@@ -285,28 +286,30 @@ A dataset can be one of the following:
 A ZFS dataset of type
 .Sy filesystem
 can be mounted within the standard system namespace and behaves like other file
-systems. While ZFS file systems are designed to be POSIX compliant, known issues
-exist that prevent compliance in some cases. Applications that depend on
-standards conformance might fail due to non-standard behavior when checking file
-system free space.
+systems.
+While ZFS file systems are designed to be POSIX compliant, known issues exist
+that prevent compliance in some cases.
+Applications that depend on standards conformance might fail due to non-standard
+behavior when checking file system free space.
 .It Sy volume
-A logical volume exported as a raw or block device. This type of dataset should
-only be used under special circumstances. File systems are typically used in
-most environments.
+A logical volume exported as a raw or block device.
+This type of dataset should only be used under special circumstances.
+File systems are typically used in most environments.
 .It Sy snapshot
-A read-only version of a file system or volume at a given point in time. It is
-specified as
+A read-only version of a file system or volume at a given point in time.
+It is specified as
 .Ar filesystem Ns @ Ns Ar name
 or
 .Ar volume Ns @ Ns Ar name .
 .El
 .Ss ZFS File System Hierarchy
 A ZFS storage pool is a logical collection of devices that provide space for
-datasets. A storage pool is also the root of the ZFS file system hierarchy.
+datasets.
+A storage pool is also the root of the ZFS file system hierarchy.
 .Pp
 The root of the pool can be accessed as a file system, such as mounting and
-unmounting, taking snapshots, and setting properties. The physical storage
-characteristics, however, are managed by the
+unmounting, taking snapshots, and setting properties.
+The physical storage characteristics, however, are managed by the
 .Xr zpool 1M
 command.
 .Pp
@@ -314,31 +317,38 @@ See
 .Xr zpool 1M
 for more information on creating and administering pools.
 .Ss Snapshots
-A snapshot is a read-only copy of a file system or volume. Snapshots can be
-created extremely quickly, and initially consume no additional space within the
-pool. As data within the active dataset changes, the snapshot consumes more
-data than would otherwise be shared with the active dataset.
+A snapshot is a read-only copy of a file system or volume.
+Snapshots can be created extremely quickly, and initially consume no additional
+space within the pool.
+As data within the active dataset changes, the snapshot consumes more data than
+would otherwise be shared with the active dataset.
 .Pp
-Snapshots can have arbitrary names. Snapshots of volumes can be cloned or
-rolled back, but cannot be accessed independently.
+Snapshots can have arbitrary names.
+Snapshots of volumes can be cloned or rolled back, but cannot be accessed
+independently.
 .Pp
 File system snapshots can be accessed under the
 .Pa .zfs/snapshot
-directory in the root of the file system. Snapshots are automatically mounted on
-demand and may be unmounted at regular intervals. The visibility of the
+directory in the root of the file system.
+Snapshots are automatically mounted on demand and may be unmounted at regular
+intervals.
+The visibility of the
 .Pa .zfs
 directory can be controlled by the
 snapdir
 property.
 .Ss Clones
 A clone is a writable volume or file system whose initial contents are the same
-as another dataset. As with snapshots, creating a clone is nearly instantaneous,
-and initially consumes no additional space.
+as another dataset.
+As with snapshots, creating a clone is nearly instantaneous, and initially
+consumes no additional space.
 .Pp
-Clones can only be created from a snapshot. When a snapshot is cloned, it
-creates an implicit dependency between the parent and child. Even though the
-clone is created somewhere else in the dataset hierarchy, the original snapshot
-cannot be destroyed as long as a clone exists. The
+Clones can only be created from a snapshot.
+When a snapshot is cloned, it creates an implicit dependency between the parent
+and child.
+Even though the clone is created somewhere else in the dataset hierarchy, the
+original snapshot cannot be destroyed as long as a clone exists.
+The
 .Sy origin
 property exposes this dependency, and the
 .Cm destroy
@@ -346,28 +356,32 @@ command lists any such dependencies, if they exist.
 .Pp
 The clone parent-child dependency relationship can be reversed by using the
 .Cm promote
-subcommand. This causes the
+subcommand.
+This causes the
 .Qq origin
 file system to become a clone of the specified file system, which makes it
 possible to destroy the file system that the clone was created from.
 .Ss "Mount Points"
 Creating a ZFS file system is a simple operation, so the number of file systems
-per system is likely to be numerous. To cope with this, ZFS automatically
-manages mounting and unmounting file systems without the need to edit the
+per system is likely to be numerous.
+To cope with this, ZFS automatically manages mounting and unmounting file
+systems without the need to edit the
 .Pa /etc/vfstab
-file. All automatically managed file systems are mounted by ZFS at boot time.
+file.
+All automatically managed file systems are mounted by ZFS at boot time.
 .Pp
 By default, file systems are mounted under
 .Pa /path ,
 where
 .Ar path
-is the name of the file system in the ZFS namespace. Directories are created and
-destroyed as needed.
+is the name of the file system in the ZFS namespace.
+Directories are created and destroyed as needed.
 .Pp
 A file system can also have a mount point set in the
 .Sy mountpoint
-property. This directory is created as needed, and ZFS automatically mounts the
-file system when the
+property.
+This directory is created as needed, and ZFS automatically mounts the file
+system when the
 .Nm zfs Cm mount Fl a
 command is invoked
 .Po without editing
@@ -403,20 +417,25 @@ responsible for mounting and unmounting the file system.
 .Ss "Zones"
 A ZFS file system can be added to a non-global zone by using the
 .Nm zonecfg Cm add Sy fs
-subcommand. A ZFS file system that is added to a non-global zone must have its
+subcommand.
+A ZFS file system that is added to a non-global zone must have its
 .Sy mountpoint
 property set to
 .Sy legacy .
 .Pp
 The physical properties of an added file system are controlled by the global
-administrator. However, the zone administrator can create, modify, or destroy
-files within the added file system, depending on how the file system is mounted.
+administrator.
+However, the zone administrator can create, modify, or destroy files within the
+added file system, depending on how the file system is mounted.
 .Pp
 A dataset can also be delegated to a non-global zone by using the
 .Nm zonecfg Cm add Sy dataset
-subcommand. You cannot delegate a dataset to one zone and the children of the
-same dataset to another zone. The zone administrator can change properties of
-the dataset or any of its children. However, the
+subcommand.
+You cannot delegate a dataset to one zone and the children of the same dataset
+to another zone.
+The zone administrator can change properties of the dataset or any of its
+children.
+However, the
 .Sy quota ,
 .Sy filesystem_limit
 and
@@ -426,7 +445,8 @@ administrator.
 .Pp
 A ZFS volume can be added as a device to a non-global zone by using the
 .Nm zonecfg Cm add Sy device
-subcommand. However, its physical properties can be modified only by the global
+subcommand.
+However, its physical properties can be modified only by the global
 administrator.
 .Pp
 For more information about
@@ -436,32 +456,33 @@ syntax, see
 .Pp
 After a dataset is delegated to a non-global zone, the
 .Sy zoned
-property is automatically set. A zoned file system cannot be mounted in the
-global zone, since the zone administrator might have to set the mount point to
-an unacceptable value.
+property is automatically set.
+A zoned file system cannot be mounted in the global zone, since the zone
+administrator might have to set the mount point to an unacceptable value.
 .Pp
 The global administrator can forcibly clear the
 .Sy zoned
-property, though this should be done with extreme care. The global administrator
-should verify that all the mount points are acceptable before clearing the
-property.
+property, though this should be done with extreme care.
+The global administrator should verify that all the mount points are acceptable
+before clearing the property.
 .Ss Native Properties
 Properties are divided into two types, native properties and user-defined
 .Po or
 .Qq user
 .Pc
-properties. Native properties either export internal statistics or control ZFS
-behavior. In addition, native properties are either editable or read-only. User
-properties have no effect on ZFS behavior, but you can use them to annotate
-datasets in a way that is meaningful in your environment. For more information
-about user properties, see the
+properties.
+Native properties either export internal statistics or control ZFS behavior.
+In addition, native properties are either editable or read-only.
+User properties have no effect on ZFS behavior, but you can use them to annotate
+datasets in a way that is meaningful in your environment.
+For more information about user properties, see the
 .Sx User Properties
 section, below.
 .Pp
 Every dataset has a set of properties that export statistics about the dataset
-as well as control various behaviors. Properties are inherited from the parent
-unless overridden by the child. Some properties apply only to certain types of
-datasets
+as well as control various behaviors.
+Properties are inherited from the parent unless overridden by the child.
+Some properties apply only to certain types of datasets
 .Pq file systems, volumes, or snapshots .
 .Pp
 The values of numeric properties can be specified using human-readable suffixes
@@ -487,28 +508,33 @@ and
 .Sy sharesmb .
 .Pp
 The following native properties consist of read-only statistics about the
-dataset. These properties can be neither set, nor inherited. Native properties
-apply to all dataset types unless otherwise noted.
+dataset.
+These properties can be neither set, nor inherited.
+Native properties apply to all dataset types unless otherwise noted.
 .Bl -tag -width "usedbyrefreservation"
 .It Sy available
 The amount of space available to the dataset and all its children, assuming that
-there is no other activity in the pool. Because space is shared within a pool,
-availability can be limited by any number of factors, including physical pool
-size, quotas, reservations, or other datasets within the pool.
+there is no other activity in the pool.
+Because space is shared within a pool, availability can be limited by any number
+of factors, including physical pool size, quotas, reservations, or other
+datasets within the pool.
 .Pp
 This property can also be referred to by its shortened column name,
 .Sy avail .
 .It Sy compressratio
 For non-snapshots, the compression ratio achieved for the
 .Sy used
-space of this dataset, expressed as a multiplier. The
+space of this dataset, expressed as a multiplier.
+The
 .Sy used
 property includes descendant datasets, and, for clones, does not include the
-space shared with the origin snapshot. For snapshots, the
+space shared with the origin snapshot.
+For snapshots, the
 .Sy compressratio
 is the same as the
 .Sy refcompressratio
-property. Compression can be turned on by running:
+property.
+Compression can be turned on by running:
 .Nm zfs Cm set Sy compression Ns = Ns Sy on Ar dataset .
 The default value is
 .Sy off .
@@ -516,9 +542,11 @@ The default value is
 The time this dataset was created.
 .It Sy clones
 For snapshots, this property is a comma-separated list of filesystems or volumes
-which are clones of this snapshot. The clones'
+which are clones of this snapshot.
+The clones'
 .Sy origin
-property is this snapshot. If the
+property is this snapshot.
+If the
 .Sy clones
 property is not empty, then this snapshot can not be destroyed
 .Po even with the
@@ -532,50 +560,59 @@ This property is
 .Sy on
 if the snapshot has been marked for deferred destroy by using the
 .Nm zfs Cm destroy Fl d
-command. Otherwise, the property is
+command.
+Otherwise, the property is
 .Sy off .
 .It Sy filesystem_count
 The total number of filesystems and volumes that exist under this location in
-the dataset tree. This value is only available when a
+the dataset tree.
+This value is only available when a
 .Sy filesystem_limit
 has been set somewhere in the tree under which the dataset resides.
 .It Sy logicalreferenced
 The amount of space that is
 .Qq logically
-accessible by this dataset. See the
+accessible by this dataset.
+See the
 .Sy referenced
-property. The logical space ignores the effect of the
+property.
+The logical space ignores the effect of the
 .Sy compression
 and
 .Sy copies
 properties, giving a quantity closer to the amount of data that applications
-see. However, it does include space consumed by metadata.
+see.
+However, it does include space consumed by metadata.
 .Pp
 This property can also be referred to by its shortened column name,
 .Sy lrefer .
 .It Sy logicalused
 The amount of space that is
 .Qq logically
-consumed by this dataset and all its descendents. See the
+consumed by this dataset and all its descendents.
+See the
 .Sy used
-property. The logical space ignores the effect of the
+property.
+The logical space ignores the effect of the
 .Sy compression
 and
 .Sy copies
 properties, giving a quantity closer to the amount of data that applications
-see. However, it does include space consumed by metadata.
+see.
+However, it does include space consumed by metadata.
 .Pp
 This property can also be referred to by its shortened column name,
 .Sy lused .
 .It Sy mounted
-For file systems, indicates whether the file system is currently mounted. This
-property can be either
+For file systems, indicates whether the file system is currently mounted.
+This property can be either
 .Sy yes
 or
 .Sy no .
 .It Sy origin
 For cloned file systems or volumes, the snapshot from which the clone was
-created. See also the
+created.
+See also the
 .Sy clones
 property.
 .It Sy receive_resume_token
@@ -587,21 +624,24 @@ to resume and complete the
 .Sy zfs receive .
 .It Sy referenced
 The amount of data that is accessible by this dataset, which may or may not be
-shared with other datasets in the pool. When a snapshot or clone is created, it
-initially references the same amount of space as the file system or snapshot it
-was created from, since its contents are identical.
+shared with other datasets in the pool.
+When a snapshot or clone is created, it initially references the same amount of
+space as the file system or snapshot it was created from, since its contents are
+identical.
 .Pp
 This property can also be referred to by its shortened column name,
 .Sy refer .
 .It Sy refcompressratio
 The compression ratio achieved for the
 .Sy referenced
-space of this dataset, expressed as a multiplier. See also the
+space of this dataset, expressed as a multiplier.
+See also the
 .Sy compressratio
 property.
 .It Sy snapshot_count
 The total number of snapshots that exist under this location in the dataset
-tree. This value is only available when a
+tree.
+This value is only available when a
 .Sy snapshot_limit
 has been set somewhere in the tree under which the dataset resides.
 .It Sy type
@@ -611,35 +651,39 @@ The type of dataset:
 or
 .Sy snapshot .
 .It Sy used
-The amount of space consumed by this dataset and all its descendents. This is
-the value that is checked against this dataset's quota and reservation. The
-space used does not include this dataset's reservation, but does take into
-account the reservations of any descendent datasets. The amount of space that a
-dataset consumes from its parent, as well as the amount of space that is freed
-if this dataset is recursively destroyed, is the greater of its space used and
-its reservation.
+The amount of space consumed by this dataset and all its descendents.
+This is the value that is checked against this dataset's quota and reservation.
+The space used does not include this dataset's reservation, but does take into
+account the reservations of any descendent datasets.
+The amount of space that a dataset consumes from its parent, as well as the
+amount of space that is freed if this dataset is recursively destroyed, is the
+greater of its space used and its reservation.
 .Pp
 The used space of a snapshot
 .Po see the
 .Sx Snapshots
 section
 .Pc
-is space that is referenced exclusively by this snapshot. If this snapshot is
-destroyed, the amount of
+is space that is referenced exclusively by this snapshot.
+If this snapshot is destroyed, the amount of
 .Sy used
-space will be freed. Space that is shared by multiple snapshots isn't accounted
-for in this metric. When a snapshot is destroyed, space that was previously
-shared with this snapshot can become unique to snapshots adjacent to it, thus
-changing the used space of those snapshots. The used space of the latest
-snapshot can also be affected by changes in the file system. Note that the
+space will be freed.
+Space that is shared by multiple snapshots isn't accounted for in this metric.
+When a snapshot is destroyed, space that was previously shared with this
+snapshot can become unique to snapshots adjacent to it, thus changing the used
+space of those snapshots.
+The used space of the latest snapshot can also be affected by changes in the
+file system.
+Note that the
 .Sy used
 space of a snapshot is a subset of the
 .Sy written
 space of the snapshot.
 .Pp
 The amount of space used, available, or referenced does not take into account
-pending changes. Pending changes are generally accounted for within a few
-seconds. Committing a change to a disk using
+pending changes.
+Pending changes are generally accounted for within a few seconds.
+Committing a change to a disk using
 .Xr fsync 3C
 or
 .Dv O_SYNC
@@ -650,7 +694,8 @@ The
 .Sy usedby*
 properties decompose the
 .Sy used
-properties into the various reasons that space is used. Specifically,
+properties into the various reasons that space is used.
+Specifically,
 .Sy used No =
 .Sy usedbychildren No +
 .Sy usedbydataset No +
@@ -677,14 +722,15 @@ set on this dataset, which would be freed if the
 .Sy refreservation
 was removed.
 .It Sy usedbysnapshots
-The amount of space consumed by snapshots of this dataset. In particular, it is
-the amount of space that would be freed if all of this dataset's snapshots were
-destroyed. Note that this is not simply the sum of the snapshots'
+The amount of space consumed by snapshots of this dataset.
+In particular, it is the amount of space that would be freed if all of this
+dataset's snapshots were destroyed.
+Note that this is not simply the sum of the snapshots'
 .Sy used
 properties because space can be shared by multiple snapshots.
 .It Sy userused Ns @ Ns Em user
-The amount of space consumed by the specified user in this dataset. Space is
-charged to the owner of each file, as displayed by
+The amount of space consumed by the specified user in this dataset.
+Space is charged to the owner of each file, as displayed by
 .Nm ls Fl l .
 The amount of space charged is displayed by
 .Nm du
@@ -694,8 +740,8 @@ See the
 .Nm zfs Cm userspace
 subcommand for more information.
 .Pp
-Unprivileged users can access only their own space usage. The root user, or a
-user who has been granted the
+Unprivileged users can access only their own space usage.
+The root user, or a user who has been granted the
 .Sy userused
 privilege with
 .Nm zfs Cm allow ,
@@ -730,31 +776,34 @@ forms:
 .Pc
 .El
 .It Sy userrefs
-This property is set to the number of user holds on this snapshot. User holds
-are set by using the
+This property is set to the number of user holds on this snapshot.
+User holds are set by using the
 .Nm zfs Cm hold
 command.
 .It Sy groupused Ns @ Ns Em group
-The amount of space consumed by the specified group in this dataset. Space is
-charged to the group of each file, as displayed by
+The amount of space consumed by the specified group in this dataset.
+Space is charged to the group of each file, as displayed by
 .Nm ls Fl l .
 See the
 .Sy userused Ns @ Ns Em user
 property for more information.
 .Pp
-Unprivileged users can only access their own groups' space usage. The root user,
-or a user who has been granted the
+Unprivileged users can only access their own groups' space usage.
+The root user, or a user who has been granted the
 .Sy groupused
 privilege with
 .Nm zfs Cm allow ,
 can access all groups' usage.
 .It Sy volblocksize
-For volumes, specifies the block size of the volume. The
+For volumes, specifies the block size of the volume.
+The
 .Sy blocksize
 cannot be changed once the volume has been written, so it should be set at
-volume creation time. The default
+volume creation time.
+The default
 .Sy blocksize
-for volumes is 8 Kbytes. Any power of 2 from 512 bytes to 128 Kbytes is valid.
+for volumes is 8 Kbytes.
+Any power of 2 from 512 bytes to 128 Kbytes is valid.
 .Pp
 This property can also be referred to by its shortened column name,
 .Sy volblock .
@@ -766,9 +815,9 @@ by this dataset, that was written since the previous snapshot
 .It Sy written Ns @ Ns Em snapshot
 The amount of
 .Sy referenced
-space written to this dataset since the specified snapshot. This is the space
-that is referenced by this dataset but was not referenced by the specified
-snapshot.
+space written to this dataset since the specified snapshot.
+This is the space that is referenced by this dataset but was not referenced by
+the specified snapshot.
 .Pp
 The
 .Em snapshot
@@ -777,7 +826,8 @@ may be specified as a short snapshot name
 .Sy @
 .Pc ,
 in which case it will be interpreted as a snapshot in the same filesystem as
-this dataset. The
+this dataset.
+The
 .Em snapshot
 may be a full snapshot name
 .Po Em filesystem Ns @ Ns Em snapshot Pc ,
@@ -854,7 +904,8 @@ non-trivial ACL, with entries in addition to those that represent the mode.
 .Pp
 .Xr chmod 2
 is required to change the set user ID, set group ID, or sticky bit on a file or
-directory, as they do not have equivalent ACEs. In order to use
+directory, as they do not have equivalent ACEs.
+In order to use
 .Xr chmod 2
 on a file or directory with a non-trivial ACL when
 .Sy aclmode
@@ -865,7 +916,8 @@ you must first remove all ACEs except for those that represent the current mode.
 Controls whether the access time for files is updated when they are read.
 Turning this property off avoids producing write traffic when reading files and
 can result in significant performance gains, though it might confuse mailers
-and other similar utilities. The default value is
+and other similar utilities.
+The default value is
 .Sy on .
 .It Sy canmount Ns = Ns Sy on Ns | Ns Sy off Ns | Ns Sy noauto
 If this property is set to
@@ -880,10 +932,11 @@ property to
 .Sy none ,
 except that the dataset still has a normal
 .Sy mountpoint
-property, which can be inherited. Setting this property to
+property, which can be inherited.
+Setting this property to
 .Sy off
-allows datasets to be used solely as a mechanism to inherit properties. One
-example of setting
+allows datasets to be used solely as a mechanism to inherit properties.
+One example of setting
 .Sy canmount Ns = Ns Sy off
 is to have two datasets with the same
 .Sy mountpoint ,
@@ -892,9 +945,9 @@ have different inherited characteristics.
 .Pp
 When set to
 .Sy noauto ,
-a dataset can only be mounted and unmounted explicitly. The dataset is not
-mounted automatically when the dataset is created or imported, nor is it mounted
-by the
+a dataset can only be mounted and unmounted explicitly.
+The dataset is not mounted automatically when the dataset is created or
+imported, nor is it mounted by the
 .Nm zfs Cm mount Fl a
 command or unmounted by the
 .Nm zfs Cm unmount Fl a
@@ -906,7 +959,8 @@ This property is not inherited.
 .Sy fletcher4 Ns | Ns Sy sha256 Ns | Ns Sy noparity Ns | Ns
 .Sy sha512 Ns | Ns Sy skein Ns | Ns Sy edonr
 .Xc
-Controls the checksum used to verify data integrity. The default value is
+Controls the checksum used to verify data integrity.
+The default value is
 .Sy on ,
 which automatically selects an appropriate algorithm
 .Po currently,
@@ -915,11 +969,13 @@ but this may change in future releases
 .Pc .
 The value
 .Sy off
-disables integrity checking on user data. The value
+disables integrity checking on user data.
+The value
 .Sy noparity
 not only disables integrity but also disables maintaining parity for user data.
 This setting is used internally by a dump device residing on a RAID-Z pool and
-should not be used by any other dataset. Disabling checksums is
+should not be used by any other dataset.
+Disabling checksums is
 .Sy NOT
 a recommended practice.
 .Pp
@@ -928,8 +984,8 @@ The
 .Sy skein ,
 and
 .Sy edonr
-checksum algorithms require enabling the appropriate features on the
-pool. Please see
+checksum algorithms require enabling the appropriate features on the pool.
+Please see
 .Xr zpool-features 5
 for more information on these algorithms.
 .Pp
@@ -942,14 +998,15 @@ Controls the compression algorithm used for this dataset.
 .Pp
 Setting compression to
 .Sy on
-indicates that the current default compression algorithm should be used. The
-default balances compression and decompression speed, with compression ratio and
-is expected to work well on a wide variety of workloads.  Unlike all other
-settings for this property,
+indicates that the current default compression algorithm should be used.
+The default balances compression and decompression speed, with compression ratio
+and is expected to work well on a wide variety of workloads.
+Unlike all other settings for this property,
 .Sy on
-does not select a fixed compression type. As new compression algorithms are
-added to ZFS and enabled on a pool, the default compression algorithm may
-change. The current default compression algorithm is either
+does not select a fixed compression type.
+As new compression algorithms are added to ZFS and enabled on a pool, the
+default compression algorithm may change.
+The current default compression algorithm is either
 .Sy lzjb
 or, if the
 .Sy lz4_compress
@@ -960,8 +1017,9 @@ The
 .Sy lz4
 compression algorithm is a high-performance replacement for the
 .Sy lzjb
-algorithm. It features significantly faster compression and decompression, as
-well as a moderately higher compression ratio than
+algorithm.
+It features significantly faster compression and decompression, as well as a
+moderately higher compression ratio than
 .Sy lzjb ,
 but can only be used on pools with the
 .Sy lz4_compress
@@ -982,7 +1040,8 @@ The
 .Sy gzip
 compression algorithm uses the same compression as the
 .Xr gzip 1
-command. You can specify the
+command.
+You can specify the
 .Sy gzip
 level by using the value
 .Sy gzip- Ns Em N ,
@@ -1005,31 +1064,35 @@ The
 compression algorithm compresses runs of zeros.
 .Pp
 This property can also be referred to by its shortened column name
-\fBcompress\fR. Changing this property affects only newly-written data.
+.Sy compress .
+Changing this property affects only newly-written data.
 .It Sy copies Ns = Ns Sy 1 Ns | Ns Sy 2 Ns | Ns Sy 3
-Controls the number of copies of data stored for this dataset. These copies are
-in addition to any redundancy provided by the pool, for example, mirroring or
-RAID-Z. The copies are stored on different disks, if possible. The space used
-by multiple copies is charged to the associated file and dataset, changing the
+Controls the number of copies of data stored for this dataset.
+These copies are in addition to any redundancy provided by the pool, for
+example, mirroring or RAID-Z.
+The copies are stored on different disks, if possible.
+The space used by multiple copies is charged to the associated file and dataset,
+changing the
 .Sy used
 property and counting against quotas and reservations.
 .Pp
-Changing this property only affects newly-written data. Therefore, set this
-property at file system creation time by using the
+Changing this property only affects newly-written data.
+Therefore, set this property at file system creation time by using the
 .Fl o Sy copies Ns = Ns Ar N
 option.
 .It Sy devices Ns = Ns Sy on Ns | Ns Sy off
-Controls whether device nodes can be opened on this file system. The default
-value is
+Controls whether device nodes can be opened on this file system.
+The default value is
 .Sy on .
 .It Sy exec Ns = Ns Sy on Ns | Ns Sy off
-Controls whether processes can be executed from within this file system. The
-default value is
+Controls whether processes can be executed from within this file system.
+The default value is
 .Sy on .
 .It Sy filesystem_limit Ns = Ns Em count Ns | Ns Sy none
 Limits the number of filesystems and volumes that can exist under this point in
-the dataset tree. The limit is not enforced if the user is allowed to change
-the limit. Setting a
+the dataset tree.
+The limit is not enforced if the user is allowed to change the limit.
+Setting a
 .Sy filesystem_limit
 to
 .Sy on
@@ -1037,33 +1100,40 @@ a descendent of a filesystem that already has a
 .Sy filesystem_limit
 does not override the ancestor's
 .Sy filesystem_limit ,
-but rather imposes an additional limit. This feature must be enabled to be used
+but rather imposes an additional limit.
+This feature must be enabled to be used
 .Po see
 .Xr zpool-features 5
 .Pc .
 .It Sy mountpoint Ns = Ns Pa path Ns | Ns Sy none Ns | Ns Sy legacy
-Controls the mount point used for this file system. See the
+Controls the mount point used for this file system.
+See the
 .Sx Mount Points
 section for more information on how this property is used.
 .Pp
 When the
 .Sy mountpoint
 property is changed for a file system, the file system and any children that
-inherit the mount point are unmounted. If the new value is
+inherit the mount point are unmounted.
+If the new value is
 .Sy legacy ,
-then they remain unmounted. Otherwise, they are automatically remounted in the
-new location if the property was previously
+then they remain unmounted.
+Otherwise, they are automatically remounted in the new location if the property
+was previously
 .Sy legacy
 or
 .Sy none ,
-or if they were mounted before the property was changed. In addition, any shared
-file systems are unshared and shared in the new location.
+or if they were mounted before the property was changed.
+In addition, any shared file systems are unshared and shared in the new
+location.
 .It Sy nbmand Ns = Ns Sy on Ns | Ns Sy off
 Controls whether the file system should be mounted with
 .Sy nbmand
 .Pq Non Blocking mandatory locks .
-This is used for SMB clients. Changes to this property only take effect when the
-file system is umounted and remounted. See
+This is used for SMB clients.
+Changes to this property only take effect when the file system is umounted and
+remounted.
+See
 .Xr mount 1M
 for more information on
 .Sy nbmand
@@ -1073,60 +1143,68 @@ Controls what is cached in the primary cache
 .Pq ARC .
 If this property is set to
 .Sy all ,
-then both user data and metadata is cached. If this property is set to
+then both user data and metadata is cached.
+If this property is set to
 .Sy none ,
-then neither user data nor metadata is cached. If this property is set to
+then neither user data nor metadata is cached.
+If this property is set to
 .Sy metadata ,
-then only metadata is cached. The default value is
+then only metadata is cached.
+The default value is
 .Sy all .
 .It Sy quota Ns = Ns Em size Ns | Ns Sy none
-Limits the amount of space a dataset and its descendents can consume. This
-property enforces a hard limit on the amount of space used. This includes all
-space consumed by descendents, including file systems and snapshots. Setting a
-quota on a descendent of a dataset that already has a quota does not override
-the ancestor's quota, but rather imposes an additional limit.
+Limits the amount of space a dataset and its descendents can consume.
+This property enforces a hard limit on the amount of space used.
+This includes all space consumed by descendents, including file systems and
+snapshots.
+Setting a quota on a descendent of a dataset that already has a quota does not
+override the ancestor's quota, but rather imposes an additional limit.
 .Pp
 Quotas cannot be set on volumes, as the
 .Sy volsize
 property acts as an implicit quota.
 .It Sy snapshot_limit Ns = Ns Em count Ns | Ns Sy none
 Limits the number of snapshots that can be created on a dataset and its
-descendents. Setting a
+descendents.
+Setting a
 .Sy snapshot_limit
 on a descendent of a dataset that already has a
 .Sy snapshot_limit
 does not override the ancestor's
 .Sy snapshot_limit ,
-but rather imposes an additional limit. The limit is not enforced if the user is
-allowed to change the limit. For example, this means that recursive snapshots
-taken from the global zone are counted against each delegated dataset within
-a zone. This feature must be enabled to be used
+but rather imposes an additional limit.
+The limit is not enforced if the user is allowed to change the limit.
+For example, this means that recursive snapshots taken from the global zone are
+counted against each delegated dataset within a zone.
+This feature must be enabled to be used
 .Po see
 .Xr zpool-features 5
 .Pc .
 .It Sy userquota@ Ns Em user Ns = Ns Em size Ns | Ns Sy none
-Limits the amount of space consumed by the specified user. User space
-consumption is identified by the
+Limits the amount of space consumed by the specified user.
+User space consumption is identified by the
 .Sy userspace@ Ns Em user
 property.
 .Pp
-Enforcement of user quotas may be delayed by several seconds. This delay means
-that a user might exceed their quota before the system notices that they are
-over quota and begins to refuse additional writes with the
+Enforcement of user quotas may be delayed by several seconds.
+This delay means that a user might exceed their quota before the system notices
+that they are over quota and begins to refuse additional writes with the
 .Er EDQUOT
-error message. See the
+error message.
+See the
 .Nm zfs Cm userspace
 subcommand for more information.
 .Pp
-Unprivileged users can only access their own groups' space usage. The root
-user, or a user who has been granted the
+Unprivileged users can only access their own groups' space usage.
+The root user, or a user who has been granted the
 .Sy userquota
 privilege with
 .Nm zfs Cm allow ,
 can get and set everyone's quota.
 .Pp
 This property is not available on volumes, on file systems before version 4, or
-on pools before version 15. The
+on pools before version 15.
+The
 .Sy userquota@ Ns Em ...
 properties are not displayed by
 .Nm zfs Cm get Sy all .
@@ -1156,40 +1234,46 @@ symbol, using one of the following forms:
 .Pc
 .El
 .It Sy groupquota@ Ns Em group Ns = Ns Em size Ns | Ns Sy none
-Limits the amount of space consumed by the specified group. Group space
-consumption is identified by the
+Limits the amount of space consumed by the specified group.
+Group space consumption is identified by the
 .Sy groupused@ Ns Em group
 property.
 .Pp
-Unprivileged users can access only their own groups' space usage. The root
-user, or a user who has been granted the
+Unprivileged users can access only their own groups' space usage.
+The root user, or a user who has been granted the
 .Sy groupquota
 privilege with
 .Nm zfs Cm allow ,
 can get and set all groups' quotas.
 .It Sy readonly Ns = Ns Sy on Ns | Ns Sy off
-Controls whether this dataset can be modified. The default value is
+Controls whether this dataset can be modified.
+The default value is
 .Sy off .
 .Pp
 This property can also be referred to by its shortened column name,
 .Sy rdonly .
 .It Sy recordsize Ns = Ns Em size
-Specifies a suggested block size for files in the file system. This property is
-designed solely for use with database workloads that access files in fixed-size
-records. ZFS automatically tunes block sizes according to internal algorithms
-optimized for typical access patterns.
+Specifies a suggested block size for files in the file system.
+This property is designed solely for use with database workloads that access
+files in fixed-size records.
+ZFS automatically tunes block sizes according to internal algorithms optimized
+for typical access patterns.
 .Pp
 For databases that create very large files but access them in small random
-chunks, these algorithms may be suboptimal. Specifying a
+chunks, these algorithms may be suboptimal.
+Specifying a
 .Sy recordsize
 greater than or equal to the record size of the database can result in
-significant performance gains. Use of this property for general purpose file
-systems is strongly discouraged, and may adversely affect performance.
+significant performance gains.
+Use of this property for general purpose file systems is strongly discouraged,
+and may adversely affect performance.
 .Pp
 The size specified must be a power of two greater than or equal to 512 and less
-than or equal to 128 Kbytes. If the
+than or equal to 128 Kbytes.
+If the
 .Sy large_blocks
-feature is enabled on the pool, the size may be up to 1 Mbyte. See
+feature is enabled on the pool, the size may be up to 1 Mbyte.
+See
 .Xr zpool-features 5
 for details on ZFS feature flags.
 .Pp
@@ -1200,10 +1284,10 @@ affects only files created afterward; existing files are unaffected.
 This property can also be referred to by its shortened column name,
 .Sy recsize .
 .It Sy redundant_metadata Ns = Ns Sy all Ns | Ns Sy most
-Controls what types of metadata are stored redundantly. ZFS stores an extra copy
-of metadata, so that if a single block is corrupted, the amount of user data
-lost is limited. This extra copy is in addition to any redundancy provided at
-the pool level
+Controls what types of metadata are stored redundantly.
+ZFS stores an extra copy of metadata, so that if a single block is corrupted,
+the amount of user data lost is limited.
+This extra copy is in addition to any redundancy provided at the pool level
 .Pq e.g. by mirroring or RAID-Z ,
 and is in addition to an extra copy specified by the
 .Sy copies
@@ -1218,8 +1302,8 @@ metadata.
 .Pp
 When set to
 .Sy all ,
-ZFS stores an extra copy of all metadata. If a single on-disk block is corrupt,
-at worst a single block of user data
+ZFS stores an extra copy of all metadata.
+If a single on-disk block is corrupt, at worst a single block of user data
 .Po which is
 .Sy recordsize
 bytes long
@@ -1228,27 +1312,30 @@ can be lost.
 .Pp
 When set to
 .Sy most ,
-ZFS stores an extra copy of most types of metadata. This can improve performance
-of random writes, because less metadata must be written. In practice, at worst
-about 100 blocks
+ZFS stores an extra copy of most types of metadata.
+This can improve performance of random writes, because less metadata must be
+written.
+In practice, at worst about 100 blocks
 .Po of
 .Sy recordsize
 bytes each
 .Pc
-of user data can be lost if a single on-disk block is corrupt. The exact
-behavior of which metadata blocks are stored redundantly may change in future
-releases.
+of user data can be lost if a single on-disk block is corrupt.
+The exact behavior of which metadata blocks are stored redundantly may change in
+future releases.
 .Pp
 The default value is
 .Sy all .
 .It Sy refquota Ns = Ns Em size Ns | Ns Sy none
-Limits the amount of space a dataset can consume. This property enforces a hard
-limit on the amount of space used. This hard limit does not include space used
-by descendents, including file systems and snapshots.
+Limits the amount of space a dataset can consume.
+This property enforces a hard limit on the amount of space used.
+This hard limit does not include space used by descendents, including file
+systems and snapshots.
 .It Sy refreservation Ns = Ns Em size Ns | Ns Sy none
 The minimum amount of space guaranteed to a dataset, not including its
-descendents. When the amount of space used is below this value, the dataset is
-treated as if it were taking up the amount of space specified by
+descendents.
+When the amount of space used is below this value, the dataset is treated as if
+it were taking up the amount of space specified by
 .Sy refreservation .
 The
 .Sy refreservation
@@ -1265,11 +1352,11 @@ bytes in the dataset.
 This property can also be referred to by its shortened column name,
 .Sy refreserv .
 .It Sy reservation Ns = Ns Em size Ns | Ns Sy none
-The minimum amount of space guaranteed to a dataset and its descendents. When
-the amount of space used is below this value, the dataset is treated as if it
-were taking up the amount of space specified by its reservation. Reservations
-are accounted for in the parent datasets' space used, and count against the
-parent datasets' quotas and reservations.
+The minimum amount of space guaranteed to a dataset and its descendents.
+When the amount of space used is below this value, the dataset is treated as if
+it were taking up the amount of space specified by its reservation.
+Reservations are accounted for in the parent datasets' space used, and count
+against the parent datasets' quotas and reservations.
 .Pp
 This property can also be referred to by its shortened column name,
 .Sy reserv .
@@ -1278,19 +1365,23 @@ Controls what is cached in the secondary cache
 .Pq L2ARC .
 If this property is set to
 .Sy all ,
-then both user data and metadata is cached. If this property is set to
+then both user data and metadata is cached.
+If this property is set to
 .Sy none ,
-then neither user data nor metadata is cached. If this property is set to
+then neither user data nor metadata is cached.
+If this property is set to
 .Sy metadata ,
-then only metadata is cached. The default value is
+then only metadata is cached.
+The default value is
 .Sy all .
 .It Sy setuid Ns = Ns Sy on Ns | Ns Sy off
-Controls whether the setuid bit is respected for the file system. The default
-value is
+Controls whether the setuid bit is respected for the file system.
+The default value is
 .Sy on .
 .It Sy sharesmb Ns = Ns Sy on Ns | Ns Sy off Ns | Ns Em opts
 Controls whether the file system is shared via SMB, and what options are to be
-used. A file system with the
+used.
+A file system with the
 .Sy sharesmb
 property set to
 .Sy off
@@ -1300,24 +1391,30 @@ Otherwise, the file system is automatically shared and unshared with the
 .Nm zfs Cm share
 and
 .Nm zfs Cm unshare
-commands. If the property is set to
+commands.
+If the property is set to
 .Sy on ,
 the
 .Xr sharemgr 1M
-command is invoked with no options. Otherwise, the
+command is invoked with no options.
+Otherwise, the
 .Xr sharemgr 1M
 command is invoked with options equivalent to the contents of this property.
 .Pp
 Because SMB shares requires a resource name, a unique resource name is
-constructed from the dataset name. The constructed name is a copy of the dataset
-name except that the characters in the dataset name, which would be illegal in
-the resource name, are replaced with underscore
+constructed from the dataset name.
+The constructed name is a copy of the dataset name except that the characters in
+the dataset name, which would be illegal in the resource name, are replaced with
+underscore
 .Pq Sy _
-characters. A pseudo property
+characters.
+A pseudo property
 .Qq name
 is also supported that allows you to replace the data set name with a specified
-name. The specified name is then used to replace the prefix dataset in the case
-of inheritance. For example, if the dataset
+name.
+The specified name is then used to replace the prefix dataset in the case of
+inheritance.
+For example, if the dataset
 .Em data/home/john
 is set to
 .Sy name Ns = Ns Sy john ,
@@ -1332,7 +1429,8 @@ is shared, it has a resource name of
 .Pp
 When SMB shares are created, the SMB share name appears as an entry in the
 .Pa .zfs/shares
-directory. You can use the
+directory.
+You can use the
 .Nm ls
 or
 .Nm chmod
@@ -1344,13 +1442,14 @@ property is changed for a dataset, the dataset and any children inheriting the
 property are re-shared with the new options, only if the property was previously
 set to
 .Sy off ,
-or if they were shared before the property was changed. If the new property is
-set to
+or if they were shared before the property was changed.
+If the new property is set to
 .Sy off ,
 the file systems are unshared.
 .It Sy sharenfs Ns = Ns Sy on Ns | Ns Sy off Ns | Ns Em opts
 Controls whether the file system is shared via NFS, and what options are to be
-used. A file system with a
+used.
+A file system with a
 .Sy sharenfs
 property of
 .Sy off
@@ -1363,10 +1462,12 @@ Otherwise, the file system is automatically shared and unshared with the
 .Nm zfs Cm share
 and
 .Nm zfs Cm unshare
-commands. If the property is set to
+commands.
+If the property is set to
 .Sy on ,
 .Xr share 1M
-command is invoked with no options. Otherwise, the
+command is invoked with no options.
+Otherwise, the
 .Xr share 1M
 command is invoked with options equivalent to the contents of this property.
 .Pp
@@ -1375,31 +1476,35 @@ When the
 property is changed for a dataset, the dataset and any children inheriting the
 property are re-shared with the new options, only if the property was previously
 .Sy off ,
-or if they were shared before the property was changed. If the new property is
+or if they were shared before the property was changed.
+If the new property is
 .Sy off ,
 the file systems are unshared.
 .It Sy logbias Ns = Ns Sy latency Ns | Ns Sy throughput
-Provide a hint to ZFS about handling of synchronous requests in this dataset. If
+Provide a hint to ZFS about handling of synchronous requests in this dataset.
+If
 .Sy logbias
 is set to
 .Sy latency
 .Pq the default ,
 ZFS will use pool log devices
 .Pq if configured
-to handle the requests at low latency. If
+to handle the requests at low latency.
+If
 .Sy logbias
 is set to
 .Sy throughput ,
-ZFS will not use configured pool log devices. ZFS will instead optimize
-synchronous operations for global pool throughput and efficient use of
-resources.
+ZFS will not use configured pool log devices.
+ZFS will instead optimize synchronous operations for global pool throughput and
+efficient use of resources.
 .It Sy snapdir Ns = Ns Sy hidden Ns | Ns Sy visible
 Controls whether the
 .Pa .zfs
 directory is hidden or visible in the root of the file system as discussed in
 the
 .Sx Snapshots
-section. The default value is
+section.
+The default value is
 .Sy hidden .
 .It Sy sync Ns = Ns Sy standard Ns | Ns Sy always Ns | Ns Sy disabled
 Controls the behavior of synchronous requests
@@ -1413,24 +1518,29 @@ controllers
 .Pq this is the default .
 .Sy always
 causes every file system transaction to be written and flushed before its
-system call returns. This has a large performance penalty.
+system call returns.
+This has a large performance penalty.
 .Sy disabled
-disables synchronous requests. File system transactions are only committed to
-stable storage periodically. This option will give the highest performance.
+disables synchronous requests.
+File system transactions are only committed to stable storage periodically.
+This option will give the highest performance.
 However, it is very dangerous as ZFS would be ignoring the synchronous
-transaction demands of applications such as databases or NFS. Administrators
-should only use this option when the risks are understood.
+transaction demands of applications such as databases or NFS.
+Administrators should only use this option when the risks are understood.
 .It Sy version Ns = Ns Em N Ns | Ns Sy current
 The on-disk version of this file system, which is independent of the pool
-version. This property can only be set to later supported versions. See the
+version.
+This property can only be set to later supported versions.
+See the
 .Nm zfs Cm upgrade
 command.
 .It Sy volsize Ns = Ns Em size
-For volumes, specifies the logical size of the volume. By default, creating a
-volume establishes a reservation of equal size. For storage pools with a version
-number of 9 or higher, a
+For volumes, specifies the logical size of the volume.
+By default, creating a volume establishes a reservation of equal size.
+For storage pools with a version number of 9 or higher, a
 .Sy refreservation
-is set instead. Any changes to
+is set instead.
+Any changes to
 .Sy volsize
 are reflected in an equivalent change to the reservation
 .Po or
@@ -1443,10 +1553,10 @@ can only be set to a multiple of
 and cannot be zero.
 .Pp
 The reservation is kept equal to the volume's logical size to prevent unexpected
-behavior for consumers. Without the reservation, the volume could run out of
-space, resulting in undefined behavior or data corruption, depending on how the
-volume is used. These effects can also occur when the volume size is changed
-while it is in use
+behavior for consumers.
+Without the reservation, the volume could run out of space, resulting in
+undefined behavior or data corruption, depending on how the volume is used.
+These effects can also occur when the volume size is changed while it is in use
 .Pq particularly when shrinking the size .
 Extreme care should be used when adjusting the volume size.
 .Pp
@@ -1459,40 +1569,46 @@ can be created by specifying the
 .Fl s
 option to the
 .Nm zfs Cm create Fl V
-command, or by changing the reservation after the volume has been created. A
+command, or by changing the reservation after the volume has been created.
+A
 .Qq sparse volume
-is a volume where the reservation is less then the volume size. Consequently,
-writes to a sparse volume can fail with
+is a volume where the reservation is less then the volume size.
+Consequently, writes to a sparse volume can fail with
 .Er ENOSPC
-when the pool is low on space. For a sparse volume, changes to
+when the pool is low on space.
+For a sparse volume, changes to
 .Sy volsize
 are not reflected in the reservation.
 .It Sy vscan Ns = Ns Sy on Ns | Ns Sy off
 Controls whether regular files should be scanned for viruses when a file is
-opened and closed. In addition to enabling this property, the virus scan
-service must also be enabled for virus scanning to occur. The default value is
+opened and closed.
+In addition to enabling this property, the virus scan service must also be
+enabled for virus scanning to occur.
+The default value is
 .Sy off .
 .It Sy xattr Ns = Ns Sy on Ns | Ns Sy off
-Controls whether extended attributes are enabled for this file system. The
-default value is
+Controls whether extended attributes are enabled for this file system.
+The default value is
 .Sy on .
 .It Sy zoned Ns = Ns Sy on Ns | Ns Sy off
-Controls whether the dataset is managed from a non-global zone. See the
+Controls whether the dataset is managed from a non-global zone.
+See the
 .Sx Zones
-section for more information. The default value is
+section for more information.
+The default value is
 .Sy off .
 .El
 .Pp
 The following three properties cannot be changed after the file system is
-created, and therefore, should be set when the file system is created. If the
-properties are not set with the
+created, and therefore, should be set when the file system is created.
+If the properties are not set with the
 .Nm zfs Cm create
 or
 .Nm zpool Cm create
-commands, these properties are inherited from the parent dataset. If the parent
-dataset lacks these properties due to having been created prior to these
-features being supported, the new file system will have the default values for
-these properties.
+commands, these properties are inherited from the parent dataset.
+If the parent dataset lacks these properties due to having been created prior to
+these features being supported, the new file system will have the default values
+for these properties.
 .Bl -tag -width ""
 .It Xo
 .Sy casesensitivity Ns = Ns Sy sensitive Ns | Ns
@@ -1500,7 +1616,8 @@ these properties.
 .Xc
 Indicates whether the file name matching algorithm used by the file system
 should be case-sensitive, case-insensitive, or allow a combination of both
-styles of matching. The default value for the
+styles of matching.
+The default value for the
 .Sy casesensitivity
 property is
 .Sy sensitive .
@@ -1515,9 +1632,10 @@ The
 value for the
 .Sy casesensitivity
 property indicates that the file system can support requests for both
-case-sensitive and case-insensitive matching behavior. Currently,
-case-insensitive matching behavior on a file system that supports mixed behavior
-is limited to the SMB server product. For more information about the
+case-sensitive and case-insensitive matching behavior.
+Currently, case-insensitive matching behavior on a file system that supports
+mixed behavior is limited to the SMB server product.
+For more information about the
 .Sy mixed
 value behavior, see the "ZFS Administration Guide".
 .It Xo
@@ -1527,9 +1645,10 @@ value behavior, see the "ZFS Administration Guide".
 Indicates whether the file system should perform a
 .Sy unicode
 normalization of file names whenever two file names are compared, and which
-normalization algorithm should be used. File names are always stored unmodified,
-names are normalized as part of any comparison process. If this property is set
-to a legal value other than
+normalization algorithm should be used.
+File names are always stored unmodified, names are normalized as part of any
+comparison process.
+If this property is set to a legal value other than
 .Sy none ,
 and the
 .Sy utf8only
@@ -1546,7 +1665,8 @@ This property cannot be changed after the file system is created.
 Indicates whether the file system should reject file names that include
 characters that are not present in the
 .Sy UTF-8
-character code set. If this property is explicitly set to
+character code set.
+If this property is explicitly set to
 .Sy off ,
 the normalization property must either not be explicitly set or be set to
 .Sy none .
@@ -1570,7 +1690,8 @@ When a file system is mounted, either through
 for legacy mounts or the
 .Nm zfs Cm mount
 command for normal file systems, its mount options are set according to its
-properties. The correlation between properties and mount options is as follows:
+properties.
+The correlation between properties and mount options is as follows:
 .Bd -literal
     PROPERTY                MOUNT OPTION
     devices                 devices/nodevices
@@ -1582,8 +1703,10 @@ properties. The correlation between properties and mount options is as follows:
 .Pp
 In addition, these options can be set on a per-mount basis using the
 .Fl o
-option, without affecting the property that is stored on disk. The values
-specified on the command line override the values stored in the dataset. The
+option, without affecting the property that is stored on disk.
+The values specified on the command line override the values stored in the
+dataset.
+The
 .Sy nosuid
 option is an alias for
 .Sy nodevices Ns , Ns Sy nosetuid .
@@ -1591,18 +1714,21 @@ These properties are reported as
 .Qq temporary
 by the
 .Nm zfs Cm get
-command. If the properties are changed while the dataset is mounted, the new
-setting overrides any temporary settings.
+command.
+If the properties are changed while the dataset is mounted, the new setting
+overrides any temporary settings.
 .Ss "User Properties"
 In addition to the standard native properties, ZFS supports arbitrary user
-properties. User properties have no effect on ZFS behavior, but applications or
+properties.
+User properties have no effect on ZFS behavior, but applications or
 administrators can use them to annotate datasets
 .Pq file systems, volumes, and snapshots .
 .Pp
 User property names must contain a colon
 .Pq Qq Sy \&:
-character to distinguish them from native properties. They may contain lowercase
-letters, numbers, and the following punctuation characters: colon
+character to distinguish them from native properties.
+They may contain lowercase letters, numbers, and the following punctuation
+characters: colon
 .Pq Qq Sy \&: ,
 dash
 .Pq Qq Sy - ,
@@ -1627,23 +1753,29 @@ independently-developed packages use the same property name for different
 purposes.
 .Pp
 The values of user properties are arbitrary strings, are always inherited, and
-are never validated. All of the commands that operate on properties
+are never validated.
+All of the commands that operate on properties
 .Po Nm zfs Cm list ,
 .Nm zfs Cm get ,
 .Nm zfs Cm set ,
 and so forth
 .Pc
-can be used to manipulate both native properties and user properties. Use the
+can be used to manipulate both native properties and user properties.
+Use the
 .Nm zfs Cm inherit
-command to clear a user property. If the property is not defined in any parent
-dataset, it is removed entirely. Property values are limited to 8192 bytes.
+command to clear a user property.
+If the property is not defined in any parent dataset, it is removed entirely.
+Property values are limited to 8192 bytes.
 .Ss ZFS Volumes as Swap or Dump Devices
 During an initial installation a swap device and dump device are created on ZFS
-volumes in the ZFS root pool. By default, the swap area size is based on 1/2 the
-size of physical memory up to 2 Gbytes. The size of the dump device depends on
-the kernel's requirements at installation time. Separate ZFS volumes must be
-used for the swap area and dump devices. Do not swap to a file on a ZFS file
-system. A ZFS swap file configuration is not supported.
+volumes in the ZFS root pool.
+By default, the swap area size is based on 1/2 the size of physical memory up to
+2 Gbytes.
+The size of the dump device depends on the kernel's requirements at installation
+time.
+Separate ZFS volumes must be used for the swap area and dump devices.
+Do not swap to a file on a ZFS file system.
+A ZFS swap file configuration is not supported.
 .Pp
 If you need to change your swap area or dump device after the system is
 installed or upgraded, use the
@@ -1664,30 +1796,31 @@ Displays a help message.
 .Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
 .Ar filesystem
 .Xc
-Creates a new ZFS file system. The file system is automatically mounted
-according to the
+Creates a new ZFS file system.
+The file system is automatically mounted according to the
 .Sy mountpoint
 property inherited from the parent.
 .Bl -tag -width "-o"
 .It Fl o Ar property Ns = Ns Ar value
 Sets the specified property as if the command
 .Nm zfs Cm set Ar property Ns = Ns Ar value
-was invoked at the same time the dataset was created. Any editable ZFS property
-can also be set at creation time. Multiple
+was invoked at the same time the dataset was created.
+Any editable ZFS property can also be set at creation time.
+Multiple
 .Fl o
-options can be specified. An error results if the same property is specified in
-multiple
+options can be specified.
+An error results if the same property is specified in multiple
 .Fl o
 options.
 .It Fl p
-Creates all the non-existing parent datasets. Datasets created in this manner
-are automatically mounted according to the
+Creates all the non-existing parent datasets.
+Datasets created in this manner are automatically mounted according to the
 .Sy mountpoint
-property inherited from their parent. Any property specified on the command line
-using the
+property inherited from their parent.
+Any property specified on the command line using the
 .Fl o
-option is ignored. If the target filesystem already exists, the operation
-completes successfully.
+option is ignored.
+If the target filesystem already exists, the operation completes successfully.
 .El
 .It Xo
 .Nm
@@ -1697,13 +1830,14 @@ completes successfully.
 .Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
 .Fl V Ar size Ar volume
 .Xc
-Creates a volume of the given size. The volume is exported as a block device in
+Creates a volume of the given size.
+The volume is exported as a block device in
 .Pa /dev/zvol/{dsk,rdsk}/path ,
 where
 .Em path
-is the name of the volume in the ZFS namespace. The size represents the logical
-size as exported by the device. By default, a reservation of equal size is
-created.
+is the name of the volume in the ZFS namespace.
+The size represents the logical size as exported by the device.
+By default, a reservation of equal size is created.
 .Pp
 .Ar size
 is automatically rounded up to the nearest 128 Kbytes to ensure that the volume
@@ -1719,24 +1853,26 @@ the resulting behavior is undefined.
 .It Fl o Ar property Ns = Ns Ar value
 Sets the specified property as if the
 .Nm zfs Cm set Ar property Ns = Ns Ar value
-command was invoked at the same time the dataset was created. Any editable ZFS
-property can also be set at creation time. Multiple
+command was invoked at the same time the dataset was created.
+Any editable ZFS property can also be set at creation time.
+Multiple
 .Fl o
-options can be specified. An error results if the same property is specified in
-multiple
+options can be specified.
+An error results if the same property is specified in multiple
 .Fl o
 options.
 .It Fl p
-Creates all the non-existing parent datasets. Datasets created in this manner
-are automatically mounted according to the
+Creates all the non-existing parent datasets.
+Datasets created in this manner are automatically mounted according to the
 .Sy mountpoint
-property inherited from their parent. Any property specified on the command line
-using the
+property inherited from their parent.
+Any property specified on the command line using the
 .Fl o
-option is ignored. If the target filesystem already exists, the operation
-completes successfully.
+option is ignored.
+If the target filesystem already exists, the operation completes successfully.
 .It Fl s
-Creates a sparse volume with no reservation. See
+Creates a sparse volume with no reservation.
+See
 .Sy volsize
 in the
 .Sx Native Properties
@@ -1748,9 +1884,10 @@ section for more information about sparse volumes.
 .Op Fl Rfnprv
 .Ar filesystem Ns | Ns Ar volume
 .Xc
-Destroys the given dataset. By default, the command unshares any file systems
-that are currently shared, unmounts any file systems that are currently
-mounted, and refuses to destroy a dataset that has active dependents
+Destroys the given dataset.
+By default, the command unshares any file systems that are currently shared,
+unmounts any file systems that are currently mounted, and refuses to destroy a
+dataset that has active dependents
 .Pq children or clones .
 .Bl -tag -width "-R"
 .It Fl R
@@ -1759,12 +1896,14 @@ target hierarchy.
 .It Fl f
 Force an unmount of any file systems using the
 .Nm unmount Fl f
-command. This option has no effect on non-file systems or unmounted file
-systems.
+command.
+This option has no effect on non-file systems or unmounted file systems.
 .It Fl n
 Do a dry-run
 .Pq Qq No-op
-deletion. No data will be deleted. This is useful in conjunction with the
+deletion.
+No data will be deleted.
+This is useful in conjunction with the
 .Fl v
 or
 .Fl p
@@ -1794,22 +1933,25 @@ The given snapshots are destroyed immediately if and only if the
 .Nm zfs Cm destroy
 command without the
 .Fl d
-option would have destroyed it. Such immediate destruction would occur, for
-example, if the snapshot had no clones and the user-initiated reference count
-were zero.
+option would have destroyed it.
+Such immediate destruction would occur, for example, if the snapshot had no
+clones and the user-initiated reference count were zero.
 .Pp
 If a snapshot does not qualify for immediate destruction, it is marked for
-deferred deletion. In this state, it exists as a usable, visible snapshot until
-both of the preconditions listed above are met, at which point it is destroyed.
+deferred deletion.
+In this state, it exists as a usable, visible snapshot until both of the
+preconditions listed above are met, at which point it is destroyed.
 .Pp
 An inclusive range of snapshots may be specified by separating the first and
-last snapshots with a percent sign. The first and/or last snapshots may be left
-blank, in which case the filesystem's oldest or newest snapshot will be implied.
+last snapshots with a percent sign.
+The first and/or last snapshots may be left blank, in which case the
+filesystem's oldest or newest snapshot will be implied.
 .Pp
 Multiple snapshots
 .Pq or ranges of snapshots
 of the same filesystem or volume may be specified in a comma-separated list of
-snapshots. Only the snapshot's short name
+snapshots.
+Only the snapshot's short name
 .Po the part after the
 .Sy @
 .Pc
@@ -1818,7 +1960,8 @@ multiple snapshots.
 .Bl -tag -width "-R"
 .It Fl R
 Recursively destroy all clones of these snapshots, including the clones,
-snapshots, and children. If this flag is specified, the
+snapshots, and children.
+If this flag is specified, the
 .Fl d
 flag will have no effect.
 .It Fl d
@@ -1826,8 +1969,9 @@ Defer snapshot deletion.
 .It Fl n
 Do a dry-run
 .Pq Qq No-op
-deletion. No data will be deleted. This is
-useful in conjunction with the
+deletion.
+No data will be deleted.
+This is useful in conjunction with the
 .Fl p
 or
 .Fl v
@@ -1861,9 +2005,12 @@ The given bookmark is destroyed.
 .Oo Fl o Ar property Ns = Ns value Oc Ns ...
 .Ar filesystem Ns @ Ns Ar snapname Ns | Ns Ar volume Ns @ Ns Ar snapname Ns ...
 .Xc
-Creates snapshots with the given names. All previous modifications by successful
-system calls to the file system are part of the snapshots. Snapshots are taken
-atomically, so that all snapshots correspond to the same moment in time. See the
+Creates snapshots with the given names.
+All previous modifications by successful system calls to the file system are
+part of the snapshots.
+Snapshots are taken atomically, so that all snapshots correspond to the same
+moment in time.
+See the
 .Sx Snapshots
 section for details.
 .Bl -tag -width "-o"
@@ -1880,12 +2027,13 @@ Recursively create snapshots of all descendent datasets
 .Op Fl Rfr
 .Ar snapshot
 .Xc
-Roll back the given dataset to a previous snapshot. When a dataset is rolled
-back, all data that has changed since the snapshot is discarded, and the dataset
-reverts to the state at the time of the snapshot. By default, the command
-refuses to roll back to a snapshot other than the most recent one. In order to
-do so, all intermediate snapshots and bookmarks must be destroyed by specifying
-the
+Roll back the given dataset to a previous snapshot.
+When a dataset is rolled back, all data that has changed since the snapshot is
+discarded, and the dataset reverts to the state at the time of the snapshot.
+By default, the command refuses to roll back to a snapshot other than the most
+recent one.
+In order to do so, all intermediate snapshots and bookmarks must be destroyed by
+specifying the
 .Fl r
 option.
 .Pp
@@ -1893,8 +2041,9 @@ The
 .Fl rR
 options do not recursively destroy the child snapshots of a recursive snapshot.
 Only direct snapshots of the specified filesystem are destroyed by either of
-these options. To completely roll back a recursive snapshot, you must rollback
-the individual child snapshots.
+these options.
+To completely roll back a recursive snapshot, you must rollback the individual
+child snapshots.
 .Bl -tag -width "-R"
 .It Fl R
 Destroy any more recent snapshots and bookmarks, as well as any clones of those
@@ -1913,21 +2062,24 @@ Destroy any snapshots and bookmarks more recent than the one specified.
 .Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
 .Ar snapshot Ar filesystem Ns | Ns Ar volume
 .Xc
-Creates a clone of the given snapshot. See the
+Creates a clone of the given snapshot.
+See the
 .Sx Clones
-section for details. The target dataset can be located anywhere in the ZFS
-hierarchy, and is created as the same type as the original.
+section for details.
+The target dataset can be located anywhere in the ZFS hierarchy, and is created
+as the same type as the original.
 .Bl -tag -width "-o"
 .It Fl o Ar property Ns = Ns Ar value
 Sets the specified property; see
 .Nm zfs Cm create
 for details.
 .It Fl p
-Creates all the non-existing parent datasets. Datasets created in this manner
-are automatically mounted according to the
+Creates all the non-existing parent datasets.
+Datasets created in this manner are automatically mounted according to the
 .Sy mountpoint
-property inherited from their parent. If the target filesystem or volume already
-exists, the operation completes successfully.
+property inherited from their parent.
+If the target filesystem or volume already exists, the operation completes
+successfully.
 .El
 .It Xo
 .Nm
@@ -1936,16 +2088,20 @@ exists, the operation completes successfully.
 .Xc
 Promotes a clone file system to no longer be dependent on its
 .Qq origin
-snapshot. This makes it possible to destroy the file system that the clone was
-created from. The clone parent-child dependency relationship is reversed, so
-that the origin file system becomes a clone of the specified file system.
+snapshot.
+This makes it possible to destroy the file system that the clone was created
+from.
+The clone parent-child dependency relationship is reversed, so that the origin
+file system becomes a clone of the specified file system.
 .Pp
 The snapshot that was cloned, and any snapshots previous to this snapshot, are
-now owned by the promoted clone. The space they use moves from the origin file
-system to the promoted clone, so enough space must be available to accommodate
-these snapshots. No new space is consumed by this operation, but the space
-accounting is adjusted. The promoted clone must not have any conflicting
-snapshot names of its own. The
+now owned by the promoted clone.
+The space they use moves from the origin file system to the promoted clone, so
+enough space must be available to accommodate these snapshots.
+No new space is consumed by this operation, but the space accounting is
+adjusted.
+The promoted clone must not have any conflicting snapshot names of its own.
+The
 .Cm rename
 subcommand can be used to rename any conflicting snapshots.
 .It Xo
@@ -1961,18 +2117,20 @@ subcommand can be used to rename any conflicting snapshots.
 .Ar filesystem Ns | Ns Ar volume
 .Ar filesystem Ns | Ns Ar volume
 .Xc
-Renames the given dataset. The new target can be located anywhere in the ZFS
-hierarchy, with the exception of snapshots. Snapshots can only be renamed within
-the parent file system or volume. When renaming a snapshot, the parent file
-system of the snapshot does not need to be specified as part of the second
-argument. Renamed file systems can inherit new mount points, in which case they
-are unmounted and remounted at the new mount point.
+Renames the given dataset.
+The new target can be located anywhere in the ZFS hierarchy, with the exception
+of snapshots.
+Snapshots can only be renamed within the parent file system or volume.
+When renaming a snapshot, the parent file system of the snapshot does not need
+to be specified as part of the second argument.
+Renamed file systems can inherit new mount points, in which case they are
+unmounted and remounted at the new mount point.
 .Bl -tag -width "-a"
 .It Fl f
 Force unmount any filesystems that need to be unmounted in the process.
 .It Fl p
-Creates all the nonexistent parent datasets. Datasets created in this manner are
-automatically mounted according to the
+Creates all the nonexistent parent datasets.
+Datasets created in this manner are automatically mounted according to the
 .Sy mountpoint
 property inherited from their parent.
 .El
@@ -1982,8 +2140,8 @@ property inherited from their parent.
 .Fl r
 .Ar snapshot Ar snapshot
 .Xc
-Recursively rename the snapshots of all descendent datasets. Snapshots are the
-only dataset that can be renamed recursively.
+Recursively rename the snapshots of all descendent datasets.
+Snapshots are the only dataset that can be renamed recursively.
 .It Xo
 .Nm
 .Cm list
@@ -1995,9 +2153,10 @@ only dataset that can be renamed recursively.
 .Oo Fl t Ar type Ns Oo , Ns Ar type Oc Ns ... Oc
 .Oo Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Oc Ns ...
 .Xc
-Lists the property information for the given datasets in tabular form. If
-specified, you can list property information by the absolute pathname or the
-relative pathname. By default, all file systems and volumes are displayed.
+Lists the property information for the given datasets in tabular form.
+If specified, you can list property information by the absolute pathname or the
+relative pathname.
+By default, all file systems and volumes are displayed.
 Snapshots are displayed if the
 .Sy listsnaps
 property is
@@ -2010,8 +2169,9 @@ The following fields are displayed,
 .Sy mountpoint .
 .Bl -tag -width "-H"
 .It Fl H
-Used for scripting mode. Do not print headers and separate fields by a single
-tab instead of arbitrary white space.
+Used for scripting mode.
+Do not print headers and separate fields by a single tab instead of arbitrary
+white space.
 .It Fl S Ar property
 Same as the
 .Fl s
@@ -2025,7 +2185,8 @@ of
 .Sy 1
 will display only the dataset and its direct children.
 .It Fl o Ar property
-A comma-separated list of properties to display. The property must be:
+A comma-separated list of properties to display.
+The property must be:
 .Bl -bullet
 .It
 One of the properties described in the
@@ -2040,8 +2201,8 @@ to display the dataset name
 .It
 The value
 .Sy space
-to display space usage properties on file systems and volumes. This is a
-shortcut for specifying
+to display space usage properties on file systems and volumes.
+This is a shortcut for specifying
 .Fl o Sy name Ns , Ns Sy avail Ns , Ns Sy used Ns , Ns Sy usedsnap Ns , Ns
 .Sy usedds Ns , Ns Sy usedrefreserv Ns , Ns Sy usedchild Fl t
 .Sy filesystem Ns , Ns Sy volume
@@ -2055,18 +2216,19 @@ values.
 Recursively display any children of the dataset on the command line.
 .It Fl s Ar property
 A property for sorting the output by column in ascending order based on the
-value of the property. The property must be one of the properties described in
-the
+value of the property.
+The property must be one of the properties described in the
 .Sx Properties
 section, or the special value
 .Sy name
-to sort by the dataset name. Multiple properties can be specified at one time
-using multiple
+to sort by the dataset name.
+Multiple properties can be specified at one time using multiple
 .Fl s
-property options. Multiple
+property options.
+Multiple
 .Fl s
-options are evaluated from left to right in decreasing order of importance. The
-following is a list of sorting criteria:
+options are evaluated from left to right in decreasing order of importance.
+The following is a list of sorting criteria:
 .Bl -bullet
 .It
 Numeric types sort in numeric order.
@@ -2101,16 +2263,19 @@ displays only snapshots.
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns ...
 .Xc
 Sets the property or list of properties to the given value(s) for each dataset.
-Only some properties can be edited. See the
+Only some properties can be edited.
+See the
 .Sx Properties
 section for more information on what properties can be set and acceptable
-values. Numeric values can be specified as exact values, or in a human-readable
-form with a suffix of
+values.
+Numeric values can be specified as exact values, or in a human-readable form
+with a suffix of
 .Sy B , K , M , G , T , P , E , Z
 .Po for bytes, kilobytes, megabytes, gigabytes, terabytes, petabytes, exabytes,
 or zettabytes, respectively
 .Pc .
-User properties can be set on snapshots. For more information, see the
+User properties can be set on snapshots.
+For more information, see the
 .Sx User Properties
 section.
 .It Xo
@@ -2124,21 +2289,22 @@ section.
 .Cm all | Ar property Ns Oo , Ns Ar property Oc Ns ...
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns | Ns Ar bookmark Ns ...
 .Xc
-Displays properties for the given datasets. If no datasets are specified, then
-the command displays properties for all datasets on the system. For each
-property, the following columns are displayed:
+Displays properties for the given datasets.
+If no datasets are specified, then the command displays properties for all
+datasets on the system.
+For each property, the following columns are displayed:
 .Bd -literal
     name      Dataset name
     property  Property name
     value     Property value
-    source    Property source. Can either be local, default,
+    source    Property source.  Can either be local, default,
               temporary, inherited, or none (-).
 .Ed
 .Pp
 All columns are displayed by default, though this can be controlled by using the
 .Fl o
-option. This command takes a comma-separated list of properties as described in
-the
+option.
+This command takes a comma-separated list of properties as described in the
 .Sx Native Properties
 and
 .Sx User Properties
@@ -2150,9 +2316,9 @@ can be used to display all properties that apply to the given dataset's type
 .Pq filesystem, volume, snapshot, or bookmark .
 .Bl -tag -width "-H"
 .It Fl H
-Display output in a form more easily parsed by scripts. Any headers are omitted,
-and fields are explicitly separated by a single tab instead of an arbitrary
-amount of space.
+Display output in a form more easily parsed by scripts.
+Any headers are omitted, and fields are explicitly separated by a single tab
+instead of an arbitrary amount of space.
 .It Fl d Ar depth
 Recursively display any children of the dataset, limiting the recursion to
 .Ar depth .
@@ -2170,9 +2336,9 @@ values.
 .It Fl r
 Recursively display properties for any children.
 .It Fl s Ar source
-A comma-separated list of sources to display. Those properties coming from a
-source other than those in this list are ignored. Each source must be one of the
-following:
+A comma-separated list of sources to display.
+Those properties coming from a source other than those in this list are ignored.
+Each source must be one of the following:
 .Sy local ,
 .Sy default ,
 .Sy inherited ,
@@ -2200,7 +2366,8 @@ or
 Clears the specified property, causing it to be inherited from an ancestor,
 restored to default if no ancestor has the property set, or with the
 .Fl S
-option reverted to the received value if one exists. See the
+option reverted to the received value if one exists.
+See the
 .Sx Properties
 section for a listing of default values, and details on which properties can be
 inherited.
@@ -2231,28 +2398,31 @@ Displays a list of currently supported file system versions.
 .Op Fl V Ar version
 .Fl a | Ar filesystem
 .Xc
-Upgrades file systems to a new on-disk version. Once this is done, the file
-systems will no longer be accessible on systems running older versions of the
-software.
+Upgrades file systems to a new on-disk version.
+Once this is done, the file systems will no longer be accessible on systems
+running older versions of the software.
 .Nm zfs Cm send
 streams generated from new snapshots of these file systems cannot be accessed on
 systems running older versions of the software.
 .Pp
-In general, the file system version is independent of the pool version. See
+In general, the file system version is independent of the pool version.
+See
 .Xr zpool 1M
 for information on the
 .Nm zpool Cm upgrade
 command.
 .Pp
 In some cases, the file system version and the pool version are interrelated and
-the pool version must be upgraded before the file system version can be upgraded.
+the pool version must be upgraded before the file system version can be
+upgraded.
 .Bl -tag -width "-V"
 .It Fl V Ar version
 Upgrade to the specified
 .Ar version .
 If the
 .Fl V
-flag is not specified, this command upgrades to the most recent version. This
+flag is not specified, this command upgrades to the most recent version.
+This
 option can only be used to increase the version number, and only up to the most
 recent version supported by this software.
 .It Fl a
@@ -2273,7 +2443,8 @@ Upgrade the specified file system and all descendent file systems.
 .Ar filesystem Ns | Ns Ar snapshot
 .Xc
 Displays space consumed by, and quotas on, each user in the specified filesystem
-or snapshot. This corresponds to the
+or snapshot.
+This corresponds to the
 .Sy userused@ Ns Em user
 and
 .Sy userquota@ Ns Em user
@@ -2282,10 +2453,12 @@ properties.
 .It Fl H
 Do not print headers, use tab-delimited output.
 .It Fl S Ar field
-Sort by this field in reverse order. See
+Sort by this field in reverse order.
+See
 .Fl s .
 .It Fl i
-Translate SID to POSIX ID. The POSIX ID may be ephemeral if no mapping exists.
+Translate SID to POSIX ID.
+The POSIX ID may be ephemeral if no mapping exists.
 Normal POSIX interfaces
 .Po for example,
 .Xr stat 2 ,
@@ -2295,11 +2468,14 @@ perform this translation, so the
 .Fl i
 option allows the output from
 .Nm zfs Cm userspace
-to be compared directly with those utilities. However,
+to be compared directly with those utilities.
+However,
 .Fl i
 may lead to confusion if some files were created by an SMB user before a
-SMB-to-POSIX name mapping was established. In such a case, some files will be
-owned by the SMB entity and some by the POSIX entity. However, the
+SMB-to-POSIX name mapping was established.
+In such a case, some files will be owned by the SMB entity and some by the POSIX
+entity.
+However, the
 .Fl i
 option will report that the POSIX entity has the total usage and quota for both.
 .It Fl n
@@ -2316,12 +2492,14 @@ Use exact
 .Pq parsable
 numeric output.
 .It Fl s Ar field
-Sort output by this field. The
+Sort output by this field.
+The
 .Fl s
 and
 .Fl S
 flags may be specified multiple times to sort first by one field, then by
-another. The default is
+another.
+The default is
 .Fl s Sy type Fl s Sy name .
 .It Fl t Ar type Ns Oo , Ns Ar type Oc Ns ...
 Print only the specified types from the following set:
@@ -2345,7 +2523,8 @@ The default can be changed to include group types.
 .Ar filesystem Ns | Ns Ar snapshot
 .Xc
 Displays space consumed by, and quotas on, each group in the specified
-filesystem or snapshot. This subcommand is identical to
+filesystem or snapshot.
+This subcommand is identical to
 .Nm zfs Cm userspace ,
 except that the default types to display are
 .Fl t Sy posixgroup Ns , Ns Sy smbgroup .
@@ -2364,17 +2543,19 @@ Displays all ZFS file systems currently mounted.
 Mounts ZFS file systems.
 .Bl -tag -width "-O"
 .It Fl O
-Perform an overlay mount. See
+Perform an overlay mount.
+See
 .Xr mount 1M
 for more information.
 .It Fl a
-Mount all available ZFS file systems. Invoked automatically as part of the boot
-process.
+Mount all available ZFS file systems.
+Invoked automatically as part of the boot process.
 .It Ar filesystem
 Mount the specified filesystem.
 .It Fl o Ar options
 An optional, comma-separated list of mount options to use temporarily for the
-duration of the mount. See the
+duration of the mount.
+See the
 .Sx Temporary Mount Point Properties
 section for details.
 .It Fl v
@@ -2389,11 +2570,12 @@ Report mount progress.
 Unmounts currently mounted ZFS file systems.
 .Bl -tag -width "-a"
 .It Fl a
-Unmount all available ZFS file systems. Invoked automatically as part of the
-shutdown process.
+Unmount all available ZFS file systems.
+Invoked automatically as part of the shutdown process.
 .It Ar filesystem Ns | Ns Ar mountpoint
-Unmount the specified filesystem. The command can also be given a path to a ZFS
-file system mount point on the system.
+Unmount the specified filesystem.
+The command can also be given a path to a ZFS file system mount point on the
+system.
 .It Fl f
 Forcefully unmount the file system, even if it is currently in use.
 .El
@@ -2405,14 +2587,15 @@ Forcefully unmount the file system, even if it is currently in use.
 Shares available ZFS file systems.
 .Bl -tag -width "-a"
 .It Fl a
-Share all available ZFS file systems. Invoked automatically as part of the boot
-process.
+Share all available ZFS file systems.
+Invoked automatically as part of the boot process.
 .It Ar filesystem
 Share the specified filesystem according to the
 .Sy sharenfs
 and
 .Sy sharesmb
-properties. File systems are shared when the
+properties.
+File systems are shared when the
 .Sy sharenfs
 or
 .Sy sharesmb
@@ -2426,23 +2609,25 @@ property is set.
 Unshares currently shared ZFS file systems.
 .Bl -tag -width "-a"
 .It Fl a
-Unshare all available ZFS file systems. Invoked automatically as part of the
-shutdown process.
+Unshare all available ZFS file systems.
+Invoked automatically as part of the shutdown process.
 .It Ar filesystem Ns | Ns Ar mountpoint
-Unshare the specified filesystem. The command can also be given a path to a ZFS
-file system shared on the system.
+Unshare the specified filesystem.
+The command can also be given a path to a ZFS file system shared on the system.
 .El
 .It Xo
 .Nm
 .Cm bookmark
 .Ar snapshot bookmark
 .Xc
-Creates a bookmark of the given snapshot. Bookmarks mark the point in time when
-the snapshot was created, and can be used as the incremental source for a
+Creates a bookmark of the given snapshot.
+Bookmarks mark the point in time when the snapshot was created, and can be used
+as the incremental source for a
 .Nm zfs Cm send
 command.
 .Pp
-This feature must be enabled to be used. See
+This feature must be enabled to be used.
+See
 .Xr zpool-features 5
 for details on ZFS feature flags and the
 .Sy bookmarks
@@ -2456,18 +2641,20 @@ feature.
 .Xc
 Creates a stream representation of the second
 .Ar snapshot ,
-which is written to standard output. The output can be redirected to a file or
-to a different system
+which is written to standard output.
+The output can be redirected to a file or to a different system
 .Po for example, using
 .Xr ssh 1
 .Pc .
 By default, a full stream is generated.
 .Bl -tag -width "-D"
 .It Fl D, -dedup
-Generate a deduplicated stream. Blocks which would have been sent multiple times
-in the send stream will only be sent once. The receiving system must also
-support this feature to receive a deduplicated stream. This flag can be used
-regardless of the dataset's
+Generate a deduplicated stream.
+Blocks which would have been sent multiple times in the send stream will only be
+sent once.
+The receiving system must also support this feature to receive a deduplicated
+stream.
+This flag can be used regardless of the dataset's
 .Sy dedup
 property, but performance will be much better if the filesystem uses a
 dedup-capable checksum
@@ -2476,7 +2663,8 @@ dedup-capable checksum
 .Pc .
 .It Fl I Ar snapshot
 Generate a stream package that sends all intermediary snapshots from the first
-snapshot to the second snapshot. For example,
+snapshot to the second snapshot.
+For example,
 .Fl I Em @a Em fs@d
 is similar to
 .Fl i Em @a Em fs@b Ns ; Fl i Em @b Em fs@c Ns ; Fl i Em @c Em fs@d .
@@ -2484,15 +2672,16 @@ The incremental source may be specified as with the
 .Fl i
 option.
 .It Fl L, -large-block
-Generate a stream which may contain blocks larger than 128KB. This flag has no
-effect if the
+Generate a stream which may contain blocks larger than 128KB.
+This flag has no effect if the
 .Sy large_blocks
 pool feature is disabled, or if the
 .Sy recordsize
-property of this filesystem has never been set above 128KB. The receiving system
-must have the
+property of this filesystem has never been set above 128KB.
+The receiving system must have the
 .Sy large_blocks
-pool feature enabled as well. See
+pool feature enabled as well.
+See
 .Xr zpool-features 5
 for details on ZFS feature flags and the
 .Sy large_blocks
@@ -2501,9 +2690,9 @@ feature.
 Print machine-parsable verbose information about the stream package generated.
 .It Fl R, -replicate
 Generate a replication stream package, which will replicate the specified
-file system, and all descendent file systems, up to the named snapshot. When
-received, all properties, snapshots, descendent file systems, and clones are
-preserved.
+file system, and all descendent file systems, up to the named snapshot.
+When received, all properties, snapshots, descendent file systems, and clones
+are preserved.
 .Pp
 If the
 .Fl i
@@ -2511,9 +2700,10 @@ or
 .Fl I
 flags are used in conjunction with the
 .Fl R
-flag, an incremental replication stream is generated. The current values of
-properties, and current snapshot and file system names are set when the stream
-is received. If the
+flag, an incremental replication stream is generated.
+The current values of properties, and current snapshot and file system names are
+set when the stream is received.
+If the
 .Fl F
 flag is specified when this stream is received, snapshots and file systems that
 do not exist on the sending side are destroyed.
@@ -2522,28 +2712,41 @@ Generate a more compact stream by using
 .Sy WRITE_EMBEDDED
 records for blocks which are stored more compactly on disk by the
 .Sy embedded_data
-pool feature. This flag has no effect if the
+pool feature.
+This flag has no effect if the
 .Sy embedded_data
-feature is disabled. The receiving system must have the
+feature is disabled.
+The receiving system must have the
 .Sy embedded_data
-feature enabled. If the
+feature enabled.
+If the
 .Sy lz4_compress
 feature is active on the sending system, then the receiving system must have
-that feature enabled as well. See
+that feature enabled as well.
+See
 .Xr zpool-features 5
 for details on ZFS feature flags and the
 .Sy embedded_data
 feature.
 .It Fl c, -compressed
 Generate a more compact stream by using compressed WRITE records for blocks
-which are compressed on disk and in memory (see the
-.Sy compression No property for details).  If the Sy lz4_compress No feature
-is active on the sending system, then the receiving system must have that
-feature enabled as well. If the
-.Sy large_blocks No feature is enabled on the sending system but the Fl L
+which are compressed on disk and in memory
+.Po see the
+.Sy compression
+property for details
+.Pc .
+If the
+.Sy lz4_compress
+feature is active on the sending system, then the receiving system must have
+that feature enabled as well.
+If the
+.Sy large_blocks
+feature is enabled on the sending system but the
+.Fl L
 option is not supplied in conjunction with
-.Fl c, No then the data will be decompressed before sending so it can be split
-into smaller block sizes.
+.Fl c ,
+then the data will be decompressed before sending so it can be split into
+smaller block sizes.
 .It Fl i Ar snapshot
 Generate an incremental stream from the first
 .Ar snapshot
@@ -2569,26 +2772,29 @@ not just
 .It Fl n, -dryrun
 Do a dry-run
 .Pq Qq No-op
-send. Do not generate any actual send data. This is useful in conjunction with
-the
+send.
+Do not generate any actual send data.
+This is useful in conjunction with the
 .Fl v
 or
 .Fl P
-flags to determine what data will be sent. In this case, the verbose output will
-be written to standard output
+flags to determine what data will be sent.
+In this case, the verbose output will be written to standard output
 .Po contrast with a non-dry-run, where the stream is written to standard output
 and the verbose output goes to standard error
 .Pc .
 .It Fl p, -props
-Include the dataset's properties in the stream. This flag is implicit when
+Include the dataset's properties in the stream.
+This flag is implicit when
 .Fl R
-is specified. The receiving system must also support this feature.
+is specified.
+The receiving system must also support this feature.
 .It Fl v, -verbose
-Print verbose information about the stream package generated. This information
-includes a per-second report of how much data has been sent.
+Print verbose information about the stream package generated.
+This information includes a per-second report of how much data has been sent.
 .Pp
-The format of the stream is committed. You will be able to receive your streams
-on future versions of ZFS .
+The format of the stream is committed.
+You will be able to receive your streams on future versions of ZFS .
 .El
 .It Xo
 .Nm
@@ -2598,57 +2804,73 @@ on future versions of ZFS .
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
 Generate a send stream, which may be of a filesystem, and may be incremental
-from a bookmark. If the destination is a filesystem or volume, the pool must be
-read-only, or the filesystem must not be mounted. When the stream generated from
-a filesystem or volume is received, the default snapshot name will be
+from a bookmark.
+If the destination is a filesystem or volume, the pool must be read-only, or the
+filesystem must not be mounted.
+When the stream generated from a filesystem or volume is received, the default
+snapshot name will be
 .Qq --head-- .
 .Bl -tag -width "-L"
 .It Fl L, -large-block
-Generate a stream which may contain blocks larger than 128KB. This flag has no
-effect if the
+Generate a stream which may contain blocks larger than 128KB.
+This flag has no effect if the
 .Sy large_blocks
 pool feature is disabled, or if the
 .Sy recordsize
-property of this filesystem has never been set above 128KB. The receiving system
-must have the
+property of this filesystem has never been set above 128KB.
+The receiving system must have the
 .Sy large_blocks
-pool feature enabled as well. See
+pool feature enabled as well.
+See
 .Xr zpool-features 5
 for details on ZFS feature flags and the
 .Sy large_blocks
 feature.
 .It Fl c, -compressed
 Generate a more compact stream by using compressed WRITE records for blocks
-which are compressed on disk and in memory (see the
-.Sy compression No property for details).  If the Sy lz4_compress No feature is
-active on the sending system, then the receiving system must have that feature
-enabled as well. If the
-.Sy large_blocks No feature is enabled on the sending system but the Fl L
+which are compressed on disk and in memory
+.Po see the
+.Sy compression
+property for details
+.Pc .
+If the
+.Sy lz4_compress
+feature is active on the sending system, then the receiving system must have
+that feature enabled as well.
+If the
+.Sy large_blocks
+feature is enabled on the sending system but the
+.Fl L
 option is not supplied in conjunction with
-.Fl c, No then the data will be decompressed before sending so it can be split
-into smaller block sizes.
+.Fl c ,
+then the data will be decompressed before sending so it can be split into
+smaller block sizes.
 .It Fl e, -embed
 Generate a more compact stream by using
 .Sy WRITE_EMBEDDED
 records for blocks which are stored more compactly on disk by the
 .Sy embedded_data
-pool feature. This flag has no effect if the
+pool feature.
+This flag has no effect if the
 .Sy embedded_data
-feature is disabled. The receiving system must have the
+feature is disabled.
+The receiving system must have the
 .Sy embedded_data
-feature enabled. If the
+feature enabled.
+If the
 .Sy lz4_compress
 feature is active on the sending system, then the receiving system must have
-that feature enabled as well. See
+that feature enabled as well.
+See
 .Xr zpool-features 5
 for details on ZFS feature flags and the
 .Sy embedded_data
 feature.
 .It Fl i Ar snapshot Ns | Ns Ar bookmark
-Generate an incremental send stream. The incremental source must be an earlier
-snapshot in the destination's history. It will commonly be an earlier snapshot
-in the destination's file system, in which case it can be specified as the last
-component of the name
+Generate an incremental send stream.
+The incremental source must be an earlier snapshot in the destination's history.
+It will commonly be an earlier snapshot in the destination's file system, in
+which case it can be specified as the last component of the name
 .Po the
 .Sy #
 or
@@ -2667,10 +2889,12 @@ origin, etc.
 .Fl t
 .Ar receive_resume_token
 .Xc
-Creates a send stream which resumes an interrupted receive.  The
+Creates a send stream which resumes an interrupted receive.
+The
 .Ar receive_resume_token
-is the value of this property on the filesystem
-or volume that was being received into.  See the documentation for
+is the value of this property on the filesystem or volume that was being
+received into.
+See the documentation for
 .Sy zfs receive -s
 for more details.
 .It Xo
@@ -2688,8 +2912,9 @@ for more details.
 .Ar filesystem
 .Xc
 Creates a snapshot whose contents are as specified in the stream provided on
-standard input. If a full stream is received, then a new file system is created
-as well. Streams are created using the
+standard input.
+If a full stream is received, then a new file system is created as well.
+Streams are created using the
 .Nm zfs Cm send
 subcommand, which by default creates a full stream.
 .Nm zfs Cm recv
@@ -2698,7 +2923,8 @@ can be used as an alias for
 .Pp
 If an incremental stream is received, then the destination file system must
 already exist, and its most recent snapshot must match the incremental stream's
-source. For
+source.
+For
 .Sy zvols ,
 the destination device link is destroyed and recreated, which means the
 .Sy zvol
@@ -2723,8 +2949,9 @@ options.
 .Pp
 If the argument is a snapshot name, the specified
 .Ar snapshot
-is created. If the argument is a file system or volume name, a snapshot with the
-same name as the sent snapshot is created within the specified
+is created.
+If the argument is a file system or volume name, a snapshot with the same name
+as the sent snapshot is created within the specified
 .Ar filesystem
 or
 .Ar volume .
@@ -2748,7 +2975,8 @@ option is specified, all but the first element of the sent snapshot's file
 system path
 .Pq usually the pool name
 is used and any required intermediate file systems within the specified one are
-created. If the
+created.
+If the
 .Fl e
 option is specified, then only the last element of the sent snapshot's file
 system name
@@ -2757,7 +2985,8 @@ is used as the target file system name.
 .Bl -tag -width "-F"
 .It Fl F
 Force a rollback of the file system to the most recent snapshot before
-performing the receive operation. If receiving an incremental replication stream
+performing the receive operation.
+If receiving an incremental replication stream
 .Po for example, one generated by
 .Nm zfs Cm send Fl R Op Fl i Ns | Ns Fl I
 .Pc ,
@@ -2771,16 +3000,18 @@ Discard all but the last element of the sent snapshot's file system name, using
 that element to determine the name of the target file system for the new
 snapshot as described in the paragraph above.
 .It Fl n
-Do not actually receive the stream. This can be useful in conjunction with the
+Do not actually receive the stream.
+This can be useful in conjunction with the
 .Fl v
 option to verify the name the receive operation would use.
 .It Fl o Sy origin Ns = Ns Ar snapshot
 Forces the stream to be received as a clone of the given snapshot.
 If the stream is a full send stream, this will create the filesystem
-described by the stream as a clone of the specified snapshot. Which
-snapshot was specified will not affect the success or failure of the
-receive, as long as the snapshot does exist.  If the stream is an
-incremental send stream, all the normal verification will be performed.
+described by the stream as a clone of the specified snapshot.
+Which snapshot was specified will not affect the success or failure of the
+receive, as long as the snapshot does exist.
+If the stream is an incremental send stream, all the normal verification will be
+performed.
 .It Fl u
 File system that is associated with the received stream is not mounted.
 .It Fl v
@@ -2788,8 +3019,8 @@ Print verbose information about the stream and the time required to perform the
 receive operation.
 .It Fl s
 If the receive is interrupted, save the partially received state, rather
-than deleting it.  Interruption may be due to premature termination of
-the stream
+than deleting it.
+Interruption may be due to premature termination of the stream
 .Po e.g. due to network failure or failure of the remote system
 if the stream is being read over a network connection
 .Pc ,
@@ -2807,7 +3038,8 @@ property of the filesystem or volume which is received into.
 .Pp
 To use this flag, the storage pool must have the
 .Sy extensible_dataset
-feature enabled.  See
+feature enabled.
+See
 .Xr zpool-features 5
 for details on ZFS feature flags.
 .El
@@ -2826,7 +3058,8 @@ deleting its saved partially received state.
 .Ar filesystem Ns | Ns Ar volume
 .Xc
 Displays permissions that have been delegated on the specified filesystem or
-volume. See the other forms of
+volume.
+See the other forms of
 .Nm zfs Cm allow
 for more information.
 .It Xo
@@ -2862,32 +3095,36 @@ only for the specified file system.
 .It Fl u Ar user Ns Oo , Ns Ar user Oc Ns ...
 Explicitly specify that permissions are delegated to the user.
 .It Ar user Ns | Ns Ar group Ns Oo , Ns Ar user Ns | Ns Ar group Oc Ns ...
-Specifies to whom the permissions are delegated. Multiple entities can be
-specified as a comma-separated list. If neither of the
+Specifies to whom the permissions are delegated.
+Multiple entities can be specified as a comma-separated list.
+If neither of the
 .Fl gu
 options are specified, then the argument is interpreted preferentially as the
 keyword
 .Sy everyone ,
-then as a user name, and lastly as a group name. To specify a user or group
-named
+then as a user name, and lastly as a group name.
+To specify a user or group named
 .Qq everyone ,
 use the
 .Fl g
 or
 .Fl u
-options. To specify a group with the same name as a user, use the
+options.
+To specify a group with the same name as a user, use the
 .Fl g
 options.
 .It Xo
 .Ar perm Ns | Ns @ Ns Ar setname Ns Oo , Ns Ar perm Ns | Ns @ Ns
 .Ar setname Oc Ns ...
 .Xc
-The permissions to delegate. Multiple permissions may be specified as a
-comma-separated list. Permission names are the same as ZFS subcommand and
-property names. See the property list below. Property set names,
-which begin with
+The permissions to delegate.
+Multiple permissions may be specified as a comma-separated list.
+Permission names are the same as ZFS subcommand and property names.
+See the property list below.
+Property set names, which begin with
 .Sy @ ,
-may be specified. See the
+may be specified.
+See the
 .Fl s
 form below for details.
 .El
@@ -2898,7 +3135,8 @@ options are specified, or both are, then the permissions are allowed for the
 file system or volume, and all of its descendents.
 .Pp
 Permissions are generally the ability to use a ZFS subcommand or change a ZFS
-property. The following permissions are available:
+property.
+The following permissions are available:
 .Bd -literal
 NAME             TYPE           NOTES
 allow            subcommand     Must also have the permission that is being
@@ -2973,7 +3211,8 @@ zoned            property
 .Xc
 Sets
 .Qq create time
-permissions. These permissions are granted
+permissions.
+These permissions are granted
 .Pq locally
 to the creator of any newly-created descendent file system.
 .It Xo
@@ -2984,12 +3223,13 @@ to the creator of any newly-created descendent file system.
 .Ar setname Oc Ns ...
 .Ar filesystem Ns | Ns Ar volume
 .Xc
-Defines or adds permissions to a permission set. The set can be used by other
+Defines or adds permissions to a permission set.
+The set can be used by other
 .Nm zfs Cm allow
-commands for the specified file system and its descendents. Sets are evaluated
-dynamically, so changes to a set are immediately reflected. Permission sets
-follow the same naming restrictions as ZFS file systems, but the name must begin
-with
+commands for the specified file system and its descendents.
+Sets are evaluated dynamically, so changes to a set are immediately reflected.
+Permission sets follow the same naming restrictions as ZFS file systems, but the
+name must begin with
 .Sy @ ,
 and can be no more than 64 characters long.
 .It Xo
@@ -3019,21 +3259,25 @@ and can be no more than 64 characters long.
 .Xc
 Removes permissions that were granted with the
 .Nm zfs Cm allow
-command. No permissions are explicitly denied, so other permissions granted are
-still in effect. For example, if the permission is granted by an ancestor. If no
-permissions are specified, then all permissions for the specified
+command.
+No permissions are explicitly denied, so other permissions granted are still in
+effect.
+For example, if the permission is granted by an ancestor.
+If no permissions are specified, then all permissions for the specified
 .Ar user ,
 .Ar group ,
 or
 .Sy everyone
-are removed. Specifying
+are removed.
+Specifying
 .Sy everyone
 .Po or using the
 .Fl e
 option
 .Pc
 only removes the permissions that were granted to everyone, not all permissions
-for every user and group. See the
+for every user and group.
+See the
 .Nm zfs Cm allow
 command for a description of the
 .Fl ldugec
@@ -3051,8 +3295,9 @@ Recursively remove the permissions from this file system and all descendents.
 .Ar setname Oc Ns ... Oc
 .Ar filesystem Ns | Ns Ar volume
 .Xc
-Removes permissions from a permission set. If no permissions are specified, then
-all permissions are removed, thus removing the set entirely.
+Removes permissions from a permission set.
+If no permissions are specified, then all permissions are removed, thus removing
+the set entirely.
 .It Xo
 .Nm
 .Cm hold
@@ -3061,8 +3306,9 @@ all permissions are removed, thus removing the set entirely.
 .Xc
 Adds a single reference, named with the
 .Ar tag
-argument, to the specified snapshot or snapshots. Each snapshot has its own tag
-namespace, and tags must be unique within that space.
+argument, to the specified snapshot or snapshots.
+Each snapshot has its own tag namespace, and tags must be unique within that
+space.
 .Pp
 If a hold exists on a snapshot, attempts to destroy that snapshot by using the
 .Nm zfs Cm destroy
@@ -3093,9 +3339,9 @@ listing the holds on the named snapshot.
 .Xc
 Removes a single reference, named with the
 .Ar tag
-argument, from the specified snapshot or snapshots. The tag must already exist
-for each snapshot. If a hold exists on a snapshot, attempts to destroy that
-snapshot by using the
+argument, from the specified snapshot or snapshots.
+The tag must already exist for each snapshot.
+If a hold exists on a snapshot, attempts to destroy that snapshot by using the
 .Nm zfs Cm destroy
 command return
 .Er EBUSY .
@@ -3112,11 +3358,12 @@ descendent file systems.
 .Xc
 Display the difference between a snapshot of a given filesystem and another
 snapshot of that filesystem from a later time or the current contents of the
-filesystem. The first column is a character indicating the type of change, the
-other columns indicate pathname, new pathname
+filesystem.
+The first column is a character indicating the type of change, the other columns
+indicate pathname, new pathname
 .Pq in case of rename ,
-change in link count, and optionally file type and/or change time. The types of
-change are:
+change in link count, and optionally file type and/or change time.
+The types of change are:
 .Bd -literal
 -       The path has been removed
 +       The path has been created
@@ -3184,11 +3431,11 @@ The following command creates snapshots named
 .Sy yesterday
 of
 .Em pool/home
-and all of its descendent file systems. Each snapshot is mounted on demand in
-the
+and all of its descendent file systems.
+Each snapshot is mounted on demand in the
 .Pa .zfs/snapshot
-directory at the root of its file system. The second command destroys the newly
-created snapshots.
+directory at the root of its file system.
+The second command destroys the newly created snapshots.
 .Bd -literal
 # zfs snapshot -r pool/home@yesterday
 # zfs destroy -r pool/home@yesterday
@@ -3382,9 +3629,9 @@ property for a dataset.
 .Ed
 .It Sy Example 15 No Performing a Rolling Snapshot
 The following example shows how to maintain a history of snapshots with a
-consistent naming scheme. To keep a week's worth of snapshots, the user
-destroys the oldest snapshot, renames the remaining snapshots, and then creates
-a new snapshot, as follows:
+consistent naming scheme.
+To keep a week's worth of snapshots, the user destroys the oldest snapshot,
+renames the remaining snapshots, and then creates a new snapshot, as follows:
 .Bd -literal
 # zfs destroy -r pool/users@7daysago
 # zfs rename -r pool/users@6daysago @7daysago
@@ -3447,7 +3694,8 @@ The following example shows how to grant anyone in the group
 to create file systems in
 .Em tank/users .
 This syntax also allows staff members to destroy their own file systems, but not
-destroy anyone else's file system. The permissions on
+destroy anyone else's file system.
+The permissions on
 .Em tank/users
 are also displayed.
 .Bd -literal
@@ -3463,7 +3711,8 @@ Local+Descendent permissions:
 .It Sy Example 19 No Defining and Granting a Permission Set on a ZFS Dataset
 The following example shows how to define and grant a permission set on the
 .Em tank/users
-file system. The permissions on
+file system.
+The permissions on
 .Em tank/users
 are also displayed.
 .Bd -literal
@@ -3480,7 +3729,8 @@ Local+Descendent permissions:
 The following example shows to grant the ability to set quotas and reservations
 on the
 .Em users/home
-file system. The permissions on
+file system.
+The permissions on
 .Em users/home
 are also displayed.
 .Bd -literal
@@ -3499,7 +3749,8 @@ The following example shows how to remove the snapshot permission from the
 .Sy staff
 group on the
 .Em tank/users
-file system. The permissions on
+file system.
+The permissions on
 .Em tank/users
 are also displayed.
 .Bd -literal
@@ -3513,7 +3764,8 @@ Local+Descendent permissions:
 .Ed
 .It Sy Example 22 No Showing the differences between a snapshot and a ZFS Dataset
 The following example shows how to see what has changed between a prior
-snapshot of a ZFS dataset and its current state. The
+snapshot of a ZFS dataset and its current state.
+The
 .Fl F
 option is used to indicate type information for the files affected.
 .Bd -literal
