@@ -120,7 +120,7 @@ udp_ipsec_input(struct mbuf *m, int off, int af)
 	struct udphdr *udp;
 	struct ip *ip;
 	uint32_t spi;
-	int error, hlen;
+	int hlen;
 
 	/*
 	 * Just return if packet doesn't have enough data.
@@ -205,10 +205,7 @@ udp_ipsec_input(struct mbuf *m, int off, int af)
 	 * will do this anyway, so don't touch them here.
 	 */
 	ESPSTAT_INC(esps_input);
-	error = (*sav->tdb_xform->xf_input)(m, sav, hlen, off);
-	if (error != 0)
-		key_freesav(&sav);
-
+	(*sav->tdb_xform->xf_input)(m, sav, hlen, off);
 	return (EINPROGRESS);	/* Consumed by IPsec. */
 }
 
