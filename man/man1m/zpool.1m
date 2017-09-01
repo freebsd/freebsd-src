@@ -23,8 +23,9 @@
 .\" Copyright (c) 2013 by Delphix. All rights reserved.
 .\" Copyright 2017 Nexenta Systems, Inc.
 .\" Copyright (c) 2017 Datto Inc.
+.\" Copyright (c) 2017 George Melikov. All Rights Reserved.
 .\"
-.Dd June 21, 2017
+.Dd August 23, 2017
 .Dt ZPOOL 1M
 .Os
 .Sh NAME
@@ -661,7 +662,7 @@ to the enabled state.
 See
 .Xr zpool-features 5
 for details on feature states.
-.It Sy listsnaps Ns = Ns Sy on Ns | Ns Sy off
+.It Sy listsnapshots Ns = Ns Sy on Ns | Ns Sy off
 Controls whether information about snapshots associated with this pool is
 output when
 .Nm zfs Cm list
@@ -670,6 +671,8 @@ is run without the
 option.
 The default value is
 .Sy off .
+This property can also be referred to by its shortened name,
+.Sy listsnaps .
 .It Sy version Ns = Ns Ar version
 The current on-disk version of the pool.
 This can be increased, but never decreased.
@@ -677,7 +680,7 @@ The preferred method of updating pools is with the
 .Nm zpool Cm upgrade
 command, though this property can be used when a specific version is needed for
 backwards compatibility.
-Once feature flags is enabled on a pool this property will no longer have a
+Once feature flags are enabled on a pool this property will no longer have a
 value.
 .El
 .Ss Subcommands
@@ -1541,7 +1544,7 @@ for
 .Ar newpool
 to
 .Ar root
-and automaticaly import it.
+and automatically import it.
 .El
 .It Xo
 .Nm
@@ -1606,7 +1609,7 @@ to enable all features on all pools.
 .Fl v
 .Xc
 Displays legacy ZFS versions supported by the current software.
- See
+See
 .Xr zpool-features 5
 for a description of feature flags features supported by the current software.
 .It Xo
@@ -1746,7 +1749,7 @@ The failed device can be replaced using the following command:
 .Ed
 .Pp
 Once the data has been resilvered, the spare is automatically removed and is
-made available should another device fails.
+made available for use should another device fail.
 The hot spare can be permanently removed from the pool using the following
 command:
 .Bd -literal
@@ -1806,7 +1809,7 @@ is:
 # zpool remove tank mirror-2
 .Ed
 .It Sy Example 15 No Displaying expanded space on a device
-The following command dipslays the detailed information for the pool
+The following command displays the detailed information for the pool
 .Em data .
 This pool is comprised of a single raidz vdev where one of its devices
 increased its capacity by 10GB.

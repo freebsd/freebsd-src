@@ -335,7 +335,7 @@ intervals.
 The visibility of the
 .Pa .zfs
 directory can be controlled by the
-snapdir
+.Sy snapdir
 property.
 .Ss Clones
 A clone is a writable volume or file system whose initial contents are the same
@@ -1352,7 +1352,7 @@ bytes in the dataset.
 This property can also be referred to by its shortened column name,
 .Sy refreserv .
 .It Sy reservation Ns = Ns Em size Ns | Ns Sy none
-The minimum amount of space guaranteed to a dataset and its descendents.
+The minimum amount of space guaranteed to a dataset and its descendants.
 When the amount of space used is below this value, the dataset is treated as if
 it were taking up the amount of space specified by its reservation.
 Reservations are accounted for in the parent datasets' space used, and count
@@ -1404,7 +1404,7 @@ command is invoked with options equivalent to the contents of this property.
 Because SMB shares requires a resource name, a unique resource name is
 constructed from the dataset name.
 The constructed name is a copy of the dataset name except that the characters in
-the dataset name, which would be illegal in the resource name, are replaced with
+the dataset name, which would be invalid in the resource name, are replaced with
 underscore
 .Pq Sy _
 characters.
@@ -2110,7 +2110,8 @@ subcommand can be used to rename any conflicting snapshots.
 .Op Fl f
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
-.br
+.Xc
+.It Xo
 .Nm
 .Cm rename
 .Op Fl fp
@@ -2903,7 +2904,8 @@ for more details.
 .Op Fl Fnsuv
 .Op Fl o Sy origin Ns = Ns Ar snapshot
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
-.br
+.Xc
+.It Xo
 .Nm
 .Cm receive
 .Op Fl Fnsuv
@@ -3139,31 +3141,35 @@ property.
 The following permissions are available:
 .Bd -literal
 NAME             TYPE           NOTES
-allow            subcommand     Must also have the permission that is being
-                                allowed
-clone            subcommand     Must also have the 'create' ability and 'mount'
-                                ability in the origin file system
+allow            subcommand     Must also have the permission that is
+                                being allowed
+clone            subcommand     Must also have the 'create' ability and
+                                'mount' ability in the origin file system
 create           subcommand     Must also have the 'mount' ability
 destroy          subcommand     Must also have the 'mount' ability
 diff             subcommand     Allows lookup of paths within a dataset
-                                given an object number, and the ability to
-                                create snapshots necessary to 'zfs diff'.
+                                given an object number, and the ability
+                                to create snapshots necessary to
+                                'zfs diff'.
 mount            subcommand     Allows mount/umount of ZFS datasets
-promote          subcommand     Must also have the 'mount'
-                                and 'promote' ability in the origin file system
-receive          subcommand     Must also have the 'mount' and 'create' ability
+promote          subcommand     Must also have the 'mount' and 'promote'
+                                ability in the origin file system
+receive          subcommand     Must also have the 'mount' and 'create'
+                                ability
 rename           subcommand     Must also have the 'mount' and 'create'
                                 ability in the new parent
 rollback         subcommand     Must also have the 'mount' ability
 send             subcommand
-share            subcommand     Allows sharing file systems over NFS or SMB
-                                protocols
+share            subcommand     Allows sharing file systems over NFS
+                                or SMB protocols
 snapshot         subcommand     Must also have the 'mount' ability
 
-groupquota       other          Allows accessing any groupquota@... property
+groupquota       other          Allows accessing any groupquota@...
+                                property
 groupused        other          Allows reading any groupused@... property
 userprop         other          Allows changing any user property
-userquota        other          Allows accessing any userquota@... property
+userquota        other          Allows accessing any userquota@...
+                                property
 userused         other          Allows reading any userused@... property
 
 aclinherit       property
