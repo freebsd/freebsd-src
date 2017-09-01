@@ -32,9 +32,15 @@
  */
 
 #define	WR(p, size) do { \
-	if (write(STDOUT_FILENO, p, size) != (ssize_t)size) \
-		oerr(); \
-	} while(0)
+	ssize_t res; \
+	res = write(STDOUT_FILENO, p, size); \
+	if (res != (ssize_t)size) { \
+		if (res == -1) \
+			oerr(); \
+		else \
+			errx(1, "stdout"); \
+	} \
+} while (0)
 
 #define TAILMAPLEN (4<<20)
 
