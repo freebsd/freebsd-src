@@ -494,6 +494,9 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	/* Setup to release spin count in in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
 	td->td_md.md_saved_intr = MIPS_SR_INT_IE;
+#if defined(CPU_CHERI) && defined(COMPAT_CHERIABI)
+	td->td_md.md_cheri_mmap_cap = td0->td_md.md_cheri_mmap_cap;
+#endif
 #if 0
 	    /* Maybe we need to fix this? */
 	td->td_md.md_saved_sr = ( (MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT) |
