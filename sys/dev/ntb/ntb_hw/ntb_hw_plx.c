@@ -231,6 +231,9 @@ ntb_plx_isr(void *arg)
 
 	ntb_db_event((device_t)arg, 0);
 
+	if (sc->link)	/* Link Interface has no Link Error registers. */
+		return;
+
 	val = NTX_READ(sc, 0xfe0);
 	if (val == 0)
 		return;
@@ -275,8 +278,11 @@ ntb_plx_setup_intr(device_t dev)
 		device_printf(dev, "bus_setup_intr failed: %d\n", error);
 		return (error);
 	}
-	NTX_WRITE(sc, 0xfe0, 0xf);	/* Clear link interrupts. */
-	NTX_WRITE(sc, 0xfe4, 0x0);	/* Unmask link interrupts. */
+
+	if (!sc->link) { /* Link Interface has no Link Error registers. */
+		NTX_WRITE(sc, 0xfe0, 0xf);	/* Clear link interrupts. */
+		NTX_WRITE(sc, 0xfe4, 0x0);	/* Unmask link interrupts. */
+	}
 	return (0);
 }
 
@@ -285,7 +291,9 @@ ntb_plx_teardown_intr(device_t dev)
 {
 	struct ntb_plx_softc *sc = device_get_softc(dev);
 
-	NTX_WRITE(sc, 0xfe4, 0xf);	/* Mask link interrupts. */
+	if (!sc->link)	/* Link Interface has no Link Error registers. */
+		NTX_WRITE(sc, 0xfe4, 0xf);	/* Mask link interrupts. */
+
 	if (sc->int_res) {
 		bus_teardown_intr(dev, sc->int_res, sc->int_tag);
 		bus_release_resource(dev, SYS_RES_IRQ, sc->int_rid,
