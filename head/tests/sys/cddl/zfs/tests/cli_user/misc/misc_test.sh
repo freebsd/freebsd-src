@@ -600,7 +600,7 @@ zpool_add_001_neg_cleanup()
 
 
 atf_test_case zpool_add_002_pos cleanup
-zpool_add_001_neg_head()
+zpool_add_002_pos_head()
 {
 	atf_set "descr" "zpool add [-f] -n succeeds for unpriveleged users"
 	atf_set "require.progs"  zfs zpool
