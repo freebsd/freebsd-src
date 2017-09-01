@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.c,v 1.118 2016/05/02 10:26:04 djm Exp $ */
+/* $OpenBSD: kex.c,v 1.117 2016/02/08 10:57:07 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
@@ -35,7 +35,6 @@
 
 #ifdef WITH_OPENSSL
 #include <openssl/crypto.h>
-#include <openssl/dh.h>
 #endif
 
 #include "ssh2.h"
@@ -89,10 +88,7 @@ struct kexalg {
 static const struct kexalg kexalgs[] = {
 #ifdef WITH_OPENSSL
 	{ KEX_DH1, KEX_DH_GRP1_SHA1, 0, SSH_DIGEST_SHA1 },
-	{ KEX_DH14_SHA1, KEX_DH_GRP14_SHA1, 0, SSH_DIGEST_SHA1 },
-	{ KEX_DH14_SHA256, KEX_DH_GRP14_SHA256, 0, SSH_DIGEST_SHA256 },
-	{ KEX_DH16_SHA512, KEX_DH_GRP16_SHA512, 0, SSH_DIGEST_SHA512 },
-	{ KEX_DH18_SHA512, KEX_DH_GRP18_SHA512, 0, SSH_DIGEST_SHA512 },
+	{ KEX_DH14, KEX_DH_GRP14_SHA1, 0, SSH_DIGEST_SHA1 },
 	{ KEX_DHGEX_SHA1, KEX_DH_GEX_SHA1, 0, SSH_DIGEST_SHA1 },
 #ifdef HAVE_EVP_SHA256
 	{ KEX_DHGEX_SHA256, KEX_DH_GEX_SHA256, 0, SSH_DIGEST_SHA256 },
@@ -472,6 +468,7 @@ kex_input_kexinit(int type, u_int32_t seq, void *ctxt)
 	if (kex == NULL)
 		return SSH_ERR_INVALID_ARGUMENT;
 
+	ssh_dispatch_set(ssh, SSH2_MSG_KEXINIT, NULL);
 	ptr = sshpkt_ptr(ssh, &dlen);
 	if ((r = sshbuf_put(kex->peer, ptr, dlen)) != 0)
 		return r;

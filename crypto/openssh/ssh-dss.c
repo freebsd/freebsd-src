@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-dss.c,v 1.35 2016/04/21 06:08:02 djm Exp $ */
+/* $OpenBSD: ssh-dss.c,v 1.34 2015/12/11 04:21:12 mmcc Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -139,8 +139,7 @@ ssh_dss_verify(const struct sshkey *key,
 	char *ktype = NULL;
 
 	if (key == NULL || key->dsa == NULL ||
-	    sshkey_type_plain(key->type) != KEY_DSA ||
-	    signature == NULL || signaturelen == 0)
+	    sshkey_type_plain(key->type) != KEY_DSA)
 		return SSH_ERR_INVALID_ARGUMENT;
 	if (dlen == 0)
 		return SSH_ERR_INTERNAL_ERROR;

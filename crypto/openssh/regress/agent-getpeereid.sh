@@ -1,4 +1,4 @@
-#	$OpenBSD: agent-getpeereid.sh,v 1.6 2016/05/03 14:41:04 djm Exp $
+#	$OpenBSD: agent-getpeereid.sh,v 1.5 2013/05/17 10:33:09 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="disallow agent attach from other uid"
@@ -13,16 +13,10 @@ else
 	echo "skipped (not supported on this platform)"
 	exit 0
 fi
-case "x$SUDO" in
-	xsudo) sudo=1;;
-	xdoas) ;;
-	x)
-		echo "need SUDO to switch to uid $UNPRIV"
-		exit 0 ;;
-	*)
-		echo "unsupported $SUDO - "doas" and "sudo" are allowed"
-		exit 0 ;;
-esac
+if [ -z "$SUDO" ]; then
+	echo "skipped: need SUDO to switch to uid $UNPRIV"
+	exit 0
+fi
 
 trace "start agent"
 eval `${SSHAGENT} -s -a ${ASOCK}` > /dev/null
@@ -37,13 +31,8 @@ else
 	if [ $r -ne 1 ]; then
 		fail "ssh-add failed with $r != 1"
 	fi
-	if test -z "$sudo" ; then
-		# doas
-		${SUDO} -n -u ${UNPRIV} ssh-add -l 2>/dev/null
-	else
-		# sudo
-		< /dev/null ${SUDO} -S -u ${UNPRIV} ssh-add -l 2>/dev/null
-	fi
+
+	< /dev/null ${SUDO} -S -u ${UNPRIV} ssh-add -l 2>/dev/null
 	r=$?
 	if [ $r -lt 2 ]; then
 		fail "ssh-add did not fail for ${UNPRIV}: $r < 2"

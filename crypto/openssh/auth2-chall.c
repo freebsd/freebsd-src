@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-chall.c,v 1.44 2016/05/02 08:49:03 djm Exp $ */
+/* $OpenBSD: auth2-chall.c,v 1.43 2015/07/18 07:57:14 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2001 Per Allansson.  All rights reserved.
@@ -122,8 +122,8 @@ kbdint_alloc(const char *devs)
 			buffer_append(&b, devices[i]->name,
 			    strlen(devices[i]->name));
 		}
-		if ((kbdintctxt->devices = sshbuf_dup_string(&b)) == NULL)
-			fatal("%s: sshbuf_dup_string failed", __func__);
+		buffer_append(&b, "\0", 1);
+		kbdintctxt->devices = xstrdup(buffer_ptr(&b));
 		buffer_free(&b);
 	} else {
 		kbdintctxt->devices = xstrdup(devs);

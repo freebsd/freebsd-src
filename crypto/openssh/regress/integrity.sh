@@ -1,4 +1,4 @@
-#	$OpenBSD: integrity.sh,v 1.18 2016/03/04 02:48:06 dtucker Exp $
+#	$OpenBSD: integrity.sh,v 1.16 2015/03/24 20:22:17 markus Exp $
 #	Placed in the Public Domain.
 
 tid="integrity"
@@ -54,7 +54,7 @@ for m in $macs; do
 			fail "ssh -m $m succeeds with bit-flip at $off"
 		fi
 		ecnt=`expr $ecnt + 1`
-		out=$(egrep -v "^debug" $TEST_SSH_LOGFILE | tail -2 | \
+		out=$(tail -2 $TEST_SSH_LOGFILE | egrep -v "^debug" | \
 		     tr -s '\r\n' '.')
 		case "$out" in
 		Bad?packet*)	elen=`expr $elen + 1`; skip=3;;

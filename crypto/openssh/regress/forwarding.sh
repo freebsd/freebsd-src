@@ -1,4 +1,4 @@
-#	$OpenBSD: forwarding.sh,v 1.16 2016/04/14 23:57:17 djm Exp $
+#	$OpenBSD: forwarding.sh,v 1.15 2015/03/03 22:35:19 markus Exp $
 #	Placed in the Public Domain.
 
 tid="local and remote forwarding"
@@ -59,7 +59,7 @@ for d in L R; do
 		    -$d ${base}01:127.0.0.1:$PORT \
 		    -$d ${base}02:127.0.0.1:$PORT \
 		    -$d ${base}03:127.0.0.1:$PORT \
-		    -$d ${base}01:localhost:$PORT \
+		    -$d ${base}01:127.0.0.1:$PORT \
 		    -$d ${base}04:127.0.0.1:$PORT \
 		    -oExitOnForwardFailure=yes somehost true
 		r=$?

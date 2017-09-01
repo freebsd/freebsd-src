@@ -1,4 +1,4 @@
-/* $OpenBSD: log.c,v 1.48 2016/07/15 05:01:58 dtucker Exp $ */
+/* $OpenBSD: log.c,v 1.46 2015/07/08 19:04:21 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -176,16 +176,6 @@ sigdie(const char *fmt,...)
 	_exit(1);
 }
 
-void
-logdie(const char *fmt,...)
-{
-	va_list args;
-
-	va_start(args, fmt);
-	do_log(SYSLOG_LEVEL_INFO, fmt, args);
-	va_end(args);
-	cleanup_exit(255);
-}
 
 /* Log this message (information that usually should go to the log). */
 
@@ -352,7 +342,7 @@ log_change_level(LogLevel new_log_level)
 int
 log_is_on_stderr(void)
 {
-	return log_on_stderr && log_stderr_fd == STDERR_FILENO;
+	return log_on_stderr;
 }
 
 /* redirect what would usually get written to stderr to specified file */

@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_fdpass.c,v 1.21 2016/02/29 20:22:36 jca Exp $ */
+/* $OpenBSD: monitor_fdpass.c,v 1.20 2015/02/25 23:05:47 djm Exp $ */
 /*
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -99,7 +99,8 @@ mm_send_fd(int sock, int fd)
 	}
 
 	if (n != 1) {
-		error("%s: sendmsg: expected sent 1 got %zd", __func__, n);
+		error("%s: sendmsg: expected sent 1 got %ld",
+		    __func__, (long)n);
 		return -1;
 	}
 	return 0;
@@ -154,7 +155,8 @@ mm_receive_fd(int sock)
 	}
 
 	if (n != 1) {
-		error("%s: recvmsg: expected received 1 got %zd", __func__, n);
+		error("%s: recvmsg: expected received 1 got %ld",
+		    __func__, (long)n);
 		return -1;
 	}
 

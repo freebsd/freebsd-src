@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.133 2016/06/16 06:10:45 jmc Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.130 2016/02/17 07:38:19 jmc Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: June 16 2016 $
+.Dd $Mdocdate: February 17 2016 $
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -207,7 +207,7 @@ There is no way to recover a lost passphrase.
 If the passphrase is lost or forgotten, a new key must be generated
 and the corresponding public key copied to other machines.
 .Pp
-For RSA1 keys and keys stored in the newer OpenSSH format,
+For RSA1 keys,
 there is also a comment field in the key file that is only for
 convenience to the user to help identify the key.
 The comment can tell what the key is for, or whatever is useful.
@@ -264,8 +264,7 @@ flag will be ignored.
 Provides a new comment.
 .It Fl c
 Requests changing the comment in the private and public key files.
-This operation is only supported for RSA1 keys and keys stored in the
-newer OpenSSH format.
+This operation is only supported for RSA1 keys.
 The program will prompt for the file containing the private keys, for
 the passphrase if the key has one, and for the new comment.
 .It Fl D Ar pkcs11
@@ -390,8 +389,7 @@ For RSA and DSA keys
 tries to find the matching public key file and prints its fingerprint.
 If combined with
 .Fl v ,
-a visual ASCII art representation of the key is supplied with the
-fingerprint.
+an ASCII art representation of the key is supplied with the fingerprint.
 .It Fl M Ar memory
 Specify the amount of memory to use (in megabytes) when generating
 candidate moduli for DH-GEX.

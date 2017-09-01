@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.351 2016/07/19 11:38:53 dtucker Exp $ */
+/* $OpenBSD: channels.c,v 1.349 2016/02/05 13:28:19 naddy Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -137,9 +137,6 @@ static int num_adm_permitted_opens = 0;
 
 /* special-case port number meaning allow any port */
 #define FWD_PERMIT_ANY_PORT	0
-
-/* special-case wildcard meaning allow any host */
-#define FWD_PERMIT_ANY_HOST	"*"
 
 /*
  * If this is true, all opens are permitted.  This is the case on the server
@@ -1419,7 +1416,7 @@ port_open_helper(Channel *c, char *rtype)
 {
 	char buf[1024];
 	char *local_ipaddr = get_local_ipaddr(c->sock);
-	int local_port = c->sock == -1 ? 65536 : get_local_port(c->sock);
+	int local_port = c->sock == -1 ? 65536 : get_sock_port(c->sock, 1);
 	char *remote_ipaddr = get_peer_ipaddr(c->sock);
 	int remote_port = get_peer_port(c->sock);
 
@@ -2938,7 +2935,7 @@ channel_setup_fwd_listener_tcpip(int type, struct Forward *fwd,
 		if (type == SSH_CHANNEL_RPORT_LISTENER && fwd->listen_port == 0 &&
 		    allocated_listen_port != NULL &&
 		    *allocated_listen_port == 0) {
-			*allocated_listen_port = get_local_port(sock);
+			*allocated_listen_port = get_sock_port(sock, 1);
 			debug("Allocated listen port %d",
 			    *allocated_listen_port);
 		}
@@ -3301,8 +3298,7 @@ open_match(ForwardPermission *allowed_open, const char *requestedhost,
 	if (allowed_open->port_to_connect != FWD_PERMIT_ANY_PORT &&
 	    allowed_open->port_to_connect != requestedport)
 		return 0;
-	if (strcmp(allowed_open->host_to_connect, FWD_PERMIT_ANY_HOST) != 0 &&
-	    strcmp(allowed_open->host_to_connect, requestedhost) != 0)
+	if (strcmp(allowed_open->host_to_connect, requestedhost) != 0)
 		return 0;
 	return 1;
 }
