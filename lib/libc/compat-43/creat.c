@@ -48,7 +48,7 @@ int
 __creat(const char *path, mode_t mode)
 {
 
-	return (((int (*)(int, const char *, int, ...))
+	return (((int (*)(int, const char *, int, int))
 	    __libc_interposing[INTERPOS_openat])(AT_FDCWD, path, O_WRONLY |
 	    O_CREAT | O_TRUNC, mode));
 }
