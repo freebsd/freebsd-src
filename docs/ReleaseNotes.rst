@@ -5,11 +5,6 @@ LLVM 5.0.0 Release Notes
 .. contents::
     :local:
 
-.. warning::
-   These are in-progress notes for the upcoming LLVM 5 release.
-   Release notes for previous releases can be found on
-   `the Download Page <http://releases.llvm.org/download.html>`_.
-
 
 Introduction
 ============
@@ -26,55 +21,50 @@ have questions or comments, the `LLVM Developer's Mailing List
 <http://lists.llvm.org/mailman/listinfo/llvm-dev>`_ is a good place to send
 them.
 
-Note that if you are reading this file from a Subversion checkout or the main
-LLVM web page, this document applies to the *next* release, not the current
-one.  To see the release notes for a specific release, please see the `releases
-page <http://llvm.org/releases/>`_.
-
 Non-comprehensive list of changes in this release
 =================================================
-.. NOTE
-   For small 1-3 sentence descriptions, just add an entry at the end of
-   this list. If your description won't fit comfortably in one bullet
-   point (e.g. maybe you would like to give an example of the
-   functionality, or simply have a lot to talk about), see the `NOTE` below
-   for adding a new subsection.
 
 * LLVM's ``WeakVH`` has been renamed to ``WeakTrackingVH`` and a new ``WeakVH``
   has been introduced.  The new ``WeakVH`` nulls itself out on deletion, but
   does not track values across RAUW.
-  
+
 * A new library named ``BinaryFormat`` has been created which holds a collection
   of code which previously lived in ``Support``.  This includes the
   ``file_magic`` structure and ``identify_magic`` functions, as well as all the
   structure and type definitions for DWARF, ELF, COFF, WASM, and MachO file
   formats.
-  
+
 * The tool ``llvm-pdbdump`` has been renamed ``llvm-pdbutil`` to better reflect
   its nature as a general purpose PDB manipulation / diagnostics tool that does
   more than just dumping contents.
-  
+
 * The ``BBVectorize`` pass has been removed. It was fully replaced and no
   longer used back in 2014 but we didn't get around to removing it. Now it is
   gone. The SLP vectorizer is the suggested non-loop vectorization pass.
 
-.. NOTE
-   If you would like to document a larger change, then you can add a
-   subsection about it right here. You can copy the following boilerplate
-   and un-indent it (the indentation causes it to be inside this comment).
+* A new tool opt-viewer.py has been added to visualize optimization remarks in
+  HTML.  The tool processes the YAML files produced by clang with the
+  -fsave-optimization-record option.
 
-   Special New Feature
-   -------------------
+* A new CMake macro ``LLVM_REVERSE_ITERATION`` has been added. If enabled, all
+  supported unordered LLVM containers would be iterated in reverse order. This
+  is useful for uncovering non-determinism caused by iteration of unordered
+  containers. Currently, it supports reverse iteration of SmallPtrSet and
+  DenseMap.
 
-   Makes programs 10x faster by doing Special New Thing.
+* A new tool ``llvm-dlltool`` has been added to create short import libraries
+  from GNU style definition files. The tool utilizes the PE COFF SPEC Import
+  Library Format and PE COFF Auxiliary Weak Externals Format to achieve
+  compatibility with LLD and MSVC LINK.
+
 
 Changes to the LLVM IR
 ----------------------
 
 * The datalayout string may now indicate an address space to use for
-  the pointer type of alloca rather than the default of 0.
+  the pointer type of ``alloca`` rather than the default of 0.
 
-* Added speculatable attribute indicating a function which does has no
+* Added ``speculatable`` attribute indicating a function which has no
   side-effects which could inhibit hoisting of calls.
 
 Changes to the Arm Targets
@@ -108,7 +98,41 @@ During this release the ARM target has:
 Changes to the MIPS Target
 --------------------------
 
- During this release ...
+* The microMIPS64R6 backend is deprecated and will be removed in the next
+  release.
+
+* The MIPS backend now directly supports vector types for arguments and return
+  values (previously this required ABI specific LLVM IR).
+
+* Added documentation for how the MIPS backend handles address lowering.
+
+* Added a GCC compatible option -m(no-)madd4 to control the generation of four
+  operand multiply addition/subtraction instructions.
+
+* Added basic support for the XRay instrumentation system.
+
+* Added support for more assembly aliases and macros.
+
+* Added support for the ``micromips`` and ``nomicromips`` function attributes
+  which control micromips code generation on a per function basis.
+
+* Added the ``long-calls`` feature for non-pic environments. This feature is
+  used where the callee is out of range of the caller using a standard call
+  sequence. It must be enabled specifically.
+
+* Added support for performing microMIPS code generation via function
+  attributes.
+
+* Added experimental support for the static relocation model for the N64 ABI.
+
+* Added partial support for the MT ASE.
+
+* Added basic support for code size reduction for microMIPS.
+
+* Fixed numerous bugs including: multi-precision arithmetic support, various
+  vectorization bugs, debug information for thread local variables, debug
+  sections lacking the correct flags, crashing when disassembling sections
+  whose size is not a multiple of two or four.
 
 
 Changes to the PowerPC Target
@@ -118,24 +142,22 @@ Changes to the PowerPC Target
   vabsduw, modsw, moduw, modsd, modud, lxv, stxv, vextublx, vextubrx, vextuhlx,
   vextuhrx, vextuwlx, vextuwrx, vextsb2w, vextsb2d, vextsh2w, vextsh2d, and
   vextsw2d
-  
+
 * Implemented Optimal Code Sequences from The PowerPC Compiler Writer's Guide.
 
 * Enable -fomit-frame-pointer by default.
-  
+
 * Improved handling of bit reverse intrinsic.
-  
+
 * Improved handling of memcpy and memcmp functions.
-  
+
 * Improved handling of branches with static branch hints.
-  
+
 * Improved codegen for atomic load_acquire.
-  
+
 * Improved block placement during code layout
 
 * Many improvements to instruction selection and code generation
-
-
 
 
 Changes to the X86 Target
@@ -173,6 +195,9 @@ Changes to the X86 Target
 
 * Fixed many inline assembly bugs.
 
+* Preliminary support for tracing NetBSD processes and core files with a single
+  thread in LLDB.
+
 Changes to the AMDGPU Target
 -----------------------------
 
@@ -187,21 +212,16 @@ required for compiling basic Rust programs.
 * Enable the branch relaxation pass so that we don't crash on large
   stack load/stores
 
-* Add support for lowering bit-rotations to the native `ror` and `rol`
+* Add support for lowering bit-rotations to the native ``ror`` and ``rol``
   instructions
 
 * Fix bug where function pointers were treated as pointers to RAM and not
   pointers to program memory
 
-* Fix broken code generaton for shift-by-variable expressions
+* Fix broken code generation for shift-by-variable expressions
 
 * Support zero-sized types in argument lists; this is impossible in C,
   but possible in Rust
-
-Changes to the OCaml bindings
------------------------------
-
- During this release ...
 
 
 Changes to the C API
