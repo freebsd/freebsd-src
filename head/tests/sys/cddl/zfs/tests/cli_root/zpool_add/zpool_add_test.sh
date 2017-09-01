@@ -115,11 +115,11 @@ zpool_add_004_pos_head()
 }
 zpool_add_004_pos_body()
 {
-	atf_expect_fail "BUG26166 Cannot create pools on zvols"
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_add.kshlib
 	. $(atf_get_srcdir)/zpool_add.cfg
 
+	verify_zvol_recursive
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_add_004_pos.ksh || atf_fail "Testcase failed"
 }

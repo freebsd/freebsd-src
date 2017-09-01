@@ -3066,6 +3066,17 @@ function verify_disk_count
 }
 
 #
+# Verify that vfs.zfs.vol.recursive is set, so pools can be created using zvols
+# as backing stores.
+#
+function verify_zvol_recursive
+{
+	if [ "`sysctl -n vfs.zfs.vol.recursive`" -ne 1 ]; then
+		atf_skip "Recursive ZVOLs not enabled"
+	fi
+}
+
+#
 # bsdmap disk/slice number to a device path
 #
 function bsddevmap

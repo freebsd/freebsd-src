@@ -33,10 +33,10 @@ zpool_destroy_001_pos_head()
 }
 zpool_destroy_001_pos_body()
 {
-	atf_expect_fail 'BUG26166 cannot create pools on zvols'
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_destroy.cfg
 
+	verify_zvol_recursive
 	ksh93 $(atf_get_srcdir)/zpool_destroy_001_pos.ksh || atf_fail "Testcase failed"
 }
 zpool_destroy_001_pos_cleanup()
