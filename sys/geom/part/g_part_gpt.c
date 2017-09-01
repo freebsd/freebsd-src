@@ -731,6 +731,12 @@ g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 		sbuf_printf(sb, "%s<rawuuid>", indent);
 		sbuf_printf_uuid(sb, &entry->ent.ent_uuid);
 		sbuf_printf(sb, "</rawuuid>\n");
+		sbuf_printf(sb, "%s<efimedia>", indent);
+		sbuf_printf(sb, "HD(%d,GPT,", entry->base.gpe_index);
+		sbuf_printf_uuid(sb, &entry->ent.ent_uuid);
+		sbuf_printf(sb, ",%#jx,%#jx)", (intmax_t)entry->base.gpe_start,
+		    (intmax_t)entry->base.gpe_end);
+		sbuf_printf(sb, "</efimedia>\n");
 	} else {
 		/* confxml: scheme information */
 	}
