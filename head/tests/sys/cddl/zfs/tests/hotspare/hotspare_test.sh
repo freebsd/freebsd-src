@@ -607,7 +607,6 @@ hotspare_replace_003_neg_head()
 }
 hotspare_replace_003_neg_body()
 {
-	atf_expect_fail "Rally: DE189: ZFS config management needs improvement"
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotspare.kshlib
 	. $(atf_get_srcdir)/hotspare.cfg

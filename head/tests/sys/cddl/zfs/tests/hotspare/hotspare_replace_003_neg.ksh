@@ -34,10 +34,16 @@
 . $STF_SUITE/include/libsas.kshlib
 . $STF_SUITE/tests/hotspare/hotspare.kshlib
 
-# Reproduction script for Rally DE189:
-# https://rally1.rallydev.com/#/9096795496d/detail/defect/13345916506
+# "zpool import" should not show destroyed pools, even if a non-destroyed label
+# is present.
 #
-# To reproduce, from Keith's email:
+# This situation arose when a user activated a spare, removed the spare disk,
+# destroyed the pool, reinserted the spare disk, and then tried to import the
+# pool.  Since the pool was destroyed, nothing should've happened.  But the
+# spare disk had a non-destroyed label, so zpool tried to import it.  A panic
+# ensued.
+#
+# To reproduce:
 # 1.  Create a 3 drive raid.
 # 2.  Disable a drive
 # 3.  Let a Spare take over
@@ -58,6 +64,7 @@ cleanup() {
 		zpool status $TESTPOOL
 		log_must destroy_pool $TESTPOOL
 	fi
+	cleanup_devices ${DISKS}
 }
 
 log_onexit cleanup
@@ -116,18 +123,18 @@ cleanup_devices ${MEMBERS[*]} ${SPARES[*]}
 log_must $ZPOOL create -f $TESTPOOL raidz1 ${MEMBERS[@]} spare ${SPARES[@]}
 DISK0_GUID=$(get_disk_guid $DISK0_NAME)
 
-log_must disable_sas_disk $DISK0_EXPANDER $DISK0_PHY
+disable_sas_disk $DISK0_EXPANDER $DISK0_PHY
 log_must $ZPOOL replace $TESTPOOL $DISK0_GUID $SPARE0_NAME
 wait_until_resilvered
 SPARE0_GUID=$(get_disk_guid $SPARE0_NAME)
 
-log_must disable_sas_disk $SPARE0_EXPANDER $SPARE0_PHY
+disable_sas_disk $SPARE0_EXPANDER $SPARE0_PHY
 log_must $ZPOOL replace $TESTPOOL $SPARE0_GUID $SPARE1_NAME
 wait_until_resilvered
 
-log_must enable_sas_disk $SPARE0_EXPANDER $SPARE0_PHY
-log_must enable_sas_disk $DISK0_EXPANDER $DISK0_PHY
-log_must rescan_disks
+enable_sas_disk $SPARE0_EXPANDER $SPARE0_PHY
+enable_sas_disk $DISK0_EXPANDER $DISK0_PHY
+rescan_disks
 
 log_must destroy_pool $TESTPOOL
 
