@@ -731,7 +731,7 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	KASSERT(stack % sizeof(void * __capability) == 0,
 	    ("CheriABI stack pointer not properly aligned"));
 
-	cheri_capability_set(&td->td_proc->p_md.md_cheri_mmap_cap,
+	cheri_capability_set(&td->td_md.md_cheri_mmap_cap,
 	    CHERI_CAP_USER_MMAP_PERMS, CHERI_CAP_USER_MMAP_BASE,
 	    CHERI_CAP_USER_MMAP_LENGTH, CHERI_CAP_USER_MMAP_OFFSET);
 
@@ -984,9 +984,7 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 	case CHERI_MMAP_GETBASE: {
 		size_t base;
 
-		PROC_LOCK(td->td_proc);
-		base = cheri_getbase(td->td_proc->p_md.md_cheri_mmap_cap);
-		PROC_UNLOCK(td->td_proc);
+		base = cheri_getbase(td->td_md.md_cheri_mmap_cap);
 		if (suword64(uap->parms, base) != 0)
 			return (EFAULT);
 		return (0);
@@ -995,9 +993,7 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 	case CHERI_MMAP_GETLEN: {
 		size_t len;
 
-		PROC_LOCK(td->td_proc);
-		len = cheri_getlen(td->td_proc->p_md.md_cheri_mmap_cap);
-		PROC_UNLOCK(td->td_proc);
+		len = cheri_getlen(td->td_md.md_cheri_mmap_cap);
 		if (suword64(uap->parms, len) != 0)
 			return (EFAULT);
 		return (0);
@@ -1006,9 +1002,7 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 	case CHERI_MMAP_GETOFFSET: {
 		ssize_t offset;
 
-		PROC_LOCK(td->td_proc);
-		offset = cheri_getoffset(td->td_proc->p_md.md_cheri_mmap_cap);
-		PROC_UNLOCK(td->td_proc);
+		offset = cheri_getoffset(td->td_md.md_cheri_mmap_cap);
 		if (suword64(uap->parms, offset) != 0)
 			return (EFAULT);
 		return (0);
@@ -1017,9 +1011,7 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 	case CHERI_MMAP_GETPERM: {
 		uint64_t perms;
 
-		PROC_LOCK(td->td_proc);
-		perms = cheri_getperm(td->td_proc->p_md.md_cheri_mmap_cap);
-		PROC_UNLOCK(td->td_proc);
+		perms = cheri_getperm(td->td_md.md_cheri_mmap_cap);
 		if (suword64(uap->parms, perms) != 0)
 			return (EFAULT);
 		return (0);
@@ -1031,11 +1023,9 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 
 		if (perms == -1)
 			return (EINVAL);
-		PROC_LOCK(td->td_proc);
-		td->td_proc->p_md.md_cheri_mmap_cap =
-		    cheri_andperm(td->td_proc->p_md.md_cheri_mmap_cap, perms);
-		perms = cheri_getperm(td->td_proc->p_md.md_cheri_mmap_cap);
-		PROC_UNLOCK(td->td_proc);
+		td->td_md.md_cheri_mmap_cap =
+		    cheri_andperm(td->td_md.md_cheri_mmap_cap, perms);
+		perms = cheri_getperm(td->td_md.md_cheri_mmap_cap);
 		if (suword64(uap->parms, perms) != 0)
 			return (EFAULT);
 		return (0);
@@ -1049,17 +1039,14 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		/* Reject errors and misaligned offsets */
 		if (offset == -1 || (offset & PAGE_MASK) != 0)
 			return (EINVAL);
-		PROC_LOCK(td->td_proc);
-		len = cheri_getlen(td->td_proc->p_md.md_cheri_mmap_cap);
+		len = cheri_getlen(td->td_md.md_cheri_mmap_cap);
 		/* Don't allow out of bounds offsets, they aren't useful */
 		if (offset < 0 || offset > len) {
-			PROC_UNLOCK(td->td_proc);
 			return (EINVAL);
 		}
-		td->td_proc->p_md.md_cheri_mmap_cap =
-		    cheri_setoffset(td->td_proc->p_md.md_cheri_mmap_cap,
+		td->td_md.md_cheri_mmap_cap =
+		    cheri_setoffset(td->td_md.md_cheri_mmap_cap,
 		    (register_t)offset);
-		PROC_UNLOCK(td->td_proc);
 		return (0);
 	}
 
@@ -1071,18 +1058,15 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		/* Reject errors or misaligned lengths */
 		if (len == (size_t)-1 || (len & PAGE_MASK) != 0)
 			return (EINVAL);
-		PROC_LOCK(td->td_proc);
-		olen = cheri_getlen(td->td_proc->p_md.md_cheri_mmap_cap);
-		offset = cheri_getoffset(td->td_proc->p_md.md_cheri_mmap_cap);
+		olen = cheri_getlen(td->td_md.md_cheri_mmap_cap);
+		offset = cheri_getoffset(td->td_md.md_cheri_mmap_cap);
 		/* Don't try to set out of bounds lengths */
 		if (offset > olen || len > olen - offset) {
-			PROC_UNLOCK(td->td_proc);
 			return (EINVAL);
 		}
-		td->td_proc->p_md.md_cheri_mmap_cap =
-		    cheri_csetbounds(td->td_proc->p_md.md_cheri_mmap_cap,
+		td->td_md.md_cheri_mmap_cap =
+		    cheri_csetbounds(td->td_md.md_cheri_mmap_cap,
 		    (register_t)len);
-		PROC_UNLOCK(td->td_proc);
 		return (0);
 	}
 

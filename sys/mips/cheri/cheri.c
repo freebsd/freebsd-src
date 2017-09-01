@@ -84,6 +84,7 @@ static union {
  */
 CTASSERT(offsetof(struct trapframe, ddc) % CHERICAP_SIZE == 0);
 CTASSERT(offsetof(struct mdthread, md_tls_cap) % CHERICAP_SIZE == 0);
+CTASSERT(offsetof(struct mdthread, md_cheri_mmap_cap) % CHERICAP_SIZE == 0);
 
 /*
  * For now, all we do is declare what we support, as most initialisation took

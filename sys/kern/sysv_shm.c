@@ -518,10 +518,8 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 			findspace = CHERI_ALIGN_SHIFT(size) < 12 ?
 			    VMFS_OPTIMAL_SPACE :
 			    VMFS_ALIGNED_SPACE(CHERI_ALIGN_SHIFT(size));
-			PROC_LOCK(td->td_proc);
-			shmaddr_cap = td->td_proc->p_md.md_cheri_mmap_cap;
-			PROC_UNLOCK(td->td_proc);
 		}
+			shmaddr_cap = td->td_md.md_cheri_mmap_cap;
 #endif
 	}
 #ifdef COMPAT_CHERIABI

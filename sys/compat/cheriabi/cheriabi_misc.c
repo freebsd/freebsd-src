@@ -1864,16 +1864,10 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 			return (EINVAL);
 		}
 
-		/* User didn't provide a capability so get the default one. */
-		PROC_LOCK(td->td_proc);
-		addr_cap = *((void * __capability *)&(td->td_proc->p_md.md_cheri_mmap_cap));
-		PROC_UNLOCK(td->td_proc);
-#ifdef INVARIANTS
-		int tag;
-		tag = cheri_gettag(addr_cap);
-		KASSERT(tag,
-		    ("td->td_proc->p_md.md_cheri_mmap_cap is untagged!"));
-#endif
+		/* User didn't provide a capability so get the thread one. */
+		addr_cap = td->td_md.md_cheri_mmap_cap;
+		KASSERT(cheri_gettag(addr_cap);,
+		    ("td->td_md.md_cheri_mmap_cap is untagged!"));
 	}
 	cap_base = cheri_getbase(addr_cap);
 	cap_len = cheri_getlen(addr_cap);
@@ -2089,9 +2083,7 @@ cheriabi_mmap_set_retcap(struct thread *td, void * __capability *retcap,
 	if (flags & MAP_FIXED) {
 		addr = *addrp;
 	} else {
-		PROC_LOCK(td->td_proc);
-		addr = *((void * __capability *)&td->td_proc->p_md.md_cheri_mmap_cap);
-		PROC_UNLOCK(td->td_proc);
+		addr = td->td_md.md_cheri_mmap_cap;
 	}
 
 	if (cheriabi_mmap_honor_prot) {
