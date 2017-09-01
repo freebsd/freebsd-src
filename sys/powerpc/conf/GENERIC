@@ -37,6 +37,7 @@ options 	SCHED_ULE		#ULE scheduler
 options 	PREEMPTION		#Enable kernel thread preemption
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
+options 	IPSEC			# IP (v4/v6) security
 options		IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
 options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	SCTP			#Stream Control Transmission Protocol
