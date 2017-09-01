@@ -1801,7 +1801,11 @@ cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp)
 {
 	void * __capability *base;
 
-	base = (void * __capability *)((void *)*stack_base);
+	KASSERT((vaddr_t)*stack_base & sizeof(void * __capability) - 1 == 0,
+	    ("*stack_base (%p) is not capability aligned", *stack_base));
+
+	base = (void * __capability *)
+	    __builtin_assume_aligned(*stack_base, sizeof(void * __capability));
 	base += imgp->args->argc + imgp->args->envc + 2;
 
 	cheriabi_set_auxargs(base, imgp);
