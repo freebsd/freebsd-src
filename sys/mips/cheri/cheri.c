@@ -128,12 +128,12 @@ SYSINIT(cheri_cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cheri_cpu_startup,
  * explicit base/length/offset arguments is quite the right thing.
  */
 void
-cheri_capability_set(void * __capability *cp, uint32_t perms, void *basep,
+cheri_capability_set(void * __capability *cp, uint32_t perms, vaddr_t basep,
     size_t length, off_t off)
 {
 	/* 'basep' is relative to $kdc. */
 	*cp = cheri_setoffset(cheri_andperm(cheri_csetbounds(
-	    cheri_incoffset(cheri_getkdc(), (vaddr_t)basep), length), perms),
+	    cheri_incoffset(cheri_getkdc(), basep), length), perms),
 	    off);
 
 	/*
@@ -245,7 +245,7 @@ cheri_capability_set_user_sigcode(void * __capability *cp, struct sysentvec *se)
 		base = rounddown2(base, sizeof(struct chericap));
 	}
 
-	cheri_capability_set(cp, CHERI_CAP_USER_CODE_PERMS, (void *)base,
+	cheri_capability_set(cp, CHERI_CAP_USER_CODE_PERMS, base,
 	    szsigcode, 0);
 }
 

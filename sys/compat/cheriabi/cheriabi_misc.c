@@ -1515,7 +1515,7 @@ cheriabi_syscall_helper_unregister(struct syscall_helper_data *sd)
 #define sucap(uaddr, base, offset, length, perms)			\
 	do {								\
 		void * __capability _tmpcap;				\
-		cheri_capability_set(&_tmpcap, (perms), (base),		\
+		cheri_capability_set(&_tmpcap, (perms), (vaddr_t)(base),\
 		    (length), (offset));				\
 		copyoutcap(&_tmpcap, uaddr, sizeof(_tmpcap));		\
 	} while(0)
@@ -1634,7 +1634,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	 */
 	imgp->args->argv = (void *)vectp;
 	for (; argc > 0; --argc) {
-		sucap(vectp++, (void *)destp, 0, strlen(stringp) + 1,
+		sucap(vectp++, destp, 0, strlen(stringp) + 1,
 		    CHERI_CAP_USER_DATA_PERMS);
 		while (*stringp++ != 0)
 			destp++;
@@ -1655,7 +1655,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	 */
 	imgp->args->envv = (void *)vectp;
 	for (; envc > 0; --envc) {
-		sucap(vectp++, (void *)destp, 0, strlen(stringp) + 1,
+		sucap(vectp++, destp, 0, strlen(stringp) + 1,
 		    CHERI_CAP_USER_DATA_PERMS);
 		while (*stringp++ != 0)
 			destp++;
@@ -1703,7 +1703,7 @@ convert_sigevent_c(struct sigevent_c *sig_c, struct sigevent *sig)
 
 #define	AUXARGS_ENTRY_CAP(pos, id, base, offset, len, perm)		\
 	do {								\
-		suword(pos++, id); sucap(pos++, (void *)(intptr_t)base,	\
+		suword(pos++, id); sucap(pos++, base,	\
 		    offset, len, perm);					\
 	} while(0)
 

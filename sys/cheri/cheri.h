@@ -145,7 +145,7 @@ struct cheri_stack {
  */
 #ifdef _KERNEL
 void	cheri_capability_set(void * __capability *capp, uint32_t uperms,
-	    void *basep, size_t length, off_t off);
+	    vaddr_t basep, size_t length, off_t off);
 
 /*
  * CHERI capability utility functions.

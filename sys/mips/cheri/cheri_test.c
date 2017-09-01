@@ -116,7 +116,7 @@ cheri_test_init(void)
 	 * Most other test caps are derived from this one.
 	 */
 	cheri_capability_set(&cheri_test_finecap,
-	    CHERI_PERM_LOAD | CHERI_PERM_STORE, &cheri_test_int,
+	    CHERI_PERM_LOAD | CHERI_PERM_STORE, (vaddr_t)&cheri_test_int,
 	    sizeof(cheri_test_int), 0);
 
 	/* Valid capability to cheri_test_int -- but tag stripped. */
