@@ -26,6 +26,7 @@
  * Copyright 2013 Saso Kiselkov. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright 2017 Joyent, Inc.
+ * Copyright (c) 2017 Datto Inc.
  */
 
 #ifndef _SYS_SPA_H
@@ -676,6 +677,7 @@ extern void spa_l2cache_drop(spa_t *spa);
 /* scanning */
 extern int spa_scan(spa_t *spa, pool_scan_func_t func);
 extern int spa_scan_stop(spa_t *spa);
+extern int spa_scrub_pause_resume(spa_t *spa, pool_scrub_cmd_t flag);
 
 /* spa syncing */
 extern void spa_sync(spa_t *spa, uint64_t txg); /* only for DMU use */

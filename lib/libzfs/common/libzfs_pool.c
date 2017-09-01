@@ -25,6 +25,7 @@
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright 2016 Nexenta Systems, Inc.
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
+ * Copyright (c) 2017 Datto Inc.
  */
 
 #include <ctype.h>
@@ -1851,22 +1852,39 @@ zpool_import_props(libzfs_handle_t *hdl, nvlist_t *config, const char *newname,
  * Scan the pool.
  */
 int
-zpool_scan(zpool_handle_t *zhp, pool_scan_func_t func)
+zpool_scan(zpool_handle_t *zhp, pool_scan_func_t func, pool_scrub_cmd_t cmd)
 {
 	zfs_cmd_t zc = { 0 };
 	char msg[1024];
+	int err;
 	libzfs_handle_t *hdl = zhp->zpool_hdl;
 
 	(void) strlcpy(zc.zc_name, zhp->zpool_name, sizeof (zc.zc_name));
 	zc.zc_cookie = func;
+	zc.zc_flags = cmd;
 
-	if (zfs_ioctl(hdl, ZFS_IOC_POOL_SCAN, &zc) == 0 ||
-	    (errno == ENOENT && func != POOL_SCAN_NONE))
+	if (zfs_ioctl(hdl, ZFS_IOC_POOL_SCAN, &zc) == 0)
+		return (0);
+
+	err = errno;
+
+	/* ECANCELED on a scrub means we resumed a paused scrub */
+	if (err == ECANCELED && func == POOL_SCAN_SCRUB &&
+	    cmd == POOL_SCRUB_NORMAL)
+		return (0);
+
+	if (err == ENOENT && func != POOL_SCAN_NONE && cmd == POOL_SCRUB_NORMAL)
 		return (0);
 
 	if (func == POOL_SCAN_SCRUB) {
-		(void) snprintf(msg, sizeof (msg),
-		    dgettext(TEXT_DOMAIN, "cannot scrub %s"), zc.zc_name);
+		if (cmd == POOL_SCRUB_PAUSE) {
+			(void) snprintf(msg, sizeof (msg), dgettext(TEXT_DOMAIN,
+			    "cannot pause scrubbing %s"), zc.zc_name);
+		} else {
+			assert(cmd == POOL_SCRUB_NORMAL);
+			(void) snprintf(msg, sizeof (msg), dgettext(TEXT_DOMAIN,
+			    "cannot scrub %s"), zc.zc_name);
+		}
 	} else if (func == POOL_SCAN_NONE) {
 		(void) snprintf(msg, sizeof (msg),
 		    dgettext(TEXT_DOMAIN, "cannot cancel scrubbing %s"),
@@ -1875,7 +1893,7 @@ zpool_scan(zpool_handle_t *zhp, pool_scan_func_t func)
 		assert(!"unexpected result");
 	}
 
-	if (errno == EBUSY) {
+	if (err == EBUSY) {
 		nvlist_t *nvroot;
 		pool_scan_stat_t *ps = NULL;
 		uint_t psc;
@@ -1884,14 +1902,18 @@ zpool_scan(zpool_handle_t *zhp, pool_scan_func_t func)
 		    ZPOOL_CONFIG_VDEV_TREE, &nvroot) == 0);
 		(void) nvlist_lookup_uint64_array(nvroot,
 		    ZPOOL_CONFIG_SCAN_STATS, (uint64_t **)&ps, &psc);
-		if (ps && ps->pss_func == POOL_SCAN_SCRUB)
-			return (zfs_error(hdl, EZFS_SCRUBBING, msg));
-		else
+		if (ps && ps->pss_func == POOL_SCAN_SCRUB) {
+			if (cmd == POOL_SCRUB_PAUSE)
+				return (zfs_error(hdl, EZFS_SCRUB_PAUSED, msg));
+			else
+				return (zfs_error(hdl, EZFS_SCRUBBING, msg));
+		} else {
 			return (zfs_error(hdl, EZFS_RESILVERING, msg));
-	} else if (errno == ENOENT) {
+		}
+	} else if (err == ENOENT) {
 		return (zfs_error(hdl, EZFS_NO_SCRUB, msg));
 	} else {
-		return (zpool_standard_error(hdl, errno, msg));
+		return (zpool_standard_error(hdl, err, msg));
 	}
 }
 

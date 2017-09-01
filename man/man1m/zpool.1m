@@ -22,8 +22,9 @@
 .\" Copyright (c) 2007, Sun Microsystems, Inc. All Rights Reserved.
 .\" Copyright (c) 2013 by Delphix. All rights reserved.
 .\" Copyright 2017 Nexenta Systems, Inc.
+.\" Copyright (c) 2017 Datto Inc.
 .\"
-.Dd Oct 2, 2016
+.Dd June 21, 2017
 .Dt ZPOOL 1M
 .Os
 .Sh NAME
@@ -137,7 +138,7 @@
 .Ar pool Ar device Op Ar new_device
 .Nm
 .Cm scrub
-.Op Fl s
+.Op Fl s | Fl p
 .Ar pool Ns ...
 .Nm
 .Cm set
@@ -1445,10 +1446,10 @@ Not all devices can be overridden in this manner.
 .It Xo
 .Nm
 .Cm scrub
-.Op Fl s
+.Op Fl s | Fl p
 .Ar pool Ns ...
 .Xc
-Begins a scrub.
+Begins a scrub or resumes a paused scrub.
 The scrub examines all data in the specified pools to verify that it checksums
 correctly.
 For replicated
@@ -1471,14 +1472,26 @@ faults or disk failure.
 .Pp
 Because scrubbing and resilvering are I/O-intensive operations, ZFS only allows
 one at a time.
-If a scrub is already in progress, the
+If a scrub is paused, the
 .Nm zpool Cm scrub
-command terminates it and starts a new scrub.
+resumes it.
 If a resilver is in progress, ZFS does not allow a scrub to be started until the
 resilver completes.
 .Bl -tag -width Ds
 .It Fl s
 Stop scrubbing.
+.El
+.Bl -tag -width Ds
+.It Fl p
+Pause scrubbing.
+Scrub pause state and progress are periodically synced to disk.
+If the system is restarted or pool is exported during a paused scrub,
+even after import, scrub will remain paused until it is resumed.
+Once resumed the scrub will pick up from the place where it was last
+checkpointed to disk.
+To resume a paused scrub issue
+.Nm zpool Cm scrub
+again.
 .El
 .It Xo
 .Nm
