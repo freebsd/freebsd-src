@@ -31,6 +31,7 @@ void platform_setusercontext_post_groups(struct passwd *);
 char *platform_get_krb5_client(const char *);
 char *platform_krb5_get_principal_name(const char *);
 int platform_sys_dir_uid(uid_t);
+void platform_disable_tracing(int);
 
 /* in platform-pledge.c */
 void platform_pledge_agent(void);

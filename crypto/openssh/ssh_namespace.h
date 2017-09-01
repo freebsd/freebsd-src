@@ -249,7 +249,6 @@
 #define ciphers_valid				Fssh_ciphers_valid
 #define cleanhostname				Fssh_cleanhostname
 #define cleanup_exit				Fssh_cleanup_exit
-#define clear_cached_addr			Fssh_clear_cached_addr
 #define colon					Fssh_colon
 #define compare					Fssh_compare
 #define compare_gps				Fssh_compare_gps
@@ -317,6 +316,8 @@
 #define dh_new_group				Fssh_dh_new_group
 #define dh_new_group1				Fssh_dh_new_group1
 #define dh_new_group14				Fssh_dh_new_group14
+#define dh_new_group16				Fssh_dh_new_group16
+#define dh_new_group18				Fssh_dh_new_group18
 #define dh_new_group_asc			Fssh_dh_new_group_asc
 #define dh_new_group_fallback			Fssh_dh_new_group_fallback
 #define dh_pub_is_valid				Fssh_dh_pub_is_valid
@@ -338,19 +339,16 @@
 #define fingerprint_b64				Fssh_fingerprint_b64
 #define fingerprint_hex				Fssh_fingerprint_hex
 #define fmt_scaled				Fssh_fmt_scaled
+#define forward_equals				Fssh_forward_equals
 #define free_hostkeys				Fssh_free_hostkeys
 #define freeargs				Fssh_freeargs
 #define freerrset				Fssh_freerrset
 #define gen_candidates				Fssh_gen_candidates
-#define get_canonical_hostname			Fssh_get_canonical_hostname
 #define get_local_ipaddr			Fssh_get_local_ipaddr
 #define get_local_name				Fssh_get_local_name
 #define get_local_port				Fssh_get_local_port
 #define get_peer_ipaddr				Fssh_get_peer_ipaddr
 #define get_peer_port				Fssh_get_peer_port
-#define get_remote_ipaddr			Fssh_get_remote_ipaddr
-#define get_remote_name_or_ip			Fssh_get_remote_name_or_ip
-#define get_remote_port				Fssh_get_remote_port
 #define get_sock_port				Fssh_get_sock_port
 #define get_socket_address			Fssh_get_socket_address
 #define get_u16					Fssh_get_u16
@@ -454,10 +452,12 @@
 #define log_level_name				Fssh_log_level_name
 #define log_level_number			Fssh_log_level_number
 #define log_redirect_stderr_to			Fssh_log_redirect_stderr_to
+#define logdie					Fssh_logdie
 #define logit					Fssh_logit
 #define lookup_key_in_hostkeys_by_type		Fssh_lookup_key_in_hostkeys_by_type
 #define lowercase				Fssh_lowercase
 #define mac_alg_list				Fssh_mac_alg_list
+#define mac_check				Fssh_mac_check
 #define mac_clear				Fssh_mac_clear
 #define mac_compute				Fssh_mac_compute
 #define mac_init				Fssh_mac_init
@@ -477,6 +477,7 @@
 #define mm_send_fd				Fssh_mm_send_fd
 #define mm_sshkey_sign				Fssh_mm_sshkey_sign
 #define monotime				Fssh_monotime
+#define monotime_double				Fssh_monotime_double
 #define ms_subtract_diff			Fssh_ms_subtract_diff
 #define ms_to_timeval				Fssh_ms_to_timeval
 #define mult					Fssh_mult
@@ -500,6 +501,7 @@
 #define packet_write_wait			Fssh_packet_write_wait
 #define parse_ipqos				Fssh_parse_ipqos
 #define parse_prime				Fssh_parse_prime
+#define parse_user_host_port			Fssh_parse_user_host_port
 #define percent_expand				Fssh_percent_expand
 #define permanently_drop_suid			Fssh_permanently_drop_suid
 #define permanently_set_uid			Fssh_permanently_set_uid
@@ -632,6 +634,8 @@
 #define ssh_krl_set_comment			Fssh_ssh_krl_set_comment
 #define ssh_krl_set_version			Fssh_ssh_krl_set_version
 #define ssh_krl_to_blob				Fssh_ssh_krl_to_blob
+#define ssh_local_ipaddr			Fssh_ssh_local_ipaddr
+#define ssh_local_port				Fssh_ssh_local_port
 #define ssh_lock_agent				Fssh_ssh_lock_agent
 #define ssh_malloc_init				Fssh_ssh_malloc_init
 #define ssh_msg_recv				Fssh_ssh_msg_recv
@@ -735,6 +739,7 @@
 #define sshbuf_dtob64				Fssh_sshbuf_dtob64
 #define sshbuf_dump				Fssh_sshbuf_dump
 #define sshbuf_dump_data			Fssh_sshbuf_dump_data
+#define sshbuf_dup_string			Fssh_sshbuf_dup_string
 #define sshbuf_free				Fssh_sshbuf_free
 #define sshbuf_from				Fssh_sshbuf_from
 #define sshbuf_fromb				Fssh_sshbuf_fromb
@@ -885,6 +890,7 @@
 #define sshpkt_start				Fssh_sshpkt_start
 #define start_progress_meter			Fssh_start_progress_meter
 #define stop_progress_meter			Fssh_stop_progress_meter
+#define stravis					Fssh_stravis
 #define strdelim				Fssh_strdelim
 #define strnvis					Fssh_strnvis
 #define strvis					Fssh_strvis

@@ -36,6 +36,8 @@
 
 #include <sys/socket.h>
 
+#include <stddef.h>  /* for wchar_t */
+
 /* OpenBSD function replacements */
 #include "base64.h"
 #include "sigact.h"
@@ -231,8 +233,41 @@ long long strtonum(const char *, long long, long long, const char **);
 # define mblen(x, y)	(1)
 #endif
 
+#ifndef HAVE_WCWIDTH
+# define wcwidth(x)	(((x) >= 0x20 && (x) <= 0x7e) ? 1 : -1)
+/* force our no-op nl_langinfo and mbtowc */
+# undef HAVE_NL_LANGINFO
+# undef HAVE_MBTOWC
+# undef HAVE_LANGINFO_H
+#endif
+
+#ifndef HAVE_NL_LANGINFO
+# define nl_langinfo(x)	""
+#endif
+
+#ifndef HAVE_MBTOWC
+int mbtowc(wchar_t *, const char*, size_t);
+#endif
+
 #if !defined(HAVE_VASPRINTF) || !defined(HAVE_VSNPRINTF)
 # include <stdarg.h>
+#endif
+
+/*
+ * Some platforms unconditionally undefine va_copy() so we define VA_COPY()
+ * instead.  This is known to be the case on at least some configurations of
+ * AIX with the xlc compiler.
+ */
+#ifndef VA_COPY
+# ifdef HAVE_VA_COPY
+#  define VA_COPY(dest, src) va_copy(dest, src)
+# else
+#  ifdef HAVE___VA_COPY
+#   define VA_COPY(dest, src) __va_copy(dest, src)
+#  else
+#   define VA_COPY(dest, src) (dest) = (src)
+#  endif
+# endif
 #endif
 
 #ifndef HAVE_VASPRINTF
