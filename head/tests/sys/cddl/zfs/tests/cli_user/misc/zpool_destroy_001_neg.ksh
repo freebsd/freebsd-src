@@ -27,6 +27,7 @@
 # ident	"@(#)zpool_destroy_001_neg.ksh	1.3	07/10/09 SMI"
 #
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -62,7 +63,7 @@ log_assert "zpool destroy [-f] [pool_name ...]"
 
 typeset -i i=0
 while [[ $i -lt ${#args[*]} ]]; do
-	log_mustnot $ZPOOL ${args[i]}
+	log_mustnot run_unprivileged "$ZPOOL ${args[i]}"
 	((i = i + 1))
 done
 

@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -62,7 +63,7 @@ fi
 
 log_assert "zfs unallow returns an error when run as a user"
 
-log_mustnot $ZFS unallow everyone $TESTPOOL/$TESTFS/allowed
+log_mustnot run_unprivileged "$ZFS unallow everyone $TESTPOOL/$TESTFS/allowed"
 
 # now check with zfs allow to see if the permissions are still there
 OUTPUT=$($ZFS allow $TESTPOOL/$TESTFS/allowed | $GREP "Local+Descendent" )

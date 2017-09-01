@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -65,7 +66,7 @@ while [[ $i -lt ${#args[*]} ]]
 do	
 	PROP=${props[$i]}
 	EXPECTED=${prop_vals[$i]}
-	ACTUAL=$( $ZFS get $PROP -o value -H snapdir $TESTPOOl/$TESTFS/prop )
+	ACTUAL=$( run_unprivileged "$ZFS get $PROP -o value -H snapdir $TESTPOOl/$TESTFS/prop" )
 	if [ "$ACTUAL" != "$EXPECTED" ]
 	then
 		log_fail "Property $PROP value was $ACTUAL, expected $EXPECTED"

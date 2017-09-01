@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -56,7 +57,7 @@
 
 log_assert "zfs snapshot returns an error when run as a user"
 
-log_mustnot $ZFS snapshot $TESTPOOL/$TESTFS@usersnap1
+log_mustnot run_unprivileged "$ZFS snapshot $TESTPOOL/$TESTFS@usersnap1"
 
 # Now verify that the above command didn't actually do anything
 if datasetexists $TESTPOOL/$TESTFS@usersnap1

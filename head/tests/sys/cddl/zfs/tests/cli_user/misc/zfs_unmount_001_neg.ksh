@@ -27,6 +27,7 @@
 # ident	"@(#)zfs_unmount_001_neg.ksh	1.2	07/01/09 SMI"
 #
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -68,7 +69,7 @@ log_assert "zfs u[n]mount [-f] [mountpoint|fs|snap]"
 
 typeset -i i=0
 while [[ $i -lt ${#args[*]} ]]; do
-	log_mustnot $ZFS ${args[i]}
+	log_mustnot run_unprivileged "$ZFS ${args[i]}"
 	((i = i + 1))
 done
 

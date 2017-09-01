@@ -27,6 +27,7 @@
 # ident	"@(#)zpool_iostat_002_pos.ksh	1.2	08/05/14 SMI"
 #
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -71,7 +72,7 @@ if ! is_global_zone ; then
 	TESTPOOL=${TESTPOOL%%/*}
 fi
 
-$ZPOOL iostat $TESTPOOL 2 3 > $tmpfile 2>&1
+run_unprivileged $ZPOOL iostat $TESTPOOL 2 3 > $tmpfile 2>&1
 stat_count=$($GREP $TESTPOOL $tmpfile | $WC -l)
 
 if [[ $stat_count -ne 3 ]]; then

@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -63,7 +64,7 @@ then
 	log_fail "$TESTPOOL/$TESTFS/unshared was incorrectly shared initially!"
 fi
 
-log_mustnot $ZFS share $TESTPOOL/$TESTFS/unshared
+log_mustnot run_unprivileged "$ZFS share $TESTPOOL/$TESTFS/unshared"
 
 # Now verify that the above command didn't actually do anything
 if is_shared $TESTDIR/unshared

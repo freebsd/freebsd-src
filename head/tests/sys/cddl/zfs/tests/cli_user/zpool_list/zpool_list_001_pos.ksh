@@ -27,6 +27,7 @@
 # ident	"@(#)zpool_list_001_pos.ksh	1.5	08/05/14 SMI"
 #
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -67,7 +68,7 @@ log_assert "zpool list [-H] [-o filed[,filed]*] [<pool_name> ...]"
 
 typeset -i i=0
 while [[ $i -lt ${#args[*]} ]]; do
-	log_must $ZPOOL ${args[i]}
+	log_must run_unprivileged $ZPOOL ${args[i]}
 
 	((i = i + 1))
 done

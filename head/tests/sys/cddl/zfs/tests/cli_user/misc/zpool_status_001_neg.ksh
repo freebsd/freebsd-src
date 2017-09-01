@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -54,35 +55,23 @@
 #
 ################################################################################
 
-function check_pool_status
-{
-	RESULT=$($GREP "pool:" $TMPDIR/pool-status.${TESTCASE_ID})
-	if [ -z "$RESULT" ]
-	then
-		log_fail "No pool: string found in zpool status output!"
-	fi
-	$RM $TMPDIR/pool-status.${TESTCASE_ID}
-}
-
 verify_runnable "global"
 
 log_assert "zpool status works when run as a user"
 
-log_must eval "$ZPOOL status > $TMPDIR/pool-status.${TESTCASE_ID}"
-check_pool_status
-
-log_must eval "$ZPOOL status -v > $TMPDIR/pool-status.${TESTCASE_ID}"
-check_pool_status
-
-log_must eval "$ZPOOL status $TESTPOOL> $TMPDIR/pool-status.${TESTCASE_ID}"
-check_pool_status
-
-log_must eval "$ZPOOL status -v $TESTPOOL > $TMPDIR/pool-status.${TESTCASE_ID}"
-check_pool_status
+log_must run_unprivileged "$ZPOOL status" | $GREP -q "pool:" || \
+	log_fail "No Pool: string found in zpool status output"
+log_must run_unprivileged "$ZPOOL status -v" | $GREP -q "pool:" || \
+	log_fail "No Pool: string found in zpool status output"
+log_must run_unprivileged "$ZPOOL status $TESTPOOL" | $GREP -q "pool:" || \
+	log_fail "No Pool: string found in zpool status output"
+log_must run_unprivileged "$ZPOOL status -v $TESTPOOL" | $GREP -q "pool:" || \
+	log_fail "No Pool: string found in zpool status output"
 
 # $TESTPOOL.virt has an offline device, so -x will show it
-log_must eval "$ZPOOL status -x $TESTPOOL.virt > $TMPDIR/pool-status.${TESTCASE_ID}"
-check_pool_status
+log_must run_unprivileged "$ZPOOL status -x $TESTPOOL.virt" | \
+	$GREP -q "pool:" || \
+	log_fail "No Pool: string found in zpool status output"
 
 log_pass "zpool status works when run as a user"
 

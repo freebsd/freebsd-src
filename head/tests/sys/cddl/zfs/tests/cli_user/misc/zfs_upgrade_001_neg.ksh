@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -65,7 +66,7 @@ fi
 log_assert "zfs upgrade returns an error when run as a user"
 
 
-log_mustnot $ZFS upgrade $TESTPOOL/$TESTFS/version1
+log_mustnot run_unprivileged "$ZFS upgrade $TESTPOOL/$TESTFS/version1"
 
 # now check to see the above command didn't do anything
 VERSION=$($ZFS upgrade $TESTPOOL/$TESTFS/version1 2>&1 \

@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -56,7 +57,7 @@
 
 log_assert "zfs mount returns an error when run as a user"
 
-log_mustnot $ZFS mount $TESTPOOL/$TESTFS/$TESTFS2.unmounted
+log_mustnot run_unprivileged "$ZFS mount $TESTPOOL/$TESTFS/$TESTFS2.unmounted"
 
 # now verify that the above command didn't do anything
 MOUNTED=$($MOUNT | $GREP $TESTPOOL/$TESTFS/$TESTFS2.unmounted)

@@ -27,6 +27,7 @@
 # ident	"@(#)zfs_list_004_neg.ksh	1.1	07/06/05 SMI"
 #
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -66,8 +67,8 @@ paths="$TESTPOOL/NONEXISTFS $TESTPOOL/$TESTFS/NONEXISTFS \
 cd /tmp
 
 for fs in $paths ; do
-	log_mustnot $ZFS list $fs
-	log_mustnot $ZFS list -r $fs
+	log_mustnot run_unprivileged $ZFS list $fs
+	log_mustnot run_unprivileged $ZFS list -r $fs
 done
 
 log_pass "'zfs list [-r]' fails while the given dataset/path does not exist " \

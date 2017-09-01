@@ -30,6 +30,7 @@ zpool_list_001_pos_head()
 	atf_set "descr" "zpool list [-H] [-o filed[,filed]*] [<pool_name> ...]"
 	atf_set "require.progs"  zpool
 	atf_set "require.user" root
+	atf_set "require.config" unprivileged_user
 }
 zpool_list_001_pos_body()
 {
@@ -39,7 +40,7 @@ zpool_list_001_pos_body()
 	. $(atf_get_srcdir)/zpool_list.cfg
 
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	su -m `atf_config_get unprivileged_user` -c "ksh93 $(atf_get_srcdir)/zpool_list_001_pos.ksh" || atf_fail "Testcase failed"
+	ksh93 $(atf_get_srcdir)/zpool_list_001_pos.ksh || atf_fail "Testcase failed"
 }
 zpool_list_001_pos_cleanup()
 {
@@ -50,29 +51,20 @@ zpool_list_001_pos_cleanup()
 }
 
 
-atf_test_case zpool_list_002_neg cleanup
+atf_test_case zpool_list_002_neg
 zpool_list_002_neg_head()
 {
 	atf_set "descr" "Executing 'zpool list' with bad options fails"
 	atf_set "require.progs"  zpool
-	atf_set "require.user" root
+	atf_set "require.user" unprivileged
 }
 zpool_list_002_neg_body()
 {
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_list.cfg
 
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	su -m `atf_config_get unprivileged_user` -c "ksh93 $(atf_get_srcdir)/zpool_list_002_neg.ksh" || atf_fail "Testcase failed"
+	ksh93 $(atf_get_srcdir)/zpool_list_002_neg.ksh || atf_fail "Testcase failed"
 }
-zpool_list_002_neg_cleanup()
-{
-	. $(atf_get_srcdir)/../../../include/default.cfg
-	. $(atf_get_srcdir)/zpool_list.cfg
-
-	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
-}
-
 
 atf_init_test_cases()
 {

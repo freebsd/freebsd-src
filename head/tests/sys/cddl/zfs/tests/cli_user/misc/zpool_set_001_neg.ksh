@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -67,7 +68,7 @@ do
 	PROP=${props[$i]}
 	EXPECTED=${prop_vals[$i]}
 	NEW=${prop_new[$i]}
-	log_mustnot $POOL set $PROP=$NEW $TESTPOOL
+	log_mustnot run_unprivileged "$ZPOOL set $PROP=$NEW $TESTPOOL"
 	
 	# Now verify that the above command did nothing
 	ACTUAL=$( $ZPOOL get $PROP $TESTPOOL | $GREP $PROP | $AWK '{print $1}' )

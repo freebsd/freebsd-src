@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -60,10 +61,10 @@ log_assert "zpool upgrade returns an error when run as a user"
 
 log_onexit cleanup
 # zpool upgrade returns 0 when it can't do anything
-log_must $ZPOOL upgrade $TESTPOOL.virt
+log_must run_unprivileged "$ZPOOL upgrade $TESTPOOL.virt"
 
 # Now try to upgrade our version 1 pool
-log_mustnot $ZPOOL upgrade v1-pool
+log_mustnot run_unprivileged "$ZPOOL upgrade v1-pool"
 
 # if the pool has been upgraded, then v1-pool won't be listed in the output
 # of zpool upgrade anymore

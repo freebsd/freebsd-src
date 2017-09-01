@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -57,9 +58,9 @@ verify_runnable "global"
 
 log_assert "zpool history returns an error when run as a user"
 
-log_mustnot $ZPOOL history
-log_mustnot $ZPOOL history $TESTPOOL
-log_mustnot $ZPOOL history -i $TESTPOOL
-log_mustnot $ZPOOL history -l $TESTPOOL
-log_mustnot $ZPOOL history -il $TESTPOOL
+log_mustnot run_unprivileged "$ZPOOL history"
+log_mustnot run_unprivileged "$ZPOOL history $TESTPOOL"
+log_mustnot run_unprivileged "$ZPOOL history -i $TESTPOOL"
+log_mustnot run_unprivileged "$ZPOOL history -l $TESTPOOL"
+log_mustnot run_unprivileged "$ZPOOL history -il $TESTPOOL"
 log_pass

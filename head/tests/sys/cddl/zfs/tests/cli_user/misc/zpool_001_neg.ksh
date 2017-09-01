@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -65,7 +66,7 @@ function cleanup
 log_onexit cleanup
 log_assert "zpool shows a usage message when run as a user"
 
-eval "$ZPOOL > $TMPDIR/zpool_001_neg.${TESTCASE_ID}.txt 2>&1"
+run_unprivileged "$ZPOOL" > $TMPDIR/zpool_001_neg.${TESTCASE_ID}.txt 2>&1
 log_must $GREP "usage: zpool command args" $TMPDIR/zpool_001_neg.${TESTCASE_ID}.txt
 
 log_pass "zpool shows a usage message when run as a user"

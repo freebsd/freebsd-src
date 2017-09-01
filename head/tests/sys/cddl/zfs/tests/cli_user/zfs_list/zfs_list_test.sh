@@ -30,6 +30,7 @@ zfs_list_001_pos_head()
 	atf_set "descr" "Verify 'zfs list [-rH] [-o property[,prop]*] [fs|clct|vol]'."
 	atf_set "require.progs"  zfs
 	atf_set "require.user" root
+	atf_set "require.config" "unprivileged_user"
 }
 zfs_list_001_pos_body()
 {
@@ -38,7 +39,7 @@ zfs_list_001_pos_body()
 	. $(atf_get_srcdir)/zfs_list.cfg
 
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	su -m `atf_config_get unprivileged_user` -c "ksh93 $(atf_get_srcdir)/zfs_list_001_pos.ksh" || atf_fail "Testcase failed"
+	ksh93 $(atf_get_srcdir)/zfs_list_001_pos.ksh || atf_fail "Testcase failed"
 }
 zfs_list_001_pos_cleanup()
 {
@@ -56,6 +57,7 @@ zfs_list_002_pos_head()
 	atf_set "descr" "The sort functionality in 'zfs list' works as expected."
 	atf_set "require.progs"  zfs
 	atf_set "require.user" root
+	atf_set "require.config" "unprivileged_user"
 }
 zfs_list_002_pos_body()
 {
@@ -64,7 +66,7 @@ zfs_list_002_pos_body()
 	. $(atf_get_srcdir)/zfs_list.cfg
 
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	su -m `atf_config_get unprivileged_user` -c "ksh93 $(atf_get_srcdir)/zfs_list_002_pos.ksh" || atf_fail "Testcase failed"
+	ksh93 $(atf_get_srcdir)/zfs_list_002_pos.ksh || atf_fail "Testcase failed"
 }
 zfs_list_002_pos_cleanup()
 {
@@ -82,6 +84,7 @@ zfs_list_003_pos_head()
 	atf_set "descr" "Verify 'zfs list -r' could display any children recursively."
 	atf_set "require.progs"  zfs
 	atf_set "require.user" root
+	atf_set "require.config" "unprivileged_user"
 }
 zfs_list_003_pos_body()
 {
@@ -90,7 +93,7 @@ zfs_list_003_pos_body()
 	. $(atf_get_srcdir)/zfs_list.cfg
 
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	su -m `atf_config_get unprivileged_user` -c "ksh93 $(atf_get_srcdir)/zfs_list_003_pos.ksh" || atf_fail "Testcase failed"
+	ksh93 $(atf_get_srcdir)/zfs_list_003_pos.ksh || atf_fail "Testcase failed"
 }
 zfs_list_003_pos_cleanup()
 {
@@ -108,6 +111,7 @@ zfs_list_004_neg_head()
 	atf_set "descr" "Verify 'zfs list [-r]' should fail while the givendataset/path does not exist or not belong to zfs."
 	atf_set "require.progs"  zfs
 	atf_set "require.user" root
+	atf_set "require.config" "unprivileged_user"
 }
 zfs_list_004_neg_body()
 {
@@ -116,7 +120,7 @@ zfs_list_004_neg_body()
 	. $(atf_get_srcdir)/zfs_list.cfg
 
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	su -m `atf_config_get unprivileged_user` -c "ksh93 $(atf_get_srcdir)/zfs_list_004_neg.ksh" || atf_fail "Testcase failed"
+	ksh93 $(atf_get_srcdir)/zfs_list_004_neg.ksh || atf_fail "Testcase failed"
 }
 zfs_list_004_neg_cleanup()
 {
@@ -134,16 +138,17 @@ zfs_list_005_pos_head()
 	atf_set "descr" "Verify 'zfs list' evaluate multiple '-s' optionsfrom left to right in decreasing order of importance."
 	atf_set "require.progs"  zfs
 	atf_set "require.user" root
+	atf_set "require.config" "unprivileged_user"
 }
 zfs_list_005_pos_body()
 {
-	atf_skip "Despite running as an unpriveleged user, this test attempts to set ZFS properties.  It should probably be moved to cli_root"
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_list.kshlib
 	. $(atf_get_srcdir)/zfs_list.cfg
 
+	atf_expect_fail "https://www.illumos.org/issues/8599 Snapshots don't preserve user properties"
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	su -m `atf_config_get unprivileged_user` -c "ksh93 $(atf_get_srcdir)/zfs_list_005_pos.ksh" || atf_fail "Testcase failed"
+	ksh93 $(atf_get_srcdir)/zfs_list_005_pos.ksh || atf_fail "Testcase failed"
 }
 zfs_list_005_pos_cleanup()
 {
@@ -161,16 +166,16 @@ zfs_list_006_pos_head()
 	atf_set "descr" "Verify 'zfs list' exclude list of snapshot."
 	atf_set "require.progs"  zfs zpool
 	atf_set "require.user" root
+	atf_set "require.config" "unprivileged_user"
 }
 zfs_list_006_pos_body()
 {
-	atf_skip "Despite running as an unpriveleged user, this test attempts to set ZFS properties.  It should probably be moved to cli_root"
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_list.kshlib
 	. $(atf_get_srcdir)/zfs_list.cfg
 
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	su -m `atf_config_get unprivileged_user` -c "ksh93 $(atf_get_srcdir)/zfs_list_006_pos.ksh" || atf_fail "Testcase failed"
+	ksh93 $(atf_get_srcdir)/zfs_list_006_pos.ksh || atf_fail "Testcase failed"
 }
 zfs_list_006_pos_cleanup()
 {
@@ -188,6 +193,7 @@ zfs_list_007_pos_head()
 	atf_set "descr" "'zfs list -d <n>' should get expected output."
 	atf_set "require.progs"  zfs
 	atf_set "require.user" root
+	atf_set "require.config" "unprivileged_user"
 }
 zfs_list_007_pos_body()
 {
@@ -196,7 +202,7 @@ zfs_list_007_pos_body()
 	. $(atf_get_srcdir)/zfs_list.cfg
 
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	su -m `atf_config_get unprivileged_user` -c "ksh93 $(atf_get_srcdir)/zfs_list_007_pos.ksh" || atf_fail "Testcase failed"
+	ksh93 $(atf_get_srcdir)/zfs_list_007_pos.ksh || atf_fail "Testcase failed"
 }
 zfs_list_007_pos_cleanup()
 {
@@ -214,6 +220,7 @@ zfs_list_008_neg_head()
 	atf_set "descr" "A negative depth or a non numeric depth should fail in 'zfs list -d <n>'"
 	atf_set "require.progs"  zfs
 	atf_set "require.user" root
+	atf_set "require.config" "unprivileged_user"
 }
 zfs_list_008_neg_body()
 {
@@ -222,7 +229,7 @@ zfs_list_008_neg_body()
 	. $(atf_get_srcdir)/zfs_list.cfg
 
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	su -m `atf_config_get unprivileged_user` -c "ksh93 $(atf_get_srcdir)/zfs_list_008_neg.ksh" || atf_fail "Testcase failed"
+	ksh93 $(atf_get_srcdir)/zfs_list_008_neg.ksh || atf_fail "Testcase failed"
 }
 zfs_list_008_neg_cleanup()
 {

@@ -27,6 +27,7 @@
 # ident	"@(#)zfs_list_003_pos.ksh	1.1	07/06/05 SMI"
 #
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -75,7 +76,7 @@ done
 cd /tmp
 
 for path in $TESTPOOL/$TESTFS $TESTDIR ./../$TESTDIR ; do
-	$ZFS list -rH -o name $path > $tmpfile
+	run_unprivileged $ZFS list -rH -o name $path > $tmpfile
 	for fs in $children ; do
 		$GREP -q "^${fs}$" $tmpfile
 		if (( $? != 0 )); then

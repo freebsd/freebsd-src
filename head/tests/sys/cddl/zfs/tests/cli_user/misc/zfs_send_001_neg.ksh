@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -65,7 +66,7 @@ function cleanup
 log_assert "zfs send returns an error when run as a user"
 log_onexit cleanup
 
-log_mustnot eval "$ZFS send $TESTPOOL/$TESTFS@snap > $TMPDIR/zfstest_datastream.${TESTCASE_ID}"
+run_unprivileged "$ZFS send $TESTPOOL/$TESTFS@snap" > $TMPDIR/zfstest_datastream.${TESTCASE_ID} && log_fail "zfs send unexpectedly succeeded!"
 
 # Now check that the above command actually did nothing
 

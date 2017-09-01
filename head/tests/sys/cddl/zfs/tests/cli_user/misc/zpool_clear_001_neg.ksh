@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -58,6 +59,6 @@ verify_runnable "global"
 
 log_assert "zpool clear returns an error when run as a user"
 
-log_mustnot $ZPOOL clear $TESTPOOL
+log_mustnot run_unprivileged "$ZPOOL clear $TESTPOOL"
 
 log_pass "zpool clear returns an error when run as a user"

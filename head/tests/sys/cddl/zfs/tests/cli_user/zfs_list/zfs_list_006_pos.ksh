@@ -27,6 +27,7 @@
 # ident	"@(#)zfs_list_006_pos.ksh	1.1	09/05/19 SMI"
 #
 . $STF_SUITE/tests/cli_user/zfs_list/zfs_list.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 #################################################################################
 #
@@ -61,21 +62,12 @@ if ! pool_prop_exist "listsnapshots" ; then
 	log_unsupported "Pool property of 'listsnapshots' not supported."
 fi
 
-function cleanup
-{
-	if [[ -n $oldvalue ]] && is_global_zone ; then
-		log_must $ZPOOL set listsnapshots=$oldvalue $pool
-	fi
-}
-
-log_onexit cleanup
 log_assert "Verify 'zfs list' exclude list of snapshot."
 
 set -A hide_options "--" "-t filesystem" "-t volume"
 set -A show_options "--" "-t snapshot" "-t all"
 
 typeset pool=${TESTPOOL%%/*}
-typeset oldvalue=$(get_pool_prop listsnapshots $pool)
 typeset	dataset=${DATASETS%% *}
 typeset BASEFS=$TESTPOOL/$TESTFS
 
@@ -89,20 +81,20 @@ for newvalue in "" "on" "off" ; do
 		log_must $ZPOOL set listsnapshots=$newvalue $pool
 	fi
 
-	typeset expect="log_must"
-
-	if [[ -z $newvalue ]] &&  check_version "5.11" ; then
-		expect="log_mustnot"
-	elif [[ $newvalue == "off" ]] ; then
-		expect="log_mustnot"
+	if [ -z "$newvalue" -o "off" = "$newvalue" ] ; then
+		run_unprivileged $ZFS list -r -H -o name $pool | $GREP -q '@' && \
+			log_fail "zfs list included snapshots but shouldn't have"
+	else
+		run_unprivileged $ZFS list -r -H -o name $pool | $GREP -q '@' || \
+			log_fail "zfs list failed to include snapshots"
 	fi
 	
-	$expect eval "$ZFS list -r -H -o name $pool | $GREP '@' > /dev/null 2>&1"
 		
 	typeset -i i=0
 	while (( i < ${#hide_options[*]} )) ; do
-		log_mustnot eval "$ZFS list -r -H -o name ${hide_options[i]} $pool | \
-$GREP '@' > /dev/null 2>&1"
+		run_unprivileged $ZFS list -r -H -o name ${hide_options[i]} $pool | \
+			$GREP -q '@' && \
+			log_fail "zfs list included snapshots but shouldn't have"
 
 		(( i = i + 1 ))
 	done
@@ -110,19 +102,19 @@ $GREP '@' > /dev/null 2>&1"
 	(( i = 0 ))
 
 	while (( i < ${#show_options[*]} )) ; do
-		log_must eval "$ZFS list -r -H -o name ${show_options[i]} $pool | \
-$GREP '@' > /dev/null 2>&1"
-	
+		run_unprivileged $ZFS list -r -H -o name ${show_options[i]} $pool | \
+			$GREP -q '@' || \
+			log_fail "zfs list failed to include snapshots"
 		(( i = i + 1 ))
 	done
 
-	output=$($ZFS list -H -o name $BASEFS/${dataset}@snap)
+	output=$(run_unprivileged $ZFS list -H -o name $BASEFS/${dataset}@snap)
 	if [[ $output != $BASEFS/${dataset}@snap ]] ; then
 		log_fail "zfs list not show $BASEFS/${dataset}@snap"
 	fi
 	
 	if is_global_zone ; then
-		output=$($ZFS list -H -o name $BASEFS/${dataset}-vol@snap)
+		output=$(run_unprivileged $ZFS list -H -o name $BASEFS/${dataset}-vol@snap)
 		if [[ $output != $BASEFS/${dataset}-vol@snap ]] ; then
 			log_fail "zfs list not show $BASEFS/${dataset}-vol@snap"
 		fi

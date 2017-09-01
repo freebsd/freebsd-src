@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -66,12 +67,12 @@ function check_for_import
 verify_runnable "global"
 
 log_assert "zpool import returns an error when run as a user"
-log_mustnot $ZPOOL import
+log_mustnot run_unprivileged "$ZPOOL import"
 
-log_mustnot $ZPOOL import -a
+log_mustnot run_unprivileged "$ZPOOL import -a"
 check_for_import
 
-log_mustnot $ZPOOL import -d /$TESTDIR $TESTPOOL.exported
+log_mustnot run_unprivileged "$ZPOOL import -d /$TESTDIR $TESTPOOL.exported"
 check_for_import
 
 log_pass "zpool import returns an error when run as a user"

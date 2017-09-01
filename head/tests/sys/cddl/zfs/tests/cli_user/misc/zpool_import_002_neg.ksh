@@ -27,6 +27,7 @@
 # ident	"@(#)zpool_import_002_neg.ksh	1.1	07/10/09 SMI"
 #
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -67,7 +68,7 @@ log_assert "Executing 'zpool import' by regular user fails"
 
 typeset -i i=0
 while [[ $i -lt ${#args[*]} ]]; do
-	log_mustnot $ZPOOL import ${args[i]}
+	log_mustnot run_unprivileged "$ZPOOL import ${args[i]}"
 	((i = i + 1))
 done
 

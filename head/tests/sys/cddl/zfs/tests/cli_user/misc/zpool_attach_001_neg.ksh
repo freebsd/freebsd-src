@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -67,12 +68,10 @@ verify_runnable "global"
 
 log_assert "zpool attach returns an error when run as a user"
 
-log_mustnot $ZPOOL attach $TESTPOOL.virt /$TESTDIR/disk1.dat \
-	/$TESTDIR/disk-additional.dat
+log_mustnot run_unprivileged "$ZPOOL attach $TESTPOOL.virt /$TESTDIR/disk1.dat /$TESTDIR/disk-additional.dat"
 check_for_attach
 
-log_mustnot $ZPOOL attach -f $TESTPOOL.virt /$TESTDIR/disk1.dat \
-	 /$TESTDIR/disk-additional.dat
+log_mustnot run_unprivileged "$ZPOOL attach -f $TESTPOOL.virt /$TESTDIR/disk1.dat /$TESTDIR/disk-additional.dat"
 check_for_attach
 
 log_pass "zpool attach returns an error when run as a user"

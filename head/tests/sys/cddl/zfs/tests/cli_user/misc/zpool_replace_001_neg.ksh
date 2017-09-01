@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -68,12 +69,10 @@ verify_runnable "global"
 
 log_assert "zpool replace returns an error when run as a user"
 
-log_mustnot $ZPOOL replace $TESTPOOL.virt /$TESTDIR/disk-1.dat \
-	 /$TESTDIR/disk-additional.dat
+log_mustnot run_unprivileged "$ZPOOL replace $TESTPOOL.virt /$TESTDIR/disk-1.dat /$TESTDIR/disk-additional.dat"
 check_for_replace
 
-log_mustnot $ZPOOL replace -f $TESTPOOL.virt /$TESTDIR/disk-1.dat \
- /$TESTDIR/disk-additional.dat
+log_mustnot run_unprivileged "$ZPOOL replace -f $TESTPOOL.virt /$TESTDIR/disk-1.dat /$TESTDIR/disk-additional.dat"
 check_for_replace
 
 log_pass "zpool replace returns an error when run as a user"

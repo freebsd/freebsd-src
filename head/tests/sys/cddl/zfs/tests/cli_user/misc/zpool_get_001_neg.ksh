@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -73,6 +74,6 @@ do
         i=$(( $i + 1 ))
 done
 
-log_must $ZPOOL get all $TESTPOOL
+log_must run_unprivileged "$ZPOOL get all $TESTPOOL"
 
 log_pass "zpool get works when run as a user"

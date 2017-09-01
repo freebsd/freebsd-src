@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -56,8 +57,8 @@
 
 log_assert "zfs receive returns an error when run as a user"
 
-log_mustnot eval "$ZFS receive -d $TESTPOOL/$TESTFS/$TESTFS2 \
- < $TMPDIR/zfstest_datastream.dat"
+log_mustnot run_unprivileged "$ZFS receive -d $TESTPOOL/$TESTFS/$TESTFS2" \
+ < $TMPDIR/zfstest_datastream.dat
 
 # verify that command actually did nothing
 

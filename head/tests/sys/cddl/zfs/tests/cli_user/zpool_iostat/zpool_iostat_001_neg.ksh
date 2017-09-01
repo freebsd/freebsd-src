@@ -27,6 +27,7 @@
 # ident	"@(#)zpool_iostat_001_neg.ksh	1.3	07/10/09 SMI"
 #
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -67,7 +68,7 @@ log_assert "zpool iostat [pool_name ...] [interval]"
 
 typeset -i i=0
 while [[ $i -lt ${#args[*]} ]]; do
-	log_must $ZPOOL ${args[i]}
+	log_must run_unprivileged $ZPOOL ${args[i]}
 	((i = i + 1))
 done
 

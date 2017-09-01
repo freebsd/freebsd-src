@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -67,7 +68,7 @@ do
 	PROP=${props[$i]}
 	EXPECTED=${prop_vals[$i]}
 	NEW=${prop_new[$i]}
-	log_mustnot $ZFS set $PROP=$NEW $TESTPOOL/$TESTFS/prop
+	log_mustnot run_unprivileged "$ZFS set $PROP=$NEW $TESTPOOL/$TESTFS/prop"
 	
 	# Now verify that the above command did nothing
 	ACTUAL=$($ZFS get $PROP -o value -H snapdir $TESTPOOl/$TESTFS/prop )

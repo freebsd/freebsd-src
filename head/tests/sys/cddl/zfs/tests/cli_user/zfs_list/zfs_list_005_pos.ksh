@@ -27,6 +27,7 @@
 # ident	"@(#)zfs_list_005_pos.ksh	1.2	08/11/03 SMI"
 #
 . $STF_SUITE/tests/cli_user/zfs_list/zfs_list.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 #################################################################################
 #
@@ -59,7 +60,7 @@ verify_runnable "both"
 log_assert "Verify 'zfs list' evaluate multiple '-s' options " \
 	"from left to right in decreasing order of importance."
 
-COLOR="red yellow green blue red yellow while"
+COLOR="red yellow green blue red yellow white"
 AMOUNT="0217 812 0217 0781 7 1364 687"
 RESERVATION="2048K 1024 2048K 512K 16M 3072 128K"
 
@@ -128,66 +129,66 @@ else
 fi
 # Sort by color,amount
 verify_sort \
-	"$ZFS list -H -r -o name -s f:color -s f:amount -t filesystem $basefs" \
+	"run_unprivileged $ZFS list -H -r -o name -s f:color -s f:amount -t filesystem $basefs" \
 	"$fs_color_amount" "f:color,f:amount"
 if is_global_zone ; then
 	verify_sort \
-	"$ZFS list -H -r -o name -s f:color -s f:amount -t volume $basefs" \
+	"run_unprivileged $ZFS list -H -r -o name -s f:color -s f:amount -t volume $basefs" \
 	"$vol_color_amount" "f:color,f:amount"
 fi
 # Sort by amount,color
 verify_sort \
-	"$ZFS list -H -r -o name -s f:amount -s f:color -t filesystem $basefs" \
+	"run_unprivileged $ZFS list -H -r -o name -s f:amount -s f:color -t filesystem $basefs" \
 	"$fs_amount_color" "f:amount,f:color"
 if is_global_zone ; then
 	verify_sort \
-	"$ZFS list -H -r -o name -s f:amount -s f:color -t volume $basefs" \
+	"run_unprivileged $ZFS list -H -r -o name -s f:amount -s f:color -t volume $basefs" \
 	"$vol_amount_color" "f:amount,f:color"
 fi
 
 # Sort by color reservation
 verify_sort \
-	"$ZFS list -H -r -o name -s f:color -s reserv -t filesystem $basefs" \
+	"run_unprivileged $ZFS list -H -r -o name -s f:color -s reserv -t filesystem $basefs" \
 	"$fs_color_reserv" "f:color,reserv"
 if is_global_zone ; then
 	verify_sort \
-	"$ZFS list -H -r -o name -s f:color -s reserv -t volume $basefs" \
+	"run_unprivileged $ZFS list -H -r -o name -s f:color -s reserv -t volume $basefs" \
 	"$vol_color_reserv" "f:color,reserv"
 fi
 # Sort by reserv, color
 verify_sort \
-	"$ZFS list -H -r -o name -s reserv -s f:color -t filesystem $basefs" \
+	"run_unprivileged $ZFS list -H -r -o name -s reserv -s f:color -t filesystem $basefs" \
 	"$fs_reserv_color" "reserv,f:color"
 if is_global_zone ; then
 	verify_sort \
-	"$ZFS list -H -r -o name -s reserv -s f:color -t volume $basefs" \
+	"run_unprivileged $ZFS list -H -r -o name -s reserv -s f:color -t volume $basefs" \
 	"$vol_reserv_color" "reserv,f:color"
 fi
 
 # Sort by reservation, amount, color
 verify_sort \
-	"$ZFS list -H -r -o name -s reserv -s reserv -s f:amount -s f:color -t filesystem $basefs" \
+	"run_unprivileged $ZFS list -H -r -o name -s reserv -s reserv -s f:amount -s f:color -t filesystem $basefs" \
 	"$fs_reserv_amount_color" "reserv,:amount,f:color"
 if is_global_zone ; then
 	verify_sort \
-	"$ZFS list -H -r -o name -s reserv -s f:amount -s f:color -t volume $basefs" \
+	"run_unprivileged $ZFS list -H -r -o name -s reserv -s f:amount -s f:color -t volume $basefs" \
 	"$vol_reserv_amount_color" "reserv,:amount,f:color"
 fi
 # User property and reservation was not stored in snapshot
 verify_sort \
-	"$ZFS list -H -r -o name -s f:amount -s f:color -t snapshot $basefs" \
+	"run_unprivileged $ZFS list -H -r -o name -s f:amount -s f:color -t snapshot $basefs" \
 	"$snap_list" "f:amount,f:color"
 verify_sort \
-	"$ZFS list -H -r -o name -s f:color -s f:amount -t snapshot $basefs" \
+	"run_unprivileged $ZFS list -H -r -o name -s f:color -s f:amount -t snapshot $basefs" \
 	"$snap_list" "f:color,f:amount"
 verify_sort \
-	"$ZFS list -H -r -o name -s f:color -s reserv -t snapshot $basefs" \
+	"run_unprivileged $ZFS list -H -r -o name -s f:color -s reserv -t snapshot $basefs" \
 	"$snap_list" "f:color,reservation"
 verify_sort \
-	"$ZFS list -H -r -o name -s reserv -s f:color -t snapshot $basefs" \
+	"run_unprivileged $ZFS list -H -r -o name -s reserv -s f:color -t snapshot $basefs" \
 	"$snap_list" "reserv,f:color"
 verify_sort \
-	"$ZFS list -H -r -o name -s reserv -s f:amount -s f:color -t snapshot $basefs" \
+	"run_unprivileged $ZFS list -H -r -o name -s reserv -s f:amount -s f:color -t snapshot $basefs" \
 	"$snap_list" "reservation,f:color,f:amount"
 
 log_pass "Verify 'zfs list' evaluate multiple '-s' options " \

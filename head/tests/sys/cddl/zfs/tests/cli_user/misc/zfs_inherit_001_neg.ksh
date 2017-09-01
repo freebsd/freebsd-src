@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -55,7 +56,7 @@
 ################################################################################
 
 log_assert "zfs inherit returns an error when run as a user"
-log_mustnot $ZFS inherit snapdir $TESTPOOL/$TESTFS/$TESTFS2
+log_mustnot run_unprivileged "$ZFS inherit snapdir $TESTPOOL/$TESTFS/$TESTFS2"
 
 # check to see that the above command really did nothing
 PROP=$($ZFS get snapdir $TESTPOOL/$TESTFS)

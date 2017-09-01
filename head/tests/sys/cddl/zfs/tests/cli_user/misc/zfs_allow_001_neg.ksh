@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -63,13 +64,13 @@ fi
 
 log_assert "zfs allow returns an error when run as a user"
 
-log_must $ZFS allow $TESTPOOL/$TESTFS
-log_mustnot $ZFS allow `$LOGNAME` create $TESTPOOL/$TESTFS
+log_must run_unprivileged "$ZFS allow $TESTPOOL/$TESTFS"
+log_mustnot run_unprivileged "$ZFS allow `$LOGNAME` create $TESTPOOL/$TESTFS"
 
 # now verify that the above command actually did nothing by
 # checking for any allow output. ( if no allows are granted,
 # nothing should be output )
-OUTPUT=$($ZFS allow $TESTPOOL/$TESTFS | $GREP "Local+Descendent" )
+OUTPUT=$(run_unprivileged "$ZFS allow $TESTPOOL/$TESTFS" | $GREP "Local+Descendent" )
 if [ -n "$OUTPUT" ]
 then
 	log_fail "zfs allow permissions were granted on $TESTPOOL/$TESTFS"

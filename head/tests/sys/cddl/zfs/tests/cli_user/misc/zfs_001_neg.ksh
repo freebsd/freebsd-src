@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -64,7 +65,7 @@ function cleanup
 log_onexit cleanup
 log_assert "zfs shows a usage message when run as a user"
 
-eval "$ZFS > $TMPDIR/zfs_001_neg.${TESTCASE_ID}.txt 2>&1"
+run_unprivileged "$ZFS" > $TMPDIR/zfs_001_neg.${TESTCASE_ID}.txt 2>&1
 log_must $GREP "usage: zfs command args" $TMPDIR/zfs_001_neg.${TESTCASE_ID}.txt
 
 log_pass "zfs shows a usage message when run as a user"

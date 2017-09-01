@@ -9,6 +9,7 @@ FILESDIR=${TESTSDIR}
 ${PACKAGE}FILES+=	setup.ksh
 ${PACKAGE}FILES+=	cleanup.ksh
 ${PACKAGE}FILES+=	cli.cfg
+${PACKAGE}FILES+=	cli_user.kshlib
 
 TESTS_SUBDIRS+=	zpool_iostat
 TESTS_SUBDIRS+=	zpool_list

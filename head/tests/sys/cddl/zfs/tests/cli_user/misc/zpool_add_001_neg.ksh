@@ -27,6 +27,7 @@
 # ident	"@(#)zpool_add_001_neg.ksh	1.4	09/01/12 SMI"
 #
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -66,7 +67,7 @@ log_assert "zpool add [-fn] pool_name vdev"
 
 typeset -i i=0
 while [[ $i -lt ${#args[*]} ]]; do
-	log_mustnot $ZPOOL ${args[i]}
+	log_mustnot run_unprivileged "$ZPOOL ${args[i]}"
 	((i = i + 1))
 done
 

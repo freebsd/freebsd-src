@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -68,10 +69,10 @@ verify_runnable "global"
 
 log_assert "zpool online returns an error when run as a user"
 
-log_mustnot $ZPOOL online $TESTPOOL.virt /$TESTDIR/disk-offline.dat
+log_mustnot run_unprivileged "$ZPOOL online $TESTPOOL.virt /$TESTDIR/disk-offline.dat"
 check_for_online
 
-log_mustnot $ZPOOL online -t $TESTPOOL.virt /$TESTDIR/disk-offline.dat
+log_mustnot run_unprivileged "$ZPOOL online -t $TESTPOOL.virt /$TESTDIR/disk-offline.dat"
 check_for_online
 
 log_pass "zpool online returns an error when run as a user"

@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -57,7 +58,7 @@
 
 log_assert "zfs rollback returns an error when run as a user"
 
-log_mustnot $ZFS rollback $TESTPOOL/$TESTFS@snap
+log_mustnot run_unprivileged "$ZFS rollback $TESTPOOL/$TESTFS@snap"
 
 # now verify the above command didn't actually do anything
 

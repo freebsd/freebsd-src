@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -58,7 +59,7 @@ verify_runnable "global"
 
 log_assert "zpool scrub returns an error when run as a user"
 
-log_mustnot $ZPOOL scrub $TESTPOOL
-log_mustnot $ZPOOL scrub -s $TESTPOOL
+log_mustnot run_unprivileged "$ZPOOL scrub $TESTPOOL"
+log_mustnot run_unprivileged "$ZPOOL scrub -s $TESTPOOL"
 
 log_pass "zpool scrub returns an error when run as a user"

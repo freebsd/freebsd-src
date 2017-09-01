@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -55,7 +56,7 @@
 
 function check_zdb
 {
-	$@ > $TMPDIR/zdb.${TESTCASE_ID}
+	run_unprivileged $@ > $TMPDIR/zdb.${TESTCASE_ID}
 	$GREP "Dataset mos" $TMPDIR/zdb.${TESTCASE_ID}
 	if [ $? -eq 0 ]
 	then
@@ -79,10 +80,9 @@ verify_runnable "global"
 log_assert "zdb can't run as a user on datasets, but can run without arguments"
 log_onexit cleanup
 
-log_must eval "$ZDB > $TMPDIR/zdb_001_neg.${TESTCASE_ID}.txt"
+run_unprivileged $ZDB > $TMPDIR/zdb_001_neg.${TESTCASE_ID}.txt || log_fail "$ZDB failed"
 # verify the output looks okay
 log_must $GREP pool_guid $TMPDIR/zdb_001_neg.${TESTCASE_ID}.txt
-log_must $RM $TMPDIR/zdb_001_neg.${TESTCASE_ID}.txt
 
 # we shouldn't able to run it on any dataset
 check_zdb $ZDB $TESTPOOL

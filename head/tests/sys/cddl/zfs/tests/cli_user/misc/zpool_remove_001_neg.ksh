@@ -28,6 +28,7 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 ################################################################################
 #
@@ -58,7 +59,7 @@ verify_runnable "global"
 
 log_assert "zpool remove returns an error when run as a user"
 
-log_mustnot $ZPOOL remove $TESTPOOL.virt /$TESTDIR/disk-spare1.dat
+log_mustnot run_unprivileged "$ZPOOL remove $TESTPOOL.virt /$TESTDIR/disk-spare1.dat"
 
 RESULT=$($ZPOOL status -v $TESTPOOL.virt | $GREP disk-spare1.dat)
 if [ -z "$RESULT" ]
