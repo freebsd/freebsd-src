@@ -108,6 +108,7 @@ static void process_peer_close(struct c4iw_ep *ep);
 static void process_conn_error(struct c4iw_ep *ep);
 static void process_close_complete(struct c4iw_ep *ep);
 static void ep_timeout(unsigned long arg);
+static void setiwsockopt(struct socket *so);
 static void init_iwarp_socket(struct socket *so, void *arg);
 static void uninit_iwarp_socket(struct socket *so);
 static void process_data(struct c4iw_ep *ep);
@@ -616,16 +617,12 @@ process_close_complete(struct c4iw_ep *ep)
 }
 
 static void
-init_iwarp_socket(struct socket *so, void *arg)
+setiwsockopt(struct socket *so)
 {
 	int rc;
 	struct sockopt sopt;
 	int on = 1;
 
-	SOCKBUF_LOCK(&so->so_rcv);
-	soupcall_set(so, SO_RCV, c4iw_so_upcall, arg);
-	so->so_state |= SS_NBIO;
-	SOCKBUF_UNLOCK(&so->so_rcv);
 	sopt.sopt_dir = SOPT_SET;
 	sopt.sopt_level = IPPROTO_TCP;
 	sopt.sopt_name = TCP_NODELAY;
@@ -637,6 +634,16 @@ init_iwarp_socket(struct socket *so, void *arg)
 		log(LOG_ERR, "%s: can't set TCP_NODELAY on so %p (%d)\n",
 		    __func__, so, rc);
 	}
+}
+
+static void
+init_iwarp_socket(struct socket *so, void *arg)
+{
+
+	SOCKBUF_LOCK(&so->so_rcv);
+	soupcall_set(so, SO_RCV, c4iw_so_upcall, arg);
+	so->so_state |= SS_NBIO;
+	SOCKBUF_UNLOCK(&so->so_rcv);
 }
 
 static void
@@ -734,6 +741,7 @@ process_newconn(struct iw_cm_id *parent_cm_id, struct socket *child_so)
 	free(local, M_SONAME);
 	free(remote, M_SONAME);
 
+	setiwsockopt(child_so);
 	init_iwarp_socket(child_so, &child_ep->com);
 	c4iw_get_ep(&parent_ep->com);
 	init_timer(&child_ep->timer);
@@ -2235,6 +2243,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	}
 	fib4_free_nh_ext(RT_DEFAULT_FIB, &nh4);
 
+	setiwsockopt(cm_id->so);
 	state_set(&ep->com, CONNECTING);
 	ep->tos = 0;
 	ep->com.local_addr = cm_id->local_addr;
