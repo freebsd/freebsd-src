@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.228 2016/02/20 23:01:46 sobrado Exp $
+.\" $OpenBSD: ssh_config.5,v 1.236 2016/07/22 07:00:46 djm Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: February 20 2016 $
+.Dd $Mdocdate: July 22 2016 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -957,6 +957,36 @@ This option is intended for situations where ssh-agent
 offers many different identities.
 The default is
 .Dq no .
+.It Cm IdentityAgent
+Specifies the
+.Ux Ns -domain
+socket used to communicate with the authentication agent.
+.Pp
+This option overrides the
+.Dq SSH_AUTH_SOCK
+environment variable and can be used to select a specific agent.
+Setting the socket name to
+.Dq none
+disables the use of an authentication agent.
+If the string
+.Dq SSH_AUTH_SOCK
+is specified, the location of the socket will be read from the
+.Ev SSH_AUTH_SOCK
+environment variable.
+.Pp
+The socket name may use the tilde
+syntax to refer to a user's home directory or one of the following
+escape characters:
+.Ql %d
+(local user's home directory),
+.Ql %u
+(local user name),
+.Ql %l
+(local host name),
+.Ql %h
+(remote host name) or
+.Ql %r
+(remote user name).
 .It Cm IdentityFile
 Specifies a file from which the user's DSA, ECDSA, Ed25519 or RSA authentication
 identity is read.
@@ -1024,6 +1054,25 @@ It is recommended that
 .Cm IgnoreUnknown
 be listed early in the configuration file as it will not be applied
 to unknown options that appear before it.
+.It Cm Include
+Include the specified configuration file(s).
+Multiple pathnames may be specified and each pathname may contain
+.Xr glob 3
+wildcards and, for user configurations, shell-like
+.Dq ~
+references to user home directories.
+Files without absolute paths are assumed to be in
+.Pa ~/.ssh
+if included in a user configuration file or
+.Pa /etc/ssh
+if included from the system configuration file.
+.Cm Include
+directive may appear inside a
+.Cm Match
+or
+.Cm Host
+block
+to perform conditional inclusion.
 .It Cm IPQoS
 Specifies the IPv4 type-of-service or DSCP class for connections.
 Accepted values are
@@ -1314,6 +1363,30 @@ For example, the following directive would connect via an HTTP proxy at
 .Bd -literal -offset 3n
 ProxyCommand /usr/bin/nc -X connect -x 192.0.2.0:8080 %h %p
 .Ed
+.It Cm ProxyJump
+Specifies one or more jump proxies as
+.Xo
+.Sm off
+.Op Ar user No @
+.Ar host
+.Op : Ns Ar port
+.Sm on
+.Xc .
+Multiple proxies may be separated by comma characters and will be visited
+sequentially.
+Setting this option will cause
+.Xr ssh 1
+to connect to the target host by first making a
+.Xr ssh 1
+connection to the specified
+.Cm ProxyJump
+host and then establishing a
+TCP forwarding to the ultimate target from there.
+.Pp
+Note that this option will compete with the
+.Cm ProxyCommand
+option - whichever is specified first will prevent later instances of the
+other from taking effect.
 .It Cm ProxyUseFdpass
 Specifies that
 .Cm ProxyCommand
@@ -1733,7 +1806,7 @@ See also VERIFYING HOST KEYS in
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20161230 .
+.Dq FreeBSD-20170902 .
 The value
 .Dq none
 may be used to disable this.

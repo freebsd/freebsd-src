@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.c,v 1.87 2016/01/14 16:17:40 markus Exp $ */
+/* $OpenBSD: monitor_wrap.c,v 1.88 2016/03/07 19:02:43 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -60,6 +60,7 @@
 #include "packet.h"
 #include "mac.h"
 #include "log.h"
+#include "auth-pam.h"
 #ifdef TARGET_OS_MAC    /* XXX Broken krb5 headers on Mac */
 #undef TARGET_OS_MAC
 #include "zlib.h"
@@ -362,6 +363,9 @@ mm_auth_password(Authctxt *authctxt, char *password)
 	mm_request_receive_expect(pmonitor->m_recvfd, MONITOR_ANS_AUTHPASSWORD, &m);
 
 	authenticated = buffer_get_int(&m);
+#ifdef USE_PAM
+	sshpam_set_maxtries_reached(buffer_get_int(&m));
+#endif
 
 	buffer_free(&m);
 
@@ -378,15 +382,15 @@ mm_user_key_allowed(struct passwd *pw, Key *key, int pubkey_auth_attempt)
 }
 
 int
-mm_hostbased_key_allowed(struct passwd *pw, char *user, char *host,
+mm_hostbased_key_allowed(struct passwd *pw, const char *user, const char *host,
     Key *key)
 {
 	return (mm_key_allowed(MM_HOSTKEY, user, host, key, 0));
 }
 
 int
-mm_auth_rhosts_rsa_key_allowed(struct passwd *pw, char *user,
-    char *host, Key *key)
+mm_auth_rhosts_rsa_key_allowed(struct passwd *pw, const char *user,
+    const char *host, Key *key)
 {
 	int ret;
 
@@ -397,8 +401,8 @@ mm_auth_rhosts_rsa_key_allowed(struct passwd *pw, char *user,
 }
 
 int
-mm_key_allowed(enum mm_keytype type, char *user, char *host, Key *key,
-    int pubkey_auth_attempt)
+mm_key_allowed(enum mm_keytype type, const char *user, const char *host,
+    Key *key, int pubkey_auth_attempt)
 {
 	Buffer m;
 	u_char *blob;
@@ -644,6 +648,7 @@ mm_sshpam_query(void *ctx, char **name, char **info,
 	debug3("%s: pam_query returned %d", __func__, ret);
 	*name = buffer_get_string(&m, NULL);
 	*info = buffer_get_string(&m, NULL);
+	sshpam_set_maxtries_reached(buffer_get_int(&m));
 	*num = buffer_get_int(&m);
 	if (*num > PAM_MAX_NUM_MSG)
 		fatal("%s: recieved %u PAM messages, expected <= %u",
