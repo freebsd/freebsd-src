@@ -25,6 +25,7 @@
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright 2017 Joyent, Inc.
+ * Copyright (c) 2017 Datto Inc.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -687,6 +688,16 @@ typedef enum pool_scan_func {
 } pool_scan_func_t;
 
 /*
+ * Used to control scrub pause and resume.
+ */
+typedef enum pool_scrub_cmd {
+	POOL_SCRUB_NORMAL = 0,
+	POOL_SCRUB_PAUSE,
+	POOL_SCRUB_FLAGS_END
+} pool_scrub_cmd_t;
+
+
+/*
  * ZIO types.  Needed to interpret vdev statistics below.
  */
 typedef enum zio_type {
@@ -718,6 +729,9 @@ typedef struct pool_scan_stat {
 	/* values not stored on disk */
 	uint64_t	pss_pass_exam;	/* examined bytes per scan pass */
 	uint64_t	pss_pass_start;	/* start time of a scan pass */
+	uint64_t	pss_pass_scrub_pause; /* pause time of a scurb pass */
+	/* cumulative time scrub spent paused, needed for rate calculation */
+	uint64_t	pss_pass_scrub_spent_paused;
 } pool_scan_stat_t;
 
 typedef enum dsl_scan_state {
