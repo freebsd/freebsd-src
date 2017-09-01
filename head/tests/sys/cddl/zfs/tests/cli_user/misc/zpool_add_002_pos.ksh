@@ -28,13 +28,9 @@
 . $STF_SUITE/tests/cli_user/cli_user.kshlib
 
 
-ADD_DISK="${DISKS%% }"
-ADD_DISK="${ADD_DISK##* }"
+set_disks
 
-[[ -z $ADD_DISK ]] && \
-        log_fail "No spare disks available."
-
-set -A args "add -n $TESTPOOL $ADD_DISK" "add -fn $TESTPOOL $ADD_DISK"
+set -A args "add -n $TESTPOOL $DISK1" "add -fn $TESTPOOL $DISK1"
 
 log_assert "zpool add [-f] -n succeeds for unpriveleged users"
 

@@ -38,6 +38,7 @@ zfs_list_001_pos_body()
 	. $(atf_get_srcdir)/zfs_list.kshlib
 	. $(atf_get_srcdir)/zfs_list.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_list_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -65,6 +66,7 @@ zfs_list_002_pos_body()
 	. $(atf_get_srcdir)/zfs_list.kshlib
 	. $(atf_get_srcdir)/zfs_list.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_list_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -92,6 +94,7 @@ zfs_list_003_pos_body()
 	. $(atf_get_srcdir)/zfs_list.kshlib
 	. $(atf_get_srcdir)/zfs_list.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_list_003_pos.ksh || atf_fail "Testcase failed"
 }
@@ -119,6 +122,7 @@ zfs_list_004_neg_body()
 	. $(atf_get_srcdir)/zfs_list.kshlib
 	. $(atf_get_srcdir)/zfs_list.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_list_004_neg.ksh || atf_fail "Testcase failed"
 }
@@ -146,6 +150,7 @@ zfs_list_005_pos_body()
 	. $(atf_get_srcdir)/zfs_list.kshlib
 	. $(atf_get_srcdir)/zfs_list.cfg
 
+	verify_disk_count "$DISKS" 1
 	atf_expect_fail "https://www.illumos.org/issues/8599 Snapshots don't preserve user properties"
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_list_005_pos.ksh || atf_fail "Testcase failed"
@@ -174,6 +179,7 @@ zfs_list_006_pos_body()
 	. $(atf_get_srcdir)/zfs_list.kshlib
 	. $(atf_get_srcdir)/zfs_list.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_list_006_pos.ksh || atf_fail "Testcase failed"
 }
@@ -201,6 +207,7 @@ zfs_list_007_pos_body()
 	. $(atf_get_srcdir)/zfs_list.kshlib
 	. $(atf_get_srcdir)/zfs_list.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_list_007_pos.ksh || atf_fail "Testcase failed"
 }
@@ -228,6 +235,7 @@ zfs_list_008_neg_body()
 	. $(atf_get_srcdir)/zfs_list.kshlib
 	. $(atf_get_srcdir)/zfs_list.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_list_008_neg.ksh || atf_fail "Testcase failed"
 }

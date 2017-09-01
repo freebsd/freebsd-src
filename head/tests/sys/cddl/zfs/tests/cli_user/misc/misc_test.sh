@@ -37,6 +37,7 @@ zdb_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zdb_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -62,6 +63,7 @@ zfs_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -87,6 +89,7 @@ zfs_allow_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_allow_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -112,6 +115,7 @@ zfs_clone_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_clone_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -137,6 +141,7 @@ zfs_create_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_create_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -162,6 +167,7 @@ zfs_destroy_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_destroy_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -187,6 +193,7 @@ zfs_get_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_get_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -212,6 +219,7 @@ zfs_inherit_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_inherit_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -237,6 +245,7 @@ zfs_mount_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_mount_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -262,6 +271,7 @@ zfs_promote_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_promote_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -287,6 +297,7 @@ zfs_receive_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_receive_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -312,6 +323,7 @@ zfs_rename_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rename_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -337,6 +349,7 @@ zfs_rollback_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rollback_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -362,6 +375,7 @@ zfs_send_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_send_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -387,6 +401,7 @@ zfs_set_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_set_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -412,6 +427,7 @@ zfs_share_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_share_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -437,6 +453,7 @@ zfs_snapshot_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_snapshot_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -462,6 +479,7 @@ zfs_unallow_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_unallow_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -487,6 +505,7 @@ zfs_unmount_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_unmount_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -512,6 +531,7 @@ zfs_unshare_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_unshare_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -537,6 +557,7 @@ zfs_upgrade_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_upgrade_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -562,6 +583,7 @@ zpool_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -587,6 +609,7 @@ zpool_add_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_add_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -612,6 +635,7 @@ zpool_add_002_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_add_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -637,6 +661,7 @@ zpool_attach_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_attach_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -662,6 +687,7 @@ zpool_clear_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_clear_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -686,6 +712,7 @@ zpool_create_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/zpool_create_001_neg.ksh || atf_fail "Testcase failed"
 }
 
@@ -701,6 +728,7 @@ zpool_create_002_pos_body()
 {
 	. $(atf_get_srcdir)/../../../include/default.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/zpool_create_002_pos.ksh || atf_fail "Testcase failed"
 }
 
@@ -718,6 +746,7 @@ zpool_destroy_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_destroy_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -743,6 +772,7 @@ zpool_detach_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_detach_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -768,6 +798,7 @@ zpool_export_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_export_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -793,6 +824,7 @@ zpool_get_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_get_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -818,6 +850,7 @@ zpool_history_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_history_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -843,6 +876,7 @@ zpool_import_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_import_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -868,6 +902,7 @@ zpool_import_002_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_import_002_neg.ksh || atf_fail "Testcase failed"
 }
@@ -893,6 +928,7 @@ zpool_offline_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_offline_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -918,6 +954,7 @@ zpool_online_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_online_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -943,6 +980,7 @@ zpool_remove_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_remove_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -968,6 +1006,7 @@ zpool_replace_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_replace_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -993,6 +1032,7 @@ zpool_scrub_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_scrub_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -1018,6 +1058,7 @@ zpool_set_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_set_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -1043,6 +1084,7 @@ zpool_status_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_status_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -1068,6 +1110,7 @@ zpool_upgrade_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/misc.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_upgrade_001_neg.ksh || atf_fail "Testcase failed"
 }

@@ -55,13 +55,9 @@
 
 verify_runnable "global"
 
-ADD_DISK="${DISKS%% }"
-ADD_DISK="${ADD_DISK##* }"
+set_disks
 
-[[ -z $ADD_DISK ]] && \
-        log_fail "No spare disks available."
-
-set -A args "add $TESTPOOL $ADD_DISK" "add -f $TESTPOOL $ADD_DISK"
+set -A args "add $TESTPOOL $DISK1" "add -f $TESTPOOL $DISK1"
 
 log_assert "zpool add [-fn] pool_name vdev"
 
