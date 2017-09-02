@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.287 2016/11/30 02:57:40 djm Exp $
+.\" $OpenBSD: sshd.8,v 1.288 2017/01/30 23:27:39 dtucker Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: November 30 2016 $
+.Dd $Mdocdate: January 30 2017 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -634,7 +634,7 @@ and
 files contain host public keys for all known hosts.
 The global file should
 be prepared by the administrator (optional), and the per-user file is
-maintained automatically: whenever the user connects from an unknown host,
+maintained automatically: whenever the user connects to an unknown host,
 its key is added to the per-user file.
 .Pp
 Each line in these files contains the following fields: markers (optional),

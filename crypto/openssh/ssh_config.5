@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.240 2016/10/15 19:56:25 jmc Exp $
+.\" $OpenBSD: ssh_config.5,v 1.242 2017/02/27 14:30:33 jmc Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: October 15 2016 $
+.Dd $Mdocdate: February 27 2017 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -417,6 +417,10 @@ If the specified value begins with a
 .Sq +
 character, then the specified ciphers will be appended to the default set
 instead of replacing them.
+If the specified value begins with a
+.Sq -
+character, then the specified ciphers (including wildcards) will be removed
+from the default set instead of replacing them.
 .Pp
 The supported ciphers are:
 .Bd -literal -offset indent
@@ -786,6 +790,10 @@ Alternately if the specified value begins with a
 .Sq +
 character, then the specified key types will be appended to the default set
 instead of replacing them.
+If the specified value begins with a
+.Sq -
+character, then the specified key types (including wildcards) will be removed
+from the default set instead of replacing them.
 The default for this option is:
 .Bd -literal -offset 3n
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
@@ -809,6 +817,10 @@ Alternately if the specified value begins with a
 .Sq +
 character, then the specified key types will be appended to the default set
 instead of replacing them.
+If the specified value begins with a
+.Sq -
+character, then the specified key types (including wildcards) will be removed
+from the default set instead of replacing them.
 The default for this option is:
 .Bd -literal -offset 3n
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
@@ -1029,6 +1041,10 @@ Alternately if the specified value begins with a
 .Sq +
 character, then the specified methods will be appended to the default set
 instead of replacing them.
+If the specified value begins with a
+.Sq -
+character, then the specified methods (including wildcards) will be removed
+from the default set instead of replacing them.
 The default is:
 .Bd -literal -offset indent
 curve25519-sha256,curve25519-sha256@libssh.org,
@@ -1104,6 +1120,10 @@ If the specified value begins with a
 .Sq +
 character, then the specified algorithms will be appended to the default set
 instead of replacing them.
+If the specified value begins with a
+.Sq -
+character, then the specified algorithms (including wildcards) will be removed
+from the default set instead of replacing them.
 .Pp
 The algorithms that contain
 .Qq -etm
@@ -1129,7 +1149,7 @@ However, this option disables host authentication for localhost.
 The argument to this keyword must be
 .Cm yes
 or
-.Cm no .
+.Cm no
 (the default).
 .It Cm NumberOfPasswordPrompts
 Specifies the number of password prompts before giving up.
@@ -1266,6 +1286,10 @@ Alternately if the specified value begins with a
 .Sq +
 character, then the key types after it will be appended to the default
 instead of replacing it.
+If the specified value begins with a
+.Sq -
+character, then the specified key types (including wildcards) will be removed
+from the default set instead of replacing them.
 The default for this option is:
 .Bd -literal -offset 3n
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
@@ -1650,7 +1674,7 @@ in
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20170902 .
+.Dq FreeBSD-20170903 .
 The value
 .Cm none
 may be used to disable this.

@@ -1,4 +1,4 @@
-/*	$OpenBSD: test_helper.c,v 1.6 2015/03/03 20:42:49 djm Exp $	*/
+/*	$OpenBSD: test_helper.c,v 1.7 2017/03/14 01:10:07 dtucker Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -438,6 +438,17 @@ assert_u_int(const char *file, int line, const char *a1, const char *a2,
 	test_header(file, line, a1, a2, "U_INT", pred);
 	fprintf(stderr, "%12s = %u / 0x%x\n", a1, aa1, aa1);
 	fprintf(stderr, "%12s = %u / 0x%x\n", a2, aa2, aa2);
+	test_die();
+}
+
+void
+assert_long(const char *file, int line, const char *a1, const char *a2,
+    long aa1, long aa2, enum test_predicate pred)
+{
+	TEST_CHECK(aa1, aa2, pred);
+	test_header(file, line, a1, a2, "LONG", pred);
+	fprintf(stderr, "%12s = %ld / 0x%lx\n", a1, aa1, aa1);
+	fprintf(stderr, "%12s = %ld / 0x%lx\n", a2, aa2, aa2);
 	test_die();
 }
 

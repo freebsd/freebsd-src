@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.239 2016/11/30 03:00:05 djm Exp $
+.\" $OpenBSD: sshd_config.5,v 1.243 2017/03/14 07:19:07 djm Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: November 30 2016 $
+.Dd $Mdocdate: March 14 2017 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -438,6 +438,10 @@ If the specified value begins with a
 .Sq +
 character, then the specified ciphers will be appended to the default set
 instead of replacing them.
+If the specified value begins with a
+.Sq -
+character, then the specified ciphers (including wildcards) will be removed
+from the default set instead of replacing them.
 .Pp
 The supported ciphers are:
 .Pp
@@ -651,6 +655,10 @@ Alternately if the specified value begins with a
 .Sq +
 character, then the specified key types will be appended to the default set
 instead of replacing them.
+If the specified value begins with a
+.Sq -
+character, then the specified key types (including wildcards) will be removed
+from the default set instead of replacing them.
 The default for this option is:
 .Bd -literal -offset 3n
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
@@ -845,6 +853,10 @@ Alternately if the specified value begins with a
 .Sq +
 character, then the specified methods will be appended to the default set
 instead of replacing them.
+If the specified value begins with a
+.Sq -
+character, then the specified methods (including wildcards) will be removed
+from the default set instead of replacing them.
 The supported algorithms are:
 .Pp
 .Bl -item -compact -offset indent
@@ -935,6 +947,10 @@ If the specified value begins with a
 .Sq +
 character, then the specified algorithms will be appended to the default set
 instead of replacing them.
+If the specified value begins with a
+.Sq -
+character, then the specified algorithms (including wildcards) will be removed
+from the default set instead of replacing them.
 .Pp
 The algorithms that contain
 .Qq -etm
@@ -1291,6 +1307,10 @@ Alternately if the specified value begins with a
 .Sq +
 character, then the specified key types will be appended to the default set
 instead of replacing them.
+If the specified value begins with a
+.Sq -
+character, then the specified key types (including wildcards) will be removed
+from the default set instead of replacing them.
 The default for this option is:
 .Bd -literal -offset 3n
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
@@ -1496,33 +1516,11 @@ is enabled, you will not be able to run
 as a non-root user.
 The default is
 .Cm yes .
-.It Cm UsePrivilegeSeparation
-Specifies whether
-.Xr sshd 8
-separates privileges by creating an unprivileged child process
-to deal with incoming network traffic.
-After successful authentication, another process will be created that has
-the privilege of the authenticated user.
-The goal of privilege separation is to prevent privilege
-escalation by containing any corruption within the unprivileged processes.
-The argument must be
-.Cm yes ,
-.Cm no ,
-or
-.Cm sandbox .
-If
-.Cm UsePrivilegeSeparation
-is set to
-.Cm sandbox
-then the pre-authentication unprivileged process is subject to additional
-restrictions.
-The default is
-.Cm sandbox .
 .It Cm VersionAddendum
 Optionally specifies additional text to append to the SSH protocol banner
 sent by the server upon connection.
 The default is
-.Qq FreeBSD-20170902 .
+.Qq FreeBSD-20170903 .
 The value
 .Cm none
 may be used to disable this.
@@ -1669,13 +1667,13 @@ The username.
 .El
 .Pp
 .Cm AuthorizedKeysCommand
-accepts the tokens %%, %f, %h, %t, and %u.
+accepts the tokens %%, %f, %h, %k, %t, and %u.
 .Pp
 .Cm AuthorizedKeysFile
 accepts the tokens %%, %h, and %u.
 .Pp
 .Cm AuthorizedPrincipalsCommand
-accepts the tokens %%, %F, %f, %K, %k, %h, %i, %s, %T, %t, and %u.
+accepts the tokens %%, %F, %f, %h, %i, %K, %k, %s, %T, %t, and %u.
 .Pp
 .Cm AuthorizedPrincipalsFile
 accepts the tokens %%, %h, and %u.
