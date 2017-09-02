@@ -255,7 +255,7 @@
 #define compat_pkalg_proposal			Fssh_compat_pkalg_proposal
 #define compress_buffer				Fssh_compress_buffer
 #define connect_next				Fssh_connect_next
-#define connect_to				Fssh_connect_to
+#define connect_to_reason			Fssh_connect_to_reason
 #define convtime				Fssh_convtime
 #define crypto_hash_sha512			Fssh_crypto_hash_sha512
 #define crypto_hashblocks_sha512		Fssh_crypto_hashblocks_sha512
@@ -328,7 +328,6 @@
 #define error					Fssh_error
 #define export_dns_rr				Fssh_export_dns_rr
 #define fatal					Fssh_fatal
-#define filter_proposal				Fssh_filter_proposal
 #define fingerprint_b64				Fssh_fingerprint_b64
 #define fingerprint_hex				Fssh_fingerprint_hex
 #define fmprintf				Fssh_fmprintf
@@ -459,6 +458,7 @@
 #define mac_setup				Fssh_mac_setup
 #define mac_valid				Fssh_mac_valid
 #define match					Fssh_match
+#define match_filter_list			Fssh_match_filter_list
 #define match_host_and_ip			Fssh_match_host_and_ip
 #define match_hostname				Fssh_match_hostname
 #define match_list				Fssh_match_list
@@ -693,6 +693,7 @@
 #define ssh_packet_set_encryption_key		Fssh_ssh_packet_set_encryption_key
 #define ssh_packet_set_input_hook		Fssh_ssh_packet_set_input_hook
 #define ssh_packet_set_interactive		Fssh_ssh_packet_set_interactive
+#define ssh_packet_set_log_preamble		Fssh_ssh_packet_set_log_preamble
 #define ssh_packet_set_maxsize			Fssh_ssh_packet_set_maxsize
 #define ssh_packet_set_mux			Fssh_ssh_packet_set_mux
 #define ssh_packet_set_nonblocking		Fssh_ssh_packet_set_nonblocking
