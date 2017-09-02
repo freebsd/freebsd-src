@@ -2689,7 +2689,7 @@ reschedule:
 	ntb->lnk_sta = pci_read_config(ntb->device, ntb->reg->lnk_sta, 2);
 	if (_xeon_link_is_up(ntb)) {
 		callout_reset(&ntb->peer_msix_work,
-		    hz * (ntb->peer_msix_good ? 2 : 1) / 100,
+		    hz * (ntb->peer_msix_good ? 2 : 1) / 10,
 		    intel_ntb_exchange_msix, ntb);
 	} else
 		intel_ntb_spad_clear(ntb->device);
