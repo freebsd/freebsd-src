@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.58 2016/01/13 23:04:47 djm Exp $ */
+/* $OpenBSD: mux.c,v 1.60 2016/06/03 03:14:41 dtucker Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -89,8 +89,6 @@ extern char *host;
 extern int subsystem_flag;
 extern Buffer command;
 extern volatile sig_atomic_t quit_pending;
-extern char *stdio_forward_host;
-extern int stdio_forward_port;
 
 /* Context for session open confirmation callback */
 struct mux_session_confirm_ctx {
@@ -1298,7 +1296,7 @@ muxserver_listen(void)
 	/* Now atomically "move" the mux socket into position */
 	if (link(options.control_path, orig_control_path) != 0) {
 		if (errno != EEXIST) {
-			fatal("%s: link mux listener %s => %s: %s", __func__, 
+			fatal("%s: link mux listener %s => %s: %s", __func__,
 			    options.control_path, orig_control_path,
 			    strerror(errno));
 		}
@@ -1992,8 +1990,8 @@ mux_client_request_stdio_fwd(int fd)
 	buffer_put_int(&m, MUX_C_NEW_STDIO_FWD);
 	buffer_put_int(&m, muxclient_request_id);
 	buffer_put_cstring(&m, ""); /* reserved */
-	buffer_put_cstring(&m, stdio_forward_host);
-	buffer_put_int(&m, stdio_forward_port);
+	buffer_put_cstring(&m, options.stdio_forward_host);
+	buffer_put_int(&m, options.stdio_forward_port);
 
 	if (mux_client_write_packet(fd, &m) != 0)
 		fatal("%s: write packet: %s", __func__, strerror(errno));
@@ -2117,7 +2115,7 @@ muxclient(const char *path)
 	u_int pid;
 
 	if (muxclient_command == 0) {
-		if (stdio_forward_host != NULL)
+		if (options.stdio_forward_host != NULL)
 			muxclient_command = SSHMUX_COMMAND_STDIO_FWD;
 		else
 			muxclient_command = SSHMUX_COMMAND_OPEN;

@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.102 2015/09/25 18:19:54 jmc Exp $
+.\" $OpenBSD: sftp.1,v 1.105 2016/07/16 06:57:55 jmc Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: September 25 2015 $
+.Dd $Mdocdate: July 16 2016 $
 .Dt SFTP 1
 .Os
 .Sh NAME
@@ -220,8 +220,9 @@ For full details of the options listed below, and their possible values, see
 .It HostKeyAlgorithms
 .It HostKeyAlias
 .It HostName
-.It IdentityFile
 .It IdentitiesOnly
+.It IdentityAgent
+.It IdentityFile
 .It IPQoS
 .It KbdInteractiveAuthentication
 .It KbdInteractiveDevices
@@ -236,6 +237,7 @@ For full details of the options listed below, and their possible values, see
 .It PreferredAuthentications
 .It Protocol
 .It ProxyCommand
+.It ProxyJump
 .It PubkeyAuthentication
 .It RekeyLimit
 .It RhostsRSAAuthentication

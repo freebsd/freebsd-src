@@ -1,4 +1,4 @@
-/* $OpenBSD: key.c,v 1.129 2015/12/04 16:41:28 markus Exp $ */
+/* $OpenBSD: key.c,v 1.130 2016/05/02 09:36:42 djm Exp $ */
 /*
  * placed in the public domain
  */
@@ -214,7 +214,7 @@ key_certify(Key *k, Key *ca)
 {
 	int r;
 
-	if ((r = sshkey_certify(k, ca)) != 0) {
+	if ((r = sshkey_certify(k, ca, NULL)) != 0) {
 		fatal_on_fatal_errors(r, __func__, 0);
 		error("%s: %s", __func__, ssh_err(r));
 		return -1;

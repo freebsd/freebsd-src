@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.82 2015/09/24 06:16:53 djm Exp $
+#	$OpenBSD: Makefile,v 1.88 2016/06/03 04:10:41 dtucker Exp $
 
 REGRESS_TARGETS=	unit t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12 t-exec
 tests:		prep $(REGRESS_TARGETS)
@@ -54,6 +54,7 @@ LTESTS= 	connect \
 		multiplex \
 		reexec \
 		brokenkeys \
+		sshcfgparse \
 		cfgparse \
 		cfgmatch \
 		addrmatch \
@@ -75,7 +76,8 @@ LTESTS= 	connect \
 		keygen-knownhosts \
 		hostkey-rotate \
 		principals-command \
-		cert-file
+		cert-file \
+		cfginclude
 
 
 #		dhgex \
@@ -86,27 +88,28 @@ INTEROP_TESTS=	putty-transfer putty-ciphers putty-kex conch-ciphers
 #LTESTS= 	cipher-speed
 
 USER!=		id -un
-CLEANFILES=	t2.out t3.out t6.out1 t6.out2 t7.out t7.out.pub copy.1 copy.2 \
-		t8.out t8.out.pub t9.out t9.out.pub t10.out t10.out.pub \
-		t12.out t12.out.pub \
-		authorized_keys_${USER} known_hosts pidfile testdata \
-		ssh_config sshd_config.orig ssh_proxy sshd_config sshd_proxy \
-		rsa.pub rsa rsa1.pub rsa1 host.rsa host.rsa1 \
-		rsa-agent rsa-agent.pub rsa1-agent rsa1-agent.pub \
-		ls.copy banner.in banner.out empty.in \
-		scp-ssh-wrapper.scp ssh_proxy_envpass remote_pid \
-		sshd_proxy_bak rsa_ssh2_cr.prv rsa_ssh2_crnl.prv \
-		known_hosts-cert host_ca_key* cert_host_key* cert_user_key* \
-		putty.rsa2 sshd_proxy_orig ssh_proxy_bak \
-		key.rsa-* key.dsa-* key.ecdsa-* \
-		authorized_principals_${USER} expect actual ready \
-		sshd_proxy.* authorized_keys_${USER}.* modpipe revoked-* krl-* \
-		ssh.log failed-ssh.log sshd.log failed-sshd.log \
-		regress.log failed-regress.log ssh-log-wrapper.sh \
-		sftp-server.sh sftp-server.log sftp.log setuid-allowed \
-		data ed25519-agent ed25519-agent.pub key.ed25519-512 \
-		key.ed25519-512.pub netcat host_krl_* host_revoked_* \
-		kh.* user_*key* agent-key.* known_hosts.* hkr.*
+CLEANFILES=	*.core actual agent-key.* authorized_keys_${USER} \
+		authorized_keys_${USER}.* authorized_principals_${USER} \
+		banner.in banner.out cert_host_key* cert_user_key* \
+		copy.1 copy.2 data ed25519-agent ed25519-agent* \
+		ed25519-agent.pub empty.in expect failed-regress.log \
+		failed-ssh.log failed-sshd.log hkr.* host.rsa host.rsa1 \
+		host_* host_ca_key* host_krl_* host_revoked_* key.* \
+		key.dsa-* key.ecdsa-* key.ed25519-512 key.ed25519-512.pub \
+		key.rsa-* keys-command-args kh.* known_hosts \
+		known_hosts-cert known_hosts.* krl-* ls.copy modpipe \
+		netcat pidfile putty.rsa2 ready regress.log remote_pid \
+		revoked-* rsa rsa-agent rsa-agent.pub rsa.pub rsa1 \
+		rsa1-agent rsa1-agent.pub rsa1.pub rsa_ssh2_cr.prv \
+		rsa_ssh2_crnl.prv scp-ssh-wrapper.exe \
+		scp-ssh-wrapper.scp setuid-allowed sftp-server.log \
+		sftp-server.sh sftp.log ssh-log-wrapper.sh ssh.log \
+		ssh_config ssh_config.* ssh_proxy ssh_proxy_bak \
+		ssh_proxy_envpass sshd.log sshd_config sshd_config.orig \
+		sshd_proxy sshd_proxy.* sshd_proxy_bak sshd_proxy_orig \
+		t10.out t10.out.pub t12.out t12.out.pub t2.out t3.out \
+		t6.out1 t6.out2 t7.out t7.out.pub t8.out t8.out.pub \
+		t9.out t9.out.pub testdata user_*key* user_ca* user_key*
 
 SUDO_CLEAN+=	/var/run/testdata_${USER} /var/run/keycommand_${USER}
 
