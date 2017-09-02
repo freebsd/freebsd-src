@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.98 2016/02/17 05:29:04 djm Exp $
+#	$OpenBSD: sshd_config,v 1.99 2016/07/11 03:19:44 tedu Exp $
 #	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
@@ -38,7 +38,6 @@
 #RekeyLimit default none
 
 # Logging
-# obsoletes QuietMode and FascistLogging
 #SyslogFacility AUTH
 #LogLevel INFO
 
@@ -121,7 +120,7 @@
 #PermitTunnel no
 #ChrootDirectory none
 #UseBlacklist no
-#VersionAddendum FreeBSD-20161230
+#VersionAddendum FreeBSD-20170902
 
 # no default banner path
 #Banner none

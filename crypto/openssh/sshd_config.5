@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.220 2016/02/17 08:57:34 djm Exp $
+.\" $OpenBSD: sshd_config.5,v 1.227 2016/07/19 12:59:16 jmc Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: February 17 2016 $
+.Dd $Mdocdate: July 19 2016 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -174,6 +174,8 @@ By default, login is allowed for all users.
 If the pattern takes the form USER@HOST then USER and HOST
 are separately checked, restricting logins to particular
 users from particular hosts.
+HOST criteria may additionally contain addresses to match in CIDR
+address/masklen format.
 The allow/deny directives are processed in the following order:
 .Cm DenyUsers ,
 .Cm AllowUsers ,
@@ -188,9 +190,12 @@ for more information on patterns.
 Specifies the authentication methods that must be successfully completed
 for a user to be granted access.
 This option must be followed by one or more comma-separated lists of
-authentication method names.
-Successful authentication requires completion of every method in at least
-one of these lists.
+authentication method names, or by the single string
+.Dq any
+to indicate the default behaviour of accepting any single authentication
+method.
+if the default is overridden, then successful authentication requires
+completion of every method in at least one of these lists.
 .Pp
 For example, an argument of
 .Dq publickey,password publickey,keyboard-interactive
@@ -230,7 +235,9 @@ This option will yield a fatal
 error if enabled if protocol 1 is also enabled.
 Note that each authentication method listed should also be explicitly enabled
 in the configuration.
-The default is not to require multiple authentication; successful completion
+The default
+.Dq any
+is not to require multiple authentication; successful completion
 of a single authentication method is sufficient.
 .It Cm AuthorizedKeysCommand
 Specifies a program to be used to look up the user's public keys.
@@ -562,6 +569,8 @@ By default, login is allowed for all users.
 If the pattern takes the form USER@HOST then USER and HOST
 are separately checked, restricting logins to particular
 users from particular hosts.
+HOST criteria may additionally contain addresses to match in CIDR
+address/masklen format.
 The allow/deny directives are processed in the following order:
 .Cm DenyUsers ,
 .Cm AllowUsers ,
@@ -736,7 +745,7 @@ to an
 .It Cm HostKeyAgent
 Identifies the UNIX-domain socket used to communicate
 with an agent that has access to the private host keys.
-If
+If the string
 .Dq SSH_AUTH_SOCK
 is specified, the location of the socket will be read from the
 .Ev SSH_AUTH_SOCK
@@ -1210,6 +1219,9 @@ can be used to remove all restrictions and permit any forwarding requests.
 An argument of
 .Dq none
 can be used to prohibit all forwarding requests.
+The wildcard
+.Dq *
+can be used for host or port to allow all hosts or ports, respectively.
 By default all port forwarding requests are permitted.
 .It Cm PermitRootLogin
 Specifies whether root can log in using
@@ -1556,7 +1568,7 @@ very same IP address.
 If this option is set to
 .Dq no ,
 then only addresses and not host names may be used in
-.Pa ~/.ssh/known_hosts
+.Pa ~/.ssh/authorized_keys
 .Cm from
 and
 .Nm
@@ -1634,7 +1646,7 @@ The default is
 Optionally specifies additional text to append to the SSH protocol banner
 sent by the server upon connection.
 The default is
-.Dq FreeBSD-20161230 .
+.Dq FreeBSD-20170902 .
 The value
 .Dq none
 may be used to disable this.

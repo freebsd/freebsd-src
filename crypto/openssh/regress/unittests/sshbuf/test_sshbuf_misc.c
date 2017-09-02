@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshbuf_misc.c,v 1.1 2014/04/30 05:32:00 djm Exp $ */
+/* 	$OpenBSD: test_sshbuf_misc.c,v 1.2 2016/05/03 13:48:33 djm Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -132,6 +132,35 @@ sshbuf_misc_tests(void)
 	ASSERT_INT_EQ(sshbuf_b64tod(p1, "0A/QDw=="), 0);
 	ASSERT_SIZE_T_EQ(sshbuf_len(p1), 4);
 	ASSERT_U32_EQ(PEEK_U32(sshbuf_ptr(p1)), 0xd00fd00f);
+	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_dup_string");
+	p1 = sshbuf_new();
+	ASSERT_PTR_NE(p1, NULL);
+	/* Check empty buffer */
+	p = sshbuf_dup_string(p1);
+	ASSERT_PTR_NE(p, NULL);
+	ASSERT_SIZE_T_EQ(strlen(p), 0);
+	free(p);
+	/* Check buffer with string */
+	ASSERT_INT_EQ(sshbuf_put(p1, "quad1", strlen("quad1")), 0);
+	p = sshbuf_dup_string(p1);
+	ASSERT_PTR_NE(p, NULL);
+	ASSERT_SIZE_T_EQ(strlen(p), strlen("quad1"));
+	ASSERT_STRING_EQ(p, "quad1");
+	free(p);
+	/* Check buffer with terminating nul */
+	ASSERT_INT_EQ(sshbuf_put(p1, "\0", 1), 0);
+	p = sshbuf_dup_string(p1);
+	ASSERT_PTR_NE(p, NULL);
+	ASSERT_SIZE_T_EQ(strlen(p), strlen("quad1"));
+	ASSERT_STRING_EQ(p, "quad1");
+	free(p);
+	/* Check buffer with data after nul (expect failure) */
+	ASSERT_INT_EQ(sshbuf_put(p1, "quad2", strlen("quad2")), 0);
+	p = sshbuf_dup_string(p1);
+	ASSERT_PTR_EQ(p, NULL);
 	sshbuf_free(p1);
 	TEST_DONE();
 }

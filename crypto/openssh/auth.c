@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.113 2015/08/21 03:42:19 djm Exp $ */
+/* $OpenBSD: auth.c,v 1.115 2016/06/15 00:40:40 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -28,6 +28,7 @@ __RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
 
 #include <netinet/in.h>
 
@@ -51,6 +52,7 @@ __RCSID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
+#include <netdb.h>
 
 #include "xmalloc.h"
 #include "match.h"
@@ -99,6 +101,7 @@ int auth_debug_init;
 int
 allowed_user(struct passwd * pw)
 {
+	struct ssh *ssh = active_state; /* XXX */
 	struct stat st;
 	const char *hostname = NULL, *ipaddr = NULL, *passwd = NULL;
 	u_int i;
@@ -184,8 +187,8 @@ allowed_user(struct passwd * pw)
 
 	if (options.num_deny_users > 0 || options.num_allow_users > 0 ||
 	    options.num_deny_groups > 0 || options.num_allow_groups > 0) {
-		hostname = get_canonical_hostname(options.use_dns);
-		ipaddr = get_remote_ipaddr();
+		hostname = auth_get_canonical_hostname(ssh, options.use_dns);
+		ipaddr = ssh_remote_ipaddr(ssh);
 	}
 
 	/* Return false if user is listed in DenyUsers */
@@ -276,6 +279,7 @@ void
 auth_log(Authctxt *authctxt, int authenticated, int partial,
     const char *method, const char *submethod)
 {
+	struct ssh *ssh = active_state; /* XXX */
 	void (*authlog) (const char *fmt,...) = verbose;
 	char *authmsg;
 
@@ -305,8 +309,8 @@ auth_log(Authctxt *authctxt, int authenticated, int partial,
 	    submethod != NULL ? "/" : "", submethod == NULL ? "" : submethod,
 	    authctxt->valid ? "" : "invalid user ",
 	    authctxt->user,
-	    get_remote_ipaddr(),
-	    get_remote_port(),
+	    ssh_remote_ipaddr(ssh),
+	    ssh_remote_port(ssh),
 	    compat20 ? "ssh2" : "ssh1",
 	    authctxt->info != NULL ? ": " : "",
 	    authctxt->info != NULL ? authctxt->info : "");
@@ -319,11 +323,12 @@ auth_log(Authctxt *authctxt, int authenticated, int partial,
 	    strncmp(method, "keyboard-interactive", 20) == 0 ||
 	    strcmp(method, "challenge-response") == 0))
 		record_failed_login(authctxt->user,
-		    get_canonical_hostname(options.use_dns), "ssh");
+		    auth_get_canonical_hostname(ssh, options.use_dns), "ssh");
 # ifdef WITH_AIXAUTHENTICATE
 	if (authenticated)
 		sys_auth_record_login(authctxt->user,
-		    get_canonical_hostname(options.use_dns), "ssh", &loginmsg);
+		    auth_get_canonical_hostname(ssh, options.use_dns), "ssh",
+		    &loginmsg);
 # endif
 #endif
 #ifdef SSH_AUDIT_EVENTS
@@ -336,12 +341,14 @@ auth_log(Authctxt *authctxt, int authenticated, int partial,
 void
 auth_maxtries_exceeded(Authctxt *authctxt)
 {
+	struct ssh *ssh = active_state; /* XXX */
+
 	error("maximum authentication attempts exceeded for "
 	    "%s%.100s from %.200s port %d %s",
 	    authctxt->valid ? "" : "invalid user ",
 	    authctxt->user,
-	    get_remote_ipaddr(),
-	    get_remote_port(),
+	    ssh_remote_ipaddr(ssh),
+	    ssh_remote_port(ssh),
 	    compat20 ? "ssh2" : "ssh1");
 	packet_disconnect("Too many authentication failures");
 	/* NOTREACHED */
@@ -353,6 +360,8 @@ auth_maxtries_exceeded(Authctxt *authctxt)
 int
 auth_root_allowed(const char *method)
 {
+	struct ssh *ssh = active_state; /* XXX */
+
 	switch (options.permit_root_login) {
 	case PERMIT_YES:
 		return 1;
@@ -369,7 +378,8 @@ auth_root_allowed(const char *method)
 		}
 		break;
 	}
-	logit("ROOT LOGIN REFUSED FROM %.200s", get_remote_ipaddr());
+	logit("ROOT LOGIN REFUSED FROM %.200s port %d",
+	    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh));
 	return 0;
 }
 
@@ -609,6 +619,7 @@ auth_openprincipals(const char *file, struct passwd *pw, int strict_modes)
 struct passwd *
 getpwnamallow(const char *user)
 {
+	struct ssh *ssh = active_state; /* XXX */
 #ifdef HAVE_LOGIN_CAP
 	extern login_cap_t *lc;
 #ifdef BSD_AUTH
@@ -645,11 +656,11 @@ getpwnamallow(const char *user)
 #endif
 	if (pw == NULL) {
 		BLACKLIST_NOTIFY(BLACKLIST_BAD_USER, user);
-		logit("Invalid user %.100s from %.100s",
-		    user, get_remote_ipaddr());
+		logit("Invalid user %.100s from %.100s port %d",
+		    user, ssh_remote_ipaddr(ssh), ssh_remote_port(ssh));
 #ifdef CUSTOM_FAILED_LOGIN
 		record_failed_login(user,
-		    get_canonical_hostname(options.use_dns), "ssh");
+		    auth_get_canonical_hostname(ssh, options.use_dns), "ssh");
 #endif
 #ifdef SSH_AUDIT_EVENTS
 		audit_event(SSH_INVALID_USER);
@@ -778,4 +789,118 @@ fakepw(void)
 	fake.pw_shell = "/nonexist";
 
 	return (&fake);
+}
+
+/*
+ * Returns the remote DNS hostname as a string. The returned string must not
+ * be freed. NB. this will usually trigger a DNS query the first time it is
+ * called.
+ * This function does additional checks on the hostname to mitigate some
+ * attacks on legacy rhosts-style authentication.
+ * XXX is RhostsRSAAuthentication vulnerable to these?
+ * XXX Can we remove these checks? (or if not, remove RhostsRSAAuthentication?)
+ */
+
+static char *
+remote_hostname(struct ssh *ssh)
+{
+	struct sockaddr_storage from;
+	socklen_t fromlen;
+	struct addrinfo hints, *ai, *aitop;
+	char name[NI_MAXHOST], ntop2[NI_MAXHOST];
+	const char *ntop = ssh_remote_ipaddr(ssh);
+
+	/* Get IP address of client. */
+	fromlen = sizeof(from);
+	memset(&from, 0, sizeof(from));
+	if (getpeername(ssh_packet_get_connection_in(ssh),
+	    (struct sockaddr *)&from, &fromlen) < 0) {
+		debug("getpeername failed: %.100s", strerror(errno));
+		return strdup(ntop);
+	}
+
+	ipv64_normalise_mapped(&from, &fromlen);
+	if (from.ss_family == AF_INET6)
+		fromlen = sizeof(struct sockaddr_in6);
+
+	debug3("Trying to reverse map address %.100s.", ntop);
+	/* Map the IP address to a host name. */
+	if (getnameinfo((struct sockaddr *)&from, fromlen, name, sizeof(name),
+	    NULL, 0, NI_NAMEREQD) != 0) {
+		/* Host name not found.  Use ip address. */
+		return strdup(ntop);
+	}
+
+	/*
+	 * if reverse lookup result looks like a numeric hostname,
+	 * someone is trying to trick us by PTR record like following:
+	 *	1.1.1.10.in-addr.arpa.	IN PTR	2.3.4.5
+	 */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_socktype = SOCK_DGRAM;	/*dummy*/
+	hints.ai_flags = AI_NUMERICHOST;
+	if (getaddrinfo(name, NULL, &hints, &ai) == 0) {
+		logit("Nasty PTR record \"%s\" is set up for %s, ignoring",
+		    name, ntop);
+		freeaddrinfo(ai);
+		return strdup(ntop);
+	}
+
+	/* Names are stored in lowercase. */
+	lowercase(name);
+
+	/*
+	 * Map it back to an IP address and check that the given
+	 * address actually is an address of this host.  This is
+	 * necessary because anyone with access to a name server can
+	 * define arbitrary names for an IP address. Mapping from
+	 * name to IP address can be trusted better (but can still be
+	 * fooled if the intruder has access to the name server of
+	 * the domain).
+	 */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = from.ss_family;
+	hints.ai_socktype = SOCK_STREAM;
+	if (getaddrinfo(name, NULL, &hints, &aitop) != 0) {
+		logit("reverse mapping checking getaddrinfo for %.700s "
+		    "[%s] failed.", name, ntop);
+		return strdup(ntop);
+	}
+	/* Look for the address from the list of addresses. */
+	for (ai = aitop; ai; ai = ai->ai_next) {
+		if (getnameinfo(ai->ai_addr, ai->ai_addrlen, ntop2,
+		    sizeof(ntop2), NULL, 0, NI_NUMERICHOST) == 0 &&
+		    (strcmp(ntop, ntop2) == 0))
+				break;
+	}
+	freeaddrinfo(aitop);
+	/* If we reached the end of the list, the address was not there. */
+	if (ai == NULL) {
+		/* Address not found for the host name. */
+		logit("Address %.100s maps to %.600s, but this does not "
+		    "map back to the address.", ntop, name);
+		return strdup(ntop);
+	}
+	return strdup(name);
+}
+
+/*
+ * Return the canonical name of the host in the other side of the current
+ * connection.  The host name is cached, so it is efficient to call this
+ * several times.
+ */
+
+const char *
+auth_get_canonical_hostname(struct ssh *ssh, int use_dns)
+{
+	static char *dnsname;
+
+	if (!use_dns)
+		return ssh_remote_ipaddr(ssh);
+	else if (dnsname != NULL)
+		return dnsname;
+	else {
+		dnsname = remote_hostname(ssh);
+		return dnsname;
+	}
 }
