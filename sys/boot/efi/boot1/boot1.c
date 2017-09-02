@@ -109,6 +109,53 @@ efi_setenv_freebsd_wcs(const char *varname, CHAR16 *valstr)
 }
 
 /*
+ * nodes_match returns TRUE if the imgpath isn't NULL and the nodes match,
+ * FALSE otherwise.
+ */
+static BOOLEAN
+nodes_match(EFI_DEVICE_PATH *imgpath, EFI_DEVICE_PATH *devpath)
+{
+	size_t len;
+
+	if (imgpath == NULL || imgpath->Type != devpath->Type ||
+	    imgpath->SubType != devpath->SubType)
+		return (FALSE);
+
+	len = DevicePathNodeLength(imgpath);
+	if (len != DevicePathNodeLength(devpath))
+		return (FALSE);
+
+	return (memcmp(imgpath, devpath, (size_t)len) == 0);
+}
+
+/*
+ * device_paths_match returns TRUE if the imgpath isn't NULL and all nodes
+ * in imgpath and devpath match up to their respective occurrences of a
+ * media node, FALSE otherwise.
+ */
+static BOOLEAN
+device_paths_match(EFI_DEVICE_PATH *imgpath, EFI_DEVICE_PATH *devpath)
+{
+
+	if (imgpath == NULL)
+		return (FALSE);
+
+	while (!IsDevicePathEnd(imgpath) && !IsDevicePathEnd(devpath)) {
+		if (IsDevicePathType(imgpath, MEDIA_DEVICE_PATH) &&
+		    IsDevicePathType(devpath, MEDIA_DEVICE_PATH))
+			return (TRUE);
+
+		if (!nodes_match(imgpath, devpath))
+			return (FALSE);
+
+		imgpath = NextDevicePathNode(imgpath);
+		devpath = NextDevicePathNode(devpath);
+	}
+
+	return (FALSE);
+}
+
+/*
  * devpath_last returns the last non-path end node in devpath.
  */
 static EFI_DEVICE_PATH *
@@ -304,7 +351,7 @@ probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath, BOOLEAN *preferred)
 	if (!blkio->Media->LogicalPartition)
 		return (EFI_UNSUPPORTED);
 
-	*preferred = efi_devpath_match(imgpath, devpath);
+	*preferred = device_paths_match(imgpath, devpath);
 
 	/* Run through each module, see if it can load this partition */
 	for (i = 0; i < NUM_BOOT_MODULES; i++) {
