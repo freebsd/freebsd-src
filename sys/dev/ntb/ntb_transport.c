@@ -250,7 +250,7 @@ enum {
 
 #define QP_TO_MW(nt, qp)	((qp) % nt->mw_count)
 #define NTB_QP_DEF_NUM_ENTRIES	100
-#define NTB_LINK_DOWN_TIMEOUT	10
+#define NTB_LINK_DOWN_TIMEOUT	100
 
 static int ntb_transport_probe(device_t dev);
 static int ntb_transport_attach(device_t dev);
