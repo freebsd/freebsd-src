@@ -117,7 +117,9 @@ bcm2836_mp_start_ap(platform_t plat)
 		/* set entry point to mailbox 3 */
 		BSWR4(MBOX3SET_CORE(i),
 		    (uint32_t)pmap_kextract((vm_offset_t)mpentry));
-		wmb();
+		/* Firmware put cores in WFE state, need SEV to wake up. */
+		dsb();
+        sev();
 
 		/* wait for bootup */
 		retry = 1000;
