@@ -1,5 +1,3 @@
-/* $Id: bsd-setres_id.c,v 1.2 2013/12/07 21:23:09 djm Exp $ */
-
 /*
  * Copyright (c) 2012 Darren Tucker (dtucker at zip com au).
  *

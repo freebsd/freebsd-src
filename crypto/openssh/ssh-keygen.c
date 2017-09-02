@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keygen.c,v 1.290 2016/05/02 09:36:42 djm Exp $ */
+/* $OpenBSD: ssh-keygen.c,v 1.292 2016/09/12 03:29:16 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -2448,23 +2448,33 @@ main(int argc, char **argv)
 			break;
 #ifdef WITH_OPENSSL
 		/* Moduli generation/screening */
-		case 'W':
-			generator_wanted = (u_int32_t)strtonum(optarg, 1,
-			    UINT_MAX, &errstr);
-			if (errstr)
-				fatal("Desired generator has bad value: %s (%s)",
-					optarg, errstr);
-			break;
-		case 'M':
-			memory = (u_int32_t)strtonum(optarg, 1, UINT_MAX, &errstr);
-			if (errstr)
-				fatal("Memory limit is %s: %s", errstr, optarg);
-			break;
 		case 'G':
 			do_gen_candidates = 1;
 			if (strlcpy(out_file, optarg, sizeof(out_file)) >=
 			    sizeof(out_file))
 				fatal("Output filename too long");
+			break;
+		case 'J':
+			lines_to_process = strtoul(optarg, NULL, 10);
+			break;
+		case 'j':
+			start_lineno = strtoul(optarg, NULL, 10);
+			break;
+		case 'K':
+			if (strlen(optarg) >= PATH_MAX)
+				fatal("Checkpoint filename too long");
+			checkpoint = xstrdup(optarg);
+			break;
+		case 'M':
+			memory = (u_int32_t)strtonum(optarg, 1, UINT_MAX,
+			    &errstr);
+			if (errstr)
+				fatal("Memory limit is %s: %s", errstr, optarg);
+			break;
+		case 'S':
+			/* XXX - also compare length against bits */
+			if (BN_hex2bn(&start, optarg) == 0)
+				fatal("Invalid start point.");
 			break;
 		case 'T':
 			do_screen_candidates = 1;
@@ -2472,15 +2482,12 @@ main(int argc, char **argv)
 			    sizeof(out_file))
 				fatal("Output filename too long");
 			break;
-		case 'K':
-			if (strlen(optarg) >= PATH_MAX)
-				fatal("Checkpoint filename too long");
-			checkpoint = xstrdup(optarg);
-			break;
-		case 'S':
-			/* XXX - also compare length against bits */
-			if (BN_hex2bn(&start, optarg) == 0)
-				fatal("Invalid start point.");
+		case 'W':
+			generator_wanted = (u_int32_t)strtonum(optarg, 1,
+			    UINT_MAX, &errstr);
+			if (errstr != NULL)
+				fatal("Desired generator invalid: %s (%s)",
+				    optarg, errstr);
 			break;
 #endif /* WITH_OPENSSL */
 		case '?':

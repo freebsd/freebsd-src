@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.c,v 1.118 2016/05/02 10:26:04 djm Exp $ */
+/* $OpenBSD: kex.c,v 1.127 2016/10/10 19:28:48 markus Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
@@ -25,7 +25,6 @@
 
 #include "includes.h"
 
-#include <sys/param.h>	/* MAX roundup */
 
 #include <signal.h>
 #include <stdarg.h>
@@ -110,6 +109,7 @@ static const struct kexalg kexalgs[] = {
 #endif /* WITH_OPENSSL */
 #if defined(HAVE_EVP_SHA256) || !defined(WITH_OPENSSL)
 	{ KEX_CURVE25519_SHA256, KEX_C25519_SHA256, 0, SSH_DIGEST_SHA256 },
+	{ KEX_CURVE25519_SHA256_OLD, KEX_C25519_SHA256, 0, SSH_DIGEST_SHA256 },
 #endif /* HAVE_EVP_SHA256 || !WITH_OPENSSL */
 	{ NULL, -1, -1, -1},
 };
@@ -341,14 +341,21 @@ static int
 kex_send_ext_info(struct ssh *ssh)
 {
 	int r;
+	char *algs;
 
+	if ((algs = sshkey_alg_list(0, 1, ',')) == NULL)
+		return SSH_ERR_ALLOC_FAIL;
 	if ((r = sshpkt_start(ssh, SSH2_MSG_EXT_INFO)) != 0 ||
 	    (r = sshpkt_put_u32(ssh, 1)) != 0 ||
 	    (r = sshpkt_put_cstring(ssh, "server-sig-algs")) != 0 ||
-	    (r = sshpkt_put_cstring(ssh, "rsa-sha2-256,rsa-sha2-512")) != 0 ||
+	    (r = sshpkt_put_cstring(ssh, algs)) != 0 ||
 	    (r = sshpkt_send(ssh)) != 0)
-		return r;
-	return 0;
+		goto out;
+	/* success */
+	r = 0;
+ out:
+	free(algs);
+	return r;
 }
 
 int
@@ -419,6 +426,8 @@ kex_input_newkeys(int type, u_int32_t seq, void *ctxt)
 	ssh_dispatch_set(ssh, SSH2_MSG_NEWKEYS, &kex_protocol_error);
 	if ((r = sshpkt_get_end(ssh)) != 0)
 		return r;
+	if ((r = ssh_set_newkeys(ssh, MODE_IN)) != 0)
+		return r;
 	kex->done = 1;
 	sshbuf_reset(kex->peer);
 	/* sshbuf_reset(kex->my); */
@@ -472,6 +481,7 @@ kex_input_kexinit(int type, u_int32_t seq, void *ctxt)
 	if (kex == NULL)
 		return SSH_ERR_INVALID_ARGUMENT;
 
+	ssh_dispatch_set(ssh, SSH2_MSG_KEXINIT, NULL);
 	ptr = sshpkt_ptr(ssh, &dlen);
 	if ((r = sshbuf_put(kex->peer, ptr, dlen)) != 0)
 		return r;
@@ -775,10 +785,8 @@ kex_choose_conf(struct ssh *ssh)
 		char *ext;
 
 		ext = match_list("ext-info-c", peer[PROPOSAL_KEX_ALGS], NULL);
-		if (ext) {
-			kex->ext_info_c = 1;
-			free(ext);
-		}
+		kex->ext_info_c = (ext != NULL);
+		free(ext);
 	}
 
 	/* Algorithm Negotiation */
@@ -835,14 +843,14 @@ kex_choose_conf(struct ssh *ssh)
 	need = dh_need = 0;
 	for (mode = 0; mode < MODE_MAX; mode++) {
 		newkeys = kex->newkeys[mode];
-		need = MAX(need, newkeys->enc.key_len);
-		need = MAX(need, newkeys->enc.block_size);
-		need = MAX(need, newkeys->enc.iv_len);
-		need = MAX(need, newkeys->mac.key_len);
-		dh_need = MAX(dh_need, cipher_seclen(newkeys->enc.cipher));
-		dh_need = MAX(dh_need, newkeys->enc.block_size);
-		dh_need = MAX(dh_need, newkeys->enc.iv_len);
-		dh_need = MAX(dh_need, newkeys->mac.key_len);
+		need = MAXIMUM(need, newkeys->enc.key_len);
+		need = MAXIMUM(need, newkeys->enc.block_size);
+		need = MAXIMUM(need, newkeys->enc.iv_len);
+		need = MAXIMUM(need, newkeys->mac.key_len);
+		dh_need = MAXIMUM(dh_need, cipher_seclen(newkeys->enc.cipher));
+		dh_need = MAXIMUM(dh_need, newkeys->enc.block_size);
+		dh_need = MAXIMUM(dh_need, newkeys->enc.iv_len);
+		dh_need = MAXIMUM(dh_need, newkeys->mac.key_len);
 	}
 	/* XXX need runden? */
 	kex->we_need = need;
@@ -873,7 +881,7 @@ derive_key(struct ssh *ssh, int id, u_int need, u_char *hash, u_int hashlen,
 
 	if ((mdsz = ssh_digest_bytes(kex->hash_alg)) == 0)
 		return SSH_ERR_INVALID_ARGUMENT;
-	if ((digest = calloc(1, roundup(need, mdsz))) == NULL) {
+	if ((digest = calloc(1, ROUNDUP(need, mdsz))) == NULL) {
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}

@@ -1,5 +1,3 @@
-/* $Id: port-linux.h,v 1.5 2011/01/25 01:16:18 djm Exp $ */
-
 /*
  * Copyright (c) 2006 Damien Miller <djm@openbsd.org>
  *

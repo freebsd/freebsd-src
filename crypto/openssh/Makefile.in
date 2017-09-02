@@ -97,14 +97,14 @@ LIBSSH_OBJS=${LIBOPENSSH_OBJS} \
 SSHOBJS= ssh.o readconf.o clientloop.o sshtty.o \
 	sshconnect.o sshconnect1.o sshconnect2.o mux.o
 
-SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o auth-rsa.o auth-rh-rsa.o \
+SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o \
 	audit.o audit-bsm.o audit-linux.o platform.o \
 	sshpty.o sshlogin.o servconf.o serverloop.o \
-	auth.o auth1.o auth2.o auth-options.o session.o \
-	auth-chall.o auth2-chall.o groupaccess.o \
+	auth.o auth2.o auth-options.o session.o \
+	auth2-chall.o groupaccess.o \
 	auth-skey.o auth-bsdauth.o auth2-hostbased.o auth2-kbdint.o \
 	auth2-none.o auth2-passwd.o auth2-pubkey.o \
-	monitor_mm.o monitor.o monitor_wrap.o auth-krb5.o \
+	monitor.o monitor_wrap.o auth-krb5.o \
 	auth2-gss.o gss-serv.o gss-serv-krb5.o \
 	loginrec.o auth-pam.o auth-shadow.o auth-sia.o md5crypt.o \
 	sftp-server.o sftp-common.o \
@@ -240,6 +240,10 @@ clean:	regressclean
 	rm -f regress/unittests/hostkeys/test_hostkeys
 	rm -f regress/unittests/kex/*.o
 	rm -f regress/unittests/kex/test_kex
+	rm -f regress/unittests/match/*.o
+	rm -f regress/unittests/match/test_match
+	rm -f regress/unittests/utf8/*.o
+	rm -f regress/unittests/utf8/test_utf8
 	rm -f regress/misc/kexfuzz/*.o
 	rm -f regress/misc/kexfuzz/kexfuzz
 	(cd openbsd-compat && $(MAKE) clean)
@@ -262,6 +266,10 @@ distclean:	regressclean
 	rm -f regress/unittests/hostkeys/test_hostkeys
 	rm -f regress/unittests/kex/*.o
 	rm -f regress/unittests/kex/test_kex
+	rm -f regress/unittests/match/*.o
+	rm -f regress/unittests/match/test_match
+	rm -f regress/unittests/utf8/*.o
+	rm -f regress/unittests/utf8/test_utf8
 	rm -f regress/unittests/misc/kexfuzz
 	(cd openbsd-compat && $(MAKE) distclean)
 	if test -d pkg ; then \
@@ -422,6 +430,10 @@ regress-prep:
 		mkdir -p `pwd`/regress/unittests/hostkeys
 	[ -d `pwd`/regress/unittests/kex ] || \
 		mkdir -p `pwd`/regress/unittests/kex
+	[ -d `pwd`/regress/unittests/match ] || \
+		mkdir -p `pwd`/regress/unittests/match
+	[ -d `pwd`/regress/unittests/utf8 ] || \
+		mkdir -p `pwd`/regress/unittests/utf8
 	[ -d `pwd`/regress/misc/kexfuzz ] || \
 		mkdir -p `pwd`/regress/misc/kexfuzz
 	[ -f `pwd`/regress/Makefile ] || \
@@ -512,6 +524,26 @@ regress/unittests/hostkeys/test_hostkeys$(EXEEXT): \
 	    regress/unittests/test_helper/libtest_helper.a \
 	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
+UNITTESTS_TEST_MATCH_OBJS=\
+	regress/unittests/match/tests.o
+
+regress/unittests/match/test_match$(EXEEXT): \
+    ${UNITTESTS_TEST_MATCH_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_MATCH_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+UNITTESTS_TEST_UTF8_OBJS=\
+	regress/unittests/utf8/tests.o
+
+regress/unittests/utf8/test_utf8$(EXEEXT): \
+    ${UNITTESTS_TEST_UTF8_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_UTF8_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
 MISC_KEX_FUZZ_OBJS=\
 	regress/misc/kexfuzz/kexfuzz.o
 
@@ -528,6 +560,8 @@ regress-binaries: regress/modpipe$(EXEEXT) \
 	regress/unittests/bitmap/test_bitmap$(EXEEXT) \
 	regress/unittests/hostkeys/test_hostkeys$(EXEEXT) \
 	regress/unittests/kex/test_kex$(EXEEXT) \
+	regress/unittests/match/test_match$(EXEEXT) \
+	regress/unittests/utf8/test_utf8$(EXEEXT) \
 	regress/misc/kexfuzz/kexfuzz$(EXEEXT)
 
 tests interop-tests t-exec: regress-prep regress-binaries $(TARGETS)
@@ -546,6 +580,7 @@ tests interop-tests t-exec: regress-prep regress-binaries $(TARGETS)
 	TEST_SSH_PUTTYGEN="puttygen"; \
 	TEST_SSH_CONCH="conch"; \
 	TEST_SSH_IPV6="@TEST_SSH_IPV6@" ; \
+	TEST_SSH_UTF8="@TEST_SSH_UTF8@" ; \
 	TEST_SSH_ECC="@TEST_SSH_ECC@" ; \
 	cd $(srcdir)/regress || exit $$?; \
 	$(MAKE) \
@@ -570,6 +605,7 @@ tests interop-tests t-exec: regress-prep regress-binaries $(TARGETS)
 		TEST_SSH_PUTTYGEN="$${TEST_SSH_PUTTYGEN}" \
 		TEST_SSH_CONCH="$${TEST_SSH_CONCH}" \
 		TEST_SSH_IPV6="$${TEST_SSH_IPV6}" \
+		TEST_SSH_UTF8="$${TEST_SSH_UTF8}" \
 		TEST_SSH_ECC="$${TEST_SSH_ECC}" \
 		TEST_SHELL="${TEST_SHELL}" \
 		EXEEXT="$(EXEEXT)" \

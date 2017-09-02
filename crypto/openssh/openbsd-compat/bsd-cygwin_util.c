@@ -39,12 +39,12 @@
 
 #include "xmalloc.h"
 
-int 
+int
 binary_open(const char *filename, int flags, ...)
 {
 	va_list ap;
 	mode_t mode;
-	
+
 	va_start(ap, flags);
 	mode = va_arg(ap, mode_t);
 	va_end(ap);

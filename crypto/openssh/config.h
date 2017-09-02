@@ -38,9 +38,6 @@
 /* ia_uinfo routines not supported by OS yet */
 /* #undef BROKEN_LIBIAF */
 
-/* Ultrix mmap can't map files */
-/* #undef BROKEN_MMAP */
-
 /* Define if your struct dirent expects you to allocate extra space for d_name
    */
 /* #undef BROKEN_ONE_BYTE_DIRENT_D_NAME */
@@ -79,7 +76,7 @@
 /* Define if your snprintf is busted */
 /* #undef BROKEN_SNPRINTF */
 
-/* missing VIS_ALL */
+/* strnvis detected broken */
 #define BROKEN_STRNVIS 1
 
 /* tcgetattr with ICANON may hang */
@@ -789,13 +786,10 @@
 #define HAVE_MEMORY_H 1
 
 /* Define to 1 if you have the `memset_s' function. */
-/* #undef HAVE_MEMSET_S */
+#define HAVE_MEMSET_S 1
 
 /* Define to 1 if you have the `mkdtemp' function. */
 #define HAVE_MKDTEMP 1
-
-/* Define to 1 if you have the `mmap' function. */
-#define HAVE_MMAP 1
 
 /* define if you have mode_t data type */
 #define HAVE_MODE_T 1
@@ -1077,6 +1071,9 @@
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
 
+/* Define to 1 if you have the `strcasestr' function. */
+#define HAVE_STRCASESTR 1
+
 /* Define to 1 if you have the `strdup' function. */
 #define HAVE_STRDUP 1
 
@@ -1217,6 +1214,9 @@
 
 /* Define to 1 if you have the <sys/ptms.h> header file. */
 /* #undef HAVE_SYS_PTMS_H */
+
+/* Define to 1 if you have the <sys/ptrace.h> header file. */
+#define HAVE_SYS_PTRACE_H 1
 
 /* Define to 1 if you have the <sys/select.h> header file. */
 #define HAVE_SYS_SELECT_H 1
@@ -1438,7 +1438,7 @@
 /* #undef LASTLOG_WRITE_PUTUTXLINE */
 
 /* Define if you want TCP Wrappers support */
-/* #undef LIBWRAP */
+#define LIBWRAP 1
 
 /* Define to whatever link() returns for "not supported" if it doesn't return
    EOPNOTSUPP. */
@@ -1462,18 +1462,8 @@
 /* String used in /etc/passwd to denote locked account */
 /* #undef LOCKED_PASSWD_SUBSTR */
 
-/* Some versions of /bin/login need the TERM supplied on the commandline */
-/* #undef LOGIN_NEEDS_TERM */
-
 /* Some systems need a utmpx entry for /bin/login to work */
 /* #undef LOGIN_NEEDS_UTMPX */
-
-/* Define if your login program cannot handle end of options ("--") */
-/* #undef LOGIN_NO_ENDOPT */
-
-/* If your header files don't define LOGIN_PROGRAM, then use this (detected)
-   from environment and PATH */
-#define LOGIN_PROGRAM_FALLBACK "/usr/bin/login"
 
 /* Set this to your mail directory if you do not have _PATH_MAILDIR */
 /* #undef MAIL_DIRECTORY */
@@ -1623,6 +1613,9 @@
 
 /* Define if sshd somehow reacquires a controlling TTY after setsid() */
 /* #undef SSHD_ACQUIRES_CTTY */
+
+/* sshd PAM service name */
+/* #undef SSHD_PAM_SERVICE */
 
 /* Define if pam_chauthtok wants real uid set to the unpriv'ed user */
 /* #undef SSHPAM_CHAUTHTOK_NEEDS_RUID */

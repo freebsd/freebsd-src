@@ -1,4 +1,4 @@
-/* $OpenBSD: scp.c,v 1.186 2016/05/25 23:48:45 schwarze Exp $ */
+/* $OpenBSD: scp.c,v 1.187 2016/09/12 01:22:38 deraadt Exp $ */
 /*
  * scp - secure remote copy.  This is basically patched BSD rcp which
  * uses ssh to do the data transfer (instead of using rcmd).
@@ -74,7 +74,6 @@
 #include "includes.h"
 
 #include <sys/types.h>
-#include <sys/param.h>
 #ifdef HAVE_SYS_STAT_H
 # include <sys/stat.h>
 #endif
@@ -380,10 +379,10 @@ main(int argc, char **argv)
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
 
-	setlocale(LC_CTYPE, "");
+	msetlocale();
 
 	/* Copy argv, because we modify it */
-	newargv = xcalloc(MAX(argc + 1, 1), sizeof(*newargv));
+	newargv = xcalloc(MAXIMUM(argc + 1, 1), sizeof(*newargv));
 	for (n = 0; n < argc; n++)
 		newargv[n] = xstrdup(argv[n]);
 	argv = newargv;
@@ -1343,7 +1342,7 @@ allocbuf(BUF *bp, int fd, int blksize)
 		run_err("fstat: %s", strerror(errno));
 		return (0);
 	}
-	size = roundup(stb.st_blksize, blksize);
+	size = ROUNDUP(stb.st_blksize, blksize);
 	if (size == 0)
 		size = blksize;
 #else /* HAVE_STRUCT_STAT_ST_BLKSIZE */

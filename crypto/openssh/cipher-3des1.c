@@ -20,6 +20,8 @@
 
 #include "includes.h"
 
+#ifdef WITH_SSH1
+
 #include <sys/types.h>
 #include <string.h>
 #include <openssl/evp.h>
@@ -153,3 +155,4 @@ evp_ssh1_3des(void)
 	ssh1_3des.flags = EVP_CIPH_CBC_MODE | EVP_CIPH_VARIABLE_LENGTH;
 	return &ssh1_3des;
 }
+#endif /* WITH_SSH1 */
