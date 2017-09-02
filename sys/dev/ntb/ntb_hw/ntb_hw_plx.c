@@ -914,6 +914,9 @@ static device_method_t ntb_plx_methods[] = {
 	DEVMETHOD(device_probe,		ntb_plx_probe),
 	DEVMETHOD(device_attach,	ntb_plx_attach),
 	DEVMETHOD(device_detach,	ntb_plx_detach),
+	/* Bus interface */
+	DEVMETHOD(bus_child_location_str, ntb_child_location_str),
+	DEVMETHOD(bus_print_child,	ntb_print_child),
 	/* NTB interface */
 	DEVMETHOD(ntb_link_is_up,	ntb_plx_link_is_up),
 	DEVMETHOD(ntb_link_enable,	ntb_plx_link_enable),
