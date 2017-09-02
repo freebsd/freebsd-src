@@ -22,3 +22,4 @@ int	 fmprintf(FILE *, const char *, ...)
 int	 vfmprintf(FILE *, const char *, va_list);
 int	 snmprintf(char *, size_t, int *, const char *, ...)
 	     __attribute__((format(printf, 4, 5)));
+void	 msetlocale(void);

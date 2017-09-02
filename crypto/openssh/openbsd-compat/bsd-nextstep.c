@@ -29,7 +29,7 @@
 #include <sys/wait.h>
 #include "bsd-nextstep.h"
 
-pid_t 
+pid_t
 posix_wait(int *status)
 {
 	union wait statusp;

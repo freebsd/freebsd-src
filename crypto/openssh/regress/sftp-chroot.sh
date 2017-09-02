@@ -1,4 +1,4 @@
-#	$OpenBSD: sftp-chroot.sh,v 1.4 2014/01/20 00:00:30 dtucker Exp $
+#	$OpenBSD: sftp-chroot.sh,v 1.5 2016/09/26 21:34:38 bluhm Exp $
 #	Placed in the Public Domain.
 
 tid="sftp in chroot"
@@ -7,7 +7,7 @@ CHROOT=/var/run
 FILENAME=testdata_${USER}
 PRIVDATA=${CHROOT}/${FILENAME}
 
-if [ -z "$SUDO" ]; then
+if [ -z "$SUDO" -a ! -w /var/run ]; then
   echo "skipped: need SUDO to create file in /var/run, test won't work without"
   exit 0
 fi

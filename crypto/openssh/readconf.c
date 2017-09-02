@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.259 2016/07/22 03:35:11 djm Exp $ */
+/* $OpenBSD: readconf.c,v 1.262 2016/10/25 04:08:13 jsg Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -18,7 +18,6 @@ __RCSID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <sys/sysctl.h>
 #include <sys/wait.h>
 #include <sys/un.h>
 
@@ -323,19 +322,8 @@ add_local_forward(Options *options, const struct Forward *newfwd)
 	struct Forward *fwd;
 	extern uid_t original_real_uid;
 	int i, ipport_reserved;
-#ifdef __FreeBSD__
-	size_t len_ipport_reserved = sizeof(ipport_reserved);
 
-	if (sysctlbyname("net.inet.ip.portrange.reservedhigh",
-	    &ipport_reserved, &len_ipport_reserved, NULL, 0) != 0)
-		ipport_reserved = IPPORT_RESERVED;
-	else
-		ipport_reserved++;
-#else
-	ipport_reserved = IPPORT_RESERVED;
-#endif
-	if (newfwd->listen_port < ipport_reserved && original_real_uid != 0)
-	if (newfwd->listen_port < ipport_reserved && original_real_uid != 0 &&
+	if (!bind_permitted(newfwd->listen_port, original_real_uid) &&
 	    newfwd->listen_path == NULL)
 		fatal("Privileged ports can only be forwarded by root.");
 	/* Don't add duplicates */
@@ -881,7 +869,6 @@ process_config_line_depth(Options *options, struct passwd *pw, const char *host,
 	case oBadOption:
 		/* don't panic, but count bad options */
 		return -1;
-		/* NOTREACHED */
 	case oIgnoredUnknownOption:
 		debug("%s line %d: Ignored unknown option \"%s\"",
 		    filename, linenum, keyword);

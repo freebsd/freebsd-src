@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-userkey.sh,v 1.16 2016/05/03 12:15:49 dtucker Exp $
+#	$OpenBSD: cert-userkey.sh,v 1.17 2016/11/30 03:01:33 djm Exp $
 #	Placed in the Public Domain.
 
 tid="certified user keys"
@@ -353,6 +353,20 @@ test_one "principals key option principals" success "-n mekmitasdigoat" \
     authorized_keys ',principals="mekmitasdigoat"'
 test_one "principals key option no principals" failure "" \
     authorized_keys ',principals="mekmitasdigoat"'
+
+# command= options vs. force-command in key
+test_one "force-command match true" success \
+    "-n ${USER} -Oforce-command=true" \
+    authorized_keys ',command="true"'
+test_one "force-command match true" failure \
+    "-n ${USER} -Oforce-command=false" \
+    authorized_keys ',command="false"'
+test_one "force-command mismatch 1" failure \
+    "-n ${USER} -Oforce-command=false" \
+    authorized_keys ',command="true"'
+test_one "force-command mismatch 2" failure \
+    "-n ${USER} -Oforce-command=true" \
+    authorized_keys ',command="false"'
 
 # Wrong certificate
 cat $OBJ/sshd_proxy_bak > $OBJ/sshd_proxy

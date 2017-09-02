@@ -1,5 +1,3 @@
-/* $Id: base64.h,v 1.6 2003/08/29 16:59:52 mouring Exp $ */
-
 /*
  * Copyright (c) 1996 by Internet Software Consortium.
  *
@@ -49,7 +47,7 @@
 
 #ifndef HAVE___B64_NTOP
 # ifndef HAVE_B64_NTOP
-int b64_ntop(u_char const *src, size_t srclength, char *target, 
+int b64_ntop(u_char const *src, size_t srclength, char *target,
     size_t targsize);
 # endif /* !HAVE_B64_NTOP */
 # define __b64_ntop(a,b,c,d) b64_ntop(a,b,c,d)

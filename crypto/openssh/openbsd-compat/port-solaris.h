@@ -1,5 +1,3 @@
-/* $Id: port-solaris.h,v 1.2 2010/11/05 01:03:05 dtucker Exp $ */
-
 /*
  * Copyright (c) 2006 Chad Mynhier.
  *

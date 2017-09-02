@@ -3,7 +3,7 @@
 
 tid="authorized keys from command"
 
-if test -z "$SUDO" ; then
+if [ -z "$SUDO" -a ! -w /var/run ]; then
 	echo "skipped (SUDO not set)"
 	echo "need SUDO to create file in /var/run, test won't work without"
 	exit 0

@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-file.sh,v 1.2 2015/09/24 07:15:39 djm Exp $
+#	$OpenBSD: cert-file.sh,v 1.4 2016/12/16 02:48:55 djm Exp $
 #	Placed in the Public Domain.
 
 tid="ssh with certificates"

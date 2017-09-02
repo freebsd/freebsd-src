@@ -66,6 +66,11 @@
 #include <pam/pam_appl.h>
 #endif
 
+#if !defined(SSHD_PAM_SERVICE)
+extern char *__progname;
+# define SSHD_PAM_SERVICE		__progname
+#endif
+
 /* OpenGroup RFC86.0 and XSSO specify no "const" on arguments */
 #ifdef PAM_SUN_CODEBASE
 # define sshpam_const		/* Solaris, HP-UX, SunOS */
@@ -616,7 +621,6 @@ sshpam_cleanup(void)
 static int
 sshpam_init(Authctxt *authctxt)
 {
-	extern char *__progname;
 	const char *pam_rhost, *pam_user, *user = authctxt->user;
 	const char **ptr_pam_user = &pam_user;
 	struct ssh *ssh = active_state; /* XXX */
@@ -947,18 +951,6 @@ do_pam_account(void)
 
 	sshpam_account_status = 1;
 	return (sshpam_account_status);
-}
-
-void
-do_pam_set_tty(const char *tty)
-{
-	if (tty != NULL) {
-		debug("PAM: setting PAM_TTY to \"%s\"", tty);
-		sshpam_err = pam_set_item(sshpam_handle, PAM_TTY, tty);
-		if (sshpam_err != PAM_SUCCESS)
-			fatal("PAM: failed to set PAM_TTY: %s",
-			    pam_strerror(sshpam_handle, sshpam_err));
-	}
 }
 
 void

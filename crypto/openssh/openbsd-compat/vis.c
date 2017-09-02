@@ -33,12 +33,6 @@
 #include "includes.h"
 #if !defined(HAVE_STRNVIS) || defined(BROKEN_STRNVIS)
 
-/*
- * We want these to override in the BROKEN_STRNVIS case.  TO avoid future sync
- * problems no-op out the weak symbol definition rather than remove it.
- */
-#define DEF_WEAK(x)
-
 #include <sys/types.h>
 #include <errno.h>
 #include <ctype.h>

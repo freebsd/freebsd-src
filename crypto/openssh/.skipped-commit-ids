@@ -9,3 +9,5 @@ edbfde98c40007b7752a4ac106095e060c25c1ef	Regen moduli
 180d84674be1344e45a63990d60349988187c1ae	Update moduli
 f6ae971186ba68d066cd102e57d5b0b2c211a5ee	systrace is dead.
 96c5054e3e1f170c6276902d5bc65bb3b87a2603	remove DEBUGLIBS from Makefile
+6da9a37f74aef9f9cc639004345ad893cad582d8	Update moduli file
+77bcb50e47b68c7209c7f0a5a020d73761e5143b	unset REGRESS_FAIL_EARLY

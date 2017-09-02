@@ -1,10 +1,15 @@
-1. Prerequisites
 ----------------
+
+A C compiler.  Any C89 or better compiler should work.  Where supported,
+configure will attempt to enable the compiler's run-time integrity checking
+options.  Some notes about specific compilers:
+ - clang: -ftrapv and -sanitize=integer require the compiler-rt runtime
+  (CC=clang LDFLAGS=--rtlib=compiler-rt ./configure)
 
 You will need working installations of Zlib and libcrypto (LibreSSL /
 OpenSSL)
 
-Zlib 1.1.4 or 1.2.1.2 or greater (ealier 1.2.x versions have problems):
+Zlib 1.1.4 or 1.2.1.2 or greater (earlier 1.2.x versions have problems):
 http://www.gzip.org/zlib/
 
 libcrypto (LibreSSL or OpenSSL >= 0.9.8f < 1.1.0)
@@ -94,7 +99,7 @@ http://nlnetlabs.nl/projects/ldns/
 Autoconf:
 
 If you modify configure.ac or configure doesn't exist (eg if you checked
-the code out of CVS yourself) then you will need autoconf-2.68 to rebuild
+the code out of CVS yourself) then you will need autoconf-2.69 to rebuild
 the automatically generated files by running "autoreconf".  Earlier
 versions may also work but this is not guaranteed.
 
@@ -236,9 +241,13 @@ review it to ensure that it matches your security requirements.
 To generate a host key, run "make host-key". Alternately you can do so
 manually using the following commands:
 
-    ssh-keygen -t rsa1 -f /etc/ssh/ssh_host_key -N ""
-    ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N ""
-    ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key -N ""
+    ssh-keygen -t [type] -f /etc/ssh/ssh_host_key -N ""
+
+for each of the types you wish to generate (rsa, dsa or ecdsaa) or
+
+    ssh-keygen -A
+
+to generate keys for all supported types.
 
 Replacing /etc/ssh with the correct path to the configuration directory.
 (${prefix}/etc or whatever you specified with --sysconfdir during
@@ -269,7 +278,4 @@ summary data may be published.
 
 If you experience problems compiling, installing or running OpenSSH.
 Please refer to the "reporting bugs" section of the webpage at
-http://www.openssh.com/
-
-
-$Id: INSTALL,v 1.91 2014/09/09 02:23:11 dtucker Exp $
+https://www.openssh.com/

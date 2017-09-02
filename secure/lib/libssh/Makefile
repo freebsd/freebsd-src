@@ -32,7 +32,7 @@ PACKAGE=	ssh
 # Portability layer
 SRCS+=	bcrypt_pbkdf.c blowfish.c bsd-misc.c explicit_bzero.c fmt_scaled.c \
 	glob.c openssl-compat.c port-tun.c realpath.c strtonum.c \
-	timingsafe_bcmp.c vis.c xcrypt.c xmmap.c
+	timingsafe_bcmp.c vis.c xcrypt.c
 
 .if ${MK_LDNS} == "no"
 SRCS+=	getrrsetbyname.c

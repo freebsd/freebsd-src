@@ -1,5 +1,3 @@
-/* $Id: audit.h,v 1.4 2011/01/17 10:15:30 dtucker Exp $ */
-
 /*
  * Copyright (c) 2004, 2005 Darren Tucker.  All rights reserved.
  *
