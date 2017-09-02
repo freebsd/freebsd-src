@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 30, 2017
+.Dd September 2, 2017
 .Dt IF_NTB 4
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@ The following tunables are settable from the
 .Xr loader 8 :
 .Bl -ohang
 .It Va hw.if_ntb.num_queues
-Number of transport queues to use per interface.
+Limits maximal number of queues per interface.
 Default is unlimited.
 .El
 .Sh DESCRIPTION
@@ -58,12 +58,10 @@ The
 .Nm
 driver attaches on top of the
 .Xr ntb_transport 4
-driver to utilize its resources to create virtual Ethernet network interface
-between the systems.
-It supports as many tx/rx queues as provided by underlying
-.Xr ntb_transport 4 .
-Typical MTU is about 64KB to reduce overhead.
-The MAC address for interface is randomly generated.
+driver to utilize one or more of its packet queues to create virtual
+Ethernet network interface between the systems.
+Typical MTU for the interface is about 64KB to reduce overhead.
+Default MAC address for the interface is randomly generated.
 .Pp
 The
 .Nm
