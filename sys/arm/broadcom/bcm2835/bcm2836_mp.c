@@ -119,7 +119,7 @@ bcm2836_mp_start_ap(platform_t plat)
 		    (uint32_t)pmap_kextract((vm_offset_t)mpentry));
 		/* Firmware put cores in WFE state, need SEV to wake up. */
 		dsb();
-        sev();
+		sev();
 
 		/* wait for bootup */
 		retry = 1000;
