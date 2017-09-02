@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 30, 2017
+.Dd September 2, 2017
 .Dt NTB_TRANSPORT 4
 .Os
 .Sh NAME
@@ -52,23 +52,23 @@ The following tunables are settable from the
 Driver debug level.
 The default value is 0, higher means more verbose.
 .It Va hint.ntb_transport. Ns Ar X Ns Va .config
-Configures queues allocation for consumer devices, separated by commas.
-Each device can be configured as: "[<name>][:<queues>]", where:
+Configures a set of the transport consumers, separated by commas.
+Each consumer can be configured as: "[<name>][:<queues>]", where:
 .Va name
-is a name of the driver which should attach the device (empty means any),
+is a name of the driver to attach (empty means any),
 .Va queues
 is a number of queues to allocate (empty means automatic).
-The default configuration is empty string, which means single device
-with one queue per memory window allowing any driver attachment.
+The default configuration is empty string, which means single consumer
+with one queue per memory window, allowing any driver to attach.
 .El
 .Sh DESCRIPTION
 The
 .Nm
 driver attaches on top of the
 .Nm ntb
-driver to utilize its resources to create set of bidirectional queues,
+driver to utilize its resources to create a set of bidirectional queues,
 delivering packets between the systems.
-The primary purpose of this is to be used by
+The primary purpose of this driver is to be used by
 .Nm if_ntb
 network interface, but other consumers may also be developed using KPI.
 .Pp
