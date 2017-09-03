@@ -178,41 +178,45 @@ trap(struct trapframe *frame)
 #ifdef KDTRACE_HOOKS
 	struct reg regs;
 #endif
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
+	ksiginfo_t ksi;
+	struct thread *td;
+	struct proc *p;
 #ifdef KDB
 	register_t dr6;
 #endif
-	int i = 0, ucode = 0;
+	int signo, ucode;
 	u_int type;
-	register_t addr = 0;
+	register_t addr;
 	vm_offset_t eva;
-	ksiginfo_t ksi;
 #ifdef POWERFAIL_NMI
 	static int lastalert = 0;
 #endif
+
+	td = curthread;
+	p = td->td_proc;
+	signo = 0;
+	ucode = 0;
+	addr = 0;
 
 	PCPU_INC(cnt.v_trap);
 	type = frame->tf_trapno;
 
 #ifdef SMP
 	/* Handler for NMI IPIs used for stopping CPUs. */
-	if (type == T_NMI) {
-	         if (ipi_nmi_handler() == 0)
-	                   goto out;
-	}
+	if (type == T_NMI && ipi_nmi_handler() == 0)
+		return;
 #endif /* SMP */
 
 #ifdef KDB
 	if (kdb_active) {
 		kdb_reenter();
-		goto out;
+		return;
 	}
 #endif
 
 	if (type == T_RESERVED) {
 		trap_fatal(frame, 0);
-		goto out;
+		return;
 	}
 
 	if (type == T_NMI) {
@@ -226,18 +230,18 @@ trap(struct trapframe *frame)
 		 */
 		if (pmc_intr != NULL &&
 		    (*pmc_intr)(PCPU_GET(cpuid), frame) != 0)
-			goto out;
+			return;
 #endif
 
 #ifdef STACK
 		if (stack_nmi_handler(frame) != 0)
-			goto out;
+			return;
 #endif
 	}
 
 	if (type == T_MCHK) {
 		mca_intr();
-		goto out;
+		return;
 	}
 
 #ifdef KDTRACE_HOOKS
@@ -250,7 +254,7 @@ trap(struct trapframe *frame)
 	 */
 	if ((type == T_PROTFLT || type == T_PAGEFLT) &&
 	    dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
-		goto out;
+		return;
 #endif
 
 	if ((frame->tf_eflags & PSL_I) == 0) {
@@ -312,7 +316,7 @@ trap(struct trapframe *frame)
 
 		switch (type) {
 		case T_PRIVINFLT:	/* privileged instruction fault */
-			i = SIGILL;
+			signo = SIGILL;
 			ucode = ILL_PRVOPC;
 			break;
 
@@ -324,66 +328,64 @@ trap(struct trapframe *frame)
 				fill_frame_regs(frame, &regs);
 				if (dtrace_pid_probe_ptr != NULL &&
 				    dtrace_pid_probe_ptr(&regs) == 0)
-					goto out;
+					return;
 			}
 #endif
 user_trctrap_out:
 			frame->tf_eflags &= ~PSL_T;
-			i = SIGTRAP;
+			signo = SIGTRAP;
 			ucode = (type == T_TRCTRAP ? TRAP_TRACE : TRAP_BRKPT);
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
 			ucode = npxtrap_x87();
 			if (ucode == -1)
-				goto userout;
-			i = SIGFPE;
+				return;
+			signo = SIGFPE;
 			break;
 
-			/*
-			 * The following two traps can happen in
-			 * vm86 mode, and, if so, we want to handle
-			 * them specially.
-			 */
+		/*
+		 * The following two traps can happen in vm86 mode,
+		 * and, if so, we want to handle them specially.
+		 */
 		case T_PROTFLT:		/* general protection fault */
 		case T_STKFLT:		/* stack fault */
 			if (frame->tf_eflags & PSL_VM) {
-				i = vm86_emulate((struct vm86frame *)frame);
-				if (i == SIGTRAP) {
+				signo = vm86_emulate((struct vm86frame *)frame);
+				if (signo == SIGTRAP) {
 					type = T_TRCTRAP;
 					load_dr6(rdr6() | 0x4000);
 					goto user_trctrap_out;
 				}
-				if (i == 0)
+				if (signo == 0)
 					goto user;
 				break;
 			}
-			i = SIGBUS;
+			signo = SIGBUS;
 			ucode = (type == T_PROTFLT) ? BUS_OBJERR : BUS_ADRERR;
 			break;
 		case T_SEGNPFLT:	/* segment not present fault */
-			i = SIGBUS;
+			signo = SIGBUS;
 			ucode = BUS_ADRERR;
 			break;
 		case T_TSSFLT:		/* invalid TSS fault */
-			i = SIGBUS;
+			signo = SIGBUS;
 			ucode = BUS_OBJERR;
 			break;
 		case T_ALIGNFLT:
-			i = SIGBUS;
+			signo = SIGBUS;
 			ucode = BUS_ADRALN;
 			break;
 		case T_DOUBLEFLT:	/* double fault */
 		default:
-			i = SIGBUS;
+			signo = SIGBUS;
 			ucode = BUS_OBJERR;
 			break;
 
 		case T_PAGEFLT:		/* page fault */
-
-			i = trap_pfault(frame, TRUE, eva);
+			signo = trap_pfault(frame, TRUE, eva);
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
-			if (i == -2) {
+			if (signo == -2) {
 				/*
 				 * The f00f hack workaround has triggered, so
 				 * treat the fault as an illegal instruction 
@@ -393,52 +395,50 @@ user_trctrap_out:
 
 				/* Proceed as in that case. */
 				ucode = ILL_PRVOPC;
-				i = SIGILL;
+				signo = SIGILL;
 				break;
 			}
 #endif
-			if (i == -1)
-				goto userout;
-			if (i == 0)
+			if (signo == -1)
+				return;
+			if (signo == 0)
 				goto user;
 
-			if (i == SIGSEGV)
+			if (signo == SIGSEGV)
 				ucode = SEGV_MAPERR;
-			else {
-				if (prot_fault_translation == 0) {
-					/*
-					 * Autodetect.
-					 * This check also covers the images
-					 * without the ABI-tag ELF note.
-					 */
-					if (SV_CURPROC_ABI() == SV_ABI_FREEBSD
-					    && p->p_osrel >= P_OSREL_SIGSEGV) {
-						i = SIGSEGV;
-						ucode = SEGV_ACCERR;
-					} else {
-						i = SIGBUS;
-						ucode = BUS_PAGE_FAULT;
-					}
-				} else if (prot_fault_translation == 1) {
-					/*
-					 * Always compat mode.
-					 */
-					i = SIGBUS;
-					ucode = BUS_PAGE_FAULT;
-				} else {
-					/*
-					 * Always SIGSEGV mode.
-					 */
-					i = SIGSEGV;
+			else if (prot_fault_translation == 0) {
+				/*
+				 * Autodetect.  This check also covers
+				 * the images without the ABI-tag ELF
+				 * note.
+				 */
+				if (SV_CURPROC_ABI() == SV_ABI_FREEBSD &&
+				    p->p_osrel >= P_OSREL_SIGSEGV) {
+					signo = SIGSEGV;
 					ucode = SEGV_ACCERR;
+				} else {
+					signo = SIGBUS;
+					ucode = BUS_PAGE_FAULT;
 				}
+			} else if (prot_fault_translation == 1) {
+				/*
+				 * Always compat mode.
+				 */
+				signo = SIGBUS;
+				ucode = BUS_PAGE_FAULT;
+			} else {
+				/*
+				 * Always SIGSEGV mode.
+				 */
+				signo = SIGSEGV;
+				ucode = SEGV_ACCERR;
 			}
 			addr = eva;
 			break;
 
 		case T_DIVIDE:		/* integer divide fault */
 			ucode = FPE_INTDIV;
-			i = SIGFPE;
+			signo = SIGFPE;
 			break;
 
 #ifdef DEV_ISA
@@ -452,21 +452,21 @@ user_trctrap_out:
 				sysbeep(880, hz);
 				lastalert = time_second;
 			}
-			goto userout;
+			return;
 #else /* !POWERFAIL_NMI */
 			nmi_handle_intr(type, frame);
-			goto out;
+			return;
 #endif /* POWERFAIL_NMI */
 #endif /* DEV_ISA */
 
 		case T_OFLOW:		/* integer overflow fault */
 			ucode = FPE_INTOVF;
-			i = SIGFPE;
+			signo = SIGFPE;
 			break;
 
 		case T_BOUND:		/* bounds check fault */
 			ucode = FPE_FLTSUB;
-			i = SIGFPE;
+			signo = SIGFPE;
 			break;
 
 		case T_DNA:
@@ -474,32 +474,31 @@ user_trctrap_out:
 			    ("kernel FPU ctx has leaked"));
 			/* transparent fault (due to context switch "late") */
 			if (npxdna())
-				goto userout;
+				return;
 			uprintf("pid %d killed due to lack of floating point\n",
 				p->p_pid);
-			i = SIGKILL;
+			signo = SIGKILL;
 			ucode = 0;
 			break;
 
 		case T_FPOPFLT:		/* FPU operand fetch fault */
 			ucode = ILL_COPROC;
-			i = SIGILL;
+			signo = SIGILL;
 			break;
 
 		case T_XMMFLT:		/* SIMD floating-point exception */
 			ucode = npxtrap_sse();
 			if (ucode == -1)
-				goto userout;
-			i = SIGFPE;
+				return;
+			signo = SIGFPE;
 			break;
 #ifdef KDTRACE_HOOKS
 		case T_DTRACE_RET:
 			enable_intr();
 			fill_frame_regs(frame, &regs);
-			if (dtrace_return_probe_ptr != NULL &&
-			    dtrace_return_probe_ptr(&regs) == 0)
-				goto out;
-			goto userout;
+			if (dtrace_return_probe_ptr != NULL)
+				dtrace_return_probe_ptr(&regs);
+			return;
 #endif
 		}
 	} else {
@@ -510,13 +509,13 @@ user_trctrap_out:
 		switch (type) {
 		case T_PAGEFLT:			/* page fault */
 			(void) trap_pfault(frame, FALSE, eva);
-			goto out;
+			return;
 
 		case T_DNA:
 			if (PCB_USER_FPU(td->td_pcb))
 				panic("Unregistered use of FPU in kernel");
 			if (npxdna())
-				goto out;
+				return;
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
@@ -527,7 +526,7 @@ user_trctrap_out:
 			 * handler registration seems to be overkill
 			 */
 			trap_fatal(frame, 0);
-			goto out;
+			return;
 
 			/*
 			 * The following two traps can happen in
@@ -537,18 +536,18 @@ user_trctrap_out:
 		case T_PROTFLT:		/* general protection fault */
 		case T_STKFLT:		/* stack fault */
 			if (frame->tf_eflags & PSL_VM) {
-				i = vm86_emulate((struct vm86frame *)frame);
-				if (i == SIGTRAP) {
+				signo = vm86_emulate((struct vm86frame *)frame);
+				if (signo == SIGTRAP) {
 					type = T_TRCTRAP;
 					load_dr6(rdr6() | 0x4000);
 					goto kernel_trctrap;
 				}
-				if (i != 0)
+				if (signo != 0)
 					/*
 					 * returns to original process
 					 */
 					vm86_trap((struct vm86frame *)frame);
-				goto out;
+				return;
 			}
 			/* FALL THROUGH */
 		case T_SEGNPFLT:	/* segment not present fault */
@@ -571,7 +570,7 @@ user_trctrap_out:
 				kern_psignal(p, SIGBUS);
 				PROC_UNLOCK(p);
 #endif				
-				goto out;
+				return;
 			}
 
 			if (td->td_intr_nesting_level != 0)
@@ -589,27 +588,26 @@ user_trctrap_out:
 			 */
 			if (frame->tf_eip == (int)doreti_iret) {
 				frame->tf_eip = (int)doreti_iret_fault;
-				goto out;
+				return;
 			}
 			if (type == T_STKFLT)
 				break;
 
 			if (frame->tf_eip == (int)doreti_popl_ds) {
 				frame->tf_eip = (int)doreti_popl_ds_fault;
-				goto out;
+				return;
 			}
 			if (frame->tf_eip == (int)doreti_popl_es) {
 				frame->tf_eip = (int)doreti_popl_es_fault;
-				goto out;
+				return;
 			}
 			if (frame->tf_eip == (int)doreti_popl_fs) {
 				frame->tf_eip = (int)doreti_popl_fs_fault;
-				goto out;
+				return;
 			}
 			if (curpcb->pcb_onfault != NULL) {
-				frame->tf_eip =
-				    (int)curpcb->pcb_onfault;
-				goto out;
+				frame->tf_eip = (int)curpcb->pcb_onfault;
+				return;
 			}
 			break;
 
@@ -625,7 +623,7 @@ user_trctrap_out:
 			 */
 			if (frame->tf_eflags & PSL_NT) {
 				frame->tf_eflags &= ~PSL_NT;
-				goto out;
+				return;
 			}
 			break;
 
@@ -638,7 +636,7 @@ kernel_trctrap:
 				 * silently until the syscall handler has
 				 * saved the flags.
 				 */
-				goto out;
+				return;
 			}
 			if (frame->tf_eip == (int)IDTVEC(lcall_syscall) + 1) {
 				/*
@@ -646,7 +644,7 @@ kernel_trctrap:
 				 * flags.  Stop single stepping it.
 				 */
 				frame->tf_eflags &= ~PSL_T;
-				goto out;
+				return;
 			}
 			/*
 			 * Ignore debug register trace traps due to
@@ -665,7 +663,7 @@ kernel_trctrap:
 				 * processor doesn't
 				 */
 				load_dr6(rdr6() & ~0xf);
-				goto out;
+				return;
 			}
 			/*
 			 * FALLTHROUGH (TRCTRAP kernel mode, kernel address)
@@ -680,7 +678,7 @@ kernel_trctrap:
 			dr6 = rdr6();
 			load_dr6(dr6 & ~0x4000);
 			if (kdb_trap(type, dr6, frame))
-				goto out;
+				return;
 #endif
 			break;
 
@@ -692,24 +690,24 @@ kernel_trctrap:
 				sysbeep(880, hz);
 				lastalert = time_second;
 			}
-			goto out;
+			return;
 #else /* !POWERFAIL_NMI */
 			nmi_handle_intr(type, frame);
-			goto out;
+			return;
 #endif /* POWERFAIL_NMI */
 #endif /* DEV_ISA */
 		}
 
 		trap_fatal(frame, eva);
-		goto out;
+		return;
 	}
 
 	/* Translate fault for emulators (e.g. Linux) */
-	if (*p->p_sysent->sv_transtrap)
-		i = (*p->p_sysent->sv_transtrap)(i, type);
+	if (*p->p_sysent->sv_transtrap != NULL)
+		signo = (*p->p_sysent->sv_transtrap)(signo, type);
 
 	ksiginfo_init_trap(&ksi);
-	ksi.ksi_signo = i;
+	ksi.ksi_signo = signo;
 	ksi.ksi_code = ucode;
 	ksi.ksi_addr = (void *)addr;
 	ksi.ksi_trapno = type;
@@ -717,8 +715,8 @@ kernel_trctrap:
 		uprintf("pid %d comm %s: signal %d err %x code %d type %d "
 		    "addr 0x%x esp 0x%08x eip 0x%08x "
 		    "<%02x %02x %02x %02x %02x %02x %02x %02x>\n",
-		    p->p_pid, p->p_comm, i, frame->tf_err, ucode, type, addr,
-		    frame->tf_esp, frame->tf_eip,
+		    p->p_pid, p->p_comm, signo, frame->tf_err, ucode, type,
+		    addr, frame->tf_esp, frame->tf_eip,
 		    fubyte((void *)(frame->tf_eip + 0)),
 		    fubyte((void *)(frame->tf_eip + 1)),
 		    fubyte((void *)(frame->tf_eip + 2)),
@@ -735,9 +733,6 @@ user:
 	userret(td, frame);
 	KASSERT(PCB_USER_FPU(td->td_pcb),
 	    ("Return from trap with kernel FPU ctx leaked"));
-userout:
-out:
-	return;
 }
 
 static int
