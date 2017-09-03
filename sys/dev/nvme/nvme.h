@@ -919,7 +919,8 @@ void	nvme_ns_rw_cmd(struct nvme_command *cmd, uint32_t rwcmd, uint16_t nsid,
 {
 	cmd->opc = rwcmd;
 	cmd->nsid = nsid;
-	*(uint64_t *)&cmd->cdw10 = lba;
+	cmd->cdw10 = lba & 0xffffffffu;
+	cmd->cdw11 = lba >> 32;
 	cmd->cdw12 = count-1;
 	cmd->cdw13 = 0;
 	cmd->cdw14 = 0;
