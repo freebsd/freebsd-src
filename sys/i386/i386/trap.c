@@ -751,17 +751,18 @@ out:
 }
 
 static int
-trap_pfault(frame, usermode, eva)
-	struct trapframe *frame;
-	int usermode;
-	vm_offset_t eva;
+trap_pfault(struct trapframe *frame, int usermode, vm_offset_t eva)
 {
+	struct thread *td;
+	struct proc *p;
 	vm_offset_t va;
 	vm_map_t map;
-	int rv = 0;
+	int rv;
 	vm_prot_t ftype;
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
+
+	td = curthread;
+	p = td->td_proc;
+	rv = 0;
 
 	if (__predict_false((td->td_pflags & TDP_NOFAULTING) != 0)) {
 		/*
