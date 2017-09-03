@@ -6408,7 +6408,7 @@ nfsrv_flexlayout(struct nfsrv_descript *nd, int iomode, int mirrorcnt,
 		tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
 		devid += NFSX_V4DEVICEID;
 		*tl++ = txdr_unsigned(1);		/* Efficiency. */
-		*tl++ = 0xffffffff;			/* Proxy Stateid. */
+		*tl++ = 0;				/* Proxy Stateid. */
 		*tl++ = 0x55555555;
 		*tl++ = 0x55555555;
 		*tl++ = 0x55555555;
