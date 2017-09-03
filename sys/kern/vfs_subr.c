@@ -1628,9 +1628,13 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 
 #ifdef INVARIANTS
 	BO_LOCK(bo);
-	if ((flags & (V_ALT | V_NORMAL | V_CLEANONLY | V_VMIO)) == 0 &&
-	    (bo->bo_dirty.bv_cnt > 0 || bo->bo_clean.bv_cnt > 0))
+	if ((flags & (V_ALT | V_NORMAL | V_CLEANONLY | V_VMIO |
+	    V_ALLOWCLEAN)) == 0 && (bo->bo_dirty.bv_cnt > 0 ||
+	    bo->bo_clean.bv_cnt > 0))
 		panic("vinvalbuf: flush failed");
+	if ((flags & (V_ALT | V_NORMAL | V_CLEANONLY | V_VMIO)) == 0 &&
+	    bo->bo_dirty.bv_cnt > 0)
+		panic("vinvalbuf: flush dirty failed");
 	BO_UNLOCK(bo);
 #endif
 	return (0);
