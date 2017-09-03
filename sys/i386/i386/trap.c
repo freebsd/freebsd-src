@@ -731,16 +731,6 @@ kernel_trctrap:
 	KASSERT((read_eflags() & PSL_I) != 0, ("interrupts disabled"));
 	trapsignal(td, &ksi);
 
-#ifdef DEBUG
-	if (type <= MAX_TRAP_MSG) {
-		uprintf("fatal process exception: %s",
-			trap_msg[type]);
-		if ((type == T_PAGEFLT) || (type == T_PROTFLT))
-			uprintf(", fault VA = 0x%lx", (u_long)eva);
-		uprintf("\n");
-	}
-#endif
-
 user:
 	userret(td, frame);
 	KASSERT(PCB_USER_FPU(td->td_pcb),
