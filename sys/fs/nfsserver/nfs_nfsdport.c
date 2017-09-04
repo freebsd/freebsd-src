@@ -4174,7 +4174,7 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int buflen,
 	struct nfsdevice *ds, *mds;
 	struct pnfsdsfile *pf;
 	uint32_t dsdir;
-	int done, error, fhiszero, gotone, i, j, mirrorcnt;
+	int done, error, fhiszero, gotone, i, mirrorcnt;
 
 	*mirrorcntp = 1;
 	fhiszero = 0;
@@ -4226,7 +4226,6 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int buflen,
 			}
 			NFSDDSUNLOCK();
 			if (ds != NULL) {
-				gotone = 1;
 				if (dvpp != NULL || fhiszero != 0) {
 					dvp = ds->nfsdev_dsdir[dsdir];
 					error = vn_lock(dvp, lktype);
@@ -4250,6 +4249,7 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int buflen,
 					devid += NFSX_V4DEVICEID;
 				}
 				if (error == 0) {
+					gotone++;
 					if (dvpp != NULL) {
 						*tdvpp++ = dvp;
 						*nmpp++ = nmp;
@@ -4271,14 +4271,14 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int buflen,
 		error = ENOENT;
 
 	if (error == 0)
-		*mirrorcntp = mirrorcnt;
-	else if (i > 1 && dvpp != NULL && gotone != 0) {
+		*mirrorcntp = gotone;
+	else if (gotone > 0 && dvpp != NULL) {
 		/*
 		 * If the error didn't occur on the first one and dvpp != NULL,
 		 * the one(s) prior to the failure will have locked dvp's that
 		 * need to be unlocked.
 		 */
-		for (j = 1; j < i; j++) {
+		for (i = 0; i < gotone; i++) {
 			NFSVOPUNLOCK(*dvpp, 0);
 			*dvpp++ = NULL;
 		}
