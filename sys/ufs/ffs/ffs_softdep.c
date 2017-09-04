@@ -13911,12 +13911,36 @@ softdep_count_dependencies(bp, wantcount)
 	struct newblk *newblk;
 	struct mkdir *mkdir;
 	struct diradd *dap;
+	struct vnode *vp;
+	struct mount *mp;
 	int i, retval;
 
 	retval = 0;
-	if ((wk = LIST_FIRST(&bp->b_dep)) == NULL)
+	if (LIST_EMPTY(&bp->b_dep))
 		return (0);
-	ump = VFSTOUFS(wk->wk_mp);
+	vp = bp->b_vp;
+
+	/*
+	 * The ump mount point is stable after we get a correct
+	 * pointer, since bp is locked and this prevents unmount from
+	 * proceed.  But to get to it, we cannot dereference bp->b_dep
+	 * head wk_mp, because we do not yet own SU ump lock and
+	 * workitem might be freed while dereferenced.
+	 */
+retry:
+	if (vp->v_type == VCHR) {
+		VI_LOCK(vp);
+		mp = vp->v_type == VCHR ? vp->v_rdev->si_mountpt : NULL;
+		VI_UNLOCK(vp);
+		if (mp == NULL)
+			goto retry;
+	} else if (vp->v_type == VREG) {
+		mp = vp->v_mount;
+	} else {
+		return (0);
+	}
+	ump = VFSTOUFS(mp);
+
 	ACQUIRE_LOCK(ump);
 	LIST_FOREACH(wk, &bp->b_dep, wk_list) {
 		switch (wk->wk_type) {
