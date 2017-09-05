@@ -207,6 +207,8 @@ amdtemp_probe(device_t dev)
 
 	if (resource_disabled("amdtemp", 0))
 		return (ENXIO);
+	if (!amdtemp_match(device_get_parent(dev)))
+		return (ENXIO);
 
 	family = CPUID_TO_FAMILY(cpu_id);
 	model = CPUID_TO_MODEL(cpu_id);
