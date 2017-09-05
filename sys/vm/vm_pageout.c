@@ -401,6 +401,8 @@ vm_pageout_cluster(vm_page_t m)
 	 */
 	vm_page_assert_unbusied(m);
 	KASSERT(m->hold_count == 0, ("page %p is held", m));
+
+	pmap_remove_write(m);
 	vm_page_unlock(m);
 
 	mc[vm_pageout_page_count] = pb = ps = m;
@@ -443,6 +445,7 @@ more:
 			ib = 0;
 			break;
 		}
+		pmap_remove_write(p);
 		vm_page_unlock(p);
 		mc[--page_base] = pb = p;
 		++pageout_count;
@@ -468,6 +471,7 @@ more:
 			vm_page_unlock(p);
 			break;
 		}
+		pmap_remove_write(p);
 		vm_page_unlock(p);
 		mc[page_base + pageout_count] = ps = p;
 		++pageout_count;
@@ -512,8 +516,8 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	/*
-	 * Initiate I/O.  Bump the vm_page_t->busy counter and
-	 * mark the pages read-only.
+	 * Initiate I/O.  Mark the pages busy and verify that they're valid
+	 * and read-only.
 	 *
 	 * We do not have to fixup the clean/dirty bits here... we can
 	 * allow the pager to do it after the I/O completes.
@@ -525,8 +529,9 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 		KASSERT(mc[i]->valid == VM_PAGE_BITS_ALL,
 		    ("vm_pageout_flush: partially invalid page %p index %d/%d",
 			mc[i], i, count));
+		KASSERT((mc[i]->aflags & PGA_WRITEABLE) == 0,
+		    ("vm_pageout_flush: writeable page %p", mc[i]));
 		vm_page_sbusy(mc[i]);
-		pmap_remove_write(mc[i]);
 	}
 	vm_object_pip_add(object, count);
 
