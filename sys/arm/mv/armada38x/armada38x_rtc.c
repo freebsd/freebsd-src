@@ -128,7 +128,7 @@ static driver_t mv_rtc_driver = {
 
 static devclass_t mv_rtc_devclass;
 
-DRIVER_MODULE(mv_rtc, simplebus, mv_rtc_driver, mv_rtc_devclass, 0, 0);
+DRIVER_MODULE(a38x_rtc, simplebus, mv_rtc_driver, mv_rtc_devclass, 0, 0);
 
 static void
 mv_rtc_reset(device_t dev)
