@@ -589,6 +589,11 @@ device		cpuctl
 options 	ENABLE_ALART		# Control alarm on Intel intpm driver
 
 #
+# AMD System Management Network (SMN)
+#
+device		amdsmn
+
+#
 # Number of initial kernel page table pages used for early bootstrap.
 # This number should include enough pages to map the kernel and any
 # modules or other data loaded with the kernel by the loader.  Each
