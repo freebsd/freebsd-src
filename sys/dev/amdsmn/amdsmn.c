@@ -90,23 +90,28 @@ static devclass_t amdsmn_devclass;
 DRIVER_MODULE(amdsmn, hostb, amdsmn_driver, amdsmn_devclass, NULL, NULL);
 MODULE_VERSION(amdsmn, 1);
 
-static void
-amdsmn_identify(driver_t *driver, device_t parent)
+static bool
+amdsmn_match(device_t parent)
 {
-	device_t child;
 	uint32_t devid;
 	size_t i;
-
-	/* Make sure we're not being doubly invoked. */
-	if (device_find_child(parent, "amdsmn", -1) != NULL)
-		return;
 
 	devid = pci_get_devid(parent);
 	for (i = 0; i < nitems(amdsmn_ids); i++)
 		if (amdsmn_ids[i].device_id == devid)
-			break;
+			return (true);
+	return (false);
+}
 
-	if (i >= nitems(amdsmn_ids))
+static void
+amdsmn_identify(driver_t *driver, device_t parent)
+{
+	device_t child;
+
+	/* Make sure we're not being doubly invoked. */
+	if (device_find_child(parent, "amdsmn", -1) != NULL)
+		return;
+	if (!amdsmn_match(parent))
 		return;
 
 	child = device_add_child(parent, "amdsmn", -1);
@@ -120,6 +125,8 @@ amdsmn_probe(device_t dev)
 	uint32_t family;
 
 	if (resource_disabled("amdsmn", 0))
+		return (ENXIO);
+	if (!amdsmn_match(device_get_parent(dev)))
 		return (ENXIO);
 
 	family = CPUID_TO_FAMILY(cpu_id);
