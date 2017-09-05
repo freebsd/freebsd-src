@@ -1801,7 +1801,7 @@ cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp)
 {
 	void * __capability *base;
 
-	KASSERT((vaddr_t)*stack_base & sizeof(void * __capability) - 1 == 0,
+	KASSERT(((vaddr_t)*stack_base & (sizeof(void * __capability) - 1)) == 0,
 	    ("*stack_base (%p) is not capability aligned", *stack_base));
 
 	base = (void * __capability *)
@@ -1866,7 +1866,7 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 
 		/* User didn't provide a capability so get the thread one. */
 		addr_cap = td->td_md.md_cheri_mmap_cap;
-		KASSERT(cheri_gettag(addr_cap);,
+		KASSERT(cheri_gettag(addr_cap),
 		    ("td->td_md.md_cheri_mmap_cap is untagged!"));
 	}
 	cap_base = cheri_getbase(addr_cap);

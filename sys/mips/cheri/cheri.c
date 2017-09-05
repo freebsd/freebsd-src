@@ -151,7 +151,7 @@ cheri_capability_set(void * __capability *cp, uint32_t perms, vaddr_t basep,
 	    ("%s: permissions 0x%x rather than 0x%x", __func__,
 	    (unsigned int)cheri_getperm(*cp), perms));
 	KASSERT(cheri_getbase(*cp) == (register_t)basep,
-	    ("%s: base %p rather than %p", __func__,
+	    ("%s: base %p rather than %lx", __func__,
 	     (void *)cheri_getbase(*cp), basep));
 	KASSERT(cheri_getlen(*cp) == (register_t)length,
 	    ("%s: length 0x%x rather than %p", __func__,
