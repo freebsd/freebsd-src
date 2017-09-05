@@ -54,7 +54,6 @@ exec_002_neg_head()
 }
 exec_002_neg_body()
 {
-	atf_expect_fail "FreeBSD does not enforce the exec property for mmap(): TeamTrack BUG25314"
 	PATH=$(atf_get_srcdir):$PATH
 	. $(atf_get_srcdir)/../../include/default.cfg
 
