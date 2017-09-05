@@ -188,6 +188,7 @@ device		aw_nmi		# Allwinner NMI support
 
 # Real-time clock support
 device		aw_rtc		# Allwinner Real-time Clock
+device		mv_rtc		# Marvell Real-time Clock
 
 # Watchdog controllers
 device		aw_wdog		# Allwinner Watchdog
