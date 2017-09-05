@@ -117,8 +117,8 @@ SRCF+=		udivti3
 SRCF+=		umoddi3
 SRCF+=		umodti3
 
-# Avoid using SSE2 instructions on i386.
-.if ${MACHINE_CPUARCH} == "i386"
+# Avoid using SSE2 instructions on i386, if unsupported.
+.if ${MACHINE_CPUARCH} == "i386" && empty(MACHINE_CPU:Msse2)
 SRCS+=		floatdidf.c
 SRCS+=		floatdisf.c
 SRCS+=		floatdixf.c
