@@ -6,6 +6,7 @@
 
 .ifdef LIBCHERI
 CFLAGS+=	-DNO_COMPAT7
+CFLAGS.getpwent.c=	-mxgot
 .endif
 
 SRCS+=	__getosreldate.c \
