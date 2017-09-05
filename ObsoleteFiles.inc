@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170802: ksyms(4) ioctl interface was removed
+OLD_FILES+=usr/include/sys/ksyms.h
 # 20170620: remove stale manpage
 OLD_FILES+=usr/share/man/man2/cap_rights_get.2.gz
 # 20170610: chown-f_test replaced by chown_test
