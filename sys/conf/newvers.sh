@@ -51,6 +51,28 @@ fi
 RELEASE="${REVISION}-${BRANCH}"
 VERSION="${TYPE} ${RELEASE}"
 
+#
+# findvcs dir
+#	Looks up directory dir at world root and up the filesystem
+#
+findvcs()
+{
+	local savedir
+
+	savedir=$(pwd)
+	cd ${SYSDIR}/..
+	while [ $(pwd) != "/" ]; do
+		if [ -d "./$1" ]; then
+			VCSDIR=$(pwd)"/$1"
+			cd ${savedir}
+			return 0
+		fi
+		cd ..
+	done
+	cd ${savedir}
+	return 1
+}
+
 if [ -z "${SYSDIR}" ]; then
     SYSDIR=$(dirname $0)/..
 fi
@@ -154,19 +176,20 @@ for dir in /usr/bin /usr/local/bin; do
 		p4_cmd=${dir}/p4
 	fi
 done
-if [ -d "${SYSDIR}/../.git" ] ; then
+
+if findvcs .git; then
 	for dir in /usr/bin /usr/local/bin; do
 		if [ -x "${dir}/git" ] ; then
-			git_cmd="${dir}/git --git-dir=${SYSDIR}/../.git"
+			git_cmd="${dir}/git --git-dir=${VCSDIR}"
 			break
 		fi
 	done
 fi
 
-if [ -d "${SYSDIR}/../.hg" ] ; then
+if findvcs .hg; then
 	for dir in /usr/bin /usr/local/bin; do
 		if [ -x "${dir}/hg" ] ; then
-			hg_cmd="${dir}/hg -R ${SYSDIR}/.."
+			hg_cmd="${dir}/hg -R ${VCSDIR}"
 			break
 		fi
 	done
@@ -213,7 +236,7 @@ if [ -n "$git_cmd" ] ; then
 	if [ -n "$git_b" ] ; then
 		git="${git}(${git_b})"
 	fi
-	if $git_cmd --work-tree=${SYSDIR}/.. diff-index \
+	if $git_cmd --work-tree=${VCSDIR}/.. diff-index \
 	    --name-only HEAD | read dummy; then
 		git="${git}-dirty"
 		modified=true
