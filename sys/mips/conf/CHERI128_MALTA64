@@ -27,6 +27,3 @@ options         CPU_QEMU_MALTA
 # Qemu doesn't yet support these
 nooptions	CPU_CHERI_HW_CCALL_CHECKS
 nooptions	CPU_CHERI_HW_CCLEAR
-
-nooptions	INVARIANTS
-nooptions	INVARIANT_SUPPORT
