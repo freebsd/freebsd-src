@@ -126,6 +126,12 @@ static driver_t mv_rtc_driver = {
 	sizeof(struct mv_rtc_softc),
 };
 
+static struct ofw_compat_data mv_rtc_compat[] = {
+	{"marvell,armada-380-rtc",	true},
+	{"marvell,armada-8k-rtc",	true},
+	{NULL,				false},
+};
+
 static devclass_t mv_rtc_devclass;
 
 DRIVER_MODULE(a38x_rtc, simplebus, mv_rtc_driver, mv_rtc_devclass, 0, 0);
@@ -174,7 +180,7 @@ mv_rtc_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "marvell,armada-380-rtc"))
+	if (!ofw_bus_search_compatible(dev, mv_rtc_compat)->ocd_data)
 		return (ENXIO);
 
 	device_set_desc(dev, "Marvell Integrated RTC");
