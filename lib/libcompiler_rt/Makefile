@@ -65,15 +65,9 @@ SRCF=	absvdi2 \
 	fixunsxfti \
 	fixxfdi \
 	fixxfti \
-	floatdidf \
-	floatdisf \
-	floatdixf \
 	floattidf \
 	floattisf \
 	floattixf \
-	floatundidf \
-	floatundisf \
-	floatundixf \
 	floatunsidf \
 	floatunsisf \
 	floatuntidf \
@@ -125,6 +119,23 @@ SRCF=	absvdi2 \
 	udivti3 \
 	umoddi3 \
 	umodti3
+
+# Avoid using SSE2 instructions on i386, if unsupported.
+.if ${MACHINE_CPUARCH} == "i386" && empty(MACHINE_CPU:Msse2)
+SRCS+=		floatdidf.c
+SRCS+=		floatdisf.c
+SRCS+=		floatdixf.c
+SRCS+=		floatundidf.c
+SRCS+=		floatundisf.c
+SRCS+=		floatundixf.c
+.else
+SRCF+=		floatdidf
+SRCF+=		floatdisf
+SRCF+=		floatdixf
+SRCF+=		floatundidf
+SRCF+=		floatundisf
+SRCF+=		floatundixf
+.endif
 
 # These are already shipped by libc.a on arm and mips
 .if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
