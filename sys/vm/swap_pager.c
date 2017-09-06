@@ -2071,13 +2071,14 @@ done:
 /*
  * Check that the total amount of swap currently configured does not
  * exceed half the theoretical maximum.  If it does, print a warning
- * message and return -1; otherwise, return 0.
+ * message.
  */
-static int
-swapon_check_swzone(unsigned long npages)
+static void
+swapon_check_swzone(void)
 {
-	unsigned long maxpages;
+	unsigned long maxpages, npages;
 
+	npages = swap_total / PAGE_SIZE;
 	/* absolute maximum we can handle assuming 100% efficiency */
 	maxpages = uma_zone_get_max(swap_zone) * SWAP_META_PAGES;
 
@@ -2088,9 +2089,7 @@ swapon_check_swzone(unsigned long npages)
 		    npages, maxpages / 2);
 		printf("warning: increase kern.maxswzone "
 		    "or reduce amount of swap.\n");
-		return (-1);
 	}
-	return (0);
 }
 
 static void
@@ -2158,7 +2157,7 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
 	nswapdev++;
 	swap_pager_avail += nblks - 2;
 	swap_total += (vm_ooffset_t)nblks * PAGE_SIZE;
-	swapon_check_swzone(swap_total / PAGE_SIZE);
+	swapon_check_swzone();
 	swp_sizecheck();
 	mtx_unlock(&sw_dev_mtx);
 }
