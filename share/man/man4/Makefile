@@ -868,6 +868,7 @@ MAN+=		iscsi_initiator.4
 
 .if ${MK_OFED} != "no"
 MAN+=		mlx4ib.4
+MAN+=		mlx5ib.4
 .endif
 
 .if ${MK_TESTS} != "no"

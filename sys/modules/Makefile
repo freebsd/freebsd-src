@@ -225,6 +225,7 @@ SUBDIR=	\
 	${_mlxen} \
 	${_mlx5} \
 	${_mlx5en} \
+	${_mlx5ib} \
 	${_mly} \
 	mmc \
 	mmcsd \
@@ -762,6 +763,7 @@ _mly=		mly
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _mlx4=		mlx4
 _mlx4ib=	mlx4ib
+_mlx5ib=	mlx5ib
 _mlxen=		mlxen
 _mthca=		mthca
 .endif
