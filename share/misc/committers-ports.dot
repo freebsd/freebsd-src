@@ -215,6 +215,7 @@ scheidell [label="Michael Scheidell\nscheidell@FreeBSD.org\n2011/11/06"]
 sem [label="Sergey Matveychuk\nsem@FreeBSD.org\n2004/07/07"]
 sergei [label="Sergei Kolobov\nsergei@FreeBSD.org\n2003/10/21"]
 shaun [label="Shaun Amott\nshaun@FreeBSD.org\n2006/06/19"]
+shurd [label="Stephen Hurd\nshurd@FreeBSD.org\n2014/06/14"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2005/01/08"]
 skreuzer [label="Steven Kreuzer\nskreuzer@FreeBSD.org\n2009/03/25"]
 sobomax[label="Maxim Sobolev\nsobomax@FreeBSD.org\n2000/05/17"]
@@ -338,6 +339,7 @@ culot -> marino
 culot -> wg
 
 db -> tj
+db -> shurd
 
 decke -> sperber
 
@@ -601,6 +603,7 @@ shaun -> timur
 shaun -> matthew
 
 skreuzer -> gnn
+skreuzer -> shurd
 
 sobomax -> demon
 sobomax -> glewis
