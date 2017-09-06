@@ -1478,12 +1478,12 @@ bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc)
 		goto exit;
 
 	link_info->phy_link_status = resp->link;
-	link_info->duplex =  resp->duplex;
+	link_info->duplex =  resp->duplex_cfg;
 	link_info->pause = resp->pause;
 	link_info->auto_mode = resp->auto_mode;
 	link_info->auto_pause = resp->auto_pause;
 	link_info->force_pause = resp->force_pause;
-	link_info->duplex_setting = resp->duplex;
+	link_info->duplex_setting = resp->duplex_cfg;
 	if (link_info->phy_link_status == HWRM_PORT_PHY_QCFG_OUTPUT_LINK_LINK)
 		link_info->link_speed = le16toh(resp->link_speed);
 	else

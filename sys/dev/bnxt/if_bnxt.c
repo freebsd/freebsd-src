@@ -930,7 +930,7 @@ bnxt_init(if_ctx_t ctx)
 	softc->def_cp_ring.v_bit = 1;
 	bnxt_mark_cpr_invalid(&softc->def_cp_ring);
 	rc = bnxt_hwrm_ring_alloc(softc,
-	    HWRM_RING_ALLOC_INPUT_RING_TYPE_CMPL,
+	    HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
 	    &softc->def_cp_ring.ring,
 	    (uint16_t)HWRM_NA_SIGNATURE,
 	    HWRM_NA_SIGNATURE, true);
@@ -956,7 +956,7 @@ bnxt_init(if_ctx_t ctx)
 		softc->rx_cp_rings[i].last_idx = UINT32_MAX;
 		bnxt_mark_cpr_invalid(&softc->rx_cp_rings[i]);
 		rc = bnxt_hwrm_ring_alloc(softc,
-		    HWRM_RING_ALLOC_INPUT_RING_TYPE_CMPL,
+		    HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
 		    &softc->rx_cp_rings[i].ring, (uint16_t)HWRM_NA_SIGNATURE,
 		    HWRM_NA_SIGNATURE, true);
 		if (rc)
@@ -1054,7 +1054,7 @@ bnxt_init(if_ctx_t ctx)
 		softc->tx_cp_rings[i].v_bit = 1;
 		bnxt_mark_cpr_invalid(&softc->tx_cp_rings[i]);
 		rc = bnxt_hwrm_ring_alloc(softc,
-		    HWRM_RING_ALLOC_INPUT_RING_TYPE_CMPL,
+		    HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
 		    &softc->tx_cp_rings[i].ring, (uint16_t)HWRM_NA_SIGNATURE,
 		    HWRM_NA_SIGNATURE, false);
 		if (rc)
@@ -1154,7 +1154,7 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 	else
 		ifmr->ifm_status &= ~IFM_ACTIVE;
 
-	if (link_info->duplex == HWRM_PORT_PHY_QCFG_OUTPUT_DUPLEX_FULL)
+	if (link_info->duplex == HWRM_PORT_PHY_QCFG_OUTPUT_DUPLEX_CFG_FULL)
 		ifmr->ifm_active |= IFM_FDX;
 	else
 		ifmr->ifm_active |= IFM_HDX;
@@ -2288,7 +2288,7 @@ bnxt_report_link(struct bnxt_softc *softc)
 
 	if (softc->link_info.link_up) {
 		if (softc->link_info.duplex ==
-		    HWRM_PORT_PHY_QCFG_OUTPUT_DUPLEX_FULL)
+		    HWRM_PORT_PHY_QCFG_OUTPUT_DUPLEX_CFG_FULL)
 			duplex = "full duplex";
 		else
 			duplex = "half duplex";
