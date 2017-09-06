@@ -131,7 +131,7 @@ static LIST_HEAD(,uma_zone) uma_cachezones =
     LIST_HEAD_INITIALIZER(uma_cachezones);
 
 /* This RW lock protects the keg list */
-static struct rwlock_padalign uma_rwlock;
+static struct rwlock_padalign __exclusive_cache_line uma_rwlock;
 
 /*
  * Pointer and counter to pool of pages, that is preallocated at
