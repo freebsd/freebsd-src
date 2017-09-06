@@ -1726,7 +1726,7 @@ static void
 swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 {
 	static volatile int swblk_zone_exhausted, swpctrie_zone_exhausted;
-	struct swblk *sb;
+	struct swblk *sb, *sb1;
 	vm_pindex_t modpi, rdpi;
 	int error, i;
 
@@ -1776,6 +1776,15 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 			} else
 				VM_WAIT;
 			VM_OBJECT_WLOCK(object);
+			sb = SWAP_PCTRIE_LOOKUP(&object->un_pager.swp.swp_blks,
+			    rdpi);
+			if (sb != NULL)
+				/*
+				 * Somebody swapped out a nearby page,
+				 * allocating swblk at the rdpi index,
+				 * while we dropped the object lock.
+				 */
+				goto allocated;
 		}
 		for (;;) {
 			error = SWAP_PCTRIE_INSERT(
@@ -1797,8 +1806,16 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 			} else
 				VM_WAIT;
 			VM_OBJECT_WLOCK(object);
+			sb1 = SWAP_PCTRIE_LOOKUP(&object->un_pager.swp.swp_blks,
+			    rdpi);
+			if (sb1 != NULL) {
+				uma_zfree(swblk_zone, sb);
+				sb = sb1;
+				goto allocated;
+			}
 		}
 	}
+allocated:
 	MPASS(sb->p == rdpi);
 
 	modpi = pindex % SWAP_META_PAGES;
