@@ -130,7 +130,7 @@ ehci_xls_attach(device_t self)
 	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
 	device_set_desc(sc->sc_bus.bdev, xlr_usb_dev_desc);
 
-	sprintf(sc->sc_vendor, xlr_vendor_desc);
+	strlcpy(sc->sc_vendor, xlr_vendor_desc, sizeof(sc->sc_vendor));
 
 	err = bus_setup_intr(self, sc->sc_irq_res,
 	    INTR_TYPE_BIO | INTR_MPSAFE, NULL,
