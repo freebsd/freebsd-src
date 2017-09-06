@@ -4287,6 +4287,27 @@ ofed/drivers/net/mlx4/en_tx.c			optional mlxen		\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
 
+dev/mlx5/mlx5_ib/mlx5_ib_ah.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_cq.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_doorbell.c		optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_mad.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_main.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_mem.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_mr.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_qp.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_roce.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_srq.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+
 dev/mlx5/mlx5_core/mlx5_alloc.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_cmd.c			optional mlx5 pci	\
