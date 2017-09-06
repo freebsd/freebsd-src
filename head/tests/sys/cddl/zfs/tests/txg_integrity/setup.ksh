@@ -30,7 +30,7 @@
 . ${STF_SUITE}/include/libtest.kshlib
 
 # For this test, we create an MD instead of using the defined DISKS.
-# BUG25451 reproduces much more quickly on an MD
+# Data corrupts much more quickly on an MD.
 # Make it small enough that we can tar up the entire pool for post-mortem
 # analysis
 log_must $MDCONFIG -a -t swap -s 1g -u $TESTCASE_ID

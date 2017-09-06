@@ -27,7 +27,7 @@
 atf_test_case zvol_thrash_001_pos cleanup
 zvol_thrash_001_pos_head()
 {
-	atf_set "descr" "Cause frequent device removal and arrival in the prescence of zvols.  ZFS should not taste them for VDev GUIDs.  If it does, \ deadlocks (SpectraLogic MST 23637) and panics (SpectraLogic BUG23665 \ and BUG23677) may result"
+	atf_set "descr" "Cause frequent device removal and arrival in the prescence of zvols.  ZFS should not misbehave while tasting them for VDev GUIDs."
 	atf_set "require.progs"  zfs zpool camcontrol
 	atf_set "timeout" 900
 }

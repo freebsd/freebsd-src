@@ -86,7 +86,7 @@ zfs_get_003_pos_head()
 }
 zfs_get_003_pos_body()
 {
-	atf_expect_fail "BUG26181: The remount mount option is broken in SpectraBSD"
+	atf_expect_fail "kern/221985 - zfs mount -o remount is broken"
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_get_list_d.kshlib
 	. $(atf_get_srcdir)/zfs_get_common.kshlib

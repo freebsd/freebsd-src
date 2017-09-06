@@ -27,7 +27,7 @@
 atf_test_case txg_integrity_001_pos cleanup
 txg_integrity_001_pos_head()
 {
-	atf_set "descr" "Ensure that non-aligned writes to the same blocks that crosstransaction groups do not corrupt the file."
+	atf_set "descr" "Ensure that non-aligned writes to the same blocks that cross transaction groups do not corrupt the file."
 	atf_set "timeout" 1800
 }
 txg_integrity_001_pos_body()

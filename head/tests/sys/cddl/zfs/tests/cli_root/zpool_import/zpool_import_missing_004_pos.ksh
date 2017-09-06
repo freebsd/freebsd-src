@@ -36,7 +36,6 @@
 # DESCRIPTION:
 # 	Once a pool has been exported and one or more devices are missing
 # 	"zpool import" with no pool argument should exit with error code 0.
-# 	This is a regression test for Spectra Logic BUG27046.
 #
 # STRATEGY:
 #	1. Create test pool upon device files using the various combinations.

@@ -90,7 +90,7 @@ zfsd_degrade_002_pos_head()
 }
 zfsd_degrade_002_pos_body()
 {
-	atf_expect_fail "BUG25761 An active spare on a raidz array will incorrectly account its checksum errors"
+	atf_expect_fail "https://www.illumos.org/issues/8614 Checksum errors on a mirrored child of a raidz are incorrectly accounted"
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
 

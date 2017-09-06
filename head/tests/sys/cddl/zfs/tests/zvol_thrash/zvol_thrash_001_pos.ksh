@@ -104,10 +104,7 @@ log_onexit docleanup
 typeset i=0
 typeset -i num_disks_used=0
 
-log_assert "Cause frequent device removal and arrival in the prescence of" \
-    " zvols.  ZFS should not taste them for VDev GUIDs.  If it does," \
-    " deadlocks (SpectraLogic MST 23637) and panics (SpectraLogic BUG23665" \
-    " and BUG23677) may result"
+log_assert "Cause frequent device removal and arrival in the prescence of zvols.  ZFS should not misbehave while tasting them for VDev GUIDs."
 mk_vols
 for p in `all_pools`
 do

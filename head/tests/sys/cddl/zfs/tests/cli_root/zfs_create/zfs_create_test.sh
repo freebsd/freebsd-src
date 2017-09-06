@@ -221,7 +221,7 @@ zfs_create_008_neg_head()
 }
 zfs_create_008_neg_body()
 {
-	atf_expect_fail 'BUG26172: "zpool create" does not validate the sharenfs parameter'
+	atf_expect_fail 'kern/221987 - ZFS does not validate the sharenfs parameter'
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib
