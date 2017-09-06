@@ -1824,6 +1824,21 @@ allocated:
 		swp_pager_freeswapspace(sb->d[modpi], 1);
 	/* Enter block into metadata. */
 	sb->d[modpi] = swapblk;
+
+	/*
+	 * Free the swblk if we end up with the empty page run.
+	 */
+	if (swapblk == SWAPBLK_NONE) {
+		for (i = 0; i < SWAP_META_PAGES; i++) {
+			if (sb->d[i] != SWAPBLK_NONE)
+				break;
+		}
+		if (i == SWAP_META_PAGES) {
+			SWAP_PCTRIE_REMOVE(&object->un_pager.swp.swp_blks,
+			    rdpi);
+			uma_zfree(swblk_zone, sb);
+		}
+	}
 }
 
 /*
