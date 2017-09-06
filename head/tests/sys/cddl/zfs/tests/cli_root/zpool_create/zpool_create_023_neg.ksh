@@ -67,7 +67,7 @@ log_onexit cleanup
 
 set -A args "QuOta=none" "quota=non" "quota=abcd" "quota=0" "quota=" \
     "ResErVaTi0n=none" "reserV=none" "reservation=abcd" "reserv=" \
-    "recorDSize=64k" "recordsize=256K" "recordsize=256" \
+    "recorDSize=64k" "recordsize=32M" "recordsize=256" \
     "recsize=" "recsize=zero" "recordsize=0" \
     "mountPoint=/tmp/tmpfile${TESTCASE_ID}" "mountpoint=non0" "mountpoint=" \
     "mountpoint=LEGACY" "mounpoint=none" \
