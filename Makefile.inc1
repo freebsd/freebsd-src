@@ -1786,7 +1786,8 @@ update: .PHONY
 
 # ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
 # r296685 fix cross-endian objcopy
-.if ${BOOTSTRAPPING} < 1100102
+# r310724 fixed PR 215350, a crash in libdwarf with objects built by GCC 6.2.
+.if ${BOOTSTRAPPING} < 1200020
 _elftoolchain_libs= lib/libelf lib/libdwarf
 .endif
 
