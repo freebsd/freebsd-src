@@ -51,11 +51,7 @@ __FBSDID("$FreeBSD$");
 
 /****************************** Variables ************************************/
 static const struct bhnd_device bhnd_usb_devs[] = {
-	BHND_DEVICE(BCM,	USB,	"USB1.1 Host/Device core",	NULL),
 	BHND_DEVICE(BCM,	USB20H,	"USB2.0 Host core",		NULL),
-	BHND_DEVICE(BCM,	USB20D,	"USB2.0 Device core",		NULL),
-	BHND_DEVICE(BCM,	USB11H,	"USB1.1 Host core",		NULL),
-	BHND_DEVICE(BCM,	USB11D,	"USB1.1 Device core",		NULL),
 	BHND_DEVICE_END
 };
 
