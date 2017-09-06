@@ -1075,7 +1075,7 @@ retry_send:
 		if (error == ETIMEDOUT) {
 			if (!send_api_ver_retried) {
 				/* Resend message, one more time */
-				send_api_ver_retried++;
+				send_api_ver_retried = true;
 				device_printf(dev,
 				    "%s: Timeout while verifying API version on first"
 				    " try!\n", __func__);
