@@ -138,6 +138,7 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
  * Align variables.
  */
 #define	__read_mostly		__section(".data.read_mostly")
+#define	__read_frequently	__section(".data.read_frequently")
 #define	__exclusive_cache_line	__aligned(CACHE_LINE_SIZE) \
 				    __section(".data.exclusive_cache_line")
 /*
