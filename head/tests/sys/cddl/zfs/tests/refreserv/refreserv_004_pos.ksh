@@ -82,20 +82,19 @@ for ds in $datasets; do
 	log_must $ZFS set quota=25M $ds
 	log_must $ZFS set refreservation=15M $ds
 
-	typeset -i avail
-	avail=$(get_prop avail $subfs)
+	typeset  avail
+	avail=5M
 	log_must $ZFS set refreservation=$avail $subfs
 	typeset mntpnt
 	mntpnt=$(get_prop mountpoint $subfs)
 	log_must $MKFILE $avail $mntpnt/$TESTFILE
 
-	typeset -i exceed
-	((exceed = avail + 1))
+	typeset  exceed
+	exceed=15M
 	log_mustnot $ZFS set refreservation=$exceed $subfs
-	log_mustnot $MKFILE $avail $mntpnt/$TESTFILE
+	log_mustnot $MKFILE $exceed $mntpnt/$TESTFILE
 
 	log_must $ZFS set quota=none $ds
-	log_must $ZFS set reservation=15M $ds
 done
 
 log_pass "Verify refreservation is limited by available space."

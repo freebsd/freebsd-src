@@ -70,6 +70,29 @@ function cleanup
 	log_must $ZFS set mountpoint=$TESTDIR $TESTPOOL/$TESTFS
 }
 
+# This function iteratively increases refreserv to its highest possible
+# value. Simply setting refreserv == quota can allow enough writes to
+# complete that the test fails.
+function max_refreserv
+{
+	typeset ds=$1
+	typeset -i incsize=131072
+	typeset -i rr=$(get_prop available $ds)
+
+	log_must $ZFS set refreserv=$rr $ds
+	while :; do
+		$ZFS set refreserv=$((rr + incsize)) $ds >/dev/null 2>&1
+		if [[ $? == 0 ]]; then
+			((rr += incsize))
+			continue
+		else
+			((incsize /= 2))
+			((incsize == 0)) && break
+		fi
+	done
+}
+
+
 log_assert "Setting full size as refreservation, verify no snapshot " \
 	"can be created."
 log_onexit cleanup
@@ -88,9 +111,7 @@ for ds in $datasets; do
 	# Verify refreservation on dataset
 	#
 	log_must $ZFS set quota=25M $ds
-	log_must $ZFS set refreservation=25M $ds
-	mntpnt=$(get_prop mountpoint $ds)
-	log_must $TOUCH $mntpnt/$TESTFILE
+	max_refreserv $ds
 	log_mustnot $ZFS snapshot $ds@snap
 	if datasetexists $ds@snap ; then
 		log_fail "ERROR: $ds@snap should not exists."

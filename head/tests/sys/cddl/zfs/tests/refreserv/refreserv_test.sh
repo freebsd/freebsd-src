@@ -55,7 +55,6 @@ refreserv_002_pos_head()
 }
 refreserv_002_pos_body()
 {
-	atf_expect_fail "BUG25520 this test incorrectly assumes that the avail, reserv, and refreserv properties are exact values that apply to data but not metadata"
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refreserv.cfg
 
@@ -102,7 +101,6 @@ refreserv_004_pos_head()
 }
 refreserv_004_pos_body()
 {
-	atf_expect_fail "BUG25520 this test incorrectly assumes that the avail, reserv, and refreserv properties are exact values that apply to data but not metadata"
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/refreserv.cfg
 
