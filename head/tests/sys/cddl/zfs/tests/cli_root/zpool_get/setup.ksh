@@ -30,12 +30,6 @@
 . ${STF_SUITE}/include/libtest.kshlib
 verify_runnable "both"
 
-$ZPOOL upgrade -v 2>&1 | $GREP "bootfs pool property" > /dev/null
-if [ $? -ne 0 ]
-then
-	log_unsupported "Pool properties not supported on this release."
-fi
-
 DISK=${DISKS%% *}
 
 default_setup $DISK

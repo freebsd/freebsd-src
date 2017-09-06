@@ -34,8 +34,6 @@ zpool_list_001_pos_head()
 }
 zpool_list_001_pos_body()
 {
-	atf_expect_fail 'BUG26173: zpool man page and STF tests were never updated for removal of "used" property'
-
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_list.cfg
 
