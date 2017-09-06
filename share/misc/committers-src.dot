@@ -303,6 +303,7 @@ se [label="Stefan Esser\nse@FreeBSD.org\n1994/08/26"]
 sephe [label="Sepherosa Ziehau\nsephe@FreeBSD.org\n2007/03/28"]
 sepotvin [label="Stephane E. Potvin\nsepotvin@FreeBSD.org\n2007/02/15"]
 sgalabov [label="Stanislav Galabov\nsgalabov@FreeBSD.org\n2016/02/24"]
+shurd [label="Stephen Hurd\nshurd@FreeBSD.org\n2017/09/02"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
 sjg [label="Simon J. Gerraty\nsjg@FreeBSD.org\n2012/10/23"]
 skra [label="Svatopluk Kraus\nskra@FreeBSD.org\n2015/10/28"]
@@ -759,6 +760,7 @@ sam -> sephe
 
 sbruno -> hiren
 sbruno -> jimharris
+sbruno -> shurd
 
 schweikh -> dds
 
