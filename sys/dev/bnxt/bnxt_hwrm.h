@@ -43,6 +43,7 @@ int bnxt_hwrm_queue_qportcfg(struct bnxt_softc *softc);
 int bnxt_hwrm_func_drv_rgtr(struct bnxt_softc *softc);
 int bnxt_hwrm_func_drv_unrgtr(struct bnxt_softc *softc, bool shutdown);
 int bnxt_hwrm_func_qcaps(struct bnxt_softc *softc);
+int bnxt_hwrm_func_qcfg(struct bnxt_softc *softc);
 int bnxt_hwrm_func_reset(struct bnxt_softc *softc);
 int bnxt_hwrm_set_link_setting(struct bnxt_softc *, bool set_pause,
     bool set_eee);
