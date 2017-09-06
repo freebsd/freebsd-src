@@ -664,8 +664,7 @@ struct ixl_sysctl_info {
 	char	*description;
 };
 
-static uint8_t ixl_bcast_addr[ETHER_ADDR_LEN] =
-    {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+extern const uint8_t ixl_bcast_addr[ETHER_ADDR_LEN];
 
 /*********************************************************************
  *  TXRX Function prototypes
