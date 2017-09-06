@@ -192,7 +192,7 @@ struct kinfo_proc_c {
 	pid_t	ki_tsid;
 	short	ki_jobc;
 	short	ki_spare_short1;
-	dev_t	ki_tdev;
+	uint32_t ki_tdev_freebsd11;
 	sigset_t ki_siglist;
 	sigset_t ki_sigmask;
 	sigset_t ki_sigignore;
@@ -237,6 +237,7 @@ struct kinfo_proc_c {
 	char	ki_comm[COMMLEN+1];
 	char	ki_emul[KI_EMULNAMELEN+1];
 	char	ki_loginclass[LOGINCLASSLEN+1];
+	char	ki_moretdname[MAXCOMLEN-TDNAMLEN+1];
 	/*
 	 * When adding new variables, take space for char-strings from the
 	 * front of ki_sparestrings, and ints from the end of ki_spareints.
@@ -244,6 +245,7 @@ struct kinfo_proc_c {
 	 */
 	char	ki_sparestrings[50];
 	int	ki_spareints[KI_NSPARE_INT];
+	uint64_t ki_tdev;
 	int	ki_oncpu;
 	int	ki_lastcpu;
 	int	ki_tracer;
