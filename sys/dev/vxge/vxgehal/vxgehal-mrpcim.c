@@ -5654,10 +5654,10 @@ __hal_mrpcim_get_vpd_data(__hal_device_t *hldev)
 			if ((vpd_data[count] == 'S') &&
 			    (vpd_data[count + 1] == 'N') &&
 			    (vpd_data[count + 2] < VXGE_HAL_VPD_LENGTH)) {
-				(void) vxge_os_memzero(
+				vxge_os_memzero(
 				    hldev->mrpcim->vpd_data.serial_num,
 				    VXGE_HAL_VPD_LENGTH);
-				(void) vxge_os_memcpy(
+				vxge_os_memcpy(
 				    hldev->mrpcim->vpd_data.serial_num,
 				    &vpd_data[count + 3],
 				    vpd_data[count + 2]);
@@ -5666,9 +5666,9 @@ __hal_mrpcim_get_vpd_data(__hal_device_t *hldev)
 		}
 
 		if (vpd_data[1] < VXGE_HAL_VPD_LENGTH) {
-			(void) vxge_os_memzero(
+			vxge_os_memzero(
 			    hldev->mrpcim->vpd_data.product_name, vpd_data[1]);
-			(void) vxge_os_memcpy(hldev->mrpcim->vpd_data.product_name,
+			vxge_os_memcpy(hldev->mrpcim->vpd_data.product_name,
 			    &vpd_data[3], vpd_data[1]);
 		}
 	}
