@@ -324,6 +324,8 @@ main(int argc, char *argv[])
 		}
 		first_time = 0;
 
+		if (IMP && *IMP && !(PL && PP))
+			system(IMP);
 		if (IM && *IM && !(PL && PP))
 			putf(IM);
 		if (setjmp(timeout)) {
