@@ -1350,6 +1350,7 @@ cheriabi_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc_c *ki_c)
 	CP(*ki, *ki_c, ki_tsid);
 	CP(*ki, *ki_c, ki_jobc);
 	CP(*ki, *ki_c, ki_tdev);
+	CP(*ki, *ki_c, ki_tdev_freebsd11);
 	CP(*ki, *ki_c, ki_siglist);
 	CP(*ki, *ki_c, ki_sigmask);
 	CP(*ki, *ki_c, ki_sigignore);
@@ -1399,6 +1400,7 @@ cheriabi_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc_c *ki_c)
 	bcopy(ki->ki_comm, ki_c->ki_comm, COMMLEN + 1);
 	bcopy(ki->ki_emul, ki_c->ki_emul, KI_EMULNAMELEN + 1);
 	bcopy(ki->ki_loginclass, ki_c->ki_loginclass, LOGINCLASSLEN + 1);
+	bcopy(ki->ki_moretdname, ki_c->ki_moretdname, MAXCOMLEN - TDNAMLEN + 1);
 	CP(*ki, *ki_c, ki_tracer);
 	CP(*ki, *ki_c, ki_flag2);
 	CP(*ki, *ki_c, ki_fibnum);
