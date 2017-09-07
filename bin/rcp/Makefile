@@ -11,4 +11,7 @@ PACKAGE=rcmds
 BINOWN=	root
 BINMODE=4555
 
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
+
 .include <bsd.prog.mk>
