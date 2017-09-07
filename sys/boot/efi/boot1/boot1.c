@@ -80,17 +80,6 @@ Free(void *buf, const char *file __unused, int line __unused)
 		(void)BS->FreePool(buf);
 }
 
-static int
-wcslen(const CHAR16 *str)
-{
-	int i;
-
-	i = 0;
-	while (*str++)
-		i++;
-	return i;
-}
-
 static EFI_STATUS
 efi_setenv_freebsd_wcs(const char *varname, CHAR16 *valstr)
 {
@@ -103,7 +92,7 @@ efi_setenv_freebsd_wcs(const char *varname, CHAR16 *valstr)
 		return (EFI_OUT_OF_RESOURCES);
 	rv = RS->SetVariable(var, &FreeBSDBootVarGUID,
 	    EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
-	    wcslen(valstr) * 2, valstr);
+	    (ucs2len(valstr) + 1) * sizeof(efi_char), valstr);
 	free(var);
 	return (rv);
 }
