@@ -39,6 +39,7 @@ CFLAGS=	-fomit-frame-pointer \
 	-Winline
 
 CFLAGS.gcc+=	-Os \
+		-fno-asynchronous-unwind-tables \
 		-fno-guess-branch-probability \
 		-fno-unit-at-a-time \
 		--param max-inline-insns-single=100
