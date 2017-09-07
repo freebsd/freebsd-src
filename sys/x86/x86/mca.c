@@ -981,19 +981,25 @@ amd_thresholding_init(void)
 	/* The counter must be valid and present. */
 	misc = rdmsr(MSR_MC_MISC(MC_AMDNB_BANK));
 	if ((misc & (MC_MISC_AMDNB_VAL | MC_MISC_AMDNB_CNTP)) !=
-	    (MC_MISC_AMDNB_VAL | MC_MISC_AMDNB_CNTP))
+	    (MC_MISC_AMDNB_VAL | MC_MISC_AMDNB_CNTP)) {
+		printf("%s: 0x%lx: !valid | !present\n", __func__, misc);
 		return;
+	}
 
 	/* The register should not be locked. */
-	if ((misc & MC_MISC_AMDNB_LOCK) != 0)
+	if ((misc & MC_MISC_AMDNB_LOCK) != 0) {
+		printf("%s: 0x%lx: locked\n", __func__, misc);
 		return;
+	}
 
 	/*
 	 * If counter is enabled then either the firmware or another CPU
 	 * has already claimed it.
 	 */
-	if ((misc & MC_MISC_AMDNB_CNTEN) != 0)
+	if ((misc & MC_MISC_AMDNB_CNTEN) != 0) {
+		printf("%s: 0x%lx: count already enabled\n", __func__, misc);
 		return;
+	}
 
 	/*
 	 * Configure an Extended Interrupt LVT register for reporting
@@ -1001,10 +1007,15 @@ amd_thresholding_init(void)
 	 * extended register is available.
 	 */
 	amd_elvt = lapic_enable_mca_elvt();
-	if (amd_elvt < 0)
+	if (amd_elvt < 0) {
+		printf("%s: lapic enable mca elvt failed: %d\n", __func__, amd_elvt);
 		return;
+	}
 
 	/* Re-use Intel CMC support infrastructure. */
+	if (bootverbose)
+		printf("%s: Starting AMD thresholding\n", __func__);
+
 	cc = &amd_et_state[PCPU_GET(cpuid)];
 	cc->cur_threshold = 1;
 	amd_thresholding_start(cc);
