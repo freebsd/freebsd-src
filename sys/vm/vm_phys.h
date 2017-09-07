@@ -69,7 +69,6 @@ extern int vm_phys_nsegs;
 /*
  * The following functions are only to be used by the virtual memory system.
  */
-void vm_phys_add_page(vm_paddr_t pa);
 void vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end);
 vm_page_t vm_phys_alloc_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
     u_long alignment, vm_paddr_t boundary);
@@ -83,6 +82,7 @@ vm_page_t vm_phys_fictitious_to_vm_page(vm_paddr_t pa);
 void vm_phys_free_contig(vm_page_t m, u_long npages);
 void vm_phys_free_pages(vm_page_t m, int order);
 void vm_phys_init(void);
+void vm_phys_init_page(vm_paddr_t pa);
 vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
 vm_page_t vm_phys_scan_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
     u_long alignment, vm_paddr_t boundary, int options);
