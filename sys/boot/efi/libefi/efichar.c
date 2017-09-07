@@ -50,7 +50,7 @@ ucs2len(const efi_char *str)
 	i = 0;
 	while (*str++)
 		i++;
-	return i;
+	return (i);
 }
 
 /*
