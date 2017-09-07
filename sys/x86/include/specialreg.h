@@ -308,6 +308,15 @@
 #define	CPUID_EXTSTATE_XSAVES	0x00000008
 
 /*
+ * AMD extended function 8000_0007h ebx info
+ */
+#define	AMDRAS_MCA_OF_RECOV	0x00000001
+#define	AMDRAS_SUCCOR		0x00000002
+#define	AMDRAS_HW_ASSERT	0x00000004
+#define	AMDRAS_SCALABLE_MCA	0x00000008
+#define	AMDRAS_PFEH_SUPPORT	0x00000010
+
+/*
  * AMD extended function 8000_0007h edx info
  */
 #define	AMDPM_TS		0x00000001
