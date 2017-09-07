@@ -718,6 +718,7 @@
 #define	MC_MISC_AMDNB_VAL	0x8000000000000000	/* Counter presence valid */
 #define	MC_MISC_AMDNB_CNTP	0x4000000000000000	/* Counter present */
 #define	MC_MISC_AMDNB_LOCK	0x2000000000000000	/* Register locked */
+#define	MC_MISC_AMDNB_INTP	0x1000000000000000	/* Int. type can generate interrupts */
 #define	MC_MISC_AMDNB_LVT_MASK	0x00f0000000000000	/* Extended LVT offset */
 #define	MC_MISC_AMDNB_LVT_SHIFT	52
 #define	MC_MISC_AMDNB_CNTEN	0x0008000000000000	/* Counter enabled */
