@@ -42,6 +42,17 @@ __FBSDID("$FreeBSD$");
 
 #include "efichar.h"
 
+int
+ucs2len(const efi_char *str)
+{
+	int i;
+
+	i = 0;
+	while (*str++)
+		i++;
+	return i;
+}
+
 /*
  * If nm were converted to utf8, what what would strlen
  * return on the resulting string?
