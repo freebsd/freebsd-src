@@ -132,8 +132,20 @@ static int amd_elvt = -1;
 static inline bool
 amd_thresholding_supported(void)
 {
-	return (cpu_vendor_id == CPU_VENDOR_AMD &&
-	    CPUID_TO_FAMILY(cpu_id) >= 0x10 && CPUID_TO_FAMILY(cpu_id) <= 0x16);
+	if (cpu_vendor_id != CPU_VENDOR_AMD)
+		return (false);
+	/*
+	 * The RASCap register is wholly reserved in families 0x10-0x15 (through model 1F).
+	 *
+	 * It begins to be documented in family 0x15 model 30 and family 0x16,
+	 * but neither of these families documents the ScalableMca bit, which
+	 * supposedly defines the presence of this feature on family 0x17.
+	 */
+	if (CPUID_TO_FAMILY(cpu_id) >= 0x10 && CPUID_TO_FAMILY(cpu_id) <= 0x16)
+		return (true);
+	if (CPUID_TO_FAMILY(cpu_id) >= 0x17)
+		return ((amd_rascap & AMDRAS_SCALABLE_MCA) != 0);
+	return (false);
 }
 #endif
 
