@@ -608,6 +608,9 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR1_PAN_IMPL:
 			printf("%sPAN", SEP_STR);
 			break;
+		case ID_AA64MMFR1_PAN_ATS1E1:
+			printf("%sPAN+AT", SEP_STR);
+			break;
 		default:
 			printf("%sUnknown PAN", SEP_STR);
 			break;
