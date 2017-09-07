@@ -299,29 +299,18 @@ zpool_import_012_pos_cleanup()
 }
 
 
-atf_test_case zpool_import_013_neg cleanup
+atf_test_case zpool_import_013_neg
 zpool_import_013_neg_head()
 {
-	atf_set "descr" "'zpool import' fail while pool may be in use from other system,it need import forcefully."
+	atf_set "descr" "'zpool import' fails for pool that was not cleanly exported"
 	atf_set "require.progs"  zfs zpool
-	atf_set "timeout" 2400
 }
 zpool_import_013_neg_body()
 {
-	atf_expect_fail 'BUG26195: "zpool import" without "-f" will import foreign, in-use, downrev pools'
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_import.cfg
 
-	verify_disk_count "$DISKS" 2
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_import_013_neg.ksh || atf_fail "Testcase failed"
-}
-zpool_import_013_neg_cleanup()
-{
-	. $(atf_get_srcdir)/../../../include/default.cfg
-	. $(atf_get_srcdir)/zpool_import.cfg
-
-	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
 

@@ -483,6 +483,8 @@
                         zpool_clear
                         ..
                         zpool_import
+                            blockfiles
+                            ..
                         ..
                         zpool
                         ..

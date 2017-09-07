@@ -34,4 +34,6 @@ ${PACKAGE}FILES+=	zpool_import_008_pos.ksh
 ${PACKAGE}FILES+=	zpool_import_004_pos.ksh
 ${PACKAGE}FILES+=	zpool_import.kshlib
 
+SUBDIR+=	blockfiles
+
 .include <bsd.test.mk>

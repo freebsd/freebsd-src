@@ -56,55 +56,30 @@
 
 verify_runnable "global"
 
-if (( ZPOOL_VERSION < 6 )); then
-	log_unsupported "This case need zpool version >= 6"
-fi
+POOL_NAME=unclean_export
+POOL_FILE=unclean_export.dat
 
-function create_old_pool
+function uncompress_pool
 {
-	VERSION=$1
-	POOL_FILES=$($ENV | grep "ZPOOL_VERSION_${VERSION}_FILES"\
-		| $AWK -F= '{print $2}')
-	POOL_NAME=$($ENV|grep "ZPOOL_VERSION_${VERSION}_NAME"\
-		| $AWK -F= '{print $2}')
-
-	log_note "Creating $POOL_NAME from $POOL_FILES"
-	for pool_file in $POOL_FILES; do
-		$CP $STF_SUITE/tests/cli_root/zpool_upgrade/blockfiles/$pool_file.Z \
-		/$TESTPOOL
-		$UNCOMPRESS /$TESTPOOL/$pool_file.Z
-	done
+	log_note "Creating pool from $POOL_FILE"
+	log_must $BZCAT \
+           $STF_SUITE/tests/cli_root/zpool_import/blockfiles/$POOL_FILE.bz2 \
+           > $TMPDIR/$POOL_FILE
 	return 0
 }
 
 function cleanup
 {
-	if [[ -z $POOL_NAME ]]; then
-		return 1
-	fi
-	destroy_pool $POOL_NAME
-	for file in $POOL_FILES; do
-		if [[ -e /$TESTPOOL/$file ]]; then
-			$RM /$TESTPOOL/$file
-		fi
-	done
+	poolexists $POOL_NAME && log_must zpool destroy $POOL_NAME
+	[[ -e $TMPDIR/$POOL_FILE ]] && rm $TMPDIR/$POOL_FILE
 	return 0
 }
 
-log_assert "'zpool import' fail while pool may be in use from other system," \
-	"it need import forcefully."
+log_assert "'zpool import' fails for pool that was not cleanly exported"
 log_onexit cleanup
 
-typeset POOL_FILES
-typeset POOL_NAME
-# $CONFIGS gets set in the .cfg script
-for config in $CONFIGS
-do
-	create_old_pool $config
-	log_mustnot $ZPOOL import -d /$TESTPOOL $POOL_NAME
-	log_must $ZPOOL import -d /$TESTPOOL -f $POOL_NAME
-	destroy_upgraded_pool
-done
-
-log_pass "'zpool import' fail while pool may be in use from other system," \
-	"import forcefully succeed as expected."
+uncompress_pool
+log_mustnot zpool import -d $TMPDIR $POOL_NAME
+log_must zpool import -d $TMPDIR -f $POOL_NAME
+ 
+log_pass "'zpool import' fails for pool that was not cleanly exported"

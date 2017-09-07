@@ -39,6 +39,7 @@
 /usr/bin/awk
 /usr/sbin/arp
 /usr/bin/basename
+/usr/bin/bzcat
 /bin/cat
 /usr/bin/cd
 /usr/bin/chgrp
