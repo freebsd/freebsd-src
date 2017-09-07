@@ -732,14 +732,14 @@ identify_cpu(void)
 	cpu_desc[cpu].mpidr = get_mpidr();
 	CPU_AFFINITY(cpu) = cpu_desc[cpu].mpidr & CPU_AFF_MASK;
 
-	cpu_desc[cpu].id_aa64dfr0 = READ_SPECIALREG(id_aa64dfr0_el1);
-	cpu_desc[cpu].id_aa64dfr1 = READ_SPECIALREG(id_aa64dfr1_el1);
-	cpu_desc[cpu].id_aa64isar0 = READ_SPECIALREG(id_aa64isar0_el1);
-	cpu_desc[cpu].id_aa64isar1 = READ_SPECIALREG(id_aa64isar1_el1);
-	cpu_desc[cpu].id_aa64mmfr0 = READ_SPECIALREG(id_aa64mmfr0_el1);
-	cpu_desc[cpu].id_aa64mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
-	cpu_desc[cpu].id_aa64pfr0 = READ_SPECIALREG(id_aa64pfr0_el1);
-	cpu_desc[cpu].id_aa64pfr1 = READ_SPECIALREG(id_aa64pfr1_el1);
+	cpu_desc[cpu].id_aa64dfr0 = READ_SPECIALREG(ID_AA64DFR0_EL1);
+	cpu_desc[cpu].id_aa64dfr1 = READ_SPECIALREG(ID_AA64DFR1_EL1);
+	cpu_desc[cpu].id_aa64isar0 = READ_SPECIALREG(ID_AA64ISAR0_EL1);
+	cpu_desc[cpu].id_aa64isar1 = READ_SPECIALREG(ID_AA64ISAR1_EL1);
+	cpu_desc[cpu].id_aa64mmfr0 = READ_SPECIALREG(ID_AA64MMFR0_EL1);
+	cpu_desc[cpu].id_aa64mmfr1 = READ_SPECIALREG(ID_AA64MMFR1_EL1);
+	cpu_desc[cpu].id_aa64pfr0 = READ_SPECIALREG(ID_AA64PFR0_EL1);
+	cpu_desc[cpu].id_aa64pfr1 = READ_SPECIALREG(ID_AA64PFR1_EL1);
 
 	if (cpu != 0) {
 		/*
