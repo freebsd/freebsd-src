@@ -743,7 +743,7 @@ print_cpu_features(u_int cpu)
 
 		if ((cpu_desc[cpu].id_aa64mmfr2 & ~ID_AA64MMFR2_MASK) != 0)
 			printf("%s%#lx", SEP_STR,
-			    cpu_desc[cpu].id_aa64mmfr2 & ~ID_AA64MMFR1_MASK);
+			    cpu_desc[cpu].id_aa64mmfr2 & ~ID_AA64MMFR2_MASK);
 		printf(">\n");
 	}
 
