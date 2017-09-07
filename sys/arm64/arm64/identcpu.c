@@ -120,9 +120,13 @@ struct cpu_implementers {
 /* ARM Ltd. */
 static const struct cpu_parts cpu_parts_arm[] = {
 	{ CPU_PART_FOUNDATION, "Foundation-Model" },
+	{ CPU_PART_CORTEX_A35, "Cortex-A35" },
 	{ CPU_PART_CORTEX_A53, "Cortex-A53" },
+	{ CPU_PART_CORTEX_A55, "Cortex-A55" },
 	{ CPU_PART_CORTEX_A57, "Cortex-A57" },
 	{ CPU_PART_CORTEX_A72, "Cortex-A72" },
+	{ CPU_PART_CORTEX_A73, "Cortex-A73" },
+	{ CPU_PART_CORTEX_A75, "Cortex-A75" },
 	CPU_PART_NONE,
 };
 /* Cavium */
