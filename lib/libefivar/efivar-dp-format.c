@@ -2430,3 +2430,9 @@ efidp_format_device_path(char *buf, size_t len, const_efidp dp, ssize_t max)
 
 	return retval;
 }
+
+size_t
+efidp_size(const_efidp dp)
+{
+	return GetDevicePathSize(__DECONST(EFI_DEVICE_PATH_PROTOCOL *, dp));
+}
