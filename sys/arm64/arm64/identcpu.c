@@ -897,7 +897,11 @@ identify_cpu(void)
 	cpu_desc[cpu].id_aa64isar1 = READ_SPECIALREG(ID_AA64ISAR1_EL1);
 	cpu_desc[cpu].id_aa64mmfr0 = READ_SPECIALREG(ID_AA64MMFR0_EL1);
 	cpu_desc[cpu].id_aa64mmfr1 = READ_SPECIALREG(ID_AA64MMFR1_EL1);
+#ifdef NOTYET
 	cpu_desc[cpu].id_aa64mmfr2 = READ_SPECIALREG(ID_AA64MMFR2_EL1);
+#else
+	cpu_desc[cpu].id_aa64mmfr2 = 0;
+#endif
 	cpu_desc[cpu].id_aa64pfr0 = READ_SPECIALREG(ID_AA64PFR0_EL1);
 	cpu_desc[cpu].id_aa64pfr1 = READ_SPECIALREG(ID_AA64PFR1_EL1);
 
