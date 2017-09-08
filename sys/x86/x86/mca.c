@@ -982,13 +982,14 @@ amd_thresholding_init(void)
 	misc = rdmsr(MSR_MC_MISC(MC_AMDNB_BANK));
 	if ((misc & (MC_MISC_AMDNB_VAL | MC_MISC_AMDNB_CNTP)) !=
 	    (MC_MISC_AMDNB_VAL | MC_MISC_AMDNB_CNTP)) {
-		printf("%s: 0x%lx: !valid | !present\n", __func__, misc);
+		printf("%s: 0x%jx: !valid | !present\n", __func__,
+		    (uintmax_t)misc);
 		return;
 	}
 
 	/* The register should not be locked. */
 	if ((misc & MC_MISC_AMDNB_LOCK) != 0) {
-		printf("%s: 0x%lx: locked\n", __func__, misc);
+		printf("%s: 0x%jx: locked\n", __func__, (uintmax_t)misc);
 		return;
 	}
 
@@ -997,7 +998,8 @@ amd_thresholding_init(void)
 	 * has already claimed it.
 	 */
 	if ((misc & MC_MISC_AMDNB_CNTEN) != 0) {
-		printf("%s: 0x%lx: count already enabled\n", __func__, misc);
+		printf("%s: 0x%jx: count already enabled\n", __func__,
+		    (uintmax_t)misc);
 		return;
 	}
 
