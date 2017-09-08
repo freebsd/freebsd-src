@@ -376,11 +376,6 @@ MODULE_DEPEND(em, netmap, 1, 1, 1);
 #define MAX_INTS_PER_SEC	8000
 #define DEFAULT_ITR		(1000000000/(MAX_INTS_PER_SEC * 256))
 
-/* Allow common code without TSO */
-#ifndef CSUM_TSO
-#define CSUM_TSO	0
-#endif
-
 #define TSO_WORKAROUND	4
 
 static SYSCTL_NODE(_hw, OID_AUTO, em, CTLFLAG_RD, 0, "EM driver parameters");
@@ -1400,18 +1395,10 @@ em_init_locked(struct adapter *adapter)
 	E1000_WRITE_REG(&adapter->hw, E1000_VET, ETHERTYPE_VLAN);
 
 	/* Set hardware offload abilities */
-	if_clearhwassist(ifp);
 	if (if_getcapenable(ifp) & IFCAP_TXCSUM)
 		if_sethwassistbits(ifp, CSUM_TCP | CSUM_UDP, 0);
-	/* 
-	** There have proven to be problems with TSO when not
-	** at full gigabit speed, so disable the assist automatically
-	** when at lower speeds.  -jfv
-	*/
-	if (if_getcapenable(ifp) & IFCAP_TSO4) {
-		if (adapter->link_speed == SPEED_1000)
-			if_sethwassistbits(ifp, CSUM_TSO, 0);
-	}
+	else
+		if_sethwassistbits(ifp, 0, CSUM_TCP | CSUM_UDP);
 
 	/* Configure for OS presence */
 	em_init_manageability(adapter);
@@ -1926,7 +1913,7 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	bool			do_tso, tso_desc, remap = TRUE;
 
 	m_head = *m_headp;
-	do_tso = (m_head->m_pkthdr.csum_flags & CSUM_TSO);
+	do_tso = m_head->m_pkthdr.csum_flags & CSUM_IP_TSO;
 	tso_desc = FALSE;
 	ip_off = poff = 0;
 
@@ -2113,7 +2100,7 @@ retry:
 	m_head = *m_headp;
 
 	/* Do hardware assists */
-	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
+	if (m_head->m_pkthdr.csum_flags & CSUM_IP_TSO) {
 		em_tso_setup(txr, m_head, ip_off, ip, tp,
 		    &txd_upper, &txd_lower);
 		/* we need to make a final sentinel transmit desc */
@@ -2419,6 +2406,19 @@ em_update_link_status(struct adapter *adapter)
 	if (link_check && (adapter->link_active == 0)) {
 		e1000_get_speed_and_duplex(hw, &adapter->link_speed,
 		    &adapter->link_duplex);
+
+		/*
+		** There have proven to be problems with TSO when not at full
+		** gigabit speed, so disable the assist automatically when at
+		** lower speeds.  -jfv
+		*/
+		if (if_getcapenable(ifp) & IFCAP_TSO4) {
+			if (adapter->link_speed == SPEED_1000)
+				if_sethwassistbits(ifp, CSUM_IP_TSO, 0);
+			else
+				if_sethwassistbits(ifp, 0, CSUM_IP_TSO);
+		}
+
 		/* Check if we must disable SPEED_MODE bit on PCI-E */
 		if ((adapter->link_speed != SPEED_1000) &&
 		    ((hw->mac.type == e1000_82571) ||
@@ -2555,7 +2555,7 @@ em_allocate_pci_resources(struct adapter *adapter)
  *  Setup the Legacy or MSI Interrupt handler
  *
  **********************************************************************/
-int
+static int
 em_allocate_legacy(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
@@ -2612,7 +2612,7 @@ em_allocate_legacy(struct adapter *adapter)
  *   for TX, RX, and Link.
  *
  **********************************************************************/
-int
+static int
 em_allocate_msix(struct adapter *adapter)
 {
 	device_t	dev = adapter->dev;
@@ -3225,12 +3225,9 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 
 	ether_ifattach(ifp, adapter->hw.mac.addr);
 
-	if_setcapabilities(ifp, 0);
-	if_setcapenable(ifp, 0);
+	if_setcapabilities(ifp, IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 
-
-	if_setcapabilitiesbit(ifp, IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM |
-	    IFCAP_TSO4, 0);
 	/*
 	 * Tell the upper layer(s) we
 	 * support full VLAN capability
@@ -3238,7 +3235,25 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
 	if_setcapabilitiesbit(ifp, IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWTSO |
 	    IFCAP_VLAN_MTU, 0);
-	if_setcapenable(ifp, if_getcapabilities(ifp));
+	if_setcapenablebit(ifp, IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU, 0);
+
+	/*
+	 * We don't enable IFCAP_{TSO4,VLAN_HWTSO} by default because:
+	 * - Although the silicon bug of TSO only working at gigabit speed is
+	 *   worked around in em_update_link_status() by selectively setting
+	 *   CSUM_IP_TSO, we cannot atomically flush already queued TSO-using
+	 *   descriptors.  Thus, such descriptors may still cause the MAC to
+	 *   hang and, consequently, TSO is only safe to be used in setups
+	 *   where the link isn't expected to switch from gigabit to lower
+	 *   speeds.
+	 * - Similarly, there's currently no way to trigger a reconfiguration
+	 *   of vlan(4) when the state of IFCAP_VLAN_HWTSO support changes at
+	 *   runtime.  Therefore, IFCAP_VLAN_HWTSO also only is safe to use
+	 *   when link speed changes are not to be expected.
+	 * - Despite all the workarounds for TSO-related silicon bugs, at
+	 *   least 82579 still may hang at gigabit speed with IFCAP_TSO4.
+	 */
+	if_setcapabilitiesbit(ifp, IFCAP_TSO4 | IFCAP_VLAN_HWTSO, 0);
 
 	/*
 	** Don't turn this on by default, if vlans are
