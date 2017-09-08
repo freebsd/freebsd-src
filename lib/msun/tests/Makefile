@@ -70,7 +70,7 @@ TAP_TESTS_C+=	nan_test
 TAP_TESTS_C+=	nearbyint_test
 TAP_TESTS_C+=	next_test
 TAP_TESTS_C+=	rem_test
-TAP_TESTS_C+=	trig_test
+ATF_TESTS_C+=	trig_test
 
 .if !empty(PROG) && !empty(TAP_TESTS_C:M${PROG})
 CFLAGS+=	-O0
