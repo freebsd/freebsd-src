@@ -40,7 +40,7 @@ echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$BASEBITSDIR/etc/fstab"
 makefs -t cd9660 -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME.tmp" "$@"
 rm -f "$BASEBITSDIR/etc/fstab"
 
-if [ "x$BOPT" != "x-b" ]; then
+if [ "$BOPT" != "-b" ]; then
 	mv "$NAME.tmp" "$NAME"
 	exit 0
 fi

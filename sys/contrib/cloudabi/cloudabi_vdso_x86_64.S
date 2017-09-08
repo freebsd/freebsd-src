@@ -419,65 +419,27 @@ ENTRY(cloudabi_sys_random_get)
   ret
 END(cloudabi_sys_random_get)
 
-ENTRY(cloudabi_sys_sock_accept)
-  push %rdx
-  mov $44, %eax
-  syscall
-  pop %rcx
-  jc 1f
-  mov %eax, (%rcx)
-  xor %eax, %eax
-1:
-  ret
-END(cloudabi_sys_sock_accept)
-
-ENTRY(cloudabi_sys_sock_bind)
-  mov %rcx, %r10
-  mov $45, %eax
-  syscall
-  ret
-END(cloudabi_sys_sock_bind)
-
-ENTRY(cloudabi_sys_sock_connect)
-  mov %rcx, %r10
-  mov $46, %eax
-  syscall
-  ret
-END(cloudabi_sys_sock_connect)
-
-ENTRY(cloudabi_sys_sock_listen)
-  mov $47, %eax
-  syscall
-  ret
-END(cloudabi_sys_sock_listen)
-
 ENTRY(cloudabi_sys_sock_recv)
-  mov $48, %eax
+  mov $44, %eax
   syscall
   ret
 END(cloudabi_sys_sock_recv)
 
 ENTRY(cloudabi_sys_sock_send)
-  mov $49, %eax
+  mov $45, %eax
   syscall
   ret
 END(cloudabi_sys_sock_send)
 
 ENTRY(cloudabi_sys_sock_shutdown)
-  mov $50, %eax
+  mov $46, %eax
   syscall
   ret
 END(cloudabi_sys_sock_shutdown)
 
-ENTRY(cloudabi_sys_sock_stat_get)
-  mov $51, %eax
-  syscall
-  ret
-END(cloudabi_sys_sock_stat_get)
-
 ENTRY(cloudabi_sys_thread_create)
   push %rsi
-  mov $52, %eax
+  mov $47, %eax
   syscall
   pop %rcx
   jc 1f
@@ -488,12 +450,12 @@ ENTRY(cloudabi_sys_thread_create)
 END(cloudabi_sys_thread_create)
 
 ENTRY(cloudabi_sys_thread_exit)
-  mov $53, %eax
+  mov $48, %eax
   syscall
 END(cloudabi_sys_thread_exit)
 
 ENTRY(cloudabi_sys_thread_yield)
-  mov $54, %eax
+  mov $49, %eax
   syscall
   ret
 END(cloudabi_sys_thread_yield)

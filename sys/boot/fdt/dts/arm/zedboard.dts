@@ -30,7 +30,7 @@
 
 / {
 	model = "zedboard";
-	compatible = "digilent,zedboard";
+	compatible = "digilent,zedboard", "xlnx,zynq-7000";
 
 	memory {
 		// First megabyte isn't accessible by all interconnect masters.

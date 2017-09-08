@@ -10,7 +10,13 @@ PROG=		boot1.sym
 INTERNALPROG=
 WARNS?=		6
 
-.if ${MK_ZFS} != "no"
+# We implement a slightly non-standard %S in that it always takes a
+# CHAR16 that's common in UEFI-land instead of a wchar_t. This only
+# seems to matter on arm64 where wchar_t defaults to an int instead
+# of a short. There's no good cast to use here so just ignore the
+# warnings for now.
+CWARNFLAGS.boot1.c+=	-Wno-format
+
 # Disable warnings that are currently incompatible with the zfs boot code
 CWARNFLAGS.zfs_module.c += -Wno-array-bounds
 CWARNFLAGS.zfs_module.c += -Wno-cast-align
@@ -24,7 +30,6 @@ CWARNFLAGS.skein.c += -Wno-cast-align
 CWARNFLAGS.skein.c += -Wno-missing-variable-declarations
 .else if ${COMPILER_TYPE} == "gcc"
 CWARNFLAGS.skein.c += -Wno-missing-declarations
-.endif
 .endif
 
 # architecture-specific loader code
@@ -78,13 +83,15 @@ CFLAGS+=	-fPIC
 LDFLAGS+=	-Wl,-znocombreloc
 .endif
 
+LIBEFI=		${.OBJDIR}/../libefi/libefi.a
+
 #
 # Add libstand for the runtime functions used by the compiler - for example
 # __aeabi_* (arm) or __divdi3 (i386).
 # as well as required string and memory functions for all platforms.
 #
-DPADD+=		${LIBSTAND}
-LDADD+=		-lstand
+DPADD+=		${LIBEFI} ${LIBSTAND}
+LDADD+=		${LIBEFI} -lstand
 
 DPADD+=		${LDSCRIPT}
 

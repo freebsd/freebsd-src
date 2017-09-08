@@ -42,8 +42,16 @@ __FBSDID("$FreeBSD$");
  */
 #pragma	STDC CX_LIMITED_RANGE	ON
 
-/* We risk spurious overflow for components >= LDBL_MAX / (1 + sqrt(2)). */
-#define	THRESH	(LDBL_MAX / 2.414213562373095048801688724209698L)
+/*
+ * We risk spurious overflow for components >= LDBL_MAX / (1 + sqrt(2)).
+ * Rather than determining the fully precise value at which we might
+ * overflow, just use a threshold of approximately LDBL_MAX / 4.
+ */
+#if LDBL_MAX_EXP != 0x4000
+#error "Unsupported long double format"
+#else
+#define	THRESH	0x1p16382L
+#endif
 
 long double complex
 csqrtl(long double complex z)

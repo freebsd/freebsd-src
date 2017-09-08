@@ -262,7 +262,7 @@ r12a_get_rx_stats(struct rtwn_softc *sc, struct ieee80211_rx_stats *rxs,
 			rxs->c_pktflags |= IEEE80211_RX_F_AMPDU_MORE;
 	}
 
-	if ((rxdw4 & R12A_RXDW4_SPLCP) && rate >= RTWN_RIDX_MCS(0))
+	if ((rxdw4 & R12A_RXDW4_SPLCP) && rate >= RTWN_RIDX_HT_MCS(0))
 		rxs->c_pktflags |= IEEE80211_RX_F_SHORTGI;
 
 	switch (MS(rxdw4, R12A_RXDW4_BW)) {
@@ -288,7 +288,7 @@ r12a_get_rx_stats(struct rtwn_softc *sc, struct ieee80211_rx_stats *rxs,
 		/* XXX check with RTL8812AU */
 		is5ghz = (physt->cfosho[2] != 0x01);
 
-		if (rate < RTWN_RIDX_MCS(0)) {
+		if (rate < RTWN_RIDX_HT_MCS(0)) {
 			if (is5ghz)
 				rxs->c_phytype = IEEE80211_RX_FP_11A;
 			else
@@ -302,7 +302,7 @@ r12a_get_rx_stats(struct rtwn_softc *sc, struct ieee80211_rx_stats *rxs,
 	}
 
 	/* Map HW rate index to 802.11 rate. */
-	if (rate < RTWN_RIDX_MCS(0)) {
+	if (rate < RTWN_RIDX_HT_MCS(0)) {
 		rxs->c_rate = ridx2rate[rate];
 		if (RTWN_RATE_IS_CCK(rate))
 			rxs->c_pktflags |= IEEE80211_RX_F_CCK;

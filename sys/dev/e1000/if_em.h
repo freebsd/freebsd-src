@@ -96,10 +96,10 @@
 /* Tunables */
 
 /*
- * EM_TXD: Maximum number of Transmit Descriptors
+ * EM_MAX_TXD: Maximum number of Transmit Descriptors
  * Valid Range: 80-256 for 82542 and 82543-based adapters
  *              80-4096 for others
- * Default Value: 256
+ * Default Value: 1024
  *   This value is the number of transmit descriptors allocated by the driver.
  *   Increasing this value allows the driver to queue more transmits. Each
  *   descriptor is 16 bytes.
@@ -111,12 +111,13 @@
 #define EM_MAX_TXD		4096
 #define EM_DEFAULT_TXD          1024
 #define EM_DEFAULT_MULTI_TXD	4096
+#define IGB_MAX_TXD		4096
 
 /*
- * EM_RXD - Maximum number of receive Descriptors
+ * EM_MAX_RXD - Maximum number of receive Descriptors
  * Valid Range: 80-256 for 82542 and 82543-based adapters
  *              80-4096 for others
- * Default Value: 256
+ * Default Value: 1024
  *   This value is the number of receive descriptors allocated by the driver.
  *   Increasing this value allows the driver to buffer more incoming packets.
  *   Each descriptor is 16 bytes.  A receive buffer is also allocated for each
@@ -129,6 +130,7 @@
 #define EM_MAX_RXD		4096
 #define EM_DEFAULT_RXD          1024
 #define EM_DEFAULT_MULTI_RXD	4096
+#define IGB_MAX_RXD		4096
 
 /*
  * EM_TIDV - Transmit Interrupt Delay Value

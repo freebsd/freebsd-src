@@ -323,6 +323,91 @@ sysctl_load_tunable_by_oid_locked(struct sysctl_oid *oidp)
 		freeenv(penv);
 }
 
+static int
+sbuf_printf_drain(void *arg __unused, const char *data, int len)
+{
+
+	return (printf("%.*s", len, data));
+}
+
+/*
+ * Locate the path to a given oid.  Returns the length of the resulting path,
+ * or -1 if the oid was not found.  nodes must have room for CTL_MAXNAME
+ * elements and be NULL initialized.
+ */
+static int
+sysctl_search_oid(struct sysctl_oid **nodes, struct sysctl_oid *needle)
+{
+	int indx;
+
+	SYSCTL_ASSERT_LOCKED();
+	indx = 0;
+	while (indx < CTL_MAXNAME && indx >= 0) {
+		if (nodes[indx] == NULL && indx == 0)
+			nodes[indx] = SLIST_FIRST(&sysctl__children);
+		else if (nodes[indx] == NULL)
+			nodes[indx] = SLIST_FIRST(&nodes[indx - 1]->oid_children);
+		else
+			nodes[indx] = SLIST_NEXT(nodes[indx], oid_link);
+
+		if (nodes[indx] == needle)
+			return (indx + 1);
+
+		if (nodes[indx] == NULL) {
+			indx--;
+			continue;
+		}
+
+		if ((nodes[indx]->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+			indx++;
+			continue;
+		}
+	}
+	return (-1);
+}
+
+static void
+sysctl_warn_reuse(const char *func, struct sysctl_oid *leaf)
+{
+	struct sysctl_oid *nodes[CTL_MAXNAME];
+	char buf[128];
+	struct sbuf sb;
+	int rc, i;
+
+	(void)sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN | SBUF_INCLUDENUL);
+	sbuf_set_drain(&sb, sbuf_printf_drain, NULL);
+
+	sbuf_printf(&sb, "%s: can't re-use a leaf (", __func__);
+
+	memset(nodes, 0, sizeof(nodes));
+	rc = sysctl_search_oid(nodes, leaf);
+	if (rc > 0) {
+		for (i = 0; i < rc; i++)
+			sbuf_printf(&sb, "%s%.*s", nodes[i]->oid_name,
+			    i != (rc - 1), ".");
+	} else {
+		sbuf_printf(&sb, "%s", leaf->oid_name);
+	}
+	sbuf_printf(&sb, ")!\n");
+
+	(void)sbuf_finish(&sb);
+}
+
+#ifdef SYSCTL_DEBUG
+static int
+sysctl_reuse_test(SYSCTL_HANDLER_ARGS)
+{
+	struct rm_priotracker tracker;
+
+	SYSCTL_RLOCK(&tracker);
+	sysctl_warn_reuse(__func__, oidp);
+	SYSCTL_RUNLOCK(&tracker);
+	return (0);
+}
+SYSCTL_PROC(_sysctl, 0, reuse_test, CTLTYPE_STRING|CTLFLAG_RD|CTLFLAG_MPSAFE,
+	0, 0, sysctl_reuse_test, "-", "");
+#endif
+
 void
 sysctl_register_oid(struct sysctl_oid *oidp)
 {
@@ -343,7 +428,7 @@ sysctl_register_oid(struct sysctl_oid *oidp)
 			p->oid_refcnt++;
 			return;
 		} else {
-			printf("can't re-use a leaf (%s)!\n", p->oid_name);
+			sysctl_warn_reuse(__func__, p);
 			return;
 		}
 	}
@@ -715,8 +800,8 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 			SYSCTL_WUNLOCK();
 			return (oidp);
 		} else {
+			sysctl_warn_reuse(__func__, oidp);
 			SYSCTL_WUNLOCK();
-			printf("can't re-use a leaf (%s)!\n", name);
 			return (NULL);
 		}
 	}

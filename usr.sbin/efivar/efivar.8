@@ -32,7 +32,7 @@
 .Nd UEFI environment variable interaction
 .Sh SYNOPSIS
 .Nm
-.Op Fl abdDHlLNpRtw
+.Op Fl abdDHlLNpRtuw
 .Op Fl n Ar name
 .Op Fl f Ar file
 .Op Fl -append
@@ -51,6 +51,7 @@
 .Op Fl -print
 .Op Fl -print-decimal
 .Op Fl -raw-guid
+.Op Fl -utf8
 .Op Fl -write
 .Sh DESCRIPTION
 This program manages
@@ -143,6 +144,9 @@ Do not display the variable name.
 Print the value of the variable.
 .It Fl R Fl -raw-guid
 Do not substitute well known names for GUID numeric values in output.
+.It Fl u Fl -utf8
+Treat the value of the variable as UCS2 and convert it to UTF8 and
+print the result.
 .It Fl w Fl -write
 Write (replace) the variable specified with the value specified from
 standard input.

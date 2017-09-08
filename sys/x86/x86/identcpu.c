@@ -91,6 +91,7 @@ u_int	cpu_feature;		/* Feature flags */
 u_int	cpu_feature2;		/* Feature flags */
 u_int	amd_feature;		/* AMD feature flags */
 u_int	amd_feature2;		/* AMD feature flags */
+u_int	amd_rascap;		/* AMD RAS capabilities */
 u_int	amd_pminfo;		/* AMD advanced power management info */
 u_int	via_feature_rng;	/* VIA RNG features */
 u_int	via_feature_xcrypt;	/* VIA ACE features */
@@ -1423,18 +1424,15 @@ finishidentcpu(void)
 		cpu_stdext_feature = regs[1];
 
 		/*
-		 * Some hypervisors fail to filter out unsupported
-		 * extended features.  For now, disable the
+		 * Some hypervisors failed to filter out unsupported
+		 * extended features.  Allow to disable the
 		 * extensions, activation of which requires setting a
 		 * bit in CR4, and which VM monitors do not support.
 		 */
-		if (cpu_feature2 & CPUID2_HV) {
-			cpu_stdext_disable = CPUID_STDEXT_FSGSBASE |
-			    CPUID_STDEXT_SMEP;
-		} else
-			cpu_stdext_disable = 0;
+		cpu_stdext_disable = 0;
 		TUNABLE_INT_FETCH("hw.cpu_stdext_disable", &cpu_stdext_disable);
 		cpu_stdext_feature &= ~cpu_stdext_disable;
+
 		cpu_stdext_feature2 = regs[2];
 	}
 
@@ -1464,6 +1462,7 @@ finishidentcpu(void)
 	}
 	if (cpu_exthigh >= 0x80000007) {
 		do_cpuid(0x80000007, regs);
+		amd_rascap = regs[1];
 		amd_pminfo = regs[3];
 	}
 	if (cpu_exthigh >= 0x80000008) {

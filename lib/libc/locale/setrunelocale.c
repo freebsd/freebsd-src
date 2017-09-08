@@ -38,7 +38,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define __RUNETYPE_INTERNAL 1
+#define	__RUNETYPE_INTERNAL 1
 
 #include <runetype.h>
 #include <errno.h>
@@ -72,7 +72,7 @@ destruct_ctype(void *v)
 {
 	struct xlocale_ctype *l = v;
 
-	if (&_DefaultRuneLocale != l->runes) 
+	if (&_DefaultRuneLocale != l->runes)
 		free(l->runes);
 	free(l);
 }
@@ -81,7 +81,7 @@ const _RuneLocale *
 __getCurrentRuneLocale(void)
 {
 
-	return XLOCALE_CTYPE(__get_locale())->runes;
+	return (XLOCALE_CTYPE(__get_locale())->runes);
 }
 
 static void
@@ -144,7 +144,7 @@ __setrunelocale(struct xlocale_ctype *l, const char *encoding)
 	else if (strcmp(rl->__encoding, "EUC-TW") == 0)
 		ret = _EUC_TW_init(l, rl);
 	else if (strcmp(rl->__encoding, "GB18030") == 0)
- 		ret = _GB18030_init(l, rl);
+		ret = _GB18030_init(l, rl);
 	else if (strcmp(rl->__encoding, "GB2312") == 0)
 		ret = _GB2312_init(l, rl);
 	else if (strcmp(rl->__encoding, "GBK") == 0)
@@ -204,10 +204,9 @@ __ctype_load(const char *locale, locale_t unused __unused)
 	struct xlocale_ctype *l = calloc(sizeof(struct xlocale_ctype), 1);
 
 	l->header.header.destructor = destruct_ctype;
-	if (__setrunelocale(l, locale))
-	{
+	if (__setrunelocale(l, locale)) {
 		free(l);
-		return NULL;
+		return (NULL);
 	}
-	return l;
+	return (l);
 }

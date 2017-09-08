@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 #include <util.h>
+#include <vis.h>
 
 #include "makefs.h"
 
@@ -355,8 +356,6 @@ read_word(FILE *fp, char *buf, size_t bufsz)
 			break;
 		case '\\':
 			esc++;
-			if (esc == 1)
-				continue;
 			break;
 		case '`':
 		case '\'':
@@ -401,33 +400,9 @@ read_word(FILE *fp, char *buf, size_t bufsz)
 				fi->line++;
 			}
 			break;
-		case 'a':
+		default:
 			if (esc)
-				c = '\a';
-			break;
-		case 'b':
-			if (esc)
-				c = '\b';
-			break;
-		case 'f':
-			if (esc)
-				c = '\f';
-			break;
-		case 'n':
-			if (esc)
-				c = '\n';
-			break;
-		case 'r':
-			if (esc)
-				c = '\r';
-			break;
-		case 't':
-			if (esc)
-				c = '\t';
-			break;
-		case 'v':
-			if (esc)
-				c = '\v';
+				buf[idx++] = '\\';
 			break;
 		}
 		buf[idx++] = c;
@@ -591,7 +566,15 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 					error = ENOATTR;
 					break;
 				}
-				node->symlink = estrdup(value);
+				node->symlink = emalloc(strlen(value) + 1);
+				if (node->symlink == NULL) {
+					error = errno;
+					break;
+				}
+				if (strunvis(node->symlink, value) < 0) {
+					error = errno;
+					break;
+				}
 			} else
 				error = ENOSYS;
 			break;
@@ -971,13 +954,18 @@ read_mtree_spec1(FILE *fp, bool def, const char *name)
 static int
 read_mtree_spec(FILE *fp)
 {
-	char pathspec[PATH_MAX];
+	char pathspec[PATH_MAX], pathtmp[4*PATH_MAX + 1];
 	char *cp;
 	int error;
 
-	error = read_word(fp, pathspec, sizeof(pathspec));
+	error = read_word(fp, pathtmp, sizeof(pathtmp));
 	if (error)
 		goto out;
+	if (strnunvis(pathspec, PATH_MAX, pathtmp) == -1) {
+		error = errno;
+		goto out;
+	}
+	error = 0;
 
 	cp = strchr(pathspec, '/');
 	if (cp != NULL) {

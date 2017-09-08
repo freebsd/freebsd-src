@@ -262,9 +262,9 @@ state(KINFO *k, VARENT *ve __unused)
 	cp++;
 	if (!(flag & P_INMEM))
 		*cp++ = 'W';
-	if (k->ki_p->ki_nice < NZERO)
+	if (k->ki_p->ki_nice < NZERO || k->ki_p->ki_pri.pri_class == PRI_REALTIME)
 		*cp++ = '<';
-	else if (k->ki_p->ki_nice > NZERO)
+	else if (k->ki_p->ki_nice > NZERO || k->ki_p->ki_pri.pri_class == PRI_IDLE)
 		*cp++ = 'N';
 	if (flag & P_TRACED)
 		*cp++ = 'X';
@@ -274,6 +274,8 @@ state(KINFO *k, VARENT *ve __unused)
 		*cp++ = 'V';
 	if ((flag & P_SYSTEM) || k->ki_p->ki_lock > 0)
 		*cp++ = 'L';
+	if ((k->ki_p->ki_cr_flags & CRED_FLAG_CAPMODE) != 0)
+		*cp++ = 'C';
 	if (k->ki_p->ki_kiflag & KI_SLEADER)
 		*cp++ = 's';
 	if ((flag & P_CONTROLT) && k->ki_p->ki_pgid == k->ki_p->ki_tpgid)

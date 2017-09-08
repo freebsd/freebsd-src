@@ -746,11 +746,7 @@ sowakeup_aio(struct socket *so, struct sockbuf *sb)
 	if (sb->sb_flags & SB_AIO_RUNNING)
 		return;
 	sb->sb_flags |= SB_AIO_RUNNING;
-	if (sb == &so->so_snd)
-		SOCK_LOCK(so);
 	soref(so);
-	if (sb == &so->so_snd)
-		SOCK_UNLOCK(so);
 	soaio_enqueue(&sb->sb_aiotask);
 }
 

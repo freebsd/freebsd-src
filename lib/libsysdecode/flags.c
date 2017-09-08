@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/thr.h>
 #include <sys/umtx.h>
+#include <machine/sysarch.h>
 #include <netinet/in.h>
 #include <netinet/sctp.h>
 #include <netinet/tcp.h>
@@ -248,6 +249,13 @@ sysdecode_atfd(int fd)
 	if (fd == AT_FDCWD)
 		return ("AT_FDCWD");
 	return (NULL);
+}
+
+bool
+sysdecode_atflags(FILE *fp, int flag, int *rem)
+{
+
+	return (print_mask_int(fp, atflags, flag, rem));
 }
 
 static struct name_table semctlops[] = {
@@ -948,6 +956,13 @@ sysdecode_mmap_flags(FILE *fp, int flags, int *rem)
 }
 
 const char *
+sysdecode_pathconf_name(int name)
+{
+
+	return (lookup_value(pathconfname, name));
+}
+
+const char *
 sysdecode_rtprio_function(int function)
 {
 
@@ -986,6 +1001,13 @@ sysdecode_sigcode(int sig, int si_code)
 	default:
 		return (NULL);
 	}
+}
+
+const char *
+sysdecode_sysarch_number(int number)
+{
+
+	return (lookup_value(sysarchnum, number));
 }
 
 bool

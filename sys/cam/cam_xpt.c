@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
+#include <cam/cam_iosched.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_queue.h>
 #include <cam/cam_sim.h>
@@ -2833,8 +2834,6 @@ call_sim:
 			cgd->inq_data = dev->inq_data;
 			cgd->ident_data = dev->ident_data;
 			cgd->inq_flags = dev->inq_flags;
-			cgd->nvme_data = dev->nvme_data;
-			cgd->nvme_cdata = dev->nvme_cdata;
 			cgd->ccb_h.status = CAM_REQ_CMP;
 			cgd->serial_num_len = dev->serial_num_len;
 			if ((dev->serial_num_len > 0)
@@ -3494,7 +3493,7 @@ xpt_run_devq(struct cam_devq *devq)
 			mtx_lock(mtx);
 		else
 			mtx = NULL;
-		work_ccb->ccb_h.qos.sim_data = sbinuptime(); // xxx uintprt_t too small 32bit platforms
+		work_ccb->ccb_h.qos.periph_data = cam_iosched_now();
 		(*(sim->sim_action))(sim, work_ccb);
 		if (mtx)
 			mtx_unlock(mtx);
@@ -4641,7 +4640,7 @@ xpt_done(union ccb *done_ccb)
 		return;
 
 	/* Store the time the ccb was in the sim */
-	done_ccb->ccb_h.qos.sim_data = sbinuptime() - done_ccb->ccb_h.qos.sim_data;
+	done_ccb->ccb_h.qos.periph_data = cam_iosched_delta_t(done_ccb->ccb_h.qos.periph_data);
 	hash = (done_ccb->ccb_h.path_id + done_ccb->ccb_h.target_id +
 	    done_ccb->ccb_h.target_lun) % cam_num_doneqs;
 	queue = &cam_doneqs[hash];
@@ -4664,7 +4663,7 @@ xpt_done_direct(union ccb *done_ccb)
 		return;
 
 	/* Store the time the ccb was in the sim */
-	done_ccb->ccb_h.qos.sim_data = sbinuptime() - done_ccb->ccb_h.qos.sim_data;
+	done_ccb->ccb_h.qos.periph_data = cam_iosched_delta_t(done_ccb->ccb_h.qos.periph_data);
 	xpt_done_process(&done_ccb->ccb_h);
 }
 

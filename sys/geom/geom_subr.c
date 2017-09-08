@@ -918,8 +918,8 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 		return (EPERM);
 	/* If we try to open more but provider is error'ed: fail */
 	else if ((dcr > 0 || dcw > 0 || dce > 0) && pp->error != 0) {
-		printf("%s(%d): provider %s has error\n",
-		       __func__, __LINE__, pp->name);
+		printf("%s(%d): provider %s has error %d set\n",
+		    __func__, __LINE__, pp->name, pp->error);
 		return (pp->error);
 	}
 

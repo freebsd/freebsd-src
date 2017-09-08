@@ -615,6 +615,16 @@ t4_tweak_chip_settings(struct adapter *sc)
 		else
 			v = V_TSCALE(tscale - 2);
 		t4_set_reg_field(sc, A_SGE_ITP_CONTROL, m, v);
+
+		if (sc->debug_flags & DF_DISABLE_TCB_CACHE) {
+			m = V_RDTHRESHOLD(M_RDTHRESHOLD) | F_WRTHRTHRESHEN |
+			    V_WRTHRTHRESH(M_WRTHRTHRESH);
+			t4_tp_pio_read(sc, &v, 1, A_TP_CMM_CONFIG, 1);
+			v &= ~m;
+			v |= V_RDTHRESHOLD(1) | F_WRTHRTHRESHEN |
+			    V_WRTHRTHRESH(16);
+			t4_tp_pio_write(sc, &v, 1, A_TP_CMM_CONFIG, 1);
+		}
 	}
 
 	/* 4K, 16K, 64K, 256K DDP "page sizes" for TDDP */
@@ -3306,7 +3316,10 @@ free_nm_rxq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq)
 {
 	struct adapter *sc = vi->pi->adapter;
 
-	MPASS(nm_rxq->iq_cntxt_id == INVALID_NM_RXQ_CNTXT_ID);
+	if (vi->flags & VI_INIT_DONE)
+		MPASS(nm_rxq->iq_cntxt_id == INVALID_NM_RXQ_CNTXT_ID);
+	else
+		MPASS(nm_rxq->iq_cntxt_id == 0);
 
 	free_ring(sc, nm_rxq->iq_desc_tag, nm_rxq->iq_desc_map, nm_rxq->iq_ba,
 	    nm_rxq->iq_desc);
@@ -3366,7 +3379,10 @@ free_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 {
 	struct adapter *sc = vi->pi->adapter;
 
-	MPASS(nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID);
+	if (vi->flags & VI_INIT_DONE)
+		MPASS(nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID);
+	else
+		MPASS(nm_txq->cntxt_id == 0);
 
 	free_ring(sc, nm_txq->desc_tag, nm_txq->desc_map, nm_txq->ba,
 	    nm_txq->desc);

@@ -146,6 +146,14 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	num_trackers = min(num_trackers, (num_entries-1));
 
 	/*
+	 * Our best estimate for the maximum number of I/Os that we should
+	 * noramlly have in flight at one time. This should be viewed as a hint,
+	 * not a hard limit and will need to be revisitted when the upper layers
+	 * of the storage system grows multi-queue support.
+	 */
+	ctrlr->max_hw_pend_io = num_trackers * ctrlr->num_io_queues / 4;
+
+	/*
 	 * This was calculated previously when setting up interrupts, but
 	 *  a controller could theoretically support fewer I/O queues than
 	 *  MSI-X vectors.  So calculate again here just to be safe.
@@ -460,7 +468,7 @@ static int
 nvme_ctrlr_construct_namespaces(struct nvme_controller *ctrlr)
 {
 	struct nvme_namespace	*ns;
-	int			i;
+	uint32_t 		i;
 
 	for (i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++) {
 		ns = &ctrlr->ns[i];

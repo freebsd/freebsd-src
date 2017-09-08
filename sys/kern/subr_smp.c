@@ -630,6 +630,15 @@ smp_topo(void)
 		panic("Built bad topology at %p.  CPU mask (%s) != (%s)",
 		    top, cpusetobj_strprint(cpusetbuf, &top->cg_mask),
 		    cpusetobj_strprint(cpusetbuf2, &all_cpus));
+
+	/*
+	 * Collapse nonsense levels that may be created out of convenience by
+	 * the MD layers.  They cause extra work in the search functions.
+	 */
+	while (top->cg_children == 1) {
+		top = &top->cg_child[0];
+		top->cg_parent = NULL;
+	}
 	return (top);
 }
 
@@ -993,7 +1002,7 @@ topo_next_node(struct topo_node *top, struct topo_node *node)
 	if ((next = TAILQ_NEXT(node, siblings)) != NULL)
 		return (next);
 
-	while ((node = node->parent) != top)
+	while (node != top && (node = node->parent) != top)
 		if ((next = TAILQ_NEXT(node, siblings)) != NULL)
 			return (next);
 
@@ -1012,7 +1021,7 @@ topo_next_nonchild_node(struct topo_node *top, struct topo_node *node)
 	if ((next = TAILQ_NEXT(node, siblings)) != NULL)
 		return (next);
 
-	while ((node = node->parent) != top)
+	while (node != top && (node = node->parent) != top)
 		if ((next = TAILQ_NEXT(node, siblings)) != NULL)
 			return (next);
 
@@ -1044,105 +1053,99 @@ topo_set_pu_id(struct topo_node *node, cpuid_t id)
 	}
 }
 
+static struct topology_spec {
+	topo_node_type	type;
+	bool		match_subtype;
+	uintptr_t	subtype;
+} topology_level_table[TOPO_LEVEL_COUNT] = {
+	[TOPO_LEVEL_PKG] = { .type = TOPO_TYPE_PKG, },
+	[TOPO_LEVEL_GROUP] = { .type = TOPO_TYPE_GROUP, },
+	[TOPO_LEVEL_CACHEGROUP] = {
+		.type = TOPO_TYPE_CACHE,
+		.match_subtype = true,
+		.subtype = CG_SHARE_L3,
+	},
+	[TOPO_LEVEL_CORE] = { .type = TOPO_TYPE_CORE, },
+	[TOPO_LEVEL_THREAD] = { .type = TOPO_TYPE_PU, },
+};
+
+static bool
+topo_analyze_table(struct topo_node *root, int all, enum topo_level level,
+    struct topo_analysis *results)
+{
+	struct topology_spec *spec;
+	struct topo_node *node;
+	int count;
+
+	if (level >= TOPO_LEVEL_COUNT)
+		return (true);
+
+	spec = &topology_level_table[level];
+	count = 0;
+	node = topo_next_node(root, root);
+
+	while (node != NULL) {
+		if (node->type != spec->type ||
+		    (spec->match_subtype && node->subtype != spec->subtype)) {
+			node = topo_next_node(root, node);
+			continue;
+		}
+		if (!all && CPU_EMPTY(&node->cpuset)) {
+			node = topo_next_nonchild_node(root, node);
+			continue;
+		}
+
+		count++;
+
+		if (!topo_analyze_table(node, all, level + 1, results))
+			return (false);
+
+		node = topo_next_nonchild_node(root, node);
+	}
+
+	/* No explicit subgroups is essentially one subgroup. */
+	if (count == 0) {
+		count = 1;
+
+		if (!topo_analyze_table(root, all, level + 1, results))
+			return (false);
+	}
+
+	if (results->entities[level] == -1)
+		results->entities[level] = count;
+	else if (results->entities[level] != count)
+		return (false);
+
+	return (true);
+}
+
 /*
  * Check if the topology is uniform, that is, each package has the same number
  * of cores in it and each core has the same number of threads (logical
- * processors) in it.  If so, calculate the number of package, the number of
- * cores per package and the number of logical processors per core.
- * 'all' parameter tells whether to include administratively disabled logical
- * processors into the analysis.
+ * processors) in it.  If so, calculate the number of packages, the number of
+ * groups per package, the number of cachegroups per group, and the number of
+ * logical processors per cachegroup.  'all' parameter tells whether to include
+ * administratively disabled logical processors into the analysis.
  */
 int
 topo_analyze(struct topo_node *topo_root, int all,
-    int *pkg_count, int *cores_per_pkg, int *thrs_per_core)
+    struct topo_analysis *results)
 {
-	struct topo_node *pkg_node;
-	struct topo_node *core_node;
-	struct topo_node *pu_node;
-	int thrs_per_pkg;
-	int cpp_counter;
-	int tpc_counter;
-	int tpp_counter;
 
-	*pkg_count = 0;
-	*cores_per_pkg = -1;
-	*thrs_per_core = -1;
-	thrs_per_pkg = -1;
-	pkg_node = topo_root;
-	while (pkg_node != NULL) {
-		if (pkg_node->type != TOPO_TYPE_PKG) {
-			pkg_node = topo_next_node(topo_root, pkg_node);
-			continue;
-		}
-		if (!all && CPU_EMPTY(&pkg_node->cpuset)) {
-			pkg_node = topo_next_nonchild_node(topo_root, pkg_node);
-			continue;
-		}
+	results->entities[TOPO_LEVEL_PKG] = -1;
+	results->entities[TOPO_LEVEL_CORE] = -1;
+	results->entities[TOPO_LEVEL_THREAD] = -1;
+	results->entities[TOPO_LEVEL_GROUP] = -1;
+	results->entities[TOPO_LEVEL_CACHEGROUP] = -1;
 
-		(*pkg_count)++;
+	if (!topo_analyze_table(topo_root, all, TOPO_LEVEL_PKG, results))
+		return (0);
 
-		cpp_counter = 0;
-		tpp_counter = 0;
-		core_node = pkg_node;
-		while (core_node != NULL) {
-			if (core_node->type == TOPO_TYPE_CORE) {
-				if (!all && CPU_EMPTY(&core_node->cpuset)) {
-					core_node =
-					    topo_next_nonchild_node(pkg_node,
-					        core_node);
-					continue;
-				}
-
-				cpp_counter++;
-
-				tpc_counter = 0;
-				pu_node = core_node;
-				while (pu_node != NULL) {
-					if (pu_node->type == TOPO_TYPE_PU &&
-					    (all || !CPU_EMPTY(&pu_node->cpuset)))
-						tpc_counter++;
-					pu_node = topo_next_node(core_node,
-					    pu_node);
-				}
-
-				if (*thrs_per_core == -1)
-					*thrs_per_core = tpc_counter;
-				else if (*thrs_per_core != tpc_counter)
-					return (0);
-
-				core_node = topo_next_nonchild_node(pkg_node,
-				    core_node);
-			} else {
-				/* PU node directly under PKG. */
-				if (core_node->type == TOPO_TYPE_PU &&
-			           (all || !CPU_EMPTY(&core_node->cpuset)))
-					tpp_counter++;
-				core_node = topo_next_node(pkg_node,
-				    core_node);
-			}
-		}
-
-		if (*cores_per_pkg == -1)
-			*cores_per_pkg = cpp_counter;
-		else if (*cores_per_pkg != cpp_counter)
-			return (0);
-		if (thrs_per_pkg == -1)
-			thrs_per_pkg = tpp_counter;
-		else if (thrs_per_pkg != tpp_counter)
-			return (0);
-
-		pkg_node = topo_next_nonchild_node(topo_root, pkg_node);
-	}
-
-	KASSERT(*pkg_count > 0,
+	KASSERT(results->entities[TOPO_LEVEL_PKG] > 0,
 		("bug in topology or analysis"));
-	if (*cores_per_pkg == 0) {
-		KASSERT(*thrs_per_core == -1 && thrs_per_pkg > 0,
-			("bug in topology or analysis"));
-		*thrs_per_core = thrs_per_pkg;
-	}
 
 	return (1);
 }
+
 #endif /* SMP */
 

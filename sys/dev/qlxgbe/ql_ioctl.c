@@ -143,7 +143,7 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			break;
 		}
 
-		if (ifp->if_drv_flags & (IFF_DRV_OACTIVE | IFF_DRV_RUNNING)) {
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			rval = ENXIO;
 			break;
 		}
@@ -170,7 +170,7 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			break;
 		}
 
-		if (ifp->if_drv_flags & (IFF_DRV_OACTIVE | IFF_DRV_RUNNING)) {
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			rval = ENXIO;
 			break;
 		}
@@ -233,10 +233,14 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			break;
 		}
 
-		QLA_LOCK(ha);
-		if (!ha->hw.mdump_done)
-			ha->qla_initiate_recovery = 1;
-		QLA_UNLOCK(ha);
+		if (QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT, 0) == 0) {
+			if (!ha->hw.mdump_done)
+				ha->qla_initiate_recovery = 1;
+			QLA_UNLOCK(ha, __func__);
+		} else {
+			rval = ENXIO;
+			break;
+		}
 	
 #define QLNX_DUMP_WAIT_SECS	30
 
@@ -254,9 +258,13 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			break;
 		}
 			
-		QLA_LOCK(ha);
-		ha->hw.mdump_done = 0;
-		QLA_UNLOCK(ha);
+		if (QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT, 0) == 0) {
+			ha->hw.mdump_done = 0;
+			QLA_UNLOCK(ha, __func__);
+		} else {
+			rval = ENXIO;
+			break;
+		}
 
 		if ((rval = copyout(ha->hw.mdump_template,
 			fw_dump->minidump, ha->hw.mdump_template_size))) {
