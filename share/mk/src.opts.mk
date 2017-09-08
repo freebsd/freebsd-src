@@ -362,6 +362,10 @@ MK_ATM:=	no
 MK_BLUETOOTH:=	no
 .endif
 
+.if ${MK_NLS} == "no"
+MK_NLS_CATALOGS:= no
+.endif
+
 .if ${MK_OPENSSL} == "no"
 MK_OPENSSH:=	no
 MK_KERBEROS:=	no
