@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	slc
-LIBROKEN_A=     ${.OBJDIR:H:H}/lib/libroken/libroken.a
+LIBROKEN_A=     ${.OBJDIR:H:H}/lib/libroken/libprivateroken.a
 LIBADD=	vers
 LDADD=  ${LIBROKEN_A}
 DPADD=  ${LIBROKEN_A}

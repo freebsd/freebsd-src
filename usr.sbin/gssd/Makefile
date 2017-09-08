@@ -11,6 +11,11 @@ WARNS?= 1
 
 LIBADD=	gssapi
 .if ${MK_KERBEROS_SUPPORT} != "no"
+KRB5DIR=	${SRCTOP}/crypto/heimdal
+CFLAGS+=	-I${KRB5DIR}/lib/krb5 \
+		-I${SRCTOP}/kerberos5/include \
+		-I${.OBJDIR:H:H}/kerberos5/lib/libkrb5 \
+		-I${.OBJDIR:H:H}/kerberos5/lib/libasn1
 LIBADD+=	krb5 roken
 .else
 CFLAGS+= -DWITHOUT_KERBEROS

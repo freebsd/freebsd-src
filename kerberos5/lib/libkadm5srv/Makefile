@@ -1,6 +1,9 @@
 # $FreeBSD$
 
+.include "../Makefile.inc"
+
 LIB=	kadm5srv
+PRIVATELIB=	true
 LDFLAGS=	-Wl,--no-undefined
 LIBADD=	com_err hdb krb5 roken
 VERSION_MAP= ${KRB5DIR}/lib/kadm5/version-script.map
@@ -35,7 +38,10 @@ SRCS=	acl.c \
 	set_keys.c \
 	set_modifier.c
 
-CFLAGS+=-I${KRB5DIR}/lib/kadm5 -I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/roken -I.
+CFLAGS+=-I${KRB5DIR}/lib/kadm5 -I${KRB5DIR}/lib/asn1 -I${.OBJDIR:H}/libasn1 \
+	-I${KRB5DIR}/lib/roken -I${.OBJDIR:H}/libroken \
+	-I${KRB5DIR}/lib/krb5 -I${.OBJDIR:H}/libkrb5 \
+	-I${KRB5DIR}/lib/hdb -I${.OBJDIR:H}/libhdb -I.
 
 .include <bsd.lib.mk>
 

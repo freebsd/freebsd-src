@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 LIB=	gssapi_spnego
+PRIVATELIB=	true
 LDFLAGS= -Wl,-Bsymbolic -Wl,--no-undefined
 LIBADD=	gssapi heimbase asn1 roken
 SHLIB_MAJOR=	10
@@ -31,8 +32,11 @@ CFLAGS+=-I${KRB5DIR}/lib/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/gssapi/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/gssapi/spnego
 CFLAGS+=-I${KRB5DIR}/lib/asn1
+CFLAGS+=-I${.OBJDIR:H}/libasn1
 CFLAGS+=-I${SRCTOP}/lib/libgssapi
-CFLAGS+=-I${KRB5DIR}/lib/roken -I.
+CFLAGS+=-I${KRB5DIR}/lib/roken
+CFLAGS+=-I${.OBJDIR:H}/libroken
+CFLAGS+=-I${KRB5DIR}/base -I.
 
 CLEANFILES=	${GEN} ${GEN:S/.x$/.c/:S/.hx$/.h/} \
 		spnego_asn1_files spnego_asn1-template.c

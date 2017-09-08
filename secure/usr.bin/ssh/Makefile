@@ -24,7 +24,11 @@ CFLAGS+=	-DHAVE_LDNS=1
 .endif
 
 .if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
-CFLAGS+= -include krb5_config.h
+KRB5DIR=	${SRCTOP}/crypto/heimdal
+KERBEROS5_DIR=	${SRCTOP}/kerberos5
+CFLAGS+= -include krb5_config.h \
+	-I${KERBEROS5_DIR}/include \
+	-I${KRB5DIR}/lib/krb5
 SRCS+=	krb5_config.h
 LIBADD+=	gssapi
 .endif

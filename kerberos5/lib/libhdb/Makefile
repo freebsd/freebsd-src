@@ -1,6 +1,9 @@
 # $FreeBSD$
 
+.include "../Makefile.inc"
+
 LIB=	hdb
+PRIVATELIB=	true
 LDFLAGS=	-Wl,--no-undefined ${LDAPLDFLAGS}
 VERSION_MAP=	${KRB5DIR}/lib/hdb/version-script.map
 LIBADD=	asn1 com_err krb5 roken sqlite3
@@ -56,9 +59,13 @@ SRCS=	common.c \
 	print.c \
 	${GEN:S/.x$/.c/:S/.hx$/.h/}
 
-CFLAGS+=-I${KRB5DIR}/lib/hdb -I${KRB5DIR}/lib/asn1 \
-	-I${KRB5DIR}/lib/roken -I${SRCTOP}/contrib/sqlite3/ \
-	-I${KRB5DIR}/lib/krb5 \
+CFLAGS+=-I${KRB5DIR}/lib/hdb -I${KRB5DIR}/lib/asn1 -I${.OBJDIR:H}/libasn1 \
+	-I${KRB5DIR}/lib/roken -I${.OBJDIR:H}/libroken \
+	-I${SRCTOP}/contrib/sqlite3/ \
+	-I${KRB5DIR}/lib/krb5 -I${.OBJDIR:H}/libkrb5 \
+	-I${KRB5DIR}/lib/wind -I${.OBJDIR:H}/libwind \
+	-I${KRB5DIR}/lib/hx509 -I${.OBJDIR:H}/libhx509 \
+	-I${KRB5DIR}/base \
 	-I. ${LDAPCFLAGS}
 CFLAGS+=-DHDB_DB_DIR="\"/var/heimdal\""
 

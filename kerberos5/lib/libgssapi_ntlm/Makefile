@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 LIB=	gssapi_ntlm
+PRIVATELIB=	true
 LDFLAGS= -Wl,-Bsymbolic -Wl,--no-undefined
 LIBADD=	crypto gssapi krb5 heimntlm roken
 SHLIB_MAJOR=	10
@@ -41,7 +42,14 @@ CFLAGS+=-I${KRB5DIR}/lib/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/gssapi/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/gssapi/ntlm
 CFLAGS+=-I${KRB5DIR}/lib/krb5
+CFLAGS+=-I${.OBJDIR:H}/libkrb5
 CFLAGS+=-I${KRB5DIR}/lib/ntlm
+CFLAGS+=-I${KRB5DIR}/lib/roken
+CFLAGS+=-I${.OBJDIR:H}/libroken
+CFLAGS+=-I${KRB5DIR}/lib/asn1
+CFLAGS+=-I${.OBJDIR:H}/libasn1
+CFLAGS+=-I${KRB5DIR}/lib/ntlm
+CFLAGS+=-I${.OBJDIR:H}/libheimntlm
 
 .include <bsd.lib.mk>
 

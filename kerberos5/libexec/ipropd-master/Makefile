@@ -4,7 +4,13 @@ PROG=	ipropd-master
 MAN=	iprop.8
 SRCS=	ipropd_common.c ipropd_master.c kadm5_err.h
 CFLAGS+=-I${KRB5DIR}/lib/krb5 -I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/roken \
+	-I${KRB5DIR}/lib/hdb \
+	-I${.OBJDIR:H:H}/lib/libkrb5 \
+	-I${.OBJDIR:H:H}/lib/libroken \
+	-I${.OBJDIR:H:H}/lib/libasn1 \
+	-I${.OBJDIR:H:H}/lib/libhdb \
 	-I. ${LDAPCFLAGS}
+
 LIBADD=	kadm5srv hdb krb5 roken vers
 DPADD=	${LDAPDPADD}
 LDADD=	${LDAPLDADD}

@@ -30,4 +30,15 @@ MAN=	pam_ksu.8
 
 LIBADD+=	krb5
 
+# XXX Must be the same as in kerberos5/Makefile.inc
+# XXX There will be a better way to reduce duplication but
+# XXX for now this will do.
+KRB5DIR=	${SRCTOP}/crypto/heimdal
+
+CFLAGS+=	-I${SRCTOP}/kerberos5/include \
+		-I${KRB5DIR}/lib/krb5 \
+		-I${.OBJDIR:H:H:H:H}/kerberos5/lib/libkrb5 \
+ 		-I${KRB5DIR}/lib/asn1 \
+		-I${.OBJDIR:H:H:H:H}/kerberos5/lib/libasn1
+
 .include <bsd.lib.mk>

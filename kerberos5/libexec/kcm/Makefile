@@ -18,7 +18,13 @@ SRCS=	acl.c \
 	renew.c
 
 CFLAGS+=-I${KRB5DIR}/lib/krb5 -I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/roken \
-	-I${KRB5DIR}/kcm -I${KRB5DIR}/lib/ipc ${LDAPCFLAGS}
+	-I${KRB5DIR}/kcm -I${KRB5DIR}/lib/ipc \
+	-I${KRB5DIR}/lib/ntlm \
+	-I${.OBJDIR:H:H}/lib/libkrb5 \
+	-I${.OBJDIR:H:H}/lib/libroken \
+	-I${.OBJDIR:H:H}/lib/libasn1 \
+	-I${.OBJDIR:H:H}/lib/libheimntlm \
+	${LDAPCFLAGS}
 LIBADD=	krb5 roken heimntlm heimipcs crypto
 DPADD=	${LDAPDPADD}
 LDADD=	${LIBVERS} ${LDAPLDADD}

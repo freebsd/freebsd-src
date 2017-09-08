@@ -1,11 +1,17 @@
 # $FreeBSD$
 
+.include "../Makefile.inc"
+
 LIB=	heimntlm
+PRIVATELIB=	true
 LDFLAGS=	-Wl,--no-undefined
 LIBADD=	crypto com_err krb5 roken
 SRCS=	ntlm.c ntlm_err.c ntlm_err.h
 INCS=	heimntlm.h heimntlm-protos.h ntlm_err.h
-CFLAGS+=-I${KRB5DIR}/lib/ntlm -I${KRB5DIR}/lib/roken
+CFLAGS+=-I${KRB5DIR}/lib/ntlm -I${.OBJDIR:H}/libheimntlm \
+	-I${KRB5DIR}/lib/roken -I${.OBJDIR:H}/libroken \
+	-I${KRB5DIR}/lib/krb5 -I${.OBJDIR:H}/libkrb5 \
+	-I${KRB5DIR}/lib/asn1 -I${.OBJDIR:H}/libasn1
 VERSION_MAP= ${KRB5DIR}/lib/ntlm/version-script.map
 
 MAN=	ntlm_buf.3 \

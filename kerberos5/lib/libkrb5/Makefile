@@ -1,6 +1,9 @@
 # $FreeBSD$
 
+.include "../Makefile.inc"
+
 LIB=	krb5
+PRIVATELIB=	true
 LDFLAGS=	-Wl,--no-undefined
 VERSION_MAP= ${KRB5DIR}/lib/krb5/version-script.map
 LIBADD=	asn1 com_err crypt crypto hx509 roken wind heimbase heimipcc
@@ -618,8 +621,10 @@ SRCS+=	heim_err.c \
 	krb_err.h
 
 CFLAGS+=	-I${KRB5DIR}/lib/krb5 \
-		-I${KRB5DIR}/lib/asn1 \
-		-I${KRB5DIR}/lib/roken \
+		-I${KRB5DIR}/lib/asn1 -I${.OBJDIR:H}/libasn1 \
+		-I${KRB5DIR}/lib/roken -I${.OBJDIR:H}/libroken \
+		-I${KRB5DIR}/lib/wind -I${.OBJDIR:H}/libwind \
+		-I${KRB5DIR}/lib/hx509 -I${.OBJDIR:H}/libhx509 \
 		-I${KRB5DIR}/lib/ipc \
 		-I${KRB5DIR}/base -I.
 

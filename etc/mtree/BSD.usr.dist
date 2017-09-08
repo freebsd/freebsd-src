@@ -9,13 +9,33 @@
     ..
     include
         private
+            asn1
+            ..
             bsdstat
             ..
             event
             ..
+            hdb
+            ..
+            heimbase
+            ..
+            heimntlm
+            ..
+            hx509
+            ..
+            kafs5
+            ..
+            kdc
+            ..
+            krb5
+            ..
+            roken
+            ..
             sqlite3
             ..
             ucl
+            ..
+            wind
             ..
             zstd
             ..

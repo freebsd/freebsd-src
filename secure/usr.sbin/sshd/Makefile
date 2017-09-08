@@ -48,7 +48,13 @@ LDFLAGS+=-L${LIBBLACKLISTDIR}
 .endif
 
 .if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
-CFLAGS+= -include krb5_config.h
+KRB5DIR=	${SRCTOP}/crypto/heimdal
+CFLAGS+= -include krb5_config.h \
+	-I${KRB5DIR}/lib/krb5 \
+	-I${SRCTOP}/kerberos5/include \
+	-I${.OBJDIR:H:H:H}/kerberos5/lib/libkrb5 \
+	-I${.OBJDIR:H:H:H}/kerberos5/lib/libroken \
+	-I${.OBJDIR:H:H:H}/kerberos5/lib/libasn1
 SRCS+=	krb5_config.h
 LIBADD+=	gssapi_krb5 gssapi krb5
 .endif

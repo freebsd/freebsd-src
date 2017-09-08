@@ -13,18 +13,33 @@ __<src.libnames.mk>__:
 .include <src.opts.mk>
 
 _PRIVATELIBS=	\
+		asn1 \
 		atf_c \
 		atf_cxx \
 		bsdstat \
 		devdctl \
 		event \
+		gssapi_krb5 \
+		gssapi_ntlm \
+		gssapi_spnego \
+		hdb \
+		heimbase \
 		heimipcc \
 		heimipcs \
+		heimntlm \
+		hx509 \
+		kadm5clnt \
+		kadm5srv \
+		kafs5 \
+		kdc \
+		krb5 \
 		ldns \
+		roken \
 		sqlite3 \
 		ssh \
 		ucl \
 		unbound \
+		wind \
 		zstd
 
 _INTERNALLIBS=	\
@@ -57,7 +72,6 @@ _LIBRARIES=	\
 		80211 \
 		alias \
 		archive \
-		asn1 \
 		auditd \
 		avl \
 		begemot \
@@ -102,21 +116,11 @@ _LIBRARIES=	\
 		gnuregex \
 		gpio \
 		gssapi \
-		gssapi_krb5 \
-		hdb \
-		heimbase \
-		heimntlm \
 		heimsqlite \
-		hx509 \
 		ifconfig \
 		ipsec \
 		jail \
-		kadm5clnt \
-		kadm5srv \
-		kafs5 \
-		kdc \
 		kiconv \
-		krb5 \
 		kvm \
 		l \
 		lzma \
@@ -146,7 +150,6 @@ _LIBRARIES=	\
 		pthread \
 		radius \
 		readline \
-		roken \
 		rpcsec_gss \
 		rpcsvc \
 		rt \
@@ -172,7 +175,6 @@ _LIBRARIES=	\
 		util \
 		uutil \
 		vmmapi \
-		wind \
 		wrap \
 		xo \
 		y \
@@ -304,6 +306,8 @@ _DP_heimipcs=	heimbase roken pthread
 _DP_kafs5=	asn1 krb5 roken
 _DP_krb5+=	asn1 com_err crypt crypto hx509 roken wind heimbase heimipcc
 _DP_gssapi_krb5+=	gssapi krb5 crypto roken asn1 com_err
+_DP_gssapi_ntlm+=	crypto gssapi krb5 heimntlm roken
+_DP_gssapi_spnego+=	gssapi heimbase asn1 roken
 _DP_lzma=	pthread
 _DP_ucl=	m
 _DP_vmmapi=	util

@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 LIB=	gssapi_krb5
+PRIVATELIB=	true
 LDFLAGS= -Wl,-Bsymbolic -Wl,--no-undefined
 LIBADD=	gssapi krb5 crypto roken asn1 com_err
 SHLIB_MAJOR=	10
@@ -77,8 +78,16 @@ CFLAGS+=-I${KRB5DIR}/lib/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/gssapi/krb5
 CFLAGS+=-I${KRB5DIR}/lib/gssapi/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/krb5
+CFLAGS+=-I${.OBJDIR:H}/libkrb5
 CFLAGS+=-I${KRB5DIR}/lib/asn1
-CFLAGS+=-I${KRB5DIR}/lib/roken -I.
+CFLAGS+=-I${.OBJDIR:H}/libasn1
+CFLAGS+=-I${KRB5DIR}/lib/roken
+CFLAGS+=-I${.OBJDIR:H}/libroken
+CFLAGS+=-I${KRB5DIR}/lib/wind
+CFLAGS+=-I${.OBJDIR:H}/libwind
+CFLAGS+=-I${KRB5DIR}/lib/hx509
+CFLAGS+=-I${.OBJDIR:H}/libhx509
+CFLAGS+=-I${KRB5DIR}/base -I.
 
 .include <bsd.lib.mk>
 

@@ -1,6 +1,9 @@
 # $FreeBSD$
 
+.include "../Makefile.inc"
+
 LIB=	kadm5clnt
+PRIVATELIB=	true
 LDFLAGS=	-Wl,--no-undefined
 LIBADD=	com_err krb5 roken
 
@@ -34,7 +37,10 @@ SRCS=	ad.c \
 	rename_c.c \
 	send_recv.c
 
-CFLAGS+=-I${KRB5DIR}/lib/kadm5 -I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/roken -I.
+CFLAGS+=-I${KRB5DIR}/lib/kadm5 -I${KRB5DIR}/lib/asn1 -I${.OBJDIR:H}/libasn1 \
+	-I${KRB5DIR}/lib/roken -I${.OBJDIR:H}/libroken \
+	-I${KRB5DIR}/lib/krb5 -I${.OBJDIR:H}/libkrb5 \
+	-I${KRB5DIR}/lib/hdb -I${.OBJDIR:H}/libhdb -I.
 
 .include <bsd.lib.mk>
 

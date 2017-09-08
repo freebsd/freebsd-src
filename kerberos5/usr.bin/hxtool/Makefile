@@ -5,6 +5,9 @@ MAN=
 CFLAGS+=	-I${KRB5DIR}/lib/hx509 \
 		-I${KRB5DIR}/lib/asn1 \
 		-I${KRB5DIR}/lib/roken \
+		-I${.OBJDIR:H:H}/lib/libhx509 \
+		-I${.OBJDIR:H:H}/lib/libasn1 \
+		-I${.OBJDIR:H:H}/lib/libroken \
 		-I${KRB5DIR}/lib/sl -I.
 LIBADD=	hx509 roken asn1 crypto sl vers edit
 SRCS=	hxtool.c hxtool-commands.c hxtool-commands.h

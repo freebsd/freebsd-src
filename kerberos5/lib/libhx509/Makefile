@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 LIB=	hx509
+PRIVATELIB=	true
 LDFLAGS=	-Wl,--no-undefined
 VERSION_MAP= ${KRB5DIR}/lib/hx509/version-script.map
 LIBADD=	asn1 com_err crypto roken wind
@@ -209,9 +210,9 @@ SRCS+=	${GEN_OCSP:S/.x$/.c/:S/.hx$/.h/} \
 
 CFLAGS+=-I${KRB5DIR}/lib/hx509
 CFLAGS+=-I${KRB5DIR}/lib/hx509/ref
-CFLAGS+=-I${KRB5DIR}/lib/asn1
-CFLAGS+=-I${KRB5DIR}/lib/wind
-CFLAGS+=-I${KRB5DIR}/lib/roken -I.
+CFLAGS+=-I${KRB5DIR}/lib/asn1 -I${.OBJDIR:H}/libasn1
+CFLAGS+=-I${KRB5DIR}/lib/wind -I${.OBJDIR:H}/libwind
+CFLAGS+=-I${KRB5DIR}/lib/roken -I${.OBJDIR:H}/libroken -I.
 
 GEN_OCSP= \
 	asn1_OCSPBasicOCSPResponse.x \

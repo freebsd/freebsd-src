@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 LIB=	kafs5
+PRIVATELIB=	true
 LDFLAGS=	-Wl,--no-undefined
 LIBADD=	asn1 krb5 roken
 INCS=	kafs.h
@@ -27,7 +28,10 @@ SRCS=	afssys.c afskrb5.c common.c
 CFLAGS+=	-I${KRB5DIR}/lib/kafs \
 		-I${KRB5DIR}/lib/krb5 \
 		-I${.OBJDIR:H}/libkrb5 \
-		-I${KRB5DIR}/lib/roken
+		-I${KRB5DIR}/lib/roken \
+		-I${.OBJDIR:H}/libroken \
+		-I${KRB5DIR}/lib/asn1 \
+		-I${.OBJDIR:H}/libasn1
 
 CLEANFILES= kafs5.3
 
