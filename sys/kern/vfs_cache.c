@@ -1073,6 +1073,42 @@ cache_lookup_unlock(struct rwlock *blp, struct mtx *vlp)
 	}
 }
 
+static int __noinline
+cache_lookup_dot(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
+    struct timespec *tsp, int *ticksp)
+{
+	int ltype;
+
+	*vpp = dvp;
+	CTR2(KTR_VFS, "cache_lookup(%p, %s) found via .",
+			dvp, cnp->cn_nameptr);
+	counter_u64_add(dothits, 1);
+	SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ".", *vpp);
+	if (tsp != NULL)
+		timespecclear(tsp);
+	if (ticksp != NULL)
+		*ticksp = ticks;
+	vrefact(*vpp);
+	/*
+	 * When we lookup "." we still can be asked to lock it
+	 * differently...
+	 */
+	ltype = cnp->cn_lkflags & LK_TYPE_MASK;
+	if (ltype != VOP_ISLOCKED(*vpp)) {
+		if (ltype == LK_EXCLUSIVE) {
+			vn_lock(*vpp, LK_UPGRADE | LK_RETRY);
+			if ((*vpp)->v_iflag & VI_DOOMED) {
+				/* forced unmount */
+				vrele(*vpp);
+				*vpp = NULL;
+				return (ENOENT);
+			}
+		} else
+			vn_lock(*vpp, LK_DOWNGRADE | LK_RETRY);
+	}
+	return (-1);
+}
+
 /*
  * Lookup an entry in the cache
  *
@@ -1111,36 +1147,8 @@ retry:
 	counter_u64_add(numcalls, 1);
 
 	if (cnp->cn_nameptr[0] == '.') {
-		if (cnp->cn_namelen == 1) {
-			*vpp = dvp;
-			CTR2(KTR_VFS, "cache_lookup(%p, %s) found via .",
-			    dvp, cnp->cn_nameptr);
-			counter_u64_add(dothits, 1);
-			SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ".", *vpp);
-			if (tsp != NULL)
-				timespecclear(tsp);
-			if (ticksp != NULL)
-				*ticksp = ticks;
-			vrefact(*vpp);
-			/*
-			 * When we lookup "." we still can be asked to lock it
-			 * differently...
-			 */
-			ltype = cnp->cn_lkflags & LK_TYPE_MASK;
-			if (ltype != VOP_ISLOCKED(*vpp)) {
-				if (ltype == LK_EXCLUSIVE) {
-					vn_lock(*vpp, LK_UPGRADE | LK_RETRY);
-					if ((*vpp)->v_iflag & VI_DOOMED) {
-						/* forced unmount */
-						vrele(*vpp);
-						*vpp = NULL;
-						return (ENOENT);
-					}
-				} else
-					vn_lock(*vpp, LK_DOWNGRADE | LK_RETRY);
-			}
-			return (-1);
-		}
+		if (cnp->cn_namelen == 1)
+			return (cache_lookup_dot(dvp, vpp, cnp, tsp, ticksp));
 		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
 			counter_u64_add(dotdothits, 1);
 			dvlp2 = NULL;
