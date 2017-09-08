@@ -2336,7 +2336,7 @@ lem_allocate_pci_resources(struct adapter *adapter)
  *  Setup the Legacy or MSI Interrupt handler
  *
  **********************************************************************/
-int
+static int
 lem_allocate_irq(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
