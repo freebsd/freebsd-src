@@ -79,7 +79,7 @@ struct itimerspec32 {
 } while (0)
 
 struct bintime32 {
-	uint32_t sec;
+	time32_t sec;
 	uint32_t frac[2];
 };
 #define BT_CP(src, dst, fld) do {				\
