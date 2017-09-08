@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/sysctl.h>
 
 #include <dev/pci/pcireg.h>
@@ -99,6 +100,9 @@ struct ioapic {
 	volatile ioapic_t *io_addr;	/* XXX: should use bus_space */
 	vm_paddr_t io_paddr;
 	STAILQ_ENTRY(ioapic) io_next;
+	device_t pci_dev;		/* matched pci device, if found */
+	struct resource *pci_wnd;	/* BAR 0, should be same or alias to
+					   io_paddr */
 	struct ioapic_intsrc io_pins[0];
 };
 
@@ -622,6 +626,8 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	io = malloc(sizeof(struct ioapic) +
 	    numintr * sizeof(struct ioapic_intsrc), M_IOAPIC, M_WAITOK);
 	io->io_pic = ioapic_template;
+	io->pci_dev = NULL;
+	io->pci_wnd = NULL;
 	mtx_lock_spin(&icu_lock);
 	io->io_id = next_id++;
 	io->io_apic_id = ioapic_read(apic, IOAPIC_ID) >> APIC_ID_SHIFT;
@@ -954,7 +960,72 @@ ioapic_pci_probe(device_t dev)
 static int
 ioapic_pci_attach(device_t dev)
 {
+	struct resource *res;
+	volatile ioapic_t *apic;
+	struct ioapic *io;
+	int rid;
+	u_int apic_id;
 
+	/*
+	 * Try to match the enumerated ioapic.  Match BAR start
+	 * against io_paddr.  Due to a fear that PCI window is not the
+	 * same as the MADT reported io window, but an alias, read the
+	 * APIC ID from the mapped BAR and match against it.
+	 */
+	rid = PCIR_BAR(0);
+	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (res == NULL) {
+		if (bootverbose)
+			device_printf(dev, "cannot activate BAR0\n");
+		return (ENXIO);
+	}
+	apic = (volatile ioapic_t *)rman_get_virtual(res);
+	if (rman_get_size(res) < IOAPIC_WND_SIZE) {
+		if (bootverbose)
+			device_printf(dev,
+			    "BAR0 too small (%jd) for IOAPIC window\n",
+			    (uintmax_t)rman_get_size(res));
+		goto fail;
+	}
+	mtx_lock_spin(&icu_lock);
+	apic_id = ioapic_read(apic, IOAPIC_ID) >> APIC_ID_SHIFT;
+	/* First match by io window address */
+	STAILQ_FOREACH(io, &ioapic_list, io_next) {
+		if (io->io_paddr == (vm_paddr_t)rman_get_start(res))
+			goto found;
+	}
+	/* Then by apic id */
+	STAILQ_FOREACH(io, &ioapic_list, io_next) {
+		if (io->io_id == apic_id)
+			goto found;
+	}
+	mtx_unlock_spin(&icu_lock);
+	if (bootverbose)
+		device_printf(dev,
+		    "cannot match pci bar apic id %d against MADT\n",
+		    apic_id);
+fail:
+	bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
+	return (ENXIO);
+found:
+	KASSERT(io->pci_dev == NULL,
+	    ("ioapic %d pci_dev not NULL", io->io_id));
+	KASSERT(io->pci_wnd == NULL,
+	    ("ioapic %d pci_wnd not NULL", io->io_id));
+
+	io->pci_dev = dev;
+	io->pci_wnd = res;
+	if (bootverbose && (io->io_paddr != (vm_paddr_t)rman_get_start(res) ||
+	    io->io_id != apic_id)) {
+		device_printf(dev, "pci%d:%d:%d:%d pci BAR0@%jx id %d "
+		    "MADT id %d paddr@%jx\n",
+		    pci_get_domain(dev), pci_get_bus(dev),
+		    pci_get_slot(dev), pci_get_function(dev),
+		    (uintmax_t)rman_get_start(res), apic_id,
+		    io->io_id, (uintmax_t)io->io_paddr);
+	}
+	mtx_unlock_spin(&icu_lock);
 	return (0);
 }
 
@@ -970,6 +1041,28 @@ DEFINE_CLASS_0(ioapic, ioapic_pci_driver, ioapic_pci_methods, 0);
 
 static devclass_t ioapic_devclass;
 DRIVER_MODULE(ioapic, pci, ioapic_pci_driver, ioapic_devclass, 0, 0);
+
+int
+ioapic_get_rid(u_int apic_id, uint16_t *ridp)
+{
+	struct ioapic *io;
+	uintptr_t rid;
+	int error;
+
+	mtx_lock_spin(&icu_lock);
+	STAILQ_FOREACH(io, &ioapic_list, io_next) {
+		if (io->io_id == apic_id)
+			break;
+	}
+	mtx_unlock_spin(&icu_lock);
+	if (io == NULL || io->pci_dev == NULL)
+		return (EINVAL);
+	error = pci_get_id(io->pci_dev, PCI_ID_RID, &rid);
+	if (error != 0)
+		return (error);
+	*ridp = rid;
+	return (0);
+}
 
 /*
  * A new-bus driver to consume the memory resources associated with
@@ -1008,7 +1101,7 @@ apic_add_resource(device_t dev, int rid, vm_paddr_t base, size_t length)
 	if (error)
 		panic("apic_add_resource: resource %d failed set with %d", rid,
 		    error);
-	bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
+	bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_SHAREABLE);
 }
 
 static int
