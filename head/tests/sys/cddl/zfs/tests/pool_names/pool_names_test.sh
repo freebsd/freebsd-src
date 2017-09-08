@@ -33,7 +33,6 @@ pool_names_001_pos_head()
 }
 pool_names_001_pos_body()
 {
-	atf_expect_fail "REQ25521 FreeBSD does not support dataset names as long as Illumos does"
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/pool_names.cfg
 
