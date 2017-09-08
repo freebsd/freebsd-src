@@ -55,7 +55,6 @@ zvol_cli_002_pos_head()
 }
 zvol_cli_002_pos_body()
 {
-	atf_expect_fail "REQ25548 Increase FreeBSDs mount path length limit"
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_cli.cfg
 

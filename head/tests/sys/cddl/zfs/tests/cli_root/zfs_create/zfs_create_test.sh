@@ -357,7 +357,6 @@ zfs_create_013_pos_head()
 }
 zfs_create_013_pos_body()
 {
-	atf_expect_fail "REQ25548 FreeBSD's mount path limit is too short"
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_create_common.kshlib
 	. $(atf_get_srcdir)/properties.kshlib

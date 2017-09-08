@@ -564,7 +564,6 @@ snapshot_020_pos_head()
 }
 snapshot_020_pos_body()
 {
-	atf_expect_fail "TeamTrack: P2_29644 zfs rename does not unmount snapshots in a ctldir"
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
