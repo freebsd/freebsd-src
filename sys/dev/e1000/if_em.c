@@ -534,22 +534,26 @@ static int em_get_regs(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *adapter = (struct adapter *)arg1;
 	struct e1000_hw *hw = &adapter->hw;
-
 	struct sbuf *sb;
-	u32 *regs_buff = (u32 *)malloc(sizeof(u32) * IGB_REGS_LEN, M_DEVBUF, M_NOWAIT);
+	u32 *regs_buff;
 	int rc;
 
+	regs_buff = malloc(sizeof(u32) * IGB_REGS_LEN, M_DEVBUF, M_WAITOK);
 	memset(regs_buff, 0, IGB_REGS_LEN * sizeof(u32));
 
 	rc = sysctl_wire_old_buffer(req, 0);
 	MPASS(rc == 0);
-	if (rc != 0)
+	if (rc != 0) {
+		free(regs_buff, M_DEVBUF);
 		return (rc);
+	}
 
 	sb = sbuf_new_for_sysctl(NULL, NULL, 32*400, req);
 	MPASS(sb != NULL);
-	if (sb == NULL)
+	if (sb == NULL) {
+		free(regs_buff, M_DEVBUF);
 		return (ENOMEM);
+	}
 
 	/* General Registers */
 	regs_buff[0] = E1000_READ_REG(hw, E1000_CTRL);
@@ -604,6 +608,8 @@ static int em_get_regs(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(sb, "\tTDFT\t %08x\n", regs_buff[19]);
 	sbuf_printf(sb, "\tTDFHS\t %08x\n", regs_buff[20]);
 	sbuf_printf(sb, "\tTDFPC\t %08x\n\n", regs_buff[21]);
+
+	free(regs_buff, M_DEVBUF);
 
 #ifdef DUMP_DESCS
 	{
