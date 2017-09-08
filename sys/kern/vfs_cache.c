@@ -1224,7 +1224,8 @@ retry_dotdot:
 		} else {
 			counter_u64_add(nummiss, 1);
 		}
-		goto unlock;
+		cache_lookup_unlock(blp, dvlp);
+		return (0);
 	}
 
 	/* We don't want to have an entry, so dump it */
@@ -1294,10 +1295,6 @@ success:
 		ASSERT_VOP_ELOCKED(*vpp, "cache_lookup");
 	}
 	return (-1);
-
-unlock:
-	cache_lookup_unlock(blp, dvlp);
-	return (0);
 
 zap_and_exit:
 	if (blp != NULL)
