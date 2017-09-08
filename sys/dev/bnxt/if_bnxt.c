@@ -176,6 +176,7 @@ static int bnxt_media_change(if_ctx_t ctx);
 static int bnxt_promisc_set(if_ctx_t ctx, int flags);
 static uint64_t	bnxt_get_counter(if_ctx_t, ift_counter);
 static void bnxt_update_admin_status(if_ctx_t ctx);
+static void bnxt_if_timer(if_ctx_t ctx, uint16_t qid);
 
 /* Interrupt enable / disable */
 static void bnxt_intr_enable(if_ctx_t ctx);
@@ -260,6 +261,7 @@ static device_method_t bnxt_iflib_methods[] = {
 	DEVMETHOD(ifdi_promisc_set, bnxt_promisc_set),
 	DEVMETHOD(ifdi_get_counter, bnxt_get_counter),
 	DEVMETHOD(ifdi_update_admin_status, bnxt_update_admin_status),
+	DEVMETHOD(ifdi_timer, bnxt_if_timer),
 
 	DEVMETHOD(ifdi_intr_enable, bnxt_intr_enable),
 	DEVMETHOD(ifdi_tx_queue_intr_enable, bnxt_tx_queue_intr_enable),
@@ -424,6 +426,8 @@ bnxt_queues_free(if_ctx_t ctx)
 
 	// Free RX queues
 	iflib_dma_free(&softc->rx_stats);
+	iflib_dma_free(&softc->hw_tx_port_stats);
+	iflib_dma_free(&softc->hw_rx_port_stats);
 	free(softc->grp_info, M_DEVBUF);
 	free(softc->ag_rings, M_DEVBUF);
 	free(softc->rx_rings, M_DEVBUF);
@@ -479,6 +483,33 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		goto hw_stats_alloc_fail;
 	bus_dmamap_sync(softc->rx_stats.idi_tag, softc->rx_stats.idi_map,
 	    BUS_DMASYNC_PREREAD);
+
+/* 
+ * Additional 512 bytes for future expansion.
+ * To prevent corruption when loaded with newer firmwares with added counters.
+ * This can be deleted when there will be no further additions of counters.
+ */
+#define BNXT_PORT_STAT_PADDING  512
+
+	rc = iflib_dma_alloc(ctx, sizeof(struct rx_port_stats) + BNXT_PORT_STAT_PADDING,
+	    &softc->hw_rx_port_stats, 0);
+	if (rc)
+		goto hw_port_rx_stats_alloc_fail;
+
+	bus_dmamap_sync(softc->hw_rx_port_stats.idi_tag, 
+            softc->hw_rx_port_stats.idi_map, BUS_DMASYNC_PREREAD);
+
+	rc = iflib_dma_alloc(ctx, sizeof(struct tx_port_stats) + BNXT_PORT_STAT_PADDING,
+	    &softc->hw_tx_port_stats, 0);
+
+	if (rc)
+		goto hw_port_tx_stats_alloc_fail;
+
+	bus_dmamap_sync(softc->hw_tx_port_stats.idi_tag, 
+            softc->hw_tx_port_stats.idi_map, BUS_DMASYNC_PREREAD);
+
+	softc->rx_port_stats = (void *) softc->hw_rx_port_stats.idi_vaddr;
+	softc->tx_port_stats = (void *) softc->hw_tx_port_stats.idi_vaddr;
 
 	for (i = 0; i < nrxqsets; i++) {
 		/* Allocation the completion ring */
@@ -538,6 +569,13 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		bnxt_create_rx_sysctls(softc, i);
 	}
 
+	/*
+	 * When SR-IOV is enabled, avoid each VF sending PORT_QSTATS
+         * HWRM every sec with which firmware timeouts can happen
+         */
+	if (BNXT_PF(softc))
+        	bnxt_create_port_stats_sysctls(softc);
+
 	/* And finally, the VNIC */
 	softc->vnic_info.id = (uint16_t)HWRM_NA_SIGNATURE;
 	softc->vnic_info.flow_id = (uint16_t)HWRM_NA_SIGNATURE;
@@ -586,6 +624,10 @@ tpa_alloc_fail:
 mc_list_alloc_fail:
 	for (i = i - 1; i >= 0; i--)
 		free(softc->rx_rings[i].tpa_start, M_DEVBUF);
+	iflib_dma_free(&softc->hw_tx_port_stats);
+hw_port_tx_stats_alloc_fail:
+	iflib_dma_free(&softc->hw_rx_port_stats);
+hw_port_rx_stats_alloc_fail:
 	iflib_dma_free(&softc->rx_stats);
 hw_stats_alloc_fail:
 	free(softc->grp_info, M_DEVBUF);
@@ -1467,7 +1509,32 @@ bnxt_get_counter(if_ctx_t ctx, ift_counter cnt)
 static void
 bnxt_update_admin_status(if_ctx_t ctx)
 {
-	/* TODO: do we need to do anything here? */
+	struct bnxt_softc *softc = iflib_get_softc(ctx);
+
+	/*
+	 * When SR-IOV is enabled, avoid each VF sending this HWRM 
+         * request every sec with which firmware timeouts can happen
+         */
+	if (BNXT_PF(softc)) {
+		bnxt_hwrm_port_qstats(softc);
+	}	
+
+	return;
+}
+
+static void
+bnxt_if_timer(if_ctx_t ctx, uint16_t qid)
+{
+
+	struct bnxt_softc *softc = iflib_get_softc(ctx);
+	uint64_t ticks_now = ticks; 
+
+        /* Schedule bnxt_update_admin_status() once per sec */
+        if (ticks_now - softc->admin_ticks >= hz) {
+		softc->admin_ticks = ticks_now;
+		iflib_admin_intr_deferred(ctx);
+	}
+
 	return;
 }
 
