@@ -64,15 +64,15 @@ static void
 qpi_identify(driver_t *driver, device_t parent)
 {
 
-        /* Check CPUID to ensure this is an i7 CPU of some sort. */
-        if (!(cpu_vendor_id == CPU_VENDOR_INTEL &&
+	/* Check CPUID to ensure this is an i7 CPU of some sort. */
+	if (!(cpu_vendor_id == CPU_VENDOR_INTEL &&
 	    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
 	    (CPUID_TO_MODEL(cpu_id) == 0x1a || CPUID_TO_MODEL(cpu_id) == 0x2c)))
-                return;
+		return;
 
-        /* PCI config register access is required. */
-        if (pci_cfgregopen() == 0)
-                return;
+	/* PCI config register access is required. */
+	if (pci_cfgregopen() == 0)
+		return;
 
 	/* Add a qpi bus device. */
 	if (BUS_ADD_CHILD(parent, 20, "qpi", -1) == NULL)
@@ -219,7 +219,7 @@ qpi_pcib_attach(device_t dev)
 {
 
 	device_add_child(dev, "pci", -1);
-        return (bus_generic_attach(dev));
+	return (bus_generic_attach(dev));
 }
 
 static int
