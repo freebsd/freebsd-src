@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2015
+.Dd July 29, 2017
 .Dt LIBPROCSTAT 3
 .Os
 .Sh NAME
@@ -64,6 +64,7 @@
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/queue.h
+.In sys/socket.h
 .In libprocstat.h
 .Ft void
 .Fn procstat_close "struct procstat *procstat"
@@ -149,7 +150,6 @@
 .Fa "struct procstat *procstat"
 .Fa "const struct kinfo_proc *kp"
 .Fa "size_t nchr"
-.Fa "char *errbuf"
 .Fc
 .Ft "Elf_Auxinfo *"
 .Fo procstat_getauxv
@@ -162,7 +162,6 @@
 .Fa "struct procstat *procstat"
 .Fa "const struct kinfo_proc *kp"
 .Fa "size_t nchr"
-.Fa "char *errbuf"
 .Fc
 .Ft "struct filestat_list *"
 .Fo procstat_getfiles
@@ -352,7 +351,7 @@ function is similar to
 .Fn procstat_getargv
 but returns the vector of environment strings.
 The caller may free the allocated memory with a subsequent
-.Fn procstat_freeenv
+.Fn procstat_freeenvv
 function call.
 .Pp
 The
