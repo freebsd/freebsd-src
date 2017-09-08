@@ -128,6 +128,9 @@ user_mod_nogroups_body() {
 	atf_check -s exit:0 ${PW} usermod foo -G test3,test4
 	atf_check -s exit:0 -o inline:"test3\ntest4\n" \
 		awk -F\: '$4 == "foo" { print $1 }' ${HOME}/group
+	atf_check -s exit:0 ${PW} usermod foo -G ""
+	atf_check -s exit:0 -o empty \
+		awk -F\: '$4 == "foo" { print $1 }' ${HOME}/group
 }
 
 atf_test_case user_mod_rename
