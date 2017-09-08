@@ -166,7 +166,7 @@ LOCK_DELAY_SYSINIT_DEFAULT(mtx_spin_delay);
  * System-wide mutexes
  */
 struct mtx blocked_lock;
-struct mtx Giant;
+struct mtx __exclusive_cache_line Giant;
 
 void
 assert_mtx(const struct lock_object *lock, int what)
