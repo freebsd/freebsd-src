@@ -71,6 +71,9 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DEV_APIC
 #include "pcib_if.h"
+#include <machine/intr_machdep.h>
+#include <x86/apicreg.h>
+#include <x86/apicvar.h>
 #endif
 
 #define	DMAR_FAULT_IRQ_RID	0
@@ -788,6 +791,9 @@ dmar_find_nonpci(u_int id, u_int entry_type, uint16_t *rid)
 	ACPI_DMAR_DEVICE_SCOPE *devscope;
 	ACPI_DMAR_PCI_PATH *path;
 	char *ptr, *ptrend;
+#ifdef DEV_APIC
+	int error;
+#endif
 	int i;
 
 	for (i = 0; i < dmar_devcnt; i++) {
@@ -809,6 +815,17 @@ dmar_find_nonpci(u_int id, u_int entry_type, uint16_t *rid)
 				continue;
 			if (devscope->EnumerationId != id)
 				continue;
+#ifdef DEV_APIC
+			if (entry_type == ACPI_DMAR_SCOPE_TYPE_IOAPIC) {
+				error = ioapic_get_rid(id, rid);
+				/*
+				 * If our IOAPIC has PCI bindings then
+				 * use the PCI device rid.
+				 */
+				if (error == 0)
+					return (unit);
+			}
+#endif
 			if (devscope->Length - sizeof(ACPI_DMAR_DEVICE_SCOPE)
 			    == 2) {
 				if (rid != NULL) {
@@ -818,12 +835,11 @@ dmar_find_nonpci(u_int id, u_int entry_type, uint16_t *rid)
 					    path->Device, path->Function);
 				}
 				return (unit);
-			} else {
-				/* XXXKIB */
-				printf(
-		       "dmar_find_nonpci: id %d type %d path length != 2\n",
-				    id, entry_type);
 			}
+			printf(
+		           "dmar_find_nonpci: id %d type %d path length != 2\n",
+			    id, entry_type);
+			break;
 		}
 	}
 	return (NULL);
