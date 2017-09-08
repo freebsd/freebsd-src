@@ -52,6 +52,7 @@ int bnxt_hwrm_vnic_ctx_alloc(struct bnxt_softc *softc, uint16_t *ctx_id);
 int bnxt_hwrm_vnic_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic);
 int bnxt_hwrm_stat_ctx_alloc(struct bnxt_softc *softc, struct bnxt_cp_ring *cpr,
     uint64_t paddr);
+int bnxt_hwrm_port_qstats(struct bnxt_softc *softc);
 int bnxt_hwrm_ring_grp_alloc(struct bnxt_softc *softc,
     struct bnxt_grp_info *grp);
 int bnxt_hwrm_vnic_alloc(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic);
