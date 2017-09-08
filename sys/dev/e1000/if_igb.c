@@ -3833,9 +3833,10 @@ igb_tso_setup(struct tx_ring *txr, struct mbuf *mp,
 		break;
 #endif
 	default:
-		panic("%s: CSUM_TSO but no supported IP version (0x%04x)",
-		    __func__, ntohs(eh_type));
-		break;
+		device_printf(adapter->dev,
+		    "CSUM_TSO but no supported IP version (0x%04x)",
+		    ntohs(eh_type));
+		return (ENXIO);
 	}
 
 	ctxd = txr->next_avail_desc;
