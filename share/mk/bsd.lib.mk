@@ -327,9 +327,9 @@ _EXTRADEPEND:
 SHLINSTALLFLAGS+= -fschg
 .endif
 .endif
-# Install libraries with -S to avoid linker races with WORLDTMP and risk
-# of modifying in-use libraries when installing to a running system.
-# It is safe to avoid this for NO_ROOT builds that are only creating an image.
+# Install libraries with -S to avoid risk of modifying in-use libraries when
+# installing to a running system.  It is safe to avoid this for NO_ROOT builds
+# that are only creating an image.
 .if !defined(NO_SAFE_LIBINSTALL) && !defined(NO_ROOT)
 SHLINSTALLFLAGS+= -S
 .endif
