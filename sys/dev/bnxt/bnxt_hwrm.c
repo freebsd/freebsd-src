@@ -820,6 +820,25 @@ fail:
 }
 
 int
+bnxt_hwrm_port_qstats(struct bnxt_softc *softc)
+{
+	struct hwrm_port_qstats_input req = {0};
+	int rc = 0;
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_PORT_QSTATS);
+
+	req.port_id = htole16(softc->pf.port_id);
+	req.rx_stat_host_addr = htole64(softc->hw_rx_port_stats.idi_paddr);
+	req.tx_stat_host_addr = htole64(softc->hw_tx_port_stats.idi_paddr);
+
+	BNXT_HWRM_LOCK(softc);
+	rc = _hwrm_send_message(softc, &req, sizeof(req));
+	BNXT_HWRM_UNLOCK(softc);
+
+	return rc;
+}
+
+int
 bnxt_hwrm_cfa_l2_set_rx_mask(struct bnxt_softc *softc,
     struct bnxt_vnic_info *vnic)
 {
