@@ -158,6 +158,7 @@ device		aw_usbphy		# Allwinner USB PHY
 device		dwcotg			# DWC OTG controller
 device		ohci			# OHCI USB interface
 device		ehci			# EHCI USB interface (USB 2.0)
+device		ehci_mv			# Marvell EHCI USB interface
 device		xhci			# XHCI PCI->USB interface (USB 3.0)
 device		xhci_mv			# Marvell XHCI USB interface
 device		usb			# USB Bus (required)
