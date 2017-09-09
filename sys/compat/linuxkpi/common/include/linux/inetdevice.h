@@ -62,22 +62,26 @@ ip6_dev_find(struct vnet *vnet, struct in6_addr addr)
 {
 	struct sockaddr_in6 sin6;
 	struct ifaddr *ifa;
-	struct ifnet *ifp;
+	struct ifnet *ifp = NULL;
+	int x;
 
 	memset(&sin6, 0, sizeof(sin6));
 	sin6.sin6_addr = addr;
 	sin6.sin6_len = sizeof(sin6);
 	sin6.sin6_family = AF_INET6;
 	CURVNET_SET_QUIET(vnet);
-	ifa = ifa_ifwithaddr((struct sockaddr *)&sin6);
-	CURVNET_RESTORE();
-	if (ifa) {
-		ifp = ifa->ifa_ifp;
-		if_ref(ifp);
-		ifa_free(ifa);
-	} else {
-	  	ifp = NULL;
+	/* XXX need to search all scope ID's */
+	for (x = 0; x <= V_if_index; x++) {
+		sin6.sin6_addr.s6_addr[3] = x;
+		ifa = ifa_ifwithaddr((struct sockaddr *)&sin6);
+		if (ifa != NULL) {
+			ifp = ifa->ifa_ifp;
+			if_ref(ifp);
+			ifa_free(ifa);
+			break;
+		}
 	}
+	CURVNET_RESTORE();
 	return (ifp);
 }
 
