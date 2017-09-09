@@ -260,6 +260,26 @@ struct mps_event_handle {
 	u32				mask[MPI2_EVENT_NOTIFY_EVENTMASK_WORDS];
 };
 
+struct mps_queue {
+	struct mps_softc		*sc;
+	int				qnum;
+	MPI2_REPLY_DESCRIPTORS_UNION	*post_queue;
+	int				replypostindex;
+#ifdef notyet
+	ck_ring_buffer_t		*ringmem;
+	ck_ring_buffer_t		*chainmem;
+	ck_ring_t			req_ring;
+	ck_ring_t			chain_ring;
+#endif
+	bus_dma_tag_t			buffer_dmat;
+	int				io_cmds_highwater;
+	int				chain_free_lowwater;
+	int				chain_alloc_fail;
+	struct resource			*irq;
+	void				*intrhand;
+	int				irq_rid;
+};
+
 struct mps_softc {
 	device_t			mps_dev;
 	struct cdev			*mps_cdev;
@@ -294,6 +314,7 @@ struct mps_softc {
 	struct mps_chain		*chains;
 	struct callout			periodic;
 	struct callout			device_check_callout;
+	struct mps_queue		*queues;
 
 	struct mpssas_softc		*sassc;
 	char            tmp_string[MPS_STRING_LENGTH];
@@ -324,9 +345,6 @@ struct mps_softc {
 
 	struct mtx			mps_mtx;
 	struct intr_config_hook		mps_ich;
-	struct resource			*mps_irq[MPS_MSI_COUNT];
-	void				*mps_intrhand[MPS_MSI_COUNT];
-	int				mps_irq_rid[MPS_MSI_COUNT];
 
 	uint8_t				*req_frames;
 	bus_addr_t			req_busaddr;
@@ -671,6 +689,7 @@ mps_unmask_intr(struct mps_softc *sc)
 }
 
 int mps_pci_setup_interrupts(struct mps_softc *sc);
+void mps_pci_free_interrupts(struct mps_softc *sc);
 int mps_pci_restore(struct mps_softc *sc);
 
 void mps_get_tunables(struct mps_softc *sc);
