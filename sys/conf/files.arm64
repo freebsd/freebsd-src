@@ -179,6 +179,7 @@ dev/usb/controller/dwc_otg_hisi.c optional	dwcotg fdt soc_hisi_hi6220
 dev/usb/controller/generic_ehci.c optional	ehci acpi
 dev/usb/controller/generic_ohci.c optional	ohci fdt
 dev/usb/controller/generic_usb_if.m optional	ohci fdt
+dev/usb/controller/xhci_mv.c	optional	xhci_mv fdt
 dev/vnic/mrml_bridge.c		optional	vnic fdt
 dev/vnic/nic_main.c		optional	vnic pci
 dev/vnic/nicvf_main.c		optional	vnic pci pci_iov
