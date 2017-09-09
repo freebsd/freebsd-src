@@ -152,6 +152,7 @@ dev/agp/agp_sis.c		optional agp
 dev/agp/agp_via.c		optional agp
 dev/aic/aic_isa.c		optional aic isa
 dev/amdsbwd/amdsbwd.c		optional amdsbwd
+dev/amdsmn/amdsmn.c		optional amdsmn | amdtemp
 dev/amdtemp/amdtemp.c		optional amdtemp
 dev/arcmsr/arcmsr.c		optional arcmsr pci
 dev/asmc/asmc.c			optional asmc isa
@@ -271,10 +272,11 @@ dev/mse/mse_isa.c		optional mse isa
 dev/nctgpio/nctgpio.c		optional nctgpio
 dev/nfe/if_nfe.c		optional nfe pci
 dev/ntb/if_ntb/if_ntb.c		optional if_ntb
-dev/ntb/ntb_transport.c		optional if_ntb
-dev/ntb/ntb.c			optional if_ntb | ntb_hw
-dev/ntb/ntb_if.m		optional if_ntb | ntb_hw
-dev/ntb/ntb_hw/ntb_hw.c		optional ntb_hw
+dev/ntb/ntb_transport.c		optional ntb_transport | if_ntb
+dev/ntb/ntb.c			optional ntb | ntb_transport | if_ntb | ntb_hw_intel | ntb_hw_plx | ntb_hw
+dev/ntb/ntb_if.m		optional ntb | ntb_transport | if_ntb | ntb_hw_intel | ntb_hw_plx | ntb_hw
+dev/ntb/ntb_hw/ntb_hw_intel.c	optional ntb_hw_intel | ntb_hw
+dev/ntb/ntb_hw/ntb_hw_plx.c	optional ntb_hw_plx | ntb_hw
 dev/nvd/nvd.c			optional nvd nvme
 dev/nvme/nvme.c			optional nvme
 dev/nvme/nvme_ctrlr.c		optional nvme

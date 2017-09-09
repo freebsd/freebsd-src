@@ -226,6 +226,7 @@ struct md_s {
 	/* MD_VNODE related fields */
 	struct vnode *vnode;
 	char file[PATH_MAX];
+	char label[PATH_MAX];
 	struct ucred *cred;
 
 	/* MD_SWAP related fields */
@@ -1645,6 +1646,11 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		}
 		if (sc == NULL)
 			return (error);
+		if (mdio->md_label != NULL)
+			error = copyinstr(mdio->md_label, sc->label,
+			    sizeof(sc->label), NULL);
+		if (error != 0)
+			goto err_after_new;
 		if (mdio->md_options & MD_AUTOUNIT)
 			mdio->md_unit = sc->unit;
 		sc->mediasize = mdio->md_mediasize;
@@ -1676,6 +1682,7 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 			error = mdcreate_null(sc, mdio, td);
 			break;
 		}
+err_after_new:
 		if (error != 0) {
 			mddestroy(sc, td);
 			return (error);
@@ -1721,6 +1728,11 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		mdio->md_options = sc->flags;
 		mdio->md_mediasize = sc->mediasize;
 		mdio->md_sectorsize = sc->sectorsize;
+		error = 0;
+		if (mdio->md_label != NULL) {
+			error = copyout(sc->label, mdio->md_label,
+			    strlen(sc->label) + 1);
+		}
 		if (sc->type == MD_VNODE ||
 		    (sc->type == MD_PRELOAD && mdio->md_file != NULL))
 			error = copyout(sc->file, mdio->md_file,
@@ -1873,6 +1885,7 @@ g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			if ((mp->type == MD_VNODE && mp->vnode != NULL) ||
 			    (mp->type == MD_PRELOAD && mp->file[0] != '\0'))
 				sbuf_printf(sb, " file %s", mp->file);
+			sbuf_printf(sb, " label %s", mp->label);
 		} else {
 			sbuf_printf(sb, "%s<unit>%d</unit>\n", indent,
 			    mp->unit);
@@ -1897,6 +1910,9 @@ g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 				g_conf_printf_escaped(sb, "%s", mp->file);
 				sbuf_printf(sb, "</file>\n");
 			}
+			sbuf_printf(sb, "%s<label>", indent);
+			g_conf_printf_escaped(sb, "%s", mp->label);
+			sbuf_printf(sb, "</label>\n");
 		}
 	}
 }

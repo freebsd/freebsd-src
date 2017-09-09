@@ -449,6 +449,7 @@ parse_srat(void)
 	 * the default memory attribute (WB), and the DMAP when available.
 	 */
 	cpus = (struct cpu_info *)pmap_mapbios(addr, size);
+	bzero(cpus, size);
 
 	/*
 	 * Make a pass over the table to populate the cpus[] and

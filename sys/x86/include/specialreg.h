@@ -308,6 +308,15 @@
 #define	CPUID_EXTSTATE_XSAVES	0x00000008
 
 /*
+ * AMD extended function 8000_0007h ebx info
+ */
+#define	AMDRAS_MCA_OF_RECOV	0x00000001
+#define	AMDRAS_SUCCOR		0x00000002
+#define	AMDRAS_HW_ASSERT	0x00000004
+#define	AMDRAS_SCALABLE_MCA	0x00000008
+#define	AMDRAS_PFEH_SUPPORT	0x00000010
+
+/*
  * AMD extended function 8000_0007h edx info
  */
 #define	AMDPM_TS		0x00000001
@@ -709,6 +718,7 @@
 #define	MC_MISC_AMDNB_VAL	0x8000000000000000	/* Counter presence valid */
 #define	MC_MISC_AMDNB_CNTP	0x4000000000000000	/* Counter present */
 #define	MC_MISC_AMDNB_LOCK	0x2000000000000000	/* Register locked */
+#define	MC_MISC_AMDNB_INTP	0x1000000000000000	/* Int. type can generate interrupts */
 #define	MC_MISC_AMDNB_LVT_MASK	0x00f0000000000000	/* Extended LVT offset */
 #define	MC_MISC_AMDNB_LVT_SHIFT	52
 #define	MC_MISC_AMDNB_CNTEN	0x0008000000000000	/* Counter enabled */

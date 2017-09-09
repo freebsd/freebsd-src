@@ -48,6 +48,9 @@ device		neta
 # PCI
 device		pci
 
+# RTC
+device		mv_rtc
+
 # Interrupt controllers
 device		gic
 options 	INTRNG

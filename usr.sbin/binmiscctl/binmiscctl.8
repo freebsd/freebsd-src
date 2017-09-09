@@ -250,7 +250,7 @@ Add QEMU bsd-user program as an image activator for PowerPC64 binaries:
 .Bd -literal -offset indent
 # binmiscctl add powerpc64 \e
   --interpreter "/usr/local/bin/qemu-ppc64-static" \e
-  --magic "\ex7f\ex45\ex4c\ex46\ex01\ex02\ex01\ex00\ex00\ex00\e
+  --magic "\ex7f\ex45\ex4c\ex46\ex02\ex02\ex01\ex00\ex00\ex00\e
            \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex15" \e
   --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
            \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e

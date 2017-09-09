@@ -5100,8 +5100,8 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 			 * errors on finicky architectures.  We don't
 			 * ensure that the sense data is pointer aligned.
 			 */
-			bcopy(&csio->sense_data, &sense, 
-			      sizeof(struct scsi_sense_data *));
+			bcopy((struct scsi_sense_data **)&csio->sense_data,
+			    &sense, sizeof(struct scsi_sense_data *));
 		}
 	} else {
 		/*
@@ -5225,8 +5225,8 @@ scsi_extract_sense_ccb(union ccb *ccb,
 		return (0);
 
 	if (ccb->ccb_h.flags & CAM_SENSE_PTR)
-		bcopy(&ccb->csio.sense_data, &sense_data,
-		    sizeof(struct scsi_sense_data *));
+		bcopy((struct scsi_sense_data **)&ccb->csio.sense_data,
+		    &sense_data, sizeof(struct scsi_sense_data *));
 	else
 		sense_data = &ccb->csio.sense_data;
 	scsi_extract_sense_len(sense_data,

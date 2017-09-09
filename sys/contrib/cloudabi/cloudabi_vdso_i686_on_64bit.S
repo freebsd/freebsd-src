@@ -993,28 +993,6 @@ ENTRY(cloudabi_sys_random_get)
   ret
 END(cloudabi_sys_random_get)
 
-ENTRY(cloudabi_sys_sock_accept)
-  push %ebp
-  mov %esp, %ebp
-  mov 8(%ebp), %ecx
-  mov %ecx, -16(%ebp)
-  mov 12(%ebp), %ecx
-  mov %ecx, -8(%ebp)
-  movl $0, -4(%ebp)
-  mov $44, %eax
-  mov %ebp, %ecx
-  sub $16, %ecx
-  int $0x80
-  test %eax, %eax
-  jnz 1f
-  mov 16(%ebp), %ecx
-  mov -16(%ebp), %edx
-  mov %edx, 0(%ecx)
-1:
-  pop %ebp
-  ret
-END(cloudabi_sys_sock_accept)
-
 ENTRY(cloudabi_sys_sock_recv)
   push %ebp
   mov %esp, %ebp
@@ -1026,7 +1004,7 @@ ENTRY(cloudabi_sys_sock_recv)
   mov 16(%ebp), %ecx
   mov %ecx, -8(%ebp)
   movl $0, -4(%ebp)
-  mov $45, %eax
+  mov $44, %eax
   mov %ebp, %ecx
   sub $24, %ecx
   int $0x80
@@ -1045,7 +1023,7 @@ ENTRY(cloudabi_sys_sock_send)
   mov 16(%ebp), %ecx
   mov %ecx, -8(%ebp)
   movl $0, -4(%ebp)
-  mov $46, %eax
+  mov $45, %eax
   mov %ebp, %ecx
   sub $24, %ecx
   int $0x80
@@ -1060,7 +1038,7 @@ ENTRY(cloudabi_sys_sock_shutdown)
   mov %ecx, -16(%ebp)
   mov 12(%ebp), %ecx
   mov %ecx, -8(%ebp)
-  mov $47, %eax
+  mov $46, %eax
   mov %ebp, %ecx
   sub $16, %ecx
   int $0x80
@@ -1068,31 +1046,13 @@ ENTRY(cloudabi_sys_sock_shutdown)
   ret
 END(cloudabi_sys_sock_shutdown)
 
-ENTRY(cloudabi_sys_sock_stat_get)
-  push %ebp
-  mov %esp, %ebp
-  mov 8(%ebp), %ecx
-  mov %ecx, -24(%ebp)
-  mov 12(%ebp), %ecx
-  mov %ecx, -16(%ebp)
-  movl $0, -12(%ebp)
-  mov 16(%ebp), %ecx
-  mov %ecx, -8(%ebp)
-  mov $48, %eax
-  mov %ebp, %ecx
-  sub $24, %ecx
-  int $0x80
-  pop %ebp
-  ret
-END(cloudabi_sys_sock_stat_get)
-
 ENTRY(cloudabi_sys_thread_create)
   push %ebp
   mov %esp, %ebp
   mov 8(%ebp), %ecx
   mov %ecx, -16(%ebp)
   movl $0, -12(%ebp)
-  mov $49, %eax
+  mov $47, %eax
   mov %ebp, %ecx
   sub $16, %ecx
   int $0x80
@@ -1114,7 +1074,7 @@ ENTRY(cloudabi_sys_thread_exit)
   movl $0, -12(%ebp)
   mov 12(%ebp), %ecx
   mov %ecx, -8(%ebp)
-  mov $50, %eax
+  mov $48, %eax
   mov %ebp, %ecx
   sub $16, %ecx
   int $0x80
@@ -1123,7 +1083,7 @@ END(cloudabi_sys_thread_exit)
 ENTRY(cloudabi_sys_thread_yield)
   push %ebp
   mov %esp, %ebp
-  mov $51, %eax
+  mov $49, %eax
   mov %ebp, %ecx
   sub $16, %ecx
   int $0x80

@@ -534,22 +534,26 @@ static int em_get_regs(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *adapter = (struct adapter *)arg1;
 	struct e1000_hw *hw = &adapter->hw;
-
 	struct sbuf *sb;
-	u32 *regs_buff = (u32 *)malloc(sizeof(u32) * IGB_REGS_LEN, M_DEVBUF, M_NOWAIT);
+	u32 *regs_buff;
 	int rc;
 
+	regs_buff = malloc(sizeof(u32) * IGB_REGS_LEN, M_DEVBUF, M_WAITOK);
 	memset(regs_buff, 0, IGB_REGS_LEN * sizeof(u32));
 
 	rc = sysctl_wire_old_buffer(req, 0);
 	MPASS(rc == 0);
-	if (rc != 0)
+	if (rc != 0) {
+		free(regs_buff, M_DEVBUF);
 		return (rc);
+	}
 
 	sb = sbuf_new_for_sysctl(NULL, NULL, 32*400, req);
 	MPASS(sb != NULL);
-	if (sb == NULL)
+	if (sb == NULL) {
+		free(regs_buff, M_DEVBUF);
 		return (ENOMEM);
+	}
 
 	/* General Registers */
 	regs_buff[0] = E1000_READ_REG(hw, E1000_CTRL);
@@ -604,6 +608,8 @@ static int em_get_regs(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(sb, "\tTDFT\t %08x\n", regs_buff[19]);
 	sbuf_printf(sb, "\tTDFHS\t %08x\n", regs_buff[20]);
 	sbuf_printf(sb, "\tTDFPC\t %08x\n\n", regs_buff[21]);
+
+	free(regs_buff, M_DEVBUF);
 
 #ifdef DUMP_DESCS
 	{
@@ -3639,33 +3645,12 @@ em_enable_wakeup(if_ctx_t ctx)
 	struct adapter *adapter = iflib_get_softc(ctx);
 	device_t dev = iflib_get_dev(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
-	u32 pmc, ctrl, ctrl_ext, rctl, wuc;
+	int error = 0;
+	u32 pmc, ctrl, ctrl_ext, rctl;
 	u16 status;
 
-	if ((pci_find_cap(dev, PCIY_PMG, &pmc) != 0))
+	if (pci_find_cap(dev, PCIY_PMG, &pmc) != 0)
 		return;
-
-	/* Advertise the wakeup capability */
-	ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
-	ctrl |= (E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN3);
-	E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
-	wuc = E1000_READ_REG(&adapter->hw, E1000_WUC);
-	wuc |= (E1000_WUC_PME_EN | E1000_WUC_APME);
-	E1000_WRITE_REG(&adapter->hw, E1000_WUC, wuc);
-
-	if ((adapter->hw.mac.type == e1000_ich8lan) ||
-	    (adapter->hw.mac.type == e1000_pchlan) ||
-	    (adapter->hw.mac.type == e1000_ich9lan) ||
-	    (adapter->hw.mac.type == e1000_ich10lan))
-		e1000_suspend_workarounds_ich8lan(&adapter->hw);
-
-	/* Keep the laser running on Fiber adapters */
-	if (adapter->hw.phy.media_type == e1000_media_type_fiber ||
-	    adapter->hw.phy.media_type == e1000_media_type_internal_serdes) {
-		ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
-		ctrl_ext |= E1000_CTRL_EXT_SDP3_DATA;
-		E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT, ctrl_ext);
-	}
 
 	/*
 	 * Determine type of Wakeup: note that wol
@@ -3685,10 +3670,34 @@ em_enable_wakeup(if_ctx_t ctx)
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, rctl);
 	}
 
+	if (!(adapter->wol & (E1000_WUFC_EX | E1000_WUFC_MAG | E1000_WUFC_MC)))
+		goto pme;
+
+	/* Advertise the wakeup capability */
+	ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
+	ctrl |= (E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN3);
+	E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
+
+	/* Keep the laser running on Fiber adapters */
+	if (adapter->hw.phy.media_type == e1000_media_type_fiber ||
+	    adapter->hw.phy.media_type == e1000_media_type_internal_serdes) {
+		ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
+		ctrl_ext |= E1000_CTRL_EXT_SDP3_DATA;
+		E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT, ctrl_ext);
+	}
+
+	if ((adapter->hw.mac.type == e1000_ich8lan) ||
+	    (adapter->hw.mac.type == e1000_pchlan) ||
+	    (adapter->hw.mac.type == e1000_ich9lan) ||
+	    (adapter->hw.mac.type == e1000_ich10lan))
+		e1000_suspend_workarounds_ich8lan(&adapter->hw);
+
 	if ( adapter->hw.mac.type >= e1000_pchlan) {
-		if (em_enable_phy_wakeup(adapter))
-			return;
+		error = em_enable_phy_wakeup(adapter);
+		if (error)
+			goto pme;
 	} else {
+		/* Enable wakeup by the MAC */
 		E1000_WRITE_REG(&adapter->hw, E1000_WUC, E1000_WUC_PME_EN);
 		E1000_WRITE_REG(&adapter->hw, E1000_WUFC, adapter->wol);
 	}
@@ -3696,10 +3705,10 @@ em_enable_wakeup(if_ctx_t ctx)
 	if (adapter->hw.phy.type == e1000_phy_igp_3)
 		e1000_igp3_phy_powerdown_workaround_ich8lan(&adapter->hw);
 
-	/* Request PME */
+pme:
 	status = pci_read_config(dev, pmc + PCIR_POWER_STATUS, 2);
 	status &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
-	if (if_getcapenable(ifp) & IFCAP_WOL)
+	if (!error && (if_getcapenable(ifp) & IFCAP_WOL))
 		status |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
 	pci_write_config(dev, pmc + PCIR_POWER_STATUS, status, 2);
 

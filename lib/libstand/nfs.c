@@ -382,7 +382,7 @@ nfs_readlink(struct nfs_iodesc *d, char *buf)
 	buf[repl->len] = 0;
 done:
 	free(pkt);
-	return (0);
+	return (rc);
 }
 #endif
 

@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "efiutil.h"
+#include "efichar.h"
 
 /* options descriptor */
 static struct option longopts[] = {
@@ -53,18 +55,20 @@ static struct option longopts[] = {
 	{ "hex",		no_argument,		NULL,	'H' },
 	{ "list-guids",		no_argument,		NULL,	'L' },
 	{ "list",		no_argument,		NULL,	'l' },
+	{ "load-option",	no_argument,		NULL,	'O' },
 	{ "name",		required_argument,	NULL,	'n' },
 	{ "no-name",		no_argument,		NULL,	'N' },
 	{ "print",		no_argument,		NULL,	'p' },
 	{ "print-decimal",	no_argument,		NULL,	'd' },
 	{ "raw-guid",		no_argument,		NULL,   'R' },
+	{ "utf8",		no_argument,		NULL,	'u' },
 	{ "write",		no_argument,		NULL,	'w' },
 	{ NULL,			0,			NULL,	0 }
 };
 
 
 static int aflag, Aflag, bflag, dflag, Dflag, gflag, Hflag, Nflag,
-	lflag, Lflag, Rflag, wflag, pflag;
+	lflag, Lflag, Rflag, wflag, pflag, uflag, load_opt_flag;
 static char *varname;
 static u_long attrib = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS;
 
@@ -72,10 +76,11 @@ static void
 usage(void)
 {
 
-	errx(1, "efivar [-abdDHlLNpRtw] [-n name] [-f file] [--append] [--ascii]\n"
+	errx(1, "efivar [-abdDHlLNpRtuw] [-n name] [-f file] [--append] [--ascii]\n"
 	    "\t[--attributes] [--binary] [--delete] [--fromfile file] [--hex]\n"
-	    "\t[--list-guids] [--list] [--name name] [--no-name] [--print]\n"
-	    "\t[--print-decimal] [--raw-guid] [--write] name[=value]");
+	    "\t[--list-guids] [--list] [--load-option] [--name name] [--no-name]\n"
+	    "\t[--print] [--print-decimal] [--raw-guid] [--utf8] [--write]\n"
+	    "\tname[=value]");
 }
 
 static void
@@ -147,59 +152,6 @@ write_variable(char *name, char *val)
 }
 
 static void
-asciidump(uint8_t *data, size_t datalen)
-{
-	size_t i;
-	int len;
-
-	len = 0;
-	if (!Nflag)
-		printf("\n");
-	for (i = 0; i < datalen; i++) {
-		if (isprint(data[i])) {
-			len++;
-			if (len > 80) {
-				len = 0;
-				printf("\n");
-			}
-			printf("%c", data[i]);
-		} else {
-			len +=3;
-			if (len > 80) {
-				len = 0;
-				printf("\n");
-			}
-			printf("%%%02x", data[i]);
-		}
-	}
-	printf("\n");
-}
-
-static void
-hexdump(uint8_t *data, size_t datalen)
-{
-	size_t i;
-
-	if (!Nflag)
-		printf("\n");
-	for (i = 0; i < datalen; i++) {
-		if (i % 16 == 0) {
-			if (i != 0)
-				printf("\n");
-			printf("%04x: ", (int)i);
-		}
-		printf("%02x ", data[i]);
-	}
-	printf("\n");
-}
-
-static void
-bindump(uint8_t *data, size_t datalen)
-{
-	write(1, data, datalen);
-}
-
-static void
 devpath_dump(uint8_t *data, size_t datalen)
 {
 	char buffer[1024];
@@ -242,9 +194,13 @@ print_var(efi_guid_t *guid, char *name)
 			err(1, "%s-%s", gname, name);
 
 		if (!Nflag)
-			printf("%s-%s", gname, name);
-		if (Aflag)
+			printf("%s-%s\n", gname, name);
+		if (load_opt_flag)
+			efi_print_load_option(data, datalen, Aflag, bflag, uflag);
+		else if (Aflag)
 			asciidump(data, datalen);
+		else if (uflag)
+			utf8dump(data, datalen);
 		else if (bflag)
 			bindump(data, datalen);
 		else if (dflag)
@@ -299,7 +255,7 @@ parse_args(int argc, char **argv)
 {
 	int ch, i;
 
-	while ((ch = getopt_long(argc, argv, "aAbdDf:gHlLNn:pRt:w",
+	while ((ch = getopt_long(argc, argv, "aAbdDf:gHlLNn:OpRt:w",
 		    longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'a':
@@ -335,6 +291,9 @@ parse_args(int argc, char **argv)
 		case 'N':
 			Nflag++;
 			break;
+		case 'O':
+			load_opt_flag++;
+			break;
 		case 'p':
 			pflag++;
 			break;
@@ -343,6 +302,9 @@ parse_args(int argc, char **argv)
 			break;
 		case 't':
 			attrib = strtoul(optarg, NULL, 16);
+			break;
+		case 'u':
+			uflag++;
 			break;
 		case 'w':
 			wflag++;

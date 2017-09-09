@@ -232,6 +232,11 @@ static const struct pmc_event_descr skylake_event_table[] =
 	__PMC_EV_ALIAS_SKYLAKE()
 };
 
+static const struct pmc_event_descr skylake_xeon_event_table[] =
+{
+	__PMC_EV_ALIAS_SKYLAKE_XEON()
+};
+
 static const struct pmc_event_descr ivybridge_event_table[] =
 {
 	__PMC_EV_ALIAS_IVYBRIDGE()
@@ -328,6 +333,7 @@ PMC_MDEP_TABLE(haswell_xeon, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, 
 PMC_MDEP_TABLE(broadwell, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
 PMC_MDEP_TABLE(broadwell_xeon, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
 PMC_MDEP_TABLE(skylake, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
+PMC_MDEP_TABLE(skylake_xeon, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(ivybridge, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(ivybridge_xeon, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(sandybridge, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
@@ -383,6 +389,7 @@ PMC_CLASS_TABLE_DESC(haswell_xeon, IAP, haswell_xeon, iap);
 PMC_CLASS_TABLE_DESC(broadwell, IAP, broadwell, iap);
 PMC_CLASS_TABLE_DESC(broadwell_xeon, IAP, broadwell_xeon, iap);
 PMC_CLASS_TABLE_DESC(skylake, IAP, skylake, iap);
+PMC_CLASS_TABLE_DESC(skylake_xeon, IAP, skylake_xeon, iap);
 PMC_CLASS_TABLE_DESC(ivybridge, IAP, ivybridge, iap);
 PMC_CLASS_TABLE_DESC(ivybridge_xeon, IAP, ivybridge_xeon, iap);
 PMC_CLASS_TABLE_DESC(sandybridge, IAP, sandybridge, iap);
@@ -721,6 +728,8 @@ static struct pmc_event_alias core2_aliases_without_iaf[] = {
 #define broadwell_xeon_aliases_without_iaf	core2_aliases_without_iaf
 #define skylake_aliases			core2_aliases
 #define skylake_aliases_without_iaf	core2_aliases_without_iaf
+#define skylake_xeon_aliases		core2_aliases
+#define skylake_xeon_aliases_without_iaf	core2_aliases_without_iaf
 #define ivybridge_aliases		core2_aliases
 #define ivybridge_aliases_without_iaf	core2_aliases_without_iaf
 #define ivybridge_xeon_aliases		core2_aliases
@@ -1017,27 +1026,28 @@ iap_allocate_pmc(enum pmc_event pe, char *ctrspec,
 				return (-1);
 		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_SANDYBRIDGE ||
 		    cpu_info.pm_cputype == PMC_CPU_INTEL_SANDYBRIDGE_XEON ||
-			cpu_info.pm_cputype == PMC_CPU_INTEL_IVYBRIDGE ||
-			cpu_info.pm_cputype == PMC_CPU_INTEL_IVYBRIDGE_XEON ) {
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_IVYBRIDGE ||
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_IVYBRIDGE_XEON ) {
 			if (KWPREFIXMATCH(p, IAP_KW_RSP "=")) {
 				n = pmc_parse_mask(iap_rsp_mask_sb_sbx_ib, p, &rsp);
 			} else
 				return (-1);
 		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_HASWELL ||
-			cpu_info.pm_cputype == PMC_CPU_INTEL_HASWELL_XEON) {
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_HASWELL_XEON) {
 			if (KWPREFIXMATCH(p, IAP_KW_RSP "=")) {
 				n = pmc_parse_mask(iap_rsp_mask_haswell, p, &rsp);
 			} else
 				return (-1);
 		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_BROADWELL ||
-			cpu_info.pm_cputype == PMC_CPU_INTEL_BROADWELL_XEON) {
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_BROADWELL_XEON) {
 			/* Broadwell is defined to use same mask as haswell */
 			if (KWPREFIXMATCH(p, IAP_KW_RSP "=")) {
 				n = pmc_parse_mask(iap_rsp_mask_haswell, p, &rsp);
 			} else
 				return (-1);
 
-		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_SKYLAKE) {
+		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_SKYLAKE ||
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_SKYLAKE_XEON) {
 			if (KWPREFIXMATCH(p, IAP_KW_RSP "=")) {
 				n = pmc_parse_mask(iap_rsp_mask_skylake, p, &rsp);
 			} else
@@ -3007,6 +3017,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 			ev = skylake_event_table;
 			count = PMC_EVENT_TABLE_SIZE(skylake);
 			break;
+		case PMC_CPU_INTEL_SKYLAKE_XEON:
+			ev = skylake_xeon_event_table;
+			count = PMC_EVENT_TABLE_SIZE(skylake_xeon);
+			break;
 		case PMC_CPU_INTEL_IVYBRIDGE:
 			ev = ivybridge_event_table;
 			count = PMC_EVENT_TABLE_SIZE(ivybridge);
@@ -3386,6 +3400,9 @@ pmc_init(void)
 	case PMC_CPU_INTEL_SKYLAKE:
 		PMC_MDEP_INIT_INTEL_V2(skylake);
 		break;
+	case PMC_CPU_INTEL_SKYLAKE_XEON:
+		PMC_MDEP_INIT_INTEL_V2(skylake_xeon);
+		break;
 	case PMC_CPU_INTEL_IVYBRIDGE:
 		PMC_MDEP_INIT_INTEL_V2(ivybridge);
 		break;
@@ -3595,7 +3612,13 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 			break;
 		case PMC_CPU_INTEL_SKYLAKE:
 			ev = skylake_event_table;
-			evfence = skylake_event_table + PMC_EVENT_TABLE_SIZE(skylake);
+			evfence = skylake_event_table +
+			    PMC_EVENT_TABLE_SIZE(skylake);
+			break;
+		case PMC_CPU_INTEL_SKYLAKE_XEON:
+			ev = skylake_xeon_event_table;
+			evfence = skylake_xeon_event_table +
+			    PMC_EVENT_TABLE_SIZE(skylake_xeon);
 			break;
 		case PMC_CPU_INTEL_IVYBRIDGE:
 			ev = ivybridge_event_table;

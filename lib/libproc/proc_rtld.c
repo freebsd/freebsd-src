@@ -62,7 +62,7 @@ map_iter(const rd_loadobj_t *lop, void *arg)
 	rdl2prmap(lop, &mapping->map);
 	if (strcmp(lop->rdl_path, phdl->execpath) == 0 &&
 	    (lop->rdl_prot & RD_RDL_X) != 0)
-		phdl->exec_map = &mapping->map;
+		phdl->exec_map = phdl->nmappings;
 
 	file = NULL;
 	if (lop->rdl_path[0] != '\0') {
