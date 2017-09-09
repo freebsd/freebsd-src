@@ -74,9 +74,12 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mdio/mdio.h>
 
-#include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
+
+#if !defined(__aarch64__)
+#include <arm/mv/mvreg.h>
 #include <arm/mv/mvwin.h>
+#endif
 
 #include "if_mvnetareg.h"
 #include "if_mvnetavar.h"
@@ -91,6 +94,18 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define	DASSERT(x) KASSERT((x), (#x))
+
+#define	A3700_TCLK_250MHZ		250000000
+
+STATIC uint32_t
+mvneta_get_clk()
+{
+#if defined(__aarch64__)
+	return (A3700_TCLK_250MHZ);
+#else
+	return (get_tclk());
+#endif
+}
 
 /* Device Register Initialization */
 STATIC int mvneta_initreg(struct ifnet *);
@@ -464,7 +479,7 @@ mvneta_dma_create(struct mvneta_softc *sc)
 		error = mvneta_ring_alloc_tx_queue(sc, q);
 		if (error != 0) {
 			device_printf(sc->dev,
-			    "Failed to allocate DMA safe memory for TxQ: %d\n", q);
+			    "Failed to allocate DMA safe memory for TxQ: %zu\n", q);
 			goto fail;
 		}
 	}
@@ -512,7 +527,7 @@ mvneta_dma_create(struct mvneta_softc *sc)
 	for (q = 0; q < MVNETA_RX_QNUM_MAX; q++) {
 		if (mvneta_ring_alloc_rx_queue(sc, q) != 0) {
 			device_printf(sc->dev,
-			    "Failed to allocate DMA safe memory for RxQ: %d\n", q);
+			    "Failed to allocate DMA safe memory for RxQ: %zu\n", q);
 			goto fail;
 		}
 	}
@@ -533,7 +548,9 @@ mvneta_attach(device_t self)
 	device_t child;
 	int ifm_target;
 	int q, error;
+#if !defined(__aarch64__)
 	uint32_t reg;
+#endif
 
 	sc = device_get_softc(self);
 	sc->dev = self;
@@ -556,6 +573,7 @@ mvneta_attach(device_t self)
 	MVNETA_WRITE(sc, MVNETA_PRXINIT, 0x00000001);
 	MVNETA_WRITE(sc, MVNETA_PTXINIT, 0x00000001);
 
+#if !defined(__aarch64__)
 	/*
 	 * Disable port snoop for buffers and descriptors
 	 * to avoid L2 caching of both without DRAM copy.
@@ -568,6 +586,7 @@ mvneta_attach(device_t self)
 		reg &= ~MVNETA_PSNPCFG_BUFSNP_MASK;
 		MVNETA_WRITE(sc, MVNETA_PSNPCFG, reg);
 	}
+#endif
 
 	/*
 	 * MAC address
@@ -1363,7 +1382,7 @@ mvneta_ring_init_rx_queue(struct mvneta_softc *sc, int q)
 	rx = MVNETA_RX_RING(sc, q);
 	rx->dma = rx->cpu = 0;
 	rx->queue_th_received = MVNETA_RXTH_COUNT;
-	rx->queue_th_time = (get_tclk() / 1000) / 10; /* 0.1 [ms] */
+	rx->queue_th_time = (mvneta_get_clk() / 1000) / 10; /* 0.1 [ms] */
 
 	/* Initialize LRO */
 	rx->lro_enabled = FALSE;
@@ -3344,7 +3363,7 @@ sysctl_set_queue_rxthtime(SYSCTL_HANDLER_ARGS)
 	mvneta_rx_lockq(sc, arg->queue);
 	rx = MVNETA_RX_RING(sc, arg->queue);
 	time_mvtclk = rx->queue_th_time;
-	time_us = ((uint64_t)time_mvtclk * 1000ULL * 1000ULL) / get_tclk();
+	time_us = ((uint64_t)time_mvtclk * 1000ULL * 1000ULL) / mvneta_get_clk();
 	mvneta_rx_unlockq(sc, arg->queue);
 	mvneta_sc_unlock(sc);
 
@@ -3362,7 +3381,7 @@ sysctl_set_queue_rxthtime(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	}
 	time_mvtclk =
-	    (uint64_t)get_tclk() * (uint64_t)time_us / (1000ULL * 1000ULL);
+	    (uint64_t)mvneta_get_clk() * (uint64_t)time_us / (1000ULL * 1000ULL);
 	rx->queue_th_time = time_mvtclk;
 	reg = MVNETA_PRXITTH_RITT(rx->queue_th_time);
 	MVNETA_WRITE(sc, MVNETA_PRXITTH(arg->queue), reg);
