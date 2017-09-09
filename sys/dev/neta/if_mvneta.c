@@ -3008,7 +3008,7 @@ mvneta_rx_queue(struct mvneta_softc *sc, int q, int npkt)
 		 * bytecnt cover MH, PKT, CRC
 		 */
 		pktlen = r->bytecnt - ETHER_CRC_LEN - MVNETA_HWHEADER_SIZE;
-		pktbuf = (uint8_t *)r->bufptr_va + MVNETA_PACKET_OFFSET +
+		pktbuf = (uint8_t *)rx->rxbuf_virt_addr[rx->dma] + MVNETA_PACKET_OFFSET +
                     MVNETA_HWHEADER_SIZE;
 
 		/* Prefetch mbuf data. */
@@ -3135,7 +3135,7 @@ mvneta_rx_queue_refill(struct mvneta_softc *sc, int q)
 		rxbuf->m = m;
 		r = &rx->desc[rx->cpu];
 		r->bufptr_pa = segs.ds_addr;
-		r->bufptr_va = (uint32_t)m->m_data;
+		rx->rxbuf_virt_addr[rx->cpu] = m->m_data;
 
 		rx->cpu = rx_counter_adv(rx->cpu, 1);
 	}
