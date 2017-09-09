@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2016-2017 Alexander Motin <mav@FreeBSD.org>
  * Copyright (C) 2013 Intel Corporation
  * Copyright (C) 2015 EMC Corporation
  * All rights reserved.
@@ -188,6 +188,7 @@ struct ntb_transport_mw {
 
 struct ntb_transport_child {
 	device_t	dev;
+	int		consumer;
 	int		qpoff;
 	int		qpcnt;
 	struct ntb_transport_child *next;
@@ -249,7 +250,7 @@ enum {
 
 #define QP_TO_MW(nt, qp)	((qp) % nt->mw_count)
 #define NTB_QP_DEF_NUM_ENTRIES	100
-#define NTB_LINK_DOWN_TIMEOUT	10
+#define NTB_LINK_DOWN_TIMEOUT	100
 
 static int ntb_transport_probe(device_t dev);
 static int ntb_transport_attach(device_t dev);
@@ -343,9 +344,6 @@ ntb_transport_attach(device_t dev)
 	KASSERT(db_bitmap == (1 << db_count) - 1,
 	    ("Doorbells are not sequential (%jx).\n", db_bitmap));
 
-	device_printf(dev, "%d memory windows, %d scratchpads, "
-	    "%d doorbells\n", nt->mw_count, spad_count, db_count);
-
 	if (nt->mw_count == 0) {
 		device_printf(dev, "At least 1 memory window required.\n");
 		return (ENXIO);
@@ -409,6 +407,7 @@ ntb_transport_attach(device_t dev)
 		}
 
 		nc = malloc(sizeof(*nc), M_DEVBUF, M_WAITOK | M_ZERO);
+		nc->consumer = i;
 		nc->qpoff = qpu;
 		nc->qpcnt = qp;
 		nc->dev = device_add_child(dev, name, -1);
@@ -442,12 +441,12 @@ ntb_transport_attach(device_t dev)
 	callout_init(&nt->link_work, 0);
 	callout_init(&nt->link_watchdog, 0);
 	TASK_INIT(&nt->link_cleanup, 0, ntb_transport_link_cleanup_work, nt);
+	nt->link_is_up = false;
 
 	rc = ntb_set_ctx(dev, nt, &ntb_transport_ops);
 	if (rc != 0)
 		goto err;
 
-	nt->link_is_up = false;
 	ntb_link_enable(dev, NTB_SPEED_AUTO, NTB_WIDTH_AUTO);
 
 	if (enable_xeon_watchdog != 0)
@@ -493,6 +492,35 @@ ntb_transport_detach(device_t dev)
 
 	free(nt->qp_vec, M_NTB_T);
 	free(nt->mw_vec, M_NTB_T);
+	return (0);
+}
+
+static int
+ntb_transport_print_child(device_t dev, device_t child)
+{
+	struct ntb_transport_child *nc = device_get_ivars(child);
+	int retval;
+
+	retval = bus_print_child_header(dev, child);
+	if (nc->qpcnt > 0) {
+		printf(" queue %d", nc->qpoff);
+		if (nc->qpcnt > 1)
+			printf("-%d", nc->qpoff + nc->qpcnt - 1);
+	}
+	retval += printf(" at consumer %d", nc->consumer);
+	retval += bus_print_child_domain(dev, child);
+	retval += bus_print_child_footer(dev, child);
+
+	return (retval);
+}
+
+static int
+ntb_transport_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+	struct ntb_transport_child *nc = device_get_ivars(child);
+
+	snprintf(buf, buflen, "consumer=%d", nc->consumer);
 	return (0);
 }
 
@@ -835,6 +863,7 @@ static void
 ntb_transport_rxc_db(void *arg, int pending __unused)
 {
 	struct ntb_transport_qp *qp = arg;
+	uint64_t qp_mask = 1ull << qp->qp_num;
 	int rc;
 
 	CTR0(KTR_NTB, "RX: transport_rx");
@@ -843,11 +872,13 @@ again:
 		;
 	CTR1(KTR_NTB, "RX: process_rxc returned %d", rc);
 
-	if ((ntb_db_read(qp->dev) & (1ull << qp->qp_num)) != 0) {
+	if ((ntb_db_read(qp->dev) & qp_mask) != 0) {
 		/* If db is set, clear it and check queue once more. */
-		ntb_db_clear(qp->dev, 1ull << qp->qp_num);
+		ntb_db_clear(qp->dev, qp_mask);
 		goto again;
 	}
+	if (qp->link_is_up)
+		ntb_db_clear_mask(qp->dev, qp_mask);
 }
 
 static int
@@ -1009,6 +1040,10 @@ ntb_transport_doorbell_callback(void *data, uint32_t vector)
 	vec_mask &= nt->qp_bitmap;
 	if ((vec_mask & (vec_mask - 1)) != 0)
 		vec_mask &= ntb_db_read(nt->dev);
+	if (vec_mask != 0) {
+		ntb_db_set_mask(nt->dev, vec_mask);
+		ntb_db_clear(nt->dev, vec_mask);
+	}
 	while (vec_mask != 0) {
 		qp_num = ffsll(vec_mask) - 1;
 
@@ -1274,6 +1309,9 @@ ntb_transport_link_cleanup(struct ntb_transport_ctx *nt)
 	struct ntb_transport_qp *qp;
 	int i;
 
+	callout_drain(&nt->link_work);
+	nt->link_is_up = 0;
+
 	/* Pass along the info to any clients */
 	for (i = 0; i < nt->qp_count; i++) {
 		if ((nt->qp_bitmap & (1 << i)) != 0) {
@@ -1282,9 +1320,6 @@ ntb_transport_link_cleanup(struct ntb_transport_ctx *nt)
 			callout_drain(&qp->link_work);
 		}
 	}
-
-	if (!nt->link_is_up)
-		callout_drain(&nt->link_work);
 
 	/*
 	 * The scratchpad registers keep the values if the remote side
@@ -1545,6 +1580,9 @@ static device_method_t ntb_transport_methods[] = {
 	DEVMETHOD(device_probe,     ntb_transport_probe),
 	DEVMETHOD(device_attach,    ntb_transport_attach),
 	DEVMETHOD(device_detach,    ntb_transport_detach),
+	/* Bus interface */
+	DEVMETHOD(bus_child_location_str, ntb_transport_child_location_str),
+	DEVMETHOD(bus_print_child,  ntb_transport_print_child),
 	DEVMETHOD_END
 };
 

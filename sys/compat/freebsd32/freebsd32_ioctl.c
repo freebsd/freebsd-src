@@ -55,8 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_ioctl.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
-/* Cannot get exact size in 64-bit due to alignment issue of entire struct. */
-CTASSERT((sizeof(struct md_ioctl32)+4) == 436);
+CTASSERT((sizeof(struct md_ioctl32)) == 436);
 CTASSERT(sizeof(struct ioc_read_toc_entry32) == 8);
 CTASSERT(sizeof(struct mem_range_op32) == 12);
 CTASSERT(sizeof(struct pci_conf_io32) == 36);
@@ -87,6 +86,7 @@ freebsd32_ioctl_md(struct thread *td, struct freebsd32_ioctl_args *uap,
 		CP(md32, mdv, md_base);
 		CP(md32, mdv, md_fwheads);
 		CP(md32, mdv, md_fwsectors);
+		PTRIN_CP(md32, mdv, md_label);
 	} else if (uap->com & IOC_OUT) {
 		/*
 		 * Zero the buffer so the user always
@@ -123,6 +123,7 @@ freebsd32_ioctl_md(struct thread *td, struct freebsd32_ioctl_args *uap,
 		CP(mdv, md32, md_base);
 		CP(mdv, md32, md_fwheads);
 		CP(mdv, md32, md_fwsectors);
+		PTROUT_CP(mdv, md32, md_label);
 		if (com == MDIOCLIST) {
 			/*
 			 * Use MDNPAD, and not MDNPAD32.  Padding is

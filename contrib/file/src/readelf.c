@@ -509,7 +509,7 @@ do_bid_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
     size_t noff, size_t doff, int *flags)
 {
 	if (namesz == 4 && strcmp((char *)&nbuf[noff], "GNU") == 0 &&
-	    type == NT_GNU_BUILD_ID && (descsz >= 4 || descsz <= 20)) {
+	    type == NT_GNU_BUILD_ID && (descsz >= 4 && descsz <= 20)) {
 		uint8_t desc[20];
 		const char *btype;
 		uint32_t i;

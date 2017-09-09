@@ -54,7 +54,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2017
+.Dd September 8, 2017
 .Dt TMPFS 5
 .Os
 .Sh NAME
@@ -131,7 +131,9 @@ the file system size, which can be limited with the
 .Cm size
 option.
 .It Cm size
-Specifies the total file system size in bytes.
+Specifies the total file system size in bytes, unless suffixed
+with one of k, m, g, t, or p, which denote byte, kilobyte,
+megabyte, gigabyte, terabyte and petabyte respectively.
 If zero (the default) or a value larger than SIZE_MAX - PAGE_SIZE
 is given, the available amount of memory (including
 main memory and swap space) will be used.

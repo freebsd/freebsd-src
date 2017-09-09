@@ -497,6 +497,7 @@ contrib/dev/acpica/components/utilities/utresdecode.c	optional acpi acpi_debug
 contrib/dev/acpica/components/utilities/utresrc.c	optional acpi
 contrib/dev/acpica/components/utilities/utstate.c	optional acpi
 contrib/dev/acpica/components/utilities/utstring.c	optional acpi
+contrib/dev/acpica/components/utilities/utstrsuppt.c	optional acpi
 contrib/dev/acpica/components/utilities/utstrtoul64.c	optional acpi
 contrib/dev/acpica/components/utilities/utuuid.c	optional acpi acpi_debug
 contrib/dev/acpica/components/utilities/utxface.c	optional acpi
@@ -1394,7 +1395,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.16.45.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.16.59.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1428,7 +1429,7 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.16.45.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.16.59.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
@@ -1462,7 +1463,7 @@ t6fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t6fw.fwo"
 t6fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t6fw-1.16.45.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t6fw-1.16.59.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t6fw.fw"

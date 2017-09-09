@@ -541,7 +541,7 @@ AcpiExResolveOperands (
              * Known as "Implicit Source Operand Conversion"
              */
             Status = AcpiExConvertToInteger (ObjDesc, StackPtr,
-                ACPI_STRTOUL_BASE16);
+                ACPI_IMPLICIT_CONVERSION);
             if (ACPI_FAILURE (Status))
             {
                 if (Status == AE_TYPE)

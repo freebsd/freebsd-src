@@ -890,6 +890,11 @@ void
 TrSetOpCurrentFilename (
     ACPI_PARSE_OBJECT       *Op);
 
+void
+TrSetOpIntegerWidth (
+    ACPI_PARSE_OBJECT       *TableSignature,
+    ACPI_PARSE_OBJECT       *Revision);
+
 ACPI_PARSE_OBJECT *
 TrLinkOpChildren (
     ACPI_PARSE_OBJECT       *Op,

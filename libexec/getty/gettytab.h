@@ -88,6 +88,7 @@ struct gettyflags {
 #define AC	gettystrs[28].value
 #define AL	gettystrs[29].value
 #define DF	gettystrs[30].value
+#define IMP	gettystrs[31].value
 
 /*
  * Numeric definitions.

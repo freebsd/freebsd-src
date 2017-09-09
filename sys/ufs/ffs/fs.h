@@ -237,9 +237,7 @@ struct fsck_cmd {
  * A recovery structure placed at the end of the boot block area by newfs
  * that can be used by fsck to search for alternate superblocks.
  */
-#define RESID	(4096 - 20)	/* disk sector size minus recovery area size */
 struct fsrecovery {
-	char	block[RESID];	/* unused part of sector */
 	int32_t	fsr_magic;	/* magic number */
 	int32_t	fsr_fsbtodb;	/* fsbtodb and dbtofsb shift constant */
 	int32_t	fsr_sblkno;	/* offset of super-block in filesys */

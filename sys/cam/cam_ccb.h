@@ -366,8 +366,7 @@ struct ccb_getdev {
 	u_int8_t  serial_num[252];
 	u_int8_t  inq_flags;
 	u_int8_t  serial_num_len;
-	const struct nvme_controller_data	*nvme_cdata;
-	const struct nvme_namespace_data	*nvme_data;
+	void *padding[2];
 };
 
 /* Device Statistics CCB */
@@ -631,7 +630,7 @@ struct ccb_pathinq_settings_sas {
 };
 
 struct ccb_pathinq_settings_nvme {
-	uint16_t nsid;		/* Namespace ID for this path */
+	uint32_t nsid;		/* Namespace ID for this path */
 };
 
 #define	PATHINQ_SETTINGS_SIZE	128
@@ -831,7 +830,8 @@ struct ccb_nvmeio {
 	struct nvme_completion cpl;	/* NVME completion, per NVME standard */
 	uint8_t   *data_ptr;		/* Ptr to the data buf/SG list */
 	uint32_t  dxfer_len;		/* Data transfer length */
-	uint32_t  resid;		/* Transfer residual length: 2's comp unused ?*/
+	uint16_t  sglist_cnt;		/* Number of SG list entries */
+	uint16_t  unused;		/* padding for removed uint32_t */
 };
 
 /*
@@ -1266,6 +1266,8 @@ struct ccb_dev_advinfo {
 #define	CDAI_TYPE_PHYS_PATH	3
 #define	CDAI_TYPE_RCAPLONG	4
 #define	CDAI_TYPE_EXT_INQ	5
+#define	CDAI_TYPE_NVME_CNTRL	6	/* NVMe Identify Controller data */
+#define	CDAI_TYPE_NVME_NS	7	/* NVMe Identify Namespace data */
 	off_t bufsiz;			/* IN: Size of external buffer */
 #define	CAM_SCSI_DEVID_MAXLEN	65536	/* length in buffer is an uint16_t */
 	off_t provsiz;			/* OUT: Size required/used */

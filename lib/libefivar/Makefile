@@ -64,4 +64,4 @@ WARNS?=		9
 
 .include <bsd.lib.mk>
 
-CFLAGS+= -Wno-cast-align -Wno-unused-parameter
+CFLAGS+= -fno-strict-aliasing -Wno-cast-align -Wno-unused-parameter

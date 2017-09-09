@@ -215,6 +215,19 @@ longfile_rn2500_body()
 	atf_check cmp expectfile outpipe
 }
 
+atf_test_case broken_pipe
+broken_pipe_head()
+{
+	atf_set "descr" "Do not print bogus errno based output on short writes"
+}
+broken_pipe_body()
+{
+	atf_expect_fail "Can't seem to get testcase to work in test environment.  Reproduces easily in interactive shell."
+
+	seq -f '%128g' 1 1000 > ints
+	atf_check -s exit:1 -o ignore -e "inline:tail: stdout" tail -n 856 ints | awk '{ exit }'
+}
+
 
 atf_init_test_cases()
 {
@@ -230,4 +243,5 @@ atf_init_test_cases()
 	atf_add_test_case longfile_rc135782
 	atf_add_test_case longfile_rc145782_longlines
 	atf_add_test_case longfile_rn2500
+	#atf_add_test_case broken_pipe
 }

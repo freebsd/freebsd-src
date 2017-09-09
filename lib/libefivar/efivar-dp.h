@@ -62,4 +62,6 @@ ssize_t efidp_format_device_path(char *buf, size_t len, const_efidp dp,
     ssize_t max);
 ssize_t efidp_parse_device_path(char *path, efidp out, size_t max);
 
+size_t efidp_size(const_efidp);
+
 #endif /* _EFIVAR_DP_H_ */

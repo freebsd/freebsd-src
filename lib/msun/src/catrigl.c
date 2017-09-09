@@ -57,10 +57,15 @@ __FBSDID("$FreeBSD$");
 #undef signbit
 #define signbit(x)	(__builtin_signbitl(x))
 
+#if LDBL_MAX_EXP != 0x4000
+#error "Unsupported long double format"
+#endif
+
 static const long double
 A_crossover =		10,
 B_crossover =		0.6417,
 FOUR_SQRT_MIN =		0x1p-8189L,
+HALF_MAX =		0x1p16383L,
 QUARTER_SQRT_MAX =	0x1p8189L,
 RECIP_EPSILON =		1 / LDBL_EPSILON,
 SQRT_MIN =		0x1p-8191L;
@@ -307,7 +312,7 @@ clog_for_large_values(long double complex z)
 		ay = t;
 	}
 
-	if (ax > LDBL_MAX / 2)
+	if (ax > HALF_MAX)
 		return (CMPLXL(logl(hypotl(x / m_e, y / m_e)) + 1,
 		    atan2l(y, x)));
 

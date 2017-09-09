@@ -29,9 +29,13 @@ __FBSDID("$FreeBSD$");
 
 #include <efi.h>
 #include <eficonsctl.h>
+typedef CHAR16 efi_char;
+#include <efichar.h>
 
 #include "boot_module.h"
 #include "paths.h"
+
+static void efi_panic(EFI_STATUS s, const char *fmt, ...) __dead2 __printflike(2, 3);
 
 static const boot_module_t *boot_modules[] =
 {
@@ -51,6 +55,7 @@ static EFI_GUID BlockIoProtocolGUID = BLOCK_IO_PROTOCOL;
 static EFI_GUID DevicePathGUID = DEVICE_PATH_PROTOCOL;
 static EFI_GUID LoadedImageGUID = LOADED_IMAGE_PROTOCOL;
 static EFI_GUID ConsoleControlGUID = EFI_CONSOLE_CONTROL_PROTOCOL_GUID;
+static EFI_GUID FreeBSDBootVarGUID = FREEBSD_BOOT_VAR_GUID;
 
 /*
  * Provide Malloc / Free backed by EFIs AllocatePool / FreePool which ensures
@@ -73,6 +78,70 @@ Free(void *buf, const char *file __unused, int line __unused)
 {
 	if (buf != NULL)
 		(void)BS->FreePool(buf);
+}
+
+static EFI_STATUS
+efi_setenv_freebsd_wcs(const char *varname, CHAR16 *valstr)
+{
+	CHAR16 *var = NULL;
+	size_t len;
+	EFI_STATUS rv;
+
+	utf8_to_ucs2(varname, &var, &len);
+	if (var == NULL)
+		return (EFI_OUT_OF_RESOURCES);
+	rv = RS->SetVariable(var, &FreeBSDBootVarGUID,
+	    EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
+	    (ucs2len(valstr) + 1) * sizeof(efi_char), valstr);
+	free(var);
+	return (rv);
+}
+
+/*
+ * nodes_match returns TRUE if the imgpath isn't NULL and the nodes match,
+ * FALSE otherwise.
+ */
+static BOOLEAN
+nodes_match(EFI_DEVICE_PATH *imgpath, EFI_DEVICE_PATH *devpath)
+{
+	size_t len;
+
+	if (imgpath == NULL || imgpath->Type != devpath->Type ||
+	    imgpath->SubType != devpath->SubType)
+		return (FALSE);
+
+	len = DevicePathNodeLength(imgpath);
+	if (len != DevicePathNodeLength(devpath))
+		return (FALSE);
+
+	return (memcmp(imgpath, devpath, (size_t)len) == 0);
+}
+
+/*
+ * device_paths_match returns TRUE if the imgpath isn't NULL and all nodes
+ * in imgpath and devpath match up to their respective occurrences of a
+ * media node, FALSE otherwise.
+ */
+static BOOLEAN
+device_paths_match(EFI_DEVICE_PATH *imgpath, EFI_DEVICE_PATH *devpath)
+{
+
+	if (imgpath == NULL)
+		return (FALSE);
+
+	while (!IsDevicePathEnd(imgpath) && !IsDevicePathEnd(devpath)) {
+		if (IsDevicePathType(imgpath, MEDIA_DEVICE_PATH) &&
+		    IsDevicePathType(devpath, MEDIA_DEVICE_PATH))
+			return (TRUE);
+
+		if (!nodes_match(imgpath, devpath))
+			return (FALSE);
+
+		imgpath = NextDevicePathNode(imgpath);
+		devpath = NextDevicePathNode(devpath);
+	}
+
+	return (FALSE);
 }
 
 /*
@@ -271,15 +340,13 @@ probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath, BOOLEAN *preferred)
 	if (!blkio->Media->LogicalPartition)
 		return (EFI_UNSUPPORTED);
 
-	*preferred = efi_devpath_match(imgpath, devpath);
+	*preferred = device_paths_match(imgpath, devpath);
 
 	/* Run through each module, see if it can load this partition */
 	for (i = 0; i < NUM_BOOT_MODULES; i++) {
-		if ((status = BS->AllocatePool(EfiLoaderData,
-		    sizeof(*devinfo), (void **)&devinfo)) !=
-		    EFI_SUCCESS) {
-			DPRINTF("\nFailed to allocate devinfo (%lu)\n",
-			    EFI_ERROR_CODE(status));
+		devinfo = malloc(sizeof(*devinfo));
+		if (devinfo == NULL) {
+			DPRINTF("\nFailed to allocate devinfo\n");
 			continue;
 		}
 		devinfo->dev = blkio;
@@ -292,7 +359,7 @@ probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath, BOOLEAN *preferred)
 		status = boot_modules[i]->probe(devinfo);
 		if (status == EFI_SUCCESS)
 			return (EFI_SUCCESS);
-		(void)BS->FreePool(devinfo);
+		free(devinfo);
 	}
 
 	return (EFI_UNSUPPORTED);
@@ -344,6 +411,7 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	EFI_CONSOLE_CONTROL_PROTOCOL *ConsoleControl = NULL;
 	SIMPLE_TEXT_OUTPUT_INTERFACE *conout = NULL;
 	UINTN i, max_dim, best_mode, cols, rows, hsize, nhandles;
+	CHAR16 *text;
 
 	/* Basic initialization*/
 	ST = Xsystab;
@@ -387,12 +455,35 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	}
 	putchar('\n');
 
+	/* Determine the devpath of our image so we can prefer it. */
+	status = BS->HandleProtocol(IH, &LoadedImageGUID, (VOID**)&img);
+	imgpath = NULL;
+	if (status == EFI_SUCCESS) {
+		text = efi_devpath_name(img->FilePath);
+		printf("   Load Path: %S\n", text);
+		efi_setenv_freebsd_wcs("Boot1Path", text);
+		efi_free_devpath_name(text);
+
+		status = BS->HandleProtocol(img->DeviceHandle, &DevicePathGUID,
+		    (void **)&imgpath);
+		if (status != EFI_SUCCESS) {
+			DPRINTF("Failed to get image DevicePath (%lu)\n",
+			    EFI_ERROR_CODE(status));
+		} else {
+			text = efi_devpath_name(imgpath);
+			printf("   Load Device: %S\n", text);
+			efi_setenv_freebsd_wcs("Boot1Dev", text);
+			efi_free_devpath_name(text);
+		}
+
+	}
+
 	/* Get all the device handles */
 	hsize = (UINTN)NUM_HANDLES_INIT * sizeof(EFI_HANDLE);
-	if ((status = BS->AllocatePool(EfiLoaderData, hsize, (void **)&handles))
-	    != EFI_SUCCESS)
-		panic("Failed to allocate %d handles (%lu)", NUM_HANDLES_INIT,
-		    EFI_ERROR_CODE(status));
+	handles = malloc(hsize);
+	if (handles == NULL) {
+		printf("Failed to allocate %d handles\n", NUM_HANDLES_INIT);
+	}
 
 	status = BS->LocateHandle(ByProtocol, &BlockIoProtocolGUID, NULL,
 	    &hsize, handles);
@@ -400,45 +491,25 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	case EFI_SUCCESS:
 		break;
 	case EFI_BUFFER_TOO_SMALL:
-		(void)BS->FreePool(handles);
-		if ((status = BS->AllocatePool(EfiLoaderData, hsize,
-		    (void **)&handles)) != EFI_SUCCESS) {
-			panic("Failed to allocate %zu handles (%lu)", hsize /
-			    sizeof(*handles), EFI_ERROR_CODE(status));
-		}
+		free(handles);
+		handles = malloc(hsize);
+		if (handles == NULL)
+			efi_panic(EFI_OUT_OF_RESOURCES, "Failed to allocate %d handles\n",
+			    NUM_HANDLES_INIT);
 		status = BS->LocateHandle(ByProtocol, &BlockIoProtocolGUID,
 		    NULL, &hsize, handles);
 		if (status != EFI_SUCCESS)
-			panic("Failed to get device handles (%lu)\n",
-			    EFI_ERROR_CODE(status));
+			efi_panic(status, "Failed to get device handles\n");
 		break;
 	default:
-		panic("Failed to get device handles (%lu)",
-		    EFI_ERROR_CODE(status));
+		efi_panic(status, "Failed to get device handles\n");
+		break;
 	}
 
 	/* Scan all partitions, probing with all modules. */
 	nhandles = hsize / sizeof(*handles);
 	printf("   Probing %zu block devices...", nhandles);
 	DPRINTF("\n");
-
-	/* Determine the devpath of our image so we can prefer it. */
-	status = BS->HandleProtocol(IH, &LoadedImageGUID, (VOID**)&img);
-	imgpath = NULL;
-	if (status == EFI_SUCCESS) {
-		status = BS->HandleProtocol(img->DeviceHandle, &DevicePathGUID,
-		    (void **)&imgpath);
-		if (status != EFI_SUCCESS)
-			DPRINTF("Failed to get image DevicePath (%lu)\n",
-			    EFI_ERROR_CODE(status));
-#ifdef EFI_DEBUG
-		{
-			CHAR16 *text = efi_devpath_name(imgpath);
-			DPRINTF("boot1 imagepath: %S\n", text);
-			efi_free_devpath_name(text);
-		}
-#endif
-	}
 
 	for (i = 0; i < nhandles; i++)
 		probe_handle_status(handles[i], imgpath);
@@ -453,7 +524,7 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	try_boot();
 
 	/* If we get here, we're out of luck... */
-	panic("No bootable partitions found!");
+	efi_panic(EFI_LOAD_ERROR, "No bootable partitions found!");
 }
 
 /*
@@ -475,8 +546,12 @@ add_device(dev_info_t **devinfop, dev_info_t *devinfo)
 	dev->next = devinfo;
 }
 
-void
-panic(const char *fmt, ...)
+/*
+ * OK. We totally give up. Exit back to EFI with a sensible status so
+ * it can try the next option on the list.
+ */
+static void
+efi_panic(EFI_STATUS s, const char *fmt, ...)
 {
 	va_list ap;
 
@@ -486,7 +561,7 @@ panic(const char *fmt, ...)
 	va_end(ap);
 	printf("\n");
 
-	while (1) {}
+	BS->Exit(IH, s, 0, NULL);
 }
 
 void

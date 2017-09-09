@@ -50,6 +50,8 @@ extern int (*dtrace_invop_jump_addr)(struct trapframe *);
 extern dtrace_id_t	dtrace_probeid_error;
 
 int dtrace_invop(uintptr_t, struct trapframe *, uintptr_t);
+void dtrace_invop_init(void);
+void dtrace_invop_uninit(void);
 
 typedef struct dtrace_invop_hdlr {
 	int (*dtih_func)(uintptr_t, struct trapframe *, uintptr_t);

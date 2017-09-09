@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2015
+.Dd September 5, 2017
 .Dt AMDTEMP 4
 .Os
 .Sh NAME
@@ -53,7 +53,7 @@ The
 driver provides support for the on-die digital thermal sensor present
 in
 .Tn AMD
-Family 0Fh, 10h, 11h, 12h, 14h, 15h, and 16h processors.
+Family 0Fh, 10h, 11h, 12h, 14h, 15h, 16h, and 17h processors.
 .Pp
 For Family 0Fh processors, the
 .Nm
@@ -64,8 +64,8 @@ The driver also creates
 in the corresponding CPU device's sysctl tree, displaying the maximum
 temperature of the two sensors located in each CPU core.
 .Pp
-For Family 10h, 11h, 12h, 14h, 15h, and 16h processors, the driver reports each
-package's temperature through a sysctl node, named
+For Family 10h, 11h, 12h, 14h, 15h, 16h, and 17h processors, the driver reports
+each package's temperature through a sysctl node, named
 .Va dev.amdtemp.%d.core0.sensor0 .
 The driver also creates
 .Va dev.cpu.%d.temperature
@@ -107,5 +107,5 @@ specified maximum case temperature and maximum thermal power dissipation
 according to
 .Rs
 .%T BIOS and Kernel Developer's Guide (BKDG) for AMD Processors
-.%U http://developer.amd.com/documentation/guides/Pages/default.aspx
+.%U http://developer.amd.com/resources/developer-guides-manuals/
 .Re

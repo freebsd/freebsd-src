@@ -275,17 +275,24 @@ Expression
 
     | EXPOP_LABEL                                   { $$ = DtResolveLabel (DtParsertext);}
 
-      /* Default base for a non-prefixed integer is 16 */
+      /*
+       * All constants for the data table compiler are in hex, whether a (optional) 0x
+       * prefix is present or not. For example, these two input strings are equivalent:
+       *    1234
+       *    0x1234
+       */
 
-    | EXPOP_NUMBER                                  { AcpiUtStrtoul64 (DtParsertext, (ACPI_STRTOUL_BASE16 | ACPI_STRTOUL_64BIT), &$$);}
+      /* Non-prefixed hex number */
+
+    | EXPOP_NUMBER                                  { $$ = DtDoConstant (DtParsertext);}
 
       /* Standard hex number (0x1234) */
 
-    | EXPOP_HEX_NUMBER                              { AcpiUtStrtoul64 (DtParsertext, (ACPI_STRTOUL_BASE16 | ACPI_STRTOUL_64BIT), &$$);}
+    | EXPOP_HEX_NUMBER                              { $$ = DtDoConstant (DtParsertext);}
 
-      /* TBD: Decimal number with prefix (0d1234) - Not supported by strtoul64 at this time */
+      /* Possible TBD: Decimal number with prefix (0d1234) - Not supported this time */
 
-    | EXPOP_DECIMAL_NUMBER                          { AcpiUtStrtoul64 (DtParsertext, ACPI_STRTOUL_64BIT, &$$);}
+    | EXPOP_DECIMAL_NUMBER                          { $$ = DtDoConstant (DtParsertext);}
     ;
 %%
 

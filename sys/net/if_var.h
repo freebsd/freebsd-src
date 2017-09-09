@@ -183,7 +183,8 @@ struct if_encap_req {
 struct m_snd_tag;
 
 #define	IF_SND_TAG_TYPE_RATE_LIMIT 0
-#define	IF_SND_TAG_TYPE_MAX 1
+#define	IF_SND_TAG_TYPE_UNLIMITED 1
+#define	IF_SND_TAG_TYPE_MAX 2
 
 struct if_snd_tag_alloc_header {
 	uint32_t type;		/* send tag type, see IF_SND_TAG_XXX */
@@ -198,19 +199,26 @@ struct if_snd_tag_alloc_rate_limit {
 
 struct if_snd_tag_rate_limit_params {
 	uint64_t max_rate;	/* in bytes/s */
+	uint32_t queue_level;	/* 0 (empty) .. 65535 (full) */
+#define	IF_SND_QUEUE_LEVEL_MIN 0
+#define	IF_SND_QUEUE_LEVEL_MAX 65535
+	uint32_t reserved;	/* padding */
 };
 
 union if_snd_tag_alloc_params {
 	struct if_snd_tag_alloc_header hdr;
 	struct if_snd_tag_alloc_rate_limit rate_limit;
+	struct if_snd_tag_alloc_rate_limit unlimited;
 };
 
 union if_snd_tag_modify_params {
 	struct if_snd_tag_rate_limit_params rate_limit;
+	struct if_snd_tag_rate_limit_params unlimited;
 };
 
 union if_snd_tag_query_params {
 	struct if_snd_tag_rate_limit_params rate_limit;
+	struct if_snd_tag_rate_limit_params unlimited;
 };
 
 typedef int (if_snd_tag_alloc_t)(struct ifnet *, union if_snd_tag_alloc_params *,

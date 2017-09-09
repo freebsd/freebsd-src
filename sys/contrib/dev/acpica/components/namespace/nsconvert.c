@@ -191,8 +191,7 @@ AcpiNsConvertToInteger (
 
         /* String-to-Integer conversion */
 
-        Status = AcpiUtStrtoul64 (OriginalObject->String.Pointer,
-            AcpiGbl_IntegerByteWidth, &Value);
+        Status = AcpiUtStrtoul64 (OriginalObject->String.Pointer, &Value);
         if (ACPI_FAILURE (Status))
         {
             return (Status);

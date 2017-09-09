@@ -286,6 +286,9 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	__be64 cmd_rpl[MBOX_LEN/8];
 	u32 pcie_fw;
 
+	if (adap->flags & CHK_MBOX_ACCESS)
+		ASSERT_SYNCHRONIZED_OP(adap);
+
 	if ((size & 15) || size > MBOX_LEN)
 		return -EINVAL;
 
@@ -8351,12 +8354,9 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 {
 	u8 addr[6];
 	int ret, i, j;
-	struct fw_port_cmd c;
 	u16 rss_size;
 	struct port_info *p = adap2pinfo(adap, port_id);
 	u32 param, val;
-
-	memset(&c, 0, sizeof(c));
 
 	for (i = 0, j = -1; i <= p->port_id; i++) {
 		do {
