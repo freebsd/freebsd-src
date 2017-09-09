@@ -208,6 +208,57 @@ struct mpr_table_lookup mpr_pcie_linkrate_names[] = {
 	{"LinkRate Unknown",		0x00}
 };
 
+struct mpr_table_lookup mpr_iocstatus_string[] = {
+	{"success",			MPI2_IOCSTATUS_SUCCESS},
+	{"invalid function",		MPI2_IOCSTATUS_INVALID_FUNCTION},
+	{"scsi recovered error",	MPI2_IOCSTATUS_SCSI_RECOVERED_ERROR},
+	{"scsi invalid dev handle",	MPI2_IOCSTATUS_SCSI_INVALID_DEVHANDLE},
+	{"scsi device not there",	MPI2_IOCSTATUS_SCSI_DEVICE_NOT_THERE},
+	{"scsi data overrun",		MPI2_IOCSTATUS_SCSI_DATA_OVERRUN},
+	{"scsi data underrun",		MPI2_IOCSTATUS_SCSI_DATA_UNDERRUN},
+	{"scsi io data error",		MPI2_IOCSTATUS_SCSI_IO_DATA_ERROR},
+	{"scsi protocol error",		MPI2_IOCSTATUS_SCSI_PROTOCOL_ERROR},
+	{"scsi task terminated",	MPI2_IOCSTATUS_SCSI_TASK_TERMINATED},
+	{"scsi residual mismatch",	MPI2_IOCSTATUS_SCSI_RESIDUAL_MISMATCH},
+	{"scsi task mgmt failed",	MPI2_IOCSTATUS_SCSI_TASK_MGMT_FAILED},
+	{"scsi ioc terminated",		MPI2_IOCSTATUS_SCSI_IOC_TERMINATED},
+	{"scsi ext terminated",		MPI2_IOCSTATUS_SCSI_EXT_TERMINATED},
+	{"eedp guard error",		MPI2_IOCSTATUS_EEDP_GUARD_ERROR},
+	{"eedp ref tag error",		MPI2_IOCSTATUS_EEDP_REF_TAG_ERROR},
+	{"eedp app tag error",		MPI2_IOCSTATUS_EEDP_APP_TAG_ERROR},
+	{NULL, 0},
+	{"unknown",			0x00}
+};
+
+struct mpr_table_lookup mpr_scsi_status_string[] = {
+	{"good",			MPI2_SCSI_STATUS_GOOD},
+	{"check condition",		MPI2_SCSI_STATUS_CHECK_CONDITION},
+	{"condition met",		MPI2_SCSI_STATUS_CONDITION_MET},
+	{"busy",			MPI2_SCSI_STATUS_BUSY},
+	{"intermediate",		MPI2_SCSI_STATUS_INTERMEDIATE},
+	{"intermediate condmet",	MPI2_SCSI_STATUS_INTERMEDIATE_CONDMET},
+	{"reservation conflict",	MPI2_SCSI_STATUS_RESERVATION_CONFLICT},
+	{"command terminated",		MPI2_SCSI_STATUS_COMMAND_TERMINATED},
+	{"task set full",		MPI2_SCSI_STATUS_TASK_SET_FULL},
+	{"aca active",			MPI2_SCSI_STATUS_ACA_ACTIVE},
+	{"task aborted",		MPI2_SCSI_STATUS_TASK_ABORTED},
+	{NULL, 0},
+	{"unknown",			0x00}
+};
+
+struct mpr_table_lookup mpr_scsi_taskmgmt_string[] = {
+	{"task mgmt request completed",	MPI2_SCSITASKMGMT_RSP_TM_COMPLETE},
+	{"invalid frame",		MPI2_SCSITASKMGMT_RSP_INVALID_FRAME},
+	{"task mgmt request not supp",	MPI2_SCSITASKMGMT_RSP_TM_NOT_SUPPORTED},
+	{"task mgmt request failed",	MPI2_SCSITASKMGMT_RSP_TM_FAILED},
+	{"task mgmt request_succeeded",	MPI2_SCSITASKMGMT_RSP_TM_SUCCEEDED},
+	{"invalid lun",			MPI2_SCSITASKMGMT_RSP_TM_INVALID_LUN},
+	{"overlapped tag attempt",	0xA},
+	{"task queued on IOC",		MPI2_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC},
+	{NULL, 0},
+	{"unknown",			0x00}
+};
+
 void
 mpr_describe_devinfo(uint32_t devinfo, char *string, int len)
 {
