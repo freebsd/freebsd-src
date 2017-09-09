@@ -83,6 +83,12 @@ DRIVER_MODULE(mvneta, simplebus, mvneta_fdt_driver, mvneta_fdt_devclass, 0, 0);
 
 static int mvneta_fdt_phy_acquire(device_t);
 
+static struct ofw_compat_data compat_data[] = {
+	{"marvell,armada-370-neta",	true},
+	{"marvell,armada-3700-neta",	true},
+	{NULL,				false}
+};
+
 static int
 mvneta_fdt_probe(device_t dev)
 {
@@ -90,7 +96,7 @@ mvneta_fdt_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "marvell,armada-370-neta"))
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
 	device_set_desc(dev, "NETA controller");
