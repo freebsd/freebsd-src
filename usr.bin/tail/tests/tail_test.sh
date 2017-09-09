@@ -222,10 +222,10 @@ broken_pipe_head()
 }
 broken_pipe_body()
 {
-	atf_expect_fail "Can't seem to get testcase to work in test environment.  Reproduces easily in interactive shell."
-
 	atf_check -o save:ints seq -f '%128g' 1 1000
-	atf_check -s exit:1 -o ignore -e "inline:tail: stdout" tail -n 856 ints | awk '{ exit }'
+	atf_check -s ignore \
+	    -e "inline:tail: stdout\nexit code: 1\n" \
+	    -x '(tail -n 856 ints; echo exit code: $? >&2) | sleep 2'
 }
 
 
@@ -243,5 +243,5 @@ atf_init_test_cases()
 	atf_add_test_case longfile_rc135782
 	atf_add_test_case longfile_rc145782_longlines
 	atf_add_test_case longfile_rn2500
-	#atf_add_test_case broken_pipe
+	atf_add_test_case broken_pipe
 }
