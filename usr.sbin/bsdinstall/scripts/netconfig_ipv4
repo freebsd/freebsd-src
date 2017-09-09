@@ -48,8 +48,6 @@ esac
 
 dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' --yesno 'Would you like to use DHCP to configure this interface?' 0 0
 if [ $? -eq $DIALOG_OK ]; then
-	echo ifconfig_$INTERFACE=\"${IFCONFIG_PREFIX}DHCP\" >> $BSDINSTALL_TMPETC/._rc.conf.net
-
 	if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
 		dialog --backtitle 'FreeBSD Installer' --infobox "Acquiring DHCP lease..." 0 0
 		err=$( dhclient $INTERFACE 2>&1 )
@@ -59,6 +57,7 @@ if [ $? -eq $DIALOG_OK ]; then
 			exec $0 ${INTERFACE} "${IFCONFIG_PREFIX}"
 		fi
 	fi
+	echo ifconfig_$INTERFACE=\"${IFCONFIG_PREFIX}DHCP\" >> $BSDINSTALL_TMPETC/._rc.conf.net
 	exit 0
 fi
 
