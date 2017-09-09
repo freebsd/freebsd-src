@@ -224,7 +224,7 @@ broken_pipe_body()
 {
 	atf_expect_fail "Can't seem to get testcase to work in test environment.  Reproduces easily in interactive shell."
 
-	seq -f '%128g' 1 1000 > ints
+	atf_check -o save:ints seq -f '%128g' 1 1000
 	atf_check -s exit:1 -o ignore -e "inline:tail: stdout" tail -n 856 ints | awk '{ exit }'
 }
 
