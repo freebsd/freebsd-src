@@ -2257,7 +2257,7 @@ mpr_sc_failed_io_info(struct mpr_softc *sc, struct ccb_scsiio *csio,
 	u8 scsi_status = mpi_reply->SCSIStatus;
 	char *desc_ioc_state = NULL;
 	char *desc_scsi_status = NULL;
-	char *desc_scsi_state = sc->tmp_string;
+	char *desc_scsi_state = NULL;
 	u32 log_info = le32toh(mpi_reply->IOCLogInfo);
 	
 	if (log_info == 0x31170000)
@@ -2362,19 +2362,19 @@ mpr_sc_failed_io_info(struct mpr_softc *sc, struct ccb_scsiio *csio,
 		break;
 	}
 
-	desc_scsi_state[0] = '\0';
+	desc_scsi_state = "\0";
 	if (!scsi_state)
 		desc_scsi_state = " ";
 	if (scsi_state & MPI2_SCSI_STATE_RESPONSE_INFO_VALID)
-		strcat(desc_scsi_state, "response info ");
+		desc_scsi_state = "response info ";
 	if (scsi_state & MPI2_SCSI_STATE_TERMINATED)
-		strcat(desc_scsi_state, "state terminated ");
+		desc_scsi_state = "state terminated ";
 	if (scsi_state & MPI2_SCSI_STATE_NO_SCSI_STATUS)
-		strcat(desc_scsi_state, "no status ");
+		desc_scsi_state = "no status ";
 	if (scsi_state & MPI2_SCSI_STATE_AUTOSENSE_FAILED)
-		strcat(desc_scsi_state, "autosense failed ");
+		desc_scsi_state = "autosense failed ";
 	if (scsi_state & MPI2_SCSI_STATE_AUTOSENSE_VALID)
-		strcat(desc_scsi_state, "autosense valid ");
+		desc_scsi_state = "autosense valid ";
 
 	mpr_dprint(sc, MPR_XINFO, "\thandle(0x%04x), ioc_status(%s)(0x%04x)\n",
 	    le16toh(mpi_reply->DevHandle), desc_ioc_state, ioc_status);
@@ -2960,8 +2960,8 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 		 */
 		mprsas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 		mpr_dprint(sc, MPR_INFO,
-		    "Controller reported %s status for target %u SMID %u, "
-		    "loginfo %x\n", ((rep->IOCStatus & MPI2_IOCSTATUS_MASK) ==
+		    "Controller reported %s target %u SMID %u, loginfo %x\n",
+		    ((rep->IOCStatus & MPI2_IOCSTATUS_MASK) ==
 		    MPI2_IOCSTATUS_SCSI_IOC_TERMINATED) ? "IOC_TERMINATED" :
 		    "EXT_TERMINATED", target_id, cm->cm_desc.Default.SMID,
 		    le32toh(rep->IOCLogInfo));
