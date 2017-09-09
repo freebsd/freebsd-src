@@ -74,7 +74,6 @@
 #define	IFAULT_IOP_OVER_TEMP_THRESHOLD_EXCEEDED	0x2810
 
 #define MPR_SCSI_RI_INVALID_FRAME	(0x00000002)
-#define MPR_STRING_LENGTH               64
 
 #define DEFAULT_SPINUP_WAIT	3	/* seconds to wait for spinup */
 
@@ -330,7 +329,6 @@ struct mpr_softc {
 	struct mpr_queue		*queues;
 
 	struct mprsas_softc		*sassc;
-	char            tmp_string[MPR_STRING_LENGTH];
 	TAILQ_HEAD(, mpr_command)	req_list;
 	TAILQ_HEAD(, mpr_command)	high_priority_req_list;
 	TAILQ_HEAD(, mpr_chain)		chain_list;
