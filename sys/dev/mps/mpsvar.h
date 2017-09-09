@@ -56,7 +56,6 @@
 #define MPS_MISSING_CHECK_DELAY	10	/* 10 seconds between missing check */
 
 #define MPS_SCSI_RI_INVALID_FRAME	(0x00000002)
-#define MPS_STRING_LENGTH               64
 
 #define DEFAULT_SPINUP_WAIT	3	/* seconds to wait for spinup */
 
@@ -317,7 +316,6 @@ struct mps_softc {
 	struct mps_queue		*queues;
 
 	struct mpssas_softc		*sassc;
-	char            tmp_string[MPS_STRING_LENGTH];
 	TAILQ_HEAD(, mps_command)	req_list;
 	TAILQ_HEAD(, mps_command)	high_priority_req_list;
 	TAILQ_HEAD(, mps_chain)		chain_list;
