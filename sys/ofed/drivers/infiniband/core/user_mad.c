@@ -236,7 +236,6 @@ static int queue_packet(struct ib_umad_file *file,
 	     packet->mad.hdr.id++)
 		if (agent == __get_agent(file, packet->mad.hdr.id)) {
 			list_add_tail(&packet->list, &file->recv_list);
-			selwakeup(&file->filp->f_selinfo);
 			wake_up_interruptible(&file->recv_wait);
 			ret = 0;
 			break;
