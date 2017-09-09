@@ -2354,7 +2354,7 @@ start_wrq_wr(struct sge_wrq *wrq, int len16, struct wrq_cookie *cookie)
 
 	EQ_LOCK(eq);
 
-	if (!STAILQ_EMPTY(&wrq->wr_list))
+	if (TAILQ_EMPTY(&wrq->incomplete_wrs) && !STAILQ_EMPTY(&wrq->wr_list))
 		drain_wrq_wr_list(sc, wrq);
 
 	if (!STAILQ_EMPTY(&wrq->wr_list)) {
@@ -2408,9 +2408,6 @@ commit_wrq_wr(struct sge_wrq *wrq, void *w, struct wrq_cookie *cookie)
 		return;
 	}
 
-	ndesc = cookie->ndesc;	/* Can be more than SGE_MAX_WR_NDESC here. */
-	pidx = cookie->pidx;
-	MPASS(pidx >= 0 && pidx < eq->sidx);
 	if (__predict_false(w == &wrq->ss[0])) {
 		int n = (eq->sidx - wrq->ss_pidx) * EQ_ESIZE;
 
@@ -2422,6 +2419,9 @@ commit_wrq_wr(struct sge_wrq *wrq, void *w, struct wrq_cookie *cookie)
 		wrq->tx_wrs_direct++;
 
 	EQ_LOCK(eq);
+	ndesc = cookie->ndesc;	/* Can be more than SGE_MAX_WR_NDESC here. */
+	pidx = cookie->pidx;
+	MPASS(pidx >= 0 && pidx < eq->sidx);
 	prev = TAILQ_PREV(cookie, wrq_incomplete_wrs, link);
 	next = TAILQ_NEXT(cookie, link);
 	if (prev == NULL) {
