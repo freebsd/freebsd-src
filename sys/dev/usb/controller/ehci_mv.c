@@ -73,7 +73,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
 
+#if !defined(__aarch64__)
 #include <arm/mv/mvreg.h>
+#endif
 #include <arm/mv/mvvar.h>
 
 #define	EHCI_VENDORID_MRVL	0x1286
@@ -100,9 +102,10 @@ static void *ih_err;
 #define	MV_USB_DEVICE_UNDERFLOW (1 << 3)
 
 static struct ofw_compat_data compat_data[] = {
-	{"mrvl,usb-ehci",	true},
-	{"marvell,orion-ehci",	true},
-	{NULL,			false}
+	{"mrvl,usb-ehci",		true},
+	{"marvell,orion-ehci",		true},
+	{"marvell,armada-3700-ehci",	true},
+	{NULL,				false}
 };
 
 static void
@@ -174,7 +177,8 @@ mv_ehci_attach(device_t self)
 		    device_get_name(self));
 
 	rid = 0;
-	if (!ofw_bus_is_compatible(self, "marvell,orion-ehci")) {
+	if (!(ofw_bus_is_compatible(self, "marvell,orion-ehci") ||
+	    ofw_bus_is_compatible(self, "marvell,armada-3700-ehci"))) {
 		irq_err = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
 		    RF_SHAREABLE | RF_ACTIVE);
 		if (irq_err == NULL) {
@@ -207,7 +211,8 @@ mv_ehci_attach(device_t self)
 
 	sprintf(sc->sc_vendor, "Marvell");
 
-	if (!ofw_bus_is_compatible(self, "marvell,orion-ehci")) {
+	if (!(ofw_bus_is_compatible(self, "marvell,orion-ehci") ||
+	    ofw_bus_is_compatible(self, "marvell,armada-3700-ehci"))) {
 		err = bus_setup_intr(self, irq_err, INTR_TYPE_BIO,
 		    err_intr, NULL, sc, &ih_err);
 		if (err) {
@@ -365,5 +370,5 @@ static driver_t ehci_driver = {
 
 static devclass_t ehci_devclass;
 
-DRIVER_MODULE(ehci, simplebus, ehci_driver, ehci_devclass, 0, 0);
-MODULE_DEPEND(ehci, usb, 1, 1, 1);
+DRIVER_MODULE(ehci_mv, simplebus, ehci_driver, ehci_devclass, 0, 0);
+MODULE_DEPEND(ehci_mv, usb, 1, 1, 1);
