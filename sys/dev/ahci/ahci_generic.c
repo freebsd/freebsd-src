@@ -60,9 +60,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 static struct ofw_compat_data compat_data[] = {
-	{"generic-ahci", 	1},
-	{"snps,dwc-ahci",	1},
-	{NULL,			0}
+	{"generic-ahci", 		1},
+	{"snps,dwc-ahci",		1},
+	{"marvell,armada-3700-ahci",	1},
+	{NULL,				0}
 };
 
 static int
