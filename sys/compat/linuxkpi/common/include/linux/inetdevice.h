@@ -61,7 +61,7 @@ static inline struct net_device *
 ip6_dev_find(struct vnet *vnet, struct in6_addr addr)
 {
 	struct sockaddr_in6 sin6;
-	struct ifaddr *ifa;
+	struct ifaddr *ifa = NULL;
 	struct ifnet *ifp = NULL;
 	int x;
 
@@ -70,16 +70,22 @@ ip6_dev_find(struct vnet *vnet, struct in6_addr addr)
 	sin6.sin6_len = sizeof(sin6);
 	sin6.sin6_family = AF_INET6;
 	CURVNET_SET_QUIET(vnet);
-	/* XXX need to search all scope ID's */
-	for (x = 0; x <= V_if_index; x++) {
-		sin6.sin6_addr.s6_addr[3] = x;
-		ifa = ifa_ifwithaddr((struct sockaddr *)&sin6);
-		if (ifa != NULL) {
-			ifp = ifa->ifa_ifp;
-			if_ref(ifp);
-			ifa_free(ifa);
-			break;
+	if (IN6_IS_SCOPE_LINKLOCAL(&addr) ||
+	    IN6_IS_ADDR_MC_INTFACELOCAL(&addr)) {
+		/* XXX need to search all scope ID's */
+		for (x = 0; x <= V_if_index && x < 65536; x++) {
+			sin6.sin6_addr.s6_addr16[1] = htons(x);
+			ifa = ifa_ifwithaddr((struct sockaddr *)&sin6);
+			if (ifa != NULL)
+				break;
 		}
+	} else {
+		ifa = ifa_ifwithaddr((struct sockaddr *)&sin6);
+	}
+	if (ifa != NULL) {
+		ifp = ifa->ifa_ifp;
+		if_ref(ifp);
+		ifa_free(ifa);
 	}
 	CURVNET_RESTORE();
 	return (ifp);
