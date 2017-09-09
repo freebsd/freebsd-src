@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/uio.h>
 #include <sys/sysctl.h>
+#include <sys/smp.h>
 #include <sys/queue.h>
 #include <sys/kthread.h>
 #include <sys/taskqueue.h>
@@ -716,6 +717,10 @@ mpr_iocfacts_free(struct mpr_softc *sc)
 	}
 	if (sc->buffer_dmat != NULL)
 		bus_dma_tag_destroy(sc->buffer_dmat);
+
+	mpr_pci_free_interrupts(sc);
+	free(sc->queues, M_MPR);
+	sc->queues = NULL;
 }
 
 /* 
@@ -1136,8 +1141,24 @@ static int
 mpr_alloc_queues(struct mpr_softc *sc)
 {
 	bus_addr_t queues_busaddr;
+	struct mpr_queue *q;
 	uint8_t *queues;
-	int qsize, fqsize, pqsize;
+	int qsize, fqsize, pqsize, nq, i;
+
+	nq = MIN(sc->msi_msgs, mp_ncpus);
+	sc->msi_msgs = nq;
+	mpr_dprint(sc, MPR_INIT|MPR_XINFO, "Allocating %d I/O queues\n", nq);
+
+	sc->queues = malloc(sizeof(struct mpr_queue) * nq, M_MPR, M_NOWAIT|M_ZERO);
+	if (sc->queues == NULL)
+		return (ENOMEM);
+
+	for (i = 0; i < nq; i++) {
+		q = &sc->queues[i];
+		mpr_dprint(sc, MPR_INIT, "Configuring queue %d %p\n", i, q);
+		q->sc = sc;
+		q->qnum = i;
+	}
 
 	/*
 	 * The reply free queue contains 4 byte entries in multiples of 16 and

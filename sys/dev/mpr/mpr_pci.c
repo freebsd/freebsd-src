@@ -290,6 +290,7 @@ int
 mpr_pci_setup_interrupts(struct mpr_softc *sc)
 {
 	device_t dev;
+	struct mpr_queue *q;
 	void *ihandler;
 	int i, error, rid, initial_rid;
 
@@ -309,18 +310,19 @@ mpr_pci_setup_interrupts(struct mpr_softc *sc)
 	}
 
 	for (i = 0; i < sc->msi_msgs; i++) {
+		q = &sc->queues[i];
 		rid = i + initial_rid;
-		sc->mpr_irq_rid[i] = rid;
-		sc->mpr_irq[i] = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-		    &sc->mpr_irq_rid[i], RF_ACTIVE);
-		if (sc->mpr_irq[i] == NULL) {
+		q->irq_rid = rid;
+		q->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		    &q->irq_rid, RF_ACTIVE);
+		if (q->irq == NULL) {
 			mpr_dprint(sc, MPR_ERROR|MPR_INIT,
 			    "Cannot allocate interrupt RID %d\n", rid);
 			break;
 		}
-		error = bus_setup_intr(dev, sc->mpr_irq[i],
-		    INTR_TYPE_BIO | INTR_MPSAFE, NULL, mpr_intr_msi,
-		    sc, &sc->mpr_intrhand[i]);
+		error = bus_setup_intr(dev, q->irq,
+		    INTR_TYPE_BIO | INTR_MPSAFE, NULL, ihandler,
+		    sc, &q->intrhand);
 		if (error) {
 			mpr_dprint(sc, MPR_ERROR|MPR_INIT,
 			    "Cannot setup interrupt RID %d\n", rid);
@@ -347,23 +349,35 @@ mpr_pci_detach(device_t dev)
 	return (0);
 }
 
+void
+mpr_pci_free_interrupts(struct mpr_softc *sc)
+{
+	struct mpr_queue *q;
+	int i;
+
+	if (sc->queues == NULL)
+		return;
+
+	for (i = 0; i < sc->msi_msgs; i++) {
+		q = &sc->queues[i];
+		if (q->irq != NULL) {
+			bus_teardown_intr(sc->mpr_dev, q->irq,
+			    q->intrhand);
+			bus_release_resource(sc->mpr_dev, SYS_RES_IRQ,
+			    q->irq_rid, q->irq);
+		}
+	}
+}
+
 static void
 mpr_pci_free(struct mpr_softc *sc)
 {
-	int i;
 
 	if (sc->mpr_parent_dmat != NULL) {
 		bus_dma_tag_destroy(sc->mpr_parent_dmat);
 	}
 
-	for (i = 0; i < sc->msi_msgs; i++) {
-		if (sc->mpr_irq[i] != NULL) {
-			bus_teardown_intr(sc->mpr_dev, sc->mpr_irq[i],
-			    sc->mpr_intrhand[i]);
-			bus_release_resource(sc->mpr_dev, SYS_RES_IRQ,
-			    sc->mpr_irq_rid[i], sc->mpr_irq[i]);
-		}
-	}
+	mpr_pci_free_interrupts(sc);
 
 	if (sc->mpr_flags & MPR_FLAGS_MSI)
 		pci_release_msi(sc->mpr_dev);
