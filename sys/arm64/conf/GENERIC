@@ -119,6 +119,7 @@ options 	PCI_HP			# PCI-Express native HotPlug
 options 	PCI_IOV		# PCI SR-IOV support
 
 # Ethernet NICs
+device		mdio
 device		mii
 device		miibus		# MII bus support
 device		awg		# Allwinner EMAC Gigabit Ethernet
@@ -126,6 +127,7 @@ device		axgbe		# AMD Opteron A1100 integrated NIC
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
 device		ix		# Intel 10Gb Ethernet Family
 device		msk		# Marvell/SysKonnect Yukon II Gigabit Ethernet
+device		neta		# Marvell NETA Controller
 device  	smc		# SMSC LAN91C111
 device		vnic		# Cavium ThunderX NIC
 device		al_eth		# Annapurna Alpine Ethernet NIC
