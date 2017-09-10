@@ -52,6 +52,19 @@ efizfs_get_zfsinfo_list(void)
 	return (&zfsinfo);
 }
 
+EFI_HANDLE
+efizfs_get_handle_by_guid(uint64_t guid)
+{
+	zfsinfo_t *zi;
+
+	STAILQ_FOREACH(zi, &zfsinfo, zi_link) {
+		if (zi->zi_pool_guid == guid) {
+			return (zi->zi_handle);
+		}
+	}
+	return (NULL);
+}
+
 static void
 insert_zfs(EFI_HANDLE handle, uint64_t guid)
 {
