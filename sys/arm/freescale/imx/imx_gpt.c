@@ -35,13 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/malloc.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
-#include <sys/watchdog.h>
 #include <machine/bus.h>
-#include <machine/cpu.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -49,11 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/freescale/imx/imx_gptvar.h>
-#include <arm/freescale/imx/imx_gptreg.h>
-
-#include <sys/kdb.h>
 #include <arm/freescale/imx/imx_ccmvar.h>
+#include <arm/freescale/imx/imx_gptreg.h>
 
 #define	WRITE4(_sc, _r, _v)						\
 	    bus_space_write_4((_sc)->sc_iot, (_sc)->sc_ioh, (_r), (_v))
@@ -81,8 +75,20 @@ static struct timecounter imx_gpt_timecounter = {
 	.tc_quality        = 1000,
 };
 
+struct imx_gpt_softc {
+	device_t 		sc_dev;
+	struct resource *	res[2];
+	bus_space_tag_t 	sc_iot;
+	bus_space_handle_t	sc_ioh;
+	void *			sc_ih;			/* interrupt handler */
+	uint32_t 		sc_period;
+	uint32_t 		sc_clksrc;
+	uint32_t 		clkfreq;
+	struct eventtimer 	et;
+};
+
 /* Global softc pointer for use in DELAY(). */
-struct imx_gpt_softc *imx_gpt_sc = NULL;
+static struct imx_gpt_softc *imx_gpt_sc;
 
 /*
  * Hand-calibrated delay-loop counter.  This was calibrated on an i.MX6 running
@@ -107,7 +113,7 @@ static struct resource_spec imx_gpt_spec[] = {
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"fsl,imx6dl-gpt",  1},
+	{"fsl,imx6dl-gpt", 1},
 	{"fsl,imx6q-gpt",  1},
 	{"fsl,imx53-gpt",  1},
 	{"fsl,imx51-gpt",  1},
@@ -310,13 +316,6 @@ imx_gpt_timer_stop(struct eventtimer *et)
 	sc->sc_period = 0;
 
 	return (0);
-}
-
-int
-imx_gpt_get_timerfreq(struct imx_gpt_softc *sc)
-{
-
-	return (sc->clkfreq);
 }
 
 static int
