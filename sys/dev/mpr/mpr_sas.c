@@ -3829,12 +3829,6 @@ mprsas_portenable_complete(struct mpr_softc *sc, struct mpr_command *cm)
 		mpr_dprint(sc, MPR_FAULT, "Portenable failed\n");
 
 	mpr_free_command(sc, cm);
-	if (sc->mpr_ich.ich_arg != NULL) {
-		mpr_dprint(sc, MPR_XINFO, "disestablish config intrhook\n");
-		config_intrhook_disestablish(&sc->mpr_ich);
-		sc->mpr_ich.ich_arg = NULL;
-	}
-
 	/*
 	 * Done waiting for port enable to complete.  Decrement the refcount.
 	 * If refcount is 0, discovery is complete and a rescan of the bus can
