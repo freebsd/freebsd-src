@@ -87,6 +87,7 @@ static void mps_iocfacts_free(struct mps_softc *sc);
 static void mps_startup(void *arg);
 static int mps_send_iocinit(struct mps_softc *sc);
 static int mps_alloc_queues(struct mps_softc *sc);
+static int mps_alloc_hw_queues(struct mps_softc *sc);
 static int mps_alloc_replies(struct mps_softc *sc);
 static int mps_alloc_requests(struct mps_softc *sc);
 static int mps_attach_log(struct mps_softc *sc);
@@ -552,21 +553,24 @@ mps_iocfacts_allocate(struct mps_softc *sc, uint8_t attaching)
 	 * IOC Facts are different from the previous IOC Facts after a Diag
 	 * Reset. Targets have already been allocated above if needed.
 	 */
-	if (attaching || reallocating) {
-		if (((error = mps_alloc_queues(sc)) != 0) ||
-		    ((error = mps_alloc_replies(sc)) != 0) ||
-		    ((error = mps_alloc_requests(sc)) != 0)) {
-			if (attaching ) {
-				mps_dprint(sc, MPS_INIT|MPS_FAULT,
-				    "Failed to alloc queues with error %d\n",
-				    error);
-				mps_free(sc);
-				return (error);
-			} else {
-				panic("%s failed to alloc queues with error "
-				    "%d\n", __func__, error);
-			}
-		}
+	error = 0;
+	while (attaching || reallocating) {
+		if ((error = mps_alloc_hw_queues(sc)) != 0)
+			break;
+		if ((error = mps_alloc_replies(sc)) != 0)
+			break;
+		if ((error = mps_alloc_requests(sc)) != 0)
+			break;
+		if ((error = mps_alloc_queues(sc)) != 0)
+			break;
+
+		break;
+	}
+	if (error) {
+		mps_dprint(sc, MPS_INIT|MPS_FAULT,
+		    "Failed to alloc queues with error %d\n", error);
+		mps_free(sc);
+		return (error);
 	}
 
 	/* Always initialize the queues */
@@ -580,15 +584,10 @@ mps_iocfacts_allocate(struct mps_softc *sc, uint8_t attaching)
 	 */
 	error = mps_transition_operational(sc);
 	if (error != 0) {
-		if (attaching) {
-			mps_dprint(sc, MPS_INIT|MPS_FAULT, "Failed to "
-			    "transition to operational with error %d\n", error);
-			mps_free(sc);
-			return (error);
-		} else {
-			panic("%s failed to transition to operational with "
-			    "error %d\n", __func__, error);
-		}
+		mps_dprint(sc, MPS_INIT|MPS_FAULT, "Failed to "
+		    "transition to operational with error %d\n", error);
+		mps_free(sc);
+		return (error);
 	}
 
 	/*
@@ -607,25 +606,31 @@ mps_iocfacts_allocate(struct mps_softc *sc, uint8_t attaching)
 
 	/*
 	 * Attach the subsystems so they can prepare their event masks.
+	 * XXX Should be dynamic so that IM/IR and user modules can attach
 	 */
-	/* XXX Should be dynamic so that IM/IR and user modules can attach */
-	if (attaching) {
+	error = 0;
+	while (attaching) {
 		mps_dprint(sc, MPS_INIT, "Attaching subsystems\n");
-		if (((error = mps_attach_log(sc)) != 0) ||
-		    ((error = mps_attach_sas(sc)) != 0) ||
-		    ((error = mps_attach_user(sc)) != 0)) {
-			mps_dprint(sc, MPS_INIT|MPS_FAULT,"Failed to attach "
-			    "all subsystems: error %d\n", error);
-			mps_free(sc);
-			return (error);
-		}
+		if ((error = mps_attach_log(sc)) != 0)
+			break;
+		if ((error = mps_attach_sas(sc)) != 0)
+			break;
+		if ((error = mps_attach_user(sc)) != 0)
+			break;
+		break;
+	}
+	if (error) {
+		mps_dprint(sc, MPS_INIT|MPS_FAULT, "Failed to attach all "
+		    "subsystems: error %d\n", error);
+		mps_free(sc);
+		return (error);
+	}
 
-		if ((error = mps_pci_setup_interrupts(sc)) != 0) {
-			mps_dprint(sc, MPS_INIT|MPS_FAULT, "Failed to setup "
-			    "interrupts\n");
-			mps_free(sc);
-			return (error);
-		}
+	if ((error = mps_pci_setup_interrupts(sc)) != 0) {
+		mps_dprint(sc, MPS_INIT|MPS_FAULT, "Failed to setup "
+		    "interrupts\n");
+		mps_free(sc);
+		return (error);
 	}
 
 	/*
@@ -1113,10 +1118,8 @@ mps_memaddr_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 static int
 mps_alloc_queues(struct mps_softc *sc)
 {
-	bus_addr_t queues_busaddr;
 	struct mps_queue *q;
-	uint8_t *queues;
-	int qsize, fqsize, pqsize, nq, i;
+	int nq, i;
 
 	nq = MIN(sc->msi_msgs, mp_ncpus);
 	sc->msi_msgs = nq;
@@ -1132,6 +1135,16 @@ mps_alloc_queues(struct mps_softc *sc)
 		q->sc = sc;
 		q->qnum = i;
 	}
+
+	return (0);
+}
+
+static int
+mps_alloc_hw_queues(struct mps_softc *sc)
+{
+	bus_addr_t queues_busaddr;
+	uint8_t *queues;
+	int qsize, fqsize, pqsize;
 
 	/*
 	 * The reply free queue contains 4 byte entries in multiples of 16 and
