@@ -1673,6 +1673,11 @@ mps_startup(void *arg)
 	mps_mapping_initialize(sc);
 	mpssas_startup(sc);
 	mps_unlock(sc);
+
+	mps_dprint(sc, MPS_INIT, "disestablish config intrhook\n");
+	config_intrhook_disestablish(&sc->mps_ich);
+	sc->mps_ich.ich_arg = NULL;
+
 	mps_dprint(sc, MPS_INIT, "%s exit\n", __func__);
 }
 

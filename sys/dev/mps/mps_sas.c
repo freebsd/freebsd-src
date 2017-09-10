@@ -3557,11 +3557,6 @@ mpssas_portenable_complete(struct mps_softc *sc, struct mps_command *cm)
 		mps_dprint(sc, MPS_FAULT, "Portenable failed\n");
 
 	mps_free_command(sc, cm);
-	if (sc->mps_ich.ich_arg != NULL) {
-		mps_dprint(sc, MPS_XINFO, "disestablish config intrhook\n");
-		config_intrhook_disestablish(&sc->mps_ich);
-		sc->mps_ich.ich_arg = NULL;
-	}
 
 	/*
 	 * Get WarpDrive info after discovery is complete but before the scan
