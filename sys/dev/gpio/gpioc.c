@@ -125,6 +125,8 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 	struct gpioc_softc *sc = cdev->si_drv1;
 	struct gpio_pin pin;
 	struct gpio_req req;
+	struct gpio_access_32 *a32;
+	struct gpio_config_32 *c32;
 	uint32_t caps;
 
 	bus = GPIO_GET_BUS(sc->sc_pdev);
@@ -184,6 +186,16 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 			dprintf("set name on pin %d\n", pin.gp_pin);
 			res = GPIOBUS_PIN_SETNAME(bus, pin.gp_pin,
 			    pin.gp_name);
+			break;
+		case GPIOACCESS32:
+			a32 = (struct gpio_access_32 *)arg;
+			res = GPIO_PIN_ACCESS_32(sc->sc_pdev, a32->first_pin,
+			    a32->clear_pins, a32->orig_pins, &a32->orig_pins);
+			break;
+		case GPIOCONFIG32:
+			c32 = (struct gpio_config_32 *)arg;
+			res = GPIO_PIN_CONFIG_32(sc->sc_pdev, c32->first_pin,
+			    c32->num_pins, c32->pin_flags);
 			break;
 		default:
 			return (ENOTTY);

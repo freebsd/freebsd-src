@@ -668,6 +668,72 @@ imx51_gpio_pin_toggle(device_t dev, uint32_t pin)
 }
 
 static int
+imx51_gpio_pin_access_32(device_t dev, uint32_t first_pin, uint32_t clear_pins,
+    uint32_t change_pins, uint32_t *orig_pins)
+{
+	struct imx51_gpio_softc *sc;
+
+	if (first_pin != 0)
+		return (EINVAL);
+
+	sc = device_get_softc(dev);
+
+	if (orig_pins != NULL)
+		*orig_pins = READ4(sc, IMX_GPIO_PSR_REG);
+
+	if ((clear_pins | change_pins) != 0) {
+		mtx_lock_spin(&sc->sc_mtx);
+		WRITE4(sc, IMX_GPIO_DR_REG,
+		    (READ4(sc, IMX_GPIO_DR_REG) & ~clear_pins) ^ change_pins);
+		mtx_unlock_spin(&sc->sc_mtx);
+	}
+
+	return (0);
+}
+
+static int
+imx51_gpio_pin_config_32(device_t dev, uint32_t first_pin, uint32_t num_pins,
+    uint32_t *pin_flags)
+{
+	struct imx51_gpio_softc *sc;
+	u_int i;
+	uint32_t bit, drclr, drset, flags, oeclr, oeset, pads;
+
+	sc = device_get_softc(dev);
+
+	if (first_pin != 0 || num_pins > sc->gpio_npins)
+		return (EINVAL);
+
+	drclr = drset = oeclr = oeset = 0;
+	pads = READ4(sc, IMX_GPIO_PSR_REG);
+
+	for (i = 0; i < num_pins; ++i) {
+		bit = 1u << i;
+		flags = pin_flags[i];
+		if (flags & GPIO_PIN_INPUT) {
+			oeclr |= bit;
+		} else if (flags & GPIO_PIN_OUTPUT) {
+			oeset |= bit;
+			if (flags & GPIO_PIN_PRESET_LOW)
+				drclr |= bit;
+			else if (flags & GPIO_PIN_PRESET_HIGH)
+				drset |= bit;
+			else /* Drive whatever it's now pulled to. */
+				drset |= pads & bit;
+		}
+	}
+
+	mtx_lock_spin(&sc->sc_mtx);
+	WRITE4(sc, IMX_GPIO_DR_REG,
+	    (READ4(sc, IMX_GPIO_DR_REG) & ~drclr) | drset);
+	WRITE4(sc, IMX_GPIO_OE_REG,
+	    (READ4(sc, IMX_GPIO_OE_REG) & ~oeclr) | oeset);
+	mtx_unlock_spin(&sc->sc_mtx);
+
+	return (0);
+}
+
+static int
 imx51_gpio_probe(device_t dev)
 {
 
@@ -790,6 +856,8 @@ static device_method_t imx51_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_get,		imx51_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set,		imx51_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	imx51_gpio_pin_toggle),
+	DEVMETHOD(gpio_pin_access_32,	imx51_gpio_pin_access_32),
+	DEVMETHOD(gpio_pin_config_32,	imx51_gpio_pin_config_32),
 	{0, 0},
 };
 
