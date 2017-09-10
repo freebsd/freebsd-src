@@ -1816,6 +1816,11 @@ mpr_startup(void *arg)
 	mpr_mapping_initialize(sc);
 	mprsas_startup(sc);
 	mpr_unlock(sc);
+
+	mpr_dprint(sc, MPR_INIT, "disestablish config intrhook\n");
+	config_intrhook_disestablish(&sc->mpr_ich);
+	sc->mpr_ich.ich_arg = NULL;
+
 	mpr_dprint(sc, MPR_INIT, "%s exit\n", __func__);
 }
 
