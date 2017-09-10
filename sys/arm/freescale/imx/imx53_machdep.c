@@ -56,10 +56,6 @@ static int
 imx53_attach(platform_t plat)
 {
 
-	/* XXX - Get rid of this stuff soon. */
-	boothowto |= RB_VERBOSE|RB_MULTIPLE;
-	bootverbose = 1;
-
 	return (0);
 }
 
