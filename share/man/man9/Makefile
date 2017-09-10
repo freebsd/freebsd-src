@@ -1791,6 +1791,7 @@ MLINKS+=uidinfo.9 uifind.9 \
 	uidinfo.9 uihashinit.9 \
 	uidinfo.9 uihold.9
 MLINKS+=uio.9 uiomove.9 \
+	uio.9 uiomove_frombuf.9 \
 	uio.9 uiomove_nofault.9
 
 .if ${MK_USB} != "no"
