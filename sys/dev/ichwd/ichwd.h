@@ -309,6 +309,8 @@ struct ichwd_softc {
 #define	TCO2_CNT		0x08 /* TCO Control 2 */
 #define	TCO_MESSAGE1		0x0c /* TCO Message 1 */
 #define	TCO_MESSAGE2		0x0d /* TCO Message 2 */
+#define	TCO_WDSTATUS		0x0e /* TCO Watchdog status */
+#define	TCO_TMR			0x12 /* TCP Reload value */
 
 /* bit definitions for SMI_EN and SMI_STS */
 #define	SMI_TCO_EN		0x2000
@@ -317,22 +319,44 @@ struct ichwd_softc {
 
 /* timer value mask for TCO_RLD and TCO_TMR */
 #define	TCO_TIMER_MASK		0x1f
+#define	TCO_TIMER_MASK2		0x2f
 
 /* status bits for TCO1_STS */
-#define	TCO_NEWCENTURY		0x80 /* set for RTC year roll over (99 to 00) */
-#define	TCO_TIMEOUT		0x08 /* timed out */
-#define	TCO_INT_STS		0x04 /* data out (DO NOT USE) */
-#define	TCO_SMI_STS		0x02 /* data in (DO NOT USE) */
+#define	TCO_SLVSEL		0x2000	/* TCO Slave Select Soft Strap */
+#define	TCO_CPUSERR_STS		0x1000
+#define	TCO_CPUSMI_STS		0x0400
+#define	TCO_CPUSCI_STS		0x0200
+#define	TCO_BIOSWR_STS		0x0100
+#define	TCO_NEWCENTURY		0x0080	/* set for RTC year roll over
+					   (99 to 00) */
+#define	TCO_TIMEOUT		0x0008	/* timed out */
+#define	TCO_INT_STS		0x0004	/* data out (DO NOT USE) */
+#define	TCO_SMI_STS		0x0002	/* data in (DO NOT USE) */
+#define	TCO_NMI2SMI_STS		0x0001
 
 /* status bits for TCO2_STS */
-#define	TCO_BOOT_STS		0x04 /* failed to come out of reset */
-#define	TCO_SECOND_TO_STS	0x02 /* ran down twice */
+#define	TCO_SMLINK_SLAVE_SMI	0x0010
+#define	TCO_BOOT_STS		0x0004	/* failed to come out of reset */
+#define	TCO_SECOND_TO_STS	0x0002	/* ran down twice */
+#define	TCO_INTRD_DET		0x0001
 
 /* control bits for TCO1_CNT */
+#define	TCO_LOCK		0x1000		/* SMI_BASE.TCO_EN locked */
 #define	TCO_TMR_HALT		0x0800		/* clear to enable WDT */
 #define	TCO_NMI2SMI_EN		0x0200		/* convert NMIs to SMIs */
 #define	TCO_CNT_PRESERVE	TCO_NMI2SMI_EN	/* preserve these bits */
 #define	TCO_NMI_NOW		0x0100		/* trigger an NMI */
+
+/* control bits for TCO2_CNT */
+#define	TCO_OS_POLICY		0x0030		/* mask */
+#define	TC0_OS_POLICY_BOOT	0x0000
+#define	TCO_OS_POLICY_SHUTD	0x0010
+#define	TCO_OS_POLICY_NOLOAD	0x0020
+#define	TCO_SMB_ALERT_DISABLE	0x0008
+#define	TCO_INTRD_SEL		0x0003		/* mask */
+#define	TCO_INTRD_SEL_SILENT	0x0000
+#define	TCO_INTRD_SEL_INTR	0x0001
+#define	TCO_INTRD_SEL_SMI	0x0002
 
 /*
  * Masks for the TCO timer value field in TCO_RLD.
@@ -345,9 +369,15 @@ struct ichwd_softc {
 #define	TCO_RLD1_TMR_MAX	0x003f
 #define	TCO_RLD2_TMR_MAX	0x03ff
 
-/* approximate length in nanoseconds of one WDT tick (about 0.6 sec) for TCO v1/v2 */
+/*
+ * Approximate length in nanoseconds of one WDT tick (about 0.6 sec)
+ * for TCO v1/v2/v4
+ */
 #define	ICHWD_TICK		600000000
-/* approximate length in nanoseconds of one WDT tick (about 1.0 sec) for TCO v3 */
+/*
+ * Approximate length in nanoseconds of one WDT tick (about 1.0 sec)
+ * for TCO v3
+ */
 #define	ICHWD_TCO_V3_TICK	1000000000
 
 #endif
