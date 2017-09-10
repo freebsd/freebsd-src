@@ -349,7 +349,7 @@ struct ichwd_softc {
 
 /* control bits for TCO2_CNT */
 #define	TCO_OS_POLICY		0x0030		/* mask */
-#define	TC0_OS_POLICY_BOOT	0x0000
+#define	TCO_OS_POLICY_BOOT	0x0000
 #define	TCO_OS_POLICY_SHUTD	0x0010
 #define	TCO_OS_POLICY_NOLOAD	0x0020
 #define	TCO_SMB_ALERT_DISABLE	0x0008
