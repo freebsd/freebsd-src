@@ -61,6 +61,7 @@ typedef struct pdinfo
 } pdinfo_t;
 
 pdinfo_list_t *efiblk_get_pdinfo_list(struct devsw *dev);
+pdinfo_t *efiblk_get_pdinfo(struct devdesc *dev);
 
 void *efi_get_table(EFI_GUID *tbl);
 
