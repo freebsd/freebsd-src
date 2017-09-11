@@ -286,6 +286,7 @@ iwi_attach(device_t dev)
 	int i, error;
 
 	sc->sc_dev = dev;
+	sc->sc_ledevent = ticks;
 
 	IWI_LOCK_INIT(sc);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
