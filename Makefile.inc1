@@ -2554,9 +2554,6 @@ CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDDESTDIR}/usr/bin:${PATH} ${MAKE} ${N
 CD2MAKE+=	BUILD_TOOLS_META=.NOMETA
 .endif
 XDDESTDIR=${DESTDIR}/${XDTP}
-.if !defined(OSREL)
-OSREL!= uname -r | sed -e 's/[-(].*//'
-.endif
 
 .ORDER: xdev-build xdev-install xdev-links
 xdev: xdev-build xdev-install .PHONY
@@ -2650,7 +2647,7 @@ xdev-links: .PHONY
 			ln -sf ../../${XDTP}/usr/bin/$$i \
 			    ../../../../usr/bin/${XDDIR}-$$i; \
 			ln -sf ../../${XDTP}/usr/bin/$$i \
-			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
+			    ../../../../usr/bin/${XDDIR}${_REVISION}-$$i; \
 		done
 .else
 xdev xdev-build xdev-install xdev-links: .PHONY
