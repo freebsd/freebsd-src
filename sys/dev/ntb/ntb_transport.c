@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2016-2017 Alexander Motin <mav@FreeBSD.org>
  * Copyright (C) 2013 Intel Corporation
  * Copyright (C) 2015 EMC Corporation
  * All rights reserved.
@@ -188,6 +188,7 @@ struct ntb_transport_mw {
 
 struct ntb_transport_child {
 	device_t	dev;
+	int		consumer;
 	int		qpoff;
 	int		qpcnt;
 	struct ntb_transport_child *next;
@@ -343,9 +344,6 @@ ntb_transport_attach(device_t dev)
 	KASSERT(db_bitmap == (1 << db_count) - 1,
 	    ("Doorbells are not sequential (%jx).\n", db_bitmap));
 
-	device_printf(dev, "%d memory windows, %d scratchpads, "
-	    "%d doorbells\n", nt->mw_count, spad_count, db_count);
-
 	if (nt->mw_count == 0) {
 		device_printf(dev, "At least 1 memory window required.\n");
 		return (ENXIO);
@@ -409,6 +407,7 @@ ntb_transport_attach(device_t dev)
 		}
 
 		nc = malloc(sizeof(*nc), M_DEVBUF, M_WAITOK | M_ZERO);
+		nc->consumer = i;
 		nc->qpoff = qpu;
 		nc->qpcnt = qp;
 		nc->dev = device_add_child(dev, name, -1);
@@ -493,6 +492,35 @@ ntb_transport_detach(device_t dev)
 
 	free(nt->qp_vec, M_NTB_T);
 	free(nt->mw_vec, M_NTB_T);
+	return (0);
+}
+
+static int
+ntb_transport_print_child(device_t dev, device_t child)
+{
+	struct ntb_transport_child *nc = device_get_ivars(child);
+	int retval;
+
+	retval = bus_print_child_header(dev, child);
+	if (nc->qpcnt > 0) {
+		printf(" queue %d", nc->qpoff);
+		if (nc->qpcnt > 1)
+			printf("-%d", nc->qpoff + nc->qpcnt - 1);
+	}
+	retval += printf(" at consumer %d", nc->consumer);
+	retval += bus_print_child_domain(dev, child);
+	retval += bus_print_child_footer(dev, child);
+
+	return (retval);
+}
+
+static int
+ntb_transport_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+	struct ntb_transport_child *nc = device_get_ivars(child);
+
+	snprintf(buf, buflen, "consumer=%d", nc->consumer);
 	return (0);
 }
 
@@ -1552,6 +1580,9 @@ static device_method_t ntb_transport_methods[] = {
 	DEVMETHOD(device_probe,     ntb_transport_probe),
 	DEVMETHOD(device_attach,    ntb_transport_attach),
 	DEVMETHOD(device_detach,    ntb_transport_detach),
+	/* Bus interface */
+	DEVMETHOD(bus_child_location_str, ntb_transport_child_location_str),
+	DEVMETHOD(bus_print_child,  ntb_transport_print_child),
 	DEVMETHOD_END
 };
 

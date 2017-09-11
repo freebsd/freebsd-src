@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2016-2017 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,13 +43,15 @@ SYSCTL_NODE(_hw, OID_AUTO, ntb, CTLFLAG_RW, 0, "NTB sysctls");
 
 struct ntb_child {
 	device_t	dev;
+	int		function;
 	int		enabled;
 	int		mwoff;
 	int		mwcnt;
 	int		spadoff;
 	int		spadcnt;
 	int		dboff;
-	int		dbmask;
+	int		dbcnt;
+	uint64_t	dbmask;
 	void		*ctx;
 	const struct ntb_ctx_ops *ctx_ops;
 	struct rmlock	ctx_lock;
@@ -98,11 +100,13 @@ ntb_register_device(device_t dev)
 		}
 
 		nc = malloc(sizeof(*nc), M_DEVBUF, M_WAITOK | M_ZERO);
+		nc->function = i;
 		nc->mwoff = mwu;
 		nc->mwcnt = mw;
 		nc->spadoff = spadu;
 		nc->spadcnt = spad;
 		nc->dboff = dbu;
+		nc->dbcnt = db;
 		nc->dbmask = (db == 0) ? 0 : (0xffffffffffffffff >> (64 - db));
 		rm_init(&nc->ctx_lock, "ntb ctx");
 		nc->dev = device_add_child(dev, name, -1);
@@ -160,6 +164,45 @@ ntb_unregister_device(device_t dev)
 		free(nc, M_DEVBUF);
 	}
 	return (error);
+}
+
+int
+ntb_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+	struct ntb_child *nc = device_get_ivars(child);
+
+	snprintf(buf, buflen, "function=%d", nc->function);
+	return (0);
+}
+
+int
+ntb_print_child(device_t dev, device_t child)
+{
+	struct ntb_child *nc = device_get_ivars(child);
+	int retval;
+
+	retval = bus_print_child_header(dev, child);
+	if (nc->mwcnt > 0) {
+		printf(" mw %d", nc->mwoff);
+		if (nc->mwcnt > 1)
+			printf("-%d", nc->mwoff + nc->mwcnt - 1);
+	}
+	if (nc->spadcnt > 0) {
+		printf(" spad %d", nc->spadoff);
+		if (nc->spadcnt > 1)
+			printf("-%d", nc->spadoff + nc->spadcnt - 1);
+	}
+	if (nc->dbcnt > 0) {
+		printf(" db %d", nc->dboff);
+		if (nc->dbcnt > 1)
+			printf("-%d", nc->dboff + nc->dbcnt - 1);
+	}
+	retval += printf(" at function %d", nc->function);
+	retval += bus_print_child_domain(dev, child);
+	retval += bus_print_child_footer(dev, child);
+
+	return (retval);
 }
 
 void
