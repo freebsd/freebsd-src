@@ -645,7 +645,7 @@ imx51_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	*val = (READ4(sc, IMX_GPIO_DR_REG) >> pin) & 1;
+	*val = (READ4(sc, IMX_GPIO_PSR_REG) >> pin) & 1;
 
 	return (0);
 }
