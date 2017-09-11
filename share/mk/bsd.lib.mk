@@ -52,6 +52,7 @@ CFLAGS+= ${DEBUG_FLAGS}
 .if ${MK_CTF} != "no" && ${DEBUG_FLAGS:M-g} != ""
 CTFFLAGS+= -g
 .endif
+_WANTS_DEBUG=
 .else
 STRIP?=	-s
 .endif
@@ -72,10 +73,9 @@ TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
 CFLAGS+= ${DEBUG_FILES_CFLAGS}
 CXXFLAGS+= ${DEBUG_FILES_CFLAGS}
 CTFFLAGS+= -g
+_WANTS_DEBUG=
 .endif
-.if defined(SHLIB_NAME) && ${MK_COVERAGE} != "no" && \
-    (!empty(DEBUG_FLAGS:M-g*) || !empty(SHARED_CFLAGS:M-g*) || \
-     !empty(SHARED_CXXFLAGS:M-g*))
+.if ${MK_COVERAGE} != "no" && defined(_WANTS_DEBUG)
 _COV_FLAG= --coverage
 SHARED_CFLAGS+= ${_COV_FLAG}
 SHARED_CXXFLAGS+= ${_COV_FLAG}
@@ -251,7 +251,7 @@ CLEANFILES+=	${SPOBJS}
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
 
-.if !empty(_COV_FLAG)
+.if defined(_COV_FLAG)
 SOLINKOPTS+=	${_COV_FLAG}
 .endif
 SOLINKOPTS+=	-shared -Wl,-x
