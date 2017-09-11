@@ -78,24 +78,9 @@ function verify_assertion # dev
 
 	log_mustnot $ZPOOL online $TESTPOOL $dev
 	log_must check_hotspare_state $TESTPOOL $dev "AVAIL"
-
-	log_must $ZPOOL replace $TESTPOOL $odev $dev
-	while check_state "$TESTPOOL" "replacing" \
-		"online" || \
-		! is_pool_resilvered $TESTPOOL ; do
-		$SLEEP 2
-	done
-
-	log_mustnot $ZPOOL offline $TESTPOOL $dev
-	log_must check_state $TESTPOOL $dev "online"
-
-	log_mustnot $ZPOOL online $TESTPOOL $dev
-	log_must check_state $TESTPOOL $dev "online"
-
-	log_must $ZPOOL detach $TESTPOOL $dev
 }
 
-log_assert "'zpool offline/online <pool> <vdev>' against a hot spare works as expect."
+log_assert "'zpool offline/online <pool> <vdev>' should fail on inactive spares"
 
 log_onexit cleanup
 

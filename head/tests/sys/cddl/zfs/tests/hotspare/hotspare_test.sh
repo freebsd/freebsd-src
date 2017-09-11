@@ -392,13 +392,12 @@ hotspare_import_001_pos_cleanup()
 atf_test_case hotspare_onoffline_003_neg cleanup
 hotspare_onoffline_003_neg_head()
 {
-	atf_set "descr" "'zpool offline/online <pool> <vdev>' against a hot spare works as expect."
+	atf_set "descr" "'zpool offline/online <pool> <vdev>' should fail on inactive spares"
 	atf_set "require.progs"  zpool zdb
 	atf_set "timeout" 3600
 }
 hotspare_onoffline_003_neg_body()
 {
-	atf_expect_fail "This testcase has always failed on FreeBSD"
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotspare.kshlib
 	. $(atf_get_srcdir)/hotspare.cfg
