@@ -41,7 +41,7 @@ static void os_pages_unmap(void *addr, size_t size);
 
 static void *
 os_pages_map(void *addr, size_t size, size_t alignment, bool *commit) {
-	assert(ALIGNMENT_ADDR2BASE(addr, os_page) == addr);
+	assert(ALIGNMENT_ADDR2BASE(addr, os_page) == (vaddr_t)addr);
 	assert(ALIGNMENT_CEILING(size, os_page) == size);
 	assert(size != 0);
 #ifdef __CHERI_PURE_CAPABILITY__
@@ -120,7 +120,7 @@ os_pages_trim(void *addr, size_t alloc_size, size_t leadsize, size_t size,
 
 static void
 os_pages_unmap(void *addr, size_t size) {
-	assert(ALIGNMENT_ADDR2BASE(addr, os_page) == addr);
+	assert(ALIGNMENT_ADDR2BASE(addr, os_page) == (vaddr_t)addr);
 	assert(ALIGNMENT_CEILING(size, os_page) == size);
 
 #ifdef _WIN32
@@ -172,7 +172,7 @@ pages_map_slow(size_t size, size_t alignment, bool *commit) {
 void *
 pages_map(void *addr, size_t size, size_t alignment, bool *commit) {
 	assert(alignment >= PAGE);
-	assert(ALIGNMENT_ADDR2BASE(addr, alignment) == addr);
+	assert(ALIGNMENT_ADDR2BASE(addr, alignment) == (vaddr_t)addr);
 
 	/*
 	 * Ideally, there would be a way to specify alignment to mmap() (like

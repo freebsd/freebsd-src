@@ -198,7 +198,7 @@ extent_addr_randomize(tsdn_t *tsdn, extent_t *extent, size_t alignment) {
 		extent->e_addr = (void *)((uintptr_t)extent->e_addr +
 		    random_offset);
 		assert(ALIGNMENT_ADDR2BASE(extent->e_addr, alignment) ==
-		    extent->e_addr);
+		    (vaddr_t)extent->e_addr);
 	}
 }
 

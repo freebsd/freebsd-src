@@ -150,9 +150,8 @@ typedef int malloc_cpuid_t;
 	(((s) + CACHELINE_MASK) & ~CACHELINE_MASK)
 
 /* Return the nearest aligned address at or below a. */
-/* XXX-BD: only used in asserts, should not require unbounding */
 #define ALIGNMENT_ADDR2BASE(a, alignment)				\
-	((void *)((uintptr_t)(UNBOUND_PTR(a)) & (uintptr_t)((~(alignment)) + 1)))
+	((vaddr_t)(a) & (vaddr_t)((~(alignment)) + 1))
 
 /* Return the offset between a and the nearest aligned address at or below a. */
 #define ALIGNMENT_ADDR2OFFSET(a, alignment)				\
