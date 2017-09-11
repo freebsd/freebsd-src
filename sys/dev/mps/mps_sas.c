@@ -871,6 +871,9 @@ mps_detach_sas(struct mps_softc *sc)
 	/* Make sure CAM doesn't wedge if we had to bail out early. */
 	mps_lock(sc);
 
+	while (sassc->startup_refcount != 0)
+		mpssas_startup_decrement(sassc);
+
 	/* Deregister our async handler */
 	if (sassc->path != NULL) {
 		xpt_register_async(0, mpssas_async, sc, sassc->path);
