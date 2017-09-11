@@ -15,9 +15,10 @@ arm/freescale/imx/imx6_machdep.c	standard
 arm/freescale/imx/imx6_mp.c		optional smp
 arm/freescale/imx/imx6_pl310.c		standard
 arm/freescale/imx/imx6_src.c		standard
+arm/freescale/imx/imx_epit.c		standard
 arm/freescale/imx/imx_iomux.c		standard
 arm/freescale/imx/imx_machdep.c		standard
-arm/freescale/imx/imx_gpt.c		standard
+arm/freescale/imx/imx_gpt.c		optional imx_gpt
 arm/freescale/imx/imx_gpio.c		optional gpio
 arm/freescale/imx/imx_i2c.c		optional fsliic
 arm/freescale/imx/imx6_sdma.c		optional sdma
