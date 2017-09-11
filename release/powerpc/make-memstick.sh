@@ -37,7 +37,7 @@ fi
 echo '/dev/da0s3 / ufs ro,noatime 1 1' > ${1}/etc/fstab
 echo 'root_rw_mount="NO"' > ${1}/etc/rc.conf.local
 rm -f ${tempfile}
-makefs -B big ${tempfile} ${1}
+makefs -B big -o version=2 ${tempfile} ${1}
 rm ${1}/etc/fstab
 rm ${1}/etc/rc.conf.local
 
