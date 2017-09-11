@@ -348,7 +348,7 @@ attach_et(struct arm_tmr_softc *sc)
 	sc->et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT | ET_FLAGS_PERCPU;
 	sc->et.et_quality = 1000;
 	sc->et.et_frequency = sc->clkfreq;
-	sc->et.et_min_period = 20 * SBT_1NS;
+	sc->et.et_min_period = nstosbt(20);
 	sc->et.et_max_period =  2 * SBT_1S;
 	sc->et.et_start = arm_tmr_start;
 	sc->et.et_stop = arm_tmr_stop;
