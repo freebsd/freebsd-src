@@ -126,7 +126,6 @@ boot1.o: ${.CURDIR}/../../common/ufsread.c
 # created by generate-fat.sh
 
 .include "${.CURDIR}/Makefile.fat"
-BOOT1_MAXSIZE?=	131072
 
 boot1.efifat: boot1.efi
 	@set -- `ls -l ${.ALLSRC}`; \
