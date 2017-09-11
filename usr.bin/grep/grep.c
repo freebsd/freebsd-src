@@ -721,12 +721,19 @@ main(int argc, char *argv[])
 	case GREP_BASIC:
 		break;
 	case GREP_FIXED:
+		/*
+		 * regex(3) implementations that support fixed-string searches generally
+		 * define either REG_NOSPEC or REG_LITERAL. Set the appropriate flag
+		 * here. If neither are defined, GREP_FIXED later implies that the
+		 * internal literal matcher should be used. Other cflags that have
+		 * the same interpretation as REG_NOSPEC and REG_LITERAL should be
+		 * similarly added here, and grep.h should be amended to take this into
+		 * consideration when defining WITH_INTERNAL_NOSPEC.
+		 */
 #if defined(REG_NOSPEC)
 		cflags |= REG_NOSPEC;
 #elif defined(REG_LITERAL)
 		cflags |= REG_LITERAL;
-#else
-		errx(2, "literal expressions not supported at compile time");
 #endif
 		break;
 	case GREP_EXTENDED:
@@ -743,7 +750,11 @@ main(int argc, char *argv[])
 	r_pattern = grep_calloc(patterns, sizeof(*r_pattern));
 
 	/* Don't process any patterns if we have a blank one */
+#ifdef WITH_INTERNAL_NOSPEC
+	if (!matchall && grepbehave != GREP_FIXED) {
+#else
 	if (!matchall) {
+#endif
 		/* Check if cheating is allowed (always is for fgrep). */
 		for (i = 0; i < patterns; ++i) {
 #ifndef WITHOUT_FASTMATCH
