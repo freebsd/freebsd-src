@@ -25,6 +25,7 @@ arm/freescale/imx/imx_i2c.c		optional fsliic
 arm/freescale/imx/imx6_sdma.c		optional sdma
 arm/freescale/imx/imx6_audmux.c		optional sound
 arm/freescale/imx/imx6_ssi.c		optional sound
+arm/freescale/imx/imx6_ahci.c		optional ahci
 
 arm/arm/hdmi_if.m			optional hdmi
 arm/freescale/imx/imx6_hdmi.c		optional hdmi
