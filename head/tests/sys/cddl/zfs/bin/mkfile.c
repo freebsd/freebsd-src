@@ -204,7 +204,6 @@ main(int argc, char *argv[])
 	while (++argv, --argc) {
 		if (create_file(*argv, fsize) == -1) {
 			perror(*argv);
-			unlink(*argv);
 			return EXIT_FAILURE;
 		}
 	}
