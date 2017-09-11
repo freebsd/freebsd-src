@@ -99,8 +99,8 @@ fix_fdt_interrupt_data(void)
 	gicnode = OF_finddevice("/soc/interrupt-controller@00a01000");
 	if (gicnode == -1) {
 		gicnode = OF_finddevice("/interrupt-controller@00a01000");
-	if (gicnode == -1)
-		return;
+		if (gicnode == -1)
+			return;
 	}
 	gicxref = OF_xref_from_node(gicnode);
 
@@ -233,6 +233,7 @@ u_int imx_soc_type()
 #define	HWSOC_MX6DL	0x61
 #define	HWSOC_MX6SOLO	0x62
 #define	HWSOC_MX6Q	0x63
+#define	HWSOC_MX6UL	0x64
 
 	if (soctype != 0)
 		return (soctype);
@@ -270,6 +271,9 @@ u_int imx_soc_type()
 		break;
 	case HWSOC_MX6Q :
 		soctype = IMXSOC_6Q;
+		break;
+	case HWSOC_MX6UL:
+		soctype = IMXSOC_6UL;
 		break;
 	default:
 		printf("imx_soc_type: Don't understand hwsoc 0x%02x, "
@@ -317,3 +321,4 @@ static platform_method_t imx6_methods[] = {
 FDT_PLATFORM_DEF2(imx6, imx6s, "i.MX6 Solo", 0, "fsl,imx6s", 0);
 FDT_PLATFORM_DEF2(imx6, imx6d, "i.MX6 Dual", 0, "fsl,imx6dl", 0);
 FDT_PLATFORM_DEF2(imx6, imx6q, "i.MX6 Quad", 0, "fsl,imx6q", 0);
+FDT_PLATFORM_DEF2(imx6, imx6ul, "i.MX6 UltraLite", 0, "fsl,imx6ul", 0);
