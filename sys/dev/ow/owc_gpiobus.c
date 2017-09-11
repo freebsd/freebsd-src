@@ -295,10 +295,10 @@ owc_gpiobus_read_data(device_t dev, struct ow_timing *t, int *bit)
 	do {
 		now = sbinuptime();
 		GETPIN(sc, &sample);
-	} while ((now - then) / SBT_1US < t->t_rdv + 2 && sample == 0);
+	} while (sbttous(now - then) < t->t_rdv + 2 && sample == 0);
 	critical_exit();
 
-	if ((now - then) / SBT_1NS < t->t_rdv * 1000)
+	if (sbttons(now - then) < t->t_rdv * 1000)
 		*bit = 1;
 	else
 		*bit = 0;

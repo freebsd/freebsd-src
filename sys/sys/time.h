@@ -128,7 +128,7 @@ bintime_shift(struct bintime *_bt, int _exp)
 #define	SBT_1M	(SBT_1S * 60)
 #define	SBT_1MS	(SBT_1S / 1000)
 #define	SBT_1US	(SBT_1S / 1000000)
-#define	SBT_1NS	(SBT_1S / 1000000000)
+#define	SBT_1NS	(SBT_1S / 1000000000) /* beware rounding, see nstosbt() */
 #define	SBT_MAX	0x7fffffffffffffffLL
 
 static __inline int
@@ -153,6 +153,53 @@ sbttobt(sbintime_t _sbt)
 	_bt.sec = _sbt >> 32;
 	_bt.frac = _sbt << 32;
 	return (_bt);
+}
+
+/*
+ * Decimal<->sbt conversions.  Multiplying or dividing by SBT_1NS results in
+ * large roundoff errors which sbttons() and nstosbt() avoid.  Millisecond and
+ * microsecond functions are also provided for completeness.
+ */
+static __inline int64_t
+sbttons(sbintime_t _sbt)
+{
+
+	return ((1000000000 * _sbt) >> 32);
+}
+
+static __inline sbintime_t
+nstosbt(int64_t _ns)
+{
+
+	return ((_ns * (((uint64_t)1 << 63) / 500000000) >> 32));
+}
+
+static __inline int64_t
+sbttous(sbintime_t _sbt)
+{
+
+	return ((1000000 * _sbt) >> 32);
+}
+
+static __inline sbintime_t
+ustosbt(int64_t _us)
+{
+
+	return ((_us * (((uint64_t)1 << 63) / 500000) >> 32));
+}
+
+static __inline int64_t
+sbttoms(sbintime_t _sbt)
+{
+
+	return ((1000 * _sbt) >> 32);
+}
+
+static __inline sbintime_t
+mstosbt(int64_t _ms)
+{
+
+	return ((_ms * (((uint64_t)1 << 63) / 500) >> 32));
 }
 
 /*-
@@ -210,7 +257,7 @@ sbttots(sbintime_t _sbt)
 	struct timespec _ts;
 
 	_ts.tv_sec = _sbt >> 32;
-	_ts.tv_nsec = ((uint64_t)1000000000 * (uint32_t)_sbt) >> 32;
+	_ts.tv_nsec = sbttons((uint32_t)_sbt);
 	return (_ts);
 }
 
@@ -218,8 +265,7 @@ static __inline sbintime_t
 tstosbt(struct timespec _ts)
 {
 
-	return (((sbintime_t)_ts.tv_sec << 32) +
-	    (_ts.tv_nsec * (((uint64_t)1 << 63) / 500000000) >> 32));
+	return (((sbintime_t)_ts.tv_sec << 32) + nstosbt(_ts.tv_nsec));
 }
 
 static __inline struct timeval
@@ -228,7 +274,7 @@ sbttotv(sbintime_t _sbt)
 	struct timeval _tv;
 
 	_tv.tv_sec = _sbt >> 32;
-	_tv.tv_usec = ((uint64_t)1000000 * (uint32_t)_sbt) >> 32;
+	_tv.tv_usec = sbttous((uint32_t)_sbt);
 	return (_tv);
 }
 
@@ -236,8 +282,7 @@ static __inline sbintime_t
 tvtosbt(struct timeval _tv)
 {
 
-	return (((sbintime_t)_tv.tv_sec << 32) +
-	    (_tv.tv_usec * (((uint64_t)1 << 63) / 500000) >> 32));
+	return (((sbintime_t)_tv.tv_sec << 32) + ustosbt(_tv.tv_usec));
 }
 #endif /* __BSD_VISIBLE */
 
