@@ -1021,7 +1021,7 @@ main(int argc, char *argv[])
 		fwctl_init();
 
 #ifndef WITHOUT_CAPSICUM
-	
+	bhyve_caph_cache_catpages();
 
 	if (bhyve_caph_limit_stdoe() == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
