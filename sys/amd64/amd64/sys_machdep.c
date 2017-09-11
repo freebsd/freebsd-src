@@ -256,39 +256,45 @@ sysarch(td, uap)
 		error = amd64_set_ioperm(td, &iargs);
 		break;
 	case I386_GET_FSBASE:
+		update_pcb_bases(pcb);
 		i386base = pcb->pcb_fsbase;
 		error = copyout(&i386base, uap->parms, sizeof(i386base));
 		break;
 	case I386_SET_FSBASE:
 		error = copyin(uap->parms, &i386base, sizeof(i386base));
 		if (!error) {
+			set_pcb_flags(pcb, PCB_FULL_IRET);
 			pcb->pcb_fsbase = i386base;
 			td->td_frame->tf_fs = _ufssel;
 			update_gdt_fsbase(td, i386base);
 		}
 		break;
 	case I386_GET_GSBASE:
+		update_pcb_bases(pcb);
 		i386base = pcb->pcb_gsbase;
 		error = copyout(&i386base, uap->parms, sizeof(i386base));
 		break;
 	case I386_SET_GSBASE:
 		error = copyin(uap->parms, &i386base, sizeof(i386base));
 		if (!error) {
+			set_pcb_flags(pcb, PCB_FULL_IRET);
 			pcb->pcb_gsbase = i386base;
 			td->td_frame->tf_gs = _ugssel;
 			update_gdt_gsbase(td, i386base);
 		}
 		break;
 	case AMD64_GET_FSBASE:
-		error = copyout(&pcb->pcb_fsbase, uap->parms, sizeof(pcb->pcb_fsbase));
+		update_pcb_bases(pcb);
+		error = copyout(&pcb->pcb_fsbase, uap->parms,
+		    sizeof(pcb->pcb_fsbase));
 		break;
 		
 	case AMD64_SET_FSBASE:
 		error = copyin(uap->parms, &a64base, sizeof(a64base));
 		if (!error) {
 			if (a64base < VM_MAXUSER_ADDRESS) {
-				pcb->pcb_fsbase = a64base;
 				set_pcb_flags(pcb, PCB_FULL_IRET);
+				pcb->pcb_fsbase = a64base;
 				td->td_frame->tf_fs = _ufssel;
 			} else
 				error = EINVAL;
@@ -296,15 +302,17 @@ sysarch(td, uap)
 		break;
 
 	case AMD64_GET_GSBASE:
-		error = copyout(&pcb->pcb_gsbase, uap->parms, sizeof(pcb->pcb_gsbase));
+		update_pcb_bases(pcb);
+		error = copyout(&pcb->pcb_gsbase, uap->parms,
+		    sizeof(pcb->pcb_gsbase));
 		break;
 
 	case AMD64_SET_GSBASE:
 		error = copyin(uap->parms, &a64base, sizeof(a64base));
 		if (!error) {
 			if (a64base < VM_MAXUSER_ADDRESS) {
-				pcb->pcb_gsbase = a64base;
 				set_pcb_flags(pcb, PCB_FULL_IRET);
+				pcb->pcb_gsbase = a64base;
 				td->td_frame->tf_gs = _ugssel;
 			} else
 				error = EINVAL;
