@@ -101,11 +101,17 @@ static void *ih_err;
 #define	MV_USB_HOST_OVERFLOW   (1 << 2)
 #define	MV_USB_DEVICE_UNDERFLOW (1 << 3)
 
+enum mv_ehci_hwtype {
+	HWTYPE_NONE = 0,
+	HWTYPE_MV_EHCI_V1,
+	HWTYPE_MV_EHCI_V2,
+};
+
 static struct ofw_compat_data compat_data[] = {
-	{"mrvl,usb-ehci",		true},
-	{"marvell,orion-ehci",		true},
-	{"marvell,armada-3700-ehci",	true},
-	{NULL,				false}
+	{"mrvl,usb-ehci",		HWTYPE_MV_EHCI_V1},
+	{"marvell,orion-ehci",		HWTYPE_MV_EHCI_V2},
+	{"marvell,armada-3700-ehci",	HWTYPE_MV_EHCI_V2},
+	{NULL,				HWTYPE_NONE}
 };
 
 static void
@@ -139,6 +145,7 @@ static int
 mv_ehci_attach(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
+	enum mv_ehci_hwtype hwtype;
 	bus_space_handle_t bsh;
 	int err;
 	int rid;
@@ -148,6 +155,12 @@ mv_ehci_attach(device_t self)
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
 	sc->sc_bus.dma_bits = 32;
+
+	hwtype = ofw_bus_search_compatible(self, compat_data)->ocd_data;
+	if (hwtype == HWTYPE_NONE) {
+		device_printf(self, "Wrong HW type flag detected\n");
+		return (ENXIO);
+	}
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus,
@@ -177,8 +190,7 @@ mv_ehci_attach(device_t self)
 		    device_get_name(self));
 
 	rid = 0;
-	if (!(ofw_bus_is_compatible(self, "marvell,orion-ehci") ||
-	    ofw_bus_is_compatible(self, "marvell,armada-3700-ehci"))) {
+	if (hwtype == HWTYPE_MV_EHCI_V1) {
 		irq_err = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
 		    RF_SHAREABLE | RF_ACTIVE);
 		if (irq_err == NULL) {
@@ -211,8 +223,7 @@ mv_ehci_attach(device_t self)
 
 	sprintf(sc->sc_vendor, "Marvell");
 
-	if (!(ofw_bus_is_compatible(self, "marvell,orion-ehci") ||
-	    ofw_bus_is_compatible(self, "marvell,armada-3700-ehci"))) {
+	if (hwtype == HWTYPE_MV_EHCI_V1) {
 		err = bus_setup_intr(self, irq_err, INTR_TYPE_BIO,
 		    err_intr, NULL, sc, &ih_err);
 		if (err) {
