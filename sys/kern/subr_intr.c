@@ -1023,14 +1023,14 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 	if (flags & INTR_SOLO) {
 		error = iscr_setup_filter(isrc, name, (intr_irq_filter_t *)filt,
 		    arg, cookiep);
-		debugf("irq %u setup filter error %d on %s\n", irq, error,
+		debugf("irq %u setup filter error %d on %s\n", isrc->isrc_irq, error,
 		    name);
 	} else
 #endif
 		{
 		error = isrc_add_handler(isrc, name, filt, hand, arg, flags,
 		    cookiep);
-		debugf("irq %u add handler error %d on %s\n", irq, error, name);
+		debugf("irq %u add handler error %d on %s\n", isrc->isrc_irq, error, name);
 	}
 	if (error != 0)
 		return (error);
