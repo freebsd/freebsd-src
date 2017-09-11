@@ -83,12 +83,11 @@ __FBSDID("$FreeBSD$");
  * data, this means that the resources (memory-mapped register range) for the
  * non-core registers belongs to a device other than the echi devices.
  *
- * At the moment we have no need to access the non-core registers, so all of
- * this amounts to documenting what's known.  The following compat strings have
- * been seen in existing FDT data:
- *   - "fsl,imx25-usbmisc"
- *   - "fsl,imx51-usbmisc";
- *   - "fsl,imx6q-usbmisc";
+ * Because the main ehci device cannot access registers in a range that's
+ * defined in the fdt data as belonging to another device, we implement a teeny
+ * little "usbmisc" driver which exists only to provide access to the usbmisc
+ * control register for each of the 4 usb controller instances.  That little
+ * driver is implemented here in this file, before the main driver.
  *
  * In addition to the single usbmisc device, the existing FDT data defines a
  * separate device for each of the OTG or EHCI cores within the USBOH3.  Each of
@@ -133,16 +132,127 @@ __FBSDID("$FreeBSD$");
  *
  */
 
-static struct ofw_compat_data compat_data[] = {
-	{"fsl,imx6q-usb",	1},
-	{"fsl,imx53-usb",	1},
-	{"fsl,imx51-usb",	1},
-	{"fsl,imx28-usb",	1},
-	{"fsl,imx27-usb",	1},
-	{"fsl,imx25-usb",	1},
-	{"fsl,imx23-usb",	1},
-	{NULL,		 	0},
+/*-----------------------------------------------------------------------------
+ * imx_usbmisc driver
+ *---------------------------------------------------------------------------*/
+
+#define	USBNC_OVER_CUR_POL	  (1u << 8)
+#define	USBNC_OVER_CUR_DIS	  (1u << 7)
+
+struct imx_usbmisc_softc {
+	device_t	dev;
+	struct resource	*mmio;
 };
+
+static struct ofw_compat_data usbmisc_compat_data[] = {
+	{"fsl,imx6q-usbmisc",	true},
+	{"fsl,imx51-usbmisc",	true},
+	{"fsl,imx25-usbmisc",	true},
+	{NULL, 			false},
+};
+
+static void
+imx_usbmisc_set_ctrl(device_t dev, u_int index, uint32_t bits)
+{
+	struct imx_usbmisc_softc *sc;
+	uint32_t reg;
+
+	sc = device_get_softc(dev);
+	reg = bus_read_4(sc->mmio, index * sizeof(uint32_t));
+	bus_write_4(sc->mmio, index * sizeof(uint32_t), reg | bits);
+}
+
+#ifdef notyet
+static void
+imx_usbmisc_clr_ctrl(device_t dev, u_int index, uint32_t bits)
+{
+	struct imx_usbmisc_softc *sc;
+	uint32_t reg;
+
+	sc = device_get_softc(dev);
+	reg = bus_read_4(sc->mmio, index * sizeof(uint32_t));
+	bus_write_4(sc->mmio, index * sizeof(uint32_t), reg & ~bits);
+}
+#endif
+
+static int
+imx_usbmisc_probe(device_t dev)
+{
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (ofw_bus_search_compatible(dev, usbmisc_compat_data)->ocd_data) {
+		device_set_desc(dev, "i.MX USB Misc Control");
+		return (BUS_PROBE_DEFAULT);
+	}
+	return (ENXIO);
+}
+
+static int
+imx_usbmisc_detach(device_t dev)
+{
+	struct imx_usbmisc_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->mmio != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->mmio);
+
+	return (0);
+}
+
+static int
+imx_usbmisc_attach(device_t dev)
+{
+	struct imx_usbmisc_softc *sc;
+	int err, rid;
+
+	sc = device_get_softc(dev);
+	err = 0;
+
+	/* Allocate bus_space resources. */
+	rid = 0;
+	sc->mmio = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
+	if (sc->mmio == NULL) {
+		device_printf(dev, "Cannot allocate memory resources\n");
+		return (ENXIO);
+	}
+
+	OF_device_register_xref(OF_xref_from_node(ofw_bus_get_node(dev)), dev);
+
+	return (0);
+}
+
+static device_method_t imx_usbmisc_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe, 	imx_usbmisc_probe),
+	DEVMETHOD(device_attach,	imx_usbmisc_attach),
+	DEVMETHOD(device_detach,	imx_usbmisc_detach),
+
+	DEVMETHOD_END
+};
+
+static driver_t imx_usbmisc_driver = {
+	"imx_usbmisc",
+	imx_usbmisc_methods,
+	sizeof(struct imx_usbmisc_softc)
+};
+
+static devclass_t imx_usbmisc_devclass;
+
+/*
+ * This driver needs to start before the ehci driver, but later than the usual
+ * "special" drivers like clocks and cpu.  Ehci starts at DEFAULT so
+ * DEFAULT-1000 seems good.
+ */
+EARLY_DRIVER_MODULE(imx_usbmisc, simplebus, imx_usbmisc_driver,
+    imx_usbmisc_devclass, 0, 0, BUS_PASS_DEFAULT - 1000);
+
+/*-----------------------------------------------------------------------------
+ * imx_ehci driver...
+ *---------------------------------------------------------------------------*/
 
 /*
  * Each EHCI device in the SoC has some SoC-specific per-device registers at an
@@ -153,8 +263,20 @@ static struct ofw_compat_data compat_data[] = {
 
 struct imx_ehci_softc {
 	ehci_softc_t	ehci_softc;
+	device_t	dev;
 	struct resource	*ehci_mem_res;	/* EHCI core regs. */
 	struct resource	*ehci_irq_res;	/* EHCI core IRQ. */ 
+};
+
+static struct ofw_compat_data compat_data[] = {
+	{"fsl,imx6q-usb",	1},
+	{"fsl,imx53-usb",	1},
+	{"fsl,imx51-usb",	1},
+	{"fsl,imx28-usb",	1},
+	{"fsl,imx27-usb",	1},
+	{"fsl,imx25-usb",	1},
+	{"fsl,imx23-usb",	1},
+	{NULL,		 	0},
 };
 
 static void
@@ -215,6 +337,36 @@ imx_ehci_detach(device_t dev)
 	return (0);
 }
 
+static void
+imx_ehci_disable_oc(struct imx_ehci_softc *sc)
+{
+	device_t usbmdev;
+	pcell_t usbmprops[2];
+	phandle_t node;
+	ssize_t size;
+	int index;
+
+	/* Get the reference to the usbmisc driver from the fdt data */
+	node = ofw_bus_get_node(sc->dev);
+	size = OF_getencprop(node, "fsl,usbmisc", usbmprops,
+	    sizeof(usbmprops));
+	if (size < sizeof(usbmprops)) {
+		device_printf(sc->dev, "failed to retrieve fsl,usbmisc "
+		   "property, cannot disable overcurrent protection");
+		return;
+	}
+	/* Retrieve the device_t via the xref handle. */
+	usbmdev = OF_device_from_xref(usbmprops[0]);
+	if (usbmdev == NULL) {
+		device_printf(sc->dev, "usbmisc device not found, "
+		    "cannot disable overcurrent protection");
+		return;
+	}
+	/* Call the device routine to set the overcurrent disable bit. */
+	index = usbmprops[1];
+	imx_usbmisc_set_ctrl(usbmdev, index, USBNC_OVER_CUR_DIS);
+}
+
 static int
 imx_ehci_attach(device_t dev)
 {
@@ -223,6 +375,7 @@ imx_ehci_attach(device_t dev)
 	int err, rid;
 
 	sc = device_get_softc(dev);
+	sc->dev = dev;
 	esc = &sc->ehci_softc;
 	err = 0;
 
@@ -282,6 +435,10 @@ imx_ehci_attach(device_t dev)
 
 	/* Turn on clocks. */
 	imx_ccm_usb_enable(dev);
+
+	/* Disable overcurrent detection, if configured to do so. */
+	if (OF_hasprop(ofw_bus_get_node(sc->dev), "disable-over-current"))
+		imx_ehci_disable_oc(sc);
 
 	/* Add USB bus device. */
 	esc->sc_bus.bdev = device_add_child(dev, "usbus", -1);
