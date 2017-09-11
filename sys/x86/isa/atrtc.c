@@ -159,7 +159,7 @@ atrtc_restore(void)
 	rtcin(RTC_INTR);
 }
 
-void
+static void
 atrtc_set(struct timespec *ts)
 {
 	struct clocktime ct;
