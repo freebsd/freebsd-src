@@ -1012,8 +1012,10 @@ ntb_transport_doorbell_callback(void *data, uint32_t vector)
 	vec_mask &= nt->qp_bitmap;
 	if ((vec_mask & (vec_mask - 1)) != 0)
 		vec_mask &= ntb_db_read(nt->dev);
-	if (vec_mask != 0)
+	if (vec_mask != 0) {
 		ntb_db_set_mask(nt->dev, vec_mask);
+		ntb_db_clear(nt->dev, vec_mask);
+	}
 	while (vec_mask != 0) {
 		qp_num = ffsll(vec_mask) - 1;
 
