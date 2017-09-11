@@ -98,6 +98,7 @@ main(int ac, char **av)
 	char *p;
 	int version;
 	int entries;
+	int count;
 	int index, index2;
 	int parm;
 	int in;
@@ -184,8 +185,12 @@ main(int ac, char **av)
 	 */
 	caph_cache_catpages();
 
-	if (kvm_nlist(kd, nl) != 0 ||
-	    kvm_read(kd, nl[0].n_value, &version, sizeof(version)) == -1)
+	count = kvm_nlist(kd, nl);
+	if (count == -1)
+		errx(1, "%s", kvm_geterr(kd));
+	if (count > 0)
+		errx(1, "failed to resolve ktr symbols");
+	if (kvm_read(kd, nl[0].n_value, &version, sizeof(version)) == -1)
 		errx(1, "%s", kvm_geterr(kd));
 	if (version != KTR_VERSION)
 		errx(1, "ktr version mismatch");
