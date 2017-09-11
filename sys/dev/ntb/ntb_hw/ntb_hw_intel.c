@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include "ntb_regs.h"
+#include "ntb_hw_intel.h"
 #include "../ntb.h"
 
 #define MAX_MSIX_INTERRUPTS MAX(XEON_DB_COUNT, ATOM_DB_COUNT)
@@ -3116,6 +3116,6 @@ static device_method_t ntb_intel_methods[] = {
 
 static DEFINE_CLASS_0(ntb_hw, ntb_intel_driver, ntb_intel_methods,
     sizeof(struct ntb_softc));
-DRIVER_MODULE(ntb_intel, pci, ntb_intel_driver, ntb_hw_devclass, NULL, NULL);
-MODULE_DEPEND(ntb_intel, ntb, 1, 1, 1);
-MODULE_VERSION(ntb_intel, 1);
+DRIVER_MODULE(ntb_hw_intel, pci, ntb_intel_driver, ntb_hw_devclass, NULL, NULL);
+MODULE_DEPEND(ntb_hw_intel, ntb, 1, 1, 1);
+MODULE_VERSION(ntb_hw_intel, 1);

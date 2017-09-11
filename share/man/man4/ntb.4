@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2016 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2017 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -26,64 +26,66 @@
 .\" $FreeBSD$
 .\"
 .Dd September 2, 2017
-.Dt IF_NTB 4
+.Dt NTB 4
 .Os
 .Sh NAME
-.Nm if_ntb
-.Nd Virtual Ethernet interface for Non-Transparent Bridges
+.Nm ntb
+.Nd Non-Transparent Bridge subsystem
 .Sh SYNOPSIS
-To compile this driver into your kernel,
+To compile it into your kernel,
 place the following lines in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device ntb"
-.Cd "device ntb_transport"
-.Cd "device if_ntb"
 .Ed
 .Pp
-Or, to load the driver as a module at boot, place the following line in
+Or, to load it as a module at boot, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-if_ntb_load="YES"
+ntb_load="YES"
 .Ed
 .Pp
 The following tunables are settable from the
 .Xr loader 8 :
 .Bl -ohang
-.It Va hw.if_ntb.num_queues
-Limits maximal number of queues per interface.
-Default is unlimited.
+.It Va hw.ntb.debug_level
+Driver debug level.
+The default value is 0, higher means more verbose.
+.It Va hint.ntb_hw. Ns Ar X Ns Va .config
+Configures a set of NTB functions, separated by commas,
+and their resource allocation.
+Each function can be configured as: "[<name>][:<mw>[:<spad>[:<db>]]]", where:
+.Va name
+is a name of the driver to attach (empty means any),
+.Va mw
+is a number of memory windows to allocate (empty means all available),
+.Va spad
+is a number of scratchpad registers to allocate (empty means all available),
+.Va db
+is a number of doorbells to allocate (empty means all available).
+The default configuration is empty string, which means single function
+with all available resources, allowing any driver to attach.
 .El
 .Sh DESCRIPTION
+Non-Transparent Bridges allow to connect two computer systems with PCIe
+link(s), providing each of them limited access to others memory space,
+scratchpad registers and interrupts.
 The
 .Nm
-driver attaches on top of the
-.Xr ntb_transport 4
-driver to utilize one or more of its packet queues to create virtual
-Ethernet network interface between the systems.
-Typical MTU for the interface is about 64KB to reduce overhead.
-Default MAC address for the interface is randomly generated.
-.Pp
-The
-.Nm
-driver does not implement any real hardware offload, but since PCIe link is
-protected by CRC32, in some situations it may be possible to save some CPU
-cycles by enabling fake checksum offload on both link sides via setting
-.Cm rxcsum
-and
-.Cm txcsum
-interface options.
+subsystem uses those resources provided in generic way by hardware drivers
+and splits them between several functions, according to specified
+configuration.
 .Sh SEE ALSO
-.Xr ntb_transport 4
+.Xr if_ntb 4 ,
+.Xr ntb_transport 4 ,
+.Xr ntb_hw_intel 4 ,
+.Xr ntb_hw_plx 4
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
-driver was developed by Intel and originally written by
+subsystem was developed by Intel and originally written by
 .An Carl Delsey Aq Mt carl@FreeBSD.org .
 Later improvements were done by
 .An Conrad E. Meyer Aq Mt cem@FreeBSD.org
 and
 .An Alexander Motin Aq Mt mav@FreeBSD.org .
-.Sh BUGS
-Linux supports only one queue per interface, so manual configuration
-may be required for compatibility.
