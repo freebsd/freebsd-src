@@ -872,16 +872,20 @@ command_chain(int argc, char *argv[])
 	}
 
 	if (efi_getdev((void **)&dev, name, (const char **)&path) == 0) {
+#ifdef EFI_ZFS_BOOT
 		struct zfs_devdesc *z_dev;
+#endif
 		struct disk_devdesc *d_dev;
 		pdinfo_t *hd, *pd;
 
 		switch (dev->d_type) {
+#ifdef EFI_ZFS_BOOT
 		case DEVT_ZFS:
 			z_dev = (struct zfs_devdesc *)dev;
 			loaded_image->DeviceHandle =
 			    efizfs_get_handle_by_guid(z_dev->pool_guid);
 			break;
+#endif
 		case DEVT_NET:
 			loaded_image->DeviceHandle =
 			    efi_find_handle(dev->d_dev, dev->d_unit);
