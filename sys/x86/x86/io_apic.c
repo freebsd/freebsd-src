@@ -997,7 +997,7 @@ ioapic_pci_attach(device_t dev)
 	}
 	/* Then by apic id */
 	STAILQ_FOREACH(io, &ioapic_list, io_next) {
-		if (io->io_id == apic_id)
+		if (io->io_apic_id == apic_id)
 			goto found;
 	}
 	mtx_unlock_spin(&icu_lock);
@@ -1017,13 +1017,13 @@ found:
 	io->pci_dev = dev;
 	io->pci_wnd = res;
 	if (bootverbose && (io->io_paddr != (vm_paddr_t)rman_get_start(res) ||
-	    io->io_id != apic_id)) {
+	    io->io_apic_id != apic_id)) {
 		device_printf(dev, "pci%d:%d:%d:%d pci BAR0@%jx id %d "
 		    "MADT id %d paddr@%jx\n",
 		    pci_get_domain(dev), pci_get_bus(dev),
 		    pci_get_slot(dev), pci_get_function(dev),
 		    (uintmax_t)rman_get_start(res), apic_id,
-		    io->io_id, (uintmax_t)io->io_paddr);
+		    io->io_apic_id, (uintmax_t)io->io_paddr);
 	}
 	mtx_unlock_spin(&icu_lock);
 	return (0);
@@ -1051,7 +1051,7 @@ ioapic_get_rid(u_int apic_id, uint16_t *ridp)
 
 	mtx_lock_spin(&icu_lock);
 	STAILQ_FOREACH(io, &ioapic_list, io_next) {
-		if (io->io_id == apic_id)
+		if (io->io_apic_id == apic_id)
 			break;
 	}
 	mtx_unlock_spin(&icu_lock);
