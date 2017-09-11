@@ -129,7 +129,6 @@ static struct ofw_compat_data compat_data[] = {
 #define	TX_DESC_SIZE	(sizeof(struct ffec_hwdesc) * TX_DESC_COUNT)
 
 #define	WATCHDOG_TIMEOUT_SECS	5
-#define	STATS_HARVEST_INTERVAL	3
 
 struct ffec_bufmap {
 	struct mbuf	*mbuf;
@@ -160,7 +159,6 @@ struct ffec_softc {
 	boolean_t		is_attached;
 	boolean_t		is_detaching;
 	int			tx_watchdog_count;
-	int			stats_harvest_count;
 
 	bus_dma_tag_t		rxdesc_tag;
 	bus_dmamap_t		rxdesc_map;
@@ -462,22 +460,41 @@ ffec_media_change(struct ifnet * ifp)
 
 static void ffec_clear_stats(struct ffec_softc *sc)
 {
+	uint32_t mibc;
 
-	WR4(sc, FEC_RMON_R_PACKETS, 0);
-	WR4(sc, FEC_RMON_R_MC_PKT, 0);
-	WR4(sc, FEC_RMON_R_CRC_ALIGN, 0);
-	WR4(sc, FEC_RMON_R_UNDERSIZE, 0);
-	WR4(sc, FEC_RMON_R_OVERSIZE, 0);
-	WR4(sc, FEC_RMON_R_FRAG, 0);
-	WR4(sc, FEC_RMON_R_JAB, 0);
-	WR4(sc, FEC_RMON_T_PACKETS, 0);
-	WR4(sc, FEC_RMON_T_MC_PKT, 0);
-	WR4(sc, FEC_RMON_T_CRC_ALIGN, 0);
-	WR4(sc, FEC_RMON_T_UNDERSIZE, 0);
-	WR4(sc, FEC_RMON_T_OVERSIZE , 0);
-	WR4(sc, FEC_RMON_T_FRAG, 0);
-	WR4(sc, FEC_RMON_T_JAB, 0);
-	WR4(sc, FEC_RMON_T_COL, 0);
+	mibc = RD4(sc, FEC_MIBC_REG);
+
+	/*
+	 * On newer hardware the statistic regs are cleared by toggling a bit in
+	 * the mib control register.  On older hardware the clear procedure is
+	 * to disable statistics collection, zero the regs, then re-enable.
+	 */
+	if (sc->fectype == FECTYPE_IMX6 || sc->fectype == FECTYPE_MVF) {
+		WR4(sc, FEC_MIBC_REG, mibc | FEC_MIBC_CLEAR);
+		WR4(sc, FEC_MIBC_REG, mibc & ~FEC_MIBC_CLEAR);
+	} else {
+		WR4(sc, FEC_MIBC_REG, mibc | FEC_MIBC_DIS);
+	
+		WR4(sc, FEC_IEEE_R_DROP, 0);
+		WR4(sc, FEC_IEEE_R_MACERR, 0);
+		WR4(sc, FEC_RMON_R_CRC_ALIGN, 0);
+		WR4(sc, FEC_RMON_R_FRAG, 0);
+		WR4(sc, FEC_RMON_R_JAB, 0);
+		WR4(sc, FEC_RMON_R_MC_PKT, 0);
+		WR4(sc, FEC_RMON_R_OVERSIZE, 0);
+		WR4(sc, FEC_RMON_R_PACKETS, 0);
+		WR4(sc, FEC_RMON_R_UNDERSIZE, 0);
+		WR4(sc, FEC_RMON_T_COL, 0);
+		WR4(sc, FEC_RMON_T_CRC_ALIGN, 0);
+		WR4(sc, FEC_RMON_T_FRAG, 0);
+		WR4(sc, FEC_RMON_T_JAB, 0);
+		WR4(sc, FEC_RMON_T_MC_PKT, 0);
+		WR4(sc, FEC_RMON_T_OVERSIZE , 0);
+		WR4(sc, FEC_RMON_T_PACKETS, 0);
+		WR4(sc, FEC_RMON_T_UNDERSIZE, 0);
+
+		WR4(sc, FEC_MIBC_REG, mibc);
+	}
 }
 
 static void
@@ -485,28 +502,21 @@ ffec_harvest_stats(struct ffec_softc *sc)
 {
 	struct ifnet *ifp;
 
-	/* We don't need to harvest too often. */
-	if (++sc->stats_harvest_count < STATS_HARVEST_INTERVAL)
-		return;
-
-	/*
-	 * Try to avoid harvesting unless the IDLE flag is on, but if it has
-	 * been too long just go ahead and do it anyway, the worst that'll
-	 * happen is we'll lose a packet count or two as we clear at the end.
-	 */
-	if (sc->stats_harvest_count < (2 * STATS_HARVEST_INTERVAL) &&
-	    ((RD4(sc, FEC_MIBC_REG) & FEC_MIBC_IDLE) == 0))
-		return;
-
-	sc->stats_harvest_count = 0;
 	ifp = sc->ifp;
 
+	/*
+	 * - FEC_IEEE_R_DROP is "dropped due to invalid start frame delimiter"
+	 *   so it's really just another type of input error.
+	 * - FEC_IEEE_R_MACERR is "no receive fifo space"; count as input drops.
+	 */
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, RD4(sc, FEC_RMON_R_PACKETS));
 	if_inc_counter(ifp, IFCOUNTER_IMCASTS, RD4(sc, FEC_RMON_R_MC_PKT));
 	if_inc_counter(ifp, IFCOUNTER_IERRORS,
 	    RD4(sc, FEC_RMON_R_CRC_ALIGN) + RD4(sc, FEC_RMON_R_UNDERSIZE) +
 	    RD4(sc, FEC_RMON_R_OVERSIZE) + RD4(sc, FEC_RMON_R_FRAG) +
-	    RD4(sc, FEC_RMON_R_JAB));
+	    RD4(sc, FEC_RMON_R_JAB) + RD4(sc, FEC_IEEE_R_DROP));
+
+	if_inc_counter(ifp, IFCOUNTER_IQDROPS, RD4(sc, FEC_IEEE_R_MACERR));
 
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, RD4(sc, FEC_RMON_T_PACKETS));
 	if_inc_counter(ifp, IFCOUNTER_OMCASTS, RD4(sc, FEC_RMON_T_MC_PKT));
@@ -1016,7 +1026,6 @@ ffec_stop_locked(struct ffec_softc *sc)
 	ifp = sc->ifp;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->tx_watchdog_count = 0;
-	sc->stats_harvest_count = 0;
 
 	/* 
 	 * Stop the hardware, mask all interrupts, and clear all current
@@ -1194,7 +1203,8 @@ ffec_init_locked(struct ffec_softc *sc)
 	WR4(sc, FEC_IEM_REG, FEC_IER_TXF | FEC_IER_RXF | FEC_IER_EBERR);
 
 	/*
-	 * MIBC - MIB control (hardware stats).
+	 * MIBC - MIB control (hardware stats); clear all statistics regs, then
+	 * enable collection of statistics.
 	 */
 	regval = RD4(sc, FEC_MIBC_REG);
 	WR4(sc, FEC_MIBC_REG, regval | FEC_MIBC_DIS);
