@@ -21,52 +21,32 @@
 #
 
 #
-# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Copyright 2017 Spectra Logic Corp.  All rights reserved.
 # Use is subject to license terms.
 #
-# ident	"@(#)inuse_005_pos.ksh	1.4	09/06/22 SMI"
-#
+# $FreeBSD$
 
 . $STF_SUITE/include/libtest.kshlib
-
-################################################################################
-#
-# __stc_assertion_start
-#
-# ID: inuse_005_pos
-#
-# DESCRIPTION:
-# newfs will not interfere with devices and spare devices that are in use 
-# by active pool.
-#
-# STRATEGY:
-# 1. Create a with the given disk
-# 2. Try to newfs against the disk, verify it fails as expect.
-#
-# TESTABILITY: explicit
-#
-# TEST_AUTOMATION_LEVEL: automated
-#
-# CODING_STATUS: COMPLETED (2005-12-30)
-#
-# __stc_assertion_end
-#
-################################################################################
-
-verify_runnable "global"
 set_disks
+
+FSSIZE=1024	#reduce filesystem size, just to speed up newfs
+MOUNTPOINT=$TMPDIR/inuse_010_neg_mp
 
 function cleanup
 {
-	poolexists $TESTPOOL1 && destroy_pool $TESTPOOL1
+	poolexists $TESTPOOL && destroy_pool $TESTPOOL
+	$UMOUNT $MOUNTPOINT
+	cleanup_devices $DISK0
+	$RMDIR $MOUNTPOINT
 }
-
-log_assert "Verify newfs over active pool fails."
 
 log_onexit cleanup
 
-create_pool $TESTPOOL1 $DISK0
-log_mustnot $NEWFS -s 1024 "$DISK0"
-destroy_pool $TESTPOOL1
+log_assert "ZFS shouldn't be able to use a disk with a mounted filesystem"
 
-log_pass "Newfs over active pool fails."
+log_must $NEWFS -s $FSSIZE $DISK0
+log_must $MKDIR $MOUNTPOINT
+log_must $MOUNT $DISK0 $MOUNTPOINT
+log_mustnot $ZPOOL create $TESTPOOL $DISK0
+
+log_pass "ZFS cannot use a disk with a mounted filesystem"
