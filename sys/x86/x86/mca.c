@@ -149,6 +149,18 @@ amd_thresholding_supported(void)
 }
 #endif
 
+static inline bool
+cmci_supported(uint64_t mcg_cap)
+{
+	/*
+	 * MCG_CAP_CMCI_P bit is reserved in AMD documentation.  Until
+	 * it is defined, do not use it to check for CMCI support.
+	 */
+	if (cpu_vendor_id != CPU_VENDOR_INTEL)
+		return (false);
+	return ((mcg_cap & MCG_CAP_CMCI_P) != 0);
+}
+
 static int
 sysctl_positive_int(SYSCTL_HANDLER_ARGS)
 {
@@ -322,7 +334,7 @@ mca_log(const struct mca_record *rec)
 		printf("UNCOR ");
 	else {
 		printf("COR ");
-		if (rec->mr_mcg_cap & MCG_CAP_CMCI_P)
+		if (cmci_supported(rec->mr_mcg_cap))
 			printf("(%lld) ", ((long long)rec->mr_status &
 			    MC_STATUS_COR_COUNT) >> 38);
 	}
@@ -873,7 +885,7 @@ mca_setup(uint64_t mcg_cap)
 	    "force_scan", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
 	    sysctl_mca_scan, "I", "Force an immediate scan for machine checks");
 #ifdef DEV_APIC
-	if (mcg_cap & MCG_CAP_CMCI_P)
+	if (cmci_supported(mcg_cap))
 		cmci_setup();
 	else if (amd_thresholding_supported())
 		amd_thresholding_setup();
@@ -1104,7 +1116,7 @@ _mca_init(int boot)
 				wrmsr(MSR_MC_CTL(i), ctl);
 
 #ifdef DEV_APIC
-			if (mcg_cap & MCG_CAP_CMCI_P) {
+			if (cmci_supported(mcg_cap)) {
 				if (boot)
 					cmci_monitor(i);
 				else
