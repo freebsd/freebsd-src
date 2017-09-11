@@ -416,7 +416,9 @@ main(int argc, char **argv)
 
 	/*
 	 * Initialise the heap as early as possible.  Once this is done,
-	 * alloc() is usable. The stack is buried inside us, so this is safe.
+	 * alloc() is usable.  We are using the stack u-boot set up near the top
+	 * of physical ram; hopefully there is sufficient space between the end
+	 * of our bss and the bottom of the u-boot stack to avoid overlap.
 	 */
 	uboot_heap_start = round_page((uintptr_t)end);
 	uboot_heap_end   = uboot_heap_start + 512 * 1024;
