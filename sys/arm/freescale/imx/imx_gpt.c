@@ -112,6 +112,7 @@ static struct resource_spec imx_gpt_spec[] = {
 static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx6dl-gpt", 1},
 	{"fsl,imx6q-gpt",  1},
+	{"fsl,imx6ul-gpt", 1},
 	{"fsl,imx53-gpt",  1},
 	{"fsl,imx51-gpt",  1},
 	{"fsl,imx31-gpt",  1},
@@ -125,6 +126,15 @@ imx_gpt_probe(device_t dev)
 {
 
 	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	/*
+	 *  We only support a single unit, because the only thing this driver
+	 *  does with the complex timer hardware is supply the system
+	 *  timecounter and eventtimer.  There is nothing useful we can do with
+	 *  the additional device instances that exist in some chips.
+	 */
+	if (device_get_unit(dev) > 0)
 		return (ENXIO);
 
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data != 0) {
