@@ -2166,6 +2166,7 @@ dev/mii/micphy.c		optional miibus fdt | micphy fdt
 dev/mii/mii.c			optional miibus | mii
 dev/mii/mii_bitbang.c		optional miibus | mii_bitbang
 dev/mii/mii_physubr.c		optional miibus | mii
+dev/mii/mii_fdt.c		optional miibus fdt | mii fdt
 dev/mii/miibus_if.m		optional miibus | mii
 dev/mii/mlphy.c			optional miibus | mlphy
 dev/mii/nsgphy.c		optional miibus | nsgphy

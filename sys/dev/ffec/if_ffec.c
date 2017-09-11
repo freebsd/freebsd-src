@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
+#include <dev/mii/mii_fdt.h>
 #include "miibus_if.h"
 
 /*
@@ -135,13 +136,6 @@ struct ffec_bufmap {
 	bus_dmamap_t	map;
 };
 
-enum {
-	PHY_CONN_UNKNOWN,
-	PHY_CONN_MII,
-	PHY_CONN_RMII,
-	PHY_CONN_RGMII
-};
-
 struct ffec_softc {
 	device_t		dev;
 	device_t		miibus;
@@ -153,7 +147,7 @@ struct ffec_softc {
 	struct resource		*mem_res;
 	void *			intr_cookie;
 	struct callout		ffec_callout;
-	uint8_t			phy_conn_type;
+	mii_contype_t		phy_conn_type;
 	uint8_t			fectype;
 	boolean_t		link_is_up;
 	boolean_t		is_attached;
@@ -262,10 +256,10 @@ ffec_miigasket_setup(struct ffec_softc *sc)
 
 	switch (sc->phy_conn_type)
 	{
-	case PHY_CONN_MII:
+	case MII_CONTYPE_MII:
 		ifmode = 0;
 		break;
-	case PHY_CONN_RMII:
+	case MII_CONTYPE_RMII:
 		ifmode = FEC_MIIGSK_CFGR_IF_MODE_RMII;
 		break;
 	default:
@@ -377,13 +371,16 @@ ffec_miibus_statchg(device_t dev)
 
 	rcr |= FEC_RCR_MII_MODE; /* Must always be on even for R[G]MII. */
 	switch (sc->phy_conn_type) {
-	case PHY_CONN_MII:
-		break;
-	case PHY_CONN_RMII:
+	case MII_CONTYPE_RMII:
 		rcr |= FEC_RCR_RMII_MODE;
 		break;
-	case PHY_CONN_RGMII:
+	case MII_CONTYPE_RGMII:
+	case MII_CONTYPE_RGMII_ID:
+	case MII_CONTYPE_RGMII_RXID:
+	case MII_CONTYPE_RGMII_TXID:
 		rcr |= FEC_RCR_RGMII_EN;
+		break;
+	default:
 		break;
 	}
 
@@ -1440,7 +1437,6 @@ ffec_attach(device_t dev)
 	phandle_t ofw_node;
 	int error, phynum, rid;
 	uint8_t eaddr[ETHER_ADDR_LEN];
-	char phy_conn_name[32];
 	uint32_t idx, mscr;
 
 	sc = device_get_softc(dev);
@@ -1463,16 +1459,8 @@ ffec_attach(device_t dev)
 		error = ENXIO;
 		goto out;
 	}
-	if (OF_searchprop(ofw_node, "phy-mode", 
-	    phy_conn_name, sizeof(phy_conn_name)) != -1) {
-		if (strcasecmp(phy_conn_name, "mii") == 0)
-			sc->phy_conn_type = PHY_CONN_MII;
-		else if (strcasecmp(phy_conn_name, "rmii") == 0)
-			sc->phy_conn_type = PHY_CONN_RMII;
-		else if (strcasecmp(phy_conn_name, "rgmii") == 0)
-			sc->phy_conn_type = PHY_CONN_RGMII;
-	}
-	if (sc->phy_conn_type == PHY_CONN_UNKNOWN) {
+	sc->phy_conn_type = mii_fdt_get_contype(ofw_node);
+	if (sc->phy_conn_type == MII_CONTYPE_UNKNOWN) {
 		device_printf(sc->dev, "No valid 'phy-mode' "
 		    "property found in FDT data for device.\n");
 		error = ENOATTR;
