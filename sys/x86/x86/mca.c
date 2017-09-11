@@ -649,17 +649,17 @@ amd_thresholding_update(enum scan_mode mode, int bank, int valid)
 	    ("%s: unexpected bank %d", __func__, bank));
 	cc = &amd_et_state[PCPU_GET(cpuid)];
 	misc = rdmsr(MSR_MC_MISC(bank));
-	count = (misc & MC_MISC_AMDNB_CNT_MASK) >> MC_MISC_AMDNB_CNT_SHIFT;
-	count = count - (MC_MISC_AMDNB_CNT_MAX - cc->cur_threshold);
+	count = (misc & MC_MISC_AMD_CNT_MASK) >> MC_MISC_AMD_CNT_SHIFT;
+	count = count - (MC_MISC_AMD_CNT_MAX - cc->cur_threshold);
 
 	new_threshold = update_threshold(mode, valid, cc->last_intr, count,
-	    cc->cur_threshold, MC_MISC_AMDNB_CNT_MAX);
+	    cc->cur_threshold, MC_MISC_AMD_CNT_MAX);
 
 	cc->cur_threshold = new_threshold;
-	misc &= ~MC_MISC_AMDNB_CNT_MASK;
-	misc |= (uint64_t)(MC_MISC_AMDNB_CNT_MAX - cc->cur_threshold)
-	    << MC_MISC_AMDNB_CNT_SHIFT;
-	misc &= ~MC_MISC_AMDNB_OVERFLOW;
+	misc &= ~MC_MISC_AMD_CNT_MASK;
+	misc |= (uint64_t)(MC_MISC_AMD_CNT_MAX - cc->cur_threshold)
+	    << MC_MISC_AMD_CNT_SHIFT;
+	misc &= ~MC_MISC_AMD_OVERFLOW;
 	wrmsr(MSR_MC_MISC(bank), misc);
 	if (mode == CMCI && valid)
 		cc->last_intr = time_uptime;
@@ -971,15 +971,15 @@ amd_thresholding_start(struct amd_et_state *cc)
 
 	KASSERT(amd_elvt >= 0, ("ELVT offset is not set"));
 	misc = rdmsr(MSR_MC_MISC(MC_AMDNB_BANK));
-	misc &= ~MC_MISC_AMDNB_INT_MASK;
-	misc |= MC_MISC_AMDNB_INT_LVT;
-	misc &= ~MC_MISC_AMDNB_LVT_MASK;
-	misc |= (uint64_t)amd_elvt << MC_MISC_AMDNB_LVT_SHIFT;
-	misc &= ~MC_MISC_AMDNB_CNT_MASK;
-	misc |= (uint64_t)(MC_MISC_AMDNB_CNT_MAX - cc->cur_threshold)
-	    << MC_MISC_AMDNB_CNT_SHIFT;
-	misc &= ~MC_MISC_AMDNB_OVERFLOW;
-	misc |= MC_MISC_AMDNB_CNTEN;
+	misc &= ~MC_MISC_AMD_INT_MASK;
+	misc |= MC_MISC_AMD_INT_LVT;
+	misc &= ~MC_MISC_AMD_LVT_MASK;
+	misc |= (uint64_t)amd_elvt << MC_MISC_AMD_LVT_SHIFT;
+	misc &= ~MC_MISC_AMD_CNT_MASK;
+	misc |= (uint64_t)(MC_MISC_AMD_CNT_MAX - cc->cur_threshold)
+	    << MC_MISC_AMD_CNT_SHIFT;
+	misc &= ~MC_MISC_AMD_OVERFLOW;
+	misc |= MC_MISC_AMD_CNTEN;
 
 	wrmsr(MSR_MC_MISC(MC_AMDNB_BANK), misc);
 }
@@ -992,15 +992,15 @@ amd_thresholding_init(void)
 
 	/* The counter must be valid and present. */
 	misc = rdmsr(MSR_MC_MISC(MC_AMDNB_BANK));
-	if ((misc & (MC_MISC_AMDNB_VAL | MC_MISC_AMDNB_CNTP)) !=
-	    (MC_MISC_AMDNB_VAL | MC_MISC_AMDNB_CNTP)) {
+	if ((misc & (MC_MISC_AMD_VAL | MC_MISC_AMD_CNTP)) !=
+	    (MC_MISC_AMD_VAL | MC_MISC_AMD_CNTP)) {
 		printf("%s: 0x%jx: !valid | !present\n", __func__,
 		    (uintmax_t)misc);
 		return;
 	}
 
 	/* The register should not be locked. */
-	if ((misc & MC_MISC_AMDNB_LOCK) != 0) {
+	if ((misc & MC_MISC_AMD_LOCK) != 0) {
 		printf("%s: 0x%jx: locked\n", __func__, (uintmax_t)misc);
 		return;
 	}
@@ -1009,7 +1009,7 @@ amd_thresholding_init(void)
 	 * If counter is enabled then either the firmware or another CPU
 	 * has already claimed it.
 	 */
-	if ((misc & MC_MISC_AMDNB_CNTEN) != 0) {
+	if ((misc & MC_MISC_AMD_CNTEN) != 0) {
 		printf("%s: 0x%jx: count already enabled\n", __func__,
 		    (uintmax_t)misc);
 		return;
