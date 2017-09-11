@@ -262,23 +262,38 @@ mpr_pci_alloc_interrupts(struct mpr_softc *sc)
 	error = 0;
 	msgs = 0;
 
-	if ((sc->disable_msix == 0) &&
-	    ((msgs = pci_msix_count(dev)) >= MPR_MSI_COUNT))
-		error = mpr_alloc_msix(sc, MPR_MSI_COUNT);
-	if ((error != 0) && (sc->disable_msi == 0) &&
-	    ((msgs = pci_msi_count(dev)) >= MPR_MSI_COUNT))
-		error = mpr_alloc_msi(sc, MPR_MSI_COUNT);
-	if (error != 0) {
+	if (sc->disable_msix == 0) {
+		msgs = pci_msix_count(dev);
+		mpr_dprint(sc, MPR_INIT, "Counted %d MSI-X messages\n", msgs);
+		msgs = min(msgs, sc->max_msix);
+		msgs = min(msgs, MPR_MSIX_MAX);
+		msgs = min(msgs, 1);	/* XXX */
+		if (msgs != 0) {
+			mpr_dprint(sc, MPR_INIT, "Attempting to allocate %d MSI-X "
+			    "messages\n", msgs);
+			error = mpr_alloc_msix(sc, msgs);
+		}
+	}
+	if (((error != 0) || (msgs == 0)) && (sc->disable_msi == 0)) {
+		msgs = pci_msi_count(dev);
+		mpr_dprint(sc, MPR_INIT, "Counted %d MSI messages\n", msgs);
+		msgs = min(msgs, MPR_MSI_MAX);
+		if (msgs != 0) {
+			mpr_dprint(sc, MPR_INIT, "Attempting to allocated %d MSI "
+			    "messages\n", MPR_MSI_MAX);
+			error = mpr_alloc_msi(sc, MPR_MSI_MAX);
+		}
+	}
+	if ((error != 0) || (msgs == 0)) {
 		/*
 		 * If neither MSI or MSI-X are available, assume legacy INTx.
 		 * This also implies that there will be only 1 queue.
 		 */
+		mpr_dprint(sc, MPR_INIT, "Falling back to legacy INTx\n");
 		sc->mpr_flags |= MPR_FLAGS_INTX;
 		msgs = 1;
-	} else {
+	} else
 		sc->mpr_flags |= MPR_FLAGS_MSI;
-		msgs = MPR_MSI_COUNT;	/* XXX */
-	}
 
 	sc->msi_msgs = msgs;
 	mpr_dprint(sc, MPR_INIT, "Allocated %d interrupts\n", msgs);
@@ -318,6 +333,7 @@ mpr_pci_setup_interrupts(struct mpr_softc *sc)
 		if (q->irq == NULL) {
 			mpr_dprint(sc, MPR_ERROR|MPR_INIT,
 			    "Cannot allocate interrupt RID %d\n", rid);
+			sc->msi_msgs = i;
 			break;
 		}
 		error = bus_setup_intr(dev, q->irq,
@@ -326,6 +342,7 @@ mpr_pci_setup_interrupts(struct mpr_softc *sc)
 		if (error) {
 			mpr_dprint(sc, MPR_ERROR|MPR_INIT,
 			    "Cannot setup interrupt RID %d\n", rid);
+			sc->msi_msgs = i;
 			break;
 		}
 	}

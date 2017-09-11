@@ -37,13 +37,15 @@
 
 #define MPS_DB_MAX_WAIT		2500
 
-#define MPS_REQ_FRAMES		1024
+#define MPS_REQ_FRAMES		2048
+#define MPS_PRI_REQ_FRAMES	128
 #define MPS_EVT_REPLY_FRAMES	32
 #define MPS_REPLY_FRAMES	MPS_REQ_FRAMES
 #define MPS_CHAIN_FRAMES	2048
 #define MPS_MAXIO_PAGES		(-1)
 #define MPS_SENSE_LEN		SSD_FULL_SIZE
-#define MPS_MSI_COUNT		1
+#define MPS_MSI_MAX		1
+#define MPS_MSIX_MAX		16
 #define MPS_SGE64_SIZE		12
 #define MPS_SGE32_SIZE		8
 #define MPS_SGC_SIZE		8
@@ -292,8 +294,6 @@ struct mps_softc {
 #define	MPS_FLAGS_WD_AVAILABLE	(1 << 6)
 #define	MPS_FLAGS_REALLOCATED	(1 << 7)
 	u_int				mps_debug;
-	u_int				disable_msix;
-	u_int				disable_msi;
 	u_int				msi_msgs;
 	int				tm_cmds_active;
 	int				io_cmds_active;
@@ -437,12 +437,21 @@ struct mps_softc {
 	uint64_t			DD_max_lba;
 	struct mps_column_map		DD_column_map[MPS_MAX_DISKS_IN_VOL];
 
-	char				exclude_ids[80];
-	struct timeval			lastfail;
-
 	/* StartStopUnit command handling at shutdown */
 	uint32_t			SSU_refcount;
 	uint8_t				SSU_started;
+
+	/* Configuration tunables */
+	u_int				disable_msix;
+	u_int				disable_msi;
+	u_int				max_msix;
+	u_int				max_reqframes;
+	u_int				max_prireqframes;
+	u_int				max_replyframes;
+	u_int				max_evtframes;
+	char				exclude_ids[80];
+
+	struct timeval			lastfail;
 };
 
 struct mps_config_params {
