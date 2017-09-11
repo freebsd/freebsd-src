@@ -57,6 +57,10 @@ extern const char		*errstr[];
 #define	GREP_BASIC	1
 #define	GREP_EXTENDED	2
 
+#if !defined(REG_NOSPEC) && !defined(REG_LITERAL)
+#define WITH_INTERNAL_NOSPEC
+#endif
+
 #define	BINFILE_BIN	0
 #define	BINFILE_SKIP	1
 #define	BINFILE_TEXT	2

@@ -70,7 +70,10 @@ struct parsec {
 	bool		binary;				/* Binary file? */
 };
 
-
+#ifdef WITH_INTERNAL_NOSPEC
+static int litexec(const struct pat *pat, const char *string,
+    size_t nmatch, regmatch_t pmatch[]);
+#endif
 static int procline(struct parsec *pc);
 static void printline(struct parsec *pc, int sep);
 static void printline_metadata(struct str *line, int sep);
@@ -350,6 +353,67 @@ procfile(const char *fn)
 	return (c);
 }
 
+#ifdef WITH_INTERNAL_NOSPEC
+/*
+ * Internal implementation of literal string search within a string, modeled
+ * after regexec(3), for use when the regex(3) implementation doesn't offer
+ * either REG_NOSPEC or REG_LITERAL. This does not apply in the default FreeBSD
+ * config, but in other scenarios such as building against libgnuregex or on
+ * some non-FreeBSD OSes.
+ */
+static int
+litexec(const struct pat *pat, const char *string, size_t nmatch,
+    regmatch_t pmatch[])
+{
+	char *(*strstr_fn)(const char *, const char *);
+	char *sub, *subject;
+	const char *search;
+	size_t idx, n, ofs, stringlen;
+
+	if (cflags & REG_ICASE)
+		strstr_fn = strcasestr;
+	else
+		strstr_fn = strstr;
+	idx = 0;
+	ofs = pmatch[0].rm_so;
+	stringlen = pmatch[0].rm_eo;
+	if (ofs >= stringlen)
+		return (REG_NOMATCH);
+	subject = strndup(string, stringlen);
+	if (subject == NULL)
+		return (REG_ESPACE);
+	for (n = 0; ofs < stringlen;) {
+		search = (subject + ofs);
+		if ((unsigned long)pat->len > strlen(search))
+			break;
+		sub = strstr_fn(search, pat->pat);
+		/*
+		 * Ignoring the empty string possibility due to context: grep optimizes
+		 * for empty patterns and will never reach this point.
+		 */
+		if (sub == NULL)
+			break;
+		++n;
+		/* Fill in pmatch if necessary */
+		if (nmatch > 0) {
+			pmatch[idx].rm_so = ofs + (sub - search);
+			pmatch[idx].rm_eo = pmatch[idx].rm_so + pat->len;
+			if (++idx == nmatch)
+				break;
+			ofs = pmatch[idx].rm_so + 1;
+		} else
+			/* We only needed to know if we match or not */
+			break;
+	}
+	free(subject);
+	if (n > 0 && nmatch > 0)
+		for (n = idx; n < nmatch; ++n)
+			pmatch[n].rm_so = pmatch[n].rm_eo = -1;
+
+	return (n > 0 ? 0 : REG_NOMATCH);
+}
+#endif /* WITH_INTERNAL_NOSPEC */
+
 #define iswword(x)	(iswalnum((x)) || (x) == L'_')
 
 /*
@@ -400,6 +464,11 @@ procline(struct parsec *pc)
 		for (i = 0; i < patterns; i++) {
 			pmatch.rm_so = st;
 			pmatch.rm_eo = pc->ln.len;
+#ifdef WITH_INTERNAL_NOSPEC
+			if (grepbehave == GREP_FIXED)
+				r = litexec(&pattern[i], pc->ln.dat, 1, &pmatch);
+			else
+#endif
 #ifndef WITHOUT_FASTMATCH
 			if (fg_pattern[i].pattern)
 				r = fastexec(&fg_pattern[i],
