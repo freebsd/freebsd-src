@@ -2185,6 +2185,7 @@ dev/mii/tlphy.c			optional miibus | tlphy
 dev/mii/truephy.c		optional miibus | truephy
 dev/mii/ukphy.c			optional miibus | mii
 dev/mii/ukphy_subr.c		optional miibus | mii
+dev/mii/vscphy.c		optional miibus | vscphy
 dev/mii/xmphy.c			optional miibus | xmphy
 dev/mk48txx/mk48txx.c		optional mk48txx
 dev/mlx/mlx.c			optional mlx
