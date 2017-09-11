@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 
 static int mpr_diag_reset(struct mpr_softc *sc, int sleep_flag);
 static int mpr_init_queues(struct mpr_softc *sc);
+static void mpr_resize_queues(struct mpr_softc *sc);
 static int mpr_message_unit_reset(struct mpr_softc *sc, int sleep_flag);
 static int mpr_transition_operational(struct mpr_softc *sc);
 static int mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching);
@@ -374,6 +375,46 @@ mpr_transition_operational(struct mpr_softc *sc)
 	return (error);
 }
 
+static void
+mpr_resize_queues(struct mpr_softc *sc)
+{
+	int reqcr, prireqcr;
+
+	/*
+	 * Size the queues. Since the reply queues always need one free
+	 * entry, we'll deduct one reply message here.  The LSI documents
+	 * suggest instead to add a count to the request queue, but I think
+	 * that it's better to deduct from reply queue.
+	 */
+	prireqcr = MAX(1, sc->max_prireqframes);
+	prireqcr = MIN(prireqcr, sc->facts->HighPriorityCredit);
+
+	reqcr = MAX(2, sc->max_reqframes);
+	reqcr = MIN(reqcr, sc->facts->RequestCredit);
+
+	sc->num_reqs = prireqcr + reqcr;
+	sc->num_replies = MIN(sc->max_replyframes + sc->max_evtframes,
+	    sc->facts->MaxReplyDescriptorPostQueueDepth) - 1;
+
+	/*
+	 * Figure out the number of MSIx-based queues.  If the firmware or
+	 * user has done something crazy and not allowed enough credit for
+	 * the queues to be useful then don't enable multi-queue.
+	 */
+	if (sc->facts->MaxMSIxVectors < 2)
+		sc->msi_msgs = 1;
+
+	if (sc->msi_msgs > 1) {
+		sc->msi_msgs = MIN(sc->msi_msgs, mp_ncpus);
+		sc->msi_msgs = MIN(sc->msi_msgs, sc->facts->MaxMSIxVectors);
+		if (sc->num_reqs / sc->msi_msgs < 2)
+			sc->msi_msgs = 1;
+	}
+
+	mpr_dprint(sc, MPR_INIT, "Sized queues to q=%d reqs=%d replies=%d\n",
+	    sc->msi_msgs, sc->num_reqs, sc->num_replies);
+}
+
 /*
  * This is called during attach and when re-initializing due to a Diag Reset.
  * IOC Facts is used to allocate many of the structures needed by the driver.
@@ -530,13 +571,7 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 		    MPI26_IOCFACTS_CAPABILITY_ATOMIC_REQ)
 			sc->atomic_desc_capable = TRUE;
 
-		/*
-		 * Size the queues. Since the reply queues always need one free
-		 * entry, we'll just deduct one reply message here.
-		 */
-		sc->num_reqs = MIN(MPR_REQ_FRAMES, sc->facts->RequestCredit);
-		sc->num_replies = MIN(MPR_REPLY_FRAMES + MPR_EVT_REPLY_FRAMES,
-		    sc->facts->MaxReplyDescriptorPostQueueDepth) - 1;
+		mpr_resize_queues(sc);
 
 		/*
 		 * Initialize all Tail Queues
@@ -1146,11 +1181,11 @@ mpr_alloc_queues(struct mpr_softc *sc)
 	struct mpr_queue *q;
 	int nq, i;
 
-	nq = MIN(sc->msi_msgs, mp_ncpus);
-	sc->msi_msgs = nq;
+	nq = sc->msi_msgs;
 	mpr_dprint(sc, MPR_INIT|MPR_XINFO, "Allocating %d I/O queues\n", nq);
 
-	sc->queues = malloc(sizeof(struct mpr_queue) * nq, M_MPR, M_NOWAIT|M_ZERO);
+	sc->queues = malloc(sizeof(struct mpr_queue) * nq, M_MPR,
+	     M_NOWAIT|M_ZERO);
 	if (sc->queues == NULL)
 		return (ENOMEM);
 
@@ -1562,11 +1597,16 @@ mpr_get_tunables(struct mpr_softc *sc)
 	sc->mpr_debug = MPR_INFO | MPR_FAULT;
 	sc->disable_msix = 0;
 	sc->disable_msi = 0;
+	sc->max_msix = MPR_MSIX_MAX;
 	sc->max_chains = MPR_CHAIN_FRAMES;
 	sc->max_io_pages = MPR_MAXIO_PAGES;
 	sc->enable_ssu = MPR_SSU_ENABLE_SSD_DISABLE_HDD;
 	sc->spinup_wait_time = DEFAULT_SPINUP_WAIT;
 	sc->use_phynum = 1;
+	sc->max_reqframes = MPR_REQ_FRAMES;
+	sc->max_prireqframes = MPR_PRI_REQ_FRAMES;
+	sc->max_replyframes = MPR_REPLY_FRAMES;
+	sc->max_evtframes = MPR_EVT_REPLY_FRAMES;
 
 	/*
 	 * Grab the global variables.
@@ -1574,11 +1614,16 @@ mpr_get_tunables(struct mpr_softc *sc)
 	TUNABLE_INT_FETCH("hw.mpr.debug_level", &sc->mpr_debug);
 	TUNABLE_INT_FETCH("hw.mpr.disable_msix", &sc->disable_msix);
 	TUNABLE_INT_FETCH("hw.mpr.disable_msi", &sc->disable_msi);
+	TUNABLE_INT_FETCH("hw.mpr.max_msix", &sc->max_msix);
 	TUNABLE_INT_FETCH("hw.mpr.max_chains", &sc->max_chains);
 	TUNABLE_INT_FETCH("hw.mpr.max_io_pages", &sc->max_io_pages);
 	TUNABLE_INT_FETCH("hw.mpr.enable_ssu", &sc->enable_ssu);
 	TUNABLE_INT_FETCH("hw.mpr.spinup_wait_time", &sc->spinup_wait_time);
 	TUNABLE_INT_FETCH("hw.mpr.use_phy_num", &sc->use_phynum);
+	TUNABLE_INT_FETCH("hw.mpr.max_reqframes", &sc->max_reqframes);
+	TUNABLE_INT_FETCH("hw.mpr.max_prireqframes", &sc->max_prireqframes);
+	TUNABLE_INT_FETCH("hw.mpr.max_replyframes", &sc->max_replyframes);
+	TUNABLE_INT_FETCH("hw.mpr.max_evtframes", &sc->max_evtframes);
 
 	/* Grab the unit-instance variables */
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.debug_level",
@@ -1592,6 +1637,10 @@ mpr_get_tunables(struct mpr_softc *sc)
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.disable_msi",
 	    device_get_unit(sc->mpr_dev));
 	TUNABLE_INT_FETCH(tmpstr, &sc->disable_msi);
+
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.max_msix",
+	    device_get_unit(sc->mpr_dev));
+	TUNABLE_INT_FETCH(tmpstr, &sc->max_msix);
 
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.max_chains",
 	    device_get_unit(sc->mpr_dev));
@@ -1617,6 +1666,22 @@ mpr_get_tunables(struct mpr_softc *sc)
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.use_phy_num",
 	    device_get_unit(sc->mpr_dev));
 	TUNABLE_INT_FETCH(tmpstr, &sc->use_phynum);
+
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.max_reqframes",
+	    device_get_unit(sc->mpr_dev));
+	TUNABLE_INT_FETCH(tmpstr, &sc->max_reqframes);
+
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.max_prireqframes",
+	    device_get_unit(sc->mpr_dev));
+	TUNABLE_INT_FETCH(tmpstr, &sc->max_prireqframes);
+
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.max_replyframes",
+	    device_get_unit(sc->mpr_dev));
+	TUNABLE_INT_FETCH(tmpstr, &sc->max_replyframes);
+
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.max_evtframes",
+	    device_get_unit(sc->mpr_dev));
+	TUNABLE_INT_FETCH(tmpstr, &sc->max_evtframes);
 }
 
 static void
@@ -1658,8 +1723,28 @@ mpr_setup_sysctl(struct mpr_softc *sc)
 	    "Disable the use of MSI-X interrupts");
 
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
-	    OID_AUTO, "disable_msi", CTLFLAG_RD, &sc->disable_msi, 0,
-	    "Disable the use of MSI interrupts");
+	    OID_AUTO, "max_msix", CTLFLAG_RD, &sc->max_msix, 0,
+	    "User-defined maximum number of MSIX queues");
+
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "msix_msgs", CTLFLAG_RD, &sc->msi_msgs, 0,
+	    "Negotiated number of MSIX queues");
+
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "max_reqframes", CTLFLAG_RD, &sc->max_reqframes, 0,
+	    "Total number of allocated request frames");
+
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "max_prireqframes", CTLFLAG_RD, &sc->max_prireqframes, 0,
+	    "Total number of allocated high priority request frames");
+
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "max_replyframes", CTLFLAG_RD, &sc->max_replyframes, 0,
+	    "Total number of allocated reply frames");
+
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "max_evtframes", CTLFLAG_RD, &sc->max_evtframes, 0,
+	    "Total number of event frames allocated");
 
 	SYSCTL_ADD_STRING(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "firmware_version", CTLFLAG_RW, sc->fw_version,

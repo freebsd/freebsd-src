@@ -37,13 +37,15 @@
 
 #define MPR_DB_MAX_WAIT		2500
 
-#define MPR_REQ_FRAMES		1024
+#define MPR_REQ_FRAMES		2048
+#define MPR_PRI_REQ_FRAMES	128
 #define MPR_EVT_REPLY_FRAMES	32
 #define MPR_REPLY_FRAMES	MPR_REQ_FRAMES
 #define MPR_CHAIN_FRAMES	2048
 #define MPR_MAXIO_PAGES		(-1)
 #define MPR_SENSE_LEN		SSD_FULL_SIZE
-#define MPR_MSI_COUNT		1
+#define MPR_MSI_MAX		1
+#define MPR_MSIX_MAX		96
 #define MPR_SGE64_SIZE		12
 #define MPR_SGE32_SIZE		8
 #define MPR_SGC_SIZE		8
@@ -296,8 +298,6 @@ struct mpr_softc {
 #define	MPR_FLAGS_GEN35_IOC	(1 << 6)
 #define	MPR_FLAGS_REALLOCATED	(1 << 7)
 	u_int				mpr_debug;
-	u_int				disable_msix;
-	u_int				disable_msi;
 	int				msi_msgs;
 	u_int				atomic_desc_capable;
 	int				tm_cmds_active;
@@ -446,7 +446,16 @@ struct mpr_softc {
 	uint32_t			SSU_refcount;
 	uint8_t				SSU_started;
 
+	/* Configuration tunables */
+	u_int				disable_msix;
+	u_int				disable_msi;
+	u_int				max_msix;
+	u_int				max_reqframes;
+	u_int				max_prireqframes;
+	u_int				max_replyframes;
+	u_int				max_evtframes;
 	char				exclude_ids[80];
+
 	struct timeval			lastfail;
 };
 
