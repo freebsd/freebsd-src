@@ -122,6 +122,9 @@ struct efi_tblhdr {
 	uint32_t	__res;
 };
 
+#ifdef _KERNEL
+
+#ifdef EFIABI_ATTR
 struct efi_rt {
 	struct efi_tblhdr rt_hdr;
 	efi_status	(*rt_gettime)(struct efi_tm *, struct efi_tmcap *)
@@ -144,6 +147,7 @@ struct efi_rt {
 	efi_status	(*rt_reset)(enum efi_reset, efi_status, u_long,
 	    efi_char *) EFIABI_ATTR;
 };
+#endif
 
 struct efi_systbl {
 	struct efi_tblhdr st_hdr;
@@ -163,7 +167,6 @@ struct efi_systbl {
 	uint64_t	st_cfgtbl;
 };
 
-#ifdef _KERNEL
 extern vm_paddr_t efi_systbl_phys;
 #endif	/* _KERNEL */
 
