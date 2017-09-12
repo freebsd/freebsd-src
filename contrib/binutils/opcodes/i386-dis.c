@@ -1302,7 +1302,7 @@ static const unsigned char twobyte_uses_REPZ_prefix[256] = {
   /* 70 */ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1, /* 7f */
   /* 80 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 8f */
   /* 90 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 9f */
-  /* a0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* af */
+  /* a0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0, /* af */
   /* b0 */ 0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0, /* bf */
   /* c0 */ 0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0, /* cf */
   /* d0 */ 0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0, /* df */
@@ -1793,10 +1793,10 @@ static const struct dis386 grps[][8] = {
   },
   /* GRP15 */
   {
-    { "fxsave",		{ Ev } },
-    { "fxrstor",	{ Ev } },
-    { "ldmxcsr",	{ Ev } },
-    { "stmxcsr",	{ Ev } },
+    { "fxsave",		{ { OP_0fae, v_mode } } },
+    { "fxrstor",	{ { OP_0fae, v_mode } } },
+    { "ldmxcsr",	{ { OP_0fae, v_mode } } },
+    { "stmxcsr",	{ { OP_0fae, v_mode } } },
     { "xsave",		{ Ev } },
     { "xrstor",		{ { OP_0fae, v_mode } } },
     { "xsaveopt",	{ { OP_0fae, v_mode } } },
@@ -5997,19 +5997,34 @@ OP_0fae (int bytemode, int sizeflag)
 {
   if (modrm.mod == 3)
     {
-      if (modrm.reg == 7)
-	strcpy (obuf + strlen (obuf) - sizeof ("clflush") + 1, "sfence");
-      else if (modrm.reg == 6)
-	strcpy (obuf + strlen (obuf) - sizeof ("xsaveopt") + 1, "mfence");
-      else if (modrm.reg == 5)
-	strcpy (obuf + strlen (obuf) - sizeof ("xrstor") + 1, "lfence");
-
-      if (modrm.reg < 5 || modrm.rm != 0)
+      if (modrm.reg >= 5 && modrm.reg <= 7 && modrm.rm == 0)
 	{
-	  BadOp ();	/* bad sfence, mfence, or lfence */
+	  if (modrm.reg == 7)
+	    strcpy (obuf + strlen (obuf) - sizeof ("clflush") + 1, "sfence");
+	  else if (modrm.reg == 6)
+	    strcpy (obuf + strlen (obuf) - sizeof ("xsaveopt") + 1, "mfence");
+	  else if (modrm.reg == 5)
+	    strcpy (obuf + strlen (obuf) - sizeof ("xrstor") + 1, "lfence");
+	  bytemode = 0;
+	}
+      else if (modrm.reg <= 3 && (prefixes & PREFIX_REPZ) != 0)
+	{
+	  if (modrm.reg == 0)
+	    strcpy (obuf + strlen (obuf) - sizeof ("fxsave") + 1, "rdfsbase");
+	  else if (modrm.reg == 1)
+	    strcpy (obuf + strlen (obuf) - sizeof ("fxrstor") + 1, "rdgsbase");
+	  else if (modrm.reg == 2)
+	    strcpy (obuf + strlen (obuf) - sizeof ("ldmxcsr") + 1, "wrfsbase");
+	  else if (modrm.reg == 3)
+	    strcpy (obuf + strlen (obuf) - sizeof ("stmxcsr") + 1, "wrgsbase");
+	  used_prefixes |= PREFIX_REPZ;
+	  bytemode = dq_mode;
+	}
+      else
+	{
+	  BadOp ();
 	  return;
 	}
-      bytemode = 0;
     }
 
   OP_E (bytemode, sizeflag);
