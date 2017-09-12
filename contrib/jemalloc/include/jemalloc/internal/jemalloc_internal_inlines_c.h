@@ -5,6 +5,16 @@
 #include "jemalloc/internal/sz.h"
 #include "jemalloc/internal/witness.h"
 
+extern void *malloc_area;
+JEMALLOC_ALWAYS_INLINE void *
+unbound_ptr(tsdn_t *tsdn, void *ptr) {
+#ifndef __CHERI_PURE_CAPABILITY__
+	return (ptr);
+#else
+	return cheri_setoffset(malloc_area, (vaddr_t)ptr - (vaddr_t)malloc_area);
+#endif
+}
+
 JEMALLOC_ALWAYS_INLINE arena_t *
 iaalloc(tsdn_t *tsdn, const void *ptr) {
 	assert(ptr != NULL);
@@ -94,7 +104,8 @@ idalloctm(tsdn_t *tsdn, void *ptr, tcache_t *tcache, alloc_ctx_t *alloc_ctx,
 	if (!is_internal && tsd_reentrancy_level_get(tsdn_tsd(tsdn)) != 0) {
 		assert(tcache == NULL);
 	}
-	arena_dalloc(tsdn, ptr, tcache, alloc_ctx, slow_path);
+	arena_dalloc(tsdn, unbound_ptr(tsdn, ptr), tcache, alloc_ctx,
+	    slow_path);
 }
 
 JEMALLOC_ALWAYS_INLINE void

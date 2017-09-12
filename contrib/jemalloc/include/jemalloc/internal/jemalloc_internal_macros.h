@@ -37,12 +37,4 @@
 #  define JET_MUTABLE const
 #endif
 
-#ifndef __CHERI_PURE_CAPABILITY__
-#define	UNBOUND_PTR(a)  (a)
-#else
-extern void *malloc_area;
-#define	UNBOUND_PTR(a) \
-	cheri_setoffset(malloc_area, (vaddr_t)(a) - (vaddr_t)malloc_area)
-#endif
-
 #endif /* JEMALLOC_INTERNAL_MACROS_H */

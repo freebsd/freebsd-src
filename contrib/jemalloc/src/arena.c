@@ -1804,6 +1804,7 @@ arena_ralloc(tsdn_t *tsdn, arena_t *arena, void *ptr, size_t oldsize,
 	if (unlikely(usize == 0 || size > LARGE_MAXCLASS)) {
 		return NULL;
 	}
+	ptr = unbound_ptr(tsdn, ptr);
 
 	if (likely(usize <= SMALL_MAXCLASS)) {
 		/* Try to avoid moving the allocation. */
