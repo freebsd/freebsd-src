@@ -2216,62 +2216,6 @@ dev/le/if_le_pci.c		optional le pci
 dev/le/lance.c			optional le
 dev/led/led.c			standard
 dev/lge/if_lge.c		optional lge
-dev/liquidio/base/cn23xx_pf_device.c		optional lio	\
-	compile-with "${NORMAL_C}				\
-	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
-dev/liquidio/base/lio_console.c			optional lio	\
-	compile-with "${NORMAL_C}				\
-	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
-dev/liquidio/base/lio_ctrl.c			optional lio	\
-	compile-with "${NORMAL_C} 				\
-	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
-dev/liquidio/base/lio_device.c			optional lio	\
-	compile-with "${NORMAL_C} 				\
-	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
-dev/liquidio/base/lio_droq.c			optional lio	\
-	compile-with "${NORMAL_C} 				\
-	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
-dev/liquidio/base/lio_mem_ops.c			optional lio	\
-	compile-with "${NORMAL_C} 				\
-	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
-dev/liquidio/base/lio_request_manager.c		optional lio	\
-	compile-with "${NORMAL_C} 				\
-	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
-dev/liquidio/base/lio_response_manager.c	optional lio	\
-	compile-with "${NORMAL_C} 				\
-	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
-dev/liquidio/lio_core.c				optional lio	\
-	compile-with "${NORMAL_C} 				\
-	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
-dev/liquidio/lio_ioctl.c			optional lio	\
-	compile-with "${NORMAL_C} 				\
-	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
-dev/liquidio/lio_main.c				optional lio	\
-	compile-with "${NORMAL_C} 				\
-	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
-dev/liquidio/lio_rss.c				optional lio	\
-	compile-with "${NORMAL_C} 				\
-	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
-dev/liquidio/lio_rxtx.c				optional lio	\
-	compile-with "${NORMAL_C} 				\
-	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
-dev/liquidio/lio_sysctl.c			optional lio	\
-	compile-with "${NORMAL_C} 				\
-	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
-lio.c	optional lio						\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk lio_23xx_nic.bin.fw:lio_23xx_nic.bin -mlio_23xx_nic.bin -c${.TARGET}" \
-	no-implicit-rule before-depend local			\
-	clean		"lio.c"
-lio_23xx_nic.bin.fw.fwo optional lio				\
-	dependency	"lio_23xx_nic.bin.fw"			\
-	compile-with	"${NORMAL_FWO}"				\
-	no-implicit-rule					\
-	clean		"lio_23xx_nic.bin.fw.fwo"
-lio_23xx_nic.bin.fw	optional lio					\
-	dependency	"$S/contrib/dev/liquidio/lio_23xx_nic.bin.uu"	\
-	compile-with	"${NORMAL_FW}"					\
-	no-obj no-implicit-rule						\
-	clean		"lio_23xx_nic.bin.fw"
 dev/lmc/if_lmc.c		optional lmc
 dev/malo/if_malo.c		optional malo
 dev/malo/if_malohal.c		optional malo
