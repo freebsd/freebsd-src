@@ -226,6 +226,7 @@ SUBDIR=	\
 	${_linux_common} \
 	${_linux64} \
 	linuxkpi \
+	${_lio} \
 	lmc \
 	lpt \
 	mac_biba \
@@ -710,6 +711,7 @@ _ixl=		ixl
 _ixlv=		ixlv
 _linux64=	linux64
 _linux_common=	linux_common
+_lio=		lio
 _ntb=		ntb
 _pms=		pms
 _qlxge=		qlxge
