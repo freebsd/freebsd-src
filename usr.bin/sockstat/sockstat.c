@@ -75,6 +75,7 @@ static int	 opt_L;		/* Don't show IPv4 or IPv6 loopback sockets */
 static int	 opt_l;		/* Show listening sockets */
 static int	 opt_S;		/* Show protocol stack if applicable */
 static int	 opt_s;		/* Show protocol state if applicable */
+static int	 opt_U;		/* Show remote UDP encapsulation port number */
 static int	 opt_u;		/* Show Unix domain sockets */
 static int	 opt_v;		/* Verbose mode */
 
@@ -95,6 +96,7 @@ static int	*ports;
 
 struct addr {
 	struct sockaddr_storage address;
+	unsigned int encaps_port;
 	struct addr *next;
 };
 
@@ -531,6 +533,7 @@ gather_sctp(void)
 					    "address family %d not supported",
 					    xraddr->address.sa.sa_family);
 				}
+				faddr->encaps_port = xraddr->encaps_port; 
 				faddr->next = NULL;
 				if (prev_faddr == NULL)
 					sock->faddr = faddr;
@@ -979,7 +982,7 @@ static void
 displaysock(struct sock *s, int pos)
 {
 	void *p;
-	int hash, first;
+	int hash, first, offset;
 	struct addr *laddr, *faddr;
 	struct sock *s_tmp;
 
@@ -1045,34 +1048,46 @@ displaysock(struct sock *s, int pos)
 		default:
 			abort();
 		}
-		if (first) {
-			if (opt_s &&
-			    (s->proto == IPPROTO_SCTP ||
-			     s->proto == IPPROTO_TCP)) {
-				while (pos < 80)
+		offset = 80;
+		if (opt_U) {
+			if (faddr != NULL &&
+			    s->proto == IPPROTO_SCTP &&
+			    s->state != SCTP_CLOSED &&
+			    s->state != SCTP_BOUND &&
+			    s->state != SCTP_LISTEN) {
+				while (pos < offset)
 					pos += xprintf(" ");
-				switch (s->proto) {
-				case IPPROTO_SCTP:
-					pos += xprintf("%s",
-					    sctp_state(s->state));
-					break;
-				case IPPROTO_TCP:
-					if (s->state >= 0 &&
-					    s->state < TCP_NSTATES)
-						pos +=
-						    xprintf("%s",
-						        tcpstates[s->state]);
-					else
-						pos += xprintf("?");
-					break;
+				pos += xprintf("%u",
+				    ntohs(faddr->encaps_port));
+			}
+			offset += 7;
+		}
+		if (first) {
+			if (opt_s) {
+				if (s->proto == IPPROTO_SCTP ||
+				    s->proto == IPPROTO_TCP) {
+					while (pos < offset)
+						pos += xprintf(" ");
+					switch (s->proto) {
+					case IPPROTO_SCTP:
+						pos += xprintf("%s",
+						    sctp_state(s->state));
+						break;
+					case IPPROTO_TCP:
+						if (s->state >= 0 &&
+						    s->state < TCP_NSTATES)
+							pos += xprintf("%s",
+							    tcpstates[s->state]);
+						else
+							pos += xprintf("?");
+						break;
+					}
 				}
+				offset += 13;
 			}
 			if (opt_S && s->proto == IPPROTO_TCP) {
-				while (pos < 80)
+				while (pos < offset)
 					pos += xprintf(" ");
-				if (opt_s)
-					while (pos < 93)
-						pos += xprintf(" ");
 				xprintf("%.*s", TCP_FUNCTION_NAME_LEN_MAX,
 				    s->stack);
 			}
@@ -1101,6 +1116,8 @@ display(void)
 	printf("%-8s %-10s %-5s %-2s %-6s %-21s %-21s",
 	    "USER", "COMMAND", "PID", "FD", "PROTO",
 	    "LOCAL ADDRESS", "FOREIGN ADDRESS");
+	if (opt_U)
+		printf(" %-6s", "ENCAPS");
 	if (opt_s)
 		printf(" %-12s", "STATE");
 	if (opt_S)
@@ -1186,7 +1203,7 @@ main(int argc, char *argv[])
 	int o, i;
 
 	opt_j = -1;
-	while ((o = getopt(argc, argv, "46cj:Llp:P:Ssuv")) != -1)
+	while ((o = getopt(argc, argv, "46cj:Llp:P:SsUuv")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = 1;
@@ -1217,6 +1234,9 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			opt_s = 1;
+			break;
+		case 'U':
+			opt_U = 1;
 			break;
 		case 'u':
 			opt_u = 1;
