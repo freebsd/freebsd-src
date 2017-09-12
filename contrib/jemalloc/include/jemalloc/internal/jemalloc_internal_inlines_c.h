@@ -5,14 +5,27 @@
 #include "jemalloc/internal/sz.h"
 #include "jemalloc/internal/witness.h"
 
-extern void *malloc_area;
 JEMALLOC_ALWAYS_INLINE void *
 unbound_ptr(tsdn_t *tsdn, void *ptr) {
+	void *ubptr;
+
 #ifndef __CHERI_PURE_CAPABILITY__
-	return (ptr);
+	ubptr = ptr;
 #else
-	return cheri_setoffset(malloc_area, (vaddr_t)ptr - (vaddr_t)malloc_area);
+	rtree_ctx_t *rtree_ctx;
+	extent_t *extent;
+
+	rtree_ctx = tsd_rtree_ctx(tsdn_tsd(tsdn));
+	extent = rtree_extent_read(tsdn, &extents_rtree,
+	    rtree_ctx, (vaddr_t)ptr, true);
+	assert(extent != NULL);
+	ubptr = cheri_incoffset(extent->e_addr,
+	    (vaddr_t)ptr - (vaddr_t)extent->e_addr);
+	assert((vaddr_t)ptr == (vaddr_t)ubptr);
+	assert(cheri_getbase(ubptr) == cheri_getbase(extent->e_addr));
+	assert(cheri_getlen(ubptr) == cheri_getlen(extent->e_addr));
 #endif
+	return (ubptr);
 }
 
 JEMALLOC_ALWAYS_INLINE arena_t *
