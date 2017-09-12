@@ -51,6 +51,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170912:
+	For 32-bit arm compiled for hard-float support, soft-floating point
+	binaries now always get their shared libraries from
+	LD_SOFT_LIBRARY_PATH (in the past, this was only used if
+	/usr/libsoft also existed). Only users with a hard-float ld.so, but
+	soft-float everything else should be affected.
+
 20170826:
        During boot the geli passphrase will be hidden. To restore previous
        behavior see geli(8) configuration options.
