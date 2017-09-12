@@ -467,6 +467,7 @@ tftp_open(const char *path, struct open_file *f)
 
 	if (res) {
 		free(tftpfile->path);
+		free(tftpfile->pkt);
 		free(tftpfile);
 		return (res);
 	}
