@@ -52,6 +52,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 ****************************** SPECIAL WARNING: ******************************
 
 20170912:
+	The default serial number format for CTL LUNs has changed.  This will
+	affect users who use /dev/diskid/* device nodes, or whose FibreChannel
+	or iSCSI clients care about their LUNs' serial numbers.  Users who
+	require serial number stability should hardcode serial numbers in
+	/etc/ctl.conf .
+
+20170912:
 	For 32-bit arm compiled for hard-float support, soft-floating point
 	binaries now always get their shared libraries from
 	LD_SOFT_LIBRARY_PATH (in the past, this was only used if
