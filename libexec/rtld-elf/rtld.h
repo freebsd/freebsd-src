@@ -187,6 +187,7 @@ typedef struct Struct_Obj_Entry {
     Elf_Word local_gotno;	/* Number of local GOT entries */
     Elf_Word symtabno;		/* Number of dynamic symbols */
     Elf_Word gotsym;		/* First dynamic symbol in GOT */
+    Elf_Addr *mips_pltgot;	/* Second PLT GOT */
 #endif
 #ifdef __powerpc64__
     Elf_Addr glink;		/* GLINK PLT call stub section */
