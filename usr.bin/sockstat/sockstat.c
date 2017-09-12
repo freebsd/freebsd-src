@@ -97,6 +97,7 @@ static int	*ports;
 struct addr {
 	struct sockaddr_storage address;
 	unsigned int encaps_port;
+	int state;
 	struct addr *next;
 };
 
@@ -534,6 +535,7 @@ gather_sctp(void)
 					    xraddr->address.sa.sa_family);
 				}
 				faddr->encaps_port = xraddr->encaps_port; 
+				faddr->state = xraddr->state;
 				faddr->next = NULL;
 				if (prev_faddr == NULL)
 					sock->faddr = faddr;
@@ -939,7 +941,7 @@ check_ports(struct sock *s)
 }
 
 static const char *
-sctp_state(int state)
+sctp_conn_state(int state)
 {
 	switch (state) {
 	case SCTP_CLOSED:
@@ -971,6 +973,25 @@ sctp_state(int state)
 		break;
 	case SCTP_SHUTDOWN_PENDING:
 		return "SHUTDOWN_PENDING";
+		break;
+	default:
+		return "UNKNOWN";
+		break;
+	}
+}
+
+static const char *
+sctp_path_state(int state)
+{
+	switch (state) {
+	case SCTP_UNCONFIRMED:
+		return "UNCONFIRMED";
+		break;
+	case SCTP_ACTIVE:
+		return "ACTIVE";
+		break;
+	case SCTP_INACTIVE:
+		return "INACTIVE";
 		break;
 	default:
 		return "UNKNOWN";
@@ -1062,6 +1083,19 @@ displaysock(struct sock *s, int pos)
 			}
 			offset += 7;
 		}
+		if (opt_s) {
+			if (faddr != NULL &&
+			    s->proto == IPPROTO_SCTP &&
+			    s->state != SCTP_CLOSED &&
+			    s->state != SCTP_BOUND &&
+			    s->state != SCTP_LISTEN) {
+				while (pos < offset)
+					pos += xprintf(" ");
+				pos += xprintf("%s",
+				    sctp_path_state(faddr->state));
+			}
+			offset += 13;
+		}
 		if (first) {
 			if (opt_s) {
 				if (s->proto == IPPROTO_SCTP ||
@@ -1071,7 +1105,7 @@ displaysock(struct sock *s, int pos)
 					switch (s->proto) {
 					case IPPROTO_SCTP:
 						pos += xprintf("%s",
-						    sctp_state(s->state));
+						    sctp_conn_state(s->state));
 						break;
 					case IPPROTO_TCP:
 						if (s->state >= 0 &&
@@ -1118,8 +1152,10 @@ display(void)
 	    "LOCAL ADDRESS", "FOREIGN ADDRESS");
 	if (opt_U)
 		printf(" %-6s", "ENCAPS");
-	if (opt_s)
-		printf(" %-12s", "STATE");
+	if (opt_s) {
+		printf(" %-12s", "PATH STATE");
+		printf(" %-12s", "CONN STATE");
+	}
 	if (opt_S)
 		printf(" %.*s", TCP_FUNCTION_NAME_LEN_MAX, "STACK");
 	printf("\n");
