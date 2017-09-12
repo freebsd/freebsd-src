@@ -434,7 +434,6 @@ zfsctl_root(zfsvfs_t *zfsvfs, int flags, vnode_t **vpp)
 /*
  * Common open routine.  Disallow any write access.
  */
-/* ARGSUSED */
 static int
 zfsctl_common_open(struct vop_open_args *ap)
 {
@@ -459,7 +458,6 @@ zfsctl_common_close(struct vop_close_args *ap)
 /*
  * Common access routine.  Disallow writes.
  */
-/* ARGSUSED */
 static int
 zfsctl_common_access(ap)
 	struct vop_access_args /* {
@@ -515,7 +513,6 @@ zfsctl_common_getattr(vnode_t *vp, vattr_t *vap)
 	vap->va_nlink = 2;
 }
 
-/*ARGSUSED*/
 static int
 zfsctl_common_fid(ap)
 	struct vop_fid_args /* {
@@ -569,7 +566,6 @@ zfsctl_common_print(ap)
 /*
  * Get root directory attributes.
  */
-/* ARGSUSED */
 static int
 zfsctl_root_getattr(ap)
 	struct vop_getattr_args /* {
@@ -821,7 +817,6 @@ zfsctl_snapshot_vnode_setup(vnode_t *vp, void *arg)
  * snapshot if it exist, creating the pseudo filesystem vnode as necessary.
  * Perform a mount of the associated dataset on top of the vnode.
  */
-/* ARGSUSED */
 int
 zfsctl_snapdir_lookup(ap)
 	struct vop_lookup_args /* {
@@ -1013,7 +1008,6 @@ zfsctl_snapdir_readdir(ap)
 	/* NOTREACHED */
 }
 
-/* ARGSUSED */
 static int
 zfsctl_snapdir_getattr(ap)
 	struct vop_getattr_args /* {
