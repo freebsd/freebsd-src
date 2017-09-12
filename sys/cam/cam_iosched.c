@@ -1022,7 +1022,7 @@ cam_iosched_init(struct cam_iosched_softc **iscp, struct cam_periph *periph)
 		bioq_init(&(*iscp)->write_queue);
 		(*iscp)->read_bias = 100;
 		(*iscp)->current_read_bias = 100;
-		(*iscp)->quanta = 200;
+		(*iscp)->quanta = min(hz, 200);
 		cam_iosched_iop_stats_init(*iscp, &(*iscp)->read_stats);
 		cam_iosched_iop_stats_init(*iscp, &(*iscp)->write_stats);
 		cam_iosched_iop_stats_init(*iscp, &(*iscp)->trim_stats);
