@@ -2739,7 +2739,7 @@ vm_page_activate(vm_page_t m)
  *
  *	The page queues must be locked.
  */
-static inline void
+static void
 vm_page_free_wakeup(void)
 {
 
