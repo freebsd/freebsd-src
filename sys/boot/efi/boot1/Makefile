@@ -135,9 +135,7 @@ boot1.efifat: boot1.efi
 	    exit 1; \
 	fi
 	echo ${.OBJDIR}
-	uudecode ${.CURDIR}/fat-${MACHINE}.tmpl.bz2.uu
-	mv fat-${MACHINE}.tmpl.bz2 ${.TARGET}.bz2
-	bzip2 -f -d ${.TARGET}.bz2
+	xz -d -c ${.CURDIR}/fat-${MACHINE}.tmpl.xz > ${.TARGET}
 	${DD} if=${.ALLSRC} of=${.TARGET} seek=${BOOT1_OFFSET} conv=notrunc
 
 CLEANFILES= boot1.efi boot1.efifat

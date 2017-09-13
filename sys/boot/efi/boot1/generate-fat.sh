@@ -14,7 +14,7 @@
 FAT_SIZE=1600 			#Size in 512-byte blocks of the produced image
 
 BOOT1_OFFSET=2d
-BOOT1_SIZE=128k
+BOOT1_SIZE=384k
 
 if [ $(id -u) != 0 ]; then
 	echo "${0##*/}: must run as root" >&2
@@ -70,13 +70,7 @@ while read ARCH FILENAME; do
 		exit 1
 	fi
 
-	bzip2 $OUTPUT_FILE
-	echo 'FAT template boot filesystem created by generate-fat.sh' > $OUTPUT_FILE.bz2.uu
-	echo 'DO NOT EDIT' >> $OUTPUT_FILE.bz2.uu
-	echo "\$FreeBSD\$" >> $OUTPUT_FILE.bz2.uu
-
-	uuencode $OUTPUT_FILE.bz2 $OUTPUT_FILE.bz2 >> $OUTPUT_FILE.bz2.uu
-	rm $OUTPUT_FILE.bz2
+	xz -f $OUTPUT_FILE
 done <<EOF
 	amd64	BOOTx64.efi
 	arm64	BOOTaa64.efi
