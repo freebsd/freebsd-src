@@ -934,7 +934,6 @@ struct e1000_dev_spec_82543 {
 struct e1000_dev_spec_82571 {
 	bool laa_is_present;
 	u32 smb_counter;
-	E1000_MUTEX swflag_mutex;
 };
 
 struct e1000_dev_spec_80003es2lan {
@@ -958,8 +957,6 @@ enum e1000_ulp_state {
 struct e1000_dev_spec_ich8lan {
 	bool kmrn_lock_loss_workaround_enabled;
 	struct e1000_shadow_ram shadow_ram[E1000_SHADOW_RAM_WORDS];
-	E1000_MUTEX nvm_mutex;
-	E1000_MUTEX swflag_mutex;
 	bool nvm_k1_enabled;
 	bool disable_k1_off;
 	bool eee_disable;

@@ -1396,15 +1396,11 @@ passmemsetup(struct cam_periph *periph, struct pass_io_req *io_req)
 
 		io_req->data_flags = ccb->ccb_h.flags & CAM_DATA_MASK;
 
-		/*
-		 * We only support a single virtual address for NVMe
-		 */
-		if ((ccb->ccb_h.flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
-			return (EINVAL);
-
 		data_ptrs[0] = &ccb->nvmeio.data_ptr;
 		lengths[0] = ccb->nvmeio.dxfer_len;
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
+		num_segs = ccb->nvmeio.sglist_cnt;
+		seg_cnt_ptr = &ccb->nvmeio.sglist_cnt;
 		numbufs = 1;
 		maxmap = softc->maxio;
 		break;
@@ -2227,7 +2223,9 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 */
 	fc = ccb->ccb_h.func_code;
 	if ((fc == XPT_SCSI_IO) || (fc == XPT_ATA_IO) || (fc == XPT_SMP_IO)
-            || (fc == XPT_DEV_MATCH) || (fc == XPT_DEV_ADVINFO) || (fc == XPT_MMC_IO)) {
+            || (fc == XPT_DEV_MATCH) || (fc == XPT_DEV_ADVINFO) || (fc == XPT_MMC_IO)
+            || (fc == XPT_NVME_ADMIN) || (fc == XPT_NVME_IO)) {
+
 		bzero(&mapinfo, sizeof(mapinfo));
 
 		/*

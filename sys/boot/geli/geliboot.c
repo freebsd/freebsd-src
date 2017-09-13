@@ -220,8 +220,9 @@ geli_taste(int read_func(void *vdev, void *priv, off_t off, void *buf,
 /*
  * Attempt to decrypt the device
  */
-int
-geli_attach(struct dsk *dskp, const char *passphrase, const u_char *mkeyp)
+static int
+geli_attach(struct geli_entry *ge, struct dsk *dskp, const char *passphrase,
+    const u_char *mkeyp)
 {
 	u_char key[G_ELI_USERKEYLEN], mkey[G_ELI_DATAIVKEYLEN], *mkp;
 	u_int keynum;
@@ -233,92 +234,83 @@ geli_attach(struct dsk *dskp, const char *passphrase, const u_char *mkeyp)
 		explicit_bzero(mkeyp, G_ELI_DATAIVKEYLEN);
 	}
 
-	SLIST_FOREACH_SAFE(geli_e, &geli_head, entries, geli_e_tmp) {
-		if (geli_same_device(geli_e, dskp) != 0) {
-			continue;
-		}
-
-		if (mkeyp != NULL || geli_findkey(geli_e, dskp, mkey) == 0) {
-			goto found_key;
-		}
-
-		g_eli_crypto_hmac_init(&ctx, NULL, 0);
-		/*
-		 * Prepare Derived-Key from the user passphrase.
-		 */
-		if (geli_e->md.md_iterations < 0) {
-			/* XXX TODO: Support loading key files. */
-			return (1);
-		} else if (geli_e->md.md_iterations == 0) {
-			g_eli_crypto_hmac_update(&ctx, geli_e->md.md_salt,
-			    sizeof(geli_e->md.md_salt));
-			g_eli_crypto_hmac_update(&ctx, passphrase,
-			    strlen(passphrase));
-		} else if (geli_e->md.md_iterations > 0) {
-			printf("Calculating GELI Decryption Key disk%dp%d @ %d"
-			    " iterations...\n", dskp->unit,
-			    (dskp->slice > 0 ? dskp->slice : dskp->part),
-			    geli_e->md.md_iterations);
-			u_char dkey[G_ELI_USERKEYLEN];
-
-			pkcs5v2_genkey(dkey, sizeof(dkey), geli_e->md.md_salt,
-			    sizeof(geli_e->md.md_salt), passphrase,
-			    geli_e->md.md_iterations);
-			g_eli_crypto_hmac_update(&ctx, dkey, sizeof(dkey));
-			explicit_bzero(dkey, sizeof(dkey));
-		}
-
-		g_eli_crypto_hmac_final(&ctx, key, 0);
-
-		error = g_eli_mkey_decrypt(&geli_e->md, key, mkey, &keynum);
-		if (error == -1) {
-			explicit_bzero(mkey, sizeof(mkey));
-			explicit_bzero(key, sizeof(key));
-			printf("Bad GELI key: bad password?\n");
-			return (error);
-		} else if (error != 0) {
-			explicit_bzero(mkey, sizeof(mkey));
-			explicit_bzero(key, sizeof(key));
-                        printf("Failed to decrypt GELI master key: %d\n", error);
-			return (error);
-		} else {
-                        /* Add key to keychain */
-                        save_key(key);
-                        explicit_bzero(&key, sizeof(key));
-                }
-
-found_key:
-		/* Store the keys */
-		bcopy(mkey, geli_e->sc.sc_mkey, sizeof(geli_e->sc.sc_mkey));
-		bcopy(mkey, geli_e->sc.sc_ivkey, sizeof(geli_e->sc.sc_ivkey));
-		mkp = mkey + sizeof(geli_e->sc.sc_ivkey);
-		if ((geli_e->sc.sc_flags & G_ELI_FLAG_AUTH) == 0) {
-			bcopy(mkp, geli_e->sc.sc_ekey, G_ELI_DATAKEYLEN);
-		} else {
-			/*
-			 * The encryption key is: ekey = HMAC_SHA512(Data-Key, 0x10)
-			 */
-			g_eli_crypto_hmac(mkp, G_ELI_MAXKEYLEN, "\x10", 1,
-			    geli_e->sc.sc_ekey, 0);
-		}
-		explicit_bzero(mkey, sizeof(mkey));
-
-		/* Initialize the per-sector IV. */
-		switch (geli_e->sc.sc_ealgo) {
-		case CRYPTO_AES_XTS:
-			break;
-		default:
-			SHA256_Init(&geli_e->sc.sc_ivctx);
-			SHA256_Update(&geli_e->sc.sc_ivctx, geli_e->sc.sc_ivkey,
-			    sizeof(geli_e->sc.sc_ivkey));
-			break;
-		}
-
-		return (0);
+	if (mkeyp != NULL || geli_findkey(ge, dskp, mkey) == 0) {
+		goto found_key;
 	}
 
-	/* Disk not found. */
-	return (2);
+	g_eli_crypto_hmac_init(&ctx, NULL, 0);
+	/*
+	 * Prepare Derived-Key from the user passphrase.
+	 */
+	if (geli_e->md.md_iterations < 0) {
+		/* XXX TODO: Support loading key files. */
+		return (1);
+	} else if (geli_e->md.md_iterations == 0) {
+		g_eli_crypto_hmac_update(&ctx, geli_e->md.md_salt,
+		    sizeof(geli_e->md.md_salt));
+		g_eli_crypto_hmac_update(&ctx, passphrase,
+		    strlen(passphrase));
+	} else if (geli_e->md.md_iterations > 0) {
+		printf("Calculating GELI Decryption Key disk%dp%d @ %d"
+		    " iterations...\n", dskp->unit,
+		    (dskp->slice > 0 ? dskp->slice : dskp->part),
+		    geli_e->md.md_iterations);
+		u_char dkey[G_ELI_USERKEYLEN];
+
+		pkcs5v2_genkey(dkey, sizeof(dkey), geli_e->md.md_salt,
+		    sizeof(geli_e->md.md_salt), passphrase,
+		    geli_e->md.md_iterations);
+		g_eli_crypto_hmac_update(&ctx, dkey, sizeof(dkey));
+		explicit_bzero(dkey, sizeof(dkey));
+	}
+
+	g_eli_crypto_hmac_final(&ctx, key, 0);
+
+	error = g_eli_mkey_decrypt(&geli_e->md, key, mkey, &keynum);
+	if (error == -1) {
+		explicit_bzero(mkey, sizeof(mkey));
+		explicit_bzero(key, sizeof(key));
+		printf("Bad GELI key: bad password?\n");
+		return (error);
+	} else if (error != 0) {
+		explicit_bzero(mkey, sizeof(mkey));
+		explicit_bzero(key, sizeof(key));
+		printf("Failed to decrypt GELI master key: %d\n", error);
+		return (error);
+	} else {
+		/* Add key to keychain */
+		save_key(key);
+		explicit_bzero(&key, sizeof(key));
+	}
+
+found_key:
+	/* Store the keys */
+	bcopy(mkey, geli_e->sc.sc_mkey, sizeof(geli_e->sc.sc_mkey));
+	bcopy(mkey, geli_e->sc.sc_ivkey, sizeof(geli_e->sc.sc_ivkey));
+	mkp = mkey + sizeof(geli_e->sc.sc_ivkey);
+	if ((geli_e->sc.sc_flags & G_ELI_FLAG_AUTH) == 0) {
+		bcopy(mkp, geli_e->sc.sc_ekey, G_ELI_DATAKEYLEN);
+	} else {
+		/*
+		 * The encryption key is: ekey = HMAC_SHA512(Data-Key, 0x10)
+		 */
+		g_eli_crypto_hmac(mkp, G_ELI_MAXKEYLEN, "\x10", 1,
+		    geli_e->sc.sc_ekey, 0);
+	}
+	explicit_bzero(mkey, sizeof(mkey));
+
+	/* Initialize the per-sector IV. */
+	switch (geli_e->sc.sc_ealgo) {
+	case CRYPTO_AES_XTS:
+		break;
+	default:
+		SHA256_Init(&geli_e->sc.sc_ivctx);
+		SHA256_Update(&geli_e->sc.sc_ivctx, geli_e->sc.sc_ivkey,
+		    sizeof(geli_e->sc.sc_ivkey));
+		break;
+	}
+
+	return (0);
 }
 
 int
@@ -402,7 +394,7 @@ geli_havekey(struct dsk *dskp)
 		}
 
 		if (geli_findkey(geli_e, dskp, mkey) == 0) {
-			if (geli_attach(dskp, NULL, mkey) == 0) {
+			if (geli_attach(geli_e, dskp, NULL, mkey) == 0) {
 				return (0);
 			}
 		}
@@ -417,19 +409,27 @@ geli_passphrase(char *pw, int disk, int parttype, int part, struct dsk *dskp)
 {
 	int i;
 
-	/* TODO: Implement GELI keyfile(s) support */
-	for (i = 0; i < 3; i++) {
-		/* Try cached passphrase */
-		if (i == 0 && pw[0] != '\0') {
-			if (geli_attach(dskp, pw, NULL) == 0) {
+	SLIST_FOREACH_SAFE(geli_e, &geli_head, entries, geli_e_tmp) {
+		if (geli_same_device(geli_e, dskp) != 0) {
+			continue;
+		}
+
+		/* TODO: Implement GELI keyfile(s) support */
+		for (i = 0; i < 3; i++) {
+			/* Try cached passphrase */
+			if (i == 0 && pw[0] != '\0') {
+				if (geli_attach(geli_e, dskp, pw, NULL) == 0) {
+					return (0);
+				}
+			}
+			printf("GELI Passphrase for disk%d%c%d: ", disk,
+			    parttype, part);
+			pwgets(pw, GELI_PW_MAXLEN,
+			    (geli_e->md.md_flags & G_ELI_FLAG_GELIDISPLAYPASS) == 0);
+			printf("\n");
+			if (geli_attach(geli_e, dskp, pw, NULL) == 0) {
 				return (0);
 			}
-		}
-		printf("GELI Passphrase for disk%d%c%d: ", disk, parttype, part);
-		pwgets(pw, GELI_PW_MAXLEN);
-		printf("\n");
-		if (geli_attach(dskp, pw, NULL) == 0) {
-			return (0);
 		}
 	}
 

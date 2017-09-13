@@ -140,7 +140,7 @@ struct lock_class lock_class_mtx_spin = {
 #ifdef ADAPTIVE_MUTEXES
 static SYSCTL_NODE(_debug, OID_AUTO, mtx, CTLFLAG_RD, NULL, "mtx debugging");
 
-static struct lock_delay_config __read_mostly mtx_delay;
+static struct lock_delay_config __read_frequently mtx_delay;
 
 SYSCTL_INT(_debug_mtx, OID_AUTO, delay_base, CTLFLAG_RW, &mtx_delay.base,
     0, "");
@@ -153,7 +153,7 @@ LOCK_DELAY_SYSINIT_DEFAULT(mtx_delay);
 static SYSCTL_NODE(_debug, OID_AUTO, mtx_spin, CTLFLAG_RD, NULL,
     "mtx spin debugging");
 
-static struct lock_delay_config __read_mostly mtx_spin_delay;
+static struct lock_delay_config __read_frequently mtx_spin_delay;
 
 SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_base, CTLFLAG_RW,
     &mtx_spin_delay.base, 0, "");
@@ -166,7 +166,7 @@ LOCK_DELAY_SYSINIT_DEFAULT(mtx_spin_delay);
  * System-wide mutexes
  */
 struct mtx blocked_lock;
-struct mtx Giant;
+struct mtx __exclusive_cache_line Giant;
 
 void
 assert_mtx(const struct lock_object *lock, int what)

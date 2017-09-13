@@ -121,9 +121,12 @@ skip_get_tokens(char *skip_addr, int *sk_addr, int max_index)
 static int
 scan_bus(struct iiccmd cmd, char *dev, int skip, char *skip_addr)
 {
+	struct iic_msg rdmsg;
+	struct iic_rdwr_data rdwrdata;
 	struct skip_range addr_range = { 0, 0 };
 	int *tokens, fd, error, i, index, j;
-	int len = 0, do_skip = 0, no_range = 1;
+	int len = 0, do_skip = 0, no_range = 1, num_found = 0, use_read_xfer = 0;
+	uint8_t rdbyte;
 
 	fd = open(dev, O_RDWR);
 	if (fd == -1) {
@@ -157,6 +160,14 @@ scan_bus(struct iiccmd cmd, char *dev, int skip, char *skip_addr)
 	}
 
 	printf("Scanning I2C devices on %s: ", dev);
+
+start_over:
+	if (use_read_xfer) {
+		fprintf(stderr, 
+		    "Hardware may not support START/STOP scanning; "
+		    "trying less-reliable read method.\n");
+	}
+
 	for (i = 1; i < 127; i++) {
 
 		if (skip && ( addr_range.start < addr_range.end)) {
@@ -180,17 +191,46 @@ scan_bus(struct iiccmd cmd, char *dev, int skip, char *skip_addr)
 		cmd.last = 1;
 		cmd.count = 0;
 		error = ioctl(fd, I2CRSTCARD, &cmd);
-		if (error)
+		if (error) {
+			fprintf(stderr, "Controller reset failed\n");
 			goto out;
-
-		cmd.slave = i << 1;
-		cmd.last = 1;
-		error = ioctl(fd, I2CSTART, &cmd);
-		if (!error)
-			printf("%x ", i);
-		cmd.slave = i << 1;
-		cmd.last = 1;
-		error = ioctl(fd, I2CSTOP, &cmd);
+		}
+		if (use_read_xfer) {
+			rdmsg.buf = &rdbyte;
+			rdmsg.len = 1;
+			rdmsg.flags = IIC_M_RD;
+			rdmsg.slave = i << 1;
+			rdwrdata.msgs = &rdmsg;
+			rdwrdata.nmsgs = 1;
+			error = ioctl(fd, I2CRDWR, &rdwrdata);
+		} else {
+			cmd.slave = i << 1;
+			cmd.last = 1;
+			error = ioctl(fd, I2CSTART, &cmd);
+			if (errno == ENODEV || errno == EOPNOTSUPP) {
+				/* If START not supported try reading. */
+				use_read_xfer = 1;
+				goto start_over;
+			}
+			cmd.slave = i << 1;
+			cmd.last = 1;
+			ioctl(fd, I2CSTOP, &cmd);
+		}
+		if (error == 0) {
+			++num_found;
+			printf("%02x ", i);
+		}
+	}
+	/*
+	 * If we found nothing, maybe START is not supported and returns a
+	 * generic error code such as EIO or ENXIO, so try again using reads.
+	 */
+	if (num_found == 0) {
+		if (!use_read_xfer) {
+			use_read_xfer = 1;
+			goto start_over;
+		}
+		printf("<none found>");
 	}
 	printf("\n");
 

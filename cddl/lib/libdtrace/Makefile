@@ -54,6 +54,7 @@ DSRCS=		errno.d			\
 		siftr.d			\
 		signal.d		\
 		tcp.d			\
+		socket.d		\
 		udp.d			\
 		unistd.d
 

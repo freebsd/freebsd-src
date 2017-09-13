@@ -61,7 +61,7 @@ typedef int abd_iter_func2_t(void *, void *, size_t, void *);
 
 extern boolean_t zfs_abd_scatter_enabled;
 
-static inline boolean_t
+inline boolean_t
 abd_is_linear(abd_t *abd)
 {
 	return ((abd->abd_flags & ABD_FLAG_LINEAR) != 0 ? B_TRUE : B_FALSE);
@@ -110,31 +110,31 @@ void abd_zero_off(abd_t *, size_t, size_t);
  * Wrappers for calls with offsets of 0
  */
 
-static inline void
+inline void
 abd_copy(abd_t *dabd, abd_t *sabd, size_t size)
 {
 	abd_copy_off(dabd, sabd, 0, 0, size);
 }
 
-static inline void
+inline void
 abd_copy_from_buf(abd_t *abd, const void *buf, size_t size)
 {
 	abd_copy_from_buf_off(abd, buf, 0, size);
 }
 
-static inline void
+inline void
 abd_copy_to_buf(void* buf, abd_t *abd, size_t size)
 {
 	abd_copy_to_buf_off(buf, abd, 0, size);
 }
 
-static inline int
+inline int
 abd_cmp_buf(abd_t *abd, const void *buf, size_t size)
 {
 	return (abd_cmp_buf_off(abd, buf, 0, size));
 }
 
-static inline void
+inline void
 abd_zero(abd_t *abd, size_t size)
 {
 	abd_zero_off(abd, 0, size);

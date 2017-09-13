@@ -469,6 +469,8 @@ typedef struct IOAPIC ioapic_t;
 #define IOAPIC_WINDOW		0x10
 #define IOAPIC_EOIR		0x40
 
+#define	IOAPIC_WND_SIZE		0x50
+
 /* indexes into IO APIC */
 #define IOAPIC_ID		0x00
 #define IOAPIC_VER		0x01

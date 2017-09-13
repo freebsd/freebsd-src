@@ -2331,7 +2331,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	pd_entry_t *l0, *l1, *l2;
 	pt_entry_t l3_paddr, *l3;
 	struct spglist free;
-	int anyvalid;
 
 	/*
 	 * Perform an unsynchronized read.  This is, however, safe.
@@ -2339,7 +2338,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (pmap->pm_stats.resident_count == 0)
 		return;
 
-	anyvalid = 0;
 	SLIST_INIT(&free);
 
 	PMAP_LOCK(pmap);
@@ -2429,8 +2427,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	}
 	if (lock != NULL)
 		rw_wunlock(lock);
-	if (anyvalid)
-		pmap_invalidate_all(pmap);
 	PMAP_UNLOCK(pmap);
 	pmap_free_zero_pages(&free);
 }
@@ -2620,13 +2616,10 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 			pmap_set(l3p, nbits);
 			/* XXX: Use pmap_invalidate_range */
-			pmap_invalidate_page(pmap, va);
+			pmap_invalidate_page(pmap, sva);
 		}
 	}
 	PMAP_UNLOCK(pmap);
-
-	/* TODO: Only invalidate entries we are touching */
-	pmap_invalidate_all(pmap);
 }
 
 /*
@@ -4662,8 +4655,9 @@ pmap_activate(struct thread *td)
 
 	critical_enter();
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
-	td->td_pcb->pcb_l0addr = vtophys(pmap->pm_l0);
-	__asm __volatile("msr ttbr0_el1, %0" : : "r"(td->td_pcb->pcb_l0addr));
+	td->td_proc->p_md.md_l0addr = vtophys(pmap->pm_l0);
+	__asm __volatile("msr ttbr0_el1, %0" : :
+	    "r"(td->td_proc->p_md.md_l0addr));
 	pmap_invalidate_all(pmap);
 	critical_exit();
 }

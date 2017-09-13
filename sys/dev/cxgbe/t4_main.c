@@ -467,8 +467,9 @@ TUNABLE_INT("hw.cxl.write_combine", &t5_write_combine);
 static int t4_num_vis = 1;
 TUNABLE_INT("hw.cxgbe.num_vis", &t4_num_vis);
 
-/* Functions used by extra VIs to obtain unique MAC addresses for each VI. */
+/* Functions used by VIs to obtain unique MAC addresses for each VI. */
 static int vi_mac_funcs[] = {
+	FW_VI_FUNC_ETH,
 	FW_VI_FUNC_OFLD,
 	FW_VI_FUNC_IWARP,
 	FW_VI_FUNC_OPENISCSI,
@@ -1046,6 +1047,10 @@ t4_attach(device_t dev)
 			n1g++;
 		}
 
+		/* All VIs on this port share this media. */
+		ifmedia_init(&pi->media, IFM_IMASK, cxgbe_media_change,
+		    cxgbe_media_status);
+
 		pi->dev = device_add_child(dev, sc->names->ifnet_name, -1);
 		if (pi->dev == NULL) {
 			device_printf(dev,
@@ -1221,6 +1226,15 @@ t4_attach(device_t dev)
 		goto done;
 	}
 
+	/*
+	 * Ensure thread-safe mailbox access (in debug builds).
+	 *
+	 * So far this was the only thread accessing the mailbox but various
+	 * ifnets and sysctls are about to be created and their handlers/ioctls
+	 * will access the mailbox from different threads.
+	 */
+	sc->flags |= CHK_MBOX_ACCESS;
+
 	rc = bus_generic_attach(dev);
 	if (rc != 0) {
 		device_printf(dev,
@@ -1336,6 +1350,7 @@ t4_detach_common(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	sc->flags &= ~CHK_MBOX_ACCESS;
 	if (sc->flags & FULL_INIT_DONE) {
 		if (!(sc->flags & IS_VF))
 			t4_intr_disable(sc);
@@ -1506,10 +1521,6 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 	ifp->if_hw_tsomaxsegcount = TX_SGL_SEGS;
 	ifp->if_hw_tsomaxsegsize = 65536;
 
-	/* Initialize ifmedia for this VI */
-	ifmedia_init(&vi->media, IFM_IMASK, cxgbe_media_change,
-	    cxgbe_media_status);
-
 	vi->vlan_c = EVENTHANDLER_REGISTER(vlan_config, cxgbe_vlan_config, ifp,
 	    EVENTHANDLER_PRI_ANY);
 
@@ -1590,7 +1601,6 @@ cxgbe_vi_detach(struct vi_info *vi)
 	callout_drain(&vi->tick);
 	vi_full_uninit(vi);
 
-	ifmedia_removeall(&vi->media);
 	if_free(vi->ifp);
 	vi->ifp = NULL;
 }
@@ -1617,6 +1627,7 @@ cxgbe_detach(device_t dev)
 
 	cxgbe_vi_detach(&pi->vi[0]);
 	callout_drain(&pi->tick);
+	ifmedia_removeall(&pi->media);
 
 	end_synchronized_op(sc, 0);
 
@@ -1640,7 +1651,8 @@ cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 {
 	int rc = 0, mtu, flags, can_sleep;
 	struct vi_info *vi = ifp->if_softc;
-	struct adapter *sc = vi->pi->adapter;
+	struct port_info *pi = vi->pi;
+	struct adapter *sc = pi->adapter;
 	struct ifreq *ifr = (struct ifreq *)data;
 	uint32_t mask;
 
@@ -1820,7 +1832,7 @@ fail:
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 	case SIOCGIFXMEDIA:
-		ifmedia_ioctl(ifp, ifr, &vi->media, cmd);
+		ifmedia_ioctl(ifp, ifr, &pi->media, cmd);
 		break;
 
 	case SIOCGI2C: {
@@ -1840,7 +1852,7 @@ fail:
 		rc = begin_synchronized_op(sc, vi, SLEEP_OK | INTR_OK, "t4i2c");
 		if (rc)
 			return (rc);
-		rc = -t4_i2c_rd(sc, sc->mbox, vi->pi->port_id, i2c.dev_addr,
+		rc = -t4_i2c_rd(sc, sc->mbox, pi->port_id, i2c.dev_addr,
 		    i2c.offset, i2c.len, &i2c.data[0]);
 		end_synchronized_op(sc, 0);
 		if (rc == 0)
@@ -2062,13 +2074,11 @@ cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 		PORT_LOCK(pi);
 		if (pi->up_vis == 0) {
 			t4_update_port_info(pi);
-			build_medialist(pi, &vi->media);
+			build_medialist(pi, &pi->media);
 		}
 		PORT_UNLOCK(pi);
 		end_synchronized_op(pi->adapter, 0);
 	}
-
-	cur = vi->media.ifm_cur;
 
 	ifmr->ifm_status = IFM_AVALID;
 	if (lc->link_ok == 0)
@@ -2082,7 +2092,8 @@ cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 		ifmr->ifm_active |= IFM_ETH_TXPAUSE;
 
 	/* active and current will differ iff current media is autoselect. */
-	if (IFM_SUBTYPE(cur->ifm_media) != IFM_AUTO)
+	cur = pi->media.ifm_cur;
+	if (cur != NULL && IFM_SUBTYPE(cur->ifm_media) != IFM_AUTO)
 		return;
 
 	ifmr->ifm_active = IFM_ETHER | IFM_FDX;
@@ -2123,28 +2134,24 @@ vcxgbe_probe(device_t dev)
 }
 
 static int
-vcxgbe_attach(device_t dev)
+alloc_extra_vi(struct adapter *sc, struct port_info *pi, struct vi_info *vi)
 {
-	struct vi_info *vi;
-	struct port_info *pi;
-	struct adapter *sc;
 	int func, index, rc;
-	u32 param, val;
+	uint32_t param, val;
 
-	vi = device_get_softc(dev);
-	pi = vi->pi;
-	sc = pi->adapter;
+	ASSERT_SYNCHRONIZED_OP(sc);
 
 	index = vi - pi->vi;
+	MPASS(index > 0);	/* This function deals with _extra_ VIs only */
 	KASSERT(index < nitems(vi_mac_funcs),
 	    ("%s: VI %s doesn't have a MAC func", __func__,
-	    device_get_nameunit(dev)));
+	    device_get_nameunit(vi->dev)));
 	func = vi_mac_funcs[index];
 	rc = t4_alloc_vi_func(sc, sc->mbox, pi->tx_chan, sc->pf, 0, 1,
 	    vi->hw_addr, &vi->rss_size, func, 0);
 	if (rc < 0) {
-		device_printf(dev, "Failed to allocate virtual interface "
-		    "for port %d: %d\n", pi->port_id, -rc);
+		device_printf(vi->dev, "failed to allocate virtual interface %d"
+		    "for port %d: %d\n", index, pi->port_id, -rc);
 		return (-rc);
 	}
 	vi->viid = rc;
@@ -2153,6 +2160,19 @@ vcxgbe_attach(device_t dev)
 	else
 		vi->smt_idx = (rc & 0x7f);
 
+	if (vi->rss_size == 1) {
+		/*
+		 * This VI didn't get a slice of the RSS table.  Reduce the
+		 * number of VIs being created (hw.cxgbe.num_vis) or modify the
+		 * configuration file (nvi, rssnvi for this PF) if this is a
+		 * problem.
+		 */
+		device_printf(vi->dev, "RSS table not available.\n");
+		vi->rss_base = 0xffff;
+
+		return (0);
+	}
+
 	param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
 	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_RSSINFO) |
 	    V_FW_PARAMS_PARAM_YZ(vi->viid);
@@ -2160,9 +2180,32 @@ vcxgbe_attach(device_t dev)
 	if (rc)
 		vi->rss_base = 0xffff;
 	else {
-		/* MPASS((val >> 16) == rss_size); */
+		MPASS((val >> 16) == vi->rss_size);
 		vi->rss_base = val & 0xffff;
 	}
+
+	return (0);
+}
+
+static int
+vcxgbe_attach(device_t dev)
+{
+	struct vi_info *vi;
+	struct port_info *pi;
+	struct adapter *sc;
+	int rc;
+
+	vi = device_get_softc(dev);
+	pi = vi->pi;
+	sc = pi->adapter;
+
+	rc = begin_synchronized_op(sc, vi, SLEEP_OK | INTR_OK, "t4via");
+	if (rc)
+		return (rc);
+	rc = alloc_extra_vi(sc, pi, vi);
+	end_synchronized_op(sc, 0);
+	if (rc)
+		return (rc);
 
 	rc = cxgbe_vi_attach(dev, vi);
 	if (rc) {
@@ -3533,6 +3576,18 @@ get_params__post_init(struct adapter *sc)
 	READ_CAPS(iscsicaps);
 	READ_CAPS(fcoecaps);
 
+	/*
+	 * The firmware attempts memfree TOE configuration for -SO cards and
+	 * will report toecaps=0 if it runs out of resources (this depends on
+	 * the config file).  It may not report 0 for other capabilities
+	 * dependent on the TOE in this case.  Set them to 0 here so that the
+	 * driver doesn't bother tracking resources that will never be used.
+	 */
+	if (sc->toecaps == 0) {
+		sc->iscsicaps = 0;
+		sc->rdmacaps = 0;
+	}
+
 	if (sc->niccaps & FW_CAPS_CONFIG_NIC_ETHOFLD) {
 		param[0] = FW_PARAM_PFVF(ETHOFLD_START);
 		param[1] = FW_PARAM_PFVF(ETHOFLD_END);
@@ -4259,7 +4314,7 @@ cxgbe_init_synchronized(struct vi_info *vi)
 	PORT_LOCK(pi);
 	if (pi->up_vis++ == 0) {
 		t4_update_port_info(pi);
-		build_medialist(vi->pi, &vi->media);
+		build_medialist(pi, &pi->media);
 		init_l1cfg(pi);
 	}
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -5372,6 +5427,12 @@ t4_sysctls(struct adapter *sc)
 		oid = SYSCTL_ADD_NODE(ctx, c0, OID_AUTO, "toe", CTLFLAG_RD,
 		    NULL, "TOE parameters");
 		children = SYSCTL_CHILDREN(oid);
+
+		sc->tt.cong_algorithm = -1;
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "cong_algorithm",
+		    CTLFLAG_RW, &sc->tt.cong_algorithm, 0, "congestion control "
+		    "(-1 = default, 0 = reno, 1 = tahoe, 2 = newreno, "
+		    "3 = highspeed)");
 
 		sc->tt.sndbuf = 256 * 1024;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "sndbuf", CTLFLAG_RW,
@@ -9006,7 +9067,14 @@ load_fw(struct adapter *sc, struct t4_data *fw)
 	if (rc)
 		return (rc);
 
-	if (sc->flags & FULL_INIT_DONE) {
+	/*
+	 * The firmware, with the sole exception of the memory parity error
+	 * handler, runs from memory and not flash.  It is almost always safe to
+	 * install a new firmware on a running system.  Just set bit 1 in
+	 * hw.cxgbe.dflags or dev.<nexus>.<n>.dflags first.
+	 */
+	if (sc->flags & FULL_INIT_DONE &&
+	    (sc->debug_flags & DF_LOAD_FW_ANYTIME) == 0) {
 		rc = EBUSY;
 		goto done;
 	}
@@ -9148,7 +9216,7 @@ cudbg_dump(struct adapter *sc, struct t4_cudbg_dump *dump)
 	void *handle, *buf;
 
 	/* buf is large, don't block if no memory is available */
-	buf = malloc(dump->len, M_CXGBE, M_NOWAIT);
+	buf = malloc(dump->len, M_CXGBE, M_NOWAIT | M_ZERO);
 	if (buf == NULL)
 		return (ENOMEM);
 
@@ -9277,22 +9345,20 @@ t4_os_pci_restore_state(struct adapter *sc)
 void
 t4_os_portmod_changed(struct port_info *pi)
 {
+	struct adapter *sc = pi->adapter;
 	struct vi_info *vi;
 	struct ifnet *ifp;
-	int v;
 	static const char *mod_str[] = {
 		NULL, "LR", "SR", "ER", "TWINAX", "active TWINAX", "LRM"
 	};
 
 	PORT_LOCK(pi);
-	for_each_vi(pi, v, vi) {
-		build_medialist(pi, &vi->media);
-	}
+	build_medialist(pi, &pi->media);
 	PORT_UNLOCK(pi);
 	vi = &pi->vi[0];
-	if (begin_synchronized_op(pi->adapter, vi, HOLD_LOCK, "t4mod") == 0) {
+	if (begin_synchronized_op(sc, vi, HOLD_LOCK, "t4mod") == 0) {
 		init_l1cfg(pi);
-		end_synchronized_op(pi->adapter, LOCK_HELD);
+		end_synchronized_op(sc, LOCK_HELD);
 	}
 
 	ifp = vi->ifp;

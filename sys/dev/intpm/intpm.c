@@ -128,7 +128,7 @@ amd_pmio_read(struct resource *res, uint8_t reg)
 static int
 sb8xx_attach(device_t dev)
 {
-	static const int	AMDSB_SMBIO_WIDTH = 0x14;
+	static const int	AMDSB_SMBIO_WIDTH = 0x10;
 	struct intsmb_softc	*sc;
 	struct resource		*res;
 	uint32_t		devid;
@@ -185,12 +185,12 @@ sb8xx_attach(device_t dev)
 		device_printf(dev, "bus_set_resource for SMBus IO failed\n");
 		return (ENXIO);
 	}
-	if (res == NULL) {
-		device_printf(dev, "bus_alloc_resource for SMBus IO failed\n");
-		return (ENXIO);
-	}
 	sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->io_rid,
 	    RF_ACTIVE);
+	if (sc->io_res == NULL) {
+		device_printf(dev, "Could not allocate I/O space\n");
+		return (ENXIO);
+	}
 	sc->poll = 1;
 	return (0);
 }

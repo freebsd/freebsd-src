@@ -712,11 +712,12 @@ ZEXTERN int ZEXPORT deflateParams OF((z_streamp strm,
    used to switch between compression and straight copy of the input data, or
    to switch to a different kind of input data requiring a different strategy.
    If the compression approach (which is a function of the level) or the
-   strategy is changed, and if any input has been consumed in a previous
-   deflate() call, then the input available so far is compressed with the old
-   level and strategy using deflate(strm, Z_BLOCK).  There are three approaches
-   for the compression levels 0, 1..3, and 4..9 respectively.  The new level
-   and strategy will take effect at the next call of deflate().
+   strategy is changed, and if there have been any deflate() calls since the
+   state was initialized or reset, then the input available so far is
+   compressed with the old level and strategy using deflate(strm, Z_BLOCK).
+   There are three approaches for the compression levels 0, 1..3, and 4..9
+   respectively.  The new level and strategy will take effect at the next call
+   of deflate().
 
      If a deflate(strm, Z_BLOCK) is performed by deflateParams(), and it does
    not have enough output space to complete, then the parameter change will not

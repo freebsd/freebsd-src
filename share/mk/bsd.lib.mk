@@ -69,8 +69,8 @@ TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
 
 .if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
     empty(DEBUG_FLAGS:M-gdwarf*)
-SHARED_CFLAGS+= -g
-SHARED_CXXFLAGS+= -g
+CFLAGS+= ${DEBUG_FILES_CFLAGS}
+CXXFLAGS+= ${DEBUG_FILES_CFLAGS}
 CTFFLAGS+= -g
 .endif
 
@@ -327,9 +327,9 @@ _EXTRADEPEND:
 SHLINSTALLFLAGS+= -fschg
 .endif
 .endif
-# Install libraries with -S to avoid linker races with WORLDTMP and risk
-# of modifying in-use libraries when installing to a running system.
-# It is safe to avoid this for NO_ROOT builds that are only creating an image.
+# Install libraries with -S to avoid risk of modifying in-use libraries when
+# installing to a running system.  It is safe to avoid this for NO_ROOT builds
+# that are only creating an image.
 .if !defined(NO_SAFE_LIBINSTALL) && !defined(NO_ROOT)
 SHLINSTALLFLAGS+= -S
 .endif

@@ -333,7 +333,7 @@ static const struct rtwn_rf_prog rtl8192c_rf[] = {
 
 
 struct rtwn_r92c_txagc {
-	uint8_t	pwr[R92C_GROUP_2G][28];	/* RTWN_RIDX_MCS(15) + 1 */
+	uint8_t	pwr[R92C_GROUP_2G][28];	/* RTWN_RIDX_HT_MCS(15) + 1 */
 };
 
 /*

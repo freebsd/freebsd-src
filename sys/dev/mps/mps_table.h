@@ -40,6 +40,9 @@ void mps_describe_devinfo(uint32_t devinfo, char *string, int len);
 extern struct mps_table_lookup mps_event_names[];
 extern struct mps_table_lookup mps_phystatus_names[];
 extern struct mps_table_lookup mps_linkrate_names[];
+extern struct mps_table_lookup mps_iocstatus_string[];
+extern struct mps_table_lookup mps_scsi_status_string[];
+extern struct mps_table_lookup mps_scsi_taskmgmt_string[];
 
 void mps_print_iocfacts(struct mps_softc *, MPI2_IOC_FACTS_REPLY *);
 void mps_print_portfacts(struct mps_softc *, MPI2_PORT_FACTS_REPLY *);

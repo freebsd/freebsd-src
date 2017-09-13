@@ -43,6 +43,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 ache [label="Andrey Chernov\nache@FreeBSD.org\n1994/11/15"]
 acm [label="Jose Alonso Cardenas Marquez\nacm@FreeBSD.org\n2006/07/18"]
 adamw [label="Adam Weinberger\nadamw@FreeBSD.org\n2002/10/16"]
+adridg [label="Adriaan de Groot\nadridg@FreeBSD.org\n2017/09/08"]
 ahze [label="Michael Johnson\nahze@FreeBSD.org\n2004/10/29"]
 ak [label="Alex Kozlov\nak@FreeBSD.org\n2012/02/29"]
 ale [label="Alex Dupre\nale@FreeBSD.org\n2004/01/12"]
@@ -195,6 +196,7 @@ pclin [label="Po-Chien Lin\npclin@FreeBSD.org\n2013/02/11"]
 pgj [label="Gabor Pali\npgj@FreeBSD.org\n2009/04/12"]
 pgollucci [label="Philip M. Gollucci\npgollucci@FreeBSD.org\n2008/07/21"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
+pizzamig [label="Luca Pizzamiglio\npizzamig@FreeBSD.org\n2017/08/25"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
 rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
@@ -214,6 +216,7 @@ scheidell [label="Michael Scheidell\nscheidell@FreeBSD.org\n2011/11/06"]
 sem [label="Sergey Matveychuk\nsem@FreeBSD.org\n2004/07/07"]
 sergei [label="Sergei Kolobov\nsergei@FreeBSD.org\n2003/10/21"]
 shaun [label="Shaun Amott\nshaun@FreeBSD.org\n2006/06/19"]
+shurd [label="Stephen Hurd\nshurd@FreeBSD.org\n2014/06/14"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2005/01/08"]
 skreuzer [label="Steven Kreuzer\nskreuzer@FreeBSD.org\n2009/03/25"]
 sobomax[label="Maxim Sobolev\nsobomax@FreeBSD.org\n2000/05/17"]
@@ -337,6 +340,7 @@ culot -> marino
 culot -> wg
 
 db -> tj
+db -> shurd
 
 decke -> sperber
 
@@ -468,6 +472,7 @@ lifanov -> ultima
 
 lioux -> pat
 
+lme -> pizzamig
 lme -> tobik
 
 lwhsu -> yzlin
@@ -544,6 +549,8 @@ novel -> rm
 obrien -> mharo
 obrien -> gerald
 
+olivier -> pizzamig
+
 osa -> vg
 
 pat -> adamw
@@ -569,6 +576,7 @@ pi -> tz
 
 rafan -> chinsan
 
+rakuco -> adridg
 rakuco -> alonso
 rakuco -> tcberner
 
@@ -597,6 +605,7 @@ shaun -> timur
 shaun -> matthew
 
 skreuzer -> gnn
+skreuzer -> shurd
 
 sobomax -> demon
 sobomax -> glewis
@@ -634,6 +643,8 @@ tabthorpe -> pgj
 tabthorpe -> rene
 tabthorpe -> zi
 tabthorpe -> gblach
+
+tcberner -> adridg
 
 thierry -> jadawin
 thierry -> riggs

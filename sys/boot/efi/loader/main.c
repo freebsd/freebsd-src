@@ -871,9 +871,45 @@ command_chain(int argc, char *argv[])
 		*(--argv) = 0;
 	}
 
-	if (efi_getdev((void **)&dev, name, (const char **)&path) == 0)
-		loaded_image->DeviceHandle =
-		    efi_find_handle(dev->d_dev, dev->d_unit);
+	if (efi_getdev((void **)&dev, name, (const char **)&path) == 0) {
+#ifdef EFI_ZFS_BOOT
+		struct zfs_devdesc *z_dev;
+#endif
+		struct disk_devdesc *d_dev;
+		pdinfo_t *hd, *pd;
+
+		switch (dev->d_type) {
+#ifdef EFI_ZFS_BOOT
+		case DEVT_ZFS:
+			z_dev = (struct zfs_devdesc *)dev;
+			loaded_image->DeviceHandle =
+			    efizfs_get_handle_by_guid(z_dev->pool_guid);
+			break;
+#endif
+		case DEVT_NET:
+			loaded_image->DeviceHandle =
+			    efi_find_handle(dev->d_dev, dev->d_unit);
+			break;
+		default:
+			hd = efiblk_get_pdinfo(dev);
+			if (STAILQ_EMPTY(&hd->pd_part)) {
+				loaded_image->DeviceHandle = hd->pd_handle;
+				break;
+			}
+			d_dev = (struct disk_devdesc *)dev;
+			STAILQ_FOREACH(pd, &hd->pd_part, pd_link) {
+				/*
+				 * d_partition should be 255
+				 */
+				if (pd->pd_unit == d_dev->d_slice) {
+					loaded_image->DeviceHandle =
+					    pd->pd_handle;
+					break;
+				}
+			}
+			break;
+		}
+	}
 
 	dev_cleanup();
 	status = BS->StartImage(loaderhandle, NULL, NULL);

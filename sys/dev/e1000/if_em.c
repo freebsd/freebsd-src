@@ -483,7 +483,7 @@ static struct if_shared_ctx em_sctx_init = {
 	.isc_vendor_info = em_vendor_info_array,
 	.isc_driver_version = em_driver_version,
 	.isc_driver = &em_if_driver,
-	.isc_flags = IFLIB_NEED_SCRATCH | IFLIB_TSO_INIT_IP,
+	.isc_flags = IFLIB_TSO_INIT_IP | IFLIB_NEED_ZERO_CSUM,
 
 	.isc_nrxd_min = {EM_MIN_RXD},
 	.isc_ntxd_min = {EM_MIN_TXD},
@@ -511,12 +511,12 @@ static struct if_shared_ctx igb_sctx_init = {
 	.isc_vendor_info = igb_vendor_info_array,
 	.isc_driver_version = em_driver_version,
 	.isc_driver = &em_if_driver,
-	.isc_flags = IFLIB_NEED_SCRATCH | IFLIB_TSO_INIT_IP,
+	.isc_flags = IFLIB_TSO_INIT_IP | IFLIB_NEED_ZERO_CSUM,
 
 	.isc_nrxd_min = {EM_MIN_RXD},
 	.isc_ntxd_min = {EM_MIN_TXD},
-	.isc_nrxd_max = {EM_MAX_RXD},
-	.isc_ntxd_max = {EM_MAX_TXD},
+	.isc_nrxd_max = {IGB_MAX_RXD},
+	.isc_ntxd_max = {IGB_MAX_TXD},
 	.isc_nrxd_default = {EM_DEFAULT_RXD},
 	.isc_ntxd_default = {EM_DEFAULT_TXD},
 };
@@ -534,22 +534,26 @@ static int em_get_regs(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *adapter = (struct adapter *)arg1;
 	struct e1000_hw *hw = &adapter->hw;
-
 	struct sbuf *sb;
-	u32 *regs_buff = (u32 *)malloc(sizeof(u32) * IGB_REGS_LEN, M_DEVBUF, M_NOWAIT);
+	u32 *regs_buff;
 	int rc;
 
+	regs_buff = malloc(sizeof(u32) * IGB_REGS_LEN, M_DEVBUF, M_WAITOK);
 	memset(regs_buff, 0, IGB_REGS_LEN * sizeof(u32));
 
 	rc = sysctl_wire_old_buffer(req, 0);
 	MPASS(rc == 0);
-	if (rc != 0)
+	if (rc != 0) {
+		free(regs_buff, M_DEVBUF);
 		return (rc);
+	}
 
 	sb = sbuf_new_for_sysctl(NULL, NULL, 32*400, req);
 	MPASS(sb != NULL);
-	if (sb == NULL)
+	if (sb == NULL) {
+		free(regs_buff, M_DEVBUF);
 		return (ENOMEM);
+	}
 
 	/* General Registers */
 	regs_buff[0] = E1000_READ_REG(hw, E1000_CTRL);
@@ -604,6 +608,8 @@ static int em_get_regs(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(sb, "\tTDFT\t %08x\n", regs_buff[19]);
 	sbuf_printf(sb, "\tTDFHS\t %08x\n", regs_buff[20]);
 	sbuf_printf(sb, "\tTDFPC\t %08x\n\n", regs_buff[21]);
+
+	free(regs_buff, M_DEVBUF);
 
 #ifdef DUMP_DESCS
 	{
@@ -717,7 +723,7 @@ em_if_attach_pre(if_ctx_t ctx)
 		return (ENXIO);
 	}
 
-	adapter->ctx = ctx;
+	adapter->ctx = adapter->osdep.ctx = ctx;
 	adapter->dev = adapter->osdep.dev = dev;
 	scctx = adapter->shared = iflib_get_softc_ctx(ctx);
 	adapter->media = iflib_get_media(ctx);
@@ -1399,7 +1405,9 @@ em_msix_link(void *arg)
 {
 	struct adapter *adapter = arg;
 	u32 reg_icr;
+	int is_igb;
 
+	is_igb = (adapter->hw.mac.type >= igb_mac_min);
 	++adapter->link_irq;
 	MPASS(adapter->hw.back != NULL);
 	reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
@@ -1407,26 +1415,29 @@ em_msix_link(void *arg)
 	if (reg_icr & E1000_ICR_RXO)
 		adapter->rx_overruns++;
 
-	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-		em_handle_link(adapter->ctx);
+	if (is_igb) {
+		if (reg_icr & E1000_ICR_LSC)
+			em_handle_link(adapter->ctx);
+		E1000_WRITE_REG(&adapter->hw, E1000_IMS, E1000_IMS_LSC);
+		E1000_WRITE_REG(&adapter->hw, E1000_EIMS, adapter->link_mask);
 	} else {
+		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
+			em_handle_link(adapter->ctx);
+		}
 		E1000_WRITE_REG(&adapter->hw, E1000_IMS,
-				EM_MSIX_LINK | E1000_IMS_LSC);
-		if (adapter->hw.mac.type >= igb_mac_min)
-			E1000_WRITE_REG(&adapter->hw, E1000_EIMS, adapter->link_mask);
-	}
+					EM_MSIX_LINK | E1000_IMS_LSC);
 
-	/*
-	 * Because we must read the ICR for this interrupt
-	 * it may clear other causes using autoclear, for
-	 * this reason we simply create a soft interrupt
-	 * for all these vectors.
-	 */
-	if (reg_icr && adapter->hw.mac.type < igb_mac_min) {
-		E1000_WRITE_REG(&adapter->hw,
-			E1000_ICS, adapter->ims);
+		/*
+		 * Because we must read the ICR for this interrupt
+		 * it may clear other causes using autoclear, for
+		 * this reason we simply create a soft interrupt
+		 * for all these vectors.
+		 */
+		if (reg_icr) {
+			E1000_WRITE_REG(&adapter->hw,
+					E1000_ICS, adapter->ims);
+		}
 	}
-
 	return (FILTER_HANDLED);
 }
 
@@ -1664,13 +1675,6 @@ em_if_timer(if_ctx_t ctx, uint16_t qid)
 		return;
 
 	iflib_admin_intr_deferred(ctx);
-	/* Reset LAA into RAR[0] on 82571 */
-	if ((adapter->hw.mac.type == e1000_82571) &&
-	    e1000_get_laa_state_82571(&adapter->hw))
-		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
-
-	if (adapter->hw.mac.type < em_mac_min)
-		lem_smartspeed(adapter);
 
 	/* Mask to use in the irq trigger */
 	if (adapter->intr_type == IFLIB_INTR_MSIX) {
@@ -1780,6 +1784,14 @@ em_if_update_admin_status(if_ctx_t ctx)
 		printf("link state changed to down\n");
 	}
 	em_update_stats_counters(adapter);
+
+	/* Reset LAA into RAR[0] on 82571 */
+	if ((adapter->hw.mac.type == e1000_82571) &&
+	    e1000_get_laa_state_82571(&adapter->hw))
+		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
+
+	if (adapter->hw.mac.type < em_mac_min)
+		lem_smartspeed(adapter);
 
 	E1000_WRITE_REG(&adapter->hw, E1000_IMS, EM_MSIX_LINK | E1000_IMS_LSC);
 }
@@ -1896,6 +1908,87 @@ em_allocate_pci_resources(if_ctx_t ctx)
 	return (0);
 }
 
+static int
+igb_intr_assign(if_ctx_t ctx, int msix)
+{
+        struct adapter *adapter = iflib_get_softc(ctx);
+        struct em_rx_queue *rx_que = adapter->rx_queues;
+        struct em_tx_queue *tx_que = adapter->tx_queues;
+        int error, rid, i, vector = 0, rx_vectors;
+        char buf[16];
+
+        /* First set up ring resources */
+        for (i = 0; i < adapter->rx_num_queues; i++, rx_que++, vector++) {
+                rid = vector + 1;
+                snprintf(buf, sizeof(buf), "rxq%d", i);
+                error = iflib_irq_alloc_generic(ctx, &rx_que->que_irq, rid, IFLIB_INTR_RXTX,
+				em_msix_que, rx_que, rx_que->me, buf);
+                if (error) {
+                        device_printf(iflib_get_dev(ctx), "Failed to allocate que int %d err: %d\n", i, error);
+                        adapter->rx_num_queues = i;
+                        goto fail;
+                }
+
+                rx_que->msix =  vector;
+
+                /*
+                 * Set the bit to enable interrupt 
+                 * in E1000_IMS -- bits 20 and 21
+		 * are for RX0 and RX1, note this has
+		 * NOTHING to do with the MSIX vector
+                 */
+                if (adapter->hw.mac.type == e1000_82574) {
+                        rx_que->eims = 1 << (20 + i);
+                        adapter->ims |= rx_que->eims;
+                        adapter->ivars |= (8 | rx_que->msix) << (i * 4);
+                } else if (adapter->hw.mac.type == e1000_82575)
+                        rx_que->eims = E1000_EICR_TX_QUEUE0 << vector;
+                else
+                        rx_que->eims = 1 << vector;
+        }
+        rx_vectors = vector;
+
+        vector = 0;
+        for (i = 0; i < adapter->tx_num_queues; i++, tx_que++, vector++) {
+                snprintf(buf, sizeof(buf), "txq%d", i);
+                tx_que = &adapter->tx_queues[i];
+		tx_que->msix = adapter->rx_queues[i % adapter->rx_num_queues].msix;
+		rid = rman_get_start(adapter->rx_queues[i % adapter->rx_num_queues].que_irq.ii_res);
+                iflib_softirq_alloc_generic(ctx, rid, IFLIB_INTR_TX, tx_que, tx_que->me, buf);
+
+                if (adapter->hw.mac.type == e1000_82574) {
+                        tx_que->eims = 1 << (22 + i);
+                        adapter->ims |= tx_que->eims;
+                        adapter->ivars |= (8 | tx_que->msix) << (8 + (i * 4));
+                } else if (adapter->hw.mac.type == e1000_82575) {
+                        tx_que->eims = E1000_EICR_TX_QUEUE0 << (i %  adapter->tx_num_queues);
+                } else {
+                        tx_que->eims = 1 << (i %  adapter->tx_num_queues);
+                }
+        }
+
+        /* Link interrupt */
+        rid = rx_vectors + 1;
+        error = iflib_irq_alloc_generic(ctx, &adapter->irq, rid, IFLIB_INTR_ADMIN, em_msix_link, adapter, 0, "aq");
+
+        if (error) {
+                device_printf(iflib_get_dev(ctx), "Failed to register admin handler");
+                goto fail;
+        }
+        adapter->linkvec = rx_vectors;
+        if (adapter->hw.mac.type < igb_mac_min) {
+                adapter->ivars |=  (8 | rx_vectors) << 16;
+                adapter->ivars |= 0x80000000;
+        }
+        return (0);
+fail:
+        iflib_irq_free(ctx, &adapter->irq);
+        rx_que = adapter->rx_queues;
+        for (int i = 0; i < adapter->rx_num_queues; i++, rx_que++)
+                iflib_irq_free(ctx, &rx_que->que_irq);
+        return (error);
+}
+
 /*********************************************************************
  *
  *  Setup the MSIX Interrupt handlers
@@ -1907,14 +2000,18 @@ em_if_msix_intr_assign(if_ctx_t ctx, int msix)
 	struct adapter *adapter = iflib_get_softc(ctx);
 	struct em_rx_queue *rx_que = adapter->rx_queues;
 	struct em_tx_queue *tx_que = adapter->tx_queues;
-	int error, rid, i, vector = 0, rx_vectors;
+	int error, rid, i, vector = 0;
 	char buf[16];
+
+	if (adapter->hw.mac.type >= igb_mac_min) {
+		return igb_intr_assign(ctx, msix);
+	}
 
 	/* First set up ring resources */
 	for (i = 0; i < adapter->rx_num_queues; i++, rx_que++, vector++) {
 		rid = vector + 1;
 		snprintf(buf, sizeof(buf), "rxq%d", i);
-		error = iflib_irq_alloc_generic(ctx, &rx_que->que_irq, rid, IFLIB_INTR_RXTX, em_msix_que, rx_que, rx_que->me, buf);
+		error = iflib_irq_alloc_generic(ctx, &rx_que->que_irq, rid, IFLIB_INTR_RX, em_msix_que, rx_que, rx_que->me, buf);
 		if (error) {
 			device_printf(iflib_get_dev(ctx), "Failed to allocate que int %d err: %d", i, error);
 			adapter->rx_num_queues = i + 1;
@@ -1938,16 +2035,19 @@ em_if_msix_intr_assign(if_ctx_t ctx, int msix)
 		else
 			rx_que->eims = 1 << vector;
 	}
-	rx_vectors = vector;
 
-	vector = 0;
 	for (i = 0; i < adapter->tx_num_queues; i++, tx_que++, vector++) {
 		rid = vector + 1;
 		snprintf(buf, sizeof(buf), "txq%d", i);
 		tx_que = &adapter->tx_queues[i];
-		iflib_softirq_alloc_generic(ctx, rid, IFLIB_INTR_TX, tx_que, tx_que->me, buf);
 
-		tx_que->msix = (vector % adapter->tx_num_queues);
+		error = iflib_irq_alloc_generic(ctx, &tx_que->que_irq, rid, IFLIB_INTR_TX, em_msix_que, tx_que, tx_que->me, buf);
+		if (error) {
+			device_printf(iflib_get_dev(ctx), "Failed to allocate que int %d err: %d", i, error);
+			adapter->tx_num_queues = i + 1;
+			goto fail;
+		}
+		tx_que->msix = vector;
 
 		/*
 		 * Set the bit to enable interrupt
@@ -1960,23 +2060,24 @@ em_if_msix_intr_assign(if_ctx_t ctx, int msix)
 			adapter->ims |= tx_que->eims;
 			adapter->ivars |= (8 | tx_que->msix) << (8 + (i * 4));
 		} else if (adapter->hw.mac.type == e1000_82575) {
-			tx_que->eims = E1000_EICR_TX_QUEUE0 << (i %  adapter->tx_num_queues);
+			tx_que->eims = E1000_EICR_TX_QUEUE0 << vector;
 		} else {
-			tx_que->eims = 1 << (i %  adapter->tx_num_queues);
+			tx_que->eims = 1 << vector;
 		}
 	}
 
 	/* Link interrupt */
-	rid = rx_vectors + 1;
+	rid = vector + 1;
 	error = iflib_irq_alloc_generic(ctx, &adapter->irq, rid, IFLIB_INTR_ADMIN, em_msix_link, adapter, 0, "aq");
 
 	if (error) {
 		device_printf(iflib_get_dev(ctx), "Failed to register admin handler");
 		goto fail;
 	}
-	adapter->linkvec = rx_vectors;
+
+	adapter->linkvec = vector;
 	if (adapter->hw.mac.type < igb_mac_min) {
-		adapter->ivars |=  (8 | rx_vectors) << 16;
+		adapter->ivars |=  (8 | vector) << 16;
 		adapter->ivars |= 0x80000000;
 	}
 	return (0);
@@ -2133,15 +2234,24 @@ static void
 em_free_pci_resources(if_ctx_t ctx)
 {
 	struct adapter *adapter = iflib_get_softc(ctx);
-	struct em_rx_queue *que = adapter->rx_queues;
+	struct em_rx_queue *rxque = adapter->rx_queues;
+	struct em_tx_queue *txque = adapter->tx_queues;
 	device_t dev = iflib_get_dev(ctx);
+	int is_igb;
 
+	is_igb = (adapter->hw.mac.type >= igb_mac_min);
 	/* Release all msix queue resources */
 	if (adapter->intr_type == IFLIB_INTR_MSIX)
 		iflib_irq_free(ctx, &adapter->irq);
 
-	for (int i = 0; i < adapter->rx_num_queues; i++, que++) {
-		iflib_irq_free(ctx, &que->que_irq);
+	for (int i = 0; i < adapter->rx_num_queues; i++, rxque++) {
+		iflib_irq_free(ctx, &rxque->que_irq);
+	}
+
+	if (!is_igb) {
+		for (int i = 0; i < adapter->tx_num_queues; i++, txque++) {
+			iflib_irq_free(ctx, &txque->que_irq);
+		}
 	}
 
 	/* First release all the interrupt resources */
@@ -3639,33 +3749,12 @@ em_enable_wakeup(if_ctx_t ctx)
 	struct adapter *adapter = iflib_get_softc(ctx);
 	device_t dev = iflib_get_dev(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
-	u32 pmc, ctrl, ctrl_ext, rctl, wuc;
+	int error = 0;
+	u32 pmc, ctrl, ctrl_ext, rctl;
 	u16 status;
 
-	if ((pci_find_cap(dev, PCIY_PMG, &pmc) != 0))
+	if (pci_find_cap(dev, PCIY_PMG, &pmc) != 0)
 		return;
-
-	/* Advertise the wakeup capability */
-	ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
-	ctrl |= (E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN3);
-	E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
-	wuc = E1000_READ_REG(&adapter->hw, E1000_WUC);
-	wuc |= (E1000_WUC_PME_EN | E1000_WUC_APME);
-	E1000_WRITE_REG(&adapter->hw, E1000_WUC, wuc);
-
-	if ((adapter->hw.mac.type == e1000_ich8lan) ||
-	    (adapter->hw.mac.type == e1000_pchlan) ||
-	    (adapter->hw.mac.type == e1000_ich9lan) ||
-	    (adapter->hw.mac.type == e1000_ich10lan))
-		e1000_suspend_workarounds_ich8lan(&adapter->hw);
-
-	/* Keep the laser running on Fiber adapters */
-	if (adapter->hw.phy.media_type == e1000_media_type_fiber ||
-	    adapter->hw.phy.media_type == e1000_media_type_internal_serdes) {
-		ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
-		ctrl_ext |= E1000_CTRL_EXT_SDP3_DATA;
-		E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT, ctrl_ext);
-	}
 
 	/*
 	 * Determine type of Wakeup: note that wol
@@ -3685,10 +3774,34 @@ em_enable_wakeup(if_ctx_t ctx)
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, rctl);
 	}
 
+	if (!(adapter->wol & (E1000_WUFC_EX | E1000_WUFC_MAG | E1000_WUFC_MC)))
+		goto pme;
+
+	/* Advertise the wakeup capability */
+	ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
+	ctrl |= (E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN3);
+	E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
+
+	/* Keep the laser running on Fiber adapters */
+	if (adapter->hw.phy.media_type == e1000_media_type_fiber ||
+	    adapter->hw.phy.media_type == e1000_media_type_internal_serdes) {
+		ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
+		ctrl_ext |= E1000_CTRL_EXT_SDP3_DATA;
+		E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT, ctrl_ext);
+	}
+
+	if ((adapter->hw.mac.type == e1000_ich8lan) ||
+	    (adapter->hw.mac.type == e1000_pchlan) ||
+	    (adapter->hw.mac.type == e1000_ich9lan) ||
+	    (adapter->hw.mac.type == e1000_ich10lan))
+		e1000_suspend_workarounds_ich8lan(&adapter->hw);
+
 	if ( adapter->hw.mac.type >= e1000_pchlan) {
-		if (em_enable_phy_wakeup(adapter))
-			return;
+		error = em_enable_phy_wakeup(adapter);
+		if (error)
+			goto pme;
 	} else {
+		/* Enable wakeup by the MAC */
 		E1000_WRITE_REG(&adapter->hw, E1000_WUC, E1000_WUC_PME_EN);
 		E1000_WRITE_REG(&adapter->hw, E1000_WUFC, adapter->wol);
 	}
@@ -3696,10 +3809,10 @@ em_enable_wakeup(if_ctx_t ctx)
 	if (adapter->hw.phy.type == e1000_phy_igp_3)
 		e1000_igp3_phy_powerdown_workaround_ich8lan(&adapter->hw);
 
-	/* Request PME */
+pme:
 	status = pci_read_config(dev, pmc + PCIR_POWER_STATUS, 2);
 	status &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
-	if (if_getcapenable(ifp) & IFCAP_WOL)
+	if (!error && (if_getcapenable(ifp) & IFCAP_WOL))
 		status |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
 	pci_write_config(dev, pmc + PCIR_POWER_STATUS, status, 2);
 

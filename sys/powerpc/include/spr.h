@@ -171,6 +171,7 @@
 #define	  IBMPOWER7PLUS		  0x004a
 #define	  IBMPOWER8E		  0x004b
 #define	  IBMPOWER8		  0x004d
+#define	  IBMPOWER9		  0x004e
 #define	  MPC860		  0x0050
 #define	  IBMCELLBE		  0x0070
 #define	  MPC8240		  0x0081
@@ -191,6 +192,10 @@
 #define	  FSL_E500mc		  0x8023
 #define	  FSL_E5500		  0x8024
 #define	  FSL_E6500		  0x8040
+#define	  FSL_E300C1		  0x8083
+#define	  FSL_E300C2		  0x8084
+#define	  FSL_E300C3		  0x8085
+#define	  FSL_E300C4		  0x8086
 
 #define	SPR_EPCR		0x133
 #define	  EPCR_EXTGS		  0x80000000
@@ -733,6 +738,10 @@
 #define	  SVR_P4080E		  0x8209
 #define	  SVR_P5020		  0x8220
 #define	  SVR_P5020E		  0x8228
+#define	  SVR_P5021		  0x8205
+#define	  SVR_P5021E		  0x820d
+#define	  SVR_P5040		  0x8204
+#define	  SVR_P5040E		  0x820c
 #define	SVR_VER(svr)		(((svr) >> 16) & 0xffff)
 
 #define	SPR_PID0		0x030	/* ..8 Process ID Register 0 */

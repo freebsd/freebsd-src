@@ -210,7 +210,10 @@ struct vm_page {
 #define	PQ_UNSWAPPABLE	3
 #define	PQ_COUNT	4
 
+#ifndef VM_PAGE_HAVE_PGLIST
 TAILQ_HEAD(pglist, vm_page);
+#define VM_PAGE_HAVE_PGLIST
+#endif
 SLIST_HEAD(spglist, vm_page);
 
 struct vm_pagequeue {
@@ -470,6 +473,7 @@ vm_page_t vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
     u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
     vm_paddr_t boundary, vm_memattr_t memattr);
 vm_page_t vm_page_alloc_freelist(int, int);
+void vm_page_change_lock(vm_page_t m, struct mtx **mtx);
 vm_page_t vm_page_grab (vm_object_t, vm_pindex_t, int);
 int vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
     vm_page_t *ma, int count);

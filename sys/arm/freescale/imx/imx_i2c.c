@@ -443,7 +443,8 @@ no_recovery:
 
 	/* We don't do a hardware reset here because iicbus_attach() does it. */
 
-	bus_generic_attach(dev);
+	/* Probe and attach the iicbus when interrupts are available. */
+	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
 	return (0);
 }
 

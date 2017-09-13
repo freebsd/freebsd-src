@@ -35,6 +35,7 @@ SUBDIR=	\
 	alq \
 	${_amd_ecc_inject} \
 	${_amdsbwd} \
+	${_amdsmn} \
 	${_amdtemp} \
 	amr \
 	${_an} \
@@ -225,6 +226,7 @@ SUBDIR=	\
 	${_linux_common} \
 	${_linux64} \
 	linuxkpi \
+	${_lio} \
 	lmc \
 	lpt \
 	mac_biba \
@@ -250,6 +252,7 @@ SUBDIR=	\
 	${_mlx4en} \
 	${_mlx5} \
 	${_mlx5en} \
+	${_mlx5ib} \
 	${_mly} \
 	mmc \
 	mmcsd \
@@ -625,6 +628,7 @@ _aesni=		aesni
 .endif
 _amd_ecc_inject=amd_ecc_inject
 _amdsbwd=	amdsbwd
+_amdsmn=	amdsmn
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
@@ -670,6 +674,7 @@ _mlx5en=	mlx5en
 .endif
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _mlx4ib=	mlx4ib
+_mlx5ib=	mlx5ib
 .endif
 _mly=		mly
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
@@ -706,14 +711,17 @@ _ixl=		ixl
 _ixlv=		ixlv
 _linux64=	linux64
 _linux_common=	linux_common
+.if ${MK_SOURCELESS_UCODE} != "no"
+_lio=		lio
+.endif
 _ntb=		ntb
 _pms=		pms
 _qlxge=		qlxge
 _qlxgb=		qlxgb
 .if ${MK_SOURCELESS_UCODE} != "no"
 _qlxgbe=	qlxgbe
-.endif
 _qlnx=		qlnx
+.endif
 _sfxge=		sfxge
 _sgx=		sgx
 _sgx_linux=	sgx_linux

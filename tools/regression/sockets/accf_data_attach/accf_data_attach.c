@@ -64,6 +64,7 @@ main(void)
 {
 	struct accept_filter_arg afa;
 	struct sockaddr_in sin;
+	struct linger linger;
 	socklen_t len;
 	int lso, so, i, ret;
 
@@ -231,7 +232,31 @@ main(void)
 	usleep(10000);
 	if (accept(lso, NULL, 0) < 1)
 		errx(-1, "not ok 11 - accept #2 %s", strerror(errno));
+	if (close(so) != 0)
+		errx(-1, "not ok 11 - close(): %s", strerror(errno));
 	printf("ok 11 - accept\n");
+
+	/*
+	 * Step 12: reset connection before accept filter allows it.
+	 * In this case the connection must make it to the listen
+	 * queue, but with ECONNABORTED code.
+	 */
+	so = socket(PF_INET, SOCK_STREAM, 0);
+	if (so == -1)
+		errx(-1, "not ok 12 - socket: %s", strerror(errno));
+	if (connect(so, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+		errx(-1, "not ok 12 - connect %s", strerror(errno));
+	linger.l_onoff = 1;
+	linger.l_linger = 0;
+	ret = setsockopt(so, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger));
+	if (ret != 0)
+		errx(-1, "not ok 12 - setsockopt(SO_LINGER) failed with %d "
+		    "(%s)", errno, strerror(errno));
+	if (close(so) != 0)
+		errx(-1, "not ok 12 - close(): %s", strerror(errno));
+	if (accept(lso, NULL, 0) != -1 && errno != ECONNABORTED)
+		errx(-1, "not ok 12 - accept #3 %s", strerror(errno));
+	printf("ok 12 - accept\n");
 
 #if 1
 	/*
@@ -242,31 +267,33 @@ main(void)
 	 */
 	so = socket(PF_INET, SOCK_STREAM, 0);
 	if (so == -1)
-		errx(-1, "not ok 12 - socket: %s", strerror(errno));
+		errx(-1, "not ok 13 - socket: %s", strerror(errno));
 	if (connect(so, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		errx(-1, "not ok 12 - connect %s", strerror(errno));
+		errx(-1, "not ok 13 - connect %s", strerror(errno));
 #endif
 
 	/*
-	 * Step 11: Remove accept filter.  After removing the accept filter
+	 * Step 12: Remove accept filter.  After removing the accept filter
 	 * getsockopt() should fail with EINVAL.
 	 */
 	ret = setsockopt(lso, SOL_SOCKET, SO_ACCEPTFILTER, NULL, 0);
 	if (ret != 0)
-		errx(-1, "not ok 12 - setsockopt() after listen() "
+		errx(-1, "not ok 13 - setsockopt() after listen() "
 		    "failed with %d (%s)", errno, strerror(errno));
 	bzero(&afa, sizeof(afa));
 	len = sizeof(afa);
 	ret = getsockopt(lso, SOL_SOCKET, SO_ACCEPTFILTER, &afa, &len);
 	if (ret == 0)
-		errx(-1, "not ok 12 - getsockopt() after removing "
+		errx(-1, "not ok 13 - getsockopt() after removing "
 		    "the accept filter returns valid accept filter %s",
 		    afa.af_name);
 	if (errno != EINVAL)
-		errx(-1, "not ok 12 - getsockopt() after removing the accept"
+		errx(-1, "not ok 13 - getsockopt() after removing the accept"
 		    "filter failed with %d (%s)", errno, strerror(errno));
-	printf("ok 12 - setsockopt\n");
+	if (close(lso) != 0)
+		errx(-1, "not ok 13 - close() of listening socket: %s",
+		    strerror(errno));
+	printf("ok 13 - setsockopt\n");
 
-	close(lso);
 	return (0);
 }

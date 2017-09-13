@@ -80,6 +80,7 @@ static driver_t nvme_pci_driver = {
 
 DRIVER_MODULE(nvme, pci, nvme_pci_driver, nvme_devclass, nvme_modevent, 0);
 MODULE_VERSION(nvme, 1);
+MODULE_DEPEND(nvme, cam, 1, 1, 1);
 
 static struct _pcsid
 {
@@ -246,6 +247,12 @@ nvme_attach(device_t dev)
 	}
 
 	/*
+	 * Enable busmastering so the completion status messages can
+	 * be busmastered back to the host.
+	 */
+	pci_enable_busmaster(dev);
+
+	/*
 	 * Reset controller twice to ensure we do a transition from cc.en==1
 	 *  to cc.en==0.  This is because we don't really know what status
 	 *  the controller was left in when boot handed off to OS.
@@ -261,8 +268,6 @@ nvme_attach(device_t dev)
 		nvme_ctrlr_destruct(ctrlr, dev);
 		return (status);
 	}
-
-	pci_enable_busmaster(dev);
 
 	ctrlr->config_hook.ich_func = nvme_ctrlr_start_config_hook;
 	ctrlr->config_hook.ich_arg = ctrlr;

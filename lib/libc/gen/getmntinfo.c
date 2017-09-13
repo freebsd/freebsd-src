@@ -38,6 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <stdlib.h>
 
+#define	MAX_TRIES	3
+#define	SCALING_FACTOR	2
+
 /*
  * Return information about mounted filesystems.
  */
@@ -47,20 +50,21 @@ getmntinfo(struct statfs **mntbufp, int mode)
 	static struct statfs *mntbuf;
 	static int mntsize;
 	static long bufsize;
+	unsigned tries = 0;
 
 	if (mntsize <= 0 && (mntsize = getfsstat(0, 0, MNT_NOWAIT)) < 0)
 		return (0);
 	if (bufsize > 0 && (mntsize = getfsstat(mntbuf, bufsize, mode)) < 0)
 		return (0);
-	while (bufsize <= mntsize * sizeof(struct statfs)) {
-		if (mntbuf)
-			free(mntbuf);
-		bufsize = (mntsize + 1) * sizeof(struct statfs);
-		if ((mntbuf = malloc(bufsize)) == NULL)
+	while (tries++ < MAX_TRIES && bufsize <= mntsize * sizeof(*mntbuf)) {
+		bufsize = (mntsize * SCALING_FACTOR) * sizeof(*mntbuf);
+		if ((mntbuf = reallocf(mntbuf, bufsize)) == NULL)
 			return (0);
 		if ((mntsize = getfsstat(mntbuf, bufsize, mode)) < 0)
 			return (0);
 	}
 	*mntbufp = mntbuf;
+	if (mntsize > (bufsize / sizeof(*mntbuf)))
+		return (bufsize / sizeof(*mntbuf));
 	return (mntsize);
 }

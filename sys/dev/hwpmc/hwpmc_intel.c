@@ -184,6 +184,10 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_SKYLAKE;
 			nclasses = 3;
 			break;
+		case 0x55:	/* SDM rev 63 */
+			cputype = PMC_CPU_INTEL_SKYLAKE_XEON;
+			nclasses = 3;
+			break;
 		case 0x3D:
 		case 0x47:
 			cputype = PMC_CPU_INTEL_BROADWELL;
@@ -244,6 +248,7 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_ATOM_SILVERMONT:
 	case PMC_CPU_INTEL_BROADWELL:
 	case PMC_CPU_INTEL_BROADWELL_XEON:
+	case PMC_CPU_INTEL_SKYLAKE_XEON:
 	case PMC_CPU_INTEL_SKYLAKE:
 	case PMC_CPU_INTEL_CORE:
 	case PMC_CPU_INTEL_CORE2:
@@ -340,6 +345,7 @@ pmc_intel_finalize(struct pmc_mdep *md)
 	case PMC_CPU_INTEL_ATOM_SILVERMONT:
 	case PMC_CPU_INTEL_BROADWELL:
 	case PMC_CPU_INTEL_BROADWELL_XEON:
+	case PMC_CPU_INTEL_SKYLAKE_XEON:
 	case PMC_CPU_INTEL_SKYLAKE:
 	case PMC_CPU_INTEL_CORE:
 	case PMC_CPU_INTEL_CORE2:

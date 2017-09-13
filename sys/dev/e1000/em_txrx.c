@@ -66,6 +66,7 @@ static void em_receive_checksum(uint32_t status, if_rxd_info_t ri);
 static int em_determine_rsstype(u32 pkt_info);
 extern int em_intr(void *arg);
 
+
 struct if_txrx em_txrx = {
 	em_isc_txd_encap,
 	em_isc_txd_flush,
@@ -74,7 +75,7 @@ struct if_txrx em_txrx = {
 	em_isc_rxd_pkt_get,
 	em_isc_rxd_refill,
 	em_isc_rxd_flush,
-	em_intr
+	em_intr,
 };
 
 struct if_txrx lem_txrx = {
@@ -85,7 +86,7 @@ struct if_txrx lem_txrx = {
 	lem_isc_rxd_pkt_get,
 	lem_isc_rxd_refill,
 	em_isc_rxd_flush,
-	em_intr
+	em_intr,
 };
 
 extern if_shared_ctx_t em_sctx;
@@ -523,8 +524,8 @@ em_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 	for (i = 0, next_pidx = pidx; i < count; i++) {
 		rxd = &rxr->rx_base[next_pidx];
 		rxd->read.buffer_addr = htole64(paddrs[i]);
-		/* DD bits must be cleared */
-		rxd->wb.upper.status_error = 0;
+		/* Zero out rx desc status */
+		rxd->wb.upper.status_error &= htole32(~0xFF);
 
 		if (++next_pidx == scctx->isc_nrxd[0])
 			next_pidx = 0;
@@ -551,14 +552,9 @@ lem_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 	struct e1000_rx_desc *rxd;
 	u32 staterr = 0;
 	int cnt, i;
+	budget = min(budget, scctx->isc_nrxd[0]);
 
-	if (budget == 1) {
-		rxd = (struct e1000_rx_desc *)&rxr->rx_base[idx];
-		staterr = rxd->status;
-		return (staterr & E1000_RXD_STAT_DD);
-	}
-
-	for (cnt = 0, i = idx; cnt < scctx->isc_nrxd[0] && cnt <= budget;) {
+	for (cnt = 0, i = idx; cnt <= budget;) {
 		rxd = (struct e1000_rx_desc *)&rxr->rx_base[i];
 		staterr = rxd->status;
 
@@ -571,6 +567,7 @@ lem_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 		if (staterr & E1000_RXD_STAT_EOP)
 			cnt++;
 	}
+	MPASS(cnt <= scctx->isc_nrxd[0]);
 	return (cnt);
 }
 
@@ -584,14 +581,9 @@ em_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 	union e1000_rx_desc_extended *rxd;
 	u32 staterr = 0;
 	int cnt, i;
+	budget = min(budget, scctx->isc_nrxd[0]);
 
-	if (budget == 1) {
-		rxd = &rxr->rx_base[idx];
-		staterr = le32toh(rxd->wb.upper.status_error);
-		return (staterr & E1000_RXD_STAT_DD);
-	}
-
-	for (cnt = 0, i = idx; cnt < scctx->isc_nrxd[0] && cnt <= budget;) {
+	for (cnt = 0, i = idx; cnt <= budget;) {
 		rxd = &rxr->rx_base[i];
 		staterr = le32toh(rxd->wb.upper.status_error);
 
@@ -606,6 +598,7 @@ em_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 			cnt++;
 
 	}
+	MPASS(cnt <= scctx->isc_nrxd[0]);
 	return (cnt);
 }
 
@@ -694,7 +687,8 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		pkt_info = le32toh(rxd->wb.lower.mrq);
 
 		/* Error Checking then decrement count */
-		MPASS ((staterr & E1000_RXD_STAT_DD) != 0);
+		KASSERT(staterr & E1000_RXD_STAT_DD,
+			("cidx=%d i=%d iri_len=%d", cidx, i, ri->iri_len));
 
 		len = le16toh(rxd->wb.upper.length);
 		ri->iri_len += len;

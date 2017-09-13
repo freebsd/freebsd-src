@@ -73,7 +73,6 @@ struct swdevt {
 
 #ifdef _KERNEL
 
-extern int swap_pager_full;
 extern int swap_pager_avail;
 
 struct xswdev;

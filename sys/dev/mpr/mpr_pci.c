@@ -262,16 +262,42 @@ mpr_pci_alloc_interrupts(struct mpr_softc *sc)
 	error = 0;
 	msgs = 0;
 
-	if ((sc->disable_msix == 0) &&
-	    ((msgs = pci_msix_count(dev)) >= MPR_MSI_COUNT))
-		error = mpr_alloc_msix(sc, MPR_MSI_COUNT);
-	if ((error != 0) && (sc->disable_msi == 0) &&
-	    ((msgs = pci_msi_count(dev)) >= MPR_MSI_COUNT))
-		error = mpr_alloc_msi(sc, MPR_MSI_COUNT);
-	if (error != 0)
-		msgs = 0;
+	if (sc->disable_msix == 0) {
+		msgs = pci_msix_count(dev);
+		mpr_dprint(sc, MPR_INIT, "Counted %d MSI-X messages\n", msgs);
+		msgs = min(msgs, sc->max_msix);
+		msgs = min(msgs, MPR_MSIX_MAX);
+		msgs = min(msgs, 1);	/* XXX */
+		if (msgs != 0) {
+			mpr_dprint(sc, MPR_INIT, "Attempting to allocate %d MSI-X "
+			    "messages\n", msgs);
+			error = mpr_alloc_msix(sc, msgs);
+		}
+	}
+	if (((error != 0) || (msgs == 0)) && (sc->disable_msi == 0)) {
+		msgs = pci_msi_count(dev);
+		mpr_dprint(sc, MPR_INIT, "Counted %d MSI messages\n", msgs);
+		msgs = min(msgs, MPR_MSI_MAX);
+		if (msgs != 0) {
+			mpr_dprint(sc, MPR_INIT, "Attempting to allocated %d MSI "
+			    "messages\n", MPR_MSI_MAX);
+			error = mpr_alloc_msi(sc, MPR_MSI_MAX);
+		}
+	}
+	if ((error != 0) || (msgs == 0)) {
+		/*
+		 * If neither MSI or MSI-X are available, assume legacy INTx.
+		 * This also implies that there will be only 1 queue.
+		 */
+		mpr_dprint(sc, MPR_INIT, "Falling back to legacy INTx\n");
+		sc->mpr_flags |= MPR_FLAGS_INTX;
+		msgs = 1;
+	} else
+		sc->mpr_flags |= MPR_FLAGS_MSI;
 
 	sc->msi_msgs = msgs;
+	mpr_dprint(sc, MPR_INIT, "Allocated %d interrupts\n", msgs);
+
 	return (error);
 }
 
@@ -279,47 +305,49 @@ int
 mpr_pci_setup_interrupts(struct mpr_softc *sc)
 {
 	device_t dev;
-	int i, error;
+	struct mpr_queue *q;
+	void *ihandler;
+	int i, error, rid, initial_rid;
 
 	dev = sc->mpr_dev;
 	error = ENXIO;
 
-	if (sc->msi_msgs == 0) {
-		sc->mpr_flags |= MPR_FLAGS_INTX;
-		sc->mpr_irq_rid[0] = 0;
-		sc->mpr_irq[0] = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-		    &sc->mpr_irq_rid[0],  RF_SHAREABLE | RF_ACTIVE);
-		if (sc->mpr_irq[0] == NULL) {
-			mpr_printf(sc, "Cannot allocate INTx interrupt\n");
-			return (ENXIO);
-		}
-		error = bus_setup_intr(dev, sc->mpr_irq[0],
-		    INTR_TYPE_BIO | INTR_MPSAFE, NULL, mpr_intr, sc,
-		    &sc->mpr_intrhand[0]);
-		if (error)
-			mpr_printf(sc, "Cannot setup INTx interrupt\n");
+	if (sc->mpr_flags & MPR_FLAGS_INTX) {
+		initial_rid = 0;
+		ihandler = mpr_intr;
+	} else if (sc->mpr_flags & MPR_FLAGS_MSI) {
+		initial_rid = 1;
+		ihandler = mpr_intr_msi;
 	} else {
-		sc->mpr_flags |= MPR_FLAGS_MSI;
-		for (i = 0; i < MPR_MSI_COUNT; i++) {
-			sc->mpr_irq_rid[i] = i + 1;
-			sc->mpr_irq[i] = bus_alloc_resource_any(dev,
-			    SYS_RES_IRQ, &sc->mpr_irq_rid[i], RF_ACTIVE);
-			if (sc->mpr_irq[i] == NULL) {
-				mpr_printf(sc,
-				    "Cannot allocate MSI interrupt\n");
-				return (ENXIO);
-			}
-			error = bus_setup_intr(dev, sc->mpr_irq[i],
-			    INTR_TYPE_BIO | INTR_MPSAFE, NULL, mpr_intr_msi,
-			    sc, &sc->mpr_intrhand[i]);
-			if (error) {
-				mpr_printf(sc,
-				    "Cannot setup MSI interrupt %d\n", i);
-				break;
-			}
+		mpr_dprint(sc, MPR_ERROR|MPR_INIT,
+		    "Unable to set up interrupts\n");
+		return (EINVAL);
+	}
+
+	for (i = 0; i < sc->msi_msgs; i++) {
+		q = &sc->queues[i];
+		rid = i + initial_rid;
+		q->irq_rid = rid;
+		q->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		    &q->irq_rid, RF_ACTIVE);
+		if (q->irq == NULL) {
+			mpr_dprint(sc, MPR_ERROR|MPR_INIT,
+			    "Cannot allocate interrupt RID %d\n", rid);
+			sc->msi_msgs = i;
+			break;
+		}
+		error = bus_setup_intr(dev, q->irq,
+		    INTR_TYPE_BIO | INTR_MPSAFE, NULL, ihandler,
+		    sc, &q->intrhand);
+		if (error) {
+			mpr_dprint(sc, MPR_ERROR|MPR_INIT,
+			    "Cannot setup interrupt RID %d\n", rid);
+			sc->msi_msgs = i;
+			break;
 		}
 	}
 
+        mpr_dprint(sc, MPR_INIT, "Set up %d interrupts\n", sc->msi_msgs);
 	return (error);
 }
 
@@ -338,33 +366,38 @@ mpr_pci_detach(device_t dev)
 	return (0);
 }
 
+void
+mpr_pci_free_interrupts(struct mpr_softc *sc)
+{
+	struct mpr_queue *q;
+	int i;
+
+	if (sc->queues == NULL)
+		return;
+
+	for (i = 0; i < sc->msi_msgs; i++) {
+		q = &sc->queues[i];
+		if (q->irq != NULL) {
+			bus_teardown_intr(sc->mpr_dev, q->irq,
+			    q->intrhand);
+			bus_release_resource(sc->mpr_dev, SYS_RES_IRQ,
+			    q->irq_rid, q->irq);
+		}
+	}
+}
+
 static void
 mpr_pci_free(struct mpr_softc *sc)
 {
-	int i;
 
 	if (sc->mpr_parent_dmat != NULL) {
 		bus_dma_tag_destroy(sc->mpr_parent_dmat);
 	}
 
-	if (sc->mpr_flags & MPR_FLAGS_MSI) {
-		for (i = 0; i < MPR_MSI_COUNT; i++) {
-			if (sc->mpr_irq[i] != NULL) {
-				bus_teardown_intr(sc->mpr_dev, sc->mpr_irq[i],
-				    sc->mpr_intrhand[i]);
-				bus_release_resource(sc->mpr_dev, SYS_RES_IRQ,
-				    sc->mpr_irq_rid[i], sc->mpr_irq[i]);
-			}
-		}
-		pci_release_msi(sc->mpr_dev);
-	}
+	mpr_pci_free_interrupts(sc);
 
-	if (sc->mpr_flags & MPR_FLAGS_INTX) {
-		bus_teardown_intr(sc->mpr_dev, sc->mpr_irq[0],
-		    sc->mpr_intrhand[0]);
-		bus_release_resource(sc->mpr_dev, SYS_RES_IRQ,
-		    sc->mpr_irq_rid[0], sc->mpr_irq[0]);
-	}
+	if (sc->mpr_flags & MPR_FLAGS_MSI)
+		pci_release_msi(sc->mpr_dev);
 
 	if (sc->mpr_regs_resource != NULL) {
 		bus_release_resource(sc->mpr_dev, SYS_RES_MEMORY,

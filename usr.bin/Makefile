@@ -239,7 +239,6 @@ SUBDIR.${MK_MAIL}+=	from
 SUBDIR.${MK_MAIL}+=	mail
 SUBDIR.${MK_MAIL}+=	msgs
 SUBDIR.${MK_MAKE}+=	bmake
-SUBDIR.${MK_MAN_UTILS}+=	catman
 SUBDIR.${MK_MAN_UTILS}+=	man
 SUBDIR.${MK_NETCAT}+=	nc
 SUBDIR.${MK_NIS}+=	ypcat
