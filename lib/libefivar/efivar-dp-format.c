@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 
+#include "efichar.h"
+
 #include "efi-osdep.h"
 #include "efivar-dp.h"
 
@@ -1872,9 +1874,12 @@ DevPathToTextFilePath (
   )
 {
   FILEPATH_DEVICE_PATH  *Fp;
+  char *name = NULL;
 
   Fp = DevPath;
-  UefiDevicePathLibCatPrint (Str, "%s", Fp->PathName);
+  ucs2_to_utf8(Fp->PathName, &name);
+  UefiDevicePathLibCatPrint (Str, "File(%s)", name);
+  free(name);
 }
 
 /**
@@ -2424,4 +2429,10 @@ efidp_format_device_path(char *buf, size_t len, const_efidp dp, ssize_t max)
 	free(str);
 
 	return retval;
+}
+
+size_t
+efidp_size(const_efidp dp)
+{
+	return GetDevicePathSize(__DECONST(EFI_DEVICE_PATH_PROTOCOL *, dp));
 }

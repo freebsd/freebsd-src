@@ -198,7 +198,7 @@ r92c_send_ra_cmd(struct rtwn_softc *sc, int macid, uint32_t rates,
 #endif
 
 	/* Set rates mask for unicast frames. */
-	if (maxrate >= RTWN_RIDX_MCS(0))
+	if (maxrate >= RTWN_RIDX_HT_MCS(0))
 		mode = R92C_RAID_11GN;
 	else if (maxrate >= RTWN_RIDX_OFDM6)
 		mode = R92C_RAID_11BG;

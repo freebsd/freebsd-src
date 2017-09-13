@@ -519,6 +519,13 @@ struct bnxt_nvram_info {
 	struct sysctl_oid	*nvm_oid;
 };
 
+struct bnxt_func_qcfg {
+	uint16_t alloc_completion_rings;
+	uint16_t alloc_tx_rings;
+	uint16_t alloc_rx_rings;
+	uint16_t alloc_vnics;
+};
+
 struct bnxt_softc {
 	device_t	dev;
 	if_ctx_t	ctx;
@@ -535,6 +542,7 @@ struct bnxt_softc {
 	uint32_t		total_msix;
 
 	struct bnxt_func_info	func;
+	struct bnxt_func_qcfg	fn_qcfg;
 	struct bnxt_pf_info	pf;
 	struct bnxt_vf_info	vf;
 
@@ -550,6 +558,7 @@ struct bnxt_softc {
 	uint8_t			max_tc;
 	struct bnxt_cos_queue	q_info[BNXT_MAX_QUEUE];
 
+	uint64_t		admin_ticks;
 	struct iflib_dma_info	hw_rx_port_stats;
 	struct iflib_dma_info	hw_tx_port_stats;
 	struct rx_port_stats	*rx_port_stats;

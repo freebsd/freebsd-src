@@ -463,8 +463,16 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		authkey = (u_char *)p;		p += G_ELI_AUTH_SECKEYLEN;
 
 		data_secsize = sc->sc_data_per_sector;
-		if ((i % lsec) == 0)
+		if ((i % lsec) == 0) {
 			data_secsize = decr_secsize % data_secsize;
+			/*
+			 * Last encrypted sector of each decrypted sector is
+			 * only partially filled.
+			 */
+			if (bp->bio_cmd == BIO_WRITE)
+				memset(data + sc->sc_alen + data_secsize, 0,
+				    encr_secsize - sc->sc_alen - data_secsize);
+		}
 
 		if (bp->bio_cmd == BIO_READ) {
 			/* Remember read HMAC. */

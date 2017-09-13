@@ -82,6 +82,7 @@ struct	gettystrs gettystrs[] = {
 	{ "ac" },			/* modem answer-chat */
 	{ "al" },			/* user to auto-login */
 	{ "df", datefmt},		/* format for strftime() */
+	{ "iM" },			/* initial message program */
 	{ 0 }
 };
 

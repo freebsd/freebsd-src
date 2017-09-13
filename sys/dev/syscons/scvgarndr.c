@@ -356,32 +356,28 @@ vga_flipattr(u_short a, int blink)
 }
 
 static u_short
-vga_cursorattr_adj(u_short a, int blink)
+vga_cursorattr_adj(scr_stat *scp, u_short a, int blink)
 {
-	/*
-	 * !blink means pixel mode, and the cursor attribute in that case
-	 * is simplistic reverse video.
-	 */
-	if (!blink)
-		return (vga_flipattr(a, blink));
+	int i;
+	u_short bg, bgmask, fg, newbg;
 
 	/*
 	 * The cursor attribute is usually that of the underlying char
-	 * with the bg changed to white.  If the bg is already white,
-	 * then the bg is changed to black.  The fg is usually not
-	 * changed, but if it is the same as the new bg then it is
-	 * changed to the inverse of the new bg.
+	 * with only the bg changed, to the first preferred color that
+	 * differs from both the fg and bg.  If there is no such color,
+	 * use reverse video.
 	 */
-	if ((a & 0x7000) == 0x7000) {
-		a &= 0x8f00;
-		if ((a & 0x0700) == 0)
-			a |= 0x0700;
-	} else {
-		a |= 0x7000;
-		if ((a & 0x0700) == 0x0700)
-			a &= 0xf000;
+	bgmask = blink ? 0x7000 : 0xf000;
+	bg = a & bgmask;
+	fg = a & 0x0f00;
+	for (i = 0; i < nitems(scp->curs_attr.bg); i++) {
+		newbg = (scp->curs_attr.bg[i] << 12) & bgmask;
+		if (newbg != bg && newbg != (fg << 4))
+			break;
 	}
-	return (a);
+	if (i == nitems(scp->curs_attr.bg))
+		return (vga_flipattr(a, blink));
+	return (fg | newbg | (blink ? a & 0x8000 : 0));
 }
 
 static void
@@ -522,6 +518,12 @@ draw_txtcharcursor(scr_stat *scp, int at, u_short c, u_short a, int flip)
 			return;
 		if (flip)
 			a = vga_flipattr(a, TRUE);
+		/*
+		 * This clause handles partial-block cursors in text mode.
+		 * We want to change the attribute only under the partial
+		 * block, but in text mode we can only change full blocks.
+		 * Use reverse video instead.
+		 */
 		bcopy(font + c*h, font + sc->cursor_char*h, h);
 		font = font + sc->cursor_char*h;
 		for (i = imax(h - scp->curs_attr.base - scp->curs_attr.height, 0);
@@ -536,7 +538,7 @@ draw_txtcharcursor(scr_stat *scp, int at, u_short c, u_short a, int flip)
 	{
 		if (flip)
 			a = vga_flipattr(a, TRUE);
-		a = vga_cursorattr_adj(a, TRUE);
+		a = vga_cursorattr_adj(scp, a, TRUE);
 		sc_vtb_putc(&scp->scr, at, c, a);
 	}
 }
@@ -1026,7 +1028,7 @@ draw_pxlcursor_direct(scr_stat *scp, int at, int on, int flip)
 	if (flip)
 		a = vga_flipattr(a, FALSE);
 	if (on)
-		a = vga_cursorattr_adj(a, FALSE);
+		a = vga_cursorattr_adj(scp, a, FALSE);
 	col1 = (a & 0x0f00) >> 8;
 	col2 = a >> 12;
 
@@ -1070,7 +1072,7 @@ draw_pxlcursor_planar(scr_stat *scp, int at, int on, int flip)
 	if (flip)
 		a = vga_flipattr(a, FALSE);
 	if (on)
-		a = vga_cursorattr_adj(a, FALSE);
+		a = vga_cursorattr_adj(scp, a, FALSE);
 	col = (a & 0xf000) >> 4;
 	outw(GDCIDX, col | 0x00);	/* set/reset */
 	outw(GDCIDX, 0xff08);		/* bit mask */
@@ -1202,7 +1204,7 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 	outw(GDCIDX, 0x0003);		/* data rotate/function select */
 	outw(GDCIDX, 0x0f01);		/* set/reset enable */
 
-	outw(GDCIDX, (0 << 8) | 0x00); /* set/reset */
+	outw(GDCIDX, (scp->curs_attr.mouse_ba << 8) | 0x00); /* set/reset */
 	p = scp->sc->adp->va_window + line_width*y + x/8;
 	for (i = y, j = 0; i < ymax; ++i, ++j) {
 		m = mdp->md_border[j] << 8 >> xoff;
@@ -1221,7 +1223,7 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 		}
 		p += line_width;
 	}
-	outw(GDCIDX, (15 << 8) | 0x00); /* set/reset */
+	outw(GDCIDX, (scp->curs_attr.mouse_ia << 8) | 0x00); /* set/reset */
 	p = scp->sc->adp->va_window + line_width*y + x/8;
 	for (i = y, j = 0; i < ymax; ++i, ++j) {
 		m = mdp->md_interior[j] << 8 >> xoff;
@@ -1325,9 +1327,11 @@ do_on:
 	for (i = 0; i < yend - y; i++, p += line_width)
 		for (j = xend - x - 1; j >= 0; j--)
 			if (mdp->md_interior[i] & (1 << (15 - j)))
-				DRAW_PIXEL(scp, p + j * pixel_size, 15);
+				DRAW_PIXEL(scp, p + j * pixel_size,
+				    scp->curs_attr.mouse_ia);
 			else if (mdp->md_border[i] & (1 << (15 - j)))
-				DRAW_PIXEL(scp, p + j * pixel_size, 0);
+				DRAW_PIXEL(scp, p + j * pixel_size,
+				    scp->curs_attr.mouse_ba);
 }
 
 static void 

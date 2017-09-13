@@ -511,7 +511,8 @@ _proc_name2map(struct proc_handle *p, const char *name)
 			return (&p->mappings[i]);
 	}
 	if (strcmp(name, "a.out") == 0)
-		return (_proc_addr2map(p, p->exec_map->pr_vaddr));
+		return (_proc_addr2map(p,
+		    p->mappings[p->exec_map].map.pr_vaddr));
 	return (NULL);
 }
 

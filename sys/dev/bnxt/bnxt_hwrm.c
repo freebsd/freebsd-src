@@ -438,6 +438,31 @@ fail:
 	return rc;
 }
 
+int 
+bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
+{
+        struct hwrm_func_qcfg_input req = {0};
+        struct hwrm_func_qcfg_output *resp =
+	    (void *)softc->hwrm_cmd_resp.idi_vaddr;
+	struct bnxt_func_qcfg *fn_qcfg = &softc->fn_qcfg;
+        int rc;
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_QCFG);
+        req.fid = htole16(0xffff);
+	BNXT_HWRM_LOCK(softc);
+	rc = _hwrm_send_message(softc, &req, sizeof(req));
+        if (rc)
+		goto fail;
+
+	fn_qcfg->alloc_completion_rings = le16toh(resp->alloc_cmpl_rings);
+	fn_qcfg->alloc_tx_rings = le16toh(resp->alloc_tx_rings);
+	fn_qcfg->alloc_rx_rings = le16toh(resp->alloc_rx_rings);
+	fn_qcfg->alloc_vnics = le16toh(resp->alloc_vnics);
+fail:
+	BNXT_HWRM_UNLOCK(softc);
+        return rc;
+}
+
 int
 bnxt_hwrm_func_reset(struct bnxt_softc *softc)
 {
@@ -789,6 +814,25 @@ bnxt_hwrm_stat_ctx_alloc(struct bnxt_softc *softc, struct bnxt_cp_ring *cpr,
 	cpr->stats_ctx_id = le32toh(resp->stat_ctx_id);
 
 fail:
+	BNXT_HWRM_UNLOCK(softc);
+
+	return rc;
+}
+
+int
+bnxt_hwrm_port_qstats(struct bnxt_softc *softc)
+{
+	struct hwrm_port_qstats_input req = {0};
+	int rc = 0;
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_PORT_QSTATS);
+
+	req.port_id = htole16(softc->pf.port_id);
+	req.rx_stat_host_addr = htole64(softc->hw_rx_port_stats.idi_paddr);
+	req.tx_stat_host_addr = htole64(softc->hw_tx_port_stats.idi_paddr);
+
+	BNXT_HWRM_LOCK(softc);
+	rc = _hwrm_send_message(softc, &req, sizeof(req));
 	BNXT_HWRM_UNLOCK(softc);
 
 	return rc;
@@ -1453,12 +1497,12 @@ bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc)
 		goto exit;
 
 	link_info->phy_link_status = resp->link;
-	link_info->duplex =  resp->duplex;
+	link_info->duplex =  resp->duplex_cfg;
 	link_info->pause = resp->pause;
 	link_info->auto_mode = resp->auto_mode;
 	link_info->auto_pause = resp->auto_pause;
 	link_info->force_pause = resp->force_pause;
-	link_info->duplex_setting = resp->duplex;
+	link_info->duplex_setting = resp->duplex_cfg;
 	if (link_info->phy_link_status == HWRM_PORT_PHY_QCFG_OUTPUT_LINK_LINK)
 		link_info->link_speed = le16toh(resp->link_speed);
 	else

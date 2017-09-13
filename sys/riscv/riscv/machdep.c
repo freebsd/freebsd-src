@@ -151,16 +151,6 @@ cpu_idle_wakeup(int cpu)
 	return (0);
 }
 
-void
-bzero(void *buf, size_t len)
-{
-	uint8_t *p;
-
-	p = buf;
-	while(len-- > 0)
-		*p++ = 0;
-}
-
 int
 fill_regs(struct thread *td, struct reg *regs)
 {
@@ -890,4 +880,15 @@ initriscv(struct riscv_bootparams *rvbp)
 	riscv_init_interrupts();
 
 	early_boot = 0;
+}
+
+#undef bzero
+void
+bzero(void *buf, size_t len)
+{
+	uint8_t *p;
+
+	p = buf;
+	while(len-- > 0)
+		*p++ = 0;
 }

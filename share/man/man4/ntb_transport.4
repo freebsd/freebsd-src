@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2016 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2016-2017 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,14 +25,21 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2016
+.Dd September 2, 2017
 .Dt NTB_TRANSPORT 4
 .Os
 .Sh NAME
 .Nm ntb_transport
 .Nd Packet-oriented transport for Non-Transparent Bridges
 .Sh SYNOPSIS
-To load the driver as a module at boot, place the following line in
+To compile this driver into your kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ntb"
+.Cd "device ntb_transport"
+.Ed
+.Pp
+Or, to load the driver as a module at boot, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 ntb_transport_load="YES"
@@ -45,28 +52,44 @@ The following tunables are settable from the
 Driver debug level.
 The default value is 0, higher means more verbose.
 .It Va hint.ntb_transport. Ns Ar X Ns Va .config
-Configures queues allocation for consumer devices, separated by commas.
-Each device can be configured as: "<name>[:<queues>]", where:
+Configures a set of the transport consumers, separated by commas.
+Each consumer can be configured as: "[<name>][:<queues>]", where:
 .Va name
-is a name of the driver which should attach the device (empty means any),
+is a name of the driver to attach (empty means any),
 .Va queues
-is a number of queues to allocate (empty means automatic),
-The default configuration is empty string, which means single device
-with one queue per memory window allowing any driver attachment.
+is a number of queues to allocate (empty means automatic).
+The default configuration is empty string, which means single consumer
+with one queue per memory window, allowing any driver to attach.
 .El
 .Sh DESCRIPTION
 The
 .Nm
 driver attaches on top of the
 .Nm ntb
-driver to utilize its resources to create set of bidirectional queues,
+driver to utilize its resources to create a set of bidirectional queues,
 delivering packets between the systems.
-The primary purpose of this is to be used by
+The primary purpose of this driver is to be used by
 .Nm if_ntb
 network interface, but other consumers may also be developed using KPI.
+.Pp
+Each
+.Nm
+require from underlying
+.Nm ntb
+instance:
+.Bl -bullet -compact
+.It
+1 or more memory windows;
+.It
+6 scratchpads, plus 2 more for each additional memory window;
+.It
+1 doorbell for each memory window or configured queue.
+.El
 .Sh SEE ALSO
 .Xr if_ntb 4 ,
-.Xr ntb_hw 4
+.Xr ntb 4 ,
+.Xr ntb_hw_intel 4 ,
+.Xr ntb_hw_plx 4
 .Sh AUTHORS
 .An -nosplit
 The

@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/un.h>
 #include <sys/wait.h>
-#include <machine/sysarch.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -462,11 +461,12 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "sigsuspend", .ret_type = 1, .nargs = 1,
 	  .args = { { Sigset | IN, 0 } } },
 	{ .name = "sigtimedwait", .ret_type = 1, .nargs = 3,
-	  .args = { { Sigset | IN, 0 }, { Ptr, 1 }, { Timespec | IN, 2 } } },
+	  .args = { { Sigset | IN, 0 }, { Siginfo | OUT, 1 },
+		    { Timespec | IN, 2 } } },
 	{ .name = "sigwait", .ret_type = 1, .nargs = 2,
-	  .args = { { Sigset | IN, 0 }, { Ptr, 1 } } },
+	  .args = { { Sigset | IN, 0 }, { PSig | OUT, 1 } } },
 	{ .name = "sigwaitinfo", .ret_type = 1, .nargs = 2,
-	  .args = { { Sigset | IN, 0 }, { Ptr, 1 } } },
+	  .args = { { Sigset | IN, 0 }, { Siginfo | OUT, 1 } } },
 	{ .name = "socket", .ret_type = 1, .nargs = 3,
 	  .args = { { Sockdomain, 0 }, { Socktype, 1 }, { Sockprotocol, 2 } } },
 	{ .name = "stat", .ret_type = 1, .nargs = 2,
@@ -483,6 +483,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Long, 0 }, { Signal, 1 } } },
 	{ .name = "thr_self", .ret_type = 1, .nargs = 1,
 	  .args = { { Ptr, 0 } } },
+	{ .name = "thr_set_name", .ret_type = 1, .nargs = 2,
+	  .args = { { Long, 0 }, { Name, 1 } } },
 	{ .name = "truncate", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { QuadHex | IN, 1 } } },
 #if 0
@@ -508,7 +510,8 @@ static struct syscall decoded_syscalls[] = {
 		    { Rusage | OUT, 3 } } },
 	{ .name = "wait6", .ret_type = 1, .nargs = 6,
 	  .args = { { Idtype, 0 }, { Quad, 1 }, { ExitStatus | OUT, 2 },
-		    { Waitoptions, 3 }, { Rusage | OUT, 4 }, { Ptr, 5 } } },
+		    { Waitoptions, 3 }, { Rusage | OUT, 4 },
+		    { Siginfo | OUT, 5 } } },
 	{ .name = "write", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { BinString | IN, 1 }, { Sizet, 2 } } },
 
@@ -626,19 +629,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { CloudABISignal, 0 } } },
 	{ .name = "cloudabi_sys_random_get", .ret_type = 1, .nargs = 2,
 	  .args = { { BinString | OUT, 0 }, { Int, 1 } } },
-	{ .name = "cloudabi_sys_sock_accept", .ret_type = 1, .nargs = 2,
-	  .args = { { Int, 0 }, { CloudABISockStat | OUT, 1 } } },
-	{ .name = "cloudabi_sys_sock_bind", .ret_type = 1, .nargs = 3,
-	  .args = { { Int, 0 }, { Int, 1 }, { BinString | IN, 2 } } },
-	{ .name = "cloudabi_sys_sock_connect", .ret_type = 1, .nargs = 3,
-	  .args = { { Int, 0 }, { Int, 1 }, { BinString | IN, 2 } } },
-	{ .name = "cloudabi_sys_sock_listen", .ret_type = 1, .nargs = 2,
-	  .args = { { Int, 0 }, { Int, 1 } } },
 	{ .name = "cloudabi_sys_sock_shutdown", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { CloudABISDFlags, 1 } } },
-	{ .name = "cloudabi_sys_sock_stat_get", .ret_type = 1, .nargs = 3,
-	  .args = { { Int, 0 }, { CloudABISockStat | OUT, 1 },
-	            { CloudABISSFlags, 2 } } },
 	{ .name = "cloudabi_sys_thread_exit", .ret_type = 1, .nargs = 2,
 	  .args = { { Ptr, 0 }, { CloudABIMFlags, 1 } } },
 	{ .name = "cloudabi_sys_thread_yield", .ret_type = 1, .nargs = 0 },
@@ -704,35 +696,6 @@ static struct xlat sigaction_flags[] = {
 	X(SA_NODEFER) X(SA_NOCLDWAIT) X(SA_SIGINFO) XEND
 };
 
-static struct xlat pathconf_arg[] = {
-	X(_PC_LINK_MAX)  X(_PC_MAX_CANON)  X(_PC_MAX_INPUT)
-	X(_PC_NAME_MAX) X(_PC_PATH_MAX) X(_PC_PIPE_BUF)
-	X(_PC_CHOWN_RESTRICTED) X(_PC_NO_TRUNC) X(_PC_VDISABLE)
-	X(_PC_ASYNC_IO) X(_PC_PRIO_IO) X(_PC_SYNC_IO)
-	X(_PC_ALLOC_SIZE_MIN) X(_PC_FILESIZEBITS)
-	X(_PC_REC_INCR_XFER_SIZE) X(_PC_REC_MAX_XFER_SIZE)
-	X(_PC_REC_MIN_XFER_SIZE) X(_PC_REC_XFER_ALIGN)
-	X(_PC_SYMLINK_MAX) X(_PC_ACL_EXTENDED) X(_PC_ACL_PATH_MAX)
-	X(_PC_CAP_PRESENT) X(_PC_INF_PRESENT) X(_PC_MAC_PRESENT)
-	X(_PC_ACL_NFS4) X(_PC_MIN_HOLE_SIZE) XEND
-};
-
-static struct xlat at_flags[] = {
-	X(AT_EACCESS) X(AT_SYMLINK_NOFOLLOW) X(AT_SYMLINK_FOLLOW)
-	X(AT_REMOVEDIR) XEND
-};
-
-static struct xlat sysarch_ops[] = {
-#if defined(__i386__) || defined(__amd64__)
-	X(I386_GET_LDT) X(I386_SET_LDT) X(I386_GET_IOPERM) X(I386_SET_IOPERM)
-	X(I386_VM86) X(I386_GET_FSBASE) X(I386_SET_FSBASE) X(I386_GET_GSBASE)
-	X(I386_SET_GSBASE) X(I386_GET_XFPUSTATE) X(AMD64_GET_FSBASE)
-	X(AMD64_SET_FSBASE) X(AMD64_GET_GSBASE) X(AMD64_SET_GSBASE)
-	X(AMD64_GET_XFPUSTATE)
-#endif
-	XEND
-};
-
 static struct xlat linux_socketcall_ops[] = {
 	X(LINUX_SOCKET) X(LINUX_BIND) X(LINUX_CONNECT) X(LINUX_LISTEN)
 	X(LINUX_ACCEPT) X(LINUX_GETSOCKNAME) X(LINUX_GETPEERNAME)
@@ -757,25 +720,6 @@ static struct xlat cloudabi_clockid[] = {
 	XEND
 };
 
-static struct xlat cloudabi_errno[] = {
-	X(E2BIG) X(EACCES) X(EADDRINUSE) X(EADDRNOTAVAIL)
-	X(EAFNOSUPPORT) X(EAGAIN) X(EALREADY) X(EBADF) X(EBADMSG)
-	X(EBUSY) X(ECANCELED) X(ECHILD) X(ECONNABORTED) X(ECONNREFUSED)
-	X(ECONNRESET) X(EDEADLK) X(EDESTADDRREQ) X(EDOM) X(EDQUOT)
-	X(EEXIST) X(EFAULT) X(EFBIG) X(EHOSTUNREACH) X(EIDRM) X(EILSEQ)
-	X(EINPROGRESS) X(EINTR) X(EINVAL) X(EIO) X(EISCONN) X(EISDIR)
-	X(ELOOP) X(EMFILE) X(EMLINK) X(EMSGSIZE) X(EMULTIHOP)
-	X(ENAMETOOLONG) X(ENETDOWN) X(ENETRESET) X(ENETUNREACH)
-	X(ENFILE) X(ENOBUFS) X(ENODEV) X(ENOENT) X(ENOEXEC) X(ENOLCK)
-	X(ENOLINK) X(ENOMEM) X(ENOMSG) X(ENOPROTOOPT) X(ENOSPC)
-	X(ENOSYS) X(ENOTCONN) X(ENOTDIR) X(ENOTEMPTY) X(ENOTRECOVERABLE)
-	X(ENOTSOCK) X(ENOTSUP) X(ENOTTY) X(ENXIO) X(EOVERFLOW)
-	X(EOWNERDEAD) X(EPERM) X(EPIPE) X(EPROTO) X(EPROTONOSUPPORT)
-	X(EPROTOTYPE) X(ERANGE) X(EROFS) X(ESPIPE) X(ESRCH) X(ESTALE)
-	X(ETIMEDOUT) X(ETXTBSY) X(EXDEV) X(ENOTCAPABLE)
-	XEND
-};
-
 static struct xlat cloudabi_fdflags[] = {
 	X(FDFLAG_APPEND) X(FDFLAG_DSYNC) X(FDFLAG_NONBLOCK)
 	X(FDFLAG_RSYNC) X(FDFLAG_SYNC)
@@ -790,10 +734,9 @@ static struct xlat cloudabi_fdsflags[] = {
 static struct xlat cloudabi_filetype[] = {
 	X(FILETYPE_UNKNOWN) X(FILETYPE_BLOCK_DEVICE)
 	X(FILETYPE_CHARACTER_DEVICE) X(FILETYPE_DIRECTORY)
-	X(FILETYPE_FIFO) X(FILETYPE_POLL) X(FILETYPE_PROCESS)
-	X(FILETYPE_REGULAR_FILE) X(FILETYPE_SHARED_MEMORY)
-	X(FILETYPE_SOCKET_DGRAM) X(FILETYPE_SOCKET_STREAM)
-	X(FILETYPE_SYMBOLIC_LINK)
+	X(FILETYPE_POLL) X(FILETYPE_PROCESS) X(FILETYPE_REGULAR_FILE)
+	X(FILETYPE_SHARED_MEMORY) X(FILETYPE_SOCKET_DGRAM)
+	X(FILETYPE_SOCKET_STREAM) X(FILETYPE_SYMBOLIC_LINK)
 	XEND
 };
 
@@ -834,16 +777,6 @@ static struct xlat cloudabi_signal[] = {
 	X(SIGSEGV) X(SIGSTOP) X(SIGSYS) X(SIGTERM) X(SIGTRAP) X(SIGTSTP)
 	X(SIGTTIN) X(SIGTTOU) X(SIGURG) X(SIGUSR1) X(SIGUSR2)
 	X(SIGVTALRM) X(SIGXCPU) X(SIGXFSZ)
-	XEND
-};
-
-static struct xlat cloudabi_ssflags[] = {
-	X(SOCKSTAT_CLEAR_ERROR)
-	XEND
-};
-
-static struct xlat cloudabi_ssstate[] = {
-	X(SOCKSTATE_ACCEPTCONN)
 	XEND
 };
 
@@ -1725,7 +1658,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		print_integer_arg(sysdecode_getrusage_who, fp, args[sc->offset]);
 		break;
 	case Pathconf:
-		fputs(xlookup(pathconf_arg, args[sc->offset]), fp);
+		print_integer_arg(sysdecode_pathconf_name, fp, args[sc->offset]);
 		break;
 	case Rforkflags:
 		print_mask_arg(sysdecode_rfork_flags, fp, args[sc->offset]);
@@ -1991,13 +1924,14 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		print_integer_arg(sysdecode_atfd, fp, args[sc->offset]);
 		break;
 	case Atflags:
-		fputs(xlookup_bits(at_flags, args[sc->offset]), fp);
+		print_mask_arg(sysdecode_atflags, fp, args[sc->offset]);
 		break;
 	case Accessmode:
 		print_mask_arg(sysdecode_access_mode, fp, args[sc->offset]);
 		break;
 	case Sysarch:
-		fputs(xlookup(sysarch_ops, args[sc->offset]), fp);
+		print_integer_arg(sysdecode_sysarch_number, fp,
+		    args[sc->offset]);
 		break;
 	case PipeFds:
 		/*
@@ -2202,6 +2136,28 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			fprintf(fp, "0x%lx", args[sc->offset]);
 		break;
 	}
+	case PSig: {
+		int sig;
+
+		if (get_struct(pid, (void *)args[sc->offset], &sig,
+		    sizeof(sig)) == 0) 
+			fprintf(fp, "{ %s }", strsig2(sig));
+		else
+			fprintf(fp, "0x%lx", args[sc->offset]);
+		break;
+	}
+	case Siginfo: {
+		siginfo_t si;
+
+		if (get_struct(pid, (void *)args[sc->offset], &si,
+		    sizeof(si)) != -1) {
+			fprintf(fp, "{ signo=%s", strsig2(si.si_signo));
+			decode_siginfo(fp, &si);
+			fprintf(fp, " }");
+		} else
+			fprintf(fp, "0x%lx", args[sc->offset]);
+		break;
+	}
 
 	case CloudABIAdvice:
 		fputs(xlookup(cloudabi_advice, args[sc->offset]), fp);
@@ -2265,21 +2221,6 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		break;
 	case CloudABISignal:
 		fputs(xlookup(cloudabi_signal, args[sc->offset]), fp);
-		break;
-	case CloudABISockStat: {
-		cloudabi_sockstat_t ss;
-		if (get_struct(pid, (void *)args[sc->offset], &ss, sizeof(ss))
-		    != -1) {
-			fprintf(fp, "%s, ", xlookup(
-			    cloudabi_errno, ss.ss_error));
-			fprintf(fp, "%s }", xlookup_bits(
-			    cloudabi_ssstate, ss.ss_state));
-		} else
-			fprintf(fp, "0x%lx", args[sc->offset]);
-		break;
-	}
-	case CloudABISSFlags:
-		fputs(xlookup_bits(cloudabi_ssflags, args[sc->offset]), fp);
 		break;
 	case CloudABITimestamp:
 		fprintf(fp, "%lu.%09lus", args[sc->offset] / 1000000000,

@@ -497,6 +497,7 @@ contrib/dev/acpica/components/utilities/utresdecode.c	optional acpi acpi_debug
 contrib/dev/acpica/components/utilities/utresrc.c	optional acpi
 contrib/dev/acpica/components/utilities/utstate.c	optional acpi
 contrib/dev/acpica/components/utilities/utstring.c	optional acpi
+contrib/dev/acpica/components/utilities/utstrsuppt.c	optional acpi
 contrib/dev/acpica/components/utilities/utstrtoul64.c	optional acpi
 contrib/dev/acpica/components/utilities/utuuid.c	optional acpi acpi_debug
 contrib/dev/acpica/components/utilities/utxface.c	optional acpi
@@ -1394,7 +1395,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.16.45.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.16.59.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1428,7 +1429,7 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.16.45.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.16.59.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
@@ -1462,7 +1463,7 @@ t6fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t6fw.fwo"
 t6fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t6fw-1.16.45.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t6fw-1.16.59.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t6fw.fw"
@@ -2215,6 +2216,62 @@ dev/le/if_le_pci.c		optional le pci
 dev/le/lance.c			optional le
 dev/led/led.c			standard
 dev/lge/if_lge.c		optional lge
+dev/liquidio/base/cn23xx_pf_device.c		optional lio	\
+	compile-with "${NORMAL_C}				\
+	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
+dev/liquidio/base/lio_console.c			optional lio	\
+	compile-with "${NORMAL_C}				\
+	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
+dev/liquidio/base/lio_ctrl.c			optional lio	\
+	compile-with "${NORMAL_C} 				\
+	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
+dev/liquidio/base/lio_device.c			optional lio	\
+	compile-with "${NORMAL_C} 				\
+	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
+dev/liquidio/base/lio_droq.c			optional lio	\
+	compile-with "${NORMAL_C} 				\
+	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
+dev/liquidio/base/lio_mem_ops.c			optional lio	\
+	compile-with "${NORMAL_C} 				\
+	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
+dev/liquidio/base/lio_request_manager.c		optional lio	\
+	compile-with "${NORMAL_C} 				\
+	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
+dev/liquidio/base/lio_response_manager.c	optional lio	\
+	compile-with "${NORMAL_C} 				\
+	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
+dev/liquidio/lio_core.c				optional lio	\
+	compile-with "${NORMAL_C} 				\
+	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
+dev/liquidio/lio_ioctl.c			optional lio	\
+	compile-with "${NORMAL_C} 				\
+	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
+dev/liquidio/lio_main.c				optional lio	\
+	compile-with "${NORMAL_C} 				\
+	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
+dev/liquidio/lio_rss.c				optional lio	\
+	compile-with "${NORMAL_C} 				\
+	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
+dev/liquidio/lio_rxtx.c				optional lio	\
+	compile-with "${NORMAL_C} 				\
+	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
+dev/liquidio/lio_sysctl.c			optional lio	\
+	compile-with "${NORMAL_C} 				\
+	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
+lio.c	optional lio						\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk lio_23xx_nic.bin.fw:lio_23xx_nic.bin -mlio_23xx_nic.bin -c${.TARGET}" \
+	no-implicit-rule before-depend local			\
+	clean		"lio.c"
+lio_23xx_nic.bin.fw.fwo optional lio				\
+	dependency	"lio_23xx_nic.bin.fw"			\
+	compile-with	"${NORMAL_FWO}"				\
+	no-implicit-rule					\
+	clean		"lio_23xx_nic.bin.fw.fwo"
+lio_23xx_nic.bin.fw	optional lio					\
+	dependency	"$S/contrib/dev/liquidio/lio_23xx_nic.bin.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"lio_23xx_nic.bin.fw"
 dev/lmc/if_lmc.c		optional lmc
 dev/malo/if_malo.c		optional malo
 dev/malo/if_malohal.c		optional malo
@@ -3052,6 +3109,7 @@ dev/uart/uart_bus_puc.c		optional uart puc
 dev/uart/uart_bus_scc.c		optional uart scc
 dev/uart/uart_core.c		optional uart
 dev/uart/uart_dbg.c		optional uart gdb
+dev/uart/uart_dev_mvebu.c	optional uart uart_mvebu
 dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250 | uart uart_snps
 dev/uart/uart_dev_pl011.c	optional uart pl011
 dev/uart/uart_dev_quicc.c	optional uart quicc
@@ -4506,6 +4564,27 @@ dev/mlx4/mlx4_en/mlx4_en_resources.c		optional mlx4en pci inet inet6	\
 dev/mlx4/mlx4_en/mlx4_en_rx.c			optional mlx4en pci inet inet6	\
 	compile-with "${OFED_C}"
 dev/mlx4/mlx4_en/mlx4_en_tx.c			optional mlx4en pci inet inet6	\
+	compile-with "${OFED_C}"
+
+dev/mlx5/mlx5_ib/mlx5_ib_ah.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_cq.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_doorbell.c		optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_mad.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_main.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_mem.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_mr.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_qp.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_roce.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_srq.c			optional mlx5ib pci ofed \
 	compile-with "${OFED_C}"
 
 dev/mlx5/mlx5_core/mlx5_alloc.c			optional mlx5 pci	\

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 3, 2017
+.Dd September 3, 2017
 .Dt sysdecode_enum 3
 .Os
 .Sh NAME
@@ -46,6 +46,7 @@
 .Nm sysdecode_minherit_flags ,
 .Nm sysdecode_msgctl_cmd ,
 .Nm sysdecode_nfssvc_flags ,
+.Nm sysdecode_pathconf_name ,
 .Nm sysdecode_prio_which ,
 .Nm sysdecode_procctl_cmd ,
 .Nm sysdecode_ptrace_request ,
@@ -67,6 +68,7 @@
 .Nm sysdecode_socketdomain ,
 .Nm sysdecode_sockettype ,
 .Nm sysdecode_sockopt_level ,
+.Nm sysdecode_sysarch_number ,
 .Nm sysdecode_umtx_op ,
 .Nm sysdecode_vmresult ,
 .Nm sysdecode_whence
@@ -110,6 +112,8 @@
 .Ft const char *
 .Fn sysdecode_nfssvc_flags "int flags"
 .Ft const char *
+.Fn sysdecode_pathconf_name "int name"
+.Ft const char *
 .Fn sysdecode_prio_which "int which"
 .Ft const char *
 .Fn sysdecode_procctl_cmd "int cmd"
@@ -152,6 +156,8 @@
 .Ft const char *
 .Fn sysdecode_sockopt_level "int level"
 .Ft const char *
+.Fn sysdecode_sysarch_number "int number"
+.Ft const char *
 .Fn sysdecode_umtx_op "int op"
 .Ft const char *
 .Fn sysdecode_vmresult "int result"
@@ -186,6 +192,7 @@ Most of these functions decode an argument passed to a system call:
 .It Fn sysdecode_minherit_inherit Ta Xr minherit 2 Ta Fa inherit
 .It Fn sysdecode_msgctl_cmd Ta Xr msgctl 2 Ta Fa cmd
 .It Fn sysdecode_nfssvc_flags Ta Xr nfssvc 2 Ta Fa flags
+.It Fn sysdecode_pathconf_name Ta Xr pathconf 2 Ta Fa name
 .It Fn sysdecode_prio_which Ta Xr getpriority 2 Ta Fa which
 .It Fn sysdecode_procctl_cmd Ta Xr procctl 2 Ta Fa cmd
 .It Fn sysdecode_ptrace_request Ta Xr ptrace 2 Ta Fa request
@@ -198,6 +205,7 @@ Most of these functions decode an argument passed to a system call:
 .It Fn sysdecode_shutdown_how Ta Xr shutdown 2 Ta Fa how
 .It Fn sysdecode_sigprocmask_how Ta Xr sigprocmask 2 Ta Fa how
 .It Fn sysdecode_sockopt_level Ta Xr getsockopt 2 Ta Fa level
+.It Fn sysdecode_sysarch_number Ta Xr sysarch 2 Ta Fa number
 .It Fn sysdecode_umtx_op Ta Xr _umtx_op 2 Ta Fa op
 .It Fn sysdecode_whence Ta Xr lseek 2 Ta Fa whence
 .El

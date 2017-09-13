@@ -11,7 +11,7 @@ LIB=	efi
 INTERNALLIB=
 WARNS?=	2
 
-SRCS=	delay.c devpath.c efi_console.c efinet.c efipart.c env.c errno.c \
+SRCS=	delay.c devpath.c efi_console.c efichar.c efinet.c efipart.c env.c errno.c \
 	handles.c wchar.c libefi.c efi_driver_utils.c efizfs.c devicename.c
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
@@ -55,5 +55,7 @@ CFLAGS+= ${FORMAT_EXTENSIONS}
 .if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "aarch64"
 CFLAGS+= -DTERM_EMU
 .endif
+
+CFLAGS+= -DLIBEFI
 
 .include <bsd.lib.mk>

@@ -6,16 +6,18 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include		BEAGLEBONE
+
+options		MMCCAM
 
 # Add CAMDEBUG stuff
 options 	CAMDEBUG
-options 	CAM_DEBUG_FLAGS=(CAM_DEBUG_INFO|CAM_DEBUG_PROBE|CAM_DEBUG_PERIPH|CAM_DEBUG_TRACE)
+options 	CAM_DEBUG_FLAGS=(CAM_DEBUG_INFO|CAM_DEBUG_PROBE|CAM_DEBUG_PERIPH)
 
 # pass(4) device
 device		pass
-device		mmccam
-options		MMCCAM
 
 nodevice	mmc
 nodevice	mmcsd

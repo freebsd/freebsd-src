@@ -538,6 +538,24 @@ nvme_dev_advinfo(union ccb *start_ccb)
 			memcpy(cdai->buf, device->physpath, amt);
 		}
 		break;
+	case CDAI_TYPE_NVME_CNTRL:
+		if (cdai->flags & CDAI_FLAG_STORE)
+			return;
+		amt = sizeof(struct nvme_controller_data);
+		cdai->provsiz = amt;
+		if (amt > cdai->bufsiz)
+			amt = cdai->bufsiz;
+		memcpy(cdai->buf, device->nvme_cdata, amt);
+		break;
+	case CDAI_TYPE_NVME_NS:
+		if (cdai->flags & CDAI_FLAG_STORE)
+			return;
+		amt = sizeof(struct nvme_namespace_data);
+		cdai->provsiz = amt;
+		if (amt > cdai->bufsiz)
+			amt = cdai->bufsiz;
+		memcpy(cdai->buf, device->nvme_data, amt);
+		break;
 	default:
 		return;
 	}

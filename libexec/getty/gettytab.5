@@ -28,7 +28,7 @@
 .\"     from: @(#)gettytab.5	8.4 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\" "
-.Dd February 2, 2017
+.Dd August 23, 2017
 .Dt GETTYTAB 5
 .Os
 .Sh NAME
@@ -130,6 +130,8 @@ hangup line on last close
 .It "ig	bool	false	ignore garbage characters in login name"
 .It "im	str" Ta Dv NULL
 .Ta No "initial (banner) message"
+.It "iM	str" Ta Dv NULL
+.Ta No "execute named file to generate initial (banner) message"
 .It "in	str" Ta So Li ^C
 .Sc Ta No "interrupt character"
 .It "is	num	unused	input speed"
@@ -146,7 +148,7 @@ hangup line on last close
 .It "mb	bool	false	do flow control based on carrier"
 .It "nc	bool	false	terminal does not supply carrier (set clocal)"
 .It "nl	bool	false	terminal has (or might have) a newline character"
-.It "np	bool	false	terminal uses no parity (i.e. 8-bit characters)"
+.It "np	bool	false	terminal uses no parity (i.e., 8-bit characters)"
 .It "nx	str	default	next table (for auto speed selection)"
 .It "o0	num	unused	tty output flags to write messages"
 .It "o1	num	unused	tty output flags to read login name"

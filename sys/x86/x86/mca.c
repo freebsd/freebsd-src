@@ -132,10 +132,34 @@ static int amd_elvt = -1;
 static inline bool
 amd_thresholding_supported(void)
 {
-	return (cpu_vendor_id == CPU_VENDOR_AMD &&
-	    CPUID_TO_FAMILY(cpu_id) >= 0x10 && CPUID_TO_FAMILY(cpu_id) <= 0x16);
+	if (cpu_vendor_id != CPU_VENDOR_AMD)
+		return (false);
+	/*
+	 * The RASCap register is wholly reserved in families 0x10-0x15 (through model 1F).
+	 *
+	 * It begins to be documented in family 0x15 model 30 and family 0x16,
+	 * but neither of these families documents the ScalableMca bit, which
+	 * supposedly defines the presence of this feature on family 0x17.
+	 */
+	if (CPUID_TO_FAMILY(cpu_id) >= 0x10 && CPUID_TO_FAMILY(cpu_id) <= 0x16)
+		return (true);
+	if (CPUID_TO_FAMILY(cpu_id) >= 0x17)
+		return ((amd_rascap & AMDRAS_SCALABLE_MCA) != 0);
+	return (false);
 }
 #endif
+
+static inline bool
+cmci_supported(uint64_t mcg_cap)
+{
+	/*
+	 * MCG_CAP_CMCI_P bit is reserved in AMD documentation.  Until
+	 * it is defined, do not use it to check for CMCI support.
+	 */
+	if (cpu_vendor_id != CPU_VENDOR_INTEL)
+		return (false);
+	return ((mcg_cap & MCG_CAP_CMCI_P) != 0);
+}
 
 static int
 sysctl_positive_int(SYSCTL_HANDLER_ARGS)
@@ -310,7 +334,7 @@ mca_log(const struct mca_record *rec)
 		printf("UNCOR ");
 	else {
 		printf("COR ");
-		if (rec->mr_mcg_cap & MCG_CAP_CMCI_P)
+		if (cmci_supported(rec->mr_mcg_cap))
 			printf("(%lld) ", ((long long)rec->mr_status &
 			    MC_STATUS_COR_COUNT) >> 38);
 	}
@@ -625,17 +649,17 @@ amd_thresholding_update(enum scan_mode mode, int bank, int valid)
 	    ("%s: unexpected bank %d", __func__, bank));
 	cc = &amd_et_state[PCPU_GET(cpuid)];
 	misc = rdmsr(MSR_MC_MISC(bank));
-	count = (misc & MC_MISC_AMDNB_CNT_MASK) >> MC_MISC_AMDNB_CNT_SHIFT;
-	count = count - (MC_MISC_AMDNB_CNT_MAX - cc->cur_threshold);
+	count = (misc & MC_MISC_AMD_CNT_MASK) >> MC_MISC_AMD_CNT_SHIFT;
+	count = count - (MC_MISC_AMD_CNT_MAX - cc->cur_threshold);
 
 	new_threshold = update_threshold(mode, valid, cc->last_intr, count,
-	    cc->cur_threshold, MC_MISC_AMDNB_CNT_MAX);
+	    cc->cur_threshold, MC_MISC_AMD_CNT_MAX);
 
 	cc->cur_threshold = new_threshold;
-	misc &= ~MC_MISC_AMDNB_CNT_MASK;
-	misc |= (uint64_t)(MC_MISC_AMDNB_CNT_MAX - cc->cur_threshold)
-	    << MC_MISC_AMDNB_CNT_SHIFT;
-	misc &= ~MC_MISC_AMDNB_OVERFLOW;
+	misc &= ~MC_MISC_AMD_CNT_MASK;
+	misc |= (uint64_t)(MC_MISC_AMD_CNT_MAX - cc->cur_threshold)
+	    << MC_MISC_AMD_CNT_SHIFT;
+	misc &= ~MC_MISC_AMD_OVERFLOW;
 	wrmsr(MSR_MC_MISC(bank), misc);
 	if (mode == CMCI && valid)
 		cc->last_intr = time_uptime;
@@ -861,7 +885,7 @@ mca_setup(uint64_t mcg_cap)
 	    "force_scan", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
 	    sysctl_mca_scan, "I", "Force an immediate scan for machine checks");
 #ifdef DEV_APIC
-	if (mcg_cap & MCG_CAP_CMCI_P)
+	if (cmci_supported(mcg_cap))
 		cmci_setup();
 	else if (amd_thresholding_supported())
 		amd_thresholding_setup();
@@ -947,15 +971,15 @@ amd_thresholding_start(struct amd_et_state *cc)
 
 	KASSERT(amd_elvt >= 0, ("ELVT offset is not set"));
 	misc = rdmsr(MSR_MC_MISC(MC_AMDNB_BANK));
-	misc &= ~MC_MISC_AMDNB_INT_MASK;
-	misc |= MC_MISC_AMDNB_INT_LVT;
-	misc &= ~MC_MISC_AMDNB_LVT_MASK;
-	misc |= (uint64_t)amd_elvt << MC_MISC_AMDNB_LVT_SHIFT;
-	misc &= ~MC_MISC_AMDNB_CNT_MASK;
-	misc |= (uint64_t)(MC_MISC_AMDNB_CNT_MAX - cc->cur_threshold)
-	    << MC_MISC_AMDNB_CNT_SHIFT;
-	misc &= ~MC_MISC_AMDNB_OVERFLOW;
-	misc |= MC_MISC_AMDNB_CNTEN;
+	misc &= ~MC_MISC_AMD_INT_MASK;
+	misc |= MC_MISC_AMD_INT_LVT;
+	misc &= ~MC_MISC_AMD_LVT_MASK;
+	misc |= (uint64_t)amd_elvt << MC_MISC_AMD_LVT_SHIFT;
+	misc &= ~MC_MISC_AMD_CNT_MASK;
+	misc |= (uint64_t)(MC_MISC_AMD_CNT_MAX - cc->cur_threshold)
+	    << MC_MISC_AMD_CNT_SHIFT;
+	misc &= ~MC_MISC_AMD_OVERFLOW;
+	misc |= MC_MISC_AMD_CNTEN;
 
 	wrmsr(MSR_MC_MISC(MC_AMDNB_BANK), misc);
 }
@@ -968,20 +992,28 @@ amd_thresholding_init(void)
 
 	/* The counter must be valid and present. */
 	misc = rdmsr(MSR_MC_MISC(MC_AMDNB_BANK));
-	if ((misc & (MC_MISC_AMDNB_VAL | MC_MISC_AMDNB_CNTP)) !=
-	    (MC_MISC_AMDNB_VAL | MC_MISC_AMDNB_CNTP))
+	if ((misc & (MC_MISC_AMD_VAL | MC_MISC_AMD_CNTP)) !=
+	    (MC_MISC_AMD_VAL | MC_MISC_AMD_CNTP)) {
+		printf("%s: 0x%jx: !valid | !present\n", __func__,
+		    (uintmax_t)misc);
 		return;
+	}
 
 	/* The register should not be locked. */
-	if ((misc & MC_MISC_AMDNB_LOCK) != 0)
+	if ((misc & MC_MISC_AMD_LOCK) != 0) {
+		printf("%s: 0x%jx: locked\n", __func__, (uintmax_t)misc);
 		return;
+	}
 
 	/*
 	 * If counter is enabled then either the firmware or another CPU
 	 * has already claimed it.
 	 */
-	if ((misc & MC_MISC_AMDNB_CNTEN) != 0)
+	if ((misc & MC_MISC_AMD_CNTEN) != 0) {
+		printf("%s: 0x%jx: count already enabled\n", __func__,
+		    (uintmax_t)misc);
 		return;
+	}
 
 	/*
 	 * Configure an Extended Interrupt LVT register for reporting
@@ -989,10 +1021,15 @@ amd_thresholding_init(void)
 	 * extended register is available.
 	 */
 	amd_elvt = lapic_enable_mca_elvt();
-	if (amd_elvt < 0)
+	if (amd_elvt < 0) {
+		printf("%s: lapic enable mca elvt failed: %d\n", __func__, amd_elvt);
 		return;
+	}
 
 	/* Re-use Intel CMC support infrastructure. */
+	if (bootverbose)
+		printf("%s: Starting AMD thresholding\n", __func__);
+
 	cc = &amd_et_state[PCPU_GET(cpuid)];
 	cc->cur_threshold = 1;
 	amd_thresholding_start(cc);
@@ -1079,7 +1116,7 @@ _mca_init(int boot)
 				wrmsr(MSR_MC_CTL(i), ctl);
 
 #ifdef DEV_APIC
-			if (mcg_cap & MCG_CAP_CMCI_P) {
+			if (cmci_supported(mcg_cap)) {
 				if (boot)
 					cmci_monitor(i);
 				else

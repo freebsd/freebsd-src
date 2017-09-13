@@ -37,7 +37,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2015
+.Dd August 28, 2017
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -55,6 +55,7 @@
 .Op Fl u Ar unit
 .Op Fl x Ar sectors/track
 .Op Fl y Ar heads/cylinder
+.Op Fl L Ar label
 .Nm
 .Fl d
 .Fl u Ar unit
@@ -189,6 +190,12 @@ and
 options can be used to specify a synthetic geometry.
 This is useful for constructing bootable images for later download to
 other devices.
+.It Fl L Ar label
+Associate a label (arbitrary string) with the new memory disk.
+The label can then be inspected with
+.Bd -literal -offset indent
+.Nm Fl l v
+.Ed
 .It Fl o Oo Cm no Oc Ns Ar option
 Set or reset options.
 .Bl -tag -width indent

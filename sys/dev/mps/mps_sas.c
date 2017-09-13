@@ -719,11 +719,12 @@ mps_attach_sas(struct mps_softc *sc)
 	int unit, error = 0;
 
 	MPS_FUNCTRACE(sc);
+	mps_dprint(sc, MPS_INIT, "%s entered\n", __func__);
 
 	sassc = malloc(sizeof(struct mpssas_softc), M_MPT2, M_WAITOK|M_ZERO);
 	if(!sassc) {
-		device_printf(sc->mps_dev, "Cannot allocate memory %s %d\n",
-		__func__, __LINE__);
+		mps_dprint(sc, MPS_INIT|MPS_ERROR,
+		    "Cannot allocate SAS controller memory\n");
 		return (ENOMEM);
 	}
 
@@ -737,8 +738,8 @@ mps_attach_sas(struct mps_softc *sc)
 	sassc->targets = malloc(sizeof(struct mpssas_target) *
 	    sassc->maxtargets, M_MPT2, M_WAITOK|M_ZERO);
 	if(!sassc->targets) {
-		device_printf(sc->mps_dev, "Cannot allocate memory %s %d\n",
-		__func__, __LINE__);
+		mps_dprint(sc, MPS_INIT|MPS_ERROR,
+		    "Cannot allocate SAS target memory\n");
 		free(sassc, M_MPT2);
 		return (ENOMEM);
 	}
@@ -755,7 +756,7 @@ mps_attach_sas(struct mps_softc *sc)
 	sassc->sim = cam_sim_alloc(mpssas_action, mpssas_poll, "mps", sassc,
 	    unit, &sc->mps_mtx, sc->num_reqs, sc->num_reqs, sassc->devq);
 	if (sassc->sim == NULL) {
-		mps_dprint(sc, MPS_ERROR, "Cannot allocate SIM\n");
+		mps_dprint(sc, MPS_INIT|MPS_ERROR, "Cannot allocate SIM\n");
 		error = EINVAL;
 		goto out;
 	}
@@ -777,8 +778,8 @@ mps_attach_sas(struct mps_softc *sc)
 	 * everything is just a target on a single bus.
 	 */
 	if ((error = xpt_bus_register(sassc->sim, sc->mps_dev, 0)) != 0) {
-		mps_dprint(sc, MPS_ERROR, "Error %d registering SCSI bus\n",
-		    error);
+		mps_dprint(sc, MPS_INIT|MPS_ERROR,
+		    "Error %d registering SCSI bus\n", error);
 		mps_unlock(sc);
 		goto out;
 	}
@@ -802,7 +803,8 @@ mps_attach_sas(struct mps_softc *sc)
 	    cam_sim_path(sc->sassc->sim), CAM_TARGET_WILDCARD,
 	    CAM_LUN_WILDCARD);
 	if (status != CAM_REQ_CMP) {
-		mps_printf(sc, "Error %#x creating sim path\n", status);
+		mps_dprint(sc, MPS_ERROR|MPS_INIT,
+		    "Error %#x creating sim path\n", status);
 		sassc->path = NULL;
 	} else {
 		int event;
@@ -837,6 +839,8 @@ mps_attach_sas(struct mps_softc *sc)
 out:
 	if (error)
 		mps_detach_sas(sc);
+
+	mps_dprint(sc, MPS_INIT, "%s exit error= %d\n", __func__, error);
 	return (error);
 }
 
@@ -866,6 +870,9 @@ mps_detach_sas(struct mps_softc *sc)
 
 	/* Make sure CAM doesn't wedge if we had to bail out early. */
 	mps_lock(sc);
+
+	while (sassc->startup_refcount != 0)
+		mpssas_startup_decrement(sassc);
 
 	/* Deregister our async handler */
 	if (sassc->path != NULL) {
@@ -1223,33 +1230,39 @@ mpssas_logical_unit_reset_complete(struct mps_softc *sc, struct mps_command *tm)
 	 * XXXSL So should it be an assertion?
 	 */
 	if ((tm->cm_flags & MPS_CM_FLAGS_ERROR_MASK) != 0) {
-		mps_dprint(sc, MPS_ERROR, "%s: cm_flags = %#x for LUN reset! "
-			   "This should not happen!\n", __func__, tm->cm_flags);
+		mps_dprint(sc, MPS_RECOVERY|MPS_ERROR,
+		    "%s: cm_flags = %#x for LUN reset! "
+		   "This should not happen!\n", __func__, tm->cm_flags);
 		mpssas_free_tm(sc, tm);
 		return;
 	}
 
 	if (reply == NULL) {
-		mpssas_log_command(tm, MPS_RECOVERY,
-		    "NULL reset reply for tm %p\n", tm);
+		mps_dprint(sc, MPS_RECOVERY, "NULL reset reply for tm %p\n",
+		    tm);
 		if ((sc->mps_flags & MPS_FLAGS_DIAGRESET) != 0) {
 			/* this completion was due to a reset, just cleanup */
+			mps_dprint(sc, MPS_RECOVERY, "Hardware undergoing "
+			    "reset, ignoring NULL LUN reset reply\n");
 			targ->tm = NULL;
 			mpssas_free_tm(sc, tm);
 		}
 		else {
 			/* we should have gotten a reply. */
+			mps_dprint(sc, MPS_INFO|MPS_RECOVERY, "NULL reply on "
+			    "LUN reset attempt, resetting controller\n");
 			mps_reinit(sc);
 		}
 		return;
 	}
 
-	mpssas_log_command(tm, MPS_RECOVERY,
+	mps_dprint(sc, MPS_RECOVERY,
 	    "logical unit reset status 0x%x code 0x%x count %u\n",
 	    le16toh(reply->IOCStatus), le32toh(reply->ResponseCode),
 	    le32toh(reply->TerminationCount));
 		
-	/* See if there are any outstanding commands for this LUN.
+	/*
+	 * See if there are any outstanding commands for this LUN.
 	 * This could be made more efficient by using a per-LU data
 	 * structure of some sort.
 	 */
@@ -1259,34 +1272,37 @@ mpssas_logical_unit_reset_complete(struct mps_softc *sc, struct mps_command *tm)
 	}
 
 	if (cm_count == 0) {
-		mpssas_log_command(tm, MPS_RECOVERY|MPS_INFO,
-		    "logical unit %u finished recovery after reset\n",
-		    tm->cm_lun, tm);
+		mps_dprint(sc, MPS_RECOVERY|MPS_INFO,
+		    "Finished recovery after LUN reset for target %u\n",
+		    targ->tid);
 
-		mpssas_announce_reset(sc, AC_SENT_BDR, tm->cm_targ->tid, 
-		    tm->cm_lun);
+		mpssas_announce_reset(sc, AC_SENT_BDR, targ->tid, tm->cm_lun);
 
-		/* we've finished recovery for this logical unit.  check and
+		/*
+		 * We've finished recovery for this logical unit.  check and
 		 * see if some other logical unit has a timedout command
 		 * that needs to be processed.
 		 */
 		cm = TAILQ_FIRST(&targ->timedout_commands);
 		if (cm) {
+			mps_dprint(sc, MPS_INFO|MPS_RECOVERY,
+			    "More commands to abort for target %u\n",
+			    targ->tid);
 			mpssas_send_abort(sc, tm, cm);
-		}
-		else {
+		} else {
 			targ->tm = NULL;
 			mpssas_free_tm(sc, tm);
 		}
-	}
-	else {
-		/* if we still have commands for this LUN, the reset
+	} else {
+		/*
+		 * If we still have commands for this LUN, the reset
 		 * effectively failed, regardless of the status reported.
 		 * Escalate to a target reset.
 		 */
-		mpssas_log_command(tm, MPS_RECOVERY,
-		    "logical unit reset complete for tm %p, but still have %u command(s)\n",
-		    tm, cm_count);
+		mps_dprint(sc, MPS_INFO|MPS_RECOVERY,
+		    "logical unit reset complete for target %u, but still "
+		    "have %u command(s), sending target reset\n", targ->tid,
+		    cm_count);
 		mpssas_send_reset(sc, tm,
 		    MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET);
 	}
@@ -1318,21 +1334,25 @@ mpssas_target_reset_complete(struct mps_softc *sc, struct mps_command *tm)
 	}
 
 	if (reply == NULL) {
-		mpssas_log_command(tm, MPS_RECOVERY,
-		    "NULL reset reply for tm %p\n", tm);
+		mps_dprint(sc, MPS_RECOVERY,
+		    "NULL target reset reply for tm %pi TaskMID %u\n",
+		    tm, le16toh(req->TaskMID));
 		if ((sc->mps_flags & MPS_FLAGS_DIAGRESET) != 0) {
 			/* this completion was due to a reset, just cleanup */
+			mps_dprint(sc, MPS_RECOVERY, "Hardware undergoing "
+			    "reset, ignoring NULL target reset reply\n");
 			targ->tm = NULL;
 			mpssas_free_tm(sc, tm);
-		}
-		else {
+		} else {
 			/* we should have gotten a reply. */
+			mps_dprint(sc, MPS_INFO|MPS_RECOVERY, "NULL reply on "
+			    "target reset attempt, resetting controller\n");
 			mps_reinit(sc);
 		}
 		return;
 	}
 
-	mpssas_log_command(tm, MPS_RECOVERY,
+	mps_dprint(sc, MPS_RECOVERY,
 	    "target reset status 0x%x code 0x%x count %u\n",
 	    le16toh(reply->IOCStatus), le32toh(reply->ResponseCode),
 	    le32toh(reply->TerminationCount));
@@ -1341,23 +1361,24 @@ mpssas_target_reset_complete(struct mps_softc *sc, struct mps_command *tm)
 		/* we've finished recovery for this target and all
 		 * of its logical units.
 		 */
-		mpssas_log_command(tm, MPS_RECOVERY|MPS_INFO,
-		    "recovery finished after target reset\n");
+		mps_dprint(sc, MPS_RECOVERY|MPS_INFO,
+		    "Finished reset recovery for target %u\n", targ->tid);
 
 		mpssas_announce_reset(sc, AC_SENT_BDR, tm->cm_targ->tid,
 		    CAM_LUN_WILDCARD);
 
 		targ->tm = NULL;
 		mpssas_free_tm(sc, tm);
-	}
-	else {
-		/* after a target reset, if this target still has
+	} else {
+		/*
+		 * After a target reset, if this target still has
 		 * outstanding commands, the reset effectively failed,
 		 * regardless of the status reported.  escalate.
 		 */
-		mpssas_log_command(tm, MPS_RECOVERY,
-		    "target reset complete for tm %p, but still have %u command(s)\n", 
-		    tm, targ->outstanding);
+		mps_dprint(sc, MPS_INFO|MPS_RECOVERY,
+		    "Target reset complete for target %u, but still have %u "
+		    "command(s), resetting controller\n", targ->tid,
+		    targ->outstanding);
 		mps_reinit(sc);
 	}
 }
@@ -1387,24 +1408,23 @@ mpssas_send_reset(struct mps_softc *sc, struct mps_command *tm, uint8_t type)
 		/* XXX Need to handle invalid LUNs */
 		MPS_SET_LUN(req->LUN, tm->cm_lun);
 		tm->cm_targ->logical_unit_resets++;
-		mpssas_log_command(tm, MPS_RECOVERY|MPS_INFO,
-		    "sending logical unit reset\n");
+		mps_dprint(sc, MPS_RECOVERY|MPS_INFO,
+		    "Sending logical unit reset to target %u lun %d\n",
+		    target->tid, tm->cm_lun);
 		tm->cm_complete = mpssas_logical_unit_reset_complete;
 		mpssas_prepare_for_tm(sc, tm, target, tm->cm_lun);
-	}
-	else if (type == MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET) {
+	} else if (type == MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET) {
 		/*
 		 * Target reset method =
 		 * 	SAS Hard Link Reset / SATA Link Reset
 		 */
 		req->MsgFlags = MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET;
 		tm->cm_targ->target_resets++;
-		mpssas_log_command(tm, MPS_RECOVERY|MPS_INFO,
-		    "sending target reset\n");
+		mps_dprint(sc, MPS_RECOVERY|MPS_INFO,
+		    "Sending target reset to target %u\n", target->tid);
 		tm->cm_complete = mpssas_target_reset_complete;
 		mpssas_prepare_for_tm(sc, tm, target, CAM_LUN_WILDCARD);
-	}
-	else {
+	} else {
 		mps_dprint(sc, MPS_ERROR, "unexpected reset type 0x%x\n", type);
 		return -1;
 	}
@@ -1418,7 +1438,7 @@ mpssas_send_reset(struct mps_softc *sc, struct mps_command *tm, uint8_t type)
 
 	err = mps_map_command(sc, tm);
 	if (err)
-		mpssas_log_command(tm, MPS_RECOVERY,
+		mps_dprint(sc, MPS_ERROR|MPS_RECOVERY,
 		    "error %d sending reset type %u\n",
 		    err, type);
 
@@ -1446,7 +1466,7 @@ mpssas_abort_complete(struct mps_softc *sc, struct mps_command *tm)
 	 * task management commands don't have S/G lists.
 	 */
 	if ((tm->cm_flags & MPS_CM_FLAGS_ERROR_MASK) != 0) {
-		mpssas_log_command(tm, MPS_RECOVERY,
+		mps_dprint(sc, MPS_RECOVERY,
 		    "cm_flags = %#x for abort %p TaskMID %u!\n", 
 		    tm->cm_flags, tm, le16toh(req->TaskMID));
 		mpssas_free_tm(sc, tm);
@@ -1454,22 +1474,25 @@ mpssas_abort_complete(struct mps_softc *sc, struct mps_command *tm)
 	}
 
 	if (reply == NULL) {
-		mpssas_log_command(tm, MPS_RECOVERY,
+		mps_dprint(sc, MPS_RECOVERY,
 		    "NULL abort reply for tm %p TaskMID %u\n", 
 		    tm, le16toh(req->TaskMID));
 		if ((sc->mps_flags & MPS_FLAGS_DIAGRESET) != 0) {
 			/* this completion was due to a reset, just cleanup */
+			mps_dprint(sc, MPS_RECOVERY, "Hardware undergoing "
+			    "reset, ignoring NULL abort reply\n");
 			targ->tm = NULL;
 			mpssas_free_tm(sc, tm);
-		}
-		else {
+		} else {
 			/* we should have gotten a reply. */
+			mps_dprint(sc, MPS_INFO|MPS_RECOVERY, "NULL reply on "
+			    "abort attempt, resetting controller\n");
 			mps_reinit(sc);
 		}
 		return;
 	}
 
-	mpssas_log_command(tm, MPS_RECOVERY,
+	mps_dprint(sc, MPS_RECOVERY,
 	    "abort TaskMID %u status 0x%x code 0x%x count %u\n",
 	    le16toh(req->TaskMID),
 	    le16toh(reply->IOCStatus), le32toh(reply->ResponseCode),
@@ -1477,31 +1500,28 @@ mpssas_abort_complete(struct mps_softc *sc, struct mps_command *tm)
 
 	cm = TAILQ_FIRST(&tm->cm_targ->timedout_commands);
 	if (cm == NULL) {
-		/* if there are no more timedout commands, we're done with
+		/*
+		 * If there are no more timedout commands, we're done with
 		 * error recovery for this target.
 		 */
-		mpssas_log_command(tm, MPS_RECOVERY,
-		    "finished recovery after aborting TaskMID %u\n",
-		    le16toh(req->TaskMID));
+		mps_dprint(sc, MPS_INFO|MPS_RECOVERY,
+		    "Finished abort recovery for target %u\n", targ->tid);
 
 		targ->tm = NULL;
 		mpssas_free_tm(sc, tm);
-	}
-	else if (le16toh(req->TaskMID) != cm->cm_desc.Default.SMID) {
+	} else if (le16toh(req->TaskMID) != cm->cm_desc.Default.SMID) {
 		/* abort success, but we have more timedout commands to abort */
-		mpssas_log_command(tm, MPS_RECOVERY,
-		    "continuing recovery after aborting TaskMID %u\n",
-		    le16toh(req->TaskMID));
+		mps_dprint(sc, MPS_INFO|MPS_RECOVERY,
+		    "Continuing abort recovery for target %u\n", targ->tid);
 		
 		mpssas_send_abort(sc, tm, cm);
-	}
-	else {
+	} else {
 		/* we didn't get a command completion, so the abort
 		 * failed as far as we're concerned.  escalate.
 		 */
-		mpssas_log_command(tm, MPS_RECOVERY,
-		    "abort failed for TaskMID %u tm %p\n",
-		    le16toh(req->TaskMID), tm);
+		mps_dprint(sc, MPS_RECOVERY,
+		    "Abort failed for target %u, sending logical unit reset\n",
+		    targ->tid);
 
 		mpssas_send_reset(sc, tm, 
 		    MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET);
@@ -1519,7 +1539,8 @@ mpssas_send_abort(struct mps_softc *sc, struct mps_command *tm, struct mps_comma
 
 	targ = cm->cm_targ;
 	if (targ->handle == 0) {
-		mps_dprint(sc, MPS_ERROR,"%s null devhandle for target_id %d\n",
+		mps_dprint(sc, MPS_ERROR|MPS_RECOVERY,
+		    "%s null devhandle for target_id %d\n",
 		    __func__, cm->cm_ccb->ccb_h.target_id);
 		return -1;
 	}
@@ -1549,13 +1570,11 @@ mpssas_send_abort(struct mps_softc *sc, struct mps_command *tm, struct mps_comma
 
 	targ->aborts++;
 
-	mps_dprint(sc, MPS_INFO, "Sending reset from %s for target ID %d\n",
-	    __func__, targ->tid);
 	mpssas_prepare_for_tm(sc, tm, targ, tm->cm_lun);
 
 	err = mps_map_command(sc, tm);
 	if (err)
-		mps_dprint(sc, MPS_RECOVERY,
+		mps_dprint(sc, MPS_ERROR|MPS_RECOVERY,
 		    "error %d sending abort for cm %p SMID %u\n",
 		    err, cm, req->TaskMID);
 	return err;
@@ -1564,17 +1583,21 @@ mpssas_send_abort(struct mps_softc *sc, struct mps_command *tm, struct mps_comma
 static void
 mpssas_scsiio_timeout(void *data)
 {
+	sbintime_t elapsed, now;
+	union ccb *ccb;
 	struct mps_softc *sc;
 	struct mps_command *cm;
 	struct mpssas_target *targ;
 
 	cm = (struct mps_command *)data;
 	sc = cm->cm_sc;
+	ccb = cm->cm_ccb;
+	now = sbinuptime();
 
 	MPS_FUNCTRACE(sc);
 	mtx_assert(&sc->mps_mtx, MA_OWNED);
 
-	mps_dprint(sc, MPS_XINFO, "Timeout checking cm %p\n", sc);
+	mps_dprint(sc, MPS_XINFO|MPS_RECOVERY, "Timeout checking cm %p\n", sc);
 
 	/*
 	 * Run the interrupt handler to make sure it's not pending.  This
@@ -1596,9 +1619,11 @@ mpssas_scsiio_timeout(void *data)
 	targ = cm->cm_targ;
 	targ->timeouts++;
 
-	mpssas_log_command(cm, MPS_ERROR, "command timeout %d cm %p target "
-	    "%u, handle(0x%04x)\n", cm->cm_ccb->ccb_h.timeout, cm,  targ->tid,
-	    targ->handle);
+	elapsed = now - ccb->ccb_h.qos.sim_data;
+	mpssas_log_command(cm, MPS_INFO|MPS_RECOVERY,
+	    "Command timeout on target %u(0x%04x) %d set, %d.%d elapsed\n",
+	    targ->tid, targ->handle, ccb->ccb_h.timeout,
+	    sbintime_getsec(elapsed), elapsed & 0xffffffff);
 
 	/* XXX first, check the firmware state, to see if it's still
 	 * operational.  if not, do a diag reset.
@@ -1614,15 +1639,16 @@ mpssas_scsiio_timeout(void *data)
 		mps_dprint(sc, MPS_RECOVERY,
 		    "queued timedout cm %p for processing by tm %p\n",
 		    cm, targ->tm);
-	}
-	else if ((targ->tm = mpssas_alloc_tm(sc)) != NULL) {
+	} else if ((targ->tm = mpssas_alloc_tm(sc)) != NULL) {
+		mps_dprint(sc, MPS_RECOVERY|MPS_INFO,
+		    "Sending abort to target %u for SMID %d\n", targ->tid,
+		    cm->cm_desc.Default.SMID);
 		mps_dprint(sc, MPS_RECOVERY, "timedout cm %p allocated tm %p\n",
 		    cm, targ->tm);
 
 		/* start recovery by aborting the first timedout command */
 		mpssas_send_abort(sc, targ->tm, cm);
-	}
-	else {
+	} else {
 		/* XXX queue this target up for recovery once a TM becomes
 		 * available.  The firmware only has a limited number of
 		 * HighPriority credits for the high priority requests used
@@ -1632,7 +1658,7 @@ mpssas_scsiio_timeout(void *data)
 		 * more credits than disks in an enclosure, and limit
 		 * ourselves to one TM per target for recovery.
 		 */
-		mps_dprint(sc, MPS_RECOVERY,
+		mps_dprint(sc, MPS_ERROR|MPS_RECOVERY,
 		    "timedout cm %p failed to allocate a tm\n", cm);
 	}
 
@@ -1896,6 +1922,7 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	if (csio->bio != NULL)
 		biotrack(csio->bio, __func__);
 #endif
+	csio->ccb_h.qos.sim_data = sbinuptime();
 	callout_reset_sbt(&cm->cm_callout, SBT_1MS * ccb->ccb_h.timeout, 0,
 	    mpssas_scsiio_timeout, cm, 0);
 
@@ -1911,43 +1938,6 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	return;
 }
 
-static void
-mps_response_code(struct mps_softc *sc, u8 response_code)
-{
-        char *desc;
- 
-        switch (response_code) {
-        case MPI2_SCSITASKMGMT_RSP_TM_COMPLETE:
-                desc = "task management request completed";
-                break;
-        case MPI2_SCSITASKMGMT_RSP_INVALID_FRAME:
-                desc = "invalid frame";
-                break;
-        case MPI2_SCSITASKMGMT_RSP_TM_NOT_SUPPORTED:
-                desc = "task management request not supported";
-                break;
-        case MPI2_SCSITASKMGMT_RSP_TM_FAILED:
-                desc = "task management request failed";
-                break;
-        case MPI2_SCSITASKMGMT_RSP_TM_SUCCEEDED:
-                desc = "task management request succeeded";
-                break;
-        case MPI2_SCSITASKMGMT_RSP_TM_INVALID_LUN:
-                desc = "invalid lun";
-                break;
-        case 0xA:
-                desc = "overlapped tag attempted";
-                break;
-        case MPI2_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC:
-                desc = "task queued, however not sent to target";
-                break;
-        default:
-                desc = "unknown";
-                break;
-        }
-		mps_dprint(sc, MPS_XINFO, "response_code(0x%01x): %s\n",
-                response_code, desc);
-}
 /**
  * mps_sc_failed_io_info - translated non-succesfull SCSI_IO request
  */
@@ -1961,132 +1951,28 @@ mps_sc_failed_io_info(struct mps_softc *sc, struct ccb_scsiio *csio,
 	    MPI2_IOCSTATUS_MASK;
 	u8 scsi_state = mpi_reply->SCSIState;
 	u8 scsi_status = mpi_reply->SCSIStatus;
-	char *desc_ioc_state = NULL;
-	char *desc_scsi_status = NULL;
-	char *desc_scsi_state = sc->tmp_string;
 	u32 log_info = le32toh(mpi_reply->IOCLogInfo);
+	const char *desc_ioc_state, *desc_scsi_status;
 	
 	if (log_info == 0x31170000)
 		return;
 
-	switch (ioc_status) {
-	case MPI2_IOCSTATUS_SUCCESS:
-		desc_ioc_state = "success";
-		break;
-	case MPI2_IOCSTATUS_INVALID_FUNCTION:
-		desc_ioc_state = "invalid function";
-		break;
-	case MPI2_IOCSTATUS_SCSI_RECOVERED_ERROR:
-		desc_ioc_state = "scsi recovered error";
-		break;
-	case MPI2_IOCSTATUS_SCSI_INVALID_DEVHANDLE:
-		desc_ioc_state = "scsi invalid dev handle";
-		break;
-	case MPI2_IOCSTATUS_SCSI_DEVICE_NOT_THERE:
-		desc_ioc_state = "scsi device not there";
-		break;
-	case MPI2_IOCSTATUS_SCSI_DATA_OVERRUN:
-		desc_ioc_state = "scsi data overrun";
-		break;
-	case MPI2_IOCSTATUS_SCSI_DATA_UNDERRUN:
-		desc_ioc_state = "scsi data underrun";
-		break;
-	case MPI2_IOCSTATUS_SCSI_IO_DATA_ERROR:
-		desc_ioc_state = "scsi io data error";
-		break;
-	case MPI2_IOCSTATUS_SCSI_PROTOCOL_ERROR:
-		desc_ioc_state = "scsi protocol error";
-		break;
-	case MPI2_IOCSTATUS_SCSI_TASK_TERMINATED:
-		desc_ioc_state = "scsi task terminated";
-		break;
-	case MPI2_IOCSTATUS_SCSI_RESIDUAL_MISMATCH:
-		desc_ioc_state = "scsi residual mismatch";
-		break;
-	case MPI2_IOCSTATUS_SCSI_TASK_MGMT_FAILED:
-		desc_ioc_state = "scsi task mgmt failed";
-		break;
-	case MPI2_IOCSTATUS_SCSI_IOC_TERMINATED:
-		desc_ioc_state = "scsi ioc terminated";
-		break;
-	case MPI2_IOCSTATUS_SCSI_EXT_TERMINATED:
-		desc_ioc_state = "scsi ext terminated";
-		break;
-	case MPI2_IOCSTATUS_EEDP_GUARD_ERROR:
-		desc_ioc_state = "eedp guard error";
-		break;
-	case MPI2_IOCSTATUS_EEDP_REF_TAG_ERROR:
-		desc_ioc_state = "eedp ref tag error";
-		break;
-	case MPI2_IOCSTATUS_EEDP_APP_TAG_ERROR:
-		desc_ioc_state = "eedp app tag error";
-		break;
-	default:
-		desc_ioc_state = "unknown";
-		break;
-	}
-
-	switch (scsi_status) {
-	case MPI2_SCSI_STATUS_GOOD:
-		desc_scsi_status = "good";
-		break;
-	case MPI2_SCSI_STATUS_CHECK_CONDITION:
-		desc_scsi_status = "check condition";
-		break;
-	case MPI2_SCSI_STATUS_CONDITION_MET:
-		desc_scsi_status = "condition met";
-		break;
-	case MPI2_SCSI_STATUS_BUSY:
-		desc_scsi_status = "busy";
-		break;
-	case MPI2_SCSI_STATUS_INTERMEDIATE:
-		desc_scsi_status = "intermediate";
-		break;
-	case MPI2_SCSI_STATUS_INTERMEDIATE_CONDMET:
-		desc_scsi_status = "intermediate condmet";
-		break;
-	case MPI2_SCSI_STATUS_RESERVATION_CONFLICT:
-		desc_scsi_status = "reservation conflict";
-		break;
-	case MPI2_SCSI_STATUS_COMMAND_TERMINATED:
-		desc_scsi_status = "command terminated";
-		break;
-	case MPI2_SCSI_STATUS_TASK_SET_FULL:
-		desc_scsi_status = "task set full";
-		break;
-	case MPI2_SCSI_STATUS_ACA_ACTIVE:
-		desc_scsi_status = "aca active";
-		break;
-	case MPI2_SCSI_STATUS_TASK_ABORTED:
-		desc_scsi_status = "task aborted";
-		break;
-	default:
-		desc_scsi_status = "unknown";
-		break;
-	}
-
-	desc_scsi_state[0] = '\0';
-	if (!scsi_state)
-		desc_scsi_state = " ";
-	if (scsi_state & MPI2_SCSI_STATE_RESPONSE_INFO_VALID)
-		strcat(desc_scsi_state, "response info ");
-	if (scsi_state & MPI2_SCSI_STATE_TERMINATED)
-		strcat(desc_scsi_state, "state terminated ");
-	if (scsi_state & MPI2_SCSI_STATE_NO_SCSI_STATUS)
-		strcat(desc_scsi_state, "no status ");
-	if (scsi_state & MPI2_SCSI_STATE_AUTOSENSE_FAILED)
-		strcat(desc_scsi_state, "autosense failed ");
-	if (scsi_state & MPI2_SCSI_STATE_AUTOSENSE_VALID)
-		strcat(desc_scsi_state, "autosense valid ");
+	desc_ioc_state = mps_describe_table(mps_iocstatus_string,
+	    ioc_status);
+	desc_scsi_status = mps_describe_table(mps_scsi_status_string,
+	    scsi_status);
 
 	mps_dprint(sc, MPS_XINFO, "\thandle(0x%04x), ioc_status(%s)(0x%04x)\n",
 	    le16toh(mpi_reply->DevHandle), desc_ioc_state, ioc_status);
-	/* We can add more detail about underflow data here
+
+	/*
+	 *We can add more detail about underflow data here
 	 * TO-DO
-	 * */
+	 */
 	mps_dprint(sc, MPS_XINFO, "\tscsi_status(%s)(0x%02x), "
-	    "scsi_state(%s)(0x%02x)\n", desc_scsi_status, scsi_status,
-	    desc_scsi_state, scsi_state);
+	    "scsi_state %b\n", desc_scsi_status, scsi_status,
+	    scsi_state, "\20" "\1AutosenseValid" "\2AutosenseFailed"
+	    "\3NoScsiStatus" "\4Terminated" "\5Response InfoValid");
 
 	if (sc->mps_debug & MPS_XINFO &&
 		scsi_state & MPI2_SCSI_STATE_AUTOSENSE_VALID) {
@@ -2098,7 +1984,10 @@ mps_sc_failed_io_info(struct mps_softc *sc, struct ccb_scsiio *csio,
 	if (scsi_state & MPI2_SCSI_STATE_RESPONSE_INFO_VALID) {
 		response_info = le32toh(mpi_reply->ResponseInfo);
 		response_bytes = (u8 *)&response_info;
-		mps_response_code(sc,response_bytes[0]);
+		mps_dprint(sc, MPS_XINFO, "response code(0x%1x): %s\n",
+		    response_bytes[0],
+		    mps_describe_table(mps_scsi_taskmgmt_string,
+		    response_bytes[0]));
 	}
 }
 
@@ -2465,9 +2354,14 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		 * avoiding getting into an infinite retry loop.
 		 */
 		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
-		mpssas_log_command(cm, MPS_INFO,
-		    "terminated ioc %x loginfo %x scsi %x state %x xfer %u\n",
-		    le16toh(rep->IOCStatus), le32toh(rep->IOCLogInfo),
+		mps_dprint(sc, MPS_INFO,
+		    "Controller reported %s tgt %u SMID %u loginfo %x\n",
+		    mps_describe_table(mps_iocstatus_string,
+		    le16toh(rep->IOCStatus) & MPI2_IOCSTATUS_MASK),
+		    target_id, cm->cm_desc.Default.SMID,
+		    le32toh(rep->IOCLogInfo));
+		mps_dprint(sc, MPS_XINFO,
+		    "SCSIStatus %x SCSIState %x xfercount %u\n",
 		    rep->SCSIStatus, rep->SCSIState,
 		    le32toh(rep->TransferCount));
 		break;
@@ -3666,11 +3560,6 @@ mpssas_portenable_complete(struct mps_softc *sc, struct mps_command *cm)
 		mps_dprint(sc, MPS_FAULT, "Portenable failed\n");
 
 	mps_free_command(sc, cm);
-	if (sc->mps_ich.ich_arg != NULL) {
-		mps_dprint(sc, MPS_XINFO, "disestablish config intrhook\n");
-		config_intrhook_disestablish(&sc->mps_ich);
-		sc->mps_ich.ich_arg = NULL;
-	}
 
 	/*
 	 * Get WarpDrive info after discovery is complete but before the scan

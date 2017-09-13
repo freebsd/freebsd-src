@@ -580,6 +580,11 @@ struct	tcpstat {
 	uint64_t tcps_sig_err_sigopt;	/* No signature expected by socket */
 	uint64_t tcps_sig_err_nosigopt;	/* No signature provided by segment */
 
+	/* Path MTU Discovery Black Hole Detection related stats */
+	uint64_t tcps_pmtud_blackhole_activated;	 /* Black Hole Count */
+	uint64_t tcps_pmtud_blackhole_activated_min_mss; /* BH at min MSS Count */
+	uint64_t tcps_pmtud_blackhole_failed;		 /* Black Hole Failure Count */
+
 	uint64_t _pad[12];		/* 6 UTO, 6 TBD */
 };
 
@@ -650,7 +655,7 @@ struct tcp_hhook_data {
 struct xtcpcb {
 	size_t		xt_len;		/* length of this structure */
 	struct xinpcb	xt_inp;
-	char		xt_stack[TCP_FUNCTION_NAME_LEN_MAX];	/* (n) */
+	char		xt_stack[TCP_FUNCTION_NAME_LEN_MAX];	/* (s) */
 	int64_t		spare64[8];
 	int32_t		t_state;		/* (s,p) */
 	uint32_t	t_flags;		/* (s,p) */

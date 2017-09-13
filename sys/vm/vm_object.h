@@ -70,6 +70,7 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_pctrie.h>
 #include <sys/_rwlock.h>
 
 #include <vm/_vm_radix.h>
@@ -86,12 +87,17 @@
  *
  */
 
+#ifndef VM_PAGE_HAVE_PGLIST
+TAILQ_HEAD(pglist, vm_page);
+#define VM_PAGE_HAVE_PGLIST
+#endif
+
 struct vm_object {
 	struct rwlock lock;
 	TAILQ_ENTRY(vm_object) object_list; /* list of all objects */
 	LIST_HEAD(, vm_object) shadow_head; /* objects that this is a shadow for */
 	LIST_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
-	TAILQ_HEAD(respgs, vm_page) memq; /* list of resident pages */
+	struct pglist memq;		/* list of resident pages */
 	struct vm_radix rtree;		/* root of the resident page radix trie*/
 	vm_pindex_t size;		/* Object size */
 	int generation;			/* generation ID */
@@ -151,13 +157,12 @@ struct vm_object {
 		 *		     the handle changed and hash-chain
 		 *		     invalid.
 		 *
-		 *	swp_bcount - number of swap 'swblock' metablocks, each
-		 *		     contains up to 16 swapblk assignments.
-		 *		     see vm/swap_pager.h
+		 *	swp_blks -   pc-trie of the allocated swap blocks.
+		 *
 		 */
 		struct {
 			void *swp_tmpfs;
-			int swp_bcount;
+			struct pctrie swp_blks;
 		} swp;
 	} un_pager;
 	struct ucred *cred;

@@ -117,20 +117,10 @@ struct	namecache {
  * parent.
  */
 struct	namecache_ts {
-	LIST_ENTRY(namecache) nc_hash;	/* hash chain */
-	LIST_ENTRY(namecache) nc_src;	/* source vnode list */
-	TAILQ_ENTRY(namecache) nc_dst;	/* destination vnode list */
-	struct	vnode *nc_dvp;		/* vnode of parent of name */
-	union {
-		struct	vnode *nu_vp;	/* vnode the name refers to */
-		u_int	nu_neghits;	/* negative entry hits */
-	} n_un;
-	u_char	nc_flag;		/* flag bits */
-	u_char	nc_nlen;		/* length of name */
 	struct	timespec nc_time;	/* timespec provided by fs */
 	struct	timespec nc_dotdottime;	/* dotdot timespec provided by fs */
 	int	nc_ticks;		/* ticks value when entry was added */
-	char	nc_name[0];		/* segment name + nul */
+	struct namecache nc_nc;
 };
 
 #define	nc_vp		n_un.nu_vp
@@ -281,63 +271,64 @@ static uma_zone_t __read_mostly cache_zone_large_ts;
 static struct namecache *
 cache_alloc(int len, int ts)
 {
+	struct namecache_ts *ncp_ts;
+	struct namecache *ncp;
 
-	if (len > CACHE_PATH_CUTOFF) {
-		if (ts)
-			return (uma_zalloc(cache_zone_large_ts, M_WAITOK));
+	if (__predict_false(ts)) {
+		if (len <= CACHE_PATH_CUTOFF)
+			ncp_ts = uma_zalloc(cache_zone_small_ts, M_WAITOK);
 		else
-			return (uma_zalloc(cache_zone_large, M_WAITOK));
+			ncp_ts = uma_zalloc(cache_zone_large_ts, M_WAITOK);
+		ncp = &ncp_ts->nc_nc;
+	} else {
+		if (len <= CACHE_PATH_CUTOFF)
+			ncp = uma_zalloc(cache_zone_small, M_WAITOK);
+		else
+			ncp = uma_zalloc(cache_zone_large, M_WAITOK);
 	}
-	if (ts)
-		return (uma_zalloc(cache_zone_small_ts, M_WAITOK));
-	else
-		return (uma_zalloc(cache_zone_small, M_WAITOK));
+	return (ncp);
 }
 
 static void
 cache_free(struct namecache *ncp)
 {
-	int ts;
+	struct namecache_ts *ncp_ts;
 
 	if (ncp == NULL)
 		return;
-	ts = ncp->nc_flag & NCF_TS;
 	if ((ncp->nc_flag & NCF_DVDROP) != 0)
 		vdrop(ncp->nc_dvp);
-	if (ncp->nc_nlen <= CACHE_PATH_CUTOFF) {
-		if (ts)
-			uma_zfree(cache_zone_small_ts, ncp);
+	if (__predict_false(ncp->nc_flag & NCF_TS)) {
+		ncp_ts = __containerof(ncp, struct namecache_ts, nc_nc);
+		if (ncp->nc_nlen <= CACHE_PATH_CUTOFF)
+			uma_zfree(cache_zone_small_ts, ncp_ts);
 		else
+			uma_zfree(cache_zone_large_ts, ncp_ts);
+	} else {
+		if (ncp->nc_nlen <= CACHE_PATH_CUTOFF)
 			uma_zfree(cache_zone_small, ncp);
-	} else if (ts)
-		uma_zfree(cache_zone_large_ts, ncp);
-	else
-		uma_zfree(cache_zone_large, ncp);
-}
-
-static char *
-nc_get_name(struct namecache *ncp)
-{
-	struct namecache_ts *ncp_ts;
-
-	if ((ncp->nc_flag & NCF_TS) == 0)
-		return (ncp->nc_name);
-	ncp_ts = (struct namecache_ts *)ncp;
-	return (ncp_ts->nc_name);
+		else
+			uma_zfree(cache_zone_large, ncp);
+	}
 }
 
 static void
 cache_out_ts(struct namecache *ncp, struct timespec *tsp, int *ticksp)
 {
+	struct namecache_ts *ncp_ts;
 
 	KASSERT((ncp->nc_flag & NCF_TS) != 0 ||
 	    (tsp == NULL && ticksp == NULL),
 	    ("No NCF_TS"));
 
+	if (tsp == NULL && ticksp == NULL)
+		return;
+
+	ncp_ts = __containerof(ncp, struct namecache_ts, nc_nc);
 	if (tsp != NULL)
-		*tsp = ((struct namecache_ts *)ncp)->nc_time;
+		*tsp = ncp_ts->nc_time;
 	if (ticksp != NULL)
-		*ticksp = ((struct namecache_ts *)ncp)->nc_ticks;
+		*ticksp = ncp_ts->nc_ticks;
 }
 
 static int __read_mostly	doingcache = 1;	/* 1 => enable the cache */
@@ -437,7 +428,7 @@ NCP2BUCKETLOCK(struct namecache *ncp)
 {
 	uint32_t hash;
 
-	hash = cache_get_hash(nc_get_name(ncp), ncp->nc_nlen, ncp->nc_dvp);
+	hash = cache_get_hash(ncp->nc_name, ncp->nc_nlen, ncp->nc_dvp);
 	return (HASH2BUCKETLOCK(hash));
 }
 
@@ -823,7 +814,7 @@ cache_negative_zap_one(void)
 		goto out_unlock_all;
 	}
 	SDT_PROBE3(vfs, namecache, shrink_negative, done, ncp->nc_dvp,
-	    nc_get_name(ncp), ncp->nc_neghits);
+	    ncp->nc_name, ncp->nc_neghits);
 
 	cache_zap_locked(ncp, true);
 out_unlock_all:
@@ -854,10 +845,10 @@ cache_zap_locked(struct namecache *ncp, bool neg_locked)
 	    (ncp->nc_flag & NCF_NEGATIVE) ? NULL : ncp->nc_vp);
 	if (!(ncp->nc_flag & NCF_NEGATIVE)) {
 		SDT_PROBE3(vfs, namecache, zap, done, ncp->nc_dvp,
-		    nc_get_name(ncp), ncp->nc_vp);
+		    ncp->nc_name, ncp->nc_vp);
 	} else {
 		SDT_PROBE3(vfs, namecache, zap_negative, done, ncp->nc_dvp,
-		    nc_get_name(ncp), ncp->nc_neghits);
+		    ncp->nc_name, ncp->nc_neghits);
 	}
 	LIST_REMOVE(ncp, nc_hash);
 	if (!(ncp->nc_flag & NCF_NEGATIVE)) {
@@ -1073,6 +1064,42 @@ cache_lookup_unlock(struct rwlock *blp, struct mtx *vlp)
 	}
 }
 
+static int __noinline
+cache_lookup_dot(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
+    struct timespec *tsp, int *ticksp)
+{
+	int ltype;
+
+	*vpp = dvp;
+	CTR2(KTR_VFS, "cache_lookup(%p, %s) found via .",
+			dvp, cnp->cn_nameptr);
+	counter_u64_add(dothits, 1);
+	SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ".", *vpp);
+	if (tsp != NULL)
+		timespecclear(tsp);
+	if (ticksp != NULL)
+		*ticksp = ticks;
+	vrefact(*vpp);
+	/*
+	 * When we lookup "." we still can be asked to lock it
+	 * differently...
+	 */
+	ltype = cnp->cn_lkflags & LK_TYPE_MASK;
+	if (ltype != VOP_ISLOCKED(*vpp)) {
+		if (ltype == LK_EXCLUSIVE) {
+			vn_lock(*vpp, LK_UPGRADE | LK_RETRY);
+			if ((*vpp)->v_iflag & VI_DOOMED) {
+				/* forced unmount */
+				vrele(*vpp);
+				*vpp = NULL;
+				return (ENOENT);
+			}
+		} else
+			vn_lock(*vpp, LK_DOWNGRADE | LK_RETRY);
+	}
+	return (-1);
+}
+
 /*
  * Lookup an entry in the cache
  *
@@ -1094,6 +1121,7 @@ int
 cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
     struct timespec *tsp, int *ticksp)
 {
+	struct namecache_ts *ncp_ts;
 	struct namecache *ncp;
 	struct rwlock *blp;
 	struct mtx *dvlp, *dvlp2;
@@ -1111,36 +1139,8 @@ retry:
 	counter_u64_add(numcalls, 1);
 
 	if (cnp->cn_nameptr[0] == '.') {
-		if (cnp->cn_namelen == 1) {
-			*vpp = dvp;
-			CTR2(KTR_VFS, "cache_lookup(%p, %s) found via .",
-			    dvp, cnp->cn_nameptr);
-			counter_u64_add(dothits, 1);
-			SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ".", *vpp);
-			if (tsp != NULL)
-				timespecclear(tsp);
-			if (ticksp != NULL)
-				*ticksp = ticks;
-			vrefact(*vpp);
-			/*
-			 * When we lookup "." we still can be asked to lock it
-			 * differently...
-			 */
-			ltype = cnp->cn_lkflags & LK_TYPE_MASK;
-			if (ltype != VOP_ISLOCKED(*vpp)) {
-				if (ltype == LK_EXCLUSIVE) {
-					vn_lock(*vpp, LK_UPGRADE | LK_RETRY);
-					if ((*vpp)->v_iflag & VI_DOOMED) {
-						/* forced unmount */
-						vrele(*vpp);
-						*vpp = NULL;
-						return (ENOENT);
-					}
-				} else
-					vn_lock(*vpp, LK_DOWNGRADE | LK_RETRY);
-			}
-			return (-1);
-		}
+		if (cnp->cn_namelen == 1)
+			return (cache_lookup_dot(dvp, vpp, cnp, tsp, ticksp));
 		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
 			counter_u64_add(dotdothits, 1);
 			dvlp2 = NULL;
@@ -1189,9 +1189,10 @@ retry_dotdot:
 			    *vpp);
 			cache_out_ts(ncp, tsp, ticksp);
 			if ((ncp->nc_flag & (NCF_ISDOTDOT | NCF_DTS)) ==
-			    NCF_DTS && tsp != NULL)
-				*tsp = ((struct namecache_ts *)ncp)->
-				    nc_dotdottime;
+			    NCF_DTS && tsp != NULL) {
+				ncp_ts = __containerof(ncp, struct namecache_ts, nc_nc);
+				*tsp = ncp_ts->nc_dotdottime;
+			}
 			goto success;
 		}
 	}
@@ -1203,7 +1204,7 @@ retry_dotdot:
 	LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
 		counter_u64_add(numchecks, 1);
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
-		    !bcmp(nc_get_name(ncp), cnp->cn_nameptr, ncp->nc_nlen))
+		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
 			break;
 	}
 
@@ -1216,7 +1217,8 @@ retry_dotdot:
 		} else {
 			counter_u64_add(nummiss, 1);
 		}
-		goto unlock;
+		cache_lookup_unlock(blp, dvlp);
+		return (0);
 	}
 
 	/* We don't want to have an entry, so dump it */
@@ -1231,7 +1233,7 @@ retry_dotdot:
 		*vpp = ncp->nc_vp;
 		CTR4(KTR_VFS, "cache_lookup(%p, %s) found %p via ncp %p",
 		    dvp, cnp->cn_nameptr, *vpp, ncp);
-		SDT_PROBE3(vfs, namecache, lookup, hit, dvp, nc_get_name(ncp),
+		SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ncp->nc_name,
 		    *vpp);
 		cache_out_ts(ncp, tsp, ticksp);
 		goto success;
@@ -1249,7 +1251,7 @@ negative_success:
 	if (ncp->nc_flag & NCF_WHITE)
 		cnp->cn_flags |= ISWHITEOUT;
 	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp,
-	    nc_get_name(ncp));
+	    ncp->nc_name);
 	cache_out_ts(ncp, tsp, ticksp);
 	cache_lookup_unlock(blp, dvlp);
 	return (ENOENT);
@@ -1286,10 +1288,6 @@ success:
 		ASSERT_VOP_ELOCKED(*vpp, "cache_lookup");
 	}
 	return (-1);
-
-unlock:
-	cache_lookup_unlock(blp, dvlp);
-	return (0);
 
 zap_and_exit:
 	if (blp != NULL)
@@ -1526,7 +1524,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 {
 	struct celockstate cel;
 	struct namecache *ncp, *n2, *ndd;
-	struct namecache_ts *n3;
+	struct namecache_ts *ncp_ts, *n2_ts;
 	struct nchashhead *ncpp;
 	struct neglist *neglist;
 	uint32_t hash;
@@ -1617,18 +1615,18 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		ncp->nc_flag |= NCF_NEGATIVE;
 	ncp->nc_dvp = dvp;
 	if (tsp != NULL) {
-		n3 = (struct namecache_ts *)ncp;
-		n3->nc_time = *tsp;
-		n3->nc_ticks = ticks;
-		n3->nc_flag |= NCF_TS;
+		ncp_ts = __containerof(ncp, struct namecache_ts, nc_nc);
+		ncp_ts->nc_time = *tsp;
+		ncp_ts->nc_ticks = ticks;
+		ncp_ts->nc_nc.nc_flag |= NCF_TS;
 		if (dtsp != NULL) {
-			n3->nc_dotdottime = *dtsp;
-			n3->nc_flag |= NCF_DTS;
+			ncp_ts->nc_dotdottime = *dtsp;
+			ncp_ts->nc_nc.nc_flag |= NCF_DTS;
 		}
 	}
 	len = ncp->nc_nlen = cnp->cn_namelen;
 	hash = cache_get_hash(cnp->cn_nameptr, len, dvp);
-	strlcpy(nc_get_name(ncp), cnp->cn_nameptr, len + 1);
+	strlcpy(ncp->nc_name, cnp->cn_nameptr, len + 1);
 	cache_enter_lock(&cel, dvp, vp, hash);
 
 	/*
@@ -1640,22 +1638,18 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	LIST_FOREACH(n2, ncpp, nc_hash) {
 		if (n2->nc_dvp == dvp &&
 		    n2->nc_nlen == cnp->cn_namelen &&
-		    !bcmp(nc_get_name(n2), cnp->cn_nameptr, n2->nc_nlen)) {
+		    !bcmp(n2->nc_name, cnp->cn_nameptr, n2->nc_nlen)) {
 			if (tsp != NULL) {
 				KASSERT((n2->nc_flag & NCF_TS) != 0,
 				    ("no NCF_TS"));
-				n3 = (struct namecache_ts *)n2;
-				n3->nc_time =
-				    ((struct namecache_ts *)ncp)->nc_time;
-				n3->nc_ticks =
-				    ((struct namecache_ts *)ncp)->nc_ticks;
+				n2_ts = __containerof(n2, struct namecache_ts, nc_nc);
+				n2_ts->nc_time = ncp_ts->nc_time;
+				n2_ts->nc_ticks = ncp_ts->nc_ticks;
 				if (dtsp != NULL) {
-					n3->nc_dotdottime =
-					    ((struct namecache_ts *)ncp)->
-					    nc_dotdottime;
+					n2_ts->nc_dotdottime = ncp_ts->nc_dotdottime;
 					if (ncp->nc_flag & NCF_NEGATIVE)
 						mtx_lock(&ncneg_hot.nl_lock);
-					n3->nc_flag |= NCF_DTS;
+					n2_ts->nc_nc.nc_flag |= NCF_DTS;
 					if (ncp->nc_flag & NCF_NEGATIVE)
 						mtx_unlock(&ncneg_hot.nl_lock);
 				}
@@ -1719,14 +1713,14 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	 */
 	if (vp != NULL) {
 		TAILQ_INSERT_HEAD(&vp->v_cache_dst, ncp, nc_dst);
-		SDT_PROBE3(vfs, namecache, enter, done, dvp, nc_get_name(ncp),
+		SDT_PROBE3(vfs, namecache, enter, done, dvp, ncp->nc_name,
 		    vp);
 	} else {
 		if (cnp->cn_flags & ISWHITEOUT)
 			ncp->nc_flag |= NCF_WHITE;
 		cache_negative_insert(ncp, false);
 		SDT_PROBE2(vfs, namecache, enter_negative, done, dvp,
-		    nc_get_name(ncp));
+		    ncp->nc_name);
 	}
 	cache_enter_unlock(&cel);
 	if (numneg * ncnegfactor > numcache)
@@ -1848,7 +1842,7 @@ cache_changesize(int newmaxvnodes)
 	nchash = new_nchash;
 	for (i = 0; i <= old_nchash; i++) {
 		while ((ncp = LIST_FIRST(&old_nchashtbl[i])) != NULL) {
-			hash = cache_get_hash(nc_get_name(ncp), ncp->nc_nlen,
+			hash = cache_get_hash(ncp->nc_name, ncp->nc_nlen,
 			    ncp->nc_dvp);
 			LIST_REMOVE(ncp, nc_hash);
 			LIST_INSERT_HEAD(NCHHASH(hash), ncp, nc_hash);
@@ -2175,9 +2169,9 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, u_int *buflen)
 			return (error);
 		}
 		*buflen -= ncp->nc_nlen;
-		memcpy(buf + *buflen, nc_get_name(ncp), ncp->nc_nlen);
+		memcpy(buf + *buflen, ncp->nc_name, ncp->nc_nlen);
 		SDT_PROBE3(vfs, namecache, fullpath, hit, ncp->nc_dvp,
-		    nc_get_name(ncp), vp);
+		    ncp->nc_name, vp);
 		dvp = *vp;
 		*vp = ncp->nc_dvp;
 		vref(*vp);
@@ -2359,7 +2353,7 @@ vn_commname(struct vnode *vp, char *buf, u_int buflen)
 		return (ENOENT);
 	}
 	l = min(ncp->nc_nlen, buflen - 1);
-	memcpy(buf, nc_get_name(ncp), l);
+	memcpy(buf, ncp->nc_name, l);
 	mtx_unlock(vlp);
 	buf[l] = '\0';
 	return (0);

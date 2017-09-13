@@ -302,11 +302,6 @@ amr_startup(void *arg)
     
     debug_called(1);
 
-    /* pull ourselves off the intrhook chain */
-    if (sc->amr_ich.ich_func)
-	config_intrhook_disestablish(&sc->amr_ich);
-    sc->amr_ich.ich_func = NULL;
-
     /* get up-to-date drive information */
     if (amr_query_controller(sc)) {
 	device_printf(sc->amr_dev, "can't scan controller for drives\n");
@@ -342,6 +337,11 @@ amr_startup(void *arg)
 
     /* interrupts will be enabled before we do anything more */
     sc->amr_state |= AMR_STATE_INTEN;
+
+    /* pull ourselves off the intrhook chain */
+    if (sc->amr_ich.ich_func)
+	config_intrhook_disestablish(&sc->amr_ich);
+    sc->amr_ich.ich_func = NULL;
 
     return;
 }

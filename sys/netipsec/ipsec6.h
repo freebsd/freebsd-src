@@ -60,7 +60,7 @@ VNET_DECLARE(int, ip6_ipsec_ecn);
 
 struct inpcb;
 struct secpolicy *ipsec6_checkpolicy(const struct mbuf *,
-    struct inpcb *, int *);
+    struct inpcb *, int *, int);
 
 void ipsec6_setsockaddrs(const struct mbuf *, union sockaddr_union *,
     union sockaddr_union *);

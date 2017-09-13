@@ -568,7 +568,7 @@ main(int argc, char **argv)
 			continue;
 		rv |= (*action)(kp);
 	}
-	if (rv && pgrep)
+	if (rv && pgrep && !quiet)
 		putchar('\n');
 	if (!did_action && !pgrep && longfmt)
 		fprintf(stderr,

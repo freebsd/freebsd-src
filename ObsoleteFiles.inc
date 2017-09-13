@@ -38,6 +38,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170913: remove unneeded catman utility
+OLD_FILES+=etc/periodic/weekly/330.catman
+OLD_FILES+=usr/bin/catman
+OLD_FILES+=usr/libexec/catman.local
+OLD_FILES+=usr/share/man/man1/catman.1.gz
+OLD_FILES+=usr/share/man/man8/catman.local.8.gz
+
 # 20170802: ksyms(4) ioctl interface was removed
 OLD_FILES+=usr/include/sys/ksyms.h
 

@@ -72,7 +72,7 @@ struct proc_handle {
 	struct map_info *mappings;	/* File mappings for proc. */
 	size_t	maparrsz;		/* Map array size. */
 	size_t	nmappings;		/* Number of mappings. */
-	prmap_t	*exec_map;		/* Executable text mapping. */
+	size_t	exec_map;		/* Executable text mapping index. */
 	lwpstatus_t lwps;		/* Process status. */
 	struct procstat *procstat;	/* libprocstat handle. */
 	char	execpath[PATH_MAX];	/* Path to program executable. */

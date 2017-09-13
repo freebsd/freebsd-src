@@ -1,4 +1,53 @@
 ----------------------------------------
+31 August 2017. Summary of changes for version 20170831:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Implemented internal support for full 64-bit addresses that appear in all 
+Generic Address Structure (GAS) structures. Previously, only the lower 32 
+bits were used. Affects the use of GAS structures in the FADT and other 
+tables, as well as the GAS structures passed to the AcpiRead and 
+AcpiWrite public external interfaces that are used by drivers. Lv Zheng.
+
+Added header support for the PDTT ACPI table (Processor Debug Trigger 
+Table). Full support in the iASL Data Table Compiler and disassembler is 
+forthcoming.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL/Disassembler: Fixed a problem with the PPTT ACPI table (Processor 
+Properties Topology Table) where a flag bit was specified in the wrong 
+bit position ("Line Size Valid", bit 6).
+
+iASL: Implemented support for Octal integer constants as defined by the 
+ASL language grammar, per the ACPI specification. Any integer constant 
+that starts with a zero is an octal constant. For example,
+    Store (037777, Local0) /* Octal constant */
+    Store (0x3FFF, Local0) /* Hex equivalent */
+    Store (16383,  Local0) /* Decimal equivalent */
+
+iASL: Improved overflow detection for 64-bit string conversions during 
+compilation of integer constants. "Overflow" in this case means a string 
+that represents an integer that is too large to fit into a 64-bit value. 
+Any 64-bit constants within a 32-bit DSDT or SSDT are still truncated to 
+the low-order 32 bits with a warning, as previously implemented. Several 
+new exceptions are defined that indicate a 64-bit overflow, as well as 
+the base (radix) that was used during the attempted conversion. Examples:
+    Local0 = 0xAAAABBBBCCCCDDDDEEEEFFFF        // AE_HEX_OVERFLOW
+    Local0 = 01111222233334444555566667777     // AE_OCTAL_OVERFLOW
+    Local0 = 11112222333344445555666677778888  // AE_DECIMAL_OVERFLOW
+
+iASL: Added a warning for the case where a ResourceTemplate is declared 
+with no ResourceDescriptor entries (coded as "ResourceTemplate(){}"). In 
+this case, the resulting template is created with a single END_TAG 
+descriptor, which is essentially useless.
+
+iASL: Expanded the -vw option (ignore specific warnings/remarks) to 
+include compilation error codes as well.
+
+----------------------------------------
 28 July 2017. Summary of changes for version 20170728:
 
 

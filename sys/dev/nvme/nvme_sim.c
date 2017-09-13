@@ -96,6 +96,8 @@ nvme_sim_nvmeio(struct cam_sim *sim, union ccb *ccb)
 	if ((nvmeio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_BIO)
 		req = nvme_allocate_request_bio((struct bio *)payload,
 		    nvme_sim_nvmeio_done, ccb);
+	else if ((nvmeio->ccb_h.flags & CAM_DATA_SG) == CAM_DATA_SG)
+		req = nvme_allocate_request_ccb(ccb, nvme_sim_nvmeio_done, ccb);
 	else if (payload == NULL)
 		req = nvme_allocate_request_null(nvme_sim_nvmeio_done, ccb);
 	else
@@ -253,7 +255,7 @@ nvme_sim_new_controller(struct nvme_controller *ctrlr)
 	int unit;
 	struct nvme_sim_softc *sc = NULL;
 
-	max_trans = ctrlr->num_io_queues;
+	max_trans = ctrlr->max_hw_pend_io;
 	unit = device_get_unit(ctrlr->dev);
 	devq = cam_simq_alloc(max_trans);
 	if (devq == NULL)

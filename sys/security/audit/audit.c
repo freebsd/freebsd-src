@@ -96,7 +96,7 @@ static SYSCTL_NODE(_security, OID_AUTO, audit, CTLFLAG_RW, 0,
  *
  * Define the audit control flags.
  */
-int			audit_enabled;
+int __read_frequently	audit_enabled;
 int			audit_suspended;
 
 /*

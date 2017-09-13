@@ -53,9 +53,11 @@ struct pipe_inode_info;
 struct vm_area_struct;
 struct poll_table_struct;
 struct files_struct;
+struct pfs_node;
 
 #define	inode	vnode
 #define	i_cdev	v_rdev
+#define	i_private v_data
 
 #define	S_IRUGO	(S_IRUSR | S_IRGRP | S_IROTH)
 #define	S_IWUGO	(S_IWUSR | S_IWGRP | S_IWOTH)
@@ -65,9 +67,21 @@ typedef struct files_struct *fl_owner_t;
 
 struct dentry {
 	struct inode	*d_inode;
+	struct pfs_node	*d_pfs_node;
 };
 
 struct file_operations;
+
+struct linux_file_wait_queue {
+	struct wait_queue wq;
+	struct wait_queue_head *wqh;
+	atomic_t state;
+#define	LINUX_FWQ_STATE_INIT 0
+#define	LINUX_FWQ_STATE_NOT_READY 1
+#define	LINUX_FWQ_STATE_QUEUED 2
+#define	LINUX_FWQ_STATE_READY 3
+#define	LINUX_FWQ_STATE_MAX 4
+};
 
 struct linux_file {
 	struct file	*_file;
@@ -94,6 +108,7 @@ struct linux_file {
 #define	LINUX_KQ_FLAG_NEED_WRITE (1 << 3)
 	/* protects f_selinfo.si_note */
 	spinlock_t	f_kqlock;
+	struct linux_file_wait_queue f_wait_queue;
 };
 
 #define	file		linux_file

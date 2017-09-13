@@ -308,6 +308,15 @@
 #define	CPUID_EXTSTATE_XSAVES	0x00000008
 
 /*
+ * AMD extended function 8000_0007h ebx info
+ */
+#define	AMDRAS_MCA_OF_RECOV	0x00000001
+#define	AMDRAS_SUCCOR		0x00000002
+#define	AMDRAS_HW_ASSERT	0x00000004
+#define	AMDRAS_SCALABLE_MCA	0x00000008
+#define	AMDRAS_PFEH_SUPPORT	0x00000010
+
+/*
  * AMD extended function 8000_0007h edx info
  */
 #define	AMDPM_TS		0x00000001
@@ -706,21 +715,22 @@
 #define	MC_CTL2_THRESHOLD	0x0000000000007fff
 #define	MC_CTL2_CMCI_EN		0x0000000040000000
 #define	MC_AMDNB_BANK		4
-#define	MC_MISC_AMDNB_VAL	0x8000000000000000	/* Counter presence valid */
-#define	MC_MISC_AMDNB_CNTP	0x4000000000000000	/* Counter present */
-#define	MC_MISC_AMDNB_LOCK	0x2000000000000000	/* Register locked */
-#define	MC_MISC_AMDNB_LVT_MASK	0x00f0000000000000	/* Extended LVT offset */
-#define	MC_MISC_AMDNB_LVT_SHIFT	52
-#define	MC_MISC_AMDNB_CNTEN	0x0008000000000000	/* Counter enabled */
-#define	MC_MISC_AMDNB_INT_MASK	0x0006000000000000	/* Interrupt type */
-#define	MC_MISC_AMDNB_INT_LVT	0x0002000000000000	/* Interrupt via Extended LVT */
-#define	MC_MISC_AMDNB_INT_SMI	0x0004000000000000	/* SMI */
-#define	MC_MISC_AMDNB_OVERFLOW	0x0001000000000000	/* Counter overflow */
-#define	MC_MISC_AMDNB_CNT_MASK	0x00000fff00000000	/* Counter value */
-#define	MC_MISC_AMDNB_CNT_SHIFT	32
-#define	MC_MISC_AMDNB_CNT_MAX	0xfff
-#define	MC_MISC_AMDNB_PTR_MASK	0x00000000ff000000	/* Pointer to additional registers */
-#define	MC_MISC_AMDNB_PTR_SHIFT	24
+#define	MC_MISC_AMD_VAL		0x8000000000000000	/* Counter presence valid */
+#define	MC_MISC_AMD_CNTP	0x4000000000000000	/* Counter present */
+#define	MC_MISC_AMD_LOCK	0x2000000000000000	/* Register locked */
+#define	MC_MISC_AMD_INTP	0x1000000000000000	/* Int. type can generate interrupts */
+#define	MC_MISC_AMD_LVT_MASK	0x00f0000000000000	/* Extended LVT offset */
+#define	MC_MISC_AMD_LVT_SHIFT	52
+#define	MC_MISC_AMD_CNTEN	0x0008000000000000	/* Counter enabled */
+#define	MC_MISC_AMD_INT_MASK	0x0006000000000000	/* Interrupt type */
+#define	MC_MISC_AMD_INT_LVT	0x0002000000000000	/* Interrupt via Extended LVT */
+#define	MC_MISC_AMD_INT_SMI	0x0004000000000000	/* SMI */
+#define	MC_MISC_AMD_OVERFLOW	0x0001000000000000	/* Counter overflow */
+#define	MC_MISC_AMD_CNT_MASK	0x00000fff00000000	/* Counter value */
+#define	MC_MISC_AMD_CNT_SHIFT	32
+#define	MC_MISC_AMD_CNT_MAX	0xfff
+#define	MC_MISC_AMD_PTR_MASK	0x00000000ff000000	/* Pointer to additional registers */
+#define	MC_MISC_AMD_PTR_SHIFT	24
 
 /*
  * The following four 3-byte registers control the non-cacheable regions.

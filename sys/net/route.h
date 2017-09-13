@@ -67,8 +67,6 @@ struct route {
 #define	RT_MAY_LOOP_BIT		3	/* dst may require loop copy */
 #define	RT_HAS_HEADER_BIT	4	/* mbuf already have its header prepended */
 
-#define	RT_CACHING_CONTEXT	0x1	/* XXX: not used anywhere */
-#define	RT_NORTREF		0x2	/* doesn't hold reference on ro_rt */
 #define	RT_L2_ME		(1 << RT_L2_ME_BIT)		/* 0x0004 */
 #define	RT_MAY_LOOP		(1 << RT_MAY_LOOP_BIT)		/* 0x0008 */
 #define	RT_HAS_HEADER		(1 << RT_HAS_HEADER_BIT)	/* 0x0010 */
@@ -411,14 +409,8 @@ struct rt_addrinfo {
 
 #define	RO_RTFREE(_ro) do {					\
 	if ((_ro)->ro_rt) {					\
-		if ((_ro)->ro_flags & RT_NORTREF) {		\
-			(_ro)->ro_flags &= ~RT_NORTREF;		\
-			(_ro)->ro_rt = NULL;			\
-			(_ro)->ro_lle = NULL;			\
-		} else {					\
-			RT_LOCK((_ro)->ro_rt);			\
-			RTFREE_LOCKED((_ro)->ro_rt);		\
-		}						\
+		RT_LOCK((_ro)->ro_rt);				\
+		RTFREE_LOCKED((_ro)->ro_rt);			\
 	}							\
 } while (0)
 

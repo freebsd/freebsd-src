@@ -86,14 +86,15 @@ ENTRY(cpu_throw)
 	 */
 
 	/* Switch to the new pmap */
-	ldr	x5, [x4, #PCB_L0ADDR]
+	ldr	x28, [x1, #TD_PROC]
+	ldr	x5, [x28, #(P_MD + MD_L0ADDR)]
 	msr	ttbr0_el1, x5
 	isb
 
 	/* Invalidate the TLB */
-	dsb	sy
-	tlbi	vmalle1is
-	dsb	sy
+	dsb	ishst
+	tlbi	vmalle1
+	dsb	ish
 	isb
 
 	/* If we are single stepping, enable it */
@@ -186,15 +187,18 @@ ENTRY(cpu_switch)
 	 * to a user process.
 	 */
 
+	/* Load the new proc address */
+	ldr	x28, [x1, #TD_PROC]
+
 	/* Switch to the new pmap */
-	ldr	x5, [x4, #PCB_L0ADDR]
+	ldr	x5, [x28, #(P_MD + MD_L0ADDR)]
 	msr	ttbr0_el1, x5
 	isb
 
 	/* Invalidate the TLB */
-	dsb	sy
-	tlbi	vmalle1is
-	dsb	sy
+	dsb	ishst
+	tlbi	vmalle1
+	dsb	ish
 	isb
 
 	/*

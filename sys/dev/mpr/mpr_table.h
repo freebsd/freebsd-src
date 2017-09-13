@@ -41,6 +41,9 @@ extern struct mpr_table_lookup mpr_event_names[];
 extern struct mpr_table_lookup mpr_phystatus_names[];
 extern struct mpr_table_lookup mpr_linkrate_names[];
 extern struct mpr_table_lookup mpr_pcie_linkrate_names[];
+extern struct mpr_table_lookup mpr_iocstatus_string[];
+extern struct mpr_table_lookup mpr_scsi_status_string[];
+extern struct mpr_table_lookup mpr_scsi_taskmgmt_string[];
 
 void mpr_print_iocfacts(struct mpr_softc *, MPI2_IOC_FACTS_REPLY *);
 void mpr_print_portfacts(struct mpr_softc *, MPI2_PORT_FACTS_REPLY *);

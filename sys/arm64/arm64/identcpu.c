@@ -80,6 +80,7 @@ struct cpu_desc {
 	uint64_t	id_aa64isar1;
 	uint64_t	id_aa64mmfr0;
 	uint64_t	id_aa64mmfr1;
+	uint64_t	id_aa64mmfr2;
 	uint64_t	id_aa64pfr0;
 	uint64_t	id_aa64pfr1;
 };
@@ -88,14 +89,15 @@ struct cpu_desc cpu_desc[MAXCPU];
 static u_int cpu_print_regs;
 #define	PRINT_ID_AA64_AFR0	0x00000001
 #define	PRINT_ID_AA64_AFR1	0x00000002
-#define	PRINT_ID_AA64_DFR0	0x00000004
-#define	PRINT_ID_AA64_DFR1	0x00000008
-#define	PRINT_ID_AA64_ISAR0	0x00000010
-#define	PRINT_ID_AA64_ISAR1	0x00000020
-#define	PRINT_ID_AA64_MMFR0	0x00000040
-#define	PRINT_ID_AA64_MMFR1	0x00000080
-#define	PRINT_ID_AA64_PFR0	0x00000100
-#define	PRINT_ID_AA64_PFR1	0x00000200
+#define	PRINT_ID_AA64_DFR0	0x00000010
+#define	PRINT_ID_AA64_DFR1	0x00000020
+#define	PRINT_ID_AA64_ISAR0	0x00000100
+#define	PRINT_ID_AA64_ISAR1	0x00000200
+#define	PRINT_ID_AA64_MMFR0	0x00001000
+#define	PRINT_ID_AA64_MMFR1	0x00002000
+#define	PRINT_ID_AA64_MMFR2	0x00004000
+#define	PRINT_ID_AA64_PFR0	0x00010000
+#define	PRINT_ID_AA64_PFR1	0x00020000
 
 struct cpu_parts {
 	u_int		part_id;
@@ -120,8 +122,13 @@ struct cpu_implementers {
 /* ARM Ltd. */
 static const struct cpu_parts cpu_parts_arm[] = {
 	{ CPU_PART_FOUNDATION, "Foundation-Model" },
+	{ CPU_PART_CORTEX_A35, "Cortex-A35" },
 	{ CPU_PART_CORTEX_A53, "Cortex-A53" },
+	{ CPU_PART_CORTEX_A55, "Cortex-A55" },
 	{ CPU_PART_CORTEX_A57, "Cortex-A57" },
+	{ CPU_PART_CORTEX_A72, "Cortex-A72" },
+	{ CPU_PART_CORTEX_A73, "Cortex-A73" },
+	{ CPU_PART_CORTEX_A75, "Cortex-A75" },
 	CPU_PART_NONE,
 };
 /* Cavium */
@@ -300,14 +307,53 @@ print_cpu_features(u_int cpu)
 
 	/* AArch64 Instruction Set Attribute Register 1 */
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_ISAR1) != 0) {
-		printf(" Instruction Set Attributes 1 = <%#lx>\n",
-		    cpu_desc[cpu].id_aa64isar1);
+		printed = 0;
+		printf(" Instruction Set Attributes 1 = <");
+
+		switch (ID_AA64ISAR1_DPB(cpu_desc[cpu].id_aa64isar1)) {
+		case ID_AA64ISAR1_DPB_NONE:
+			break;
+		case ID_AA64ISAR1_DPB_IMPL:
+			printf("%sDC CVAP", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown DC CVAP", SEP_STR);
+			break;
+		}
+
+		if ((cpu_desc[cpu].id_aa64isar1 & ~ID_AA64ISAR1_MASK) != 0)
+			printf("%s%#lx", SEP_STR,
+			    cpu_desc[cpu].id_aa64isar1 & ~ID_AA64ISAR1_MASK);
+		printf(">\n");
 	}
 
 	/* AArch64 Processor Feature Register 0 */
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_PFR0) != 0) {
 		printed = 0;
 		printf("         Processor Features 0 = <");
+
+		switch (ID_AA64PFR0_SVE(cpu_desc[cpu].id_aa64pfr0)) {
+		case ID_AA64PFR0_SVE_NONE:
+			break;
+		case ID_AA64PFR0_SVE_IMPL:
+			printf("%sSVE", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown SVE", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64PFR0_RAS(cpu_desc[cpu].id_aa64pfr0)) {
+		case ID_AA64PFR0_RAS_NONE:
+			break;
+		case ID_AA64PFR0_RAS_V1:
+			printf("%sRASv1", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown RAS", SEP_STR);
+			break;
+		}
+
 		switch (ID_AA64PFR0_GIC(cpu_desc[cpu].id_aa64pfr0)) {
 		case ID_AA64PFR0_GIC_CPUIF_NONE:
 			break;
@@ -325,6 +371,9 @@ print_cpu_features(u_int cpu)
 		case ID_AA64PFR0_ADV_SIMD_IMPL:
 			printf("%sAdvSIMD", SEP_STR);
 			break;
+		case ID_AA64PFR0_ADV_SIMD_HP:
+			printf("%sAdvSIMD+HP", SEP_STR);
+			break;
 		default:
 			printf("%sUnknown AdvSIMD", SEP_STR);
 			break;
@@ -335,6 +384,9 @@ print_cpu_features(u_int cpu)
 			break;
 		case ID_AA64PFR0_FP_IMPL:
 			printf("%sFloat", SEP_STR);
+			break;
+		case ID_AA64PFR0_FP_HP:
+			printf("%sFloat+HP", SEP_STR);
 			break;
 		default:
 			printf("%sUnknown Float", SEP_STR);
@@ -509,6 +561,9 @@ print_cpu_features(u_int cpu)
 		case ID_AA64MMFR0_PA_RANGE_256T:
 			printf("%s256TB PA", SEP_STR);
 			break;
+		case ID_AA64MMFR0_PA_RANGE_4P:
+			printf("%s4PB PA", SEP_STR);
+			break;
 		default:
 			printf("%sUnknown PA Range", SEP_STR);
 			break;
@@ -525,11 +580,36 @@ print_cpu_features(u_int cpu)
 		printed = 0;
 		printf("      Memory Model Features 1 = <");
 
+		switch (ID_AA64MMFR1_XNX(cpu_desc[cpu].id_aa64mmfr1)) {
+		case ID_AA64MMFR1_XNX_NONE:
+			break;
+		case ID_AA64MMFR1_XNX_IMPL:
+			printf("%sEL2 XN", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown XNX", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64MMFR1_SPEC_SEI(cpu_desc[cpu].id_aa64mmfr1)) {
+		case ID_AA64MMFR1_SPEC_SEI_NONE:
+			break;
+		case ID_AA64MMFR1_SPEC_SEI_IMPL:
+			printf("%sSpecSEI", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown SpecSEI", SEP_STR);
+			break;
+		}
+
 		switch (ID_AA64MMFR1_PAN(cpu_desc[cpu].id_aa64mmfr1)) {
 		case ID_AA64MMFR1_PAN_NONE:
 			break;
 		case ID_AA64MMFR1_PAN_IMPL:
 			printf("%sPAN", SEP_STR);
+			break;
+		case ID_AA64MMFR1_PAN_ATS1E1:
+			printf("%sPAN+AT", SEP_STR);
 			break;
 		default:
 			printf("%sUnknown PAN", SEP_STR);
@@ -550,8 +630,11 @@ print_cpu_features(u_int cpu)
 		switch (ID_AA64MMFR1_HPDS(cpu_desc[cpu].id_aa64mmfr1)) {
 		case ID_AA64MMFR1_HPDS_NONE:
 			break;
-		case ID_AA64MMFR1_HPDS_IMPL:
+		case ID_AA64MMFR1_HPDS_HPD:
 			printf("%sHPDS", SEP_STR);
+			break;
+		case ID_AA64MMFR1_HPDS_TTPBHA:
+			printf("%sTTPBHA", SEP_STR);
 			break;
 		default:
 			printf("%sUnknown HPDS", SEP_STR);
@@ -600,10 +683,88 @@ print_cpu_features(u_int cpu)
 		printf(">\n");
 	}
 
+	/* AArch64 Memory Model Feature Register 2 */
+	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR2) != 0) {
+		printed = 0;
+		printf("      Memory Model Features 2 = <");
+
+		switch (ID_AA64MMFR2_VA_RANGE(cpu_desc[cpu].id_aa64mmfr2)) {
+		case ID_AA64MMFR2_VA_RANGE_48:
+			printf("%s48b VA", SEP_STR);
+			break;
+		case ID_AA64MMFR2_VA_RANGE_52:
+			printf("%s52b VA", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown VA Range", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64MMFR2_IESB(cpu_desc[cpu].id_aa64mmfr2)) {
+		case ID_AA64MMFR2_IESB_NONE:
+			break;
+		case ID_AA64MMFR2_IESB_IMPL:
+			printf("%sIESB", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown IESB", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64MMFR2_LSM(cpu_desc[cpu].id_aa64mmfr2)) {
+		case ID_AA64MMFR2_LSM_NONE:
+			break;
+		case ID_AA64MMFR2_LSM_IMPL:
+			printf("%sLSM", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown LSM", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64MMFR2_UAO(cpu_desc[cpu].id_aa64mmfr2)) {
+		case ID_AA64MMFR2_UAO_NONE:
+			break;
+		case ID_AA64MMFR2_UAO_IMPL:
+			printf("%sUAO", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown UAO", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64MMFR2_CNP(cpu_desc[cpu].id_aa64mmfr2)) {
+		case ID_AA64MMFR2_CNP_NONE:
+			break;
+		case ID_AA64MMFR2_CNP_IMPL:
+			printf("%sCnP", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown CnP", SEP_STR);
+			break;
+		}
+
+		if ((cpu_desc[cpu].id_aa64mmfr2 & ~ID_AA64MMFR2_MASK) != 0)
+			printf("%s%#lx", SEP_STR,
+			    cpu_desc[cpu].id_aa64mmfr2 & ~ID_AA64MMFR2_MASK);
+		printf(">\n");
+	}
+
 	/* AArch64 Debug Feature Register 0 */
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_DFR0) != 0) {
 		printed = 0;
 		printf("             Debug Features 0 = <");
+		switch(ID_AA64DFR0_PMS_VER(cpu_desc[cpu].id_aa64dfr0)) {
+		case ID_AA64DFR0_PMS_VER_NONE:
+			break;
+		case ID_AA64DFR0_PMS_VER_V1:
+			printf("%sSPE v1", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown SPE", SEP_STR);
+			break;
+		}
+
 		printf("%s%lu CTX Breakpoints", SEP_STR,
 		    ID_AA64DFR0_CTX_CMPS(cpu_desc[cpu].id_aa64dfr0));
 
@@ -647,6 +808,9 @@ print_cpu_features(u_int cpu)
 			break;
 		case ID_AA64DFR0_DEBUG_VER_8_VHE:
 			printf("%sDebug v8+VHE", SEP_STR);
+			break;
+		case ID_AA64DFR0_DEBUG_VER_8_2:
+			printf("%sDebug v8.2", SEP_STR);
 			break;
 		default:
 			printf("%sUnknown Debug", SEP_STR);
@@ -727,14 +891,19 @@ identify_cpu(void)
 	cpu_desc[cpu].mpidr = get_mpidr();
 	CPU_AFFINITY(cpu) = cpu_desc[cpu].mpidr & CPU_AFF_MASK;
 
-	cpu_desc[cpu].id_aa64dfr0 = READ_SPECIALREG(id_aa64dfr0_el1);
-	cpu_desc[cpu].id_aa64dfr1 = READ_SPECIALREG(id_aa64dfr1_el1);
-	cpu_desc[cpu].id_aa64isar0 = READ_SPECIALREG(id_aa64isar0_el1);
-	cpu_desc[cpu].id_aa64isar1 = READ_SPECIALREG(id_aa64isar1_el1);
-	cpu_desc[cpu].id_aa64mmfr0 = READ_SPECIALREG(id_aa64mmfr0_el1);
-	cpu_desc[cpu].id_aa64mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
-	cpu_desc[cpu].id_aa64pfr0 = READ_SPECIALREG(id_aa64pfr0_el1);
-	cpu_desc[cpu].id_aa64pfr1 = READ_SPECIALREG(id_aa64pfr1_el1);
+	cpu_desc[cpu].id_aa64dfr0 = READ_SPECIALREG(ID_AA64DFR0_EL1);
+	cpu_desc[cpu].id_aa64dfr1 = READ_SPECIALREG(ID_AA64DFR1_EL1);
+	cpu_desc[cpu].id_aa64isar0 = READ_SPECIALREG(ID_AA64ISAR0_EL1);
+	cpu_desc[cpu].id_aa64isar1 = READ_SPECIALREG(ID_AA64ISAR1_EL1);
+	cpu_desc[cpu].id_aa64mmfr0 = READ_SPECIALREG(ID_AA64MMFR0_EL1);
+	cpu_desc[cpu].id_aa64mmfr1 = READ_SPECIALREG(ID_AA64MMFR1_EL1);
+#ifdef NOTYET
+	cpu_desc[cpu].id_aa64mmfr2 = READ_SPECIALREG(ID_AA64MMFR2_EL1);
+#else
+	cpu_desc[cpu].id_aa64mmfr2 = 0;
+#endif
+	cpu_desc[cpu].id_aa64pfr0 = READ_SPECIALREG(ID_AA64PFR0_EL1);
+	cpu_desc[cpu].id_aa64pfr1 = READ_SPECIALREG(ID_AA64PFR1_EL1);
 
 	if (cpu != 0) {
 		/*
@@ -787,6 +956,8 @@ identify_cpu(void)
 			cpu_print_regs |= PRINT_ID_AA64_MMFR0;
 		if (cpu_desc[cpu].id_aa64mmfr1 != cpu_desc[0].id_aa64mmfr1)
 			cpu_print_regs |= PRINT_ID_AA64_MMFR1;
+		if (cpu_desc[cpu].id_aa64mmfr2 != cpu_desc[0].id_aa64mmfr2)
+			cpu_print_regs |= PRINT_ID_AA64_MMFR2;
 
 		if (cpu_desc[cpu].id_aa64pfr0 != cpu_desc[0].id_aa64pfr0)
 			cpu_print_regs |= PRINT_ID_AA64_PFR0;

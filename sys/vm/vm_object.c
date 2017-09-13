@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/kernel.h>
+#include <sys/pctrie.h>
 #include <sys/sysctl.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>		/* for curproc, pageproc */
@@ -208,6 +209,7 @@ vm_object_zinit(void *mem, int size, int flags)
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
+	object->flags = OBJ_DEAD;
 
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
@@ -223,6 +225,16 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	LIST_INIT(&object->shadow_head);
 
 	object->type = type;
+	if (type == OBJT_SWAP)
+		pctrie_init(&object->un_pager.swp.swp_blks);
+
+	/*
+	 * Ensure that swap_pager_swapoff() iteration over object_list
+	 * sees up to date type and pctrie head if it observed
+	 * non-dead object.
+	 */
+	atomic_thread_fence_rel();
+
 	switch (type) {
 	case OBJT_DEAD:
 		panic("_vm_object_allocate: can't create OBJT_DEAD");
@@ -1905,6 +1917,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
     int options)
 {
 	vm_page_t p, next;
+	struct mtx *mtx;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->flags & OBJ_UNMANAGED) == 0 ||
@@ -1915,6 +1928,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	vm_object_pip_add(object, 1);
 again:
 	p = vm_page_find_least(object, start);
+	mtx = NULL;
 
 	/*
 	 * Here, the variable "p" is either (1) the page with the least pindex
@@ -1931,7 +1945,7 @@ again:
 		 * however, be invalidated if the option OBJPR_CLEANONLY is
 		 * not specified.
 		 */
-		vm_page_lock(p);
+		vm_page_change_lock(p, &mtx);
 		if (vm_page_xbusied(p)) {
 			VM_OBJECT_WUNLOCK(object);
 			vm_page_busy_sleep(p, "vmopax", true);
@@ -1945,7 +1959,7 @@ again:
 				p->valid = 0;
 				vm_page_undirty(p);
 			}
-			goto next;
+			continue;
 		}
 		if (vm_page_busied(p)) {
 			VM_OBJECT_WUNLOCK(object);
@@ -1959,14 +1973,14 @@ again:
 			if ((options & OBJPR_NOTMAPPED) == 0)
 				pmap_remove_write(p);
 			if (p->dirty)
-				goto next;
+				continue;
 		}
 		if ((options & OBJPR_NOTMAPPED) == 0)
 			pmap_remove_all(p);
 		vm_page_free(p);
-next:
-		vm_page_unlock(p);
 	}
+	if (mtx != NULL)
+		mtx_unlock(mtx);
 	vm_object_pip_wakeup(object);
 }
 
@@ -1989,7 +2003,7 @@ next:
 void
 vm_object_page_noreuse(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 {
-	struct mtx *mtx, *new_mtx;
+	struct mtx *mtx;
 	vm_page_t p, next;
 
 	VM_OBJECT_ASSERT_LOCKED(object);
@@ -2006,17 +2020,7 @@ vm_object_page_noreuse(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 	mtx = NULL;
 	for (; p != NULL && (p->pindex < end || end == 0); p = next) {
 		next = TAILQ_NEXT(p, listq);
-
-		/*
-		 * Avoid releasing and reacquiring the same page lock.
-		 */
-		new_mtx = vm_page_lockptr(p);
-		if (mtx != new_mtx) {
-			if (mtx != NULL)
-				mtx_unlock(mtx);
-			mtx = new_mtx;
-			mtx_lock(mtx);
-		}
+		vm_page_change_lock(p, &mtx);
 		vm_page_deactivate_noreuse(p);
 	}
 	if (mtx != NULL)

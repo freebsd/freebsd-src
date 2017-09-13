@@ -395,9 +395,14 @@ device		iwn6000g2bfw
 device		iwn6050fw
 device		wpifw
 
-# Intel Non-Transparent Bridge (NTB) hardware
-device		ntb_hw	# Hardware Abstraction Layer for the NTB
-device		if_ntb	# Simulated ethernet device using the NTB
+#
+# Non-Transparent Bridge (NTB) drivers
+#
+device		if_ntb		# Virtual NTB network interface
+device		ntb_transport	# NTB packet transport driver
+device		ntb		# NTB hardware interface
+device		ntb_hw_intel	# Intel NTB hardware driver
+device		ntb_hw_plx	# PLX NTB hardware driver
 
 #
 #XXX this stores pointers in a 32bit field that is defined by the hardware
@@ -582,6 +587,11 @@ device		cpuctl
 # System Management Bus (SMB)
 #
 options 	ENABLE_ALART		# Control alarm on Intel intpm driver
+
+#
+# AMD System Management Network (SMN)
+#
+device		amdsmn
 
 #
 # Number of initial kernel page table pages used for early bootstrap.

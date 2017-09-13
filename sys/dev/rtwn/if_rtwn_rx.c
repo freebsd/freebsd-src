@@ -88,7 +88,7 @@ rtwn_get_rates(struct rtwn_softc *sc, const struct ieee80211_rateset *rs,
 			if ((rs_ht->rs_rates[i] & 0x7f) > 0xf)
 				continue;
 			/* 11n rates start at index 12 */
-			ridx = RTWN_RIDX_MCS((rs_ht->rs_rates[i]) & 0xf);
+			ridx = RTWN_RIDX_HT_MCS((rs_ht->rs_rates[i]) & 0xf);
 			rates |= (1 << ridx);
 
 			/* Guard against the rate table being oddly ordered */

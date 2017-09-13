@@ -258,50 +258,25 @@
 					void *buf, \
 					size_t buf_len); }
 
-44	AUE_NULL	STD	{ cloudabi_fd_t cloudabi_sys_sock_accept( \
-					cloudabi_fd_t sock, \
-					void *unused); }
-
-45	AUE_NULL	STD	{ void cloudabi_sys_sock_bind( \
-					cloudabi_fd_t sock, \
-					cloudabi_fd_t fd, \
-					const char *path, \
-					size_t path_len); }
-
-46	AUE_NULL	STD	{ void cloudabi_sys_sock_connect( \
-					cloudabi_fd_t sock, \
-					cloudabi_fd_t fd, \
-					const char *path, \
-					size_t path_len); }
-
-47	AUE_NULL	STD	{ void cloudabi_sys_sock_listen( \
-					cloudabi_fd_t sock, \
-					cloudabi_backlog_t backlog); }
-
-48	AUE_NULL	STD	{ void cloudabi32_sys_sock_recv( \
+44	AUE_NULL	STD	{ void cloudabi32_sys_sock_recv( \
 					cloudabi_fd_t sock, \
 					const cloudabi32_recv_in_t *in, \
 					cloudabi32_recv_out_t *out); }
 
-49	AUE_NULL	STD	{ void cloudabi32_sys_sock_send( \
+45	AUE_NULL	STD	{ void cloudabi32_sys_sock_send( \
 					cloudabi_fd_t sock, \
 					const cloudabi32_send_in_t *in, \
 					cloudabi32_send_out_t *out); }
 
-50	AUE_NULL	STD	{ void cloudabi_sys_sock_shutdown( \
+46	AUE_NULL	STD	{ void cloudabi_sys_sock_shutdown( \
 					cloudabi_fd_t sock, \
 					cloudabi_sdflags_t how); }
 
-51	AUE_NULL	STD	{ void cloudabi_sys_sock_stat_get( \
-					cloudabi_fd_t sock, \
-					cloudabi_sockstat_t *buf, \
-					cloudabi_ssflags_t flags); }
-
-52	AUE_NULL	STD	{ cloudabi_tid_t cloudabi32_sys_thread_create( \
+47	AUE_NULL	STD	{ cloudabi_tid_t cloudabi32_sys_thread_create( \
 					cloudabi32_threadattr_t *attr); }
 
-53	AUE_NULL	STD	{ void cloudabi_sys_thread_exit( \
+48	AUE_NULL	STD	{ void cloudabi_sys_thread_exit( \
 					cloudabi_lock_t *lock, \
 					cloudabi_scope_t scope); }
 
-54	AUE_NULL	STD	{ void cloudabi_sys_thread_yield(); }
+49	AUE_NULL	STD	{ void cloudabi_sys_thread_yield(); }

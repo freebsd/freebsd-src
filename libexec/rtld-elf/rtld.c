@@ -571,7 +571,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	close(fd);
 	if (obj_main == NULL)
 	    rtld_die();
-	max_stack_flags = obj->stack_flags;
+	max_stack_flags = obj_main->stack_flags;
     } else {				/* Main program already loaded. */
 	dbg("processing main program's program header");
 	assert(aux_info[AT_PHDR] != NULL);
@@ -1257,6 +1257,12 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 	case DT_MIPS_RLD_MAP:
 		*((Elf_Addr *)(dynp->d_un.d_ptr)) = (Elf_Addr) &r_debug;
 		break;
+
+	case DT_MIPS_PLTGOT:
+		obj->mips_pltgot = (Elf_Addr *) (obj->relocbase +
+		    dynp->d_un.d_ptr);
+		break;
+		
 #endif
 
 #ifdef __powerpc64__

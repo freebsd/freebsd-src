@@ -378,6 +378,39 @@ TrSetOpCurrentFilename (
 
 /*******************************************************************************
  *
+ * FUNCTION:    TrSetOpIntegerWidth
+ *
+ * PARAMETERS:  Op                  - An existing parse op
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION:
+ *
+ ******************************************************************************/
+
+void
+TrSetOpIntegerWidth (
+    ACPI_PARSE_OBJECT       *TableSignatureOp,
+    ACPI_PARSE_OBJECT       *RevisionOp)
+{
+
+    /* TBD: Check table sig? (DSDT vs. SSDT) */
+
+    /* Handle command-line version override */
+
+    if (Gbl_RevisionOverride)
+    {
+        AcpiUtSetIntegerWidth (Gbl_RevisionOverride);
+    }
+    else
+    {
+        AcpiUtSetIntegerWidth ((UINT8) RevisionOp->Asl.Value.Integer);
+    }
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    TrSetOpEndLineNumber
  *
  * PARAMETERS:  Op                - An existing parse op

@@ -1410,14 +1410,14 @@ mps_diag_register(struct mps_softc *sc, mps_fw_diag_register_t *diag_register,
                                 0,			/* flags */
                                 NULL, NULL,		/* lockfunc, lockarg */
                                 &sc->fw_diag_dmat)) {
-		device_printf(sc->mps_dev, "Cannot allocate FW diag buffer DMA "
-		    "tag\n");
+		mps_dprint(sc, MPS_ERROR,
+		    "Cannot allocate FW diag buffer DMA tag\n");
 		return (ENOMEM);
         }
         if (bus_dmamem_alloc(sc->fw_diag_dmat, (void **)&sc->fw_diag_buffer,
 	    BUS_DMA_NOWAIT, &sc->fw_diag_map)) {
-		device_printf(sc->mps_dev, "Cannot allocate FW diag buffer "
-		    "memory\n");
+		mps_dprint(sc, MPS_ERROR,
+		    "Cannot allocate FW diag buffer memory\n");
 		return (ENOMEM);
         }
         bzero(sc->fw_diag_buffer, buffer_size);
