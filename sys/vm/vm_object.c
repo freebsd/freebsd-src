@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/kernel.h>
+#include <sys/pctrie.h>
 #include <sys/sysctl.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>		/* for curproc, pageproc */
@@ -208,6 +209,7 @@ vm_object_zinit(void *mem, int size, int flags)
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
+	object->flags = OBJ_DEAD;
 
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
@@ -223,6 +225,16 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	LIST_INIT(&object->shadow_head);
 
 	object->type = type;
+	if (type == OBJT_SWAP)
+		pctrie_init(&object->un_pager.swp.swp_blks);
+
+	/*
+	 * Ensure that swap_pager_swapoff() iteration over object_list
+	 * sees up to date type and pctrie head if it observed
+	 * non-dead object.
+	 */
+	atomic_thread_fence_rel();
+
 	switch (type) {
 	case OBJT_DEAD:
 		panic("_vm_object_allocate: can't create OBJT_DEAD");
