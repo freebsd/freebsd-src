@@ -119,6 +119,7 @@ typedef struct if_pkt_info {
 	qidx_t			ipi_pidx;	/* start pidx for encap */
 	qidx_t			ipi_new_pidx;	/* next available pidx post-encap */
 	/* offload handling */
+	caddr_t			ipi_hdr_data;	/* raw header */
 	uint8_t			ipi_ehdrlen;	/* ether header length */
 	uint8_t			ipi_ip_hlen;	/* ip header length */
 	uint8_t			ipi_tcp_hlen;	/* tcp header length */
@@ -183,6 +184,7 @@ typedef struct if_txrx {
 	void (*ift_rxd_refill) (void * , if_rxd_update_t iru);
 	void (*ift_rxd_flush) (void *, uint16_t qsidx, uint8_t flidx, qidx_t pidx);
 	int (*ift_legacy_intr) (void *);
+	int (*ift_txd_errata) (void *, struct mbuf **mp);
 } *if_txrx_t;
 
 typedef struct if_softc_ctx {
@@ -294,9 +296,9 @@ typedef enum {
  */
 #define IFLIB_HAS_TXCQ		0x08
 /*
- * Interface does checksum in place
+ *
  */
-#define IFLIB_NEED_SCRATCH	0x10
+#define IFLIB_UNUSED___0	0x10
 /*
  * Interface doesn't expect in_pseudo for th_sum
  */
@@ -305,6 +307,10 @@ typedef enum {
  * Interface doesn't align IP header
  */
 #define IFLIB_DO_RX_FIXUP	0x40
+/*
+ * Driver needs csum zeroed for offloading
+ */
+#define IFLIB_NEED_ZERO_CSUM	0x80
 
 
 
@@ -381,7 +387,7 @@ int iflib_dma_alloc_multi(if_ctx_t ctx, int *sizes, iflib_dma_info_t *dmalist, i
 void iflib_dma_free_multi(iflib_dma_info_t *dmalist, int count);
 
 
-struct mtx *iflib_ctx_lock_get(if_ctx_t);
+struct sx *iflib_ctx_lock_get(if_ctx_t);
 struct mtx *iflib_qset_lock_get(if_ctx_t, uint16_t);
 
 void iflib_led_create(if_ctx_t ctx);

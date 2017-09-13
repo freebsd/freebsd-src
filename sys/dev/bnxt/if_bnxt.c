@@ -1640,7 +1640,8 @@ bnxt_msix_intr_assign(if_ctx_t ctx, int msix)
 	}
 
 	for (i=0; i<softc->scctx->isc_ntxqsets; i++)
-		iflib_softirq_alloc_generic(ctx, i + 1, IFLIB_INTR_TX, NULL, i,
+		/* TODO: Benchmark and see if tying to the RX irqs helps */
+		iflib_softirq_alloc_generic(ctx, -1, IFLIB_INTR_TX, NULL, i,
 		    "tx_cp");
 
 	return rc;
