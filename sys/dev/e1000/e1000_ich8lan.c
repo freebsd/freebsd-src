@@ -694,9 +694,6 @@ static s32 e1000_init_nvm_params_ich8lan(struct e1000_hw *hw)
 		dev_spec->shadow_ram[i].value    = 0xFFFF;
 	}
 
-	E1000_MUTEX_INIT(&dev_spec->nvm_mutex);
-	E1000_MUTEX_INIT(&dev_spec->swflag_mutex);
-
 	/* Function Pointers */
 	nvm->ops.acquire	= e1000_acquire_nvm_ich8lan;
 	nvm->ops.release	= e1000_release_nvm_ich8lan;
@@ -1847,7 +1844,7 @@ static s32 e1000_acquire_nvm_ich8lan(struct e1000_hw *hw)
 {
 	DEBUGFUNC("e1000_acquire_nvm_ich8lan");
 
-	E1000_MUTEX_LOCK(&hw->dev_spec.ich8lan.nvm_mutex);
+	ASSERT_CTX_LOCK_HELD(hw);
 
 	return E1000_SUCCESS;
 }
@@ -1862,9 +1859,7 @@ static void e1000_release_nvm_ich8lan(struct e1000_hw *hw)
 {
 	DEBUGFUNC("e1000_release_nvm_ich8lan");
 
-	E1000_MUTEX_UNLOCK(&hw->dev_spec.ich8lan.nvm_mutex);
-
-	return;
+	ASSERT_CTX_LOCK_HELD(hw);
 }
 
 /**
@@ -1881,7 +1876,7 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_acquire_swflag_ich8lan");
 
-	E1000_MUTEX_LOCK(&hw->dev_spec.ich8lan.swflag_mutex);
+	ASSERT_CTX_LOCK_HELD(hw);
 
 	while (timeout) {
 		extcnf_ctrl = E1000_READ_REG(hw, E1000_EXTCNF_CTRL);
@@ -1922,9 +1917,6 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 	}
 
 out:
-	if (ret_val)
-		E1000_MUTEX_UNLOCK(&hw->dev_spec.ich8lan.swflag_mutex);
-
 	return ret_val;
 }
 
@@ -1949,10 +1941,6 @@ static void e1000_release_swflag_ich8lan(struct e1000_hw *hw)
 	} else {
 		DEBUGOUT("Semaphore unexpectedly released by sw/fw/hw\n");
 	}
-
-	E1000_MUTEX_UNLOCK(&hw->dev_spec.ich8lan.swflag_mutex);
-
-	return;
 }
 
 /**
@@ -5022,8 +5010,6 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 		E1000_WRITE_REG(hw, E1000_FEXTNVM3, reg);
 	}
 
-	if (!ret_val)
-		E1000_MUTEX_UNLOCK(&hw->dev_spec.ich8lan.swflag_mutex);
 
 	if (ctrl & E1000_CTRL_PHY_RST) {
 		ret_val = hw->phy.ops.get_cfg_done(hw);

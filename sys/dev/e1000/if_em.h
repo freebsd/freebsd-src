@@ -434,6 +434,7 @@ struct em_tx_queue {
 	u32			eims;		/* This queue's EIMS bit */
 	u32                    me;
 	struct tx_ring         txr;
+	struct if_irq          que_irq;
 };
 
 struct em_rx_queue {
@@ -443,7 +444,7 @@ struct em_rx_queue {
 	u32                    eims;
 	struct rx_ring         rxr;
 	u64                    irqs;
-	struct if_irq          que_irq; 
+	struct if_irq          que_irq;
 };  
 
 /* Our adapter structure */
