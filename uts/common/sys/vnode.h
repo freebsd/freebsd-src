@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 1988, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2017, Joyent, Inc.
  * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  */
 
@@ -223,6 +223,59 @@ struct vsd_node {
  * In particular, file systems should not access other fields; they may
  * change or even be removed.  The functionality which was once provided
  * by these fields is available through vn_* functions.
+ *
+ * VNODE PATH THEORY:
+ * In each vnode, the v_path field holds a cached version of the canonical
+ * filesystem path which that node represents.  Because vnodes lack contextual
+ * information about their own name or position in the VFS hierarchy, this path
+ * must be calculated when the vnode is instantiated by operations such as
+ * fop_create, fop_lookup, or fop_mkdir.  During said operations, both the
+ * parent vnode (and its cached v_path) and future name are known, so the
+ * v_path of the resulting object can easily be set.
+ *
+ * The caching nature of v_path is complicated in the face of directory
+ * renames.  Filesystem drivers are responsible for calling vn_renamepath when
+ * a fop_rename operation succeeds.  While the v_path on the renamed vnode will
+ * be updated, existing children of the directory (direct, or at deeper levels)
+ * will now possess v_path caches which are stale.
+ *
+ * It is expensive (and for non-directories, impossible) to recalculate stale
+ * v_path entries during operations such as vnodetopath.  The best time during
+ * which to correct such wrongs is the same as when v_path is first
+ * initialized: during fop_create/fop_lookup/fop_mkdir/etc, where adequate
+ * context is available to generate the current path.
+ *
+ * In order to quickly detect stale v_path entries (without full lookup
+ * verification) to trigger a v_path update, the v_path_stamp field has been
+ * added to vnode_t.  As part of successful fop_create/fop_lookup/fop_mkdir
+ * operations, where the name and parent vnode are available, the following
+ * rules are used to determine updates to the child:
+ *
+ * 1. If the parent lacks a v_path, clear any existing v_path and v_path_stamp
+ *    on the child.  Until the parent v_path is refreshed to a valid state, the
+ *    child v_path must be considered invalid too.
+ *
+ * 2. If the child lacks a v_path (implying v_path_stamp == 0), it inherits the
+ *    v_path_stamp value from its parent and its v_path is updated.
+ *
+ * 3. If the child v_path_stamp is less than v_path_stamp in the parent, it is
+ *    an indication that the child v_path is stale.  The v_path is updated and
+ *    v_path_stamp in the child is set to the current hrtime().
+ *
+ *    It does _not_ inherit the parent v_path_stamp in order to propagate the
+ *    the time of v_path invalidation through the directory structure.  This
+ *    prevents concurrent invalidations (operating with a now-incorrect v_path)
+ *    at deeper levels in the tree from persisting.
+ *
+ * 4. If the child v_path_stamp is greater or equal to the parent, no action
+ *    needs to be taken.
+ *
+ * Note that fop_rename operations do not follow this ruleset.  They perform an
+ * explicit update of v_path and v_path_stamp (setting it to the current time)
+ *
+ * With these constraints in place, v_path invalidations and updates should
+ * proceed in a timely manner as vnodes are accessed.  While there still are
+ * limited cases where vnodetopath operations will fail, the risk is minimized.
  */
 
 struct fem_head;	/* from fem.h */
@@ -249,6 +302,7 @@ typedef struct vnode {
 	void		*v_locality;	/* hook for locality info */
 	struct fem_head	*v_femhead;	/* fs monitoring */
 	char		*v_path;	/* cached path */
+	hrtime_t	v_path_stamp;	/* timestamp for cached path */
 	uint_t		v_rdcnt;	/* open for read count  (VREG only) */
 	uint_t		v_wrcnt;	/* open for write count (VREG only) */
 	u_longlong_t	v_mmap_read;	/* mmap read count */
@@ -348,6 +402,14 @@ typedef struct vn_vfslocks_entry {
 #define	IS_SWAPFSVP(vp)	(((vp)->v_flag & VISSWAPFS) != 0)
 
 #define	V_SYSATTR	0x40000	/* vnode is a GFS system attribute */
+
+/*
+ * Indication that VOP_LOOKUP operations on this vnode may yield results from a
+ * different VFS instance.  The main use of this is to suppress v_path
+ * calculation logic when filesystems such as procfs emit results which defy
+ * expectations about normal VFS behavior.
+ */
+#define	VTRAVERSE	0x80000
 
 /*
  * Vnode attributes.  A bit-mask is supplied as part of the
@@ -1293,6 +1355,11 @@ void vn_setpath(vnode_t *rootvp, struct vnode *startvp, struct vnode *vp,
     const char *path, size_t plen);
 void vn_renamepath(vnode_t *dvp, vnode_t *vp, const char *nm, size_t len);
 
+/* Private vnode manipulation functions */
+void vn_clearpath(vnode_t *, hrtime_t);
+void vn_updatepath(vnode_t *, vnode_t *, const char *);
+
+
 /* Vnode event notification */
 void	vnevent_rename_src(vnode_t *, vnode_t *, char *, caller_context_t *);
 void	vnevent_rename_dest(vnode_t *, vnode_t *, char *, caller_context_t *);
@@ -1338,6 +1405,9 @@ void reparse_point_init(void);
 u_longlong_t	fs_new_caller_id();
 
 int	vn_vmpss_usepageio(vnode_t *);
+
+/* Empty v_path placeholder */
+extern char *vn_vpath_empty;
 
 /*
  * Needed for use of IS_VMODSORT() in kernel.
