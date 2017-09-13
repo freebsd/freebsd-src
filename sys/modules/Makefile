@@ -711,7 +711,9 @@ _ixl=		ixl
 _ixlv=		ixlv
 _linux64=	linux64
 _linux_common=	linux_common
+.if ${MK_SOURCELESS_UCODE} != "no"
 _lio=		lio
+.endif
 _ntb=		ntb
 _pms=		pms
 _qlxge=		qlxge
