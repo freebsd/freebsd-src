@@ -78,7 +78,6 @@ ms_scale(int x) {
 		return (max(1, x/(1000/hz)));
 	}
 }
-extern int cold;
 
 static inline void
 safe_pause_us(int x) {
