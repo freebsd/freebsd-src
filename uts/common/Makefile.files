@@ -1308,6 +1308,35 @@ SMBFS_OBJS +=	smbfs_vfsops.o	smbfs_vnops.o	smbfs_node.o	\
 		$(SMBFS_COMMON_OBJS)
 
 
+LUA_OBJS +=			\
+	ldo.o			\
+	lvm.o			\
+	lbitlib.o		\
+	lopcodes.o		\
+	lstring.o		\
+	ltable.o		\
+	ltm.o			\
+	lcorolib.o		\
+	lauxlib.o		\
+	ldebug.o		\
+	lstate.o		\
+	lgc.o			\
+	lmem.o			\
+	lctype.o		\
+	lfunc.o			\
+	ldump.o			\
+	lundump.o		\
+	lstrlib.o		\
+	ltablib.o		\
+	lapi.o			\
+	lobject.o		\
+	lbaselib.o		\
+	lcompat.o		\
+	lzio.o			\
+	lcode.o			\
+	llex.o			\
+	lparser.o
+
 ZFS_COMMON_OBJS +=		\
 	abd.o			\
 	arc.o			\
@@ -1375,6 +1404,11 @@ ZFS_COMMON_OBJS +=		\
 	zap.o			\
 	zap_leaf.o		\
 	zap_micro.o		\
+	zcp.o			\
+	zcp_get.o		\
+	zcp_global.o		\
+	zcp_iter.o		\
+	zcp_synctask.o		\
 	zfs_byteswap.o		\
 	zfs_debug.o		\
 	zfs_fm.o		\
@@ -1958,7 +1992,7 @@ IXGBE_OBJS =    ixgbe_82598.o ixgbe_82599.o ixgbe_api.o		\
 
 # illumos-written ones.
 I40E_OBJS =	i40e_main.o i40e_osdep.o i40e_intr.o i40e_transceiver.o \
-		i40e_stats.o i40e_gld.o 
+		i40e_stats.o i40e_gld.o
 # Intel-written ones.
 I40E_INTC_OBJS = i40e_adminq.o i40e_common.o i40e_hmc.o i40e_lan_hmc.o \
 		 i40e_nvm.o
