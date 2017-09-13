@@ -1,9 +1,8 @@
 /*-
- * Copyright (c) 2003 Peter Wemm
  * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
  *
- * Portions of this software were developed by Konstantin Belousov
+ * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
  * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -18,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -31,18 +30,36 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#define	IN_RTLD	1
+#include <sys/param.h>
+#undef IN_RTLD
 #include <machine/cpufunc.h>
-#include <machine/sysarch.h>
+#include <machine/specialreg.h>
 #include "amd64_detect_rdfsgsbase.h"
+#include "libc_private.h"
+
+static int state = RDFSGS_UNKNOWN;
 
 int
-amd64_get_gsbase(void **addr)
+amd64_detect_rdfsgsbase(void)
 {
+	u_int p[4];
 
-	if  (amd64_detect_rdfsgsbase() == RDFSGS_SUPPORTED) {
-		*addr = (void *)rdgsbase();
-		return (0);
+	if (__predict_true(state != RDFSGS_UNKNOWN))
+		return (state);
+
+	if (__getosreldate() >= P_OSREL_WRFSBASE ||
+	    (P_OSREL_MAJOR(__getosreldate()) == 11 && __getosreldate() >=
+	    P_OSREL_WRFSBASE_11)) {
+		do_cpuid(0x0, p);
+		if (p[0] >= 0x7) {
+			cpuid_count(0x7, 0x0, p);
+			if ((p[1] & CPUID_STDEXT_FSGSBASE) != 0) {
+				state = RDFSGS_SUPPORTED;
+				return (state);
+			}
+		}
 	}
-	return (sysarch(AMD64_GET_GSBASE, addr));
+	state = RDFSGS_UNSUPPORTED;
+	return (state);
 }
