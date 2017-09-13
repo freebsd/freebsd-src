@@ -1306,10 +1306,6 @@ keg_large_init(uma_keg_t keg)
 	keg->uk_ipers = 1;
 	keg->uk_rsize = keg->uk_size;
 
-	/* We can't do OFFPAGE if we're internal, bail out here. */
-	if (keg->uk_flags & UMA_ZFLAG_INTERNAL)
-		return;
-
 	/* Check whether we have enough space to not do OFFPAGE. */
 	if ((keg->uk_flags & UMA_ZONE_OFFPAGE) == 0) {
 		shsize = sizeof(struct uma_slab);
@@ -1317,8 +1313,17 @@ keg_large_init(uma_keg_t keg)
 			shsize = (shsize & ~UMA_ALIGN_PTR) +
 			    (UMA_ALIGN_PTR + 1);
 
-		if ((PAGE_SIZE * keg->uk_ppera) - keg->uk_rsize < shsize)
-			keg->uk_flags |= UMA_ZONE_OFFPAGE;
+		if (PAGE_SIZE * keg->uk_ppera - keg->uk_rsize < shsize) {
+			/*
+			 * We can't do OFFPAGE if we're internal, in which case
+			 * we need an extra page per allocation to contain the
+			 * slab header.
+			 */
+			if ((keg->uk_flags & UMA_ZFLAG_INTERNAL) == 0)
+				keg->uk_flags |= UMA_ZONE_OFFPAGE;
+			else
+				keg->uk_ppera++;
+		}
 	}
 
 	if ((keg->uk_flags & UMA_ZONE_OFFPAGE) &&
