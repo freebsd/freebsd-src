@@ -21,11 +21,11 @@
 
 #
 # Copyright (c) 1991, 2010, Oracle and/or its affiliates. All rights reserved.
-# Copyright (c) 2012 Nexenta Systems, Inc. All rights reserved.
-# Copyright (c) 2012 Joyent, Inc.  All rights reserved.
 # Copyright (c) 2011, 2014 by Delphix. All rights reserved.
 # Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
-# Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
+# Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
+# Copyright 2016 Garrett D'Amore <garrett@damore.org>
+# Copyright 2016 Joyent, Inc.
 #
 
 #
@@ -1951,6 +1951,17 @@ IXGBE_OBJS =    ixgbe_82598.o ixgbe_82599.o ixgbe_api.o		\
                 ixgbe_log.o ixgbe_main.o 	                \
                 ixgbe_osdep.o ixgbe_rx.o ixgbe_stat.o           \
                 ixgbe_tx.o  ixgbe_x540.o ixgbe_mbx.o
+
+#
+#	Intel 40GbE PCIe NIC driver module
+#
+
+# illumos-written ones.
+I40E_OBJS =	i40e_main.o i40e_osdep.o i40e_intr.o i40e_transceiver.o \
+		i40e_stats.o i40e_gld.o 
+# Intel-written ones.
+I40E_INTC_OBJS = i40e_adminq.o i40e_common.o i40e_hmc.o i40e_lan_hmc.o \
+		 i40e_nvm.o
 
 #
 #	NIU 10G/1G driver module
