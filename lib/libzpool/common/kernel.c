@@ -702,6 +702,7 @@ vpanic(const char *fmt, va_list adx)
 	char buf[512];
 	(void) vsnprintf(buf, 512, fmt, adx);
 	assfail(buf, NULL, 0);
+	abort(); /* necessary to make vpanic meet noreturn requirements */
 }
 
 void

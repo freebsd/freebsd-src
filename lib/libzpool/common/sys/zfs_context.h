@@ -62,6 +62,7 @@ extern "C" {
 #include <time.h>
 #include <procfs.h>
 #include <pthread.h>
+#include <setjmp.h>
 #include <sys/debug.h>
 #include <libsysevent.h>
 #include <sys/note.h>
@@ -107,8 +108,8 @@ extern void dprintf_setup(int *argc, char **argv);
 
 extern void cmn_err(int, const char *, ...);
 extern void vcmn_err(int, const char *, __va_list);
-extern void panic(const char *, ...);
-extern void vpanic(const char *, __va_list);
+extern void panic(const char *, ...)  __NORETURN;
+extern void vpanic(const char *, __va_list)  __NORETURN;
 
 #define	fm_panic	panic
 
@@ -317,6 +318,7 @@ extern void kstat_runq_back_to_waitq(kstat_io_t *);
 #define	KM_SLEEP		UMEM_NOFAIL
 #define	KM_PUSHPAGE		KM_SLEEP
 #define	KM_NOSLEEP		UMEM_DEFAULT
+#define	KM_NORMALPRI		0	/* not needed with UMEM_DEFAULT */
 #define	KMC_NODEBUG		UMC_NODEBUG
 #define	KMC_NOTOUCH		0	/* not needed for userland caches */
 #define	kmem_alloc(_s, _f)	umem_alloc(_s, _f)
