@@ -35,7 +35,7 @@
 .Nd list open sockets
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46cLlSsUu
+.Op Fl 46cLlSsUuvw
 .Op Fl j Ar jid
 .Op Fl p Ar ports
 .Op Fl P Ar protocols
@@ -97,6 +97,10 @@ Show
 .Dv AF_LOCAL
 .Pq Ux
 sockets.
+.It Fl v
+Verbose mode.
+.It Fl w
+Use wider field size for displaying addresses.
 .El
 .Pp
 If neither

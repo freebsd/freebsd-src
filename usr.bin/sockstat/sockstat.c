@@ -78,6 +78,7 @@ static int	 opt_s;		/* Show protocol state if applicable */
 static int	 opt_U;		/* Show remote UDP encapsulation port number */
 static int	 opt_u;		/* Show Unix domain sockets */
 static int	 opt_v;		/* Verbose mode */
+static int	 opt_w;		/* Wide print area for addresses */
 
 /*
  * Default protocols to use if no -P was defined.
@@ -1020,7 +1021,8 @@ displaysock(struct sock *s, int pos)
 	faddr = s->faddr;
 	first = 1;
 	while (laddr != NULL || faddr != NULL) {
-		while (pos < 36)
+		offset = 36;
+		while (pos < offset)
 			pos += xprintf(" ");
 		switch (s->family) {
 		case AF_INET:
@@ -1030,10 +1032,12 @@ displaysock(struct sock *s, int pos)
 				if (s->family == AF_INET6 && pos >= 58)
 					pos += xprintf(" ");
 			}
-			while (pos < 58)
+			offset += opt_w ? 46 : 22;
+			while (pos < offset)
 				pos += xprintf(" ");
 			if (faddr != NULL)
 				pos += printaddr(&faddr->address);
+			offset += opt_w ? 46 : 22;
 			break;
 		case AF_UNIX:
 			if ((laddr == NULL) || (faddr == NULL))
@@ -1048,6 +1052,7 @@ displaysock(struct sock *s, int pos)
 			p = *(void **)&(faddr->address);
 			if (p == NULL) {
 				pos += xprintf("(not connected)");
+				offset += opt_w ? 92 : 44;
 				break;
 			}
 			pos += xprintf("-> ");
@@ -1065,11 +1070,11 @@ displaysock(struct sock *s, int pos)
 				pos += xprintf("??");
 			else
 				pos += printaddr(&s_tmp->laddr->address);
+			offset += opt_w ? 92 : 44;
 			break;
 		default:
 			abort();
 		}
-		offset = 80;
 		if (opt_U) {
 			if (faddr != NULL &&
 			    s->proto == IPPROTO_SCTP &&
@@ -1147,9 +1152,10 @@ display(void)
 	struct sock *s;
 	int hash, n, pos;
 
-	printf("%-8s %-10s %-5s %-2s %-6s %-21s %-21s",
+	printf("%-8s %-10s %-5s %-2s %-6s %-*s %-*s",
 	    "USER", "COMMAND", "PID", "FD", "PROTO",
-	    "LOCAL ADDRESS", "FOREIGN ADDRESS");
+	    opt_w ? 45 : 21, "LOCAL ADDRESS",
+	    opt_w ? 45 : 21, "FOREIGN ADDRESS");
 	if (opt_U)
 		printf(" %-6s", "ENCAPS");
 	if (opt_s) {
@@ -1228,7 +1234,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: sockstat [-46cLlSsu] [-j jid] [-p ports] [-P protocols]\n");
+	    "usage: sockstat [-46cLlSsUuvw] [-j jid] [-p ports] [-P protocols]\n");
 	exit(1);
 }
 
@@ -1239,7 +1245,7 @@ main(int argc, char *argv[])
 	int o, i;
 
 	opt_j = -1;
-	while ((o = getopt(argc, argv, "46cj:Llp:P:SsUuv")) != -1)
+	while ((o = getopt(argc, argv, "46cj:Llp:P:SsUuvw")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = 1;
@@ -1279,6 +1285,9 @@ main(int argc, char *argv[])
 			break;
 		case 'v':
 			++opt_v;
+			break;
+		case 'w':
+			opt_w = 1;
 			break;
 		default:
 			usage();
