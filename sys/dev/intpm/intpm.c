@@ -128,7 +128,7 @@ amd_pmio_read(struct resource *res, uint8_t reg)
 static int
 sb8xx_attach(device_t dev)
 {
-	static const int	AMDSB_SMBIO_WIDTH = 0x14;
+	static const int	AMDSB_SMBIO_WIDTH = 0x10;
 	struct intsmb_softc	*sc;
 	struct resource		*res;
 	uint32_t		devid;
