@@ -1,4 +1,4 @@
-/*	$NetBSD: histedit.h,v 1.55 2016/02/17 19:47:49 christos Exp $	*/
+/*	$NetBSD: histedit.h,v 1.57 2017/09/01 10:19:10 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -226,6 +226,7 @@ int		history(History *, HistEvent *, int, ...);
 #define	H_DELDATA	24	/* , int, histdata_t *);*/
 #define	H_REPLACE	25	/* , const char *, histdata_t);	*/
 #define	H_SAVE_FP	26	/* , FILE *);		*/
+#define	H_NSAVE_FP	27	/* , size_t, FILE *);	*/
 
 
 
@@ -260,6 +261,8 @@ typedef struct lineinfow {
 	const wchar_t	*cursor;
 	const wchar_t	*lastchar;
 } LineInfoW;
+
+typedef int	(*el_rfunc_t)(EditLine *, wchar_t *);
 
 const wchar_t	*el_wgets(EditLine *, int *);
 int		 el_wgetc(EditLine *, wchar_t *);

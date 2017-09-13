@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.h,v 1.39 2016/02/17 19:47:49 christos Exp $	*/
+/*	$NetBSD: readline.h,v 1.42 2017/09/01 10:19:10 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -121,6 +121,7 @@ extern Function		*rl_startup_hook;
 extern char		*rl_terminal_name;
 extern int		rl_already_prompted;
 extern char		*rl_prompt;
+extern int		rl_done;
 /*
  * The following is not implemented
  */
@@ -146,6 +147,7 @@ int		 rl_initialize(void);
 void		 using_history(void);
 int		 add_history(const char *);
 void		 clear_history(void);
+int		 append_history(int, const char *);
 void		 stifle_history(int);
 int		 unstifle_history(void);
 int		 history_is_stifled(void);
@@ -158,6 +160,7 @@ int		 history_total_bytes(void);
 int		 history_set_pos(int);
 HIST_ENTRY	*previous_history(void);
 HIST_ENTRY	*next_history(void);
+HIST_ENTRY     **history_list(void);
 int		 history_search(const char *, int);
 int		 history_search_prefix(const char *, int);
 int		 history_search_pos(const char *, int, int);
@@ -180,6 +183,7 @@ void		 rl_display_match_list(char **, int, int);
 int		 rl_insert(int, int);
 int		 rl_insert_text(const char *);
 void		 rl_reset_terminal(const char *);
+void		 rl_resize_terminal(void);
 int		 rl_bind_key(int, rl_command_func_t *);
 int		 rl_newline(int, int);
 void		 rl_callback_read_char(void);

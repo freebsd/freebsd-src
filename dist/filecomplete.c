@@ -1,4 +1,4 @@
-/*	$NetBSD: filecomplete.c,v 1.40 2016/02/17 19:47:49 christos Exp $	*/
+/*	$NetBSD: filecomplete.c,v 1.45 2017/04/21 05:38:03 abhinav Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -31,7 +31,7 @@
 
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: filecomplete.c,v 1.40 2016/02/17 19:47:49 christos Exp $");
+__RCSID("$NetBSD: filecomplete.c,v 1.45 2017/04/21 05:38:03 abhinav Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <sys/types.h>
@@ -49,9 +49,7 @@ __RCSID("$NetBSD: filecomplete.c,v 1.40 2016/02/17 19:47:49 christos Exp $");
 #include "el.h"
 #include "filecomplete.h"
 
-static const Char break_chars[] = { ' ', '\t', '\n', '"', '\\', '\'', '`', '@',
-    '$', '>', '<', '=', ';', '|', '&', '{', '(', '\0' };
-
+static const wchar_t break_chars[] = L" \t\n\"\\'`@$><=;|&{(";
 
 /********************************/
 /* completion functions */
@@ -356,10 +354,13 @@ _fn_qsort_string_compare(const void *i1, const void *i2)
  * num, so the strings are matches[1] *through* matches[num-1].
  */
 void
-fn_display_match_list (EditLine *el, char **matches, size_t num, size_t width)
+fn_display_match_list(EditLine * el, char **matches, size_t num, size_t width,
+    const char *(*app_func) (const char *))
 {
 	size_t line, lines, col, cols, thisguy;
 	int screenwidth = el->el_terminal.t_size.h;
+	if (app_func == NULL)
+		app_func = append_char_function;
 
 	/* Ignore matches[0]. Avoid 1-based array logic below. */
 	matches++;
@@ -387,8 +388,11 @@ fn_display_match_list (EditLine *el, char **matches, size_t num, size_t width)
 			thisguy = line + col * lines;
 			if (thisguy >= num)
 				break;
-			(void)fprintf(el->el_outfile, "%s%-*s",
-			    col == 0 ? "" : " ", (int)width, matches[thisguy]);
+			(void)fprintf(el->el_outfile, "%s%s%s",
+			    col == 0 ? "" : " ", matches[thisguy],
+				append_char_function(matches[thisguy]));
+			(void)fprintf(el->el_outfile, "%-*s",
+				(int) (width - strlen(matches[thisguy])), "");
 		}
 		(void)fprintf(el->el_outfile, "\n");
 	}
@@ -410,14 +414,14 @@ int
 fn_complete(EditLine *el,
 	char *(*complet_func)(const char *, int),
 	char **(*attempted_completion_function)(const char *, int, int),
-	const Char *word_break, const Char *special_prefixes,
+	const wchar_t *word_break, const wchar_t *special_prefixes,
 	const char *(*app_func)(const char *), size_t query_items,
 	int *completion_type, int *over, int *point, int *end)
 {
-	const TYPE(LineInfo) *li;
-	Char *temp;
+	const LineInfoW *li;
+	wchar_t *temp;
         char **matches;
-	const Char *ctemp;
+	const wchar_t *ctemp;
 	size_t len;
 	int what_to_do = '\t';
 	int retval = CC_NORM;
@@ -435,21 +439,21 @@ fn_complete(EditLine *el,
 		app_func = append_char_function;
 
 	/* We now look backwards for the start of a filename/variable word */
-	li = FUN(el,line)(el);
+	li = el_wline(el);
 	ctemp = li->cursor;
 	while (ctemp > li->buffer
-	    && !Strchr(word_break, ctemp[-1])
-	    && (!special_prefixes || !Strchr(special_prefixes, ctemp[-1]) ) )
+	    && !wcschr(word_break, ctemp[-1])
+	    && (!special_prefixes || !wcschr(special_prefixes, ctemp[-1]) ) )
 		ctemp--;
 
 	len = (size_t)(li->cursor - ctemp);
 	temp = el_malloc((len + 1) * sizeof(*temp));
-	(void)Strncpy(temp, ctemp, len);
+	(void)wcsncpy(temp, ctemp, len);
 	temp[len] = '\0';
 
 	/* these can be used by function called in completion_matches() */
 	/* or (*attempted_completion_function)() */
-	if (point != 0)
+	if (point != NULL)
 		*point = (int)(li->cursor - li->buffer);
 	if (end != NULL)
 		*end = (int)(li->lastchar - li->buffer);
@@ -460,7 +464,7 @@ fn_complete(EditLine *el,
 		    ct_encode_string(temp, &el->el_scratch),
 		    cur_off - (int)len, cur_off);
 	} else
-		matches = 0;
+		matches = NULL;
 	if (!attempted_completion_function ||
 	    (over != NULL && !*over && !matches))
 		matches = completion_matches(
@@ -480,12 +484,10 @@ fn_complete(EditLine *el,
 		 */
 		if (matches[0][0] != '\0') {
 			el_deletestr(el, (int) len);
-			FUN(el,insertstr)(el,
+			el_winsertstr(el,
 			    ct_decode_string(matches[0], &el->el_scratch));
 		}
 
-		if (what_to_do == '?')
-			goto display_matches;
 
 		if (matches[2] == NULL &&
 		    (matches[1] == NULL || strcmp(matches[0], matches[1]) == 0)) {
@@ -494,11 +496,10 @@ fn_complete(EditLine *el,
 			 * it, unless we do filename completion and the
 			 * object is a directory.
 			 */
-			FUN(el,insertstr)(el,
+			el_winsertstr(el,
 			    ct_decode_string((*app_func)(matches[0]),
 			    &el->el_scratch));
-		} else if (what_to_do == '!') {
-    display_matches:
+		} else if (what_to_do == '!' || what_to_do == '?') {
 			/*
 			 * More than one match and requested to list possible
 			 * matches.
@@ -538,7 +539,7 @@ fn_complete(EditLine *el,
 				 * add 1 to matches_num for the call.
 				 */
 				fn_display_match_list(el, matches,
-				    matches_num+1, maxlen);
+				    matches_num+1, maxlen, app_func);
 			}
 			retval = CC_REDISPLAY;
 		} else if (matches[0][0]) {

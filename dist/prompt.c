@@ -1,4 +1,4 @@
-/*	$NetBSD: prompt.c,v 1.23 2016/02/16 15:53:48 christos Exp $	*/
+/*	$NetBSD: prompt.c,v 1.27 2017/06/27 23:25:13 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)prompt.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: prompt.c,v 1.23 2016/02/16 15:53:48 christos Exp $");
+__RCSID("$NetBSD: prompt.c,v 1.27 2017/06/27 23:25:13 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -47,17 +47,17 @@ __RCSID("$NetBSD: prompt.c,v 1.23 2016/02/16 15:53:48 christos Exp $");
 #include <stdio.h>
 #include "el.h"
 
-private Char	*prompt_default(EditLine *);
-private Char	*prompt_default_r(EditLine *);
+static wchar_t	*prompt_default(EditLine *);
+static wchar_t	*prompt_default_r(EditLine *);
 
 /* prompt_default():
  *	Just a default prompt, in case the user did not provide one
  */
-private Char *
+static wchar_t *
 /*ARGSUSED*/
 prompt_default(EditLine *el __attribute__((__unused__)))
 {
-	static Char a[3] = {'?', ' ', '\0'};
+	static wchar_t a[3] = L"? ";
 
 	return a;
 }
@@ -66,11 +66,11 @@ prompt_default(EditLine *el __attribute__((__unused__)))
 /* prompt_default_r():
  *	Just a default rprompt, in case the user did not provide one
  */
-private Char *
+static wchar_t *
 /*ARGSUSED*/
 prompt_default_r(EditLine *el __attribute__((__unused__)))
 {
-	static Char a[1] = {'\0'};
+	static wchar_t a[1] = L"";
 
 	return a;
 }
@@ -79,12 +79,11 @@ prompt_default_r(EditLine *el __attribute__((__unused__)))
 /* prompt_print():
  *	Print the prompt and update the prompt position.
  */
-protected void
+libedit_private void
 prompt_print(EditLine *el, int op)
 {
 	el_prompt_t *elp;
-	Char *p;
-	int ignore = 0;
+	wchar_t *p;
 
 	if (op == EL_PROMPT)
 		elp = &el->el_prompt;
@@ -99,13 +98,17 @@ prompt_print(EditLine *el, int op)
 
 	for (; *p; p++) {
 		if (elp->p_ignore == *p) {
-			ignore = !ignore;
+			wchar_t *litstart = ++p;
+			while (*p && *p != elp->p_ignore)
+				p++;
+			if (!*p || !p[1]) {
+				// XXX: We lose the last literal
+				break;
+			}
+			re_putliteral(el, litstart, p++);
 			continue;
 		}
-		if (ignore)
-			terminal__putc(el, *p);
-		else
-			re_putc(el, *p, 1);
+		re_putc(el, *p, 1);
 	}
 
 	elp->p_pos.v = el->el_refresh.r_cursor.v;
@@ -116,7 +119,7 @@ prompt_print(EditLine *el, int op)
 /* prompt_init():
  *	Initialize the prompt stuff
  */
-protected int
+libedit_private int
 prompt_init(EditLine *el)
 {
 
@@ -135,7 +138,7 @@ prompt_init(EditLine *el)
 /* prompt_end():
  *	Clean up the prompt stuff
  */
-protected void
+libedit_private void
 /*ARGSUSED*/
 prompt_end(EditLine *el __attribute__((__unused__)))
 {
@@ -145,8 +148,8 @@ prompt_end(EditLine *el __attribute__((__unused__)))
 /* prompt_set():
  *	Install a prompt printing function
  */
-protected int
-prompt_set(EditLine *el, el_pfunc_t prf, Char c, int op, int wide)
+libedit_private int
+prompt_set(EditLine *el, el_pfunc_t prf, wchar_t c, int op, int wide)
 {
 	el_prompt_t *p;
 
@@ -177,8 +180,8 @@ prompt_set(EditLine *el, el_pfunc_t prf, Char c, int op, int wide)
 /* prompt_get():
  *	Retrieve the prompt printing function
  */
-protected int
-prompt_get(EditLine *el, el_pfunc_t *prf, Char *c, int op)
+libedit_private int
+prompt_get(EditLine *el, el_pfunc_t *prf, wchar_t *c, int op)
 {
 	el_prompt_t *p;
 

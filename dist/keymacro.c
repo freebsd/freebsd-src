@@ -1,4 +1,4 @@
-/*	$NetBSD: keymacro.c,v 1.14 2016/02/24 14:25:38 christos Exp $	*/
+/*	$NetBSD: keymacro.c,v 1.23 2016/05/24 15:00:45 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: keymacro.c,v 1.14 2016/02/24 14:25:38 christos Exp $");
+__RCSID("$NetBSD: keymacro.c,v 1.23 2016/05/24 15:00:45 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -50,7 +50,7 @@ __RCSID("$NetBSD: keymacro.c,v 1.14 2016/02/24 14:25:38 christos Exp $");
  *	number of characters.  This module maintains a map (the
  *	el->el_keymacro.map)
  *	to convert these extended-key sequences into input strs
- *	(XK_STR), editor functions (XK_CMD), or unix commands (XK_EXE).
+ *	(XK_STR) or editor functions (XK_CMD).
  *
  *      Warning:
  *	  If key is a substr of some other keys, then the longer
@@ -67,13 +67,14 @@ __RCSID("$NetBSD: keymacro.c,v 1.14 2016/02/24 14:25:38 christos Exp $");
 #include <string.h>
 
 #include "el.h"
+#include "fcns.h"
 
 /*
  * The Nodes of the el->el_keymacro.map.  The el->el_keymacro.map is a
  * linked list of these node elements
  */
 struct keymacro_node_t {
-	Char		 ch;		/* single character of key	 */
+	wchar_t		 ch;		/* single character of key	 */
 	int		 type;		/* node type			 */
 	keymacro_value_t val;		/* command code or pointer to str,  */
 					/* if this is a leaf		 */
@@ -81,18 +82,18 @@ struct keymacro_node_t {
 	struct keymacro_node_t *sibling;/* ptr to another key with same prefix*/
 };
 
-private int		 node_trav(EditLine *, keymacro_node_t *, Char *,
+static int		 node_trav(EditLine *, keymacro_node_t *, wchar_t *,
     keymacro_value_t *);
-private int		 node__try(EditLine *, keymacro_node_t *, const Char *,
-    keymacro_value_t *, int);
-private keymacro_node_t	*node__get(wint_t);
-private void		 node__free(keymacro_node_t *);
-private void		 node__put(EditLine *, keymacro_node_t *);
-private int		 node__delete(EditLine *, keymacro_node_t **,
-    const Char *);
-private int		 node_lookup(EditLine *, const Char *,
+static int		 node__try(EditLine *, keymacro_node_t *,
+    const wchar_t *, keymacro_value_t *, int);
+static keymacro_node_t	*node__get(wint_t);
+static void		 node__free(keymacro_node_t *);
+static void		 node__put(EditLine *, keymacro_node_t *);
+static int		 node__delete(EditLine *, keymacro_node_t **,
+    const wchar_t *);
+static int		 node_lookup(EditLine *, const wchar_t *,
     keymacro_node_t *, size_t);
-private int		 node_enum(EditLine *, keymacro_node_t *, size_t);
+static int		 node_enum(EditLine *, keymacro_node_t *, size_t);
 
 #define	KEY_BUFSIZ	EL_BUFSIZ
 
@@ -100,7 +101,7 @@ private int		 node_enum(EditLine *, keymacro_node_t *, size_t);
 /* keymacro_init():
  *	Initialize the key maps
  */
-protected int
+libedit_private int
 keymacro_init(EditLine *el)
 {
 
@@ -116,7 +117,7 @@ keymacro_init(EditLine *el)
 /* keymacro_end():
  *	Free the key maps
  */
-protected void
+libedit_private void
 keymacro_end(EditLine *el)
 {
 
@@ -129,7 +130,7 @@ keymacro_end(EditLine *el)
 /* keymacro_map_cmd():
  *	Associate cmd with a key value
  */
-protected keymacro_value_t *
+libedit_private keymacro_value_t *
 keymacro_map_cmd(EditLine *el, int cmd)
 {
 
@@ -141,8 +142,8 @@ keymacro_map_cmd(EditLine *el, int cmd)
 /* keymacro_map_str():
  *	Associate str with a key value
  */
-protected keymacro_value_t *
-keymacro_map_str(EditLine *el, Char *str)
+libedit_private keymacro_value_t *
+keymacro_map_str(EditLine *el, wchar_t *str)
 {
 
 	el->el_keymacro.val.str = str;
@@ -155,7 +156,7 @@ keymacro_map_str(EditLine *el, Char *str)
  *	Then initializes el->el_keymacro.map with arrow keys
  *	[Always bind the ansi arrow keys?]
  */
-protected void
+libedit_private void
 keymacro_reset(EditLine *el)
 {
 
@@ -169,12 +170,13 @@ keymacro_reset(EditLine *el)
  *	Calls the recursive function with entry point el->el_keymacro.map
  *      Looks up *ch in map and then reads characters until a
  *      complete match is found or a mismatch occurs. Returns the
- *      type of the match found (XK_STR, XK_CMD, or XK_EXE).
+ *      type of the match found (XK_STR or XK_CMD).
  *      Returns NULL in val.str and XK_STR for no match.
+ *      Returns XK_NOD for end of file or read error.
  *      The last character read is returned in *ch.
  */
-protected int
-keymacro_get(EditLine *el, Char *ch, keymacro_value_t *val)
+libedit_private int
+keymacro_get(EditLine *el, wchar_t *ch, keymacro_value_t *val)
 {
 
 	return node_trav(el, el->el_keymacro.map, ch, val);
@@ -187,8 +189,9 @@ keymacro_get(EditLine *el, Char *ch, keymacro_value_t *val)
  *	code is applied to the existing key. Ntype specifies if code is a
  *	command, an out str or a unix command.
  */
-protected void
-keymacro_add(EditLine *el, const Char *key, keymacro_value_t *val, int ntype)
+libedit_private void
+keymacro_add(EditLine *el, const wchar_t *key, keymacro_value_t *val,
+    int ntype)
 {
 
 	if (key[0] == '\0') {
@@ -215,13 +218,11 @@ keymacro_add(EditLine *el, const Char *key, keymacro_value_t *val, int ntype)
 /* keymacro_clear():
  *
  */
-protected void
-keymacro_clear(EditLine *el, el_action_t *map, const Char *in)
+libedit_private void
+keymacro_clear(EditLine *el, el_action_t *map, const wchar_t *in)
 {
-#ifdef WIDECHAR
         if (*in > N_KEYS) /* can't be in the map */
                 return;
-#endif
 	if ((map[(unsigned char)*in] == ED_SEQUENCE_LEAD_IN) &&
 	    ((map == el->el_map.key &&
 	    el->el_map.alt[(unsigned char)*in] != ED_SEQUENCE_LEAD_IN) ||
@@ -235,8 +236,8 @@ keymacro_clear(EditLine *el, el_action_t *map, const Char *in)
  *      Delete the key and all longer keys staring with key, if
  *      they exists.
  */
-protected int
-keymacro_delete(EditLine *el, const Char *key)
+libedit_private int
+keymacro_delete(EditLine *el, const wchar_t *key)
 {
 
 	if (key[0] == '\0') {
@@ -256,8 +257,8 @@ keymacro_delete(EditLine *el, const Char *key)
  *	Print the binding associated with key key.
  *	Print entire el->el_keymacro.map if null
  */
-protected void
-keymacro_print(EditLine *el, const Char *key)
+libedit_private void
+keymacro_print(EditLine *el, const wchar_t *key)
 {
 
 	/* do nothing if el->el_keymacro.map is empty and null key specified */
@@ -267,7 +268,7 @@ keymacro_print(EditLine *el, const Char *key)
 	el->el_keymacro.buf[0] = '"';
 	if (node_lookup(el, key, el->el_keymacro.map, (size_t)1) <= -1)
 		/* key is not bound */
-		(void) fprintf(el->el_errfile, "Unbound extended key \"" FSTR
+		(void) fprintf(el->el_errfile, "Unbound extended key \"%ls"
 		    "\"\n", key);
 	return;
 }
@@ -277,21 +278,17 @@ keymacro_print(EditLine *el, const Char *key)
  *	recursively traverses node in tree until match or mismatch is
  *	found.  May read in more characters.
  */
-private int
-node_trav(EditLine *el, keymacro_node_t *ptr, Char *ch, keymacro_value_t *val)
+static int
+node_trav(EditLine *el, keymacro_node_t *ptr, wchar_t *ch,
+    keymacro_value_t *val)
 {
-	wchar_t wc;
 
 	if (ptr->ch == *ch) {
 		/* match found */
 		if (ptr->next) {
 			/* key not complete so get next char */
-			if (el_wgetc(el, &wc) != 1) {/* if EOF or error */
-				val->cmd = ED_END_OF_FILE;
-				return XK_CMD;
-				/* PWP: Pretend we just read an end-of-file */
-			}
-			*ch = (Char)wc;
+			if (el_wgetc(el, ch) != 1)
+				return XK_NOD;
 			return node_trav(el, ptr->next, ch, val);
 		} else {
 			*val = ptr->val;
@@ -316,8 +313,8 @@ node_trav(EditLine *el, keymacro_node_t *ptr, Char *ch, keymacro_value_t *val)
 /* node__try():
  *	Find a node that matches *str or allocate a new one
  */
-private int
-node__try(EditLine *el, keymacro_node_t *ptr, const Char *str,
+static int
+node__try(EditLine *el, keymacro_node_t *ptr, const wchar_t *str,
     keymacro_value_t *val, int ntype)
 {
 
@@ -343,7 +340,6 @@ node__try(EditLine *el, keymacro_node_t *ptr, const Char *str,
 		case XK_NOD:
 			break;
 		case XK_STR:
-		case XK_EXE:
 			if (ptr->val.str)
 				el_free(ptr->val.str);
 			break;
@@ -358,8 +354,7 @@ node__try(EditLine *el, keymacro_node_t *ptr, const Char *str,
 			ptr->val = *val;
 			break;
 		case XK_STR:
-		case XK_EXE:
-			if ((ptr->val.str = Strdup(val->str)) == NULL)
+			if ((ptr->val.str = wcsdup(val->str)) == NULL)
 				return -1;
 			break;
 		default:
@@ -379,8 +374,8 @@ node__try(EditLine *el, keymacro_node_t *ptr, const Char *str,
 /* node__delete():
  *	Delete node that matches str
  */
-private int
-node__delete(EditLine *el, keymacro_node_t **inptr, const Char *str)
+static int
+node__delete(EditLine *el, keymacro_node_t **inptr, const wchar_t *str)
 {
 	keymacro_node_t *ptr;
 	keymacro_node_t *prev_ptr = NULL;
@@ -427,7 +422,7 @@ node__delete(EditLine *el, keymacro_node_t **inptr, const Char *str)
 /* node__put():
  *	Puts a tree of nodes onto free list using free(3).
  */
-private void
+static void
 node__put(EditLine *el, keymacro_node_t *ptr)
 {
 	if (ptr == NULL)
@@ -443,7 +438,6 @@ node__put(EditLine *el, keymacro_node_t *ptr)
 	case XK_CMD:
 	case XK_NOD:
 		break;
-	case XK_EXE:
 	case XK_STR:
 		if (ptr->val.str != NULL)
 			el_free(ptr->val.str);
@@ -459,7 +453,7 @@ node__put(EditLine *el, keymacro_node_t *ptr)
 /* node__get():
  *	Returns pointer to a keymacro_node_t for ch.
  */
-private keymacro_node_t *
+static keymacro_node_t *
 node__get(wint_t ch)
 {
 	keymacro_node_t *ptr;
@@ -467,7 +461,7 @@ node__get(wint_t ch)
 	ptr = el_malloc(sizeof(*ptr));
 	if (ptr == NULL)
 		return NULL;
-	ptr->ch = (Char)ch;
+	ptr->ch = ch;
 	ptr->type = XK_NOD;
 	ptr->val.str = NULL;
 	ptr->next = NULL;
@@ -475,7 +469,7 @@ node__get(wint_t ch)
 	return ptr;
 }
 
-private void
+static void
 node__free(keymacro_node_t *k)
 {
 	if (k == NULL)
@@ -489,8 +483,9 @@ node__free(keymacro_node_t *k)
  *	look for the str starting at node ptr.
  *	Print if last node
  */
-private int
-node_lookup(EditLine *el, const Char *str, keymacro_node_t *ptr, size_t cnt)
+static int
+node_lookup(EditLine *el, const wchar_t *str, keymacro_node_t *ptr,
+    size_t cnt)
 {
 	ssize_t used;
 
@@ -541,7 +536,7 @@ node_lookup(EditLine *el, const Char *str, keymacro_node_t *ptr, size_t cnt)
 /* node_enum():
  *	Traverse the node printing the characters it is bound in buffer
  */
-private int
+static int
 node_enum(EditLine *el, keymacro_node_t *ptr, size_t cnt)
 {
         ssize_t used;
@@ -551,7 +546,7 @@ node_enum(EditLine *el, keymacro_node_t *ptr, size_t cnt)
 		el->el_keymacro.buf[++cnt] = '\0';
 		(void) fprintf(el->el_errfile,
 		    "Some extended keys too long for internal print buffer");
-		(void) fprintf(el->el_errfile, " \"" FSTR "...\"\n",
+		(void) fprintf(el->el_errfile, " \"%ls...\"\n",
 		    el->el_keymacro.buf);
 		return 0;
 	}
@@ -584,8 +579,9 @@ node_enum(EditLine *el, keymacro_node_t *ptr, size_t cnt)
  *	Print the specified key and its associated
  *	function specified by val
  */
-protected void
-keymacro_kprint(EditLine *el, const Char *key, keymacro_value_t *val, int ntype)
+libedit_private void
+keymacro_kprint(EditLine *el, const wchar_t *key, keymacro_value_t *val,
+    int ntype)
 {
 	el_bindings_t *fp;
 	char unparsbuf[EL_BUFSIZ];
@@ -594,7 +590,6 @@ keymacro_kprint(EditLine *el, const Char *key, keymacro_value_t *val, int ntype)
 	if (val != NULL)
 		switch (ntype) {
 		case XK_STR:
-		case XK_EXE:
 			(void) keymacro__decode_str(val->str, unparsbuf,
 			    sizeof(unparsbuf),
 			    ntype == XK_STR ? "\"\"" : "[]");
@@ -604,7 +599,7 @@ keymacro_kprint(EditLine *el, const Char *key, keymacro_value_t *val, int ntype)
 		case XK_CMD:
 			for (fp = el->el_map.help; fp->name; fp++)
 				if (val->cmd == fp->func) {
-                    ct_wcstombs(unparsbuf, fp->name, sizeof(unparsbuf));
+                    wcstombs(unparsbuf, fp->name, sizeof(unparsbuf));
                     unparsbuf[sizeof(unparsbuf) -1] = '\0';
 					(void) fprintf(el->el_outfile, fmt,
                         ct_encode_string(key, &el->el_scratch), unparsbuf);
@@ -635,11 +630,12 @@ keymacro_kprint(EditLine *el, const Char *key, keymacro_value_t *val, int ntype)
 /* keymacro__decode_str():
  *	Make a printable version of the ey
  */
-protected size_t
-keymacro__decode_str(const Char *str, char *buf, size_t len, const char *sep)
+libedit_private size_t
+keymacro__decode_str(const wchar_t *str, char *buf, size_t len,
+    const char *sep)
 {
 	char *b = buf, *eb = b + len;
-	const Char *p;
+	const wchar_t *p;
 
 	b = buf;
 	if (sep[0] != '\0') {
@@ -651,8 +647,8 @@ keymacro__decode_str(const Char *str, char *buf, size_t len, const char *sep)
 		goto add_endsep;
 	}
 	for (p = str; *p != 0; p++) {
-		Char dbuf[VISUAL_WIDTH_MAX];
-		Char *p2 = dbuf;
+		wchar_t dbuf[VISUAL_WIDTH_MAX];
+		wchar_t *p2 = dbuf;
 		ssize_t l = ct_visual_char(dbuf, VISUAL_WIDTH_MAX, *p);
 		while (l-- > 0) {
 			ssize_t n = ct_encode_char(b, (size_t)(eb - b), *p2++);

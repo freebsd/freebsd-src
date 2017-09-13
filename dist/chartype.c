@@ -1,4 +1,4 @@
-/*	$NetBSD: chartype.c,v 1.23 2016/02/28 23:02:24 christos Exp $	*/
+/*	$NetBSD: chartype.c,v 1.31 2017/01/09 02:54:18 christos Exp $	*/
 
 /*-
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -31,7 +31,7 @@
  */
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: chartype.c,v 1.23 2016/02/28 23:02:24 christos Exp $");
+__RCSID("$NetBSD: chartype.c,v 1.31 2017/01/09 02:54:18 christos Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <ctype.h>
@@ -42,8 +42,10 @@ __RCSID("$NetBSD: chartype.c,v 1.23 2016/02/28 23:02:24 christos Exp $");
 
 #define CT_BUFSIZ ((size_t)1024)
 
-#ifdef WIDECHAR
-protected int
+static int ct_conv_cbuff_resize(ct_buffer_t *, size_t);
+static int ct_conv_wbuff_resize(ct_buffer_t *, size_t);
+
+static int
 ct_conv_cbuff_resize(ct_buffer_t *conv, size_t csize)
 {
 	void *p;
@@ -64,7 +66,7 @@ ct_conv_cbuff_resize(ct_buffer_t *conv, size_t csize)
 	return 0;
 }
 
-protected int
+static int
 ct_conv_wbuff_resize(ct_buffer_t *conv, size_t wsize)
 {
 	void *p;
@@ -86,8 +88,8 @@ ct_conv_wbuff_resize(ct_buffer_t *conv, size_t wsize)
 }
 
 
-public char *
-ct_encode_string(const Char *s, ct_buffer_t *conv)
+char *
+ct_encode_string(const wchar_t *s, ct_buffer_t *conv)
 {
 	char *dst;
 	ssize_t used;
@@ -116,7 +118,7 @@ ct_encode_string(const Char *s, ct_buffer_t *conv)
 	return conv->cbuff;
 }
 
-public Char *
+wchar_t *
 ct_decode_string(const char *s, ct_buffer_t *conv)
 {
 	size_t len;
@@ -124,7 +126,7 @@ ct_decode_string(const char *s, ct_buffer_t *conv)
 	if (!s)
 		return NULL;
 
-	len = ct_mbstowcs(NULL, s, (size_t)0);
+	len = mbstowcs(NULL, s, (size_t)0);
 	if (len == (size_t)-1)
 		return NULL;
 
@@ -132,18 +134,18 @@ ct_decode_string(const char *s, ct_buffer_t *conv)
 		if (ct_conv_wbuff_resize(conv, len + CT_BUFSIZ) == -1)
 			return NULL;
 
-	ct_mbstowcs(conv->wbuff, s, conv->wsize);
+	mbstowcs(conv->wbuff, s, conv->wsize);
 	return conv->wbuff;
 }
 
 
-protected Char **
+libedit_private wchar_t **
 ct_decode_argv(int argc, const char *argv[], ct_buffer_t *conv)
 {
 	size_t bufspace;
 	int i;
-	Char *p;
-	Char **wargv;
+	wchar_t *p;
+	wchar_t **wargv;
 	ssize_t bytes;
 
 	/* Make sure we have enough space in the conversion buffer to store all
@@ -154,7 +156,7 @@ ct_decode_argv(int argc, const char *argv[], ct_buffer_t *conv)
 		if (ct_conv_wbuff_resize(conv, bufspace + CT_BUFSIZ) == -1)
 			return NULL;
 
-	wargv = el_malloc((size_t)argc * sizeof(*wargv));
+	wargv = el_malloc((size_t)(argc + 1) * sizeof(*wargv));
 
 	for (i = 0, p = conv->wbuff; i < argc; ++i) {
 		if (!argv[i]) {   /* don't pass null pointers to mbstowcs */
@@ -172,13 +174,14 @@ ct_decode_argv(int argc, const char *argv[], ct_buffer_t *conv)
 		bufspace -= (size_t)bytes;
 		p += bytes;
 	}
+	wargv[i] = NULL;
 
 	return wargv;
 }
 
 
-protected size_t
-ct_enc_width(Char c)
+libedit_private size_t
+ct_enc_width(wchar_t c)
 {
 	/* UTF-8 encoding specific values */
 	if (c < 0x80)
@@ -193,96 +196,66 @@ ct_enc_width(Char c)
 		return 0; /* not a valid codepoint */
 }
 
-protected ssize_t
-ct_encode_char(char *dst, size_t len, Char c)
+libedit_private ssize_t
+ct_encode_char(char *dst, size_t len, wchar_t c)
 {
 	ssize_t l = 0;
 	if (len < ct_enc_width(c))
 		return -1;
-	l = ct_wctomb(dst, c);
+	l = wctomb(dst, c);
 
 	if (l < 0) {
-		ct_wctomb_reset;
+		wctomb(NULL, L'\0');
 		l = 0;
 	}
 	return l;
 }
 
-size_t
-ct_mbrtowc(wchar_t *wc, const char *s, size_t n)
+libedit_private const wchar_t *
+ct_visual_string(const wchar_t *s, ct_buffer_t *conv)
 {
-	mbstate_t mbs;
-	/* This only works because UTF-8 is stateless */
-	memset(&mbs, 0, sizeof(mbs));
-	return mbrtowc(wc, s, n, &mbs);
-}
-
-#else
-
-size_t
-ct_mbrtowc(wchar_t *wc, const char *s, size_t n)
-	if (s == NULL)
-		return 0;
-	if (n == 0)
-		return (size_t)-2;
-	if (wc != NULL)
-		*wc = *s;
-	return *s != '\0';
-}
-#endif
-
-protected const Char *
-ct_visual_string(const Char *s)
-{
-	static Char *buff = NULL;
-	static size_t buffsize = 0;
-	void *p;
-	Char *dst;
-	ssize_t used = 0;
+	wchar_t *dst;
+	ssize_t used;
 
 	if (!s)
 		return NULL;
-	if (!buff) {
-	    buffsize = CT_BUFSIZ;
-	    buff = el_malloc(buffsize * sizeof(*buff));
-	}
-	dst = buff;
+
+	if (ct_conv_wbuff_resize(conv, CT_BUFSIZ) == -1)
+		return NULL;
+
+	used = 0;
+	dst = conv->wbuff;
 	while (*s) {
-		used = ct_visual_char(dst, buffsize - (size_t)(dst - buff), *s);
-		if (used == -1) { /* failed to encode, need more buffer space */
-			used = dst - buff;
-			buffsize += CT_BUFSIZ;
-			p = el_realloc(buff, buffsize * sizeof(*buff));
-			if (p == NULL)
-				goto out;
-			buff = p;
-			dst = buff + used;
-			/* don't increment s here - we want to retry it! */
+		used = ct_visual_char(dst,
+		    conv->wsize - (size_t)(dst - conv->wbuff), *s);
+		if (used != -1) {
+			++s;
+			dst += used;
+			continue;
 		}
-		else
-		    ++s;
-		dst += used;
+
+		/* failed to encode, need more buffer space */
+		used = dst - conv->wbuff;
+		if (ct_conv_wbuff_resize(conv, conv->wsize + CT_BUFSIZ) == -1)
+			return NULL;
+		dst = conv->wbuff + used;
 	}
-	if (dst >= (buff + buffsize)) { /* sigh */
-		buffsize += 1;
-		p = el_realloc(buff, buffsize * sizeof(*buff));
-		if (p == NULL)
-			goto out;
-		buff = p;
-		dst = buff + buffsize - 1;
+
+	if (dst >= (conv->wbuff + conv->wsize)) { /* sigh */
+		used = dst - conv->wbuff;
+		if (ct_conv_wbuff_resize(conv, conv->wsize + CT_BUFSIZ) == -1)
+			return NULL;
+		dst = conv->wbuff + used;
 	}
-	*dst = 0;
-	return buff;
-out:
-	el_free(buff);
-	buffsize = 0;
-	return NULL;
+
+	*dst = L'\0';
+	return conv->wbuff;
 }
 
 
 
-protected int
-ct_visual_width(Char c)
+libedit_private int
+ct_visual_width(wchar_t c)
 {
 	int t = ct_chr_class(c);
 	switch (t) {
@@ -292,7 +265,6 @@ ct_visual_width(Char c)
 		return 1; /* Hmm, this really need to be handled outside! */
 	case CHTYPE_NL:
 		return 0; /* Should this be 1 instead? */
-#ifdef WIDECHAR
 	case CHTYPE_PRINT:
 		return wcwidth(c);
 	case CHTYPE_NONPRINT:
@@ -300,20 +272,14 @@ ct_visual_width(Char c)
 			return 8; /* \U+12345 */
 		else
 			return 7; /* \U+1234 */
-#else
-	case CHTYPE_PRINT:
-		return 1;
-	case CHTYPE_NONPRINT:
-		return 4; /* \123 */
-#endif
 	default:
 		return 0; /* should not happen */
 	}
 }
 
 
-protected ssize_t
-ct_visual_char(Char *dst, size_t len, Char c)
+libedit_private ssize_t
+ct_visual_char(wchar_t *dst, size_t len, wchar_t c)
 {
 	int t = ct_chr_class(c);
 	switch (t) {
@@ -338,7 +304,6 @@ ct_visual_char(Char *dst, size_t len, Char c)
 		 * so this is right */
 		if ((ssize_t)len < ct_visual_width(c))
 			return -1;   /* insufficient space */
-#ifdef WIDECHAR
 		*dst++ = '\\';
 		*dst++ = 'U';
 		*dst++ = '+';
@@ -350,13 +315,6 @@ ct_visual_char(Char *dst, size_t len, Char c)
 		*dst++ = tohexdigit(((unsigned int) c >>  4) & 0xf);
 		*dst   = tohexdigit(((unsigned int) c      ) & 0xf);
 		return c > 0xffff ? 8 : 7;
-#else
-		*dst++ = '\\';
-#define tooctaldigit(v) (Char)((v) + '0')
-		*dst++ = tooctaldigit(((unsigned int) c >> 6) & 0x7);
-		*dst++ = tooctaldigit(((unsigned int) c >> 3) & 0x7);
-		*dst++ = tooctaldigit(((unsigned int) c     ) & 0x7);
-#endif
 		/*FALLTHROUGH*/
 	/* these two should be handled outside this function */
 	default:            /* we should never hit the default */
@@ -367,16 +325,16 @@ ct_visual_char(Char *dst, size_t len, Char c)
 
 
 
-protected int
-ct_chr_class(Char c)
+libedit_private int
+ct_chr_class(wchar_t c)
 {
 	if (c == '\t')
 		return CHTYPE_TAB;
 	else if (c == '\n')
 		return CHTYPE_NL;
-	else if (IsASCII(c) && Iscntrl(c))
+	else if (c < 0x100 && iswcntrl(c))
 		return CHTYPE_ASCIICTL;
-	else if (Isprint(c))
+	else if (iswprint(c))
 		return CHTYPE_PRINT;
 	else
 		return CHTYPE_NONPRINT;

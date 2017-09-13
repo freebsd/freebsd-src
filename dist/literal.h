@@ -1,11 +1,11 @@
-/*	$NetBSD: refresh.h,v 1.11 2017/06/27 23:23:48 christos Exp $	*/
+/*	$NetBSD: literal.h,v 1.2 2017/06/30 20:26:52 kre Exp $	*/
 
 /*-
- * Copyright (c) 1992, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2017 The NetBSD Foundation, Inc.
+ * All rights reserved.
  *
- * This code is derived from software contributed to Berkeley by
- * Christos Zoulas of Cornell University.
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Christos Zoulas.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -15,9 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -30,30 +27,27 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)refresh.h	8.1 (Berkeley) 6/4/93
  */
 
 /*
- * el.refresh.h: Screen refresh functions
+ * el.literal.h: Literal character
  */
-#ifndef _h_el_refresh
-#define	_h_el_refresh
+#ifndef _h_el_literal
+#define	_h_el_literal
 
-typedef struct {
-	coord_t	r_cursor;	/* Refresh cursor position	*/
-	int	r_oldcv;	/* Vertical locations		*/
-	int	r_newcv;
-} el_refresh_t;
+#define EL_LITERAL	((wint_t)0x80000000)
 
-libedit_private void	re_putc(EditLine *, wint_t, int);
-libedit_private void	re_putliteral(EditLine *, const wchar_t *,
-    const wchar_t *);
-libedit_private void	re_clear_lines(EditLine *);
-libedit_private void	re_clear_display(EditLine *);
-libedit_private void	re_refresh(EditLine *);
-libedit_private void	re_refresh_cursor(EditLine *);
-libedit_private void	re_fastaddc(EditLine *);
-libedit_private void	re_goto_bottom(EditLine *);
+typedef struct el_literal_t {
+	char		**l_buf;	/* array of buffers */
+	size_t		l_idx;		/* max in use */
+	size_t		l_len;		/* max allocated */
+} el_literal_t;
 
-#endif /* _h_el_refresh */
+libedit_private void literal_init(EditLine *);
+libedit_private void literal_end(EditLine *);
+libedit_private void literal_clear(EditLine *);
+libedit_private wint_t literal_add(EditLine *, const wchar_t *,
+    const wchar_t *, int *);
+libedit_private const char *literal_get(EditLine *, wint_t);
+
+#endif /* _h_el_literal */

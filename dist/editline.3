@@ -1,4 +1,4 @@
-.\"	$NetBSD: editline.3,v 1.88 2016/02/25 14:59:22 wiz Exp $
+.\"	$NetBSD: editline.3,v 1.98 2017/09/02 06:48:10 wiz Exp $
 .\"
 .\" Copyright (c) 1997-2014 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -26,7 +26,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd February 24, 2016
+.Dd September 1, 2017
 .Dt EDITLINE 3
 .Os
 .Sh NAME
@@ -92,11 +92,11 @@
 .Ft int
 .Fn el_getc "EditLine *e" "char *ch"
 .Ft int
-.Fn el_wgetc "EditLine *e" "wchar_t *ch"
+.Fn el_wgetc "EditLine *e" "wchar_t *wc"
 .Ft void
-.Fn el_push "EditLine *e" "const char *str"
+.Fn el_push "EditLine *e" "const char *mbs"
 .Ft void
-.Fn el_wpush "EditLine *e" "const wchar_t *str"
+.Fn el_wpush "EditLine *e" "const wchar_t *wcs"
 .Ft int
 .Fn el_parse "EditLine *e" "int argc" "const char *argv[]"
 .Ft int
@@ -113,7 +113,7 @@
 .Fn el_source "EditLine *e" "const char *file"
 .Ft void
 .Fn el_resize "EditLine *e"
-.Fn int
+.Ft int
 .Fn el_cursor "EditLine *e" "int count"
 .Ft const LineInfo *
 .Fn el_line "EditLine *e"
@@ -250,18 +250,16 @@ The return value may not remain valid across calls to
 and must be copied if the data is to be retained.
 .It Fn el_wgetc
 Read a wide character from the tty, respecting the current locale,
-or from the input stream written by
-.Fn el_wpush
-and
-.Fn el_push
+or from the input queue described in
+.Xr editline 7
 if that is not empty, and store it in
-.Fa ch .
+.Fa wc .
 If an invalid or incomplete character is found, it is discarded,
 .Va errno
 is set to
 .Er EILSEQ ,
 and the next character is read and stored in
-.Fa ch .
+.Fa wc .
 Returns 1 if a valid character was read, 0 on end of file, or \-1 on
 .Xr read 2
 failure.
@@ -284,17 +282,23 @@ to
 and return \-1.
 In the C or POSIX locale, this simply reads a byte, but for any other
 locale, including UTF-8, this is rarely useful.
+.It Fn el_wpush
+Push the wide character string
+.Fa wcs
+back onto the input queue described in
+.Xr editline 7 .
+If the queue overflows, for example due to a recursive macro,
+or if an error occurs, for example because
+.Fa wcs
+is
+.Dv NULL
+or memory allocation fails, the function beeps at the user,
+but does not report the problem to the caller.
 .It Fn el_push
-Pushes
-.Fa str
-back onto the input stream.
-This is used by the macro expansion mechanism.
-Refer to the description of
-.Ic bind
-.Fl s
-in
-.Xr editrc 5
-for more information.
+Use the current locale to convert the multibyte string
+.Fa mbs
+to a wide character string, and pass the result to
+.Fn el_wpush .
 .It Fn el_parse
 Parses the
 .Fa argv
@@ -354,6 +358,8 @@ terminal without affecting the state of the current line.
 A subsequent second start/stop literal character ends this behavior.
 This is typically used to embed literal escape sequences that change the
 color/style of the terminal in the prompt.
+Note that the literal escape character cannot be the last character in the
+prompt, as the escape sequence is attached to the next character in the prompt.
 .Dv 0
 unsets it.
 .It Dv EL_REFRESH
@@ -503,18 +509,31 @@ unbuffered mode is disabled (the default).
 In unbuffered mode,
 .Fn el_gets
 will return immediately after processing a single character.
-.It Dv EL_GETCFN , Fa "int (*f)(EditLine *, char *c)"
-Define the character reading function as
-.Fa f ,
-which is to return the number of characters read and store them in
-.Fa c .
-This function is called internally by
-.Fn el_gets
+.It Dv EL_GETCFN , Fa "el_rfunc_t f"
+Whenever reading a character, use the function
+.Bd -ragged -offset indent -compact
+.Ft int
+.Fo f
+.Fa "EditLine *e"
+.Fa "wchar_t *wc"
+.Fc
+.Ed
+which stores the character in
+.Fa wc
+and returns 1 on success, 0 on end of file, or \-1 on I/O or encoding
+errors.
+Functions internally using it include
+.Fn el_wgets ,
+.Fn el_wgetc ,
+.Fn el_gets ,
 and
 .Fn el_getc .
-The builtin function can be set or restored with the special function
-name
-.Dq Dv EL_BUILTIN_GETCFN .
+Initially, a builtin function is installed, and replacing it
+is discouraged because writing such a function is very error prone.
+The builtin function can be restored at any time by passing the
+special value
+.Dv EL_BUILTIN_GETCFN
+instead of a function pointer.
 .It Dv EL_CLIENTDATA , Fa "void *data"
 Register
 .Fa data
@@ -558,7 +577,7 @@ are supported, along with actual type of
 .Bl -tag -width 4n
 .It Dv EL_PROMPT , Fa "char *(*f)(EditLine *)" , Fa "char *c"
 Set
-.Fa f .
+.Fa f
 to a pointer to the function that displays the prompt.
 If
 .Fa c
@@ -567,7 +586,7 @@ is not
 set it to the start/stop literal prompt character.
 .It Dv EL_RPROMPT , Fa "char *(*f)(EditLine *)" , Fa "char *c"
 Set
-.Fa f .
+.Fa f
 to a pointer to the function that displays the prompt.
 If
 .Fa c
@@ -592,7 +611,7 @@ to the current value of that capability.
 .It Dv EL_SIGNAL , Fa "int *s"
 Set
 .Fa s
-to non zero if
+to non-zero if
 .Nm
 has installed private signal handlers (see
 .Fn el_get
@@ -601,10 +620,12 @@ above).
 Set
 .Fa c
 to non-zero if editing is enabled.
-.It Dv EL_GETCFN , Fa "int (**f)(EditLine *, char *)"
-Return a pointer to the function that read characters, which is equal to
-.Dq Dv EL_BUILTIN_GETCFN
-in the case of the default builtin function.
+.It Dv EL_GETCFN , Fa "el_rfunc_t *f"
+Set
+.Fa f
+to a pointer to the function that reads characters, or to
+.Dv EL_BUILTIN_GETCFN
+if the builtin function is in use.
 .It Dv EL_CLIENTDATA , Fa "void **data"
 Set
 .Fa data
@@ -648,6 +669,8 @@ If
 is
 .Dv NULL ,
 try
+.Pa $EDITRC
+and if that is not set
 .Pa $HOME/.editrc .
 Refer to
 .Xr editrc 5
@@ -761,11 +784,13 @@ Return the first element in the history.
 Return the last element in the history.
 .It Dv H_PREV
 Return the previous element in the history.
+It is newer than the current one.
 .It Dv H_NEXT
 Return the next element in the history.
+It is older than the current one.
 .It Dv H_CURR
 Return the current element in the history.
-.It Dv H_SET
+.It Dv H_SET , Fa "int position"
 Set the cursor to point to the requested element.
 .It Dv H_ADD , Fa "const char *str"
 Append
@@ -818,6 +843,13 @@ Save the history list to the opened
 .Ft FILE
 pointer
 .Fa fp .
+.It Dv H_NSAVE_FP , Fa "size_t n" , Fa "FILE *fp"
+Save the last
+.Ft n
+history entries to the opened
+.Ft FILE
+pointer
+.Fa fp .
 .It Dv H_SETUNIQUE , Fa "int unique"
 Set flag that adjacent identical event strings should not be entered
 into the history.
@@ -828,14 +860,14 @@ be entered into the history.
 Delete the event numbered
 .Fa e .
 This function is only provided for
-.Xr readline 3
+.Nm readline
 compatibility.
 The caller is responsible for free'ing the string in the returned
 .Fa HistEvent .
 .El
 .Pp
 .Fn history
-returns \*[Gt]= 0 if the operation
+returns >= 0 if the operation
 .Fa op
 succeeds.
 Otherwise, \-1 is returned and
@@ -921,7 +953,8 @@ is a NUL terminated string to tokenize.
 .Xr signal 3 ,
 .Xr termcap 3 ,
 .Xr editrc 5 ,
-.Xr termcap 5
+.Xr termcap 5 ,
+.Xr editline 7
 .Sh HISTORY
 The
 .Nm
