@@ -718,8 +718,8 @@ _qlxge=		qlxge
 _qlxgb=		qlxgb
 .if ${MK_SOURCELESS_UCODE} != "no"
 _qlxgbe=	qlxgbe
-.endif
 _qlnx=		qlnx
+.endif
 _sfxge=		sfxge
 _sgx=		sgx
 _sgx_linux=	sgx_linux
