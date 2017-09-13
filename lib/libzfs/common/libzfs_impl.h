@@ -79,6 +79,7 @@ struct libzfs_handle {
 	libzfs_fru_t **libzfs_fru_hash;
 	libzfs_fru_t *libzfs_fru_list;
 	char libzfs_chassis_id[256];
+	boolean_t libzfs_prop_debug;
 };
 
 struct zfs_handle {
