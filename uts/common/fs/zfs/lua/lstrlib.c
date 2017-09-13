@@ -958,6 +958,7 @@ static int str_format (lua_State *L) {
           nb = str_sprintf(buff, form, ni);
           break;
         }
+#if defined(LUA_USE_FLOAT_FORMATS)
         case 'e': case 'E': case 'f':
 #if defined(LUA_USE_AFORMAT)
         case 'a': case 'A':
@@ -967,6 +968,7 @@ static int str_format (lua_State *L) {
           nb = str_sprintf(buff, form, (LUA_FLTFRM_T)luaL_checknumber(L, arg));
           break;
         }
+#endif
         case 'q': {
           addquoted(L, &b, arg);
           break;
