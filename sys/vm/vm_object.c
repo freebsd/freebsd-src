@@ -713,8 +713,13 @@ static void
 vm_object_terminate_pages(vm_object_t object)
 {
 	vm_page_t p, p_next;
+	struct mtx *mtx, *mtx1;
+	struct vm_pagequeue *pq, *pq1;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
+
+	mtx = NULL;
+	pq = NULL;
 
 	/*
 	 * Free any remaining pageable pages.  This also removes them from the
@@ -724,21 +729,51 @@ vm_object_terminate_pages(vm_object_t object)
 	 */
 	TAILQ_FOREACH_SAFE(p, &object->memq, listq, p_next) {
 		vm_page_assert_unbusied(p);
-		vm_page_lock(p);
-		/*
-		 * Optimize the page's removal from the object by resetting
-		 * its "object" field.  Specifically, if the page is not
-		 * wired, then the effect of this assignment is that
-		 * vm_page_free()'s call to vm_page_remove() will return
-		 * immediately without modifying the page or the object.
-		 */ 
-		p->object = NULL;
-		if (p->wire_count == 0) {
-			vm_page_free(p);
-			VM_CNT_INC(v_pfree);
+		if ((object->flags & OBJ_UNMANAGED) == 0) {
+			/*
+			 * vm_page_free_prep() only needs the page
+			 * lock for managed pages.
+			 */
+			mtx1 = vm_page_lockptr(p);
+			if (mtx1 != mtx) {
+				if (mtx != NULL)
+					mtx_unlock(mtx);
+				if (pq != NULL) {
+					vm_pagequeue_unlock(pq);
+					pq = NULL;
+				}
+				mtx = mtx1;
+				mtx_lock(mtx);
+			}
 		}
-		vm_page_unlock(p);
+		p->object = NULL;
+		if (p->wire_count != 0)
+			goto unlist;
+		VM_CNT_INC(v_pfree);
+		p->flags &= ~PG_ZERO;
+		if (p->queue != PQ_NONE) {
+			KASSERT(p->queue < PQ_COUNT, ("vm_object_terminate: "
+			    "page %p is not queued", p));
+			pq1 = vm_page_pagequeue(p);
+			if (pq != pq1) {
+				if (pq != NULL)
+					vm_pagequeue_unlock(pq);
+				pq = pq1;
+				vm_pagequeue_lock(pq);
+			}
+		}
+		if (vm_page_free_prep(p, true))
+			continue;
+unlist:
+		TAILQ_REMOVE(&object->memq, p, listq);
 	}
+	if (pq != NULL)
+		vm_pagequeue_unlock(pq);
+	if (mtx != NULL)
+		mtx_unlock(mtx);
+
+	vm_page_free_phys_pglist(&object->memq);
+
 	/*
 	 * If the object contained any pages, then reset it to an empty state.
 	 * None of the object's fields, including "resident_page_count", were
