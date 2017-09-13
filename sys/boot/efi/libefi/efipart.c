@@ -924,7 +924,8 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t size,
 		readstart = off / blkio->Media->BlockSize;
 
 		if (diskend <= readstart) {
-			*rsize = 0;
+			if (rsize != NULL)
+				*rsize = 0;
 
 			return (EIO);
 		}
