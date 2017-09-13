@@ -26,7 +26,7 @@
  */
 
 /*
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright 2013 Saso Kiselkov. All rights reserved.
  */
 
@@ -108,17 +108,20 @@ extern void assfail3(const char *, uintmax_t, const char *, uintmax_t,
 			__FILE__, __LINE__); \
 _NOTE(CONSTCOND) } while (0)
 
+#define	VERIFY3B(x, y, z)	VERIFY3_IMPL(x, y, z, boolean_t)
 #define	VERIFY3S(x, y, z)	VERIFY3_IMPL(x, y, z, int64_t)
 #define	VERIFY3U(x, y, z)	VERIFY3_IMPL(x, y, z, uint64_t)
 #define	VERIFY3P(x, y, z)	VERIFY3_IMPL(x, y, z, uintptr_t)
 #define	VERIFY0(x)		VERIFY3_IMPL(x, ==, 0, uintmax_t)
 
 #if DEBUG
+#define	ASSERT3B(x, y, z)	VERIFY3_IMPL(x, y, z, boolean_t)
 #define	ASSERT3S(x, y, z)	VERIFY3_IMPL(x, y, z, int64_t)
 #define	ASSERT3U(x, y, z)	VERIFY3_IMPL(x, y, z, uint64_t)
 #define	ASSERT3P(x, y, z)	VERIFY3_IMPL(x, y, z, uintptr_t)
 #define	ASSERT0(x)		VERIFY3_IMPL(x, ==, 0, uintmax_t)
 #else
+#define	ASSERT3B(x, y, z)	((void)0)
 #define	ASSERT3S(x, y, z)	((void)0)
 #define	ASSERT3U(x, y, z)	((void)0)
 #define	ASSERT3P(x, y, z)	((void)0)

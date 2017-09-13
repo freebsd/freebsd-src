@@ -1829,13 +1829,14 @@ ztest_get_done(zgd_t *zgd, int error)
 	ztest_object_unlock(zd, object);
 
 	if (error == 0 && zgd->zgd_bp)
-		zil_add_block(zgd->zgd_zilog, zgd->zgd_bp);
+		zil_lwb_add_block(zgd->zgd_lwb, zgd->zgd_bp);
 
 	umem_free(zgd, sizeof (*zgd));
 }
 
 static int
-ztest_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
+ztest_get_data(void *arg, lr_write_t *lr, char *buf, struct lwb *lwb,
+    zio_t *zio)
 {
 	ztest_ds_t *zd = arg;
 	objset_t *os = zd->zd_os;
@@ -1848,6 +1849,10 @@ ztest_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 	dmu_buf_t *db;
 	zgd_t *zgd;
 	int error;
+
+	ASSERT3P(lwb, !=, NULL);
+	ASSERT3P(zio, !=, NULL);
+	ASSERT3U(size, !=, 0);
 
 	ztest_object_lock(zd, object, RL_READER);
 	error = dmu_bonus_hold(os, object, FTAG, &db);
@@ -1869,7 +1874,7 @@ ztest_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 	db = NULL;
 
 	zgd = umem_zalloc(sizeof (*zgd), UMEM_NOFAIL);
-	zgd->zgd_zilog = zd->zd_zilog;
+	zgd->zgd_lwb = lwb;
 	zgd->zgd_private = zd;
 
 	if (buf != NULL) {	/* immediate write */
