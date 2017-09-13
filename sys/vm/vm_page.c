@@ -473,7 +473,8 @@ vm_page_startup(vm_offset_t vaddr)
 	 * in proportion to the zone structure size.
 	 */
 	pages_per_zone = howmany(sizeof(struct uma_zone) +
-	    sizeof(struct uma_cache) * (mp_maxid + 1), UMA_SLAB_SIZE);
+	    sizeof(struct uma_cache) * (mp_maxid + 1) +
+	    roundup2(sizeof(struct uma_slab), sizeof(void *)), UMA_SLAB_SIZE);
 	if (pages_per_zone > 1) {
 		/* Reserve more pages so that we don't run out. */
 		boot_pages = UMA_BOOT_PAGES_ZONES * pages_per_zone;
