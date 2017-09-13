@@ -191,6 +191,10 @@ sb8xx_attach(device_t dev)
 	}
 	sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->io_rid,
 	    RF_ACTIVE);
+	if (sc->io_res == NULL) {
+		device_printf(dev, "Could not allocate I/O space\n");
+		return (ENXIO);
+	}
 	sc->poll = 1;
 	return (0);
 }
