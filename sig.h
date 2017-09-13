@@ -1,4 +1,4 @@
-/*	$NetBSD: sig.h,v 1.10 2016/02/16 15:53:48 christos Exp $	*/
+/*	$NetBSD: sig.h,v 1.11 2016/05/09 21:46:56 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -62,9 +62,9 @@ typedef struct {
 	volatile sig_atomic_t sig_no;
 } *el_signal_t;
 
-protected void	sig_end(EditLine*);
-protected int	sig_init(EditLine*);
-protected void	sig_set(EditLine*);
-protected void	sig_clr(EditLine*);
+libedit_private void	sig_end(EditLine*);
+libedit_private int	sig_init(EditLine*);
+libedit_private void	sig_set(EditLine*);
+libedit_private void	sig_clr(EditLine*);
 
 #endif /* _h_el_sig */

@@ -256,9 +256,6 @@
 /* Define to 1 if the system provides the SIZE_MAX constant */
 #define HAVE_SIZE_MAX	1
 
-/* Define to 1 if you want wide-character code */
-/* #undef WIDECHAR */
-
 /* Define to 1 if on MINIX. */
 /* #undef _MINIX */
 

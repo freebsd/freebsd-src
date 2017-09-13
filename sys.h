@@ -1,4 +1,4 @@
-/*	$NetBSD: sys.h,v 1.23 2016/02/17 19:47:49 christos Exp $	*/
+/*	$NetBSD: sys.h,v 1.27 2016/05/09 21:46:56 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -58,18 +58,8 @@
 # endif
 #endif
 
-#ifndef public
-# define public		/* Externally visible functions/variables */
-#endif
-
-#ifndef private
-# define private	static	/* Always hidden internals */
-#endif
-
-#ifndef protected
-# define protected	/* Redefined from elsewhere to "static" */
-			/* When we want to hide everything	*/
-#endif
+/* If your compiler does not support this, define it to be empty. */
+#define libedit_private __attribute__((__visibility__("hidden")))
 
 #ifndef __arraycount
 # define __arraycount(a) (sizeof(a) / sizeof(*(a)))
@@ -110,11 +100,6 @@ typedef unsigned int	u_int32_t;
 
 #define	REGEX		/* Use POSIX.2 regular expression functions */
 #undef	REGEXP		/* Use UNIX V8 regular expression functions */
-
-#ifndef WIDECHAR
-#define	setlocale(c, l)		/*LINTED*/NULL
-#define	nl_langinfo(i)		""
-#endif
 
 #if defined(__sun)
 extern int tgetent(char *, const char *);

@@ -1,4 +1,4 @@
-/*	$NetBSD: prompt.h,v 1.13 2016/02/17 19:47:49 christos Exp $	*/
+/*	$NetBSD: prompt.h,v 1.15 2016/05/09 21:46:56 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -40,19 +40,19 @@
 #ifndef _h_el_prompt
 #define	_h_el_prompt
 
-typedef Char    *(*el_pfunc_t)(EditLine *);
+typedef wchar_t    *(*el_pfunc_t)(EditLine *);
 
 typedef struct el_prompt_t {
 	el_pfunc_t	p_func;		/* Function to return the prompt */
 	coord_t		p_pos;		/* position in the line after prompt */
-	Char		p_ignore;	/* character to start/end literal */
+	wchar_t		p_ignore;	/* character to start/end literal */
 	int		p_wide;
 } el_prompt_t;
 
-protected void	prompt_print(EditLine *, int);
-protected int	prompt_set(EditLine *, el_pfunc_t, Char, int, int);
-protected int	prompt_get(EditLine *, el_pfunc_t *, Char *, int);
-protected int	prompt_init(EditLine *);
-protected void	prompt_end(EditLine *);
+libedit_private void	prompt_print(EditLine *, int);
+libedit_private int	prompt_set(EditLine *, el_pfunc_t, wchar_t, int, int);
+libedit_private int	prompt_get(EditLine *, el_pfunc_t *, wchar_t *, int);
+libedit_private int	prompt_init(EditLine *);
+libedit_private void	prompt_end(EditLine *);
 
 #endif /* _h_el_prompt */
