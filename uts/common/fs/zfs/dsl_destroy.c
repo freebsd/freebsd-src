@@ -501,6 +501,7 @@ dsl_destroy_snapshots_nvl(nvlist_t *snaps, boolean_t defer,
 		    nvpair_name(pair), B_TRUE);
 	}
 	fnvlist_add_nvlist(arg, "snaps", snaps_normalized);
+	fnvlist_free(snaps_normalized);
 	fnvlist_add_boolean_value(arg, "defer", defer);
 
 	nvlist_t *wrapper = fnvlist_alloc();
