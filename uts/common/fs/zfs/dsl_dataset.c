@@ -1742,10 +1742,10 @@ get_clones_stat(dsl_dataset_t *ds, nvlist_t *nv)
 		fnvlist_add_nvlist(propval, ZPROP_VALUE, val);
 		fnvlist_add_nvlist(nv, zfs_prop_to_name(ZFS_PROP_CLONES),
 		    propval);
-	} else {
-		nvlist_free(val);
-		nvlist_free(propval);
 	}
+
+	nvlist_free(val);
+	nvlist_free(propval);
 }
 
 /*
