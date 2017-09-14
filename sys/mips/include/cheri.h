@@ -71,7 +71,7 @@ struct cheri_frame {
 	void * __capability	cf_c8;
 	void * __capability	cf_c9;
 	void * __capability	cf_c10;
-	void * __capability	cf_stc;
+	void * __capability	cf_csp;
 	void * __capability	cf_c12;
 	void * __capability	cf_c13;
 	void * __capability	cf_c14;
@@ -90,7 +90,7 @@ struct cheri_frame {
 #else
 	struct chericap	cf_c1, cf_c2, cf_c3, cf_c4;
 	struct chericap	cf_c5, cf_c6, cf_c7;
-	struct chericap	cf_c8, cf_c9, cf_c10, cf_stc, cf_c12;
+	struct chericap	cf_c8, cf_c9, cf_c10, cf_csp, cf_c12;
 	struct chericap	cf_c13, cf_c14, cf_c15, cf_c16, cf_c17;
 	struct chericap	cf_c18, cf_c19, cf_c20, cf_c21, cf_c22;
 	struct chericap cf_c23, cf_c24, cf_c25, cf_idc;
@@ -680,7 +680,15 @@ cheri_capability_setoffset(struct chericap *cp, register_t offset)
  * CHERI-MIPS-specific kernel utility functions.
  */
 #ifdef _KERNEL
+struct sysentvec;
+void	cheri_capability_set_user_sealcap(void *__capability *);
+void	cheri_capability_set_user_sigcode(void *__capability *,
+	    struct sysentvec *);
 int	cheri_capcause_to_sicode(register_t capcause);
+
+void	hybridabi_exec_setregs(struct thread *td, unsigned long entry_addr);
+void	hybridabi_newthread_setregs(struct thread *td,
+	    unsigned long entry_addr);
 #endif
 
 /*

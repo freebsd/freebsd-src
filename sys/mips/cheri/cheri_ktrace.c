@@ -94,7 +94,7 @@ ktrcexception_mdfill(struct trapframe *frame,
 	    ke->ktr_regnum == CHERI_CR_C8 ? &frame->c8 :
 	    ke->ktr_regnum == CHERI_CR_C9 ? &frame->c9 :
 	    ke->ktr_regnum == CHERI_CR_C10 ? &frame->c10 :
-	    ke->ktr_regnum == CHERI_CR_STC ? &frame->stc :
+	    ke->ktr_regnum == CHERI_CR_STC ? &frame->csp :
 	    ke->ktr_regnum == CHERI_CR_C12 ? &frame->c12 :
 	    ke->ktr_regnum == CHERI_CR_C13 ? &frame->c13 :
 	    ke->ktr_regnum == CHERI_CR_C14 ? &frame->c14 :

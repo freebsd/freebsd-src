@@ -77,22 +77,22 @@ struct cheri_object {
 /*
  * Data structure describing CHERI's sigaltstack-like extensions to signal
  * delivery.  In the event that a thread takes a signal when $pcc doesn't hold
- * CHERI_PERM_SYSCALL, we will need to install new $pcc, $ddc, $stc, and $idc
+ * CHERI_PERM_SYSCALL, we will need to install new $pcc, $ddc, $csp, and $idc
  * state, and move execution to the per-thread alternative stack, whose
- * pointer should (presumably) be relative to the $ddc/$stc defined here.
+ * pointer should (presumably) be relative to the $ddc/$csp defined here.
  */
 struct cheri_signal {
 #if __has_feature(capabilities)
 	void * __capability	csig_pcc;
 	void * __capability	csig_ddc;
-	void * __capability	csig_stc;
+	void * __capability	csig_csp;
 	void * __capability	csig_idc;
 	void * __capability	csig_default_stack;
 	void * __capability	csig_sigcode;
 #else
 	struct chericap		 csig_pcc;
 	struct chericap		 csig_ddc;
-	struct chericap		 csig_stc;
+	struct chericap		 csig_csp;
 	struct chericap		 csig_idc;
 	struct chericap		 csig_default_stack;
 	struct chericap		 csig_sigcode;

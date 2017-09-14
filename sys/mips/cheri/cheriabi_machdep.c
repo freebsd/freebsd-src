@@ -112,6 +112,10 @@
 #define	DELAYBRANCH(x)	((int)(x) < 0)
 #define	UCONTEXT_MAGIC	0xACEDBADE
 
+static void	cheriabi_capability_set_user_ddc(void * __capability *);
+static void	cheriabi_capability_set_user_pcc(void * __capability *);
+static void	cheriabi_capability_set_user_entry(void * __capability *,
+		    unsigned long);
 static int	cheriabi_fetch_syscall_args(struct thread *td);
 static void	cheriabi_set_syscall_retval(struct thread *td, int error);
 static void	cheriabi_sendsig(sig_t, ksiginfo_t *, sigset_t *);
@@ -456,8 +460,8 @@ cheriabi_set_mcontext(struct thread *td, mcontext_c_t *mcp)
  * The CheriABI version of sendsig(9) largely borrows from the MIPS version,
  * and it is important to keep them in sync.  It differs primarily in that it
  * must also be aware of user stack-handling ABIs, so is also sensitive to our
- * (fluctuating) design choices in how $stc and $sp interact.  The current
- * design uses ($stc + $sp) for stack-relative references, so early on we have
+ * (fluctuating) design choices in how $csp and $sp interact.  The current
+ * design uses ($csp + $sp) for stack-relative references, so early on we have
  * to calculate a 'relocated' version of $sp that we can then use for
  * MIPS-style access.
  *
@@ -491,17 +495,17 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs = td->td_frame;
 
 	/*
-	 * In CheriABI, $sp is $stc relative, so calculate a relocation base
+	 * In CheriABI, $sp is $csp relative, so calculate a relocation base
 	 * that must be combined with regs->sp from this point onwards.
 	 * Unfortunately, we won't retain bounds and permissions information
 	 * (as is the case elsewhere in CheriABI).  While 'stackbase'
-	 * suggests that $stc's offset isn't included, in practice it will be,
+	 * suggests that $csp's offset isn't included, in practice it will be,
 	 * although we may reasonably assume that it will be zero.
 	 *
 	 * If it turns out we will be delivering to the alternative signal
 	 * stack, we'll recalculate stackbase later.
 	 */
-	stackbase = (vaddr_t)td->td_pcb->pcb_regs.stc;
+	stackbase = (vaddr_t)td->td_pcb->pcb_regs.csp;
 	oonstack = sigonstack(stackbase + regs->sp);
 
 	/*
@@ -711,7 +715,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	cheri_sendsig(td);
 
 	/*
-	 * Note that $sp must be installed relative to $stc, so re-subtract
+	 * Note that $sp must be installed relative to $csp, so re-subtract
 	 * the stack base here.
 	 */
 	regs->pc = (register_t)(intptr_t)catcher;
@@ -721,9 +725,104 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 }
 
 static void
+cheriabi_capability_set_user_ddc(void * __capability *cp)
+{
+
+	cheri_capability_set(cp, CHERI_CAP_USER_DATA_PERMS,
+	    CHERI_CAP_USER_DATA_BASE, CHERI_CAP_USER_DATA_LENGTH,
+	    CHERI_CAP_USER_DATA_OFFSET);
+}
+
+static void
+cheriabi_capability_set_user_idc(void * __capability *cp)
+{
+
+	/*
+	 * The default invoked data capability is also identical to $ddc.
+	 */
+	cheriabi_capability_set_user_ddc(cp);
+}
+
+static void
+cheriabi_capability_set_user_pcc(void * __capability *cp)
+{
+
+	cheri_capability_set(cp, CHERI_CAP_USER_CODE_PERMS,
+	    CHERI_CAP_USER_CODE_BASE, CHERI_CAP_USER_CODE_LENGTH,
+	    CHERI_CAP_USER_CODE_OFFSET);
+}
+
+static void
+cheriabi_capability_set_user_entry(void * __capability *cp,
+    unsigned long entry_addr)
+{
+
+	/*
+	 * Set the jump target regigster for the pure capability calling
+	 * convention.
+	 */
+	cheri_capability_set(cp, CHERI_CAP_USER_CODE_PERMS,
+	    CHERI_CAP_USER_CODE_BASE, CHERI_CAP_USER_CODE_LENGTH, entry_addr);
+}
+
+/*
+ * Common per-thread CHERI state initialisation across execve(2) and
+ * additional thread creation.
+ */
+static void
+cheriabi_newthread_init(struct thread *td)
+{
+	struct cheri_signal *csigp;
+	struct trapframe *frame;
+
+	/*
+	 * We assume that the caller has initialised the trapframe to zeroes
+	 * -- but do a quick assertion or two to catch programmer error.  We
+	 * might want to check this with a more thorough set of assertions in
+	 * the future.
+	 */
+	frame = &td->td_pcb->pcb_regs;
+	KASSERT(*(uint64_t *)&frame->ddc == 0, ("%s: non-zero initial $ddc",
+	    __func__));
+	KASSERT(*(uint64_t *)&frame->pcc == 0, ("%s: non-zero initial $epcc",
+	    __func__));
+
+	/*
+	 * Initialise signal-handling state; this can't yet be modified
+	 * by userspace, but the principle is that signal handlers should run
+	 * with ambient authority unless given up by the userspace runtime
+	 * explicitly.  The caller will initialise the stack fields.
+	 *
+	 * XXXRW: In CheriABI, it could be that we should set more of these to
+	 * NULL capabilities rather than initialising to the full address
+	 * space.  Note that some fields are overwritten later in
+	 * cheriabi_exec_setregs() for the initial thread.
+	 */
+	csigp = &td->td_pcb->pcb_cherisignal;
+	bzero(csigp, sizeof(*csigp));
+	cheriabi_capability_set_user_ddc(&csigp->csig_ddc);
+	cheriabi_capability_set_user_idc(&csigp->csig_idc);
+	cheriabi_capability_set_user_pcc(&csigp->csig_pcc);
+	cheri_capability_set_user_sigcode(&csigp->csig_sigcode,
+	    td->td_proc->p_sysent);
+
+	/*
+	 * Set up root for the userspace object-type sealing capability tree.
+	 * This can be queried using sysarch(2).
+	 */
+	cheri_capability_set_user_sealcap(&td->td_proc->p_md.md_cheri_sealcap);
+
+	/*
+	 * Set up the thread's trusted stack.
+	 */
+	cheri_stack_init(td->td_pcb);
+}
+
+static void
 cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct cheri_signal *csigp;
+	struct trapframe *frame;
 	u_long auxv, stackbase, stacklen;
 
 	bzero((caddr_t)td->td_frame, sizeof(struct trapframe));
@@ -739,8 +838,28 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
 	    (mips_rd_status() & MIPS_SR_INT_MASK) |
 	    MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_COP_2_BIT;
-	cheri_exec_setregs(td, imgp->entry_addr);
-	cheri_stack_init(td->td_pcb);
+
+	/*
+	 * Set up CHERI-related state: most register state, signal delivery,
+	 * sealing capabilities, trusted stack.
+	 */
+	cheriabi_newthread_init(td);
+
+	/*
+	 * XXXRW: For now, initialise $ddc and $idc to the full address space,
+	 * but in the future these will be restricted (or not set at all).
+	 */
+	frame = &td->td_pcb->pcb_regs;
+	cheriabi_capability_set_user_ddc(&frame->ddc);
+	cheriabi_capability_set_user_idc(&frame->idc);
+
+	/*
+	 * XXXRW: Set $pcc and $c12 to the entry address -- for now, also with
+	 * broad bounds, but in the future, limited as appropriate to the
+	 * run-time linker or statically linked binary?
+	 */
+	cheriabi_capability_set_user_entry(&frame->pcc, imgp->entry_addr);
+	cheriabi_capability_set_user_entry(&frame->c12, imgp->entry_addr);
 
 	/*
 	 * Pass a pointer to the ELF auxiliary argument vector.
@@ -761,16 +880,16 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	KASSERT(stack > stackbase,
 	    ("top of stack 0x%lx is below stack base 0x%lx", stack, stackbase));
 	stacklen = stack - stackbase;
-	cheri_capability_set(&td->td_frame->stc, CHERI_CAP_USER_DATA_PERMS,
+	cheri_capability_set(&td->td_frame->csp, CHERI_CAP_USER_DATA_PERMS,
 	    stackbase, stacklen, 0);
 	td->td_frame->sp = stacklen;
+
 	/*
-	 * Also update the signal stack.  The default set in
-	 * cheri_exec_setregs() covers the whole address space.
+	 * Update privileged signal-delivery environment for actual stack.
 	 */
 	csigp = &td->td_pcb->pcb_cherisignal;
-	cheri_capability_set(&csigp->csig_stc, CHERI_CAP_USER_DATA_PERMS,
-	    stackbase, stacklen, 0);
+	csigp->csig_csp = td->td_frame->csp;
+	csigp->csig_default_stack = csigp->csig_csp;
 	/* XXX: set sp for signal stack! */
 
 	td->td_md.md_flags &= ~MDTD_FPUSED;
@@ -787,6 +906,7 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 void
 cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param)
 {
+	struct cheri_signal *csigp;
 	struct trapframe *frame;
 
 	frame = td->td_frame;
@@ -802,11 +922,10 @@ cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param)
 	    MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_COP_2_BIT;
 
 	/*
-	 * We don't perform validation on the new pcc or stack capabilities
-	 * and just let the caller fail on return if they are bogus.
+	 * Set up CHERI-related state: register state, signal delivery,
+	 * sealing capabilities, trusted stack.
 	 */
-	frame->stc = param->stack_base;
-	td->td_frame->sp = param->stack_size;
+	cheriabi_newthread_init(td);
 
 	/*
 	 * XXX-BD: cpu_copy_thread() copies the cheri_signal struct.  Do we
@@ -817,6 +936,21 @@ cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param)
 	frame->pcc = param->start_func;
 	frame->c12 = param->start_func;
 	frame->c3 = param->arg;
+
+	/*
+	 * We don't perform validation on the new pcc or stack capabilities
+	 * and just let the caller fail on return if they are bogus.
+	 */
+	frame->csp = param->stack_base;
+	td->td_frame->sp = param->stack_size;
+
+	/*
+	 * Update privileged signal-delivery environment for actual stack.
+	 */
+	csigp = &td->td_pcb->pcb_cherisignal;
+	csigp->csig_csp = td->td_frame->csp;
+	csigp->csig_default_stack = csigp->csig_csp;
+	/* XXX: set sp for signal stack! */
 }
 
 /*
@@ -883,7 +1017,7 @@ void
 cheriabi_get_signal_stack_capability(struct thread *td, void * __capability *csig)
 {
 
-	*csig = td->td_pcb->pcb_cherisignal.csig_stc;
+	*csig = td->td_pcb->pcb_cherisignal.csig_csp;
 }
 
 /*
@@ -894,7 +1028,7 @@ void
 cheriabi_set_signal_stack_capability(struct thread *td, void * __capability *csig)
 {
 
-	td->td_pcb->pcb_cherisignal.csig_stc = csig != NULL ? *csig :
+	td->td_pcb->pcb_cherisignal.csig_csp = csig != NULL ? *csig :
 	    td->td_pcb->pcb_cherisignal.csig_default_stack;
 }
 

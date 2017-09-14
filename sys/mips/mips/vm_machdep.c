@@ -452,7 +452,6 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 #else
 	cheri_bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
 	cheri_signal_copy(pcb2, td0->td_pcb);
-	cheri_stack_init(pcb2);
 #endif
 
 	/*
@@ -561,7 +560,7 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	 * the completed MIPS trapframe and existing process state.
 	 */
 	tf->sr |= MIPS_SR_COP_2_BIT;
-	cheri_newthread_setregs(td, (uintptr_t)entry);
+	hybridabi_newthread_setregs(td, (uintptr_t)entry);
 #endif
 /*	tf->sr |= (ALL_INT_MASK & idle_mask) | SR_INT_ENAB; */
 	/**XXX the above may now be wrong -- mips2 implements this as panic */

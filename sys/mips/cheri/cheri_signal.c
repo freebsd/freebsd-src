@@ -75,7 +75,7 @@ cheri_sendsig(struct thread *td)
 	frame = &td->td_pcb->pcb_regs;
 	csigp = &td->td_pcb->pcb_cherisignal;
 	frame->ddc = csigp->csig_ddc;
-	frame->stc = csigp->csig_stc;
+	frame->csp = csigp->csig_csp;
 	frame->idc = csigp->csig_idc;
 	frame->pcc = csigp->csig_pcc;
 }

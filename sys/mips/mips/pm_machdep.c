@@ -644,8 +644,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 #endif
 #if defined(CPU_CHERI)
 	td->td_frame->sr |= MIPS_SR_COP_2_BIT;
-	cheri_exec_setregs(td, imgp->entry_addr & ~3);
-	cheri_stack_init(td->td_pcb);
+	hybridabi_exec_setregs(td, imgp->entry_addr & ~3);
 #endif
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:

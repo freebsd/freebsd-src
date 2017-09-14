@@ -157,7 +157,7 @@ struct trapframe {
 	void * __capability	c8;
 	void * __capability	c9;
 	void * __capability	c10;
-	void * __capability	stc;
+	void * __capability	csp;
 	void * __capability	c12;
 	void * __capability	c13;
 	void * __capability	c14;

@@ -142,7 +142,7 @@ cheri_trapframe_to_cheriframe(struct trapframe *frame,
 	cheri_copy_and_validate(&cfp->cf_c8, &frame->c8, &cfp->cf_capvalid, 8);
 	cheri_copy_and_validate(&cfp->cf_c9, &frame->c9, &cfp->cf_capvalid, 9);
 	cheri_copy_and_validate(&cfp->cf_c10, &frame->c10, &cfp->cf_capvalid, 10);
-	cheri_copy_and_validate(&cfp->cf_stc, &frame->stc, &cfp->cf_capvalid, 11);
+	cheri_copy_and_validate(&cfp->cf_csp, &frame->csp, &cfp->cf_capvalid, 11);
 	cheri_copy_and_validate(&cfp->cf_c12, &frame->c12, &cfp->cf_capvalid, 12);
 	cheri_copy_and_validate(&cfp->cf_c13, &frame->c13, &cfp->cf_capvalid, 13);
 	cheri_copy_and_validate(&cfp->cf_c14, &frame->c14, &cfp->cf_capvalid, 14);
@@ -182,7 +182,7 @@ cheri_trapframe_from_cheriframe(struct trapframe *frame,
 	frame->c8 = cfp->cf_c8;
 	frame->c9 = cfp->cf_c9;
 	frame->c10 = cfp->cf_c10;
-	frame->stc = cfp->cf_stc;
+	frame->csp = cfp->cf_csp;
 	frame->c12 = cfp->cf_c12;
 	frame->c13 = cfp->cf_c13;
 	frame->c14 = cfp->cf_c14;
@@ -258,7 +258,7 @@ cheri_log_cheri_frame(struct trapframe *frame)
 	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 10);
 
 	/* C11 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->stc, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->csp, 0);
 	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 11);
 
 	/* C12 */
