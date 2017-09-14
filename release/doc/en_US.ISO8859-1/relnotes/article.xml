@@ -191,6 +191,9 @@
 	added, providing one-time &man.boot.config.5;-style options
 	for &man.zfsboot.8;.</para>
 
+      <para revision="316348">The &man.pw.8; utility has been updated
+	to properly respect &man.pw.conf.5;, if present.</para>
+
       <para revision="319390">The &man.cxgbetool.8; utility has been
 	added, providing command-line access to features and debugging
 	facilities of &man.cxgbe.4; devices.</para>
@@ -357,6 +360,10 @@
 	updated to prevent <literal>keep state</literal> from
 	incorrectly implying <literal>keep frags</literal>, matching
 	the behavior documented in &man.ipf.5;.</para>
+
+      <para revision="322793">The &man.geom.4;
+	<literal>JOURNAL</literal> class has been updated to fix
+	<literal>flush_queue</literal> handling.</para>
     </sect2>
 
     <sect2 xml:id="kernel-config">
