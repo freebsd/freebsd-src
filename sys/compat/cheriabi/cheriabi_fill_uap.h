@@ -3786,21 +3786,21 @@ CHERIABI_SYS_kldnext_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_kldstat_fill_uap(struct thread *td,
-    struct kldstat_args *uap)
+CHERIABI_SYS_cheriabi_kldstat_fill_uap(struct thread *td,
+    struct cheriabi_kldstat_args *uap)
 {
 	void * __capability tmpcap;
 
 	/* [0] int fileid */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_kldstat_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_cheriabi_kldstat_PTRMASK);
 	uap->fileid = (register_t)tmpcap;
 
-	/* [1] _Out_ struct kld_file_stat * stat */
+	/* [1] _Out_ struct kld_file_stat_c * stat */
 	{
 		int error;
-		register_t reqperms = (CHERI_PERM_STORE);
+		register_t reqperms = (CHERI_PERM_STORE|CHERI_PERM_STORE_CAP);
 
-		cheriabi_fetch_syscall_arg(td, &tmpcap, 1, CHERIABI_SYS_kldstat_PTRMASK);
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 1, CHERIABI_SYS_cheriabi_kldstat_PTRMASK);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->stat),
 		    tmpcap, sizeof(*uap->stat), reqperms, 0);
 		if (error != 0)

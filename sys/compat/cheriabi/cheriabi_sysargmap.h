@@ -157,7 +157,7 @@
 #define	CHERIABI_SYS_kldunload_PTRMASK	(0x0)
 #define	CHERIABI_SYS_kldfind_PTRMASK	(0x0 | 0x1)
 #define	CHERIABI_SYS_kldnext_PTRMASK	(0x0)
-#define	CHERIABI_SYS_kldstat_PTRMASK	(0x0 | 0x2)
+#define	CHERIABI_SYS_cheriabi_kldstat_PTRMASK	(0x0 | 0x2)
 #define	CHERIABI_SYS_kldfirstmod_PTRMASK	(0x0)
 #define	CHERIABI_SYS_getsid_PTRMASK	(0x0)
 #define	CHERIABI_SYS_setresuid_PTRMASK	(0x0)

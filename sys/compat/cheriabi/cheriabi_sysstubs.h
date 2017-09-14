@@ -18,8 +18,8 @@
 struct __wrusage;
 struct acl;
 struct aiocb;
-struct auditinfo;
 struct auditinfo_addr;
+struct auditinfo;
 struct ffclock_estimate;
 struct fhandle;
 struct iovec;
@@ -1661,13 +1661,13 @@ SYS_STUB(307, int, kldnext,
     /* _localcheck */ {}
 )
 
-SYS_STUB(308, int, kldstat,
-    /* _protoargs */ (int fileid, struct kld_file_stat * stat),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fileid, struct kld_file_stat * __capability  stat),
-    /* _protoargs_err */ (__capability int *stub_errno, int fileid, struct kld_file_stat * __capability  stat),
-    /* _callargs */ (fileid, (struct kld_file_stat *)stat),
+SYS_STUB_ARGHASPTRS(308, int, kldstat,
+    /* _protoargs */ (int fileid, struct kld_file_stat* stat),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fileid, struct kld_file_stat* __capability  stat),
+    /* _protoargs_err */ (__capability int *stub_errno, int fileid, struct kld_file_stat* __capability  stat),
+    /* _callargs */ (fileid, (struct kld_file_stat*)stat),
     /* _callargs_chk */ (&ret, stub_errno, fileid, stat),
-    /* _callargs_err */ (&errno, fileid, (struct kld_file_stat *)stat),
+    /* _callargs_err */ (&errno, fileid, (struct kld_file_stat*)stat),
     /* _localcheck */ {if (!(cheri_getperm(stat) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 

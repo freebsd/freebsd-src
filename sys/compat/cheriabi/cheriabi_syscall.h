@@ -247,7 +247,7 @@
 #define	CHERIABI_SYS_kldunload	305
 #define	CHERIABI_SYS_kldfind	306
 #define	CHERIABI_SYS_kldnext	307
-#define	CHERIABI_SYS_kldstat	308
+#define	CHERIABI_SYS_cheriabi_kldstat	308
 #define	CHERIABI_SYS_kldfirstmod	309
 #define	CHERIABI_SYS_getsid	310
 #define	CHERIABI_SYS_setresuid	311

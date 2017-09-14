@@ -167,7 +167,7 @@ MIASM =  \
 	kldunload.o \
 	kldfind.o \
 	kldnext.o \
-	kldstat.o \
+	cheriabi_kldstat.o \
 	kldfirstmod.o \
 	getsid.o \
 	setresuid.o \

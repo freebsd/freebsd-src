@@ -1411,6 +1411,41 @@ cheriabi_nmount(struct thread *td,
 	return (error);
 }
 
+/*
+ * Convert pointers to NULL capabilities with the offset of the
+ * virtual address to avoid leaking kernel capbilities.  One
+ * alternative to consider is sealed capabilities, but would seem
+ * to complicate attempts to impose hardware enforced flow control.
+ */
+#define PTREXPAND_CP(src,dst,fld) \
+	do { (dst).fld = (void * __capability)(__intcap_t)(src).fld; } while (0)
+
+int
+cheriabi_kldstat(struct thread *td, struct cheriabi_kldstat_args *uap)
+{
+        struct kld_file_stat stat;
+        struct kld_file_stat_c stat_c;
+        int error, version;
+
+        if ((error = copyin(&uap->stat->version, &version, sizeof(version)))
+            != 0)
+                return (error);
+        if (version != sizeof(struct kld_file_stat_c))
+                return (EINVAL);
+
+        error = kern_kldstat(td, uap->fileid, &stat);
+        if (error != 0)
+                return (error);
+
+        bcopy(&stat.name[0], &stat_c.name[0], sizeof(stat.name));
+        CP(stat, stat_c, refs);
+        CP(stat, stat_c, id);
+        PTREXPAND_CP(stat, stat_c, address);
+        CP(stat, stat_c, size);
+        bcopy(&stat.pathname[0], &stat_c.pathname[0], sizeof(stat.pathname));
+        return (copyout(&stat_c, uap->stat, version));
+}
+
 int
 cheriabi_kldsym(struct thread *td, struct cheriabi_kldsym_args *uap)
 {

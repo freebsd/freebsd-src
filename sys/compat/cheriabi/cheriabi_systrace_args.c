@@ -1367,11 +1367,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* kldstat */
+	/* cheriabi_kldstat */
 	case 308: {
-		struct kldstat_args *p = params;
+		struct cheriabi_kldstat_args *p = params;
 		iarg[0] = p->fileid; /* int */
-		uarg[1] = (intptr_t) p->stat; /* struct kld_file_stat * */
+		uarg[1] = (intptr_t) p->stat; /* struct kld_file_stat_c * */
 		*n_args = 2;
 		break;
 	}
@@ -5256,14 +5256,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* kldstat */
+	/* cheriabi_kldstat */
 	case 308:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "userland struct kld_file_stat *";
+			p = "userland struct kld_file_stat_c *";
 			break;
 		default:
 			break;
@@ -9064,7 +9064,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* kldstat */
+	/* cheriabi_kldstat */
 	case 308:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

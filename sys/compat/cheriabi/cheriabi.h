@@ -274,6 +274,16 @@ struct mac_c {
 	char * __capability	m_string;
 };
 
+struct kld_file_stat_c {
+    int		version;	/* set to sizeof(struct kld_file_stat_c) */
+    char        name[MAXPATHLEN];
+    int		refs;
+    int		id;
+    void * __capability	address;	/* load address */
+    size_t	size;		/* size in bytes */
+    char        pathname[MAXPATHLEN];
+};
+
 struct kld_sym_lookup_c {
 	int		version; /* set to sizeof(struct kld_sym_lookup_c) */
 	char * __capability symname; /* Symbol name we are looking up */
