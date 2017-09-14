@@ -3203,9 +3203,9 @@ int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 							NULL, 0);
 		} else {
 			if (conn_param)
-			ret = cma_accept_ib(id_priv, conn_param);
-		else
-			ret = cma_rep_recv(id_priv);
+				ret = cma_accept_ib(id_priv, conn_param);
+			else
+				ret = cma_rep_recv(id_priv);
 		}
 		break;
 	case RDMA_TRANSPORT_IWARP:
