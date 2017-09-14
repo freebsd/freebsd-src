@@ -571,6 +571,10 @@
     <sect2 xml:id="network-protocols">
       <title>Network Protocols</title>
 
+      <para revision="301772">Dummynet AQM, an independent
+	implementation of CoDel and FQ-CoDel for ipfw/dummynet has
+	been imported to the base system.</para>
+
       <para revision="309340" contrib="sponsor"
 	sponsor="&dellemc;">Support for <acronym>GARP</acronym>
 	(gratuitous <acronym>ARP</acronym>) retransmit has been added.
