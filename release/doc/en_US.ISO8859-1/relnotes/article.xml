@@ -294,7 +294,19 @@
       <para revision="316040">The &man.kvm.close.3; function has been
 	updated to return the accumulated error from previous
 	&man.close.2; calls.</para>
-    </sect2>
+
+      <para revision="320312">The &man.syslog.3; function has been
+	updated to be more resilent to thread cancellation occurring
+	in supported deferred mode, eliminating possible lockups in
+	multi-threaded applications that often create and cancel
+	threads using the function, such as <filename
+	  role="package">net/mpd5</filename>.</para>
+
+      <para revision="321074">The &man.stdio.3; function has been
+	updated to be deferred cancel-safe, eliminating possible
+	lockups in multi-threaded applications using functions such
+	as &man.funopen.3;, &man.fropen.3;, and &man.fwopen.3;.</para>
+	</sect2>
 
     <sect2 xml:id="userland-abi">
       <title>ABI Compatibility</title>
