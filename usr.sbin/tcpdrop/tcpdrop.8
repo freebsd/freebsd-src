@@ -78,6 +78,26 @@ is one of
 .Dv FIN_WAIT_2 , or
 .Dv TIME_WAIT .
 .Pp
+If
+.Fl S Ar stack
+and
+.Fl s Ar state
+are specified,
+.Nm
+will attempt to drop all TCP connections being in the state
+.Ar state
+and using the TCP stack
+.Ar stack .
+Since TCP connections in the 
+.Dv TIME_WAIT
+state are not tied to any TCP stack, using the option
+.Fl s Dv TIME_WAIT
+in combination with the
+.Fl S Ar stack
+option results in
+.Nm
+not dropping any TCP connection.
+.Pp
 The
 .Fl l
 flag may be given in addition to the
