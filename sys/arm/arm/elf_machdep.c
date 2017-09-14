@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/elf.h>
 #include <machine/md_var.h>
+#ifdef VFP
+#include <machine/vfp.h>
+#endif
 
 static boolean_t elf32_arm_abi_supported(struct image_params *);
 
@@ -127,9 +130,19 @@ elf32_arm_abi_supported(struct image_params *imgp)
 }
 
 void
-elf32_dump_thread(struct thread *td __unused, void *dst __unused,
-    size_t *off __unused)
+elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 {
+#ifdef VFP
+	mcontext_vfp_t vfp;
+
+	if (dst != NULL) {
+		get_vfpcontext(td, &vfp);
+		*off = elf32_populate_note(NT_ARM_VFP, &vfp, dst, sizeof(vfp),
+		    NULL);
+	} else
+		*off = elf32_populate_note(NT_ARM_VFP, NULL, NULL, sizeof(vfp),
+		    NULL);
+#endif
 }
 
 /*
