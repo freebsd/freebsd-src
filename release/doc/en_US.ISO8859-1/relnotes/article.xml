@@ -310,7 +310,7 @@
 	updated to be deferred cancel-safe, eliminating possible
 	lockups in multi-threaded applications using functions such
 	as &man.funopen.3;, &man.fropen.3;, and &man.fwopen.3;.</para>
-	</sect2>
+    </sect2>
 
     <sect2 xml:id="userland-abi">
       <title>ABI Compatibility</title>
