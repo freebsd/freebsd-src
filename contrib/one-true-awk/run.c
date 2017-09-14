@@ -1476,7 +1476,7 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 {
 	Cell *x, *y;
 	Awkfloat u;
-	int t;
+	int t, i;
 	Awkfloat tmp;
 	char *p, *buf;
 	Node *nextarg;
@@ -1520,40 +1520,52 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 		u = ~((int)getfval(x));
 		break;
 	case FAND:
-		if (nextarg == 0) {
+		if (nextarg == NULL) {
 			WARNING("and requires two arguments; returning 0");
 			u = 0;
 			break;
 		}
-		y = execute(a[1]->nnext);
-		u = ((int)getfval(x)) & ((int)getfval(y));
-		tempfree(y);
-		nextarg = nextarg->nnext;
+		i = ((int)getfval(x));
+		while (nextarg != NULL) {
+			y = execute(nextarg);
+			i &= (int)getfval(y);
+			tempfree(y);
+			nextarg = nextarg->nnext;
+		}
+		u = i;
 		break;
 	case FFOR:
-		if (nextarg == 0) {
+		if (nextarg == NULL) {
 			WARNING("or requires two arguments; returning 0");
 			u = 0;
 			break;
 		}
-		y = execute(a[1]->nnext);
-		u = ((int)getfval(x)) | ((int)getfval(y));
-		tempfree(y);
-		nextarg = nextarg->nnext;
+		i = ((int)getfval(x));
+		while (nextarg != NULL) {
+			y = execute(nextarg);
+			i |= (int)getfval(y);
+			tempfree(y);
+			nextarg = nextarg->nnext;
+		}
+		u = i;
 		break;
 	case FXOR:
-		if (nextarg == 0) {
+		if (nextarg == NULL) {
 			WARNING("xor requires two arguments; returning 0");
 			u = 0;
 			break;
 		}
-		y = execute(a[1]->nnext);
-		u = ((int)getfval(x)) ^ ((int)getfval(y));
-		tempfree(y);
-		nextarg = nextarg->nnext;
+		i = ((int)getfval(x));
+		while (nextarg != NULL) {
+			y = execute(nextarg);
+			i ^= (int)getfval(y);
+			tempfree(y);
+			nextarg = nextarg->nnext;
+		}
+		u = i;
 		break;
 	case FLSHIFT:
-		if (nextarg == 0) {
+		if (nextarg == NULL) {
 			WARNING("lshift requires two arguments; returning 0");
 			u = 0;
 			break;
@@ -1564,7 +1576,7 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 		nextarg = nextarg->nnext;
 		break;
 	case FRSHIFT:
-		if (nextarg == 0) {
+		if (nextarg == NULL) {
 			WARNING("rshift requires two arguments; returning 0");
 			u = 0;
 			break;
