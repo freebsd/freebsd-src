@@ -408,17 +408,18 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 static void
 get_vfpcontext(struct thread *td, mcontext_vfp_t *vfp)
 {
-	struct pcb *curpcb;
+	struct pcb *pcb;
 
-	curpcb = curthread->td_pcb;
-	critical_enter();
-
-	vfp_store(&curpcb->pcb_vfpstate, false);
-	memcpy(vfp->mcv_reg, curpcb->pcb_vfpstate.reg,
+	pcb = td->td_pcb;
+	if (td == curthread) {
+		critical_enter();
+		vfp_store(&pcb->pcb_vfpstate, false);
+		critical_exit();
+	} else
+		MPASS(TD_IS_SUSPENDED(td));
+	memcpy(vfp->mcv_reg, pcb->pcb_vfpstate.reg,
 	    sizeof(vfp->mcv_reg));
-	vfp->mcv_fpscr = curpcb->pcb_vfpstate.fpscr;
-
-	critical_exit();
+	vfp->mcv_fpscr = pcb->pcb_vfpstate.fpscr;
 }
 
 /*
@@ -427,17 +428,18 @@ get_vfpcontext(struct thread *td, mcontext_vfp_t *vfp)
 static void
 set_vfpcontext(struct thread *td, mcontext_vfp_t *vfp)
 {
-	struct pcb *curpcb;
+	struct pcb *pcb;
 
-	curpcb = curthread->td_pcb;
-	critical_enter();
-
-	vfp_discard(td);
-	memcpy(curpcb->pcb_vfpstate.reg, vfp->mcv_reg,
-	    sizeof(curpcb->pcb_vfpstate.reg));
-	curpcb->pcb_vfpstate.fpscr = vfp->mcv_fpscr;
-
-	critical_exit();
+	pcb = td->td_pcb;
+	if (td == curthread) {
+		critical_enter();
+		vfp_discard(td);
+		critical_exit();
+	} else
+		MPASS(TD_IS_SUSPENDED(td));
+	memcpy(pcb->pcb_vfpstate.reg, vfp->mcv_reg,
+	    sizeof(pcb->pcb_vfpstate.reg));
+	pcb->pcb_vfpstate.fpscr = vfp->mcv_fpscr;
 }
 #endif
 
