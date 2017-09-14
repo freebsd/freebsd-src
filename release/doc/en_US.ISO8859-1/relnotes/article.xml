@@ -200,6 +200,10 @@
 	been marked as deprecated, and planned for removal in
 	&os;&nbsp;12.0-RELEASE.</para>
 
+      <para revision="320772">The &man.syslogd.8; utility has been
+	updated to restart logging a subprocess that had restarted
+	unexpectedly.</para>
+
       <para revision="320824">The &man.gdb.1; and &man.kgdb.1;
 	utilities have been marked as deprecated, and planned for
 	removal from the base system in the future.  A newer version
