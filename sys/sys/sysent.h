@@ -129,6 +129,7 @@ struct sysentvec {
 	void		(*sv_schedtail)(struct thread *);
 	void		(*sv_thread_detach)(struct thread *);
 	int		(*sv_trap)(struct thread *);
+	u_long		*sv_hwcap;	/* Value passed in AT_HWCAP. */
 };
 
 #define	SV_ILP32	0x000100	/* 32-bit executable. */
