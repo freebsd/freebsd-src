@@ -378,8 +378,7 @@ sddaopen(struct disk *dp)
 		return (error);
 	}
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
-	    ("sddaopen\n"));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddaopen\n"));
 
 	softc = (struct sdda_softc *)periph->softc;
 	softc->flags |= SDDA_FLAG_OPEN;
@@ -403,8 +402,7 @@ sddaclose(struct disk *dp)
 
 	cam_periph_lock(periph);
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
-	    ("sddaclose\n"));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddaclose\n"));
 
 	while (softc->refcount != 0)
 		cam_periph_sleep(periph, &softc->refcount, PRIBIO, "sddaclose", 1);
