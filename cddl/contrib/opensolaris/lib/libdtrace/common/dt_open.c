@@ -1111,7 +1111,7 @@ dt_vopen(int version, int flags, int *errp,
 	 */
 	if (err == ENOENT && modfind("dtraceall") < 0) {
 		kldload("dtraceall"); /* ignore the error */
-		dtfd = open("/dev/dtrace/dtrace", O_RDWR);
+		dtfd = open("/dev/dtrace/dtrace", O_RDWR | O_CLOEXEC);
 		err = errno;
 	}
 #endif
