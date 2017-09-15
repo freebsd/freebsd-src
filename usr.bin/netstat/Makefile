@@ -3,6 +3,9 @@
 
 .include <src.opts.mk>
 
+# Missing translation of structures fetched via sysctl.
+WANT_CHERI=	none
+
 PROG=	netstat
 SRCS=	if.c inet.c main.c mbuf.c mroute.c netisr.c nl_symbols.c route.c \
 	unix.c mroute6.c ipsec.c bpf.c pfkey.c sctp.c \
