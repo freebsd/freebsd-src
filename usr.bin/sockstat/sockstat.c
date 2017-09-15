@@ -535,7 +535,7 @@ gather_sctp(void)
 					    "address family %d not supported",
 					    xraddr->address.sa.sa_family);
 				}
-				faddr->encaps_port = xraddr->encaps_port; 
+				faddr->encaps_port = xraddr->encaps_port;
 				faddr->state = xraddr->state;
 				faddr->next = NULL;
 				if (prev_faddr == NULL)
