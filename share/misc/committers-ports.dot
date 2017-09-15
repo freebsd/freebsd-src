@@ -149,6 +149,7 @@ lawrance [label="Sam Lawrance\nlawrance@FreeBSD.org\n2005/04/11\n2007/02/21"]
 lbr [label="Lars Balker Rasmussen\nlbr@FreeBSD.org\n2006/04/30"]
 leeym [label="Yen-Ming Lee\nleeym@FreeBSD.org\n2002/08/14"]
 ler [label="Larry Rosenman\nler@FreeBSD.org\n2017/01/09"]
+leres [label="Craig Leres\nleres@FreeBSD.org\n2017/10/10"]
 lev [label="Lev Serebryakov\nlev@FreeBSD.org\n2003/06/17"]
 lifanov [label="Nikolai Lifanov\nlifanov@FreeBSD.org\n2016/12/11"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2003/10/23"]
@@ -468,6 +469,8 @@ lawrance -> itetcu
 
 leeym -> clsung
 
+ler -> leres
+
 lifanov -> ultima
 
 lioux -> pat
@@ -502,6 +505,7 @@ mat -> thierry
 mat -> tobik
 mat -> woodsb02
 
+matthew -> leres
 matthew -> lifanov
 matthew -> ultima
 
