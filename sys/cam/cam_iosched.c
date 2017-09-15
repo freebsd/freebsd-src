@@ -673,7 +673,10 @@ cam_iosched_cl_maybe_steer(struct control_loop *clp)
 }
 #endif
 
-			/* Trim or similar currently pending completion */
+/*
+ * Trim or similar currently pending completion. Should only be set for
+ * those drivers wishing only one Trim active at a time.
+ */
 #define CAM_IOSCHED_FLAG_TRIM_ACTIVE	(1ul << 0)
 			/* Callout active, and needs to be torn down */
 #define CAM_IOSCHED_FLAG_CALLOUT_ACTIVE (1ul << 1)
@@ -1387,7 +1390,7 @@ cam_iosched_schedule(struct cam_iosched_softc *isc, struct cam_periph *periph)
 }
 
 /*
- * Complete a trim request
+ * Complete a trim request. Mark that we no longer have one in flight.
  */
 void
 cam_iosched_trim_done(struct cam_iosched_softc *isc)
@@ -1437,7 +1440,8 @@ cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
 
 /*
  * Tell the io scheduler that you've pushed a trim down into the sim.
- * xxx better place for this?
+ * This also tells the I/O scheduler not to push any more trims down, so
+ * some periphs do not call it if they can cope with multiple trims in flight.
  */
 void
 cam_iosched_submit_trim(struct cam_iosched_softc *isc)
