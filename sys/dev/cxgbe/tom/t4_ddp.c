@@ -1277,7 +1277,8 @@ pscmp(struct pageset *ps, struct vmspace *vm, vm_offset_t start, int npages,
     int pgoff, int len)
 {
 
-	if (ps->npages != npages || ps->offset != pgoff || ps->len != len)
+	if (ps->start != start || ps->npages != npages ||
+	    ps->offset != pgoff || ps->len != len)
 		return (1);
 
 	return (ps->vm != vm || ps->vm_timestamp != vm->vm_map.timestamp);
@@ -1378,6 +1379,7 @@ hold_aio(struct toepcb *toep, struct kaiocb *job, struct pageset **pps)
 	ps->len = job->uaiocb.aio_nbytes;
 	atomic_add_int(&vm->vm_refcnt, 1);
 	ps->vm = vm;
+	ps->start = start;
 
 	CTR5(KTR_CXGBE, "%s: tid %d, new pageset %p for job %p, npages %d",
 	    __func__, toep->tid, ps, job, ps->npages);
