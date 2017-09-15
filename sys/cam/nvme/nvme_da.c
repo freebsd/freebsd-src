@@ -920,7 +920,12 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 			nda_nvme_trim(softc, &start_ccb->nvmeio, dsm_range, 1);
 			start_ccb->ccb_h.ccb_state = NDA_CCB_TRIM;
 			start_ccb->ccb_h.flags |= CAM_UNLOCKED;
-			cam_iosched_submit_trim(softc->cam_iosched);	/* XXX */
+			/*
+			 * Note: We can have multiple TRIMs in flight, so we don't call
+			 * cam_iosched_submit_trim(softc->cam_iosched);
+			 * since that forces the I/O scheduler to only schedule one at a time.
+			 * On NVMe drives, this is a performance disaster.
+			 */
 			goto out;
 		}
 		case BIO_FLUSH:
@@ -1013,7 +1018,11 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 			TAILQ_INIT(&queue);
 			TAILQ_CONCAT(&queue, &softc->trim_req.bps, bio_queue);
 #endif
-			cam_iosched_trim_done(softc->cam_iosched);
+			/*
+			 * Since we can have multiple trims in flight, we don't
+			 * need to call this here.
+			 * cam_iosched_trim_done(softc->cam_iosched);
+			 */
 			ndaschedule(periph);
 			cam_periph_unlock(periph);
 #ifdef notyet
