@@ -282,6 +282,9 @@ print_cpu_features(u_int cpu)
 		case ID_AA64ISAR0_SHA2_BASE:
 			printf("%sSHA2", SEP_STR);
 			break;
+		case ID_AA64ISAR0_SHA2_512:
+			printf("%sSHA2+SHA512", SEP_STR);
+			break;
 		default:
 			printf("%sUnknown SHA2", SEP_STR);
 			break;
@@ -298,6 +301,50 @@ print_cpu_features(u_int cpu)
 			break;
 		}
 
+		switch (ID_AA64ISAR0_SHA3(cpu_desc[cpu].id_aa64isar0)) {
+		case ID_AA64ISAR0_SHA3_NONE:
+			break;
+		case ID_AA64ISAR0_SHA3_IMPL:
+			printf("%sSHA3", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown SHA3", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64ISAR0_SM3(cpu_desc[cpu].id_aa64isar0)) {
+		case ID_AA64ISAR0_SM3_NONE:
+			break;
+		case ID_AA64ISAR0_SM3_IMPL:
+			printf("%sSM3", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown SM3", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64ISAR0_SM4(cpu_desc[cpu].id_aa64isar0)) {
+		case ID_AA64ISAR0_SM4_NONE:
+			break;
+		case ID_AA64ISAR0_SM4_IMPL:
+			printf("%sSM4", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown SM4", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64ISAR0_DP(cpu_desc[cpu].id_aa64isar0)) {
+		case ID_AA64ISAR0_DP_NONE:
+			break;
+		case ID_AA64ISAR0_DP_IMPL:
+			printf("%sDotProd", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown DP", SEP_STR);
+			break;
+		}
+
 		if ((cpu_desc[cpu].id_aa64isar0 & ~ID_AA64ISAR0_MASK) != 0)
 			printf("%s%#lx", SEP_STR,
 			    cpu_desc[cpu].id_aa64isar0 & ~ID_AA64ISAR0_MASK);
@@ -309,6 +356,83 @@ print_cpu_features(u_int cpu)
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_ISAR1) != 0) {
 		printed = 0;
 		printf(" Instruction Set Attributes 1 = <");
+
+		switch (ID_AA64ISAR1_GPI(cpu_desc[cpu].id_aa64isar1)) {
+		case ID_AA64ISAR1_GPI_NONE:
+			break;
+		case ID_AA64ISAR1_GPI_IMPL:
+			printf("%sImpl GenericAuth", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown GenericAuth", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64ISAR1_GPA(cpu_desc[cpu].id_aa64isar1)) {
+		case ID_AA64ISAR1_GPA_NONE:
+			break;
+		case ID_AA64ISAR1_GPA_IMPL:
+			printf("%sPrince GenericAuth", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown GenericAuth", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64ISAR1_LRCPC(cpu_desc[cpu].id_aa64isar1)) {
+		case ID_AA64ISAR1_LRCPC_NONE:
+			break;
+		case ID_AA64ISAR1_LRCPC_IMPL:
+			printf("%sRCpc", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown RCpc", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64ISAR1_FCMA(cpu_desc[cpu].id_aa64isar1)) {
+		case ID_AA64ISAR1_FCMA_NONE:
+			break;
+		case ID_AA64ISAR1_FCMA_IMPL:
+			printf("%sFCMA", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown FCMA", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64ISAR1_JSCVT(cpu_desc[cpu].id_aa64isar1)) {
+		case ID_AA64ISAR1_JSCVT_NONE:
+			break;
+		case ID_AA64ISAR1_JSCVT_IMPL:
+			printf("%sJS Conv", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown JS Conv", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64ISAR1_API(cpu_desc[cpu].id_aa64isar1)) {
+		case ID_AA64ISAR1_API_NONE:
+			break;
+		case ID_AA64ISAR1_API_IMPL:
+			printf("%sImpl AddrAuth", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown Impl AddrAuth", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64ISAR1_APA(cpu_desc[cpu].id_aa64isar1)) {
+		case ID_AA64ISAR1_APA_NONE:
+			break;
+		case ID_AA64ISAR1_APA_IMPL:
+			printf("%sPrince AddrAuth", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown Prince AddrAuth", SEP_STR);
+			break;
+		}
 
 		switch (ID_AA64ISAR1_DPB(cpu_desc[cpu].id_aa64isar1)) {
 		case ID_AA64ISAR1_DPB_NONE:
@@ -687,6 +811,29 @@ print_cpu_features(u_int cpu)
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR2) != 0) {
 		printed = 0;
 		printf("      Memory Model Features 2 = <");
+
+		switch (ID_AA64MMFR2_NV(cpu_desc[cpu].id_aa64mmfr2)) {
+		case ID_AA64MMFR2_NV_NONE:
+			break;
+		case ID_AA64MMFR2_NV_IMPL:
+			printf("%sNestedVirt", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown NestedVirt", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64MMFR2_CCIDX(cpu_desc[cpu].id_aa64mmfr2)) {
+		case ID_AA64MMFR2_CCIDX_32:
+			printf("%s32b CCIDX", SEP_STR);
+			break;
+		case ID_AA64MMFR2_CCIDX_64:
+			printf("%s64b CCIDX", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown CCIDX", SEP_STR);
+			break;
+		}
 
 		switch (ID_AA64MMFR2_VA_RANGE(cpu_desc[cpu].id_aa64mmfr2)) {
 		case ID_AA64MMFR2_VA_RANGE_48:
