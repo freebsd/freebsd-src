@@ -269,8 +269,8 @@ mpr_pci_alloc_interrupts(struct mpr_softc *sc)
 		msgs = min(msgs, MPR_MSIX_MAX);
 		msgs = min(msgs, 1);	/* XXX */
 		if (msgs != 0) {
-			mpr_dprint(sc, MPR_INIT, "Attempting to allocate %d MSI-X "
-			    "messages\n", msgs);
+			mpr_dprint(sc, MPR_INIT, "Attempting to allocate %d "
+			    "MSI-X messages\n", msgs);
 			error = mpr_alloc_msix(sc, msgs);
 		}
 	}
@@ -279,8 +279,8 @@ mpr_pci_alloc_interrupts(struct mpr_softc *sc)
 		mpr_dprint(sc, MPR_INIT, "Counted %d MSI messages\n", msgs);
 		msgs = min(msgs, MPR_MSI_MAX);
 		if (msgs != 0) {
-			mpr_dprint(sc, MPR_INIT, "Attempting to allocated %d MSI "
-			    "messages\n", MPR_MSI_MAX);
+			mpr_dprint(sc, MPR_INIT, "Attempting to allocated %d "
+			    "MSI messages\n", MPR_MSI_MAX);
 			error = mpr_alloc_msi(sc, MPR_MSI_MAX);
 		}
 	}
