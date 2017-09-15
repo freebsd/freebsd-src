@@ -1,1 +1,1 @@
-^(contrib/jemalloc|sys/kern/(capabilities.conf|syscalls.master))
+^(contrib/jemalloc|sys/kern/(capabilities.conf|syscalls.master)|usr.bin/truss)
