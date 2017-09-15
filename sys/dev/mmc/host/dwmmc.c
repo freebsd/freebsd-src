@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/mmc/host/dwmmc_reg.h>
 #include <dev/mmc/host/dwmmc_var.h>
 
+#include "opt_mmccam.h"
+
 #include "mmcbr_if.h"
 
 #define dprintf(x, arg...)
@@ -1181,4 +1183,6 @@ static devclass_t dwmmc_devclass;
 
 DRIVER_MODULE(dwmmc, simplebus, dwmmc_driver, dwmmc_devclass, NULL, NULL);
 DRIVER_MODULE(dwmmc, ofwbus, dwmmc_driver, dwmmc_devclass, NULL, NULL);
+#ifndef MMCCAM
 MMC_DECLARE_BRIDGE(dwmmc);
+#endif
