@@ -112,7 +112,6 @@ cam/ctl/ctl_util.c		optional ctl
 cam/ctl/scsi_ctl.c		optional ctl
 cam/mmc/mmc_xpt.c		optional scbus mmccam
 cam/mmc/mmc_da.c		optional scbus mmccam da
-cam/mmc/mmc_sdio.c		optional scbus mmccam
 cam/scsi/scsi_da.c		optional da
 cam/scsi/scsi_low.c		optional ncv | nsp | stg
 cam/scsi/scsi_pass.c		optional pass
