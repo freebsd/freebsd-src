@@ -66,8 +66,8 @@ static struct aw_ccung_reset a64_ccu_resets[] = {
 	CCU_RESET(A64_RST_BUS_OTG, 0x2c0, 23)
 	CCU_RESET(A64_RST_BUS_EHCI0, 0x2c0, 24)
 	CCU_RESET(A64_RST_BUS_EHCI1, 0x2c0, 25)
-	CCU_RESET(A64_RST_BUS_OHCI0, 0x2c0, 26)
-	CCU_RESET(A64_RST_BUS_OHCI1, 0x2c0, 27)
+	CCU_RESET(A64_RST_BUS_OHCI0, 0x2c0, 28)
+	CCU_RESET(A64_RST_BUS_OHCI1, 0x2c0, 29)
 
 	CCU_RESET(A64_RST_BUS_VE, 0x2c4, 0)
 	CCU_RESET(A64_RST_BUS_TCON0, 0x2c4, 3)
@@ -119,8 +119,8 @@ static struct aw_ccung_gate a64_ccu_gates[] = {
 	CCU_GATE(A64_CLK_BUS_OTG, "bus-otg", "ahb1", 0x60, 23)
 	CCU_GATE(A64_CLK_BUS_EHCI0, "bus-ehci0", "ahb1", 0x60, 24)
 	CCU_GATE(A64_CLK_BUS_EHCI1, "bus-ehci1", "ahb2", 0x60, 25)
-	CCU_GATE(A64_CLK_BUS_OHCI0, "bus-ohci0", "ahb1", 0x60, 26)
-	CCU_GATE(A64_CLK_BUS_OHCI1, "bus-ohci1", "ahb2", 0x60, 27)
+	CCU_GATE(A64_CLK_BUS_OHCI0, "bus-ohci0", "ahb1", 0x60, 28)
+	CCU_GATE(A64_CLK_BUS_OHCI1, "bus-ohci1", "ahb2", 0x60, 29)
 
 	CCU_GATE(A64_CLK_BUS_VE, "bus-ve", "ahb1", 0x64, 0)
 	CCU_GATE(A64_CLK_BUS_TCON0, "bus-tcon0", "ahb1", 0x64, 3)
