@@ -905,6 +905,23 @@ vm_page_flash(vm_page_t m)
 }
 
 /*
+ * Avoid releasing and reacquiring the same page lock.
+ */
+void
+vm_page_change_lock(vm_page_t m, struct mtx **mtx)
+{
+	struct mtx *mtx1;
+
+	mtx1 = vm_page_lockptr(m);
+	if (*mtx == mtx1)
+		return;
+	if (*mtx != NULL)
+		mtx_unlock(*mtx);
+	*mtx = mtx1;
+	mtx_lock(mtx1);
+}
+
+/*
  * Keep page from being freed by the page daemon
  * much of the same effect as wiring, except much lower
  * overhead and should be used only for *very* temporary
@@ -937,20 +954,11 @@ vm_page_unhold(vm_page_t mem)
 void
 vm_page_unhold_pages(vm_page_t *ma, int count)
 {
-	struct mtx *mtx, *new_mtx;
+	struct mtx *mtx;
 
 	mtx = NULL;
 	for (; count != 0; count--) {
-		/*
-		 * Avoid releasing and reacquiring the same page lock.
-		 */
-		new_mtx = vm_page_lockptr(*ma);
-		if (mtx != new_mtx) {
-			if (mtx != NULL)
-				mtx_unlock(mtx);
-			mtx = new_mtx;
-			mtx_lock(mtx);
-		}
+		vm_page_change_lock(*ma, &mtx);
 		vm_page_unhold(*ma);
 		ma++;
 	}
@@ -1989,7 +1997,7 @@ vm_page_t
 vm_page_scan_contig(u_long npages, vm_page_t m_start, vm_page_t m_end,
     u_long alignment, vm_paddr_t boundary, int options)
 {
-	struct mtx *m_mtx, *new_mtx;
+	struct mtx *m_mtx;
 	vm_object_t object;
 	vm_paddr_t pa;
 	vm_page_t m, m_run;
@@ -2032,16 +2040,7 @@ vm_page_scan_contig(u_long npages, vm_page_t m_start, vm_page_t m_end,
 		} else
 			KASSERT(m_run != NULL, ("m_run == NULL"));
 
-		/*
-		 * Avoid releasing and reacquiring the same page lock.
-		 */
-		new_mtx = vm_page_lockptr(m);
-		if (m_mtx != new_mtx) {
-			if (m_mtx != NULL)
-				mtx_unlock(m_mtx);
-			m_mtx = new_mtx;
-			mtx_lock(m_mtx);
-		}
+		vm_page_change_lock(m, &m_mtx);
 		m_inc = 1;
 retry:
 		if (m->wire_count != 0 || m->hold_count != 0)
@@ -2191,7 +2190,7 @@ static int
 vm_page_reclaim_run(int req_class, u_long npages, vm_page_t m_run,
     vm_paddr_t high)
 {
-	struct mtx *m_mtx, *new_mtx;
+	struct mtx *m_mtx;
 	struct spglist free;
 	vm_object_t object;
 	vm_paddr_t pa;
@@ -2212,13 +2211,7 @@ vm_page_reclaim_run(int req_class, u_long npages, vm_page_t m_run,
 		/*
 		 * Avoid releasing and reacquiring the same page lock.
 		 */
-		new_mtx = vm_page_lockptr(m);
-		if (m_mtx != new_mtx) {
-			if (m_mtx != NULL)
-				mtx_unlock(m_mtx);
-			m_mtx = new_mtx;
-			mtx_lock(m_mtx);
-		}
+		vm_page_change_lock(m, &m_mtx);
 retry:
 		if (m->wire_count != 0 || m->hold_count != 0)
 			error = EBUSY;
@@ -2331,12 +2324,7 @@ retry:
 					 * The new page must be deactivated
 					 * before the object is unlocked.
 					 */
-					new_mtx = vm_page_lockptr(m_new);
-					if (m_mtx != new_mtx) {
-						mtx_unlock(m_mtx);
-						m_mtx = new_mtx;
-						mtx_lock(m_mtx);
-					}
+					vm_page_change_lock(m_new, &m_mtx);
 					vm_page_deactivate(m_new);
 				} else {
 					m->flags &= ~PG_ZERO;
