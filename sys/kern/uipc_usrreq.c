@@ -1056,7 +1056,11 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 release:
 	if (control != NULL)
 		m_freem(control);
-	if (m != NULL)
+	/*
+	 * In case of PRUS_NOTREADY, uipc_ready() is responsible
+	 * for freeing memory.
+	 */   
+	if (m != NULL && (flags & PRUS_NOTREADY) == 0)
 		m_freem(m);
 	return (error);
 }
@@ -1071,7 +1075,12 @@ uipc_ready(struct socket *so, struct mbuf *m, int count)
 	unp = sotounpcb(so);
 
 	UNP_LINK_RLOCK();
-	unp2 = unp->unp_conn;
+	if ((unp2 = unp->unp_conn) == NULL) {
+		UNP_LINK_RUNLOCK();
+		for (int i = 0; i < count; i++)
+			m = m_free(m);
+		return (ECONNRESET);
+	}
 	UNP_PCB_LOCK(unp2);
 	so2 = unp2->unp_socket;
 
