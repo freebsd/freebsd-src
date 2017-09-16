@@ -51,15 +51,14 @@ sdp_qp_event_handler(struct ib_event *event, void *data)
 static int
 sdp_get_max_dev_sge(struct ib_device *dev)
 {
-	struct ib_device_attr attr;
+	struct ib_device_attr *device_attr;
 	static int max_sges = -1;
 
 	if (max_sges > 0)
 		goto out;
 
-	ib_query_device(dev, &attr);
-
-	max_sges = attr.max_sge;
+	device_attr = &dev->attrs;
+	max_sges = device_attr->max_sge;
 
 out:
 	return max_sges;
