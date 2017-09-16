@@ -1286,9 +1286,6 @@ static bool validate_ipv6_net_dev(struct net_device *net_dev,
 	struct rtentry *rte;
 	bool ret;
 
-	/* embed scope ID */
-	in6_addr.s6_addr[3] = src_addr->sin6_scope_id;
-
 	src_dev = ip6_dev_find(net_dev->if_vnet, in6_addr);
 	if (src_dev != net_dev)
 		return false;
