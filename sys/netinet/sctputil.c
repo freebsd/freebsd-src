@@ -1633,22 +1633,6 @@ sctp_timeout_handler(void *t)
 
 	/* call the handler for the appropriate timer type */
 	switch (type) {
-	case SCTP_TIMER_TYPE_ZERO_COPY:
-		if (inp == NULL) {
-			break;
-		}
-		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE)) {
-			SCTP_ZERO_COPY_EVENT(inp, inp->sctp_socket);
-		}
-		break;
-	case SCTP_TIMER_TYPE_ZCOPY_SENDQ:
-		if (inp == NULL) {
-			break;
-		}
-		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE)) {
-			SCTP_ZERO_COPY_SENDQ_EVENT(inp, inp->sctp_socket);
-		}
-		break;
 	case SCTP_TIMER_TYPE_ADDR_WQ:
 		sctp_handle_addr_wq();
 		break;
@@ -1962,14 +1946,6 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		SCTP_TCB_LOCK_ASSERT(stcb);
 	}
 	switch (t_type) {
-	case SCTP_TIMER_TYPE_ZERO_COPY:
-		tmr = &inp->sctp_ep.zero_copy_timer;
-		to_ticks = SCTP_ZERO_COPY_TICK_DELAY;
-		break;
-	case SCTP_TIMER_TYPE_ZCOPY_SENDQ:
-		tmr = &inp->sctp_ep.zero_copy_sendq_timer;
-		to_ticks = SCTP_ZERO_COPY_SENDQ_TICK_DELAY;
-		break;
 	case SCTP_TIMER_TYPE_ADDR_WQ:
 		/* Only 1 tick away :-) */
 		tmr = &SCTP_BASE_INFO(addr_wq_timer);
@@ -2251,12 +2227,6 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		SCTP_TCB_LOCK_ASSERT(stcb);
 	}
 	switch (t_type) {
-	case SCTP_TIMER_TYPE_ZERO_COPY:
-		tmr = &inp->sctp_ep.zero_copy_timer;
-		break;
-	case SCTP_TIMER_TYPE_ZCOPY_SENDQ:
-		tmr = &inp->sctp_ep.zero_copy_sendq_timer;
-		break;
 	case SCTP_TIMER_TYPE_ADDR_WQ:
 		tmr = &SCTP_BASE_INFO(addr_wq_timer);
 		break;
@@ -4470,36 +4440,32 @@ sctp_wakeup_the_read_socket(struct sctp_inpcb *inp,
 )
 {
 	if ((inp != NULL) && (inp->sctp_socket != NULL)) {
-		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE)) {
-			SCTP_ZERO_COPY_EVENT(inp, inp->sctp_socket);
-		} else {
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			struct socket *so;
+		struct socket *so;
 
-			so = SCTP_INP_SO(inp);
-			if (!so_locked) {
-				if (stcb) {
-					atomic_add_int(&stcb->asoc.refcnt, 1);
-					SCTP_TCB_UNLOCK(stcb);
-				}
-				SCTP_SOCKET_LOCK(so, 1);
-				if (stcb) {
-					SCTP_TCB_LOCK(stcb);
-					atomic_subtract_int(&stcb->asoc.refcnt, 1);
-				}
-				if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
-					SCTP_SOCKET_UNLOCK(so, 1);
-					return;
-				}
+		so = SCTP_INP_SO(inp);
+		if (!so_locked) {
+			if (stcb) {
+				atomic_add_int(&stcb->asoc.refcnt, 1);
+				SCTP_TCB_UNLOCK(stcb);
 			}
-#endif
-			sctp_sorwakeup(inp, inp->sctp_socket);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			if (!so_locked) {
+			SCTP_SOCKET_LOCK(so, 1);
+			if (stcb) {
+				SCTP_TCB_LOCK(stcb);
+				atomic_subtract_int(&stcb->asoc.refcnt, 1);
+			}
+			if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
 				SCTP_SOCKET_UNLOCK(so, 1);
+				return;
 			}
-#endif
 		}
+#endif
+		sctp_sorwakeup(inp, inp->sctp_socket);
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+		if (!so_locked) {
+			SCTP_SOCKET_UNLOCK(so, 1);
+		}
+#endif
 	}
 }
 
