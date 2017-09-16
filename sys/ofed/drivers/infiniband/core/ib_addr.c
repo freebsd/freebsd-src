@@ -162,15 +162,10 @@ int rdma_translate_ip(const struct sockaddr *addr,
 		break;
 #endif
 #ifdef INET6
-	case AF_INET6: {
-		struct in6_addr in6_addr = ((const struct sockaddr_in6 *)addr)->sin6_addr;
-
-		/* embed scope ID */
-		in6_addr.s6_addr[3] = ((const struct sockaddr_in6 *)addr)->sin6_scope_id;
-
-		dev = ip6_dev_find(dev_addr->net, in6_addr);
+	case AF_INET6:
+		dev = ip6_dev_find(dev_addr->net,
+			((const struct sockaddr_in6 *)addr)->sin6_addr);
 		break;
-	}
 #endif
 	default:
 		break;
@@ -245,9 +240,24 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 {
 	struct sockaddr_in dst_tmp = *dst_in;
 	u8 edst[MAX_ADDR_LEN];
+	in_port_t src_port;
+	struct sockaddr *saddr;
 	struct rtentry *rte;
 	struct ifnet *ifp;
 	int error;
+	int type;
+
+	/* set VNET, if any */
+	CURVNET_SET(addr->net);
+
+	/* set default TTL limit */
+	addr->hoplimit = V_ip_defttl;
+
+	type = 0;
+	if (src_in->sin_addr.s_addr == INADDR_ANY)
+		type |= 1;
+	if (dst_tmp.sin_addr.s_addr == INADDR_ANY)
+		type |= 2;
 
 	/*
 	 * Make sure the socket address length field
@@ -255,57 +265,65 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	 */
 	dst_tmp.sin_len = sizeof(dst_tmp);
 
-	CURVNET_SET(addr->net);
-	/* set default TTL limit */
-	addr->hoplimit = V_ip_defttl;
-
-	/* lookup route for destination */
-	rte = rtalloc1((struct sockaddr *)&dst_tmp, 1, 0);
-	CURVNET_RESTORE();
-
-	/*
-	 * Make sure the route exists and has a valid link.
-	 */
-	if (rte == NULL) {
-		error = EHOSTUNREACH;
-		goto done;
-	} else if (rte->rt_ifp == NULL || RT_LINK_IS_UP(rte->rt_ifp) == 0) {
-		RTFREE_LOCKED(rte);
-		error = EHOSTUNREACH;
-		goto done;
-	} else if (src_in->sin_addr.s_addr != INADDR_ANY) {
+	/* Step 1 - lookup destination route if any */
+	switch (type) {
+	case 0:
+	case 1:
+		/* regular destination route lookup */
+		rte = rtalloc1((struct sockaddr *)&dst_tmp, 1, 0);
+		if (rte == NULL) {
+			error = EHOSTUNREACH;
+			goto done;
+		} else if (rte->rt_ifp == NULL || rte->rt_ifp == V_loif ||
+		    RT_LINK_IS_UP(rte->rt_ifp) == 0) {
+			RTFREE_LOCKED(rte);
+			error = EHOSTUNREACH;
+			goto done;
+		}
 		RT_UNLOCK(rte);
+		break;
+	default:
+		error = ENETUNREACH;
+		goto done;
+	}
 
+	/* Step 2 - find outgoing network interface */
+	switch (type) {
+	case 0:
+		/* source check */
 		ifp = ip_dev_find(addr->net, src_in->sin_addr.s_addr);
 		if (ifp == NULL) {
-			RTFREE(rte);
 			error = ENETUNREACH;
-			goto done;
+			goto error_rt_free;
 		} else if (ifp != rte->rt_ifp) {
 			error = ENETUNREACH;
-			goto failure;
+			goto error_put_ifp;
 		}
-	} else {
-		struct sockaddr *saddr;
-
+		break;
+	case 1:
+		/* get destination network interface from route */
 		ifp = rte->rt_ifp;
 		dev_hold(ifp);
-
 		saddr = rte->rt_ifa->ifa_addr;
+
+		src_port = src_in->sin_port;
 		memcpy(src_in, saddr, rdma_addr_size(saddr));
-		RT_UNLOCK(rte);
+		src_in->sin_port = src_port;	/* preserve port number */
+		break;
+	default:
+		break;
 	}
 
 	/*
-	 * Resolve destination MAC address
+	 * Step 3 - resolve destination MAC address
 	 */
 	if (dst_tmp.sin_addr.s_addr == INADDR_BROADCAST) {
 		rdma_copy_addr_sub(edst, ifp->if_broadcastaddr,
-	            ifp->if_addrlen, MAX_ADDR_LEN);
+		    ifp->if_addrlen, MAX_ADDR_LEN);
 	} else if (IN_MULTICAST(ntohl(dst_tmp.sin_addr.s_addr))) {
 		error = addr_resolve_multi(edst, ifp, (struct sockaddr *)&dst_tmp);
 		if (error != 0)
-			goto failure;
+			goto error_put_ifp;
 	} else {
 		bool is_gw = (rte->rt_flags & RTF_GATEWAY) != 0;
 		memset(edst, 0, sizeof(edst));
@@ -313,26 +331,34 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 		    rte->rt_gateway : (const struct sockaddr *)&dst_tmp,
 		    edst, NULL, NULL);
 		if (error != 0)
-			goto failure;
+			goto error_put_ifp;
 		else if (is_gw != 0)
 			addr->network = RDMA_NETWORK_IPV4;
 	}
 
 	/*
-	 * Copy destination and source MAC addresses
+	 * Step 4 - copy destination and source MAC addresses
 	 */
 	error = -rdma_copy_addr(addr, ifp, edst);
-	if (error != 0) {
-failure:
-		dev_put(ifp);
+	if (error != 0)
+		goto error_put_ifp;
 
-		if (error == EWOULDBLOCK || error == EAGAIN)
-			error = ENODATA;
-	} else {
-		*ifpp = ifp;
-	}
+	if (rte != NULL)
+		RTFREE(rte);
+
+	*ifpp = ifp;
+
+	goto done;
+
+error_put_ifp:
+	dev_put(ifp);
+error_rt_free:
 	RTFREE(rte);
 done:
+	CURVNET_RESTORE();
+
+	if (error == EWOULDBLOCK || error == EAGAIN)
+		error = ENODATA;
 	return (-error);
 }
 #else
@@ -353,12 +379,24 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 {
 	struct sockaddr_in6 dst_tmp = *dst_in;
 	u8 edst[MAX_ADDR_LEN];
+	in_port_t src_port;
+	struct sockaddr *saddr;
 	struct rtentry *rte;
 	struct ifnet *ifp;
 	int error;
+	int type;
 
-	sa6_embedscope(&dst_tmp, 0);
-	sa6_embedscope(src_in, 0);
+	/* set VNET, if any */
+	CURVNET_SET(addr->net);
+
+	/* set default TTL limit */
+	addr->hoplimit = V_ip_defttl;
+
+	type = 0;
+	if (ipv6_addr_any(&src_in->sin6_addr))
+		type |= 1;
+	if (ipv6_addr_any(&dst_tmp.sin6_addr))
+		type |= 2;
 
 	/*
 	 * Make sure the socket address length field
@@ -366,54 +404,70 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	 */
 	dst_tmp.sin6_len = sizeof(dst_tmp);
 
-	CURVNET_SET(addr->net);
-	/* set default TTL limit */
-	addr->hoplimit = V_ip_defttl;
-
-	/* lookup route for destination */
-	rte = rtalloc1((struct sockaddr *)&dst_tmp, 1, 0);
-	CURVNET_RESTORE();
-
-	/*
-	 * Make sure the route exists and has a valid link.
-	 */
-	if (rte == NULL) {
-		error = EHOSTUNREACH;
-		goto done;
-	} else if (rte->rt_ifp == NULL || RT_LINK_IS_UP(rte->rt_ifp) == 0) {
-		RTFREE_LOCKED(rte);
-		error = EHOSTUNREACH;
-		goto done;
-	} else if (!IN6_IS_ADDR_UNSPECIFIED(&src_in->sin6_addr)) {
+	/* Step 1 - lookup destination route if any */
+	switch (type) {
+	case 0:
+		/* sanity check for IPv4 addresses */
+		if (ipv6_addr_v4mapped(&src_in->sin6_addr) !=
+		    ipv6_addr_v4mapped(&dst_tmp.sin6_addr)) {
+			error = EAFNOSUPPORT;
+			goto done;
+		}
+		/* FALLTHROUGH */
+	case 1:
+		/* regular destination route lookup */
+		rte = rtalloc1((struct sockaddr *)&dst_tmp, 1, 0);
+		if (rte == NULL) {
+			error = EHOSTUNREACH;
+			goto done;
+		} else if (rte->rt_ifp == NULL || rte->rt_ifp == V_loif ||
+		    RT_LINK_IS_UP(rte->rt_ifp) == 0) {
+			RTFREE_LOCKED(rte);
+			error = EHOSTUNREACH;
+			goto done;
+		}
 		RT_UNLOCK(rte);
+		break;
+	default:
+		error = ENETUNREACH;
+		goto done;
+	}
 
+	/* Step 2 - find outgoing network interface */
+	switch (type) {
+	case 0:
+		/* source check */
 		ifp = ip6_dev_find(addr->net, src_in->sin6_addr);
 		if (ifp == NULL) {
-			RTFREE(rte);
 			error = ENETUNREACH;
-			goto done;
+			goto error_rt_free;
 		} else if (ifp != rte->rt_ifp) {
 			error = ENETUNREACH;
-			goto failure;
+			goto error_put_ifp;
 		}
-	} else {
-		struct sockaddr *saddr;
-
+		break;
+	case 1:
+		/* get destination network interface from route */
 		ifp = rte->rt_ifp;
 		dev_hold(ifp);
-
 		saddr = rte->rt_ifa->ifa_addr;
+
+		src_port = src_in->sin6_port;
 		memcpy(src_in, saddr, rdma_addr_size(saddr));
-		RT_UNLOCK(rte);
+		src_in->sin6_port = src_port;	/* preserve port number */
+		break;
+	default:
+		break;
 	}
 
 	/*
-	 * Resolve destination MAC address
+	 * Step 3 - resolve destination MAC address
 	 */
 	if (IN6_IS_ADDR_MULTICAST(&dst_tmp.sin6_addr)) {
-		error = addr_resolve_multi(edst, ifp, (struct sockaddr *)&dst_tmp);
+		error = addr_resolve_multi(edst, ifp,
+		    (struct sockaddr *)&dst_tmp);
 		if (error != 0)
-			goto failure;
+			goto error_put_ifp;
 	} else {
 		bool is_gw = (rte->rt_flags & RTF_GATEWAY) != 0;
 		memset(edst, 0, sizeof(edst));
@@ -421,29 +475,34 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		    rte->rt_gateway : (const struct sockaddr *)&dst_tmp,
 		    edst, NULL, NULL);
 		if (error != 0)
-			goto failure;
+			goto error_put_ifp;
 		else if (is_gw != 0)
 			addr->network = RDMA_NETWORK_IPV6;
 	}
 
 	/*
-	 * Copy destination and source MAC addresses
+	 * Step 4 - copy destination and source MAC addresses
 	 */
 	error = -rdma_copy_addr(addr, ifp, edst);
-	if (error != 0) {
-failure:
-		dev_put(ifp);
+	if (error != 0)
+		goto error_put_ifp;
 
-		if (error == EWOULDBLOCK || error == EAGAIN)
-			error = ENODATA;
-	} else {
-		*ifpp = ifp;
-	}
+	if (rte != NULL)
+		RTFREE(rte);
+
+	*ifpp = ifp;
+
+	goto done;
+
+error_put_ifp:
+	dev_put(ifp);
+error_rt_free:
 	RTFREE(rte);
 done:
-	sa6_recoverscope(&dst_tmp);
-	sa6_recoverscope(src_in);
+	CURVNET_RESTORE();
 
+	if (error == EWOULDBLOCK || error == EAGAIN)
+		error = ENODATA;
 	return (-error);
 }
 #else
