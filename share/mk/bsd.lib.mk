@@ -168,7 +168,7 @@ LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 .endif
 
 .if defined(LIB) && !empty(LIB) || defined(SHLIB_NAME)
-OBJS+=		${SRCS:N*.h:R:S/$/.o/}
+OBJS+=		${SRCS:N*.h:${OBJS_SRCS_FILTER:ts:}:S/$/.o/}
 CLEANFILES+=	${OBJS} ${STATICOBJS}
 .endif
 
@@ -437,13 +437,13 @@ lint: ${SRCS:M*.c}
 .if defined(LIB) && !empty(LIB)
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
 .for _S in ${SRCS:N*.[hly]}
-OBJS_DEPEND_GUESS.${_S:R}.po+=	${_S}
+OBJS_DEPEND_GUESS.${_S:${OBJS_SRCS_FILTER:ts:}}.po+=	${_S}
 .endfor
 .endif
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 .for _S in ${SRCS:N*.[hly]}
-OBJS_DEPEND_GUESS.${_S:R}.pico+=	${_S}
+OBJS_DEPEND_GUESS.${_S:${OBJS_SRCS_FILTER:ts:}}.pico+=	${_S}
 .endfor
 .endif
 
