@@ -58,9 +58,7 @@ int		taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *grptask,
 void	taskqgroup_detach(struct taskqgroup *qgroup, struct grouptask *gtask);
 struct taskqgroup *taskqgroup_create(char *name);
 void	taskqgroup_destroy(struct taskqgroup *qgroup);
-int	taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride, bool ithread, int pri);
-int	taskqgroup_adjust_once(struct taskqgroup *qgroup, int cnt, int stride, bool ithread, int pri);
-void taskqgroup_set_adjust(struct taskqgroup *qgroup, void (*adjust_func)(void*));
+int	taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride);
 
 #define TASK_ENQUEUED			0x1
 #define TASK_SKIP_WAKEUP		0x2
@@ -82,40 +80,27 @@ void taskqgroup_set_adjust(struct taskqgroup *qgroup, void (*adjust_func)(void*)
 #define TASKQGROUP_DECLARE(name)			\
 extern struct taskqgroup *qgroup_##name
 
-
-#define TASKQGROUP_DEFINE(name, cnt, stride, intr, pri)			\
+#define TASKQGROUP_DEFINE(name, cnt, stride)				\
 									\
 struct taskqgroup *qgroup_##name;					\
-									\
-static void								\
-taskqgroup_adjust_##name(void *arg)					\
-{									\
-	int max = (intr) ? 1 : (cnt);					\
-	if (arg != NULL) {						\
-		uintptr_t maxcpu = (uintptr_t) arg;				\
-		max = maxcpu;						\
-	}								\
-									\
-	taskqgroup_adjust_once(qgroup_##name, max, (stride), (intr), (pri)); \
-}									\
-									\
-SYSINIT(taskqgroup_adj_##name, SI_SUB_SMP, SI_ORDER_ANY,		\
-	taskqgroup_adjust_##name, NULL);				\
 									\
 static void								\
 taskqgroup_define_##name(void *arg)					\
 {									\
 	qgroup_##name = taskqgroup_create(#name);			\
-	taskqgroup_set_adjust(qgroup_##name, taskqgroup_adjust_##name); \
 }									\
+									\
 SYSINIT(taskqgroup_##name, SI_SUB_TASKQ, SI_ORDER_FIRST,		\
-	taskqgroup_define_##name, NULL)
-
-
-
-
-
-
+	taskqgroup_define_##name, NULL);				\
+									\
+static void								\
+taskqgroup_adjust_##name(void *arg)					\
+{									\
+	taskqgroup_adjust(qgroup_##name, (cnt), (stride));		\
+}									\
+									\
+SYSINIT(taskqgroup_adj_##name, SI_SUB_SMP, SI_ORDER_ANY,		\
+	taskqgroup_adjust_##name, NULL)
 
 TASKQGROUP_DECLARE(net);
 TASKQGROUP_DECLARE(softirq);
