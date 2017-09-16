@@ -222,6 +222,7 @@ kensmith [label="Ken Smith\nkensmith@FreeBSD.org\n2004/01/23"]
 kevans [label="Kyle Evans\nkevans@FreeBSD.org\n2017/06/20"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
 kib [label="Konstantin Belousov\nkib@FreeBSD.org\n2006/06/03"]
+kibab [label="Ilya Bakulin\nkibab@FreeBSD.org\n2017/09/02"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
 kp [label="Kristof Provost\nkp@FreeBSD.org\n2015/03/22"]
 landonf [label="Landon Fuller\nlandonf@FreeBSD.org\n2016/05/31"]
@@ -525,6 +526,7 @@ imp -> furuta
 imp -> joe
 imp -> jon
 imp -> keichii
+imp -> kibab
 imp -> mb
 imp -> mr
 imp -> neel

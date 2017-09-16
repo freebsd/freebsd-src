@@ -37,13 +37,15 @@
 
 #define MPS_DB_MAX_WAIT		2500
 
-#define MPS_REQ_FRAMES		1024
+#define MPS_REQ_FRAMES		2048
+#define MPS_PRI_REQ_FRAMES	128
 #define MPS_EVT_REPLY_FRAMES	32
 #define MPS_REPLY_FRAMES	MPS_REQ_FRAMES
 #define MPS_CHAIN_FRAMES	2048
 #define MPS_MAXIO_PAGES		(-1)
 #define MPS_SENSE_LEN		SSD_FULL_SIZE
-#define MPS_MSI_COUNT		1
+#define MPS_MSI_MAX		1
+#define MPS_MSIX_MAX		16
 #define MPS_SGE64_SIZE		12
 #define MPS_SGE32_SIZE		8
 #define MPS_SGC_SIZE		8
@@ -56,7 +58,6 @@
 #define MPS_MISSING_CHECK_DELAY	10	/* 10 seconds between missing check */
 
 #define MPS_SCSI_RI_INVALID_FRAME	(0x00000002)
-#define MPS_STRING_LENGTH               64
 
 #define DEFAULT_SPINUP_WAIT	3	/* seconds to wait for spinup */
 
@@ -260,6 +261,26 @@ struct mps_event_handle {
 	u32				mask[MPI2_EVENT_NOTIFY_EVENTMASK_WORDS];
 };
 
+struct mps_queue {
+	struct mps_softc		*sc;
+	int				qnum;
+	MPI2_REPLY_DESCRIPTORS_UNION	*post_queue;
+	int				replypostindex;
+#ifdef notyet
+	ck_ring_buffer_t		*ringmem;
+	ck_ring_buffer_t		*chainmem;
+	ck_ring_t			req_ring;
+	ck_ring_t			chain_ring;
+#endif
+	bus_dma_tag_t			buffer_dmat;
+	int				io_cmds_highwater;
+	int				chain_free_lowwater;
+	int				chain_alloc_fail;
+	struct resource			*irq;
+	void				*intrhand;
+	int				irq_rid;
+};
+
 struct mps_softc {
 	device_t			mps_dev;
 	struct cdev			*mps_cdev;
@@ -273,8 +294,6 @@ struct mps_softc {
 #define	MPS_FLAGS_WD_AVAILABLE	(1 << 6)
 #define	MPS_FLAGS_REALLOCATED	(1 << 7)
 	u_int				mps_debug;
-	u_int				disable_msix;
-	u_int				disable_msi;
 	u_int				msi_msgs;
 	int				tm_cmds_active;
 	int				io_cmds_active;
@@ -294,9 +313,9 @@ struct mps_softc {
 	struct mps_chain		*chains;
 	struct callout			periodic;
 	struct callout			device_check_callout;
+	struct mps_queue		*queues;
 
 	struct mpssas_softc		*sassc;
-	char            tmp_string[MPS_STRING_LENGTH];
 	TAILQ_HEAD(, mps_command)	req_list;
 	TAILQ_HEAD(, mps_command)	high_priority_req_list;
 	TAILQ_HEAD(, mps_chain)		chain_list;
@@ -324,9 +343,6 @@ struct mps_softc {
 
 	struct mtx			mps_mtx;
 	struct intr_config_hook		mps_ich;
-	struct resource			*mps_irq[MPS_MSI_COUNT];
-	void				*mps_intrhand[MPS_MSI_COUNT];
-	int				mps_irq_rid[MPS_MSI_COUNT];
 
 	uint8_t				*req_frames;
 	bus_addr_t			req_busaddr;
@@ -421,12 +437,21 @@ struct mps_softc {
 	uint64_t			DD_max_lba;
 	struct mps_column_map		DD_column_map[MPS_MAX_DISKS_IN_VOL];
 
-	char				exclude_ids[80];
-	struct timeval			lastfail;
-
 	/* StartStopUnit command handling at shutdown */
 	uint32_t			SSU_refcount;
 	uint8_t				SSU_started;
+
+	/* Configuration tunables */
+	u_int				disable_msix;
+	u_int				disable_msi;
+	u_int				max_msix;
+	u_int				max_reqframes;
+	u_int				max_prireqframes;
+	u_int				max_replyframes;
+	u_int				max_evtframes;
+	char				exclude_ids[80];
+
+	struct timeval			lastfail;
 };
 
 struct mps_config_params {
@@ -671,6 +696,7 @@ mps_unmask_intr(struct mps_softc *sc)
 }
 
 int mps_pci_setup_interrupts(struct mps_softc *sc);
+void mps_pci_free_interrupts(struct mps_softc *sc);
 int mps_pci_restore(struct mps_softc *sc);
 
 void mps_get_tunables(struct mps_softc *sc);

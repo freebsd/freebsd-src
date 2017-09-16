@@ -195,6 +195,9 @@ struct a10_gpio_softc {
 #define	A10_GPIO_GP_INT_STA		0x214
 #define	A10_GPIO_GP_INT_DEB		0x218
 
+static int a10_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *value);
+static int a10_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value);
+
 #define	A10_GPIO_WRITE(_sc, _off, _val)		\
     bus_space_write_4(_sc->sc_bst, _sc->sc_bsh, _off, _val)
 #define	A10_GPIO_READ(_sc, _off)		\
@@ -316,29 +319,44 @@ a10_gpio_set_drv(struct a10_gpio_softc *sc, uint32_t pin, uint32_t drive)
 static int
 a10_gpio_pin_configure(struct a10_gpio_softc *sc, uint32_t pin, uint32_t flags)
 {
+	u_int val;
 	int err = 0;
 
 	/* Must be called with lock held. */
 	A10_GPIO_LOCK_ASSERT(sc);
 
+	if (pin > sc->padconf->npins)
+		return (EINVAL);
+
 	/* Manage input/output. */
-	if (flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) {
-		if (flags & GPIO_PIN_OUTPUT)
-			err = a10_gpio_set_function(sc, pin, A10_GPIO_OUTPUT);
-		else
+	if (flags & GPIO_PIN_INPUT) {
+		err = a10_gpio_set_function(sc, pin, A10_GPIO_INPUT);
+	} else if (flags & GPIO_PIN_OUTPUT) {
+		if (flags & GPIO_PIN_PRESET_LOW) {
+			a10_gpio_pin_set(sc->sc_dev, pin, 0);
+		} else if (flags & GPIO_PIN_PRESET_HIGH) {
+			a10_gpio_pin_set(sc->sc_dev, pin, 1);
+		} else {
+			/* Read the pin and preset output to current state. */
 			err = a10_gpio_set_function(sc, pin, A10_GPIO_INPUT);
+			if (err == 0) {
+				a10_gpio_pin_get(sc->sc_dev, pin, &val);
+				a10_gpio_pin_set(sc->sc_dev, pin, val); 
+			}
+		}
+		if (err == 0)
+			err = a10_gpio_set_function(sc, pin, A10_GPIO_OUTPUT);
 	}
 
 	if (err)
 		return (err);
 
 	/* Manage Pull-up/pull-down. */
-	if (flags & (GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)) {
-		if (flags & GPIO_PIN_PULLUP)
-			a10_gpio_set_pud(sc, pin, A10_GPIO_PULLUP);
-		else
-			a10_gpio_set_pud(sc, pin, A10_GPIO_PULLDOWN);
-	} else
+	if (flags & GPIO_PIN_PULLUP)
+		a10_gpio_set_pud(sc, pin, A10_GPIO_PULLUP);
+	else if (flags & GPIO_PIN_PULLDOWN)
+		a10_gpio_set_pud(sc, pin, A10_GPIO_PULLDOWN);
+	else
 		a10_gpio_set_pud(sc, pin, A10_GPIO_NONE);
 
 	return (0);
@@ -523,6 +541,73 @@ a10_gpio_pin_toggle(device_t dev, uint32_t pin)
 	A10_GPIO_UNLOCK(sc);
 
 	return (0);
+}
+
+static int
+a10_gpio_pin_access_32(device_t dev, uint32_t first_pin, uint32_t clear_pins,
+    uint32_t change_pins, uint32_t *orig_pins)
+{
+	struct a10_gpio_softc *sc;
+	uint32_t bank, data, pin;
+
+	sc = device_get_softc(dev);
+	if (first_pin > sc->padconf->npins)
+		return (EINVAL);
+
+	/*
+	 * We require that first_pin refers to the first pin in a bank, because
+	 * this API is not about convenience, it's for making a set of pins
+	 * change simultaneously (required) with reasonably high performance
+	 * (desired); we need to do a read-modify-write on a single register.
+	 */
+	bank = sc->padconf->pins[first_pin].port;
+	pin = sc->padconf->pins[first_pin].pin;
+	if (pin != 0)
+		return (EINVAL);
+
+	A10_GPIO_LOCK(sc);
+	data = A10_GPIO_READ(sc, A10_GPIO_GP_DAT(bank));
+	if ((clear_pins | change_pins) != 0) 
+		A10_GPIO_WRITE(sc, A10_GPIO_GP_DAT(bank),
+		    (data & ~clear_pins) ^ change_pins);
+	A10_GPIO_UNLOCK(sc);
+
+	if (orig_pins != NULL)
+		*orig_pins = data;
+
+	return (0);
+}
+
+static int
+a10_gpio_pin_config_32(device_t dev, uint32_t first_pin, uint32_t num_pins,
+    uint32_t *pin_flags)
+{
+	struct a10_gpio_softc *sc;
+	uint32_t bank, pin;
+	int err;
+
+	sc = device_get_softc(dev);
+	if (first_pin > sc->padconf->npins)
+		return (EINVAL);
+
+	bank = sc->padconf->pins[first_pin].port;
+	if (sc->padconf->pins[first_pin].pin != 0)
+		return (EINVAL);
+
+	/*
+	 * The configuration for a bank of pins is scattered among several
+	 * registers; we cannot g'tee to simultaneously change the state of all
+	 * the pins in the flags array.  So just loop through the array
+	 * configuring each pin for now.  If there was a strong need, it might
+	 * be possible to support some limited simultaneous config, such as
+	 * adjacent groups of 8 pins that line up the same as the config regs.
+	 */
+	for (err = 0, pin = first_pin; err == 0 && pin < num_pins; ++pin) {
+		if (pin_flags[pin] & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT))
+			err = a10_gpio_pin_configure(sc, pin, pin_flags[pin]);
+	}
+
+	return (err);
 }
 
 static int
@@ -780,6 +865,8 @@ static device_method_t a10_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_get,		a10_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set,		a10_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	a10_gpio_pin_toggle),
+	DEVMETHOD(gpio_pin_access_32,	a10_gpio_pin_access_32),
+	DEVMETHOD(gpio_pin_config_32,	a10_gpio_pin_config_32),
 	DEVMETHOD(gpio_map_gpios,	a10_gpio_map_gpios),
 
 	/* ofw_bus interface */

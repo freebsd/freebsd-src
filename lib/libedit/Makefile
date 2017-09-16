@@ -7,6 +7,8 @@ LIB=	edit
 SHLIB_MAJOR=	7
 SHLIBDIR?= /lib
 
+WARNS?=	3
+
 OSRCS=	chared.c common.c el.c eln.c emacs.c fcns.c filecomplete.c help.c \
 	hist.c keymacro.c map.c chartype.c \
 	parse.c prompt.c read.c refresh.c search.c sig.c terminal.c tty.c vi.c
@@ -40,8 +42,6 @@ CLEANFILES+=	tokenizern.c historyn.c
 CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/edit -DWIDECHAR
 #CFLAGS+= -DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
 #CFLAGS+= -DDEBUG_PASTE -DDEBUG_EDIT
-
-WARNS?=	1
 
 SUBDIR= edit/readline
 

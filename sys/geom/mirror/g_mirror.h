@@ -169,9 +169,11 @@ struct g_mirror_event {
 #define	G_MIRROR_TYPE_AUTOMATIC	1
 
 /* Bump syncid on first write. */
-#define	G_MIRROR_BUMP_SYNCID	0x1
+#define	G_MIRROR_BUMP_SYNCID		0x1
 /* Bump genid immediately. */
-#define	G_MIRROR_BUMP_GENID	0x2
+#define	G_MIRROR_BUMP_GENID		0x2
+/* Bump syncid immediately. */
+#define	G_MIRROR_BUMP_SYNCID_NOW	0x4
 struct g_mirror_softc {
 	u_int		sc_type;	/* Device type (manual/automatic). */
 	u_int		sc_state;	/* Device state. */

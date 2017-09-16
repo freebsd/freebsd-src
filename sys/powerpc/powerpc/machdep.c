@@ -417,43 +417,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	    (sizeof(struct callframe) - 3*sizeof(register_t))) & ~15UL);
 }
 
-void
-bzero(void *buf, size_t len)
-{
-	caddr_t	p;
-
-	p = buf;
-
-	while (((vm_offset_t) p & (sizeof(u_long) - 1)) && len) {
-		*p++ = 0;
-		len--;
-	}
-
-	while (len >= sizeof(u_long) * 8) {
-		*(u_long*) p = 0;
-		*((u_long*) p + 1) = 0;
-		*((u_long*) p + 2) = 0;
-		*((u_long*) p + 3) = 0;
-		len -= sizeof(u_long) * 8;
-		*((u_long*) p + 4) = 0;
-		*((u_long*) p + 5) = 0;
-		*((u_long*) p + 6) = 0;
-		*((u_long*) p + 7) = 0;
-		p += sizeof(u_long) * 8;
-	}
-
-	while (len >= sizeof(u_long)) {
-		*(u_long*) p = 0;
-		len -= sizeof(u_long);
-		p += sizeof(u_long);
-	}
-
-	while (len) {
-		*p++ = 0;
-		len--;
-	}
-}
-
 /*
  * Flush the D-cache for non-DMA I/O so that the I-cache can
  * be made coherent later.
@@ -555,3 +518,41 @@ DB_SHOW_COMMAND(spr, db_show_spr)
 	    (unsigned long)spr);
 }
 #endif
+
+#undef bzero
+void
+bzero(void *buf, size_t len)
+{
+	caddr_t	p;
+
+	p = buf;
+
+	while (((vm_offset_t) p & (sizeof(u_long) - 1)) && len) {
+		*p++ = 0;
+		len--;
+	}
+
+	while (len >= sizeof(u_long) * 8) {
+		*(u_long*) p = 0;
+		*((u_long*) p + 1) = 0;
+		*((u_long*) p + 2) = 0;
+		*((u_long*) p + 3) = 0;
+		len -= sizeof(u_long) * 8;
+		*((u_long*) p + 4) = 0;
+		*((u_long*) p + 5) = 0;
+		*((u_long*) p + 6) = 0;
+		*((u_long*) p + 7) = 0;
+		p += sizeof(u_long) * 8;
+	}
+
+	while (len >= sizeof(u_long)) {
+		*(u_long*) p = 0;
+		len -= sizeof(u_long);
+		p += sizeof(u_long);
+	}
+
+	while (len) {
+		*p++ = 0;
+		len--;
+	}
+}

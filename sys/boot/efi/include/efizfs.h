@@ -45,6 +45,7 @@ extern uint64_t pool_guid;
 
 extern void efi_zfs_probe(void);
 extern zfsinfo_list_t *efizfs_get_zfsinfo_list(void);
+extern EFI_HANDLE efizfs_get_handle_by_guid(uint64_t);
 
 #endif
 

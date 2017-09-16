@@ -88,34 +88,38 @@ static int intsmb_stop_poll(struct intsmb_softc *sc);
 static int intsmb_free(struct intsmb_softc *sc);
 static void intsmb_rawintr(void *arg);
 
+const struct intsmb_device {
+	uint32_t devid;
+	const char *description;
+} intsmb_products[] = {
+	{ 0x71138086, "Intel PIIX4 SMBUS Interface" },
+	{ 0x719b8086, "Intel PIIX4 SMBUS Interface" },
+#if 0
+	/* Not a good idea yet, this stops isab0 functioning */
+	{ 0x02001166, "ServerWorks OSB4" },
+#endif
+	{ 0x43721002, "ATI IXP400 SMBus Controller" },
+	{ AMDSB_SMBUS_DEVID, "AMD SB600/7xx/8xx/9xx SMBus Controller" },
+	{ AMDFCH_SMBUS_DEVID, "AMD FCH SMBus Controller" },
+	{ AMDCZ_SMBUS_DEVID, "AMD FCH SMBus Controller" },
+};
+
 static int
 intsmb_probe(device_t dev)
 {
+	const struct intsmb_device *isd;
+	uint32_t devid;
+	size_t i;
 
-	switch (pci_get_devid(dev)) {
-	case 0x71138086:	/* Intel 82371AB */
-	case 0x719b8086:	/* Intel 82443MX */
-#if 0
-	/* Not a good idea yet, this stops isab0 functioning */
-	case 0x02001166:	/* ServerWorks OSB4 */
-#endif
-		device_set_desc(dev, "Intel PIIX4 SMBUS Interface");
-		break;
-	case 0x43721002:
-		device_set_desc(dev, "ATI IXP400 SMBus Controller");
-		break;
-	case AMDSB_SMBUS_DEVID:
-		device_set_desc(dev, "AMD SB600/7xx/8xx/9xx SMBus Controller");
-		break;
-	case AMDFCH_SMBUS_DEVID:	/* AMD FCH */
-	case AMDCZ_SMBUS_DEVID:		/* AMD Carizzo FCH */
-		device_set_desc(dev, "AMD FCH SMBus Controller");
-		break;
-	default:
-		return (ENXIO);
+	devid = pci_get_devid(dev);
+	for (i = 0; i < nitems(intsmb_products); i++) {
+		isd = &intsmb_products[i];
+		if (isd->devid == devid) {
+			device_set_desc(dev, isd->description);
+			return (BUS_PROBE_DEFAULT);
+		}
 	}
-
-	return (BUS_PROBE_DEFAULT);
+	return (ENXIO);
 }
 
 static uint8_t
@@ -128,7 +132,7 @@ amd_pmio_read(struct resource *res, uint8_t reg)
 static int
 sb8xx_attach(device_t dev)
 {
-	static const int	AMDSB_SMBIO_WIDTH = 0x14;
+	static const int	AMDSB_SMBIO_WIDTH = 0x10;
 	struct intsmb_softc	*sc;
 	struct resource		*res;
 	uint32_t		devid;
@@ -185,12 +189,12 @@ sb8xx_attach(device_t dev)
 		device_printf(dev, "bus_set_resource for SMBus IO failed\n");
 		return (ENXIO);
 	}
-	if (res == NULL) {
-		device_printf(dev, "bus_alloc_resource for SMBus IO failed\n");
-		return (ENXIO);
-	}
 	sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->io_rid,
 	    RF_ACTIVE);
+	if (sc->io_res == NULL) {
+		device_printf(dev, "Could not allocate I/O space\n");
+		return (ENXIO);
+	}
 	sc->poll = 1;
 	return (0);
 }
@@ -891,3 +895,5 @@ DRIVER_MODULE_ORDERED(intsmb, pci, intsmb_driver, intsmb_devclass, 0, 0,
 DRIVER_MODULE(smbus, intsmb, smbus_driver, smbus_devclass, 0, 0);
 MODULE_DEPEND(intsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(intsmb, 1);
+MODULE_PNP_INFO("W32:vendor/device;D:human", pci, intpm, intsmb_products,
+    sizeof(intsmb_products[0]), nitems(intsmb_products));

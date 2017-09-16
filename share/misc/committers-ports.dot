@@ -43,6 +43,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 ache [label="Andrey Chernov\nache@FreeBSD.org\n1994/11/15"]
 acm [label="Jose Alonso Cardenas Marquez\nacm@FreeBSD.org\n2006/07/18"]
 adamw [label="Adam Weinberger\nadamw@FreeBSD.org\n2002/10/16"]
+adridg [label="Adriaan de Groot\nadridg@FreeBSD.org\n2017/09/08"]
 ahze [label="Michael Johnson\nahze@FreeBSD.org\n2004/10/29"]
 ak [label="Alex Kozlov\nak@FreeBSD.org\n2012/02/29"]
 ale [label="Alex Dupre\nale@FreeBSD.org\n2004/01/12"]
@@ -148,6 +149,7 @@ lawrance [label="Sam Lawrance\nlawrance@FreeBSD.org\n2005/04/11\n2007/02/21"]
 lbr [label="Lars Balker Rasmussen\nlbr@FreeBSD.org\n2006/04/30"]
 leeym [label="Yen-Ming Lee\nleeym@FreeBSD.org\n2002/08/14"]
 ler [label="Larry Rosenman\nler@FreeBSD.org\n2017/01/09"]
+leres [label="Craig Leres\nleres@FreeBSD.org\n2017/10/10"]
 lev [label="Lev Serebryakov\nlev@FreeBSD.org\n2003/06/17"]
 lifanov [label="Nikolai Lifanov\nlifanov@FreeBSD.org\n2016/12/11"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2003/10/23"]
@@ -467,6 +469,8 @@ lawrance -> itetcu
 
 leeym -> clsung
 
+ler -> leres
+
 lifanov -> ultima
 
 lioux -> pat
@@ -501,6 +505,7 @@ mat -> thierry
 mat -> tobik
 mat -> woodsb02
 
+matthew -> leres
 matthew -> lifanov
 matthew -> ultima
 
@@ -575,6 +580,7 @@ pi -> tz
 
 rafan -> chinsan
 
+rakuco -> adridg
 rakuco -> alonso
 rakuco -> tcberner
 
@@ -641,6 +647,8 @@ tabthorpe -> pgj
 tabthorpe -> rene
 tabthorpe -> zi
 tabthorpe -> gblach
+
+tcberner -> adridg
 
 thierry -> jadawin
 thierry -> riggs

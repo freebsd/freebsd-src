@@ -1384,7 +1384,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 	VLAN_RUNLOCK();
 
 	/* Pass it back through the parent's input routine. */
-	(*ifp->if_input)(ifv->ifv_ifp, m);
+	(*ifv->ifv_ifp->if_input)(ifv->ifv_ifp, m);
 }
 
 static void

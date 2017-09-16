@@ -28,6 +28,7 @@
  *
  */
 
+#include <sys/_bitset.h>
 #include <sys/_task.h>
 
 /* 
@@ -210,7 +211,7 @@ struct uma_keg {
 	vm_offset_t	uk_kva;		/* Zone base KVA */
 	uma_zone_t	uk_slabzone;	/* Slab zone backing us, if OFFPAGE */
 
-	uint16_t	uk_pgoff;	/* Offset to uma_slab struct */
+	uint32_t	uk_pgoff;	/* Offset to uma_slab struct */
 	uint16_t	uk_ppera;	/* pages per allocation from backend */
 	uint16_t	uk_ipers;	/* Items per slab */
 	uint32_t	uk_flags;	/* Internal flags */

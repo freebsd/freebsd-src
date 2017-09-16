@@ -92,17 +92,4 @@ tre_fastwnexec(const fastmatch_t *preg, const wchar_t *string, size_t len,
 #define fastexec	tre_fastexec
 #define fastwnexec	tre_fastwnexec
 #define fastwexec	tre_fastwexec
-#define fixcomp		tre_fixcomp
-#define fastcomp	tre_fastcomp
-#define fastexec	tre_fastexec
-#define fastfree	tre_fastfree
-#define fixwcomp	tre_fixwcomp
-#define fastwcomp	tre_fastwcomp
-#define fastwexec	tre_fastwexec
-#define fixncomp	tre_fixncomp
-#define fastncomp	tre_fastncomp
-#define fastnexec	tre_fastnexec
-#define fixwncomp	tre_fixwncomp
-#define fastwncomp	tre_fastwncomp
-#define fastwnexec	tre_fastwnexec
 #endif		/* FASTMATCH_H */

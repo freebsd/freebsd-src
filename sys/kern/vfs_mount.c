@@ -507,6 +507,8 @@ vfs_mount_destroy(struct mount *mp)
 	KASSERT(mp->mnt_ref == 0,
 	    ("%s: invalid refcount in the drain path @ %s:%d", __func__,
 	    __FILE__, __LINE__));
+	if (mp->mnt_vnodecovered != NULL)
+		vrele(mp->mnt_vnodecovered);
 	if (mp->mnt_writeopcount != 0)
 		panic("vfs_mount_destroy: nonzero writeopcount");
 	if (mp->mnt_secondary_writes != 0)
@@ -819,6 +821,7 @@ vfs_domount_first(
 	error = VFS_MOUNT(mp);
 	if (error != 0) {
 		vfs_unbusy(mp);
+		mp->mnt_vnodecovered = NULL;
 		vfs_mount_destroy(mp);
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
@@ -1426,7 +1429,7 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	EVENTHANDLER_INVOKE(vfs_unmounted, mp, td);
 	if (coveredvp != NULL) {
 		coveredvp->v_mountedhere = NULL;
-		vput(coveredvp);
+		VOP_UNLOCK(coveredvp, 0);
 	}
 	vfs_event_signal(NULL, VQ_UNMOUNT, 0);
 	if (mp == rootdevmp)

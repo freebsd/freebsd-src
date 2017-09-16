@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
+#include <machine/undefined.h>
 #include <machine/vmparam.h>
 
 #ifdef VFP
@@ -162,6 +163,7 @@ static void
 cpu_startup(void *dummy)
 {
 
+	undef_init();
 	identify_cpu();
 
 	vm_ksubmap_init(&kmi);
