@@ -1246,8 +1246,12 @@ static bool validate_ipv4_net_dev(struct net_device *net_dev,
 		return false;
 
 	src_dev = ip_dev_find(net_dev->if_vnet, saddr);
-	if (src_dev != net_dev)
+	if (src_dev != net_dev) {
+		if (src_dev != NULL)
+			dev_put(src_dev);
 		return false;
+	}
+	dev_put(src_dev);
 
 	/*
 	 * Make sure the socket address length field
