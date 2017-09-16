@@ -353,7 +353,6 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 
 	list_add_tail(&uevent->list, &ctx->file->event_list);
 	wake_up_interruptible(&ctx->file->poll_wait);
-	linux_poll_wakeup(ctx->file->filp);
 	if (event->event == RDMA_CM_EVENT_DEVICE_REMOVAL)
 		ucma_removal_event_handler(cm_id);
 out:

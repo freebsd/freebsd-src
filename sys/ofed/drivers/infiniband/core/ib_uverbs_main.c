@@ -529,7 +529,6 @@ void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
 	spin_unlock_irqrestore(&file->lock, flags);
 
 	wake_up_interruptible(&file->poll_wait);
-	linux_poll_wakeup(file->filp);
 	kill_fasync(&file->async_queue, SIGIO, POLL_IN);
 }
 
@@ -564,7 +563,6 @@ static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
 	spin_unlock_irqrestore(&file->async_file->lock, flags);
 
 	wake_up_interruptible(&file->async_file->poll_wait);
-	linux_poll_wakeup(file->async_file->filp);
 	kill_fasync(&file->async_file->async_queue, SIGIO, POLL_IN);
 }
 
@@ -662,7 +660,6 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	if (IS_ERR(filp))
 		goto err_put_refs;
 	filp->private_data = ev_file;
-	ev_file->filp = filp;
 
 	mutex_lock(&uverbs_file->device->lists_mutex);
 	list_add_tail(&ev_file->list,
@@ -1315,7 +1312,6 @@ static void ib_uverbs_free_hw_resources(struct ib_uverbs_device *uverbs_dev,
 		}
 
 		wake_up_interruptible(&event_file->poll_wait);
-		linux_poll_wakeup(event_file->filp);
 		kill_fasync(&event_file->async_queue, SIGIO, POLL_IN);
 	}
 	mutex_unlock(&uverbs_dev->lists_mutex);
