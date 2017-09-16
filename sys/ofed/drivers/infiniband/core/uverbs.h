@@ -106,7 +106,6 @@ struct ib_uverbs_device {
 
 struct ib_uverbs_event_file {
 	struct kref				ref;
-	struct file			       *filp;
 	int					is_async;
 	struct ib_uverbs_file		       *uverbs_file;
 	spinlock_t				lock;
