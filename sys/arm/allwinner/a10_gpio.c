@@ -197,6 +197,8 @@ struct a10_gpio_softc {
 
 static int a10_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *value);
 static int a10_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value);
+static int a10_gpio_pin_get_locked(struct a10_gpio_softc *sc, uint32_t pin, unsigned int *value);
+static int a10_gpio_pin_set_locked(struct a10_gpio_softc *sc, uint32_t pin, unsigned int value);
 
 #define	A10_GPIO_WRITE(_sc, _off, _val)		\
     bus_space_write_4(_sc->sc_bst, _sc->sc_bsh, _off, _val)
@@ -333,15 +335,15 @@ a10_gpio_pin_configure(struct a10_gpio_softc *sc, uint32_t pin, uint32_t flags)
 		err = a10_gpio_set_function(sc, pin, A10_GPIO_INPUT);
 	} else if (flags & GPIO_PIN_OUTPUT) {
 		if (flags & GPIO_PIN_PRESET_LOW) {
-			a10_gpio_pin_set(sc->sc_dev, pin, 0);
+			a10_gpio_pin_set_locked(sc, pin, 0);
 		} else if (flags & GPIO_PIN_PRESET_HIGH) {
-			a10_gpio_pin_set(sc->sc_dev, pin, 1);
+			a10_gpio_pin_set_locked(sc, pin, 1);
 		} else {
 			/* Read the pin and preset output to current state. */
 			err = a10_gpio_set_function(sc, pin, A10_GPIO_INPUT);
 			if (err == 0) {
-				a10_gpio_pin_get(sc->sc_dev, pin, &val);
-				a10_gpio_pin_set(sc->sc_dev, pin, val); 
+				a10_gpio_pin_get_locked(sc, pin, &val);
+				a10_gpio_pin_set_locked(sc, pin, val);
 			}
 		}
 		if (err == 0)
@@ -473,26 +475,60 @@ a10_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 }
 
 static int
-a10_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
+a10_gpio_pin_set_locked(struct a10_gpio_softc *sc, uint32_t pin,
+    unsigned int value)
 {
-	struct a10_gpio_softc *sc;
 	uint32_t bank, data;
 
-	sc = device_get_softc(dev);
+	A10_GPIO_LOCK_ASSERT(sc);
+
 	if (pin > sc->padconf->npins)
 		return (EINVAL);
 
 	bank = sc->padconf->pins[pin].port;
 	pin = sc->padconf->pins[pin].pin;
 
-	A10_GPIO_LOCK(sc);
 	data = A10_GPIO_READ(sc, A10_GPIO_GP_DAT(bank));
 	if (value)
 		data |= (1 << pin);
 	else
 		data &= ~(1 << pin);
 	A10_GPIO_WRITE(sc, A10_GPIO_GP_DAT(bank), data);
+
+	return (0);
+}
+
+static int
+a10_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
+{
+	struct a10_gpio_softc *sc;
+	int ret;
+
+	sc = device_get_softc(dev);
+
+	A10_GPIO_LOCK(sc);
+	ret = a10_gpio_pin_set_locked(sc, pin, value);
 	A10_GPIO_UNLOCK(sc);
+
+	return (ret);
+}
+
+static int
+a10_gpio_pin_get_locked(struct a10_gpio_softc *sc,uint32_t pin,
+    unsigned int *val)
+{
+	uint32_t bank, reg_data;
+
+	A10_GPIO_LOCK_ASSERT(sc);
+
+	if (pin > sc->padconf->npins)
+		return (EINVAL);
+
+	bank = sc->padconf->pins[pin].port;
+	pin = sc->padconf->pins[pin].pin;
+
+	reg_data = A10_GPIO_READ(sc, A10_GPIO_GP_DAT(bank));
+	*val = (reg_data & (1 << pin)) ? 1 : 0;
 
 	return (0);
 }
@@ -501,21 +537,15 @@ static int
 a10_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 {
 	struct a10_gpio_softc *sc;
-	uint32_t bank, reg_data;
+	int ret;
 
 	sc = device_get_softc(dev);
-	if (pin > sc->padconf->npins)
-		return (EINVAL);
-
-	bank = sc->padconf->pins[pin].port;
-	pin = sc->padconf->pins[pin].pin;
 
 	A10_GPIO_LOCK(sc);
-	reg_data = A10_GPIO_READ(sc, A10_GPIO_GP_DAT(bank));
+	ret = a10_gpio_pin_get_locked(sc, pin, val);
 	A10_GPIO_UNLOCK(sc);
-	*val = (reg_data & (1 << pin)) ? 1 : 0;
 
-	return (0);
+	return (ret);
 }
 
 static int
