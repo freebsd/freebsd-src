@@ -182,7 +182,6 @@ DIRDEPS+= \
 	usr.bin/c99 \
 	usr.bin/calendar \
 	usr.bin/cap_mkdb \
-	usr.bin/catman \
 	usr.bin/chat \
 	usr.bin/checknr \
 	usr.bin/chkey \

@@ -1896,7 +1896,8 @@ dumpstate(int argc, const char *argv[])
 		return (EINVAL);
 	}
 
-	fd = open(fname, O_CREAT | O_TRUNC | O_EXCL | O_WRONLY);
+	fd = open(fname, O_CREAT | O_TRUNC | O_EXCL | O_WRONLY,
+	    S_IRUSR | S_IRGRP);
 	if (fd < 0) {
 		warn("open(%s)", fname);
 		return (errno);

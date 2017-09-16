@@ -655,7 +655,7 @@ struct tcp_hhook_data {
 struct xtcpcb {
 	size_t		xt_len;		/* length of this structure */
 	struct xinpcb	xt_inp;
-	char		xt_stack[TCP_FUNCTION_NAME_LEN_MAX];	/* (n) */
+	char		xt_stack[TCP_FUNCTION_NAME_LEN_MAX];	/* (s) */
 	int64_t		spare64[8];
 	int32_t		t_state;		/* (s,p) */
 	uint32_t	t_flags;		/* (s,p) */

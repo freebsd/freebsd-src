@@ -87,6 +87,7 @@ struct mmc_params {
 #define CARD_FEATURE_SDIO   0x1 << 2
 #define CARD_FEATURE_SD20   0x1 << 3
 #define CARD_FEATURE_MMC    0x1 << 4
+#define CARD_FEATURE_18V    0x1 << 5
 
         uint8_t sdio_func_count;
 } __packed;

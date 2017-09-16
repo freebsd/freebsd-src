@@ -101,16 +101,33 @@ static pdinfo_list_t hdinfo;
 static EFI_HANDLE *efipart_handles = NULL;
 static UINTN efipart_nhandles = 0;
 
-static pdinfo_t *
-efiblk_get_pdinfo(pdinfo_list_t *pdi, int unit)
+pdinfo_list_t *
+efiblk_get_pdinfo_list(struct devsw *dev)
 {
-	pdinfo_t *pd;
+	if (dev->dv_type == DEVT_DISK)
+		return (&hdinfo);
+	if (dev->dv_type == DEVT_CD)
+		return (&cdinfo);
+	if (dev->dv_type == DEVT_FD)
+		return (&fdinfo);
+	return (NULL);
+}
+
+pdinfo_t *
+efiblk_get_pdinfo(struct devdesc *dev)
+{
+	pdinfo_list_t *pdi;
+	pdinfo_t *pd = NULL;
+
+	pdi = efiblk_get_pdinfo_list(dev->d_dev);
+	if (pdi == NULL)
+		return (pd);
 
 	STAILQ_FOREACH(pd, pdi, pd_link) {
-		if (pd->pd_unit == unit)
+		if (pd->pd_unit == dev->d_unit)
 			return (pd);
 	}
-	return (NULL);
+	return (pd);
 }
 
 static int
@@ -671,24 +688,11 @@ efipart_printhd(int verbose)
 	return (efipart_print_common(&efipart_hddev, &hdinfo, verbose));
 }
 
-pdinfo_list_t *
-efiblk_get_pdinfo_list(struct devsw *dev)
-{
-	if (dev->dv_type == DEVT_DISK)
-		return (&hdinfo);
-	if (dev->dv_type == DEVT_CD)
-		return (&cdinfo);
-	if (dev->dv_type == DEVT_FD)
-		return (&fdinfo);
-	return (NULL);
-}
-
 static int
 efipart_open(struct open_file *f, ...)
 {
 	va_list args;
 	struct disk_devdesc *dev;
-	pdinfo_list_t *pdi;
 	pdinfo_t *pd;
 	EFI_BLOCK_IO *blkio;
 	EFI_STATUS status;
@@ -699,11 +703,7 @@ efipart_open(struct open_file *f, ...)
 	if (dev == NULL)
 		return (EINVAL);
 
-	pdi = efiblk_get_pdinfo_list(dev->d_dev);
-	if (pdi == NULL)
-		return (EINVAL);
-
-	pd = efiblk_get_pdinfo(pdi, dev->d_unit);
+	pd = efiblk_get_pdinfo((struct devdesc *)dev);
 	if (pd == NULL)
 		return (EIO);
 
@@ -723,9 +723,20 @@ efipart_open(struct open_file *f, ...)
 		pd->pd_bcache = bcache_allocate();
 
 	if (dev->d_dev->dv_type == DEVT_DISK) {
-		return (disk_open(dev,
+		int rc;
+
+		rc = disk_open(dev,
 		    blkio->Media->BlockSize * (blkio->Media->LastBlock + 1),
-		    blkio->Media->BlockSize));
+		    blkio->Media->BlockSize);
+		if (rc != 0) {
+			pd->pd_open--;
+			if (pd->pd_open == 0) {
+				pd->pd_blkio = NULL;
+				bcache_free(pd->pd_bcache);
+				pd->pd_bcache = NULL;
+			}
+		}
+		return (rc);
 	}
 	return (0);
 }
@@ -734,17 +745,13 @@ static int
 efipart_close(struct open_file *f)
 {
 	struct disk_devdesc *dev;
-	pdinfo_list_t *pdi;
 	pdinfo_t *pd;
 
 	dev = (struct disk_devdesc *)(f->f_devdata);
 	if (dev == NULL)
 		return (EINVAL);
-	pdi = efiblk_get_pdinfo_list(dev->d_dev);
-	if (pdi == NULL)
-		return (EINVAL);
 
-	pd = efiblk_get_pdinfo(pdi, dev->d_unit);
+	pd = efiblk_get_pdinfo((struct devdesc *)dev);
 	if (pd == NULL)
 		return (EINVAL);
 
@@ -763,18 +770,14 @@ static int
 efipart_ioctl(struct open_file *f, u_long cmd, void *data)
 {
 	struct disk_devdesc *dev;
-	pdinfo_list_t *pdi;
 	pdinfo_t *pd;
 	int rc;
 
 	dev = (struct disk_devdesc *)(f->f_devdata);
 	if (dev == NULL)
 		return (EINVAL);
-	pdi = efiblk_get_pdinfo_list(dev->d_dev);
-	if (pdi == NULL)
-		return (EINVAL);
 
-	pd = efiblk_get_pdinfo(pdi, dev->d_unit);
+	pd = efiblk_get_pdinfo((struct devdesc *)dev);
 	if (pd == NULL)
 		return (EINVAL);
 
@@ -847,17 +850,13 @@ efipart_strategy(void *devdata, int rw, daddr_t blk, size_t size,
 {
 	struct bcache_devdata bcd;
 	struct disk_devdesc *dev;
-	pdinfo_list_t *pdi;
 	pdinfo_t *pd;
 
 	dev = (struct disk_devdesc *)devdata;
 	if (dev == NULL)
 		return (EINVAL);
-	pdi = efiblk_get_pdinfo_list(dev->d_dev);
-	if (pdi == NULL)
-		return (EINVAL);
 
-	pd = efiblk_get_pdinfo(pdi, dev->d_unit);
+	pd = efiblk_get_pdinfo((struct devdesc *)dev);
 	if (pd == NULL)
 		return (EINVAL);
 
@@ -881,7 +880,6 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t size,
     char *buf, size_t *rsize)
 {
 	struct disk_devdesc *dev = (struct disk_devdesc *)devdata;
-	pdinfo_list_t *pdi;
 	pdinfo_t *pd;
 	EFI_BLOCK_IO *blkio;
 	uint64_t off, disk_blocks, d_offset = 0;
@@ -893,11 +891,7 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t size,
 	if (dev == NULL || blk < 0)
 		return (EINVAL);
 
-	pdi = efiblk_get_pdinfo_list(dev->d_dev);
-	if (pdi == NULL)
-		return (EINVAL);
-
-	pd = efiblk_get_pdinfo(pdi, dev->d_unit);
+	pd = efiblk_get_pdinfo((struct devdesc *)dev);
 	if (pd == NULL)
 		return (EINVAL);
 
@@ -930,7 +924,8 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t size,
 		readstart = off / blkio->Media->BlockSize;
 
 		if (diskend <= readstart) {
-			*rsize = 0;
+			if (rsize != NULL)
+				*rsize = 0;
 
 			return (EIO);
 		}

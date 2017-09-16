@@ -100,7 +100,6 @@ static struct amdtemp_product {
 	{ VENDORID_AMD,	DEVICEID_AMD_MISC16_M30H },
 	{ VENDORID_AMD,	DEVICEID_AMD_MISC17 },
 	{ VENDORID_AMD,	DEVICEID_AMD_HOSTB17H },
-	{ 0, 0 }
 };
 
 /*
@@ -165,6 +164,8 @@ static devclass_t amdtemp_devclass;
 DRIVER_MODULE(amdtemp, hostb, amdtemp_driver, amdtemp_devclass, NULL, NULL);
 MODULE_VERSION(amdtemp, 1);
 MODULE_DEPEND(amdtemp, amdsmn, 1, 1, 1);
+MODULE_PNP_INFO("U16:vendor;U16:device", pci, amdtemp, amdtemp_products,
+    sizeof(amdtemp_products[0]), nitems(amdtemp_products));
 
 static int
 amdtemp_match(device_t dev)
@@ -175,7 +176,7 @@ amdtemp_match(device_t dev)
 	vendor = pci_get_vendor(dev);
 	devid = pci_get_device(dev);
 
-	for (i = 0; amdtemp_products[i].amdtemp_vendorid != 0; i++) {
+	for (i = 0; i < nitems(amdtemp_products); i++) {
 		if (vendor == amdtemp_products[i].amdtemp_vendorid &&
 		    devid == amdtemp_products[i].amdtemp_deviceid)
 			return (1);

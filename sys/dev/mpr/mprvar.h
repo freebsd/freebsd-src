@@ -37,13 +37,15 @@
 
 #define MPR_DB_MAX_WAIT		2500
 
-#define MPR_REQ_FRAMES		1024
+#define MPR_REQ_FRAMES		2048
+#define MPR_PRI_REQ_FRAMES	128
 #define MPR_EVT_REPLY_FRAMES	32
 #define MPR_REPLY_FRAMES	MPR_REQ_FRAMES
 #define MPR_CHAIN_FRAMES	2048
 #define MPR_MAXIO_PAGES		(-1)
 #define MPR_SENSE_LEN		SSD_FULL_SIZE
-#define MPR_MSI_COUNT		1
+#define MPR_MSI_MAX		1
+#define MPR_MSIX_MAX		96
 #define MPR_SGE64_SIZE		12
 #define MPR_SGE32_SIZE		8
 #define MPR_SGC_SIZE		8
@@ -74,7 +76,6 @@
 #define	IFAULT_IOP_OVER_TEMP_THRESHOLD_EXCEEDED	0x2810
 
 #define MPR_SCSI_RI_INVALID_FRAME	(0x00000002)
-#define MPR_STRING_LENGTH               64
 
 #define DEFAULT_SPINUP_WAIT	3	/* seconds to wait for spinup */
 
@@ -264,6 +265,26 @@ struct mpr_event_handle {
 	uint8_t				mask[16];
 };
 
+struct mpr_queue {
+	struct mpr_softc		*sc;
+	int				qnum;
+	MPI2_REPLY_DESCRIPTORS_UNION	*post_queue;
+	int				replypostindex;
+#ifdef notyet
+	ck_ring_buffer_t		*ringmem;
+	ck_ring_buffer_t		*chainmem;
+	ck_ring_t			req_ring;
+	ck_ring_t			chain_ring;
+#endif
+	bus_dma_tag_t			buffer_dmat;
+	int				io_cmds_highwater;
+	int				chain_free_lowwater;
+	int				chain_alloc_fail;
+	struct resource			*irq;
+	void				*intrhand;
+	int				irq_rid;
+};
+
 struct mpr_softc {
 	device_t			mpr_dev;
 	struct cdev			*mpr_cdev;
@@ -277,8 +298,6 @@ struct mpr_softc {
 #define	MPR_FLAGS_GEN35_IOC	(1 << 6)
 #define	MPR_FLAGS_REALLOCATED	(1 << 7)
 	u_int				mpr_debug;
-	u_int				disable_msix;
-	u_int				disable_msi;
 	int				msi_msgs;
 	u_int				atomic_desc_capable;
 	int				tm_cmds_active;
@@ -307,9 +326,9 @@ struct mpr_softc {
 	struct mpr_prp_page		*prps;
 	struct callout			periodic;
 	struct callout			device_check_callout;
+	struct mpr_queue		*queues;
 
 	struct mprsas_softc		*sassc;
-	char            tmp_string[MPR_STRING_LENGTH];
 	TAILQ_HEAD(, mpr_command)	req_list;
 	TAILQ_HEAD(, mpr_command)	high_priority_req_list;
 	TAILQ_HEAD(, mpr_chain)		chain_list;
@@ -338,9 +357,6 @@ struct mpr_softc {
 
 	struct mtx			mpr_mtx;
 	struct intr_config_hook		mpr_ich;
-	struct resource			*mpr_irq[MPR_MSI_COUNT];
-	void				*mpr_intrhand[MPR_MSI_COUNT];
-	int				mpr_irq_rid[MPR_MSI_COUNT];
 
 	uint8_t				*req_frames;
 	bus_addr_t			req_busaddr;
@@ -430,7 +446,16 @@ struct mpr_softc {
 	uint32_t			SSU_refcount;
 	uint8_t				SSU_started;
 
+	/* Configuration tunables */
+	u_int				disable_msix;
+	u_int				disable_msi;
+	u_int				max_msix;
+	u_int				max_reqframes;
+	u_int				max_prireqframes;
+	u_int				max_replyframes;
+	u_int				max_evtframes;
 	char				exclude_ids[80];
+
 	struct timeval			lastfail;
 };
 
@@ -702,6 +727,7 @@ mpr_unmask_intr(struct mpr_softc *sc)
 }
 
 int mpr_pci_setup_interrupts(struct mpr_softc *sc);
+void mpr_pci_free_interrupts(struct mpr_softc *sc);
 int mpr_pci_restore(struct mpr_softc *sc);
 
 void mpr_get_tunables(struct mpr_softc *sc);

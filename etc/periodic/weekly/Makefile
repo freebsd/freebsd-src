@@ -13,7 +13,7 @@ FILES+=	310.locate
 .endif
 
 .if ${MK_MAN_UTILS} != "no"
-FILES+=	320.whatis 330.catman
+FILES+=	320.whatis
 .endif
 
 .include <bsd.prog.mk>
