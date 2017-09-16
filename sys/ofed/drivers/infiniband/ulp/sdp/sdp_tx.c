@@ -131,7 +131,7 @@ sdp_post_send(struct sdp_sock *ssk, struct mbuf *mb)
 		tx_req->mapping[i] = addr;
 		sge->addr = addr;
 		sge->length = mb->m_len;
-		sge->lkey = ssk->sdp_dev->mr->lkey;
+		sge->lkey = ssk->sdp_dev->pd->local_dma_lkey;
 	}
 	tx_wr.next = NULL;
 	tx_wr.wr_id = mseq | SDP_OP_SEND;
@@ -418,6 +418,11 @@ sdp_tx_cq_event_handler(struct ib_event *event, void *data)
 int
 sdp_tx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 {
+	struct ib_cq_init_attr tx_cq_attr = {
+		.cqe = SDP_TX_SIZE,
+		.comp_vector = 0,
+		.flags = 0,
+	};
 	struct ib_cq *tx_cq;
 	int rc = 0;
 
@@ -431,7 +436,7 @@ sdp_tx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 	    M_SDP, M_WAITOK);
 
 	tx_cq = ib_create_cq(device, sdp_tx_irq, sdp_tx_cq_event_handler,
-			  ssk, SDP_TX_SIZE, 0);
+			  ssk, &tx_cq_attr);
 	if (IS_ERR(tx_cq)) {
 		rc = PTR_ERR(tx_cq);
 		sdp_warn(ssk->socket, "Unable to allocate TX CQ: %d.\n", rc);
