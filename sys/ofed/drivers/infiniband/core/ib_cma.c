@@ -1094,6 +1094,7 @@ static void cma_save_ip4_info(struct sockaddr_in *src_addr,
 {
 	if (src_addr) {
 		*src_addr = (struct sockaddr_in) {
+			.sin_len = sizeof(struct sockaddr_in),
 			.sin_family = AF_INET,
 			.sin_addr.s_addr = hdr->dst_addr.ip4.addr,
 			.sin_port = local_port,
@@ -1102,6 +1103,7 @@ static void cma_save_ip4_info(struct sockaddr_in *src_addr,
 
 	if (dst_addr) {
 		*dst_addr = (struct sockaddr_in) {
+			.sin_len = sizeof(struct sockaddr_in),
 			.sin_family = AF_INET,
 			.sin_addr.s_addr = hdr->src_addr.ip4.addr,
 			.sin_port = hdr->port,
@@ -1124,6 +1126,7 @@ static void cma_save_ip6_info(struct sockaddr_in6 *src_addr,
 
 	if (dst_addr) {
 		*dst_addr = (struct sockaddr_in6) {
+			.sin6_len = sizeof(struct sockaddr_in6),
 			.sin6_family = AF_INET6,
 			.sin6_addr = hdr->src_addr.ip6,
 			.sin6_port = hdr->port,
