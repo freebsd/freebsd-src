@@ -2745,7 +2745,7 @@ vfs_vmio_extend(struct buf *bp, int desiredpages, int size)
 	 */
 	obj = bp->b_bufobj->bo_object;
 	VM_OBJECT_WLOCK(obj);
-	while (bp->b_npages < desiredpages) {
+	if (bp->b_npages < desiredpages) {
 		/*
 		 * We must allocate system pages since blocking
 		 * here could interfere with paging I/O, no
@@ -2756,14 +2756,12 @@ vfs_vmio_extend(struct buf *bp, int desiredpages, int size)
 		 * deadlocks once allocbuf() is called after
 		 * pages are vfs_busy_pages().
 		 */
-		m = vm_page_grab(obj, OFF_TO_IDX(bp->b_offset) + bp->b_npages,
-		    VM_ALLOC_NOBUSY | VM_ALLOC_SYSTEM |
-		    VM_ALLOC_WIRED | VM_ALLOC_IGN_SBUSY |
-		    VM_ALLOC_COUNT(desiredpages - bp->b_npages));
-		if (m->valid == 0)
-			bp->b_flags &= ~B_CACHE;
-		bp->b_pages[bp->b_npages] = m;
-		++bp->b_npages;
+		vm_page_grab_pages(obj,
+		    OFF_TO_IDX(bp->b_offset) + bp->b_npages,
+		    VM_ALLOC_SYSTEM | VM_ALLOC_IGN_SBUSY |
+		    VM_ALLOC_NOBUSY | VM_ALLOC_WIRED,
+		    &bp->b_pages[bp->b_npages], desiredpages - bp->b_npages);
+		bp->b_npages = desiredpages;
 	}
 
 	/*
