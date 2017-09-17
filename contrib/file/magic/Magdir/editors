@@ -1,7 +1,7 @@
 
 #------------------------------------------------------------------------------
-# $File: editors,v 1.10 2016/07/18 17:44:49 christos Exp $
-# T602 editor documents 
+# $File: editors,v 1.11 2017/03/17 21:35:28 christos Exp $
+# T602 editor documents
 # by David Necas <yeti@physics.muni.cz>
 0	string	@CT\ 	T602 document data,
 >4	string	0	Kamenicky
@@ -9,7 +9,7 @@
 >4	string	2	KOI8-CS
 >4	string	>2	unknown encoding
 
-# Vi IMproved Encrypted file 
+# Vi IMproved Encrypted file
 # by David Necas <yeti@physics.muni.cz>
 0	string	VimCrypt~	Vim encrypted file data
 

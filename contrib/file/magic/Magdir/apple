@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: apple,v 1.35 2016/08/17 09:45:13 christos Exp $
+# $File: apple,v 1.36 2017/03/17 21:35:28 christos Exp $
 # apple:  file(1) magic for Apple file formats
 #
 0	search/1/t	FiLeStArTfIlEsTaRt	binscii (apple ][) text
@@ -67,15 +67,15 @@
 # AppleWorks word processor:
 # URL: https://en.wikipedia.org/wiki/AppleWorks
 # Reference: http://www.gno.org/pub/apple2/doc/apple/filetypes/ftn.1a.xxxx
-# Update: Joerg Jenderek 
+# Update: Joerg Jenderek
 # NOTE:
 # The "O" is really the magic number, but that's so common that it's
 # necessary to check the tab stops that follow it to avoid false positives.
 # and/or look for unused bits of booleans bytes like zoom, paginated, mail merge
 # the newer AppleWorks is from claris with extension CWK
-4	string		O	
+4	string		O
 # test for unused bits of zoom- , paginated-boolean bytes
->84	ubequad		^0x00Fe00000000Fe00		
+>84	ubequad		^0x00Fe00000000Fe00
 # look for tabstop definitions "=" no tab, "|" no tab
 # "<" left tab,"^" center tab,">" right tab, "." decimal tab,
 # unofficial "!" other , "\x8a" other
@@ -92,9 +92,9 @@
 !:ext awp
 # minimum version needed to read this files. SFMinVers (0 , 30~3.0 )
 >>>183	ubyte		30	3.0
->>>183	ubyte		!30	
+>>>183	ubyte		!30
 >>>>183	ubyte		!0	0x%x
-# usual tabstop start sequence "=====<" 
+# usual tabstop start sequence "=====<"
 >>>5	string		x	\b, tabstop ruler "%6.6s"
 # tabstop ruler
 #>>>5	string		>\0	\b, tabstops "%-79s"
@@ -105,7 +105,7 @@
 # contains any mail-merge commands
 >>>92	  byte&0x01	>0	\b, with mail merge
 # left margin in 1/10 inches ( normally 0 or 10 )
->>>91	ubyte		>0	
+>>>91	ubyte		>0
 >>>>91	ubyte		x	\b, %d/10 inch left margin
 
 # AppleWorks database:
@@ -140,13 +140,13 @@
 
 # GRR: this test is still too general as it catches also Gujin BOOT144.SYS (0xfa080000)
 #0       belong&0xff00ff 0x80000 Applesoft BASIC program data
-0	belong&0x00ff00ff	0x00080000	
+0	belong&0x00ff00ff	0x00080000
 # assuming that line number must be positive
 >2	leshort			>0		Applesoft BASIC program data, first line number %d
 #>2     leshort         x       \b, first line number %d
 
 # ORCA/EZ assembler:
-# 
+#
 # This will not identify ORCA/M source files, since those have
 # some sort of date code instead of the two zero bytes at 6 and 7
 # XXX Conflicts with ELF
@@ -186,18 +186,18 @@
 # From Johan Gade.
 # These entries are disabled for now until we fix the following issues.
 #
-# Note there might be some problems with the "VAX COFF executable" 
-# entry. Note this entry should be placed before the mac filesystem section, 
+# Note there might be some problems with the "VAX COFF executable"
+# entry. Note this entry should be placed before the mac filesystem section,
 # particularly the "Apple Partition data" entry.
 #
-# The intended meaning of these tests is, that the file is only of the 
+# The intended meaning of these tests is, that the file is only of the
 # specified type if both of the lines are correct - i.e. if the first
 # line matches and the second doesn't then it is not of that type.
 #
 #0	long	0x7801730d
 #>4	long	0x62626060	UDIF read-only zlib-compressed image (UDZO)
 #
-# Note that this entry is recognized correctly by the "Apple Partition 
+# Note that this entry is recognized correctly by the "Apple Partition
 # data" entry - however since this entry is more specific - this
 # information seems to be more useful.
 #0	long	0x45520200
@@ -288,7 +288,7 @@
 # Apple disk partition stuff
 # URL: https://en.wikipedia.org/wiki/Apple_Partition_Map
 # Reference: https://ftp.netbsd.org/pub/NetBSD/NetBSD-current/src/sys/sys/bootblock.h
-# Update: Joerg Jenderek 
+# Update: Joerg Jenderek
 # "ER" is APPLE_DRVR_MAP_MAGIC signature
 0	beshort	0x4552
 # display Apple Driver Map (strength=50) after Syslinux bootloader (71)
@@ -315,7 +315,7 @@
 # device id 0 1 (37008 garbage for super_grub2_disk_hybrid_2.02s3.iso)
 >>10	ubeshort	x		\b, devid %u
 # driver data 0 (2425393296 garbage for super_grub2_disk_hybrid_2.02s3.iso)
->>12	ubelong		>0		
+>>12	ubelong		>0
 >>>12	ubelong		x		\b, driver data %u
 # number of driver descriptors sbDrvrCount <= 61
 # (37008 garbage for super_grub2_disk_hybrid_2.02s3.iso)
@@ -327,26 +327,26 @@
 # >>500	use		apple-driver-map
 # number of partitions is always same in every partition (map block count)
 #>>0x0204	ubelong		x	\b, %u partitions
->>0x0204	ubelong		>0	\b, contains[@0x200]: 
+>>0x0204	ubelong		>0	\b, contains[@0x200]:
 >>>0x0200	use		apple-apm
->>0x0204	ubelong		>1	\b, contains[@0x400]: 
+>>0x0204	ubelong		>1	\b, contains[@0x400]:
 >>>0x0400	use		apple-apm
->>0x0204	ubelong		>2	\b, contains[@0x600]: 
+>>0x0204	ubelong		>2	\b, contains[@0x600]:
 >>>0x0600	use		apple-apm
->>0x0204	ubelong		>3	\b, contains[@0x800]: 
+>>0x0204	ubelong		>3	\b, contains[@0x800]:
 >>>0x0800	use		apple-apm
->>0x0204	ubelong		>4	\b, contains[@0xA00]: 
+>>0x0204	ubelong		>4	\b, contains[@0xA00]:
 >>>0x0A00	use		apple-apm
->>0x0204	ubelong		>5	\b, contains[@0xC00]: 
+>>0x0204	ubelong		>5	\b, contains[@0xC00]:
 >>>0x0C00	use		apple-apm
->>0x0204	ubelong		>6	\b, contains[@0xE00]: 
+>>0x0204	ubelong		>6	\b, contains[@0xE00]:
 >>>0x0E00	use		apple-apm
->>0x0204	ubelong		>7	\b, contains[@0x1000]: 
+>>0x0204	ubelong		>7	\b, contains[@0x1000]:
 >>>0x1000	use		apple-apm
 #	display apple driver descriptor map (start-block, # blocks in sbBlkSize sizes, type)
 0	name				apple-driver-map
->0	ubequad		!0		
-# descBlock first block of driver 
+>0	ubequad		!0
+# descBlock first block of driver
 >>0	ubelong	x			\b, driver start block %u
 # descSize driver size in blocks
 >>4	ubeshort	x		\b, size %u
@@ -355,11 +355,11 @@
 
 # URL: https://en.wikipedia.org/wiki/Apple_Partition_Map
 # Reference: http://opensource.apple.com/source/IOStorageFamily/IOStorageFamily-116/IOApplePartitionScheme.h
-# Update: Joerg Jenderek 
+# Update: Joerg Jenderek
 # Yes, the 3rd and 4th bytes pmSigPad are reserved, but we use them to make the
 # magic stronger.
 # for apple partition map stored as a single file
-0	belong	0x504d0000		
+0	belong	0x504d0000
 # to display Apple Partition Map (strength=70) after Syslinux bootloader (71)
 #!:strength +0
 >0	use		apple-apm
@@ -417,7 +417,7 @@
 0	name			appleworks
 >0	belong&0x00ffffff	0x07e100	AppleWorks CWK Document
 >0	belong&0x00ffffff	0x008803	ClarisWorks CWK Document
->0	default			x	
+>0	default			x
 >>0	belong			x		AppleWorks/ClarisWorks CWK Document
 >0	byte			x		\b, version %d
 >30	beshort			x		\b, %d

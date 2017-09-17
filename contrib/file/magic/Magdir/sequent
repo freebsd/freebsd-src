@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sequent,v 1.12 2014/08/16 16:07:12 christos Exp $
+# $File: sequent,v 1.13 2017/03/17 21:35:28 christos Exp $
 # sequent:  file(1) magic for Sequent machines
 #
 # Sequent information updated by Don Dwiggins <atsun!dwiggins>.
@@ -33,9 +33,9 @@
 # http://en.wikipedia.org/wiki/Sequent_Computer_Systems
 # below test line conflicts with MS-DOS 2.11 floppies and Acronis loader
 #0	leshort	0x42eb		SYMMETRY i386 standalone executable
-0	leshort	0x42eb		
+0	leshort	0x42eb
 # skip unlike negative version
->124	lelong	>-1		
+>124	lelong	>-1
 # assuming version 28867614 is very low probable
 >>124	lelong	!28867614	SYMMETRY i386 standalone executable
 >>>16	lelong	>0		not stripped
