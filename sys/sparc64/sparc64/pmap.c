@@ -1252,7 +1252,7 @@ pmap_pinit(pmap_t pm)
 	CPU_ZERO(&pm->pm_active);
 
 	VM_OBJECT_WLOCK(pm->pm_tsb_obj);
-	vm_page_grab_pages(pm->pm_tsb_obj, 0, VM_ALLOC_NORMAL |
+	(void)vm_page_grab_pages(pm->pm_tsb_obj, 0, VM_ALLOC_NORMAL |
 	    VM_ALLOC_NOBUSY | VM_ALLOC_WIRED | VM_ALLOC_ZERO, ma, TSB_PAGES);
 	VM_OBJECT_WUNLOCK(pm->pm_tsb_obj);
 	for (i = 0; i < TSB_PAGES; i++)
