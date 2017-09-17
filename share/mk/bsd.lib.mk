@@ -453,8 +453,7 @@ _libinstall:
 .if !defined(LIBRARIES_ONLY)
 .include <bsd.nls.mk>
 .if defined(_COV_FLAG)
-COV_OBJS=	${SOBJS:.pico=.o}
-COV_SRCS=	${SRCS:M*.[c|cc|cpp|cxx|C]}
+GCDAS=		${SRCS:M*.[c|cc|cpp|cxx|C]:R:S/$/.gcda/g}
 .include <bsd.cov.mk>
 .endif
 .include <bsd.files.mk>
