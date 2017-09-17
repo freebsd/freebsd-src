@@ -224,12 +224,8 @@ blist_alloc(blist_t bl, daddr_t count)
 	 * reduce the hint, stopping further iterations.
 	 */
 	while (count <= bl->bl_root->bm_bighint) {
-		if (bl->bl_radix == BLIST_BMAP_RADIX)
-			blk = blst_leaf_alloc(bl->bl_root, 0, count,
-			    bl->bl_cursor);
-		else
-			blk = blst_meta_alloc(bl->bl_root, 0, count,
-			    bl->bl_radix, bl->bl_skip, bl->bl_cursor);
+		blk = blst_meta_alloc(bl->bl_root, 0, count, bl->bl_radix,
+		    bl->bl_skip, bl->bl_cursor);
 		if (blk != SWAPBLK_NONE) {
 			bl->bl_cursor = blk + count;
 			return (blk);
@@ -260,13 +256,8 @@ blist_avail(blist_t bl)
 void
 blist_free(blist_t bl, daddr_t blkno, daddr_t count)
 {
-	if (bl) {
-		if (bl->bl_radix == BLIST_BMAP_RADIX)
-			blst_leaf_free(bl->bl_root, blkno, count);
-		else
-			blst_meta_free(bl->bl_root, blkno, count,
-			    bl->bl_radix, bl->bl_skip, 0);
-	}
+
+	blst_meta_free(bl->bl_root, blkno, count, bl->bl_radix, bl->bl_skip, 0);
 }
 
 /*
@@ -278,17 +269,9 @@ blist_free(blist_t bl, daddr_t blkno, daddr_t count)
 daddr_t
 blist_fill(blist_t bl, daddr_t blkno, daddr_t count)
 {
-	daddr_t filled;
 
-	if (bl) {
-		if (bl->bl_radix == BLIST_BMAP_RADIX)
-			filled = blst_leaf_fill(bl->bl_root, blkno, count);
-		else
-			filled = blst_meta_fill(bl->bl_root, blkno, count,
-			    bl->bl_radix, bl->bl_skip, 0);
-		return (filled);
-	}
-	return (0);
+	return (blst_meta_fill(bl->bl_root, blkno, count, bl->bl_radix,
+	    bl->bl_skip, 0));
 }
 
 /*
@@ -449,6 +432,8 @@ blst_meta_alloc(blmeta_t *scan, daddr_t blk, daddr_t count, daddr_t radix,
 	int child;
 	bool scan_from_start;
 
+	if (radix == BLIST_BMAP_RADIX)
+		return (blst_leaf_alloc(scan, blk, count, cursor));
 	if (scan->u.bmu_avail < count) {
 		/*
 		 * The meta node's hint must be too large if the allocation
@@ -497,14 +482,8 @@ blst_meta_alloc(blmeta_t *scan, daddr_t blk, daddr_t count, daddr_t radix,
 			/*
 			 * The allocation might fit in the i'th subtree.
 			 */
-			if (next_skip == 1) {
-				r = blst_leaf_alloc(&scan[i], blk, count,
-				    cursor > blk ? cursor : blk);
-			} else {
-				r = blst_meta_alloc(&scan[i], blk, count,
-				    radix, next_skip - 1, cursor > blk ?
-				    cursor : blk);
-			}
+			r = blst_meta_alloc(&scan[i], blk, count, radix,
+			    next_skip - 1, cursor > blk ? cursor : blk);
 			if (r != SWAPBLK_NONE) {
 				scan->u.bmu_avail -= count;
 				return (r);
@@ -578,6 +557,10 @@ blst_meta_free(blmeta_t *scan, daddr_t freeBlk, daddr_t count, daddr_t radix,
 	daddr_t i, next_skip, v;
 	int child;
 
+	if (scan->bm_bighint == (daddr_t)-1)
+		panic("freeing invalid range");
+	if (radix == BLIST_BMAP_RADIX)
+		return (blst_leaf_free(scan, freeBlk, count));
 	next_skip = skip / BLIST_META_RADIX;
 
 	if (scan->u.bmu_avail == 0) {
@@ -630,17 +613,9 @@ blst_meta_free(blmeta_t *scan, daddr_t freeBlk, daddr_t count, daddr_t radix,
 		v = blk + radix - freeBlk;
 		if (v > count)
 			v = count;
-
-		if (scan->bm_bighint == (daddr_t)-1)
-			panic("blst_meta_free: freeing unexpected range");
-
-		if (next_skip == 1) {
-			blst_leaf_free(&scan[i], freeBlk, v);
-		} else {
-			blst_meta_free(&scan[i], freeBlk, v, radix, next_skip - 1, blk);
-		}
+		blst_meta_free(&scan[i], freeBlk, v, radix, next_skip - 1, blk);
 		if (scan->bm_bighint < scan[i].bm_bighint)
-		    scan->bm_bighint = scan[i].bm_bighint;
+			scan->bm_bighint = scan[i].bm_bighint;
 		count -= v;
 		freeBlk += v;
 		blk += radix;
@@ -763,13 +738,17 @@ blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count, daddr_t radix,
 	daddr_t i, nblks, next_skip, v;
 	int child;
 
+	if (scan->bm_bighint == (daddr_t)-1)
+		panic("filling invalid range");
 	if (count > radix) {
 		/*
 		 * The allocation exceeds the number of blocks that are
-		 * managed by this meta node.
+		 * managed by this node.
 		 */
-		panic("allocation too large");
+		panic("fill too large");
 	}
+	if (radix == BLIST_BMAP_RADIX)
+		return (blst_leaf_fill(scan, allocBlk, count));
 	if (count == radix || scan->u.bmu_avail == 0)  {
 		/*
 		 * ALL-ALLOCATED special case
@@ -777,7 +756,7 @@ blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count, daddr_t radix,
 		nblks = scan->u.bmu_avail;
 		scan->u.bmu_avail = 0;
 		scan->bm_bighint = 0;
-		return nblks;
+		return (nblks);
 	}
 	next_skip = skip / BLIST_META_RADIX;
 
@@ -793,13 +772,11 @@ blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count, daddr_t radix,
 		 * meta node cannot have a terminator in any subtree.
 		 */
 		for (i = 1; i <= skip; i += next_skip) {
-			if (next_skip == 1) {
+			if (next_skip == 1)
 				scan[i].u.bmu_bitmap = (u_daddr_t)-1;
-				scan[i].bm_bighint = BLIST_BMAP_RADIX;
-			} else {
-				scan[i].bm_bighint = radix;
+			else
 				scan[i].u.bmu_avail = radix;
-			}
+			scan[i].bm_bighint = radix;
 		}
 	} else {
 		radix /= BLIST_META_RADIX;
@@ -813,23 +790,15 @@ blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count, daddr_t radix,
 		v = blk + radix - allocBlk;
 		if (v > count)
 			v = count;
-
-		if (scan->bm_bighint == (daddr_t)-1)
-			panic("blst_meta_fill: filling unexpected range");
-
-		if (next_skip == 1) {
-			nblks += blst_leaf_fill(&scan[i], allocBlk, v);
-		} else {
-			nblks += blst_meta_fill(&scan[i], allocBlk, v,
-			    radix, next_skip - 1, blk);
-		}
+		nblks += blst_meta_fill(&scan[i], allocBlk, v, radix,
+		    next_skip - 1, blk);
 		count -= v;
 		allocBlk += v;
 		blk += radix;
 		i += next_skip;
 	}
 	scan->u.bmu_avail -= nblks;
-	return nblks;
+	return (nblks);
 }
 
 /*
