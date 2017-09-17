@@ -3130,6 +3130,100 @@ retrylookup:
 }
 
 /*
+ * Return the specified range of pages from the given object.  For each
+ * page offset within the range, if a page already exists within the object
+ * at that offset and it is busy, then wait for it to change state.  If,
+ * instead, the page doesn't exist, then allocate it.
+ *
+ * The caller must always specify an allocation class.
+ *
+ * allocation classes:
+ *	VM_ALLOC_NORMAL		normal process request
+ *	VM_ALLOC_SYSTEM		system *really* needs the pages
+ *
+ * The caller must always specify that the pages are to be busied and/or
+ * wired.
+ *
+ * optional allocation flags:
+ *	VM_ALLOC_IGN_SBUSY	do not sleep on soft busy pages
+ *	VM_ALLOC_NOBUSY		do not exclusive busy the page
+ *	VM_ALLOC_SBUSY		set page to sbusy state
+ *	VM_ALLOC_WIRED		wire the pages
+ *	VM_ALLOC_ZERO		zero and validate any invalid pages
+ *
+ * This routine may sleep.
+ */
+void
+vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
+    vm_page_t *ma, int count)
+{
+	vm_page_t m;
+	int i;
+	bool sleep;
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	KASSERT(((u_int)allocflags >> VM_ALLOC_COUNT_SHIFT) == 0,
+	    ("vm_page_grap_pages: VM_ALLOC_COUNT() is not allowed"));
+	KASSERT((allocflags & VM_ALLOC_NOBUSY) == 0 ||
+	    (allocflags & VM_ALLOC_WIRED) != 0,
+	    ("vm_page_grab_pages: the pages must be busied or wired"));
+	KASSERT((allocflags & VM_ALLOC_SBUSY) == 0 ||
+	    (allocflags & VM_ALLOC_IGN_SBUSY) != 0,
+	    ("vm_page_grab_pages: VM_ALLOC_SBUSY/IGN_SBUSY mismatch"));
+	if (count == 0)
+		return;
+	i = 0;
+retrylookup:
+	m = vm_page_lookup(object, pindex + i);
+	for (; i < count; i++) {
+		if (m != NULL) {
+			sleep = (allocflags & VM_ALLOC_IGN_SBUSY) != 0 ?
+			    vm_page_xbusied(m) : vm_page_busied(m);
+			if (sleep) {
+				/*
+				 * Reference the page before unlocking and
+				 * sleeping so that the page daemon is less
+				 * likely to reclaim it.
+				 */
+				vm_page_aflag_set(m, PGA_REFERENCED);
+				vm_page_lock(m);
+				VM_OBJECT_WUNLOCK(object);
+				vm_page_busy_sleep(m, "grbmaw", (allocflags &
+				    VM_ALLOC_IGN_SBUSY) != 0);
+				VM_OBJECT_WLOCK(object);
+				goto retrylookup;
+			}
+			if ((allocflags & VM_ALLOC_WIRED) != 0) {
+				vm_page_lock(m);
+				vm_page_wire(m);
+				vm_page_unlock(m);
+			}
+			if ((allocflags & (VM_ALLOC_NOBUSY |
+			    VM_ALLOC_SBUSY)) == 0)
+				vm_page_xbusy(m);
+			if ((allocflags & VM_ALLOC_SBUSY) != 0)
+				vm_page_sbusy(m);
+		} else {
+			m = vm_page_alloc(object, pindex + i, (allocflags &
+			    ~VM_ALLOC_IGN_SBUSY) | VM_ALLOC_COUNT(count - i));
+			if (m == NULL) {
+				VM_OBJECT_WUNLOCK(object);
+				VM_WAIT;
+				VM_OBJECT_WLOCK(object);
+				goto retrylookup;
+			}
+		}
+		if (m->valid == 0 && (allocflags & VM_ALLOC_ZERO) != 0) {
+			if ((m->flags & PG_ZERO) == 0)
+				pmap_zero_page(m);
+			m->valid = VM_PAGE_BITS_ALL;
+		}
+		ma[i] = m;
+		m = vm_page_next(m);
+	}
+}
+
+/*
  * Mapping function for valid or dirty bits in a page.
  *
  * Inputs are required to range within a page.
