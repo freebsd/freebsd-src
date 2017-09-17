@@ -1702,28 +1702,28 @@ int ib_post_send_mad(struct ib_mad_send_buf *send_buf,
 			if (ret < 0)
 				goto error;
 		} else {
-		/* Reference MAD agent until send completes */
-		atomic_inc(&mad_agent_priv->refcount);
-		spin_lock_irqsave(&mad_agent_priv->lock, flags);
-		list_add_tail(&mad_send_wr->agent_list,
-			      &mad_agent_priv->send_list);
-		spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
-
-		if (mad_agent_priv->agent.rmpp_version) {
-			ret = ib_send_rmpp_mad(mad_send_wr);
-			if (ret >= 0 && ret != IB_RMPP_RESULT_CONSUMED)
-				ret = ib_send_mad(mad_send_wr);
-		} else
-			ret = ib_send_mad(mad_send_wr);
-		if (ret < 0) {
-			/* Fail send request */
+			/* Reference MAD agent until send completes */
+			atomic_inc(&mad_agent_priv->refcount);
 			spin_lock_irqsave(&mad_agent_priv->lock, flags);
-			list_del(&mad_send_wr->agent_list);
+			list_add_tail(&mad_send_wr->agent_list,
+				      &mad_agent_priv->send_list);
 			spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
-			atomic_dec(&mad_agent_priv->refcount);
-			goto error;
+
+			if (mad_agent_priv->agent.rmpp_version) {
+				ret = ib_send_rmpp_mad(mad_send_wr);
+				if (ret >= 0 && ret != IB_RMPP_RESULT_CONSUMED)
+					ret = ib_send_mad(mad_send_wr);
+			} else
+				ret = ib_send_mad(mad_send_wr);
+			if (ret < 0) {
+				/* Fail send request */
+				spin_lock_irqsave(&mad_agent_priv->lock, flags);
+				list_del(&mad_send_wr->agent_list);
+				spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
+				atomic_dec(&mad_agent_priv->refcount);
+				goto error;
+			}
 		}
-	}
 	}
 	return 0;
 error:

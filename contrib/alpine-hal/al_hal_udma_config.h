@@ -1,5 +1,4 @@
-/*-
-*******************************************************************************
+/*******************************************************************************
 Copyright (C) 2015 Annapurna Labs Ltd.
 
 This file may be licensed under the terms of the Annapurna Labs Commercial
@@ -313,235 +312,38 @@ struct al_udma_s2m_q_comp_conf {
 	uint8_t q_qos;			/* queue QoS */
 };
 
-/** UDMA per queue VMID control configuration */
-struct al_udma_gen_vmid_q_conf {
-	/* Enable usage of the VMID per queue according to 'vmid' */
+/** UDMA per queue Target-ID control configuration */
+struct al_udma_gen_tgtid_q_conf {
+	/* Enable usage of the Target-ID per queue according to 'tgtid' */
 	al_bool queue_en;
 
-	/* Enable usage of the VMID from the descriptor buffer address 63:48 */
+	/* Enable usage of the Target-ID from the descriptor buffer address 63:48 */
 	al_bool desc_en;
 
-	/* VMID to be applied when 'queue_en' is asserted */
-	uint16_t vmid;
+	/* Target-ID to be applied when 'queue_en' is asserted */
+	uint16_t tgtid;
 
-	/* VMADDR to be applied to msbs when 'desc_en' is asserted.
+	/* TGTADDR to be applied to msbs when 'desc_en' is asserted.
 	 * Relevant for revisions >= AL_UDMA_REV_ID_REV2 */
-	uint16_t vmaddr;
+	uint16_t tgtaddr;
 };
 
-/** UDMA VMID control configuration */
-struct al_udma_gen_vmid_conf {
+/** UDMA Target-ID control configuration */
+struct al_udma_gen_tgtid_conf {
 	/* TX queue configuration */
-	struct al_udma_gen_vmid_q_conf tx_q_conf[DMA_MAX_Q];
+	struct al_udma_gen_tgtid_q_conf tx_q_conf[DMA_MAX_Q];
 
 	/* RX queue configuration */
-	struct al_udma_gen_vmid_q_conf rx_q_conf[DMA_MAX_Q];
+	struct al_udma_gen_tgtid_q_conf rx_q_conf[DMA_MAX_Q];
 };
 
-/** UDMA VMID MSIX control configuration */
-struct al_udma_gen_vmid_msix_conf {
-	/* Enable write to all VMID_n registers in the MSI-X Controller */
+/** UDMA Target-ID MSIX control configuration */
+struct al_udma_gen_tgtid_msix_conf {
+	/* Enable write to all TGTID_n registers in the MSI-X Controller */
 	al_bool access_en;
 
-	/* use VMID_n [7:0] from MSI-X Controller for MSI-X message */
+	/* use TGTID_n [7:0] from MSI-X Controller for MSI-X message */
 	al_bool sel;
-};
-
-/** UDMA per Tx queue advanced VMID control configuration */
-struct al_udma_gen_vmid_advanced_tx_q_conf {
-	/**********************************************************************
-	 * Tx Data VMID
-	 **********************************************************************/
-	/* Tx data VMID enable */
-	al_bool tx_q_data_vmid_en;
-
-	/*
-	 * For Tx data reads, replacement bits for the original address.
-	 * The number of bits replaced is determined according to
-	 * 'tx_q_addr_hi_sel'
-	 */
-	unsigned int tx_q_addr_hi;
-
-	/*
-	 * For Tx data reads, 6 bits serving the number of bits taken from the
-	 * extra register on account of bits coming from the original address
-	 * field.
-	 * When 'tx_q_addr_hi_sel'=32 all of 'tx_q_addr_hi' will be taken.
-	 * When 'tx_q_addr_hi_sel'=0 none of it will be taken, and when any
-	 * value in between, it will start from the MSB bit and sweep down as
-	 * many bits as needed. For example if 'tx_q_addr_hi_sel'=8, the final
-	 * address [63:56] will carry 'tx_q_addr_hi'[31:24] while [55:32] will
-	 * carry the original buffer address[55:32].
-	 */
-	unsigned int tx_q_addr_hi_sel;
-
-	/*
-	 * Tx data read VMID
-	 * Masked per bit with 'tx_q_data_vmid_mask'
-	 */
-	unsigned int tx_q_data_vmid;
-
-	/*
-	 * Tx data read VMID mask
-	 * Each '1' selects from the buffer address, each '0' selects from
-	 * 'tx_q_data_vmid'
-	 */
-	unsigned int tx_q_data_vmid_mask;
-
-	/**********************************************************************
-	 * Tx prefetch VMID
-	 **********************************************************************/
-	/* Tx prefetch VMID enable */
-	al_bool tx_q_prefetch_vmid_en;
-
-	/* Tx prefetch VMID */
-	unsigned int tx_q_prefetch_vmid;
-
-	/**********************************************************************
-	 * Tx completion VMID
-	 **********************************************************************/
-	/* Tx completion VMID enable */
-	al_bool tx_q_compl_vmid_en;
-
-	/* Tx completion VMID */
-	unsigned int tx_q_compl_vmid;
-};
-
-/** UDMA per Rx queue advanced VMID control configuration */
-struct al_udma_gen_vmid_advanced_rx_q_conf {
-	/**********************************************************************
-	 * Rx Data VMID
-	 **********************************************************************/
-	/* Rx data VMID enable */
-	al_bool rx_q_data_vmid_en;
-
-	/*
-	 * For Rx data writes, replacement bits for the original address.
-	 * The number of bits replaced is determined according to
-	 * 'rx_q_addr_hi_sel'
-	 */
-	unsigned int rx_q_addr_hi;
-
-	/*
-	 * For Rx data writes, 6 bits serving the number of bits taken from the
-	 * extra register on account of bits coming from the original address
-	 * field.
-	 */
-	unsigned int rx_q_addr_hi_sel;
-
-	/*
-	 * Rx data write VMID
-	 * Masked per bit with 'rx_q_data_vmid_mask'
-	 */
-	unsigned int rx_q_data_vmid;
-
-	/* Rx data write VMID mask */
-	unsigned int rx_q_data_vmid_mask;
-
-	/**********************************************************************
-	 * Rx Data Buffer 2 VMID
-	 **********************************************************************/
-	/* Rx data buff2 VMID enable */
-	al_bool rx_q_data_buff2_vmid_en;
-
-	/*
-	 * For Rx data buff2 writes, replacement bits for the original address.
-	 * The number of bits replaced is determined according to
-	 * 'rx_q_data_buff2_addr_hi_sel'
-	 */
-	unsigned int rx_q_data_buff2_addr_hi;
-
-	/*
-	 * For Rx data buff2 writes, 6 bits serving the number of bits taken
-	 * from the extra register on account of bits coming from the original
-	 * address field.
-	 */
-	unsigned int rx_q_data_buff2_addr_hi_sel;
-
-	/*
-	 * Rx data buff2 write VMID
-	 * Masked per bit with 'rx_q_data_buff2_mask'
-	 */
-	unsigned int rx_q_data_buff2_vmid;
-
-	/* Rx data buff2 write VMID mask */
-	unsigned int rx_q_data_buff2_mask;
-
-	/**********************************************************************
-	 * Rx DDP VMID
-	 **********************************************************************/
-	/* Rx DDP write VMID enable */
-	al_bool rx_q_ddp_vmid_en;
-
-	/*
-	 * For Rx DDP writes, replacement bits for the original address.
-	 * The number of bits replaced is determined according to
-	 * 'rx_q_ddp_addr_hi_sel'
-	 */
-	unsigned int rx_q_ddp_addr_hi;
-
-	/*
-	 * For Rx DDP writes, 6 bits serving the number of bits taken from the
-	 * extra register on account of bits coming from the original address
-	 * field.
-	 */
-	unsigned int rx_q_ddp_addr_hi_sel;
-
-	/*
-	 * Rx DDP write VMID
-	 * Masked per bit with 'rx_q_ddp_mask'
-	 */
-	unsigned int rx_q_ddp_vmid;
-
-	/* Rx DDP write VMID mask */
-	unsigned int rx_q_ddp_mask;
-
-	/**********************************************************************
-	 * Rx prefetch VMID
-	 **********************************************************************/
-	/* Rx prefetch VMID enable */
-	al_bool rx_q_prefetch_vmid_en;
-
-	/* Rx prefetch VMID */
-	unsigned int rx_q_prefetch_vmid;
-
-	/**********************************************************************
-	 * Rx completion VMID
-	 **********************************************************************/
-	/* Rx completion VMID enable */
-	al_bool rx_q_compl_vmid_en;
-
-	/* Rx completion VMID */
-	unsigned int rx_q_compl_vmid;
-};
-
-/**
- * Header split, buffer 2 per queue configuration
- * When header split is enabled, Buffer_2 is used as an address for the header
- * data. Buffer_2 is defined as 32-bits in the RX descriptor and it is defined
- * that the MSB ([63:32]) of Buffer_1 is used as address [63:32] for the header
- * address.
- */
-struct al_udma_gen_hdr_split_buff2_q_conf {
-	/*
-	 * MSB of the 64-bit address (bits [63:32]) that can be used for header
-	 * split for this queue
-	 */
-	unsigned int addr_msb;
-
-	/*
-	 * Determine how to select the MSB (bits [63:32]) of the address when
-	 * header split is enabled (4 bits, one per byte)
-	 * - Bits [3:0]:
-	 *	[0] – selector for bits [39:32]
-	 *	[1] – selector for bits [47:40]
-	 *	[2] – selector for bits [55:48]
-	 *	[3] – selector for bits [63:55]
-	 * - Bit value:
-	 *	0 – Use Buffer_1 (legacy operation)
-	 *	1 – Use the queue configuration 'addr_msb'
-	 */
-	unsigned int add_msb_sel;
 };
 
 /* Report Error - to be used for abort */
@@ -721,30 +523,21 @@ int al_udma_s2m_q_compl_hdr_split_config(struct al_udma_q *udma_q,
 int al_udma_s2m_q_comp_set(struct al_udma_q *udma_q,
 			   struct al_udma_s2m_q_comp_conf *conf);
 
-/** UDMA VMID control configuration */
-void al_udma_gen_vmid_conf_set(
+/** UDMA Target-ID control configuration per queue */
+void al_udma_gen_tgtid_conf_queue_set(
+	struct unit_regs		*unit_regs,
+	struct al_udma_gen_tgtid_conf	*conf,
+	uint32_t qid);
+
+/** UDMA Target-ID control configuration */
+void al_udma_gen_tgtid_conf_set(
 	struct unit_regs __iomem	*unit_regs,
-	struct al_udma_gen_vmid_conf	*conf);
+	struct al_udma_gen_tgtid_conf	*conf);
 
-/** UDMA VMID MSIX control configuration */
-void al_udma_gen_vmid_msix_conf_set(
+/** UDMA Target-ID MSIX control configuration */
+void al_udma_gen_tgtid_msix_conf_set(
 	struct unit_regs __iomem		*unit_regs,
-	struct al_udma_gen_vmid_msix_conf	*conf);
-
-/** UDMA VMID control advanced Tx queue configuration */
-void al_udma_gen_vmid_advanced_tx_q_conf(
-	struct al_udma_q				*q,
-	struct al_udma_gen_vmid_advanced_tx_q_conf	*conf);
-
-/** UDMA VMID control advanced Rx queue configuration */
-void al_udma_gen_vmid_advanced_rx_q_conf(
-	struct al_udma_q				*q,
-	struct al_udma_gen_vmid_advanced_rx_q_conf	*conf);
-
-/** UDMA header split buffer 2 Rx queue configuration */
-void al_udma_gen_hdr_split_buff2_rx_q_conf(
-	struct al_udma_q				*q,
-	struct al_udma_gen_hdr_split_buff2_q_conf	*conf);
+	struct al_udma_gen_tgtid_msix_conf	*conf);
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus

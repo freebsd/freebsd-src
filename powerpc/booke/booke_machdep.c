@@ -187,6 +187,7 @@ extern void *int_watchdog;
 extern void *int_data_tlb_error;
 extern void *int_inst_tlb_error;
 extern void *int_debug;
+extern void *int_debug_ed;
 extern void *int_vec;
 extern void *int_vecast;
 #ifdef HWPMC_HOOKS
@@ -215,7 +216,7 @@ void
 ivor_setup(void)
 {
 
-	mtspr(SPR_IVPR, ((uintptr_t)&interrupt_vector_base) & 0xffff0000);
+	mtspr(SPR_IVPR, ((uintptr_t)&interrupt_vector_base) & ~0xffffUL);
 
 	SET_TRAP(SPR_IVOR0, int_critical_input);
 	SET_TRAP(SPR_IVOR1, int_machine_check);
@@ -242,13 +243,25 @@ ivor_setup(void)
 	case FSL_E500mc:
 	case FSL_E5500:
 		SET_TRAP(SPR_IVOR7, int_fpu);
+		SET_TRAP(SPR_IVOR15, int_debug_ed);
+		break;
+	case FSL_E500v1:
+	case FSL_E500v2:
+		SET_TRAP(SPR_IVOR32, int_vec);
+		break;
 	}
+
+#ifdef __powerpc64__
+	/* Set 64-bit interrupt mode. */
+	mtspr(SPR_EPCR, mfspr(SPR_EPCR) | EPCR_ICM);
+#endif
 }
 
 static int
 booke_check_for_fdt(uint32_t arg1, vm_offset_t *dtbp)
 {
 	void *ptr;
+	int fdt_size;
 
 	if (arg1 % 8 != 0)
 		return (-1);
@@ -257,6 +270,19 @@ booke_check_for_fdt(uint32_t arg1, vm_offset_t *dtbp)
 	if (fdt_check_header(ptr) != 0)
 		return (-1);
 
+	/*
+	 * Read FDT total size from the header of FDT.
+	 * This for sure hits within first page which is
+	 * already mapped.
+	 */
+	fdt_size = fdt_totalsize((void *)ptr);
+
+	/* 
+	 * Ok, arg1 points to FDT, so we need to map it in.
+	 * First, unmap this page and then map FDT again with full size
+	 */
+	pmap_early_io_unmap((vm_offset_t)ptr, PAGE_SIZE);
+	ptr = (void *)pmap_early_io_map(arg1, fdt_size); 
 	*dtbp = (vm_offset_t)ptr;
 
 	return (0);
@@ -332,7 +358,7 @@ booke_init(u_long arg1, u_long arg2)
 }
 
 #define RES_GRANULE 32
-extern uint32_t tlb0_miss_locks[];
+extern uintptr_t tlb0_miss_locks[];
 
 /* Initialise a struct pcpu. */
 void
@@ -342,8 +368,8 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 	pcpu->pc_tid_next = TID_MIN;
 
 #ifdef SMP
-	uint32_t *ptr;
-	int words_per_gran = RES_GRANULE / sizeof(uint32_t);
+	uintptr_t *ptr;
+	int words_per_gran = RES_GRANULE / sizeof(uintptr_t);
 
 	ptr = &tlb0_miss_locks[cpuid * words_per_gran];
 	pcpu->pc_booke_tlb_lock = ptr;

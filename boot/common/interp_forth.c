@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "ficl.h"
 
-extern char bootprog_rev[];
+extern unsigned bootprog_rev;
 
 /* #define BFORTH_DEBUG */
 
@@ -63,7 +63,6 @@ extern char bootprog_rev[];
 
 FICL_SYSTEM *bf_sys;
 FICL_VM	*bf_vm;
-FICL_WORD *pInterp;
 
 /*
  * Shim for taking commands from BF and passing them out to 'standard'
@@ -278,10 +277,7 @@ bf_init(const char *rc)
 
     /* Export some version numbers so that code can detect the loader/host version */
     ficlSetEnv(bf_sys, "FreeBSD_version", __FreeBSD_version);
-    ficlSetEnv(bf_sys, "loader_version", 
-	       (bootprog_rev[0] - '0') * 10 + (bootprog_rev[2] - '0'));
-
-    pInterp = ficlLookup(bf_sys, "interpret");
+    ficlSetEnv(bf_sys, "loader_version", bootprog_rev);
 
     /* try to load and run init file if present */
     if (rc == NULL)
@@ -293,9 +289,6 @@ bf_init(const char *rc)
 	    close(fd);
 	}
     }
-
-    /* Do this again, so that interpret can be redefined. */
-    pInterp = ficlLookup(bf_sys, "interpret");
 }
 
 /*
@@ -325,13 +318,15 @@ bf_run(char *line)
 	printf("Parse error!\n");
 	break;
     default:
-        /* Hopefully, all other codes filled this buffer */
-	printf("%s\n", command_errmsg);
+	if (command_errmsg != NULL) {
+	    printf("%s\n", command_errmsg);
+	    command_errmsg = NULL;
+	}
     }
     
     if (result == VM_USEREXIT)
 	panic("interpreter exit");
     setenv("interpret", bf_vm->state ? "" : "OK", 1);
 
-    return result;
+    return (result);
 }

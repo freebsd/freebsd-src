@@ -87,12 +87,8 @@ db_addr_t	next_instr_address(db_addr_t, boolean_t);
 #define	inst_load(i)		(db_inst_type(i) == IT_LOAD)
 #define	inst_store(i)		(db_inst_type(i) == IT_STORE)
 
-#define	DB_SMALL_VALUE_MAX	0x7fffffff
-#define	DB_SMALL_VALUE_MIN	(-0x400001)
-
 int db_inst_type(int);
 db_addr_t branch_taken(int inst, db_addr_t pc);
-void stacktrace_subr(register_t pc, register_t sp, register_t ra, int (*)(const char *, ...));
 int32_t kdbpeek(int *);
 int64_t kdbpeekd(int *);
 

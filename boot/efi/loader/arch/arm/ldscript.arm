@@ -18,7 +18,7 @@ SECTIONS
   . = ALIGN(16);
   .data    :
   {
-    *(.data *.data.*)
+    *(.data .data.*)
     *(.gnu.linkonce.d*)
     *(.rodata)
     *(.rodata.*)
@@ -46,6 +46,11 @@ SECTIONS
     __start_set_Xcommand_set = .;
     *(set_Xcommand_set)
     __stop_set_Xcommand_set = .;
+  }
+  set_Xficl_compile_set	: {
+    __start_set_Xficl_compile_set = .;
+    *(set_Xficl_compile_set)
+    __stop_set_Xficl_compile_set = .;
   }
   __gp = .;
   .plt   : { *(.plt) }

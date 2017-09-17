@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/stdint.h>
+#include <sys/systm.h>
 #include <sys/syscallsubr.h>
 
 #include <contrib/cloudabi/cloudabi_types_common.h>

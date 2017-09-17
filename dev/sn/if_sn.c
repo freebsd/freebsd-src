@@ -393,7 +393,7 @@ startagain:
 	 * Sneak a peek at the next packet
 	 */
 	m = ifp->if_snd.ifq_head;
-	if (m == 0)
+	if (m == NULL)
 		return;
 	/*
 	 * Compute the frame length and set pad to give an overall even
@@ -509,7 +509,7 @@ startagain:
 	/*
 	 * Push out the data to the card.
 	 */
-	for (top = m; m != 0; m = m->m_next) {
+	for (top = m; m != NULL; m = m->m_next) {
 
 		/*
 		 * Push out words.
@@ -607,7 +607,7 @@ snresume(struct ifnet *ifp)
 	 * Sneak a peek at the next packet
 	 */
 	m = ifp->if_snd.ifq_head;
-	if (m == 0) {
+	if (m == NULL) {
 		if_printf(ifp, "snresume() with nothing to send\n");
 		return;
 	}
@@ -708,7 +708,7 @@ snresume(struct ifnet *ifp)
 	/*
 	 * Push out the data to the card.
 	 */
-	for (top = m; m != 0; m = m->m_next) {
+	for (top = m; m != NULL; m = m->m_next) {
 
 		/*
 		 * Push out words.

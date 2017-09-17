@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../../../dev/ata/chipsets
+.PATH: ${SRCTOP}/sys/dev/ata/chipsets
 
 KMOD=	atacypress
 SRCS=	ata-cypress.c

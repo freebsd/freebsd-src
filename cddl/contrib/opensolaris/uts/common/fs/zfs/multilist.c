@@ -13,7 +13,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright (c) 2013, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2017 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -21,6 +21,12 @@
 
 /* needed for spa_get_random() */
 #include <sys/spa.h>
+
+/*
+ * This overrides the number of sublists in each multilist_t, which defaults
+ * to the number of CPUs in the system (see multilist_create()).
+ */
+int zfs_multilist_num_sublists = 0;
 
 /*
  * Given the object contained on the list, return a pointer to the
@@ -59,16 +65,16 @@ multilist_d2l(multilist_t *ml, void *obj)
  *     requirement, but a general rule of thumb in order to garner the
  *     best multi-threaded performance out of the data structure.
  */
-void
-multilist_create(multilist_t *ml, size_t size, size_t offset, unsigned int num,
-    multilist_sublist_index_func_t *index_func)
+static multilist_t *
+multilist_create_impl(size_t size, size_t offset,
+    unsigned int num, multilist_sublist_index_func_t *index_func)
 {
-	ASSERT3P(ml, !=, NULL);
 	ASSERT3U(size, >, 0);
 	ASSERT3U(size, >=, offset + sizeof (multilist_node_t));
 	ASSERT3U(num, >, 0);
 	ASSERT3P(index_func, !=, NULL);
 
+	multilist_t *ml = kmem_alloc(sizeof (*ml), KM_SLEEP);
 	ml->ml_offset = offset;
 	ml->ml_num_sublists = num;
 	ml->ml_index_func = index_func;
@@ -83,6 +89,27 @@ multilist_create(multilist_t *ml, size_t size, size_t offset, unsigned int num,
 		mutex_init(&mls->mls_lock, NULL, MUTEX_DEFAULT, NULL);
 		list_create(&mls->mls_list, size, offset);
 	}
+	return (ml);
+}
+
+/*
+ * Allocate a new multilist, using the default number of sublists
+ * (the number of CPUs, or at least 4, or the tunable
+ * zfs_multilist_num_sublists).
+ */
+multilist_t *
+multilist_create(size_t size, size_t offset,
+    multilist_sublist_index_func_t *index_func)
+{
+	int num_sublists;
+
+	if (zfs_multilist_num_sublists > 0) {
+		num_sublists = zfs_multilist_num_sublists;
+	} else {
+		num_sublists = MAX(max_ncpus, 4);
+	}
+
+	return (multilist_create_impl(size, offset, num_sublists, index_func));
 }
 
 /*
@@ -108,6 +135,7 @@ multilist_destroy(multilist_t *ml)
 
 	ml->ml_num_sublists = 0;
 	ml->ml_offset = 0;
+	kmem_free(ml, sizeof (multilist_t));
 }
 
 /*
@@ -257,6 +285,13 @@ multilist_sublist_lock(multilist_t *ml, unsigned int sublist_idx)
 	mutex_enter(&mls->mls_lock);
 
 	return (mls);
+}
+
+/* Lock and return the sublist that would be used to store the specified obj */
+multilist_sublist_t *
+multilist_sublist_lock_obj(multilist_t *ml, void *obj)
+{
+	return (multilist_sublist_lock(ml, ml->ml_index_func(ml, obj)));
 }
 
 void

@@ -84,7 +84,9 @@ static struct dsk dsk;
 static char kname[1024];
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
+#ifdef LOADER_GELI_SUPPORT
 static struct geli_boot_args geliargs;
+#endif
 
 static vm_offset_t	high_heap_base;
 static uint32_t		bios_basemem, bios_extmem, high_heap_size;
@@ -101,7 +103,7 @@ static char *heap_end;
 
 void exit(int);
 static void load(void);
-static int parse(char *, int *);
+static int parse_cmds(char *, int *);
 static int dskread(void *, daddr_t, unsigned);
 void *malloc(size_t n);
 void free(void *ptr);
@@ -137,6 +139,7 @@ free(void *ptr)
 #ifdef LOADER_GELI_SUPPORT
 #include "geliboot.c"
 static char gelipw[GELI_PW_MAXLEN];
+static struct keybuf *gelibuf;
 #endif
 
 static inline int
@@ -251,7 +254,8 @@ gptinit(void)
 #ifdef LOADER_GELI_SUPPORT
 	if (geli_taste(vdev_read, &dsk, (gpttable[curent].ent_lba_end -
 	    gpttable[curent].ent_lba_start)) == 0) {
-		if (geli_passphrase(&gelipw, dsk.unit, 'p', curent + 1, &dsk) != 0) {
+		if (geli_havekey(&dsk) != 0 && geli_passphrase(&gelipw,
+		    dsk.unit, 'p', curent + 1, &dsk) != 0) {
 			printf("%s: unable to decrypt GELI key\n", BOOTPROG);
 			return (-1);
 		}
@@ -316,7 +320,7 @@ main(void)
 		}
 		if (*cmd != '\0') {
 			memcpy(cmdtmp, cmd, sizeof(cmdtmp));
-			if (parse(cmdtmp, &dskupdated))
+			if (parse_cmds(cmdtmp, &dskupdated))
 				break;
 			if (dskupdated && gptinit() != 0)
 				break;
@@ -366,7 +370,7 @@ main(void)
 			getstr(cmd, sizeof(cmd));
 		else if (!OPT_CHECK(RBX_QUIET))
 			putchar('\n');
-		if (parse(cmd, &dskupdated)) {
+		if (parse_cmds(cmd, &dskupdated)) {
 			putchar('\a');
 			continue;
 		}
@@ -476,20 +480,26 @@ load(void)
     bootinfo.bi_esymtab = VTOP(p);
     bootinfo.bi_kernelname = VTOP(kname);
     bootinfo.bi_bios_dev = dsk.drive;
-    geliargs.size = sizeof(geliargs);
 #ifdef LOADER_GELI_SUPPORT
-    bcopy(gelipw, geliargs.gelipw, sizeof(geliargs.gelipw));
-    bzero(gelipw, sizeof(gelipw));
-#else
-	geliargs.gelipw[0] = '\0';
+    geliargs.size = sizeof(geliargs);
+    explicit_bzero(gelipw, sizeof(gelipw));
+    gelibuf = malloc(sizeof(struct keybuf) + (GELI_MAX_KEYS * sizeof(struct keybuf_ent)));
+    geli_fill_keybuf(gelibuf);
+    geliargs.notapw = '\0';
+    geliargs.keybuf_sentinel = KEYBUF_SENTINEL;
+    geliargs.keybuf = gelibuf;
 #endif
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	   MAKEBOOTDEV(dev_maj[dsk.type], dsk.part + 1, dsk.unit, 0xff),
-	   KARGS_FLAGS_EXTARG, 0, 0, VTOP(&bootinfo), geliargs);
+	   KARGS_FLAGS_EXTARG, 0, 0, VTOP(&bootinfo)
+#ifdef LOADER_GELI_SUPPORT
+	   , geliargs
+#endif
+	   );
 }
 
 static int
-parse(char *cmdstr, int *dskupdated)
+parse_cmds(char *cmdstr, int *dskupdated)
 {
     char *arg = cmdstr;
     char *ep, *p, *q;

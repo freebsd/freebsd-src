@@ -44,6 +44,7 @@
  */
 
 extern struct vop_vector tmpfs_vnodeop_entries;
+extern struct vop_vector tmpfs_vnodeop_nonc_entries;
 
 vop_access_t	tmpfs_access;
 vop_getattr_t	tmpfs_getattr;

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../../dev/pcf
+.PATH: ${SRCTOP}/sys/dev/pcf
 
 KMOD=	pcf
 SRCS=	${envctrl} pcf.c ${pcf_ebus} ${pcf_isa}

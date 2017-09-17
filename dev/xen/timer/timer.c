@@ -64,8 +64,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/xen/timer/timer.h>
 
-#include <isa/rtc.h>
-
 #include "clock_if.h"
 
 static devclass_t xentimer_devclass;
@@ -228,9 +226,6 @@ xentimer_settime(device_t dev __unused, struct timespec *ts)
 	 */
 	if (!xen_initial_domain())
 		return (0);
-
-	/* Set the native RTC. */
-	atrtc_set(ts);
 
 	settime.cmd = XENPF_settime64;
 	settime.u.settime64.mbz = 0;
@@ -417,8 +412,20 @@ xentimer_attach(device_t dev)
 	/* Register the timecounter. */
 	sc->tc.tc_name = "XENTIMER";
 	sc->tc.tc_quality = XENTIMER_QUALITY;
-	sc->tc.tc_flags = TC_FLAGS_SUSPEND_SAFE;
 	/*
+	 * FIXME: due to the lack of ordering during resume, FreeBSD cannot
+	 * guarantee that the Xen PV timer is resumed before any other device
+	 * attempts to make use of it, so mark it as not safe for suspension
+	 * (ie: remove the TC_FLAGS_SUSPEND_SAFE flag).
+	 *
+	 * NB: This was not a problem in previous FreeBSD versions because the
+	 * timer was directly attached to the nexus, but it is an issue now
+	 * that the timer is attached to the xenpv bus, and thus resumed
+	 * later.
+	 *
+	 * sc->tc.tc_flags = TC_FLAGS_SUSPEND_SAFE;
+	 */
+    	/*
 	 * The underlying resolution is in nanoseconds, since the timer info
 	 * scales TSC frequencies using a fraction that represents time in
 	 * terms of nanoseconds.

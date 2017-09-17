@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../compat/linsysfs
+.PATH: ${SRCTOP}/sys/compat/linsysfs
 
 KMOD=	linsysfs
 SRCS=	vnode_if.h \

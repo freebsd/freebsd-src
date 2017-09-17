@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 
-.PATH:  ${.CURDIR}/../../../i386/bios
+.PATH:  ${SRCTOP}/sys/i386/bios
 
 KMOD=	smapi
 SRCS=	smapi.c smapi_bios.S \

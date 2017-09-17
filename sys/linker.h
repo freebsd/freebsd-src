@@ -73,6 +73,7 @@ struct linker_file {
     int			userrefs;	/* kldload(2) count */
     int			flags;
 #define LINKER_FILE_LINKED	0x1	/* file has been fully linked */
+#define LINKER_FILE_MODULES	0x2	/* file has >0 modules at preload */
     TAILQ_ENTRY(linker_file) link;	/* list of all loaded files */
     char*		filename;	/* file which was loaded */
     char*		pathname;	/* file name with full path */
@@ -142,7 +143,7 @@ int linker_file_foreach(linker_predicate_t *_predicate, void *_context);
  * Lookup a symbol in a file.  If deps is TRUE, look in dependencies
  * if not found in file.
  */
-caddr_t linker_file_lookup_symbol(linker_file_t _file, const char* _name, 
+caddr_t linker_file_lookup_symbol(linker_file_t _file, const char* _name,
 				  int _deps);
 
 /*
@@ -156,7 +157,7 @@ int linker_file_lookup_set(linker_file_t _file, const char *_name,
 /*
  * List all functions in a file.
  */
-int linker_file_function_listall(linker_file_t, 
+int linker_file_function_listall(linker_file_t,
 				 linker_function_nameval_callback_t, void *);
 
 /*
@@ -216,6 +217,7 @@ void *linker_hwpmc_list_objects(void);
 #define MODINFOMD_CTORS_ADDR	0x000a		/* address of .ctors */
 #define MODINFOMD_CTORS_SIZE	0x000b		/* size of .ctors */
 #define MODINFOMD_FW_HANDLE	0x000c		/* Firmware dependent handle */
+#define MODINFOMD_KEYBUF	0x000d		/* Crypto key intake buffer */
 #define MODINFOMD_NOCOPY	0x8000		/* don't copy this metadata to the kernel */
 
 #define MODINFOMD_DEPLIST	(0x4001 | MODINFOMD_NOCOPY)	/* depends on */

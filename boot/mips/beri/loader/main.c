@@ -144,9 +144,7 @@ main(int argc, char *argv[], char *envv[], struct bootinfo *bootinfop)
 	}
 	extract_currdev(bootinfop);
 
-	printf("\n");
-	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
-	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
+	printf("\n%s", bootprog_info);
 #if 0
 	printf("bootpath=\"%s\"\n", bootpath);
 #endif

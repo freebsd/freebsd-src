@@ -32,6 +32,7 @@ makeoptions	MODULES_OVERRIDE=""
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
 #options 	INET6			# IPv6 communications protocols
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	FFS			# Berkeley Fast Filesystem
 #options 	SOFTUPDATES		# Enable FFS soft updates support
 #options 	UFS_ACL			# Support for access control lists
@@ -152,7 +153,6 @@ device		zyd			# ZyDAS zd1211/zd1211b wireless NICs
 
 # USB device (gadget) support
 device		at91_dci		# Atmel's usb device
-device		usfs			# emulate a flash
 device		cdce			# emulate an ethernet
 device		usb_template		# Control of the gadget
 

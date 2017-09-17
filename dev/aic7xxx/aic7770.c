@@ -64,7 +64,7 @@ static int aic7770_suspend(struct ahc_softc *ahc);
 static int aic7770_resume(struct ahc_softc *ahc);
 static int aha2840_load_seeprom(struct ahc_softc *ahc);
 static ahc_device_setup_t ahc_aic7770_VL_setup;
-static ahc_device_setup_t ahc_aic7770_EISA_setup;
+static ahc_device_setup_t ahc_aic7770_EISA_setup;	/* Really just ISA */
 static ahc_device_setup_t ahc_aic7770_setup;
 
 struct aic7770_identity aic7770_ident_table[] =

@@ -132,10 +132,6 @@ CTASSERT(VM_ISADMA_BOUNDARY < VM_LOWMEM_BOUNDARY);
 CTASSERT(VM_LOWMEM_BOUNDARY < VM_DMA32_BOUNDARY);
 #endif
 
-static int cnt_prezero;
-SYSCTL_INT(_vm_stats_misc, OID_AUTO, cnt_prezero, CTLFLAG_RD,
-    &cnt_prezero, 0, "The number of physical pages prezeroed at idle time");
-
 static int sysctl_vm_phys_free(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_free, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_vm_phys_free, "A", "Phys Free Info");
@@ -274,6 +270,7 @@ vm_phys_fictitious_cmp(struct vm_phys_fictitious_seg *p1,
 	    (uintmax_t)p1->end, (uintmax_t)p2->start, (uintmax_t)p2->end);
 }
 
+#ifdef notyet
 static __inline int
 vm_rr_selectdomain(void)
 {
@@ -289,6 +286,7 @@ vm_rr_selectdomain(void)
 	return (0);
 #endif
 }
+#endif /* notyet */
 
 /*
  * Initialise a VM domain iterator.
@@ -731,32 +729,28 @@ vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl, int order)
 }
 
 /*
- * Initialize a physical page and add it to the free lists.
+ * Initialize a physical page in preparation for adding it to the free
+ * lists.
  */
 void
-vm_phys_add_page(vm_paddr_t pa)
+vm_phys_init_page(vm_paddr_t pa)
 {
 	vm_page_t m;
-	struct vm_domain *vmd;
 
-	vm_cnt.v_page_count++;
 	m = vm_phys_paddr_to_vm_page(pa);
+	m->object = NULL;
+	m->wire_count = 0;
 	m->busy_lock = VPB_UNBUSIED;
+	m->hold_count = 0;
+	m->flags = m->aflags = m->oflags = 0;
 	m->phys_addr = pa;
 	m->queue = PQ_NONE;
+	m->psind = 0;
 	m->segind = vm_phys_paddr_to_segind(pa);
-	vmd = vm_phys_domain(m);
-	vmd->vmd_page_count++;
-	vmd->vmd_segs |= 1UL << m->segind;
-	KASSERT(m->order == VM_NFREEORDER,
-	    ("vm_phys_add_page: page %p has unexpected order %d",
-	    m, m->order));
+	m->order = VM_NFREEORDER;
 	m->pool = VM_FREEPOOL_DEFAULT;
+	m->valid = m->dirty = 0;
 	pmap_page_init(m);
-	mtx_lock(&vm_page_queue_free_mtx);
-	vm_phys_freecnt_adj(m, 1);
-	vm_phys_free_pages(m, 0);
-	mtx_unlock(&vm_page_queue_free_mtx);
 }
 
 /*
@@ -912,6 +906,7 @@ vm_phys_fictitious_init_range(vm_page_t range, vm_paddr_t start,
 {
 	long i;
 
+	bzero(range, page_count * sizeof(*range));
 	for (i = 0; i < page_count; i++) {
 		vm_page_initfake(&range[i], start + PAGE_SIZE * i, memattr);
 		range[i].oflags &= ~VPO_UNMANAGED;
@@ -986,7 +981,7 @@ vm_phys_fictitious_reg_range(vm_paddr_t start, vm_paddr_t end,
 alloc:
 #endif
 		fp = malloc(page_count * sizeof(struct vm_page), M_FICT_PAGES,
-		    M_WAITOK | M_ZERO);
+		    M_WAITOK);
 #ifdef VM_PHYSSEG_DENSE
 	}
 #endif
@@ -1295,53 +1290,6 @@ vm_phys_unfree_page(vm_page_t m)
 	}
 	KASSERT(m_set == m, ("vm_phys_unfree_page: fatal inconsistency"));
 	return (TRUE);
-}
-
-/*
- * Try to zero one physical page.  Used by an idle priority thread.
- */
-boolean_t
-vm_phys_zero_pages_idle(void)
-{
-	static struct vm_freelist *fl;
-	static int flind, oind, pind;
-	vm_page_t m, m_tmp;
-	int domain;
-
-	domain = vm_rr_selectdomain();
-	fl = vm_phys_free_queues[domain][0][0];
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	for (;;) {
-		TAILQ_FOREACH_REVERSE(m, &fl[oind].pl, pglist, plinks.q) {
-			for (m_tmp = m; m_tmp < &m[1 << oind]; m_tmp++) {
-				if ((m_tmp->flags & (PG_CACHED | PG_ZERO)) == 0) {
-					vm_phys_unfree_page(m_tmp);
-					vm_phys_freecnt_adj(m, -1);
-					mtx_unlock(&vm_page_queue_free_mtx);
-					pmap_zero_page_idle(m_tmp);
-					m_tmp->flags |= PG_ZERO;
-					mtx_lock(&vm_page_queue_free_mtx);
-					vm_phys_freecnt_adj(m, 1);
-					vm_phys_free_pages(m_tmp, 0);
-					vm_page_zero_count++;
-					cnt_prezero++;
-					return (TRUE);
-				}
-			}
-		}
-		oind++;
-		if (oind == VM_NFREEORDER) {
-			oind = 0;
-			pind++;
-			if (pind == VM_NFREEPOOL) {
-				pind = 0;
-				flind++;
-				if (flind == vm_nfreelists)
-					flind = 0;
-			}
-			fl = vm_phys_free_queues[domain][flind][pind];
-		}
-	}
 }
 
 /*

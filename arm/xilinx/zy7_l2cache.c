@@ -39,22 +39,13 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/pl310.h>
+#include <machine/platformvar.h>
+
+#include <arm/xilinx/zy7_machdep.h>
+
+#include "platform_pl310_if.h"
 
 void
-platform_pl310_init(struct pl310_softc *softc)
+zynq7_pl310_init(platform_t plat, struct pl310_softc *softc)
 {
-}
-
-void
-platform_pl310_write_ctrl(struct pl310_softc *sc, uint32_t val)
-{
-
-	pl310_write4(sc, PL310_CTRL, val);
-}
-
-void
-platform_pl310_write_debug(struct pl310_softc *sc, uint32_t val)
-{
-
-	pl310_write4(sc, PL310_DEBUG_CTRL, val);
 }

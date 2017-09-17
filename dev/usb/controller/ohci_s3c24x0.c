@@ -148,14 +148,8 @@ static int
 ohci_s3c24x0_detach(device_t dev)
 {
 	struct ohci_softc *sc = device_get_softc(dev);
-	device_t bdev;
 	int err;
 
-	if (sc->sc_bus.bdev) {
-		bdev = sc->sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(dev, bdev);
-	}
 	/* during module unload there are lots of children leftover */
 	device_delete_children(dev);
 

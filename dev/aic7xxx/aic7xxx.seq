@@ -1446,7 +1446,7 @@ p_command_xfer:
 		test	SSTAT0, SDONE jnz . + 2;
 		test    SSTAT1, PHASEMIS jz . - 1;
 		/*
-		 * Wait for our ACK to go-away on it's own
+		 * Wait for our ACK to go-away on its own
 		 * instead of being killed by SCSIEN getting cleared.
 		 */
 		test	SCSISIGI, ACKI jnz .;

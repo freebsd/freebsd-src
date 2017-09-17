@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <net/ethernet.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 
@@ -36,19 +37,17 @@ __FBSDID("$FreeBSD$");
 #include <net.h>
 #include <netif.h>
 
-#include <dev_net.c>
-
 #include <efi.h>
 #include <efilib.h>
 
 static EFI_GUID sn_guid = EFI_SIMPLE_NETWORK_PROTOCOL;
 
 static void efinet_end(struct netif *);
-static int efinet_get(struct iodesc *, void *, size_t, time_t);
+static ssize_t efinet_get(struct iodesc *, void **, time_t);
 static void efinet_init(struct iodesc *, void *);
 static int efinet_match(struct netif *, void *);
 static int efinet_probe(struct netif *, void *);
-static int efinet_put(struct iodesc *, void *, size_t);
+static ssize_t efinet_put(struct iodesc *, void *, size_t);
 
 struct netif_driver efinetif = {   
 	.netif_bname = "efinet",
@@ -113,7 +112,7 @@ efinet_probe(struct netif *nif, void *machdep_hint)
 	return (0);
 }
 
-static int
+static ssize_t
 efinet_put(struct iodesc *desc, void *pkt, size_t len)
 {
 	struct netif *nif = desc->io_netif;
@@ -125,59 +124,60 @@ efinet_put(struct iodesc *desc, void *pkt, size_t len)
 	if (net == NULL)
 		return (-1);
 
-	status = net->Transmit(net, 0, len, pkt, 0, 0, 0);
+	status = net->Transmit(net, 0, len, pkt, NULL, NULL, NULL);
 	if (status != EFI_SUCCESS)
 		return (-1);
 
 	/* Wait for the buffer to be transmitted */
 	do {
-		buf = 0;	/* XXX Is this needed? */
-		status = net->GetStatus(net, 0, &buf);
+		buf = NULL;	/* XXX Is this needed? */
+		status = net->GetStatus(net, NULL, &buf);
 		/*
 		 * XXX EFI1.1 and the E1000 card returns a different 
 		 * address than we gave.  Sigh.
 		 */
-	} while (status == EFI_SUCCESS && buf == 0);
+	} while (status == EFI_SUCCESS && buf == NULL);
 
 	/* XXX How do we deal with status != EFI_SUCCESS now? */
 	return ((status == EFI_SUCCESS) ? len : -1);
 }
 
-static int
-efinet_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
+static ssize_t
+efinet_get(struct iodesc *desc, void **pkt, time_t timeout)
 {
 	struct netif *nif = desc->io_netif;
 	EFI_SIMPLE_NETWORK *net;
 	EFI_STATUS status;
 	UINTN bufsz;
 	time_t t;
-	char buf[2048];
+	char *buf, *ptr;
+	ssize_t ret = -1;
 
 	net = nif->nif_devdata;
 	if (net == NULL)
-		return (0);
+		return (ret);
 
-	t = time(0);
-	while ((time(0) - t) < timeout) {
-		bufsz = sizeof(buf);
-		status = net->Receive(net, 0, &bufsz, buf, 0, 0, 0);
+	bufsz = net->Mode->MaxPacketSize + ETHER_HDR_LEN + ETHER_CRC_LEN;
+	buf = malloc(bufsz + ETHER_ALIGN);
+	if (buf == NULL)
+		return (ret);
+	ptr = buf + ETHER_ALIGN;
+
+	t = getsecs();
+	while ((getsecs() - t) < timeout) {
+		status = net->Receive(net, NULL, &bufsz, ptr, NULL, NULL, NULL);
 		if (status == EFI_SUCCESS) {
-			/*
-			 * XXX EFI1.1 and the E1000 card trash our
-			 * workspace if we do not do this silly copy.
-			 * Either they are not respecting the len
-			 * value or do not like the alignment.
-			 */
-			if (bufsz > len)
-				bufsz = len;
-			bcopy(buf, pkt, bufsz);
-			return (bufsz);
+			*pkt = buf;
+			ret = (ssize_t)bufsz;
+			break;
 		}
 		if (status != EFI_NOT_READY)
-			return (0);
+			break;
 	}
 
-	return (0);
+	if (ret == -1)
+		free(buf);
+	return (ret);
 }
 
 static void
@@ -187,6 +187,7 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 	EFI_SIMPLE_NETWORK *net;
 	EFI_HANDLE h;
 	EFI_STATUS status;
+	UINT32 mask;
 
 	if (nif->nif_driver->netif_ifs[nif->nif_unit].dif_unit < 0) {
 		printf("Invalid network interface %d\n", nif->nif_unit);
@@ -205,8 +206,8 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 	if (net->Mode->State == EfiSimpleNetworkStopped) {
 		status = net->Start(net);
 		if (status != EFI_SUCCESS) {
-			printf("net%d: cannot start interface (status=%ld)\n",
-			    nif->nif_unit, (long)status);
+			printf("net%d: cannot start interface (status=%lu)\n",
+			    nif->nif_unit, EFI_ERROR_CODE(status));
 			return;
 		}
 	}
@@ -214,22 +215,20 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 	if (net->Mode->State != EfiSimpleNetworkInitialized) {
 		status = net->Initialize(net, 0, 0);
 		if (status != EFI_SUCCESS) {
-			printf("net%d: cannot init. interface (status=%ld)\n",
-			    nif->nif_unit, (long)status);
+			printf("net%d: cannot init. interface (status=%lu)\n",
+			    nif->nif_unit, EFI_ERROR_CODE(status));
 			return;
 		}
 	}
 
-	if (net->Mode->ReceiveFilterSetting == 0) {
-		UINT32 mask = EFI_SIMPLE_NETWORK_RECEIVE_UNICAST |
-		    EFI_SIMPLE_NETWORK_RECEIVE_BROADCAST;
+	mask = EFI_SIMPLE_NETWORK_RECEIVE_UNICAST |
+	    EFI_SIMPLE_NETWORK_RECEIVE_BROADCAST;
 
-		status = net->ReceiveFilters(net, mask, 0, FALSE, 0, 0);
-		if (status != EFI_SUCCESS) {
-			printf("net%d: cannot set rx. filters (status=%ld)\n",
-			    nif->nif_unit, (long)status);
-			return;
-		}
+	status = net->ReceiveFilters(net, mask, 0, FALSE, 0, NULL);
+	if (status != EFI_SUCCESS) {
+		printf("net%d: cannot set rx. filters (status=%lu)\n",
+		    nif->nif_unit, EFI_ERROR_CODE(status));
+		return;
 	}
 
 #ifdef EFINET_DEBUG
@@ -252,15 +251,15 @@ efinet_end(struct netif *nif)
 }
 
 static int efinet_dev_init(void);
-static void efinet_dev_print(int);
+static int efinet_dev_print(int);
 
 struct devsw efinet_dev = {
 	.dv_name = "net",
 	.dv_type = DEVT_NET,
 	.dv_init = efinet_dev_init,
-	.dv_strategy = net_strategy,
-	.dv_open = net_open,
-	.dv_close = net_close,
+	.dv_strategy = NULL,		/* Will be set in efinet_dev_init */
+	.dv_open = NULL,		/* Will be set in efinet_dev_init */
+	.dv_close = NULL,		/* Will be set in efinet_dev_init */
 	.dv_ioctl = noioctl,
 	.dv_print = efinet_dev_print,
 	.dv_cleanup = NULL
@@ -277,13 +276,14 @@ efinet_dev_init()
 	EFI_STATUS status;
 	UINTN sz;
 	int err, i, nifs;
+	extern struct devsw netdev;
 
 	sz = 0;
 	handles = NULL;
-	status = BS->LocateHandle(ByProtocol, &sn_guid, 0, &sz, 0);
+	status = BS->LocateHandle(ByProtocol, &sn_guid, NULL, &sz, NULL);
 	if (status == EFI_BUFFER_TOO_SMALL) {
 		handles = (EFI_HANDLE *)malloc(sz);
-		status = BS->LocateHandle(ByProtocol, &sn_guid, 0, &sz,
+		status = BS->LocateHandle(ByProtocol, &sn_guid, NULL, &sz,
 		    handles);
 		if (EFI_ERROR(status))
 			free(handles);
@@ -291,12 +291,18 @@ efinet_dev_init()
 	if (EFI_ERROR(status))
 		return (efi_status_to_errno(status));
 	handles2 = (EFI_HANDLE *)malloc(sz);
+	if (handles2 == NULL) {
+		free(handles);
+		return (ENOMEM);
+	}
 	nifs = 0;
 	for (i = 0; i < sz / sizeof(EFI_HANDLE); i++) {
 		devpath = efi_lookup_devpath(handles[i]);
 		if (devpath == NULL)
 			continue;
-		node = efi_devpath_last_node(devpath);
+		if ((node = efi_devpath_last_node(devpath)) == NULL)
+			continue;
+
 		if (DevicePathType(node) != MESSAGING_DEVICE_PATH ||
 		    DevicePathSubType(node) != MSG_MAC_ADDR_DP)
 			continue;
@@ -307,10 +313,11 @@ efinet_dev_init()
 		 * pull packets off the network leading to lost packets.
 		 */
 		status = BS->OpenProtocol(handles[i], &sn_guid, (void **)&net,
-		    IH, 0, EFI_OPEN_PROTOCOL_EXCLUSIVE);
+		    IH, NULL, EFI_OPEN_PROTOCOL_EXCLUSIVE);
 		if (status != EFI_SUCCESS) {
 			printf("Unable to open network interface %d for "
-			    "exclusive access: %d\n", i, EFI_ERROR(status));
+			    "exclusive access: %lu\n", i,
+			    EFI_ERROR_CODE(status));
 		}
 
 		handles2[nifs] = handles[i];
@@ -318,20 +325,24 @@ efinet_dev_init()
 	}
 	free(handles);
 	if (nifs == 0) {
-		free(handles2);
-		return (ENOENT);
+		err = ENOENT;
+		goto done;
 	}
 
 	err = efi_register_handles(&efinet_dev, handles2, NULL, nifs);
-	if (err != 0) {
-		free(handles2);
-		return (err);
-	}
+	if (err != 0)
+		goto done;
 
-	efinetif.netif_nifs = nifs;
 	efinetif.netif_ifs = calloc(nifs, sizeof(struct netif_dif));
-
 	stats = calloc(nifs, sizeof(struct netif_stats));
+	if (efinetif.netif_ifs == NULL || stats == NULL) {
+		free(efinetif.netif_ifs);
+		free(stats);
+		efinetif.netif_ifs = NULL;
+		err = ENOMEM;
+		goto done;
+	}
+	efinetif.netif_nifs = nifs;
 
 	for (i = 0; i < nifs; i++) {
 
@@ -341,29 +352,39 @@ efinet_dev_init()
 		dif->dif_stats = &stats[i];
 		dif->dif_private = handles2[i];
 	}
-	free(handles2);
 
-	return (0);
+	efinet_dev.dv_open = netdev.dv_open;
+	efinet_dev.dv_close = netdev.dv_close;
+	efinet_dev.dv_strategy = netdev.dv_strategy;
+
+done:
+	free(handles2);
+	return (err);
 }
 
-static void
+static int
 efinet_dev_print(int verbose)
 {
 	CHAR16 *text;
 	EFI_HANDLE h;
-	int unit;
+	int unit, ret = 0;
 
-	pager_open();
+	printf("%s devices:", efinet_dev.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
+
 	for (unit = 0, h = efi_find_handle(&efinet_dev, 0);
 	    h != NULL; h = efi_find_handle(&efinet_dev, ++unit)) {
 		printf("    %s%d:", efinet_dev.dv_name, unit);
-		text = efi_devpath_name(efi_lookup_devpath(h));
-		if (text != NULL) {
-			printf("    %S", text);
-			efi_free_devpath_name(text);
+		if (verbose) {
+			text = efi_devpath_name(efi_lookup_devpath(h));
+			if (text != NULL) {
+				printf("    %S", text);
+				efi_free_devpath_name(text);
+			}
 		}
-		if (pager_output("\n"))
+		if ((ret = pager_output("\n")) != 0)
 			break;
 	}
-	pager_close();
+	return (ret);
 }

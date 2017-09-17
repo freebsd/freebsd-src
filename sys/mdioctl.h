@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -49,7 +49,7 @@ enum md_types {MD_MALLOC, MD_PRELOAD, MD_VNODE, MD_SWAP, MD_NULL};
  * Ioctl definitions for memory disk pseudo-device.
  */
 
-#define MDNPAD		97
+#define MDNPAD		96
 struct md_ioctl {
 	unsigned	md_version;	/* Structure layout version */
 	unsigned	md_unit;	/* unit number */
@@ -61,6 +61,7 @@ struct md_ioctl {
 	u_int64_t	md_base;	/* base address */
 	int		md_fwheads;	/* firmware heads */
 	int		md_fwsectors;	/* firmware sectors */
+	char		*md_label;	/* label of the device */
 	int		md_pad[MDNPAD];	/* padding for future ideas */
 };
 
@@ -88,5 +89,6 @@ struct md_ioctl {
 #define MD_COMPRESS	0x10	/* Compression mode */
 #define MD_FORCE	0x20	/* Don't try to prevent foot-shooting */
 #define MD_ASYNC	0x40	/* Asynchronous mode */
+#define MD_VERIFY	0x80	/* Open file with O_VERIFY (vnode only) */
 
 #endif	/* _SYS_MDIOCTL_H_*/

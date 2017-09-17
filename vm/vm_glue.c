@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -322,7 +322,7 @@ vm_thread_new(struct thread *td, int pages)
 {
 	vm_object_t ksobj;
 	vm_offset_t ks;
-	vm_page_t m, ma[KSTACK_MAX_PAGES];
+	vm_page_t ma[KSTACK_MAX_PAGES];
 	struct kstack_cache_entry *ks_ce;
 	int i;
 
@@ -391,15 +391,10 @@ vm_thread_new(struct thread *td, int pages)
 	 * page of stack.
 	 */
 	VM_OBJECT_WLOCK(ksobj);
-	for (i = 0; i < pages; i++) {
-		/*
-		 * Get a kernel stack page.
-		 */
-		m = vm_page_grab(ksobj, i, VM_ALLOC_NOBUSY |
-		    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
-		ma[i] = m;
-		m->valid = VM_PAGE_BITS_ALL;
-	}
+	(void)vm_page_grab_pages(ksobj, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
+	    VM_ALLOC_WIRED, ma, pages);
+	for (i = 0; i < pages; i++)
+		ma[i]->valid = VM_PAGE_BITS_ALL;
 	VM_OBJECT_WUNLOCK(ksobj);
 	pmap_qenter(ks, ma, pages);
 	return (1);
@@ -573,9 +568,8 @@ vm_thread_swapin(struct thread *td)
 	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
 	VM_OBJECT_WLOCK(ksobj);
-	for (int i = 0; i < pages; i++)
-		ma[i] = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL |
-		    VM_ALLOC_WIRED);
+	(void)vm_page_grab_pages(ksobj, 0, VM_ALLOC_NORMAL | VM_ALLOC_WIRED, ma,
+	    pages);
 	for (int i = 0; i < pages;) {
 		int j, a, count, rv;
 

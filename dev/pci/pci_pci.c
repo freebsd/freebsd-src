@@ -76,6 +76,8 @@ static void		pcib_pcie_ab_timeout(void *arg);
 static void		pcib_pcie_cc_timeout(void *arg);
 static void		pcib_pcie_dll_timeout(void *arg);
 #endif
+static int		pcib_request_feature_default(device_t pcib, device_t dev,
+			    enum pci_feature feature);
 
 static device_method_t pcib_methods[] = {
     /* Device interface */
@@ -119,6 +121,7 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(pcib_try_enable_ari,	pcib_try_enable_ari),
     DEVMETHOD(pcib_ari_enabled,		pcib_ari_enabled),
     DEVMETHOD(pcib_decode_rid,		pcib_ari_decode_rid),
+    DEVMETHOD(pcib_request_feature,	pcib_request_feature_default),
 
     DEVMETHOD_END
 };
@@ -918,6 +921,7 @@ static void
 pcib_probe_hotplug(struct pcib_softc *sc)
 {
 	device_t dev;
+	uint32_t link_cap;
 	uint16_t link_sta, slot_sta;
 
 	if (!pci_enable_pcie_hp)
@@ -930,10 +934,12 @@ pcib_probe_hotplug(struct pcib_softc *sc)
 	if (!(pcie_read_config(dev, PCIER_FLAGS, 2) & PCIEM_FLAGS_SLOT))
 		return;
 
-	sc->pcie_link_cap = pcie_read_config(dev, PCIER_LINK_CAP, 4);
 	sc->pcie_slot_cap = pcie_read_config(dev, PCIER_SLOT_CAP, 4);
 
 	if ((sc->pcie_slot_cap & PCIEM_SLOT_CAP_HPC) == 0)
+		return;
+	link_cap = pcie_read_config(dev, PCIER_LINK_CAP, 4);
+	if ((link_cap & PCIEM_LINK_CAP_DL_ACTIVE) == 0)
 		return;
 
 	/*
@@ -945,14 +951,23 @@ pcib_probe_hotplug(struct pcib_softc *sc)
 	 * If there is an open MRL but the Data Link Layer is active,
 	 * the MRL is not real.
 	 */
-	if ((sc->pcie_slot_cap & PCIEM_SLOT_CAP_MRLSP) != 0 &&
-	    (sc->pcie_link_cap & PCIEM_LINK_CAP_DL_ACTIVE) != 0) {
+	if ((sc->pcie_slot_cap & PCIEM_SLOT_CAP_MRLSP) != 0) {
 		link_sta = pcie_read_config(dev, PCIER_LINK_STA, 2);
 		slot_sta = pcie_read_config(dev, PCIER_SLOT_STA, 2);
 		if ((slot_sta & PCIEM_SLOT_STA_MRLSS) != 0 &&
 		    (link_sta & PCIEM_LINK_STA_DL_ACTIVE) != 0) {
 			return;
 		}
+	}
+
+	/*
+	 * Now that we're sure we want to do hot plug, ask the
+	 * firmware, if any, if that's OK.
+	 */
+	if (pcib_request_feature(dev, PCI_FEATURE_HP) != 0) {
+		if (bootverbose)
+			device_printf(dev, "Unable to activate hot plug feature.\n");
+		return;
 	}
 
 	sc->flags |= PCIB_HOTPLUG;
@@ -1059,10 +1074,8 @@ pcib_hotplug_present(struct pcib_softc *sc)
 		return (0);
 
 	/* Require the Data Link Layer to be active. */
-	if (sc->pcie_link_cap & PCIEM_LINK_CAP_DL_ACTIVE) {
-		if (!(sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE))
-			return (0);
-	}
+	if (!(sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE))
+		return (0);
 
 	return (-1);
 }
@@ -1119,20 +1132,18 @@ pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
 	 * changed on this interrupt.  Stop any scheduled timer if
 	 * the Data Link Layer is active.
 	 */
-	if (sc->pcie_link_cap & PCIEM_LINK_CAP_DL_ACTIVE) {
-		if (card_inserted &&
-		    !(sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE) &&
-		    sc->pcie_slot_sta &
-		    (PCIEM_SLOT_STA_MRLSC | PCIEM_SLOT_STA_PDC)) {
-			if (cold)
-				device_printf(sc->dev,
-				    "Data Link Layer inactive\n");
-			else
-				callout_reset(&sc->pcie_dll_timer, hz,
-				    pcib_pcie_dll_timeout, sc);
-		} else if (sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE)
-			callout_stop(&sc->pcie_dll_timer);
-	}
+	if (card_inserted &&
+	    !(sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE) &&
+	    sc->pcie_slot_sta &
+	    (PCIEM_SLOT_STA_MRLSC | PCIEM_SLOT_STA_PDC)) {
+		if (cold)
+			device_printf(sc->dev,
+			    "Data Link Layer inactive\n");
+		else
+			callout_reset(&sc->pcie_dll_timer, hz,
+			    pcib_pcie_dll_timeout, sc);
+	} else if (sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE)
+		callout_stop(&sc->pcie_dll_timer);
 
 	pcib_pcie_hotplug_command(sc, val, mask);
 
@@ -1147,7 +1158,7 @@ pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
 }
 
 static void
-pcib_pcie_intr(void *arg)
+pcib_pcie_intr_hotplug(void *arg)
 {
 	struct pcib_softc *sc;
 	device_t dev;
@@ -1260,7 +1271,7 @@ pcib_pcie_cc_timeout(void *arg)
 	} else {
 		device_printf(dev,
 	    "Missed HotPlug interrupt waiting for Command Completion\n");
-		pcib_pcie_intr(sc);
+		pcib_pcie_intr_hotplug(sc);
 	}
 }
 
@@ -1283,7 +1294,7 @@ pcib_pcie_dll_timeout(void *arg)
 	} else if (sta != sc->pcie_link_sta) {
 		device_printf(dev,
 		    "Missed HotPlug interrupt waiting for DLL Active\n");
-		pcib_pcie_intr(sc);
+		pcib_pcie_intr_hotplug(sc);
 	}
 }
 
@@ -1329,7 +1340,7 @@ pcib_alloc_pcie_irq(struct pcib_softc *sc)
 	}
 
 	error = bus_setup_intr(dev, sc->pcie_irq, INTR_TYPE_MISC,
-	    NULL, pcib_pcie_intr, sc, &sc->pcie_ihand);
+	    NULL, pcib_pcie_intr_hotplug, sc, &sc->pcie_ihand);
 	if (error) {
 		device_printf(dev, "Failed to setup PCI-e interrupt handler\n");
 		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->pcie_irq);
@@ -1382,7 +1393,7 @@ pcib_setup_hotplug(struct pcib_softc *sc)
 	mask = PCIEM_SLOT_CTL_DLLSCE | PCIEM_SLOT_CTL_HPIE |
 	    PCIEM_SLOT_CTL_CCIE | PCIEM_SLOT_CTL_PDCE | PCIEM_SLOT_CTL_MRLSCE |
 	    PCIEM_SLOT_CTL_PFDE | PCIEM_SLOT_CTL_ABPE;
-	val = PCIEM_SLOT_CTL_PDCE | PCIEM_SLOT_CTL_HPIE;
+	val = PCIEM_SLOT_CTL_DLLSCE | PCIEM_SLOT_CTL_HPIE | PCIEM_SLOT_CTL_PDCE;
 	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_APB)
 		val |= PCIEM_SLOT_CTL_ABPE;
 	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_PCP)
@@ -1391,8 +1402,6 @@ pcib_setup_hotplug(struct pcib_softc *sc)
 		val |= PCIEM_SLOT_CTL_MRLSCE;
 	if (!(sc->pcie_slot_cap & PCIEM_SLOT_CAP_NCCS))
 		val |= PCIEM_SLOT_CTL_CCIE;
-	if (sc->pcie_link_cap & PCIEM_LINK_CAP_DL_ACTIVE)
-		val |= PCIEM_SLOT_CTL_DLLSCE;
 
 	/* Turn the attention indicator off. */
 	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_AIP) {
@@ -2832,4 +2841,56 @@ pcib_try_enable_ari(device_t pcib, device_t dev)
 	pcib_enable_ari(sc, pcie_pos);
 
 	return (0);
+}
+
+int
+pcib_request_feature_allow(device_t pcib, device_t dev,
+    enum pci_feature feature)
+{
+	/*
+	 * No host firmware we have to negotiate with, so we allow
+	 * every valid feature requested.
+	 */
+	switch (feature) {
+	case PCI_FEATURE_AER:
+	case PCI_FEATURE_HP:
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+int
+pcib_request_feature(device_t dev, enum pci_feature feature)
+{
+
+	/*
+	 * Invoke PCIB_REQUEST_FEATURE of this bridge first in case
+	 * the firmware overrides the method of PCI-PCI bridges.
+	 */
+	return (PCIB_REQUEST_FEATURE(dev, dev, feature));
+}
+
+/*
+ * Pass the request to use this PCI feature up the tree. Either there's a
+ * firmware like ACPI that's using this feature that will approve (or deny) the
+ * request to take it over, or the platform has no such firmware, in which case
+ * the request will be approved. If the request is approved, the OS is expected
+ * to make use of the feature or render it harmless.
+ */
+static int
+pcib_request_feature_default(device_t pcib, device_t dev,
+    enum pci_feature feature)
+{
+	device_t bus;
+
+	/*
+	 * Our parent is necessarily a pci bus. Its parent will either be
+	 * another pci bridge (which passes it up) or a host bridge that can
+	 * approve or reject the request.
+	 */
+	bus = device_get_parent(pcib);
+	return (PCIB_REQUEST_FEATURE(device_get_parent(bus), dev, feature));
 }

@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -250,9 +250,9 @@ typedef	struct cap_rights	cap_rights_t;
 #endif
 
 typedef	__vm_offset_t	vm_offset_t;
-typedef	__vm_ooffset_t	vm_ooffset_t;
+typedef	__int64_t	vm_ooffset_t;
 typedef	__vm_paddr_t	vm_paddr_t;
-typedef	__vm_pindex_t	vm_pindex_t;
+typedef	__uint64_t	vm_pindex_t;
 typedef	__vm_size_t	vm_size_t;
 
 typedef __rman_res_t    rman_res_t;
@@ -364,14 +364,9 @@ __bitcount64(__uint64_t _x)
 
 #include <sys/select.h>
 
-/*
- * minor() gives a cookie instead of an index since we don't want to
- * change the meanings of bits 0-15 or waste time and space shifting
- * bits 16-31 for devices that don't use them.
- */
-#define	major(x)	((int)(((u_int)(x) >> 8)&0xff))	/* major number */
-#define	minor(x)	((int)((x)&0xffff00ff))		/* minor number */
-#define	makedev(x,y)	((dev_t)(((x) << 8) | (y)))	/* create dev_t */
+#define	major(x)	((int)((dev_t)(x) >> 32))
+#define	minor(x)	((int)(x))
+#define	makedev(x, y)	(((dev_t)(x) << 32) | (unsigned)(y))
 
 /*
  * These declarations belong elsewhere, but are repeated here and in

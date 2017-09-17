@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -61,8 +61,10 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_NETADDR, "export_host", "Export host address structure");
 
+#if defined(INET) || defined(INET6)
 static struct radix_node_head *vfs_create_addrlist_af(
 		    struct radix_node_head **prnh, int off);
+#endif
 static void	vfs_free_addrlist(struct netexport *nep);
 static int	vfs_free_netcred(struct radix_node *rn, void *w);
 static void	vfs_free_addrlist_af(struct radix_node_head **prnh);
@@ -98,9 +100,9 @@ static int
 vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
     struct export_args *argp)
 {
-	register struct netcred *np;
-	register struct radix_node_head *rnh;
-	register int i;
+	struct netcred *np;
+	struct radix_node_head *rnh;
+	int i;
 	struct radix_node *rn;
 	struct sockaddr *saddr, *smask = NULL;
 #if defined(INET6) || defined(INET)
@@ -239,6 +241,7 @@ vfs_free_netcred(struct radix_node *rn, void *w)
 	return (0);
 }
 
+#if defined(INET) || defined(INET6)
 static struct radix_node_head *
 vfs_create_addrlist_af(struct radix_node_head **prnh, int off)
 {
@@ -248,6 +251,7 @@ vfs_create_addrlist_af(struct radix_node_head **prnh, int off)
 	RADIX_NODE_HEAD_LOCK_INIT(*prnh);
 	return (*prnh);
 }
+#endif
 
 static void
 vfs_free_addrlist_af(struct radix_node_head **prnh)
@@ -444,8 +448,8 @@ static struct netcred *
 vfs_export_lookup(struct mount *mp, struct sockaddr *nam)
 {
 	struct netexport *nep;
-	register struct netcred *np;
-	register struct radix_node_head *rnh;
+	struct netcred *np;
+	struct radix_node_head *rnh;
 	struct sockaddr *saddr;
 
 	nep = mp->mnt_export;

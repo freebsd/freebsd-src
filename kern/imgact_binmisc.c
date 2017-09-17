@@ -120,7 +120,7 @@ imgact_binmisc_populate_interp(char *str, imgact_binmisc_entry_t *ibe)
 	sp = str; tp = t;
 	while (*sp != '\0') {
 		if (*sp == ' ' || *sp == '\t') {
-			if (++len > IBE_INTERP_LEN_MAX)
+			if (++len >= IBE_INTERP_LEN_MAX)
 				break;
 			*tp++ = ' ';
 			argc++;

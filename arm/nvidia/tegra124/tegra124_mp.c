@@ -121,7 +121,8 @@ tegra124_mp_start_ap(platform_t plat)
 		}
 
 	}
-	armv7_sev();
+	dsb();
+	sev();
 	bus_space_unmap(fdtbus_bs_tag, pmc, PMC_SIZE);
 	bus_space_unmap(fdtbus_bs_tag, exvec, TEGRA_EXCEPTION_VECTORS_SIZE);
 }

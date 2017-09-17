@@ -85,6 +85,7 @@ ef10_ev_qcreate(
 	__in		size_t n,
 	__in		uint32_t id,
 	__in		uint32_t us,
+	__in		uint32_t flags,
 	__in		efx_evq_t *eep);
 
 			void
@@ -272,6 +273,12 @@ ef10_mac_loopback_set(
 #if EFSYS_OPT_MAC_STATS
 
 extern	__checkReturn			efx_rc_t
+ef10_mac_stats_get_mask(
+	__in				efx_nic_t *enp,
+	__inout_bcount(mask_size)	uint32_t *maskp,
+	__in				size_t mask_size);
+
+extern	__checkReturn			efx_rc_t
 ef10_mac_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
@@ -296,11 +303,11 @@ ef10_mcdi_fini(
 
 extern			void
 ef10_mcdi_send_request(
-	__in		efx_nic_t *enp,
-	__in		void *hdrp,
-	__in		size_t hdr_len,
-	__in		void *sdup,
-	__in		size_t sdu_len);
+	__in			efx_nic_t *enp,
+	__in_bcount(hdr_len)	void *hdrp,
+	__in			size_t hdr_len,
+	__in_bcount(sdu_len)	void *sdup,
+	__in			size_t sdu_len);
 
 extern	__checkReturn	boolean_t
 ef10_mcdi_poll_response(
@@ -322,6 +329,12 @@ ef10_mcdi_feature_supported(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_feature_id_t id,
 	__out		boolean_t *supportedp);
+
+extern			void
+ef10_mcdi_get_timeout(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp,
+	__out		uint32_t *timeoutp);
 
 #endif /* EFSYS_OPT_MCDI */
 
@@ -377,10 +390,11 @@ ef10_nvram_partn_lock(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn);
 
-extern				void
+extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_unlock(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn);
+	__in			uint32_t partn,
+	__out_opt		uint32_t *resultp);
 
 #endif /* EFSYS_OPT_NVRAM || EFSYS_OPT_VPD */
 
@@ -444,7 +458,7 @@ ef10_nvram_partn_write(
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size);
 
-extern				void
+extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_rw_finish(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn);
@@ -601,6 +615,34 @@ ef10_phy_stats_update(
 
 #endif	/* EFSYS_OPT_PHY_STATS */
 
+#if EFSYS_OPT_BIST
+
+extern	__checkReturn		efx_rc_t
+ef10_bist_enable_offline(
+	__in			efx_nic_t *enp);
+
+extern	__checkReturn		efx_rc_t
+ef10_bist_start(
+	__in			efx_nic_t *enp,
+	__in			efx_bist_type_t type);
+
+extern	__checkReturn		efx_rc_t
+ef10_bist_poll(
+	__in			efx_nic_t *enp,
+	__in			efx_bist_type_t type,
+	__out			efx_bist_result_t *resultp,
+	__out_opt __drv_when(count > 0, __notnull)
+	uint32_t	*value_maskp,
+	__out_ecount_opt(count)	__drv_when(count > 0, __notnull)
+	unsigned long	*valuesp,
+	__in			size_t count);
+
+extern				void
+ef10_bist_stop(
+	__in			efx_nic_t *enp,
+	__in			efx_bist_type_t type);
+
+#endif	/* EFSYS_OPT_BIST */
 
 /* TX */
 
@@ -950,11 +992,11 @@ typedef struct ef10_filter_entry_s {
 
 typedef struct ef10_filter_table_s {
 	ef10_filter_entry_t	eft_entry[EFX_EF10_FILTER_TBL_ROWS];
-	efx_rxq_t *		eft_default_rxq;
+	efx_rxq_t		*eft_default_rxq;
 	boolean_t		eft_using_rss;
 	uint32_t		eft_unicst_filter_indexes[
 	    EFX_EF10_FILTER_UNICAST_FILTERS_MAX];
-	boolean_t		eft_unicst_filter_count;
+	uint32_t		eft_unicst_filter_count;
 	uint32_t		eft_mulcst_filter_indexes[
 	    EFX_EF10_FILTER_MULTICAST_FILTERS_MAX];
 	uint32_t		eft_mulcst_filter_count;
@@ -986,9 +1028,10 @@ ef10_filter_delete(
 
 extern	__checkReturn	efx_rc_t
 ef10_filter_supported_filters(
-	__in		efx_nic_t *enp,
-	__out		uint32_t *list,
-	__out		size_t *length);
+	__in				efx_nic_t *enp,
+	__out_ecount(buffer_length)	uint32_t *buffer,
+	__in				size_t buffer_length,
+	__out				size_t *list_lengthp);
 
 extern	__checkReturn	efx_rc_t
 ef10_filter_reconfigure(

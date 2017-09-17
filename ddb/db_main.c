@@ -226,10 +226,7 @@ db_trap(int type, int code)
 	if (cnunavailable())
 		return (0);
 
-	bkpt = IS_BREAKPOINT_TRAP(type, code);
-	watchpt = IS_WATCHPOINT_TRAP(type, code);
-
-	if (db_stop_at_pc(&bkpt)) {
+	if (db_stop_at_pc(type, code, &bkpt, &watchpt)) {
 		if (db_inst_count) {
 			db_printf("After %d instructions (%d loads, %d stores),\n",
 			    db_inst_count, db_load_count, db_store_count);

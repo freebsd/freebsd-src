@@ -22,7 +22,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		cpu0: cpu@0 {
 			compatible = "arm,cortex-a9";
 			device_type = "cpu";
 			reg = <0>;
@@ -154,21 +154,22 @@
 				#size-cells = <0>;
 				reg = <2>;
 
-				ipu2_di0_disp0: endpoint@0 {
+				ipu2_di0_disp0: disp0-endpoint {
 				};
 
-				ipu2_di0_hdmi: endpoint@1 {
+				ipu2_di0_hdmi: hdmi-endpoint {
 					remote-endpoint = <&hdmi_mux_2>;
 				};
 
-				ipu2_di0_mipi: endpoint@2 {
+				ipu2_di0_mipi: mipi-endpoint {
+					remote-endpoint = <&mipi_mux_2>;
 				};
 
-				ipu2_di0_lvds0: endpoint@3 {
+				ipu2_di0_lvds0: lvds0-endpoint {
 					remote-endpoint = <&lvds0_mux_2>;
 				};
 
-				ipu2_di0_lvds1: endpoint@4 {
+				ipu2_di0_lvds1: lvds1-endpoint {
 					remote-endpoint = <&lvds1_mux_2>;
 				};
 			};
@@ -178,18 +179,19 @@
 				#size-cells = <0>;
 				reg = <3>;
 
-				ipu2_di1_hdmi: endpoint@1 {
+				ipu2_di1_hdmi: hdmi-endpoint {
 					remote-endpoint = <&hdmi_mux_3>;
 				};
 
-				ipu2_di1_mipi: endpoint@2 {
+				ipu2_di1_mipi: mipi-endpoint {
+					remote-endpoint = <&mipi_mux_3>;
 				};
 
-				ipu2_di1_lvds0: endpoint@3 {
+				ipu2_di1_lvds0: lvds0-endpoint {
 					remote-endpoint = <&lvds0_mux_3>;
 				};
 
-				ipu2_di1_lvds1: endpoint@4 {
+				ipu2_di1_lvds1: lvds1-endpoint {
 					remote-endpoint = <&lvds1_mux_3>;
 				};
 			};
@@ -205,6 +207,43 @@
 		compatible = "fsl,imx-gpu-subsystem";
 		cores = <&gpu_2d>, <&gpu_3d>, <&gpu_vg>;
 	};
+};
+
+&gpio1 {
+	gpio-ranges = <&iomuxc  0 136  2>, <&iomuxc  2 141 1>, <&iomuxc  3 139 1>,
+		      <&iomuxc  4 142  2>, <&iomuxc  6 140 1>, <&iomuxc  7 144 2>,
+		      <&iomuxc  9 138  1>, <&iomuxc 10 213 3>, <&iomuxc 13  20 1>,
+		      <&iomuxc 14  19  1>, <&iomuxc 15  21 1>, <&iomuxc 16 208 1>,
+		      <&iomuxc 17 207  1>, <&iomuxc 18 210 3>, <&iomuxc 21 209 1>,
+		      <&iomuxc 22 116 10>;
+};
+
+&gpio2 {
+	gpio-ranges = <&iomuxc  0 191 16>, <&iomuxc 16 55 14>, <&iomuxc 30 35 1>,
+		      <&iomuxc 31  44  1>;
+};
+
+&gpio3 {
+	gpio-ranges = <&iomuxc 0 69 16>, <&iomuxc 16 36 8>, <&iomuxc 24 45 8>;
+};
+
+&gpio4 {
+	gpio-ranges = <&iomuxc 5 149 1>, <&iomuxc 6 126 10>, <&iomuxc 16 87 16>;
+};
+
+&gpio5 {
+	gpio-ranges = <&iomuxc 0  85  1>, <&iomuxc  2  34  1>, <&iomuxc 4 53 1>,
+		      <&iomuxc 5 103 13>, <&iomuxc 18 150 14>;
+};
+
+&gpio6 {
+	gpio-ranges = <&iomuxc  0 164 6>, <&iomuxc  6  54 1>, <&iomuxc  7 181  5>,
+		      <&iomuxc 14 186 3>, <&iomuxc 17 170 2>, <&iomuxc 19  22 12>,
+		      <&iomuxc 31  86 1>;
+};
+
+&gpio7 {
+	gpio-ranges = <&iomuxc 0 172 9>, <&iomuxc 9 189 2>, <&iomuxc 11 146 3>;
 };
 
 &hdmi {

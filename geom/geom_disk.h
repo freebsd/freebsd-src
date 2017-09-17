@@ -66,6 +66,11 @@ typedef enum {
 	DISK_INIT_DONE
 } disk_init_level;
 
+struct disk_alias {
+	LIST_ENTRY(disk_alias)	da_next;
+	const char		*da_alias;
+};
+
 struct disk {
 	/* Fields which are private to geom_disk */
 	struct g_geom		*d_geom;
@@ -109,6 +114,9 @@ struct disk {
 
 	/* Fields private to the driver */
 	void			*d_drv1;
+
+	/* Fields private to geom_disk, to be moved on next version bump */
+	LIST_HEAD(,disk_alias)	d_aliases;
 };
 
 #define DISKFLAG_RESERVED	0x1	/* Was NEEDSGIANT */
@@ -119,6 +127,11 @@ struct disk {
 #define	DISKFLAG_DIRECT_COMPLETION	0x20
 #define	DISKFLAG_CANZONE	0x80
 
+#define	DISK_RR_UNKNOWN		0
+#define	DISK_RR_NON_ROTATING	1
+#define	DISK_RR_MIN		0x0401
+#define	DISK_RR_MAX		0xfffe
+
 struct disk *disk_alloc(void);
 void disk_create(struct disk *disk, int version);
 void disk_destroy(struct disk *disk);
@@ -127,6 +140,7 @@ void disk_attr_changed(struct disk *dp, const char *attr, int flag);
 void disk_media_changed(struct disk *dp, int flag);
 void disk_media_gone(struct disk *dp, int flag);
 int disk_resize(struct disk *dp, int flag);
+void disk_add_alias(struct disk *disk, const char *);
 
 #define DISK_VERSION_00		0x58561059
 #define DISK_VERSION_01		0x5856105a

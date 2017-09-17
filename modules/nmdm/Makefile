@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/nmdm
+.PATH: ${SRCTOP}/sys/dev/nmdm
 
 KMOD=	nmdm
 SRCS=	nmdm.c

@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/queue.h>
 #include <net/if.h>	/* ip_fw.h requires IFNAMSIZ */
+#include <net/pfil.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_var.h>	/* struct ipfw_rule_ref */
@@ -405,7 +406,7 @@ prepare_batch_buffer(struct ip_fw_chain *ch, struct table_algo *ta,
 	error = 0;
 	ta_buf_sz = ta->ta_buf_size;
 	if (count == 1) {
-		/* Sigle add/delete, use on-stack buffer */
+		/* Single add/delete, use on-stack buffer */
 		memset(*ta_buf, 0, TA_BUF_SZ);
 		ta_buf_m = *ta_buf;
 	} else {
@@ -1087,6 +1088,7 @@ find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	struct table_config *tc;
 	struct table_algo *ta;
 	struct table_info *kti;
+	struct table_value *pval;
 	struct namedobj_instance *ni;
 	int error;
 	size_t sz;
@@ -1132,7 +1134,10 @@ find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 		return (ENOTSUP);
 
 	error = ta->find_tentry(tc->astate, kti, tent);
-
+	if (error == 0) {
+		pval = get_table_value(ch, tc, tent->v.kidx);
+		ipfw_export_table_value_v1(pval, &tent->v.value);
+	}
 	IPFW_UH_RUNLOCK(ch);
 
 	return (error);
@@ -1653,30 +1658,13 @@ ipfw_unref_table(struct ip_fw_chain *ch, uint16_t kidx)
 }
 
 /*
- * Lookup an IP @addr in table @tbl.
- * Stores found value in @val.
- *
- * Returns 1 if @addr was found.
- */
-int
-ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
-    uint32_t *val)
-{
-	struct table_info *ti;
-
-	ti = KIDX_TO_TI(ch, tbl);
-
-	return (ti->lookup(ti, &addr, sizeof(in_addr_t), val));
-}
-
-/*
- * Lookup an arbtrary key @paddr of legth @plen in table @tbl.
+ * Lookup an arbitrary key @paddr of length @plen in table @tbl.
  * Stores found value in @val.
  *
  * Returns 1 if key was found.
  */
 int
-ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
+ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
     void *paddr, uint32_t *val)
 {
 	struct table_info *ti;
@@ -2876,13 +2864,12 @@ table_manage_sets(struct ip_fw_chain *ch, uint16_t set, uint8_t new_set,
 	switch (cmd) {
 	case SWAP_ALL:
 	case TEST_ALL:
-		/*
-		 * Return success for TEST_ALL, since nothing prevents
-		 * move rules from one set to another. All tables are
-		 * accessible from all sets when per-set tables sysctl
-		 * is disabled.
-		 */
 	case MOVE_ALL:
+		/*
+		 * Always return success, the real action and decision
+		 * should make table_manage_sets_all().
+		 */
+		return (0);
 	case TEST_ONE:
 	case MOVE_ONE:
 		/*
@@ -2901,6 +2888,39 @@ table_manage_sets(struct ip_fw_chain *ch, uint16_t set, uint8_t new_set,
 		 */
 		if (V_fw_tables_sets == 0)
 			return (EOPNOTSUPP);
+	}
+	/* Use generic sets handler when per-set sysctl is enabled. */
+	return (ipfw_obj_manage_sets(CHAIN_TO_NI(ch), IPFW_TLV_TBL_NAME,
+	    set, new_set, cmd));
+}
+
+/*
+ * We register several opcode rewriters for lookup tables.
+ * All tables opcodes have the same ETLV type, but different subtype.
+ * To avoid invoking sets handler several times for XXX_ALL commands,
+ * we use separate manage_sets handler. O_RECV has the lowest value,
+ * so it should be called first.
+ */
+static int
+table_manage_sets_all(struct ip_fw_chain *ch, uint16_t set, uint8_t new_set,
+    enum ipfw_sets_cmd cmd)
+{
+
+	switch (cmd) {
+	case SWAP_ALL:
+	case TEST_ALL:
+		/*
+		 * Return success for TEST_ALL, since nothing prevents
+		 * move rules from one set to another. All tables are
+		 * accessible from all sets when per-set tables sysctl
+		 * is disabled.
+		 */
+	case MOVE_ALL:
+		if (V_fw_tables_sets == 0)
+			return (0);
+		break;
+	default:
+		return (table_manage_sets(ch, set, new_set, cmd));
 	}
 	/* Use generic sets handler when per-set sysctl is enabled. */
 	return (ipfw_obj_manage_sets(CHAIN_TO_NI(ch), IPFW_TLV_TBL_NAME,
@@ -2956,7 +2976,7 @@ static struct opcode_obj_rewrite opcodes[] = {
 		.find_byname = table_findbyname,
 		.find_bykidx = table_findbykidx,
 		.create_object = create_table_compat,
-		.manage_sets = table_manage_sets,
+		.manage_sets = table_manage_sets_all,
 	},
 	{
 		.opcode = O_VIA,

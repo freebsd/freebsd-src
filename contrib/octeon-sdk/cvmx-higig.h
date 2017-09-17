@@ -120,11 +120,11 @@ typedef struct
                                             multicast (unknown L2 multicast and IPMC) packets. This field is used
                                             when OPCODE is 011 or 100 Semantics of PFM bits are as follows;
                                             For registered L2 multicast packets:
-                                                PFM= 0 ­ Flood to VLAN
-                                                PFM= 1 or 2 ­ Send to group members in the L2MC table
+                                                PFM= 0 - Flood to VLAN
+                                                PFM= 1 or 2 - Send to group members in the L2MC table
                                             For unregistered L2 multicast packets:
-                                                PFM= 0 or 1 ­ Flood to VLAN
-                                                PFM= 2 ­ Drop the packet */
+                                                PFM= 0 or 1 - Flood to VLAN
+                                                PFM= 2 - Drop the packet */
             uint32_t src_port_tgid  : 6; /**< If the MSB of this field is set, then it indicates the LAG the packet ingressed
                                             on, else it represents the physical port the packet ingressed on. */
             uint32_t dst_port       : 5; /**< Port number of destination port on which the packet needs to egress. */
@@ -138,10 +138,10 @@ typedef struct
             uint32_t cng_low        : 1; /**< Semantics of CNG_HIGH and CNG_LOW are as follows: The following
                                             encodings are to make it backward compatible:
                                             [CNG_HIGH, CNG_LOW] - COLOR
-                                            [0, 0] ­ Packet is green
-                                            [0, 1] ­ Packet is red
-                                            [1, 1] ­ Packet is yellow
-                                            [1, 0] ­ Undefined */
+                                            [0, 0] - Packet is green
+                                            [0, 1] - Packet is red
+                                            [1, 1] - Packet is yellow
+                                            [1, 0] - Undefined */
             uint32_t dst_modid_low  : 5; /**< Bits [4-: 0] of Module ID of the destination port on which the packet needs to egress. */
         } s;
     } dw1;
@@ -273,11 +273,11 @@ typedef struct
                                             multicast (unknown L2 multicast and IPMC) packets. This field is used
                                             when OPCODE is 011 or 100 Semantics of PFM bits are as follows;
                                             For registered L2 multicast packets:
-                                                PFM= 0 ­ Flood to VLAN
-                                                PFM= 1 or 2 ­ Send to group members in the L2MC table
+                                                PFM= 0 - Flood to VLAN
+                                                PFM= 1 or 2 - Send to group members in the L2MC table
                                             For unregistered L2 multicast packets:
-                                                PFM= 0 or 1 ­ Flood to VLAN
-                                                PFM= 2 ­ Drop the packet */
+                                                PFM= 0 or 1 - Flood to VLAN
+                                                PFM= 2 - Drop the packet */
             uint32_t src_t          : 1;  /**< If the MSB of this field is set, then it indicates the LAG the packet ingressed
                                             on, else it represents the physical port the packet ingressed on. */
             uint32_t reserved_11_12 : 2;

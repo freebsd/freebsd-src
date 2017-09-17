@@ -6,7 +6,7 @@ INTERNALLIB=
 SRCS=	biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
 	biospci.c biossmap.c bootinfo.c bootinfo32.c bootinfo64.c \
 	comconsole.c devicename.c elf32_freebsd.c \
-	elf64_freebsd.c multiboot.c multiboot_tramp.S \
+	elf64_freebsd.c multiboot.c multiboot_tramp.S relocater_tramp.S \
 	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.s \
 	smbios.c time.c vidconsole.c amd64_tramp.S spinconsole.c
 .PATH:	${.CURDIR}/../../zfs
@@ -54,7 +54,8 @@ CFLAGS+= -DTERM_EMU
 # XXX: make alloca() useable
 CFLAGS+= -Dalloca=__builtin_alloca
 
-CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../common \
+CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386 \
+		-I${.CURDIR}/../../common -I${.CURDIR}/../common \
 		-I${.CURDIR}/../btx/lib \
 		-I${.CURDIR}/../../../contrib/dev/acpica/include \
 		-I${.CURDIR}/../../.. -I.

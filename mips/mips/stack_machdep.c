@@ -94,8 +94,7 @@ stack_capture(struct stack *st, u_register_t pc, u_register_t sp)
 
 			switch (insn.IType.op) {
 			case OP_SPECIAL:
-				if((insn.RType.func == OP_JR))
-				{
+				if (insn.RType.func == OP_JR) {
 					if (ra >= (u_register_t)(intptr_t)btext)
 						break;
 					if (insn.RType.rs != RA)

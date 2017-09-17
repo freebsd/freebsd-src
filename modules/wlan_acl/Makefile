@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../net80211
+.PATH: ${SRCTOP}/sys/net80211
 
 KMOD=	wlan_acl
 SRCS=	ieee80211_acl.c

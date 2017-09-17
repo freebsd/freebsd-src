@@ -121,25 +121,33 @@ tsec_fdt_probe(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	sc->sc_rrid = 0;
-	sc->sc_rres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rrid,
-	    RF_ACTIVE);
-	if (sc->sc_rres == NULL)
-		return (ENXIO);
+	/*
+	 * Device trees with "fsl,etsec2" compatible nodes don't have a reg
+	 * property, as it's been relegated to the queue-group children.
+	 */
+	if (ofw_bus_is_compatible(dev, "fsl,etsec2"))
+		sc->is_etsec = 1;
+	else {
+		sc->sc_rrid = 0;
+		sc->sc_rres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rrid,
+		    RF_ACTIVE);
+		if (sc->sc_rres == NULL)
+			return (ENXIO);
 
-	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
-	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
+		sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
+		sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
 
-	/* Check if we are eTSEC (enhanced TSEC) */
-	id = TSEC_READ(sc, TSEC_REG_ID);
-	sc->is_etsec = ((id >> 16) == TSEC_ETSEC_ID) ? 1 : 0;
-	id |= TSEC_READ(sc, TSEC_REG_ID2);
+		/* Check if we are eTSEC (enhanced TSEC) */
+		id = TSEC_READ(sc, TSEC_REG_ID);
+		sc->is_etsec = ((id >> 16) == TSEC_ETSEC_ID) ? 1 : 0;
+		id |= TSEC_READ(sc, TSEC_REG_ID2);
 
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rrid, sc->sc_rres);
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rrid, sc->sc_rres);
 
-	if (id == 0) {
-		device_printf(dev, "could not identify TSEC type\n");
-		return (ENXIO);
+		if (id == 0) {
+			device_printf(dev, "could not identify TSEC type\n");
+			return (ENXIO);
+		}
 	}
 
 	if (sc->is_etsec)
@@ -154,12 +162,30 @@ static int
 tsec_fdt_attach(device_t dev)
 {
 	struct tsec_softc *sc;
-	phandle_t phy;
+	struct resource_list *rl;
+	phandle_t child, mdio, phy;
+	int acells, scells;
 	int error = 0;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->node = ofw_bus_get_node(dev);
+
+	if (fdt_addrsize_cells(sc->node, &acells, &scells) != 0) {
+		acells = 1;
+		scells = 1;
+	}
+	if (ofw_bus_is_compatible(dev, "fsl,etsec2")) {
+		rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
+
+		/*
+		 * TODO: Add all children resources to the list.  Will be
+		 * required to support multigroup mode.
+		 */
+		child = OF_child(sc->node);
+		ofw_bus_reg_to_rl(dev, child, acells, scells, rl);
+		ofw_bus_intr_to_rl(dev, child, rl, NULL);
+	}
 
 	/* Get phy address from fdt */
 	if (OF_getencprop(sc->node, "phy-handle", &phy, sizeof(phy)) <= 0) {
@@ -168,8 +194,16 @@ tsec_fdt_attach(device_t dev)
 	}
 
 	phy = OF_node_from_xref(phy);
-	OF_decode_addr(OF_parent(phy), 0, &sc->phy_bst, &sc->phy_bsh, NULL);
+	mdio = OF_parent(phy);
+	OF_decode_addr(mdio, 0, &sc->phy_bst, &sc->phy_bsh, NULL);
 	OF_getencprop(phy, "reg", &sc->phyaddr, sizeof(sc->phyaddr));
+
+	/*
+	 * etsec2 MDIO nodes are given the MDIO module base address, so we need
+	 * to add the MII offset to get the PHY registers.
+	 */
+	if (ofw_bus_node_is_compatible(mdio, "fsl,etsec2-mdio"))
+		sc->phy_regoff = TSEC_REG_MIIBASE;
 
 	/* Init timer */
 	callout_init(&sc->tsec_callout, 1);

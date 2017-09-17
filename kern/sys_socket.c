@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -170,32 +170,36 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 		break;
 
 	case FIOASYNC:
-		/*
-		 * XXXRW: This code separately acquires SOCK_LOCK(so) and
-		 * SOCKBUF_LOCK(&so->so_rcv) even though they are the same
-		 * mutex to avoid introducing the assumption that they are
-		 * the same.
-		 */
 		if (*(int *)data) {
 			SOCK_LOCK(so);
 			so->so_state |= SS_ASYNC;
+			if (SOLISTENING(so)) {
+				so->sol_sbrcv_flags |= SB_ASYNC;
+				so->sol_sbsnd_flags |= SB_ASYNC;
+			} else {
+				SOCKBUF_LOCK(&so->so_rcv);
+				so->so_rcv.sb_flags |= SB_ASYNC;
+				SOCKBUF_UNLOCK(&so->so_rcv);
+				SOCKBUF_LOCK(&so->so_snd);
+				so->so_snd.sb_flags |= SB_ASYNC;
+				SOCKBUF_UNLOCK(&so->so_snd);
+			}
 			SOCK_UNLOCK(so);
-			SOCKBUF_LOCK(&so->so_rcv);
-			so->so_rcv.sb_flags |= SB_ASYNC;
-			SOCKBUF_UNLOCK(&so->so_rcv);
-			SOCKBUF_LOCK(&so->so_snd);
-			so->so_snd.sb_flags |= SB_ASYNC;
-			SOCKBUF_UNLOCK(&so->so_snd);
 		} else {
 			SOCK_LOCK(so);
 			so->so_state &= ~SS_ASYNC;
+			if (SOLISTENING(so)) {
+				so->sol_sbrcv_flags &= ~SB_ASYNC;
+				so->sol_sbsnd_flags &= ~SB_ASYNC;
+			} else {
+				SOCKBUF_LOCK(&so->so_rcv);
+				so->so_rcv.sb_flags &= ~SB_ASYNC;
+				SOCKBUF_UNLOCK(&so->so_rcv);
+				SOCKBUF_LOCK(&so->so_snd);
+				so->so_snd.sb_flags &= ~SB_ASYNC;
+				SOCKBUF_UNLOCK(&so->so_snd);
+			}
 			SOCK_UNLOCK(so);
-			SOCKBUF_LOCK(&so->so_rcv);
-			so->so_rcv.sb_flags &= ~SB_ASYNC;
-			SOCKBUF_UNLOCK(&so->so_rcv);
-			SOCKBUF_LOCK(&so->so_snd);
-			so->so_snd.sb_flags &= ~SB_ASYNC;
-			SOCKBUF_UNLOCK(&so->so_snd);
 		}
 		break;
 
@@ -281,7 +285,6 @@ soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
     struct thread *td)
 {
 	struct socket *so = fp->f_data;
-	struct sockbuf *sb;
 #ifdef MAC
 	int error;
 #endif
@@ -293,22 +296,26 @@ soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
 	if (error)
 		return (error);
 #endif
-	/*
-	 * If SBS_CANTRCVMORE is set, but there's still data left in the
-	 * receive buffer, the socket is still readable.
-	 */
-	sb = &so->so_rcv;
-	SOCKBUF_LOCK(sb);
-	if ((sb->sb_state & SBS_CANTRCVMORE) == 0 || sbavail(sb))
-		ub->st_mode |= S_IRUSR | S_IRGRP | S_IROTH;
-	ub->st_size = sbavail(sb) - sb->sb_ctl;
-	SOCKBUF_UNLOCK(sb);
+	if (!SOLISTENING(so)) {
+		struct sockbuf *sb;
 
-	sb = &so->so_snd;
-	SOCKBUF_LOCK(sb);
-	if ((sb->sb_state & SBS_CANTSENDMORE) == 0)
-		ub->st_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
-	SOCKBUF_UNLOCK(sb);
+		/*
+		 * If SBS_CANTRCVMORE is set, but there's still data left
+		 * in the receive buffer, the socket is still readable.
+		 */
+		sb = &so->so_rcv;
+		SOCKBUF_LOCK(sb);
+		if ((sb->sb_state & SBS_CANTRCVMORE) == 0 || sbavail(sb))
+			ub->st_mode |= S_IRUSR | S_IRGRP | S_IROTH;
+		ub->st_size = sbavail(sb) - sb->sb_ctl;
+		SOCKBUF_UNLOCK(sb);
+	
+		sb = &so->so_snd;
+		SOCKBUF_LOCK(sb);
+		if ((sb->sb_state & SBS_CANTSENDMORE) == 0)
+			ub->st_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
+		SOCKBUF_UNLOCK(sb);
+	}
 	ub->st_uid = so->so_cred->cr_uid;
 	ub->st_gid = so->so_cred->cr_gid;
 	return (*so->so_proto->pr_usrreqs->pru_sense)(so, ub);
@@ -346,18 +353,23 @@ soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 
 	kif->kf_type = KF_TYPE_SOCKET;
 	so = fp->f_data;
-	kif->kf_sock_domain = so->so_proto->pr_domain->dom_family;
-	kif->kf_sock_type = so->so_type;
-	kif->kf_sock_protocol = so->so_proto->pr_protocol;
+	kif->kf_un.kf_sock.kf_sock_domain0 =
+	    so->so_proto->pr_domain->dom_family;
+	kif->kf_un.kf_sock.kf_sock_type0 = so->so_type;
+	kif->kf_un.kf_sock.kf_sock_protocol0 = so->so_proto->pr_protocol;
 	kif->kf_un.kf_sock.kf_sock_pcb = (uintptr_t)so->so_pcb;
-	switch (kif->kf_sock_domain) {
+	switch (kif->kf_un.kf_sock.kf_sock_domain0) {
 	case AF_INET:
 	case AF_INET6:
-		if (kif->kf_sock_protocol == IPPROTO_TCP) {
+		if (kif->kf_un.kf_sock.kf_sock_protocol0 == IPPROTO_TCP) {
 			if (so->so_pcb != NULL) {
 				inpcb = (struct inpcb *)(so->so_pcb);
 				kif->kf_un.kf_sock.kf_sock_inpcb =
 				    (uintptr_t)inpcb->inp_ppcb;
+				kif->kf_un.kf_sock.kf_sock_sendq =
+				    sbused(&so->so_snd);
+				kif->kf_un.kf_sock.kf_sock_recvq =
+				    sbused(&so->so_rcv);
 			}
 		}
 		break;
@@ -371,18 +383,24 @@ soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 				    so->so_rcv.sb_state;
 				kif->kf_un.kf_sock.kf_sock_snd_sb_state =
 				    so->so_snd.sb_state;
+				kif->kf_un.kf_sock.kf_sock_sendq =
+				    sbused(&so->so_snd);
+				kif->kf_un.kf_sock.kf_sock_recvq =
+				    sbused(&so->so_rcv);
 			}
 		}
 		break;
 	}
 	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
-	if (error == 0 && sa->sa_len <= sizeof(kif->kf_sa_local)) {
-		bcopy(sa, &kif->kf_sa_local, sa->sa_len);
+	if (error == 0 &&
+	    sa->sa_len <= sizeof(kif->kf_un.kf_sock.kf_sa_local)) {
+		bcopy(sa, &kif->kf_un.kf_sock.kf_sa_local, sa->sa_len);
 		free(sa, M_SONAME);
 	}
 	error = so->so_proto->pr_usrreqs->pru_peeraddr(so, &sa);
-	if (error == 0 && sa->sa_len <= sizeof(kif->kf_sa_peer)) {
-		bcopy(sa, &kif->kf_sa_peer, sa->sa_len);
+	if (error == 0 &&
+	    sa->sa_len <= sizeof(kif->kf_un.kf_sock.kf_sa_peer)) {
+		bcopy(sa, &kif->kf_un.kf_sock.kf_sa_peer, sa->sa_len);
 		free(sa, M_SONAME);
 	}
 	strncpy(kif->kf_path, so->so_proto->pr_domain->dom_name,
@@ -604,6 +622,8 @@ retry:
 		if (td->td_ru.ru_msgrcv != ru_before)
 			job->msgrcv = 1;
 	} else {
+		if (!TAILQ_EMPTY(&sb->sb_aiojobq))
+			flags |= MSG_MORETOCOME;
 		uio.uio_rw = UIO_WRITE;
 		ru_before = td->td_ru.ru_msgsnd;
 #ifdef MAC
@@ -673,6 +693,7 @@ soaio_process_sb(struct socket *so, struct sockbuf *sb)
 {
 	struct kaiocb *job;
 
+	CURVNET_SET(so->so_vnet);
 	SOCKBUF_LOCK(sb);
 	while (!TAILQ_EMPTY(&sb->sb_aiojobq) && soaio_ready(so, sb)) {
 		job = TAILQ_FIRST(&sb->sb_aiojobq);
@@ -693,9 +714,9 @@ soaio_process_sb(struct socket *so, struct sockbuf *sb)
 	sb->sb_flags &= ~SB_AIO_RUNNING;
 	SOCKBUF_UNLOCK(sb);
 
-	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	sorele(so);
+	CURVNET_RESTORE();
 }
 
 void
@@ -725,11 +746,7 @@ sowakeup_aio(struct socket *so, struct sockbuf *sb)
 	if (sb->sb_flags & SB_AIO_RUNNING)
 		return;
 	sb->sb_flags |= SB_AIO_RUNNING;
-	if (sb == &so->so_snd)
-		SOCK_LOCK(so);
 	soref(so);
-	if (sb == &so->so_snd)
-		SOCK_UNLOCK(so);
 	soaio_enqueue(&sb->sb_aiotask);
 }
 

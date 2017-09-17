@@ -44,7 +44,6 @@ __loader_base_vaddr__ = __mips64_xkphys_cached__ + __loader_base__;
 __loader_end__ = 0x100000;
 __loader_end_vaddr__ = __mips64_xkphys_cached__ + __loader_end__;
 
-OUTPUT_FORMAT("elf64-tradbigmips");
 OUTPUT_ARCH(mips)
 ENTRY(start)
 SECTIONS
@@ -65,6 +64,10 @@ SECTIONS
 		__start_set_Xcommand_set = .;
 		KEEP(*(set_Xcommand_set))
 		__stop_set_Xcommand_set = .;
+
+		__start_set_Xficl_compile_set = .;
+		KEEP(*(set_Xficl_compile_set))
+		__stop_set_Xficl_compile_set = .;
 	}
 	.data ALIGN(0x10): { *(.data*)}
 	.bss ALIGN(0x10): { *(.bss*) }

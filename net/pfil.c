@@ -61,7 +61,32 @@ LIST_HEAD(pfilheadhead, pfil_head);
 VNET_DEFINE(struct pfilheadhead, pfil_head_list);
 #define	V_pfil_head_list	VNET(pfil_head_list)
 VNET_DEFINE(struct rmlock, pfil_lock);
-#define	V_pfil_lock	VNET(pfil_lock)
+
+#define	PFIL_LOCK_INIT_REAL(l, t)	\
+	rm_init_flags(l, "PFil " t " rmlock", RM_RECURSE)
+#define	PFIL_LOCK_DESTROY_REAL(l)	\
+	rm_destroy(l)
+#define	PFIL_LOCK_INIT(p)	do {			\
+	if ((p)->flags & PFIL_FLAG_PRIVATE_LOCK) {	\
+		PFIL_LOCK_INIT_REAL(&(p)->ph_lock, "private");	\
+		(p)->ph_plock = &(p)->ph_lock;		\
+	} else						\
+		(p)->ph_plock = &V_pfil_lock;		\
+} while (0)
+#define	PFIL_LOCK_DESTROY(p)	do {			\
+	if ((p)->flags & PFIL_FLAG_PRIVATE_LOCK)	\
+		PFIL_LOCK_DESTROY_REAL((p)->ph_plock);	\
+} while (0)
+
+#define	PFIL_TRY_RLOCK(p, t)	rm_try_rlock((p)->ph_plock, (t))
+#define	PFIL_RLOCK(p, t)	rm_rlock((p)->ph_plock, (t))
+#define	PFIL_WLOCK(p)		rm_wlock((p)->ph_plock)
+#define	PFIL_RUNLOCK(p, t)	rm_runlock((p)->ph_plock, (t))
+#define	PFIL_WUNLOCK(p)		rm_wunlock((p)->ph_plock)
+#define	PFIL_WOWNED(p)		rm_wowned((p)->ph_plock)
+
+#define	PFIL_HEADLIST_LOCK()	mtx_lock(&pfil_global_lock)
+#define	PFIL_HEADLIST_UNLOCK()	mtx_unlock(&pfil_global_lock)
 
 /*
  * pfil_run_hooks() runs the specified packet filter hook chain.

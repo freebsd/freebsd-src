@@ -28,8 +28,8 @@
 #ifndef __VCHI_BSD_H__
 #define __VCHI_BSD_H__
 
-#include <sys/systm.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/lock.h>

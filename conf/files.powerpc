@@ -15,13 +15,13 @@ font.h				optional	sc			\
 	clean	"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
 #
 # There is only an asm version on ppc64.
-cddl/compat/opensolaris/kern/opensolaris_atomic.c			optional zfs powerpc | dtrace powerpc compile-with "${ZFS_C}"
+cddl/compat/opensolaris/kern/opensolaris_atomic.c			optional zfs powerpc | dtrace powerpc | zfs powerpcspe | dtrace powerpcspe compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/atomic/powerpc64/opensolaris_atomic.S	optional zfs powerpc64 | dtrace powerpc64 compile-with "${ZFS_S}"
 cddl/dev/dtrace/powerpc/dtrace_asm.S		optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/powerpc/dtrace_subr.c		optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/powerpc/fbt_isa.c			optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
-crypto/blowfish/bf_enc.c	optional	crypto | ipsec
-crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
+crypto/des/des_enc.c		optional	crypto | ipsec | ipsec_support | netsmb
 dev/bm/if_bm.c			optional	bm powermac
 dev/adb/adb_bus.c		optional	adb
 dev/adb/adb_kbd.c		optional	adb
@@ -63,6 +63,7 @@ dev/ofw/ofw_subr.c		optional	aim powerpc
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
 dev/quicc/quicc_bfe_fdt.c	optional	quicc mpc85xx
 dev/scc/scc_bfe_macio.c		optional	scc powermac
+dev/sdhci/fsl_sdhci.c		optional	mpc85xx sdhci
 dev/sec/sec.c			optional	sec mpc85xx
 dev/sound/macio/aoa.c		optional	snd_davbus | snd_ai2s powermac
 dev/sound/macio/davbus.c	optional	snd_davbus powermac
@@ -82,25 +83,25 @@ kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
 kern/syscalls.c			optional	ktr
 kern/subr_sfbuf.c		standard
-libkern/ashldi3.c		optional	powerpc
-libkern/ashrdi3.c		optional	powerpc
+libkern/ashldi3.c		optional	powerpc | powerpcspe
+libkern/ashrdi3.c		optional	powerpc | powerpcspe
 libkern/bcmp.c			standard
-libkern/cmpdi2.c		optional	powerpc
-libkern/divdi3.c		optional	powerpc
+libkern/cmpdi2.c		optional	powerpc | powerpcspe
+libkern/divdi3.c		optional	powerpc | powerpcspe
 libkern/ffs.c			standard
 libkern/ffsl.c			standard
 libkern/ffsll.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard
-libkern/lshrdi3.c		optional	powerpc
+libkern/lshrdi3.c		optional	powerpc | powerpcspe
 libkern/memmove.c		standard
 libkern/memset.c		standard
-libkern/moddi3.c		optional	powerpc
-libkern/qdivrem.c		optional	powerpc
-libkern/ucmpdi2.c		optional	powerpc
-libkern/udivdi3.c		optional	powerpc
-libkern/umoddi3.c		optional	powerpc
+libkern/moddi3.c		optional	powerpc | powerpcspe
+libkern/qdivrem.c		optional	powerpc | powerpcspe
+libkern/ucmpdi2.c		optional	powerpc | powerpcspe
+libkern/udivdi3.c		optional	powerpc | powerpcspe
+libkern/umoddi3.c		optional	powerpc | powerpcspe
 powerpc/aim/locore.S		optional	aim no-obj
 powerpc/aim/aim_machdep.c	optional	aim
 powerpc/aim/mmu_oea.c		optional	aim powerpc
@@ -115,7 +116,9 @@ powerpc/booke/machdep_e500.c	optional	booke_e500
 powerpc/booke/mp_cpudep.c	optional	booke smp
 powerpc/booke/platform_bare.c	optional	booke
 powerpc/booke/pmap.c		optional	booke
+powerpc/booke/spe.c		optional	powerpcspe
 powerpc/cpufreq/dfs.c		optional	cpufreq
+powerpc/cpufreq/mpc85xx_jog.c	optional	cpufreq mpc85xx
 powerpc/cpufreq/pcr.c		optional	cpufreq aim
 powerpc/cpufreq/pmufreq.c	optional	cpufreq aim pmu
 powerpc/fpu/fpu_add.c		optional	fpu_emu
@@ -132,10 +135,12 @@ powerpc/mambo/mambo.c		optional	mambo
 powerpc/mambo/mambo_console.c	optional	mambo
 powerpc/mambo/mambo_disk.c	optional	mambo
 powerpc/mikrotik/platform_rb.c	optional	mikrotik
+powerpc/mikrotik/rb_led.c	optional	mikrotik
 powerpc/mpc85xx/atpic.c		optional	mpc85xx isa
 powerpc/mpc85xx/ds1553_bus_fdt.c	optional	ds1553 fdt
 powerpc/mpc85xx/ds1553_core.c	optional	ds1553
-powerpc/mpc85xx/fsl_sdhc.c	optional	mpc85xx sdhc
+powerpc/mpc85xx/fsl_diu.c	optional	mpc85xx diu
+powerpc/mpc85xx/fsl_espi.c	optional	mpc85xx spibus
 powerpc/mpc85xx/i2c.c		optional	iicbus fdt
 powerpc/mpc85xx/isa.c		optional	mpc85xx isa
 powerpc/mpc85xx/lbc.c		optional	mpc85xx
@@ -184,7 +189,7 @@ powerpc/powernv/opal_dev.c	optional	powernv
 powerpc/powernv/opal_pci.c	optional	powernv pci
 powerpc/powernv/opalcall.S	optional	powernv
 powerpc/powernv/platform_powernv.c optional	powernv
-powerpc/powerpc/altivec.c	standard
+powerpc/powerpc/altivec.c	optional	powerpc | powerpc64
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bcopy.c		standard
 powerpc/powerpc/bus_machdep.c	standard
@@ -198,7 +203,7 @@ powerpc/powerpc/db_hwwatch.c	optional	ddb
 powerpc/powerpc/db_interface.c	optional	ddb
 powerpc/powerpc/db_trace.c	optional	ddb
 powerpc/powerpc/dump_machdep.c	standard
-powerpc/powerpc/elf32_machdep.c	optional	powerpc | compat_freebsd32
+powerpc/powerpc/elf32_machdep.c	optional	powerpc | powerpcspe | compat_freebsd32
 powerpc/powerpc/elf64_machdep.c	optional	powerpc64
 powerpc/powerpc/exec_machdep.c	standard
 powerpc/powerpc/fpu.c		standard
@@ -221,9 +226,9 @@ powerpc/powerpc/platform_if.m	standard
 powerpc/powerpc/ptrace_machdep.c	standard
 powerpc/powerpc/sc_machdep.c	optional	sc
 powerpc/powerpc/setjmp.S	standard
-powerpc/powerpc/sigcode32.S	optional	powerpc | compat_freebsd32
+powerpc/powerpc/sigcode32.S	optional	powerpc | powerpcspe | compat_freebsd32
 powerpc/powerpc/sigcode64.S	optional	powerpc64
-powerpc/powerpc/swtch32.S	optional	powerpc
+powerpc/powerpc/swtch32.S	optional	powerpc | powerpcspe
 powerpc/powerpc/swtch64.S	optional	powerpc64
 powerpc/powerpc/stack_machdep.c	optional	ddb | stack
 powerpc/powerpc/suswintr.c	standard

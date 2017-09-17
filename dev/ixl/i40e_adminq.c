@@ -1020,11 +1020,11 @@ enum i40e_status_code i40e_clean_arq_element(struct i40e_hw *hw,
 	desc = I40E_ADMINQ_DESC(hw->aq.arq, ntc);
 	desc_idx = ntc;
 
+	hw->aq.arq_last_status =
+		(enum i40e_admin_queue_err)LE16_TO_CPU(desc->retval);
 	flags = LE16_TO_CPU(desc->flags);
 	if (flags & I40E_AQ_FLAG_ERR) {
 		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
-		hw->aq.arq_last_status =
-			(enum i40e_admin_queue_err)LE16_TO_CPU(desc->retval);
 		i40e_debug(hw,
 			   I40E_DEBUG_AQ_MESSAGE,
 			   "AQRX: Event received with error 0x%X.\n",

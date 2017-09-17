@@ -104,8 +104,7 @@ interact(const char *rc)
 
     if (rc == NULL) {
 	/* Read our default configuration. */
-	if (include("/boot/loader.rc") != CMD_OK)
-	    include("/boot/boot.conf");
+	include("/boot/loader.rc");
     } else if (*rc != '\0')
 	include(rc);
 

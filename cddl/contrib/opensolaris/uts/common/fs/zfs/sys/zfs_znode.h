@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
 
@@ -135,17 +135,6 @@ extern "C" {
 #define	ZFS_SA_ATTRS		"SA_ATTRS"
 
 /*
- * Path component length
- *
- * The generic fs code uses MAXNAMELEN to represent
- * what the largest component length is.  Unfortunately,
- * this length includes the terminating NULL.  ZFS needs
- * to tell the users via pathconf() and statvfs() what the
- * true maximum length of a component is, excluding the NULL.
- */
-#define	ZFS_MAXNAMELEN	(MAXNAMELEN - 1)
-
-/*
  * Convert mode bits (zp_mode) to BSD-style DT_* values for storing in
  * the directory entries.
  */
@@ -238,7 +227,7 @@ ZTOV(znode_t *zp)
 {
 	vnode_t *vp = zp->z_vnode;
 
-	ASSERT(vp == NULL || vp->v_data == NULL || vp->v_data == zp);
+	ASSERT(vp != NULL && vp->v_data == zp);
 	return (vp);
 }
 static __inline znode_t *
@@ -246,7 +235,7 @@ VTOZ(vnode_t *vp)
 {
 	znode_t *zp = (znode_t *)vp->v_data;
 
-	ASSERT(zp == NULL || zp->z_vnode == NULL || zp->z_vnode == vp);
+	ASSERT(zp != NULL && zp->z_vnode == vp);
 	return (zp);
 }
 #else
@@ -365,6 +354,8 @@ extern int zfs_create_share_dir(zfsvfs_t *zfsvfs, dmu_tx_t *tx);
 extern zil_get_data_t zfs_get_data;
 extern zil_replay_func_t *zfs_replay_vector[TX_MAX_TYPE];
 extern int zfsfstype;
+
+extern int zfs_znode_parent_and_name(znode_t *zp, znode_t **dzpp, char *buf);
 
 #endif /* _KERNEL */
 

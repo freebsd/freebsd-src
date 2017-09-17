@@ -378,8 +378,6 @@ static int ib_ucm_event_handler(struct ib_cm_id *cm_id,
 	list_add_tail(&uevent->file_list, &ctx->file->events);
 	list_add_tail(&uevent->ctx_list, &ctx->events);
 	wake_up_interruptible(&ctx->file->poll_wait);
-	if (ctx->file->filp)
-		selwakeup(&ctx->file->filp->f_selinfo);
 	mutex_unlock(&ctx->file->file_mutex);
 	return 0;
 

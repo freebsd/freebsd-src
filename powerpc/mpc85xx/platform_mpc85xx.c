@@ -78,7 +78,9 @@ struct cpu_release {
 #endif
 
 extern uint32_t *bootinfo;
+vm_paddr_t ccsrbar_pa;
 vm_offset_t ccsrbar_va;
+vm_size_t ccsrbar_size;
 
 static int cpu, maxcpu;
 
@@ -122,11 +124,16 @@ PLATFORM_DEF(mpc85xx_platform);
 static int
 mpc85xx_probe(platform_t plat)
 {
-	u_int pvr = mfpvr() >> 16;
+	u_int pvr = (mfpvr() >> 16) & 0xFFFF;
 
-	if ((pvr & 0xfff0) == FSL_E500v1)
-		return (BUS_PROBE_DEFAULT);
-
+	switch (pvr) {
+		case FSL_E500v1:
+		case FSL_E500v2:
+		case FSL_E500mc:
+		case FSL_E5500:
+		case FSL_E6500:
+			return (BUS_PROBE_DEFAULT);
+	}
 	return (ENXIO);
 }
 
@@ -137,9 +144,8 @@ mpc85xx_attach(platform_t plat)
 	const char *soc_name_guesses[] = {"/soc", "soc", NULL};
 	const char **name;
 	pcell_t ranges[6], acells, pacells, scells;
-	uint32_t sr;
 	uint64_t ccsrbar, ccsrsize;
-	int i, law_max, tgt;
+	int i;
 
 	if ((cpus = OF_finddevice("/cpus")) != -1) {
 		for (maxcpu = 0, child = OF_child(cpus); child != 0;
@@ -192,26 +198,13 @@ mpc85xx_attach(platform_t plat)
 		ccsrsize |= ranges[i];
 	}
 	ccsrbar_va = pmap_early_io_map(ccsrbar, ccsrsize);
+	ccsrbar_pa = ccsrbar;
+	ccsrbar_size = ccsrsize;
 
+#if 0
 	mpc85xx_fix_errata(ccsrbar_va);
+#endif
 	mpc85xx_enable_l3_cache();
-
-	/*
-	 * Clear local access windows. Skip DRAM entries, so we don't shoot
-	 * ourselves in the foot.
-	 */
-	law_max = law_getmax();
-	for (i = 0; i < law_max; i++) {
-		sr = ccsr_read4(OCP85XX_LAWSR(i));
-		if ((sr & OCP85XX_ENA_MASK) == 0)
-			continue;
-		tgt = (sr & 0x01f00000) >> 20;
-		if (tgt == OCP85XX_TGTIF_RAM1 || tgt == OCP85XX_TGTIF_RAM2 ||
-		    tgt == OCP85XX_TGTIF_RAM_INTL)
-			continue;
-
-		ccsr_write4(OCP85XX_LAWSR(i), sr & OCP85XX_DIS_MASK);
-	}
 
 	return (0);
 }
@@ -550,9 +543,11 @@ mpc85xx_idle(platform_t plat, int cpu)
 	uint32_t reg;
 
 	if (mpc85xx_is_qoriq()) {
-		reg = ccsr_read4(OCP85XX_RCPM_CDOZCR);
-		ccsr_write4(OCP85XX_RCPM_CDOZCR, reg | (1 << cpu));
-		ccsr_read4(OCP85XX_RCPM_CDOZCR);
+		/*
+		 * Base binutils doesn't know what the 'wait' instruction is, so
+		 * use the opcode encoding here.
+		 */
+		__asm __volatile("wrteei 1; .long 0x7c00007c");
 	} else {
 		reg = mfmsr();
 		/* Freescale E500 core RM section 6.4.1. */
@@ -564,15 +559,6 @@ mpc85xx_idle(platform_t plat, int cpu)
 static int
 mpc85xx_idle_wakeup(platform_t plat, int cpu)
 {
-	uint32_t reg;
-
-	if (mpc85xx_is_qoriq()) {
-		reg = ccsr_read4(OCP85XX_RCPM_CDOZCR);
-		ccsr_write4(OCP85XX_RCPM_CDOZCR, reg & ~(1 << cpu));
-		ccsr_read4(OCP85XX_RCPM_CDOZCR);
-
-		return (1);
-	}
 
 	return (0);
 }

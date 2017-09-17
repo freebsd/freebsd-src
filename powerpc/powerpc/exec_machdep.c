@@ -546,9 +546,13 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	tf->srr0 = imgp->entry_addr;
 	#ifdef __powerpc64__
 	tf->fixreg[12] = imgp->entry_addr;
+	#ifdef AIM
 	tf->srr1 = PSL_SF | PSL_USERSET | PSL_FE_DFLT;
 	if (mfmsr() & PSL_HV)
 		tf->srr1 |= PSL_HV;
+	#elif defined(BOOKE)
+	tf->srr1 = PSL_CM | PSL_USERSET | PSL_FE_DFLT;
+	#endif
 	#else
 	tf->srr1 = PSL_USERSET | PSL_FE_DFLT;
 	#endif
@@ -579,9 +583,13 @@ ppc32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 	tf->srr0 = imgp->entry_addr;
 	tf->srr1 = PSL_USERSET | PSL_FE_DFLT;
+#ifdef AIM
 	tf->srr1 &= ~PSL_SF;
 	if (mfmsr() & PSL_HV)
 		tf->srr1 |= PSL_HV;
+#elif defined(BOOKE)
+	tf->srr1 &= ~PSL_CM;
+#endif
 	td->td_pcb->pcb_flags = 0;
 }
 #endif

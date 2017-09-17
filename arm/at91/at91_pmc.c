@@ -41,8 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
 #include <arm/at91/at91reg.h>
@@ -52,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91_pmcvar.h>
 
 #ifdef FDT
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
@@ -66,8 +63,8 @@ static struct at91_pmc_softc {
 
 static uint32_t pllb_init;
 
-MALLOC_DECLARE(M_PMC);
-MALLOC_DEFINE(M_PMC, "at91_pmc_clocks", "AT91 PMC Clock descriptors");
+MALLOC_DECLARE(M_PMC_CLK);
+MALLOC_DEFINE(M_PMC_CLK, "at91_pmc_clocks", "AT91 PMC Clock descriptors");
 
 #define AT91_PMC_BASE 0xffffc00
 
@@ -303,12 +300,12 @@ at91_pmc_clock_add(const char *name, uint32_t irq,
 	struct at91_pmc_clock *clk;
 	int i, buflen;
 
-	clk = malloc(sizeof(*clk), M_PMC, M_NOWAIT | M_ZERO);
+	clk = malloc(sizeof(*clk), M_PMC_CLK, M_NOWAIT | M_ZERO);
 	if (clk == NULL)
 		goto err;
 
 	buflen = strlen(name) + 1;
-	clk->name = malloc(buflen, M_PMC, M_NOWAIT);
+	clk->name = malloc(buflen, M_PMC_CLK, M_NOWAIT);
 	if (clk->name == NULL)
 		goto err;
 
@@ -329,8 +326,8 @@ at91_pmc_clock_add(const char *name, uint32_t irq,
 err:
 	if (clk != NULL) {
 		if (clk->name != NULL)
-			free(clk->name, M_PMC);
-		free(clk, M_PMC);
+			free(clk->name, M_PMC_CLK);
+		free(clk, M_PMC_CLK);
 	}
 
 	panic("could not allocate pmc clock '%s'", name);

@@ -1,6 +1,6 @@
 /*-
  * Copyright (C) 2002-2003 NetGroup, Politecnico di Torino (Italy)
- * Copyright (C) 2005-2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (C) 2005-2017 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,10 +37,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/socket.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/socket.h>
+
 #include <net/if.h>
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #else
 #include <stdlib.h>
 #include <string.h>
@@ -54,8 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf_jitter.h>
 
 #include <amd64/amd64/bpf_jit_machdep.h>
-
-bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, size_t *);
 
 /*
  * Emit routine to update the jump table.
@@ -83,12 +85,13 @@ emit_code(bpf_bin_stream *stream, u_int value, u_int len)
 		break;
 
 	case 2:
-		*((u_short *)(stream->ibuf + stream->cur_ip)) = (u_short)value;
+		*((u_short *)(void *)(stream->ibuf + stream->cur_ip)) =
+		    (u_short)value;
 		stream->cur_ip += 2;
 		break;
 
 	case 4:
-		*((u_int *)(stream->ibuf + stream->cur_ip)) = value;
+		*((u_int *)(void *)(stream->ibuf + stream->cur_ip)) = value;
 		stream->cur_ip += 4;
 		break;
 	}
@@ -424,75 +427,58 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				break;
 
 			case BPF_JMP|BPF_JGT|BPF_K:
-				if (ins->jt == ins->jf) {
-					JUMP(ins->jt);
-					break;
-				}
-				CMPid(ins->k, EAX);
-				JCC(JA, JBE);
-				break;
-
 			case BPF_JMP|BPF_JGE|BPF_K:
-				if (ins->jt == ins->jf) {
-					JUMP(ins->jt);
-					break;
-				}
-				CMPid(ins->k, EAX);
-				JCC(JAE, JB);
-				break;
-
 			case BPF_JMP|BPF_JEQ|BPF_K:
-				if (ins->jt == ins->jf) {
-					JUMP(ins->jt);
-					break;
-				}
-				CMPid(ins->k, EAX);
-				JCC(JE, JNE);
-				break;
-
 			case BPF_JMP|BPF_JSET|BPF_K:
-				if (ins->jt == ins->jf) {
-					JUMP(ins->jt);
-					break;
-				}
-				TESTid(ins->k, EAX);
-				JCC(JNE, JE);
-				break;
-
 			case BPF_JMP|BPF_JGT|BPF_X:
-				if (ins->jt == ins->jf) {
-					JUMP(ins->jt);
-					break;
-				}
-				CMPrd(EDX, EAX);
-				JCC(JA, JBE);
-				break;
-
 			case BPF_JMP|BPF_JGE|BPF_X:
-				if (ins->jt == ins->jf) {
-					JUMP(ins->jt);
-					break;
-				}
-				CMPrd(EDX, EAX);
-				JCC(JAE, JB);
-				break;
-
 			case BPF_JMP|BPF_JEQ|BPF_X:
-				if (ins->jt == ins->jf) {
-					JUMP(ins->jt);
-					break;
-				}
-				CMPrd(EDX, EAX);
-				JCC(JE, JNE);
-				break;
-
 			case BPF_JMP|BPF_JSET|BPF_X:
 				if (ins->jt == ins->jf) {
 					JUMP(ins->jt);
 					break;
 				}
-				TESTrd(EDX, EAX);
-				JCC(JNE, JE);
+				switch (ins->code) {
+				case BPF_JMP|BPF_JGT|BPF_K:
+					CMPid(ins->k, EAX);
+					JCC(JA, JBE);
+					break;
+
+				case BPF_JMP|BPF_JGE|BPF_K:
+					CMPid(ins->k, EAX);
+					JCC(JAE, JB);
+					break;
+
+				case BPF_JMP|BPF_JEQ|BPF_K:
+					CMPid(ins->k, EAX);
+					JCC(JE, JNE);
+					break;
+
+				case BPF_JMP|BPF_JSET|BPF_K:
+					TESTid(ins->k, EAX);
+					JCC(JNE, JE);
+					break;
+
+				case BPF_JMP|BPF_JGT|BPF_X:
+					CMPrd(EDX, EAX);
+					JCC(JA, JBE);
+					break;
+
+				case BPF_JMP|BPF_JGE|BPF_X:
+					CMPrd(EDX, EAX);
+					JCC(JAE, JB);
+					break;
+
+				case BPF_JMP|BPF_JEQ|BPF_X:
+					CMPrd(EDX, EAX);
+					JCC(JE, JNE);
+					break;
+
+				case BPF_JMP|BPF_JSET|BPF_X:
+					TESTrd(EDX, EAX);
+					JCC(JNE, JE);
+					break;
+				}
 				break;
 
 			case BPF_ALU|BPF_ADD|BPF_X:
@@ -510,6 +496,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				break;
 
 			case BPF_ALU|BPF_DIV|BPF_X:
+			case BPF_ALU|BPF_MOD|BPF_X:
 				TESTrd(EDX, EDX);
 				if (fmem) {
 					JNEb(4);
@@ -523,6 +510,8 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				MOVrd(EDX, ECX);
 				ZEROrd(EDX);
 				DIVrd(ECX);
+				if (BPF_OP(ins->code) == BPF_MOD)
+					MOVrd(EDX, EAX);
 				MOVrd(ECX, EDX);
 				break;
 
@@ -532,6 +521,10 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 
 			case BPF_ALU|BPF_OR|BPF_X:
 				ORrd(EDX, EAX);
+				break;
+
+			case BPF_ALU|BPF_XOR|BPF_X:
+				XORrd(EDX, EAX);
 				break;
 
 			case BPF_ALU|BPF_LSH|BPF_X:
@@ -560,10 +553,13 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				break;
 
 			case BPF_ALU|BPF_DIV|BPF_K:
+			case BPF_ALU|BPF_MOD|BPF_K:
 				MOVrd(EDX, ECX);
 				ZEROrd(EDX);
 				MOVid(ins->k, ESI);
 				DIVrd(ESI);
+				if (BPF_OP(ins->code) == BPF_MOD)
+					MOVrd(EDX, EAX);
 				MOVrd(ECX, EDX);
 				break;
 
@@ -573,6 +569,10 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 
 			case BPF_ALU|BPF_OR|BPF_K:
 				ORid(ins->k, EAX);
+				break;
+
+			case BPF_ALU|BPF_XOR|BPF_K:
+				XORid(ins->k, EAX);
 				break;
 
 			case BPF_ALU|BPF_LSH|BPF_K:
@@ -603,7 +603,11 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 
 		*size = stream.cur_ip;
 #ifdef _KERNEL
-		stream.ibuf = malloc(*size, M_BPFJIT, M_NOWAIT);
+		/*
+		 * We cannot use malloc(9) because DMAP is mapped as NX.
+		 */
+		stream.ibuf = (void *)kmem_malloc(kernel_arena, *size,
+		    M_NOWAIT);
 		if (stream.ibuf == NULL)
 			break;
 #else
@@ -650,5 +654,16 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 	}
 #endif
 
-	return ((bpf_filter_func)stream.ibuf);
+	return ((bpf_filter_func)(void *)stream.ibuf);
+}
+
+void
+bpf_jit_free(void *func, size_t size)
+{
+
+#ifdef _KERNEL
+	kmem_free(kernel_arena, (vm_offset_t)func, size);
+#else
+	munmap(func, size);
+#endif
 }

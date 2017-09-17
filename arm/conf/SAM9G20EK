@@ -35,9 +35,12 @@ options 	SOCDEV_VA=0xdc000000
 hints		"SAM9G20EK.hints"
 makeoptions	MODULES_OVERRIDE=""
 
+options 	ARM_USE_V6_BUSDMA	# Use v6 to track down unaligned I/O issues
+
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
 #options 	INET6			# IPv6 communications protocols
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	TMPFS			# Efficient memory filesystem
 options 	FFS			# Berkeley Fast Filesystem
 #options 	SOFTUPDATES		# Enable FFS soft updates support

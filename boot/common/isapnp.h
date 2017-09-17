@@ -45,14 +45,8 @@
 
 /* Static ports to access PnP state machine */
 #ifndef _KERNEL
-#ifdef PC98
-/* pnp.h is included from pnpinfo.c. */
-#define _PNP_ADDRESS		0x259
-#define _PNP_WRITE_DATA		0xa59
-#else
 #define _PNP_ADDRESS		0x279
 #define _PNP_WRITE_DATA		0xa79
-#endif
 #endif
 
 /* PnP Registers.  Write to ADDRESS and then use WRITE/READ_DATA */

@@ -38,6 +38,7 @@
 
 #include <machine/frame.h>
 #include <machine/md_var.h>
+#include <machine/psl.h>
 #include <machine/reg.h>
 #include <machine/stack.h>
 
@@ -54,16 +55,19 @@
 
 #ifdef __powerpc64__
 #define OFFSET 4 /* Account for the TOC reload slot */
+#define	FRAME_OFFSET	48
 #else
 #define OFFSET 0
+#define	FRAME_OFFSET	8
 #endif
 
 #define INKERNEL(x)	((x) <= VM_MAX_KERNEL_ADDRESS && \
 		(x) >= VM_MIN_KERNEL_ADDRESS)
 
 static __inline int
-dtrace_sp_inkernel(uintptr_t sp, int aframes)
+dtrace_sp_inkernel(uintptr_t sp)
 {
+	struct trapframe *frame;
 	vm_offset_t callpc;
 
 #ifdef __powerpc64__
@@ -77,14 +81,15 @@ dtrace_sp_inkernel(uintptr_t sp, int aframes)
 	/*
 	 * trapexit() and asttrapexit() are sentinels
 	 * for kernel stack tracing.
-	 *
-	 * Special-case this for 'aframes == 0', because fbt sets aframes to the
-	 * trap callchain depth, so we want to break out of it.
 	 */
-	if ((callpc + OFFSET == (vm_offset_t) &trapexit ||
-	    callpc + OFFSET == (vm_offset_t) &asttrapexit) &&
-	    aframes != 0)
-		return (0);
+	if (callpc + OFFSET == (vm_offset_t) &trapexit ||
+	    callpc + OFFSET == (vm_offset_t) &asttrapexit) {
+		if (sp == 0)
+			return (0);
+		frame = (struct trapframe *)(sp + FRAME_OFFSET);
+
+		return ((frame->srr1 & PSL_PR) == 0);
+	}
 
 	return (1);
 }
@@ -93,6 +98,7 @@ static __inline uintptr_t
 dtrace_next_sp(uintptr_t sp)
 {
 	vm_offset_t callpc;
+	struct trapframe *frame;
 
 #ifdef __powerpc64__
 	callpc = *(vm_offset_t *)(sp + RETURN_OFFSET64);
@@ -103,18 +109,13 @@ dtrace_next_sp(uintptr_t sp)
 	/*
 	 * trapexit() and asttrapexit() are sentinels
 	 * for kernel stack tracing.
-	 *
-	 * Special-case this for 'aframes == 0', because fbt sets aframes to the
-	 * trap callchain depth, so we want to break out of it.
 	 */
 	if ((callpc + OFFSET == (vm_offset_t) &trapexit ||
-	    callpc + OFFSET == (vm_offset_t) &asttrapexit))
-	    /* Access the trap frame */
-#ifdef __powerpc64__
-		return (*(uintptr_t *)sp + 48 + sizeof(register_t));
-#else
-		return (*(uintptr_t *)sp + 8 + sizeof(register_t));
-#endif
+	    callpc + OFFSET == (vm_offset_t) &asttrapexit)) {
+		/* Access the trap frame */
+		frame = (struct trapframe *)(sp + FRAME_OFFSET);
+		return (*(uintptr_t *)(frame->fixreg[1]));
+	}
 
 	return (*(uintptr_t*)sp);
 }
@@ -122,6 +123,7 @@ dtrace_next_sp(uintptr_t sp)
 static __inline uintptr_t
 dtrace_get_pc(uintptr_t sp)
 {
+	struct trapframe *frame;
 	vm_offset_t callpc;
 
 #ifdef __powerpc64__
@@ -133,18 +135,13 @@ dtrace_get_pc(uintptr_t sp)
 	/*
 	 * trapexit() and asttrapexit() are sentinels
 	 * for kernel stack tracing.
-	 *
-	 * Special-case this for 'aframes == 0', because fbt sets aframes to the
-	 * trap callchain depth, so we want to break out of it.
 	 */
 	if ((callpc + OFFSET == (vm_offset_t) &trapexit ||
-	    callpc + OFFSET == (vm_offset_t) &asttrapexit))
-	    /* Access the trap frame */
-#ifdef __powerpc64__
-		return (*(uintptr_t *)sp + 48 + offsetof(struct trapframe, lr));
-#else
-		return (*(uintptr_t *)sp + 8 + offsetof(struct trapframe, lr));
-#endif
+	    callpc + OFFSET == (vm_offset_t) &asttrapexit)) {
+		/* Access the trap frame */
+		frame = (struct trapframe *)(sp + FRAME_OFFSET);
+		return (frame->srr0);
+	}
 
 	return (callpc);
 }
@@ -176,7 +173,7 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 		if (sp <= osp)
 			break;
 
-		if (!dtrace_sp_inkernel(sp, aframes))
+		if (!dtrace_sp_inkernel(sp))
 			break;
 		callpc = dtrace_get_pc(sp);
 
@@ -537,7 +534,7 @@ dtrace_getstackdepth(int aframes)
 		if (sp <= osp)
 			break;
 
-		if (!dtrace_sp_inkernel(sp, aframes))
+		if (!dtrace_sp_inkernel(sp))
 			break;
 
 		if (aframes == 0)

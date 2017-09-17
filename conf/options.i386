@@ -24,8 +24,6 @@ PV_STATS		opt_pmap.h
 COMPAT_AOUT		opt_dontuse.h
 IBCS2			opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
-COMPAT_SVR4		opt_dontuse.h
-DEBUG_SVR4		opt_svr4.h
 LINPROCFS		opt_dontuse.h
 LINSYSFS		opt_dontuse.h
 NDISAPI			opt_dontuse.h
@@ -50,8 +48,6 @@ CPU_BTB_EN			opt_cpu.h
 CPU_CYRIX_NO_LOCK		opt_cpu.h
 CPU_DIRECT_MAPPED_CACHE		opt_cpu.h
 CPU_DISABLE_5X86_LSSER		opt_cpu.h
-CPU_DISABLE_CMPXCHG		opt_global.h	# XXX global, unlike other CPU_*
-CPU_DISABLE_SSE			opt_cpu.h
 CPU_ELAN			opt_cpu.h
 CPU_ELAN_PPS			opt_cpu.h
 CPU_ELAN_XTAL			opt_cpu.h
@@ -113,7 +109,6 @@ NETGRAPH_CRONYX		opt_ng_cronyx.h
 # Device options
 DEV_APIC		opt_apic.h
 DEV_ATPIC		opt_atpic.h
-DEV_NPX			opt_npx.h
 
 # Debugging
 NPX_DEBUG		opt_npx.h

@@ -147,17 +147,17 @@ options 	BOOTHOWTO=RB_MULTIPLE
 
 options 	GEOM_AES		# Don't use, use GEOM_BDE
 options 	GEOM_BDE		# Disk encryption.
-options 	GEOM_BSD		# BSD disklabels
+options 	GEOM_BSD		# BSD disklabels (obsolete, gone in 12)
 options 	GEOM_CACHE		# Disk cache.
 options 	GEOM_CONCAT		# Disk concatenation.
 options 	GEOM_ELI		# Disk encryption.
-options 	GEOM_FOX		# Redundant path mitigation
+options 	GEOM_FOX		# Redundant path mitigation (obsolete, gone in 12)
 options 	GEOM_GATE		# Userland services.
 options 	GEOM_JOURNAL		# Journaling.
 options 	GEOM_LABEL		# Providers labelization.
 options 	GEOM_LINUX_LVM		# Linux LVM2 volumes
 options 	GEOM_MAP		# Map based partitioning
-options 	GEOM_MBR		# DOS/MBR partitioning
+options 	GEOM_MBR		# DOS/MBR partitioning (obsolete, gone in 12)
 options 	GEOM_MIRROR		# Disk mirroring.
 options 	GEOM_MULTIPATH		# Disk multipath
 options 	GEOM_NOP		# Test class.
@@ -169,18 +169,16 @@ options 	GEOM_PART_EBR_COMPAT	# Backward compatible partition names
 options 	GEOM_PART_GPT		# GPT partitioning
 options 	GEOM_PART_LDM		# Logical Disk Manager
 options 	GEOM_PART_MBR		# MBR partitioning
-options 	GEOM_PART_PC98		# PC-9800 disk partitioning
 options 	GEOM_PART_VTOC8		# SMI VTOC8 disk label
-options 	GEOM_PC98		# NEC PC9800 partitioning
 options 	GEOM_RAID		# Soft RAID functionality.
 options 	GEOM_RAID3		# RAID3 functionality.
 options 	GEOM_SHSEC		# Shared secret.
 options 	GEOM_STRIPE		# Disk striping.
-options 	GEOM_SUNLABEL		# Sun/Solaris partitioning
+options 	GEOM_SUNLABEL		# Sun/Solaris partitioning (obsolete, gone in 12)
 options 	GEOM_UZIP		# Read-only compressed disks
 options 	GEOM_VINUM		# Vinum logical volume manager
 options 	GEOM_VIRSTOR		# Virtual storage.
-options 	GEOM_VOL		# Volume names from UFS superblock
+options 	GEOM_VOL		# Volume names from UFS superblock (obsolete, gone in 12)
 options 	GEOM_ZERO		# Performance testing helper.
 
 #
@@ -304,7 +302,7 @@ options 	SX_NOINLINE
 # TURNSTILE_PROFILING enables rudimentary profiling of the hash table
 #	  used to hold active lock queues.
 # UMTX_PROFILING enables rudimentary profiling of the hash table used 
-	  to hold active lock queues.
+#	  to hold active lock queues.
 # WITNESS enables the witness code which detects deadlocks and cycles
 #         during locking operations.
 # WITNESS_KDB causes the witness code to drop into the kernel debugger if
@@ -369,6 +367,9 @@ options 	COMPAT_FREEBSD9
 
 # Enable FreeBSD10 compatibility syscalls
 options 	COMPAT_FREEBSD10
+
+# Enable FreeBSD11 compatibility syscalls
+options 	COMPAT_FREEBSD11
 
 # Enable Linux Kernel Programming Interface
 options 	COMPAT_LINUXKPI
@@ -616,6 +617,8 @@ options 	HWPMC_HOOKS		# Other necessary kernel hooks
 options 	INET			#Internet communications protocols
 options 	INET6			#IPv6 communications protocols
 
+options		RATELIMIT		# TX rate limiting support
+
 options 	ROUTETABLES=2		# allocated fibs up to 65536. default is 1.
 					# but that would be a bad idea as they are large.
 
@@ -624,12 +627,12 @@ options 	TCP_OFFLOAD		# TCP offload support.
 # In order to enable IPSEC you MUST also add device crypto to 
 # your kernel configuration
 options 	IPSEC			#IP security (requires device crypto)
+
+# Option IPSEC_SUPPORT does not enable IPsec, but makes it possible to 
+# load it as a kernel module. You still MUST add device crypto to your kernel
+# configuration.
+options		IPSEC_SUPPORT
 #options 	IPSEC_DEBUG		#debug for IP security
-#
-# Set IPSEC_NAT_T to enable NAT-Traversal support.  This enables
-# optional UDP encapsulation of ESP packets.
-#
-options		IPSEC_NAT_T		#NAT-T support, UDP encap of ESP
 
 #
 # SMB/CIFS requester
@@ -642,9 +645,6 @@ options 	LIBMCHAIN
 
 # libalias library, performing NAT
 options 	LIBALIAS
-
-# flowtable cache
-options 	FLOWTABLE
 
 #
 # SCTP is a NEW transport protocol defined by
@@ -769,8 +769,7 @@ options 	NETGRAPH_IPFW
 options 	NETGRAPH_KSOCKET
 options 	NETGRAPH_L2TP
 options 	NETGRAPH_LMI
-# MPPC compression requires proprietary files (not included)
-#options 	NETGRAPH_MPPC_COMPRESSION
+options 	NETGRAPH_MPPC_COMPRESSION
 options 	NETGRAPH_MPPC_ENCRYPTION
 options 	NETGRAPH_NETFLOW
 options 	NETGRAPH_NAT
@@ -969,6 +968,9 @@ device		lagg
 #
 # IPFIREWALL_NPTV6 adds support for in kernel NPTv6 in ipfw.
 #
+# IPFIREWALL_PMOD adds support for protocols modification module. Currently
+# it supports only TCP MSS modification.
+#
 # IPSTEALTH enables code to support stealth forwarding (i.e., forwarding
 # packets without touching the TTL).  This can be useful to hide firewalls
 # from traceroute and similar tools.
@@ -981,6 +983,8 @@ device		lagg
 #
 # TCPPCAP enables code which keeps the last n packets sent and received
 # on a TCP socket.
+#
+# TCP_HHOOK enables the hhook(9) framework hooks for the TCP stack.
 #
 # RADIX_MPATH provides support for equal-cost multi-path routing.
 #
@@ -1001,6 +1005,7 @@ options 	IPSTEALTH		#support for stealth forwarding
 options 	PF_DEFAULT_TO_DROP	#drop everything by default
 options 	TCPDEBUG
 options 	TCPPCAP
+options 	TCP_HHOOK
 options 	RADIX_MPATH
 
 # The MBUF_STRESS_TEST option enables options which create
@@ -1022,7 +1027,8 @@ options 	ACCEPT_FILTER_HTTP
 # carried in TCP option 19. This option is commonly used to protect
 # TCP sessions (e.g. BGP) where IPSEC is not available nor desirable.
 # This is enabled on a per-socket basis using the TCP_MD5SIG socket option.
-# This requires the use of 'device crypto' and 'options IPSEC'.
+# This requires the use of 'device crypto' and either 'options IPSEC' or
+# 'options IPSEC_SUPPORT'.
 options 	TCP_SIGNATURE		#include support for RFC 2385
 
 # DUMMYNET enables the "dummynet" bandwidth limiter.  You need IPFIREWALL
@@ -1423,7 +1429,7 @@ options 	PCI_IOV			# PCI SR-IOV support
 # HARDWARE DEVICE CONFIGURATION
 
 # For ISA the required hints are listed.
-# EISA, MCA, PCI, CardBus, SD/MMC and pccard are self identifying buses, so
+# PCI, CardBus, SD/MMC and pccard are self identifying buses, so
 # no hints are needed.
 
 #
@@ -1524,11 +1530,10 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 # adv: All Narrow SCSI bus AdvanSys controllers.
 # adw: Second Generation AdvanSys controllers including the ADV940UW.
 # aha: Adaptec 154x/1535/1640
-# ahb: Adaptec 174x EISA controllers
 # ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
 #      19160x/29160x, aic7770/aic78xx
 # ahd: Adaptec 29320/39320 Controllers.
-# aic: Adaptec 6260/6360, APA-1460 (PC Card), NEC PC9801-100 (C-BUS)
+# aic: Adaptec 6260/6360, APA-1460 (PC Card)
 # bt:  Most Buslogic controllers: including BT-445, BT-54x, BT-64x, BT-74x,
 #      BT-75x, BT-946, BT-948, BT-956, BT-958, SDC3211B, SDC3211F, SDC3222F
 # esp: Emulex ESP, NCR 53C9x and QLogic FAS families based controllers
@@ -1551,7 +1556,7 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 # trm: Tekram DC395U/UW/F DC315U adapters.
 
 #
-# Note that the order is important in order for Buslogic ISA/EISA cards to be
+# Note that the order is important in order for Buslogic ISA cards to be
 # probed correctly.
 #
 device		bt
@@ -1564,7 +1569,6 @@ device		aha
 hint.aha.0.at="isa"
 device		aic
 hint.aic.0.at="isa"
-device		ahb
 device		ahc
 device		ahd
 device		esp
@@ -1752,7 +1756,6 @@ device		ata
 # Modular ATA
 #device		atacore		# Core ATA functionality
 #device		atacard		# CARDBUS support
-#device		atabus		# PC98 cbus support
 #device		ataisa		# ISA bus support
 #device		atapci		# PCI bus support; only generic chipset support
 
@@ -1900,6 +1903,7 @@ device  	amphy		# AMD AM79c873 / Davicom DM910{1,2}
 device  	atphy		# Attansic/Atheros F1
 device  	axphy		# Asix Semiconductor AX88x9x
 device  	bmtphy		# Broadcom BCM5201/BCM5202 and 3Com 3c905C
+device		bnxt		# Broadcom NetXtreme-C/NetXtreme-E
 device  	brgphy		# Broadcom BCM54xx/57xx 1000baseTX
 device  	ciphy		# Cicada/Vitesse CS/VSC8xxx
 device  	e1000phy	# Marvell 88E1000 1000/100/10-BT
@@ -1940,6 +1944,7 @@ device		xmphy		# XaQti XMAC II
 #	BCM570x family of controllers, including the 3Com 3c996-T,
 #	the Netgear GA302T, the SysKonnect SK-9D21 and SK-9D41, and
 #	the embedded gigE NICs on Dell PowerEdge 2550 servers.
+# bnxt:	Broadcom NetXtreme-C and NetXtreme-E PCIe 10/25/50G Ethernet adapters.
 # bxe:	Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
 #       adapters.
 # bwi:	Broadcom BCM430* and BCM431* family of wireless adapters.
@@ -1948,7 +1953,9 @@ device		xmphy		# XaQti XMAC II
 # cm:	Arcnet SMC COM90c26 / SMC COM90c56
 #	(and SMC COM90c66 in '56 compatibility mode) adapters.
 # cxgb: Chelsio T3 based 1GbE/10GbE PCIe Ethernet adapters.
-# cxgbe:Chelsio T4 and T5 based 1GbE/10GbE/40GbE PCIe Ethernet adapters.
+# cxgbe:Chelsio T4, T5, and T6-based 1/10/25/40/100GbE PCIe Ethernet
+#	adapters.
+# cxgbev: Chelsio T4, T5, and T6-based PCIe Virtual Functions.
 # dc:   Support for PCI fast ethernet adapters based on the DEC/Intel 21143
 #       and various workalikes including:
 #       the ADMtek AL981 Comet and AN985 Centaur, the ASIX Electronics
@@ -1962,13 +1969,11 @@ device		xmphy		# XaQti XMAC II
 #       KNE110TX.
 # de:   Digital Equipment DC21040
 # em:   Intel Pro/1000 Gigabit Ethernet 82542, 82543, 82544 based adapters.
-# igb:  Intel Pro/1000 PCI Express Gigabit Ethernet: 82575 and later adapters.
 # ep:   3Com 3C509, 3C529, 3C556, 3C562D, 3C563D, 3C572, 3C574X, 3C579, 3C589
 #       and PC Card devices using these chipsets.
 # ex:   Intel EtherExpress Pro/10 and other i82595-based adapters,
 #       Olicom Ethernet PC Card devices.
 # fe:   Fujitsu MB86960A/MB86965A Ethernet
-# fea:  DEC DEFEA EISA FDDI adapter
 # fpa:  Support for the Digital DEFPA PCI FDDI. `device fddi' is also needed.
 # fxp:  Intel EtherExpress Pro/100B
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
@@ -1979,6 +1984,7 @@ device		xmphy		# XaQti XMAC II
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
 #	LXT1001 NetCellerator chipset. This includes the D-Link DGE-500SX,
 #	SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
+# lio:  Support for Cavium 23XX Ethernet adapters
 # malo: Marvell Libertas wireless NICs.
 # mwl:  Marvell 88W8363 802.11n wireless NICs.
 #	Requires the mwl firmware module
@@ -2069,7 +2075,7 @@ device		xmphy		# XaQti XMAC II
 #       in Dell Latitude laptop docking stations.
 #       Also supported: 3Com 3c980(C)-TX, 3Com 3cSOHO100-TX, 3Com 3c450-TX
 
-# Order for ISA/EISA devices is important here
+# Order for ISA devices is important here
 
 device		cm
 hint.cm.0.at="isa"
@@ -2081,7 +2087,6 @@ device		ex
 device		fe
 hint.fe.0.at="isa"
 hint.fe.0.port="0x300"
-device		fea
 device		sn
 hint.sn.0.at="isa"
 hint.sn.0.port="0x300"
@@ -2131,10 +2136,10 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # PCI Ethernet NICs.
 device		cxgb		# Chelsio T3 10 Gigabit Ethernet
 device		cxgb_t3fw	# Chelsio T3 10 Gigabit Ethernet firmware
-device		cxgbe		# Chelsio T4 and T5 1GbE/10GbE/40GbE
+device		cxgbe		# Chelsio T4-T6 1/10/25/40/100 Gigabit Ethernet
+device		cxgbev		# Chelsio T4-T6 Virtual Functions
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet
-device		igb		# Intel Pro/1000 PCIE Gigabit Ethernet
 device		ixgb		# Intel Pro/10Gbe PCI-X Ethernet
 device		ix		# Intel Pro/10Gbe PCIE Ethernet
 device		ixv		# Intel Pro/10Gbe PCIE Ethernet VF
@@ -2205,42 +2210,7 @@ device		rtwnfw
 options 	MCLSHIFT=12	# mbuf cluster shift in bits, 12 == 4KB
 options 	MSIZE=512	# mbuf size in bytes
 
-#
-# ATM related options (Cranor version)
-# (note: this driver cannot be used with the HARP ATM stack)
-#
-# The `en' device provides support for Efficient Networks (ENI)
-# ENI-155 PCI midway cards, and the Adaptec 155Mbps PCI ATM cards (ANA-59x0).
-#
-# The `hatm' device provides support for Fore/Marconi HE155 and HE622
-# ATM PCI cards.
-#
-# The `fatm' device provides support for Fore PCA200E ATM PCI cards.
-#
-# The `patm' device provides support for IDT77252 based cards like
-# ProSum's ProATM-155 and ProATM-25 and IDT's evaluation boards.
-#
-# atm device provides generic atm functions and is required for
-# atm devices.
-# NATM enables the netnatm protocol family that can be used to
-# bypass TCP/IP.
-#
-# utopia provides the access to the ATM PHY chips and is required for en,
-# hatm and fatm.
-#
-# the current driver supports only PVC operations (no atm-arp, no multicast).
-# for more details, please read the original documents at
-# http://www.ccrc.wustl.edu/pub/chuck/tech/bsdatm/bsdatm.html
-#
-device		atm
-device		en
-device		fatm			#Fore PCA200E
-device		hatm			#Fore/Marconi HE155/622
-device		patm			#IDT77252 cards (ProATM and IDT)
-device		utopia			#ATM PHY driver
-options 	NATM			#native ATM
-
-options 	LIBMBPOOL		#needed by patm, iatm
+options 	LIBMBPOOL
 
 #
 # Sound drivers
@@ -2522,7 +2492,12 @@ device		ismt
 
 device		smb
 
+# SMBus peripheral devices
 #
+# jedec_ts	Temperature Sensor compliant with JEDEC Standard 21-C
+#
+device		jedec_ts
+
 # I2C Bus
 #
 # Philips i2c bus support is provided by the `iicbus' device.
@@ -2549,15 +2524,14 @@ device		iicoc		# OpenCores I2C controller support
 
 # I2C peripheral devices
 #
-# ds133x	Dallas Semiconductor DS1337, DS1338 and DS1339 RTC
-# ds1374	Dallas Semiconductor DS1374 RTC
-# ds1672	Dallas Semiconductor DS1672 RTC
-# s35390a	Seiko Instruments S-35390A RTC
-#
-device		ds133x
-device		ds1374
-device		ds1672
-device		s35390a
+device		ds1307		# Dallas DS1307 RTC and compatible
+device		ds13rtc		# All Dallas/Maxim ds13xx chips
+device		ds1672		# Dallas DS1672 RTC
+device		ds3231		# Dallas DS3231 RTC + temperature
+device		icee		# AT24Cxxx and compatible EEPROMs
+device		lm75		# LM75 compatible temperature sensor
+device		nxprtc		# NXP RTCs: PCA/PFC212x PCA/PCF85xx
+device		s35390a		# Seiko Instruments S-35390A RTC
 
 # Parallel-Port Bus
 #
@@ -2650,8 +2624,7 @@ options 	DEADLKRES
 # it back on at run-time.
 #
 # This is sometimes usable for systems which don't have any swap space
-# (see also sysctls "vm.defer_swapspace_pageouts" and
-# "vm.disable_swapspace_pageouts")
+# (see also sysctl "vm.disable_swapspace_pageouts")
 #
 #options 	NO_SWAPPING
 
@@ -2778,7 +2751,7 @@ device		rue
 # Davicom DM9601E USB to fast ethernet. Supports the Corega FEther USB-TXC.
 device		udav
 #
-# RealTek RTL8152 USB to fast ethernet.
+# RealTek RTL8152/RTL8153 USB Ethernet driver
 device		ure
 #
 # Moschip MCS7730/MCS7840 USB to fast ethernet. Supports the Sitecom LN030.
@@ -2823,7 +2796,7 @@ options 	U3G_DEBUG
 
 # options for ukbd:
 options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
-makeoptions	UKBD_DFLT_KEYMAP=jp.pc98
+makeoptions	UKBD_DFLT_KEYMAP=jp
 
 # options for uplcom:
 options 	UPLCOM_INTR_INTERVAL=100	# interrupt pipe interval
@@ -2871,6 +2844,8 @@ device		crypto		# core crypto support
 device		cryptodev	# /dev/crypto for access to h/w
 
 device		rndtest		# FIPS 140-2 entropy tester
+
+device		ccr		# Chelsio T6
 
 device		hifn		# Hifn 7951, 7781, etc.
 options 	HIFN_DEBUG	# enable debugging support: hw.hifn.debug
@@ -3041,12 +3016,19 @@ options 	RANDOM_ENABLE_UMA	# slab allocator
 # Module to enable execution of application via emulators like QEMU
 options         IMAGACT_BINMISC
 
-# Intel em(4) driver
-options		EM_MULTIQUEUE # Activate multiqueue features/disable MSI-X
-
 # zlib I/O stream support
 # This enables support for compressed core dumps.
 options 	GZIO
 
 # BHND(4) drivers
 options		BHND_LOGLEVEL	# Logging threshold level
+
+# evdev interface 
+device		evdev		# input event device support
+options 	EVDEV_SUPPORT	# evdev support in legacy drivers
+options 	EVDEV_DEBUG	# enable event debug msgs
+device		uinput		# install /dev/uinput cdev
+options 	UINPUT_DEBUG	# enable uinput debug msgs
+
+# Encrypted kernel crash dumps.
+options 	EKCD

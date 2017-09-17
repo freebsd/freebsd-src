@@ -16,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -53,6 +53,7 @@
 #include <fs/ext2fs/ext2fs.h>
 #include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/ext2_extern.h>
+#include <fs/ext2fs/ext2_extattr.h>
 
 static int ext2_indirtrunc(struct inode *, daddr_t, daddr_t,
 	    daddr_t, int, e4fs_daddr_t *);
@@ -81,11 +82,11 @@ ext2_update(struct vnode *vp, int waitfor)
 		return (0);
 	ip->i_flag &= ~(IN_LAZYACCESS | IN_LAZYMOD | IN_MODIFIED);
 	fs = ip->i_e2fs;
-	if(fs->e2fs_ronly)
+	if (fs->e2fs_ronly)
 		return (0);
 	if ((error = bread(ip->i_devvp,
 	    fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
-		(int)fs->e2fs_bsize, NOCRED, &bp)) != 0) {
+	    (int)fs->e2fs_bsize, NOCRED, &bp)) != 0) {
 		brelse(bp);
 		return (error);
 	}
@@ -113,8 +114,9 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 	struct vnode *ovp = vp;
 	int32_t lastblock;
 	struct inode *oip;
-	int32_t bn, lbn, lastiblock[NIADDR], indir_lbn[NIADDR];
-	uint32_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
+	int32_t bn, lbn, lastiblock[EXT2_NIADDR], indir_lbn[EXT2_NIADDR];
+	uint32_t oldblks[EXT2_NDADDR + EXT2_NIADDR];
+	uint32_t newblks[EXT2_NDADDR + EXT2_NIADDR];
 	struct m_ext2fs *fs;
 	struct buf *bp;
 	int offset, size, level;
@@ -130,10 +132,10 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 	bo = &ovp->v_bufobj;
 #endif
 
-	ASSERT_VOP_LOCKED(vp, "ext2_truncate");	
+	ASSERT_VOP_LOCKED(vp, "ext2_truncate");
 
 	if (length < 0)
-	    return (EINVAL);
+		return (EINVAL);
 
 	if (ovp->v_type == VLNK &&
 	    oip->i_size < ovp->v_mount->mnt_maxsymlinklen) {
@@ -218,7 +220,7 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 	 * the file is truncated to 0.
 	 */
 	lastblock = lblkno(fs, length + fs->e2fs_bsize - 1) - 1;
-	lastiblock[SINGLE] = lastblock - NDADDR;
+	lastiblock[SINGLE] = lastblock - EXT2_NDADDR;
 	lastiblock[DOUBLE] = lastiblock[SINGLE] - NINDIR(fs);
 	lastiblock[TRIPLE] = lastiblock[DOUBLE] - NINDIR(fs) * NINDIR(fs);
 	nblocks = btodb(fs->e2fs_bsize);
@@ -229,13 +231,13 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 	 * normalized to -1 for calls to ext2_indirtrunc below.
 	 */
 	for (level = TRIPLE; level >= SINGLE; level--) {
-		oldblks[NDADDR + level] = oip->i_ib[level];
+		oldblks[EXT2_NDADDR + level] = oip->i_ib[level];
 		if (lastiblock[level] < 0) {
 			oip->i_ib[level] = 0;
 			lastiblock[level] = -1;
 		}
 	}
-	for (i = 0; i < NDADDR; i++) {
+	for (i = 0; i < EXT2_NDADDR; i++) {
 		oldblks[i] = oip->i_db[i];
 		if (i > lastblock)
 			oip->i_db[i] = 0;
@@ -249,13 +251,13 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 	 * Note that we save the new block configuration so we can check it
 	 * when we are done.
 	 */
-	for (i = 0; i < NDADDR; i++) {
+	for (i = 0; i < EXT2_NDADDR; i++) {
 		newblks[i] = oip->i_db[i];
 		oip->i_db[i] = oldblks[i];
 	}
-	for (i = 0; i < NIADDR; i++) {
-		newblks[NDADDR + i] = oip->i_ib[i];
-		oip->i_ib[i] = oldblks[NDADDR + i];
+	for (i = 0; i < EXT2_NIADDR; i++) {
+		newblks[EXT2_NDADDR + i] = oip->i_ib[i];
+		oip->i_ib[i] = oldblks[EXT2_NDADDR + i];
 	}
 	oip->i_size = osize;
 	error = vtruncbuf(ovp, cred, length, (int)fs->e2fs_bsize);
@@ -266,7 +268,7 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 	/*
 	 * Indirect blocks first.
 	 */
-	indir_lbn[SINGLE] = -NDADDR;
+	indir_lbn[SINGLE] = -EXT2_NDADDR;
 	indir_lbn[DOUBLE] = indir_lbn[SINGLE] - NINDIR(fs) - 1;
 	indir_lbn[TRIPLE] = indir_lbn[DOUBLE] - NINDIR(fs) * NINDIR(fs) - 1;
 	for (level = TRIPLE; level >= SINGLE; level--) {
@@ -290,7 +292,7 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 	/*
 	 * All whole direct blocks or frags.
 	 */
-	for (i = NDADDR - 1; i > lastblock; i--) {
+	for (i = EXT2_NDADDR - 1; i > lastblock; i--) {
 		long bsize;
 
 		bn = oip->i_db[i];
@@ -335,9 +337,9 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 done:
 #ifdef INVARIANTS
 	for (level = SINGLE; level <= TRIPLE; level++)
-		if (newblks[NDADDR + level] != oip->i_ib[level])
+		if (newblks[EXT2_NDADDR + level] != oip->i_ib[level])
 			panic("itrunc1");
-	for (i = 0; i < NDADDR; i++)
+	for (i = 0; i < EXT2_NDADDR; i++)
 		if (newblks[i] != oip->i_db[i])
 			panic("itrunc2");
 	BO_LOCK(bo);
@@ -345,7 +347,7 @@ done:
 	    bo->bo_clean.bv_cnt != 0))
 		panic("itrunc3");
 	BO_UNLOCK(bo);
-#endif /* INVARIANTS */
+#endif	/* INVARIANTS */
 	/*
 	 * Put back the real size.
 	 */
@@ -418,12 +420,11 @@ ext2_indirtrunc(struct inode *ip, daddr_t lbn, daddr_t dbn,
 		*countp = 0;
 		return (error);
 	}
-
 	bap = (e2fs_daddr_t *)bp->b_data;
 	copy = malloc(fs->e2fs_bsize, M_TEMP, M_WAITOK);
 	bcopy((caddr_t)bap, (caddr_t)copy, (u_int)fs->e2fs_bsize);
 	bzero((caddr_t)&bap[last + 1],
-	  (NINDIR(fs) - (last + 1)) * sizeof(e2fs_daddr_t));
+	    (NINDIR(fs) - (last + 1)) * sizeof(e2fs_daddr_t));
 	if (last == -1)
 		bp->b_flags |= B_INVAL;
 	if (DOINGASYNC(vp)) {
@@ -488,6 +489,7 @@ ext2_inactive(struct vop_inactive_args *ap)
 	if (ip->i_mode == 0)
 		goto out;
 	if (ip->i_nlink <= 0) {
+		ext2_extattr_free(ip);
 		error = ext2_truncate(vp, (off_t)0, 0, NOCRED, td);
 		ip->i_rdev = 0;
 		mode = ip->i_mode;

@@ -31,6 +31,8 @@ options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	IPSEC			# IP (v4/v6) security
+options		IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	TCP_OFFLOAD		# TCP offload
 options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem
@@ -57,6 +59,7 @@ options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
 options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
 options 	COMPAT_FREEBSD9		# Compatible with FreeBSD9
 options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
+options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
 options 	STACK			# stack(9) support
@@ -94,6 +97,7 @@ options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 # To make an SMP kernel, the next two lines are needed
 options 	SMP			# Symmetric MultiProcessor Kernel
 device		apic			# I/O APIC
+options 	EARLY_AP_STARTUP
 
 # CPU frequency control
 device		cpufreq
@@ -232,7 +236,6 @@ device		puc			# Multi I/O cards and multi-channel UARTs
 device		bxe			# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		de			# DEC/Intel DC21x4x (``Tulip'')
 device		em			# Intel PRO/1000 Gigabit Ethernet Family
-device		igb			# Intel PRO/1000 PCIE Server Gigabit Family
 device		ixgb			# Intel PRO/10GbE Ethernet Card
 device		le			# AMD Am7900 LANCE and Am79C9xx PCnet
 device		ti			# Alteon Networks Tigon I/II gigabit Ethernet

@@ -195,7 +195,12 @@ METHOD void intr_disable {
 	if_ctx_t _ctx;
 };
 
-METHOD int queue_intr_enable {
+METHOD int rx_queue_intr_enable {
+	if_ctx_t _ctx;
+	uint16_t _qid;
+} DEFAULT null_queue_intr_enable;
+
+METHOD int tx_queue_intr_enable {
 	if_ctx_t _ctx;
 	uint16_t _qid;
 } DEFAULT null_queue_intr_enable;
@@ -229,6 +234,7 @@ METHOD int promisc_set {
 METHOD void crcstrip_set {
 	if_ctx_t _ctx;
 	int _onoff;
+	int _strip;
 };
 
 #
@@ -332,4 +338,6 @@ METHOD int sysctl_int_delay {
 	if_int_delay_info_t _iidi;
 } DEFAULT null_sysctl_int_delay;
 
-
+METHOD void debug {
+	if_ctx_t _ctx;
+} DEFAULT null_void_op;

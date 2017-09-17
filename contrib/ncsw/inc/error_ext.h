@@ -353,7 +353,8 @@ int ERROR_DYNAMIC_LEVEL = ERROR_GLOBAL_LEVEL;
 
 #define PRINT_FORMAT        "[CPU%02d, %s:%d %s]"
 #define PRINT_FMT_PARAMS    CORE_GetId(), __FILE__, __LINE__, __FUNCTION__
-#define ERR_STRING(err)     #err
+#define _ERR_STRING(err)     #err
+#define ERR_STRING(err)     _ERR_STRING(err)
 
 #if (!(defined(DEBUG_ERRORS)) || (DEBUG_ERRORS == 0))
 /* No debug/error/event messages at all */

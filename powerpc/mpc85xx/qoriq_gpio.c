@@ -173,7 +173,7 @@ qoriq_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 	outvals = bus_read_4(sc->sc_mem, GPIO_GPDAT);
 	outvals &= ~(1 << pinbit);
 	outvals |= (value << pinbit);
-	bus_write_4(sc->sc_mem, 0, outvals);
+	bus_write_4(sc->sc_mem, GPIO_GPDAT, outvals);
 
 	GPIO_UNLOCK(sc);
 
@@ -208,19 +208,25 @@ qoriq_gpio_pin_toggle(device_t dev, uint32_t pin)
 
 	val = bus_read_4(sc->sc_mem, GPIO_GPDAT);
 	val ^= (1 << (31 - pin));
-	bus_write_4(sc->sc_mem, 0, val);
+	bus_write_4(sc->sc_mem, GPIO_GPDAT, val);
 	
 	GPIO_UNLOCK(sc);
 
 	return (0);
 }
 
+static struct ofw_compat_data gpio_matches[] = {
+    {"fsl,qoriq-gpio", 1},
+    {"fsl,pq3-gpio", 1},
+    {"fsl,mpc8572-gpio", 1},
+    {0, 0}
+};
+
 static int
 qoriq_gpio_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "fsl,qoriq-gpio") &&
-	    !ofw_bus_is_compatible(dev, "fsl,mpc8572-gpio"))
+	if (ofw_bus_search_compatible(dev, gpio_matches)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Freescale QorIQ GPIO driver");

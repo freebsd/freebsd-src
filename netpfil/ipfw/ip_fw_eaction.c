@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2016 Yandex LLC
- * Copyright (c) 2016 Andrey V. Elsukov <ae@FreeBSD.org>
+ * Copyright (c) 2016-2017 Yandex LLC
+ * Copyright (c) 2016-2017 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
  * rules.
  * Module should implement opcode handler with type ipfw_eaction_t.
  * This handler will be called by ipfw_chk() function when
- * O_EXTERNAL_ACTION opcode will be matched. The handler must return
+ * O_EXTERNAL_ACTION opcode is matched. The handler must return
  * value used as return value in ipfw_chk(), i.e. IP_FW_PASS,
  * IP_FW_DENY (see ip_fw_private.h).
  * Also the last argument must be set by handler. If it is zero,
@@ -69,9 +69,12 @@ __FBSDID("$FreeBSD$");
  * This function will return eaction_id, that can be used by module.
  *
  * It is possible to pass some additional information to external
- * action handler via the O_EXTERNAL_INSTANCE opcode. This opcode
- * will be next after the O_EXTERNAL_ACTION opcode. cmd->arg1 will
- * contain index of named object related to instance of external action.
+ * action handler using O_EXTERNAL_INSTANCE and O_EXTERNAL_DATA opcodes.
+ * Such opcodes should be next after the O_EXTERNAL_ACTION opcode.
+ * For the O_EXTERNAL_INSTANCE opcode the cmd->arg1 contains index of named
+ * object related to an instance of external action.
+ * For the O_EXTERNAL_DATA opcode the cmd contains the data that can be used
+ * by external action handler without needing to create named instance.
  *
  * In case when eaction module uses named instances, it should register
  * opcode rewriting routines for O_EXTERNAL_INSTANCE opcode. The
@@ -284,11 +287,13 @@ reset_eaction_obj(struct ip_fw_chain *ch, uint16_t eaction_id)
 		/*
 		 * Since named_object related to this instance will be
 		 * also destroyed, truncate the chain of opcodes to
-		 * remove O_EXTERNAL_INSTANCE opcode.
+		 * remove the rest of cmd chain just after O_EXTERNAL_ACTION
+		 * opcode.
 		 */
 		if (rule->act_ofs < rule->cmd_len - 1) {
-			EACTION_DEBUG("truncate rule %d", rule->rulenum);
-			rule->cmd_len--;
+			EACTION_DEBUG("truncate rule %d: len %u -> %u",
+			    rule->rulenum, rule->cmd_len, rule->act_ofs + 1);
+			rule->cmd_len = rule->act_ofs + 1;
 		}
 	}
 	IPFW_WUNLOCK(ch);

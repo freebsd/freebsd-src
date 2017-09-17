@@ -63,12 +63,11 @@ static inline void ixl_rx_input(struct rx_ring *, struct ifnet *,
 		    struct mbuf *, u8);
 
 static inline bool ixl_tso_detect_sparse(struct mbuf *mp);
-static int	ixl_tx_setup_offload(struct ixl_queue *que,
-    struct mbuf *mp, u32 *cmd, u32 *off);
 static inline u32 ixl_get_tx_head(struct ixl_queue *que);
 
 #ifdef DEV_NETMAP
 #include <dev/netmap/if_ixl_netmap.h>
+int ixl_rx_miss, ixl_rx_miss_bufs, ixl_crcstrip = 1;
 #endif /* DEV_NETMAP */
 
 /*
@@ -217,22 +216,27 @@ static inline bool
 ixl_tso_detect_sparse(struct mbuf *mp)
 {
 	struct mbuf	*m;
-	int		num = 0, mss;
-	bool		ret = FALSE;
+	int		num, mss;
 
+	num = 0;
 	mss = mp->m_pkthdr.tso_segsz;
-	for (m = mp->m_next; m != NULL; m = m->m_next) {
-		num++;
-		mss -= m->m_len;
-		if (mss < 1)
-			break;
-		if (m->m_next == NULL)
-			break;
-	}
-	if (num > IXL_SPARSE_CHAIN)
-		ret = TRUE;
 
-	return (ret);
+	/* Exclude first mbuf; assume it contains all headers */
+	for (m = mp->m_next; m != NULL; m = m->m_next) {
+		if (m == NULL)
+			break;
+		num++;
+		mss -= m->m_len % mp->m_pkthdr.tso_segsz;
+
+		if (mss < 1) {
+			if (num > IXL_SPARSE_CHAIN)
+				return (true);
+			num = (mss == 0) ? 0 : 1;
+			mss += mp->m_pkthdr.tso_segsz;
+		}
+	}
+
+	return (false);
 }
 
 
@@ -311,18 +315,12 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 		error = bus_dmamap_load_mbuf_sg(tag, map,
 		    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
 
-		if (error == ENOMEM) {
-			que->tx_dmamap_failed++;
-			return (error);
-		} else if (error != 0) {
+		if (error != 0) {
 			que->tx_dmamap_failed++;
 			m_freem(*m_headp);
 			*m_headp = NULL;
 			return (error);
 		}
-	} else if (error == ENOMEM) {
-		que->tx_dmamap_failed++;
-		return (error);
 	} else if (error != 0) {
 		que->tx_dmamap_failed++;
 		m_freem(*m_headp);
@@ -403,8 +401,7 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 	wr32(hw, txr->tail, i);
 
 	/* Mark outstanding work */
-	if (que->busy == 0)
-		que->busy = 1;
+	atomic_store_rel_32(&txr->watchdog_timer, IXL_WATCHDOG);
 	return (0);
 
 xmit_fail:
@@ -432,7 +429,7 @@ ixl_allocate_tx_data(struct ixl_queue *que)
 	/*
 	 * Setup DMA descriptor areas.
 	 */
-	if ((error = bus_dma_tag_create(NULL,		/* parent */
+	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev),		/* parent */
 			       1, 0,			/* alignment, bounds */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
@@ -449,7 +446,7 @@ ixl_allocate_tx_data(struct ixl_queue *que)
 	}
 
 	/* Make a special tag for TSO */
-	if ((error = bus_dma_tag_create(NULL,		/* parent */
+	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev),		/* parent */
 			       1, 0,			/* alignment, bounds */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
@@ -523,12 +520,14 @@ ixl_init_tx_ring(struct ixl_queue *que)
 	txr->next_avail = 0;
 	txr->next_to_clean = 0;
 
+	/* Reset watchdog status */
+	txr->watchdog_timer = 0;
+
 #ifdef IXL_FDIR
 	/* Initialize flow director */
 	txr->atr_rate = ixl_atr_rate;
 	txr->atr_count = 0;
 #endif
-
 	/* Free any existing tx mbufs. */
         buf = txr->buffers;
 	for (int i = 0; i < que->num_desc; i++, buf++) {
@@ -817,7 +816,11 @@ ixl_tso_setup(struct ixl_queue *que, struct mbuf *mp)
 
 	type = I40E_TX_DESC_DTYPE_CONTEXT;
 	cmd = I40E_TX_CTX_DESC_TSO;
-	/* ERJ: this must not be less than 64 */
+	/* TSO MSS must not be less than 64 */
+	if (mp->m_pkthdr.tso_segsz < IXL_MIN_TSO_MSS) {
+		que->mss_too_small++;
+		mp->m_pkthdr.tso_segsz = IXL_MIN_TSO_MSS;
+	}
 	mss = mp->m_pkthdr.tso_segsz;
 
 	type_cmd_tso_mss = ((u64)type << I40E_TXD_CTX_QW1_DTYPE_SHIFT) |
@@ -877,7 +880,7 @@ ixl_txeof(struct ixl_queue *que)
 
 	/* These are not the descriptors you seek, move along :) */
 	if (txr->avail == que->num_desc) {
-		que->busy = 0;
+		atomic_store_rel_32(&txr->watchdog_timer, 0);
 		return FALSE;
 	}
 
@@ -928,7 +931,6 @@ ixl_txeof(struct ixl_queue *que)
 				    buf->map);
 				m_freem(buf->m_head);
 				buf->m_head = NULL;
-				buf->map = NULL;
 			}
 			buf->eop_index = -1;
 
@@ -956,25 +958,10 @@ ixl_txeof(struct ixl_queue *que)
 
 
 	/*
-	** Hang detection, we know there's
-	** work outstanding or the first return
-	** would have been taken, so indicate an
-	** unsuccessful pass, in local_timer if
-	** the value is too great the queue will
-	** be considered hung. If anything has been
-	** cleaned then reset the state.
-	*/
-	if ((processed == 0) && (que->busy != IXL_QUEUE_HUNG))
-		++que->busy;
-
-	if (processed)
-		que->busy = 1; /* Note this turns off HUNG */
-
-	/*
 	 * If there are no pending descriptors, clear the timeout.
 	 */
 	if (txr->avail == que->num_desc) {
-		que->busy = 0;
+		atomic_store_rel_32(&txr->watchdog_timer, 0);
 		return FALSE;
 	}
 
@@ -1106,7 +1093,7 @@ ixl_allocate_rx_data(struct ixl_queue *que)
 		return (error);
 	}
 
-	if ((error = bus_dma_tag_create(NULL,	/* parent */
+	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 				   1, 0,	/* alignment, bounds */
 				   BUS_SPACE_MAXADDR,	/* lowaddr */
 				   BUS_SPACE_MAXADDR,	/* highaddr */
@@ -1122,7 +1109,7 @@ ixl_allocate_rx_data(struct ixl_queue *que)
 		return (error);
 	}
 
-	if ((error = bus_dma_tag_create(NULL,	/* parent */
+	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 				   1, 0,	/* alignment, bounds */
 				   BUS_SPACE_MAXADDR,	/* lowaddr */
 				   BUS_SPACE_MAXADDR,	/* highaddr */
@@ -1413,9 +1400,7 @@ ixl_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u8 ptype)
                                 return;
         }
 #endif
-	IXL_RX_UNLOCK(rxr);
         (*ifp->if_input)(ifp, m);
-	IXL_RX_LOCK(rxr);
 }
 
 
@@ -1589,6 +1574,18 @@ ixl_rxeof(struct ixl_queue *que, int count)
 		else
 			vtag = 0;
 
+		/* Remove device access to the rx buffers. */
+		if (rbuf->m_head != NULL) {
+			bus_dmamap_sync(rxr->htag, rbuf->hmap,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(rxr->htag, rbuf->hmap);
+		}
+		if (rbuf->m_pack != NULL) {
+			bus_dmamap_sync(rxr->ptag, rbuf->pmap,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(rxr->ptag, rbuf->pmap);
+		}
+
 		/*
 		** Make sure bad packets are discarded,
 		** note that only EOP descriptor has valid
@@ -1731,7 +1728,9 @@ next_desc:
 		/* Now send to the stack or do LRO */
 		if (sendmp != NULL) {
 			rxr->next_check = i;
+			IXL_RX_UNLOCK(rxr);
 			ixl_rx_input(rxr, ifp, sendmp, ptype);
+			IXL_RX_LOCK(rxr);
 			i = rxr->next_check;
 		}
 
@@ -1748,14 +1747,23 @@ next_desc:
 
 	rxr->next_check = i;
 
+	IXL_RX_UNLOCK(rxr);
+
 #if defined(INET6) || defined(INET)
 	/*
 	 * Flush any outstanding LRO work
 	 */
+#if __FreeBSD_version >= 1100105
 	tcp_lro_flush_all(lro);
+#else
+	struct lro_entry *queued;
+	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
+		SLIST_REMOVE_HEAD(&lro->lro_active, next);
+		tcp_lro_flush(lro, queued);
+	}
 #endif
+#endif /* defined(INET6) || defined(INET) */
 
-	IXL_RX_UNLOCK(rxr);
 	return (FALSE);
 }
 

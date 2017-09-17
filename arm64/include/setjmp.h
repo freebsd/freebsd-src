@@ -49,7 +49,7 @@
  * The registers to save are: r19 to r29, and d8 to d15.
  */
 #define	_JBLEN		31
-#define	_JB_SIGMASK	21
+#define	_JB_SIGMASK	22
 
 /* This should only be needed in libc and may change */
 #ifdef __ASSEMBLER__

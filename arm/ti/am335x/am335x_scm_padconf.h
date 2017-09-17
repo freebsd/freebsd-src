@@ -42,4 +42,6 @@
 #define PADCONF_INPUT_PULLDOWN		(RXACTIVE)
 #define PADCONF_INPUT_PULLUP_SLOW	(PADCONF_INPUT_PULLUP | SLEWCTRL)
 
+extern const struct ti_pinmux_device ti_am335x_pinmux_dev;
+
 #endif /* AM335X_SCM_PADCONF_H */

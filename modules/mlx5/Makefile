@@ -1,11 +1,12 @@
 # $FreeBSD$
-.PATH:	${.CURDIR}/../../dev/mlx5/mlx5_core
+.PATH:	${SRCTOP}/sys/dev/mlx5/mlx5_core
 
 KMOD=mlx5
 SRCS= \
 mlx5_alloc.c \
 mlx5_cmd.c \
 mlx5_cq.c \
+mlx5_diagnostics.c \
 mlx5_eq.c \
 mlx5_eswitch_vacl.c \
 mlx5_flow_table.c \
@@ -27,8 +28,8 @@ mlx5_wq.c \
 device_if.h bus_if.h vnode_if.h pci_if.h \
         opt_inet.h opt_inet6.h opt_rss.h
 
-CFLAGS+= -I${.CURDIR}/../../ofed/include
-CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
+CFLAGS+= -I${SRCTOP}/sys/ofed/include
+CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 
 .include <bsd.kmod.mk>
 

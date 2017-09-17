@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <machine/elf.h>
 
-#include <errno.h>
 #include <stand.h>
 
 #define FREEBSD_ELF

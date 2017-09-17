@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../../dev/sound/pci/hda
+.PATH: ${SRCTOP}/sys/dev/sound/pci/hda
 
 KMOD=	snd_hda
 SRCS=	device_if.h bus_if.h pci_if.h channel_if.h mixer_if.h hdac_if.h

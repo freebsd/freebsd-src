@@ -45,9 +45,16 @@ int32_t		xpt_add_periph(struct cam_periph *periph);
 void		xpt_remove_periph(struct cam_periph *periph);
 void		xpt_announce_periph(struct cam_periph *periph,
 				    char *announce_string);
+void		xpt_announce_periph_sbuf(struct cam_periph *periph,
+					 struct sbuf *sb,
+					 char *announce_string);
 void		xpt_announce_quirks(struct cam_periph *periph,
 				    int quirks, char *bit_string);
+void		xpt_announce_quirks_sbuf(struct cam_periph *periph,
+				    struct sbuf *sb,
+				    int quirks, char *bit_string);
 void		xpt_denounce_periph(struct cam_periph *periph);
+void		xpt_denounce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb);
 #endif
 
 #endif /* _CAM_CAM_XPT_PERIPH_H */

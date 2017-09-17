@@ -1,7 +1,7 @@
 
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/aic7xxx
+.PATH:	${SRCTOP}/sys/dev/aic7xxx
 KMOD=	ahd
 
 GENSRCS= aic79xx_seq.h aic79xx_reg.h
@@ -17,14 +17,14 @@ BEFORE_DEPEND= ${GENSRCS}
 .if make(ahdfirmware)
 ahdfirmware: ${GENSRCS}
 ${GENSRCS}:								 \
-		${.CURDIR}/../../../dev/aic7xxx/aic79xx.{reg,seq}	 \
-		${.CURDIR}/../../../cam/scsi/scsi_message.h
-	aicasm ${INCLUDES} -I${.CURDIR}/../../../cam/scsi	 \
-			-I${.CURDIR}/../../../dev/aic7xxx		 \
+		${SRCTOP}/sys/dev/aic7xxx/aic79xx.{reg,seq}	 \
+		${SRCTOP}/sys/cam/scsi/scsi_message.h
+	aicasm ${INCLUDES} -I${SRCTOP}/sys/cam/scsi	 \
+			-I${SRCTOP}/sys/dev/aic7xxx		 \
 			-o aic79xx_seq.h -r aic79xx_reg.h		 \
 			${REG_PRINT_OPT}				 \
-			-i ${.CURDIR}/../../../dev/aic7xxx/aic79xx_osm.h \
-			${.CURDIR}/../../../dev/aic7xxx/aic79xx.seq
+			-i ${SRCTOP}/sys/dev/aic7xxx/aic79xx_osm.h \
+			${SRCTOP}/sys/dev/aic7xxx/aic79xx.seq
 .else
 ${GENSRCS}: .NOMETA
 	@echo "Error: ${.TARGET} is missing.  Run 'make ahdfirmware'."

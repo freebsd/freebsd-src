@@ -34,7 +34,7 @@
 
 /*
  * Export definitions of the pci bus so that we can more easily share
- * it with "subclass" busses.
+ * it with "subclass" buses.
  */
 DECLARE_CLASS(pci_driver);
 

@@ -82,9 +82,10 @@ mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 	while (!mlx5_wq_ll_is_full(&rq->wq)) {
 		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(&rq->wq, rq->wq.head);
 
-		if (unlikely(mlx5e_alloc_rx_wqe(rq, wqe, rq->wq.head)))
+		if (unlikely(mlx5e_alloc_rx_wqe(rq, wqe, rq->wq.head))) {
+			callout_reset_curcpu(&rq->watchdog, 1, (void *)&mlx5e_post_rx_wqes, rq);
 			break;
-
+		}
 		mlx5_wq_ll_push(&rq->wq, be16_to_cpu(wqe->next.next_wqe_index));
 	}
 
@@ -354,9 +355,11 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 			rq->stats.wqe_err++;
 			goto wq_ll_pop;
 		}
-
-		if (MHLEN >= byte_cnt &&
+		if ((MHLEN - MLX5E_NET_IP_ALIGN) >= byte_cnt &&
 		    (mb = m_gethdr(M_NOWAIT, MT_DATA)) != NULL) {
+			/* get IP header aligned */
+			mb->m_data += MLX5E_NET_IP_ALIGN;
+
 			bcopy(rq->mbuf[wqe_counter].data, mtod(mb, caddr_t),
 			    byte_cnt);
 		} else {

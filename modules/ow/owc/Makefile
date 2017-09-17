@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/ow
+.PATH: ${SRCTOP}/sys/dev/ow
 
 KMOD=	owc
 SRCS=	owc_gpiobus.c

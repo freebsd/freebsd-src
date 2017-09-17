@@ -42,7 +42,7 @@
 #include <sys/types.h>
 #include <sys/libkern.h>
 #include <machine/bus.h>
-#include <opt_isci.h>
+#include "opt_isci.h"
 
 typedef int8_t 		S8;
 typedef uint8_t		U8;

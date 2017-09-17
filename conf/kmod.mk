@@ -125,6 +125,10 @@ CFLAGS.gcc+= --param large-function-growth=1000
 CFLAGS+=	-fno-common
 LDFLAGS+=	-d -warn-common
 
+.if defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mbuild-id}
+LDFLAGS+=	-Wl,--build-id=sha1
+.endif
+
 CFLAGS+=	${DEBUG_FLAGS}
 .if ${MACHINE_CPUARCH} == amd64
 CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
@@ -171,11 +175,13 @@ ${_firmw:C/\:.*$/.fwo/:T}:	${_firmw:C/\:.*$//}
 	@${ECHO} ${_firmw:C/\:.*$//} ${.ALLSRC:M*${_firmw:C/\:.*$//}}
 	@if [ -e ${_firmw:C/\:.*$//} ]; then			\
 		${LD} -b binary --no-warn-mismatch ${_LDFLAGS}	\
-		    -r -d -o ${.TARGET}	${_firmw:C/\:.*$//};	\
+		    -m ${LD_EMULATION} -r -d			\
+		    -o ${.TARGET} ${_firmw:C/\:.*$//};		\
 	else							\
 		ln -s ${.ALLSRC:M*${_firmw:C/\:.*$//}} ${_firmw:C/\:.*$//}; \
 		${LD} -b binary --no-warn-mismatch ${_LDFLAGS}	\
-		    -r -d -o ${.TARGET}	${_firmw:C/\:.*$//};	\
+		    -m ${LD_EMULATION} -r -d			\
+		    -o ${.TARGET} ${_firmw:C/\:.*$//};		\
 		rm ${_firmw:C/\:.*$//};				\
 	fi
 
@@ -207,17 +213,8 @@ ${PROG}.debug: ${FULLPROG}
 
 .if ${__KLD_SHARED} == yes
 ${FULLPROG}: ${KMOD}.kld
-.if ${MACHINE_CPUARCH} != "aarch64"
-	${LD} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${KMOD}.kld
-.else
-#XXXKIB Relocatable linking in aarch64 ld from binutils 2.25.1 does
-#       not work.  The linker corrupts the references to the external
-#       symbols which are defined by other object in the linking set
-#       and should therefore loose the GOT entry.  The problem seems
-#       to be fixed in the binutils-gdb git HEAD as of 2015-10-04.  Hack
-#       below allows to get partially functioning modules for now.
-	${LD} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${OBJS}
-.endif
+	${LD} -m ${LD_EMULATION} -Bshareable -znotext ${_LDFLAGS} \
+	    -o ${.TARGET} ${KMOD}.kld
 .if !defined(DEBUG_FLAGS)
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
@@ -233,7 +230,7 @@ ${KMOD}.kld: ${OBJS}
 .else
 ${FULLPROG}: ${OBJS}
 .endif
-	${LD} ${_LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
+	${LD} -m ${LD_EMULATION} ${_LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
@@ -249,6 +246,10 @@ ${FULLPROG}: ${OBJS}
 	${AWK} -f ${SYSDIR}/conf/kmod_syms.awk ${.TARGET} \
 	    export_syms | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
+.endif
+.if defined(PREFIX_SYMS)
+	${AWK} -v prefix=${PREFIX_SYMS} -f ${SYSDIR}/conf/kmod_syms_prefix.awk \
+	    ${.TARGET} /dev/null | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
 .if !defined(DEBUG_FLAGS) && ${__KLD_SHARED} == no
 	${OBJCOPY} --strip-debug ${.TARGET}
@@ -272,7 +273,7 @@ beforebuild: ${_ILINKS}
 # causes all the modules to be rebuilt when the directory pointed to changes.
 .for _link in ${_ILINKS}
 .if !exists(${.OBJDIR}/${_link})
-${OBJS}: ${_link}
+OBJS_DEPEND_GUESS+=	${_link}
 .endif
 .endfor
 
@@ -365,7 +366,7 @@ ${_src}:
 .endif
 
 # Respect configuration-specific C flags.
-CFLAGS+=	${CONF_CFLAGS}
+CFLAGS+=	${ARCH_FLAGS} ${CONF_CFLAGS}
 
 .if !empty(SRCS:Mvnode_if.c)
 CLEANFILES+=	vnode_if.c
@@ -449,8 +450,9 @@ acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirk
 	${AWK} -f ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirks
 .endif
 
-.if !empty(SRCS:Massym.s)
+.if !empty(SRCS:Massym.s) || !empty(DPSRCS:Massym.s)
 CLEANFILES+=	assym.s genassym.o
+DEPENDOBJS+=	genassym.o
 assym.s: genassym.o
 .if defined(KERNBUILDDIR)
 genassym.o: opt_global.h
@@ -459,7 +461,7 @@ assym.s: ${SYSDIR}/kern/genassym.sh
 	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
 genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 genassym.o: ${SRCS:Mopt_*.h}
-	${CC} -c ${CFLAGS:N-fno-common} \
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} \
 	    ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 .endif
 

@@ -1,5 +1,4 @@
-/*-
-*******************************************************************************
+/*******************************************************************************
 Copyright (C) 2015 Annapurna Labs Ltd.
 
 This file may be licensed under the terms of the Annapurna Labs Commercial
@@ -97,48 +96,48 @@ struct udma_gen_sram_ctrl {
 	/* [0x0] Timing configuration */
 	uint32_t timing;
 };
-struct udma_gen_vmid {
-	/* [0x0] VMID control */
-	uint32_t cfg_vmid_0;
-	/* [0x4] TX queue 0/1 VMID */
-	uint32_t cfg_vmid_1;
-	/* [0x8] TX queue 2/3 VMID */
-	uint32_t cfg_vmid_2;
-	/* [0xc] RX queue 0/1 VMID */
-	uint32_t cfg_vmid_3;
-	/* [0x10] RX queue 2/3 VMID */
-	uint32_t cfg_vmid_4;
+struct udma_gen_tgtid {
+	/* [0x0] Target-ID control */
+	uint32_t cfg_tgtid_0;
+	/* [0x4] TX queue 0/1 Target-ID */
+	uint32_t cfg_tgtid_1;
+	/* [0x8] TX queue 2/3 Target-ID */
+	uint32_t cfg_tgtid_2;
+	/* [0xc] RX queue 0/1 Target-ID */
+	uint32_t cfg_tgtid_3;
+	/* [0x10] RX queue 2/3 Target-ID */
+	uint32_t cfg_tgtid_4;
 };
-struct udma_gen_vmaddr {
-	/* [0x0] TX queue 0/1 VMADDR */
-	uint32_t cfg_vmaddr_0;
-	/* [0x4] TX queue 2/3 VMADDR */
-	uint32_t cfg_vmaddr_1;
-	/* [0x8] RX queue 0/1 VMADDR */
-	uint32_t cfg_vmaddr_2;
-	/* [0xc] RX queue 2/3 VMADDR */
-	uint32_t cfg_vmaddr_3;
+struct udma_gen_tgtaddr {
+	/* [0x0] TX queue 0/1 Target-Address */
+	uint32_t cfg_tgtaddr_0;
+	/* [0x4] TX queue 2/3 Target-Address */
+	uint32_t cfg_tgtaddr_1;
+	/* [0x8] RX queue 0/1 Target-Address */
+	uint32_t cfg_tgtaddr_2;
+	/* [0xc] RX queue 2/3 Target-Address */
+	uint32_t cfg_tgtaddr_3;
 };
 struct udma_gen_vmpr {
 	/* [0x0] TX VMPR control */
 	uint32_t cfg_vmpr_0;
 	/* [0x4] TX VMPR Address High Regsiter */
 	uint32_t cfg_vmpr_1;
-	/* [0x8] TX queue VMID values */
+	/* [0x8] TX queue Target-ID values */
 	uint32_t cfg_vmpr_2;
-	/* [0xc] TX queue VMID values */
+	/* [0xc] TX queue Target-ID values */
 	uint32_t cfg_vmpr_3;
 	/* [0x10] RX VMPR control */
 	uint32_t cfg_vmpr_4;
 	/* [0x14] RX VMPR Buffer2 MSB address */
 	uint32_t cfg_vmpr_5;
-	/* [0x18] RX queue VMID values */
+	/* [0x18] RX queue Target-ID values */
 	uint32_t cfg_vmpr_6;
-	/* [0x1c] RX queue BUF1 VMID values */
+	/* [0x1c] RX queue BUF1 Target-ID values */
 	uint32_t cfg_vmpr_7;
-	/* [0x20] RX queue BUF2 VMID values */
+	/* [0x20] RX queue BUF2 Target-ID values */
 	uint32_t cfg_vmpr_8;
-	/* [0x24] RX queue Direct Data Placement VMID values */
+	/* [0x24] RX queue Direct Data Placement Target-ID values */
 	uint32_t cfg_vmpr_9;
 	/* [0x28] RX VMPR BUF1 Address High Regsiter */
 	uint32_t cfg_vmpr_10;
@@ -156,8 +155,8 @@ struct udma_gen_regs {
 	struct udma_gen_axi axi;                             /* [0x2280] */
 	struct udma_gen_sram_ctrl sram_ctrl[25];             /* [0x2380] */
 	uint32_t rsrvd_1[2];
-	struct udma_gen_vmid vmid;                           /* [0x23ec] */
-	struct udma_gen_vmaddr vmaddr;                       /* [0x2400] */
+	struct udma_gen_tgtid tgtid;                           /* [0x23ec] */
+	struct udma_gen_tgtaddr tgtaddr;                       /* [0x2400] */
 	uint32_t rsrvd_2[252];
 	struct udma_gen_vmpr vmpr[4];                        /* [0x2800] */
 };
@@ -236,176 +235,182 @@ struct udma_gen_regs {
 /* Read margin enable */
 #define UDMA_GEN_SRAM_CTRL_TIMING_RMEB   (1 << 24)
 
-/**** cfg_vmid_0 register ****/
-/* For M2S queues 3:0, enable usage of the VMID from the buffer address 63:56 */
-#define UDMA_GEN_VMID_CFG_VMID_0_TX_Q_VMID_DESC_EN_MASK 0x0000000F
-#define UDMA_GEN_VMID_CFG_VMID_0_TX_Q_VMID_DESC_EN_SHIFT 0
+/**** cfg_tgtid_0 register ****/
+/* For M2S queues 3:0, enable usage of the Target-ID from the buffer address 63:56 */
+#define UDMA_GEN_TGTID_CFG_TGTID_0_TX_Q_TGTID_DESC_EN_MASK 0x0000000F
+#define UDMA_GEN_TGTID_CFG_TGTID_0_TX_Q_TGTID_DESC_EN_SHIFT 0
 /*
- * For M2S queues 3:0, enable usage of the VMID from the configuration register
- * (cfg_vmid_1/2 used for M2S queue_x)
+ * For M2S queues 3:0, enable usage of the Target-ID from the configuration register
+ * (cfg_tgtid_1/2 used for M2S queue_x)
  */
-#define UDMA_GEN_VMID_CFG_VMID_0_TX_Q_VMID_QUEUE_EN_MASK 0x000000F0
-#define UDMA_GEN_VMID_CFG_VMID_0_TX_Q_VMID_QUEUE_EN_SHIFT 4
-/* use VMID_n [7:0] from MSI-X Controller for MSI-X message  */
-#define UDMA_GEN_VMID_CFG_VMID_0_MSIX_VMID_SEL (1 << 8)
-/* Enable write to all VMID_n registers in the MSI-X Controller */
-#define UDMA_GEN_VMID_CFG_VMID_0_MSIX_VMID_ACCESS_EN (1 << 9)
-/* For S2M queues 3:0, enable usage of the VMID from the buffer address 63:56 */
-#define UDMA_GEN_VMID_CFG_VMID_0_RX_Q_VMID_DESC_EN_MASK 0x000F0000
-#define UDMA_GEN_VMID_CFG_VMID_0_RX_Q_VMID_DESC_EN_SHIFT 16
+#define UDMA_GEN_TGTID_CFG_TGTID_0_TX_Q_TGTID_QUEUE_EN_MASK 0x000000F0
+#define UDMA_GEN_TGTID_CFG_TGTID_0_TX_Q_TGTID_QUEUE_EN_SHIFT 4
+/* use Target-ID_n [7:0] from MSI-X Controller for MSI-X message  */
+#define UDMA_GEN_TGTID_CFG_TGTID_0_MSIX_TGTID_SEL (1 << 8)
+/* Enable write to all Target-ID_n registers in the MSI-X Controller */
+#define UDMA_GEN_TGTID_CFG_TGTID_0_MSIX_TGTID_ACCESS_EN (1 << 9)
+/* For S2M queues 3:0, enable usage of the Target-ID from the buffer address 63:56 */
+#define UDMA_GEN_TGTID_CFG_TGTID_0_RX_Q_TGTID_DESC_EN_MASK 0x000F0000
+#define UDMA_GEN_TGTID_CFG_TGTID_0_RX_Q_TGTID_DESC_EN_SHIFT 16
 /*
- * For S2M queues 3:0, enable usage of the VMID from the configuration register
- * (cfg_vmid_3/4 used for M2S queue_x)
+ * For S2M queues 3:0, enable usage of the Target-ID from the configuration register
+ * (cfg_tgtid_3/4 used for M2S queue_x)
  */
-#define UDMA_GEN_VMID_CFG_VMID_0_RX_Q_VMID_QUEUE_EN_MASK 0x00F00000
-#define UDMA_GEN_VMID_CFG_VMID_0_RX_Q_VMID_QUEUE_EN_SHIFT 20
+#define UDMA_GEN_TGTID_CFG_TGTID_0_RX_Q_TGTID_QUEUE_EN_MASK 0x00F00000
+#define UDMA_GEN_TGTID_CFG_TGTID_0_RX_Q_TGTID_QUEUE_EN_SHIFT 20
 
-/**** cfg_vmid_1 register ****/
-/* TX queue 0 VMID value */
-#define UDMA_GEN_VMID_CFG_VMID_1_TX_Q_0_VMID_MASK 0x0000FFFF
-#define UDMA_GEN_VMID_CFG_VMID_1_TX_Q_0_VMID_SHIFT 0
-/* TX queue 1 VMID value */
-#define UDMA_GEN_VMID_CFG_VMID_1_TX_Q_1_VMID_MASK 0xFFFF0000
-#define UDMA_GEN_VMID_CFG_VMID_1_TX_Q_1_VMID_SHIFT 16
+#define UDMA_GEN_TGTID_CFG_TGTID_SHIFT(qid)	(((qid) & 0x1) ? 16 : 0)
+#define UDMA_GEN_TGTID_CFG_TGTID_MASK(qid)	(((qid) & 0x1) ? 0xFFFF0000 : 0x0000FFFF)
 
-/**** cfg_vmid_2 register ****/
-/* TX queue 2 VMID value */
-#define UDMA_GEN_VMID_CFG_VMID_2_TX_Q_2_VMID_MASK 0x0000FFFF
-#define UDMA_GEN_VMID_CFG_VMID_2_TX_Q_2_VMID_SHIFT 0
-/* TX queue 3 VMID value */
-#define UDMA_GEN_VMID_CFG_VMID_2_TX_Q_3_VMID_MASK 0xFFFF0000
-#define UDMA_GEN_VMID_CFG_VMID_2_TX_Q_3_VMID_SHIFT 16
+/**** cfg_tgtid_1 register ****/
+/* TX queue 0 Target-ID value */
+#define UDMA_GEN_TGTID_CFG_TGTID_1_TX_Q_0_TGTID_MASK 0x0000FFFF
+#define UDMA_GEN_TGTID_CFG_TGTID_1_TX_Q_0_TGTID_SHIFT 0
+/* TX queue 1 Target-ID value */
+#define UDMA_GEN_TGTID_CFG_TGTID_1_TX_Q_1_TGTID_MASK 0xFFFF0000
+#define UDMA_GEN_TGTID_CFG_TGTID_1_TX_Q_1_TGTID_SHIFT 16
 
-/**** cfg_vmid_3 register ****/
-/* RX queue 0 VMID value */
-#define UDMA_GEN_VMID_CFG_VMID_3_RX_Q_0_VMID_MASK 0x0000FFFF
-#define UDMA_GEN_VMID_CFG_VMID_3_RX_Q_0_VMID_SHIFT 0
-/* RX queue 1 VMID value */
-#define UDMA_GEN_VMID_CFG_VMID_3_RX_Q_1_VMID_MASK 0xFFFF0000
-#define UDMA_GEN_VMID_CFG_VMID_3_RX_Q_1_VMID_SHIFT 16
+/**** cfg_tgtid_2 register ****/
+/* TX queue 2 Target-ID value */
+#define UDMA_GEN_TGTID_CFG_TGTID_2_TX_Q_2_TGTID_MASK 0x0000FFFF
+#define UDMA_GEN_TGTID_CFG_TGTID_2_TX_Q_2_TGTID_SHIFT 0
+/* TX queue 3 Target-ID value */
+#define UDMA_GEN_TGTID_CFG_TGTID_2_TX_Q_3_TGTID_MASK 0xFFFF0000
+#define UDMA_GEN_TGTID_CFG_TGTID_2_TX_Q_3_TGTID_SHIFT 16
 
-/**** cfg_vmid_4 register ****/
-/* RX queue 2 VMID value */
-#define UDMA_GEN_VMID_CFG_VMID_4_RX_Q_2_VMID_MASK 0x0000FFFF
-#define UDMA_GEN_VMID_CFG_VMID_4_RX_Q_2_VMID_SHIFT 0
-/* RX queue 3 VMID value */
-#define UDMA_GEN_VMID_CFG_VMID_4_RX_Q_3_VMID_MASK 0xFFFF0000
-#define UDMA_GEN_VMID_CFG_VMID_4_RX_Q_3_VMID_SHIFT 16
+/**** cfg_tgtid_3 register ****/
+/* RX queue 0 Target-ID value */
+#define UDMA_GEN_TGTID_CFG_TGTID_3_RX_Q_0_TGTID_MASK 0x0000FFFF
+#define UDMA_GEN_TGTID_CFG_TGTID_3_RX_Q_0_TGTID_SHIFT 0
+/* RX queue 1 Target-ID value */
+#define UDMA_GEN_TGTID_CFG_TGTID_3_RX_Q_1_TGTID_MASK 0xFFFF0000
+#define UDMA_GEN_TGTID_CFG_TGTID_3_RX_Q_1_TGTID_SHIFT 16
 
-/**** cfg_vmaddr_0 register ****/
-/* TX queue 0 VMADDR value */
-#define UDMA_GEN_VMADDR_CFG_VMADDR_0_TX_Q_0_VMADDR_MASK 0x0000FFFF
-#define UDMA_GEN_VMADDR_CFG_VMADDR_0_TX_Q_0_VMADDR_SHIFT 0
-/* TX queue 1 VMADDR value */
-#define UDMA_GEN_VMADDR_CFG_VMADDR_0_TX_Q_1_VMADDR_MASK 0xFFFF0000
-#define UDMA_GEN_VMADDR_CFG_VMADDR_0_TX_Q_1_VMADDR_SHIFT 16
+/**** cfg_tgtid_4 register ****/
+/* RX queue 2 Target-ID value */
+#define UDMA_GEN_TGTID_CFG_TGTID_4_RX_Q_2_TGTID_MASK 0x0000FFFF
+#define UDMA_GEN_TGTID_CFG_TGTID_4_RX_Q_2_TGTID_SHIFT 0
+/* RX queue 3 Target-ID value */
+#define UDMA_GEN_TGTID_CFG_TGTID_4_RX_Q_3_TGTID_MASK 0xFFFF0000
+#define UDMA_GEN_TGTID_CFG_TGTID_4_RX_Q_3_TGTID_SHIFT 16
 
-/**** cfg_vmaddr_1 register ****/
-/* TX queue 2 VMADDR value */
-#define UDMA_GEN_VMADDR_CFG_VMADDR_1_TX_Q_2_VMADDR_MASK 0x0000FFFF
-#define UDMA_GEN_VMADDR_CFG_VMADDR_1_TX_Q_2_VMADDR_SHIFT 0
-/* TX queue 3 VMADDR value */
-#define UDMA_GEN_VMADDR_CFG_VMADDR_1_TX_Q_3_VMADDR_MASK 0xFFFF0000
-#define UDMA_GEN_VMADDR_CFG_VMADDR_1_TX_Q_3_VMADDR_SHIFT 16
+#define UDMA_GEN_TGTADDR_CFG_SHIFT(qid)	(((qid) & 0x1) ? 16 : 0)
+#define UDMA_GEN_TGTADDR_CFG_MASK(qid)	(((qid) & 0x1) ? 0xFFFF0000 : 0x0000FFFF)
 
-/**** cfg_vmaddr_2 register ****/
-/* RX queue 0 VMADDR value */
-#define UDMA_GEN_VMADDR_CFG_VMADDR_2_RX_Q_0_VMADDR_MASK 0x0000FFFF
-#define UDMA_GEN_VMADDR_CFG_VMADDR_2_RX_Q_0_VMADDR_SHIFT 0
-/* RX queue 1 VMADDR value */
-#define UDMA_GEN_VMADDR_CFG_VMADDR_2_RX_Q_1_VMADDR_MASK 0xFFFF0000
-#define UDMA_GEN_VMADDR_CFG_VMADDR_2_RX_Q_1_VMADDR_SHIFT 16
+/**** cfg_tgtaddr_0 register ****/
+/* TX queue 0 Target-Address value */
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_0_TX_Q_0_TGTADDR_MASK 0x0000FFFF
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_0_TX_Q_0_TGTADDR_SHIFT 0
+/* TX queue 1 Target-Address value */
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_0_TX_Q_1_TGTADDR_MASK 0xFFFF0000
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_0_TX_Q_1_TGTADDR_SHIFT 16
 
-/**** cfg_vmaddr_3 register ****/
-/* RX queue 2 VMADDR value */
-#define UDMA_GEN_VMADDR_CFG_VMADDR_3_RX_Q_2_VMADDR_MASK 0x0000FFFF
-#define UDMA_GEN_VMADDR_CFG_VMADDR_3_RX_Q_2_VMADDR_SHIFT 0
-/* RX queue 3 VMADDR value */
-#define UDMA_GEN_VMADDR_CFG_VMADDR_3_RX_Q_3_VMADDR_MASK 0xFFFF0000
-#define UDMA_GEN_VMADDR_CFG_VMADDR_3_RX_Q_3_VMADDR_SHIFT 16
+/**** cfg_tgtaddr_1 register ****/
+/* TX queue 2 Target-Address value */
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_1_TX_Q_2_TGTADDR_MASK 0x0000FFFF
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_1_TX_Q_2_TGTADDR_SHIFT 0
+/* TX queue 3 Target-Address value */
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_1_TX_Q_3_TGTADDR_MASK 0xFFFF0000
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_1_TX_Q_3_TGTADDR_SHIFT 16
+
+/**** cfg_tgtaddr_2 register ****/
+/* RX queue 0 Target-Address value */
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_2_RX_Q_0_TGTADDR_MASK 0x0000FFFF
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_2_RX_Q_0_TGTADDR_SHIFT 0
+/* RX queue 1 Target-Address value */
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_2_RX_Q_1_TGTADDR_MASK 0xFFFF0000
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_2_RX_Q_1_TGTADDR_SHIFT 16
+
+/**** cfg_tgtaddr_3 register ****/
+/* RX queue 2 Target-Address value */
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_3_RX_Q_2_TGTADDR_MASK 0x0000FFFF
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_3_RX_Q_2_TGTADDR_SHIFT 0
+/* RX queue 3 Target-Address value */
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_3_RX_Q_3_TGTADDR_MASK 0xFFFF0000
+#define UDMA_GEN_TGTADDR_CFG_TGTADDR_3_RX_Q_3_TGTADDR_SHIFT 16
 
 /**** cfg_vmpr_0 register ****/
 /* TX High Address Select Per Q */
 #define UDMA_GEN_VMPR_CFG_VMPR_0_TX_Q_HISEL_MASK 0x0000003F
 #define UDMA_GEN_VMPR_CFG_VMPR_0_TX_Q_HISEL_SHIFT 0
-/* TX Data VMID Enable Per Q */
-#define UDMA_GEN_VMPR_CFG_VMPR_0_TX_Q_DATA_VMID_EN (1 << 7)
-/* TX Prefetch VMID Enable Per Q */
-#define UDMA_GEN_VMPR_CFG_VMPR_0_TX_Q_PREF_VMID_EN (1 << 28)
-/* TX Completions VMID Enable Per Q */
-#define UDMA_GEN_VMPR_CFG_VMPR_0_TX_Q_CMPL_VMID_EN (1 << 29)
+/* TX Data Target-ID Enable Per Q */
+#define UDMA_GEN_VMPR_CFG_VMPR_0_TX_Q_DATA_TGTID_EN (1 << 7)
+/* TX Prefetch Target-ID Enable Per Q */
+#define UDMA_GEN_VMPR_CFG_VMPR_0_TX_Q_PREF_TGTID_EN (1 << 28)
+/* TX Completions Target-ID Enable Per Q */
+#define UDMA_GEN_VMPR_CFG_VMPR_0_TX_Q_CMPL_TGTID_EN (1 << 29)
 
 /**** cfg_vmpr_2 register ****/
-/* TX queue Prefetch VMID */
-#define UDMA_GEN_VMPR_CFG_VMPR_2_TX_Q_PREF_VMID_MASK 0x0000FFFF
-#define UDMA_GEN_VMPR_CFG_VMPR_2_TX_Q_PREF_VMID_SHIFT 0
-/* TX queue Completion VMID */
-#define UDMA_GEN_VMPR_CFG_VMPR_2_TX_Q_CMPL_VMID_MASK 0xFFFF0000
-#define UDMA_GEN_VMPR_CFG_VMPR_2_TX_Q_CMPL_VMID_SHIFT 16
+/* TX queue Prefetch Target-ID */
+#define UDMA_GEN_VMPR_CFG_VMPR_2_TX_Q_PREF_TGTID_MASK 0x0000FFFF
+#define UDMA_GEN_VMPR_CFG_VMPR_2_TX_Q_PREF_TGTID_SHIFT 0
+/* TX queue Completion Target-ID */
+#define UDMA_GEN_VMPR_CFG_VMPR_2_TX_Q_CMPL_TGTID_MASK 0xFFFF0000
+#define UDMA_GEN_VMPR_CFG_VMPR_2_TX_Q_CMPL_TGTID_SHIFT 16
 
 /**** cfg_vmpr_3 register ****/
-/* TX queue Data VMID */
-#define UDMA_GEN_VMPR_CFG_VMPR_3_TX_Q_DATA_VMID_MASK 0x0000FFFF
-#define UDMA_GEN_VMPR_CFG_VMPR_3_TX_Q_DATA_VMID_SHIFT 0
-/* TX queue Data VMID select */
-#define UDMA_GEN_VMPR_CFG_VMPR_3_TX_Q_DATA_VMID_SEL_MASK 0xFFFF0000
-#define UDMA_GEN_VMPR_CFG_VMPR_3_TX_Q_DATA_VMID_SEL_SHIFT 16
+/* TX queue Data Target-ID */
+#define UDMA_GEN_VMPR_CFG_VMPR_3_TX_Q_DATA_TGTID_MASK 0x0000FFFF
+#define UDMA_GEN_VMPR_CFG_VMPR_3_TX_Q_DATA_TGTID_SHIFT 0
+/* TX queue Data Target-ID select */
+#define UDMA_GEN_VMPR_CFG_VMPR_3_TX_Q_DATA_TGTID_SEL_MASK 0xFFFF0000
+#define UDMA_GEN_VMPR_CFG_VMPR_3_TX_Q_DATA_TGTID_SEL_SHIFT 16
 
 /**** cfg_vmpr_4 register ****/
 /* RX Data Buffer1 - High Address Select Per Q */
 #define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF1_HISEL_MASK 0x0000003F
 #define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF1_HISEL_SHIFT 0
-/* RX Data Buffer1 VMID Enable Per Q */
-#define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF1_VMID_EN (1 << 7)
+/* RX Data Buffer1 Target-ID Enable Per Q */
+#define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF1_TGTID_EN (1 << 7)
 /* RX Data Buffer2 - High Address Select Per Q */
 #define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF2_HISEL_MASK 0x00003F00
 #define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF2_HISEL_SHIFT 8
-/* RX Data Buffer2 VMID Enable Per Q */
-#define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF2_VMID_EN (1 << 15)
+/* RX Data Buffer2 Target-ID Enable Per Q */
+#define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF2_TGTID_EN (1 << 15)
 /* RX Direct Data Placement - High Address Select Per Q */
 #define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_DDP_HISEL_MASK 0x003F0000
 #define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_DDP_HISEL_SHIFT 16
-/* RX Direct Data Placement VMID Enable Per Q */
-#define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_DDP_VMID_EN (1 << 23)
+/* RX Direct Data Placement Target-ID Enable Per Q */
+#define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_DDP_TGTID_EN (1 << 23)
 /* RX Buffer 2 MSB address word selects per bytes, per queue */
 #define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF2_MSB_ADDR_SEL_MASK 0x0F000000
 #define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_BUF2_MSB_ADDR_SEL_SHIFT 24
-/* RX Prefetch VMID Enable Per Q */
-#define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_PREF_VMID_EN (1 << 28)
-/* RX Completions VMID Enable Per Q */
-#define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_CMPL_VMID_EN (1 << 29)
+/* RX Prefetch Target-ID Enable Per Q */
+#define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_PREF_TGTID_EN (1 << 28)
+/* RX Completions Target-ID Enable Per Q */
+#define UDMA_GEN_VMPR_CFG_VMPR_4_RX_Q_CMPL_TGTID_EN (1 << 29)
 
 /**** cfg_vmpr_6 register ****/
-/* RX queue Prefetch VMID */
-#define UDMA_GEN_VMPR_CFG_VMPR_6_RX_Q_PREF_VMID_MASK 0x0000FFFF
-#define UDMA_GEN_VMPR_CFG_VMPR_6_RX_Q_PREF_VMID_SHIFT 0
-/* RX queue Completion VMID */
-#define UDMA_GEN_VMPR_CFG_VMPR_6_RX_Q_CMPL_VMID_MASK 0xFFFF0000
-#define UDMA_GEN_VMPR_CFG_VMPR_6_RX_Q_CMPL_VMID_SHIFT 16
+/* RX queue Prefetch Target-ID */
+#define UDMA_GEN_VMPR_CFG_VMPR_6_RX_Q_PREF_TGTID_MASK 0x0000FFFF
+#define UDMA_GEN_VMPR_CFG_VMPR_6_RX_Q_PREF_TGTID_SHIFT 0
+/* RX queue Completion Target-ID */
+#define UDMA_GEN_VMPR_CFG_VMPR_6_RX_Q_CMPL_TGTID_MASK 0xFFFF0000
+#define UDMA_GEN_VMPR_CFG_VMPR_6_RX_Q_CMPL_TGTID_SHIFT 16
 
 /**** cfg_vmpr_7 register ****/
-/* RX queue Data Buffer 1 VMID */
-#define UDMA_GEN_VMPR_CFG_VMPR_7_RX_Q_BUF1_VMID_MASK 0x0000FFFF
-#define UDMA_GEN_VMPR_CFG_VMPR_7_RX_Q_BUF1_VMID_SHIFT 0
-/* RX queue Data Buffer 1 VMID select */
-#define UDMA_GEN_VMPR_CFG_VMPR_7_RX_Q_BUF1_VMID_SEL_MASK 0xFFFF0000
-#define UDMA_GEN_VMPR_CFG_VMPR_7_RX_Q_BUF1_VMID_SEL_SHIFT 16
+/* RX queue Data Buffer 1 Target-ID */
+#define UDMA_GEN_VMPR_CFG_VMPR_7_RX_Q_BUF1_TGTID_MASK 0x0000FFFF
+#define UDMA_GEN_VMPR_CFG_VMPR_7_RX_Q_BUF1_TGTID_SHIFT 0
+/* RX queue Data Buffer 1 Target-ID select */
+#define UDMA_GEN_VMPR_CFG_VMPR_7_RX_Q_BUF1_TGTID_SEL_MASK 0xFFFF0000
+#define UDMA_GEN_VMPR_CFG_VMPR_7_RX_Q_BUF1_TGTID_SEL_SHIFT 16
 
 /**** cfg_vmpr_8 register ****/
-/* RX queue Data Buffer 2 VMID */
-#define UDMA_GEN_VMPR_CFG_VMPR_8_RX_Q_BUF2_VMID_MASK 0x0000FFFF
-#define UDMA_GEN_VMPR_CFG_VMPR_8_RX_Q_BUF2_VMID_SHIFT 0
-/* RX queue Data Buffer 2 VMID select */
-#define UDMA_GEN_VMPR_CFG_VMPR_8_RX_Q_BUF2_VMID_SEL_MASK 0xFFFF0000
-#define UDMA_GEN_VMPR_CFG_VMPR_8_RX_Q_BUF2_VMID_SEL_SHIFT 16
+/* RX queue Data Buffer 2 Target-ID */
+#define UDMA_GEN_VMPR_CFG_VMPR_8_RX_Q_BUF2_TGTID_MASK 0x0000FFFF
+#define UDMA_GEN_VMPR_CFG_VMPR_8_RX_Q_BUF2_TGTID_SHIFT 0
+/* RX queue Data Buffer 2 Target-ID select */
+#define UDMA_GEN_VMPR_CFG_VMPR_8_RX_Q_BUF2_TGTID_SEL_MASK 0xFFFF0000
+#define UDMA_GEN_VMPR_CFG_VMPR_8_RX_Q_BUF2_TGTID_SEL_SHIFT 16
 
 /**** cfg_vmpr_9 register ****/
-/* RX queue DDP VMID */
-#define UDMA_GEN_VMPR_CFG_VMPR_9_RX_Q_DDP_VMID_MASK 0x0000FFFF
-#define UDMA_GEN_VMPR_CFG_VMPR_9_RX_Q_DDP_VMID_SHIFT 0
-/* RX queue DDP VMID select */
-#define UDMA_GEN_VMPR_CFG_VMPR_9_RX_Q_DDP_VMID_SEL_MASK 0xFFFF0000
-#define UDMA_GEN_VMPR_CFG_VMPR_9_RX_Q_DDP_VMID_SEL_SHIFT 16
+/* RX queue DDP Target-ID */
+#define UDMA_GEN_VMPR_CFG_VMPR_9_RX_Q_DDP_TGTID_MASK 0x0000FFFF
+#define UDMA_GEN_VMPR_CFG_VMPR_9_RX_Q_DDP_TGTID_SHIFT 0
+/* RX queue DDP Target-ID select */
+#define UDMA_GEN_VMPR_CFG_VMPR_9_RX_Q_DDP_TGTID_SEL_MASK 0xFFFF0000
+#define UDMA_GEN_VMPR_CFG_VMPR_9_RX_Q_DDP_TGTID_SEL_SHIFT 16
 
 #ifdef __cplusplus
 }

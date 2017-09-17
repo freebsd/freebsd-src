@@ -26,7 +26,7 @@
 #
 
 
-.PATH: ${.CURDIR}/../../../dev/ispfw
+.PATH: ${SRCTOP}/sys/dev/ispfw
 
 KMOD=	isp_2500
 SRCS=	ispfw.c

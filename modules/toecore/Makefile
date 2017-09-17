@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../netinet
+.PATH: ${SRCTOP}/sys/netinet
 
 KMOD=	toecore
 SRCS=	toecore.c

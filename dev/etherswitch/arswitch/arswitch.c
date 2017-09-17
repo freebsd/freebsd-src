@@ -845,6 +845,7 @@ static int
 arswitch_setled(struct arswitch_softc *sc, int phy, int led, int style)
 {
 	int shift;
+	int err;
 
 	if (phy < 0 || phy > sc->numphys)
 		return EINVAL;
@@ -852,10 +853,15 @@ arswitch_setled(struct arswitch_softc *sc, int phy, int led, int style)
 	if (style < 0 || style > ETHERSWITCH_PORT_LED_MAX)
 		return (EINVAL);
 
+	ARSWITCH_LOCK(sc);
+
 	shift = ar8327_led_mapping[phy][led].shift;
-	return (arswitch_modifyreg(sc->sc_dev,
+	err = (arswitch_modifyreg(sc->sc_dev,
 	    ar8327_led_mapping[phy][led].reg,
 	    0x03 << shift, led_pattern_table[style] << shift));
+	ARSWITCH_UNLOCK(sc);
+
+	return (err);
 }
 
 static void

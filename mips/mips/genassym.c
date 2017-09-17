@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -74,12 +74,7 @@ ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_MDFLAGS, offsetof(struct thread, td_md.md_flags));
 ASSYM(TD_MDTLS, offsetof(struct thread, td_md.md_tls));
-
-#if defined(__mips_n64) && defined(COMPAT_FREEBSD32)
-ASSYM(TLS_TCB_OFFSET, (TLS_TP_OFFSET + TLS_TCB_SIZE32));
-#else
-ASSYM(TLS_TCB_OFFSET, (TLS_TP_OFFSET + TLS_TCB_SIZE));
-#endif
+ASSYM(TD_MDTLS_TCB_OFFSET, offsetof(struct thread, td_md.md_tls_tcb_offset));
 
 ASSYM(U_PCB_REGS, offsetof(struct pcb, pcb_regs.zero));
 ASSYM(U_PCB_CONTEXT, offsetof(struct pcb, pcb_context));

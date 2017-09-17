@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SYSDIR?=	${.CURDIR}/../../..
+SYSDIR?=	${SRCTOP}/sys
 
 ARCHDIR=	${MACHINE_CPUARCH}
 
@@ -12,6 +12,7 @@ ARCHDIR=	${MACHINE_CPUARCH}
 
 KMOD=		dtrace
 SRCS=		dtrace.c \
+		dtrace_xoroshiro128_plus.c \
 		dtrace_asm.S \
 		dtrace_subr.c
 
@@ -26,7 +27,7 @@ CFLAGS+=	-I${SYSDIR}/cddl/contrib/opensolaris/uts/intel \
 SRCS+=		bus_if.h device_if.h vnode_if.h
 
 # Needed for dtrace_asm.S
-SRCS+=		assym.s
+DPSRCS+=	assym.s
 
 # These are needed for assym.s
 SRCS+=		opt_compat.h opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
@@ -42,6 +43,7 @@ CFLAGS+=	-I${SYSDIR}/cddl/compat/opensolaris \
 		-I${SYSDIR}/cddl/dev/dtrace \
 		-I${SYSDIR}/cddl/dev/dtrace/${ARCHDIR} \
 		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common \
+		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common/dtrace \
 		-I${SYSDIR}/cddl/contrib/opensolaris/common/util \
 		-I${SYSDIR} -DDIS_MEM
 
@@ -52,16 +54,6 @@ EXPORT_SYMS=	dtrace_register \
 		dtrace_probe_lookup
 
 dtrace_asm.o:  assym.s
-
-.if ${MACHINE_CPUARCH} == "arm"
-assym.o: assym.s
-	${AS} -meabi=5 -o assym.o assym.s
-.endif
-
-.if ${MACHINE_CPUARCH} == "riscv"
-assym.o: assym.s
-	${AS} -msoft-float -o assym.o assym.s
-.endif
 
 .include <bsd.kmod.mk>
 

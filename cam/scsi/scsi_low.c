@@ -479,15 +479,6 @@ scsi_low_scsi_action_cam(sim, ccb)
 #endif	/* SCSI_LOW_DEBUG */
 		break;
 
-	case XPT_EN_LUN:		/* Enable LUN as a target */
-	case XPT_TARGET_IO:		/* Execute target I/O request */
-	case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
-	case XPT_CONT_TARGET_IO:	/* Continue Host Target I/O Connection*/
-		/* XXX Implement */
-		ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(ccb);
-		break;
-
 	case XPT_ABORT:			/* Abort the specified CCB */
 #ifdef	SCSI_LOW_DIAGNOSTIC
 		if (target == CAM_TARGET_WILDCARD || lun == CAM_LUN_WILDCARD)
@@ -722,9 +713,9 @@ settings_out:
 		cpi->transport_version = 2;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_2;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "SCSI_LOW", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "SCSI_LOW", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);

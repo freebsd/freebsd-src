@@ -70,6 +70,16 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, v4statelimit, CTLFLAG_RWTUN,
     &nfsrv_v4statelimit, 0,
     "High water limit for NFSv4 opens+locks+delegations");
 
+static int	nfsrv_writedelegifpos = 0;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, writedelegifpos, CTLFLAG_RW,
+    &nfsrv_writedelegifpos, 0,
+    "Issue a write delegation for read opens if possible");
+
+static int	nfsrv_allowreadforwriteopen = 1;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, allowreadforwriteopen, CTLFLAG_RW,
+    &nfsrv_allowreadforwriteopen, 0,
+    "Allow Reads to be done with Write Access StateIDs");
+
 /*
  * Hash lists for nfs V4.
  */
@@ -80,7 +90,6 @@ struct nfssessionhash		*nfssessionhash;
 
 static u_int32_t nfsrv_openpluslock = 0, nfsrv_delegatecnt = 0;
 static time_t nfsrvboottime;
-static int nfsrv_writedelegifpos = 1;
 static int nfsrv_returnoldstateid = 0, nfsrv_clients = 0;
 static int nfsrv_clienthighwater = NFSRV_CLIENTHIGHWATER;
 static int nfsrv_nogsscallback = 0;
@@ -1868,7 +1877,8 @@ tryagain:
 		       mystp->ls_flags & NFSLCK_ACCESSBITS)) ||
 		    ((new_stp->ls_flags & (NFSLCK_CHECK|NFSLCK_READACCESS)) ==
 		      (NFSLCK_CHECK | NFSLCK_READACCESS) &&
-		     !(mystp->ls_flags & NFSLCK_READACCESS)) ||
+		     !(mystp->ls_flags & NFSLCK_READACCESS) &&
+		     nfsrv_allowreadforwriteopen == 0) ||
 		    ((new_stp->ls_flags & (NFSLCK_CHECK|NFSLCK_WRITEACCESS)) ==
 		      (NFSLCK_CHECK | NFSLCK_WRITEACCESS) &&
 		     !(mystp->ls_flags & NFSLCK_WRITEACCESS))) {
@@ -2497,6 +2507,8 @@ nfsrv_openctrl(struct nfsrv_descript *nd, vnode_t vp,
 	struct nfsclient *clp;
 	int error = 0, haslock = 0, ret, delegate = 1, writedeleg = 1;
 	int readonly = 0, cbret = 1, getfhret = 0;
+	int gotstate = 0, len = 0;
+	u_char *clidp = NULL;
 
 	if ((new_stp->ls_flags & NFSLCK_SHAREBITS) == NFSLCK_READACCESS)
 		readonly = 1;
@@ -2515,6 +2527,7 @@ nfsrv_openctrl(struct nfsrv_descript *nd, vnode_t vp,
 		goto out;
 	}
 
+	clidp = malloc(NFSV4_OPAQUELIMIT, M_TEMP, M_WAITOK);
 tryagain:
 	MALLOC(new_lfp, struct nfslockfile *, sizeof (struct nfslockfile),
 	    M_NFSDLOCKFILE, M_WAITOK);
@@ -3177,6 +3190,16 @@ tryagain:
 				nfsrv_openpluslock++;
 				nfsrv_delegatecnt++;
 			}
+			/*
+			 * Since NFSv4.1 never does an OpenConfirm, the first
+			 * open state will be acquired here.
+			 */
+			if (!(clp->lc_flags & LCL_STAMPEDSTABLE)) {
+				clp->lc_flags |= LCL_STAMPEDSTABLE;
+				len = clp->lc_idlen;
+				NFSBCOPY(clp->lc_id, clidp, len);
+				gotstate = 1;
+			}
 		} else {
 			*rflagsp |= NFSV4OPEN_RESULTCONFIRM;
 			new_stp->ls_flags = NFSLCK_NEEDSCONFIRM;
@@ -3213,7 +3236,17 @@ tryagain:
 	if (new_deleg)
 		FREE((caddr_t)new_deleg, M_NFSDSTATE);
 
+	/*
+	 * If the NFSv4.1 client just acquired its first open, write a timestamp
+	 * to the stable storage file.
+	 */
+	if (gotstate != 0) {
+		nfsrv_writestable(clidp, len, NFSNST_NEWSTATE, p);
+		nfsrv_backupstable();
+	}
+
 out:
+	free(clidp, M_TEMP);
 	NFSEXITCODE2(error, nd);
 	return (error);
 }
@@ -3230,7 +3263,7 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 	struct nfslockfile *lfp;
 	u_int32_t bits;
 	int error = 0, gotstate = 0, len = 0;
-	u_char client[NFSV4_OPAQUELIMIT];
+	u_char *clidp = NULL;
 
 	/*
 	 * Check for restart conditions (client and server).
@@ -3240,6 +3273,7 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 	if (error)
 		goto out;
 
+	clidp = malloc(NFSV4_OPAQUELIMIT, M_TEMP, M_WAITOK);
 	NFSLOCKSTATE();
 	/*
 	 * Get the open structure via clientid and stateid.
@@ -3318,7 +3352,7 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 		if (!(clp->lc_flags & LCL_STAMPEDSTABLE)) {
 			clp->lc_flags |= LCL_STAMPEDSTABLE;
 			len = clp->lc_idlen;
-			NFSBCOPY(clp->lc_id, client, len);
+			NFSBCOPY(clp->lc_id, clidp, len);
 			gotstate = 1;
 		}
 		NFSUNLOCKSTATE();
@@ -3365,11 +3399,12 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 	 * to the stable storage file.
 	 */
 	if (gotstate != 0) {
-		nfsrv_writestable(client, len, NFSNST_NEWSTATE, p);
+		nfsrv_writestable(clidp, len, NFSNST_NEWSTATE, p);
 		nfsrv_backupstable();
 	}
 
 out:
+	free(clidp, M_TEMP);
 	NFSEXITCODE2(error, nd);
 	return (error);
 }

@@ -76,7 +76,7 @@ struct cfi_softc {
 static struct cfi_softc cfi_softc;
 
 static int cfi_init(void);
-static void cfi_shutdown(void);
+static int cfi_shutdown(void);
 static void cfi_datamove(union ctl_io *io);
 static void cfi_done(union ctl_io *io);
 
@@ -93,6 +93,7 @@ cfi_init(void)
 {
 	struct cfi_softc *isoftc = &cfi_softc;
 	struct ctl_port *port;
+	int error = 0;
 
 	memset(isoftc, 0, sizeof(*isoftc));
 
@@ -103,29 +104,28 @@ cfi_init(void)
 	port->port_name = "ioctl";
 	port->fe_datamove = cfi_datamove;
 	port->fe_done = cfi_done;
-	port->max_targets = 1;
-	port->max_target_id = 0;
 	port->targ_port = -1;
 	port->max_initiators = 1;
 
-	if (ctl_port_register(port) != 0) {
+	if ((error = ctl_port_register(port)) != 0) {
 		printf("%s: ioctl port registration failed\n", __func__);
-		return (0);
+		return (error);
 	}
 	ctl_port_online(port);
 	return (0);
 }
 
-void
+static int
 cfi_shutdown(void)
 {
 	struct cfi_softc *isoftc = &cfi_softc;
-	struct ctl_port *port;
+	struct ctl_port *port = &isoftc->port;
+	int error = 0;
 
-	port = &isoftc->port;
 	ctl_port_offline(port);
-	if (ctl_port_deregister(&isoftc->port) != 0)
-		printf("%s: ctl_frontend_deregister() failed\n", __func__);
+	if ((error = ctl_port_deregister(port)) != 0)
+		printf("%s: ioctl port deregistration failed\n", __func__);
+	return (error);
 }
 
 /*
@@ -138,14 +138,10 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 	struct ctl_sg_entry ext_entry, kern_entry;
 	int ext_sglen, ext_sg_entries, kern_sg_entries;
 	int ext_sg_start, ext_offset;
-	int len_to_copy, len_copied;
+	int len_to_copy;
 	int kern_watermark, ext_watermark;
 	int ext_sglist_malloced;
 	int i, j;
-
-	ext_sglist_malloced = 0;
-	ext_sg_start = 0;
-	ext_offset = 0;
 
 	CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove\n"));
 
@@ -153,7 +149,9 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 	 * If this flag is set, fake the data transfer.
 	 */
 	if (ctsio->io_hdr.flags & CTL_FLAG_NO_DATAMOVE) {
-		ctsio->ext_data_filled = ctsio->ext_data_len;
+		ext_sglist_malloced = 0;
+		ctsio->ext_data_filled += ctsio->kern_data_len;
+		ctsio->kern_data_resid = 0;
 		goto bailout;
 	}
 
@@ -165,7 +163,6 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		int len_seen;
 
 		ext_sglen = ctsio->ext_sg_entries * sizeof(*ext_sglist);
-
 		ext_sglist = (struct ctl_sg_entry *)malloc(ext_sglen, M_CTL,
 							   M_WAITOK);
 		ext_sglist_malloced = 1;
@@ -174,6 +171,8 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 			goto bailout;
 		}
 		ext_sg_entries = ctsio->ext_sg_entries;
+		ext_sg_start = ext_sg_entries;
+		ext_offset = 0;
 		len_seen = 0;
 		for (i = 0; i < ext_sg_entries; i++) {
 			if ((len_seen + ext_sglist[i].len) >=
@@ -186,6 +185,7 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		}
 	} else {
 		ext_sglist = &ext_entry;
+		ext_sglist_malloced = 0;
 		ext_sglist->addr = ctsio->ext_data_ptr;
 		ext_sglist->len = ctsio->ext_data_len;
 		ext_sg_entries = 1;
@@ -203,10 +203,8 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		kern_sg_entries = 1;
 	}
 
-
 	kern_watermark = 0;
 	ext_watermark = ext_offset;
-	len_copied = 0;
 	for (i = ext_sg_start, j = 0;
 	     i < ext_sg_entries && j < kern_sg_entries;) {
 		uint8_t *ext_ptr, *kern_ptr;
@@ -227,9 +225,6 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		} else
 			kern_ptr = (uint8_t *)kern_sglist[j].addr;
 		kern_ptr = kern_ptr + kern_watermark;
-
-		kern_watermark += len_to_copy;
-		ext_watermark += len_to_copy;
 
 		if ((ctsio->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
 		     CTL_FLAG_DATA_IN) {
@@ -252,20 +247,21 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 			}
 		}
 
-		len_copied += len_to_copy;
+		ctsio->ext_data_filled += len_to_copy;
+		ctsio->kern_data_resid -= len_to_copy;
 
+		ext_watermark += len_to_copy;
 		if (ext_sglist[i].len == ext_watermark) {
 			i++;
 			ext_watermark = 0;
 		}
 
+		kern_watermark += len_to_copy;
 		if (kern_sglist[j].len == kern_watermark) {
 			j++;
 			kern_watermark = 0;
 		}
 	}
-
-	ctsio->ext_data_filled += len_copied;
 
 	CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: ext_sg_entries: %d, "
 			 "kern_sg_entries: %d\n", ext_sg_entries,
@@ -274,10 +270,7 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 			 "kern_data_len = %d\n", ctsio->ext_data_len,
 			 ctsio->kern_data_len));
 
-
-	/* XXX KDM set residual?? */
 bailout:
-
 	if (ext_sglist_malloced != 0)
 		free(ext_sglist, M_CTL);
 
@@ -397,7 +390,7 @@ ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
     struct thread *td)
 {
 	union ctl_io *io;
-	void *pool_tmp;
+	void *pool_tmp, *sc_tmp;
 	int retval = 0;
 
 	/*
@@ -414,8 +407,10 @@ ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	 * spammed by the user's ctl_io.
 	 */
 	pool_tmp = io->io_hdr.pool;
+	sc_tmp = CTL_SOFTC(io);
 	memcpy(io, (void *)addr, sizeof(*io));
 	io->io_hdr.pool = pool_tmp;
+	CTL_SOFTC(io) = sc_tmp;
 
 	/*
 	 * No status yet, so make sure the status is set properly.

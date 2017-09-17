@@ -15,7 +15,7 @@
 #NO_UNIVERSE
 
 # Include the default QCA955x parameters
-include         "QCA955X_BASE"
+include         "std.QCA955X"
 
 ident           AP135
 
@@ -58,13 +58,9 @@ device          geom_map
 device		pci
 device		qca955x_pci
 
-device		ath_pci
-options 	AR71XX_ATH_EEPROM
 device		firmware		# Used by the above
+options 	AR71XX_ATH_EEPROM
 options 	ATH_EEPROM_FIRMWARE
 
 # Boot off of the rootfs, as defined in the geom_map setup.
 options 	ROOTDEVNAME=\"ufs:map/rootfs.uzip\"
-
-# Default to accept
-options		IPFIREWALL_DEFAULT_TO_ACCEPT

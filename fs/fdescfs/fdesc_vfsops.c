@@ -68,6 +68,7 @@ static vfs_root_t	fdesc_root;
 int
 fdesc_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
+
 	return kernel_mount(ma, flags);
 }
 
@@ -77,10 +78,10 @@ fdesc_cmount(struct mntarg *ma, void *data, uint64_t flags)
 static int
 fdesc_mount(struct mount *mp)
 {
-	int error = 0;
 	struct fdescmount *fmp;
 	struct thread *td = curthread;
 	struct vnode *rvp;
+	int error;
 
 	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_FDESCFS))
 		return (EPERM);
@@ -98,8 +99,10 @@ fdesc_mount(struct mount *mp)
 	 * We need to initialize a few bits of our local mount point struct to
 	 * avoid confusion in allocvp.
 	 */
-	mp->mnt_data = (qaddr_t) fmp;
+	mp->mnt_data = fmp;
 	fmp->flags = 0;
+	if (vfs_getopt(mp->mnt_optnew, "linrdlnk", NULL, NULL) == 0)
+		fmp->flags |= FMNT_LINRDLNKF;
 	error = fdesc_allocvp(Froot, -1, FD_ROOT, mp, &rvp);
 	if (error) {
 		free(fmp, M_FDESCMNT);
@@ -122,11 +125,10 @@ static int
 fdesc_unmount(struct mount *mp, int mntflags)
 {
 	struct fdescmount *fmp;
-	caddr_t data;
-	int error;
-	int flags = 0;
+	int error, flags;
 
-	fmp = (struct fdescmount *)mp->mnt_data;
+	flags = 0;
+	fmp = mp->mnt_data;
 	if (mntflags & MNT_FORCE) {
 		/* The hash mutex protects the private mount flags. */
 		mtx_lock(&fdesc_hashmtx);
@@ -147,15 +149,10 @@ fdesc_unmount(struct mount *mp, int mntflags)
 		return (error);
 
 	/*
-	 * Finally, throw away the fdescmount structure. Hold the hashmtx to
-	 * protect the fdescmount structure.
+	 * Finally, throw away the fdescmount structure.
 	 */
-	mtx_lock(&fdesc_hashmtx);
-	data = mp->mnt_data;
 	mp->mnt_data = NULL;
-	mtx_unlock(&fdesc_hashmtx);
-	free(data, M_FDESCMNT);	/* XXX */
-
+	free(fmp, M_FDESCMNT);
 	return (0);
 }
 

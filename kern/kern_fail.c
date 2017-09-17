@@ -425,7 +425,7 @@ fail_point_sleep(struct fail_point *fp, int msecs,
 	int timo;
 
 	/* Convert from millisecs to ticks, rounding up */
-	timo = howmany(msecs * hz, 1000);
+	timo = howmany((int64_t)msecs * hz, 1000L);
 
 	if (timo > 0) {
 		if (!(fp->fp_flags & FAIL_POINT_USE_TIMEOUT_PATH)) {
@@ -612,7 +612,7 @@ fail_point_eval_nontrivial(struct fail_point *fp, int *return_value)
 			break;
 
 		case FAIL_POINT_YIELD:
-			kern_yield(-1);
+			kern_yield(PRI_UNCHANGED);
 			break;
 
 		case FAIL_POINT_DELAY:

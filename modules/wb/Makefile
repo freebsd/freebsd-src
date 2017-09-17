@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/wb
+.PATH: ${SRCTOP}/sys/dev/wb
 
 KMOD=	if_wb
 SRCS=	if_wb.c device_if.h

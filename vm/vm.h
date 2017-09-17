@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -68,6 +68,7 @@ typedef char vm_inherit_t;	/* inheritance codes */
 #define	VM_INHERIT_SHARE	((vm_inherit_t) 0)
 #define	VM_INHERIT_COPY		((vm_inherit_t) 1)
 #define	VM_INHERIT_NONE		((vm_inherit_t) 2)
+#define	VM_INHERIT_ZERO		((vm_inherit_t) 3)
 #define	VM_INHERIT_DEFAULT	VM_INHERIT_COPY
 
 typedef u_char vm_prot_t;	/* protection codes */
@@ -77,6 +78,7 @@ typedef u_char vm_prot_t;	/* protection codes */
 #define	VM_PROT_WRITE		((vm_prot_t) 0x02)
 #define	VM_PROT_EXECUTE		((vm_prot_t) 0x04)
 #define	VM_PROT_COPY		((vm_prot_t) 0x08)	/* copy-on-read */
+#define	VM_PROT_FAULT_LOOKUP	((vm_prot_t) 0x010)
 
 #define	VM_PROT_ALL		(VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE)
 #define VM_PROT_RW		(VM_PROT_READ|VM_PROT_WRITE)

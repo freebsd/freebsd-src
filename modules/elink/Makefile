@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 
-.PATH:	${.CURDIR}/../../i386/isa
+.PATH:	${SRCTOP}/sys/i386/isa
 
 KMOD=		elink
 SRCS=		elink.c

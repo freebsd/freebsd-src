@@ -158,7 +158,6 @@
 ./etc/periodic/weekly/999.local
 ./etc/periodic/weekly/310.locate
 ./etc/periodic/weekly/320.whatis
-./etc/periodic/weekly/330.catman
 ./etc/periodic/weekly/400.status-pkg
 ./etc/ppp
 ./etc/ppp/ppp.conf

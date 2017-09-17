@@ -168,6 +168,7 @@ a10dmac_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	OF_device_register_xref(OF_xref_from_node(ofw_bus_get_node(dev)), dev);
 	return (0);
 }
 

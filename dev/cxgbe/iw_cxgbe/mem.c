@@ -46,12 +46,15 @@ __FBSDID("$FreeBSD$");
 #define T4_ULPTX_MIN_IO 32
 #define C4IW_MAX_INLINE_SIZE 96
 
-static int mr_exceeds_hw_limits(struct c4iw_dev *dev, u64 length)
+static int
+mr_exceeds_hw_limits(struct c4iw_dev *dev, u64 length)
 {
-	return (is_t4(dev->rdev.adap) ||
+
+	return ((is_t4(dev->rdev.adap) ||
 		is_t5(dev->rdev.adap)) &&
-		length >= 8*1024*1024*1024ULL;
+		length >= 8*1024*1024*1024ULL);
 }
+
 static int
 write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
 {
@@ -341,11 +344,9 @@ static int build_phys_page_list(struct ib_phys_buf *buffer_list,
 				PAGE_SIZE - 1) & PAGE_MASK;
 	}
 
-	if (*total_size > 0xFFFFFFFFULL)
-		return -ENOMEM;
-
 	/* Find largest page shift we can use to cover buffers */
-	for (*shift = PAGE_SHIFT; *shift < 27; ++(*shift))
+	for (*shift = PAGE_SHIFT; *shift < PAGE_SHIFT + M_FW_RI_TPTE_PS;
+	    ++(*shift))
 		if ((1ULL << *shift) & mask)
 			break;
 
@@ -442,7 +443,7 @@ int c4iw_reregister_phys_mem(struct ib_mr *mr, int mr_rereg_mask,
 		mhp->attr.zbva = 0;
 		mhp->attr.va_fbo = *iova_start;
 		mhp->attr.page_size = shift - 12;
-		mhp->attr.len = (u32) total_size;
+		mhp->attr.len = total_size;
 		mhp->attr.pbl_size = npages;
 	}
 
@@ -514,7 +515,7 @@ struct ib_mr *c4iw_register_phys_mem(struct ib_pd *pd,
 	mhp->attr.va_fbo = *iova_start;
 	mhp->attr.page_size = shift - 12;
 
-	mhp->attr.len = (u32) total_size;
+	mhp->attr.len = total_size;
 	mhp->attr.pbl_size = npages;
 	ret = register_mem(rhp, php, mhp, shift);
 	if (ret)

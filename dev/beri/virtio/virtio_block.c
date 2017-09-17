@@ -457,7 +457,7 @@ beri_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 		sc->opened = 1;
 		break;
 	case MDIOCDETACH:
-		if (sc->vnode == 0) {
+		if (sc->vnode == NULL) {
 			/* File not opened */
 			return (1);
 		}

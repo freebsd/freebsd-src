@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/semaphore.h>
+#include <linux/spinlock.h>
 
 struct module;
 struct kiocb;
@@ -52,9 +53,11 @@ struct pipe_inode_info;
 struct vm_area_struct;
 struct poll_table_struct;
 struct files_struct;
+struct pfs_node;
 
 #define	inode	vnode
 #define	i_cdev	v_rdev
+#define	i_private v_data
 
 #define	S_IRUGO	(S_IRUSR | S_IRGRP | S_IROTH)
 #define	S_IWUGO	(S_IWUSR | S_IWGRP | S_IWOTH)
@@ -64,9 +67,21 @@ typedef struct files_struct *fl_owner_t;
 
 struct dentry {
 	struct inode	*d_inode;
+	struct pfs_node	*d_pfs_node;
 };
 
 struct file_operations;
+
+struct linux_file_wait_queue {
+	struct wait_queue wq;
+	struct wait_queue_head *wqh;
+	atomic_t state;
+#define	LINUX_FWQ_STATE_INIT 0
+#define	LINUX_FWQ_STATE_NOT_READY 1
+#define	LINUX_FWQ_STATE_QUEUED 2
+#define	LINUX_FWQ_STATE_READY 3
+#define	LINUX_FWQ_STATE_MAX 4
+};
 
 struct linux_file {
 	struct file	*_file;
@@ -79,6 +94,21 @@ struct linux_file {
 	struct selinfo	f_selinfo;
 	struct sigio	*f_sigio;
 	struct vnode	*f_vnode;
+#define	f_inode	f_vnode
+	volatile u_int	f_count;
+
+	/* anonymous shmem object */
+	vm_object_t	f_shmem;
+
+	/* kqfilter support */
+	int		f_kqflags;
+#define	LINUX_KQ_FLAG_HAS_READ (1 << 0)
+#define	LINUX_KQ_FLAG_HAS_WRITE (1 << 1)
+#define	LINUX_KQ_FLAG_NEED_READ (1 << 2)
+#define	LINUX_KQ_FLAG_NEED_WRITE (1 << 3)
+	/* protects f_selinfo.si_note */
+	spinlock_t	f_kqlock;
+	struct linux_file_wait_queue f_wait_queue;
 };
 
 #define	file		linux_file
@@ -145,11 +175,45 @@ struct file_operations {
 	int (*setlease)(struct file *, long, struct file_lock **);
 #endif
 };
-#define	fops_get(fops)	(fops)
+#define	fops_get(fops)		(fops)
+#define	replace_fops(f, fops)	((f)->f_op = (fops))
 
 #define	FMODE_READ	FREAD
 #define	FMODE_WRITE	FWRITE
 #define	FMODE_EXEC	FEXEC
+
+int __register_chrdev(unsigned int major, unsigned int baseminor,
+    unsigned int count, const char *name,
+    const struct file_operations *fops);
+int __register_chrdev_p(unsigned int major, unsigned int baseminor,
+    unsigned int count, const char *name,
+    const struct file_operations *fops, uid_t uid,
+    gid_t gid, int mode);
+void __unregister_chrdev(unsigned int major, unsigned int baseminor,
+    unsigned int count, const char *name);
+
+static inline void
+unregister_chrdev(unsigned int major, const char *name)
+{
+
+	__unregister_chrdev(major, 0, 256, name);
+}
+
+static inline int
+register_chrdev(unsigned int major, const char *name,
+    const struct file_operations *fops)
+{
+
+	return (__register_chrdev(major, 0, 256, name, fops));
+}
+
+static inline int
+register_chrdev_p(unsigned int major, const char *name,
+    const struct file_operations *fops, uid_t uid, gid_t gid, int mode)
+{
+
+	return (__register_chrdev_p(major, 0, 256, name, fops, uid, gid, mode));
+}
 
 static inline int
 register_chrdev_region(dev_t dev, unsigned range, const char *name)
@@ -180,11 +244,15 @@ nonseekable_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static inline dev_t
-iminor(struct inode *inode)
+extern unsigned int linux_iminor(struct inode *);
+#define	iminor(...) linux_iminor(__VA_ARGS__)
+
+static inline struct linux_file *
+get_file(struct linux_file *f)
 {
 
-	return dev2unit(inode->v_rdev);
+	refcount_acquire(f->_file == NULL ? &f->f_count : &f->_file->f_count);
+	return (f);
 }
 
 static inline struct inode *
@@ -209,7 +277,15 @@ iput(struct inode *inode)
 static inline loff_t 
 no_llseek(struct file *file, loff_t offset, int whence)
 {
-        return -ESPIPE;
+
+	return (-ESPIPE);
+}
+
+static inline loff_t
+noop_llseek(struct linux_file *file, loff_t offset, int whence)
+{
+
+	return (file->_file->f_offset);
 }
 
 #endif /* _LINUX_FS_H_ */

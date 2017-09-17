@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -114,6 +114,5 @@ struct sf_buf *vm_imgact_map_page(vm_object_t object, vm_ooffset_t offset);
 void vm_imgact_unmap_page(struct sf_buf *sf);
 void vm_thread_dispose(struct thread *td);
 int vm_thread_new(struct thread *td, int pages);
-int vm_mlock(struct proc *, struct ucred *, const void *, size_t);
 #endif				/* _KERNEL */
 #endif				/* !_VM_EXTERN_H_ */

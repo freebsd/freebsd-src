@@ -154,6 +154,7 @@ enum i40e_admin_queue_opc {
 	/* WoL commands */
 	i40e_aqc_opc_set_wol_filter	= 0x0120,
 	i40e_aqc_opc_get_wake_reason	= 0x0121,
+	i40e_aqc_opc_clear_all_wol_filters = 0x025E,
 
 	/* internal switch commands */
 	i40e_aqc_opc_get_switch_config		= 0x0200,
@@ -535,7 +536,8 @@ struct i40e_aqc_mac_address_read {
 #define I40E_AQC_PORT_ADDR_VALID	0x40
 #define I40E_AQC_WOL_ADDR_VALID		0x80
 #define I40E_AQC_MC_MAG_EN_VALID	0x100
-#define I40E_AQC_ADDR_VALID_MASK	0x1F0
+#define I40E_AQC_WOL_PRESERVE_STATUS	0x200
+#define I40E_AQC_ADDR_VALID_MASK	0x3F0
 	u8	reserved[6];
 	__le32	addr_high;
 	__le32	addr_low;
@@ -556,6 +558,7 @@ I40E_CHECK_STRUCT_LEN(24, i40e_aqc_mac_address_read_data);
 struct i40e_aqc_mac_address_write {
 	__le16	command_flags;
 #define I40E_AQC_MC_MAG_EN		0x0100
+#define I40E_AQC_WOL_PRESERVE_ON_PFR	0x0200
 #define I40E_AQC_WRITE_TYPE_LAA_ONLY	0x0000
 #define I40E_AQC_WRITE_TYPE_LAA_WOL	0x4000
 #define I40E_AQC_WRITE_TYPE_PORT	0x8000
@@ -594,6 +597,7 @@ struct i40e_aqc_set_wol_filter {
 	__le16 cmd_flags;
 #define I40E_AQC_SET_WOL_FILTER				0x8000
 #define I40E_AQC_SET_WOL_FILTER_NO_TCO_WOL		0x4000
+#define I40E_AQC_SET_WOL_FILTER_WOL_PRESERVE_ON_PFR	0x2000
 #define I40E_AQC_SET_WOL_FILTER_ACTION_CLEAR		0
 #define I40E_AQC_SET_WOL_FILTER_ACTION_SET		1
 	__le16 valid_flags;
@@ -1757,6 +1761,8 @@ struct i40e_aq_get_phy_abilities_resp {
 #define I40E_AQ_PHY_LINK_ENABLED	0x08
 #define I40E_AQ_PHY_AN_ENABLED		0x10
 #define I40E_AQ_PHY_FLAG_MODULE_QUAL	0x20
+#define I40E_AQ_PHY_FEC_ABILITY_KR	0x40
+#define I40E_AQ_PHY_FEC_ABILITY_RS	0x80
 	__le16	eee_capability;
 #define I40E_AQ_EEE_100BASE_TX		0x0002
 #define I40E_AQ_EEE_1000BASE_T		0x0004
@@ -1768,11 +1774,20 @@ struct i40e_aq_get_phy_abilities_resp {
 	u8	d3_lpan;
 #define I40E_AQ_SET_PHY_D3_LPAN_ENA	0x01
 	u8	phy_type_ext;
-#define I40E_AQ_PHY_TYPE_EXT_25G_KR	0X01
-#define I40E_AQ_PHY_TYPE_EXT_25G_CR	0X02
+#define I40E_AQ_PHY_TYPE_EXT_25G_KR	0x01
+#define I40E_AQ_PHY_TYPE_EXT_25G_CR	0x02
 #define I40E_AQ_PHY_TYPE_EXT_25G_SR	0x04
 #define I40E_AQ_PHY_TYPE_EXT_25G_LR	0x08
-	u8	mod_type_ext;
+	u8	fec_cfg_curr_mod_ext_info;
+#define I40E_AQ_ENABLE_FEC_KR		0x01
+#define I40E_AQ_ENABLE_FEC_RS		0x02
+#define I40E_AQ_REQUEST_FEC_KR		0x04
+#define I40E_AQ_REQUEST_FEC_RS		0x08
+#define I40E_AQ_ENABLE_FEC_AUTO		0x10
+#define I40E_AQ_FEC
+#define I40E_AQ_MODULE_TYPE_EXT_MASK	0xE0
+#define I40E_AQ_MODULE_TYPE_EXT_SHIFT	5
+
 	u8	ext_comp_code;
 	u8	phy_id[4];
 	u8	module_type[3];
@@ -1796,11 +1811,15 @@ struct i40e_aq_set_phy_config { /* same bits as above in all */
 	__le32	eeer;
 	u8	low_power_ctrl;
 	u8	phy_type_ext;
-#define I40E_AQ_PHY_TYPE_EXT_25G_KR	0X01
-#define I40E_AQ_PHY_TYPE_EXT_25G_CR	0X02
-#define I40E_AQ_PHY_TYPE_EXT_25G_SR	0x04
-#define I40E_AQ_PHY_TYPE_EXT_25G_LR	0x08
-	u8	reserved[2];
+	u8	fec_config;
+#define I40E_AQ_SET_FEC_ABILITY_KR	BIT(0)
+#define I40E_AQ_SET_FEC_ABILITY_RS	BIT(1)
+#define I40E_AQ_SET_FEC_REQUEST_KR	BIT(2)
+#define I40E_AQ_SET_FEC_REQUEST_RS	BIT(3)
+#define I40E_AQ_SET_FEC_AUTO		BIT(4)
+#define I40E_AQ_PHY_FEC_CONFIG_SHIFT	0x0
+#define I40E_AQ_PHY_FEC_CONFIG_MASK	(0x1F << I40E_AQ_PHY_FEC_CONFIG_SHIFT)
+	u8	reserved;
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aq_set_phy_config);
@@ -1890,6 +1909,8 @@ struct i40e_aqc_get_link_status {
 	u8	loopback; /* use defines from i40e_aqc_set_lb_mode */
 	__le16	max_frame_size;
 	u8	config;
+#define I40E_AQ_CONFIG_FEC_KR_ENA	0x01
+#define I40E_AQ_CONFIG_FEC_RS_ENA	0x02
 #define I40E_AQ_CONFIG_CRC_ENA		0x04
 #define I40E_AQ_CONFIG_PACING_MASK	0x78
 	u8	power_desc;

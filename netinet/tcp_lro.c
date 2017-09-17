@@ -115,7 +115,6 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 	lc->lro_bad_csum = 0;
 	lc->lro_queued = 0;
 	lc->lro_flushed = 0;
-	lc->lro_cnt = 0;
 	lc->lro_mbuf_count = 0;
 	lc->lro_mbuf_max = lro_mbufs;
 	lc->lro_cnt = lro_entries;
@@ -145,6 +144,7 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 
 	/* check for out of memory */
 	if (lc->lro_mbuf_data == NULL) {
+		free(lc->lro_hash, M_LRO);
 		memset(lc, 0, sizeof(*lc));
 		return (ENOMEM);
 	}
@@ -175,17 +175,15 @@ tcp_lro_free(struct lro_ctrl *lc)
 	}
 
 	/* free hash table */
-	if (lc->lro_hash != NULL) {
-		free(lc->lro_hash, M_LRO);
-		lc->lro_hash = NULL;
-	}
+	free(lc->lro_hash, M_LRO);
+	lc->lro_hash = NULL;
 	lc->lro_hashsz = 0;
 
 	/* free mbuf array, if any */
 	for (x = 0; x != lc->lro_mbuf_count; x++)
 		m_freem(lc->lro_mbuf_data[x].mb);
 	lc->lro_mbuf_count = 0;
-	
+
 	/* free allocated memory, if any */
 	free(lc->lro_mbuf_data, M_LRO);
 	lc->lro_mbuf_data = NULL;
@@ -392,6 +390,7 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 #endif
 	}
 
+	le->m_head->m_pkthdr.lro_nsegs = le->append_cnt + 1;
 	(*lc->ifp->if_input)(lc->ifp, le->m_head);
 	lc->lro_queued += le->append_cnt + 1;
 	lc->lro_flushed++;
@@ -954,17 +953,11 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
 	/* check if packet is not LRO capable */
 	if (__predict_false(mb->m_pkthdr.csum_flags == 0 ||
 	    (lc->ifp->if_capenable & IFCAP_LRO) == 0)) {
-		lc->lro_flushed++;
-		lc->lro_queued++;
 
 		/* input packet to network layer */
 		(*lc->ifp->if_input) (lc->ifp, mb);
 		return;
 	}
-
-	/* check if array is full */
-	if (__predict_false(lc->lro_mbuf_count == lc->lro_mbuf_max))
-		tcp_lro_flush_all(lc);
 
 	/* create sequence number */
 	lc->lro_mbuf_data[lc->lro_mbuf_count].seq =
@@ -973,7 +966,11 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
 	    ((uint64_t)lc->lro_mbuf_count);
 
 	/* enter mbuf */
-	lc->lro_mbuf_data[lc->lro_mbuf_count++].mb = mb;
+	lc->lro_mbuf_data[lc->lro_mbuf_count].mb = mb;
+
+	/* flush if array is full */
+	if (__predict_false(++lc->lro_mbuf_count == lc->lro_mbuf_max))
+		tcp_lro_flush_all(lc);
 }
 
 /* end */

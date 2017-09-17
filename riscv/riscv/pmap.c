@@ -13,7 +13,7 @@
  * All rights reserved.
  * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -596,8 +596,10 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 			min_pa = physmap[i];
 		if (physmap[i + 1] > max_pa)
 			max_pa = physmap[i + 1];
-		break;
 	}
+	printf("physmap_idx %lx\n", physmap_idx);
+	printf("min_pa %lx\n", min_pa);
+	printf("max_pa %lx\n", max_pa);
 
 	/* Create a direct map region early so we can use it for pa -> va */
 	pmap_bootstrap_dmap(l1pt, min_pa, max_pa);
@@ -771,7 +773,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	/* TODO */
 
 	sched_pin();
-	__asm __volatile("sfence.vm");
+	__asm __volatile("sfence.vma %0" :: "r" (va) : "memory");
 	sched_unpin();
 }
 
@@ -782,7 +784,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	/* TODO */
 
 	sched_pin();
-	__asm __volatile("sfence.vm");
+	__asm __volatile("sfence.vma");
 	sched_unpin();
 }
 
@@ -793,7 +795,7 @@ pmap_invalidate_all(pmap_t pmap)
 	/* TODO */
 
 	sched_pin();
-	__asm __volatile("sfence.vm");
+	__asm __volatile("sfence.vma");
 	sched_unpin();
 }
 
@@ -1992,6 +1994,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		l2 = pmap_l1_to_l2(l1, sva);
 		if (l2 == NULL)
 			continue;
+		if (pmap_load(l2) == 0)
+			continue;
 		if ((pmap_load(l2) & PTE_RX) != 0)
 			continue;
 
@@ -2538,20 +2542,6 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 }
 
 /*
- *	pmap_zero_page_idle zeros the specified hardware page by mapping 
- *	the page into KVM and using bzero to clear its contents.  This
- *	is intended to be called from the vm_pagezero process only and
- *	outside of Giant.
- */
-void
-pmap_zero_page_idle(vm_page_t m)
-{
-	vm_offset_t va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-
-	pagezero((void *)va);
-}
-
-/*
  *	pmap_copy_page copies the specified (machine independent)
  *	page by mapping the page into virtual memory and using
  *	bcopy to copy the page, one machine dependent page at a
@@ -3005,8 +2995,6 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 	return (FALSE);
 }
 
-#define	PMAP_TS_REFERENCED_MAX	5
-
 /*
  *	pmap_ts_referenced:
  *
@@ -3015,9 +3003,13 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
  *	is necessary that 0 only be returned when there are truly no
  *	reference bits set.
  *
- *	XXX: The exact number of bits to check and clear is a matter that
- *	should be tested and standardized at some point in the future for
- *	optimal aging of shared pages.
+ *	As an optimization, update the page's dirty field if a modified bit is
+ *	found while counting reference bits.  This opportunistic update can be
+ *	performed at low cost and can eliminate the need for some future calls
+ *	to pmap_is_modified().  However, since this function stops after
+ *	finding PMAP_TS_REFERENCED_MAX reference bits, it may not detect some
+ *	dirty pages.  Those dirty pages will only be detected by a future call
+ *	to pmap_is_modified().
  */
 int
 pmap_ts_referenced(vm_page_t m)
@@ -3026,7 +3018,7 @@ pmap_ts_referenced(vm_page_t m)
 	pmap_t pmap;
 	struct rwlock *lock;
 	pd_entry_t *l2;
-	pt_entry_t *l3;
+	pt_entry_t *l3, old_l3;
 	vm_paddr_t pa;
 	int cleared, md_gen, not_cleared;
 	struct spglist free;
@@ -3064,15 +3056,18 @@ retry:
 		    ("pmap_ts_referenced: found an invalid l2 table"));
 
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
-		if ((pmap_load(l3) & PTE_A) != 0) {
-			if (safe_to_clear_referenced(pmap, pmap_load(l3))) {
+		old_l3 = pmap_load(l3);
+		if (pmap_page_dirty(old_l3))
+			vm_page_dirty(m);
+		if ((old_l3 & PTE_A) != 0) {
+			if (safe_to_clear_referenced(pmap, old_l3)) {
 				/*
 				 * TODO: We don't handle the access flag
 				 * at all. We need to be able to set it in
 				 * the exception handler.
 				 */
 				panic("RISCVTODO: safe_to_clear_referenced\n");
-			} else if ((pmap_load(l3) & PTE_SW_WIRED) == 0) {
+			} else if ((old_l3 & PTE_SW_WIRED) == 0) {
 				/*
 				 * Wired pages cannot be paged out so
 				 * doing accessed bit emulation for
@@ -3188,12 +3183,15 @@ void
 pmap_activate(struct thread *td)
 {
 	pmap_t pmap;
+	uint64_t reg;
 
 	critical_enter();
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	td->td_pcb->pcb_l1addr = vtophys(pmap->pm_l1);
 
-	__asm __volatile("csrw sptbr, %0" :: "r"(td->td_pcb->pcb_l1addr >> PAGE_SHIFT));
+	reg = SATP_MODE_SV39;
+	reg |= (td->td_pcb->pcb_l1addr >> PAGE_SHIFT);
+	__asm __volatile("csrw sptbr, %0" :: "r"(reg));
 
 	pmap_invalidate_all(pmap);
 	critical_exit();

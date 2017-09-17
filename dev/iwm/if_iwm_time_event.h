@@ -107,7 +107,7 @@
 #ifndef	__IF_IWM_TIME_EVENT_H__
 #define	__IF_IWM_TIME_EVENT_H__
 
-extern	void iwm_mvm_protect_session(struct iwm_softc *sc, struct iwm_node *in,
+extern	void iwm_mvm_protect_session(struct iwm_softc *sc, struct iwm_vap *ivp,
 	    uint32_t duration, uint32_t max_delay);
 
 #endif	/* __IF_IWM_TIME_EVENT_H__ */

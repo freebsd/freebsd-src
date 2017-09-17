@@ -70,7 +70,6 @@ extern "C" {
 /* Default Max number of descriptors supported per action */
 #define AL_UDMA_DEFAULT_MAX_ACTN_DESCS	16
 
-#define AL_UDMA_REV_ID_0	0
 #define AL_UDMA_REV_ID_1	1
 #define AL_UDMA_REV_ID_2	2
 
@@ -130,8 +129,8 @@ union al_udma_desc {
 #define AL_S2M_DESC_LEN2_MASK			(0x3fff << AL_S2M_DESC_LEN2_SHIFT)
 #define AL_S2M_DESC_LEN2_GRANULARITY_SHIFT	6
 
-/* TX/RX descriptor VMID field (in the buffer address 64 bit field) */
-#define AL_UDMA_DESC_VMID_SHIFT		48
+/* TX/RX descriptor Target-ID field (in the buffer address 64 bit field) */
+#define AL_UDMA_DESC_TGTID_SHIFT		48
 
 /** UDMA completion descriptor */
 union al_udma_cdesc {
@@ -168,11 +167,11 @@ struct al_block {
 	uint32_t num; /**< Number of buffers of the block */
 
 	/**<
-	 * VMID to be assigned to the block descriptors
-	 * Requires VMID in descriptor to be enabled for the specific UDMA
+	 * Target-ID to be assigned to the block descriptors
+	 * Requires Target-ID in descriptor to be enabled for the specific UDMA
 	 * queue.
 	 */
-	uint16_t vmid;
+	uint16_t tgtid;
 };
 
 /** UDMA type */

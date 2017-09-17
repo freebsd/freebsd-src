@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -175,12 +175,60 @@ struct if_encap_req {
 
 #define	IFENCAP_FLAG_BROADCAST	0x02	/* Destination is broadcast */
 
+/*
+ * Network interface send tag support. The storage of "struct
+ * m_snd_tag" comes from the network driver and it is free to allocate
+ * as much additional space as it wants for its own use.
+ */
+struct m_snd_tag;
+
+#define	IF_SND_TAG_TYPE_RATE_LIMIT 0
+#define	IF_SND_TAG_TYPE_UNLIMITED 1
+#define	IF_SND_TAG_TYPE_MAX 2
+
+struct if_snd_tag_alloc_header {
+	uint32_t type;		/* send tag type, see IF_SND_TAG_XXX */
+	uint32_t flowid;	/* mbuf hash value */
+	uint32_t flowtype;	/* mbuf hash type */
+};
+
+struct if_snd_tag_alloc_rate_limit {
+	struct if_snd_tag_alloc_header hdr;
+	uint64_t max_rate;	/* in bytes/s */
+};
+
+struct if_snd_tag_rate_limit_params {
+	uint64_t max_rate;	/* in bytes/s */
+	uint32_t queue_level;	/* 0 (empty) .. 65535 (full) */
+#define	IF_SND_QUEUE_LEVEL_MIN 0
+#define	IF_SND_QUEUE_LEVEL_MAX 65535
+	uint32_t reserved;	/* padding */
+};
+
+union if_snd_tag_alloc_params {
+	struct if_snd_tag_alloc_header hdr;
+	struct if_snd_tag_alloc_rate_limit rate_limit;
+	struct if_snd_tag_alloc_rate_limit unlimited;
+};
+
+union if_snd_tag_modify_params {
+	struct if_snd_tag_rate_limit_params rate_limit;
+	struct if_snd_tag_rate_limit_params unlimited;
+};
+
+union if_snd_tag_query_params {
+	struct if_snd_tag_rate_limit_params rate_limit;
+	struct if_snd_tag_rate_limit_params unlimited;
+};
+
+typedef int (if_snd_tag_alloc_t)(struct ifnet *, union if_snd_tag_alloc_params *,
+    struct m_snd_tag **);
+typedef int (if_snd_tag_modify_t)(struct m_snd_tag *, union if_snd_tag_modify_params *);
+typedef int (if_snd_tag_query_t)(struct m_snd_tag *, union if_snd_tag_query_params *);
+typedef void (if_snd_tag_free_t)(struct m_snd_tag *);
 
 /*
  * Structure defining a network interface.
- *
- * Size ILP32:  592 (approx)
- *	 LP64: 1048 (approx)
  */
 struct ifnet {
 	/* General book keeping of interface lists. */
@@ -241,6 +289,7 @@ struct ifnet {
 	struct	ifmultihead if_multiaddrs; /* multicast addresses configured */
 	int	if_amcount;		/* number of all-multicast requests */
 	struct	ifaddr	*if_addr;	/* pointer to link-level address */
+	void	*if_hw_addr;		/* hardware link-level address */
 	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
 	struct	rwlock if_afdata_lock;
 	void	*if_afdata[AF_MAX];
@@ -307,17 +356,22 @@ struct ifnet {
 	u_int	if_hw_tsomaxsegsize;	/* TSO maximum segment size in bytes */
 
 	/*
+	 * Network adapter send tag support:
+	 */
+	if_snd_tag_alloc_t *if_snd_tag_alloc;
+	if_snd_tag_modify_t *if_snd_tag_modify;
+	if_snd_tag_query_t *if_snd_tag_query;
+	if_snd_tag_free_t *if_snd_tag_free;
+
+	/*
 	 * Spare fields to be added before branching a stable branch, so
 	 * that structure can be enhanced without changing the kernel
 	 * binary interface.
 	 */
-	void	*if_pspare[4];		/* packet pacing / general use */
-	int	if_ispare[4];		/* packet pacing / general use */
+	int	if_ispare[4];		/* general use */
 };
 
 /* for compatibility with other BSDs */
-#define	if_addrlist	if_addrhead
-#define	if_list		if_link
 #define	if_name(ifp)	((ifp)->if_xname)
 
 /*
@@ -359,6 +413,11 @@ EVENTHANDLER_DECLARE(ifnet_departure_event, ifnet_departure_event_handler_t);
 /* Interface link state change event */
 typedef void (*ifnet_link_event_handler_t)(void *, struct ifnet *, int);
 EVENTHANDLER_DECLARE(ifnet_link_event, ifnet_link_event_handler_t);
+/* Interface up/down event */
+#define IFNET_EVENT_UP		0
+#define IFNET_EVENT_DOWN	1
+typedef void (*ifnet_event_fn)(void *, struct ifnet *ifp, int event);
+EVENTHANDLER_DECLARE(ifnet_event, ifnet_event_fn);
 #endif /* _SYS_EVENTHANDLER_H_ */
 
 /*
@@ -451,9 +510,6 @@ struct ifaddr {
 	counter_u64_t	ifa_obytes;
 };
 
-/* For compatibility with other BSDs. SCTP uses it. */
-#define	ifa_list	ifa_link
-
 struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
@@ -504,7 +560,7 @@ extern	struct sx ifnet_sxlock;
 /*
  * Look up an ifnet given its index; the _ref variant also acquires a
  * reference that must be freed using if_rele().  It is almost always a bug
- * to call ifnet_byindex() instead if ifnet_byindex_ref().
+ * to call ifnet_byindex() instead of ifnet_byindex_ref().
  */
 struct ifnet	*ifnet_byindex(u_short idx);
 struct ifnet	*ifnet_byindex_locked(u_short idx);
@@ -603,6 +659,7 @@ int if_gethwassist(if_t ifp);
 int if_setsoftc(if_t ifp, void *softc);
 void *if_getsoftc(if_t ifp);
 int if_setflags(if_t ifp, int flags);
+int if_gethwaddr(if_t ifp, struct ifreq *);
 int if_setmtu(if_t ifp, int mtu);
 int if_getmtu(if_t ifp);
 int if_getmtu_family(if_t ifp, int family);
@@ -611,6 +668,12 @@ int if_getflags(if_t ifp);
 int if_sendq_empty(if_t ifp);
 int if_setsendqready(if_t ifp);
 int if_setsendqlen(if_t ifp, int tx_desc_count);
+int if_sethwtsomax(if_t ifp, u_int if_hw_tsomax);
+int if_sethwtsomaxsegcount(if_t ifp, u_int if_hw_tsomaxsegcount);
+int if_sethwtsomaxsegsize(if_t ifp, u_int if_hw_tsomaxsegsize);
+u_int if_gethwtsomax(if_t ifp);
+u_int if_gethwtsomaxsegcount(if_t ifp);
+u_int if_gethwtsomaxsegsize(if_t ifp);
 int if_input(if_t ifp, struct mbuf* sendmp);
 int if_sendq_prepend(if_t ifp, struct mbuf *m);
 struct mbuf *if_dequeue(if_t ifp);

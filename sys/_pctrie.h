@@ -38,14 +38,4 @@ struct pctrie {
 	uintptr_t	pt_root;
 };
 
-#ifdef _KERNEL
-
-static __inline boolean_t
-pctrie_is_empty(struct pctrie *ptree)
-{
-
-	return (ptree->pt_root == 0);
-}
-
-#endif /* _KERNEL */
 #endif /* !__SYS_PCTRIE_H_ */

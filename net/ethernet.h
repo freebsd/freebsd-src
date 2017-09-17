@@ -406,6 +406,12 @@ void	ether_vlan_mtap(struct bpf_if *, struct mbuf *,
 	    void *, u_int);
 struct mbuf  *ether_vlanencap(struct mbuf *, uint16_t);
 
+#ifdef _SYS_EVENTHANDLER_H_
+/* new ethernet interface attached event */
+typedef void (*ether_ifattach_event_handler_t)(void *, struct ifnet *);
+EVENTHANDLER_DECLARE(ether_ifattach_event, ether_ifattach_event_handler_t);
+#endif
+
 #else /* _KERNEL */
 
 #include <sys/cdefs.h>

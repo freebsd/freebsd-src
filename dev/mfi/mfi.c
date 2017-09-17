@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/eventhandler.h>
 #include <sys/rman.h>
-#include <sys/bus_dma.h>
 #include <sys/bio.h>
 #include <sys/ioccom.h>
 #include <sys/uio.h>
@@ -1264,8 +1263,6 @@ mfi_startup(void *arg)
 
 	sc = (struct mfi_softc *)arg;
 
-	config_intrhook_disestablish(&sc->mfi_ich);
-
 	sc->mfi_enable_intr(sc);
 	sx_xlock(&sc->mfi_config_lock);
 	mtx_lock(&sc->mfi_io_lock);
@@ -1274,6 +1271,8 @@ mfi_startup(void *arg)
 	    mfi_syspdprobe(sc);
 	mtx_unlock(&sc->mfi_io_lock);
 	sx_xunlock(&sc->mfi_config_lock);
+
+	config_intrhook_disestablish(&sc->mfi_ich);
 }
 
 static void
@@ -3361,7 +3360,7 @@ out:
 		if (cm->cm_frame->header.cmd == MFI_CMD_STP) {
 			for (i = 0; i < 2; i++) {
 				if (sc->kbuff_arr[i]) {
-					if (sc->mfi_kbuff_arr_busaddr != 0)
+					if (sc->mfi_kbuff_arr_busaddr[i] != 0)
 						bus_dmamap_unload(
 						    sc->mfi_kbuff_arr_dmat[i],
 						    sc->mfi_kbuff_arr_dmamap[i]

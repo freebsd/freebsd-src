@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -981,6 +981,8 @@ callout_when(sbintime_t sbt, sbintime_t precision, int flags,
 		spinlock_exit();
 #endif
 #endif
+		if (cold && to_sbt == 0)
+			to_sbt = sbinuptime();
 		if ((flags & C_HARDCLOCK) == 0)
 			to_sbt += tick_sbt;
 	} else
@@ -1252,9 +1254,12 @@ again:
 	if (cc_exec_curr(cc, direct) == c) {
 		/*
 		 * Succeed we to stop it or not, we must clear the
-		 * active flag - this is what API users expect.
+		 * active flag - this is what API users expect.  If we're
+		 * draining and the callout is currently executing, first wait
+		 * until it finishes.
 		 */
-		c->c_flags &= ~CALLOUT_ACTIVE;
+		if ((flags & CS_DRAIN) == 0)
+			c->c_flags &= ~CALLOUT_ACTIVE;
 
 		if ((flags & CS_DRAIN) != 0) {
 			/*
@@ -1313,6 +1318,7 @@ again:
 				PICKUP_GIANT();
 				CC_LOCK(cc);
 			}
+			c->c_flags &= ~CALLOUT_ACTIVE;
 		} else if (use_lock &&
 			   !cc_exec_cancel(cc, direct) && (drain == NULL)) {
 			
@@ -1469,7 +1475,7 @@ _callout_init_lock(struct callout *c, struct lock_object *lock, int flags)
 void
 adjust_timeout_calltodo(struct timeval *time_change)
 {
-	register struct callout *p;
+	struct callout *p;
 	unsigned long delta_ticks;
 
 	/* 

@@ -14,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -87,7 +87,6 @@ END(cpu_throw)
 ENTRY(cpu_switch)
 	/* Switch to new thread.  First, save context. */
 	movq	TD_PCB(%rdi),%r8
-	orl	$PCB_FULL_IRET,PCB_FLAGS(%r8)
 
 	movq	(%rsp),%rax			/* Hardware registers */
 	movq	%r15,PCB_R15(%r8)
@@ -99,6 +98,30 @@ ENTRY(cpu_switch)
 	movq	%rbx,PCB_RBX(%r8)
 	movq	%rax,PCB_RIP(%r8)
 
+	testl	$PCB_FULL_IRET,PCB_FLAGS(%r8)
+	jnz	2f
+	orl	$PCB_FULL_IRET,PCB_FLAGS(%r8)
+	testl	$TDP_KTHREAD,TD_PFLAGS(%rdi)
+	jnz	2f
+	testb	$CPUID_STDEXT_FSGSBASE,cpu_stdext_feature(%rip)
+	jz	2f
+	movl	%fs,%eax
+	cmpl	$KUF32SEL,%eax
+	jne	1f
+	rdfsbase %rax
+	movq	%rax,PCB_FSBASE(%r8)
+1:	movl	%gs,%eax
+	cmpl	$KUG32SEL,%eax
+	jne	2f
+	movq	%rdx,%r12
+	movl	$MSR_KGSBASE,%ecx		/* Read user gs base */
+	rdmsr
+	shlq	$32,%rdx
+	orq	%rdx,%rax
+	movq	%rax,PCB_GSBASE(%r8)
+	movq	%r12,%rdx
+
+2:
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
 	jnz	store_dr			/* static predict not taken */
 done_store_dr:
@@ -396,7 +419,7 @@ ENTRY(resumectx)
 	movl	4 + PCB_KGSBASE(%rdi),%edx
 	wrmsr
 
-	/* Restore EFER. */
+	/* Restore EFER one more time. */
 	movl	$MSR_EFER,%ecx
 	movl	PCB_EFER(%rdi),%eax
 	wrmsr

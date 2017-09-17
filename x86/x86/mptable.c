@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
+#include <sys/smp.h>
 #ifdef NEW_PCIB
 #include <sys/rman.h>
 #endif
@@ -66,13 +67,8 @@ __FBSDID("$FreeBSD$");
 #define	MAX_LAPIC_ID		31	/* Max local APIC ID for HTT fixup */
 #endif
 
-#ifdef PC98
-#define BIOS_BASE		(0xe8000)
-#define BIOS_SIZE		(0x18000)
-#else
 #define BIOS_BASE		(0xf0000)
 #define BIOS_SIZE		(0x10000)
-#endif
 #define BIOS_COUNT		(BIOS_SIZE/4)
 
 typedef	void mptable_entry_handler(u_char *entry, void *arg);
@@ -164,7 +160,7 @@ struct pci_route_interrupt_args {
 static mpfps_t mpfps;
 static mpcth_t mpct;
 static ext_entry_ptr mpet;
-static void *ioapics[MAX_APIC_ID + 1];
+static void *ioapics[IOAPIC_MAX_ID + 1];
 static bus_datum *busses;
 static int mptable_nioapics, mptable_nbusses, mptable_maxbusid;
 static int pci0 = -1;
@@ -196,6 +192,7 @@ static void	mptable_pci_setup(void);
 static int	mptable_probe(void);
 static int	mptable_probe_cpus(void);
 static void	mptable_probe_cpus_handler(u_char *entry, void *arg __unused);
+static void	mptable_setup_cpus_handler(u_char *entry, void *arg __unused);
 static void	mptable_register(void *dummy);
 static int	mptable_setup_local(void);
 static int	mptable_setup_io(void);
@@ -334,14 +331,13 @@ mptable_probe_cpus(void)
 
 	/* Is this a pre-defined config? */
 	if (mpfps->config_type != 0) {
-		lapic_create(0, 1);
-		lapic_create(1, 0);
-	} else {
-		cpu_mask = 0;
-		mptable_walk_table(mptable_probe_cpus_handler, &cpu_mask);
-#ifdef MPTABLE_FORCE_HTT
-		mptable_hyperthread_fixup(cpu_mask);
+#ifdef SMP
+		mp_ncpus = 2;
+		mp_maxid = 1;
 #endif
+		max_apic_id = 1;
+	} else {
+		mptable_walk_table(mptable_probe_cpus_handler, &cpu_mask);
 	}
 	return (0);
 }
@@ -353,13 +349,22 @@ static int
 mptable_setup_local(void)
 {
 	vm_paddr_t addr;
+	u_int cpu_mask;
 
 	/* Is this a pre-defined config? */
 	printf("MPTable: <");
 	if (mpfps->config_type != 0) {
+		lapic_create(0, 1);
+		lapic_create(1, 0);
 		addr = DEFAULT_APIC_BASE;
 		printf("Default Configuration %d", mpfps->config_type);
+
 	} else {
+		cpu_mask = 0;
+		mptable_walk_table(mptable_setup_cpus_handler, &cpu_mask);
+#ifdef MPTABLE_FORCE_HTT
+		mptable_hyperthread_fixup(cpu_mask);
+#endif
 		addr = mpct->apic_address;
 		printf("%.*s %.*s", (int)sizeof(mpct->oem_id), mpct->oem_id,
 		    (int)sizeof(mpct->product_id), mpct->product_id);
@@ -385,14 +390,14 @@ mptable_setup_io(void)
 	for (i = 0; i <= mptable_maxbusid; i++)
 		busses[i].bus_type = NOBUS;
 
-	/* Second, we run through adding I/O APIC's and busses. */
+	/* Second, we run through adding I/O APIC's and buses. */
 	mptable_parse_apics_and_busses();	
 
 	/* Third, we run through the table tweaking interrupt sources. */
 	mptable_parse_ints();
 
 	/* Fourth, we register all the I/O APIC's. */
-	for (i = 0; i <= MAX_APIC_ID; i++)
+	for (i = 0; i <= IOAPIC_MAX_ID; i++)
 		if (ioapics[i] != NULL)
 			ioapic_register(ioapics[i]);
 
@@ -469,6 +474,27 @@ mptable_walk_extended_table(mptable_extended_entry_handler *handler, void *arg)
 
 static void
 mptable_probe_cpus_handler(u_char *entry, void *arg)
+{
+	proc_entry_ptr proc;
+
+	switch (*entry) {
+	case MPCT_ENTRY_PROCESSOR:
+		proc = (proc_entry_ptr)entry;
+		if (proc->cpu_flags & PROCENTRY_FLAG_EN &&
+		    proc->apic_id < MAX_LAPIC_ID && mp_ncpus < MAXCPU) {
+#ifdef SMP
+			mp_ncpus++;
+			mp_maxid = mp_ncpus - 1;
+#endif
+			max_apic_id = max(max_apic_id, proc->apic_id);
+		}
+		break;
+	}
+}
+
+
+static void
+mptable_setup_cpus_handler(u_char *entry, void *arg)
 {
 	proc_entry_ptr proc;
 	u_int *cpu_mask;
@@ -569,7 +595,7 @@ mptable_parse_apics_and_busses_handler(u_char *entry, void *arg __unused)
 		apic = (io_apic_entry_ptr)entry;
 		if (!(apic->apic_flags & IOAPICENTRY_FLAG_EN))
 			break;
-		if (apic->apic_id > MAX_APIC_ID)
+		if (apic->apic_id > IOAPIC_MAX_ID)
 			panic("%s: I/O APIC ID %d too high", __func__,
 			    apic->apic_id);
 		if (ioapics[apic->apic_id] != NULL)
@@ -584,7 +610,7 @@ mptable_parse_apics_and_busses_handler(u_char *entry, void *arg __unused)
 }
 
 /*
- * Enumerate I/O APIC's and busses.
+ * Enumerate I/O APIC's and buses.
  */
 static void
 mptable_parse_apics_and_busses(void)
@@ -635,20 +661,18 @@ conforming_trigger(u_char src_bus, u_char src_bus_irq)
 	KASSERT(src_bus <= mptable_maxbusid, ("bus id %d too large", src_bus));
 	switch (busses[src_bus].bus_type) {
 	case ISA:
-#ifndef PC98
 		if (elcr_found)
 			return (elcr_read_trigger(src_bus_irq));
 		else
-#endif
 			return (INTR_TRIGGER_EDGE);
 	case PCI:
 		return (INTR_TRIGGER_LEVEL);
-#ifndef PC98
+
 	case EISA:
 		KASSERT(src_bus_irq < 16, ("Invalid EISA IRQ %d", src_bus_irq));
 		KASSERT(elcr_found, ("Missing ELCR"));
 		return (elcr_read_trigger(src_bus_irq));
-#endif
+
 	default:
 		panic("%s: unknown bus type %d", __func__,
 		    busses[src_bus].bus_type);
@@ -718,7 +742,7 @@ mptable_parse_io_int(int_entry_ptr intr)
 			return;
 		}
 	}
-	if (apic_id > MAX_APIC_ID) {
+	if (apic_id > IOAPIC_MAX_ID) {
 		printf("MPTable: Ignoring interrupt entry for ioapic%d\n",
 		    intr->dst_apic_id);
 		return;
@@ -988,7 +1012,7 @@ mptable_pci_setup(void)
 
 	/*
 	 * Find the first pci bus and call it 0.  Panic if pci0 is not
-	 * bus zero and there are multiple PCI busses.
+	 * bus zero and there are multiple PCI buses.
 	 */
 	for (i = 0; i <= mptable_maxbusid; i++)
 		if (busses[i].bus_type == PCI) {
@@ -996,7 +1020,7 @@ mptable_pci_setup(void)
 				pci0 = i;
 			else if (pci0 != 0)
 				panic(
-		"MPTable contains multiple PCI busses but no PCI bus 0");
+		"MPTable contains multiple PCI buses but no PCI bus 0");
 		}
 }
 

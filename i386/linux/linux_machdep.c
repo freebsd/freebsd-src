@@ -611,7 +611,6 @@ linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
 int
 linux_ftruncate64(struct thread *td, struct linux_ftruncate64_args *args)
 {
-	struct ftruncate_args sa;
 
 #ifdef DEBUG
 	if (ldebug(ftruncate64))
@@ -619,9 +618,7 @@ linux_ftruncate64(struct thread *td, struct linux_ftruncate64_args *args)
 		    (intmax_t)args->length);
 #endif
 
-	sa.fd = args->fd;
-	sa.length = args->length;
-	return sys_ftruncate(td, &sa);
+	return (kern_ftruncate(td, args->fd, args->length));
 }
 
 int

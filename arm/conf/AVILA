@@ -36,6 +36,7 @@ options 	DEVICE_POLLING
 
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	GEOM_PART_BSD		# BSD partition scheme
 options 	GEOM_PART_MBR		# MBR partition scheme
 options 	TMPFS			# Efficient memory filesystem

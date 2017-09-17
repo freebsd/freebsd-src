@@ -196,12 +196,20 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 	td->td_ucred = cr;
 
 	if (error != 0) {
+		/*
+		 * Clear VI_MOUNT and decrement the use count "atomically",
+		 * under the vnode lock.  This is not strictly required,
+		 * but makes it easier to reason about the life-cycle and
+		 * ownership of the covered vnode.
+		 */
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
 		VI_UNLOCK(vp);
-		vrele(vp);
+		vput(vp);
 		vfs_unbusy(mp);
 		vfs_freeopts(mp->mnt_optnew);
+		mp->mnt_vnodecovered = NULL;
 		vfs_mount_destroy(mp);
 		return (error);
 	}

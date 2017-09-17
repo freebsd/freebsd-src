@@ -64,7 +64,7 @@ struct bcachectl
 struct bcache {
     struct bcachectl	*bcache_ctl;
     caddr_t		bcache_data;
-    u_int		bcache_nblks;
+    size_t		bcache_nblks;
     size_t		ra;
 };
 
@@ -86,6 +86,7 @@ static u_int bcache_rablks;
 	((bc)->bcache_ctl[BHASH((bc), (blkno))].bc_blkno != (blkno))
 #define	BCACHE_READAHEAD	256
 #define	BCACHE_MINREADAHEAD	32
+#define	BCACHE_MARKER		0xdeadbeef
 
 static void	bcache_invalidate(struct bcache *bc, daddr_t blkno);
 static void	bcache_insert(struct bcache *bc, daddr_t blkno);
@@ -95,7 +96,7 @@ static void	bcache_free_instance(struct bcache *bc);
  * Initialise the cache for (nblks) of (bsize).
  */
 void
-bcache_init(u_int nblks, size_t bsize)
+bcache_init(size_t nblks, size_t bsize)
 {
     /* set up control data */
     bcache_total_nblks = nblks;
@@ -122,6 +123,7 @@ bcache_allocate(void)
     u_int i;
     struct bcache *bc = malloc(sizeof (struct bcache));
     int disks = bcache_numdev;
+    uint32_t *marker;
 
     if (disks == 0)
 	disks = 1;	/* safe guard */
@@ -140,11 +142,13 @@ bcache_allocate(void)
 
     bc->bcache_nblks = bcache_total_nblks >> i;
     bcache_unit_nblks = bc->bcache_nblks;
-    bc->bcache_data = malloc(bc->bcache_nblks * bcache_blksize);
+    bc->bcache_data = malloc(bc->bcache_nblks * bcache_blksize +
+	sizeof(uint32_t));
     if (bc->bcache_data == NULL) {
 	/* dont error out yet. fall back to 32 blocks and try again */
 	bc->bcache_nblks = 32;
-	bc->bcache_data = malloc(bc->bcache_nblks * bcache_blksize);
+	bc->bcache_data = malloc(bc->bcache_nblks * bcache_blksize +
+	sizeof(uint32_t));
     }
 
     bc->bcache_ctl = malloc(bc->bcache_nblks * sizeof(struct bcachectl));
@@ -152,8 +156,11 @@ bcache_allocate(void)
     if ((bc->bcache_data == NULL) || (bc->bcache_ctl == NULL)) {
 	bcache_free_instance(bc);
 	errno = ENOMEM;
-	return(NULL);
+	return (NULL);
     }
+    /* Insert cache end marker. */
+    marker = (uint32_t *)(bc->bcache_data + bc->bcache_nblks * bcache_blksize);
+    *marker = BCACHE_MARKER;
 
     /* Flush the cache */
     for (i = 0; i < bc->bcache_nblks; i++) {
@@ -182,8 +189,8 @@ bcache_free(void *cache)
  * cache with the new values.
  */
 static int
-write_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
-    size_t size, char *buf, size_t *rsize)
+write_strategy(void *devdata, int rw, daddr_t blk, size_t size,
+    char *buf, size_t *rsize)
 {
     struct bcache_devdata	*dd = (struct bcache_devdata *)devdata;
     struct bcache		*bc = dd->dv_cache;
@@ -197,7 +204,7 @@ write_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
     }
 
     /* Write the blocks */
-    return (dd->dv_strategy(dd->dv_devdata, rw, blk, offset, size, buf, rsize));
+    return (dd->dv_strategy(dd->dv_devdata, rw, blk, size, buf, rsize));
 }
 
 /*
@@ -206,8 +213,8 @@ write_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
  * device I/O and then use the I/O results to populate the cache. 
  */
 static int
-read_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
-    size_t size, char *buf, size_t *rsize)
+read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
+    char *buf, size_t *rsize)
 {
     struct bcache_devdata	*dd = (struct bcache_devdata *)devdata;
     struct bcache		*bc = dd->dv_cache;
@@ -215,17 +222,20 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
     int				result;
     daddr_t			p_blk;
     caddr_t			p_buf;
+    uint32_t			*marker;
 
     if (bc == NULL) {
 	errno = ENODEV;
 	return (-1);
     }
 
+    marker = (uint32_t *)(bc->bcache_data + bc->bcache_nblks * bcache_blksize);
+
     if (rsize != NULL)
 	*rsize = 0;
 
     nblk = size / bcache_blksize;
-    if ((nblk == 0 && size != 0) || offset != 0)
+    if (nblk == 0 && size != 0)
 	nblk++;
     result = 0;
     complete = 1;
@@ -246,8 +256,7 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
    if (complete) {	/* whole set was in cache, return it */
 	if (bc->ra < BCACHE_READAHEAD)
 		bc->ra <<= 1;	/* increase read ahead */
-	bcopy(bc->bcache_data + (bcache_blksize * BHASH(bc, blk)) + offset,
-	    buf, size);
+	bcopy(bc->bcache_data + (bcache_blksize * BHASH(bc, blk)), buf, size);
 	goto done;
    }
 
@@ -262,9 +271,38 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
 
     p_size = MIN(r_size, nblk - i);	/* read at least those blocks */
 
-    ra = bc->bcache_nblks - BHASH(bc, p_blk + p_size);
-    if (ra != bc->bcache_nblks) { /* do we have RA space? */
-	ra = MIN(bc->ra, ra);
+    /*
+     * The read ahead size setup.
+     * While the read ahead can save us IO, it also can complicate things:
+     * 1. We do not want to read ahead by wrapping around the
+     * bcache end - this would complicate the cache management.
+     * 2. We are using bc->ra as dynamic hint for read ahead size,
+     * detected cache hits will increase the read-ahead block count, and
+     * misses will decrease, see the code above.
+     * 3. The bcache is sized by 512B blocks, however, the underlying device
+     * may have a larger sector size, and we should perform the IO by
+     * taking into account these larger sector sizes. We could solve this by
+     * passing the sector size to bcache_allocate(), or by using ioctl(), but
+     * in this version we are using the constant, 16 blocks, and are rounding
+     * read ahead block count down to multiple of 16.
+     * Using the constant has two reasons, we are not entirely sure if the
+     * BIOS disk interface is providing the correct value for sector size.
+     * And secondly, this way we get the most conservative setup for the ra.
+     *
+     * The selection of multiple of 16 blocks (8KB) is quite arbitrary, however,
+     * we want to cover CDs (2K) and 4K disks.
+     * bcache_allocate() will always fall back to a minimum of 32 blocks.
+     * Our choice of 16 read ahead blocks will always fit inside the bcache.
+     */
+
+    if ((rw & F_NORA) == F_NORA)
+	ra = 0;
+    else
+	ra = bc->bcache_nblks - BHASH(bc, p_blk + p_size);
+
+    if (ra != 0 && ra != bc->bcache_nblks) { /* do we have RA space? */
+	ra = MIN(bc->ra, ra - 1);
+	ra = rounddown(ra, 16);		/* multiple of 16 blocks */
 	p_size += ra;
     }
 
@@ -282,7 +320,8 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
      * in either case we should return the data in bcache and only
      * return error if there is no data.
      */
-    result = dd->dv_strategy(dd->dv_devdata, rw, p_blk, 0,
+    rw &= F_MASK;
+    result = dd->dv_strategy(dd->dv_devdata, rw, p_blk,
 	p_size * bcache_blksize, p_buf, &r_size);
 
     r_size /= bcache_blksize;
@@ -307,9 +346,14 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
 	size = i * bcache_blksize;
 
     if (size != 0) {
-	bcopy(bc->bcache_data + (bcache_blksize * BHASH(bc, blk)) + offset,
-	    buf, size);
+	bcopy(bc->bcache_data + (bcache_blksize * BHASH(bc, blk)), buf, size);
 	result = 0;
+    }
+
+    if (*marker != BCACHE_MARKER) {
+	printf("BUG: bcache corruption detected: nblks: %zu p_blk: %lu, "
+	    "p_size: %zu, ra: %zu\n", bc->bcache_nblks,
+	    (long unsigned)BHASH(bc, p_blk), p_size, ra);
     }
 
  done:
@@ -323,8 +367,8 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
  * directly to the disk.  XXX tune this.
  */
 int
-bcache_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
-    size_t size, char *buf, size_t *rsize)
+bcache_strategy(void *devdata, int rw, daddr_t blk, size_t size,
+    char *buf, size_t *rsize)
 {
     struct bcache_devdata	*dd = (struct bcache_devdata *)devdata;
     struct bcache		*bc = dd->dv_cache;
@@ -339,23 +383,17 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
 
     /* bypass large requests, or when the cache is inactive */
     if (bc == NULL ||
-	(offset == 0 && ((size * 2 / bcache_blksize) > bcache_nblks))) {
-	DEBUG("bypass %d from %d", size / bcache_blksize, blk);
+	((size * 2 / bcache_blksize) > bcache_nblks)) {
+	DEBUG("bypass %zu from %qu", size / bcache_blksize, blk);
 	bcache_bypasses++;
-	return (dd->dv_strategy(dd->dv_devdata, rw, blk, offset, size, buf,
-	    rsize));
+	rw &= F_MASK;
+	return (dd->dv_strategy(dd->dv_devdata, rw, blk, size, buf, rsize));
     }
 
-    /* normalize offset */
-    while (offset >= bcache_blksize) {
-	blk++;
-	offset -= bcache_blksize;
-    }
-
-    switch (rw) {
+    switch (rw & F_MASK) {
     case F_READ:
 	nblk = size / bcache_blksize;
-	if (offset || (size != 0 && nblk == 0))
+	if (size != 0 && nblk == 0)
 	    nblk++;	/* read at least one block */
 
 	ret = 0;
@@ -366,14 +404,10 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
 
 	    if (size <= bcache_blksize)
 		csize = size;
-	    else {
+	    else
 		csize = cblk * bcache_blksize;
-		if (offset)
-		    csize -= (bcache_blksize - offset);
-	    }
 
-	    ret = read_strategy(devdata, rw, blk, offset,
-		csize, buf+total, &isize);
+	    ret = read_strategy(devdata, rw, blk, csize, buf+total, &isize);
 
 	    /*
 	     * we may have error from read ahead, if we have read some data
@@ -384,8 +418,7 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
 		    ret = 0;
 		break;
 	    }
-	    blk += (offset+isize) / bcache_blksize;
-	    offset = 0;
+	    blk += isize / bcache_blksize;
 	    total += isize;
 	    size -= isize;
 	    nblk = size / bcache_blksize;
@@ -396,7 +429,7 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
 
 	return (ret);
     case F_WRITE:
-	return write_strategy(devdata, rw, blk, offset, size, buf, rsize);
+	return write_strategy(devdata, F_WRITE, blk, size, buf, rsize);
     }
     return -1;
 }

@@ -2212,18 +2212,15 @@ fxp_stop(struct fxp_softc *sc)
 	 * Release any xmit buffers.
 	 */
 	txp = sc->fxp_desc.tx_list;
-	if (txp != NULL) {
-		for (i = 0; i < FXP_NTXCB; i++) {
-			if (txp[i].tx_mbuf != NULL) {
-				bus_dmamap_sync(sc->fxp_txmtag, txp[i].tx_map,
-				    BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(sc->fxp_txmtag,
-				    txp[i].tx_map);
-				m_freem(txp[i].tx_mbuf);
-				txp[i].tx_mbuf = NULL;
-				/* clear this to reset csum offload bits */
-				txp[i].tx_cb->tbd[0].tb_addr = 0;
-			}
+	for (i = 0; i < FXP_NTXCB; i++) {
+		if (txp[i].tx_mbuf != NULL) {
+			bus_dmamap_sync(sc->fxp_txmtag, txp[i].tx_map,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->fxp_txmtag, txp[i].tx_map);
+			m_freem(txp[i].tx_mbuf);
+			txp[i].tx_mbuf = NULL;
+			/* clear this to reset csum offload bits */
+			txp[i].tx_cb->tbd[0].tb_addr = 0;
 		}
 	}
 	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map,

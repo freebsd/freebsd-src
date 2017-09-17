@@ -920,7 +920,7 @@ ipf_fastroute(m0, mpp, fin, fdp)
 			mhip->ip_off |= IP_MF;
 		mhip->ip_len = htons((u_short)(len + mhlen));
 		*mnext = m;
-		m->m_next = m_copy(m0, off, len);
+		m->m_next = m_copym(m0, off, len, M_NOWAIT);
 		if (m->m_next == 0) {
 			error = ENOBUFS;	/* ??? */
 			goto sendorfree;

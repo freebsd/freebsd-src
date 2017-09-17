@@ -38,8 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
 #include <sys/gpio.h>
@@ -295,7 +293,7 @@ const static struct ti_pinmux_padconf ti_padconf_devmap[] = {
 	{  .ballname = NULL  },
 };
 
-const struct ti_pinmux_device ti_pinmux_dev = {
+const struct ti_pinmux_device ti_am335x_pinmux_dev = {
 	.padconf_muxmode_mask	= 0x7,
 	.padconf_sate_mask	= 0x78,
 	.padstate		= ti_padstate_devmap,

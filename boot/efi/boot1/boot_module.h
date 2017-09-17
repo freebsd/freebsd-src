@@ -37,7 +37,7 @@
 
 #ifdef EFI_DEBUG
 #define DPRINTF(fmt, args...) printf(fmt, ##args)
-#define DSTALL(d) bs->Stall(d)
+#define DSTALL(d) BS->Stall(d)
 #else
 #define DPRINTF(fmt, ...) {}
 #define DSTALL(d) {}
@@ -64,7 +64,7 @@ typedef struct boot_module_t
 	const char *name;
 
 	/* init is the optional initialiser for the module. */
-	void (*init)();
+	void (*init)(void);
 
 	/*
 	 * probe checks to see if the module can handle dev.
@@ -89,10 +89,10 @@ typedef struct boot_module_t
 	    void **buf, size_t *bufsize);
 
 	/* status outputs information about the probed devices. */
-	void (*status)();
+	void (*status)(void);
 
 	/* valid devices as found by probe. */
-	dev_info_t *(*devices)();
+	dev_info_t *(*devices)(void);
 } boot_module_t;
 
 /* Standard boot modules. */
@@ -105,13 +105,5 @@ extern const boot_module_t zfs_module;
 
 /* Functions available to modules. */
 extern void add_device(dev_info_t **devinfop, dev_info_t *devinfo);
-extern void panic(const char *fmt, ...) __dead2;
-extern int printf(const char *fmt, ...);
 extern int vsnprintf(char *str, size_t sz, const char *fmt, va_list ap);
-
-extern EFI_SYSTEM_TABLE *systab;
-extern EFI_BOOT_SERVICES *bs;
-
-extern int devpath_strlcat(char *buf, size_t size, EFI_DEVICE_PATH *devpath);
-extern char *devpath_str(EFI_DEVICE_PATH *devpath);
 #endif

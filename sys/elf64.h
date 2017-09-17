@@ -257,4 +257,11 @@ typedef struct {
 	Elf64_Half	si_flags;	/* per symbol flags */
 } Elf64_Syminfo;
 
+typedef struct {
+	Elf64_Word	ch_type;
+	Elf64_Word	ch_reserved;
+	Elf64_Xword	ch_size;
+	Elf64_Xword	ch_addralign;
+} Elf64_Chdr;
+
 #endif /* !_SYS_ELF64_H_ */

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/syscons/plasma
+.PATH:	${SRCTOP}/sys/dev/syscons/plasma
 
 KMOD=	plasma_saver
 SRCS=	fp16.c plasma_saver.c

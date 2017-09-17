@@ -36,6 +36,7 @@
 #include <sys/types.h>
 
 #include <linux/compiler.h>
+#include <linux/types.h>
 
 static inline uint32_t
 __raw_readl(const volatile void *addr)
@@ -179,7 +180,7 @@ _outb(u_char data, u_int port)
 }
 #endif
 
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
 void *_ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr);
 #else
 #define	_ioremap_attr(...) NULL

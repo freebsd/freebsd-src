@@ -1054,7 +1054,7 @@ nat64_getlasthdr(struct mbuf *m, int *offset)
 		if (proto == IPPROTO_HOPOPTS && ip6->ip6_plen == 0)
 			return (-1);
 		proto = hbh->ip6h_nxt;
-		hlen += hbh->ip6h_len << 3;
+		hlen += (hbh->ip6h_len + 1) << 3;
 	}
 	if (offset != NULL)
 		*offset = hlen;
@@ -1256,9 +1256,9 @@ nat64_handle_icmp6(struct mbuf *m, int hlen, uint32_t aaddr, uint16_t aport,
 		 */
 		mtu -= sizeof(struct ip6_hdr) - sizeof(struct ip);
 		break;
-	case ICMP6_TIME_EXCEED_TRANSIT:
+	case ICMP6_TIME_EXCEEDED:
 		type = ICMP_TIMXCEED;
-		code = ICMP_TIMXCEED_INTRANS;
+		code = icmp6->icmp6_code;
 		break;
 	case ICMP6_PARAM_PROB:
 		switch (icmp6->icmp6_code) {

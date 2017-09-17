@@ -31,6 +31,7 @@
 #define	_PCIVAR_H_
 
 #include <sys/queue.h>
+#include <sys/eventhandler.h>
 
 /* some PCI bus constants */
 #define	PCI_MAXMAPS_0	6	/* max. no. of memory/port maps */
@@ -594,7 +595,9 @@ uint32_t pcie_read_config(device_t dev, int reg, int width);
 void	pcie_write_config(device_t dev, int reg, uint32_t value, int width);
 uint32_t pcie_adjust_config(device_t dev, int reg, uint32_t mask,
 	    uint32_t value, int width);
-
+bool	pcie_flr(device_t dev, u_int max_delay, bool force);
+int	pcie_get_max_completion_timeout(device_t dev);
+bool	pcie_wait_for_pending_transactions(device_t dev, u_int max_delay);
 
 #ifdef BUS_SPACE_MAXADDR
 #if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
@@ -630,5 +633,13 @@ int	vga_pci_is_boot_display(device_t dev);
 void *	vga_pci_map_bios(device_t dev, size_t *size);
 void	vga_pci_unmap_bios(device_t dev, void *bios);
 int	vga_pci_repost(device_t dev);
+
+/**
+ * Global eventhandlers invoked when PCI devices are added or removed
+ * from the system.
+ */
+typedef void (*pci_event_fn)(void *arg, device_t dev);
+EVENTHANDLER_DECLARE(pci_add_device, pci_event_fn);
+EVENTHANDLER_DECLARE(pci_delete_device, pci_event_fn);
 
 #endif /* _PCIVAR_H_ */

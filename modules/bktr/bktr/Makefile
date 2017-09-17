@@ -2,7 +2,7 @@
 
 # Makefile for the bktr Brooktree Bt848/Bt878 PCI video capture device
 
-.PATH: ${.CURDIR}/../../../dev/bktr
+.PATH: ${SRCTOP}/sys/dev/bktr
 
 KMOD=	bktr 
 SRCS=	bktr_core.c bktr_os.c bktr_audio.c bktr_tuner.c bktr_card.c msp34xx.c \

@@ -91,7 +91,11 @@
 # define  P2P 0		/* not in FreeBSD */
 # define NSPPP 1	/* No count devices in FreeBSD 5 */
 # include "opt_bpf.h"	/* DEV_BPF */
-# define NBPFILTER DEV_BPF
+# ifdef DEV_BPF
+#  define NBPFILTER 1
+# else
+#  define NBPFILTER 0
+# endif
 # define  GEN_HDLC 0	/* not in FreeBSD */
 #
 # include <sys/systm.h>

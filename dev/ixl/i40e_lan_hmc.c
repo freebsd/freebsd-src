@@ -1240,11 +1240,6 @@ enum i40e_status_code i40e_hmc_get_object_va(struct i40e_hw *hw,
 	u64 obj_offset_in_fpm;
 	u32 sd_idx, sd_lmt;
 
-	if (NULL == hmc_info) {
-		ret_code = I40E_ERR_BAD_PTR;
-		DEBUGOUT("i40e_hmc_get_object_va: bad hmc_info ptr\n");
-		goto exit;
-	}
 	if (NULL == hmc_info->hmc_obj) {
 		ret_code = I40E_ERR_BAD_PTR;
 		DEBUGOUT("i40e_hmc_get_object_va: bad hmc_info->hmc_obj ptr\n");

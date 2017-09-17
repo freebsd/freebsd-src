@@ -149,6 +149,7 @@ struct pic msi_pic = {
 	.pic_reprogram_pin = NULL,
 };
 
+#ifdef SMP
 /**
  * Xen hypervisors prior to 4.6.0 do not properly handle updates to
  * enabled MSI-X table entries.  Allow migration of MSI-X interrupts
@@ -162,6 +163,7 @@ int msix_disable_migration = -1;
 SYSCTL_INT(_machdep, OID_AUTO, disable_msix_migration, CTLFLAG_RDTUN,
     &msix_disable_migration, 0,
     "Disable migration of MSI-X interrupts between CPUs");
+#endif
 
 static int msi_enabled;
 static int msi_last_irq;
@@ -241,8 +243,10 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	if (msi->msi_first != msi)
 		return (EINVAL);
 
+#ifdef SMP
 	if (msix_disable_migration && msi->msi_msix)
 		return (EINVAL);
+#endif
 
 	/* Store information to free existing irq. */
 	old_vector = msi->msi_vector;
@@ -316,10 +320,12 @@ msi_init(void)
 		return;
 	}
 
+#ifdef SMP
 	if (msix_disable_migration == -1) {
 		/* The default is to allow migration of MSI-X interrupts. */
 		msix_disable_migration = 0;
 	}
+#endif
 
 	msi_enabled = 1;
 	intr_register_pic(&msi_pic);

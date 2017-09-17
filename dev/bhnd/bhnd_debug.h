@@ -70,8 +70,6 @@
 
 #include <sys/systm.h>
 
-#include "opt_global.h"
-
 #define	BHND_ERROR_LEVEL	0x00
 #define	BHND_ERROR_MSG		"ERROR"
 #define	BHND_WARN_LEVEL		0x10

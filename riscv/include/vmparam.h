@@ -105,10 +105,10 @@
 #define	VM_NFREEORDER		12
 
 /*
- * Enable superpage reservations: 1 level.
+ * Disable superpage reservations.
  */
 #ifndef	VM_NRESERVLEVEL
-#define	VM_NRESERVLEVEL		1
+#define	VM_NRESERVLEVEL		0
 #endif
 
 /*

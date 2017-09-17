@@ -1453,7 +1453,7 @@ pcn_watchdog(struct pcn_softc *sc)
 static void
 pcn_stop(struct pcn_softc *sc)
 {
-	register int		i;
+	int			i;
 	struct ifnet		*ifp;
 
 	PCN_LOCK_ASSERT(sc);

@@ -608,9 +608,9 @@ ndasysctlinit(void *context, int pending)
 
 	sysctl_ctx_init(&softc->sysctl_ctx);
 	softc->flags |= NDA_FLAG_SCTX_INIT;
-	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
+	softc->sysctl_tree = SYSCTL_ADD_NODE_WITH_LABEL(&softc->sysctl_ctx,
 		SYSCTL_STATIC_CHILDREN(_kern_cam_nda), OID_AUTO, tmpstr2,
-		CTLFLAG_RD, 0, tmpstr);
+		CTLFLAG_RD, 0, tmpstr, "device_index");
 	if (softc->sysctl_tree == NULL) {
 		printf("ndasysctlinit: unable to allocate sysctl tree\n");
 		cam_periph_release(periph);
@@ -684,21 +684,14 @@ ndaregister(struct cam_periph *periph, void *arg)
 	struct nda_softc *softc;
 	struct disk *disk;
 	struct ccb_pathinq cpi;
-	struct ccb_getdev *cgd;
 	const struct nvme_namespace_data *nsd;
 	const struct nvme_controller_data *cd;
 	char   announce_buf[80];
-//	caddr_t match;
 	u_int maxio;
 	int quirks;
 
-	cgd = (struct ccb_getdev *)arg;
-	if (cgd == NULL) {
-		printf("ndaregister: no getdev CCB, can't register device\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-	nsd = cgd->nvme_data;
-	cd = cgd->nvme_cdata;
+	nsd = nvme_get_identify_ns(periph);
+	cd = nvme_get_identify_cntrl(periph);
 
 	softc = (struct nda_softc *)malloc(sizeof(*softc), M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
@@ -719,19 +712,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 
 	periph->softc = softc;
 
-#if 0
-	/*
-	 * See if this device has any quirks.
-	 */
-	match = cam_quirkmatch((caddr_t)&cgd->ident_data,
-			       (caddr_t)nda_quirk_table,
-			       sizeof(nda_quirk_table)/sizeof(*nda_quirk_table),
-			       sizeof(*nda_quirk_table), ata_identify_match);
-	if (match != NULL)
-		softc->quirks = ((struct nda_quirk_entry *)match)->quirks;
-	else
-#endif
-		softc->quirks = NDA_Q_NONE;
+	softc->quirks = NDA_Q_NONE;
 
 	bzero(&cpi, sizeof(cpi));
 	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NONE);
@@ -743,7 +724,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	/*
 	 * The name space ID is the lun, save it for later I/O
 	 */
-	softc->nsid = (uint16_t)xpt_path_lun_id(periph->path);
+	softc->nsid = (uint32_t)xpt_path_lun_id(periph->path);
 
 	/*
 	 * Register this media as a disk
@@ -761,7 +742,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	    MIN(sizeof(softc->disk->d_descr), sizeof(cd->mn)));
 	strlcpy(softc->disk->d_ident, cd->sn,
 	    MIN(sizeof(softc->disk->d_ident), sizeof(cd->sn)));
-	disk->d_rotation_rate = 0;	/* Spinning rust need not apply */
+	disk->d_rotation_rate = DISK_RR_NON_ROTATING;
 	disk->d_open = ndaopen;
 	disk->d_close = ndaclose;
 	disk->d_strategy = ndastrategy;
@@ -808,6 +789,10 @@ ndaregister(struct cam_periph *periph, void *arg)
 	    DEVSTAT_ALL_SUPPORTED,
 	    DEVSTAT_TYPE_DIRECT | XPORT_DEVSTAT_TYPE(cpi.transport),
 	    DEVSTAT_PRIORITY_DISK);
+	/*
+	 * Add alias for older nvd drives to ease transition.
+	 */
+	disk_add_alias(disk, "nvd");
 
 	/*
 	 * Acquire a reference to the periph before we register with GEOM.
@@ -935,7 +920,12 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 			nda_nvme_trim(softc, &start_ccb->nvmeio, dsm_range, 1);
 			start_ccb->ccb_h.ccb_state = NDA_CCB_TRIM;
 			start_ccb->ccb_h.flags |= CAM_UNLOCKED;
-			cam_iosched_submit_trim(softc->cam_iosched);	/* XXX */
+			/*
+			 * Note: We can have multiple TRIMs in flight, so we don't call
+			 * cam_iosched_submit_trim(softc->cam_iosched);
+			 * since that forces the I/O scheduler to only schedule one at a time.
+			 * On NVMe drives, this is a performance disaster.
+			 */
 			goto out;
 		}
 		case BIO_FLUSH:
@@ -1006,17 +996,18 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 			bp->bio_resid = bp->bio_bcount;
 			bp->bio_flags |= BIO_ERROR;
 		} else {
-			if (state == NDA_CCB_TRIM)
-				bp->bio_resid = 0;
-			else
-				bp->bio_resid = nvmeio->resid;
-			if (bp->bio_resid > 0)
-				bp->bio_flags |= BIO_ERROR;
+			bp->bio_resid = 0;
 		}
 		if (state == NDA_CCB_TRIM)
 			free(bp->bio_driver2, M_NVMEDA);
 		softc->outstanding_cmds--;
 
+		/*
+		 * We need to call cam_iosched before we call biodone so that we
+		 * don't measure any activity that happens in the completion
+		 * routine, which in the case of sendfile can be quite
+		 * extensive.
+		 */
 		cam_iosched_bio_complete(softc->cam_iosched, bp, done_ccb);
 		xpt_release_ccb(done_ccb);
 		if (state == NDA_CCB_TRIM) {
@@ -1027,7 +1018,11 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 			TAILQ_INIT(&queue);
 			TAILQ_CONCAT(&queue, &softc->trim_req.bps, bio_queue);
 #endif
-			cam_iosched_trim_done(softc->cam_iosched);
+			/*
+			 * Since we can have multiple trims in flight, we don't
+			 * need to call this here.
+			 * cam_iosched_trim_done(softc->cam_iosched);
+			 */
 			ndaschedule(periph);
 			cam_periph_unlock(periph);
 #ifdef notyet

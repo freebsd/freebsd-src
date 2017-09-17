@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Microsoft Corp.
+ * Copyright (c) 2016-2017 Microsoft Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,23 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+
+/*
+ * NDIS protocol version numbers
+ */
+#define HN_NDIS_VERSION_6_1		0x00060001
+#define HN_NDIS_VERSION_6_20		0x00060014
+#define HN_NDIS_VERSION_6_30		0x0006001e
+#define HN_NDIS_VERSION_MAJOR(ver)	(((ver) & 0xffff0000) >> 16)
+#define HN_NDIS_VERSION_MINOR(ver)	((ver) & 0xffff)
+
+/*
+ * NVS versions.
+ */
+#define HN_NVS_VERSION_1		0x00002
+#define HN_NVS_VERSION_2		0x30002
+#define HN_NVS_VERSION_4		0x40000
+#define HN_NVS_VERSION_5		0x50000
 
 #define HN_NVS_RXBUF_SIG		0xcafe
 #define HN_NVS_CHIM_SIG			0xface
@@ -115,6 +132,17 @@ struct hn_nvs_ndis_init {
 	uint8_t		nvs_rsvd[20];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_ndis_init) >= HN_NVS_REQSIZE_MIN);
+
+#define HN_NVS_DATAPATH_SYNTH		0
+#define HN_NVS_DATAPATH_VF		1
+
+/* No response */
+struct hn_nvs_datapath {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_SET_DATAPATH */
+	uint32_t	nvs_active_path;/* HN_NVS_DATAPATH_* */
+	uint32_t	nvs_rsvd[6];
+} __packed;
+CTASSERT(sizeof(struct hn_nvs_datapath) >= HN_NVS_REQSIZE_MIN);
 
 struct hn_nvs_rxbuf_conn {
 	uint32_t	nvs_type;	/* HN_NVS_TYPE_RXBUF_CONN */
@@ -207,5 +235,22 @@ struct hn_nvs_rndis_ack {
 	uint8_t		nvs_rsvd[24];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_rndis_ack) >= HN_NVS_REQSIZE_MIN);
+
+/*
+ * RNDIS extension
+ */
+
+/* Per-packet hash info */
+#define HN_NDIS_HASH_INFO_SIZE		sizeof(uint32_t)
+#define HN_NDIS_PKTINFO_TYPE_HASHINF	NDIS_PKTINFO_TYPE_ORIG_NBLIST
+/* NDIS_HASH_ */
+
+/* Per-packet hash value */
+#define HN_NDIS_HASH_VALUE_SIZE		sizeof(uint32_t)
+#define HN_NDIS_PKTINFO_TYPE_HASHVAL	NDIS_PKTINFO_TYPE_PKT_CANCELID
+
+/* Per-packet-info size */
+#define HN_RNDIS_PKTINFO_SIZE(dlen)	\
+	__offsetof(struct rndis_pktinfo, rm_data[dlen])
 
 #endif	/* !_IF_HNREG_H_ */

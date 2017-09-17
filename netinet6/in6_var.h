@@ -41,7 +41,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -819,6 +819,7 @@ void	in6_newaddrmsg(struct in6_ifaddr *, int);
 /*
  * Extended API for IPv6 FIB support.
  */
+struct mbuf *ip6_tryforward(struct mbuf *);
 void	in6_rtredirect(struct sockaddr *, struct sockaddr *, struct sockaddr *,
 	    int, struct sockaddr *, u_int);
 int	in6_rtrequest(int, struct sockaddr *, struct sockaddr *,

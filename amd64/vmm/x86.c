@@ -176,6 +176,9 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			/* Don't advertise the OS visible workaround feature */
 			regs[2] &= ~AMDID2_OSVW;
 
+			/* Hide mwaitx/monitorx capability from the guest */
+			regs[2] &= ~AMDID2_MWAITX;
+
 			/*
 			 * Hide rdtscp/ia32_tsc_aux until we know how
 			 * to deal with them.

@@ -77,6 +77,8 @@ static g_ioctl_t g_disk_ioctl;
 static g_dumpconf_t g_disk_dumpconf;
 static g_provgone_t g_disk_providergone;
 
+static int g_disk_sysctl_flags(SYSCTL_HANDLER_ARGS);
+
 static struct g_class g_disk_class = {
 	.name = G_DISK_CLASS_NAME,
 	.version = G_VERSION,
@@ -421,6 +423,8 @@ g_disk_start(struct bio *bp)
 	int error;
 	off_t off;
 
+	biotrack(bp, __func__);
+
 	sc = bp->bio_to->private;
 	if (sc == NULL || (dp = sc->dp) == NULL || dp->d_destroyed) {
 		g_io_deliver(bp, ENXIO);
@@ -496,6 +500,8 @@ g_disk_start(struct bio *bp)
 		else if (g_handleattr_off_t(bp, "GEOM::frontstuff", 0))
 			break;
 		else if (g_handleattr_str(bp, "GEOM::ident", dp->d_ident))
+			break;
+		else if (g_handleattr_str(bp, "GEOM::descr", dp->d_descr))
 			break;
 		else if (g_handleattr_uint16_t(bp, "GEOM::hba_vendor",
 		    dp->d_hba_vendor))
@@ -586,12 +592,12 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 		 * special cases, and there's also a valid range.
 		 */
 		sbuf_printf(sb, "%s<rotationrate>", indent);
-		if (dp->d_rotation_rate == 0)		/* Old drives don't */
-			sbuf_printf(sb, "unknown");	/* report RPM. */
-		else if (dp->d_rotation_rate == 1)	/* Since 0 is used */
-			sbuf_printf(sb, "0");		/* above, SSDs use 1. */
-		else if ((dp->d_rotation_rate >= 0x041) &&
-		    (dp->d_rotation_rate <= 0xfffe))
+		if (dp->d_rotation_rate == DISK_RR_UNKNOWN) /* Old drives */
+			sbuf_printf(sb, "unknown");	/* don't report RPM. */
+		else if (dp->d_rotation_rate == DISK_RR_NON_ROTATING)
+			sbuf_printf(sb, "0");
+		else if ((dp->d_rotation_rate >= DISK_RR_MIN) &&
+		    (dp->d_rotation_rate <= DISK_RR_MAX))
 			sbuf_printf(sb, "%u", dp->d_rotation_rate);
 		else
 			sbuf_printf(sb, "invalid");
@@ -670,6 +676,7 @@ g_disk_create(void *arg, int flag)
 	struct g_provider *pp;
 	struct disk *dp;
 	struct g_disk_softc *sc;
+	struct disk_alias *dap;
 	char tmpstr[80];
 
 	if (flag == EV_CANCEL)
@@ -698,6 +705,10 @@ g_disk_create(void *arg, int flag)
 	sc->dp = dp;
 	gp = g_new_geomf(&g_disk_class, "%s%d", dp->d_name, dp->d_unit);
 	gp->softc = sc;
+	LIST_FOREACH(dap, &dp->d_aliases, da_next) {
+		snprintf(tmpstr, sizeof(tmpstr), "%s%d", dap->da_alias, dp->d_unit);
+		g_geom_add_alias(gp, tmpstr);
+	}
 	pp = g_new_providerf(gp, "%s", gp->name);
 	devstat_remove_entry(pp->stat);
 	pp->stat = NULL;
@@ -723,6 +734,10 @@ g_disk_create(void *arg, int flag)
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "led",
 		    CTLFLAG_RWTUN, sc->led, sizeof(sc->led),
 		    "LED name");
+		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
+		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "flags",
+		    CTLTYPE_STRING | CTLFLAG_RD, dp, 0, g_disk_sysctl_flags,
+		    "A", "Report disk flags");
 	}
 	pp->private = sc;
 	dp->d_geom = gp;
@@ -781,6 +796,7 @@ g_disk_destroy(void *ptr, int flag)
 	struct disk *dp;
 	struct g_geom *gp;
 	struct g_disk_softc *sc;
+	struct disk_alias *dap, *daptmp;
 
 	g_topology_assert();
 	dp = ptr;
@@ -792,6 +808,8 @@ g_disk_destroy(void *ptr, int flag)
 		dp->d_geom = NULL;
 		g_wither_geom(gp, ENXIO);
 	}
+	LIST_FOREACH_SAFE(dap, &dp->d_aliases, da_next, daptmp)
+		g_free(dap);
 
 	g_free(dp);
 }
@@ -824,8 +842,11 @@ g_disk_ident_adjust(char *ident, size_t size)
 struct disk *
 disk_alloc(void)
 {
+	struct disk *dp;
 
-	return (g_malloc(sizeof(struct disk), M_WAITOK | M_ZERO));
+	dp = g_malloc(sizeof(struct disk), M_WAITOK | M_ZERO);
+	LIST_INIT(&dp->d_aliases);
+	return (dp);
 }
 
 void
@@ -872,6 +893,18 @@ disk_destroy(struct disk *dp)
 	if (dp->d_devstat != NULL)
 		devstat_remove_entry(dp->d_devstat);
 	g_post_event(g_disk_destroy, dp, M_WAITOK, NULL);
+}
+
+void
+disk_add_alias(struct disk *dp, const char *name)
+{
+	struct disk_alias *dap;
+
+	dap = (struct disk_alias *)g_malloc(
+		sizeof(struct disk_alias) + strlen(name) + 1, M_WAITOK);
+	strcpy((char *)(dap + 1), name);
+	dap->da_alias = (const char *)(dap + 1);
+	LIST_INSERT_HEAD(&dp->d_aliases, dap, da_next);
 }
 
 void
@@ -990,6 +1023,30 @@ g_kern_disks(void *p, int flag __unused)
 		sp = " ";
 	}
 	sbuf_finish(sb);
+}
+
+static int
+g_disk_sysctl_flags(SYSCTL_HANDLER_ARGS)
+{
+	struct disk *dp;
+	struct sbuf *sb;
+	int error;
+
+	sb = sbuf_new_auto();
+	dp = (struct disk *)arg1;
+	sbuf_printf(sb, "%b", dp->d_flags,
+		"\20"
+		"\2OPEN"
+		"\3CANDELETE"
+		"\4CANFLUSHCACHE"
+		"\5UNMAPPEDBIO"
+		"\6DIRECTCOMPLETION"
+		"\10CANZONE");
+
+	sbuf_finish(sb);
+	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
+	return (error);
 }
 
 static int

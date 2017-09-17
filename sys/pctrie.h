@@ -76,7 +76,7 @@ name##_PCTRIE_LOOKUP(struct pctrie *ptree, uint64_t key)		\
 	return name##_PCTRIE_VAL2PTR(pctrie_lookup(ptree, key));	\
 }									\
 									\
-static __inline struct type *						\
+static __inline __unused struct type *						\
 name##_PCTRIE_LOOKUP_LE(struct pctrie *ptree, uint64_t key)		\
 {									\
 									\
@@ -118,6 +118,33 @@ void		pctrie_remove(struct pctrie *ptree, uint64_t key,
 		    pctrie_free_t freefn);
 size_t		pctrie_node_size(void);
 int		pctrie_zone_init(void *mem, int size, int flags);
+
+static __inline void
+pctrie_init(struct pctrie *ptree)
+{
+
+	ptree->pt_root = 0;
+}
+
+static __inline boolean_t
+pctrie_is_empty(struct pctrie *ptree)
+{
+
+	return (ptree->pt_root == 0);
+}
+
+/*
+ * These widths should allow the pointers to a node's children to fit within
+ * a single cache line.  The extra levels from a narrow width should not be
+ * a problem thanks to path compression.
+ */
+#ifdef __LP64__
+#define	PCTRIE_WIDTH	4
+#else
+#define	PCTRIE_WIDTH	3
+#endif
+
+#define	PCTRIE_COUNT	(1 << PCTRIE_WIDTH)
 
 #endif /* _KERNEL */
 #endif /* !_SYS_PCTRIE_H_ */

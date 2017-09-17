@@ -47,7 +47,7 @@ sctp_add_addresses_to_i_ia(struct sctp_inpcb *inp,
     struct sctp_scoping *scope,
     struct mbuf *m_at,
     int cnt_inits_to,
-    uint16_t * padding_len, uint16_t * chunk_len);
+    uint16_t *padding_len, uint16_t *chunk_len);
 
 
 int sctp_is_addr_restricted(struct sctp_tcb *, struct sctp_ifa *);
@@ -64,13 +64,13 @@ int
 struct sctp_ifa *
 sctp_source_address_selection(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
-    sctp_route_t * ro, struct sctp_nets *net,
+    sctp_route_t *ro, struct sctp_nets *net,
     int non_asoc_addr_ok, uint32_t vrf_id);
 
 int
-    sctp_v6src_match_nexthop(struct sockaddr_in6 *src6, sctp_route_t * ro);
+    sctp_v6src_match_nexthop(struct sockaddr_in6 *src6, sctp_route_t *ro);
 int
-    sctp_v4src_match_nexthop(struct sctp_ifa *sifa, sctp_route_t * ro);
+    sctp_v4src_match_nexthop(struct sctp_ifa *sifa, sctp_route_t *ro);
 
 void 
 sctp_send_initiate(struct sctp_inpcb *, struct sctp_tcb *, int
@@ -134,6 +134,11 @@ void sctp_toss_old_asconf(struct sctp_tcb *);
 void sctp_fix_ecn_echo(struct sctp_association *);
 
 void sctp_move_chunks_from_net(struct sctp_tcb *stcb, struct sctp_nets *net);
+
+
+#define SCTP_DATA_CHUNK_OVERHEAD(stcb) ((stcb)->asoc.idata_supported ? \
+					sizeof(struct sctp_idata_chunk) : \
+					sizeof(struct sctp_data_chunk))
 
 int
 sctp_output(struct sctp_inpcb *, struct mbuf *, struct sockaddr *,

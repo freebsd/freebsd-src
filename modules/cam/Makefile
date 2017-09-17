@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-S=	${.CURDIR}/../..
+S=	${SRCTOP}/sys
 
 .PATH: $S/cam $S/cam/scsi $S/cam/ata $S/cam/nvme $S/${MACHINE}/${MACHINE}
 
@@ -15,6 +15,7 @@ SRCS+=	opt_pt.h
 SRCS+=	opt_sa.h
 SRCS+=	opt_ses.h
 SRCS+=	opt_ddb.h
+SRCS+=	opt_printf.h
 SRCS+=	device_if.h bus_if.h vnode_if.h
 SRCS+=	cam.c
 SRCS+=	cam_compat.c

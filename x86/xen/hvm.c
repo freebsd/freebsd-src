@@ -143,6 +143,7 @@ xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 		printf("XEN: Hypervisor version %d.%d detected.\n", major,
 			minor);
 
+#ifdef SMP
 		if (((major < 4) || (major == 4 && minor <= 5)) &&
 		    msix_disable_migration == -1) {
 			/*
@@ -157,6 +158,7 @@ xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 "Set machdep.msix_disable_migration=0 to forcefully enable it.\n");
 			msix_disable_migration = 1;
 		}
+#endif
 	}
 
 	/*

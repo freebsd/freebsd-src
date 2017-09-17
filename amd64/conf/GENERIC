@@ -29,7 +29,9 @@ options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	IPSEC			# IP (v4/v6) security
+options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
 options 	TCP_OFFLOAD		# TCP offload
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
@@ -56,6 +58,7 @@ options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
 options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
 options 	COMPAT_FREEBSD9		# Compatible with FreeBSD9
 options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
+options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
 options 	STACK			# stack(9) support
@@ -82,7 +85,9 @@ options 	RCTL			# Resource limits
 options 	KDB			# Enable kernel debugger support.
 options 	KDB_TRACE		# Print a stack trace for a panic.
 # For full debugger support use (turn off in stable branch):
+options 	BUF_TRACKING		# Track buffer history
 options 	DDB			# Support DDB.
+options 	FULL_BUF_TRACKING	# Track more buffer history
 options 	GDB			# Support remote GDB.
 options 	DEADLKRES		# Enable the deadlock resolver
 options 	INVARIANTS		# Enable calls of extra sanity checking
@@ -94,6 +99,7 @@ options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
 options 	DEVICE_NUMA		# I/O Device Affinity
+options 	EARLY_AP_STARTUP
 
 # CPU frequency control
 device		cpufreq
@@ -225,10 +231,10 @@ device		puc			# Multi I/O cards and multi-channel UARTs
 device		bxe			# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		de			# DEC/Intel DC21x4x (``Tulip'')
 device		em			# Intel PRO/1000 Gigabit Ethernet Family
-device		igb			# Intel PRO/1000 PCIE Server Gigabit Family
 device		ix			# Intel PRO/10GbE PCIE PF Ethernet
 device		ixv			# Intel PRO/10GbE PCIE VF Ethernet
 device		ixl			# Intel XL710 40Gbe PCIE Ethernet
+options		IXL_IW			# Enable iWARP Client Interface in ixl(4)
 device		ixlv			# Intel XL710 40Gbe VF PCIE Ethernet
 device		le			# AMD Am7900 LANCE and Am79C9xx PCnet
 device		ti			# Alteon Networks Tigon I/II gigabit Ethernet

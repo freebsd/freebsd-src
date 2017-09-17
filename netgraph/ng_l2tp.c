@@ -1544,6 +1544,16 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 			priv->stats.memoryFailures++;
 			return (ENOBUFS);
 		}
+
+		/*
+		 * The below requires 12 contiguous bytes for the L2TP header
+		 * to be written into.
+		 */
+		m = m_pullup(m, 12);
+		if (m == NULL) {
+			priv->stats.memoryFailures++;
+			return (ENOBUFS);
+		}
 	}
 
 	/* Fill in L2TP header */

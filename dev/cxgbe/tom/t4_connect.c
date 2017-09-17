@@ -107,7 +107,7 @@ free_atid(struct adapter *sc, int atid)
 }
 
 /*
- * Active open failed.
+ * Active open succeeded.
  */
 static int
 do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
@@ -126,9 +126,10 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 	CTR3(KTR_CXGBE, "%s: atid %u, tid %u", __func__, atid, tid);
 	free_atid(sc, atid);
 
+	CURVNET_SET(toep->vnet);
 	INP_WLOCK(inp);
 	toep->tid = tid;
-	insert_tid(sc, tid, toep);
+	insert_tid(sc, tid, toep, inp->inp_vflag & INP_IPV6 ? 2 : 1);
 	if (inp->inp_flags & INP_DROPPED) {
 
 		/* socket closed by the kernel before hw told us it connected */
@@ -141,6 +142,7 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 	make_established(toep, cpl->snd_isn, cpl->rcv_isn, cpl->tcp_opt);
 done:
 	INP_WUNLOCK(inp);
+	CURVNET_RESTORE();
 	return (0);
 }
 
@@ -178,6 +180,7 @@ act_open_failure_cleanup(struct adapter *sc, u_int atid, u_int status)
 	free_atid(sc, atid);
 	toep->tid = -1;
 
+	CURVNET_SET(toep->vnet);
 	if (status != EAGAIN)
 		INP_INFO_RLOCK(&V_tcbinfo);
 	INP_WLOCK(inp);
@@ -185,8 +188,12 @@ act_open_failure_cleanup(struct adapter *sc, u_int atid, u_int status)
 	final_cpl_received(toep);	/* unlocks inp */
 	if (status != EAGAIN)
 		INP_INFO_RUNLOCK(&V_tcbinfo);
+	CURVNET_RESTORE();
 }
 
+/*
+ * Active open failed.
+ */
 static int
 do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
     struct mbuf *m)
@@ -252,6 +259,9 @@ calc_opt2a(struct socket *so, struct toepcb *toep)
 	if (sc->tt.rx_coalesce)
 		opt2 |= V_RX_COALESCE(M_RX_COALESCE);
 
+	if (sc->tt.cong_algorithm != -1)
+		opt2 |= V_CONG_CNTRL(sc->tt.cong_algorithm & M_CONG_CNTRL);
+
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	if (toep->ulp_mode == ULP_MODE_TCPDDP)
 		opt2 |= F_RX_FC_VALID | F_RX_FC_DDP;
@@ -268,6 +278,14 @@ t4_init_connect_cpl_handlers(void)
 	t4_register_cpl_handler(CPL_ACT_OPEN_RPL, do_act_open_rpl);
 }
 
+void
+t4_uninit_connect_cpl_handlers(void)
+{
+
+	t4_register_cpl_handler(CPL_ACT_ESTABLISH, NULL);
+	t4_register_cpl_handler(CPL_ACT_OPEN_RPL, NULL);
+}
+
 #define DONT_OFFLOAD_ACTIVE_OPEN(x)	do { \
 	reason = __LINE__; \
 	rc = (x); \
@@ -277,19 +295,26 @@ t4_init_connect_cpl_handlers(void)
 static inline int
 act_open_cpl_size(struct adapter *sc, int isipv6)
 {
-	static const int sz_t4[] = {
-		sizeof (struct cpl_act_open_req),
-		sizeof (struct cpl_act_open_req6)
-	};
-	static const int sz_t5[] = {
-		sizeof (struct cpl_t5_act_open_req),
-		sizeof (struct cpl_t5_act_open_req6)
+	int idx;
+	static const int sz_table[3][2] = {
+		{
+			sizeof (struct cpl_act_open_req),
+			sizeof (struct cpl_act_open_req6)
+		},
+		{
+			sizeof (struct cpl_t5_act_open_req),
+			sizeof (struct cpl_t5_act_open_req6)
+		},
+		{
+			sizeof (struct cpl_t6_act_open_req),
+			sizeof (struct cpl_t6_act_open_req6)
+		},
 	};
 
-	if (is_t4(sc))
-		return (sz_t4[!!isipv6]);
-	else
-		return (sz_t5[!!isipv6]);
+	MPASS(chip_id(sc) >= CHELSIO_T4);
+	idx = min(chip_id(sc) - CHELSIO_T4, 2);
+
+	return (sz_table[idx][!!isipv6]);
 }
 
 /*
@@ -332,7 +357,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	else
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
 
-	toep = alloc_toepcb(vi, -1, -1, M_NOWAIT);
+	toep = alloc_toepcb(vi, -1, -1, M_NOWAIT | M_ZERO);
 	if (toep == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
@@ -350,6 +375,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	if (wr == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
+	toep->vnet = so->so_vnet;
 	if (sc->tt.ddp && (so->so_options & SO_NO_DDP) == 0)
 		set_tcpddp_ulp_mode(toep);
 	else
@@ -373,28 +399,32 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 
 	if (isipv6) {
 		struct cpl_act_open_req6 *cpl = wrtod(wr);
+		struct cpl_t5_act_open_req6 *cpl5 = (void *)cpl;
+		struct cpl_t6_act_open_req6 *cpl6 = (void *)cpl;
 
-		if ((inp->inp_vflag & INP_IPV6) == 0) {
-			/* XXX think about this a bit more */
-			log(LOG_ERR,
-			    "%s: time to think about AF_INET6 + vflag 0x%x.\n",
-			    __func__, inp->inp_vflag);
+		if ((inp->inp_vflag & INP_IPV6) == 0)
 			DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
-		}
 
-		toep->ce = hold_lip(td, &inp->in6p_laddr);
+		toep->ce = hold_lip(td, &inp->in6p_laddr, NULL);
 		if (toep->ce == NULL)
 			DONT_OFFLOAD_ACTIVE_OPEN(ENOENT);
 
-		if (is_t4(sc)) {
+		switch (chip_id(sc)) {
+		case CHELSIO_T4:
 			INIT_TP_WR(cpl, 0);
 			cpl->params = select_ntuple(vi, toep->l2te);
-		} else {
-			struct cpl_t5_act_open_req6 *c5 = (void *)cpl;
-
-			INIT_TP_WR(c5, 0);
-			c5->iss = htobe32(tp->iss);
-			c5->params = select_ntuple(vi, toep->l2te);
+			break;
+		case CHELSIO_T5:
+			INIT_TP_WR(cpl5, 0);
+			cpl5->iss = htobe32(tp->iss);
+			cpl5->params = select_ntuple(vi, toep->l2te);
+			break;
+		case CHELSIO_T6:
+		default:
+			INIT_TP_WR(cpl6, 0);
+			cpl6->iss = htobe32(tp->iss);
+			cpl6->params = select_ntuple(vi, toep->l2te);
+			break;
 		}
 		OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ6,
 		    qid_atid));
@@ -409,16 +439,25 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		cpl->opt2 = calc_opt2a(so, toep);
 	} else {
 		struct cpl_act_open_req *cpl = wrtod(wr);
+		struct cpl_t5_act_open_req *cpl5 = (void *)cpl;
+		struct cpl_t6_act_open_req *cpl6 = (void *)cpl;
 
-		if (is_t4(sc)) {
+		switch (chip_id(sc)) {
+		case CHELSIO_T4:
 			INIT_TP_WR(cpl, 0);
 			cpl->params = select_ntuple(vi, toep->l2te);
-		} else {
-			struct cpl_t5_act_open_req *c5 = (void *)cpl;
-
-			INIT_TP_WR(c5, 0);
-			c5->iss = htobe32(tp->iss);
-			c5->params = select_ntuple(vi, toep->l2te);
+			break;
+		case CHELSIO_T5:
+			INIT_TP_WR(cpl5, 0);
+			cpl5->iss = htobe32(tp->iss);
+			cpl5->params = select_ntuple(vi, toep->l2te);
+			break;
+		case CHELSIO_T6:
+		default:
+			INIT_TP_WR(cpl6, 0);
+			cpl6->iss = htobe32(tp->iss);
+			cpl6->params = select_ntuple(vi, toep->l2te);
+			break;
 		}
 		OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ,
 		    qid_atid));

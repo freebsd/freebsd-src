@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/in_cksum.h>
 #include <security/mac/mac_framework.h>
 
-#define	MEMTU			1500
+#define	MEMTU			(1500 - sizeof(struct mobhdr))
 static const char mename[] = "me";
 static MALLOC_DEFINE(M_IFME, mename, "Minimal Encapsulation for IP");
 static VNET_DEFINE(struct mtx, me_mtx);
@@ -186,7 +186,7 @@ me_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ME2IFP(sc)->if_softc = sc;
 	if_initname(ME2IFP(sc), mename, unit);
 
-	ME2IFP(sc)->if_mtu = MEMTU - sizeof(struct mobhdr);
+	ME2IFP(sc)->if_mtu = MEMTU;;
 	ME2IFP(sc)->if_flags = IFF_POINTOPOINT|IFF_MULTICAST;
 	ME2IFP(sc)->if_output = me_output;
 	ME2IFP(sc)->if_ioctl = me_ioctl;
@@ -236,7 +236,7 @@ me_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu < 576)
 			return (EINVAL);
-		ifp->if_mtu = ifr->ifr_mtu - sizeof(struct mobhdr);
+		ifp->if_mtu = ifr->ifr_mtu;
 		return (0);
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;

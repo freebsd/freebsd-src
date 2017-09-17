@@ -107,6 +107,7 @@ ifmedia_removeall(ifm)
 		LIST_REMOVE(entry, ifm_list);
 		free(entry, M_IFADDR);
 	}
+	ifm->ifm_cur = NULL;
 }
 
 /*
@@ -120,7 +121,7 @@ ifmedia_add(ifm, mword, data, aux)
 	int data;
 	void *aux;
 {
-	register struct ifmedia_entry *entry;
+	struct ifmedia_entry *entry;
 
 #ifdef IFMEDIA_DEBUG
 	if (ifmedia_debug) {

@@ -241,7 +241,7 @@ db_print_loc_and_inst(db_addr_t loc)
 	db_printsym(loc, DB_STGY_PROC);
 	if (db_search_symbol(loc, DB_STGY_PROC, &off) != C_DB_SYM_NULL) {
 		db_printf(":\t");
-		(void)db_disasm(loc, true);
+		(void)db_disasm(loc, false);
 	}
 }
 

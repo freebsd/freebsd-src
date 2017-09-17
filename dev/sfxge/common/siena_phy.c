@@ -455,7 +455,7 @@ siena_phy_oui_get(
 	}
 
 #define	SIENA_SIMPLE_STAT_SET2(_vmask, _esmp, _smask, _stat, _record)	\
-	SIENA_SIMPLE_STAT_SET(_vmask, _esmp, _smask, _stat, 		\
+	SIENA_SIMPLE_STAT_SET(_vmask, _esmp, _smask, _stat,		\
 			    MC_CMD_ ## _record,				\
 			    EFX_PHY_STAT_ ## _record)
 

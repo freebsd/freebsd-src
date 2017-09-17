@@ -708,6 +708,8 @@ ar8327_hw_global_setup(struct arswitch_softc *sc)
 {
 	uint32_t t;
 
+	ARSWITCH_LOCK(sc);
+
 	/* enable CPU port and disable mirror port */
 	t = AR8327_FWD_CTRL0_CPU_PORT_EN |
 	    AR8327_FWD_CTRL0_MIRROR_PORT;
@@ -741,6 +743,7 @@ ar8327_hw_global_setup(struct arswitch_softc *sc)
 	/* GMAC0 (CPU), GMAC1..5 (PHYs), GMAC6 (CPU) */
 	sc->info.es_nports = 7;
 
+	ARSWITCH_UNLOCK(sc);
 	return (0);
 }
 

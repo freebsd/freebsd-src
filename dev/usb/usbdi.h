@@ -435,6 +435,39 @@ struct usb_attach_arg {
 };
 
 /*
+ * General purpose locking wrappers to ease supporting
+ * USB polled mode:
+ */
+#ifdef INVARIANTS
+#define	USB_MTX_ASSERT(_m, _t) do {		\
+	if (!USB_IN_POLLING_MODE_FUNC())	\
+		mtx_assert(_m, _t);		\
+} while (0)
+#else
+#define	USB_MTX_ASSERT(_m, _t) do { } while (0)
+#endif
+
+#define	USB_MTX_LOCK(_m) do {			\
+	if (!USB_IN_POLLING_MODE_FUNC())	\
+		mtx_lock(_m);			\
+} while (0)
+
+#define	USB_MTX_UNLOCK(_m) do {			\
+	if (!USB_IN_POLLING_MODE_FUNC())	\
+		mtx_unlock(_m);			\
+} while (0)
+
+#define	USB_MTX_LOCK_SPIN(_m) do {		\
+	if (!USB_IN_POLLING_MODE_FUNC())	\
+		mtx_lock_spin(_m);		\
+} while (0)
+
+#define	USB_MTX_UNLOCK_SPIN(_m) do {		\
+	if (!USB_IN_POLLING_MODE_FUNC())	\
+		mtx_unlock_spin(_m);		\
+} while (0)
+
+/*
  * The following is a wrapper for the callout structure to ease
  * porting the code to other platforms.
  */
@@ -442,8 +475,26 @@ struct usb_callout {
 	struct callout co;
 };
 #define	usb_callout_init_mtx(c,m,f) callout_init_mtx(&(c)->co,m,f)
-#define	usb_callout_reset(c,t,f,d) callout_reset(&(c)->co,t,f,d)
-#define	usb_callout_stop(c) callout_stop(&(c)->co)
+#define	usb_callout_reset(c,...) do {			\
+	if (!USB_IN_POLLING_MODE_FUNC())		\
+		callout_reset(&(c)->co, __VA_ARGS__);	\
+} while (0)
+#define	usb_callout_reset_sbt(c,...) do {			\
+	if (!USB_IN_POLLING_MODE_FUNC())			\
+		callout_reset_sbt(&(c)->co, __VA_ARGS__);	\
+} while (0)
+#define	usb_callout_stop(c) do {			\
+	if (!USB_IN_POLLING_MODE_FUNC()) {		\
+		callout_stop(&(c)->co);			\
+	} else {					\
+		/*					\
+		 * Cannot stop callout when		\
+		 * polling. Set dummy callback		\
+		 * function instead:			\
+		 */					\
+		(c)->co.c_func = &usbd_dummy_timeout;	\
+	}						\
+} while (0)
 #define	usb_callout_drain(c) callout_drain(&(c)->co)
 #define	usb_callout_pending(c) callout_pending(&(c)->co)
 
@@ -623,6 +674,8 @@ void	usbd_frame_zero(struct usb_page_cache *cache, usb_frlength_t offset,
 void	usbd_start_re_enumerate(struct usb_device *udev);
 usb_error_t
 	usbd_start_set_config(struct usb_device *, uint8_t);
+int	usbd_in_polling_mode(void);
+void	usbd_dummy_timeout(void *);
 
 int	usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 	    struct mtx *priv_mtx, struct usb_fifo_methods *pm,

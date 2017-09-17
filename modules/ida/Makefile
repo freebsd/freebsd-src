@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../dev/ida
+.PATH:	${SRCTOP}/sys/dev/ida
 
 KMOD=	ida
 SRCS=	ida.c ida_disk.c ida_pci.c \

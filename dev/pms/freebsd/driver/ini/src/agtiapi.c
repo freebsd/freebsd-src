@@ -1838,9 +1838,9 @@ static void agtiapi_cam_action( struct cam_sim *sim, union ccb * ccb )
     cpi->max_lun = AGTIAPI_MAX_LUN;
     cpi->maxio = 1024 *1024; /* Max supported I/O size, in bytes. */
     cpi->initiator_id = 255;
-    strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-    strncpy(cpi->hba_vid, "PMC", HBA_IDLEN);
-    strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+    strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+    strlcpy(cpi->hba_vid, "PMC", HBA_IDLEN);
+    strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
     cpi->unit_number = cam_sim_unit(sim);
     cpi->bus_id = cam_sim_bus(sim);
     // rate is set when XPT_GET_TRAN_SETTINGS is processed
@@ -5032,7 +5032,7 @@ STATIC void agtiapi_PrepCCBs( struct agtiapi_softc *pCard,
 
   int i;
   U32 hdr_sz, ccb_sz;
-  ccb_t *pccb = 0;
+  ccb_t *pccb = NULL;
   int offset = 0;
   int nsegs = 0;
   int sgl_sz = 0;
@@ -5159,7 +5159,7 @@ STATIC U32 agtiapi_InitCCBs(struct agtiapi_softc *pCard, int tgtCount, int tid)
 
   U32   max_ccb, size, ccb_sz, hdr_sz;
   int   no_allocs = 0, i;
-  ccb_hdr_t  *hdr = 0;
+  ccb_hdr_t  *hdr = NULL;
 
   AGTIAPI_PRINTK("agtiapi_InitCCBs: start\n");
   AGTIAPI_PRINTK("agtiapi_InitCCBs: tgtCount %d tid %d\n", tgtCount, tid);
@@ -5395,7 +5395,7 @@ STATIC U32 agtiapi_GetDevHandle( struct agtiapi_softc *pCard,
 
   for ( devIdx = 0; devIdx < pCard->devDiscover; devIdx++ )
   {
-    if ( agDev[devIdx] != 0 )
+    if ( agDev[devIdx] != NULL )
     {
       // AGTIAPI_PRINTK( "agtiapi_GetDevHandle: agDev %d not NULL %p\n",
       //                 devIdx, agDev[devIdx] );
@@ -5820,7 +5820,7 @@ STATIC void agtiapi_ReleaseCCBs( struct agtiapi_softc *pCard )
 
   ccb_hdr_t *hdr;
   U32 hdr_sz;
-  ccb_t *pccb = 0;
+  ccb_t *pccb = NULL;
 
   AGTIAPI_PRINTK( "agtiapi_ReleaseCCBs: start\n" );
 

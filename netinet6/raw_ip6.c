@@ -40,7 +40,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -104,10 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/send.h>
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/ipsec6.h>
-#endif /* IPSEC */
+#include <netipsec/ipsec_support.h>
 
 #include <machine/stdarg.h>
 
@@ -161,15 +158,15 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct ifnet *ifp;
 	struct mbuf *m = *mp;
-	register struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
-	register struct inpcb *in6p;
+	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
+	struct inpcb *in6p;
 	struct inpcb *last = NULL;
 	struct mbuf *opts = NULL;
 	struct sockaddr_in6 fromsa;
 
 	RIP6STAT_INC(rip6s_ipackets);
 
-	init_sin6(&fromsa, m); /* general init */
+	init_sin6(&fromsa, m, 0); /* general init */
 
 	ifp = m->m_pkthdr.rcvif;
 
@@ -256,16 +253,20 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			}
 		}
 		if (last != NULL) {
-			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
+			struct mbuf *n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 			/*
 			 * Check AH/ESP integrity.
 			 */
-			if (n && ipsec6_in_reject(n, last)) {
-				m_freem(n);
-				/* Do not inject data into pcb. */
-			} else
+			if (IPSEC_ENABLED(ipv6)) {
+				if (n != NULL &&
+				    IPSEC_CHECK_POLICY(ipv6, n, last) != 0) {
+					m_freem(n);
+					/* Do not inject data into pcb. */
+					n = NULL;
+				}
+			}
 #endif /* IPSEC */
 			if (n) {
 				if (last->inp_flags & INP_CONTROLOPTS ||
@@ -289,11 +290,12 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		last = in6p;
 	}
 	INP_INFO_RUNLOCK(&V_ripcbinfo);
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/*
 	 * Check AH/ESP integrity.
 	 */
-	if ((last != NULL) && ipsec6_in_reject(m, last)) {
+	if (IPSEC_ENABLED(ipv6) && last != NULL &&
+	    IPSEC_CHECK_POLICY(ipv6, m, last) != 0) {
 		m_freem(m);
 		IP6STAT_DEC(ip6s_delivered);
 		/* Do not inject data into pcb. */

@@ -53,6 +53,7 @@ typedef enum {
 	CTL_PORT_INTERNAL	= 0x08,
 	CTL_PORT_ISCSI		= 0x10,
 	CTL_PORT_SAS		= 0x20,
+	CTL_PORT_UMASS		= 0x40,
 	CTL_PORT_ALL		= 0xff,
 	CTL_PORT_ISC		= 0x100 // FC port for inter-shelf communication
 } ctl_port_type;
@@ -72,20 +73,14 @@ struct ctl_port_entry {
 };
 
 struct ctl_modepage_header {
-	uint8_t page_code;
-	uint8_t subpage;
-	int32_t len_used;
-	int32_t len_left;
-};
-
-struct ctl_modepage_aps {
-	struct ctl_modepage_header header;
-	uint8_t lock_active;
+	uint8_t			page_code;
+	uint8_t			subpage;
+	uint16_t		len_used;
+	uint16_t		len_left;
 };
 
 union ctl_modepage_info {
 	struct ctl_modepage_header header;
-	struct ctl_modepage_aps aps;
 };
 
 /*
@@ -127,7 +122,8 @@ typedef enum {
 	CTL_UA_ASYM_ACC_CHANGE	= 0x2000,
 	CTL_UA_CAPACITY_CHANGE	= 0x4000,
 	CTL_UA_THIN_PROV_THRES	= 0x8000,
-	CTL_UA_MEDIUM_CHANGE	= 0x10000
+	CTL_UA_MEDIUM_CHANGE	= 0x10000,
+	CTL_UA_IE		= 0x20000
 } ctl_ua_type;
 
 #ifdef	_KERNEL
@@ -154,21 +150,19 @@ int ctl_ffz(uint32_t *mask, uint32_t first, uint32_t last);
 int ctl_set_mask(uint32_t *mask, uint32_t bit);
 int ctl_clear_mask(uint32_t *mask, uint32_t bit);
 int ctl_is_set(uint32_t *mask, uint32_t bit);
-int ctl_caching_sp_handler(struct ctl_scsiio *ctsio,
-			 struct ctl_page_index *page_index, uint8_t *page_ptr);
-int ctl_control_page_handler(struct ctl_scsiio *ctsio,
+int ctl_default_page_handler(struct ctl_scsiio *ctsio,
 			     struct ctl_page_index *page_index,
 			     uint8_t *page_ptr);
-int ctl_debugconf_sp_sense_handler(struct ctl_scsiio *ctsio,
-				   struct ctl_page_index *page_index,
-				   int pc);
-int ctl_debugconf_sp_select_handler(struct ctl_scsiio *ctsio,
-				    struct ctl_page_index *page_index,
-				    uint8_t *page_ptr);
+int ctl_ie_page_handler(struct ctl_scsiio *ctsio,
+			struct ctl_page_index *page_index,
+			uint8_t *page_ptr);
 int ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
 				   struct ctl_page_index *page_index,
 				   int pc);
 int ctl_sap_log_sense_handler(struct ctl_scsiio *ctsio,
+				   struct ctl_page_index *page_index,
+				   int pc);
+int ctl_ie_log_sense_handler(struct ctl_scsiio *ctsio,
 				   struct ctl_page_index *page_index,
 				   int pc);
 int ctl_config_move_done(union ctl_io *io);
@@ -217,6 +211,7 @@ void ctl_update_opts(ctl_options_t *opts, int num_args,
     struct ctl_be_arg *args);
 void ctl_free_opts(ctl_options_t *opts);
 char * ctl_get_opt(ctl_options_t *opts, const char *name);
+int ctl_get_opt_number(ctl_options_t *opts, const char *name, uint64_t *num);
 int ctl_expand_number(const char *buf, uint64_t *num);
 
 #endif	/* _KERNEL */

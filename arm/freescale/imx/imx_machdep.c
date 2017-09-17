@@ -29,7 +29,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/reboot.h>
@@ -54,20 +53,6 @@ SYSCTL_UINT(_hw_imx, OID_AUTO, last_reset_status, CTLFLAG_RD,
 SYSCTL_STRING(_hw_imx, OID_AUTO, last_reset_reason, CTLFLAG_RD, 
     "unknown", 0, "Last reset reason");
 
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
-
 /*
  * This code which manipulates the watchdog hardware is here to implement
  * cpu_reset() because the watchdog is the only way for software to reset the
@@ -84,10 +69,17 @@ imx_wdog_cpu_reset(vm_offset_t wdcr_physaddr)
 	 * Trigger an immediate reset by clearing the SRS bit in the watchdog
 	 * control register.  The reset happens on the next cycle of the wdog
 	 * 32KHz clock, so hang out in a spin loop until the reset takes effect.
+	 *
+	 * Imx6 erratum ERR004346 says the SRS bit has to be cleared twice
+	 * within the same cycle of the 32khz clock to reliably trigger the
+	 * reset.  Writing it 3 times in a row ensures at least 2 of the writes
+	 * happen in the same 32k clock cycle.
 	 */
 	if ((pcr = devmap_ptov(wdcr_physaddr, sizeof(*pcr))) == NULL) {
 		printf("cpu_reset() can't find its control register... locking up now.");
 	} else {
+		*pcr &= ~WDOG_CR_SRS;
+		*pcr &= ~WDOG_CR_SRS;
 		*pcr &= ~WDOG_CR_SRS;
 	}
 	for (;;)

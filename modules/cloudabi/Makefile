@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../compat/cloudabi
+.PATH: ${SRCTOP}/sys/compat/cloudabi
 
 KMOD=	cloudabi
 SRCS=	cloudabi_clock.c cloudabi_errno.c cloudabi_fd.c cloudabi_file.c \

@@ -29,10 +29,17 @@
 #ifndef _HV_UTILREG_H_
 #define _HV_UTILREG_H_
 
-#define HV_S_OK			0x00000000
-#define HV_E_FAIL		0x80004005
-#define HV_ERROR_NOT_SUPPORTED	0x80070032
-#define HV_ERROR_MACHINE_LOCKED	0x800704F7
+/*
+ * Some Hyper-V status codes.
+ */
+#define HV_S_OK				0x00000000
+#define HV_E_FAIL			0x80004005
+#define HV_S_CONT			0x80070103
+#define HV_ERROR_NOT_SUPPORTED		0x80070032
+#define HV_ERROR_MACHINE_LOCKED		0x800704F7
+#define HV_ERROR_DEVICE_NOT_CONNECTED	0x8007048F
+#define HV_INVALIDARG			0x80070057
+#define HV_GUID_NOTFOUND		0x80041002
 
 /*
  * Common defines for Hyper-V ICs
@@ -75,17 +82,5 @@ typedef struct hv_vmbus_icmsg_negotiate {
 	uint32_t		reserved;
 	hv_vmbus_ic_version	icversion_data[1]; /* any size array */
 } __packed hv_vmbus_icmsg_negotiate;
-
-typedef struct hv_vmbus_shutdown_msg_data {
-	uint32_t		reason_code;
-	uint32_t		timeout_seconds;
-	uint32_t 		flags;
-	uint8_t			display_message[2048];
-} __packed hv_vmbus_shutdown_msg_data;
-
-typedef struct hv_vmbus_heartbeat_msg_data {
-	uint64_t 		seq_num;
-	uint32_t 		reserved[8];
-} __packed hv_vmbus_heartbeat_msg_data;
 
 #endif	/* !_HV_UTILREG_H_ */

@@ -111,6 +111,15 @@ ofw_sprg_prepare(void)
 	 * Assume that interrupt are disabled at this point, or
 	 * SPRG1-3 could be trashed
 	 */
+#ifdef __powerpc64__
+	__asm __volatile("mtsprg1 %0\n\t"
+	    		 "mtsprg2 %1\n\t"
+			 "mtsprg3 %2\n\t"
+			 :
+			 : "r"(ofmsr[2]),
+			 "r"(ofmsr[3]),
+			 "r"(ofmsr[4]));
+#else
 	__asm __volatile("mfsprg0 %0\n\t"
 			 "mtsprg0 %1\n\t"
 	    		 "mtsprg1 %2\n\t"
@@ -121,6 +130,7 @@ ofw_sprg_prepare(void)
 			 "r"(ofmsr[2]),
 			 "r"(ofmsr[3]),
 			 "r"(ofmsr[4]));
+#endif
 }
 
 static __inline void
@@ -136,7 +146,9 @@ ofw_sprg_restore(void)
 	 *
 	 * PCPU data cannot be used until this routine is called !
 	 */
+#ifndef __powerpc64__
 	__asm __volatile("mtsprg0 %0" :: "r"(ofw_sprg0_save));
+#endif
 }
 #endif
 
@@ -344,8 +356,9 @@ OF_initial_setup(void *fdt_ptr, void *junk, int (*openfirm)(void *))
 	ofmsr[0] = mfmsr();
 	#ifdef __powerpc64__
 	ofmsr[0] &= ~PSL_SF;
-	#endif
+	#else
 	__asm __volatile("mfsprg0 %0" : "=&r"(ofmsr[1]));
+	#endif
 	__asm __volatile("mfsprg1 %0" : "=&r"(ofmsr[2]));
 	__asm __volatile("mfsprg2 %0" : "=&r"(ofmsr[3]));
 	__asm __volatile("mfsprg3 %0" : "=&r"(ofmsr[4]));
@@ -515,8 +528,8 @@ openfirmware(void *args)
 	#ifdef SMP
 	rv_args.args = args;
 	rv_args.in_progress = 1;
-	smp_rendezvous(smp_no_rendevous_barrier, ofw_rendezvous_dispatch,
-	    smp_no_rendevous_barrier, &rv_args);
+	smp_rendezvous(smp_no_rendezvous_barrier, ofw_rendezvous_dispatch,
+	    smp_no_rendezvous_barrier, &rv_args);
 	result = rv_args.retval;
 	#else
 	result = openfirmware_core(args);

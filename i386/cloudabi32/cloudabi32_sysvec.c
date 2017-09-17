@@ -85,10 +85,14 @@ cloudabi32_proc_setregs(struct thread *td, struct image_params *imgp,
 }
 
 static int
-cloudabi32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+cloudabi32_fetch_syscall_args(struct thread *td)
 {
-	struct trapframe *frame = td->td_frame;
+	struct trapframe *frame;
+	struct syscall_args *sa;
 	int error;
+
+	frame = td->td_frame;
+	sa = &td->td_sa;
 
 	/* Obtain system call number. */
 	sa->code = frame->tf_eax;
@@ -155,9 +159,9 @@ cloudabi32_thread_setregs(struct thread *td,
 	int error;
 
 	/* Perform standard register initialization. */
-	stack.ss_sp = (void *)attr->stack;
-	stack.ss_size = attr->stack_size - sizeof(args);
-	cpu_set_upcall(td, (void *)attr->entry_point, NULL, &stack);
+	stack.ss_sp = TO_PTR(attr->stack);
+	stack.ss_size = attr->stack_len - sizeof(args);
+	cpu_set_upcall(td, TO_PTR(attr->entry_point), NULL, &stack);
 
 	/*
 	 * Copy the arguments for the thread entry point onto the stack
@@ -200,5 +204,5 @@ Elf32_Brandinfo cloudabi32_brand = {
 	.brand		= ELFOSABI_CLOUDABI,
 	.machine	= EM_386,
 	.sysvec		= &cloudabi32_elf_sysvec,
-	.compat_3_brand	= "CloudABI",
+	.flags		= BI_BRAND_ONLY_STATIC,
 };

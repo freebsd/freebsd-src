@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/rndis.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -79,17 +80,17 @@ static uether_fn_t urndis_setmulti;
 static uether_fn_t urndis_setpromisc;
 
 static uint32_t	urndis_ctrl_query(struct urndis_softc *sc, uint32_t oid,
-		    struct urndis_query_req *msg, uint16_t len,
+		    struct rndis_query_req *msg, uint16_t len,
 		    const void **rbuf, uint16_t *rbufsz);
 static uint32_t	urndis_ctrl_set(struct urndis_softc *sc, uint32_t oid,
-		    struct urndis_set_req *msg, uint16_t len);
+		    struct rndis_set_req *msg, uint16_t len);
 static uint32_t	urndis_ctrl_handle_init(struct urndis_softc *sc,
-		    const struct urndis_comp_hdr *hdr);
+		    const struct rndis_comp_hdr *hdr);
 static uint32_t	urndis_ctrl_handle_query(struct urndis_softc *sc,
-		    const struct urndis_comp_hdr *hdr, const void **buf,
+		    const struct rndis_comp_hdr *hdr, const void **buf,
 		    uint16_t *bufsz);
 static uint32_t	urndis_ctrl_handle_reset(struct urndis_softc *sc,
-		    const struct urndis_comp_hdr *hdr);
+		    const struct rndis_comp_hdr *hdr);
 static uint32_t	urndis_ctrl_init(struct urndis_softc *sc);
 static uint32_t	urndis_ctrl_halt(struct urndis_softc *sc);
 
@@ -212,8 +213,8 @@ urndis_attach(device_t dev)
 {
 	static struct {
 		union {
-			struct urndis_query_req query;
-			struct urndis_set_req set;
+			struct rndis_query_req query;
+			struct rndis_set_req set;
 		} hdr;
 		union {
 			uint8_t eaddr[ETHER_ADDR_LEN];
@@ -291,8 +292,8 @@ urndis_attach(device_t dev)
 	memcpy(&sc->sc_ue.ue_eaddr, buf, ETHER_ADDR_LEN);
 
 	/* Initialize packet filter */
-	sc->sc_filter = RNDIS_PACKET_TYPE_BROADCAST |
-	    RNDIS_PACKET_TYPE_ALL_MULTICAST;
+	sc->sc_filter = NDIS_PACKET_TYPE_BROADCAST |
+	    NDIS_PACKET_TYPE_ALL_MULTICAST;
 	msg.ibuf.filter = htole32(sc->sc_filter);
 	URNDIS_LOCK(sc);
 	error = urndis_ctrl_set(sc, OID_GEN_CURRENT_PACKET_FILTER,
@@ -453,10 +454,10 @@ urndis_ctrl_send(struct urndis_softc *sc, void *buf, uint16_t len)
 	return (err);
 }
 
-static struct urndis_comp_hdr *
+static struct rndis_comp_hdr *
 urndis_ctrl_recv(struct urndis_softc *sc)
 {
-	struct urndis_comp_hdr *hdr;
+	struct rndis_comp_hdr *hdr;
 	usb_error_t err;
 
 	err = urndis_ctrl_msg(sc, UT_READ_CLASS_INTERFACE,
@@ -466,7 +467,7 @@ urndis_ctrl_recv(struct urndis_softc *sc)
 	if (err != USB_ERR_NORMAL_COMPLETION)
 		return (NULL);
 
-	hdr = (struct urndis_comp_hdr *)sc->sc_response_buf;
+	hdr = (struct rndis_comp_hdr *)sc->sc_response_buf;
 
 	DPRINTF("type 0x%x len %u\n", le32toh(hdr->rm_type),
 	    le32toh(hdr->rm_len));
@@ -480,7 +481,7 @@ urndis_ctrl_recv(struct urndis_softc *sc)
 }
 
 static uint32_t
-urndis_ctrl_handle(struct urndis_softc *sc, struct urndis_comp_hdr *hdr,
+urndis_ctrl_handle(struct urndis_softc *sc, struct rndis_comp_hdr *hdr,
     const void **buf, uint16_t *bufsz)
 {
 	uint32_t rval;
@@ -521,11 +522,11 @@ urndis_ctrl_handle(struct urndis_softc *sc, struct urndis_comp_hdr *hdr,
 
 static uint32_t
 urndis_ctrl_handle_init(struct urndis_softc *sc,
-    const struct urndis_comp_hdr *hdr)
+    const struct rndis_comp_hdr *hdr)
 {
-	const struct urndis_init_comp *msg;
+	const struct rndis_init_comp *msg;
 
-	msg = (const struct urndis_init_comp *)hdr;
+	msg = (const struct rndis_init_comp *)hdr;
 
 	DPRINTF("len %u rid %u status 0x%x "
 	    "ver_major %u ver_minor %u devflags 0x%x medium 0x%x pktmaxcnt %u "
@@ -564,12 +565,12 @@ urndis_ctrl_handle_init(struct urndis_softc *sc,
 
 static uint32_t
 urndis_ctrl_handle_query(struct urndis_softc *sc,
-    const struct urndis_comp_hdr *hdr, const void **buf, uint16_t *bufsz)
+    const struct rndis_comp_hdr *hdr, const void **buf, uint16_t *bufsz)
 {
-	const struct urndis_query_comp *msg;
+	const struct rndis_query_comp *msg;
 	uint64_t limit;
 
-	msg = (const struct urndis_query_comp *)hdr;
+	msg = (const struct rndis_query_comp *)hdr;
 
 	DPRINTF("len %u rid %u status 0x%x "
 	    "buflen %u bufoff %u\n",
@@ -609,12 +610,12 @@ urndis_ctrl_handle_query(struct urndis_softc *sc,
 
 static uint32_t
 urndis_ctrl_handle_reset(struct urndis_softc *sc,
-    const struct urndis_comp_hdr *hdr)
+    const struct rndis_comp_hdr *hdr)
 {
-	const struct urndis_reset_comp *msg;
+	const struct rndis_reset_comp *msg;
 	uint32_t rval;
 
-	msg = (const struct urndis_reset_comp *)hdr;
+	msg = (const struct rndis_reset_comp *)hdr;
 
 	rval = le32toh(msg->rm_status);
 
@@ -630,7 +631,7 @@ urndis_ctrl_handle_reset(struct urndis_softc *sc,
 	}
 	if (msg->rm_adrreset != 0) {
 		struct {
-			struct urndis_set_req hdr;
+			struct rndis_set_req hdr;
 			uint32_t filter;
 		} msg_filter;
 
@@ -650,14 +651,14 @@ urndis_ctrl_handle_reset(struct urndis_softc *sc,
 static uint32_t
 urndis_ctrl_init(struct urndis_softc *sc)
 {
-	struct urndis_init_req msg;
-	struct urndis_comp_hdr *hdr;
+	struct rndis_init_req msg;
+	struct rndis_comp_hdr *hdr;
 	uint32_t rval;
 
 	msg.rm_type = htole32(REMOTE_NDIS_INITIALIZE_MSG);
 	msg.rm_len = htole32(sizeof(msg));
 	msg.rm_rid = 0;
-	msg.rm_ver_major = htole32(1);
+	msg.rm_ver_major = htole32(RNDIS_VERSION_MAJOR);
 	msg.rm_ver_minor = htole32(1);
 	msg.rm_max_xfersz = htole32(RNDIS_RX_MAXLEN);
 
@@ -688,7 +689,7 @@ urndis_ctrl_init(struct urndis_softc *sc)
 static uint32_t
 urndis_ctrl_halt(struct urndis_softc *sc)
 {
-	struct urndis_halt_req msg;
+	struct rndis_halt_req msg;
 	uint32_t rval;
 
 	msg.rm_type = htole32(REMOTE_NDIS_HALT_MSG);
@@ -714,10 +715,10 @@ urndis_ctrl_halt(struct urndis_softc *sc)
  */
 static uint32_t
 urndis_ctrl_query(struct urndis_softc *sc, uint32_t oid,
-    struct urndis_query_req *msg, uint16_t len, const void **rbuf,
+    struct rndis_query_req *msg, uint16_t len, const void **rbuf,
     uint16_t *rbufsz)
 {
-	struct urndis_comp_hdr *hdr;
+	struct rndis_comp_hdr *hdr;
 	uint32_t datalen, rval;
 
 	msg->rm_type = htole32(REMOTE_NDIS_QUERY_MSG);
@@ -761,9 +762,9 @@ urndis_ctrl_query(struct urndis_softc *sc, uint32_t oid,
 
 static uint32_t
 urndis_ctrl_set(struct urndis_softc *sc, uint32_t oid,
-    struct urndis_set_req *msg, uint16_t len)
+    struct rndis_set_req *msg, uint16_t len)
 {
-	struct urndis_comp_hdr *hdr;
+	struct rndis_comp_hdr *hdr;
 	uint32_t datalen, rval;
 
 	msg->rm_type = htole32(REMOTE_NDIS_SET_MSG);
@@ -813,7 +814,7 @@ urndis_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct urndis_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc = usbd_xfer_get_frame(xfer, 0);
 	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
-	struct urndis_packet_msg msg;
+	struct rndis_packet_msg msg;
 	struct mbuf *m;
 	int actlen;
 	int aframes;
@@ -873,11 +874,11 @@ urndis_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				    "datalen %u\n", msg.rm_datalen, actlen);
 				goto tr_setup;
 			} else if ((msg.rm_dataoffset + msg.rm_datalen +
-			    (uint32_t)__offsetof(struct urndis_packet_msg,
+			    (uint32_t)__offsetof(struct rndis_packet_msg,
 			    rm_dataoffset)) > (uint32_t)actlen) {
 				DPRINTF("invalid dataoffset %u larger than %u\n",
 				    msg.rm_dataoffset + msg.rm_datalen +
-				    (uint32_t)__offsetof(struct urndis_packet_msg,
+				    (uint32_t)__offsetof(struct rndis_packet_msg,
 				    rm_dataoffset), actlen);
 				goto tr_setup;
 			} else if (msg.rm_datalen < (uint32_t)sizeof(struct ether_header)) {
@@ -903,7 +904,7 @@ urndis_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				m_adj(m, ETHER_ALIGN);
 
 				usbd_copy_out(pc, offset + msg.rm_dataoffset +
-				    __offsetof(struct urndis_packet_msg,
+				    __offsetof(struct rndis_packet_msg,
 				    rm_dataoffset), m->m_data, msg.rm_datalen);
 
 				/* enqueue */
@@ -939,7 +940,7 @@ tr_setup:
 static void
 urndis_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct urndis_packet_msg msg;
+	struct rndis_packet_msg msg;
 	struct urndis_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
 	struct mbuf *m;

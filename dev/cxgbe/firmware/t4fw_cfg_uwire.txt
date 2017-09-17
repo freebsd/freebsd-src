@@ -1,6 +1,6 @@
 # Chelsio T4 Factory Default configuration file.
 #
-# Copyright (C) 2010-2014 Chelsio Communications.  All rights reserved.
+# Copyright (C) 2010-2017 Chelsio Communications.  All rights reserved.
 #
 #   DO NOT MODIFY THIS FILE UNDER ANY CIRCUMSTANCES.  MODIFICATION OF
 #   THIS FILE WILL RESULT IN A NON-FUNCTIONAL T4 ADAPTER AND MAY RESULT
@@ -550,8 +550,8 @@
 	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [fini]
-	version = 0x1425001c
-	checksum = 0x5ceab41e
+	version = 0x01000028
+	checksum = 0x5ceab421
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

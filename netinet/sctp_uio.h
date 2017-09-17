@@ -147,7 +147,6 @@ struct sctp_extrcvinfo {
 	uint16_t sinfo_keynumber_valid;
 	uint8_t __reserve_pad[SCTP_ALIGN_RESV_PAD_SHORT];
 };
-
 #define sinfo_pr_value sinfo_timetolive
 #define sreinfo_next_flags serinfo_next_flags
 #define sreinfo_next_stream serinfo_next_stream
@@ -573,7 +572,6 @@ struct sctp_paddrparams {
 	uint16_t spp_pathmaxrxt;
 	uint8_t spp_dscp;
 };
-
 #define spp_ipv4_tos spp_dscp
 
 #define SPP_HB_ENABLE		0x00000001
@@ -1241,7 +1239,9 @@ struct xsctp_raddr {
 	uint32_t rtt;
 	uint32_t heartbeat_interval;
 	uint32_t ssthresh;
-	uint32_t extra_padding[30];	/* future */
+	uint16_t encaps_port;
+	uint16_t state;
+	uint32_t extra_padding[29];	/* future */
 };
 
 #define SCTP_MAX_LOGGING_SIZE 30000
@@ -1284,7 +1284,6 @@ sctp_sorecvmsg(struct socket *so,
     int *msg_flags,
     struct sctp_sndrcvinfo *sinfo,
     int filling_sinfo);
-
 #endif
 
 /*

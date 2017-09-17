@@ -137,6 +137,12 @@
 			reg = <0x00ff5ec0 0x30>;
 		};
 
+		ccu {
+			compatible = "annapurna-labs,al-ccu";
+			reg = <0x00090000 0x10000>;
+			io_coherency = <1>;
+		};
+
 		nb_service {
 			compatible = "annapurna-labs,al-nb-service";
 			reg = <0x00070000 0x10000>;
@@ -153,6 +159,12 @@
 			interrupt-parent = <&MPIC>;
 		};
 
+		/* SerDes */
+		serdes {
+			compatible = "annapurna-labs,al-serdes";
+			reg = <0x28c0000 0x1000>;
+		};
+
 		serial0: serial@2883000 {
 			compatible = "ns16550";
 			reg = <0x2883000 0x20>;
@@ -164,17 +176,29 @@
 		};
 	};
 
+	/* MSIX Configuration */
+	msix: msix {
+		compatible = "annapurna-labs,al-msix";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0xfbe00000 0x100000>;
+		interrupts = <0 96 1 0 159 1>;
+		interrupt-parent = <&MPIC>;
+	};
+
 	pcie-internal {
 		compatible = "annapurna-labs,al-internal-pcie";
 		device_type = "pci";
 		#size-cells = <2>;
 		#address-cells = <3>;
+		reg = <0xfbc00000 0x100000>;
 		interrupt-parent = <&MPIC>;
 		interrupt-map-mask = <0xf800 0 0 7>;
 		interrupt-map = <0x3000 0 0 1 &MPIC 0 32 4>, // USB adapter
 				<0x3800 0 0 1 &MPIC 0 36 4>,
 				<0x4000 0 0 1 &MPIC 0 43 4>, // SATA 0 (PCIe expander)
 				<0x4800 0 0 1 &MPIC 0 44 1>; // SATA 1 (onboard)
+		msi-parent = <&msix>;
 
 		// ranges:
 		// - ECAM - non prefetchable config space

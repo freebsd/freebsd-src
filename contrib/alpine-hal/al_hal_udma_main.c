@@ -70,7 +70,6 @@ const char *const al_udma_states_name[] = {
 
 static void al_udma_set_defaults(struct al_udma *udma)
 {
-	uint32_t tmp;
 	uint8_t rev_id = udma->rev_id;
 
 	if (udma->type == UDMA_TX) {
@@ -85,25 +84,11 @@ static void al_udma_set_defaults(struct al_udma *udma)
 			      256 << UDMA_M2S_RD_DATA_CFG_DATA_FIFO_DEPTH_SHIFT);
 		}
 
-		if (rev_id == AL_UDMA_REV_ID_0)
-			/* disable AXI timeout for M0*/
-			al_reg_write32(&tmp_unit_regs->gen.axi.cfg_1, 0);
-		else
-			/* set AXI timeout to 1M (~2.6 ms) */
-			al_reg_write32(&tmp_unit_regs->gen.axi.cfg_1, 1000000);
+		/* set AXI timeout to 1M (~2.6 ms) */
+		al_reg_write32(&tmp_unit_regs->gen.axi.cfg_1, 1000000);
 
 		al_reg_write32(&tmp_unit_regs->m2s.m2s_comp.cfg_application_ack
 					, 0); /* Ack time out */
-
-
-		if (rev_id == AL_UDMA_REV_ID_0) {
-			tmp = al_reg_read32(&udma->udma_regs->m2s.axi_m2s.desc_wr_cfg_1);
-			tmp &= ~UDMA_AXI_M2S_DESC_WR_CFG_1_MAX_AXI_BEATS_MASK;
-			tmp |= 4 << UDMA_AXI_M2S_DESC_WR_CFG_1_MAX_AXI_BEATS_SHIFT;
-			al_reg_write32(&udma->udma_regs->m2s.axi_m2s.desc_wr_cfg_1
-									, tmp);
-		}
-
 	}
 	if (udma->type == UDMA_RX) {
 		al_reg_write32(
@@ -365,14 +350,13 @@ int al_udma_q_init(struct al_udma *udma, uint32_t qid,
 	al_udma_q_enable(udma_q, 1);
 
 	al_dbg("udma [%s %d]: %s q init. size 0x%x\n"
-			"  desc ring info: phys base 0x%llx virt base %p\n"
-			"  cdesc ring info: phys base 0x%llx virt base %p "
-				"entry size 0x%x",
+			"  desc ring info: phys base 0x%llx virt base %p)",
 			udma_q->udma->name, udma_q->qid,
 			udma->type == UDMA_TX ? "Tx" : "Rx",
 			q_params->size,
 			(unsigned long long)q_params->desc_phy_base,
-			q_params->desc_base,
+			q_params->desc_base);
+	al_dbg("  cdesc ring info: phys base 0x%llx virt base %p entry size 0x%x",
 			(unsigned long long)q_params->cdesc_phy_base,
 			q_params->cdesc_base,
 			q_params->cdesc_size);

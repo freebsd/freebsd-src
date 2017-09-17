@@ -25,6 +25,8 @@
  *
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -50,6 +52,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef VFP
 #include <machine/vfp.h>
+#endif
+
+#ifdef DEV_PSCI
+#include <dev/psci/psci.h>
 #endif
 
 /*
@@ -85,7 +91,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	td2->td_pcb = pcb2;
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
-	td2->td_pcb->pcb_l0addr =
+	td2->td_proc->p_md.md_l0addr =
 	    vtophys(vmspace_pmap(td2->td_proc->p_vmspace)->pm_l0);
 
 	tf = (struct trapframe *)STACKALIGN((struct trapframe *)pcb2 - 1);
@@ -101,6 +107,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	td2->td_pcb->pcb_x[9] = (uintptr_t)td2;
 	td2->td_pcb->pcb_x[PCB_LR] = (uintptr_t)fork_trampoline;
 	td2->td_pcb->pcb_sp = (uintptr_t)td2->td_frame;
+	td2->td_pcb->pcb_fpusaved = &td2->td_pcb->pcb_fpustate;
 	td2->td_pcb->pcb_vfpcpu = UINT_MAX;
 
 	/* Setup to release spin count in fork_exit(). */
@@ -112,7 +119,11 @@ void
 cpu_reset(void)
 {
 
-	printf("cpu_reset");
+#ifdef DEV_PSCI
+	psci_reset();
+#endif
+
+	printf("cpu_reset failed");
 	while(1)
 		__asm volatile("wfi" ::: "memory");
 }
@@ -169,6 +180,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	td->td_pcb->pcb_x[9] = (uintptr_t)td;
 	td->td_pcb->pcb_x[PCB_LR] = (uintptr_t)fork_trampoline;
 	td->td_pcb->pcb_sp = (uintptr_t)td->td_frame;
+	td->td_pcb->pcb_fpusaved = &td->td_pcb->pcb_fpustate;
 	td->td_pcb->pcb_vfpcpu = UINT_MAX;
 
 	/* Setup to release spin count in fork_exit(). */
@@ -246,6 +258,7 @@ cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 	td->td_pcb->pcb_x[9] = (uintptr_t)arg;
 	td->td_pcb->pcb_x[PCB_LR] = (uintptr_t)fork_trampoline;
 	td->td_pcb->pcb_sp = (uintptr_t)td->td_frame;
+	td->td_pcb->pcb_fpusaved = &td->td_pcb->pcb_fpustate;
 	td->td_pcb->pcb_vfpcpu = UINT_MAX;
 }
 

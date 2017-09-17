@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -28,8 +28,6 @@
  *
  * $FreeBSD$
  */
-
-#include "opt_npx.h"
 
 #include <machine/asmacros.h>
 #include <machine/cputypes.h>
@@ -69,9 +67,16 @@ ENTRY(sse2_pagezero)
 	movl	%ecx,%eax
 	addl	$4096,%eax
 	xor	%ebx,%ebx
+	jmp	1f
+	/*
+	 * The loop takes 14 bytes.  Ensure that it doesn't cross a 16-byte
+	 * cache line.
+	 */
+	.p2align 4,0x90
 1:
 	movnti	%ebx,(%ecx)
-	addl	$4,%ecx
+	movnti	%ebx,4(%ecx)
+	addl	$8,%ecx
 	cmpl	%ecx,%eax
 	jne	1b
 	sfence

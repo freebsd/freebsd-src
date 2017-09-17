@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -141,14 +141,6 @@ div_inpcb_init(void *mem, int size, int flags)
 }
 
 static void
-div_inpcb_fini(void *mem, int size)
-{
-	struct inpcb *inp = mem;
-
-	INP_LOCK_DESTROY(inp);
-}
-
-static void
 div_init(void)
 {
 
@@ -158,7 +150,7 @@ div_init(void)
 	 * place for hashbase == NULL.
 	 */
 	in_pcbinfo_init(&V_divcbinfo, "div", &V_divcb, 1, 1, "divcb",
-	    div_inpcb_init, div_inpcb_fini, 0, IPI_HASHFIELDS_NONE);
+	    div_inpcb_init, IPI_HASHFIELDS_NONE);
 }
 
 static void
@@ -489,6 +481,14 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		/* Send packet to input processing via netisr */
 		switch (ip->ip_v) {
 		case IPVERSION:
+			/*
+			 * Restore M_BCAST flag when destination address is
+			 * broadcast. It is expected by ip_tryforward().
+			 */
+			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)))
+				m->m_flags |= M_MCAST;
+			else if (in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
+				m->m_flags |= M_BCAST;
 			netisr_queue_src(NETISR_IP, (uintptr_t)so, m);
 			break;
 #ifdef INET6
@@ -691,12 +691,8 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xinpcb xi;
-			bzero(&xi, sizeof(xi));
-			xi.xi_len = sizeof xi;
-			/* XXX should avoid extra copy */
-			bcopy(inp, &xi.xi_inp, sizeof *inp);
-			if (inp->inp_socket)
-				sotoxsocket(inp->inp_socket, &xi.xi_socket);
+
+			in_pcbtoxinpcb(inp, &xi);
 			INP_RUNLOCK(inp);
 			error = SYSCTL_OUT(req, &xi, sizeof xi);
 		} else

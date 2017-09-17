@@ -24,7 +24,7 @@
  */
 
 /*
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
 
@@ -34,6 +34,8 @@
 #include <sys/zio.h>
 #include <sys/avl.h>
 #include <sys/dsl_pool.h>
+#include <sys/metaslab_impl.h>
+#include <sys/abd.h>
 
 /*
  * ZFS I/O Scheduler
@@ -175,6 +177,23 @@ int zfs_vdev_aggregation_limit = SPA_OLD_MAXBLOCKSIZE;
 int zfs_vdev_read_gap_limit = 32 << 10;
 int zfs_vdev_write_gap_limit = 4 << 10;
 
+/*
+ * Define the queue depth percentage for each top-level. This percentage is
+ * used in conjunction with zfs_vdev_async_max_active to determine how many
+ * allocations a specific top-level vdev should handle. Once the queue depth
+ * reaches zfs_vdev_queue_depth_pct * zfs_vdev_async_write_max_active / 100
+ * then allocator will stop allocating blocks on that top-level device.
+ * The default kernel setting is 1000% which will yield 100 allocations per
+ * device. For userland testing, the default setting is 300% which equates
+ * to 30 allocations per device.
+ */
+#ifdef _KERNEL
+int zfs_vdev_queue_depth_pct = 1000;
+#else
+int zfs_vdev_queue_depth_pct = 300;
+#endif
+
+
 #ifdef __FreeBSD__
 #ifdef _KERNEL
 SYSCTL_DECL(_vfs_zfs_vdev);
@@ -233,6 +252,9 @@ SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, read_gap_limit, CTLFLAG_RWTUN,
 SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, write_gap_limit, CTLFLAG_RWTUN,
     &zfs_vdev_write_gap_limit, 0,
     "Acceptable gap between two writes being aggregated");
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, queue_depth_pct, CTLFLAG_RWTUN,
+    &zfs_vdev_queue_depth_pct, 0,
+    "Queue depth percentage for each top-level");
 
 static int
 sysctl_zfs_async_write_active_min_dirty_percent(SYSCTL_HANDLER_ARGS)
@@ -390,6 +412,7 @@ vdev_queue_io_add(vdev_queue_t *vq, zio_t *zio)
 {
 	spa_t *spa = zio->io_spa;
 	avl_tree_t *qtt;
+
 	ASSERT(MUTEX_HELD(&vq->vq_lock));
 	ASSERT3U(zio->io_priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
 	avl_add(vdev_queue_class_tree(vq, zio->io_priority), zio);
@@ -411,6 +434,7 @@ vdev_queue_io_remove(vdev_queue_t *vq, zio_t *zio)
 {
 	spa_t *spa = zio->io_spa;
 	avl_tree_t *qtt;
+
 	ASSERT(MUTEX_HELD(&vq->vq_lock));
 	ASSERT3U(zio->io_priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
 	avl_remove(vdev_queue_class_tree(vq, zio->io_priority), zio);
@@ -480,13 +504,14 @@ vdev_queue_agg_io_done(zio_t *aio)
 {
 	if (aio->io_type == ZIO_TYPE_READ) {
 		zio_t *pio;
-		while ((pio = zio_walk_parents(aio)) != NULL) {
-			bcopy((char *)aio->io_data + (pio->io_offset -
-			    aio->io_offset), pio->io_data, pio->io_size);
+		zio_link_t *zl = NULL;
+		while ((pio = zio_walk_parents(aio, &zl)) != NULL) {
+			abd_copy_off(pio->io_abd, aio->io_abd,
+			    0, pio->io_offset - aio->io_offset, pio->io_size);
 		}
 	}
 
-	zio_buf_free(aio->io_data, aio->io_size);
+	abd_free(aio->io_abd);
 }
 
 static int
@@ -656,7 +681,7 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 
 	/*
 	 * Walk backwards through sufficiently contiguous I/Os
-	 * recording the last non-option I/O.
+	 * recording the last non-optional I/O.
 	 */
 	flags = zio->io_flags & ZIO_FLAG_AGG_INHERIT;
 	t = vdev_queue_type_tree(vq, zio->io_type);
@@ -679,10 +704,14 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 
 	/*
 	 * Walk forward through sufficiently contiguous I/Os.
+	 * The aggregation limit does not apply to optional i/os, so that
+	 * we can issue contiguous writes even if they are larger than the
+	 * aggregation limit.
 	 */
 	while ((dio = AVL_NEXT(t, last)) != NULL &&
 	    (dio->io_flags & ZIO_FLAG_AGG_INHERIT) == flags &&
-	    IO_SPAN(first, dio) <= zfs_vdev_aggregation_limit &&
+	    (IO_SPAN(first, dio) <= zfs_vdev_aggregation_limit ||
+	    (dio->io_flags & ZIO_FLAG_OPTIONAL)) &&
 	    IO_GAP(last, dio) <= maxgap) {
 		last = dio;
 		if (!(last->io_flags & ZIO_FLAG_OPTIONAL))
@@ -714,10 +743,16 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	}
 
 	if (stretch) {
-		/* This may be a no-op. */
+		/*
+		 * We are going to include an optional io in our aggregated
+		 * span, thus closing the write gap.  Only mandatory i/os can
+		 * start aggregated spans, so make sure that the next i/o
+		 * after our span is mandatory.
+		 */
 		dio = AVL_NEXT(t, last);
 		dio->io_flags &= ~ZIO_FLAG_OPTIONAL;
 	} else {
+		/* do not include the optional i/o */
 		while (last != mandatory && last != first) {
 			ASSERT(last->io_flags & ZIO_FLAG_OPTIONAL);
 			last = AVL_PREV(t, last);
@@ -729,11 +764,11 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 		return (NULL);
 
 	size = IO_SPAN(first, last);
-	ASSERT3U(size, <=, zfs_vdev_aggregation_limit);
+	ASSERT3U(size, <=, SPA_MAXBLOCKSIZE);
 
 	aio = zio_vdev_delegated_io(first->io_vd, first->io_offset,
-	    zio_buf_alloc(size), size, first->io_type, zio->io_priority,
-	    flags | ZIO_FLAG_DONT_CACHE | ZIO_FLAG_DONT_QUEUE,
+	    abd_alloc_for_io(size, B_TRUE), size, first->io_type,
+	    zio->io_priority, flags | ZIO_FLAG_DONT_CACHE | ZIO_FLAG_DONT_QUEUE,
 	    vdev_queue_agg_io_done, NULL);
 	aio->io_timestamp = first->io_timestamp;
 
@@ -745,12 +780,11 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 
 		if (dio->io_flags & ZIO_FLAG_NODATA) {
 			ASSERT3U(dio->io_type, ==, ZIO_TYPE_WRITE);
-			bzero((char *)aio->io_data + (dio->io_offset -
-			    aio->io_offset), dio->io_size);
+			abd_zero_off(aio->io_abd,
+			    dio->io_offset - aio->io_offset, dio->io_size);
 		} else if (dio->io_type == ZIO_TYPE_WRITE) {
-			bcopy(dio->io_data, (char *)aio->io_data +
-			    (dio->io_offset - aio->io_offset),
-			    dio->io_size);
+			abd_copy_off(aio->io_abd, dio->io_abd,
+			    dio->io_offset - aio->io_offset, 0, dio->io_size);
 		}
 
 		zio_add_child(dio, aio);

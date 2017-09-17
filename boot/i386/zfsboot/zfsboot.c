@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "lib.h"
 #include "rbx.h"
 #include "drv.h"
+#include "edd.h"
 #include "util.h"
 #include "cons.h"
 #include "bootargs.h"
@@ -119,11 +120,13 @@ struct dmadat {
 static struct dmadat *dmadat;
 
 void exit(int);
+void reboot(void);
 static void load(void);
-static int parse(void);
+static int parse_cmd(void);
 static void bios_getmem(void);
 void *malloc(size_t n);
 void free(void *ptr);
+int main(void);
 
 void *
 malloc(size_t n)
@@ -158,6 +161,7 @@ strdup(const char *s)
 #ifdef LOADER_GELI_SUPPORT
 #include "geliboot.c"
 static char gelipw[GELI_PW_MAXLEN];
+static struct keybuf *gelibuf;
 #endif
 
 #include "zfsimpl.c"
@@ -175,7 +179,7 @@ zfs_read(spa_t *spa, const dnode_phys_t *dnode, off_t *offp, void *start, size_t
 	n = size;
 	if (*offp + n > zp->zp_size)
 		n = zp->zp_size - *offp;
-	
+
 	rc = dnode_read(spa, dnode, *offp, start, n);
 	if (rc)
 		return (-1);
@@ -260,6 +264,35 @@ vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 }
 
 static int
+vdev_write(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
+{
+	char *p;
+	daddr_t lba;
+	unsigned int nb;
+	struct dsk *dsk = (struct dsk *) priv;
+
+	if ((off & (DEV_BSIZE - 1)) || (bytes & (DEV_BSIZE - 1)))
+		return -1;
+
+	p = buf;
+	lba = off / DEV_BSIZE;
+	lba += dsk->start;
+	while (bytes > 0) {
+		nb = bytes / DEV_BSIZE;
+		if (nb > READ_BUF_SIZE / DEV_BSIZE)
+			nb = READ_BUF_SIZE / DEV_BSIZE;
+		memcpy(dmadat->rdbuf, p, nb * DEV_BSIZE);
+		if (drvwrite(dsk, dmadat->rdbuf, lba, nb))
+			return -1;
+		p += nb * DEV_BSIZE;
+		lba += nb;
+		bytes -= nb * DEV_BSIZE;
+	}
+
+	return 0;
+}
+
+static int
 xfsread(const dnode_phys_t *dnode, off_t *offp, void *buf, size_t nbyte)
 {
     if ((size_t)zfs_read(spa, dnode, offp, buf, nbyte) != nbyte) {
@@ -267,6 +300,52 @@ xfsread(const dnode_phys_t *dnode, off_t *offp, void *buf, size_t nbyte)
 	return -1;
     }
     return 0;
+}
+
+/*
+ * Read Pad2 (formerly "Boot Block Header") area of the first
+ * vdev label of the given vdev.
+ */
+static int
+vdev_read_pad2(vdev_t *vdev, char *buf, size_t size)
+{
+	blkptr_t bp;
+	char *tmp = zap_scratch;
+	off_t off = offsetof(vdev_label_t, vl_pad2);
+
+	if (size > VDEV_PAD_SIZE)
+		size = VDEV_PAD_SIZE;
+
+	BP_ZERO(&bp);
+	BP_SET_LSIZE(&bp, VDEV_PAD_SIZE);
+	BP_SET_PSIZE(&bp, VDEV_PAD_SIZE);
+	BP_SET_CHECKSUM(&bp, ZIO_CHECKSUM_LABEL);
+	BP_SET_COMPRESS(&bp, ZIO_COMPRESS_OFF);
+	DVA_SET_OFFSET(BP_IDENTITY(&bp), off);
+	if (vdev_read_phys(vdev, &bp, tmp, off, 0))
+		return (EIO);
+	memcpy(buf, tmp, size);
+	return (0);
+}
+
+static int
+vdev_clear_pad2(vdev_t *vdev)
+{
+	char *zeroes = zap_scratch;
+	uint64_t *end;
+	off_t off = offsetof(vdev_label_t, vl_pad2);
+
+	memset(zeroes, 0, VDEV_PAD_SIZE);
+	end = (uint64_t *)(zeroes + VDEV_PAD_SIZE);
+	/* ZIO_CHECKSUM_LABEL magic and pre-calcualted checksum for all zeros */
+	end[-5] = 0x0210da7ab10c7a11;
+	end[-4] = 0x97f48f807f6e2a3f;
+	end[-3] = 0xaf909f1658aacefc;
+	end[-2] = 0xcbd1ea57ff6db48b;
+	end[-1] = 0x6ec692db0d465fab;
+	if (vdev_write(vdev, vdev->v_read_priv, off, zeroes, VDEV_PAD_SIZE))
+		return (EIO);
+	return (0);
 }
 
 static void
@@ -391,6 +470,73 @@ copy_dsk(struct dsk *dsk)
     return (newdsk);
 }
 
+/*
+ * Get disk size from eax=0x800 and 0x4800. We need to probe both
+ * because 0x4800 may not be available and we would like to get more
+ * or less correct disk size - if it is possible at all.
+ * Note we do not really want to touch drv.c because that code is shared
+ * with boot2 and we can not afford to grow that code.
+ */
+static uint64_t
+drvsize_ext(struct dsk *dskp)
+{
+	uint64_t size, tmp;
+	int cyl, hds, sec;
+
+	v86.ctl = V86_FLAGS;
+	v86.addr = 0x13;
+	v86.eax = 0x800;
+	v86.edx = dskp->drive;
+	v86int();
+
+	/* Don't error out if we get bad sector number, try EDD as well */
+	if (V86_CY(v86.efl) ||	/* carry set */
+	    (v86.edx & 0xff) <= (unsigned)(dskp->drive & 0x7f)) /* unit # bad */
+		return (0);
+
+	cyl = ((v86.ecx & 0xc0) << 2) + ((v86.ecx & 0xff00) >> 8) + 1;
+	/* Convert max head # -> # of heads */
+	hds = ((v86.edx & 0xff00) >> 8) + 1;
+	sec = v86.ecx & 0x3f;
+
+	size = (uint64_t)cyl * hds * sec;
+
+	/* Determine if we can use EDD with this device. */
+	v86.ctl = V86_FLAGS;
+	v86.addr = 0x13;
+	v86.eax = 0x4100;
+	v86.edx = dskp->drive;
+	v86.ebx = 0x55aa;
+	v86int();
+	if (V86_CY(v86.efl) ||  /* carry set */
+	    (v86.ebx & 0xffff) != 0xaa55 || /* signature */
+	    (v86.ecx & EDD_INTERFACE_FIXED_DISK) == 0)
+		return (size);
+
+	tmp = drvsize(dskp);
+	if (tmp > size)
+		size = tmp;
+
+	return (size);
+}
+
+/*
+ * The "layered" ioctl to read disk/partition size. Unfortunately
+ * the zfsboot case is hardest, because we do not have full software
+ * stack available, so we need to do some manual work here.
+ */
+uint64_t
+ldi_get_size(void *priv)
+{
+	struct dsk *dskp = priv;
+	uint64_t size = dskp->size;
+
+	if (dskp->start == 0)
+		size = drvsize_ext(dskp);
+
+	return (size * DEV_BSIZE);
+}
+
 static void
 probe_drive(struct dsk *dsk)
 {
@@ -421,12 +567,13 @@ probe_drive(struct dsk *dsk)
      * out the partition table and probe each slice/partition
      * in turn for a vdev or GELI encrypted vdev.
      */
-    elba = drvsize(dsk);
+    elba = drvsize_ext(dsk);
     if (elba > 0) {
 	elba--;
     }
     if (geli_taste(vdev_read, dsk, elba) == 0) {
-	if (geli_passphrase(&gelipw, dsk->unit, ':', 0, dsk) == 0) {
+	if (geli_havekey(dsk) == 0 || geli_passphrase(&gelipw, dsk->unit,
+	  ':', 0, dsk) == 0) {
 	    if (vdev_probe(vdev_read, dsk, NULL) == 0) {
 		return;
 	    }
@@ -471,6 +618,7 @@ probe_drive(struct dsk *dsk)
 	    if (memcmp(&ent->ent_type, &freebsd_zfs_uuid,
 		     sizeof(uuid_t)) == 0) {
 		dsk->start = ent->ent_lba_start;
+		dsk->size = ent->ent_lba_end - ent->ent_lba_start + 1;
 		dsk->slice = part + 1;
 		dsk->part = 255;
 		if (vdev_probe(vdev_read, dsk, NULL) == 0) {
@@ -483,7 +631,8 @@ probe_drive(struct dsk *dsk)
 #ifdef LOADER_GELI_SUPPORT
 		else if (geli_taste(vdev_read, dsk, ent->ent_lba_end -
 			 ent->ent_lba_start) == 0) {
-		    if (geli_passphrase(&gelipw, dsk->unit, 'p', dsk->slice, dsk) == 0) {
+		    if (geli_havekey(dsk) == 0 || geli_passphrase(&gelipw,
+		      dsk->unit, 'p', dsk->slice, dsk) == 0) {
 			/*
 			 * This slice has GELI, check it for ZFS.
 			 */
@@ -514,6 +663,7 @@ trymbr:
 	if (!dp[i].dp_typ)
 	    continue;
 	dsk->start = dp[i].dp_start;
+	dsk->size = dp[i].dp_size;
 	dsk->slice = i + 1;
 	if (vdev_probe(vdev_read, dsk, NULL) == 0) {
 	    dsk = copy_dsk(dsk);
@@ -521,7 +671,8 @@ trymbr:
 #ifdef LOADER_GELI_SUPPORT
 	else if (geli_taste(vdev_read, dsk, dp[i].dp_size -
 		 dp[i].dp_start) == 0) {
-	    if (geli_passphrase(&gelipw, dsk->unit, 's', i, dsk) == 0) {
+	    if (geli_havekey(dsk) == 0 || geli_passphrase(&gelipw, dsk->unit,
+	      's', i, dsk) == 0) {
 		/*
 		 * This slice has GELI, check it for ZFS.
 		 */
@@ -542,10 +693,12 @@ trymbr:
 int
 main(void)
 {
-    int autoboot, i;
     dnode_phys_t dn;
     off_t off;
     struct dsk *dsk;
+    int autoboot, i;
+    int nextboot;
+    int rc;
 
     dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
 
@@ -566,7 +719,7 @@ main(void)
     dsk->slice = *(uint8_t *)PTOV(ARGS + 1) + 1;
     dsk->part = 0;
     dsk->start = 0;
-    dsk->init = 0;
+    dsk->size = 0;
 
     bootinfo.bi_version = BOOTINFO_VERSION;
     bootinfo.bi_size = sizeof(bootinfo);
@@ -617,7 +770,7 @@ main(void)
 	dsk->slice = 0;
 	dsk->part = 0;
 	dsk->start = 0;
-	dsk->init = 0;
+	dsk->size = 0;
 	probe_drive(dsk);
     }
 
@@ -634,7 +787,39 @@ main(void)
     primary_spa = spa;
     primary_vdev = spa_get_primary_vdev(spa);
 
-    if (zfs_spa_init(spa) != 0 || zfs_mount(spa, 0, &zfsmount) != 0) {
+    nextboot = 0;
+    rc  = vdev_read_pad2(primary_vdev, cmd, sizeof(cmd));
+    if (vdev_clear_pad2(primary_vdev))
+	printf("failed to clear pad2 area of primary vdev\n");
+    if (rc == 0) {
+	if (*cmd) {
+	    /*
+	     * We could find an old-style ZFS Boot Block header here.
+	     * Simply ignore it.
+	     */
+	    if (*(uint64_t *)cmd != 0x2f5b007b10c) {
+		/*
+		 * Note that parse() is destructive to cmd[] and we also want
+		 * to honor RBX_QUIET option that could be present in cmd[].
+		 */
+		nextboot = 1;
+		memcpy(cmddup, cmd, sizeof(cmd));
+		if (parse_cmd()) {
+		    printf("failed to parse pad2 area of primary vdev\n");
+		    reboot();
+		}
+		if (!OPT_CHECK(RBX_QUIET))
+		    printf("zfs nextboot: %s\n", cmddup);
+	    }
+	    /* Do not process this command twice */
+	    *cmd = 0;
+	}
+    } else
+	printf("failed to read pad2 area of primary vdev\n");
+
+    /* Mount ZFS only if it's not already mounted via nextboot parsing. */
+    if (zfsmount.spa == NULL &&
+	(zfs_spa_init(spa) != 0 || zfs_mount(spa, 0, &zfsmount) != 0)) {
 	printf("%s: failed to mount default pool %s\n",
 	    BOOTPROG, spa->spa_name);
 	autoboot = 0;
@@ -646,17 +831,21 @@ main(void)
 
     if (*cmd) {
 	/*
-	 * Note that parse() is destructive to cmd[] and we also want
+	 * Note that parse_cmd() is destructive to cmd[] and we also want
 	 * to honor RBX_QUIET option that could be present in cmd[].
 	 */
 	memcpy(cmddup, cmd, sizeof(cmd));
-	if (parse())
+	if (parse_cmd())
 	    autoboot = 0;
 	if (!OPT_CHECK(RBX_QUIET))
 	    printf("%s: %s\n", PATH_CONFIG, cmddup);
 	/* Do not process this command twice */
 	*cmd = 0;
     }
+
+    /* Do not risk waiting at the prompt forever. */
+    if (nextboot && !autoboot)
+	reboot();
 
     /*
      * Try to exec /boot/loader. If interrupted by a keypress,
@@ -696,7 +885,7 @@ main(void)
 	else if (!autoboot || !OPT_CHECK(RBX_QUIET))
 	    putchar('\n');
 	autoboot = 0;
-	if (parse())
+	if (parse_cmd())
 	    putchar('\a');
 	else
 	    load();
@@ -707,6 +896,13 @@ main(void)
 void
 exit(int x)
 {
+    __exit(x);
+}
+
+void
+reboot(void)
+{
+    __exit(0);
 }
 
 static void
@@ -804,8 +1000,12 @@ load(void)
     zfsargs.root = zfsmount.rootobj;
     zfsargs.primary_pool = primary_spa->spa_guid;
 #ifdef LOADER_GELI_SUPPORT
-    bcopy(gelipw, zfsargs.gelipw, sizeof(zfsargs.gelipw));
-    bzero(gelipw, sizeof(gelipw));
+    explicit_bzero(gelipw, sizeof(gelipw));
+    gelibuf = malloc(sizeof(struct keybuf) + (GELI_MAX_KEYS * sizeof(struct keybuf_ent)));
+    geli_fill_keybuf(gelibuf);
+    zfsargs.notapw = '\0';
+    zfsargs.keybuf_sentinel = KEYBUF_SENTINEL;
+    zfsargs.keybuf = gelibuf;
 #else
     zfsargs.gelipw[0] = '\0';
 #endif
@@ -858,7 +1058,7 @@ zfs_mount_ds(char *dsname)
 }
 
 static int
-parse(void)
+parse_cmd(void)
 {
     char *arg = cmd;
     char *ep, *p, *q;

@@ -691,7 +691,7 @@ hpt_rebuild_data_block(IAL_ADAPTER_T *pAdapter, PVDevice pArray, UCHAR flags)
     PCommand pCmd;
 	UINT result;
 	int needsync=0, retry=0, needdelete=0;
-	void *buffer = 0;
+	void *buffer = NULL;
 
 	_VBUS_INST(&pAdapter->VBus)
 

@@ -67,12 +67,13 @@
 #define _ARM_BUS_DMA_H
 
 #include <sys/bus_dma.h>
+#include <sys/bus_dma_internal.h>
 
 /* Bus Space DMA macros */
 
 #define BUS_DMA_TAG_VALID(t)    ((t) != (bus_dma_tag_t)0)
 
-#ifdef _ARM32_BUS_DMA_PRIVATE
+#if defined(_ARM32_BUS_DMA_PRIVATE) && __ARM_ARCH < 6
 /*
  *	arm32_dma_range
  *

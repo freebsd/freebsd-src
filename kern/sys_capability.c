@@ -83,7 +83,13 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/vm.h>
 
+int trap_enotcap;
+SYSCTL_INT(_kern, OID_AUTO, trap_enotcap, CTLFLAG_RW, &trap_enotcap, 0,
+    "Deliver SIGTRAP on ENOTCAPABLE");
+
 #ifdef CAPABILITY_MODE
+
+#define        IOCTLS_MAX_COUNT        256     /* XXX: Is 256 sane? */
 
 FEATURE(security_capability_mode, "Capsicum Capability Mode");
 
@@ -150,16 +156,13 @@ static inline int
 _cap_check(const cap_rights_t *havep, const cap_rights_t *needp,
     enum ktr_cap_fail_type type)
 {
-	int i;
 
-	for (i = 0; i < nitems(havep->cr_rights); i++) {
-		if (!cap_rights_contains(havep, needp)) {
+	if (!cap_rights_contains(havep, needp)) {
 #ifdef KTRACE
-			if (KTRPOINT(curthread, KTR_CAPFAIL))
-				ktrcapfail(type, needp, havep);
+		if (KTRPOINT(curthread, KTR_CAPFAIL))
+			ktrcapfail(type, needp, havep);
 #endif
-			return (ENOTCAPABLE);
-		}
+		return (ENOTCAPABLE);
 	}
 	return (0);
 }
@@ -397,6 +400,11 @@ kern_cap_ioctls_limit(struct thread *td, int fd, u_long *cmds, size_t ncmds)
 
 	AUDIT_ARG_FD(fd);
 
+	if (ncmds > IOCTLS_MAX_COUNT) {
+		error = EINVAL;
+		goto out_free;
+	}
+
 	fdp = td->td_proc->p_fd;
 	FILEDESC_XLOCK(fdp);
 
@@ -417,6 +425,7 @@ kern_cap_ioctls_limit(struct thread *td, int fd, u_long *cmds, size_t ncmds)
 	error = 0;
 out:
 	FILEDESC_XUNLOCK(fdp);
+out_free:
 	free(cmds, M_FILECAPS);
 	return (error);
 }
@@ -430,7 +439,7 @@ sys_cap_ioctls_limit(struct thread *td, struct cap_ioctls_limit_args *uap)
 
 	ncmds = uap->ncmds;
 
-	if (ncmds > 256)	/* XXX: Is 256 sane? */
+	if (ncmds > IOCTLS_MAX_COUNT)
 		return (EINVAL);
 
 	if (ncmds == 0) {
@@ -452,45 +461,59 @@ sys_cap_ioctls_get(struct thread *td, struct cap_ioctls_get_args *uap)
 {
 	struct filedesc *fdp;
 	struct filedescent *fdep;
-	u_long *cmds;
-	size_t maxcmds;
+	u_long *cmdsp, *dstcmds;
+	size_t maxcmds, ncmds;
+	int16_t count;
 	int error, fd;
 
 	fd = uap->fd;
-	cmds = uap->cmds;
+	dstcmds = uap->cmds;
 	maxcmds = uap->maxcmds;
 
 	AUDIT_ARG_FD(fd);
 
 	fdp = td->td_proc->p_fd;
-	FILEDESC_SLOCK(fdp);
 
-	if (fget_locked(fdp, fd) == NULL) {
+	cmdsp = NULL;
+	if (dstcmds != NULL) {
+		cmdsp = malloc(sizeof(cmdsp[0]) * IOCTLS_MAX_COUNT, M_FILECAPS,
+		    M_WAITOK | M_ZERO);
+	}
+
+	FILEDESC_SLOCK(fdp);
+	fdep = fdeget_locked(fdp, fd);
+	if (fdep == NULL) {
 		error = EBADF;
+		FILEDESC_SUNLOCK(fdp);
 		goto out;
 	}
+	count = fdep->fde_nioctls;
+	if (count != -1 && cmdsp != NULL) {
+		ncmds = MIN(count, maxcmds);
+		memcpy(cmdsp, fdep->fde_ioctls, sizeof(cmdsp[0]) * ncmds);
+	}
+	FILEDESC_SUNLOCK(fdp);
 
 	/*
 	 * If all ioctls are allowed (fde_nioctls == -1 && fde_ioctls == NULL)
 	 * the only sane thing we can do is to not populate the given array and
 	 * return CAP_IOCTLS_ALL.
 	 */
-
-	fdep = &fdp->fd_ofiles[fd];
-	if (cmds != NULL && fdep->fde_ioctls != NULL) {
-		error = copyout(fdep->fde_ioctls, cmds,
-		    sizeof(cmds[0]) * MIN(fdep->fde_nioctls, maxcmds));
-		if (error != 0)
-			goto out;
-	}
-	if (fdep->fde_nioctls == -1)
+	if (count != -1) {
+		if (cmdsp != NULL) {
+			error = copyout(cmdsp, dstcmds,
+			    sizeof(cmdsp[0]) * ncmds);
+			if (error != 0)
+				goto out;
+		}
+		td->td_retval[0] = count;
+	} else {
 		td->td_retval[0] = CAP_IOCTLS_ALL;
-	else
-		td->td_retval[0] = fdep->fde_nioctls;
+	}
 
 	error = 0;
 out:
-	FILEDESC_SUNLOCK(fdp);
+	free(cmdsp, M_FILECAPS);
 	return (error);
 }
 

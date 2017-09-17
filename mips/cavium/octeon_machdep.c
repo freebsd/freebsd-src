@@ -95,6 +95,7 @@ struct octeon_feature_description {
 extern int	*end;
 extern char cpu_model[];
 extern char cpu_board[];
+static char octeon_kenv[0x2000];
 
 static const struct octeon_feature_description octeon_feature_descriptions[] = {
 	{ OCTEON_FEATURE_SAAD,			"SAAD" },
@@ -130,6 +131,7 @@ static uint64_t octeon_get_ticks(void);
 static unsigned octeon_get_timecount(struct timecounter *tc);
 
 static void octeon_boot_params_init(register_t ptr);
+static void octeon_init_kenv(register_t ptr);
 
 static struct timecounter octeon_timecounter = {
 	octeon_get_timecount,	/* get_timecount */
@@ -341,12 +343,11 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 
 	octeon_ciu_reset();
 	/*
-	 * XXX
-	 * We can certainly parse command line arguments or U-Boot environment
-	 * to determine whether to bootverbose / single user / ...  I think
-	 * stass has patches to add support for loader things to U-Boot even.
+	 * Convert U-Boot 'bootoctlinux' loader command line arguments into
+	 * boot flags and kernel environment variables.
 	 */
 	bootverbose = 1;
+	octeon_init_kenv(a3);
 
 	/*
 	 * For some reason on the cn38xx simulator ebase register is set to
@@ -660,3 +661,59 @@ octeon_boot_params_init(register_t ptr)
 	__cvmx_helper_cfg_init();
 }
 /* impEND: This stuff should move back into the Cavium SDK */
+
+static void
+boothowto_parse(const char *v)
+{
+	if ((v == NULL) || (*v != '-'))
+		return;
+
+	while (*v != '\0') {
+		v++;
+		switch (*v) {
+		case 'a': boothowto |= RB_ASKNAME; break;
+		case 'C': boothowto |= RB_CDROM; break;
+		case 'd': boothowto |= RB_KDB; break;
+		case 'D': boothowto |= RB_MULTIPLE; break;
+		case 'm': boothowto |= RB_MUTE; break;
+		case 'g': boothowto |= RB_GDB; break;
+		case 'h': boothowto |= RB_SERIAL; break;
+		case 'p': boothowto |= RB_PAUSE; break;
+		case 'r': boothowto |= RB_DFLTROOT; break;
+		case 's': boothowto |= RB_SINGLE; break;
+		case 'v': boothowto |= RB_VERBOSE; break;
+		}
+	}
+}
+
+/*
+ * The boot loader command line may specify kernel environment variables or
+ * applicable boot flags of boot(8).
+ */
+static void
+octeon_init_kenv(register_t ptr)
+{
+	int i;
+	char *n;
+	char *v;
+	octeon_boot_descriptor_t *app_desc_ptr;
+
+	app_desc_ptr = (octeon_boot_descriptor_t *)(intptr_t)ptr;
+	memset(octeon_kenv, 0, sizeof(octeon_kenv));
+	init_static_kenv(octeon_kenv, sizeof(octeon_kenv));
+
+	for (i = 0; i < app_desc_ptr->argc; i++) {
+		v = cvmx_phys_to_ptr(app_desc_ptr->argv[i]);
+		if (v == NULL)
+			continue;
+		if (*v == '-') {
+			boothowto_parse(v);
+			continue;
+		}
+		n = strsep(&v, "=");
+		if (v == NULL)
+			kern_setenv(n, "1");
+		else
+			kern_setenv(n, v);
+	}
+}

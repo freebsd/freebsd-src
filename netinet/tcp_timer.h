@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -119,6 +119,13 @@
 
 #define	TCPTV_DELACK	( hz/10 )		/* 100ms timeout */
 
+/*
+ * If we exceed this number of retransmits for a single segment, we'll consider
+ * the current srtt measurement no longer valid and will recalculate from
+ * scratch starting with the next ACK.
+ */
+#define TCP_RTT_INVALIDATE (TCP_MAXRXTSHIFT / 4)
+
 #ifdef	TCPTIMERS
 static const char *tcptimers[] =
     { "REXMT", "PERSIST", "KEEP", "2MSL", "DELACK" };
@@ -203,8 +210,6 @@ void	tcp_timer_keep(void *xtp);
 void	tcp_timer_persist(void *xtp);
 void	tcp_timer_rexmt(void *xtp);
 void	tcp_timer_delack(void *xtp);
-void	tcp_timer_to_xtimer(struct tcpcb *tp, struct tcp_timer *timer,
-	struct xtcp_timer *xtimer);
 
 #endif /* _KERNEL */
 

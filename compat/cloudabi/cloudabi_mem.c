@@ -28,7 +28,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/mman.h>
-#include <sys/sysproto.h>
+#include <sys/proc.h>
+#include <sys/syscallsubr.h>
 
 #include <contrib/cloudabi/cloudabi_types_common.h>
 
@@ -62,137 +63,99 @@ int
 cloudabi_sys_mem_advise(struct thread *td,
     struct cloudabi_sys_mem_advise_args *uap)
 {
-	struct madvise_args madvise_args = {
-		.addr	= uap->addr,
-		.len	= uap->len
-	};
+	int behav;
 
 	switch (uap->advice) {
 	case CLOUDABI_ADVICE_DONTNEED:
-		madvise_args.behav = MADV_DONTNEED;
+		behav = MADV_DONTNEED;
 		break;
 	case CLOUDABI_ADVICE_NORMAL:
-		madvise_args.behav = MADV_NORMAL;
+		behav = MADV_NORMAL;
 		break;
 	case CLOUDABI_ADVICE_RANDOM:
-		madvise_args.behav = MADV_RANDOM;
+		behav = MADV_RANDOM;
 		break;
 	case CLOUDABI_ADVICE_SEQUENTIAL:
-		madvise_args.behav = MADV_SEQUENTIAL;
+		behav = MADV_SEQUENTIAL;
 		break;
 	case CLOUDABI_ADVICE_WILLNEED:
-		madvise_args.behav = MADV_WILLNEED;
+		behav = MADV_WILLNEED;
 		break;
 	default:
 		return (EINVAL);
 	}
 
-	return (sys_madvise(td, &madvise_args));
-}
-
-int
-cloudabi_sys_mem_lock(struct thread *td, struct cloudabi_sys_mem_lock_args *uap)
-{
-	struct mlock_args mlock_args = {
-		.addr	= uap->addr,
-		.len	= uap->len
-	};
-
-	return (sys_mlock(td, &mlock_args));
+	return (kern_madvise(td, (uintptr_t)uap->mapping, uap->mapping_len,
+	    behav));
 }
 
 int
 cloudabi_sys_mem_map(struct thread *td, struct cloudabi_sys_mem_map_args *uap)
 {
-	struct mmap_args mmap_args = {
-		.addr	= uap->addr,
-		.len	= uap->len,
-		.fd	= uap->fd,
-		.pos	= uap->off
-	};
-	int error;
+	int error, flags, prot;
 
 	/* Translate flags. */
+	flags = 0;
 	if (uap->flags & CLOUDABI_MAP_ANON)
-		mmap_args.flags |= MAP_ANON;
+		flags |= MAP_ANON;
 	if (uap->flags & CLOUDABI_MAP_FIXED)
-		mmap_args.flags |= MAP_FIXED;
+		flags |= MAP_FIXED;
 	if (uap->flags & CLOUDABI_MAP_PRIVATE)
-		mmap_args.flags |= MAP_PRIVATE;
+		flags |= MAP_PRIVATE;
 	if (uap->flags & CLOUDABI_MAP_SHARED)
-		mmap_args.flags |= MAP_SHARED;
+		flags |= MAP_SHARED;
 
 	/* Translate protection. */
-	error = convert_mprot(uap->prot, &mmap_args.prot);
+	error = convert_mprot(uap->prot, &prot);
 	if (error != 0)
 		return (error);
 
-	return (sys_mmap(td, &mmap_args));
+	return (kern_mmap(td, (uintptr_t)uap->addr, uap->len, prot, flags,
+	    uap->fd, uap->off));
 }
 
 int
 cloudabi_sys_mem_protect(struct thread *td,
     struct cloudabi_sys_mem_protect_args *uap)
 {
-	struct mprotect_args mprotect_args = {
-		.addr	= uap->addr,
-		.len	= uap->len,
-	};
-	int error;
+	int error, prot;
 
 	/* Translate protection. */
-	error = convert_mprot(uap->prot, &mprotect_args.prot);
+	error = convert_mprot(uap->prot, &prot);
 	if (error != 0)
 		return (error);
 
-	return (sys_mprotect(td, &mprotect_args));
+	return (kern_mprotect(td, (uintptr_t)uap->mapping, uap->mapping_len,
+	    prot));
 }
 
 int
 cloudabi_sys_mem_sync(struct thread *td, struct cloudabi_sys_mem_sync_args *uap)
 {
-	struct msync_args msync_args = {
-		.addr	= uap->addr,
-		.len	= uap->len,
-	};
+	int flags;
 
 	/* Convert flags. */
 	switch (uap->flags & (CLOUDABI_MS_ASYNC | CLOUDABI_MS_SYNC)) {
 	case CLOUDABI_MS_ASYNC:
-		msync_args.flags |= MS_ASYNC;
+		flags = MS_ASYNC;
 		break;
 	case CLOUDABI_MS_SYNC:
-		msync_args.flags |= MS_SYNC;
+		flags = MS_SYNC;
 		break;
 	default:
 		return (EINVAL);
 	}
 	if ((uap->flags & CLOUDABI_MS_INVALIDATE) != 0)
-		msync_args.flags |= MS_INVALIDATE;
+		flags |= MS_INVALIDATE;
 
-	return (sys_msync(td, &msync_args));
-}
-
-int
-cloudabi_sys_mem_unlock(struct thread *td,
-    struct cloudabi_sys_mem_unlock_args *uap)
-{
-	struct munlock_args munlock_args = {
-		.addr	= uap->addr,
-		.len	= uap->len
-	};
-
-	return (sys_munlock(td, &munlock_args));
+	return (kern_msync(td, (uintptr_t)uap->mapping, uap->mapping_len,
+	    flags));
 }
 
 int
 cloudabi_sys_mem_unmap(struct thread *td,
     struct cloudabi_sys_mem_unmap_args *uap)
 {
-	struct munmap_args munmap_args = {
-		.addr	= uap->addr,
-		.len	= uap->len
-	};
 
-	return (sys_munmap(td, &munmap_args));
+	return (kern_munmap(td, (uintptr_t)uap->mapping, uap->mapping_len));
 }

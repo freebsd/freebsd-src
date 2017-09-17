@@ -94,7 +94,11 @@ static const struct {
 	{ HDA_INTEL_LPTLP1,  "Intel Lynx Point-LP",	0, 0 },
 	{ HDA_INTEL_LPTLP2,  "Intel Lynx Point-LP",	0, 0 },
 	{ HDA_INTEL_SRPTLP,  "Intel Sunrise Point-LP",	0, 0 },
+	{ HDA_INTEL_KBLKLP,  "Intel Kabylake-LP",	0, 0 },
 	{ HDA_INTEL_SRPT,    "Intel Sunrise Point",	0, 0 },
+	{ HDA_INTEL_KBLK,    "Intel Kabylake",	0, 0 },
+	{ HDA_INTEL_KBLKH,   "Intel Kabylake-H",	0, 0 },
+	{ HDA_INTEL_CFLK,    "Intel Coffelake",	0, 0 },
 	{ HDA_INTEL_82801F,  "Intel 82801F",	0, 0 },
 	{ HDA_INTEL_63XXESB, "Intel 631x/632xESB",	0, 0 },
 	{ HDA_INTEL_82801G,  "Intel 82801G",	0, 0 },
@@ -102,8 +106,8 @@ static const struct {
 	{ HDA_INTEL_82801I,  "Intel 82801I",	0, 0 },
 	{ HDA_INTEL_82801JI, "Intel 82801JI",	0, 0 },
 	{ HDA_INTEL_82801JD, "Intel 82801JD",	0, 0 },
-	{ HDA_INTEL_PCH,     "Intel 5 Series/3400 Series",	0, 0 },
-	{ HDA_INTEL_PCH2,    "Intel 5 Series/3400 Series",	0, 0 },
+	{ HDA_INTEL_PCH,     "Intel Ibex Peak",	0, 0 },
+	{ HDA_INTEL_PCH2,    "Intel Ibex Peak",	0, 0 },
 	{ HDA_INTEL_SCH,     "Intel SCH",	0, 0 },
 	{ HDA_NVIDIA_MCP51,  "NVIDIA MCP51",	0, HDAC_QUIRK_MSI },
 	{ HDA_NVIDIA_MCP55,  "NVIDIA MCP55",	0, HDAC_QUIRK_MSI },
@@ -426,7 +430,7 @@ hdac_reset(struct hdac_softc *sc, int wakeup)
 
 	/*
 	 * Wait for codecs to finish their own reset sequence. The delay here
-	 * should be of 250us but for some reasons, on it's not enough on my
+	 * should be of 250us but for some reasons, it's not enough on my
 	 * computer. Let's use twice as much as necessary to make sure that
 	 * it's reset properly.
 	 */
@@ -1764,6 +1768,9 @@ hdac_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 		break;
 	case HDA_IVAR_DMA_NOCACHE:
 		*result = (sc->flags & HDAC_F_DMA_NOCACHE) != 0;
+		break;
+	case HDA_IVAR_STRIPES_MASK:
+		*result = (1 << (1 << sc->num_sdo)) - 1;
 		break;
 	default:
 		return (ENOENT);

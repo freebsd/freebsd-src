@@ -617,19 +617,22 @@ start_mmu:
 
 	.align 3
 mair:
-		/* Device            Normal, no cache     Normal, write-back */
-	.quad	MAIR_ATTR(0x00, 0) | MAIR_ATTR(0x44, 1) | MAIR_ATTR(0xff, 2)
+	.quad	MAIR_ATTR(MAIR_DEVICE_nGnRnE, 0) |	\
+		MAIR_ATTR(MAIR_NORMAL_NC, 1) |		\
+		MAIR_ATTR(MAIR_NORMAL_WB, 2) |		\
+		MAIR_ATTR(MAIR_NORMAL_WT, 3)
 tcr:
 	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_ASID_16 | TCR_TG1_4K | \
 	    TCR_CACHE_ATTRS | TCR_SMP_ATTRS)
 sctlr_set:
 	/* Bits to set */
-	.quad (SCTLR_UCI | SCTLR_nTWE | SCTLR_nTWI | SCTLR_UCT | SCTLR_DZE | \
+	.quad (SCTLR_LSMAOE | SCTLR_nTLSMD | SCTLR_UCI | SCTLR_SPAN | \
+	    SCTLR_nTWE | SCTLR_nTWI | SCTLR_UCT | SCTLR_DZE | \
 	    SCTLR_I | SCTLR_SED | SCTLR_SA0 | SCTLR_SA | SCTLR_C | SCTLR_M)
 sctlr_clear:
 	/* Bits to clear */
-	.quad (SCTLR_EE | SCTLR_EOE | SCTLR_WXN | SCTLR_UMA | SCTLR_ITD | \
-	    SCTLR_THEE | SCTLR_CP15BEN | SCTLR_A)
+	.quad (SCTLR_EE | SCTLR_EOE | SCTLR_IESB | SCTLR_WXN | SCTLR_UMA | \
+	    SCTLR_ITD | SCTLR_THEE | SCTLR_CP15BEN | SCTLR_A)
 
 	.globl abort
 abort:

@@ -105,33 +105,45 @@ struct qla_ivec {
 
 typedef struct qla_ivec qla_ivec_t;
 
-#define QLA_WATCHDOG_CALLOUT_TICKS	1
+#define QLA_WATCHDOG_CALLOUT_TICKS	2
 
 typedef struct _qla_tx_ring {
 	qla_tx_buf_t	tx_buf[NUM_TX_DESCRIPTORS];
 	uint64_t	count;
+	uint64_t	iscsi_pkt_count;
 } qla_tx_ring_t;
 
+typedef struct _qla_tx_fp {
+	struct mtx		tx_mtx;
+	char			tx_mtx_name[32];
+	struct buf_ring		*tx_br;
+	struct task		fp_task;
+	struct taskqueue	*fp_taskqueue;
+	void			*ha;
+	uint32_t		txr_idx;
+} qla_tx_fp_t;
+
 /*
- * Adapter structure contains the hardware independent information of the
+ * Adapter structure contains the hardware independant information of the
  * pci function.
  */
 struct qla_host {
         volatile struct {
                 volatile uint32_t
-			qla_interface_up        :1,
 			qla_callout_init	:1,
 			qla_watchdog_active	:1,
-			qla_watchdog_exit	:1,
-			qla_watchdog_pause	:1,
-			stop_rcv		:1,
 			parent_tag		:1,
 			lock_init		:1;
         } flags;
 
+	volatile uint32_t	qla_interface_up;
+	volatile uint32_t	stop_rcv;
+	volatile uint32_t	qla_watchdog_exit;
 	volatile uint32_t	qla_watchdog_exited;
+	volatile uint32_t	qla_watchdog_pause;
 	volatile uint32_t	qla_watchdog_paused;
 	volatile uint32_t	qla_initiate_recovery;
+	volatile uint32_t	qla_detach_active;
 
 	device_t		pci_dev;
 
@@ -172,16 +184,16 @@ struct qla_host {
 
 	struct mtx		hw_lock;
 	volatile uint32_t	hw_lock_held;
+	uint64_t		hw_lock_failed;
 
 	/* transmit and receive buffers */
 	uint32_t		txr_idx; /* index of the current tx ring */
 	qla_tx_ring_t		tx_ring[NUM_TX_RINGS];
 						
 	bus_dma_tag_t		tx_tag;
-	struct task		tx_task;
-	struct taskqueue	*tx_tq;
 	struct callout		tx_callout;
-	struct mtx		tx_lock;
+
+	qla_tx_fp_t		tx_fp[MAX_SDS_RINGS];
 
 	qla_rx_ring_t		rx_ring[MAX_RDS_RINGS];
 	bus_dma_tag_t		rx_tag;
@@ -212,6 +224,9 @@ struct qla_host {
 	uint64_t		tx_tso_frames;
 	uint64_t		hw_vlan_tx_frames;
 
+	struct task             stats_task;
+	struct taskqueue	*stats_tq;
+	
         uint32_t                fw_ver_major;
         uint32_t                fw_ver_minor;
         uint32_t                fw_ver_sub;
@@ -251,9 +266,7 @@ typedef struct qla_host qla_host_t;
 #define QL_ALIGN(size, align) (size + (align - 1)) & ~(align - 1);
 #define QL_MIN(x, y) ((x < y) ? x : y)
 
-#define QL_RUNNING(ifp) \
-		((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) == \
-			IFF_DRV_RUNNING)
+#define QL_RUNNING(ifp) (ifp->if_drv_flags & IFF_DRV_RUNNING)
 
 /* Return 0, if identical, else 1 */
 #define QL_MAC_CMP(mac1, mac2)    \

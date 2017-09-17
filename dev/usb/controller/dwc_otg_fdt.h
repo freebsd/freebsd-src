@@ -35,5 +35,6 @@ struct dwc_otg_fdt_softc {
 extern driver_t dwc_otg_driver;
 
 device_attach_t dwc_otg_attach;
+device_attach_t dwc_otg_detach;
 
 #endif

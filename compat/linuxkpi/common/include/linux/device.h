@@ -49,20 +49,61 @@
 enum irqreturn	{ IRQ_NONE = 0, IRQ_HANDLED, IRQ_WAKE_THREAD, };
 typedef enum irqreturn	irqreturn_t;
 
+struct device;
+struct fwnode_handle;
+
 struct class {
 	const char	*name;
 	struct module	*owner;
 	struct kobject	kobj;
 	devclass_t	bsdclass;
+	const struct dev_pm_ops *pm;
 	void		(*class_release)(struct class *class);
 	void		(*dev_release)(struct device *dev);
 	char *		(*devnode)(struct device *dev, umode_t *mode);
+};
+
+struct dev_pm_ops {
+	int (*suspend)(struct device *dev);
+	int (*suspend_late)(struct device *dev);
+	int (*resume)(struct device *dev);
+	int (*resume_early)(struct device *dev);
+	int (*freeze)(struct device *dev);
+	int (*freeze_late)(struct device *dev);
+	int (*thaw)(struct device *dev);
+	int (*thaw_early)(struct device *dev);
+	int (*poweroff)(struct device *dev);
+	int (*poweroff_late)(struct device *dev);
+	int (*restore)(struct device *dev);
+	int (*restore_early)(struct device *dev);
+	int (*runtime_suspend)(struct device *dev);
+	int (*runtime_resume)(struct device *dev);
+	int (*runtime_idle)(struct device *dev);
+};
+
+struct device_driver {
+	const char	*name;
+	const struct dev_pm_ops *pm;
+};
+
+struct device_type {
+	const char	*name;
 };
 
 struct device {
 	struct device	*parent;
 	struct list_head irqents;
 	device_t	bsddev;
+	/*
+	 * The following flag is used to determine if the LinuxKPI is
+	 * responsible for detaching the BSD device or not. If the
+	 * LinuxKPI got the BSD device using devclass_get_device(), it
+	 * must not try to detach or delete it, because it's already
+	 * done somewhere else.
+	 */
+	bool		bsddev_attached_here;
+	struct device_driver *driver;
+	struct device_type *type;
 	dev_t		devt;
 	struct class	*class;
 	void		(*release)(struct device *dev);
@@ -70,9 +111,14 @@ struct device {
 	uint64_t	*dma_mask;
 	void		*driver_data;
 	unsigned int	irq;
+#define	LINUX_IRQ_INVALID	65535
 	unsigned int	msix;
 	unsigned int	msix_max;
 	const struct attribute_group **groups;
+	struct fwnode_handle *fwnode;
+
+	spinlock_t	devres_lock;
+	struct list_head devres_head;
 };
 
 extern struct device linux_root_device;
@@ -102,7 +148,13 @@ struct device_attribute {
 
 #define	DEVICE_ATTR(_name, _mode, _show, _store)			\
 	struct device_attribute dev_attr_##_name =			\
-	    { { #_name, NULL, _mode }, _show, _store }
+	    __ATTR(_name, _mode, _show, _store)
+#define	DEVICE_ATTR_RO(_name)						\
+	struct device_attribute dev_attr_##_name = __ATTR_RO(_name)
+#define	DEVICE_ATTR_WO(_name)						\
+	struct device_attribute dev_attr_##_name = __ATTR_WO(_name)
+#define	DEVICE_ATTR_RW(_name)						\
+	struct device_attribute dev_attr_##_name = __ATTR_RW(_name)
 
 /* Simple class attribute that is just a static string */
 struct class_attribute_string {
@@ -130,8 +182,21 @@ show_class_attr_string(struct class *class,
 #define	dev_warn(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_info(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_notice(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
+#define	dev_dbg(dev, fmt, ...)	do { } while (0)
 #define	dev_printk(lvl, dev, fmt, ...)					\
 	    device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
+
+#define	dev_err_ratelimited(dev, ...) do {	\
+	static linux_ratelimit_t __ratelimited;	\
+	if (linux_ratelimited(&__ratelimited))	\
+		dev_err(dev, __VA_ARGS__);	\
+} while (0)
+
+#define	dev_warn_ratelimited(dev, ...) do {	\
+	static linux_ratelimit_t __ratelimited;	\
+	if (linux_ratelimited(&__ratelimited))	\
+		dev_warn(dev, __VA_ARGS__);	\
+} while (0)
 
 static inline void *
 dev_get_drvdata(const struct device *dev)
@@ -207,23 +272,39 @@ static inline struct device *kobj_to_dev(struct kobject *kobj)
 static inline void
 device_initialize(struct device *dev)
 {
-	device_t bsddev;
+	device_t bsddev = NULL;
+	int unit = -1;
 
-	bsddev = NULL;
 	if (dev->devt) {
-		int unit = MINOR(dev->devt);
+		unit = MINOR(dev->devt);
 		bsddev = devclass_get_device(dev->class->bsdclass, unit);
+		dev->bsddev_attached_here = false;
+	} else if (dev->parent == NULL) {
+		bsddev = devclass_get_device(dev->class->bsdclass, 0);
+		dev->bsddev_attached_here = false;
+	} else {
+		dev->bsddev_attached_here = true;
 	}
+
+	if (bsddev == NULL && dev->parent != NULL) {
+		bsddev = device_add_child(dev->parent->bsddev,
+		    dev->class->kobj.name, unit);
+	}
+
 	if (bsddev != NULL)
 		device_set_softc(bsddev, dev);
 
 	dev->bsddev = bsddev;
+	MPASS(dev->bsddev != NULL);
 	kobject_init(&dev->kobj, &linux_dev_ktype);
+
+	spin_lock_init(&dev->devres_lock);
+	INIT_LIST_HEAD(&dev->devres_head);
 }
 
 static inline int
 device_add(struct device *dev)
-{	
+{
 	if (dev->bsddev != NULL) {
 		if (dev->devt == 0)
 			dev->devt = makedev(0, device_get_unit(dev->bsddev));
@@ -255,13 +336,13 @@ device_create_groups_vargs(struct class *class, struct device *parent,
 		goto error;
 	}
 
-	device_initialize(dev);
 	dev->devt = devt;
 	dev->class = class;
 	dev->parent = parent;
 	dev->groups = groups;
 	dev->release = device_create_release;
-	dev->bsddev = devclass_get_device(dev->class->bsdclass, MINOR(devt));
+	/* device_initialize() needs the class and parent to be set */
+	device_initialize(dev);
 	dev_set_drvdata(dev, drvdata);
 
 	retval = kobject_set_name_vargs(&dev->kobj, fmt, args);
@@ -294,20 +375,31 @@ device_create_with_groups(struct class *class,
 	return dev;
 }
 
+static inline bool
+device_is_registered(struct device *dev)
+{
+
+	return (dev->bsddev != NULL);
+}
+
 static inline int
 device_register(struct device *dev)
 {
-	device_t bsddev;
-	int unit;
+	device_t bsddev = NULL;
+	int unit = -1;
 
-	bsddev = NULL;
-	unit = -1;
+	if (device_is_registered(dev))
+		goto done;
 
 	if (dev->devt) {
 		unit = MINOR(dev->devt);
 		bsddev = devclass_get_device(dev->class->bsdclass, unit);
+		dev->bsddev_attached_here = false;
 	} else if (dev->parent == NULL) {
 		bsddev = devclass_get_device(dev->class->bsdclass, 0);
+		dev->bsddev_attached_here = false;
+	} else {
+		dev->bsddev_attached_here = true;
 	}
 	if (bsddev == NULL && dev->parent != NULL) {
 		bsddev = device_add_child(dev->parent->bsddev,
@@ -319,6 +411,7 @@ device_register(struct device *dev)
 		device_set_softc(bsddev, dev);
 	}
 	dev->bsddev = bsddev;
+done:
 	kobject_init(&dev->kobj, &linux_dev_ktype);
 	kobject_add(&dev->kobj, &dev->class->kobj, dev_name(dev));
 
@@ -333,7 +426,7 @@ device_unregister(struct device *dev)
 	bsddev = dev->bsddev;
 	dev->bsddev = NULL;
 
-	if (bsddev != NULL) {
+	if (bsddev != NULL && dev->bsddev_attached_here) {
 		mtx_lock(&Giant);
 		device_delete_child(device_get_parent(bsddev), bsddev);
 		mtx_unlock(&Giant);
@@ -349,7 +442,7 @@ device_del(struct device *dev)
 	bsddev = dev->bsddev;
 	dev->bsddev = NULL;
 
-	if (bsddev != NULL) {
+	if (bsddev != NULL && dev->bsddev_attached_here) {
 		mtx_lock(&Giant);
 		device_delete_child(device_get_parent(bsddev), bsddev);
 		mtx_unlock(&Giant);
@@ -386,7 +479,7 @@ class_create(struct module *owner, const char *name)
 
 	class = kzalloc(sizeof(*class), M_WAITOK);
 	class->owner = owner;
-	class->name= name;
+	class->name = name;
 	class->class_release = linux_class_kfree;
 	error = class_register(class);
 	if (error) {

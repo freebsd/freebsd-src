@@ -44,6 +44,7 @@ extern	u_int	cpu_feature;
 extern	u_int	cpu_feature2;
 extern	u_int	amd_feature;
 extern	u_int	amd_feature2;
+extern	u_int	amd_rascap;
 extern	u_int	amd_pminfo;
 extern	u_int	via_feature_rng;
 extern	u_int	via_feature_xcrypt;
@@ -78,6 +79,7 @@ extern	int	_ufssel;
 extern	int	_ugssel;
 extern	int	use_xsave;
 extern	uint64_t xsave_mask;
+extern	u_int	max_apic_id;
 
 struct	pcb;
 struct	thread;
@@ -85,6 +87,7 @@ struct	reg;
 struct	fpreg;
 struct  dbreg;
 struct	dumperinfo;
+struct	trapframe;
 
 /*
  * The interface type of the interrupt handler entry point cannot be
@@ -93,6 +96,20 @@ struct	dumperinfo;
  */
 typedef void alias_for_inthand_t(void);
 
+/*
+ * Returns the maximum physical address that can be used with the
+ * current system.
+ */
+static __inline vm_paddr_t
+cpu_getmaxphyaddr(void)
+{
+#if defined(__i386__) && !defined(PAE)
+	return (0xffffffff);
+#else
+	return ((1ULL << cpu_maxphyaddr) - 1);
+#endif
+}
+
 void	*alloc_fpusave(int flags);
 void	busdma_swi(void);
 bool	cpu_mwait_usable(void);
@@ -100,14 +117,18 @@ void	cpu_probe_amdc1e(void);
 void	cpu_setregs(void);
 void	dump_add_page(vm_paddr_t);
 void	dump_drop_page(vm_paddr_t);
+void	finishidentcpu(void);
 void	identify_cpu(void);
+void	identify_hypervisor(void);
 void	initializecpu(void);
 void	initializecpucache(void);
 bool	fix_cpuid(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
 int	is_physical_memory(vm_paddr_t addr);
 int	isa_nmi(int cd);
-void	panicifcpuunsupported(void);
+void	nmi_call_kdb(u_int cpu, u_int type, struct trapframe *frame);
+void	nmi_call_kdb_smp(u_int type, struct trapframe *frame);
+void	nmi_handle_intr(u_int type, struct trapframe *frame);
 void	pagecopy(void *from, void *to);
 void	printcpuinfo(void);
 int	user_dbreg_trap(void);

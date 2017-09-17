@@ -18,6 +18,9 @@
 #
 # $FreeBSD$
 
+# TODO: Port to INTRNG
+#NO_UNIVERSE
+
 ident		MV-88F78XX0
 
 include 	"std.armv6"

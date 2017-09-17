@@ -256,6 +256,10 @@ struct ada_softc {
 	u_int	errors;
 	u_int	invalidations;
 #endif
+#define ADA_ANNOUNCETMP_SZ 80
+	char	announce_temp[ADA_ANNOUNCETMP_SZ];
+#define ADA_ANNOUNCE_SZ 400
+	char	announce_buffer[ADA_ANNOUNCE_SZ];
 };
 
 struct ada_quirk_entry {
@@ -513,6 +517,14 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
+		 * Intel S3610 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "INTEL SSDSC2BX*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
 		 * Intel X25-M Series SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
@@ -569,6 +581,14 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
+		 * Micron 5100 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Micron 5100 MTFDDAK*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
 		 * OCZ Agility 2 SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
@@ -617,6 +637,14 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
+		 * Samsung 750 SSDs
+		 * 4k optimised, NCQ TRIM seems to work
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Samsung SSD 750*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
 		 * Samsung 830 Series SSDs
 		 * 4k optimised, NCQ TRIM Broken (normal TRIM is fine)
 		 */
@@ -629,6 +657,14 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		 * 4k optimised, NCQ TRIM Broken (normal TRIM is fine)
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Samsung SSD 840*", "*" },
+		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
+	},
+	{
+		/*
+		 * Samsung 845 SSDs
+		 * 4k optimised, NCQ TRIM Broken (normal TRIM is fine)
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Samsung SSD 845*", "*" },
 		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
 	},
 	{
@@ -757,10 +793,6 @@ static timeout_t	adasendorderedtag;
 static void		adashutdown(void *arg, int howto);
 static void		adasuspend(void *arg);
 static void		adaresume(void *arg);
-
-#ifndef	ADA_DEFAULT_LEGACY_ALIASES
-#define	ADA_DEFAULT_LEGACY_ALIASES	1
-#endif
 
 #ifndef ADA_DEFAULT_TIMEOUT
 #define ADA_DEFAULT_TIMEOUT 30	/* Timeout in seconds */
@@ -926,8 +958,7 @@ adaclose(struct disk *dp)
 
 		if (error != 0)
 			xpt_print(periph->path, "Synchronize cache failed\n");
-		else
-			softc->flags &= ~ADA_FLAG_DIRTY;
+		softc->flags &= ~ADA_FLAG_DIRTY;
 		xpt_release_ccb(ccb);
 		cam_periph_unhold(periph);
 	}
@@ -1289,7 +1320,7 @@ adaasync(void *callback_arg, u_int32_t code,
 		xpt_action((union ccb *)&cgd);
 		if (ADA_RA >= 0 && softc->flags & ADA_FLAG_CAN_RAHEAD)
 			softc->state = ADA_STATE_RAHEAD;
-		else if (ADA_WC >= 0 && softc->flags & ADA_FLAG_CAN_RAHEAD)
+		else if (ADA_WC >= 0 && softc->flags & ADA_FLAG_CAN_WCACHE)
 			softc->state = ADA_STATE_WCACHE;
 		else if ((softc->flags & ADA_FLAG_CAN_LOG)
 		      && (softc->zone_mode != ADA_ZONE_NONE))
@@ -1395,9 +1426,9 @@ adasysctlinit(void *context, int pending)
 
 	sysctl_ctx_init(&softc->sysctl_ctx);
 	softc->flags |= ADA_FLAG_SCTX_INIT;
-	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
+	softc->sysctl_tree = SYSCTL_ADD_NODE_WITH_LABEL(&softc->sysctl_ctx,
 		SYSCTL_STATIC_CHILDREN(_kern_cam_ada), OID_AUTO, tmpstr2,
-		CTLFLAG_RD, 0, tmpstr);
+		CTLFLAG_RD, 0, tmpstr, "device_index");
 	if (softc->sysctl_tree == NULL) {
 		printf("adasysctlinit: unable to allocate sysctl tree\n");
 		cam_periph_release(periph);
@@ -1648,8 +1679,9 @@ adaregister(struct cam_periph *periph, void *arg)
 	struct ada_softc *softc;
 	struct ccb_pathinq cpi;
 	struct ccb_getdev *cgd;
-	char   announce_buf[80];
 	struct disk_params *dp;
+	struct sbuf sb;
+	char   *announce_buf;
 	caddr_t match;
 	u_int maxio;
 	int quirks;
@@ -1668,6 +1700,9 @@ adaregister(struct cam_periph *periph, void *arg)
 		    "Unable to allocate softc\n");
 		return(CAM_REQ_CMP_ERR);
 	}
+
+	announce_buf = softc->announce_temp;
+	bzero(announce_buf, ADA_ANNOUNCETMP_SZ);
 
 	if (cam_iosched_init(&softc->cam_iosched, periph) != 0) {
 		printf("adaregister: Unable to probe new device. "
@@ -1702,17 +1737,17 @@ adaregister(struct cam_periph *periph, void *arg)
 	 */
 	(void)cam_periph_hold(periph, PRIBIO);
 	cam_periph_unlock(periph);
-	snprintf(announce_buf, sizeof(announce_buf),
+	snprintf(announce_buf, ADA_ANNOUNCETMP_SZ,
 	    "kern.cam.ada.%d.quirks", periph->unit_number);
 	quirks = softc->quirks;
 	TUNABLE_INT_FETCH(announce_buf, &quirks);
 	softc->quirks = quirks;
 	softc->read_ahead = -1;
-	snprintf(announce_buf, sizeof(announce_buf),
+	snprintf(announce_buf, ADA_ANNOUNCETMP_SZ,
 	    "kern.cam.ada.%d.read_ahead", periph->unit_number);
 	TUNABLE_INT_FETCH(announce_buf, &softc->read_ahead);
 	softc->write_cache = -1;
-	snprintf(announce_buf, sizeof(announce_buf),
+	snprintf(announce_buf, ADA_ANNOUNCETMP_SZ,
 	    "kern.cam.ada.%d.write_cache", periph->unit_number);
 	TUNABLE_INT_FETCH(announce_buf, &softc->write_cache);
 
@@ -1818,12 +1853,16 @@ adaregister(struct cam_periph *periph, void *arg)
 	cam_periph_lock(periph);
 
 	dp = &softc->params;
-	snprintf(announce_buf, sizeof(announce_buf),
+	snprintf(announce_buf, ADA_ANNOUNCETMP_SZ,
 	    "%juMB (%ju %u byte sectors)",
 	    ((uintmax_t)dp->secsize * dp->sectors) / (1024 * 1024),
 	    (uintmax_t)dp->sectors, dp->secsize);
-	xpt_announce_periph(periph, announce_buf);
-	xpt_announce_quirks(periph, softc->quirks, ADA_Q_BIT_STRING);
+
+	sbuf_new(&sb, softc->announce_buffer, ADA_ANNOUNCE_SZ, SBUF_FIXEDLEN);
+	xpt_announce_periph_sbuf(periph, &sb, announce_buf);
+	xpt_announce_quirks_sbuf(periph, &sb, softc->quirks, ADA_Q_BIT_STRING);
+	sbuf_finish(&sb);
+	sbuf_putbuf(&sb);
 
 	/*
 	 * Create our sysctl variables, now that we know
@@ -2814,6 +2853,12 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		if (softc->outstanding_cmds == 0)
 			softc->flags |= ADA_FLAG_WAS_OTAG;
 
+		/*
+		 * We need to call cam_iosched before we call biodone so that we
+		 * don't measure any activity that happens in the completion
+		 * routine, which in the case of sendfile can be quite
+		 * extensive.
+		 */
 		cam_iosched_bio_complete(softc->cam_iosched, bp, done_ccb);
 		xpt_release_ccb(done_ccb);
 		if (state == ADA_CCB_TRIM) {

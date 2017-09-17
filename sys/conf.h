@@ -17,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -285,7 +285,6 @@ int	make_dev_physpath_alias(int _flags, struct cdev **_cdev,
 		const char *_physpath);
 void	dev_lock(void);
 void	dev_unlock(void);
-void	setconf(void);
 
 #ifdef KLD_MODULE
 #define	MAKEDEV_ETERNAL_KLD	0
@@ -316,6 +315,7 @@ void	devfs_free_cdp_inode(ino_t ino);
 #define		GID_GAMES	13
 #define		GID_VIDEO	44
 #define		GID_DIALER	68
+#define		GID_NOGROUP	65533
 #define		GID_NOBODY	65534
 
 typedef void (*dev_clone_fn)(void *arg, struct ucred *cred, char *name,
@@ -325,6 +325,8 @@ int dev_stdclone(char *_name, char **_namep, const char *_stem, int *_unit);
 EVENTHANDLER_DECLARE(dev_clone, dev_clone_fn);
 
 /* Stuff relating to kernel-dump */
+struct kerneldumpcrypto;
+struct kerneldumpheader;
 
 struct dumperinfo {
 	dumper_t *dumper;	/* Dumping function. */
@@ -334,12 +336,19 @@ struct dumperinfo {
 	off_t	mediaoffset;	/* Initial offset in bytes. */
 	off_t	mediasize;	/* Space available in bytes. */
 	void	*blockbuf;	/* Buffer for padding shorter dump blocks */
+	struct kerneldumpcrypto	*kdc; /* Kernel dump crypto. */
 };
 
-int set_dumper(struct dumperinfo *, const char *_devname, struct thread *td);
+int set_dumper(struct dumperinfo *di, const char *devname, struct thread *td,
+    uint8_t encrypt, const uint8_t *key, uint32_t encryptedkeysize,
+    const uint8_t *encryptedkey);
+void dump_init_header(const struct dumperinfo *di, struct kerneldumpheader *kdh,
+    char *magic, uint32_t archver, uint64_t dumplen);
+int dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh,
+    off_t *dumplop);
+int dump_finish(struct dumperinfo *di, struct kerneldumpheader *kdh,
+    off_t dumplo);
 int dump_write(struct dumperinfo *, void *, vm_offset_t, off_t, size_t);
-int dump_write_pad(struct dumperinfo *, void *, vm_offset_t, off_t, size_t,
-    size_t *);
 int doadump(boolean_t);
 extern int dumping;		/* system is dumping */
 

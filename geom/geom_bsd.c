@@ -72,6 +72,8 @@ FEATURE(geom_bsd, "GEOM BSD disklabels support");
 
 #define LABELSIZE (148 + 16 * MAXPARTITIONS)
 
+static int g_bsd_once;
+
 static void g_bsd_hotwrite(void *arg, int flag);
 /*
  * Our private data about one instance.  All the rest is handled by the
@@ -441,16 +443,6 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 				break;
 		}
 
-		/* Same thing if we are inside a PC98 */
-		error = g_getattr("PC98::type", cp, &i);
-		if (!error) {
-			if (i != 0xc494 && flags == G_TF_NORMAL)
-				break;
-			error = g_getattr("PC98::offset", cp, &ms->mbroffset);
-			if (error)
-				break;
-		}
-
 		/* Same thing if we are inside a GPT */
 		error = g_getattr("GPT::type", cp, &uuid);
 		if (!error) {
@@ -514,6 +506,12 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		g_slice_conf_hot(gp, 0, ms->labeloffset, LABELSIZE,
 		    G_SLICE_HOT_ALLOW, G_SLICE_HOT_DENY, G_SLICE_HOT_CALL);
 		gsp->hot = g_bsd_hotwrite;
+		if (!g_bsd_once) {
+			g_bsd_once = 1;
+			printf(
+			    "WARNING: geom_bsd (geom %s) is deprecated, "
+			    "use gpart instead.\n", gp->name);
+		}
 		return (gp);
 	}
 	/*

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../kern
+.PATH: ${SRCTOP}/sys/kern
 
 KMOD=	aout
 SRCS=	imgact_aout.c \

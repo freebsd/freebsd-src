@@ -30,17 +30,11 @@ __FBSDID("$FreeBSD$");
 /*
  * Interface to new debugger.
  */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kdb.h>
-#include <sys/cons.h>
 #include <sys/pcpu.h>
-#include <sys/proc.h>
-
-#include <machine/cpu.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
 
 #include <ddb/ddb.h>
 
@@ -75,63 +69,16 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 	jmp_buf jb;
 	void *prev_jb;
 	char *dst;
-	pt_entry_t	*ptep0 = NULL;
-	pt_entry_t	oldmap0 = 0;
-	vm_offset_t	addr1;
-	pt_entry_t	*ptep1 = NULL;
-	pt_entry_t	oldmap1 = 0;
 	int ret;
 
 	prev_jb = kdb_jmpbuf(jb);
 	ret = setjmp(jb);
 	if (ret == 0) {
-		if (addr > trunc_page((vm_offset_t)btext) - size &&
-		    addr < round_page((vm_offset_t)etext)) {
-
-			ptep0 = vtopte(addr);
-			oldmap0 = *ptep0;
-			*ptep0 |= PG_RW;
-
-			/*
-			 * Map another page if the data crosses a page
-			 * boundary.
-			 */
-			if ((*ptep0 & PG_PS) == 0) {
-				addr1 = trunc_page(addr + size - 1);
-				if (trunc_page(addr) != addr1) {
-					ptep1 = vtopte(addr1);
-					oldmap1 = *ptep1;
-					*ptep1 |= PG_RW;
-				}
-			} else {
-				addr1 = trunc_2mpage(addr + size - 1);
-				if (trunc_2mpage(addr) != addr1) {
-					ptep1 = vtopte(addr1);
-					oldmap1 = *ptep1;
-					*ptep1 |= PG_RW;
-				}
-			}
-
-			invltlb();
-		}
-
 		dst = (char *)addr;
-
 		while (size-- > 0)
 			*dst++ = *data++;
 	}
-
 	(void)kdb_jmpbuf(prev_jb);
-
-	if (ptep0) {
-		*ptep0 = oldmap0;
-
-		if (ptep1)
-			*ptep1 = oldmap1;
-
-		invltlb();
-	}
-
 	return (ret);
 }
 

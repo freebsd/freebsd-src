@@ -54,6 +54,11 @@ static MALLOC_DEFINE(M_VTBUF, "vtbuf", "vt buffer");
 	(d).tp_row = (s).tp_row;	\
 } while (0)
 
+#ifndef SC_NO_CUTPASTE
+static int vtbuf_htw(const struct vt_buf *vb, int row);
+static int vtbuf_wth(const struct vt_buf *vb, int row);
+static int vtbuf_in_this_range(int begin, int test, int end, int sz);
+#endif
 
 /*
  * line4
@@ -122,6 +127,9 @@ vthistory_seek(struct vt_buf *vb, int offset, int whence)
 void
 vthistory_addlines(struct vt_buf *vb, int offset)
 {
+#ifndef SC_NO_CUTPASTE
+	int cur, sz;
+#endif
 
 	vb->vb_curroffset += offset;
 	if (vb->vb_curroffset < 0)
@@ -132,6 +140,17 @@ vthistory_addlines(struct vt_buf *vb, int offset)
 	if ((vb->vb_flags & VBF_SCROLL) == 0) {
 		vb->vb_roffset = vb->vb_curroffset;
 	}
+
+#ifndef SC_NO_CUTPASTE
+	sz = vb->vb_history_size;
+	cur = vb->vb_roffset + vb->vb_scr_size.tp_row + sz - 1;
+	if (vtbuf_in_this_range(cur, vb->vb_mark_start.tp_row, cur + offset, sz) ||
+	    vtbuf_in_this_range(cur, vb->vb_mark_end.tp_row, cur + offset, sz)) {
+		/* clear screen selection */
+		vb->vb_mark_start.tp_row = vb->vb_mark_end.tp_row;
+		vb->vb_mark_start.tp_col = vb->vb_mark_end.tp_col;
+	}
+#endif
 }
 
 void
@@ -142,15 +161,6 @@ vthistory_getpos(const struct vt_buf *vb, unsigned int *offset)
 }
 
 #ifndef SC_NO_CUTPASTE	/* Only mouse support use it now. */
-/* Translate current view row number to history row. */
-static int
-vtbuf_wth(struct vt_buf *vb, int row)
-{
-
-	return ((vb->vb_roffset + row) % vb->vb_history_size);
-}
-#endif
-
 /* Translate history row to current view row number. */
 static int
 vtbuf_htw(const struct vt_buf *vb, int row)
@@ -166,36 +176,78 @@ vtbuf_htw(const struct vt_buf *vb, int row)
 	    vb->vb_history_size);
 }
 
+/* Translate current view row number to history row. */
+static int
+vtbuf_wth(const struct vt_buf *vb, int row)
+{
+
+	return ((vb->vb_roffset + row) % vb->vb_history_size);
+}
+
+/*
+ * Test if an index in a circular buffer is within a range.
+ *
+ * begin - start index
+ * end - end index
+ * test - test index
+ * sz - size of circular buffer when it turns over
+ */
+static int
+vtbuf_in_this_range(int begin, int test, int end, int sz)
+{
+
+	begin %= sz;
+	end %= sz;
+
+	/* check for inversion */
+	if (begin > end)
+		return (test >= begin || test < end);
+	else
+		return (test >= begin && test < end);
+}
+#endif
+
 int
 vtbuf_iscursor(const struct vt_buf *vb, int row, int col)
 {
-	int sc, sr, ec, er, tmp;
+#ifndef SC_NO_CUTPASTE
+	int sc, sr, sz, ec, er, tmp;
+#endif
 
 	if ((vb->vb_flags & (VBF_CURSOR|VBF_SCROLL)) == VBF_CURSOR &&
 	    (vb->vb_cursor.tp_row == row) && (vb->vb_cursor.tp_col == col))
 		return (1);
 
+#ifndef SC_NO_CUTPASTE
 	/* Mark cut/paste region. */
+	if (vb->vb_mark_start.tp_col == vb->vb_mark_end.tp_col &&
+	    vb->vb_mark_start.tp_row == vb->vb_mark_end.tp_row)
+		return (0);
+
+	sc = vb->vb_mark_start.tp_col;
+	sr = vb->vb_mark_start.tp_row;
+	ec = vb->vb_mark_end.tp_col;
+	er = vb->vb_mark_end.tp_row;
 
 	/*
-	 * Luckily screen view is not like circular buffer, so we will
-	 * calculate in screen coordinates.  Translate first.
+	 * Information about if the selection was made bottom-top or
+	 * top-bottom is lost due to modulo arithmetics and needs to
+	 * be recovered:
 	 */
-	sc = vb->vb_mark_start.tp_col;
-	sr = vtbuf_htw(vb, vb->vb_mark_start.tp_row);
-	ec = vb->vb_mark_end.tp_col;
-	er = vtbuf_htw(vb, vb->vb_mark_end.tp_row);
+	sz = vb->vb_history_size;
+	tmp = (sz + er - sr) % sz;
+	row = vtbuf_wth(vb, row);
 
-
-	/* Swap start and end if start > end. */
-	if (POS_INDEX(sc, sr) > POS_INDEX(ec, er)) {
+	/* Swap start and end if start > end */
+	if ((2 * tmp) > sz || (tmp == 0 && sc > ec)) {
 		tmp = sc; sc = ec; ec = tmp;
 		tmp = sr; sr = er; er = tmp;
 	}
 
-	if ((POS_INDEX(sc, sr) <= POS_INDEX(col, row)) &&
-	    (POS_INDEX(col, row) < POS_INDEX(ec, er)))
+	if (vtbuf_in_this_range(POS_INDEX(sc, sr), POS_INDEX(col, row),
+	    POS_INDEX(ec, er), POS_INDEX(0, sz)))
 		return (1);
+#endif
 
 	return (0);
 }
@@ -627,8 +679,8 @@ vtbuf_flush_mark(struct vt_buf *vb)
 	int s, e;
 
 	/* Notify renderer to update marked region. */
-	if (vb->vb_mark_start.tp_col || vb->vb_mark_end.tp_col ||
-	    vb->vb_mark_start.tp_row || vb->vb_mark_end.tp_row) {
+	if ((vb->vb_mark_start.tp_col != vb->vb_mark_end.tp_col) ||
+	    (vb->vb_mark_start.tp_row != vb->vb_mark_end.tp_row)) {
 
 		s = vtbuf_htw(vb, vb->vb_mark_start.tp_row);
 		e = vtbuf_htw(vb, vb->vb_mark_end.tp_row);

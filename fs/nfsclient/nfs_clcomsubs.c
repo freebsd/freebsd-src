@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -112,6 +112,8 @@ static struct {
 	{ NFSV4OP_WRITE, 1, "WriteDS", 7, },
 	{ NFSV4OP_READ, 1, "ReadDS", 6, },
 	{ NFSV4OP_COMMIT, 1, "CommitDS", 8, },
+	{ NFSV4OP_OPEN, 3, "OpenLayoutGet", 13, },
+	{ NFSV4OP_OPEN, 8, "CreateLayGet", 12, },
 };
 
 /*
@@ -120,7 +122,7 @@ static struct {
 static int nfs_bigrequest[NFSV41_NPROCS] = {
 	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 1, 0, 0
+	0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0
 };
 
 /*
@@ -200,13 +202,16 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 		*tl = txdr_unsigned(opcnt);
 		if ((nd->nd_flag & ND_NFSV41) != 0 &&
 		    nfsv4_opflag[nfsv4_opmap[procnum].op].needsseq > 0) {
+			if (nfsv4_opflag[nfsv4_opmap[procnum].op].loopbadsess >
+			    0)
+				nd->nd_flag |= ND_LOOPBADSESS;
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 			*tl = txdr_unsigned(NFSV4OP_SEQUENCE);
-			if (sep == NULL)
-				nfsv4_setsequence(nmp, nd,
-				    NFSMNT_MDSSESSION(nmp),
+			if (sep == NULL) {
+				sep = nfsmnt_mdssession(nmp);
+				nfsv4_setsequence(nmp, nd, sep,
 				    nfs_bigreply[procnum]);
-			else
+			} else
 				nfsv4_setsequence(nmp, nd, sep,
 				    nfs_bigreply[procnum]);
 		}
@@ -468,6 +473,12 @@ nfscl_mtofh(struct nfsrv_descript *nd, struct nfsfh **nfhpp,
 		flag = fxdr_unsigned(int, *tl);
 	} else if (nd->nd_flag & ND_NFSV4) {
 		NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+		/* If the GetFH failed, clear flag. */
+		if (*++tl != 0) {
+			nd->nd_flag |= ND_NOMOREDATA;
+			flag = 0;
+			error = ENXIO;	/* Return ENXIO so *nfhpp isn't used. */
+		}
 	}
 	if (flag) {
 		error = nfsm_getfh(nd, nfhpp);
@@ -478,8 +489,12 @@ nfscl_mtofh(struct nfsrv_descript *nd, struct nfsfh **nfhpp,
 	/*
 	 * Now, get the attributes.
 	 */
-	if (nd->nd_flag & ND_NFSV4) {
+	if (flag != 0 && (nd->nd_flag & ND_NFSV4) != 0) {
 		NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+		if (*++tl != 0) {
+			nd->nd_flag |= ND_NOMOREDATA;
+			flag = 0;
+		}
 	} else if (nd->nd_flag & ND_NFSV3) {
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		if (flag) {

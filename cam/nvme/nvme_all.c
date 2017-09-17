@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/libkern.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/sysctl.h>
 #else
 #include <errno.h>
@@ -53,6 +54,13 @@ __FBSDID("$FreeBSD$");
 #include <cam/nvme/nvme_all.h>
 #include <sys/sbuf.h>
 #include <sys/endian.h>
+
+#ifdef _KERNEL
+#include <cam/cam_periph.h>
+#include <cam/cam_xpt_sim.h>
+#include <cam/cam_xpt_periph.h>
+#include <cam/cam_xpt_internal.h>
+#endif
 
 void
 nvme_ns_cmd(struct ccb_nvmeio *nvmeio, uint8_t cmd, uint32_t nsid,
@@ -121,4 +129,24 @@ nvme_cmd_string(const struct nvme_command *cmd, char *cmd_string, size_t len)
 	    cmd->cdw10, cmd->cdw11, cmd->cdw12, cmd->cdw13, cmd->cdw14, cmd->cdw15);
 
 	return cmd_string;
+}
+
+const void *
+nvme_get_identify_cntrl(struct cam_periph *periph)
+{
+	struct cam_ed *device;
+
+	device = periph->path->device;
+
+	return device->nvme_cdata;
+}
+
+const void *
+nvme_get_identify_ns(struct cam_periph *periph)
+{
+	struct cam_ed *device;
+
+	device = periph->path->device;
+
+	return device->nvme_data;
 }

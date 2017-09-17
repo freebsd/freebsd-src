@@ -69,5 +69,7 @@ kstat_t *kstat_create(char *module, int instance, char *name, char *cls,
     uchar_t type, ulong_t ndata, uchar_t flags);
 void kstat_install(kstat_t *ksp);
 void kstat_delete(kstat_t *ksp);
+void kstat_set_string(char *, const char *);
+void kstat_named_init(kstat_named_t *, const char *, uchar_t);
 
 #endif	/* _OPENSOLARIS_SYS_KSTAT_H_ */

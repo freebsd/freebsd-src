@@ -58,6 +58,7 @@ MALLOC_DEFINE(M_NVME, "nvme", "nvme(4) memory allocations");
 static int    nvme_probe(device_t);
 static int    nvme_attach(device_t);
 static int    nvme_detach(device_t);
+static int    nvme_shutdown(device_t);
 static int    nvme_modevent(module_t mod, int type, void *arg);
 
 static devclass_t nvme_devclass;
@@ -67,6 +68,7 @@ static device_method_t nvme_pci_methods[] = {
 	DEVMETHOD(device_probe,     nvme_probe),
 	DEVMETHOD(device_attach,    nvme_attach),
 	DEVMETHOD(device_detach,    nvme_detach),
+	DEVMETHOD(device_shutdown,  nvme_shutdown),
 	{ 0, 0 }
 };
 
@@ -78,6 +80,7 @@ static driver_t nvme_pci_driver = {
 
 DRIVER_MODULE(nvme, pci, nvme_pci_driver, nvme_devclass, nvme_modevent, 0);
 MODULE_VERSION(nvme, 1);
+MODULE_DEPEND(nvme, cam, 1, 1, 1);
 
 static struct _pcsid
 {
@@ -179,22 +182,15 @@ nvme_unload(void)
 {
 }
 
-static void
-nvme_shutdown(void)
+static int
+nvme_shutdown(device_t dev)
 {
-	device_t		*devlist;
 	struct nvme_controller	*ctrlr;
-	int			dev, devcount;
 
-	if (devclass_get_devices(nvme_devclass, &devlist, &devcount))
-		return;
+	ctrlr = DEVICE2SOFTC(dev);
+	nvme_ctrlr_shutdown(ctrlr);
 
-	for (dev = 0; dev < devcount; dev++) {
-		ctrlr = DEVICE2SOFTC(devlist[dev]);
-		nvme_ctrlr_shutdown(ctrlr);
-	}
-
-	free(devlist, M_TEMP);
+	return (0);
 }
 
 static int
@@ -207,9 +203,6 @@ nvme_modevent(module_t mod, int type, void *arg)
 		break;
 	case MOD_UNLOAD:
 		nvme_unload();
-		break;
-	case MOD_SHUTDOWN:
-		nvme_shutdown();
 		break;
 	default:
 		break;
@@ -254,6 +247,12 @@ nvme_attach(device_t dev)
 	}
 
 	/*
+	 * Enable busmastering so the completion status messages can
+	 * be busmastered back to the host.
+	 */
+	pci_enable_busmaster(dev);
+
+	/*
 	 * Reset controller twice to ensure we do a transition from cc.en==1
 	 *  to cc.en==0.  This is because we don't really know what status
 	 *  the controller was left in when boot handed off to OS.
@@ -269,8 +268,6 @@ nvme_attach(device_t dev)
 		nvme_ctrlr_destruct(ctrlr, dev);
 		return (status);
 	}
-
-	pci_enable_busmaster(dev);
 
 	ctrlr->config_hook.ich_func = nvme_ctrlr_start_config_hook;
 	ctrlr->config_hook.ich_arg = ctrlr;
@@ -327,8 +324,10 @@ nvme_notify(struct nvme_consumer *cons,
 		 */
 		return;
 	}
-	for (ns_idx = 0; ns_idx < ctrlr->cdata.nn; ns_idx++) {
+	for (ns_idx = 0; ns_idx < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); ns_idx++) {
 		ns = &ctrlr->ns[ns_idx];
+		if (ns->data.nsze == 0)
+			continue;
 		if (cons->ns_fn != NULL)
 			ns->cons_cookie[cons->id] =
 			    (*cons->ns_fn)(ns, ctrlr_cookie);

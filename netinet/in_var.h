@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -82,6 +82,8 @@ struct in_ifaddr {
 	struct	sockaddr_in ia_dstaddr; /* reserve space for broadcast addr */
 #define	ia_broadaddr	ia_dstaddr
 	struct	sockaddr_in ia_sockmask; /* reserve space for general netmask */
+	struct	callout ia_garp_timer;	/* timer for retransmitting GARPs */
+	int	ia_garp_count;		/* count of retransmitted GARPs */
 };
 
 /*

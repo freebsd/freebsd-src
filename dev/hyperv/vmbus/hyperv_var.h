@@ -29,13 +29,6 @@
 #ifndef _HYPERV_VAR_H_
 #define _HYPERV_VAR_H_
 
-#ifndef NANOSEC
-#define NANOSEC			1000000000ULL
-#endif
-#define HYPERV_TIMER_NS_FACTOR	100ULL
-#define HYPERV_TIMER_FREQ	(NANOSEC / HYPERV_TIMER_NS_FACTOR)
-
-extern u_int	hyperv_features;
 extern u_int	hyperv_recommends;
 
 uint64_t	hypercall_post_message(bus_addr_t msg_paddr);

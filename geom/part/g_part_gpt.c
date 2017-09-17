@@ -687,10 +687,11 @@ g_part_gpt_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 	table->hdr = NULL;
 
 	/*
-	 * Wipe the first 2 sectors to clear the partitioning. Wipe the last
-	 * sector only if it has valid secondary header.
+	 * Wipe the first 2 sectors and last one to clear the partitioning.
+	 * Wipe sectors only if they have valid metadata.
 	 */
-	basetable->gpt_smhead |= 3;
+	if (table->state[GPT_ELT_PRIHDR] == GPT_STATE_OK)
+		basetable->gpt_smhead |= 3;
 	if (table->state[GPT_ELT_SECHDR] == GPT_STATE_OK &&
 	    table->lba[GPT_ELT_SECHDR] == pp->mediasize / pp->sectorsize - 1)
 		basetable->gpt_smtail |= 1;
@@ -730,6 +731,12 @@ g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 		sbuf_printf(sb, "%s<rawuuid>", indent);
 		sbuf_printf_uuid(sb, &entry->ent.ent_uuid);
 		sbuf_printf(sb, "</rawuuid>\n");
+		sbuf_printf(sb, "%s<efimedia>", indent);
+		sbuf_printf(sb, "HD(%d,GPT,", entry->base.gpe_index);
+		sbuf_printf_uuid(sb, &entry->ent.ent_uuid);
+		sbuf_printf(sb, ",%#jx,%#jx)", (intmax_t)entry->base.gpe_start,
+		    (intmax_t)(entry->base.gpe_end - entry->base.gpe_start + 1));
+		sbuf_printf(sb, "</efimedia>\n");
 	} else {
 		/* confxml: scheme information */
 	}

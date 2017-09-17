@@ -35,6 +35,7 @@ options 	SCHED_4BSD		# 4BSD scheduler
 #options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
@@ -144,7 +145,6 @@ device		umass			# Disks/Mass storage - Requires scbus and da
 
 # USB device (gadget) support
 device		at91_dci		# Atmel's usb device
-device		usfs			# emulate a flash
 device		cdce			# emulate an ethernet
 device		usb_template		# Control of the gadget
 

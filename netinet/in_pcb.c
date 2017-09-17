@@ -16,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipsec.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ratelimit.h"
 #include "opt_pcbgroup.h"
 #include "opt_rss.h"
 
@@ -57,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sockio.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/refcount.h>
@@ -96,11 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #endif /* INET6 */
 
-
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/key.h>
-#endif /* IPSEC */
+#include <netipsec/ipsec_support.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -214,14 +212,25 @@ SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomtime,
  */
 
 /*
+ * Different protocols initialize their inpcbs differently - giving
+ * different name to the lock.  But they all are disposed the same.
+ */
+static void
+inpcb_fini(void *mem, int size)
+{
+	struct inpcb *inp = mem;
+
+	INP_LOCK_DESTROY(inp);
+}
+
+/*
  * Initialize an inpcbinfo -- we should be able to reduce the number of
  * arguments in time.
  */
 void
 in_pcbinfo_init(struct inpcbinfo *pcbinfo, const char *name,
     struct inpcbhead *listhead, int hash_nelements, int porthash_nelements,
-    char *inpcbzone_name, uma_init inpcbzone_init, uma_fini inpcbzone_fini,
-    uint32_t inpcbzone_flags, u_int hashfields)
+    char *inpcbzone_name, uma_init inpcbzone_init, u_int hashfields)
 {
 
 	INP_INFO_LOCK_INIT(pcbinfo, name);
@@ -241,8 +250,7 @@ in_pcbinfo_init(struct inpcbinfo *pcbinfo, const char *name,
 	in_pcbgroup_init(pcbinfo, hashfields, hash_nelements);
 #endif
 	pcbinfo->ipi_zone = uma_zcreate(inpcbzone_name, sizeof(struct inpcb),
-	    NULL, NULL, inpcbzone_init, inpcbzone_fini, UMA_ALIGN_PTR,
-	    inpcbzone_flags);
+	    NULL, NULL, inpcbzone_init, inpcb_fini, UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(pcbinfo->ipi_zone, maxsockets);
 	uma_zone_set_warning(pcbinfo->ipi_zone,
 	    "kern.ipc.maxsockets limit reached");
@@ -292,7 +300,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	inp = uma_zalloc(pcbinfo->ipi_zone, M_NOWAIT);
 	if (inp == NULL)
 		return (ENOBUFS);
-	bzero(inp, inp_zero_size);
+	bzero(&inp->inp_start_zero, inp_zero_size);
 	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
 	inp->inp_cred = crhold(so->so_cred);
@@ -303,8 +311,8 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 		goto out;
 	mac_inpcb_create(so, inp);
 #endif
-#ifdef IPSEC
-	error = ipsec_init_policy(so, &inp->inp_sp);
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	error = ipsec_init_pcbpolicy(inp);
 	if (error != 0) {
 #ifdef MAC
 		mac_inpcb_destroy(inp);
@@ -330,8 +338,14 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 #endif
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	refcount_init(&inp->inp_refcount, 1);	/* Reference from inpcbinfo */
+
+	/*
+	 * Routes in inpcb's can cache L2 as well; they are guaranteed
+	 * to be cleaned up.
+	 */
+	inp->inp_route.ro_flags = RT_LLE_CACHE;
 	INP_LIST_WUNLOCK(pcbinfo);
-#if defined(IPSEC) || defined(MAC)
+#if defined(IPSEC) || defined(IPSEC_SUPPORT) || defined(MAC)
 out:
 	if (error != 0) {
 		crfree(inp->inp_cred);
@@ -1140,6 +1154,10 @@ in_pcbdetach(struct inpcb *inp)
 
 	KASSERT(inp->inp_socket != NULL, ("%s: inp_socket == NULL", __func__));
 
+#ifdef RATELIMIT
+	if (inp->inp_snd_tag != NULL)
+		in_pcbdetach_txrtlmt(inp);
+#endif
 	inp->inp_socket->so_pcb = NULL;
 	inp->inp_socket = NULL;
 }
@@ -1278,7 +1296,7 @@ in_pcbfree(struct inpcb *inp)
 	INP_WLOCK_ASSERT(inp);
 
 	/* XXXRW: Do as much as possible here. */
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	if (inp->inp_sp != NULL)
 		ipsec_delete_pcbpolicy(inp);
 #endif
@@ -1299,10 +1317,7 @@ in_pcbfree(struct inpcb *inp)
 	if (inp->inp_moptions != NULL)
 		inp_freemoptions(inp->inp_moptions);
 #endif
-	if (inp->inp_route.ro_rt) {
-		RTFREE(inp->inp_route.ro_rt);
-		inp->inp_route.ro_rt = (struct rtentry *)NULL;
-	}
+	RO_RTFREE(&inp->inp_route);
 	if (inp->inp_route.ro_lle)
 		LLE_FREE(inp->inp_route.ro_lle);	/* zeros ro_lle */
 
@@ -2242,10 +2257,7 @@ void
 in_losing(struct inpcb *inp)
 {
 
-	if (inp->inp_route.ro_rt) {
-		RTFREE(inp->inp_route.ro_rt);
-		inp->inp_route.ro_rt = (struct rtentry *)NULL;
-	}
+	RO_RTFREE(&inp->inp_route);
 	if (inp->inp_route.ro_lle)
 		LLE_FREE(inp->inp_route.ro_lle);	/* zeros ro_lle */
 	return;
@@ -2352,7 +2364,7 @@ inp_runlock(struct inpcb *inp)
 	INP_RUNLOCK(inp);
 }
 
-#ifdef INVARIANTS
+#ifdef INVARIANT_SUPPORT
 void
 inp_lock_assert(struct inpcb *inp)
 {
@@ -2438,6 +2450,41 @@ so_sototcpcb(struct socket *so)
 	return (sototcpcb(so));
 }
 
+/*
+ * Create an external-format (``xinpcb'') structure using the information in
+ * the kernel-format in_pcb structure pointed to by inp.  This is done to
+ * reduce the spew of irrelevant information over this interface, to isolate
+ * user code from changes in the kernel structure, and potentially to provide
+ * information-hiding if we decide that some of this information should be
+ * hidden from users.
+ */
+void
+in_pcbtoxinpcb(const struct inpcb *inp, struct xinpcb *xi)
+{
+
+	xi->xi_len = sizeof(struct xinpcb);
+	if (inp->inp_socket)
+		sotoxsocket(inp->inp_socket, &xi->xi_socket);
+	else
+		bzero(&xi->xi_socket, sizeof(struct xsocket));
+	bcopy(&inp->inp_inc, &xi->inp_inc, sizeof(struct in_conninfo));
+	xi->inp_gencnt = inp->inp_gencnt;
+	xi->inp_ppcb = inp->inp_ppcb;
+	xi->inp_flow = inp->inp_flow;
+	xi->inp_flowid = inp->inp_flowid;
+	xi->inp_flowtype = inp->inp_flowtype;
+	xi->inp_flags = inp->inp_flags;
+	xi->inp_flags2 = inp->inp_flags2;
+	xi->inp_rss_listen_bucket = inp->inp_rss_listen_bucket;
+	xi->in6p_cksum = inp->in6p_cksum;
+	xi->in6p_hops = inp->in6p_hops;
+	xi->inp_ip_tos = inp->inp_ip_tos;
+	xi->inp_vflag = inp->inp_vflag;
+	xi->inp_ip_ttl = inp->inp_ip_ttl;
+	xi->inp_ip_p = inp->inp_ip_p;
+	xi->inp_ip_minttl = inp->inp_ip_minttl;
+}
+
 #ifdef DDB
 static void
 db_print_indent(int indent)
@@ -2494,6 +2541,10 @@ db_print_inpflags(int inp_flags)
 	}
 	if (inp_flags & INP_RECVDSTADDR) {
 		db_printf("%sINP_RECVDSTADDR", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & INP_ORIGDSTADDR) {
+		db_printf("%sINP_ORIGDSTADDR", comma ? ", " : "");
 		comma = 1;
 	}
 	if (inp_flags & INP_HDRINCL) {
@@ -2683,3 +2734,283 @@ DB_SHOW_COMMAND(inpcb, db_show_inpcb)
 	db_print_inpcb(inp, "inpcb", 0);
 }
 #endif /* DDB */
+
+#ifdef RATELIMIT
+/*
+ * Modify TX rate limit based on the existing "inp->inp_snd_tag",
+ * if any.
+ */
+int
+in_pcbmodify_txrtlmt(struct inpcb *inp, uint32_t max_pacing_rate)
+{
+	union if_snd_tag_modify_params params = {
+		.rate_limit.max_rate = max_pacing_rate,
+	};
+	struct m_snd_tag *mst;
+	struct ifnet *ifp;
+	int error;
+
+	mst = inp->inp_snd_tag;
+	if (mst == NULL)
+		return (EINVAL);
+
+	ifp = mst->ifp;
+	if (ifp == NULL)
+		return (EINVAL);
+
+	if (ifp->if_snd_tag_modify == NULL) {
+		error = EOPNOTSUPP;
+	} else {
+		error = ifp->if_snd_tag_modify(mst, &params);
+	}
+	return (error);
+}
+
+/*
+ * Query existing TX rate limit based on the existing
+ * "inp->inp_snd_tag", if any.
+ */
+int
+in_pcbquery_txrtlmt(struct inpcb *inp, uint32_t *p_max_pacing_rate)
+{
+	union if_snd_tag_query_params params = { };
+	struct m_snd_tag *mst;
+	struct ifnet *ifp;
+	int error;
+
+	mst = inp->inp_snd_tag;
+	if (mst == NULL)
+		return (EINVAL);
+
+	ifp = mst->ifp;
+	if (ifp == NULL)
+		return (EINVAL);
+
+	if (ifp->if_snd_tag_query == NULL) {
+		error = EOPNOTSUPP;
+	} else {
+		error = ifp->if_snd_tag_query(mst, &params);
+		if (error == 0 &&  p_max_pacing_rate != NULL)
+			*p_max_pacing_rate = params.rate_limit.max_rate;
+	}
+	return (error);
+}
+
+/*
+ * Query existing TX queue level based on the existing
+ * "inp->inp_snd_tag", if any.
+ */
+int
+in_pcbquery_txrlevel(struct inpcb *inp, uint32_t *p_txqueue_level)
+{
+	union if_snd_tag_query_params params = { };
+	struct m_snd_tag *mst;
+	struct ifnet *ifp;
+	int error;
+
+	mst = inp->inp_snd_tag;
+	if (mst == NULL)
+		return (EINVAL);
+
+	ifp = mst->ifp;
+	if (ifp == NULL)
+		return (EINVAL);
+
+	if (ifp->if_snd_tag_query == NULL)
+		return (EOPNOTSUPP);
+
+	error = ifp->if_snd_tag_query(mst, &params);
+	if (error == 0 &&  p_txqueue_level != NULL)
+		*p_txqueue_level = params.rate_limit.queue_level;
+	return (error);
+}
+
+/*
+ * Allocate a new TX rate limit send tag from the network interface
+ * given by the "ifp" argument and save it in "inp->inp_snd_tag":
+ */
+int
+in_pcbattach_txrtlmt(struct inpcb *inp, struct ifnet *ifp,
+    uint32_t flowtype, uint32_t flowid, uint32_t max_pacing_rate)
+{
+	union if_snd_tag_alloc_params params = {
+		.rate_limit.hdr.type = (max_pacing_rate == -1U) ?
+		    IF_SND_TAG_TYPE_UNLIMITED : IF_SND_TAG_TYPE_RATE_LIMIT,
+		.rate_limit.hdr.flowid = flowid,
+		.rate_limit.hdr.flowtype = flowtype,
+		.rate_limit.max_rate = max_pacing_rate,
+	};
+	int error;
+
+	INP_WLOCK_ASSERT(inp);
+
+	if (inp->inp_snd_tag != NULL)
+		return (EINVAL);
+
+	if (ifp->if_snd_tag_alloc == NULL) {
+		error = EOPNOTSUPP;
+	} else {
+		error = ifp->if_snd_tag_alloc(ifp, &params, &inp->inp_snd_tag);
+
+		/*
+		 * At success increment the refcount on
+		 * the send tag's network interface:
+		 */
+		if (error == 0)
+			if_ref(inp->inp_snd_tag->ifp);
+	}
+	return (error);
+}
+
+/*
+ * Free an existing TX rate limit tag based on the "inp->inp_snd_tag",
+ * if any:
+ */
+void
+in_pcbdetach_txrtlmt(struct inpcb *inp)
+{
+	struct m_snd_tag *mst;
+	struct ifnet *ifp;
+
+	INP_WLOCK_ASSERT(inp);
+
+	mst = inp->inp_snd_tag;
+	inp->inp_snd_tag = NULL;
+
+	if (mst == NULL)
+		return;
+
+	ifp = mst->ifp;
+	if (ifp == NULL)
+		return;
+
+	/*
+	 * If the device was detached while we still had reference(s)
+	 * on the ifp, we assume if_snd_tag_free() was replaced with
+	 * stubs.
+	 */
+	ifp->if_snd_tag_free(mst);
+
+	/* release reference count on network interface */
+	if_rele(ifp);
+}
+
+/*
+ * This function should be called when the INP_RATE_LIMIT_CHANGED flag
+ * is set in the fast path and will attach/detach/modify the TX rate
+ * limit send tag based on the socket's so_max_pacing_rate value.
+ */
+void
+in_pcboutput_txrtlmt(struct inpcb *inp, struct ifnet *ifp, struct mbuf *mb)
+{
+	struct socket *socket;
+	uint32_t max_pacing_rate;
+	bool did_upgrade;
+	int error;
+
+	if (inp == NULL)
+		return;
+
+	socket = inp->inp_socket;
+	if (socket == NULL)
+		return;
+
+	if (!INP_WLOCKED(inp)) {
+		/*
+		 * NOTE: If the write locking fails, we need to bail
+		 * out and use the non-ratelimited ring for the
+		 * transmit until there is a new chance to get the
+		 * write lock.
+		 */
+		if (!INP_TRY_UPGRADE(inp))
+			return;
+		did_upgrade = 1;
+	} else {
+		did_upgrade = 0;
+	}
+
+	/*
+	 * NOTE: The so_max_pacing_rate value is read unlocked,
+	 * because atomic updates are not required since the variable
+	 * is checked at every mbuf we send. It is assumed that the
+	 * variable read itself will be atomic.
+	 */
+	max_pacing_rate = socket->so_max_pacing_rate;
+
+	/*
+	 * NOTE: When attaching to a network interface a reference is
+	 * made to ensure the network interface doesn't go away until
+	 * all ratelimit connections are gone. The network interface
+	 * pointers compared below represent valid network interfaces,
+	 * except when comparing towards NULL.
+	 */
+	if (max_pacing_rate == 0 && inp->inp_snd_tag == NULL) {
+		error = 0;
+	} else if (!(ifp->if_capenable & IFCAP_TXRTLMT)) {
+		if (inp->inp_snd_tag != NULL)
+			in_pcbdetach_txrtlmt(inp);
+		error = 0;
+	} else if (inp->inp_snd_tag == NULL) {
+		/*
+		 * In order to utilize packet pacing with RSS, we need
+		 * to wait until there is a valid RSS hash before we
+		 * can proceed:
+		 */
+		if (M_HASHTYPE_GET(mb) == M_HASHTYPE_NONE) {
+			error = EAGAIN;
+		} else {
+			error = in_pcbattach_txrtlmt(inp, ifp, M_HASHTYPE_GET(mb),
+			    mb->m_pkthdr.flowid, max_pacing_rate);
+		}
+	} else {
+		error = in_pcbmodify_txrtlmt(inp, max_pacing_rate);
+	}
+	if (error == 0 || error == EOPNOTSUPP)
+		inp->inp_flags2 &= ~INP_RATE_LIMIT_CHANGED;
+	if (did_upgrade)
+		INP_DOWNGRADE(inp);
+}
+
+/*
+ * Track route changes for TX rate limiting.
+ */
+void
+in_pcboutput_eagain(struct inpcb *inp)
+{
+	struct socket *socket;
+	bool did_upgrade;
+
+	if (inp == NULL)
+		return;
+
+	socket = inp->inp_socket;
+	if (socket == NULL)
+		return;
+
+	if (inp->inp_snd_tag == NULL)
+		return;
+
+	if (!INP_WLOCKED(inp)) {
+		/*
+		 * NOTE: If the write locking fails, we need to bail
+		 * out and use the non-ratelimited ring for the
+		 * transmit until there is a new chance to get the
+		 * write lock.
+		 */
+		if (!INP_TRY_UPGRADE(inp))
+			return;
+		did_upgrade = 1;
+	} else {
+		did_upgrade = 0;
+	}
+
+	/* detach rate limiting */
+	in_pcbdetach_txrtlmt(inp);
+
+	/* make sure new mbuf send tag allocation is made */
+	inp->inp_flags2 |= INP_RATE_LIMIT_CHANGED;
+
+	if (did_upgrade)
+		INP_DOWNGRADE(inp);
+}
+#endif /* RATELIMIT */

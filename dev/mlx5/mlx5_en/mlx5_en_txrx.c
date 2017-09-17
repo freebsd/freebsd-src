@@ -47,10 +47,7 @@ void
 mlx5e_cq_error_event(struct mlx5_core_cq *mcq, int event)
 {
 	struct mlx5e_cq *cq = container_of(mcq, struct mlx5e_cq, mcq);
-	struct mlx5e_channel *c = cq->channel;
-	struct mlx5e_priv *priv = c->priv;
-	struct ifnet *ifp = priv->ifp;
 
-	if_printf(ifp, "%s: cqn=0x%.6x event=0x%.2x\n",
+	if_printf(cq->priv->ifp, "%s: cqn=0x%.6x event=0x%.2x\n",
 	    __func__, mcq->cqn, event);
 }

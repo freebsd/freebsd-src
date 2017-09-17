@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015 Mark R V Murray
+ * Copyright (c) 2013-2015, 2017 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,8 +44,6 @@ struct harvest_event {
 } __packed;
 
 void read_rate_increment(u_int);
-
-#define	RANDOM_HARVESTQ_BOOT_ENTROPY_FILE	"/boot/entropy"
 
 #define	RANDOM_HARVEST_INIT_LOCK(x)	mtx_init(&harvest_context.hc_mtx, "entropy harvest mutex", NULL, MTX_SPIN)
 #define	RANDOM_HARVEST_LOCK(x)		mtx_lock_spin(&harvest_context.hc_mtx)

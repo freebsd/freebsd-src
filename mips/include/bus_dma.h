@@ -30,5 +30,6 @@
 #define _MIPS_BUS_DMA_H_
 
 #include <sys/bus_dma.h>
+#include <sys/bus_dma_internal.h>
 
 #endif /* _MIPS_BUS_DMA_H_ */

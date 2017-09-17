@@ -535,6 +535,12 @@
 #define	BHND_CHIPTYPE_UBUS		2		/**< ubus interconnect found in bcm63xx devices */
 #define	BHND_CHIPTYPE_BCMA_ALT		3		/**< bcma(4) interconnect */
 
+/** Evaluates to true if @p _type uses a BCMA EROM table */
+#define	BHND_CHIPTYPE_HAS_EROM(_type)		\
+	((_type) == BHND_CHIPTYPE_BCMA ||	\
+	 (_type) == BHND_CHIPTYPE_BCMA_ALT ||	\
+	 (_type) == BHND_CHIPTYPE_UBUS)
+
 /* Boardflags */
 #define	BHND_BFL_BTC2WIRE		0x00000001	/* old 2wire Bluetooth coexistence, OBSOLETE */
 #define	BHND_BFL_BTCOEX			0x00000001	/* Board supports BTCOEX */
@@ -691,12 +697,6 @@
 #define	BHND_GPIO_BTC4W_OUT_43421	0x020	/* bit 5 is BT_IODISABLE */
 #define	BHND_GPIO_BTC4W_OUT_4313	0x060	/* bit 5 SW_BT, bit 6 SW_WL */
 #define	BHND_GPIO_BTC4W_OUT_4331_SHARED	0x010	/* GPIO 4  */
-
-/* Power Control Defines */
-#define	BHND_CHIPC_PLL_DELAY		150	/* us pll on delay */
-#define	BHND_CHIPC_FREF_DELAY		200	/* us fref change delay */
-#define	BHND_CHIPC_MIN_SLOW_CLK		32	/* us Slow clock period */
-#define	BHND_CHIPC_XTAL_ON_DELAY	1000	/* us crystal power-on delay */
 
 /* Board Types */
 #define	BHND_BOARD_BU4710		0x0400

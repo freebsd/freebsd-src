@@ -26,6 +26,7 @@
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright (c) 2017 Datto Inc.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -74,9 +75,13 @@ typedef enum dmu_objset_type {
 #define	ZFS_TYPE_DATASET	\
 	(ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME | ZFS_TYPE_SNAPSHOT)
 
+/*
+ * All of these include the terminating NUL byte.
+ */
 #define	ZAP_MAXNAMELEN 256
 #define	ZAP_MAXVALUELEN (1024 * 8)
 #define	ZAP_OLDMAXVALUELEN 1024
+#define	ZFS_MAX_DATASET_NAME_LEN 256
 
 /*
  * Dataset properties are identified by these constants and must be added to
@@ -606,6 +611,8 @@ typedef struct zpool_rewind_policy {
 
 /*
  * This is needed in userland to report the minimum necessary device size.
+ *
+ * Note that the zfs test suite uses 64MB vdevs.
  */
 #define	SPA_MINDEVSIZE		(64ULL << 20)
 
@@ -691,6 +698,16 @@ typedef enum pool_scan_func {
 } pool_scan_func_t;
 
 /*
+ * Used to control scrub pause and resume.
+ */
+typedef enum pool_scrub_cmd {
+	POOL_SCRUB_NORMAL = 0,
+	POOL_SCRUB_PAUSE,
+	POOL_SCRUB_FLAGS_END
+} pool_scrub_cmd_t;
+
+
+/*
  * ZIO types.  Needed to interpret vdev statistics below.
  */
 typedef enum zio_type {
@@ -722,6 +739,9 @@ typedef struct pool_scan_stat {
 	/* values not stored on disk */
 	uint64_t	pss_pass_exam;	/* examined bytes per scan pass */
 	uint64_t	pss_pass_start;	/* start time of a scan pass */
+	uint64_t	pss_pass_scrub_pause; /* pause time of a scurb pass */
+	/* cumulative time scrub spent paused, needed for rate calculation */
+	uint64_t	pss_pass_scrub_spent_paused;
 } pool_scan_stat_t;
 
 typedef enum dsl_scan_state {
@@ -885,6 +905,7 @@ typedef enum zfs_ioc {
 	ZFS_IOC_BOOKMARK,
 	ZFS_IOC_GET_BOOKMARKS,
 	ZFS_IOC_DESTROY_BOOKMARKS,
+	ZFS_IOC_NEXTBOOT,
 	ZFS_IOC_LAST
 } zfs_ioc_t;
 
@@ -897,7 +918,8 @@ typedef enum {
 	SPA_LOAD_IMPORT,	/* import in progress	*/
 	SPA_LOAD_TRYIMPORT,	/* tryimport in progress */
 	SPA_LOAD_RECOVER,	/* recovery requested	*/
-	SPA_LOAD_ERROR		/* load failed		*/
+	SPA_LOAD_ERROR,		/* load failed		*/
+	SPA_LOAD_CREATE		/* creation in progress */
 } spa_load_state_t;
 
 /*

@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -294,7 +294,7 @@
 #if (defined(__cplusplus) && __cplusplus >= 201103L) || \
     __has_extension(cxx_static_assert)
 #define	_Static_assert(x, y)	static_assert(x, y)
-#elif __GNUC_PREREQ__(4,6)
+#elif __GNUC_PREREQ__(4,6) && !defined(__cplusplus)
 /* Nothing, gcc 4.6 and higher has _Static_assert built-in */
 #elif defined(__COUNTER__)
 #define	_Static_assert(x, y)	__Static_assert(x, __COUNTER__)
@@ -341,6 +341,21 @@
 	    __builtin_types_compatible_p(__typeof(expr), t), yes, no)
 #endif
 
+/*
+ * C99 Static array indices in function parameter declarations.  Syntax such as:
+ * void bar(int myArray[static 10]);
+ * is allowed in C99 but not in C++.  Define __min_size appropriately so
+ * headers using it can be compiled in either language.  Use like this:
+ * void bar(int myArray[__min_size(10)]);
+ */
+#if !defined(__cplusplus) && \
+    (defined(__clang__) || __GNUC_PREREQ__(4, 6)) && \
+    (!defined(__STDC_VERSION__) || (__STDC_VERSION__ >= 199901))
+#define __min_size(x)	static (x)
+#else
+#define __min_size(x)	(x)
+#endif
+
 #if __GNUC_PREREQ__(2, 96)
 #define	__malloc_like	__attribute__((__malloc__))
 #define	__pure		__attribute__((__pure__))
@@ -359,14 +374,6 @@
 #define	__noinline	__attribute__ ((__noinline__))
 #else
 #define	__noinline
-#endif
-
-#if __GNUC_PREREQ__(3, 3)
-#define	__nonnull(x)	__attribute__((__nonnull__(x)))
-#define	__nonnull_all	__attribute__((__nonnull__))
-#else
-#define	__nonnull(x)
-#define	__nonnull_all
 #endif
 
 #if __GNUC_PREREQ__(3, 4)
@@ -527,22 +534,6 @@
 	    __attribute__((__format__ (__strfmon__, fmtarg, firstvararg)))
 #define	__strftimelike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__strftime__, fmtarg, firstvararg)))
-#endif
-
-/*
- * FORTIFY_SOURCE, and perhaps other compiler-specific features, require
- * the use of non-standard inlining.  In general we should try to avoid
- * using these but GCC-compatible compilers tend to support the extensions
- * well enough to use them in limited cases.
- */ 
-#if defined(__GNUC_GNU_INLINE__) || defined(__GNUC_STDC_INLINE__)
-#if __GNUC_PREREQ__(4, 3) || __has_attribute(__artificial__)
-#define	__gnu_inline	__attribute__((__gnu_inline__, __artificial__))
-#else
-#define	__gnu_inline	__attribute__((__gnu_inline__))
-#endif /* artificial */
-#else
-#define	__gnu_inline
 #endif
 
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
@@ -759,25 +750,39 @@
 #define	__XSI_VISIBLE		0
 #define	__BSD_VISIBLE		0
 #define	__ISO_C_VISIBLE		1990
+#define	__EXT1_VISIBLE		0
 #elif defined(_C99_SOURCE)	/* Localism to specify strict C99 env. */
 #define	__POSIX_VISIBLE		0
 #define	__XSI_VISIBLE		0
 #define	__BSD_VISIBLE		0
 #define	__ISO_C_VISIBLE		1999
+#define	__EXT1_VISIBLE		0
 #elif defined(_C11_SOURCE)	/* Localism to specify strict C11 env. */
 #define	__POSIX_VISIBLE		0
 #define	__XSI_VISIBLE		0
 #define	__BSD_VISIBLE		0
 #define	__ISO_C_VISIBLE		2011
+#define	__EXT1_VISIBLE		0
 #else				/* Default environment: show everything. */
 #define	__POSIX_VISIBLE		200809
 #define	__XSI_VISIBLE		700
 #define	__BSD_VISIBLE		1
 #define	__ISO_C_VISIBLE		2011
+#define	__EXT1_VISIBLE		1
 #endif
 #endif
 
-#if defined(__mips) || defined(__powerpc64__) || defined(__riscv__)
+/* User override __EXT1_VISIBLE */
+#if defined(__STDC_WANT_LIB_EXT1__)
+#undef	__EXT1_VISIBLE
+#if __STDC_WANT_LIB_EXT1__
+#define	__EXT1_VISIBLE		1
+#else
+#define	__EXT1_VISIBLE		0
+#endif
+#endif /* __STDC_WANT_LIB_EXT1__ */
+
+#if defined(__mips) || defined(__powerpc64__) || defined(__riscv)
 #define	__NO_TLS 1
 #endif
 
@@ -787,6 +792,21 @@
  */
 #if defined(__arm__) && !defined(__ARM_ARCH)
 #include <machine/acle-compat.h>
+#endif
+
+/*
+ * Nullability qualifiers: currently only supported by Clang.
+ */
+#if !(defined(__clang__) && __has_feature(nullability))
+#define	_Nonnull
+#define	_Nullable
+#define	_Null_unspecified
+#define	__NULLABILITY_PRAGMA_PUSH
+#define	__NULLABILITY_PRAGMA_POP
+#else
+#define	__NULLABILITY_PRAGMA_PUSH _Pragma("clang diagnostic push")	\
+	_Pragma("clang diagnostic ignored \"-Wnullability-completeness\"")
+#define	__NULLABILITY_PRAGMA_POP _Pragma("clang diagnostic pop")
 #endif
 
 /*

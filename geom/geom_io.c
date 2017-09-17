@@ -69,7 +69,6 @@ static int	g_io_transient_map_bio(struct bio *bp);
 
 static struct g_bioq g_bio_run_down;
 static struct g_bioq g_bio_run_up;
-static struct g_bioq g_bio_run_task;
 
 /*
  * Pace is a hint that we've had some trouble recently allocating
@@ -224,6 +223,9 @@ g_clone_bio(struct bio *bp)
 		/* Inherit classification info from the parent */
 		bp2->bio_classifier1 = bp->bio_classifier1;
 		bp2->bio_classifier2 = bp->bio_classifier2;
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+		bp2->bio_track_bp = bp->bio_track_bp;
+#endif
 		bp->bio_children++;
 	}
 #ifdef KTR
@@ -280,7 +282,6 @@ g_io_init()
 
 	g_bioq_init(&g_bio_run_down);
 	g_bioq_init(&g_bio_run_up);
-	g_bioq_init(&g_bio_run_task);
 	biozone = uma_zcreate("g_bio", sizeof (struct bio),
 	    NULL, NULL,
 	    NULL, NULL,
@@ -363,6 +364,8 @@ g_io_check(struct bio *bp)
 	struct g_provider *pp;
 	off_t excess;
 	int error;
+
+	biotrack(bp, __func__);
 
 	cp = bp->bio_from;
 	pp = bp->bio_to;
@@ -505,6 +508,8 @@ g_run_classifiers(struct bio *bp)
 	struct g_classifier_hook *hook;
 	int classified = 0;
 
+	biotrack(bp, __func__);
+
 	TAILQ_FOREACH(hook, &g_classifier_tailq, link)
 		classified |= hook->func(hook->arg, bp);
 
@@ -519,6 +524,8 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	struct mtx *mtxp;
 	int direct, error, first;
 	uint8_t cmd;
+
+	biotrack(bp, __func__);
 
 	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
 	KASSERT(bp != NULL, ("NULL bp in g_io_request"));
@@ -645,6 +652,8 @@ g_io_deliver(struct bio *bp, int error)
 	struct g_provider *pp;
 	struct mtx *mtxp;
 	int direct, first;
+
+	biotrack(bp, __func__);
 
 	KASSERT(bp != NULL, ("NULL bp in g_io_deliver"));
 	pp = bp->bio_to;
@@ -837,6 +846,7 @@ g_io_schedule_down(struct thread *tp __unused)
 		}
 		CTR0(KTR_GEOM, "g_down has work to do");
 		g_bioq_unlock(&g_bio_run_down);
+		biotrack(bp, __func__);
 		if (pace != 0) {
 			/*
 			 * There has been at least one memory allocation
@@ -884,54 +894,26 @@ g_io_schedule_down(struct thread *tp __unused)
 }
 
 void
-bio_taskqueue(struct bio *bp, bio_task_t *func, void *arg)
-{
-	bp->bio_task = func;
-	bp->bio_task_arg = arg;
-	/*
-	 * The taskqueue is actually just a second queue off the "up"
-	 * queue, so we use the same lock.
-	 */
-	g_bioq_lock(&g_bio_run_up);
-	KASSERT(!(bp->bio_flags & BIO_ONQUEUE),
-	    ("Bio already on queue bp=%p target taskq", bp));
-	bp->bio_flags |= BIO_ONQUEUE;
-	TAILQ_INSERT_TAIL(&g_bio_run_task.bio_queue, bp, bio_queue);
-	g_bio_run_task.bio_queue_length++;
-	wakeup(&g_wait_up);
-	g_bioq_unlock(&g_bio_run_up);
-}
-
-
-void
 g_io_schedule_up(struct thread *tp __unused)
 {
 	struct bio *bp;
+
 	for(;;) {
 		g_bioq_lock(&g_bio_run_up);
-		bp = g_bioq_first(&g_bio_run_task);
-		if (bp != NULL) {
-			g_bioq_unlock(&g_bio_run_up);
-			THREAD_NO_SLEEPING();
-			CTR1(KTR_GEOM, "g_up processing task bp %p", bp);
-			bp->bio_task(bp->bio_task_arg);
-			THREAD_SLEEPING_OK();
-			continue;
-		}
 		bp = g_bioq_first(&g_bio_run_up);
-		if (bp != NULL) {
-			g_bioq_unlock(&g_bio_run_up);
-			THREAD_NO_SLEEPING();
-			CTR4(KTR_GEOM, "g_up biodone bp %p provider %s off "
-			    "%jd len %ld", bp, bp->bio_to->name,
-			    bp->bio_offset, bp->bio_length);
-			biodone(bp);
-			THREAD_SLEEPING_OK();
+		if (bp == NULL) {
+			CTR0(KTR_GEOM, "g_up going to sleep");
+			msleep(&g_wait_up, &g_bio_run_up.bio_queue_lock,
+			    PRIBIO | PDROP, "-", 0);
 			continue;
 		}
-		CTR0(KTR_GEOM, "g_up going to sleep");
-		msleep(&g_wait_up, &g_bio_run_up.bio_queue_lock,
-		    PRIBIO | PDROP, "-", 0);
+		g_bioq_unlock(&g_bio_run_up);
+		THREAD_NO_SLEEPING();
+		CTR4(KTR_GEOM, "g_up biodone bp %p provider %s off "
+		    "%jd len %ld", bp, bp->bio_to->name,
+		    bp->bio_offset, bp->bio_length);
+		biodone(bp);
+		THREAD_SLEEPING_OK();
 	}
 }
 

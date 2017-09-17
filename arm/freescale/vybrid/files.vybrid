@@ -3,7 +3,6 @@
 kern/kern_clocksource.c				standard
 
 arm/freescale/vybrid/vf_machdep.c		standard
-arm/freescale/vybrid/vf_common.c		standard
 arm/freescale/vybrid/vf_ccm.c			standard
 arm/freescale/vybrid/vf_anadig.c		standard
 arm/freescale/vybrid/vf_iomuxc.c		standard

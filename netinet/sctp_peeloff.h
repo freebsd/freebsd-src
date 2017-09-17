@@ -38,6 +38,5 @@ __FBSDID("$FreeBSD$");
 #if defined(_KERNEL)
 int sctp_can_peel_off(struct socket *, sctp_assoc_t);
 int sctp_do_peeloff(struct socket *, struct socket *, sctp_assoc_t);
-
 #endif				/* _KERNEL */
 #endif				/* _NETINET_SCTP_PEELOFF_H_ */

@@ -113,6 +113,7 @@
 /* Macros to extract register information */
 #define EXC_ALI_RST(dsisr) ((dsisr >> 5) & 0x1f)   /* source or target */
 #define EXC_ALI_RA(dsisr) (dsisr & 0x1f)
+#define	EXC_ALI_SPE_REG(instr)	((instr >> 21) & 0x1f)
 
 /*
  * SRR1 bits for program exception traps. These identify what caused
@@ -126,7 +127,7 @@
 #define	EXC_PGM_TRAP		(1UL << 17)
 
 /* DTrace trap opcode. */
-#define EXC_DTRACE	0x7c810808
+#define EXC_DTRACE	0x7ffff808
 
 /* Magic pointer to store TOC base and other info for trap handlers on ppc64 */
 #define TRAP_GENTRAP	0x1f0

@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/sema.h>
+#include <sys/libkern.h>
 
 /*
  * XXX BSD semaphores are disused and slow.  They also do not provide a

@@ -229,8 +229,6 @@ static int create_xrc_srq_cmd(struct mlx5_core_dev *dev,
 
 	memcpy(xrc_srqc, srqc, MLX5_ST_SZ_BYTES(srqc));
 	memcpy(pas, in->pas, pas_size);
-	/* 0xffffff means we ask to work with cqe version 0 */
-	MLX5_SET(xrc_srqc, xrc_srqc,  user_index, 0xffffff);
 
 	err = mlx5_core_create_xsrq(dev, create_in, inlen, &srq->srqn);
 	if (err)

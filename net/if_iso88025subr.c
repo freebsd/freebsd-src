@@ -364,7 +364,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
         if ((ifp->if_flags & IFF_SIMPLEX) && (loop_copy != -1)) {
                 if ((m->m_flags & M_BCAST) || (loop_copy > 0)) { 
                         struct mbuf *n;
-			n = m_copy(m, 0, (int)M_COPYALL);
+			n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
                         (void) if_simloop(ifp, n, dst->sa_family,
 					  ISO88025_HDR_LEN);
                 } else if (bcmp(th->iso88025_dhost, th->iso88025_shost,
@@ -487,7 +487,7 @@ iso88025_input(ifp, m)
 	m_adj(m, mac_hdr_len);
 
 	m = m_pullup(m, LLC_SNAPFRAMELEN);
-	if (m == 0) {
+	if (m == NULL) {
 		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		goto dropanyway;
 	}

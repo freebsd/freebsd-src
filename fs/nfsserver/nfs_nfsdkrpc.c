@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -174,7 +174,11 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		if (port >= IPPORT_RESERVED &&
 		    nd.nd_procnum != NFSPROC_NULL) {
 #ifdef INET6
-			char b6[INET6_ADDRSTRLEN];
+			char buf[INET6_ADDRSTRLEN];
+#else
+			char buf[INET_ADDRSTRLEN];
+#endif
+#ifdef INET6
 #if defined(KLD_MODULE)
 			/* Do not use ip6_sprintf: the nfs module should work without INET6. */
 #define	ip6_sprintf(buf, a)						\
@@ -189,12 +193,12 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			printf("NFS request from unprivileged port (%s:%d)\n",
 #ifdef INET6
 			    sin->sin_family == AF_INET6 ?
-			    ip6_sprintf(b6, &satosin6(sin)->sin6_addr) :
+			    ip6_sprintf(buf, &satosin6(sin)->sin6_addr) :
 #if defined(KLD_MODULE)
 #undef ip6_sprintf
 #endif
 #endif
-			    inet_ntoa(sin->sin_addr), port);
+			    inet_ntoa_r(sin->sin_addr, buf), port);
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			m_freem(nd.nd_mrep);
@@ -300,8 +304,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	svc_freereq(rqst);
 
 out:
-	if (softdep_ast_cleanup != NULL)
-		softdep_ast_cleanup();
+	td_softdep_cleanup(curthread);
 	NFSEXITCODE(0);
 }
 
@@ -551,18 +554,16 @@ nfsrvd_init(int terminating)
 		nfsd_master_proc = NULL;
 		NFSD_UNLOCK();
 		nfsrv_freeallbackchannel_xprts();
-		svcpool_destroy(nfsrvd_pool);
-		nfsrvd_pool = NULL;
+		svcpool_close(nfsrvd_pool);
+		NFSD_LOCK();
+	} else {
+		NFSD_UNLOCK();
+		nfsrvd_pool = svcpool_create("nfsd",
+		    SYSCTL_STATIC_CHILDREN(_vfs_nfsd));
+		nfsrvd_pool->sp_rcache = NULL;
+		nfsrvd_pool->sp_assign = fhanew_assign;
+		nfsrvd_pool->sp_done = fha_nd_complete;
 		NFSD_LOCK();
 	}
-
-	NFSD_UNLOCK();
-
-	nfsrvd_pool = svcpool_create("nfsd", SYSCTL_STATIC_CHILDREN(_vfs_nfsd));
-	nfsrvd_pool->sp_rcache = NULL;
-	nfsrvd_pool->sp_assign = fhanew_assign;
-	nfsrvd_pool->sp_done = fha_nd_complete;
-
-	NFSD_LOCK();
 }
 

@@ -30,8 +30,8 @@ boot1.hfs: boot1.elf bootinfo.txt
 	uudecode ${.CURDIR}/hfs.tmpl.bz2.uu
 	mv hfs.tmpl.bz2 ${.TARGET}.bz2
 	bzip2 -f -d ${.TARGET}.bz2
-	dd if=boot1.elf of=${.TARGET} seek=${BOOT1_OFFSET} conv=notrunc
-	dd if=${.CURDIR}/bootinfo.txt of=${.TARGET} seek=${BOOTINFO_OFFSET} \
+	${DD} if=boot1.elf of=${.TARGET} seek=${BOOT1_OFFSET} conv=notrunc
+	${DD} if=${.CURDIR}/bootinfo.txt of=${.TARGET} seek=${BOOTINFO_OFFSET} \
 	    conv=notrunc
 
 CLEANFILES= boot1.hfs

@@ -43,18 +43,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "al_hal_eth.h"
-#include <al_hal_udma_iofic.h>
-#include <al_hal_udma_config.h>
-#include <al_hal_udma.h>
+#include "al_hal_udma_iofic.h"
+#include "al_hal_udma_config.h"
 #include "al_hal_eth_ec_regs.h"
 #include "al_hal_eth_mac_regs.h"
-#include <al_hal_unit_adapter_regs.h>
+#include "al_hal_unit_adapter_regs.h"
 #ifdef AL_ETH_EX
 #include "al_hal_eth_ex_internal.h"
 #endif
 
 /* Number of xfi_txclk cycles that accumulate into 100ns */
-#define ETH_MAC_KR_PCS_CFG_EEE_TIMER_VAL 52
+#define ETH_MAC_KR_10_PCS_CFG_EEE_TIMER_VAL 52
+#define ETH_MAC_KR_25_PCS_CFG_EEE_TIMER_VAL 80
+#define ETH_MAC_XLG_40_PCS_CFG_EEE_TIMER_VAL 63
+#define ETH_MAC_XLG_50_PCS_CFG_EEE_TIMER_VAL 85
 
 #define AL_ETH_TX_PKT_UDMA_FLAGS	(AL_ETH_TX_FLAGS_NO_SNOOP | \
 					 AL_ETH_TX_FLAGS_INT)
@@ -335,6 +337,8 @@ static const char *al_eth_mac_mode_str(enum al_eth_mac_mode mode)
 		return "40G_LL";
 	case AL_ETH_MAC_MODE_XLG_LL_50G:
 		return "50G_LL";
+	case AL_ETH_MAC_MODE_XLG_LL_25G:
+		return "25G_LL";
 	default:
 		return "N/A";
 	}
@@ -572,8 +576,10 @@ int al_eth_adapter_init(struct al_hal_eth_adapter *adapter, struct al_eth_adapte
 	adapter->mac_regs_base = (struct al_eth_mac_regs __iomem*)params->mac_regs_base;
 	adapter->unit_regs = (struct unit_regs __iomem *)params->udma_regs_base;
 	adapter->enable_rx_parser = params->enable_rx_parser;
-	adapter->ec_ints_base = (void __iomem *)((uint32_t)adapter->ec_regs_base + 0x1c00);
-	adapter->mac_ints_base = (void __iomem *)((uint32_t)adapter->mac_regs_base + 0x800);
+	adapter->serdes_lane = params->serdes_lane;
+	adapter->ec_ints_base = (uint8_t __iomem *)adapter->ec_regs_base + 0x1c00;
+	adapter->mac_ints_base = (struct interrupt_controller_ctrl __iomem *)
+			((uint8_t __iomem *)adapter->mac_regs_base + 0x800);
 
 	/* initialize Tx udma */
 	udma_params.udma_regs_base = adapter->unit_regs;
@@ -963,7 +969,7 @@ int al_eth_mac_config(struct al_hal_eth_adapter *adapter, enum al_eth_mac_mode m
 		if (adapter->rev_id > AL_ETH_REV_ID_2) {
 			/* configure and enable the ASYNC FIFO between the MACs and the EC */
 			/* TX min packet size */
-			al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_1, 0x00000037);
+			al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_1, 0x00000010);
 			/* TX max packet size */
 			al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_2, 0x00002800);
 			/* TX input bus configuration */
@@ -1060,7 +1066,7 @@ int al_eth_mac_config(struct al_hal_eth_adapter *adapter, enum al_eth_mac_mode m
 		if (adapter->rev_id > AL_ETH_REV_ID_2) {
 			/* configure and enable the ASYNC FIFO between the MACs and the EC */
 			/* TX min packet size */
-			al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_1, 0x00000037);
+			al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_1, 0x00000010);
 			/* TX max packet size */
 			al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_2, 0x00002800);
 			/* TX input bus configuration */
@@ -1110,7 +1116,7 @@ int al_eth_mac_config(struct al_hal_eth_adapter *adapter, enum al_eth_mac_mode m
 		if (adapter->rev_id > AL_ETH_REV_ID_2) {
 			/* configure and enable the ASYNC FIFO between the MACs and the EC */
 			/* TX min packet size */
-			al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_1, 0x00000037);
+			al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_1, 0x00000010);
 			/* TX max packet size */
 			al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_2, 0x00002800);
 			/* TX input bus configuration */
@@ -1162,11 +1168,12 @@ int al_eth_mac_config(struct al_hal_eth_adapter *adapter, enum al_eth_mac_mode m
 
 	case AL_ETH_MAC_MODE_KR_LL_25G:
 			/* select 25G SERDES lane 0 and lane 1 */
-			al_reg_write32(&adapter->mac_regs_base->gen_v3.ext_serdes_ctrl, 0x03821101);
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.ext_serdes_ctrl, 0x0002110f);
+
 		if (adapter->rev_id > AL_ETH_REV_ID_2) {
 			/* configure and enable the ASYNC FIFO between the MACs and the EC */
 			/* TX min packet size */
-			al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_1, 0x00000037);
+			al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_1, 0x00000010);
 			/* TX max packet size */
 			al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_2, 0x00002800);
 			/* TX input bus configuration */
@@ -1205,15 +1212,29 @@ int al_eth_mac_config(struct al_hal_eth_adapter *adapter, enum al_eth_mac_mode m
 /*		al_reg_write32(&adapter->mac_regs_base->gen.mac_res_1_out, 0x00000401); */
 		al_reg_write32(&adapter->mac_regs_base->gen.xgmii_dfifo_64_32, 0x00000401);
 /*		al_reg_write32(&adapter->mac_regs_base->gen.mac_res_1_in, 0x00000401); */
-		al_reg_write32_masked(&adapter->mac_regs_base->gen.mux_sel,
+
+		if (adapter->serdes_lane == 0)
+			al_reg_write32_masked(&adapter->mac_regs_base->gen.mux_sel,
 					~ETH_MAC_GEN_MUX_SEL_KR_IN_MASK, 0x00073910);
-		al_reg_write32(&adapter->mac_regs_base->gen.clk_cfg, 0x10003210);
+		else
+			al_reg_write32(&adapter->mac_regs_base->gen.mux_sel, 0x00077910);
+
+		if (adapter->serdes_lane == 0)
+			al_reg_write32(&adapter->mac_regs_base->gen.clk_cfg, 0x10003210);
+		else
+			al_reg_write32(&adapter->mac_regs_base->gen.clk_cfg, 0x10000101);
+
 		al_reg_write32(&adapter->mac_regs_base->gen.sd_fifo_ctrl, 0x000004f0);
 		al_reg_write32(&adapter->mac_regs_base->gen.sd_fifo_ctrl, 0x00000401);
 
 		al_reg_write32_masked(&adapter->mac_regs_base->gen.led_cfg,
 				      ETH_MAC_GEN_LED_CFG_SEL_MASK,
 				      ETH_MAC_GEN_LED_CFG_SEL_DEFAULT_REG);
+
+		if (adapter->serdes_lane == 1)
+			al_reg_write32(&adapter->mac_regs_base->gen.los_sel, 0x101);
+
+
 		break;
 
 	case AL_ETH_MAC_MODE_10G_SGMII:
@@ -1250,7 +1271,7 @@ int al_eth_mac_config(struct al_hal_eth_adapter *adapter, enum al_eth_mac_mode m
 	case AL_ETH_MAC_MODE_XLG_LL_40G:
 		/* configure and enable the ASYNC FIFO between the MACs and the EC */
 		/* TX min packet size */
-		al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_1, 0x00000037);
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_1, 0x00000010);
 		/* TX max packet size */
 		al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_2, 0x00002800);
 		/* TX input bus configuration */
@@ -1318,11 +1339,102 @@ int al_eth_mac_config(struct al_hal_eth_adapter *adapter, enum al_eth_mac_mode m
 				      ETH_MAC_GEN_LED_CFG_SEL_DEFAULT_REG);
 		break;
 
+	case AL_ETH_MAC_MODE_XLG_LL_25G:
+		/* xgmii_mode: 0=xlgmii, 1=xgmii */
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.mac_40g_ll_addr, 0x0080);
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.mac_40g_ll_data, 0x00000001);
+
+		/* configure and enable the ASYNC FIFO between the MACs and the EC */
+		/* TX min packet size */
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_1, 0x00000010);
+		/* TX max packet size */
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_2, 0x00002800);
+		/* TX input bus configuration */
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_3, 0x00000080);
+		/* TX output bus configuration */
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_4, 0x00010040);
+		/* TX Valid/ready configuration */
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_5, 0x00000023);
+		/* RX min packet size */
+		/* al_reg_write32(&adapter->mac_regs_base->gen_v3.rx_afifo_cfg_1, 0x00000040); */
+		/* RX max packet size */
+		/* al_reg_write32(&adapter->mac_regs_base->gen_v3.rx_afifo_cfg_2, 0x00002800); */
+		/* RX input bus configuration */
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.rx_afifo_cfg_3, 0x00010040);
+		/* RX output bus configuration */
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.rx_afifo_cfg_4, 0x00000080);
+		/* RX Valid/ready configuration */
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.rx_afifo_cfg_5, 0x00000112);
+		/* V3 additional MAC selection */
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.mac_sel, 0x00000010);
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.mac_10g_ll_cfg, 0x00000000);
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.mac_10g_ll_ctrl, 0x00000000);
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.pcs_10g_ll_cfg, 0x00000000);
+		/* ASYNC FIFO ENABLE */
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.afifo_ctrl, 0x00003333);
+
+		/* cmd_cfg */
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.mac_40g_ll_addr, 0x00000008);
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.mac_40g_ll_data, 0x01022810);
+		/* speed_ability //Read-Only */
+		/* al_reg_write32(&adapter->mac_regs_base->gen_v3.pcs_40g_ll_addr, 0x00000008); */
+		/* 40G capable */
+		/* al_reg_write32(&adapter->mac_regs_base->gen_v3.pcs_40g_ll_data, 0x00000002); */
+
+		/* select the 25G serdes for lanes 0/1 */
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.ext_serdes_ctrl, 0x0002110f);
+		/* configure the PCS to work with 2 lanes */
+		/* configure which two of the 4 PCS Lanes (VL) are combined to one RXLAUI lane */
+		/* use VL 0-2 for RXLAUI lane 0, use VL 1-3 for RXLAUI lane 1 */
+		al_eth_40g_pcs_reg_write(adapter, 0x00010008, 0x0d80);
+		/* configure the PCS to work 32 bit interface */
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.pcs_40g_ll_cfg, 0x00440000);
+
+		/* disable MLD and move to clause 49 PCS: */
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.pcs_40g_ll_addr, 0xE);
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.pcs_40g_ll_data, 0);
+
+#ifdef AL_HAL_ETH_FAST_AN
+		al_eth_40g_pcs_reg_write(adapter, 0x00010004, 1023);
+		al_eth_40g_pcs_reg_write(adapter, 0x00000000, 0xA04c);
+		al_eth_40g_pcs_reg_write(adapter, 0x00000000, 0x204c);
+#endif
+
+		/* XAUI MAC control register */
+		if (adapter->serdes_lane == 0)
+			al_reg_write32_masked(&adapter->mac_regs_base->gen.mux_sel,
+					      ~ETH_MAC_GEN_MUX_SEL_KR_IN_MASK, 0x06883910);
+		else
+			al_reg_write32(&adapter->mac_regs_base->gen.mux_sel, 0x06803950);
+
+		al_reg_write32(&adapter->mac_regs_base->gen.sd_fifo_ctrl, 0x0000040f);
+
+		/* XAUI MAC control register */
+		al_reg_write32(&adapter->mac_regs_base->gen.cfg, 0x00000005);
+		/* RXAUI MAC control register */
+		al_reg_write32(&adapter->mac_regs_base->gen.rxaui_cfg, 0x00000007);
+		al_reg_write32(&adapter->mac_regs_base->gen.sd_cfg, 0x000001F1);
+		al_reg_write32(&adapter->mac_regs_base->gen.xgmii_dfifo_32_64, 0x00000401);
+		al_reg_write32(&adapter->mac_regs_base->gen.xgmii_dfifo_64_32, 0x00000401);
+		if (adapter->serdes_lane == 0)
+			al_reg_write32(&adapter->mac_regs_base->gen.clk_cfg, 0x10003210);
+		else
+			al_reg_write32(&adapter->mac_regs_base->gen.clk_cfg, 0x10000101);
+
+		al_reg_write32_masked(&adapter->mac_regs_base->gen.led_cfg,
+					ETH_MAC_GEN_LED_CFG_SEL_MASK,
+					ETH_MAC_GEN_LED_CFG_SEL_DEFAULT_REG);
+
+		if (adapter->serdes_lane == 1)
+			al_reg_write32(&adapter->mac_regs_base->gen.los_sel, 0x101);
+
+		break;
+
 	case AL_ETH_MAC_MODE_XLG_LL_50G:
 
 		/* configure and enable the ASYNC FIFO between the MACs and the EC */
 		/* TX min packet size */
-		al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_1, 0x00000037);
+		al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_1, 0x00000010);
 		/* TX max packet size */
 		al_reg_write32(&adapter->mac_regs_base->gen_v3.tx_afifo_cfg_2, 0x00002800);
 		/* TX input bus configuration */
@@ -1414,19 +1526,26 @@ int al_eth_mac_start(struct al_hal_eth_adapter *adapter)
 {
 	if (AL_ETH_IS_1G_MAC(adapter->mac_mode)) {
 		/* 1G MAC control register */
-		al_reg_write32_masked(&adapter->mac_regs_base->mac_1g.cmd_cfg, 0x3, 0x3);
+		al_reg_write32_masked(&adapter->mac_regs_base->mac_1g.cmd_cfg,
+				ETH_1G_MAC_CMD_CFG_TX_ENA | ETH_1G_MAC_CMD_CFG_RX_ENA,
+				ETH_1G_MAC_CMD_CFG_TX_ENA | ETH_1G_MAC_CMD_CFG_RX_ENA);
 	} else if (AL_ETH_IS_10G_MAC(adapter->mac_mode) || AL_ETH_IS_25G_MAC(adapter->mac_mode)) {
 		/* 10G MAC control register  */
-		al_reg_write32_masked(&adapter->mac_regs_base->mac_10g.cmd_cfg, 0x3, 0x3);
+		al_reg_write32_masked(&adapter->mac_regs_base->mac_10g.cmd_cfg,
+				ETH_10G_MAC_CMD_CFG_TX_ENA | ETH_10G_MAC_CMD_CFG_RX_ENA,
+				ETH_10G_MAC_CMD_CFG_TX_ENA | ETH_10G_MAC_CMD_CFG_RX_ENA);
 	} else {
 		uint32_t cmd_cfg;
 
-		cmd_cfg = al_eth_40g_mac_reg_read(adapter, ETH_MAC_GEN_V3_MAC_40G_COMMAND_CONFIG_ADDR);
+		cmd_cfg = al_eth_40g_mac_reg_read(adapter,
+				ETH_MAC_GEN_V3_MAC_40G_COMMAND_CONFIG_ADDR);
 
 		cmd_cfg |= (ETH_MAC_GEN_V3_MAC_40G_COMMAND_CONFIG_TX_ENA |
 			    ETH_MAC_GEN_V3_MAC_40G_COMMAND_CONFIG_RX_ENA);
 
-		al_eth_40g_mac_reg_write(adapter, ETH_MAC_GEN_V3_MAC_40G_COMMAND_CONFIG_ADDR, cmd_cfg);
+		al_eth_40g_mac_reg_write(adapter,
+				ETH_MAC_GEN_V3_MAC_40G_COMMAND_CONFIG_ADDR,
+				cmd_cfg);
 	}
 
 	return 0;
@@ -1437,15 +1556,90 @@ int al_eth_mac_stop(struct al_hal_eth_adapter *adapter)
 {
 	if (AL_ETH_IS_1G_MAC(adapter->mac_mode))
 		/* 1G MAC control register */
-		al_reg_write32(&adapter->mac_regs_base->mac_1g.cmd_cfg, 0x0);
+		al_reg_write32_masked(&adapter->mac_regs_base->mac_1g.cmd_cfg,
+				ETH_1G_MAC_CMD_CFG_TX_ENA | ETH_1G_MAC_CMD_CFG_RX_ENA,
+				0);
 	else if (AL_ETH_IS_10G_MAC(adapter->mac_mode) || AL_ETH_IS_25G_MAC(adapter->mac_mode))
 		/* 10G MAC control register  */
-		al_reg_write32(&adapter->mac_regs_base->mac_10g.cmd_cfg, 0x0);
-	else
-		al_eth_40g_mac_reg_write(adapter, ETH_MAC_GEN_V3_MAC_40G_COMMAND_CONFIG_ADDR, 0);
+		al_reg_write32_masked(&adapter->mac_regs_base->mac_10g.cmd_cfg,
+				ETH_10G_MAC_CMD_CFG_TX_ENA | ETH_10G_MAC_CMD_CFG_RX_ENA,
+				0);
+	else {
+		uint32_t cmd_cfg;
+
+		cmd_cfg = al_eth_40g_mac_reg_read(adapter,
+				ETH_MAC_GEN_V3_MAC_40G_COMMAND_CONFIG_ADDR);
+
+		cmd_cfg &= ~(ETH_MAC_GEN_V3_MAC_40G_COMMAND_CONFIG_TX_ENA |
+			    ETH_MAC_GEN_V3_MAC_40G_COMMAND_CONFIG_RX_ENA);
+
+		al_eth_40g_mac_reg_write(adapter,
+				ETH_MAC_GEN_V3_MAC_40G_COMMAND_CONFIG_ADDR,
+				cmd_cfg);
+	}
 
 	return 0;
 }
+
+void al_eth_gearbox_reset(struct al_hal_eth_adapter *adapter, al_bool tx_reset, al_bool rx_reset)
+{
+	uint32_t reg, orig_val;
+
+	/* Gearbox is exist only from revision 3 */
+	al_assert(adapter->rev_id > AL_ETH_REV_ID_2);
+
+	orig_val = al_reg_read32(&adapter->mac_regs_base->gen_v3.ext_serdes_ctrl);
+	reg = orig_val;
+
+	if (tx_reset) {
+		reg |= (ETH_MAC_GEN_V3_EXT_SERDES_CTRL_LANE_0_TX_25_GS_SW_RESET |
+			ETH_MAC_GEN_V3_EXT_SERDES_CTRL_LANE_1_TX_25_GS_SW_RESET);
+	}
+
+	if (rx_reset) {
+		reg |= (ETH_MAC_GEN_V3_EXT_SERDES_CTRL_LANE_0_RX_25_GS_SW_RESET |
+			ETH_MAC_GEN_V3_EXT_SERDES_CTRL_LANE_1_RX_25_GS_SW_RESET);
+	}
+
+	al_dbg("%s: perform gearbox reset (Tx %d, Rx %d) \n", __func__, tx_reset, rx_reset);
+	al_reg_write32(&adapter->mac_regs_base->gen_v3.ext_serdes_ctrl, reg);
+
+	al_udelay(10);
+
+	al_reg_write32(&adapter->mac_regs_base->gen_v3.ext_serdes_ctrl, orig_val);
+}
+
+int al_eth_fec_enable(struct al_hal_eth_adapter *adapter, al_bool enable)
+{
+	if (adapter->rev_id <= AL_ETH_REV_ID_2)
+		return -1;
+
+	if (enable)
+		al_reg_write32_masked(&adapter->mac_regs_base->gen_v3.pcs_10g_ll_cfg,
+					(ETH_MAC_GEN_V3_PCS_10G_LL_CFG_FEC_EN_RX |
+					 ETH_MAC_GEN_V3_PCS_10G_LL_CFG_FEC_EN_TX),
+					(ETH_MAC_GEN_V3_PCS_10G_LL_CFG_FEC_EN_RX |
+					 ETH_MAC_GEN_V3_PCS_10G_LL_CFG_FEC_EN_TX));
+	else
+		al_reg_write32_masked(&adapter->mac_regs_base->gen_v3.pcs_10g_ll_cfg,
+					(ETH_MAC_GEN_V3_PCS_10G_LL_CFG_FEC_EN_RX |
+					 ETH_MAC_GEN_V3_PCS_10G_LL_CFG_FEC_EN_TX),
+					0);
+	return 0;
+}
+
+int al_eth_fec_stats_get(struct al_hal_eth_adapter *adapter,
+			uint32_t *corrected, uint32_t *uncorrectable)
+{
+	if (adapter->rev_id <= AL_ETH_REV_ID_2)
+		return -1;
+
+	*corrected = al_reg_read32(&adapter->mac_regs_base->stat.v3_pcs_10g_ll_cerr);
+	*uncorrectable = al_reg_read32(&adapter->mac_regs_base->stat.v3_pcs_10g_ll_ncerr);
+
+	return 0;
+}
+
 
 int al_eth_capabilities_get(struct al_hal_eth_adapter *adapter, struct al_eth_capabilities *caps)
 {
@@ -1483,45 +1677,17 @@ int al_eth_capabilities_get(struct al_hal_eth_adapter *adapter, struct al_eth_ca
 	return 0;
 }
 
-/* update link speed and duplex mode */
-int al_eth_mac_link_config(struct al_hal_eth_adapter *adapter,
-			   al_bool force_1000_base_x,
-			   al_bool an_enable,
-			   uint32_t speed,
-			   al_bool full_duplex)
+static void al_eth_mac_link_config_1g_mac(
+				struct al_hal_eth_adapter *adapter,
+				al_bool force_1000_base_x,
+				al_bool an_enable,
+				uint32_t speed,
+				al_bool full_duplex)
 {
 	uint32_t mac_ctrl;
 	uint32_t sgmii_ctrl = 0;
 	uint32_t sgmii_if_mode = 0;
 	uint32_t rgmii_ctrl = 0;
-
-	if (!AL_ETH_IS_1G_MAC(adapter->mac_mode)) {
-		al_err("eth [%s]: this function not supported in this mac mode.\n",
-			       adapter->name);
-		return -EINVAL;
-	}
-
-	if ((adapter->mac_mode != AL_ETH_MAC_MODE_RGMII) && (an_enable)) {
-		/*
-		 * an_enable is not relevant to RGMII mode.
-		 * in AN mode speed and duplex aren't relevant.
-		 */
-		al_info("eth [%s]: set auto negotiation to enable\n", adapter->name);
-	} else {
-		al_info("eth [%s]: set link speed to %dMbps. %s duplex.\n", adapter->name,
-			speed, full_duplex == AL_TRUE ? "full" : "half");
-
-		if ((speed != 10) && (speed != 100) && (speed != 1000)) {
-			al_err("eth [%s]: bad speed parameter (%d).\n",
-				       adapter->name, speed);
-			return -EINVAL;
-		}
-		if ((speed == 1000) && (full_duplex == AL_FALSE)) {
-			al_err("eth [%s]: half duplex in 1Gbps is not supported.\n",
-				       adapter->name);
-			return -EINVAL;
-		}
-	}
 
 	mac_ctrl = al_reg_read32(&adapter->mac_regs_base->mac_1g.cmd_cfg);
 
@@ -1558,22 +1724,22 @@ int al_eth_mac_link_config(struct al_hal_eth_adapter *adapter,
 	}
 
 	if (full_duplex == AL_TRUE) {
-		AL_REG_MASK_CLEAR(mac_ctrl, AL_ETH_1G_MAC_CTRL_HD_EN);
+		AL_REG_MASK_CLEAR(mac_ctrl, ETH_1G_MAC_CMD_CFG_HD_EN);
 	} else {
-		AL_REG_MASK_SET(mac_ctrl, AL_ETH_1G_MAC_CTRL_HD_EN);
+		AL_REG_MASK_SET(mac_ctrl, ETH_1G_MAC_CMD_CFG_HD_EN);
 		sgmii_if_mode |= ETH_MAC_SGMII_REG_DATA_IF_MODE_SGMII_DUPLEX;
 	}
 
 	if (speed == 1000) {
-		AL_REG_MASK_SET(mac_ctrl, AL_ETH_1G_MAC_CTRL_1G_SPD);
+		AL_REG_MASK_SET(mac_ctrl, ETH_1G_MAC_CMD_CFG_1G_SPD);
 		sgmii_if_mode |= ETH_MAC_SGMII_REG_DATA_IF_MODE_SGMII_SPEED_1000;
 	} else {
-		AL_REG_MASK_CLEAR(mac_ctrl, AL_ETH_1G_MAC_CTRL_1G_SPD);
+		AL_REG_MASK_CLEAR(mac_ctrl, ETH_1G_MAC_CMD_CFG_1G_SPD);
 		if (speed == 10) {
-			AL_REG_MASK_SET(mac_ctrl, AL_ETH_1G_MAC_CTRL_10M_SPD);
+			AL_REG_MASK_SET(mac_ctrl, ETH_1G_MAC_CMD_CFG_10M_SPD);
 		} else {
 			sgmii_if_mode |= ETH_MAC_SGMII_REG_DATA_IF_MODE_SGMII_SPEED_100;
-			AL_REG_MASK_CLEAR(mac_ctrl, AL_ETH_1G_MAC_CTRL_10M_SPD);
+			AL_REG_MASK_CLEAR(mac_ctrl, ETH_1G_MAC_CMD_CFG_10M_SPD);
 		}
 	}
 
@@ -1590,6 +1756,113 @@ int al_eth_mac_link_config(struct al_hal_eth_adapter *adapter,
 	}
 
 	al_reg_write32(&adapter->mac_regs_base->mac_1g.cmd_cfg, mac_ctrl);
+}
+
+static void al_eth_mac_link_config_10g_mac(
+				struct al_hal_eth_adapter *adapter,
+				al_bool force_1000_base_x,
+				al_bool an_enable,
+				uint32_t speed,
+				al_bool full_duplex)
+{
+	uint32_t if_mode;
+	uint32_t val;
+
+	if_mode = al_reg_read32(&adapter->mac_regs_base->mac_10g.if_mode);
+
+	if (force_1000_base_x) {
+		uint32_t control;
+
+		AL_REG_MASK_CLEAR(if_mode, ETH_10G_MAC_IF_MODE_SGMII_EN_MASK);
+
+		control = al_reg_read32(&adapter->mac_regs_base->mac_10g.control);
+
+		if (an_enable)
+			AL_REG_MASK_SET(control, ETH_10G_MAC_CONTROL_AN_EN_MASK);
+		else
+			AL_REG_MASK_CLEAR(control, ETH_10G_MAC_CONTROL_AN_EN_MASK);
+
+		al_reg_write32(&adapter->mac_regs_base->mac_10g.control, control);
+
+	} else {
+		AL_REG_MASK_SET(if_mode, ETH_10G_MAC_IF_MODE_SGMII_EN_MASK);
+		if (an_enable) {
+			AL_REG_MASK_SET(if_mode, ETH_10G_MAC_IF_MODE_SGMII_AN_MASK);
+		} else {
+			AL_REG_MASK_CLEAR(if_mode, ETH_10G_MAC_IF_MODE_SGMII_AN_MASK);
+
+			if (speed == 1000)
+				val = ETH_10G_MAC_IF_MODE_SGMII_SPEED_1G;
+			else if (speed == 100)
+				val = ETH_10G_MAC_IF_MODE_SGMII_SPEED_100M;
+			else
+				val = ETH_10G_MAC_IF_MODE_SGMII_SPEED_10M;
+
+			AL_REG_FIELD_SET(if_mode,
+					 ETH_10G_MAC_IF_MODE_SGMII_SPEED_MASK,
+					 ETH_10G_MAC_IF_MODE_SGMII_SPEED_SHIFT,
+					 val);
+
+			AL_REG_FIELD_SET(if_mode,
+					 ETH_10G_MAC_IF_MODE_SGMII_DUPLEX_MASK,
+					 ETH_10G_MAC_IF_MODE_SGMII_DUPLEX_SHIFT,
+					 ((full_duplex) ?
+						ETH_10G_MAC_IF_MODE_SGMII_DUPLEX_FULL :
+						ETH_10G_MAC_IF_MODE_SGMII_DUPLEX_HALF));
+		}
+	}
+
+	al_reg_write32(&adapter->mac_regs_base->mac_10g.if_mode, if_mode);
+}
+
+/* update link speed and duplex mode */
+int al_eth_mac_link_config(struct al_hal_eth_adapter *adapter,
+			   al_bool force_1000_base_x,
+			   al_bool an_enable,
+			   uint32_t speed,
+			   al_bool full_duplex)
+{
+	if ((!AL_ETH_IS_1G_MAC(adapter->mac_mode)) &&
+		(adapter->mac_mode != AL_ETH_MAC_MODE_SGMII_2_5G)) {
+		al_err("eth [%s]: this function not supported in this mac mode.\n",
+			       adapter->name);
+		return -EINVAL;
+	}
+
+	if ((adapter->mac_mode != AL_ETH_MAC_MODE_RGMII) && (an_enable)) {
+		/*
+		 * an_enable is not relevant to RGMII mode.
+		 * in AN mode speed and duplex aren't relevant.
+		 */
+		al_info("eth [%s]: set auto negotiation to enable\n", adapter->name);
+	} else {
+		al_info("eth [%s]: set link speed to %dMbps. %s duplex.\n", adapter->name,
+			speed, full_duplex == AL_TRUE ? "full" : "half");
+
+		if ((speed != 10) && (speed != 100) && (speed != 1000)) {
+			al_err("eth [%s]: bad speed parameter (%d).\n",
+				       adapter->name, speed);
+			return -EINVAL;
+		}
+		if ((speed == 1000) && (full_duplex == AL_FALSE)) {
+			al_err("eth [%s]: half duplex in 1Gbps is not supported.\n",
+				       adapter->name);
+			return -EINVAL;
+		}
+	}
+
+	if (AL_ETH_IS_1G_MAC(adapter->mac_mode))
+		al_eth_mac_link_config_1g_mac(adapter,
+					      force_1000_base_x,
+					      an_enable,
+					      speed,
+					      full_duplex);
+	else
+		al_eth_mac_link_config_10g_mac(adapter,
+					       force_1000_base_x,
+					       an_enable,
+					       speed,
+					       full_duplex);
 
 	return 0;
 }
@@ -2014,12 +2287,12 @@ al_dump_tx_pkt(struct al_udma_q *tx_dma_q, struct al_eth_pkt *pkt)
 	const char *l3_proto_name = "unknown";
 	const char *l4_proto_name = "unknown";
 	const char *outer_l3_proto_name = "N/A";
-	const char *tunnel_mode = ((pkt->tunnel_mode & AL_ETH_TUNNEL_WITH_UDP) ==
-				  AL_ETH_TUNNEL_WITH_UDP) ?
-				  "TUNNEL_WITH_UDP" :
-				  ((pkt->tunnel_mode & AL_ETH_TUNNEL_NO_UDP) ==
-				  AL_ETH_TUNNEL_NO_UDP) ?
-				  "TUNNEL_NO_UDP" : "";
+	const char *tunnel_mode = (((pkt->tunnel_mode &
+				AL_ETH_TUNNEL_WITH_UDP) == AL_ETH_TUNNEL_WITH_UDP) ?
+				"TUNNEL_WITH_UDP" :
+				(((pkt->tunnel_mode &
+				AL_ETH_TUNNEL_NO_UDP) == AL_ETH_TUNNEL_NO_UDP) ?
+				"TUNNEL_NO_UDP" : ""));
 	uint32_t total_len = 0;
 	int i;
 
@@ -2071,26 +2344,19 @@ al_dump_tx_pkt(struct al_udma_q *tx_dma_q, struct al_eth_pkt *pkt)
 
 	if (pkt->meta) {
 		const char * store = pkt->meta->store ? "Yes" : "No";
+		const char *ptp_val = (pkt->flags & AL_ETH_TX_FLAGS_TS) ? "Yes" : "No";
 
 		al_dbg("[%s %d]: tx pkt with meta data. words valid %x\n",
 			tx_dma_q->udma->name, tx_dma_q->qid,
 			pkt->meta->words_valid);
-		if (tx_dma_q->adapter_rev_id == AL_ETH_REV_ID_0)
-			al_dbg("[%s %d]: meta: store to cache %s. l3 hdr len %d. l3 hdr offset %d. l4 hdr len %d. mss sel %d\n"
-				, tx_dma_q->udma->name, tx_dma_q->qid, store,
-				pkt->meta->l3_header_len, pkt->meta->l3_header_offset,
-				pkt->meta->l4_header_len,
-				pkt->meta->mss_idx_sel);
-		else {
-			const char *ptp_val = (pkt->flags & AL_ETH_TX_FLAGS_TS) ? "Yes" : "No";
-			al_dbg("[%s %d]: meta: store to cache %s. l3 hdr len %d. l3 hdr offset %d. l4 hdr len %d. mss val %d ts_index %d ts_val:%s\n"
-				, tx_dma_q->udma->name, tx_dma_q->qid, store,
-				pkt->meta->l3_header_len, pkt->meta->l3_header_offset,
-				pkt->meta->l4_header_len, pkt->meta->mss_val,
-				pkt->meta->ts_index, ptp_val);
-			al_dbg("outer_l3_hdr_offset %d. outer_l3_len %d.\n",
-				pkt->meta->outer_l3_offset, pkt->meta->outer_l3_len);
-		}
+		al_dbg("[%s %d]: meta: store to cache %s. l3 hdr len %d. l3 hdr offset %d. "
+			"l4 hdr len %d. mss val %d ts_index %d ts_val:%s\n"
+			, tx_dma_q->udma->name, tx_dma_q->qid, store,
+			pkt->meta->l3_header_len, pkt->meta->l3_header_offset,
+			pkt->meta->l4_header_len, pkt->meta->mss_val,
+			pkt->meta->ts_index, ptp_val);
+		al_dbg("outer_l3_hdr_offset %d. outer_l3_len %d.\n",
+			pkt->meta->outer_l3_offset, pkt->meta->outer_l3_len);
 	}
 
 	al_dbg("[%s %d]: num of bufs: %d\n", tx_dma_q->udma->name, tx_dma_q->qid,
@@ -2115,7 +2381,7 @@ int al_eth_tx_pkt_prepare(struct al_udma_q *tx_dma_q, struct al_eth_pkt *pkt)
 	uint32_t flags = AL_M2S_DESC_FIRST |
 			AL_M2S_DESC_CONCAT |
 			(pkt->flags & AL_ETH_TX_FLAGS_INT);
-	uint64_t vmid = ((uint64_t)pkt->vmid) << AL_UDMA_DESC_VMID_SHIFT;
+	uint64_t tgtid = ((uint64_t)pkt->tgtid) << AL_UDMA_DESC_TGTID_SHIFT;
 	uint32_t meta_ctrl;
 	uint32_t ring_id;
 	int buf_idx;
@@ -2190,49 +2456,46 @@ int al_eth_tx_pkt_prepare(struct al_udma_q *tx_dma_q, struct al_eth_pkt *pkt)
 		}
 
 		if (pkt->meta->words_valid & 4) {
+			uint32_t l3_offset;
+
 			meta_word_2 = pkt->meta->l3_header_len & AL_ETH_TX_META_L3_LEN_MASK;
 			meta_word_2 |= (pkt->meta->l3_header_offset & AL_ETH_TX_META_L3_OFF_MASK) <<
 				AL_ETH_TX_META_L3_OFF_SHIFT;
 			meta_word_2 |= (pkt->meta->l4_header_len & 0x3f) << 16;
 
-			if (tx_dma_q->adapter_rev_id == AL_ETH_REV_ID_0) {
-				meta_word_2 |= (pkt->meta->mss_idx_sel & 7) << 24;
-			} else {
-				uint32_t l3_offset;
+			if (unlikely(pkt->flags & AL_ETH_TX_FLAGS_TS))
+				meta_word_0 |= pkt->meta->ts_index <<
+					AL_ETH_TX_META_MSS_MSB_TS_VAL_SHIFT;
+			else
+				meta_word_0 |= (((pkt->meta->mss_val & 0x3c00) >> 10)
+						<< AL_ETH_TX_META_MSS_MSB_TS_VAL_SHIFT);
+			meta_word_2 |= ((pkt->meta->mss_val & 0x03ff)
+					<< AL_ETH_TX_META_MSS_LSB_VAL_SHIFT);
 
-				if (unlikely(pkt->flags & AL_ETH_TX_FLAGS_TS))
-					meta_word_0 |= pkt->meta->ts_index << AL_ETH_TX_META_MSS_MSB_TS_VAL_SHIFT;
-				else
-					meta_word_0 |= (((pkt->meta->mss_val & 0x3c00) >> 10)
-							<< AL_ETH_TX_META_MSS_MSB_TS_VAL_SHIFT);
-				meta_word_2 |= ((pkt->meta->mss_val & 0x03ff)
-						<< AL_ETH_TX_META_MSS_LSB_VAL_SHIFT);
+			/*
+			 * move from bytes to multiplication of 2 as the HW
+			 * expect to get it
+			 */
+			l3_offset = (pkt->meta->outer_l3_offset >> 1);
 
-				/*
-				 * move from bytes to multiplication of 2 as the HW
-				 * expect to get it
-				 */
-				l3_offset = (pkt->meta->outer_l3_offset >> 1);
+			meta_word_0 |=
+				(((l3_offset &
+				   AL_ETH_TX_META_OUTER_L3_OFF_HIGH_MASK) >> 3)
+				   << AL_ETH_TX_META_OUTER_L3_OFF_HIGH_SHIFT);
 
-				meta_word_0 |=
-					(((l3_offset &
-					   AL_ETH_TX_META_OUTER_L3_OFF_HIGH_MASK) >> 3)
-					   << AL_ETH_TX_META_OUTER_L3_OFF_HIGH_SHIFT);
+			meta_word_3 |=
+				((l3_offset &
+				   AL_ETH_TX_META_OUTER_L3_OFF_LOW_MASK)
+				   << AL_ETH_TX_META_OUTER_L3_OFF_LOW_SHIFT);
 
-				meta_word_3 |=
-					((l3_offset &
-					   AL_ETH_TX_META_OUTER_L3_OFF_LOW_MASK)
-					   << AL_ETH_TX_META_OUTER_L3_OFF_LOW_SHIFT);
-
-				/*
-				 * shift right 2 bits to work in multiplication of 4
-				 * as the HW expect to get it
-				 */
-				meta_word_3 |=
-					(((pkt->meta->outer_l3_len >> 2) &
-					   AL_ETH_TX_META_OUTER_L3_LEN_MASK)
-					   << AL_ETH_TX_META_OUTER_L3_LEN_SHIFT);
-			}
+			/*
+			 * shift right 2 bits to work in multiplication of 4
+			 * as the HW expect to get it
+			 */
+			meta_word_3 |=
+				(((pkt->meta->outer_l3_len >> 2) &
+				   AL_ETH_TX_META_OUTER_L3_LEN_MASK)
+				   << AL_ETH_TX_META_OUTER_L3_LEN_SHIFT);
 		}
 
 		tx_desc->tx_meta.len_ctrl = swap32_to_le(meta_word_0);
@@ -2266,11 +2529,9 @@ int al_eth_tx_pkt_prepare(struct al_udma_q *tx_dma_q, struct al_eth_pkt *pkt)
 		meta_ctrl |= AL_ETH_TX_FLAGS_ENCRYPT;
 #endif
 
-	if (tx_dma_q->adapter_rev_id > AL_ETH_REV_ID_0) {
-		meta_ctrl |= pkt->tunnel_mode << AL_ETH_TX_TUNNEL_MODE_SHIFT;
-		if (pkt->outer_l3_proto_idx == AL_ETH_PROTO_ID_IPv4)
-			meta_ctrl |= 1 << AL_ETH_TX_OUTER_L3_PROTO_SHIFT;
-	}
+	meta_ctrl |= pkt->tunnel_mode << AL_ETH_TX_TUNNEL_MODE_SHIFT;
+	if (pkt->outer_l3_proto_idx == AL_ETH_PROTO_ID_IPv4)
+		meta_ctrl |= 1 << AL_ETH_TX_OUTER_L3_PROTO_SHIFT;
 
 	flags |= pkt->flags & AL_ETH_TX_PKT_UDMA_FLAGS;
 	for(buf_idx = 0; buf_idx < pkt->num_of_bufs; buf_idx++ ) {
@@ -2295,7 +2556,7 @@ int al_eth_tx_pkt_prepare(struct al_udma_q *tx_dma_q, struct al_eth_pkt *pkt)
 		if (buf_idx == 0)
 			tx_desc->tx.meta_ctrl = swap32_to_le(meta_ctrl);
 		tx_desc->tx.buf_ptr = swap64_to_le(
-			pkt->bufs[buf_idx].addr | vmid);
+			pkt->bufs[buf_idx].addr | tgtid);
 		al_dump_tx_desc(tx_desc);
 	}
 
@@ -2408,10 +2669,6 @@ int al_eth_rx_header_split_config(struct al_hal_eth_adapter *adapter, al_bool en
 {
 	uint32_t	reg;
 
-	if (adapter->rev_id < AL_ETH_REV_ID_1) {
-		al_err("[%s]: header split feature not supported by this revision\n", adapter->name);
-		return -EINVAL;
-	}
 	reg = al_reg_read32(&adapter->ec_regs_base->rfw.hdr_split);
 	if (enable == AL_TRUE)
 		reg |= EC_RFW_HDR_SPLIT_EN;
@@ -2447,9 +2704,9 @@ int al_eth_rx_buffer_add(struct al_udma_q *rx_dma_q,
 			      struct al_buf *buf, uint32_t flags,
 			      struct al_buf *header_buf)
 {
-	uint64_t vmid = ((uint64_t)flags & AL_ETH_RX_FLAGS_VMID_MASK) <<
-		AL_UDMA_DESC_VMID_SHIFT;
-	uint32_t flags_len = flags & ~AL_ETH_RX_FLAGS_VMID_MASK;
+	uint64_t tgtid = ((uint64_t)flags & AL_ETH_RX_FLAGS_TGTID_MASK) <<
+		AL_UDMA_DESC_TGTID_SHIFT;
+	uint32_t flags_len = flags & ~AL_ETH_RX_FLAGS_TGTID_MASK;
 	union al_udma_desc *rx_desc;
 
 	al_dbg("[%s %d]: add rx buffer.\n", rx_dma_q->udma->name, rx_dma_q->qid);
@@ -2476,7 +2733,7 @@ int al_eth_rx_buffer_add(struct al_udma_q *rx_dma_q,
 		rx_desc->rx.buf2_ptr_lo = swap32_to_le(AL_ADDR_LOW(header_buf->addr));
 	}
 	rx_desc->rx.len_ctrl = swap32_to_le(flags_len);
-	rx_desc->rx.buf1_ptr = swap64_to_le(buf->addr | vmid);
+	rx_desc->rx.buf1_ptr = swap64_to_le(buf->addr | tgtid);
 
 	return 0;
 }
@@ -2943,7 +3200,8 @@ int al_eth_switching_config_set(struct al_hal_eth_adapter *adapter, uint8_t udma
 	AL_ETH_RFW_FILTER_VLAN_VID | \
 	AL_ETH_RFW_FILTER_CTRL_TABLE | \
 	AL_ETH_RFW_FILTER_PROT_INDEX | \
-	((rev_id > AL_ETH_REV_ID_0) ? ((AL_ETH_RFW_FILTER_WOL) | (AL_ETH_RFW_FILTER_PARSE)) : 0))
+	AL_ETH_RFW_FILTER_WOL | \
+	AL_ETH_RFW_FILTER_PARSE)
 
 /* Configure the receive filters */
 int al_eth_filter_config(struct al_hal_eth_adapter *adapter, struct al_eth_filter_params *params)
@@ -3236,11 +3494,27 @@ int al_eth_eee_config(struct al_hal_eth_adapter *adapter, struct al_eth_eee_para
 		al_reg_write32(&adapter->ec_regs_base->eee.cfg_e, 0);
 		return 0;
 	}
-	if (AL_ETH_IS_10G_MAC(adapter->mac_mode)) {
-		reg = ETH_MAC_KR_PCS_CFG_EEE_TIMER_VAL << ETH_MAC_KR_PCS_CFG_EEE_TIMER_VAL_SHIFT;
+	if (AL_ETH_IS_10G_MAC(adapter->mac_mode) || AL_ETH_IS_25G_MAC(adapter->mac_mode)) {
 		al_reg_write32_masked(
 			&adapter->mac_regs_base->kr.pcs_cfg,
-			ETH_MAC_KR_PCS_CFG_EEE_TIMER_VAL_MASK, reg);
+			ETH_MAC_KR_PCS_CFG_EEE_TIMER_VAL_MASK,
+			((AL_ETH_IS_10G_MAC(adapter->mac_mode)) ?
+			ETH_MAC_KR_10_PCS_CFG_EEE_TIMER_VAL :
+			ETH_MAC_KR_25_PCS_CFG_EEE_TIMER_VAL) <<
+			ETH_MAC_KR_PCS_CFG_EEE_TIMER_VAL_SHIFT);
+	}
+	if ((adapter->mac_mode == AL_ETH_MAC_MODE_XLG_LL_40G) ||
+		(adapter->mac_mode == AL_ETH_MAC_MODE_XLG_LL_50G)) {
+		al_reg_write32_masked(
+			&adapter->mac_regs_base->gen_v3.pcs_40g_ll_eee_cfg,
+			ETH_MAC_GEN_V3_PCS_40G_LL_EEE_CFG_TIMER_VAL_MASK,
+			((adapter->mac_mode == AL_ETH_MAC_MODE_XLG_LL_40G) ?
+			ETH_MAC_XLG_40_PCS_CFG_EEE_TIMER_VAL :
+			ETH_MAC_XLG_50_PCS_CFG_EEE_TIMER_VAL) <<
+			ETH_MAC_GEN_V3_PCS_40G_LL_EEE_CFG_TIMER_VAL_SHIFT);
+		/* set Deep sleep mode as the LPI function (instead of Fast wake mode) */
+		al_eth_40g_pcs_reg_write(adapter, ETH_MAC_GEN_V3_PCS_40G_EEE_CONTROL_ADDR,
+			params->fast_wake ? 1 : 0);
 	}
 
 	al_reg_write32(&adapter->ec_regs_base->eee.pre_cnt, params->tx_eee_timer);
@@ -3551,13 +3825,24 @@ int al_eth_link_status_get(struct al_hal_eth_adapter *adapter,
 	uint32_t reg;
 
 	if (AL_ETH_IS_10G_MAC(adapter->mac_mode) || AL_ETH_IS_25G_MAC(adapter->mac_mode)) {
-		reg = al_reg_read32(&adapter->mac_regs_base->gen.mac_10g_stat);
+		status->link_up = AL_FALSE;
+		status->local_fault = AL_TRUE;
+		status->remote_fault = AL_TRUE;
 
-		status->link_up = AL_TRUE;
+		al_reg_write32(&adapter->mac_regs_base->kr.pcs_addr, ETH_MAC_KR_PCS_BASE_R_STATUS2);
+		reg = al_reg_read32(&adapter->mac_regs_base->kr.pcs_data);
 
-		if (reg & (ETH_MAC_GEN_MAC_10G_STAT_LOC_FAULT |
-					ETH_MAC_GEN_MAC_10G_STAT_REM_FAULT))
-			status->link_up = AL_FALSE;
+		if (reg & AL_BIT(15)) {
+			reg = al_reg_read32(&adapter->mac_regs_base->mac_10g.status);
+
+			status->remote_fault = ((reg & ETH_MAC_GEN_MAC_10G_STAT_REM_FAULT) ?
+							AL_TRUE : AL_FALSE);
+			status->local_fault = ((reg & ETH_MAC_GEN_MAC_10G_STAT_LOC_FAULT) ?
+							AL_TRUE : AL_FALSE);
+
+			status->link_up = ((status->remote_fault == AL_FALSE) &&
+					   (status->local_fault == AL_FALSE));
+		}
 
 	} else if (adapter->mac_mode == AL_ETH_MAC_MODE_SGMII) {
 		al_reg_write32(&adapter->mac_regs_base->sgmii.reg_addr, 1);
@@ -3586,6 +3871,27 @@ int al_eth_link_status_get(struct al_hal_eth_adapter *adapter,
 		if (reg & AL_BIT(4))
 			status->link_up = AL_TRUE;
 
+	} else if (adapter->mac_mode == AL_ETH_MAC_MODE_XLG_LL_25G) {
+		status->link_up = AL_FALSE;
+		status->local_fault = AL_TRUE;
+		status->remote_fault = AL_TRUE;
+
+		reg = al_reg_read32(&adapter->mac_regs_base->gen_v3.pcs_40g_ll_status);
+
+		status->link_up = AL_FALSE;
+
+		if ((reg & 0xF) == 0xF) {
+			reg = al_reg_read32(&adapter->mac_regs_base->gen_v3.mac_40g_ll_status);
+
+			status->remote_fault = ((reg & ETH_MAC_GEN_V3_MAC_40G_LL_STATUS_REM_FAULT) ?
+							AL_TRUE : AL_FALSE);
+			status->local_fault = ((reg & ETH_MAC_GEN_V3_MAC_40G_LL_STATUS_LOC_FAULT) ?
+							AL_TRUE : AL_FALSE);
+
+			status->link_up = ((status->remote_fault == AL_FALSE) &&
+					   (status->local_fault == AL_FALSE));
+		}
+
 	} else if ((adapter->mac_mode == AL_ETH_MAC_MODE_XLG_LL_40G) ||
 			(adapter->mac_mode == AL_ETH_MAC_MODE_XLG_LL_50G)) {
 		reg = al_reg_read32(&adapter->mac_regs_base->gen_v3.pcs_40g_ll_status);
@@ -3595,7 +3901,7 @@ int al_eth_link_status_get(struct al_hal_eth_adapter *adapter,
 		if ((reg & 0x1F) == 0x1F) {
 			reg = al_reg_read32(&adapter->mac_regs_base->gen_v3.mac_40g_ll_status);
 			if ((reg & (ETH_MAC_GEN_V3_MAC_40G_LL_STATUS_REM_FAULT |
-ETH_MAC_GEN_V3_MAC_40G_LL_STATUS_LOC_FAULT)) == 0)
+					ETH_MAC_GEN_V3_MAC_40G_LL_STATUS_LOC_FAULT)) == 0)
 				status->link_up = AL_TRUE;
 		}
 
@@ -3609,6 +3915,22 @@ ETH_MAC_GEN_V3_MAC_40G_LL_STATUS_LOC_FAULT)) == 0)
 		(status->link_up == AL_TRUE) ? "LINK_UP" : "LINK_DOWN");
 
 	return 0;
+}
+
+int al_eth_link_status_clear(struct al_hal_eth_adapter *adapter)
+{
+	int status = 0;
+
+	if (AL_ETH_IS_10G_MAC(adapter->mac_mode) || AL_ETH_IS_25G_MAC(adapter->mac_mode)) {
+		al_reg_write32(&adapter->mac_regs_base->kr.pcs_addr, ETH_MAC_KR_PCS_BASE_R_STATUS2);
+		al_reg_read32(&adapter->mac_regs_base->kr.pcs_data);
+
+		al_reg_read32(&adapter->mac_regs_base->mac_10g.status);
+	} else {
+		status = -1;
+	}
+
+	return status;
 }
 
 /** set LED mode and value */
@@ -3641,179 +3963,220 @@ int al_eth_mac_stats_get(struct al_hal_eth_adapter *adapter, struct al_eth_mac_s
 {
 	al_assert(stats);
 
+	al_memset(stats, 0, sizeof(struct al_eth_mac_stats));
+
 	if (AL_ETH_IS_1G_MAC(adapter->mac_mode)) {
-		void __iomem *mac_1g_regs_base = &adapter->mac_regs_base->mac_1g;
+		struct al_eth_mac_1g_stats __iomem *reg_stats =
+			&adapter->mac_regs_base->mac_1g.stats;
 
-		stats->ifInUcastPkts = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0x90));
-		stats->ifInMulticastPkts = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0x94));
-		stats->ifInBroadcastPkts = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0x98));
-		stats->etherStatsPkts = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xb4));
-		stats->ifOutUcastPkts = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xa0));
-		stats->ifOutMulticastPkts = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xa4));
-		stats->ifOutBroadcastPkts = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xa8));
-		stats->ifInErrors = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0x88));
-		stats->ifOutErrors = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0x8c));
-
-		stats->aFramesReceivedOK = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0x6c));
-		stats->aFramesTransmittedOK = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0x68));
-
-		stats->aOctetsReceivedOK = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0x7c));
-		stats->aOctetsTransmittedOK = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0x78));
-
-		stats->etherStatsUndersizePkts = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xB8));
-		stats->etherStatsFragments = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xE0));
-		stats->etherStatsJabbers = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xDC));
-		stats->etherStatsOversizePkts = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xBC));
-
-		stats->aFrameCheckSequenceErrors = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0x70));
-		stats->aAlignmentErrors = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0x74));
-		stats->etherStatsDropEvents = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xAC));
-
-		stats->aPAUSEMACCtrlFramesTransmitted = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0x80));
-		stats->aPAUSEMACCtrlFramesReceived = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0x84));
+		stats->ifInUcastPkts = al_reg_read32(&reg_stats->ifInUcastPkts);
+		stats->ifInMulticastPkts = al_reg_read32(&reg_stats->ifInMulticastPkts);
+		stats->ifInBroadcastPkts = al_reg_read32(&reg_stats->ifInBroadcastPkts);
+		stats->etherStatsPkts = al_reg_read32(&reg_stats->etherStatsPkts);
+		stats->ifOutUcastPkts = al_reg_read32(&reg_stats->ifOutUcastPkts);
+		stats->ifOutMulticastPkts = al_reg_read32(&reg_stats->ifOutMulticastPkts);
+		stats->ifOutBroadcastPkts = al_reg_read32(&reg_stats->ifOutBroadcastPkts);
+		stats->ifInErrors = al_reg_read32(&reg_stats->ifInErrors);
+		stats->ifOutErrors = al_reg_read32(&reg_stats->ifOutErrors);
+		stats->aFramesReceivedOK = al_reg_read32(&reg_stats->aFramesReceivedOK);
+		stats->aFramesTransmittedOK = al_reg_read32(&reg_stats->aFramesTransmittedOK);
+		stats->aOctetsReceivedOK = al_reg_read32(&reg_stats->aOctetsReceivedOK);
+		stats->aOctetsTransmittedOK = al_reg_read32(&reg_stats->aOctetsTransmittedOK);
+		stats->etherStatsUndersizePkts = al_reg_read32(&reg_stats->etherStatsUndersizePkts);
+		stats->etherStatsFragments = al_reg_read32(&reg_stats->etherStatsFragments);
+		stats->etherStatsJabbers = al_reg_read32(&reg_stats->etherStatsJabbers);
+		stats->etherStatsOversizePkts = al_reg_read32(&reg_stats->etherStatsOversizePkts);
+		stats->aFrameCheckSequenceErrors =
+			al_reg_read32(&reg_stats->aFrameCheckSequenceErrors);
+		stats->aAlignmentErrors = al_reg_read32(&reg_stats->aAlignmentErrors);
+		stats->etherStatsDropEvents = al_reg_read32(&reg_stats->etherStatsDropEvents);
+		stats->aPAUSEMACCtrlFramesTransmitted =
+			al_reg_read32(&reg_stats->aPAUSEMACCtrlFramesTransmitted);
+		stats->aPAUSEMACCtrlFramesReceived =
+			al_reg_read32(&reg_stats->aPAUSEMACCtrlFramesReceived);
 		stats->aFrameTooLongErrors = 0; /* N/A */
 		stats->aInRangeLengthErrors = 0; /* N/A */
 		stats->VLANTransmittedOK = 0; /* N/A */
 		stats->VLANReceivedOK = 0; /* N/A */
-		stats->etherStatsOctets = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xB0));
-
-		stats->etherStatsPkts64Octets = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xC0));
-		stats->etherStatsPkts65to127Octets = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xC4));
-		stats->etherStatsPkts128to255Octets = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xC8));
-		stats->etherStatsPkts256to511Octets = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xCC));
-		stats->etherStatsPkts512to1023Octets = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xD0));
-		stats->etherStatsPkts1024to1518Octets = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xD4));
-		stats->etherStatsPkts1519toX = al_reg_read32((void *)((uint32_t)mac_1g_regs_base + 0xD8));
+		stats->etherStatsOctets = al_reg_read32(&reg_stats->etherStatsOctets);
+		stats->etherStatsPkts64Octets = al_reg_read32(&reg_stats->etherStatsPkts64Octets);
+		stats->etherStatsPkts65to127Octets =
+			al_reg_read32(&reg_stats->etherStatsPkts65to127Octets);
+		stats->etherStatsPkts128to255Octets =
+			al_reg_read32(&reg_stats->etherStatsPkts128to255Octets);
+		stats->etherStatsPkts256to511Octets =
+			al_reg_read32(&reg_stats->etherStatsPkts256to511Octets);
+		stats->etherStatsPkts512to1023Octets =
+			al_reg_read32(&reg_stats->etherStatsPkts512to1023Octets);
+		stats->etherStatsPkts1024to1518Octets =
+			al_reg_read32(&reg_stats->etherStatsPkts1024to1518Octets);
+		stats->etherStatsPkts1519toX = al_reg_read32(&reg_stats->etherStatsPkts1519toX);
 	} else if (AL_ETH_IS_10G_MAC(adapter->mac_mode) || AL_ETH_IS_25G_MAC(adapter->mac_mode)) {
 		if (adapter->rev_id < AL_ETH_REV_ID_3) {
-			void __iomem *mac_10g_regs_base = &adapter->mac_regs_base->mac_10g;
+			struct al_eth_mac_10g_stats_v2 __iomem *reg_stats =
+				&adapter->mac_regs_base->mac_10g.stats.v2;
 			uint64_t octets;
 
-			stats->ifInUcastPkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xE0));
-			stats->ifInMulticastPkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xE8));
-			stats->ifInBroadcastPkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xF0));
-			stats->etherStatsPkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x130));
-			stats->ifOutUcastPkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x108));
-			stats->ifOutMulticastPkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x110));
-			stats->ifOutBroadcastPkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x118));
-			stats->ifInErrors = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x190));
-			stats->ifOutErrors = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xf8));
+			stats->ifInUcastPkts = al_reg_read32(&reg_stats->ifInUcastPkts);
+			stats->ifInMulticastPkts = al_reg_read32(&reg_stats->ifInMulticastPkts);
+			stats->ifInBroadcastPkts = al_reg_read32(&reg_stats->ifInBroadcastPkts);
+			stats->etherStatsPkts = al_reg_read32(&reg_stats->etherStatsPkts);
+			stats->ifOutUcastPkts = al_reg_read32(&reg_stats->ifOutUcastPkts);
+			stats->ifOutMulticastPkts = al_reg_read32(&reg_stats->ifOutMulticastPkts);
+			stats->ifOutBroadcastPkts = al_reg_read32(&reg_stats->ifOutBroadcastPkts);
+			stats->ifInErrors = al_reg_read32(&reg_stats->ifInErrors);
+			stats->ifOutErrors = al_reg_read32(&reg_stats->ifOutErrors);
+			stats->aFramesReceivedOK = al_reg_read32(&reg_stats->aFramesReceivedOK);
+			stats->aFramesTransmittedOK = al_reg_read32(&reg_stats->aFramesTransmittedOK);
 
-			stats->aFramesReceivedOK = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x88));
-			stats->aFramesTransmittedOK = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x80));
 			/* aOctetsReceivedOK = ifInOctets - 18 * aFramesReceivedOK - 4 * VLANReceivedOK */
-			octets = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xD8));
-			octets |= (uint64_t)(al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xDC))) << 32;
+			octets = al_reg_read32(&reg_stats->ifInOctetsL);
+			octets |= (uint64_t)(al_reg_read32(&reg_stats->ifInOctetsH)) << 32;
 			octets -= 18 * stats->aFramesReceivedOK;
-			octets -= 4 * al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xC8));
+			octets -= 4 * al_reg_read32(&reg_stats->VLANReceivedOK);
 			stats->aOctetsReceivedOK = octets;
 
 			/* aOctetsTransmittedOK = ifOutOctets - 18 * aFramesTransmittedOK - 4 * VLANTransmittedOK */
-			octets = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xD0));
-			octets |= (uint64_t)(al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xD4))) << 32;
+			octets = al_reg_read32(&reg_stats->ifOutOctetsL);
+			octets |= (uint64_t)(al_reg_read32(&reg_stats->ifOutOctetsH)) << 32;
 			octets -= 18 * stats->aFramesTransmittedOK;
-			octets -= 4 * al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xC0));
+			octets -= 4 * al_reg_read32(&reg_stats->VLANTransmittedOK);
 			stats->aOctetsTransmittedOK = octets;
 
-			stats->etherStatsUndersizePkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x138));
-			stats->etherStatsFragments = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x188));
-			stats->etherStatsJabbers = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x180));
-			stats->etherStatsOversizePkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base  + 0x178));
-
-			stats->aFrameCheckSequenceErrors = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x90));
-			stats->aAlignmentErrors = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x98));
-			stats->etherStatsDropEvents = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x120));
-
-			stats->aPAUSEMACCtrlFramesTransmitted = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xA0));
-			stats->aPAUSEMACCtrlFramesReceived = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xA8));
-			stats->aFrameTooLongErrors = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xB0));
-			stats->aInRangeLengthErrors = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xB8));
-			stats->VLANTransmittedOK = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xC0));
-			stats->VLANReceivedOK = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0xC8));
-			stats->etherStatsOctets = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x128));
-
-			stats->etherStatsPkts64Octets = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x140));
-			stats->etherStatsPkts65to127Octets = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x148));
-			stats->etherStatsPkts128to255Octets = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x150));
-			stats->etherStatsPkts256to511Octets = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x158));
-			stats->etherStatsPkts512to1023Octets = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x160));
-			stats->etherStatsPkts1024to1518Octets = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x168));
-			stats->etherStatsPkts1519toX = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x170));
+			stats->etherStatsUndersizePkts = al_reg_read32(&reg_stats->etherStatsUndersizePkts);
+			stats->etherStatsFragments = al_reg_read32(&reg_stats->etherStatsFragments);
+			stats->etherStatsJabbers = al_reg_read32(&reg_stats->etherStatsJabbers);
+			stats->etherStatsOversizePkts = al_reg_read32(&reg_stats->etherStatsOversizePkts);
+			stats->aFrameCheckSequenceErrors = al_reg_read32(&reg_stats->aFrameCheckSequenceErrors);
+			stats->aAlignmentErrors = al_reg_read32(&reg_stats->aAlignmentErrors);
+			stats->etherStatsDropEvents = al_reg_read32(&reg_stats->etherStatsDropEvents);
+			stats->aPAUSEMACCtrlFramesTransmitted = al_reg_read32(&reg_stats->aPAUSEMACCtrlFramesTransmitted);
+			stats->aPAUSEMACCtrlFramesReceived = al_reg_read32(&reg_stats->aPAUSEMACCtrlFramesReceived);
+			stats->aFrameTooLongErrors = al_reg_read32(&reg_stats->aFrameTooLongErrors);
+			stats->aInRangeLengthErrors = al_reg_read32(&reg_stats->aInRangeLengthErrors);
+			stats->VLANTransmittedOK = al_reg_read32(&reg_stats->VLANTransmittedOK);
+			stats->VLANReceivedOK = al_reg_read32(&reg_stats->VLANReceivedOK);
+			stats->etherStatsOctets = al_reg_read32(&reg_stats->etherStatsOctets);
+			stats->etherStatsPkts64Octets = al_reg_read32(&reg_stats->etherStatsPkts64Octets);
+			stats->etherStatsPkts65to127Octets = al_reg_read32(&reg_stats->etherStatsPkts65to127Octets);
+			stats->etherStatsPkts128to255Octets = al_reg_read32(&reg_stats->etherStatsPkts128to255Octets);
+			stats->etherStatsPkts256to511Octets = al_reg_read32(&reg_stats->etherStatsPkts256to511Octets);
+			stats->etherStatsPkts512to1023Octets = al_reg_read32(&reg_stats->etherStatsPkts512to1023Octets);
+			stats->etherStatsPkts1024to1518Octets = al_reg_read32(&reg_stats->etherStatsPkts1024to1518Octets);
+			stats->etherStatsPkts1519toX = al_reg_read32(&reg_stats->etherStatsPkts1519toX);
 		} else {
-			void __iomem *mac_10g_regs_base = &adapter->mac_regs_base->mac_10g;
+			struct al_eth_mac_10g_stats_v3_rx __iomem *reg_rx_stats =
+				&adapter->mac_regs_base->mac_10g.stats.v3.rx;
+			struct al_eth_mac_10g_stats_v3_tx __iomem *reg_tx_stats =
+				&adapter->mac_regs_base->mac_10g.stats.v3.tx;
 			uint64_t octets;
-			/* TODO - change to 64 bit */
-			stats->ifInUcastPkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x140));
-			stats->ifInMulticastPkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x148));
-			stats->ifInBroadcastPkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x150));
-			stats->etherStatsPkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x160));
-			stats->ifOutUcastPkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x240));
-			stats->ifOutMulticastPkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x248));
-			stats->ifOutBroadcastPkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x250));
-			stats->ifInErrors = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x138));
-			stats->ifOutErrors = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x238));
 
-			stats->aFramesReceivedOK = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x120)); /*frames_ok*/
-			stats->aFramesTransmittedOK = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x220)); /*frames_ok*/
+			stats->ifInUcastPkts = al_reg_read32(&reg_rx_stats->ifInUcastPkts);
+			stats->ifInMulticastPkts = al_reg_read32(&reg_rx_stats->ifInMulticastPkts);
+			stats->ifInBroadcastPkts = al_reg_read32(&reg_rx_stats->ifInBroadcastPkts);
+			stats->etherStatsPkts = al_reg_read32(&reg_rx_stats->etherStatsPkts);
+			stats->ifOutUcastPkts = al_reg_read32(&reg_tx_stats->ifUcastPkts);
+			stats->ifOutMulticastPkts = al_reg_read32(&reg_tx_stats->ifMulticastPkts);
+			stats->ifOutBroadcastPkts = al_reg_read32(&reg_tx_stats->ifBroadcastPkts);
+			stats->ifInErrors = al_reg_read32(&reg_rx_stats->ifInErrors);
+			stats->ifOutErrors = al_reg_read32(&reg_tx_stats->ifOutErrors);
+			stats->aFramesReceivedOK = al_reg_read32(&reg_rx_stats->FramesOK);
+			stats->aFramesTransmittedOK = al_reg_read32(&reg_tx_stats->FramesOK);
+
 			/* aOctetsReceivedOK = ifInOctets - 18 * aFramesReceivedOK - 4 * VLANReceivedOK */
-			octets = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x108)); /*OctetsOK*/
-			octets |= (uint64_t)(al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x10C))) << 32;
+			octets = al_reg_read32(&reg_rx_stats->ifOctetsL);
+			octets |= (uint64_t)(al_reg_read32(&reg_rx_stats->ifOctetsH)) << 32;
 			octets -= 18 * stats->aFramesReceivedOK;
-			octets -= 4 * al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x130)); /*VLANOK*/
+			octets -= 4 * al_reg_read32(&reg_rx_stats->VLANOK);
 			stats->aOctetsReceivedOK = octets;
 
 			/* aOctetsTransmittedOK = ifOutOctets - 18 * aFramesTransmittedOK - 4 * VLANTransmittedOK */
-			octets = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x208)); /*OctetsOK*/
-			octets |= (uint64_t)(al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x20c))) << 32;
+			octets = al_reg_read32(&reg_tx_stats->ifOctetsL);
+			octets |= (uint64_t)(al_reg_read32(&reg_tx_stats->ifOctetsH)) << 32;
 			octets -= 18 * stats->aFramesTransmittedOK;
-			octets -= 4 * al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x230)); /*VLANOK*/
+			octets -= 4 * al_reg_read32(&reg_tx_stats->VLANOK);
 			stats->aOctetsTransmittedOK = octets;
 
-			stats->etherStatsUndersizePkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x168));
-			stats->etherStatsFragments = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x1b8));
-			stats->etherStatsJabbers = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x1b0));
-			stats->etherStatsOversizePkts = al_reg_read32((void *)((uint32_t)mac_10g_regs_base  + 0x1a8));
-
-			stats->aFrameCheckSequenceErrors = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x128)); /* CRCErrors */
-			/* stats->aAlignmentErrors = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x98)); */ /* not implemented */
-			stats->etherStatsDropEvents = al_reg_read32((void *)((uint32_t)mac_10g_regs_base + 0x158));
+			stats->etherStatsUndersizePkts = al_reg_read32(&reg_rx_stats->etherStatsUndersizePkts);
+			stats->etherStatsFragments = al_reg_read32(&reg_rx_stats->etherStatsFragments);
+			stats->etherStatsJabbers = al_reg_read32(&reg_rx_stats->etherStatsJabbers);
+			stats->etherStatsOversizePkts = al_reg_read32(&reg_rx_stats->etherStatsOversizePkts);
+			stats->aFrameCheckSequenceErrors = al_reg_read32(&reg_rx_stats->CRCErrors);
+			stats->aAlignmentErrors = al_reg_read32(&reg_rx_stats->aAlignmentErrors);
+			stats->etherStatsDropEvents = al_reg_read32(&reg_rx_stats->etherStatsDropEvents);
+			stats->aPAUSEMACCtrlFramesTransmitted = al_reg_read32(&reg_tx_stats->aPAUSEMACCtrlFrames);
+			stats->aPAUSEMACCtrlFramesReceived = al_reg_read32(&reg_rx_stats->aPAUSEMACCtrlFrames);
+			stats->aFrameTooLongErrors = al_reg_read32(&reg_rx_stats->aFrameTooLong);
+			stats->aInRangeLengthErrors = al_reg_read32(&reg_rx_stats->aInRangeLengthErrors);
+			stats->VLANTransmittedOK = al_reg_read32(&reg_tx_stats->VLANOK);
+			stats->VLANReceivedOK = al_reg_read32(&reg_rx_stats->VLANOK);
+			stats->etherStatsOctets = al_reg_read32(&reg_rx_stats->etherStatsOctets);
+			stats->etherStatsPkts64Octets = al_reg_read32(&reg_rx_stats->etherStatsPkts64Octets);
+			stats->etherStatsPkts65to127Octets = al_reg_read32(&reg_rx_stats->etherStatsPkts65to127Octets);
+			stats->etherStatsPkts128to255Octets = al_reg_read32(&reg_rx_stats->etherStatsPkts128to255Octets);
+			stats->etherStatsPkts256to511Octets = al_reg_read32(&reg_rx_stats->etherStatsPkts256to511Octets);
+			stats->etherStatsPkts512to1023Octets = al_reg_read32(&reg_rx_stats->etherStatsPkts512to1023Octets);
+			stats->etherStatsPkts1024to1518Octets = al_reg_read32(&reg_rx_stats->etherStatsPkts1024to1518Octets);
+			stats->etherStatsPkts1519toX = al_reg_read32(&reg_rx_stats->etherStatsPkts1519toMax);
 		}
 	} else {
+		struct al_eth_mac_10g_stats_v3_rx __iomem *reg_rx_stats =
+			&adapter->mac_regs_base->mac_10g.stats.v3.rx;
+		struct al_eth_mac_10g_stats_v3_tx __iomem *reg_tx_stats =
+			&adapter->mac_regs_base->mac_10g.stats.v3.tx;
 		uint64_t octets;
-		/* TODO - change to 64 bit */
-		stats->ifInUcastPkts = al_eth_40g_mac_reg_read(adapter, 0x140);
-		stats->ifInMulticastPkts = al_eth_40g_mac_reg_read(adapter, 0x148);
-		stats->ifInBroadcastPkts = al_eth_40g_mac_reg_read(adapter, 0x150);
-		stats->etherStatsPkts = al_eth_40g_mac_reg_read(adapter, 0x160);
-		stats->ifOutUcastPkts = al_eth_40g_mac_reg_read(adapter, 0x240);
-		stats->ifOutMulticastPkts = al_eth_40g_mac_reg_read(adapter, 0x248);
-		stats->ifOutBroadcastPkts = al_eth_40g_mac_reg_read(adapter, 0x250);
-		stats->ifInErrors = al_eth_40g_mac_reg_read(adapter, 0x138);
-		stats->ifOutErrors = al_eth_40g_mac_reg_read(adapter, 0x238);
-		stats->aFramesReceivedOK = al_eth_40g_mac_reg_read(adapter, 0x120);
-		stats->aFramesTransmittedOK = al_eth_40g_mac_reg_read(adapter, 0x220);
+
+		/* 40G MAC statistics registers are the same, only read indirectly */
+		#define _40g_mac_reg_read32(field)	al_eth_40g_mac_reg_read(adapter,	\
+			((uint8_t *)(field)) - ((uint8_t *)&adapter->mac_regs_base->mac_10g))
+
+		stats->ifInUcastPkts = _40g_mac_reg_read32(&reg_rx_stats->ifInUcastPkts);
+		stats->ifInMulticastPkts = _40g_mac_reg_read32(&reg_rx_stats->ifInMulticastPkts);
+		stats->ifInBroadcastPkts = _40g_mac_reg_read32(&reg_rx_stats->ifInBroadcastPkts);
+		stats->etherStatsPkts = _40g_mac_reg_read32(&reg_rx_stats->etherStatsPkts);
+		stats->ifOutUcastPkts = _40g_mac_reg_read32(&reg_tx_stats->ifUcastPkts);
+		stats->ifOutMulticastPkts = _40g_mac_reg_read32(&reg_tx_stats->ifMulticastPkts);
+		stats->ifOutBroadcastPkts = _40g_mac_reg_read32(&reg_tx_stats->ifBroadcastPkts);
+		stats->ifInErrors = _40g_mac_reg_read32(&reg_rx_stats->ifInErrors);
+		stats->ifOutErrors = _40g_mac_reg_read32(&reg_tx_stats->ifOutErrors);
+		stats->aFramesReceivedOK = _40g_mac_reg_read32(&reg_rx_stats->FramesOK);
+		stats->aFramesTransmittedOK = _40g_mac_reg_read32(&reg_tx_stats->FramesOK);
 
 		/* aOctetsReceivedOK = ifInOctets - 18 * aFramesReceivedOK - 4 * VLANReceivedOK */
-		octets = al_eth_40g_mac_reg_read(adapter, 0x100);
-		octets |= (uint64_t)(al_eth_40g_mac_reg_read(adapter, 0x104)) << 32;
+		octets = _40g_mac_reg_read32(&reg_rx_stats->ifOctetsL);
+		octets |= (uint64_t)(_40g_mac_reg_read32(&reg_rx_stats->ifOctetsH)) << 32;
 		octets -= 18 * stats->aFramesReceivedOK;
-		octets -= 4 * al_eth_40g_mac_reg_read(adapter, 0x130); /*VLANOK*/
-		stats->aOctetsTransmittedOK = octets;
-
-		/* aOctetsTransmittedOK = ifOutOctets - 18 * aFramesTransmittedOK - 4 * VLANTransmittedOK */
-		octets = al_eth_40g_mac_reg_read(adapter, 0x200);
-		octets |= (uint64_t)(al_eth_40g_mac_reg_read(adapter, 0x204)) << 32;
-		octets -= 18 * stats->aFramesReceivedOK;
-		octets -= 4 * al_eth_40g_mac_reg_read(adapter, 0x230); /*VLANOK*/
+		octets -= 4 * _40g_mac_reg_read32(&reg_rx_stats->VLANOK);
 		stats->aOctetsReceivedOK = octets;
 
-		stats->etherStatsUndersizePkts = al_eth_40g_mac_reg_read(adapter, 0x168);
-		stats->etherStatsFragments = al_eth_40g_mac_reg_read(adapter, 0x1b8);
-		stats->etherStatsJabbers = al_eth_40g_mac_reg_read(adapter, 0x1b0);
-		stats->etherStatsOversizePkts = al_eth_40g_mac_reg_read(adapter, 0x1a8);
-		stats->aFrameCheckSequenceErrors = al_eth_40g_mac_reg_read(adapter, 0x128);
-		stats->aAlignmentErrors = al_eth_40g_mac_reg_read(adapter, 0x110);
-		stats->etherStatsDropEvents = al_eth_40g_mac_reg_read(adapter, 0x158);
+		/* aOctetsTransmittedOK = ifOutOctets - 18 * aFramesTransmittedOK - 4 * VLANTransmittedOK */
+		octets = _40g_mac_reg_read32(&reg_tx_stats->ifOctetsL);
+		octets |= (uint64_t)(_40g_mac_reg_read32(&reg_tx_stats->ifOctetsH)) << 32;
+		octets -= 18 * stats->aFramesTransmittedOK;
+		octets -= 4 * _40g_mac_reg_read32(&reg_tx_stats->VLANOK);
+		stats->aOctetsTransmittedOK = octets;
+
+		stats->etherStatsUndersizePkts = _40g_mac_reg_read32(&reg_rx_stats->etherStatsUndersizePkts);
+		stats->etherStatsFragments = _40g_mac_reg_read32(&reg_rx_stats->etherStatsFragments);
+		stats->etherStatsJabbers = _40g_mac_reg_read32(&reg_rx_stats->etherStatsJabbers);
+		stats->etherStatsOversizePkts = _40g_mac_reg_read32(&reg_rx_stats->etherStatsOversizePkts);
+		stats->aFrameCheckSequenceErrors = _40g_mac_reg_read32(&reg_rx_stats->CRCErrors);
+		stats->aAlignmentErrors = _40g_mac_reg_read32(&reg_rx_stats->aAlignmentErrors);
+		stats->etherStatsDropEvents = _40g_mac_reg_read32(&reg_rx_stats->etherStatsDropEvents);
+		stats->aPAUSEMACCtrlFramesTransmitted = _40g_mac_reg_read32(&reg_tx_stats->aPAUSEMACCtrlFrames);
+		stats->aPAUSEMACCtrlFramesReceived = _40g_mac_reg_read32(&reg_rx_stats->aPAUSEMACCtrlFrames);
+		stats->aFrameTooLongErrors = _40g_mac_reg_read32(&reg_rx_stats->aFrameTooLong);
+		stats->aInRangeLengthErrors = _40g_mac_reg_read32(&reg_rx_stats->aInRangeLengthErrors);
+		stats->VLANTransmittedOK = _40g_mac_reg_read32(&reg_tx_stats->VLANOK);
+		stats->VLANReceivedOK = _40g_mac_reg_read32(&reg_rx_stats->VLANOK);
+		stats->etherStatsOctets = _40g_mac_reg_read32(&reg_rx_stats->etherStatsOctets);
+		stats->etherStatsPkts64Octets = _40g_mac_reg_read32(&reg_rx_stats->etherStatsPkts64Octets);
+		stats->etherStatsPkts65to127Octets = _40g_mac_reg_read32(&reg_rx_stats->etherStatsPkts65to127Octets);
+		stats->etherStatsPkts128to255Octets = _40g_mac_reg_read32(&reg_rx_stats->etherStatsPkts128to255Octets);
+		stats->etherStatsPkts256to511Octets = _40g_mac_reg_read32(&reg_rx_stats->etherStatsPkts256to511Octets);
+		stats->etherStatsPkts512to1023Octets = _40g_mac_reg_read32(&reg_rx_stats->etherStatsPkts512to1023Octets);
+		stats->etherStatsPkts1024to1518Octets = _40g_mac_reg_read32(&reg_rx_stats->etherStatsPkts1024to1518Octets);
+		stats->etherStatsPkts1519toX = _40g_mac_reg_read32(&reg_rx_stats->etherStatsPkts1519toMax);
 	}
 
 	stats->eee_in = al_reg_read32(&adapter->mac_regs_base->stat.eee_in);
@@ -3958,7 +4321,7 @@ int al_eth_flr_rmn(int (* pci_read_config_u32)(void *handle, int where, uint32_t
 	al_reg_write32_masked(&mac_regs_base->gen.mux_sel, ETH_MAC_GEN_MUX_SEL_KR_IN_MASK, mux_sel);
 
 	/* set SGMII clock to 125MHz */
-	al_reg_write32(mac_base + 0xB08, 0x03320501);
+	al_reg_write32(&mac_regs_base->sgmii.clk_div, 0x03320501);
 
 	/* reset 1G mac */
 	AL_REG_MASK_SET(reg, AL_ADAPTER_GENERIC_CONTROL_0_ETH_RESET_1GMAC);
@@ -3971,15 +4334,15 @@ int al_eth_flr_rmn(int (* pci_read_config_u32)(void *handle, int where, uint32_t
 	(*pci_write_config_u32)(handle, AL_ADAPTER_GENERIC_CONTROL_0, reg);
 
 	/* reset SGMII mac clock to default */
-	al_reg_write32(mac_base + 0xB08, 0x00320501);
+	al_reg_write32(&mac_regs_base->sgmii.clk_div, 0x00320501);
 	al_udelay(1000);
 	/* reset async fifo */
-	reg = al_reg_read32((void*)((uint32_t)mac_base + 0x95c));
+	reg = al_reg_read32(&mac_regs_base->gen.sd_fifo_ctrl);
 	AL_REG_MASK_SET(reg, 0xF0);
-	al_reg_write32((void*)((uint32_t)mac_base + 0x95c), reg);
-	reg = al_reg_read32((void*)((uint32_t)mac_base + 0x95c));
+	al_reg_write32(&mac_regs_base->gen.sd_fifo_ctrl, reg);
+	reg = al_reg_read32(&mac_regs_base->gen.sd_fifo_ctrl);
 	AL_REG_MASK_CLEAR(reg, 0xF0);
-	al_reg_write32((void*)((uint32_t)mac_base + 0x95c), reg);
+	al_reg_write32(&mac_regs_base->gen.sd_fifo_ctrl, reg);
 
 	return 0;
 }
@@ -4028,6 +4391,7 @@ int al_eth_flr_rmn_restore_params(int (* pci_read_config_u32)(void *handle, int 
 #define AL_HAL_ETH_EXT_PHY_IF_MASK	(AL_FIELD_MASK(21, 20))
 #define AL_HAL_ETH_EXT_PHY_IF_SHIFT	20
 #define AL_HAL_ETH_AUTO_NEG_MODE_SHIFT	22
+#define AL_HAL_ETH_SERDES_GRP_2_SHIFT	23
 #define AL_HAL_ETH_SERDES_GRP_MASK	(AL_FIELD_MASK(26, 25))
 #define AL_HAL_ETH_SERDES_GRP_SHIFT	25
 #define AL_HAL_ETH_SERDES_LANE_MASK	(AL_FIELD_MASK(28, 27))
@@ -4054,9 +4418,19 @@ int al_eth_flr_rmn_restore_params(int (* pci_read_config_u32)(void *handle, int 
 #define AL_HAL_ETH_DAC_SHIFT			24
 #define AL_HAL_ETH_RETIMER_TYPE_MASK		(AL_FIELD_MASK(26, 25))
 #define AL_HAL_ETH_RETIMER_TYPE_SHIFT		25
+#define AL_HAL_ETH_RETIMER_CHANNEL_2_MASK	(AL_FIELD_MASK(28, 27))
 #define AL_HAL_ETH_RETIMER_CHANNEL_2_SHIFT	27
+#define AL_HAL_ETH_RETIMER_TX_CHANNEL_MASK	(AL_FIELD_MASK(31, 29))
+#define AL_HAL_ETH_RETIMER_TX_CHANNEL_SHIFT	29
 
-int al_eth_board_params_set(void * __iomem mac_base, struct al_eth_board_params *params){
+/* board params register 3 */
+#define AL_HAL_ETH_GPIO_SFP_PRESENT_MASK	(AL_FIELD_MASK(5, 0))
+#define AL_HAL_ETH_GPIO_SFP_PRESENT_SHIFT	0
+
+int al_eth_board_params_set(void * __iomem mac_base, struct al_eth_board_params *params)
+{
+	struct al_eth_mac_regs __iomem *mac_regs_base =
+		(struct	al_eth_mac_regs __iomem *)mac_base;
 	uint32_t	reg = 0;
 
 	/* ************* Setting Board params register 1 **************** */
@@ -4083,6 +4457,10 @@ int al_eth_board_params_set(void * __iomem mac_base, struct al_eth_board_params 
 
 	AL_REG_FIELD_SET(reg, AL_HAL_ETH_SERDES_GRP_MASK,
 			 AL_HAL_ETH_SERDES_GRP_SHIFT, params->serdes_grp);
+
+	AL_REG_BIT_VAL_SET(reg, AL_HAL_ETH_SERDES_GRP_2_SHIFT,
+			(params->serdes_grp & AL_BIT(2)) ? 1 : 0);
+
 	AL_REG_FIELD_SET(reg, AL_HAL_ETH_SERDES_LANE_MASK,
 			 AL_HAL_ETH_SERDES_LANE_SHIFT, params->serdes_lane);
 
@@ -4091,7 +4469,7 @@ int al_eth_board_params_set(void * __iomem mac_base, struct al_eth_board_params 
 
 	al_assert(reg != 0);
 
-	al_reg_write32(mac_base + 0x4, reg);
+	al_reg_write32(&mac_regs_base->mac_1g.scratch, reg);
 
 	/* ************* Setting Board params register 2 **************** */
 	reg = 0;
@@ -4120,12 +4498,11 @@ int al_eth_board_params_set(void * __iomem mac_base, struct al_eth_board_params 
 			 AL_HAL_ETH_RETIMER_I2C_ADDR_SHIFT, params->retimer_i2c_addr);
 
 	AL_REG_BIT_VAL_SET(reg, AL_HAL_ETH_RETIMER_CHANNEL_SHIFT,
-				((params->retimer_channel == AL_ETH_RETIMER_CHANNEL_B) ||
-				 (params->retimer_channel == AL_ETH_RETIMER_CHANNEL_D)));
+				(params->retimer_channel & AL_BIT(0)));
 
-	AL_REG_BIT_VAL_SET(reg, AL_HAL_ETH_RETIMER_CHANNEL_2_SHIFT,
-				((params->retimer_channel == AL_ETH_RETIMER_CHANNEL_C) ||
-				 (params->retimer_channel == AL_ETH_RETIMER_CHANNEL_D)));
+	AL_REG_FIELD_SET(reg, AL_HAL_ETH_RETIMER_CHANNEL_2_MASK,
+			 AL_HAL_ETH_RETIMER_CHANNEL_2_SHIFT,
+			 (AL_REG_FIELD_GET(params->retimer_channel, 0x6, 1)));
 
 	AL_REG_FIELD_SET(reg, AL_HAL_ETH_DAC_LENGTH_MASK,
 			 AL_HAL_ETH_DAC_LENGTH_SHIFT, params->dac_len);
@@ -4134,12 +4511,29 @@ int al_eth_board_params_set(void * __iomem mac_base, struct al_eth_board_params 
 	AL_REG_FIELD_SET(reg, AL_HAL_ETH_RETIMER_TYPE_MASK,
 			 AL_HAL_ETH_RETIMER_TYPE_SHIFT, params->retimer_type);
 
-	al_reg_write32(mac_base + 0x404, reg);
+	AL_REG_FIELD_SET(reg, AL_HAL_ETH_RETIMER_TX_CHANNEL_MASK,
+			 AL_HAL_ETH_RETIMER_TX_CHANNEL_SHIFT,
+			 params->retimer_tx_channel);
+
+	al_reg_write32(&mac_regs_base->mac_10g.scratch, reg);
+
+	/* ************* Setting Board params register 3 **************** */
+	reg = 0;
+
+	AL_REG_FIELD_SET(reg, AL_HAL_ETH_GPIO_SFP_PRESENT_MASK,
+			 AL_HAL_ETH_GPIO_SFP_PRESENT_SHIFT,
+			 params->gpio_sfp_present);
+
+	al_reg_write32(&mac_regs_base->mac_1g.mac_0, reg);
+
 	return 0;
 }
 
-int al_eth_board_params_get(void * __iomem mac_base, struct al_eth_board_params *params){
-	uint32_t	reg = al_reg_read32((void*)((uint32_t)mac_base + 0x4));
+int al_eth_board_params_get(void * __iomem mac_base, struct al_eth_board_params *params)
+{
+	struct al_eth_mac_regs __iomem *mac_regs_base =
+		(struct	al_eth_mac_regs __iomem *)mac_base;
+	uint32_t	reg = al_reg_read32(&mac_regs_base->mac_1g.scratch);
 
 	/* check if the register was initialized, 0 is not a valid value */
 	if (reg == 0)
@@ -4197,6 +4591,8 @@ int al_eth_board_params_get(void * __iomem mac_base, struct al_eth_board_params 
 					      AL_HAL_ETH_SERDES_GRP_MASK,
 					      AL_HAL_ETH_SERDES_GRP_SHIFT);
 
+	params->serdes_grp |= (AL_REG_BIT_GET(reg, AL_HAL_ETH_SERDES_GRP_2_SHIFT) ? AL_BIT(2) : 0);
+
 	params->serdes_lane = AL_REG_FIELD_GET(reg,
 					       AL_HAL_ETH_SERDES_LANE_MASK,
 					       AL_HAL_ETH_SERDES_LANE_SHIFT);
@@ -4206,7 +4602,7 @@ int al_eth_board_params_get(void * __iomem mac_base, struct al_eth_board_params 
 						AL_HAL_ETH_REF_CLK_FREQ_SHIFT);
 
 	/* ************* Getting Board params register 2 **************** */
-	reg = al_reg_read32((void*)((uint32_t)mac_base + 0x404));
+	reg = al_reg_read32(&mac_regs_base->mac_10g.scratch);
 	if (AL_REG_BIT_GET(reg, AL_HAL_ETH_DONT_OVERRIDE_SERDES_SHIFT))
 		params->dont_override_serdes = AL_TRUE;
 	else
@@ -4250,7 +4646,8 @@ int al_eth_board_params_get(void * __iomem mac_base, struct al_eth_board_params 
 
 	params->retimer_channel =
 		((AL_REG_BIT_GET(reg, AL_HAL_ETH_RETIMER_CHANNEL_SHIFT)) |
-		 (AL_REG_BIT_GET(reg, AL_HAL_ETH_RETIMER_CHANNEL_2_SHIFT) << 1));
+		 (AL_REG_FIELD_GET(reg, AL_HAL_ETH_RETIMER_CHANNEL_2_MASK,
+				   AL_HAL_ETH_RETIMER_CHANNEL_2_SHIFT) << 1));
 
 	params->dac_len = AL_REG_FIELD_GET(reg,
 					   AL_HAL_ETH_DAC_LENGTH_MASK,
@@ -4264,6 +4661,17 @@ int al_eth_board_params_get(void * __iomem mac_base, struct al_eth_board_params 
 	params->retimer_type = AL_REG_FIELD_GET(reg,
 					   AL_HAL_ETH_RETIMER_TYPE_MASK,
 					   AL_HAL_ETH_RETIMER_TYPE_SHIFT);
+
+	params->retimer_tx_channel = AL_REG_FIELD_GET(reg,
+					   AL_HAL_ETH_RETIMER_TX_CHANNEL_MASK,
+					   AL_HAL_ETH_RETIMER_TX_CHANNEL_SHIFT);
+
+	/* ************* Getting Board params register 3 **************** */
+	reg = al_reg_read32(&mac_regs_base->mac_1g.mac_0);
+
+	params->gpio_sfp_present = AL_REG_FIELD_GET(reg,
+					AL_HAL_ETH_GPIO_SFP_PRESENT_MASK,
+					AL_HAL_ETH_GPIO_SFP_PRESENT_SHIFT);
 
 	return 0;
 }

@@ -215,7 +215,8 @@ void		db_restart_at_pc(bool watchpt);
 int		db_set_variable(db_expr_t value);
 void		db_set_watchpoints(void);
 void		db_skip_to_eol(void);
-bool		db_stop_at_pc(bool *is_breakpoint);
+bool		db_stop_at_pc(int type, int code, bool *is_breakpoint,
+		    bool *is_watchpoint);
 #define		db_strcpy	strcpy
 void		db_trace_self(void);
 int		db_trace_thread(struct thread *, int);

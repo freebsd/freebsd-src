@@ -101,10 +101,12 @@ TBC	Tab Clear				^[ [ g		r
 VPA	Vertical Position Absolute		^[ [ d		n
 
 # Cons25 compatibility sequences
-C25ADBG	Cons25 set adapter background		^[ [ = G	r
-C25ADFG	Cons25 set adapter foreground		^[ [ = F	r
 C25BLPD	Cons25 set bell pitch duration		^[ [ = B	r r
-C25CURS	Cons25 set cursor type			^[ [ = S	r
+C25BORD	Cons25 set border			^[ [ = A	r
+C25DBG	Cons25 set default background		^[ [ = G	r
+C25DFG	Cons25 set default foreground		^[ [ = F	r
+C25GCS	Cons25 set global cursor shape		^[ [ = C	v
+C25LCT	Cons25 set local cursor type		^[ [ = S	r
 C25MODE	Cons25 set terminal mode		^[ [ = T	r
 C25SGR	Cons25 set graphic rendition		^[ [ x		r r
 C25VTSW	Cons25 switch virtual terminal		^[ [ z		r

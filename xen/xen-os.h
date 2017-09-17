@@ -56,6 +56,8 @@ extern char *console_page;
 extern int xen_disable_pv_disks;
 extern int xen_disable_pv_nics;
 
+extern bool xen_suspend_cancelled;
+
 enum xen_domain_type {
 	XEN_NATIVE,             /* running on bare hardware    */
 	XEN_PV_DOMAIN,          /* running in a PV domain      */

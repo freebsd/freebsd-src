@@ -41,10 +41,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 
 #include <compat/linux/linux_emul.h>
@@ -67,15 +69,7 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 {
 	struct proc *p = td->td_proc;
 	struct vmspace *vms = td->td_proc->p_vmspace;
-	struct mmap_args /* {
-		caddr_t addr;
-		size_t len;
-		int prot;
-		int flags;
-		int fd;
-		off_t pos;
-	} */ bsd_args;
-	int error;
+	int bsd_flags, error;
 	struct file *fp;
 
 	cap_rights_t rights;
@@ -83,7 +77,7 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 	    addr, len, prot, flags, fd, pos);
 
 	error = 0;
-	bsd_args.flags = 0;
+	bsd_flags = 0;
 	fp = NULL;
 
 	/*
@@ -94,21 +88,21 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 		return (EINVAL);
 
 	if (flags & LINUX_MAP_SHARED)
-		bsd_args.flags |= MAP_SHARED;
+		bsd_flags |= MAP_SHARED;
 	if (flags & LINUX_MAP_PRIVATE)
-		bsd_args.flags |= MAP_PRIVATE;
+		bsd_flags |= MAP_PRIVATE;
 	if (flags & LINUX_MAP_FIXED)
-		bsd_args.flags |= MAP_FIXED;
+		bsd_flags |= MAP_FIXED;
 	if (flags & LINUX_MAP_ANON) {
 		/* Enforce pos to be on page boundary, then ignore. */
 		if ((pos & PAGE_MASK) != 0)
 			return (EINVAL);
 		pos = 0;
-		bsd_args.flags |= MAP_ANON;
+		bsd_flags |= MAP_ANON;
 	} else
-		bsd_args.flags |= MAP_NOSYNC;
+		bsd_flags |= MAP_NOSYNC;
 	if (flags & LINUX_MAP_GROWSDOWN)
-		bsd_args.flags |= MAP_STACK;
+		bsd_flags |= MAP_STACK;
 
 	/*
 	 * PROT_READ, PROT_WRITE, or PROT_EXEC implies PROT_READ and PROT_EXEC
@@ -118,14 +112,13 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 	 *
 	 * XXX. Linux checks that the file system is not mounted with noexec.
 	 */
-	bsd_args.prot = prot;
 #if defined(__amd64__)
-	linux_fixup_prot(td, &bsd_args.prot);
+	linux_fixup_prot(td, &prot);
 #endif
 
 	/* Linux does not check file descriptor when MAP_ANONYMOUS is set. */
-	bsd_args.fd = (bsd_args.flags & MAP_ANON) ? -1 : fd;
-	if (bsd_args.fd != -1) {
+	fd = (bsd_flags & MAP_ANON) ? -1 : fd;
+	if (fd != -1) {
 		/*
 		 * Linux follows Solaris mmap(2) description:
 		 * The file descriptor fildes is opened with
@@ -133,8 +126,7 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 		 * protection options specified.
 		 */
 
-		error = fget(td, bsd_args.fd,
-		    cap_rights_init(&rights, CAP_MMAP), &fp);
+		error = fget(td, fd, cap_rights_init(&rights, CAP_MMAP), &fp);
 		if (error != 0)
 			return (error);
 		if (fp->f_type != DTYPE_VNODE) {
@@ -205,22 +197,29 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 		 * we map the full stack, since we don't have a way
 		 * to autogrow it.
 		 */
-		if (len > STACK_SIZE - GUARD_SIZE) {
-			bsd_args.addr = (caddr_t)addr;
-			bsd_args.len = len;
-		} else {
-			bsd_args.addr = (caddr_t)addr -
-			    (STACK_SIZE - GUARD_SIZE - len);
-			bsd_args.len = STACK_SIZE - GUARD_SIZE;
+		if (len <= STACK_SIZE - GUARD_SIZE) {
+			addr = addr - (STACK_SIZE - GUARD_SIZE - len);
+			len = STACK_SIZE - GUARD_SIZE;
 		}
-	} else {
-		bsd_args.addr = (caddr_t)addr;
-		bsd_args.len  = len;
 	}
-	bsd_args.pos = pos;
 
-	error = sys_mmap(td, &bsd_args);
+	/*
+	 * FreeBSD is free to ignore the address hint if MAP_FIXED wasn't
+	 * passed.  However, some Linux applications, like the ART runtime,
+	 * depend on the hint.  If the MAP_FIXED wasn't passed, but the
+	 * address is not zero, try with MAP_FIXED and MAP_EXCL first,
+	 * and fall back to the normal behaviour if that fails.
+	 */
+	if (addr != 0 && (bsd_flags & MAP_FIXED) == 0 &&
+	    (bsd_flags & MAP_EXCL) == 0) {
+		error = kern_mmap(td, addr, len, prot,
+		    bsd_flags | MAP_FIXED | MAP_EXCL, fd, pos);
+		if (error == 0)
+			goto out;
+	}
 
+	error = kern_mmap(td, addr, len, prot, bsd_flags, fd, pos);
+out:
 	LINUX_CTR2(mmap2, "return: %d (%p)", error, td->td_retval[0]);
 
 	return (error);
@@ -229,16 +228,11 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 int
 linux_mprotect_common(struct thread *td, uintptr_t addr, size_t len, int prot)
 {
-	struct mprotect_args bsd_args;
-
-	bsd_args.addr = (void *)addr;
-	bsd_args.len = len;
-	bsd_args.prot = prot;
 
 #if defined(__amd64__)
-	linux_fixup_prot(td, &bsd_args.prot);
+	linux_fixup_prot(td, &prot);
 #endif
-	return (sys_mprotect(td, &bsd_args));
+	return (kern_mprotect(td, addr, len, prot));
 }
 
 #if defined(__amd64__)

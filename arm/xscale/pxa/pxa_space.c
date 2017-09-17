@@ -176,7 +176,7 @@ bus_space_tag_t		base_tag = &_base_tag;
 bus_space_tag_t		obio_tag = NULL;
 
 void
-pxa_obio_tag_init()
+pxa_obio_tag_init(void)
 {
 
 	bcopy(&_base_tag, &_obio_tag, sizeof(struct bus_space));

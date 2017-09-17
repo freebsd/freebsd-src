@@ -72,7 +72,7 @@ struct al_pcie_rev1_2_axi_ctrl {
 	/* [0x28]  */
 	uint32_t dbi_ctl;
 	/* [0x2c]  */
-	uint32_t vmid_mask;
+	uint32_t tgtid_mask;
 	uint32_t rsrvd[4];
 };
 struct al_pcie_rev3_axi_ctrl {
@@ -98,7 +98,7 @@ struct al_pcie_rev3_axi_ctrl {
 	/* [0x28]  */
 	uint32_t dbi_ctl;
 	/* [0x2c]  */
-	uint32_t vmid_mask;
+	uint32_t tgtid_mask;
 };
 struct al_pcie_rev1_axi_ob_ctrl {
 	/* [0x0]  */
@@ -145,10 +145,10 @@ struct al_pcie_rev2_axi_ob_ctrl {
 	/* [0x24]  */
 	uint32_t msg_limit_h;
 	/*
-	 * [0x28] this register override the VMID field in the AXUSER [19:4],
+	 * [0x28] this register override the Target-ID field in the AXUSER [19:4],
 	 * for the AXI master port.
 	 */
-	uint32_t vmid_reg_ovrd;
+	uint32_t tgtid_reg_ovrd;
 	/* [0x2c] this register override the ADDR[63:32] AXI master port. */
 	uint32_t addr_high_reg_ovrd_value;
 	/* [0x30] this register override the ADDR[63:32] AXI master port. */
@@ -196,10 +196,10 @@ struct al_pcie_rev3_axi_ob_ctrl {
 	/* [0x40]  */
 	uint32_t aw_msg_addr_mask_h;
 	/*
-	 * [0x44] this register override the VMID field in the AXUSER [19:4],
+	 * [0x44] this register override the Target-ID field in the AXUSER [19:4],
 	 * for the AXI master port.
 	 */
-	uint32_t vmid_reg_ovrd;
+	uint32_t tgtid_reg_ovrd;
 	/* [0x48] this register override the ADDR[63:32] AXI master port. */
 	uint32_t addr_high_reg_ovrd_value;
 	/* [0x4c] this register override the ADDR[63:32] AXI master port. */
@@ -783,9 +783,9 @@ struct al_pcie_rev3_axi_regs {
 /* arprot value */
 #define PCIE_AXI_CTRL_MASTER_ARCTL_ARPROT_VALUE_MASK 0x000001C0
 #define PCIE_AXI_CTRL_MASTER_ARCTL_ARPROT_VALUE_SHIFT 6
-/* vmid val */
-#define PCIE_AXI_CTRL_MASTER_ARCTL_VMID_VAL_MASK 0x01FFFE00
-#define PCIE_AXI_CTRL_MASTER_ARCTL_VMID_VAL_SHIFT 9
+/* tgtid val */
+#define PCIE_AXI_CTRL_MASTER_ARCTL_TGTID_VAL_MASK 0x01FFFE00
+#define PCIE_AXI_CTRL_MASTER_ARCTL_TGTID_VAL_SHIFT 9
 /* IPA value */
 #define PCIE_AXI_CTRL_MASTER_ARCTL_IPA_VAL (1 << 25)
 /* overide snoop inidcation, if not set take it from mstr_armisc ... */
@@ -797,6 +797,7 @@ snoop indication value when override */
 arqos value */
 #define PCIE_AXI_CTRL_MASTER_ARCTL_ARQOS_MASK 0xF0000000
 #define PCIE_AXI_CTRL_MASTER_ARCTL_ARQOS_SHIFT 28
+#define PCIE_AXI_CTRL_MASTER_ARCTL_ARQOS_VAL_MAX	15
 
 /**** Master_Awctl register ****/
 /* override arcache */
@@ -809,9 +810,9 @@ arqos value */
 /* awprot value */
 #define PCIE_AXI_CTRL_MASTER_AWCTL_AWPROT_VALUE_MASK 0x000001C0
 #define PCIE_AXI_CTRL_MASTER_AWCTL_AWPROT_VALUE_SHIFT 6
-/* vmid val */
-#define PCIE_AXI_CTRL_MASTER_AWCTL_VMID_VAL_MASK 0x01FFFE00
-#define PCIE_AXI_CTRL_MASTER_AWCTL_VMID_VAL_SHIFT 9
+/* tgtid val */
+#define PCIE_AXI_CTRL_MASTER_AWCTL_TGTID_VAL_MASK 0x01FFFE00
+#define PCIE_AXI_CTRL_MASTER_AWCTL_TGTID_VAL_SHIFT 9
 /* IPA value */
 #define PCIE_AXI_CTRL_MASTER_AWCTL_IPA_VAL (1 << 25)
 /* overide snoop inidcation, if not set take it from mstr_armisc ... */
@@ -823,6 +824,7 @@ snoop indication value when override */
 awqos value */
 #define PCIE_AXI_CTRL_MASTER_AWCTL_AWQOS_MASK 0xF0000000
 #define PCIE_AXI_CTRL_MASTER_AWCTL_AWQOS_SHIFT 28
+#define PCIE_AXI_CTRL_MASTER_AWCTL_AWQOS_VAL_MAX	15
 
 /**** slv_ctl register ****/
 #define PCIE_AXI_CTRL_SLV_CTRL_IO_BAR_EN	(1 << 6)
@@ -888,17 +890,17 @@ awqos value */
 #define PCIE_AXI_MISC_OB_CTRL_MSG_LIMIT_H_ADDR_MASK 0x000003FF
 #define PCIE_AXI_MISC_OB_CTRL_MSG_LIMIT_H_ADDR_SHIFT 0
 
-/**** vmid_reg_ovrd register ****/
+/**** tgtid_reg_ovrd register ****/
 /*
  * select if to take the value from register or from address[63:48]:
  * 1'b1: register value.
  * 1'b0: from address[63:48]
  */
-#define PCIE_AXI_MISC_OB_CTRL_VMID_REG_OVRD_SEL_MASK 0x0000FFFF
-#define PCIE_AXI_MISC_OB_CTRL_VMID_REG_OVRD_SEL_SHIFT 0
-/* vmid override value. */
-#define PCIE_AXI_MISC_OB_CTRL_VMID_REG_OVRD_VALUE_MASK 0xFFFF0000
-#define PCIE_AXI_MISC_OB_CTRL_VMID_REG_OVRD_VALUE_SHIFT 16
+#define PCIE_AXI_MISC_OB_CTRL_TGTID_REG_OVRD_SEL_MASK 0x0000FFFF
+#define PCIE_AXI_MISC_OB_CTRL_TGTID_REG_OVRD_SEL_SHIFT 0
+/* tgtid override value. */
+#define PCIE_AXI_MISC_OB_CTRL_TGTID_REG_OVRD_VALUE_MASK 0xFFFF0000
+#define PCIE_AXI_MISC_OB_CTRL_TGTID_REG_OVRD_VALUE_SHIFT 16
 
 /**** addr_size_replace register ****/
 /*
@@ -1255,17 +1257,17 @@ awqos value */
 #define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_RSRVD_14_15_MASK 0x0000C000
 #define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_RSRVD_14_15_SHIFT 14
 /* choose the field  from the axuser */
-#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_PF_VEC_VMID89_VEC_OVRD_FROM_AXUSER_MASK 0x00030000
-#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_PF_VEC_VMID89_VEC_OVRD_FROM_AXUSER_SHIFT 16
+#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_PF_VEC_TGTID89_VEC_OVRD_FROM_AXUSER_MASK 0x00030000
+#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_PF_VEC_TGTID89_VEC_OVRD_FROM_AXUSER_SHIFT 16
 /* choose the field  from register */
-#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_PF_VEC_VMID89_VEC_OVRD_FROM_REG_MASK 0x000C0000
-#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_PF_VEC_VMID89_VEC_OVRD_FROM_REG_SHIFT 18
+#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_PF_VEC_TGTID89_VEC_OVRD_FROM_REG_MASK 0x000C0000
+#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_PF_VEC_TGTID89_VEC_OVRD_FROM_REG_SHIFT 18
 /* in case the field take from the address, offset field for each bit. */
-#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_PF_VEC_VMID89_VEC_ADDR_OFFSET_MASK 0x0FF00000
-#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_PF_VEC_VMID89_VEC_ADDR_OFFSET_SHIFT 20
+#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_PF_VEC_TGTID89_VEC_ADDR_OFFSET_MASK 0x0FF00000
+#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_PF_VEC_TGTID89_VEC_ADDR_OFFSET_SHIFT 20
 /* register value override */
-#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_CFG_VMID89_VEC_OVRD_MASK 0x30000000
-#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_CFG_VMID89_VEC_OVRD_SHIFT 28
+#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_CFG_TGTID89_VEC_OVRD_MASK 0x30000000
+#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_CFG_TGTID89_VEC_OVRD_SHIFT 28
 /* Rsrvd */
 #define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_RSRVD_MASK 0xC0000000
 #define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_RSRVD_SHIFT 30
@@ -1291,9 +1293,9 @@ awqos value */
 #define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_3_RSRVD_SHIFT 30
 
 /**** func_ctrl_4 register ****/
-/* When set take the corresponding bit address from vmid value. */
-#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_4_PF_VEC_MEM_ADDR54_63_SEL_VMID_MASK 0x000003FF
-#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_4_PF_VEC_MEM_ADDR54_63_SEL_VMID_SHIFT 0
+/* When set take the corresponding bit address from tgtid value. */
+#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_4_PF_VEC_MEM_ADDR54_63_SEL_TGTID_MASK 0x000003FF
+#define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_4_PF_VEC_MEM_ADDR54_63_SEL_TGTID_SHIFT 0
 /* override value. */
 #define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_4_PF_VEC_MEM_ADDR54_63_OVRD_MASK 0x000FFC00
 #define PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_4_PF_VEC_MEM_ADDR54_63_OVRD_SHIFT 10

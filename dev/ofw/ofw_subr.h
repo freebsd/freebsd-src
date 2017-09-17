@@ -46,4 +46,6 @@
 int ofw_reg_to_paddr(phandle_t _dev, int _regno, bus_addr_t *_paddr,
     bus_size_t *_size, pcell_t *_pci_hi);
 
+int ofw_parse_bootargs(void);
+
 #endif

@@ -23,7 +23,7 @@
  * Use is subject to license terms.
  */
 /*
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -174,7 +174,6 @@ space_map_histogram_add(space_map_t *sm, range_tree_t *rt, dmu_tx_t *tx)
 	dmu_buf_will_dirty(sm->sm_dbuf, tx);
 
 	ASSERT(space_map_histogram_verify(sm, rt));
-
 	/*
 	 * Transfer the content of the range tree histogram to the space
 	 * map histogram. The space map histogram contains 32 buckets ranging
@@ -408,6 +407,7 @@ space_map_truncate(space_map_t *sm, dmu_tx_t *tx)
 
 	ASSERT(dsl_pool_sync_context(dmu_objset_pool(os)));
 	ASSERT(dmu_tx_is_syncing(tx));
+	VERIFY3U(dmu_tx_get_txg(tx), <=, spa_final_dirty_txg(spa));
 
 	dmu_object_info_from_db(sm->sm_dbuf, &doi);
 
@@ -422,9 +422,10 @@ space_map_truncate(space_map_t *sm, dmu_tx_t *tx)
 	if ((spa_feature_is_enabled(spa, SPA_FEATURE_SPACEMAP_HISTOGRAM) &&
 	    doi.doi_bonus_size != sizeof (space_map_phys_t)) ||
 	    doi.doi_data_block_size != space_map_blksz) {
-		zfs_dbgmsg("txg %llu, spa %s, reallocating: "
-		    "old bonus %u, old blocksz %u", dmu_tx_get_txg(tx),
-		    spa_name(spa), doi.doi_bonus_size, doi.doi_data_block_size);
+		zfs_dbgmsg("txg %llu, spa %s, sm %p, reallocating "
+		    "object[%llu]: old bonus %u, old blocksz %u",
+		    dmu_tx_get_txg(tx), spa_name(spa), sm, sm->sm_object,
+		    doi.doi_bonus_size, doi.doi_data_block_size);
 
 		space_map_free(sm, tx);
 		dmu_buf_rele(sm->sm_dbuf, sm);

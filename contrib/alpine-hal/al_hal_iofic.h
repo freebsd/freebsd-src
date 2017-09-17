@@ -117,17 +117,17 @@ int al_iofic_msix_moder_interval_config(void __iomem *regs_base, int group,
 				       uint8_t vector, uint8_t interval);
 
 /**
-* configure the vmid attributes for a given msix vector.
+* configure the tgtid attributes for a given msix vector.
 *
 * @param group the interrupt group
 * @param vector index
-* @param vmid the vmid value
-* @param vmid_en take vmid from the intc
+* @param tgtid the target-id value
+* @param tgtid_en take target-id from the intc
 *
 * @return 0 on success. -EINVAL otherwise.
 */
-int al_iofic_msix_vmid_attributes_config(void __iomem *regs_base, int group,
-				       uint8_t vector, uint32_t vmid, uint8_t vmid_en);
+int al_iofic_msix_tgtid_attributes_config(void __iomem *regs_base, int group,
+				       uint8_t vector, uint32_t tgtid, uint8_t tgtid_en);
 
 /**
  * return the offset of the unmask register for a given group.

@@ -59,34 +59,8 @@
 #include <sys/archsystm.h>
 #else
 #include <sys/ptrace.h>
-
-static int
-uread(proc_t *p, void *kaddr, size_t len, uintptr_t uaddr)
-{
-	ssize_t n;
-
-	PHOLD(p);
-	n = proc_readmem(curthread, p, uaddr, kaddr, len);
-	PRELE(p);
-	if (n != len)
-		return (ENOMEM);
-	return (0);
-}
-
-static int
-uwrite(proc_t *p, void *kaddr, size_t len, uintptr_t uaddr)
-{
-	ssize_t n;
-
-	PHOLD(p);
-	n = proc_writemem(curthread, p, uaddr, kaddr, len);
-	PRELE(p);
-	if (n != len)
-		return (ENOMEM);
-	return (0);
-}
-
 #endif /* illumos */
+
 #ifdef __i386__
 #define	r_rax	r_eax
 #define	r_rbx	r_ebx
@@ -1642,7 +1616,7 @@ fasttrap_pid_probe(struct reg *rp)
 		 * a signal we can reset the value of the scratch register.
 		 */
 
-		ASSERT(tp->ftt_size < FASTTRAP_MAX_INSTR_SIZE);
+		ASSERT(tp->ftt_size <= FASTTRAP_MAX_INSTR_SIZE);
 
 		curthread->t_dtrace_scrpc = addr;
 		bcopy(tp->ftt_instr, &scratch[i], tp->ftt_size);
@@ -1897,9 +1871,7 @@ fasttrap_getreg(struct reg *rp, uint_t reg)
 	case REG_ERR:		return (rp->r_err);
 	case REG_RIP:		return (rp->r_rip);
 	case REG_CS:		return (rp->r_cs);
-#ifdef illumos
-	case REG_RFL:		return (rp->r_rfl);
-#endif
+	case REG_RFL:		return (rp->r_rflags);
 	case REG_RSP:		return (rp->r_rsp);
 	case REG_SS:		return (rp->r_ss);
 	case REG_FS:		return (rp->r_fs);

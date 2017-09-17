@@ -126,8 +126,13 @@ fbt_excluded(const char *name)
 		return (1);
 	}
 
-	/* Exclude some internal functions */
-	if (name[0] == '_' && name[1] == '_')
+	/*
+	 * Lock owner methods may be called from probe context.
+	 */
+	if (strcmp(name, "owner_mtx") == 0 ||
+	    strcmp(name, "owner_rm") == 0 ||
+	    strcmp(name, "owner_rw") == 0 ||
+	    strcmp(name, "owner_sx") == 0)
 		return (1);
 
 	/*

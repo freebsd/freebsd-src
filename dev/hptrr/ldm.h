@@ -58,10 +58,6 @@ extern "C" {
 #error "Please redefine MAX_PARTITIONS_PER_DISK!!!"
 #endif
 
-#define MAX(a,b) (((a)>(b))?(a):(b))
-#define MIN(a,b) (((a)<(b))?(a):(b))
-
-
 typedef char check_HPT_TIME_is_unsigned[ (HPT_TIME)(-1) > 0 ? 1 : -1 ];
 
 #define hpt_time_after_eq(a, b) ((long)(a) - (long)(b) >= 0)

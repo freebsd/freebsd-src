@@ -135,6 +135,10 @@ static u_int check_integrity = 1;
 SYSCTL_UINT(_kern_geom_part, OID_AUTO, check_integrity,
     CTLFLAG_RWTUN, &check_integrity, 1,
     "Enable integrity checking");
+static u_int auto_resize = 1;
+SYSCTL_UINT(_kern_geom_part, OID_AUTO, auto_resize,
+    CTLFLAG_RWTUN, &auto_resize, 1,
+    "Enable auto resize");
 
 /*
  * The GEOM partitioning class.
@@ -425,6 +429,7 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	struct sbuf *sb;
+	struct g_geom_alias *gap;
 	off_t offset;
 
 	cp = LIST_FIRST(&gp->consumer);
@@ -435,6 +440,19 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 		entry->gpe_offset = offset;
 
 	if (entry->gpe_pp == NULL) {
+		/*
+		 * Add aliases to the geom before we create the provider so that
+		 * geom_dev can taste it with all the aliases in place so all
+		 * the aliased dev_t instances get created for each partition
+		 * (eg foo5p7 gets created for bar5p7 when foo is an alias of bar).
+		 */
+		LIST_FOREACH(gap, &table->gpt_gp->aliases, ga_next) {
+			sb = sbuf_new_auto();
+			G_PART_FULLNAME(table, entry, sb, gap->ga_alias);
+			sbuf_finish(sb);
+			g_geom_add_alias(gp, sbuf_data(sb));
+			sbuf_delete(sb);
+		}
 		sb = sbuf_new_auto();
 		G_PART_FULLNAME(table, entry, sb, gp->name);
 		sbuf_finish(sb);
@@ -884,6 +902,11 @@ g_part_ctl_commit(struct gctl_req *req, struct g_part_parms *gpp)
 
 	LIST_FOREACH_SAFE(entry, &table->gpt_entry, gpe_entry, tmp) {
 		if (!entry->gpe_deleted) {
+			/* Notify consumers that provider might be changed. */
+			if (entry->gpe_modified && (
+			    entry->gpe_pp->acw + entry->gpe_pp->ace +
+			    entry->gpe_pp->acr) == 0)
+				g_media_changed(entry->gpe_pp, M_NOWAIT);
 			entry->gpe_created = 0;
 			entry->gpe_modified = 0;
 			continue;
@@ -1892,6 +1915,7 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	struct g_part_entry *entry;
 	struct g_part_table *table;
 	struct root_hold_token *rht;
+	struct g_geom_alias *gap;
 	int attr, depth;
 	int error;
 
@@ -1904,10 +1928,12 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	/*
 	 * Create a GEOM with consumer and hook it up to the provider.
-	 * With that we become part of the topology. Optain read access
+	 * With that we become part of the topology. Obtain read access
 	 * to the provider.
 	 */
 	gp = g_new_geomf(mp, "%s", pp->name);
+	LIST_FOREACH(gap, &pp->geom->aliases, ga_next)
+		g_geom_add_alias(gp, gap->ga_alias);
 	cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
@@ -2095,6 +2121,9 @@ g_part_resize(struct g_consumer *cp)
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, cp->provider->name));
 	g_topology_assert();
 
+	if (auto_resize == 0)
+		return;
+
 	table = cp->geom->softc;
 	if (table->gpt_opened == 0) {
 		if (g_access(cp, 1, 1, 1) != 0)
@@ -2153,6 +2182,8 @@ g_part_start(struct bio *bp)
 	struct g_kerneldump *gkd;
 	struct g_provider *pp;
 	char buf[64];
+
+	biotrack(bp, __func__);
 
 	pp = bp->bio_to;
 	gp = pp->geom;

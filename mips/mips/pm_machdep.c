@@ -14,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -60,9 +60,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <sys/user.h>
 #include <sys/uio.h>
+#include <machine/cpuinfo.h>
 #include <machine/reg.h>
 #include <machine/md_var.h>
 #include <machine/sigframe.h>
+#include <machine/tls.h>
 #include <machine/vmparam.h>
 #include <sys/vnode.h>
 #include <fs/pseudofs/pseudofs.h>
@@ -142,6 +144,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		/* sf.sf_ahu.sf_action = (__siginfohandler_t *)catcher; */
 
 		/* fill siginfo structure */
+		sf.sf_si = ksi->ksi_info;
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = ksi->ksi_code;
 		sf.sf_si.si_addr = (void*)(intptr_t)regs->badvaddr;
@@ -290,9 +293,9 @@ void
 makectx(struct trapframe *tf, struct pcb *pcb)
 {
 
-	pcb->pcb_regs.ra = tf->ra;
-	pcb->pcb_regs.pc = tf->pc;
-	pcb->pcb_regs.sp = tf->sp;
+	pcb->pcb_context[PCB_REG_RA] = tf->ra;
+	pcb->pcb_context[PCB_REG_PC] = tf->pc;
+	pcb->pcb_context[PCB_REG_SP] = tf->sp;
 }
 
 int
@@ -376,7 +379,8 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 	if (td == PCPU_GET(fpcurthread))
 		MipsSaveCurFPState(td);
-	memcpy(fpregs, &td->td_frame->f0, sizeof(struct fpreg)); 
+	memcpy(fpregs, &td->td_frame->f0, sizeof(struct fpreg));
+	fpregs->r_regs[FIR_NUM] = cpuinfo.fpu_id;
 	return 0;
 }
 
@@ -423,15 +427,12 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	 * 0xffffffff80007f00 and the load is instead done from
 	 * 0xffffffff7ffffff0.
 	 *
-	 * To prevent this, we subtract 64K from the stack pointer here.
-	 *
-	 * For consistency, we should just always do this unless we're
-	 * running n64 programs.  For now, since we don't support
-	 * COMPAT_FREEBSD32 on n64 kernels, we just do it unless we're
-	 * running n64 kernels.
+	 * To prevent this, we subtract 64K from the stack pointer here
+	 * for processes with 32-bit pointers.
 	 */
-#if !defined(__mips_n64)
-	td->td_frame->sp -= 65536;
+#if defined(__mips_n32) || defined(__mips_n64)
+	if (!SV_PROC_FLAG(td->td_proc, SV_LP64))
+		td->td_frame->sp -= 65536;
 #endif
 
 	td->td_frame->pc = imgp->entry_addr & ~3;
@@ -466,6 +467,8 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	if (PCPU_GET(fpcurthread) == td)
 	    PCPU_SET(fpcurthread, (struct thread *)0);
 	td->td_md.md_ss_addr = 0;
+
+	td->td_md.md_tls_tcb_offset = TLS_TP_OFFSET + TLS_TCB_SIZE;
 }
 
 int

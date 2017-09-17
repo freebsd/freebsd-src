@@ -363,8 +363,22 @@ static int sfxge_tx_queue_mbuf(struct sfxge_txq *txq, struct mbuf *mbuf)
 
 	KASSERT(!txq->blocked, ("txq->blocked"));
 
+#if SFXGE_TX_PARSE_EARLY
+	/*
+	 * If software TSO is used, we still need to copy packet header,
+	 * even if we have already parsed it early before enqueue.
+	 */
+	if ((mbuf->m_pkthdr.csum_flags & CSUM_TSO) &&
+	    (txq->tso_fw_assisted == 0))
+		prefetch_read_many(mbuf->m_data);
+#else
+	/*
+	 * Prefetch packet header since we need to parse it and extract
+	 * IP ID, TCP sequence number and flags.
+	 */
 	if (mbuf->m_pkthdr.csum_flags & CSUM_TSO)
 		prefetch_read_many(mbuf->m_data);
+#endif
 
 	if (__predict_false(txq->init_state != SFXGE_TXQ_STARTED)) {
 		rc = EINTR;
@@ -608,7 +622,7 @@ sfxge_tx_qdpl_put_unlocked(struct sfxge_txq *txq, struct mbuf *mbuf)
 	volatile uintptr_t *putp;
 	uintptr_t old;
 	uintptr_t new;
-	unsigned old_len;
+	unsigned int put_count;
 
 	KASSERT(mbuf->m_nextpkt == NULL, ("mbuf->m_nextpkt != NULL"));
 
@@ -622,14 +636,14 @@ sfxge_tx_qdpl_put_unlocked(struct sfxge_txq *txq, struct mbuf *mbuf)
 		old = *putp;
 		if (old != 0) {
 			struct mbuf *mp = (struct mbuf *)old;
-			old_len = mp->m_pkthdr.csum_data;
+			put_count = mp->m_pkthdr.csum_data;
 		} else
-			old_len = 0;
-		if (old_len >= stdp->std_put_max) {
+			put_count = 0;
+		if (put_count >= stdp->std_put_max) {
 			atomic_add_long(&txq->put_overflow, 1);
 			return (ENOBUFS);
 		}
-		mbuf->m_pkthdr.csum_data = old_len + 1;
+		mbuf->m_pkthdr.csum_data = put_count + 1;
 		mbuf->m_nextpkt = (void *)old;
 	} while (atomic_cmpset_ptr(putp, old, new) == 0);
 
@@ -838,8 +852,9 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 		/* check if flowid is set */
 		if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
 			uint32_t hash = m->m_pkthdr.flowid;
+			uint32_t idx = hash % nitems(sc->rx_indir_table);
 
-			index = sc->rx_indir_table[hash % SFXGE_RX_SCALE_MAX];
+			index = sc->rx_indir_table[idx];
 		}
 #endif
 #if SFXGE_TX_PARSE_EARLY
@@ -1608,6 +1623,8 @@ sfxge_tx_qstart(struct sfxge_softc *sc, unsigned int index)
 	txq->max_pkt_desc = sfxge_tx_max_pkt_desc(sc, txq->type,
 						  tso_fw_assisted);
 
+	txq->hw_vlan_tci = 0;
+
 	SFXGE_TXQ_UNLOCK(txq);
 
 	return (0);
@@ -1719,6 +1736,7 @@ static int
 sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	       enum sfxge_txq_type type, unsigned int evq_index)
 {
+	const efx_nic_cfg_t *encp = efx_nic_cfg_get(sc->enp);
 	char name[16];
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->dev);
 	struct sysctl_oid *txq_node;
@@ -1749,9 +1767,11 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 				 &txq->buf_base_id);
 
 	/* Create a DMA tag for packet mappings. */
-	if (bus_dma_tag_create(sc->parent_dma_tag, 1, 0x1000,
+	if (bus_dma_tag_create(sc->parent_dma_tag, 1,
+	    encp->enc_tx_dma_desc_boundary,
 	    MIN(0x3FFFFFFFFFFFUL, BUS_SPACE_MAXADDR), BUS_SPACE_MAXADDR, NULL,
-	    NULL, 0x11000, SFXGE_TX_MAPPING_MAX_SEG, 0x1000, 0, NULL, NULL,
+	    NULL, 0x11000, SFXGE_TX_MAPPING_MAX_SEG,
+	    encp->enc_tx_dma_desc_size_max, 0, NULL, NULL,
 	    &txq->packet_dma_tag) != 0) {
 		device_printf(sc->dev, "Couldn't allocate txq DMA tag\n");
 		rc = ENOMEM;
@@ -1783,26 +1803,6 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	if (type == SFXGE_TXQ_IP_TCP_UDP_CKSUM &&
 	    (rc = tso_init(txq)) != 0)
 		goto fail3;
-
-	if (sfxge_tx_dpl_get_max <= 0) {
-		log(LOG_ERR, "%s=%d must be greater than 0",
-		    SFXGE_PARAM_TX_DPL_GET_MAX, sfxge_tx_dpl_get_max);
-		rc = EINVAL;
-		goto fail_tx_dpl_get_max;
-	}
-	if (sfxge_tx_dpl_get_non_tcp_max <= 0) {
-		log(LOG_ERR, "%s=%d must be greater than 0",
-		    SFXGE_PARAM_TX_DPL_GET_NON_TCP_MAX,
-		    sfxge_tx_dpl_get_non_tcp_max);
-		rc = EINVAL;
-		goto fail_tx_dpl_get_max;
-	}
-	if (sfxge_tx_dpl_put_max < 0) {
-		log(LOG_ERR, "%s=%d must be greater or equal to 0",
-		    SFXGE_PARAM_TX_DPL_PUT_MAX, sfxge_tx_dpl_put_max);
-		rc = EINVAL;
-		goto fail_tx_dpl_put_max;
-	}
 
 	/* Initialize the deferred packet list. */
 	stdp = &txq->dpl;
@@ -1840,16 +1840,12 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 
 	txq->type = type;
 	txq->evq_index = evq_index;
-	txq->txq_index = txq_index;
 	txq->init_state = SFXGE_TXQ_INITIALIZED;
-	txq->hw_vlan_tci = 0;
 
 	return (0);
 
 fail_txq_stat_init:
 fail_dpl_node:
-fail_tx_dpl_put_max:
-fail_tx_dpl_get_max:
 fail3:
 fail_txq_node:
 	free(txq->pend_desc, M_SFXGE);
@@ -1950,6 +1946,26 @@ sfxge_tx_init(struct sfxge_softc *sc)
 	KASSERT(intr->state == SFXGE_INTR_INITIALIZED,
 	    ("intr->state != SFXGE_INTR_INITIALIZED"));
 
+	if (sfxge_tx_dpl_get_max <= 0) {
+		log(LOG_ERR, "%s=%d must be greater than 0",
+		    SFXGE_PARAM_TX_DPL_GET_MAX, sfxge_tx_dpl_get_max);
+		rc = EINVAL;
+		goto fail_tx_dpl_get_max;
+	}
+	if (sfxge_tx_dpl_get_non_tcp_max <= 0) {
+		log(LOG_ERR, "%s=%d must be greater than 0",
+		    SFXGE_PARAM_TX_DPL_GET_NON_TCP_MAX,
+		    sfxge_tx_dpl_get_non_tcp_max);
+		rc = EINVAL;
+		goto fail_tx_dpl_get_non_tcp_max;
+	}
+	if (sfxge_tx_dpl_put_max < 0) {
+		log(LOG_ERR, "%s=%d must be greater or equal to 0",
+		    SFXGE_PARAM_TX_DPL_PUT_MAX, sfxge_tx_dpl_put_max);
+		rc = EINVAL;
+		goto fail_tx_dpl_put_max;
+	}
+
 	sc->txq_count = SFXGE_TXQ_NTYPES - 1 + sc->intr.n_alloc;
 
 	sc->tso_fw_assisted = sfxge_tso_fw_assisted;
@@ -2002,5 +2018,8 @@ fail2:
 fail:
 fail_txq_node:
 	sc->txq_count = 0;
+fail_tx_dpl_put_max:
+fail_tx_dpl_get_non_tcp_max:
+fail_tx_dpl_get_max:
 	return (rc);
 }

@@ -40,13 +40,33 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
+/* Audio destination */
 #define	DEST_AUTO		0
 #define	DEST_HEADPHONES		1
 #define	DEST_HDMI		2
 
+/* Playback state */
+#define	PLAYBACK_IDLE		0
+#define	PLAYBACK_PLAYING	1
+#define	PLAYBACK_STOPPING	2
+
+/* Worker thread state */
+#define	WORKER_RUNNING		0
+#define	WORKER_STOPPING		1
+#define	WORKER_STOPPED		2
+
+/*
+ * Worker thread flags, set to 1 in flags_pending
+ * when driver requests one or another operation
+ * from worker. Cleared to 0 once worker performs
+ * the operations.
+ */
+#define	AUDIO_PARAMS		(1 << 0)
+#define	AUDIO_PLAY		(1 << 1)
+#define	AUDIO_STOP		(1 << 2)
+
 #define	VCHIQ_AUDIO_PACKET_SIZE	4000
-#define	VCHIQ_AUDIO_BUFFER_SIZE	128000
-#define	VCHIQ_AUDIO_PREBUFFER	10 /* Number of pre-buffered audio messages */
+#define	VCHIQ_AUDIO_BUFFER_SIZE	10*VCHIQ_AUDIO_PACKET_SIZE
 
 #define	VCHIQ_AUDIO_MAX_VOLUME	
 /* volume in terms of 0.01dB */
@@ -77,22 +97,25 @@ static struct pcmchan_caps bcm2835_audio_playcaps = {8000, 48000, bcm2835_audio_
 
 struct bcm2835_audio_info;
 
-#define	PLAYBACK_IDLE		0
-#define	PLAYBACK_STARTING	1
-#define	PLAYBACK_PLAYING	2
-#define	PLAYBACK_STOPPING	3
-
 struct bcm2835_audio_chinfo {
 	struct bcm2835_audio_info *parent;
 	struct pcm_channel *channel;
 	struct snd_dbuf *buffer;
 	uint32_t fmt, spd, blksz;
 
-	uint32_t complete_pos;
-	uint32_t free_buffer;
-	uint32_t buffered_ptr;
+	/* Pointer to first unsubmitted sample */
+	uint32_t unsubmittedptr;
+	/*
+	 * Number of bytes in "submitted but not played"
+	 * pseudo-buffer
+	 */
+	int available_space;
 	int playback_state;
-	int prebuffered;
+	uint64_t callbacks;
+	uint64_t submitted_samples;
+	uint64_t retrieved_samples;
+	uint64_t underruns;
+	int starved;
 };
 
 struct bcm2835_audio_info {
@@ -100,29 +123,25 @@ struct bcm2835_audio_info {
 	unsigned int bufsz;
     	struct bcm2835_audio_chinfo pch;
 	uint32_t dest, volume;
-	struct mtx *lock;
 	struct intr_config_hook intr_hook;
 
 	/* VCHI data */
-	struct mtx vchi_lock;
-
 	VCHI_INSTANCE_T vchi_instance;
 	VCHI_CONNECTION_T *vchi_connection;
 	VCHI_SERVICE_HANDLE_T vchi_handle;
 
-	struct mtx data_lock;
-	struct cv data_cv;
+	struct mtx lock;
+	struct cv worker_cv;
 
-	/* Unloadign module */
-	int unloading;
+	uint32_t flags_pending;
+
+	/* Worker thread state */
+	int worker_state;
 };
 
-#define bcm2835_audio_lock(_ess) snd_mtxlock((_ess)->lock)
-#define bcm2835_audio_unlock(_ess) snd_mtxunlock((_ess)->lock)
-#define bcm2835_audio_lock_assert(_ess) snd_mtxassert((_ess)->lock)
-
-#define VCHIQ_VCHI_LOCK(sc)		mtx_lock(&(sc)->vchi_lock)
-#define VCHIQ_VCHI_UNLOCK(sc)		mtx_unlock(&(sc)->vchi_lock)
+#define BCM2835_AUDIO_LOCK(sc)		mtx_lock(&(sc)->lock)
+#define BCM2835_AUDIO_LOCKED(sc)	mtx_assert(&(sc)->lock, MA_OWNED)
+#define BCM2835_AUDIO_UNLOCK(sc)	mtx_unlock(&(sc)->lock)
 
 static const char *
 dest_description(uint32_t dest)
@@ -146,6 +165,36 @@ dest_description(uint32_t dest)
 }
 
 static void
+bcm2835_worker_update_params(struct bcm2835_audio_info *sc)
+{
+
+	BCM2835_AUDIO_LOCKED(sc);
+
+	sc->flags_pending |= AUDIO_PARAMS;
+	cv_signal(&sc->worker_cv);
+}
+
+static void
+bcm2835_worker_play_start(struct bcm2835_audio_info *sc)
+{
+	BCM2835_AUDIO_LOCK(sc);
+	sc->flags_pending &= ~(AUDIO_STOP);
+	sc->flags_pending |= AUDIO_PLAY;
+	cv_signal(&sc->worker_cv);
+	BCM2835_AUDIO_UNLOCK(sc);
+}
+
+static void
+bcm2835_worker_play_stop(struct bcm2835_audio_info *sc)
+{
+	BCM2835_AUDIO_LOCK(sc);
+	sc->flags_pending &= ~(AUDIO_PLAY);
+	sc->flags_pending |= AUDIO_STOP;
+	cv_signal(&sc->worker_cv);
+	BCM2835_AUDIO_UNLOCK(sc);
+}
+
+static void
 bcm2835_audio_callback(void *param, const VCHI_CALLBACK_REASON_T reason, void *msg_handle)
 {
 	struct bcm2835_audio_info *sc = (struct bcm2835_audio_info *)param;
@@ -160,7 +209,7 @@ bcm2835_audio_callback(void *param, const VCHI_CALLBACK_REASON_T reason, void *m
 	    &m, sizeof m, &msg_len, VCHI_FLAGS_NONE);
 	if (m.type == VC_AUDIO_MSG_TYPE_RESULT) {
 		if (m.u.result.success) {
-			device_printf(sc->dev, 
+			device_printf(sc->dev,
 			    "msg type %08x failed\n",
 			    m.type);
 		}
@@ -169,13 +218,35 @@ bcm2835_audio_callback(void *param, const VCHI_CALLBACK_REASON_T reason, void *m
 
 		int count = m.u.complete.count & 0xffff;
 		int perr = (m.u.complete.count & (1U << 30)) != 0;
+		ch->callbacks++;
+		if (perr)
+			ch->underruns++;
 
-		ch->complete_pos = (ch->complete_pos + count) % sndbuf_getsize(ch->buffer);
-		ch->free_buffer += count;
-		chn_intr(sc->pch.channel);
-
-		if (perr || ch->free_buffer >= VCHIQ_AUDIO_PACKET_SIZE)
-			cv_signal(&sc->data_cv);
+		BCM2835_AUDIO_LOCK(sc);
+		if (ch->playback_state != PLAYBACK_IDLE) {
+			/* Prevent LOR */
+			BCM2835_AUDIO_UNLOCK(sc);
+			chn_intr(sc->pch.channel);
+			BCM2835_AUDIO_LOCK(sc);
+		}
+		/* We should check again, state might have changed */
+		if (ch->playback_state != PLAYBACK_IDLE) {
+			if (!perr) {
+				if ((ch->available_space + count)> VCHIQ_AUDIO_BUFFER_SIZE) {
+					device_printf(sc->dev, "inconsistent data in callback:\n");
+					device_printf(sc->dev, "available_space == %d, count = %d, perr=%d\n",
+					    ch->available_space, count, perr);
+					device_printf(sc->dev,
+					    "retrieved_samples = %lld, submitted_samples = %lld\n",
+					    ch->retrieved_samples, ch->submitted_samples);
+				}
+				ch->available_space += count;
+				ch->retrieved_samples += count;
+			}
+			if (perr || (ch->available_space >= VCHIQ_AUDIO_PACKET_SIZE))
+				cv_signal(&sc->worker_cv);
+		}
+		BCM2835_AUDIO_UNLOCK(sc);
 	} else
 		printf("%s: unknown m.type: %d\n", __func__, m.type);
 }
@@ -215,10 +286,7 @@ bcm2835_audio_init(struct bcm2835_audio_info *sc)
 	status = vchi_service_open(sc->vchi_instance, &params,
 	    &sc->vchi_handle);
 
-	if (status == 0)
-		/* Finished with the service for now */
-		vchi_service_release(sc->vchi_handle);
-	else
+	if (status != 0)
 		sc->vchi_handle = VCHIQ_SERVICE_HANDLE_INVALID;
 }
 
@@ -228,10 +296,10 @@ bcm2835_audio_release(struct bcm2835_audio_info *sc)
 	int success;
 
 	if (sc->vchi_handle != VCHIQ_SERVICE_HANDLE_INVALID) {
-		vchi_service_use(sc->vchi_handle);
 		success = vchi_service_close(sc->vchi_handle);
 		if (success != 0)
 			printf("vchi_service_close failed: %d\n", success);
+		vchi_service_release(sc->vchi_handle);
 		sc->vchi_handle = VCHIQ_SERVICE_HANDLE_INVALID;
 	}
 
@@ -241,12 +309,9 @@ bcm2835_audio_release(struct bcm2835_audio_info *sc)
 static void
 bcm2835_audio_reset_channel(struct bcm2835_audio_chinfo *ch)
 {
-	ch->free_buffer = VCHIQ_AUDIO_BUFFER_SIZE;
-	ch->playback_state = 0;
-	ch->buffered_ptr = 0;
-	ch->complete_pos = 0;
-	ch->prebuffered = 0;
 
+	ch->available_space = VCHIQ_AUDIO_BUFFER_SIZE;
+	ch->unsubmittedptr = 0;
 	sndbuf_reset(ch->buffer);
 }
 
@@ -257,23 +322,14 @@ bcm2835_audio_start(struct bcm2835_audio_chinfo *ch)
 	int ret;
 	struct bcm2835_audio_info *sc = ch->parent;
 
-	VCHIQ_VCHI_LOCK(sc);
 	if (sc->vchi_handle != VCHIQ_SERVICE_HANDLE_INVALID) {
-		vchi_service_use(sc->vchi_handle);
-
-		bcm2835_audio_reset_channel(ch);
-
 		m.type = VC_AUDIO_MSG_TYPE_START;
 		ret = vchi_msg_queue(sc->vchi_handle,
 		    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
 
 		if (ret != 0)
 			printf("%s: vchi_msg_queue failed (err %d)\n", __func__, ret);
-
-		vchi_service_release(sc->vchi_handle);
 	}
-	VCHIQ_VCHI_UNLOCK(sc);
-
 }
 
 static void
@@ -283,10 +339,7 @@ bcm2835_audio_stop(struct bcm2835_audio_chinfo *ch)
 	int ret;
 	struct bcm2835_audio_info *sc = ch->parent;
 
-	VCHIQ_VCHI_LOCK(sc);
 	if (sc->vchi_handle != VCHIQ_SERVICE_HANDLE_INVALID) {
-		vchi_service_use(sc->vchi_handle);
-
 		m.type = VC_AUDIO_MSG_TYPE_STOP;
 		m.u.stop.draining = 0;
 
@@ -295,10 +348,7 @@ bcm2835_audio_stop(struct bcm2835_audio_chinfo *ch)
 
 		if (ret != 0)
 			printf("%s: vchi_msg_queue failed (err %d)\n", __func__, ret);
-
-		vchi_service_release(sc->vchi_handle);
 	}
-	VCHIQ_VCHI_UNLOCK(sc);
 }
 
 static void
@@ -307,37 +357,28 @@ bcm2835_audio_open(struct bcm2835_audio_info *sc)
 	VC_AUDIO_MSG_T m;
 	int ret;
 
-	VCHIQ_VCHI_LOCK(sc);
 	if (sc->vchi_handle != VCHIQ_SERVICE_HANDLE_INVALID) {
-		vchi_service_use(sc->vchi_handle);
-
 		m.type = VC_AUDIO_MSG_TYPE_OPEN;
 		ret = vchi_msg_queue(sc->vchi_handle,
 		    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
 
 		if (ret != 0)
 			printf("%s: vchi_msg_queue failed (err %d)\n", __func__, ret);
-
-		vchi_service_release(sc->vchi_handle);
 	}
-	VCHIQ_VCHI_UNLOCK(sc);
 }
 
 static void
-bcm2835_audio_update_controls(struct bcm2835_audio_info *sc)
+bcm2835_audio_update_controls(struct bcm2835_audio_info *sc, uint32_t volume, uint32_t dest)
 {
 	VC_AUDIO_MSG_T m;
 	int ret, db;
 
-	VCHIQ_VCHI_LOCK(sc);
 	if (sc->vchi_handle != VCHIQ_SERVICE_HANDLE_INVALID) {
-		vchi_service_use(sc->vchi_handle);
-
 		m.type = VC_AUDIO_MSG_TYPE_CONTROL;
-		m.u.control.dest = sc->dest;
-		if (sc->volume > 99)
-			sc->volume = 99;
-		db = db_levels[sc->volume/5];
+		m.u.control.dest = dest;
+		if (volume > 99)
+			volume = 99;
+		db = db_levels[volume/5];
 		m.u.control.volume = VCHIQ_AUDIO_VOLUME(db);
 
 		ret = vchi_msg_queue(sc->vchi_handle,
@@ -345,102 +386,68 @@ bcm2835_audio_update_controls(struct bcm2835_audio_info *sc)
 
 		if (ret != 0)
 			printf("%s: vchi_msg_queue failed (err %d)\n", __func__, ret);
-
-		vchi_service_release(sc->vchi_handle);
 	}
-	VCHIQ_VCHI_UNLOCK(sc);
 }
 
 static void
-bcm2835_audio_update_params(struct bcm2835_audio_info *sc, struct bcm2835_audio_chinfo *ch)
+bcm2835_audio_update_params(struct bcm2835_audio_info *sc, uint32_t fmt, uint32_t speed)
 {
 	VC_AUDIO_MSG_T m;
 	int ret;
 
-	VCHIQ_VCHI_LOCK(sc);
 	if (sc->vchi_handle != VCHIQ_SERVICE_HANDLE_INVALID) {
-		vchi_service_use(sc->vchi_handle);
-
 		m.type = VC_AUDIO_MSG_TYPE_CONFIG;
-		m.u.config.channels = AFMT_CHANNEL(ch->fmt);
-		m.u.config.samplerate = ch->spd;
-		m.u.config.bps = AFMT_BIT(ch->fmt);
+		m.u.config.channels = AFMT_CHANNEL(fmt);
+		m.u.config.samplerate = speed;
+		m.u.config.bps = AFMT_BIT(fmt);
 
 		ret = vchi_msg_queue(sc->vchi_handle,
 		    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
 
 		if (ret != 0)
 			printf("%s: vchi_msg_queue failed (err %d)\n", __func__, ret);
-
-		vchi_service_release(sc->vchi_handle);
 	}
-	VCHIQ_VCHI_UNLOCK(sc);
 }
 
-static __inline uint32_t
-vchiq_unbuffered_bytes(struct bcm2835_audio_chinfo *ch)
+static bool
+bcm2835_audio_buffer_should_sleep(struct bcm2835_audio_chinfo *ch)
 {
-	uint32_t size, ready, readyptr, readyend;
+	
+	if (ch->playback_state != PLAYBACK_PLAYING)
+		return (true);
 
-	size = sndbuf_getsize(ch->buffer);
-	readyptr = sndbuf_getreadyptr(ch->buffer);
-	ready = sndbuf_getready(ch->buffer);
+	/* Not enough data */
+	if (sndbuf_getready(ch->buffer) < VCHIQ_AUDIO_PACKET_SIZE) {
+		printf("starve\n");
+		ch->starved++;
+		return (true);
+	}
 
-	readyend = readyptr + ready;
-	/* Normal case */
-	if (ch->buffered_ptr >= readyptr) {
-		if (readyend > ch->buffered_ptr)
-			return readyend - ch->buffered_ptr;
-		else
-			return 0;
+	/* Not enough free space */
+	if (ch->available_space < VCHIQ_AUDIO_PACKET_SIZE) {
+		return (true);
 	}
-	else { /* buffered_ptr overflow */
-		if (readyend > ch->buffered_ptr + size)
-			return readyend - ch->buffered_ptr - size;
-		else
-			return 0;
-	}
+
+	return (false);
 }
 
 static void
-bcm2835_audio_write_samples(struct bcm2835_audio_chinfo *ch)
+bcm2835_audio_write_samples(struct bcm2835_audio_chinfo *ch, void *buf, uint32_t count)
 {
 	struct bcm2835_audio_info *sc = ch->parent;
 	VC_AUDIO_MSG_T m;
-	void *buf;
-	uint32_t count, size;
 	int ret;
 
-	VCHIQ_VCHI_LOCK(sc);
 	if (sc->vchi_handle == VCHIQ_SERVICE_HANDLE_INVALID) {
-		VCHIQ_VCHI_UNLOCK(sc);
 		return;
 	}
-
-	vchi_service_use(sc->vchi_handle);
-
-	size = sndbuf_getsize(ch->buffer);
-	count = vchiq_unbuffered_bytes(ch);
-	buf = (uint8_t*)sndbuf_getbuf(ch->buffer) + ch->buffered_ptr;
-
-	if (ch->buffered_ptr + count > size)
-		count = size - ch->buffered_ptr;
-
-	if (count < VCHIQ_AUDIO_PACKET_SIZE)
-		goto done;
-
-	count = min(count, ch->free_buffer);
-	count -= count % VCHIQ_AUDIO_PACKET_SIZE;
 
 	m.type = VC_AUDIO_MSG_TYPE_WRITE;
 	m.u.write.count = count;
 	m.u.write.max_packet = VCHIQ_AUDIO_PACKET_SIZE;
 	m.u.write.callback = NULL;
 	m.u.write.cookie = ch;
-	if (buf)
-		m.u.write.silence = 0;
-	else
-		m.u.write.silence = 1;
+	m.u.write.silence = 0;
 
 	ret = vchi_msg_queue(sc->vchi_handle,
 	    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
@@ -448,25 +455,16 @@ bcm2835_audio_write_samples(struct bcm2835_audio_chinfo *ch)
 	if (ret != 0)
 		printf("%s: vchi_msg_queue failed (err %d)\n", __func__, ret);
 
-	if (buf) {
-		while (count > 0) {
-			int bytes = MIN((int)m.u.write.max_packet, (int)count);
-			ch->free_buffer -= bytes;
-			ch->buffered_ptr += bytes;
-			ch->buffered_ptr = ch->buffered_ptr % size;
-			ret = vchi_msg_queue(sc->vchi_handle,
-			    buf, bytes, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
-			if (ret != 0)
-				printf("%s: vchi_msg_queue failed: %d\n",
-				    __func__, ret);
-			buf = (char *)buf + bytes;
-			count -= bytes;
-		}
+	while (count > 0) {
+		int bytes = MIN((int)m.u.write.max_packet, (int)count);
+		ret = vchi_msg_queue(sc->vchi_handle,
+		    buf, bytes, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
+		if (ret != 0)
+			printf("%s: vchi_msg_queue failed: %d\n",
+			    __func__, ret);
+		buf = (char *)buf + bytes;
+		count -= bytes;
 	}
-done:
-
-	vchi_service_release(sc->vchi_handle);
-	VCHIQ_VCHI_UNLOCK(sc);
 }
 
 static void
@@ -474,40 +472,100 @@ bcm2835_audio_worker(void *data)
 {
 	struct bcm2835_audio_info *sc = (struct bcm2835_audio_info *)data;
 	struct bcm2835_audio_chinfo *ch = &sc->pch;
-	mtx_lock(&sc->data_lock);
-	while(1) {
+	uint32_t speed, format;
+	uint32_t volume, dest;
+	uint32_t flags;
+	uint32_t count, size, readyptr;
+	uint8_t *buf;
 
-		if (sc->unloading)
+	ch->playback_state = PLAYBACK_IDLE;
+
+	while (1) {
+		if (sc->worker_state != WORKER_RUNNING)
 			break;
 
-		if (ch->playback_state == PLAYBACK_IDLE) {
-			cv_wait_sig(&sc->data_cv, &sc->data_lock);
-			continue;
+		BCM2835_AUDIO_LOCK(sc);
+		/*
+		 * wait until there are flags set or buffer is ready
+		 * to consume more samples
+		 */
+		while ((sc->flags_pending == 0) &&
+		    bcm2835_audio_buffer_should_sleep(ch)) {
+			cv_wait_sig(&sc->worker_cv, &sc->lock);
+		}
+		flags = sc->flags_pending;
+		/* Clear pending flags */
+		sc->flags_pending = 0;
+		BCM2835_AUDIO_UNLOCK(sc);
+
+		/* Requested to change parameters */
+		if (flags & AUDIO_PARAMS) {
+			BCM2835_AUDIO_LOCK(sc);
+			speed = ch->spd;
+			format = ch->fmt;
+			volume = sc->volume;
+			dest = sc->dest;
+			BCM2835_AUDIO_UNLOCK(sc);
+			if (ch->playback_state == PLAYBACK_IDLE)
+				bcm2835_audio_update_params(sc, format, speed);
+			bcm2835_audio_update_controls(sc, volume, dest);
 		}
 
-		if (ch->playback_state == PLAYBACK_STOPPING) {
+		/* Requested to stop playback */
+		if ((flags & AUDIO_STOP) &&
+		    (ch->playback_state == PLAYBACK_PLAYING)) {
+			bcm2835_audio_stop(ch);
+			BCM2835_AUDIO_LOCK(sc);
 			bcm2835_audio_reset_channel(&sc->pch);
 			ch->playback_state = PLAYBACK_IDLE;
+			BCM2835_AUDIO_UNLOCK(sc);
 			continue;
 		}
 
-		if (ch->free_buffer < vchiq_unbuffered_bytes(ch)) {
-			cv_timedwait_sig(&sc->data_cv, &sc->data_lock, 10);
+		/* Requested to start playback */
+		if ((flags & AUDIO_PLAY) &&
+		    (ch->playback_state == PLAYBACK_IDLE)) {
+			BCM2835_AUDIO_LOCK(sc);
+			ch->playback_state = PLAYBACK_PLAYING;
+			BCM2835_AUDIO_UNLOCK(sc);
+			bcm2835_audio_start(ch);
+		}
+
+		if (ch->playback_state == PLAYBACK_IDLE)
 			continue;
-		}
 
+		if (sndbuf_getready(ch->buffer) == 0)
+			continue;
 
-		bcm2835_audio_write_samples(ch);
+		count = sndbuf_getready(ch->buffer);
+		size = sndbuf_getsize(ch->buffer);
+		readyptr = sndbuf_getreadyptr(ch->buffer);
 
-		if (ch->playback_state == PLAYBACK_STARTING) {
-			ch->prebuffered++;
-			if (ch->prebuffered == VCHIQ_AUDIO_PREBUFFER) {
-				bcm2835_audio_start(ch);
-				ch->playback_state = PLAYBACK_PLAYING;
-			}
-		}
+		BCM2835_AUDIO_LOCK(sc);
+		if (readyptr + count > size)
+			count = size - readyptr;
+		count = min(count, ch->available_space);
+		count -= (count % VCHIQ_AUDIO_PACKET_SIZE);
+		BCM2835_AUDIO_UNLOCK(sc);
+
+		if (count < VCHIQ_AUDIO_PACKET_SIZE)
+			continue;
+
+		buf = (uint8_t*)sndbuf_getbuf(ch->buffer) + readyptr;
+
+		bcm2835_audio_write_samples(ch, buf, count);
+		BCM2835_AUDIO_LOCK(sc);
+		ch->unsubmittedptr = (ch->unsubmittedptr + count) % sndbuf_getsize(ch->buffer);
+		ch->available_space -= count;
+		ch->submitted_samples += count;
+		KASSERT(ch->available_space >= 0, ("ch->available_space == %d\n", ch->available_space));
+		BCM2835_AUDIO_UNLOCK(sc);
 	}
-	mtx_unlock(&sc->data_lock);
+
+	BCM2835_AUDIO_LOCK(sc);
+	sc->worker_state = WORKER_STOPPED;
+	cv_signal(&sc->worker_cv);
+	BCM2835_AUDIO_UNLOCK(sc);
 
 	kproc_exit(0);
 }
@@ -517,6 +575,7 @@ bcm2835_audio_create_worker(struct bcm2835_audio_info *sc)
 {
 	struct proc *newp;
 
+	sc->worker_state = WORKER_RUNNING;
 	if (kproc_create(bcm2835_audio_worker, (void*)sc, &newp, 0, 0,
 	    "bcm2835_audio_worker") != 0) {
 		printf("failed to create bcm2835_audio_worker\n");
@@ -547,11 +606,14 @@ bcmchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	buffer = malloc(sc->bufsz, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	if (sndbuf_setup(ch->buffer, buffer, sc->bufsz) != 0) {
+		device_printf(sc->dev, "sndbuf_setup failed\n");
 		free(buffer, M_DEVBUF);
 		return NULL;
 	}
 
-	bcm2835_audio_update_params(sc, ch);
+	BCM2835_AUDIO_LOCK(sc);
+	bcm2835_worker_update_params(sc);
+	BCM2835_AUDIO_UNLOCK(sc);
 
 	return ch;
 }
@@ -575,12 +637,10 @@ bcmchan_setformat(kobj_t obj, void *data, uint32_t format)
 	struct bcm2835_audio_chinfo *ch = data;
 	struct bcm2835_audio_info *sc = ch->parent;
 
-	bcm2835_audio_lock(sc);
-
+	BCM2835_AUDIO_LOCK(sc);
 	ch->fmt = format;
-	bcm2835_audio_update_params(sc, ch);
-
-	bcm2835_audio_unlock(sc);
+	bcm2835_worker_update_params(sc);
+	BCM2835_AUDIO_UNLOCK(sc);
 
 	return 0;
 }
@@ -591,12 +651,10 @@ bcmchan_setspeed(kobj_t obj, void *data, uint32_t speed)
 	struct bcm2835_audio_chinfo *ch = data;
 	struct bcm2835_audio_info *sc = ch->parent;
 
-	bcm2835_audio_lock(sc);
-
+	BCM2835_AUDIO_LOCK(sc);
 	ch->spd = speed;
-	bcm2835_audio_update_params(sc, ch);
-
-	bcm2835_audio_unlock(sc);
+	bcm2835_worker_update_params(sc);
+	BCM2835_AUDIO_UNLOCK(sc);
 
 	return ch->spd;
 }
@@ -618,26 +676,23 @@ bcmchan_trigger(kobj_t obj, void *data, int go)
 	if (!PCMTRIG_COMMON(go))
 		return (0);
 
-	bcm2835_audio_lock(sc);
-
 	switch (go) {
 	case PCMTRIG_START:
-		ch->playback_state = PLAYBACK_STARTING;
-		/* wakeup worker thread */
-		cv_signal(&sc->data_cv);
+		/* kickstart data flow */
+		chn_intr(sc->pch.channel);
+		ch->submitted_samples = 0;
+		ch->retrieved_samples = 0;
+		bcm2835_worker_play_start(sc);
 		break;
 
 	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
-		ch->playback_state = PLAYBACK_STOPPING;
-		bcm2835_audio_stop(ch);
+		bcm2835_worker_play_stop(sc);
 		break;
 
 	default:
 		break;
 	}
-
-	bcm2835_audio_unlock(sc);
 	return 0;
 }
 
@@ -648,11 +703,9 @@ bcmchan_getptr(kobj_t obj, void *data)
 	struct bcm2835_audio_info *sc = ch->parent;
 	uint32_t ret;
 
-	bcm2835_audio_lock(sc);
-
-	ret = ch->complete_pos - (ch->complete_pos % VCHIQ_AUDIO_PACKET_SIZE);
-
-	bcm2835_audio_unlock(sc);
+	BCM2835_AUDIO_LOCK(sc);
+	ret = ch->unsubmittedptr;
+	BCM2835_AUDIO_UNLOCK(sc);
 
 	return ret;
 }
@@ -695,8 +748,11 @@ bcmmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 
 	switch (dev) {
 	case SOUND_MIXER_VOLUME:
+		BCM2835_AUDIO_LOCK(sc);
 		sc->volume = left;
-		bcm2835_audio_update_controls(sc);
+		bcm2835_worker_update_params(sc);
+		BCM2835_AUDIO_UNLOCK(sc);
+
 		break;
 
 	default:
@@ -729,9 +785,13 @@ sysctl_bcm2835_audio_dest(SYSCTL_HANDLER_ARGS)
 	if ((val < 0) || (val > 2))
 		return (EINVAL);
 
+	BCM2835_AUDIO_LOCK(sc);
 	sc->dest = val;
-	device_printf(sc->dev, "destination set to %s\n", dest_description(val));
-	bcm2835_audio_update_controls(sc);
+	bcm2835_worker_update_params(sc);
+	BCM2835_AUDIO_UNLOCK(sc);
+
+	if (bootverbose)
+		device_printf(sc->dev, "destination set to %s\n", dest_description(val));
 
 	return (0);
 }
@@ -753,6 +813,24 @@ vchi_audio_sysctl_init(struct bcm2835_audio_info *sc)
 	    CTLFLAG_RW | CTLTYPE_UINT, sc, sizeof(*sc),
 	    sysctl_bcm2835_audio_dest, "IU", "audio destination, "
 	    "0 - auto, 1 - headphones, 2 - HDMI");
+	SYSCTL_ADD_UQUAD(ctx, tree, OID_AUTO, "callbacks",
+			CTLFLAG_RD, &sc->pch.callbacks,
+			"callbacks total");
+	SYSCTL_ADD_UQUAD(ctx, tree, OID_AUTO, "submitted",
+			CTLFLAG_RD, &sc->pch.submitted_samples,
+			"last play submitted samples");
+	SYSCTL_ADD_UQUAD(ctx, tree, OID_AUTO, "retrieved",
+			CTLFLAG_RD, &sc->pch.retrieved_samples,
+			"last play retrieved samples");
+	SYSCTL_ADD_UQUAD(ctx, tree, OID_AUTO, "underruns",
+			CTLFLAG_RD, &sc->pch.underruns,
+			"callback underruns");
+	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "freebuffer",
+			CTLFLAG_RD, &sc->pch.available_space,
+			sc->pch.available_space, "callbacks total");
+	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "starved",
+			CTLFLAG_RD, &sc->pch.starved,
+			sc->pch.starved, "number of starved conditions");
 }
 
 static void
@@ -769,7 +847,6 @@ bcm2835_audio_probe(device_t dev)
 	device_set_desc(dev, "VCHIQ audio");
 	return (BUS_PROBE_DEFAULT);
 }
-
 
 static void
 bcm2835_audio_delayed_init(void *xsc)
@@ -791,7 +868,7 @@ bcm2835_audio_delayed_init(void *xsc)
 		goto no;
 	}
 
-    	if (pcm_register(sc->dev, sc, 1, 1)) {
+    	if (pcm_register(sc->dev, sc, 1, 0)) {
 		device_printf(sc->dev, "pcm_register failed\n");
 		goto no;
 	}
@@ -819,14 +896,12 @@ bcm2835_audio_attach(device_t dev)
 	sc->dev = dev;
 	sc->bufsz = VCHIQ_AUDIO_BUFFER_SIZE;
 
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "bcm2835_audio softc");
-
-	mtx_init(&sc->vchi_lock, "bcm2835_audio", "vchi_lock", MTX_DEF);
-	mtx_init(&sc->data_lock, "data_mtx", "data_mtx", MTX_DEF);
-	cv_init(&sc->data_cv, "data_cv");
+	mtx_init(&sc->lock, device_get_nameunit(dev),
+	    "bcm_audio_lock", MTX_DEF);
+	cv_init(&sc->worker_cv, "worker_cv");
 	sc->vchi_handle = VCHIQ_SERVICE_HANDLE_INVALID;
 
-	/* 
+	/*
 	 * We need interrupts enabled for VCHI to work properly,
 	 * so delay initialization until it happens.
 	 */
@@ -850,23 +925,22 @@ bcm2835_audio_detach(device_t dev)
 	sc = pcm_getdevinfo(dev);
 
 	/* Stop worker thread */
-	sc->unloading = 1;
-	cv_signal(&sc->data_cv);
+	BCM2835_AUDIO_LOCK(sc);
+	sc->worker_state = WORKER_STOPPING;
+	cv_signal(&sc->worker_cv);
+	/* Wait for thread to exit */
+	while (sc->worker_state != WORKER_STOPPED)
+		cv_wait_sig(&sc->worker_cv, &sc->lock);
+	BCM2835_AUDIO_UNLOCK(sc);
 
 	r = pcm_unregister(dev);
 	if (r)
 		return r;
 
-	mtx_destroy(&sc->vchi_lock);
-	mtx_destroy(&sc->data_lock);
-	cv_destroy(&sc->data_cv);
+	mtx_destroy(&sc->lock);
+	cv_destroy(&sc->worker_cv);
 
 	bcm2835_audio_release(sc);
-
-	if (sc->lock) {
-		snd_mtxfree(sc->lock);
-		sc->lock = NULL;
-	}
 
     	free(sc, M_DEVBUF);
 

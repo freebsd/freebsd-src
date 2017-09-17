@@ -222,6 +222,7 @@
 #define AR_PHY_TIMING5_RSSI_THR1A_ENA (0x1 << 15)
 /* BB_radar_detection) */
 #define AR_PHY_RADAR_0_ENA  0x00000001  /* Enable radar detection */
+#define AR_PHY_RADAR_0_ENA_S  0
 #define AR_PHY_RADAR_0_FFT_ENA  0x80000000  /* Enable FFT data */
 #define AR_PHY_RADAR_0_INBAND   0x0000003e  /* Inband pulse threshold */
 #define AR_PHY_RADAR_0_INBAND_S 1
@@ -1881,6 +1882,12 @@
 #define AR_PHY_PLL_MODE                 AR_PHY_65NM(overlay_0x16180.Osprey.ch0_pll_mode)
 #define AR_PHY_PLL_BB_DPLL3             AR_PHY_65NM(overlay_0x16180.Osprey.ch0_bb_dpll3)
 #define AR_PHY_PLL_BB_DPLL4             AR_PHY_65NM(overlay_0x16180.Osprey.ch0_bb_dpll4)
+
+/*
+ * Wasp/Hornet PHY USB PLL control
+ */
+#define AR_PHY_USB_CTRL1		0x16c84
+#define AR_PHY_USB_CTRL2		0x16c88
 
 /*
  * PMU Register Map

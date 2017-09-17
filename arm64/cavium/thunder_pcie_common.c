@@ -58,6 +58,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pci_private.h>
 #include <dev/pci/pcib_private.h>
 #include <dev/pci/pci_host_generic.h>
+#ifdef FDT
+#include <dev/pci/pci_host_generic_fdt.h>
+#endif
 
 #include "thunder_pcie_common.h"
 
@@ -201,7 +204,7 @@ thunder_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		end = start + count - 1;
 	}
 
-	return (pci_host_generic_alloc_resource(dev, child, type, rid, start,
-	    end, count, flags));
+	return (pci_host_generic_core_alloc_resource(dev, child, type, rid,
+	    start, end, count, flags));
 }
 #endif

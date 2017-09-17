@@ -2339,7 +2339,9 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
     } else {
         ar9300_disable_pcie_phy(ah);
     }
+#if 0
     ath_hal_printf(ah, "%s: calling ar9300_hw_attach\n", __func__);
+#endif
     ecode = ar9300_hw_attach(ah);
     if (ecode != HAL_OK) {
         goto bad;
@@ -3234,7 +3236,9 @@ ar9300_hw_attach(struct ath_hal *ah)
         return HAL_ESELFTEST;
     }
 
+#if 0
     ath_hal_printf(ah, "%s: calling ar9300_eeprom_attach\n", __func__);
+#endif
     ecode = ar9300_eeprom_attach(ah);
     ath_hal_printf(ah, "%s: ar9300_eeprom_attach returned %d\n", __func__, ecode);
     if (ecode != HAL_OK) {

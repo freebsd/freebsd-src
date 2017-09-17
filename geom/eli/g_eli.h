@@ -41,6 +41,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <geom/geom.h>
+#include <crypto/intake.h>
 #else
 #include <assert.h>
 #include <stdio.h>
@@ -99,6 +100,8 @@
 #define	G_ELI_FLAG_NODELETE		0x00000040
 /* This GELI supports GELIBoot */
 #define	G_ELI_FLAG_GELIBOOT		0x00000080
+/* Hide passphrase length in GELIboot. */
+#define	G_ELI_FLAG_GELIDISPLAYPASS	0x00000100
 /* RUNTIME FLAGS. */
 /* Provider was open for writing. */
 #define	G_ELI_FLAG_WOPEN		0x00010000
@@ -139,6 +142,10 @@
 #define	G_ELI_CRYPTO_SW		2
 
 #ifdef _KERNEL
+#if (MAX_KEY_BYTES < G_ELI_DATAIVKEYLEN)
+#error "MAX_KEY_BYTES is less than G_ELI_DATAKEYLEN"
+#endif
+
 extern int g_eli_debug;
 extern u_int g_eli_overwrites;
 extern u_int g_eli_batch;
@@ -289,6 +296,7 @@ eli_metadata_encode_v1v2v3v4v5v6v7(struct g_eli_metadata *md, u_char **datap)
 static __inline void
 eli_metadata_encode(struct g_eli_metadata *md, u_char *data)
 {
+	uint32_t hash[4];
 	MD5_CTX ctx;
 	u_char *p;
 
@@ -320,12 +328,14 @@ eli_metadata_encode(struct g_eli_metadata *md, u_char *data)
 	}
 	MD5Init(&ctx);
 	MD5Update(&ctx, data, p - data);
-	MD5Final(md->md_hash, &ctx);
+	MD5Final((void *)hash, &ctx);
+	bcopy(hash, md->md_hash, sizeof(md->md_hash));
 	bcopy(md->md_hash, p, sizeof(md->md_hash));
 }
 static __inline int
 eli_metadata_decode_v0(const u_char *data, struct g_eli_metadata *md)
 {
+	uint32_t hash[4];
 	MD5_CTX ctx;
 	const u_char *p;
 
@@ -341,7 +351,8 @@ eli_metadata_decode_v0(const u_char *data, struct g_eli_metadata *md)
 	bcopy(p, md->md_mkeys, sizeof(md->md_mkeys)); p += sizeof(md->md_mkeys);
 	MD5Init(&ctx);
 	MD5Update(&ctx, data, p - data);
-	MD5Final(md->md_hash, &ctx);
+	MD5Final((void *)hash, &ctx);
+	bcopy(hash, md->md_hash, sizeof(md->md_hash));
 	if (bcmp(md->md_hash, p, 16) != 0)
 		return (EINVAL);
 	return (0);
@@ -350,6 +361,7 @@ eli_metadata_decode_v0(const u_char *data, struct g_eli_metadata *md)
 static __inline int
 eli_metadata_decode_v1v2v3v4v5v6v7(const u_char *data, struct g_eli_metadata *md)
 {
+	uint32_t hash[4];
 	MD5_CTX ctx;
 	const u_char *p;
 
@@ -366,7 +378,8 @@ eli_metadata_decode_v1v2v3v4v5v6v7(const u_char *data, struct g_eli_metadata *md
 	bcopy(p, md->md_mkeys, sizeof(md->md_mkeys)); p += sizeof(md->md_mkeys);
 	MD5Init(&ctx);
 	MD5Update(&ctx, data, p - data);
-	MD5Final(md->md_hash, &ctx);
+	MD5Final((void *)hash, &ctx);
+	bcopy(hash, md->md_hash, sizeof(md->md_hash));
 	if (bcmp(md->md_hash, p, 16) != 0)
 		return (EINVAL);
 	return (0);
@@ -499,7 +512,7 @@ eli_metadata_dump(const struct g_eli_metadata *md)
 	printf("  provsize: %ju\n", (uintmax_t)md->md_provsize);
 	printf("sectorsize: %u\n", (u_int)md->md_sectorsize);
 	printf("      keys: 0x%02x\n", (u_int)md->md_keys);
-	printf("iterations: %u\n", (u_int)md->md_iterations);
+	printf("iterations: %d\n", (int)md->md_iterations);
 	bzero(str, sizeof(str));
 	for (i = 0; i < sizeof(md->md_salt); i++) {
 		str[i * 2] = hex[md->md_salt[i] >> 4];
@@ -686,8 +699,8 @@ int g_eli_crypto_decrypt(u_int algo, u_char *data, size_t datasize,
     const u_char *key, size_t keysize);
 
 struct hmac_ctx {
-	SHA512_CTX	shactx;
-	u_char		k_opad[128];
+	SHA512_CTX	innerctx;
+	SHA512_CTX	outerctx;
 };
 
 void g_eli_crypto_hmac_init(struct hmac_ctx *ctx, const uint8_t *hkey,

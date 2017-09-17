@@ -528,6 +528,11 @@ insert:
 	af6 = ip6af->ip6af_down;
 	frag6_deq(ip6af);
 	while (af6 != (struct ip6asfrag *)q6) {
+		m->m_pkthdr.csum_flags &=
+		    IP6_REASS_MBUF(af6)->m_pkthdr.csum_flags;
+		m->m_pkthdr.csum_data +=
+		    IP6_REASS_MBUF(af6)->m_pkthdr.csum_data;
+
 		af6dwn = af6->ip6af_down;
 		frag6_deq(af6);
 		while (t->m_next)
@@ -537,6 +542,10 @@ insert:
 		free(af6, M_FTABLE);
 		af6 = af6dwn;
 	}
+
+	while (m->m_pkthdr.csum_data & 0xffff0000)
+		m->m_pkthdr.csum_data = (m->m_pkthdr.csum_data & 0xffff) +
+		    (m->m_pkthdr.csum_data >> 16);
 
 	/* adjust offset to point where the original next header starts */
 	offset = ip6af->ip6af_offset - sizeof(struct ip6_frag);

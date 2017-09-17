@@ -4493,7 +4493,7 @@ msk_sysctl_node(struct msk_if_softc *sc_if)
 
 	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
 	    NULL, "MSK Statistics");
-	schild = child = SYSCTL_CHILDREN(tree);
+	schild = SYSCTL_CHILDREN(tree);
 	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "rx", CTLFLAG_RD,
 	    NULL, "MSK RX Statistics");
 	child = SYSCTL_CHILDREN(tree);

@@ -32,7 +32,7 @@
 #ifndef _MACHINE_DEBUG_MONITOR_H_
 #define	_MACHINE_DEBUG_MONITOR_H_
 
-#ifdef KDB
+#ifdef DDB
 
 #include <machine/db_machdep.h>
 

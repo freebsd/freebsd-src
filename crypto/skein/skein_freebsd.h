@@ -57,9 +57,12 @@ void SKEIN256_Update(SKEIN256_CTX *ctx, const void *in, size_t len);
 void SKEIN512_Update(SKEIN512_CTX *ctx, const void *in, size_t len);
 void SKEIN1024_Update(SKEIN1024_CTX *ctx, const void *in, size_t len);
 
-void SKEIN256_Final(unsigned char digest[static SKEIN256_DIGEST_LENGTH], SKEIN256_CTX *ctx);
-void SKEIN512_Final(unsigned char digest[static SKEIN512_DIGEST_LENGTH], SKEIN512_CTX *ctx);
-void SKEIN1024_Final(unsigned char digest[static SKEIN1024_DIGEST_LENGTH], SKEIN1024_CTX *ctx);
+void SKEIN256_Final(unsigned char digest[__min_size(SKEIN256_DIGEST_LENGTH)],
+    SKEIN256_CTX *ctx);
+void SKEIN512_Final(unsigned char digest[__min_size(SKEIN512_DIGEST_LENGTH)],
+    SKEIN512_CTX *ctx);
+void SKEIN1024_Final(unsigned char digest[__min_size(SKEIN1024_DIGEST_LENGTH)],
+    SKEIN1024_CTX *ctx);
 
 #ifndef _KERNEL
 char   *SKEIN256_End(SKEIN256_CTX *, char *);
@@ -68,6 +71,12 @@ char   *SKEIN1024_End(SKEIN1024_CTX *, char *);
 char   *SKEIN256_Data(const void *, unsigned int, char *);
 char   *SKEIN512_Data(const void *, unsigned int, char *);
 char   *SKEIN1024_Data(const void *, unsigned int, char *);
+char   *SKEIN256_Fd(int, char *);
+char   *SKEIN512_Fd(int, char *);
+char   *SKEIN1024_Fd(int, char *);
+char   *SKEIN256_FdChunk(int, char *, off_t, off_t);
+char   *SKEIN512_FdChunk(int, char *, off_t, off_t);
+char   *SKEIN1024_FdChunk(int, char *, off_t, off_t);
 char   *SKEIN256_File(const char *, char *);
 char   *SKEIN512_File(const char *, char *);
 char   *SKEIN1024_File(const char *, char *);

@@ -90,12 +90,12 @@ ccm_init_gates(struct ccm_softc *sc)
 {
 	uint32_t reg;
 
- 	/* ahpbdma, aipstz 1 & 2 busses */
+ 	/* ahpbdma, aipstz 1 & 2 buses */
 	reg = CCGR0_AIPS_TZ1 | CCGR0_AIPS_TZ2 | CCGR0_ABPHDMA;
 	WR4(sc, CCM_CCGR0, reg);
 
-	/* gpt, enet */
-	reg = CCGR1_ENET | CCGR1_GPT;
+	/* enet, epit, gpt */
+	reg = CCGR1_ENET | CCGR1_EPIT1 | CCGR1_GPT;
 	WR4(sc, CCM_CCGR1, reg);
 
 	/* ipmux & ipsync (bridges), iomux, i2c */
@@ -312,6 +312,41 @@ imx_ccm_usbphy_enable(device_t _phydev)
 	    IMX6_ANALOG_CCM_PLL_USB_POWER |
 	    IMX6_ANALOG_CCM_PLL_USB_EN_USB_CLKS);
 #endif
+}
+
+int
+imx6_ccm_sata_enable(void)
+{
+	uint32_t v;
+	int timeout;
+
+	/* Un-gate the sata controller. */
+	WR4(ccm_sc, CCM_CCGR5, RD4(ccm_sc, CCM_CCGR5) | CCGR5_SATA);
+
+	/* Power up the PLL that feeds ENET/SATA/PCI phys, wait for lock. */
+	v = RD4(ccm_sc, CCM_ANALOG_PLL_ENET);
+	v &= ~CCM_ANALOG_PLL_ENET_POWERDOWN;
+	WR4(ccm_sc, CCM_ANALOG_PLL_ENET, v);
+
+	for (timeout = 100000; timeout > 0; timeout--) {
+		if (RD4(ccm_sc, CCM_ANALOG_PLL_ENET) &
+		   CCM_ANALOG_PLL_ENET_LOCK) {
+			break;
+		}
+	}
+	if (timeout <= 0) {
+		return ETIMEDOUT;
+	}
+
+	/* Enable the PLL, and enable its 100mhz output. */
+	v |= CCM_ANALOG_PLL_ENET_ENABLE;
+	v &= ~CCM_ANALOG_PLL_ENET_BYPASS;
+	WR4(ccm_sc, CCM_ANALOG_PLL_ENET, v);
+
+	v |= CCM_ANALOG_PLL_ENET_ENABLE_100M;
+	WR4(ccm_sc, CCM_ANALOG_PLL_ENET, v);
+
+	return 0;
 }
 
 uint32_t

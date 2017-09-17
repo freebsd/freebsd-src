@@ -36,6 +36,9 @@
 #include <machine/segments.h>
 #include <machine/tss.h>
 
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+
 /*
  * The SMP parts are setup in pmap.c and locore.s for the BSP, and
  * mp_machdep.c sets up the data for the AP's to "see" when they awake.
@@ -58,8 +61,14 @@
 	int	pc_private_tss;		/* Flag indicating private tss*/\
 	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
 	u_int	pc_vcpu_id;		/* Xen vCPU ID */		\
+	struct	mtx pc_cmap_lock;					\
+	void	*pc_cmap_pte1;						\
+	void	*pc_cmap_pte2;						\
+	caddr_t	pc_cmap_addr1;						\
+	caddr_t	pc_cmap_addr2;						\
 	vm_offset_t pc_qmap_addr;	/* KVA for temporary mappings */\
-	char	__pad[229]
+	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
+	char	__pad[445]
 
 #ifdef _KERNEL
 
@@ -67,6 +76,7 @@
 
 extern struct pcpu *pcpup;
 
+#define	get_pcpu()		(pcpup)
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
 #define	PCPU_ADD(member, val)	(pcpup->pc_ ## member += (val))
 #define	PCPU_INC(member)	PCPU_ADD(member, 1)
@@ -186,6 +196,15 @@ extern struct pcpu *pcpup;
 		*__PCPU_PTR(name) = __val;				\
 	}								\
 } while (0)
+
+#define	get_pcpu() __extension__ ({					\
+	struct pcpu *__pc;						\
+									\
+	__asm __volatile("movl %%fs:%1,%0"				\
+	    : "=r" (__pc)						\
+	    : "m" (*(struct pcpu *)(__pcpu_offset(pc_prvspace))));	\
+	__pc;								\
+})
 
 #define	PCPU_GET(member)	__PCPU_GET(pc_ ## member)
 #define	PCPU_ADD(member, val)	__PCPU_ADD(pc_ ## member, val)

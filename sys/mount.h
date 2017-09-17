@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -65,8 +65,8 @@ struct fid {
  * filesystem statistics
  */
 #define	MFSNAMELEN	16		/* length of type name including null */
-#define	MNAMELEN	88		/* size of on/from name bufs */
-#define	STATFS_VERSION	0x20030518	/* current version number */
+#define	MNAMELEN	1024		/* size of on/from name bufs */
+#define	STATFS_VERSION	0x20140518	/* current version number */
 struct statfs {
 	uint32_t f_version;		/* structure version number */
 	uint32_t f_type;		/* type of filesystem */
@@ -91,6 +91,34 @@ struct statfs {
 	char	  f_mntfromname[MNAMELEN];  /* mounted filesystem */
 	char	  f_mntonname[MNAMELEN];    /* directory on which mounted */
 };
+
+#if defined(_WANT_FREEBSD11_STATFS) || defined(_KERNEL)
+#define	FREEBSD11_STATFS_VERSION	0x20030518 /* current version number */
+struct freebsd11_statfs {
+	uint32_t f_version;		/* structure version number */
+	uint32_t f_type;		/* type of filesystem */
+	uint64_t f_flags;		/* copy of mount exported flags */
+	uint64_t f_bsize;		/* filesystem fragment size */
+	uint64_t f_iosize;		/* optimal transfer block size */
+	uint64_t f_blocks;		/* total data blocks in filesystem */
+	uint64_t f_bfree;		/* free blocks in filesystem */
+	int64_t	 f_bavail;		/* free blocks avail to non-superuser */
+	uint64_t f_files;		/* total file nodes in filesystem */
+	int64_t	 f_ffree;		/* free nodes avail to non-superuser */
+	uint64_t f_syncwrites;		/* count of sync writes since mount */
+	uint64_t f_asyncwrites;		/* count of async writes since mount */
+	uint64_t f_syncreads;		/* count of sync reads since mount */
+	uint64_t f_asyncreads;		/* count of async reads since mount */
+	uint64_t f_spare[10];		/* unused spare */
+	uint32_t f_namemax;		/* maximum filename length */
+	uid_t	  f_owner;		/* user that mounted the filesystem */
+	fsid_t	  f_fsid;		/* filesystem id */
+	char	  f_charspare[80];	/* spare string space */
+	char	  f_fstypename[16];	/* filesystem type name */
+	char	  f_mntfromname[88];	/* mounted filesystem */
+	char	  f_mntonname[88];	/* directory on which mounted */
+};
+#endif /* _WANT_FREEBSD11_STATFS || _KERNEL */
 
 #ifdef _KERNEL
 #define	OMFSNAMELEN	16	/* length of fs type name, including null */
@@ -147,6 +175,7 @@ struct vfsopt {
  * put on a doubly linked list.
  *
  * Lock reference:
+ * 	l - mnt_listmtx
  *	m - mountlist_mtx
  *	i - interlock
  *	v - vnode freelist mutex
@@ -166,8 +195,6 @@ struct mount {
 	int		mnt_ref;		/* (i) Reference count */
 	struct vnodelst	mnt_nvnodelist;		/* (i) list of vnodes */
 	int		mnt_nvnodelistsize;	/* (i) # of vnodes */
-	struct vnodelst	mnt_activevnodelist;	/* (v) list of active vnodes */
-	int		mnt_activevnodelistsize;/* (v) # of active vnodes */
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
 	int		mnt_kern_flag;		/* (i) kernel only flags */
 	uint64_t	mnt_flag;		/* (i) flags shared with user */
@@ -188,6 +215,11 @@ struct mount {
 	struct thread	*mnt_susp_owner;	/* (i) thread owning suspension */
 #define	mnt_endzero	mnt_gjprovider
 	char		*mnt_gjprovider;	/* gjournal provider name */
+	struct mtx	mnt_listmtx;
+	struct vnodelst	mnt_activevnodelist;	/* (l) list of active vnodes */
+	int		mnt_activevnodelistsize;/* (l) # of active vnodes */
+	struct vnodelst	mnt_tmpfreevnodelist;	/* (l) list of free vnodes */
+	int		mnt_tmpfreevnodelistsize;/* (l) # of free vnodes */
 	struct lock	mnt_explock;		/* vfs_export walkers lock */
 	TAILQ_ENTRY(mount) mnt_upper_link;	/* (m) we in the all uppers */
 	TAILQ_HEAD(, mount) mnt_uppers;		/* (m) upper mounts over us*/
@@ -282,6 +314,7 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define	MNT_ROOTFS	0x0000000000004000ULL /* identifies the root fs */
 #define	MNT_USER	0x0000000000008000ULL /* mounted by a user */
 #define	MNT_IGNORE	0x0000000000800000ULL /* do not show entry in df */
+#define	MNT_VERIFIED	0x0000000400000000ULL /* filesystem is verified */
 
 /*
  * Mask of flags that are visible to statfs().
@@ -297,7 +330,7 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 			MNT_NOCLUSTERW	| MNT_SUIDDIR	| MNT_SOFTDEP	| \
 			MNT_IGNORE	| MNT_EXPUBLIC	| MNT_NOSYMFOLLOW | \
 			MNT_GJOURNAL	| MNT_MULTILABEL | MNT_ACLS	| \
-			MNT_NFS4ACLS	| MNT_AUTOMOUNTED)
+			MNT_NFS4ACLS	| MNT_AUTOMOUNTED | MNT_VERIFIED)
 
 /* Mask of flags that can be updated. */
 #define	MNT_UPDATEMASK (MNT_NOSUID	| MNT_NOEXEC	| \
@@ -366,7 +399,8 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
 #define	MNTK_SUSPEND2	0x04000000	/* block secondary writes */
 #define	MNTK_SUSPENDED	0x10000000	/* write operations are suspended */
-#define	MNTK_UNUSED1	0x20000000
+#define	MNTK_NULL_NOCACHE	0x20000000 /* auto disable cache for nullfs
+					      mounts over this fs */
 #define MNTK_LOOKUP_SHARED	0x40000000 /* FS supports shared lock lookups */
 #define	MNTK_NOKNOTE	0x80000000	/* Don't send KNOTEs from VOP hooks */
 
@@ -592,6 +626,7 @@ struct uio;
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_MOUNT);
+MALLOC_DECLARE(M_STATFS);
 #endif
 extern int maxvfsconf;		/* highest defined filesystem type */
 

@@ -130,7 +130,7 @@ block devices (e.g. disks).
 
 @image html Use_Case_Diagram__SATI__SATI_-_SBC.jpg "SCSI Block Command Translation Use Cases"
 
-The SCSI-to-ATA Translation (SAT) specification defines a few of it's own
+The SCSI-to-ATA Translation (SAT) specification defines a few of its own
 commands, parameter data, and log pages.  This use case diagram, however, only
 captures the SAT specific commands being translated.
 

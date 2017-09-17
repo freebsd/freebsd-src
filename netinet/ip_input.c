@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -77,12 +77,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_options.h>
 #include <machine/in_cksum.h>
 #include <netinet/ip_carp.h>
-#ifdef IPSEC
-#include <netinet/ip_ipsec.h>
-#include <netipsec/ipsec.h>
-#include <netipsec/key.h>
-#endif /* IPSEC */
 #include <netinet/in_rss.h>
+
+#include <netipsec/ipsec_support.h>
 
 #include <sys/socketvar.h>
 
@@ -269,9 +266,9 @@ sysctl_netinet_intr_direct_queue_maxlen(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	return (netisr_setqlimit(&ip_direct_nh, qlimit));
 }
-SYSCTL_PROC(_net_inet_ip, IPCTL_INTRQMAXLEN, intr_direct_queue_maxlen,
-    CTLTYPE_INT|CTLFLAG_RW, 0, 0, sysctl_netinet_intr_direct_queue_maxlen, "I",
-    "Maximum size of the IP direct input queue");
+SYSCTL_PROC(_net_inet_ip, IPCTL_INTRDQMAXLEN, intr_direct_queue_maxlen,
+    CTLTYPE_INT|CTLFLAG_RW, 0, 0, sysctl_netinet_intr_direct_queue_maxlen,
+    "I", "Maximum size of the IP direct input queue");
 
 static int
 sysctl_netinet_intr_direct_queue_drops(SYSCTL_HANDLER_ARGS)
@@ -290,7 +287,7 @@ sysctl_netinet_intr_direct_queue_drops(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-SYSCTL_PROC(_net_inet_ip, IPCTL_INTRQDROPS, intr_direct_queue_drops,
+SYSCTL_PROC(_net_inet_ip, IPCTL_INTRDQDROPS, intr_direct_queue_drops,
     CTLTYPE_INT|CTLFLAG_RD, 0, 0, sysctl_netinet_intr_direct_queue_drops, "I",
     "Number of packets dropped from the IP direct input queue");
 #endif	/* RSS */
@@ -430,6 +427,12 @@ ip_direct_input(struct mbuf *m)
 	ip = mtod(m, struct ip *);
 	hlen = ip->ip_hl << 2;
 
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	if (IPSEC_ENABLED(ipv4)) {
+		if (IPSEC_INPUT(ipv4, m, hlen, ip->ip_p) != 0)
+			return;
+	}
+#endif /* IPSEC */
 	IPSTAT_INC(ips_delivered);
 	(*inetsw[ip_protox[ip->ip_p]].pr_input)(&m, &hlen, ip->ip_p);
 	return;
@@ -550,23 +553,37 @@ tooshort:
 			m_adj(m, ip_len - m->m_pkthdr.len);
 	}
 
-	/* Try to forward the packet, but if we fail continue */
-#ifdef IPSEC
-	/* For now we do not handle IPSEC in tryforward. */
-	if (!key_havesp(IPSEC_DIR_INBOUND) && !key_havesp(IPSEC_DIR_OUTBOUND) &&
-	    (V_ipforwarding == 1))
-		if (ip_tryforward(m) == NULL)
+	/*
+	 * Try to forward the packet, but if we fail continue.
+	 * ip_tryforward() does inbound and outbound packet firewall
+	 * processing. If firewall has decided that destination becomes
+	 * our local address, it sets M_FASTFWD_OURS flag. In this
+	 * case skip another inbound firewall processing and update
+	 * ip pointer.
+	 */
+	if (V_ipforwarding != 0
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	    && (!IPSEC_ENABLED(ipv4) ||
+	    IPSEC_CAPS(ipv4, m, IPSEC_CAP_OPERABLE) == 0)
+#endif
+	    ) {
+		if ((m = ip_tryforward(m)) == NULL)
 			return;
+		if (m->m_flags & M_FASTFWD_OURS) {
+			m->m_flags &= ~M_FASTFWD_OURS;
+			ip = mtod(m, struct ip *);
+			goto ours;
+		}
+	}
+
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/*
 	 * Bypass packet filtering for packets previously handled by IPsec.
 	 */
-	if (ip_ipsec_filtertunnel(m))
-		goto passin;
-#else
-	if (V_ipforwarding == 1)
-		if (ip_tryforward(m) == NULL)
-			return;
-#endif /* IPSEC */
+	if (IPSEC_ENABLED(ipv4) &&
+	    IPSEC_CAPS(ipv4, m, IPSEC_CAP_BYPASS_FILTER) != 0)
+			goto passin;
+#endif
 
 	/*
 	 * Run through list of hooks for input packets.
@@ -791,14 +808,11 @@ ours:
 		hlen = ip->ip_hl << 2;
 	}
 
-#ifdef IPSEC
-	/*
-	 * enforce IPsec policy checking if we are seeing last header.
-	 * note that we do not visit this with protocols with pcb layer
-	 * code - like udp/tcp/raw ip.
-	 */
-	if (ip_ipsec_input(m, ip->ip_p) != 0)
-		goto bad;
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	if (IPSEC_ENABLED(ipv4)) {
+		if (IPSEC_INPUT(ipv4, m, hlen, ip->ip_p) != 0)
+			return;
+	}
 #endif /* IPSEC */
 
 	/*
@@ -940,24 +954,14 @@ ip_forward(struct mbuf *m, int srcrt)
 		m_freem(m);
 		return;
 	}
-#ifdef IPSEC
-	if (ip_ipsec_fwd(m) != 0) {
-		IPSTAT_INC(ips_cantforward);
-		m_freem(m);
+	if (
+#ifdef IPSTEALTH
+	    V_ipstealth == 0 &&
+#endif
+	    ip->ip_ttl <= IPTTLDEC) {
+		icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS, 0, 0);
 		return;
 	}
-#endif /* IPSEC */
-#ifdef IPSTEALTH
-	if (!V_ipstealth) {
-#endif
-		if (ip->ip_ttl <= IPTTLDEC) {
-			icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS,
-			    0, 0);
-			return;
-		}
-#ifdef IPSTEALTH
-	}
-#endif
 
 	bzero(&ro, sizeof(ro));
 	sin = (struct sockaddr_in *)&ro.ro_dst;
@@ -976,19 +980,6 @@ ip_forward(struct mbuf *m, int srcrt)
 		ifa_ref(&ia->ia_ifa);
 	} else
 		ia = NULL;
-#ifndef IPSEC
-	/*
-	 * 'ia' may be NULL if there is no route for this destination.
-	 * In case of IPsec, Don't discard it just yet, but pass it to
-	 * ip_output in case of outgoing IPsec policy.
-	 */
-	if (!srcrt && ia == NULL) {
-		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
-		RO_RTFREE(&ro);
-		return;
-	}
-#endif
-
 	/*
 	 * Save the IP header and at most 8 bytes of the payload,
 	 * in case we need to generate an ICMP message to the src.
@@ -1000,7 +991,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	 * because unnecessary, or because rate limited), so we are
 	 * really we are wasting a lot of work here.
 	 *
-	 * We don't use m_copy() because it might return a reference
+	 * We don't use m_copym() because it might return a reference
 	 * to a shared cluster. Both this function and ip_output()
 	 * assume exclusive access to the IP header in `m', so any
 	 * data in a cluster may change before we reach icmp_error().
@@ -1021,15 +1012,22 @@ ip_forward(struct mbuf *m, int srcrt)
 		mcopy->m_pkthdr.len = mcopy->m_len;
 		m_copydata(m, 0, mcopy->m_len, mtod(mcopy, caddr_t));
 	}
-
 #ifdef IPSTEALTH
-	if (!V_ipstealth) {
+	if (V_ipstealth == 0)
 #endif
 		ip->ip_ttl -= IPTTLDEC;
-#ifdef IPSTEALTH
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	if (IPSEC_ENABLED(ipv4)) {
+		if ((error = IPSEC_FORWARD(ipv4, m)) != 0) {
+			/* mbuf consumed by IPsec */
+			m_freem(mcopy);
+			if (error != EINPROGRESS)
+				IPSTAT_INC(ips_cantforward);
+			return;
+		}
+		/* No IPsec processing required */
 	}
-#endif
-
+#endif /* IPSEC */
 	/*
 	 * If forwarding packet using same interface that it came in on,
 	 * perhaps should send a redirect to sender to shortcut a hop.
@@ -1107,14 +1105,6 @@ ip_forward(struct mbuf *m, int srcrt)
 	case EMSGSIZE:
 		type = ICMP_UNREACH;
 		code = ICMP_UNREACH_NEEDFRAG;
-
-#ifdef IPSEC
-		/* 
-		 * If IPsec is configured for this path,
-		 * override any possibly mtu value set by ip_output.
-		 */ 
-		mtu = ip_ipsec_mtu(mcopy, mtu);
-#endif /* IPSEC */
 		/*
 		 * If the MTU was set before make sure we are below the
 		 * interface MTU.
@@ -1146,30 +1136,48 @@ ip_forward(struct mbuf *m, int srcrt)
 	icmp_error(mcopy, type, code, dest.s_addr, mtu);
 }
 
+#define	CHECK_SO_CT(sp, ct) \
+    (((sp->so_options & SO_TIMESTAMP) && (sp->so_ts_clock == ct)) ? 1 : 0)
+
 void
 ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
     struct mbuf *m)
 {
 
-	if (inp->inp_socket->so_options & (SO_BINTIME | SO_TIMESTAMP)) {
+	if ((inp->inp_socket->so_options & SO_BINTIME) ||
+	    CHECK_SO_CT(inp->inp_socket, SO_TS_BINTIME)) {
 		struct bintime bt;
 
 		bintime(&bt);
-		if (inp->inp_socket->so_options & SO_BINTIME) {
-			*mp = sbcreatecontrol((caddr_t)&bt, sizeof(bt),
-			    SCM_BINTIME, SOL_SOCKET);
-			if (*mp)
-				mp = &(*mp)->m_next;
-		}
-		if (inp->inp_socket->so_options & SO_TIMESTAMP) {
-			struct timeval tv;
+		*mp = sbcreatecontrol((caddr_t)&bt, sizeof(bt),
+		    SCM_BINTIME, SOL_SOCKET);
+		if (*mp)
+			mp = &(*mp)->m_next;
+	}
+	if (CHECK_SO_CT(inp->inp_socket, SO_TS_REALTIME_MICRO)) {
+		struct timeval tv;
 
-			bintime2timeval(&bt, &tv);
-			*mp = sbcreatecontrol((caddr_t)&tv, sizeof(tv),
-			    SCM_TIMESTAMP, SOL_SOCKET);
-			if (*mp)
-				mp = &(*mp)->m_next;
-		}
+		microtime(&tv);
+		*mp = sbcreatecontrol((caddr_t)&tv, sizeof(tv),
+		    SCM_TIMESTAMP, SOL_SOCKET);
+		if (*mp)
+			mp = &(*mp)->m_next;
+	} else if (CHECK_SO_CT(inp->inp_socket, SO_TS_REALTIME)) {
+		struct timespec ts;
+
+		nanotime(&ts);
+		*mp = sbcreatecontrol((caddr_t)&ts, sizeof(ts),
+		    SCM_REALTIME, SOL_SOCKET);
+		if (*mp)
+			mp = &(*mp)->m_next;
+	} else if (CHECK_SO_CT(inp->inp_socket, SO_TS_MONOTONIC)) {
+		struct timespec ts;
+
+		nanouptime(&ts);
+		*mp = sbcreatecontrol((caddr_t)&ts, sizeof(ts),
+		    SCM_MONOTONIC, SOL_SOCKET);
+		if (*mp)
+			mp = &(*mp)->m_next;
 	}
 	if (inp->inp_flags & INP_RECVDSTADDR) {
 		*mp = sbcreatecontrol((caddr_t)&ip->ip_dst,

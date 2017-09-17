@@ -628,11 +628,11 @@ static int cp_detach (device_t dev)
 		if (! d || ! d->chan->type)
 			continue;
 		callout_drain (&d->timeout_handle);
-		channel [b->num*NCHAN + c->num] = 0;
+		channel [b->num*NCHAN + c->num] = NULL;
 		/* Deallocate buffers. */
 		cp_bus_dma_mem_free (&d->dmamem);
 	}
-	adapter [b->num] = 0;
+	adapter [b->num] = NULL;
 	cp_bus_dma_mem_free (&bd->dmamem);
 	free (b, M_DEVBUF);
 	mtx_destroy (&bd->cp_mtx);

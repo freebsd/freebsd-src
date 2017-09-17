@@ -231,6 +231,7 @@ struct cesa_packet {
 struct cesa_softc {
 	device_t			sc_dev;
 	int32_t				sc_cid;
+	uint32_t			sc_soc_id;
 	struct resource			*sc_res[RES_CESA_NUM];
 	void				*sc_icookie;
 	bus_dma_tag_t			sc_data_dtag;
@@ -335,10 +336,7 @@ struct cesa_chain_info {
 #define CESA_TDMA_CR_ENABLE		(1 << 12)
 #define CESA_TDMA_CR_FETCHND		(1 << 13)
 #define CESA_TDMA_CR_ACTIVE		(1 << 14)
-
-#if defined (SOC_MV_ARMADA38X)
 #define CESA_TDMA_NUM_OUTSTAND		(2 << 16)
-#endif
 
 #define CESA_TDMA_ECR			0x08C8
 #define CESA_TDMA_ECR_MISS		(1 << 0)
@@ -352,18 +350,10 @@ struct cesa_chain_info {
 #define CESA_TDMA_EMR_BOTH_HIT		CESA_TDMA_ECR_BOTH_HIT
 #define CESA_TDMA_EMR_DATA_ERROR	CESA_TDMA_ECR_DATA_ERROR
 
-/*  CESA TDMA address decoding registers */
-#define MV_WIN_CESA_CTRL(n)		(0x8 * (n) + 0xA04)
-#define MV_WIN_CESA_BASE(n)		(0x8 * (n) + 0xA00)
-#define MV_WIN_CESA_MAX			4
-
 /* CESA SA registers definitions */
 #define CESA_SA_CMD			0x0E00
 #define CESA_SA_CMD_ACTVATE		(1 << 0)
-
-#if defined (SOC_MV_ARMADA38X)
 #define CESA_SA_CMD_SHA2		(1 << 31)
-#endif
 
 #define CESA_SA_DPR			0x0E04
 

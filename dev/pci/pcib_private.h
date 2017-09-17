@@ -132,7 +132,6 @@ struct pcib_softc
     uint16_t	bridgectl;	/* bridge control register */
     uint16_t	pcie_link_sta;
     uint16_t	pcie_slot_sta;
-    uint32_t	pcie_link_cap;
     uint32_t	pcie_slot_cap;
     struct resource *pcie_irq;
     void	*pcie_ihand;
@@ -194,5 +193,7 @@ int		pcib_get_id(device_t pcib, device_t dev, enum pci_id_type type,
 		    uintptr_t *id);
 void		pcib_decode_rid(device_t pcib, uint16_t rid, int *bus, 
 		    int *slot, int *func);
+int		pcib_request_feature(device_t dev, enum pci_feature feature);
+int		pcib_request_feature_allow(device_t pcib, device_t dev, enum pci_feature feature);
 
 #endif

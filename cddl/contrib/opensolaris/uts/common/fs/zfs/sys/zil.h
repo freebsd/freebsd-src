@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
 
@@ -94,6 +94,15 @@ typedef struct zil_chain {
 } zil_chain_t;
 
 #define	ZIL_MIN_BLKSZ	4096ULL
+
+/*
+ * ziltest is by and large an ugly hack, but very useful in
+ * checking replay without tedious work.
+ * When running ziltest we want to keep all itx's and so maintain
+ * a single list in the zl_itxg[] that uses a high txg: ZILTEST_TXG
+ * We subtract TXG_CONCURRENT_STATES to allow for common code.
+ */
+#define	ZILTEST_TXG (UINT64_MAX - TXG_CONCURRENT_STATES)
 
 /*
  * The words of a log block checksum.
@@ -369,7 +378,6 @@ typedef struct itx {
 	void		*itx_private;	/* type-specific opaque data */
 	itx_wr_state_t	itx_wr_state;	/* write state */
 	uint8_t		itx_sync;	/* synchronous transaction */
-	uint64_t	itx_sod;	/* record size on disk */
 	uint64_t	itx_oid;	/* object id */
 	lr_t		itx_lr;		/* common part of log record */
 	/* followed by type-specific part of lr_xx_t and its immediate data */
@@ -405,6 +413,7 @@ extern itx_t	*zil_itx_create(uint64_t txtype, size_t lrsize);
 extern void	zil_itx_destroy(itx_t *itx);
 extern void	zil_itx_assign(zilog_t *zilog, itx_t *itx, dmu_tx_t *tx);
 
+extern void	zil_async_to_sync(zilog_t *zilog, uint64_t oid);
 extern void	zil_commit(zilog_t *zilog, uint64_t oid);
 
 extern int	zil_vdev_offline(const char *osname, void *txarg);

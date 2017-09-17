@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kerneldump.h>
 #include <sys/msgbuf.h>
 #include <sys/watchdog.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -56,12 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/minidump.h>
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
-
-/*
- * Don't touch the first SIZEOF_METADATA bytes on the dump device. This
- * is to protect us from metadata and to protect metadata from us.
- */
-#define	SIZEOF_METADATA		(64*1024)
 
 uint64_t *vm_page_dump;
 int vm_page_dump_size;
@@ -280,13 +275,6 @@ minidumpsys(struct dumperinfo *di)
 	}
 	dumpsize += PAGE_SIZE;
 
-	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + sizeof(kdh) * 2) {
-		error = E2BIG;
-		goto fail;
-	}
-	dumplo = di->mediaoffset + di->mediasize - dumpsize;
-	dumplo -= sizeof(kdh) * 2;
 	progress = dumpsize;
 
 	/* Initialize mdhdr */
@@ -301,17 +289,15 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.dmapbase = DMAP_MIN_ADDRESS;
 	mdhdr.dmapend = DMAP_MAX_ADDRESS;
 
-	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_AARCH64_VERSION,
-	    dumpsize, di->blocksize);
+	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_AARCH64_VERSION,
+	    dumpsize);
 
 	printf("Dumping %llu out of %ju MB:", (long long)dumpsize >> 20,
 	    ptoa((uintmax_t)physmem) / 1048576);
 
-	/* Dump leader */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
-	if (error)
+	error = dump_start(di, &kdh, &dumplo);
+	if (error != 0)
 		goto fail;
-	dumplo += sizeof(kdh);
 
 	/* Dump my header */
 	bzero(&tmpbuffer, sizeof(tmpbuffer));
@@ -409,18 +395,14 @@ minidumpsys(struct dumperinfo *di)
 	if (error)
 		goto fail;
 
-	/* Dump trailer */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
-	if (error)
+	error = dump_finish(di, &kdh, dumplo);
+	if (error != 0)
 		goto fail;
-	dumplo += sizeof(kdh);
 
-	/* Signal completion, signoff and exit stage left. */
-	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
 	return (0);
 
- fail:
+fail:
 	if (error < 0)
 		error = -error;
 

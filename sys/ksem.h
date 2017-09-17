@@ -30,7 +30,7 @@
 #define	_POSIX4_KSEM_H_
 
 #if !defined(_KERNEL) && !defined(_WANT_FILE)
-#error "no user-servicable parts inside"
+#error "no user-serviceable parts inside"
 #endif
 
 #include <sys/condvar.h>

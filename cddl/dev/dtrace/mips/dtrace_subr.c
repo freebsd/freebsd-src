@@ -50,6 +50,8 @@ extern int (*dtrace_invop_jump_addr)(struct trapframe *);
 extern dtrace_id_t	dtrace_probeid_error;
 
 int dtrace_invop(uintptr_t, struct trapframe *, uintptr_t);
+void dtrace_invop_init(void);
+void dtrace_invop_uninit(void);
 
 typedef struct dtrace_invop_hdlr {
 	int (*dtih_func)(uintptr_t, struct trapframe *, uintptr_t);
@@ -131,8 +133,8 @@ dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
 	else
 		CPU_SETOF(cpu, &cpus);
 
-	smp_rendezvous_cpus(cpus, smp_no_rendevous_barrier, func,
-	    smp_no_rendevous_barrier, arg);
+	smp_rendezvous_cpus(cpus, smp_no_rendezvous_barrier, func,
+	    smp_no_rendezvous_barrier, arg);
 }
 
 static void

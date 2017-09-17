@@ -129,8 +129,8 @@ nandfs_reclaim(struct vop_reclaim_args *ap)
 static int
 nandfs_read(struct vop_read_args *ap)
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct nandfs_node *node = VTON(vp);
+	struct vnode *vp = ap->a_vp;
+	struct nandfs_node *node = VTON(vp);
 	struct nandfs_device *nandfsdev = node->nn_nandfsdev;
 	struct uio *uio = ap->a_uio;
 	struct buf *bp;
@@ -2211,7 +2211,7 @@ nandfs_whiteout(struct vop_whiteout_args *ap)
 		/* Create a new directory whiteout */
 #ifdef INVARIANTS
 		if ((cnp->cn_flags & SAVENAME) == 0)
-			panic("ufs_whiteout: missing name");
+			panic("nandfs_whiteout: missing name");
 #endif
 		error = nandfs_add_dirent(dvp, NANDFS_WHT_INO, cnp->cn_nameptr,
 		    cnp->cn_namelen, DT_WHT);
@@ -2236,21 +2236,6 @@ nandfs_pathconf(struct vop_pathconf_args *ap)
 
 	error = 0;
 	switch (ap->a_name) {
-	case _PC_LINK_MAX:
-		*ap->a_retval = LINK_MAX;
-		break;
-	case _PC_NAME_MAX:
-		*ap->a_retval = NAME_MAX;
-		break;
-	case _PC_PATH_MAX:
-		*ap->a_retval = PATH_MAX;
-		break;
-	case _PC_PIPE_BUF:
-		*ap->a_retval = PIPE_BUF;
-		break;
-	case _PC_CHOWN_RESTRICTED:
-		*ap->a_retval = 1;
-		break;
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 1;
 		break;
@@ -2273,7 +2258,7 @@ nandfs_pathconf(struct vop_pathconf_args *ap)
 		*ap->a_retval = ap->a_vp->v_mount->mnt_stat.f_iosize;
 		break;
 	default:
-		error = EINVAL;
+		error = vop_stdpathconf(ap);
 		break;
 	}
 	return (error);

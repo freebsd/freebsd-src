@@ -90,6 +90,15 @@ uart_fdt_get_shift(phandle_t node, pcell_t *cell)
 	return (0);
 }
 
+int
+uart_fdt_get_io_width(phandle_t node, pcell_t *cell)
+{
+
+	if ((OF_getencprop(node, "reg-io-width", cell, sizeof(*cell))) <= 0)
+		return (-1);
+	return (0);
+}
+
 static uintptr_t
 uart_fdt_find_device(device_t dev)
 {
@@ -108,9 +117,18 @@ static int
 phandle_chosen_propdev(phandle_t chosen, const char *name, phandle_t *node)
 {
 	char buf[64];
+	char *sep;
 
 	if (OF_getprop(chosen, name, buf, sizeof(buf)) <= 0)
 		return (ENXIO);
+	/*
+	 * stdout-path may have a ':' to separate the device from the
+	 * connection settings. Split the string so we just pass the former
+	 * to OF_finddevice.
+	 */
+	sep = strchr(buf, ':');
+	if (sep != NULL)
+		*sep = '\0';
 	if ((*node = OF_finddevice(buf)) == -1)
 		return (ENXIO);
 
@@ -123,7 +141,7 @@ uart_fdt_find_compatible(phandle_t node, const struct ofw_compat_data *cd)
 	const struct ofw_compat_data *ocd;
 
 	for (ocd = cd; ocd->ocd_str != NULL; ocd++) {
-		if (fdt_is_compatible(node, ocd->ocd_str))
+		if (ofw_bus_node_is_compatible(node, ocd->ocd_str))
 			return (ocd);
 	}
 	return (NULL);
@@ -154,14 +172,15 @@ uart_fdt_find_by_node(phandle_t node, int class_list)
 
 int
 uart_cpu_fdt_probe(struct uart_class **classp, bus_space_tag_t *bst,
-    bus_space_handle_t *bsh, int *baud, u_int *rclk, u_int *shiftp)
+    bus_space_handle_t *bsh, int *baud, u_int *rclk, u_int *shiftp,
+    u_int *iowidthp)
 {
 	const char *propnames[] = {"stdout-path", "linux,stdout-path", "stdout",
 	    "stdin-path", "stdin", NULL};
 	const char **name;
 	struct uart_class *class;
 	phandle_t node, chosen;
-	pcell_t br, clk, shift;
+	pcell_t br, clk, shift, iowidth;
 	char *cp;
 	int err;
 
@@ -212,6 +231,9 @@ uart_cpu_fdt_probe(struct uart_class **classp, bus_space_tag_t *bst,
 	if (uart_fdt_get_shift(node, &shift) != 0)
 		shift = uart_getregshift(class);
 
+	if (uart_fdt_get_io_width(node, &iowidth) != 0)
+		iowidth = uart_getregiowidth(class);
+
 	if (OF_getencprop(node, "current-speed", &br, sizeof(br)) <= 0)
 		br = 0;
 
@@ -223,6 +245,7 @@ uart_cpu_fdt_probe(struct uart_class **classp, bus_space_tag_t *bst,
 	*baud = br;
 	*rclk = clk;
 	*shiftp = shift;
+	*iowidthp = iowidth;
 
 	return (0);
 }
@@ -232,7 +255,7 @@ uart_fdt_probe(device_t dev)
 {
 	struct uart_softc *sc;
 	phandle_t node;
-	pcell_t clock, shift;
+	pcell_t clock, shift, iowidth;
 	int err;
 
 	sc = device_get_softc(dev);
@@ -250,8 +273,10 @@ uart_fdt_probe(device_t dev)
 		return (err);
 	if (uart_fdt_get_shift(node, &shift) != 0)
 		shift = uart_getregshift(sc->sc_class);
+	if (uart_fdt_get_io_width(node, &iowidth) != 0)
+		iowidth = uart_getregiowidth(sc->sc_class);
 
-	return (uart_bus_probe(dev, (int)shift, (int)clock, 0, 0));
+	return (uart_bus_probe(dev, (int)shift, (int)iowidth, (int)clock, 0, 0));
 }
 
 DRIVER_MODULE(uart, simplebus, uart_fdt_driver, uart_devclass, 0, 0);

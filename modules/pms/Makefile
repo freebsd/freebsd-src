@@ -2,20 +2,20 @@
 # 5/31/2012
 #PATH shall include all directories
 
-.PATH: 	${.CURDIR}/../../dev/pms/freebsd/driver/ini/src \
-	${.CURDIR}/../../dev/pms/RefTisa/sallsdk/api \
-	${.CURDIR}/../../dev/pms/RefTisa/sallsdk/spc \
-	${.CURDIR}/../../dev/pms/RefTisa/sallsdk/hda/64k \
-	${.CURDIR}/../../dev/pms/RefTisa/discovery/api \
-	${.CURDIR}/../../dev/pms/RefTisa/discovery/dm \
-	${.CURDIR}/../../dev/pms/RefTisa/sat/api \
-	${.CURDIR}/../../dev/pms/RefTisa/sat/src \
-	${.CURDIR}/../../dev/pms/RefTisa/tisa/api \
-	${.CURDIR}/../../dev/pms/RefTisa/tisa/sassata/common \
-	${.CURDIR}/../../dev/pms/RefTisa/tisa/sassata/sas/common \
-	${.CURDIR}/../../dev/pms/RefTisa/tisa/sassata/sas/ini \
-	${.CURDIR}/../../dev/pms/RefTisa/tisa/sassata/sata/host \
-	${.CURDIR}/../../dev/pms/freebsd/driver/common
+.PATH: 	${SRCTOP}/sys/dev/pms/freebsd/driver/ini/src \
+	${SRCTOP}/sys/dev/pms/RefTisa/sallsdk/api \
+	${SRCTOP}/sys/dev/pms/RefTisa/sallsdk/spc \
+	${SRCTOP}/sys/dev/pms/RefTisa/sallsdk/hda/64k \
+	${SRCTOP}/sys/dev/pms/RefTisa/discovery/api \
+	${SRCTOP}/sys/dev/pms/RefTisa/discovery/dm \
+	${SRCTOP}/sys/dev/pms/RefTisa/sat/api \
+	${SRCTOP}/sys/dev/pms/RefTisa/sat/src \
+	${SRCTOP}/sys/dev/pms/RefTisa/tisa/api \
+	${SRCTOP}/sys/dev/pms/RefTisa/tisa/sassata/common \
+	${SRCTOP}/sys/dev/pms/RefTisa/tisa/sassata/sas/common \
+	${SRCTOP}/sys/dev/pms/RefTisa/tisa/sassata/sas/ini \
+	${SRCTOP}/sys/dev/pms/RefTisa/tisa/sassata/sata/host \
+	${SRCTOP}/sys/dev/pms/freebsd/driver/common
 
 CFLAGS+=-fno-builtin
 CFLAGS+=-fms-extensions
@@ -50,12 +50,10 @@ SRCS+= tdinit.c tdmisc.c tdesgl.c tdport.c tdint.c tdioctl.c tdhw.c ossacmnapi.c
 SRCS+= tdtimers.c itdio.c itdcb.c itdinit.c itddisc.c sat.c ossasat.c sathw.c
 
 #header files
-SRCS+=	agtiapi.h agtiproto.h agdef.h 
+SRCS+=	agtiapi.h agtiproto.h agdef.h
 #
 SRCS+=	osenv.h ostypes.h
 SRCS+=  opt_scsi.h opt_cam.h
 SRCS+=  device_if.h bus_if.h pci_if.h
-#INCSRC=	../../common
-
 
 .include <bsd.kmod.mk>

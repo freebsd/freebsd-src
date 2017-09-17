@@ -46,6 +46,9 @@ include /boot/support.4th
 include /boot/color.4th
 include /boot/delay.4th
 include /boot/check-password.4th
+s" efi-version" getenv? [if]
+	include /boot/efi.4th
+[then]
 
 only forth definitions
 
@@ -143,6 +146,8 @@ only forth definitions also support-functions
   s" /boot/defaults/loader.conf" initialize
   include_conf_files
   include_nextboot_file
+  \ If the user defined a post-initialize hook, call it now
+  s" post-initialize" sfind if execute else drop then
   \ Will *NOT* try to load kernel and modules if no configuration file
   \ was successfully loaded!
   any_conf_read? if
@@ -165,12 +170,14 @@ only forth definitions also support-functions
 \
 \	Overrides support.4th initialization word with one that does
 \	everything start one does, short of loading the kernel and
-\	modules. Returns a flag
+\	modules. Returns a flag.
 
 : initialize ( -- flag )
   s" /boot/defaults/loader.conf" initialize
   include_conf_files
   include_nextboot_file
+  \ If the user defined a post-initialize hook, call it now
+  s" post-initialize" sfind if execute else drop then
   any_conf_read?
 ;
 

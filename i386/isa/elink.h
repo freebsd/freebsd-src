@@ -29,11 +29,7 @@
  * $FreeBSD$
  */
 
-#ifdef PC98
-#define	ELINK_ID_PORT	0x71d0
-#else
 #define	ELINK_ID_PORT	0x100
-#endif
 #define	ELINK_RESET	0xc0
 
 #define	ELINK_507_POLY	0xe7

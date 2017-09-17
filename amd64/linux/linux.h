@@ -69,7 +69,9 @@ typedef l_long		l_clock_t;
 typedef l_int		l_daddr_t;
 typedef l_ulong		l_dev_t;
 typedef l_uint		l_gid_t;
+typedef l_ushort	l_gid16_t;
 typedef l_uint		l_uid_t;
+typedef	l_ushort	l_uid16_t;
 typedef l_ulong		l_ino_t;
 typedef l_int		l_key_t;
 typedef l_long		l_loff_t;
@@ -99,9 +101,6 @@ typedef struct {
 /*
  * Miscellaneous
  */
-#define	LINUX_NAME_MAX		255
-#define	LINUX_CTL_MAXNAME	10
-
 #define LINUX_AT_COUNT		19	/* Count of used aux entry types. */
 
 struct l___sysctl_args
@@ -114,11 +113,6 @@ struct l___sysctl_args
 	l_size_t	newlen;
 	l_ulong		__spare[4];
 };
-
-/* Scheduling policies */
-#define	LINUX_SCHED_OTHER	0
-#define	LINUX_SCHED_FIFO	1
-#define	LINUX_SCHED_RR		2
 
 /* Resource limits */
 #define	LINUX_RLIMIT_CPU	0
@@ -381,60 +375,6 @@ union l_semun {
 	l_uintptr_t	__pad;
 };
 
-struct l_ipc_perm {
-	l_key_t		key;
-	l_uid_t		uid;
-	l_gid_t		gid;
-	l_uid_t		cuid;
-	l_gid_t		cgid;
-	l_ushort	mode;
-	l_ushort	seq;
-};
-
-/*
- * Socket defines
- */
-
-#define	LINUX_SOL_SOCKET	1
-#define	LINUX_SOL_IP		0
-#define	LINUX_SOL_IPX		256
-#define	LINUX_SOL_AX25		257
-#define	LINUX_SOL_TCP		6
-#define	LINUX_SOL_UDP		17
-
-#define	LINUX_SO_DEBUG		1
-#define	LINUX_SO_REUSEADDR	2
-#define	LINUX_SO_TYPE		3
-#define	LINUX_SO_ERROR		4
-#define	LINUX_SO_DONTROUTE	5
-#define	LINUX_SO_BROADCAST	6
-#define	LINUX_SO_SNDBUF		7
-#define	LINUX_SO_RCVBUF		8
-#define	LINUX_SO_KEEPALIVE	9
-#define	LINUX_SO_OOBINLINE	10
-#define	LINUX_SO_NO_CHECK	11
-#define	LINUX_SO_PRIORITY	12
-#define	LINUX_SO_LINGER		13
-#define	LINUX_SO_PASSCRED	16
-#define	LINUX_SO_PEERCRED	17
-#define	LINUX_SO_RCVLOWAT	18
-#define	LINUX_SO_SNDLOWAT	19
-#define	LINUX_SO_RCVTIMEO	20
-#define	LINUX_SO_SNDTIMEO	21
-#define	LINUX_SO_TIMESTAMP	29
-#define	LINUX_SO_ACCEPTCONN	30
-
-#define	LINUX_IP_TOS		1
-#define	LINUX_IP_TTL		2
-#define	LINUX_IP_HDRINCL	3
-#define	LINUX_IP_OPTIONS	4
-
-#define	LINUX_IP_MULTICAST_IF		32
-#define	LINUX_IP_MULTICAST_TTL		33
-#define	LINUX_IP_MULTICAST_LOOP		34
-#define	LINUX_IP_ADD_MEMBERSHIP		35
-#define	LINUX_IP_DROP_MEMBERSHIP	36
-
 struct l_sockaddr {
 	l_ushort	sa_family;
 	char		sa_data[14];
@@ -464,7 +404,7 @@ struct l_ifreq {
 		struct l_sockaddr	ifru_netmask;
 		struct l_sockaddr	ifru_hwaddr;
 		l_short		ifru_flags[1];
-		l_int		ifru_metric;
+		l_int		ifru_ivalue;
 		l_int		ifru_mtu;
 		struct l_ifmap	ifru_map;
 		char		ifru_slave[LINUX_IFNAMSIZ];
@@ -474,6 +414,7 @@ struct l_ifreq {
 
 #define	ifr_name	ifr_ifrn.ifrn_name	/* Interface name */
 #define	ifr_hwaddr	ifr_ifru.ifru_hwaddr	/* MAC address */
+#define	ifr_ifindex	ifr_ifru.ifru_ivalue	/* Interface index */
 
 struct l_ifconf {
 	int	ifc_len;
@@ -506,20 +447,6 @@ struct l_pollfd {
 	l_short		events;
 	l_short		revents;
 };
-
-
-#define	LINUX_CLONE_VM			0x00000100
-#define	LINUX_CLONE_FS			0x00000200
-#define	LINUX_CLONE_FILES		0x00000400
-#define	LINUX_CLONE_SIGHAND		0x00000800
-#define	LINUX_CLONE_PID			0x00001000	/* No longer exist in Linux */
-#define	LINUX_CLONE_VFORK		0x00004000
-#define	LINUX_CLONE_PARENT		0x00008000
-#define	LINUX_CLONE_THREAD		0x00010000
-#define	LINUX_CLONE_SETTLS		0x00080000
-#define	LINUX_CLONE_PARENT_SETTID	0x00100000
-#define	LINUX_CLONE_CHILD_CLEARTID	0x00200000
-#define	LINUX_CLONE_CHILD_SETTID	0x01000000
 
 #define LINUX_ARCH_SET_GS		0x1001
 #define LINUX_ARCH_SET_FS		0x1002

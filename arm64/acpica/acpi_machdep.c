@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/acpica/acpivar.h>
 
+extern struct bus_space memmap_bus;
+
 int
 acpi_machdep_init(device_t dev)
 {
@@ -214,4 +216,20 @@ acpi_find_table(const char *sig)
 	acpi_unmap_table(table);
 
 	return (addr);
+}
+
+int
+acpi_map_addr(struct acpi_generic_address *addr, bus_space_tag_t *tag,
+    bus_space_handle_t *handle, bus_size_t size)
+{
+	bus_addr_t phys;
+
+	/* Check if the device is Memory mapped */
+	if (addr->SpaceId != 0)
+		return (ENXIO);
+
+	phys = addr->Address;
+	*tag = &memmap_bus;
+
+	return (bus_space_map(*tag, phys, size, 0, handle));
 }

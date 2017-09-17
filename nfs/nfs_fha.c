@@ -51,7 +51,6 @@ static MALLOC_DEFINE(M_NFS_FHA, "NFS FHA", "NFS FHA");
 void
 fha_init(struct fha_params *softc)
 {
-	char tmpstr[128];
 	int i;
 
 	for (i = 0; i < FHA_HASH_SIZE; i++)
@@ -61,47 +60,38 @@ fha_init(struct fha_params *softc)
 	 * Set the default tuning parameters.
 	 */
 	softc->ctls.enable = FHA_DEF_ENABLE;
+	softc->ctls.read = FHA_DEF_READ;
+	softc->ctls.write = FHA_DEF_WRITE;
 	softc->ctls.bin_shift = FHA_DEF_BIN_SHIFT;
 	softc->ctls.max_nfsds_per_fh = FHA_DEF_MAX_NFSDS_PER_FH;
 	softc->ctls.max_reqs_per_nfsd = FHA_DEF_MAX_REQS_PER_NFSD;
 
 	/*
-	 * Allow the user to override the defaults at boot time with
-	 * tunables.
-	 */
-	snprintf(tmpstr, sizeof(tmpstr), "vfs.%s.fha.enable",
-	    softc->server_name);
-	TUNABLE_INT_FETCH(tmpstr, &softc->ctls.enable);
-	snprintf(tmpstr, sizeof(tmpstr), "vfs.%s.fha.bin_shift",
-	    softc->server_name);
-	TUNABLE_INT_FETCH(tmpstr, &softc->ctls.bin_shift);
-	snprintf(tmpstr, sizeof(tmpstr), "vfs.%s.fha.max_nfsds_per_fh",
-	    softc->server_name);
-	TUNABLE_INT_FETCH(tmpstr, &softc->ctls.max_nfsds_per_fh);
-	snprintf(tmpstr, sizeof(tmpstr), "vfs.%s.fha.max_reqs_per_nfsd",
-	    softc->server_name);
-	TUNABLE_INT_FETCH(tmpstr, &softc->ctls.max_reqs_per_nfsd);
-
-	/*
-	 * Add sysctls so the user can change the tuning parameters at
-	 * runtime.
+	 * Add sysctls so the user can change the tuning parameters.
 	 */
 	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "enable", CTLFLAG_RW,
+	    OID_AUTO, "enable", CTLFLAG_RWTUN,
 	    &softc->ctls.enable, 0, "Enable NFS File Handle Affinity (FHA)");
 
 	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "bin_shift", CTLFLAG_RW,
-	    &softc->ctls.bin_shift, 0, "For FHA reads, no two requests will "
-	    "contend if they're 2^(bin_shift) bytes apart");
+	    OID_AUTO, "read", CTLFLAG_RWTUN,
+	    &softc->ctls.read, 0, "Enable NFS FHA read locality");
 
 	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "max_nfsds_per_fh", CTLFLAG_RW,
+	    OID_AUTO, "write", CTLFLAG_RWTUN,
+	    &softc->ctls.write, 0, "Enable NFS FHA write locality");
+
+	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "bin_shift", CTLFLAG_RWTUN,
+	    &softc->ctls.bin_shift, 0, "Maximum locality distance 2^(bin_shift) bytes");
+
+	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "max_nfsds_per_fh", CTLFLAG_RWTUN,
 	    &softc->ctls.max_nfsds_per_fh, 0, "Maximum nfsd threads that "
 	    "should be working on requests for the same file handle");
 
 	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "max_reqs_per_nfsd", CTLFLAG_RW,
+	    OID_AUTO, "max_reqs_per_nfsd", CTLFLAG_RWTUN,
 	    &softc->ctls.max_reqs_per_nfsd, 0, "Maximum requests that "
 	    "single nfsd thread should be working on at any time");
 
@@ -144,6 +134,7 @@ fha_extract_info(struct svc_req *req, struct fha_info *i,
 	i->fh = ++random_fh;
 	i->offset = 0;
 	i->locktype = LK_EXCLUSIVE;
+	i->read = i->write = 0;
 
 	/*
 	 * Extract the procnum and convert to v3 form if necessary,
@@ -169,6 +160,9 @@ fha_extract_info(struct svc_req *req, struct fha_info *i,
 	if (cb->no_offset(procnum))
 		goto out;
 
+	i->read = cb->is_read(procnum);
+	i->write = cb->is_write(procnum);
+
 	error = cb->realign(&req->rq_args, M_NOWAIT);
 	if (error)
 		goto out;
@@ -181,7 +175,7 @@ fha_extract_info(struct svc_req *req, struct fha_info *i,
 		goto out;
 
 	/* Content ourselves with zero offset for all but reads. */
-	if (cb->is_read(procnum) || cb->is_write(procnum))
+	if (i->read || i->write)
 		cb->get_offset(&md, &dpos, v3, i);
 
 out:
@@ -311,8 +305,13 @@ fha_hash_entry_choose_thread(struct fha_params *softc,
 			return (thread);
 		}
 
+		/* Check whether we should consider locality. */
+		if ((i->read && !softc->ctls.read) ||
+		    (i->write && !softc->ctls.write))
+			goto noloc;
+
 		/*
-		 * Check for read locality, making sure that we won't
+		 * Check for locality, making sure that we won't
 		 * exceed our per-thread load limit in the process.
 		 */
 		offset1 = i->offset;
@@ -332,6 +331,7 @@ fha_hash_entry_choose_thread(struct fha_params *softc,
 			}
 		}
 
+noloc:
 		/*
 		 * We don't have a locality match, so skip this thread,
 		 * but keep track of the most attractive thread in case

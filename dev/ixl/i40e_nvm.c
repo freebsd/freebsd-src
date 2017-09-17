@@ -220,14 +220,14 @@ enum i40e_status_code i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
 {
 	enum i40e_status_code ret_code = I40E_SUCCESS;
 
-	if (hw->flags & I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE) {
-		ret_code = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
-		if (!ret_code) {
+	ret_code = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
+	if (!ret_code) {
+		if (hw->flags & I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE) {
 			ret_code = i40e_read_nvm_word_aq(hw, offset, data);
-			i40e_release_nvm(hw);
+		} else {
+			ret_code = i40e_read_nvm_word_srctl(hw, offset, data);
 		}
-	} else {
-		ret_code = i40e_read_nvm_word_srctl(hw, offset, data);
+		i40e_release_nvm(hw);
 	}
 	return ret_code;
 }
@@ -886,7 +886,18 @@ enum i40e_status_code i40e_nvmupd_command(struct i40e_hw *hw,
 			*((u16 *)&bytes[2]) = hw->nvm_wait_opcode;
 		}
 
+		/* Clear error status on read */
+		if (hw->nvmupd_state == I40E_NVMUPD_STATE_ERROR)
+			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+
 		return I40E_SUCCESS;
+	}
+
+	/* Clear status even it is not read and log */
+	if (hw->nvmupd_state == I40E_NVMUPD_STATE_ERROR) {
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "Clearing I40E_NVMUPD_STATE_ERROR state without reading\n");
+		hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
 	}
 
 	switch (hw->nvmupd_state) {
@@ -1247,6 +1258,11 @@ void i40e_nvmupd_check_wait_event(struct i40e_hw *hw, u16 opcode)
 		}
 		hw->nvm_wait_opcode = 0;
 
+		if (hw->aq.arq_last_status) {
+			hw->nvmupd_state = I40E_NVMUPD_STATE_ERROR;
+			return;
+		}
+
 		switch (hw->nvmupd_state) {
 		case I40E_NVMUPD_STATE_INIT_WAIT:
 			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
@@ -1409,7 +1425,8 @@ static enum i40e_status_code i40e_nvmupd_exec_aq(struct i40e_hw *hw,
 
 		if (hw->nvm_buff.va) {
 			buff = hw->nvm_buff.va;
-			memcpy(buff, &bytes[aq_desc_len], aq_data_len);
+			i40e_memcpy(buff, &bytes[aq_desc_len], aq_data_len,
+				I40E_NONDMA_TO_NONDMA);
 		}
 	}
 
@@ -1482,7 +1499,7 @@ static enum i40e_status_code i40e_nvmupd_get_aq_result(struct i40e_hw *hw,
 			   __func__, cmd->offset, cmd->offset + len);
 
 		buff = ((u8 *)&hw->nvm_wb_desc) + cmd->offset;
-		memcpy(bytes, buff, len);
+		i40e_memcpy(bytes, buff, len, I40E_NONDMA_TO_NONDMA);
 
 		bytes += len;
 		remainder -= len;
@@ -1496,7 +1513,7 @@ static enum i40e_status_code i40e_nvmupd_get_aq_result(struct i40e_hw *hw,
 
 		i40e_debug(hw, I40E_DEBUG_NVM, "%s: databuf bytes %d to %d\n",
 			   __func__, start_byte, start_byte + remainder);
-		memcpy(bytes, buff, remainder);
+		i40e_memcpy(bytes, buff, remainder, I40E_NONDMA_TO_NONDMA);
 	}
 
 	return I40E_SUCCESS;

@@ -235,6 +235,15 @@
 #define DSB	dsb
 #define DMB	dmb
 #define WFI	wfi
+
+#if defined(__ARM_ARCH_7VE__) || defined(__clang__)
+#define	MSR_ELR_HYP(regnum)	msr	elr_hyp, lr
+#define	ERET	eret
+#else
+#define MSR_ELR_HYP(regnum) .word (0xe12ef300 | regnum)
+#define ERET .word 0xe160006e
+#endif
+
 #elif __ARM_ARCH == 6
 #define ISB	mcr CP15_CP15ISB
 #define DSB	mcr CP15_CP15DSB

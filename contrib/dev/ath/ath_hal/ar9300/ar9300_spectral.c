@@ -309,17 +309,27 @@ ar9300_noise_floor_power_get(struct ath_hal *ah, int freq_mhz, int ch)
 void
 ar9300_configure_spectral_scan(struct ath_hal *ah, HAL_SPECTRAL_PARAM *ss)
 {
-    u_int32_t val, i;
+    u_int32_t val;
+    //uint32_t i;
     struct ath_hal_9300 *ahp = AH9300(ah);
     HAL_BOOL asleep = ahp->ah_chip_full_sleep;
-    int16_t nf_buf[HAL_NUM_NF_READINGS];
+    //int16_t nf_buf[HAL_NUM_NF_READINGS];
 
     if ((AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah)) && asleep) {
         ar9300_set_power_mode(ah, HAL_PM_AWAKE, AH_TRUE);
     }
 
+    HALDEBUG(ah, HAL_DEBUG_SPECTRAL, "%s: called\n", __func__);
+
+    HALDEBUG(ah, HAL_DEBUG_SPECTRAL, "ss_fft_period=%d\n", ss->ss_fft_period);
+    HALDEBUG(ah, HAL_DEBUG_SPECTRAL, "ss_period=%d\n", ss->ss_period);
+    HALDEBUG(ah, HAL_DEBUG_SPECTRAL, "ss_count=%d\n", ss->ss_count);
+    HALDEBUG(ah, HAL_DEBUG_SPECTRAL, "ss_short_report=%d\n", ss->ss_short_report);
+    HALDEBUG(ah, HAL_DEBUG_SPECTRAL, "ss_spectral_pri=%d\n", ss->ss_spectral_pri);
+
     ar9300_prep_spectral_scan(ah);
 
+#if 0
     if (ss->ss_spectral_pri) {
         for (i = 0; i < HAL_NUM_NF_READINGS; i++) {
             nf_buf[i] = NOISE_PWR_DBM_2_INT(ss->ss_nf_cal[i]);
@@ -333,6 +343,7 @@ ar9300_configure_spectral_scan(struct ath_hal *ah, HAL_SPECTRAL_PARAM *ss)
         /*ar9300_disable_restart(ah);*/
 #endif
     }   
+#endif
 
     val = OS_REG_READ(ah, AR_PHY_SPECTRAL_SCAN);
 
@@ -364,17 +375,21 @@ ar9300_configure_spectral_scan(struct ath_hal *ah, HAL_SPECTRAL_PARAM *ss)
         val |= SM(ss->ss_period, AR_PHY_SPECTRAL_SCAN_PERIOD);
     }
 
+    if (ss->ss_short_report != HAL_SPECTRAL_PARAM_NOVAL) {
     if (ss->ss_short_report == AH_TRUE) {
         val |= AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT;
     } else {
         val &= ~AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT;
     }
+    }
     
     /* if noise power cal, force high priority */
+    if (ss->ss_spectral_pri != HAL_SPECTRAL_PARAM_NOVAL) {
     if (ss->ss_spectral_pri) {
         val |= AR_PHY_SPECTRAL_SCAN_PRIORITY_HI;
     } else {
         val &= ~AR_PHY_SPECTRAL_SCAN_PRIORITY_HI;
+    }
     }
     
     /* enable spectral scan */
@@ -400,6 +415,8 @@ ar9300_get_spectral_params(struct ath_hal *ah, HAL_SPECTRAL_PARAM *ss)
     struct ath_hal_9300 *ahp = AH9300(ah);
     HAL_BOOL asleep = ahp->ah_chip_full_sleep;
 
+    HALDEBUG(ah, HAL_DEBUG_SPECTRAL, "%s: called\n", __func__);
+
     c = AH_PRIVATE(ah)->ah_curchan;
     if (c != NULL)
         chan = ath_hal_checkchannel(ah, c);
@@ -416,6 +433,17 @@ ar9300_get_spectral_params(struct ath_hal *ah, HAL_SPECTRAL_PARAM *ss)
     ss->ss_count = MS(val, AR_PHY_SPECTRAL_SCAN_COUNT);
     ss->ss_short_report = (val & AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT) ? 1:0;
     ss->ss_spectral_pri = ( val & AR_PHY_SPECTRAL_SCAN_PRIORITY_HI) ? 1:0;
+    ss->ss_enabled = !! (val & AR_PHY_SPECTRAL_SCAN_ENABLE);
+    ss->ss_active = !! (val & AR_PHY_SPECTRAL_SCAN_ACTIVE);
+
+    HALDEBUG(ah, HAL_DEBUG_SPECTRAL, "ss_fft_period=%d\n", ss->ss_fft_period);
+    HALDEBUG(ah, HAL_DEBUG_SPECTRAL, "ss_period=%d\n", ss->ss_period);
+    HALDEBUG(ah, HAL_DEBUG_SPECTRAL, "ss_count=%d\n", ss->ss_count);
+    HALDEBUG(ah, HAL_DEBUG_SPECTRAL, "ss_short_report=%d\n", ss->ss_short_report);
+    HALDEBUG(ah, HAL_DEBUG_SPECTRAL, "ss_spectral_pri=%d\n", ss->ss_spectral_pri);
+    HALDEBUG(ah, HAL_DEBUG_SPECTRAL, "ss_enabled=%d\n", ss->ss_enabled);
+    HALDEBUG(ah, HAL_DEBUG_SPECTRAL, "ss_active=%d\n", ss->ss_active);
+
     OS_MEMZERO(ss->ss_nf_cal, sizeof(ss->ss_nf_cal)); 
     OS_MEMZERO(ss->ss_nf_pwr, sizeof(ss->ss_nf_cal)); 
     ss->ss_nf_temp_data = 0;
@@ -469,6 +497,8 @@ void ar9300_start_spectral_scan(struct ath_hal *ah)
     if ((AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah)) && asleep) {
         ar9300_set_power_mode(ah, HAL_PM_AWAKE, AH_TRUE);
     }
+
+    HALDEBUG(ah, HAL_DEBUG_SPECTRAL, "%s: called\n", __func__);
 
     ar9300_prep_spectral_scan(ah);
 

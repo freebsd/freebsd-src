@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -177,7 +177,12 @@
 	movw	%es,TF_ES(%rsp) ;					\
 	movw	%ds,TF_DS(%rsp) ;					\
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp) ;				\
-	cld
+	cld ;								\
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) ; /* come from kernel ? */	\
+	jz	2f ;		/* yes, leave PCB_FULL_IRET alone */	\
+	movq	PCPU(CURPCB),%r8 ;					\
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%r8) ;			\
+2:
 
 #define POP_FRAME							\
 	movq	TF_RDI(%rsp),%rdi ;					\

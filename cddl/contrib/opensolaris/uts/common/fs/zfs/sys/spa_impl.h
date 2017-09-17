@@ -25,6 +25,7 @@
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright 2013 Saso Kiselkov. All rights reserved.
+ * Copyright (c) 2017 Datto Inc.
  */
 
 #ifndef _SYS_SPA_IMPL_H
@@ -120,14 +121,15 @@ typedef struct spa_taskqs {
 typedef enum spa_all_vdev_zap_action {
 	AVZ_ACTION_NONE = 0,
 	AVZ_ACTION_DESTROY,	/* Destroy all per-vdev ZAPs and the AVZ. */
-	AVZ_ACTION_REBUILD	/* Populate the new AVZ, see spa_avz_rebuild */
+	AVZ_ACTION_REBUILD,	/* Populate the new AVZ, see spa_avz_rebuild */
+	AVZ_ACTION_INITIALIZE
 } spa_avz_action_t;
 
 struct spa {
 	/*
 	 * Fields protected by spa_namespace_lock.
 	 */
-	char		spa_name[MAXNAMELEN];	/* pool name */
+	char		spa_name[ZFS_MAX_DATASET_NAME_LEN];	/* pool name */
 	char		*spa_comment;		/* comment */
 	avl_node_t	spa_avl;		/* node in spa_namespace_avl */
 	nvlist_t	*spa_config;		/* last synced config */
@@ -165,6 +167,8 @@ struct spa {
 	uint64_t	spa_last_synced_guid;	/* last synced guid */
 	list_t		spa_config_dirty_list;	/* vdevs with dirty config */
 	list_t		spa_state_dirty_list;	/* vdevs with dirty state */
+	kmutex_t	spa_alloc_lock;
+	avl_tree_t	spa_alloc_tree;
 	spa_aux_vdev_t	spa_spares;		/* hot spares */
 	spa_aux_vdev_t	spa_l2cache;		/* L2ARC cache devices */
 	nvlist_t	*spa_label_features;	/* Features for reading MOS */
@@ -190,6 +194,8 @@ struct spa {
 	uint8_t		spa_scrub_started;	/* started since last boot */
 	uint8_t		spa_scrub_reopen;	/* scrub doing vdev_reopen */
 	uint64_t	spa_scan_pass_start;	/* start time per pass/reboot */
+	uint64_t	spa_scan_pass_scrub_pause; /* scrub pause time */
+	uint64_t	spa_scan_pass_scrub_spent_paused; /* total paused */
 	uint64_t	spa_scan_pass_exam;	/* examined bytes per pass */
 	kmutex_t	spa_async_lock;		/* protect async state */
 	kthread_t	*spa_async_thread;	/* thread doing async task */
@@ -265,6 +271,7 @@ struct spa {
 #else	/* !illumos */
 #ifdef _KERNEL
 	struct callout	spa_deadman_cycid;	/* callout id */
+	struct task	spa_deadman_task;
 #endif
 #endif	/* illumos */
 	uint64_t	spa_deadman_calls;	/* number of deadman calls */

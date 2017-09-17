@@ -92,6 +92,9 @@ do_thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
 	do_thread_create(stk, stksize, proc, arg, len, pp, state, pri)
 #define	thread_exit()	kthread_exit()
 
+int	uread(proc_t *, void *, size_t, uintptr_t);
+int	uwrite(proc_t *, void *, size_t, uintptr_t);
+
 #endif	/* _KERNEL */
 
 #endif	/* _OPENSOLARIS_SYS_PROC_H_ */

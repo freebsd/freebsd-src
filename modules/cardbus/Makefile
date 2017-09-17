@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/cardbus
+.PATH: ${SRCTOP}/sys/dev/cardbus
 
 KMOD=	cardbus
 SRCS=	cardbus.c cardbus_cis.c cardbus_device.c \

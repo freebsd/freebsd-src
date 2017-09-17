@@ -105,8 +105,9 @@ bs_gen_map(bus_addr_t addr, bus_size_t size, int flags,
 void
 bs_remap_earlyboot(void)
 {
+	vm_paddr_t pa, spa;
+	vm_offset_t va;
 	int i;
-	vm_offset_t pa, spa, va;
 	vm_memattr_t ma;
 
 	for (i = 0; i < earlyboot_map_idx; i++) {

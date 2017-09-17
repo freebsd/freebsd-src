@@ -52,15 +52,9 @@ __FBSDID("$FreeBSD$");
 
 #include "bhnd_nvram_if.h"
 
-#include "bhnd_spromvar.h"
+#include "bhnd_nvram_io.h"
 
-#define	SPROM_LOCK_INIT(sc) \
-	mtx_init(&(sc)->mtx, device_get_nameunit((sc)->dev), \
-	    "BHND SPROM lock", MTX_DEF)
-#define	SPROM_LOCK(sc)			mtx_lock(&(sc)->mtx)
-#define	SPROM_UNLOCK(sc)			mtx_unlock(&(sc)->mtx)
-#define	SPROM_LOCK_ASSERT(sc, what)	mtx_assert(&(sc)->mtx, what)
-#define	SPROM_LOCK_DESTROY(sc)		mtx_destroy(&(sc)->mtx)
+#include "bhnd_spromvar.h"
 
 /**
  * Default bhnd sprom driver implementation of DEVICE_PROBE().
@@ -68,9 +62,6 @@ __FBSDID("$FreeBSD$");
 int
 bhnd_sprom_probe(device_t dev)
 {
-	/* Quiet by default */
-	if (!bootverbose)
-		device_quiet(dev);
 	device_set_desc(dev, "SPROM/OTP");
 
 	/* Refuse wildcard attachments */
@@ -100,32 +91,62 @@ int
 bhnd_sprom_attach(device_t dev, bus_size_t offset)
 {
 	struct bhnd_sprom_softc	*sc;
-	int				 error;
-	
+	struct bhnd_nvram_io	*io;
+	struct bhnd_resource	*r;
+	bus_size_t		 r_size, sprom_size;
+	int			 rid;
+	int			 error;
+
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
+	io = NULL;
+
 	/* Allocate SPROM resource */
-	sc->sprom_rid = 0;
-	sc->sprom_res = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->sprom_rid, RF_ACTIVE);
-	if (sc->sprom_res == NULL) {
+	rid = 0;
+	r = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	if (r == NULL) {
 		device_printf(dev, "failed to allocate resources\n");
 		return (ENXIO);
 	}
 
-	/* Initialize SPROM shadow */
-	if ((error = bhnd_sprom_init(&sc->shadow, sc->sprom_res, offset)))
+	/* Determine SPROM size */
+	r_size = rman_get_size(r->res);
+	if (r_size <= offset || (r_size - offset) > BUS_SPACE_MAXSIZE) {
+		device_printf(dev, "invalid sprom offset\n");
+		error = ENXIO;
+		goto failed;
+	}
+
+	sprom_size = r_size - offset;
+
+	/* Allocate an I/O context for the SPROM parser. All SPROM reads
+	 * must be 16-bit aligned */
+	io = bhnd_nvram_iores_new(r, offset, sprom_size, sizeof(uint16_t));
+	if (io == NULL) {
+		error = ENXIO;
+		goto failed;
+	}
+
+	/* Initialize NVRAM data store */
+	error = bhnd_nvram_store_parse_new(&sc->store, io,
+	    &bhnd_nvram_sprom_class);
+	if (error)
 		goto failed;
 
-	/* Initialize mutex */
-	SPROM_LOCK_INIT(sc);
+	/* Clean up our temporary I/O context and its backing resource */
+	bhnd_nvram_io_free(io);
+	bhnd_release_resource(dev, SYS_RES_MEMORY, rid, r);
 
 	return (0);
-	
+
 failed:
-	bhnd_release_resource(dev, SYS_RES_MEMORY, sc->sprom_rid,
-	    sc->sprom_res);
+	/* Clean up I/O context before releasing its backing resource */
+	if (io != NULL)
+		bhnd_nvram_io_free(io);
+
+	bhnd_release_resource(dev, SYS_RES_MEMORY, rid, r);
+
 	return (error);
 }
 
@@ -157,10 +178,7 @@ bhnd_sprom_detach(device_t dev)
 	
 	sc = device_get_softc(dev);
 
-	bhnd_release_resource(dev, SYS_RES_MEMORY, sc->sprom_rid,
-	    sc->sprom_res);
-	bhnd_sprom_fini(&sc->shadow);
-	SPROM_LOCK_DESTROY(sc);
+	bhnd_nvram_store_free(sc->store);
 
 	return (0);
 }
@@ -172,16 +190,9 @@ static int
 bhnd_sprom_getvar_method(device_t dev, const char *name, void *buf, size_t *len,
     bhnd_nvram_type type)
 {
-	struct bhnd_sprom_softc	*sc;
-	int				 error;
+	struct bhnd_sprom_softc	*sc = device_get_softc(dev);
 
-	sc = device_get_softc(dev);
-
-	SPROM_LOCK(sc);
-	error = bhnd_sprom_getvar(&sc->shadow, name, buf, len, type);
-	SPROM_UNLOCK(sc);
-
-	return (error);
+	return (bhnd_nvram_store_getvar(sc->store, name, buf, len, type));
 }
 
 /**
@@ -191,16 +202,9 @@ static int
 bhnd_sprom_setvar_method(device_t dev, const char *name, const void *buf,
     size_t len, bhnd_nvram_type type)
 {
-	struct bhnd_sprom_softc	*sc;
-	int				 error;
+	struct bhnd_sprom_softc	*sc = device_get_softc(dev);
 
-	sc = device_get_softc(dev);
-
-	SPROM_LOCK(sc);
-	error = bhnd_sprom_setvar(&sc->shadow, name, buf, len, type);
-	SPROM_UNLOCK(sc);
-
-	return (error);
+	return (bhnd_nvram_store_setvar(sc->store, name, buf, len, type));
 }
 
 static device_method_t bhnd_sprom_methods[] = {
@@ -218,5 +222,5 @@ static device_method_t bhnd_sprom_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(bhnd_nvram, bhnd_sprom_driver, bhnd_sprom_methods, sizeof(struct bhnd_sprom_softc));
+DEFINE_CLASS_0(bhnd_nvram_store, bhnd_sprom_driver, bhnd_sprom_methods, sizeof(struct bhnd_sprom_softc));
 MODULE_VERSION(bhnd_sprom, 1);

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/nvd
+.PATH: ${SRCTOP}/sys/dev/nvd
 
 KMOD=	nvd
 SRCS=	nvd.c opt_geom.h device_if.h bus_if.h

@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
- * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2016 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013 Joyent, Inc.  All rights reserved.
  */
 
@@ -30,6 +30,7 @@
 #include <sys/refcount.h>
 #include <sys/vdev_disk.h>
 #include <sys/vdev_impl.h>
+#include <sys/abd.h>
 #include <sys/fs/zfs.h>
 #include <sys/zio.h>
 #include <sys/sunldi.h>
@@ -239,34 +240,6 @@ vdev_disk_rele(vdev_t *vd)
 		    dsl_pool_vnrele_taskq(vd->vdev_spa->spa_dsl_pool));
 		vd->vdev_devid_vp = NULL;
 	}
-}
-
-static uint64_t
-vdev_disk_get_space(vdev_t *vd, uint64_t capacity, uint_t blksz)
-{
-	ASSERT(vd->vdev_wholedisk);
-
-	vdev_disk_t *dvd = vd->vdev_tsd;
-	dk_efi_t dk_ioc;
-	efi_gpt_t *efi;
-	uint64_t avail_space = 0;
-	int efisize = EFI_LABEL_SIZE * 2;
-
-	dk_ioc.dki_data = kmem_alloc(efisize, KM_SLEEP);
-	dk_ioc.dki_lba = 1;
-	dk_ioc.dki_length = efisize;
-	dk_ioc.dki_data_64 = (uint64_t)(uintptr_t)dk_ioc.dki_data;
-	efi = dk_ioc.dki_data;
-
-	if (ldi_ioctl(dvd->vd_lh, DKIOCGETEFI, (intptr_t)&dk_ioc,
-	    FKIOCTL, kcred, NULL) == 0) {
-		uint64_t efi_altern_lba = LE_64(efi->efi_gpt_AlternateLBA);
-
-		if (capacity > efi_altern_lba)
-			avail_space = (capacity - efi_altern_lba) * blksz;
-	}
-	kmem_free(dk_ioc.dki_data, efisize);
-	return (avail_space);
 }
 
 /*
@@ -559,10 +532,7 @@ skip_open:
 			 * Adjust max_psize upward accordingly since we know
 			 * we own the whole disk now.
 			 */
-			*max_psize += vdev_disk_get_space(vd, capacity, blksz);
-			zfs_dbgmsg("capacity change: vdev %s, psize %llu, "
-			    "max_psize %llu", vd->vdev_path, *psize,
-			    *max_psize);
+			*max_psize = capacity * blksz;
 		}
 
 		/*
@@ -689,6 +659,12 @@ vdev_disk_io_intr(buf_t *bp)
 	if (zio->io_error == 0 && bp->b_resid != 0)
 		zio->io_error = SET_ERROR(EIO);
 
+	if (zio->io_type == ZIO_TYPE_READ) {
+		abd_return_buf_copy(zio->io_abd, bp->b_un.b_addr, zio->io_size);
+	} else {
+		abd_return_buf(zio->io_abd, bp->b_un.b_addr, zio->io_size);
+	}
+
 	kmem_free(vb, sizeof (vdev_buf_t));
 
 	zio_delay_interrupt(zio);
@@ -774,16 +750,6 @@ vdev_disk_io_start(zio_t *zio)
 				return;
 			}
 
-			if (error == ENOTSUP || error == ENOTTY) {
-				/*
-				 * If we get ENOTSUP or ENOTTY, we know that
-				 * no future attempts will ever succeed.
-				 * In this case we set a persistent bit so
-				 * that we don't bother with the ioctl in the
-				 * future.
-				 */
-				vd->vdev_nowritecache = B_TRUE;
-			}
 			zio->io_error = error;
 
 			break;
@@ -810,7 +776,15 @@ vdev_disk_io_start(zio_t *zio)
 	if (!(zio->io_flags & (ZIO_FLAG_IO_RETRY | ZIO_FLAG_TRYHARD)))
 		bp->b_flags |= B_FAILFAST;
 	bp->b_bcount = zio->io_size;
-	bp->b_un.b_addr = zio->io_data;
+
+	if (zio->io_type == ZIO_TYPE_READ) {
+		bp->b_un.b_addr =
+		    abd_borrow_buf(zio->io_abd, zio->io_size);
+	} else {
+		bp->b_un.b_addr =
+		    abd_borrow_buf_copy(zio->io_abd, zio->io_size);
+	}
+
 	bp->b_lblkno = lbtodb(zio->io_offset);
 	bp->b_bufsize = zio->io_size;
 	bp->b_iodone = (int (*)())vdev_disk_io_intr;

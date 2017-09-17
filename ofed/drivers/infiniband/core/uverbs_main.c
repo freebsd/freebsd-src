@@ -519,8 +519,6 @@ void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
 	spin_unlock_irqrestore(&file->lock, flags);
 
 	wake_up_interruptible(&file->poll_wait);
-	if (file->filp)
-		selwakeup(&file->filp->f_selinfo);
 	kill_fasync(&file->async_queue, SIGIO, POLL_IN);
 }
 
@@ -554,8 +552,6 @@ static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
 	spin_unlock_irqrestore(&file->async_file->lock, flags);
 
 	wake_up_interruptible(&file->async_file->poll_wait);
-	if (file->async_file->filp)
-		selwakeup(&file->async_file->filp->f_selinfo);
 	kill_fasync(&file->async_file->async_queue, SIGIO, POLL_IN);
 }
 
@@ -1225,7 +1221,7 @@ show_dev_device(struct device *device, struct device_attribute *attr, char *buf)
 {
 	struct ib_uverbs_device *dev = dev_get_drvdata(device);
 
-	if (!dev)
+	if (!dev || !dev->ib_dev->dma_device)
 		return -ENODEV;
 
 	return sprintf(buf, "0x%04x\n",
@@ -1238,7 +1234,7 @@ show_dev_vendor(struct device *device, struct device_attribute *attr, char *buf)
 {
 	struct ib_uverbs_device *dev = dev_get_drvdata(device);
 
-	if (!dev)
+	if (!dev || !dev->ib_dev->dma_device)
 		return -ENODEV;
 
 	return sprintf(buf, "0x%04x\n",

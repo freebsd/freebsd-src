@@ -75,7 +75,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	void *addr;
 
 	addr = malloc(dmat->maxsize + dmat->alignment, XXX, XXX);
-	if (addr == 0)
+	if (addr == NULL)
 		return (ENOMEM);
 
 	*mapp = addr;
@@ -432,8 +432,8 @@ callout_callback(struct callout *c)
 	}
 	mtx_unlock(&mtx_callout);
 
-	if (c->func)
-		(c->func) (c->arg);
+	if (c->c_func != NULL)
+		(c->c_func) (c->c_arg);
 
 	if (!(c->flags & CALLOUT_RETURNUNLOCKED))
 		mtx_unlock(c->mtx);
@@ -487,8 +487,8 @@ callout_reset(struct callout *c, int to_ticks,
 {
 	callout_stop(c);
 
-	c->func = func;
-	c->arg = arg;
+	c->c_func = func;
+	c->c_arg = arg;
 	c->timeout = ticks + to_ticks;
 
 	mtx_lock(&mtx_callout);
@@ -507,8 +507,8 @@ callout_stop(struct callout *c)
 	}
 	mtx_unlock(&mtx_callout);
 
-	c->func = NULL;
-	c->arg = NULL;
+	c->c_func = NULL;
+	c->c_arg = NULL;
 }
 
 void
@@ -817,8 +817,12 @@ device_delete_child(device_t dev, device_t child)
 	int error = 0;
 	device_t grandchild;
 
-	/* remove children first */
+	/* detach parent before deleting children, if any */
+	error = device_detach(child);
+	if (error)
+		goto done;
 
+	/* remove children second */
 	while ((grandchild = TAILQ_FIRST(&child->dev_children))) {
 		error = device_delete_child(child, grandchild);
 		if (error) {
@@ -826,11 +830,6 @@ device_delete_child(device_t dev, device_t child)
 			goto done;
 		}
 	}
-
-	error = device_detach(child);
-
-	if (error)
-		goto done;
 
 	devclass_delete_device(child->dev_module, child);
 

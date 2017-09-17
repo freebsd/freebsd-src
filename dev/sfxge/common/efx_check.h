@@ -307,10 +307,8 @@
 #endif /* EFSYS_OPT_VPD */
 
 /* Support Wake on LAN */
-#if EFSYS_OPT_WOL
-# if !EFSYS_OPT_SIENA
-#  error "WOL requires SIENA"
-# endif
+#ifdef EFSYS_OPT_WOL
+# error "WOL is obsolete and is not supported"
 #endif /* EFSYS_OPT_WOL */
 
 #ifdef EFSYS_OPT_MCAST_FILTER_LIST

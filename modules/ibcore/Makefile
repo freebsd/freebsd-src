@@ -1,5 +1,5 @@
 # $FreeBSD$
-.PATH:  ${.CURDIR}/../../ofed/drivers/infiniband/core
+.PATH:  ${SRCTOP}/sys/ofed/drivers/infiniband/core
 
 KMOD=	ibcore
 SRCS=	addr.c iwcm.c sa_query.c ucma.c uverbs_cmd.c \
@@ -10,9 +10,9 @@ SRCS=	addr.c iwcm.c sa_query.c ucma.c uverbs_cmd.c \
 	vnode_if.h device_if.h bus_if.h pci_if.h \
 	opt_inet.h opt_inet6.h
 
-CFLAGS+= -I${.CURDIR}/../../ofed/drivers/infiniband/core
-CFLAGS+= -I${.CURDIR}/../../ofed/include
-CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
+CFLAGS+= -I${SRCTOP}/sys/ofed/drivers/infiniband/core
+CFLAGS+= -I${SRCTOP}/sys/ofed/include
+CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+= -DINET6 -DINET
 
 .include <bsd.kmod.mk>

@@ -55,6 +55,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
@@ -159,7 +160,7 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 	ldep->de_diroffset = diroffset;
 	ldep->de_inode = inode;
 	lockmgr(nvp->v_vnlock, LK_EXCLUSIVE, NULL);
-	fc_purge(ldep, 0);	/* init the fat cache for this denode */
+	fc_purge(ldep, 0);	/* init the FAT cache for this denode */
 	error = insmntque(nvp, mntp);
 	if (error != 0) {
 		free(ldep, M_MSDOSFSNODE);
@@ -409,7 +410,7 @@ detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 #endif
 				return (error);
 			}
-			bzero(bp->b_data + boff, pmp->pm_bpcluster - boff);
+			memset(bp->b_data + boff, 0, pmp->pm_bpcluster - boff);
 			if (flags & IO_SYNC)
 				bwrite(bp);
 			else

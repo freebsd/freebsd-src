@@ -90,6 +90,9 @@
 
 #define	USB_MAX_AUTO_QUIRK	8	/* maximum number of dynamic quirks */
 
+#define	USB_IN_POLLING_MODE_FUNC() usbd_in_polling_mode()
+#define	USB_IN_POLLING_MODE_VALUE() (SCHEDULER_STOPPED() || kdb_active)
+
 typedef uint32_t usb_timeout_t;		/* milliseconds */
 typedef uint32_t usb_frlength_t;	/* bytes */
 typedef uint32_t usb_frcount_t;		/* units */

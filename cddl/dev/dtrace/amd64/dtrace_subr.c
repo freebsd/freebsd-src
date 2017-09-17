@@ -41,7 +41,9 @@
 #include <sys/dtrace_impl.h>
 #include <sys/dtrace_bsd.h>
 #include <machine/clock.h>
+#include <machine/cpufunc.h>
 #include <machine/frame.h>
+#include <machine/psl.h>
 #include <vm/pmap.h>
 
 extern void dtrace_getnanotime(struct timespec *tsp);
@@ -123,8 +125,8 @@ dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
 	else
 		CPU_SETOF(cpu, &cpus);
 
-	smp_rendezvous_cpus(cpus, smp_no_rendevous_barrier, func,
-	    smp_no_rendevous_barrier, arg);
+	smp_rendezvous_cpus(cpus, smp_no_rendezvous_barrier, func,
+	    smp_no_rendezvous_barrier, arg);
 }
 
 static void
@@ -329,7 +331,7 @@ dtrace_gethrtime_init(void *arg)
 
 		smp_rendezvous_cpus(map, NULL,
 		    dtrace_gethrtime_init_cpu,
-		    smp_no_rendevous_barrier, (void *)(uintptr_t) i);
+		    smp_no_rendezvous_barrier, (void *)(uintptr_t) i);
 
 		tsc_skew[i] = tgt_cpu_tsc - hst_cpu_tsc;
 	}
@@ -384,6 +386,8 @@ dtrace_gethrestime(void)
 int
 dtrace_trap(struct trapframe *frame, u_int type)
 {
+	uint16_t nofault;
+
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
 	 * executing the probe, DTrace blocks re-scheduling and sets
@@ -393,7 +397,12 @@ dtrace_trap(struct trapframe *frame, u_int type)
 	 *
 	 * Check if DTrace has enabled 'no-fault' mode:
 	 */
-	if ((cpu_core[curcpu].cpuc_dtrace_flags & CPU_DTRACE_NOFAULT) != 0) {
+	sched_pin();
+	nofault = cpu_core[curcpu].cpuc_dtrace_flags & CPU_DTRACE_NOFAULT;
+	sched_unpin();
+	if (nofault) {
+		KASSERT((read_rflags() & PSL_I) == 0, ("interrupts enabled"));
+
 		/*
 		 * There are only a couple of trap types that are expected.
 		 * All the rest will be handled in the usual way.

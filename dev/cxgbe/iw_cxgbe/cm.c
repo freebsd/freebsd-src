@@ -76,24 +76,23 @@ static spinlock_t req_lock;
 static TAILQ_HEAD(c4iw_ep_list, c4iw_ep_common) req_list;
 static struct work_struct c4iw_task;
 static struct workqueue_struct *c4iw_taskq;
-static LIST_HEAD(timeout_list);
-static spinlock_t timeout_lock;
+static LIST_HEAD(err_cqe_list);
+static spinlock_t err_cqe_lock;
 
 static void process_req(struct work_struct *ctx);
 static void start_ep_timer(struct c4iw_ep *ep);
 static int stop_ep_timer(struct c4iw_ep *ep);
 static int set_tcpinfo(struct c4iw_ep *ep);
+static void process_timeout(struct c4iw_ep *ep);
+static void process_err_cqes(void);
 static enum c4iw_ep_state state_read(struct c4iw_ep_common *epc);
 static void __state_set(struct c4iw_ep_common *epc, enum c4iw_ep_state tostate);
 static void state_set(struct c4iw_ep_common *epc, enum c4iw_ep_state tostate);
 static void *alloc_ep(int size, gfp_t flags);
-void __free_ep(struct c4iw_ep_common *epc);
 static int find_route(__be32 local_ip, __be32 peer_ip, __be16 local_port,
 		__be16 peer_port, u8 tos, struct nhop4_extended *pnh4);
-static int close_socket(struct c4iw_ep_common *epc, int close);
-static int shutdown_socket(struct c4iw_ep_common *epc);
-static void abort_socket(struct c4iw_ep *ep);
-static void send_mpa_req(struct c4iw_ep *ep);
+static void close_socket(struct socket *so);
+static int send_mpa_req(struct c4iw_ep *ep);
 static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen);
 static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen);
 static void close_complete_upcall(struct c4iw_ep *ep, int status);
@@ -109,13 +108,18 @@ static void process_peer_close(struct c4iw_ep *ep);
 static void process_conn_error(struct c4iw_ep *ep);
 static void process_close_complete(struct c4iw_ep *ep);
 static void ep_timeout(unsigned long arg);
-static void init_sock(struct c4iw_ep_common *epc);
+static void setiwsockopt(struct socket *so);
+static void init_iwarp_socket(struct socket *so, void *arg);
+static void uninit_iwarp_socket(struct socket *so);
 static void process_data(struct c4iw_ep *ep);
 static void process_connected(struct c4iw_ep *ep);
 static int c4iw_so_upcall(struct socket *so, void *arg, int waitflag);
 static void process_socket_event(struct c4iw_ep *ep);
 static void release_ep_resources(struct c4iw_ep *ep);
-
+static int process_terminate(struct c4iw_ep *ep);
+static int terminate(struct sge_iq *iq, const struct rss_header *rss,
+    struct mbuf *m);
+static int add_ep_to_req_list(struct c4iw_ep *ep, int ep_events);
 #define START_EP_TIMER(ep) \
     do { \
 	    CTR3(KTR_IW_CXGBE, "start_ep_timer (%s:%d) ep %p", \
@@ -176,23 +180,112 @@ static void ref_qp(struct c4iw_ep *ep)
 	c4iw_qp_add_ref(&ep->com.qp->ibqp);
 }
 
+static void process_timeout(struct c4iw_ep *ep)
+{
+	struct c4iw_qp_attributes attrs;
+	int abort = 1;
+
+	mutex_lock(&ep->com.mutex);
+	CTR4(KTR_IW_CXGBE, "%s ep :%p, tid:%u, state %d", __func__,
+			ep, ep->hwtid, ep->com.state);
+	set_bit(TIMEDOUT, &ep->com.history);
+	switch (ep->com.state) {
+	case MPA_REQ_SENT:
+		connect_reply_upcall(ep, -ETIMEDOUT);
+		break;
+	case MPA_REQ_WAIT:
+	case MPA_REQ_RCVD:
+	case MPA_REP_SENT:
+	case FPDU_MODE:
+		break;
+	case CLOSING:
+	case MORIBUND:
+		if (ep->com.cm_id && ep->com.qp) {
+			attrs.next_state = C4IW_QP_STATE_ERROR;
+			c4iw_modify_qp(ep->com.dev, ep->com.qp,
+					C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
+		}
+		close_complete_upcall(ep, -ETIMEDOUT);
+		break;
+	case ABORTING:
+	case DEAD:
+		/*
+		 * These states are expected if the ep timed out at the same
+		 * time as another thread was calling stop_ep_timer().
+		 * So we silently do nothing for these states.
+		 */
+		abort = 0;
+		break;
+	default:
+		CTR4(KTR_IW_CXGBE, "%s unexpected state ep %p tid %u state %u\n"
+				, __func__, ep, ep->hwtid, ep->com.state);
+		abort = 0;
+	}
+	mutex_unlock(&ep->com.mutex);
+	if (abort)
+		c4iw_ep_disconnect(ep, 1, GFP_KERNEL);
+	c4iw_put_ep(&ep->com);
+	return;
+}
+
+struct cqe_list_entry {
+	struct list_head entry;
+	struct c4iw_dev *rhp;
+	struct t4_cqe err_cqe;
+};
+
+static void
+process_err_cqes(void)
+{
+	unsigned long flag;
+	struct cqe_list_entry *cle;
+
+	spin_lock_irqsave(&err_cqe_lock, flag);
+	while (!list_empty(&err_cqe_list)) {
+		struct list_head *tmp;
+		tmp = err_cqe_list.next;
+		list_del(tmp);
+		tmp->next = tmp->prev = NULL;
+		spin_unlock_irqrestore(&err_cqe_lock, flag);
+		cle = list_entry(tmp, struct cqe_list_entry, entry);
+		c4iw_ev_dispatch(cle->rhp, &cle->err_cqe);
+		free(cle, M_CXGBE);
+		spin_lock_irqsave(&err_cqe_lock, flag);
+	}
+	spin_unlock_irqrestore(&err_cqe_lock, flag);
+
+	return;
+}
+
 static void
 process_req(struct work_struct *ctx)
 {
 	struct c4iw_ep_common *epc;
+	unsigned long flag;
+	int ep_events;
 
-	spin_lock(&req_lock);
+	process_err_cqes();
+	spin_lock_irqsave(&req_lock, flag);
 	while (!TAILQ_EMPTY(&req_list)) {
 		epc = TAILQ_FIRST(&req_list);
 		TAILQ_REMOVE(&req_list, epc, entry);
 		epc->entry.tqe_prev = NULL;
-		spin_unlock(&req_lock);
-		if (epc->so)
+		ep_events = epc->ep_events;
+		epc->ep_events = 0;
+		spin_unlock_irqrestore(&req_lock, flag);
+		CTR4(KTR_IW_CXGBE, "%s: so %p, ep %p, events 0x%x", __func__,
+		    epc->so, epc, ep_events);
+		if (ep_events & C4IW_EVENT_TERM)
+			process_terminate((struct c4iw_ep *)epc);
+		if (ep_events & C4IW_EVENT_TIMEOUT)
+			process_timeout((struct c4iw_ep *)epc);
+		if (ep_events & C4IW_EVENT_SOCKET)
 			process_socket_event((struct c4iw_ep *)epc);
 		c4iw_put_ep(epc);
-		spin_lock(&req_lock);
+		process_err_cqes();
+		spin_lock_irqsave(&req_lock, flag);
 	}
-	spin_unlock(&req_lock);
+	spin_unlock_irqrestore(&req_lock, flag);
 }
 
 /*
@@ -246,63 +339,12 @@ find_route(__be32 local_ip, __be32 peer_ip, __be16 local_port,
 	return err;
 }
 
-static int
-close_socket(struct c4iw_ep_common *epc, int close)
-{
-	struct socket *so = epc->so;
-	int rc;
-
-	CTR4(KTR_IW_CXGBE, "%s: so %p, ep %p, state %s", __func__, epc, so,
-	    states[epc->state]);
-
-	SOCK_LOCK(so);
-	soupcall_clear(so, SO_RCV);
-	SOCK_UNLOCK(so);
-
-	if (close)
-                rc = soclose(so);
-        else
-                rc = soshutdown(so, SHUT_WR | SHUT_RD);
-	epc->so = NULL;
-
-	return (rc);
-}
-
-static int
-shutdown_socket(struct c4iw_ep_common *epc)
-{
-
-	CTR4(KTR_IW_CXGBE, "%s: so %p, ep %p, state %s", __func__, epc->so, epc,
-	    states[epc->state]);
-
-	return (soshutdown(epc->so, SHUT_WR));
-}
-
 static void
-abort_socket(struct c4iw_ep *ep)
+close_socket(struct socket *so)
 {
-	struct sockopt sopt;
-	int rc;
-	struct linger l;
 
-	CTR4(KTR_IW_CXGBE, "%s ep %p so %p state %s", __func__, ep, ep->com.so,
-	    states[ep->com.state]);
-
-	l.l_onoff = 1;
-	l.l_linger = 0;
-
-	/* linger_time of 0 forces RST to be sent */
-	sopt.sopt_dir = SOPT_SET;
-	sopt.sopt_level = SOL_SOCKET;
-	sopt.sopt_name = SO_LINGER;
-	sopt.sopt_val = (caddr_t)&l;
-	sopt.sopt_valsize = sizeof l;
-	sopt.sopt_td = NULL;
-	rc = sosetopt(ep->com.so, &sopt);
-	if (rc) {
-		log(LOG_ERR, "%s: can't set linger to 0, no RST! err %d\n",
-		    __func__, rc);
-	}
+	uninit_iwarp_socket(so);
+	sodisconnect(so);
 }
 
 static void
@@ -332,7 +374,7 @@ process_peer_close(struct c4iw_ep *ep)
 
 			disconnect = 0;
 			STOP_EP_TIMER(ep);
-			close_socket(&ep->com, 0);
+			close_socket(ep->com.so);
 			deref_cm_id(&ep->com);
 			release = 1;
 			break;
@@ -389,7 +431,7 @@ process_peer_close(struct c4iw_ep *ep)
 				c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
 						C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
 			}
-			close_socket(&ep->com, 0);
+			close_socket(ep->com.so);
 			close_complete_upcall(ep, 0);
 			__state_set(&ep->com, DEAD);
 			release = 1;
@@ -431,7 +473,8 @@ process_conn_error(struct c4iw_ep *ep)
 	int ret;
 	int state;
 
-	state = state_read(&ep->com);
+	mutex_lock(&ep->com.mutex);
+	state = ep->com.state;
 	CTR5(KTR_IW_CXGBE, "%s:pceB ep %p so %p so->so_error %u state %s",
 	    __func__, ep, ep->com.so, ep->com.so->so_error,
 	    states[ep->com.state]);
@@ -488,6 +531,7 @@ process_conn_error(struct c4iw_ep *ep)
 		case DEAD:
 			CTR2(KTR_IW_CXGBE, "%s so_error %d IN DEAD STATE!!!!",
 			    __func__, ep->com.so->so_error);
+			mutex_unlock(&ep->com.mutex);
 			return;
 
 		default:
@@ -496,12 +540,11 @@ process_conn_error(struct c4iw_ep *ep)
 	}
 
 	if (state != ABORTING) {
-
-		CTR2(KTR_IW_CXGBE, "%s:pce1 %p", __func__, ep);
-		close_socket(&ep->com, 0);
-		state_set(&ep->com, DEAD);
+		close_socket(ep->com.so);
+		__state_set(&ep->com, DEAD);
 		c4iw_put_ep(&ep->com);
 	}
+	mutex_unlock(&ep->com.mutex);
 	CTR2(KTR_IW_CXGBE, "%s:pceE %p", __func__, ep);
 	return;
 }
@@ -543,16 +586,7 @@ process_close_complete(struct c4iw_ep *ep)
 						&attrs, 1);
 			}
 
-			if (ep->parent_ep) {
-
-				CTR2(KTR_IW_CXGBE, "%s:pcc3 %p", __func__, ep);
-				close_socket(&ep->com, 1);
-			}
-			else {
-
-				CTR2(KTR_IW_CXGBE, "%s:pcc4 %p", __func__, ep);
-				close_socket(&ep->com, 0);
-			}
+			close_socket(ep->com.so);
 			close_complete_upcall(ep, 0);
 			__state_set(&ep->com, DEAD);
 			release = 1;
@@ -563,16 +597,19 @@ process_close_complete(struct c4iw_ep *ep)
 			break;
 
 		case DEAD:
-		default:
 			CTR2(KTR_IW_CXGBE, "%s:pcc6 %p DEAD", __func__, ep);
-			panic("%s:pcc6 %p DEAD", __func__, ep);
+			break;
+		default:
+			CTR2(KTR_IW_CXGBE, "%s:pcc7 %p unknown ep state",
+					__func__, ep);
+			panic("%s:pcc6 %p unknown ep state", __func__, ep);
 			break;
 	}
 	mutex_unlock(&ep->com.mutex);
 
 	if (release) {
 
-		CTR2(KTR_IW_CXGBE, "%s:pcc7 %p", __func__, ep);
+		CTR2(KTR_IW_CXGBE, "%s:pcc8 %p", __func__, ep);
 		c4iw_put_ep(&ep->com);
 	}
 	CTR2(KTR_IW_CXGBE, "%s:pccE %p", __func__, ep);
@@ -580,17 +617,12 @@ process_close_complete(struct c4iw_ep *ep)
 }
 
 static void
-init_sock(struct c4iw_ep_common *epc)
+setiwsockopt(struct socket *so)
 {
 	int rc;
 	struct sockopt sopt;
-	struct socket *so = epc->so;
 	int on = 1;
 
-	SOCK_LOCK(so);
-	soupcall_set(so, SO_RCV, c4iw_so_upcall, epc);
-	so->so_state |= SS_NBIO;
-	SOCK_UNLOCK(so);
 	sopt.sopt_dir = SOPT_SET;
 	sopt.sopt_level = IPPROTO_TCP;
 	sopt.sopt_name = TCP_NODELAY;
@@ -602,6 +634,25 @@ init_sock(struct c4iw_ep_common *epc)
 		log(LOG_ERR, "%s: can't set TCP_NODELAY on so %p (%d)\n",
 		    __func__, so, rc);
 	}
+}
+
+static void
+init_iwarp_socket(struct socket *so, void *arg)
+{
+
+	SOCKBUF_LOCK(&so->so_rcv);
+	soupcall_set(so, SO_RCV, c4iw_so_upcall, arg);
+	so->so_state |= SS_NBIO;
+	SOCKBUF_UNLOCK(&so->so_rcv);
+}
+
+static void
+uninit_iwarp_socket(struct socket *so)
+{
+
+	SOCKBUF_LOCK(&so->so_rcv);
+	soupcall_clear(so, SO_RCV);
+	SOCKBUF_UNLOCK(&so->so_rcv);
 }
 
 static void
@@ -642,15 +693,21 @@ process_data(struct c4iw_ep *ep)
 static void
 process_connected(struct c4iw_ep *ep)
 {
+	struct socket *so = ep->com.so;
 
-	if ((ep->com.so->so_state & SS_ISCONNECTED) && !ep->com.so->so_error)
-		send_mpa_req(ep);
-	else {
-		connect_reply_upcall(ep, -ep->com.so->so_error);
-		close_socket(&ep->com, 0);
-		state_set(&ep->com, DEAD);
-		c4iw_put_ep(&ep->com);
+	if ((so->so_state & SS_ISCONNECTED) && !so->so_error) {
+		if (send_mpa_req(ep))
+			goto err;
+	} else {
+		connect_reply_upcall(ep, -so->so_error);
+		goto err;
 	}
+	return;
+err:
+	close_socket(so);
+	state_set(&ep->com, DEAD);
+	c4iw_put_ep(&ep->com);
+	return;
 }
 
 void
@@ -660,24 +717,11 @@ process_newconn(struct iw_cm_id *parent_cm_id, struct socket *child_so)
 	struct sockaddr_in *local;
 	struct sockaddr_in *remote;
 	struct c4iw_ep *parent_ep = parent_cm_id->provider_data;
+	int ret = 0;
 
-	if (!child_so) {
-		CTR4(KTR_IW_CXGBE,
-		    "%s: parent so %p, parent ep %p, child so %p, invalid so",
-		    __func__, parent_ep->com.so, parent_ep, child_so);
-		log(LOG_ERR, "%s: invalid child socket\n", __func__);
-		return;
-	}
-	child_ep = alloc_ep(sizeof(*child_ep), M_NOWAIT);
-	if (!child_ep) {
-		CTR3(KTR_IW_CXGBE, "%s: parent so %p, parent ep %p, ENOMEM",
-		    __func__, parent_ep->com.so, parent_ep);
-		log(LOG_ERR, "%s: failed to allocate ep entry\n", __func__);
-		return;
-	}
-	SOCKBUF_LOCK(&child_so->so_rcv);
-	soupcall_set(child_so, SO_RCV, c4iw_so_upcall, child_ep);
-	SOCKBUF_UNLOCK(&child_so->so_rcv);
+	MPASS(child_so != NULL);
+
+	child_ep = alloc_ep(sizeof(*child_ep), GFP_KERNEL);
 
 	CTR5(KTR_IW_CXGBE,
 	    "%s: parent so %p, parent ep %p, child so %p, child ep %p",
@@ -697,14 +741,42 @@ process_newconn(struct iw_cm_id *parent_cm_id, struct socket *child_so)
 	free(local, M_SONAME);
 	free(remote, M_SONAME);
 
+	setiwsockopt(child_so);
+	init_iwarp_socket(child_so, &child_ep->com);
 	c4iw_get_ep(&parent_ep->com);
 	init_timer(&child_ep->timer);
 	state_set(&child_ep->com, MPA_REQ_WAIT);
 	START_EP_TIMER(child_ep);
 
 	/* maybe the request has already been queued up on the socket... */
-	process_mpa_request(child_ep);
+	ret = process_mpa_request(child_ep);
+	if (ret == 2)
+		/* ABORT */
+		c4iw_ep_disconnect(child_ep, 1, GFP_KERNEL);
+	else if (ret == 1)
+		/* CLOSE */
+		c4iw_ep_disconnect(child_ep, 0, GFP_KERNEL);
+
 	return;
+}
+
+static int
+add_ep_to_req_list(struct c4iw_ep *ep, int new_ep_event)
+{
+	unsigned long flag;
+
+	spin_lock_irqsave(&req_lock, flag);
+	if (ep && ep->com.so) {
+		ep->com.ep_events |= new_ep_event;
+		if (!ep->com.entry.tqe_prev) {
+			c4iw_get_ep(&ep->com);
+			TAILQ_INSERT_TAIL(&req_list, &ep->com, entry);
+			queue_work(c4iw_taskq, &c4iw_task);
+		}
+	}
+	spin_unlock_irqrestore(&req_lock, flag);
+
+	return (0);
 }
 
 static int
@@ -712,22 +784,37 @@ c4iw_so_upcall(struct socket *so, void *arg, int waitflag)
 {
 	struct c4iw_ep *ep = arg;
 
-	spin_lock(&req_lock);
-
 	CTR6(KTR_IW_CXGBE,
 	    "%s: so %p, so_state 0x%x, ep %p, ep_state %s, tqe_prev %p",
 	    __func__, so, so->so_state, ep, states[ep->com.state],
 	    ep->com.entry.tqe_prev);
 
-	if (ep && ep->com.so && !ep->com.entry.tqe_prev) {
-		KASSERT(ep->com.so == so, ("%s: XXX review.", __func__));
-		c4iw_get_ep(&ep->com);
-		TAILQ_INSERT_TAIL(&req_list, &ep->com, entry);
-		queue_work(c4iw_taskq, &c4iw_task);
-	}
+	MPASS(ep->com.so == so);
+	add_ep_to_req_list(ep, C4IW_EVENT_SOCKET);
 
-	spin_unlock(&req_lock);
 	return (SU_OK);
+}
+
+
+static int
+terminate(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+{
+	struct adapter *sc = iq->adapter;
+	const struct cpl_rdma_terminate *cpl = mtod(m, const void *);
+	unsigned int tid = GET_TID(cpl);
+	struct toepcb *toep = lookup_tid(sc, tid);
+	struct socket *so;
+	struct c4iw_ep *ep;
+
+	INP_WLOCK(toep->inp);
+	so = inp_inpcbtosocket(toep->inp);
+	ep = so->so_rcv.sb_upcallarg;
+	INP_WUNLOCK(toep->inp);
+
+	CTR3(KTR_IW_CXGBE, "%s: so %p, ep %p", __func__, so, ep);
+	add_ep_to_req_list(ep, C4IW_EVENT_TERM);
+
+	return 0;
 }
 
 static void
@@ -762,7 +849,12 @@ process_socket_event(struct c4iw_ep *ep)
 	/* peer close */
 	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) && state <= CLOSING) {
 		process_peer_close(ep);
-		return;
+		/*
+		 * check whether socket disconnect event is pending before
+		 * returning. Fallthrough if yes.
+		 */
+		if (!(so->so_state & SS_ISDISCONNECTED))
+			return;
 	}
 
 	/* close complete */
@@ -776,10 +868,6 @@ process_socket_event(struct c4iw_ep *ep)
 }
 
 SYSCTL_NODE(_hw, OID_AUTO, iw_cxgbe, CTLFLAG_RD, 0, "iw_cxgbe driver parameters");
-
-int db_delay_usecs = 1;
-SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, db_delay_usecs, CTLFLAG_RWTUN, &db_delay_usecs, 0,
-		"Usecs to delay awaiting db fifo to drain");
 
 static int dack_mode = 0;
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, dack_mode, CTLFLAG_RWTUN, &dack_mode, 0,
@@ -801,7 +889,7 @@ static int enable_tcp_window_scaling = 1;
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, enable_tcp_window_scaling, CTLFLAG_RWTUN, &enable_tcp_window_scaling, 0,
 		"Enable tcp window scaling (default = 1)");
 
-int c4iw_debug = 1;
+int c4iw_debug = 0;
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, c4iw_debug, CTLFLAG_RWTUN, &c4iw_debug, 0,
 		"Enable debug logging (default = 0)");
 
@@ -836,10 +924,6 @@ SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, rcv_win, CTLFLAG_RWTUN, &rcv_win, 0,
 static int snd_win = 128 * 1024;
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, snd_win, CTLFLAG_RWTUN, &snd_win, 0,
 		"TCP send window in bytes (default = 128KB)");
-
-int db_fc_threshold = 2000;
-SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, db_fc_threshold, CTLFLAG_RWTUN, &db_fc_threshold, 0,
-		"QP count/threshold that triggers automatic");
 
 static void
 start_ep_timer(struct c4iw_ep *ep)
@@ -915,16 +999,6 @@ alloc_ep(int size, gfp_t gfp)
 	return (epc);
 }
 
-void
-__free_ep(struct c4iw_ep_common *epc)
-{
-	CTR2(KTR_IW_CXGBE, "%s:feB %p", __func__, epc);
-	KASSERT(!epc->so, ("%s warning ep->so %p \n", __func__, epc->so));
-	KASSERT(!epc->entry.tqe_prev, ("%s epc %p still on req list!\n", __func__, epc));
-	free(epc, M_DEVBUF);
-	CTR2(KTR_IW_CXGBE, "%s:feE %p", __func__, epc);
-}
-
 void _c4iw_free_ep(struct kref *kref)
 {
 	struct c4iw_ep *ep;
@@ -936,6 +1010,8 @@ void _c4iw_free_ep(struct kref *kref)
 	    __func__, epc));
 	if (test_bit(QP_REFERENCED, &ep->com.flags))
 		deref_qp(ep);
+	CTR4(KTR_IW_CXGBE, "%s: ep %p, history 0x%lx, flags 0x%lx",
+	    __func__, ep, epc->history, epc->flags);
 	kfree(ep);
 }
 
@@ -947,7 +1023,7 @@ static void release_ep_resources(struct c4iw_ep *ep)
 	CTR2(KTR_IW_CXGBE, "%s:rerE %p", __func__, ep);
 }
 
-static void
+static int
 send_mpa_req(struct c4iw_ep *ep)
 {
 	int mpalen;
@@ -955,7 +1031,7 @@ send_mpa_req(struct c4iw_ep *ep)
 	struct mpa_v2_conn_params mpa_v2_params;
 	struct mbuf *m;
 	char mpa_rev_to_use = mpa_rev;
-	int err;
+	int err = 0;
 
 	if (ep->retry_with_mpa_v1)
 		mpa_rev_to_use = 1;
@@ -965,9 +1041,10 @@ send_mpa_req(struct c4iw_ep *ep)
 
 	mpa = malloc(mpalen, M_CXGBE, M_NOWAIT);
 	if (mpa == NULL) {
-failed:
-		connect_reply_upcall(ep, -ENOMEM);
-		return;
+		err = -ENOMEM;
+		CTR3(KTR_IW_CXGBE, "%s:smr1 ep: %p , error: %d",
+				__func__, ep, err);
+		goto err;
 	}
 
 	memset(mpa, 0, mpalen);
@@ -1019,20 +1096,32 @@ failed:
 
 	m = m_getm(NULL, mpalen, M_NOWAIT, MT_DATA);
 	if (m == NULL) {
+		err = -ENOMEM;
+		CTR3(KTR_IW_CXGBE, "%s:smr2 ep: %p , error: %d",
+				__func__, ep, err);
 		free(mpa, M_CXGBE);
-		goto failed;
+		goto err;
 	}
 	m_copyback(m, 0, mpalen, (void *)mpa);
 	free(mpa, M_CXGBE);
 
-	err = sosend(ep->com.so, NULL, NULL, m, NULL, MSG_DONTWAIT,
-	    ep->com.thread);
-	if (err)
-		goto failed;
+	err = -sosend(ep->com.so, NULL, NULL, m, NULL, MSG_DONTWAIT,
+			ep->com.thread);
+	if (err) {
+		CTR3(KTR_IW_CXGBE, "%s:smr3 ep: %p , error: %d",
+				__func__, ep, err);
+		goto err;
+	}
 
 	START_EP_TIMER(ep);
 	state_set(&ep->com, MPA_REQ_SENT);
 	ep->mpa_attr.initiator = 1;
+	CTR3(KTR_IW_CXGBE, "%s:smrE %p, error: %d", __func__, ep, err);
+	return 0;
+err:
+	connect_reply_upcall(ep, err);
+	CTR3(KTR_IW_CXGBE, "%s:smrE %p, error: %d", __func__, ep, err);
+	return err;
 }
 
 static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
@@ -1217,30 +1306,47 @@ static void close_complete_upcall(struct c4iw_ep *ep, int status)
 	CTR2(KTR_IW_CXGBE, "%s:ccuE %p", __func__, ep);
 }
 
-static int send_abort(struct c4iw_ep *ep)
+static int
+send_abort(struct c4iw_ep *ep)
 {
-	int err;
+	struct socket *so = ep->com.so;
+	struct sockopt sopt;
+	int rc;
+	struct linger l;
 
-	CTR2(KTR_IW_CXGBE, "%s:abB %p", __func__, ep);
-	abort_socket(ep);
+	CTR5(KTR_IW_CXGBE, "%s ep %p so %p state %s tid %d", __func__, ep, so,
+	    states[ep->com.state], ep->hwtid);
 
-	/*
-	 * Since socket options were set as l_onoff=1 and l_linger=0 in in
-	 * abort_socket, invoking soclose here sends a RST (reset) to the peer.
-	 */
-	err = close_socket(&ep->com, 1);
+	l.l_onoff = 1;
+	l.l_linger = 0;
+
+	/* linger_time of 0 forces RST to be sent */
+	sopt.sopt_dir = SOPT_SET;
+	sopt.sopt_level = SOL_SOCKET;
+	sopt.sopt_name = SO_LINGER;
+	sopt.sopt_val = (caddr_t)&l;
+	sopt.sopt_valsize = sizeof l;
+	sopt.sopt_td = NULL;
+	rc = sosetopt(so, &sopt);
+	if (rc != 0) {
+		log(LOG_ERR, "%s: sosetopt(%p, linger = 0) failed with %d.\n",
+		    __func__, so, rc);
+	}
+
+	uninit_iwarp_socket(so);
+	sodisconnect(so);
 	set_bit(ABORT_CONN, &ep->com.history);
-	CTR2(KTR_IW_CXGBE, "%s:abE %p", __func__, ep);
 
 	/*
-	 * TBD: iw_cgbe driver should receive ABORT reply for every ABORT
+	 * TBD: iw_cxgbe driver should receive ABORT reply for every ABORT
 	 * request it has sent. But the current TOE driver is not propagating
 	 * this ABORT reply event (via do_abort_rpl) to iw_cxgbe. So as a work-
 	 * around de-refer 'ep' (which was refered before sending ABORT request)
 	 * here instead of doing it in abort_rpl() handler of iw_cxgbe driver.
 	 */
 	c4iw_put_ep(&ep->com);
-	return err;
+
+	return (0);
 }
 
 static void peer_close_upcall(struct c4iw_ep *ep)
@@ -1283,10 +1389,11 @@ static void connect_reply_upcall(struct c4iw_ep *ep, int status)
 {
 	struct iw_cm_event event;
 
-	CTR3(KTR_IW_CXGBE, "%s:cruB %p", __func__, ep, status);
+	CTR3(KTR_IW_CXGBE, "%s:cruB %p, status: %d", __func__, ep, status);
 	memset(&event, 0, sizeof(event));
 	event.event = IW_CM_EVENT_CONNECT_REPLY;
-	event.status = (status ==-ECONNABORTED)?-ECONNRESET: status;
+	event.status = ((status == -ECONNABORTED) || (status == -EPIPE)) ?
+					-ECONNRESET : status;
 	event.local_addr = ep->com.local_addr;
 	event.remote_addr = ep->com.remote_addr;
 
@@ -1636,6 +1743,7 @@ static int process_mpa_reply(struct c4iw_ep *ep)
 
 		CTR2(KTR_IW_CXGBE, "%s:pmrl %p", __func__, ep);
 		printf("%s set_tcpinfo error\n", __func__);
+		err = -ECONNRESET;
 		goto err;
 	}
 
@@ -1901,32 +2009,31 @@ int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 	int err;
 	struct c4iw_ep *ep = to_ep(cm_id);
 	CTR2(KTR_IW_CXGBE, "%s:crcB %p", __func__, ep);
-	int disconnect = 0;
+	int abort = 0;
 
-	if (state_read(&ep->com) == DEAD) {
+	if ((state_read(&ep->com) == DEAD) ||
+			(state_read(&ep->com) != MPA_REQ_RCVD)) {
 
 		CTR2(KTR_IW_CXGBE, "%s:crc1 %p", __func__, ep);
 		c4iw_put_ep(&ep->com);
 		return -ECONNRESET;
 	}
 	set_bit(ULP_REJECT, &ep->com.history);
-	BUG_ON(state_read(&ep->com) != MPA_REQ_RCVD);
 
 	if (mpa_rev == 0) {
 
 		CTR2(KTR_IW_CXGBE, "%s:crc2 %p", __func__, ep);
-		disconnect = 2;
+		abort = 1;
 	}
 	else {
 
 		CTR2(KTR_IW_CXGBE, "%s:crc3 %p", __func__, ep);
-		err = send_mpa_reject(ep, pdata, pdata_len);
-		err = soshutdown(ep->com.so, 3);
+		abort = send_mpa_reject(ep, pdata, pdata_len);
 	}
+	stop_ep_timer(ep);
+	err = c4iw_ep_disconnect(ep, abort != 0, GFP_KERNEL);
 	c4iw_put_ep(&ep->com);
-	if (disconnect)
-		err = c4iw_ep_disconnect(ep, disconnect == 2, GFP_KERNEL);
-	CTR2(KTR_IW_CXGBE, "%s:crc4 %p", __func__, ep);
+	CTR3(KTR_IW_CXGBE, "%s:crc4 %p, err: %d", __func__, ep, err);
 	return 0;
 }
 
@@ -2070,7 +2177,6 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct c4iw_dev *dev = to_c4iw_dev(cm_id->device);
 	struct c4iw_ep *ep = NULL;
 	struct nhop4_extended nh4;
-	struct toedev *tdev;
 
 	CTR2(KTR_IW_CXGBE, "%s:ccB %p", __func__, cm_id);
 
@@ -2081,15 +2187,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		err = -EINVAL;
 		goto out;
 	}
-	ep = alloc_ep(sizeof(*ep), M_NOWAIT);
-
-	if (!ep) {
-
-		CTR2(KTR_IW_CXGBE, "%s:cc2 %p", __func__, cm_id);
-		printk(KERN_ERR MOD "%s - cannot alloc ep.\n", __func__);
-		err = -ENOMEM;
-		goto out;
-	}
+	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
 	init_timer(&ep->timer);
 	ep->plen = conn_param->private_data_len;
 
@@ -2123,8 +2221,6 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ep->com.thread = curthread;
 	ep->com.so = cm_id->so;
 
-	init_sock(&ep->com);
-
 	/* find a route */
 	err = find_route(
 		cm_id->local_addr.sin_addr.s_addr,
@@ -2140,45 +2236,34 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto fail2;
 	}
 
-	if (!(nh4.nh_ifp->if_capenable & IFCAP_TOE)) {
-
-		CTR2(KTR_IW_CXGBE, "%s:cc8 %p", __func__, ep);
-		printf("%s - interface not TOE capable.\n", __func__);
-		close_socket(&ep->com, 0);
+	if (!(nh4.nh_ifp->if_capenable & IFCAP_TOE) ||
+	    TOEDEV(nh4.nh_ifp) == NULL) {
 		err = -ENOPROTOOPT;
-		goto fail3;
-	}
-	tdev = TOEDEV(nh4.nh_ifp);
-
-	if (tdev == NULL) {
-
-		CTR2(KTR_IW_CXGBE, "%s:cc9 %p", __func__, ep);
-		printf("%s - No toedev for interface.\n", __func__);
 		goto fail3;
 	}
 	fib4_free_nh_ext(RT_DEFAULT_FIB, &nh4);
 
+	setiwsockopt(cm_id->so);
 	state_set(&ep->com, CONNECTING);
 	ep->tos = 0;
 	ep->com.local_addr = cm_id->local_addr;
 	ep->com.remote_addr = cm_id->remote_addr;
-	err = soconnect(ep->com.so, (struct sockaddr *)&ep->com.remote_addr,
+	err = -soconnect(ep->com.so, (struct sockaddr *)&ep->com.remote_addr,
 		ep->com.thread);
 
 	if (!err) {
-		CTR2(KTR_IW_CXGBE, "%s:cca %p", __func__, ep);
+		init_iwarp_socket(cm_id->so, &ep->com);
 		goto out;
 	} else {
-		close_socket(&ep->com, 0);
 		goto fail2;
 	}
 
 fail3:
-	CTR2(KTR_IW_CXGBE, "%s:ccb %p", __func__, ep);
 	fib4_free_nh_ext(RT_DEFAULT_FIB, &nh4);
 fail2:
 	deref_cm_id(&ep->com);
 	c4iw_put_ep(&ep->com);
+	ep = NULL;	/* CTR shouldn't display already-freed ep. */
 out:
 	CTR2(KTR_IW_CXGBE, "%s:ccE %p", __func__, ep);
 	return err;
@@ -2190,21 +2275,11 @@ out:
 int
 c4iw_create_listen_ep(struct iw_cm_id *cm_id, int backlog)
 {
-	int rc;
 	struct c4iw_dev *dev = to_c4iw_dev(cm_id->device);
 	struct c4iw_listen_ep *ep;
 	struct socket *so = cm_id->so;
 
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
-	CTR5(KTR_IW_CXGBE, "%s: cm_id %p, lso %p, ep %p, inp %p", __func__,
-	    cm_id, so, ep, so->so_pcb);
-	if (ep == NULL) {
-		log(LOG_ERR, "%s: failed to alloc memory for endpoint\n",
-		    __func__);
-		rc = ENOMEM;
-		goto failed;
-	}
-
 	ep->com.cm_id = cm_id;
 	ref_cm_id(&ep->com);
 	ep->com.dev = dev;
@@ -2216,10 +2291,6 @@ c4iw_create_listen_ep(struct iw_cm_id *cm_id, int backlog)
 
 	cm_id->provider_data = ep;
 	return (0);
-
-failed:
-	CTR3(KTR_IW_CXGBE, "%s: cm_id %p, FAILED (%d)", __func__, cm_id, rc);
-	return (-rc);
 }
 
 void
@@ -2315,6 +2386,8 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 			set_bit(EP_DISC_ABORT, &ep->com.history);
 			close_complete_upcall(ep, -ECONNRESET);
 			ret = send_abort(ep);
+			if (ret)
+				fatal = 1;
 		} else {
 
 			CTR2(KTR_IW_CXGBE, "%s:ced5 %p", __func__, ep);
@@ -2322,13 +2395,9 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 
 			if (!ep->parent_ep)
 				__state_set(&ep->com, MORIBUND);
-			ret = shutdown_socket(&ep->com);
+			sodisconnect(ep->com.so);
 		}
 
-		if (ret) {
-
-			fatal = 1;
-		}
 	}
 
 	if (fatal) {
@@ -2382,29 +2451,17 @@ int c4iw_ep_redirect(void *ctx, struct dst_entry *old, struct dst_entry *new,
 static void ep_timeout(unsigned long arg)
 {
 	struct c4iw_ep *ep = (struct c4iw_ep *)arg;
-	int kickit = 0;
-
-	CTR2(KTR_IW_CXGBE, "%s:etB %p", __func__, ep);
-	spin_lock(&timeout_lock);
 
 	if (!test_and_set_bit(TIMEOUT, &ep->com.flags)) {
 
 		/*
 		 * Only insert if it is not already on the list.
 		 */
-		if (!ep->entry.next) {
-			list_add_tail(&ep->entry, &timeout_list);
-			kickit = 1;
+		if (!(ep->com.ep_events & C4IW_EVENT_TIMEOUT)) {
+			CTR2(KTR_IW_CXGBE, "%s:et1 %p", __func__, ep);
+			add_ep_to_req_list(ep, C4IW_EVENT_TIMEOUT);
 		}
 	}
-	spin_unlock(&timeout_lock);
-
-	if (kickit) {
-
-		CTR2(KTR_IW_CXGBE, "%s:et1 %p", __func__, ep);
-		queue_work(c4iw_taskq, &c4iw_task);
-	}
-	CTR2(KTR_IW_CXGBE, "%s:etE %p", __func__, ep);
 }
 
 static int fw6_wr_rpl(struct adapter *sc, const __be64 *rpl)
@@ -2424,40 +2481,38 @@ static int fw6_wr_rpl(struct adapter *sc, const __be64 *rpl)
 
 static int fw6_cqe_handler(struct adapter *sc, const __be64 *rpl)
 {
-	struct t4_cqe cqe =*(const struct t4_cqe *)(&rpl[0]);
+	struct cqe_list_entry *cle;
+	unsigned long flag;
 
-	CTR2(KTR_IW_CXGBE, "%s rpl %p", __func__, rpl);
-	c4iw_ev_dispatch(sc->iwarp_softc, &cqe);
+	cle = malloc(sizeof(*cle), M_CXGBE, M_NOWAIT);
+	cle->rhp = sc->iwarp_softc;
+	cle->err_cqe = *(const struct t4_cqe *)(&rpl[0]);
+
+	spin_lock_irqsave(&err_cqe_lock, flag);
+	list_add_tail(&cle->entry, &err_cqe_list);
+	queue_work(c4iw_taskq, &c4iw_task);
+	spin_unlock_irqrestore(&err_cqe_lock, flag);
 
 	return (0);
 }
 
-static int terminate(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+static int
+process_terminate(struct c4iw_ep *ep)
 {
-	struct adapter *sc = iq->adapter;
-	const struct cpl_rdma_terminate *cpl = mtod(m, const void *);
-	unsigned int tid = GET_TID(cpl);
 	struct c4iw_qp_attributes attrs;
-	struct toepcb *toep = lookup_tid(sc, tid);
-	struct socket *so;
-	struct c4iw_ep *ep;
-
-	INP_WLOCK(toep->inp);
-	so = inp_inpcbtosocket(toep->inp);
-	ep = so->so_rcv.sb_upcallarg;
-	INP_WUNLOCK(toep->inp);
 
 	CTR2(KTR_IW_CXGBE, "%s:tB %p %d", __func__, ep);
 
 	if (ep && ep->com.qp) {
 
-		printk(KERN_WARNING MOD "TERM received tid %u qpid %u\n", tid,
-				ep->com.qp->wq.sq.qid);
+		printk(KERN_WARNING MOD "TERM received tid %u qpid %u\n",
+				ep->hwtid, ep->com.qp->wq.sq.qid);
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
 		c4iw_modify_qp(ep->com.dev, ep->com.qp, C4IW_QP_ATTR_NEXT_STATE, &attrs,
 				1);
 	} else
-		printk(KERN_WARNING MOD "TERM received tid %u no ep/qp\n", tid);
+		printk(KERN_WARNING MOD "TERM received tid %u no ep/qp\n",
+								ep->hwtid);
 	CTR2(KTR_IW_CXGBE, "%s:tE %p %d", __func__, ep);
 
 	return 0;
@@ -2473,8 +2528,8 @@ int __init c4iw_cm_init(void)
 
 	TAILQ_INIT(&req_list);
 	spin_lock_init(&req_lock);
-	INIT_LIST_HEAD(&timeout_list);
-	spin_lock_init(&timeout_lock);
+	INIT_LIST_HEAD(&err_cqe_list);
+	spin_lock_init(&err_cqe_lock);
 
 	INIT_WORK(&c4iw_task, process_req);
 
@@ -2488,7 +2543,7 @@ int __init c4iw_cm_init(void)
 void __exit c4iw_cm_term(void)
 {
 	WARN_ON(!TAILQ_EMPTY(&req_list));
-	WARN_ON(!list_empty(&timeout_list));
+	WARN_ON(!list_empty(&err_cqe_list));
 	flush_workqueue(c4iw_taskq);
 	destroy_workqueue(c4iw_taskq);
 

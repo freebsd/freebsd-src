@@ -178,7 +178,11 @@ tegra124_coretemp_ofw_parse(struct tegra124_coretemp_softc *sc)
 static void
 tegra124_coretemp_identify(driver_t *driver, device_t parent)
 {
+	phandle_t root;
 
+	root = OF_finddevice("/");
+	if (!ofw_bus_node_is_compatible(root, "nvidia,tegra124"))
+		return;
 	if (device_find_child(parent, "tegra124_coretemp", -1) != NULL)
 		return;
 	if (BUS_ADD_CHILD(parent, 0, "tegra124_coretemp", -1) == NULL)
@@ -189,7 +193,7 @@ static int
 tegra124_coretemp_probe(device_t dev)
 {
 
-	device_set_desc(dev, "CPU Frequency Control");
+	device_set_desc(dev, "CPU Thermal Sensor");
 	return (0);
 }
 
@@ -250,7 +254,6 @@ tegra124_coretemp_detach(device_t dev)
 	return (0);
 }
 
-
 static device_method_t tegra124_coretemp_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify,	tegra124_coretemp_identify),
@@ -263,11 +266,7 @@ static device_method_t tegra124_coretemp_methods[] = {
 };
 
 static devclass_t tegra124_coretemp_devclass;
-static driver_t tegra124_coretemp_driver = {
-	"tegra124_coretemp",
-	tegra124_coretemp_methods,
-	sizeof(struct tegra124_coretemp_softc),
-};
-
+static DEFINE_CLASS_0(tegra124_coretemp, tegra124_coretemp_driver,
+    tegra124_coretemp_methods, sizeof(struct tegra124_coretemp_softc));
 DRIVER_MODULE(tegra124_coretemp, cpu, tegra124_coretemp_driver,
-    tegra124_coretemp_devclass, 0, 0);
+    tegra124_coretemp_devclass, NULL, NULL);

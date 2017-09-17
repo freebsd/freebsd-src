@@ -287,13 +287,11 @@ intr_event_create(struct intr_event **event, void *source, int flags, int irq,
 /*
  * Bind an interrupt event to the specified CPU.  Note that not all
  * platforms support binding an interrupt to a CPU.  For those
- * platforms this request will fail.  For supported platforms, any
- * associated ithreads as well as the primary interrupt context will
- * be bound to the specificed CPU.  Using a cpu id of NOCPU unbinds
+ * platforms this request will fail.  Using a cpu id of NOCPU unbinds
  * the interrupt event.
  */
-int
-intr_event_bind(struct intr_event *ie, int cpu)
+static int
+_intr_event_bind(struct intr_event *ie, int cpu, bool bindirq, bool bindithread)
 {
 	lwpid_t id;
 	int error;
@@ -313,33 +311,73 @@ intr_event_bind(struct intr_event *ie, int cpu)
 	 * If we have any ithreads try to set their mask first to verify
 	 * permissions, etc.
 	 */
-	mtx_lock(&ie->ie_lock);
-	if (ie->ie_thread != NULL) {
-		id = ie->ie_thread->it_thread->td_tid;
-		mtx_unlock(&ie->ie_lock);
-		error = cpuset_setithread(id, cpu);
-		if (error)
-			return (error);
-	} else
-		mtx_unlock(&ie->ie_lock);
-	error = ie->ie_assign_cpu(ie->ie_source, cpu);
-	if (error) {
+	if (bindithread) {
 		mtx_lock(&ie->ie_lock);
 		if (ie->ie_thread != NULL) {
-			cpu = ie->ie_cpu;
 			id = ie->ie_thread->it_thread->td_tid;
 			mtx_unlock(&ie->ie_lock);
-			(void)cpuset_setithread(id, cpu);
+			error = cpuset_setithread(id, cpu);
+			if (error)
+				return (error);
 		} else
 			mtx_unlock(&ie->ie_lock);
+	}
+	if (bindirq)
+		error = ie->ie_assign_cpu(ie->ie_source, cpu);
+	if (error) {
+		if (bindithread) {
+			mtx_lock(&ie->ie_lock);
+			if (ie->ie_thread != NULL) {
+				cpu = ie->ie_cpu;
+				id = ie->ie_thread->it_thread->td_tid;
+				mtx_unlock(&ie->ie_lock);
+				(void)cpuset_setithread(id, cpu);
+			} else
+				mtx_unlock(&ie->ie_lock);
+		}
 		return (error);
 	}
 
-	mtx_lock(&ie->ie_lock);
-	ie->ie_cpu = cpu;
-	mtx_unlock(&ie->ie_lock);
+	if (bindirq) {
+		mtx_lock(&ie->ie_lock);
+		ie->ie_cpu = cpu;
+		mtx_unlock(&ie->ie_lock);
+	}
 
 	return (error);
+}
+
+/*
+ * Bind an interrupt event to the specified CPU.  For supported platforms, any
+ * associated ithreads as well as the primary interrupt context will be bound
+ * to the specificed CPU.
+ */
+int
+intr_event_bind(struct intr_event *ie, int cpu)
+{
+
+	return (_intr_event_bind(ie, cpu, true, true));
+}
+
+/*
+ * Bind an interrupt event to the specified CPU, but do not bind associated
+ * ithreads.
+ */
+int
+intr_event_bind_irqonly(struct intr_event *ie, int cpu)
+{
+
+	return (_intr_event_bind(ie, cpu, true, false));
+}
+
+/*
+ * Bind an interrupt event's ithread to the specified CPU.
+ */
+int
+intr_event_bind_ithread(struct intr_event *ie, int cpu)
+{
+
+	return (_intr_event_bind(ie, cpu, false, true));
 }
 
 static struct intr_event *
@@ -358,7 +396,7 @@ intr_lookup(int irq)
 }
 
 int
-intr_setaffinity(int irq, void *m)
+intr_setaffinity(int irq, int mode, void *m)
 {
 	struct intr_event *ie;
 	cpuset_t *mask;
@@ -382,26 +420,62 @@ intr_setaffinity(int irq, void *m)
 	ie = intr_lookup(irq);
 	if (ie == NULL)
 		return (ESRCH);
-	return (intr_event_bind(ie, cpu));
+	switch (mode) {
+	case CPU_WHICH_IRQ:
+		return (intr_event_bind(ie, cpu));
+	case CPU_WHICH_INTRHANDLER:
+		return (intr_event_bind_irqonly(ie, cpu));
+	case CPU_WHICH_ITHREAD:
+		return (intr_event_bind_ithread(ie, cpu));
+	default:
+		return (EINVAL);
+	}
 }
 
 int
-intr_getaffinity(int irq, void *m)
+intr_getaffinity(int irq, int mode, void *m)
 {
 	struct intr_event *ie;
+	struct thread *td;
+	struct proc *p;
 	cpuset_t *mask;
+	lwpid_t id;
+	int error;
 
 	mask = m;
 	ie = intr_lookup(irq);
 	if (ie == NULL)
 		return (ESRCH);
+
+	error = 0;
 	CPU_ZERO(mask);
-	mtx_lock(&ie->ie_lock);
-	if (ie->ie_cpu == NOCPU)
-		CPU_COPY(cpuset_root, mask);
-	else
-		CPU_SET(ie->ie_cpu, mask);
-	mtx_unlock(&ie->ie_lock);
+	switch (mode) {
+	case CPU_WHICH_IRQ:
+	case CPU_WHICH_INTRHANDLER:
+		mtx_lock(&ie->ie_lock);
+		if (ie->ie_cpu == NOCPU)
+			CPU_COPY(cpuset_root, mask);
+		else
+			CPU_SET(ie->ie_cpu, mask);
+		mtx_unlock(&ie->ie_lock);
+		break;
+	case CPU_WHICH_ITHREAD:
+		mtx_lock(&ie->ie_lock);
+		if (ie->ie_thread == NULL) {
+			mtx_unlock(&ie->ie_lock);
+			CPU_COPY(cpuset_root, mask);
+		} else {
+			id = ie->ie_thread->it_thread->td_tid;
+			mtx_unlock(&ie->ie_lock);
+			error = cpuset_which(CPU_WHICH_TID, id, &p, &td, NULL);
+			if (error != 0)
+				return (error);
+			CPU_COPY(&td->td_cpuset->cs_mask, mask);
+			PROC_UNLOCK(p);
+		}
+	default:
+		return (EINVAL);
+	}
 	return (0);
 }
 
@@ -1156,7 +1230,7 @@ swi_sched(void *cookie, int flags)
 	ih->ih_need = 1;
 
 	if (!(flags & SWI_DELAY)) {
-		PCPU_INC(cnt.v_soft);
+		VM_CNT_INC(v_soft);
 #ifdef INTR_FILTER
 		error = intr_event_schedule_thread(ie, ie->ie_thread);
 #else

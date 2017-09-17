@@ -210,7 +210,7 @@
 
 #define Q8_NUM_MBOX	512
 
-#define Q8_MAX_NUM_MULTICAST_ADDRS	1023
+#define Q8_MAX_NUM_MULTICAST_ADDRS	1022
 #define Q8_MAC_ADDR_LEN			6
 
 /*
@@ -511,8 +511,9 @@ typedef struct _q80_config_intr_coalesc_rsp {
 /*
  * Configure MAC Address
  */
+#define Q8_ETHER_ADDR_LEN		6
 typedef struct _q80_mac_addr {
-	uint8_t		addr[6];
+	uint8_t		addr[Q8_ETHER_ADDR_LEN];
 	uint16_t	vlan_tci;
 } __packed q80_mac_addr_t;
 
@@ -747,6 +748,7 @@ typedef struct _q80_rcv_stats {
 	uint64_t	lro_flows_deleted;
 	uint64_t	lro_flows_active;
 	uint64_t	pkts_droped_unknown;
+	uint64_t	pkts_cnt_oversized;
 } __packed q80_rcv_stats_t;
 
 typedef struct _q80_xmt_stats {
@@ -1215,7 +1217,7 @@ typedef struct _q80_tx_cmd {
 #define MAX_SDS_RINGS           32 /* Max# of Status Descriptor Rings */
 #define NUM_TX_RINGS		(MAX_SDS_RINGS * 2)
 #else
-#define MAX_SDS_RINGS           4 /* Max# of Status Descriptor Rings */
+#define MAX_SDS_RINGS           32 /* Max# of Status Descriptor Rings */
 #define NUM_TX_RINGS		MAX_SDS_RINGS
 #endif /* #ifdef QL_ENABLE_ISCSI_TLV */
 #define MAX_RDS_RINGS           MAX_SDS_RINGS /* Max# of Rcv Descriptor Rings */
@@ -1542,13 +1544,12 @@ typedef struct _qla_hw_tx_cntxt {
 
 	uint32_t        tx_prod_reg;
 	uint16_t	tx_cntxt_id;
-	uint8_t		frame_hdr[QL_FRAME_HDR_SIZE];
 
 } qla_hw_tx_cntxt_t;
 
 typedef struct _qla_mcast {
 	uint16_t	rsrvd;
-	uint8_t		addr[6];
+	uint8_t		addr[ETHER_ADDR_LEN];
 } __packed qla_mcast_t; 
 
 typedef struct _qla_rdesc {
@@ -1556,7 +1557,9 @@ typedef struct _qla_rdesc {
         volatile uint32_t prod_jumbo;
         volatile uint32_t rx_next; /* next standard rcv ring to arm fw */
         volatile int32_t  rx_in; /* next standard rcv ring to add mbufs */
-	volatile uint64_t count;
+	uint64_t count;
+	uint64_t lro_pkt_count;
+	uint64_t lro_bytes;
 } qla_rdesc_t;
 
 typedef struct _qla_flash_desc_table {
@@ -1660,6 +1663,7 @@ typedef struct _qla_hw {
 	/* multicast address list */
 	uint32_t	nmcast;
 	qla_mcast_t	mcast[Q8_MAX_NUM_MULTICAST_ADDRS];
+	uint8_t		mac_addr_arr[(Q8_MAX_MAC_ADDRS * ETHER_ADDR_LEN)];
 
 	/* reset sequence */
 #define Q8_MAX_RESET_SEQ_IDX	16
@@ -1669,18 +1673,25 @@ typedef struct _qla_hw {
 	/* heart beat register value */
 	uint32_t	hbeat_value;
 	uint32_t	health_count;
+	uint32_t	hbeat_failure;
 
 	uint32_t	max_tx_segs;
 	uint32_t	min_lro_pkt_size;
 	
+	uint32_t        enable_hw_lro;
+	uint32_t        enable_soft_lro;
 	uint32_t        enable_9kb;
 
 	uint32_t	user_pri_nic;
 	uint32_t	user_pri_iscsi;
-	uint64_t	iscsi_pkt_count;
 
 	/* Flash Descriptor Table */
 	qla_flash_desc_table_t fdt;
+
+	/* stats */
+	q80_mac_stats_t mac;
+	q80_rcv_stats_t rcv;
+	q80_xmt_stats_t xmt[NUM_TX_RINGS];
 
 	/* Minidump Related */
 	uint32_t	mdump_init;

@@ -617,6 +617,34 @@ struct iwn_rxon {
 #define IWN4965_RXONSZ	(sizeof (struct iwn_rxon) - 6)
 #define IWN5000_RXONSZ	(sizeof (struct iwn_rxon))
 
+/* Structure for command IWN_CMD_RXON_ASSOC (4965AGN only.) */
+struct iwn4965_rxon_assoc {
+	uint32_t	flags;
+	uint32_t	filter;
+	uint8_t		ofdm_mask;
+	uint8_t		cck_mask;
+	uint8_t		ht_single_mask;
+	uint8_t		ht_dual_mask;
+	uint16_t	rxchain;
+	uint16_t	reserved;
+} __packed;
+
+/* Structure for command IWN_CMD_RXON_ASSOC (5000 Series only.) */
+struct iwn5000_rxon_assoc {
+	uint32_t	flags;
+	uint32_t	filter;
+	uint8_t		ofdm_mask;
+	uint8_t		cck_mask;
+	uint16_t	reserved1;
+	uint8_t		ht_single_mask;
+	uint8_t		ht_dual_mask;
+	uint8_t		ht_triple_mask;
+	uint8_t		reserved2;
+	uint16_t	rxchain;
+	uint16_t	acquisition;
+	uint32_t	reserved3;
+} __packed;
+
 /* Structure for command IWN_CMD_ASSOCIATE. */
 struct iwn_assoc {
 	uint32_t	flags;
@@ -662,12 +690,14 @@ struct iwn_node_info {
 	uint8_t		macaddr[IEEE80211_ADDR_LEN];
 	uint16_t	reserved2;
 	uint8_t		id;
-#define IWN_ID_BSS		 0
+#define IWN_ID_BSS		0
 #define	IWN_STA_ID		1
 
-#define	IWN_PAN_ID_BCAST		14
+#define	IWN_PAN_ID_BCAST	14
 #define IWN5000_ID_BROADCAST	15
 #define IWN4965_ID_BROADCAST	31
+
+#define IWN_ID_UNDEFINED	(uint8_t)-1
 
 	uint8_t		flags;
 #define IWN_FLAG_SET_KEY		(1 << 0)
@@ -735,6 +765,10 @@ struct iwn4965_node_info {
 	uint16_t	addba_ssn;
 	uint32_t	reserved7;
 } __packed;
+
+#define IWN_RFLAG_RATE		0xff
+#define IWN_RFLAG_RATE_MCS	0x1f
+#define IWN_RFLAG_HT40_DUP	0x20
 
 #define IWN_RFLAG_MCS		(1 << 8)
 #define IWN_RFLAG_CCK		(1 << 9)

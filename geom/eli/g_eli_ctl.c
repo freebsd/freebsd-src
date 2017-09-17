@@ -85,6 +85,11 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 
+	if (*detach && *readonly) {
+		gctl_error(req, "Options -d and -r are mutually exclusive.");
+		return;
+	}
+
 	name = gctl_get_asciiparam(req, "arg0");
 	if (name == NULL) {
 		gctl_error(req, "No 'arg%u' argument.", 0);
@@ -104,44 +109,39 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (md.md_keys == 0x00) {
-		bzero(&md, sizeof(md));
+		explicit_bzero(&md, sizeof(md));
 		gctl_error(req, "No valid keys on %s.", pp->name);
 		return;
 	}
 
 	key = gctl_get_param(req, "key", &keysize);
 	if (key == NULL || keysize != G_ELI_USERKEYLEN) {
-		bzero(&md, sizeof(md));
+		explicit_bzero(&md, sizeof(md));
 		gctl_error(req, "No '%s' argument.", "key");
 		return;
 	}
 
 	error = g_eli_mkey_decrypt(&md, key, mkey, &nkey);
-	bzero(key, keysize);
+	explicit_bzero(key, keysize);
 	if (error == -1) {
-		bzero(&md, sizeof(md));
+		explicit_bzero(&md, sizeof(md));
 		gctl_error(req, "Wrong key for %s.", pp->name);
 		return;
 	} else if (error > 0) {
-		bzero(&md, sizeof(md));
+		explicit_bzero(&md, sizeof(md));
 		gctl_error(req, "Cannot decrypt Master Key for %s (error=%d).",
 		    pp->name, error);
 		return;
 	}
 	G_ELI_DEBUG(1, "Using Master Key %u for %s.", nkey, pp->name);
 
-	if (*detach && *readonly) {
-		bzero(&md, sizeof(md));
-		gctl_error(req, "Options -d and -r are mutually exclusive.");
-		return;
-	}
 	if (*detach)
 		md.md_flags |= G_ELI_FLAG_WO_DETACH;
 	if (*readonly)
 		md.md_flags |= G_ELI_FLAG_RO;
 	g_eli_create(req, mp, pp, &md, mkey, nkey);
-	bzero(mkey, sizeof(mkey));
-	bzero(&md, sizeof(md));
+	explicit_bzero(mkey, sizeof(mkey));
+	explicit_bzero(&md, sizeof(md));
 }
 
 static struct g_eli_softc *
@@ -362,8 +362,8 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 	}
 
 	g_eli_create(req, mp, pp, &md, mkey, -1);
-	bzero(mkey, sizeof(mkey));
-	bzero(&md, sizeof(md));
+	explicit_bzero(mkey, sizeof(mkey));
+	explicit_bzero(&md, sizeof(md));
 }
 
 static void
@@ -377,6 +377,7 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	const char *prov;
 	u_char *sector;
 	int *nargs, *boot, *noboot, *trim, *notrim, *geliboot, *nogeliboot;
+	int *displaypass, *nodisplaypass;
 	int zero, error, changed;
 	u_int i;
 
@@ -432,6 +433,19 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (*geliboot || *nogeliboot)
+		changed = 1;
+
+	displaypass = gctl_get_paraml(req, "displaypass", sizeof(*displaypass));
+	if (displaypass == NULL)
+		displaypass = &zero;
+	nodisplaypass = gctl_get_paraml(req, "nodisplaypass", sizeof(*nodisplaypass));
+	if (nodisplaypass == NULL)
+		nodisplaypass = &zero;
+	if (*displaypass && *nodisplaypass) {
+		gctl_error(req, "Options -d and -D are mutually exclusive.");
+		return;
+	}
+	if (*displaypass || *nodisplaypass)
 		changed = 1;
 
 	if (!changed) {
@@ -492,6 +506,17 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			continue;
 		}
 
+		if (*displaypass && (sc->sc_flags & G_ELI_FLAG_GELIDISPLAYPASS)) {
+			G_ELI_DEBUG(1, "GELIDISPLAYPASS flag already configured for %s.",
+			    prov);
+			continue;
+		} else if (*nodisplaypass &&
+		    !(sc->sc_flags & G_ELI_FLAG_GELIDISPLAYPASS)) {
+			G_ELI_DEBUG(1, "GELIDISPLAYPASS flag not configured for %s.",
+			    prov);
+			continue;
+		}
+
 		if (!(sc->sc_flags & G_ELI_FLAG_ONETIME)) {
 			/*
 			 * ONETIME providers don't write metadata to
@@ -535,6 +560,14 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			sc->sc_flags &= ~G_ELI_FLAG_GELIBOOT;
 		}
 
+		if (*displaypass) {
+			md.md_flags |= G_ELI_FLAG_GELIDISPLAYPASS;
+			sc->sc_flags |= G_ELI_FLAG_GELIDISPLAYPASS;
+		} else if (*nodisplaypass) {
+			md.md_flags &= ~G_ELI_FLAG_GELIDISPLAYPASS;
+			sc->sc_flags &= ~G_ELI_FLAG_GELIDISPLAYPASS;
+		}
+
 		if (sc->sc_flags & G_ELI_FLAG_ONETIME) {
 			/* There's no metadata on disk so we are done here. */
 			continue;
@@ -549,8 +582,8 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			    "Cannot store metadata on %s (error=%d).",
 			    prov, error);
 		}
-		bzero(&md, sizeof(md));
-		bzero(sector, pp->sectorsize);
+		explicit_bzero(&md, sizeof(md));
+		explicit_bzero(sector, pp->sectorsize);
 		free(sector, M_ELI);
 	}
 }
@@ -572,6 +605,11 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 	name = gctl_get_asciiparam(req, "arg0");
 	if (name == NULL) {
 		gctl_error(req, "No 'arg%u' argument.", 0);
+		return;
+	}
+	key = gctl_get_param(req, "key", &keysize);
+	if (key == NULL || keysize != G_ELI_USERKEYLEN) {
+		gctl_error(req, "No '%s' argument.", "key");
 		return;
 	}
 	sc = g_eli_find_device(mp, name);
@@ -613,7 +651,9 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	/* Check if iterations number should and can be changed. */
-	if (*valp != -1) {
+	if (*valp != -1 && md.md_iterations == -1) {
+		md.md_iterations = *valp;
+	} else if (*valp != -1 && *valp != md.md_iterations) {
 		if (bitcount32(md.md_keys) != 1) {
 			gctl_error(req, "To be able to use '-i' option, only "
 			    "one key can be defined.");
@@ -627,13 +667,6 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 		md.md_iterations = *valp;
 	}
 
-	key = gctl_get_param(req, "key", &keysize);
-	if (key == NULL || keysize != G_ELI_USERKEYLEN) {
-		bzero(&md, sizeof(md));
-		gctl_error(req, "No '%s' argument.", "key");
-		return;
-	}
-
 	mkeydst = md.md_mkeys + nkey * G_ELI_MKEYLEN;
 	md.md_keys |= (1 << nkey);
 
@@ -641,9 +674,9 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 
 	/* Encrypt Master Key with the new key. */
 	error = g_eli_mkey_encrypt(md.md_ealgo, key, md.md_keylen, mkeydst);
-	bzero(key, keysize);
+	explicit_bzero(key, keysize);
 	if (error != 0) {
-		bzero(&md, sizeof(md));
+		explicit_bzero(&md, sizeof(md));
 		gctl_error(req, "Cannot encrypt Master Key (error=%d).", error);
 		return;
 	}
@@ -651,10 +684,10 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 	sector = malloc(pp->sectorsize, M_ELI, M_WAITOK | M_ZERO);
 	/* Store metadata with fresh key. */
 	eli_metadata_encode(&md, sector);
-	bzero(&md, sizeof(md));
+	explicit_bzero(&md, sizeof(md));
 	error = g_write_data(cp, pp->mediasize - pp->sectorsize, sector,
 	    pp->sectorsize);
-	bzero(sector, pp->sectorsize);
+	explicit_bzero(sector, pp->sectorsize);
 	free(sector, M_ELI);
 	if (error != 0) {
 		gctl_error(req, "Cannot store metadata on %s (error=%d).",
@@ -752,7 +785,7 @@ g_eli_ctl_delkey(struct gctl_req *req, struct g_class *mp)
 	sector = malloc(pp->sectorsize, M_ELI, M_WAITOK | M_ZERO);
 	for (i = 0; i <= g_eli_overwrites; i++) {
 		if (i == g_eli_overwrites)
-			bzero(mkeydst, keysize);
+			explicit_bzero(mkeydst, keysize);
 		else
 			arc4rand(mkeydst, keysize, 0);
 		/* Store metadata with destroyed key. */
@@ -769,8 +802,8 @@ g_eli_ctl_delkey(struct gctl_req *req, struct g_class *mp)
 		 */
 		(void)g_io_flush(cp);
 	}
-	bzero(&md, sizeof(md));
-	bzero(sector, pp->sectorsize);
+	explicit_bzero(&md, sizeof(md));
+	explicit_bzero(sector, pp->sectorsize);
 	free(sector, M_ELI);
 	if (*all)
 		G_ELI_DEBUG(1, "All keys removed from %s.", pp->name);
@@ -817,12 +850,12 @@ g_eli_suspend_one(struct g_eli_softc *sc, struct gctl_req *req)
 	/*
 	 * Clear sensitive data on suspend, they will be recovered on resume.
 	 */
-	bzero(sc->sc_mkey, sizeof(sc->sc_mkey));
+	explicit_bzero(sc->sc_mkey, sizeof(sc->sc_mkey));
 	g_eli_key_destroy(sc);
-	bzero(sc->sc_akey, sizeof(sc->sc_akey));
-	bzero(&sc->sc_akeyctx, sizeof(sc->sc_akeyctx));
-	bzero(sc->sc_ivkey, sizeof(sc->sc_ivkey));
-	bzero(&sc->sc_ivctx, sizeof(sc->sc_ivctx));
+	explicit_bzero(sc->sc_akey, sizeof(sc->sc_akey));
+	explicit_bzero(&sc->sc_akeyctx, sizeof(sc->sc_akeyctx));
+	explicit_bzero(sc->sc_ivkey, sizeof(sc->sc_ivkey));
+	explicit_bzero(&sc->sc_ivctx, sizeof(sc->sc_ivctx));
 	mtx_unlock(&sc->sc_queue_mtx);
 	G_ELI_DEBUG(0, "Device %s has been suspended.", sc->sc_name);
 }
@@ -915,6 +948,11 @@ g_eli_ctl_resume(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No 'arg%u' argument.", 0);
 		return;
 	}
+	key = gctl_get_param(req, "key", &keysize);
+	if (key == NULL || keysize != G_ELI_USERKEYLEN) {
+		gctl_error(req, "No '%s' argument.", "key");
+		return;
+	}
 	sc = g_eli_find_device(mp, name);
 	if (sc == NULL) {
 		gctl_error(req, "Provider %s is invalid.", name);
@@ -929,26 +967,19 @@ g_eli_ctl_resume(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (md.md_keys == 0x00) {
-		bzero(&md, sizeof(md));
+		explicit_bzero(&md, sizeof(md));
 		gctl_error(req, "No valid keys on %s.", pp->name);
 		return;
 	}
 
-	key = gctl_get_param(req, "key", &keysize);
-	if (key == NULL || keysize != G_ELI_USERKEYLEN) {
-		bzero(&md, sizeof(md));
-		gctl_error(req, "No '%s' argument.", "key");
-		return;
-	}
-
 	error = g_eli_mkey_decrypt(&md, key, mkey, &nkey);
-	bzero(key, keysize);
+	explicit_bzero(key, keysize);
 	if (error == -1) {
-		bzero(&md, sizeof(md));
+		explicit_bzero(&md, sizeof(md));
 		gctl_error(req, "Wrong key for %s.", pp->name);
 		return;
 	} else if (error > 0) {
-		bzero(&md, sizeof(md));
+		explicit_bzero(&md, sizeof(md));
 		gctl_error(req, "Cannot decrypt Master Key for %s (error=%d).",
 		    pp->name, error);
 		return;
@@ -966,8 +997,8 @@ g_eli_ctl_resume(struct gctl_req *req, struct g_class *mp)
 		wakeup(sc);
 	}
 	mtx_unlock(&sc->sc_queue_mtx);
-	bzero(mkey, sizeof(mkey));
-	bzero(&md, sizeof(md));
+	explicit_bzero(mkey, sizeof(mkey));
+	explicit_bzero(&md, sizeof(md));
 }
 
 static int

@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -208,20 +208,26 @@ sysctl_kern_randompid(SYSCTL_HANDLER_ARGS)
 	pid = randompid;
 	error = sysctl_handle_int(oidp, &pid, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (pid < 0 || pid > pid_max - 100)	/* out of range */
-			pid = pid_max - 100;
-		else if (pid < 2)			/* NOP */
-			pid = 0;
-		else if (pid < 100)			/* Make it reasonable */
-			pid = 100;
-		randompid = pid;
+		if (pid == 0)
+			randompid = 0;
+		else if (pid == 1)
+			/* generate a random PID modulus between 100 and 1123 */
+			randompid = 100 + arc4random() % 1024;
+		else if (pid < 0 || pid > pid_max - 100)
+			/* out of range */
+			randompid = pid_max - 100;
+		else if (pid < 100)	 
+			/* Make it reasonable */
+			randompid = 100;
+		else
+			randompid = pid;
 	}
 	sx_xunlock(&allproc_lock);
 	return (error);
 }
 
 SYSCTL_PROC(_kern, OID_AUTO, randompid, CTLTYPE_INT|CTLFLAG_RW,
-    0, 0, sysctl_kern_randompid, "I", "Random PID modulus");
+    0, 0, sysctl_kern_randompid, "I", "Random PID modulus. Special values: 0: disable, 1: choose random value");
 
 static int
 fork_findpid(int flags)
@@ -497,7 +503,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	 * Increase reference counts on shared objects.
 	 */
 	p2->p_flag = P_INMEM;
-	p2->p_flag2 = p1->p_flag2 & (P2_NOTRACE | P2_NOTRACE_EXEC);
+	p2->p_flag2 = p1->p_flag2 & (P2_NOTRACE | P2_NOTRACE_EXEC | P2_TRAPCAP);
 	p2->p_swtick = ticks;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
@@ -547,7 +553,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 
 	/* Bump references to the text vnode (for procfs). */
 	if (p2->p_textvp)
-		vref(p2->p_textvp);
+		vrefact(p2->p_textvp);
 
 	/*
 	 * Set up linkage for kernel based threading.
@@ -664,20 +670,20 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	vm_forkproc(td, p2, td2, vm2, fr->fr_flags);
 
 	if (fr->fr_flags == (RFFDG | RFPROC)) {
-		PCPU_INC(cnt.v_forks);
-		PCPU_ADD(cnt.v_forkpages, p2->p_vmspace->vm_dsize +
+		VM_CNT_INC(v_forks);
+		VM_CNT_ADD(v_forkpages, p2->p_vmspace->vm_dsize +
 		    p2->p_vmspace->vm_ssize);
 	} else if (fr->fr_flags == (RFFDG | RFPROC | RFPPWAIT | RFMEM)) {
-		PCPU_INC(cnt.v_vforks);
-		PCPU_ADD(cnt.v_vforkpages, p2->p_vmspace->vm_dsize +
+		VM_CNT_INC(v_vforks);
+		VM_CNT_ADD(v_vforkpages, p2->p_vmspace->vm_dsize +
 		    p2->p_vmspace->vm_ssize);
 	} else if (p1 == &proc0) {
-		PCPU_INC(cnt.v_kthreads);
-		PCPU_ADD(cnt.v_kthreadpages, p2->p_vmspace->vm_dsize +
+		VM_CNT_INC(v_kthreads);
+		VM_CNT_ADD(v_kthreadpages, p2->p_vmspace->vm_dsize +
 		    p2->p_vmspace->vm_ssize);
 	} else {
-		PCPU_INC(cnt.v_rforks);
-		PCPU_ADD(cnt.v_rforkpages, p2->p_vmspace->vm_dsize +
+		VM_CNT_INC(v_rforks);
+		VM_CNT_ADD(v_rforkpages, p2->p_vmspace->vm_dsize +
 		    p2->p_vmspace->vm_ssize);
 	}
 
@@ -1081,7 +1087,7 @@ fork_return(struct thread *td, struct trapframe *frame)
 			proc_reparent(p, dbg);
 			sx_xunlock(&proctree_lock);
 			td->td_dbgflags |= TDB_CHILD | TDB_SCX | TDB_FSTP;
-			ptracestop(td, SIGSTOP);
+			ptracestop(td, SIGSTOP, NULL);
 			td->td_dbgflags &= ~(TDB_CHILD | TDB_SCX);
 		} else {
 			/*
@@ -1099,10 +1105,10 @@ fork_return(struct thread *td, struct trapframe *frame)
 		 */
 		PROC_LOCK(p);
 		td->td_dbgflags |= TDB_SCX;
-		_STOPEVENT(p, S_SCX, td->td_dbg_sc_code);
+		_STOPEVENT(p, S_SCX, td->td_sa.code);
 		if ((p->p_ptevents & PTRACE_SCX) != 0 ||
 		    (td->td_dbgflags & TDB_BORN) != 0)
-			ptracestop(td, SIGTRAP);
+			ptracestop(td, SIGTRAP, NULL);
 		td->td_dbgflags &= ~(TDB_SCX | TDB_BORN);
 		PROC_UNLOCK(p);
 	}

@@ -345,9 +345,15 @@ release_aps(void *dummy __unused)
 	/*
 	 * IPI handler
 	 */
-	ipi_irq = platform_ipi_intrnum();
-	cpu_establish_hardintr("ipi", mips_ipi_handler, NULL, NULL, ipi_irq,
-			       INTR_TYPE_MISC | INTR_EXCL, NULL);
+	ipi_irq = platform_ipi_hardintr_num();
+	if (ipi_irq != -1) {
+		cpu_establish_hardintr("ipi", mips_ipi_handler, NULL, NULL,
+		    ipi_irq, INTR_TYPE_MISC | INTR_EXCL, NULL);
+	} else {
+		ipi_irq = platform_ipi_softintr_num();
+		cpu_establish_softintr("ipi", mips_ipi_handler, NULL, NULL,
+		    ipi_irq, INTR_TYPE_MISC | INTR_EXCL, NULL);
+	}
 
 	atomic_store_rel_int(&aps_ready, 1);
 

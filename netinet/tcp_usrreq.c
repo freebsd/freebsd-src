@@ -16,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ipsec.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/proc.h>
 #include <sys/jail.h>
+#include <sys/syslog.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -100,6 +102,7 @@ __FBSDID("$FreeBSD$");
 #ifdef TCP_OFFLOAD
 #include <netinet/tcp_offload.h>
 #endif
+#include <netipsec/ipsec_support.h>
 
 /*
  * TCP protocol interface to socket abstraction.
@@ -210,10 +213,26 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 		 *  In all three cases the tcptw should not be freed here.
 		 */
 		if (inp->inp_flags & INP_DROPPED) {
-			KASSERT(tp == NULL, ("tcp_detach: INP_TIMEWAIT && "
-			    "INP_DROPPED && tp != NULL"));
 			in_pcbdetach(inp);
-			in_pcbfree(inp);
+			if (__predict_true(tp == NULL)) {
+				in_pcbfree(inp);
+			} else {
+				/*
+				 * This case should not happen as in TIMEWAIT
+				 * state the inp should not be destroyed before
+				 * its tcptw.  If INVARIANTS is defined, panic.
+				 */
+#ifdef INVARIANTS
+				panic("%s: Panic before an inp double-free: "
+				    "INP_TIMEWAIT && INP_DROPPED && tp != NULL"
+				    , __func__);
+#else
+				log(LOG_ERR, "%s: Avoid an inp double-free: "
+				    "INP_TIMEWAIT && INP_DROPPED && tp != NULL"
+				    , __func__);
+#endif
+				INP_WUNLOCK(inp);
+			}
 		} else {
 			in_pcbdetach(inp);
 			INP_WUNLOCK(inp);
@@ -410,7 +429,7 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 	SOCK_UNLOCK(so);
 
 #ifdef TCP_RFC7413
-	if (tp->t_flags & TF_FASTOPEN)
+	if (IS_FASTOPEN(tp->t_flags))
 		tp->t_tfo_pending = tcp_fastopen_alloc_counter();
 #endif
 out:
@@ -460,7 +479,7 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 	SOCK_UNLOCK(so);
 
 #ifdef TCP_RFC7413
-	if (tp->t_flags & TF_FASTOPEN)
+	if (IS_FASTOPEN(tp->t_flags))
 		tp->t_tfo_pending = tcp_fastopen_alloc_counter();
 #endif
 out:
@@ -578,6 +597,10 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 			error = EINVAL;
 			goto out;
 		}
+		if ((inp->inp_vflag & INP_IPV4) == 0) {
+			error = EAFNOSUPPORT;
+			goto out;
+		}
 
 		in6_sin6_2_sin(&sin, sin6p);
 		inp->inp_vflag |= INP_IPV4;
@@ -595,6 +618,11 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 #endif
 		error = tp->t_fb->tfb_tcp_output(tp);
 		goto out;
+	} else {
+		if ((inp->inp_vflag & INP_IPV6) == 0) {
+			error = EAFNOSUPPORT;
+			goto out;
+		}
 	}
 #endif
 	inp->inp_vflag &= ~INP_IPV4;
@@ -826,7 +854,7 @@ tcp_usr_rcvd(struct socket *so, int flags)
 	 * application response data, or failing that, when the DELACK timer
 	 * expires.
 	 */
-	if ((tp->t_flags & TF_FASTOPEN) &&
+	if (IS_FASTOPEN(tp->t_flags) &&
 	    (tp->t_state == TCPS_SYN_RECEIVED))
 		goto out;
 #endif
@@ -1329,9 +1357,11 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 		ti->tcpi_snd_wscale = tp->snd_scale;
 		ti->tcpi_rcv_wscale = tp->rcv_scale;
 	}
+	if (tp->t_flags & TF_ECN_PERMIT)
+		ti->tcpi_options |= TCPI_OPT_ECN;
 
 	ti->tcpi_rto = tp->t_rxtcur * tick;
-	ti->tcpi_last_data_recv = (long)(ticks - (int)tp->t_rcvtime) * tick;
+	ti->tcpi_last_data_recv = ((uint32_t)ticks - tp->t_rcvtime) * tick;
 	ti->tcpi_rtt = ((u_int64_t)tp->t_srtt * tick) >> TCP_RTT_SHIFT;
 	ti->tcpi_rttvar = ((u_int64_t)tp->t_rttvar * tick) >> TCP_RTTVAR_SHIFT;
 
@@ -1533,21 +1563,17 @@ tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp
 	switch (sopt->sopt_dir) {
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		case TCP_MD5SIG:
-			INP_WUNLOCK(inp);
-			error = sooptcopyin(sopt, &optval, sizeof optval,
-			    sizeof optval);
+			if (!TCPMD5_ENABLED()) {
+				INP_WUNLOCK(inp);
+				return (ENOPROTOOPT);
+			}
+			error = TCPMD5_PCBCTL(inp, sopt);
 			if (error)
 				return (error);
-
-			INP_WLOCK_RECHECK(inp);
-			if (optval > 0)
-				tp->t_flags |= TF_SIGNATURE;
-			else
-				tp->t_flags &= ~TF_SIGNATURE;
 			goto unlock_and_done;
-#endif /* TCP_SIGNATURE */
+#endif /* IPSEC */
 
 		case TCP_NODELAY:
 		case TCP_NOOPT:
@@ -1773,11 +1799,13 @@ unlock_and_done:
 	case SOPT_GET:
 		tp = intotcpcb(inp);
 		switch (sopt->sopt_name) {
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		case TCP_MD5SIG:
-			optval = (tp->t_flags & TF_SIGNATURE) ? 1 : 0;
-			INP_WUNLOCK(inp);
-			error = sooptcopyout(sopt, &optval, sizeof optval);
+			if (!TCPMD5_ENABLED()) {
+				INP_WUNLOCK(inp);
+				return (ENOPROTOOPT);
+			}
+			error = TCPMD5_PCBCTL(inp, sopt);
 			break;
 #endif
 
@@ -1817,16 +1845,16 @@ unlock_and_done:
 		case TCP_KEEPCNT:
 			switch (sopt->sopt_name) {
 			case TCP_KEEPIDLE:
-				ui = tp->t_keepidle / hz;
+				ui = TP_KEEPIDLE(tp) / hz;
 				break;
 			case TCP_KEEPINTVL:
-				ui = tp->t_keepintvl / hz;
+				ui = TP_KEEPINTVL(tp) / hz;
 				break;
 			case TCP_KEEPINIT:
-				ui = tp->t_keepinit / hz;
+				ui = TP_KEEPINIT(tp) / hz;
 				break;
 			case TCP_KEEPCNT:
-				ui = tp->t_keepcnt;
+				ui = TP_KEEPCNT(tp);
 				break;
 			}
 			INP_WUNLOCK(inp);
@@ -1890,6 +1918,8 @@ tcp_attach(struct socket *so)
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6PROTO) {
 		inp->inp_vflag |= INP_IPV6;
+		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0)
+			inp->inp_vflag |= INP_IPV4;
 		inp->in6p_hops = -1;	/* use kernel default */
 	}
 	else
@@ -2240,15 +2270,15 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	    tp->iss, tp->irs, tp->rcv_nxt);
 
 	db_print_indent(indent);
-	db_printf("rcv_adv: 0x%08x   rcv_wnd: %lu   rcv_up: 0x%08x\n",
+	db_printf("rcv_adv: 0x%08x   rcv_wnd: %u   rcv_up: 0x%08x\n",
 	    tp->rcv_adv, tp->rcv_wnd, tp->rcv_up);
 
 	db_print_indent(indent);
-	db_printf("snd_wnd: %lu   snd_cwnd: %lu\n",
+	db_printf("snd_wnd: %u   snd_cwnd: %u\n",
 	   tp->snd_wnd, tp->snd_cwnd);
 
 	db_print_indent(indent);
-	db_printf("snd_ssthresh: %lu   snd_recover: "
+	db_printf("snd_ssthresh: %u   snd_recover: "
 	    "0x%08x\n", tp->snd_ssthresh, tp->snd_recover);
 
 	db_print_indent(indent);
@@ -2269,7 +2299,7 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	    tp->t_rttbest);
 
 	db_print_indent(indent);
-	db_printf("t_rttupdated: %lu   max_sndwnd: %lu   t_softerror: %d\n",
+	db_printf("t_rttupdated: %lu   max_sndwnd: %u   t_softerror: %d\n",
 	    tp->t_rttupdated, tp->max_sndwnd, tp->t_softerror);
 
 	db_print_indent(indent);
@@ -2287,10 +2317,10 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 
 	db_print_indent(indent);
 	db_printf("ts_offset: %u   last_ack_sent: 0x%08x   snd_cwnd_prev: "
-	    "%lu\n", tp->ts_offset, tp->last_ack_sent, tp->snd_cwnd_prev);
+	    "%u\n", tp->ts_offset, tp->last_ack_sent, tp->snd_cwnd_prev);
 
 	db_print_indent(indent);
-	db_printf("snd_ssthresh_prev: %lu   snd_recover_prev: 0x%08x   "
+	db_printf("snd_ssthresh_prev: %u   snd_recover_prev: 0x%08x   "
 	    "t_badrxtwin: %u\n", tp->snd_ssthresh_prev,
 	    tp->snd_recover_prev, tp->t_badrxtwin);
 

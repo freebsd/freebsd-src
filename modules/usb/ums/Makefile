@@ -25,12 +25,12 @@
 # SUCH DAMAGE.
 #
 
-S=     ${.CURDIR}/../../..
+S=     ${SRCTOP}/sys
 
 .PATH: $S/dev/usb/input
 
 KMOD=	ums
-SRCS=	opt_bus.h opt_usb.h device_if.h bus_if.h usb_if.h vnode_if.h usbdevs.h \
-	ums.c
+SRCS=	opt_bus.h opt_evdev.h opt_usb.h device_if.h bus_if.h usb_if.h \
+	vnode_if.h usbdevs.h ums.c
 
 .include <bsd.kmod.mk>

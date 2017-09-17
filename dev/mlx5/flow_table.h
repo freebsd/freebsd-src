@@ -30,6 +30,9 @@
 
 #include <dev/mlx5/driver.h>
 
+#define MLX5_SET_FLOW_TABLE_ROOT_OPMOD_SET      0x0
+#define MLX5_SET_FLOW_TABLE_ROOT_OPMOD_RESET    0x1
+
 struct mlx5_flow_table_group {
 	u8	log_sz;
 	u8	match_criteria_enable;
@@ -44,7 +47,10 @@ void mlx5_destroy_flow_table(void *flow_table);
 int mlx5_add_flow_table_entry(void *flow_table, u8 match_criteria_enable,
 			      void *match_criteria, void *flow_context,
 			      u32 *flow_index);
-void mlx5_del_flow_table_entry(void *flow_table, u32 flow_index);
+int mlx5_del_flow_table_entry(void *flow_table, u32 flow_index);
 u32 mlx5_get_flow_table_id(void *flow_table);
+int mlx5_set_flow_table_root(struct mlx5_core_dev *mdev, u16 op_mod,
+			     u8 vport_num, u8 table_type, u32 table_id,
+			     u32 underlay_qpn);
 
 #endif /* MLX5_FLOW_TABLE_H */

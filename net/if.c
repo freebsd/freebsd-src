@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -144,7 +144,7 @@ int	(*carp_output_p)(struct ifnet *ifp, struct mbuf *m,
     const struct sockaddr *sa);
 int	(*carp_ioctl_p)(struct ifreq *, u_long, struct thread *);   
 int	(*carp_attach_p)(struct ifaddr *, int);
-void	(*carp_detach_p)(struct ifaddr *);
+void	(*carp_detach_p)(struct ifaddr *, bool);
 #endif
 #ifdef INET
 int	(*carp_iamatch_p)(struct ifaddr *, uint8_t **);
@@ -744,6 +744,11 @@ if_attach_internal(struct ifnet *ifp, int vmove, struct if_clone *ifc)
 		/* Reliably crash if used uninitialized. */
 		ifp->if_broadcastaddr = NULL;
 
+		if (ifp->if_type == IFT_ETHER) {
+			ifp->if_hw_addr = malloc(ifp->if_addrlen, M_IFADDR,
+			    M_WAITOK | M_ZERO);
+		}
+
 #if defined(INET) || defined(INET6)
 		/* Use defaults for TSO, if nothing is set */
 		if (ifp->if_hw_tsomax == 0 &&
@@ -1059,6 +1064,8 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 		 * Remove link ifaddr pointer and maybe decrement if_index.
 		 * Clean up all addresses.
 		 */
+		free(ifp->if_hw_addr, M_IFADDR);
+		ifp->if_hw_addr = NULL;
 		ifp->if_addr = NULL;
 
 		/* We can now free link ifaddr. */
@@ -2206,7 +2213,7 @@ do_link_state_change(void *arg, int pending)
 	if (log_link_state_change)
 		log(LOG_NOTICE, "%s: link state changed to %s\n", ifp->if_xname,
 		    (link_state == LINK_STATE_UP) ? "UP" : "DOWN" );
-	EVENTHANDLER_INVOKE(ifnet_link_event, ifp, ifp->if_link_state);
+	EVENTHANDLER_INVOKE(ifnet_link_event, ifp, link_state);
 	CURVNET_RESTORE();
 }
 
@@ -2218,6 +2225,7 @@ void
 if_down(struct ifnet *ifp)
 {
 
+	EVENTHANDLER_INVOKE(ifnet_event, ifp, IFNET_EVENT_DOWN);
 	if_unroute(ifp, IFF_UP, AF_UNSPEC);
 }
 
@@ -2230,6 +2238,7 @@ if_up(struct ifnet *ifp)
 {
 
 	if_route(ifp, IFF_UP, AF_UNSPEC);
+	EVENTHANDLER_INVOKE(ifnet_event, ifp, IFNET_EVENT_UP);
 }
 
 /*
@@ -2300,7 +2309,7 @@ static int
 ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 {
 	struct ifreq *ifr;
-	int error = 0;
+	int error = 0, do_ifup = 0;
 	int new_flags, temp_flags;
 	size_t namelen, onamelen;
 	size_t descrlen;
@@ -2427,7 +2436,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			if_down(ifp);
 		} else if (new_flags & IFF_UP &&
 		    (ifp->if_flags & IFF_UP) == 0) {
-			if_up(ifp);
+			do_ifup = 1;
 		}
 		/* See if permanently promiscuous mode bit is about to flip */
 		if ((ifp->if_flags ^ new_flags) & IFF_PPROMISC) {
@@ -2446,6 +2455,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		if (ifp->if_ioctl) {
 			(void) (*ifp->if_ioctl)(ifp, cmd, data);
 		}
+		if (do_ifup)
+			if_up(ifp);
 		getmicrotime(&ifp->if_lastchange);
 		break;
 
@@ -2650,6 +2661,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	case SIOCGIFMEDIA:
 	case SIOCGIFXMEDIA:
 	case SIOCGIFGENERIC:
+	case SIOCGIFRSSKEY:
+	case SIOCGIFRSSHASH:
 		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
@@ -2661,6 +2674,10 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (error);
 		error = if_setlladdr(ifp,
 		    ifr->ifr_addr.sa_data, ifr->ifr_addr.sa_len);
+		break;
+
+	case SIOCGHWADDR:
+		error = if_gethwaddr(ifp, ifr);
 		break;
 
 	case SIOCAIFGROUP:
@@ -2698,9 +2715,6 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	}
 	return (error);
 }
-
-/* COMPAT_SVR4 */
-#define	OSIOCGIFCONF	_IOWR('i', 20, struct ifconf)
 
 #ifdef COMPAT_FREEBSD32
 struct ifconf32 {
@@ -2741,7 +2755,6 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 
 	switch (cmd) {
 	case SIOCGIFCONF:
-	case OSIOCGIFCONF:	/* COMPAT_SVR4 */
 		error = ifconf(cmd, data);
 		CURVNET_RESTORE();
 		return (error);
@@ -3013,15 +3026,6 @@ again:
 			if (prison_if(curthread->td_ucred, sa) != 0)
 				continue;
 			addrs++;
-			/* COMPAT_SVR4 */
-			if (cmd == OSIOCGIFCONF) {
-				struct osockaddr *osa =
-				    (struct osockaddr *)&ifr.ifr_addr;
-				ifr.ifr_addr = *sa;
-				osa->sa_family = sa->sa_family;
-				sbuf_bcat(sb, &ifr, sizeof(ifr));
-				max_len += sizeof(ifr);
-			} else
 			if (sa->sa_len <= sizeof(*sa)) {
 				ifr.ifr_addr = *sa;
 				sbuf_bcat(sb, &ifr, sizeof(ifr));
@@ -3526,7 +3530,6 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_BRIDGE:
 	case IFT_ARCNET:
 	case IFT_IEEE8023ADLAG:
-	case IFT_IEEE80211:
 		bcopy(lladdr, LLADDR(sdl), len);
 		ifa_free(ifa);
 		break;
@@ -3591,6 +3594,29 @@ if_requestencap_default(struct ifnet *ifp, struct if_encap_req *req)
 	req->lladdr_off = 0;
 
 	return (0);
+}
+
+/*
+ * Get the link layer address that was read from the hardware at attach.
+ *
+ * This is only set by Ethernet NICs (IFT_ETHER), but laggX interfaces re-type
+ * their component interfaces as IFT_IEEE8023ADLAG.
+ */
+int
+if_gethwaddr(struct ifnet *ifp, struct ifreq *ifr)
+{
+
+	if (ifp->if_hw_addr == NULL)
+		return (ENODEV);
+
+	switch (ifp->if_type) {
+	case IFT_ETHER:
+	case IFT_IEEE8023ADLAG:
+		bcopy(ifp->if_hw_addr, ifr->ifr_addr.sa_data, ifp->if_addrlen);
+		return (0);
+	default:
+		return (ENODEV);
+	}
 }
 
 /*
@@ -4098,6 +4124,51 @@ if_vlancap(if_t ifh)
 {
 	struct ifnet *ifp = (struct ifnet *)ifh;
 	VLAN_CAPABILITIES(ifp);
+}
+
+int
+if_sethwtsomax(if_t ifp, u_int if_hw_tsomax)
+{
+
+	((struct ifnet *)ifp)->if_hw_tsomax = if_hw_tsomax;
+        return (0);
+}
+
+int
+if_sethwtsomaxsegcount(if_t ifp, u_int if_hw_tsomaxsegcount)
+{
+
+	((struct ifnet *)ifp)->if_hw_tsomaxsegcount = if_hw_tsomaxsegcount;
+        return (0);
+}
+
+int
+if_sethwtsomaxsegsize(if_t ifp, u_int if_hw_tsomaxsegsize)
+{
+
+	((struct ifnet *)ifp)->if_hw_tsomaxsegsize = if_hw_tsomaxsegsize;
+        return (0);
+}
+
+u_int
+if_gethwtsomax(if_t ifp)
+{
+
+	return (((struct ifnet *)ifp)->if_hw_tsomax);
+}
+
+u_int
+if_gethwtsomaxsegcount(if_t ifp)
+{
+
+	return (((struct ifnet *)ifp)->if_hw_tsomaxsegcount);
+}
+
+u_int
+if_gethwtsomaxsegsize(if_t ifp)
+{
+
+	return (((struct ifnet *)ifp)->if_hw_tsomaxsegsize);
 }
 
 void

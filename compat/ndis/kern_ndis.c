@@ -210,8 +210,8 @@ ndis_status_func(adapter, status, sbuf, slen)
 
 	block = adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	ifp = sc->ifp;
-	if (ifp->if_flags & IFF_DEBUG)
+	ifp = NDISUSB_GET_IFNET(sc);
+	if ( ifp && ifp->if_flags & IFF_DEBUG)
 		device_printf(sc->ndis_dev, "status: %x\n", status);
 }
 
@@ -225,8 +225,8 @@ ndis_statusdone_func(adapter)
 
 	block = adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	ifp = sc->ifp;
-	if (ifp->if_flags & IFF_DEBUG)
+	ifp = NDISUSB_GET_IFNET(sc);
+	if (ifp && ifp->if_flags & IFF_DEBUG)
 		device_printf(sc->ndis_dev, "status complete\n");
 }
 
@@ -264,9 +264,9 @@ ndis_resetdone_func(ndis_handle adapter, ndis_status status,
 
 	block = adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
-	ifp = sc->ifp;
+	ifp = NDISUSB_GET_IFNET(sc);
 
-	if (ifp->if_flags & IFF_DEBUG)
+	if (ifp && ifp->if_flags & IFF_DEBUG)
 		device_printf(sc->ndis_dev, "reset done...\n");
 	KeSetEvent(&block->nmb_resetevent, IO_NO_INCREMENT, FALSE);
 }
@@ -285,6 +285,9 @@ ndis_create_sysctls(arg)
 		return (EINVAL);
 
 	sc = arg;
+	/*
+	device_printf(sc->ndis_dev, "ndis_create_sysctls() sc=%p\n", sc);
+	*/
 	vals = sc->ndis_regvals;
 
 	TAILQ_INIT(&sc->ndis_cfglist_head);
@@ -698,8 +701,8 @@ ndis_ptom(m0, p)
 	 */
 
 	eh = mtod((*m0), struct ether_header *);
-	ifp = ((struct ndis_softc *)p->np_softc)->ifp;
-	if (totlen > ETHER_MAX_FRAME(ifp, eh->ether_type, FALSE)) {
+	ifp = NDISUSB_GET_IFNET((struct ndis_softc *)p->np_softc);
+	if (ifp && totlen > ETHER_MAX_FRAME(ifp, eh->ether_type, FALSE)) {
 		diff = totlen - ETHER_MAX_FRAME(ifp, eh->ether_type, FALSE);
 		totlen -= diff;
 		m->m_len -= diff;

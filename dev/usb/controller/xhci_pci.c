@@ -100,6 +100,8 @@ xhci_pci_match(device_t self)
 
 	case 0x01941033:
 		return ("NEC uPD720200 USB 3.0 controller");
+	case 0x00151912:
+		return ("NEC uPD720202 USB 3.0 controller");
 
 	case 0x10001b73:
 		return ("Fresco Logic FL1000G USB 3.0 controller");
@@ -111,9 +113,15 @@ xhci_pci_match(device_t self)
 
 	case 0x0f358086:
 		return ("Intel BayTrail USB 3.0 controller");
+	case 0x19d08086:
+		return ("Intel Denverton USB 3.0 controller");
 	case 0x9c318086:
 	case 0x1e318086:
 		return ("Intel Panther Point USB 3.0 controller");
+	case 0x22b58086:
+		return ("Intel Braswell USB 3.0 controller");
+	case 0x5aa88086:
+		return ("Intel Apollo Lake USB 3.0 controller");
 	case 0x8c318086:
 		return ("Intel Lynx Point USB 3.0 controller");
 	case 0x8cb18086:
@@ -122,8 +130,14 @@ xhci_pci_match(device_t self)
 		return ("Intel Wellsburg USB 3.0 controller");
 	case 0x9cb18086:
 		return ("Broadwell Integrated PCH-LP chipset USB 3.0 controller");
+	case 0x9d2f8086:
+		return ("Intel Sunrise Point-LP USB 3.0 controller");
 	case 0xa12f8086:
 		return ("Intel Sunrise Point USB 3.0 controller");
+	case 0xa1af8086:
+		return ("Intel Lewisburg USB 3.0 controller");
+	case 0xa2af8086:
+		return ("Intel Union Point USB 3.0 controller");
 
 	case 0xa01b177d:
 		return ("Cavium ThunderX USB 3.0 controller");
@@ -340,18 +354,13 @@ static int
 xhci_pci_detach(device_t self)
 {
 	struct xhci_softc *sc = device_get_softc(self);
-	device_t bdev;
 
-	if (sc->sc_bus.bdev != NULL) {
-		bdev = sc->sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(self, bdev);
-	}
 	/* during module unload there are lots of children leftover */
 	device_delete_children(self);
 
 	usb_callout_drain(&sc->sc_callout);
 	xhci_halt_controller(sc);
+	xhci_reset_controller(sc);
 
 	pci_disable_busmaster(self);
 

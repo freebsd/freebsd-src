@@ -40,12 +40,10 @@ struct mdthread {
 };
 
 struct mdproc {
-	int dummy;
+	vm_offset_t	md_l0addr;
 };
 
 #define	KINFO_PROC_SIZE	1088
-
-#ifdef _KERNEL
 
 #define	MAXARGS		8
 struct syscall_args {
@@ -54,7 +52,5 @@ struct syscall_args {
 	register_t args[MAXARGS];
 	int narg;
 };
-
-#endif
 
 #endif /* !_MACHINE_PROC_H_ */

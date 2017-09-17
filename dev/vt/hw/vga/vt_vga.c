@@ -288,7 +288,7 @@ vga_get_cp437(term_char_t c)
 	int min, mid, max;
 
 	min = 0;
-	max = (sizeof(cp437table) / sizeof(struct unicp437)) - 1;
+	max = nitems(cp437table) - 1;
 
 	if (c < cp437table[0].unicode_base ||
 	    c > cp437table[max].unicode_base + cp437table[max].length)

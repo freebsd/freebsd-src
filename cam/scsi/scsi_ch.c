@@ -586,7 +586,7 @@ chstart(struct cam_periph *periph, union ccb *start_ccb)
 				/* tag_action */ MSG_SIMPLE_Q_TAG,
 				/* dbd */ (softc->quirks & CH_Q_NO_DBD) ?
 					FALSE : TRUE,
-				/* page_code */ SMS_PAGE_CTRL_CURRENT,
+				/* pc */ SMS_PAGE_CTRL_CURRENT,
 				/* page */ CH_ELEMENT_ADDR_ASSIGN_PAGE,
 				/* param_buf */ (u_int8_t *)mode_buffer,
 				/* param_len */ mode_buffer_len,
@@ -1569,6 +1569,7 @@ chgetparams(struct cam_periph *periph)
 
 	if (mode_buffer == NULL) {
 		printf("chgetparams: couldn't malloc mode sense data\n");
+		xpt_release_ccb(ccb);
 		return(ENOSPC);
 	}
 
@@ -1587,7 +1588,7 @@ chgetparams(struct cam_periph *periph)
 			/* cbfcnp */ chdone,
 			/* tag_action */ MSG_SIMPLE_Q_TAG,
 			/* dbd */ dbd,
-			/* page_code */ SMS_PAGE_CTRL_CURRENT,
+			/* pc */ SMS_PAGE_CTRL_CURRENT,
 			/* page */ CH_ELEMENT_ADDR_ASSIGN_PAGE,
 			/* param_buf */ (u_int8_t *)mode_buffer,
 			/* param_len */ mode_buffer_len,
@@ -1650,7 +1651,7 @@ chgetparams(struct cam_periph *periph)
 			/* cbfcnp */ chdone,
 			/* tag_action */ MSG_SIMPLE_Q_TAG,
 			/* dbd */ dbd,
-			/* page_code */ SMS_PAGE_CTRL_CURRENT,
+			/* pc */ SMS_PAGE_CTRL_CURRENT,
 			/* page */ CH_DEVICE_CAP_PAGE,
 			/* param_buf */ (u_int8_t *)mode_buffer,
 			/* param_len */ mode_buffer_len,

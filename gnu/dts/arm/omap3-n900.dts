@@ -47,14 +47,14 @@
 		compatible = "gpio-leds";
 		heartbeat {
 			label = "debug::sleep";
-			gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>;  /* gpio162 */
+			gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>;  /* 162 */
 			linux,default-trigger = "default-on";
 			pinctrl-names = "default";
 			pinctrl-0 = <&debug_leds>;
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
@@ -65,50 +65,51 @@
 		camera_lens_cover {
 			label = "Camera Lens Cover";
 			gpios = <&gpio4 14 GPIO_ACTIVE_LOW>; /* 110 */
-			linux,input-type = <5>; /* EV_SW */
-			linux,code = <0x09>; /* SW_CAMERA_LENS_COVER */
-			wakeup-source;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_CAMERA_LENS_COVER>;
+			linux,can-disable;
 		};
 
 		camera_focus {
 			label = "Camera Focus";
 			gpios = <&gpio3 4 GPIO_ACTIVE_LOW>; /* 68 */
-			linux,code = <0x210>; /* KEY_CAMERA_FOCUS */
-			wakeup-source;
+			linux,code = <KEY_CAMERA_FOCUS>;
+			linux,can-disable;
 		};
 
 		camera_capture {
 			label = "Camera Capture";
 			gpios = <&gpio3 5 GPIO_ACTIVE_LOW>; /* 69 */
-			linux,code = <0xd4>; /* KEY_CAMERA */
-			wakeup-source;
+			linux,code = <KEY_CAMERA>;
+			linux,can-disable;
 		};
 
 		lock_button {
 			label = "Lock Button";
 			gpios = <&gpio4 17 GPIO_ACTIVE_LOW>; /* 113 */
-			linux,code = <0x98>; /* KEY_SCREENLOCK */
-			wakeup-source;
+			linux,code = <KEY_SCREENLOCK>;
+			linux,can-disable;
 		};
 
 		keypad_slide {
 			label = "Keypad Slide";
 			gpios = <&gpio3 7 GPIO_ACTIVE_LOW>; /* 71 */
-			linux,input-type = <5>; /* EV_SW */
-			linux,code = <0x0a>; /* SW_KEYPAD_SLIDE */
-			wakeup-source;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_KEYPAD_SLIDE>;
+			linux,can-disable;
 		};
 
 		proximity_sensor {
 			label = "Proximity Sensor";
 			gpios = <&gpio3 25 GPIO_ACTIVE_HIGH>; /* 89 */
-			linux,input-type = <5>; /* EV_SW */
-			linux,code = <0x0b>; /* SW_FRONT_PROXIMITY */
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_FRONT_PROXIMITY>;
+			linux,can-disable;
 		};
 	};
 
-	isp1704: isp1704 {
-		compatible = "nxp,isp1704";
+	isp1707: isp1707 {
+		compatible = "nxp,isp1707";
 		nxp,enable-gpio = <&gpio3 3 GPIO_ACTIVE_HIGH>;
 		usb-phy = <&usb2_phy>;
 	};
@@ -142,6 +143,25 @@
 		io-channels = <&twl_madc 0>, <&twl_madc 4>, <&twl_madc 12>;
 		io-channel-names = "temp", "bsi", "vbat";
 	};
+
+	pwm9: dmtimer-pwm {
+		compatible = "ti,omap-dmtimer-pwm";
+		#pwm-cells = <3>;
+		ti,timers = <&timer9>;
+		ti,clock-source = <0x00>; /* timer_sys_ck */
+	};
+
+	ir: n900-ir {
+		compatible = "nokia,n900-ir";
+		pwms = <&pwm9 0 26316 0>; /* 38000 Hz */
+	};
+
+	/* controlled (enabled/disabled) directly by bcm2048 and wl1251 */
+	vctcxo: vctcxo {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <38400000>;
+	};
 };
 
 &omap3_pmx_core {
@@ -149,8 +169,10 @@
 
 	uart2_pins: pinmux_uart2_pins {
 		pinctrl-single,pins = <
-			OMAP3_CORE1_IOPAD(0x217a, PIN_INPUT | MUX_MODE0)		/* uart2_rx */
+			OMAP3_CORE1_IOPAD(0x2174, PIN_INPUT_PULLUP | MUX_MODE0)		/* uart2_cts */
+			OMAP3_CORE1_IOPAD(0x2176, PIN_OUTPUT | MUX_MODE0)		/* uart2_rts */
 			OMAP3_CORE1_IOPAD(0x2178, PIN_OUTPUT | MUX_MODE0)		/* uart2_tx */
+			OMAP3_CORE1_IOPAD(0x217a, PIN_INPUT | MUX_MODE0)		/* uart2_rx */
 		>;
 	};
 
@@ -287,7 +309,7 @@
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2180, PIN_INPUT_PULLUP | MUX_MODE1)	/* ssi1_rdy_tx */
 			OMAP3_CORE1_IOPAD(0x217e, PIN_OUTPUT | MUX_MODE1)		/* ssi1_flag_tx */
-			OMAP3_CORE1_IOPAD(0x2182, PIN_INPUT | WAKEUP_EN | MUX_MODE4) /* ssi1_wake_tx (cawake) */
+			OMAP3_CORE1_IOPAD(0x2182, PIN_INPUT | MUX_MODE4)		/* ssi1_wake_tx (cawake) */
 			OMAP3_CORE1_IOPAD(0x217c, PIN_OUTPUT | MUX_MODE1)		/* ssi1_dat_tx */
 			OMAP3_CORE1_IOPAD(0x2184, PIN_INPUT | MUX_MODE1)		/* ssi1_dat_rx */
 			OMAP3_CORE1_IOPAD(0x2186, PIN_INPUT | MUX_MODE1)		/* ssi1_flag_rx */
@@ -299,7 +321,7 @@
 	modem_pins: pinmux_modem {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20dc, PIN_OUTPUT | MUX_MODE4)		/* gpio 70 => cmt_apeslpx */
-			OMAP3_CORE1_IOPAD(0x20e0, PIN_INPUT | WAKEUP_EN | MUX_MODE4) /* gpio 72 => ape_rst_rq */
+			OMAP3_CORE1_IOPAD(0x20e0, PIN_INPUT | MUX_MODE4)		/* gpio 72 => ape_rst_rq */
 			OMAP3_CORE1_IOPAD(0x20e2, PIN_OUTPUT | MUX_MODE4)		/* gpio 73 => cmt_rst_rq */
 			OMAP3_CORE1_IOPAD(0x20e4, PIN_OUTPUT | MUX_MODE4)		/* gpio 74 => cmt_en */
 			OMAP3_CORE1_IOPAD(0x20e6, PIN_OUTPUT | MUX_MODE4)		/* gpio 75 => cmt_rst */
@@ -328,6 +350,7 @@
 	regulator-name = "V28";
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <2800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 	regulator-always-on; /* due to battery cover sensor */
 };
 
@@ -335,30 +358,35 @@
 	regulator-name = "VCSI";
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 };
 
 &vaux3 {
 	regulator-name = "VMMC2_30";
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <3000000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 };
 
 &vaux4 {
 	regulator-name = "VCAM_ANA_28";
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <2800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 };
 
 &vmmc1 {
 	regulator-name = "VMMC1";
 	regulator-min-microvolt = <1850000>;
 	regulator-max-microvolt = <3150000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 };
 
 &vmmc2 {
 	regulator-name = "V28_A";
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <3000000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 	regulator-always-on; /* due VIO leak to AIC34 VDDs */
 };
 
@@ -366,6 +394,7 @@
 	regulator-name = "VPLL";
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 	regulator-always-on;
 };
 
@@ -373,6 +402,7 @@
 	regulator-name = "VSDI_CSI";
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 	regulator-always-on;
 };
 
@@ -380,6 +410,7 @@
 	regulator-name = "VMMC2_IO_18";
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 };
 
 &vio {
@@ -522,6 +553,21 @@
 		amstaos,cover-comp-gain = <16>;
 	};
 
+	adp1653: led-controller@30 {
+		compatible = "adi,adp1653";
+		reg = <0x30>;
+		enable-gpios = <&gpio3 24 GPIO_ACTIVE_HIGH>; /* 88 */
+
+		flash {
+			flash-timeout-us = <500000>;
+			flash-max-microamp = <320000>;
+			led-max-microamp = <50000>;
+		};
+		indicator {
+			led-max-microamp = <17500>;
+		};
+	};
+
 	lp5523: lp5523@32 {
 		compatible = "national,lp5523";
 		reg = <0x32>;
@@ -588,6 +634,7 @@
 		reg = <0x55>;
 	};
 
+	/* Stereo headphone amplifier */
 	tpa6130a2: tpa6130a2@60 {
 		compatible = "ti,tpa6130a2";
 		reg = <0x60>;
@@ -618,7 +665,7 @@
 		ti,termination-current = <100>;
 		ti,resistor-sense = <68>;
 
-		ti,usb-charger-detection = <&isp1704>;
+		ti,usb-charger-detection = <&isp1707>;
 	};
 };
 
@@ -697,6 +744,8 @@
 	vmmc_aux-supply = <&vsim>;
 	bus-width = <8>;
 	non-removable;
+	no-sdio;
+	no-sd;
 };
 
 &mmc3 {
@@ -880,6 +929,8 @@
 
 		interrupt-parent = <&gpio2>;
 		interrupts = <10 IRQ_TYPE_NONE>; /* gpio line 42 */
+
+		clocks = <&vctcxo>;
 	};
 };
 
@@ -897,9 +948,17 @@
 };
 
 &uart2 {
-	interrupts-extended = <&intc 73 &omap3_pmx_core OMAP3_UART2_RX>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins>;
+
+	bcm2048: bluetooth {
+		compatible = "brcm,bcm2048-nokia", "nokia,h4p-bluetooth";
+		reset-gpios = <&gpio3 27 GPIO_ACTIVE_LOW>; /* 91 */
+		host-wakeup-gpios = <&gpio4 5 GPIO_ACTIVE_HIGH>; /* 101 */
+		bluetooth-wakeup-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>; /* 37 */
+		clocks = <&vctcxo>;
+		clock-names = "sysclk";
+	};
 };
 
 &uart3 {

@@ -29,6 +29,6 @@
 #ifndef _I386_BUS_DMA_H_
 #define _I386_BUS_DMA_H_
 
-#include <sys/bus_dma.h>
+#include <x86/bus_dma.h> 
 
 #endif /* _I386_BUS_DMA_H_ */

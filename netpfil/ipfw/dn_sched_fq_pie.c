@@ -377,22 +377,34 @@ fq_calculate_drop_prob(void *x)
 	struct dn_aqm_pie_parms *pprms; 
 	int64_t p, prob, oldprob;
 	aqm_time_t now;
+	int p_isneg;
 
 	now = AQM_UNOW;
 	pprms = pst->parms;
 	prob = pst->drop_prob;
 
-	/* calculate current qdelay */
-	if (pprms->flags & PIE_DEPRATEEST_ENABLED) {
+	/* calculate current qdelay using DRE method.
+	 * If TS is used and no data in the queue, reset current_qdelay
+	 * as it stays at last value during dequeue process.
+	*/
+	if (pprms->flags & PIE_DEPRATEEST_ENABLED)
 		pst->current_qdelay = ((uint64_t)q->stats.len_bytes  * pst->avg_dq_time)
 			>> PIE_DQ_THRESHOLD_BITS;
-	}
+	else
+		if (!q->stats.len_bytes)
+			pst->current_qdelay = 0;
 
 	/* calculate drop probability */
 	p = (int64_t)pprms->alpha * 
 		((int64_t)pst->current_qdelay - (int64_t)pprms->qdelay_ref); 
 	p +=(int64_t) pprms->beta * 
 		((int64_t)pst->current_qdelay - (int64_t)pst->qdelay_old); 
+
+	/* take absolute value so right shift result is well defined */
+	p_isneg = p < 0;
+	if (p_isneg) {
+		p = -p;
+	}
 		
 	/* We PIE_MAX_PROB shift by 12-bits to increase the division precision  */
 	p *= (PIE_MAX_PROB << 12) / AQM_TIME_1S;
@@ -415,37 +427,47 @@ fq_calculate_drop_prob(void *x)
 
 	oldprob = prob;
 
-	/* Cap Drop adjustment */
-	if ((pprms->flags & PIE_CAPDROP_ENABLED) && prob >= PIE_MAX_PROB / 10
-		&& p > PIE_MAX_PROB / 50 ) 
+	if (p_isneg) {
+		prob = prob - p;
+
+		/* check for multiplication underflow */
+		if (prob > oldprob) {
+			prob= 0;
+			D("underflow");
+		}
+	} else {
+		/* Cap Drop adjustment */
+		if ((pprms->flags & PIE_CAPDROP_ENABLED) &&
+		    prob >= PIE_MAX_PROB / 10 &&
+		    p > PIE_MAX_PROB / 50 ) {
 			p = PIE_MAX_PROB / 50;
+		}
 
-	prob = prob + p;
+		prob = prob + p;
 
-	/* decay the drop probability exponentially */
-	if (pst->current_qdelay == 0 && pst->qdelay_old == 0)
-		/* 0.98 ~= 1- 1/64 */
-		prob = prob - (prob >> 6); 
-
-
-	/* check for multiplication over/under flow */
-	if (p>0) {
+		/* check for multiplication overflow */
 		if (prob<oldprob) {
 			D("overflow");
 			prob= PIE_MAX_PROB;
 		}
 	}
-	else
-		if (prob>oldprob) {
-			prob= 0;
-			D("underflow");
+
+	/*
+	 * decay the drop probability exponentially
+	 * and restrict it to range 0 to PIE_MAX_PROB
+	 */
+	if (prob < 0) {
+		prob = 0;
+	} else {
+		if (pst->current_qdelay == 0 && pst->qdelay_old == 0) {
+			/* 0.98 ~= 1- 1/64 */
+			prob = prob - (prob >> 6); 
 		}
 
-	/* make drop probability between 0 and PIE_MAX_PROB*/
-	if (prob < 0)
-		prob = 0;
-	else if (prob > PIE_MAX_PROB)
-		prob = PIE_MAX_PROB;
+		if (prob > PIE_MAX_PROB) {
+			prob = PIE_MAX_PROB;
+		}
+	}
 
 	pst->drop_prob = prob;
 	

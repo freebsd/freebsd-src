@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 mips/atheros/apb.c		optional ar71xx_apb
+mips/atheros/ar71xx_caldata.c	optional ar71xx_caldata
 mips/atheros/ar71xx_gpio.c	optional gpio
 mips/atheros/ar71xx_machdep.c	standard
 mips/atheros/ar71xx_ehci.c	optional ehci

@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -105,15 +105,6 @@ extern int nfsrv_useacl;
 extern int nfscl_debuglevel;
 MALLOC_DECLARE(M_NEWNFSREQ);
 
-/*
- * Ifdef for FreeBSD-current merged buffer cache. It is unfortunate that these
- * calls are not in getblk() and brelse() so that they would not be necessary
- * here.
- */
-#ifndef B_VMIO
-#define	vfs_busy_pages(bp, f)
-#endif
-
 static vop_read_t	nfsfifo_read;
 static vop_write_t	nfsfifo_write;
 static vop_close_t	nfsfifo_close;
@@ -149,6 +140,7 @@ static vop_advlock_t	nfs_advlock;
 static vop_advlockasync_t nfs_advlockasync;
 static vop_getacl_t nfs_getacl;
 static vop_setacl_t nfs_setacl;
+static vop_set_text_t nfs_set_text;
 
 /*
  * Global vfs data structures for nfs
@@ -185,6 +177,7 @@ struct vop_vector newnfs_vnodeops = {
 	.vop_write =		ncl_write,
 	.vop_getacl =		nfs_getacl,
 	.vop_setacl =		nfs_setacl,
+	.vop_set_text =		nfs_set_text,
 };
 
 struct vop_vector newnfs_fifoops = {
@@ -214,8 +207,6 @@ static int nfs_renameit(struct vnode *sdvp, struct vnode *svp,
 /*
  * Global variables
  */
-#define	DIRHDSIZ	(sizeof (struct dirent) - (MAXNAMLEN + 1))
-
 SYSCTL_DECL(_vfs_nfs);
 
 static int	nfsaccess_cache_timeout = NFS_MAXATTRTIMO;
@@ -666,7 +657,7 @@ nfs_close(struct vop_close_args *ap)
 	int error = 0, ret, localcred = 0;
 	int fmode = ap->a_fflag;
 
-	if ((vp->v_mount->mnt_kern_flag & MNTK_UNMOUNTF))
+	if (NFSCL_FORCEDISM(vp->v_mount))
 		return (0);
 	/*
 	 * During shutdown, a_cred isn't valid, so just use root.
@@ -710,12 +701,12 @@ nfs_close(struct vop_close_args *ap)
 		     * traditional vnode locking implemented for Vnode Ops.
 		     */
 		    int cm = newnfs_commit_on_close ? 1 : 0;
-		    error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td, cm, 0);
+		    error = ncl_flush(vp, MNT_WAIT, ap->a_td, cm, 0);
 		    /* np->n_flag &= ~NMODIFIED; */
 		} else if (NFS_ISV4(vp)) { 
 			if (nfscl_mustflush(vp) != 0) {
 				int cm = newnfs_commit_on_close ? 1 : 0;
-				error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td,
+				error = ncl_flush(vp, MNT_WAIT, ap->a_td,
 				    cm, 0);
 				/*
 				 * as above w.r.t races when clearing
@@ -723,8 +714,9 @@ nfs_close(struct vop_close_args *ap)
 				 * np->n_flag &= ~NMODIFIED;
 				 */
 			}
-		} else
-		    error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
+		} else {
+			error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
+		}
 		mtx_lock(&np->n_mtx);
 	    }
  	    /* 
@@ -940,13 +932,11 @@ nfs_setattr(struct vop_setattr_args *ap)
  			if (np->n_flag & NMODIFIED) {
 			    tsize = np->n_size;
 			    mtx_unlock(&np->n_mtx);
- 			    if (vap->va_size == 0)
- 				error = ncl_vinvalbuf(vp, 0, td, 1);
- 			    else
- 				error = ncl_vinvalbuf(vp, V_SAVE, td, 1);
- 			    if (error) {
-				vnode_pager_setsize(vp, tsize);
-				return (error);
+			    error = ncl_vinvalbuf(vp, vap->va_size == 0 ?
+			        0 : V_SAVE, td, 1);
+			    if (error != 0) {
+				    vnode_pager_setsize(vp, tsize);
+				    return (error);
 			    }
 			    /*
 			     * Call nfscl_delegmodtime() to set the modify time
@@ -970,8 +960,8 @@ nfs_setattr(struct vop_setattr_args *ap)
 		if ((vap->va_mtime.tv_sec != VNOVAL || vap->va_atime.tv_sec != VNOVAL) && 
 		    (np->n_flag & NMODIFIED) && vp->v_type == VREG) {
 			mtx_unlock(&np->n_mtx);
-			if ((error = ncl_vinvalbuf(vp, V_SAVE, td, 1)) != 0 &&
-			    (error == EINTR || error == EIO))
+			error = ncl_vinvalbuf(vp, V_SAVE, td, 1);
+			if (error == EINTR || error == EIO)
 				return (error);
 		} else
 			mtx_unlock(&np->n_mtx);
@@ -1365,7 +1355,7 @@ ncl_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	attrflag = 0;
 	if (NFSHASPNFS(nmp))
 		error = nfscl_doiods(vp, uiop, NULL, NULL,
-		    NFSV4OPEN_ACCESSREAD, cred, uiop->uio_td);
+		    NFSV4OPEN_ACCESSREAD, 0, cred, uiop->uio_td);
 	NFSCL_DEBUG(4, "readrpc: aft doiods=%d\n", error);
 	if (error != 0)
 		error = nfsrpc_read(vp, uiop, cred, uiop->uio_td, &nfsva,
@@ -1396,7 +1386,7 @@ ncl_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	attrflag = 0;
 	if (NFSHASPNFS(nmp))
 		error = nfscl_doiods(vp, uiop, iomode, must_commit,
-		    NFSV4OPEN_ACCESSWRITE, cred, uiop->uio_td);
+		    NFSV4OPEN_ACCESSWRITE, 0, cred, uiop->uio_td);
 	NFSCL_DEBUG(4, "writerpc: aft doiods=%d\n", error);
 	if (error != 0)
 		error = nfsrpc_write(vp, uiop, iomode, must_commit, cred,
@@ -1674,8 +1664,8 @@ nfs_remove(struct vop_remove_args *ap)
 		 * unnecessary delayed writes later.
 		 */
 		error = ncl_vinvalbuf(vp, 0, cnp->cn_thread, 1);
-		/* Do the rpc */
 		if (error != EINTR && error != EIO)
+			/* Do the rpc */
 			error = nfs_removerpc(dvp, vp, cnp->cn_nameptr,
 			    cnp->cn_namelen, cnp->cn_cred, cnp->cn_thread);
 		/*
@@ -2551,16 +2541,34 @@ ncl_commit(struct vnode *vp, u_quad_t offset, int cnt, struct ucred *cred,
 {
 	struct nfsvattr nfsva;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
+	struct nfsnode *np;
+	struct uio uio;
 	int error, attrflag;
 
-	mtx_lock(&nmp->nm_mtx);
-	if ((nmp->nm_state & NFSSTA_HASWRITEVERF) == 0) {
-		mtx_unlock(&nmp->nm_mtx);
-		return (0);
+	np = VTONFS(vp);
+	error = EIO;
+	attrflag = 0;
+	if (NFSHASPNFS(nmp) && (np->n_flag & NDSCOMMIT) != 0) {
+		uio.uio_offset = offset;
+		uio.uio_resid = cnt;
+		error = nfscl_doiods(vp, &uio, NULL, NULL,
+		    NFSV4OPEN_ACCESSWRITE, 1, cred, td);
+		if (error != 0) {
+			mtx_lock(&np->n_mtx);
+			np->n_flag &= ~NDSCOMMIT;
+			mtx_unlock(&np->n_mtx);
+		}
 	}
-	mtx_unlock(&nmp->nm_mtx);
-	error = nfsrpc_commit(vp, offset, cnt, cred, td, &nfsva,
-	    &attrflag, NULL);
+	if (error != 0) {
+		mtx_lock(&nmp->nm_mtx);
+		if ((nmp->nm_state & NFSSTA_HASWRITEVERF) == 0) {
+			mtx_unlock(&nmp->nm_mtx);
+			return (0);
+		}
+		mtx_unlock(&nmp->nm_mtx);
+		error = nfsrpc_commit(vp, offset, cnt, cred, td, &nfsva,
+		    &attrflag, NULL);
+	}
 	if (attrflag != 0)
 		(void) nfscl_loadattrcache(&vp, &nfsva, NULL, NULL,
 		    0, 1);
@@ -2578,13 +2586,20 @@ ncl_commit(struct vnode *vp, u_quad_t offset, int cnt, struct ucred *cred,
 static int
 nfs_strategy(struct vop_strategy_args *ap)
 {
-	struct buf *bp = ap->a_bp;
+	struct buf *bp;
+	struct vnode *vp;
 	struct ucred *cr;
 
+	bp = ap->a_bp;
+	vp = ap->a_vp;
+	KASSERT(bp->b_vp == vp, ("missing b_getvp"));
 	KASSERT(!(bp->b_flags & B_DONE),
 	    ("nfs_strategy: buffer %p unexpectedly marked B_DONE", bp));
 	BUF_ASSERT_HELD(bp);
 
+	if (vp->v_type == VREG && bp->b_blkno == bp->b_lblkno)
+		bp->b_blkno = bp->b_lblkno * (vp->v_bufobj.bo_bsize /
+		    DEV_BSIZE);
 	if (bp->b_iocmd == BIO_READ)
 		cr = bp->b_rcred;
 	else
@@ -2596,8 +2611,8 @@ nfs_strategy(struct vop_strategy_args *ap)
 	 * otherwise just do it ourselves.
 	 */
 	if ((bp->b_flags & B_ASYNC) == 0 ||
-	    ncl_asyncio(VFSTONFS(ap->a_vp->v_mount), bp, NOCRED, curthread))
-		(void) ncl_doio(ap->a_vp, bp, cr, curthread, 1);
+	    ncl_asyncio(VFSTONFS(vp->v_mount), bp, NOCRED, curthread))
+		(void) ncl_doio(vp, bp, cr, curthread, 1);
 	return (0);
 }
 
@@ -2618,7 +2633,7 @@ nfs_fsync(struct vop_fsync_args *ap)
 		 */
 		return (0);
 	}
-	return (ncl_flush(ap->a_vp, ap->a_waitfor, NULL, ap->a_td, 1, 0));
+	return (ncl_flush(ap->a_vp, ap->a_waitfor, ap->a_td, 1, 0));
 }
 
 /*
@@ -2630,7 +2645,7 @@ nfs_fsync(struct vop_fsync_args *ap)
  * waiting for a buffer write to complete.
  */
 int
-ncl_flush(struct vnode *vp, int waitfor, struct ucred *cred, struct thread *td,
+ncl_flush(struct vnode *vp, int waitfor, struct thread *td,
     int commit, int called_from_renewthread)
 {
 	struct nfsnode *np = VTONFS(vp);
@@ -2960,14 +2975,17 @@ done:
 		free(bvec, M_TEMP);
 	if (error == 0 && commit != 0 && waitfor == MNT_WAIT &&
 	    (bo->bo_dirty.bv_cnt != 0 || bo->bo_numoutput != 0 ||
-	     np->n_directio_asyncwr != 0) && trycnt++ < 5) {
-		/* try, try again... */
-		passone = 1;
-		wcred = NULL;
-		bvec = NULL;
-		bvecsize = 0;
-printf("try%d\n", trycnt);
-		goto again;
+	    np->n_directio_asyncwr != 0)) {
+		if (trycnt++ < 5) {
+			/* try, try again... */
+			passone = 1;
+			wcred = NULL;
+			bvec = NULL;
+			bvecsize = 0;
+			goto again;
+		}
+		vn_printf(vp, "ncl_flush failed");
+		error = called_from_renewthread != 0 ? EIO : EBUSY;
 	}
 	return (error);
 }
@@ -3008,7 +3026,7 @@ nfs_advlock(struct vop_advlock_args *ap)
 		if (ap->a_op == F_UNLCK &&
 		    nfscl_checkwritelocked(vp, ap->a_fl, cred, td, ap->a_id,
 		    ap->a_flags))
-			(void) ncl_flush(vp, MNT_WAIT, cred, td, 1, 0);
+			(void) ncl_flush(vp, MNT_WAIT, td, 1, 0);
 
 		/*
 		 * Loop around doing the lock op, while a blocking lock
@@ -3137,8 +3155,8 @@ nfs_print(struct vop_print_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np = VTONFS(vp);
 
-	printf("\tfileid %ld fsid 0x%x", np->n_vattr.na_fileid,
-	    np->n_vattr.na_fsid);
+	printf("\tfileid %jd fsid 0x%jx", (uintmax_t)np->n_vattr.na_fileid,
+	    (uintmax_t)np->n_vattr.na_fsid);
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
 	printf("\n");
@@ -3152,27 +3170,21 @@ nfs_print(struct vop_print_args *ap)
 int
 ncl_writebp(struct buf *bp, int force __unused, struct thread *td)
 {
-	int s;
-	int oldflags = bp->b_flags;
-#if 0
-	int retv = 1;
-	off_t off;
-#endif
+	int oldflags, rtval;
 
 	BUF_ASSERT_HELD(bp);
 
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);
-		return(0);
+		return (0);
 	}
 
+	oldflags = bp->b_flags;
 	bp->b_flags |= B_CACHE;
 
 	/*
 	 * Undirty the bp.  We will redirty it later if the I/O fails.
 	 */
-
-	s = splbio();
 	bundirty(bp);
 	bp->b_flags &= ~B_DONE;
 	bp->b_ioflags &= ~BIO_ERROR;
@@ -3180,7 +3192,6 @@ ncl_writebp(struct buf *bp, int force __unused, struct thread *td)
 
 	bufobj_wref(bp->b_bufobj);
 	curthread->td_ru.ru_oublock++;
-	splx(s);
 
 	/*
 	 * Note: to avoid loopback deadlocks, we do not
@@ -3192,19 +3203,14 @@ ncl_writebp(struct buf *bp, int force __unused, struct thread *td)
 	bp->b_iooffset = dbtob(bp->b_blkno);
 	bstrategy(bp);
 
-	if( (oldflags & B_ASYNC) == 0) {
-		int rtval = bufwait(bp);
+	if ((oldflags & B_ASYNC) != 0)
+		return (0);
 
-		if (oldflags & B_DELWRI) {
-			s = splbio();
-			reassignbuf(bp);
-			splx(s);
-		}
-		brelse(bp);
-		return (rtval);
-	}
-
-	return (0);
+	rtval = bufwait(bp);
+	if (oldflags & B_DELWRI)
+		reassignbuf(bp);
+	brelse(bp);
+	return (rtval);
 }
 
 /*
@@ -3375,6 +3381,39 @@ nfs_setacl(struct vop_setacl_args *ap)
 	return (error);
 }
 
+static int
+nfs_set_text(struct vop_set_text_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct nfsnode *np;
+
+	/*
+	 * If the text file has been mmap'd, flush any dirty pages to the
+	 * buffer cache and then...
+	 * Make sure all writes are pushed to the NFS server.  If this is not
+	 * done, the modify time of the file can change while the text
+	 * file is being executed.  This will cause the process that is
+	 * executing the text file to be terminated.
+	 */
+	if (vp->v_object != NULL) {
+		VM_OBJECT_WLOCK(vp->v_object);
+		vm_object_page_clean(vp->v_object, 0, 0, OBJPC_SYNC);
+		VM_OBJECT_WUNLOCK(vp->v_object);
+	}
+
+	/* Now, flush the buffer cache. */
+	ncl_flush(vp, MNT_WAIT, curthread, 0, 0);
+
+	/* And, finally, make sure that n_mtime is up to date. */
+	np = VTONFS(vp);
+	mtx_lock(&np->n_mtx);
+	np->n_mtime = np->n_vattr.na_mtime;
+	mtx_unlock(&np->n_mtx);
+
+	vp->v_vflag |= VV_TEXT;
+	return (0);
+}
+
 /*
  * Return POSIX pathconf information applicable to nfs filesystems.
  */
@@ -3424,12 +3463,6 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 	case _PC_NAME_MAX:
 		*ap->a_retval = pc.pc_namemax;
 		break;
-	case _PC_PATH_MAX:
-		*ap->a_retval = PATH_MAX;
-		break;
-	case _PC_PIPE_BUF:
-		*ap->a_retval = PIPE_BUF;
-		break;
 	case _PC_CHOWN_RESTRICTED:
 		*ap->a_retval = pc.pc_chownrestricted;
 		break;
@@ -3454,11 +3487,6 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 		break;
 	case _PC_MAC_PRESENT:
 		*ap->a_retval = 0;
-		break;
-	case _PC_ASYNC_IO:
-		/* _PC_ASYNC_IO should have been handled by upper layers. */
-		KASSERT(0, ("_PC_ASYNC_IO should not get here"));
-		error = EINVAL;
 		break;
 	case _PC_PRIO_IO:
 		*ap->a_retval = 0;
@@ -3492,7 +3520,7 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 		break;
 
 	default:
-		error = EINVAL;
+		error = vop_stdpathconf(ap);
 		break;
 	}
 	return (error);

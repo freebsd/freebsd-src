@@ -82,19 +82,6 @@ int	apm_evindex;
 #define APMDEV_NORMAL	0
 #define APMDEV_CTL	1
 
-#ifdef PC98
-extern int bios32_apm98(struct bios_regs *, u_int, u_short);
-
-/* PC98's SMM definition */
-#define	APM_NECSMM_PORT		0x6b8e
-#define	APM_NECSMM_PORTSZ	1
-#define	APM_NECSMM_EN		0x10
-static __inline void apm_enable_smm(struct apm_softc *);
-static __inline void apm_disable_smm(struct apm_softc *);
-int apm_necsmm_addr;
-u_int32_t apm_necsmm_mask;
-#endif
-
 static struct apmhook	*hook[NAPM_HOOK];		/* XXX */
 
 #define is_enabled(foo) ((foo) ? "enabled" : "disabled")
@@ -137,30 +124,6 @@ SYSCTL_INT(_debug, OID_AUTO, apm_debug, CTLFLAG_RW, &apm_debug, 0, "");
 SYSCTL_INT(_machdep, OID_AUTO, apm_swab_batt_minutes, CTLFLAG_RWTUN,
 	   &apm_swab_batt_minutes, 0, "Byte swap battery time value.");
 
-#ifdef PC98
-static __inline void
-apm_enable_smm(sc)
-	struct apm_softc *sc;
-{
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
-	if (apm_necsmm_addr != 0)
-		bus_space_write_1(iot, ioh, 0,
-			  (bus_space_read_1(iot, ioh, 0) | ~apm_necsmm_mask));
-}
-
-static __inline void
-apm_disable_smm(sc)
-	struct apm_softc *sc;
-{
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
-	if (apm_necsmm_addr != 0)
-		bus_space_write_1(iot, ioh, 0,
-			  (bus_space_read_1(iot, ioh, 0) & apm_necsmm_mask));
-}
-#endif
-
 /*
  * return  0 if the function successfull,
  * return  1 if the function unsuccessfull,
@@ -180,12 +143,6 @@ apm_bioscall(void)
 	}
 
 	sc->bios_busy = 1;
-#ifdef	PC98
-	set_bios_selectors(&sc->bios.seg, BIOSCODE_FLAG | BIOSDATA_FLAG);
-	if (bios32_apm98(&sc->bios.r, sc->bios.entry,
-	    GSEL(GBIOSCODE32_SEL, SEL_KPL)) != 0)
-		return 1;
-#else
 	if (sc->connectmode == APM_PROT32CONNECT) {
 		set_bios_selectors(&sc->bios.seg,
 				   BIOSCODE_FLAG | BIOSDATA_FLAG);
@@ -194,7 +151,6 @@ apm_bioscall(void)
 	} else {
 		errno = bios16(&sc->bios, NULL);
 	}
-#endif
 	sc->bios_busy = 0;
 	return (errno);
 }
@@ -207,11 +163,6 @@ apm_check_function_supported(u_int version, u_int func)
 	if (func == APM_DRVVERSION) {
 		return (1);
 	}
-#ifdef PC98
-	if (func == APM_GETPWSTATUS) {
-		return (1);
-	}
-#endif
 
 	switch (version) {
 	case INTVERSION(1, 0):
@@ -310,17 +261,12 @@ apm_suspend_system(int state)
 	sc->bios.r.ecx = state;
 	sc->bios.r.edx = 0;
  
-#ifdef PC98
-	apm_disable_smm(sc);
-#endif
 	if (apm_bioscall()) {
  		printf("Entire system suspend failure: errcode = %d\n",
 		       0xff & (sc->bios.r.eax >> 8));
  		return 1;
  	}
-#ifdef PC98
-	apm_enable_smm(sc);
-#endif
+
  	return 0;
 }
 
@@ -894,9 +840,6 @@ apm_probe(device_t dev)
 #define APM_KERNBASE	KERNBASE
 	struct vm86frame	vmf;
 	struct apm_softc	*sc = &apm_softc;
-#ifdef PC98
-	int			rid;
-#endif
 
 	device_set_desc(dev, "APM BIOS");
 	if (device_get_unit(dev) > 0) {
@@ -936,38 +879,6 @@ apm_probe(device_t dev)
 	vmf.vmf_bx = 0;
         vm86_intcall(APM_INT, &vmf);		/* disconnect, just in case */
 
-#ifdef PC98
-	/* PC98 have bogos APM 32bit BIOS */
-	if ((vmf.vmf_cx & APM_32BIT_SUPPORT) == 0)
-		return ENXIO;
-	rid = 0;
-	bus_set_resource(dev, SYS_RES_IOPORT, rid,
-			 APM_NECSMM_PORT, APM_NECSMM_PORTSZ);
-	sc->sc_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-			 APM_NECSMM_PORT, ~0, APM_NECSMM_PORTSZ, RF_ACTIVE);
-	if (sc->sc_res == NULL) {
-		printf("apm: cannot open NEC smm device\n");
-		return ENXIO;
-	}
-	bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_res);
-
-	vmf.vmf_ah = APM_BIOS;
-	vmf.vmf_al = APM_PROT32CONNECT;
-	vmf.vmf_bx = 0;
-	if (vm86_intcall(APM_INT, &vmf)) {
-		printf("apm: 32-bit connection error.\n");
-		return (ENXIO);
- 	}
-
-	sc->bios.seg.code32.base = (vmf.vmf_ax << 4) + APM_KERNBASE;
-	sc->bios.seg.code32.limit = 0xffff;
-	sc->bios.seg.code16.base = (vmf.vmf_cx << 4) + APM_KERNBASE;
-	sc->bios.seg.code16.limit = 0xffff;
-	sc->bios.seg.data.base = (vmf.vmf_dx << 4) + APM_KERNBASE;
-	sc->bios.seg.data.limit = 0xffff;
-	sc->bios.entry = vmf.vmf_ebx;
-	sc->connectmode = APM_PROT32CONNECT;
-#else
 	if ((vmf.vmf_cx & APM_32BIT_SUPPORT) != 0) {
 		vmf.vmf_ah = APM_BIOS;
 		vmf.vmf_al = APM_PROT32CONNECT;
@@ -1000,7 +911,7 @@ apm_probe(device_t dev)
 		sc->bios.entry = vmf.vmf_bx;
 		sc->connectmode = APM_PROT16CONNECT;
 	}
-#endif
+
 	return(0);
 }
 
@@ -1134,9 +1045,6 @@ apm_processevent(void)
 			    break;
 		}
 	} while (apm_event != PMEV_NOEVENT);
-#ifdef PC98
-	apm_disable_smm(sc);
-#endif
 }
 
 /*
@@ -1150,16 +1058,12 @@ apm_attach(device_t dev)
 {
 	struct apm_softc	*sc = &apm_softc;
 	int			drv_version;
-#ifdef PC98
-	int			rid;
-#endif
+
 	mtx_init(&sc->mtx, device_get_nameunit(dev), "apm", MTX_DEF);
 	cv_init(&sc->cv, "cbb cv");
 
-#ifndef PC98
 	if (device_get_flags(dev) & 0x20)
 		atrtcclock_disable = 1;
-#endif
 
 	sc->initialized = 0;
 
@@ -1180,22 +1084,6 @@ apm_attach(device_t dev)
 	    is_enabled(!sc->disabled));
 	APM_DPRINT("apm: CS_limit=0x%x, DS_limit=0x%x\n",
 	    sc->bios.seg.code16.limit, sc->bios.seg.data.limit);
-
-#ifdef PC98
-	rid = 0;
-	sc->sc_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-			 APM_NECSMM_PORT, ~0, APM_NECSMM_PORTSZ, RF_ACTIVE);
-	if (sc->sc_res == NULL)
-		panic("%s: counldn't map I/O ports", device_get_name(dev));
-	sc->sc_iot = rman_get_bustag(sc->sc_res);
-	sc->sc_ioh = rman_get_bushandle(sc->sc_res);
-
-	if (apm_version==0x112 || apm_version==0x111 || apm_version==0x110)
-		apm_necsmm_addr = APM_NECSMM_PORT;
-	else
-		apm_necsmm_addr = 0;
-	apm_necsmm_mask = ~APM_NECSMM_EN;
-#endif /* PC98 */
 
 	/*
          * In one test, apm bios version was 1.02; an attempt to register
@@ -1391,23 +1279,6 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 			return (EPERM);
 		/* XXX compatibility with the old interface */
 		args = (struct apm_bios_arg *)addr;
-#ifdef PC98
-		if (((args->eax >> 8) & 0xff) == 0x53) {
-			sc->bios.r.eax = args->eax & ~0xffff;
-			sc->bios.r.eax |= APM_BIOS << 8;
-			switch (args->eax & 0xff) {
-			case 0x0a:
-				sc->bios.r.eax |= APM_GETPWSTATUS;
-				break;
-			case 0x0e:
-				sc->bios.r.eax |= APM_DRVVERSION;
-				break;
-			default:
-				sc->bios.r.eax |= args->eax & 0xff;
-				break;
-			}
-		} else
-#endif
 		sc->bios.r.eax = args->eax;
 		sc->bios.r.ebx = args->ebx;
 		sc->bios.r.ecx = args->ecx;

@@ -135,6 +135,7 @@ struct nvme_completion_poll_status {
 #ifdef NVME_UNMAPPED_BIO_SUPPORT
 #define NVME_REQUEST_BIO	4
 #endif
+#define NVME_REQUEST_CCB        5
 
 struct nvme_request {
 
@@ -172,9 +173,8 @@ struct nvme_tracker {
 	bus_dmamap_t			payload_dma_map;
 	uint16_t			cid;
 
-	uint64_t			prp[NVME_MAX_PRP_LIST_ENTRIES];
+	uint64_t			*prp;
 	bus_addr_t			prp_bus_addr;
-	bus_dmamap_t			prp_dma_map;
 };
 
 struct nvme_qpair {
@@ -206,10 +206,8 @@ struct nvme_qpair {
 	bus_dma_tag_t		dma_tag;
 	bus_dma_tag_t		dma_tag_payload;
 
-	bus_dmamap_t		cmd_dma_map;
+	bus_dmamap_t		queuemem_map;
 	uint64_t		cmd_bus_addr;
-
-	bus_dmamap_t		cpl_dma_map;
 	uint64_t		cpl_bus_addr;
 
 	TAILQ_HEAD(, nvme_tracker)	free_tr;
@@ -228,8 +226,8 @@ struct nvme_namespace {
 
 	struct nvme_controller		*ctrlr;
 	struct nvme_namespace_data	data;
-	uint16_t			id;
-	uint16_t			flags;
+	uint32_t			id;
+	uint32_t			flags;
 	struct cdev			*cdev;
 	void				*cons_cookie[NVME_MAX_CONSUMERS];
 	uint32_t			stripesize;
@@ -266,6 +264,7 @@ struct nvme_controller {
 
 	uint32_t		num_io_queues;
 	uint32_t		num_cpus_per_ioq;
+	uint32_t		max_hw_pend_io;
 
 	/* Fields for tracking progress during controller initialization. */
 	struct intr_config_hook	config_hook;
@@ -359,7 +358,7 @@ void	nvme_ctrlr_cmd_identify_controller(struct nvme_controller *ctrlr,
 					   void *payload,
 					   nvme_cb_fn_t cb_fn, void *cb_arg);
 void	nvme_ctrlr_cmd_identify_namespace(struct nvme_controller *ctrlr,
-					  uint16_t nsid, void *payload,
+					  uint32_t nsid, void *payload,
 					  nvme_cb_fn_t cb_fn, void *cb_arg);
 void	nvme_ctrlr_cmd_set_interrupt_coalescing(struct nvme_controller *ctrlr,
 						uint32_t microseconds,
@@ -417,7 +416,7 @@ void	nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
 void	nvme_ctrlr_post_failed_request(struct nvme_controller *ctrlr,
 				       struct nvme_request *req);
 
-void	nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
+int	nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 			     uint16_t vector, uint32_t num_entries,
 			     uint32_t num_trackers,
 			     struct nvme_controller *ctrlr);
@@ -441,7 +440,7 @@ void	nvme_io_qpair_enable(struct nvme_qpair *qpair);
 void	nvme_io_qpair_disable(struct nvme_qpair *qpair);
 void	nvme_io_qpair_destroy(struct nvme_qpair *qpair);
 
-int	nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
+int	nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 			  struct nvme_controller *ctrlr);
 void	nvme_ns_destruct(struct nvme_namespace *ns);
 
@@ -516,6 +515,20 @@ nvme_allocate_request_bio(struct bio *bio, nvme_cb_fn_t cb_fn, void *cb_arg)
 		req->payload_size = bio->bio_bcount;
 #endif
 	}
+	return (req);
+}
+
+static __inline struct nvme_request *
+nvme_allocate_request_ccb(union ccb *ccb, nvme_cb_fn_t cb_fn, void *cb_arg)
+{
+	struct nvme_request *req;
+
+	req = _nvme_allocate_request(cb_fn, cb_arg);
+	if (req != NULL) {
+		req->type = NVME_REQUEST_CCB;
+		req->u.payload = ccb;
+	}
+
 	return (req);
 }
 

@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -82,7 +82,6 @@ extern short nfsv4_cbport;
 extern int nfscl_enablecallb;
 extern int nfs_numnfscbd;
 extern int nfscl_inited;
-struct mtx nfs_clstate_mutex;
 struct mtx ncl_iod_mutex;
 NFSDLOCKMUTEX;
 
@@ -231,6 +230,8 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 	 * happened to return an error no special casing is needed).
 	 */
 	mtx_init(&np->n_mtx, "NEWNFSnode lock", NULL, MTX_DEF | MTX_DUPOK);
+	lockinit(&np->n_excl, PVFS, "nfsupg", VLKTIMEOUT, LK_NOSHARE |
+	    LK_CANRECURSE);
 
 	/* 
 	 * Are we getting the root? If so, make sure the vnode flags
@@ -272,6 +273,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 	if (error != 0) {
 		*npp = NULL;
 		mtx_destroy(&np->n_mtx);
+		lockdestroy(&np->n_excl);
 		FREE((caddr_t)nfhp, M_NFSFH);
 		if (np->n_v4 != NULL)
 			FREE((caddr_t)np->n_v4, M_NFSV4NODE);
@@ -314,7 +316,7 @@ nfscl_ngetreopen(struct mount *mntp, u_int8_t *fhp, int fhsize,
 
 	*npp = NULL;
 	/* For forced dismounts, just return error. */
-	if ((mntp->mnt_kern_flag & MNTK_UNMOUNTF))
+	if (NFSCL_FORCEDISM(mntp))
 		return (EINTR);
 	MALLOC(nfhp, struct nfsfh *, sizeof (struct nfsfh) + fhsize,
 	    M_NFSFH, M_WAITOK);
@@ -337,7 +339,7 @@ nfscl_ngetreopen(struct mount *mntp, u_int8_t *fhp, int fhsize,
 		 * stopped and the MNTK_UNMOUNTF flag is set before doing
 		 * a vflush() with FORCECLOSE, we should be ok here.
 		 */
-		if ((mntp->mnt_kern_flag & MNTK_UNMOUNTF))
+		if (NFSCL_FORCEDISM(mntp))
 			error = EINTR;
 		else {
 			vfs_hash_ref(mntp, hash, td, &nvp, newnfs_vncmpf, nfhp);
@@ -491,14 +493,12 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 		 * from the value used for the top level server volume
 		 * in the mounted subtree.
 		 */
-		if (vp->v_mount->mnt_stat.f_fsid.val[0] !=
-		    (uint32_t)np->n_vattr.na_filesid[0])
-			vap->va_fsid = (uint32_t)np->n_vattr.na_filesid[0];
-		else
-			vap->va_fsid = (uint32_t)hash32_buf(
+		vn_fsid(vp, vap);
+		if ((uint32_t)vap->va_fsid == np->n_vattr.na_filesid[0])
+			vap->va_fsid = hash32_buf(
 			    np->n_vattr.na_filesid, 2 * sizeof(uint64_t), 0);
 	} else
-		vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
+		vn_fsid(vp, vap);
 	np->n_attrstamp = time_second;
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
@@ -635,7 +635,7 @@ nfscl_filllockowner(void *id, u_int8_t *cp, int flags)
 	struct proc *p;
 
 	if (id == NULL) {
-		printf("NULL id\n");
+		/* Return the single open_owner of all 0 bytes. */
 		bzero(cp, NFSV4CL_LOCKNAMELEN);
 		return;
 	}
@@ -744,6 +744,8 @@ nfscl_wcc_data(struct nfsrv_descript *nd, struct vnode *vp,
 			}
 		}
 		error = nfscl_postop_attr(nd, nap, flagp, stuff);
+		if (wccflagp != NULL && *flagp == 0)
+			*wccflagp = 0;
 	} else if ((nd->nd_flag & (ND_NOMOREDATA | ND_NFSV4 | ND_V4WCCATTR))
 	    == (ND_NFSV4 | ND_V4WCCATTR)) {
 		error = nfsv4_loadattr(nd, NULL, &nfsva, NULL,
@@ -1197,7 +1199,7 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 {
 	struct proc *p;
 
-	if (error < 10000)
+	if (error < 10000 || error >= NFSERR_STALEWRITEVERF)
 		return (error);
 	if (td != NULL)
 		p = td->td_proc;
@@ -1256,7 +1258,14 @@ nfscl_procdoesntexist(u_int8_t *own)
 	} tl;
 	struct proc *p;
 	pid_t pid;
-	int ret = 0;
+	int i, ret = 0;
+
+	/* For the single open_owner of all 0 bytes, just return 0. */
+	for (i = 0; i < NFSV4CL_LOCKNAMELEN; i++)
+		if (own[i] != 0)
+			break;
+	if (i == NFSV4CL_LOCKNAMELEN)
+		return (0);
 
 	tl.cval[0] = *own++;
 	tl.cval[1] = *own++;
@@ -1305,6 +1314,8 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	cap_rights_t rights;
 	char *buf;
 	int error;
+	struct mount *mp;
+	struct nfsmount *nmp;
 
 	if (uap->flag & NFSSVC_CBADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
@@ -1359,6 +1370,56 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 			    dumpmntopts.ndmnt_blen);
 			free(buf, M_TEMP);
 		}
+	} else if (uap->flag & NFSSVC_FORCEDISM) {
+		buf = malloc(MNAMELEN + 1, M_TEMP, M_WAITOK);
+		error = copyinstr(uap->argp, buf, MNAMELEN + 1, NULL);
+		if (error == 0) {
+			nmp = NULL;
+			mtx_lock(&mountlist_mtx);
+			TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+				if (strcmp(mp->mnt_stat.f_mntonname, buf) ==
+				    0 && strcmp(mp->mnt_stat.f_fstypename,
+				    "nfs") == 0 && mp->mnt_data != NULL) {
+					nmp = VFSTONFS(mp);
+					mtx_lock(&nmp->nm_mtx);
+					if ((nmp->nm_privflag &
+					    NFSMNTP_FORCEDISM) == 0) {
+						nmp->nm_privflag |= 
+						   (NFSMNTP_FORCEDISM |
+						    NFSMNTP_CANCELRPCS);
+						mtx_unlock(&nmp->nm_mtx);
+					} else {
+						nmp = NULL;
+						mtx_unlock(&nmp->nm_mtx);
+					}
+					break;
+				}
+			}
+			mtx_unlock(&mountlist_mtx);
+
+			if (nmp != NULL) {
+				/*
+				 * Call newnfs_nmcancelreqs() to cause
+				 * any RPCs in progress on the mount point to
+				 * fail.
+				 * This will cause any process waiting for an
+				 * RPC to complete while holding a vnode lock
+				 * on the mounted-on vnode (such as "df" or
+				 * a non-forced "umount") to fail.
+				 * This will unlock the mounted-on vnode so
+				 * a forced dismount can succeed.
+				 * Then clear NFSMNTP_CANCELRPCS and wakeup(),
+				 * so that nfs_unmount() can complete.
+				 */
+				newnfs_nmcancelreqs(nmp);
+				mtx_lock(&nmp->nm_mtx);
+				nmp->nm_privflag &= ~NFSMNTP_CANCELRPCS;
+				wakeup(nmp);
+				mtx_unlock(&nmp->nm_mtx);
+			} else
+				error = EINVAL;
+		}
+		free(buf, M_TEMP);
 	} else {
 		error = EINVAL;
 	}
@@ -1381,8 +1442,6 @@ nfscl_modevent(module_t mod, int type, void *data)
 		if (loaded)
 			return (0);
 		newnfs_portinit();
-		mtx_init(&nfs_clstate_mutex, "nfs_clstate_mutex", NULL,
-		    MTX_DEF);
 		mtx_init(&ncl_iod_mutex, "ncl_iod_mutex", NULL, MTX_DEF);
 		nfscl_init();
 		NFSD_LOCK();
@@ -1406,7 +1465,6 @@ nfscl_modevent(module_t mod, int type, void *data)
 		ncl_call_invalcaches = NULL;
 		nfsd_call_nfscl = NULL;
 		/* and get rid of the mutexes */
-		mtx_destroy(&nfs_clstate_mutex);
 		mtx_destroy(&ncl_iod_mutex);
 		loaded = 0;
 		break;

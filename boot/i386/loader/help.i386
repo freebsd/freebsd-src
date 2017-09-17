@@ -43,3 +43,12 @@
 	Displays the BIOS SMAP (system memory map) table.
 
 ################################################################################
+# Tchain DChain load disk block
+
+	chain disk:
+
+	chain will read stage1 (MBR or VBR) boot block from specified device
+	to address 0000:7C00 and attempts to run it. Use lsdev to get available
+	device names. Disk name must end with colon.
+
+################################################################################

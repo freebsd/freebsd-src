@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -70,6 +70,7 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_pctrie.h>
 #include <sys/_rwlock.h>
 
 #include <vm/_vm_radix.h>
@@ -79,17 +80,6 @@
  *
  *	vm_object_t		Virtual memory object.
  *
- *	The root of cached pages pool is protected by both the per-object lock
- *	and the free pages queue mutex.
- *	On insert in the cache radix trie, the per-object lock is expected
- *	to be already held and the free pages queue mutex will be
- *	acquired during the operation too.
- *	On remove and lookup from the cache radix trie, only the free
- *	pages queue mutex is expected to be locked.
- *	These rules allow for reliably checking for the presence of cached
- *	pages with only the per-object lock held, thereby reducing contention
- *	for the free pages queue mutex.
- *
  * List of locks
  *	(c)	const until freed
  *	(o)	per-object lock 
@@ -97,12 +87,17 @@
  *
  */
 
+#ifndef VM_PAGE_HAVE_PGLIST
+TAILQ_HEAD(pglist, vm_page);
+#define VM_PAGE_HAVE_PGLIST
+#endif
+
 struct vm_object {
 	struct rwlock lock;
 	TAILQ_ENTRY(vm_object) object_list; /* list of all objects */
 	LIST_HEAD(, vm_object) shadow_head; /* objects that this is a shadow for */
 	LIST_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
-	TAILQ_HEAD(respgs, vm_page) memq; /* list of resident pages */
+	struct pglist memq;		/* list of resident pages */
 	struct vm_radix rtree;		/* root of the resident page radix trie*/
 	vm_pindex_t size;		/* Object size */
 	int generation;			/* generation ID */
@@ -118,7 +113,6 @@ struct vm_object {
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
 	TAILQ_ENTRY(vm_object) pager_object_list; /* list of all objects of this pager type */
 	LIST_HEAD(, vm_reserv) rvq;	/* list of reservations */
-	struct vm_radix cache;		/* (o + f) root of the cache page radix trie */
 	void *handle;
 	union {
 		/*
@@ -163,13 +157,12 @@ struct vm_object {
 		 *		     the handle changed and hash-chain
 		 *		     invalid.
 		 *
-		 *	swp_bcount - number of swap 'swblock' metablocks, each
-		 *		     contains up to 16 swapblk assignments.
-		 *		     see vm/swap_pager.h
+		 *	swp_blks -   pc-trie of the allocated swap blocks.
+		 *
 		 */
 		struct {
 			void *swp_tmpfs;
-			int swp_bcount;
+			struct pctrie swp_blks;
 		} swp;
 	} un_pager;
 	struct ucred *cred;
@@ -182,11 +175,13 @@ struct vm_object {
  */
 #define	OBJ_FICTITIOUS	0x0001		/* (c) contains fictitious pages */
 #define	OBJ_UNMANAGED	0x0002		/* (c) contains unmanaged pages */
-#define OBJ_DEAD	0x0008		/* dead objects (during rundown) */
+#define	OBJ_POPULATE	0x0004		/* pager implements populate() */
+#define	OBJ_DEAD	0x0008		/* dead objects (during rundown) */
 #define	OBJ_NOSPLIT	0x0010		/* dont split this object */
 #define	OBJ_UMTXDEAD	0x0020		/* umtx pshared was terminated */
-#define OBJ_PIPWNT	0x0040		/* paging in progress wanted */
-#define OBJ_MIGHTBEDIRTY 0x0100		/* object might be dirty, only for vnode */
+#define	OBJ_PIPWNT	0x0040		/* paging in progress wanted */
+#define	OBJ_PG_DTOR	0x0080		/* dont reset object, leave that for dtor */
+#define	OBJ_MIGHTBEDIRTY 0x0100		/* object might be dirty, only for vnode */
 #define	OBJ_TMPFS_NODE	0x0200		/* object belongs to tmpfs VREG node */
 #define	OBJ_TMPFS_DIRTY	0x0400		/* dirty tmpfs obj */
 #define	OBJ_COLORED	0x1000		/* pg_color is defined */
@@ -194,8 +189,23 @@ struct vm_object {
 #define	OBJ_DISCONNECTWNT 0x4000	/* disconnect from vnode wanted */
 #define	OBJ_TMPFS	0x8000		/* has tmpfs vnode allocated */
 
-#define IDX_TO_OFF(idx) (((vm_ooffset_t)(idx)) << PAGE_SHIFT)
-#define OFF_TO_IDX(off) ((vm_pindex_t)(((vm_ooffset_t)(off)) >> PAGE_SHIFT))
+/*
+ * Helpers to perform conversion between vm_object page indexes and offsets.
+ * IDX_TO_OFF() converts an index into an offset.
+ * OFF_TO_IDX() converts an offset into an index.  Since offsets are signed
+ *   by default, the sign propagation in OFF_TO_IDX(), when applied to
+ *   negative offsets, is intentional and returns a vm_object page index
+ *   that cannot be created by a userspace mapping.
+ * UOFF_TO_IDX() treats the offset as an unsigned value and converts it
+ *   into an index accordingly.  Use it only when the full range of offset
+ *   values are allowed.  Currently, this only applies to device mappings.
+ * OBJ_MAX_SIZE specifies the maximum page index corresponding to the
+ *   maximum unsigned offset.
+ */
+#define	IDX_TO_OFF(idx) (((vm_ooffset_t)(idx)) << PAGE_SHIFT)
+#define	OFF_TO_IDX(off) ((vm_pindex_t)(((vm_ooffset_t)(off)) >> PAGE_SHIFT))
+#define	UOFF_TO_IDX(off) (((vm_pindex_t)(off)) >> PAGE_SHIFT)
+#define	OBJ_MAX_SIZE	(UOFF_TO_IDX(UINT64_MAX) + 1)
 
 #ifdef	_KERNEL
 
@@ -289,13 +299,6 @@ void vm_object_pip_subtract(vm_object_t object, short i);
 void vm_object_pip_wakeup(vm_object_t object);
 void vm_object_pip_wakeupn(vm_object_t object, short i);
 void vm_object_pip_wait(vm_object_t object, char *waitid);
-
-static __inline boolean_t
-vm_object_cache_is_empty(vm_object_t object)
-{
-
-	return (vm_radix_is_empty(&object->cache));
-}
 
 void umtx_shm_object_init(vm_object_t object);
 void umtx_shm_object_terminated(vm_object_t object);

@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -50,11 +50,10 @@ struct thread;
 struct uio;
 struct knote;
 struct vnode;
-struct socket;
-
 
 #endif /* _KERNEL */
 
+#define	DTYPE_NONE	0	/* not yet initialized */
 #define	DTYPE_VNODE	1	/* file */
 #define	DTYPE_SOCKET	2	/* communications endpoint */
 #define	DTYPE_PIPE	3	/* pipe */
@@ -68,6 +67,7 @@ struct socket;
 #define	DTYPE_DEV	11	/* Device specific fd type */
 #define	DTYPE_PROCDESC	12	/* process descriptor */
 #define	DTYPE_LINUXEFD	13	/* emulation eventfd type */
+#define	DTYPE_LINUXTFD	14	/* emulation timerfd type */
 
 #ifdef _KERNEL
 
@@ -266,10 +266,6 @@ int fgetvp_read(struct thread *td, int fd, cap_rights_t *rightsp,
     struct vnode **vpp);
 int fgetvp_write(struct thread *td, int fd, cap_rights_t *rightsp,
     struct vnode **vpp);
-
-int fgetsock(struct thread *td, int fd, cap_rights_t *rightsp,
-    struct socket **spp, u_int *fflagp);
-void fputsock(struct socket *sp);
 
 static __inline int
 _fnoop(void)

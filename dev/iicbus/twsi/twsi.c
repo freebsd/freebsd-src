@@ -114,6 +114,7 @@ twsi_control_clear(struct twsi_softc *sc, uint32_t mask)
 	uint32_t val;
 
 	val = TWSI_READ(sc, sc->reg_control);
+	val &= ~(TWSI_CONTROL_STOP | TWSI_CONTROL_START);
 	val &= ~mask;
 	TWSI_WRITE(sc, sc->reg_control, val);
 }
@@ -124,6 +125,7 @@ twsi_control_set(struct twsi_softc *sc, uint32_t mask)
 	uint32_t val;
 
 	val = TWSI_READ(sc, sc->reg_control);
+	val &= ~(TWSI_CONTROL_STOP | TWSI_CONTROL_START);
 	val |= mask;
 	TWSI_WRITE(sc, sc->reg_control, val);
 }
@@ -204,8 +206,8 @@ twsi_locked_start(device_t dev, struct twsi_softc *sc, int32_t mask,
 	}
 
 	TWSI_WRITE(sc, sc->reg_data, slave);
-	DELAY(1000);
 	twsi_clear_iflg(sc);
+	DELAY(1000);
 
 	if (twsi_poll_ctrl(sc, timeout, TWSI_CONTROL_IFLG)) {
 		debugf("timeout sending slave address\n");
@@ -251,7 +253,7 @@ twsi_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	TWSI_WRITE(sc, sc->reg_soft_reset, 0x0);
 	DELAY(2000);
 	TWSI_WRITE(sc, sc->reg_baud_rate, param);
-	TWSI_WRITE(sc, sc->reg_control, TWSI_CONTROL_TWSIEN | TWSI_CONTROL_ACK);
+	TWSI_WRITE(sc, sc->reg_control, TWSI_CONTROL_TWSIEN);
 	DELAY(1000);
 	mtx_unlock(&sc->mutex);
 
@@ -266,9 +268,10 @@ twsi_stop(device_t dev)
 	sc = device_get_softc(dev);
 
 	mtx_lock(&sc->mutex);
+	twsi_control_clear(sc, TWSI_CONTROL_ACK);
 	twsi_control_set(sc, TWSI_CONTROL_STOP);
-	DELAY(1000);
 	twsi_clear_iflg(sc);
+	DELAY(1000);
 	mtx_unlock(&sc->mutex);
 
 	return (IIC_NOERR);
@@ -341,8 +344,8 @@ twsi_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 		else
 			twsi_control_set(sc, TWSI_CONTROL_ACK);
 
-		DELAY (1000);
 		twsi_clear_iflg(sc);
+		DELAY(1000);
 
 		if (twsi_poll_ctrl(sc, delay, TWSI_CONTROL_IFLG)) {
 			debugf("timeout reading data\n");
@@ -382,6 +385,7 @@ twsi_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 		TWSI_WRITE(sc, sc->reg_data, *buf++);
 
 		twsi_clear_iflg(sc);
+		DELAY(1000);
 		if (twsi_poll_ctrl(sc, timeout, TWSI_CONTROL_IFLG)) {
 			debugf("timeout writing data\n");
 			rv = IIC_ETIMEOUT;

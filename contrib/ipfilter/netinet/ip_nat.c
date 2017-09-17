@@ -1677,10 +1677,6 @@ ipf_nat_siocdelnat(softc, softn, n, getlock)
 	ipnat_t *n;
 	int getlock;
 {
-#ifdef IPF_NAT6
-	int i;
-#endif
-
 	if (getlock) {
 		WRITE_ENTER(&softc->ipf_nat);
 	}
@@ -4104,13 +4100,8 @@ ipf_nat_inlookup(fin, flags, p, src, mapdst)
 		dport = htons(fin->fin_data[1]);
 		break;
 	case IPPROTO_ICMP :
-		if (flags & IPN_ICMPERR) {
-			sport = fin->fin_data[1];
-			dport = 0;
-		} else {
-			dport = fin->fin_data[1];
-			sport = 0;
-		}
+		sport = 0;
+		dport = fin->fin_data[1];
 		break;
 	default :
 		sport = 0;
@@ -4430,8 +4421,6 @@ ipf_nat_outlookup(fin, flags, p, src, dst)
 
 	ifp = fin->fin_ifp;
 	sflags = flags & IPN_TCPUDPICMP;
-	sport = 0;
-	dport = 0;
 
 	switch (p)
 	{
@@ -4441,12 +4430,12 @@ ipf_nat_outlookup(fin, flags, p, src, dst)
 		dport = htons(fin->fin_data[1]);
 		break;
 	case IPPROTO_ICMP :
-		if (flags & IPN_ICMPERR)
-			sport = fin->fin_data[1];
-		else
-			dport = fin->fin_data[1];
+		sport = 0;
+		dport = fin->fin_data[1];
 		break;
 	default :
+		sport = 0;
+		dport = 0;
 		break;
 	}
 
@@ -4704,8 +4693,8 @@ ipf_nat_lookupredir(np)
 				}
 			}
 
-			np->nl_realip = nat->nat_ndstip;
-			np->nl_realport = nat->nat_ndport;
+			np->nl_realip = nat->nat_odstip;
+			np->nl_realport = nat->nat_odport;
 		}
  	}
 

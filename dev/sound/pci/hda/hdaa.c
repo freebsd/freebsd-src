@@ -2130,7 +2130,8 @@ hdaa_channel_start(struct hdaa_chan *ch)
 	uint32_t fmt;
 
 	fmt = hdaa_stream_format(ch);
-	ch->stripectl = fls(ch->stripecap & hdaa_allowed_stripes(fmt)) - 1;
+	ch->stripectl = fls(ch->stripecap & hdaa_allowed_stripes(fmt) &
+	    hda_get_stripes_mask(devinfo->dev)) - 1;
 	ch->sid = HDAC_STREAM_ALLOC(device_get_parent(devinfo->dev), devinfo->dev,
 	    ch->dir == PCMDIR_PLAY ? 1 : 0, fmt, ch->stripectl, &ch->dmapos);
 	if (ch->sid <= 0)
@@ -2382,7 +2383,7 @@ hdaa_audio_ctl_source_volume(struct hdaa_pcm_devinfo *pdevinfo,
 	}
 
 	/* If widget has own ossdev - not traverse it.
-	   It will be traversed on it's own. */
+	   It will be traversed on its own. */
 	if (w->ossdev >= 0 && depth > 0)
 		return;
 
@@ -4550,7 +4551,7 @@ hdaa_audio_ctl_source_amp(struct hdaa_devinfo *devinfo, nid_t nid, int index,
 	}
 
 	/* If widget has own ossdev - not traverse it.
-	   It will be traversed on it's own. */
+	   It will be traversed on its own. */
 	if (w->ossdev >= 0 && depth > 0)
 		return (found);
 

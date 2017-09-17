@@ -73,9 +73,10 @@
  * XScale core 3 assembly functions for CPU / MMU / TLB specific operations
  */
 
-#include <machine/armreg.h>
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
+
+#include <machine/armreg.h>
 
 /*
  * Size of the XScale core D-cache.
@@ -364,8 +365,6 @@ ENTRY(xscalec3_setttb)
 
 #ifdef CACHE_CLEAN_BLOCK_INTR
 	msr	cpsr_fsxc, r3
-#else
-	str	r2, [r3]
 #endif
 	RET
 END(xscalec3_setttb)

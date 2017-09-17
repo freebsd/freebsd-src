@@ -751,7 +751,7 @@ my_setcfg(struct my_softc * sc, int bmcr)
 static void
 my_reset(struct my_softc * sc)
 {
-	register int    i;
+	int    i;
 
 	MY_LOCK_ASSERT(sc);
 	MY_SETBIT(sc, MY_BCR, MY_SWR);
@@ -1717,7 +1717,7 @@ my_watchdog(void *arg)
 static void
 my_stop(struct my_softc * sc)
 {
-	register int    i;
+	int    i;
 	struct ifnet   *ifp;
 
 	MY_LOCK_ASSERT(sc);

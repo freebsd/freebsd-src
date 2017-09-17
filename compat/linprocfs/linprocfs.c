@@ -144,12 +144,10 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	unsigned long memtotal;		/* total memory in bytes */
 	unsigned long memused;		/* used memory in bytes */
 	unsigned long memfree;		/* free memory in bytes */
-	unsigned long memshared;	/* shared memory ??? */
 	unsigned long buffers, cached;	/* buffer / cache memory ??? */
 	unsigned long long swaptotal;	/* total swap space in bytes */
 	unsigned long long swapused;	/* used swap space in bytes */
 	unsigned long long swapfree;	/* free swap space in bytes */
-	vm_object_t object;
 	int i, j;
 
 	memtotal = physmem * PAGE_SIZE;
@@ -169,13 +167,6 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	swaptotal = (unsigned long long)i * PAGE_SIZE;
 	swapused = (unsigned long long)j * PAGE_SIZE;
 	swapfree = swaptotal - swapused;
-	memshared = 0;
-	mtx_lock(&vm_object_list_mtx);
-	TAILQ_FOREACH(object, &vm_object_list, object_list)
-		if (object->shadow_count > 1)
-			memshared += object->resident_page_count;
-	mtx_unlock(&vm_object_list_mtx);
-	memshared *= PAGE_SIZE;
 	/*
 	 * We'd love to be able to write:
 	 *
@@ -185,24 +176,17 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	 * like unstaticizing it just for linprocfs's sake.
 	 */
 	buffers = 0;
-	cached = vm_cnt.v_cache_count * PAGE_SIZE;
+	cached = vm_cnt.v_inactive_count * PAGE_SIZE;
 
 	sbuf_printf(sb,
-	    "	     total:    used:	free:  shared: buffers:	 cached:\n"
-	    "Mem:  %lu %lu %lu %lu %lu %lu\n"
-	    "Swap: %llu %llu %llu\n"
 	    "MemTotal: %9lu kB\n"
 	    "MemFree:  %9lu kB\n"
-	    "MemShared:%9lu kB\n"
 	    "Buffers:  %9lu kB\n"
 	    "Cached:   %9lu kB\n"
 	    "SwapTotal:%9llu kB\n"
 	    "SwapFree: %9llu kB\n",
-	    memtotal, memused, memfree, memshared, buffers, cached,
-	    swaptotal, swapused, swapfree,
-	    B2K(memtotal), B2K(memfree),
-	    B2K(memshared), B2K(buffers), B2K(cached),
-	    B2K(swaptotal), B2K(swapfree));
+	    B2K(memtotal), B2K(memfree), B2K(buffers),
+	    B2K(cached), B2K(swaptotal), B2K(swapfree));
 
 	return (0);
 }
@@ -218,8 +202,9 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	char model[128];
 	uint64_t freq;
 	size_t size;
-	int class, fqmhz, fqkhz;
-	int i;
+	u_int cache_size[4];
+	int fqmhz, fqkhz;
+	int i, j;
 
 	/*
 	 * We default the flags to include all non-conflicting flags,
@@ -235,32 +220,13 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		"3dnowext", "3dnow"
 	};
 
-	switch (cpu_class) {
-#ifdef __i386__
-	case CPUCLASS_286:
-		class = 2;
-		break;
-	case CPUCLASS_386:
-		class = 3;
-		break;
-	case CPUCLASS_486:
-		class = 4;
-		break;
-	case CPUCLASS_586:
-		class = 5;
-		break;
-	case CPUCLASS_686:
-		class = 6;
-		break;
-	default:
-		class = 0;
-		break;
-#else /* __amd64__ */
-	default:
-		class = 15;
-		break;
-#endif
-	}
+	static char *power_flags[] = {
+		"ts",           "fid",          "vid",
+		"ttp",          "tm",           "stc",
+		"100mhzsteps",  "hwpstate",     "",
+		"cpb",          "eff_freq_ro",  "proc_feedback",
+		"acc_power",
+	};
 
 	hw_model[0] = CTL_HW;
 	hw_model[1] = HW_MODEL;
@@ -268,25 +234,10 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	size = sizeof(model);
 	if (kernel_sysctl(td, hw_model, 2, &model, &size, 0, 0, 0, 0) != 0)
 		strcpy(model, "unknown");
-	for (i = 0; i < mp_ncpus; ++i) {
-		sbuf_printf(sb,
-		    "processor\t: %d\n"
-		    "vendor_id\t: %.20s\n"
-		    "cpu family\t: %u\n"
-		    "model\t\t: %u\n"
-		    "model name\t: %s\n"
-		    "stepping\t: %u\n\n",
-		    i, cpu_vendor, CPUID_TO_FAMILY(cpu_id),
-		    CPUID_TO_MODEL(cpu_id), model, cpu_id & CPUID_STEPPING);
-		/* XXX per-cpu vendor / class / model / id? */
-	}
-
-	sbuf_cat(sb, "flags\t\t:");
-
 #ifdef __i386__
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
-		if (class < 6)
+		if (cpu_class < CPUCLASS_686)
 			flags[16] = "fcmov";
 		break;
 	case CPU_VENDOR_CYRIX:
@@ -294,20 +245,73 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		break;
 	}
 #endif
-
-	for (i = 0; i < 32; i++)
-		if (cpu_feature & (1 << i))
-			sbuf_printf(sb, " %s", flags[i]);
-	sbuf_cat(sb, "\n");
-	freq = atomic_load_acq_64(&tsc_freq);
-	if (freq != 0) {
-		fqmhz = (freq + 4999) / 1000000;
-		fqkhz = ((freq + 4999) / 10000) % 100;
+	if (cpu_exthigh >= 0x80000006)
+		do_cpuid(0x80000006, cache_size);
+	else
+		memset(cache_size, 0, sizeof(cache_size));
+	for (i = 0; i < mp_ncpus; ++i) {
+		fqmhz = 0;
+		fqkhz = 0;
+		freq = atomic_load_acq_64(&tsc_freq);
+		if (freq != 0) {
+			fqmhz = (freq + 4999) / 1000000;
+			fqkhz = ((freq + 4999) / 10000) % 100;
+		}
 		sbuf_printf(sb,
+		    "processor\t: %d\n"
+		    "vendor_id\t: %.20s\n"
+		    "cpu family\t: %u\n"
+		    "model\t\t: %u\n"
+		    "model name\t: %s\n"
+		    "stepping\t: %u\n"
 		    "cpu MHz\t\t: %d.%02d\n"
-		    "bogomips\t: %d.%02d\n",
-		    fqmhz, fqkhz, fqmhz, fqkhz);
+		    "cache size\t: %d KB\n"
+		    "physical id\t: %d\n"
+		    "siblings\t: %d\n"
+		    "core id\t\t: %d\n"
+		    "cpu cores\t: %d\n"
+		    "apicid\t\t: %d\n"
+		    "initial apicid\t: %d\n"
+		    "fpu\t\t: %s\n"
+		    "fpu_exception\t: %s\n"
+		    "cpuid level\t: %d\n"
+		    "wp\t\t: %s\n",
+		    i, cpu_vendor, CPUID_TO_FAMILY(cpu_id),
+		    CPUID_TO_MODEL(cpu_id), model, cpu_id & CPUID_STEPPING,
+		    fqmhz, fqkhz,
+		    (cache_size[2] >> 16), 0, mp_ncpus, i, mp_ncpus,
+		    i, i, /*cpu_id & CPUID_LOCAL_APIC_ID ??*/
+		    (cpu_feature & CPUID_FPU) ? "yes" : "no", "yes",
+		    CPUID_TO_FAMILY(cpu_id), "yes");
+		sbuf_cat(sb, "flags\t\t:");
+		for (j = 0; j < nitems(flags); j++)
+			if (cpu_feature & (1 << j))
+				sbuf_printf(sb, " %s", flags[j]);
+		sbuf_cat(sb, "\n");
+		sbuf_printf(sb,
+		    "bugs\t\t: %s\n"
+		    "bogomips\t: %d.%02d\n"
+		    "clflush size\t: %d\n"
+		    "cache_alignment\t: %d\n"
+		    "address sizes\t: %d bits physical, %d bits virtual\n",
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
+		    (has_f00f_bug) ? "Intel F00F" : "",
+#else
+		    "",
+#endif
+		    fqmhz, fqkhz,
+		    cpu_clflush_line_size, cpu_clflush_line_size,
+		    cpu_maxphyaddr,
+		    (cpu_maxphyaddr > 32) ? 48 : 0);
+		sbuf_cat(sb, "power management: ");
+		for (j = 0; j < nitems(power_flags); j++)
+			if (amd_pminfo & (1 << j))
+				sbuf_printf(sb, " %s", power_flags[j]);
+		sbuf_cat(sb, "\n\n");
+
+		/* XXX per-cpu vendor / class / model / id? */
 	}
+	sbuf_cat(sb, "\n");
 
 	return (0);
 }
@@ -468,17 +472,17 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	}
 	sbuf_printf(sb,
 	    "disk 0 0 0 0\n"
-	    "page %u %u\n"
-	    "swap %u %u\n"
-	    "intr %u\n"
-	    "ctxt %u\n"
+	    "page %ju %ju\n"
+	    "swap %ju %ju\n"
+	    "intr %ju\n"
+	    "ctxt %ju\n"
 	    "btime %lld\n",
-	    vm_cnt.v_vnodepgsin,
-	    vm_cnt.v_vnodepgsout,
-	    vm_cnt.v_swappgsin,
-	    vm_cnt.v_swappgsout,
-	    vm_cnt.v_intr,
-	    vm_cnt.v_swtch,
+	    (uintmax_t)VM_CNT_FETCH(v_vnodepgsin),
+	    (uintmax_t)VM_CNT_FETCH(v_vnodepgsout),
+	    (uintmax_t)VM_CNT_FETCH(v_swappgsin),
+	    (uintmax_t)VM_CNT_FETCH(v_swappgsout),
+	    (uintmax_t)VM_CNT_FETCH(v_intr),
+	    (uintmax_t)VM_CNT_FETCH(v_swtch),
 	    (long long)boottime.tv_sec);
 	return (0);
 }
@@ -1586,6 +1590,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "mem", &procfs_doprocmem,
 	    &procfs_attr, &procfs_candebug, NULL, PFS_RDWR|PFS_RAW);
+	pfs_create_file(dir, "mounts", &linprocfs_domtab,
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_link(dir, "root", &linprocfs_doprocroot,
 	    NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "stat", &linprocfs_doprocstat,

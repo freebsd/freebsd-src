@@ -1932,8 +1932,6 @@ DRIVER_MODULE(agp_i810, vgapci, agp_i810_driver, agp_devclass, 0, 0);
 MODULE_DEPEND(agp_i810, agp, 1, 1, 1);
 MODULE_DEPEND(agp_i810, pci, 1, 1, 1);
 
-extern vm_page_t bogus_page;
-
 void
 agp_intel_gtt_clear_range(device_t dev, u_int first_entry, u_int num_entries)
 {
@@ -2244,6 +2242,16 @@ agp_intel_gtt_map_memory(device_t dev, vm_page_t *pages, u_int num_entries,
 	return (0);
 }
 
+static void
+agp_intel_gtt_install_pte(device_t dev, u_int index, vm_paddr_t addr,
+    u_int flags)
+{
+	struct agp_i810_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->match->driver->install_gtt_pte(dev, index, addr, flags);
+}
+
 void
 agp_intel_gtt_insert_sg_entries(device_t dev, struct sglist *sg_list,
     u_int first_entry, u_int flags)
@@ -2320,6 +2328,13 @@ intel_gtt_insert_sg_entries(struct sglist *sg_list, u_int first_entry,
 {
 
 	agp_intel_gtt_insert_sg_entries(intel_agp, sg_list, first_entry, flags);
+}
+
+void
+intel_gtt_install_pte(u_int index, vm_paddr_t addr, u_int flags)
+{
+
+	agp_intel_gtt_install_pte(intel_agp, index, addr, flags);
 }
 
 device_t

@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../fs/udf
+.PATH:	${SRCTOP}/sys/fs/udf
 KMOD=	udf_iconv
 SRCS=	udf_iconv.c
 
-CFLAGS+= -I${.CURDIR}/../../
+CFLAGS+= -I${SRCTOP}/sys/
 
 .include <bsd.kmod.mk>

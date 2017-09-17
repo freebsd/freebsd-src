@@ -54,6 +54,7 @@
 	{0x8086, 0x0412, 0, "Intel Haswell (GT2 desktop)"}, \
 	{0x8086, 0x0416, 0, "Intel Haswell (GT2 mobile)"}, \
 	{0x8086, 0x041A, 0, "Intel Haswell (GT2 server)"}, \
+	{0x8086, 0x041E, 0, "Intel Haswell (GT2 desktop)"}, \
 	{0x8086, 0x0422, 0, "Intel Haswell (GT2 desktop)"}, \
 	{0x8086, 0x0426, 0, "Intel Haswell (GT2 mobile)"}, \
 	{0x8086, 0x042A, 0, "Intel Haswell (GT2 server)"}, \

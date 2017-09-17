@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
 #include "opt_mp_watchdog.h"
-#include "opt_perfmon.h"
 #include "opt_platform.h"
 #include "opt_sched.h"
 
@@ -125,9 +124,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 #include <machine/sigframe.h>
 #include <machine/specialreg.h>
-#ifdef PERFMON
-#include <machine/perfmon.h>
-#endif
 #include <machine/tss.h>
 #ifdef SMP
 #include <machine/smp.h>
@@ -192,7 +188,7 @@ struct msgbuf *msgbufp;
  * Physical address of the EFI System Table. Stashed from the metadata hints
  * passed into the kernel and used by the EFI code to call runtime services.
  */
-vm_paddr_t efi_systbl;
+vm_paddr_t efi_systbl_phys;
 
 /* Intel ICH registers */
 #define ICH_PMBASE	0x400
@@ -273,10 +269,6 @@ cpu_startup(dummy)
 	 */
 	startrtclock();
 	printcpuinfo();
-	panicifcpuunsupported();
-#ifdef PERFMON
-	perfmon_init();
-#endif
 
 	/*
 	 * Display physical memory if SMBIOS reports reasonable amount.
@@ -380,6 +372,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext, xfpusave, xfpusave_len);
 	fpstate_drop(td);
+	update_pcb_bases(pcb);
 	sf.sf_uc.uc_mcontext.mc_fsbase = pcb->pcb_fsbase;
 	sf.sf_uc.uc_mcontext.mc_gsbase = pcb->pcb_gsbase;
 	bzero(sf.sf_uc.uc_mcontext.mc_spare,
@@ -450,7 +443,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
-	set_pcb_flags(pcb, PCB_FULL_IRET);
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -556,6 +548,7 @@ sys_sigreturn(td, uap)
 		return (ret);
 	}
 	bcopy(&ucp->uc_mcontext.mc_rdi, regs, sizeof(*regs));
+	update_pcb_bases(pcb);
 	pcb->pcb_fsbase = ucp->uc_mcontext.mc_fsbase;
 	pcb->pcb_gsbase = ucp->uc_mcontext.mc_gsbase;
 
@@ -567,7 +560,6 @@ sys_sigreturn(td, uap)
 #endif
 
 	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
-	set_pcb_flags(pcb, PCB_FULL_IRET);
 	return (EJUSTRETURN);
 }
 
@@ -595,11 +587,11 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	else
 		mtx_unlock(&dt_lock);
 	
+	update_pcb_bases(pcb);
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
 	clear_pcb_flags(pcb, PCB_32BIT);
 	pcb->pcb_initial_fpucw = __INITIAL_FPUCW__;
-	set_pcb_flags(pcb, PCB_FULL_IRET);
 
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = imgp->entry_addr;
@@ -1064,9 +1056,6 @@ bios_add_smap_entries(struct bios_smap *smapbase, u_int32_t smapsize,
 	}
 }
 
-#define efi_next_descriptor(ptr, size) \
-	((struct efi_md *)(((uint8_t *) ptr) + size))
-
 static void
 add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
     int *physmap_idx)
@@ -1099,7 +1088,7 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 	 * Boot Services API.
 	 */
 	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
-	map = (struct efi_md *)((uint8_t *)efihdr + efisz); 
+	map = (struct efi_md *)((uint8_t *)efihdr + efisz);
 
 	if (efihdr->descriptor_size == 0)
 		return;
@@ -1512,9 +1501,19 @@ native_parse_preload_data(u_int64_t modulep)
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
 	db_fetch_ksymtab(ksym_start, ksym_end);
 #endif
-	efi_systbl = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
+	efi_systbl_phys = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
 
 	return (kmdp);
+}
+
+static void
+amd64_kdb_init(void)
+{
+	kdb_init();
+#ifdef KDB
+	if (boothowto & RB_KDB)
+		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
+#endif
 }
 
 u_int64_t
@@ -1528,6 +1527,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	u_int64_t msr;
 	char *env;
 	size_t kstack0_sz;
+	int late_console;
 
 	/*
  	 * This may be done better later if it gets more high level
@@ -1536,6 +1536,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	proc_linkup0(&proc0, &thread0);
 
 	kmdp = init_ops.parse_preload_data(modulep);
+
+	identify_cpu();
+	identify_hypervisor();
 
 	/* Init basic tunables, hz etc */
 	init_param1();
@@ -1572,6 +1575,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	physfree += DPCPU_SIZE;
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
+	/* Non-late cninit() and printf() can be moved up to here. */
 	PCPU_SET(tssp, &common_tss[0]);
 	PCPU_SET(commontssp, &common_tss[0]);
 	PCPU_SET(tss, (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
@@ -1640,7 +1644,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	    != NULL)
 		vty_set_preferred(VTY_VT);
 
-	identify_cpu();		/* Final stage of CPU initialization */
+	finishidentcpu();	/* Final stage of CPU initialization */
 	initializecpu();	/* Initialize CPU registers */
 	initializecpucache();
 
@@ -1671,12 +1675,36 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	wrmsr(MSR_STAR, msr);
 	wrmsr(MSR_SF_MASK, PSL_NT|PSL_T|PSL_I|PSL_C|PSL_D);
 
+	/*
+	 * Temporary forge some valid pointer to PCB, for exception
+	 * handlers.  It is reinitialized properly below after FPU is
+	 * set up.  Also set up td_critnest to short-cut the page
+	 * fault handler.
+	 */
+	cpu_max_ext_state_size = sizeof(struct savefpu);
+	thread0.td_pcb = get_pcb_td(&thread0);
+	thread0.td_critnest = 1;
+
+	/*
+	 * The console and kdb should be initialized even earlier than here,
+	 * but some console drivers don't work until after getmemsize().
+	 * Default to late console initialization to support these drivers.
+	 * This loses mainly printf()s in getmemsize() and early debugging.
+	 */
+	late_console = 1;
+	TUNABLE_INT_FETCH("debug.late_console", &late_console);
+	if (!late_console) {
+		cninit();
+		amd64_kdb_init();
+	}
+
 	getmemsize(kmdp, physfree);
 	init_param2(physmem);
 
 	/* now running on new page tables, configured,and u/iom is accessible */
 
-	cninit();
+	if (late_console)
+		cninit();
 
 #ifdef DEV_ISA
 #ifdef DEV_ATPIC
@@ -1697,13 +1725,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 #error "have you forgotten the isa device?";
 #endif
 
-	kdb_init();
-
-#ifdef KDB
-	if (boothowto & RB_KDB)
-		kdb_enter(KDB_WHY_BOOTFLAGS,
-		    "Boot flags requested debugger");
-#endif
+	if (late_console)
+		amd64_kdb_init();
 
 	msgbufinit(msgbufp, msgbufsize);
 	fpuinit();
@@ -1714,6 +1737,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 * area.
 	 */
 	thread0.td_pcb = get_pcb_td(&thread0);
+	thread0.td_pcb->pcb_save = get_pcb_user_save_td(&thread0);
 	bzero(get_pcb_user_save_td(&thread0), cpu_max_ext_state_size);
 	if (use_xsave) {
 		xhdr = (struct xstate_hdr *)(get_pcb_user_save_td(&thread0) +
@@ -1752,6 +1776,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 #ifdef FDT
 	x86_init_fdt();
 #endif
+	thread0.td_critnest = 0;
 
 	/* Location of kernel stack for locore */
 	return ((u_int64_t)thread0.td_pcb);
@@ -2110,6 +2135,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_flags = tp->tf_flags;
 	mcp->mc_len = sizeof(*mcp);
 	get_fpcontext(td, mcp, NULL, 0);
+	update_pcb_bases(pcb);
 	mcp->mc_fsbase = pcb->pcb_fsbase;
 	mcp->mc_gsbase = pcb->pcb_gsbase;
 	mcp->mc_xfpustate = 0;
@@ -2180,11 +2206,11 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 		tp->tf_fs = mcp->mc_fs;
 		tp->tf_gs = mcp->mc_gs;
 	}
+	set_pcb_flags(pcb, PCB_FULL_IRET);
 	if (mcp->mc_flags & _MC_HASBASES) {
 		pcb->pcb_fsbase = mcp->mc_fsbase;
 		pcb->pcb_gsbase = mcp->mc_gsbase;
 	}
-	set_pcb_flags(pcb, PCB_FULL_IRET);
 	return (0);
 }
 
@@ -2453,6 +2479,71 @@ user_dbreg_trap(void)
          * None of the breakpoints are in user space.
          */
         return 0;
+}
+
+/*
+ * The pcb_flags is only modified by current thread, or by other threads
+ * when current thread is stopped.  However, current thread may change it
+ * from the interrupt context in cpu_switch(), or in the trap handler.
+ * When we read-modify-write pcb_flags from C sources, compiler may generate
+ * code that is not atomic regarding the interrupt handler.  If a trap or
+ * interrupt happens and any flag is modified from the handler, it can be
+ * clobbered with the cached value later.  Therefore, we implement setting
+ * and clearing flags with single-instruction functions, which do not race
+ * with possible modification of the flags from the trap or interrupt context,
+ * because traps and interrupts are executed only on instruction boundary.
+ */
+void
+set_pcb_flags_raw(struct pcb *pcb, const u_int flags)
+{
+
+	__asm __volatile("orl %1,%0"
+	    : "=m" (pcb->pcb_flags) : "ir" (flags), "m" (pcb->pcb_flags)
+	    : "cc", "memory");
+
+}
+
+/*
+ * The support for RDFSBASE, WRFSBASE and similar instructions for %gs
+ * base requires that kernel saves MSR_FSBASE and MSR_{K,}GSBASE into
+ * pcb if user space modified the bases.  We must save on the context
+ * switch or if the return to usermode happens through the doreti.
+ *
+ * Tracking of both events is performed by the pcb flag PCB_FULL_IRET,
+ * which have a consequence that the base MSRs must be saved each time
+ * the PCB_FULL_IRET flag is set.  We disable interrupts to sync with
+ * context switches.
+ */
+void
+set_pcb_flags(struct pcb *pcb, const u_int flags)
+{
+	register_t r;
+
+	if (curpcb == pcb &&
+	    (flags & PCB_FULL_IRET) != 0 &&
+	    (pcb->pcb_flags & PCB_FULL_IRET) == 0 &&
+	    (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0) {
+		r = intr_disable();
+		if ((pcb->pcb_flags & PCB_FULL_IRET) == 0) {
+			if (rfs() == _ufssel)
+				pcb->pcb_fsbase = rdfsbase();
+			if (rgs() == _ugssel)
+				pcb->pcb_gsbase = rdmsr(MSR_KGSBASE);
+		}
+		set_pcb_flags_raw(pcb, flags);
+		intr_restore(r);
+	} else {
+		set_pcb_flags_raw(pcb, flags);
+	}
+}
+
+void
+clear_pcb_flags(struct pcb *pcb, const u_int flags)
+{
+
+	__asm __volatile("andl %1,%0"
+	    : "=m" (pcb->pcb_flags) : "ir" (~flags), "m" (pcb->pcb_flags)
+	    : "cc", "memory");
 }
 
 #ifdef KDB

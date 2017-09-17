@@ -238,7 +238,8 @@ smbios_parse_table(const caddr_t addr)
 		smbios_setenv("smbios.system.serial", addr, 0x07);
 		smbios_setuuid("smbios.system.uuid", addr + 0x08, smbios.ver);
 #endif
-		if (smbios.major >= 2 && smbios.minor >= 4) {
+		if (smbios.major > 2 ||
+		    (smbios.major == 2 && smbios.minor >= 4)) {
 			smbios_setenv("smbios.system.sku", addr, 0x19);
 			smbios_setenv("smbios.system.family", addr, 0x1a);
 		}

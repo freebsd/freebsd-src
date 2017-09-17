@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../netpfil/ipfw
+.PATH: ${SRCTOP}/sys/netpfil/ipfw
 
 KMOD=	ipfw
 SRCS=	ip_fw2.c ip_fw_pfil.c ip_fw_bpf.c

@@ -98,9 +98,7 @@ struct sysarch_args {
 #endif
 
 int
-sysarch(td, uap)
-	struct thread *td;
-	register struct sysarch_args *uap;
+sysarch(struct thread *td, struct sysarch_args *uap)
 {
 	int error;
 	union descriptor *lp;
@@ -438,7 +436,7 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 
 	new_ldt->ldt_len = len = NEW_MAX_LD(len);
 	new_ldt->ldt_base = (caddr_t)kmem_malloc(kernel_arena,
-	    len * sizeof(union descriptor), M_WAITOK);
+	    len * sizeof(union descriptor), M_WAITOK | M_ZERO);
 	new_ldt->ldt_refcnt = 1;
 	new_ldt->ldt_active = 0;
 

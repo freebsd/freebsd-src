@@ -48,6 +48,22 @@ CODE {
 	}
 }
 
+
+/**
+ * Return the current value of the chipstatus register.
+ *
+ * @param dev A bhnd(4) ChipCommon device.
+ *
+ * Drivers should only use function for functionality that is not
+ * available via another bhnd_chipc() function.
+ *
+ * @returns The chipstatus register value, or 0 if undefined by this
+ * hardware (e.g. if @p dev is an EXTIF core).
+ */
+METHOD uint32_t read_chipst {
+	device_t dev;
+}
+
 /**
  * Write @p value with @p mask directly to the chipctrl register.
  *

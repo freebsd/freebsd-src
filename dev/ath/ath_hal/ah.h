@@ -635,7 +635,8 @@ typedef enum {
 	REG_EXT_JAPAN_MIDBAND		= 1,
 	REG_EXT_FCC_DFS_HT40		= 2,
 	REG_EXT_JAPAN_NONDFS_HT40	= 3,
-	REG_EXT_JAPAN_DFS_HT40		= 4
+	REG_EXT_JAPAN_DFS_HT40		= 4,
+	REG_EXT_FCC_CH_144		= 5,
 } REG_EXT_BITMAP;
 
 enum {
@@ -1394,6 +1395,7 @@ struct ath_hal {
 				struct ath_rx_status *rxs, uint64_t fulltsf,
 				const char *buf, HAL_DFS_EVENT *event);
 	HAL_BOOL  __ahdecl(*ah_isFastClockEnabled)(struct ath_hal *ah);
+	void	  __ahdecl(*ah_setDfsCacTxQuiet)(struct ath_hal *, HAL_BOOL);
 
 	/* Spectral Scan functions */
 	void	__ahdecl(*ah_spectralConfigure)(struct ath_hal *ah,
@@ -1659,6 +1661,11 @@ void __ahdecl ath_hal_setcca(struct ath_hal *ah, int ena);
 int __ahdecl ath_hal_getcca(struct ath_hal *ah);
 
 /*
+ * Enable/disable and get self-gen frame (ACK, CTS) for CAC.
+ */
+void __ahdecl ath_hal_set_dfs_cac_tx_quiet(struct ath_hal *ah, HAL_BOOL ena);
+
+/*
  * Read EEPROM data from ah_eepromdata
  */
 HAL_BOOL __ahdecl ath_hal_EepromDataRead(struct ath_hal *ah,
@@ -1673,5 +1680,12 @@ ath_hal_get_mfp_qos(struct ath_hal *ah)
 	//return AH_PRIVATE(ah)->ah_mfp_qos;
 	return HAL_MFP_QOSDATA;
 }
+
+/*
+ * Convert between microseconds and core system clocks.
+ */
+extern u_int ath_hal_mac_clks(struct ath_hal *ah, u_int usecs);
+extern u_int ath_hal_mac_usec(struct ath_hal *ah, u_int clks);
+extern uint64_t ath_hal_mac_psec(struct ath_hal *ah, u_int clks);
 
 #endif /* _ATH_AH_H_ */

@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-SUBDIR=	bhnd_chipc \
-	bhnd_pci \
+SUBDIR=	bhnd_pci \
 	bhnd_pci_hostb \
 	bhnd_pcib
 

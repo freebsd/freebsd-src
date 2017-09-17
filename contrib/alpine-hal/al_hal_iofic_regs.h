@@ -66,7 +66,7 @@ struct al_iofic_grp_ctrl {
 
 struct al_iofic_grp_mod {
 	uint32_t grp_int_mod_reg;      /* Interrupt moderation registerDedicated moderation in ... */
-	uint32_t grp_int_vmid_reg;
+	uint32_t grp_int_tgtid_reg;
 };
 
 struct al_iofic_regs {
@@ -109,12 +109,12 @@ struct al_iofic_regs {
 #define INT_MOD_INTV_MASK 0x000000FF
 #define INT_MOD_INTV_SHIFT 0
 
-/**** grp_int_vmid_reg register ****/
-/* Interrupt vmid value registerDedicated reg ... */
-#define INT_MSIX_VMID_MASK 0x0000FFFF
-#define INT_MSIX_VMID_SHIFT 0
-/* Interrupt vmid_en value registerDedicated reg ... */
-#define INT_MSIX_VMID_EN_SHIFT 31
+/**** grp_int_tgtid_reg register ****/
+/* Interrupt tgtid value registerDedicated reg ... */
+#define INT_MSIX_TGTID_MASK 0x0000FFFF
+#define INT_MSIX_TGTID_SHIFT 0
+/* Interrupt tgtid_en value registerDedicated reg ... */
+#define INT_MSIX_TGTID_EN_SHIFT 31
 
 #ifdef __cplusplus
 }

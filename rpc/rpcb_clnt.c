@@ -1287,6 +1287,11 @@ xdr_netbuf(XDR *xdrs, struct netbuf *objp)
 		return (FALSE);
 	}
 	pp = &objp->buf;
+
+	if (objp->maxlen > RPC_MAXDATASIZE) {
+		return (FALSE);
+	}
+
 	dummy = xdr_bytes(xdrs, (char **) pp,
 			(u_int *)&(objp->len), objp->maxlen);
 	return (dummy);

@@ -2,7 +2,7 @@
 
 # Makefile for the SBP-II Target mode
 
-.PATH: ${.CURDIR}/../../../dev/firewire
+.PATH: ${SRCTOP}/sys/dev/firewire
 
 KMOD	= sbp_targ
 SRCS	= bus_if.h device_if.h \

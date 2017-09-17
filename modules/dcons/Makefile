@@ -1,7 +1,7 @@
 # $Id: Makefile,v 1.6 2003/10/24 15:41:26 simokawa Exp $
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../dev/dcons
+.PATH:	${SRCTOP}/sys/dev/dcons
 
 KMOD	= dcons
 SRCS	= dcons.c dcons.h dcons_os.c dcons_os.h \
@@ -15,6 +15,6 @@ opt_ddb.h:
 	echo "#define DDB 1" > $@
 .endif
 
-CFLAGS+= -I${.CURDIR}/../.. 
+CFLAGS+= -I${SRCTOP}/sys 
 
 .include <bsd.kmod.mk>

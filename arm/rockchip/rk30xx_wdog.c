@@ -36,13 +36,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/rman.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/cpufunc.h>
 #include <machine/machdep.h>
 #include <machine/fdt.h>
 
@@ -172,7 +170,7 @@ rk30_wd_watchdog_fn(void *private, u_int cmd, int *error)
 }
 
 void
-rk30_wd_watchdog_reset()
+rk30_wd_watchdog_reset(void)
 {
 	bus_space_handle_t bsh;
 

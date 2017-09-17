@@ -27,7 +27,7 @@
  */
 
 /*
- *  http://home.eeti.com.tw/web20/drivers/Software%20Programming%20Guide_v2.0.pdf
+ *  http://www.eeti.com.tw/pdf/Software%20Programming%20Guide_v2.0.pdf
  */
 
 #include <sys/param.h>

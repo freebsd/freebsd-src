@@ -1516,6 +1516,7 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 		sc->stats.tx_pkts_unaligned++;
 		m = m_defrag(*m_head, M_NOWAIT);
 		if (m == NULL) {
+			m_freem(*m_head);
 			*m_head = NULL;
 			return (ENOBUFS);
 		}
@@ -2130,7 +2131,7 @@ arge_tx_ring_init(struct arge_softc *sc)
 	sc->arge_cdata.arge_tx_cnt = 0;
 
 	rd = &sc->arge_rdata;
-	bzero(rd->arge_tx_ring, sizeof(rd->arge_tx_ring));
+	bzero(rd->arge_tx_ring, sizeof(*rd->arge_tx_ring));
 	for (i = 0; i < ARGE_TX_RING_COUNT; i++) {
 		if (i == ARGE_TX_RING_COUNT - 1)
 			addr = ARGE_TX_RING_ADDR(sc, 0);
@@ -2189,7 +2190,7 @@ arge_rx_ring_init(struct arge_softc *sc)
 	sc->arge_cdata.arge_rx_cons = 0;
 
 	rd = &sc->arge_rdata;
-	bzero(rd->arge_rx_ring, sizeof(rd->arge_rx_ring));
+	bzero(rd->arge_rx_ring, sizeof(*rd->arge_rx_ring));
 	for (i = 0; i < ARGE_RX_RING_COUNT; i++) {
 		rxd = &sc->arge_cdata.arge_rxdesc[i];
 		if (rxd->rx_m != NULL) {

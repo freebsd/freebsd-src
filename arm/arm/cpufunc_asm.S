@@ -124,9 +124,6 @@ ENTRY(cpufunc_control)
 	mov	r0, r3			/* Return old value */
 
 	RET
-.Lglou:
-	.asciz "plop %p\n"
-	.align 2
 END(cpufunc_control)
 
 /*

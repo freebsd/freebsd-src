@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/smp.h>
 #include <sys/limits.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>

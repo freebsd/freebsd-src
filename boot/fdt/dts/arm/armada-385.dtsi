@@ -77,5 +77,124 @@
 				compatible = "marvell,mv88f6820-pinctrl";
 			};
 		};
+
+		pcie-controller {
+			compatible = "marvell,armada-370-pcie";
+			status = "disabled";
+			device_type = "pci";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+
+			msi-parent = <&mpic>;
+			bus-range = <0x00 0xff>;
+
+			ranges =
+			       <0x82000000 0 0x80000 MBUS_ID(0xf0, 0x01) 0x80000 0 0x00002000
+				0x82000000 0 0x40000 MBUS_ID(0xf0, 0x01) 0x40000 0 0x00002000
+				0x82000000 0 0x44000 MBUS_ID(0xf0, 0x01) 0x44000 0 0x00002000
+				0x82000000 0 0x48000 MBUS_ID(0xf0, 0x01) 0x48000 0 0x00002000
+				0x82000000 0x0 0xf1200000 MBUS_ID(0x08, 0xe8) 0xf1200000 0 0x00100000 /* Port 0 MEM */
+				0x81000000 0x0 0xf1300000 MBUS_ID(0x08, 0xe0) 0xf1300000 0 0x00100000 /* Port 0 IO  */
+				0x82000000 0x0 0xf1400000 MBUS_ID(0x04, 0xe8) 0xf1400000 0 0x00100000 /* Port 1 MEM */
+				0x81000000 0x0 0xf1500000 MBUS_ID(0x04, 0xe0) 0xf1500000 0 0x00100000 /* Port 1 IO  */
+				0x82000000 0x0 0xf1600000 MBUS_ID(0x04, 0xd8) 0xf1600000 0 0x00100000 /* Port 2 MEM */
+				0x81000000 0x0 0xf1700000 MBUS_ID(0x04, 0xd0) 0xf1700000 0 0x00100000 /* Port 2 IO  */
+				0x82000000 0x0 0xf1800000 MBUS_ID(0x04, 0xb8) 0xf1800000 0 0x00100000 /* Port 3 MEM */
+				0x81000000 0x0 0xf1900000 MBUS_ID(0x04, 0xb0) 0xf1900000 0 0x00100000 /* Port 3 IO  */
+				>;
+
+			/*
+			 * This port can be either x4 or x1. When
+			 * configured in x4 by the bootloader, then
+			 * pcie@4,0 is not available.
+			 */
+			pcie@1,0 {
+				compatible = "mrvl,pcie";
+				device_type = "pci";
+				assigned-addresses = <0x82000800 0 0x80000 0 0x2000>;
+				reg = <0x0 0x0 0x80000 0x0 0x2000>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				#interrupt-cells = <3>;
+				bus-range = <0 255>;
+				ranges = <0x82000000 0x0 0x0 0x82000000 0x0 0xf1200000 0x0 0x00100000
+					  0x81000000 0x0 0x0 0x81000000 0x0 0xf1300000 0x0 0x00100000>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &gic GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&gic>;
+				marvell,pcie-port = <0>;
+				marvell,pcie-lane = <0>;
+				clocks = <&gateclk 8>;
+				status = "disabled";
+			};
+
+			/* x1 port */
+			pcie@2,0 {
+				compatible = "mrvl,pcie";
+				device_type = "pci";
+				assigned-addresses = <0x82000800 0 0x40000 0 0x2000>;
+				reg = <0x0 0x0 0x40000 0x0 0x2000>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				#interrupt-cells = <3>;
+				bus-range = <0 255>;
+				ranges = <0x82000000 0x0 0x0 0x82000000 0x0 0xf1400000 0x0 0x00100000
+					  0x81000000 0x0 0x0 0x81000000 0x0 0xf1500000 0x0 0x00100000>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &gic GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&gic>;
+				marvell,pcie-port = <1>;
+				marvell,pcie-lane = <0>;
+				clocks = <&gateclk 5>;
+				status = "disabled";
+			};
+
+			/* x1 port */
+			pcie@3,0 {
+				compatible = "mrvl,pcie";
+				device_type = "pci";
+				assigned-addresses = <0x82000800 0 0x44000 0 0x2000>;
+				reg = <0x0 0x0 0x44000 0x0 0x2000>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				#interrupt-cells = <3>;
+				bus-range = <0 255>;
+				ranges = <0x82000000 0x0 0x0 0x82000000 0x0 0xf1600000 0x0 0x00100000
+					  0x81000000 0x0 0x0 0x81000000 0x0 0xf1700000 0x0 0x00100000>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &gic GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&gic>;
+				marvell,pcie-port = <2>;
+				marvell,pcie-lane = <0>;
+				clocks = <&gateclk 6>;
+				status = "disabled";
+			};
+
+			/*
+			 * x1 port only available when pcie@1,0 is
+			 * configured as a x1 port
+			 */
+			pcie@4,0 {
+				compatible = "mrvl,pcie";
+				device_type = "pci";
+				assigned-addresses = <0x82000800 0 0x48000 0 0x2000>;
+				reg = <0x0 0x0 0x48000 0x0 0x2000>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				#interrupt-cells = <3>;
+				bus-range = <0 255>;
+				ranges = <0x82000000 0x0 0x0 0x82000000 0x0 0xf1800000 0x0 0x00100000
+					  0x81000000 0x0 0x0 0x81000000 0x0 0xf1900000 0x0 0x00100000>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &gic GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&gic>;
+				marvell,pcie-port = <3>;
+				marvell,pcie-lane = <0>;
+				clocks = <&gateclk 7>;
+				status = "disabled";
+			};
+		};
 	};
+
 };

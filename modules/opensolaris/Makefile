@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SYSDIR?=	${.CURDIR}/../..
+SYSDIR?=	${SRCTOP}/sys
 
 .PATH:		${SYSDIR}/cddl/compat/opensolaris/kern
 
@@ -9,6 +9,7 @@ SRCS=		opensolaris.c		\
 		opensolaris_cmn_err.c	\
 		opensolaris_kmem.c	\
 		opensolaris_misc.c	\
+		opensolaris_proc.c	\
 		opensolaris_sunddi.c
 
 _A=${SYSDIR}/cddl/contrib/opensolaris/common/atomic

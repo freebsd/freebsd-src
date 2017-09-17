@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/xe
+.PATH: ${SRCTOP}/sys/dev/xe
 
 KMOD=	if_xe
 SRCS=	if_xe.c if_xe_pccard.c

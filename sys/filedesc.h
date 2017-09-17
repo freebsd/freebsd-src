@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -190,6 +190,11 @@ int	getvnode(struct thread *td, int fd, cap_rights_t *rightsp,
 	    struct file **fpp);
 void	mountcheckdirs(struct vnode *olddp, struct vnode *newdp);
 
+int	fget_cap_locked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+	    struct file **fpp, struct filecaps *havecapsp);
+int	fget_cap(struct thread *td, int fd, cap_rights_t *needrightsp,
+	    struct file **fpp, struct filecaps *havecapsp);
+
 /* Return a referenced file from an unlocked descriptor. */
 int	fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	    struct file **fpp, seq_t *seqp);
@@ -207,12 +212,31 @@ fget_locked(struct filedesc *fdp, int fd)
 	return (fdp->fd_ofiles[fd].fde_file);
 }
 
+static __inline struct filedescent *
+fdeget_locked(struct filedesc *fdp, int fd)
+{
+	struct filedescent *fde;
+
+	FILEDESC_LOCK_ASSERT(fdp);
+
+	if (fd < 0 || fd > fdp->fd_lastfile)
+		return (NULL);
+
+	fde = &fdp->fd_ofiles[fd];
+	if (fde->fde_file == NULL)
+		return (NULL);
+
+	return (fde);
+}
+
+#ifdef CAPABILITIES
 static __inline bool
 fd_modified(struct filedesc *fdp, int fd, seq_t seq)
 {
 
 	return (!seq_consistent(fd_seq(fdp->fd_files, fd), seq));
 }
+#endif
 
 /* cdir/rdir/jdir manipulation functions. */
 void	pwd_chdir(struct thread *td, struct vnode *vp);

@@ -729,6 +729,12 @@ extern SVCPOOL* svcpool_create(const char *name,
 extern void svcpool_destroy(SVCPOOL *pool);
 
 /*
+ * Close a service pool.  Similar to svcpool_destroy(), but it does not
+ * free the data structures.  As such, the pool can be used again.
+ */
+extern void svcpool_close(SVCPOOL *pool);
+
+/*
  * Transport independent svc_create routine.
  */
 extern int svc_create(SVCPOOL *, void (*)(struct svc_req *, SVCXPRT *),

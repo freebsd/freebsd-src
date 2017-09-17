@@ -49,18 +49,6 @@ __FBSDID("$FreeBSD$");
 MALLOC_DECLARE(M_FILECAPS);
 
 int
-freebsd32_cap_enter(struct thread *td,
-    struct freebsd32_cap_enter_args *uap)
-{
-
-	/*
-	 * We do not have an equivalent of capabilities.conf for freebsd32
-	 * compatibility, so do not allow capability mode for now.
-	 */
-	return (ENOSYS);
-}
-
-int
 freebsd32_cap_ioctls_limit(struct thread *td,
     struct freebsd32_cap_ioctls_limit_args *uap)
 {
@@ -146,14 +134,6 @@ out:
 }
 
 #else /* !CAPABILITIES */
-
-int
-freebsd32_cap_enter(struct thread *td,
-    struct freebsd32_cap_enter_args *uap)
-{
-
-	return (ENOSYS);
-}
 
 int
 freebsd32_cap_ioctls_limit(struct thread *td,

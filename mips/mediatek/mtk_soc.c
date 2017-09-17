@@ -53,6 +53,7 @@ static uint32_t mtk_soc_cpuclk = MTK_CPU_CLK_880MHZ;
 static uint32_t mtk_soc_timerclk = MTK_CPU_CLK_880MHZ / 2;
 
 static const struct ofw_compat_data compat_data[] = {
+	{ "ralink,rt2880-soc",		MTK_SOC_RT2880 },
 	{ "ralink,rt3050-soc",		MTK_SOC_RT3050 },
 	{ "ralink,rt3052-soc",		MTK_SOC_RT3052 },
 	{ "ralink,rt3350-soc",		MTK_SOC_RT3350 },
@@ -75,6 +76,30 @@ static const struct ofw_compat_data compat_data[] = {
 	/* Sentinel */
 	{ NULL,				MTK_SOC_UNKNOWN },
 };
+
+static uint32_t
+mtk_detect_cpuclk_rt2880(bus_space_tag_t bst, bus_space_handle_t bsh)
+{
+	uint32_t val;
+
+	val = bus_space_read_4(bst, bsh, SYSCTL_SYSCFG);
+	val >>= RT2880_CPU_CLKSEL_OFF;
+	val &= RT2880_CPU_CLKSEL_MSK;
+
+	switch (val) {
+	case 0:
+		return (MTK_CPU_CLK_250MHZ);
+	case 1:
+		return (MTK_CPU_CLK_266MHZ);
+	case 2:
+		return (MTK_CPU_CLK_280MHZ);
+	case 3:
+		return (MTK_CPU_CLK_300MHZ);
+	}
+
+	/* Never reached */
+	return (0);
+}
 
 static uint32_t
 mtk_detect_cpuclk_rt305x(bus_space_tag_t bst, bus_space_handle_t bsh)
@@ -248,7 +273,7 @@ mtk_soc_try_early_detect(void)
 		return;
 
 	for (i = 0; compat_data[i].ocd_str != NULL; i++) {
-		if (fdt_is_compatible(node, compat_data[i].ocd_str)) {
+		if (ofw_bus_node_is_compatible(node, compat_data[i].ocd_str)) {
 			mtk_soc_socid = compat_data[i].ocd_data;
 			break;
 		}
@@ -260,7 +285,9 @@ mtk_soc_try_early_detect(void)
 	}
 
 	bst = fdtbus_bs_tag;
-	if (mtk_soc_socid == MTK_SOC_MT7621)
+	if (mtk_soc_socid == MTK_SOC_RT2880)
+		base = MTK_RT2880_BASE;
+	else if (mtk_soc_socid == MTK_SOC_MT7621)
 		base = MTK_MT7621_BASE;
 	else
 		base = MTK_DEFAULT_BASE;
@@ -270,6 +297,9 @@ mtk_soc_try_early_detect(void)
 
 	/* First, figure out the CPU clock */
 	switch (mtk_soc_socid) {
+	case MTK_SOC_RT2880:
+		mtk_soc_cpuclk = mtk_detect_cpuclk_rt2880(bst, bsh);
+		break;
 	case MTK_SOC_RT3050:  /* fallthrough */
 	case MTK_SOC_RT3052:
 	case MTK_SOC_RT3350:
@@ -327,6 +357,9 @@ mtk_soc_try_early_detect(void)
 	}
 
 	switch (mtk_soc_socid) {
+	case MTK_SOC_RT2880:
+		mtk_soc_uartclk = mtk_soc_cpuclk / MTK_UARTDIV_2;
+		break;
 	case MTK_SOC_RT3350:  /* fallthrough */
 	case MTK_SOC_RT3050:  /* fallthrough */
 	case MTK_SOC_RT3052:

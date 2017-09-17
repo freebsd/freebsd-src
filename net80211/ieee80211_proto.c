@@ -241,7 +241,7 @@ static void update_mcast(void *, int);
 static void update_promisc(void *, int);
 static void update_channel(void *, int);
 static void update_chw(void *, int);
-static void update_wme(void *, int);
+static void vap_update_wme(void *, int);
 static void restart_vaps(void *, int);
 static void ieee80211_newstate_cb(void *, int);
 
@@ -280,7 +280,6 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 	TASK_INIT(&ic->ic_chan_task, 0, update_channel, ic);
 	TASK_INIT(&ic->ic_bmiss_task, 0, beacon_miss, ic);
 	TASK_INIT(&ic->ic_chw_task, 0, update_chw, ic);
-	TASK_INIT(&ic->ic_wme_task, 0, update_wme, ic);
 	TASK_INIT(&ic->ic_restart_task, 0, restart_vaps, ic);
 
 	ic->ic_wme.wme_hipri_switch_hysteresis =
@@ -338,6 +337,7 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 	callout_init(&vap->iv_mgtsend, 1);
 	TASK_INIT(&vap->iv_nstate_task, 0, ieee80211_newstate_cb, vap);
 	TASK_INIT(&vap->iv_swbmiss_task, 0, beacon_swmiss, vap);
+	TASK_INIT(&vap->iv_wme_task, 0, vap_update_wme, vap);
 	/*
 	 * Install default tx rate handling: no fixed rate, lowest
 	 * supported rate for mgmt and multicast frames.  Default
@@ -842,6 +842,9 @@ setbasicrates(struct ieee80211_rateset *rs,
 	    [IEEE80211_MODE_11NA]	= { 3, { 12, 24, 48 } },
 					    /* NB: mixed b/g */
 	    [IEEE80211_MODE_11NG]	= { 4, { 2, 4, 11, 22 } },
+					    /* NB: mixed b/g */
+	    [IEEE80211_MODE_VHT_2GHZ]	= { 4, { 2, 4, 11, 22 } },
+	    [IEEE80211_MODE_VHT_5GHZ]	= { 3, { 12, 24, 48 } },
 	};
 	int i, j;
 
@@ -906,6 +909,8 @@ static const struct phyParamType phyParamForAC_BE[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_QUARTER]= { 3, 4,  6,  0, 0 },
 	[IEEE80211_MODE_11NA]	= { 3, 4,  6,  0, 0 },
 	[IEEE80211_MODE_11NG]	= { 3, 4,  6,  0, 0 },
+	[IEEE80211_MODE_VHT_2GHZ]	= { 3, 4,  6,  0, 0 },
+	[IEEE80211_MODE_VHT_5GHZ]	= { 3, 4,  6,  0, 0 },
 };
 static const struct phyParamType phyParamForAC_BK[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_AUTO]	= { 7, 4, 10,  0, 0 },
@@ -920,6 +925,8 @@ static const struct phyParamType phyParamForAC_BK[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_QUARTER]= { 7, 4, 10,  0, 0 },
 	[IEEE80211_MODE_11NA]	= { 7, 4, 10,  0, 0 },
 	[IEEE80211_MODE_11NG]	= { 7, 4, 10,  0, 0 },
+	[IEEE80211_MODE_VHT_2GHZ]	= { 7, 4, 10,  0, 0 },
+	[IEEE80211_MODE_VHT_5GHZ]	= { 7, 4, 10,  0, 0 },
 };
 static const struct phyParamType phyParamForAC_VI[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_AUTO]	= { 1, 3, 4,  94, 0 },
@@ -934,6 +941,8 @@ static const struct phyParamType phyParamForAC_VI[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_QUARTER]= { 1, 3, 4,  94, 0 },
 	[IEEE80211_MODE_11NA]	= { 1, 3, 4,  94, 0 },
 	[IEEE80211_MODE_11NG]	= { 1, 3, 4,  94, 0 },
+	[IEEE80211_MODE_VHT_2GHZ]	= { 1, 3, 4,  94, 0 },
+	[IEEE80211_MODE_VHT_5GHZ]	= { 1, 3, 4,  94, 0 },
 };
 static const struct phyParamType phyParamForAC_VO[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_AUTO]	= { 1, 2, 3,  47, 0 },
@@ -948,6 +957,8 @@ static const struct phyParamType phyParamForAC_VO[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_QUARTER]= { 1, 2, 3,  47, 0 },
 	[IEEE80211_MODE_11NA]	= { 1, 2, 3,  47, 0 },
 	[IEEE80211_MODE_11NG]	= { 1, 2, 3,  47, 0 },
+	[IEEE80211_MODE_VHT_2GHZ]	= { 1, 2, 3,  47, 0 },
+	[IEEE80211_MODE_VHT_5GHZ]	= { 1, 2, 3,  47, 0 },
 };
 
 static const struct phyParamType bssPhyParamForAC_BE[IEEE80211_MODE_MAX] = {
@@ -1123,6 +1134,8 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 	    [IEEE80211_MODE_QUARTER]	= { 2, 4, 10, 64, 0 },
 	    [IEEE80211_MODE_11NA]	= { 2, 4, 10, 64, 0 },	/* XXXcheck*/
 	    [IEEE80211_MODE_11NG]	= { 2, 4, 10, 64, 0 },	/* XXXcheck*/
+	    [IEEE80211_MODE_VHT_2GHZ]	= { 2, 4, 10, 64, 0 },	/* XXXcheck*/
+	    [IEEE80211_MODE_VHT_5GHZ]	= { 2, 4, 10, 64, 0 },	/* XXXcheck*/
 	};
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_wme_state *wme = &ic->ic_wme;
@@ -1243,6 +1256,8 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 		    [IEEE80211_MODE_QUARTER]	= 3,
 		    [IEEE80211_MODE_11NA]	= 3,
 		    [IEEE80211_MODE_11NG]	= 3,
+		    [IEEE80211_MODE_VHT_2GHZ]	= 3,
+		    [IEEE80211_MODE_VHT_5GHZ]	= 3,
 		};
 		chanp = &wme->wme_chanParams.cap_wmeParams[WME_AC_BE];
 		bssp = &wme->wme_bssChanParams.cap_wmeParams[WME_AC_BE];
@@ -1270,7 +1285,7 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 	}
 
 	/* schedule the deferred WME update */
-	ieee80211_runtask(ic, &ic->ic_wme_task);
+	ieee80211_runtask(ic, &vap->iv_wme_task);
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_WME,
 	    "%s: WME params updated, cap_info 0x%x\n", __func__,
@@ -1289,6 +1304,20 @@ ieee80211_wme_updateparams(struct ieee80211vap *vap)
 		ieee80211_wme_updateparams_locked(vap);
 		IEEE80211_UNLOCK(ic);
 	}
+}
+
+void
+ieee80211_wme_vap_getparams(struct ieee80211vap *vap, struct chanAccParams *wp)
+{
+
+	memcpy(wp, &vap->iv_ic->ic_wme.wme_chanParams, sizeof(*wp));
+}
+
+void
+ieee80211_wme_ic_getparams(struct ieee80211com *ic, struct chanAccParams *wp)
+{
+
+	memcpy(wp, &ic->ic_wme.wme_chanParams, sizeof(*wp));
 }
 
 static void
@@ -1335,15 +1364,25 @@ update_chw(void *arg, int npending)
 	ic->ic_update_chw(ic);
 }
 
+/*
+ * Deferred WME update.
+ *
+ * In preparation for per-VAP WME configuration, call the VAP
+ * method if the VAP requires it.  Otherwise, just call the
+ * older global method.  There isn't a per-VAP WME configuration
+ * just yet so for now just use the global configuration.
+ */
 static void
-update_wme(void *arg, int npending)
+vap_update_wme(void *arg, int npending)
 {
-	struct ieee80211com *ic = arg;
+	struct ieee80211vap *vap = arg;
+	struct ieee80211com *ic = vap->iv_ic;
 
-	/*
-	 * XXX should we defer the WME configuration update until now?
-	 */
-	ic->ic_wme.wme_update(ic);
+	if (vap->iv_wme_update != NULL)
+		vap->iv_wme_update(vap,
+		    ic->ic_wme.wme_chanParams.cap_wmeParams);
+	else
+		ic->ic_wme.wme_update(ic);
 }
 
 static void
@@ -1370,7 +1409,6 @@ ieee80211_waitfor_parent(struct ieee80211com *ic)
 	ieee80211_draintask(ic, &ic->ic_chan_task);
 	ieee80211_draintask(ic, &ic->ic_bmiss_task);
 	ieee80211_draintask(ic, &ic->ic_chw_task);
-	ieee80211_draintask(ic, &ic->ic_wme_task);
 	taskqueue_unblock(ic->ic_tq);
 }
 
@@ -1840,7 +1878,7 @@ ieee80211_cac_completeswitch(struct ieee80211vap *vap0)
 	ieee80211_new_state_locked(vap0, IEEE80211_S_RUN, 0);
 
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
-		if (vap->iv_state == IEEE80211_S_CAC)
+		if (vap->iv_state == IEEE80211_S_CAC && vap != vap0)
 			ieee80211_new_state_locked(vap, IEEE80211_S_RUN, 0);
 	IEEE80211_UNLOCK(ic);
 }

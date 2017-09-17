@@ -45,17 +45,18 @@ AHD_REG_PRETTY_PRINT	opt_aic79xx.h
 ADW_ALLOW_MEMIO		opt_adw.h
 
 TWA_DEBUG		opt_twa.h
-TWA_FLASH_FIRMWARE	opt_twa.h
 
 # Debugging options.
 ALT_BREAK_TO_DEBUGGER	opt_kdb.h
 BREAK_TO_DEBUGGER	opt_kdb.h
+BUF_TRACKING		opt_global.h
 DDB
 DDB_BUFR_SIZE	opt_ddb.h
 DDB_CAPTURE_DEFAULTBUFSIZE	opt_ddb.h
 DDB_CAPTURE_MAXBUFSIZE	opt_ddb.h
 DDB_CTF		opt_ddb.h
 DDB_NUMSYM	opt_ddb.h
+FULL_BUF_TRACKING	opt_global.h
 GDB
 KDB		opt_global.h
 KDB_TRACE	opt_kdb.h
@@ -86,6 +87,7 @@ COMPAT_FREEBSD6	opt_compat.h
 COMPAT_FREEBSD7	opt_compat.h
 COMPAT_FREEBSD9	opt_compat.h
 COMPAT_FREEBSD10	opt_compat.h
+COMPAT_FREEBSD11	opt_compat.h
 COMPAT_CLOUDABI32	opt_dontuse.h
 COMPAT_CLOUDABI64	opt_dontuse.h
 COMPAT_LINUXKPI	opt_compat.h
@@ -127,9 +129,7 @@ GEOM_PART_EBR_COMPAT	opt_geom.h
 GEOM_PART_GPT	opt_geom.h
 GEOM_PART_LDM	opt_geom.h
 GEOM_PART_MBR	opt_geom.h
-GEOM_PART_PC98	opt_geom.h
 GEOM_PART_VTOC8	opt_geom.h
-GEOM_PC98	opt_geom.h
 GEOM_RAID	opt_geom.h
 GEOM_RAID3	opt_geom.h
 GEOM_SHSEC	opt_geom.h
@@ -218,6 +218,7 @@ SYSVSHM		opt_sysvipc.h
 SW_WATCHDOG	opt_watchdog.h
 TURNSTILE_PROFILING
 UMTX_PROFILING
+UMTX_CHAINS	opt_global.h
 VERBOSE_SYSINIT
 
 # POSIX kernel options
@@ -380,6 +381,7 @@ ISP_TARGET_MODE		opt_isp.h
 ISP_FW_CRASH_DUMP	opt_isp.h
 ISP_DEFAULT_ROLES	opt_isp.h
 ISP_INTERNAL_TARGET	opt_isp.h
+ISP_FCTAPE_OFF		opt_isp.h
 
 # Options used only in dev/iscsi
 ISCSI_INITIATOR_DEBUG	opt_iscsi_initiator.h
@@ -407,6 +409,7 @@ BOOTP_NFSV3		opt_bootp.h
 BOOTP_WIRED_TO		opt_bootp.h
 DEVICE_POLLING
 DUMMYNET		opt_ipdn.h
+RATELIMIT		opt_ratelimit.h
 INET			opt_inet.h
 INET6			opt_inet6.h
 IPDIVERT
@@ -422,9 +425,10 @@ IPFIREWALL_NAT64_DIRECT_OUTPUT	opt_ipfw.h
 IPFIREWALL_NPTV6	opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
+IPFIREWALL_PMOD		opt_ipfw.h
 IPSEC			opt_ipsec.h
 IPSEC_DEBUG		opt_ipsec.h
-IPSEC_NAT_T		opt_ipsec.h
+IPSEC_SUPPORT		opt_ipsec.h
 IPSTEALTH
 KRPC
 LIBALIAS
@@ -443,14 +447,13 @@ SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
 TCPPCAP		opt_global.h
 SIFTR
+TCP_HHOOK		opt_inet.h
 TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
 TCP_RFC7413		opt_inet.h
 TCP_RFC7413_MAX_KEYS	opt_inet.h
-TCP_SIGNATURE		opt_inet.h
+TCP_SIGNATURE		opt_ipsec.h
 VLAN_ARRAY		opt_vlan.h
 XBONEHACK
-FLOWTABLE		opt_route.h
-FLOWTABLE_HASH_ALL	opt_route.h
 
 #
 # SCTP
@@ -510,7 +513,6 @@ NETGRAPH_IPFW		opt_netgraph.h
 NETGRAPH_KSOCKET	opt_netgraph.h
 NETGRAPH_L2TP		opt_netgraph.h
 NETGRAPH_LMI		opt_netgraph.h
-# MPPC compression requires proprietary files (not included)
 NETGRAPH_MPPC_COMPRESSION	opt_netgraph.h
 NETGRAPH_MPPC_ENCRYPTION	opt_netgraph.h
 NETGRAPH_NAT		opt_netgraph.h
@@ -547,10 +549,6 @@ DRM_DEBUG		opt_drm.h
 
 TI_SF_BUF_JUMBO		opt_ti.h
 TI_JUMBO_HDRSPLIT	opt_ti.h
-
-# XXX Conflict: # of devices vs network protocol (Native ATM).
-# This makes "atm.h" unusable.
-NATM
 
 # DPT driver debug flags
 DPT_MEASURE_PERFORMANCE	opt_dpt.h
@@ -677,15 +675,16 @@ UPLCOM_INTR_INTERVAL	opt_uplcom.h
 UVSCOM_DEFAULT_OPKTSIZE	opt_uvscom.h
 UVSCOM_INTR_INTERVAL	opt_uvscom.h
 
-# options for the Realtek RTL8188*U/RTL8192CU driver (urtwn)
-URTWN_WITHOUT_UCODE	opt_urtwn.h
+# options for the Realtek rtwn driver
+RTWN_DEBUG		opt_rtwn.h
+RTWN_WITHOUT_UCODE	opt_rtwn.h
 
 # Embedded system options
 INIT_PATH
 
 ROOTDEVNAME
 
-FDC_DEBUG		opt_fdc.h
+FDC_DEBUG 		opt_fdc.h
 PCFCLOCK_VERBOSE	opt_pcfclock.h
 PCFCLOCK_MAX_RETRIES	opt_pcfclock.h
 
@@ -718,7 +717,6 @@ ISAPNP			opt_isa.h
 # various 'device presence' options.
 DEV_BPF			opt_bpf.h
 DEV_CARP		opt_carp.h
-DEV_MCA			opt_mca.h
 DEV_NETMAP		opt_global.h
 DEV_PCI			opt_pci.h
 DEV_PF			opt_pf.h
@@ -727,10 +725,6 @@ DEV_PFSYNC		opt_pf.h
 DEV_RANDOM		opt_global.h
 DEV_SPLASH		opt_splash.h
 DEV_VLAN		opt_vlan.h
-
-# EISA support
-DEV_EISA		opt_eisa.h
-EISA_SLOTS		opt_eisa.h
 
 # ed driver
 ED_HPP			opt_ed.h
@@ -875,6 +869,10 @@ MWL_DIAGAPI		opt_mwl.h
 MWL_AGGR_SIZE		opt_mwl.h
 MWL_TX_NODROP		opt_mwl.h
 
+# Options for the Marvell NETA driver
+MVNETA_MULTIQUEUE	opt_mvneta.h
+MVNETA_KTR		opt_mvneta.h
+
 # Options for the Intel 802.11ac wireless driver
 IWM_DEBUG		opt_iwm.h
 
@@ -979,11 +977,27 @@ RANDOM_LOADABLE	opt_global.h
 # the uma slab allocator.
 RANDOM_ENABLE_UMA	opt_global.h
 
-# Intel em(4) driver
-EM_MULTIQUEUE	opt_em.h
-
 # BHND(4) driver
 BHND_LOGLEVEL	opt_global.h
 
 # GPIO and child devices
 GPIO_SPI_DEBUG	opt_gpio.h
+
+# etherswitch(4) driver
+RTL8366_SOFT_RESET opt_etherswitch.h
+
+# evdev protocol support
+EVDEV_SUPPORT	opt_evdev.h
+EVDEV_DEBUG	opt_evdev.h
+UINPUT_DEBUG	opt_evdev.h
+
+# Hyper-V network driver
+HN_DEBUG	opt_hn.h
+
+# CAM-based MMC stack
+MMCCAM
+# Encrypted kernel crash dumps
+EKCD		opt_ekcd.h
+
+# NVME options
+NVME_USE_NVD	opt_nvme.h

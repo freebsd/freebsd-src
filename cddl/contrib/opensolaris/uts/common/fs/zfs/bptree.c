@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
 
@@ -220,9 +220,10 @@ bptree_iterate(objset_t *os, uint64_t obj, boolean_t free, bptree_itor_t func,
 
 		if (zfs_free_leak_on_eio)
 			flags |= TRAVERSE_HARD;
-		zfs_dbgmsg("bptree index %d: traversing from min_txg=%lld "
+		zfs_dbgmsg("bptree index %lld: traversing from min_txg=%lld "
 		    "bookmark %lld/%lld/%lld/%lld",
-		    i, (longlong_t)bte.be_birth_txg,
+		    (longlong_t)i,
+		    (longlong_t)bte.be_birth_txg,
 		    (longlong_t)bte.be_zb.zb_objset,
 		    (longlong_t)bte.be_zb.zb_object,
 		    (longlong_t)bte.be_zb.zb_level,

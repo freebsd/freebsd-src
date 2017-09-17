@@ -1489,6 +1489,7 @@ extern  HAL_BOOL ar9300_radar_wait(struct ath_hal *ah, struct ieee80211_channel 
 extern  struct dfs_pulse * ar9300_get_dfs_radars(struct ath_hal *ah,
         u_int32_t dfsdomain, int *numradars, struct dfs_bin5pulse **bin5pulses,
         int *numb5radars, HAL_PHYERR_PARAM *pe);
+extern HAL_BOOL ar9300_get_default_dfs_thresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern  void ar9300_adjust_difs(struct ath_hal *ah, u_int32_t val);
 extern  u_int32_t ar9300_dfs_config_fft(struct ath_hal *ah, HAL_BOOL is_enable);
 extern  void ar9300_cac_tx_quiet(struct ath_hal *ah, HAL_BOOL enable);

@@ -36,6 +36,8 @@ typedef struct {
 	volatile int64_t counter;
 } atomic64_t;
 
+#define	ATOMIC64_INIT(x)	{ .counter = (x) }
+
 /*------------------------------------------------------------------------*
  *	64-bit atomic operations
  *------------------------------------------------------------------------*/
@@ -106,7 +108,8 @@ static inline int64_t
 atomic64_xchg(atomic64_t *v, int64_t i)
 {
 #if defined(__i386__) || defined(__amd64__) || \
-    defined(__arm__) || defined(__aarch64__)
+    defined(__arm__) || defined(__aarch64__) || \
+    defined(__powerpc64__)
 	return (atomic_swap_64(&v->counter, i));
 #else
 	int64_t ret;

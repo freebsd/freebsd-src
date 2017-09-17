@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -51,8 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <fs/cd9660/iso_rrip.h>
 
 struct cd9660_ino_alloc_arg {
-	ino_t ino;
-	ino_t i_ino;
+	cd_ino_t ino;
+	cd_ino_t i_ino;
 	struct iso_directory_record *ep;
 };
 
@@ -124,7 +124,7 @@ cd9660_lookup(ap)
 	struct cd9660_ino_alloc_arg dd_arg;
 	u_long bmask;			/* block offset mask */
 	int error;
-	ino_t ino, i_ino;
+	cd_ino_t ino, i_ino;
 	int ltype, reclen;
 	u_short namelen;
 	int isoflags;

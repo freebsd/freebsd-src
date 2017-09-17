@@ -43,9 +43,23 @@ __FBSDID("$FreeBSD$");
 /* DTrace init */
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
-DUMMY(mincore);
+UNIMPLEMENTED(afs_syscall);
+UNIMPLEMENTED(create_module);	/* added in linux 1.0 removed in 2.6 */
+UNIMPLEMENTED(epoll_ctl_old);
+UNIMPLEMENTED(epoll_wait_old);
+UNIMPLEMENTED(get_kernel_syms);	/* added in linux 1.0 removed in 2.6 */
+UNIMPLEMENTED(get_thread_area);
+UNIMPLEMENTED(getpmsg);
+UNIMPLEMENTED(nfsservctl);	/* added in linux 2.2 removed in 3.1 */
+UNIMPLEMENTED(putpmsg);
+UNIMPLEMENTED(query_module);	/* added in linux 2.2 removed in 2.6 */
+UNIMPLEMENTED(security);
+UNIMPLEMENTED(set_thread_area);
+UNIMPLEMENTED(tuxcall);
+UNIMPLEMENTED(uselib);
+UNIMPLEMENTED(vserver);
+
 DUMMY(sendfile);
-DUMMY(ptrace);
 DUMMY(syslog);
 DUMMY(setfsuid);
 DUMMY(setfsgid);
@@ -54,22 +68,10 @@ DUMMY(vhangup);
 DUMMY(pivot_root);
 DUMMY(adjtimex);
 DUMMY(swapoff);
-DUMMY(create_module);
 DUMMY(init_module);
 DUMMY(delete_module);
-DUMMY(get_kernel_syms);
-DUMMY(query_module);
 DUMMY(quotactl);
-DUMMY(nfsservctl);
-DUMMY(getpmsg);
-DUMMY(putpmsg);
-DUMMY(afs_syscall);
-DUMMY(tuxcall);
-DUMMY(security);
-DUMMY(set_thread_area);
 DUMMY(lookup_dcookie);
-DUMMY(epoll_ctl_old);
-DUMMY(epoll_wait_old);
 DUMMY(remap_file_pages);
 DUMMY(semtimedop);
 DUMMY(mbind);
@@ -82,41 +84,77 @@ DUMMY(mq_timedreceive);
 DUMMY(mq_notify);
 DUMMY(mq_getsetattr);
 DUMMY(kexec_load);
+/* linux 2.6.11: */
 DUMMY(add_key);
 DUMMY(request_key);
 DUMMY(keyctl);
+/* linux 2.6.13: */
 DUMMY(ioprio_set);
 DUMMY(ioprio_get);
 DUMMY(inotify_init);
 DUMMY(inotify_add_watch);
 DUMMY(inotify_rm_watch);
+/* linux 2.6.16: */
 DUMMY(migrate_pages);
 DUMMY(unshare);
+/* linux 2.6.17: */
 DUMMY(splice);
 DUMMY(tee);
 DUMMY(sync_file_range);
 DUMMY(vmsplice);
+/* linux 2.6.18: */
 DUMMY(move_pages);
+/* linux 2.6.22: */
 DUMMY(signalfd);
-DUMMY(timerfd);
-DUMMY(timerfd_settime);
-DUMMY(timerfd_gettime);
+/* linux 2.6.27: */
 DUMMY(signalfd4);
 DUMMY(inotify_init1);
-DUMMY(preadv);
-DUMMY(pwritev);
-DUMMY(rt_tsigqueueinfo);
+/* linux 2.6.31: */
 DUMMY(perf_event_open);
+/* linux 2.6.38: */
 DUMMY(fanotify_init);
 DUMMY(fanotify_mark);
+/* linux 2.6.39: */
 DUMMY(name_to_handle_at);
 DUMMY(open_by_handle_at);
 DUMMY(clock_adjtime);
+/* linux 3.0: */
 DUMMY(setns);
+DUMMY(getcpu);
+/* linux 3.2: */
 DUMMY(process_vm_readv);
 DUMMY(process_vm_writev);
+/* linux 3.5: */
 DUMMY(kcmp);
+/* linux 3.8: */
 DUMMY(finit_module);
+DUMMY(sched_setattr);
+DUMMY(sched_getattr);
+/* linux 3.14: */
+DUMMY(renameat2);
+/* linux 3.15: */
+DUMMY(seccomp);
+DUMMY(memfd_create);
+DUMMY(kexec_file_load);
+/* linux 3.18: */
+DUMMY(bpf);
+/* linux 3.19: */
+DUMMY(execveat);
+/* linux 4.2: */
+DUMMY(userfaultfd);
+/* linux 4.3: */
+DUMMY(membarrier);
+/* linux 4.4: */
+DUMMY(mlock2);
+/* linux 4.5: */
+DUMMY(copy_file_range);
+/* linux 4.6: */
+DUMMY(preadv2);
+DUMMY(pwritev2);
+/* linux 4.8: */
+DUMMY(pkey_mprotect);
+DUMMY(pkey_alloc);
+DUMMY(pkey_free);
 
 #define DUMMY_XATTR(s)						\
 int								\

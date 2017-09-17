@@ -106,6 +106,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_wlan.h"
+#include "opt_iwm.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -160,26 +161,37 @@ __FBSDID("$FreeBSD$");
  * BEGIN mvm/mac-ctxt.c
  */
 
+const uint8_t iwm_mvm_ac_to_tx_fifo[] = {
+	IWM_MVM_TX_FIFO_BE,
+	IWM_MVM_TX_FIFO_BK,
+	IWM_MVM_TX_FIFO_VI,
+	IWM_MVM_TX_FIFO_VO,
+};
+
 static void
 iwm_mvm_ack_rates(struct iwm_softc *sc, int is2ghz,
-	int *cck_rates, int *ofdm_rates)
+	int *cck_rates, int *ofdm_rates, struct iwm_node *in)
 {
 	int lowest_present_ofdm = 100;
 	int lowest_present_cck = 100;
 	uint8_t cck = 0;
 	uint8_t ofdm = 0;
 	int i;
+	struct ieee80211_rateset *rs = &in->in_ni.ni_rates;
 
 	if (is2ghz) {
-		for (i = 0; i <= IWM_LAST_CCK_RATE; i++) {
+		for (i = IWM_FIRST_CCK_RATE; i <= IWM_LAST_CCK_RATE; i++) {
+			if ((iwm_ridx2rate(rs, i) & IEEE80211_RATE_BASIC) == 0)
+				continue;
 			cck |= (1 << i);
 			if (lowest_present_cck > i)
 				lowest_present_cck = i;
 		}
 	}
 	for (i = IWM_FIRST_OFDM_RATE; i <= IWM_LAST_NON_HT_RATE; i++) {
-		int adj = i - IWM_FIRST_OFDM_RATE;
-		ofdm |= (1 << adj);
+		if ((iwm_ridx2rate(rs, i) & IEEE80211_RATE_BASIC) == 0)
+			continue;
+		ofdm |= (1 << (i - IWM_FIRST_OFDM_RATE));
 		if (lowest_present_ofdm > i)
 			lowest_present_ofdm = i;
 	}
@@ -247,6 +259,7 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_node *ni = vap->iv_bss;
+	struct iwm_vap *ivp = IWM_VAP(vap);
 	int cck_ack_rates, ofdm_ack_rates;
 	int i;
 	int is2ghz;
@@ -258,8 +271,8 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	 * These are both functions of the vap, not of the node.
 	 * So, for now, hard-code both to 0 (default).
 	 */
-	cmd->id_and_color = htole32(IWM_FW_CMD_ID_AND_COLOR(IWM_DEFAULT_MACID,
-	    IWM_DEFAULT_COLOR));
+	cmd->id_and_color = htole32(IWM_FW_CMD_ID_AND_COLOR(ivp->id,
+	    ivp->color));
 	cmd->action = htole32(action);
 
 	cmd->mac_type = htole32(IWM_FW_MAC_TYPE_BSS_STA);
@@ -302,12 +315,12 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	/*
 	 * Default to 2ghz if no node information is given.
 	 */
-	if (in) {
+	if (in && in->in_ni.ni_chan != IEEE80211_CHAN_ANYC) {
 		is2ghz = !! IEEE80211_IS_CHAN_2GHZ(in->in_ni.ni_chan);
 	} else {
 		is2ghz = 1;
 	}
-	iwm_mvm_ack_rates(sc, is2ghz, &cck_ack_rates, &ofdm_ack_rates);
+	iwm_mvm_ack_rates(sc, is2ghz, &cck_ack_rates, &ofdm_ack_rates, in);
 	cmd->cck_rates = htole32(cck_ack_rates);
 	cmd->ofdm_rates = htole32(ofdm_ack_rates);
 
@@ -318,16 +331,24 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	    = htole32((ic->ic_flags & IEEE80211_F_SHSLOT)
 	      ? IWM_MAC_FLG_SHORT_SLOT : 0);
 
-	/* XXX TODO: set wme parameters; also handle getting updated wme parameters */
-	for (i = 0; i < IWM_AC_NUM+1; i++) {
-		int txf = i;
+	/*
+	 * XXX TODO: if we're doing QOS..
+	 * cmd->qos_flags |= cpu_to_le32(MAC_QOS_FLG_UPDATE_EDCA)
+	 */
 
-		cmd->ac[txf].cw_min = htole16(0x0f);
-		cmd->ac[txf].cw_max = htole16(0x3f);
-		cmd->ac[txf].aifsn = 1;
+	for (i = 0; i < WME_NUM_AC; i++) {
+		uint8_t txf = iwm_mvm_ac_to_tx_fifo[i];
+
+		cmd->ac[txf].cw_min = htole16(ivp->queue_params[i].cw_min);
+		cmd->ac[txf].cw_max = htole16(ivp->queue_params[i].cw_max);
+		cmd->ac[txf].edca_txop =
+		    htole16(ivp->queue_params[i].edca_txop);
+		cmd->ac[txf].aifsn = ivp->queue_params[i].aifsn;
 		cmd->ac[txf].fifos_mask = (1 << txf);
-		cmd->ac[txf].edca_txop = 0;
 	}
+
+	if (ivp->have_wme)
+		cmd->qos_flags |= htole32(IWM_MAC_QOS_FLG_UPDATE_EDCA);
 
 	if (ic->ic_flags & IEEE80211_F_USEPROT)
 		cmd->protection_flags |= htole32(IWM_MAC_PROT_FLG_TGG_PROTECT);
@@ -441,12 +462,10 @@ iwm_mvm_mac_ctxt_cmd_station(struct iwm_softc *sc, struct ieee80211vap *vap,
 {
 	struct ieee80211_node *ni = vap->iv_bss;
 	struct iwm_node *in = IWM_NODE(ni);
-	struct iwm_mac_ctx_cmd cmd;
+	struct iwm_mac_ctx_cmd cmd = {};
 
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET,
 	    "%s: called; action=%d\n", __func__, action);
-
-	memset(&cmd, 0, sizeof(cmd));
 
 	/* Fill the common data for all mac context types */
 	iwm_mvm_mac_ctxt_cmd_common(sc, in, &cmd, action);

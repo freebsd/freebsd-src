@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#include <dev/pci/pcib_private.h>
 
 #include <sparc64/pci/ofw_pci.h>
 #include <sparc64/pci/psychoreg.h>
@@ -141,6 +142,7 @@ static device_method_t psycho_methods[] = {
 	DEVMETHOD(pcib_read_config,	psycho_read_config),
 	DEVMETHOD(pcib_write_config,	psycho_write_config),
 	DEVMETHOD(pcib_route_interrupt,	psycho_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	ofw_pci_get_node),
@@ -942,14 +944,14 @@ psycho_route_interrupt(device_t bridge, device_t dev, int pin)
 	if (pin > 4)
 		return (pin);
 	/*
-	 * Guess the INO; we always assume that this is a non-OBIO
-	 * device, and that pin is a "real" intpin number.  Determine
-	 * the mapping register to be used by the slot number.
-	 * We only need to do this on E450s, it seems; here, the slot numbers
-	 * for bus A are one-based, while those for bus B seemingly have an
-	 * offset of 2 (hence the factor of 3 below).
+	 * Guess the INO; we always assume that this is a non-OBIO device,
+	 * and that pin is a "real" intpin number.  Determine the mapping
+	 * register to be used by the slot number.
+	 * We only need to do this on E450s and U30s, though; here, the
+	 * slot numbers for bus A are one-based, while those for bus B
+	 * seemingly have an offset of 2 (hence the factor of 3 below).
 	 */
-	sc = device_get_softc(dev);
+	sc = device_get_softc(bridge);
 	intrmap = PSR_PCIA0_INT_MAP +
 	    8 * (pci_get_slot(dev) - 1 + 3 * sc->sc_half);
 	mintr = INTINO(PSYCHO_READ8(sc, intrmap)) + pin - 1;

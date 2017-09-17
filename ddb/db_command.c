@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Exported global variables
  */
-bool		db_cmd_loop_done;
+int		db_cmd_loop_done;
 db_addr_t	db_dot;
 db_addr_t	db_last_addr;
 db_addr_t	db_prev;
@@ -72,12 +72,19 @@ static db_cmdfcn_t	db_halt;
 static db_cmdfcn_t	db_kill;
 static db_cmdfcn_t	db_reset;
 static db_cmdfcn_t	db_stack_trace;
+static db_cmdfcn_t	db_stack_trace_active;
 static db_cmdfcn_t	db_stack_trace_all;
 static db_cmdfcn_t	db_watchdog;
 
 /*
  * 'show' commands
  */
+
+static struct command db_show_active_cmds[] = {
+	{ "trace",	db_stack_trace_active,	0,	NULL },
+};
+struct command_table db_show_active_table =
+    LIST_HEAD_INITIALIZER(db_show_active_table);
 
 static struct command db_show_all_cmds[] = {
 	{ "trace",	db_stack_trace_all,	0,	NULL },
@@ -86,6 +93,7 @@ struct command_table db_show_all_table =
     LIST_HEAD_INITIALIZER(db_show_all_table);
 
 static struct command db_show_cmds[] = {
+	{ "active",	0,			0,	&db_show_active_table },
 	{ "all",	0,			0,	&db_show_all_table },
 	{ "registers",	db_show_regs,		0,	NULL },
 	{ "breaks",	db_listbreak_cmd, 	0,	NULL },
@@ -120,6 +128,8 @@ static struct command db_cmds[] = {
 	{ "match",	db_trace_until_matching_cmd,0,	NULL },
 	{ "trace",	db_stack_trace,		CS_OWN,	NULL },
 	{ "t",		db_stack_trace,		CS_OWN,	NULL },
+	/* XXX alias for active trace */
+	{ "acttrace",	db_stack_trace_active,	0,	NULL },
 	/* XXX alias for all trace */
 	{ "alltrace",	db_stack_trace_all,	0,	NULL },
 	{ "where",	db_stack_trace,		CS_OWN,	NULL },
@@ -195,6 +205,9 @@ db_command_init(void)
 		db_command_register(&db_cmd_table, &db_cmds[i]);
 	for (i = 0; i < N(db_show_cmds); i++)
 		db_command_register(&db_show_table, &db_show_cmds[i]);
+	for (i = 0; i < N(db_show_active_cmds); i++)
+		db_command_register(&db_show_active_table,
+		    &db_show_active_cmds[i]);
 	for (i = 0; i < N(db_show_all_cmds); i++)
 		db_command_register(&db_show_all_table, &db_show_all_cmds[i]);
 #undef N
@@ -312,10 +325,25 @@ static void
 db_cmd_list(struct command_table *table)
 {
 	struct command	*cmd;
+	int have_subcommands;
 
+	have_subcommands = 0;
 	LIST_FOREACH(cmd, table, next) {
+		if (cmd->more != NULL)
+			have_subcommands++;
 		db_printf("%-16s", cmd->name);
 		db_end_line(16);
+	}
+
+	if (have_subcommands > 0) {
+		db_printf("\nThe following have subcommands; append \"help\" "
+		    "to list (e.g. \"show help\"):\n");
+		LIST_FOREACH(cmd, table, next) {
+			if (cmd->more == NULL)
+				continue;
+			db_printf("%-16s", cmd->name);
+			db_end_line(16);
+		}
 	}
 }
 
@@ -344,7 +372,8 @@ db_command(struct command **last_cmdp, struct command_table *cmd_table,
 	    return;
 	}
 	else if (t != tIDENT) {
-	    db_printf("?\n");
+	    db_printf("Unrecognized input; use \"help\" "
+	        "to list available commands\n");
 	    db_flush_lex();
 	    return;
 	}
@@ -358,7 +387,8 @@ db_command(struct command **last_cmdp, struct command_table *cmd_table,
 				       &cmd);
 		switch (result) {
 		    case CMD_NONE:
-			db_printf("No such command\n");
+			db_printf("No such command; use \"help\" "
+			    "to list available commands\n");
 			db_flush_lex();
 			return;
 		    case CMD_AMBIGUOUS:
@@ -366,6 +396,13 @@ db_command(struct command **last_cmdp, struct command_table *cmd_table,
 			db_flush_lex();
 			return;
 		    case CMD_HELP:
+			if (cmd_table == &db_cmd_table) {
+			    db_printf("This is ddb(4), the kernel debugger; "
+			        "see http://man.freebsd.org/ddb/4 for help.\n");
+			    db_printf("Use \"bt\" for backtrace, \"dump\" for "
+			        "kernel core dump, \"reset\" to reboot.\n");
+			    db_printf("Available commands:\n");
+			}
 			db_cmd_list(cmd_table);
 			db_flush_lex();
 			return;
@@ -375,6 +412,8 @@ db_command(struct command **last_cmdp, struct command_table *cmd_table,
 		if ((cmd_table = cmd->more) != NULL) {
 		    t = db_read_token();
 		    if (t != tIDENT) {
+			db_printf("Subcommand required; "
+			    "available subcommands:\n");
 			db_cmd_list(cmd_table);
 			db_flush_lex();
 			return;
@@ -605,7 +644,7 @@ db_fncall(db_expr_t dummy1, bool dummy2, db_expr_t dummy3, char *dummy4)
 		db_unread_token(t);
 	    }
 	    if (db_read_token() != tRPAREN) {
-		db_printf("?\n");
+	        db_printf("Mismatched parens\n");
 		db_flush_lex();
 		return;
 	    }
@@ -799,8 +838,7 @@ db_stack_trace(db_expr_t tid, bool hastid, db_expr_t count, char *modif)
 }
 
 static void
-db_stack_trace_all(db_expr_t dummy, bool dummy2, db_expr_t dummy3,
-    char *dummy4)
+_db_stack_trace_all(bool active_only)
 {
 	struct proc *p;
 	struct thread *td;
@@ -811,8 +849,18 @@ db_stack_trace_all(db_expr_t dummy, bool dummy2, db_expr_t dummy3,
 		prev_jb = kdb_jmpbuf(jb);
 		if (setjmp(jb) == 0) {
 			FOREACH_THREAD_IN_PROC(p, td) {
-				db_printf("\nTracing command %s pid %d tid %ld td %p\n",
-					  p->p_comm, p->p_pid, (long)td->td_tid, td);
+				if (td->td_state == TDS_RUNNING)
+					db_printf("\nTracing command %s pid %d"
+					    " tid %ld td %p (CPU %d)\n",
+					    p->p_comm, p->p_pid,
+					    (long)td->td_tid, td,
+					    td->td_oncpu);
+				else if (active_only)
+					continue;
+				else
+					db_printf("\nTracing command %s pid %d"
+					    " tid %ld td %p\n", p->p_comm,
+					    p->p_pid, (long)td->td_tid, td);
 				db_trace_thread(td, -1);
 				if (db_pager_quit) {
 					kdb_jmpbuf(prev_jb);
@@ -822,6 +870,22 @@ db_stack_trace_all(db_expr_t dummy, bool dummy2, db_expr_t dummy3,
 		}
 		kdb_jmpbuf(prev_jb);
 	}
+}
+
+static void
+db_stack_trace_active(db_expr_t dummy, bool dummy2, db_expr_t dummy3,
+    char *dummy4)
+{
+
+	_db_stack_trace_all(true);
+}
+
+static void
+db_stack_trace_all(db_expr_t dummy, bool dummy2, db_expr_t dummy3,
+    char *dummy4)
+{
+
+	_db_stack_trace_all(false);
 }
 
 /*

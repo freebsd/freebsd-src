@@ -435,7 +435,7 @@ tbr_timeout(arg)
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
-		    ifp = TAILQ_NEXT(ifp, if_list)) {
+		    ifp = TAILQ_NEXT(ifp, if_link)) {
 			/* read from if_snd unlocked */
 			if (!TBR_IS_ENABLED(&ifp->if_snd))
 				continue;

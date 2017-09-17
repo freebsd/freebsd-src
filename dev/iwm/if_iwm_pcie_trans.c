@@ -106,6 +106,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_wlan.h"
+#include "opt_iwm.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -152,6 +153,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iwm/if_iwmreg.h>
 #include <dev/iwm/if_iwmvar.h>
+#include <dev/iwm/if_iwm_config.h>
 #include <dev/iwm/if_iwm_debug.h>
 #include <dev/iwm/if_iwm_pcie_trans.h>
 
@@ -253,10 +255,13 @@ iwm_nic_lock(struct iwm_softc *sc)
 {
 	int rv = 0;
 
+	if (sc->cmd_hold_nic_awake)
+		return 1;
+
 	IWM_SETBITS(sc, IWM_CSR_GP_CNTRL,
 	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
-	if (sc->sc_device_family == IWM_DEVICE_FAMILY_8000)
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000)
 		DELAY(2);
 
 	if (iwm_poll_bit(sc, IWM_CSR_GP_CNTRL,
@@ -277,6 +282,9 @@ iwm_nic_lock(struct iwm_softc *sc)
 void
 iwm_nic_unlock(struct iwm_softc *sc)
 {
+	if (sc->cmd_hold_nic_awake)
+		return;
+
 	IWM_CLRBITS(sc, IWM_CSR_GP_CNTRL,
 	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 }
@@ -425,7 +433,7 @@ iwm_apm_init(struct iwm_softc *sc)
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET, "iwm apm start\n");
 
 	/* Disable L0S exit timer (platform NMI Work/Around) */
-	if (sc->sc_device_family != IWM_DEVICE_FAMILY_8000) {
+	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000) {
 		IWM_SETBITS(sc, IWM_CSR_GIO_CHICKEN_BITS,
 		    IWM_CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
 	}
@@ -476,7 +484,7 @@ iwm_apm_init(struct iwm_softc *sc)
 		goto out;
 	}
 
-	if (sc->host_interrupt_operation_mode) {
+	if (sc->cfg->host_interrupt_operation_mode) {
 		/*
 		 * This is a bit of an abuse - This is needed for 7260 / 3160
 		 * only check host_interrupt_operation_mode even if this is
@@ -491,11 +499,17 @@ iwm_apm_init(struct iwm_softc *sc)
 		 * just to discard the value. But that's the way the hardware
 		 * seems to like it.
 		 */
-		iwm_read_prph(sc, IWM_OSC_CLK);
-		iwm_read_prph(sc, IWM_OSC_CLK);
+		if (iwm_nic_lock(sc)) {
+			iwm_read_prph(sc, IWM_OSC_CLK);
+			iwm_read_prph(sc, IWM_OSC_CLK);
+			iwm_nic_unlock(sc);
+		}
 		iwm_set_bits_prph(sc, IWM_OSC_CLK, IWM_OSC_CLK_FORCE_CONTROL);
-		iwm_read_prph(sc, IWM_OSC_CLK);
-		iwm_read_prph(sc, IWM_OSC_CLK);
+		if (iwm_nic_lock(sc)) {
+			iwm_read_prph(sc, IWM_OSC_CLK);
+			iwm_read_prph(sc, IWM_OSC_CLK);
+			iwm_nic_unlock(sc);
+		}
 	}
 
 	/*
@@ -505,9 +519,12 @@ iwm_apm_init(struct iwm_softc *sc)
 	 * do not disable clocks.  This preserves any hardware bits already
 	 * set by default in "CLK_CTRL_REG" after reset.
 	 */
-	if (sc->sc_device_family == IWM_DEVICE_FAMILY_7000) {
-		iwm_write_prph(sc, IWM_APMG_CLK_EN_REG,
-		    IWM_APMG_CLK_VAL_DMA_CLK_RQT);
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_7000) {
+		if (iwm_nic_lock(sc)) {
+			iwm_write_prph(sc, IWM_APMG_CLK_EN_REG,
+			    IWM_APMG_CLK_VAL_DMA_CLK_RQT);
+			iwm_nic_unlock(sc);
+		}
 		DELAY(20);
 
 		/* Disable L1-Active */
@@ -515,8 +532,11 @@ iwm_apm_init(struct iwm_softc *sc)
 		    IWM_APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
 		/* Clear the interrupt in APMG if the NIC is in RFKILL */
-		iwm_write_prph(sc, IWM_APMG_RTC_INT_STT_REG,
-		    IWM_APMG_RTC_INT_STT_RFKILL);
+		if (iwm_nic_lock(sc)) {
+			iwm_write_prph(sc, IWM_APMG_RTC_INT_STT_REG,
+			    IWM_APMG_RTC_INT_STT_RFKILL);
+			iwm_nic_unlock(sc);
+		}
 	}
  out:
 	if (error)
@@ -572,10 +592,66 @@ iwm_set_pwr(struct iwm_softc *sc)
 int
 iwm_pcie_rx_stop(struct iwm_softc *sc)
 {
+	int ret = 0;
+	if (iwm_nic_lock(sc)) {
+		IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+		ret = iwm_poll_bit(sc, IWM_FH_MEM_RSSR_RX_STATUS_REG,
+		    IWM_FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
+		    IWM_FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
+		    1000);
+		iwm_nic_unlock(sc);
+	}
+	return ret;
+}
 
-	IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-	return (iwm_poll_bit(sc, IWM_FH_MEM_RSSR_RX_STATUS_REG,
-	    IWM_FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
-	    IWM_FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
-	    1000));
+void
+iwm_pcie_clear_cmd_in_flight(struct iwm_softc *sc)
+{
+	if (!sc->cfg->apmg_wake_up_wa)
+		return;
+
+	if (!sc->cmd_hold_nic_awake) {
+		device_printf(sc->sc_dev,
+		    "%s: cmd_hold_nic_awake not set\n", __func__);
+		return;
+	}
+
+	sc->cmd_hold_nic_awake = 0;
+	IWM_CLRBITS(sc, IWM_CSR_GP_CNTRL,
+	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+}
+
+int
+iwm_pcie_set_cmd_in_flight(struct iwm_softc *sc)
+{
+	int ret;
+
+	/*
+	 * wake up the NIC to make sure that the firmware will see the host
+	 * command - we will let the NIC sleep once all the host commands
+	 * returned. This needs to be done only on NICs that have
+	 * apmg_wake_up_wa set.
+	 */
+	if (sc->cfg->apmg_wake_up_wa &&
+	    !sc->cmd_hold_nic_awake) {
+
+		IWM_SETBITS(sc, IWM_CSR_GP_CNTRL,
+		    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+
+		ret = iwm_poll_bit(sc, IWM_CSR_GP_CNTRL,
+		    IWM_CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
+		    (IWM_CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
+		     IWM_CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP),
+		    15000);
+		if (ret == 0) {
+			IWM_CLRBITS(sc, IWM_CSR_GP_CNTRL,
+			    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+			device_printf(sc->sc_dev,
+			    "%s: Failed to wake NIC for hcmd\n", __func__);
+			return EIO;
+		}
+		sc->cmd_hold_nic_awake = 1;
+	}
+
+	return 0;
 }

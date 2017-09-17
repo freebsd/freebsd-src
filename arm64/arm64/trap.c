@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/pcpu.h>
+#include <machine/undefined.h>
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
@@ -72,8 +73,8 @@ __FBSDID("$FreeBSD$");
 extern register_t fsu_intr_fault;
 
 /* Called from exception.S */
-void do_el1h_sync(struct trapframe *);
-void do_el0_sync(struct trapframe *);
+void do_el1h_sync(struct thread *, struct trapframe *);
+void do_el0_sync(struct thread *, struct trapframe *);
 void do_el0_error(struct trapframe *);
 static void print_registers(struct trapframe *frame);
 
@@ -92,15 +93,17 @@ call_trapsignal(struct thread *td, int sig, int code, void *addr)
 }
 
 int
-cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+cpu_fetch_syscall_args(struct thread *td)
 {
 	struct proc *p;
 	register_t *ap;
+	struct syscall_args *sa;
 	int nap;
 
 	nap = 8;
 	p = td->td_proc;
 	ap = td->td_frame->tf_x;
+	sa = &td->td_sa;
 
 	sa->code = td->td_frame->tf_x[8];
 
@@ -130,23 +133,24 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 #include "../../kern/subr_syscall.c"
 
 static void
-svc_handler(struct trapframe *frame)
+svc_handler(struct thread *td, struct trapframe *frame)
 {
-	struct syscall_args sa;
-	struct thread *td;
 	int error;
 
-	td = curthread;
-
-	error = syscallenter(td, &sa);
-	syscallret(td, error, &sa);
+	if ((frame->tf_esr & ESR_ELx_ISS_MASK) == 0) {
+		error = syscallenter(td);
+		syscallret(td, error);
+	} else {
+		call_trapsignal(td, SIGILL, ILL_ILLOPN, (void *)frame->tf_elr);
+		userret(td, frame);
+	}
 }
 
 static void
-data_abort(struct trapframe *frame, uint64_t esr, uint64_t far, int lower)
+data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
+    uint64_t far, int lower)
 {
 	struct vm_map *map;
-	struct thread *td;
 	struct proc *p;
 	struct pcb *pcb;
 	vm_prot_t ftype;
@@ -167,7 +171,6 @@ data_abort(struct trapframe *frame, uint64_t esr, uint64_t far, int lower)
 	}
 #endif
 
-	td = curthread;
 	pcb = td->td_pcb;
 
 	/*
@@ -184,7 +187,7 @@ data_abort(struct trapframe *frame, uint64_t esr, uint64_t far, int lower)
 		map = &p->p_vmspace->vm_map;
 	else {
 		/* The top bit tells us which range to use */
-		if ((far >> 63) == 1) {
+		if (far >= VM_MAXUSER_ADDRESS) {
 			map = kernel_map;
 		} else {
 			map = &p->p_vmspace->vm_map;
@@ -250,24 +253,25 @@ print_registers(struct trapframe *frame)
 {
 	u_int reg;
 
-	for (reg = 0; reg < 31; reg++) {
+	for (reg = 0; reg < nitems(frame->tf_x); reg++) {
 		printf(" %sx%d: %16lx\n", (reg < 10) ? " " : "", reg,
 		    frame->tf_x[reg]);
 	}
 	printf("  sp: %16lx\n", frame->tf_sp);
 	printf("  lr: %16lx\n", frame->tf_lr);
 	printf(" elr: %16lx\n", frame->tf_elr);
-	printf("spsr: %16lx\n", frame->tf_spsr);
+	printf("spsr:         %8x\n", frame->tf_spsr);
 }
 
 void
-do_el1h_sync(struct trapframe *frame)
+do_el1h_sync(struct thread *td, struct trapframe *frame)
 {
+	struct trapframe *oframe;
 	uint32_t exception;
 	uint64_t esr, far;
 
 	/* Read the esr register to get the exception details */
-	esr = READ_SPECIALREG(esr_el1);
+	esr = frame->tf_esr;
 	exception = ESR_ELx_EXCEPTION(esr);
 
 #ifdef KDTRACE_HOOKS
@@ -276,19 +280,40 @@ do_el1h_sync(struct trapframe *frame)
 #endif
 
 	CTR4(KTR_TRAP,
-	    "do_el1_sync: curthread: %p, esr %lx, elr: %lx, frame: %p",
-	    curthread, esr, frame->tf_elr, frame);
+	    "do_el1_sync: curthread: %p, esr %lx, elr: %lx, frame: %p", td,
+	    esr, frame->tf_elr, frame);
+
+	oframe = td->td_frame;
+
+	switch (exception) {
+	case EXCP_BRK:
+	case EXCP_WATCHPT_EL1:
+	case EXCP_SOFTSTP_EL1:
+		break;
+	default:
+		td->td_frame = frame;
+		break;
+	}
 
 	switch(exception) {
 	case EXCP_FP_SIMD:
 	case EXCP_TRAP_FP:
-		print_registers(frame);
-		printf(" esr:         %.8lx\n", esr);
-		panic("VFP exception in the kernel");
+#ifdef VFP
+		if ((td->td_pcb->pcb_fpflags & PCB_FP_KERN) != 0) {
+			vfp_restore_state();
+		} else
+#endif
+		{
+			print_registers(frame);
+			printf(" esr:         %.8lx\n", esr);
+			panic("VFP exception in the kernel");
+		}
+		break;
+	case EXCP_INSN_ABORT:
 	case EXCP_DATA_ABORT:
 		far = READ_SPECIALREG(far_el1);
 		intr_enable();
-		data_abort(frame, esr, far, 0);
+		data_abort(td, frame, esr, far, 0);
 		break;
 	case EXCP_BRK:
 #ifdef KDTRACE_HOOKS
@@ -302,36 +327,28 @@ do_el1h_sync(struct trapframe *frame)
 	case EXCP_WATCHPT_EL1:
 	case EXCP_SOFTSTP_EL1:
 #ifdef KDB
-		kdb_trap(exception, 0, frame);
+		kdb_trap(exception, 0,
+		    (td->td_frame != NULL) ? td->td_frame : frame);
 #else
 		panic("No debugger in kernel.\n");
 #endif
 		break;
+	case EXCP_UNKNOWN:
+		if (undef_insn(1, frame))
+			break;
+		/* FALLTHROUGH */
 	default:
 		print_registers(frame);
 		panic("Unknown kernel exception %x esr_el1 %lx\n", exception,
 		    esr);
 	}
-}
 
-/*
- * The attempted execution of an instruction bit pattern that has no allocated
- * instruction results in an exception with an unknown reason.
- */
-static void
-el0_excp_unknown(struct trapframe *frame, uint64_t far)
-{
-	struct thread *td;
-
-	td = curthread;
-	call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)far);
-	userret(td, frame);
+	td->td_frame = oframe;
 }
 
 void
-do_el0_sync(struct trapframe *frame)
+do_el0_sync(struct thread *td, struct trapframe *frame)
 {
-	struct thread *td;
 	uint32_t exception;
 	uint64_t esr, far;
 
@@ -340,10 +357,7 @@ do_el0_sync(struct trapframe *frame)
 	    ("Invalid pcpu address from userland: %p (tpidr %lx)",
 	     get_pcpu(), READ_SPECIALREG(tpidr_el1)));
 
-	td = curthread;
-	td->td_frame = frame;
-
-	esr = READ_SPECIALREG(esr_el1);
+	esr = frame->tf_esr;
 	exception = ESR_ELx_EXCEPTION(esr);
 	switch (exception) {
 	case EXCP_UNKNOWN:
@@ -355,8 +369,8 @@ do_el0_sync(struct trapframe *frame)
 	intr_enable();
 
 	CTR4(KTR_TRAP,
-	    "do_el0_sync: curthread: %p, esr %lx, elr: %lx, frame: %p",
-	    curthread, esr, frame->tf_elr, frame);
+	    "do_el0_sync: curthread: %p, esr %lx, elr: %lx, frame: %p", td, esr,
+	    frame->tf_elr, frame);
 
 	switch(exception) {
 	case EXCP_FP_SIMD:
@@ -368,15 +382,17 @@ do_el0_sync(struct trapframe *frame)
 #endif
 		break;
 	case EXCP_SVC:
-		svc_handler(frame);
+		svc_handler(td, frame);
 		break;
 	case EXCP_INSN_ABORT_L:
 	case EXCP_DATA_ABORT_L:
 	case EXCP_DATA_ABORT:
-		data_abort(frame, esr, far, 1);
+		data_abort(td, frame, esr, far, 1);
 		break;
 	case EXCP_UNKNOWN:
-		el0_excp_unknown(frame, far);
+		if (!undef_insn(0, frame))
+			call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)far);
+		userret(td, frame);
 		break;
 	case EXCP_SP_ALIGN:
 		call_trapsignal(td, SIGBUS, BUS_ADRALN, (void *)frame->tf_sp);
@@ -390,6 +406,10 @@ do_el0_sync(struct trapframe *frame)
 		call_trapsignal(td, SIGTRAP, TRAP_BRKPT, (void *)frame->tf_elr);
 		userret(td, frame);
 		break;
+	case EXCP_MSR:
+		call_trapsignal(td, SIGILL, ILL_PRVOPC, (void *)frame->tf_elr); 
+		userret(td, frame);
+		break;
 	case EXCP_SOFTSTP_EL0:
 		td->td_frame->tf_spsr &= ~PSR_SS;
 		td->td_pcb->pcb_flags &= ~PCB_SINGLE_STEP;
@@ -400,10 +420,16 @@ do_el0_sync(struct trapframe *frame)
 		userret(td, frame);
 		break;
 	default:
-		print_registers(frame);
-		panic("Unknown userland exception %x esr_el1 %lx\n", exception,
-		    esr);
+		call_trapsignal(td, SIGBUS, BUS_OBJERR, (void *)frame->tf_elr);
+		userret(td, frame);
+		break;
 	}
+
+	KASSERT((td->td_pcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
+	    ("Kernel VFP flags set while entering userspace"));
+	KASSERT(
+	    td->td_pcb->pcb_fpusaved == &td->td_pcb->pcb_fpustate,
+	    ("Kernel VFP state in use when entering userspace"));
 }
 
 void

@@ -18,12 +18,18 @@
  */
 /*-
  * Copyright (c) 2003-2005 McAfee, Inc.
+ * Copyright (c) 2016-2017 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by McAfee
  * Research, the Security Research Division of McAfee, Inc under DARPA/SPAWAR
  * contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS research
  * program.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -73,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/jail.h>
 
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
 FEATURE(sysv_msg, "System V message queues support");
@@ -473,9 +480,7 @@ struct msgctl_args {
 };
 #endif
 int
-sys_msgctl(td, uap)
-	struct thread *td;
-	register struct msgctl_args *uap;
+sys_msgctl(struct thread *td, struct msgctl_args *uap)
 {
 	int msqid = uap->msqid;
 	int cmd = uap->cmd;
@@ -500,13 +505,15 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 	struct msqid_ds *msqbuf;
 {
 	int rval, error, msqix;
-	register struct msqid_kernel *msqkptr;
+	struct msqid_kernel *msqkptr;
 	struct prison *rpr;
 
 	rpr = msg_find_prison(td->td_ucred);
 	if (rpr == NULL)
 		return (ENOSYS);
 
+	AUDIT_ARG_SVIPC_CMD(cmd);
+	AUDIT_ARG_SVIPC_ID(msqid);
 	msqix = IPCID_TO_IX(msqid);
 
 	if (msqix < 0 || msqix >= msginfo.msgmni) {
@@ -578,6 +585,7 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 		break;
 
 	case IPC_SET:
+		AUDIT_ARG_SVIPC_PERM(&msqbuf->msg_perm);
 		if ((error = ipcperm(td, &msqkptr->u.msg_perm, IPC_M)))
 			goto done2;
 		if (msqbuf->msg_qbytes > msqkptr->u.msg_qbytes) {
@@ -634,15 +642,13 @@ struct msgget_args {
 #endif
 
 int
-sys_msgget(td, uap)
-	struct thread *td;
-	register struct msgget_args *uap;
+sys_msgget(struct thread *td, struct msgget_args *uap)
 {
 	int msqid, error = 0;
 	int key = uap->key;
 	int msgflg = uap->msgflg;
 	struct ucred *cred = td->td_ucred;
-	register struct msqid_kernel *msqkptr = NULL;
+	struct msqid_kernel *msqkptr = NULL;
 
 	DPRINTF(("msgget(0x%x, 0%o)\n", key, msgflg));
 
@@ -666,6 +672,8 @@ sys_msgget(td, uap)
 				error = EEXIST;
 				goto done2;
 			}
+			AUDIT_ARG_SVIPC_ID(IXSEQ_TO_IPCID(msqid,
+			    msqkptr->u.msg_perm));
 			if ((error = ipcperm(td, &msqkptr->u.msg_perm,
 			    msgflg & 0700))) {
 				DPRINTF(("requester doesn't have 0%o access\n",
@@ -734,6 +742,7 @@ sys_msgget(td, uap)
 #ifdef MAC
 		mac_sysvmsq_create(cred, msqkptr);
 #endif
+		AUDIT_ARG_SVIPC_PERM(&msqkptr->u.msg_perm);
 	} else {
 		DPRINTF(("didn't find it and wasn't asked to create it\n"));
 		error = ENOENT;
@@ -751,23 +760,18 @@ done2:
 #ifndef _SYS_SYSPROTO_H_
 struct msgsnd_args {
 	int	msqid;
-	const void	*msgp;
+	const void	*msgp;	/* XXX msgp is actually mtext. */
 	size_t	msgsz;
 	int	msgflg;
 };
 #endif
 int
-kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
-	struct thread *td;
-	int msqid;
-	const void *msgp;	/* XXX msgp is actually mtext. */
-	size_t msgsz;
-	int msgflg;
-	long mtype;
+kern_msgsnd(struct thread *td, int msqid, const void *msgp,
+    size_t msgsz, int msgflg, long mtype)
 {
 	int msqix, segs_needed, error = 0;
-	register struct msqid_kernel *msqkptr;
-	register struct msg *msghdr;
+	struct msqid_kernel *msqkptr;
+	struct msg *msghdr;
 	struct prison *rpr;
 	short next;
 #ifdef RACCT
@@ -779,6 +783,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 		return (ENOSYS);
 
 	mtx_lock(&msq_mtx);
+	AUDIT_ARG_SVIPC_ID(msqid);
 	msqix = IPCID_TO_IX(msqid);
 
 	if (msqix < 0 || msqix >= msginfo.msgmni) {
@@ -789,6 +794,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	}
 
 	msqkptr = &msqids[msqix];
+	AUDIT_ARG_SVIPC_PERM(&msqkptr->u.msg_perm);
 	if (msqkptr->u.msg_qbytes == 0) {
 		DPRINTF(("no such message queue id\n"));
 		error = EINVAL;
@@ -1102,9 +1108,7 @@ done2:
 }
 
 int
-sys_msgsnd(td, uap)
-	struct thread *td;
-	register struct msgsnd_args *uap;
+sys_msgsnd(struct thread *td, struct msgsnd_args *uap)
 {
 	int error;
 	long mtype;
@@ -1130,19 +1134,14 @@ struct msgrcv_args {
 	int	msgflg;
 };
 #endif
+/* XXX msgp is actually mtext. */
 int
-kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
-	struct thread *td;
-	int msqid;
-	void *msgp;	/* XXX msgp is actually mtext. */
-	size_t msgsz;
-	long msgtyp;
-	int msgflg;
-	long *mtype;
+kern_msgrcv(struct thread *td, int msqid, void *msgp, size_t msgsz, long msgtyp,
+    int msgflg, long *mtype)
 {
 	size_t len;
-	register struct msqid_kernel *msqkptr;
-	register struct msg *msghdr;
+	struct msqid_kernel *msqkptr;
+	struct msg *msghdr;
 	struct prison *rpr;
 	int msqix, error = 0;
 	short next;
@@ -1151,6 +1150,7 @@ kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 	if (rpr == NULL)
 		return (ENOSYS);
 
+	AUDIT_ARG_SVIPC_ID(msqid);
 	msqix = IPCID_TO_IX(msqid);
 
 	if (msqix < 0 || msqix >= msginfo.msgmni) {
@@ -1161,6 +1161,7 @@ kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 
 	msqkptr = &msqids[msqix];
 	mtx_lock(&msq_mtx);
+	AUDIT_ARG_SVIPC_PERM(&msqkptr->u.msg_perm);
 	if (msqkptr->u.msg_qbytes == 0) {
 		DPRINTF(("no such message queue id\n"));
 		error = EINVAL;
@@ -1394,9 +1395,7 @@ done2:
 }
 
 int
-sys_msgrcv(td, uap)
-	struct thread *td;
-	register struct msgrcv_args *uap;
+sys_msgrcv(struct thread *td, struct msgrcv_args *uap)
 {
 	int error;
 	long mtype;
@@ -1639,6 +1638,7 @@ freebsd32_msgsys(struct thread *td, struct freebsd32_msgsys_args *uap)
 
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+	AUDIT_ARG_SVIPC_WHICH(uap->which);
 	switch (uap->which) {
 	case 0:
 		return (freebsd7_freebsd32_msgctl(td,
@@ -1794,22 +1794,23 @@ static sy_call_t *msgcalls[] = {
 
 /*
  * Entry point for all MSG calls.
+ *
+ * XXX actually varargs.
+ * struct msgsys_args {
+ *		int	which;
+ *		int	a2;
+ *		int	a3;
+ *		int	a4;
+ *		int	a5;
+ *		int	a6;
+ *	} *uap;
  */
 int
-sys_msgsys(td, uap)
-	struct thread *td;
-	/* XXX actually varargs. */
-	struct msgsys_args /* {
-		int	which;
-		int	a2;
-		int	a3;
-		int	a4;
-		int	a5;
-		int	a6;
-	} */ *uap;
+sys_msgsys(struct thread *td, struct msgsys_args *uap)
 {
 	int error;
 
+	AUDIT_ARG_SVIPC_WHICH(uap->which);
 	if (uap->which < 0 || uap->which >= nitems(msgcalls))
 		return (EINVAL);
 	error = (*msgcalls[uap->which])(td, &uap->a2);
@@ -1828,9 +1829,7 @@ struct freebsd7_msgctl_args {
 };
 #endif
 int
-freebsd7_msgctl(td, uap)
-	struct thread *td;
-	struct freebsd7_msgctl_args *uap;
+freebsd7_msgctl(struct thread *td, struct freebsd7_msgctl_args *uap)
 {
 	struct msqid_ds_old msqold;
 	struct msqid_ds msqbuf;

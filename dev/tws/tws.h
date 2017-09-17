@@ -67,7 +67,7 @@ extern int tws_queue_depth;
 
 #define TWS_DRIVER_VERSION_STRING "10.80.00.005"
 #define TWS_MAX_NUM_UNITS             65 
-#define TWS_MAX_NUM_LUNS              16
+#define TWS_MAX_NUM_LUNS              32
 #define TWS_MAX_IRQS                  2
 #define TWS_SCSI_INITIATOR_ID         66
 #define TWS_MAX_IO_SIZE               0x20000 /* 128kB */

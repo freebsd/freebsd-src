@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -231,6 +231,18 @@ struct fsck_cmd {
 	int64_t	value;		/* inode or block number to be affected */
 	int64_t	size;		/* amount or range to be adjusted */
 	int64_t	spare;		/* reserved for future use */
+};
+
+/*
+ * A recovery structure placed at the end of the boot block area by newfs
+ * that can be used by fsck to search for alternate superblocks.
+ */
+struct fsrecovery {
+	int32_t	fsr_magic;	/* magic number */
+	int32_t	fsr_fsbtodb;	/* fsbtodb and dbtofsb shift constant */
+	int32_t	fsr_sblkno;	/* offset of super-block in filesys */
+	int32_t	fsr_fpg;	/* blocks per group * fs_frag */
+	u_int32_t fsr_ncg;	/* number of cylinder groups */
 };
 
 /*
@@ -575,7 +587,7 @@ struct cg {
 	(((off_t)(frag)) << (fs)->fs_fshift)
 #define	lblktosize(fs, blk)	/* calculates ((off_t)blk * fs->fs_bsize) */ \
 	(((off_t)(blk)) << (fs)->fs_bshift)
-/* Use this only when `blk' is known to be small, e.g., < NDADDR. */
+/* Use this only when `blk' is known to be small, e.g., < UFS_NDADDR. */
 #define	smalllblktosize(fs, blk)    /* calculates (blk * fs->fs_bsize) */ \
 	((blk) << (fs)->fs_bshift)
 #define	lblkno(fs, loc)		/* calculates (loc / fs->fs_bsize) */ \
@@ -608,11 +620,12 @@ struct cg {
  * Determining the size of a file block in the filesystem.
  */
 #define	blksize(fs, ip, lbn) \
-	(((lbn) >= NDADDR || (ip)->i_size >= smalllblktosize(fs, (lbn) + 1)) \
+	(((lbn) >= UFS_NDADDR || (ip)->i_size >= \
+	    (uint64_t)smalllblktosize(fs, (lbn) + 1)) \
 	    ? (fs)->fs_bsize \
 	    : (fragroundup(fs, blkoff(fs, (ip)->i_size))))
 #define	sblksize(fs, size, lbn) \
-	(((lbn) >= NDADDR || (size) >= ((lbn) + 1) << (fs)->fs_bshift) \
+	(((lbn) >= UFS_NDADDR || (size) >= ((lbn) + 1) << (fs)->fs_bshift) \
 	  ? (fs)->fs_bsize \
 	  : (fragroundup(fs, blkoff(fs, (size)))))
 
@@ -622,7 +635,7 @@ struct cg {
 #define	NINDIR(fs)	((fs)->fs_nindir)
 
 /*
- * Indirect lbns are aligned on NDADDR addresses where single indirects
+ * Indirect lbns are aligned on UFS_NDADDR addresses where single indirects
  * are the negated address of the lowest lbn reachable, double indirects
  * are this lbn - 1 and triple indirects are this lbn - 2.  This yields
  * an unusual bit order to determine level.

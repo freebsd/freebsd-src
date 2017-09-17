@@ -69,7 +69,8 @@ LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
 .if ${MK_FORTH} != "no"
 # Enable BootForth
 BOOT_FORTH=	yes
-CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/powerpc
+CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl
+CFLAGS+=	-I${.CURDIR}/../../ficl/powerpc
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 .endif
 
@@ -79,7 +80,7 @@ LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../..
 CFLAGS+=	-I.
 
-CLEANFILES+=	vers.c ${PROG}.help
+CLEANFILES+=	${PROG}.help
 
 CFLAGS+=	-ffreestanding
 
@@ -101,9 +102,6 @@ CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
 DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSTAND}
 LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSTAND}
-
-vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
-	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
 loader.help: help.common help.uboot ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \

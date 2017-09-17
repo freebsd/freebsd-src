@@ -59,7 +59,11 @@
 	};
 
 	soc {
-		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x19) 0 0xf1100000 0x10000
+			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000
+			  MBUS_ID(0x0c, 0x04) 0 0xf1200000 0x100000>;
 
 		internal-regs {
 			crypto@90000 {
@@ -239,11 +243,32 @@
 			gpio-fan,speed-map = <	 0 0
 					      3000 1>;
 		};
+		pcie-controller {
+			status = "okay";
+			/*
+			 * One PCIe units is accessible through
+			 * standard PCIe slot on the board.
+			 */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
+				status = "okay";
+			};
+
+			/*
+			 * The two other PCIe units are accessible
+			 * through mini PCIe slot on the board.
+			 */
+			pcie@2,0 {
+				/* Port 1, Lane 0 */
+				status = "okay";
+			};
+			pcie@3,0 {
+				/* Port 2, Lane 0 */
+				status = "okay";
+			};
+		};
 	};
 
-	pci0: pcie@f1080000 {
-		status = "okay";
-	};
 
 	reg_usb3_vbus: usb3-vbus {
 		compatible = "regulator-fixed";

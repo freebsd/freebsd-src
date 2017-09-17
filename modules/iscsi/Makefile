@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-SYSDIR?=${.CURDIR}/../..
+SYSDIR?=${SRCTOP}/sys
 .include "${SYSDIR}/conf/kern.opts.mk"
 
-.PATH:	${.CURDIR}/../../dev/iscsi/
+.PATH:	${SRCTOP}/sys/dev/iscsi/
 KMOD=	iscsi
 
 SRCS=	iscsi.c

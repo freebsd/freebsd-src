@@ -133,9 +133,21 @@
 #define COPROC11		(0x3 << 22)
 
 #ifndef LOCORE
+struct vfp_state {
+	uint64_t reg[32];
+	uint32_t fpscr;
+	uint32_t fpexec;
+	uint32_t fpinst;
+	uint32_t fpinst2;
+};
+
+#ifdef _KERNEL
+void	get_vfpcontext(struct thread *, mcontext_vfp_t *);
+void	set_vfpcontext(struct thread *, mcontext_vfp_t *);
 void    vfp_init(void);
 void    vfp_store(struct vfp_state *, boolean_t);
 void    vfp_discard(struct thread *);
-#endif
+#endif	/* _KERNEL */
+#endif	/* LOCORE */
 
 #endif

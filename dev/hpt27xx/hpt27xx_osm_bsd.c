@@ -297,7 +297,7 @@ static int hpt_flush_vdev(PVBUS_EXT vbus_ext, PVDEV vd)
 	hpt_lock_vbus(vbus_ext);
 
 	if (mIsArray(vd->type) && vd->u.array.transform)
-		count = MAX(vd->u.array.transform->source->cmds_per_request,
+		count = max(vd->u.array.transform->source->cmds_per_request,
 					vd->u.array.transform->target->cmds_per_request);
 	else
 		count = vd->cmds_per_request;
@@ -934,9 +934,9 @@ static void hpt_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->initiator_id = osm_max_targets;
 		cpi->base_transfer_speed = 3300;
 
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "HPT   ", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "HPT   ", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->transport = XPORT_SPI;
 		cpi->transport_version = 2;
 		cpi->protocol = PROTO_SCSI;

@@ -347,6 +347,7 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	gp->rank = 1;
 	LIST_INIT(&gp->consumer);
 	LIST_INIT(&gp->provider);
+	LIST_INIT(&gp->aliases);
 	LIST_INSERT_HEAD(&mp->geom, gp, geom);
 	TAILQ_INSERT_HEAD(&geoms, gp, geoms);
 	strcpy(gp->name, sbuf_data(sb));
@@ -367,6 +368,7 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 void
 g_destroy_geom(struct g_geom *gp)
 {
+	struct g_geom_alias *gap, *gaptmp;
 
 	g_topology_assert();
 	G_VALID_GEOM(gp);
@@ -380,6 +382,8 @@ g_destroy_geom(struct g_geom *gp)
 	g_cancel_event(gp);
 	LIST_REMOVE(gp, geom);
 	TAILQ_REMOVE(&geoms, gp, geoms);
+	LIST_FOREACH_SAFE(gap, &gp->aliases, ga_next, gaptmp)
+		g_free(gap);
 	g_free(gp->name);
 	g_free(gp);
 }
@@ -914,8 +918,8 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 		return (EPERM);
 	/* If we try to open more but provider is error'ed: fail */
 	else if ((dcr > 0 || dcw > 0 || dce > 0) && pp->error != 0) {
-		printf("%s(%d): provider %s has error\n",
-		       __func__, __LINE__, pp->name);
+		printf("%s(%d): provider %s has error %d set\n",
+		    __func__, __LINE__, pp->name, pp->error);
 		return (pp->error);
 	}
 
@@ -1210,6 +1214,18 @@ g_compare_names(const char *namea, const char *nameb)
 	if (strcmp(namea + deva, nameb + devb) == 0)
 		return (1);
 	return (0);
+}
+
+void
+g_geom_add_alias(struct g_geom *gp, const char *alias)
+{
+	struct g_geom_alias *gap;
+
+	gap = (struct g_geom_alias *)g_malloc(
+		sizeof(struct g_geom_alias) + strlen(alias) + 1, M_WAITOK);
+	strcpy((char *)(gap + 1), alias);
+	gap->ga_alias = (const char *)(gap + 1);
+	LIST_INSERT_HEAD(&gp->aliases, gap, ga_next);
 }
 
 #if defined(DIAGNOSTIC) || defined(DDB)
@@ -1531,6 +1547,10 @@ DB_SHOW_COMMAND(bio, db_show_bio)
 		db_printf("  caller2: %p\n", bp->bio_caller2);
 		db_printf("  bio_from: %p\n", bp->bio_from);
 		db_printf("  bio_to: %p\n", bp->bio_to);
+
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+		db_printf("  bio_track_bp: %p\n", bp->bio_track_bp);
+#endif
 	}
 }
 

@@ -487,6 +487,19 @@ struct scsi_medium_type_data {
 };
 
 /*
+ * Manufacturer-assigned Serial Number VPD page.
+ * Current as of SSC-5r03, 28 September 2016.
+ */
+struct scsi_vpd_mfg_serial_number
+{
+	u_int8_t device;
+	u_int8_t page_code;
+#define	SVPD_MFG_SERIAL_NUMBER_PAGE_CODE 0xB1
+	u_int8_t page_length[2];
+	u_int8_t mfg_serial_num[];
+};
+
+/*
  * Security Protocol Specific values for the Tape Data Encryption protocol
  * (0x20) used with SECURITY PROTOCOL IN.  See below for values used with
  * SECURITY PROTOCOL OUT.  Current as of SSC4r03.

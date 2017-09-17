@@ -163,7 +163,7 @@ dmtpps_translate_nickname(const char *nick)
  * fails that IS an error, return -1.
  */
 static int
-dmtpps_find_tmr_num_by_tunable()
+dmtpps_find_tmr_num_by_tunable(void)
 {
 	struct padinfo *pi;
 	char iname[20];
@@ -201,7 +201,7 @@ dmtpps_find_tmr_num_by_tunable()
  * input pin.  If so, return the timer number, if not return 0.
  */
 static int
-dmtpps_find_tmr_num_by_padconf()
+dmtpps_find_tmr_num_by_padconf(void)
 {
 	int err;
 	unsigned int padstate;
@@ -225,7 +225,7 @@ dmtpps_find_tmr_num_by_padconf()
  * configuration.  This is done just once, the first time probe() runs.
  */
 static int
-dmtpps_find_tmr_num()
+dmtpps_find_tmr_num(void)
 {
 	int tmr_num;
 
@@ -462,6 +462,14 @@ dmtpps_attach(device_t dev)
 	/* Figure out which hardware timer this is and set the name string. */
 	sc->tmr_num = ti_hwmods_get_unit(dev, "timer");
 	snprintf(sc->tmr_name, sizeof(sc->tmr_name), "DMTimer%d", sc->tmr_num);
+
+	/*
+	 * Configure the timer pulse/capture pin to input/capture mode.  This is
+	 * required in addition to configuring the pin as input with the pinmux
+	 * controller (which was done via fdt data or tunable at probe time).
+	 */
+	sc->tclr = DMT_TCLR_GPO_CFG;
+	DMTIMER_WRITE4(sc, DMT_TCLR, sc->tclr);
 
 	/* Set up timecounter hardware, start it. */
 	DMTIMER_WRITE4(sc, DMT_TSICR, DMT_TSICR_RESET);

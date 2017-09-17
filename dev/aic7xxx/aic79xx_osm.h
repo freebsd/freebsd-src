@@ -38,7 +38,7 @@
 #ifndef _AIC79XX_FREEBSD_H_
 #define _AIC79XX_FREEBSD_H_
 
-#include <opt_aic79xx.h>	/* for config options */
+#include "opt_aic79xx.h"	/* for config options */
 
 #include <sys/param.h>
 #include <sys/systm.h>

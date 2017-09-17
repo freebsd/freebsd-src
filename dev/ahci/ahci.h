@@ -519,6 +519,7 @@ struct ahci_controller {
 		void			*argument;
 	} interrupt[AHCI_MAX_PORTS];
 	void			(*ch_start)(struct ahci_channel *);
+	int			dma_coherent;	/* DMA is cache-coherent */
 };
 
 enum ahci_err_type {
@@ -598,6 +599,9 @@ enum ahci_err_type {
 #define AHCI_Q_FORCE_PI		0x00040000
 #define AHCI_Q_RESTORE_CAP	0x00080000
 #define AHCI_Q_NOMSIX		0x00100000
+#define AHCI_Q_MRVL_SR_DEL	0x00200000
+#define AHCI_Q_NOCCS		0x00400000
+#define AHCI_Q_NOAUX		0x00800000
 
 #define AHCI_Q_BIT_STRING	\
 	"\020"			\
@@ -621,7 +625,10 @@ enum ahci_err_type {
 	"\0221MSI"              \
 	"\023FORCE_PI"          \
 	"\024RESTORE_CAP"	\
-	"\025NOMSIX"
+	"\025NOMSIX"		\
+	"\026MRVL_SR_DEL"	\
+	"\027NOCCS"		\
+	"\030NOAUX"
 
 int ahci_attach(device_t dev);
 int ahci_detach(device_t dev);

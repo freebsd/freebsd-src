@@ -371,15 +371,7 @@ daemon_init(video_adapter_t *adp)
 	sprintf(message, "%s - %s %s", prison0.pr_hostname, ostype, osrelease);
 	mtx_unlock(&prison0.pr_mtx);
 	blanked = 0;
-	switch (adp->va_mode) {
-	case M_PC98_80x25:
-	case M_PC98_80x30:
-		attr_mask = ~FG_UNDERLINE;
-		break;
-	default:
-		attr_mask = ~0;
-		break;
-	}
+	attr_mask = ~0;
 
 	return 0;
 }

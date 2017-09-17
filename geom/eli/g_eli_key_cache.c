@@ -117,7 +117,7 @@ g_eli_key_allocate(struct g_eli_softc *sc, uint64_t keyno)
 	keysearch.gek_keyno = keyno;
 	ekey = RB_FIND(g_eli_key_tree, &sc->sc_ekeys_tree, &keysearch);
 	if (ekey != NULL) {
-		bzero(key, sizeof(*key));
+		explicit_bzero(key, sizeof(*key));
 		free(key, M_ELI);
 		key = ekey;
 		TAILQ_REMOVE(&sc->sc_ekeys_queue, key, gek_next);
@@ -174,7 +174,7 @@ g_eli_key_remove(struct g_eli_softc *sc, struct g_eli_key *key)
 	RB_REMOVE(g_eli_key_tree, &sc->sc_ekeys_tree, key);
 	TAILQ_REMOVE(&sc->sc_ekeys_queue, key, gek_next);
 	sc->sc_ekeys_allocated--;
-	bzero(key, sizeof(*key));
+	explicit_bzero(key, sizeof(*key));
 	free(key, M_ELI);
 }
 
@@ -239,7 +239,7 @@ g_eli_key_destroy(struct g_eli_softc *sc)
 
 	mtx_lock(&sc->sc_ekeys_lock);
 	if ((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) != 0) {
-		bzero(sc->sc_ekey, sizeof(sc->sc_ekey));
+		explicit_bzero(sc->sc_ekey, sizeof(sc->sc_ekey));
 	} else {
 		struct g_eli_key *key;
 

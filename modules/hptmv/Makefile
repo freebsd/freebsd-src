@@ -4,7 +4,7 @@
 #
 # $FreeBSD$
 
-HPTMV= ${.CURDIR}/../../dev/hptmv
+HPTMV= ${SRCTOP}/sys/dev/hptmv
 .PATH: ${HPTMV}
 
 KMOD= hptmv

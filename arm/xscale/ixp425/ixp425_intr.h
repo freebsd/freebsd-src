@@ -46,7 +46,6 @@
 #ifndef _LOCORE
 
 #include <machine/armreg.h>
-#include <machine/cpufunc.h>
 
 #include <arm/xscale/ixp425/ixp425reg.h>
 

@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -78,6 +78,40 @@ static int nfs_directio_write(struct vnode *vp, struct uio *uiop,
 /*
  * Vnode op for VM getpages.
  */
+SYSCTL_DECL(_vfs_nfs);
+static int use_buf_pager = 1;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, use_buf_pager, CTLFLAG_RWTUN,
+    &use_buf_pager, 0,
+    "Use buffer pager instead of direct readrpc call");
+
+static daddr_t
+ncl_gbp_getblkno(struct vnode *vp, vm_ooffset_t off)
+{
+
+	return (off / vp->v_bufobj.bo_bsize);
+}
+
+static int
+ncl_gbp_getblksz(struct vnode *vp, daddr_t lbn)
+{
+	struct nfsnode *np;
+	u_quad_t nsize;
+	int biosize, bcount;
+
+	np = VTONFS(vp);
+	mtx_lock(&np->n_mtx);
+	nsize = np->n_size;
+	mtx_unlock(&np->n_mtx);
+
+	biosize = vp->v_bufobj.bo_bsize;
+	bcount = biosize;
+	if ((off_t)lbn * biosize >= nsize)
+		bcount = 0;
+	else if ((off_t)(lbn + 1) * biosize > nsize)
+		bcount = nsize - (off_t)lbn * biosize;
+	return (bcount);
+}
+
 int
 ncl_getpages(struct vop_getpages_args *ap)
 {
@@ -96,8 +130,8 @@ ncl_getpages(struct vop_getpages_args *ap)
 
 	vp = ap->a_vp;
 	np = VTONFS(vp);
-	td = curthread;				/* XXX */
-	cred = curthread->td_ucred;		/* XXX */
+	td = curthread;
+	cred = curthread->td_ucred;
 	nmp = VFSTONFS(vp->v_mount);
 	pages = ap->a_m;
 	npages = ap->a_count;
@@ -126,6 +160,10 @@ ncl_getpages(struct vop_getpages_args *ap)
 	} else
 		mtx_unlock(&nmp->nm_mtx);
 
+	if (use_buf_pager)
+		return (vfs_bio_getpages(vp, pages, npages, ap->a_rbehind,
+		    ap->a_rahead, ncl_gbp_getblkno, ncl_gbp_getblksz));
+
 	/*
 	 * If the requested page is partially valid, just return it and
 	 * allow the pager to zero-out the blanks.  Partially valid pages
@@ -146,8 +184,8 @@ ncl_getpages(struct vop_getpages_args *ap)
 
 	kva = (vm_offset_t) bp->b_data;
 	pmap_qenter(kva, pages, npages);
-	PCPU_INC(cnt.v_vnodein);
-	PCPU_ADD(cnt.v_vnodepgsin, npages);
+	VM_CNT_INC(v_vnodein);
+	VM_CNT_ADD(v_vnodepgsin, npages);
 
 	count = npages << PAGE_SHIFT;
 	iov.iov_base = (caddr_t) kva;
@@ -228,9 +266,7 @@ ncl_putpages(struct vop_putpages_args *ap)
 {
 	struct uio uio;
 	struct iovec iov;
-	vm_offset_t kva;
-	struct buf *bp;
-	int iomode, must_commit, i, error, npages, count;
+	int i, error, npages, count;
 	off_t offset;
 	int *rtvals;
 	struct vnode *vp;
@@ -270,10 +306,6 @@ ncl_putpages(struct vop_putpages_args *ap)
 		printf("ncl_putpages: called on noncache-able vnode\n");
 		mtx_lock(&np->n_mtx);
 	}
-
-	for (i = 0; i < npages; i++)
-		rtvals[i] = VM_PAGER_ERROR;
-
 	/*
 	 * When putting pages, do not extend file past EOF.
 	 */
@@ -284,44 +316,31 @@ ncl_putpages(struct vop_putpages_args *ap)
 	}
 	mtx_unlock(&np->n_mtx);
 
-	/*
-	 * We use only the kva address for the buffer, but this is extremely
-	 * convenient and fast.
-	 */
-	bp = getpbuf(&ncl_pbuf_freecnt);
+	for (i = 0; i < npages; i++)
+		rtvals[i] = VM_PAGER_ERROR;
 
-	kva = (vm_offset_t) bp->b_data;
-	pmap_qenter(kva, pages, npages);
-	PCPU_INC(cnt.v_vnodeout);
-	PCPU_ADD(cnt.v_vnodepgsout, count);
+	VM_CNT_INC(v_vnodeout);
+	VM_CNT_ADD(v_vnodepgsout, count);
 
-	iov.iov_base = (caddr_t) kva;
+	iov.iov_base = unmapped_buf;
 	iov.iov_len = count;
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
 	uio.uio_offset = offset;
 	uio.uio_resid = count;
-	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_segflg = UIO_NOCOPY;
 	uio.uio_rw = UIO_WRITE;
 	uio.uio_td = td;
 
-	if ((ap->a_sync & VM_PAGER_PUT_SYNC) == 0)
-	    iomode = NFSWRITE_UNSTABLE;
-	else
-	    iomode = NFSWRITE_FILESYNC;
-
-	error = ncl_writerpc(vp, &uio, cred, &iomode, &must_commit, 0);
+	error = VOP_WRITE(vp, &uio, vnode_pager_putpages_ioflags(ap->a_sync),
+	    cred);
 	crfree(cred);
 
-	pmap_qremove(kva, npages);
-	relpbuf(bp, &ncl_pbuf_freecnt);
-
 	if (error == 0 || !nfs_keep_dirty_on_error) {
-		vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid);
-		if (must_commit)
-			ncl_clearcommit(vp->v_mount);
+		vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid,
+		    np->n_size - offset, npages * PAGE_SIZE);
 	}
-	return rtvals[0];
+	return (rtvals[0]);
 }
 
 /*
@@ -346,20 +365,13 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 	int error = 0;
 	struct vattr vattr;
 	struct nfsnode *np = VTONFS(vp);
-	int old_lock;
+	bool old_lock;
 
 	/*
-	 * Grab the exclusive lock before checking whether the cache is
-	 * consistent.
-	 * XXX - We can make this cheaper later (by acquiring cheaper locks).
-	 * But for now, this suffices.
+	 * Ensure the exclusove access to the node before checking
+	 * whether the cache is consistent.
 	 */
-	old_lock = ncl_upgrade_vnlock(vp);
-	if (vp->v_iflag & VI_DOOMED) {
-		ncl_downgrade_vnlock(vp, old_lock);
-		return (EBADF);
-	}
-
+	old_lock = ncl_excl_start(vp);
 	mtx_lock(&np->n_mtx);
 	if (np->n_flag & NMODIFIED) {
 		mtx_unlock(&np->n_mtx);
@@ -367,8 +379,8 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 			if (vp->v_type != VDIR)
 				panic("nfs: bioread, not dir");
 			ncl_invaldir(vp);
-			error = ncl_vinvalbuf(vp, V_SAVE, td, 1);
-			if (error)
+			error = ncl_vinvalbuf(vp, V_SAVE | V_ALLOWCLEAN, td, 1);
+			if (error != 0)
 				goto out;
 		}
 		np->n_attrstamp = 0;
@@ -383,15 +395,15 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 		mtx_unlock(&np->n_mtx);
 		error = VOP_GETATTR(vp, &vattr, cred);
 		if (error)
-			return (error);
+			goto out;
 		mtx_lock(&np->n_mtx);
 		if ((np->n_flag & NSIZECHANGED)
 		    || (NFS_TIMESPEC_COMPARE(&np->n_mtime, &vattr.va_mtime))) {
 			mtx_unlock(&np->n_mtx);
 			if (vp->v_type == VDIR)
 				ncl_invaldir(vp);
-			error = ncl_vinvalbuf(vp, V_SAVE, td, 1);
-			if (error)
+			error = ncl_vinvalbuf(vp, V_SAVE | V_ALLOWCLEAN, td, 1);
+			if (error != 0)
 				goto out;
 			mtx_lock(&np->n_mtx);
 			np->n_mtime = vattr.va_mtime;
@@ -400,8 +412,8 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 		mtx_unlock(&np->n_mtx);
 	}
 out:
-	ncl_downgrade_vnlock(vp, old_lock);
-	return error;
+	ncl_excl_finish(vp, old_lock);
+	return (error);
 }
 
 /*
@@ -585,6 +597,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		    while (error == NFSERR_BAD_COOKIE) {
 			ncl_invaldir(vp);
 			error = ncl_vinvalbuf(vp, 0, td, 1);
+
 			/*
 			 * Yuck! The directory has been modified on the
 			 * server. The only way to get the block is by
@@ -905,8 +918,9 @@ ncl_write(struct vop_write_args *ap)
 #endif
 			np->n_attrstamp = 0;
 			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
-			error = ncl_vinvalbuf(vp, V_SAVE, td, 1);
-			if (error)
+			error = ncl_vinvalbuf(vp, V_SAVE | ((ioflag &
+			    IO_VMIO) != 0 ? V_VMIO : 0), td, 1);
+			if (error != 0)
 				return (error);
 		} else
 			mtx_unlock(&np->n_mtx);
@@ -985,8 +999,9 @@ ncl_write(struct vop_write_args *ap)
 			if (wouldcommit > nmp->nm_wcommitsize) {
 				np->n_attrstamp = 0;
 				KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
-				error = ncl_vinvalbuf(vp, V_SAVE, td, 1);
-				if (error)
+				error = ncl_vinvalbuf(vp, V_SAVE | ((ioflag &
+				    IO_VMIO) != 0 ? V_VMIO : 0), td, 1);
+				if (error != 0)
 					return (error);
 				wouldcommit = biosize;
 			}
@@ -1223,7 +1238,7 @@ again:
 					error = error1;
 				break;
 			}
-		} else if ((n + on) == biosize) {
+		} else if ((n + on) == biosize || (ioflag & IO_ASYNC) != 0) {
 			bp->b_flags |= B_ASYNC;
 			(void) ncl_writebp(bp, 0, NULL);
 		} else {
@@ -1303,13 +1318,13 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	int error = 0, slpflag, slptimeo;
-	int old_lock = 0;
+	bool old_lock;
 
 	ASSERT_VOP_LOCKED(vp, "ncl_vinvalbuf");
 
 	if ((nmp->nm_flag & NFSMNT_INT) == 0)
 		intrflg = 0;
-	if ((nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF))
+	if (NFSCL_FORCEDISM(nmp->nm_mountp))
 		intrflg = 1;
 	if (intrflg) {
 		slpflag = PCATCH;
@@ -1319,21 +1334,15 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 		slptimeo = 0;
 	}
 
-	old_lock = ncl_upgrade_vnlock(vp);
-	if (vp->v_iflag & VI_DOOMED) {
-		/*
-		 * Since vgonel() uses the generic vinvalbuf() to flush
-		 * dirty buffers and it does not call this function, it
-		 * is safe to just return OK when VI_DOOMED is set.
-		 */
-		ncl_downgrade_vnlock(vp, old_lock);
-		return (0);
-	}
+	old_lock = ncl_excl_start(vp);
+	if (old_lock)
+		flags |= V_ALLOWCLEAN;
 
 	/*
 	 * Now, flush as required.
 	 */
-	if ((flags & V_SAVE) && (vp->v_bufobj.bo_object != NULL)) {
+	if ((flags & (V_SAVE | V_VMIO)) == V_SAVE &&
+	     vp->v_bufobj.bo_object != NULL) {
 		VM_OBJECT_WLOCK(vp->v_bufobj.bo_object);
 		vm_object_page_clean(vp->v_bufobj.bo_object, 0, 0, OBJPC_SYNC);
 		VM_OBJECT_WUNLOCK(vp->v_bufobj.bo_object);
@@ -1366,7 +1375,7 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 		np->n_flag &= ~NMODIFIED;
 	mtx_unlock(&np->n_mtx);
 out:
-	ncl_downgrade_vnlock(vp, old_lock);
+	ncl_excl_finish(vp, old_lock);
 	return error;
 }
 
@@ -1778,9 +1787,6 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 		 */
 		if (error == EINTR || error == EIO || error == ETIMEDOUT
 		    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {
-			int s;
-
-			s = splbio();
 			bp->b_flags &= ~(B_INVAL|B_NOCACHE);
 			if ((bp->b_flags & B_PAGING) == 0) {
 			    bdirty(bp);
@@ -1789,7 +1795,6 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 			if ((error == EINTR || error == ETIMEDOUT) &&
 			    (bp->b_flags & B_ASYNC) == 0)
 			    bp->b_flags |= B_EINTR;
-			splx(s);
 		} else {
 		    if (error) {
 			bp->b_ioflags |= BIO_ERROR;

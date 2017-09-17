@@ -422,12 +422,8 @@ tpm_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-#ifdef __FreeBSD__
-	sc->sc_suspend = 0;
-#else
 	sc->sc_suspend = PWR_RESUME;
 	sc->sc_powerhook = powerhook_establish(tpm_powerhook, sc);
-#endif
 }
 #endif
 

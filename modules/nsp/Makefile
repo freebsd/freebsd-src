@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/nsp
+.PATH: ${SRCTOP}/sys/dev/nsp
 
 KMOD=	nsp
 SRCS=	nsp.c nsp_pccard.c

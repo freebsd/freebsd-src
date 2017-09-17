@@ -47,12 +47,6 @@ __FBSDID("$FreeBSD$");
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
-/*
- * Don't touch the first SIZEOF_METADATA bytes on the dump device. This
- * is to protect us from metadata and to protect metadata from us.
- */
-#define	SIZEOF_METADATA		(64*1024)
-
 #define	MD_ALIGN(x)	(((off_t)(x) + PAGE_MASK) & ~PAGE_MASK)
 #define	DEV_ALIGN(x)	roundup2((off_t)(x), DEV_BSIZE)
 
@@ -244,13 +238,6 @@ minidumpsys(struct dumperinfo *di)
 	}
 	dumpsize += PAGE_SIZE;
 
-	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + sizeof(kdh) * 2) {
-		error = ENOSPC;
-		goto fail;
-	}
-	dumplo = di->mediaoffset + di->mediasize - dumpsize;
-	dumplo -= sizeof(kdh) * 2;
 	progress = dumpsize;
 
 	/* Initialize mdhdr */
@@ -265,16 +252,15 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.paemode = 1;
 #endif
 
-	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_I386_VERSION, dumpsize, di->blocksize);
+	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_I386_VERSION,
+	    dumpsize);
 
 	printf("Physical memory: %ju MB\n", ptoa((uintmax_t)physmem) / 1048576);
 	printf("Dumping %llu MB:", (long long)dumpsize >> 20);
 
-	/* Dump leader */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
-	if (error)
+	error = dump_start(di, &kdh, &dumplo);
+	if (error != 0)
 		goto fail;
-	dumplo += sizeof(kdh);
 
 	/* Dump my header */
 	bzero(&fakept, sizeof(fakept));
@@ -348,14 +334,10 @@ minidumpsys(struct dumperinfo *di)
 	if (error)
 		goto fail;
 
-	/* Dump trailer */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
-	if (error)
+	error = dump_finish(di, &kdh, dumplo);
+	if (error != 0)
 		goto fail;
-	dumplo += sizeof(kdh);
 
-	/* Signal completion, signoff and exit stage left. */
-	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
 	return (0);
 
@@ -365,7 +347,7 @@ minidumpsys(struct dumperinfo *di)
 
 	if (error == ECANCELED)
 		printf("\nDump aborted\n");
-	else if (error == ENOSPC)
+	else if (error == E2BIG || error == ENOSPC)
 		printf("\nDump failed. Partition too small.\n");
 	else
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);

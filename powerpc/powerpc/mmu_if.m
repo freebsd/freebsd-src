@@ -659,18 +659,6 @@ METHOD void zero_page_area {
 
 
 /**
- * @brief Called from the idle loop to zero pages. XXX I think locking
- * constraints might be different here compared to zero_page.
- *
- * @param _pg		physical page
- */
-METHOD void zero_page_idle {
-	mmu_t		_mmu;
-	vm_page_t	_pg;
-};
-
-
-/**
  * @brief Extract mincore(2) information from a mapping.
  *
  * @param _pmap		physical map
@@ -737,7 +725,7 @@ METHOD void align_superpage {
 
 /**
  * @brief Bootstrap the VM system. At the completion of this routine, the
- * kernel will be running in it's own address space with full control over
+ * kernel will be running in its own address space with full control over
  * paging.
  *
  * @param _start	start of reserved memory (obsolete ???)

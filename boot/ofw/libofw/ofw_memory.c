@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "libofw.h"
 #include "openfirm.h"
 
-static void		*heap_base = 0;
+static void		*heap_base = NULL;
 static unsigned int	heap_size = 0;
 
 struct ofw_mapping {

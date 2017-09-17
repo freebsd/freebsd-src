@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
+#include <machine/undefined.h>
 #include <machine/vmparam.h>
 
 #ifdef VFP
@@ -118,6 +119,7 @@ int64_t dcache_line_size;	/* The minimum D cache line size */
 int64_t icache_line_size;	/* The minimum I cache line size */
 int64_t idcache_line_size;	/* The minimum cache line size */
 int64_t dczva_line_size;	/* The size of cache line the dc zva zeroes */
+int has_pan;
 
 /* pagezero_* implementations are provided in support.S */
 void pagezero_simple(void *);
@@ -127,9 +129,41 @@ void pagezero_cache(void *);
 void (*pagezero)(void *p) = pagezero_simple;
 
 static void
+pan_setup(void)
+{
+	uint64_t id_aa64mfr1;
+
+	id_aa64mfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
+	if (ID_AA64MMFR1_PAN(id_aa64mfr1) != ID_AA64MMFR1_PAN_NONE)
+		has_pan = 1;
+}
+
+void
+pan_enable(void)
+{
+
+	/*
+	 * The LLVM integrated assembler doesn't understand the PAN
+	 * PSTATE field. Because of this we need to manually create
+	 * the instruction in an asm block. This is equivalent to:
+	 * msr pan, #1
+	 *
+	 * This sets the PAN bit, stopping the kernel from accessing
+	 * memory when userspace can also access it unless the kernel
+	 * uses the userspace load/store instructions.
+	 */
+	if (has_pan) {
+		WRITE_SPECIALREG(sctlr_el1,
+		    READ_SPECIALREG(sctlr_el1) & ~SCTLR_SPAN);
+		__asm __volatile(".inst 0xd500409f | (0x1 << 8)");
+	}
+}
+
+static void
 cpu_startup(void *dummy)
 {
 
+	undef_init();
 	identify_cpu();
 
 	vm_ksubmap_init(&kmi);
@@ -190,11 +224,15 @@ fill_fpregs(struct thread *td, struct fpreg *regs)
 		 * If we have just been running VFP instructions we will
 		 * need to save the state to memcpy it below.
 		 */
-		vfp_save_state(td, pcb);
+		if (td == curthread)
+			vfp_save_state(td, pcb);
 
-		memcpy(regs->fp_q, pcb->pcb_vfp, sizeof(regs->fp_q));
-		regs->fp_cr = pcb->pcb_fpcr;
-		regs->fp_sr = pcb->pcb_fpsr;
+		KASSERT(pcb->pcb_fpusaved == &pcb->pcb_fpustate,
+		    ("Called fill_fpregs while the kernel is using the VFP"));
+		memcpy(regs->fp_q, pcb->pcb_fpustate.vfp_regs,
+		    sizeof(regs->fp_q));
+		regs->fp_cr = pcb->pcb_fpustate.vfp_fpcr;
+		regs->fp_sr = pcb->pcb_fpustate.vfp_fpsr;
 	} else
 #endif
 		memset(regs->fp_q, 0, sizeof(regs->fp_q));
@@ -208,9 +246,11 @@ set_fpregs(struct thread *td, struct fpreg *regs)
 	struct pcb *pcb;
 
 	pcb = td->td_pcb;
-	memcpy(pcb->pcb_vfp, regs->fp_q, sizeof(regs->fp_q));
-	pcb->pcb_fpcr = regs->fp_cr;
-	pcb->pcb_fpsr = regs->fp_sr;
+	KASSERT(pcb->pcb_fpusaved == &pcb->pcb_fpustate,
+	    ("Called set_fpregs while the kernel is using the VFP"));
+	memcpy(pcb->pcb_fpustate.vfp_regs, regs->fp_q, sizeof(regs->fp_q));
+	pcb->pcb_fpustate.vfp_fpcr = regs->fp_cr;
+	pcb->pcb_fpustate.vfp_fpsr = regs->fp_sr;
 #endif
 	return (0);
 }
@@ -219,22 +259,24 @@ int
 fill_dbregs(struct thread *td, struct dbreg *regs)
 {
 
-	panic("ARM64TODO: fill_dbregs");
+	printf("ARM64TODO: fill_dbregs");
+	return (EDOOFUS);
 }
 
 int
 set_dbregs(struct thread *td, struct dbreg *regs)
 {
 
-	panic("ARM64TODO: set_dbregs");
+	printf("ARM64TODO: set_dbregs");
+	return (EDOOFUS);
 }
 
 int
 ptrace_set_pc(struct thread *td, u_long addr)
 {
 
-	panic("ARM64TODO: ptrace_set_pc");
-	return (0);
+	printf("ARM64TODO: ptrace_set_pc");
+	return (EDOOFUS);
 }
 
 int
@@ -334,10 +376,14 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 		 */
 		vfp_save_state(td, curpcb);
 
-		memcpy(mcp->mc_fpregs.fp_q, curpcb->pcb_vfp,
+		KASSERT(curpcb->pcb_fpusaved == &curpcb->pcb_fpustate,
+		    ("Called get_fpcontext while the kernel is using the VFP"));
+		KASSERT((curpcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
+		    ("Non-userspace FPU flags set in get_fpcontext"));
+		memcpy(mcp->mc_fpregs.fp_q, curpcb->pcb_fpustate.vfp_regs,
 		    sizeof(mcp->mc_fpregs));
-		mcp->mc_fpregs.fp_cr = curpcb->pcb_fpcr;
-		mcp->mc_fpregs.fp_sr = curpcb->pcb_fpsr;
+		mcp->mc_fpregs.fp_cr = curpcb->pcb_fpustate.vfp_fpcr;
+		mcp->mc_fpregs.fp_sr = curpcb->pcb_fpustate.vfp_fpsr;
 		mcp->mc_fpregs.fp_flags = curpcb->pcb_fpflags;
 		mcp->mc_flags |= _MC_FP_VALID;
 	}
@@ -363,11 +409,13 @@ set_fpcontext(struct thread *td, mcontext_t *mcp)
 		 */
 		vfp_discard(td);
 
-		memcpy(curpcb->pcb_vfp, mcp->mc_fpregs.fp_q,
+		KASSERT(curpcb->pcb_fpusaved == &curpcb->pcb_fpustate,
+		    ("Called set_fpcontext while the kernel is using the VFP"));
+		memcpy(curpcb->pcb_fpustate.vfp_regs, mcp->mc_fpregs.fp_q,
 		    sizeof(mcp->mc_fpregs));
-		curpcb->pcb_fpcr = mcp->mc_fpregs.fp_cr;
-		curpcb->pcb_fpsr = mcp->mc_fpregs.fp_sr;
-		curpcb->pcb_fpflags = mcp->mc_fpregs.fp_flags;
+		curpcb->pcb_fpustate.vfp_fpcr = mcp->mc_fpregs.fp_cr;
+		curpcb->pcb_fpustate.vfp_fpsr = mcp->mc_fpregs.fp_sr;
+		curpcb->pcb_fpflags = mcp->mc_fpregs.fp_flags & PCB_FP_USERMASK;
 	}
 
 	critical_exit();
@@ -416,8 +464,17 @@ cpu_flush_dcache(void *ptr, size_t len)
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
+	struct pcpu *pc;
 
-	panic("ARM64TODO: cpu_est_clockrate");
+	pc = pcpu_find(cpu_id);
+	if (pc == NULL || rate == NULL)
+		return (EINVAL);
+
+	if (pc->pc_clock == 0)
+		return (EOPNOTSUPP);
+
+	*rate = pc->pc_clock;
+	return (0);
 }
 
 void
@@ -598,6 +655,7 @@ init_proc0(vm_offset_t kstack)
 	thread0.td_kstack = kstack;
 	thread0.td_pcb = (struct pcb *)(thread0.td_kstack) - 1;
 	thread0.td_pcb->pcb_fpflags = 0;
+	thread0.td_pcb->pcb_fpusaved = &thread0.td_pcb->pcb_fpustate;
 	thread0.td_pcb->pcb_vfpcpu = UINT_MAX;
 	thread0.td_frame = &proc0_tf;
 	pcpup->pc_curpcb = thread0.td_pcb;
@@ -689,9 +747,6 @@ add_fdt_mem_regions(struct mem_region *mr, int mrcnt, vm_paddr_t *physmap,
 	}
 }
 #endif
-
-#define efi_next_descriptor(ptr, size) \
-	((struct efi_md *)(((uint8_t *) ptr) + size))
 
 static void
 add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
@@ -979,6 +1034,7 @@ initarm(struct arm64_bootparams *abp)
 	init_param1();
 
 	cache_setup();
+	pan_setup();
 
 	/* Bootstrap enough of pmap  to enter the kernel proper */
 	pmap_bootstrap(abp->kern_l0pt, abp->kern_l1pt,
@@ -999,10 +1055,24 @@ initarm(struct arm64_bootparams *abp)
 	mutex_init();
 	init_param2(physmem);
 
-	dbg_monitor_init();
+	dbg_init();
 	kdb_init();
+	pan_enable();
 
 	early_boot = 0;
+}
+
+void
+dbg_init(void)
+{
+
+	/* Clear OS lock */
+	WRITE_SPECIALREG(OSLAR_EL1, 0);
+
+	/* This permits DDB to use debug registers for watchpoints. */
+	dbg_monitor_init();
+
+	/* TODO: Eventually will need to initialize debug registers here. */
 }
 
 #ifdef DDB
@@ -1089,7 +1159,13 @@ DB_SHOW_COMMAND(vtop, db_show_vtop)
 
 	if (have_addr) {
 		phys = arm64_address_translate_s1e1r(addr);
-		db_printf("Physical address reg: 0x%016lx\n", phys);
+		db_printf("EL1 physical address reg (read):  0x%016lx\n", phys);
+		phys = arm64_address_translate_s1e1w(addr);
+		db_printf("EL1 physical address reg (write): 0x%016lx\n", phys);
+		phys = arm64_address_translate_s1e0r(addr);
+		db_printf("EL0 physical address reg (read):  0x%016lx\n", phys);
+		phys = arm64_address_translate_s1e0w(addr);
+		db_printf("EL0 physical address reg (write): 0x%016lx\n", phys);
 	} else
 		db_printf("show vtop <virt_addr>\n");
 }

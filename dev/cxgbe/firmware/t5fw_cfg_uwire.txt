@@ -1,6 +1,6 @@
 # Chelsio T5 Factory Default configuration file.
 #
-# Copyright (C) 2010-2015 Chelsio Communications.  All rights reserved.
+# Copyright (C) 2010-2017 Chelsio Communications.  All rights reserved.
 #
 #   DO NOT MODIFY THIS FILE UNDER ANY CIRCUMSTANCES.  MODIFICATION OF THIS FILE
 #   WILL RESULT IN A NON-FUNCTIONAL ADAPTER AND MAY RESULT IN PHYSICAL DAMAGE
@@ -91,7 +91,8 @@
 	reg[0x105c] = 128		# SGE_FL_BUFFER_SIZE6
 	reg[0x1060] = 8192		# SGE_FL_BUFFER_SIZE7
 	reg[0x1064] = 16384		# SGE_FL_BUFFER_SIZE8
-	reg[0x10a4] = 0xa000a000/0xf000f000 # SGE_DBFIFO_STATUS
+	reg[0x10a4] = 0x00280000/0x3ffc0000 # SGE_DBFIFO_STATUS
+	reg[0x1118] = 0x00002800/0x00003c00 # SGE_DBFIFO_STATUS2
 	reg[0x10a8] = 0x402000/0x402000	# SGE_DOORBELL_CONTROL
 
 	# SGE_THROTTLE_CONTROL
@@ -467,7 +468,6 @@
 	fcoe_nfcf = 16
 	fcoe_nvnp = 32
 	fcoe_nssn = 1024
-	fcoe_nfcb = 256
 
 
 # The following function, 1023, is not an actual PCIE function but is used to
@@ -494,9 +494,9 @@
 	wx_caps = 0x82		# DMAQ | VF
 	r_caps = 0x86		# DMAQ | VF | PORT
 	nvi = 1			# 1 port
-	niqflint = 4		# 2 "Queue Sets" + NXIQ
-	nethctrl = 2		# 2 "Queue Sets"
-	neq = 4			# 2 "Queue Sets" * 2
+	niqflint = 6		# 2 "Queue Sets" + NXIQ
+	nethctrl = 4		# 2 "Queue Sets"
+	neq = 8			# 2 "Queue Sets" * 2
 	nexactf = 4
 	cmask = all		# access to all channels
 	pmask = 0x1		# access to only one port ...
@@ -506,9 +506,9 @@
 	wx_caps = 0x82		# DMAQ | VF
 	r_caps = 0x86		# DMAQ | VF | PORT
 	nvi = 1			# 1 port
-	niqflint = 4		# 2 "Queue Sets" + NXIQ
-	nethctrl = 2		# 2 "Queue Sets"
-	neq = 4			# 2 "Queue Sets" * 2
+	niqflint = 6		# 2 "Queue Sets" + NXIQ
+	nethctrl = 4		# 2 "Queue Sets"
+	neq = 8			# 2 "Queue Sets" * 2
 	nexactf = 4
 	cmask = all		# access to all channels
 	pmask = 0x2		# access to only one port ...
@@ -518,9 +518,9 @@
 	wx_caps = 0x82		# DMAQ | VF
 	r_caps = 0x86		# DMAQ | VF | PORT
 	nvi = 1			# 1 port
-	niqflint = 4		# 2 "Queue Sets" + NXIQ
-	nethctrl = 2		# 2 "Queue Sets"
-	neq = 4			# 2 "Queue Sets" * 2
+	niqflint = 6		# 2 "Queue Sets" + NXIQ
+	nethctrl = 4		# 2 "Queue Sets"
+	neq = 8			# 2 "Queue Sets" * 2
 	nexactf = 4
 	cmask = all		# access to all channels
 	pmask = 0x4		# access to only one port ...
@@ -530,9 +530,9 @@
 	wx_caps = 0x82		# DMAQ | VF
 	r_caps = 0x86		# DMAQ | VF | PORT
 	nvi = 1			# 1 port
-	niqflint = 4		# 2 "Queue Sets" + NXIQ
-	nethctrl = 2		# 2 "Queue Sets"
-	neq = 4			# 2 "Queue Sets" * 2
+	niqflint = 6		# 2 "Queue Sets" + NXIQ
+	nethctrl = 4		# 2 "Queue Sets"
+	neq = 8			# 2 "Queue Sets" * 2
 	nexactf = 4
 	cmask = all		# access to all channels
 	pmask = 0x8		# access to only one port ...
@@ -601,8 +601,8 @@
 
 
 [fini]
-	version = 0x1425001c
-	checksum = 0xa4a80156
+	version = 0x01000028
+	checksum = 0x36228c7d
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

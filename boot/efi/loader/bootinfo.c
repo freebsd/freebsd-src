@@ -268,6 +268,13 @@ bi_load_efi_data(struct preloaded_file *kfp)
 	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
 
 	/*
+	 * Assgin size of EFI_MEMORY_DESCRIPTOR to keep compatible with
+	 * u-boot which doesn't fill this value when buffer for memory
+	 * descriptors is too small (eg. 0 to obtain memory map size)
+	 */
+	mmsz = sizeof(EFI_MEMORY_DESCRIPTOR);
+
+	/*
 	 * It is possible that the first call to ExitBootServices may change
 	 * the map key. Fetch a new map key and retry ExitBootServices in that
 	 * case.

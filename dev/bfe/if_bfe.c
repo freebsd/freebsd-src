@@ -793,6 +793,8 @@ bfe_list_newbuf(struct bfe_softc *sc, int c)
 	int nsegs;
 
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL)
+		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
 
 	if (bus_dmamap_load_mbuf_sg(sc->bfe_rxmbuf_tag, sc->bfe_rx_sparemap,

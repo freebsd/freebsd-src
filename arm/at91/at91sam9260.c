@@ -193,7 +193,6 @@ at91_clock_init(void)
 	 */
 	clk = at91_pmc_clock_ref("pllb");
 	clk->pll_min_in    = SAM9260_PLL_B_MIN_IN_FREQ;		/*   1 MHz */
-	clk->pll_max_in    = SAM9260_PLL_B_MAX_IN_FREQ;		/*   5 MHz */
 	clk->pll_max_in    = 2999999;				/*  ~3 MHz */
 	clk->pll_min_out   = SAM9260_PLL_B_MIN_OUT_FREQ;	/*  70 MHz */
 	clk->pll_max_out   = SAM9260_PLL_B_MAX_OUT_FREQ;	/* 130 MHz */

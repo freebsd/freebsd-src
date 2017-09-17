@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-.PATH: ${.CURDIR}/../../../tests/framework
+.PATH: ${SRCTOP}/sys/tests/framework
 
 KMOD=	kern_testfrwk
 SRCS=	kern_testfrwk.c

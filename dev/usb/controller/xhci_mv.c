@@ -74,6 +74,8 @@ static device_detach_t xhci_detach;
 
 static struct ofw_compat_data compat_data[] = {
 	{"marvell,armada-380-xhci",	true},
+	{"marvell,armada3700-xhci",	true},
+	{"marvell,armada-8k-xhci",	true},
 	{NULL,				false}
 };
 
@@ -171,14 +173,7 @@ static int
 xhci_detach(device_t dev)
 {
 	struct xhci_softc *sc = device_get_softc(dev);
-	device_t bdev;
 	int err;
-
-	if (sc->sc_bus.bdev != NULL) {
-		bdev = sc->sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(dev, bdev);
-	}
 
 	/* during module unload there are lots of children leftover */
 	device_delete_children(dev);

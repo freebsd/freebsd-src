@@ -374,7 +374,6 @@ struct ath_rx_radiotap_header {
 } __packed;
 
 #define ATH_TX_RADIOTAP_PRESENT (		\
-	(1 << IEEE80211_RADIOTAP_TSFT)		| \
 	(1 << IEEE80211_RADIOTAP_FLAGS)		| \
 	(1 << IEEE80211_RADIOTAP_RATE)		| \
 	(1 << IEEE80211_RADIOTAP_DBM_TX_POWER)	| \
@@ -384,7 +383,6 @@ struct ath_rx_radiotap_header {
 
 struct ath_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;
-	u_int64_t	wt_tsf;
 	u_int8_t	wt_flags;
 	u_int8_t	wt_rate;
 	u_int8_t	wt_txpower;
@@ -434,6 +432,7 @@ struct ath_tx_radiotap_header {
 #define	SPECTRAL_PARAM_SS_SHORT_RPT	4
 #define	SPECTRAL_PARAM_ENABLED		5
 #define	SPECTRAL_PARAM_ACTIVE		6
+#define	SPECTRAL_PARAM_SS_SPECTRAL_PRI	7
 
 /*
  * Spectral control parameters
@@ -448,5 +447,10 @@ struct ath_tx_radiotap_header {
 #define	SPECTRAL_CONTROL_SET_PARAMS	7
 #define	SPECTRAL_CONTROL_ENABLE_AT_RESET	8
 #define	SPECTRAL_CONTROL_DISABLE_AT_RESET	9
+
+/*
+ * Bluetooth coexistence control parameters
+ */
+#define	SIOCGATHBTCOEX		_IOWR('i', 152, struct ath_diag)
 
 #endif /* _DEV_ATH_ATHIOCTL_H */

@@ -94,6 +94,7 @@ struct trapframe {
 struct sigframe {
 	siginfo_t       sf_si;          /* actual saved siginfo */
 	ucontext_t      sf_uc;          /* actual saved ucontext */
+	mcontext_vfp_t	sf_vfp;         /* actual saved VFP context */
 };
 
 
@@ -117,6 +118,10 @@ struct switchframe
         register_t sf_sp;
         register_t sf_lr;
         register_t sf_pc;
+#if __ARM_ARCH >= 6
+        register_t sf_tpidrurw;
+        register_t sf_spare0;
+#endif
 };
 
 

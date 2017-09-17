@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/phy/phy.h>
 #include <dev/extres/regulator/regulator.h>
-#include <dev/fdt/fdt_common.h>
 #include <dev/fdt/fdt_pinctrl.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -255,7 +254,7 @@ get_fdt_resources(struct tegra_ahci_sc *sc, phandle_t node)
 		return (ENXIO);
 	}
 
-	rv = phy_get_by_ofw_name(sc->dev, 0, "sata-phy", &sc->phy);
+	rv = phy_get_by_ofw_name(sc->dev, 0, "sata-0", &sc->phy);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'sata' phy\n");
 		return (ENXIO);
@@ -602,8 +601,7 @@ tegra_ahci_resume(device_t dev)
 	return (bus_generic_resume(dev));
 }
 
-devclass_t genahci_devclass;
-static device_method_t genahci_methods[] = {
+static device_method_t tegra_ahci_methods[] = {
 	DEVMETHOD(device_probe,		tegra_ahci_probe),
 	DEVMETHOD(device_attach,	tegra_ahci_attach),
 	DEVMETHOD(device_detach,	tegra_ahci_detach),
@@ -619,9 +617,9 @@ static device_method_t genahci_methods[] = {
 
 	DEVMETHOD_END
 };
-static driver_t genahci_driver = {
-	"ahci",
-	genahci_methods,
-	sizeof(struct tegra_ahci_sc)
-};
-DRIVER_MODULE(genahci, simplebus, genahci_driver, genahci_devclass, NULL, NULL);
+
+static devclass_t tegra_ahci_devclass;
+static DEFINE_CLASS_0(ahci, tegra_ahci_driver, tegra_ahci_methods,
+    sizeof(struct tegra_ahci_sc));
+DRIVER_MODULE(tegra_ahci, simplebus, tegra_ahci_driver, tegra_ahci_devclass,
+    NULL, NULL);

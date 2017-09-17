@@ -82,8 +82,8 @@ __FBSDID("$FreeBSD$");
  * struct switchframe and trapframe must both be a multiple of 8
  * for correct stack alignment.
  */
-CTASSERT(sizeof(struct switchframe) == 48);
-CTASSERT(sizeof(struct trapframe) == 80);
+_Static_assert((sizeof(struct switchframe) % 8) == 0, "Bad alignment");
+_Static_assert((sizeof(struct trapframe) % 8) == 0, "Bad alignment");
 
 uint32_t initial_fpscr = VFPSCR_DN | VFPSCR_FZ;
 
@@ -93,8 +93,7 @@ uint32_t initial_fpscr = VFPSCR_DN | VFPSCR_FZ;
  * ready to run and return to user mode.
  */
 void
-cpu_fork(register struct thread *td1, register struct proc *p2,
-    struct thread *td2, int flags)
+cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
 	struct pcb *pcb2;
 	struct trapframe *tf;
@@ -110,6 +109,14 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 #ifndef CPU_XSCALE_CORE3
 	pmap_use_minicache(td2->td_kstack, td2->td_kstack_pages * PAGE_SIZE);
 #endif
+#endif
+#ifdef VFP
+	/* Store actual state of VFP */
+	if (curthread == td1) {
+		critical_enter();
+		vfp_store(&td1->td_pcb->pcb_vfpstate, false);
+		critical_exit();
+	}
 #endif
 	td2->td_pcb = pcb2;
 
@@ -134,6 +141,9 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	pcb2->pcb_regs.sf_r5 = (register_t)td2;
 	pcb2->pcb_regs.sf_lr = (register_t)fork_trampoline;
 	pcb2->pcb_regs.sf_sp = STACKALIGN(td2->td_frame);
+#if __ARM_ARCH >= 6
+	pcb2->pcb_regs.sf_tpidrurw = (register_t)get_tls();
+#endif
 
 	pcb2->pcb_vfpcpu = -1;
 	pcb2->pcb_vfpstate.fpscr = initial_fpscr;
@@ -147,9 +157,7 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_cspr = PSR_SVC32_MODE;
-#if __ARM_ARCH >= 6
-	td2->td_md.md_tp = td1->td_md.md_tp;
-#else
+#if __ARM_ARCH < 6
 	td2->td_md.md_tp = *(register_t *)ARM_TP_ADDRESS;
 #endif
 }
@@ -219,7 +227,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		/* nothing to do */
 		break;
 	default:
-		frame->tf_r0 = error;
+		frame->tf_r0 = SV_ABI_ERRNO(td->td_proc, error);
 		frame->tf_spsr |= PSR_C;    /* carry bit */
 		break;
 	}
@@ -272,16 +280,18 @@ int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
+#if __ARM_ARCH >= 6
+	td->td_pcb->pcb_regs.sf_tpidrurw = (register_t)tls_base;
+	if (td == curthread)
+		set_tls(tls_base);
+#else
 	td->td_md.md_tp = (register_t)tls_base;
 	if (td == curthread) {
 		critical_enter();
-#if __ARM_ARCH >= 6
-		set_tls(tls_base);
-#else
 		*(register_t *)ARM_TP_ADDRESS = (register_t)tls_base;
-#endif
 		critical_exit();
 	}
+#endif
 	return (0);
 }
 

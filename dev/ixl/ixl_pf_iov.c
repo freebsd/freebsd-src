@@ -42,7 +42,6 @@ static void	ixl_vf_unregister_intr(struct i40e_hw *hw, uint32_t vpint_reg);
 static bool	ixl_zero_mac(const uint8_t *addr);
 static bool	ixl_bcast_mac(const uint8_t *addr);
 
-static const char *	ixl_vc_opcode_str(uint16_t op);
 static int	ixl_vc_opcode_level(uint16_t opcode);
 
 static int	ixl_vf_mac_valid(struct ixl_vf *vf, const uint8_t *addr);
@@ -419,58 +418,6 @@ ixl_reinit_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_num), I40E_VFR_VFACTIVE);
 	ixl_flush(hw);
-}
-
-static const char *
-ixl_vc_opcode_str(uint16_t op)
-{
-
-	switch (op) {
-	case I40E_VIRTCHNL_OP_VERSION:
-		return ("VERSION");
-	case I40E_VIRTCHNL_OP_RESET_VF:
-		return ("RESET_VF");
-	case I40E_VIRTCHNL_OP_GET_VF_RESOURCES:
-		return ("GET_VF_RESOURCES");
-	case I40E_VIRTCHNL_OP_CONFIG_TX_QUEUE:
-		return ("CONFIG_TX_QUEUE");
-	case I40E_VIRTCHNL_OP_CONFIG_RX_QUEUE:
-		return ("CONFIG_RX_QUEUE");
-	case I40E_VIRTCHNL_OP_CONFIG_VSI_QUEUES:
-		return ("CONFIG_VSI_QUEUES");
-	case I40E_VIRTCHNL_OP_CONFIG_IRQ_MAP:
-		return ("CONFIG_IRQ_MAP");
-	case I40E_VIRTCHNL_OP_ENABLE_QUEUES:
-		return ("ENABLE_QUEUES");
-	case I40E_VIRTCHNL_OP_DISABLE_QUEUES:
-		return ("DISABLE_QUEUES");
-	case I40E_VIRTCHNL_OP_ADD_ETHER_ADDRESS:
-		return ("ADD_ETHER_ADDRESS");
-	case I40E_VIRTCHNL_OP_DEL_ETHER_ADDRESS:
-		return ("DEL_ETHER_ADDRESS");
-	case I40E_VIRTCHNL_OP_ADD_VLAN:
-		return ("ADD_VLAN");
-	case I40E_VIRTCHNL_OP_DEL_VLAN:
-		return ("DEL_VLAN");
-	case I40E_VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE:
-		return ("CONFIG_PROMISCUOUS_MODE");
-	case I40E_VIRTCHNL_OP_GET_STATS:
-		return ("GET_STATS");
-	case I40E_VIRTCHNL_OP_FCOE:
-		return ("FCOE");
-	case I40E_VIRTCHNL_OP_EVENT:
-		return ("EVENT");
-	case I40E_VIRTCHNL_OP_CONFIG_RSS_KEY:
-		return ("CONFIG_RSS_KEY");
-	case I40E_VIRTCHNL_OP_CONFIG_RSS_LUT:
-		return ("CONFIG_RSS_LUT");
-	case I40E_VIRTCHNL_OP_GET_RSS_HENA_CAPS:
-		return ("GET_RSS_HENA_CAPS");
-	case I40E_VIRTCHNL_OP_SET_RSS_HENA:
-		return ("SET_RSS_HENA");
-	default:
-		return ("UNKNOWN");
-	}
 }
 
 static int
@@ -1459,7 +1406,7 @@ ixl_vf_config_rss_key_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 		}
 	} else {
 		for (int i = 0; i < (key->key_len / 4); i++)
-			i40e_write_rx_ctl(hw, I40E_VFQF_HKEY1(i, vf->vf_num), ((u32 *)key->key)[i]);
+			i40e_write_rx_ctl(hw, I40E_VFQF_HKEY1(i, IXL_GLOBAL_VF_NUM(hw, vf)), ((u32 *)key->key)[i]);
 	}
 
 	DDPRINTF(pf->dev, "VF %d: Programmed key starting with 0x%x ok!",
@@ -1514,7 +1461,7 @@ ixl_vf_config_rss_lut_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 		}
 	} else {
 		for (int i = 0; i < (lut->lut_entries / 4); i++)
-			i40e_write_rx_ctl(hw, I40E_VFQF_HLUT1(i, vf->vf_num), ((u32 *)lut->lut)[i]);
+			i40e_write_rx_ctl(hw, I40E_VFQF_HLUT1(i, IXL_GLOBAL_VF_NUM(hw, vf)), ((u32 *)lut->lut)[i]);
 	}
 
 	DDPRINTF(pf->dev, "VF %d: Programmed LUT starting with 0x%x and length %d ok!",
@@ -1541,8 +1488,8 @@ ixl_vf_set_rss_hena_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 	hena = msg;
 
 	/* Set HENA */
-	i40e_write_rx_ctl(hw, I40E_VFQF_HENA1(0, vf->vf_num), (u32)hena->hena);
-	i40e_write_rx_ctl(hw, I40E_VFQF_HENA1(1, vf->vf_num), (u32)(hena->hena >> 32));
+	i40e_write_rx_ctl(hw, I40E_VFQF_HENA1(0, IXL_GLOBAL_VF_NUM(hw, vf)), (u32)hena->hena);
+	i40e_write_rx_ctl(hw, I40E_VFQF_HENA1(1, IXL_GLOBAL_VF_NUM(hw, vf)), (u32)(hena->hena >> 32));
 
 	DDPRINTF(pf->dev, "VF %d: Programmed HENA with 0x%016lx",
 	    vf->vf_num, hena->hena);
@@ -1768,8 +1715,6 @@ ixl_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params)
 		goto fail;
 	}
 
-	ixl_enable_adminq(hw);
-
 	pf->num_vfs = num_vfs;
 	IXL_PF_UNLOCK(pf);
 	return (0);
@@ -1809,11 +1754,6 @@ ixl_iov_uninit(device_t dev)
 	if (pf->veb_seid != 0) {
 		i40e_aq_delete_element(hw, pf->veb_seid, NULL);
 		pf->veb_seid = 0;
-	}
-
-	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
-		ixl_disable_intr(vsi);
-		ixl_flush(hw);
 	}
 
 	vfs = pf->vfs;

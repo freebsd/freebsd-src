@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/disk.h>
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/boot.h>
@@ -35,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <string.h>
 #include <setjmp.h>
+#include <disk.h>
 
 #include <efi.h>
 #include <efilib.h>
@@ -46,14 +48,13 @@ __FBSDID("$FreeBSD$");
 
 #ifdef EFI_ZFS_BOOT
 #include <libzfs.h>
+
+#include "efizfs.h"
 #endif
 
 #include "loader_efi.h"
 
-extern char bootprog_name[];
-extern char bootprog_rev[];
-extern char bootprog_date[];
-extern char bootprog_maker[];
+extern char bootprog_info[];
 
 struct arch_switch archsw;	/* MI/MD interface boundary */
 
@@ -71,36 +72,6 @@ EFI_GUID debugimg = DEBUG_IMAGE_INFO_TABLE_GUID;
 EFI_GUID fdtdtb = FDT_TABLE_GUID;
 EFI_GUID inputid = SIMPLE_TEXT_INPUT_PROTOCOL;
 
-#ifdef EFI_ZFS_BOOT
-static void efi_zfs_probe(void);
-#endif
-
-/*
- * cpy8to16 copies a traditional C string into a CHAR16 string and
- * 0 terminates it. len is the size of *dst in bytes.
- */
-static void
-cpy8to16(const char *src, CHAR16 *dst, size_t len)
-{
-	len <<= 1;		/* Assume CHAR16 is 2 bytes */
-	while (len > 0 && *src) {
-		*dst++ = *src++;
-		len--;
-	}
-	*dst++ = (CHAR16)0;
-}
-
-static void
-cpy16to8(const CHAR16 *src, char *dst, size_t len)
-{
-	size_t i;
-
-	for (i = 0; i < len && src[i]; i++)
-		dst[i] = (char)src[i];
-	if (i < len)
-		dst[i] = '\0';
-}
-
 static int
 has_keyboard(void)
 {
@@ -109,7 +80,7 @@ has_keyboard(void)
 	EFI_HANDLE *hin, *hin_end, *walker;
 	UINTN sz;
 	int retval = 0;
-	
+
 	/*
 	 * Find all the handles that support the SIMPLE_TEXT_INPUT_PROTOCOL and
 	 * do the typical dance to get the right sized buffer.
@@ -166,7 +137,7 @@ has_keyboard(void)
 			} else if (DevicePathType(path) == MESSAGING_DEVICE_PATH &&
 			    DevicePathSubType(path) == MSG_USB_CLASS_DP) {
 				USB_CLASS_DEVICE_PATH *usb;
-			       
+
 				usb = (USB_CLASS_DEVICE_PATH *)(void *)path;
 				if (usb->DeviceClass == 3 && /* HID */
 				    usb->DeviceSubClass == 1 && /* Boot devices */
@@ -183,12 +154,110 @@ out:
 	return retval;
 }
 
-static int
-find_currdev(EFI_LOADED_IMAGE *img, struct devsw **dev, int *unit,
-    uint64_t *extra)
+static void
+set_devdesc_currdev(struct devsw *dev, int unit)
 {
+	struct devdesc currdev;
+	char *devname;
+
+	currdev.d_dev = dev;
+	currdev.d_type = currdev.d_dev->dv_type;
+	currdev.d_unit = unit;
+	currdev.d_opendata = NULL;
+	devname = efi_fmtdev(&currdev);
+
+	env_setenv("currdev", EV_VOLATILE, devname, efi_setcurrdev,
+	    env_nounset);
+	env_setenv("loaddev", EV_VOLATILE, devname, env_noset, env_nounset);
+}
+
+static int
+find_currdev(EFI_LOADED_IMAGE *img)
+{
+	pdinfo_list_t *pdi_list;
+	pdinfo_t *dp, *pp;
 	EFI_DEVICE_PATH *devpath, *copy;
 	EFI_HANDLE h;
+	char *devname;
+	struct devsw *dev;
+	int unit;
+	uint64_t extra;
+
+#ifdef EFI_ZFS_BOOT
+	/* Did efi_zfs_probe() detect the boot pool? */
+	if (pool_guid != 0) {
+		struct zfs_devdesc currdev;
+
+		currdev.d_dev = &zfs_dev;
+		currdev.d_unit = 0;
+		currdev.d_type = currdev.d_dev->dv_type;
+		currdev.d_opendata = NULL;
+		currdev.pool_guid = pool_guid;
+		currdev.root_guid = 0;
+		devname = efi_fmtdev(&currdev);
+
+		env_setenv("currdev", EV_VOLATILE, devname, efi_setcurrdev,
+		    env_nounset);
+		env_setenv("loaddev", EV_VOLATILE, devname, env_noset,
+		    env_nounset);
+		init_zfs_bootenv(devname);
+		return (0);
+	}
+#endif /* EFI_ZFS_BOOT */
+
+	/* We have device lists for hd, cd, fd, walk them all. */
+	pdi_list = efiblk_get_pdinfo_list(&efipart_hddev);
+	STAILQ_FOREACH(dp, pdi_list, pd_link) {
+		struct disk_devdesc currdev;
+
+		currdev.d_dev = &efipart_hddev;
+		currdev.d_type = currdev.d_dev->dv_type;
+		currdev.d_unit = dp->pd_unit;
+		currdev.d_opendata = NULL;
+		currdev.d_slice = -1;
+		currdev.d_partition = -1;
+
+		if (dp->pd_handle == img->DeviceHandle) {
+			devname = efi_fmtdev(&currdev);
+
+			env_setenv("currdev", EV_VOLATILE, devname,
+			    efi_setcurrdev, env_nounset);
+			env_setenv("loaddev", EV_VOLATILE, devname,
+			    env_noset, env_nounset);
+			return (0);
+		}
+		/* Assuming GPT partitioning. */
+		STAILQ_FOREACH(pp, &dp->pd_part, pd_link) {
+			if (pp->pd_handle == img->DeviceHandle) {
+				currdev.d_slice = pp->pd_unit;
+				currdev.d_partition = 255;
+				devname = efi_fmtdev(&currdev);
+
+				env_setenv("currdev", EV_VOLATILE, devname,
+				    efi_setcurrdev, env_nounset);
+				env_setenv("loaddev", EV_VOLATILE, devname,
+				    env_noset, env_nounset);
+				return (0);
+			}
+		}
+	}
+
+	pdi_list = efiblk_get_pdinfo_list(&efipart_cddev);
+	STAILQ_FOREACH(dp, pdi_list, pd_link) {
+		if (dp->pd_handle == img->DeviceHandle ||
+		    dp->pd_alias == img->DeviceHandle) {
+			set_devdesc_currdev(&efipart_cddev, dp->pd_unit);
+			return (0);
+		}
+	}
+
+	pdi_list = efiblk_get_pdinfo_list(&efipart_fddev);
+	STAILQ_FOREACH(dp, pdi_list, pd_link) {
+		if (dp->pd_handle == img->DeviceHandle) {
+			set_devdesc_currdev(&efipart_fddev, dp->pd_unit);
+			return (0);
+		}
+	}
 
 	/*
 	 * Try the device handle from our loaded image first.  If that
@@ -196,8 +265,10 @@ find_currdev(EFI_LOADED_IMAGE *img, struct devsw **dev, int *unit,
 	 * any of the nodes in that path match one of the enumerated
 	 * handles.
 	 */
-	if (efi_handle_lookup(img->DeviceHandle, dev, unit, extra) == 0)
+	if (efi_handle_lookup(img->DeviceHandle, &dev, &unit, &extra) == 0) {
+		set_devdesc_currdev(dev, unit);
 		return (0);
+	}
 
 	copy = NULL;
 	devpath = efi_lookup_image_devpath(IH);
@@ -206,20 +277,21 @@ find_currdev(EFI_LOADED_IMAGE *img, struct devsw **dev, int *unit,
 		if (h == NULL)
 			break;
 
-		if (efi_handle_lookup(h, dev, unit, extra) == 0) {
-			if (copy != NULL)
-				free(copy);
+		free(copy);
+		copy = NULL;
+
+		if (efi_handle_lookup(h, &dev, &unit, &extra) == 0) {
+			set_devdesc_currdev(dev, unit);
 			return (0);
 		}
 
-		if (copy != NULL)
-			free(copy);
 		devpath = efi_lookup_devpath(h);
 		if (devpath != NULL) {
 			copy = efi_devpath_trim(devpath);
 			devpath = copy;
 		}
 	}
+	free(copy);
 
 	return (ENOENT);
 }
@@ -230,11 +302,12 @@ main(int argc, CHAR16 *argv[])
 	char var[128];
 	EFI_LOADED_IMAGE *img;
 	EFI_GUID *guid;
-	int i, j, vargood, unit, howto;
-	struct devsw *dev;
-	uint64_t pool_guid;
+	int i, j, vargood, howto;
 	UINTN k;
 	int has_kbd;
+#if !defined(__arm__)
+	char buf[40];
+#endif
 
 	archsw.arch_autoload = efi_autoload;
 	archsw.arch_getdev = efi_getdev;
@@ -317,7 +390,7 @@ main(int argc, CHAR16 *argv[])
 						} else {
 							cpy16to8(&argv[i + 1][0], var,
 							    sizeof(var));
-							setenv("comconsole_speedspeed", var, 1);
+							setenv("comconsole_speed", var, 1);
 						}
 						i++;
 						break;
@@ -387,9 +460,7 @@ main(int argc, CHAR16 *argv[])
 	printf("EFI Firmware: %S (rev %d.%02d)\n", ST->FirmwareVendor,
 	    ST->FirmwareRevision >> 16, ST->FirmwareRevision & 0xffff);
 
-	printf("\n");
-	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
-	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
+	printf("\n%s", bootprog_info);
 
 	/*
 	 * Disable the watchdog timer. By default the boot manager sets
@@ -402,73 +473,29 @@ main(int argc, CHAR16 *argv[])
 	 */
 	BS->SetWatchdogTimer(0, 0, 0, NULL);
 
-	if (find_currdev(img, &dev, &unit, &pool_guid) != 0)
+	if (find_currdev(img) != 0)
 		return (EFI_NOT_FOUND);
 
-	switch (dev->dv_type) {
-#ifdef EFI_ZFS_BOOT
-	case DEVT_ZFS: {
-		struct zfs_devdesc currdev;
-
-		currdev.d_dev = dev;
-		currdev.d_unit = unit;
-		currdev.d_type = currdev.d_dev->dv_type;
-		currdev.d_opendata = NULL;
-		currdev.pool_guid = pool_guid;
-		currdev.root_guid = 0;
-		env_setenv("currdev", EV_VOLATILE, efi_fmtdev(&currdev),
-			   efi_setcurrdev, env_nounset);
-		env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
-			   env_nounset);
-		init_zfs_bootenv(zfs_fmtdev(&currdev));
-		break;
-	}
-#endif
-	default: {
-		struct devdesc currdev;
-
-		currdev.d_dev = dev;
-		currdev.d_unit = unit;
-		currdev.d_opendata = NULL;
-		currdev.d_type = currdev.d_dev->dv_type;
-		env_setenv("currdev", EV_VOLATILE, efi_fmtdev(&currdev),
-			   efi_setcurrdev, env_nounset);
-		env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
-			   env_nounset);
-		break;
-	}
-	}
-
-	snprintf(var, sizeof(var), "%d.%02d", ST->Hdr.Revision >> 16,
-	    ST->Hdr.Revision & 0xffff);
-	env_setenv("efi-version", EV_VOLATILE, var, env_noset, env_nounset);
+	efi_init_environment();
 	setenv("LINES", "24", 1);	/* optional */
 
 	for (k = 0; k < ST->NumberOfTableEntries; k++) {
 		guid = &ST->ConfigurationTable[k].VendorGuid;
+#if !defined(__arm__)
 		if (!memcmp(guid, &smbios, sizeof(EFI_GUID))) {
+			snprintf(buf, sizeof(buf), "%p",
+			    ST->ConfigurationTable[k].VendorTable);
+			setenv("hint.smbios.0.mem", buf, 1);
 			smbios_detect(ST->ConfigurationTable[k].VendorTable);
 			break;
 		}
+#endif
 	}
 
 	interact(NULL);			/* doesn't return */
 
 	return (EFI_SUCCESS);		/* keep compiler happy */
 }
-
-/* XXX move to lib stand ? */
-static int
-wcscmp(CHAR16 *a, CHAR16 *b)
-{
-
-	while (*a && *b && *a == *b) {
-		a++;
-		b++;
-	}
-	return *a - *b;
-}
-
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
 
@@ -481,8 +508,7 @@ command_reboot(int argc, char *argv[])
 		if (devsw[i]->dv_cleanup != NULL)
 			(devsw[i]->dv_cleanup)();
 
-	RS->ResetSystem(EfiResetCold, EFI_SUCCESS, 23,
-	    (CHAR16 *)"Reboot from the loader");
+	RS->ResetSystem(EfiResetCold, EFI_SUCCESS, 0, NULL);
 
 	/* NOTREACHED */
 	return (CMD_ERROR);
@@ -508,6 +534,7 @@ command_memmap(int argc, char *argv[])
 	UINT32 dver;
 	EFI_STATUS status;
 	int i, ndesc;
+	char line[80];
 	static char *types[] = {
 	    "Reserved",
 	    "LoaderCode",
@@ -539,14 +566,19 @@ command_memmap(int argc, char *argv[])
 	}
 
 	ndesc = sz / dsz;
-	printf("%23s %12s %12s %8s %4s\n",
+	snprintf(line, sizeof(line), "%23s %12s %12s %8s %4s\n",
 	    "Type", "Physical", "Virtual", "#Pages", "Attr");
+	pager_open();
+	if (pager_output(line)) {
+		pager_close();
+		return (CMD_OK);
+	}
 
 	for (i = 0, p = map; i < ndesc;
 	     i++, p = NextMemoryDescriptor(p, dsz)) {
 		printf("%23s %012jx %012jx %08jx ", types[p->Type],
-		   (uintmax_t)p->PhysicalStart, (uintmax_t)p->VirtualStart,
-		   (uintmax_t)p->NumberOfPages);
+		    (uintmax_t)p->PhysicalStart, (uintmax_t)p->VirtualStart,
+		    (uintmax_t)p->NumberOfPages);
 		if (p->Attribute & EFI_MEMORY_UC)
 			printf("UC ");
 		if (p->Attribute & EFI_MEMORY_WC)
@@ -563,9 +595,11 @@ command_memmap(int argc, char *argv[])
 			printf("RP ");
 		if (p->Attribute & EFI_MEMORY_XP)
 			printf("XP ");
-		printf("\n");
+		if (pager_output("\n"))
+			break;
 	}
 
+	pager_close();
 	return (CMD_OK);
 }
 
@@ -587,10 +621,17 @@ guid_to_string(EFI_GUID *guid)
 static int
 command_configuration(int argc, char *argv[])
 {
+	char line[80];
 	UINTN i;
 
-	printf("NumberOfTableEntries=%lu\n",
+	snprintf(line, sizeof(line), "NumberOfTableEntries=%lu\n",
 		(unsigned long)ST->NumberOfTableEntries);
+	pager_open();
+	if (pager_output(line)) {
+		pager_close();
+		return (CMD_OK);
+	}
+
 	for (i = 0; i < ST->NumberOfTableEntries; i++) {
 		EFI_GUID *guid;
 
@@ -603,7 +644,8 @@ command_configuration(int argc, char *argv[])
 		else if (!memcmp(guid, &acpi20, sizeof(EFI_GUID)))
 			printf("ACPI 2.0 Table");
 		else if (!memcmp(guid, &smbios, sizeof(EFI_GUID)))
-			printf("SMBIOS Table");
+			printf("SMBIOS Table %p",
+			    ST->ConfigurationTable[i].VendorTable);
 		else if (!memcmp(guid, &dxe, sizeof(EFI_GUID)))
 			printf("DXE Table");
 		else if (!memcmp(guid, &hoblist, sizeof(EFI_GUID)))
@@ -616,9 +658,13 @@ command_configuration(int argc, char *argv[])
 			printf("FDT Table");
 		else
 			printf("Unknown Table (%s)", guid_to_string(guid));
-		printf(" at %p\n", ST->ConfigurationTable[i].VendorTable);
+		snprintf(line, sizeof(line), " at %p\n",
+		    ST->ConfigurationTable[i].VendorTable);
+		if (pager_output(line))
+			break;
 	}
 
+	pager_close();
 	return (CMD_OK);
 }
 
@@ -731,279 +777,6 @@ command_reloadbe(int argc, char *argv[])
 }
 #endif
 
-COMMAND_SET(efishow, "efi-show", "print some or all EFI variables", command_efi_show);
-
-static int
-efi_print_var(CHAR16 *varnamearg, EFI_GUID *matchguid, int lflag)
-{
-	UINTN		datasz, i;
-	EFI_STATUS	status;
-	UINT32		attr;
-	CHAR16		*data;
-	char		*str;
-	uint32_t	uuid_status;
-	int		is_ascii;
-
-	datasz = 0;
-	status = RS->GetVariable(varnamearg, matchguid, &attr,
-	    &datasz, NULL);
-	if (status != EFI_BUFFER_TOO_SMALL) {
-		printf("Can't get the variable: error %#lx\n", status);
-		return (CMD_ERROR);
-	}
-	data = malloc(datasz);
-	status = RS->GetVariable(varnamearg, matchguid, &attr,
-	    &datasz, data);
-	if (status != EFI_SUCCESS) {
-		printf("Can't get the variable: error %#lx\n", status);
-		return (CMD_ERROR);
-	}
-	uuid_to_string((uuid_t *)matchguid, &str, &uuid_status);
-	if (lflag) {
-		printf("%s 0x%x %S", str, attr, varnamearg);
-	} else {
-		printf("%s 0x%x %S=", str, attr, varnamearg);
-		is_ascii = 1;
-		free(str);
-		str = (char *)data;
-		for (i = 0; i < datasz - 1; i++) {
-			/* Quick hack to see if this ascii-ish string printable range plus tab, cr and lf */
-			if ((str[i] < 32 || str[i] > 126) && str[i] != 9 && str[i] != 10 && str[i] != 13) {
-				is_ascii = 0;
-				break;
-			}
-		}
-		if (str[datasz - 1] != '\0')
-			is_ascii = 0;
-		if (is_ascii)
-			printf("%s", str);
-		else {
-			for (i = 0; i < datasz / 2; i++) {
-				if (isalnum(data[i]) || isspace(data[i]))
-					printf("%c", data[i]);
-				else
-					printf("\\x%02x", data[i]);
-			}
-		}
-	}
-	free(data);
-	if (pager_output("\n"))
-		return (CMD_WARN);
-	return (CMD_OK);
-}
-
-static int
-command_efi_show(int argc, char *argv[])
-{
-	/*
-	 * efi-show [-a]
-	 *	print all the env
-	 * efi-show -u UUID
-	 *	print all the env vars tagged with UUID
-	 * efi-show -v var
-	 *	search all the env vars and print the ones matching var
-	 * eif-show -u UUID -v var
-	 * eif-show UUID var
-	 *	print all the env vars that match UUID and var
-	 */
-	/* NB: We assume EFI_GUID is the same as uuid_t */
-	int		aflag = 0, gflag = 0, lflag = 0, vflag = 0;
-	int		ch, rv;
-	unsigned	i;
-	EFI_STATUS	status;
-	EFI_GUID	varguid = { 0,0,0,{0,0,0,0,0,0,0,0} };
-	EFI_GUID	matchguid = { 0,0,0,{0,0,0,0,0,0,0,0} };
-	uint32_t	uuid_status;
-	CHAR16		varname[128];
-	CHAR16		varnamearg[128];
-	UINTN		varsz;
-
-	while ((ch = getopt(argc, argv, "ag:lv:")) != -1) {
-		switch (ch) {
-		case 'a':
-			aflag = 1;
-			break;
-		case 'g':
-			gflag = 1;
-			uuid_from_string(optarg, (uuid_t *)&matchguid,
-			    &uuid_status);
-			if (uuid_status != uuid_s_ok) {
-				printf("uid %s could not be parsed\n", optarg);
-				return (CMD_ERROR);
-			}
-			break;
-		case 'l':
-			lflag = 1;
-			break;
-		case 'v':
-			vflag = 1;
-			if (strlen(optarg) >= nitems(varnamearg)) {
-				printf("Variable %s is longer than %zd characters\n",
-				    optarg, nitems(varnamearg));
-				return (CMD_ERROR);
-			}
-			for (i = 0; i < strlen(optarg); i++)
-				varnamearg[i] = optarg[i];
-			varnamearg[i] = 0;
-			break;
-		default:
-			printf("Invalid argument %c\n", ch);
-			return (CMD_ERROR);
-		}
-	}
-
-	if (aflag && (gflag || vflag)) {
-		printf("-a isn't compatible with -v or -u\n");
-		return (CMD_ERROR);
-	}
-
-	if (aflag && optind < argc) {
-		printf("-a doesn't take any args");
-		return (CMD_ERROR);
-	}
-
-	if (optind == argc)
-		aflag = 1;
-
-	argc -= optind;
-	argv += optind;
-
-	pager_open();
-	if (vflag && gflag) {
-		rv = efi_print_var(varnamearg, &matchguid, lflag);
-		pager_close();
-		return (rv);
-	}
-
-	if (argc == 2) {
-		optarg = argv[0];
-		if (strlen(optarg) >= nitems(varnamearg)) {
-			printf("Variable %s is longer than %zd characters\n",
-			    optarg, nitems(varnamearg));
-			pager_close();
-			return (CMD_ERROR);
-		}
-		for (i = 0; i < strlen(optarg); i++)
-			varnamearg[i] = optarg[i];
-		varnamearg[i] = 0;
-		optarg = argv[1];
-		uuid_from_string(optarg, (uuid_t *)&matchguid,
-		    &uuid_status);
-		if (uuid_status != uuid_s_ok) {
-			printf("uid %s could not be parsed\n", optarg);
-			pager_close();
-			return (CMD_ERROR);
-		}
-		rv = efi_print_var(varnamearg, &matchguid, lflag);
-		pager_close();
-		return (rv);
-	}
-
-	if (argc != 0) {
-		printf("Too many args\n");
-		pager_close();
-		return (CMD_ERROR);
-	}
-
-	/*
-	 * Initiate the search -- note the standard takes pain
-	 * to specify the initial call must be a poiner to a NULL
-	 * character.
-	 */
-	varsz = nitems(varname);
-	varname[0] = 0;
-	while ((status = RS->GetNextVariableName(&varsz, varname, &varguid)) !=
-	    EFI_NOT_FOUND) {
-		if (aflag) {
-			if (efi_print_var(varname, &varguid, lflag) != CMD_OK)
-				break;
-			continue;
-		}
-		if (vflag) {
-			if (wcscmp(varnamearg, varname) == 0) {
-				if (efi_print_var(varname, &varguid, lflag) != CMD_OK)
-					break;
-				continue;
-			}
-		}
-		if (gflag) {
-			if (memcmp(&varguid, &matchguid, sizeof(varguid)) == 0) {
-				if (efi_print_var(varname, &varguid, lflag) != CMD_OK)
-					break;
-				continue;
-			}
-		}
-	}
-	pager_close();
-
-	return (CMD_OK);
-}
-
-COMMAND_SET(efiset, "efi-set", "set EFI variables", command_efi_set);
-
-static int
-command_efi_set(int argc, char *argv[])
-{
-	char *uuid, *var, *val;
-	CHAR16 wvar[128];
-	EFI_GUID guid;
-	uint32_t status;
-	EFI_STATUS err;
-
-	if (argc != 4) {
-		printf("efi-set uuid var new-value\n");
-		return (CMD_ERROR);
-	}
-	uuid = argv[1];
-	var = argv[2];
-	val = argv[3];
-	uuid_from_string(uuid, (uuid_t *)&guid, &status);
-	if (status != uuid_s_ok) {
-		printf("Invalid uuid %s %d\n", uuid, status);
-		return (CMD_ERROR);
-	}
-	cpy8to16(var, wvar, sizeof(wvar));
-	err = RS->SetVariable(wvar, &guid,
-	    EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_RUNTIME_ACCESS | EFI_VARIABLE_BOOTSERVICE_ACCESS,
-	    strlen(val) + 1, val);
-	if (EFI_ERROR(err)) {
-		printf("Failed to set variable: error %lu\n", EFI_ERROR_CODE(err));
-		return (CMD_ERROR);
-	}
-	return (CMD_OK);
-}
-
-COMMAND_SET(efiunset, "efi-unset", "delete / unset EFI variables", command_efi_unset);
-
-static int
-command_efi_unset(int argc, char *argv[])
-{
-	char *uuid, *var;
-	CHAR16 wvar[128];
-	EFI_GUID guid;
-	uint32_t status;
-	EFI_STATUS err;
-
-	if (argc != 3) {
-		printf("efi-unset uuid var\n");
-		return (CMD_ERROR);
-	}
-	uuid = argv[1];
-	var = argv[2];
-	uuid_from_string(uuid, (uuid_t *)&guid, &status);
-	if (status != uuid_s_ok) {
-		printf("Invalid uuid %s\n", uuid);
-		return (CMD_ERROR);
-	}
-	cpy8to16(var, wvar, sizeof(wvar));
-	err = RS->SetVariable(wvar, &guid, 0, 0, NULL);
-	if (EFI_ERROR(err)) {
-		printf("Failed to unset variable: error %lu\n", EFI_ERROR_CODE(err));
-		return (CMD_ERROR);
-	}
-	return (CMD_OK);
-}
-
 #ifdef LOADER_FDT_SUPPORT
 extern int command_fdt_internal(int argc, char *argv[]);
 
@@ -1023,22 +796,132 @@ command_fdt(int argc, char *argv[])
 COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
 #endif
 
-#ifdef EFI_ZFS_BOOT
-static void
-efi_zfs_probe(void)
+/*
+ * Chain load another efi loader.
+ */
+static int
+command_chain(int argc, char *argv[])
 {
-	EFI_HANDLE h;
-	u_int unit;
-	int i;
-	char dname[SPECNAMELEN + 1];
-	uint64_t guid;
+	EFI_GUID LoadedImageGUID = LOADED_IMAGE_PROTOCOL;
+	EFI_HANDLE loaderhandle;
+	EFI_LOADED_IMAGE *loaded_image;
+	EFI_STATUS status;
+	struct stat st;
+	struct devdesc *dev;
+	char *name, *path;
+	void *buf;
+	int fd;
 
-	unit = 0;
-	h = efi_find_handle(&efipart_dev, 0);
-	for (i = 0; h != NULL; h = efi_find_handle(&efipart_dev, ++i)) {
-		snprintf(dname, sizeof(dname), "%s%d:", efipart_dev.dv_name, i);
-		if (zfs_probe_dev(dname, &guid) == 0)
-			(void)efi_handle_update_dev(h, &zfs_dev, unit++, guid);
+	if (argc < 2) {
+		command_errmsg = "wrong number of arguments";
+		return (CMD_ERROR);
 	}
-}
+
+	name = argv[1];
+
+	if ((fd = open(name, O_RDONLY)) < 0) {
+		command_errmsg = "no such file";
+		return (CMD_ERROR);
+	}
+
+	if (fstat(fd, &st) < -1) {
+		command_errmsg = "stat failed";
+		close(fd);
+		return (CMD_ERROR);
+	}
+
+	status = BS->AllocatePool(EfiLoaderCode, (UINTN)st.st_size, &buf);
+	if (status != EFI_SUCCESS) {
+		command_errmsg = "failed to allocate buffer";
+		close(fd);
+		return (CMD_ERROR);
+	}
+	if (read(fd, buf, st.st_size) != st.st_size) {
+		command_errmsg = "error while reading the file";
+		(void)BS->FreePool(buf);
+		close(fd);
+		return (CMD_ERROR);
+	}
+	close(fd);
+	status = BS->LoadImage(FALSE, IH, NULL, buf, st.st_size, &loaderhandle);
+	(void)BS->FreePool(buf);
+	if (status != EFI_SUCCESS) {
+		command_errmsg = "LoadImage failed";
+		return (CMD_ERROR);
+	}
+	status = BS->HandleProtocol(loaderhandle, &LoadedImageGUID,
+	    (void **)&loaded_image);
+
+	if (argc > 2) {
+		int i, len = 0;
+		CHAR16 *argp;
+
+		for (i = 2; i < argc; i++)
+			len += strlen(argv[i]) + 1;
+
+		len *= sizeof (*argp);
+		loaded_image->LoadOptions = argp = malloc (len);
+		loaded_image->LoadOptionsSize = len;
+		for (i = 2; i < argc; i++) {
+			char *ptr = argv[i];
+			while (*ptr)
+				*(argp++) = *(ptr++);
+			*(argp++) = ' ';
+		}
+		*(--argv) = 0;
+	}
+
+	if (efi_getdev((void **)&dev, name, (const char **)&path) == 0) {
+#ifdef EFI_ZFS_BOOT
+		struct zfs_devdesc *z_dev;
 #endif
+		struct disk_devdesc *d_dev;
+		pdinfo_t *hd, *pd;
+
+		switch (dev->d_type) {
+#ifdef EFI_ZFS_BOOT
+		case DEVT_ZFS:
+			z_dev = (struct zfs_devdesc *)dev;
+			loaded_image->DeviceHandle =
+			    efizfs_get_handle_by_guid(z_dev->pool_guid);
+			break;
+#endif
+		case DEVT_NET:
+			loaded_image->DeviceHandle =
+			    efi_find_handle(dev->d_dev, dev->d_unit);
+			break;
+		default:
+			hd = efiblk_get_pdinfo(dev);
+			if (STAILQ_EMPTY(&hd->pd_part)) {
+				loaded_image->DeviceHandle = hd->pd_handle;
+				break;
+			}
+			d_dev = (struct disk_devdesc *)dev;
+			STAILQ_FOREACH(pd, &hd->pd_part, pd_link) {
+				/*
+				 * d_partition should be 255
+				 */
+				if (pd->pd_unit == d_dev->d_slice) {
+					loaded_image->DeviceHandle =
+					    pd->pd_handle;
+					break;
+				}
+			}
+			break;
+		}
+	}
+
+	dev_cleanup();
+	status = BS->StartImage(loaderhandle, NULL, NULL);
+	if (status != EFI_SUCCESS) {
+		command_errmsg = "StartImage failed";
+		free(loaded_image->LoadOptions);
+		loaded_image->LoadOptions = NULL;
+		status = BS->UnloadImage(loaded_image);
+		return (CMD_ERROR);
+	}
+
+	return (CMD_ERROR);	/* not reached */
+}
+
+COMMAND_SET(chain, "chain", "chain load file", command_chain);
