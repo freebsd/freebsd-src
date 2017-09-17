@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sccs,v 1.6 2009/09/19 16:28:12 christos Exp $
+# $File: sccs,v 1.7 2017/03/17 21:35:28 christos Exp $
 # sccs:  file(1) magic for SCCS archives
 #
 # SCCS archive structure:
@@ -17,6 +17,6 @@
 # Maybe we should just switch everybody from SCCS to RCS!
 # Further, you can't just say '\001h0', because the five-digit number
 # is a checksum that could (presumably) have any leading digit,
-# and we don't have regular expression matching yet. 
+# and we don't have regular expression matching yet.
 # Hence the following official kludge:
 8	string		\001s\ 			SCCS archive data

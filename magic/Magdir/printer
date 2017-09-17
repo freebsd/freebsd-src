@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: printer,v 1.26 2014/04/12 14:51:52 christos Exp $
+# $File: printer,v 1.28 2017/03/17 22:20:22 christos Exp $
 # printer:  file(1) magic for printer-formatted files
 #
 
@@ -13,7 +13,7 @@
 >>>15	string		EPS		\b, type %s
 >>>15	string		Query		\b, type %s
 >>>15	string		ExitServer	\b, type %s
->>>15   search/1000		%%LanguageLevel:\ 
+>>>15   search/1000		%%LanguageLevel:\040
 >>>>&0	string		>\0		\b, Level %s
 # Some PCs have the annoying habit of adding a ^D as a document separator
 0	string		\004%!		PostScript document text
@@ -24,7 +24,7 @@
 >>>16	string		EPS		\b, type %s
 >>>16	string		Query		\b, type %s
 >>>16	string		ExitServer	\b, type %s
->>>16   search/1000		%%LanguageLevel:\ 
+>>>16   search/1000		%%LanguageLevel:\040
 >>>>&0	string		>\0		\b, Level %s
 0	string		\033%-12345X%!PS	PostScript document
 
@@ -49,18 +49,18 @@
 # HP Printer Job Language
 0	string		\033%-12345X@PJL	HP Printer Job Language data
 # HP Printer Job Language
-# The header found on Win95 HP plot files is the "Silliest Thing possible" 
+# The header found on Win95 HP plot files is the "Silliest Thing possible"
 # (TM)
 # Every driver puts the language at some random position, with random case
 # (LANGUAGE and Language)
 # For example the LaserJet 5L driver puts the "PJL ENTER LANGUAGE" in line 10
 # From: Uwe Bonnes <bon@elektron.ikp.physik.th-darmstadt.de>
-# 
+#
 0	string		\033%-12345X@PJL	HP Printer Job Language data
->&0	string		>\0			%s			
->>&0	string		>\0			%s			
->>>&0	string		>\0			%s		
->>>>&0	string		>\0			%s		
+>&0	string		>\0			%s
+>>&0	string		>\0			%s
+>>>&0	string		>\0			%s
+>>>>&0	string		>\0			%s
 #>15	string		\ ENTER\ LANGUAGE\ =
 #>31	string		PostScript		PostScript
 
@@ -143,8 +143,8 @@
 
 #------------------------------------------------------------------------------
 # HP LaserJet 1000 series downloadable firmware file
-0	string	\xbe\xefABCDEFGH	HP LaserJet 1000 series downloadable firmware   
+0	string	\xbe\xefABCDEFGH	HP LaserJet 1000 series downloadable firmware
 
 # From: Paolo <oopla@users.sf.net>
-# Epson ESC/Page, ESC/PageColor 
+# Epson ESC/Page, ESC/PageColor
 0	string	\x1b\x01@EJL	Epson ESC/Page language printer data
