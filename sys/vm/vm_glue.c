@@ -391,7 +391,7 @@ vm_thread_new(struct thread *td, int pages)
 	 * page of stack.
 	 */
 	VM_OBJECT_WLOCK(ksobj);
-	vm_page_grab_pages(ksobj, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
+	(void)vm_page_grab_pages(ksobj, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
 	    VM_ALLOC_WIRED, ma, pages);
 	for (i = 0; i < pages; i++)
 		ma[i]->valid = VM_PAGE_BITS_ALL;
@@ -568,7 +568,7 @@ vm_thread_swapin(struct thread *td)
 	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
 	VM_OBJECT_WLOCK(ksobj);
-	vm_page_grab_pages(ksobj, 0, VM_ALLOC_NORMAL | VM_ALLOC_WIRED, ma,
+	(void)vm_page_grab_pages(ksobj, 0, VM_ALLOC_NORMAL | VM_ALLOC_WIRED, ma,
 	    pages);
 	for (int i = 0; i < pages;) {
 		int j, a, count, rv;

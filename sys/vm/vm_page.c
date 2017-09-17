@@ -3147,13 +3147,15 @@ retrylookup:
  * optional allocation flags:
  *	VM_ALLOC_IGN_SBUSY	do not sleep on soft busy pages
  *	VM_ALLOC_NOBUSY		do not exclusive busy the page
+ *	VM_ALLOC_NOWAIT		do not sleep
  *	VM_ALLOC_SBUSY		set page to sbusy state
  *	VM_ALLOC_WIRED		wire the pages
  *	VM_ALLOC_ZERO		zero and validate any invalid pages
  *
- * This routine may sleep.
+ * If VM_ALLOC_NOWAIT is not specified, this routine may sleep.  Otherwise, it
+ * may return a partial prefix of the requested range.
  */
-void
+int
 vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
     vm_page_t *ma, int count)
 {
@@ -3171,7 +3173,7 @@ vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
 	    (allocflags & VM_ALLOC_IGN_SBUSY) != 0,
 	    ("vm_page_grab_pages: VM_ALLOC_SBUSY/IGN_SBUSY mismatch"));
 	if (count == 0)
-		return;
+		return (0);
 	i = 0;
 retrylookup:
 	m = vm_page_lookup(object, pindex + i);
@@ -3180,6 +3182,8 @@ retrylookup:
 			sleep = (allocflags & VM_ALLOC_IGN_SBUSY) != 0 ?
 			    vm_page_xbusied(m) : vm_page_busied(m);
 			if (sleep) {
+				if ((allocflags & VM_ALLOC_NOWAIT) != 0)
+					break;
 				/*
 				 * Reference the page before unlocking and
 				 * sleeping so that the page daemon is less
@@ -3207,6 +3211,8 @@ retrylookup:
 			m = vm_page_alloc(object, pindex + i, (allocflags &
 			    ~VM_ALLOC_IGN_SBUSY) | VM_ALLOC_COUNT(count - i));
 			if (m == NULL) {
+				if ((allocflags & VM_ALLOC_NOWAIT) != 0)
+					break;
 				VM_OBJECT_WUNLOCK(object);
 				VM_WAIT;
 				VM_OBJECT_WLOCK(object);
@@ -3221,6 +3227,7 @@ retrylookup:
 		ma[i] = m;
 		m = vm_page_next(m);
 	}
+	return (i);
 }
 
 /*
