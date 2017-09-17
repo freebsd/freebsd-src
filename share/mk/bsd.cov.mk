@@ -1,32 +1,24 @@
 # $FreeBSD$
+#
+# Snippet for dealing with runtime coverage logic.
+#
+# .gcda files are generated from files that are compiled from source, e.g.,
+# foo.gcda is foo.c or foo.cpp's file. In order for the libraries and programs
+# to be properly instrumented, the .gcda files must be installed to a prefix
+# common to the object files.
+#
+# See gcov(1) for more details.
 
 .include <bsd.own.mk>
 
-.if make(*clean) || make(*install)
-
 FILESGROUPS?=	FILES
 
-cov_objs_no_suffixes=	${COV_OBJS:R}
-.for src in ${COV_SRCS:R}
-.if ${cov_objs_no_suffixes:M${src}}
-GCNOS+=	${src}.gcno
-.endif
+.if !empty(GCDAS)
+GCDAS:=		${GCDAS:O:u}
+FILESGROUPS+=	GCDAS
+CLEANFILES+=	${GCDAS}
+
+.for _gcda in ${GCDAS}
+GCDASDIR_${_gcda:T}=	${COVERAGEDIR}${_gcda:H:tA}
 .endfor
-
-.if !empty(GCNOS)
-GCNOS:=		${GCNOS:O:u}
-FILESGROUPS+=	GCNOS
-CLEANFILES+=	${GCNOS}
-
-.for _gcno in ${GCNOS}
-_gcno_dir=	${COVERAGEDIR}${_gcno:H:tA}
-GCNOSDIR_${_gcno:T}=	${_gcno_dir}
-.if !target(${DESTDIR}${_gcno_dir})
-beforeinstall: ${DESTDIR}${_gcno_dir}
-${DESTDIR}${_gcno_dir}:
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},coverage} -d ${.TARGET}
-.endif
-.endfor
-.endif
-
 .endif
