@@ -1,8 +1,10 @@
-#------------------------------------------------------------------------------ # $File: sgml,v 1.34 2016/09/11 13:56:42 christos Exp $
+
+#------------------------------------------------------------------------------
+# $File: sgml,v 1.37 2017/07/23 08:23:33 christos Exp $
 # Type:	SVG Vectorial Graphics
 # From:	Noel Torres <tecnico@ejerciciosresueltos.com>
-0	string		\<?xml\ version="
->15	string		>\0
+0	string		\<?xml\ version=
+>14	regex		['"\ \t]*[0-9.]+['"\ \t]*
 >>19	search/4096	\<svg			SVG Scalable Vector Graphics image
 !:mime	image/svg+xml
 >>19	search/4096	\<gnc-v2		GnuCash file
@@ -11,16 +13,16 @@
 !:mime	image/svg
 
 # Sitemap file
-0	string/t		\<?xml\ version="
->15	string		>\0
+0	string/t		\<?xml\ version=
+>14	regex		['"\ \t]*[0-9.]+['"\ \t]*
 >>19	search/4096	\<urlset		XML Sitemap document text
 !:mime	application/xml-sitemap
 
 # OpenStreetMap XML (.osm)
 # http://wiki.openstreetmap.org/wiki/OSM_XML
 # From: Markus Heidelberg <markus.heidelberg@web.de>
-0	string		\<?xml\ version="
->15	string		>\0
+0	string		\<?xml\ version=
+>14	regex		['"\ \t]*[0-9.]+['"\ \t]*
 >>19	search/4096	\<osm			OpenStreetMap XML data
 
 # xhtml
@@ -44,6 +46,12 @@
 # adapted to string extenstions by Anthon van der Neut <anthon@mnt.org)
 0	search/4096/cWt	\<!doctype\ html	HTML document text
 !:mime	text/html
+!:strength + 5
+
+# SVG document
+# https://www.w3.org/TR/SVG/single-page.html
+0	search/4096/cWbt	\<!doctype\ svg	SVG XML document
+!:mime  image/svg+xml
 !:strength + 5
 
 0	search/4096/cwt	\<head\>		HTML document text

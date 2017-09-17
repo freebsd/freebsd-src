@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: att3b,v 1.9 2014/04/30 21:41:02 christos Exp $
+# $File: att3b,v 1.10 2017/03/17 21:35:28 christos Exp $
 # att3b:  file(1) magic for AT&T 3B machines
 #
 # The `versions' should be un-commented if they work for you.
@@ -36,6 +36,6 @@
 #>18	beshort		&00040000	and MAU hardware required
 #>22	beshort		>0		- version %d
 #
-# core file for 3b2 
+# core file for 3b2
 0	string		\000\004\036\212\200	3b2 core file
 >364	string		>\0		of '%s'
