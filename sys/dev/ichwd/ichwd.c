@@ -512,7 +512,13 @@ ichwd_event(void *arg, unsigned int cmd, int *error)
 
 	/* convert from power-of-two-ns to WDT ticks */
 	cmd &= WD_INTERVAL;
-	timeout = ((uint64_t)1 << cmd) / ICHWD_TICK;
+	
+	if (sc->tco_version == 3) {
+		timeout = ((uint64_t)1 << cmd) / ICHWD_TCO_V3_TICK;
+	} else {
+		timeout = ((uint64_t)1 << cmd) / ICHWD_TICK;
+	}
+	
 	if (cmd) {
 		if (!sc->active)
 			ichwd_tmr_enable(sc);
