@@ -110,6 +110,6 @@ stack_save(struct stack *st)
 {
 	register_t frame;
 
-	frame = (register_t)__builtin_frame_address(1);
+	frame = (register_t)__builtin_frame_address(0);
 	stack_capture(st, frame);
 }
