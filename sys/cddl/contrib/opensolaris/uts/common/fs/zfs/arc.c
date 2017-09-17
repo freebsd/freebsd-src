@@ -358,6 +358,7 @@ uint64_t zfs_arc_meta_limit = 0;
 uint64_t zfs_arc_meta_min = 0;
 int zfs_arc_grow_retry = 0;
 int zfs_arc_shrink_shift = 0;
+int zfs_arc_no_grow_shift = 0;
 int zfs_arc_p_min_shift = 0;
 uint64_t zfs_arc_average_blocksize = 8 * 1024; /* 8KB */
 u_int zfs_arc_free_target = 0;
@@ -371,6 +372,7 @@ static int sysctl_vfs_zfs_arc_free_target(SYSCTL_HANDLER_ARGS);
 static int sysctl_vfs_zfs_arc_meta_limit(SYSCTL_HANDLER_ARGS);
 static int sysctl_vfs_zfs_arc_max(SYSCTL_HANDLER_ARGS);
 static int sysctl_vfs_zfs_arc_min(SYSCTL_HANDLER_ARGS);
+static int sysctl_vfs_zfs_arc_no_grow_shift(SYSCTL_HANDLER_ARGS);
 
 #if defined(__FreeBSD__) && defined(_KERNEL)
 static void
@@ -385,17 +387,25 @@ SYSINIT(arc_free_target_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_ANY,
 TUNABLE_QUAD("vfs.zfs.arc_meta_limit", &zfs_arc_meta_limit);
 TUNABLE_QUAD("vfs.zfs.arc_meta_min", &zfs_arc_meta_min);
 TUNABLE_INT("vfs.zfs.arc_shrink_shift", &zfs_arc_shrink_shift);
+TUNABLE_INT("vfs.zfs.arc_grow_retry", &zfs_arc_grow_retry);
+TUNABLE_INT("vfs.zfs.arc_no_grow_shift", &zfs_arc_no_grow_shift);
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_max, CTLTYPE_U64 | CTLFLAG_RWTUN,
     0, sizeof(uint64_t), sysctl_vfs_zfs_arc_max, "QU", "Maximum ARC size");
 SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_min, CTLTYPE_U64 | CTLFLAG_RWTUN,
     0, sizeof(uint64_t), sysctl_vfs_zfs_arc_min, "QU", "Minimum ARC size");
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_no_grow_shift, CTLTYPE_U32 | CTLFLAG_RWTUN,
+    0, sizeof(uint32_t), sysctl_vfs_zfs_arc_no_grow_shift, "U",
+    "log2(fraction of ARC which must be free to allow growing)");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_average_blocksize, CTLFLAG_RDTUN,
     &zfs_arc_average_blocksize, 0,
     "ARC average blocksize");
 SYSCTL_INT(_vfs_zfs, OID_AUTO, arc_shrink_shift, CTLFLAG_RW,
     &arc_shrink_shift, 0,
     "log2(fraction of arc to reclaim)");
+SYSCTL_INT(_vfs_zfs, OID_AUTO, arc_grow_retry, CTLFLAG_RW,
+    &arc_grow_retry, 0,
+    "Wait in seconds before considering growing ARC");
 SYSCTL_INT(_vfs_zfs, OID_AUTO, compressed_arc_enabled, CTLFLAG_RDTUN,
     &zfs_compressed_arc_enabled, 0, "Enable compressed ARC");
 
@@ -1061,6 +1071,24 @@ sysctl_vfs_zfs_arc_meta_limit(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 
 	arc_meta_limit = val;
+	return (0);
+}
+
+static int
+sysctl_vfs_zfs_arc_no_grow_shift(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t val;
+	int err;
+
+	val = arc_no_grow_shift;
+	err = sysctl_handle_32(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+        if (val >= arc_shrink_shift)
+		return (EINVAL);
+
+	arc_no_grow_shift = val;
 	return (0);
 }
 
@@ -6505,6 +6533,8 @@ arc_init(void)
 	if (zfs_arc_shrink_shift > 0)
 		arc_shrink_shift = zfs_arc_shrink_shift;
 
+	if (zfs_arc_no_grow_shift > 0)
+		arc_no_grow_shift = zfs_arc_no_grow_shift;
 	/*
 	 * Ensure that arc_no_grow_shift is less than arc_shrink_shift.
 	 */
