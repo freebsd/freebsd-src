@@ -66,8 +66,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	soft-float everything else should be affected.
 
 20170826:
-       During boot the geli passphrase will be hidden. To restore previous
-       behavior see geli(8) configuration options.
+	The geli password typed at boot is now hidden.  To restore the previous
+	behavior, see geli(8) for configuration options.
 
 20170825:
 	Move PMTUD blackhole counters to TCPSTATS and remove them from bare
