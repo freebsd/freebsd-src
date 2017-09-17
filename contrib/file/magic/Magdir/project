@@ -1,8 +1,8 @@
 
 #------------------------------------------------------------------------------
-# $File: project,v 1.4 2009/09/19 16:28:11 christos Exp $
+# $File: project,v 1.5 2017/03/17 21:35:28 christos Exp $
 # project:  file(1) magic for Project management
-# 
+#
 # Magic strings for ftnchek project files. Alexander Mai
 0	string	FTNCHEK_\ P	project file for ftnchek
 >10	string	1		version 2.7
