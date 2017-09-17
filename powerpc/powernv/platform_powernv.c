@@ -123,7 +123,7 @@ powernv_attach(platform_t plat)
 	char buf[255];
 	pcell_t prop;
 	phandle_t cpu;
-	int res, len, node, idx;
+	int res, len, idx;
 
 	/* Ping OPAL again just to make sure */
 	opal_check();
@@ -172,7 +172,7 @@ powernv_attach(platform_t plat)
 	 * for the encoding of the property.
 	 */
 
-	len = OF_getproplen(node, "ibm,segment-page-sizes");
+	len = OF_getproplen(cpu, "ibm,segment-page-sizes");
 	if (len > 0) {
 		/*
 		 * We have to use a variable length array on the stack
