@@ -198,6 +198,14 @@
 	added, providing command-line access to features and debugging
 	facilities of &man.cxgbe.4; devices.</para>
 
+      <para revision="318430">The &man.ifconfig.8; utility has been
+	updated to persistently store the hardware
+	<acronym>MAC</acronym> addres of an interface.  This provides
+	a mechanism through which the original <acronym>MAC</acronym>
+	address can be retrieved if, for example, an interface is
+	added to a &man.lagg.4; and the <literal>MAC</literal> is
+	overridden in &man.rc.conf.5;.</para>
+
       <para revision="320646">The &man.rcp.1;, &man.rlogin.1;,
 	&man.rsh.1;, &man.rlogind.8;, and &man.rshd.8; utilities have
 	been marked as deprecated, and planned for removal in
@@ -274,6 +282,10 @@
 
     <sect2 xml:id="userland-installer">
       <title>Installation and Configuration Tools</title>
+
+      <para revision="313433">The &man.bsdinstall.8; utility has been
+	updated to ensure newly-created partitions are properly
+	aligned at 4096k boundaries.</para>
 
       <para revision="321202" contrib="sponsor" sponsor="&ff;">The
 	default <acronym>EFI</acronym> partition created by
