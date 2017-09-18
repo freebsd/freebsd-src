@@ -252,7 +252,7 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi, stru
 {
 	struct scsi_host_queue *scsi_host;
 	struct pfs_node *sub_dir, *cur_file, *cur_chardev;
-	int i, nchildren;
+	int i, nchildren, error;
 	device_t *children, parent;
 	devclass_t devclass;
 	const char *name = NULL;
@@ -353,13 +353,15 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi, stru
 			}
 		}
 
-		dinfo = device_get_ivars(parent);
-		if (dinfo != NULL && dinfo->cfg.baseclass == PCIC_DISPLAY) {
-			devclass = device_get_devclass(dev);
-			if (devclass != NULL)
-				name = devclass_get_name(devclass);
-			if (name != NULL && strcmp(name, DRMN_DEV) == 0 &&
-			    device_get_unit(dev) >= 0) {
+		devclass = device_get_devclass(dev);
+		if (devclass != NULL)
+			name = devclass_get_name(devclass);
+		else
+			name = NULL;
+		if (name != NULL && strcmp(name, DRMN_DEV) == 0 &&
+		    device_get_unit(dev) >= 0) {
+			dinfo = device_get_ivars(parent);
+			if (dinfo != NULL && dinfo->cfg.baseclass == PCIC_DISPLAY) {
 				sprintf(chardevname, "226:%d",
 				    device_get_unit(dev));
 				cur_chardev = pfs_create_dir(chardev,
@@ -376,10 +378,13 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi, stru
 		}
 	}
 
-	device_get_children(dev, &children, &nchildren);
-	for (i = 0; i < nchildren; i++) {
-		if (children[i])
-			linsysfs_run_bus(children[i], dir, scsi, chardev, new_path, prefix);
+	error = device_get_children(dev, &children, &nchildren);
+	if (error == 0) {
+		for (i = 0; i < nchildren; i++)
+			if (children[i])
+				linsysfs_run_bus(children[i], dir, scsi,
+				    chardev, new_path, prefix);
+		free(children, M_TEMP);
 	}
 	if (new_path != path)
 		free(new_path, M_TEMP);
