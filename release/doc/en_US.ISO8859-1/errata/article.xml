@@ -46,7 +46,8 @@
 	&os;.</para>
 
       <para>This errata document for &os; &release.prev; will be
-	maintained until the release of &os; &release.next;.</para>
+	maintained until &os; &release.prev; reaches
+	end-of-life.</para>
     </abstract>
   </info>
 
@@ -236,28 +237,6 @@ boot</screen>
       </listitem>
 
       <listitem>
-	<para>An issue was discovered where the &man.netstat.1;
-	  <literal>-s</literal> option will cause a segmentation fault
-	  on systems with <literal>IPSEC</literal> compiled into the
-	  kernel.  The issue was resolved in the
-	  <literal>stable/10</literal> branch, and an Errata Notice is
-	  planned after &release.prev; is released.</para>
-
-	<para>[2015-08-19] Resolved as FreeBSD-EN-15:12.</para>
-      </listitem>
-
-      <listitem>
-	<para>An issue was discovered that causes &man.make.1; to
-	  generate noisy output when doing source-based upgrades from
-	  &os; 9.3 and earlier.  The issue was reported in PR 202277,
-	  and after investigation and determining the issue does not
-	  cause source-based upgrades to fail, a post-release Errata
-	  Notice is planned.</para>
-
-	<para>[2015-08-19] Resolved as FreeBSD-EN-15:11.</para>
-      </listitem>
-
-      <listitem>
 	<para>An issue with &os; virtual machines with
 	  <application>vagrant</application> was discovered that
 	  affects the <application>VirtualBox</application> where the
@@ -272,17 +251,6 @@ boot</screen>
 	  invocation of <literal>vagrant up</literal> will allow the
 	  virtual machine to successfully boot, allowing access via
 	  <literal>vagrant ssh</literal>.</para>
-      </listitem>
-
-      <listitem>
-	<para>[2015-08-16] An error was discovered in the release
-	  notes for &os; &release.prev; regarding the
-	  <literal>drm</literal> device driver.  The entry for r282199
-	  states the driver was updated to match the version &linux;
-	  3.8.13 version, however the entry should have noted the
-	  change affects device-independent code, and does not bring
-	  the <literal>drm</literal> driver fully in line with the
-	  stated &linux; version.</para>
       </listitem>
     </itemizedlist>
   </sect1>
