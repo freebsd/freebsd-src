@@ -43,6 +43,7 @@ extern	int	szfreebsd4_sigcode;
 #endif
 #ifdef COMPAT_43
 extern	int	szosigcode;
+extern	int	szlcallcode;
 #endif
 extern	uint32_t *vm_page_dump;
 
