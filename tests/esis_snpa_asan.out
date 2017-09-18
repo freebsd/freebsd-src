@@ -1,0 +1,12 @@
+UI 22! ES-IS, length 65565
+	ESH (2), v: 1, checksum: 0x70a1 (incorrect should be 0xfb4e), holding time: 21315s, length indicator: 17
+	  Number of Source Addresses: 2
+	  NET (length: 0): isonsap_string: illegal length
+	  NET (length: 4): ec.ff00.00, bad opts/li
+UI 22! ES-IS, length 65565
+	redirect (6), v: 1, checksum: 0xffff (incorrect should be 0x6b16), holding time: 21253s, length indicator: 17
+	  00.04ec.0000
+	  SNPA (length: 0): <empty>, bad opts/li
+Q.922, hdr-len 2, DLCI 0, Flags [FECN], NLPID unknown (0x22), length 72482: 
+	0x0000:  0082 1000 5542 5343 70a1 0200 0400 0000  ....UBSCp.......
+	0x0010:  007e                                     .~

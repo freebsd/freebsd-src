@@ -1,0 +1,14 @@
+LLDP, length 296
+	Chassis ID TLV (1), length 6
+	  Subtype Network address (5): AFI IPv4 (1): 0.0.32.0
+	Organization specific TLV (127), length 9: OUI IEEE 802.3 Private (0x00120f)
+	  MAC/PHY configuration/status Subtype (1)
+	    autonegotiation [none] (0x00)
+	    PMD autoneg capability [10BASE-T hdx, 10BASE-T fdx, 100BASE-T4, 100BASE-TX hdx, 100BASE-TX fdx, 100BASE-T2 hdx, 100BASE-T2 fdx, Pause for fdx links, Asym PAUSE for fdx, Sym PAUSE for fdx, Asym and Sym PAUSE for fdx, 1000BASE-{X LX SX CX} hdx, 1000BASE-{X LX SX CX} fdx, 1000BASE-T hdx, 1000BASE-T fdx] (0xffff)
+	    MAU type unknown (0x2000)
+	Organization specific TLV (127), length 9: OUI IEEE 802.3 Private (0x00120f)
+	  MAC/PHY configuration/status Subtype (1)
+	    autonegotiation [none] (0x00)
+	    PMD autoneg capability [Pause for fdx links, Asym PAUSE for fdx, Sym PAUSE for fdx, Asym and Sym PAUSE for fdx, 1000BASE-{X LX SX CX} hdx, 1000BASE-{X LX SX CX} fdx, 1000BASE-T hdx] (0x00fe)
+	    MAU type unknown (0x0f00)
+	End TLV (0), length 0

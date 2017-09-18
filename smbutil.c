@@ -237,6 +237,7 @@ name_len(netdissect_options *ndo,
 	    return(-1);	/* name goes past the end of the buffer */
 	ND_TCHECK2(*s, 1);
 	s += (*s) + 1;
+	ND_TCHECK2(*s, 1);
     }
     return(PTR_DIFF(s, s0) + 1);
 

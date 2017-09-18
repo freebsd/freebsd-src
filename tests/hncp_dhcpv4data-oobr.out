@@ -1,0 +1,4 @@
+IP truncated-ip - 260 bytes missing! (tos 0x12,ECT(0), ttl 48, id 21323, offset 0, flags [+, DF, rsvd], proto UDP (17), length 296, bad cksum 8e0f (->cd08)!)
+    1.2.7.0.1812 > 128.253.0.96.8231: hncp (268)
+	DHCPv4-Data (6)
+		DNS-server (98) (invalid)

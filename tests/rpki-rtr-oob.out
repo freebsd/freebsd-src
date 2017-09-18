@@ -1,0 +1,3 @@
+IP truncated-ip - 22 bytes missing! (tos 0x0, ttl 254, id 13327, offset 0, flags [+, DF, rsvd], proto TCP (6), length 62, bad cksum 8e7f (->c283)!)
+    19.128.128.20.323 > 76.19.6.127.49600: Flags [none], seq 2684354563:2684354585, win 28672, length 22
+	RPKI-RTRv171 (unknown)

@@ -1,0 +1,71 @@
+UI 22! IS-IS, length 469869187
+	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 224 (224)
+	  source-id: fed0.f90f.58af,  holding time: 34047s, Flags: [unknown circuit type 0x00]
+	  lan-id:    0105.0088.a204.00, Priority: 65, PDU length: 4096
+	    unknown TLV #64, length: 128
+		0x0000:  ff10 8e12 0001 1b01 0000 6b00 fbcf f90f
+		0x0010:  58af 84ff 1000 4901 0000 88a2 011c 000c
+		0x0020:  0281 0083 1b01 0010 019d e000 fed0 f90f
+		0x0030:  58af 84ff 1000 4101 0500 88a2 011c 0272
+		0x0040:  0c2a 2205 831b 011c 0010 0000 0583 1b01
+		0x0050:  0010 01ab e000 fe08 0808 0808 08cb 0808
+		0x0060:  0808 0808 0808 0880 0008 7f08 0808 0808
+		0x0070:  08fd 0808 080c 0608 0807 0808 0808 0408
+	    Padding TLV #8, length: 8
+	    Padding TLV #8, length: 8
+	    Padding TLV #8, length: 7
+	    Padding TLV #8, length: 8
+	    Padding TLV #8, length: 0
+	    Padding TLV #8, length: 8
+	    unknown TLV #100, length: 0
+	    unknown TLV #32, length: 16
+		0x0000:  2020 2020 3c20 2020 2020 2020 205a 1a31
+	    IS Neighbor(s) (variable length) TLV #7, length: 238
+	      LAN address length 1 bytes 
+		IS Neighbor: 5a
+		IS Neighbor: 45
+		IS Neighbor: 50
+		IS Neighbor: 48
+		IS Neighbor: 59
+		IS Neighbor: 52
+		IS Neighbor: 5f
+		IS Neighbor: 43
+		IS Neighbor: 54
+		IS Neighbor: 4c
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 08
+		IS Neighbor: 00
+		IS Neighbor: 00
+		IS Neighbor: 08
+		IS Neighbor: 00
+		IS Neighbor: 20
+		IS Neighbor: 64
+		IS Neighbor: 00
+		IS Neighbor: 20
+		IS Neighbor: 10
+		IS Neighbor: 20
+		IS Neighbor: 20
+		IS Neighbor: 20
+		IS Neighbor: 20
+		IS Neighbor: 20
+		IS Neighbor: 20
+		IS Neighbor: 20
+		IS Neighbor: 20 [|isis]

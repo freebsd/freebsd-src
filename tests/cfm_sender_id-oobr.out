@@ -1,0 +1,8 @@
+CFMv0 unknown (255), MD Level 0, length 65556
+	First TLV offset 0
+	  0x0000:  ff00 0001 0004 0104 9a00 000c fb
+	Unknown TLV (0xff), length 0
+	Sender ID TLV (0x01), length 4
+	  Chassis-ID Type MAC address (4), Chassis-ID length 1 (invalid MAC address length)
+	  Management Address Domain Length 0
+	End TLV (0x00)

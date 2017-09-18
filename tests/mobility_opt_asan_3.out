@@ -1,0 +1,2 @@
+IP6 (class 0x50, flowlabel 0x00004, hlim 0, next-header Mobile IP (old) (62) payload length: 7168) d400:7fa1:200:400::6238:2949 > 9675:86dd:7300:2c:1c7f:ffff:ffc3:b2a1: mobility: CoT nonce id=0x74 Care-of Init Cookie=80570f80:00000004[|MOBILITY]
+IP6 (class 0x50, flowlabel 0x00004, hlim 0, next-header Mobile IP (old) (62) payload length: 7168) ffc3:b2a1:200:400::6238:2949 > 9675:86dd:73f0:2c:1c7f:ffff:ebc3:b2a1: mobility: BU seq#=39837 lifetime=261452[|MOBILITY]

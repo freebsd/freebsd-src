@@ -1,0 +1,43 @@
+IP (tos 0xc, ttl 254, id 21263, offset 0, flags [rsvd], proto TCP (6), length 60165, bad cksum 8e15 (->9eb8)!)
+    241.0.128.19.179 > 239.8.0.1.0: Flags [none], seq 2146695561:2146755682, win 56026, options [unknown-161,eol], length 60121: BGP
+	Update Message (2), length: 45
+	  Withdrawn routes: 3 bytes
+	  Attribute Set (128), length: 7, Flags [OTPE+f]: 
+	    Origin AS: 0
+	      Multi-Protocol Unreach NLRI (15), length: 227, Flags [T+6]: 
+	    AFI: IPv6 (2), SAFI: Multicast VPN (5)
+	      Route-Type: Source-Active (5), length: 5, RD: unknown RD format, Group bogus address length 127
+	      Route-Type: Unknown (142), length: 142
+	      Route-Type: Unknown (0), length: 0
+	      Route-Type: Unknown (33), length: 0
+	      Route-Type: Unknown (0), length: 0[|BGP] [|BGP]
+	Update Message (2), length: 45[|BGP] [|BGP]
+	Update Message (2), length: 45
+	  Withdrawn routes: 3 bytes
+	  Attribute Set (128), length: 7, Flags [OTPE+f]: 
+	    Origin AS: 0
+	      Multi-Protocol Reach NLRI (14), length: 227, Flags [T+6]: 
+	    AFI: IPv4 (1), vendor specific SAFI: Route Target Routing Information (132)
+	    nexthop: invalid len, nh-length: 1, no SNPA
+	      origin AS: 0, route target 0:0 (= 0.0.0.0)
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target
+	      default route target[|BGP]

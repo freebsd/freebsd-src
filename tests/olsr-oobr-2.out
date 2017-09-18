@@ -1,0 +1,3 @@
+[|ether]
+[|ether]
+IP6 (flowlabel 0x06400, hlim 0, next-header UDP (17) payload length: 5401) 0:24::1e:a0a:141e.698 > 38fd:7f49:eaff:ffff:2025:7373:7562:2573.2: OLSRv6, seq 0x0201, length 5393[|olsr]

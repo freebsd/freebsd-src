@@ -1,0 +1,3 @@
+IP (tos 0x60, ttl 254, id 40192, offset 0, flags [+, DF, rsvd], proto UDP (17), length 63264, options (unknown 255 [bad length 18]), bad cksum 8e30 (->f45)!)
+    251.73.77.150.32514 > 126.172.128.5.500: isakmp 1.0 msgid 2200af01: phase 2/others ? #40:
+    (t: #243 id=241 (type=#9472 len=2 value=0619) [|t]) (len mismatch: isakmp 4293885728/ip 2140)

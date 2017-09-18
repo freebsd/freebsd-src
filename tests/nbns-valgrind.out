@@ -1,0 +1,16 @@
+00:0c:85:0e:a5:ff > 00:00:0c:07:ac:f0, ethertype IPv4 (0x0800), length 92: (tos 0x0, ttl 127, id 38615, offset 0, flags [none], proto UDP (17), length 78)
+    10.49.248.228.137 > 10.48.161.241.137: 
+>>> NBT UDP PACKET(137): QUERY; REQUEST; UNICAST
+TrnID=0x8D40
+OpCode=0
+NmFlags=0x10
+Rcode=0
+QueryCount=1
+AnswerCount=0
+AuthorityCount=0
+AddressRecCount=0
+QuestionRecords:
+Name=
+WARNING: Short packet. Try increasing the snap length
+
+

@@ -655,7 +655,7 @@ AC_DEFUN(AC_LBL_LIBPCAP,
     AC_CHECK_FUNC(pcap_loop,,
 	[
 	    AC_MSG_ERROR(
-[Report this to tcpdump-workers@lists.tcpdump.org, and include the
+[This is a bug, please follow the guidelines in CONTRIBUTING and include the
 config.log file in your report.  If you have downloaded libpcap from
 tcpdump.org, and built it yourself, please also include the config.log
 file from the libpcap source directory, the Makefile from the libpcap

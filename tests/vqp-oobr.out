@@ -1,0 +1,4 @@
+IP (tos 0x0, ttl 17, id 40207, offset 0, flags [+, DF, rsvd], proto UDP (17), length 46, bad cksum 8f04 (->f897)!)
+    0.0.128.20.1589 > 12.251.167.8.62720: 
+	VQPv1, unknown (127) Message, error-code unknown (31) (31), seq 0x80f90000, items 27, length 18
+	[|VQP]

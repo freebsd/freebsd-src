@@ -1,0 +1,5 @@
+IP (tos 0xfb,CE, ttl 17, id 21263, offset 0, flags [+, DF, rsvd], proto UDP (17), length 296, bad cksum 1ff (->f67d)!)
+    16.0.128.20.500 > 12.251.225.45.49152: isakmp 1.0 msgid 10101010: phase 2/others ? #16[]:
+    ( [|v2ke]) (len mismatch: isakmp 2130706432/ip 268)
+IP (tos 0x12,ECT(0), ttl 17, id 21263, offset 4096, flags [DF, rsvd], proto UDP (17), length 296, bad cksum 1ff (->939f)!)
+    0.0.0.5 > 0.0.0.0: ip-proto-17

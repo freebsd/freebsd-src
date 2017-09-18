@@ -1,0 +1,7 @@
+IP6 (flowlabel 0x01cc3, hlim 234, next-header UDP (17) payload length: 11025) 400::e4ff:ffff:adf9:8900:0.1646 > 62:9de3:ff47:ebec:8206:ff00:ad:ff00.8231: hncp (11017)
+	Future use: type=16384 (5)
+	DHCPv6-Data (25)
+		Unknown (4)
+		Unknown (4)
+		SNTP-servers (61956)  (invalid)
+	[|hncp]

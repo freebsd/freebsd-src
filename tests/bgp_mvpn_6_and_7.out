@@ -1,0 +1,13 @@
+IP (tos 0xc, ttl 254, id 21263, offset 0, flags [rsvd], proto TCP (6), length 517, bad cksum 8e15 (->99c9)!)
+    241.0.93.20.179 > 255.247.0.1.200: Flags [none], seq 2146691977:2146692450, win 56026, options [unknown-161,eol], length 473: BGP
+	Update Message (2), length: 45
+	  Withdrawn routes: 3 bytes
+	  Attribute Set (128), length: 7, Flags [OTPE+f]: 
+	    Origin AS: 148
+	      Multi-Protocol Reach NLRI (14), length: 71, Flags [T+6]: 
+	    AFI: IPv4 (1), SAFI: Multicast VPN (5), nh-length: 0, no SNPA
+	      Route-Type: Intra-AS I-PMSI (1), length: 0, RD: 62209:33686018 (= 2.2.2.2), Originator bogus address length 4294967232
+	      Route-Type: Unknown (0), length: 0
+	      Route-Type: Unknown (243), length: 1
+	      Route-Type: Inter-AS I-PMSI (2), length: 2, RD: unknown RD format, Source-AS 368115805
+	      Route-Type: Inter-AS I-PMSI (2), length: 2, RD: unknown RD format, Source-AS 335544320[|BGP]

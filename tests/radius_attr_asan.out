@@ -1,0 +1,9 @@
+IP (tos 0x64, ttl 249, id 40192, offset 0, flags [+, DF, rsvd], proto UDP (17), length 299, options (unknown 235 [bad length 252]), bad cksum 8000 (->1faa)!)
+    0.0.86.32.258 > 0.2.250.99.3799: RADIUS, length: 263
+	Unknown Command (58), id: 0x6a, Authenticator: 0901020ed7ff03edb63a0f00cb0f00cb
+	  NAS-Port Attribute (5), length: 5, Value: ERROR: length 3 != 4
+	  Unknown Attribute (127), length: 4, Value: 
+	  NAS-IP-Address Attribute (4), length: 4, Value: ERROR: length 2 != 4
+	  NAS-IP-Address Attribute (4), length: 4, Value: ERROR: length 2 != 4
+	  NAS-IP-Address Attribute (4), length: 4, Value: ERROR: length 2 != 4
+	  Callback-Id Attribute (20), length: 4, Value: .. [|radius]

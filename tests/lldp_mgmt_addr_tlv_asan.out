@@ -1,0 +1,8 @@
+LLDP, length 1048572
+	Management Address TLV (8), length 15
+	  Management Address length 6, AFI Reserved (0), no AF printer !
+	  Unknown Interface Numbering (10): 666137427
+	[|LLDP]
+00:00:00:a0:d4:c3 > 06:04:e8:03:00:02, ethertype Unknown (0xb2a1), length 58785857: 
+	0x0000:  0200 efff e5ff 804f 006e 0026 0000 0000  .......O.n.&....
+	0x0010:  01                                       .

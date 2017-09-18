@@ -1,0 +1,39 @@
+OSI NLPID 0xfe unknown, length: 33554428
+	0x0000:  fe7f 4a01 0066 0002 00ff ffff f200 0000
+	0x0010:  00c6 0000 007f e6ff 00e6 6800 0000
+unknown CHDLC protocol (0xfafe)
+OSI NLPID 0xfe unknown, length: 33554428
+	0x0000:  fe7f 4a01 f165 0002 0000 0000 0000 0000
+	0x0010:  00c6 0000 007f e6ff 00e6 6800 0000
+IS-IS, length 33554427
+	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
+	  source-id: 3801.0101.0101,  holding time: 257s, Flags: [unknown circuit type 0x00]
+	  lan-id:    0101.0101.0100.00, Priority: 1, PDU length: 257
+	    Extended IS Reachability TLV #22, length: 12
+	      IS Neighbor: 0d0d.0d0d.0d0d.0d, Metric: 855309, sub-TLVs present (13)
+	        unknown subTLV #13, length: 13
+		    0x0000:  0d0d 0d0d 0d0d 0d0d 0d0d 0d0d 0d
+	      IS Neighbor: 0d0d.0d0d.0d0d.0d, Metric: 855309, sub-TLVs present (13)
+	        unknown subTLV #13, length: 13
+		    0x0000:  0d0d 0d0d 0d0d 0d64 0d0d 0d0d 0d
+	      IS Neighbor: 0d0d.0d0d.0d0d.0d, Metric: 855309, sub-TLVs present (13)
+	        unknown subTLV #13, length: 13
+		    0x0000:  0d0d 0d0d 0d0d 0d0d 0d0d 0d0d 0d
+	      IS Neighbor: 0d0d.0d0d.0d0d.0d, Metric: 855309, sub-TLVs present (13)
+	        unknown subTLV #13, length: 13
+		    0x0000:  1c0d 0d0d 0d0d 670d 0d0d 0d0d 0d
+	      IS Neighbor: 0d0d.0d00.0000.40, Metric: 13391955, sub-TLVs present (3)
+	        unknown subTLV #41, length: 16
+		    0x0000:  0022 0000 0000 0000 0000 0000 0000 0000
+	      IS Neighbor: 0000.0000.0a16.00, Metric: 2097279, no sub-TLVs present
+	      IS Neighbor: 0000.3604.1f01.16, Metric: 70400, no sub-TLVs present
+	      IS Neighbor: 0012.3a01.4996.01, Metric: 8838496, no sub-TLVs present
+	      IS Neighbor: 00c7.8787.8766.87, Metric: 0, sub-TLVs present (64)
+	        unknown subTLV #120, length: 22
+		    0x0000:  0101 0100 f0ff ffff ff01 0101 434c 4945
+		    0x0010:  4e54 0101 011f
+	        Link Local/Remote Identifier subTLV #4, length: 4, 0x04040404
+	        Link Local/Remote Identifier subTLV #4, length: 4, 0x04040404
+	        Link Local/Remote Identifier subTLV #4, length: 4, 0x0404000a
+	        Bandwidth Constraints subTLV #22, length: 0
+		 [|isis]

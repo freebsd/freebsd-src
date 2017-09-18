@@ -1,0 +1,5 @@
+ES-IS, length 33559803
+	redirect (6), v: 1, checksum: 0x00c6 (unverified), holding time: 2303s, length indicator: 54
+	  00.8e
+	  SNPA (length: 0): <empty>
+	  Protocols supported Option #129, length 11, value: CLNP (0x81), [|esis]

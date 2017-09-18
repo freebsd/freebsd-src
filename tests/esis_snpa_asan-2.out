@@ -1,0 +1,4 @@
+UI 22! ES-IS, length 65565
+	redirect (6), v: 1, checksum: 0x70a1 (incorrect should be 0xf519), holding time: 22339s, length indicator: 17
+	  00.22
+	  SNPA (length: 0): <empty>, opt (0) too long

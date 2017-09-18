@@ -1,0 +1,18 @@
+MPLS (label 197376, exp 7, [S], ttl 48)
+	IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->7754)!)
+    48.4.4.4.4400 > 127.0.0.1.3503: 
+		 packet exceeded snapshot
+IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->699d)!)
+    48.48.48.48.3503 > 48.48.48.48.4567: * wb-prep:[|wb]
+MPLS (label 197376, exp 7, [S], ttl 48)
+	IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->699d)!)
+    48.48.48.48.4400 > 48.48.48.48.3503: 
+		 packet exceeded snapshot
+IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->c624)!)
+    48.48.0.1.3503 > 48.4.4.4.4567: * wb-prep:[|wb]
+MPLS (label 197376, exp 7, [S], ttl 48)
+	IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->7754)!)
+    48.4.4.4.4400 > 127.0.0.1.3503: 
+		 packet exceeded snapshot
+IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto UDP (17), length 12336, bad cksum 3030 (->c624)!)
+    48.48.0.1.3503 > 48.4.4.4.4567: * wb-prep:[|wb]

@@ -1,0 +1,2 @@
+IP (tos 0x0, ttl 252, id 40207, offset 0, flags [+, DF, rsvd], proto UDP (17), length 60951, bad cksum ff (->8336)!)
+    18.0.0.15.16896 > 107.95.83.32.68: BOOTP/DHCP, unknown (0x00), length 59384, htype 0, hlen 0, hops 13, xid 0x14000000, secs 3328 [|bootp]

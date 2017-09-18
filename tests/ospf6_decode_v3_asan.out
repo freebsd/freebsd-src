@@ -1,0 +1,2 @@
+IP6 (class 0x76, flowlabel 0xf6701, hlim 109, next-header OSPF (89) payload length: 30311) 6767:6780:6767:a102:4:b6:5853:f040 > 1000:a32:8847:1::116: OSPFv3, Hello, length 30311
+	Router-ID 1.1.0.34, Area 0.255.2.2, Instance 82 [|ospf3]

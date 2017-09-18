@@ -1,0 +1,21 @@
+UI 22! ES-IS, length 65565
+	ESH (2), v: 1, checksum: 0x70a1 (incorrect should be 0xfb4e), holding time: 21315s, length indicator: 17
+	  Number of Source Addresses: 2
+	  NET (length: 0): isonsap_string: illegal length
+	  NET (length: 4): ec.ff00.00, bad opts/li
+UI 22! ES-IS, length 65565
+	redirect (6), v: 1, checksum: 0x7034 (incorrect should be 0x44ec), holding time: 21315s, length indicator: 16
+	  02.0400
+	  SNPA (length: 0): <empty>
+	  Unknown Option #0, length 0, value: [|esis]
+UI 32! ES-IS, length 65565
+	ESH (2), v: 1, checksum: 0x70a1 (incorrect should be 0xfb4e), holding time: 21315s, length indicator: 17
+	  Number of Source Addresses: 2
+	  NET (length: 0): isonsap_string: illegal length
+	  NET (length: 4): ec.ff00.00, bad opts/li
+UI 22! ES-IS, length 4244701213
+	redirect (6), v: 1, checksum: 0x7034 (incorrect should be 0x36fe), holding time: 21315s, length indicator: 17
+	  isonsap_string: illegal length
+	  SNPA (length: 0): <empty>
+	  NET (length: 4) 00.0000.00[|esis]
+Q.922, invalid address

@@ -15,15 +15,15 @@ $options=$ARGV[3];
 my $r;
 
 if ($^O eq 'MSWin32') {
-    $r = system "..\\windump -n -r $input $options 2>NUL | sed 's/\\r//' | tee NEW/$output | diff $output - >DIFF/$output.diff";
+    $r = system "..\\windump -n -t -r $input $options 2>NUL | sed 's/\\r//' | tee NEW/$output | diff $output - >DIFF/$output.diff";
     # need to do same as below for Cygwin.
 }
 else {
     # we used to do this as a nice pipeline, but the problem is that $r fails to
     # to be set properly if the tcpdump core dumps.
-    $r = system "../tcpdump 2>/dev/null -n -r $input $options >NEW/$output";
-    if($r == 0x100) {
-        # this means tcpdump exited with code 1.
+    $r = system "../tcpdump 2>/dev/null -n -t -r $input $options >NEW/$output";
+    if($r != 0) {
+        # this means tcpdump failed.
         open(OUTPUT, ">>"."NEW/$output") || die "fail to open $output\n";
         printf OUTPUT "EXIT CODE %08x\n", $r;
         close(OUTPUT);

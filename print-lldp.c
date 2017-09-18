@@ -12,7 +12,7 @@
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
  *
- * Original code by Hannes Gredler (hannes@juniper.net)
+ * Original code by Hannes Gredler (hannes@gredler.at)
  * IEEE and TIA extensions by Carles Kishimoto <carles.kishimoto@gmail.com>
  * DCBX extensions by Kaladhar Musunuru <kaladharm@sourceforge.net>
  */
@@ -590,6 +590,7 @@ static const struct tok lldp_evb_mode_values[]={
     { LLDP_EVB_MODE_EVB_BRIDGE, "EVB Bridge"},
     { LLDP_EVB_MODE_EVB_STATION, "EVB Staion"},
     { LLDP_EVB_MODE_RESERVED, "Reserved for future Standardization"},
+    { 0, NULL},
 };
 
 #define NO_OF_BITS 8
@@ -650,7 +651,7 @@ lldp_private_8021_print(netdissect_options *ndo,
     int subtype, hexdump = FALSE;
     u_int sublen;
     u_int tval;
-    uint8_t i;
+    u_int i;
 
     if (tlv_len < 4) {
         return hexdump;
@@ -786,9 +787,9 @@ lldp_private_8021_print(netdissect_options *ndo,
         ND_PRINT((ndo, "\n\t    Application Priority Table"));
         while(i<sublen) {
         	tval=*(tptr+i+5);
-        	ND_PRINT((ndo, "\n\t      Priority: %d, RES: %d, Sel: %d",
-        		 tval >> 5, (tval >> 3) & 0x03, (tval & 0x07)));
-        	ND_PRINT((ndo, "Protocol ID: %d", EXTRACT_16BITS(tptr + i + 5)));
+        	ND_PRINT((ndo, "\n\t      Priority: %u, RES: %u, Sel: %u, Protocol ID: %u",
+        		 tval >> 5, (tval >> 3) & 0x03, (tval & 0x07),
+        		 EXTRACT_16BITS(tptr + i + 5)));
         	i=i+3;
         }
         break;
@@ -897,6 +898,9 @@ lldp_private_8023_print(netdissect_options *ndo,
         break;
 
     case LLDP_PRIVATE_8023_SUBTYPE_MTU:
+        if (tlv_len < 6) {
+            return hexdump;
+        }
         ND_PRINT((ndo, "\n\t    MTU size %u", EXTRACT_16BITS(tptr + 4)));
         break;
 
@@ -926,7 +930,7 @@ lldp_extract_latlon(const u_char *tptr)
  * (right now there is only one)
  */
 
- 
+
 static int
 lldp_private_iana_print(netdissect_options *ndo,
                         const u_char *tptr, u_int tlv_len)
@@ -950,12 +954,12 @@ lldp_private_iana_print(netdissect_options *ndo,
     default:
         hexdump=TRUE;
     }
-    
+
     return hexdump;
 }
 
 
-      
+
 /*
  * Print private TIA extensions.
  */
@@ -1400,7 +1404,7 @@ lldp_mgmt_addr_tlv_print(netdissect_options *ndo,
     if (tlen) {
         oid_len = *tptr;
 
-        if (tlen < oid_len) {
+        if (tlen < 1U + oid_len) {
             return 0;
         }
         if (oid_len) {

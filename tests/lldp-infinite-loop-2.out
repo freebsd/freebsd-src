@@ -1,0 +1,161 @@
+08:00:27:0d:f1:3c > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 2130: LLDP, length 2116
+	Chassis ID TLV (1), length 7
+	  Subtype MAC address (4): 08:00:27:0d:f1:3c
+	  0x0000:  0408 0027 0df1 3c
+	Port ID TLV (2), length 7
+	  Subtype MAC address (3): 08:00:27:0d:f1:3c
+	  0x0000:  0308 0027 0df1 3c
+	Time to Live TLV (3), length 2: TTL 120s
+	  0x0000:  0078
+	Organization specific TLV (127), length 6: OUI Ethernet bridged (0x0080c2)
+	  Port VLAN Id Subtype (1)
+	    port vlan id (PVID): 1
+	  0x0000:  0080 c201 0001
+	Organization specific TLV (127), length 7: OUI Ethernet bridged (0x0080c2)
+	  Port and Protocol VLAN ID Subtype (2)
+	    port and protocol vlan id (PPVID): 0, flags [supported] (0x02)
+	  0x0000:  0080 c202 0200 00
+	Organization specific TLV (127), length 14: OUI Ethernet bridged (0x0080c2)
+	  VLAN name Subtype (3)
+	    vlan id (VID): 1
+	    vlan name: default
+	  0x0000:  0080 c203 0001 0764 6566 6175 6c74
+	Organization specific TLV (127), length 13: OUI Ethernet bridged (0x0080c2)
+	  Protocol Identity Subtype (4)
+	    protocol identity: 
+	  0x0000:  0080 c204 0800 0042 4203 0000 03
+	Organization specific TLV (127), length 9: OUI Ethernet bridged (0x0080c2)
+	  EVB Subtype (13)
+	    EVB Bridge Status
+	      RES: 0, BGID: 0, RRCAP: 1, RRCTR: 0
+	    EVB Station Status
+	      RES: 0, SGID: 0, RRREQ: 0,RRSTAT: 0
+	    R: 7, RTE: 21, EVB Mode: EVB Bridge [1]
+	    ROL: 0, RWD: 30, RES: 0, ROL: 0, RKA: 15
+	  0x0000:  0080 c20d 0200 f55e 0f
+	Organization specific TLV (127), length 266: OUI Ethernet bridged (0x0080c2)
+	  CDCP Subtype (14)
+	    Role: 0, RES: 0, Scomp: 0 ChnCap: 167
+	    SCID: 1, SVID: 1
+	    SCID: 0, SVID: 194
+	    SCID: 224, SVID: 0
+	    SCID: 10, SVID: 1792
+	    SCID: 256, SVID: 256
+	    SCID: 12, SVID: 526
+	    SCID: 0, SVID: 0
+	    SCID: 2672, SVID: 16
+	    SCID: 16, SVID: 0
+	    SCID: 3104, SVID: 3584
+	    SCID: 0, SVID: 167
+	    SCID: 1, SVID: 1
+	    SCID: 0, SVID: 194
+	    SCID: 224, SVID: 0
+	    SCID: 10, SVID: 1792
+	    SCID: 256, SVID: 256
+	    SCID: 12, SVID: 526
+	    SCID: 0, SVID: 0
+	    SCID: 2672, SVID: 16
+	    SCID: 16, SVID: 0
+	    SCID: 3104, SVID: 3584
+	    SCID: 0, SVID: 167
+	    SCID: 1, SVID: 1
+	    SCID: 0, SVID: 194
+	    SCID: 224, SVID: 0
+	    SCID: 10, SVID: 1792
+	    SCID: 256, SVID: 256
+	    SCID: 12, SVID: 526
+	    SCID: 0, SVID: 0
+	    SCID: 2672, SVID: 16
+	    SCID: 16, SVID: 0
+	    SCID: 3104, SVID: 3584
+	    SCID: 0, SVID: 167
+	    SCID: 1, SVID: 1
+	    SCID: 0, SVID: 194
+	    SCID: 224, SVID: 0
+	    SCID: 10, SVID: 1792
+	    SCID: 256, SVID: 256
+	    SCID: 12, SVID: 526
+	    SCID: 0, SVID: 0
+	    SCID: 2672, SVID: 16
+	    SCID: 16, SVID: 0
+	    SCID: 3104, SVID: 3584
+	    SCID: 0, SVID: 167
+	    SCID: 1, SVID: 1
+	    SCID: 0, SVID: 194
+	    SCID: 224, SVID: 0
+	    SCID: 10, SVID: 1792
+	    SCID: 256, SVID: 256
+	    SCID: 12, SVID: 526
+	    SCID: 0, SVID: 0
+	    SCID: 2672, SVID: 16
+	    SCID: 16, SVID: 0
+	    SCID: 3104, SVID: 3584
+	    SCID: 0, SVID: 167
+	    SCID: 1, SVID: 1
+	    SCID: 0, SVID: 194
+	    SCID: 224, SVID: 0
+	    SCID: 10, SVID: 1792
+	    SCID: 256, SVID: 256
+	    SCID: 12, SVID: 526
+	    SCID: 0, SVID: 0
+	    SCID: 2672, SVID: 16
+	    SCID: 16, SVID: 0
+	    SCID: 3104, SVID: 3584
+	    SCID: 0, SVID: 167
+	    SCID: 1, SVID: 1
+	    SCID: 0, SVID: 194
+	    SCID: 224, SVID: 0
+	    SCID: 10, SVID: 1792
+	    SCID: 256, SVID: 256
+	    SCID: 12, SVID: 526
+	    SCID: 0, SVID: 0
+	    SCID: 2672, SVID: 16
+	    SCID: 16, SVID: 0
+	    SCID: 3104, SVID: 3584
+	    SCID: 0, SVID: 167
+	    SCID: 1, SVID: 1
+	    SCID: 0, SVID: 194
+	    SCID: 224, SVID: 0
+	    SCID: 10, SVID: 1792
+	    SCID: 256, SVID: 256
+	    SCID: 12, SVID: 526
+	    SCID: 0, SVID: 0
+	    SCID: 2672, SVID: 16
+	    SCID: 16, SVID: 0
+	  0x0000:  0080 c20e 0000 00a7 0010 0100 00c2 0e00
+	  0x0010:  0000 a700 1001 0000 c20e 0000 00a7 0010
+	  0x0020:  0100 00c2 0e00 0000 a700 1001 0000 c20e
+	  0x0030:  0000 00a7 0010 0100 00c2 0e00 0000 a700
+	  0x0040:  1001 0000 c20e 0000 00a7 0010 0100 00c2
+	  0x0050:  0e00 0000 a700 1001 0000 c20e 0000 00a7
+	  0x0060:  0010 0100 00c2 0e00 0000 a700 1001 0000
+	  0x0070:  c20e 0000 00a7 0010 0100 00c2 0e00 0000
+	  0x0080:  a700 1001 0000 c20e 0000 00a7 0010 0100
+	  0x0090:  00c2 0e00 0000 a700 1001 0000 c20e 0000
+	  0x00a0:  00a7 0010 0100 00c2 0e00 0000 a700 1001
+	  0x00b0:  0000 c20e 0000 00a7 0010 0100 00c2 0e00
+	  0x00c0:  0000 a700 1001 0000 c20e 0000 00a7 0010
+	  0x00d0:  0100 00c2 0e00 0000 a700 1001 0000 c20e
+	  0x00e0:  0000 00a7 0010 0100 00c2 0e00 0000 a700
+	  0x00f0:  1001 0000 c20e 0000 00a7 0010 0100 00c2
+	  0x0100:  0e00 0000 a700 1001 0000
+	Unknown TLV (97), length 14
+	  0x0000:  0000 00a7 0010 0100 00c2 0e00 0000
+	Unknown TLV (83), length 256
+	  0x0000:  1001 0000 c20e 0000 00a7 0010 0100 00c2
+	  0x0010:  0e00 0000 a700 1001 0000 c20e 0000 00a7
+	  0x0020:  0010 0100 00c2 0e00 0000 a700 1001 0000
+	  0x0030:  c20e 0000 00a7 0010 0100 00c2 0e00 0000
+	  0x0040:  a700 1001 0000 c20e 0000 00a7 0010 0100
+	  0x0050:  00c2 0e00 0000 a700 1001 0000 c20e 0000
+	  0x0060:  00a7 0010 0100 00c2 0e00 0000 a700 1001
+	  0x0070:  0000 c20e 0000 00a7 0010 0100 00c2 0e00
+	  0x0080:  0000 a700 1001 0000 c20e 0000 00a7 0010
+	  0x0090:  0100 00c2 0e00 0000 a700 1001 0000 c20e
+	  0x00a0:  0000 00a7 0010 0100 00c2 0e00 0000 a700
+	  0x00b0:  1001 0000 c20e 0000 00a7 0010 0100 00c2
+	  0x00c0:  0e00 0000 a700 1001 0000 c20e 0000 00a7
+	  0x00d0:  0010 0100 00c2 0e00 0000 a700 1001 0000
+	  0x00e0:  c20e 0000 00a7 0010 0100 00c2 0e00 0000
+	  0x00f0:  a700 1001 0000 c20e 0000 00a7 0010 0100
+	End TLV (0), length 194

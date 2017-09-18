@@ -1,0 +1,7 @@
+IP6 (class 0x76, flowlabel 0xf6767, hlim 103, next-header PIM (103) payload length: 30209) 6767:6767::1:ff:ff00 > 4501:5:1400::1300:33ed:1ee: PIMv2, length 30209
+	Register, cksum 0x000f (unverified), Flags [ none ]
+	[|pim]
+7e:c0:c1:c0:a0:ff > 00:0c:fb:4d:20:96, ethertype Unknown (0x7f08), length 671154210: 
+	0x0000:  0000                                     ..
+04:01:0b:00:00:d7 > 00:00:00:00:00:00, ethertype Unknown (0xffff), length 671154210: 
+	0x0000:  fd00                                     ..

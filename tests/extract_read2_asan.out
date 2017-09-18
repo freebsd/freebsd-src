@@ -1,0 +1,3 @@
+IP (tos 0x14, id 1, offset 0, flags [none], proto ICMP (1), length 512, options (unknown 3,unknown 3,unknown 3 [bad length 3]), bad cksum 3ff (->b4bd)!)
+    240.25.0.0 > 3.3.3.3: ICMP source quench, length 484
+	[|icmp]

@@ -1,0 +1,16 @@
+IP truncated-ip - 2315 bytes missing! (tos 0x0, ttl 18, id 4111, offset 0, flags [+, DF, rsvd], proto UDP (17), length 5373, bad cksum 8e7f (->9764)!)
+    15.251.128.192.698 > 193.192.186.0.122: OLSRv4, seq 0x0800, length 2056
+	Nameservice Message (0x82), originator 126.198.193.192, ttl 26, hop 145
+	  vtime 0.062s, msg-seq 0x0008, length 127[|olsr]
+IP truncated-ip - 2315 bytes missing! (tos 0x0, ttl 18, id 4111, offset 0, flags [+, DF, rsvd], proto UDP (17), length 5373, bad cksum 8e7f (->975f)!)
+    16.0.128.192.698 > 193.192.186.0.122: OLSRv4, seq 0x0400, length 512
+	Powerinfo Message (0x80), originator 0.1.0.0, ttl 255, hop 255
+	  vtime 0.500s, msg-seq 0x0000, length 9216 (invalid)
+IP truncated-ip - 2315 bytes missing! (tos 0x0, ttl 18, id 4111, offset 0, flags [+, DF, rsvd], proto UDP (17), length 5373, bad cksum 8e7f (->9764)!)
+    15.251.128.192.698 > 193.192.186.0.122: OLSRv4, seq 0x0800, length 2056
+	Nameservice Message (0x82), originator 126.198.193.192, ttl 26, hop 145
+	  vtime 0.062s, msg-seq 0x0008, length 100[|olsr]
+IP truncated-ip - 2315 bytes missing! (tos 0x0, ttl 18, id 4111, offset 0, flags [+, DF, rsvd], proto UDP (17), length 5373, bad cksum 8e7f (->975f)!)
+    16.0.128.192.698 > 193.192.186.0.122: OLSRv4, seq 0x0800, length 2056
+	Nameservice Message (0x82), originator 126.198.193.192, ttl 26, hop 145
+	  vtime 0.062s, msg-seq 0x5c50, length 185[|olsr]

@@ -1,0 +1,2 @@
+IP (tos 0x41,ECT(1), id 0, offset 0, flags [none], proto PGM (113), length 32639, options (unknown 89 [bad length 232]), bad cksum 5959 (->96b9)!)
+    128.121.89.107 > 89.89.16.63: 128.121.89.107.4 > 89.89.16.63.225: PGM, length 0 0x3414eb1f0022 UNKNOWN type 0x1f OPTS LEN 225 OPT_1F [13]  OPT_06 [26] [Bad OPT_PGMCC_DATA option, length 4 < 12]

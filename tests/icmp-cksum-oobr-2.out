@@ -1,0 +1,11 @@
+IP (0x0021), length 244: truncated-ip - 32768 bytes missing! (tos 0x0, ttl 254, id 59168, offset 0, flags [DF], proto ICMP (1), length 33008, bad cksum 7ade (->fabd)!)
+    10.4.0.34 > 12.4.4.4: ICMP time exceeded in-transit, length 32988
+	(tos 0x0, ttl 1, id 42321, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33440: [bad udp cksum 0x1000 -> 0xbad0!] UDP, length 12
+	MPLS extension v2
+	  Extended Payload Object (2), Class-Type: 14, length 80
+	    0x0000:  0000 000f 0001 0000 0a0a 0a0a 3f54 6869
+	    0x0010:  732d 6973 2d74 6865 2d6e 616d 652d 6f66
+	    0x0020:  2d74 6865 2d49 6e74 6572 6661 6365 2d74
+	    0x0030:  6861 742d 7765 2d61 7265 2d6c 6f6f 6b69
+	    0x0040:  6e67 2d66 6f72 2d5b 3a2d 295d[|icmp]
