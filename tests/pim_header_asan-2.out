@@ -1,0 +1,5 @@
+IP6 (class 0x76, flowlabel 0xf6767, hlim 109, next-header PIM (103) payload length: 13927) 6767:ff:ffff:ff67:6767:6778:6767:6767 > 6700:7f:e664:24:2424:2424:2424:25eb: PIMv2, length 13927
+	Register, RFC2117-encoding, cksum 0x4e23 (unverified), Flags [ none ]
+	[|pim]
+[|ether]
+[|ether]

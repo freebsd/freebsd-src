@@ -1,0 +1,28 @@
+UI 22! Pad! IS-IS, length 1644274306
+	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 224 (224)
+	  source-id: fe02.0000.d0f9,  holding time: 3928s, Flags: [unknown circuit type 0x00]
+	  lan-id:    1000.4101.0000.88, Priority: 127, PDU length: 44959
+	    unknown TLV #162, length: 1
+		0x0000:  e2
+	    IS Reachability TLV #2, length: 12
+	      bogus virtual flag 0x07
+	      IS Neighbor: 0100.1001.9de0.00, Default Metric: 34, Internal
+		  Delay Metric: 5, Internal
+		  Error Metric: 27, Internal
+	    Authentication TLV #10, length: 1
+	      unknown Authentication type 0x05: 
+	    unknown TLV #146, length: 32
+		0x0000:  2020 2020 2020 2020 2020 2020 2020 2020
+		0x0010:  2020 2020 2020 2020 2020 2220 2020 2020
+	    unknown TLV #32, length: 32
+		0x0000:  2000 0001 0020 2020 2020 2020 207f 0020
+		0x0010:  2020 2020 2020 2020 2020 2e20 2020 20c9
+	    unknown TLV #32, length: 32
+		0x0000:  2020 2010 0020 2020 2020 0b20 2020 2020
+		0x0010:  2020 2020 2020 8181 7281 8181 8181 8181
+	    Multi-Topology-Aware Port Capability TLV #143, length: 129
+	       RES: 8, MTID(s): 385
+	       unknown subTLV #129, length: 68
+	       unknown subTLV #32, length: 32
+	       unknown subTLV #129, length: 129
+		 [|isis] [|isis]

@@ -1,0 +1,3 @@
+: CCP, Conf-Request (0x01), id 223, length 125685
+	encoded length 15 (=Option(s) length 11)
+	  MVRCA Option (0x18), length 5[|ccp]

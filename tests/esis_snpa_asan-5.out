@@ -1,0 +1,10 @@
+UI 22! ES-IS, length 65565
+	ESH (2), v: 1, checksum: 0x70a1 (incorrect should be 0xfc4c), holding time: 21315s, length indicator: 17
+	  Number of Source Addresses: 3
+	  NET (length: 0): isonsap_string: illegal length
+	  NET (length: 4): ec.ff00.00
+	  NET (length: 0): isonsap_string: illegal length[|esis]
+UI 22! ES-IS, length 65565
+	redirect (6), v: 1, checksum: 0x7034 (incorrect should be 0x3ff0), holding time: 21315s, length indicator: 17
+	  04
+	  SNPA (length: 4): 00:00:00:00, bad opts/li

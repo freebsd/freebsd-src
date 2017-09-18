@@ -1,0 +1,2 @@
+IP (tos 0xe2,ECT(0), id 32, offset 0, flags [+, DF, rsvd], proto ICMP (1), length 65319, options (timestamp TS{[bad length 14]TS+ADDR ^ 1229070338@0.0.52.112[|ip]), bad cksum a09b (->90a7)!)
+    149.8.33.81 > 95.18.83.227: [|icmp]

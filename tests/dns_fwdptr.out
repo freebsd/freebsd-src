@@ -1,0 +1,2 @@
+be:af:ca:ce:ff:ff > de:ad:be:ef:00:01, ethertype IPv4 (0x0800), length 63207: (tos 0x0, ttl 128, id 36039, offset 0, flags [none], proto UDP (17), length 63193)
+    156.118.17.235.53 > 156.118.27.229.500: [udp sum ok] 51584 zoneRef NoChange*|$ [64259q] q: Type507 (Class 769)? M-{.^AM-{^C.M-{.^AM-{^C.M-{.^AM-{^C.M-{.^AM-{^C.M-{.^AM-{ .M-{^C^A.<BAD PTR>[|domain]

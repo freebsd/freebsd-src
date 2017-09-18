@@ -1,0 +1,134 @@
+08:00:27:42:ba:59 > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 1755: LLDP, length 1741
+	Chassis ID TLV (1), length 7
+	  Subtype MAC address (4): 08:00:27:42:ba:59
+	  0x0000:  0408 0027 42ba 59
+	Port ID TLV (2), length 7
+	  Subtype MAC address (3): 08:00:27:42:ba:59
+	  0x0000:  0308 0027 42ba 59
+	Time to Live TLV (3), length 2: TTL 120s
+	  0x0000:  0078
+	Organization specific TLV (127), length 6: OUI Ethernet bridged (0x0080c2)
+	  Port VLAN Id Subtype (1)
+	    port vlan id (PVID): 0
+	  0x0000:  0080 c201 0000
+	Organization specific TLV (127), length 7: OUI Ethernet bridged (0x0080c2)
+	  Port and Protocol VLAN ID Subtype (2)
+	    port and protocol vlan id (PPVID): 0, flags [supported] (0x02)
+	  0x0000:  0080 c202 0200 00
+	Organization specific TLV (127), length 14: OUI Ethernet bridged (0x0080c2)
+	  VLAN name Subtype (3)
+	    vlan id (VID): 1
+	    vlan name: default
+	  0x0000:  0080 c203 0001 0764 6566 6175 6c74
+	Organization specific TLV (127), length 13: OUI Ethernet bridged (0x0080c2)
+	  Protocol Identity Subtype (4)
+	    protocol identity: 
+	  0x0000:  0080 c204 0800 0042 4203 0080 08
+	Organization specific TLV (127), length 263: OUI Ethernet bridged (0x0080c2)
+	  Application Priority Subtype (12)
+	    RES: 0
+	    Application Priority Table
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 49676
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 49676
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 49676
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 49676
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 49676
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 49676
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 49676
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	  0x0000:  0080 c20c 0000 0000 0000 0000 80c2 0c00
+	  0x0010:  0000 0000 0000 0080 c20c 0000 0000 0000
+	  0x0020:  0000 80c2 0c00 0000 0000 0000 0080 c20c
+	  0x0030:  0000 0000 0000 0000 80c2 0c00 0000 0000
+	  0x0040:  0000 0080 c20c 0000 0000 0000 0000 80c2
+	  0x0050:  0c00 0000 0000 0000 0080 c20c 0000 0000
+	  0x0060:  0000 0000 80c2 0c00 0000 0000 0000 0080
+	  0x0070:  c20c 0000 0000 0000 0000 80c2 0c00 0000
+	  0x0080:  0000 0000 0080 c20c 0000 0000 0000 0000
+	  0x0090:  80c2 0c00 0000 0000 0000 0080 c20c 0000
+	  0x00a0:  0000 0000 0000 80c2 0c00 0000 0000 0000
+	  0x00b0:  0080 c20c 0000 0000 0000 0000 80c2 0c00
+	  0x00c0:  0000 0000 0000 0080 c20c 0000 0000 0000
+	  0x00d0:  0000 80c2 0c00 0000 0000 0000 0080 c20c
+	  0x00e0:  0000 0000 0000 0000 80c2 0c00 0000 0000
+	  0x00f0:  0000 0080 c20c 0000 0000 0000 0000 80c2
+	  0x0100:  0c00 0000 0000 00
+	End TLV (0), length 0

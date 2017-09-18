@@ -226,23 +226,16 @@ static const struct printer printers[] = {
 static void	ndo_default_print(netdissect_options *ndo, const u_char *bp,
 		    u_int length);
 
-static void	ndo_error(netdissect_options *ndo, const char *fmt, ...)
-		    __attribute__((noreturn))
-#ifdef __ATTRIBUTE___FORMAT_OK
-		    __attribute__((format (printf, 2, 3)))
-#endif /* __ATTRIBUTE___FORMAT_OK */
-		    ;
-static void	ndo_warning(netdissect_options *ndo, const char *fmt, ...)
-#ifdef __ATTRIBUTE___FORMAT_OK
-		    __attribute__((format (printf, 2, 3)))
-#endif /* __ATTRIBUTE___FORMAT_OK */
-		    ;
+static void	ndo_error(netdissect_options *ndo,
+		    FORMAT_STRING(const char *fmt), ...)
+		    NORETURN PRINTFLIKE(2, 3);
+static void	ndo_warning(netdissect_options *ndo,
+		    FORMAT_STRING(const char *fmt), ...)
+		    PRINTFLIKE(2, 3);
 
-static int	ndo_printf(netdissect_options *ndo, const char *fmt, ...)
-#ifdef __ATTRIBUTE___FORMAT_OK
-		     __attribute ((format (printf, 2, 3)))
-#endif /* __ATTRIBUTE___FORMAT_OK */
-		     ;
+static int	ndo_printf(netdissect_options *ndo,
+		     FORMAT_STRING(const char *fmt), ...)
+		     PRINTFLIKE(2, 3);
 
 void
 init_print(netdissect_options *ndo, uint32_t localnet, uint32_t mask,

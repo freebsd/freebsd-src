@@ -1,0 +1,5 @@
+00:00:00:00:00:00 > 00:00:00:00:00:00, ethertype IPv4 (0x0800), length 337: truncated-ip - 4096 bytes missing! (tos 0x0, ttl 64, id 30662, offset 0, flags [DF], proto ICMP (1), length 4419, bad cksum cdf9 (->bdf9)!)
+    97.242.24.11 > 97.242.24.11: ICMP 97.242.24.11 udp port 162 unreachable, length 4399
+	(tos 0x0, ttl 128, id 30661, offset 0, flags [DF], proto UDP (17), length 295)
+    97.242.24.11.60377 > 97.242.24.11.162: [udp sum ok]  { SNMPv1 C="trap" { Trap(251)  .1.3.6.1.4.1.3830.1.1.2.2.1 97.242.24.11 enterpriseSpecific s=52 61498489 .1.3.6.1.4.1.3830.1.1.2.1.1.1=3 .1.3.6.1.4.1.3830.1.1.2.1.1.2=2 .1.3.6.1.4.1.3830.1.1.2.1.1.3="%SMSA-E-POLLERR, Polling the SMSC was not successful." .1.3.6.1.4.1.3830.1.1.2.1.1.4="OPCOM" .1.3.6.1.4.1.3830.1.1.2.1.1.5="28-OCT-2010 20:42:14.67" .1.3.6.1.4.1.3830.1.1.2.1.1.6="SMRL51" } } 
+	MPLS extension v0 packet not supported

@@ -1,0 +1,61 @@
+00:0c:29:31:85:a5 > 00:0c:29:ac:b9:50, ethertype IPv4 (0x0800), length 321: (tos 0xc0, ttl 254, id 20061, offset 0, flags [none], proto TCP (6), length 307)
+    10.0.0.4.179 > 10.0.0.2.64588: Flags [P.], cksum 0x707c (incorrect -> 0x6883), seq 786752827:786753082, ack 3829861902, win 16357, options [nop,nop,TS val 6993003 ecr 4502201], length 255: BGP
+	Update Message (2), length: 100
+	  Origin (1), length: 1, Flags [T]: IGP
+	    0x0000:  00
+	  AS Path (2), length: 0, Flags [T]: empty
+	  Local Preference (5), length: 4, Flags [T]: 100
+	    0x0000:  0000 0064
+	  Extended Community (16), length: 24, Flags [OT]: 
+	    target (0x0002), Flags [none]: 1:1 (= 0.0.0.1)
+	    source-AS (0x0009), Flags [none]: AS 1
+	    unknown extd community typecode (0x010a), Flags [none]
+	      0x0000:  010a 0a00 0004 0006
+	    0x0000:  0002 0001 0000 0001 0009 0001 0000 0000
+	    0x0010:  010a 0a00 0004 0006
+	  Multi-Protocol Reach NLRI (14), length: 32, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: labeled VPN Unicast (128)
+	    nexthop: RD: 0:0 (= 0.0.0.0), 10.0.0.4, nh-length: 12, no SNPA
+	      RD: 1:1 (= 0.0.0.1), 172.16.4.0/24, label:16 (bottom)
+	    0x0000:  0001 800c 0000 0000 0000 0000 0a00 0004
+	    0x0010:  0070 0001 0100 0000 0100 0000 01ac 1004
+	Update Message (2), length: 95
+	  Origin (1), length: 1, Flags [T]: IGP
+	    0x0000:  00
+	  AS Path (2), length: 0, Flags [T]: empty
+	  Local Preference (5), length: 4, Flags [T]: 100
+	    0x0000:  0000 0064
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    target (0x0002), Flags [none]: 1:1 (= 0.0.0.1)
+	    0x0000:  0002 0001 0000 0001
+	  PMSI Tunnel (22), length: 17, Flags [OT]: 
+	    Tunnel-type RSVP-TE P2MP LSP (1), Flags [none], MPLS Label 0
+	      Extended-Tunnel-ID 10.0.0.4, P2MP-ID 0x00008173
+	    0x0000:  0001 0000 000a 0000 0400 0081 730a 0000
+	    0x0010:  04
+	  Multi-Protocol Reach NLRI (14), length: 23, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: Multicast VPN (5)
+	    nexthop: 10.0.0.4, nh-length: 4
+	    8 SNPA
+	      1 bytes
+	      0 bytes
+	      0 bytes
+	      0 bytes
+	      1 bytes
+	      0 bytes
+	      0 bytes
+	      1 bytes
+	      Route-Type: Unknown (0), length: 0
+	      Route-Type: Intra-AS Segment-Leaf (4), length: 255
+	    0x0000:  0001 0504 0a00 0004 0801 0c00 0000 0100
+	    0x0010:  0000 010a 0000 04
+	Update Message (2), length: 30
+	  Multi-Protocol Unreach NLRI (15), length: 3, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: labeled VPN Unicast (128)
+	      End-of-Rib Marker (empty NLRI)
+	    0x0000:  0001 80
+	Update Message (2), length: 30
+	  Withdrawn routes: 1 bytes
+	  Unknown Attribute (0), length: 3, Flags [+f]: 
+	    no Attribute 0 decoder
+	    0x0000:  0001 05[|BGP]

@@ -1,0 +1,6 @@
+IP (tos 0x0, ttl 224, id 17920, offset 0, flags [none], proto RSVP (46), length 42024, bad cksum 3700 (->fc41)!)
+    0.203.243.128 > 0.26.0.0: 
+	RSVPv1 Path Message (1), Flags: [Refresh reduction capable], length: 41218, ttl: 227, checksum: 0x00f4
+	  Fast Re-Route Object (205) Flags: [ignore and forward if unknown], Class-Type: Unknown (0), length: 4
+	  Fast Re-Route Object (205) Flags: [ignore and forward if unknown], Class-Type: Unknown (0), length: 4
+		 [|rsvp]

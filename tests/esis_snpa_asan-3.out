@@ -1,0 +1,7 @@
+UI 22! ES-IS, length 65565
+	unknown type: 0 (0), v: 1, checksum: 0x00a1 (incorrect should be 0x859d), holding time: 0s, length indicator: 17
+	  0x0000:  0200 04ec ff00 0000
+UI 22! ES-IS, length 2650865693
+	redirect (6), v: 1, checksum: 0x0300 (incorrect should be 0xbce5), holding time: 21480s, length indicator: 17
+	  ec.ff00.00
+	  SNPA (length: 0): <empty>[|esis]

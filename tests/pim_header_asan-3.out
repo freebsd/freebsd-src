@@ -1,0 +1,4 @@
+IP (tos 0x0, ttl 47, id 40445, offset 0, flags [+, DF, rsvd], proto PIM (103), length 8744, bad cksum a (->9c6e)!)
+    22.3.2.7 > 54.0.0.249: PIMv2, length 8724
+	Register, RFC2117-encoding, cksum 0x0e00 (unverified), Flags [ none ]
+	[|pim]

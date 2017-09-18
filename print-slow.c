@@ -15,7 +15,7 @@
  * support for the IEEE "slow protocols" LACP, MARKER as per 802.3ad
  *                                       OAM as per 802.3ah
  *
- * Original code by Hannes Gredler (hannes@juniper.net)
+ * Original code by Hannes Gredler (hannes@gredler.at)
  */
 
 /* \summary: IEEE "slow protocols" (802.3ad/802.3ah) printer */

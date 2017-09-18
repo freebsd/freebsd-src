@@ -1,0 +1,2 @@
+IP (tos 0x10, ttl 64, id 39991, offset 0, flags [DF], proto TCP (6), length 60)
+    127.0.0.1.57370 > 127.0.0.1.23: Flags [S], seq 1736820995, win 32792, options [mss 16396,sackOK,TS val 597120308 ecr 0,mptcp dss[bad opt]>

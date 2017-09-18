@@ -1,0 +1,22 @@
+UI 22! IS-IS, length 469869187
+	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 224 (224)
+	  source-id: fed0.f90f.58af,  holding time: 34047s, Flags: [unknown circuit type 0x00]
+	  lan-id:    0100.0088.a201.1c, Priority: 65, PDU length: 4096
+	    unknown TLV #0, length: 12
+		0x0000:  0722 0583 1b01 0010 0505 0505
+	    Area address(es) TLV #1, length: 157
+	    IS Reachability TLV #2, length: 2
+	      bogus virtual flag 0x02
+	    IS Reachability TLV #2, length: 2
+	      bogus virtual flag 0x02
+	    IS Reachability TLV #2, length: 2
+	      bogus virtual flag 0x90
+	    Multi-Topology Capability TLV #144, length: 144
+	      O: 1, RES: 1, MTID(s): 144
+	      unknown subTLV #144, length: 2
+	      unknown subTLV #2, length: 0
+	      unknown subTLV #16, length: 1
+	      unknown subTLV #224, length: 0
+	      unknown subTLV #59, length: 0
+	      unknown subTLV #5, length: 166
+		 [|isis] [|isis]

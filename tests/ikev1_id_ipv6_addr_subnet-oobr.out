@@ -1,0 +1,3 @@
+IP (tos 0x0, ttl 100, id 40207, offset 0, flags [+, DF, rsvd], proto UDP (17), length 32808, bad cksum 8e7f (->bc78)!)
+    16.0.128.20.500 > 12.251.0.45.0: isakmp 1.0 msgid 0d101010: phase 2/others ? #16[]:
+    (id: idtype=IPv6net protoid=16 port=4112 len=24 [bad: < 32]) [|#145] (len mismatch: isakmp 4278190080/ip 4856)

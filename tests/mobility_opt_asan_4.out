@@ -1,0 +1,1 @@
+IP6 (class 0x50, flowlabel 0x00004, hlim 237, next-header Mobile IP (old) (62) payload length: 7168) d3c3:b2a9:200:400::6238:2949 > 9675:86dd:7300:2c:1c7f:ffff:ffc3:b2a1: mobility: BU seq#=116 A lifetime=15360(pad1)(pad1)(type-0x3c: len=19)(ni: ho=0x0400 co=0x0012)[|MOBILITY]

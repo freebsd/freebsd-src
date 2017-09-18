@@ -5,129 +5,17 @@ IS-IS, length 1497
 	    Multi-Topology Capability TLV #144, length: 1
 	      O: 1, RES: 4, MTID(s): 3073
 	      unknown subTLV #4, length: 3
-	      unknown subTLV #73, length: 0
-	      unknown subTLV #10, length: 132
-	      unknown subTLV #4, length: 10
-	      unknown subTLV #0, length: 10
-	      unknown subTLV #0, length: 55
-	      SPBM Service Identifier and Unicast Address subTLV #3, length: 0
-	        BMAC: 00000606c201, RES: 2, VID: 2456
-	      unknown subTLV #204, length: 83
+	      unknown subTLV #132, length: 4
+	      unknown subTLV #55, length: 3
+	      unknown subTLV #6, length: 6
 	      unknown subTLV #8, length: 191
 	      unknown subTLV #0, length: 0
 	      unknown subTLV #0, length: 0
 	      unknown subTLV #0, length: 0
 	      unknown subTLV #0, length: 0
 	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #82, length: 0
-	      unknown subTLV #0, length: 86
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #37, length: 0
-	      unknown subTLV #0, length: 0
 	      unknown subTLV #0, length: 37
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 108
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #37, length: 0
-	      unknown subTLV #48, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #37, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #172, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #76, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 90
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 90
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #37, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 107
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 37
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #2, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #37, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 92
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #113, length: 90
-	      unknown subTLV #0, length: 230
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #79, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #234, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #64, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #37, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #37, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #2, length: 0
-	      unknown subTLV #0, length: 0
-	      unknown subTLV #0, length: 0
+		 [|isis]
 	    Area address(es) TLV #1, length: 4
 	      Area address (length: 3): 49.000a
 	    IPv4 Interface address(es) TLV #132, length: 4
@@ -219,4 +107,4 @@ IS-IS, length 1497
 		0x0080:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
 		0x0090:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
 		0x00a0:  aaaa aaaa aaaa aaaa aaaa
-	      164 straggler bytes
+	    unknown TLV #170, length: 170 [|isis]

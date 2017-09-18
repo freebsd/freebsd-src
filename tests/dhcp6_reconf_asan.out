@@ -1,0 +1,2 @@
+IP (tos 0x60, ttl 254, id 21519, offset 0, flags [+, DF, rsvd], proto UDP (17), length 768, options (EOL), bad cksum 9615 (->c6f)!)
+    251.73.86.150.514 > 126.172.217.192.546: dhcp6 relay-reply (linkaddr=300:10ed:ff:f01:f:0:7f:7f peeraddr=ffb6:3a64::c1:2300:581c:d00 (reconfigure-message ?) (reconfigure-message ?))

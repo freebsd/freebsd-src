@@ -1,0 +1,2 @@
+IP (tos 0x0, ttl 254, id 25615, offset 65480, flags [DF, rsvd], proto UDP (17), length 32768, options (LSRR [bad length 25] [bad ptr 15] 103.103.103.0, 0.172.0.116, 0.16.36.36, 16.0.36.2 14.9.36.4[|ip]))
+    251.73.86.0 > 0.172.128.5: ip-proto-17

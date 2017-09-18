@@ -1,0 +1,11 @@
+IP (tos 0x0, ttl 254, id 40207, offset 0, flags [+, DF, rsvd], proto TCP (6), length 296, bad cksum 8e15 (->3eaa)!)
+    241.0.32.19.179 > 239.0.0.1.0: Flags [none], seq 2146695561:2146695813, win 56026, options [unknown-161,eol], length 252: BGP
+	Update Message (2), length: 45
+	  Withdrawn routes: 3 bytes
+	  Attribute Set (128), length: 7, Flags [OTPE+f]: 
+	    Origin AS: 4067
+	      Origin (1), length: 1EGP
+	      Unknown Attribute (19), length: 1, Flags [+1]: 
+	    no Attribute 19 decoder
+	    0x0000:  01
+	      PMSI Tunnel (22), length: 1, Flags [+1]: [|BGP]

@@ -1,0 +1,5 @@
+Out 00:16:3e:27:78:a2 ethertype IPv4 (0x0800), length 204: truncated-ip - 13723 bytes missing! (tos 0x72,ECT(0), ttl 64, id 9472, offset 0, flags [none], proto ICMP (1), length 13911, bad cksum 67ea (->8c0c)!)
+    62.220.31.247 > 62.225.245.115: ICMP 62.220.31.247 udp port 1027 unreachable, length 13891
+	(tos 0xa0, ttl 114, id 30054, offset 0, flags [none], proto UDP (17), length 13728, bad cksum 3f1f (->a1f)!)
+    62.225.245.115.9109 > 62.220.31.247.1027: [bad udp cksum 0xdfe7 -> 0xdb95!] UDP, length 132
+	MPLS extension v0 packet not supported
