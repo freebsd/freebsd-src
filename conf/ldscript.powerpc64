@@ -10,7 +10,7 @@ SECTIONS
 {
   /* Read-only sections, merged into text segment: */
 
-  . = kernbase + SIZEOF_HEADERS;
+  . = kernbase;
   PROVIDE (begin = . - SIZEOF_HEADERS);
 
   .text      :

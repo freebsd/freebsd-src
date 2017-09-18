@@ -46,6 +46,12 @@ CFLAGS.gcc+= -Wa,-many
 CFLAGS+= -fPIC
 LDFLAGS+= -pie
 
+# Work around assertion in kexec-lite. The GCC version switch is really
+# a binutils version switch by correlation.
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 50000
+LDFLAGS+= --no-dynamic-linker
+.endif
+
 .if !empty(DDB_ENABLED)
 CFLAGS+=	-fno-omit-frame-pointer
 .endif
