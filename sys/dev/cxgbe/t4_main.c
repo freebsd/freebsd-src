@@ -452,7 +452,7 @@ TUNABLE_INT("hw.cxgbe.toecaps_allowed", &t4_toecaps_allowed);
 static int t4_rdmacaps_allowed = -1;
 TUNABLE_INT("hw.cxgbe.rdmacaps_allowed", &t4_rdmacaps_allowed);
 
-static int t4_cryptocaps_allowed = 0;
+static int t4_cryptocaps_allowed = -1;
 TUNABLE_INT("hw.cxgbe.cryptocaps_allowed", &t4_cryptocaps_allowed);
 
 static int t4_iscsicaps_allowed = -1;
