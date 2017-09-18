@@ -173,7 +173,7 @@ SRCS=	addrtoname.c \
 	tcpdump.c \
 	util-print.c \
 	version.c
-CLEANFILES+=	version.c
+CLEANFILES+=	version.c ${MAN}
 
 CFLAGS+= -I${.CURDIR} -I${TCPDUMP_DISTDIR}
 CFLAGS+= -DHAVE_CONFIG_H
@@ -210,3 +210,9 @@ version.c: ${TCPDUMP_DISTDIR}/VERSION
 		> version.c
 
 .include <bsd.prog.mk>
+
+.for mp in ${MAN}
+${mp}: ${mp}.in
+	sed -e 's/@MAN_MISC_INFO@/7/g' -e 's/@MAN_FILE_FORMATS@/5/g' \
+		${.ALLSRC} > ${.TARGET}
+.endfor
