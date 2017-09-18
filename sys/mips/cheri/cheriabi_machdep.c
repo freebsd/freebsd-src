@@ -777,15 +777,13 @@ cheriabi_newthread_init(struct thread *td)
 
 	/*
 	 * We assume that the caller has initialised the trapframe to zeroes
-	 * -- but do a quick assertion or two to catch programmer error.  We
-	 * might want to check this with a more thorough set of assertions in
-	 * the future.
+	 * and then set ddc, idc, and pcc appropriatly. We might want to
+	 * check this with a more thorough set of assertions in the future.
+
 	 */
 	frame = &td->td_pcb->pcb_regs;
-	KASSERT(*(uint64_t *)&frame->ddc == 0, ("%s: non-zero initial $ddc",
-	    __func__));
-	KASSERT(*(uint64_t *)&frame->pcc == 0, ("%s: non-zero initial $epcc",
-	    __func__));
+	KASSERT(frame->ddc != NULL, ("%s: NULL $ddc", __func__));
+	KASSERT(frame->pcc != NULL, ("%s: NULL $epcc", __func__));
 
 	/*
 	 * Initialise signal-handling state; this can't yet be modified
@@ -800,9 +798,9 @@ cheriabi_newthread_init(struct thread *td)
 	 */
 	csigp = &td->td_pcb->pcb_cherisignal;
 	bzero(csigp, sizeof(*csigp));
-	cheriabi_capability_set_user_ddc(&csigp->csig_ddc);
-	cheriabi_capability_set_user_idc(&csigp->csig_idc);
-	cheriabi_capability_set_user_pcc(&csigp->csig_pcc);
+	csigp->csig_ddc = frame->ddc;
+	csigp->csig_idc = frame->idc;
+	csigp->csig_pcc = cheri_setoffset(frame->pcc, 0);
 	cheri_capability_set_user_sigcode(&csigp->csig_sigcode,
 	    td->td_proc->p_sysent);
 
@@ -840,12 +838,6 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	    MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_COP_2_BIT;
 
 	/*
-	 * Set up CHERI-related state: most register state, signal delivery,
-	 * sealing capabilities, trusted stack.
-	 */
-	cheriabi_newthread_init(td);
-
-	/*
 	 * XXXRW: For now, initialise $ddc and $idc to the full address space,
 	 * but in the future these will be restricted (or not set at all).
 	 */
@@ -860,6 +852,12 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	 */
 	cheriabi_capability_set_user_entry(&frame->pcc, imgp->entry_addr);
 	cheriabi_capability_set_user_entry(&frame->c12, imgp->entry_addr);
+
+	/*
+	 * Set up CHERI-related state: most register state, signal delivery,
+	 * sealing capabilities, trusted stack.
+	 */
+	cheriabi_newthread_init(td);
 
 	/*
 	 * Pass a pointer to the ELF auxiliary argument vector.
@@ -922,12 +920,6 @@ cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param)
 	    MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_COP_2_BIT;
 
 	/*
-	 * Set up CHERI-related state: register state, signal delivery,
-	 * sealing capabilities, trusted stack.
-	 */
-	cheriabi_newthread_init(td);
-
-	/*
 	 * XXX-BD: cpu_copy_thread() copies the cheri_signal struct.  Do we
 	 * want to point it at our stack instead?
 	 */
@@ -936,6 +928,12 @@ cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param)
 	frame->pcc = param->start_func;
 	frame->c12 = param->start_func;
 	frame->c3 = param->arg;
+
+	/*
+	 * Set up CHERI-related state: register state, signal delivery,
+	 * sealing capabilities, trusted stack.
+	 */
+	cheriabi_newthread_init(td);
 
 	/*
 	 * We don't perform validation on the new pcc or stack capabilities
