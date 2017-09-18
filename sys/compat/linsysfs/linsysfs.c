@@ -136,7 +136,7 @@ linsysfs_link_scsi_host(PFS_FILL_ARGS)
 static int
 linsysfs_fill_data(PFS_FILL_ARGS)
 {
-	sbuf_printf(sb, "%s", pn->pn_data);
+	sbuf_printf(sb, "%s", (char *)pn->pn_data);
 	return (0);
 }
 
