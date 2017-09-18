@@ -23,6 +23,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * Copyright (c) 2010 Broadcom Corporation
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+ * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
  * $FreeBSD$
  */
 
@@ -55,364 +69,13 @@ __FBSDID("$FreeBSD$");
 #include <cam/mmc/mmc_all.h>
 #include <camlib.h>
 
-struct cis_info {
-	uint16_t man_id;
-	uint16_t prod_id;
-	uint16_t max_block_size;
-};
+#include "linux_compat.h"
+#include "linux_sdio_compat.h"
+#include "cam_sdio.h"
+#include "brcmfmac_sdio.h"
+#include "brcmfmac_bus.h"
 
-static int sdio_rw_direct(struct cam_device *dev,
-			  uint8_t func_number,
-			  uint32_t addr,
-			  uint8_t is_write,
-			  uint8_t *data,
-			  uint8_t *resp);
-static uint8_t sdio_read_1(struct cam_device *dev, uint8_t func_number, uint32_t addr);
-static void sdio_write_1(struct cam_device *dev, uint8_t func_number, uint32_t addr, uint8_t val);
-static int sdio_is_func_ready(struct cam_device *dev, uint8_t func_number, uint8_t *is_enab);
-static int sdio_is_func_enabled(struct cam_device *dev, uint8_t func_number, uint8_t *is_enab);
-static int sdio_func_enable(struct cam_device *dev, uint8_t func_number, int enable);
-static int sdio_is_func_intr_enabled(struct cam_device *dev, uint8_t func_number, uint8_t *is_enab);
-static int sdio_func_intr_enable(struct cam_device *dev, uint8_t func_number, int enable);
-static void sdio_card_reset(struct cam_device *dev);
-static uint32_t sdio_get_common_cis_addr(struct cam_device *dev);
 static void probe_bcrm(struct cam_device *dev);
-
-/* Use CMD52 to read or write a single byte */
-int
-sdio_rw_direct(struct cam_device *dev,
-	       uint8_t func_number,
-	       uint32_t addr,
-	       uint8_t is_write,
-	       uint8_t *data, uint8_t *resp) {
-	union ccb *ccb;
-	uint32_t flags;
-	uint32_t arg;
-	int retval = 0;
-
-	ccb = cam_getccb(dev);
-	if (ccb == NULL) {
-		warnx("%s: error allocating CCB", __func__);
-		return (1);
-	}
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(union ccb) - sizeof(struct ccb_hdr));
-
-	flags = MMC_RSP_R5 | MMC_CMD_AC;
-	arg = SD_IO_RW_FUNC(func_number) | SD_IO_RW_ADR(addr);
-	if (is_write)
-		arg |= SD_IO_RW_WR | SD_IO_RW_RAW | SD_IO_RW_DAT(*data);
-
-	cam_fill_mmcio(&ccb->mmcio,
-		       /*retries*/ 0,
-		       /*cbfcnp*/ NULL,
-		       /*flags*/ CAM_DIR_NONE,
-		       /*mmc_opcode*/ SD_IO_RW_DIRECT,
-		       /*mmc_arg*/ arg,
-		       /*mmc_flags*/ flags,
-		       /*mmc_data*/ 0,
-		       /*timeout*/ 5000);
-
-	if (((retval = cam_send_ccb(dev, ccb)) < 0)
-	    || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char warnstr[] = "error sending command";
-
-		if (retval < 0)
-			warn(warnstr);
-		else
-			warnx(warnstr);
-		return (-1);
-	}
-
-	*resp = ccb->mmcio.cmd.resp[0] & 0xFF;
-	cam_freeccb(ccb);
-	return (retval);
-}
-
-#if 0
-/*
- * CMD53 -- IO_RW_EXTENDED
- * Use to read or write memory blocks
- *
- * is_increment=1: FIFO mode
- * blk_count > 0: block mode
- */
-int
-sdio_rw_extended(struct cam_device *dev,
-		 uint8_t func_number,
-		 uint32_t addr,
-		 uint8_t is_write,
-		 uint8_t *data, size_t datalen,
-		 uint8_t is_increment,
-		 uint16_t blk_count) {
-	union ccb *ccb;
-	uint32_t flags;
-	uint32_t arg;
-	int retval = 0;
-
-	if (blk_count != 0) {
-		warnx("%s: block mode is not supported yet", __func__);
-		return (1);
-	}
-
-	ccb = cam_getccb(dev);
-	if (ccb == NULL) {
-		warnx("%s: error allocating CCB", __func__);
-		return (1);
-	}
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(union ccb) - sizeof(struct ccb_hdr));
-
-	flags = MMC_RSP_R5 | MMC_CMD_AC;
-	arg = SD_IO_RW_FUNC(func_number) | SD_IO_RW_ADR(addr);
-	if (is_write)
-		arg |= SD_IO_RW_WR;
-
-	cam_fill_mmcio(&ccb->mmcio,
-		       /*retries*/ 0,
-		       /*cbfcnp*/ NULL,
-		       /*flags*/ CAM_DIR_NONE,
-		       /*mmc_opcode*/ SD_IO_RW_DIRECT,
-		       /*mmc_arg*/ arg,
-		       /*mmc_flags*/ flags,
-		       /*mmc_data*/ 0,
-		       /*timeout*/ 5000);
-
-	if (((retval = cam_send_ccb(dev, ccb)) < 0)
-	    || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char warnstr[] = "error sending command";
-
-		if (retval < 0)
-			warn(warnstr);
-		else
-			warnx(warnstr);
-		return (-1);
-	}
-
-	*resp = ccb->mmcio.cmd.resp[0] & 0xFF;
-	cam_freeccb(ccb);
-	return (retval);
-}
-#endif
-
-static int
-sdio_read_bool_for_func(struct cam_device *dev, uint32_t addr, uint8_t func_number, uint8_t *is_enab) {
-	uint8_t resp;
-	int ret;
-
-	ret = sdio_rw_direct(dev, 0, addr, 0, NULL, &resp);
-	if (ret < 0)
-		return ret;
-
-	*is_enab = (resp & (1 << func_number)) > 0 ? 1 : 0;
-
-	return (0);
-}
-
-static int
-sdio_set_bool_for_func(struct cam_device *dev, uint32_t addr, uint8_t func_number, int enable) {
-	uint8_t resp;
-	int ret;
-	uint8_t is_enabled;
-
-	ret = sdio_rw_direct(dev, 0, addr, 0, NULL, &resp);
-	if (ret != 0)
-		return ret;
-
-	is_enabled = resp & (1 << func_number);
-	if ((is_enabled !=0 && enable == 1) || (is_enabled == 0 && enable == 0))
-		return 0;
-
-	if (enable)
-		resp |= 1 << func_number;
-	else
-		resp &= ~ (1 << func_number);
-
-	ret = sdio_rw_direct(dev, 0, addr, 1, &resp, &resp);
-
-	return ret;
-}
-
-static uint8_t
-sdio_read_1(struct cam_device *dev, uint8_t func_number, uint32_t addr) {
-	uint8_t val;
-	sdio_rw_direct(dev, func_number, addr, 0, NULL, &val);
-	return val;
-}
-
-__unused static void
-sdio_write_1(struct cam_device *dev, uint8_t func_number, uint32_t addr, uint8_t val) {
-	uint8_t _val;
-	sdio_rw_direct(dev, func_number, addr, 0, &val, &_val);
-}
-
-static int
-sdio_is_func_ready(struct cam_device *dev, uint8_t func_number, uint8_t *is_enab) {
-	return sdio_read_bool_for_func(dev, SD_IO_CCCR_FN_READY, func_number, is_enab);
-}
-
-static int
-sdio_is_func_enabled(struct cam_device *dev, uint8_t func_number, uint8_t *is_enab) {
-	return sdio_read_bool_for_func(dev, SD_IO_CCCR_FN_ENABLE, func_number, is_enab);
-}
-
-static int
-sdio_func_enable(struct cam_device *dev, uint8_t func_number, int enable) {
-	return sdio_set_bool_for_func(dev, SD_IO_CCCR_FN_ENABLE, func_number, enable);
-}
-
-static int
-sdio_is_func_intr_enabled(struct cam_device *dev, uint8_t func_number, uint8_t *is_enab) {
-	return sdio_read_bool_for_func(dev, SD_IO_CCCR_INT_ENABLE, func_number, is_enab);
-}
-
-static int
-sdio_func_intr_enable(struct cam_device *dev, uint8_t func_number, int enable) {
-	return sdio_set_bool_for_func(dev, SD_IO_CCCR_INT_ENABLE, func_number, enable);
-}
-
-static int
-sdio_card_set_bus_width(struct cam_device *dev, enum mmc_bus_width bw) {
-	int ret;
-	uint8_t ctl_val;
-	ret = sdio_rw_direct(dev, 0, SD_IO_CCCR_BUS_WIDTH, 0, NULL, &ctl_val);
-	if (ret < 0) {
-		warn("Error getting CCCR_BUS_WIDTH value");
-		return ret;
-	}
-	ctl_val &= ~0x3;
-	switch (bw) {
-	case bus_width_1:
-		/* Already set to 1-bit */
-		break;
-	case bus_width_4:
-		ctl_val |= CCCR_BUS_WIDTH_4;
-		break;
-	case bus_width_8:
-		warn("Cannot do 8-bit on SDIO yet");
-		return -1;
-		break;
-	}
-	ret = sdio_rw_direct(dev, 0, SD_IO_CCCR_BUS_WIDTH, 1, &ctl_val, &ctl_val);
-	if (ret < 0) {
-		warn("Error setting CCCR_BUS_WIDTH value");
-		return ret;
-	}
-	return ret;
-}
-
-static int
-sdio_func_read_cis(struct cam_device *dev, uint8_t func_number,
-		   uint32_t cis_addr, struct cis_info *info) {
-	uint8_t tuple_id, tuple_len, tuple_count;
-	uint32_t addr;
-
-	char *cis1_info[4];
-	int start, i, ch, count;
-	char cis1_info_buf[256];
-
-	tuple_count = 0; /* Use to prevent infinite loop in case of parse errors */
-	memset(cis1_info_buf, 0, 256);
-	do {
-		addr = cis_addr;
-		tuple_id = sdio_read_1(dev, 0, addr++);
-		if (tuple_id == SD_IO_CISTPL_END)
-			break;
-		if (tuple_id == 0) {
-			cis_addr++;
-			continue;
-		}
-		tuple_len = sdio_read_1(dev, 0, addr++);
-		if (tuple_len == 0 && tuple_id != 0x00) {
-			warn("Parse error: 0-length tuple %02X\n", tuple_id);
-			return -1;
-		}
-
-		switch (tuple_id) {
-		case SD_IO_CISTPL_VERS_1:
-			addr += 2;
-			for (count = 0, start = 0, i = 0;
-			     (count < 4) && ((i + 4) < 256); i++) {
-				ch = sdio_read_1(dev, 0, addr + i);
-				printf("count=%d, start=%d, i=%d, Got %c (0x%02x)\n", count, start, i, ch, ch);
-				if (ch == 0xff)
-					break;
-				cis1_info_buf[i] = ch;
-				if (ch == 0) {
-					cis1_info[count] =
-						cis1_info_buf + start;
-					start = i + 1;
-					count++;
-				}
-			}
-			printf("Card info:");
-			for (i=0; i<4; i++)
-				if (cis1_info[i])
-					printf(" %s", cis1_info[i]);
-			printf("\n");
-			break;
-		case SD_IO_CISTPL_MANFID:
-			info->man_id =  sdio_read_1(dev, 0, addr++);
-			info->man_id |= sdio_read_1(dev, 0, addr++) << 8;
-
-			info->prod_id =  sdio_read_1(dev, 0, addr++);
-			info->prod_id |= sdio_read_1(dev, 0, addr++) << 8;
-			break;
-		case SD_IO_CISTPL_FUNCID:
-			/* not sure if we need to parse it? */
-			break;
-		case SD_IO_CISTPL_FUNCE:
-			if (tuple_len < 4) {
-				printf("FUNCE is too short: %d\n", tuple_len);
-				break;
-			}
-			if (func_number == 0) {
-				/* skip extended_data */
-				addr++;
-				info->max_block_size  = sdio_read_1(dev, 0, addr++);
-				info->max_block_size |= sdio_read_1(dev, 0, addr++) << 8;
-			} else {
-				info->max_block_size  = sdio_read_1(dev, 0, addr + 0xC);
-				info->max_block_size |= sdio_read_1(dev, 0, addr + 0xD) << 8;
-			}
-			break;
-		default:
-			printf("Skipping tuple ID %02X len %02X\n", tuple_id, tuple_len);
-		}
-		cis_addr += tuple_len + 2;
-		tuple_count++;
-	} while (tuple_count < 20);
-
-	return 0;
-}
-
-static uint32_t
-sdio_get_common_cis_addr(struct cam_device *dev) {
-	uint32_t addr;
-
-	addr =  sdio_read_1(dev, 0, SD_IO_CCCR_CISPTR);
-	addr |= sdio_read_1(dev, 0, SD_IO_CCCR_CISPTR + 1) << 8;
-	addr |= sdio_read_1(dev, 0, SD_IO_CCCR_CISPTR + 2) << 16;
-
-	if (addr < SD_IO_CIS_START || addr > SD_IO_CIS_START + SD_IO_CIS_SIZE) {
-		warn("Bad CIS address: %04X\n", addr);
-		addr = 0;
-	}
-
-	return addr;
-}
-
-static void sdio_card_reset(struct cam_device *dev) {
-	int ret;
-	uint8_t ctl_val;
-	ret = sdio_rw_direct(dev, 0, SD_IO_CCCR_CTL, 0, NULL, &ctl_val);
-	if (ret < 0)
-		errx(1, "Error getting CCCR_CTL value");
-	ctl_val |= CCCR_CTL_RES;
-	ret = sdio_rw_direct(dev, 0, SD_IO_CCCR_CTL, 1, &ctl_val, &ctl_val);
-	if (ret < 0)
-		errx(1, "Error setting CCCR_CTL value");
-}
 
 /*
  * How Linux driver works
@@ -494,6 +157,258 @@ static void sdio_card_reset(struct cam_device *dev) {
  *
  *
  */
+
+/* BRCM-specific functions */
+#define SDIOH_API_ACCESS_RETRY_LIMIT	2
+#define SI_ENUM_BASE            0x18000000
+#define REPLY_MAGIC             0x16044330
+#define brcmf_err(fmt, ...) brcmf_dbg(0, fmt, ##__VA_ARGS__)
+#define brcmf_dbg(level, fmt, ...) printf(fmt, ##__VA_ARGS__)
+
+struct brcmf_sdio_dev {
+	struct cam_device *cam_dev;
+	u32 sbwad;			/* Save backplane window address */
+	struct brcmf_bus *bus_if;
+	enum brcmf_sdiod_state state;
+	struct sdio_func *func[8];
+};
+
+void brcmf_bus_change_state(struct brcmf_bus *bus, enum brcmf_bus_state state);
+void brcmf_sdiod_change_state(struct brcmf_sdio_dev *sdiodev,
+			      enum brcmf_sdiod_state state);
+static int brcmf_sdiod_request_data(struct brcmf_sdio_dev *sdiodev, u8 fn, u32 addr,
+				    u8 regsz, void *data, bool write);
+static int brcmf_sdiod_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address);
+static int brcmf_sdiod_addrprep(struct brcmf_sdio_dev *sdiodev, uint width, u32 *addr);
+u32 brcmf_sdiod_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
+
+static void bailout(int ret);
+
+static void
+bailout(int ret) {
+	if (ret == 0)
+		return;
+	errx(1, "Operation returned error %d", ret);
+}
+
+void
+brcmf_bus_change_state(struct brcmf_bus *bus, enum brcmf_bus_state state)
+{
+	bus->state = state;
+}
+
+void brcmf_sdiod_change_state(struct brcmf_sdio_dev *sdiodev,
+			      enum brcmf_sdiod_state state)
+{
+	if (sdiodev->state == BRCMF_SDIOD_NOMEDIUM ||
+	    state == sdiodev->state)
+		return;
+
+	//brcmf_dbg(TRACE, "%d -> %d\n", sdiodev->state, state);
+	switch (sdiodev->state) {
+	case BRCMF_SDIOD_DATA:
+		/* any other state means bus interface is down */
+		brcmf_bus_change_state(sdiodev->bus_if, BRCMF_BUS_DOWN);
+		break;
+	case BRCMF_SDIOD_DOWN:
+		/* transition from DOWN to DATA means bus interface is up */
+		if (state == BRCMF_SDIOD_DATA)
+			brcmf_bus_change_state(sdiodev->bus_if, BRCMF_BUS_UP);
+		break;
+	default:
+		break;
+	}
+	sdiodev->state = state;
+}
+
+static inline int brcmf_sdiod_f0_writeb(struct sdio_func *func,
+					uint regaddr, u8 byte) {
+	int err_ret;
+
+	/*
+	 * Can only directly write to some F0 registers.
+	 * Handle CCCR_IENx and CCCR_ABORT command
+	 * as a special case.
+	 */
+	if ((regaddr == SDIO_CCCR_ABORT) ||
+	    (regaddr == SDIO_CCCR_IENx))
+		sdio_writeb(func, byte, regaddr, &err_ret);
+	else
+		sdio_f0_writeb(func, byte, regaddr, &err_ret);
+
+	return err_ret;
+}
+
+static int brcmf_sdiod_request_data(struct brcmf_sdio_dev *sdiodev, u8 fn, u32 addr, u8 regsz, void *data, bool write)
+{
+	struct sdio_func *func;
+	int ret = -EINVAL;
+
+	brcmf_dbg(SDIO, "rw=%d, func=%d, addr=0x%05x, nbytes=%d\n",
+		  write, fn, addr, regsz);
+
+	/* only allow byte access on F0 */
+	if (WARN_ON(regsz > 1 && !fn))
+		return -EINVAL;
+	func = sdiodev->func[fn];
+
+	switch (regsz) {
+	case sizeof(u8):
+		if (write) {
+			if (fn)
+				sdio_writeb(func, *(u8 *)data, addr, &ret);
+			else
+				ret = brcmf_sdiod_f0_writeb(func, addr,
+							    *(u8 *)data);
+		} else {
+			if (fn)
+				*(u8 *)data = sdio_readb(func, addr, &ret);
+			else
+				*(u8 *)data = sdio_f0_readb(func, addr, &ret);
+		}
+		break;
+	case sizeof(u16):
+		if (write)
+			sdio_writew(func, *(u16 *)data, addr, &ret);
+		else
+			*(u16 *)data = sdio_readw(func, addr, &ret);
+		break;
+	case sizeof(u32):
+		if (write)
+			sdio_writel(func, *(u32 *)data, addr, &ret);
+		else
+			*(u32 *)data = sdio_readl(func, addr, &ret);
+		break;
+	default:
+		brcmf_err("invalid size: %d\n", regsz);
+		break;
+	}
+
+	if (ret)
+		brcmf_dbg(SDIO, "failed to %s data F%d@0x%05x, err: %d\n",
+			  write ? "write" : "read", fn, addr, ret);
+
+	return ret;
+}
+
+static int
+brcmf_sdiod_addrprep(struct brcmf_sdio_dev *sdiodev, uint width, u32 *addr)
+{
+	uint bar0 = *addr & ~SBSDIO_SB_OFT_ADDR_MASK;
+	int err = 0;
+
+	if (bar0 != sdiodev->sbwad) {
+		err = brcmf_sdiod_set_sbaddr_window(sdiodev, bar0);
+		if (err)
+			return err;
+
+		sdiodev->sbwad = bar0;
+	}
+
+	*addr &= SBSDIO_SB_OFT_ADDR_MASK;
+
+	if (width == 4)
+		*addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
+
+	return 0;
+}
+
+static int brcmf_sdiod_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr, u8 regsz, void *data, bool write) {
+	u8 func;
+	s32 retry = 0;
+	int ret;
+
+	if (sdiodev->state == BRCMF_SDIOD_NOMEDIUM)
+		return -ENOMEDIUM;
+
+	/*
+	 * figure out how to read the register based on address range
+	 * 0x00 ~ 0x7FF: function 0 CCCR and FBR
+	 * 0x10000 ~ 0x1FFFF: function 1 miscellaneous registers
+	 * The rest: function 1 silicon backplane core registers
+	 */
+	if ((addr & ~REG_F0_REG_MASK) == 0)
+		func = SDIO_FUNC_0;
+	else
+		func = SDIO_FUNC_1;
+
+	do {
+		if (!write)
+			memset(data, 0, regsz);
+		/* for retry wait for 1 ms till bus get settled down */
+		if (retry)
+			usleep_range(1000, 2000);
+		ret = brcmf_sdiod_request_data(sdiodev, func, addr, regsz,
+					       data, write);
+	} while (ret != 0 && ret != -ENOMEDIUM &&
+		 retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
+
+	if (ret == -ENOMEDIUM)
+		brcmf_sdiod_change_state(sdiodev, BRCMF_SDIOD_NOMEDIUM);
+	else if (ret != 0) {
+		/*
+		 * SleepCSR register access can fail when
+		 * waking up the device so reduce this noise
+		 * in the logs.
+		 */
+		if (addr != SBSDIO_FUNC1_SLEEPCSR)
+			brcmf_err("failed to %s data F%d@0x%05x, err: %d\n",
+				  write ? "write" : "read", func, addr, ret);
+		else
+			brcmf_dbg(SDIO, "failed to %s data F%d@0x%05x, err: %d\n",
+				  write ? "write" : "read", func, addr, ret);
+	}
+	return ret;
+}
+
+static int
+brcmf_sdiod_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
+{
+	int err = 0, i;
+	u8 addr[3];
+
+	if (sdiodev->state == BRCMF_SDIOD_NOMEDIUM)
+		return -ENOMEDIUM;
+
+	addr[0] = (address >> 8) & SBSDIO_SBADDRLOW_MASK;
+	addr[1] = (address >> 16) & SBSDIO_SBADDRMID_MASK;
+	addr[2] = (address >> 24) & SBSDIO_SBADDRHIGH_MASK;
+
+	for (i = 0; i < 3; i++) {
+		err = brcmf_sdiod_regrw_helper(sdiodev,
+					       SBSDIO_FUNC1_SBADDRLOW + i,
+					       sizeof(u8), &addr[i], true);
+		if (err) {
+			brcmf_err("failed at addr: 0x%0x\n",
+				  SBSDIO_FUNC1_SBADDRLOW + i);
+			break;
+		}
+	}
+
+	return err;
+}
+
+u32 brcmf_sdiod_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret)
+{
+	u32 data = 0;
+	int retval;
+
+	brcmf_dbg(SDIO, "addr:0x%08x\n", addr);
+	retval = brcmf_sdiod_addrprep(sdiodev, sizeof(data), &addr);
+	if (retval)
+		goto done;
+	retval = brcmf_sdiod_regrw_helper(sdiodev, addr, sizeof(data), &data,
+					  false);
+	brcmf_dbg(SDIO, "data:0x%08x\n", data);
+
+done:
+	if (ret)
+		*ret = retval;
+
+	return data;
+}
+
+/********************************************************/
 __unused
 static void
 probe_bcrm(struct cam_device *dev) {
@@ -508,8 +423,8 @@ probe_bcrm(struct cam_device *dev) {
 	sdio_func_read_cis(dev, 0, cis_addr, &info);
 	printf("Vendor 0x%04X product 0x%04X\n", info.man_id, info.prod_id);
 }
-__unused
-static uint8_t *
+
+__unused static uint8_t*
 mmap_fw() {
 	const char fw_path[] = "/home/kibab/repos/fbsd-bbb/brcm-firmware/brcmfmac4330-sdio.bin";
 	struct stat sb;
@@ -533,44 +448,42 @@ usage() {
 	exit(0);
 }
 
+struct card_info {
+	uint8_t num_funcs;
+	struct cis_info f[8];
+};
+
+/*
+ * TODO: We should add SDIO card info about at least number of
+ * available functions to struct cam_device and use it instead
+ * of checking for man_id = 0x00 for detecting number of functions
+ */
 static void
-get_sdio_card_info(struct cam_device *dev) {
+get_sdio_card_info(struct cam_device *dev, struct card_info *ci) {
 	uint32_t cis_addr;
 	uint32_t fbr_addr;
-	struct cis_info info;
+	int ret;
 
 	cis_addr = sdio_get_common_cis_addr(dev);
 
-	memset(&info, 0, sizeof(info));
-	sdio_func_read_cis(dev, 0, cis_addr, &info);
+	memset(ci, 0, sizeof(struct card_info));
+	sdio_func_read_cis(dev, 0, cis_addr, &ci->f[0]);
 	printf("F0: Vendor 0x%04X product 0x%04X max block size %d bytes\n",
-	       info.man_id, info.prod_id, info.max_block_size);
-	for (int i = 1; i <= 2; i++) {
+	       ci->f[0].man_id, ci->f[0].prod_id, ci->f[0].max_block_size);
+	for (int i = 1; i <= 7; i++) {
 		fbr_addr = SD_IO_FBR_START * i + 0x9;
-		cis_addr =  sdio_read_1(dev, 0, fbr_addr++);
-		cis_addr |= sdio_read_1(dev, 0, fbr_addr++) << 8;
-		cis_addr |= sdio_read_1(dev, 0, fbr_addr++) << 16;
-		memset(&info, 0, sizeof(info));
-		sdio_func_read_cis(dev, i, cis_addr, &info);
+		cis_addr =  sdio_read_1(dev, 0, fbr_addr++, &ret);bailout(ret);
+		cis_addr |= sdio_read_1(dev, 0, fbr_addr++, &ret) << 8;
+		cis_addr |= sdio_read_1(dev, 0, fbr_addr++, &ret) << 16;
+		sdio_func_read_cis(dev, i, cis_addr, &ci->f[i]);
 		printf("F%d: Vendor 0x%04X product 0x%04X max block size %d bytes\n",
-		       i, info.man_id, info.prod_id, info.max_block_size);
+		       i, ci->f[i].man_id, ci->f[i].prod_id, ci->f[i].max_block_size);
+		if (ci->f[i].man_id == 0) {
+			printf("F%d doesn't exist\n", i);
+			break;
+		}
+		ci->num_funcs++;
 	}
-}
-
-/* Test interrupt delivery when select() */
-__unused static int
-sdio_signal_intr(struct cam_device *dev) {
-	uint8_t resp;
-	int ret;
-
-	ret = sdio_rw_direct(dev, 0, 0x666, 0, NULL, &resp);
-	if (ret < 0)
-		return ret;
-	return (0);
-}
-
-static void
-do_intr_test(__unused struct cam_device *dev) {
 }
 
 int
@@ -578,24 +491,22 @@ main(int argc, char **argv) {
 	char device[] = "pass";
 	int unit = 0;
 	int func = 0;
-	uint8_t resp;
-	uint8_t is_enab;
 	__unused uint8_t *fw_ptr;
 	int ch;
 	struct cam_device *cam_dev;
-	int is_intr_test = 0;
+	int ret;
+	struct card_info ci;
 
 	//fw_ptr = mmap_fw();
 
-	while ((ch = getopt(argc, argv, "Iu:")) != -1) {
+	while ((ch = getopt(argc, argv, "fu:")) != -1) {
 		switch (ch) {
 		case 'u':
 			unit = (int) strtol(optarg, NULL, 10);
 			break;
 		case 'f':
 			func = (int) strtol(optarg, NULL, 10);
-		case 'I':
-			is_intr_test = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -607,43 +518,39 @@ main(int argc, char **argv) {
 	if ((cam_dev = cam_open_spec_device(device, unit, O_RDWR, NULL)) == NULL)
 		errx(1, "Cannot open device");
 
-	get_sdio_card_info(cam_dev);
-	if (is_intr_test > 0)
-		do_intr_test(cam_dev);
-	exit(0);
-	sdio_card_reset(cam_dev);
+	get_sdio_card_info(cam_dev, &ci);
 
-	/* Read Addr 7 of func 0 */
-	int ret = sdio_rw_direct(cam_dev, 0, 7, 0, NULL, &resp);
-	if (ret < 0)
-		errx(1, "Error sending CAM command");
-	printf("Result: %02x\n", resp);
+	/* For now, everything non-broadcom is out of the question */
+	if (ci.f[0].man_id != 0x02D0) {
+		printf("The card is not a Broadcom device\n");
+		exit(1);
+	}
+	/* Init structures */
+	struct brcmf_sdio_dev brcmf_dev;
+	struct brcmf_bus bus_if;
+	struct sdio_func f0, f1, f2;
+	bus_if.state = BRCMF_BUS_DOWN;
+	brcmf_dev.cam_dev = cam_dev;
+	brcmf_dev.bus_if = &bus_if;
+	brcmf_dev.state = BRCMF_SDIOD_DOWN;
 
-	/* Check if func 1 is enabled */
-	ret = sdio_is_func_enabled(cam_dev, 1, &is_enab);
-	if (ret < 0)
-		errx(1, "Cannot check if func is enabled");
-	printf("F1 enabled: %d\n", is_enab);
-	ret = sdio_func_enable(cam_dev, 1, 1 - is_enab);
-	if (ret < 0)
-		errx(1, "Cannot enable/disable func");
-	printf("F1 en/dis result: %d\n", ret);
+	/* Fill in functions */
+	brcmf_dev.func[0] = &f0;
+	brcmf_dev.func[1] = &f1;
+	brcmf_dev.func[2] = &f2;
 
-	/* Check if func 1 is ready */
-	ret = sdio_is_func_ready(cam_dev, 1, &is_enab);
-	if (ret < 0)
-		errx(1, "Cannot check if func is ready");
-	printf("F1 ready: %d\n", is_enab);
+	brcmf_dev.func[0]->dev = brcmf_dev.func[1]->dev
+		= brcmf_dev.func[2]->dev = cam_dev;
+	brcmf_dev.func[0]->num = 0;
+	brcmf_dev.func[1]->num = 1;
+	brcmf_dev.func[2]->num = 2;
 
-	/* Check if interrupts are enabled */
-	ret = sdio_is_func_intr_enabled(cam_dev, 1, &is_enab);
-	if (ret < 0)
-		errx(1, "Cannot check if func intr is enabled");
-	printf("F1 intr enabled: %d\n", is_enab);
-	ret = sdio_func_intr_enable(cam_dev, 1, 1 - is_enab);
-	if (ret < 0)
-		errx(1, "Cannot enable/disable func intr");
-	printf("F1 intr en/dis result: %d\n", ret);
-
+	ret = sdio_func_enable(cam_dev, 1, 1);bailout(ret);
+	uint32_t magic = brcmf_sdiod_regrl(&brcmf_dev, 0x18000000, &ret);
+	printf("Magic = %08x\n", magic);
+	if (magic != REPLY_MAGIC) {
+		errx(1, "Reply magic is incorrect: expected %08x, got %08x",
+		     REPLY_MAGIC, magic);
+	}
 	cam_close_spec_device(cam_dev);
 }
