@@ -875,7 +875,7 @@ printcpuinfo(void)
 				"\033DBE"	/* Data Breakpoint extension */
 				"\034PTSC"	/* Performance TSC */
 				"\035PL2I"	/* L2I perf count */
-		       	        "\036MWAITX"	/* MONITORX/MWAITX instructions */
+				"\036MWAITX"	/* MONITORX/MWAITX instructions */
 				"\037<b30>"
 				"\040<b31>"
 				);
