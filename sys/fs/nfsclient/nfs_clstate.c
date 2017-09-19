@@ -5235,7 +5235,7 @@ nfscl_layoutreturn(struct nfsmount *nmp, struct nfscllayout *lyp,
 		    lyp->nfsly_fhlen, 0, NFSLAYOUT_NFSV4_1_FILES,
 		    rp->nfsrecly_iomode, rp->nfsrecly_recalltype,
 		    rp->nfsrecly_off, rp->nfsrecly_len,
-		    &stateid, 0, NULL, cred, p, NULL);
+		    &stateid, cred, p, NULL);
 	}
 }
 
