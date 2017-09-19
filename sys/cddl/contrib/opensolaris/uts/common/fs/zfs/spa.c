@@ -4179,6 +4179,16 @@ spa_import_rootpool(const char *name)
 
 		if ((spa = spa_lookup(pname)) != NULL) {
 			/*
+			 * The pool could already be imported,
+			 * e.g., after reboot -r.
+			 */
+			if (spa->spa_state == POOL_STATE_ACTIVE) {
+				mutex_exit(&spa_namespace_lock);
+				nvlist_free(config);
+				return (0);
+			}
+
+			/*
 			 * Remove the existing root pool from the namespace so
 			 * that we can replace it with the correct config
 			 * we just read in.
