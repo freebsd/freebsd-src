@@ -106,8 +106,6 @@ mkdir -p ${NANO_OBJ}
 NANO_OBJ=$(realpath ${NANO_OBJ})
 mkdir -p ${NANO_LOG}
 NANO_LOG=$(realpath ${NANO_LOG})
-mkdir -p ${NANO_IMAGES}
-NANO_IMAGES=$(realpath ${NANO_IMAGES})
 mkdir -p ${NANO_WORLDDIR}
 NANO_WORLDDIR=$(realpath ${NANO_WORLDDIR})
 mkdir -p ${NANO_DISKIMGDIR}
