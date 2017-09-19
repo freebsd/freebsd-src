@@ -77,7 +77,7 @@ static int fmt_flags = 0;
 int pcpu_stats = No;
 
 /* signal handling routines */
-sigret_t leave(void);
+sigret_t leave(int i);
 sigret_t tstop(int i);
 #ifdef SIGWINCH
 sigret_t winch(int i);
@@ -1195,7 +1195,9 @@ reset_display(void)
  *  signal handlers
  */
 
-sigret_t leave(void)	/* exit under normal conditions -- INT handler */
+sigret_t leave(i)	/* exit under normal conditions -- INT handler */
+
+int i;
 
 {
     leaveflag = 1;
