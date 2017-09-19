@@ -188,6 +188,24 @@ hn_rndis_get_linkstatus(struct hn_softc *sc, uint32_t *link_status)
 	return (0);
 }
 
+int
+hn_rndis_get_mtu(struct hn_softc *sc, uint32_t *mtu)
+{
+	size_t size;
+	int error;
+
+	size = sizeof(*mtu);
+	error = hn_rndis_query(sc, OID_GEN_MAXIMUM_FRAME_SIZE, NULL, 0,
+	    mtu, &size);
+	if (error)
+		return (error);
+	if (size != sizeof(uint32_t)) {
+		if_printf(sc->hn_ifp, "invalid mtu len %zu\n", size);
+		return (EINVAL);
+	}
+	return (0);
+}
+
 static const void *
 hn_rndis_xact_exec1(struct hn_softc *sc, struct vmbus_xact *xact, size_t reqlen,
     struct hn_nvs_sendctx *sndc, size_t *comp_len)
