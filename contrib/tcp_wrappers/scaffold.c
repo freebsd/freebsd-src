@@ -27,10 +27,6 @@ static char sccs_id[] = "@(#) scaffold.c 1.6 97/03/21 19:27:24";
 #define	INADDR_NONE	(-1)		/* XXX should be 0xffffffff */
 #endif
 
-#ifndef INET6
-extern char *malloc();
-#endif
-
 /* Application-specific. */
 
 #include "tcpd.h"
