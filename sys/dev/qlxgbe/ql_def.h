@@ -239,6 +239,7 @@ struct qla_host {
 	volatile const char 	*qla_lock;
 	volatile const char	*qla_unlock;
 	uint32_t		dbg_level;
+	uint32_t		enable_minidump;
 
 	uint8_t			fw_ver_str[32];
 
