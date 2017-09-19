@@ -2553,15 +2553,12 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	/* Expire time is in Ticks, so we convert to seconds */
 	time_expires.tv_sec = cookie->time_entered.tv_sec + TICKS_TO_SEC(cookie->cookie_life);
 	time_expires.tv_usec = cookie->time_entered.tv_usec;
-	/*
-	 * TODO sctp_constants.h needs alternative time macros when _KERNEL
-	 * is undefined.
-	 */
 	if (timevalcmp(&now, &time_expires, >)) {
 		/* cookie is stale! */
 		struct mbuf *op_err;
 		struct sctp_error_stale_cookie *cause;
-		uint32_t tim;
+		struct timeval diff;
+		uint32_t staleness;
 
 		op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_error_stale_cookie),
 		    0, M_NOWAIT, 1, MT_DATA);
@@ -2575,12 +2572,19 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		cause->cause.code = htons(SCTP_CAUSE_STALE_COOKIE);
 		cause->cause.length = htons((sizeof(struct sctp_paramhdr) +
 		    (sizeof(uint32_t))));
-		/* seconds to usec */
-		tim = (now.tv_sec - time_expires.tv_sec) * 1000000;
-		/* add in usec */
-		if (tim == 0)
-			tim = now.tv_usec - cookie->time_entered.tv_usec;
-		cause->stale_time = htonl(tim);
+		diff = now;
+		timevalsub(&diff, &time_expires);
+		if (diff.tv_sec > UINT32_MAX / 1000000) {
+			staleness = UINT32_MAX;
+		} else {
+			staleness = diff.tv_sec * 1000000;
+		}
+		if (UINT32_MAX - staleness >= diff.tv_usec) {
+			staleness += diff.tv_usec;
+		} else {
+			staleness = UINT32_MAX;
+		}
+		cause->stale_time = htonl(staleness);
 		sctp_send_operr_to(src, dst, sh, cookie->peers_vtag, op_err,
 		    mflowtype, mflowid, l_inp->fibnum,
 		    vrf_id, port);
