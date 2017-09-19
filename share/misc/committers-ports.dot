@@ -99,6 +99,7 @@ edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2002/10/22"]
 ehaupt [label="Emanuel Haupt\nehaupt@FreeBSD.org\n2005/10/03"]
 eik [label="Oliver Eikemeier\neik@FreeBSD.org\n2003/11/12"]
 erwin [label="Erwin Lansing\nerwin@FreeBSD.org\n2003/06/04"]
+eugen [label="Eugene Grosbein\neugen@FreeBSD.org\n2017/03/04"]
 farrokhi [label="Babak Farrokhi\nfarrokhi@FreeBSD.org\n2006/11/07"]
 feld [label="Mark Felder\nfeld@FreeBSD.org\n2013/06/25"]
 fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
@@ -289,6 +290,8 @@ asami -> obrien
 
 avilla -> jhale
 avilla -> rakuco
+
+az -> eugen
 
 bdrewery -> dbn
 bdrewery -> sbruno
@@ -655,6 +658,8 @@ thierry -> riggs
 
 tmclaugh -> itetcu
 tmclaugh -> xride
+
+vsevolod -> eugen
 
 wen -> cs
 wen -> culot
