@@ -484,6 +484,9 @@ int *states;
     register char *thisname;
     int cpu;
 
+    /* copy over values into "last" array */
+    memcpy(lcpustates, states, num_cpustates * sizeof(int) * num_cpus);
+
 for (cpu = 0; cpu < num_cpus; cpu++) {
     names = cpustate_names;
 
@@ -514,8 +517,6 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
     }
 }
 
-    /* copy over values into "last" array */
-    memcpy(lcpustates, states, num_cpustates * sizeof(int) * num_cpus);
 }
 
 void
