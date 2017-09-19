@@ -479,9 +479,6 @@ int nfsrpc_destroysession(struct nfsmount *, struct nfsclclient *,
     struct ucred *, NFSPROC_T *);
 int nfsrpc_destroyclient(struct nfsmount *, struct nfsclclient *,
     struct ucred *, NFSPROC_T *);
-int nfsrpc_layoutget(struct nfsmount *, uint8_t *, int, int, uint64_t, uint64_t,
-    uint64_t, int, nfsv4stateid_t *, int *, struct nfsclflayouthead *,
-    struct ucred *, NFSPROC_T *, void *);
 int nfsrpc_getdeviceinfo(struct nfsmount *, uint8_t *, int, uint32_t *,
     struct nfscldevinfo **, struct ucred *, NFSPROC_T *);
 int nfsrpc_layoutcommit(struct nfsmount *, uint8_t *, int, int,
