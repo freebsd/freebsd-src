@@ -199,8 +199,8 @@
 	facilities of &man.cxgbe.4; devices.</para>
 
       <para revision="318430">The &man.ifconfig.8; utility has been
-	updated to persistently store the hardware
-	<acronym>MAC</acronym> addres of an interface.  This provides
+	updated to show <acronym>MAC</acronym> addresses
+	persistently stored by network drivers.  This provides
 	a mechanism through which the original <acronym>MAC</acronym>
 	address can be retrieved if, for example, an interface is
 	added to a &man.lagg.4; and the <literal>MAC</literal> is
@@ -285,7 +285,7 @@
 
       <para revision="313433">The &man.bsdinstall.8; utility has been
 	updated to ensure newly-created partitions are properly
-	aligned at 4096k boundaries.</para>
+	aligned at 4096 byte boundaries.</para>
 
       <para revision="321202" contrib="sponsor" sponsor="&ff;">The
 	default <acronym>EFI</acronym> partition created by
