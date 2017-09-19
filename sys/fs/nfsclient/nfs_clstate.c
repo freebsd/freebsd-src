@@ -5256,7 +5256,7 @@ nfscl_dolayoutcommit(struct nfsmount *nmp, struct nfscllayout *lyp,
 			error = nfsrpc_layoutcommit(nmp, lyp->nfsly_fh,
 			    lyp->nfsly_fhlen, 0, flp->nfsfl_off, len,
 			    lyp->nfsly_lastbyte, &lyp->nfsly_stateid,
-			    NFSLAYOUT_NFSV4_1_FILES, 0, NULL, cred, p, NULL);
+			    NFSLAYOUT_NFSV4_1_FILES, cred, p, NULL);
 			NFSCL_DEBUG(4, "layoutcommit err=%d\n", error);
 			if (error == NFSERR_NOTSUPP) {
 				/* If not supported, don't bother doing it. */
