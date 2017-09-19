@@ -244,7 +244,7 @@ struct kinfo_proc_c {
 	 * front of ki_sparestrings, and ints from the end of ki_spareints.
 	 * That way the spare room from both arrays will remain contiguous.
 	 */
-	char	ki_sparestrings[50];
+	char	ki_sparestrings[46];
 	int	ki_spareints[KI_NSPARE_INT];
 	uint64_t ki_tdev;
 	int	ki_oncpu;
