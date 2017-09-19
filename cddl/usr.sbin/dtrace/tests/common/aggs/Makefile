@@ -167,6 +167,8 @@ TESTFILES= \
      tst.sizedkeys.d.out  \
      tst.stddev.d  \
      tst.stddev.d.out  \
+     tst.stddev.normalize.d  \
+     tst.stddev.normalize.d.out  \
      tst.subr.d  \
      tst.sum.d  \
      tst.sum.d.out  \
