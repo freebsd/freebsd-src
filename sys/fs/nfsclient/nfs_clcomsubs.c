@@ -250,7 +250,6 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 		NFSINCRGLOBAL(nfsstatsv1.rpccnt[procnum]);
 }
 
-#ifndef APPLE
 /*
  * copies a uio scatter/gather list to an mbuf chain.
  * NOTE: can ony handle iovcnt == 1
@@ -332,7 +331,89 @@ nfsm_uiombuf(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 		nd->nd_bpos = NFSMTOD(mp, caddr_t) + mbuf_len(mp);
 	nd->nd_mb = mp;
 }
-#endif	/* !APPLE */
+
+/*
+ * copies a uio scatter/gather list to an mbuf chain.
+ * This version returns the mbuf list and does not use "nd".
+ * NOTE: can ony handle iovcnt == 1
+ */
+struct mbuf *
+nfsm_uiombuflist(struct uio *uiop, int siz, struct mbuf **mbp, char **cpp)
+{
+	char *uiocp;
+	struct mbuf *mp, *mp2, *firstmp;
+	int xfer, left, mlen;
+	int uiosiz, clflg, rem;
+	char *cp, *tcp;
+
+	KASSERT(uiop->uio_iovcnt == 1, ("nfsm_uiotombuf: iovcnt != 1"));
+
+	if (siz > ncl_mbuf_mlen)	/* or should it >= MCLBYTES ?? */
+		clflg = 1;
+	else
+		clflg = 0;
+	rem = NFSM_RNDUP(siz) - siz;
+	if (clflg != 0)
+		NFSMCLGET(mp, M_WAITOK);
+	else
+		NFSMGET(mp);
+	mbuf_setlen(mp, 0);
+	firstmp = mp2 = mp;
+	while (siz > 0) {
+		left = uiop->uio_iov->iov_len;
+		uiocp = uiop->uio_iov->iov_base;
+		if (left > siz)
+			left = siz;
+		uiosiz = left;
+		while (left > 0) {
+			mlen = M_TRAILINGSPACE(mp);
+			if (mlen == 0) {
+				if (clflg)
+					NFSMCLGET(mp, M_WAITOK);
+				else
+					NFSMGET(mp);
+				mbuf_setlen(mp, 0);
+				mbuf_setnext(mp2, mp);
+				mp2 = mp;
+				mlen = M_TRAILINGSPACE(mp);
+			}
+			xfer = (left > mlen) ? mlen : left;
+			if (uiop->uio_segflg == UIO_SYSSPACE)
+				NFSBCOPY(uiocp, NFSMTOD(mp, caddr_t) +
+				    mbuf_len(mp), xfer);
+			else
+				copyin(uiocp, NFSMTOD(mp, caddr_t) +
+				    mbuf_len(mp), xfer);
+			mbuf_setlen(mp, mbuf_len(mp) + xfer);
+			left -= xfer;
+			uiocp += xfer;
+			uiop->uio_offset += xfer;
+			uiop->uio_resid -= xfer;
+		}
+		tcp = (char *)uiop->uio_iov->iov_base;
+		tcp += uiosiz;
+		uiop->uio_iov->iov_base = (void *)tcp;
+		uiop->uio_iov->iov_len -= uiosiz;
+		siz -= uiosiz;
+	}
+	if (rem > 0) {
+		if (rem > M_TRAILINGSPACE(mp)) {
+			NFSMGET(mp);
+			mbuf_setlen(mp, 0);
+			mbuf_setnext(mp2, mp);
+		}
+		cp = NFSMTOD(mp, caddr_t) + mbuf_len(mp);
+		for (left = 0; left < rem; left++)
+			*cp++ = '\0';
+		mbuf_setlen(mp, mbuf_len(mp) + rem);
+		if (cpp != NULL)
+			*cpp = cp;
+	} else if (cpp != NULL)
+		*cpp = NFSMTOD(mp, caddr_t) + mbuf_len(mp);
+	if (mbp != NULL)
+		*mbp = mp;
+	return (firstmp);
+}
 
 /*
  * Load vnode attributes from the xdr file attributes.

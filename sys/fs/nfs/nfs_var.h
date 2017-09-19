@@ -301,6 +301,7 @@ struct ucred *nfsrv_getgrpscred(struct ucred *);
 
 /* nfs_clcomsubs.c */
 void nfsm_uiombuf(struct nfsrv_descript *, struct uio *, int);
+struct mbuf *nfsm_uiombuflist(struct uio *, int, struct mbuf **, char **);
 void nfscl_reqstart(struct nfsrv_descript *, int, struct nfsmount *,
     u_int8_t *, int, u_int32_t **, struct nfsclsession *);
 nfsuint64 *nfscl_getcookie(struct nfsnode *, off_t off, int);
