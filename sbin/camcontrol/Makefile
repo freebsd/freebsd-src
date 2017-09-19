@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# Doesn't work when built as CheriABI.
+WANT_CHERI=	none
+
 PACKAGE=runtime
 PROG=	camcontrol
 SRCS=	camcontrol.c util.c
