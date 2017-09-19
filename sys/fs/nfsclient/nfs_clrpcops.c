@@ -146,6 +146,9 @@ static int nfsrpc_createlayout(vnode_t, char *, int, struct vattr *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
     struct nfsfh **, int *, int *, void *, int *, nfsv4stateid_t *,
     int, int, int *, struct nfsclflayouthead *, int *);
+static int nfsrpc_layoutget(struct nfsmount *, uint8_t *, int, int, uint64_t,
+    uint64_t, uint64_t, int, nfsv4stateid_t *, int *, struct nfsclflayouthead *,
+    struct ucred *, NFSPROC_T *, void *);
 static int nfsrpc_layoutgetres(struct nfsmount *, vnode_t, uint8_t *,
     int, nfsv4stateid_t *, int, uint32_t *, struct nfscllayout **,
     struct nfsclflayouthead *, int, int *, struct ucred *, NFSPROC_T *);
@@ -4838,7 +4841,7 @@ nfsrpc_destroyclient(struct nfsmount *nmp, struct nfsclclient *clp,
 /*
  * Do the NFSv4.1 LayoutGet.
  */
-int
+static int
 nfsrpc_layoutget(struct nfsmount *nmp, uint8_t *fhp, int fhlen, int iomode,
     uint64_t offset, uint64_t len, uint64_t minlen, int layoutlen,
     nfsv4stateid_t *stateidp, int *retonclosep, struct nfsclflayouthead *flhp,
