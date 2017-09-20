@@ -158,6 +158,7 @@ static uma_zone_t fakepg_zone;
 static void vm_page_alloc_check(vm_page_t m);
 static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
 static void vm_page_enqueue(uint8_t queue, vm_page_t m);
+static void vm_page_free_phys(vm_page_t m);
 static void vm_page_free_wakeup(void);
 static void vm_page_init_fakepg(void *dummy);
 static int vm_page_insert_after(vm_page_t m, vm_object_t object,
@@ -2367,13 +2368,7 @@ unlock:
 		mtx_lock(&vm_page_queue_free_mtx);
 		do {
 			SLIST_REMOVE_HEAD(&free, plinks.s.ss);
-			vm_phys_freecnt_adj(m, 1);
-#if VM_NRESERVLEVEL > 0
-			if (!vm_reserv_free_page(m))
-#else
-			if (true)
-#endif
-				vm_phys_free_pages(m, 0);
+			vm_page_free_phys(m);
 		} while ((m = SLIST_FIRST(&free)) != NULL);
 		vm_page_zero_idle_wakeup();
 		vm_page_free_wakeup();
@@ -2736,15 +2731,18 @@ vm_page_free_wakeup(void)
 }
 
 /*
- *	vm_page_free_toq:
+ *	vm_page_free_prep:
  *
- *	Returns the given page to the free list,
- *	disassociating it with any VM object.
+ *	Prepares the given page to be put on the free list,
+ *	disassociating it from any VM object. The caller may return
+ *	the page to the free list only if this function returns true.
  *
- *	The object must be locked.  The page must be locked if it is managed.
+ *	The object must be locked.  The page must be locked if it is
+ *	managed.  For a queued managed page, the pagequeue_locked
+ *	argument specifies whether the page queue is already locked.
  */
-void
-vm_page_free_toq(vm_page_t m)
+bool
+vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
 {
 
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
@@ -2765,16 +2763,20 @@ vm_page_free_toq(vm_page_t m)
 	 * callback routine until after we've put the page on the
 	 * appropriate free queue.
 	 */
-	vm_page_remque(m);
+	if (m->queue != PQ_NONE) {
+		if (pagequeue_locked)
+			vm_page_dequeue_locked(m);
+		else
+			vm_page_dequeue(m);
+	}
 	vm_page_remove(m);
 
 	/*
 	 * If fictitious remove object association and
 	 * return, otherwise delay object association removal.
 	 */
-	if ((m->flags & PG_FICTITIOUS) != 0) {
-		return;
-	}
+	if ((m->flags & PG_FICTITIOUS) != 0)
+		return (false);
 
 	m->valid = 0;
 	vm_page_undirty(m);
@@ -2786,32 +2788,70 @@ vm_page_free_toq(vm_page_t m)
 		KASSERT((m->flags & PG_UNHOLDFREE) == 0,
 		    ("vm_page_free: freeing PG_UNHOLDFREE page %p", m));
 		m->flags |= PG_UNHOLDFREE;
-	} else {
-		/*
-		 * Restore the default memory attribute to the page.
-		 */
-		if (pmap_page_get_memattr(m) != VM_MEMATTR_DEFAULT)
-			pmap_page_set_memattr(m, VM_MEMATTR_DEFAULT);
+		return (false);
+	}
 
-		/*
-		 * Insert the page into the physical memory allocator's free
-		 * page queues.
-		 */
-		mtx_lock(&vm_page_queue_free_mtx);
-		vm_phys_freecnt_adj(m, 1);
+	/*
+	 * Restore the default memory attribute to the page.
+	 */
+	if (pmap_page_get_memattr(m) != VM_MEMATTR_DEFAULT)
+		pmap_page_set_memattr(m, VM_MEMATTR_DEFAULT);
+
+	return (true);
+}
+
+/*
+ * Insert the page into the physical memory allocator's free page
+ * queues.  This is the last step to free a page.
+ */
+static void
+vm_page_free_phys(vm_page_t m)
+{
+
+	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+
+	vm_phys_freecnt_adj(m, 1);
 #if VM_NRESERVLEVEL > 0
-		if (!vm_reserv_free_page(m))
-#else
-		if (TRUE)
+	if (!vm_reserv_free_page(m))
 #endif
 			vm_phys_free_pages(m, 0);
-		if ((m->flags & PG_ZERO) != 0)
-			++vm_page_zero_count;
-		else
-			vm_page_zero_idle_wakeup();
-		vm_page_free_wakeup();
-		mtx_unlock(&vm_page_queue_free_mtx);
-	}
+	if ((m->flags & PG_ZERO) != 0)
+		++vm_page_zero_count;
+	else
+		vm_page_zero_idle_wakeup();
+}
+
+void
+vm_page_free_phys_pglist(struct pglist *tq)
+{
+	vm_page_t m;
+
+	mtx_lock(&vm_page_queue_free_mtx);
+	TAILQ_FOREACH(m, tq, listq)
+		vm_page_free_phys(m);
+	vm_page_free_wakeup();
+	mtx_unlock(&vm_page_queue_free_mtx);
+}
+
+/*
+ *	vm_page_free_toq:
+ *
+ *	Returns the given page to the free list, disassociating it
+ *	from any VM object.
+ *
+ *	The object must be locked.  The page must be locked if it is
+ *	managed.
+ */
+void
+vm_page_free_toq(vm_page_t m)
+{
+
+	if (!vm_page_free_prep(m, false))
+		return;
+	mtx_lock(&vm_page_queue_free_mtx);
+	vm_page_free_phys(m);
+	vm_page_free_wakeup();
+	mtx_unlock(&vm_page_queue_free_mtx);
 }
 
 /*
