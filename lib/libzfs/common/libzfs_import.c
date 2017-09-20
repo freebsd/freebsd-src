@@ -841,6 +841,7 @@ label_offset(uint64_t size, int l)
 /*
  * Given a file descriptor, read the label information and return an nvlist
  * describing the configuration, if there is one.
+ * Return 0 on success, or -1 on failure
  */
 int
 zpool_read_label(int fd, nvlist_t **config)
@@ -853,7 +854,7 @@ zpool_read_label(int fd, nvlist_t **config)
 	*config = NULL;
 
 	if (fstat64(fd, &statbuf) == -1)
-		return (0);
+		return (-1);
 	size = P2ALIGN_TYPED(statbuf.st_size, sizeof (vdev_label_t), uint64_t);
 
 	if ((label = malloc(sizeof (vdev_label_t))) == NULL)
@@ -887,7 +888,7 @@ zpool_read_label(int fd, nvlist_t **config)
 
 	free(label);
 	*config = NULL;
-	return (0);
+	return (-1);
 }
 
 typedef struct rdsk_node {
@@ -1052,7 +1053,7 @@ zpool_open_func(void *arg)
 		check_slices(rn->rn_avl, fd, rn->rn_name);
 	}
 
-	if ((zpool_read_label(fd, &config)) != 0) {
+	if ((zpool_read_label(fd, &config)) != 0 && errno == ENOMEM) {
 		(void) close(fd);
 		(void) no_memory(rn->rn_hdl);
 		return;
@@ -1517,7 +1518,7 @@ zpool_in_use(libzfs_handle_t *hdl, int fd, pool_state_t *state, char **namestr,
 
 	*inuse = B_FALSE;
 
-	if (zpool_read_label(fd, &config) != 0) {
+	if (zpool_read_label(fd, &config) != 0 && errno == ENOMEM) {
 		(void) no_memory(hdl);
 		return (-1);
 	}
