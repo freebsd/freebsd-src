@@ -93,6 +93,7 @@ u_int	amd_feature;		/* AMD feature flags */
 u_int	amd_feature2;		/* AMD feature flags */
 u_int	amd_rascap;		/* AMD RAS capabilities */
 u_int	amd_pminfo;		/* AMD advanced power management info */
+u_int	amd_extended_feature_extensions;
 u_int	via_feature_rng;	/* VIA RNG features */
 u_int	via_feature_xcrypt;	/* VIA ACE features */
 u_int	cpu_high;		/* Highest arg to CPUID */
@@ -992,6 +993,16 @@ printcpuinfo(void)
 				}
 			}
 
+			if (amd_extended_feature_extensions != 0) {
+				printf("\n  "
+				    "AMD Extended Feature Extensions ID EBX="
+				    "0x%b", amd_extended_feature_extensions,
+				    "\020"
+				    "\001CLZERO"
+				    "\002IRPerf"
+				    "\003XSaveErPtr");
+			}
+
 			if (via_feature_rng != 0 || via_feature_xcrypt != 0)
 				print_via_padlock_info();
 
@@ -1468,6 +1479,7 @@ finishidentcpu(void)
 	if (cpu_exthigh >= 0x80000008) {
 		do_cpuid(0x80000008, regs);
 		cpu_maxphyaddr = regs[0] & 0xff;
+		amd_extended_feature_extensions = regs[1];
 		cpu_procinfo2 = regs[2];
 	} else {
 		cpu_maxphyaddr = (cpu_feature & CPUID_PAE) != 0 ? 36 : 32;
