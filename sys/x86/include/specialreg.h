@@ -331,6 +331,13 @@
 #define	AMDPM_CPB		0x00000200
 
 /*
+ * AMD extended function 8000_0008h ebx info (amd_extended_feature_extensions)
+ */
+#define	AMDFEID_CLZERO		0x00000001
+#define	AMDFEID_IRPERF		0x00000002
+#define	AMDFEID_XSAVEERPTR	0x00000004
+
+/*
  * AMD extended function 8000_0008h ecx info
  */
 #define	AMDID_CMP_CORES		0x000000ff
