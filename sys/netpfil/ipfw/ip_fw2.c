@@ -1609,10 +1609,7 @@ do {								\
 
 			case O_IP_SRC_ME:
 				if (is_ipv4) {
-					struct ifnet *tif;
-
-					INADDR_TO_IFP(src_ip, tif);
-					match = (tif != NULL);
+					match = in_localip(src_ip);
 					break;
 				}
 #ifdef INET6
@@ -1648,10 +1645,7 @@ do {								\
 
 			case O_IP_DST_ME:
 				if (is_ipv4) {
-					struct ifnet *tif;
-
-					INADDR_TO_IFP(dst_ip, tif);
-					match = (tif != NULL);
+					match = in_localip(dst_ip);
 					break;
 				}
 #ifdef INET6
