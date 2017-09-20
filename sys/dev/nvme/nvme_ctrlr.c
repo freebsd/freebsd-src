@@ -151,7 +151,7 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	 * not a hard limit and will need to be revisitted when the upper layers
 	 * of the storage system grows multi-queue support.
 	 */
-	ctrlr->max_hw_pend_io = num_trackers * ctrlr->num_io_queues / 4;
+	ctrlr->max_hw_pend_io = num_trackers * ctrlr->num_io_queues * 3 / 4;
 
 	/*
 	 * This was calculated previously when setting up interrupts, but
