@@ -2861,8 +2861,7 @@ mly_user_command(struct mly_softc *sc, struct mly_user_command *uc)
 
     /* allocate a command */
     if (mly_alloc_command(sc, &mc)) {
-	error = ENOMEM;
-	goto out;		/* XXX Linux version will wait for a command */
+	return (ENOMEM);	/* XXX Linux version will wait for a command */
     }
 
     /* handle data size/direction */
@@ -2918,8 +2917,7 @@ mly_user_command(struct mly_softc *sc, struct mly_user_command *uc)
  out:
     if (mc->mc_data != NULL)
 	free(mc->mc_data, M_DEVBUF);
-    if (mc != NULL)
-	mly_release_command(mc);
+    mly_release_command(mc);
     return(error);
 }
 
