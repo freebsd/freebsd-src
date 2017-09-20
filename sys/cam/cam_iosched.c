@@ -533,7 +533,7 @@ cam_iosched_ticker(void *arg)
 	sbintime_t now, delta;
 	int pending;
 
-	callout_reset(&isc->ticker, hz / isc->quanta - 1, cam_iosched_ticker, isc);
+	callout_reset(&isc->ticker, hz / isc->quanta, cam_iosched_ticker, isc);
 
 	now = sbinuptime();
 	delta = now - isc->last_time;
@@ -798,7 +798,7 @@ cam_iosched_limiter_sysctl(SYSCTL_HANDLER_ARGS)
 			return error;
 		}
 		/* Note: disk load averate requires ticker to be always running */
-		callout_reset(&isc->ticker, hz / isc->quanta - 1, cam_iosched_ticker, isc);
+		callout_reset(&isc->ticker, hz / isc->quanta, cam_iosched_ticker, isc);
 		isc->flags |= CAM_IOSCHED_FLAG_CALLOUT_ACTIVE;
 
 		cam_periph_unlock(isc->periph);
@@ -1055,7 +1055,7 @@ cam_iosched_init(struct cam_iosched_softc **iscp, struct cam_periph *periph)
 		callout_init_mtx(&(*iscp)->ticker, cam_periph_mtx(periph), 0);
 		(*iscp)->periph = periph;
 		cam_iosched_cl_init(&(*iscp)->cl, *iscp);
-		callout_reset(&(*iscp)->ticker, hz / (*iscp)->quanta - 1, cam_iosched_ticker, *iscp);
+		callout_reset(&(*iscp)->ticker, hz / (*iscp)->quanta, cam_iosched_ticker, *iscp);
 		(*iscp)->flags |= CAM_IOSCHED_FLAG_CALLOUT_ACTIVE;
 	}
 #endif
