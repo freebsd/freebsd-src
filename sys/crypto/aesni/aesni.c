@@ -114,7 +114,7 @@ aesni_probe(device_t dev)
 }
 
 static void
-aensi_cleanctx(void)
+aesni_cleanctx(void)
 {
 	int i;
 
@@ -198,7 +198,7 @@ aesni_detach(device_t dev)
 
 	rw_destroy(&sc->lock);
 
-	aensi_cleanctx();
+	aesni_cleanctx();
 
 	return (0);
 }
