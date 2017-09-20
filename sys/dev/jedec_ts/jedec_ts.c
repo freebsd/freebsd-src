@@ -42,6 +42,116 @@ __FBSDID("$FreeBSD$");
 
 
 /*
+ * General device identification notes.
+ *
+ * The JEDEC TSE2004av specification defines the device ID that all compliant
+ * devices should use, but very few do in practice.  Maybe that's because
+ * TSE2002av was rather vague about that.
+ * Rare examples are IDT TSE2004GB2B0 and Atmel AT30TSE004A, not sure if
+ * they are TSE2004av compliant by design or by accident.
+ * Also, the specification mandates that PCI SIG manufacturer IDs are to be
+ * used, but in practice the JEDEC manufacturer IDs are often used.
+ */
+
+const struct ts_dev {
+	uint16_t	vendor_id;
+	uint8_t		device_id;
+	const char	*description;
+} known_devices[] = {
+	/*
+	 * Analog Devices ADT7408.
+	 * http://www.analog.com/media/en/technical-documentation/data-sheets/ADT7408.pdf
+	 */
+	{ 0x11d4, 0x08, "Analog Devices DIMM temperature sensor" },
+
+	/*
+	 * Atmel AT30TSE002B, AT30TSE004A.
+	 * http://www.atmel.com/images/doc8711.pdf
+	 * http://www.atmel.com/images/atmel-8868-dts-at30tse004a-datasheet.pdf
+	 * Note how one chip uses the JEDEC Manufacturer ID while the other
+	 * uses the PCI SIG one.
+	 */
+	{ 0x001f, 0x82, "Atmel DIMM temperature sensor" },
+	{ 0x1114, 0x22, "Atmel DIMM temperature sensor" },
+
+	/*
+	 * Integrated Device Technology (IDT) TS3000B3A, TSE2002B3C,
+	 * TSE2004GB2B0 chips and their variants.
+	 * http://www.idt.com/sites/default/files/documents/IDT_TSE2002B3C_DST_20100512_120303152056.pdf
+	 * http://www.idt.com/sites/default/files/documents/IDT_TS3000B3A_DST_20101129_120303152013.pdf
+	 * https://www.idt.com/document/dst/tse2004gb2b0-datasheet
+	 */
+	{ 0x00b3, 0x29, "IDT DIMM temperature sensor" },
+	{ 0x00b3, 0x22, "IDT DIMM temperature sensor" },
+
+	/*
+	 * Maxim Integrated MAX6604.
+	 * Different document revisions specify different Device IDs.
+	 * Document 19-3837; Rev 0; 10/05 has 0x3e00 while
+	 * 19-3837; Rev 3; 10/11 has 0x5400.
+	 * http://datasheets.maximintegrated.com/en/ds/MAX6604.pdf
+	 */
+	{ 0x004d, 0x3e, "Maxim Integrated DIMM temperature sensor" },
+	{ 0x004d, 0x54, "Maxim Integrated DIMM temperature sensor" },
+
+	/*
+	 * Microchip Technology MCP9805, MCP9843, MCP98242, MCP98243
+	 * and their variants.
+	 * http://ww1.microchip.com/downloads/en/DeviceDoc/21977b.pdf
+	 * Microchip Technology EMC1501.
+	 * http://ww1.microchip.com/downloads/en/DeviceDoc/00001605A.pdf
+	 */
+	{ 0x0054, 0x00, "Microchip DIMM temperature sensor" },
+	{ 0x0054, 0x20, "Microchip DIMM temperature sensor" },
+	{ 0x0054, 0x21, "Microchip DIMM temperature sensor" },
+	{ 0x1055, 0x08, "Microchip DIMM temperature sensor" },
+
+	/*
+	 * NXP Semiconductors SE97 and SE98.
+	 * http://www.nxp.com/docs/en/data-sheet/SE97B.pdf
+	 */
+	{ 0x1131, 0xa1, "NXP DIMM temperature sensor" },
+	{ 0x1131, 0xa2, "NXP DIMM temperature sensor" },
+
+	/*
+	 * ON Semiconductor CAT34TS02 revisions B and C, CAT6095 and compatible.
+	 * https://www.onsemi.com/pub/Collateral/CAT34TS02-D.PDF
+	 * http://www.onsemi.com/pub/Collateral/CAT6095-D.PDF
+	 */
+	{ 0x1b09, 0x08, "ON Semiconductor DIMM temperature sensor" },
+	{ 0x1b09, 0x0a, "ON Semiconductor DIMM temperature sensor" },
+
+	/*
+	 * ST[Microelectronics] STTS424E02, STTS2002 and others.
+	 * http://www.st.com/resource/en/datasheet/cd00157558.pdf
+	 * http://www.st.com/resource/en/datasheet/stts2002.pdf
+	 */
+	{ 0x104a, 0x00, "ST DIMM temperature sensor" },
+	{ 0x104a, 0x03, "ST DIMM temperature sensor" },
+};
+
+static const char *
+ts_match_device(uint16_t vid, uint16_t did)
+{
+	const struct ts_dev *d;
+	int i;
+
+	for (i = 0; i < nitems(known_devices); i++) {
+		d = &known_devices[i];
+		if (vid == d->vendor_id && (did >> 8) == d->device_id)
+			return (d->description);
+	}
+
+	/*
+	 * If no match for a specific device, then check
+	 * for a generic TSE2004av compliant device.
+	 */
+	if ((did >> 8) == 0x22)
+		return ("TSE2004av compliant DIMM temperature sensor");
+	return (NULL);
+}
+
+/*
  * SMBus specification defines little-endian byte order,
  * but it seems that the JEDEC devices expect it to
  * be big-endian.
@@ -89,15 +199,7 @@ ts_temp_sysctl(SYSCTL_HANDLER_ARGS)
 static int
 ts_probe(device_t dev)
 {
-	device_set_desc(dev, "DIMM memory sensor");
-	return (BUS_PROBE_DEFAULT);
-}
-
-static int
-ts_attach(device_t dev)
-{
-	struct sysctl_ctx_list *ctx;
-	struct sysctl_oid_list *tree;
+	const char *match;
 	int err;
 	uint16_t vendorid;
 	uint16_t devid;
@@ -119,26 +221,9 @@ ts_attach(device_t dev)
 		device_printf(dev, "failed to read Device ID\n");
 		return (ENXIO);
 	}
-	if ((devid & 0xff00) == 0x2200) {
-		/*
-		 * Defined by JEDEC Standard No. 21-C, Release 26,
-		 * Page 4.1.6 – 24
-		 */
-	} else if (vendorid == 0x104a) {
-		/*
-		 * STMicroelectronics datasheets say that
-		 * device ID and revision can vary.
-		 * E.g. STT424E02, Doc ID 13448 Rev 8,
-		 * section 4.6, page 26.
-		 */
-	} else if (vendorid == 0xb3 && (devid & 0xff00) == 0x2900) {
-		/*
-		 * IDT TS3000B3A and TSE2002B3C chips and their variants.
-		 * Revision IDs (the lower byte) can vary.
-		 * http://www.idt.com/sites/default/files/documents/IDT_TSE2002B3C_DST_20100512_120303152056.pdf
-		 * http://www.idt.com/sites/default/files/documents/IDT_TS3000B3A_DST_20101129_120303152013.pdf
-		 */
-	} else {
+
+	match = ts_match_device(vendorid, devid);
+	if (match == NULL) {
 		if (bootverbose) {
 			device_printf(dev, "Unknown Manufacturer and Device IDs"
 			    ", 0x%x and 0x%x\n", vendorid, devid);
@@ -146,9 +231,18 @@ ts_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	device_set_desc(dev, match);
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+ts_attach(device_t dev)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *tree;
+
 	ctx = device_get_sysctl_ctx(dev);
 	tree = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
-
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "temp",
 	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev, 0,
 	    ts_temp_sysctl, "IK4", "Current temperature");
