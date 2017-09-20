@@ -1017,20 +1017,20 @@ iap_allocate_pmc(enum pmc_event pe, char *ctrspec,
 				return (-1);
 		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_SANDYBRIDGE ||
 		    cpu_info.pm_cputype == PMC_CPU_INTEL_SANDYBRIDGE_XEON ||
-			cpu_info.pm_cputype == PMC_CPU_INTEL_IVYBRIDGE ||
-			cpu_info.pm_cputype == PMC_CPU_INTEL_IVYBRIDGE_XEON ) {
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_IVYBRIDGE ||
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_IVYBRIDGE_XEON ) {
 			if (KWPREFIXMATCH(p, IAP_KW_RSP "=")) {
 				n = pmc_parse_mask(iap_rsp_mask_sb_sbx_ib, p, &rsp);
 			} else
 				return (-1);
 		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_HASWELL ||
-			cpu_info.pm_cputype == PMC_CPU_INTEL_HASWELL_XEON) {
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_HASWELL_XEON) {
 			if (KWPREFIXMATCH(p, IAP_KW_RSP "=")) {
 				n = pmc_parse_mask(iap_rsp_mask_haswell, p, &rsp);
 			} else
 				return (-1);
 		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_BROADWELL ||
-			cpu_info.pm_cputype == PMC_CPU_INTEL_BROADWELL_XEON) {
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_BROADWELL_XEON) {
 			/* Broadwell is defined to use same mask as haswell */
 			if (KWPREFIXMATCH(p, IAP_KW_RSP "=")) {
 				n = pmc_parse_mask(iap_rsp_mask_haswell, p, &rsp);
@@ -3595,7 +3595,8 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 			break;
 		case PMC_CPU_INTEL_SKYLAKE:
 			ev = skylake_event_table;
-			evfence = skylake_event_table + PMC_EVENT_TABLE_SIZE(skylake);
+			evfence = skylake_event_table +
+			    PMC_EVENT_TABLE_SIZE(skylake);
 			break;
 		case PMC_CPU_INTEL_IVYBRIDGE:
 			ev = ivybridge_event_table;
