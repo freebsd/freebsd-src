@@ -241,6 +241,11 @@
 	compliant with RFC5424.  For more details, see the description
 	for the <literal>T</literal> flag in
 	&man.newsyslog.conf.5;.</para>
+
+      <para revision="323333">The &man.pw.8; utility has been updated
+	to support empty secondary groups being passed with the
+	<literal>-G</literal> flag, ensuring the target user does not
+	have any secondary group memberships.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
