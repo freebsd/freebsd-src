@@ -293,20 +293,6 @@
 	200MB.</para>
     </sect2>
 
-    <sect2 xml:id="userland-rc">
-      <title><filename class="directory">/etc/rc.d</filename>
-	Scripts</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="userland-periodic">
-      <title><filename class="directory">/etc/periodic</filename>
-	Scripts</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
     <sect2 xml:id="userland-libraries">
       <title>Runtime Libraries and API</title>
 
@@ -376,12 +362,6 @@
       <para revision="322793">The &man.geom.4;
 	<literal>JOURNAL</literal> class has been updated to fix
 	<literal>flush_queue</literal> handling.</para>
-    </sect2>
-
-    <sect2 xml:id="kernel-config">
-      <title>Kernel Configuration</title>
-
-      <para>&nbsp;</para>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
@@ -470,12 +450,6 @@
       as hardware changes and updates that do not otherwise fit in
       other sections of this document.</para>
 
-    <sect2 xml:id="hardware-support">
-      <title>Hardware Support</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
     <sect2 xml:id="hardware-virtualization">
       <title>Virtualization Support</title>
 
@@ -490,12 +464,6 @@
 	devices to be marked for passthrough or host use at
 	runtime.</para>
     </sect2>
-
-    <sect2 xml:id="hardware-arm">
-      <title>ARM Support</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="storage">
@@ -503,12 +471,6 @@
 
     <para>This section covers changes and additions to file systems
       and other storage subsystems, both local and networked.</para>
-
-    <sect2 xml:id="storage-general">
-      <title>General Storage</title>
-
-      <para>&nbsp;</para>
-    </sect2>
 
     <sect2 xml:id="storage-net">
       <title>Networked Storage</title>
@@ -526,18 +488,6 @@
 	<literal>commit</literal> through the
 	<literal>DS</literal>.</para>
     </sect2>
-
-    <sect2 xml:id="storage-zfs">
-      <title>ZFS</title>
-
-      <para></para>
-    </sect2>
-
-    <sect2 xml:id="storage-geom">
-      <title>&man.geom.4;</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="boot">
@@ -545,18 +495,6 @@
 
     <para>This section covers the boot loader, boot menu, and other
       boot-related changes.</para>
-
-    <sect2 xml:id="boot-loader">
-      <title>Boot Loader Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="boot-menu">
-      <title>Boot Menu Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="network">
@@ -603,12 +541,6 @@
     <para>This section covers changes to the &os;&nbsp;Ports
       Collection, package infrastructure, and package maintenance and
       installation tools.</para>
-
-    <sect2 xml:id="ports-infrastructure">
-      <title>Infrastructure Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
 
     <sect2 xml:id="ports-packages ">
       <title>Packaging Changes</title>
