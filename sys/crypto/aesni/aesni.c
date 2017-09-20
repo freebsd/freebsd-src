@@ -61,7 +61,7 @@ struct aesni_softc {
 	struct rwlock lock;
 };
 
-#define AQUIRE_CTX(i, ctx)					\
+#define ACQUIRE_CTX(i, ctx)					\
 	do {							\
 		(i) = PCPU_GET(cpuid);				\
 		mtx_lock(&ctx_mtx[(i)]);			\
@@ -490,7 +490,7 @@ aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini)
 
 	kt = is_fpu_kern_thread(0);
 	if (!kt) {
-		AQUIRE_CTX(ctxidx, ctx);
+		ACQUIRE_CTX(ctxidx, ctx);
 		error = fpu_kern_enter(curthread, ctx,
 		    FPU_KERN_NORMAL | FPU_KERN_KTHR);
 		if (error != 0)
@@ -547,7 +547,7 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 
 	kt = is_fpu_kern_thread(0);
 	if (!kt) {
-		AQUIRE_CTX(ctxidx, ctx);
+		ACQUIRE_CTX(ctxidx, ctx);
 		error = fpu_kern_enter(curthread, ctx,
 		    FPU_KERN_NORMAL|FPU_KERN_KTHR);
 		if (error != 0)
