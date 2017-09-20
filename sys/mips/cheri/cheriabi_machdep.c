@@ -112,8 +112,8 @@
 #define	DELAYBRANCH(x)	((int)(x) < 0)
 #define	UCONTEXT_MAGIC	0xACEDBADE
 
-static void	cheriabi_capability_set_user_ddc(void * __capability *);
-static void	cheriabi_capability_set_user_pcc(void * __capability *);
+static void	cheriabi_capability_set_user_ddc(void * __capability *,
+		    size_t length);
 static void	cheriabi_capability_set_user_entry(void * __capability *,
 		    unsigned long);
 static int	cheriabi_fetch_syscall_args(struct thread *td);
@@ -725,31 +725,22 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 }
 
 static void
-cheriabi_capability_set_user_ddc(void * __capability *cp)
+cheriabi_capability_set_user_ddc(void * __capability *cp, size_t length)
 {
 
 	cheri_capability_set(cp, CHERI_CAP_USER_DATA_PERMS,
-	    CHERI_CAP_USER_DATA_BASE, CHERI_CAP_USER_DATA_LENGTH,
+	    CHERI_CAP_USER_DATA_BASE, length,
 	    CHERI_CAP_USER_DATA_OFFSET);
 }
 
 static void
-cheriabi_capability_set_user_idc(void * __capability *cp)
+cheriabi_capability_set_user_idc(void * __capability *cp, size_t length)
 {
 
 	/*
 	 * The default invoked data capability is also identical to $ddc.
 	 */
-	cheriabi_capability_set_user_ddc(cp);
-}
-
-static void
-cheriabi_capability_set_user_pcc(void * __capability *cp)
-{
-
-	cheri_capability_set(cp, CHERI_CAP_USER_CODE_PERMS,
-	    CHERI_CAP_USER_CODE_BASE, CHERI_CAP_USER_CODE_LENGTH,
-	    CHERI_CAP_USER_CODE_OFFSET);
+	cheriabi_capability_set_user_ddc(cp, length);
 }
 
 static void
@@ -822,15 +813,39 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	struct cheri_signal *csigp;
 	struct trapframe *frame;
 	u_long auxv, stackbase, stacklen;
+	size_t map_base, map_length, text_end;
+	struct rlimit rlim_stack;
 
 	bzero((caddr_t)td->td_frame, sizeof(struct trapframe));
 
 	KASSERT(stack % sizeof(void * __capability) == 0,
 	    ("CheriABI stack pointer not properly aligned"));
 
+	/*
+	 * Restrict the stack capability to the maximum region allowed for
+	 * this process and adjust csp accordingly.
+	 */
+	CTASSERT(CHERI_CAP_USER_DATA_BASE == 0);
+	PROC_LOCK(td->td_proc);
+	lim_rlimit_proc(td->td_proc, RLIMIT_STACK, &rlim_stack);
+	PROC_UNLOCK(td->td_proc);
+	stackbase = td->td_proc->p_sysent->sv_usrstack - rlim_stack.rlim_max;
+	KASSERT(stack > stackbase,
+	    ("top of stack 0x%lx is below stack base 0x%lx", stack, stackbase));
+	stacklen = stack - stackbase;
+	cheri_capability_set(&td->td_frame->csp, CHERI_CAP_USER_DATA_PERMS,
+	    stackbase, stacklen, 0);
+	td->td_frame->sp = stacklen;
+
+	/* Using addr as length means ddc base must be 0. */
+	CTASSERT(CHERI_CAP_USER_DATA_BASE == 0);
+	text_end = stackbase;
+
+	map_base = CHERI_CAP_USER_MMAP_BASE;
+	map_length = text_end - map_base;
 	cheri_capability_set(&td->td_md.md_cheri_mmap_cap,
-	    CHERI_CAP_USER_MMAP_PERMS, CHERI_CAP_USER_MMAP_BASE,
-	    CHERI_CAP_USER_MMAP_LENGTH, CHERI_CAP_USER_MMAP_OFFSET);
+	    CHERI_CAP_USER_MMAP_PERMS, map_base, map_length,
+	    CHERI_CAP_USER_MMAP_OFFSET);
 
 	td->td_frame->pc = imgp->entry_addr;
 	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
@@ -842,8 +857,8 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	 * but in the future these will be restricted (or not set at all).
 	 */
 	frame = &td->td_pcb->pcb_regs;
-	cheriabi_capability_set_user_ddc(&frame->ddc);
-	cheriabi_capability_set_user_idc(&frame->idc);
+	cheriabi_capability_set_user_ddc(&frame->ddc, text_end);
+	cheriabi_capability_set_user_idc(&frame->idc, text_end);
 
 	/*
 	 * XXXRW: Set $pcc and $c12 to the entry address -- for now, also with
@@ -866,21 +881,6 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	    (imgp->args->argc + imgp->args->envc + 2) * sizeof(void * __capability);
 	cheri_capability_set(&td->td_frame->c3, CHERI_CAP_USER_DATA_PERMS,
 	    auxv, imgp->auxarg_size * 2 * sizeof(void * __capability), 0);
-
-	/*
-	 * Restrict the stack capability to the maximum region allowed for
-	 * this process and adjust sp accordingly.
-	 *
-	 * XXXBD: 8MB should be the process stack limit.
-	 */
-	CTASSERT(CHERI_CAP_USER_DATA_BASE == 0);
-	stackbase = USRSTACK - (1024 * 1024 * 8);
-	KASSERT(stack > stackbase,
-	    ("top of stack 0x%lx is below stack base 0x%lx", stack, stackbase));
-	stacklen = stack - stackbase;
-	cheri_capability_set(&td->td_frame->csp, CHERI_CAP_USER_DATA_PERMS,
-	    stackbase, stacklen, 0);
-	td->td_frame->sp = stacklen;
 
 	/*
 	 * Update privileged signal-delivery environment for actual stack.
