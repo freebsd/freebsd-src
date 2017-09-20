@@ -989,6 +989,15 @@ vdev_geom_io_intr(struct bio *bp)
 		break;
 	}
 
+	/*
+	 * We have to split bio freeing into two parts, because the ABD code
+	 * cannot be called in this context and vdev_op_io_done is not called
+	 * for ZIO_TYPE_IOCTL zio-s.
+	 */
+	if (zio->io_type != ZIO_TYPE_READ && zio->io_type != ZIO_TYPE_WRITE) {
+		g_destroy_bio(bp);
+		zio->io_bio = NULL;
+	}
 	zio_delay_interrupt(zio);
 }
 
@@ -1090,21 +1099,23 @@ vdev_geom_io_done(zio_t *zio)
 {
 	struct bio *bp = zio->io_bio;
 
-	if (bp == NULL) {
-		ASSERT3S(zio->io_error, !=, 0);
-		IMPLY(zio->io_type == ZIO_TYPE_READ ||
-		    zio->io_type == ZIO_TYPE_WRITE,
-		    zio->io_error == ENXIO);
+	if (zio->io_type != ZIO_TYPE_READ && zio->io_type != ZIO_TYPE_WRITE) {
+		ASSERT(bp == NULL);
 		return;
 	}
 
-	if (zio->io_type == ZIO_TYPE_READ) {
-		abd_return_buf_copy(zio->io_abd, bp->bio_data, zio->io_size);
-	} else if (zio->io_type == ZIO_TYPE_WRITE) {
-		abd_return_buf(zio->io_abd, bp->bio_data, zio->io_size);
+	if (bp == NULL) {
+		ASSERT3S(zio->io_error, ==, ENXIO);
+		return;
 	}
 
+	if (zio->io_type == ZIO_TYPE_READ)
+		abd_return_buf_copy(zio->io_abd, bp->bio_data, zio->io_size);
+	else
+		abd_return_buf(zio->io_abd, bp->bio_data, zio->io_size);
+
 	g_destroy_bio(bp);
+	zio->io_bio = NULL;
 }
 
 static void
