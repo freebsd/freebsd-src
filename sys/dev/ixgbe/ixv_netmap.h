@@ -42,12 +42,10 @@
 #include <sys/selinfo.h>
 #include <dev/netmap/netmap_kern.h>
 
-extern int ixv_crcstrip;
-
 /*
- * ixgbe_netmap.c contains functions for netmap
+ * ixv_netmap.c contains functions for netmap
  * support that extend the standard driver.  See additional
- * comments in ixgbe_netmap.c.
+ * comments in ixv_netmap.c.
  */
 void ixv_netmap_attach(struct adapter *adapter);
 

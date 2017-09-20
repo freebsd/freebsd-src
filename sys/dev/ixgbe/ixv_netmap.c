@@ -60,7 +60,7 @@
 /*
  * $FreeBSD$
  *
- * netmap support for: ixgbe
+ * netmap support for: ixv
  *
  * This file is meant to be a reference on how to implement
  * netmap support for a network driver.
@@ -83,61 +83,15 @@
 /*
  * device-specific sysctl variables:
  *
- * ixv_crcstrip: 0: keep CRC in rx frames (default), 1: strip it.
- *	During regular operations the CRC is stripped, but on some
- *	hardware reception of frames not multiple of 64 is slower,
- *	so using crcstrip=0 helps in benchmarks.
- *
  * ixv_rx_miss, ixv_rx_miss_bufs:
  *	count packets that might be missed due to lost interrupts.
  */
 SYSCTL_DECL(_dev_netmap);
 static int ixv_rx_miss, ixv_rx_miss_bufs;
-int ixv_crcstrip;
-SYSCTL_INT(_dev_netmap, OID_AUTO, ixv_crcstrip,
-    CTLFLAG_RW, &ixv_crcstrip, 0, "strip CRC on rx frames");
 SYSCTL_INT(_dev_netmap, OID_AUTO, ixv_rx_miss,
     CTLFLAG_RW, &ixv_rx_miss, 0, "potentially missed rx intr");
 SYSCTL_INT(_dev_netmap, OID_AUTO, ixv_rx_miss_bufs,
     CTLFLAG_RW, &ixv_rx_miss_bufs, 0, "potentially missed rx intr bufs");
-
-
-static void
-set_crcstrip(struct ixgbe_hw *hw, int onoff)
-{
-	/* crc stripping is set in two places:
-	 * IXGBE_HLREG0 (modified on init_locked and hw reset)
-	 * IXGBE_RDRXCTL (set by the original driver in
-	 *	ixgbe_setup_hw_rsc() called in init_locked.
-	 *	We disable the setting when netmap is compiled in).
-	 * We update the values here, but also in ixgbe.c because
-	 * init_locked sometimes is called outside our control.
-	 */
-	uint32_t hl, rxc;
-
-	hl = IXGBE_READ_REG(hw, IXGBE_HLREG0);
-	rxc = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
-	if (netmap_verbose)
-		D("%s read  HLREG 0x%x rxc 0x%x",
-			onoff ? "enter" : "exit", hl, rxc);
-	/* hw requirements ... */
-	rxc &= ~IXGBE_RDRXCTL_RSCFRSTSIZE;
-	rxc |= IXGBE_RDRXCTL_RSCACKC;
-	if (onoff && !ixv_crcstrip) {
-		/* keep the crc. Fast rx */
-		hl &= ~IXGBE_HLREG0_RXCRCSTRP;
-		rxc &= ~IXGBE_RDRXCTL_CRCSTRIP;
-	} else {
-		/* reset default mode */
-		hl |= IXGBE_HLREG0_RXCRCSTRP;
-		rxc |= IXGBE_RDRXCTL_CRCSTRIP;
-	}
-	if (netmap_verbose)
-		D("%s write HLREG 0x%x rxc 0x%x",
-			onoff ? "enter" : "exit", hl, rxc);
-	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hl);
-	IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, rxc);
-}
 
 
 /*
@@ -153,7 +107,6 @@ ixv_netmap_reg(struct netmap_adapter *na, int onoff)
 	IXGBE_CORE_LOCK(adapter);
 	adapter->stop_locked(adapter);
 
-	set_crcstrip(&adapter->hw, onoff);
 	/* enable or disable flags and callbacks in na and ifp */
 	if (onoff) {
 		nm_set_native_flags(na);
@@ -161,7 +114,6 @@ ixv_netmap_reg(struct netmap_adapter *na, int onoff)
 		nm_clear_native_flags(na);
 	}
 	adapter->init_locked(adapter);	/* also enables intr */
-	set_crcstrip(&adapter->hw, onoff); // XXX why twice ?
 	IXGBE_CORE_UNLOCK(adapter);
 	return (ifp->if_drv_flags & IFF_DRV_RUNNING ? 0 : 1);
 }
@@ -338,7 +290,7 @@ ixv_netmap_txsync(struct netmap_kring *kring, int flags)
 		 * REPORT_STATUS in a few slots so TDH is the only
 		 * good way.
 		 */
-		nic_i = IXGBE_READ_REG(&adapter->hw, IXGBE_TDH(kring->ring_id));
+		nic_i = IXGBE_READ_REG(&adapter->hw, IXGBE_VFTDH(kring->ring_id));
 		if (nic_i >= kring->nkr_num_slots) { /* XXX can it happen ? */
 			D("TDH wrap %d", nic_i);
 			nic_i -= kring->nkr_num_slots;
@@ -349,6 +301,8 @@ ixv_netmap_txsync(struct netmap_kring *kring, int flags)
 			kring->nr_hwtail = nm_prev(netmap_idx_n2k(kring, nic_i), lim);
 		}
 	}
+
+	nm_txsync_finalize(kring);
 
 	return 0;
 }
@@ -377,7 +331,7 @@ ixv_netmap_rxsync(struct netmap_kring *kring, int flags)
 	u_int nic_i;	/* index into the NIC ring */
 	u_int n;
 	u_int const lim = kring->nkr_num_slots - 1;
-	u_int const head = kring->rhead;
+	u_int const head = nm_rxsync_prologue(kring);
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
 
 	/* device-specific */
@@ -407,7 +361,7 @@ ixv_netmap_rxsync(struct netmap_kring *kring, int flags)
 	 * rxr->next_to_check is set to 0 on a ring reinit
 	 */
 	if (netmap_no_pendintr || force_update) {
-		int crclen = (ixv_crcstrip) ? 0 : 4;
+		int crclen = 0;
 		uint16_t slot_flags = kring->nkr_slot_flags;
 
 		nic_i = rxr->next_to_check; // or also k2n(kring->nr_hwtail)
@@ -483,6 +437,9 @@ ixv_netmap_rxsync(struct netmap_kring *kring, int flags)
 		nic_i = nm_prev(nic_i, lim);
 		IXGBE_WRITE_REG(&adapter->hw, rxr->tail, nic_i);
 	}
+
+	/* tell userspace that there might be new packets */
+	nm_rxsync_finalize(kring);
 
 	return 0;
 
