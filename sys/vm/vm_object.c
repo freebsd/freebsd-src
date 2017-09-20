@@ -706,6 +706,54 @@ vm_object_destroy(vm_object_t object)
 }
 
 /*
+ *	vm_object_terminate_pages removes any remaining pageable pages
+ *	from the object and resets the object to an empty state.
+ */
+static void
+vm_object_terminate_pages(vm_object_t object)
+{
+	vm_page_t p, p_next;
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+
+	/*
+	 * Free any remaining pageable pages.  This also removes them from the
+	 * paging queues.  However, don't free wired pages, just remove them
+	 * from the object.  Rather than incrementally removing each page from
+	 * the object, the page and object are reset to any empty state. 
+	 */
+	TAILQ_FOREACH_SAFE(p, &object->memq, listq, p_next) {
+		vm_page_assert_unbusied(p);
+		vm_page_lock(p);
+		/*
+		 * Optimize the page's removal from the object by resetting
+		 * its "object" field.  Specifically, if the page is not
+		 * wired, then the effect of this assignment is that
+		 * vm_page_free()'s call to vm_page_remove() will return
+		 * immediately without modifying the page or the object.
+		 */ 
+		p->object = NULL;
+		if (p->wire_count == 0) {
+			vm_page_free(p);
+			PCPU_INC(cnt.v_pfree);
+		}
+		vm_page_unlock(p);
+	}
+	/*
+	 * If the object contained any pages, then reset it to an empty state.
+	 * None of the object's fields, including "resident_page_count", were
+	 * modified by the preceding loop.
+	 */
+	if (object->resident_page_count != 0) {
+		vm_radix_reclaim_allnodes(&object->rtree);
+		TAILQ_INIT(&object->memq);
+		object->resident_page_count = 0;
+		if (object->type == OBJT_VNODE)
+			vdrop(object->handle);
+	}
+}
+
+/*
  *	vm_object_terminate actually destroys the specified object, freeing
  *	up all previously used resources.
  *
@@ -715,7 +763,6 @@ vm_object_destroy(vm_object_t object)
 void
 vm_object_terminate(vm_object_t object)
 {
-	vm_page_t p, p_next;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
@@ -758,41 +805,8 @@ vm_object_terminate(vm_object_t object)
 		("vm_object_terminate: object with references, ref_count=%d",
 		object->ref_count));
 
-	/*
-	 * Free any remaining pageable pages.  This also removes them from the
-	 * paging queues.  However, don't free wired pages, just remove them
-	 * from the object.  Rather than incrementally removing each page from
-	 * the object, the page and object are reset to any empty state. 
-	 */
-	TAILQ_FOREACH_SAFE(p, &object->memq, listq, p_next) {
-		vm_page_assert_unbusied(p);
-		vm_page_lock(p);
-		/*
-		 * Optimize the page's removal from the object by resetting
-		 * its "object" field.  Specifically, if the page is not
-		 * wired, then the effect of this assignment is that
-		 * vm_page_free()'s call to vm_page_remove() will return
-		 * immediately without modifying the page or the object.
-		 */ 
-		p->object = NULL;
-		if (p->wire_count == 0) {
-			vm_page_free(p);
-			PCPU_INC(cnt.v_pfree);
-		}
-		vm_page_unlock(p);
-	}
-	/*
-	 * If the object contained any pages, then reset it to an empty state.
-	 * None of the object's fields, including "resident_page_count", were
-	 * modified by the preceding loop.
-	 */
-	if (object->resident_page_count != 0) {
-		vm_radix_reclaim_allnodes(&object->rtree);
-		TAILQ_INIT(&object->memq);
-		object->resident_page_count = 0;
-		if (object->type == OBJT_VNODE)
-			vdrop(object->handle);
-	}
+	if ((object->flags & OBJ_PG_DTOR) == 0)
+		vm_object_terminate_pages(object);
 
 #if VM_NRESERVLEVEL > 0
 	if (__predict_false(!LIST_EMPTY(&object->rvq)))
