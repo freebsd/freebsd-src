@@ -209,7 +209,10 @@ struct vm_page {
 #define	PQ_LAUNDRY	2
 #define	PQ_COUNT	3
 
+#ifndef VM_PAGE_HAVE_PGLIST
 TAILQ_HEAD(pglist, vm_page);
+#define VM_PAGE_HAVE_PGLIST
+#endif
 SLIST_HEAD(spglist, vm_page);
 
 struct vm_pagequeue {
