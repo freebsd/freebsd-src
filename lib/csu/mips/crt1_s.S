@@ -30,7 +30,7 @@
 __FBSDID("$FreeBSD: head/lib/csu/mips/crt1_s.S 217383 2011-01-13 23:00:22Z kib $");
 
 	.text
-	.align	4
+	.balign	4
 	.globl	__start
 	.type	__start, @function
 __start:

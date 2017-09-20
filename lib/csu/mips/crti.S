@@ -5,7 +5,7 @@ __FBSDID("$FreeBSD$");
 	.gnu_attribute 4, 0
 #endif
 	.section .init,"ax",%progbits
-	.align 4
+	.balign 4
 	.globl	_init
 	.type	_init,%function
 _init:
@@ -29,7 +29,7 @@ _init:
 	.set reorder
 
 	.section .fini,"ax",%progbits
-	.align 4
+	.balign 4
 	.globl	_fini
 	.type	_fini,%function
 _fini:
