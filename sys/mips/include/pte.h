@@ -38,7 +38,15 @@ typedef	uint64_t pt_entry_t;
 typedef	uint32_t pt_entry_t;
 #endif
 
+#if defined(_KERNEL) && !defined(__CHERI_PURE_CAPABILITY__)
 typedef	pt_entry_t *pd_entry_t;
+#else
+/*
+ * XXX: used in the kernel to set VM system paramaters.  Only used for
+ * the parameter macros (which use its size) in usespace.
+ */
+typedef uint64_t pd_entry_t;
+#endif
 #endif
 
 /*

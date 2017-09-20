@@ -36,11 +36,14 @@
 #endif
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 
 #include <machine/cherireg.h>
 #include <machine/cpuregs.h>
+#include <machine/pte.h>
+#include <machine/vmparam.h>
 
 #include <cheri/cheri.h>
 #include <cheri/cheric.h>

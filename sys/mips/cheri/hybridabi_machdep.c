@@ -38,6 +38,7 @@
 #include <machine/cherireg.h>
 #include <machine/pcb.h>
 #include <machine/proc.h>
+#include <machine/vmparam.h>
 
 static void	hybridabi_capability_set_user_ddc(void * __capability *);
 static void	hybridabi_capability_set_user_csp(void * __capability *);
