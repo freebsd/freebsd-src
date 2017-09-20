@@ -113,9 +113,9 @@
 #define	UCONTEXT_MAGIC	0xACEDBADE
 
 static void	cheriabi_capability_set_user_ddc(void * __capability *,
-		    size_t length);
+		    size_t);
 static void	cheriabi_capability_set_user_entry(void * __capability *,
-		    unsigned long);
+		    unsigned long, size_t);
 static int	cheriabi_fetch_syscall_args(struct thread *td);
 static void	cheriabi_set_syscall_retval(struct thread *td, int error);
 static void	cheriabi_sendsig(sig_t, ksiginfo_t *, sigset_t *);
@@ -745,7 +745,7 @@ cheriabi_capability_set_user_idc(void * __capability *cp, size_t length)
 
 static void
 cheriabi_capability_set_user_entry(void * __capability *cp,
-    unsigned long entry_addr)
+    unsigned long entry_addr, size_t length)
 {
 
 	/*
@@ -753,7 +753,7 @@ cheriabi_capability_set_user_entry(void * __capability *cp,
 	 * convention.
 	 */
 	cheri_capability_set(cp, CHERI_CAP_USER_CODE_PERMS,
-	    CHERI_CAP_USER_CODE_BASE, CHERI_CAP_USER_CODE_LENGTH, entry_addr);
+	    CHERI_CAP_USER_CODE_BASE, length, entry_addr);
 }
 
 /*
@@ -865,8 +865,9 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	 * broad bounds, but in the future, limited as appropriate to the
 	 * run-time linker or statically linked binary?
 	 */
-	cheriabi_capability_set_user_entry(&frame->pcc, imgp->entry_addr);
-	cheriabi_capability_set_user_entry(&frame->c12, imgp->entry_addr);
+	cheriabi_capability_set_user_entry(&frame->pcc, imgp->entry_addr,
+	    text_end);
+	frame->c12 = frame->pcc;
 
 	/*
 	 * Set up CHERI-related state: most register state, signal delivery,
