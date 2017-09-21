@@ -227,7 +227,7 @@ static const char rcsid[] =
 
 #include <arpa/inet.h>
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 #include <libcasper.h>
 #include <casper/cap_dns.h>
 #endif
@@ -369,7 +369,7 @@ extern int optind;
 extern int opterr;
 extern char *optarg;
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 static cap_channel_t *capdns;
 #endif
 
@@ -521,7 +521,7 @@ main(int argc, char **argv)
 	int requestPort = -1;
 	int sump = 0;
 	int sockerrno;
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 	const char *types[] = { "NAME", "ADDR" };
 	int families[1];
 	cap_channel_t *casper;
@@ -556,7 +556,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 	casper = cap_init();
 	if (casper == NULL)
 		errx(1, "unable to create casper process");
@@ -568,7 +568,7 @@ main(int argc, char **argv)
 	families[0] = AF_INET;
 	if (cap_dns_family_limit(capdns, families, 1) < 0)
 		errx(1, "unable to limit access to system.dns service");
-#endif /* HAVE_LIBCASPER */
+#endif /* WITH_CASPER */
 
 #ifdef IPCTL_DEFTTL
 	{
@@ -584,7 +584,7 @@ main(int argc, char **argv)
 	max_ttl = 30;
 #endif
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 	cap_close(casper);
 #endif
 
@@ -1006,7 +1006,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 	cansandbox = true;
 #else
 	if (nflag)
@@ -1851,7 +1851,7 @@ inetname(struct in_addr in)
 		else {
 			cp = strchr(domain, '.');
 			if (cp == NULL) {
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 				if (capdns != NULL)
 					hp = cap_gethostbyname(capdns, domain);
 				else
@@ -1870,7 +1870,7 @@ inetname(struct in_addr in)
 		}
 	}
 	if (!nflag && in.s_addr != INADDR_ANY) {
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 		if (capdns != NULL)
 			hp = cap_gethostbyaddr(capdns, (char *)&in, sizeof(in),
 			    AF_INET);
@@ -1922,7 +1922,7 @@ gethostinfo(register char *hostname)
 		return (hi);
 	}
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 	if (capdns != NULL)
 		hp = cap_gethostbyname(capdns, hostname);
 	else
