@@ -2335,7 +2335,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	pd_entry_t *l0, *l1, *l2;
 	pt_entry_t l3_paddr, *l3;
 	struct spglist free;
-	int anyvalid;
 
 	/*
 	 * Perform an unsynchronized read.  This is, however, safe.
@@ -2343,7 +2342,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (pmap->pm_stats.resident_count == 0)
 		return;
 
-	anyvalid = 0;
 	SLIST_INIT(&free);
 
 	PMAP_LOCK(pmap);
@@ -2430,8 +2428,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	}
 	if (lock != NULL)
 		rw_wunlock(lock);
-	if (anyvalid)
-		pmap_invalidate_all(pmap);
 	PMAP_UNLOCK(pmap);
 	pmap_free_zero_pages(&free);
 }
