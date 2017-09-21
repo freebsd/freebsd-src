@@ -242,22 +242,58 @@ def GenTestCase(cname):
 				self.runSHA1HMAC(i)
 
 		def runSHA1HMAC(self, fname):
-			for bogusmode, lines in cryptodev.KATParser(fname,
+			for hashlength, lines in cryptodev.KATParser(fname,
 			    [ 'Count', 'Klen', 'Tlen', 'Key', 'Msg', 'Mac' ]):
+				# E.g., hashlength will be "L=20" (bytes)
+				hashlen = int(hashlength.split("=")[1])
+
+				blocksize = None
+				if hashlen == 20:
+				    alg = cryptodev.CRYPTO_SHA1_HMAC
+				    blocksize = 64
+				elif hashlen == 28:
+				    # Cryptodev doesn't support SHA-224
+				    # Slurp remaining input in section
+				    for data in lines:
+					continue
+				    continue
+				elif hashlen == 32:
+				    alg = cryptodev.CRYPTO_SHA2_256_HMAC
+				    blocksize = 64
+				elif hashlen == 48:
+				    alg = cryptodev.CRYPTO_SHA2_384_HMAC
+				    blocksize = 128
+				elif hashlen == 64:
+				    alg = cryptodev.CRYPTO_SHA2_512_HMAC
+				    blocksize = 128
+				else:
+				    # Skip unsupported hashes
+				    # Slurp remaining input in section
+				    for data in lines:
+					continue
+				    continue
+
 				for data in lines:
 					key = data['Key'].decode('hex')
 					msg = data['Msg'].decode('hex')
 					mac = data['Mac'].decode('hex')
+					tlen = int(data['Tlen'])
 
-					if len(key) != 20:
-						# XXX - implementation bug
+					if len(key) > blocksize:
 						continue
 
-					c = Crypto(mac=cryptodev.CRYPTO_SHA1_HMAC,
-					    mackey=key, crid=crid)
+					c = Crypto(mac=alg, mackey=key,
+					    crid=crid)
 
-					r = c.encrypt(msg)
-					self.assertEqual(r, mac, `data`)
+					_, r = c.encrypt(msg, iv="")
+
+					# A limitation in cryptodev.py means we
+					# can only store MACs up to 16 bytes.
+					# That's good enough to validate the
+					# correct behavior, more or less.
+					maclen = min(tlen, 16)
+					self.assertEqual(r[:maclen], mac[:maclen], "Actual: " + \
+					    repr(r[:maclen].encode("hex")) + " Expected: " + repr(data))
 
 	return GendCryptoTestCase
 
