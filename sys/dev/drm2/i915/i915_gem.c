@@ -1890,8 +1890,7 @@ i915_gem_object_put_pages_range_locked(struct drm_i915_gem_object *obj,
 		KASSERT(page->pindex == i, ("pindex %jx %jx",
 		    (uintmax_t)page->pindex, (uintmax_t)i));
 		vm_page_lock(page);
-		vm_page_unwire(page, PQ_INACTIVE);
-		if (page->wire_count == 0)
+		if (vm_page_unwire(page, PQ_INACTIVE))
 			atomic_add_long(&i915_gem_wired_pages_cnt, -1);
 		vm_page_unlock(page);
 	}
