@@ -264,7 +264,7 @@ efipart_cdinfo_add(EFI_HANDLE handle, EFI_HANDLE alias,
 
 	unit = 0;
 	STAILQ_FOREACH(pd, &cdinfo, pd_link) {
-		if (efi_devpath_match(pd->pd_devpath, devpath) != 0) {
+		if (efi_devpath_match(pd->pd_devpath, devpath) == true) {
 			pd->pd_handle = handle;
 			pd->pd_alias = alias;
 			return (0);
@@ -394,7 +394,7 @@ efipart_hdinfo_add(EFI_HANDLE disk_handle, EFI_HANDLE part_handle)
 	STAILQ_INIT(&pd->pd_part);
 
 	STAILQ_FOREACH(hd, &hdinfo, pd_link) {
-		if (efi_devpath_match(hd->pd_devpath, disk_devpath) != 0) {
+		if (efi_devpath_match(hd->pd_devpath, disk_devpath) == true) {
 			/* Add the partition. */
 			pd->pd_handle = part_handle;
 			pd->pd_unit = node->PartitionNumber;
