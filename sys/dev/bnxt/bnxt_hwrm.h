@@ -61,7 +61,7 @@ int bnxt_hwrm_cfa_l2_set_rx_mask(struct bnxt_softc *softc,
 int bnxt_hwrm_set_filter(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic);
 int bnxt_hwrm_rss_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic,
     uint32_t hash_type);
-int bnxt_hwrm_func_cfg(struct bnxt_softc *softc);
+int bnxt_cfg_async_cr(struct bnxt_softc *softc);
 int bnxt_hwrm_vnic_tpa_cfg(struct bnxt_softc *softc,
     struct bnxt_vnic_info *vnic, uint32_t flags);
 int bnxt_hwrm_nvm_find_dir_entry(struct bnxt_softc *softc, uint16_t type,
