@@ -142,6 +142,15 @@ Allow threads to recursively acquire exclusive locks for
 .It Dv SX_QUIET
 Do not log any operations for this lock via
 .Xr ktr 4 .
+.It Dv SX_NEW
+If the kernel has been compiled with
+.Cd "options INVARIANTS" ,
+.Fn sx_init
+will assert that the
+.Fa sx
+has not been initialized multiple times without intervening calls to
+.Fn sx_destroy
+unless this option is specified.
 .El
 .Pp
 Shared/exclusive locks are destroyed with
