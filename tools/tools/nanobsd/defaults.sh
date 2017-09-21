@@ -256,7 +256,6 @@ rm ( ) {
 # are relative to NANO_WORLDDIR.
 #
 tgt_touch ( ) (
-
 	cd "${NANO_WORLDDIR}"
 	for i; do
 		touch $i
@@ -270,7 +269,7 @@ tgt_touch ( ) (
 # directory is removed and a symlink is created. If we're doing
 # a nopriv build, then append this fact to the metalog
 #
-tgt_dir2symlink () (
+tgt_dir2symlink ( ) (
 	dir=$1
 	symlink=$2
 
@@ -334,8 +333,6 @@ build_world ( ) (
 )
 
 build_kernel ( ) (
-	local extra
-
 	pprint 2 "build kernel ($NANO_KERNEL)"
 	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.bk"
 
@@ -402,7 +399,6 @@ install_world ( ) (
 )
 
 install_etc ( ) (
-
 	pprint 2 "install /etc"
 	pprint 3 "log: ${NANO_LOG}/_.etc"
 
@@ -418,8 +414,6 @@ install_etc ( ) (
 )
 
 install_kernel ( ) (
-	local extra
-
 	pprint 2 "install kernel ($NANO_KERNEL)"
 	pprint 3 "log: ${NANO_LOG}/_.ik"
 
@@ -458,8 +452,7 @@ native_xtools ( ) (
 # Run the requested set of early customization scripts, run before
 # buildworld.
 #
-run_early_customize() {
-
+run_early_customize ( ) {
 	pprint 2 "run early customize scripts"
 	for c in $NANO_EARLY_CUSTOMIZE
 	do
@@ -492,7 +485,6 @@ run_customize ( ) (
 # setup nanobsd, prune empty dirs from /usr, etc
 #
 run_late_customize ( ) (
-
 	pprint 2 "run late customize scripts"
 	for c in $NANO_LATE_CUSTOMIZE
 	do
@@ -511,7 +503,6 @@ run_late_customize ( ) (
 # a user's cfg file would override this.
 #
 fixup_before_diskimage ( ) (
-
 	# Run the deduplication script that takes the matalog journal and
 	# combines multiple entries for the same file (see source for
 	# details). We take the extra step of removing the size keywords. This
@@ -599,7 +590,6 @@ setup_nanobsd_etc ( ) (
 )
 
 prune_usr ( ) (
-
 	# Remove all empty directories in /usr
 	find "${NANO_WORLDDIR}"/usr -type d -depth -print |
 		while read d
@@ -754,7 +744,6 @@ cust_install_files ( ) (
 # Install packages from ${NANO_PACKAGE_DIR}
 
 cust_pkgng ( ) (
-
 	mkdir -p ${NANO_WORLDDIR}/usr/local/etc
 	local PKG_CONF="${NANO_WORLDDIR}/usr/local/etc/pkg.conf"
 	local PKGCMD="env ASSUME_ALWAYS_YES=YES PKG_DBDIR=${NANO_PKG_META_BASE}/pkg SIGNATURE_TYPE=none /usr/sbin/pkg"
@@ -820,7 +809,7 @@ cust_pkgng ( ) (
 #	Register all args as early customize function to run just before
 #	build commences.
 
-early_customize_cmd () {
+early_customize_cmd ( ) {
 	NANO_EARLY_CUSTOMIZE="$NANO_EARLY_CUSTOMIZE $*"
 }
 
