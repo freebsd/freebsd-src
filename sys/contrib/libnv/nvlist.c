@@ -280,8 +280,7 @@ nvlist_get_pararr(const nvlist_t *nvl, void **cookiep)
 		return (ret);
 	}
 
-	ret = nvlist_get_parent(nvl, cookiep);
-	return (ret);
+	return (nvlist_get_parent(nvl, cookiep));
 }
 
 bool
@@ -709,7 +708,6 @@ static int *
 nvlist_xdescriptors(const nvlist_t *nvl, int *descs)
 {
 	nvpair_t *nvp;
-	const char *name;
 	int type;
 
 	NVLIST_ASSERT(nvl);
@@ -717,7 +715,7 @@ nvlist_xdescriptors(const nvlist_t *nvl, int *descs)
 
 	nvp = NULL;
 	do {
-		while ((name = nvlist_next(nvl, &type, (void**)&nvp)) != NULL) {
+		while (nvlist_next(nvl, &type, (void *)&nvp) != NULL) {
 			switch (type) {
 			case NV_TYPE_DESCRIPTOR:
 				*descs = nvpair_get_descriptor(nvp);
@@ -756,7 +754,7 @@ nvlist_xdescriptors(const nvlist_t *nvl, int *descs)
 			    }
 			}
 		}
-	} while ((nvl = nvlist_get_pararr(nvl, (void**)&nvp)) != NULL);
+	} while ((nvl = nvlist_get_pararr(nvl, (void *)&nvp)) != NULL);
 
 	return (descs);
 }
@@ -787,7 +785,6 @@ nvlist_ndescriptors(const nvlist_t *nvl)
 {
 #ifndef _KERNEL
 	nvpair_t *nvp;
-	const char *name;
 	size_t ndescs;
 	int type;
 
@@ -797,7 +794,7 @@ nvlist_ndescriptors(const nvlist_t *nvl)
 	ndescs = 0;
 	nvp = NULL;
 	do {
-		while ((name = nvlist_next(nvl, &type, (void**)&nvp)) != NULL) {
+		while (nvlist_next(nvl, &type, (void *)&nvp) != NULL) {
 			switch (type) {
 			case NV_TYPE_DESCRIPTOR:
 				ndescs++;
@@ -830,7 +827,7 @@ nvlist_ndescriptors(const nvlist_t *nvl)
 			    }
 			}
 		}
-	} while ((nvl = nvlist_get_pararr(nvl, (void**)&nvp)) != NULL);
+	} while ((nvl = nvlist_get_pararr(nvl, (void *)&nvp)) != NULL);
 
 	return (ndescs);
 #else
@@ -1258,7 +1255,6 @@ nvlist_send(int sock, const nvlist_t *nvl)
 		return (-1);
 
 	ret = -1;
-	data = NULL;
 	fdidx = 0;
 
 	data = nvlist_xpack(nvl, &fdidx, &datasize);
