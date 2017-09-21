@@ -197,8 +197,8 @@ ntb_plx_init(device_t dev)
 			}
 		}
 
-		/* Enable Link Interface LUT entry 0 for 0:0.0. */
-		PNTX_WRITE(sc, 0xdb4, 1);
+		/* Enable Link Interface LUT entries 0/1 for peer 0/1. */
+		PNTX_WRITE(sc, 0xdb4, 0x00090001);
 	}
 
 	/*
@@ -631,13 +631,12 @@ ntb_plx_mw_set_trans_internal(device_t dev, unsigned mw_idx)
 			val64 = 0;
 			if (size > 0)
 				val64 = (~(size - 1) & ~0xfffff);
-			val64 |= 0x4;
+			val64 |= 0xc;
 			PNTX_WRITE(sc, 0xe8 + (mw->mw_bar - 2) * 4, val64);
 			PNTX_WRITE(sc, 0xe8 + (mw->mw_bar - 2) * 4 + 4, val64 >> 32);
 
 			/* Set Link Interface BAR address. */
 			val64 = 0x2000000000000000 * mw->mw_bar + off;
-			val64 |= 0x4;
 			PNTX_WRITE(sc, PCIR_BAR(mw->mw_bar), val64);
 			PNTX_WRITE(sc, PCIR_BAR(mw->mw_bar) + 4, val64 >> 32);
 		}
