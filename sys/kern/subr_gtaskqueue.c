@@ -775,7 +775,7 @@ taskqgroup_attach_cpu_deferred(struct taskqgroup *qgroup, struct grouptask *gtas
 		}
 	if (qid == -1) {
 		mtx_unlock(&qgroup->tqg_lock);
-		printf("%s: qid not found for %s cpu=%d\n", __func__, name, cpu);
+		printf("%s: qid not found for cpu=%d\n", __func__, cpu);
 		return (EINVAL);
 	}
 	qgroup->tqg_queue[qid].tgc_cnt++;
