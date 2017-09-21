@@ -527,14 +527,19 @@ setup_nanobsd ( ) (
 	# have hardcoded paths under ${prefix}/etc are not tweakable.
 	if [ -d usr/local/etc ] ; then
 		(
-		mkdir -p etc/local
 		cd usr/local/etc
 		find . -print | cpio -dumpl ../../../etc/local
 		cd ..
 		rm -rf etc
-		ln -s ../../etc/local etc
 		)
 	fi
+
+	# Always setup the usr/local/etc -> etc/local symlink.
+	# usr/local/etc gets created by packages, but if no packages
+	# are installed by this point, but are later in the process,
+	# the symlink not being here causes problems. It never hurts
+	# to have the symlink in error though.
+	ln -s ../../etc/local usr/local/etc
 
 	for d in var etc
 	do
@@ -581,6 +586,9 @@ setup_nanobsd_etc ( ) (
 	echo "/dev/${NANO_DRIVE}${NANO_ROOT} / ufs ro 1 1" > etc/fstab
 	echo "/dev/${NANO_DRIVE}${NANO_SLICE_CFG} /cfg ufs rw,noauto 2 2" >> etc/fstab
 	mkdir -p cfg
+
+	# Create directory for eventual /usr/local/etc contents
+	mkdir -p etc/local
 	)
 )
 
