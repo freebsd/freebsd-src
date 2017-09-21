@@ -1379,10 +1379,10 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		}
 		if (sctp_place_control_in_stream(strm, asoc, control)) {
 			/* Duplicate SSN? */
-			sctp_clean_up_control(stcb, control);
 			sctp_abort_in_reasm(stcb, control, chk,
 			    abort_flag,
 			    SCTP_FROM_SCTP_INDATA + SCTP_LOC_6);
+			sctp_clean_up_control(stcb, control);
 			return;
 		}
 		if ((tsn == (asoc->cumulative_tsn + 1) && (asoc->idata_supported == 0))) {
