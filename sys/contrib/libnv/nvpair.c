@@ -1727,8 +1727,8 @@ fail:
 			    nvlist_get_pararr(value[ii], NULL) != NULL) {
 				nvlist_destroy(value[ii]);
 			}
-			nv_free(value);
 		}
+		nv_free(value);
 		ERRNO_RESTORE();
 	} else {
 		for (ii = 0; ii < nitems; ii++)
