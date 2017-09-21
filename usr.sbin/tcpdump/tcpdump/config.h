@@ -18,7 +18,7 @@
 
 /* Casper library support available */
 /* See Makefile */
-/* #undef HAVE_CASPER */
+/* #undef WITH_CASPER */
 
 /* Define to 1 if you have the `cap_enter' function. */
 #define HAVE_CAP_ENTER 1
