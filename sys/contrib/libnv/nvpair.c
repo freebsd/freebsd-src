@@ -1748,7 +1748,6 @@ nvpair_move_descriptor_array(const char *name, int *value, size_t nitems)
 	nvpair_t *nvp;
 	size_t i;
 
-	nvp = NULL;
 	if (value == NULL || nitems == 0) {
 		ERRNO_SET(EINVAL);
 		return (NULL);
@@ -1763,19 +1762,20 @@ nvpair_move_descriptor_array(const char *name, int *value, size_t nitems)
 
 	nvp = nvpair_allocv(name, NV_TYPE_DESCRIPTOR_ARRAY,
 	    (uint64_t)(uintptr_t)value, sizeof(value[0]) * nitems, nitems);
-
-fail:
-	if (nvp == NULL) {
-		ERRNO_SAVE();
-		for (i = 0; i < nitems; i++) {
-			if (fd_is_valid(value[i]))
-				close(value[i]);
-		}
-		nv_free(value);
-		ERRNO_RESTORE();
-	}
+	if (nvp == NULL)
+		goto fail;
 
 	return (nvp);
+fail:
+	ERRNO_SAVE();
+	for (i = 0; i < nitems; i++) {
+		if (fd_is_valid(value[i]))
+			close(value[i]);
+	}
+	nv_free(value);
+	ERRNO_RESTORE();
+
+	return (NULL);
 }
 #endif
 
