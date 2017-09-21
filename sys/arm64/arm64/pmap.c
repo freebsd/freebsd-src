@@ -2626,13 +2626,10 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			pmap_set(l3p, nbits);
 			PTE_SYNC(l3p);
 			/* XXX: Use pmap_invalidate_range */
-			pmap_invalidate_page(pmap, va);
+			pmap_invalidate_page(pmap, sva);
 		}
 	}
 	PMAP_UNLOCK(pmap);
-
-	/* TODO: Only invalidate entries we are touching */
-	pmap_invalidate_all(pmap);
 }
 
 /*
