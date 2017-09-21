@@ -1407,10 +1407,9 @@ nvpair_create_nvlist_array(const char *name, const nvlist_t * const *value,
 {
 	unsigned int ii;
 	nvlist_t **nvls;
-	nvpair_t *nvp;
+	nvpair_t *parent;
 	int flags;
 
-	nvp = NULL;
 	nvls = NULL;
 
 	if (value == NULL || nitems == 0) {
@@ -1433,33 +1432,40 @@ nvpair_create_nvlist_array(const char *name, const nvlist_t * const *value,
 			goto fail;
 
 		if (ii > 0) {
+			nvpair_t *nvp;
+
 			nvp = nvpair_allocv(" ", NV_TYPE_NVLIST,
 			    (uint64_t)(uintptr_t)nvls[ii], 0, 0);
-			if (nvp == NULL)
+			if (nvp == NULL) {
+				ERRNO_SAVE();
+				nvlist_destroy(nvls[ii]);
+				ERRNO_RESTORE();
 				goto fail;
+			}
 			nvlist_set_array_next(nvls[ii - 1], nvp);
 		}
 	}
 	flags = nvlist_flags(nvls[nitems - 1]) | NV_FLAG_IN_ARRAY;
 	nvlist_set_flags(nvls[nitems - 1], flags);
 
-	nvp = nvpair_allocv(name, NV_TYPE_NVLIST_ARRAY,
+	parent = nvpair_allocv(name, NV_TYPE_NVLIST_ARRAY,
 	    (uint64_t)(uintptr_t)nvls, 0, nitems);
+	if (parent == NULL)
+		goto fail;
+
+	for (ii = 0; ii < nitems; ii++)
+		nvlist_set_parent(nvls[ii], parent);
+
+	return (parent);
 
 fail:
-	if (nvp == NULL) {
-		ERRNO_SAVE();
-		for (; ii > 0; ii--)
-			nvlist_destroy(nvls[ii - 1]);
+	ERRNO_SAVE();
+	for (; ii > 0; ii--)
+		nvlist_destroy(nvls[ii - 1]);
+	nv_free(nvls);
+	ERRNO_RESTORE();
 
-		nv_free(nvls);
-		ERRNO_RESTORE();
-	} else {
-		for (ii = 0; ii < nitems; ii++)
-			nvlist_set_parent(nvls[ii], nvp);
-	}
-
-	return (nvp);
+	return (NULL);
 }
 
 #ifndef _KERNEL
