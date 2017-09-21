@@ -139,30 +139,30 @@ efi_devpath_handle(EFI_DEVICE_PATH *devpath)
 	return (h);
 }
 
-int
+bool
 efi_devpath_match(EFI_DEVICE_PATH *devpath1, EFI_DEVICE_PATH *devpath2)
 {
 	int len;
 
 	if (devpath1 == NULL || devpath2 == NULL)
-		return (0);
+		return (false);
 
-	while (1) {
+	while (true) {
 		if (DevicePathType(devpath1) != DevicePathType(devpath2) ||
 		    DevicePathSubType(devpath1) != DevicePathSubType(devpath2))
-			return (0);
+			return (false);
 
 		len = DevicePathNodeLength(devpath1);
 		if (len != DevicePathNodeLength(devpath2))
-			return (0);
+			return (false);
 
 		if (memcmp(devpath1, devpath2, (size_t)len) != 0)
-			return (0);
+			return (false);
 
 		if (IsDevicePathEnd(devpath1))
 			break;
 		devpath1 = NextDevicePathNode(devpath1);
 		devpath2 = NextDevicePathNode(devpath2);
 	}
-	return (1);
+	return (true);
 }
