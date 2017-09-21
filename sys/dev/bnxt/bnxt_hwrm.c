@@ -949,18 +949,32 @@ bnxt_hwrm_rss_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic,
 }
 
 int
-bnxt_hwrm_func_cfg(struct bnxt_softc *softc)
+bnxt_cfg_async_cr(struct bnxt_softc *softc)
 {
-	struct hwrm_func_cfg_input req = {0};
+	int rc = 0;
+	
+	if (BNXT_PF(softc)) {
+		struct hwrm_func_cfg_input req = {0};
 
-	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_CFG);
+		bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_CFG);
 
-	req.fid = 0xffff;
-	req.enables = htole32(HWRM_FUNC_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
+		req.fid = 0xffff;
+		req.enables = htole32(HWRM_FUNC_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
+		req.async_event_cr = softc->def_cp_ring.ring.phys_id;
 
-	req.async_event_cr = softc->def_cp_ring.ring.phys_id;
+		rc = hwrm_send_message(softc, &req, sizeof(req));
+	}
+	else {
+		struct hwrm_func_vf_cfg_input req = {0};
 
-	return hwrm_send_message(softc, &req, sizeof(req));
+		bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_VF_CFG);
+
+		req.enables = htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
+		req.async_event_cr = softc->def_cp_ring.ring.phys_id;
+
+		rc = hwrm_send_message(softc, &req, sizeof(req));
+	}
+	return rc;
 }
 
 int
@@ -1719,4 +1733,3 @@ int bnxt_hwrm_func_rgtr_async_events(struct bnxt_softc *softc, unsigned long *bm
 
 	return hwrm_send_message(softc, &req, sizeof(req));
 }
-
