@@ -216,7 +216,7 @@ _rw_init_flags(volatile uintptr_t *c, const char *name, int opts)
 	rw = rwlock2rw(c);
 
 	MPASS((opts & ~(RW_DUPOK | RW_NOPROFILE | RW_NOWITNESS | RW_QUIET |
-	    RW_RECURSE)) == 0);
+	    RW_RECURSE | RW_NEW)) == 0);
 	ASSERT_ATOMIC_LOAD_PTR(rw->rw_lock,
 	    ("%s: rw_lock not aligned for %s: %p", __func__, name,
 	    &rw->rw_lock));
@@ -232,6 +232,8 @@ _rw_init_flags(volatile uintptr_t *c, const char *name, int opts)
 		flags |= LO_RECURSABLE;
 	if (opts & RW_QUIET)
 		flags |= LO_QUIET;
+	if (opts & RW_NEW)
+		flags |= LO_NEW;
 
 	lock_init(&rw->lock_object, &lock_class_rw, name, NULL, flags);
 	rw->rw_lock = RW_UNLOCKED;
