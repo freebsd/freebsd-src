@@ -112,6 +112,7 @@ struct pageset {
 	int len;
 	struct ppod_reservation prsv;
 	struct vmspace *vm;
+	vm_offset_t start;
 	u_int vm_timestamp;
 };
 
