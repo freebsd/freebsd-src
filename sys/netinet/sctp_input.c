@@ -197,8 +197,7 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 		sctp_send_initiate_ack(inp, stcb, net, m, iphlen, offset,
 		    src, dst, sh, cp,
 		    mflowtype, mflowid,
-		    vrf_id, port,
-		    ((stcb == NULL) ? SCTP_HOLDS_LOCK : SCTP_NOT_LOCKED));
+		    vrf_id, port);
 	}
 outnow:
 	if (stcb == NULL) {
