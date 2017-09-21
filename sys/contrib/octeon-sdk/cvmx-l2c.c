@@ -339,7 +339,7 @@ uint64_t cvmx_l2c_read_perf(uint32_t counter)
 static void fault_in(uint64_t addr, int len)
 {
     volatile char *ptr;
-    volatile char dummy;
+    volatile char dummy = 0;
     /*
      * Adjust addr and length so we get all cache lines even for
      * small ranges spanning two cache lines.
