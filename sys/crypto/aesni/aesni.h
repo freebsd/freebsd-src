@@ -65,7 +65,6 @@ struct aesni_session {
 	int used;
 	uint32_t id;
 	TAILQ_ENTRY(aesni_session) next;
-	struct fpu_kern_ctx *fpu_ctx;
 };
 
 /*
