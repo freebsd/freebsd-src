@@ -5491,7 +5491,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, struct sctp_init_chunk *init_chk,
     uint8_t mflowtype, uint32_t mflowid,
-    uint32_t vrf_id, uint16_t port, int hold_inp_lock)
+    uint32_t vrf_id, uint16_t port)
 {
 	struct sctp_association *asoc;
 	struct mbuf *m, *m_tmp, *m_last, *m_cookie, *op_err;
@@ -5839,10 +5839,6 @@ do_a_abort:
 	} else {
 		uint32_t vtag, itsn;
 
-		if (hold_inp_lock) {
-			SCTP_INP_INCR_REF(inp);
-			SCTP_INP_RUNLOCK(inp);
-		}
 		if (asoc) {
 			atomic_add_int(&asoc->refcnt, 1);
 			SCTP_TCB_UNLOCK(stcb);
@@ -5862,12 +5858,12 @@ do_a_abort:
 			SCTP_TCB_LOCK(stcb);
 			atomic_add_int(&asoc->refcnt, -1);
 		} else {
+			SCTP_INP_INCR_REF(inp);
+			SCTP_INP_RUNLOCK(inp);
 			vtag = sctp_select_a_tag(inp, inp->sctp_lport, sh->src_port, 1);
 			initack->init.initiate_tag = htonl(vtag);
 			/* get a TSN to use too */
 			initack->init.initial_tsn = htonl(sctp_select_initial_TSN(&inp->sctp_ep));
-		}
-		if (hold_inp_lock) {
 			SCTP_INP_RLOCK(inp);
 			SCTP_INP_DECR_REF(inp);
 		}
