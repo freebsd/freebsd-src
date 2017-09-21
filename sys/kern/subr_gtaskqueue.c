@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <machine/stdarg.h>
 
-static MALLOC_DEFINE(M_GTASKQUEUE, "taskqueue", "Task Queues");
+static MALLOC_DEFINE(M_GTASKQUEUE, "gtaskqueue", "Group Task Queues");
 static void	gtaskqueue_thread_enqueue(void *);
 static void	gtaskqueue_thread_loop(void *arg);
 
