@@ -291,11 +291,6 @@ CR0 ( ) {
 	chroot "${NANO_WORLDDIR}" /bin/sh -c "$*" || true
 }
 
-nano_cleanup ( ) (
-	[ $? -eq 0 ] || echo "Error encountered.  Check for errors in last log file." 1>&2
-	exit $?
-)
-
 clean_build ( ) (
 	pprint 2 "Clean and create object directory (${MAKEOBJDIRPREFIX})"
 
