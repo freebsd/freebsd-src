@@ -470,7 +470,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	close(fd);
 	if (obj_main == NULL)
 	    rtld_die();
-	max_stack_flags = obj->stack_flags;
+	max_stack_flags = obj_main->stack_flags;
     } else {				/* Main program already loaded. */
 	const Elf_Phdr *phdr;
 	int phnum;
