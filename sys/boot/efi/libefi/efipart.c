@@ -489,7 +489,14 @@ efipart_hdinfo_add_filepath(EFI_HANDLE disk_handle)
 		return (0);
 	}
 	p++;	/* skip the colon */
+	errno = 0;
 	unit = (int)strtol(p, NULL, 0);
+	if (errno != 0) {
+		printf("Bad unit number for partition \"%s\"\n", pathname);
+		free(pathname);
+		free(pd);
+		return (EUNIT);
+	}
 
 	/*
 	 * We should have disk registered, if not, we are receiving
