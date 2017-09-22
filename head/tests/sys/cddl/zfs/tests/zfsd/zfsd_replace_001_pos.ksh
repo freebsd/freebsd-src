@@ -65,10 +65,6 @@ for type in "raidz" "mirror"; do
 	# there is I/O active to the
 	disable_sas_disk $EXPANDER $PHY
 
-	# Check to make sure disk is gone.
-	find_disk_by_phy $EXPANDER $PHY
-	[ -n "$FOUNDDISK" ] && log_fail "Disk \"$REMOVAL_DISK\" was not removed"
-
 	# Write out data to make sure we can do I/O after the disk failure
 	log_must $DD if=/dev/zero of=$TESTDIR/$TESTFILE bs=1m count=512
 
@@ -78,7 +74,6 @@ for type in "raidz" "mirror"; do
 	# Re-enable the disk, we don't want to leave it turned off
 	log_note "Re-enabling phy $PHY on expander $EXPANDER"
 	enable_sas_disk $EXPANDER $PHY
-	wait_for_disk_to_reappear 20 $EXPANDER $PHY
 
 	# Disk should auto-join the zpool & be resilvered.
 	wait_for_pool_dev_state_change 20 $REMOVAL_DISK ONLINE

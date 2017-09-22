@@ -27,20 +27,6 @@
 
 # Common routines used by multiple zfsd tests
 
-function wait_for_disk_to_reappear
-{
-	typeset -i timeout=$1
-	typeset EXPANDER=$2
-	typeset PHY=$3
-
-	for ((; $timeout > 0; timeout=$timeout-1)); do
-		find_disk_by_phy $EXPANDER $PHY
-		[ -n "$FOUNDDISK" -a -e "/dev/$FOUNDDISK" ] && return
-		$SLEEP 1
-	done
-	log_fail "ERROR: Disk at ${EXPANDER}:${PHY} never reappeared"
-}
-
 function wait_for_pool_dev_state_change
 {
 	typeset -i timeout=$1
@@ -109,10 +95,7 @@ function do_autoreplace
 	# Remove a vdev by disabling its SAS phy
 	find_verify_sas_disk $REMOVAL_DISK
 	log_note "Disabling \"$REMOVAL_DISK\" on expander $EXPANDER phy $PHY"
-	disable_sas_disk $EXPANDER $PHY
-
-	# Check to make sure the disk is gone
-	log_mustnot camcontrol inquiry $REMOVAL_DISK
+	disable_sas_disk $EXPANDER $PHY $REMOVAL_DISK
 
 	# Check to make sure ZFS sees the disk as removed
 	wait_for_pool_removal 30
@@ -137,8 +120,6 @@ function do_autoreplace
 	# Reenable the missing dev's SAS phy
 	log_note "Reenabling phy on expander $EXPANDER phy $PHY"
 	enable_sas_disk $EXPANDER $PHY
-	rescan_disks $EXPANDER
-	wait_for_disk_to_reappear 30 $EXPANDER $PHY
 
 	# Erase the missing dev's ZFS label
 	log_must $ZPOOL labelclear -f $( find_disks $FOUNDDISK )
@@ -146,10 +127,7 @@ function do_autoreplace
 	# Disable the missing dev's SAS phy again
 	find_verify_sas_disk $FOUNDDISK
 	log_note "Disabling \"$FOUNDDISK\" on expander $EXPANDER phy $PHY"
-	disable_sas_disk $EXPANDER $PHY
-
-	# Check to make sure the disk is gone
-	log_mustnot camcontrol inquiry $REMOVAL_DISK
+	disable_sas_disk $EXPANDER $PHY $FOUNDDISK
 
 	# Import the pool
 	log_must $ZPOOL import $TESTPOOL
@@ -160,8 +138,6 @@ function do_autoreplace
 	# Reenable the missing dev's SAS phy
 	log_note "Reenabling phy on expander $EXPANDER phy $PHY"
 	enable_sas_disk $EXPANDER $PHY
-	rescan_disks $EXPANDER
-	wait_for_disk_to_reappear 30 $EXPANDER $PHY
 }
 
 function autoreplace_cleanup
@@ -172,7 +148,6 @@ function autoreplace_cleanup
 	if [ -n "$REMOVAL_DISK" -a -n "$EXPANDER" -a -n "$PHY" ]; then
 		log_note "Renabling ${EXPANDER}:${PHY} for disk ${REMOVAL_DISK}"
 		enable_sas_disk $EXPANDER $PHY
-		rescan_disks $EXPANDER
 
 		# For debugging purposes, log the partial output of
 		# camcontrol to see if the disk actually came back.

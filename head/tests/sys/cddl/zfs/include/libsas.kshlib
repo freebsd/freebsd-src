@@ -154,9 +154,24 @@ function disable_sas_disk
 {
 	typeset EXPANDER=$1
 	typeset PHY=$2
+	typeset DISK=${3##*/}
 
 	# Disable the phy for this particular device
 	log_must camcontrol smppc $EXPANDER -v -p $PHY -o disable
+	# Wait up to 16 seconds for the disk to disappear.
+	for (( i=0; i<8; i=i+1)); do
+		# CAM waits 2 seconds to ensure the disk is really gone
+		sleep 2
+		if [ -c /dev/${DISK} ]; then
+			# Error recovery routines in the HBA sometimes reenable
+			# the phy if a command fails at the wrong time, so we
+			# may have to disable it multiple times.
+			log_must camcontrol smppc $EXPANDER -v -p $PHY -o disable
+		else
+			return
+		fi
+	done
+	log_fail "Disk $DISK never disappeared"
 }
 
 # Given an expander and phy on that expander, enable the phy.
@@ -169,6 +184,7 @@ function enable_sas_disk
 
 	# Send a link reset to bring the device back
 	log_must camcontrol smppc $EXPANDER -p $PHY -o linkreset
+	wait_for_disk_to_reappear 30 $EXPANDER $PHY
 }
 
 function rescan_disks
@@ -181,4 +197,18 @@ function rescan_disks
 	for device in $(echo $* | sort -u); do
 		log_must camcontrol rescan $device >/dev/null
 	done
+}
+
+function wait_for_disk_to_reappear
+{
+	typeset -i timeout=$1
+	typeset EXPANDER=$2
+	typeset PHY=$3
+
+	for ((; $timeout > 0; timeout=$timeout-1)); do
+		find_disk_by_phy $EXPANDER $PHY
+		[ -n "$FOUNDDISK" -a -e "/dev/$FOUNDDISK" ] && return
+		$SLEEP 1
+	done
+	log_fail "ERROR: Disk at ${EXPANDER}:${PHY} never reappeared"
 }

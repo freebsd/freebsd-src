@@ -102,13 +102,6 @@ for type in "raidz" "mirror"; do
 		# there is I/O active to the
 		disable_sas_disk $EXPANDER $PHY
 	done
-	rescan_disks
-
-	# Now go through the list of disks, and make sure they are all gone.
-	for CURDISK in ${TMPDISKS[*]}; do
-		# Check to make sure disk is gone.
-		log_mustnot camcontrol inquiry $CURDISK
-	done
 
 	# Make sure that the pool status is "UNAVAIL".  We have taken all
 	# of the drives offline, so it should be.
@@ -121,7 +114,6 @@ for type in "raidz" "mirror"; do
 		log_note "Re-enabling phy ${PHY_LIST[$CURDISK]} on expander ${EXPANDER_LIST[$CURDISK]}"
 		enable_sas_disk ${EXPANDER_LIST[$CURDISK]} ${PHY_LIST[$CURDISK]}
 	done
-	rescan_disks
 
 	unset DISK_FOUND
 	typeset -A DISK_FOUND

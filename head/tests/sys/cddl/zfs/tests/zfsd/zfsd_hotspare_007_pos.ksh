@@ -75,10 +75,6 @@ function verify_assertion # spare_dev
 	log_note "Disabling \"$REMOVAL_DISK\" on expander $EXPANDER phy $PHY"
 	disable_sas_disk $EXPANDER $PHY
 
-	# Check to make sure the disk is gone
-	find_disk_by_phy $EXPANDER $PHY
-	[ -n "$FOUNDDISK" ] && log_fail "Disk \"$REMOVAL_DISK\" was not removed"
-
 	# Check to make sure ZFS sees the disk as removed
 	wait_for_pool_removal 20
 
@@ -90,7 +86,6 @@ function verify_assertion # spare_dev
 	# Reenable the  missing disk
 	log_note "Reenabling phy on expander $EXPANDER phy $PHY"
 	enable_sas_disk $EXPANDER $PHY
-	wait_for_disk_to_reappear 20 $EXPANDER $PHY
 }
 
 typeset REMOVAL_DISK=$DISK0

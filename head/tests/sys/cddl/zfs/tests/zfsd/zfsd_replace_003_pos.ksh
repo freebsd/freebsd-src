@@ -63,10 +63,6 @@ function remove_disk
 	# Disable the first disk.
 	disable_sas_disk $EXPANDER $PHY
 
-	# Check to make sure disk is gone.
-	find_disk_by_phy $EXPANDER $PHY
-	[ -n "$FOUNDDISK" ] && log_fail "Disk \"$DISK\" was not removed"
-
 	# Check to make sure ZFS sees the disk as removed
 	wait_for_pool_dev_state_change 20 $DISK "REMOVED|UNAVAIL"
 }
@@ -86,8 +82,6 @@ function reconnect_disk
 	enable_sas_disk $EXPANDER $PHY
 
 	log_note "Checking to see whether disk has reappeared"
-	# Make sure the disk is back in the topology
-	wait_for_disk_to_reappear 20 $EXPANDER $PHY
 
 	prev_disk=$(find_disks $DISK)
 	cur_disk=$(find_disks $FOUNDDISK)
