@@ -99,16 +99,6 @@ arm_install_base() {
 		TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
 		DESTDIR=${DESTDIR} KERNCONF=${KERNEL} \
 		installworld installkernel distribution
-
-	# Bootstrap etcupdate(8) and mergemaster(8) databases.
-	mkdir -p ${DESTDIR}/var/db/etcupdate
-	etcupdate extract -B \
-		-M "TARGET=${EMBEDDED_TARGET} TARGET_ARCH=${EMBEDDED_TARGET_ARCH}" \
-		-s ${WORLDDIR} -d ${DESTDIR}/var/db/etcupdate
-	sh ${WORLDDIR}/release/scripts/mm-mtree.sh -m ${WORLDDIR} \
-		-F "TARGET=${EMBEDDED_TARGET} TARGET_ARCH=${EMBEDDED_TARGET_ARCH}" \
-		-D ${DESTDIR}
-
 	chroot ${CHROOTDIR} mkdir -p ${DESTDIR}/boot/msdos
 
 	arm_create_user
