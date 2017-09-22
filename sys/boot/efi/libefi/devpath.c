@@ -142,7 +142,7 @@ efi_devpath_handle(EFI_DEVICE_PATH *devpath)
 bool
 efi_devpath_match(EFI_DEVICE_PATH *devpath1, EFI_DEVICE_PATH *devpath2)
 {
-	int len;
+	size_t len;
 
 	if (devpath1 == NULL || devpath2 == NULL)
 		return (false);
@@ -156,7 +156,7 @@ efi_devpath_match(EFI_DEVICE_PATH *devpath1, EFI_DEVICE_PATH *devpath2)
 		if (len != DevicePathNodeLength(devpath2))
 			return (false);
 
-		if (memcmp(devpath1, devpath2, (size_t)len) != 0)
+		if (memcmp(devpath1, devpath2, len) != 0)
 			return (false);
 
 		if (IsDevicePathEnd(devpath1))
