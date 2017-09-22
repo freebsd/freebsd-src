@@ -76,7 +76,9 @@
 4	AUE_WRITE	NOPROTO	{ ssize_t write(int fd, \
 				    _In_reads_bytes_(nbyte) const void *buf, \
 				    size_t nbyte); }
-5	AUE_OPEN_RWTC	NOPROTO|VARARG	{ int open(_In_z_ const char *path, int flags, \
+5	AUE_OPEN_RWTC	STD|VARARG	{ int cheriabi_open( \
+				    _In_z_ const char * __capability path, \
+				    int flags, \
 				    mode_t mode); }
 6	AUE_CLOSE	NOPROTO	{ int close(int fd); }
 7	AUE_WAIT4	NOPROTO	{ int wait4(int pid, _Out_opt_ int *status, \

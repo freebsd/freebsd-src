@@ -100,13 +100,13 @@ SYS_STUB(4, ssize_t, write,
 )
 
 SYS_STUB_VA(5, int, open, flags,
-    /* _protoargs */ (const char * path, int flags, mode_t mode),
-    /* _vprotoargs */ (const char * path, int flags, ...),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, const char * __capability  path, int flags, mode_t mode),
-    /* _protoargs_err */ (__capability int *stub_errno, const char * __capability  path, int flags, mode_t mode),
-    /* _callargs */ ((const char *)path, flags, mode),
+    /* _protoargs */ (const char *__capability path, int flags, mode_t mode),
+    /* _vprotoargs */ (const char *__capability path, int flags, ...),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, const char * __capability __capability path, int flags, mode_t mode),
+    /* _protoargs_err */ (__capability int *stub_errno, const char * __capability __capability path, int flags, mode_t mode),
+    /* _callargs */ ((const char *__capability)path, flags, mode),
     /* _callargs_chk */ (&ret, stub_errno, path, flags, mode),
-    /* _callargs_err */ (&errno, (const char *)path, flags, mode),
+    /* _callargs_err */ (&errno, (const char *__capability)path, flags, mode),
     /* _localcheck */ {if (!(cheri_getperm(path) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 

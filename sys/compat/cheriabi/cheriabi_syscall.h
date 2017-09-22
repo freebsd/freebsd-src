@@ -10,7 +10,7 @@
 #define	CHERIABI_SYS_fork	2
 #define	CHERIABI_SYS_read	3
 #define	CHERIABI_SYS_write	4
-#define	CHERIABI_SYS_open	5
+#define	CHERIABI_SYS_cheriabi_open	5
 #define	CHERIABI_SYS_close	6
 #define	CHERIABI_SYS_wait4	7
 				/* 8 is obsolete old creat */

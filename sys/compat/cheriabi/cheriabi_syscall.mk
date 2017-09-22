@@ -7,7 +7,7 @@ MIASM =  \
 	fork.o \
 	read.o \
 	write.o \
-	open.o \
+	cheriabi_open.o \
 	close.o \
 	wait4.o \
 	link.o \

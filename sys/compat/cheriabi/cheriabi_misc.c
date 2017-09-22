@@ -173,6 +173,15 @@ cheriabi_syscall(struct thread *td, struct cheriabi_syscall_args *uap)
 	}
 }
 
+/* syscall #5 */
+int
+cheriabi_open(struct thread *td, struct cheriabi_open_args *uap)
+{
+
+	return (kern_openat_c(td, AT_FDCWD, uap->path, UIO_USERSPACE,
+	    uap->flags, uap->mode));
+}
+
 int
 cheriabi_openat(struct thread *td, struct cheriabi_openat_args *uap)
 {
