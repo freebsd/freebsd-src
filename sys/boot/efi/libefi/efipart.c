@@ -857,7 +857,7 @@ efipart_strategy(void *devdata, int rw, daddr_t blk, size_t size,
 
 	if (pd->pd_blkio->Media->RemovableMedia &&
 	    !pd->pd_blkio->Media->MediaPresent)
-		return (EIO);
+		return (ENXIO);
 
 	bcd.dv_strategy = efipart_realstrategy;
 	bcd.dv_devdata = devdata;
