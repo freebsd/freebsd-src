@@ -840,9 +840,23 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	/* Using addr as length means ddc base must be 0. */
 	CTASSERT(CHERI_CAP_USER_DATA_BASE == 0);
 	text_end = stackbase;
+	if (imgp->end_addr != 0) {
+		text_end = roundup2(imgp->end_addr,
+		    1ULL << CHERI_SEAL_ALIGN_SHIFT(imgp->end_addr));
+		/*
+		 * Less confusing rounded up to a page and 256-bit
+		 * requires no other rounding.
+		 */
+		text_end = roundup2(text_end, PAGE_SIZE);
+	}
+	KASSERT(text_end <= stackbase,
+	    ("text_end 0x%zx > stackbase 0x%lx", text_end, stackbase));
 
-	map_base = CHERI_CAP_USER_MMAP_BASE;
-	map_length = text_end - map_base;
+	map_base = (text_end == stackbase) ?
+	    CHERI_CAP_USER_MMAP_BASE : text_end;
+	KASSERT(map_base < stackbase,
+	    ("map_base 0x%zx >= stackbase 0x%lx", map_base, stackbase));
+	map_length = stackbase - map_base;
 	cheri_capability_set(&td->td_md.md_cheri_mmap_cap,
 	    CHERI_CAP_USER_MMAP_PERMS, map_base, map_length,
 	    CHERI_CAP_USER_MMAP_OFFSET);
@@ -853,12 +867,13 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	    MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_COP_2_BIT;
 
 	/*
-	 * XXXRW: For now, initialise $ddc and $idc to the full address space,
-	 * but in the future these will be restricted (or not set at all).
+	 * XXXRW: For now, initialise $ddc and $idc to almost the full address
+	 * space, but in the future these will be restricted (or not set at
+	 * all).
 	 */
 	frame = &td->td_pcb->pcb_regs;
-	cheriabi_capability_set_user_ddc(&frame->ddc, text_end);
-	cheriabi_capability_set_user_idc(&frame->idc, text_end);
+	cheriabi_capability_set_user_ddc(&frame->ddc, stackbase);
+	cheriabi_capability_set_user_idc(&frame->idc, stackbase);
 
 	/*
 	 * XXXRW: Set $pcc and $c12 to the entry address -- for now, also with

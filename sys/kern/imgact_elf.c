@@ -692,6 +692,7 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	imgp->image_header = NULL;
 	imgp->object = NULL;
 	imgp->execlabel = NULL;
+	imgp->end_addr = 0;
 
 	NDINIT(nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_SYSSPACE, file, curthread);
 	if ((error = namei(nd)) != 0) {
@@ -936,6 +937,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		goto ret;
 
 	for (i = 0; i < hdr->e_phnum; i++) {
+		unsigned long end_addr;
 		switch (phdr[i].p_type) {
 		case PT_LOAD:	/* Loadable segment */
 			if (phdr[i].p_memsz == 0)
@@ -966,6 +968,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			    sv->sv_pagesize);
 			if (error != 0)
 				goto ret;
+
+			end_addr = phdr[i].p_vaddr + et_dyn_addr +
+			    phdr[i].p_memsz;
+			if (imgp->end_addr < end_addr)
+				imgp->end_addr = end_addr;
 
 			/*
 			 * If this segment contains the program headers,
@@ -1089,6 +1096,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			    &imgp->entry_addr, sv->sv_pagesize);
 		}
 		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
+		/*
+		 * XXX-CHERI: disable restricting DDC and PCC in dynamic
+		 * programs while we refine the model.
+		 */
+		imgp->end_addr = 0;
 		if (error != 0) {
 			uprintf("ELF interpreter %s not found, error %d\n",
 			    interp, error);

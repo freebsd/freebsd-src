@@ -65,6 +65,7 @@ struct image_params {
 	struct vattr *attr;	/* attributes of file */
 	const char *image_header; /* head of file to exec */
 	unsigned long entry_addr; /* entry address of target executable */
+	unsigned long end_addr;   /* end of mapped image (including bss) */
 	unsigned long reloc_base; /* load address of image */
 	char vmspace_destroyed;	/* flag - we've blown away original vm space */
 #define IMGACT_SHELL	0x1
