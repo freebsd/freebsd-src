@@ -632,8 +632,9 @@ efipart_print_common(struct devsw *dev, pdinfo_list_t *pdlist, int verbose)
 			if (blkio->Media->MediaPresent) {
 				if (blkio->Media->RemovableMedia)
 					printf(" (removable)");
-			} else
+			} else {
 				printf(" (no media)");
+			}
 			if ((ret = pager_output("\n")) != 0)
 				break;
 			if (!blkio->Media->MediaPresent)
