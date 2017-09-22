@@ -137,8 +137,8 @@ check_initreg_code(__capability void *c)
 
 	/* Length. */
 	v = cheri_getlen(c);
-	if (v != CHERI_CAP_USER_CODE_LENGTH)
-		cheritest_failure_errx("length 0x%jx (expected 0x%jx)", v,
+	if (v > CHERI_CAP_USER_CODE_LENGTH)
+		cheritest_failure_errx("length 0x%jx (expected <= 0x%jx)", v,
 		    CHERI_CAP_USER_CODE_LENGTH);
 
 	/* Offset. */
@@ -227,8 +227,8 @@ check_initreg_data(__capability void *c)
 
 	/* Length. */
 	v = cheri_getlen(c);
-	if (v != CHERI_CAP_USER_DATA_LENGTH)
-		cheritest_failure_errx("length 0x%jx (expected 0x%jx)", v,
+	if (v > CHERI_CAP_USER_DATA_LENGTH)
+		cheritest_failure_errx("length 0x%jx (expected <= 0x%jx)", v,
 		    CHERI_CAP_USER_DATA_LENGTH);
 
 	/* Offset. */
