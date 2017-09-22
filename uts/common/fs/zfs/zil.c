@@ -1995,7 +1995,6 @@ zil_process_commit_list(zilog_t *zilog)
 		list_remove(&zilog->zl_itx_commit_list, itx);
 		zil_itx_destroy(itx);
 	}
-	DTRACE_PROBE1(zil__cw2, zilog_t *, zilog);
 
 	if (lwb == NULL) {
 		/*
