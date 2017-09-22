@@ -117,8 +117,8 @@ __ElfType(Auxinfo);
 
 /* Flags passed in AT_HWCAP. */
 #define	HWCAP_VFP		0x00000040
-#define	HWCAP_VFPv3		0x00000200
-#define	HWCAP_VFPv3D16		0x00000400
+#define	HWCAP_VFPv3		0x00002000
+#define	HWCAP_VFPv3D16		0x00004000
 #define	HWCAP_VFPD32		0x00080000
 
 #endif /* !_MACHINE_ELF_H_ */
