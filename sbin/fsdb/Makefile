@@ -10,7 +10,7 @@ SRCS=	fsdb.c fsdbutil.c \
 	pass5.c setup.c utilities.c ffs_subr.c ffs_tables.c globs.c
 CFLAGS+= -I${.CURDIR:H}/fsck_ffs
 WARNS?= 2
-LIBADD=	edit
+LIBADD=	edit ufs
 .PATH:	${.CURDIR:H}/fsck_ffs ${SRCTOP}/sys/ufs/ffs
 
 .include <bsd.prog.mk>
