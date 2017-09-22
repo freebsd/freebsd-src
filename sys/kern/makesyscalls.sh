@@ -789,7 +789,12 @@ sed -e '
 			    syscallprefix, funcalias) > cheriabi_fill_uap
 			printf("    struct %s *uap)\n{\n",
 			    argalias) > cheriabi_fill_uap
-			printf("\tvoid * __capability tmpcap;\n") > cheriabi_fill_uap
+			for (i = 1; i <= argc; i++) {
+				if (!iscaptype(argtype[i])) {
+					printf("\tvoid * __capability tmpcap;\n") > cheriabi_fill_uap
+					break
+				}
+			}
 			# Process all the integer arguments
 			for (i = 1; i <= argc; i++) {
 				if (isptrtype(argtype[i]))
