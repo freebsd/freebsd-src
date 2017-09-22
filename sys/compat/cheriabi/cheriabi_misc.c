@@ -173,23 +173,7 @@ cheriabi_syscall(struct thread *td, struct cheriabi_syscall_args *uap)
 	}
 }
 
-/* syscall #5 */
-int
-cheriabi_open(struct thread *td, struct cheriabi_open_args *uap)
-{
-
-	return (kern_openat_c(td, AT_FDCWD, uap->path, UIO_USERSPACE,
-	    uap->flags, uap->mode));
-}
-
-int
-cheriabi_openat(struct thread *td, struct cheriabi_openat_args *uap)
-{
-
-	return (kern_openat_c(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
-	    uap->mode));
-}
-
+/* syscall #532 */
 int
 cheriabi_wait6(struct thread *td, struct cheriabi_wait6_args *uap)
 {
@@ -222,6 +206,7 @@ cheriabi_wait6(struct thread *td, struct cheriabi_wait6_args *uap)
 	return (error);
 }
 
+/* syscall #53 */
 int
 cheriabi_sigaltstack(struct thread *td,
     struct cheriabi_sigaltstack_args *uap)
@@ -2186,13 +2171,6 @@ cheriabi_mmap_set_retcap(struct thread *td, void * __capability *retcap,
 
 int
 cheriabi_mount(struct thread *td, struct cheriabi_mount_args *uap)
-{
-
-	return (ENOSYS);
-}
-
-int
-cheriabi_quotactl(struct thread *td, struct cheriabi_quotactl_args *uap)
 {
 
 	return (ENOSYS);
