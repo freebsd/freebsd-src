@@ -1960,6 +1960,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 {
 	vm_page_t p, next;
 	struct mtx *mtx;
+	struct pglist pgl;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->flags & OBJ_UNMANAGED) == 0 ||
@@ -1968,6 +1969,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	if (object->resident_page_count == 0)
 		return;
 	vm_object_pip_add(object, 1);
+	TAILQ_INIT(&pgl);
 again:
 	p = vm_page_find_least(object, start);
 	mtx = NULL;
@@ -2019,10 +2021,13 @@ again:
 		}
 		if ((options & OBJPR_NOTMAPPED) == 0)
 			pmap_remove_all(p);
-		vm_page_free(p);
+		p->flags &= ~PG_ZERO;
+		if (vm_page_free_prep(p, false))
+			TAILQ_INSERT_TAIL(&pgl, p, listq);
 	}
 	if (mtx != NULL)
 		mtx_unlock(mtx);
+	vm_page_free_phys_pglist(&pgl);
 	vm_object_pip_wakeup(object);
 }
 
