@@ -237,6 +237,7 @@ def GenTestCase(cname):
 			#for i in iglob('SHA1*'):
 			#	self.runSHA(i)
 
+		@unittest.skipIf(cname not in shamodules, 'skipping SHA on %s' % `cname`)
 		def test_sha1hmac(self):
 			for i in katg('hmactestvectors', 'HMAC.rsp'):
 				self.runSHA1HMAC(i)
