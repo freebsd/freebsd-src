@@ -146,3 +146,24 @@ cheriabi_openat(struct thread *td, struct cheriabi_openat_args *uap)
 	return (kern_openat_c(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
 	    uap->mode));
 }
+
+int
+cheriabi_link(struct thread *td, struct cheriabi_link_args *uap)
+{
+
+	return (kern_linkat_c(td, AT_FDCWD, AT_FDCWD, uap->path, uap->to,
+	    UIO_USERSPACE, FOLLOW));
+}
+
+int
+cheriabi_linkat(struct thread *td, struct cheriabi_linkat_args *uap)
+{
+	int flag;
+
+	flag = uap->flag;
+	if (flag & ~AT_SYMLINK_FOLLOW)
+		return (EINVAL);
+
+	return (kern_linkat_c(td, uap->fd1, uap->fd2, uap->path1, uap->path2,
+	    UIO_USERSPACE, (flag & AT_SYMLINK_FOLLOW) ? FOLLOW : NOFOLLOW));
+}

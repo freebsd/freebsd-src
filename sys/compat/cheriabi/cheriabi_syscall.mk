@@ -10,7 +10,7 @@ MIASM =  \
 	cheriabi_open.o \
 	close.o \
 	wait4.o \
-	link.o \
+	cheriabi_link.o \
 	unlink.o \
 	chdir.o \
 	fchdir.o \
@@ -303,7 +303,7 @@ MIASM =  \
 	fchownat.o \
 	cheriabi_fexecve.o \
 	futimesat.o \
-	linkat.o \
+	cheriabi_linkat.o \
 	mkdirat.o \
 	mkfifoat.o \
 	cheriabi_openat.o \

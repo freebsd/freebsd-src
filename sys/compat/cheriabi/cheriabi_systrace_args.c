@@ -77,11 +77,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
-	/* link */
+	/* cheriabi_link */
 	case 9: {
-		struct link_args *p = params;
-		uarg[0] = (intptr_t) p->path; /* const char * */
-		uarg[1] = (intptr_t) p->to; /* const char * */
+		struct cheriabi_link_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char *__capability */
+		uarg[1] = (intptr_t) p->to; /* const char *__capability */
 		*n_args = 2;
 		break;
 	}
@@ -2536,13 +2536,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* linkat */
+	/* cheriabi_linkat */
 	case 495: {
-		struct linkat_args *p = params;
+		struct cheriabi_linkat_args *p = params;
 		iarg[0] = p->fd1; /* int */
-		uarg[1] = (intptr_t) p->path1; /* const char * */
+		uarg[1] = (intptr_t) p->path1; /* const char *__capability */
 		iarg[2] = p->fd2; /* int */
-		uarg[3] = (intptr_t) p->path2; /* const char * */
+		uarg[3] = (intptr_t) p->path2; /* const char *__capability */
 		iarg[4] = p->flag; /* int */
 		*n_args = 5;
 		break;
@@ -3212,14 +3212,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* link */
+	/* cheriabi_link */
 	case 9:
 		switch(ndx) {
 		case 0:
-			p = "userland const char *";
+			p = "userland const char *__capability";
 			break;
 		case 1:
-			p = "userland const char *";
+			p = "userland const char *__capability";
 			break;
 		default:
 			break;
@@ -7264,20 +7264,20 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* linkat */
+	/* cheriabi_linkat */
 	case 495:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "userland const char *";
+			p = "userland const char *__capability";
 			break;
 		case 2:
 			p = "int";
 			break;
 		case 3:
-			p = "userland const char *";
+			p = "userland const char *__capability";
 			break;
 		case 4:
 			p = "int";
@@ -8310,7 +8310,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* link */
+	/* cheriabi_link */
 	case 9:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -9735,7 +9735,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* linkat */
+	/* cheriabi_linkat */
 	case 495:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

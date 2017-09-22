@@ -14,7 +14,7 @@
 #define	CHERIABI_SYS_close	6
 #define	CHERIABI_SYS_wait4	7
 				/* 8 is obsolete old creat */
-#define	CHERIABI_SYS_link	9
+#define	CHERIABI_SYS_cheriabi_link	9
 #define	CHERIABI_SYS_unlink	10
 				/* 11 is obsolete execv */
 #define	CHERIABI_SYS_chdir	12
@@ -413,7 +413,7 @@
 #define	CHERIABI_SYS_cheriabi_fexecve	492
 				/* 493 is obsolete fbsd11_fstatat */
 #define	CHERIABI_SYS_futimesat	494
-#define	CHERIABI_SYS_linkat	495
+#define	CHERIABI_SYS_cheriabi_linkat	495
 #define	CHERIABI_SYS_mkdirat	496
 #define	CHERIABI_SYS_mkfifoat	497
 				/* 498 is obsolete fbsd11_mknodat */

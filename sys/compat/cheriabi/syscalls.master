@@ -85,8 +85,9 @@
 				    int options, \
 				    _Out_opt_ struct rusage *rusage); }
 8	AUE_CREAT	OBSOL	old creat
-9	AUE_LINK	NOPROTO	{ int link(_In_z_ const char *path, \
-				    _In_z_ const char *to); }
+9	AUE_LINK	STD	{ int cheriabi_link( \
+				    _In_z_ const char * __capability path, \
+				    _In_z_ const char * __capability to); }
 10	AUE_UNLINK	NOPROTO	{ int unlink(_In_z_ const char *path); }
 11	AUE_NULL	OBSOL	execv
 12	AUE_CHDIR	NOPROTO	{ int chdir(_In_z_ const char *path); }
@@ -1058,9 +1059,10 @@
 494	AUE_FUTIMESAT	NOPROTO	{ int futimesat(int fd, \
 				    _In_z_ const char *path, \
 				    _In_reads_(2) const struct timeval *times); }
-495	AUE_LINKAT	NOPROTO	{ int linkat(int fd1, \
-				    _In_z_ const char *path1, \
-				    int fd2, _In_z_ const char *path2, \
+495	AUE_LINKAT	STD	{ int cheriabi_linkat(int fd1, \
+				    _In_z_ const char * __capability path1, \
+				    int fd2, \
+				    _In_z_ const char * __capability path2, \
 				    int flag); }
 496	AUE_MKDIRAT	NOPROTO	{ int mkdirat(int fd, _In_z_ const char *path, \
 				    mode_t mode); }

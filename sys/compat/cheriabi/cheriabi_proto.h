@@ -54,6 +54,10 @@ struct cheriabi_open_args {
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };
+struct cheriabi_link_args {
+	char path_l_[PADL_(const char *__capability)]; const char *__capability path; char path_r_[PADR_(const char *__capability)];
+	char to_l_[PADL_(const char *__capability)]; const char *__capability to; char to_r_[PADR_(const char *__capability)];
+};
 struct cheriabi_mount_args {
 	char type_l_[PADL_(const char *__capability)]; const char *__capability type; char type_r_[PADR_(const char *__capability)];
 	char path_l_[PADL_(const char *__capability)]; const char *__capability path; char path_r_[PADR_(const char *__capability)];
@@ -333,6 +337,13 @@ struct cheriabi_fexecve_args {
 	char argv_l_[PADL_(void *__capability *)]; void *__capability * argv; char argv_r_[PADR_(void *__capability *)];
 	char envv_l_[PADL_(void *__capability *)]; void *__capability * envv; char envv_r_[PADR_(void *__capability *)];
 };
+struct cheriabi_linkat_args {
+	char fd1_l_[PADL_(int)]; int fd1; char fd1_r_[PADR_(int)];
+	char path1_l_[PADL_(const char *__capability)]; const char *__capability path1; char path1_r_[PADR_(const char *__capability)];
+	char fd2_l_[PADL_(int)]; int fd2; char fd2_r_[PADR_(int)];
+	char path2_l_[PADL_(const char *__capability)]; const char *__capability path2; char path2_r_[PADR_(const char *__capability)];
+	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
+};
 struct cheriabi_openat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char path_l_[PADL_(const char *__capability)]; const char *__capability path; char path_r_[PADR_(const char *__capability)];
@@ -390,6 +401,7 @@ struct cheriabi_kevent_args {
 #endif
 int	cheriabi_syscall(struct thread *, struct cheriabi_syscall_args *);
 int	cheriabi_open(struct thread *, struct cheriabi_open_args *);
+int	cheriabi_link(struct thread *, struct cheriabi_link_args *);
 int	cheriabi_mount(struct thread *, struct cheriabi_mount_args *);
 int	cheriabi_recvmsg(struct thread *, struct cheriabi_recvmsg_args *);
 int	cheriabi_sendmsg(struct thread *, struct cheriabi_sendmsg_args *);
@@ -449,6 +461,7 @@ int	cheriabi_sctp_generic_sendmsg_iov(struct thread *, struct cheriabi_sctp_gene
 int	cheriabi_sctp_generic_recvmsg(struct thread *, struct cheriabi_sctp_generic_recvmsg_args *);
 int	cheriabi_mmap(struct thread *, struct cheriabi_mmap_args *);
 int	cheriabi_fexecve(struct thread *, struct cheriabi_fexecve_args *);
+int	cheriabi_linkat(struct thread *, struct cheriabi_linkat_args *);
 int	cheriabi_openat(struct thread *, struct cheriabi_openat_args *);
 int	cheriabi_jail_get(struct thread *, struct cheriabi_jail_get_args *);
 int	cheriabi_jail_set(struct thread *, struct cheriabi_jail_set_args *);
@@ -514,6 +527,7 @@ int	cheriabi_kevent(struct thread *, struct cheriabi_kevent_args *);
 
 #define	CHERIABI_SYS_AUE_cheriabi_syscall	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_open	AUE_OPEN_RWTC
+#define	CHERIABI_SYS_AUE_cheriabi_link	AUE_LINK
 #define	CHERIABI_SYS_AUE_cheriabi_mount	AUE_MOUNT
 #define	CHERIABI_SYS_AUE_cheriabi_recvmsg	AUE_RECVMSG
 #define	CHERIABI_SYS_AUE_cheriabi_sendmsg	AUE_SENDMSG
@@ -573,6 +587,7 @@ int	cheriabi_kevent(struct thread *, struct cheriabi_kevent_args *);
 #define	CHERIABI_SYS_AUE_cheriabi_sctp_generic_recvmsg	AUE_SCTP_GENERIC_RECVMSG
 #define	CHERIABI_SYS_AUE_cheriabi_mmap	AUE_MMAP
 #define	CHERIABI_SYS_AUE_cheriabi_fexecve	AUE_FEXECVE
+#define	CHERIABI_SYS_AUE_cheriabi_linkat	AUE_LINKAT
 #define	CHERIABI_SYS_AUE_cheriabi_openat	AUE_OPENAT_RWTC
 #define	CHERIABI_SYS_AUE_cheriabi_jail_get	AUE_JAIL_GET
 #define	CHERIABI_SYS_AUE_cheriabi_jail_set	AUE_JAIL_SET

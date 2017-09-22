@@ -1506,7 +1506,17 @@ can_hardlink(struct vnode *vp, struct ucred *cred)
 }
 
 int
-kern_linkat(struct thread *td, int fd1, int fd2, char *path1, char *path2,
+kern_linkat(struct thread *td, int fd1, int fd2, const char *path1, const char *path2,
+    enum uio_seg segflg, int follow)
+{
+
+	return (kern_linkat_c(td, fd1, fd2, (const char * __CAPABILITY)path1,
+	    (const char * __CAPABILITY)path2, segflg, follow));
+}
+
+int
+kern_linkat_c(struct thread *td, int fd1, int fd2,
+    const char * __CAPABILITY path1, const char * __CAPABILITY path2,
     enum uio_seg segflg, int follow)
 {
 	struct vnode *vp;
@@ -1517,7 +1527,7 @@ kern_linkat(struct thread *td, int fd1, int fd2, char *path1, char *path2,
 
 again:
 	bwillwrite();
-	NDINIT_ATRIGHTS(&nd, LOOKUP, follow | AUDITVNODE1, segflg, path1, fd1,
+	NDINIT_ATRIGHTS_C(&nd, LOOKUP, follow | AUDITVNODE1, segflg, path1, fd1,
 	    cap_rights_init(&rights, CAP_LINKAT_SOURCE), td);
 
 	if ((error = namei(&nd)) != 0)
@@ -1528,7 +1538,7 @@ again:
 		vrele(vp);
 		return (EPERM);		/* POSIX */
 	}
-	NDINIT_ATRIGHTS(&nd, CREATE,
+	NDINIT_ATRIGHTS_C(&nd, CREATE,
 	    LOCKPARENT | SAVENAME | AUDITVNODE2 | NOCACHE, segflg, path2, fd2,
 	    cap_rights_init(&rights, CAP_LINKAT_TARGET), td);
 	if ((error = namei(&nd)) == 0) {
