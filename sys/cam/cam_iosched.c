@@ -423,19 +423,30 @@ cam_iosched_iops_init(struct iop_stats *ios)
 static int
 cam_iosched_iops_tick(struct iop_stats *ios)
 {
+	int new_ios;
 
-	if ((ios->softc->total_ticks % ios->softc->quanta) == 0)
-		ios->l_value2 = 0;
-
-	ios->l_value1 = (int)((ios->current * (uint64_t)ios->softc->this_frac) >> 16);
 	/*
 	 * Allow at least one IO per tick until all
 	 * the IOs for this interval have been spent.
 	 */
-	if (ios->l_value1 <= 0 && ios->l_value2 < ios->current) {
-		ios->l_value1 = 1;
+	new_ios = (int)((ios->current * (uint64_t)ios->softc->this_frac) >> 16);
+	if (new_ios < 1 && ios->l_value2 < ios->current) {
+		new_ios = 1;
 		ios->l_value2++;
 	}
+
+	/*
+	 * If this a new accounting interval, discard any "unspent" ios
+	 * granted in the previous interval.  Otherwise add the new ios to
+	 * the previously granted ones that haven't been spent yet.
+	 */
+	if ((ios->softc->total_ticks % ios->softc->quanta) == 0) {
+		ios->l_value1 = new_ios;
+		ios->l_value2 = 1;
+	} else {
+		ios->l_value1 += new_ios;
+	}
+
 
 	return 0;
 }
