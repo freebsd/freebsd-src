@@ -26,7 +26,7 @@
  * Copyright 2015, OmniTI Computer Consulting, Inc. All rights reserved.
  * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014, 2016 Joyent, Inc. All rights reserved.
- * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
@@ -3623,7 +3623,7 @@ zfs_ioc_channel_program(const char *poolname, nvlist_t *innvl,
 
 	if (instrlimit == 0 || instrlimit > zfs_lua_max_instrlimit)
 		return (EINVAL);
-	if (memlimit == 0 || memlimit > ZCP_MAX_MEMLIMIT)
+	if (memlimit == 0 || memlimit > zfs_lua_max_memlimit)
 		return (EINVAL);
 
 	return (zcp_eval(poolname, program, instrlimit, memlimit,
