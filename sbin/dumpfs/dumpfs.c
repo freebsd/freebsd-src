@@ -276,6 +276,24 @@ dumpfs(const char *name)
 	if (fsflags != 0)
 		printf("unknown flags (%#x)", fsflags);
 	putchar('\n');
+	printf("check hashes\t");
+	fsflags = afs.fs_metackhash;
+	if (fsflags == 0)
+		printf("none");
+	if (fsflags & CK_SUPERBLOCK)
+		printf("superblock ");
+	if (fsflags & CK_CYLGRP)
+		printf("cylinder-groups ");
+	if (fsflags & CK_INODE)
+		printf("inodes ");
+	if (fsflags & CK_INDIR)
+		printf("indirect-blocks ");
+	if (fsflags & CK_DIR)
+		printf("directories ");
+	fsflags &= ~(CK_SUPERBLOCK | CK_CYLGRP | CK_INODE | CK_INDIR | CK_DIR);
+	if (fsflags != 0)
+		printf("unknown flags (%#x)", fsflags);
+	putchar('\n');
 	printf("fsmnt\t%s\n", afs.fs_fsmnt);
 	printf("volname\t%s\tswuid\t%ju\tprovidersize\t%ju\n",
 		afs.fs_volname, (uintmax_t)afs.fs_swuid,
