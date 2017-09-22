@@ -56,37 +56,6 @@ function create_sender_and_receiver
 	create_pool "$TESTPOOL1" "$DISK1"
 }
 
-function check_recv_status
-{
-	rcv_pid="$1"
-	rcv_status="$2"
-	destroyed="$3"
-
-	if ((rcv_status != 0))
-	then
-		log_note \
-	"zfs receive interrupted by destruction of $destroyed as expected"
-		return 0
-	fi
-
-	log_note "zfs receive NOT interrupted by destruction of $destroyed"
-	case $destroyed
-	in
-		SAME_POOL|RECEIVER)
-		log_fail "expected zfs receive failure did not occur"
-		;;
-		
-		SENDER)
-		log_note "zfs send completed before destruction of $destroyed"
-		;;
-
-		*)
-		log_fail "unknown parameter $destroyed"
-		;;
-	esac
-	return 0
-}
-
 function send_recv_destroy
 {
 	sleeptime=$1
@@ -94,39 +63,45 @@ function send_recv_destroy
 	to_destroy=$3
 	who_to_destroy="$4"
 
-	# The pid of this send/receive pipeline is that of zfs receive.
-	# We can not get the exit status of the zfs send. We can, however,
-	# infer the status of the send; see note below.
+	# The pid of this pipe line is that of zfs receive 
 	#
 	( $ZFS send -RP $TESTPOOL/$TESTFS@snap1 | $ZFS receive -Fu $recv/d1 ) &
-	recvpid=$!
 	sndrcv_start=$(date '+%s')
+	rcvpid=$!
+	sndpid=$(pgrep -P $rcvpid)
 
 	log_must sleep $sleeptime
+	log_note "post sleep: $(ps -p ${sndpid},${rcvpid} -o command)"
+
 	destroy_start=$(date '+%s')
 	log_must $ZPOOL destroy -f $to_destroy
 	destroy_end=$(date '+%s')
 	dtime=$((destroy_end - destroy_start))
 	log_note "Destroy of $who_to_destroy took ${dtime} seconds."
 
-	# NOTE:
-	# If the we have destroyed the send pool then the send/receive may
-	# succeed.
-	# 	1.) If the destruction of the send pool interrupts the zfs 
-	#	    send then this error will be detected by the receiver;
-	#	    the entire operation will fail.
-	#
-	#	2.) If the send completes before the destruction of the send 
-	# 	    pool then the receive will succeed.
-	#
-	wait $recvpid
-	rc=$?
-	wait_end=$(date '+%s')
-	log_note "$recvpid rc = $rc for destruction of $who_to_destroy"
-	check_recv_status $recvpid $rc $who_to_destroy
+	log_note "post destroy: $(ps -p ${sndpid},${rcvpid} -o command)"
 
+	# Wait for send and recv to exit.
+	#
+	wait $sndpid
+	snderr=$?
+	wait $rcvpid
+	rcverr=$?
+	wait_end=$(date '+%s')
 	wtime=$((wait_end - sndrcv_start))
 	log_note "send|receive took ${wtime} seconds to finish."
+
+	# KSH: "wait pid" exit status of 127 means that process never existed
+	# or already completed; ksh's wait only returns the status of the 
+	# child process if the child was running when the wait was issued.
+	# Therefore, we can not imply much about the interruption of the
+	# send | recv by zpool destroy -f 
+	#
+	# The real test of success is simply that the pool was destroyed.
+	#
+	log_note \
+	"Destruction of ${who_to_destroy}: send ${snderr}, recv ${rcverr}"
+
 	log_mustnot $ZPOOL list $to_destroy
 }
 
