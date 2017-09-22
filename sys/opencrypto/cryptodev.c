@@ -917,8 +917,13 @@ cryptodev_aead(
 		goto bail;
 	}
 
-	crda = crp->crp_desc;
-	crde = crda->crd_next;
+	if (caead->flags & COP_F_CIPHER_FIRST) {
+		crde = crp->crp_desc;
+		crda = crde->crd_next;
+	} else {
+		crda = crp->crp_desc;
+		crde = crda->crd_next;
+	}
 
 	if ((error = copyin(caead->aad, cse->uio.uio_iov[0].iov_base,
 	    caead->aadlen)))
@@ -928,8 +933,16 @@ cryptodev_aead(
 	    caead->aadlen, caead->len)))
 		goto bail;
 
+	/*
+	 * For GCM, crd_len covers only the AAD.  For other ciphers
+	 * chained with an HMAC, crd_len covers both the AAD and the
+	 * cipher text.
+	 */
 	crda->crd_skip = 0;
-	crda->crd_len = caead->aadlen;
+	if (cse->cipher == CRYPTO_AES_NIST_GCM_16)
+		crda->crd_len = caead->aadlen;
+	else
+		crda->crd_len = caead->aadlen + caead->len;
 	crda->crd_inject = caead->aadlen + caead->len;
 
 	crda->crd_alg = cse->mac;
