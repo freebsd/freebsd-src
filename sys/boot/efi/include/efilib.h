@@ -31,6 +31,7 @@
 #define	_LOADER_EFILIB_H
 
 #include <stand.h>
+#include <stdbool.h>
 #include <sys/queue.h>
 
 extern EFI_HANDLE		IH;
@@ -80,7 +81,7 @@ EFI_DEVICE_PATH *efi_lookup_devpath(EFI_HANDLE);
 EFI_HANDLE efi_devpath_handle(EFI_DEVICE_PATH *);
 EFI_DEVICE_PATH *efi_devpath_last_node(EFI_DEVICE_PATH *);
 EFI_DEVICE_PATH *efi_devpath_trim(EFI_DEVICE_PATH *);
-int efi_devpath_match(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *);
+bool efi_devpath_match(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *);
 CHAR16 *efi_devpath_name(EFI_DEVICE_PATH *);
 void efi_free_devpath_name(CHAR16 *);
 
