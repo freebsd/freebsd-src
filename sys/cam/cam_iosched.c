@@ -415,6 +415,7 @@ cam_iosched_iops_init(struct iop_stats *ios)
 	ios->l_value1 = ios->current / ios->softc->quanta;
 	if (ios->l_value1 <= 0)
 		ios->l_value1 = 1;
+	ios->l_value2 = 0;
 
 	return 0;
 }
@@ -423,9 +424,18 @@ static int
 cam_iosched_iops_tick(struct iop_stats *ios)
 {
 
+	if ((ios->softc->total_ticks % ios->softc->quanta) == 0)
+		ios->l_value2 = 0;
+
 	ios->l_value1 = (int)((ios->current * (uint64_t)ios->softc->this_frac) >> 16);
-	if (ios->l_value1 <= 0)
+	/*
+	 * Allow at least one IO per tick until all
+	 * the IOs for this interval have been spent.
+	 */
+	if (ios->l_value1 <= 0 && ios->l_value2 < ios->current) {
 		ios->l_value1 = 1;
+		ios->l_value2++;
+	}
 
 	return 0;
 }
