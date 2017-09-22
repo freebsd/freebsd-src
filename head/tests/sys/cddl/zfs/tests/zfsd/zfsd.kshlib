@@ -81,11 +81,12 @@ function corrupt_pool_vdev
 
 	# do some IO on the pool
 	log_must $DD if=/dev/zero of=$file bs=1024k count=128
+	$FSYNC $file
+
 	# scribble on the underlying file to corrupt the vdev
 	log_must $DD if=/dev/urandom of=$vdev bs=1024k count=64 conv=notrunc
 
 	# Scrub the pool to detect the corruption
-	$SYNC
 	log_must $ZPOOL scrub $pool
 	wait_until_scrubbed $pool
 
