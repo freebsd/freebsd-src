@@ -58,6 +58,11 @@ static int efipart_printfd(int);
 static int efipart_printcd(int);
 static int efipart_printhd(int);
 
+/* EISA PNP ID's for floppy controllers */
+#define	PNP0604	0x604
+#define	PNP0700	0x700
+#define	PNP0701	0x701
+
 struct devsw efipart_fddev = {
 	.dv_name = "fd",
 	.dv_type = DEVT_FD,
@@ -181,9 +186,9 @@ efipart_floppy(EFI_DEVICE_PATH *node)
 	if (DevicePathType(node) == ACPI_DEVICE_PATH &&
 	    DevicePathSubType(node) == ACPI_DP) {
 		acpi = (ACPI_HID_DEVICE_PATH *) node;
-		if (acpi->HID == EISA_PNP_ID(0x604) ||
-		    acpi->HID == EISA_PNP_ID(0x700) ||
-		    acpi->HID == EISA_ID(0x41d1, 0x701)) {
+		if (acpi->HID == EISA_PNP_ID(PNP0604) ||
+		    acpi->HID == EISA_PNP_ID(PNP0700) ||
+		    acpi->HID == EISA_PNP_ID(PNP0701)) {
 			return (acpi);
 		}
 	}
