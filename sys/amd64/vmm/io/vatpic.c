@@ -808,3 +808,73 @@ vatpic_cleanup(struct vatpic *vatpic)
 {
 	free(vatpic, M_VATPIC);
 }
+
+int
+vatpic_snapshot(struct vatpic *vatpic, void *buffer,
+			size_t buf_size, size_t *snapshot_size)
+{
+	int error;
+
+	if (buf_size < sizeof(struct vatpic)) {
+		printf("%s: buffer size too small: %lu < %lu\n",
+				__func__, buf_size, sizeof(struct vatpic));
+		return (EINVAL);
+	}
+
+	error = copyout(vatpic, buffer, sizeof(struct vatpic));
+	if (error) {
+		printf("%s: failed to copy vatpic data to user buffer\n",
+				__func__);
+		return (error);
+	}
+
+	*snapshot_size = sizeof(struct vatpic);
+	return (0);
+}
+
+int
+vatpic_restore(struct vatpic *vatpic, void *buffer, size_t buf_size)
+{
+	int i, j;
+
+	struct vatpic *old_vatpic;
+	if (buffer == NULL) {
+		printf("%s: buffer was NULL\n", __func__);
+		return (EINVAL);
+	}
+
+	if (buf_size != sizeof(struct vatpic)) {
+		printf("%s: restore buffer size mismatch: %lu != %lu\n",
+				__func__, buf_size, sizeof(struct vatpic));
+		return (EINVAL);
+	}
+
+	old_vatpic = (struct vatpic *)buffer;
+
+	vatpic->mtx = old_vatpic->mtx;
+
+	for (i = 0; i < 2; i++) {
+		vatpic->atpic[i].ready = old_vatpic->atpic[i].ready;
+		vatpic->atpic[i].icw_num = old_vatpic->atpic[i].icw_num;
+		vatpic->atpic[i].rd_cmd_reg = old_vatpic->atpic[i].rd_cmd_reg;
+
+		vatpic->atpic[i].aeoi = old_vatpic->atpic[i].aeoi;
+		vatpic->atpic[i].poll = old_vatpic->atpic[i].poll;
+		vatpic->atpic[i].rotate = old_vatpic->atpic[i].rotate;
+		vatpic->atpic[i].sfn = old_vatpic->atpic[i].sfn;
+		vatpic->atpic[i].irq_base = old_vatpic->atpic[i].irq_base;
+		vatpic->atpic[i].request = old_vatpic->atpic[i].request;
+		vatpic->atpic[i].service = old_vatpic->atpic[i].service;
+		vatpic->atpic[i].mask = old_vatpic->atpic[i].mask;
+		vatpic->atpic[i].smm = old_vatpic->atpic[i].smm;
+
+		for (j = 0; j < 8; j++)
+			vatpic->atpic[i].acnt[j] = old_vatpic->atpic[i].acnt[j];
+		vatpic->atpic[i].lowprio = old_vatpic->atpic[i].lowprio;
+		vatpic->atpic[i].intr_raised = old_vatpic->atpic[i].intr_raised;
+
+		vatpic->elc[i] = old_vatpic->elc[i];
+	}
+
+	return (0);
+}

@@ -54,4 +54,8 @@ int vatpic_set_irq_trigger(struct vm *vm, int irq, enum vm_intr_trigger trigger)
 void vatpic_pending_intr(struct vm *vm, int *vecptr);
 void vatpic_intr_accepted(struct vm *vm, int vector);
 
+int vatpic_snapshot(struct vatpic *vatpic, void *buffer, size_t buf_size,
+    size_t *snapshot_size);
+int vatpic_restore(struct vatpic *vatpic, void *buffer, size_t buf_size);
+
 #endif	/* _VATPIC_H_ */

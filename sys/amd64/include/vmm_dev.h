@@ -41,6 +41,7 @@ enum snapshot_req {
 	VM_MEM,
 	STRUCT_VHPET,
 	STRUCT_VMCX,
+	STRUCT_VATPIC,
 };
 
 #ifdef _KERNEL
