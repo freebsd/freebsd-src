@@ -141,6 +141,7 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign __unused)
 {
 	Elf_Addr *dtv;
 	Elf_Addr **tls;
+	char *dtv2;
 	char *tcb;
 
 	if (oldtcb != NULL && tcbsize == TLS_TCB_SIZE)
@@ -161,23 +162,11 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign __unused)
 		tls[0] = dtv;
 		dtv[0] = 1;
 		dtv[1] = 1;
-		dtv[2] = (Elf_Addr)tls + TLS_TCB_SIZE;
+		dtv2 = (char *)((intptr_t)tls + TLS_TCB_SIZE);
+		dtv[2] = (Elf_Addr)dtv2;
 
-#ifndef __CHERI_PURE_CAPABILITY__
 		if (tls_init_size > 0)
-			memcpy((void*)dtv[2], tls_init, tls_init_size);
-		if (tls_static_space > tls_init_size)
-			memset((void*)(dtv[2] + tls_init_size), 0,
-			    tls_static_space - tls_init_size);
-#else
-		if (tls_init_size > 0)
-			memcpy(cheri_setoffset(cheri_getdefault(),
-			    dtv[2]), tls_init, tls_init_size);
-		if (tls_static_space > tls_init_size)
-			memset(cheri_setoffset(cheri_getdefault(),
-			    dtv[2] + tls_init_size), 0,
-			    tls_static_space - tls_init_size);
-#endif
+			memcpy(dtv2, tls_init, tls_init_size);
 	}
 
 	return(tcb); 
