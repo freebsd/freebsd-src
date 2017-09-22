@@ -474,6 +474,8 @@ void	lapic_handle_error(void);
 void	lapic_handle_intr(int vector, struct trapframe *frame);
 void	lapic_handle_timer(struct trapframe *frame);
 
+int	ioapic_get_rid(u_int apic_id, uint16_t *ridp);
+
 extern int x2apic_mode;
 extern int lapic_eoi_suppression;
 
