@@ -249,29 +249,29 @@ def GenTestCase(cname):
 
 				blocksize = None
 				if hashlen == 20:
-				    alg = cryptodev.CRYPTO_SHA1_HMAC
-				    blocksize = 64
+					alg = cryptodev.CRYPTO_SHA1_HMAC
+					blocksize = 64
 				elif hashlen == 28:
-				    # Cryptodev doesn't support SHA-224
-				    # Slurp remaining input in section
-				    for data in lines:
+					# Cryptodev doesn't support SHA-224
+					# Slurp remaining input in section
+					for data in lines:
+						continue
 					continue
-				    continue
 				elif hashlen == 32:
-				    alg = cryptodev.CRYPTO_SHA2_256_HMAC
-				    blocksize = 64
+					alg = cryptodev.CRYPTO_SHA2_256_HMAC
+					blocksize = 64
 				elif hashlen == 48:
-				    alg = cryptodev.CRYPTO_SHA2_384_HMAC
-				    blocksize = 128
+					alg = cryptodev.CRYPTO_SHA2_384_HMAC
+					blocksize = 128
 				elif hashlen == 64:
-				    alg = cryptodev.CRYPTO_SHA2_512_HMAC
-				    blocksize = 128
+					alg = cryptodev.CRYPTO_SHA2_512_HMAC
+					blocksize = 128
 				else:
-				    # Skip unsupported hashes
-				    # Slurp remaining input in section
-				    for data in lines:
+					# Skip unsupported hashes
+					# Slurp remaining input in section
+					for data in lines:
+						continue
 					continue
-				    continue
 
 				for data in lines:
 					key = data['Key'].decode('hex')
