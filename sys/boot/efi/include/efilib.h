@@ -51,7 +51,7 @@ typedef STAILQ_HEAD(pdinfo_list, pdinfo) pdinfo_list_t;
 typedef struct pdinfo
 {
 	STAILQ_ENTRY(pdinfo)	pd_link;	/* link in device list */
-	pdinfo_list_t		pd_part;	/* link of partitions */
+	pdinfo_list_t		pd_part;	/* list of partitions */
 	EFI_HANDLE		pd_handle;
 	EFI_HANDLE		pd_alias;
 	EFI_DEVICE_PATH		*pd_devpath;
