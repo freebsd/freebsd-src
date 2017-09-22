@@ -2615,8 +2615,8 @@ ffs_getcg(fs, devvp, cg, bpp, cgpp)
 	    (bp->b_flags & B_CKHASH) != 0 &&
 	    cgp->cg_ckhash != bp->b_ckhash) ||
 	    !cg_chkmagic(cgp) || cgp->cg_cgx != cg) {
-		printf("checksum failed: cg %u, cgp: 0x%x != bp: 0x%lx\n",
-		    cg, cgp->cg_ckhash, bp->b_ckhash);
+		printf("checksum failed: cg %u, cgp: 0x%x != bp: 0x%jx\n",
+		    cg, cgp->cg_ckhash, (uintmax_t)bp->b_ckhash);
 		bp->b_flags &= ~B_CKHASH;
 		bp->b_flags |= B_INVAL | B_NOCACHE;
 		brelse(bp);
