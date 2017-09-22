@@ -781,9 +781,11 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 
 	sassc = sc->sassc;
 	mprsas_startup_increment(sassc);
-	if ((mpr_config_get_sas_device_pg0(sc, &mpi_reply, &config_page,
-	     MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, handle))) {
-		printf("%s: error reading SAS device page0\n", __func__);
+	if (mpr_config_get_sas_device_pg0(sc, &mpi_reply, &config_page,
+	    MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, handle) != 0) {
+		mpr_dprint(sc, MPR_INFO|MPR_MAPPING|MPR_FAULT,
+		    "Error reading SAS device %#x page0, iocstatus= 0x%x\n",
+		    handle, mpi_reply.IOCStatus);
 		error = ENXIO;
 		goto out;
 	}
@@ -795,12 +797,14 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 		Mpi2ConfigReply_t tmp_mpi_reply;
 		Mpi2SasDevicePage0_t parent_config_page;
 
-		if ((mpr_config_get_sas_device_pg0(sc, &tmp_mpi_reply,
-		     &parent_config_page, MPI2_SAS_DEVICE_PGAD_FORM_HANDLE,
-		     le16toh(config_page.ParentDevHandle)))) {
+		if (mpr_config_get_sas_device_pg0(sc, &tmp_mpi_reply,
+		    &parent_config_page, MPI2_SAS_DEVICE_PGAD_FORM_HANDLE,
+		    le16toh(config_page.ParentDevHandle)) != 0) {
 			mpr_dprint(sc, MPR_MAPPING|MPR_FAULT,
-			   "%s: error reading SAS device %#x page0\n",
-			    __func__, le16toh(config_page.ParentDevHandle));
+			    "Error reading parent SAS device %#x page0, "
+			    "iocstatus= 0x%x\n",
+			    le16toh(config_page.ParentDevHandle),
+			    tmp_mpi_reply.IOCStatus);
 		} else {
 			parent_sas_address = parent_config_page.SASAddress.High;
 			parent_sas_address = (parent_sas_address << 32) |
@@ -1148,8 +1152,9 @@ mprsas_get_sata_identify(struct mpr_softc *sc, u16 handle,
 		 * If the request returns an error then we need to do a diag
 		 * reset
 		 */
-		printf("%s: request for page completed with error %d",
-		    __func__, error);
+		mpr_dprint(sc, MPR_INFO|MPR_FAULT|MPR_MAPPING,
+		    "Request for SATA PASSTHROUGH page completed with error %d",
+		    error);
 		error = ENXIO;
 		goto out;
 	}
@@ -1157,8 +1162,9 @@ mprsas_get_sata_identify(struct mpr_softc *sc, u16 handle,
 	bcopy(reply, mpi_reply, sizeof(Mpi2SataPassthroughReply_t));
 	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
 	    MPI2_IOCSTATUS_SUCCESS) {
-		printf("%s: error reading SATA PASSTHRU; iocstatus = 0x%x\n",
-		    __func__, reply->IOCStatus);
+		mpr_dprint(sc, MPR_INFO|MPR_MAPPING|MPR_FAULT,
+		    "Error reading device %#x SATA PASSTHRU; iocstatus= 0x%x\n",
+		    handle, reply->IOCStatus);
 		error = ENXIO;
 		goto out;
 	}
