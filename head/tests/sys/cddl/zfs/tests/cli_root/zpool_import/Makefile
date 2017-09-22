@@ -15,6 +15,7 @@ ${PACKAGE}FILES+=	zpool_import_all_001_pos.ksh
 ${PACKAGE}FILES+=	zpool_import.cfg
 ${PACKAGE}FILES+=	zpool_import_corrupt_001_pos.ksh
 ${PACKAGE}FILES+=	zpool_import_destroyed_001_neg.ksh
+${PACKAGE}FILES+=	zpool_import_destroyed_002_neg.ksh
 ${PACKAGE}FILES+=	zpool_import_012_pos.ksh
 ${PACKAGE}FILES+=	zpool_import_013_neg.ksh
 ${PACKAGE}FILES+=	zpool_import_007_pos.ksh

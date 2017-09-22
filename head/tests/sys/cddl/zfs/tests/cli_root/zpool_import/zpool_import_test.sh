@@ -518,8 +518,8 @@ zpool_import_corrupt_001_pos_cleanup()
 atf_test_case zpool_import_destroyed_001_neg cleanup
 zpool_import_destroyed_001_neg_head()
 {
-	atf_set "descr" "A destroyed pool cannot be imported even if an out-of-date non-destroyed label remains"
-	atf_set "require.progs"  zfs zpool
+	atf_set "descr" "'zpool import' will not show destroyed pools, even if an out-of-date non-destroyed label remains"
+	atf_set "require.progs"  zpool
 }
 zpool_import_destroyed_001_neg_body()
 {
@@ -532,6 +532,28 @@ zpool_import_destroyed_001_neg_cleanup()
 {
 	. $(atf_get_srcdir)/../../../include/default.cfg
 
+	destroy_pool "$TESTPOOL"
+	cleanup_devices "$DISKS"
+}
+
+atf_test_case zpool_import_destroyed_002_neg cleanup
+zpool_import_destroyed_002_neg_head()
+{
+	atf_set "descr" "'zpool import' will not show destroyed pools, even if an out-of-date non-destroyed label remains"
+	atf_set "require.progs"  zpool
+}
+zpool_import_destroyed_002_neg_body()
+{
+	. $(atf_get_srcdir)/../../../include/default.cfg
+
+	verify_disk_count "$DISKS" 2
+	ksh93 $(atf_get_srcdir)/zpool_import_destroyed_002_neg.ksh || atf_fail "Testcase failed"
+}
+zpool_import_destroyed_002_neg_cleanup()
+{
+	. $(atf_get_srcdir)/../../../include/default.cfg
+
+	destroy_pool "$TESTPOOL"
 	cleanup_devices "$DISKS"
 }
 
@@ -561,4 +583,5 @@ atf_init_test_cases()
 	atf_add_test_case zpool_import_rename_001_pos
 	atf_add_test_case zpool_import_corrupt_001_pos
 	atf_add_test_case zpool_import_destroyed_001_neg
+	atf_add_test_case zpool_import_destroyed_002_neg
 }

@@ -597,33 +597,6 @@ hotspare_replace_002_neg_cleanup()
 }
 
 
-atf_test_case hotspare_replace_003_neg cleanup
-hotspare_replace_003_neg_head()
-{
-	atf_set "descr" "'zpool replace' of disabled hotspares should result in ignoring them after destroy."
-	atf_set "require.progs"  camcontrol zpool
-	atf_set "timeout" 3600
-}
-hotspare_replace_003_neg_body()
-{
-	. $(atf_get_srcdir)/../../include/default.cfg
-	. $(atf_get_srcdir)/hotspare.kshlib
-	. $(atf_get_srcdir)/hotspare.cfg
-
-	verify_disk_count "$DISKS" 5
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	ksh93 $(atf_get_srcdir)/hotspare_replace_003_neg.ksh || atf_fail "Testcase failed"
-}
-hotspare_replace_003_neg_cleanup()
-{
-	. $(atf_get_srcdir)/../../include/default.cfg
-	. $(atf_get_srcdir)/hotspare.kshlib
-	. $(atf_get_srcdir)/hotspare.cfg
-
-	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
-}
-
-
 atf_test_case hotspare_scrub_001_pos cleanup
 hotspare_scrub_001_pos_head()
 {
@@ -779,7 +752,6 @@ atf_init_test_cases()
 	atf_add_test_case hotspare_remove_004_pos
 	atf_add_test_case hotspare_replace_001_neg
 	atf_add_test_case hotspare_replace_002_neg
-	atf_add_test_case hotspare_replace_003_neg
 	atf_add_test_case hotspare_scrub_001_pos
 	atf_add_test_case hotspare_scrub_002_pos
 	atf_add_test_case hotspare_shared_001_pos

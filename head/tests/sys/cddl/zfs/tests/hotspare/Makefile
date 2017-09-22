@@ -18,7 +18,6 @@ ${PACKAGE}FILES+=	hotspare_add_001_pos.ksh
 ${PACKAGE}FILES+=	hotspare_import_001_pos.ksh
 ${PACKAGE}FILES+=	hotspare_replace_002_neg.ksh
 ${PACKAGE}FILES+=	hotspare_clone_002_pos.ksh
-${PACKAGE}FILES+=	hotspare_replace_003_neg.ksh
 ${PACKAGE}FILES+=	hotspare_export_001_neg.ksh
 ${PACKAGE}FILES+=	hotspare_snapshot_001_pos.ksh
 ${PACKAGE}FILES+=	hotspare_remove_004_pos.ksh
