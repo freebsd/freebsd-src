@@ -56,8 +56,8 @@ typedef struct pdinfo
 	EFI_HANDLE		pd_alias;
 	EFI_DEVICE_PATH		*pd_devpath;
 	EFI_BLOCK_IO		*pd_blkio;
-	int			pd_unit;	/* unit number */
-	int			pd_open;	/* reference counter */
+	uint32_t		pd_unit;	/* unit number */
+	uint32_t		pd_open;	/* reference counter */
 	void			*pd_bcache;	/* buffer cache data */
 } pdinfo_t;
 
