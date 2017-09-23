@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: android,v 1.9 2016/01/11 21:19:18 christos Exp $
+# $File: android,v 1.10 2017/03/17 21:35:28 christos Exp $
 # Various android related magic entries
 #------------------------------------------------------------
 
@@ -61,9 +61,9 @@
 # http://forum.xda-developers.com/showthread.php?t=816449
 # Partition Information Table for Samsung's smartphone with Android
 # used by flash software Odin
-0		ulelong			0x12349876	
+0		ulelong			0x12349876
 # 1st pit entry marker
->0x01C	ulequad&0xFFFFFFFCFFFFFFFC	=0x0000000000000000	
+>0x01C	ulequad&0xFFFFFFFCFFFFFFFC	=0x0000000000000000
 # minimal 13 and maximal 18 PIT entries found
 >>4		ulelong			<128	Partition Information Table for Samsung smartphone
 >>>4		ulelong			x	\b, %d entries
@@ -109,9 +109,9 @@
 
 0	name			PIT-entry
 # garbage value implies end of pit entries
->0x00		ulequad&0xFFFFFFFCFFFFFFFC	=0x0000000000000000	
+>0x00		ulequad&0xFFFFFFFCFFFFFFFC	=0x0000000000000000
 # skip empty partition name
->>0x24		ubyte				!0			
+>>0x24		ubyte				!0
 # partition name
 >>>0x24		string				>\0			%-.32s
 # flags
@@ -122,7 +122,7 @@
 >>>0x08	ulelong		x			(0x%x)
 # filename
 >>>0x44		string				>\0			"%-.64s"
-#>>>0x18	ulelong				>0			
+#>>>0x18	ulelong				>0
 # blocksize in 512 byte units ?
 #>>>>0x18	ulelong				x			\b, %db
 # partition size in blocks ?

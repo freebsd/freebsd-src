@@ -335,6 +335,44 @@ osigcode:
 	pushl	%eax			/* junk to fake return addr. */
 	int	$0x80			/* enter kernel with args */
 0:	jmp	0b
+
+/*
+ * The lcall $7,$0 handler cannot use the call gate that does an
+ * inter-privilege transition. The reason is that the call gate
+ * does not disable interrupts, and, before the kernel segment registers
+ * are loaded, we would have a window where the ring 0 code is
+ * executed with the wrong segments.
+ *
+ * Instead, set LDT descriptor 0 as code segment, which reflects
+ * the lcall $7,$0 back to ring 3 trampoline.  The trampoline sets up
+ * the frame for int $0x80.
+ */
+	ALIGN_TEXT
+lcall_tramp:
+	cmpl	$SYS_vfork,%eax
+	je	1f
+	pushl	%ebp
+	movl	%esp,%ebp
+	pushl	0x24(%ebp) /* arg 6 */
+	pushl	0x20(%ebp)
+	pushl	0x1c(%ebp)
+	pushl	0x18(%ebp)
+	pushl	0x14(%ebp)
+	pushl	0x10(%ebp) /* arg 1 */
+	subl	$4,%esp   /* gap */
+	int	$0x80
+	leavel
+	lretl
+1:
+	/*
+	 * vfork handling is special and relies on the libc stub saving
+	 * the return ip in %ecx.  Also, we assume that the call was done
+	 * with ucode32 selector in %cs.
+	 */
+	int	$0x80
+	movl	$0x33,4(%esp)	/* GUCODE32_SEL | SEL_UPL */
+	movl	%ecx,(%esp)
+	lretl
 #endif /* COMPAT_43 */
 
 	ALIGN_TEXT
@@ -353,6 +391,9 @@ szfreebsd4_sigcode:
 	.globl	szosigcode
 szosigcode:
 	.long	esigcode-osigcode
+	.globl	szlcallcode
+szlcallcode:
+	.long	esigcode-lcall_tramp
 #endif
 	.text
 

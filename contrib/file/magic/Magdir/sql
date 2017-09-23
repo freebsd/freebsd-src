@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sql,v 1.20 2016/07/05 19:49:59 christos Exp $
+# $File: sql,v 1.21 2017/03/17 21:35:28 christos Exp $
 # sql:  file(1) magic for SQL files
 #
 # From: "Marty Leisner" <mleisner@eng.mc.xerox.com>
@@ -73,7 +73,7 @@
 >>3	byte			x		Version %d
 
 #------------------------------------------------------------------------------
-# iRiver H Series database file 
+# iRiver H Series database file
 # From Ken Guest <ken@linux.ie>
 # As observed from iRivNavi.iDB and unencoded firmware
 #
@@ -133,9 +133,9 @@
 0	string		PSDB\0			Panasonic channel list DataBase
 !:ext db/bin
 #!:mime	application/x-db-svl-panasonic
->126	string		SQLite\ format\ 3	
+>126	string		SQLite\ format\ 3
 #!:mime	application/x-panasonic-sqlite3
->>&-15	indirect	x			\b; contains 
+>>&-15	indirect	x			\b; contains
 
 # H2 Database from http://www.h2database.com/
 0	string		--\ H2\ 0.5/B\ --\ \n	H2 Database file

@@ -2324,7 +2324,7 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 	if (total_length > QLA_MAX_TSO_FRAME_SIZE) {
 		device_printf(dev, "%s: total length exceeds maxlen(%d)\n",
 			__func__, total_length);
-		return (-1);
+		return (EINVAL);
 	}
 	eh = mtod(mp, struct ether_vlan_header *);
 

@@ -11532,7 +11532,7 @@ handle_written_inodeblock(inodedep, bp, flags)
 	 */
 	if (inodedep->id_savedsize == -1 || inodedep->id_savedextsize == -1)
 		panic("handle_written_inodeblock: bad size");
-	if (inodedep->id_savednlink > LINK_MAX)
+	if (inodedep->id_savednlink > UFS_LINK_MAX)
 		panic("handle_written_inodeblock: Invalid link count "
 		    "%jd for inodedep %p", (uintmax_t)inodedep->id_savednlink,
 		    inodedep);

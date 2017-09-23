@@ -587,7 +587,7 @@ ffs_read(ap)
 			 */
 			u_int nextsize = blksize(fs, ip, nextlbn);
 			error = breadn_flags(vp, lbn, size, &nextlbn,
-			    &nextsize, 1, NOCRED, GB_UNMAPPED, &bp);
+			    &nextsize, 1, NOCRED, GB_UNMAPPED, NULL, &bp);
 		} else {
 			/*
 			 * Failing all of the above, just read what the

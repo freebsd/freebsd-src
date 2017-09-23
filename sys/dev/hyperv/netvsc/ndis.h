@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Microsoft Corp.
+ * Copyright (c) 2016-2017 Microsoft Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,6 +56,13 @@
 #define	NDIS_HASH_IPV6_EX		0x00000800
 #define	NDIS_HASH_TCP_IPV6		0x00001000
 #define	NDIS_HASH_TCP_IPV6_EX		0x00002000
+
+#define	NDIS_HASH_ALL			(NDIS_HASH_IPV4 |	\
+					 NDIS_HASH_TCP_IPV4 |	\
+					 NDIS_HASH_IPV6 |	\
+					 NDIS_HASH_IPV6_EX |	\
+					 NDIS_HASH_TCP_IPV6 |	\
+					 NDIS_HASH_TCP_IPV6_EX)
 
 /* Hash description for use with printf(9) %b identifier. */
 #define	NDIS_HASH_BITS			\

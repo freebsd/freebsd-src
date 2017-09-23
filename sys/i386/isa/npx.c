@@ -237,7 +237,7 @@ npx_probe(void)
 	}
 
 	save_idt_npxtrap = idt[IDT_MF];
-	setidt(IDT_MF, probetrap, SDT_SYS386TGT, SEL_KPL,
+	setidt(IDT_MF, probetrap, SDT_SYS386IGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 
 	/*

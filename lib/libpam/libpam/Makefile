@@ -44,6 +44,7 @@ OPENPAM=	${SRCTOP}/contrib/openpam
 SHLIB=	pam
 .endif
 
+MK_COVERAGE=no	# XXX: causes libpam to segfault.
 MK_PROFILE=no
 
 SRCS=	openpam_asprintf.c \

@@ -185,6 +185,7 @@ struct iflib_ctx {
 	uint16_t ifc_sysctl_ntxqs;
 	uint16_t ifc_sysctl_nrxqs;
 	uint16_t ifc_sysctl_qs_eq_override;
+	uint16_t ifc_sysctl_rx_budget;
 
 	qidx_t ifc_sysctl_ntxds[8];
 	qidx_t ifc_sysctl_nrxds[8];
@@ -2173,10 +2174,6 @@ iflib_init_locked(if_ctx_t ctx)
 		CALLOUT_UNLOCK(txq);
 		iflib_netmap_txq_init(ctx, txq);
 	}
-	for (i = 0, rxq = ctx->ifc_rxqs; i < sctx->isc_nrxqsets; i++, rxq++) {
-		MPASS(rxq->ifr_id == i);
-		iflib_netmap_rxq_init(ctx, rxq);
-	}
 #ifdef INVARIANTS
 	i = if_getdrvflags(ifp);
 #endif
@@ -2184,8 +2181,11 @@ iflib_init_locked(if_ctx_t ctx)
 	MPASS(if_getdrvflags(ifp) == i);
 	for (i = 0, rxq = ctx->ifc_rxqs; i < sctx->isc_nrxqsets; i++, rxq++) {
 		/* XXX this should really be done on a per-queue basis */
-		if (if_getcapenable(ifp) & IFCAP_NETMAP)
+		if (if_getcapenable(ifp) & IFCAP_NETMAP) {
+			MPASS(rxq->ifr_id == i);
+			iflib_netmap_rxq_init(ctx, rxq);
 			continue;
+		}
 		for (j = 0, fl = rxq->ifr_fl; j < rxq->ifr_nfl; j++, fl++) {
 			if (iflib_fl_setup(fl)) {
 				device_printf(ctx->ifc_dev, "freelist setup failed - check cluster settings\n");
@@ -2471,17 +2471,9 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 	 * XXX early demux data packets so that if_input processing only handles
 	 * acks in interrupt context
 	 */
-	struct mbuf *m, *mh, *mt;
+	struct mbuf *m, *mh, *mt, *mf;
 
 	ifp = ctx->ifc_ifp;
-#ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		u_int work = 0;
-		if (netmap_rx_irq(ifp, rxq->ifr_id, &work))
-			return (FALSE);
-	}
-#endif
-
 	mh = mt = NULL;
 	MPASS(budget > 0);
 	rx_pkts	= rx_bytes = 0;
@@ -2550,8 +2542,11 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		__iflib_fl_refill_lt(ctx, fl, budget + 8);
 
 	lro_enabled = (if_getcapenable(ifp) & IFCAP_LRO);
+	mt = mf = NULL;
 	while (mh != NULL) {
 		m = mh;
+		if (mf == NULL)
+			mf = m;
 		mh = mh->m_nextpkt;
 		m->m_nextpkt = NULL;
 #ifndef __NO_STRICT_ALIGNMENT
@@ -2561,11 +2556,19 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		rx_bytes += m->m_pkthdr.len;
 		rx_pkts++;
 #if defined(INET6) || defined(INET)
-		if (lro_enabled && tcp_lro_rx(&rxq->ifr_lc, m, 0) == 0)
+		if (lro_enabled && tcp_lro_rx(&rxq->ifr_lc, m, 0) == 0) {
+			if (mf == m)
+				mf = NULL;
 			continue;
+		}
 #endif
+		if (mt != NULL)
+			mt->m_nextpkt = m;
+		mt = m;
+	}
+	if (mf != NULL) {
+		ifp->if_input(ifp, mf);
 		DBG_COUNTER_INC(rx_if_input);
-		ifp->if_input(ifp, m);
 	}
 
 	if_inc_counter(ifp, IFCOUNTER_IBYTES, rx_bytes);
@@ -2705,6 +2708,10 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		pi->ipi_ehdrlen = ETHER_HDR_LEN;
 	}
 
+	if (if_getmtu(txq->ift_ctx->ifc_ifp) >= pi->ipi_len) {
+		pi->ipi_csum_flags &= ~(CSUM_IP_TSO|CSUM_IP6_TSO);
+	}
+
 	switch (pi->ipi_etype) {
 #ifdef INET
 	case ETHERTYPE_IP:
@@ -2749,21 +2756,21 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		pi->ipi_ipproto = ip->ip_p;
 		pi->ipi_flags |= IPI_TX_IPV4;
 
-		if (pi->ipi_csum_flags & CSUM_IP)
+		if ((sctx->isc_flags & IFLIB_NEED_ZERO_CSUM) && (pi->ipi_csum_flags & CSUM_IP))
                        ip->ip_sum = 0;
 
-		if (pi->ipi_ipproto == IPPROTO_TCP) {
-			if (__predict_false(th == NULL)) {
-				txq->ift_pullups++;
-				if (__predict_false((m = m_pullup(m, (ip->ip_hl << 2) + sizeof(*th))) == NULL))
-					return (ENOMEM);
-				th = (struct tcphdr *)((caddr_t)ip + pi->ipi_ip_hlen);
-			}
-			pi->ipi_tcp_hflags = th->th_flags;
-			pi->ipi_tcp_hlen = th->th_off << 2;
-			pi->ipi_tcp_seq = th->th_seq;
-		}
 		if (IS_TSO4(pi)) {
+			if (pi->ipi_ipproto == IPPROTO_TCP) {
+				if (__predict_false(th == NULL)) {
+					txq->ift_pullups++;
+					if (__predict_false((m = m_pullup(m, (ip->ip_hl << 2) + sizeof(*th))) == NULL))
+						return (ENOMEM);
+					th = (struct tcphdr *)((caddr_t)ip + pi->ipi_ip_hlen);
+				}
+				pi->ipi_tcp_hflags = th->th_flags;
+				pi->ipi_tcp_hlen = th->th_off << 2;
+				pi->ipi_tcp_seq = th->th_seq;
+			}
 			if (__predict_false(ip->ip_p != IPPROTO_TCP))
 				return (ENXIO);
 			th->th_sum = in_pseudo(ip->ip_src.s_addr,
@@ -2794,15 +2801,15 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		pi->ipi_ipproto = ip6->ip6_nxt;
 		pi->ipi_flags |= IPI_TX_IPV6;
 
-		if (pi->ipi_ipproto == IPPROTO_TCP) {
-			if (__predict_false(m->m_len < pi->ipi_ehdrlen + sizeof(struct ip6_hdr) + sizeof(struct tcphdr))) {
-				if (__predict_false((m = m_pullup(m, pi->ipi_ehdrlen + sizeof(struct ip6_hdr) + sizeof(struct tcphdr))) == NULL))
-					return (ENOMEM);
-			}
-			pi->ipi_tcp_hflags = th->th_flags;
-			pi->ipi_tcp_hlen = th->th_off << 2;
-		}
 		if (IS_TSO6(pi)) {
+			if (pi->ipi_ipproto == IPPROTO_TCP) {
+				if (__predict_false(m->m_len < pi->ipi_ehdrlen + sizeof(struct ip6_hdr) + sizeof(struct tcphdr))) {
+					if (__predict_false((m = m_pullup(m, pi->ipi_ehdrlen + sizeof(struct ip6_hdr) + sizeof(struct tcphdr))) == NULL))
+						return (ENOMEM);
+				}
+				pi->ipi_tcp_hflags = th->th_flags;
+				pi->ipi_tcp_hlen = th->th_off << 2;
+			}
 
 			if (__predict_false(ip6->ip6_nxt != IPPROTO_TCP))
 				return (ENXIO);
@@ -3500,7 +3507,7 @@ _task_fn_tx(void *context)
 #endif
 	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING))
 		return;
-	if ((ifp->if_capenable & IFCAP_NETMAP)) {
+	if (if_getcapenable(ifp) & IFCAP_NETMAP) {
 		if (ctx->isc_txd_credits_update(ctx->ifc_softc, txq->ift_id, false))
 			netmap_tx_irq(ifp, txq->ift_id);
 		IFDI_TX_QUEUE_INTR_ENABLE(ctx, txq->ift_id);
@@ -3508,8 +3515,7 @@ _task_fn_tx(void *context)
 	}
 	if (txq->ift_db_pending)
 		ifmp_ring_enqueue(txq->ift_br, (void **)&txq, 1, TX_BATCH_SIZE);
-	else
-		ifmp_ring_check_drainage(txq->ift_br, TX_BATCH_SIZE);
+	ifmp_ring_check_drainage(txq->ift_br, TX_BATCH_SIZE);
 	if (ctx->ifc_flags & IFC_LEGACY)
 		IFDI_INTR_ENABLE(ctx);
 	else {
@@ -3525,6 +3531,7 @@ _task_fn_rx(void *context)
 	if_ctx_t ctx = rxq->ifr_ctx;
 	bool more;
 	int rc;
+	uint16_t budget;
 
 #ifdef IFLIB_DIAGNOSTICS
 	rxq->ifr_cpu_exec_count[curcpu]++;
@@ -3532,7 +3539,19 @@ _task_fn_rx(void *context)
 	DBG_COUNTER_INC(task_fn_rxs);
 	if (__predict_false(!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING)))
 		return;
-	if ((more = iflib_rxeof(rxq, 16 /* XXX */)) == false) {
+	more = true;
+#ifdef DEV_NETMAP
+	if (if_getcapenable(ctx->ifc_ifp) & IFCAP_NETMAP) {
+		u_int work = 0;
+		if (netmap_rx_irq(ctx->ifc_ifp, rxq->ifr_id, &work)) {
+			more = false;
+		}
+	}
+#endif
+	budget = ctx->ifc_sysctl_rx_budget;
+	if (budget == 0)
+		budget = 16;	/* XXX */
+	if (more == false || (more = iflib_rxeof(rxq, budget)) == false) {
 		if (ctx->ifc_flags & IFC_LEGACY)
 			IFDI_INTR_ENABLE(ctx);
 		else {
@@ -3698,16 +3717,14 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 	DBG_COUNTER_INC(tx_seen);
 	err = ifmp_ring_enqueue(txq->ift_br, (void **)&m, 1, TX_BATCH_SIZE);
 
+	GROUPTASK_ENQUEUE(&txq->ift_task);
 	if (err) {
-		GROUPTASK_ENQUEUE(&txq->ift_task);
 		/* support forthcoming later */
 #ifdef DRIVER_BACKPRESSURE
 		txq->ift_closed = TRUE;
 #endif
 		ifmp_ring_check_drainage(txq->ift_br, TX_BATCH_SIZE);
 		m_freem(m);
-	} else if (TXQ_AVAIL(txq) < (txq->ift_size >> 1)) {
-		GROUPTASK_ENQUEUE(&txq->ift_task);
 	}
 
 	return (err);
@@ -5106,7 +5123,7 @@ iflib_admin_intr_deferred(if_ctx_t ctx)
 	struct grouptask *gtask;
 
 	gtask = &ctx->ifc_admin_task;
-	MPASS(gtask->gt_taskqueue != NULL);
+	MPASS(gtask != NULL && gtask->gt_taskqueue != NULL);
 #endif
 
 	GROUPTASK_ENQUEUE(&ctx->ifc_admin_task);
@@ -5471,9 +5488,12 @@ iflib_add_device_sysctl_pre(if_ctx_t ctx)
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_qs_enable",
 		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_qs_eq_override, 0,
                        "permit #txq != #rxq");
-       SYSCTL_ADD_INT(ctx_list, oid_list, OID_AUTO, "disable_msix",
+	SYSCTL_ADD_INT(ctx_list, oid_list, OID_AUTO, "disable_msix",
                       CTLFLAG_RWTUN, &ctx->ifc_softc_ctx.isc_disable_msix, 0,
                       "disable MSIX (default 0)");
+	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "rx_budget",
+		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_rx_budget, 0,
+                       "set the rx budget");
 
 	/* XXX change for per-queue sizes */
 	SYSCTL_ADD_PROC(ctx_list, oid_list, OID_AUTO, "override_ntxds",

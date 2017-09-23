@@ -1614,7 +1614,7 @@ free_pv_chunk(struct pv_chunk *pc)
 #if 0 /* TODO: For minidump */
 	dump_drop_page(m->phys_addr);
 #endif
-	vm_page_unwire(m, PQ_INACTIVE);
+	vm_page_unwire(m, PQ_NONE);
 	vm_page_free(m);
 }
 

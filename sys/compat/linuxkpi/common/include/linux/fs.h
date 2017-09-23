@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -137,6 +137,7 @@ struct file_operations {
 	ssize_t (*write)(struct file *, const char __user *, size_t, loff_t *);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	long (*unlocked_ioctl)(struct file *, unsigned int, unsigned long);
+	long (*compat_ioctl)(struct file *, unsigned int, unsigned long);
 	int (*mmap)(struct file *, struct vm_area_struct *);
 	int (*open)(struct inode *, struct file *);
 	int (*release)(struct inode *, struct file *);
@@ -157,7 +158,6 @@ struct file_operations {
 	int (*readdir)(struct file *, void *, filldir_t);
 	int (*ioctl)(struct inode *, struct file *, unsigned int,
 	    unsigned long);
-	long (*compat_ioctl)(struct file *, unsigned int, unsigned long);
 	int (*flush)(struct file *, fl_owner_t id);
 	int (*fsync)(struct file *, struct dentry *, int datasync);
 	int (*aio_fsync)(struct kiocb *, int datasync);
@@ -287,5 +287,26 @@ noop_llseek(struct linux_file *file, loff_t offset, int whence)
 
 	return (file->_file->f_offset);
 }
+
+/* Shared memory support */
+unsigned long linux_invalidate_mapping_pages(vm_object_t, pgoff_t, pgoff_t);
+struct page *linux_shmem_read_mapping_page_gfp(vm_object_t, int, gfp_t);
+struct linux_file *linux_shmem_file_setup(const char *, loff_t, unsigned long);
+void linux_shmem_truncate_range(vm_object_t, loff_t, loff_t);
+
+#define	invalidate_mapping_pages(...) \
+  linux_invalidate_mapping_pages(__VA_ARGS__)
+
+#define	shmem_read_mapping_page(...) \
+  linux_shmem_read_mapping_page_gfp(__VA_ARGS__, 0)
+
+#define	shmem_read_mapping_page_gfp(...) \
+  linux_shmem_read_mapping_page_gfp(__VA_ARGS__)
+
+#define	shmem_file_setup(...) \
+  linux_shmem_file_setup(__VA_ARGS__)
+
+#define	shmem_truncate_range(...) \
+  linux_shmem_truncate_range(__VA_ARGS__)
 
 #endif /* _LINUX_FS_H_ */

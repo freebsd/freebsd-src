@@ -144,6 +144,11 @@ int	ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_isfreeblock(struct fs *, u_char *, ufs1_daddr_t);
 void	ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
 
+/*
+ * crc32c.c
+ */
+uint32_t calculate_crc32c(uint32_t, const void *, size_t);
+
 __END_DECLS
 
 #endif	/* __LIBUFS_H__ */

@@ -1316,13 +1316,18 @@ MLINKS+=nv.9 libnv.9 \
 	nv.9 nvlist.9 \
 	nv.9 nvlist_add_binary.9 \
 	nv.9 nvlist_add_bool.9 \
+	nv.9 nvlist_add_bool_array.9 \
 	nv.9 nvlist_add_descriptor.9 \
+	nv.9 nvlist_add_descriptor_array.9 \
 	nv.9 nvlist_add_null.9 \
 	nv.9 nvlist_add_number.9 \
+	nv.9 nvlist_add_number_array.9 \
 	nv.9 nvlist_add_nvlist.9 \
+	nv.9 nvlist_add_nvlist_array.9 \
 	nv.9 nvlist_add_string.9 \
 	nv.9 nvlist_add_stringf.9 \
 	nv.9 nvlist_add_stringv.9 \
+	nv.9 nvlist_add_string_array.9 \
 	nv.9 nvlist_clone.9 \
 	nv.9 nvlist_create.9 \
 	nv.9 nvlist_destroy.9 \
@@ -1332,10 +1337,14 @@ MLINKS+=nv.9 libnv.9 \
 	nv.9 nvlist_exists.9 \
 	nv.9 nvlist_exists_binary.9 \
 	nv.9 nvlist_exists_bool.9 \
+	nv.9 nvlist_exists_bool_array.9 \
 	nv.9 nvlist_exists_descriptor.9 \
+	nv.9 nvlist_exists_descriptor_array.9 \
 	nv.9 nvlist_exists_null.9 \
 	nv.9 nvlist_exists_number.9 \
+	nv.9 nvlist_exists_number_array.9 \
 	nv.9 nvlist_exists_nvlist.9 \
+	nv.9 nvlist_exists_nvlist_array.9 \
 	nv.9 nvlist_exists_string.9 \
 	nv.9 nvlist_exists_type.9 \
 	nv.9 nvlist_fdump.9 \
@@ -1343,23 +1352,36 @@ MLINKS+=nv.9 libnv.9 \
 	nv.9 nvlist_free.9 \
 	nv.9 nvlist_free_binary.9 \
 	nv.9 nvlist_free_bool.9 \
+	nv.9 nvlist_free_bool_array.9 \
 	nv.9 nvlist_free_descriptor.9 \
+	nv.9 nvlist_free_descriptor_array.9 \
 	nv.9 nvlist_free_null.9 \
 	nv.9 nvlist_free_number.9 \
+	nv.9 nvlist_free_number_array.9 \
 	nv.9 nvlist_free_nvlist.9 \
+	nv.9 nvlist_free_nvlist_array.9 \
 	nv.9 nvlist_free_string.9 \
+	nv.9 nvlist_free_string_array.9 \
 	nv.9 nvlist_free_type.9 \
 	nv.9 nvlist_get_binary.9 \
 	nv.9 nvlist_get_bool.9 \
+	nv.9 nvlist_get_bool_array.9 \
 	nv.9 nvlist_get_descriptor.9 \
+	nv.9 nvlist_get_descriptor_array.9 \
 	nv.9 nvlist_get_number.9 \
+	nv.9 nvlist_get_number_array.9 \
 	nv.9 nvlist_get_nvlist.9 \
+	nv.9 nvlist_get_nvlist_array.9 \
 	nv.9 nvlist_get_parent.9 \
 	nv.9 nvlist_get_string.9 \
+	nv.9 nvlist_get_string_array.9 \
 	nv.9 nvlist_move_binary.9 \
 	nv.9 nvlist_move_descriptor.9 \
+	nv.9 nvlist_move_descriptor_array.9 \
 	nv.9 nvlist_move_nvlist.9 \
+	nv.9 nvlist_move_nvlist_array.9 \
 	nv.9 nvlist_move_string.9 \
+	nv.9 nvlist_move_string_array.9 \
 	nv.9 nvlist_next.9 \
 	nv.9 nvlist_pack.9 \
 	nv.9 nvlist_recv.9 \
@@ -1368,10 +1390,15 @@ MLINKS+=nv.9 libnv.9 \
 	nv.9 nvlist_size.9 \
 	nv.9 nvlist_take_binary.9 \
 	nv.9 nvlist_take_bool.9 \
+	nv.9 nvlist_take_bool_array.9 \
 	nv.9 nvlist_take_descriptor.9 \
+	nv.9 nvlist_take_descriptor_array.9 \
 	nv.9 nvlist_take_number.9 \
+	nv.9 nvlist_take_number_array.9 \
 	nv.9 nvlist_take_nvlist.9 \
+	nv.9 nvlist_take_nvlist_array.9 \
 	nv.9 nvlist_take_string.9 \
+	nv.9 nvlist_take_string_array.9 \
 	nv.9 nvlist_unpack.9 \
 	nv.9 nvlist_xfer.9
 MLINKS+=osd.9 osd_call.9 \

@@ -949,43 +949,81 @@ bnxt_hwrm_rss_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic,
 }
 
 int
-bnxt_hwrm_func_cfg(struct bnxt_softc *softc)
+bnxt_cfg_async_cr(struct bnxt_softc *softc)
 {
-	struct hwrm_func_cfg_input req = {0};
+	int rc = 0;
+	
+	if (BNXT_PF(softc)) {
+		struct hwrm_func_cfg_input req = {0};
 
-	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_CFG);
+		bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_CFG);
 
-	req.fid = 0xffff;
-	req.enables = htole32(HWRM_FUNC_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
+		req.fid = 0xffff;
+		req.enables = htole32(HWRM_FUNC_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
+		req.async_event_cr = softc->def_cp_ring.ring.phys_id;
 
-	req.async_event_cr = softc->def_cp_ring.ring.phys_id;
+		rc = hwrm_send_message(softc, &req, sizeof(req));
+	}
+	else {
+		struct hwrm_func_vf_cfg_input req = {0};
 
-	return hwrm_send_message(softc, &req, sizeof(req));
+		bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_VF_CFG);
+
+		req.enables = htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
+		req.async_event_cr = softc->def_cp_ring.ring.phys_id;
+
+		rc = hwrm_send_message(softc, &req, sizeof(req));
+	}
+	return rc;
+}
+
+void
+bnxt_validate_hw_lro_settings(struct bnxt_softc *softc)
+{
+	softc->hw_lro.enable = min(softc->hw_lro.enable, 1);
+
+        softc->hw_lro.is_mode_gro = min(softc->hw_lro.is_mode_gro, 1);
+
+	softc->hw_lro.max_agg_segs = min(softc->hw_lro.max_agg_segs,
+		HWRM_VNIC_TPA_CFG_INPUT_MAX_AGG_SEGS_MAX);
+
+	softc->hw_lro.max_aggs = min(softc->hw_lro.max_aggs,
+		HWRM_VNIC_TPA_CFG_INPUT_MAX_AGGS_MAX);
+
+	softc->hw_lro.min_agg_len = min(softc->hw_lro.min_agg_len, BNXT_MAX_MTU);
 }
 
 int
-bnxt_hwrm_vnic_tpa_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic,
-    uint32_t flags)
+bnxt_hwrm_vnic_tpa_cfg(struct bnxt_softc *softc)
 {
 	struct hwrm_vnic_tpa_cfg_input req = {0};
+	uint32_t flags;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_VNIC_TPA_CFG);
 
-	req.flags = htole32(flags);
-	req.vnic_id = htole16(vnic->id);
-	req.enables = htole32(HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MAX_AGG_SEGS |
-	    HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MAX_AGGS |
-	    /* HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MAX_AGG_TIMER | */
-	    HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MIN_AGG_LEN);
-	/* TODO: Calculate this based on ring size? */
-	req.max_agg_segs = htole16(3);
-	/* Base this in the allocated TPA start size... */
-	req.max_aggs = htole16(7);
-	/*
-	 * TODO: max_agg_timer?
-	 * req.mag_agg_timer = htole32(XXX);
-	 */
-	req.min_agg_len = htole32(0);
+	if (softc->hw_lro.enable) {
+		flags = HWRM_VNIC_TPA_CFG_INPUT_FLAGS_TPA |
+			HWRM_VNIC_TPA_CFG_INPUT_FLAGS_ENCAP_TPA |
+			HWRM_VNIC_TPA_CFG_INPUT_FLAGS_AGG_WITH_ECN |
+			HWRM_VNIC_TPA_CFG_INPUT_FLAGS_AGG_WITH_SAME_GRE_SEQ;
+		
+        	if (softc->hw_lro.is_mode_gro)
+			flags |= HWRM_VNIC_TPA_CFG_INPUT_FLAGS_GRO;
+		else
+			flags |= HWRM_VNIC_TPA_CFG_INPUT_FLAGS_RSC_WND_UPDATE;
+			
+		req.flags = htole32(flags);
+
+		req.enables = htole32(HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MAX_AGG_SEGS |
+				HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MAX_AGGS |
+				HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MIN_AGG_LEN);
+
+		req.max_agg_segs = htole16(softc->hw_lro.max_agg_segs);
+		req.max_aggs = htole16(softc->hw_lro.max_aggs);
+		req.min_agg_len = htole32(softc->hw_lro.min_agg_len);
+	}
+
+	req.vnic_id = htole16(softc->vnic_info.id);
 
 	return hwrm_send_message(softc, &req, sizeof(req));
 }
@@ -1719,4 +1757,3 @@ int bnxt_hwrm_func_rgtr_async_events(struct bnxt_softc *softc, unsigned long *bm
 
 	return hwrm_send_message(softc, &req, sizeof(req));
 }
-

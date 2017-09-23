@@ -468,10 +468,6 @@ static struct op_table_entry scsi_op_codes[] = {
 	{ 0x86,	ALL & ~(L | R | F), "ACCESS CONTROL IN" },
 	/* 87  OO OO OOOOOOO   ACCESS CONTROL OUT */
 	{ 0x87,	ALL & ~(L | R | F), "ACCESS CONTROL OUT" },
-	/*
-	 * XXX READ(16)/WRITE(16) were not listed for CD/DVE in op-num.txt
-	 * but we had it since r1.40.  Do we really want them?
-	 */
 	/* 88  MM  O O   O     READ(16) */
 	{ 0x88,	D | T | W | O | B, "READ(16)" },
 	/* 89  O               COMPARE AND WRITE*/

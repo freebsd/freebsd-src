@@ -1720,7 +1720,8 @@ ppc_probe(device_t dev, int rid)
 			if (bootverbose)
 				device_printf(dev, "using normal I/O port range\n");
 		} else {
-			device_printf(dev, "cannot reserve I/O port range\n");
+			if (bootverbose)
+				device_printf(dev, "cannot reserve I/O port range\n");
 			goto error;
 		}
 	}

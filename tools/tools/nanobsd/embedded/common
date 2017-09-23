@@ -66,7 +66,7 @@
 # o common tooling for creating images for odd-ball platforms
 # o support for boot loaders other than uboot in the image
 #   or via special instructions
-# o No pony support. Sadly, you cannot have a pony.
+# o no pony support; sadly, you cannot have a pony
 #
 
 if [ -z $NANO_NAME ]; then
@@ -281,7 +281,7 @@ create_diskimage_mbr ( ) (
 	out=${NANO_DISKIMGDIR}/_.disk.image.${NANO_NAME}${fmt}
 	# below depends on https://reviews.freebsd.org/D4403 not yet in the tree
 	# but there's problems: it marks all partitions as active, so you have to
-	# boot off parittion 3 or 2 by hand if you're playing around with this WIP
+	# boot off partition 3 or 2 by hand if you're playing around with this WIP
 	case ${NANO_LAYOUT} in
 	std-embedded)
 		mkimg -a 3 ${skiparg} ${fmtarg} ${bootmbr} -s mbr -p ${s1}:=${NANO_LOG}/_.s1 \

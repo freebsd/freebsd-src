@@ -981,7 +981,7 @@ ufs_link(ap)
 		goto out;
 	}
 	ip = VTOI(vp);
-	if ((nlink_t)ip->i_nlink >= LINK_MAX) {
+	if (ip->i_nlink >= UFS_LINK_MAX) {
 		error = EMLINK;
 		goto out;
 	}
@@ -1266,7 +1266,7 @@ relock:
 	doingdirectory = 0;
 	newparent = 0;
 	ino = fip->i_number;
-	if (fip->i_nlink >= LINK_MAX) {
+	if (fip->i_nlink >= UFS_LINK_MAX) {
 		error = EMLINK;
 		goto unlockout;
 	}
@@ -1369,7 +1369,7 @@ relock:
 			 * actual link modification is completed when
 			 * .. is rewritten below.
 			 */
-			if ((nlink_t)tdp->i_nlink >= LINK_MAX) {
+			if (tdp->i_nlink >= UFS_LINK_MAX) {
 				error = EMLINK;
 				goto bad;
 			}
@@ -1793,7 +1793,7 @@ ufs_mkdir(ap)
 		panic("ufs_mkdir: no name");
 #endif
 	dp = VTOI(dvp);
-	if ((nlink_t)dp->i_nlink >= LINK_MAX) {
+	if (dp->i_nlink >= UFS_LINK_MAX) {
 		error = EMLINK;
 		goto out;
 	}
@@ -2442,6 +2442,9 @@ ufs_pathconf(ap)
 
 	error = 0;
 	switch (ap->a_name) {
+	case _PC_LINK_MAX:
+		*ap->a_retval = UFS_LINK_MAX;
+		break;
 	case _PC_NAME_MAX:
 		*ap->a_retval = UFS_MAXNAMLEN;
 		break;

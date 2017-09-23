@@ -901,7 +901,7 @@ command_chain(int argc, char *argv[])
 				/*
 				 * d_partition should be 255
 				 */
-				if (pd->pd_unit == d_dev->d_slice) {
+				if (pd->pd_unit == (uint32_t)d_dev->d_slice) {
 					loaded_image->DeviceHandle =
 					    pd->pd_handle;
 					break;

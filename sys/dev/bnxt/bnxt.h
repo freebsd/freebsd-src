@@ -102,7 +102,8 @@ __FBSDID("$FreeBSD$");
 #define BNXT_GET_RSS_PROFILE_ID(rss_hash_type) ((rss_hash_type >> 1) & 0x1F)
 
 #define BNXT_NO_MORE_WOL_FILTERS	0xFFFF
-#define bnxt_wol_supported(softc)	((softc)->flags & BNXT_FLAG_WOL_CAP)
+#define bnxt_wol_supported(softc)	(!((softc)->flags & BNXT_FLAG_VF) && \
+					  ((softc)->flags & BNXT_FLAG_WOL_CAP ))
 
 /* Completion related defines */
 #define CMP_VALID(cmp, v_bit) \
@@ -393,7 +394,6 @@ struct bnxt_vf_info {
 	bus_addr_t	hwrm_cmd_req_dma_addr;
 };
 
-#define BNXT_FLAG_VF		(1<<1)
 
 #define BNXT_PF(softc)		(!((softc)->flags & BNXT_FLAG_VF))
 #define BNXT_VF(softc)		((softc)->flags & BNXT_FLAG_VF)
@@ -526,6 +526,14 @@ struct bnxt_func_qcfg {
 	uint16_t alloc_vnics;
 };
 
+struct bnxt_hw_lro {
+	uint16_t enable;
+	uint16_t is_mode_gro;
+	uint16_t max_agg_segs;
+	uint16_t max_aggs;
+	uint32_t min_agg_len;
+};
+
 struct bnxt_softc {
 	device_t	dev;
 	if_ctx_t	ctx;
@@ -536,8 +544,9 @@ struct bnxt_softc {
 	struct bnxt_bar_info	hwrm_bar;
 	struct bnxt_bar_info	doorbell_bar;
 	struct bnxt_link_info	link_info;
-#define BNXT_FLAG_NPAR		0x1
-#define BNXT_FLAG_WOL_CAP	0x2
+#define BNXT_FLAG_VF		0x0001
+#define BNXT_FLAG_NPAR		0x0002
+#define BNXT_FLAG_WOL_CAP	0x0004
 	uint32_t		flags;
 	uint32_t		total_msix;
 
@@ -585,10 +594,13 @@ struct bnxt_softc {
 
 	struct sysctl_ctx_list	hw_stats;
 	struct sysctl_oid	*hw_stats_oid;
+	struct sysctl_ctx_list	hw_lro_ctx;
+	struct sysctl_oid	*hw_lro_oid;
 
 	struct bnxt_ver_info	*ver_info;
 	struct bnxt_nvram_info	*nvm_info;
 	bool wol;
+	struct bnxt_hw_lro	hw_lro;
 	uint8_t wol_filter_id;
 	uint16_t		rx_coal_usecs;
 	uint16_t		rx_coal_usecs_irq;
