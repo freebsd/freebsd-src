@@ -62,8 +62,8 @@ int bnxt_hwrm_set_filter(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic);
 int bnxt_hwrm_rss_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic,
     uint32_t hash_type);
 int bnxt_cfg_async_cr(struct bnxt_softc *softc);
-int bnxt_hwrm_vnic_tpa_cfg(struct bnxt_softc *softc,
-    struct bnxt_vnic_info *vnic, uint32_t flags);
+int bnxt_hwrm_vnic_tpa_cfg(struct bnxt_softc *softc);
+void bnxt_validate_hw_lro_settings(struct bnxt_softc *softc);
 int bnxt_hwrm_nvm_find_dir_entry(struct bnxt_softc *softc, uint16_t type,
     uint16_t *ordinal, uint16_t ext, uint16_t *index, bool use_index,
     uint8_t search_opt, uint32_t *data_length, uint32_t *item_length,
