@@ -2470,7 +2470,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 	 * XXX early demux data packets so that if_input processing only handles
 	 * acks in interrupt context
 	 */
-	struct mbuf *m, *mh, *mt;
+	struct mbuf *m, *mh, *mt, *mf;
 
 	ifp = ctx->ifc_ifp;
 	mh = mt = NULL;
@@ -2541,8 +2541,11 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		__iflib_fl_refill_lt(ctx, fl, budget + 8);
 
 	lro_enabled = (if_getcapenable(ifp) & IFCAP_LRO);
+	mt = mf = NULL;
 	while (mh != NULL) {
 		m = mh;
+		if (mf == NULL)
+			mf = m;
 		mh = mh->m_nextpkt;
 		m->m_nextpkt = NULL;
 #ifndef __NO_STRICT_ALIGNMENT
@@ -2552,11 +2555,19 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		rx_bytes += m->m_pkthdr.len;
 		rx_pkts++;
 #if defined(INET6) || defined(INET)
-		if (lro_enabled && tcp_lro_rx(&rxq->ifr_lc, m, 0) == 0)
+		if (lro_enabled && tcp_lro_rx(&rxq->ifr_lc, m, 0) == 0) {
+			if (mf == m)
+				mf = NULL;
 			continue;
+		}
 #endif
+		if (mt != NULL)
+			mt->m_nextpkt = m;
+		mt = m;
+	}
+	if (mf != NULL) {
+		ifp->if_input(ifp, mf);
 		DBG_COUNTER_INC(rx_if_input);
-		ifp->if_input(ifp, m);
 	}
 
 	if_inc_counter(ifp, IFCOUNTER_IBYTES, rx_bytes);
