@@ -2696,6 +2696,10 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		pi->ipi_ehdrlen = ETHER_HDR_LEN;
 	}
 
+	if (if_getmtu(txq->ift_ctx->ifc_ifp) >= pi->ipi_len) {
+		pi->ipi_csum_flags &= ~(CSUM_IP_TSO|CSUM_IP6_TSO);
+	}
+
 	switch (pi->ipi_etype) {
 #ifdef INET
 	case ETHERTYPE_IP:
@@ -2740,21 +2744,21 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		pi->ipi_ipproto = ip->ip_p;
 		pi->ipi_flags |= IPI_TX_IPV4;
 
-		if (pi->ipi_csum_flags & CSUM_IP)
+		if ((sctx->isc_flags & IFLIB_NEED_ZERO_CSUM) && (pi->ipi_csum_flags & CSUM_IP))
                        ip->ip_sum = 0;
 
-		if (pi->ipi_ipproto == IPPROTO_TCP) {
-			if (__predict_false(th == NULL)) {
-				txq->ift_pullups++;
-				if (__predict_false((m = m_pullup(m, (ip->ip_hl << 2) + sizeof(*th))) == NULL))
-					return (ENOMEM);
-				th = (struct tcphdr *)((caddr_t)ip + pi->ipi_ip_hlen);
-			}
-			pi->ipi_tcp_hflags = th->th_flags;
-			pi->ipi_tcp_hlen = th->th_off << 2;
-			pi->ipi_tcp_seq = th->th_seq;
-		}
 		if (IS_TSO4(pi)) {
+			if (pi->ipi_ipproto == IPPROTO_TCP) {
+				if (__predict_false(th == NULL)) {
+					txq->ift_pullups++;
+					if (__predict_false((m = m_pullup(m, (ip->ip_hl << 2) + sizeof(*th))) == NULL))
+						return (ENOMEM);
+					th = (struct tcphdr *)((caddr_t)ip + pi->ipi_ip_hlen);
+				}
+				pi->ipi_tcp_hflags = th->th_flags;
+				pi->ipi_tcp_hlen = th->th_off << 2;
+				pi->ipi_tcp_seq = th->th_seq;
+			}
 			if (__predict_false(ip->ip_p != IPPROTO_TCP))
 				return (ENXIO);
 			th->th_sum = in_pseudo(ip->ip_src.s_addr,
@@ -2785,15 +2789,15 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		pi->ipi_ipproto = ip6->ip6_nxt;
 		pi->ipi_flags |= IPI_TX_IPV6;
 
-		if (pi->ipi_ipproto == IPPROTO_TCP) {
-			if (__predict_false(m->m_len < pi->ipi_ehdrlen + sizeof(struct ip6_hdr) + sizeof(struct tcphdr))) {
-				if (__predict_false((m = m_pullup(m, pi->ipi_ehdrlen + sizeof(struct ip6_hdr) + sizeof(struct tcphdr))) == NULL))
-					return (ENOMEM);
-			}
-			pi->ipi_tcp_hflags = th->th_flags;
-			pi->ipi_tcp_hlen = th->th_off << 2;
-		}
 		if (IS_TSO6(pi)) {
+			if (pi->ipi_ipproto == IPPROTO_TCP) {
+				if (__predict_false(m->m_len < pi->ipi_ehdrlen + sizeof(struct ip6_hdr) + sizeof(struct tcphdr))) {
+					if (__predict_false((m = m_pullup(m, pi->ipi_ehdrlen + sizeof(struct ip6_hdr) + sizeof(struct tcphdr))) == NULL))
+						return (ENOMEM);
+				}
+				pi->ipi_tcp_hflags = th->th_flags;
+				pi->ipi_tcp_hlen = th->th_off << 2;
+			}
 
 			if (__predict_false(ip6->ip6_nxt != IPPROTO_TCP))
 				return (ENXIO);
