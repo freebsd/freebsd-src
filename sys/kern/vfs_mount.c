@@ -507,8 +507,6 @@ vfs_mount_destroy(struct mount *mp)
 	KASSERT(mp->mnt_ref == 0,
 	    ("%s: invalid refcount in the drain path @ %s:%d", __func__,
 	    __FILE__, __LINE__));
-	if (mp->mnt_vnodecovered != NULL)
-		vrele(mp->mnt_vnodecovered);
 	if (mp->mnt_writeopcount != 0)
 		panic("vfs_mount_destroy: nonzero writeopcount");
 	if (mp->mnt_secondary_writes != 0)
@@ -531,6 +529,8 @@ vfs_mount_destroy(struct mount *mp)
 	if (mp->mnt_lockref != 0)
 		panic("vfs_mount_destroy: nonzero lock refcount");
 	MNT_IUNLOCK(mp);
+	if (mp->mnt_vnodecovered != NULL)
+		vrele(mp->mnt_vnodecovered);
 #ifdef MAC
 	mac_mount_destroy(mp);
 #endif

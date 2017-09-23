@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/_inttypes.h>  /* for PRIu64 */
 #include "opt_cam.h"
 
+FEATURE(mmccam, "CAM-based MMC/SD/SDIO stack");
+
 static struct cam_ed * mmc_alloc_device(struct cam_eb *bus,
     struct cam_et *target, lun_id_t lun_id);
 static void mmc_dev_async(u_int32_t async_code, struct cam_eb *bus,

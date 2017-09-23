@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 #include <sys/nv.h>
 #endif
 #include <arpa/inet.h>
@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <vis.h>
 #include "ktrace.h"
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 #include <libcasper.h>
 
 #include <casper/cap_grp.h>
@@ -164,7 +164,7 @@ struct proc_info
 
 static TAILQ_HEAD(trace_procs, proc_info) trace_procs;
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 static cap_channel_t *cappwd, *capgrp;
 #endif
 
@@ -193,7 +193,7 @@ localtime_init(void)
 	(void)localtime(&ltime);
 }
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 static int
 cappwdgrp_setup(cap_channel_t **cappwdp, cap_channel_t **capgrpp)
 {
@@ -235,7 +235,7 @@ cappwdgrp_setup(cap_channel_t **cappwdp, cap_channel_t **capgrpp)
 	*capgrpp = capgrploc;
 	return (0);
 }
-#endif	/* HAVE_LIBCASPER */
+#endif	/* WITH_CASPER */
 
 static void
 print_integer_arg(const char *(*decoder)(int), int value)
@@ -443,7 +443,7 @@ main(int argc, char *argv[])
 
 	strerror_init();
 	localtime_init();
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 	if (resolv != 0) {
 		if (cappwdgrp_setup(&cappwd, &capgrp) < 0) {
 			cappwd = NULL;
@@ -1874,7 +1874,7 @@ ktrstat(struct stat *statp)
 	if (resolv == 0) {
 		pwd = NULL;
 	} else {
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 		if (cappwd != NULL)
 			pwd = cap_getpwuid(cappwd, statp->st_uid);
 		else
@@ -1888,7 +1888,7 @@ ktrstat(struct stat *statp)
 	if (resolv == 0) {
 		grp = NULL;
 	} else {
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 		if (capgrp != NULL)
 			grp = cap_getgrgid(capgrp, statp->st_gid);
 		else

@@ -198,7 +198,6 @@ create_diskimage ( ) (
 	mdconfig -d -u $MD
 
 	trap - 1 2 15
-	trap nano_cleanup EXIT
 
 	) > ${NANO_LOG}/_.di 2>&1
 )

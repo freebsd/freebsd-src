@@ -45,6 +45,7 @@ NO_PIC=
 MAN=
 INCS=
 MLINKS=
+MK_COVERAGE=	no
 MK_TESTS=	no
 
 #

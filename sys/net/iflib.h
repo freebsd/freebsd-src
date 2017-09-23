@@ -305,6 +305,10 @@ typedef enum {
  * Interface doesn't align IP header
  */
 #define IFLIB_DO_RX_FIXUP	0x40
+/*
+ * Driver needs csum zeroed for offloading
+ */
+#define IFLIB_NEED_ZERO_CSUM	0x80
 
 
 

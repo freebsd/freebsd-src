@@ -5,7 +5,7 @@ LIB=	ufs
 SHLIBDIR?= /lib
 SHLIB_MAJOR=	6
 
-SRCS=	block.c cgroup.c inode.c sblock.c type.c ffs_subr.c ffs_tables.c
+SRCS=	block.c cgroup.c crc32.c inode.c sblock.c type.c ffs_subr.c ffs_tables.c
 INCS=	libufs.h
 
 MAN=	bread.3 cgread.3 libufs.3 sbread.3 ufs_disk_close.3
@@ -18,7 +18,7 @@ MLINKS+= ufs_disk_close.3 ufs_disk_fillout.3
 MLINKS+= ufs_disk_close.3 ufs_disk_fillout_blank.3
 MLINKS+= ufs_disk_close.3 ufs_disk_write.3
 
-.PATH:  ${SRCTOP}/sys/ufs/ffs
+.PATH:  ${SRCTOP}/sys/libkern ${SRCTOP}/sys/ufs/ffs
 
 WARNS?=	2
 

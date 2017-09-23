@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: console,v 1.26 2016/06/12 15:20:37 christos Exp $
+# $File: console,v 1.32 2017/08/13 00:21:47 christos Exp $
 # Console game magic
 # Toby Deshane <hac@shoelace.digivill.net>
 
@@ -9,17 +9,19 @@
 # References:
 # - http://wiki.nesdev.com/w/index.php/INES
 # - http://wiki.nesdev.com/w/index.php/NES_2.0
-0	string		NES\x1A		iNES ROM image
+
+# Common header for iNES, NES 2.0, and Wii U iNES.
+0	name		nes-rom-image-ines
 >7	byte&0x0C	=0x8		(NES 2.0)
 >4	byte		x		\b: %ux16k PRG
->5	byte		x		\b, %ux16k CHR
+>5	byte		x		\b, %ux8k CHR
 >6	byte&0x08	=0x8		[4-Scr]
 >6	byte&0x09	=0x0		[H-mirror]
 >6	byte&0x09	=0x1		[V-mirror]
 >6	byte&0x02	=0x2		[SRAM]
 >6	byte&0x04	=0x4		[Trainer]
 >7	byte&0x03	=0x2		[PC10]
->7	byte&0x03	=0x1		[VS
+>7	byte&0x03	=0x1		[VS]
 >>7	byte&0x0C	=0x8
 # NES 2.0: VS PPU
 >>>13	byte&0x0F	=0x0		\b, RP2C03B
@@ -43,17 +45,24 @@
 >>12	byte&0x03	=0x1		[PAL]
 >>12	byte&0x02	=0x2		[NTSC+PAL]
 
+# Standard iNES ROM header.
+0	string		NES\x1A		NES ROM image (iNES)
+>0	use		nes-rom-image-ines
+
+# Wii U Virtual Console iNES ROM header.
+0	belong		0x4E455300	NES ROM image (Wii U Virtual Console)
+>0	use		nes-rom-image-ines
+
 #------------------------------------------------------------------------------
 # unif: file(1) magic for UNIF-format Nintendo Entertainment System ROM images
 # Reference: http://wiki.nesdev.com/w/index.php/UNIF
 # From: David Korth <gerbilsoft@gerbilsoft.com>
-# TODO commit on 2016/03/21
 #
 # NOTE: The UNIF format uses chunks instead of a fixed header,
 # so most of the data isn't easily parseable.
 #
 0	string	UNIF
->4	lelong	<16	UNIF v%d format NES ROM image
+>4	lelong	<16	NES ROM image (UNIF v%d format)
 
 #------------------------------------------------------------------------------
 # fds: file(1) magic for Famciom Disk System disk images
@@ -63,23 +72,38 @@
 
 # Disk info block. (block 1)
 0	name	nintendo-fds-disk-info-block
->1	string	*NINTENDO-HVC*	Famicom Disk System disk image:
 >23	byte	!1		FMC-
 >23	byte	1		FSC-
 >16	string	x		\b%.3s
->15	byte	x		\b, mfr 0x%02X
+>15	byte	x		\b, mfr %02X
 >20	byte	x		(Rev.%02u)
 
 # Headered version.
 0	string	FDS\x1A
->0x11	string	*NINTENDO-HVC*
+>0x11	string	*NINTENDO-HVC*	Famicom Disk System disk image:
 >>0x10	use	nintendo-fds-disk-info-block
 >4	byte	1	(%u side)
 >4	byte	!1	(%u sides)
 
 # Unheadered version.
-1	string	*NINTENDO-HVC*
+1	string	*NINTENDO-HVC*	Famicom Disk System disk image:
 >0	use	nintendo-fds-disk-info-block
+
+#------------------------------------------------------------------------------
+# tnes: file(1) magic for TNES-format Nintendo Entertainment System ROM images
+# Used by Nintendo 3DS NES Virtual Console games.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+#
+0		string	TNES	NES ROM image (Nintendo 3DS Virtual Console)
+>4		byte	100	\b: FDS,
+>>0x2010	use	nintendo-fds-disk-info-block
+>4		byte	!100	\b: TNES mapper %u
+>>5	byte		x		\b, %ux8k PRG
+>>6	byte		x		\b, %ux8k CHR
+>>7	byte&0x08	=1		[WRAM]
+>>8	byte&0x09	=1		[H-mirror]
+>>8	byte&0x09	=2		[V-mirror]
+>>8	byte&0x02	=3		[VRAM]
 
 #------------------------------------------------------------------------------
 # gameboy: file(1) magic for the Nintendo (Color) Gameboy raw ROM format
@@ -389,6 +413,15 @@
 >0x1E	byte	x		\b, Rev.%02u)
 >0x12	byte	2		(DSi enhanced)
 >0x12	byte	3		(DSi only)
+# Secure Area check.
+>0x20		lelong	<0x4000		(homebrew)
+>0x20		lelong	>0x3FFF
+>>0x4000	lequad	0x0000000000000000	(multiboot)
+>>0x4000	lequad	!0x0000000000000000
+>>>0x4000	lequad	0xE7FFDEFFE7FFDEFF	(decrypted)
+>>>0x4000	lequad	!0xE7FFDEFFE7FFDEFF
+>>>>0x1000	lequad	0x0000000000000000	(encrypted)
+>>>>0x1000	lequad	!0x0000000000000000	(mask ROM)
 
 #------------------------------------------------------------------------------
 # nds_passme: file(1) magic for Nintendo DS ROM images for GBA cartridge boot.
@@ -412,7 +445,7 @@
 #------------------------------------------------------------------------------
 # msx: file(1) magic for MSX game cartridge dumps
 # Too simple - MPi
-#0 beshort 0x4142 MSX game cartridge dump 
+#0 beshort 0x4142 MSX game cartridge dump
 
 #------------------------------------------------------------------------------
 # Sony Playstation executables (Adam Sjoegren <asjo@diku.dk>) :
@@ -467,7 +500,7 @@
 
 # Double-check that the image type matches too, 0x8008 conflicts with
 # 8 character OMF-86 object file headers.
-0	beshort		0x8008		
+0	beshort		0x8008
 >6	string		BS93		Lynx homebrew cartridge
 >>2	beshort		x		\b, RAM start $%04x
 >6	string		LYNX		Lynx cartridge
@@ -482,7 +515,7 @@
 # is the offset 12 or the offset 16 correct?
 # GBS (Game Boy Sound) magic
 # ftp://ftp.modland.com/pub/documents/format_documentation/\
-# Gameboy%20Sound%20System%20(.gbs).txt 
+# Gameboy%20Sound%20System%20(.gbs).txt
 0	string		GBS		Nintendo Gameboy Music/Audio Data
 #12	string		GameBoy\ Music\ Module	Nintendo Gameboy Music Module
 >16	string		>\0	("%s" by
@@ -490,6 +523,10 @@
 >80	string		>\0	%s),
 >3	byte		x	version %d,
 >4	byte		x	%d tracks
+
+# IPS Patch Files from: From: Thomas Klausner <tk@giga.or.at>
+# see http://zerosoft.zophar.net/ips.php
+0	string	PATCH			IPS patch file
 
 # Playstations Patch Files from: From: Thomas Klausner <tk@giga.or.at>
 0	string	PPF30			Playstation Patch File version 3.0
@@ -518,7 +555,7 @@
 # SNES9x .smv "movie" file format.
 0		string		SMV\x1A	SNES9x input recording
 >0x4		lelong		x	\b, version %d
-# version 4 is latest so far 
+# version 4 is latest so far
 >0x4		lelong		<5
 >>0x8		ledate		x	\b, recorded at %s
 >>0xc		lelong		>0	\b, rerecorded %d times
@@ -616,6 +653,52 @@
 0	string	WBFS
 >0x218	belong	0x5D1C9EA3	Nintendo Wii disc image (WBFS format):
 >>0x200	use	nintendo-gcn-disc-common
+
+# Type: Nintendo GameCube/Wii disc image (CISO format)
+# NOTE: This is NOT the same as Compact ISO or PSP CISO,
+# though it has the same magic number.
+0		string	CISO
+# Other fields are used to determine what type of CISO this is:
+# - 0x04 == 0x00200000: GameCube/Wii CISO (block_size)
+# - 0x10 == 0x00000800: PSP CISO (ISO-9660 sector size)
+# - None of the above: Compact ISO.
+>4		lelong	0x200000
+>>8		byte	1
+>>>0x801C	belong	0xC2339F3D	Nintendo GameCube disc image (CISO format):
+>>>>0x8000	use	nintendo-gcn-disc-common
+>>>0x8018	belong	0x5D1C9EA3	Nintendo Wii disc image (CISO format):
+>>>>0x8000	use	nintendo-gcn-disc-common
+
+# Type: Nintendo GameCube/Wii disc image (GCZ format)
+# Due to zlib compression, we can't get the actual disc information.
+0	lelong	0xB10BC001
+>4	lelong	0		Nintendo GameCube disc image (GCZ format)
+>4	lelong	1		Nintendo Wii disc image (GCZ format)
+>4	lelong	>1		Nintendo GameCube/Wii disc image (GCZ format)
+
+# Type: Nintendo GameCube/Wii disc image (WDF format)
+0		string	WII\001DISC
+>8		belong	1
+# WDFv1
+>>0x54		belong	0xC2339F3D	Nintendo GameCube disc image (WDFv1 format):
+>>>0x38		use	nintendo-gcn-disc-common
+>>0x58		belong	0x5D1C9EA3	Nintendo Wii disc image (WDFv1 format):
+>>>0x38		use	nintendo-gcn-disc-common
+>8		belong	2
+# WDFv2
+>>(12.L+0x1C)	belong	0xC2339F3D	Nintendo GameCube disc image (WDFv2 format):
+>>>(12.L)	use	nintendo-gcn-disc-common
+>>(12.L+0x18)	belong	0x5D1C9EA3	Nintendo Wii disc image (WDFv2 format):
+>>>(12.L)	use	nintendo-gcn-disc-common
+
+# Type: Nintendo GameCube/Wii disc image (WIA format)
+0	string	WIA\001	Nintendo
+>0x48	belong	0	GameCube/Wii
+>0x48	belong	1	GameCube
+>0x48	belong	2	Wii
+>0x48	belong	>2	GameCube/Wii
+>0x48	belong	x	disc image (WIA format):
+>>0x58	use	nintendo-gcn-disc-common
 
 #------------------------------------------------------------------------------
 # Nintendo 3DS file formats.
@@ -722,7 +805,7 @@
 
 # Type: Nintendo 3DS Homebrew Application.
 # From: David Korth <gerbilsoft@gerbilsoft.com>
-# Refernece: https://3dbrew.org/wiki/3DSX_Format
+# Reference: https://3dbrew.org/wiki/3DSX_Format
 0	string	3DSX	Nintendo 3DS Homebrew Application (3DSX)
 
 #------------------------------------------------------------------------------
@@ -750,3 +833,17 @@
 #
 0	string	g\ GCE	Vectrex ROM image
 >0x11	string	>\0	\b: "%.16s"
+
+#------------------------------------------------------------------------------
+# amiibo: file(1) magic for Nintendo amiibo NFC dumps.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# Reference: https://www.3dbrew.org/wiki/Amiibo
+0x00		byte	0x04
+>0x0A		beshort	0x0FE0
+>>0x0C		belong	0xF110FFEE
+>>>0x208	beshort	0x0100
+>>>>0x020A	byte	0x0F
+>>>>>0x020C	bequad	0x000000045F000000
+>>>>>>0x5B	byte	0x02
+>>>>>>>0x54	belong	x	Nintendo amiibo NFC dump - amiibo ID: %08X-
+>>>>>>>0x58	belong	x	\b%08X

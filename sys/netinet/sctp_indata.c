@@ -1379,10 +1379,10 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		}
 		if (sctp_place_control_in_stream(strm, asoc, control)) {
 			/* Duplicate SSN? */
-			sctp_clean_up_control(stcb, control);
 			sctp_abort_in_reasm(stcb, control, chk,
 			    abort_flag,
 			    SCTP_FROM_SCTP_INDATA + SCTP_LOC_6);
+			sctp_clean_up_control(stcb, control);
 			return;
 		}
 		if ((tsn == (asoc->cumulative_tsn + 1) && (asoc->idata_supported == 0))) {
@@ -1594,9 +1594,17 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				    next_fsn, control->fsn_included);
 				TAILQ_REMOVE(&control->reasm, at, sctp_next);
 				lenadded = sctp_add_chk_to_control(control, strm, stcb, asoc, at, SCTP_READ_LOCK_NOT_HELD);
-				asoc->size_on_all_streams += lenadded;
 				if (control->on_read_q) {
 					do_wakeup = 1;
+				} else {
+					/*
+					 * We only add to the
+					 * size-on-all-streams if its not on
+					 * the read q. The read q flag will
+					 * cause a sballoc so its accounted
+					 * for there.
+					 */
+					asoc->size_on_all_streams += lenadded;
 				}
 				next_fsn++;
 				if (control->end_added && control->pdapi_started) {
@@ -1609,7 +1617,6 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						    control,
 						    &stcb->sctp_socket->so_rcv, control->end_added,
 						    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
-						do_wakeup = 1;
 					}
 					break;
 				}
@@ -4205,8 +4212,6 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 again:
 	j = 0;
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-		int to_ticks;
-
 		if (win_probe_recovery && (net->window_probe)) {
 			win_probe_recovered = 1;
 			/*
@@ -4222,15 +4227,9 @@ again:
 				}
 			}
 		}
-		if (net->RTO == 0) {
-			to_ticks = MSEC_TO_TICKS(stcb->asoc.initial_rto);
-		} else {
-			to_ticks = MSEC_TO_TICKS(net->RTO);
-		}
 		if (net->flight_size) {
 			j++;
-			(void)SCTP_OS_TIMER_START(&net->rxt_timer.timer, to_ticks,
-			    sctp_timeout_handler, &net->rxt_timer);
+			sctp_timer_start(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep, stcb, net);
 			if (net->window_probe) {
 				net->window_probe = 0;
 			}
@@ -4242,8 +4241,7 @@ again:
 				 */
 				net->window_probe = 0;
 				if (!SCTP_OS_TIMER_PENDING(&net->rxt_timer.timer)) {
-					SCTP_OS_TIMER_START(&net->rxt_timer.timer, to_ticks,
-					    sctp_timeout_handler, &net->rxt_timer);
+					sctp_timer_start(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep, stcb, net);
 				}
 			} else if (SCTP_OS_TIMER_PENDING(&net->rxt_timer.timer)) {
 				sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,

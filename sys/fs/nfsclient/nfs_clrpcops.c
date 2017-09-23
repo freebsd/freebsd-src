@@ -146,6 +146,9 @@ static int nfsrpc_createlayout(vnode_t, char *, int, struct vattr *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
     struct nfsfh **, int *, int *, void *, int *, nfsv4stateid_t *,
     int, int, int *, struct nfsclflayouthead *, int *);
+static int nfsrpc_layoutget(struct nfsmount *, uint8_t *, int, int, uint64_t,
+    uint64_t, uint64_t, int, nfsv4stateid_t *, int *, struct nfsclflayouthead *,
+    struct ucred *, NFSPROC_T *, void *);
 static int nfsrpc_layoutgetres(struct nfsmount *, vnode_t, uint8_t *,
     int, nfsv4stateid_t *, int, uint32_t *, struct nfscllayout **,
     struct nfsclflayouthead *, int, int *, struct ucred *, NFSPROC_T *);
@@ -4838,7 +4841,7 @@ nfsrpc_destroyclient(struct nfsmount *nmp, struct nfsclclient *clp,
 /*
  * Do the NFSv4.1 LayoutGet.
  */
-int
+static int
 nfsrpc_layoutget(struct nfsmount *nmp, uint8_t *fhp, int fhlen, int iomode,
     uint64_t offset, uint64_t len, uint64_t minlen, int layoutlen,
     nfsv4stateid_t *stateidp, int *retonclosep, struct nfsclflayouthead *flhp,
@@ -5030,13 +5033,11 @@ nfsmout:
 int
 nfsrpc_layoutcommit(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
     uint64_t off, uint64_t len, uint64_t lastbyte, nfsv4stateid_t *stateidp,
-    int layouttype, int layoutupdatecnt, uint8_t *layp, struct ucred *cred,
-    NFSPROC_T *p, void *stuff)
+    int layouttype, struct ucred *cred, NFSPROC_T *p, void *stuff)
 {
 	uint32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
-	int error, outcnt, i;
-	uint8_t *cp;
+	int error;
 
 	nfscl_reqstart(nd, NFSPROC_LAYOUTCOMMIT, nmp, fh, fhlen, NULL, NULL);
 	NFSM_BUILD(tl, uint32_t *, 5 * NFSX_UNSIGNED + 3 * NFSX_HYPER +
@@ -5062,17 +5063,8 @@ nfsrpc_layoutcommit(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
 	tl += 2;
 	*tl++ = newnfs_false;
 	*tl++ = txdr_unsigned(layouttype);
-	*tl = txdr_unsigned(layoutupdatecnt);
-	if (layoutupdatecnt > 0) {
-		KASSERT(layouttype != NFSLAYOUT_NFSV4_1_FILES,
-		    ("Must be nil for Files Layout"));
-		outcnt = NFSM_RNDUP(layoutupdatecnt);
-		NFSM_BUILD(cp, uint8_t *, outcnt);
-		NFSBCOPY(layp, cp, layoutupdatecnt);
-		cp += layoutupdatecnt;
-		for (i = 0; i < (outcnt - layoutupdatecnt); i++)
-			*cp++ = 0x0;
-	}
+	/* All supported layouts are 0 length. */
+	*tl = txdr_unsigned(0);
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
@@ -5089,13 +5081,12 @@ nfsrpc_layoutcommit(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
 int
 nfsrpc_layoutreturn(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
     int layouttype, uint32_t iomode, int layoutreturn, uint64_t offset,
-    uint64_t len, nfsv4stateid_t *stateidp, int layoutcnt, uint32_t *layp,
-    struct ucred *cred, NFSPROC_T *p, void *stuff)
+    uint64_t len, nfsv4stateid_t *stateidp, struct ucred *cred, NFSPROC_T *p,
+    void *stuff)
 {
 	uint32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
-	int error, outcnt, i;
-	uint8_t *cp;
+	int error;
 
 	nfscl_reqstart(nd, NFSPROC_LAYOUTRETURN, nmp, fh, fhlen, NULL, NULL);
 	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED);
@@ -5118,15 +5109,7 @@ nfsrpc_layoutreturn(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
 		*tl++ = stateidp->other[0];
 		*tl++ = stateidp->other[1];
 		*tl++ = stateidp->other[2];
-		*tl = txdr_unsigned(layoutcnt);
-		if (layoutcnt > 0) {
-			outcnt = NFSM_RNDUP(layoutcnt);
-			NFSM_BUILD(cp, uint8_t *, outcnt);
-			NFSBCOPY(layp, cp, layoutcnt);
-			cp += layoutcnt;
-			for (i = 0; i < (outcnt - layoutcnt); i++)
-				*cp++ = 0x0;
-		}
+		*tl = txdr_unsigned(0);
 	}
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
@@ -5674,7 +5657,7 @@ nfscl_doflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 				np->n_flag &= ~NDSCOMMIT;
 				mtx_unlock(&np->n_mtx);
 			}
-		} else if (rwflag == FREAD)
+		} else if (rwflag == NFSV4OPEN_ACCESSREAD)
 			error = nfsrpc_readds(vp, uiop, stateidp, eofp, *dspp,
 			    io_off, xfer, fhp, cred, p);
 		else {

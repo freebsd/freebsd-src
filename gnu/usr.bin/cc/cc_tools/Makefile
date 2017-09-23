@@ -4,6 +4,8 @@
 
 CFLAGS+=	-I.
 
+MK_COVERAGE=	no
+
 .include "../Makefile.inc"
 # Some of the logic needed in here is defined in Makefile.hdrs as it is shared
 # with gnu/lib.
