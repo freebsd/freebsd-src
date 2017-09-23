@@ -167,6 +167,7 @@ fabient [label="Fabien Thomas\nfabient@FreeBSD.org\n2009/03/16"]
 fanf [label="Tony Finch\nfanf@FreeBSD.org\n2002/05/05"]
 fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
+fsu [label="Fedor Uporov\nfsu@FreeBSD.org\n2017/08/28"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2010/02/02"]
 gad [label="Garance A. Drosehn\ngad@FreeBSD.org\n2000/10/27"]
 gallatin [label="Andrew Gallatin\ngallatin@FreeBSD.org\n1999/01/15"]
@@ -689,6 +690,8 @@ obrien -> groudier
 obrien -> gshapiro
 obrien -> kan
 obrien -> sam
+
+pfg -> fsu
 
 peter -> asmodai
 peter -> jayanth
