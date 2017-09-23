@@ -526,6 +526,14 @@ struct bnxt_func_qcfg {
 	uint16_t alloc_vnics;
 };
 
+struct bnxt_hw_lro {
+	uint16_t enable;
+	uint16_t is_mode_gro;
+	uint16_t max_agg_segs;
+	uint16_t max_aggs;
+	uint32_t min_agg_len;
+};
+
 struct bnxt_softc {
 	device_t	dev;
 	if_ctx_t	ctx;
@@ -586,10 +594,13 @@ struct bnxt_softc {
 
 	struct sysctl_ctx_list	hw_stats;
 	struct sysctl_oid	*hw_stats_oid;
+	struct sysctl_ctx_list	hw_lro_ctx;
+	struct sysctl_oid	*hw_lro_oid;
 
 	struct bnxt_ver_info	*ver_info;
 	struct bnxt_nvram_info	*nvm_info;
 	bool wol;
+	struct bnxt_hw_lro	hw_lro;
 	uint8_t wol_filter_id;
 	uint16_t		rx_coal_usecs;
 	uint16_t		rx_coal_usecs_irq;

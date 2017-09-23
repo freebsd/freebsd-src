@@ -826,6 +826,17 @@ bnxt_attach_pre(if_ctx_t ctx)
 	/* iflib will map and release this bar */
 	scctx->isc_msix_bar = pci_msix_table_bar(softc->dev);
 
+        /* 
+         * Default settings for HW LRO (TPA):
+         *  Disable HW LRO by default
+         *  Can be enabled after taking care of 'packet forwarding'
+         */
+	softc->hw_lro.enable = 0;
+	softc->hw_lro.is_mode_gro = 0;
+	softc->hw_lro.max_agg_segs = 5; /* 2^5 = 32 segs */
+	softc->hw_lro.max_aggs = HWRM_VNIC_TPA_CFG_INPUT_MAX_AGGS_MAX;
+	softc->hw_lro.min_agg_len = 512;
+
 	/* Allocate the default completion ring */
 	softc->def_cp_ring.stats_ctx_id = HWRM_NA_SIGNATURE;
 	softc->def_cp_ring.ring.phys_id = (uint16_t)HWRM_NA_SIGNATURE;
@@ -858,6 +869,10 @@ bnxt_attach_pre(if_ctx_t ctx)
 	    HWRM_VNIC_RSS_CFG_INPUT_HASH_TYPE_TCP_IPV6 |
 	    HWRM_VNIC_RSS_CFG_INPUT_HASH_TYPE_UDP_IPV6;
 	rc = bnxt_create_config_sysctls_pre(softc);
+	if (rc)
+		goto failed;
+
+	rc = bnxt_create_hw_lro_sysctls(softc);
 	if (rc)
 		goto failed;
 
@@ -1071,15 +1086,7 @@ bnxt_init(if_ctx_t ctx)
 	if (rc)
 		goto fail;
 
-	/* 
-         * Enable LRO/TPA/GRO 
-         * TBD: 
-         *      Enable / Disable HW_LRO based on
-         *      ifconfig lro / ifconfig -lro setting
-         */
-	rc = bnxt_hwrm_vnic_tpa_cfg(softc, &softc->vnic_info,
-	    (if_getcapenable(iflib_get_ifp(ctx)) & IFCAP_LRO) ?
-	    HWRM_VNIC_TPA_CFG_INPUT_FLAGS_TPA : 0);
+	rc = bnxt_hwrm_vnic_tpa_cfg(softc);
 	if (rc)
 		goto fail;
 
