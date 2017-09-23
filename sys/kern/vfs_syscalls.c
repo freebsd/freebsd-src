@@ -1786,8 +1786,16 @@ sys_unlinkat(struct thread *td, struct unlinkat_args *uap)
 }
 
 int
-kern_unlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
+kern_unlinkat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
     ino_t oldinum)
+{
+	return (kern_unlinkat_c(td, fd, (const char * __CAPABILITY)path,
+	    pathseg, oldinum));
+}
+
+int
+kern_unlinkat_c(struct thread *td, int fd, const char * __CAPABILITY path,
+    enum uio_seg pathseg, ino_t oldinum)
 {
 	struct mount *mp;
 	struct vnode *vp;
@@ -1798,7 +1806,7 @@ kern_unlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 
 restart:
 	bwillwrite();
-	NDINIT_ATRIGHTS(&nd, DELETE, LOCKPARENT | LOCKLEAF | AUDITVNODE1,
+	NDINIT_ATRIGHTS_C(&nd, DELETE, LOCKPARENT | LOCKLEAF | AUDITVNODE1,
 	    pathseg, path, fd, cap_rights_init(&rights, CAP_UNLINKAT), td);
 	if ((error = namei(&nd)) != 0)
 		return (error == EINVAL ? EPERM : error);
@@ -3690,7 +3698,16 @@ sys_rmdir(struct thread *td, struct rmdir_args *uap)
 }
 
 int
-kern_rmdirat(struct thread *td, int fd, char *path, enum uio_seg pathseg)
+kern_rmdirat(struct thread *td, int fd, const char *path, enum uio_seg pathseg)
+{
+
+	return (kern_rmdirat_c(td, fd, (const char * __CAPABILITY)path,
+	    pathseg));
+}
+
+int
+kern_rmdirat_c(struct thread *td, int fd, const char * __CAPABILITY path,
+    enum uio_seg pathseg)
 {
 	struct mount *mp;
 	struct vnode *vp;
@@ -3700,7 +3717,7 @@ kern_rmdirat(struct thread *td, int fd, char *path, enum uio_seg pathseg)
 
 restart:
 	bwillwrite();
-	NDINIT_ATRIGHTS(&nd, DELETE, LOCKPARENT | LOCKLEAF | AUDITVNODE1,
+	NDINIT_ATRIGHTS_C(&nd, DELETE, LOCKPARENT | LOCKLEAF | AUDITVNODE1,
 	    pathseg, path, fd, cap_rights_init(&rights, CAP_UNLINKAT), td);
 	if ((error = namei(&nd)) != 0)
 		return (error);

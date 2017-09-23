@@ -141,12 +141,12 @@ SYS_STUB(9, int, link,
 )
 
 SYS_STUB(10, int, unlink,
-    /* _protoargs */ (const char * path),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, const char * __capability  path),
-    /* _protoargs_err */ (__capability int *stub_errno, const char * __capability  path),
-    /* _callargs */ ((const char *)path),
+    /* _protoargs */ (const char *__capability path),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, const char * __capability __capability path),
+    /* _protoargs_err */ (__capability int *stub_errno, const char * __capability __capability path),
+    /* _callargs */ ((const char *__capability)path),
     /* _callargs_chk */ (&ret, stub_errno, path),
-    /* _callargs_err */ (&errno, (const char *)path),
+    /* _callargs_err */ (&errno, (const char *__capability)path),
     /* _localcheck */ {if (!(cheri_getperm(path) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
@@ -962,12 +962,12 @@ SYS_STUB(136, int, mkdir,
 )
 
 SYS_STUB(137, int, rmdir,
-    /* _protoargs */ (const char * path),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, const char * __capability  path),
-    /* _protoargs_err */ (__capability int *stub_errno, const char * __capability  path),
-    /* _callargs */ ((const char *)path),
+    /* _protoargs */ (const char *__capability path),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, const char * __capability __capability path),
+    /* _protoargs_err */ (__capability int *stub_errno, const char * __capability __capability path),
+    /* _callargs */ ((const char *__capability)path),
     /* _callargs_chk */ (&ret, stub_errno, path),
-    /* _callargs_err */ (&errno, (const char *)path),
+    /* _callargs_err */ (&errno, (const char *__capability)path),
     /* _localcheck */ {if (!(cheri_getperm(path) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
@@ -3043,12 +3043,12 @@ SYS_STUB(502, int, symlinkat,
 )
 
 SYS_STUB(503, int, unlinkat,
-    /* _protoargs */ (int fd, const char * path, int flag),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, const char * __capability  path, int flag),
-    /* _protoargs_err */ (__capability int *stub_errno, int fd, const char * __capability  path, int flag),
-    /* _callargs */ (fd, (const char *)path, flag),
+    /* _protoargs */ (int fd, const char *__capability path, int flag),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, const char * __capability __capability path, int flag),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, const char * __capability __capability path, int flag),
+    /* _callargs */ (fd, (const char *__capability)path, flag),
     /* _callargs_chk */ (&ret, stub_errno, fd, path, flag),
-    /* _callargs_err */ (&errno, fd, (const char *)path, flag),
+    /* _callargs_err */ (&errno, fd, (const char *__capability)path, flag),
     /* _localcheck */ {if (!(cheri_getperm(path) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 

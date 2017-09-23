@@ -167,3 +167,32 @@ cheriabi_linkat(struct thread *td, struct cheriabi_linkat_args *uap)
 	return (kern_linkat_c(td, uap->fd1, uap->fd2, uap->path1, uap->path2,
 	    UIO_USERSPACE, (flag & AT_SYMLINK_FOLLOW) ? FOLLOW : NOFOLLOW));
 }
+
+int
+cheriabi_unlink(struct thread *td, struct cheriabi_unlink_args *uap)
+{
+
+	return (kern_unlinkat_c(td, AT_FDCWD, uap->path, UIO_USERSPACE, 0));
+}
+
+int
+cheriabi_unlinkat(struct thread *td, struct cheriabi_unlinkat_args *uap)
+{
+	int flag = uap->flag;
+
+	if (flag & ~AT_REMOVEDIR)
+		return (EINVAL);
+
+	if (flag & AT_REMOVEDIR)
+		return (kern_rmdirat_c(td, uap->fd, uap->path, UIO_USERSPACE));
+	else
+		return (kern_unlinkat_c(td, uap->fd, uap->path, UIO_USERSPACE,
+		    0));
+}
+
+int
+cheriabi_rmdir(struct thread *td, struct cheriabi_rmdir_args *uap)
+{
+
+	return (kern_rmdirat_c(td, AT_FDCWD, uap->path, UIO_USERSPACE));
+}

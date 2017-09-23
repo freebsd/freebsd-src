@@ -88,7 +88,8 @@
 9	AUE_LINK	STD	{ int cheriabi_link( \
 				    _In_z_ const char * __capability path, \
 				    _In_z_ const char * __capability to); }
-10	AUE_UNLINK	NOPROTO	{ int unlink(_In_z_ const char *path); }
+10	AUE_UNLINK	STD	{ int cheriabi_unlink( \
+				    _In_z_ const char * __capability path); }
 11	AUE_NULL	OBSOL	execv
 12	AUE_CHDIR	NOPROTO	{ int chdir(_In_z_ const char *path); }
 13	AUE_FCHDIR	NOPROTO	{ int fchdir(int fd); }
@@ -323,7 +324,8 @@
 				    int protocol, _Out_writes_(2) int *rsv); }
 136	AUE_MKDIR	NOPROTO	{ int mkdir(_In_z_ const char *path, \
 				    mode_t mode); }
-137	AUE_RMDIR	NOPROTO	{ int rmdir(_In_z_ const char *path); }
+137	AUE_RMDIR	STD	{ int cheriabi_rmdir( \
+				    _In_z_ const char * __capability path); }
 138	AUE_UTIMES	NOPROTO	{ int utimes(_In_z_ const char *path, \
 				    _In_ const struct timeval *tptr); }
 139	AUE_NULL	OBSOL	sigreturn
@@ -1081,8 +1083,9 @@
 				    int newfd, _In_z_ const char *new); }
 502	AUE_SYMLINKAT	NOPROTO	{ int symlinkat(_In_z_ const char *path1, \
 				    int fd, _In_z_ const char *path2); }
-503	AUE_UNLINKAT	NOPROTO	{ int unlinkat(int fd, \
-				    _In_z_ const char *path, int flag); }
+503	AUE_UNLINKAT	STD	{ int cheriabi_unlinkat(int fd, \
+				    _In_z_ const char * __capability path, \
+				    int flag); }
 504	AUE_POSIX_OPENPT	NOPROTO	{ int posix_openpt(int flags); }
 ; 505 is initialised by the kgssapi code, if present.
 505	AUE_NULL	NOSTD|NOPROTO	{ int gssd_syscall( \

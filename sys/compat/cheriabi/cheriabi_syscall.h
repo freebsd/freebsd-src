@@ -15,7 +15,7 @@
 #define	CHERIABI_SYS_wait4	7
 				/* 8 is obsolete old creat */
 #define	CHERIABI_SYS_cheriabi_link	9
-#define	CHERIABI_SYS_unlink	10
+#define	CHERIABI_SYS_cheriabi_unlink	10
 				/* 11 is obsolete execv */
 #define	CHERIABI_SYS_chdir	12
 #define	CHERIABI_SYS_fchdir	13
@@ -139,7 +139,7 @@
 #define	CHERIABI_SYS_shutdown	134
 #define	CHERIABI_SYS_socketpair	135
 #define	CHERIABI_SYS_mkdir	136
-#define	CHERIABI_SYS_rmdir	137
+#define	CHERIABI_SYS_cheriabi_rmdir	137
 #define	CHERIABI_SYS_utimes	138
 				/* 139 is obsolete sigreturn */
 #define	CHERIABI_SYS_adjtime	140
@@ -421,7 +421,7 @@
 #define	CHERIABI_SYS_readlinkat	500
 #define	CHERIABI_SYS_renameat	501
 #define	CHERIABI_SYS_symlinkat	502
-#define	CHERIABI_SYS_unlinkat	503
+#define	CHERIABI_SYS_cheriabi_unlinkat	503
 #define	CHERIABI_SYS_posix_openpt	504
 #define	CHERIABI_SYS_gssd_syscall	505
 #define	CHERIABI_SYS_cheriabi_jail_get	506

@@ -11,7 +11,7 @@ MIASM =  \
 	close.o \
 	wait4.o \
 	cheriabi_link.o \
-	unlink.o \
+	cheriabi_unlink.o \
 	chdir.o \
 	fchdir.o \
 	chmod.o \
@@ -94,7 +94,7 @@ MIASM =  \
 	shutdown.o \
 	socketpair.o \
 	mkdir.o \
-	rmdir.o \
+	cheriabi_rmdir.o \
 	utimes.o \
 	adjtime.o \
 	setsid.o \
@@ -310,7 +310,7 @@ MIASM =  \
 	readlinkat.o \
 	renameat.o \
 	symlinkat.o \
-	unlinkat.o \
+	cheriabi_unlinkat.o \
 	posix_openpt.o \
 	gssd_syscall.o \
 	cheriabi_jail_get.o \
