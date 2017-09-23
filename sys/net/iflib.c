@@ -185,6 +185,7 @@ struct iflib_ctx {
 	uint16_t ifc_sysctl_ntxqs;
 	uint16_t ifc_sysctl_nrxqs;
 	uint16_t ifc_sysctl_qs_eq_override;
+	uint16_t ifc_sysctl_rx_budget;
 
 	qidx_t ifc_sysctl_ntxds[8];
 	qidx_t ifc_sysctl_nrxds[8];
@@ -3531,6 +3532,7 @@ _task_fn_rx(void *context)
 	if_ctx_t ctx = rxq->ifr_ctx;
 	bool more;
 	int rc;
+	uint16_t budget;
 
 #ifdef IFLIB_DIAGNOSTICS
 	rxq->ifr_cpu_exec_count[curcpu]++;
@@ -3547,7 +3549,10 @@ _task_fn_rx(void *context)
 		}
 	}
 #endif
-	if (more == false || (more = iflib_rxeof(rxq, 16 /* XXX */)) == false) {
+	budget = ctx->ifc_sysctl_rx_budget;
+	if (budget == 0)
+		budget = 16;	/* XXX */
+	if (more == false || (more = iflib_rxeof(rxq, budget)) == false) {
 		if (ctx->ifc_flags & IFC_LEGACY)
 			IFDI_INTR_ENABLE(ctx);
 		else {
@@ -5486,9 +5491,12 @@ iflib_add_device_sysctl_pre(if_ctx_t ctx)
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_qs_enable",
 		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_qs_eq_override, 0,
                        "permit #txq != #rxq");
-       SYSCTL_ADD_INT(ctx_list, oid_list, OID_AUTO, "disable_msix",
+	SYSCTL_ADD_INT(ctx_list, oid_list, OID_AUTO, "disable_msix",
                       CTLFLAG_RWTUN, &ctx->ifc_softc_ctx.isc_disable_msix, 0,
                       "disable MSIX (default 0)");
+	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "rx_budget",
+		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_rx_budget, 0,
+                       "set the rx budget");
 
 	/* XXX change for per-queue sizes */
 	SYSCTL_ADD_PROC(ctx_list, oid_list, OID_AUTO, "override_ntxds",
