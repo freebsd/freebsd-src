@@ -3515,8 +3515,7 @@ _task_fn_tx(void *context)
 	}
 	if (txq->ift_db_pending)
 		ifmp_ring_enqueue(txq->ift_br, (void **)&txq, 1, TX_BATCH_SIZE);
-	else
-		ifmp_ring_check_drainage(txq->ift_br, TX_BATCH_SIZE);
+	ifmp_ring_check_drainage(txq->ift_br, TX_BATCH_SIZE);
 	if (ctx->ifc_flags & IFC_LEGACY)
 		IFDI_INTR_ENABLE(ctx);
 	else {
@@ -3718,16 +3717,14 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 	DBG_COUNTER_INC(tx_seen);
 	err = ifmp_ring_enqueue(txq->ift_br, (void **)&m, 1, TX_BATCH_SIZE);
 
+	GROUPTASK_ENQUEUE(&txq->ift_task);
 	if (err) {
-		GROUPTASK_ENQUEUE(&txq->ift_task);
 		/* support forthcoming later */
 #ifdef DRIVER_BACKPRESSURE
 		txq->ift_closed = TRUE;
 #endif
 		ifmp_ring_check_drainage(txq->ift_br, TX_BATCH_SIZE);
 		m_freem(m);
-	} else if (TXQ_AVAIL(txq) < (txq->ift_size >> 1)) {
-		GROUPTASK_ENQUEUE(&txq->ift_task);
 	}
 
 	return (err);
