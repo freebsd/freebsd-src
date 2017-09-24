@@ -255,11 +255,7 @@ bcm_sdhci_attach(device_t dev)
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 
-#ifdef MMCCAM
-	sdhci_cam_start_slot(&sc->sc_slot);
-#else
 	sdhci_start_slot(&sc->sc_slot);
-#endif
 
 	return (0);
 

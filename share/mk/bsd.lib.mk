@@ -311,7 +311,11 @@ ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
 _LIBS+=		lib${LIB_PRIVATE}${LIB}_pic.a
 
+.if ${MK_COVERAGE} != "no"
 lib${LIB_PRIVATE}${LIB}_pic.a: ${SPOBJS}
+.else
+lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS}
+.endif
 	@${ECHO} building special pic ${LIB} library
 	@rm -f ${.TARGET}
 	${AR} ${ARFLAGS} ${.TARGET} ${SPOBJS} ${ARADD}
