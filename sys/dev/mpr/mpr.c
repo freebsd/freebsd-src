@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/endian.h>
 #include <sys/eventhandler.h>
+#include <sys/sbuf.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -105,6 +106,9 @@ static int mpr_reregister_events(struct mpr_softc *sc);
 static void mpr_enqueue_request(struct mpr_softc *sc, struct mpr_command *cm);
 static int mpr_get_iocfacts(struct mpr_softc *sc, MPI2_IOC_FACTS_REPLY *facts);
 static int mpr_wait_db_ack(struct mpr_softc *sc, int timeout, int sleep_flag);
+static int mpr_debug_sysctl(SYSCTL_HANDLER_ARGS);
+static void mpr_parse_debug(struct mpr_softc *sc, char *list);
+
 SYSCTL_NODE(_hw, OID_AUTO, mpr, CTLFLAG_RD, 0, "MPR Driver Parameters");
 
 MALLOC_DEFINE(M_MPR, "mpr", "mpr driver memory");
@@ -1591,7 +1595,7 @@ mpr_init_queues(struct mpr_softc *sc)
 void
 mpr_get_tunables(struct mpr_softc *sc)
 {
-	char tmpstr[80];
+	char tmpstr[80], mpr_debug[80];
 
 	/* XXX default to some debugging for now */
 	sc->mpr_debug = MPR_INFO | MPR_FAULT;
@@ -1611,7 +1615,9 @@ mpr_get_tunables(struct mpr_softc *sc)
 	/*
 	 * Grab the global variables.
 	 */
-	TUNABLE_INT_FETCH("hw.mpr.debug_level", &sc->mpr_debug);
+	bzero(mpr_debug, 80);
+	if (TUNABLE_STR_FETCH("hw.mpr.debug_level", mpr_debug, 80) != 0)
+		mpr_parse_debug(sc, mpr_debug);
 	TUNABLE_INT_FETCH("hw.mpr.disable_msix", &sc->disable_msix);
 	TUNABLE_INT_FETCH("hw.mpr.disable_msi", &sc->disable_msi);
 	TUNABLE_INT_FETCH("hw.mpr.max_msix", &sc->max_msix);
@@ -1628,7 +1634,9 @@ mpr_get_tunables(struct mpr_softc *sc)
 	/* Grab the unit-instance variables */
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.debug_level",
 	    device_get_unit(sc->mpr_dev));
-	TUNABLE_INT_FETCH(tmpstr, &sc->mpr_debug);
+	bzero(mpr_debug, 80);
+	if (TUNABLE_STR_FETCH(tmpstr, mpr_debug, 80) != 0)
+		mpr_parse_debug(sc, mpr_debug);
 
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.disable_msix",
 	    device_get_unit(sc->mpr_dev));
@@ -1714,9 +1722,9 @@ mpr_setup_sysctl(struct mpr_softc *sc)
 		sysctl_tree = sc->sysctl_tree;
 	}
 
-	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
-	    OID_AUTO, "debug_level", CTLFLAG_RW, &sc->mpr_debug, 0,
-	    "mpr debug level");
+	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "debug_level", CTLTYPE_STRING | CTLFLAG_RW, sc, 0,
+	    mpr_debug_sysctl, "A", "mpr debug level");
 
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "disable_msix", CTLFLAG_RD, &sc->disable_msix, 0,
@@ -1807,6 +1815,104 @@ mpr_setup_sysctl(struct mpr_softc *sc)
 	SYSCTL_ADD_UQUAD(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "prp_page_alloc_fail", CTLFLAG_RD,
 	    &sc->prp_page_alloc_fail, "PRP page allocation failures");
+}
+
+static struct mpr_debug_string {
+	char *name;
+	int flag;
+} mpr_debug_strings[] = {
+	{"info", MPR_INFO},
+	{"fault", MPR_FAULT},
+	{"event", MPR_EVENT},
+	{"log", MPR_LOG},
+	{"recovery", MPR_RECOVERY},
+	{"error", MPR_ERROR},
+	{"init", MPR_INIT},
+	{"xinfo", MPR_XINFO},
+	{"user", MPR_USER},
+	{"mapping", MPR_MAPPING},
+	{"trace", MPR_TRACE}
+};
+
+static int
+mpr_debug_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct mpr_softc *sc;
+	struct mpr_debug_string *string;
+	struct sbuf sbuf;
+	char *buffer;
+	size_t sz;
+	int i, len, debug, error;
+
+	sc = (struct mpr_softc *)arg1;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+	debug = sc->mpr_debug;
+
+	sbuf_printf(&sbuf, "%#x", debug);
+
+	sz = sizeof(mpr_debug_strings) / sizeof(mpr_debug_strings[0]);
+	for (i = 0; i < sz; i++) {
+		string = &mpr_debug_strings[i];
+		if (debug & string->flag) 
+			sbuf_printf(&sbuf, ",%s", string->name);
+	}
+
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+
+	if (error || req->newptr == NULL)
+		return (error);
+
+	len = req->newlen - req->newidx;
+	if (len == 0)
+		return (0);
+
+	buffer = malloc(len, M_MPR, M_ZERO|M_WAITOK);
+	error = SYSCTL_IN(req, buffer, len);
+
+	mpr_parse_debug(sc, buffer);
+
+	free(buffer, M_MPR);
+	return (error);
+}
+
+static void
+mpr_parse_debug(struct mpr_softc *sc, char *list)
+{
+	struct mpr_debug_string *string;
+	char *token, *endtoken;
+	size_t sz;
+	int flags, i;
+
+	if (list == NULL || *list == '\0')
+		return;
+
+	flags = 0;
+	sz = sizeof(mpr_debug_strings) / sizeof(mpr_debug_strings[0]);
+	while ((token = strsep(&list, ":,")) != NULL) {
+
+		/* Handle integer flags */
+		flags |= strtol(token, &endtoken, 0);
+		if (token != endtoken)
+			continue;
+
+		/* Handle text flags */
+		for (i = 0; i < sz; i++) {
+			string = &mpr_debug_strings[i];
+			if (strcasecmp(token, string->name) == 0) {
+				flags |= string->flag;
+				break;
+			}
+		}
+	}
+
+	sc->mpr_debug = flags;
+	return;
 }
 
 int
