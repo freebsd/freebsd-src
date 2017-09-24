@@ -40,11 +40,13 @@ files		"../allwinner/a83t/files.a83t"
 files		"../allwinner/h3/files.h3"
 files		"../broadcom/bcm2835/files.bcm2836"
 files		"../broadcom/bcm2835/files.bcm283x"
+files		"../freescale/imx/files.imx6"
 files		"../nvidia/tegra124/files.tegra124"
 files		"../qemu/files.qemu"
 files		"../ti/files.ti"
 files		"../ti/am335x/files.am335x"
 files		"../ti/omap4/files.omap4"
+files		"../xilinx/files.zynq7"
 
 options 	SOC_ALLWINNER_A10
 options 	SOC_ALLWINNER_A13
@@ -116,6 +118,7 @@ device		pty
 device		snp
 device		md			# Memory "disks"
 device		random			# Entropy device
+device		firmware		# firmware assist module
 device		pl310			# PL310 L2 cache controller
 device		psci
 
@@ -128,6 +131,7 @@ device		p2wi			# Allwinner Push-Pull Two Wire
 device		axp209			# AXP209 Power Management Unit
 device		axp81x			# AXP813/818 Power Management Unit
 device		bcm2835_bsc
+device		fsliic			# Freescale i2c/iic
 device		icee			# AT24Cxxx and compatible EEPROMs
 device		sy8106a			# SY8106A Buck Regulator
 device		ti_i2c
@@ -171,6 +175,7 @@ device		ti_adc
 # reboot automatically because the boot loader might have enabled the
 # watchdog.
 device		ti_wdt
+device		imxwdt			# Watchdog. WARNING: can't be disabled!!!
 
 device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
@@ -186,6 +191,7 @@ device		ehci
 device		dwcotg			# DWC OTG controller
 device		musb
 
+device		axe			# USB-Ethernet
 device		umass			# Disks/Mass storage - Requires scbus and da
 device		uhid			# "Human Interface Devices"
 device		ukbd			# Allow keyboard like HIDs to control console
@@ -205,8 +211,10 @@ device		miibus
 
 device		awg			# 10/100/1000 integrated EMAC controller
 device		cpsw			# TI Common Platform Ethernet Switch (CPSW)
+device		cgem			# Zynq-7000 gig ethernet device
 device		dwc			# 10/100/1000 integrated GMAC controller
 device		emac			# 10/100 integrated EMAC controller
+device		ffec			# Freescale Fast Ethernet Controller
 device		smsc			# SMSC LAN91C111
 
 # Sound support
@@ -230,6 +238,7 @@ device		ti_pruss
 device		ti_mbox
 
 # DMA controller
+device		fslsdma
 device		ti_sdma
 
 # Extensible Firmware Interface
@@ -237,4 +246,4 @@ options 	EFI
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
-makeoptions	MODULES_EXTRA="dtb/allwinner dtb/am335x dtb/nvidia dtb/rpi dtb/omap4"
+makeoptions	MODULES_EXTRA="dtb/allwinner dtb/am335x dtb/imx6 dtb/nvidia dtb/rpi dtb/zynq dtb/omap4"
