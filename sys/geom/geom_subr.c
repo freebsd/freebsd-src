@@ -631,6 +631,14 @@ g_resize_provider_event(void *arg, int flag)
 	LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, cp2) {
 		gp = cp->geom;
 		if (gp->resize == NULL && size < pp->mediasize) {
+			/*
+			 * XXX: g_dev_orphan method does deferred destroying
+			 * and it is possible, that other event could already
+			 * call the orphan method. Check consumer's flags to
+			 * do not schedule it twice.
+			 */
+			if (cp->flags & G_CF_ORPHAN)
+				continue;
 			cp->flags |= G_CF_ORPHAN;
 			cp->geom->orphan(cp);
 		}
