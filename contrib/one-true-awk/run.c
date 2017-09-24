@@ -918,7 +918,7 @@ int format(char **pbuf, int *pbufsize, const char *s, Node *a)	/* printf-like co
 			break;
 		case 'c':
 			if (isnum(x)) {
-				if (getfval(x))
+				if ((int)getfval(x))
 					sprintf(p, fmt, (int) getfval(x));
 				else {
 					*p++ = '\0'; /* explicit null byte */
