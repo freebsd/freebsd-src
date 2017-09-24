@@ -313,31 +313,41 @@ dev.mps.X.use_phy_num
 The same set of values are valid as when setting this tunable for all adapters.
 .Pp
 .Sh DEBUGGING
-To enable debugging prints from the
-.Nm
-driver, set the
-.Bd -literal -offset indent
-hw.mps.X.debug_level
-.Ed
-.Pp
-tunable, either in
+Driver diagnostic printing is controlled in
 .Xr loader.conf 5
-or by using
-.Xr sysctl 8 .
-These bits have the described effects:
-.Bd -literal -offset indent
-0x0001 Enable informational prints (set by default).
-0x0002 Enable prints for driver faults (set by default).
-0x0004 Enable prints for controller events.
-0x0008 Enable prints for controller logging.
-0x0010 Enable prints for tracing recovery operations.
-0x0020 Enable prints for parameter errors and programming bugs.
-0x0040 Enable prints for system initialization operations.
-0x0080 Enable prints for more detailed information.
-0x0100 Enable prints for user-generated commands (IOCTL).
-0x0200 Enable prints for device mapping.
-0x0400 Enable prints for tracing through driver functions.
-.Ed
+by using the global
+.Va hw.mps.debug_level
+and per-device
+.Va dev.mps.X.debug_level
+tunables.
+One can alter the debug level for any adapter at run-time using the
+.Xr sysctl 8
+variable
+.Va dev.mps.X.debug_level .
+.Pp
+All
+.Va debug_level
+variables can be named by either an integer value or a text string.
+Multiple values can be specified together by either ORing the
+integer values or by providing a comma-separated list of names.
+The current
+.Va debug_level
+status is reported in both formats for convenience.
+The following levels are available:
+.Bl -column "FlagXX" "NameXXXX" "Description" -offset indent
+.It Em Flag Ta Em Name Ta Em Description
+.It 0x0001 Ta info Ta Basic information (enabled by default)
+.It 0x0002 Ta fault Ta Driver faults (enabled by default)
+.It 0x0004 Ta event Ta Controller events
+.It 0x0008 Ta log Ta Logging data from controller
+.It 0x0010 Ta recovery Ta Tracing of recovery operations
+.It 0x0020 Ta error Ta Parameter errors and programming bugs
+.It 0x0040 Ta init Ta System initialization operations
+.It 0x0080 Ta xinfo Ta More detailed information
+.It 0x0100 Ta user Ta Tracing of user-generated commands (IOCTL)
+.It 0x0200 Ta mapping Ta Tracing of device mapping
+.It 0x0400 Ta trace Ta Tracing through driver functions
+.El
 .Sh SEE ALSO
 .Xr cam 4 ,
 .Xr cd 4 ,
