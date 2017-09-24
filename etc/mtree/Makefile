@@ -15,6 +15,9 @@ FILES=	\
 	BSD.usr.dist \
 	BSD.var.dist
 
+.if ${MK_COVERAGE} != "no"
+_BSD.coverage.dist=	BSD.coverage.dist
+.endif
 .if ${MK_LIB32} != "no"
 _BSD.lib32.dist=	BSD.lib32.dist
 .endif
