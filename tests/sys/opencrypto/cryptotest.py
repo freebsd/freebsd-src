@@ -29,6 +29,7 @@
 # $FreeBSD$
 #
 
+from __future__ import print_function
 import cryptodev
 import itertools
 import os
@@ -57,17 +58,17 @@ def GenTestCase(cname):
 		###############
 		##### AES #####
 		###############
-		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % `cname`)
+		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % (cname))
 		def test_xts(self):
 			for i in katg('XTSTestVectors/format tweak value input - data unit seq no', '*.rsp'):
 				self.runXTS(i, cryptodev.CRYPTO_AES_XTS)
 
-		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % `cname`)
+		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % (cname))
 		def test_cbc(self):
 			for i in katg('KAT_AES', 'CBC[GKV]*.rsp'):
 				self.runCBC(i)
 
-		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % `cname`)
+		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % (cname))
 		def test_gcm(self):
 			for i in katg('gcmtestvectors', 'gcmEncrypt*'):
 				self.runGCM(i, 'ENCRYPT')
@@ -88,7 +89,7 @@ def GenTestCase(cname):
 				swapptct = True
 				curfun = Crypto.decrypt
 			else:
-				raise RuntimeError('unknown mode: %s' % `mode`)
+				raise RuntimeError('unknown mode: %r' % repr(mode))
 
 			for bogusmode, lines in cryptodev.KATParser(fname,
 			    [ 'Count', 'Key', 'IV', 'CT', 'AAD', 'Tag', 'PT', ]):
@@ -116,8 +117,8 @@ def GenTestCase(cname):
 						rtag = rtag[:len(tag)]
 						data['rct'] = rct.encode('hex')
 						data['rtag'] = rtag.encode('hex')
-						self.assertEqual(rct, ct, `data`)
-						self.assertEqual(rtag, tag, `data`)
+						self.assertEqual(rct, ct, repr(data))
+						self.assertEqual(rtag, tag, repr(data))
 					else:
 						if len(tag) != 16:
 							continue
@@ -130,7 +131,7 @@ def GenTestCase(cname):
 							data['rpt'] = rpt.encode('hex')
 							data['rtag'] = rtag.encode('hex')
 							self.assertEqual(rpt, pt,
-							    `data`)
+							    repr(data))
 
 		def runCBC(self, fname):
 			curfun = None
@@ -143,7 +144,7 @@ def GenTestCase(cname):
 					swapptct = True
 					curfun = Crypto.decrypt
 				else:
-					raise RuntimeError('unknown mode: %s' % `mode`)
+					raise RuntimeError('unknown mode: %r' % repr(mode))
 
 				for data in lines:
 					curcnt = int(data['COUNT'])
@@ -171,7 +172,7 @@ def GenTestCase(cname):
 					swapptct = True
 					curfun = Crypto.decrypt
 				else:
-					raise RuntimeError('unknown mode: %s' % `mode`)
+					raise RuntimeError('unknown mode: %r' % repr(mode))
 
 				for data in lines:
 					curcnt = int(data['COUNT'])
@@ -194,7 +195,7 @@ def GenTestCase(cname):
 		###############
 		##### DES #####
 		###############
-		@unittest.skipIf(cname not in desmodules, 'skipping DES on %s' % `cname`)
+		@unittest.skipIf(cname not in desmodules, 'skipping DES on %s' % (cname))
 		def test_tdes(self):
 			for i in katg('KAT_TDES', 'TCBC[a-z]*.rsp'):
 				self.runTDES(i)
@@ -210,7 +211,7 @@ def GenTestCase(cname):
 					swapptct = True
 					curfun = Crypto.decrypt
 				else:
-					raise RuntimeError('unknown mode: %s' % `mode`)
+					raise RuntimeError('unknown mode: %r' % repr(mode))
 
 				for data in lines:
 					curcnt = int(data['COUNT'])
@@ -230,14 +231,14 @@ def GenTestCase(cname):
 		###############
 		##### SHA #####
 		###############
-		@unittest.skipIf(cname not in shamodules, 'skipping SHA on %s' % `cname`)
+		@unittest.skipIf(cname not in shamodules, 'skipping SHA on %s' % str(cname))
 		def test_sha(self):
 			# SHA not available in software
 			pass
 			#for i in iglob('SHA1*'):
 			#	self.runSHA(i)
 
-		@unittest.skipIf(cname not in shamodules, 'skipping SHA on %s' % `cname`)
+		@unittest.skipIf(cname not in shamodules, 'skipping SHA on %s' % str(cname))
 		def test_sha1hmac(self):
 			for i in katg('hmactestvectors', 'HMAC.rsp'):
 				self.runSHA1HMAC(i)
