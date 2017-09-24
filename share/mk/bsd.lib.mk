@@ -312,13 +312,15 @@ ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
 _LIBS+=		lib${LIB_PRIVATE}${LIB}_pic.a
 
 .if ${MK_COVERAGE} != "no"
-lib${LIB_PRIVATE}${LIB}_pic.a: ${SPOBJS}
+PIC_OBJS=	${SPOBJS}
 .else
-lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS}
+PIC_OBJS=	${SOBJS}
 .endif
+
+lib${LIB_PRIVATE}${LIB}_pic.a: ${PIC_OBJS}
 	@${ECHO} building special pic ${LIB} library
 	@rm -f ${.TARGET}
-	${AR} ${ARFLAGS} ${.TARGET} ${SPOBJS} ${ARADD}
+	${AR} ${ARFLAGS} ${.TARGET} ${PIC_OBJS} ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
