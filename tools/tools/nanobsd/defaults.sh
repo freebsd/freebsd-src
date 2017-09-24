@@ -749,7 +749,7 @@ cust_install_files ( ) (
 cust_pkgng ( ) (
 	mkdir -p ${NANO_WORLDDIR}/usr/local/etc
 	local PKG_CONF="${NANO_WORLDDIR}/usr/local/etc/pkg.conf"
-	local PKGCMD="env ASSUME_ALWAYS_YES=YES PKG_DBDIR=${NANO_PKG_META_BASE}/pkg SIGNATURE_TYPE=none /usr/sbin/pkg"
+	local PKGCMD="env BATCH=YES ASSUME_ALWAYS_YES=YES PKG_DBDIR=${NANO_PKG_META_BASE}/pkg SIGNATURE_TYPE=none /usr/sbin/pkg"
 
 	# Ensure pkg.conf points pkg to where the package meta data lives.
 	touch ${PKG_CONF}
