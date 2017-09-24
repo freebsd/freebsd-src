@@ -251,6 +251,7 @@ boolean_t moea64_is_referenced(mmu_t, vm_page_t);
 int moea64_ts_referenced(mmu_t, vm_page_t);
 vm_offset_t moea64_map(mmu_t, vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
 boolean_t moea64_page_exists_quick(mmu_t, pmap_t, vm_page_t);
+void moea64_page_init(mmu_t, vm_page_t);
 int moea64_page_wired_mappings(mmu_t, vm_page_t);
 void moea64_pinit(mmu_t, pmap_t);
 void moea64_pinit0(mmu_t, pmap_t);
@@ -299,6 +300,7 @@ static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_ts_referenced,	moea64_ts_referenced),
 	MMUMETHOD(mmu_map,     		moea64_map),
 	MMUMETHOD(mmu_page_exists_quick,moea64_page_exists_quick),
+	MMUMETHOD(mmu_page_init,	moea64_page_init),
 	MMUMETHOD(mmu_page_wired_mappings,moea64_page_wired_mappings),
 	MMUMETHOD(mmu_pinit,		moea64_pinit),
 	MMUMETHOD(mmu_pinit0,		moea64_pinit0),
@@ -1905,6 +1907,15 @@ moea64_page_exists_quick(mmu_t mmu, pmap_t pmap, vm_page_t m)
 	}
 	PV_PAGE_UNLOCK(m);
 	return (rv);
+}
+
+void
+moea64_page_init(mmu_t mmu __unused, vm_page_t m)
+{
+
+	m->md.mdpg_attrs = 0;
+	m->md.mdpg_cache_attrs = VM_MEMATTR_DEFAULT;
+	LIST_INIT(&m->md.mdpg_pvoh);
 }
 
 /*
