@@ -344,7 +344,7 @@ nfsm_uiombuflist(struct uio *uiop, int siz, struct mbuf **mbp, char **cpp)
 	struct mbuf *mp, *mp2, *firstmp;
 	int xfer, left, mlen;
 	int uiosiz, clflg, rem;
-	char *cp, *tcp;
+	char *tcp;
 
 	KASSERT(uiop->uio_iovcnt == 1, ("nfsm_uiotombuf: iovcnt != 1"));
 
@@ -396,19 +396,7 @@ nfsm_uiombuflist(struct uio *uiop, int siz, struct mbuf **mbp, char **cpp)
 		uiop->uio_iov->iov_len -= uiosiz;
 		siz -= uiosiz;
 	}
-	if (rem > 0) {
-		if (rem > M_TRAILINGSPACE(mp)) {
-			NFSMGET(mp);
-			mbuf_setlen(mp, 0);
-			mbuf_setnext(mp2, mp);
-		}
-		cp = NFSMTOD(mp, caddr_t) + mbuf_len(mp);
-		for (left = 0; left < rem; left++)
-			*cp++ = '\0';
-		mbuf_setlen(mp, mbuf_len(mp) + rem);
-		if (cpp != NULL)
-			*cpp = cp;
-	} else if (cpp != NULL)
+	if (cpp != NULL)
 		*cpp = NFSMTOD(mp, caddr_t) + mbuf_len(mp);
 	if (mbp != NULL)
 		*mbp = mp;
