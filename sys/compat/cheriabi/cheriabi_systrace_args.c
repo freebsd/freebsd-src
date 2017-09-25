@@ -92,10 +92,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* chdir */
+	/* cheriabi_chdir */
 	case 12: {
-		struct chdir_args *p = params;
-		uarg[0] = (intptr_t) p->path; /* const char * */
+		struct cheriabi_chdir_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char *__capability */
 		*n_args = 1;
 		break;
 	}
@@ -3235,11 +3235,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* chdir */
+	/* cheriabi_chdir */
 	case 12:
 		switch(ndx) {
 		case 0:
-			p = "userland const char *";
+			p = "userland const char *__capability";
 			break;
 		default:
 			break;
@@ -8320,7 +8320,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* chdir */
+	/* cheriabi_chdir */
 	case 12:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

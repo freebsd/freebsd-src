@@ -91,7 +91,8 @@
 10	AUE_UNLINK	STD	{ int cheriabi_unlink( \
 				    _In_z_ const char * __capability path); }
 11	AUE_NULL	OBSOL	execv
-12	AUE_CHDIR	NOPROTO	{ int chdir(_In_z_ const char *path); }
+12	AUE_CHDIR	STD	{ int cheriabi_chdir( \
+				    _In_z_ const char * __capability path); }
 13	AUE_FCHDIR	NOPROTO	{ int fchdir(int fd); }
 14	AUE_MKNOD	OBSOL	fbsd11_mknod
 15	AUE_CHMOD	NOPROTO	{ int chmod(_In_z_ const char *path, \

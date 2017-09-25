@@ -132,6 +132,13 @@ cheriabi_quotactl(struct thread *td, struct cheriabi_quotactl_args *uap)
 }
 
 int
+cheriabi_chdir(struct thread *td, struct cheriabi_chdir_args *uap)
+{
+
+	return (kern_chdir(td, uap->path, UIO_USERSPACE));
+}
+
+int
 cheriabi_open(struct thread *td, struct cheriabi_open_args *uap)
 {
 

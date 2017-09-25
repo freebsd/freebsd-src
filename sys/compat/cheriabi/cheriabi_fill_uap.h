@@ -200,22 +200,14 @@ CHERIABI_SYS_cheriabi_unlink_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_chdir_fill_uap(struct thread *td,
-    struct chdir_args *uap)
+CHERIABI_SYS_cheriabi_chdir_fill_uap(struct thread *td,
+    struct cheriabi_chdir_args *uap)
 {
-	void * __capability tmpcap;
 
-	/* [0] _In_z_ const char * path */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_chdir_PTRMASK);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->path),
-		    tmpcap, sizeof(*uap->path), reqperms, 0);
-		if (error != 0)
-			return (error);
-	}
+	/* [0] _In_z_ const char *__capability path */
+	cheriabi_fetch_syscall_arg(td,
+	    __DECONST(void * __capability *, &uap->path),
+	    0, CHERIABI_SYS_cheriabi_chdir_PTRMASK);
 
 	return (0);
 }

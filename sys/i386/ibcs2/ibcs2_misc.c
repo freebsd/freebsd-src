@@ -1077,7 +1077,7 @@ ibcs2_chdir(struct thread *td, struct ibcs2_chdir_args *uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_chdir(td, path, UIO_SYSSPACE);
+	error = kern_chdir(td, (char * __CAPABILITY)path, UIO_SYSSPACE);
 	free(path, M_TEMP);
 	return (error);
 }

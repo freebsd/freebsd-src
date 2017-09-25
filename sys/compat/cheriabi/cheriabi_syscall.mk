@@ -12,7 +12,7 @@ MIASM =  \
 	wait4.o \
 	cheriabi_link.o \
 	cheriabi_unlink.o \
-	chdir.o \
+	cheriabi_chdir.o \
 	fchdir.o \
 	chmod.o \
 	chown.o \

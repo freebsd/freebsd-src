@@ -636,7 +636,7 @@ linux_chdir(struct thread *td, struct linux_chdir_args *args)
 	if (ldebug(chdir))
 		printf(ARGS(chdir, "%s"), path);
 #endif
-	error = kern_chdir(td, path, UIO_SYSSPACE);
+	error = kern_chdir(td, (char * __CAPABILITY)path, UIO_SYSSPACE);
 	LFREEPATH(path);
 	return (error);
 }

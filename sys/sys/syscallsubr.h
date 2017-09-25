@@ -75,7 +75,8 @@ int	kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa);
 int	kern_cap_ioctls_limit(struct thread *td, int fd, u_long *cmds,
 	    size_t ncmds);
 int	kern_cap_rights_limit(struct thread *td, int fd, cap_rights_t *rights);
-int	kern_chdir(struct thread *td, char *path, enum uio_seg pathseg);
+int	kern_chdir(struct thread *td, const char * __CAPABILITY path,
+	    enum uio_seg pathseg);
 int	kern_clock_getcpuclockid2(struct thread *td, id_t id, int which,
 	    clockid_t *clk_id);
 int	kern_clock_getres(struct thread *td, clockid_t clock_id,

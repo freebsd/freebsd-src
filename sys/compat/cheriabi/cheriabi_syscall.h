@@ -17,7 +17,7 @@
 #define	CHERIABI_SYS_cheriabi_link	9
 #define	CHERIABI_SYS_cheriabi_unlink	10
 				/* 11 is obsolete execv */
-#define	CHERIABI_SYS_chdir	12
+#define	CHERIABI_SYS_cheriabi_chdir	12
 #define	CHERIABI_SYS_fchdir	13
 				/* 14 is obsolete fbsd11_mknod */
 #define	CHERIABI_SYS_chmod	15

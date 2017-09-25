@@ -880,16 +880,17 @@ int
 sys_chdir(struct thread *td, struct chdir_args *uap)
 {
 
-	return (kern_chdir(td, uap->path, UIO_USERSPACE));
+	return (kern_chdir(td, (char * __CAPABILITY)uap->path, UIO_USERSPACE));
 }
 
 int
-kern_chdir(struct thread *td, char *path, enum uio_seg pathseg)
+kern_chdir(struct thread *td, const char * __CAPABILITY path,
+    enum uio_seg pathseg)
 {
 	struct nameidata nd;
 	int error;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1,
+	NDINIT_C(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1,
 	    pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);

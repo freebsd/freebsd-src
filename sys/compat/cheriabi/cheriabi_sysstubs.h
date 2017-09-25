@@ -151,12 +151,12 @@ SYS_STUB(10, int, unlink,
 )
 
 SYS_STUB(12, int, chdir,
-    /* _protoargs */ (const char * path),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, const char * __capability  path),
-    /* _protoargs_err */ (__capability int *stub_errno, const char * __capability  path),
-    /* _callargs */ ((const char *)path),
+    /* _protoargs */ (const char *__capability path),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, const char * __capability __capability path),
+    /* _protoargs_err */ (__capability int *stub_errno, const char * __capability __capability path),
+    /* _callargs */ ((const char *__capability)path),
     /* _callargs_chk */ (&ret, stub_errno, path),
-    /* _callargs_err */ (&errno, (const char *)path),
+    /* _callargs_err */ (&errno, (const char *__capability)path),
     /* _localcheck */ {if (!(cheri_getperm(path) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
