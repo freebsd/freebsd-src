@@ -43,6 +43,7 @@ static const char rcsid[] =
 #include <sys/time.h>
 
 #include <poll.h>
+#include <regex.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
@@ -52,8 +53,6 @@ static const char rcsid[] =
 #include "gettytab.h"
 #include "pathnames.h"
 #include "extern.h"
-
-
 
 /*
  * Get a table entry.
@@ -469,42 +468,48 @@ adelay(int ms, struct delayval *dp)
 char	editedhost[MAXHOSTNAMELEN];
 
 void
-edithost(const char *pat)
+edithost(const char *pattern)
 {
-	const char *host = HN;
-	char *res = editedhost;
+	regex_t regex;
+	regmatch_t *match;
+	int found;
 
-	if (!pat)
-		pat = "";
-	while (*pat) {
-		switch (*pat) {
+	if (pattern == NULL || *pattern == '\0')
+		goto copyasis;
+	if (regcomp(&regex, pattern, REG_EXTENDED) != 0)
+		goto copyasis;
 
-		case '#':
-			if (*host)
-				host++;
-			break;
-
-		case '@':
-			if (*host)
-				*res++ = *host++;
-			break;
-
-		default:
-			*res++ = *pat;
-			break;
-
-		}
-		if (res == &editedhost[sizeof editedhost - 1]) {
-			*res = '\0';
-			return;
-		}
-		pat++;
+	match = calloc(regex.re_nsub + 1, sizeof(*match));
+	if (match == NULL) {
+		regfree(&regex);
+		goto copyasis;
 	}
-	if (*host)
-		strncpy(res, host, sizeof editedhost - (res - editedhost) - 1);
-	else
-		*res = '\0';
-	editedhost[sizeof editedhost - 1] = '\0';
+
+	found = !regexec(&regex, HN, regex.re_nsub + 1, match, 0);
+	if (found) {
+		size_t subex, totalsize;
+
+		/*
+		 * We found a match.  If there were no parenthesized
+		 * subexpressions in the pattern, use entire matched
+		 * string as ``editedhost''; otherwise use the first
+		 * matched subexpression.
+		 */
+		subex = !!regex.re_nsub;
+		totalsize = match[subex].rm_eo - match[subex].rm_so + 1;
+		strlcpy(editedhost, HN + match[subex].rm_so, totalsize >
+		    sizeof(editedhost) ? sizeof(editedhost) : totalsize);
+	}
+	free(match);
+	regfree(&regex);
+	if (found)
+		return;
+	/*
+	 * In case of any errors, or if the pattern did not match, pass
+	 * the original hostname as is.
+	 */
+ copyasis:
+	strlcpy(editedhost, HN, sizeof(editedhost));
 }
 
 static struct speedtab {
