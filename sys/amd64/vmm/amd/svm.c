@@ -2280,6 +2280,262 @@ svm_vlapic_cleanup(void *arg, struct vlapic *vlapic)
         free(vlapic, M_SVM_VLAPIC);
 }
 
+static int
+svm_snapshot_vmi(void *arg, void *buffer, size_t buf_size, size_t *snapshot_size)
+{
+	/* struct svm_softc is AMD's representation for SVM softc */
+	struct svm_softc *sc = arg;
+	int error;
+
+	KASSERT(sc != NULL, ("%s: arg was NULL", __func__));
+
+	if (buf_size < sizeof(struct svm_softc)) {
+		printf("%s: buffer size too small: %lu < %lu\n",
+			__func__, buf_size, sizeof(struct svm_softc));
+		return (EINVAL);
+	}
+
+	error = copyout(sc, buffer, sizeof(struct svm_softc));
+	if (error) {
+		printf("%s: failed to copy svm data to user buffer", __func__);
+		*snapshot_size = 0;
+		return (error);
+	}
+
+	*snapshot_size = sizeof(struct svm_softc);
+	return (0);
+}
+
+static int
+svm_snapshot_vmcx(void *arg, struct vmcx_state *vmcx, int vcpu)
+{
+	struct vmcb *vmcb;
+	struct svm_softc *sc = (struct svm_softc *)arg;
+	int err = 0, running, hostcpu;
+
+	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
+	vmcb = svm_get_vmcb(sc, vcpu);
+
+	running = vcpu_is_running(sc->vm, vcpu, &hostcpu);
+	if (running && hostcpu !=curcpu) {
+		printf("%s: %s%d is running", __func__, vm_name(sc->vm), vcpu);
+		return (EINVAL);
+	}
+
+//	TODO - Intel has vmcs_getreg in sys/amd64/vmm/intel/vmcs.c
+//	TODO - but AMD does not have a similar function for vmcb
+//	TODO - vmcs_getreg uses vmx_getreg which is equivalent with svm_getreg
+//	TODO - on AMD
+
+	err += svm_getreg(sc, running, VM_REG_GUEST_CR0, &vmcx->guest_cr0);
+	err += svm_getreg(sc, running, VM_REG_GUEST_CR3, &vmcx->guest_cr3);
+	err += svm_getreg(sc, running, VM_REG_GUEST_CR4, &vmcx->guest_cr4);
+	err += svm_getreg(sc, running, VM_REG_GUEST_DR7, &vmcx->guest_dr7);
+	err += svm_getreg(sc, running, VM_REG_GUEST_RSP, &vmcx->guest_rsp);
+	err += svm_getreg(sc, running, VM_REG_GUEST_RIP, &vmcx->guest_rip);
+	err += svm_getreg(sc, running, VM_REG_GUEST_RFLAGS, &vmcx->guest_rflags);
+
+	/* Guest segments */
+	/* ES */
+	err += svm_getreg(sc, running, VM_REG_GUEST_ES, &vmcx->guest_es);
+	err += vmcb_getdesc(sc, running, VM_REG_GUEST_ES, &vmcx->guest_es_desc);
+
+	/* CS */
+	err += svm_getreg(sc, running, VM_REG_GUEST_CS, &vmcx->guest_cs);
+	err += vmcb_getdesc(sc, running, VM_REG_GUEST_CS, &vmcx->guest_cs_desc);
+
+	/* SS */
+	err += svm_getreg(sc, running, VM_REG_GUEST_SS, &vmcx->guest_ss);
+	err += vmcb_getdesc(sc, running, VM_REG_GUEST_SS, &vmcx->guest_ss_desc);
+
+	/* DS */
+	err += svm_getreg(sc, running, VM_REG_GUEST_DS, &vmcx->guest_ds);
+	err += vmcb_getdesc(sc, running, VM_REG_GUEST_DS, &vmcx->guest_ds_desc);
+
+	/* FS */
+	err += svm_getreg(sc, running, VM_REG_GUEST_FS, &vmcx->guest_fs);
+	err += vmcb_getdesc(sc, running, VM_REG_GUEST_FS, &vmcx->guest_fs_desc);
+
+	/* GS */
+	err += svm_getreg(sc, running, VM_REG_GUEST_GS, &vmcx->guest_gs);
+	err += vmcb_getdesc(sc, running, VM_REG_GUEST_GS, &vmcx->guest_gs_desc);
+
+	/* TR */
+	err += svm_getreg(sc, running, VM_REG_GUEST_TR, &vmcx->guest_tr);
+	err += vmcb_getdesc(sc, running, VM_REG_GUEST_TR, &vmcx->guest_tr_desc);
+
+	/* LDTR */
+	err += svm_getreg(sc, running, VM_REG_GUEST_LDTR, &vmcx->guest_ldtr);
+	err += vmcb_getdesc(sc, running, VM_REG_GUEST_LDTR, &vmcx->guest_ldtr_desc);
+
+	/* EFER */
+	err += svm_getreg(sc, running, VM_REG_GUEST_EFER, &vmcx->guest_efer);
+
+	/* IDTR and GDTR */
+	err += vmcb_getdesc(sc, running, VM_REG_GUEST_IDTR, &vmcx->guest_idtr_desc);
+	err += vmcb_getdesc(sc, running, VM_REG_GUEST_GDTR, &vmcx->guest_gdtr_desc);
+
+	/* Guest page tables */
+	err += svm_getreg(sc, running, VM_REG_GUEST_PDPTE0, &vmcx->guest_pdpte0);
+	err += svm_getreg(sc, running, VM_REG_GUEST_PDPTE0, &vmcx->guest_pdpte1);
+	err += svm_getreg(sc, running, VM_REG_GUEST_PDPTE0, &vmcx->guest_pdpte2);
+	err += svm_getreg(sc, running, VM_REG_GUEST_PDPTE0, &vmcx->guest_pdpte3);
+
+	/* TODO - Specific AMD registers */
+
+	// AMD special registers
+	// VMCB_OFF_SYSENTER_CS  is VMCS_GUEST_IA32_SYSENTER_CS
+	// VMCB_OFF_SYSENTER_ESP is VMCS_GUEST_IA32_SYSENTER_ESP
+	// VMCB_OFF_SYSENTER_EIP is VMCS_GUEST_IA32_SYSENTER_EIP
+	//
+	err += vmcb_getany(sc, running,
+				VMCB_OFF_SYSENTER_CS,
+				&vmcx->guest_ia32_sysenter_cs);
+	err += vmcb_getany(sc, running,
+				VMCB_OFF_SYSENTER_ESP,
+				&vmcx->guest_ia32_sysenter_esp);
+	err += vmcb_getany(sc, running,
+				VMCB_OFF_SYSENTER_EIP,
+				&vmcx->guest_ia32_sysenter_eip);
+
+	/* TODO - Save other registers such as:
+	 * INTRRERUT_SHADOW - VM_REG_GUEST_INTR_SHADOW
+	 * err += svm_getreg(sc, running, VM_REG_GUEST_INTR_SHADOW, &val);
+	 * CR2 - VM_REG_GUEST_CR2
+	 * err += svm_getreg(sc, running, VM_REG_GUEST_CR2, &val);
+	 * RAX - VM_REG_GUEST_RAX
+	 * err += svm_getreg(sc, running, VM_REG_GUEST_RAX, &val);
+	 * DR6 - vmcb->dr6
+	 * CPL - vmcb->cpl
+	 */
+	return (err);
+}
+
+static int
+svm_restore_vmcx(void *arg, struct vmcx_state *vmcx, int vcpu)
+{
+	struct vmcb *vmcb;
+	struct svm_softc *sc = (struct svm_softc *)arg;
+	int err = 0, running, hostcpu;
+
+	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
+	vmcb = svm_get_vmcb(sc, vcpu);
+
+	running = vcpu_is_running(sc->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu) {
+		printf("%s: %s%d is running", __func__, vm_name(sc->vm), vcpu);
+		return (EINVAL);
+	}
+
+	err += svm_setreg(sc, running, VM_REG_GUEST_CR0, vmcx->guest_cr0);
+	err += svm_setreg(sc, running, VM_REG_GUEST_CR3, vmcx->guest_cr3);
+	err += svm_setreg(sc, running, VM_REG_GUEST_CR4, vmcx->guest_cr4);
+	err += svm_setreg(sc, running, VM_REG_GUEST_DR7, vmcx->guest_dr7);
+	err += svm_setreg(sc, running, VM_REG_GUEST_RSP, vmcx->guest_rsp);
+	err += svm_setreg(sc, running, VM_REG_GUEST_RIP, vmcx->guest_rip);
+	err += svm_setreg(sc, running, VM_REG_GUEST_RFLAGS, vmcx->guest_rflags);
+
+	/* Guest segments */
+	/* ES */
+	err += svm_setreg(sc, running, VM_REG_GUEST_ES, vmcx->guest_es);
+	err += vmcb_setdesc(sc, running, VM_REG_GUEST_ES, &vmcx->guest_es_desc);
+
+	/* CS */
+	err += svm_setreg(sc, running, VM_REG_GUEST_CS, vmcx->guest_cs);
+	err += vmcb_setdesc(sc, running, VM_REG_GUEST_CS, &vmcx->guest_cs_desc);
+
+	/* SS */
+	err += svm_setreg(sc, running, VM_REG_GUEST_SS, vmcx->guest_ss);
+	err += vmcb_setdesc(sc, running, VM_REG_GUEST_SS, &vmcx->guest_ss_desc);
+
+	/* DS */
+	err += svm_setreg(sc, running, VM_REG_GUEST_DS, vmcx->guest_ds);
+	err += vmcb_setdesc(sc, running, VM_REG_GUEST_DS, &vmcx->guest_ds_desc);
+
+	/* FS */
+	err += svm_setreg(sc, running, VM_REG_GUEST_FS, vmcx->guest_fs);
+	err += vmcb_setdesc(sc, running, VM_REG_GUEST_FS, &vmcx->guest_fs_desc);
+
+	/* GS */
+	err += svm_setreg(sc, running, VM_REG_GUEST_GS, vmcx->guest_gs);
+	err += vmcb_setdesc(sc, running, VM_REG_GUEST_GS, &vmcx->guest_gs_desc);
+
+	/* TR */
+	err += svm_setreg(sc, running, VM_REG_GUEST_TR, vmcx->guest_tr);
+	err += vmcb_setdesc(sc, running, VM_REG_GUEST_TR, &vmcx->guest_tr_desc);
+
+	/* LDTR */
+	err += svm_setreg(sc, running, VM_REG_GUEST_LDTR, vmcx->guest_ldtr);
+	err += vmcb_setdesc(sc, running, VM_REG_GUEST_LDTR, &vmcx->guest_ldtr_desc);
+
+	/* EFER */
+	err += svm_setreg(sc, running, VM_REG_GUEST_EFER, vmcx->guest_efer);
+
+	/* IDTR and GDTR */
+	err += vmcb_setdesc(sc, running, VM_REG_GUEST_IDTR, &vmcx->guest_idtr_desc);
+	err += vmcb_setdesc(sc, running, VM_REG_GUEST_GDTR, &vmcx->guest_gdtr_desc);
+
+	/* Guest page tables */
+	err += svm_setreg(sc, running, VM_REG_GUEST_PDPTE0, vmcx->guest_pdpte0);
+	err += svm_setreg(sc, running, VM_REG_GUEST_PDPTE1, vmcx->guest_pdpte1);
+	err += svm_setreg(sc, running, VM_REG_GUEST_PDPTE2, vmcx->guest_pdpte2);
+	err += svm_setreg(sc, running, VM_REG_GUEST_PDPTE3, vmcx->guest_pdpte3);
+
+	/* TODO - Specific AMD registers */
+	// AMD special registers
+	// VMCB_OFF_SYSENTER_CS  is VMCS_GUEST_IA32_SYSENTER_CS
+	// VMCB_OFF_SYSENTER_ESP is VMCS_GUEST_IA32_SYSENTER_ESP
+	// VMCB_OFF_SYSENTER_EIP is VMCS_GUEST_IA32_SYSENTER_EIP
+	//
+	err += vmcb_setany(sc, running,
+				VMCB_OFF_SYSENTER_CS,
+				vmcx->guest_ia32_sysenter_cs);
+	err += vmcb_setany(sc, running,
+				VMCB_OFF_SYSENTER_ESP,
+				vmcx->guest_ia32_sysenter_esp);
+	err += vmcb_setany(sc, running,
+				VMCB_OFF_SYSENTER_EIP,
+				vmcx->guest_ia32_sysenter_eip);
+
+	/* TODO - Restore other registers such as:
+	 * INTRRERUT_SHADOW - VM_REG_GUEST_INTR_SHADOW
+	 * err += svm_setreg(sc, running, VM_REG_GUEST_INTR_SHADOW, val);
+	 * CR2 - VM_REG_GUEST_CR2
+	 * err += svm_setreg(sc, running, VM_REG_GUEST_CR2, val);
+	 * RAX - VM_REG_GUEST_RAX
+	 * err += svm_setreg(sc, running, VM_REG_GUEST_RAX, val);
+	 * DR6 - vmcb->dr6
+	 * CPL - vmcb->cpl
+	 */
+
+	return (err);
+}
+
+static int
+svm_restore_vmi(void *arg, void *buffer, size_t size)
+{
+	struct svm_softc *from_sc = (struct svm_softc *)buffer;
+	struct svm_softc *sc = (struct svm_softc *)arg;
+	int i;
+
+	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
+	KASSERT(buffer != NULL, ("%s: buffer was NULL", __func__));
+
+	for (i = 0; i < VM_MAXCPU; i++) {
+//		for (j = 0; j < PAGE_SIZE; j++) {
+//			sc->apic_page[i][j] = from_sc->apic_page[i][j];
+//		}
+		memcpy(sc->apic_page[i], from_sc->apic_page[i], PAGE_SIZE);
+	}
+//	TODO
+
+//	memcpy(sc->iopm_bitmap, from_sc->iopm_bitmap, SVM_IO_BITMAP_SIZE);
+//	memcpy(sc->msr_bitmap, from_sc->msr_bitmap, SVM_MSR_BITMAP_SIZE);
+
+//	TODO - Restore struct svm_cpu vcpu[VM_MAXCPU] ??? maybe
+	return (0);
+}
+
 struct vmm_ops vmm_ops_amd = {
 	svm_init,
 	svm_cleanup,
@@ -2296,5 +2552,9 @@ struct vmm_ops vmm_ops_amd = {
 	svm_npt_alloc,
 	svm_npt_free,
 	svm_vlapic_init,
-	svm_vlapic_cleanup	
+	svm_vlapic_cleanup,
+	svm_snapshot_vmi,
+	svm_restore_vmi,
+	svm_snapshot_vmcx,
+	svm_restore_vmcx
 };

@@ -331,6 +331,8 @@ int	vmcb_write(struct svm_softc *sc, int vcpu, int ident, uint64_t val);
 int	vmcb_setdesc(void *arg, int vcpu, int ident, struct seg_desc *desc);
 int	vmcb_getdesc(void *arg, int vcpu, int ident, struct seg_desc *desc);
 int	vmcb_seg(struct vmcb *vmcb, int ident, struct vmcb_segment *seg);
+int	vmcb_getany(struct svm_softc *sc, int vcpu, int ident, uint64_t *val);
+int	vmcb_setany(struct svm_softc *sc, int vcpu, int ident, uint64_t val);
 
 #endif /* _KERNEL */
 #endif /* _VMCB_H_ */
