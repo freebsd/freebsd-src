@@ -181,7 +181,7 @@ efipart_inithandles(void)
 static ACPI_HID_DEVICE_PATH *
 efipart_floppy(EFI_DEVICE_PATH *node)
 {
-	ACPI_HID_DEVICE_PATH *acpi = NULL;
+	ACPI_HID_DEVICE_PATH *acpi;
 
 	if (DevicePathType(node) == ACPI_DEVICE_PATH &&
 	    DevicePathSubType(node) == ACPI_DP) {
@@ -192,7 +192,7 @@ efipart_floppy(EFI_DEVICE_PATH *node)
 			return (acpi);
 		}
 	}
-	return (acpi);
+	return (NULL);
 }
 
 /*
