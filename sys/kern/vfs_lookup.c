@@ -328,8 +328,9 @@ namei(struct nameidata *ndp)
 		error = copystr((const char *)ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
 		    &ndp->ni_pathlen);
 	else
-		error = copyinstr_fc(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
-		    &ndp->ni_pathlen);
+		error = copyinstr_c(ndp->ni_dirp,
+		    (char * __CAPABILITY)cnp->cn_pnbuf, MAXPATHLEN,
+		    (size_t * __CAPABILITY)&ndp->ni_pathlen);
 
 	/*
 	 * Don't allow empty pathnames.

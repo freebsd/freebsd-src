@@ -201,6 +201,38 @@ END(copyinstr)
  * Copy a null terminated string from the kernel address space into
  * the user address space.
  *
+ *	copyinstr_c(from, to, maxlength, &lencopied)
+ *		char * __capability fromaddr;
+ *		char * __capability toaddr;
+ *		u_int maxlength;
+ *		u_int * __capability lencopied;
+ */
+#ifdef CPU_CHERI
+NESTED(copyinstr_c, CALLFRAME_SIZ, ra)
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	.mask		0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	PTR_LA		v0, copyerr
+	cgetbase	t0, $c3
+	blt	t0, zero, _C_LABEL(copyerr) # make sure `from` is in user space
+	REG_S		ra, CALLFRAME_RA(sp)
+	GET_CPU_PCPU(v1)
+	PTR_L		v1, PC_CURPCB(v1)
+	PTR_LA		t9, _C_LABEL(copystr_c)
+	jalr		t9
+	PTR_S		v0, U_PCB_ONFAULT(v1)
+	REG_L		ra, CALLFRAME_RA(sp)
+	GET_CPU_PCPU(v1)
+	PTR_L		v1, PC_CURPCB(v1)
+	PTR_S		zero, U_PCB_ONFAULT(v1)
+	j		ra
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
+END(copyinstr_c)
+#endif
+
+/*
+ * Copy a null terminated string from the kernel address space into
+ * the user address space.
+ *
  *	copyoutstr(fromaddr, toaddr, maxlength, &lencopied)
  *		caddr_t fromaddr;
  *		caddr_t toaddr;
