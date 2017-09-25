@@ -625,8 +625,8 @@ __gnu_Unwind_RaiseException (_Unwind_Control_Block * ucbp,
   do
     {
       /* Find the entry for this routine.  */
-      if (get_eit_entry (ucbp, saved_vrs.core.r[R_PC]) != _URC_OK)
-	return _URC_FAILURE;
+      if ((pr_result = get_eit_entry (ucbp, saved_vrs.core.r[R_PC])) != _URC_OK)
+	return pr_result;
 
       /* Call the pr to decide what to do.  */
       pr_result = ((personality_routine) UCB_PR_ADDR (ucbp))
