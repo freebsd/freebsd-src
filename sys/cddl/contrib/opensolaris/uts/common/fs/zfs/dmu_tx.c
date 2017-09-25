@@ -806,8 +806,8 @@ dmu_tx_delay(dmu_tx_t *tx, uint64_t dirty)
 		continue;
 	mutex_exit(&curthread->t_delay_lock);
 #else
-	pause_sbt("dmu_tx_delay", wakeup * SBT_1NS,
-	    zfs_delay_resolution_ns * SBT_1NS, C_ABSOLUTE);
+	pause_sbt("dmu_tx_delay", nstosbt(wakeup),
+	    nstosbt(zfs_delay_resolution_ns), C_ABSOLUTE);
 #endif
 #else
 	hrtime_t delta = wakeup - gethrtime();
