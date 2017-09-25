@@ -28,7 +28,7 @@
 .\"     from: @(#)gettytab.5	8.4 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\" "
-.Dd April 19, 1994
+.Dd February 2, 2017
 .Dt GETTYTAB 5
 .Os
 .Sh NAME
@@ -118,7 +118,7 @@ character
 .Em NOT
 hangup line on last close
 .It "he	str" Ta Dv NULL Ta
-.No "hostname editing string"
+.No "hostname editing regular expression"
 .It "hn	str	hostname	hostname"
 .It "ht	bool	false	terminal has real tabs"
 .It "hw	bool	false	do cts/rts hardware flow control"
@@ -302,18 +302,13 @@ but may also be overridden by the
 table entry.
 In either case it may be edited with the
 .Va \&he
-string.
-A '@' in the
-.Va \&he
-string causes one character from the real hostname to
-be copied to the final hostname.
-A '#' in the
-.Va \&he
-string causes the next character of the real hostname
-to be skipped.
-Each character that
-is neither '@' nor '#' is copied into the final hostname.
-Surplus '@' and '#' characters are ignored.
+POSIX
+.Dq extended
+regular expression, which is matched against the hostname.
+If there are no parenthesized subexpressions in the pattern,
+the entire matched string is used as the final hostname;
+otherwise, the first matched subexpression is used instead.
+If the pattern does not match, the original hostname is not modified.
 .It \&%t
 The tty name.
 .It "\&%m, \&%r, \&%s, \&%v"
@@ -526,10 +521,6 @@ The delay stuff is a real crock.
 Apart form its general lack of flexibility, some
 of the delay algorithms are not implemented.
 The terminal driver should support sane delay settings.
-.Pp
-The
-.Va \&he
-capability is stupid.
 .Pp
 The
 .Xr termcap 5
