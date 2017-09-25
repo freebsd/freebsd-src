@@ -281,6 +281,36 @@ NESTED(copyincap, CALLFRAME_SIZ, ra)
 	j	ra
 	move	v0, zero
 END(copyincap)
+
+/*
+ * Copy specified amount of data from user space into the kernel via
+ * capabilities
+ * NOTE: Does not copy capabilities
+ *	copyin_c(from, to, len)
+ *		void * __capability from;	(user source address)
+ *		void * __capability to;		(kernel destination address)
+ *		unsigned len;
+ */
+NESTED(copyin_c, CALLFRAME_SIZ, ra)
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	PTR_LA	v0, copyerr
+	cgetbase	t0, $c3
+	blt	t0, zero, _C_LABEL(copyerr) # make sure `from` is in user space
+	REG_S	ra, CALLFRAME_RA(sp)
+	GET_CPU_PCPU(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_LA	t9, _C_LABEL(bcopynocap_c)
+	jalr	t9
+	PTR_S	v0, U_PCB_ONFAULT(v1)
+	REG_L	ra, CALLFRAME_RA(sp)
+	GET_CPU_PCPU(v1)
+	PTR_L	v1, PC_CURPCB(v1)	 	# bcopy modified v1, so reload
+	PTR_S	zero, U_PCB_ONFAULT(v1)
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
+	j	ra
+	move	v0, zero
+END(copyin_c)
 #endif
 
 /*
@@ -338,6 +368,35 @@ NESTED(copyoutcap, CALLFRAME_SIZ, ra)
 	j	ra
 	move	v0, zero
 END(copyoutcap)
+
+/*
+ * Copy specified amount of data from kernel to the user space via capabilities
+ * NOTE: does not copy capabilities
+ *	copyout_c(from, to, len)
+ *		void * __capability from;	(kernel source capability)
+ *		void * __capability to;		(user destination capability)
+ *		unsigned len;
+ */
+NESTED(copyout_c, CALLFRAME_SIZ, ra)
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	PTR_LA	v0, copyerr
+	cgetbase	t0, $c4
+	blt	t0, zero, _C_LABEL(copyerr) # make sure `to` is in user space
+	REG_S	ra, CALLFRAME_RA(sp)
+	GET_CPU_PCPU(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_LA	t9, _C_LABEL(bcopynocap_c)
+	jalr	t9
+	PTR_S	v0, U_PCB_ONFAULT(v1)
+	REG_L	ra, CALLFRAME_RA(sp)
+	GET_CPU_PCPU(v1)
+	PTR_L	v1, PC_CURPCB(v1)	 	# bcopy modified v1, so reload
+	PTR_S	zero, U_PCB_ONFAULT(v1)
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
+	j	ra
+	move	v0, zero
+END(copyout_c)
 #endif
 
 LEAF(copyerr)

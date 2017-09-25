@@ -83,6 +83,37 @@ return:
 	nop
 END(cheri_memcpy)
 
+/*
+ * Implement memcpy() and bcopy() variants that take capability
+ * arguments, but DO NOT copy capabilities.  These are implemented in
+ * assembly to support copyin and copyout variants.
+ *
+ *  XXX: These routines are inefficent and copy one byte at a time.
+ *
+ * memcpynocap_c() accepts:
+ * c3 - destination ponter
+ * c4 - source pointer
+ * a0 - length
+ *
+ * bcopynocap_c() has inverted source/destination pointers.
+ */
+LEAF(bcopynocap_c)
+	cmove	$c5, $c3
+	cmove	$c3, $c4	/* $c3 now holds $dst for memcpynocap_c */
+	cmove	$c4, $c5
+XLEAF(memcpynocap_c)
+	beqz	a0, bcnc_return	/* Return immediately if zero-length. */
+	li	t0, 1		/* Bytes that will have been copied */
+bcnc_loop:
+	clbu	t1, t0, -1($c4)
+	csb	t1, t0, -1($c3)
+	bne	a0, t0, bcnc_loop /* Are we there yet?  If not, loop. */
+	daddiu	t0, t0, 1
+bcnc_return:
+	jr	ra
+	nop
+END(bcopynocap_c)
+
 LEAF(copystr_fc)
 	move		t0, a1
 	li		t1, 1
