@@ -773,11 +773,8 @@ __gnu_Unwind_Backtrace(_Unwind_Trace_Fn trace, void * trace_argument,
   do
     {
       /* Find the entry for this routine.  */
-      if (get_eit_entry (ucbp, saved_vrs.core.r[R_PC]) != _URC_OK)
-	{
-	  code = _URC_FAILURE;
+      if ((code = get_eit_entry (ucbp, saved_vrs.core.r[R_PC])) != _URC_OK)
 	  break;
-	}
 
       /* The dwarf unwinder assumes the context structure holds things
 	 like the function and LSDA pointers.  The ARM implementation
