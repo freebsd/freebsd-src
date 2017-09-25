@@ -441,12 +441,12 @@ SYS_STUB(49, int, getlogin,
 )
 
 SYS_STUB(50, int, setlogin,
-    /* _protoargs */ (const char * namebuf),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, const char * __capability  namebuf),
-    /* _protoargs_err */ (__capability int *stub_errno, const char * __capability  namebuf),
-    /* _callargs */ ((const char *)namebuf),
+    /* _protoargs */ (const char *__capability namebuf),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, const char * __capability __capability namebuf),
+    /* _protoargs_err */ (__capability int *stub_errno, const char * __capability __capability namebuf),
+    /* _callargs */ ((const char *__capability)namebuf),
     /* _callargs_chk */ (&ret, stub_errno, namebuf),
-    /* _callargs_err */ (&errno, (const char *)namebuf),
+    /* _callargs_err */ (&errno, (const char *__capability)namebuf),
     /* _localcheck */ {if (!(cheri_getperm(namebuf) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 

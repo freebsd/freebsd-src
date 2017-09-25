@@ -853,22 +853,14 @@ CHERIABI_SYS_getlogin_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_setlogin_fill_uap(struct thread *td,
-    struct setlogin_args *uap)
+CHERIABI_SYS_cheriabi_setlogin_fill_uap(struct thread *td,
+    struct cheriabi_setlogin_args *uap)
 {
-	void * __capability tmpcap;
 
-	/* [0] _In_z_ const char * namebuf */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_setlogin_PTRMASK);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->namebuf),
-		    tmpcap, sizeof(*uap->namebuf), reqperms, 0);
-		if (error != 0)
-			return (error);
-	}
+	/* [0] _In_z_ const char *__capability namebuf */
+	cheriabi_fetch_syscall_arg(td,
+	    __DECONST(void * __capability *, &uap->namebuf),
+	    0, CHERIABI_SYS_cheriabi_setlogin_PTRMASK);
 
 	return (0);
 }

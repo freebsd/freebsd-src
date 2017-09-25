@@ -39,7 +39,7 @@
 #define	CHERIABI_SYS_profil_PTRMASK	(0x0 | 0x1)
 #define	CHERIABI_SYS_ktrace_PTRMASK	(0x0 | 0x1)
 #define	CHERIABI_SYS_getlogin_PTRMASK	(0x0 | 0x1)
-#define	CHERIABI_SYS_setlogin_PTRMASK	(0x0 | 0x1)
+#define	CHERIABI_SYS_cheriabi_setlogin_PTRMASK	(0x0 | 0x1)
 #define	CHERIABI_SYS_acct_PTRMASK	(0x0 | 0x1)
 #define	CHERIABI_SYS_cheriabi_sigaltstack_PTRMASK	(0x0 | 0x1 | 0x2)
 #define	CHERIABI_SYS_cheriabi_ioctl_PTRMASK	(0x0 | 0x4)

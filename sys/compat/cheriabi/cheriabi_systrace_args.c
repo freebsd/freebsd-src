@@ -317,10 +317,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* setlogin */
+	/* cheriabi_setlogin */
 	case 50: {
-		struct setlogin_args *p = params;
-		uarg[0] = (intptr_t) p->namebuf; /* const char * */
+		struct cheriabi_setlogin_args *p = params;
+		uarg[0] = (intptr_t) p->namebuf; /* const char *__capability */
 		*n_args = 1;
 		break;
 	}
@@ -3584,11 +3584,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* setlogin */
+	/* cheriabi_setlogin */
 	case 50:
 		switch(ndx) {
 		case 0:
-			p = "userland const char *";
+			p = "userland const char *__capability";
 			break;
 		default:
 			break;
@@ -8444,7 +8444,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* setlogin */
+	/* cheriabi_setlogin */
 	case 50:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

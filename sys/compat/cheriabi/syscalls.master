@@ -165,7 +165,8 @@
 49	AUE_GETLOGIN	NOPROTO	{ int getlogin( \
 				    _Out_writes_z_(namelen) char *namebuf, \
 				    u_int namelen); }
-50	AUE_SETLOGIN	NOPROTO	{ int setlogin(_In_z_ const char *namebuf); }
+50	AUE_SETLOGIN	STD	{ int cheriabi_setlogin( \
+				    _In_z_ const char * __capability namebuf); }
 51	AUE_ACCT	NOPROTO	{ int acct(_In_z_ const char *path); }
 52	AUE_SIGPENDING	OBSOL	sigpending
 53	AUE_SIGALTSTACK	STD	{ int cheriabi_sigaltstack( \

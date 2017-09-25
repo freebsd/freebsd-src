@@ -2119,6 +2119,13 @@ struct setlogin_args {
 int
 sys_setlogin(struct thread *td, struct setlogin_args *uap)
 {
+
+	return (kern_setlogin(td, (char * __CAPABILITY)uap->namebuf));
+}
+
+int
+kern_setlogin(struct thread *td, const char * __CAPABILITY namebuf)
+{
 	struct proc *p = td->td_proc;
 	int error;
 	char logintmp[MAXLOGNAME];
@@ -2128,7 +2135,8 @@ sys_setlogin(struct thread *td, struct setlogin_args *uap)
 	error = priv_check(td, PRIV_PROC_SETLOGIN);
 	if (error)
 		return (error);
-	error = copyinstr(uap->namebuf, logintmp, sizeof(logintmp), NULL);
+	error = copyinstr_c(namebuf, (char * __CAPABILITY)logintmp,
+	    sizeof(logintmp), NULL);
 	if (error != 0) {
 		if (error == ENAMETOOLONG)
 			error = EINVAL;

@@ -41,7 +41,7 @@ MIASM =  \
 	ktrace.o \
 	getgid.o \
 	getlogin.o \
-	setlogin.o \
+	cheriabi_setlogin.o \
 	acct.o \
 	cheriabi_sigaltstack.o \
 	cheriabi_ioctl.o \
