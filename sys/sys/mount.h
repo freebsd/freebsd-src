@@ -644,7 +644,8 @@ struct mntarg;
 typedef int vfs_cmount_t(struct mntarg *ma, void *data, uint64_t flags);
 typedef int vfs_unmount_t(struct mount *mp, int mntflags);
 typedef int vfs_root_t(struct mount *mp, int flags, struct vnode **vpp);
-typedef	int vfs_quotactl_t(struct mount *mp, int cmds, uid_t uid, void *arg);
+typedef	int vfs_quotactl_t(struct mount *mp, int cmds, uid_t uid,
+		    void * __CAPABILITY arg);
 typedef	int vfs_statfs_t(struct mount *mp, struct statfs *sbp);
 typedef	int vfs_sync_t(struct mount *mp, int waitfor);
 typedef	int vfs_vget_t(struct mount *mp, ino_t ino, int flags,

@@ -128,7 +128,7 @@ int
 cheriabi_quotactl(struct thread *td, struct cheriabi_quotactl_args *uap)
 {
 
-	return (ENOSYS);
+	return (kern_quotactl(td, uap->path, uap->cmd, uap->uid, uap->arg));
 }
 
 int

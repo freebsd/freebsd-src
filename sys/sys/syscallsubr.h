@@ -204,6 +204,8 @@ int	kern_ptrace(struct thread *td, int req, pid_t pid, void *addr,
 int	kern_pwrite(struct thread *td, int fd, const void *buf, size_t nbyte,
 	    off_t offset);
 int	kern_pwritev(struct thread *td, int fd, struct uio *auio, off_t offset);
+int	kern_quotactl(struct thread *td, const char * __CAPABILITY path,
+	    int cmd, int uid, void * __CAPABILITY arg);
 int	kern_readlinkat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, char *buf, enum uio_seg bufseg, size_t count);
 int	kern_readv(struct thread *td, int fd, struct uio *auio);

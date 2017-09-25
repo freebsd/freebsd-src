@@ -488,7 +488,7 @@ chkdquot(struct inode *ip)
  * Q_QUOTAON - set up a quota file for a particular filesystem.
  */
 int
-quotaon(struct thread *td, struct mount *mp, int type, void *fname)
+quotaon(struct thread *td, struct mount *mp, int type, void * __CAPABILITY fname)
 {
 	struct ufsmount *ump;
 	struct vnode *vp, **vpp;
@@ -511,7 +511,7 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	ump = VFSTOUFS(mp);
 	dq = NODQUOT;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, fname, td);
+	NDINIT_C(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, fname, td);
 	flags = FREAD | FWRITE;
 	vfs_ref(mp);
 	vfs_unbusy(mp);
@@ -919,7 +919,8 @@ _setuse(struct thread *td, struct mount *mp, u_long id, int type,
 }
 
 int
-getquota32(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
+getquota32(struct thread *td, struct mount *mp, u_long id, int type,
+    void * __CAPABILITY addr)
 {
 	struct dqblk32 dqb32;
 	struct dqblk64 dqb64;
@@ -929,18 +930,19 @@ getquota32(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
 	if (error)
 		return (error);
 	dqb64_dqb32(&dqb64, &dqb32);
-	error = copyout(&dqb32, addr, sizeof(dqb32));
+	error = copyout_c((struct dqblk32 * __CAPABILITY)&dqb32, addr, sizeof(dqb32));
 	return (error);
 }
 
 int
-setquota32(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
+setquota32(struct thread *td, struct mount *mp, u_long id, int type,
+    void * __CAPABILITY addr)
 {
 	struct dqblk32 dqb32;
 	struct dqblk64 dqb64;
 	int error;
 
-	error = copyin(addr, &dqb32, sizeof(dqb32));
+	error = copyin_c(addr, (struct dqblk32 * __CAPABILITY)&dqb32, sizeof(dqb32));
 	if (error)
 		return (error);
 	dqb32_dqb64(&dqb32, &dqb64);
@@ -949,13 +951,15 @@ setquota32(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
 }
 
 int
-setuse32(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
+setuse32(struct thread *td, struct mount *mp, u_long id, int type,
+    void * __CAPABILITY addr)
 {
 	struct dqblk32 dqb32;
 	struct dqblk64 dqb64;
 	int error;
 
-	error = copyin(addr, &dqb32, sizeof(dqb32));
+	error = copyin_c(addr, (struct dqblk32 * __CAPABILITY)&dqb32,
+	    sizeof(dqb32));
 	if (error)
 		return (error);
 	dqb32_dqb64(&dqb32, &dqb64);
@@ -964,7 +968,8 @@ setuse32(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
 }
 
 int
-getquota(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
+getquota(struct thread *td, struct mount *mp, u_long id, int type,
+    void * __CAPABILITY addr)
 {
 	struct dqblk64 dqb64;
 	int error;
@@ -972,17 +977,20 @@ getquota(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
 	error = _getquota(td, mp, id, type, &dqb64);
 	if (error)
 		return (error);
-	error = copyout(&dqb64, addr, sizeof(dqb64));
+	error = copyout_c((struct dqblk64 * __CAPABILITY)&dqb64, addr,
+	    sizeof(dqb64));
 	return (error);
 }
 
 int
-setquota(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
+setquota(struct thread *td, struct mount *mp, u_long id, int type,
+    void * __CAPABILITY addr)
 {
 	struct dqblk64 dqb64;
 	int error;
 
-	error = copyin(addr, &dqb64, sizeof(dqb64));
+	error = copyin_c(addr, (struct dqblk64 * __CAPABILITY)&dqb64,
+	    sizeof(dqb64));
 	if (error)
 		return (error);
 	error = _setquota(td, mp, id, type, &dqb64);
@@ -990,12 +998,14 @@ setquota(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
 }
 
 int
-setuse(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
+setuse(struct thread *td, struct mount *mp, u_long id, int type,
+    void * __CAPABILITY addr)
 {
 	struct dqblk64 dqb64;
 	int error;
 
-	error = copyin(addr, &dqb64, sizeof(dqb64));
+	error = copyin_c(addr, (struct dqblk64 * __CAPABILITY)&dqb64,
+	    sizeof(dqb64));
 	if (error)
 		return (error);
 	error = _setuse(td, mp, id, type, &dqb64);
@@ -1007,7 +1017,7 @@ setuse(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
  */
 int
 getquotasize(struct thread *td, struct mount *mp, u_long id, int type,
-    void *sizep)
+    void * __CAPABILITY sizep)
 {
 	struct ufsmount *ump = VFSTOUFS(mp);
 	int bitsize;
@@ -1023,7 +1033,7 @@ getquotasize(struct thread *td, struct mount *mp, u_long id, int type,
 	else
 		bitsize = 32;
 	UFS_UNLOCK(ump);
-	return (copyout(&bitsize, sizep, sizeof(int)));
+	return (copyout_c((int * __CAPABILITY)&bitsize, sizep, sizeof(int)));
 }
 
 /*

@@ -286,11 +286,7 @@ nullfs_root(mp, flags, vpp)
 }
 
 static int
-nullfs_quotactl(mp, cmd, uid, arg)
-	struct mount *mp;
-	int cmd;
-	uid_t uid;
-	void *arg;
+nullfs_quotactl(struct mount *mp, int cmd, uid_t uid, void * __CAPABILITY arg)
 {
 	return VFS_QUOTACTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd, uid, arg);
 }

@@ -156,16 +156,24 @@ struct quotactl_args {
 int
 sys_quotactl(struct thread *td, struct quotactl_args *uap)
 {
+	return (kern_quotactl(td, (const char * __CAPABILITY)uap->path,
+	    uap->cmd, uap->uid, (void * __CAPABILITY)uap->arg));
+}
+
+int
+kern_quotactl(struct thread *td, const char * __CAPABILITY path, int cmd,
+    int uid, void * __CAPABILITY arg)
+{
 	struct mount *mp;
 	struct nameidata nd;
 	int error;
 
-	AUDIT_ARG_CMD(uap->cmd);
-	AUDIT_ARG_UID(uap->uid);
+	AUDIT_ARG_CMD(cmd);
+	AUDIT_ARG_UID(uid);
 	if (!prison_allow(td->td_ucred, PR_ALLOW_QUOTAS))
 		return (EPERM);
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_USERSPACE,
-	    uap->path, td);
+	NDINIT_C(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_USERSPACE,
+	    path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -176,7 +184,7 @@ sys_quotactl(struct thread *td, struct quotactl_args *uap)
 	vfs_rel(mp);
 	if (error != 0)
 		return (error);
-	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg);
+	error = VFS_QUOTACTL(mp, cmd, uid, arg);
 
 	/*
 	 * Since quota on operation typically needs to open quota
@@ -189,7 +197,7 @@ sys_quotactl(struct thread *td, struct quotactl_args *uap)
 	 * Require that Q_QUOTAON handles the vfs_busy() reference on
 	 * its own, always returning with ubusied mount point.
 	 */
-	if ((uap->cmd >> SUBCMDSHIFT) != Q_QUOTAON)
+	if ((cmd >> SUBCMDSHIFT) != Q_QUOTAON)
 		vfs_unbusy(mp);
 	return (error);
 }

@@ -85,11 +85,7 @@ ufs_root(mp, flags, vpp)
  * Do operations associated with quotas
  */
 int
-ufs_quotactl(mp, cmds, id, arg)
-	struct mount *mp;
-	int cmds;
-	uid_t id;
-	void *arg;
+ufs_quotactl(struct mount *mp, int cmds, uid_t id, void * __CAPABILITY arg)
 {
 #ifndef QUOTA
 	if ((cmds >> SUBCMDSHIFT) == Q_QUOTAON)

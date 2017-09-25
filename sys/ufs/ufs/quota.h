@@ -230,14 +230,21 @@ int	getinoquota(struct inode *);
 int	qsync(struct mount *);
 int	qsyncvp(struct vnode *);
 int	quotaoff(struct thread *, struct mount *, int);
-int	quotaon(struct thread *, struct mount *, int, void *);
-int	getquota32(struct thread *, struct mount *, u_long, int, void *);
-int	setquota32(struct thread *, struct mount *, u_long, int, void *);
-int	setuse32(struct thread *, struct mount *, u_long, int, void *);
-int	getquota(struct thread *, struct mount *, u_long, int, void *);
-int	setquota(struct thread *, struct mount *, u_long, int, void *);
-int	setuse(struct thread *, struct mount *, u_long, int, void *);
-int	getquotasize(struct thread *, struct mount *, u_long, int, void *);
+int	quotaon(struct thread *, struct mount *, int, void * __CAPABILITY);
+int	getquota32(struct thread *, struct mount *, u_long, int,
+	    void * __CAPABILITY);
+int	setquota32(struct thread *, struct mount *, u_long, int,
+	    void * __CAPABILITY);
+int	setuse32(struct thread *, struct mount *, u_long, int,
+	    void * __CAPABILITY);
+int	getquota(struct thread *, struct mount *, u_long, int,
+	    void * __CAPABILITY);
+int	setquota(struct thread *, struct mount *, u_long, int,
+	    void * __CAPABILITY);
+int	setuse(struct thread *, struct mount *, u_long, int,
+	    void * __CAPABILITY);
+int	getquotasize(struct thread *, struct mount *, u_long, int,
+	    void * __CAPABILITY);
 vfs_quotactl_t ufs_quotactl;
 
 #ifdef SOFTUPDATES
