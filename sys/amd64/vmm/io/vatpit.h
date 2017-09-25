@@ -43,5 +43,8 @@ int vatpit_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
     uint32_t *eax);
 int vatpit_nmisc_handler(struct vm *vm, int vcpuid, bool in, int port,
     int bytes, uint32_t *eax);
+int vatpit_snapshot(struct vatpit *vatpit, void *buffer, size_t buf_size,
+    size_t *snapshot_size);
+int vatpit_restore(struct vatpit *vatpit, void *buffer, size_t buf_size);
 
 #endif	/* _VATPIT_H_ */

@@ -455,3 +455,72 @@ vatpit_cleanup(struct vatpit *vatpit)
 
 	free(vatpit, M_VATPIT);
 }
+
+int
+vatpit_snapshot(struct vatpit *vatpit, void *buffer,
+			size_t buf_size, size_t *snapshot_size)
+{
+	printf("%s\n", __func__);
+	int error;
+
+	if (buf_size < sizeof(struct vatpit)) {
+		printf("%s: buffer size too small: %lu < %lu\n",
+			__func__, buf_size, sizeof(struct vatpit));
+		return (EINVAL);
+	}
+
+	error = copyout(vatpit, buffer, sizeof(struct vatpit));
+	if (error) {
+		printf("%s: failed to copy vatpit data to user buffer\n",
+			__func__);
+		return (error);
+	}
+
+	*snapshot_size = sizeof(struct vatpit);
+	return (0);
+}
+
+int
+vatpit_restore(struct vatpit *vatpit, void *buffer, size_t buf_size)
+{
+	printf("%s\n", __func__);
+	int i;
+	struct vatpit *old_vatpit;
+
+	if (buffer == NULL) {
+		printf("%s: buffer was NULL\n", __func__);
+		return (EINVAL);
+	}
+
+	if (buf_size <  sizeof(struct vatpit)) {
+		printf("%s: restore buffer size mismatch: %lu != %lu\n",
+			__func__, buf_size, sizeof(struct vatpit));
+		return (EINVAL);
+	}
+
+	old_vatpit = (struct vatpit *)buffer;
+
+	vatpit->mtx = old_vatpit->mtx;
+	vatpit->freq_sbt = old_vatpit->freq_sbt;
+
+	for (i = 0; i < 3; i++) {
+		vatpit->channel[i].mode = old_vatpit->channel[i].mode;
+		/* TODO - maybe not needed */
+		vatpit->channel[i].initial = old_vatpit->channel[i].initial;
+		vatpit->channel[i].now_sbt = old_vatpit->channel[i].now_sbt;
+		vatpit->channel[i].cr[0] = old_vatpit->channel[i].cr[0];
+		vatpit->channel[i].cr[1] = old_vatpit->channel[i].cr[1];
+		vatpit->channel[i].ol[0] = old_vatpit->channel[i].ol[0];
+		vatpit->channel[i].ol[1] = old_vatpit->channel[i].ol[1];
+		vatpit->channel[i].slatched = old_vatpit->channel[i].slatched;
+		vatpit->channel[i].status = old_vatpit->channel[i].status;
+		vatpit->channel[i].crbyte = old_vatpit->channel[i].crbyte;
+		vatpit->channel[i].frbyte = old_vatpit->channel[i].frbyte;
+		vatpit->channel[i].callout = old_vatpit->channel[i].callout;
+		vatpit->channel[i].callout_sbt = old_vatpit->channel[i].callout_sbt;
+		/* TODO - maybe callout_arg.vatpit pointer should be restored at this *vatpit */
+		vatpit->channel[i].callout_arg = old_vatpit->channel[i].callout_arg;
+	}
+
+	return (0);
+}
