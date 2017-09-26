@@ -357,7 +357,7 @@ kern_shmdt_locked(struct thread *td, const void *shmaddr)
 {
 	struct proc *p = td->td_proc;
 	struct shmmap_state *shmmap_s;
-#if defined(AUDIT) || defined(MAC)
+#if (defined(AUDIT) && defined(KDTRACE_HOOKS)) || defined(MAC)
 	struct shmid_kernel *shmsegptr;
 #endif
 #ifdef MAC
