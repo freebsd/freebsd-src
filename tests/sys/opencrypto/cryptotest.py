@@ -47,7 +47,7 @@ def katg(base, glob):
 
 aesmodules = [ 'cryptosoft0', 'aesni0', 'ccr0' ]
 desmodules = [ 'cryptosoft0', ]
-shamodules = [ 'cryptosoft0', 'ccr0' ]
+shamodules = [ 'cryptosoft0', 'aesni0', 'ccr0' ]
 
 def GenTestCase(cname):
 	try:
