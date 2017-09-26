@@ -339,6 +339,8 @@ MODULE_DEPEND(em, pci, 1, 1, 1);
 MODULE_DEPEND(em, ether, 1, 1, 1);
 MODULE_DEPEND(em, iflib, 1, 1, 1);
 
+IFLIB_PNP_INFO(pci, em, em_vendor_info_array);
+
 static driver_t igb_driver = {
 	"igb", igb_methods, sizeof(struct adapter),
 };
@@ -350,6 +352,7 @@ MODULE_DEPEND(igb, pci, 1, 1, 1);
 MODULE_DEPEND(igb, ether, 1, 1, 1);
 MODULE_DEPEND(igb, iflib, 1, 1, 1);
 
+IFLIB_PNP_INFO(pci, igb, igb_vendor_info_array);
 
 static device_method_t em_if_methods[] = {
 	DEVMETHOD(ifdi_attach_pre, em_if_attach_pre),
