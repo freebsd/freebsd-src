@@ -59,15 +59,27 @@ static	void SHA1Final_int(u_int8_t *, void *);
 
 /* Authentication instances */
 struct auth_hash auth_hash_hmac_sha1 = {
-	CRYPTO_SHA1_HMAC, "HMAC-SHA1",
-	SHA1_HMAC_BLOCK_LEN, SHA1_HASH_LEN, sizeof(SHA1_CTX), SHA1_HMAC_BLOCK_LEN,
-	SHA1Init_int, NULL, NULL, SHA1Update_int, SHA1Final_int
+	.type = CRYPTO_SHA1_HMAC,
+	.name = "HMAC-SHA1",
+	.keysize = SHA1_HMAC_BLOCK_LEN,
+	.hashsize = SHA1_HASH_LEN,
+	.ctxsize = sizeof(SHA1_CTX),
+	.blocksize = SHA1_HMAC_BLOCK_LEN,
+	.Init = SHA1Init_int,
+	.Update = SHA1Update_int,
+	.Final = SHA1Final_int,
 };
 
 struct auth_hash auth_hash_key_sha1 = {
-	CRYPTO_SHA1_KPDK, "Keyed SHA1",
-	0, SHA1_KPDK_HASH_LEN, sizeof(SHA1_CTX), 0,
-	SHA1Init_int, NULL, NULL, SHA1Update_int, SHA1Final_int
+	.type = CRYPTO_SHA1_KPDK,
+	.name = "Keyed SHA1",
+	.keysize = 0,
+	.hashsize = SHA1_KPDK_HASH_LEN,
+	.ctxsize = sizeof(SHA1_CTX),
+	.blocksize = 0,
+	.Init = SHA1Init_int,
+	.Update = SHA1Update_int,
+	.Final = SHA1Final_int,
 };
 
 /*
