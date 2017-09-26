@@ -785,8 +785,8 @@
 				    _In_ struct mac_c *mac_p); }
 ; XXX-BD: value is hard to check, may not need LOAD.
 390	AUE_NULL	NOPROTO	{ int kenv(int what, \
-				    _In_z_ const char *name, \
-				    _Inout_ char *value, int len); }
+				    _In_z_opt_ const char *name, \
+				    _Inout_updates_opt_(len) char *value, int len); }
 391	AUE_LCHFLAGS	NOPROTO	{ int lchflags(_In_z_ const char *path, \
 				    u_long flags); }
 392	AUE_NULL	NOPROTO	{ int uuidgen( \

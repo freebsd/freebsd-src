@@ -5258,26 +5258,26 @@ CHERIABI_SYS_kenv_fill_uap(struct thread *td,
 	cheriabi_fetch_syscall_arg(td, &tmpcap, 3, CHERIABI_SYS_kenv_PTRMASK);
 	uap->len = (register_t)tmpcap;
 
-	/* [1] _In_z_ const char * name */
+	/* [1] _In_z_opt_ const char * name */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, 1, CHERIABI_SYS_kenv_PTRMASK);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->name),
-		    tmpcap, sizeof(*uap->name), reqperms, 0);
+		    tmpcap, sizeof(*uap->name), reqperms, 1);
 		if (error != 0)
 			return (error);
 	}
 
-	/* [2] _Inout_ char * value */
+	/* [2] _Inout_updates_opt_(len) char * value */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_STORE);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS_kenv_PTRMASK);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->value),
-		    tmpcap, sizeof(*uap->value), reqperms, 0);
+		    tmpcap, (sizeof(*uap->value) * uap->len), reqperms, 1);
 		if (error != 0)
 			return (error);
 	}
