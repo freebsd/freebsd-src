@@ -318,7 +318,7 @@
 #define	CHERIABI_SYS_cheriabi___mac_get_file	387
 #define	CHERIABI_SYS_cheriabi___mac_set_fd	388
 #define	CHERIABI_SYS_cheriabi___mac_set_file	389
-#define	CHERIABI_SYS_kenv	390
+#define	CHERIABI_SYS_cheriabi_kenv	390
 #define	CHERIABI_SYS_lchflags	391
 #define	CHERIABI_SYS_uuidgen	392
 #define	CHERIABI_SYS_cheriabi_sendfile	393

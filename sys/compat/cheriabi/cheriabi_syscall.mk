@@ -223,7 +223,7 @@ MIASM =  \
 	cheriabi___mac_get_file.o \
 	cheriabi___mac_set_fd.o \
 	cheriabi___mac_set_file.o \
-	kenv.o \
+	cheriabi_kenv.o \
 	lchflags.o \
 	uuidgen.o \
 	cheriabi_sendfile.o \

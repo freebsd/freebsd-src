@@ -2222,12 +2222,12 @@ SYS_STUB_ARGHASPTRS(389, int, __mac_set_file,
 )
 
 SYS_STUB(390, int, kenv,
-    /* _protoargs */ (int what, const char * name, char * value, int len),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int what, const char * __capability  name, char * __capability  value, int len),
-    /* _protoargs_err */ (__capability int *stub_errno, int what, const char * __capability  name, char * __capability  value, int len),
-    /* _callargs */ (what, (const char *)name, (char *)value, len),
+    /* _protoargs */ (int what, const char *__capability name, char *__capability value, int len),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int what, const char * __capability __capability name, char * __capability __capability value, int len),
+    /* _protoargs_err */ (__capability int *stub_errno, int what, const char * __capability __capability name, char * __capability __capability value, int len),
+    /* _callargs */ (what, (const char *__capability)name, (char *__capability)value, len),
     /* _callargs_chk */ (&ret, stub_errno, what, name, value, len),
-    /* _callargs_err */ (&errno, what, (const char *)name, (char *)value, len),
+    /* _callargs_err */ (&errno, what, (const char *__capability)name, (char *__capability)value, len),
     /* _localcheck */ {if (!(cheri_getperm(name) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(value) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 

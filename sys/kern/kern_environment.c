@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/syscallsubr.h>
 #include <sys/libkern.h>
 #include <sys/kenv.h>
 
@@ -76,15 +77,25 @@ int	dynamic_kenv = 0;
 #define KENV_CHECK	if (!dynamic_kenv) \
 			    panic("%s: called before SI_SUB_KMEM", __func__)
 
+#ifndef _SYS_SYSPROTO_H_
+struct kenv_args {
+	int what;
+	const char *name;
+	char *value;
+	int len;
+};
+#endif
 int
-sys_kenv(td, uap)
-	struct thread *td;
-	struct kenv_args /* {
-		int what;
-		const char *name;
-		char *value;
-		int len;
-	} */ *uap;
+sys_kenv(struct thread *td, struct kenv_args *uap)
+{
+
+	return (kern_kenv(td, uap->what, (const char * __CAPABILITY)uap->name,
+	    (char * __CAPABILITY)uap->value, uap->len));
+}
+
+int
+kern_kenv(struct thread *td, int what, const char * __CAPABILITY namep,
+    char * __CAPABILITY val, int vallen)
 {
 	char *name, *value, *buffer = NULL;
 	size_t len, done, needed, buflen;
@@ -93,18 +104,18 @@ sys_kenv(td, uap)
 	KASSERT(dynamic_kenv, ("kenv: dynamic_kenv = 0"));
 
 	error = 0;
-	if (uap->what == KENV_DUMP) {
+	if (what == KENV_DUMP) {
 #ifdef MAC
 		error = mac_kenv_check_dump(td->td_ucred);
 		if (error)
 			return (error);
 #endif
 		done = needed = 0;
-		buflen = uap->len;
+		buflen = vallen;
 		if (buflen > KENV_SIZE * (KENV_MNAMELEN + KENV_MVALLEN + 2))
 			buflen = KENV_SIZE * (KENV_MNAMELEN +
 			    KENV_MVALLEN + 2);
-		if (uap->len > 0 && uap->value != NULL)
+		if (vallen > 0 && val != NULL)
 			buffer = malloc(buflen, M_TEMP, M_WAITOK|M_ZERO);
 		mtx_lock(&kenv_lock);
 		for (i = 0; kenvp[i] != NULL; i++) {
@@ -115,21 +126,22 @@ sys_kenv(td, uap)
 			 * If called with a NULL or insufficiently large
 			 * buffer, just keep computing the required size.
 			 */
-			if (uap->value != NULL && buffer != NULL && len > 0) {
+			if (val != NULL && buffer != NULL && len > 0) {
 				bcopy(kenvp[i], buffer + done, len);
 				done += len;
 			}
 		}
 		mtx_unlock(&kenv_lock);
 		if (buffer != NULL) {
-			error = copyout(buffer, uap->value, done);
+			error = copyout_c((char * __CAPABILITY)buffer, val,
+			    done);
 			free(buffer, M_TEMP);
 		}
 		td->td_retval[0] = ((done == needed) ? 0 : needed);
 		return (error);
 	}
 
-	switch (uap->what) {
+	switch (what) {
 	case KENV_SET:
 		error = priv_check(td, PRIV_KENV_SET);
 		if (error)
@@ -145,11 +157,12 @@ sys_kenv(td, uap)
 
 	name = malloc(KENV_MNAMELEN + 1, M_TEMP, M_WAITOK);
 
-	error = copyinstr(uap->name, name, KENV_MNAMELEN + 1, NULL);
+	error = copyinstr_c(namep, (char * __CAPABILITY)name,
+	    KENV_MNAMELEN + 1, NULL);
 	if (error)
 		goto done;
 
-	switch (uap->what) {
+	switch (what) {
 	case KENV_GET:
 #ifdef MAC
 		error = mac_kenv_check_get(td->td_ucred, name);
@@ -162,16 +175,16 @@ sys_kenv(td, uap)
 			goto done;
 		}
 		len = strlen(value) + 1;
-		if (len > uap->len)
-			len = uap->len;
-		error = copyout(value, uap->value, len);
+		if (len > vallen)
+			len = vallen;
+		error = copyout_c((char * __CAPABILITY)value, val, len);
 		freeenv(value);
 		if (error)
 			goto done;
 		td->td_retval[0] = len;
 		break;
 	case KENV_SET:
-		len = uap->len;
+		len = vallen;
 		if (len < 1) {
 			error = EINVAL;
 			goto done;
@@ -179,7 +192,7 @@ sys_kenv(td, uap)
 		if (len > KENV_MVALLEN + 1)
 			len = KENV_MVALLEN + 1;
 		value = malloc(len, M_TEMP, M_WAITOK);
-		error = copyinstr(uap->value, value, len, NULL);
+		error = copyinstr_c(val, (char * __CAPABILITY)value, len, NULL);
 		if (error) {
 			free(value, M_TEMP);
 			goto done;

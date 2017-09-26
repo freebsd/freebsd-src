@@ -2195,3 +2195,10 @@ int cheriabi_setlogin(struct thread *td, struct cheriabi_setlogin_args *uap)
 
 	return (kern_setlogin(td, uap->namebuf));
 }
+
+int
+cheriabi_kenv(struct thread *td, struct cheriabi_kenv_args *uap)
+{
+
+	return (kern_kenv(td, uap->what, uap->name, uap->value, uap->len));
+}

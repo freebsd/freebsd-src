@@ -210,7 +210,7 @@
 #define	CHERIABI_SYS_cheriabi___mac_get_file_PTRMASK	(0x0 | 0x1 | 0x2)
 #define	CHERIABI_SYS_cheriabi___mac_set_fd_PTRMASK	(0x0 | 0x2)
 #define	CHERIABI_SYS_cheriabi___mac_set_file_PTRMASK	(0x0 | 0x1 | 0x2)
-#define	CHERIABI_SYS_kenv_PTRMASK	(0x0 | 0x2 | 0x4)
+#define	CHERIABI_SYS_cheriabi_kenv_PTRMASK	(0x0 | 0x2 | 0x4)
 #define	CHERIABI_SYS_lchflags_PTRMASK	(0x0 | 0x1)
 #define	CHERIABI_SYS_uuidgen_PTRMASK	(0x0 | 0x1)
 #define	CHERIABI_SYS_cheriabi_sendfile_PTRMASK	(0x0 | 0x10 | 0x20)

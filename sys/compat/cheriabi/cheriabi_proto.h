@@ -236,6 +236,12 @@ struct cheriabi___mac_set_file_args {
 	char path_p_l_[PADL_(const char *)]; const char * path_p; char path_p_r_[PADR_(const char *)];
 	char mac_p_l_[PADL_(struct mac_c *)]; struct mac_c * mac_p; char mac_p_r_[PADR_(struct mac_c *)];
 };
+struct cheriabi_kenv_args {
+	char what_l_[PADL_(int)]; int what; char what_r_[PADR_(int)];
+	char name_l_[PADL_(const char *__capability)]; const char *__capability name; char name_r_[PADR_(const char *__capability)];
+	char value_l_[PADL_(char *__capability)]; char *__capability value; char value_r_[PADR_(char *__capability)];
+	char len_l_[PADL_(int)]; int len; char len_r_[PADR_(int)];
+};
 struct cheriabi_sendfile_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
@@ -460,6 +466,7 @@ int	cheriabi___mac_get_fd(struct thread *, struct cheriabi___mac_get_fd_args *);
 int	cheriabi___mac_get_file(struct thread *, struct cheriabi___mac_get_file_args *);
 int	cheriabi___mac_set_fd(struct thread *, struct cheriabi___mac_set_fd_args *);
 int	cheriabi___mac_set_file(struct thread *, struct cheriabi___mac_set_file_args *);
+int	cheriabi_kenv(struct thread *, struct cheriabi_kenv_args *);
 int	cheriabi_sendfile(struct thread *, struct cheriabi_sendfile_args *);
 int	cheriabi_mac_syscall(struct thread *, struct cheriabi_mac_syscall_args *);
 int	cheriabi___mac_get_pid(struct thread *, struct cheriabi___mac_get_pid_args *);
@@ -591,6 +598,7 @@ int	cheriabi_kevent(struct thread *, struct cheriabi_kevent_args *);
 #define	CHERIABI_SYS_AUE_cheriabi___mac_get_file	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi___mac_set_fd	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi___mac_set_file	AUE_NULL
+#define	CHERIABI_SYS_AUE_cheriabi_kenv	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_sendfile	AUE_SENDFILE
 #define	CHERIABI_SYS_AUE_cheriabi_mac_syscall	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi___mac_get_pid	AUE_NULL

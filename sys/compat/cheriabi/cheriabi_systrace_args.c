@@ -1825,12 +1825,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* kenv */
+	/* cheriabi_kenv */
 	case 390: {
-		struct kenv_args *p = params;
+		struct cheriabi_kenv_args *p = params;
 		iarg[0] = p->what; /* int */
-		uarg[1] = (intptr_t) p->name; /* const char * */
-		uarg[2] = (intptr_t) p->value; /* char * */
+		uarg[1] = (intptr_t) p->name; /* const char *__capability */
+		uarg[2] = (intptr_t) p->value; /* char *__capability */
 		iarg[3] = p->len; /* int */
 		*n_args = 4;
 		break;
@@ -6011,17 +6011,17 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* kenv */
+	/* cheriabi_kenv */
 	case 390:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "userland const char *";
+			p = "userland const char *__capability";
 			break;
 		case 2:
-			p = "userland char *";
+			p = "userland char *__capability";
 			break;
 		case 3:
 			p = "int";
@@ -9335,7 +9335,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* kenv */
+	/* cheriabi_kenv */
 	case 390:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
