@@ -158,7 +158,7 @@ awusbphy_configure(device_t dev, int phyno)
 		return;
 
 	if (sc->phy_conf->pmu_unk1 == true)
-		CLR4(sc->phy_ctrl, PMU_UNK_H3, PMU_UNK_H3_CLR);
+		CLR4(sc->pmu[phyno], PMU_UNK_H3, PMU_UNK_H3_CLR);
 
 	if (sc->phy_conf->phy0_route == true) {
 		if (phyno == 0)
