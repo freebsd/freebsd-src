@@ -1936,7 +1936,7 @@ add_expdir(struct dirlist **dpp, char *cp, int len)
 {
 	struct dirlist *dp;
 
-	dp = (struct dirlist *)malloc(sizeof (struct dirlist));
+	dp = malloc(sizeof (struct dirlist));
 	if (dp == (struct dirlist *)NULL)
 		out_of_mem();
 	dp->dp_left = *dpp;
