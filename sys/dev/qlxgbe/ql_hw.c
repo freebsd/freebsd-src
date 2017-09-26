@@ -64,7 +64,6 @@ static int qla_link_event_req(qla_host_t *ha, uint16_t cntxt_id);
 static int qla_tx_tso(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd,
 		uint8_t *hdr);
 static int qla_hw_add_all_mcast(qla_host_t *ha);
-static int qla_hw_del_all_mcast(qla_host_t *ha);
 static int qla_add_rcv_rings(qla_host_t *ha, uint32_t sds_idx, uint32_t nsds);
 
 static int qla_init_nic_func(qla_host_t *ha);
@@ -3413,7 +3412,7 @@ qla_hw_add_all_mcast(qla_host_t *ha)
 	return (ret);
 }
 
-static int
+int
 qla_hw_del_all_mcast(qla_host_t *ha)
 {
 	int ret;
