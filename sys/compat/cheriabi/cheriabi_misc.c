@@ -2187,7 +2187,11 @@ int
 cheriabi_auditon(struct thread *td, struct cheriabi_auditon_args *uap)
 {
 
+#ifdef	AUDIT
+	return (kern_auditon(td, uap->cmd, uap->data, uap->length));
+#else
 	return (ENOSYS);
+#endif
 }
 
 int
