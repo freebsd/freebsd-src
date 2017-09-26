@@ -298,9 +298,19 @@ copyinstr_c(const void * __restrict udaddr,
 #endif
 int	copyin(const void * _Nonnull __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len);
-#ifdef CPU_CHERI
+#if __has_feature(capabilities)
 int	copyin_c(const void * _Nonnull __restrict __capability udaddr,
 	    void * _Nonnull __restrict __capability kaddr, size_t len);
+#else
+static inline int
+copyin_c(const void * _Nonnull __restrict uaddr,
+    void * _Nonnull __restrict kaddr, size_t len)
+{
+
+	return(copyin(uaddr, kaddr, len));
+}
+#endif
+#ifdef CPU_CHERI
 int	copyincap(const void * _Nonnull __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len);
 #endif
@@ -312,9 +322,19 @@ int	copyout_part(const void * _Nonnull __restrict kaddr,
 	     void * _Nonnull __restrict udaddr,
 	    struct copy_map * _Nonnull cmap, size_t cmap_ents);
 
-#ifdef CPU_CHERI
+#if __has_feature(capabilities)
 int	copyout_c(const void * _Nonnull __restrict __capability kaddr,
 	    void * _Nonnull __restrict __capability udaddr, size_t len);
+#else
+static inline int
+copyout_c(const void * _Nonnull __restrict kaddr,
+    void * _Nonnull __restrict udaddr, size_t len)
+{
+
+	return (copyout(kaddr, udaddr, len));
+}
+#endif
+#ifdef CPU_CHERI
 int	copyoutcap(const void * _Nonnull __restrict kaddr,
 	    void * _Nonnull __restrict udaddr, size_t len);
 #endif
