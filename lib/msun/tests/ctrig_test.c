@@ -443,10 +443,6 @@ ATF_TC_BODY(test_large_inputs, tc)
 {
 	long double complex z;
 
-#ifdef	__i386__
-	atf_tc_expect_fail("test fails on i386 - bug 205446");
-#endif
-
 	/* tanh() uses a threshold around x=22, so check both sides. */
 	z = CMPLXL(21, 0.78539816339744830961566084581987572L);
 	testall_odd_tol(ctanh, z,

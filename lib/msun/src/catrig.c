@@ -642,3 +642,12 @@ catan(double complex z)
 
 	return (CMPLX(cimag(w), creal(w)));
 }
+
+#if LDBL_MANT_DIG == 53
+__weak_reference(cacosh, cacoshl);
+__weak_reference(cacos, cacosl);
+__weak_reference(casinh, casinhl);
+__weak_reference(casin, casinl);
+__weak_reference(catanh, catanhl);
+__weak_reference(catan, catanl);
+#endif
