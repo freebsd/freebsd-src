@@ -44,6 +44,7 @@ enum snapshot_req {
 	STRUCT_VATPIC,
 	STRUCT_VATPIT,
 	STRUCT_VPMTMR,
+	STRUCT_VRTC,
 };
 
 #ifdef _KERNEL

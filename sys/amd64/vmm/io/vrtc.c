@@ -1019,3 +1019,57 @@ vrtc_cleanup(struct vrtc *vrtc)
 	callout_drain(&vrtc->callout);
 	free(vrtc, M_VRTC);
 }
+
+int
+vrtc_snapshot(struct vrtc *vrtc, void *buffer, size_t buf_size,
+		size_t *snapshot_size)
+{
+	printf("%s\n", __func__);
+	int error;
+
+	if (buf_size < sizeof(struct vrtc)) {
+		printf("%s: buffer size too small: %lu < %lu\n",
+			__func__, buf_size, sizeof(struct vrtc));
+		return (EINVAL);
+	}
+
+	error = copyout(vrtc, buffer, sizeof(struct vrtc));
+	if (error) {
+		printf("%s: failed to copy vrtc data to user buffer\n",
+			__func__);
+		return (error);
+	}
+	*snapshot_size = sizeof(struct vrtc);
+
+	return (0);
+}
+
+int
+vrtc_restore(struct vrtc *vrtc, void *buffer, size_t buf_size)
+{
+	printf("%s\n", __func__);
+	struct vrtc *old_vrtc;
+
+	if (buffer == NULL) {
+		printf("%s: buffer was NULL\n", __func__);
+		return (EINVAL);
+	}
+
+	if (buf_size != sizeof(struct vrtc)) {
+		printf("%s: restore buffer size mismatch: %lu != %lu\n",
+			__func__, buf_size, sizeof(struct vrtc));
+		return (EINVAL);
+	}
+
+	old_vrtc = (struct vrtc *)buffer;
+
+	vrtc->mtx = old_vrtc->mtx;
+	/* TODO - verify if callout struct is restored correctly */
+	vrtc->callout = old_vrtc->callout;
+	vrtc->addr = old_vrtc->addr;
+	vrtc->base_uptime = old_vrtc->base_uptime;
+	vrtc->base_rtctime = old_vrtc->base_rtctime;
+	vrtc->rtcdev = old_vrtc->rtcdev;
+
+	return (0);
+}

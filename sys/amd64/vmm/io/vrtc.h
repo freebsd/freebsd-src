@@ -49,4 +49,8 @@ int vrtc_addr_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
 int vrtc_data_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
     uint32_t *val);
 
+int vrtc_snapshot(struct vrtc *vrtc, void *buffer, size_t buf_size,
+    size_t *snapshot_size);
+int vrtc_restore(struct vrtc *vrtc, void *buffer, size_t buf_size);
+
 #endif
