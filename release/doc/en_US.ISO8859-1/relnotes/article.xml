@@ -495,13 +495,6 @@
     </sect2>
   </sect1>
 
-  <sect1 xml:id="boot">
-    <title>Boot Loader Changes</title>
-
-    <para>This section covers the boot loader, boot menu, and other
-      boot-related changes.</para>
-  </sect1>
-
   <sect1 xml:id="network">
     <title>Networking</title>
 
@@ -550,39 +543,8 @@
     <sect2 xml:id="ports-packages ">
       <title>Packaging Changes</title>
 
-      <para>&nbsp;</para>
-    </sect2>
-  </sect1>
-
-  <sect1 xml:id="doc">
-    <title>Documentation</title>
-
-    <para>This section covers changes to the &os;&nbsp;Documentation
-      Project sources and toolchain.</para>
-
-    <sect2 xml:id="doc-sources">
-      <title>Documentation Source Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="doc-toolchain">
-      <title>Documentation Toolchain Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-  </sect1>
-
-  <sect1 xml:id="releng">
-    <title>Release Engineering and Integration</title>
-
-    <para>This section convers changes that are specific to the
-      &os;&nbsp;Release Engineering processes.</para>
-
-    <sect2 xml:id="releng-changes">
-      <title>Integration Changes</title>
-
-      <para>&nbsp;</para>
+      <para>The &man.pkg.8; utility has been updated to version
+	1.10.1.</para>
     </sect2>
   </sect1>
 </article>
