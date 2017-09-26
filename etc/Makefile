@@ -395,31 +395,6 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 	done; true
 .endif
 	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/sys
-.if ${MK_MAN} != "no"
-	cd ${DESTDIR}${SHAREDIR}/man; \
-	for mandir in man*; do \
-		${INSTALL_SYMLINK} ../$$mandir \
-		    ${DESTDIR}${SHAREDIR}/man/en.ISO8859-1/; \
-		${INSTALL_SYMLINK} ../$$mandir \
-		    ${DESTDIR}${SHAREDIR}/man/en.UTF-8/; \
-	done
-.if ${MK_OPENSSL} != "no"
-	cd ${DESTDIR}${SHAREDIR}/openssl/man; \
-	for mandir in man*; do \
-		${INSTALL_SYMLINK} ../$$mandir \
-		    ${DESTDIR}${SHAREDIR}/openssl/man/en.ISO8859-1/; \
-	done
-.endif
-	set - `grep "^[a-zA-Z]" ${.CURDIR}/man.alias`; \
-	while [ $$# -gt 0 ] ; do \
-		${INSTALL_SYMLINK} "$$2" "${DESTDIR}${SHAREDIR}/man/$$1"; \
-		if [ "${MK_OPENSSL}" != "no" ]; then \
-			${INSTALL_SYMLINK} "$$2" \
-			    "${DESTDIR}${SHAREDIR}/openssl/man/$$1"; \
-		fi; \
-		shift; shift; \
-	done
-.endif
 .if ${MK_NLS} != "no"
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/nls.alias`; \
 	while [ $$# -gt 0 ] ; do \
