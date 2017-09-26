@@ -2283,8 +2283,13 @@ zil_commit_waiter(zilog_t *zilog, zil_commit_waiter_t *zcw)
 	 * zil_process_commit_list() function.
 	 */
 	int pct = MAX(zfs_commit_timeout_pct, 1);
+#if defined(illumos) || !defined(_KERNEL)
 	hrtime_t sleep = (zilog->zl_last_lwb_latency * pct) / 100;
 	hrtime_t wakeup = gethrtime() + sleep;
+#else
+	sbintime_t sleep = nstosbt((zilog->zl_last_lwb_latency * pct) / 100);
+	sbintime_t wakeup = getsbinuptime() + sleep;
+#endif
 	boolean_t timedout = B_FALSE;
 
 	while (!zcw->zcw_done) {
@@ -2322,7 +2327,7 @@ zil_commit_waiter(zilog_t *zilog, zil_commit_waiter_t *zcw)
 			 * timeout is reached; responsibility (2) from
 			 * the comment above this function.
 			 */
-#ifdef illumos
+#if defined(illumos) || !defined(_KERNEL)
 			clock_t timeleft = cv_timedwait_hires(&zcw->zcw_cv,
 			    &zcw->zcw_lock, wakeup, USEC2NSEC(1),
 			    CALLOUT_FLAG_ABSOLUTE);
@@ -2331,8 +2336,7 @@ zil_commit_waiter(zilog_t *zilog, zil_commit_waiter_t *zcw)
 				continue;
 #else
 			int wait_err = cv_timedwait_sbt(&zcw->zcw_cv,
-			    &zcw->zcw_lock, wakeup * SBT_1NS, SBT_1NS,
-			    C_ABSOLUTE);
+			    &zcw->zcw_lock, wakeup, SBT_1NS, C_ABSOLUTE);
 			if (wait_err != EWOULDBLOCK || zcw->zcw_done)
 				continue;
 #endif
