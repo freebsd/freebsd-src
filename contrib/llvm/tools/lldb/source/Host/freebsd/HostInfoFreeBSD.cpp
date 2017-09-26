@@ -14,10 +14,9 @@
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
+#include <unistd.h>
 
 using namespace lldb_private;
-
-uint32_t HostInfoFreeBSD::GetMaxThreadNameLength() { return 16; }
 
 bool HostInfoFreeBSD::GetOSVersion(uint32_t &major, uint32_t &minor,
                                    uint32_t &update) {

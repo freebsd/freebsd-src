@@ -1,4 +1,4 @@
-//===-- RegAllocGreedy.cpp - greedy register allocator --------------------===//
+//===- RegAllocGreedy.cpp - greedy register allocator ---------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -19,34 +19,63 @@
 #include "SpillPlacement.h"
 #include "Spiller.h"
 #include "SplitKit.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/IndexedMap.h"
+#include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/OptimizationDiagnosticInfo.h"
 #include "llvm/CodeGen/CalcSpillWeights.h"
 #include "llvm/CodeGen/EdgeBundles.h"
+#include "llvm/CodeGen/LiveInterval.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
+#include "llvm/CodeGen/LiveIntervalUnion.h"
 #include "llvm/CodeGen/LiveRangeEdit.h"
 #include "llvm/CodeGen/LiveRegMatrix.h"
 #include "llvm/CodeGen/LiveStackAnalysis.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/MachineDominators.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/CodeGen/MachineOperand.h"
+#include "llvm/CodeGen/MachineOptimizationRemarkEmitter.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
 #include "llvm/CodeGen/RegisterClassInfo.h"
+#include "llvm/CodeGen/SlotIndexes.h"
 #include "llvm/CodeGen/VirtRegMap.h"
+#include "llvm/IR/Function.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/PassAnalysisSupport.h"
+#include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/BlockFrequency.h"
 #include "llvm/Support/BranchProbability.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <memory>
 #include <queue>
+#include <tuple>
+#include <utility>
 
 using namespace llvm;
 
@@ -104,13 +133,14 @@ static RegisterRegAlloc greedyRegAlloc("greedy", "greedy register allocator",
                                        createGreedyRegisterAllocator);
 
 namespace {
+
 class RAGreedy : public MachineFunctionPass,
                  public RegAllocBase,
                  private LiveRangeEdit::Delegate {
   // Convenient shortcuts.
-  typedef std::priority_queue<std::pair<unsigned, unsigned> > PQueue;
-  typedef SmallPtrSet<LiveInterval *, 4> SmallLISet;
-  typedef SmallSet<unsigned, 16> SmallVirtRegSet;
+  using PQueue = std::priority_queue<std::pair<unsigned, unsigned>>;
+  using SmallLISet = SmallPtrSet<LiveInterval *, 4>;
+  using SmallVirtRegSet = SmallSet<unsigned, 16>;
 
   // context
   MachineFunction *MF;
@@ -125,6 +155,7 @@ class RAGreedy : public MachineFunctionPass,
   MachineBlockFrequencyInfo *MBFI;
   MachineDominatorTree *DomTree;
   MachineLoopInfo *Loops;
+  MachineOptimizationRemarkEmitter *ORE;
   EdgeBundles *Bundles;
   SpillPlacement *SpillPlacer;
   LiveDebugVariables *DebugVars;
@@ -198,12 +229,12 @@ class RAGreedy : public MachineFunctionPass,
 
   // RegInfo - Keep additional information about each live range.
   struct RegInfo {
-    LiveRangeStage Stage;
+    LiveRangeStage Stage = RS_New;
 
     // Cascade - Eviction loop prevention. See canEvictInterference().
-    unsigned Cascade;
+    unsigned Cascade = 0;
 
-    RegInfo() : Stage(RS_New), Cascade(0) {}
+    RegInfo() = default;
   };
 
   IndexedMap<RegInfo, VirtReg2IndexFunctor> ExtraRegInfo;
@@ -229,10 +260,10 @@ class RAGreedy : public MachineFunctionPass,
 
   /// Cost of evicting interference.
   struct EvictionCost {
-    unsigned BrokenHints; ///< Total number of broken hints.
-    float MaxWeight;      ///< Maximum spill weight evicted.
+    unsigned BrokenHints = 0; ///< Total number of broken hints.
+    float MaxWeight = 0;      ///< Maximum spill weight evicted.
 
-    EvictionCost(): BrokenHints(0), MaxWeight(0) {}
+    EvictionCost() = default;
 
     bool isMax() const { return BrokenHints == ~0u; }
 
@@ -282,8 +313,7 @@ class RAGreedy : public MachineFunctionPass,
     // Set B[i] = C for every live bundle where B[i] was NoCand.
     unsigned getBundles(SmallVectorImpl<unsigned> &B, unsigned C) {
       unsigned Count = 0;
-      for (int i = LiveBundles.find_first(); i >= 0;
-           i = LiveBundles.find_next(i))
+      for (unsigned i : LiveBundles.set_bits())
         if (B[i] == NoCand) {
           B[i] = C;
           Count++;
@@ -411,15 +441,32 @@ private:
     /// Its currently assigned register.
     /// In case of a physical register Reg == PhysReg.
     unsigned PhysReg;
+
     HintInfo(BlockFrequency Freq, unsigned Reg, unsigned PhysReg)
         : Freq(Freq), Reg(Reg), PhysReg(PhysReg) {}
   };
-  typedef SmallVector<HintInfo, 4> HintsInfo;
+  using HintsInfo = SmallVector<HintInfo, 4>;
+
   BlockFrequency getBrokenHintFreq(const HintsInfo &, unsigned);
   void collectHintInfo(unsigned, HintsInfo &);
 
   bool isUnusedCalleeSavedReg(unsigned PhysReg) const;
+
+  /// Compute and report the number of spills and reloads for a loop.
+  void reportNumberOfSplillsReloads(MachineLoop *L, unsigned &Reloads,
+                                    unsigned &FoldedReloads, unsigned &Spills,
+                                    unsigned &FoldedSpills);
+
+  /// Report the number of spills and reloads for each loop.
+  void reportNumberOfSplillsReloads() {
+    for (MachineLoop *L : *Loops) {
+      unsigned Reloads, FoldedReloads, Spills, FoldedSpills;
+      reportNumberOfSplillsReloads(L, Reloads, FoldedReloads, Spills,
+                                   FoldedSpills);
+    }
+  }
 };
+
 } // end anonymous namespace
 
 char RAGreedy::ID = 0;
@@ -439,6 +486,7 @@ INITIALIZE_PASS_DEPENDENCY(VirtRegMap)
 INITIALIZE_PASS_DEPENDENCY(LiveRegMatrix)
 INITIALIZE_PASS_DEPENDENCY(EdgeBundles)
 INITIALIZE_PASS_DEPENDENCY(SpillPlacement)
+INITIALIZE_PASS_DEPENDENCY(MachineOptimizationRemarkEmitterPass)
 INITIALIZE_PASS_END(RAGreedy, "greedy",
                 "Greedy Register Allocator", false, false)
 
@@ -457,7 +505,6 @@ const char *const RAGreedy::StageName[] = {
 // Hysteresis to use when comparing floats.
 // This helps stabilize decisions based on float comparisons.
 const float Hysteresis = (2007 / 2048.0f); // 0.97998046875
-
 
 FunctionPass* llvm::createGreedyRegisterAllocator() {
   return new RAGreedy();
@@ -490,9 +537,9 @@ void RAGreedy::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addPreserved<LiveRegMatrix>();
   AU.addRequired<EdgeBundles>();
   AU.addRequired<SpillPlacement>();
+  AU.addRequired<MachineOptimizationRemarkEmitterPass>();
   MachineFunctionPass::getAnalysisUsage(AU);
 }
-
 
 //===----------------------------------------------------------------------===//
 //                     LiveRangeEdit delegate methods
@@ -616,7 +663,6 @@ LiveInterval *RAGreedy::dequeue(PQueue &CurQueue) {
   return LI;
 }
 
-
 //===----------------------------------------------------------------------===//
 //                            Direct Assignment
 //===----------------------------------------------------------------------===//
@@ -664,7 +710,6 @@ unsigned RAGreedy::tryAssign(LiveInterval &VirtReg,
   return CheapReg ? CheapReg : PhysReg;
 }
 
-
 //===----------------------------------------------------------------------===//
 //                         Interference eviction
 //===----------------------------------------------------------------------===//
@@ -679,7 +724,7 @@ unsigned RAGreedy::canReassign(LiveInterval &VirtReg, unsigned PrevReg) {
     MCRegUnitIterator Units(PhysReg, TRI);
     for (; Units.isValid(); ++Units) {
       // Instantiate a "subquery", not to be confused with the Queries array.
-      LiveIntervalUnion::Query subQ(&VirtReg, &Matrix->getLiveUnions()[*Units]);
+      LiveIntervalUnion::Query subQ(VirtReg, Matrix->getLiveUnions()[*Units]);
       if (subQ.checkInterference())
         break;
     }
@@ -830,7 +875,11 @@ void RAGreedy::evictInterference(LiveInterval &VirtReg, unsigned PhysReg,
   SmallVector<LiveInterval*, 8> Intfs;
   for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
     LiveIntervalUnion::Query &Q = Matrix->query(VirtReg, *Units);
-    assert(Q.seenAllInterferences() && "Didn't check all interfererences.");
+    // We usually have the interfering VRegs cached so collectInterferingVRegs()
+    // should be fast, we may need to recalculate if when different physregs
+    // overlap the same register unit so we had different SubRanges queried
+    // against it.
+    Q.collectInterferingVRegs();
     ArrayRef<LiveInterval*> IVR = Q.interferingVRegs();
     Intfs.append(IVR.begin(), IVR.end());
   }
@@ -932,7 +981,6 @@ unsigned RAGreedy::tryEvict(LiveInterval &VirtReg,
   return BestPhys;
 }
 
-
 //===----------------------------------------------------------------------===//
 //                              Region Splitting
 //===----------------------------------------------------------------------===//
@@ -1003,7 +1051,6 @@ bool RAGreedy::addSplitConstraints(InterferenceCache::Cursor Intf,
   return SpillPlacer->scanActiveBundles();
 }
 
-
 /// addThroughConstraints - Add constraints and links to SpillPlacer from the
 /// live-through blocks in Blocks.
 void RAGreedy::addThroughConstraints(InterferenceCache::Cursor Intf,
@@ -1061,7 +1108,7 @@ void RAGreedy::growRegion(GlobalSplitCandidate &Cand) {
   unsigned Visited = 0;
 #endif
 
-  for (;;) {
+  while (true) {
     ArrayRef<unsigned> NewBundles = SpillPlacer->getRecentPositive();
     // Find new through blocks in the periphery of PrefRegBundles.
     for (int i = 0, e = NewBundles.size(); i != e; ++i) {
@@ -1139,9 +1186,8 @@ bool RAGreedy::calcCompactRegion(GlobalSplitCandidate &Cand) {
   }
 
   DEBUG({
-    for (int i = Cand.LiveBundles.find_first(); i>=0;
-         i = Cand.LiveBundles.find_next(i))
-    dbgs() << " EB#" << i;
+    for (int i : Cand.LiveBundles.set_bits())
+      dbgs() << " EB#" << i;
     dbgs() << ".\n";
   });
   return true;
@@ -1176,8 +1222,8 @@ BlockFrequency RAGreedy::calcGlobalSplitCost(GlobalSplitCandidate &Cand) {
   for (unsigned i = 0; i != UseBlocks.size(); ++i) {
     const SplitAnalysis::BlockInfo &BI = UseBlocks[i];
     SpillPlacement::BlockConstraint &BC = SplitConstraints[i];
-    bool RegIn  = LiveBundles[Bundles->getBundle(BC.Number, 0)];
-    bool RegOut = LiveBundles[Bundles->getBundle(BC.Number, 1)];
+    bool RegIn  = LiveBundles[Bundles->getBundle(BC.Number, false)];
+    bool RegOut = LiveBundles[Bundles->getBundle(BC.Number, true)];
     unsigned Ins = 0;
 
     if (BI.LiveIn)
@@ -1190,8 +1236,8 @@ BlockFrequency RAGreedy::calcGlobalSplitCost(GlobalSplitCandidate &Cand) {
 
   for (unsigned i = 0, e = Cand.ActiveBlocks.size(); i != e; ++i) {
     unsigned Number = Cand.ActiveBlocks[i];
-    bool RegIn  = LiveBundles[Bundles->getBundle(Number, 0)];
-    bool RegOut = LiveBundles[Bundles->getBundle(Number, 1)];
+    bool RegIn  = LiveBundles[Bundles->getBundle(Number, false)];
+    bool RegOut = LiveBundles[Bundles->getBundle(Number, true)];
     if (!RegIn && !RegOut)
       continue;
     if (RegIn && RegOut) {
@@ -1243,7 +1289,7 @@ void RAGreedy::splitAroundRegion(LiveRangeEdit &LREdit,
     unsigned IntvIn = 0, IntvOut = 0;
     SlotIndex IntfIn, IntfOut;
     if (BI.LiveIn) {
-      unsigned CandIn = BundleCand[Bundles->getBundle(Number, 0)];
+      unsigned CandIn = BundleCand[Bundles->getBundle(Number, false)];
       if (CandIn != NoCand) {
         GlobalSplitCandidate &Cand = GlobalCand[CandIn];
         IntvIn = Cand.IntvIdx;
@@ -1252,7 +1298,7 @@ void RAGreedy::splitAroundRegion(LiveRangeEdit &LREdit,
       }
     }
     if (BI.LiveOut) {
-      unsigned CandOut = BundleCand[Bundles->getBundle(Number, 1)];
+      unsigned CandOut = BundleCand[Bundles->getBundle(Number, true)];
       if (CandOut != NoCand) {
         GlobalSplitCandidate &Cand = GlobalCand[CandOut];
         IntvOut = Cand.IntvIdx;
@@ -1292,7 +1338,7 @@ void RAGreedy::splitAroundRegion(LiveRangeEdit &LREdit,
       unsigned IntvIn = 0, IntvOut = 0;
       SlotIndex IntfIn, IntfOut;
 
-      unsigned CandIn = BundleCand[Bundles->getBundle(Number, 0)];
+      unsigned CandIn = BundleCand[Bundles->getBundle(Number, false)];
       if (CandIn != NoCand) {
         GlobalSplitCandidate &Cand = GlobalCand[CandIn];
         IntvIn = Cand.IntvIdx;
@@ -1300,7 +1346,7 @@ void RAGreedy::splitAroundRegion(LiveRangeEdit &LREdit,
         IntfIn = Cand.Intf.first();
       }
 
-      unsigned CandOut = BundleCand[Bundles->getBundle(Number, 1)];
+      unsigned CandOut = BundleCand[Bundles->getBundle(Number, true)];
       if (CandOut != NoCand) {
         GlobalSplitCandidate &Cand = GlobalCand[CandOut];
         IntvOut = Cand.IntvIdx;
@@ -1459,8 +1505,7 @@ unsigned RAGreedy::calculateRegionSplitCost(LiveInterval &VirtReg,
     DEBUG({
       dbgs() << ", total = "; MBFI->printBlockFreq(dbgs(), Cost)
                                 << " with bundles";
-      for (int i = Cand.LiveBundles.find_first(); i>=0;
-           i = Cand.LiveBundles.find_next(i))
+      for (int i : Cand.LiveBundles.set_bits())
         dbgs() << " EB#" << i;
       dbgs() << ".\n";
     });
@@ -1513,7 +1558,6 @@ unsigned RAGreedy::doRegionSplit(LiveInterval &VirtReg, unsigned BestCand,
   return 0;
 }
 
-
 //===----------------------------------------------------------------------===//
 //                            Per-Block Splitting
 //===----------------------------------------------------------------------===//
@@ -1559,7 +1603,6 @@ unsigned RAGreedy::tryBlockSplit(LiveInterval &VirtReg, AllocationOrder &Order,
     MF->verify(this, "After splitting live range around basic blocks");
   return 0;
 }
-
 
 //===----------------------------------------------------------------------===//
 //                         Per-Instruction Splitting
@@ -1644,11 +1687,9 @@ RAGreedy::tryInstructionSplit(LiveInterval &VirtReg, AllocationOrder &Order,
   return 0;
 }
 
-
 //===----------------------------------------------------------------------===//
 //                             Local Splitting
 //===----------------------------------------------------------------------===//
-
 
 /// calcGapWeights - Compute the maximum spill weight that needs to be evicted
 /// in order to use PhysReg between two entries in SA->UseSlots.
@@ -1720,7 +1761,7 @@ void RAGreedy::calcGapWeights(unsigned PhysReg,
         break;
 
       for (; Gap != NumGaps; ++Gap) {
-        GapWeight[Gap] = llvm::huge_valf;
+        GapWeight[Gap] = huge_valf;
         if (Uses[Gap+1].getBaseIndex() >= I->end)
           break;
       }
@@ -1826,7 +1867,7 @@ unsigned RAGreedy::tryLocalSplit(LiveInterval &VirtReg, AllocationOrder &Order,
     // Remove any gaps with regmask clobbers.
     if (Matrix->checkRegMaskInterference(VirtReg, PhysReg))
       for (unsigned i = 0, e = RegMaskGaps.size(); i != e; ++i)
-        GapWeight[RegMaskGaps[i]] = llvm::huge_valf;
+        GapWeight[RegMaskGaps[i]] = huge_valf;
 
     // Try to find the best sequence of gaps to close.
     // The new spill weight must be larger than any gap interference.
@@ -1838,7 +1879,7 @@ unsigned RAGreedy::tryLocalSplit(LiveInterval &VirtReg, AllocationOrder &Order,
     // It is the spill weight that needs to be evicted.
     float MaxGap = GapWeight[0];
 
-    for (;;) {
+    while (true) {
       // Live before/after split?
       const bool LiveBefore = SplitBefore != 0 || BI.LiveIn;
       const bool LiveAfter = SplitAfter != NumGaps || BI.LiveOut;
@@ -1861,7 +1902,7 @@ unsigned RAGreedy::tryLocalSplit(LiveInterval &VirtReg, AllocationOrder &Order,
       // Legally, without causing looping?
       bool Legal = !ProgressRequired || NewGaps < NumGaps;
 
-      if (Legal && MaxGap < llvm::huge_valf) {
+      if (Legal && MaxGap < huge_valf) {
         // Estimate the new spill weight. Each instruction reads or writes the
         // register. Conservatively assume there are no read-modify-write
         // instructions.
@@ -2417,7 +2458,7 @@ void RAGreedy::tryHintRecoloring(LiveInterval &VirtReg) {
   do {
     Reg = RecoloringCandidates.pop_back_val();
 
-    // We cannot recolor physcal register.
+    // We cannot recolor physical register.
     if (TargetRegisterInfo::isPhysicalRegister(Reg))
       continue;
 
@@ -2581,7 +2622,7 @@ unsigned RAGreedy::selectOrSplitImpl(LiveInterval &VirtReg,
   }
 
   // If we couldn't allocate a register from spilling, there is probably some
-  // invalid inline assembly. The base class wil report it.
+  // invalid inline assembly. The base class will report it.
   if (Stage >= RS_Done || !VirtReg.isSpillable())
     return tryLastChanceRecoloring(VirtReg, Order, NewVRegs, FixedRegisters,
                                    Depth);
@@ -2611,6 +2652,70 @@ unsigned RAGreedy::selectOrSplitImpl(LiveInterval &VirtReg,
   return 0;
 }
 
+void RAGreedy::reportNumberOfSplillsReloads(MachineLoop *L, unsigned &Reloads,
+                                            unsigned &FoldedReloads,
+                                            unsigned &Spills,
+                                            unsigned &FoldedSpills) {
+  Reloads = 0;
+  FoldedReloads = 0;
+  Spills = 0;
+  FoldedSpills = 0;
+
+  // Sum up the spill and reloads in subloops.
+  for (MachineLoop *SubLoop : *L) {
+    unsigned SubReloads;
+    unsigned SubFoldedReloads;
+    unsigned SubSpills;
+    unsigned SubFoldedSpills;
+
+    reportNumberOfSplillsReloads(SubLoop, SubReloads, SubFoldedReloads,
+                                 SubSpills, SubFoldedSpills);
+    Reloads += SubReloads;
+    FoldedReloads += SubFoldedReloads;
+    Spills += SubSpills;
+    FoldedSpills += SubFoldedSpills;
+  }
+
+  const MachineFrameInfo &MFI = MF->getFrameInfo();
+  const TargetInstrInfo *TII = MF->getSubtarget().getInstrInfo();
+  int FI;
+
+  for (MachineBasicBlock *MBB : L->getBlocks())
+    // Handle blocks that were not included in subloops.
+    if (Loops->getLoopFor(MBB) == L)
+      for (MachineInstr &MI : *MBB) {
+        const MachineMemOperand *MMO;
+
+        if (TII->isLoadFromStackSlot(MI, FI) && MFI.isSpillSlotObjectIndex(FI))
+          ++Reloads;
+        else if (TII->hasLoadFromStackSlot(MI, MMO, FI) &&
+                 MFI.isSpillSlotObjectIndex(FI))
+          ++FoldedReloads;
+        else if (TII->isStoreToStackSlot(MI, FI) &&
+                 MFI.isSpillSlotObjectIndex(FI))
+          ++Spills;
+        else if (TII->hasStoreToStackSlot(MI, MMO, FI) &&
+                 MFI.isSpillSlotObjectIndex(FI))
+          ++FoldedSpills;
+      }
+
+  if (Reloads || FoldedReloads || Spills || FoldedSpills) {
+    using namespace ore;
+
+    MachineOptimizationRemarkMissed R(DEBUG_TYPE, "LoopSpillReload",
+                                      L->getStartLoc(), L->getHeader());
+    if (Spills)
+      R << NV("NumSpills", Spills) << " spills ";
+    if (FoldedSpills)
+      R << NV("NumFoldedSpills", FoldedSpills) << " folded spills ";
+    if (Reloads)
+      R << NV("NumReloads", Reloads) << " reloads ";
+    if (FoldedReloads)
+      R << NV("NumFoldedReloads", FoldedReloads) << " folded reloads ";
+    ORE->emit(R << "generated in loop");
+  }
+}
+
 bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
   DEBUG(dbgs() << "********** GREEDY REGISTER ALLOCATION **********\n"
                << "********** Function: " << mf.getName() << '\n');
@@ -2633,6 +2738,7 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
   Indexes = &getAnalysis<SlotIndexes>();
   MBFI = &getAnalysis<MachineBlockFrequencyInfo>();
   DomTree = &getAnalysis<MachineDominatorTree>();
+  ORE = &getAnalysis<MachineOptimizationRemarkEmitterPass>().getORE();
   SpillerInstance.reset(createInlineSpiller(*this, *MF, *VRM));
   Loops = &getAnalysis<MachineLoopInfo>();
   Bundles = &getAnalysis<EdgeBundles>();
@@ -2658,6 +2764,7 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
   allocatePhysRegs();
   tryHintsRecoloring();
   postOptimization();
+  reportNumberOfSplillsReloads();
 
   releaseMemory();
   return true;

@@ -29,6 +29,7 @@
 #include <cassert>
 #include <cstdint>
 #include <list>
+#include <map>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -177,12 +178,7 @@ public:
 
 private:
   unsigned char AllExtensionsSilenced; // Used by __extension__
-  bool IgnoreAllWarnings;        // Ignore all warnings: -w
-  bool WarningsAsErrors;         // Treat warnings like errors.
-  bool EnableAllWarnings;        // Enable all warnings.
-  bool ErrorsAsFatal;            // Treat errors like fatal errors.
-  bool FatalsAsError;             // Treat fatal errors like errors.
-  bool SuppressSystemWarnings;   // Suppress warnings in system headers.
+  bool SuppressAfterFatalError;  // Suppress diagnostics after a fatal error?
   bool SuppressAllDiagnostics;   // Suppress all diagnostics.
   bool ElideType;                // Elide common types of templates.
   bool PrintTemplateTree;        // Print a tree when comparing templates.
@@ -193,7 +189,6 @@ private:
                                    // 0 -> no limit.
   unsigned ConstexprBacktraceLimit; // Cap on depth of constexpr evaluation
                                     // backtrace stack, 0 -> no limit.
-  diag::Severity ExtBehavior;       // Map extensions to warnings or errors?
   IntrusiveRefCntPtr<DiagnosticIDs> Diags;
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;
   DiagnosticConsumer *Client;
@@ -215,12 +210,28 @@ private:
     llvm::DenseMap<unsigned, DiagnosticMapping> DiagMap;
 
   public:
+    // "Global" configuration state that can actually vary between modules.
+    unsigned IgnoreAllWarnings : 1;      // Ignore all warnings: -w
+    unsigned EnableAllWarnings : 1;      // Enable all warnings.
+    unsigned WarningsAsErrors : 1;       // Treat warnings like errors.
+    unsigned ErrorsAsFatal : 1;          // Treat errors like fatal errors.
+    unsigned SuppressSystemWarnings : 1; // Suppress warnings in system headers.
+    diag::Severity ExtBehavior;         // Map extensions to warnings or errors?
+
+    DiagState()
+        : IgnoreAllWarnings(false), EnableAllWarnings(false),
+          WarningsAsErrors(false), ErrorsAsFatal(false),
+          SuppressSystemWarnings(false), ExtBehavior(diag::Severity::Ignored) {}
+
     typedef llvm::DenseMap<unsigned, DiagnosticMapping>::iterator iterator;
     typedef llvm::DenseMap<unsigned, DiagnosticMapping>::const_iterator
     const_iterator;
 
     void setMapping(diag::kind Diag, DiagnosticMapping Info) {
       DiagMap[Diag] = Info;
+    }
+    DiagnosticMapping lookupMapping(diag::kind Diag) const {
+      return DiagMap.lookup(Diag);
     }
 
     DiagnosticMapping &getOrAddMapping(diag::kind Diag);
@@ -232,59 +243,97 @@ private:
   /// \brief Keeps and automatically disposes all DiagStates that we create.
   std::list<DiagState> DiagStates;
 
-  /// \brief Represents a point in source where the diagnostic state was
-  /// modified because of a pragma.
-  ///
-  /// 'Loc' can be null if the point represents the diagnostic state
-  /// modifications done through the command-line.
-  struct DiagStatePoint {
-    DiagState *State;
-    FullSourceLoc Loc;
-    DiagStatePoint(DiagState *State, FullSourceLoc Loc)
-      : State(State), Loc(Loc) { } 
-    
-    bool operator<(const DiagStatePoint &RHS) const {
-      // If Loc is invalid it means it came from <command-line>, in which case
-      // we regard it as coming before any valid source location.
-      if (RHS.Loc.isInvalid())
-        return false;
-      if (Loc.isInvalid())
-        return true;
-      return Loc.isBeforeInTranslationUnitThan(RHS.Loc);
+  /// A mapping from files to the diagnostic states for those files. Lazily
+  /// built on demand for files in which the diagnostic state has not changed.
+  class DiagStateMap {
+  public:
+    /// Add an initial diagnostic state.
+    void appendFirst(DiagState *State);
+    /// Add a new latest state point.
+    void append(SourceManager &SrcMgr, SourceLocation Loc, DiagState *State);
+    /// Look up the diagnostic state at a given source location.
+    DiagState *lookup(SourceManager &SrcMgr, SourceLocation Loc) const;
+    /// Determine whether this map is empty.
+    bool empty() const { return Files.empty(); }
+    /// Clear out this map.
+    void clear() {
+      Files.clear();
+      FirstDiagState = CurDiagState = nullptr;
+      CurDiagStateLoc = SourceLocation();
     }
+
+    /// Grab the most-recently-added state point.
+    DiagState *getCurDiagState() const { return CurDiagState; }
+    /// Get the location at which a diagnostic state was last added.
+    SourceLocation getCurDiagStateLoc() const { return CurDiagStateLoc; }
+
+  private:
+    /// \brief Represents a point in source where the diagnostic state was
+    /// modified because of a pragma.
+    ///
+    /// 'Loc' can be null if the point represents the diagnostic state
+    /// modifications done through the command-line.
+    struct DiagStatePoint {
+      DiagState *State;
+      unsigned Offset;
+      DiagStatePoint(DiagState *State, unsigned Offset)
+        : State(State), Offset(Offset) { } 
+    };
+
+    /// Description of the diagnostic states and state transitions for a
+    /// particular FileID.
+    struct File {
+      /// The diagnostic state for the parent file. This is strictly redundant,
+      /// as looking up the DecomposedIncludedLoc for the FileID in the Files
+      /// map would give us this, but we cache it here for performance.
+      File *Parent = nullptr;
+      /// The offset of this file within its parent.
+      unsigned ParentOffset = 0;
+      /// Whether this file has any local (not imported from an AST file)
+      /// diagnostic state transitions.
+      bool HasLocalTransitions = false;
+      /// The points within the file where the state changes. There will always
+      /// be at least one of these (the state on entry to the file).
+      llvm::SmallVector<DiagStatePoint, 4> StateTransitions;
+
+      DiagState *lookup(unsigned Offset) const;
+    };
+
+    /// The diagnostic states for each file.
+    mutable std::map<FileID, File> Files;
+
+    /// The initial diagnostic state.
+    DiagState *FirstDiagState;
+    /// The current diagnostic state.
+    DiagState *CurDiagState;
+    /// The location at which the current diagnostic state was established.
+    SourceLocation CurDiagStateLoc;
+
+    /// Get the diagnostic state information for a file.
+    File *getFile(SourceManager &SrcMgr, FileID ID) const;
+
+    friend class ASTReader;
+    friend class ASTWriter;
   };
 
-  /// \brief A sorted vector of all DiagStatePoints representing changes in
-  /// diagnostic state due to diagnostic pragmas.
-  ///
-  /// The vector is always sorted according to the SourceLocation of the
-  /// DiagStatePoint.
-  typedef std::vector<DiagStatePoint> DiagStatePointsTy;
-  mutable DiagStatePointsTy DiagStatePoints;
+  DiagStateMap DiagStatesByLoc;
 
   /// \brief Keeps the DiagState that was active during each diagnostic 'push'
   /// so we can get back at it when we 'pop'.
   std::vector<DiagState *> DiagStateOnPushStack;
 
   DiagState *GetCurDiagState() const {
-    assert(!DiagStatePoints.empty());
-    return DiagStatePoints.back().State;
+    return DiagStatesByLoc.getCurDiagState();
   }
 
-  void PushDiagStatePoint(DiagState *State, SourceLocation L) {
-    FullSourceLoc Loc(L, getSourceManager());
-    // Make sure that DiagStatePoints is always sorted according to Loc.
-    assert(Loc.isValid() && "Adding invalid loc point");
-    assert(!DiagStatePoints.empty() &&
-           (DiagStatePoints.back().Loc.isInvalid() ||
-            DiagStatePoints.back().Loc.isBeforeInTranslationUnitThan(Loc)) &&
-           "Previous point loc comes after or is the same as new one");
-    DiagStatePoints.push_back(DiagStatePoint(State, Loc));
-  }
+  void PushDiagStatePoint(DiagState *State, SourceLocation L);
 
   /// \brief Finds the DiagStatePoint that contains the diagnostic state of
   /// the given source location.
-  DiagStatePointsTy::iterator GetDiagStatePointForLoc(SourceLocation Loc) const;
+  DiagState *GetDiagStateForLoc(SourceLocation Loc) const {
+    return SourceMgr ? DiagStatesByLoc.lookup(*SourceMgr, Loc)
+                     : DiagStatesByLoc.getCurDiagState();
+  }
 
   /// \brief Sticky flag set to \c true when an error is emitted.
   bool ErrorOccurred;
@@ -390,7 +439,11 @@ public:
     assert(SourceMgr && "SourceManager not set!");
     return *SourceMgr;
   }
-  void setSourceManager(SourceManager *SrcMgr) { SourceMgr = SrcMgr; }
+  void setSourceManager(SourceManager *SrcMgr) {
+    assert(DiagStatesByLoc.empty() &&
+           "Leftover diag state from a different SourceManager.");
+    SourceMgr = SrcMgr;
+  }
 
   //===--------------------------------------------------------------------===//
   //  DiagnosticsEngine characterization methods, used by a client to customize
@@ -447,33 +500,47 @@ public:
   /// \brief When set to true, any unmapped warnings are ignored.
   ///
   /// If this and WarningsAsErrors are both set, then this one wins.
-  void setIgnoreAllWarnings(bool Val) { IgnoreAllWarnings = Val; }
-  bool getIgnoreAllWarnings() const { return IgnoreAllWarnings; }
+  void setIgnoreAllWarnings(bool Val) {
+    GetCurDiagState()->IgnoreAllWarnings = Val;
+  }
+  bool getIgnoreAllWarnings() const {
+    return GetCurDiagState()->IgnoreAllWarnings;
+  }
 
   /// \brief When set to true, any unmapped ignored warnings are no longer
   /// ignored.
   ///
   /// If this and IgnoreAllWarnings are both set, then that one wins.
-  void setEnableAllWarnings(bool Val) { EnableAllWarnings = Val; }
-  bool getEnableAllWarnings() const { return EnableAllWarnings; }
+  void setEnableAllWarnings(bool Val) {
+    GetCurDiagState()->EnableAllWarnings = Val;
+  }
+  bool getEnableAllWarnings() const {
+    return GetCurDiagState()->EnableAllWarnings;
+  }
 
   /// \brief When set to true, any warnings reported are issued as errors.
-  void setWarningsAsErrors(bool Val) { WarningsAsErrors = Val; }
-  bool getWarningsAsErrors() const { return WarningsAsErrors; }
+  void setWarningsAsErrors(bool Val) {
+    GetCurDiagState()->WarningsAsErrors = Val;
+  }
+  bool getWarningsAsErrors() const {
+    return GetCurDiagState()->WarningsAsErrors;
+  }
 
   /// \brief When set to true, any error reported is made a fatal error.
-  void setErrorsAsFatal(bool Val) { ErrorsAsFatal = Val; }
-  bool getErrorsAsFatal() const { return ErrorsAsFatal; }
+  void setErrorsAsFatal(bool Val) { GetCurDiagState()->ErrorsAsFatal = Val; }
+  bool getErrorsAsFatal() const { return GetCurDiagState()->ErrorsAsFatal; }
 
-  /// \brief When set to true, any fatal error reported is made an error.
-  ///
-  /// This setting takes precedence over the setErrorsAsFatal setting above.
-  void setFatalsAsError(bool Val) { FatalsAsError = Val; }
-  bool getFatalsAsError() const { return FatalsAsError; }
+  /// \brief When set to true (the default), suppress further diagnostics after
+  /// a fatal error.
+  void setSuppressAfterFatalError(bool Val) { SuppressAfterFatalError = Val; }
 
   /// \brief When set to true mask warnings that come from system headers.
-  void setSuppressSystemWarnings(bool Val) { SuppressSystemWarnings = Val; }
-  bool getSuppressSystemWarnings() const { return SuppressSystemWarnings; }
+  void setSuppressSystemWarnings(bool Val) {
+    GetCurDiagState()->SuppressSystemWarnings = Val;
+  }
+  bool getSuppressSystemWarnings() const {
+    return GetCurDiagState()->SuppressSystemWarnings;
+  }
 
   /// \brief Suppress all diagnostics, to silence the front end when we 
   /// know that we don't want any more diagnostics to be passed along to the
@@ -525,11 +592,15 @@ public:
   }
 
   /// \brief Controls whether otherwise-unmapped extension diagnostics are
-  /// mapped onto ignore/warning/error. 
+  /// mapped onto ignore/warning/error.
   ///
   /// This corresponds to the GCC -pedantic and -pedantic-errors option.
-  void setExtensionHandlingBehavior(diag::Severity H) { ExtBehavior = H; }
-  diag::Severity getExtensionHandlingBehavior() const { return ExtBehavior; }
+  void setExtensionHandlingBehavior(diag::Severity H) {
+    GetCurDiagState()->ExtBehavior = H;
+  }
+  diag::Severity getExtensionHandlingBehavior() const {
+    return GetCurDiagState()->ExtBehavior;
+  }
 
   /// \brief Counter bumped when an __extension__  block is/ encountered.
   ///

@@ -17,8 +17,6 @@
 #include "lldb/Breakpoint/Breakpoint.h"
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Address.h"
-#include "lldb/Core/Log.h"
-#include "lldb/Core/Stream.h"
 #include "lldb/Expression/DiagnosticManager.h"
 #include "lldb/Expression/IRDynamicChecks.h"
 #include "lldb/Expression/UserExpression.h"
@@ -30,6 +28,8 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlanRunToAddress.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Stream.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -58,6 +58,12 @@ void ThreadPlanCallUserExpression::GetDescription(
     s->Printf("User Expression thread plan");
   else
     ThreadPlanCallFunction::GetDescription(s, level);
+}
+
+void ThreadPlanCallUserExpression::DidPush() {
+  ThreadPlanCallFunction::DidPush();
+  if (m_user_expression_sp)
+    m_user_expression_sp->WillStartExecuting();
 }
 
 void ThreadPlanCallUserExpression::WillPop() {
@@ -112,4 +118,9 @@ StopInfoSP ThreadPlanCallUserExpression::GetRealStopInfo() {
   }
 
   return stop_info_sp;
+}
+
+void ThreadPlanCallUserExpression::DoTakedown(bool success) {
+  ThreadPlanCallFunction::DoTakedown(success);
+  m_user_expression_sp->DidFinishExecuting();
 }

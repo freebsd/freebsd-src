@@ -6,6 +6,7 @@ LIB=		llvmminimal
 INTERNALLIB=
 
 SRCDIR=		lib
+SRCS+=		Support/APFloat.cpp
 SRCS+=		Support/APInt.cpp
 SRCS+=		Support/Atomic.cpp
 SRCS+=		Support/CommandLine.cpp
@@ -21,6 +22,8 @@ SRCS+=		Support/Hashing.cpp
 SRCS+=		Support/Host.cpp
 SRCS+=		Support/IntEqClasses.cpp
 SRCS+=		Support/Locale.cpp
+SRCS+=		Support/LowLevelType.cpp
+SRCS+=		Support/MD5.cpp
 SRCS+=		Support/ManagedStatic.cpp
 SRCS+=		Support/MemoryBuffer.cpp
 SRCS+=		Support/Mutex.cpp

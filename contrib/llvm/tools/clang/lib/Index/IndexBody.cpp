@@ -22,6 +22,10 @@ class BodyIndexer : public RecursiveASTVisitor<BodyIndexer> {
   SmallVector<Stmt*, 16> StmtStack;
 
   typedef RecursiveASTVisitor<BodyIndexer> base;
+
+  Stmt *getParentStmt() const {
+    return StmtStack.size() < 2 ? nullptr : StmtStack.end()[-2];
+  }
 public:
   BodyIndexer(IndexingContext &indexCtx,
               const NamedDecl *Parent, const DeclContext *DC)
@@ -146,6 +150,53 @@ public:
                                     Parent, ParentDC, Roles, Relations, E);
   }
 
+  bool indexDependentReference(
+      const Expr *E, const Type *T, const DeclarationNameInfo &NameInfo,
+      llvm::function_ref<bool(const NamedDecl *ND)> Filter) {
+    if (!T)
+      return true;
+    const TemplateSpecializationType *TST =
+        T->getAs<TemplateSpecializationType>();
+    if (!TST)
+      return true;
+    TemplateName TN = TST->getTemplateName();
+    const ClassTemplateDecl *TD =
+        dyn_cast_or_null<ClassTemplateDecl>(TN.getAsTemplateDecl());
+    if (!TD)
+      return true;
+    CXXRecordDecl *RD = TD->getTemplatedDecl();
+    if (!RD->hasDefinition())
+      return true;
+    RD = RD->getDefinition();
+    std::vector<const NamedDecl *> Symbols =
+        RD->lookupDependentName(NameInfo.getName(), Filter);
+    // FIXME: Improve overload handling.
+    if (Symbols.size() != 1)
+      return true;
+    SourceLocation Loc = NameInfo.getLoc();
+    if (Loc.isInvalid())
+      Loc = E->getLocStart();
+    SmallVector<SymbolRelation, 4> Relations;
+    SymbolRoleSet Roles = getRolesForRef(E, Relations);
+    return IndexCtx.handleReference(Symbols[0], Loc, Parent, ParentDC, Roles,
+                                    Relations, E);
+  }
+
+  bool VisitCXXDependentScopeMemberExpr(CXXDependentScopeMemberExpr *E) {
+    const DeclarationNameInfo &Info = E->getMemberNameInfo();
+    return indexDependentReference(
+        E, E->getBaseType().getTypePtrOrNull(), Info,
+        [](const NamedDecl *D) { return D->isCXXInstanceMember(); });
+  }
+
+  bool VisitDependentScopeDeclRefExpr(DependentScopeDeclRefExpr *E) {
+    const DeclarationNameInfo &Info = E->getNameInfo();
+    const NestedNameSpecifier *NNS = E->getQualifier();
+    return indexDependentReference(
+        E, NNS->getAsType(), Info,
+        [](const NamedDecl *D) { return !D->isCXXInstanceMember(); });
+  }
+
   bool VisitDesignatedInitExpr(DesignatedInitExpr *E) {
     for (DesignatedInitExpr::Designator &D : llvm::reverse(E->designators())) {
       if (D.isFieldDesignator() && D.getField())
@@ -178,7 +229,32 @@ public:
       SymbolRoleSet Roles{};
       SmallVector<SymbolRelation, 2> Relations;
       addCallRole(Roles, Relations);
-      if (E->isImplicit())
+      Stmt *Containing = getParentStmt();
+
+      auto IsImplicitProperty = [](const PseudoObjectExpr *POE) -> bool {
+        const auto *E = POE->getSyntacticForm();
+        if (const auto *BinOp = dyn_cast<BinaryOperator>(E))
+          E = BinOp->getLHS();
+        const auto *PRE = dyn_cast<ObjCPropertyRefExpr>(E);
+        if (!PRE)
+          return false;
+        if (PRE->isExplicitProperty())
+          return false;
+        if (const ObjCMethodDecl *Getter = PRE->getImplicitPropertyGetter()) {
+          // Class properties that are explicitly defined using @property
+          // declarations are represented implicitly as there is no ivar for
+          // class properties.
+          if (Getter->isClassMethod() &&
+              Getter->getCanonicalDecl()->findPropertyDecl())
+            return false;
+        }
+        return true;
+      };
+      bool IsPropCall = Containing && isa<PseudoObjectExpr>(Containing);
+      // Implicit property message sends are not 'implicit'.
+      if ((E->isImplicit() || IsPropCall) &&
+          !(IsPropCall &&
+            IsImplicitProperty(cast<PseudoObjectExpr>(Containing))))
         Roles |= (unsigned)SymbolRole::Implicit;
 
       if (isDynamic(E)) {
@@ -194,9 +270,27 @@ public:
   }
 
   bool VisitObjCPropertyRefExpr(ObjCPropertyRefExpr *E) {
-    if (E->isExplicitProperty())
+    if (E->isClassReceiver())
+      IndexCtx.handleReference(E->getClassReceiver(), E->getReceiverLocation(),
+                               Parent, ParentDC);
+    if (E->isExplicitProperty()) {
+      SmallVector<SymbolRelation, 2> Relations;
+      SymbolRoleSet Roles = getRolesForRef(E, Relations);
       return IndexCtx.handleReference(E->getExplicitProperty(), E->getLocation(),
-                                      Parent, ParentDC, SymbolRoleSet(), {}, E);
+                                      Parent, ParentDC, Roles, Relations, E);
+    } else if (const ObjCMethodDecl *Getter = E->getImplicitPropertyGetter()) {
+      // Class properties that are explicitly defined using @property
+      // declarations are represented implicitly as there is no ivar for class
+      // properties.
+      if (Getter->isClassMethod()) {
+        if (const auto *PD = Getter->getCanonicalDecl()->findPropertyDecl()) {
+          SmallVector<SymbolRelation, 2> Relations;
+          SymbolRoleSet Roles = getRolesForRef(E, Relations);
+          return IndexCtx.handleReference(PD, E->getLocation(), Parent,
+                                          ParentDC, Roles, Relations, E);
+        }
+      }
+    }
 
     // No need to do a handleReference for the objc method, because there will
     // be a message expr as part of PseudoObjectExpr.
@@ -269,7 +363,7 @@ public:
       const Decl *D = *I;
       if (!D)
         continue;
-      if (!IndexCtx.isFunctionLocalDecl(D))
+      if (!isFunctionLocalSymbol(D))
         IndexCtx.indexTopLevelDecl(D);
     }
 

@@ -9,31 +9,30 @@
 
 #include "lldb/Core/ArchSpec.h"
 
-// C Includes
-// C++ Includes
-#include <cerrno>
-#include <cstdio>
-#include <string>
-
-// Other libraries and framework includes
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/COFF.h"
-#include "llvm/Support/ELF.h"
-#include "llvm/Support/Host.h"
-
-// Project includes
-#include "Plugins/Process/Utility/ARMDefines.h"
-#include "Plugins/Process/Utility/InstructionUtils.h"
-#include "lldb/Core/RegularExpression.h"
-#include "lldb/Core/StringList.h"
-#include "lldb/Host/Endian.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Target/Platform.h"
-#include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/NameMatches.h"
-#include "lldb/Utility/SafeMachO.h"
+#include "lldb/Utility/Stream.h" // for Stream
+#include "lldb/Utility/StringList.h"
+#include "lldb/lldb-defines.h" // for LLDB_INVALID_C...
+#include "lldb/lldb-forward.h" // for RegisterContextSP
+
+#include "Plugins/Process/Utility/ARMDefines.h"
+#include "Plugins/Process/Utility/InstructionUtils.h"
+
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Twine.h" // for Twine
+#include "llvm/BinaryFormat/COFF.h"
+#include "llvm/BinaryFormat/ELF.h"
+#include "llvm/BinaryFormat/MachO.h" // for CPUType::CPU_T...
+#include "llvm/Support/Compiler.h"   // for LLVM_FALLTHROUGH
+#include "llvm/Support/Host.h"
+
+#include <memory> // for shared_ptr
+#include <string>
+#include <tuple> // for tie, tuple
 
 using namespace lldb;
 using namespace lldb_private;
@@ -259,7 +258,7 @@ struct ArchDefinition {
 size_t ArchSpec::AutoComplete(llvm::StringRef name, StringList &matches) {
   if (!name.empty()) {
     for (uint32_t i = 0; i < llvm::array_lengthof(g_core_definitions); ++i) {
-      if (NameMatches(g_core_definitions[i].name, eNameMatchStartsWith, name))
+      if (NameMatches(g_core_definitions[i].name, NameMatch::StartsWith, name))
         matches.AppendString(g_core_definitions[i].name);
     }
   } else {
@@ -657,7 +656,7 @@ void ArchSpec::SetFlags(std::string elf_abi) {
   SetFlags(flag);
 }
 
-std::string ArchSpec::GetClangTargetCPU() {
+std::string ArchSpec::GetClangTargetCPU() const {
   std::string cpu;
   const llvm::Triple::ArchType machine = GetMachine();
 
@@ -835,19 +834,7 @@ lldb::ByteOrder ArchSpec::GetByteOrder() const {
 
 bool ArchSpec::SetTriple(const llvm::Triple &triple) {
   m_triple = triple;
-
-  llvm::StringRef arch_name(m_triple.getArchName());
-  const CoreDefinition *core_def = FindCoreDefinition(arch_name);
-  if (core_def) {
-    m_core = core_def->core;
-    // Set the byte order to the default byte order for an architecture.
-    // This can be modified if needed for cases when cores handle both
-    // big and little endian
-    m_byte_order = core_def->default_byte_order;
-  } else {
-    Clear();
-  }
-
+  UpdateCore();
   return IsValid();
 }
 
@@ -995,8 +982,10 @@ void ArchSpec::MergeFrom(const ArchSpec &other) {
     GetTriple().setVendor(other.GetTriple().getVendor());
   if (TripleOSIsUnspecifiedUnknown() && !other.TripleOSIsUnspecifiedUnknown())
     GetTriple().setOS(other.GetTriple().getOS());
-  if (GetTriple().getArch() == llvm::Triple::UnknownArch)
+  if (GetTriple().getArch() == llvm::Triple::UnknownArch) {
     GetTriple().setArch(other.GetTriple().getArch());
+    UpdateCore();
+  }
   if (GetTriple().getEnvironment() == llvm::Triple::UnknownEnvironment &&
       !TripleVendorWasSpecified()) {
     if (other.TripleVendorWasSpecified())
@@ -1191,6 +1180,20 @@ bool ArchSpec::IsEqualTo(const ArchSpec &rhs, bool exact_match) const {
   return false;
 }
 
+void ArchSpec::UpdateCore() {
+  llvm::StringRef arch_name(m_triple.getArchName());
+  const CoreDefinition *core_def = FindCoreDefinition(arch_name);
+  if (core_def) {
+    m_core = core_def->core;
+    // Set the byte order to the default byte order for an architecture.
+    // This can be modified if needed for cases when cores handle both
+    // big and little endian
+    m_byte_order = core_def->default_byte_order;
+  } else {
+    Clear();
+  }
+}
+
 //===----------------------------------------------------------------------===//
 // Helper methods.
 
@@ -1380,7 +1383,7 @@ static bool cores_match(const ArchSpec::Core core1, const ArchSpec::Core core2,
       if (core2 >= ArchSpec::kCore_mips32el_first &&
           core2 <= ArchSpec::kCore_mips32el_last)
         return true;
-      try_inverse = false;
+      try_inverse = true;
     }
     break;
 
@@ -1552,7 +1555,7 @@ static void StopInfoOverrideCallbackTypeARM(lldb_private::Thread &thread) {
 #if 0
                 // ARM mode: check for condition on intsruction
                 const addr_t pc = reg_ctx_sp->GetPC();
-                Error error;
+                Status error;
                 // If we fail to read the opcode we will get UINT64_MAX as the
                 // result in "opcode" which we can use to detect if we read a
                 // valid opcode.
@@ -1632,7 +1635,7 @@ void ArchSpec::PiecewiseTripleCompare(
 }
 
 bool ArchSpec::IsAlwaysThumbInstructions() const {
-  std::string Error;
+  std::string Status;
   if (GetTriple().getArch() == llvm::Triple::arm ||
       GetTriple().getArch() == llvm::Triple::thumb) {
     // v. https://en.wikipedia.org/wiki/ARM_Cortex-M

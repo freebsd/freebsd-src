@@ -14,15 +14,17 @@
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Core/Debugger.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Host/Config.h"
 #include "lldb/Host/FileSystem.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Target/FileAction.h"
 #include "lldb/Target/ProcessLaunchInfo.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/StreamString.h"
 
 #include "llvm/Support/ConvertUTF.h"
+#include "llvm/Support/FileSystem.h"
 
 #if !defined(_WIN32)
 #include <limits.h>
@@ -328,7 +330,7 @@ void ProcessLaunchInfo::FinalizeFileActions(Target *target,
 }
 
 bool ProcessLaunchInfo::ConvertArgumentsForLaunchingInShell(
-    Error &error, bool localhost, bool will_debug,
+    Status &error, bool localhost, bool will_debug,
     bool first_arg_is_full_shell_command, int32_t num_resumes) {
   error.Clear();
 
@@ -368,10 +370,8 @@ bool ProcessLaunchInfo::ConvertArgumentsForLaunchingInShell(
           if (working_dir) {
             new_path += working_dir.GetPath();
           } else {
-            char current_working_dir[PATH_MAX];
-            const char *cwd =
-                getcwd(current_working_dir, sizeof(current_working_dir));
-            if (cwd && cwd[0])
+            llvm::SmallString<64> cwd;
+            if (! llvm::sys::fs::current_path(cwd))
               new_path += cwd;
           }
           std::string curr_path;

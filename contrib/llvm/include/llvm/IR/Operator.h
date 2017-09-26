@@ -18,8 +18,6 @@
 #include "llvm/ADT/None.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
@@ -31,18 +29,12 @@ namespace llvm {
 /// This is a utility class that provides an abstraction for the common
 /// functionality between Instructions and ConstantExprs.
 class Operator : public User {
-protected:
-  // NOTE: Cannot use = delete because it's not legal to delete
-  // an overridden method that's not deleted in the base class. Cannot leave
-  // this unimplemented because that leads to an ODR-violation.
-  ~Operator() override;
-
 public:
   // The Operator class is intended to be used as a utility, and is never itself
   // instantiated.
   Operator() = delete;
+  ~Operator() = delete;
 
-  void *operator new(size_t, unsigned) = delete;
   void *operator new(size_t s) = delete;
 
   /// Return the opcode for this Instruction or ConstantExpr.
@@ -62,9 +54,9 @@ public:
     return Instruction::UserOp1;
   }
 
-  static inline bool classof(const Instruction *) { return true; }
-  static inline bool classof(const ConstantExpr *) { return true; }
-  static inline bool classof(const Value *V) {
+  static bool classof(const Instruction *) { return true; }
+  static bool classof(const ConstantExpr *) { return true; }
+  static bool classof(const Value *V) {
     return isa<Instruction>(V) || isa<ConstantExpr>(V);
   }
 };
@@ -105,19 +97,19 @@ public:
     return (SubclassOptionalData & NoSignedWrap) != 0;
   }
 
-  static inline bool classof(const Instruction *I) {
+  static bool classof(const Instruction *I) {
     return I->getOpcode() == Instruction::Add ||
            I->getOpcode() == Instruction::Sub ||
            I->getOpcode() == Instruction::Mul ||
            I->getOpcode() == Instruction::Shl;
   }
-  static inline bool classof(const ConstantExpr *CE) {
+  static bool classof(const ConstantExpr *CE) {
     return CE->getOpcode() == Instruction::Add ||
            CE->getOpcode() == Instruction::Sub ||
            CE->getOpcode() == Instruction::Mul ||
            CE->getOpcode() == Instruction::Shl;
   }
-  static inline bool classof(const Value *V) {
+  static bool classof(const Value *V) {
     return (isa<Instruction>(V) && classof(cast<Instruction>(V))) ||
            (isa<ConstantExpr>(V) && classof(cast<ConstantExpr>(V)));
   }
@@ -152,13 +144,13 @@ public:
            OpC == Instruction::LShr;
   }
 
-  static inline bool classof(const ConstantExpr *CE) {
+  static bool classof(const ConstantExpr *CE) {
     return isPossiblyExactOpcode(CE->getOpcode());
   }
-  static inline bool classof(const Instruction *I) {
+  static bool classof(const Instruction *I) {
     return isPossiblyExactOpcode(I->getOpcode());
   }
-  static inline bool classof(const Value *V) {
+  static bool classof(const Value *V) {
     return (isa<Instruction>(V) && classof(cast<Instruction>(V))) ||
            (isa<ConstantExpr>(V) && classof(cast<ConstantExpr>(V)));
   }
@@ -174,12 +166,15 @@ private:
   FastMathFlags(unsigned F) : Flags(F) { }
 
 public:
+  /// This is how the bits are used in Value::SubclassOptionalData so they
+  /// should fit there too.
   enum {
     UnsafeAlgebra   = (1 << 0),
     NoNaNs          = (1 << 1),
     NoInfs          = (1 << 2),
     NoSignedZeros   = (1 << 3),
-    AllowReciprocal = (1 << 4)
+    AllowReciprocal = (1 << 4),
+    AllowContract   = (1 << 5)
   };
 
   FastMathFlags() = default;
@@ -195,6 +190,7 @@ public:
   bool noInfs() const          { return 0 != (Flags & NoInfs); }
   bool noSignedZeros() const   { return 0 != (Flags & NoSignedZeros); }
   bool allowReciprocal() const { return 0 != (Flags & AllowReciprocal); }
+  bool allowContract() const { return 0 != (Flags & AllowContract); }
   bool unsafeAlgebra() const   { return 0 != (Flags & UnsafeAlgebra); }
 
   /// Flag setters
@@ -202,12 +198,16 @@ public:
   void setNoInfs()          { Flags |= NoInfs; }
   void setNoSignedZeros()   { Flags |= NoSignedZeros; }
   void setAllowReciprocal() { Flags |= AllowReciprocal; }
+  void setAllowContract(bool B) {
+    Flags = (Flags & ~AllowContract) | B * AllowContract;
+  }
   void setUnsafeAlgebra() {
     Flags |= UnsafeAlgebra;
     setNoNaNs();
     setNoInfs();
     setNoSignedZeros();
     setAllowReciprocal();
+    setAllowContract(true);
   }
 
   void operator&=(const FastMathFlags &OtherFlags) {
@@ -259,6 +259,12 @@ private:
       (B * FastMathFlags::AllowReciprocal);
   }
 
+  void setHasAllowContract(bool B) {
+    SubclassOptionalData =
+        (SubclassOptionalData & ~FastMathFlags::AllowContract) |
+        (B * FastMathFlags::AllowContract);
+  }
+
   /// Convenience function for setting multiple fast-math flags.
   /// FMF is a mask of the bits to set.
   void setFastMathFlags(FastMathFlags FMF) {
@@ -302,6 +308,12 @@ public:
     return (SubclassOptionalData & FastMathFlags::AllowReciprocal) != 0;
   }
 
+  /// Test whether this operation is permitted to
+  /// be floating-point contracted.
+  bool hasAllowContract() const {
+    return (SubclassOptionalData & FastMathFlags::AllowContract) != 0;
+  }
+
   /// Convenience function for getting all the fast-math flags
   FastMathFlags getFastMathFlags() const {
     return FastMathFlags(SubclassOptionalData);
@@ -312,12 +324,19 @@ public:
   /// precision.
   float getFPAccuracy() const;
 
-  static inline bool classof(const Instruction *I) {
+  static bool classof(const Instruction *I) {
     return I->getType()->isFPOrFPVectorTy() ||
       I->getOpcode() == Instruction::FCmp;
   }
-  static inline bool classof(const Value *V) {
-    return isa<Instruction>(V) && classof(cast<Instruction>(V));
+
+  static bool classof(const ConstantExpr *CE) {
+    return CE->getType()->isFPOrFPVectorTy() ||
+           CE->getOpcode() == Instruction::FCmp;
+  }
+
+  static bool classof(const Value *V) {
+    return (isa<Instruction>(V) && classof(cast<Instruction>(V))) ||
+           (isa<ConstantExpr>(V) && classof(cast<ConstantExpr>(V)));
   }
 };
 
@@ -325,13 +344,13 @@ public:
 template<typename SuperClass, unsigned Opc>
 class ConcreteOperator : public SuperClass {
 public:
-  static inline bool classof(const Instruction *I) {
+  static bool classof(const Instruction *I) {
     return I->getOpcode() == Opc;
   }
-  static inline bool classof(const ConstantExpr *CE) {
+  static bool classof(const ConstantExpr *CE) {
     return CE->getOpcode() == Opc;
   }
-  static inline bool classof(const Value *V) {
+  static bool classof(const Value *V) {
     return (isa<Instruction>(V) && classof(cast<Instruction>(V))) ||
            (isa<ConstantExpr>(V) && classof(cast<ConstantExpr>(V)));
   }

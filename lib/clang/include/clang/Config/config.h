@@ -39,11 +39,14 @@
 /* Define if we have libxml2 */
 /* #undef CLANG_HAVE_LIBXML */
 
+/* Define if we have z3 and want to build it */
+/* #undef CLANG_ANALYZER_WITH_Z3 */
+
 /* Define if we have sys/resource.h (rlimits) */
 #define CLANG_HAVE_RLIMITS 1
 
 /* The LLVM product name and version */
-#define BACKEND_PACKAGE_STRING "LLVM 4.0.0"
+#define BACKEND_PACKAGE_STRING "LLVM 5.0.0svn"
 
 /* Linker version detected at compile time. */
 /* #undef HOST_LINK_VERSION */
@@ -53,5 +56,10 @@
 
 /* enable x86 relax relocations by default */
 #define ENABLE_X86_RELAX_RELOCATIONS 0
+
+/* Enable each functionality of modules */
+/* #undef CLANG_ENABLE_ARCMT */
+/* #undef CLANG_ENABLE_OBJC_REWRITER */
+/* #undef CLANG_ENABLE_STATIC_ANALYZER */
 
 #endif

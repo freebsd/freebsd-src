@@ -12,10 +12,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Parse/Parser.h"
-#include "RAIIObjectsForParser.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/CharInfo.h"
 #include "clang/Parse/ParseDiagnostic.h"
+#include "clang/Parse/RAIIObjectsForParser.h"
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/PrettyDeclStackTrace.h"
 #include "clang/Sema/Scope.h"
@@ -137,8 +137,7 @@ Parser::ParseObjCAtClassDeclaration(SourceLocation atLoc) {
 
   while (1) {
     MaybeSkipAttributes(tok::objc_class);
-    if (Tok.isNot(tok::identifier)) {
-      Diag(Tok, diag::err_expected) << tok::identifier;
+    if (expectIdentifier()) {
       SkipUntil(tok::semi);
       return Actions.ConvertDeclToDeclGroup(nullptr);
     }
@@ -229,11 +228,8 @@ Decl *Parser::ParseObjCAtInterfaceDeclaration(SourceLocation AtLoc,
 
   MaybeSkipAttributes(tok::objc_interface);
 
-  if (Tok.isNot(tok::identifier)) {
-    Diag(Tok, diag::err_expected)
-        << tok::identifier; // missing class or category name.
-    return nullptr;
-  }
+  if (expectIdentifier())
+    return nullptr; // missing class or category name.
 
   // We have a class or category name - consume it.
   IdentifierInfo *nameId = Tok.getIdentifierInfo();
@@ -278,11 +274,6 @@ Decl *Parser::ParseObjCAtInterfaceDeclaration(SourceLocation AtLoc,
     T.consumeClose();
     if (T.getCloseLocation().isInvalid())
       return nullptr;
-
-    if (!attrs.empty()) { // categories don't support attributes.
-      Diag(nameLoc, diag::err_objc_no_attributes_on_category);
-      attrs.clear();
-    }
     
     // Next, we need to check for any protocol references.
     assert(LAngleLoc.isInvalid() && "Cannot have already parsed protocols");
@@ -294,16 +285,11 @@ Decl *Parser::ParseObjCAtInterfaceDeclaration(SourceLocation AtLoc,
                                     /*consumeLastToken=*/true))
       return nullptr;
 
-    Decl *CategoryType =
-    Actions.ActOnStartCategoryInterface(AtLoc,
-                                        nameId, nameLoc,
-                                        typeParameterList,
-                                        categoryId, categoryLoc,
-                                        ProtocolRefs.data(),
-                                        ProtocolRefs.size(),
-                                        ProtocolLocs.data(),
-                                        EndProtoLoc);
-    
+    Decl *CategoryType = Actions.ActOnStartCategoryInterface(
+        AtLoc, nameId, nameLoc, typeParameterList, categoryId, categoryLoc,
+        ProtocolRefs.data(), ProtocolRefs.size(), ProtocolLocs.data(),
+        EndProtoLoc, attrs.getList());
+
     if (Tok.is(tok::l_brace))
       ParseObjCClassInstanceVariables(CategoryType, tok::objc_private, AtLoc);
       
@@ -329,11 +315,8 @@ Decl *Parser::ParseObjCAtInterfaceDeclaration(SourceLocation AtLoc,
       return nullptr;
     }
 
-    if (Tok.isNot(tok::identifier)) {
-      Diag(Tok, diag::err_expected)
-          << tok::identifier; // missing super class name.
-      return nullptr;
-    }
+    if (expectIdentifier())
+      return nullptr; // missing super class name.
     superClassId = Tok.getIdentifierInfo();
     superClassLoc = ConsumeToken();
 
@@ -929,7 +912,7 @@ void Parser::ParseObjCPropertyAttribute(ObjCDeclSpec &DS) {
 
       if (IsSetter) {
         DS.setPropertyAttributes(ObjCDeclSpec::DQ_PR_setter);
-        DS.setSetterName(SelIdent);
+        DS.setSetterName(SelIdent, SelLoc);
 
         if (ExpectAndConsume(tok::colon,
                              diag::err_expected_colon_after_setter_name)) {
@@ -938,7 +921,7 @@ void Parser::ParseObjCPropertyAttribute(ObjCDeclSpec &DS) {
         }
       } else {
         DS.setPropertyAttributes(ObjCDeclSpec::DQ_PR_getter);
-        DS.setGetterName(SelIdent);
+        DS.setGetterName(SelIdent, SelLoc);
       }
     } else if (II->isStr("nonnull")) {
       if (DS.getPropertyAttributes() & ObjCDeclSpec::DQ_PR_nullability)
@@ -1023,6 +1006,10 @@ IdentifierInfo *Parser::ParseObjCSelectorPiece(SourceLocation &SelectorLoc) {
 
   switch (Tok.getKind()) {
   default:
+    return nullptr;
+  case tok::colon:
+    // Empty selector piece uses the location of the ':'.
+    SelectorLoc = Tok.getLocation();
     return nullptr;
   case tok::ampamp:
   case tok::ampequal:
@@ -1448,12 +1435,9 @@ Decl *Parser::ParseObjCMethodDecl(SourceLocation mLoc,
       cutOffParsing();
       return nullptr;
     }
-    
-    if (Tok.isNot(tok::identifier)) {
-      Diag(Tok, diag::err_expected)
-          << tok::identifier; // missing argument name.
-      break;
-    }
+
+    if (expectIdentifier())
+      break; // missing argument name.
 
     ArgInfo.Name = Tok.getIdentifierInfo();
     ArgInfo.NameLoc = Tok.getLocation();
@@ -1562,8 +1546,7 @@ ParseObjCProtocolReferences(SmallVectorImpl<Decl *> &Protocols,
       return true;
     }
 
-    if (Tok.isNot(tok::identifier)) {
-      Diag(Tok, diag::err_expected) << tok::identifier;
+    if (expectIdentifier()) {
       SkipUntil(tok::greater, StopAtSemi);
       return true;
     }
@@ -2045,10 +2028,8 @@ Parser::ParseObjCAtProtocolDeclaration(SourceLocation AtLoc,
 
   MaybeSkipAttributes(tok::objc_protocol);
 
-  if (Tok.isNot(tok::identifier)) {
-    Diag(Tok, diag::err_expected) << tok::identifier; // missing protocol name.
-    return nullptr;
-  }
+  if (expectIdentifier())
+    return nullptr; // missing protocol name.
   // Save the protocol name, then consume it.
   IdentifierInfo *protocolName = Tok.getIdentifierInfo();
   SourceLocation nameLoc = ConsumeToken();
@@ -2068,8 +2049,7 @@ Parser::ParseObjCAtProtocolDeclaration(SourceLocation AtLoc,
     // Parse the list of forward declarations.
     while (1) {
       ConsumeToken(); // the ','
-      if (Tok.isNot(tok::identifier)) {
-        Diag(Tok, diag::err_expected) << tok::identifier;
+      if (expectIdentifier()) {
         SkipUntil(tok::semi);
         return nullptr;
       }
@@ -2136,11 +2116,8 @@ Parser::ParseObjCAtImplementationDeclaration(SourceLocation AtLoc) {
 
   MaybeSkipAttributes(tok::objc_implementation);
 
-  if (Tok.isNot(tok::identifier)) {
-    Diag(Tok, diag::err_expected)
-        << tok::identifier; // missing class or category name.
-    return nullptr;
-  }
+  if (expectIdentifier())
+    return nullptr; // missing class or category name.
   // We have a class or category name - consume it.
   IdentifierInfo *nameId = Tok.getIdentifierInfo();
   SourceLocation nameLoc = ConsumeToken(); // consume class or category name
@@ -2210,11 +2187,8 @@ Parser::ParseObjCAtImplementationDeclaration(SourceLocation AtLoc) {
     IdentifierInfo *superClassId = nullptr;
     if (TryConsumeToken(tok::colon)) {
       // We have a super class
-      if (Tok.isNot(tok::identifier)) {
-        Diag(Tok, diag::err_expected)
-            << tok::identifier; // missing super class name.
-        return nullptr;
-      }
+      if (expectIdentifier())
+        return nullptr; // missing super class name.
       superClassId = Tok.getIdentifierInfo();
       superClassLoc = ConsumeToken(); // Consume super class name
     }
@@ -2285,7 +2259,7 @@ Parser::ObjCImplParsingDataRAII::~ObjCImplParsingDataRAII() {
 
 void Parser::ObjCImplParsingDataRAII::finish(SourceRange AtEnd) {
   assert(!Finished);
-  P.Actions.DefaultSynthesizeProperties(P.getCurScope(), Dcl);
+  P.Actions.DefaultSynthesizeProperties(P.getCurScope(), Dcl, AtEnd.getBegin());
   for (size_t i = 0; i < LateParsedObjCMethods.size(); ++i)
     P.ParseLexedObjCMethodDefs(*LateParsedObjCMethods[i], 
                                true/*Methods*/);
@@ -2314,16 +2288,12 @@ Decl *Parser::ParseObjCAtAliasDeclaration(SourceLocation atLoc) {
   assert(Tok.isObjCAtKeyword(tok::objc_compatibility_alias) &&
          "ParseObjCAtAliasDeclaration(): Expected @compatibility_alias");
   ConsumeToken(); // consume compatibility_alias
-  if (Tok.isNot(tok::identifier)) {
-    Diag(Tok, diag::err_expected) << tok::identifier;
+  if (expectIdentifier())
     return nullptr;
-  }
   IdentifierInfo *aliasId = Tok.getIdentifierInfo();
   SourceLocation aliasLoc = ConsumeToken(); // consume alias-name
-  if (Tok.isNot(tok::identifier)) {
-    Diag(Tok, diag::err_expected) << tok::identifier;
+  if (expectIdentifier())
     return nullptr;
-  }
   IdentifierInfo *classId = Tok.getIdentifierInfo();
   SourceLocation classLoc = ConsumeToken(); // consume class-name;
   ExpectAndConsume(tok::semi, diag::err_expected_after, "@compatibility_alias");
@@ -2371,11 +2341,9 @@ Decl *Parser::ParseObjCPropertySynthesize(SourceLocation atLoc) {
         cutOffParsing();
         return nullptr;
       }
-      
-      if (Tok.isNot(tok::identifier)) {
-        Diag(Tok, diag::err_expected) << tok::identifier;
+
+      if (expectIdentifier())
         break;
-      }
       propertyIvar = Tok.getIdentifierInfo();
       propertyIvarLoc = ConsumeToken(); // consume ivar-name
     }
@@ -2433,9 +2401,8 @@ Decl *Parser::ParseObjCPropertyDynamic(SourceLocation atLoc) {
       cutOffParsing();
       return nullptr;
     }
-    
-    if (Tok.isNot(tok::identifier)) {
-      Diag(Tok, diag::err_expected) << tok::identifier;
+
+    if (expectIdentifier()) {
       SkipUntil(tok::semi);
       return nullptr;
     }
@@ -3571,8 +3538,8 @@ Parser::ParseObjCProtocolExpression(SourceLocation AtLoc) {
   BalancedDelimiterTracker T(*this, tok::l_paren);
   T.consumeOpen();
 
-  if (Tok.isNot(tok::identifier))
-    return ExprError(Diag(Tok, diag::err_expected) << tok::identifier);
+  if (expectIdentifier())
+    return ExprError();
 
   IdentifierInfo *protocolId = Tok.getIdentifierInfo();
   SourceLocation ProtoIdLoc = ConsumeToken();
@@ -3664,6 +3631,14 @@ void Parser::ParseLexedObjCMethodDefs(LexedMethod &LM, bool parseMethod) {
   SourceLocation OrigLoc = Tok.getLocation();
 
   assert(!LM.Toks.empty() && "ParseLexedObjCMethodDef - Empty body!");
+  // Store an artificial EOF token to ensure that we don't run off the end of
+  // the method's body when we come to parse it.
+  Token Eof;
+  Eof.startToken();
+  Eof.setKind(tok::eof);
+  Eof.setEofData(MCDecl);
+  Eof.setLocation(OrigLoc);
+  LM.Toks.push_back(Eof);
   // Append the current token at the end of the new token stream so that it
   // doesn't get lost.
   LM.Toks.push_back(Tok);
@@ -3695,7 +3670,7 @@ void Parser::ParseLexedObjCMethodDefs(LexedMethod &LM, bool parseMethod) {
       Actions.ActOnDefaultCtorInitializers(MCDecl);
     ParseFunctionStatementBody(MCDecl, BodyScope);
   }
-  
+
   if (Tok.getLocation() != OrigLoc) {
     // Due to parsing error, we either went over the cached tokens or
     // there are still cached tokens left. If it's the latter case skip the
@@ -3707,4 +3682,6 @@ void Parser::ParseLexedObjCMethodDefs(LexedMethod &LM, bool parseMethod) {
       while (Tok.getLocation() != OrigLoc && Tok.isNot(tok::eof))
         ConsumeAnyToken();
   }
+  // Clean up the remaining EOF token.
+  ConsumeAnyToken();
 }

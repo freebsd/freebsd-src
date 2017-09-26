@@ -15,7 +15,7 @@
 #include "CGCUDARuntime.h"
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
-#include "ConstantBuilder.h"
+#include "clang/CodeGen/ConstantInitBuilder.h"
 #include "clang/AST/Decl.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CallSite.h"
@@ -265,7 +265,7 @@ llvm::Function *CGNVCUDARuntime::makeModuleCtorFunction() {
       "__cudaRegisterFatBinary");
   // struct { int magic, int version, void * gpu_binary, void * dont_care };
   llvm::StructType *FatbinWrapperTy =
-      llvm::StructType::get(IntTy, IntTy, VoidPtrTy, VoidPtrTy, nullptr);
+      llvm::StructType::get(IntTy, IntTy, VoidPtrTy, VoidPtrTy);
 
   llvm::Function *ModuleCtorFunc = llvm::Function::Create(
       llvm::FunctionType::get(VoidTy, VoidPtrTy, false),

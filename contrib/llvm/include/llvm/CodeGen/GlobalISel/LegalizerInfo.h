@@ -1,4 +1,4 @@
-//==-- llvm/CodeGen/GlobalISel/LegalizerInfo.h -------------------*- C++ -*-==//
+//===- llvm/CodeGen/GlobalISel/LegalizerInfo.h ------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,32 +12,36 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_GLOBALISEL_MACHINELEGALIZER_H
-#define LLVM_CODEGEN_GLOBALISEL_MACHINELEGALIZER_H
+#ifndef LLVM_CODEGEN_GLOBALISEL_LEGALIZERINFO_H
+#define LLVM_CODEGEN_GLOBALISEL_LEGALIZERINFO_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/CodeGen/LowLevelType.h"
+#include "llvm/ADT/None.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/LowLevelTypeImpl.h"
 #include "llvm/Target/TargetOpcodes.h"
-
 #include <cstdint>
-#include <functional>
+#include <cassert>
+#include <tuple>
+#include <utility>
 
 namespace llvm {
-class LLVMContext;
+
 class MachineInstr;
+class MachineIRBuilder;
 class MachineRegisterInfo;
-class Type;
-class VectorType;
 
 /// Legalization is decided based on an instruction's opcode, which type slot
 /// we're considering, and what the existing type is. These aspects are gathered
 /// together for convenience in the InstrAspect class.
 struct InstrAspect {
   unsigned Opcode;
-  unsigned Idx;
+  unsigned Idx = 0;
   LLT Type;
 
-  InstrAspect(unsigned Opcode, LLT Type) : Opcode(Opcode), Idx(0), Type(Type) {}
+  InstrAspect(unsigned Opcode, LLT Type) : Opcode(Opcode), Type(Type) {}
   InstrAspect(unsigned Opcode, unsigned Idx, LLT Type)
       : Opcode(Opcode), Idx(Idx), Type(Type) {}
 
@@ -96,11 +100,25 @@ public:
   };
 
   LegalizerInfo();
+  virtual ~LegalizerInfo() = default;
 
   /// Compute any ancillary tables needed to quickly decide how an operation
   /// should be handled. This must be called after all "set*Action"methods but
   /// before any query is made or incorrect results may be returned.
   void computeTables();
+
+  static bool needsLegalizingToDifferentSize(const LegalizeAction Action) {
+    switch (Action) {
+    case NarrowScalar:
+    case WidenScalar:
+    case FewerElements:
+    case MoreElements:
+    case Unsupported:
+      return true;
+    default:
+      return false;
+    }
+  }
 
   /// More friendly way to set an action for common types that have an LLT
   /// representation.
@@ -123,7 +141,6 @@ public:
     ScalarInVectorActions[std::make_pair(Opcode, ScalarTy)] = Action;
   }
 
-
   /// Determine what action should be taken to legalize the given generic
   /// instruction opcode, type-index and type. Requires computeTables to have
   /// been called.
@@ -143,29 +160,35 @@ public:
 
   /// Iterate the given function (typically something like doubling the width)
   /// on Ty until we find a legal type for this operation.
-  LLT findLegalType(const InstrAspect &Aspect,
-                    std::function<LLT(LLT)> NextType) const {
+  Optional<LLT> findLegalizableSize(const InstrAspect &Aspect,
+                                    function_ref<LLT(LLT)> NextType) const {
     LegalizeAction Action;
     const TypeMap &Map = Actions[Aspect.Opcode - FirstOp][Aspect.Idx];
     LLT Ty = Aspect.Type;
     do {
       Ty = NextType(Ty);
       auto ActionIt = Map.find(Ty);
-      if (ActionIt == Map.end())
-        Action = DefaultActions.find(Aspect.Opcode)->second;
-      else
+      if (ActionIt == Map.end()) {
+        auto DefaultIt = DefaultActions.find(Aspect.Opcode);
+        if (DefaultIt == DefaultActions.end())
+          return None;
+        Action = DefaultIt->second;
+      } else
         Action = ActionIt->second;
-    } while(Action != Legal);
+    } while (needsLegalizingToDifferentSize(Action));
     return Ty;
   }
 
   /// Find what type it's actually OK to perform the given operation on, given
   /// the general approach we've decided to take.
-  LLT findLegalType(const InstrAspect &Aspect, LegalizeAction Action) const;
+  Optional<LLT> findLegalType(const InstrAspect &Aspect, LegalizeAction Action) const;
 
   std::pair<LegalizeAction, LLT> findLegalAction(const InstrAspect &Aspect,
                                                  LegalizeAction Action) const {
-    return std::make_pair(Action, findLegalType(Aspect, Action));
+    auto LegalType = findLegalType(Aspect, Action);
+    if (!LegalType)
+      return std::make_pair(LegalizeAction::Unsupported, LLT());
+    return std::make_pair(Action, *LegalType);
   }
 
   /// Find the specified \p Aspect in the primary (explicitly set) Actions
@@ -186,22 +209,25 @@ public:
 
   bool isLegal(const MachineInstr &MI, const MachineRegisterInfo &MRI) const;
 
+  virtual bool legalizeCustom(MachineInstr &MI,
+                              MachineRegisterInfo &MRI,
+                              MachineIRBuilder &MIRBuilder) const;
+
 private:
   static const int FirstOp = TargetOpcode::PRE_ISEL_GENERIC_OPCODE_START;
   static const int LastOp = TargetOpcode::PRE_ISEL_GENERIC_OPCODE_END;
 
-  typedef DenseMap<LLT, LegalizeAction> TypeMap;
-  typedef DenseMap<std::pair<unsigned, LLT>, LegalizeAction> SIVActionMap;
+  using TypeMap = DenseMap<LLT, LegalizeAction>;
+  using SIVActionMap = DenseMap<std::pair<unsigned, LLT>, LegalizeAction>;
 
   SmallVector<TypeMap, 1> Actions[LastOp - FirstOp + 1];
   SIVActionMap ScalarInVectorActions;
   DenseMap<std::pair<unsigned, LLT>, uint16_t> MaxLegalVectorElts;
   DenseMap<unsigned, LegalizeAction> DefaultActions;
 
-  bool TablesInitialized;
+  bool TablesInitialized = false;
 };
 
+} // end namespace llvm
 
-} // End namespace llvm.
-
-#endif
+#endif // LLVM_CODEGEN_GLOBALISEL_LEGALIZERINFO_H

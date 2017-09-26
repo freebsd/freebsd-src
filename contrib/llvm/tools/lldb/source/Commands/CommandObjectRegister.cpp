@@ -7,17 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-#include "llvm/ADT/STLExtras.h"
-
-// Project includes
 #include "CommandObjectRegister.h"
-#include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/Scalar.h"
+#include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/Args.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
@@ -31,6 +25,8 @@
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Thread.h"
+#include "lldb/Utility/DataExtractor.h"
+#include "llvm/Support/Errno.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -177,8 +173,8 @@ protected:
           if (set_idx < reg_ctx->GetRegisterSetCount()) {
             if (!DumpRegisterSet(m_exe_ctx, strm, reg_ctx, set_idx)) {
               if (errno)
-                result.AppendErrorWithFormat("register read failed: %s\n",
-                                             strerror(errno));
+                result.AppendErrorWithFormatv("register read failed: {0}\n",
+                                              llvm::sys::StrError());
               else
                 result.AppendError("unknown error while reading registers.\n");
               result.SetStatus(eReturnStatusFailed);
@@ -256,9 +252,9 @@ protected:
       alternate_name.Clear();
     }
 
-    Error SetOptionValue(uint32_t option_idx, llvm::StringRef option_value,
-                         ExecutionContext *execution_context) override {
-      Error error;
+    Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_value,
+                          ExecutionContext *execution_context) override {
+      Status error;
       const int short_option = GetDefinitions()[option_idx].short_option;
       switch (short_option) {
       case 's': {
@@ -366,7 +362,7 @@ protected:
       if (reg_info) {
         RegisterValue reg_value;
 
-        Error error(reg_value.SetValueFromString(reg_info, value_str));
+        Status error(reg_value.SetValueFromString(reg_info, value_str));
         if (error.Success()) {
           if (reg_ctx->WriteRegister(reg_info, reg_value)) {
             // Toss all frames and anything else in the thread

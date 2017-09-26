@@ -286,7 +286,7 @@ public:
   void runCheckersForEndAnalysis(ExplodedGraph &G, BugReporter &BR,
                                  ExprEngine &Eng);
 
-  /// \brief Run checkers on begining of function.
+  /// \brief Run checkers on beginning of function.
   void runCheckersForBeginFunction(ExplodedNodeSet &Dst,
                                    const BlockEdge &L,
                                    ExplodedNode *Pred,
@@ -338,6 +338,7 @@ public:
                               const InvalidatedSymbols *invalidated,
                               ArrayRef<const MemRegion *> ExplicitRegions,
                               ArrayRef<const MemRegion *> Regions,
+                              const LocationContext *LCtx,
                               const CallEvent *Call);
 
   /// \brief Run checkers when pointers escape.
@@ -443,10 +444,11 @@ public:
   typedef CheckerFn<void (ProgramStateRef,SymbolReaper &)> CheckLiveSymbolsFunc;
   
   typedef CheckerFn<ProgramStateRef (ProgramStateRef,
-                                const InvalidatedSymbols *symbols,
-                                ArrayRef<const MemRegion *> ExplicitRegions,
-                                ArrayRef<const MemRegion *> Regions,
-                                const CallEvent *Call)>
+                                     const InvalidatedSymbols *symbols,
+                                     ArrayRef<const MemRegion *> ExplicitRegions,
+                                     ArrayRef<const MemRegion *> Regions,
+                                     const LocationContext *LCtx,
+                                     const CallEvent *Call)>
       CheckRegionChangesFunc;
   
   typedef CheckerFn<ProgramStateRef (ProgramStateRef,

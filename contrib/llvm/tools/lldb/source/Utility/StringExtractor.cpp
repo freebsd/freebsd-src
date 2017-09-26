@@ -9,13 +9,11 @@
 
 #include "lldb/Utility/StringExtractor.h"
 
-// C Includes
-#include <stdlib.h>
-
-// C++ Includes
 #include <tuple>
-// Other libraries and framework includes
-// Project includes
+
+#include <ctype.h> // for isxdigit, isspace
+#include <stdlib.h>
+#include <string.h> // for memset
 
 static inline int xdigit_to_sint(char ch) {
   if (ch >= 'a' && ch <= 'f')
@@ -280,6 +278,15 @@ uint64_t StringExtractor::GetHexMaxU64(bool little_endian,
     }
   }
   return result;
+}
+
+bool StringExtractor::ConsumeFront(const llvm::StringRef &str) {
+  llvm::StringRef S = GetStringRef();
+  if (!S.startswith(str))
+    return false;
+  else
+    m_index += str.size();
+  return true;
 }
 
 size_t StringExtractor::GetHexBytes(llvm::MutableArrayRef<uint8_t> dest,

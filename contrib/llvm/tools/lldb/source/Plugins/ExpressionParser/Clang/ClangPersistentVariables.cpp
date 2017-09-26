@@ -9,10 +9,10 @@
 
 #include "ClangPersistentVariables.h"
 
-#include "lldb/Core/DataExtractor.h"
-#include "lldb/Core/Log.h"
-#include "lldb/Core/StreamString.h"
 #include "lldb/Core/Value.h"
+#include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/StreamString.h"
 
 #include "clang/AST/Decl.h"
 

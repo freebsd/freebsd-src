@@ -112,6 +112,11 @@ public:
   /// Evaluates a given SVal. If the SVal has only one possible (integer) value,
   /// that value is returned. Otherwise, returns NULL.
   virtual const llvm::APSInt *getKnownValue(ProgramStateRef state, SVal val) = 0;
+
+  /// Simplify symbolic expressions within a given SVal. Return an SVal
+  /// that represents the same value, but is hopefully easier to work with
+  /// than the original SVal.
+  virtual SVal simplifySVal(ProgramStateRef State, SVal Val) = 0;
   
   /// Constructs a symbolic expression for two non-location values.
   SVal makeSymExprValNN(ProgramStateRef state, BinaryOperator::Opcode op,
@@ -308,6 +313,13 @@ public:
 
   nonloc::ConcreteInt makeTruthVal(bool b) {
     return nonloc::ConcreteInt(BasicVals.getTruthValue(b));
+  }
+
+  /// Create NULL pointer, with proper pointer bit-width for given address
+  /// space.
+  /// \param type pointer type.
+  Loc makeNullWithType(QualType type) {
+    return loc::ConcreteInt(BasicVals.getZeroWithTypeSize(type));
   }
 
   Loc makeNull() {

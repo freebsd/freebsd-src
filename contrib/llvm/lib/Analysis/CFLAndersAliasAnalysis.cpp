@@ -68,17 +68,6 @@ CFLAndersAAResult::CFLAndersAAResult(CFLAndersAAResult &&RHS)
     : AAResultBase(std::move(RHS)), TLI(RHS.TLI) {}
 CFLAndersAAResult::~CFLAndersAAResult() {}
 
-static const Function *parentFunctionOfValue(const Value *Val) {
-  if (auto *Inst = dyn_cast<Instruction>(Val)) {
-    auto *Bb = Inst->getParent();
-    return Bb->getParent();
-  }
-
-  if (auto *Arg = dyn_cast<Argument>(Val))
-    return Arg->getParent();
-  return nullptr;
-}
-
 namespace {
 
 enum class MatchState : uint8_t {
@@ -307,7 +296,7 @@ class CFLAndersAAResult::FunctionInfo {
 
 public:
   FunctionInfo(const Function &, const SmallVectorImpl<Value *> &,
-               const ReachabilitySet &, AliasAttrMap);
+               const ReachabilitySet &, const AliasAttrMap &);
 
   bool mayAlias(const Value *, uint64_t, const Value *, uint64_t) const;
   const AliasSummary &getAliasSummary() const { return Summary; }
@@ -470,7 +459,7 @@ static void populateExternalAttributes(
 
 CFLAndersAAResult::FunctionInfo::FunctionInfo(
     const Function &Fn, const SmallVectorImpl<Value *> &RetVals,
-    const ReachabilitySet &ReachSet, AliasAttrMap AMap) {
+    const ReachabilitySet &ReachSet, const AliasAttrMap &AMap) {
   populateAttrMap(AttrMap, AMap);
   populateExternalAttributes(Summary.RetParamAttributes, Fn, RetVals, AMap);
   populateAliasMap(AliasMap, ReachSet);
@@ -789,10 +778,10 @@ void CFLAndersAAResult::scan(const Function &Fn) {
   // resize and invalidating the reference returned by operator[]
   auto FunInfo = buildInfoFrom(Fn);
   Cache[&Fn] = std::move(FunInfo);
-  Handles.push_front(FunctionHandle(const_cast<Function *>(&Fn), this));
+  Handles.emplace_front(const_cast<Function *>(&Fn), this);
 }
 
-void CFLAndersAAResult::evict(const Function &Fn) { Cache.erase(&Fn); }
+void CFLAndersAAResult::evict(const Function *Fn) { Cache.erase(Fn); }
 
 const Optional<CFLAndersAAResult::FunctionInfo> &
 CFLAndersAAResult::ensureCached(const Function &Fn) {

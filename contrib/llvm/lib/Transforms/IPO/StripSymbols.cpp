@@ -20,7 +20,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Transforms/IPO.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfo.h"
@@ -30,6 +29,7 @@
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/Pass.h"
+#include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 
@@ -323,6 +323,14 @@ bool StripDeadDebugInfo::runOnModule(Module &M) {
       LiveGVs.insert(GVE);
   }
 
+  std::set<DICompileUnit *> LiveCUs;
+  // Any CU referenced from a subprogram is live.
+  for (DISubprogram *SP : F.subprograms()) {
+    if (SP->getUnit())
+      LiveCUs.insert(SP->getUnit());
+  }
+
+  bool HasDeadCUs = false;
   for (DICompileUnit *DIC : F.compile_units()) {
     // Create our live global variable list.
     bool GlobalVariableChange = false;
@@ -341,6 +349,11 @@ bool StripDeadDebugInfo::runOnModule(Module &M) {
         GlobalVariableChange = true;
     }
 
+    if (!LiveGlobalVariables.empty())
+      LiveCUs.insert(DIC);
+    else if (!LiveCUs.count(DIC))
+      HasDeadCUs = true;
+
     // If we found dead global variables, replace the current global
     // variable list with our new live global variable list.
     if (GlobalVariableChange) {
@@ -350,6 +363,17 @@ bool StripDeadDebugInfo::runOnModule(Module &M) {
 
     // Reset lists for the next iteration.
     LiveGlobalVariables.clear();
+  }
+
+  if (HasDeadCUs) {
+    // Delete the old node and replace it with a new one
+    NamedMDNode *NMD = M.getOrInsertNamedMetadata("llvm.dbg.cu");
+    NMD->clearOperands();
+    if (!LiveCUs.empty()) {
+      for (DICompileUnit *CU : LiveCUs)
+        NMD->addOperand(CU);
+    }
+    Changed = true;
   }
 
   return Changed;

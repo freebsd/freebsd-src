@@ -21,9 +21,10 @@
 
 // Other libraries and framework includes
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Support/Threading.h"
 
-#include "lldb/Core/ConstString.h"
-#include "lldb/Core/Flags.h"
+#include "lldb/Utility/Flags.h"
+
 #include "lldb/Core/RangeMap.h"
 #include "lldb/Core/UniqueCStringMap.h"
 #include "lldb/Core/dwarf.h"
@@ -31,6 +32,7 @@
 #include "lldb/Symbol/DebugMacros.h"
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/SymbolFile.h"
+#include "lldb/Utility/ConstString.h"
 #include "lldb/lldb-private.h"
 
 // Project includes
@@ -224,6 +226,8 @@ public:
       const lldb_private::ConstString &name,
       const lldb_private::CompilerDeclContext *parent_decl_ctx) override;
 
+  void PreloadSymbols() override;
+
   //------------------------------------------------------------------
   // PluginInterface protocol
   //------------------------------------------------------------------
@@ -305,7 +309,7 @@ protected:
   typedef llvm::DenseMap<lldb::opaque_compiler_type_t, DIERef> ClangTypeToDIE;
 
   struct DWARFDataSegment {
-    std::once_flag m_flag;
+    llvm::once_flag m_flag;
     lldb_private::DWARFDataExtractor m_data;
   };
 

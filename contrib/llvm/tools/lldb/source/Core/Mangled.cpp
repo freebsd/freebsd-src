@@ -7,10 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-// FreeBSD9-STABLE requires this to know about size_t in cxxabi.h
-#include <cstddef>
+#include "lldb/Core/Mangled.h"
+
 #if defined(_WIN32)
 #include "lldb/Host/windows/windows.h"
+
 #include <dbghelp.h>
 #pragma comment(lib, "dbghelp.lib")
 #endif
@@ -18,28 +19,54 @@
 #ifdef LLDB_USE_BUILTIN_DEMANGLER
 // Provide a fast-path demangler implemented in FastDemangle.cpp until it can
 // replace the existing C++ demangler with a complete implementation
+#include "lldb/Utility/FastDemangle.h"
 #include "llvm/Demangle/Demangle.h"
-#include "lldb/Core/FastDemangle.h"
 #else
+// FreeBSD9-STABLE requires this to know about size_t in cxxabi.
+#include <cstddef>
 #include <cxxabi.h>
 #endif
 
-#include "llvm/ADT/DenseMap.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Logging.h"
+#include "lldb/Utility/RegularExpression.h"
+#include "lldb/Utility/Stream.h"
+#include "lldb/Utility/Timer.h"
+#include "lldb/lldb-enumerations.h" // for LanguageType
 
 #include "Plugins/Language/CPlusPlus/CPlusPlusLanguage.h"
 #include "Plugins/Language/ObjC/ObjCLanguage.h"
-#include "lldb/Core/ConstString.h"
-#include "lldb/Core/Log.h"
-#include "lldb/Core/Logging.h"
-#include "lldb/Core/Mangled.h"
-#include "lldb/Core/RegularExpression.h"
-#include "lldb/Core/Stream.h"
-#include "lldb/Core/Timer.h"
-#include <ctype.h>
+
+#include "llvm/ADT/StringRef.h"    // for StringRef
+#include "llvm/Support/Compiler.h" // for LLVM_PRETT...
+
+#include <mutex>   // for mutex, loc...
+#include <string>  // for string
+#include <utility> // for pair
+
 #include <stdlib.h>
 #include <string.h>
-
 using namespace lldb_private;
+
+#if defined(_MSC_VER)
+static DWORD safeUndecorateName(const char *Mangled, char *Demangled,
+                                DWORD DemangledLength) {
+  static std::mutex M;
+  std::lock_guard<std::mutex> Lock(M);
+  return ::UnDecorateSymbolName(
+      Mangled, Demangled, DemangledLength,
+      UNDNAME_NO_ACCESS_SPECIFIERS |       // Strip public, private, protected
+                                           // keywords
+          UNDNAME_NO_ALLOCATION_LANGUAGE | // Strip __thiscall, __stdcall,
+                                           // etc keywords
+          UNDNAME_NO_THROW_SIGNATURES |    // Strip throw() specifications
+          UNDNAME_NO_MEMBER_TYPE |         // Strip virtual, static, etc
+                                           // specifiers
+          UNDNAME_NO_MS_KEYWORDS           // Strip all MS extension keywords
+      );
+}
+#endif
 
 static inline Mangled::ManglingScheme cstring_mangling_scheme(const char *s) {
   if (s) {
@@ -231,8 +258,8 @@ Mangled::GetDemangledName(lldb::LanguageType language) const {
   // haven't already decoded our mangled name.
   if (m_mangled && !m_demangled) {
     // We need to generate and cache the demangled name.
-    Timer scoped_timer(LLVM_PRETTY_FUNCTION,
-                       "Mangled::GetDemangledName (m_mangled = %s)",
+    static Timer::Category func_cat(LLVM_PRETTY_FUNCTION);
+    Timer scoped_timer(func_cat, "Mangled::GetDemangledName (m_mangled = %s)",
                        m_mangled.GetCString());
 
     Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_DEMANGLE);
@@ -253,17 +280,8 @@ Mangled::GetDemangledName(lldb::LanguageType language) const {
         const size_t demangled_length = 2048;
         demangled_name = static_cast<char *>(::malloc(demangled_length));
         ::ZeroMemory(demangled_name, demangled_length);
-        DWORD result = ::UnDecorateSymbolName(
-            mangled_name, demangled_name, demangled_length,
-            UNDNAME_NO_ACCESS_SPECIFIERS | // Strip public, private, protected
-                                           // keywords
-                UNDNAME_NO_ALLOCATION_LANGUAGE | // Strip __thiscall, __stdcall,
-                                                 // etc keywords
-                UNDNAME_NO_THROW_SIGNATURES |    // Strip throw() specifications
-                UNDNAME_NO_MEMBER_TYPE |         // Strip virtual, static, etc
-                                                 // specifiers
-                UNDNAME_NO_MS_KEYWORDS // Strip all MS extension keywords
-            );
+        DWORD result =
+            safeUndecorateName(mangled_name, demangled_name, demangled_length);
         if (log) {
           if (demangled_name && demangled_name[0])
             log->Printf("demangled msvc: %s -> \"%s\"", mangled_name,
@@ -414,6 +432,14 @@ lldb::LanguageType Mangled::GuessLanguage() const {
       else if (ObjCLanguage::IsPossibleObjCMethodName(mangled_name))
         return lldb::eLanguageTypeObjC;
     }
+  } else {
+    // ObjC names aren't really mangled, so they won't necessarily be in the 
+    // mangled name slot.
+    ConstString demangled_name = GetDemangledName(lldb::eLanguageTypeUnknown);
+    if (demangled_name 
+        && ObjCLanguage::IsPossibleObjCMethodName(demangled_name.GetCString()))
+      return lldb::eLanguageTypeObjC;
+  
   }
   return lldb::eLanguageTypeUnknown;
 }

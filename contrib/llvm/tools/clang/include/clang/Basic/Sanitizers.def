@@ -47,6 +47,9 @@ SANITIZER("kernel-address", KernelAddress)
 // MemorySanitizer
 SANITIZER("memory", Memory)
 
+// libFuzzer
+SANITIZER("fuzzer", Fuzzer)
+
 // ThreadSanitizer
 SANITIZER("thread", Thread)
 
@@ -64,7 +67,13 @@ SANITIZER("function", Function)
 SANITIZER("integer-divide-by-zero", IntegerDivideByZero)
 SANITIZER("nonnull-attribute", NonnullAttribute)
 SANITIZER("null", Null)
+SANITIZER("nullability-arg", NullabilityArg)
+SANITIZER("nullability-assign", NullabilityAssign)
+SANITIZER("nullability-return", NullabilityReturn)
+SANITIZER_GROUP("nullability", Nullability,
+                NullabilityArg | NullabilityAssign | NullabilityReturn)
 SANITIZER("object-size", ObjectSize)
+SANITIZER("pointer-overflow", PointerOverflow)
 SANITIZER("return", Return)
 SANITIZER("returns-nonnull-attribute", ReturnsNonnullAttribute)
 SANITIZER("shift-base", ShiftBase)
@@ -100,9 +109,9 @@ SANITIZER("safe-stack", SafeStack)
 SANITIZER_GROUP("undefined", Undefined,
                 Alignment | Bool | ArrayBounds | Enum | FloatCastOverflow |
                     FloatDivideByZero | IntegerDivideByZero | NonnullAttribute |
-                    Null | ObjectSize | Return | ReturnsNonnullAttribute |
-                    Shift | SignedIntegerOverflow | Unreachable | VLABound |
-                    Function | Vptr)
+                    Null | ObjectSize | PointerOverflow | Return |
+                    ReturnsNonnullAttribute | Shift | SignedIntegerOverflow |
+                    Unreachable | VLABound | Function | Vptr)
 
 // -fsanitize=undefined-trap is an alias for -fsanitize=undefined.
 SANITIZER_GROUP("undefined-trap", UndefinedTrap, Undefined)

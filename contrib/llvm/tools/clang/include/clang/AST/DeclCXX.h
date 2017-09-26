@@ -203,6 +203,11 @@ public:
   SourceLocation getLocStart() const LLVM_READONLY { return Range.getBegin(); }
   SourceLocation getLocEnd() const LLVM_READONLY { return Range.getEnd(); }
 
+  /// \brief Get the location at which the base class type was written.
+  SourceLocation getBaseTypeLoc() const LLVM_READONLY {
+    return BaseTypeInfo->getTypeLoc().getLocStart();
+  }
+
   /// \brief Determines whether the base class is a virtual base class (or not).
   bool isVirtual() const { return Virtual; }
 
@@ -370,6 +375,7 @@ class CXXRecordDecl : public RecordDecl {
     /// \brief These flags are \c true if a defaulted corresponding special
     /// member can't be fully analyzed without performing overload resolution.
     /// @{
+    unsigned NeedOverloadResolutionForCopyConstructor : 1;
     unsigned NeedOverloadResolutionForMoveConstructor : 1;
     unsigned NeedOverloadResolutionForMoveAssignment : 1;
     unsigned NeedOverloadResolutionForDestructor : 1;
@@ -378,6 +384,7 @@ class CXXRecordDecl : public RecordDecl {
     /// \brief These flags are \c true if an implicit defaulted corresponding
     /// special member would be defined as deleted.
     /// @{
+    unsigned DefaultedCopyConstructorIsDeleted : 1;
     unsigned DefaultedMoveConstructorIsDeleted : 1;
     unsigned DefaultedMoveAssignmentIsDeleted : 1;
     unsigned DefaultedDestructorIsDeleted : 1;
@@ -410,6 +417,12 @@ class CXXRecordDecl : public RecordDecl {
     /// constructor.
     unsigned HasDefaultedDefaultConstructor : 1;
 
+    /// \brief True if this class can be passed in a non-address-preserving
+    /// fashion (such as in registers) according to the C++ language rules.
+    /// This does not imply anything about how the ABI in use will actually
+    /// pass an object of this class.
+    unsigned CanPassInRegisters : 1;
+
     /// \brief True if a defaulted default constructor for this class would
     /// be constexpr.
     unsigned DefaultedDefaultConstructorIsConstexpr : 1;
@@ -436,9 +449,10 @@ class CXXRecordDecl : public RecordDecl {
     /// either by the user or implicitly.
     unsigned DeclaredSpecialMembers : 6;
 
-    /// \brief Whether an implicit copy constructor would have a const-qualified
-    /// parameter.
-    unsigned ImplicitCopyConstructorHasConstParam : 1;
+    /// \brief Whether an implicit copy constructor could have a const-qualified
+    /// parameter, for initializing virtual bases and for other subobjects.
+    unsigned ImplicitCopyConstructorCanHaveConstParamForVBase : 1;
+    unsigned ImplicitCopyConstructorCanHaveConstParamForNonVBase : 1;
 
     /// \brief Whether an implicit copy assignment operator would have a
     /// const-qualified parameter.
@@ -457,6 +471,11 @@ class CXXRecordDecl : public RecordDecl {
 
     /// \brief Whether we are currently parsing base specifiers.
     unsigned IsParsingBaseSpecifiers : 1;
+
+    unsigned HasODRHash : 1;
+
+    /// \brief A hash of parts of the class to help in ODR checking.
+    unsigned ODRHash;
 
     /// \brief The number of base class specifiers in Bases.
     unsigned NumBases;
@@ -703,6 +722,8 @@ public:
     return data().IsParsingBaseSpecifiers;
   }
 
+  unsigned getODRHash() const;
+
   /// \brief Sets the base classes of this struct or class.
   void setBases(CXXBaseSpecifier const * const *Bases, unsigned NumBases);
 
@@ -798,18 +819,50 @@ public:
     return data().FirstFriend.isValid();
   }
 
+  /// \brief \c true if a defaulted copy constructor for this class would be
+  /// deleted.
+  bool defaultedCopyConstructorIsDeleted() const {
+    assert((!needsOverloadResolutionForCopyConstructor() ||
+            (data().DeclaredSpecialMembers & SMF_CopyConstructor)) &&
+           "this property has not yet been computed by Sema");
+    return data().DefaultedCopyConstructorIsDeleted;
+  }
+
+  /// \brief \c true if a defaulted move constructor for this class would be
+  /// deleted.
+  bool defaultedMoveConstructorIsDeleted() const {
+    assert((!needsOverloadResolutionForMoveConstructor() ||
+            (data().DeclaredSpecialMembers & SMF_MoveConstructor)) &&
+           "this property has not yet been computed by Sema");
+    return data().DefaultedMoveConstructorIsDeleted;
+  }
+
+  /// \brief \c true if a defaulted destructor for this class would be deleted.
+  bool defaultedDestructorIsDeleted() const {
+    return !data().DefaultedDestructorIsDeleted;
+  }
+
+  /// \brief \c true if we know for sure that this class has a single,
+  /// accessible, unambiguous copy constructor that is not deleted.
+  bool hasSimpleCopyConstructor() const {
+    return !hasUserDeclaredCopyConstructor() &&
+           !data().DefaultedCopyConstructorIsDeleted;
+  }
+
   /// \brief \c true if we know for sure that this class has a single,
   /// accessible, unambiguous move constructor that is not deleted.
   bool hasSimpleMoveConstructor() const {
     return !hasUserDeclaredMoveConstructor() && hasMoveConstructor() &&
            !data().DefaultedMoveConstructorIsDeleted;
   }
+
   /// \brief \c true if we know for sure that this class has a single,
   /// accessible, unambiguous move assignment operator that is not deleted.
   bool hasSimpleMoveAssignment() const {
     return !hasUserDeclaredMoveAssignment() && hasMoveAssignment() &&
            !data().DefaultedMoveAssignmentIsDeleted;
   }
+
   /// \brief \c true if we know for sure that this class has an accessible
   /// destructor that is not deleted.
   bool hasSimpleDestructor() const {
@@ -865,13 +918,24 @@ public:
   /// \brief Determine whether we need to eagerly declare a defaulted copy
   /// constructor for this class.
   bool needsOverloadResolutionForCopyConstructor() const {
-    return data().HasMutableFields;
+    // C++17 [class.copy.ctor]p6:
+    //   If the class definition declares a move constructor or move assignment
+    //   operator, the implicitly declared copy constructor is defined as
+    //   deleted.
+    // In MSVC mode, sometimes a declared move assignment does not delete an
+    // implicit copy constructor, so defer this choice to Sema.
+    if (data().UserDeclaredSpecialMembers &
+        (SMF_MoveConstructor | SMF_MoveAssignment))
+      return true;
+    return data().NeedOverloadResolutionForCopyConstructor;
   }
 
   /// \brief Determine whether an implicit copy constructor for this type
   /// would have a parameter with a const-qualified reference type.
   bool implicitCopyConstructorHasConstParam() const {
-    return data().ImplicitCopyConstructorHasConstParam;
+    return data().ImplicitCopyConstructorCanHaveConstParamForNonVBase &&
+           (isAbstract() ||
+            data().ImplicitCopyConstructorCanHaveConstParamForVBase);
   }
 
   /// \brief Determine whether this class has a copy constructor with
@@ -904,7 +968,16 @@ public:
            needsImplicitMoveConstructor();
   }
 
-  /// \brief Set that we attempted to declare an implicitly move
+  /// \brief Set that we attempted to declare an implicit copy
+  /// constructor, but overload resolution failed so we deleted it.
+  void setImplicitCopyConstructorIsDeleted() {
+    assert((data().DefaultedCopyConstructorIsDeleted ||
+            needsOverloadResolutionForCopyConstructor()) &&
+           "Copy constructor should not be deleted");
+    data().DefaultedCopyConstructorIsDeleted = true;
+  }
+
+  /// \brief Set that we attempted to declare an implicit move
   /// constructor, but overload resolution failed so we deleted it.
   void setImplicitMoveConstructorIsDeleted() {
     assert((data().DefaultedMoveConstructorIsDeleted ||
@@ -1301,6 +1374,18 @@ public:
     return data().HasIrrelevantDestructor;
   }
 
+  /// \brief Determine whether this class has at least one trivial, non-deleted
+  /// copy or move constructor.
+  bool canPassInRegisters() const {
+    return data().CanPassInRegisters;
+  }
+
+  /// \brief Set that we can pass this RecordDecl in registers.
+  // FIXME: This should be set as part of completeDefinition.
+  void setCanPassInRegisters(bool CanPass) {
+    data().CanPassInRegisters = CanPass;
+  }
+
   /// \brief Determine whether this class has a non-literal or/ volatile type
   /// non-static data member or base class.
   bool hasNonLiteralTypeFieldsOrBases() const {
@@ -1548,10 +1633,13 @@ public:
   /// \param Paths used to record the paths from this class to its base class
   /// subobjects that match the search criteria.
   ///
+  /// \param LookupInDependent can be set to true to extend the search to
+  /// dependent base classes.
+  ///
   /// \returns true if there exists any path from this class to a base class
   /// subobject that matches the search criteria.
-  bool lookupInBases(BaseMatchesCallback BaseMatches,
-                     CXXBasePaths &Paths) const;
+  bool lookupInBases(BaseMatchesCallback BaseMatches, CXXBasePaths &Paths,
+                     bool LookupInDependent = false) const;
 
   /// \brief Base-class lookup callback that determines whether the given
   /// base class specifier refers to a specific class declaration.
@@ -1593,6 +1681,16 @@ public:
                                  CXXBasePath &Path, DeclarationName Name);
 
   /// \brief Base-class lookup callback that determines whether there exists
+  /// a member with the given name.
+  ///
+  /// This callback can be used with \c lookupInBases() to find members
+  /// of the given name within a C++ class hierarchy, including dependent
+  /// classes.
+  static bool
+  FindOrdinaryMemberInDependentClasses(const CXXBaseSpecifier *Specifier,
+                                       CXXBasePath &Path, DeclarationName Name);
+
+  /// \brief Base-class lookup callback that determines whether there exists
   /// an OpenMP declare reduction member with the given name.
   ///
   /// This callback can be used with \c lookupInBases() to find members
@@ -1617,6 +1715,14 @@ public:
 
   /// \brief Get the indirect primary bases for this class.
   void getIndirectPrimaryBases(CXXIndirectPrimaryBaseSet& Bases) const;
+
+  /// Performs an imprecise lookup of a dependent name in this class.
+  ///
+  /// This function does not follow strict semantic rules and should be used
+  /// only when lookup rules can be relaxed, e.g. indexing.
+  std::vector<const NamedDecl *>
+  lookupDependentName(const DeclarationName &Name,
+                      llvm::function_ref<bool(const NamedDecl *ND)> Filter);
 
   /// Renders and displays an inheritance diagram
   /// for this C++ class and all of its base classes (transitively) using
@@ -1738,6 +1844,58 @@ public:
   friend class ASTWriter;
 };
 
+/// \brief Represents a C++ deduction guide declaration.
+///
+/// \code
+/// template<typename T> struct A { A(); A(T); };
+/// A() -> A<int>;
+/// \endcode
+///
+/// In this example, there will be an explicit deduction guide from the
+/// second line, and implicit deduction guide templates synthesized from
+/// the constructors of \c A.
+class CXXDeductionGuideDecl : public FunctionDecl {
+  void anchor() override;
+private:
+  CXXDeductionGuideDecl(ASTContext &C, DeclContext *DC, SourceLocation StartLoc,
+                        bool IsExplicit, const DeclarationNameInfo &NameInfo,
+                        QualType T, TypeSourceInfo *TInfo,
+                        SourceLocation EndLocation)
+      : FunctionDecl(CXXDeductionGuide, C, DC, StartLoc, NameInfo, T, TInfo,
+                     SC_None, false, false) {
+    if (EndLocation.isValid())
+      setRangeEnd(EndLocation);
+    IsExplicitSpecified = IsExplicit;
+  }
+
+public:
+  static CXXDeductionGuideDecl *Create(ASTContext &C, DeclContext *DC,
+                                       SourceLocation StartLoc, bool IsExplicit,
+                                       const DeclarationNameInfo &NameInfo,
+                                       QualType T, TypeSourceInfo *TInfo,
+                                       SourceLocation EndLocation);
+
+  static CXXDeductionGuideDecl *CreateDeserialized(ASTContext &C, unsigned ID);
+
+  /// Whether this deduction guide is explicit.
+  bool isExplicit() const { return IsExplicitSpecified; }
+
+  /// Whether this deduction guide was declared with the 'explicit' specifier.
+  bool isExplicitSpecified() const { return IsExplicitSpecified; }
+
+  /// Get the template for which this guide performs deduction.
+  TemplateDecl *getDeducedTemplate() const {
+    return getDeclName().getCXXDeductionGuideTemplate();
+  }
+
+  // Implement isa/cast/dyncast/etc.
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
+  static bool classofKind(Kind K) { return K == CXXDeductionGuide; }
+
+  friend class ASTDeclReader;
+  friend class ASTDeclWriter;
+};
+
 /// \brief Represents a static or instance method of a struct/union/class.
 ///
 /// In the terminology of the C++ Standard, these are the (static and
@@ -1796,6 +1954,19 @@ public:
       return true;
 
     return (CD->begin_overridden_methods() != CD->end_overridden_methods());
+  }
+
+  /// If it's possible to devirtualize a call to this method, return the called
+  /// function. Otherwise, return null.
+
+  /// \param Base The object on which this virtual function is called.
+  /// \param IsAppleKext True if we are compiling for Apple kext.
+  CXXMethodDecl *getDevirtualizedMethod(const Expr *Base, bool IsAppleKext);
+
+  const CXXMethodDecl *getDevirtualizedMethod(const Expr *Base,
+                                              bool IsAppleKext) const {
+    return const_cast<CXXMethodDecl *>(this)->getDevirtualizedMethod(
+        Base, IsAppleKext);
   }
 
   /// \brief Determine whether this is a usual deallocation function
@@ -1857,7 +2028,10 @@ public:
 
   /// \brief Returns the type of the \c this pointer.
   ///
-  /// Should only be called for instance (i.e., non-static) methods.
+  /// Should only be called for instance (i.e., non-static) methods. Note
+  /// that for the call operator of a lambda closure type, this returns the
+  /// desugared 'this' type (a pointer to the closure type), not the captured
+  /// 'this' type.
   QualType getThisType(ASTContext &C) const;
 
   unsigned getTypeQualifiers() const {
@@ -2161,12 +2335,8 @@ class CXXConstructorDecl final
   /// \{
   /// \brief The arguments used to initialize the base or member.
   LazyCXXCtorInitializersPtr CtorInitializers;
-  unsigned NumCtorInitializers : 30;
+  unsigned NumCtorInitializers : 31;
   /// \}
-
-  /// \brief Whether this constructor declaration has the \c explicit keyword
-  /// specified.
-  unsigned IsExplicitSpecified : 1;
 
   /// \brief Whether this constructor declaration is an implicitly-declared
   /// inheriting constructor.
@@ -2181,11 +2351,11 @@ class CXXConstructorDecl final
     : CXXMethodDecl(CXXConstructor, C, RD, StartLoc, NameInfo, T, TInfo,
                     SC_None, isInline, isConstexpr, SourceLocation()),
       CtorInitializers(nullptr), NumCtorInitializers(0),
-      IsExplicitSpecified(isExplicitSpecified),
       IsInheritingConstructor((bool)Inherited) {
     setImplicit(isImplicitlyDeclared);
     if (Inherited)
       *getTrailingObjects<InheritedConstructor>() = Inherited;
+    IsExplicitSpecified = isExplicitSpecified;
   }
 
 public:
@@ -2197,15 +2367,6 @@ public:
          bool isExplicit, bool isInline, bool isImplicitlyDeclared,
          bool isConstexpr,
          InheritedConstructor Inherited = InheritedConstructor());
-
-  /// \brief Determine whether this constructor declaration has the
-  /// \c explicit keyword specified.
-  bool isExplicitSpecified() const { return IsExplicitSpecified; }
-
-  /// \brief Determine whether this constructor was marked "explicit" or not.
-  bool isExplicit() const {
-    return cast<CXXConstructorDecl>(getFirstDecl())->isExplicitSpecified();
-  }
 
   /// \brief Iterates through the member/base initializer list.
   typedef CXXCtorInitializer **init_iterator;
@@ -2268,6 +2429,14 @@ public:
 
   void setCtorInitializers(CXXCtorInitializer **Initializers) {
     CtorInitializers = Initializers;
+  }
+
+  /// Whether this function is marked as explicit explicitly.
+  bool isExplicitSpecified() const { return IsExplicitSpecified; }
+
+  /// Whether this function is explicit.
+  bool isExplicit() const {
+    return getCanonicalDecl()->isExplicitSpecified();
   }
 
   /// \brief Determine whether this constructor is a delegating constructor.
@@ -2405,7 +2574,14 @@ public:
 
   void setOperatorDelete(FunctionDecl *OD);
   const FunctionDecl *getOperatorDelete() const {
-    return cast<CXXDestructorDecl>(getFirstDecl())->OperatorDelete;
+    return getCanonicalDecl()->OperatorDelete;
+  }
+
+  CXXDestructorDecl *getCanonicalDecl() override {
+    return cast<CXXDestructorDecl>(FunctionDecl::getCanonicalDecl());
+  }
+  const CXXDestructorDecl *getCanonicalDecl() const {
+    return const_cast<CXXDestructorDecl*>(this)->getCanonicalDecl();
   }
 
   // Implement isa/cast/dyncast/etc.
@@ -2428,19 +2604,16 @@ public:
 /// \endcode
 class CXXConversionDecl : public CXXMethodDecl {
   void anchor() override;
-  /// Whether this conversion function declaration is marked
-  /// "explicit", meaning that it can only be applied when the user
-  /// explicitly wrote a cast. This is a C++11 feature.
-  bool IsExplicitSpecified : 1;
 
   CXXConversionDecl(ASTContext &C, CXXRecordDecl *RD, SourceLocation StartLoc,
-                    const DeclarationNameInfo &NameInfo,
-                    QualType T, TypeSourceInfo *TInfo,
-                    bool isInline, bool isExplicitSpecified,
-                    bool isConstexpr, SourceLocation EndLocation)
-    : CXXMethodDecl(CXXConversion, C, RD, StartLoc, NameInfo, T, TInfo,
-                    SC_None, isInline, isConstexpr, EndLocation),
-      IsExplicitSpecified(isExplicitSpecified) { }
+                    const DeclarationNameInfo &NameInfo, QualType T,
+                    TypeSourceInfo *TInfo, bool isInline,
+                    bool isExplicitSpecified, bool isConstexpr,
+                    SourceLocation EndLocation)
+      : CXXMethodDecl(CXXConversion, C, RD, StartLoc, NameInfo, T, TInfo,
+                      SC_None, isInline, isConstexpr, EndLocation) {
+    IsExplicitSpecified = isExplicitSpecified;
+  }
 
 public:
   static CXXConversionDecl *Create(ASTContext &C, CXXRecordDecl *RD,
@@ -2452,17 +2625,12 @@ public:
                                    SourceLocation EndLocation);
   static CXXConversionDecl *CreateDeserialized(ASTContext &C, unsigned ID);
 
-  /// Whether this conversion function declaration is marked
-  /// "explicit", meaning that it can only be used for direct initialization
-  /// (including explitly written casts).  This is a C++11 feature.
+  /// Whether this function is marked as explicit explicitly.
   bool isExplicitSpecified() const { return IsExplicitSpecified; }
 
-  /// \brief Whether this is an explicit conversion operator (C++11 and later).
-  ///
-  /// Explicit conversion operators are only considered for direct
-  /// initialization, e.g., when the user has explicitly written a cast.
+  /// Whether this function is explicit.
   bool isExplicit() const {
-    return cast<CXXConversionDecl>(getFirstDecl())->isExplicitSpecified();
+    return getCanonicalDecl()->isExplicitSpecified();
   }
 
   /// \brief Returns the type that this conversion function is converting to.
@@ -2474,6 +2642,13 @@ public:
   /// a lambda closure type to a block pointer.
   bool isLambdaToBlockPointerConversion() const;
   
+  CXXConversionDecl *getCanonicalDecl() override {
+    return cast<CXXConversionDecl>(FunctionDecl::getCanonicalDecl());
+  }
+  const CXXConversionDecl *getCanonicalDecl() const {
+    return const_cast<CXXConversionDecl*>(this)->getCanonicalDecl();
+  }
+
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classofKind(Kind K) { return K == CXXConversion; }

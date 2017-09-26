@@ -210,13 +210,12 @@ public:
 char ShrinkWrap::ID = 0;
 char &llvm::ShrinkWrapID = ShrinkWrap::ID;
 
-INITIALIZE_PASS_BEGIN(ShrinkWrap, "shrink-wrap", "Shrink Wrap Pass", false,
-                      false)
+INITIALIZE_PASS_BEGIN(ShrinkWrap, DEBUG_TYPE, "Shrink Wrap Pass", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineBlockFrequencyInfo)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
 INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTree)
 INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
-INITIALIZE_PASS_END(ShrinkWrap, "shrink-wrap", "Shrink Wrap Pass", false, false)
+INITIALIZE_PASS_END(ShrinkWrap, DEBUG_TYPE, "Shrink Wrap Pass", false, false)
 
 bool ShrinkWrap::useOrDefCSROrFI(const MachineInstr &MI,
                                  RegScavenger *RS) const {
@@ -282,8 +281,14 @@ void ShrinkWrap::updateSaveRestorePoints(MachineBasicBlock &MBB,
 
   if (!Restore)
     Restore = &MBB;
-  else
+  else if (MPDT->getNode(&MBB)) // If the block is not in the post dom tree, it
+                                // means the block never returns. If that's the
+                                // case, we don't want to call
+                                // `findNearestCommonDominator`, which will
+                                // return `Restore`.
     Restore = MPDT->findNearestCommonDominator(Restore, &MBB);
+  else
+    Restore = nullptr; // Abort, we can't find a restore point in this case.
 
   // Make sure we would be able to insert the restore code before the
   // terminator.
@@ -293,7 +298,7 @@ void ShrinkWrap::updateSaveRestorePoints(MachineBasicBlock &MBB,
         continue;
       // One of the terminator needs to happen before the restore point.
       if (MBB.succ_empty()) {
-        Restore = nullptr;
+        Restore = nullptr; // Abort, we can't find a restore point in this case.
         break;
       }
       // Look for a restore point that post-dominates all the successors.
@@ -419,7 +424,7 @@ static bool isIrreducibleCFG(const MachineFunction &MF,
 }
 
 bool ShrinkWrap::runOnMachineFunction(MachineFunction &MF) {
-  if (MF.empty() || !isShrinkWrapEnabled(MF))
+  if (skipFunction(*MF.getFunction()) || MF.empty() || !isShrinkWrapEnabled(MF))
     return false;
 
   DEBUG(dbgs() << "**** Analysing " << MF.getName() << '\n');

@@ -10,12 +10,14 @@
 #ifndef utility_StringExtractorGDBRemote_h_
 #define utility_StringExtractorGDBRemote_h_
 
-// C Includes
-// C++ Includes
-#include <string>
-// Other libraries and framework includes
-// Project includes
+#include "lldb/Utility/Status.h"
 #include "lldb/Utility/StringExtractor.h"
+#include "llvm/ADT/StringRef.h" // for StringRef
+
+#include <string>
+
+#include <stddef.h> // for size_t
+#include <stdint.h> // for uint8_t
 
 class StringExtractorGDBRemote : public StringExtractor {
 public:
@@ -71,6 +73,7 @@ public:
     eServerPacketType_qGetWorkingDir,
     eServerPacketType_qFileLoadAddress,
     eServerPacketType_QEnvironment,
+    eServerPacketType_QEnableErrorStrings,
     eServerPacketType_QLaunchArch,
     eServerPacketType_QSetDisableASLR,
     eServerPacketType_QSetDetachOnError,
@@ -96,6 +99,7 @@ public:
     // debug server packages
     eServerPacketType_QEnvironmentHexEncoded,
     eServerPacketType_QListThreadsInStopReply,
+    eServerPacketType_QPassSignals,
     eServerPacketType_QRestoreRegisterState,
     eServerPacketType_QSaveRegisterState,
     eServerPacketType_QSetLogging,
@@ -162,6 +166,12 @@ public:
     eServerPacketType__M,
     eServerPacketType__m,
     eServerPacketType_notify, // '%' notification
+
+    eServerPacketType_jTraceStart,
+    eServerPacketType_jTraceBufferRead,
+    eServerPacketType_jTraceMetaRead,
+    eServerPacketType_jTraceStop,
+    eServerPacketType_jTraceConfigRead,
   };
 
   ServerPacketType GetServerPacketType() const;
@@ -181,6 +191,8 @@ public:
   // Returns zero if the packet isn't a EXX packet where XX are two hex
   // digits. Otherwise the error encoded in XX is returned.
   uint8_t GetError();
+
+  lldb_private::Status GetStatus();
 
   size_t GetEscapedBinaryData(std::string &str);
 

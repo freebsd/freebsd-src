@@ -12,12 +12,15 @@
 
 // C Includes
 // C++ Includes
+#include <map>
+#include <memory>
+
 // Other libraries and framework includes
 // Project includes
-#include "lldb/Breakpoint/StoppointCallbackContext.h"
-#include "lldb/Target/DynamicLoader.h"
-
 #include "DYLDRendezvous.h"
+#include "lldb/Breakpoint/StoppointCallbackContext.h"
+#include "lldb/Core/ModuleList.h"
+#include "lldb/Target/DynamicLoader.h"
 
 class AuxVector;
 
@@ -49,7 +52,7 @@ public:
   lldb::ThreadPlanSP GetStepThroughTrampolinePlan(lldb_private::Thread &thread,
                                                   bool stop_others) override;
 
-  lldb_private::Error CanLoadImage() override;
+  lldb_private::Status CanLoadImage() override;
 
   lldb::addr_t GetThreadLocalData(const lldb::ModuleSP module,
                                   const lldb::ThreadSP thread,
@@ -134,6 +137,8 @@ protected:
   /// Helper for the entry breakpoint callback.  Resolves the load addresses
   /// of all dependent modules.
   virtual void LoadAllCurrentModules();
+
+  void LoadVDSO(lldb_private::ModuleList &modules);
 
   /// Computes a value for m_load_offset returning the computed address on
   /// success and LLDB_INVALID_ADDRESS on failure.

@@ -30,38 +30,9 @@ void CGCXXABI::ErrorUnsupportedABI(CodeGenFunction &CGF, StringRef S) {
 }
 
 bool CGCXXABI::canCopyArgument(const CXXRecordDecl *RD) const {
-  // If RD has a non-trivial move or copy constructor, we cannot copy the
-  // argument.
-  if (RD->hasNonTrivialCopyConstructor() || RD->hasNonTrivialMoveConstructor())
-    return false;
-
-  // If RD has a non-trivial destructor, we cannot copy the argument.
-  if (RD->hasNonTrivialDestructor())
-    return false;
-
   // We can only copy the argument if there exists at least one trivial,
   // non-deleted copy or move constructor.
-  // FIXME: This assumes that all lazily declared copy and move constructors are
-  // not deleted.  This assumption might not be true in some corner cases.
-  bool CopyDeleted = false;
-  bool MoveDeleted = false;
-  for (const CXXConstructorDecl *CD : RD->ctors()) {
-    if (CD->isCopyConstructor() || CD->isMoveConstructor()) {
-      assert(CD->isTrivial());
-      // We had at least one undeleted trivial copy or move ctor.  Return
-      // directly.
-      if (!CD->isDeleted())
-        return true;
-      if (CD->isCopyConstructor())
-        CopyDeleted = true;
-      else
-        MoveDeleted = true;
-    }
-  }
-
-  // If all trivial copy and move constructors are deleted, we cannot copy the
-  // argument.
-  return !(CopyDeleted && MoveDeleted);
+  return RD->canPassInRegisters();
 }
 
 llvm::Constant *CGCXXABI::GetBogusMemberPointer(QualType T) {
@@ -159,10 +130,10 @@ void CGCXXABI::buildThisParam(CodeGenFunction &CGF, FunctionArgList &params) {
 
   // FIXME: I'm not entirely sure I like using a fake decl just for code
   // generation. Maybe we can come up with a better way?
-  ImplicitParamDecl *ThisDecl
-    = ImplicitParamDecl::Create(CGM.getContext(), nullptr, MD->getLocation(),
-                                &CGM.getContext().Idents.get("this"),
-                                MD->getThisType(CGM.getContext()));
+  auto *ThisDecl = ImplicitParamDecl::Create(
+      CGM.getContext(), nullptr, MD->getLocation(),
+      &CGM.getContext().Idents.get("this"), MD->getThisType(CGM.getContext()),
+      ImplicitParamDecl::CXXThis);
   params.push_back(ThisDecl);
   CGF.CXXABIThisDecl = ThisDecl;
 

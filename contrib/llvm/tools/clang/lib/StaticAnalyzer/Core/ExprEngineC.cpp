@@ -227,12 +227,13 @@ void ExprEngine::VisitBlockExpr(const BlockExpr *BE, ExplodedNode *Pred,
 
       if (capturedR != originalR) {
         SVal originalV;
+        const LocationContext *LCtx = Pred->getLocationContext();
         if (copyExpr) {
-          originalV = State->getSVal(copyExpr, Pred->getLocationContext());
+          originalV = State->getSVal(copyExpr, LCtx);
         } else {
           originalV = State->getSVal(loc::MemRegionVal(originalR));
         }
-        State = State->bindLoc(loc::MemRegionVal(capturedR), originalV);
+        State = State->bindLoc(loc::MemRegionVal(capturedR), originalV, LCtx);
       }
     }
   }
@@ -534,7 +535,7 @@ void ExprEngine::VisitCompoundLiteralExpr(const CompoundLiteralExpr *CL,
   } else {
     assert(isa<InitListExpr>(Init));
     Loc CLLoc = State->getLValue(CL, LCtx);
-    State = State->bindLoc(CLLoc, V);
+    State = State->bindLoc(CLLoc, V, LCtx);
 
     if (CL->isGLValue())
       V = CLLoc;
@@ -979,10 +980,9 @@ void ExprEngine::VisitUnaryOperator(const UnaryOperator* U, ExplodedNode *Pred,
           //    transfer functions as "0 == E".
           SVal Result;
           if (Optional<Loc> LV = V.getAs<Loc>()) {
-            Loc X = svalBuilder.makeNull();
+            Loc X = svalBuilder.makeNullWithType(Ex->getType());
             Result = evalBinOp(state, BO_EQ, *LV, X, U->getType());
-          }
-          else if (Ex->getType()->isFloatingType()) {
+          } else if (Ex->getType()->isFloatingType()) {
             // FIXME: handle floating point types.
             Result = UnknownVal();
           } else {
@@ -1053,7 +1053,7 @@ void ExprEngine::VisitIncrementDecrementOperator(const UnaryOperator* U,
     // Conjure a new symbol if necessary to recover precision.
     if (Result.isUnknown()){
       DefinedOrUnknownSVal SymVal =
-        svalBuilder.conjureSymbolVal(nullptr, Ex, LCtx,
+        svalBuilder.conjureSymbolVal(nullptr, U, LCtx,
                                      currBldrCtx->blockCount());
       Result = SymVal;
 

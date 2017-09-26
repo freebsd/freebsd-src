@@ -13,8 +13,8 @@
 #include "HexagonRegisterInfo.h"
 #include "HexagonSubtarget.h"
 #include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -131,13 +131,15 @@ namespace {
 INITIALIZE_PASS(HexagonSplitDoubleRegs, "hexagon-split-double",
   "Hexagon Split Double Registers", false, false)
 
-void HexagonSplitDoubleRegs::dump_partition(raw_ostream &os,
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+LLVM_DUMP_METHOD void HexagonSplitDoubleRegs::dump_partition(raw_ostream &os,
       const USet &Part, const TargetRegisterInfo &TRI) {
   dbgs() << '{';
   for (auto I : Part)
     dbgs() << ' ' << PrintReg(I, &TRI);
   dbgs() << " }";
 }
+#endif
 
 bool HexagonSplitDoubleRegs::isInduction(unsigned Reg, LoopRegMap &IRM) const {
   for (auto I : IRM) {
@@ -348,6 +350,8 @@ int32_t HexagonSplitDoubleRegs::profit(const MachineInstr *MI) const {
                        MI->getOperand(2).getImm());
     case Hexagon::A4_combineri:
       ImmX++;
+      // Fall through into A4_combineir.
+      LLVM_FALLTHROUGH;
     case Hexagon::A4_combineir: {
       ImmX++;
       int64_t V = MI->getOperand(ImmX).getImm();
@@ -391,7 +395,7 @@ int32_t HexagonSplitDoubleRegs::profit(const MachineInstr *MI) const {
 
 bool HexagonSplitDoubleRegs::isProfitable(const USet &Part, LoopRegMap &IRM)
       const {
-  unsigned FixedNum = 0, SplitNum = 0, LoopPhiNum = 0;
+  unsigned FixedNum = 0, LoopPhiNum = 0;
   int32_t TotalP = 0;
 
   for (unsigned DR : Part) {
@@ -428,7 +432,6 @@ bool HexagonSplitDoubleRegs::isProfitable(const USet &Part, LoopRegMap &IRM)
           LoopPhiNum++;
       }
       // Splittable instruction.
-      SplitNum++;
       int32_t P = profit(UseI);
       if (P == std::numeric_limits<int>::min())
         return false;

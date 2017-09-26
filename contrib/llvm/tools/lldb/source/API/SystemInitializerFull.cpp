@@ -20,7 +20,6 @@
 #endif
 
 #include "lldb/Core/Debugger.h"
-#include "lldb/Core/Timer.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Initialization/SystemInitializerCommon.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
@@ -28,6 +27,7 @@
 #include "lldb/Symbol/GoASTContext.h"
 //#include "lldb/Symbol/JavaASTContext.h"
 #include "lldb/Symbol/OCamlASTContext.h"
+#include "lldb/Utility/Timer.h"
 
 //#include "Plugins/ABI/MacOSX-arm/ABIMacOSX_arm.h"
 //#include "Plugins/ABI/MacOSX-arm64/ABIMacOSX_arm64.h"
@@ -49,8 +49,10 @@
 #include "Plugins/DynamicLoader/Static/DynamicLoaderStatic.h"
 //#include "Plugins/DynamicLoader/Windows-DYLD/DynamicLoaderWindowsDYLD.h"
 #include "Plugins/Instruction/ARM64/EmulateInstructionARM64.h"
-#include "Plugins/InstrumentationRuntime/AddressSanitizer/AddressSanitizerRuntime.h"
-//#include "Plugins/InstrumentationRuntime/ThreadSanitizer/ThreadSanitizerRuntime.h"
+#include "Plugins/InstrumentationRuntime/ASan/ASanRuntime.h"
+//#include "Plugins/InstrumentationRuntime/TSan/TSanRuntime.h"
+#include "Plugins/InstrumentationRuntime/UBSan/UBSanRuntime.h"
+#include "Plugins/InstrumentationRuntime/MainThreadChecker/MainThreadCheckerRuntime.h"
 #include "Plugins/JITLoader/GDB/JITLoaderGDB.h"
 #include "Plugins/Language/CPlusPlus/CPlusPlusLanguage.h"
 //#include "Plugins/Language/Go/GoLanguage.h"
@@ -74,6 +76,7 @@
 //#include "Plugins/Platform/MacOSX/PlatformMacOSX.h"
 //#include "Plugins/Platform/MacOSX/PlatformRemoteiOS.h"
 //#include "Plugins/Platform/NetBSD/PlatformNetBSD.h"
+//#include "Plugins/Platform/OpenBSD/PlatformOpenBSD.h"
 //#include "Plugins/Platform/Windows/PlatformWindows.h"
 #include "Plugins/Platform/gdb-server/PlatformRemoteGDBServer.h"
 #include "Plugins/Process/elf-core/ProcessElfCore.h"
@@ -266,6 +269,7 @@ void SystemInitializerFull::Initialize() {
   platform_freebsd::PlatformFreeBSD::Initialize();
 //platform_linux::PlatformLinux::Initialize();
 //platform_netbsd::PlatformNetBSD::Initialize();
+//platform_openbsd::PlatformOpenBSD::Initialize();
 //PlatformWindows::Initialize();
 //PlatformKalimba::Initialize();
 //platform_android::PlatformAndroid::Initialize();
@@ -308,6 +312,8 @@ void SystemInitializerFull::Initialize() {
   MemoryHistoryASan::Initialize();
   AddressSanitizerRuntime::Initialize();
 //ThreadSanitizerRuntime::Initialize();
+  UndefinedBehaviorSanitizerRuntime::Initialize();
+  MainThreadCheckerRuntime::Initialize();
 
   SymbolVendorELF::Initialize();
   SymbolFileDWARF::Initialize();
@@ -398,7 +404,8 @@ void SystemInitializerFull::InitializeSWIG() {
 }
 
 void SystemInitializerFull::Terminate() {
-  Timer scoped_timer(LLVM_PRETTY_FUNCTION, LLVM_PRETTY_FUNCTION);
+  static Timer::Category func_cat(LLVM_PRETTY_FUNCTION);
+  Timer scoped_timer(func_cat, LLVM_PRETTY_FUNCTION);
 
   Debugger::SettingsTerminate();
 
@@ -431,6 +438,8 @@ void SystemInitializerFull::Terminate() {
   MemoryHistoryASan::Terminate();
   AddressSanitizerRuntime::Terminate();
 //ThreadSanitizerRuntime::Terminate();
+  UndefinedBehaviorSanitizerRuntime::Terminate();
+  MainThreadCheckerRuntime::Terminate();
   SymbolVendorELF::Terminate();
   SymbolFileDWARF::Terminate();
 //SymbolFilePDB::Terminate();
@@ -485,13 +494,14 @@ void SystemInitializerFull::Terminate() {
 //OperatingSystemGo::Terminate();
 
   platform_freebsd::PlatformFreeBSD::Terminate();
-//  platform_linux::PlatformLinux::Terminate();
-//  platform_netbsd::PlatformNetBSD::Terminate();
-//  PlatformWindows::Terminate();
-//  PlatformKalimba::Terminate();
-//  platform_android::PlatformAndroid::Terminate();
-//  PlatformMacOSX::Terminate();
-//  PlatformRemoteiOS::Terminate();
+//platform_linux::PlatformLinux::Terminate();
+//platform_netbsd::PlatformNetBSD::Terminate();
+//platform_openbsd::PlatformOpenBSD::Terminate();
+//PlatformWindows::Terminate();
+//PlatformKalimba::Terminate();
+//platform_android::PlatformAndroid::Terminate();
+//PlatformMacOSX::Terminate();
+//PlatformRemoteiOS::Terminate();
 #if defined(__APPLE__)
   PlatformiOSSimulator::Terminate();
   PlatformDarwinKernel::Terminate();

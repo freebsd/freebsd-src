@@ -55,6 +55,7 @@ class CallEventManager;
 class CallDescription {
   friend CallEvent;
   mutable IdentifierInfo *II;
+  mutable bool IsLookupDone;
   StringRef FuncName;
   unsigned RequiredArgs;
 
@@ -68,7 +69,8 @@ public:
   /// call. Omit this parameter to match every occurance of call with a given
   /// name regardless the number of arguments.
   CallDescription(StringRef FuncName, unsigned RequiredArgs = NoArgRequirement)
-      : II(nullptr), FuncName(FuncName), RequiredArgs(RequiredArgs) {}
+      : II(nullptr), IsLookupDone(false), FuncName(FuncName),
+        RequiredArgs(RequiredArgs) {}
 
   /// \brief Get the name of the function that this object matches.
   StringRef getFunctionName() const { return FuncName; }
@@ -381,7 +383,9 @@ public:
 
   // Iterator access to formal parameters and their types.
 private:
-  typedef std::const_mem_fun_t<QualType, ParmVarDecl> get_type_fun;
+  struct GetTypeFn {
+    QualType operator()(ParmVarDecl *PD) const { return PD->getType(); }
+  };
 
 public:
   /// Return call's formal parameters.
@@ -391,7 +395,7 @@ public:
   /// correspond with the argument value returned by \c getArgSVal(0).
   virtual ArrayRef<ParmVarDecl*> parameters() const = 0;
 
-  typedef llvm::mapped_iterator<ArrayRef<ParmVarDecl*>::iterator, get_type_fun>
+  typedef llvm::mapped_iterator<ArrayRef<ParmVarDecl*>::iterator, GetTypeFn>
     param_type_iterator;
 
   /// Returns an iterator over the types of the call's formal parameters.
@@ -400,13 +404,11 @@ public:
   /// definition because it represents a public interface, and probably has
   /// more annotations.
   param_type_iterator param_type_begin() const {
-    return llvm::map_iterator(parameters().begin(),
-                              get_type_fun(&ParmVarDecl::getType));
+    return llvm::map_iterator(parameters().begin(), GetTypeFn());
   }
   /// \sa param_type_begin()
   param_type_iterator param_type_end() const {
-    return llvm::map_iterator(parameters().end(),
-                              get_type_fun(&ParmVarDecl::getType));
+    return llvm::map_iterator(parameters().end(), GetTypeFn());
   }
 
   // For debugging purposes only

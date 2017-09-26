@@ -10,13 +10,9 @@
 #ifndef liblldb_ThreadSpec_h_
 #define liblldb_ThreadSpec_h_
 
-// C Includes
-// C++ Includes
-#include <string>
-
-// Other libraries and framework includes
-// Project includes
+#include "lldb/Utility/StructuredData.h"
 #include "lldb/lldb-private.h"
+#include <string>
 
 namespace lldb_private {
 
@@ -45,7 +41,7 @@ public:
 
   static std::unique_ptr<ThreadSpec>
   CreateFromStructuredData(const StructuredData::Dictionary &data_dict,
-                           Error &error);
+                           Status &error);
 
   StructuredData::ObjectSP SerializeToStructuredData();
 
@@ -55,9 +51,9 @@ public:
 
   void SetTID(lldb::tid_t tid) { m_tid = tid; }
 
-  void SetName(const char *name) { m_name = name; }
+  void SetName(llvm::StringRef name) { m_name = name; }
 
-  void SetQueueName(const char *queue_name) { m_queue_name = queue_name; }
+  void SetQueueName(llvm::StringRef queue_name) { m_queue_name = queue_name; }
 
   uint32_t GetIndex() const { return m_index; }
 

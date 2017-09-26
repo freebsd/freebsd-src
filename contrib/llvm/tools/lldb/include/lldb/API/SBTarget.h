@@ -124,9 +124,6 @@ public:
   /// @param[in] envp
   ///     The environment array.
   ///
-  /// @param[in] launch_flags
-  ///     Flags to modify the launch (@see lldb::LaunchFlags)
-  ///
   /// @param[in] stdin_path
   ///     The path to use when re-directing the STDIN of the new
   ///     process. If all stdXX_path arguments are nullptr, a pseudo
@@ -480,6 +477,7 @@ public:
   /// Resolve a current file address into a section offset address.
   ///
   /// @param[in] file_addr
+  ///     The file address to resolve.
   ///
   /// @return
   ///     An SBAddress which will be valid if...
@@ -546,7 +544,7 @@ public:
   ///     into this call
   ///
   /// @param[out] error
-  ///     Error information is written here if the memory read fails.
+  ///     Status information is written here if the memory read fails.
   ///
   /// @return
   ///     The amount of data read in host bytes.
@@ -653,7 +651,7 @@ public:
   /// @param[in] source_file
   ///    The file from which to read the breakpoints.
   ///
-  /// @param[out] bkpt_list
+  /// @param[out] new_bps
   ///    A list of the newly created breakpoints.
   ///
   /// @return
@@ -673,7 +671,7 @@ public:
   ///    Only read in breakpoints whose names match one of the names in this
   ///    list.
   ///
-  /// @param[out] bkpt_list
+  /// @param[out] new_bps
   ///    A list of the newly created breakpoints.
   ///
   /// @return

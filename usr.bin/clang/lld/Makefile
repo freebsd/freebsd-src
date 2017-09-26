@@ -12,25 +12,39 @@ MAN=
 SYMLINKS=	${PROG_CXX} ${BINDIR}/ld
 .endif
 
+CFLAGS+=	-I${LLD_SRCS}/ELF
 CFLAGS+=	-I${LLD_SRCS}/include
 CFLAGS+=	-I${.OBJDIR}
 CFLAGS+=	-I${OBJTOP}/lib/clang/libllvm
 
 SRCDIR=		tools/lld
+SRCS+=		ELF/Arch/AArch64.cpp
+SRCS+=		ELF/Arch/AMDGPU.cpp
+SRCS+=		ELF/Arch/ARM.cpp
+SRCS+=		ELF/Arch/AVR.cpp
+SRCS+=		ELF/Arch/Mips.cpp
+SRCS+=		ELF/Arch/MipsArchTree.cpp
+SRCS+=		ELF/Arch/PPC.cpp
+SRCS+=		ELF/Arch/PPC64.cpp
+SRCS+=		ELF/Arch/SPARCV9.cpp
+SRCS+=		ELF/Arch/X86.cpp
+SRCS+=		ELF/Arch/X86_64.cpp
 SRCS+=		ELF/Driver.cpp
 SRCS+=		ELF/DriverUtils.cpp
 SRCS+=		ELF/EhFrame.cpp
 SRCS+=		ELF/Error.cpp
+SRCS+=		ELF/Filesystem.cpp
 SRCS+=		ELF/GdbIndex.cpp
 SRCS+=		ELF/ICF.cpp
 SRCS+=		ELF/InputFiles.cpp
 SRCS+=		ELF/InputSection.cpp
-SRCS+=		ELF/LinkerScript.cpp
 SRCS+=		ELF/LTO.cpp
+SRCS+=		ELF/LinkerScript.cpp
+SRCS+=		ELF/MapFile.cpp
 SRCS+=		ELF/MarkLive.cpp
-SRCS+=		ELF/Mips.cpp
 SRCS+=		ELF/OutputSections.cpp
 SRCS+=		ELF/Relocations.cpp
+SRCS+=		ELF/ScriptLexer.cpp
 SRCS+=		ELF/ScriptParser.cpp
 SRCS+=		ELF/Strings.cpp
 SRCS+=		ELF/SymbolTable.cpp
@@ -40,7 +54,6 @@ SRCS+=		ELF/Target.cpp
 SRCS+=		ELF/Thunks.cpp
 SRCS+=		ELF/Writer.cpp
 SRCS+=		lib/Config/Version.cpp
-SRCS+=		lib/Core/DefinedAtom.cpp
 SRCS+=		lib/Core/Error.cpp
 SRCS+=		lib/Core/File.cpp
 SRCS+=		lib/Core/LinkingContext.cpp
@@ -48,7 +61,7 @@ SRCS+=		lib/Core/Reader.cpp
 SRCS+=		lib/Core/Reproduce.cpp
 SRCS+=		lib/Core/Resolver.cpp
 SRCS+=		lib/Core/SymbolTable.cpp
-SRCS+=		lib/Core/Writer.cpp
+SRCS+=		lib/Core/TargetOptionsCommandFlags.cpp
 SRCS+=		tools/lld/lld.cpp
 
 .include "${SRCTOP}/lib/clang/llvm.build.mk"
@@ -64,7 +77,7 @@ LLVM_TBLGEN?=	llvm-tblgen
 ELF/Options.inc: ${LLD_SRCS}/ELF/Options.td
 	${LLVM_TBLGEN} -gen-opt-parser-defs \
 	    -I ${LLVM_SRCS}/include \
-	    -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
+	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
 	    ${LLVM_SRCS}/tools/lld/ELF/Options.td
 TGHDRS+=	ELF/Options.inc
 
