@@ -16,10 +16,12 @@
 #include "lldb/lldb-forward.h"
 #include "lldb/lldb-types.h"
 
+#include "lldb/lldb-private-enumerations.h"
+
 #include <set>
 
 namespace lldb_private {
-typedef lldb::ABISP (*ABICreateInstance)(const ArchSpec &arch);
+typedef lldb::ABISP (*ABICreateInstance)(lldb::ProcessSP process_sp, const ArchSpec &arch);
 typedef Disassembler *(*DisassemblerCreateInstance)(const ArchSpec &arch,
                                                     const char *flavor);
 typedef DynamicLoader *(*DynamicLoaderCreateInstance)(Process *process,
@@ -44,8 +46,7 @@ typedef ObjectFile *(*ObjectFileCreateMemoryInstance)(
     const lldb::ModuleSP &module_sp, lldb::DataBufferSP &data_sp,
     const lldb::ProcessSP &process_sp, lldb::addr_t offset);
 typedef bool (*ObjectFileSaveCore)(const lldb::ProcessSP &process_sp,
-                                   const FileSpec &outfile, Error &error);
-typedef LogChannel *(*LogChannelCreateInstance)();
+                                   const FileSpec &outfile, Status &error);
 typedef EmulateInstruction *(*EmulateInstructionCreateInstance)(
     const ArchSpec &arch, InstructionType inst_type);
 typedef OperatingSystem *(*OperatingSystemCreateInstance)(Process *process,
@@ -57,8 +58,8 @@ typedef lldb::CommandObjectSP (*LanguageRuntimeGetCommandObject)(
     CommandInterpreter &interpreter);
 typedef lldb::StructuredDataPluginSP (*StructuredDataPluginCreateInstance)(
     Process &process);
-typedef Error (*StructuredDataFilterLaunchInfo)(ProcessLaunchInfo &launch_info,
-                                                Target *target);
+typedef Status (*StructuredDataFilterLaunchInfo)(ProcessLaunchInfo &launch_info,
+                                                 Target *target);
 typedef SystemRuntime *(*SystemRuntimeCreateInstance)(Process *process);
 typedef lldb::PlatformSP (*PlatformCreateInstance)(bool force,
                                                    const ArchSpec *arch);
@@ -95,7 +96,7 @@ typedef lldb::InstrumentationRuntimeSP (*InstrumentationRuntimeCreateInstance)(
     const lldb::ProcessSP &process_sp);
 typedef lldb::TypeSystemSP (*TypeSystemCreateInstance)(
     lldb::LanguageType language, Module *module, Target *target);
-typedef lldb::REPLSP (*REPLCreateInstance)(Error &error,
+typedef lldb::REPLSP (*REPLCreateInstance)(Status &error,
                                            lldb::LanguageType language,
                                            Debugger *debugger, Target *target,
                                            const char *repl_options);

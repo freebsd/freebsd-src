@@ -10,6 +10,7 @@
 #include "llvm/IR/DebugLoc.h"
 #include "LLVMContextImpl.h"
 #include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/IntrinsicInst.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -66,8 +67,40 @@ DebugLoc DebugLoc::get(unsigned Line, unsigned Col, const MDNode *Scope,
                          const_cast<MDNode *>(InlinedAt));
 }
 
+DebugLoc DebugLoc::appendInlinedAt(DebugLoc DL, DILocation *InlinedAt,
+                                   LLVMContext &Ctx,
+                                   DenseMap<const MDNode *, MDNode *> &Cache,
+                                   bool ReplaceLast) {
+  SmallVector<DILocation *, 3> InlinedAtLocations;
+  DILocation *Last = InlinedAt;
+  DILocation *CurInlinedAt = DL;
+
+  // Gather all the inlined-at nodes.
+  while (DILocation *IA = CurInlinedAt->getInlinedAt()) {
+    // Skip any we've already built nodes for.
+    if (auto *Found = Cache[IA]) {
+      Last = cast<DILocation>(Found);
+      break;
+    }
+
+    if (ReplaceLast && !IA->getInlinedAt())
+      break;
+    InlinedAtLocations.push_back(IA);
+    CurInlinedAt = IA;
+  }
+
+  // Starting from the top, rebuild the nodes to point to the new inlined-at
+  // location (then rebuilding the rest of the chain behind it) and update the
+  // map of already-constructed inlined-at nodes.
+  for (const DILocation *MD : reverse(InlinedAtLocations))
+    Cache[MD] = Last = DILocation::getDistinct(
+        Ctx, MD->getLine(), MD->getColumn(), MD->getScope(), Last);
+
+  return Last;
+}
+
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD void DebugLoc::dump() const {
-#ifndef NDEBUG
   if (!Loc)
     return;
 
@@ -79,8 +112,8 @@ LLVM_DUMP_METHOD void DebugLoc::dump() const {
     InlinedAtDL.dump();
   } else
     dbgs() << "\n";
-#endif
 }
+#endif
 
 void DebugLoc::print(raw_ostream &OS) const {
   if (!Loc)

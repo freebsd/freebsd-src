@@ -31,9 +31,9 @@
 // Project includes
 #include "Plugins/ExpressionParser/Clang/ClangPersistentVariables.h"
 #include "lldb/Core/ClangForward.h"
-#include "lldb/Core/ConstString.h"
 #include "lldb/Symbol/CompilerType.h"
 #include "lldb/Symbol/TypeSystem.h"
+#include "lldb/Utility/ConstString.h"
 #include "lldb/lldb-enumerations.h"
 
 class DWARFASTParserClang;
@@ -275,17 +275,16 @@ public:
     bool IsValid() const {
       if (args.empty())
         return false;
-      return args.size() == names.size();
-    }
-
-    size_t GetSize() const {
-      if (IsValid())
-        return args.size();
-      return 0;
+      return args.size() == names.size() &&
+        ((bool)pack_name == (bool)packed_args) &&
+        (!packed_args || !packed_args->packed_args);
     }
 
     llvm::SmallVector<const char *, 2> names;
     llvm::SmallVector<clang::TemplateArgument, 2> args;
+    
+    const char * pack_name = nullptr;
+    std::unique_ptr<TemplateParameterInfos> packed_args;
   };
 
   clang::FunctionTemplateDecl *

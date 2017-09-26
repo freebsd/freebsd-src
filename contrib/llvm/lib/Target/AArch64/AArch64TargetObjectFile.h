@@ -40,7 +40,13 @@ public:
                                           const MCValue &MV, int64_t Offset,
                                           MachineModuleInfo *MMI,
                                           MCStreamer &Streamer) const override;
+
+  void getNameWithPrefix(SmallVectorImpl<char> &OutName, const GlobalValue *GV,
+                         const TargetMachine &TM) const override;
 };
+
+/// This implementation is used for AArch64 COFF targets.
+class AArch64_COFFTargetObjectFile : public TargetLoweringObjectFileCOFF {};
 
 } // end namespace llvm
 

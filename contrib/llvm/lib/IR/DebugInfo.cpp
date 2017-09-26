@@ -1,4 +1,4 @@
-//===--- DebugInfo.cpp - Debug Information Helper Classes -----------------===//
+//===- DebugInfo.cpp - Debug Information Helper Classes -------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,21 +13,28 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/IR/DebugInfo.h"
-#include "LLVMContextImpl.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/None.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/DIBuilder.h"
-#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/DebugLoc.h"
+#include "llvm/IR/Function.h"
 #include "llvm/IR/GVMaterializer.h"
-#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/ValueHandle.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/Dwarf.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Casting.h"
+#include <algorithm>
+#include <cassert>
+#include <utility>
+
 using namespace llvm;
 using namespace llvm::dwarf;
 
@@ -79,9 +86,19 @@ void DebugInfoFinder::processModule(const Module &M) {
         processScope(M->getScope());
     }
   }
-  for (auto &F : M.functions())
+  for (auto &F : M.functions()) {
     if (auto *SP = cast_or_null<DISubprogram>(F.getSubprogram()))
       processSubprogram(SP);
+    // There could be subprograms from inlined functions referenced from
+    // instructions only. Walk the function to find them.
+    for (const BasicBlock &BB : F) {
+      for (const Instruction &I : BB) {
+        if (!I.getDebugLoc())
+          continue;
+        processLocation(M, I.getDebugLoc().get());
+      }
+    }
+  }
 }
 
 void DebugInfoFinder::processLocation(const Module &M, const DILocation *Loc) {
@@ -239,6 +256,38 @@ bool DebugInfoFinder::addScope(DIScope *Scope) {
   return true;
 }
 
+static MDNode *stripDebugLocFromLoopID(MDNode *N) {
+  assert(N->op_begin() != N->op_end() && "Missing self reference?");
+
+  // if there is no debug location, we do not have to rewrite this MDNode.
+  if (std::none_of(N->op_begin() + 1, N->op_end(), [](const MDOperand &Op) {
+        return isa<DILocation>(Op.get());
+      }))
+    return N;
+
+  // If there is only the debug location without any actual loop metadata, we
+  // can remove the metadata.
+  if (std::none_of(N->op_begin() + 1, N->op_end(), [](const MDOperand &Op) {
+        return !isa<DILocation>(Op.get());
+      }))
+    return nullptr;
+
+  SmallVector<Metadata *, 4> Args;
+  // Reserve operand 0 for loop id self reference.
+  auto TempNode = MDNode::getTemporary(N->getContext(), None);
+  Args.push_back(TempNode.get());
+  // Add all non-debug location operands back.
+  for (auto Op = N->op_begin() + 1; Op != N->op_end(); Op++) {
+    if (!isa<DILocation>(*Op))
+      Args.push_back(*Op);
+  }
+
+  // Set the first operand to itself.
+  MDNode *LoopID = MDNode::get(N->getContext(), Args);
+  LoopID->replaceOperandWith(0, LoopID);
+  return LoopID;
+}
+
 bool llvm::stripDebugInfo(Function &F) {
   bool Changed = false;
   if (F.getSubprogram()) {
@@ -246,6 +295,7 @@ bool llvm::stripDebugInfo(Function &F) {
     F.setSubprogram(nullptr);
   }
 
+  DenseMap<MDNode*, MDNode*> LoopIDsMap;
   for (BasicBlock &BB : F) {
     for (auto II = BB.begin(), End = BB.end(); II != End;) {
       Instruction &I = *II++; // We may delete the instruction, increment now.
@@ -258,6 +308,15 @@ bool llvm::stripDebugInfo(Function &F) {
         Changed = true;
         I.setDebugLoc(DebugLoc());
       }
+    }
+
+    auto *TermInst = BB.getTerminator();
+    if (auto *LoopID = TermInst->getMetadata(LLVMContext::MD_loop)) {
+      auto *NewLoopID = LoopIDsMap.lookup(LoopID);
+      if (!NewLoopID)
+        NewLoopID = LoopIDsMap[LoopID] = stripDebugLocFromLoopID(LoopID);
+      if (NewLoopID != LoopID)
+        TermInst->setMetadata(LLVMContext::MD_loop, NewLoopID);
     }
   }
   return Changed;
@@ -410,7 +469,8 @@ private:
         CU->isOptimized(), CU->getFlags(), CU->getRuntimeVersion(),
         CU->getSplitDebugFilename(), DICompileUnit::LineTablesOnly, EnumTypes,
         RetainedTypes, GlobalVariables, ImportedEntities, CU->getMacros(),
-        CU->getDWOId(), CU->getSplitDebugInlining());
+        CU->getDWOId(), CU->getSplitDebugInlining(),
+        CU->getDebugInfoForProfiling());
   }
 
   DILocation *getReplacementMDLocation(DILocation *MLD) {
@@ -472,7 +532,7 @@ private:
   void traverse(MDNode *);
 };
 
-} // Anonymous namespace.
+} // end anonymous namespace
 
 void DebugTypeInfoRemoval::traverse(MDNode *N) {
   if (!N || Replacements.count(N))
@@ -537,7 +597,7 @@ bool llvm::stripNonLineTableDebugInfo(Module &M) {
     GV.eraseMetadata(LLVMContext::MD_dbg);
 
   DebugTypeInfoRemoval Mapper(M.getContext());
-  auto remap = [&](llvm::MDNode *Node) -> llvm::MDNode * {
+  auto remap = [&](MDNode *Node) -> MDNode * {
     if (!Node)
       return nullptr;
     Mapper.traverseAndRemap(Node);
@@ -558,17 +618,26 @@ bool llvm::stripNonLineTableDebugInfo(Module &M) {
     }
     for (auto &BB : F) {
       for (auto &I : BB) {
-        if (I.getDebugLoc() == DebugLoc())
-          continue;
+        auto remapDebugLoc = [&](DebugLoc DL) -> DebugLoc {
+          auto *Scope = DL.getScope();
+          MDNode *InlinedAt = DL.getInlinedAt();
+          Scope = remap(Scope);
+          InlinedAt = remap(InlinedAt);
+          return DebugLoc::get(DL.getLine(), DL.getCol(), Scope, InlinedAt);
+        };
 
-        // Make a replacement.
-        auto &DL = I.getDebugLoc();
-        auto *Scope = DL.getScope();
-        MDNode *InlinedAt = DL.getInlinedAt();
-        Scope = remap(Scope);
-        InlinedAt = remap(InlinedAt);
-        I.setDebugLoc(
-            DebugLoc::get(DL.getLine(), DL.getCol(), Scope, InlinedAt));
+        if (I.getDebugLoc() != DebugLoc())
+          I.setDebugLoc(remapDebugLoc(I.getDebugLoc()));
+
+        // Remap DILocations in untyped MDNodes (e.g., llvm.loop).
+        SmallVector<std::pair<unsigned, MDNode *>, 2> MDs;
+        I.getAllMetadata(MDs);
+        for (auto Attachment : MDs)
+          if (auto *T = dyn_cast_or_null<MDTuple>(Attachment.second))
+            for (unsigned N = 0; N < T->getNumOperands(); ++N)
+              if (auto *Loc = dyn_cast_or_null<DILocation>(T->getOperand(N)))
+                if (Loc != DebugLoc())
+                  T->replaceOperandWith(N, remapDebugLoc(Loc));
       }
     }
   }

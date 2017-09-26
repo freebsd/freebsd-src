@@ -1,5 +1,4 @@
-//===-- EmulateInstructionMIPS64.cpp -------------------------------*- C++
-//-*-===//
+//===-- EmulateInstructionMIPS64.cpp -----------------------------*- C++-*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,13 +13,14 @@
 
 #include "lldb/Core/Address.h"
 #include "lldb/Core/ArchSpec.h"
-#include "lldb/Core/ConstString.h"
-#include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/Opcode.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/Stream.h"
+#include "lldb/Core/RegisterValue.h"
 #include "lldb/Host/PosixApi.h"
 #include "lldb/Symbol/UnwindPlan.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/Stream.h"
 #include "llvm-c/Disassembler.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
@@ -63,10 +63,10 @@ EmulateInstructionMIPS64::EmulateInstructionMIPS64(
     const lldb_private::ArchSpec &arch)
     : EmulateInstruction(arch) {
   /* Create instance of llvm::MCDisassembler */
-  std::string Error;
+  std::string Status;
   llvm::Triple triple = arch.GetTriple();
   const llvm::Target *target =
-      llvm::TargetRegistry::lookupTarget(triple.getTriple(), Error);
+      llvm::TargetRegistry::lookupTarget(triple.getTriple(), Status);
 
 /*
  * If we fail to get the target then we haven't registered it. The
@@ -83,7 +83,7 @@ EmulateInstructionMIPS64::EmulateInstructionMIPS64(
     LLVMInitializeMipsAsmPrinter();
     LLVMInitializeMipsTargetMC();
     LLVMInitializeMipsDisassembler();
-    target = llvm::TargetRegistry::lookupTarget(triple.getTriple(), Error);
+    target = llvm::TargetRegistry::lookupTarget(triple.getTriple(), Status);
   }
 #endif
 
@@ -1141,7 +1141,7 @@ bool EmulateInstructionMIPS64::Emulate_SD(llvm::MCInst &insn) {
     context.SetRegisterToRegisterPlusOffset(reg_info_src, reg_info_base, 0);
 
     uint8_t buffer[RegisterValue::kMaxRegisterByteSize];
-    Error error;
+    Status error;
 
     if (!ReadRegister(&reg_info_base, data_src))
       return false;

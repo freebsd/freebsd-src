@@ -7,7 +7,7 @@ CRTSRC=		${SRCTOP}/contrib/compiler-rt
 
 .PATH:		${CRTSRC}/lib
 
-CLANGDIR=	/usr/lib/clang/4.0.0
+CLANGDIR=	/usr/lib/clang/5.0.0
 LIBDIR=		${CLANGDIR}/lib/freebsd
 
 NO_PIC=

@@ -8,14 +8,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Host/MonitoringProcessLauncher.h"
-#include "lldb/Core/Error.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Host/HostProcess.h"
 #include "lldb/Target/Platform.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/ProcessLaunchInfo.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Status.h"
+
+#include "llvm/Support/FileSystem.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -26,7 +28,7 @@ MonitoringProcessLauncher::MonitoringProcessLauncher(
 
 HostProcess
 MonitoringProcessLauncher::LaunchProcess(const ProcessLaunchInfo &launch_info,
-                                         Error &error) {
+                                         Status &error) {
   ProcessLaunchInfo resolved_info(launch_info);
 
   error.Clear();
@@ -38,8 +40,9 @@ MonitoringProcessLauncher::LaunchProcess(const ProcessLaunchInfo &launch_info,
 
   FileSpec exe_spec(resolved_info.GetExecutableFile());
 
-  FileSpec::FileType file_type = exe_spec.GetFileType();
-  if (file_type != FileSpec::eFileTypeRegular) {
+  llvm::sys::fs::file_status stats;
+  status(exe_spec.GetPath(), stats);
+  if (!is_regular_file(stats)) {
     ModuleSpec module_spec(exe_spec, arch_spec);
     lldb::ModuleSP exe_module_sp;
     error =
@@ -48,11 +51,13 @@ MonitoringProcessLauncher::LaunchProcess(const ProcessLaunchInfo &launch_info,
     if (error.Fail())
       return HostProcess();
 
-    if (exe_module_sp)
+    if (exe_module_sp) {
       exe_spec = exe_module_sp->GetFileSpec();
+      status(exe_spec.GetPath(), stats);
+    }
   }
 
-  if (exe_spec.Exists()) {
+  if (exists(stats)) {
     exe_spec.GetPath(exe_path, sizeof(exe_path));
   } else {
     resolved_info.GetExecutableFile().GetPath(exe_path, sizeof(exe_path));

@@ -10,10 +10,9 @@
 
 // lldb Includes
 #include "lldb/Host/ThreadLauncher.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Host/HostNativeThread.h"
 #include "lldb/Host/HostThread.h"
-#include "lldb/Host/ThisThread.h"
+#include "lldb/Utility/Log.h"
 
 #if defined(_WIN32)
 #include "lldb/Host/windows/windows.h"
@@ -25,9 +24,9 @@ using namespace lldb_private;
 HostThread ThreadLauncher::LaunchThread(llvm::StringRef name,
                                         lldb::thread_func_t thread_function,
                                         lldb::thread_arg_t thread_arg,
-                                        Error *error_ptr,
+                                        Status *error_ptr,
                                         size_t min_stack_byte_size) {
-  Error error;
+  Status error;
   if (error_ptr)
     error_ptr->Clear();
 

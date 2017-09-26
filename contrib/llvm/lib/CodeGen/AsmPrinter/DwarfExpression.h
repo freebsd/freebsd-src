@@ -42,6 +42,9 @@ public:
   DIExpressionCursor(ArrayRef<uint64_t> Expr)
       : Start(Expr.begin()), End(Expr.end()) {}
 
+  DIExpressionCursor(const DIExpressionCursor &C)
+      : Start(C.Start), End(C.End) {}
+
   /// Consume one operation.
   Optional<DIExpression::ExprOperand> take() {
     if (Start == End)
@@ -72,6 +75,8 @@ public:
   }
   /// Determine whether there are any operations left in this expression.
   operator bool() const { return Start != End; }
+  DIExpression::expr_op_iterator begin() const { return Start; }
+  DIExpression::expr_op_iterator end() const { return End; }
 
   /// Retrieve the fragment information, if any.
   Optional<DIExpression::FragmentInfo> getFragmentInfo() const {
@@ -84,13 +89,26 @@ public:
 /// entry.
 class DwarfExpression {
 protected:
-  unsigned DwarfVersion;
+  /// Holds information about all subregisters comprising a register location.
+  struct Register {
+    int DwarfRegNo;
+    unsigned Size;
+    const char *Comment;
+  };
+
+  /// The register location, if any.
+  SmallVector<Register, 2> DwarfRegs;
+
   /// Current Fragment Offset in Bits.
   uint64_t OffsetInBits = 0;
+  unsigned DwarfVersion;
 
   /// Sometimes we need to add a DW_OP_bit_piece to describe a subregister. 
   unsigned SubRegisterSizeInBits = 0;
   unsigned SubRegisterOffsetInBits = 0;
+
+  /// The kind of location description being produced.
+  enum { Unknown = 0, Register, Memory, Implicit } LocationKind = Unknown;
 
   /// Push a DW_OP_piece / DW_OP_bit_piece for emitting later, if one is needed
   /// to represent a subregister.
@@ -99,53 +117,26 @@ protected:
     SubRegisterOffsetInBits = OffsetInBits;
   }
 
-public:
-  DwarfExpression(unsigned DwarfVersion) : DwarfVersion(DwarfVersion) {}
-  virtual ~DwarfExpression() {};
-
-  /// This needs to be called last to commit any pending changes.
-  void finalize();
+  /// Add masking operations to stencil out a subregister.
+  void maskSubRegister();
 
   /// Output a dwarf operand and an optional assembler comment.
-  virtual void EmitOp(uint8_t Op, const char *Comment = nullptr) = 0;
+  virtual void emitOp(uint8_t Op, const char *Comment = nullptr) = 0;
   /// Emit a raw signed value.
-  virtual void EmitSigned(int64_t Value) = 0;
+  virtual void emitSigned(int64_t Value) = 0;
   /// Emit a raw unsigned value.
-  virtual void EmitUnsigned(uint64_t Value) = 0;
+  virtual void emitUnsigned(uint64_t Value) = 0;
   /// Return whether the given machine register is the frame register in the
   /// current function.
   virtual bool isFrameRegister(const TargetRegisterInfo &TRI, unsigned MachineReg) = 0;
 
-  /// Emit a dwarf register operation.
-  void AddReg(int DwarfReg, const char *Comment = nullptr);
-  /// Emit an (double-)indirect dwarf register operation.
-  void AddRegIndirect(int DwarfReg, int Offset, bool Deref = false);
-
-  /// Emit a DW_OP_piece or DW_OP_bit_piece operation for a variable fragment.
-  /// \param OffsetInBits    This is an optional offset into the location that
-  /// is at the top of the DWARF stack.
-  void AddOpPiece(unsigned SizeInBits, unsigned OffsetInBits = 0);
-
-  /// Emit a shift-right dwarf expression.
-  void AddShr(unsigned ShiftBy);
-
-  /// Emit a DW_OP_stack_value, if supported.
-  ///
-  /// The proper way to describe a constant value is DW_OP_constu <const>,
-  /// DW_OP_stack_value.  Unfortunately, DW_OP_stack_value was not available
-  /// until DWARF 4, so we will continue to generate DW_OP_constu <const> for
-  /// DWARF 2 and DWARF 3. Technically, this is incorrect since DW_OP_const
-  /// <const> actually describes a value at a constant addess, not a constant
-  /// value.  However, in the past there was no better way to describe a
-  /// constant value, so the producers and consumers started to rely on
-  /// heuristics to disambiguate the value vs. location status of the
-  /// expression.  See PR21176 for more details.
-  void AddStackValue();
-
-  /// Emit an indirect dwarf register operation for the given machine register.
-  /// \return false if no DWARF register exists for MachineReg.
-  bool AddMachineRegIndirect(const TargetRegisterInfo &TRI, unsigned MachineReg,
-                             int Offset = 0);
+  /// Emit a DW_OP_reg operation. Note that this is only legal inside a DWARF
+  /// register location description.
+  void addReg(int DwarfReg, const char *Comment = nullptr);
+  /// Emit a DW_OP_breg operation.
+  void addBReg(int DwarfReg, int Offset);
+  /// Emit DW_OP_fbreg <Offset>.
+  void addFBReg(int Offset);
 
   /// Emit a partial DWARF register operation.
   ///
@@ -162,26 +153,64 @@ public:
   /// multiple subregisters that alias the register.
   ///
   /// \return false if no DWARF register exists for MachineReg.
-  bool AddMachineReg(const TargetRegisterInfo &TRI, unsigned MachineReg,
+  bool addMachineReg(const TargetRegisterInfo &TRI, unsigned MachineReg,
                      unsigned MaxSize = ~1U);
 
+
+  /// Emit a DW_OP_piece or DW_OP_bit_piece operation for a variable fragment.
+  /// \param OffsetInBits    This is an optional offset into the location that
+  /// is at the top of the DWARF stack.
+  void addOpPiece(unsigned SizeInBits, unsigned OffsetInBits = 0);
+
+  /// Emit a shift-right dwarf operation.
+  void addShr(unsigned ShiftBy);
+  /// Emit a bitwise and dwarf operation.
+  void addAnd(unsigned Mask);
+
+  /// Emit a DW_OP_stack_value, if supported.
+  ///
+  /// The proper way to describe a constant value is DW_OP_constu <const>,
+  /// DW_OP_stack_value.  Unfortunately, DW_OP_stack_value was not available
+  /// until DWARF 4, so we will continue to generate DW_OP_constu <const> for
+  /// DWARF 2 and DWARF 3. Technically, this is incorrect since DW_OP_const
+  /// <const> actually describes a value at a constant addess, not a constant
+  /// value.  However, in the past there was no better way to describe a
+  /// constant value, so the producers and consumers started to rely on
+  /// heuristics to disambiguate the value vs. location status of the
+  /// expression.  See PR21176 for more details.
+  void addStackValue();
+
+  ~DwarfExpression() = default;
+public:
+  DwarfExpression(unsigned DwarfVersion) : DwarfVersion(DwarfVersion) {}
+
+  /// This needs to be called last to commit any pending changes.
+  void finalize();
+
   /// Emit a signed constant.
-  void AddSignedConstant(int64_t Value);
+  void addSignedConstant(int64_t Value);
   /// Emit an unsigned constant.
-  void AddUnsignedConstant(uint64_t Value);
+  void addUnsignedConstant(uint64_t Value);
   /// Emit an unsigned constant.
-  void AddUnsignedConstant(const APInt &Value);
+  void addUnsignedConstant(const APInt &Value);
+
+  /// Lock this down to become a memory location description.
+  void setMemoryLocationKind() {
+    assert(LocationKind == Unknown);
+    LocationKind = Memory;
+  }
 
   /// Emit a machine register location. As an optimization this may also consume
   /// the prefix of a DwarfExpression if a more efficient representation for
   /// combining the register location and the first operation exists.
   ///
-  /// \param FragmentOffsetInBits     If this is one fragment out of a fragmented
+  /// \param FragmentOffsetInBits     If this is one fragment out of a
+  /// fragmented
   ///                                 location, this is the offset of the
   ///                                 fragment inside the entire variable.
   /// \return                         false if no DWARF register exists
   ///                                 for MachineReg.
-  bool AddMachineRegExpression(const TargetRegisterInfo &TRI,
+  bool addMachineRegExpression(const TargetRegisterInfo &TRI,
                                DIExpressionCursor &Expr, unsigned MachineReg,
                                unsigned FragmentOffsetInBits = 0);
   /// Emit all remaining operations in the DIExpressionCursor.
@@ -189,7 +218,7 @@ public:
   /// \param FragmentOffsetInBits     If this is one fragment out of multiple
   ///                                 locations, this is the offset of the
   ///                                 fragment inside the entire variable.
-  void AddExpression(DIExpressionCursor &&Expr,
+  void addExpression(DIExpressionCursor &&Expr,
                      unsigned FragmentOffsetInBits = 0);
 
   /// If applicable, emit an empty DW_OP_piece / DW_OP_bit_piece to advance to
@@ -198,33 +227,32 @@ public:
 };
 
 /// DwarfExpression implementation for .debug_loc entries.
-class DebugLocDwarfExpression : public DwarfExpression {
+class DebugLocDwarfExpression final : public DwarfExpression {
   ByteStreamer &BS;
 
+  void emitOp(uint8_t Op, const char *Comment = nullptr) override;
+  void emitSigned(int64_t Value) override;
+  void emitUnsigned(uint64_t Value) override;
+  bool isFrameRegister(const TargetRegisterInfo &TRI,
+                       unsigned MachineReg) override;
 public:
   DebugLocDwarfExpression(unsigned DwarfVersion, ByteStreamer &BS)
       : DwarfExpression(DwarfVersion), BS(BS) {}
-
-  void EmitOp(uint8_t Op, const char *Comment = nullptr) override;
-  void EmitSigned(int64_t Value) override;
-  void EmitUnsigned(uint64_t Value) override;
-  bool isFrameRegister(const TargetRegisterInfo &TRI,
-                       unsigned MachineReg) override;
 };
 
 /// DwarfExpression implementation for singular DW_AT_location.
-class DIEDwarfExpression : public DwarfExpression {
+class DIEDwarfExpression final : public DwarfExpression {
 const AsmPrinter &AP;
   DwarfUnit &DU;
   DIELoc &DIE;
 
-public:
-  DIEDwarfExpression(const AsmPrinter &AP, DwarfUnit &DU, DIELoc &DIE);
-  void EmitOp(uint8_t Op, const char *Comment = nullptr) override;
-  void EmitSigned(int64_t Value) override;
-  void EmitUnsigned(uint64_t Value) override;
+  void emitOp(uint8_t Op, const char *Comment = nullptr) override;
+  void emitSigned(int64_t Value) override;
+  void emitUnsigned(uint64_t Value) override;
   bool isFrameRegister(const TargetRegisterInfo &TRI,
                        unsigned MachineReg) override;
+public:
+  DIEDwarfExpression(const AsmPrinter &AP, DwarfUnit &DU, DIELoc &DIE);
   DIELoc *finalize() {
     DwarfExpression::finalize();
     return &DIE;

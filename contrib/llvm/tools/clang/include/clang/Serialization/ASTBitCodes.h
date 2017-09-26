@@ -226,7 +226,7 @@ namespace clang {
 
       /// \brief The block containing the detailed preprocessing record.
       PREPROCESSOR_DETAIL_BLOCK_ID,
-      
+
       /// \brief The block containing the submodule structure.
       SUBMODULE_BLOCK_ID,
 
@@ -253,6 +253,12 @@ namespace clang {
 
       /// \brief A block containing a module file extension.
       EXTENSION_BLOCK_ID,
+
+      /// A block with unhashed content.
+      ///
+      /// These records should not change the \a ASTFileSignature.  See \a
+      /// UnhashedControlBlockRecordTypes for the list of records.
+      UNHASHED_CONTROL_BLOCK_ID,
     };
 
     /// \brief Record types that occur within the control block.
@@ -288,9 +294,6 @@ namespace clang {
       /// AST file.
       MODULE_MAP_FILE,
 
-      /// \brief Record code for the signature that identifiers this AST file.
-      SIGNATURE,
-
       /// \brief Record code for the module build directory.
       MODULE_DIRECTORY,
     };
@@ -309,9 +312,6 @@ namespace clang {
       /// \brief Record code for the target options table.
       TARGET_OPTIONS,
 
-      /// \brief Record code for the diagnostic options table.
-      DIAGNOSTIC_OPTIONS,
-
       /// \brief Record code for the filesystem options table.
       FILE_SYSTEM_OPTIONS,
 
@@ -320,6 +320,18 @@ namespace clang {
 
       /// \brief Record code for the preprocessor options table.
       PREPROCESSOR_OPTIONS,
+    };
+
+    /// Record codes for the unhashed control block.
+    enum UnhashedControlBlockRecordTypes {
+      /// Record code for the signature that identifiers this AST file.
+      SIGNATURE = 1,
+
+      /// Record code for the diagnostic options table.
+      DIAGNOSTIC_OPTIONS,
+
+      /// Record code for \#pragma diagnostic mappings.
+      DIAG_PRAGMA_MAPPINGS,
     };
 
     /// \brief Record code for extension blocks.
@@ -493,8 +505,7 @@ namespace clang {
 
       // ID 31 used to be a list of offsets to DECL_CXX_BASE_SPECIFIERS records.
 
-      /// \brief Record code for \#pragma diagnostic mappings.
-      DIAG_PRAGMA_MAPPINGS = 32,
+      // ID 32 used to be the code for \#pragma diagnostic mappings.
 
       /// \brief Record code for special CUDA declarations.
       CUDA_SPECIAL_DECL_REFS = 33,
@@ -591,6 +602,14 @@ namespace clang {
 
       /// \brief Record code for declarations associated with OpenCL extensions.
       OPENCL_EXTENSION_DECLS = 59,
+
+      MODULAR_CODEGEN_DECLS = 60,
+
+      /// \brief Record code for \#pragma pack options.
+      PACK_PRAGMA_OPTIONS = 61,
+
+      /// \brief The stack of open #ifs/#ifdefs recorded in a preamble.
+      PP_CONDITIONAL_STACK = 62,
     };
 
     /// \brief Record types used within a source manager block.
@@ -801,14 +820,12 @@ namespace clang {
       PREDEF_TYPE_SAMPLER_ID    = 39,
       /// \brief OpenCL queue type.
       PREDEF_TYPE_QUEUE_ID      = 40,
-      /// \brief OpenCL ndrange type.
-      PREDEF_TYPE_NDRANGE_ID    = 41,
       /// \brief OpenCL reserve_id type.
-      PREDEF_TYPE_RESERVE_ID_ID = 42,
+      PREDEF_TYPE_RESERVE_ID_ID = 41,
       /// \brief The placeholder type for OpenMP array section.
-      PREDEF_TYPE_OMP_ARRAY_SECTION = 43,
+      PREDEF_TYPE_OMP_ARRAY_SECTION = 42,
       /// \brief The '__float128' type
-      PREDEF_TYPE_FLOAT128_ID = 44,
+      PREDEF_TYPE_FLOAT128_ID = 43,
       /// \brief OpenCL image types with auto numeration
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
       PREDEF_TYPE_##Id##_ID,
@@ -914,7 +931,11 @@ namespace clang {
       /// \brief A PipeType record.
       TYPE_PIPE                  = 43,
       /// \brief An ObjCTypeParamType record.
-      TYPE_OBJC_TYPE_PARAM       = 44
+      TYPE_OBJC_TYPE_PARAM       = 44,
+      /// \brief A DeducedTemplateSpecializationType record.
+      TYPE_DEDUCED_TEMPLATE_SPECIALIZATION = 45,
+      /// \brief A DependentSizedExtVectorType record.
+      TYPE_DEPENDENT_SIZED_EXT_VECTOR = 46
     };
 
     /// \brief The type IDs for special types constructed by semantic
@@ -1121,6 +1142,8 @@ namespace clang {
       DECL_EXPORT,
       /// \brief A CXXRecordDecl record.
       DECL_CXX_RECORD,
+      /// \brief A CXXDeductionGuideDecl record.
+      DECL_CXX_DEDUCTION_GUIDE,
       /// \brief A CXXMethodDecl record.
       DECL_CXX_METHOD,
       /// \brief A CXXConstructorDecl record.
@@ -1522,9 +1545,14 @@ namespace clang {
 
       // ARC
       EXPR_OBJC_BRIDGED_CAST,     // ObjCBridgedCastExpr
-      
+
       STMT_MS_DEPENDENT_EXISTS,   // MSDependentExistsStmt
-      EXPR_LAMBDA                 // LambdaExpr
+      EXPR_LAMBDA,                // LambdaExpr
+      STMT_COROUTINE_BODY,
+      STMT_CORETURN,
+      EXPR_COAWAIT,
+      EXPR_COYIELD,
+      EXPR_DEPENDENT_COAWAIT,
     };
 
     /// \brief The kinds of designators that can occur in a
@@ -1624,7 +1652,8 @@ namespace clang {
 
       IdentifierInfo *getIdentifier() const {
         assert(Kind == DeclarationName::Identifier ||
-               Kind == DeclarationName::CXXLiteralOperatorName);
+               Kind == DeclarationName::CXXLiteralOperatorName ||
+               Kind == DeclarationName::CXXDeductionGuideName);
         return (IdentifierInfo *)Data;
       }
       Selector getSelector() const {

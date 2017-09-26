@@ -14,12 +14,13 @@
 #include <string>
 
 // LLDB Headers
-#include "lldb/Core/Flags.h"
-#include "lldb/Host/FileSpec.h"
+#include "lldb/Utility/Flags.h"
+
 #include "lldb/Host/Host.h"
+#include "lldb/Host/PseudoTerminal.h"
 #include "lldb/Target/FileAction.h"
 #include "lldb/Target/ProcessInfo.h"
-#include "lldb/Utility/PseudoTerminal.h"
+#include "lldb/Utility/FileSpec.h"
 
 namespace lldb_private {
 
@@ -93,7 +94,7 @@ public:
 
   void Clear();
 
-  bool ConvertArgumentsForLaunchingInShell(Error &error, bool localhost,
+  bool ConvertArgumentsForLaunchingInShell(Status &error, bool localhost,
                                            bool will_debug,
                                            bool first_arg_is_full_shell_command,
                                            int32_t num_resumes);

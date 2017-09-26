@@ -38,7 +38,7 @@ bool ignoreReport(SourceLocation SLoc, ReportOptions Opts, ErrorType ET) {
 const char *TypeCheckKinds[] = {
     "load of", "store to", "reference binding to", "member access within",
     "member call on", "constructor call on", "downcast of", "downcast of",
-    "upcast of", "cast to virtual base of"};
+    "upcast of", "cast to virtual base of", "_Nonnull binding to"};
 }
 
 static void handleTypeMismatchImpl(TypeMismatchData *Data, ValueHandle Pointer,
@@ -390,7 +390,7 @@ static void handleFloatCastOverflow(void *DataPtr, ValueHandle From,
   ScopedReport R(Opts, Loc, ET);
 
   Diag(Loc, DL_Error,
-       "value %0 is outside the range of representable values of type %2")
+       "%0 is outside the range of representable values of type %2")
       << Value(*FromType, From) << *FromType << *ToType;
 }
 
@@ -410,7 +410,8 @@ static void handleLoadInvalidValue(InvalidValueData *Data, ValueHandle Val,
   SourceLocation Loc = Data->Loc.acquire();
   // This check could be more precise if we used different handlers for
   // -fsanitize=bool and -fsanitize=enum.
-  bool IsBool = (0 == internal_strcmp(Data->Type.getTypeName(), "'bool'"));
+  bool IsBool = (0 == internal_strcmp(Data->Type.getTypeName(), "'bool'")) ||
+                (0 == internal_strncmp(Data->Type.getTypeName(), "'BOOL'", 6));
   ErrorType ET =
       IsBool ? ErrorType::InvalidBoolLoad : ErrorType::InvalidEnumLoad;
 
@@ -472,8 +473,12 @@ void __ubsan::__ubsan_handle_function_type_mismatch_abort(
   Die();
 }
 
-static void handleNonNullReturn(NonNullReturnData *Data, ReportOptions Opts) {
-  SourceLocation Loc = Data->Loc.acquire();
+static void handleNonNullReturn(NonNullReturnData *Data, SourceLocation *LocPtr,
+                                ReportOptions Opts, bool IsAttr) {
+  if (!LocPtr)
+    UNREACHABLE("source location pointer is null!");
+
+  SourceLocation Loc = LocPtr->acquire();
   ErrorType ET = ErrorType::InvalidNullReturn;
 
   if (ignoreReport(Loc, Opts, ET))
@@ -484,21 +489,39 @@ static void handleNonNullReturn(NonNullReturnData *Data, ReportOptions Opts) {
   Diag(Loc, DL_Error, "null pointer returned from function declared to never "
                       "return null");
   if (!Data->AttrLoc.isInvalid())
-    Diag(Data->AttrLoc, DL_Note, "returns_nonnull attribute specified here");
+    Diag(Data->AttrLoc, DL_Note, "%0 specified here")
+        << (IsAttr ? "returns_nonnull attribute"
+                   : "_Nonnull return type annotation");
 }
 
-void __ubsan::__ubsan_handle_nonnull_return(NonNullReturnData *Data) {
+void __ubsan::__ubsan_handle_nonnull_return_v1(NonNullReturnData *Data,
+                                               SourceLocation *LocPtr) {
   GET_REPORT_OPTIONS(false);
-  handleNonNullReturn(Data, Opts);
+  handleNonNullReturn(Data, LocPtr, Opts, true);
 }
 
-void __ubsan::__ubsan_handle_nonnull_return_abort(NonNullReturnData *Data) {
+void __ubsan::__ubsan_handle_nonnull_return_v1_abort(NonNullReturnData *Data,
+                                                     SourceLocation *LocPtr) {
   GET_REPORT_OPTIONS(true);
-  handleNonNullReturn(Data, Opts);
+  handleNonNullReturn(Data, LocPtr, Opts, true);
   Die();
 }
 
-static void handleNonNullArg(NonNullArgData *Data, ReportOptions Opts) {
+void __ubsan::__ubsan_handle_nullability_return_v1(NonNullReturnData *Data,
+                                                   SourceLocation *LocPtr) {
+  GET_REPORT_OPTIONS(false);
+  handleNonNullReturn(Data, LocPtr, Opts, false);
+}
+
+void __ubsan::__ubsan_handle_nullability_return_v1_abort(
+    NonNullReturnData *Data, SourceLocation *LocPtr) {
+  GET_REPORT_OPTIONS(true);
+  handleNonNullReturn(Data, LocPtr, Opts, false);
+  Die();
+}
+
+static void handleNonNullArg(NonNullArgData *Data, ReportOptions Opts,
+                             bool IsAttr) {
   SourceLocation Loc = Data->Loc.acquire();
   ErrorType ET = ErrorType::InvalidNullArgument;
 
@@ -507,20 +530,76 @@ static void handleNonNullArg(NonNullArgData *Data, ReportOptions Opts) {
 
   ScopedReport R(Opts, Loc, ET);
 
-  Diag(Loc, DL_Error, "null pointer passed as argument %0, which is declared to "
-       "never be null") << Data->ArgIndex;
+  Diag(Loc, DL_Error,
+       "null pointer passed as argument %0, which is declared to "
+       "never be null")
+      << Data->ArgIndex;
   if (!Data->AttrLoc.isInvalid())
-    Diag(Data->AttrLoc, DL_Note, "nonnull attribute specified here");
+    Diag(Data->AttrLoc, DL_Note, "%0 specified here")
+        << (IsAttr ? "nonnull attribute" : "_Nonnull type annotation");
 }
 
 void __ubsan::__ubsan_handle_nonnull_arg(NonNullArgData *Data) {
   GET_REPORT_OPTIONS(false);
-  handleNonNullArg(Data, Opts);
+  handleNonNullArg(Data, Opts, true);
 }
 
 void __ubsan::__ubsan_handle_nonnull_arg_abort(NonNullArgData *Data) {
   GET_REPORT_OPTIONS(true);
-  handleNonNullArg(Data, Opts);
+  handleNonNullArg(Data, Opts, true);
+  Die();
+}
+
+void __ubsan::__ubsan_handle_nullability_arg(NonNullArgData *Data) {
+  GET_REPORT_OPTIONS(false);
+  handleNonNullArg(Data, Opts, false);
+}
+
+void __ubsan::__ubsan_handle_nullability_arg_abort(NonNullArgData *Data) {
+  GET_REPORT_OPTIONS(true);
+  handleNonNullArg(Data, Opts, false);
+  Die();
+}
+
+static void handlePointerOverflowImpl(PointerOverflowData *Data,
+                                      ValueHandle Base,
+                                      ValueHandle Result,
+                                      ReportOptions Opts) {
+  SourceLocation Loc = Data->Loc.acquire();
+  ErrorType ET = ErrorType::PointerOverflow;
+
+  if (ignoreReport(Loc, Opts, ET))
+    return;
+
+  ScopedReport R(Opts, Loc, ET);
+
+  if ((sptr(Base) >= 0) == (sptr(Result) >= 0)) {
+    if (Base > Result)
+      Diag(Loc, DL_Error, "addition of unsigned offset to %0 overflowed to %1")
+          << (void *)Base << (void *)Result;
+    else
+      Diag(Loc, DL_Error,
+           "subtraction of unsigned offset from %0 overflowed to %1")
+          << (void *)Base << (void *)Result;
+  } else {
+    Diag(Loc, DL_Error,
+         "pointer index expression with base %0 overflowed to %1")
+        << (void *)Base << (void *)Result;
+  }
+}
+
+void __ubsan::__ubsan_handle_pointer_overflow(PointerOverflowData *Data,
+                                              ValueHandle Base,
+                                              ValueHandle Result) {
+  GET_REPORT_OPTIONS(false);
+  handlePointerOverflowImpl(Data, Base, Result, Opts);
+}
+
+void __ubsan::__ubsan_handle_pointer_overflow_abort(PointerOverflowData *Data,
+                                                    ValueHandle Base,
+                                                    ValueHandle Result) {
+  GET_REPORT_OPTIONS(true);
+  handlePointerOverflowImpl(Data, Base, Result, Opts);
   Die();
 }
 

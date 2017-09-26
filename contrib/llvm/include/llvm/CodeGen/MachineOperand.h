@@ -14,8 +14,8 @@
 #ifndef LLVM_CODEGEN_MACHINEOPERAND_H
 #define LLVM_CODEGEN_MACHINEOPERAND_H
 
-#include "llvm/Support/DataTypes.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/Support/DataTypes.h"
 #include <cassert>
 
 namespace llvm {
@@ -229,7 +229,7 @@ public:
   void print(raw_ostream &os, ModuleSlotTracker &MST,
              const TargetRegisterInfo *TRI = nullptr,
              const TargetIntrinsicInfo *IntrinsicInfo = nullptr) const;
-  LLVM_DUMP_METHOD void dump() const;
+  void dump() const;
 
   //===--------------------------------------------------------------------===//
   // Accessors that tell you what kind of MachineOperand you're looking at.
@@ -355,7 +355,7 @@ public:
   void setReg(unsigned Reg);
 
   void setSubReg(unsigned subReg) {
-    assert(isReg() && "Wrong MachineOperand accessor");
+    assert(isReg() && "Wrong MachineOperand mutator");
     SubReg_TargetFlags = subReg;
     assert(SubReg_TargetFlags == subReg && "SubReg out of range");
   }
@@ -378,38 +378,38 @@ public:
   void setIsDef(bool Val = true);
 
   void setImplicit(bool Val = true) {
-    assert(isReg() && "Wrong MachineOperand accessor");
+    assert(isReg() && "Wrong MachineOperand mutator");
     IsImp = Val;
   }
 
   void setIsKill(bool Val = true) {
-    assert(isReg() && !IsDef && "Wrong MachineOperand accessor");
+    assert(isReg() && !IsDef && "Wrong MachineOperand mutator");
     assert((!Val || !isDebug()) && "Marking a debug operation as kill");
     IsKill = Val;
   }
 
   void setIsDead(bool Val = true) {
-    assert(isReg() && IsDef && "Wrong MachineOperand accessor");
+    assert(isReg() && IsDef && "Wrong MachineOperand mutator");
     IsDead = Val;
   }
 
   void setIsUndef(bool Val = true) {
-    assert(isReg() && "Wrong MachineOperand accessor");
+    assert(isReg() && "Wrong MachineOperand mutator");
     IsUndef = Val;
   }
 
   void setIsInternalRead(bool Val = true) {
-    assert(isReg() && "Wrong MachineOperand accessor");
+    assert(isReg() && "Wrong MachineOperand mutator");
     IsInternalRead = Val;
   }
 
   void setIsEarlyClobber(bool Val = true) {
-    assert(isReg() && IsDef && "Wrong MachineOperand accessor");
+    assert(isReg() && IsDef && "Wrong MachineOperand mutator");
     IsEarlyClobber = Val;
   }
 
   void setIsDebug(bool Val = true) {
-    assert(isReg() && !IsDef && "Wrong MachineOperand accessor");
+    assert(isReg() && !IsDef && "Wrong MachineOperand mutator");
     IsDebug = Val;
   }
 
@@ -538,19 +538,19 @@ public:
   void setOffset(int64_t Offset) {
     assert((isGlobal() || isSymbol() || isMCSymbol() || isCPI() ||
             isTargetIndex() || isBlockAddress()) &&
-           "Wrong MachineOperand accessor");
+           "Wrong MachineOperand mutator");
     SmallContents.OffsetLo = unsigned(Offset);
     Contents.OffsetedInfo.OffsetHi = int(Offset >> 32);
   }
 
   void setIndex(int Idx) {
     assert((isFI() || isCPI() || isTargetIndex() || isJTI()) &&
-           "Wrong MachineOperand accessor");
+           "Wrong MachineOperand mutator");
     Contents.OffsetedInfo.Val.Index = Idx;
   }
 
   void setMBB(MachineBasicBlock *MBB) {
-    assert(isMBB() && "Wrong MachineOperand accessor");
+    assert(isMBB() && "Wrong MachineOperand mutator");
     Contents.MBB = MBB;
   }
 

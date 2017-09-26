@@ -45,7 +45,9 @@ def err_expected_colon_after_setter_name : Error<
   "must end with ':'">;
 def err_expected_string_literal : Error<"expected string literal "
   "%select{in %1|for diagnostic message in static_assert|"
-          "for optional message in 'availability' attribute}0">;
+          "for optional message in 'availability' attribute|"
+          "for %select{language|source container}1 name in "
+          "'external_source_symbol' attribute}0">;
 def err_invalid_string_udl : Error<
   "string literal with user-defined suffix cannot be used here">;
 def err_invalid_character_udl : Error<
@@ -88,10 +90,10 @@ def err_module_unavailable : Error<
   "module '%0' %select{is incompatible with|requires}1 feature '%2'">;
 def err_module_header_missing : Error<
   "%select{|umbrella }0header '%1' not found">;
-def err_module_lock_failure : Error<
-  "could not acquire lock file for module '%0': %1">, DefaultFatal;
-def err_module_lock_timeout : Error<
-  "timed out waiting to acquire lock file for module '%0'">, DefaultFatal;
+def remark_module_lock_failure : Remark<
+  "could not acquire lock file for module '%0': %1">, InGroup<ModuleBuild>;
+def remark_module_lock_timeout : Remark<
+  "timed out waiting to acquire lock file for module '%0'">, InGroup<ModuleBuild>;
 def err_module_cycle : Error<"cyclic dependency in module '%0': %1">, 
   DefaultFatal;
 def err_module_prebuilt : Error<

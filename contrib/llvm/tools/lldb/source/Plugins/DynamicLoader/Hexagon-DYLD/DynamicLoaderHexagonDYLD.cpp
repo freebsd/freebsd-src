@@ -11,7 +11,6 @@
 // C++ Includes
 // Other libraries and framework includes
 #include "lldb/Breakpoint/BreakpointLocation.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
@@ -21,6 +20,7 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlanRunToAddress.h"
+#include "lldb/Utility/Log.h"
 
 #include "DynamicLoaderHexagonDYLD.h"
 
@@ -213,7 +213,7 @@ ModuleSP DynamicLoaderHexagonDYLD::GetTargetExecutable() {
 }
 
 // AD: Needs to be updated?
-Error DynamicLoaderHexagonDYLD::CanLoadImage() { return Error(); }
+Status DynamicLoaderHexagonDYLD::CanLoadImage() { return Status(); }
 
 void DynamicLoaderHexagonDYLD::UpdateLoadedSections(ModuleSP module,
                                                     addr_t link_map_addr,
@@ -558,7 +558,7 @@ const SectionList *DynamicLoaderHexagonDYLD::GetSectionListFromModule(
 }
 
 static int ReadInt(Process *process, addr_t addr) {
-  Error error;
+  Status error;
   int value = (int)process->ReadUnsignedIntegerFromMemory(
       addr, sizeof(uint32_t), 0, error);
   if (error.Fail())

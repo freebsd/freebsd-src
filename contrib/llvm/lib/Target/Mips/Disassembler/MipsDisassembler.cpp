@@ -1,4 +1,4 @@
-//===- MipsDisassembler.cpp - Disassembler for Mips -------------*- C++ -*-===//
+//===- MipsDisassembler.cpp - Disassembler for Mips -----------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,15 +12,21 @@
 //===----------------------------------------------------------------------===//
 
 #include "Mips.h"
-#include "MipsRegisterInfo.h"
-#include "MipsSubtarget.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDisassembler/MCDisassembler.h"
 #include "llvm/MC/MCFixedLenDisassembler.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/raw_ostream.h"
+#include <cassert>
+#include <cstdint>
 
 using namespace llvm;
 
@@ -33,6 +39,7 @@ namespace {
 class MipsDisassembler : public MCDisassembler {
   bool IsMicroMips;
   bool IsBigEndian;
+
 public:
   MipsDisassembler(const MCSubtargetInfo &STI, MCContext &Ctx, bool IsBigEndian)
       : MCDisassembler(STI, Ctx),
@@ -42,9 +49,11 @@ public:
   bool hasMips2() const { return STI.getFeatureBits()[Mips::FeatureMips2]; }
   bool hasMips3() const { return STI.getFeatureBits()[Mips::FeatureMips3]; }
   bool hasMips32() const { return STI.getFeatureBits()[Mips::FeatureMips32]; }
+
   bool hasMips32r6() const {
     return STI.getFeatureBits()[Mips::FeatureMips32r6];
   }
+
   bool isFP64() const { return STI.getFeatureBits()[Mips::FeatureFP64Bit]; }
 
   bool isGP64() const { return STI.getFeatureBits()[Mips::FeatureGP64Bit]; }
@@ -527,11 +536,13 @@ static DecodeStatus DecodeMovePRegPair(MCInst &Inst, unsigned Insn,
                                        const void *Decoder);
 
 namespace llvm {
+
 Target &getTheMipselTarget();
 Target &getTheMipsTarget();
 Target &getTheMips64Target();
 Target &getTheMips64elTarget();
-}
+
+} // end namespace llvm
 
 static MCDisassembler *createMipsDisassembler(
                        const Target &T,
@@ -1106,6 +1117,7 @@ DecodeStatus MipsDisassembler::getInstruction(MCInst &Instr, uint64_t &Size,
                                               raw_ostream &CStream) const {
   uint32_t Insn;
   DecodeStatus Result;
+  Size = 0;
 
   if (IsMicroMips) {
     Result = readInstruction16(Bytes, Address, Size, Insn, IsBigEndian);
@@ -1168,98 +1180,88 @@ DecodeStatus MipsDisassembler::getInstruction(MCInst &Instr, uint64_t &Size,
       }
     }
 
-    // This is an invalid instruction. Let the disassembler move forward by the
-    // minimum instruction size.
+    // This is an invalid instruction. Claim that the Size is 2 bytes. Since
+    // microMIPS instructions have a minimum alignment of 2, the next 2 bytes
+    // could form a valid instruction. The two bytes we rejected as an
+    // instruction could have actually beeen an inline constant pool that is
+    // unconditionally branched over.
     Size = 2;
     return MCDisassembler::Fail;
   }
 
+  // Attempt to read the instruction so that we can attempt to decode it. If
+  // the buffer is not 4 bytes long, let the higher level logic figure out
+  // what to do with a size of zero and MCDisassembler::Fail.
   Result = readInstruction32(Bytes, Address, Size, Insn, IsBigEndian, false);
-  if (Result == MCDisassembler::Fail) {
-    Size = 4;
+  if (Result == MCDisassembler::Fail)
     return MCDisassembler::Fail;
-  }
+
+  // The only instruction size for standard encoded MIPS.
+  Size = 4;
 
   if (hasCOP3()) {
     DEBUG(dbgs() << "Trying COP3_ table (32-bit opcodes):\n");
     Result =
         decodeInstruction(DecoderTableCOP3_32, Instr, Insn, Address, this, STI);
-    if (Result != MCDisassembler::Fail) {
-      Size = 4;
+    if (Result != MCDisassembler::Fail)
       return Result;
-    }
   }
 
   if (hasMips32r6() && isGP64()) {
     DEBUG(dbgs() << "Trying Mips32r6_64r6 (GPR64) table (32-bit opcodes):\n");
     Result = decodeInstruction(DecoderTableMips32r6_64r6_GP6432, Instr, Insn,
                                Address, this, STI);
-    if (Result != MCDisassembler::Fail) {
-      Size = 4;
+    if (Result != MCDisassembler::Fail)
       return Result;
-    }
   }
 
   if (hasMips32r6() && isPTR64()) {
     DEBUG(dbgs() << "Trying Mips32r6_64r6 (PTR64) table (32-bit opcodes):\n");
     Result = decodeInstruction(DecoderTableMips32r6_64r6_PTR6432, Instr, Insn,
                                Address, this, STI);
-    if (Result != MCDisassembler::Fail) {
-      Size = 4;
+    if (Result != MCDisassembler::Fail)
       return Result;
-    }
   }
 
   if (hasMips32r6()) {
     DEBUG(dbgs() << "Trying Mips32r6_64r6 table (32-bit opcodes):\n");
     Result = decodeInstruction(DecoderTableMips32r6_64r632, Instr, Insn,
                                Address, this, STI);
-    if (Result != MCDisassembler::Fail) {
-      Size = 4;
+    if (Result != MCDisassembler::Fail)
       return Result;
-    }
   }
 
   if (hasMips2() && isPTR64()) {
     DEBUG(dbgs() << "Trying Mips32r6_64r6 (PTR64) table (32-bit opcodes):\n");
     Result = decodeInstruction(DecoderTableMips32_64_PTR6432, Instr, Insn,
                                Address, this, STI);
-    if (Result != MCDisassembler::Fail) {
-      Size = 4;
+    if (Result != MCDisassembler::Fail)
       return Result;
-    }
   }
 
   if (hasCnMips()) {
     DEBUG(dbgs() << "Trying CnMips table (32-bit opcodes):\n");
     Result = decodeInstruction(DecoderTableCnMips32, Instr, Insn,
                                Address, this, STI);
-    if (Result != MCDisassembler::Fail) {
-      Size = 4;
+    if (Result != MCDisassembler::Fail)
       return Result;
-    }
   }
 
   if (isGP64()) {
     DEBUG(dbgs() << "Trying Mips64 (GPR64) table (32-bit opcodes):\n");
     Result = decodeInstruction(DecoderTableMips6432, Instr, Insn,
                                Address, this, STI);
-    if (Result != MCDisassembler::Fail) {
-      Size = 4;
+    if (Result != MCDisassembler::Fail)
       return Result;
-    }
   }
 
   DEBUG(dbgs() << "Trying Mips table (32-bit opcodes):\n");
   // Calling the auto-generated decoder function.
   Result =
       decodeInstruction(DecoderTableMips32, Instr, Insn, Address, this, STI);
-  if (Result != MCDisassembler::Fail) {
-    Size = 4;
+  if (Result != MCDisassembler::Fail)
     return Result;
-  }
 
-  Size = 4;
   return MCDisassembler::Fail;
 }
 
@@ -1267,16 +1269,13 @@ static DecodeStatus DecodeCPU16RegsRegisterClass(MCInst &Inst,
                                                  unsigned RegNo,
                                                  uint64_t Address,
                                                  const void *Decoder) {
-
   return MCDisassembler::Fail;
-
 }
 
 static DecodeStatus DecodeGPR64RegisterClass(MCInst &Inst,
                                              unsigned RegNo,
                                              uint64_t Address,
                                              const void *Decoder) {
-
   if (RegNo > 31)
     return MCDisassembler::Fail;
 
@@ -1620,7 +1619,7 @@ static DecodeStatus DecodeMSA128Mem(MCInst &Inst, unsigned Insn,
   switch(Inst.getOpcode())
   {
   default:
-    assert (0 && "Unexpected instruction");
+    assert(false && "Unexpected instruction");
     return MCDisassembler::Fail;
     break;
   case Mips::LD_B:
@@ -1980,7 +1979,6 @@ static DecodeStatus DecodeAFGR64RegisterClass(MCInst &Inst,
   if (RegNo > 30 || RegNo %2)
     return MCDisassembler::Fail;
 
-  ;
   unsigned Reg = getReg(Decoder, Mips::AFGR64RegClassID, RegNo /2);
   Inst.addOperand(MCOperand::createReg(Reg));
   return MCDisassembler::Success;
@@ -2128,7 +2126,6 @@ static DecodeStatus DecodeJumpTarget(MCInst &Inst,
                                      unsigned Insn,
                                      uint64_t Address,
                                      const void *Decoder) {
-
   unsigned JumpOffset = fieldFromInstruction(Insn, 0, 26) << 2;
   Inst.addOperand(MCOperand::createImm(JumpOffset));
   return MCDisassembler::Success;
@@ -2267,7 +2264,14 @@ static DecodeStatus DecodeInsSize(MCInst &Inst,
                                   const void *Decoder) {
   // First we need to grab the pos(lsb) from MCInst.
   int Pos = Inst.getOperand(2).getImm();
-  int Size = (int) Insn - Pos + 1;
+  if (Inst.getOpcode() == Mips::DINSU)
+    Pos += 32;
+  int Size;
+  if (Inst.getOpcode() == Mips::DINSM ||
+      Inst.getOpcode() == Mips::DINSU)
+    Size = (int) Insn - Pos + 33;
+  else
+    Size = (int) Insn - Pos + 1;
   Inst.addOperand(MCOperand::createImm(SignExtend32<16>(Size)));
   return MCDisassembler::Success;
 }
@@ -2363,7 +2367,6 @@ static DecodeStatus DecodeRegListOperand16(MCInst &Inst, unsigned Insn,
 
 static DecodeStatus DecodeMovePRegPair(MCInst &Inst, unsigned Insn,
                                        uint64_t Address, const void *Decoder) {
-
   unsigned RegPair = fieldFromInstruction(Insn, 7, 3);
 
   switch (RegPair) {

@@ -7,16 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Utility/UriParser.h"
+#include "lldb/Utility/UriParser.h"
 
-// C Includes
+#include <string>
 
-// C++ Includes
-#include <cstring>
-
-// Other libraries and framework includes
-// Project includes
-#include "lldb/Host/StringConvert.h"
+#include <stdint.h>
+#include <tuple>
 
 using namespace lldb_private;
 

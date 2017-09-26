@@ -400,13 +400,16 @@ private:
   Preprocessor &PP;
 
   /// \brief The AST context into which we'll read the AST files.
-  ASTContext &Context;
+  ASTContext *ContextObj = nullptr;
 
   /// \brief The AST consumer.
   ASTConsumer *Consumer = nullptr;
 
   /// \brief The module manager which manages modules and their dependencies
   ModuleManager ModuleMgr;
+
+  /// The cache that manages memory buffers for PCM files.
+  MemoryBufferCache &PCMCache;
 
   /// \brief A dummy identifier resolver used to merge TU-scope declarations in
   /// C, for the cases where we don't have a Sema object to provide a real
@@ -475,10 +478,18 @@ private:
   /// in the chain.
   DeclUpdateOffsetsMap DeclUpdateOffsets;
 
+  struct PendingUpdateRecord {
+    Decl *D;
+    serialization::GlobalDeclID ID;
+    // Whether the declaration was just deserialized.
+    bool JustLoaded;
+    PendingUpdateRecord(serialization::GlobalDeclID ID, Decl *D,
+                        bool JustLoaded)
+        : D(D), ID(ID), JustLoaded(JustLoaded) {}
+  };
   /// \brief Declaration updates for already-loaded declarations that we need
   /// to apply once we finish processing an import.
-  llvm::SmallVector<std::pair<serialization::GlobalDeclID, Decl*>, 16>
-      PendingUpdateRecords;
+  llvm::SmallVector<PendingUpdateRecord, 16> PendingUpdateRecords;
 
   enum class PendingFakeDefinitionKind { NotFake, Fake, FakeLoaded };
 
@@ -700,7 +711,7 @@ private:
 
   /// \brief Mapping from global preprocessing entity IDs to the module in
   /// which the preprocessed entity resides along with the offset that should be
-  /// added to the global preprocessing entitiy ID to produce a local ID.
+  /// added to the global preprocessing entity ID to produce a local ID.
   GlobalPreprocessedEntityMapType GlobalPreprocessedEntityMap;
 
   /// \name CodeGen-relevant special data
@@ -807,6 +818,17 @@ private:
   /// \brief The PragmaMSPointersToMembersKind pragma pointers_to_members state.
   int PragmaMSPointersToMembersState = -1;
   SourceLocation PointersToMembersPragmaLocation;
+
+  /// \brief The pragma pack state.
+  Optional<unsigned> PragmaPackCurrentValue;
+  SourceLocation PragmaPackCurrentLocation;
+  struct PragmaPackStackEntry {
+    unsigned Value;
+    SourceLocation Location;
+    StringRef SlotLabel;
+  };
+  llvm::SmallVector<PragmaPackStackEntry, 2> PragmaPackStack;
+  llvm::SmallVector<std::string, 2> PragmaPackStrings;
 
   /// \brief The OpenCL extension settings.
   OpenCLOptions OpenCLExtensions;
@@ -970,14 +992,26 @@ private:
   /// \brief The generation number of each identifier, which keeps track of
   /// the last time we loaded information about this identifier.
   llvm::DenseMap<IdentifierInfo *, unsigned> IdentifierGeneration;
-  
-  /// \brief Contains declarations and definitions that will be
+
+  class InterestingDecl {
+    Decl *D;
+    bool DeclHasPendingBody;
+
+  public:
+    InterestingDecl(Decl *D, bool HasBody)
+        : D(D), DeclHasPendingBody(HasBody) {}
+    Decl *getDecl() { return D; }
+    /// Whether the declaration has a pending body.
+    bool hasPendingBody() { return DeclHasPendingBody; }
+  };
+
+  /// \brief Contains declarations and definitions that could be
   /// "interesting" to the ASTConsumer, when we get that AST consumer.
   ///
   /// "Interesting" declarations are those that have data that may
   /// need to be emitted, such as inline function definitions or
   /// Objective-C protocols.
-  std::deque<Decl *> InterestingDecls;
+  std::deque<InterestingDecl> PotentiallyInterestingDecls;
 
   /// \brief The list of redeclaration chains that still need to be 
   /// reconstructed, and the local offset to the corresponding list
@@ -1101,6 +1135,8 @@ private:
   /// predefines buffer may contain additional definitions.
   std::string SuggestedPredefines;
 
+  llvm::DenseMap<const Decl *, bool> BodySource;
+
   /// \brief Reads a statement from the specified cursor.
   Stmt *ReadStmtFromStream(ModuleFile &F);
 
@@ -1110,6 +1146,7 @@ private:
     time_t StoredTime;
     bool Overridden;
     bool Transient;
+    bool TopLevelModuleMap;
   };
 
   /// \brief Reads the stored information about an input file.
@@ -1174,7 +1211,7 @@ private:
                             SourceLocation ImportLoc, ModuleFile *ImportedBy,
                             SmallVectorImpl<ImportedModule> &Loaded,
                             off_t ExpectedSize, time_t ExpectedModTime,
-                            serialization::ASTFileSignature ExpectedSignature,
+                            ASTFileSignature ExpectedSignature,
                             unsigned ClientLoadCapabilities);
   ASTReadResult ReadControlBlock(ModuleFile &F,
                                  SmallVectorImpl<ImportedModule> &Loaded,
@@ -1183,9 +1220,25 @@ private:
   static ASTReadResult ReadOptionsBlock(
       llvm::BitstreamCursor &Stream, unsigned ClientLoadCapabilities,
       bool AllowCompatibleConfigurationMismatch, ASTReaderListener &Listener,
-      std::string &SuggestedPredefines, bool ValidateDiagnosticOptions);
+      std::string &SuggestedPredefines);
+
+  /// Read the unhashed control block.
+  ///
+  /// This has no effect on \c F.Stream, instead creating a fresh cursor from
+  /// \c F.Data and reading ahead.
+  ASTReadResult readUnhashedControlBlock(ModuleFile &F, bool WasImportedBy,
+                                         unsigned ClientLoadCapabilities);
+
+  static ASTReadResult
+  readUnhashedControlBlockImpl(ModuleFile *F, llvm::StringRef StreamData,
+                               unsigned ClientLoadCapabilities,
+                               bool AllowCompatibleConfigurationMismatch,
+                               ASTReaderListener *Listener,
+                               bool ValidateDiagnosticOptions);
+
   ASTReadResult ReadASTBlock(ModuleFile &F, unsigned ClientLoadCapabilities);
   ASTReadResult ReadExtensionBlock(ModuleFile &F);
+  void ReadModuleOffsetMap(ModuleFile &F) const;
   bool ParseLineTable(ModuleFile &F, const RecordData &Record);
   bool ReadSourceManagerBlock(ModuleFile &F);
   llvm::BitstreamCursor &SLocCursorForID(int ID);
@@ -1235,7 +1288,7 @@ private:
 
   RecordLocation DeclCursorForID(serialization::DeclID ID,
                                  SourceLocation &Location);
-  void loadDeclUpdateRecords(serialization::DeclID ID, Decl *D);
+  void loadDeclUpdateRecords(PendingUpdateRecord &Record);
   void loadPendingDeclChain(Decl *D, uint64_t LocalOffset);
   void loadObjCCategories(serialization::GlobalDeclID ID, ObjCInterfaceDecl *D,
                           unsigned PreviousGeneration = 0);
@@ -1268,6 +1321,7 @@ private:
   llvm::iterator_range<PreprocessingRecord::iterator>
   getModulePreprocessedEntities(ModuleFile &Mod) const;
 
+public:
   class ModuleDeclIterator
       : public llvm::iterator_adaptor_base<
             ModuleDeclIterator, const serialization::LocalDeclID *,
@@ -1298,6 +1352,7 @@ private:
   llvm::iterator_range<ModuleDeclIterator>
   getModuleFileLevelDecls(ModuleFile &Mod);
 
+private:
   void PassInterestingDeclsToConsumer();
   void PassInterestingDeclToConsumer(Decl *D);
 
@@ -1318,9 +1373,9 @@ private:
   ///
   /// This routine should only be used for fatal errors that have to
   /// do with non-routine failures (e.g., corrupted AST file).
-  void Error(StringRef Msg);
+  void Error(StringRef Msg) const;
   void Error(unsigned DiagID, StringRef Arg1 = StringRef(),
-             StringRef Arg2 = StringRef());
+             StringRef Arg2 = StringRef()) const;
 
   ASTReader(const ASTReader &) = delete;
   void operator=(const ASTReader &) = delete;
@@ -1332,7 +1387,7 @@ public:
   /// precompiled header will be loaded.
   ///
   /// \param Context the AST context that this precompiled header will be
-  /// loaded into.
+  /// loaded into, if any.
   ///
   /// \param PCHContainerRdr the PCHContainerOperations to use for loading and
   /// creating modules.
@@ -1364,7 +1419,7 @@ public:
   ///
   /// \param ReadTimer If non-null, a timer used to track the time spent
   /// deserializing.
-  ASTReader(Preprocessor &PP, ASTContext &Context,
+  ASTReader(Preprocessor &PP, ASTContext *Context,
             const PCHContainerReader &PCHContainerRdr,
             ArrayRef<std::shared_ptr<ModuleFileExtension>> Extensions,
             StringRef isysroot = "", bool DisableValidation = false,
@@ -1564,7 +1619,7 @@ public:
                                   const LangOptions &LangOpts,
                                   const TargetOptions &TargetOpts,
                                   const PreprocessorOptions &PPOpts,
-                                  std::string ExistingModuleCachePath);
+                                  StringRef ExistingModuleCachePath);
 
   /// \brief Returns the suggested contents of the predefines buffer,
   /// which contains a (typically-empty) subset of the predefines
@@ -1631,11 +1686,8 @@ public:
   /// reader.
   unsigned getTotalNumPreprocessedEntities() const {
     unsigned Result = 0;
-    for (ModuleConstIterator I = ModuleMgr.begin(),
-        E = ModuleMgr.end(); I != E; ++I) {
-      Result += (*I)->NumPreprocessedEntities;
-    }
-
+    for (const auto &M : ModuleMgr)
+      Result += M.NumPreprocessedEntities;
     return Result;
   }
 
@@ -1904,10 +1956,10 @@ public:
                                SmallVectorImpl<Decl *> *Decls = nullptr);
 
   /// \brief Report a diagnostic.
-  DiagnosticBuilder Diag(unsigned DiagID);
+  DiagnosticBuilder Diag(unsigned DiagID) const;
 
   /// \brief Report a diagnostic.
-  DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
+  DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
 
   IdentifierInfo *DecodeIdentifierInfo(serialization::IdentifierID ID);
 
@@ -1967,6 +2019,8 @@ public:
 
   /// \brief Return a descriptor for the corresponding module.
   llvm::Optional<ASTSourceDescriptor> getSourceDescriptor(unsigned ID) override;
+
+  ExtKind hasExternalDefinitions(const Decl *D) override;
 
   /// \brief Retrieve a selector from the given module with its local ID
   /// number.
@@ -2057,6 +2111,8 @@ public:
   /// location space into ours.
   SourceLocation TranslateSourceLocation(ModuleFile &ModuleFile,
                                          SourceLocation Loc) const {
+    if (!ModuleFile.ModuleOffsetMap.empty())
+      ReadModuleOffsetMap(ModuleFile);
     assert(ModuleFile.SLocRemap.find(Loc.getOffset()) !=
                ModuleFile.SLocRemap.end() &&
            "Cannot find offset to remap.");
@@ -2098,8 +2154,7 @@ public:
                                  unsigned &Idx);
 
   /// \brief Reads attributes from the current stream position.
-  void ReadAttributes(ModuleFile &F, AttrVec &Attrs,
-                      const RecordData &Record, unsigned &Idx);
+  void ReadAttributes(ASTRecordReader &Record, AttrVec &Attrs);
 
   /// \brief Reads a statement.
   Stmt *ReadStmt(ModuleFile &F);
@@ -2153,7 +2208,10 @@ public:
   void completeVisibleDeclsMap(const DeclContext *DC) override;
 
   /// \brief Retrieve the AST context that this AST reader supplements.
-  ASTContext &getContext() { return Context; }
+  ASTContext &getContext() {
+    assert(ContextObj && "requested AST context when not loading AST");
+    return *ContextObj;
+  }
 
   // \brief Contains the IDs for declarations that were requested before we have
   // access to a Sema object.
@@ -2188,6 +2246,18 @@ public:
 
   /// \brief Loads comments ranges.
   void ReadComments() override;
+
+  /// Visit all the input files of the given module file.
+  void visitInputFiles(serialization::ModuleFile &MF,
+                       bool IncludeSystem, bool Complain,
+          llvm::function_ref<void(const serialization::InputFile &IF,
+                                  bool isSystem)> Visitor);
+
+  /// Visit all the top-level module maps loaded when building the given module
+  /// file.
+  void visitTopLevelModuleMaps(serialization::ModuleFile &MF,
+                               llvm::function_ref<
+                                   void(const FileEntry *)> Visitor);
 
   bool isProcessingUpdateRecords() { return ProcessingUpdateRecords; }
 };
@@ -2283,6 +2353,14 @@ public:
 
   /// \brief Reads a sub-expression operand during statement reading.
   Expr *readSubExpr() { return Reader->ReadSubExpr(); }
+
+  /// \brief Reads a declaration with the given local ID in the given module.
+  ///
+  /// \returns The requested declaration, casted to the given return type.
+  template<typename T>
+  T *GetLocalDeclAs(uint32_t LocalID) {
+    return cast_or_null<T>(Reader->GetLocalDecl(*F, LocalID));
+  }
 
   /// \brief Reads a TemplateArgumentLocInfo appropriate for the
   /// given TemplateArgument kind, advancing Idx.
@@ -2455,7 +2533,7 @@ public:
 
   /// \brief Reads attributes from the current stream position, advancing Idx.
   void readAttributes(AttrVec &Attrs) {
-    return Reader->ReadAttributes(*F, Attrs, Record, Idx);
+    return Reader->ReadAttributes(*this, Attrs);
   }
 
   /// \brief Reads a token out of a record, advancing Idx.

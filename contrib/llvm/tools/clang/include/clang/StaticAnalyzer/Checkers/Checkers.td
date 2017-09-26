@@ -38,6 +38,11 @@ def CoreAlpha : Package<"core">, InPackage<Alpha>, Hidden;
 // default. Such checkers belong in the alpha package.
 def OptIn : Package<"optin">;
 
+// In the Portability package reside checkers for finding code that relies on
+// implementation-defined behavior. Such checks are wanted for cross-platform
+// development, but unwanted for developers who target only a single platform.
+def PortabilityOptIn : Package<"portability">, InPackage<OptIn>;
+
 def Nullability : Package<"nullability">;
 
 def Cplusplus : Package<"cplusplus">;
@@ -45,7 +50,6 @@ def CplusplusAlpha : Package<"cplusplus">, InPackage<Alpha>, Hidden;
 def CplusplusOptIn : Package<"cplusplus">, InPackage<OptIn>;
 
 def Valist : Package<"valist">;
-def ValistAlpha : Package<"valist">, InPackage<Alpha>, Hidden;
 
 def DeadCode : Package<"deadcode">;
 def DeadCodeAlpha : Package<"deadcode">, InPackage<Alpha>, Hidden;
@@ -280,9 +284,14 @@ def VirtualCallChecker : Checker<"VirtualCall">,
 
 let ParentPackage = CplusplusAlpha in {
 
-def IteratorPastEndChecker : Checker<"IteratorPastEnd">,
-  HelpText<"Check iterators used past end">,
-  DescFile<"IteratorPastEndChecker.cpp">;
+def IteratorRangeChecker : Checker<"IteratorRange">,
+  HelpText<"Check for iterators used outside their valid ranges">,
+  DescFile<"IteratorChecker.cpp">;
+
+def MisusedMovedObjectChecker: Checker<"MisusedMovedObject">,
+     HelpText<"Method calls on a moved-from object and copying a moved-from "
+              "object will be reported">,
+     DescFile<"MisusedMovedObjectChecker.cpp">;
 
 } // end: "alpha.cplusplus"
 
@@ -291,7 +300,7 @@ def IteratorPastEndChecker : Checker<"IteratorPastEnd">,
 // Valist checkers.
 //===----------------------------------------------------------------------===//
 
-let ParentPackage = ValistAlpha in {
+let ParentPackage = Valist in {
 
 def UninitializedChecker : Checker<"Uninitialized">,
   HelpText<"Check for usages of uninitialized (or already released) va_lists.">,
@@ -305,7 +314,7 @@ def CopyToSelfChecker : Checker<"CopyToSelf">,
   HelpText<"Check for va_lists which are copied onto itself.">,
   DescFile<"ValistChecker.cpp">;
 
-} // end : "alpha.valist"
+} // end : "valist"
 
 //===----------------------------------------------------------------------===//
 // Deadcode checkers.
@@ -412,7 +421,7 @@ def GenericTaintChecker : Checker<"TaintPropagation">,
 
 let ParentPackage = Unix in {
 
-def UnixAPIChecker : Checker<"API">,
+def UnixAPIMisuseChecker : Checker<"API">,
   HelpText<"Check calls to various UNIX/Posix functions">,
   DescFile<"UnixAPIChecker.cpp">;
 
@@ -750,3 +759,14 @@ def CloneChecker : Checker<"CloneChecker">,
 
 } // end "clone"
 
+//===----------------------------------------------------------------------===//
+// Portability checkers.
+//===----------------------------------------------------------------------===//
+
+let ParentPackage = PortabilityOptIn in {
+
+def UnixAPIPortabilityChecker : Checker<"UnixAPI">,
+  HelpText<"Finds implementation-defined behavior in UNIX/Posix functions">,
+  DescFile<"UnixAPIChecker.cpp">;
+
+} // end optin.portability

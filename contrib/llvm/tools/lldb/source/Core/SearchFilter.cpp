@@ -7,16 +7,35 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/SearchFilter.h"
+
+#include "lldb/Breakpoint/Breakpoint.h" // for Breakpoint
 #include "lldb/Core/Module.h"
+#include "lldb/Core/ModuleList.h" // for ModuleList
 #include "lldb/Symbol/CompileUnit.h"
+#include "lldb/Symbol/SymbolContext.h" // for SymbolContext
 #include "lldb/Target/Target.h"
-#include "lldb/lldb-private.h"
+#include "lldb/Utility/ConstString.h" // for ConstString
+#include "lldb/Utility/Status.h"      // for Status
+#include "lldb/Utility/Stream.h"      // for Stream
+#include "lldb/lldb-enumerations.h"   // for SymbolContextItem::eSymbolCo...
+
+#include "llvm/ADT/StringRef.h"         // for StringRef
+#include "llvm/Support/ErrorHandling.h" // for llvm_unreachable
+
+#include <memory> // for shared_ptr
+#include <mutex>  // for recursive_mutex, lock_guard
+#include <string> // for string
+
+#include <inttypes.h> // for PRIu64
+#include <string.h>   // for size_t, strcmp
+
+namespace lldb_private {
+class Address;
+}
+namespace lldb_private {
+class Function;
+}
 
 using namespace lldb;
 using namespace lldb_private;
@@ -36,9 +55,9 @@ const char *SearchFilter::FilterTyToName(enum FilterTy type) {
   return g_ty_to_name[type];
 }
 
-SearchFilter::FilterTy SearchFilter::NameToFilterTy(const char *name) {
+SearchFilter::FilterTy SearchFilter::NameToFilterTy(llvm::StringRef name) {
   for (size_t i = 0; i <= LastKnownFilterType; i++) {
-    if (strcmp(name, g_ty_to_name[i]) == 0)
+    if (name == g_ty_to_name[i])
       return (FilterTy)i;
   }
   return UnknownFilter;
@@ -61,14 +80,14 @@ SearchFilter::~SearchFilter() = default;
 
 SearchFilterSP SearchFilter::CreateFromStructuredData(
     Target &target, const StructuredData::Dictionary &filter_dict,
-    Error &error) {
+    Status &error) {
   SearchFilterSP result_sp;
   if (!filter_dict.IsValid()) {
     error.SetErrorString("Can't deserialize from an invalid data object.");
     return result_sp;
   }
 
-  std::string subclass_name;
+  llvm::StringRef subclass_name;
 
   bool success = filter_dict.GetValueForKeyAsString(
       GetSerializationSubclassKey(), subclass_name);
@@ -77,10 +96,9 @@ SearchFilterSP SearchFilter::CreateFromStructuredData(
     return result_sp;
   }
 
-  FilterTy filter_type = NameToFilterTy(subclass_name.c_str());
+  FilterTy filter_type = NameToFilterTy(subclass_name);
   if (filter_type == UnknownFilter) {
-    error.SetErrorStringWithFormat("Unknown filter type: %s.",
-                                   subclass_name.c_str());
+    error.SetErrorStringWithFormatv("Unknown filter type: {0}.", subclass_name);
     return result_sp;
   }
 
@@ -153,7 +171,7 @@ SearchFilter::WrapOptionsDict(StructuredData::DictionarySP options_dict_sp) {
   if (!options_dict_sp || !options_dict_sp->IsValid())
     return StructuredData::DictionarySP();
 
-  StructuredData::DictionarySP type_dict_sp(new StructuredData::Dictionary());
+  auto type_dict_sp = std::make_shared<StructuredData::Dictionary>();
   type_dict_sp->AddStringItem(GetSerializationSubclassKey(), GetFilterName());
   type_dict_sp->AddItem(GetSerializationSubclassOptionsKey(), options_dict_sp);
 
@@ -169,10 +187,10 @@ void SearchFilter::SerializeFileSpecList(
   if (num_modules == 0)
     return;
 
-  StructuredData::ArraySP module_array_sp(new StructuredData::Array());
+  auto module_array_sp = std::make_shared<StructuredData::Array>();
   for (size_t i = 0; i < num_modules; i++) {
-    module_array_sp->AddItem(StructuredData::StringSP(
-        new StructuredData::String(file_list.GetFileSpecAtIndex(i).GetPath())));
+    module_array_sp->AddItem(std::make_shared<StructuredData::String>(
+        file_list.GetFileSpecAtIndex(i).GetPath()));
   }
   options_dict_sp->AddItem(GetKey(name), module_array_sp);
 }
@@ -319,16 +337,17 @@ Searcher::CallbackReturn SearchFilter::DoFunctionIteration(
 //  "black list".
 //----------------------------------------------------------------------
 SearchFilterSP SearchFilterForUnconstrainedSearches::CreateFromStructuredData(
-    Target &target, const StructuredData::Dictionary &data_dict, Error &error) {
+    Target &target, const StructuredData::Dictionary &data_dict,
+    Status &error) {
   // No options for an unconstrained search.
-  return SearchFilterSP(
-      new SearchFilterForUnconstrainedSearches(target.shared_from_this()));
+  return std::make_shared<SearchFilterForUnconstrainedSearches>(
+      target.shared_from_this());
 }
 
 StructuredData::ObjectSP
 SearchFilterForUnconstrainedSearches::SerializeToStructuredData() {
   // The options dictionary is an empty dictionary:
-  StructuredData::DictionarySP result_sp(new StructuredData::Dictionary());
+  auto result_sp = std::make_shared<StructuredData::Dictionary>();
   return WrapOptionsDict(result_sp);
 }
 
@@ -352,8 +371,7 @@ bool SearchFilterForUnconstrainedSearches::ModulePasses(
 
 lldb::SearchFilterSP SearchFilterForUnconstrainedSearches::DoCopyForBreakpoint(
     Breakpoint &breakpoint) {
-  SearchFilterSP ret_sp(new SearchFilterForUnconstrainedSearches(*this));
-  return ret_sp;
+  return std::make_shared<SearchFilterForUnconstrainedSearches>(*this);
 }
 
 //----------------------------------------------------------------------
@@ -433,13 +451,7 @@ void SearchFilterByModule::Search(Searcher &searcher) {
 
 void SearchFilterByModule::GetDescription(Stream *s) {
   s->PutCString(", module = ");
-  if (s->GetVerbose()) {
-    char buffer[2048];
-    m_module_spec.GetPath(buffer, 2047);
-    s->PutCString(buffer);
-  } else {
-    s->PutCString(m_module_spec.GetFilename().AsCString("<Unknown>"));
-  }
+  s->PutCString(m_module_spec.GetFilename().AsCString("<Unknown>"));
 }
 
 uint32_t SearchFilterByModule::GetFilterRequiredItems() {
@@ -450,12 +462,12 @@ void SearchFilterByModule::Dump(Stream *s) const {}
 
 lldb::SearchFilterSP
 SearchFilterByModule::DoCopyForBreakpoint(Breakpoint &breakpoint) {
-  SearchFilterSP ret_sp(new SearchFilterByModule(*this));
-  return ret_sp;
+  return std::make_shared<SearchFilterByModule>(*this);
 }
 
 SearchFilterSP SearchFilterByModule::CreateFromStructuredData(
-    Target &target, const StructuredData::Dictionary &data_dict, Error &error) {
+    Target &target, const StructuredData::Dictionary &data_dict,
+    Status &error) {
   StructuredData::Array *modules_array;
   bool success = data_dict.GetValueForKeyAsArray(GetKey(OptionNames::ModList),
                                                  modules_array);
@@ -471,7 +483,7 @@ SearchFilterSP SearchFilterByModule::CreateFromStructuredData(
     return nullptr;
   }
 
-  std::string module;
+  llvm::StringRef module;
   success = modules_array->GetItemAtIndexAsString(0, module);
   if (!success) {
     error.SetErrorString("SFBM::CFSD: filter module item not a string.");
@@ -479,16 +491,15 @@ SearchFilterSP SearchFilterByModule::CreateFromStructuredData(
   }
   FileSpec module_spec(module, false);
 
-  return SearchFilterSP(
-      new SearchFilterByModule(target.shared_from_this(), module_spec));
+  return std::make_shared<SearchFilterByModule>(target.shared_from_this(),
+                                                module_spec);
 }
 
 StructuredData::ObjectSP SearchFilterByModule::SerializeToStructuredData() {
-  StructuredData::DictionarySP options_dict_sp(
-      new StructuredData::Dictionary());
-  StructuredData::ArraySP module_array_sp(new StructuredData::Array());
-  module_array_sp->AddItem(StructuredData::StringSP(
-      new StructuredData::String(m_module_spec.GetPath())));
+  auto options_dict_sp = std::make_shared<StructuredData::Dictionary>();
+  auto module_array_sp = std::make_shared<StructuredData::Array>();
+  module_array_sp->AddItem(
+      std::make_shared<StructuredData::String>(m_module_spec.GetPath()));
   options_dict_sp->AddItem(GetKey(OptionNames::ModList), module_array_sp);
   return WrapOptionsDict(options_dict_sp);
 }
@@ -591,27 +602,15 @@ void SearchFilterByModuleList::GetDescription(Stream *s) {
   size_t num_modules = m_module_spec_list.GetSize();
   if (num_modules == 1) {
     s->Printf(", module = ");
-    if (s->GetVerbose()) {
-      char buffer[2048];
-      m_module_spec_list.GetFileSpecAtIndex(0).GetPath(buffer, 2047);
-      s->PutCString(buffer);
-    } else {
-      s->PutCString(
-          m_module_spec_list.GetFileSpecAtIndex(0).GetFilename().AsCString(
-              "<Unknown>"));
-    }
+    s->PutCString(
+        m_module_spec_list.GetFileSpecAtIndex(0).GetFilename().AsCString(
+            "<Unknown>"));
   } else {
     s->Printf(", modules(%" PRIu64 ") = ", (uint64_t)num_modules);
     for (size_t i = 0; i < num_modules; i++) {
-      if (s->GetVerbose()) {
-        char buffer[2048];
-        m_module_spec_list.GetFileSpecAtIndex(i).GetPath(buffer, 2047);
-        s->PutCString(buffer);
-      } else {
-        s->PutCString(
-            m_module_spec_list.GetFileSpecAtIndex(i).GetFilename().AsCString(
-                "<Unknown>"));
-      }
+      s->PutCString(
+          m_module_spec_list.GetFileSpecAtIndex(i).GetFilename().AsCString(
+              "<Unknown>"));
       if (i != num_modules - 1)
         s->PutCString(", ");
     }
@@ -626,12 +625,12 @@ void SearchFilterByModuleList::Dump(Stream *s) const {}
 
 lldb::SearchFilterSP
 SearchFilterByModuleList::DoCopyForBreakpoint(Breakpoint &breakpoint) {
-  SearchFilterSP ret_sp(new SearchFilterByModuleList(*this));
-  return ret_sp;
+  return std::make_shared<SearchFilterByModuleList>(*this);
 }
 
 SearchFilterSP SearchFilterByModuleList::CreateFromStructuredData(
-    Target &target, const StructuredData::Dictionary &data_dict, Error &error) {
+    Target &target, const StructuredData::Dictionary &data_dict,
+    Status &error) {
   StructuredData::Array *modules_array;
   bool success = data_dict.GetValueForKeyAsArray(GetKey(OptionNames::ModList),
                                                  modules_array);
@@ -639,7 +638,7 @@ SearchFilterSP SearchFilterByModuleList::CreateFromStructuredData(
   if (success) {
     size_t num_modules = modules_array->GetSize();
     for (size_t i = 0; i < num_modules; i++) {
-      std::string module;
+      llvm::StringRef module;
       success = modules_array->GetItemAtIndexAsString(i, module);
       if (!success) {
         error.SetErrorStringWithFormat(
@@ -650,8 +649,8 @@ SearchFilterSP SearchFilterByModuleList::CreateFromStructuredData(
     }
   }
 
-  return SearchFilterSP(
-      new SearchFilterByModuleList(target.shared_from_this(), modules));
+  return std::make_shared<SearchFilterByModuleList>(target.shared_from_this(),
+                                                    modules);
 }
 
 void SearchFilterByModuleList::SerializeUnwrapped(
@@ -661,8 +660,7 @@ void SearchFilterByModuleList::SerializeUnwrapped(
 }
 
 StructuredData::ObjectSP SearchFilterByModuleList::SerializeToStructuredData() {
-  StructuredData::DictionarySP options_dict_sp(
-      new StructuredData::Dictionary());
+  auto options_dict_sp = std::make_shared<StructuredData::Dictionary>();
   SerializeUnwrapped(options_dict_sp);
   return WrapOptionsDict(options_dict_sp);
 }
@@ -695,7 +693,8 @@ operator=(const SearchFilterByModuleListAndCU &rhs) {
 SearchFilterByModuleListAndCU::~SearchFilterByModuleListAndCU() = default;
 
 lldb::SearchFilterSP SearchFilterByModuleListAndCU::CreateFromStructuredData(
-    Target &target, const StructuredData::Dictionary &data_dict, Error &error) {
+    Target &target, const StructuredData::Dictionary &data_dict,
+    Status &error) {
   StructuredData::Array *modules_array = nullptr;
   SearchFilterSP result_sp;
   bool success = data_dict.GetValueForKeyAsArray(GetKey(OptionNames::ModList),
@@ -704,7 +703,7 @@ lldb::SearchFilterSP SearchFilterByModuleListAndCU::CreateFromStructuredData(
   if (success) {
     size_t num_modules = modules_array->GetSize();
     for (size_t i = 0; i < num_modules; i++) {
-      std::string module;
+      llvm::StringRef module;
       success = modules_array->GetItemAtIndexAsString(i, module);
       if (!success) {
         error.SetErrorStringWithFormat(
@@ -726,7 +725,7 @@ lldb::SearchFilterSP SearchFilterByModuleListAndCU::CreateFromStructuredData(
   size_t num_cus = cus_array->GetSize();
   FileSpecList cus;
   for (size_t i = 0; i < num_cus; i++) {
-    std::string cu;
+    llvm::StringRef cu;
     success = cus_array->GetItemAtIndexAsString(i, cu);
     if (!success) {
       error.SetErrorStringWithFormat(
@@ -736,14 +735,13 @@ lldb::SearchFilterSP SearchFilterByModuleListAndCU::CreateFromStructuredData(
     cus.Append(FileSpec(cu, false));
   }
 
-  return SearchFilterSP(new SearchFilterByModuleListAndCU(
-      target.shared_from_this(), modules, cus));
+  return std::make_shared<SearchFilterByModuleListAndCU>(
+      target.shared_from_this(), modules, cus);
 }
 
 StructuredData::ObjectSP
 SearchFilterByModuleListAndCU::SerializeToStructuredData() {
-  StructuredData::DictionarySP options_dict_sp(
-      new StructuredData::Dictionary());
+  auto options_dict_sp = std::make_shared<StructuredData::Dictionary>();
   SearchFilterByModuleList::SerializeUnwrapped(options_dict_sp);
   SerializeFileSpecList(options_dict_sp, OptionNames::CUList, m_cu_spec_list);
   return WrapOptionsDict(options_dict_sp);
@@ -827,27 +825,15 @@ void SearchFilterByModuleListAndCU::GetDescription(Stream *s) {
   size_t num_modules = m_module_spec_list.GetSize();
   if (num_modules == 1) {
     s->Printf(", module = ");
-    if (s->GetVerbose()) {
-      char buffer[2048];
-      m_module_spec_list.GetFileSpecAtIndex(0).GetPath(buffer, 2047);
-      s->PutCString(buffer);
-    } else {
-      s->PutCString(
-          m_module_spec_list.GetFileSpecAtIndex(0).GetFilename().AsCString(
-              "<Unknown>"));
-    }
+    s->PutCString(
+        m_module_spec_list.GetFileSpecAtIndex(0).GetFilename().AsCString(
+            "<Unknown>"));
   } else if (num_modules > 0) {
     s->Printf(", modules(%" PRIu64 ") = ", static_cast<uint64_t>(num_modules));
     for (size_t i = 0; i < num_modules; i++) {
-      if (s->GetVerbose()) {
-        char buffer[2048];
-        m_module_spec_list.GetFileSpecAtIndex(i).GetPath(buffer, 2047);
-        s->PutCString(buffer);
-      } else {
-        s->PutCString(
-            m_module_spec_list.GetFileSpecAtIndex(i).GetFilename().AsCString(
-                "<Unknown>"));
-      }
+      s->PutCString(
+          m_module_spec_list.GetFileSpecAtIndex(i).GetFilename().AsCString(
+              "<Unknown>"));
       if (i != num_modules - 1)
         s->PutCString(", ");
     }
@@ -862,6 +848,5 @@ void SearchFilterByModuleListAndCU::Dump(Stream *s) const {}
 
 lldb::SearchFilterSP
 SearchFilterByModuleListAndCU::DoCopyForBreakpoint(Breakpoint &breakpoint) {
-  SearchFilterSP ret_sp(new SearchFilterByModuleListAndCU(*this));
-  return ret_sp;
+  return std::make_shared<SearchFilterByModuleListAndCU>(*this);
 }

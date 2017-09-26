@@ -132,12 +132,13 @@ RECOVERABLE(function_type_mismatch,
             ValueHandle Val)
 
 struct NonNullReturnData {
-  SourceLocation Loc;
   SourceLocation AttrLoc;
 };
 
-/// \brief Handle returning null from function with returns_nonnull attribute.
-RECOVERABLE(nonnull_return, NonNullReturnData *Data)
+/// \brief Handle returning null from function with the returns_nonnull
+/// attribute, or a return type annotated with _Nonnull.
+RECOVERABLE(nonnull_return_v1, NonNullReturnData *Data, SourceLocation *Loc)
+RECOVERABLE(nullability_return_v1, NonNullReturnData *Data, SourceLocation *Loc)
 
 struct NonNullArgData {
   SourceLocation Loc;
@@ -145,8 +146,17 @@ struct NonNullArgData {
   int ArgIndex;
 };
 
-/// \brief Handle passing null pointer to function with nonnull attribute.
+/// \brief Handle passing null pointer to a function parameter with the nonnull
+/// attribute, or a _Nonnull type annotation.
 RECOVERABLE(nonnull_arg, NonNullArgData *Data)
+RECOVERABLE(nullability_arg, NonNullArgData *Data)
+
+struct PointerOverflowData {
+  SourceLocation Loc;
+};
+
+RECOVERABLE(pointer_overflow, PointerOverflowData *Data, ValueHandle Base,
+            ValueHandle Result)
 
 /// \brief Known CFI check kinds.
 /// Keep in sync with the enum of the same name in CodeGenFunction.h

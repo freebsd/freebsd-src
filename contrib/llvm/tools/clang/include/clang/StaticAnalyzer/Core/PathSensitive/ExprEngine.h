@@ -237,7 +237,7 @@ public:
                                      const CFGBlock *DstF) override;
 
   /// Called by CoreEngine.  Used to processing branching behavior
-  /// at static initalizers.
+  /// at static initializers.
   void processStaticInitializer(const DeclStmt *DS,
                                 NodeBuilderContext& BuilderCtx,
                                 ExplodedNode *Pred,
@@ -293,6 +293,7 @@ public:
                        const InvalidatedSymbols *invalidated,
                        ArrayRef<const MemRegion *> ExplicitRegions,
                        ArrayRef<const MemRegion *> Regions,
+                       const LocationContext *LCtx,
                        const CallEvent *Call) override;
 
   /// printState - Called by ProgramStateManager to print checker-specific data.
@@ -522,7 +523,9 @@ protected:
 
   /// Call PointerEscape callback when a value escapes as a result of bind.
   ProgramStateRef processPointerEscapedOnBind(ProgramStateRef State,
-                                              SVal Loc, SVal Val) override;
+                                              SVal Loc,
+                                              SVal Val,
+                                              const LocationContext *LCtx) override;
   /// Call PointerEscape callback when a value escapes as a result of
   /// region invalidation.
   /// \param[in] ITraits Specifies invalidation traits for regions/symbols.
@@ -618,16 +621,16 @@ private:
   void performTrivialCopy(NodeBuilder &Bldr, ExplodedNode *Pred,
                           const CallEvent &Call);
 
-  /// If the value of the given expression is a NonLoc, copy it into a new
-  /// temporary object region, and replace the value of the expression with
-  /// that.
+  /// If the value of the given expression \p InitWithAdjustments is a NonLoc,
+  /// copy it into a new temporary object region, and replace the value of the
+  /// expression with that.
   ///
-  /// If \p ResultE is provided, the new region will be bound to this expression
-  /// instead of \p E.
+  /// If \p Result is provided, the new region will be bound to this expression
+  /// instead of \p InitWithAdjustments.
   ProgramStateRef createTemporaryRegionIfNeeded(ProgramStateRef State,
                                                 const LocationContext *LC,
-                                                const Expr *E,
-                                                const Expr *ResultE = nullptr);
+                                                const Expr *InitWithAdjustments,
+                                                const Expr *Result = nullptr);
 
   /// For a DeclStmt or CXXInitCtorInitializer, walk backward in the current CFG
   /// block to find the constructor expression that directly constructed into

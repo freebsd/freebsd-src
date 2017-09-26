@@ -90,6 +90,7 @@ LANGOPT(CPlusPlus         , 1, 0, "C++")
 LANGOPT(CPlusPlus11       , 1, 0, "C++11")
 LANGOPT(CPlusPlus14       , 1, 0, "C++14")
 LANGOPT(CPlusPlus1z       , 1, 0, "C++1z")
+LANGOPT(CPlusPlus2a       , 1, 0, "C++2a")
 LANGOPT(ObjC1             , 1, 0, "Objective-C 1")
 LANGOPT(ObjC2             , 1, 0, "Objective-C 2")
 BENIGN_LANGOPT(ObjCDefaultSynthProperties , 1, 0,
@@ -107,7 +108,7 @@ LANGOPT(WChar             , 1, CPlusPlus, "wchar_t keyword")
 LANGOPT(DeclSpecKeyword   , 1, 0, "__declspec keyword")
 BENIGN_LANGOPT(DollarIdents   , 1, 1, "'$' in identifiers")
 BENIGN_LANGOPT(AsmPreprocessor, 1, 0, "preprocessor in asm mode")
-BENIGN_LANGOPT(GNUMode        , 1, 1, "GNU extensions")
+LANGOPT(GNUMode           , 1, 1, "GNU extensions")
 LANGOPT(GNUKeywords       , 1, 1, "GNU keywords")
 BENIGN_LANGOPT(ImplicitInt, 1, !C99 && !CPlusPlus, "C89 implicit 'int'")
 LANGOPT(Digraphs          , 1, 0, "digraphs")
@@ -199,8 +200,11 @@ LANGOPT(CUDADeviceApproxTranscendentals, 1, 0, "using approximate transcendental
 
 LANGOPT(SizedDeallocation , 1, 0, "sized deallocation")
 LANGOPT(AlignedAllocation , 1, 0, "aligned allocation")
+LANGOPT(AlignedAllocationUnavailable, 1, 0, "aligned allocation functions are unavailable")
 LANGOPT(NewAlignOverride  , 32, 0, "maximum alignment guaranteed by '::operator new(size_t)'")
 LANGOPT(ConceptsTS , 1, 0, "enable C++ Extensions for Concepts")
+BENIGN_LANGOPT(ModulesCodegen , 1, 0, "Modules code generation")
+BENIGN_LANGOPT(ModulesDebugInfo , 1, 0, "Modules debug info")
 BENIGN_LANGOPT(ElideConstructors , 1, 1, "C++ copy constructor elision")
 BENIGN_LANGOPT(DumpRecordLayouts , 1, 0, "dumping the layout of IRgen'd records")
 BENIGN_LANGOPT(DumpRecordLayoutsSimple , 1, 0, "dumping the layout of IRgen'd records in a simple form")
@@ -215,7 +219,8 @@ BENIGN_LANGOPT(DebuggerObjCLiteral , 1, 0, "debugger Objective-C literals and su
 BENIGN_LANGOPT(SpellChecking , 1, 1, "spell-checking")
 LANGOPT(SinglePrecisionConstants , 1, 0, "treating double-precision floating point constants as single precision constants")
 LANGOPT(FastRelaxedMath , 1, 0, "OpenCL fast relaxed math")
-LANGOPT(DefaultFPContract , 1, 0, "FP_CONTRACT")
+/// \brief FP_CONTRACT mode (on/off/fast).
+ENUM_LANGOPT(DefaultFPContractMode, FPContractModeKind, 2, FPC_Off, "FP contraction type")
 LANGOPT(NoBitFieldTypeAlign , 1, 0, "bit-field type alignment")
 LANGOPT(HexagonQdsp6Compat , 1, 0, "hexagon-qdsp6 backward compatibility")
 LANGOPT(ObjCAutoRefCount , 1, 0, "Objective-C automated reference counting")
@@ -260,6 +265,11 @@ LANGOPT(RetainCommentsFromSystemHeaders, 1, 0, "retain documentation comments fr
 LANGOPT(SanitizeAddressFieldPadding, 2, 0, "controls how aggressive is ASan "
                                            "field padding (0: none, 1:least "
                                            "aggressive, 2: more aggressive)")
+
+LANGOPT(XRayInstrument, 1, 0, "controls whether to do XRay instrumentation")
+
+BENIGN_LANGOPT(AllowEditorPlaceholders, 1, 0,
+               "allow editor placeholders in source")
 
 #undef LANGOPT
 #undef COMPATIBLE_LANGOPT

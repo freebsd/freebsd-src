@@ -2244,6 +2244,7 @@ bool HexagonConstEvaluator::evaluate(const MachineInstr &BrI,
     case Hexagon::J2_jumpfnew:
     case Hexagon::J2_jumpfnewpt:
       Negated = true;
+      LLVM_FALLTHROUGH;
     case Hexagon::J2_jumpt:
     case Hexagon::J2_jumptnew:
     case Hexagon::J2_jumptnewpt:
@@ -2276,7 +2277,7 @@ Undetermined:
       goto Undetermined;
 
     uint32_t Props = PredC.properties();
-    bool CTrue = false, CFalse = false;;
+    bool CTrue = false, CFalse = false;
     if (Props & ConstantProperties::Zero)
       CFalse = true;
     else if (Props & ConstantProperties::NonZero)

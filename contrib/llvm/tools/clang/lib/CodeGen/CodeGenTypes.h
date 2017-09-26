@@ -178,6 +178,7 @@ public:
   const TargetInfo &getTarget() const { return Target; }
   CGCXXABI &getCXXABI() const { return TheCXXABI; }
   llvm::LLVMContext &getLLVMContext() { return TheModule.getContext(); }
+  const CodeGenOptions &getCodeGenOpts() const;
 
   /// ConvertType - Convert type T into a llvm::Type.
   llvm::Type *ConvertType(QualType T);
@@ -303,11 +304,14 @@ public:
   const CGFunctionInfo &arrangeCXXConstructorCall(const CallArgList &Args,
                                                   const CXXConstructorDecl *D,
                                                   CXXCtorType CtorKind,
-                                                  unsigned ExtraArgs);
+                                                  unsigned ExtraPrefixArgs,
+                                                  unsigned ExtraSuffixArgs,
+                                                  bool PassProtoArgs = true);
 
   const CGFunctionInfo &arrangeCXXMethodCall(const CallArgList &args,
                                              const FunctionProtoType *type,
-                                             RequiredArgs required);
+                                             RequiredArgs required,
+                                             unsigned numPrefixArgs);
   const CGFunctionInfo &arrangeMSMemberPointerThunk(const CXXMethodDecl *MD);
   const CGFunctionInfo &arrangeMSCtorClosure(const CXXConstructorDecl *CD,
                                                  CXXCtorType CT);

@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "DWARFDefines.h"
-#include "lldb/Core/ConstString.h"
+#include "lldb/Utility/ConstString.h"
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -609,6 +609,8 @@ DW_TAG_CategoryEnum get_tag_category(uint16_t tag) {
   case DW_TAG_template_type_parameter:
     return TagCategoryType;
   case DW_TAG_template_value_parameter:
+    return TagCategoryType;
+  case DW_TAG_GNU_template_parameter_pack:
     return TagCategoryType;
   case DW_TAG_thrown_type:
     return TagCategoryType;

@@ -51,12 +51,15 @@ enum class SymbolKind : uint8_t {
   Constructor,
   Destructor,
   ConversionFunction,
+
+  Parameter,
 };
 
 enum class SymbolLanguage {
   C,
   ObjC,
   CXX,
+  Swift,
 };
 
 /// Language specific sub-kinds.
@@ -77,8 +80,9 @@ enum class SymbolProperty : uint8_t {
   IBAnnotated                   = 1 << 4,
   IBOutletCollection            = 1 << 5,
   GKInspectable                 = 1 << 6,
+  Local                         = 1 << 7,
 };
-static const unsigned SymbolPropertyBitNum = 7;
+static const unsigned SymbolPropertyBitNum = 8;
 typedef unsigned SymbolPropertySet;
 
 /// Set of roles that are attributed to symbol occurrences.
@@ -103,8 +107,9 @@ enum class SymbolRole : uint32_t {
   RelationAccessorOf  = 1 << 15,
   RelationContainedBy = 1 << 16,
   RelationIBTypeOf    = 1 << 17,
+  RelationSpecializationOf = 1 << 18,
 };
-static const unsigned SymbolRoleBitNum = 18;
+static const unsigned SymbolRoleBitNum = 19;
 typedef unsigned SymbolRoleSet;
 
 /// Represents a relation to another symbol for a symbol occurrence.
@@ -125,8 +130,12 @@ struct SymbolInfo {
 
 SymbolInfo getSymbolInfo(const Decl *D);
 
+bool isFunctionLocalSymbol(const Decl *D);
+
 void applyForEachSymbolRole(SymbolRoleSet Roles,
                             llvm::function_ref<void(SymbolRole)> Fn);
+bool applyForEachSymbolRoleInterruptible(SymbolRoleSet Roles,
+                            llvm::function_ref<bool(SymbolRole)> Fn);
 void printSymbolRoles(SymbolRoleSet Roles, raw_ostream &OS);
 
 /// \returns true if no name was printed, false otherwise.
