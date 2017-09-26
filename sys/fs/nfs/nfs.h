@@ -192,9 +192,11 @@ struct nfsd_nfsd_args {
  * (To support more than 1000 DSs on an MDS, this needs to be increased.)
  * NFSDEV_MAXMIRRORS - Maximum # of mirrors for a DS.
  * (Most will only have a single mirror, but this setting allows up to 3.)
+ * NFSDEV_MAXVERS - maximum number of NFS versions supported by Flex File.
  */
 #define	NFSDEV_MIRRORSTR	3
 #define	NFSDEV_MAXMIRRORS	4
+#define	NFSDEV_MAXVERS		4
 
 /* Old version. */
 struct nfsd_nfsd_oargs {
