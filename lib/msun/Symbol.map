@@ -285,3 +285,16 @@ FBSD_1.3 {
 FBSD_1.4 {
 	lgammal_r;
 };
+
+/* First added in 12.0-CURRENT */
+FBSD_1.5 {
+	cacoshl;
+	cacosl;
+	casinhl;
+	casinl;
+	catanl;
+	catanhl;
+	sincos;
+	sincosf;
+	sincosl;
+};
