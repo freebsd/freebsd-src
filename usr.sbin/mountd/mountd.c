@@ -2159,7 +2159,8 @@ free_dir(struct dirlist *dp)
 		free_dir(dp->dp_left);
 		free_dir(dp->dp_right);
 		free_host(dp->dp_hosts);
-		free((caddr_t)dp);
+		free(dp->dp_dirp);
+		free(dp);
 	}
 }
 
