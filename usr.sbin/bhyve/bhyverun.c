@@ -1463,6 +1463,7 @@ restore_kernel_structs(struct vmctx *ctx, struct restore_state *rstate)
 		STRUCT_VMCX,
 		STRUCT_VATPIC,
 		STRUCT_VATPIT,
+		STRUCT_VPMTMR,
 	};
 
 	for (i = 0; i < sizeof(structs)/sizeof(structs[0]); i++) {
@@ -1528,9 +1529,10 @@ vm_snapshot_kern_data(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
 		STRUCT_VMCX,
 		STRUCT_VATPIC,
 		STRUCT_VATPIT,
+		STRUCT_VPMTMR,
 	};
 
-	char *snapshot_struct_names[] = {"vm", "vmx", "vioapic", "vlapic", "lapic", "vhpet", "vmcs", "vatpic", "vatpit"};
+	char *snapshot_struct_names[] = {"vm", "vmx", "vioapic", "vlapic", "lapic", "vhpet", "vmcs", "vatpic", "vatpit", "vpmtmr"};
 
 	buffer = malloc(SNAPSHOT_BUFFER_SIZE * sizeof(char));
 	if (buffer == NULL) {

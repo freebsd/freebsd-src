@@ -41,4 +41,8 @@ void vpmtmr_cleanup(struct vpmtmr *pmtmr);
 int vpmtmr_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
     uint32_t *val);
 
+int vpmtmr_snapshot(struct vpmtmr *vpmtmr, void *buffer, size_t buf_size,
+    size_t *snapshot_size);
+int vpmtmr_restore(struct vpmtmr *vpmtmr, void *buffer, size_t buf_size);
+
 #endif

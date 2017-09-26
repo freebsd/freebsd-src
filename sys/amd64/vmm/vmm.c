@@ -2853,6 +2853,12 @@ vm_snapshot_vatpit(struct vm *vm, void *buffer, size_t buf_size, size_t *snapsho
 }
 
 static int
+vm_snapshot_vpmtmr(struct vm *vm, void *buffer, size_t buf_size, size_t *snapshot_size)
+{
+	return vpmtmr_snapshot(vm_pmtmr(vm), buffer, buf_size, snapshot_size);
+}
+
+static int
 vm_snapshot_vmcx(struct vm *vm, void *buffer, size_t buf_size,
 		 size_t *snapshot_size)
 {
@@ -2922,6 +2928,9 @@ vm_snapshot_req(struct vm *vm, enum snapshot_req req, void *buffer,
 		break;
 	case STRUCT_VATPIT:
 		ret = vm_snapshot_vatpit(vm, buffer, buf_size, snapshot_size);
+		break;
+	case STRUCT_VPMTMR:
+		ret = vm_snapshot_vpmtmr(vm, buffer, buf_size, snapshot_size);
 		break;
 	default:
 		printf("%s: failed to find the requested type\n", __func__);
@@ -3019,6 +3028,12 @@ vm_restore_vatpit(struct vm *vm, void *buffer, size_t buf_size)
 }
 
 static int
+vm_restore_vpmtmr(struct vm *vm, void *buffer, size_t buf_size)
+{
+	return vpmtmr_restore(vm_pmtmr(vm), buffer, buf_size);
+}
+
+static int
 vm_restore_vmcx(struct vm *vm, void *buffer, size_t buf_size)
 {
 	int i, error;
@@ -3085,6 +3100,9 @@ vm_restore_req(struct vm *vm, enum snapshot_req req, void *buffer, size_t buf_si
 		break;
 	case STRUCT_VATPIT:
 		ret = vm_restore_vatpit(vm, kbuf, buf_size);
+		break;
+	case STRUCT_VPMTMR:
+		ret = vm_restore_vpmtmr(vm, kbuf, buf_size);
 		break;
 	default:
 		printf("%s: failed to find type to restore\n", __func__);
