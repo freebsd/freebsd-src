@@ -1612,7 +1612,10 @@ zfs_acl_ids_create(znode_t *dzp, int flag, vattr_t *vap, cred_t *cr,
 	boolean_t	need_chmod = B_TRUE;
 	boolean_t	inherited = B_FALSE;
 
-	ASSERT_VOP_ELOCKED(ZTOV(dzp), __func__);
+	if ((flag & IS_ROOT_NODE) == 0)
+		ASSERT_VOP_ELOCKED(ZTOV(dzp), __func__);
+	else
+		ASSERT(dzp->z_vnode == NULL);
 	bzero(acl_ids, sizeof (zfs_acl_ids_t));
 	acl_ids->z_mode = MAKEIMODE(vap->va_type, vap->va_mode);
 
