@@ -185,6 +185,13 @@ qla_add_sysctls(qla_host_t *ha)
                 OID_AUTO, "debug", CTLFLAG_RW,
                 &ha->dbg_level, ha->dbg_level, "Debug Level");
 
+	ha->enable_minidump = 1;
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		OID_AUTO, "enable_minidump", CTLFLAG_RW,
+		&ha->enable_minidump, ha->enable_minidump,
+		"Minidump retrival is enabled only when this is set");
+
 	ha->std_replenish = QL_STD_REPLENISH_THRES;
         SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
                 SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -2025,7 +2032,8 @@ device_printf(ha->pci_dev, "%s: enter\n", __func__);
 
 		ha->msg_from_peer = 0;
 
-		ql_minidump(ha);
+		if (ha->enable_minidump)
+			ql_minidump(ha);
 
 		(void) ql_init_hw(ha);
 
