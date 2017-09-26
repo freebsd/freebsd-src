@@ -3040,13 +3040,11 @@ zfs_get_vfs(const char *resource)
 	mtx_lock(&mountlist_mtx);
 	TAILQ_FOREACH(vfsp, &mountlist, mnt_list) {
 		if (strcmp(refstr_value(vfsp->vfs_resource), resource) == 0) {
-			if (vfs_busy(vfsp, MBF_MNTLSTLOCK) != 0)
-				vfsp = NULL;
+			vfs_ref(vfsp);
 			break;
 		}
 	}
-	if (vfsp == NULL)
-		mtx_unlock(&mountlist_mtx);
+	mtx_unlock(&mountlist_mtx);
 	return (vfsp);
 }
 
@@ -3533,7 +3531,9 @@ zfs_unmount_snap(const char *snapname)
 {
 	vfs_t *vfsp;
 	zfsvfs_t *zfsvfs;
+#ifdef illumos
 	int err;
+#endif
 
 	if (strchr(snapname, '@') == NULL)
 		return (0);
@@ -3545,23 +3545,19 @@ zfs_unmount_snap(const char *snapname)
 	zfsvfs = vfsp->vfs_data;
 	ASSERT(!dsl_pool_config_held(dmu_objset_pool(zfsvfs->z_os)));
 
-	err = vn_vfswlock(vfsp->vfs_vnodecovered);
 #ifdef illumos
+	err = vn_vfswlock(vfsp->vfs_vnodecovered);
 	VFS_RELE(vfsp);
-#else
-	vfs_unbusy(vfsp);
-#endif
 	if (err != 0)
 		return (SET_ERROR(err));
+#endif
 
 	/*
 	 * Always force the unmount for snapshots.
 	 */
-
 #ifdef illumos
 	(void) dounmount(vfsp, MS_FORCE, kcred);
 #else
-	vfs_ref(vfsp);
 	(void) dounmount(vfsp, MS_FORCE, curthread);
 #endif
 	return (0);
