@@ -82,7 +82,8 @@ static void padlock_sha256_final(uint8_t *hash, struct padlock_sha_ctx *ctx);
 
 static struct auth_hash padlock_hmac_sha1 = {
 	CRYPTO_SHA1_HMAC, "HMAC-SHA1",
-	20, SHA1_HASH_LEN, SHA1_HMAC_BLOCK_LEN, sizeof(struct padlock_sha_ctx),
+	SHA1_HMAC_BLOCK_LEN, SHA1_HASH_LEN, sizeof(struct padlock_sha_ctx),
+	SHA1_HMAC_BLOCK_LEN,
         (void (*)(void *))padlock_sha_init, NULL, NULL,
 	(int (*)(void *, const uint8_t *, uint16_t))padlock_sha_update,
 	(void (*)(uint8_t *, void *))padlock_sha1_final
@@ -90,7 +91,8 @@ static struct auth_hash padlock_hmac_sha1 = {
 
 static struct auth_hash padlock_hmac_sha256 = {
 	CRYPTO_SHA2_256_HMAC, "HMAC-SHA2-256",
-	32, SHA2_256_HASH_LEN, SHA2_256_HMAC_BLOCK_LEN, sizeof(struct padlock_sha_ctx),
+	SHA2_256_HMAC_BLOCK_LEN, SHA2_256_HASH_LEN,
+	sizeof(struct padlock_sha_ctx), SHA2_256_HMAC_BLOCK_LEN,
         (void (*)(void *))padlock_sha_init, NULL, NULL,
 	(int (*)(void *, const uint8_t *, uint16_t))padlock_sha_update,
 	(void (*)(uint8_t *, void *))padlock_sha256_final
