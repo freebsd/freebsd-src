@@ -2190,7 +2190,8 @@ cheriabi_auditon(struct thread *td, struct cheriabi_auditon_args *uap)
 	return (ENOSYS);
 }
 
-int cheriabi_setlogin(struct thread *td, struct cheriabi_setlogin_args *uap)
+int
+cheriabi_setlogin(struct thread *td, struct cheriabi_setlogin_args *uap)
 {
 
 	return (kern_setlogin(td, uap->namebuf));
