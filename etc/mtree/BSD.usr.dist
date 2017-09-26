@@ -807,30 +807,6 @@
             ..
         ..
         man
-            en.ISO8859-1
-            ..
-            en.UTF-8
-            ..
-            ja
-                man1
-                ..
-                man2
-                ..
-                man3
-                ..
-                man4
-                ..
-                man5
-                ..
-                man6
-                ..
-                man7
-                ..
-                man8
-                ..
-                man9
-                ..
-            ..
             man1
             ..
             man2
@@ -1170,8 +1146,6 @@
         ..
         openssl
             man
-                en.ISO8859-1
-                ..
                 man1
                 ..
                 man3
