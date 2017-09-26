@@ -243,6 +243,8 @@ MODULE_DEPEND(bnxt, pci, 1, 1, 1);
 MODULE_DEPEND(bnxt, ether, 1, 1, 1);
 MODULE_DEPEND(bnxt, iflib, 1, 1, 1);
 
+IFLIB_PNP_INFO(pci, bnxt, bnxt_vendor_info_array);
+
 static device_method_t bnxt_iflib_methods[] = {
 	DEVMETHOD(ifdi_tx_queues_alloc, bnxt_tx_queues_alloc),
 	DEVMETHOD(ifdi_rx_queues_alloc, bnxt_rx_queues_alloc),
