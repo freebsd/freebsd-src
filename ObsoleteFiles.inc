@@ -38,6 +38,45 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170926: remove unneeded man aliases and locales directory
+OLD_FILES+=usr/share/man/en.ISO8859-1/man1
+OLD_FILES+=usr/share/man/en.ISO8859-1/man2
+OLD_FILES+=usr/share/man/en.ISO8859-1/man3
+OLD_FILES+=usr/share/man/en.ISO8859-1/man4
+OLD_FILES+=usr/share/man/en.ISO8859-1/man5
+OLD_FILES+=usr/share/man/en.ISO8859-1/man6
+OLD_FILES+=usr/share/man/en.ISO8859-1/man7
+OLD_FILES+=usr/share/man/en.ISO8859-1/man8
+OLD_FILES+=usr/share/man/en.ISO8859-1/man9
+OLD_DIRS+=usr/share/man/en.ISO8859-1
+OLD_FILES+=usr/share/man/en.ISO8859-1/mandoc.db
+OLD_FILES+=usr/share/man/en.UTF-8/man1
+OLD_FILES+=usr/share/man/en.UTF-8/man2
+OLD_FILES+=usr/share/man/en.UTF-8/man3
+OLD_FILES+=usr/share/man/en.UTF-8/man4
+OLD_FILES+=usr/share/man/en.UTF-8/man5
+OLD_FILES+=usr/share/man/en.UTF-8/man6
+OLD_FILES+=usr/share/man/en.UTF-8/man7
+OLD_FILES+=usr/share/man/en.UTF-8/man8
+OLD_FILES+=usr/share/man/en.UTF-8/man9
+OLD_FILES+=usr/share/man/en.UTF-8/mandoc.db
+OLD_DIRS+=usr/share/man/en.UTF-8
+OLD_FILES+=usr/share/man/en.ISO8859-15
+OLD_FILES+=usr/share/openssl/man/en.ISO8859-1/man1
+OLD_FILES+=usr/share/openssl/man/en.ISO8859-1/man3
+OLD_FILES+=usr/share/openssl/man/en.ISO8859-1/mandoc.db
+OLD_DIRS+=usr/share/openssl/man/en.ISO8859-1
+OLD_FILES+=usr/share/openssl/man/en.ISO8859-15
+OLD_DIRS+=usr/share/man/ja/man1
+OLD_DIRS+=usr/share/man/ja/man2
+OLD_DIRS+=usr/share/man/ja/man3
+OLD_DIRS+=usr/share/man/ja/man4
+OLD_DIRS+=usr/share/man/ja/man5
+OLD_DIRS+=usr/share/man/ja/man6
+OLD_DIRS+=usr/share/man/ja/man7
+OLD_DIRS+=usr/share/man/ja/man8
+OLD_DIRS+=usr/share/man/ja/man9
+OLD_DIRS+=usr/share/man/ja
 # 20170913: remove unneeded catman utility
 OLD_FILES+=etc/periodic/weekly/330.catman
 OLD_FILES+=usr/bin/catman
@@ -119,7 +158,10 @@ OLD_DIRS+=usr/share/man/ja/cat8/powerpc
 OLD_DIRS+=usr/share/man/ja/cat8/sparc64
 OLD_DIRS+=usr/share/man/ja/cat8
 OLD_DIRS+=usr/share/man/ja/cat9
-
+OLD_DIRS+=usr/share/openssl/man/cat1
+OLD_DIRS+=usr/share/openssl/man/cat3
+OLD_DIRS+=usr/share/openssl/man/en.ISO8859-1/cat1
+OLD_DIRS+=usr/share/openssl/man/en.ISO8859-1/cat3
 # 20170802: ksyms(4) ioctl interface was removed
 OLD_FILES+=usr/include/sys/ksyms.h
 
