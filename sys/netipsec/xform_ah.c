@@ -193,9 +193,9 @@ ah_init0(struct secasvar *sav, struct xformsw *xsp, struct cryptoini *cria)
 		return EINVAL;
 	}
 	keylen = _KEYLEN(sav->key_auth);
-	if (keylen != thash->keysize && thash->keysize != 0) {
+	if (keylen > thash->keysize && thash->keysize != 0) {
 		DPRINTF(("%s: invalid keylength %d, algorithm %s requires "
-			"keysize %d\n", __func__,
+			"keysize less than %d\n", __func__,
 			 keylen, thash->name, thash->keysize));
 		return EINVAL;
 	}

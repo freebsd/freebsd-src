@@ -58,14 +58,14 @@ static	int MD5Update_int(void *, const u_int8_t *, u_int16_t);
 /* Authentication instances */
 struct auth_hash auth_hash_hmac_md5 = {
 	CRYPTO_MD5_HMAC, "HMAC-MD5",
-	MD5_HMAC_KEY_LEN, MD5_HASH_LEN, sizeof(MD5_CTX), MD5_HMAC_BLOCK_LEN,
+	MD5_HMAC_BLOCK_LEN, MD5_HASH_LEN, sizeof(MD5_CTX), MD5_HMAC_BLOCK_LEN,
 	(void (*) (void *)) MD5Init, NULL, NULL, MD5Update_int,
 	(void (*) (u_int8_t *, void *)) MD5Final
 };
 
 struct auth_hash auth_hash_key_md5 = {
 	CRYPTO_MD5_KPDK, "Keyed MD5",
-	NULL_HMAC_KEY_LEN, MD5_KPDK_HASH_LEN, sizeof(MD5_CTX), 0,
+	0, MD5_KPDK_HASH_LEN, sizeof(MD5_CTX), 0,
 	(void (*)(void *)) MD5Init, NULL, NULL, MD5Update_int,
 	(void (*)(u_int8_t *, void *)) MD5Final
 };
