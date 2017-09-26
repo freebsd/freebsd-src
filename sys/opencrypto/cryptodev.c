@@ -520,7 +520,8 @@ cryptof_ioctl(
 		if (thash) {
 			cria.cri_alg = thash->type;
 			cria.cri_klen = sop->mackeylen * 8;
-			if (sop->mackeylen != thash->keysize) {
+			if (thash->keysize != 0 &&
+			    sop->mackeylen > thash->keysize) {
 				CRYPTDEB("invalid mac key length");
 				error = EINVAL;
 				goto bail;

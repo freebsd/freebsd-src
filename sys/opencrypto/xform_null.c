@@ -78,7 +78,7 @@ struct enc_xform enc_xform_null = {
 /* Authentication instances */
 struct auth_hash auth_hash_null = {	/* NB: context isn't used */
 	CRYPTO_NULL_HMAC, "NULL-HMAC",
-	NULL_HMAC_KEY_LEN, NULL_HASH_LEN, sizeof(int), NULL_HMAC_BLOCK_LEN,
+	0, NULL_HASH_LEN, sizeof(int), NULL_HMAC_BLOCK_LEN,
 	null_init, null_reinit, null_reinit, null_update, null_final
 };
 
