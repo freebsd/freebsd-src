@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -522,14 +526,16 @@ bhndb_attach(device_t dev, bhnd_devclass_t bridge_devclass)
 	sc->parent_dev = device_get_parent(dev);
 	sc->bridge_class = bridge_devclass;
 
+	if ((error = bhnd_service_registry_init(&sc->services)))
+		return (error);
+
 	BHNDB_LOCK_INIT(sc);
 	
 	/* Populate generic resource allocation state. */
 	cfg = BHNDB_BUS_GET_GENERIC_HWCFG(sc->parent_dev, sc->dev);
 	sc->bus_res = bhndb_alloc_resources(dev, sc->parent_dev, cfg);
-	if (sc->bus_res == NULL) {
-		return (ENXIO);
-	}
+	if (sc->bus_res == NULL)
+		goto failed;
 
 	/* Allocate our host resources */
 	if ((error = bhndb_alloc_host_resources(sc->bus_res)))
@@ -572,6 +578,8 @@ failed:
 
 	if (sc->bus_res != NULL)
 		bhndb_free_resources(sc->bus_res);
+
+	bhnd_service_registry_fini(&sc->services);
 
 	return (error);
 }
@@ -911,9 +919,13 @@ bhndb_generic_detach(device_t dev)
 	int			 error;
 
 	sc = device_get_softc(dev);
-	
+
 	/* Detach children */
 	if ((error = bus_generic_detach(dev)))
+		return (error);
+
+	/* Clean up our service registry */
+	if ((error = bhnd_service_registry_fini(&sc->services)))
 		return (error);
 
 	/* Clean up our driver state. */
@@ -1209,6 +1221,17 @@ bhndb_get_hostb_core(device_t dev, device_t child, struct bhnd_core_info *core)
 
 	*core = *bhndb_get_bridge_core(sc);
 	return (0);
+}
+
+/**
+ * Default bhndb(4) implementation of BHND_BUS_GET_SERVICE_REGISTRY().
+ */
+static struct bhnd_service_registry *
+bhndb_get_service_registry(device_t dev, device_t child)
+{
+	struct bhndb_softc *sc = device_get_softc(dev);
+
+	return (&sc->services);
 }
 
 /**
@@ -2146,6 +2169,13 @@ static device_method_t bhndb_methods[] = {
 	DEVMETHOD(bhnd_bus_activate_resource,	bhndb_activate_bhnd_resource),
 	DEVMETHOD(bhnd_bus_deactivate_resource,	bhndb_deactivate_bhnd_resource),
 	DEVMETHOD(bhnd_bus_get_nvram_var,	bhnd_bus_generic_get_nvram_var),
+
+	DEVMETHOD(bhnd_bus_get_service_registry,bhndb_get_service_registry),
+	DEVMETHOD(bhnd_bus_register_provider,	bhnd_bus_generic_sr_register_provider),
+	DEVMETHOD(bhnd_bus_deregister_provider,	bhnd_bus_generic_sr_deregister_provider),
+	DEVMETHOD(bhnd_bus_retain_provider,	bhnd_bus_generic_sr_retain_provider),
+	DEVMETHOD(bhnd_bus_release_provider,	bhnd_bus_generic_sr_release_provider),
+	
 	DEVMETHOD(bhnd_bus_read_1,		bhndb_bus_read_1),
 	DEVMETHOD(bhnd_bus_read_2,		bhndb_bus_read_2),
 	DEVMETHOD(bhnd_bus_read_4,		bhndb_bus_read_4),

@@ -2,8 +2,11 @@
  * Copyright (c) 2007 Bruce M. Simpson.
  * Copyright (c) 2016 Michael Zhilin <mizhka@gmail.com>
  * Copyright (c) 2016 Landon Fuller <landonf@FreeBSD.org>
- *
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -391,6 +394,12 @@ bcm_init_platform_data(struct bcm_platform *bp)
 			BCM_ERR("bhnd_pmu_query_init() failed: %d\n", error);
 			return (error);
 		}
+	}
+
+	/* Initialize our platform service registry */
+	if ((error = bhnd_service_registry_init(&bp->services))) {
+		BCM_ERR("error initializing service registry: %d\n", error);
+		return (error);
 	}
 
 	bcm_platform_data_avail = true;

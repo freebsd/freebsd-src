@@ -1,7 +1,11 @@
 /*-
  * Copyright (c) 2016 Landon Fuller <landonf@FreeBSD.org>
- * Copyright (c) 2010, Broadcom Corporation.
+ * Copyright (c) 2010 Broadcom Corporation.
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * This software was developed by Landon Fuller under sponsorship from
+ * the FreeBSD Foundation.
  * 
  * This file is derived from the siutils.c source distributed with the
  * Asus RT-N16 firmware source code release.
@@ -116,6 +120,7 @@ bhnd_pwrctl_attach(device_t dev)
 	struct chipc_softc		*chipc_sc;
 	bhnd_devclass_t			 hostb_class;
 	device_t			 hostb_dev;
+	device_t			 bus;
 	int				 error;
 
 	sc = device_get_softc(dev);
@@ -128,10 +133,12 @@ bhnd_pwrctl_attach(device_t dev)
 	sc->quirks = bhnd_device_quirks(sc->chipc_dev, pwrctl_devices,
 	    sizeof(pwrctl_devices[0]));
 
+	bus = device_get_parent(sc->chipc_dev);
+
 	/* On devices that lack a slow clock source, HT must always be
 	 * enabled. */
 	hostb_class = BHND_DEVCLASS_INVALID;
-	hostb_dev = bhnd_find_hostb_device(device_get_parent(sc->chipc_dev));
+	hostb_dev = bhnd_bus_find_hostb_device(device_get_parent(sc->chipc_dev));
 	if (hostb_dev != NULL)
 		hostb_class = bhnd_get_class(hostb_dev);
 
@@ -177,6 +184,13 @@ bhnd_pwrctl_attach(device_t dev)
 
 	PWRCTL_UNLOCK(sc);
 
+	/* Register as the bus PMU provider */
+	if ((error = bhnd_register_provider(dev, BHND_SERVICE_PMU))) {
+		device_printf(sc->dev, "failed to register PMU with bus : %d\n",
+		    error);
+		goto cleanup;
+	}
+
 	return (0);
 
 cleanup:
@@ -193,8 +207,15 @@ bhnd_pwrctl_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	if ((error = bhnd_deregister_provider(dev, BHND_SERVICE_ANY)))
+		return (error);
+
+	PWRCTL_LOCK(sc);
+
 	if ((error = bhnd_pwrctl_setclk(sc, BHND_CLOCK_DYN)))
 		return (error);
+
+	PWRCTL_UNLOCK(sc);
 
 	STAILQ_FOREACH_SAFE(clkres, &sc->clkres_list, cr_link, crnext)
 		free(clkres, M_DEVBUF);
