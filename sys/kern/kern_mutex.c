@@ -248,7 +248,7 @@ __mtx_lock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 	tid = (uintptr_t)curthread;
 	v = MTX_UNOWNED;
 	if (!_mtx_obtain_lock_fetch(m, &v, tid))
-		_mtx_lock_sleep(m, v, tid, opts, file, line);
+		_mtx_lock_sleep(m, v, opts, file, line);
 	else
 		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(adaptive__acquire,
 		    m, 0, 0, file, line);
@@ -443,15 +443,17 @@ _mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
  */
 #if LOCK_DEBUG > 0
 void
-__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid, int opts,
-    const char *file, int line)
+__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, int opts, const char *file,
+    int line)
 #else
 void
-__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid)
+__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 #endif
 {
+	struct thread *td;
 	struct mtx *m;
 	struct turnstile *ts;
+	uintptr_t tid;
 #ifdef ADAPTIVE_MUTEXES
 	volatile struct thread *owner;
 #endif
@@ -473,8 +475,9 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid)
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
 	int doing_lockprof;
 #endif
-
-	if (SCHEDULER_STOPPED())
+	td = curthread;
+	tid = (uintptr_t)td;
+	if (SCHEDULER_STOPPED_TD(td))
 		return;
 
 #if defined(ADAPTIVE_MUTEXES)
@@ -486,7 +489,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid)
 	if (__predict_false(v == MTX_UNOWNED))
 		v = MTX_READ_VALUE(m);
 
-	if (__predict_false(lv_mtx_owner(v) == (struct thread *)tid)) {
+	if (__predict_false(lv_mtx_owner(v) == td)) {
 		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0 ||
 		    (opts & MTX_RECURSE) != 0,
 	    ("_mtx_lock_sleep: recursed on non-recursive mutex %s @ %s:%d\n",
