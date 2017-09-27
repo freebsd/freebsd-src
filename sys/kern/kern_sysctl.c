@@ -88,7 +88,7 @@ static MALLOC_DEFINE(M_SYSCTLTMP, "sysctltmp", "sysctl temp output buffer");
  * sysctl requests larger than a single page via an exclusive lock.
  */
 static struct rmlock sysctllock;
-static struct sx sysctlmemlock;
+static struct sx __exclusive_cache_line sysctlmemlock;
 
 #define	SYSCTL_WLOCK()		rm_wlock(&sysctllock)
 #define	SYSCTL_WUNLOCK()	rm_wunlock(&sysctllock)
