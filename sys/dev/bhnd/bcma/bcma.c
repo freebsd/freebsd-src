@@ -686,6 +686,7 @@ bcma_add_children(device_t bus)
 {
 	bhnd_erom_t			*erom;
 	struct bcma_erom		*bcma_erom;
+	struct bhnd_erom_io		*eio;
 	const struct bhnd_chipid	*cid;
 	struct bcma_corecfg		*corecfg;
 	struct bcma_devinfo		*dinfo;
@@ -696,9 +697,12 @@ bcma_add_children(device_t bus)
 	corecfg = NULL;
 
 	/* Allocate our EROM parser */
-	erom = bhnd_erom_alloc(&bcma_erom_parser, cid, bus, BCMA_EROM_RID);
-	if (erom == NULL)
+	eio = bhnd_erom_iores_new(bus, BCMA_EROM_RID);
+	erom = bhnd_erom_alloc(&bcma_erom_parser, cid, eio);
+	if (erom == NULL) {
+		bhnd_erom_io_fini(eio);
 		return (ENODEV);
+	}
 
 	/* Add all cores. */
 	bcma_erom = (struct bcma_erom *)erom;

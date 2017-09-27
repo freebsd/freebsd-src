@@ -40,7 +40,7 @@
 #include <machine/cpuregs.h>
 
 #include <dev/bhnd/bhnd.h>
-#include <dev/bhnd/bhnd_erom.h>
+#include <dev/bhnd/bhnd_eromvar.h>
 
 #include <dev/bhnd/cores/pmu/bhnd_pmuvar.h>
 
@@ -66,6 +66,7 @@ struct bcm_platform {
 
 	bhnd_erom_class_t		*erom_impl;	/**< erom parser class */
 	struct kobj_ops			 erom_ops;	/**< compiled kobj opcache */
+	struct bhnd_erom_iobus		 erom_io;	/**< erom I/O callbacks */
 	union {
 		bhnd_erom_static_t	 data;
 		bhnd_erom_t		 obj;

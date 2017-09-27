@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2017 Landon Fuller <landonf@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -58,12 +62,7 @@ __FBSDID("$FreeBSD$");
  * marker.
  */
 
-struct bcma_erom_io;
-
 static const char	*bcma_erom_entry_type_name (uint8_t entry);
-
-static uint32_t		 bcma_eio_read4(struct bcma_erom_io *io,
-			     bus_size_t offset);
 
 static int		 bcma_erom_read32(struct bcma_erom *erom,
 			     uint32_t *entry);
@@ -105,37 +104,18 @@ static void		 bcma_erom_to_core_info(const struct bcma_erom_core *core,
 			     struct bhnd_core_info *info);
 
 /**
- * BCMA EROM generic I/O context
- */
-struct bcma_erom_io {
-	struct bhnd_resource	*res;		/**< memory resource, or NULL if initialized
-						     with bus space tag and handle */
-	int			 rid;		/**< memory resource id, or -1 */
-
-	bus_space_tag_t		 bst;		/**< bus space tag, if any */
-	bus_space_handle_t	 bsh;		/**< bus space handle, if any */
-
-	bus_size_t	 	 start;		/**< base read offset */
-};
-
-/**
  * BCMA EROM per-instance state.
  */
 struct bcma_erom {
-	struct bhnd_erom	obj;
-	device_t	 	dev;	/**< parent device, or NULL if none. */
-	struct bcma_erom_io	io;	/**< I/O context */
-	bus_size_t	 	offset;	/**< current read offset */
+	struct bhnd_erom	 obj;
+	device_t	 	 dev;		/**< parent device, or NULL if none. */
+	struct bhnd_erom_io	*eio;		/**< bus I/O callbacks */
+	bhnd_size_t	 	 offset;	/**< current read offset */
 };
 
-#define	EROM_LOG(erom, fmt, ...)	do {				\
-	if (erom->dev != NULL) {					\
-		device_printf(erom->dev, "erom[0x%llx]: " fmt,	\
-		    (unsigned long long) (erom->offset), ##__VA_ARGS__);\
-	} else {							\
-		printf("erom[0x%llx]: " fmt,				\
-		    (unsigned long long) (erom->offset), ##__VA_ARGS__);\
-	}								\
+#define	EROM_LOG(erom, fmt, ...)	do {			\
+	printf("%s erom[0x%llx]: " fmt, __FUNCTION__,		\
+	    (unsigned long long)(erom->offset), ##__VA_ARGS__);	\
 } while(0)
 
 /** Return the type name for an EROM entry */
@@ -154,106 +134,52 @@ bcma_erom_entry_type_name (uint8_t entry)
 	}
 }
 
-
-/**
- * Read a 32-bit value from an EROM I/O context.
- * 
- * @param io EROM I/O context.
- * @param offset Read offset.
- */
-static uint32_t
-bcma_eio_read4(struct bcma_erom_io *io, bus_size_t offset)
-{
-	bus_size_t read_off;
-
-	read_off = io->start + offset;
-	if (io->res != NULL)
-		return (bhnd_bus_read_4(io->res, read_off));
-	else
-		return (bus_space_read_4(io->bst, io->bsh, read_off));
-}
-
-/* Initialize bcma_erom resource I/O context */
-static void
-bcma_eio_init(struct bcma_erom_io *io, struct bhnd_resource *res, int rid,
-    bus_size_t offset)
-{
-	io->res = res;
-	io->rid = rid;
-	io->start = offset;
-}
-
-/* Initialize bcma_erom bus space I/O context */
-static void
-bcma_eio_init_static(struct bcma_erom_io *io, bus_space_tag_t bst,
-    bus_space_handle_t bsh, bus_size_t offset)
-{
-	io->res = NULL;
-	io->rid = -1;
-	io->bst = bst;
-	io->bsh = bsh;
-	io->start = offset;
-}
-
 /* BCMA implementation of BHND_EROM_INIT() */
 static int
 bcma_erom_init(bhnd_erom_t *erom, const struct bhnd_chipid *cid,
-    device_t parent, int rid)
+    struct bhnd_erom_io *eio)
 {
 	struct bcma_erom	*sc;
-	struct bhnd_resource	*res;
+	bhnd_addr_t		 table_addr;
+	int			 error;
 
 	sc = (struct bcma_erom *)erom;
-	sc->dev = parent;
+	sc->eio = eio;
 	sc->offset = 0;
 
-	res = bhnd_alloc_resource(parent, SYS_RES_MEMORY, &rid, cid->enum_addr,
-	    cid->enum_addr + BCMA_EROM_TABLE_SIZE - 1, BCMA_EROM_TABLE_SIZE,
-	    RF_ACTIVE|RF_SHAREABLE);
+	/* Determine erom table address */
+	if (BHND_ADDR_MAX - BCMA_EROM_TABLE_START < cid->enum_addr)
+		return (ENXIO); /* would overflow */
 
-	if (res == NULL)
-		return (ENOMEM);
+	table_addr = cid->enum_addr + BCMA_EROM_TABLE_START;
 
-	bcma_eio_init(&sc->io, res, rid, BCMA_EROM_TABLE_START);
+	/* Try to map the erom table */
+	error = bhnd_erom_io_map(sc->eio, table_addr, BCMA_EROM_TABLE_SIZE);
+	if (error)
+		return (error);
 
 	return (0);
 }
 
-/* BCMA implementation of BHND_EROM_INIT_STATIC() */
+/* BCMA implementation of BHND_EROM_PROBE() */
 static int
-bcma_erom_init_static(bhnd_erom_t *erom, const struct bhnd_chipid *cid,
-    bus_space_tag_t bst, bus_space_handle_t bsh)
+bcma_erom_probe(bhnd_erom_class_t *cls, struct bhnd_erom_io *eio,
+    const struct bhnd_chipid *hint, struct bhnd_chipid *cid)
 {
-	struct bcma_erom	*sc;
-
-	sc = (struct bcma_erom *)erom;
-	sc->dev = NULL;
-	sc->offset = 0;
-
-	bcma_eio_init_static(&sc->io, bst, bsh, BCMA_EROM_TABLE_START);
-
-	return (0);
-}
-
-/* Common implementation of BHND_EROM_PROBE/BHND_EROM_PROBE_STATIC */
-static int
-bcma_erom_probe_common(struct bcma_erom_io *io, const struct bhnd_chipid *hint,
-    struct bhnd_chipid *cid)
-{
-	uint32_t	idreg, eromptr;
+	uint32_t idreg, eromptr;
 
 	/* Hints aren't supported; all BCMA devices have a ChipCommon
 	 * core */
 	if (hint != NULL)
 		return (EINVAL);
 
-	/* Confirm CHIPC_EROMPTR availability */
-	idreg = bcma_eio_read4(io, CHIPC_ID);
+	/* Confirm CHIPC_EROMPTR availability */	
+	idreg = bhnd_erom_io_read(eio, CHIPC_ID, 4);
 	if (!BHND_CHIPTYPE_HAS_EROM(CHIPC_GET_BITS(idreg, CHIPC_ID_BUS)))
 		return (ENXIO);
 
 	/* Fetch EROM address */
-	eromptr = bcma_eio_read4(io, CHIPC_EROMPTR);
+	eromptr = bhnd_erom_io_read(eio, CHIPC_EROMPTR, 4);
 
 	/* Parse chip identifier */
 	*cid = bhnd_parse_chipid(idreg, eromptr);
@@ -272,42 +198,12 @@ bcma_erom_probe_common(struct bcma_erom_io *io, const struct bhnd_chipid *hint,
 	}	
 }
 
-static int
-bcma_erom_probe(bhnd_erom_class_t *cls, struct bhnd_resource *res,
-    bus_size_t offset, const struct bhnd_chipid *hint, struct bhnd_chipid *cid)
-{
-	struct bcma_erom_io io;
-
-	bcma_eio_init(&io, res, rman_get_rid(res->res),
-	    offset + BCMA_EROM_TABLE_START);
-
-	return (bcma_erom_probe_common(&io, hint, cid));
-}
-
-static int
-bcma_erom_probe_static(bhnd_erom_class_t *cls, bus_space_tag_t bst,
-     bus_space_handle_t bsh, bus_addr_t paddr, const struct bhnd_chipid *hint,
-     struct bhnd_chipid *cid)
-{
-	struct bcma_erom_io io;
-
-	bcma_eio_init_static(&io, bst, bsh, BCMA_EROM_TABLE_START);
-	return (bcma_erom_probe_common(&io, hint, cid));
-}
-
-
 static void
 bcma_erom_fini(bhnd_erom_t *erom)
 {
 	struct bcma_erom *sc = (struct bcma_erom *)erom;
 
-	if (sc->io.res != NULL) {
-		bhnd_release_resource(sc->dev, SYS_RES_MEMORY, sc->io.rid,
-		    sc->io.res);
-
-		sc->io.res = NULL;
-		sc->io.rid = -1;
-	}
+	bhnd_erom_io_fini(sc->eio);
 }
 
 static int
@@ -591,8 +487,8 @@ bcma_erom_peek32(struct bcma_erom *erom, uint32_t *entry)
 		EROM_LOG(erom, "BCMA EROM table missing terminating EOF\n");
 		return (EINVAL);
 	}
-	
-	*entry = bcma_eio_read4(&erom->io, erom->offset);
+
+	*entry = bhnd_erom_io_read(erom->eio, erom->offset, 4);
 	return (0);
 }
 
@@ -1520,9 +1416,7 @@ bcma_erom_dump(bhnd_erom_t *erom)
 
 static kobj_method_t bcma_erom_methods[] = {
 	KOBJMETHOD(bhnd_erom_probe,		bcma_erom_probe),
-	KOBJMETHOD(bhnd_erom_probe_static,	bcma_erom_probe_static),
 	KOBJMETHOD(bhnd_erom_init,		bcma_erom_init),
-	KOBJMETHOD(bhnd_erom_init_static,	bcma_erom_init_static),
 	KOBJMETHOD(bhnd_erom_fini,		bcma_erom_fini),
 	KOBJMETHOD(bhnd_erom_get_core_table,	bcma_erom_get_core_table),
 	KOBJMETHOD(bhnd_erom_free_core_table,	bcma_erom_free_core_table),
