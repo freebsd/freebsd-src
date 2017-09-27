@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -95,6 +99,8 @@ struct bhndb_softc {
 
 	device_t			 parent_dev;	/**< parent device */
 	device_t			 bus_dev;	/**< child bhnd(4) bus */
+
+	struct bhnd_service_registry	 services;	/**< local service registry */
 
 	struct mtx			 sc_mtx;	/**< resource lock. */
 	struct bhndb_resources		*bus_res;	/**< bus resource state */
