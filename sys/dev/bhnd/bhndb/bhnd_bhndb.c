@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -90,7 +94,7 @@ bhnd_bhndb_find_hostb_device(device_t dev)
 
 	/* Find the corresponding bus device */
 	md = bhnd_core_get_match_desc(&core);
-	return (bhnd_match_child(dev, &md));
+	return (bhnd_bus_match_child(dev, &md));
 }
 
 static int
