@@ -45,7 +45,7 @@ struct bhndb_pci_softc;
 /*
  * An interconnect-specific function implementing BHNDB_SET_WINDOW_ADDR
  */
-typedef int (*bhndb_pci_set_regwin_t)(struct bhndb_pci_softc *sc,
+typedef int (*bhndb_pci_set_regwin_t)(device_t dev, device_t pci_dev,
 	         const struct bhndb_regwin *rw, bhnd_addr_t addr);
 
 /* bhndb_pci interrupt state */
