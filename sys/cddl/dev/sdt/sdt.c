@@ -85,16 +85,16 @@ static dtrace_pattr_t sdt_attr = {
 };
 
 static dtrace_pops_t sdt_pops = {
-	sdt_provide_probes,
-	NULL,
-	sdt_enable,
-	sdt_disable,
-	NULL,
-	NULL,
-	sdt_getargdesc,
-	NULL,
-	NULL,
-	sdt_destroy,
+	.dtps_provide =		sdt_provide_probes,
+	.dtps_provide_module =	NULL,
+	.dtps_enable =		sdt_enable,
+	.dtps_disable =		sdt_disable,
+	.dtps_suspend =		NULL,
+	.dtps_resume =		NULL,
+	.dtps_getargdesc =	sdt_getargdesc,
+	.dtps_getargval =	NULL,
+	.dtps_usermode =	NULL,
+	.dtps_destroy =		sdt_destroy,
 };
 
 static TAILQ_HEAD(, sdt_provider) sdt_prov_list;
