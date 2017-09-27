@@ -1627,6 +1627,14 @@ nfscl_cleanclient(struct nfsclclient *clp)
 {
 	struct nfsclowner *owp, *nowp;
 	struct nfsclopen *op, *nop;
+	struct nfscllayout *lyp, *nlyp;
+	struct nfscldevinfo *dip, *ndip;
+
+	TAILQ_FOREACH_SAFE(lyp, &clp->nfsc_layout, nfsly_list, nlyp)
+		nfscl_freelayout(lyp);
+
+	LIST_FOREACH_SAFE(dip, &clp->nfsc_devinfo, nfsdi_list, ndip)
+		nfscl_freedevinfo(dip);
 
 	/* Now, all the OpenOwners, etc. */
 	LIST_FOREACH_SAFE(owp, &clp->nfsc_owner, nfsow_list, nowp) {
