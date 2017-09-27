@@ -73,9 +73,6 @@ sctp_set_primary_ip_address_sa(struct sctp_tcb *,
     struct sockaddr *);
 
 extern void
-     sctp_set_primary_ip_address(struct sctp_ifa *ifa);
-
-extern void
 sctp_check_address_list(struct sctp_tcb *, struct mbuf *, int, int,
     struct sockaddr *, uint16_t, uint16_t, uint16_t, uint16_t);
 
