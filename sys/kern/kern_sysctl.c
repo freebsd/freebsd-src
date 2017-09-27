@@ -2061,16 +2061,9 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 		}
 	}
 	req.validlen = req.oldlen;
-
-	if (old) {
-		if (!useracc(old, req.oldlen, VM_PROT_WRITE))
-			return (EFAULT);
-		req.oldptr= old;
-	}
+	req.oldptr = old;
 
 	if (new != NULL) {
-		if (!useracc(new, newlen, VM_PROT_READ))
-			return (EFAULT);
 		req.newlen = newlen;
 		req.newptr = new;
 	}
