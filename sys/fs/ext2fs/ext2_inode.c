@@ -90,8 +90,12 @@ ext2_update(struct vnode *vp, int waitfor)
 		brelse(bp);
 		return (error);
 	}
-	ext2_i2ei(ip, (struct ext2fs_dinode *)((char *)bp->b_data +
+	error = ext2_i2ei(ip, (struct ext2fs_dinode *)((char *)bp->b_data +
 	    EXT2_INODE_SIZE(fs) * ino_to_fsbo(fs, ip->i_number)));
+	if (error) {
+		brelse(bp);
+		return (error);
+	}
 	if (waitfor && !DOINGASYNC(vp))
 		return (bwrite(bp));
 	else {
