@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170927: crshared
+OLD_FILES+=usr/share/man/man9/crshared.9.gz
 # 20170927: procctl
 OLD_FILES+=usr/share/man/man8/procctl.8.gz
 OLD_FILES+=usr/sbin/procctl
