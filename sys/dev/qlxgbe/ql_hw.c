@@ -3248,6 +3248,7 @@ qla_init_xmt_cntxt_i(qla_host_t *ha, uint32_t txr_idx)
 
 	hw_tx_cntxt->txr_free = NUM_TX_DESCRIPTORS;
 	hw_tx_cntxt->txr_next = hw_tx_cntxt->txr_comp = 0;
+	*(hw_tx_cntxt->tx_cons) = 0;
 
         if (qla_mbx_cmd(ha, (uint32_t *)tcntxt,
 		(sizeof (q80_rq_tx_cntxt_t) >> 2),
