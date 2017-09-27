@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170927: procctl
+OLD_FILES+=usr/share/man/man8/procctl.8.gz
+OLD_FILES+=usr/sbin/procctl
 # 20170926: remove unneeded man aliases and locales directory
 OLD_FILES+=usr/share/man/en.ISO8859-1/man1
 OLD_FILES+=usr/share/man/en.ISO8859-1/man2

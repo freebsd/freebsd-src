@@ -708,7 +708,6 @@ DIRDEPS+= \
 	usr.sbin/pppctl \
 	usr.sbin/praliases \
 	usr.sbin/praudit \
-	usr.sbin/procctl \
 	usr.sbin/prometheus_sysctl_exporter \
 	usr.sbin/pstat \
 	usr.sbin/pw \
