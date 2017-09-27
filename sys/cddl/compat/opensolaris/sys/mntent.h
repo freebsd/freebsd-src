@@ -46,7 +46,7 @@
 #define	MNTOPT_NODEVICES	"nodevices"	/* Device-special disallowed */
 #define	MNTOPT_SETUID	"setuid"	/* Set uid allowed */
 #define	MNTOPT_NOSETUID	"nosetuid"	/* Set uid not allowed */
-#define	MNTOPT_REMOUNT	"remount"	/* Change mount options */
+#define	MNTOPT_REMOUNT	"update"	/* Change mount options */
 #define	MNTOPT_ATIME	"atime"		/* update atime for files */
 #define	MNTOPT_NOATIME  "noatime"	/* do not update atime for files */
 #define	MNTOPT_XATTR	"xattr"		/* enable extended attributes */
