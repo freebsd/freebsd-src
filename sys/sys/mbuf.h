@@ -335,6 +335,16 @@ struct mbuf {
  * for ordering and distribution without explicit affinity.  Additionally,
  * M_HASHTYPE_OPAQUE_HASH indicates that the flow identifier has hash
  * properties.
+ *
+ * The meaning of the IPV6_EX suffix:
+ * "o  Home address from the home address option in the IPv6 destination
+ *     options header.  If the extension header is not present, use the Source
+ *     IPv6 Address.
+ *  o  IPv6 address that is contained in the Routing-Header-Type-2 from the
+ *     associated extension header.  If the extension header is not present,
+ *     use the Destination IPv6 Address."
+ * Quoted from:
+ * https://docs.microsoft.com/en-us/windows-hardware/drivers/network/rss-hashing-types#ndishashipv6ex
  */
 #define	M_HASHTYPE_HASHPROP		0x80	/* has hash properties */
 #define	M_HASHTYPE_HASH(t)		(M_HASHTYPE_HASHPROP | (t))
@@ -348,10 +358,7 @@ struct mbuf {
 							    * ext hdrs */
 #define	M_HASHTYPE_RSS_TCP_IPV6_EX	M_HASHTYPE_HASH(6) /* TCPv6 4-tuple +
 							    * ext hdrs */
-/* Non-standard RSS hash types */
 #define	M_HASHTYPE_RSS_UDP_IPV4		M_HASHTYPE_HASH(7) /* IPv4 UDP 4-tuple*/
-#define	M_HASHTYPE_RSS_UDP_IPV4_EX	M_HASHTYPE_HASH(8) /* IPv4 UDP 4-tuple +
-							    * ext hdrs */
 #define	M_HASHTYPE_RSS_UDP_IPV6		M_HASHTYPE_HASH(9) /* IPv6 UDP 4-tuple*/
 #define	M_HASHTYPE_RSS_UDP_IPV6_EX	M_HASHTYPE_HASH(10)/* IPv6 UDP 4-tuple +
 							    * ext hdrs */
