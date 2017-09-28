@@ -460,7 +460,7 @@ crypto_newsession(u_int64_t *sid, struct cryptoini *cri, int crid)
 			CRYPTDEB("dev newsession failed");
 	} else {
 		CRYPTDEB("no driver");
-		err = EINVAL;
+		err = EOPNOTSUPP;
 	}
 	CRYPTO_DRIVER_UNLOCK();
 	return err;

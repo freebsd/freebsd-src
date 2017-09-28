@@ -30,6 +30,7 @@
 #
 
 from __future__ import print_function
+import errno
 import cryptodev
 import itertools
 import os
@@ -46,7 +47,7 @@ def katg(base, glob):
 
 aesmodules = [ 'cryptosoft0', 'aesni0', 'ccr0' ]
 desmodules = [ 'cryptosoft0', ]
-shamodules = [ 'cryptosoft0', 'ccr0' ]
+shamodules = [ 'cryptosoft0', 'aesni0', 'ccr0' ]
 
 def GenTestCase(cname):
 	try:
@@ -284,8 +285,14 @@ def GenTestCase(cname):
 					if len(key) > blocksize:
 						continue
 
-					c = Crypto(mac=alg, mackey=key,
-					    crid=crid)
+					try:
+						c = Crypto(mac=alg, mackey=key,
+						    crid=crid)
+					except EnvironmentError, e:
+						# Can't test hashes the driver does not support.
+						if e.errno != errno.EOPNOTSUPP:
+							raise
+						continue
 
 					_, r = c.encrypt(msg, iv="")
 

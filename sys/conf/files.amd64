@@ -182,6 +182,16 @@ aesni_wrap.o			optional aesni				\
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
 crypto/des/des_enc.c		optional	crypto | ipsec | \
 	ipsec_support | netsmb
+intel_sha1.o			optional	aesni			\
+	dependency	"$S/crypto/aesni/intel_sha1.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -msse4 -msha ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"intel_sha1.o"
+intel_sha256.o			optional	aesni			\
+	dependency	"$S/crypto/aesni/intel_sha256.c"		\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -msse4 -msha ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"intel_sha256.o"
 crypto/via/padlock.c		optional	padlock
 crypto/via/padlock_cipher.c	optional	padlock
 crypto/via/padlock_hash.c	optional	padlock

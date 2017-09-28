@@ -158,14 +158,7 @@ awusbphy_configure(device_t dev, int phyno)
 		return;
 
 	if (sc->phy_conf->pmu_unk1 == true)
-		CLR4(sc->phy_ctrl, PMU_UNK_H3, PMU_UNK_H3_CLR);
-
-	if (sc->phy_conf->phy0_route == true) {
-		if (phyno == 0)
-			SET4(sc->phy_ctrl, OTG_PHY_CFG, OTG_PHY_ROUTE_OTG);
-		else
-			CLR4(sc->phy_ctrl, OTG_PHY_CFG, OTG_PHY_ROUTE_OTG);
-	}
+		CLR4(sc->pmu[phyno], PMU_UNK_H3, PMU_UNK_H3_CLR);
 
 	SET4(sc->pmu[phyno], PMU_IRQ_ENABLE, PMU_ULPI_BYPASS |
 	    PMU_AHB_INCR8 | PMU_AHB_INCR4 | PMU_AHB_INCRX_ALIGN);
@@ -266,8 +259,11 @@ awusbphy_vbus_detect(device_t dev, int *val)
 
 	if (sc->vbus_det_valid) {
 		error = gpio_pin_is_active(sc->vbus_det_pin, &active);
-		if (error != 0)
+		if (error != 0) {
+			device_printf(dev, "Cannot get status of id pin %d\n",
+			    error);
 			return (error);
+		}
 		*val = active;
 		return (0);
 	}
@@ -300,7 +296,21 @@ awusbphy_phy_enable(device_t dev, intptr_t phy, bool enable)
 		/* If an external vbus is detected, do not enable phy 0 */
 		if (phy == 0) {
 			error = awusbphy_vbus_detect(dev, &vbus_det);
-			if (error == 0 && vbus_det == 1)
+			if (error)
+				goto out;
+
+			/* Depending on the PHY we need to route OTG to OHCI/EHCI */
+			if (sc->phy_conf->phy0_route == true) {
+				if (vbus_det == 0)
+					/* Host mode */
+					CLR4(sc->phy_ctrl, OTG_PHY_CFG,
+					     OTG_PHY_ROUTE_OTG);
+				else
+					/* Peripheral mode */
+					SET4(sc->phy_ctrl, OTG_PHY_CFG,
+					     OTG_PHY_ROUTE_OTG);
+			}
+			if (vbus_det == 1)
 				return (0);
 		} else
 			error = 0;
@@ -308,6 +318,8 @@ awusbphy_phy_enable(device_t dev, intptr_t phy, bool enable)
 			error = regulator_enable(reg);
 	} else
 		error = regulator_disable(reg);
+
+out:
 	if (error != 0) {
 		device_printf(dev,
 		    "couldn't %s regulator for phy %jd\n",

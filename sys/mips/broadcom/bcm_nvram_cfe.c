@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2016 Landon Fuller <landonf@FreeBSD.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -120,6 +124,13 @@ bhnd_nvram_cfe_attach(device_t dev)
 	if (error)
 		return (error);
 
+	error = bhnd_service_registry_add(&bp->services, dev,
+	    BHND_SERVICE_NVRAM, 0);
+	if (error) {
+		bhnd_nvram_store_free(sc->store);
+		return (error);
+	}
+
 	return (error);
 }
 
@@ -138,9 +149,17 @@ bhnd_nvram_cfe_suspend(device_t dev)
 static int
 bhnd_nvram_cfe_detach(device_t dev)
 {
-	struct bhnd_nvram_cfe_softc *sc;
+	struct bcm_platform		*bp;
+	struct bhnd_nvram_cfe_softc	*sc;
+	int				 error;
 
+	bp = bcm_get_platform();
 	sc = device_get_softc(dev);
+
+	error = bhnd_service_registry_remove(&bp->services, dev,
+	    BHND_SERVICE_ANY);
+	if (error)
+		return (error);
 
 	bhnd_nvram_store_free(sc->store);
 

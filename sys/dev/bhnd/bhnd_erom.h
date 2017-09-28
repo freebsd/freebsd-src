@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2015-2016 Landon Fuller <landonf@FreeBSD.org>
+ * Copyright (c) 2015-2017 Landon Fuller <landonf@FreeBSD.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,19 +45,38 @@
 
 #include "bhnd_erom_if.h"
 
-bhnd_erom_t			*bhnd_erom_alloc(bhnd_erom_class_t *cls,
-				     const struct bhnd_chipid *cid,
-				     device_t parent, int rid);
+/* forward declarations */
+struct bhnd_erom_io;
+struct bhnd_erom_iobus;
 
-int				 bhnd_erom_init_static(bhnd_erom_class_t *cls,
-				     bhnd_erom_t *erom, size_t esize,
-				     const struct bhnd_chipid *cid,
-				     bus_space_tag_t bst,
-				     bus_space_handle_t bsh);
+bhnd_erom_class_t	*bhnd_erom_probe_driver_classes(devclass_t bus_devclass,
+			     struct bhnd_erom_io *eio,
+			     const struct bhnd_chipid *hint,
+			     struct bhnd_chipid *cid);
 
-void				 bhnd_erom_fini_static(bhnd_erom_t *erom);
+bhnd_erom_t		*bhnd_erom_alloc(bhnd_erom_class_t *cls,
+			     const struct bhnd_chipid *cid,
+			     struct bhnd_erom_io *eio);
 
-void				 bhnd_erom_free(bhnd_erom_t *erom);
+int			 bhnd_erom_init_static(bhnd_erom_class_t *cls,
+			     bhnd_erom_t *erom, size_t esize,
+			     const struct bhnd_chipid *cid,
+			     struct bhnd_erom_io *eio);
+
+void			 bhnd_erom_fini_static(bhnd_erom_t *erom);
+
+void			 bhnd_erom_free(bhnd_erom_t *erom);
+
+struct bhnd_erom_io	*bhnd_erom_iores_new(device_t dev, int rid);
+int			 bhnd_erom_iobus_init(struct bhnd_erom_iobus *iobus,
+			     bhnd_addr_t addr, bhnd_size_t size,
+			     bus_space_tag_t bst, bus_space_handle_t bsh);
+
+int			 bhnd_erom_io_map(struct bhnd_erom_io *eio,
+			     bhnd_addr_t addr, bhnd_size_t size);
+uint32_t		 bhnd_erom_io_read(struct bhnd_erom_io *eio,
+			     bhnd_size_t offset, u_int width);
+void			 bhnd_erom_io_fini(struct bhnd_erom_io *eio);
 
 /**
  * Abstract bhnd_erom instance state. Must be first member of all subclass
@@ -92,19 +115,18 @@ SET_DECLARE(bhnd_erom_class_set, bhnd_erom_class_t);
 
 #define	BHND_EROM_CLASS_DEF(classvar)	DATA_SET(bhnd_erom_class_set, classvar)
 
-
 /**
  * Probe to see if this device enumeration class supports the bhnd bus
- * mapped by the given resource, returning a standard newbus device probe
- * result (see BUS_PROBE_*) and the probed chip identification.
+ * mapped by @p eio, returning a standard newbus device probe result
+ * (see BUS_PROBE_*) and the probed chip identification.
  *
  * @param	cls	The erom class to probe.
- * @param	res	A resource mapping the first bus core (EXTIF or
- *			ChipCommon)
- * @param	offset	Offset to the first bus core within @p res.
- * @param	hint	Identification hint used to identify the device. If
- *			chipset supports standard chip identification registers
- *			within the first core, this parameter should be NULL.
+ * @param	eio	A bus I/O instance, configured with a mapping of the
+ *			first bus core.
+ * @param	hint	Identification hint used to identify the device.
+ *			If chipset supports standard chip identification
+ *			registers within the first core, this parameter should
+ *			be NULL.
  * @param[out]	cid	On success, the probed chip identifier.
  *
  * @retval 0		if this is the only possible device enumeration
@@ -117,43 +139,10 @@ SET_DECLARE(bhnd_erom_class_set, bhnd_erom_class_t);
  *			code should be returned.
  */
 static inline int
-bhnd_erom_probe(bhnd_erom_class_t *cls, struct bhnd_resource *res,
-    bus_size_t offset, const struct bhnd_chipid *hint, struct bhnd_chipid *cid)
+bhnd_erom_probe(bhnd_erom_class_t *cls, struct bhnd_erom_io *eio,
+    const struct bhnd_chipid *hint, struct bhnd_chipid *cid)
 {
-	return (BHND_EROM_PROBE(cls, res, offset, hint, cid));
-}
-
-/**
- * Probe to see if this device enumeration class supports the bhnd bus
- * mapped at the given bus space tag and handle, returning a standard
- * newbus device probe result (see BUS_PROBE_*) and the probed
- * chip identification.
- *
- * @param	cls	The erom class to probe.
- * @param	bst	Bus space tag.
- * @param	bsh	Bus space handle mapping the EXTIF or ChipCommon core.
- * @param	paddr	The physical address of the core mapped by @p bst and
- *			@p bsh.
- * @param	hint	Identification hint used to identify the device. If
- *			chipset supports standard chip identification registers
- *			within the first core, this parameter should be NULL.
- * @param[out]	cid	On success, the probed chip identifier.
- *
- * @retval 0		if this is the only possible device enumeration
- *			parser for the probed bus.
- * @retval negative	if the probe succeeds, a negative value should be
- *			returned; the parser returning the lowest value will
- *			be selected to handle device enumeration.
- * @retval ENXIO	If the bhnd bus type is not handled by this parser.
- * @retval positive	if an error occurs during probing, a regular unix error
- *			code should be returned.
- */
-static inline int
-bhnd_erom_probe_static(bhnd_erom_class_t *cls, bus_space_tag_t bst,
-    bus_space_handle_t bsh, bus_addr_t paddr, const struct bhnd_chipid *hint,
-    struct bhnd_chipid *cid)
-{
-	return (BHND_EROM_PROBE_STATIC(cls, bst, bsh, paddr, hint, cid));
+	return (BHND_EROM_PROBE(cls, eio, hint, cid));
 }
 
 /**
