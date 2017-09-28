@@ -114,6 +114,8 @@ static int trap_pfault(struct trapframe *, int, vm_offset_t);
 static void trap_fatal(struct trapframe *, vm_offset_t);
 void dblfault_handler(void);
 
+extern inthand_t IDTVEC(lcall_syscall);
+
 #define MAX_TRAP_MSG		32
 static char *trap_msg[] = {
 	"",					/*  0 unused */
@@ -627,6 +629,23 @@ user_trctrap_out:
 
 		case T_TRCTRAP:	 /* trace trap */
 kernel_trctrap:
+			if (frame->tf_eip == (int)IDTVEC(lcall_syscall)) {
+				/*
+				 * We've just entered system mode via the
+				 * syscall lcall.  Continue single stepping
+				 * silently until the syscall handler has
+				 * saved the flags.
+				 */
+				return;
+			}
+			if (frame->tf_eip == (int)IDTVEC(lcall_syscall) + 1) {
+				/*
+				 * The syscall handler has now saved the
+				 * flags.  Stop single stepping it.
+				 */
+				frame->tf_eflags &= ~PSL_T;
+				return;
+			}
 			/*
 			 * Ignore debug register trace traps due to
 			 * accesses in the user's address space, which

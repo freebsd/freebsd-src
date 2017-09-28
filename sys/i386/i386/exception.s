@@ -98,16 +98,15 @@ MCOUNT_LABEL(user)
 MCOUNT_LABEL(btrap)
 
 #define	TRAP(a)		pushl $(a) ; jmp alltraps
-#define	TRAP_NOEN(a)	pushl $(a) ; jmp alltraps_noen
 
 IDTVEC(div)
 	pushl $0; TRAP(T_DIVIDE)
 IDTVEC(dbg)
-	pushl $0; TRAP_NOEN(T_TRCTRAP)
+	pushl $0; TRAP(T_TRCTRAP)
 IDTVEC(nmi)
-	pushl $0; TRAP_NOEN(T_NMI)
+	pushl $0; TRAP(T_NMI)
 IDTVEC(bpt)
-	pushl $0; TRAP_NOEN(T_BPTFLT)
+	pushl $0; TRAP(T_BPTFLT)
 IDTVEC(dtrace_ret)
 	pushl $0; TRAP(T_DTRACE_RET)
 IDTVEC(ofl)
@@ -131,7 +130,7 @@ IDTVEC(stk)
 IDTVEC(prot)
 	TRAP(T_PROTFLT)
 IDTVEC(page)
-	TRAP_NOEN(T_PAGEFLT)
+	TRAP(T_PAGEFLT)
 IDTVEC(mchk)
 	pushl $0; TRAP(T_MCHK)
 IDTVEC(rsvd)
@@ -143,21 +142,6 @@ IDTVEC(align)
 IDTVEC(xmm)
 	pushl $0; TRAP(T_XMMFLT)
 
-	SUPERALIGN_TEXT
-	.globl	alltraps_noen
-alltraps_noen:
-	pushal
-	pushl	$0
-	movw	%ds,(%esp)
-	pushl	$0
-	movw	%es,(%esp)
-	pushl	$0
-	movw	%fs,(%esp)
-	SET_KERNEL_SREGS
-	cld
-	FAKE_MCOUNT(TF_EIP(%esp))
-	jmp	calltrap
-	
 	/*
 	 * All traps except ones for syscalls jump to alltraps.  If
 	 * interrupts were enabled when the trap occurred, then interrupts
@@ -180,7 +164,6 @@ alltraps:
 	movw	%fs,(%esp)
 alltraps_with_regs_pushed:
 	SET_KERNEL_SREGS
-	sti
 	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 calltrap:
@@ -242,6 +225,40 @@ norm_ill:
 #endif
 
 /*
+ * Call gate entry for syscalls (lcall 7,0).
+ * This is used by FreeBSD 1.x a.out executables and "old" NetBSD executables.
+ *
+ * The intersegment call has been set up to specify one dummy parameter.
+ * This leaves a place to put eflags so that the call frame can be
+ * converted to a trap frame. Note that the eflags is (semi-)bogusly
+ * pushed into (what will be) tf_err and then copied later into the
+ * final spot. It has to be done this way because esp can't be just
+ * temporarily altered for the pushfl - an interrupt might come in
+ * and clobber the saved cs/eip.
+ */
+	SUPERALIGN_TEXT
+IDTVEC(lcall_syscall)
+	pushfl				/* save eflags */
+	popl	8(%esp)			/* shuffle into tf_eflags */
+	pushl	$7			/* sizeof "lcall 7,0" */
+	pushl	$0			/* tf_trapno */
+	pushal
+	pushl	$0
+	movw	%ds,(%esp)
+	pushl	$0
+	movw	%es,(%esp)
+	pushl	$0
+	movw	%fs,(%esp)
+	SET_KERNEL_SREGS
+	cld
+	FAKE_MCOUNT(TF_EIP(%esp))
+	pushl	%esp
+	call	syscall
+	add	$4, %esp
+	MEXITCOUNT
+	jmp	doreti
+
+/*
  * Trap gate entry for syscalls (int 0x80).
  * This is used by FreeBSD ELF executables, "new" NetBSD executables, and all
  * Linux executables.
@@ -262,7 +279,6 @@ IDTVEC(int0x80_syscall)
 	pushl	$0
 	movw	%fs,(%esp)
 	SET_KERNEL_SREGS
-	sti
 	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
@@ -346,7 +362,7 @@ doreti_next:
 #ifdef HWPMC_HOOKS
 	je	doreti_nmi
 #else
-	je	doreti_notvm86
+	je	doreti_exit
 #endif
 	/*
 	 * PSL_VM must be checked first since segment registers only
@@ -362,7 +378,7 @@ doreti_next:
 
 doreti_notvm86:
 	testb	$SEL_RPL_MASK,TF_CS(%esp) /* are we returning to user mode? */
-	jz	doreti_nosegs		/* can't handle ASTs now if not */
+	jz	doreti_exit		/* can't handle ASTs now if not */
 
 doreti_ast:
 	/*
@@ -399,12 +415,6 @@ doreti_popl_es:
 	.globl	doreti_popl_ds
 doreti_popl_ds:
 	popl	%ds
-	jmp	doreti_iret_popal
-
-doreti_nosegs:
-	MEXITCOUNT
-	addl	$12,%esp
-doreti_iret_popal:
 	popal
 	addl	$8,%esp
 	.globl	doreti_iret
@@ -447,7 +457,7 @@ doreti_nmi:
 	 * needs a user call chain capture.
 	 */
 	testb	$SEL_RPL_MASK,TF_CS(%esp)
-	jz	doreti_nosegs
+	jz	doreti_exit
 	movl	PCPU(CURTHREAD),%eax	/* curthread present? */
 	orl	%eax,%eax
 	jz	doreti_exit
