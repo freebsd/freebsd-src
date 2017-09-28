@@ -1513,7 +1513,7 @@ extern inthand_t
 #ifdef XENHVM
 	IDTVEC(xen_intr_upcall),
 #endif
-	IDTVEC(int0x80_syscall);
+	IDTVEC(lcall_syscall), IDTVEC(int0x80_syscall);
 
 #ifdef DDB
 /*
@@ -2157,9 +2157,7 @@ i386_kdb_init(void)
 register_t
 init386(int first)
 {
-#ifdef COMPAT_43
-	struct segment_descriptor *gdp;
-#endif
+	struct gate_descriptor *gdp;
 	int gsel_tss, metadata_missing, x, pa;
 	struct pcpu *pc;
 	struct xstate_hdr *xhdr;
@@ -2248,9 +2246,9 @@ init386(int first)
 
 	/* exceptions */
 	for (x = 0; x < NIDT; x++)
-		setidt(x, &IDTVEC(rsvd), SDT_SYS386IGT, SEL_KPL,
+		setidt(x, &IDTVEC(rsvd), SDT_SYS386TGT, SEL_KPL,
 		    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_DE, &IDTVEC(div),  SDT_SYS386IGT, SEL_KPL,
+	setidt(IDT_DE, &IDTVEC(div),  SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 	setidt(IDT_DB, &IDTVEC(dbg),  SDT_SYS386IGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
@@ -2258,39 +2256,39 @@ init386(int first)
 	    GSEL(GCODE_SEL, SEL_KPL));
  	setidt(IDT_BP, &IDTVEC(bpt),  SDT_SYS386IGT, SEL_UPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_OF, &IDTVEC(ofl),  SDT_SYS386IGT, SEL_UPL,
+	setidt(IDT_OF, &IDTVEC(ofl),  SDT_SYS386TGT, SEL_UPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_BR, &IDTVEC(bnd),  SDT_SYS386IGT, SEL_KPL,
+	setidt(IDT_BR, &IDTVEC(bnd),  SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_UD, &IDTVEC(ill),  SDT_SYS386IGT, SEL_KPL,
+	setidt(IDT_UD, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_NM, &IDTVEC(dna),  SDT_SYS386IGT, SEL_KPL
+	setidt(IDT_NM, &IDTVEC(dna),  SDT_SYS386TGT, SEL_KPL
 	    , GSEL(GCODE_SEL, SEL_KPL));
 	setidt(IDT_DF, 0,  SDT_SYSTASKGT, SEL_KPL, GSEL(GPANIC_SEL, SEL_KPL));
-	setidt(IDT_FPUGP, &IDTVEC(fpusegm),  SDT_SYS386IGT, SEL_KPL,
+	setidt(IDT_FPUGP, &IDTVEC(fpusegm),  SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_TS, &IDTVEC(tss),  SDT_SYS386IGT, SEL_KPL,
+	setidt(IDT_TS, &IDTVEC(tss),  SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_NP, &IDTVEC(missing),  SDT_SYS386IGT, SEL_KPL,
+	setidt(IDT_NP, &IDTVEC(missing),  SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_SS, &IDTVEC(stk),  SDT_SYS386IGT, SEL_KPL,
+	setidt(IDT_SS, &IDTVEC(stk),  SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_GP, &IDTVEC(prot),  SDT_SYS386IGT, SEL_KPL,
+	setidt(IDT_GP, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 	setidt(IDT_PF, &IDTVEC(page),  SDT_SYS386IGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_MF, &IDTVEC(fpu),  SDT_SYS386IGT, SEL_KPL,
+	setidt(IDT_MF, &IDTVEC(fpu),  SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_AC, &IDTVEC(align), SDT_SYS386IGT, SEL_KPL,
+	setidt(IDT_AC, &IDTVEC(align), SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_MC, &IDTVEC(mchk),  SDT_SYS386IGT, SEL_KPL,
+	setidt(IDT_MC, &IDTVEC(mchk),  SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_XF, &IDTVEC(xmm), SDT_SYS386IGT, SEL_KPL,
+	setidt(IDT_XF, &IDTVEC(xmm), SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
- 	setidt(IDT_SYSCALL, &IDTVEC(int0x80_syscall), SDT_SYS386IGT, SEL_UPL,
+ 	setidt(IDT_SYSCALL, &IDTVEC(int0x80_syscall), SDT_SYS386TGT, SEL_UPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 #ifdef KDTRACE_HOOKS
-	setidt(IDT_DTRACE_RET, &IDTVEC(dtrace_ret), SDT_SYS386IGT, SEL_UPL,
+	setidt(IDT_DTRACE_RET, &IDTVEC(dtrace_ret), SDT_SYS386TGT, SEL_UPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 #endif
 #ifdef XENHVM
@@ -2331,9 +2329,9 @@ init386(int first)
 	clock_init();
 
 	finishidentcpu();	/* Final stage of CPU initialization */
-	setidt(IDT_UD, &IDTVEC(ill),  SDT_SYS386IGT, SEL_KPL,
+	setidt(IDT_UD, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_GP, &IDTVEC(prot),  SDT_SYS386IGT, SEL_KPL,
+	setidt(IDT_GP, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 	initializecpu();	/* Initialize CPU registers */
 	initializecpucache();
@@ -2438,21 +2436,17 @@ init386(int first)
 	gdt[GPROC0_SEL].sd.sd_type = SDT_SYS386TSS;	/* clear busy bit */
 	ltr(gsel_tss);
 
-#ifdef COMPAT_43
-	/*
-	 * Make a code descriptor to emulate lcall $7,$0 with int
-	 * $0x80.  sd_hibase and sd_lobase are set after the sigtramp
-	 * base in the shared table is known.
-	 */
-	gdp = &ldt[LSYS5CALLS_SEL].sd;
-	gdp->sd_type = SDT_MEMERA;
-	gdp->sd_dpl = SEL_UPL;
-	gdp->sd_p = 1;
-	gdp->sd_def32 = 1;
-	gdp->sd_gran = 1;
-	gdp->sd_lolimit = 0xffff;
-	gdp->sd_hilimit = 0xf;
-#endif
+	/* make a call gate to reenter kernel with */
+	gdp = &ldt[LSYS5CALLS_SEL].gd;
+
+	x = (int) &IDTVEC(lcall_syscall);
+	gdp->gd_looffset = x;
+	gdp->gd_selector = GSEL(GCODE_SEL,SEL_KPL);
+	gdp->gd_stkcpy = 1;
+	gdp->gd_type = SDT_SYS386CGT;
+	gdp->gd_dpl = SEL_UPL;
+	gdp->gd_p = 1;
+	gdp->gd_hioffset = x >> 16;
 
 	/* transfer to user mode */
 

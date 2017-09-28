@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
@@ -339,18 +337,3 @@ exec_aout_imgact(struct image_params *imgp)
  */
 static struct execsw aout_execsw = { exec_aout_imgact, "a.out" };
 EXEC_SET(aout, aout_execsw);
-
-#if defined(__i386__) && defined(COMPAT_43)
-static void
-exec_init_lcall(void *arg __unused)
-{
-	struct segment_descriptor *gdp;
-	u_int lcall_addr;
-
-	gdp = &ldt[LSYS5CALLS_SEL].sd;
-	lcall_addr = aout_sysvec.sv_psstrings - szlcallcode;
-	gdp->sd_hibase = lcall_addr >> 24;
-	gdp->sd_lobase = lcall_addr;
-}
-SYSINIT(aout, SI_SUB_EXEC + 1, SI_ORDER_ANY, exec_init_lcall, NULL);
-#endif
