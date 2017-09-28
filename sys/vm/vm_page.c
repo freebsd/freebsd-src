@@ -418,17 +418,15 @@ vm_page_domain_init(struct vm_domain *vmd)
 vm_offset_t
 vm_page_startup(vm_offset_t vaddr)
 {
-	vm_offset_t mapped;
-	vm_paddr_t high_avail, low_avail, page_range, size;
-	vm_paddr_t new_end;
-	int i;
-	vm_paddr_t pa;
-	vm_paddr_t last_pa;
+	struct vm_domain *vmd;
+	struct vm_phys_seg *seg;
+	vm_page_t m;
 	char *list, *listend;
-	vm_paddr_t end;
-	vm_paddr_t biggestsize;
-	int biggestone;
-	int pages_per_zone;
+	vm_offset_t mapped;
+	vm_paddr_t end, high_avail, low_avail, new_end, page_range, size;
+	vm_paddr_t biggestsize, last_pa, pa;
+	u_long pagecount;
+	int biggestone, i, pages_per_zone, segind;
 
 	biggestsize = 0;
 	biggestone = 0;
@@ -509,6 +507,8 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_page_dump = (void *)(uintptr_t)pmap_map(&vaddr, new_end,
 	    new_end + vm_page_dump_size, VM_PROT_READ | VM_PROT_WRITE);
 	bzero((void *)vm_page_dump, vm_page_dump_size);
+#else
+	(void)last_pa;
 #endif
 #if defined(__aarch64__) || defined(__amd64__) || defined(__mips__)
 	/*
@@ -613,7 +613,9 @@ vm_page_startup(vm_offset_t vaddr)
 	new_end = trunc_page(end - page_range * sizeof(struct vm_page));
 	mapped = pmap_map(&vaddr, new_end, end,
 	    VM_PROT_READ | VM_PROT_WRITE);
-	vm_page_array = (vm_page_t) mapped;
+	vm_page_array = (vm_page_t)mapped;
+	vm_page_array_size = page_range;
+
 #if VM_NRESERVLEVEL > 0
 	/*
 	 * Allocate physical memory for the reservation management system's
@@ -640,33 +642,52 @@ vm_page_startup(vm_offset_t vaddr)
 		vm_phys_add_seg(phys_avail[i], phys_avail[i + 1]);
 
 	/*
-	 * Clear all of the page structures
-	 */
-	bzero((caddr_t) vm_page_array, page_range * sizeof(struct vm_page));
-	for (i = 0; i < page_range; i++)
-		vm_page_array[i].order = VM_NFREEORDER;
-	vm_page_array_size = page_range;
-
-	/*
 	 * Initialize the physical memory allocator.
 	 */
 	vm_phys_init();
 
 	/*
-	 * Add every available physical page that is not blacklisted to
-	 * the free lists.
+	 * Initialize the page structures and add every available page to the
+	 * physical memory allocator's free lists.
 	 */
 	vm_cnt.v_page_count = 0;
 	vm_cnt.v_free_count = 0;
-	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
-		pa = phys_avail[i];
-		last_pa = phys_avail[i + 1];
-		while (pa < last_pa) {
-			vm_phys_add_page(pa);
-			pa += PAGE_SIZE;
+	for (segind = 0; segind < vm_phys_nsegs; segind++) {
+		seg = &vm_phys_segs[segind];
+		for (pa = seg->start; pa < seg->end; pa += PAGE_SIZE)
+			vm_phys_init_page(pa);
+
+		/*
+		 * Add the segment to the free lists only if it is covered by
+		 * one of the ranges in phys_avail.  Because we've added the
+		 * ranges to the vm_phys_segs array, we can assume that each
+		 * segment is either entirely contained in one of the ranges,
+		 * or doesn't overlap any of them.
+		 */
+		for (i = 0; phys_avail[i + 1] != 0; i += 2) {
+			if (seg->start < phys_avail[i] ||
+			    seg->end > phys_avail[i + 1])
+				continue;
+
+			m = seg->first_page;
+			pagecount = (u_long)atop(seg->end - seg->start);
+
+			mtx_lock(&vm_page_queue_free_mtx);
+			vm_phys_free_contig(m, pagecount);
+			vm_phys_freecnt_adj(m, (int)pagecount);
+			mtx_unlock(&vm_page_queue_free_mtx);
+			vm_cnt.v_page_count += (u_int)pagecount;
+
+			vmd = &vm_dom[seg->domain];
+			vmd->vmd_page_count += (u_int)pagecount;
+			vmd->vmd_segs |= 1UL << m->segind;
+			break;
 		}
 	}
 
+	/*
+	 * Remove blacklisted pages from the physical memory allocator.
+	 */
 	TAILQ_INIT(&blacklist_head);
 	vm_page_blacklist_load(&list, &listend);
 	vm_page_blacklist_check(list, listend);
