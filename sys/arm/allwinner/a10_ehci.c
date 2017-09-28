@@ -88,11 +88,21 @@ __FBSDID("$FreeBSD$");
 static device_attach_t a10_ehci_attach;
 static device_detach_t a10_ehci_detach;
 
+struct clk_list {
+	TAILQ_ENTRY(clk_list)	next;
+	clk_t			clk;
+};
+
+struct hwrst_list {
+	TAILQ_ENTRY(hwrst_list)	next;
+	hwreset_t		rst;
+};
+
 struct aw_ehci_softc {
 	ehci_softc_t	sc;
-	clk_t		clk;
-	hwreset_t	rst;
-	phy_t		phy;
+	TAILQ_HEAD(, clk_list)		clk_list;
+	TAILQ_HEAD(, hwrst_list)	rst_list;
+	phy_t				phy;
 };
 
 struct aw_ehci_conf {
@@ -114,6 +124,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun7i-a20-ehci",	(uintptr_t)&a10_ehci_conf },
 	{ "allwinner,sun8i-a83t-ehci",	(uintptr_t)&a31_ehci_conf },
 	{ "allwinner,sun8i-h3-ehci",	(uintptr_t)&a31_ehci_conf },
+	/* { "allwinner,sun50i-a64-ehci",	(uintptr_t)&a31_ehci_conf }, */
 	{ NULL,				(uintptr_t)NULL }
 };
 
@@ -139,8 +150,11 @@ a10_ehci_attach(device_t self)
 	ehci_softc_t *sc = &aw_sc->sc;
 	const struct aw_ehci_conf *conf;
 	bus_space_handle_t bsh;
-	int err;
-	int rid;
+	int err, rid, off;
+	struct clk_list *clkp;
+	clk_t clk;
+	struct hwrst_list *rstp;
+	hwreset_t rst;
 	uint32_t reg_value = 0;
 
 	conf = USB_CONF(self);
@@ -204,25 +218,31 @@ a10_ehci_attach(device_t self)
 
 	sc->sc_flags |= EHCI_SCFLG_DONTRESET;
 
+	/* Enable clock for USB */
+	TAILQ_INIT(&aw_sc->clk_list);
+	for (off = 0; clk_get_by_ofw_index(self, 0, off, &clk) == 0; off++) {
+		err = clk_enable(clk);
+		if (err != 0) {
+			device_printf(self, "Could not enable clock %s\n",
+			    clk_get_name(clk));
+			goto error;
+		}
+		clkp = malloc(sizeof(*clkp), M_DEVBUF, M_WAITOK | M_ZERO);
+		clkp->clk = clk;
+		TAILQ_INSERT_TAIL(&aw_sc->clk_list, clkp, next);
+	}
+
 	/* De-assert reset */
-	if (hwreset_get_by_ofw_idx(self, 0, 0, &aw_sc->rst) == 0) {
-		err = hwreset_deassert(aw_sc->rst);
+	TAILQ_INIT(&aw_sc->rst_list);
+	for (off = 0; hwreset_get_by_ofw_idx(self, 0, off, &rst) == 0; off++) {
+		err = hwreset_deassert(rst);
 		if (err != 0) {
 			device_printf(self, "Could not de-assert reset\n");
 			goto error;
 		}
-	}
-
-	/* Enable clock for USB */
-	err = clk_get_by_ofw_index(self, 0, 0, &aw_sc->clk);
-	if (err != 0) {
-		device_printf(self, "Could not get clock\n");
-		goto error;
-	}
-	err = clk_enable(aw_sc->clk);
-	if (err != 0) {
-		device_printf(self, "Could not enable clock\n");
-		goto error;
+		rstp = malloc(sizeof(*rstp), M_DEVBUF, M_WAITOK | M_ZERO);
+		rstp->rst = rst;
+		TAILQ_INSERT_TAIL(&aw_sc->rst_list, rstp, next);
 	}
 
 	/* Enable USB PHY */
@@ -272,6 +292,8 @@ a10_ehci_detach(device_t self)
 	const struct aw_ehci_conf *conf;
 	int err;
 	uint32_t reg_value = 0;
+	struct clk_list *clk, *clk_tmp;
+	struct hwrst_list *rst, *rst_tmp;
 
 	conf = USB_CONF(self);
 
@@ -319,16 +341,26 @@ a10_ehci_detach(device_t self)
 	reg_value &= ~SW_ULPI_BYPASS; /* ULPI bypass disable */
 	A10_WRITE_4(sc, SW_USB_PMU_IRQ_ENABLE, reg_value);
 
-	/* Disable clock for USB */
-	if (aw_sc->clk != NULL) {
-		clk_disable(aw_sc->clk);
-		clk_release(aw_sc->clk);
+	/* Disable clock */
+	TAILQ_FOREACH_SAFE(clk, &aw_sc->clk_list, next, clk_tmp) {
+		err = clk_disable(clk->clk);
+		if (err != 0)
+			device_printf(self, "Could not disable clock %s\n",
+			    clk_get_name(clk->clk));
+		err = clk_release(clk->clk);
+		if (err != 0)
+			device_printf(self, "Could not release clock %s\n",
+			    clk_get_name(clk->clk));
+		TAILQ_REMOVE(&aw_sc->clk_list, clk, next);
+		free(clk, M_DEVBUF);
 	}
 
 	/* Assert reset */
-	if (aw_sc->rst != NULL) {
-		hwreset_assert(aw_sc->rst);
-		hwreset_release(aw_sc->rst);
+	TAILQ_FOREACH_SAFE(rst, &aw_sc->rst_list, next, rst_tmp) {
+		hwreset_assert(rst->rst);
+		hwreset_release(rst->rst);
+		TAILQ_REMOVE(&aw_sc->rst_list, rst, next);
+		free(rst, M_DEVBUF);
 	}
 
 	return (0);

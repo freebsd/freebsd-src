@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -222,14 +226,14 @@ siba_bhndb_wars_pcie_clear_d11_timeout(struct siba_softc *sc)
 	uint32_t		 imcfg;
 
 	/* Only applies when bridged by PCIe */
-	if ((hostb_dev = bhnd_find_hostb_device(sc->dev)) == NULL)
+	if ((hostb_dev = bhnd_bus_find_hostb_device(sc->dev)) == NULL)
 		return (ENXIO);
 
 	if (bhnd_get_class(hostb_dev) != BHND_DEVCLASS_PCIE)
 		return (0);
 
 	/* Only applies if there's a D11 core */
-	d11 = bhnd_match_child(sc->dev, &(struct bhnd_core_match) {
+	d11 = bhnd_bus_match_child(sc->dev, &(struct bhnd_core_match) {
 		BHND_MATCH_CORE(BHND_MFGID_BCM, BHND_COREID_D11),
 		BHND_MATCH_CORE_UNIT(0)
 	});
@@ -259,7 +263,7 @@ siba_bhndb_wars_hwup(struct siba_softc *sc)
 	uint32_t		 quirks;
 	int			 error;
 
-	if ((hostb_dev = bhnd_find_hostb_device(sc->dev)) == NULL)
+	if ((hostb_dev = bhnd_bus_find_hostb_device(sc->dev)) == NULL)
 		return (ENXIO);
 
 	quirks = bhnd_device_quirks(hostb_dev, bridge_devs,

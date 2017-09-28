@@ -165,6 +165,11 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,	0}
 };
 
+struct clk_list {
+	TAILQ_ENTRY(clk_list)	next;
+	clk_t			clk;
+};
+
 struct a10_gpio_softc {
 	device_t		sc_dev;
 	device_t		sc_busdev;
@@ -175,6 +180,7 @@ struct a10_gpio_softc {
 	bus_space_handle_t	sc_bsh;
 	void *			sc_intrhand;
 	const struct allwinner_padconf *	padconf;
+	TAILQ_HEAD(, clk_list)		clk_list;
 };
 
 #define	A10_GPIO_LOCK(_sc)		mtx_lock_spin(&(_sc)->sc_mtx)
@@ -766,8 +772,10 @@ a10_gpio_attach(device_t dev)
 	int rid, error;
 	phandle_t gpio;
 	struct a10_gpio_softc *sc;
+	struct clk_list *clkp, *clkp_tmp;
 	clk_t clk;
-	hwreset_t rst;
+	hwreset_t rst = NULL;
+	int off, err;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -811,12 +819,17 @@ a10_gpio_attach(device_t dev)
 		}
 	}
 
-	if (clk_get_by_ofw_index(dev, 0, 0, &clk) == 0) {
-		error = clk_enable(clk);
-		if (error != 0) {
-			device_printf(dev, "could not enable clock\n");
-			return (error);
+	TAILQ_INIT(&sc->clk_list);
+	for (off = 0; clk_get_by_ofw_index(dev, 0, off, &clk) == 0; off++) {
+		err = clk_enable(clk);
+		if (err != 0) {
+			device_printf(dev, "Could not enable clock %s\n",
+			    clk_get_name(clk));
+			goto fail;
 		}
+		clkp = malloc(sizeof(*clkp), M_DEVBUF, M_WAITOK | M_ZERO);
+		clkp->clk = clk;
+		TAILQ_INSERT_TAIL(&sc->clk_list, clkp, next);
 	}
 
 	sc->sc_busdev = gpiobus_attach_bus(dev);
@@ -839,6 +852,26 @@ fail:
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 	mtx_destroy(&sc->sc_mtx);
+
+	/* Disable clock */
+	TAILQ_FOREACH_SAFE(clkp, &sc->clk_list, next, clkp_tmp) {
+		err = clk_disable(clkp->clk);
+		if (err != 0)
+			device_printf(dev, "Could not disable clock %s\n",
+			    clk_get_name(clkp->clk));
+		err = clk_release(clkp->clk);
+		if (err != 0)
+			device_printf(dev, "Could not release clock %s\n",
+			    clk_get_name(clkp->clk));
+		TAILQ_REMOVE(&sc->clk_list, clkp, next);
+		free(clkp, M_DEVBUF);
+	}
+
+	/* Assert resets */
+	if (rst) {
+		hwreset_assert(rst);
+		hwreset_release(rst);
+	}
 
 	return (ENXIO);
 }

@@ -97,16 +97,6 @@ __FBSDID("$FreeBSD$");
 
 #define	A3700_TCLK_250MHZ		250000000
 
-STATIC uint32_t
-mvneta_get_clk()
-{
-#if defined(__aarch64__)
-	return (A3700_TCLK_250MHZ);
-#else
-	return (get_tclk());
-#endif
-}
-
 /* Device Register Initialization */
 STATIC int mvneta_initreg(struct ifnet *);
 
@@ -212,6 +202,9 @@ STATIC int mvneta_detach(device_t);
 /* MII */
 STATIC int mvneta_miibus_readreg(device_t, int, int);
 STATIC int mvneta_miibus_writereg(device_t, int, int, int);
+
+/* Clock */
+STATIC uint32_t mvneta_get_clk(void);
 
 static device_method_t mvneta_methods[] = {
 	/* Device interface */
@@ -353,6 +346,16 @@ static struct {
 } mvneta_intrs[] = {
 	{ mvneta_rxtxth_intr, "MVNETA aggregated interrupt" },
 };
+
+STATIC uint32_t
+mvneta_get_clk()
+{
+#if defined(__aarch64__)
+	return (A3700_TCLK_250MHZ);
+#else
+	return (get_tclk());
+#endif
+}
 
 static int
 mvneta_set_mac_address(struct mvneta_softc *sc, uint8_t *addr)
@@ -831,11 +834,9 @@ STATIC int
 mvneta_detach(device_t dev)
 {
 	struct mvneta_softc *sc;
-	struct ifnet *ifp;
 	int q;
 
 	sc = device_get_softc(dev);
-	ifp = sc->ifp;
 
 	mvneta_stop(sc);
 	/* Detach network interface */

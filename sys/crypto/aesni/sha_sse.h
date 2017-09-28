@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
- * Copyright (c) 2013 iXsystems, Inc.
+ * Copyright (c) 2017 Conrad Meyer <cem@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,46 +26,13 @@
  * $FreeBSD$
  */
 
-#ifndef _OPENSOLARIS_SYS_CONDVAR_H_
-#define	_OPENSOLARIS_SYS_CONDVAR_H_
+#ifndef _CRYPTO__SHA_SSE_H_
+#define _CRYPTO__SHA_SSE_H_
 
-#include <sys/param.h>
-#include <sys/proc.h>
+/*
+ * Internal functions, implemented in intrinsics.
+ */
+void intel_sha1_step(uint32_t *digest, const char *data, uint32_t num_blks);
+void intel_sha256_step(uint32_t *digest, const char *data, uint32_t num_blks);
 
-#ifdef _KERNEL
-
-#include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/time.h>
-
-typedef struct cv	kcondvar_t;
-
-typedef enum {
-	CV_DEFAULT,
-	CV_DRIVER
-} kcv_type_t;
-
-#define	zfs_cv_init(cv, name, type, arg)	do {			\
-	const char *_name;						\
-	ASSERT((type) == CV_DEFAULT);					\
-	for (_name = #cv; *_name != '\0'; _name++) {			\
-		if (*_name >= 'a' && *_name <= 'z')			\
-			break;						\
-	}								\
-	if (*_name == '\0')						\
-		_name = #cv;						\
-	cv_init((cv), _name);						\
-} while (0)
-#define	cv_init(cv, name, type, arg)	zfs_cv_init(cv, name, type, arg)
-
-static clock_t
-cv_timedwait_hires(kcondvar_t *cvp, kmutex_t *mp, hrtime_t tim, hrtime_t res,
-    int flag)
-{
-
-	return (cv_timedwait_sbt(cvp, mp, nstosbt(tim), nstosbt(res), 0));
-}
-
-#endif	/* _KERNEL */
-
-#endif	/* _OPENSOLARIS_SYS_CONDVAR_H_ */
+#endif /* _CRYPTO__SHA_SSE_H_ */

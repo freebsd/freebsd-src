@@ -3078,22 +3078,23 @@ vm_page_unswappable(vm_page_t m)
 }
 
 /*
- * vm_page_try_to_free()
+ * Attempt to free the page.  If it cannot be freed, do nothing.  Returns true
+ * if the page is freed and false otherwise.
  *
- *	Attempt to free the page.  If we cannot free it, we do nothing.
- *	true is returned on success, false on failure.
+ * The page must be managed.  The page and its containing object must be
+ * locked.
  */
 bool
 vm_page_try_to_free(vm_page_t m)
 {
 
 	vm_page_assert_locked(m);
-	if (m->object != NULL)
-		VM_OBJECT_ASSERT_WLOCKED(m->object);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0, ("page %p is unmanaged", m));
 	if (m->dirty != 0 || m->hold_count != 0 || m->wire_count != 0 ||
-	    (m->oflags & VPO_UNMANAGED) != 0 || vm_page_busied(m))
+	    vm_page_busied(m))
 		return (false);
-	if (m->object != NULL && m->object->ref_count != 0) {
+	if (m->object->ref_count != 0) {
 		pmap_remove_all(m);
 		if (m->dirty != 0)
 			return (false);
