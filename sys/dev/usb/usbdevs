@@ -2703,6 +2703,7 @@ product LEADTEK 9531		0x2101	9531 GPS
 /* Lenovo products */
 product LENOVO GIGALAN		0x304b	USB 3.0 Ethernet
 product LENOVO ETHERNET		0x7203	USB 2.0 Ethernet
+product LENOVO RTL8153		0x7205	USB 3.0 Ethernet
 
 /* Lexar products */
 product LEXAR JUMPSHOT		0x0001	jumpSHOT CompactFlash Reader
