@@ -152,7 +152,6 @@
 /* Compile all complex data tables, signatures starting with A-I */
 
 #include "aslcompiler.h"
-#include "dtcompiler.h"
 
 #define _COMPONENT          DT_COMPILER
         ACPI_MODULE_NAME    ("dttable1")

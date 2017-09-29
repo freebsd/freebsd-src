@@ -347,10 +347,31 @@ MtMethodAnalysisWalkBegin (
 
     case PARSEOP_METHODCALL:
 
+        /* Check for a recursive method call */
+
         if (MethodInfo &&
            (Op->Asl.Node == MethodInfo->Op->Asl.Node))
         {
-            AslError (ASL_REMARK, ASL_MSG_RECURSION, Op, Op->Asl.ExternalName);
+            if (MethodInfo->CreatesNamedObjects)
+            {
+                /*
+                 * This is an error, as it will fail at runtime on all ACPI
+                 * implementations. Any named object declarations will be
+                 * executed twice, causing failure the second time. Note,
+                 * this is independent of whether the method is declared
+                 * Serialized, because the same thread is attempting to
+                 * reenter the method, and this will always succeed.
+                 */
+                AslDualParseOpError (ASL_ERROR, ASL_MSG_ILLEGAL_RECURSION, Op,
+                    Op->Asl.Value.String, ASL_MSG_FOUND_HERE, MethodInfo->Op,
+                    MethodInfo->Op->Asl.ExternalName);
+            }
+            else
+            {
+                /* Method does not create objects, issue a remark */
+
+                AslError (ASL_REMARK, ASL_MSG_RECURSION, Op, Op->Asl.ExternalName);
+            }
         }
         break;
 
@@ -622,20 +643,28 @@ MtCheckNamedObjectInMethod (
         return;
     }
 
-    /* Determine if we are creating a named object */
+    /* Determine if we are creating a named object within a method */
+
+    if (!MethodInfo)
+    {
+        return;
+    }
 
     OpInfo = AcpiPsGetOpcodeInfo (Op->Asl.AmlOpcode);
     if (OpInfo->Class == AML_CLASS_NAMED_OBJECT)
     {
         /*
-         * If we have a named object created within a non-serialized method,
-         * emit a remark that the method should be serialized.
+         * 1) Mark the method as a method that creates named objects.
+         *
+         * 2) If the method is non-serialized, emit a remark that the method
+         * should be serialized.
          *
          * Reason: If a thread blocks within the method for any reason, and
-         * another thread enters the method, the method will fail because an
-         * attempt will be made to create the same object twice.
+         * another thread enters the method, the method will fail because
+         * an attempt will be made to create the same object twice.
          */
-        if (MethodInfo && !MethodInfo->ShouldBeSerialized)
+        MethodInfo->CreatesNamedObjects = TRUE;
+        if (!MethodInfo->ShouldBeSerialized)
         {
             AslError (ASL_REMARK, ASL_MSG_SERIALIZED_REQUIRED, MethodInfo->Op,
                 "due to creation of named objects within");

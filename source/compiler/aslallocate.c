@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: aecommon - common include for the AcpiExec utility
+ * Module Name: aslallocate -- Local memory allocation
  *
  *****************************************************************************/
 
@@ -149,178 +149,155 @@
  *
  *****************************************************************************/
 
-#ifndef _AECOMMON
-#define _AECOMMON
-
-#ifdef _MSC_VER                 /* disable some level-4 warnings */
-#pragma warning(disable:4100)   /* warning C4100: unreferenced formal parameter */
-#endif
-
-#include "acpi.h"
-#include "accommon.h"
-#include "acparser.h"
-#include "amlcode.h"
-#include "acnamesp.h"
-#include "acdebug.h"
-#include "actables.h"
-#include "acinterp.h"
-#include "amlresrc.h"
-#include "acapps.h"
-
+#include "aslcompiler.h"
 
 /*
- * Debug Regions
+ * Local heap allocation wrappers. See aslcache.c for allocation from local
+ * cache alloctions
  */
-typedef struct ae_region
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtLocalCalloc
+ *
+ * PARAMETERS:  Size                - Bytes to be allocated
+ *
+ * RETURN:      Pointer to the allocated memory. If this function returns
+ *              (the compiler is not aborted), the pointer is guaranteed to
+ *              be valid.
+ *
+ * DESCRIPTION: Allocate zero-initialized memory. The point of this function
+ *              is to abort the compile on an allocation failure, on the
+ *              assumption that nothing more can be accomplished.
+ *
+ * NOTE:        For allocation from the local caches, see aslcache.c
+ *
+ ******************************************************************************/
+
+void *
+UtLocalCalloc (
+    UINT32                  Size)
 {
-    ACPI_PHYSICAL_ADDRESS   Address;
-    UINT32                  Length;
-    void                    *Buffer;
-    void                    *NextRegion;
-    UINT8                   SpaceId;
+    void                    *Allocated;
 
-} AE_REGION;
 
-typedef struct ae_debug_regions
+    Allocated = ACPI_ALLOCATE_ZEROED (Size);
+    if (!Allocated)
+    {
+        AslCommonError (ASL_ERROR, ASL_MSG_MEMORY_ALLOCATION,
+            Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
+            Gbl_InputByteCount, Gbl_CurrentColumn,
+            Gbl_Files[ASL_FILE_INPUT].Filename, NULL);
+
+        CmCleanupAndExit ();
+        exit (1);
+    }
+
+    TotalAllocations++;
+    TotalAllocated += Size;
+    return (Allocated);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    UtExpandLineBuffers
+ *
+ * PARAMETERS:  None. Updates global line buffer pointers.
+ *
+ * RETURN:      None. Reallocates the global line buffers
+ *
+ * DESCRIPTION: Called if the current line buffer becomes filled. Reallocates
+ *              all global line buffers and updates Gbl_LineBufferSize. NOTE:
+ *              Also used for the initial allocation of the buffers, when
+ *              all of the buffer pointers are NULL. Initial allocations are
+ *              of size ASL_DEFAULT_LINE_BUFFER_SIZE
+ *
+ *****************************************************************************/
+
+void
+UtExpandLineBuffers (
+    void)
 {
-    UINT32                  NumberOfRegions;
-    AE_REGION               *RegionList;
-
-} AE_DEBUG_REGIONS;
+    UINT32                  NewSize;
 
 
-extern BOOLEAN              AcpiGbl_IgnoreErrors;
-extern BOOLEAN              AcpiGbl_AbortLoopOnTimeout;
-extern UINT8                AcpiGbl_RegionFillValue;
-extern UINT8                AcpiGbl_UseHwReducedFadt;
-extern BOOLEAN              AcpiGbl_DisplayRegionAccess;
-extern BOOLEAN              AcpiGbl_DoInterfaceTests;
-extern BOOLEAN              AcpiGbl_LoadTestTables;
-extern FILE                 *AcpiGbl_NamespaceInitFile;
-extern ACPI_CONNECTION_INFO AeMyContext;
+    /* Attempt to double the size of all line buffers */
+
+    NewSize = Gbl_LineBufferSize * 2;
+    if (Gbl_CurrentLineBuffer)
+    {
+        DbgPrint (ASL_DEBUG_OUTPUT,
+            "Increasing line buffer size from %u to %u\n",
+            Gbl_LineBufferSize, NewSize);
+    }
+
+    UtReallocLineBuffers (&Gbl_CurrentLineBuffer, Gbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&Gbl_MainTokenBuffer, Gbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&Gbl_MacroTokenBuffer, Gbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&Gbl_ExpressionTokenBuffer, Gbl_LineBufferSize, NewSize);
+
+    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
+    Gbl_LineBufferSize = NewSize;
+}
 
 
-#define TEST_OUTPUT_LEVEL(lvl)          if ((lvl) & OutputLevel)
-
-#define OSD_PRINT(lvl,fp)               TEST_OUTPUT_LEVEL(lvl) {\
-                                            AcpiOsPrintf PARAM_LIST(fp);}
-
-#define AE_PREFIX                       "ACPI Exec: "
-
-void ACPI_SYSTEM_XFACE
-AeSignalHandler (
-    int                     Sig);
-
-ACPI_STATUS
-AeExceptionHandler (
-    ACPI_STATUS             AmlStatus,
-    ACPI_NAME               Name,
-    UINT16                  Opcode,
-    UINT32                  AmlOffset,
-    void                    *Context);
-
-ACPI_STATUS
-AeBuildLocalTables (
-    ACPI_NEW_TABLE_DESC     *TableList);
-
-ACPI_STATUS
-AeInstallTables (
-    void);
-
-ACPI_STATUS
-AeLoadTables (
-    void);
+/******************************************************************************
+ *
+ * FUNCTION:    UtReallocLineBuffers
+ *
+ * PARAMETERS:  Buffer              - Buffer to realloc
+ *              OldSize             - Old size of Buffer
+ *              NewSize             - New size of Buffer
+ *
+ * RETURN:      none
+ *
+ * DESCRIPTION: Reallocate and initialize Buffer
+ *
+ *****************************************************************************/
 
 void
-AeDumpNamespace (
-    void);
+UtReallocLineBuffers (
+    char                    **Buffer,
+    UINT32                  OldSize,
+    UINT32                  NewSize)
+{
+
+    *Buffer = realloc (*Buffer, NewSize);
+    if (*Buffer)
+    {
+        memset (*Buffer + OldSize, 0, NewSize - OldSize);
+        return;
+    }
+
+    printf ("Could not increase line buffer size from %u to %u\n",
+        OldSize, NewSize);
+
+    AslError (ASL_ERROR, ASL_MSG_BUFFER_ALLOCATION, NULL, NULL);
+    AslAbort ();
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    UtFreeLineBuffers
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Free all line buffers
+ *
+ *****************************************************************************/
 
 void
-AeDumpObject (
-    char                    *MethodName,
-    ACPI_BUFFER             *ReturnObj);
+UtFreeLineBuffers (
+    void)
+{
 
-void
-AeDumpBuffer (
-    UINT32                  Address);
-
-void
-AeExecute (
-    char                    *Name);
-
-void
-AeSetScope (
-    char                    *Name);
-
-void
-AeCloseDebugFile (
-    void);
-
-void
-AeOpenDebugFile (
-    char                    *Name);
-
-ACPI_STATUS
-AeDisplayAllMethods (
-    UINT32                  DisplayCount);
-
-ACPI_STATUS
-AeInstallEarlyHandlers (
-    void);
-
-ACPI_STATUS
-AeInstallLateHandlers (
-    void);
-
-void
-AeMiscellaneousTests (
-    void);
-
-ACPI_STATUS
-AeRegionHandler (
-    UINT32                  Function,
-    ACPI_PHYSICAL_ADDRESS   Address,
-    UINT32                  BitWidth,
-    UINT64                  *Value,
-    void                    *HandlerContext,
-    void                    *RegionContext);
-
-UINT32
-AeGpeHandler (
-    ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    void                    *Context);
-
-void
-AeGlobalEventHandler (
-    UINT32                  Type,
-    ACPI_HANDLE             GpeDevice,
-    UINT32                  EventNumber,
-    void                    *Context);
-
-/* aeregion */
-
-ACPI_STATUS
-AeInstallDeviceHandlers (
-    void);
-
-void
-AeInstallRegionHandlers (
-    void);
-
-void
-AeOverrideRegionHandlers (
-    void);
-
-
-/* aeinitfile */
-
-int
-AeOpenInitializationFile (
-    char                    *Filename);
-
-void
-AeDoObjectOverrides (
-    void);
-
-#endif /* _AECOMMON */
+    free (Gbl_CurrentLineBuffer);
+    free (Gbl_MainTokenBuffer);
+    free (Gbl_MacroTokenBuffer);
+    free (Gbl_ExpressionTokenBuffer);
+}

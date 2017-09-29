@@ -260,7 +260,7 @@ AcpiUtShortShiftLeft (
     if ((Count & 63) >= 32)
     {
         OperandOvl.Part.Hi = OperandOvl.Part.Lo;
-        OperandOvl.Part.Lo ^= OperandOvl.Part.Lo;
+        OperandOvl.Part.Lo = 0;
         Count = (Count & 63) - 32;
     }
     ACPI_SHIFT_LEFT_64_BY_32 (OperandOvl.Part.Hi,
@@ -305,7 +305,7 @@ AcpiUtShortShiftRight (
     if ((Count & 63) >= 32)
     {
         OperandOvl.Part.Lo = OperandOvl.Part.Hi;
-        OperandOvl.Part.Hi ^= OperandOvl.Part.Hi;
+        OperandOvl.Part.Hi = 0;
         Count = (Count & 63) - 32;
     }
     ACPI_SHIFT_RIGHT_64_BY_32 (OperandOvl.Part.Hi,

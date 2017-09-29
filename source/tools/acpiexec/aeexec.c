@@ -715,6 +715,7 @@ AeMiscellaneousTests (
     ACPI_HANDLE             Handle;
 
 #if (!ACPI_REDUCED_HARDWARE)
+    UINT32                  Temp;
     UINT32                  LockHandle1;
     UINT32                  LockHandle2;
     ACPI_VENDOR_UUID        Uuid =
@@ -972,6 +973,18 @@ AeMiscellaneousTests (
 
     Status = AcpiReleaseGlobalLock (LockHandle2);
     ACPI_CHECK_OK (AcpiReleaseGlobalLock, Status);
+
+    /* Test timer interfaces */
+
+    Status = AcpiGetTimerResolution (&Temp);
+    ACPI_CHECK_OK (AcpiGetTimerResolution, Status);
+
+    Status = AcpiGetTimer (&Temp);
+    ACPI_CHECK_OK (AcpiGetTimer, Status);
+
+    Status = AcpiGetTimerDuration (0x1000, 0x2000, &Temp);
+    ACPI_CHECK_OK (AcpiGetTimerDuration, Status);
+
 
 #endif /* !ACPI_REDUCED_HARDWARE */
 }

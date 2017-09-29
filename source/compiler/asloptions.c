@@ -178,9 +178,6 @@ AslDoResponseFile (
 #define ASL_TOKEN_SEPARATORS    " \t\n"
 #define ASL_SUPPORTED_OPTIONS   "@:a:b|c|d^D:e:f^gh^i|I:l^m:no|p:P^q^r:s|t|T+G^v^w|x:z"
 
-static char ASL_BUILD_DATE[] = __DATE__;
-static char ASL_BUILD_TIME[] = __TIME__;
-
 
 /*******************************************************************************
  *
@@ -207,7 +204,6 @@ AslCommandLine (
 
     if (argc < 2)
     {
-        printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
         Usage ();
         exit (1);
     }
@@ -541,7 +537,6 @@ AslDoOptions (
         {
         case '^':
 
-            printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
             Usage ();
             exit (0);
 
@@ -891,8 +886,8 @@ AslDoOptions (
 
         case 'd':
 
-            printf ("%s Build date/time: %s %s\n",
-                ASL_COMPILER_NAME, ASL_BUILD_DATE, ASL_BUILD_TIME);
+            printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
+            printf (ACPI_COMMON_BUILD_TIME);
             exit (0);
 
         case 'e':
