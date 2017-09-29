@@ -180,6 +180,7 @@ __DEFAULT_NO_OPTIONS = \
     GNU_GREP_COMPAT \
     HESIOD \
     LIBSOFT \
+    LOADER_FORCE_LE \
     NAND \
     OFED \
     OPENLDAP \
