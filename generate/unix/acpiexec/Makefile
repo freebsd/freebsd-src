@@ -140,6 +140,7 @@ OBJECTS = \
 	$(OBJDIR)/hwpci.o\
 	$(OBJDIR)/hwregs.o\
 	$(OBJDIR)/hwsleep.o\
+	$(OBJDIR)/hwtimer.o\
 	$(OBJDIR)/hwvalid.o\
 	$(OBJDIR)/hwxface.o\
 	$(OBJDIR)/hwxfsleep.o\

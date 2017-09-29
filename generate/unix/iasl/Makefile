@@ -51,9 +51,11 @@ OBJECTS = \
 	$(OBJDIR)/ahpredef.o\
 	$(OBJDIR)/ahtable.o\
 	$(OBJDIR)/ahuuids.o\
+	$(OBJDIR)/aslallocate.o\
 	$(OBJDIR)/aslanalyze.o\
 	$(OBJDIR)/aslascii.o\
 	$(OBJDIR)/aslbtypes.o\
+	$(OBJDIR)/aslcache.o\
 	$(OBJDIR)/aslcodegen.o\
 	$(OBJDIR)/aslcompile.o\
 	$(OBJDIR)/asldebug.o\

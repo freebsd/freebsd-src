@@ -150,7 +150,6 @@
  *****************************************************************************/
 
 #include "aslcompiler.h"
-#include "dtcompiler.h"
 #include "dtparser.y.h"
 
 #define _COMPONENT          DT_COMPILER

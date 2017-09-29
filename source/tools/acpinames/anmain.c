@@ -179,7 +179,7 @@ BOOLEAN                     AcpiGbl_NsLoadOnly = FALSE;
 
 
 #define AN_UTILITY_NAME             "ACPI Namespace Dump Utility"
-#define AN_SUPPORTED_OPTIONS        "?hlvx:"
+#define AN_SUPPORTED_OPTIONS        "?hlv^x:"
 
 
 /******************************************************************************
@@ -203,6 +203,7 @@ usage (
     ACPI_OPTION ("-?",                  "Display this message");
     ACPI_OPTION ("-l",                  "Load namespace only, no display");
     ACPI_OPTION ("-v",                  "Display version information");
+    ACPI_OPTION ("-vd",                 "Display build date and time");
     ACPI_OPTION ("-x <DebugLevel>",     "Debug output level");
 }
 
@@ -259,9 +260,25 @@ main (
         AcpiGbl_NsLoadOnly = TRUE;
         break;
 
-    case 'v': /* -v: (Version): signon already emitted, just exit */
+    case 'v':
 
-        return (0);
+        switch (AcpiGbl_Optarg[0])
+        {
+        case '^':  /* -v: (Version): signon already emitted, just exit */
+
+            exit (0);
+
+        case 'd':
+
+            printf (ACPI_COMMON_BUILD_TIME);
+            return (0);
+
+        default:
+
+            printf ("Unknown option: -v%s\n", AcpiGbl_Optarg);
+            return (-1);
+        }
+        break;
 
     case 'x':
 

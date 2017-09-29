@@ -189,6 +189,7 @@ AeDoOptions (
 
 UINT8                       AcpiGbl_RegionFillValue = 0;
 BOOLEAN                     AcpiGbl_IgnoreErrors = FALSE;
+BOOLEAN                     AcpiGbl_AbortLoopOnTimeout = FALSE;
 BOOLEAN                     AcpiGbl_DbOpt_NoRegionSupport = FALSE;
 UINT8                       AcpiGbl_UseHwReducedFadt = FALSE;
 BOOLEAN                     AcpiGbl_DoInterfaceTests = FALSE;
@@ -196,11 +197,9 @@ BOOLEAN                     AcpiGbl_LoadTestTables = FALSE;
 BOOLEAN                     AcpiGbl_AeLoadOnly = FALSE;
 static UINT8                AcpiGbl_ExecutionMode = AE_MODE_COMMAND_LOOP;
 static char                 BatchBuffer[AE_BUFFER_SIZE];    /* Batch command buffer */
-static char                 AeBuildDate[] = __DATE__;
-static char                 AeBuildTime[] = __TIME__;
 
 #define ACPIEXEC_NAME               "AML Execution/Debug Utility"
-#define AE_SUPPORTED_OPTIONS        "?b:d:e:f^ghi:lm^rv^:x:"
+#define AE_SUPPORTED_OPTIONS        "?b:d:e:f^ghlm^rt^v^:x:"
 
 
 /* Stubs for the disassembler */
@@ -270,9 +269,12 @@ usage (
     ACPI_OPTION ("-fv <Value>",         "Operation Region initialization fill value");
     printf ("\n");
 
-    ACPI_OPTION ("-i <Count>",          "Maximum iterations for AML while loops");
     ACPI_OPTION ("-l",                  "Load tables and namespace only");
     ACPI_OPTION ("-r",                  "Use hardware-reduced FADT V5");
+    ACPI_OPTION ("-te",                 "Exit loop on timeout instead of aborting method");
+    ACPI_OPTION ("-to <Seconds>",       "Set timeout period for AML while loops");
+    printf ("\n");
+
     ACPI_OPTION ("-v",                  "Display version information");
     ACPI_OPTION ("-vd",                 "Display build date and time");
     ACPI_OPTION ("-vi",                 "Verbose initialization output");
@@ -461,20 +463,6 @@ AeDoOptions (
         usage();
         return (1);
 
-    case 'i':
-
-        Temp = strtoul (AcpiGbl_Optarg, NULL, 0);
-        if (!Temp || (Temp > ACPI_UINT16_MAX))
-        {
-            printf ("%s: Invalid max loops value\n", AcpiGbl_Optarg);
-            return (-1);
-        }
-
-        AcpiGbl_MaxLoopIterations = (UINT16) Temp;
-        printf ("Max Loop Iterations is %u (0x%X)\n",
-            AcpiGbl_MaxLoopIterations, AcpiGbl_MaxLoopIterations);
-        break;
-
     case 'l':
 
         AcpiGbl_AeLoadOnly = TRUE;
@@ -503,6 +491,42 @@ AeDoOptions (
         printf ("Using ACPI 5.0 Hardware Reduced Mode via version 5 FADT\n");
         break;
 
+    case 't':
+
+        switch (AcpiGbl_Optarg[0])
+        {
+        case 'o':  /* -to: Set loop timeout in seconds */
+
+            if (AcpiGetoptArgument (argc, argv))
+            {
+                return (-1);
+            }
+
+            Temp = strtoul (AcpiGbl_Optarg, NULL, 0);
+            if (!Temp || (Temp > ACPI_UINT16_MAX))
+            {
+                printf ("%s: Invalid loop timeout value\n",
+                    AcpiGbl_Optarg);
+                return (-1);
+            }
+
+            AcpiGbl_MaxLoopIterations = (UINT16) Temp;
+            printf ("Automatic loop timeout after %u seconds\n",
+                AcpiGbl_MaxLoopIterations);
+            break;
+
+        case 'e':
+
+            AcpiGbl_AbortLoopOnTimeout = TRUE;
+            break;
+
+        default:
+
+            printf ("Unknown option: -t%s\n", AcpiGbl_Optarg);
+            return (-1);
+        }
+        break;
+
     case 'v':
 
         switch (AcpiGbl_Optarg[0])
@@ -514,7 +538,7 @@ AeDoOptions (
 
         case 'd':
 
-            printf ("Build date/time: %s %s\n", AeBuildDate, AeBuildTime);
+            printf (ACPI_COMMON_BUILD_TIME);
             return (1);
 
         case 'i':
@@ -597,6 +621,10 @@ main (
     {
         goto ErrorExit;
     }
+
+    /* Use a shorter timeout value for acpiexec */
+
+    AcpiGbl_MaxLoopIterations = 1;
 
     /* Initialize the AML debugger */
 

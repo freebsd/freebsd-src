@@ -180,6 +180,7 @@ DisplayUsage (
     ACPI_OPTION ("-m",                  "Extract multiple DSDT/SSDTs to a single file");
     ACPI_OPTION ("-s <signature>",      "Extract all tables with <signature>");
     ACPI_OPTION ("-v",                  "Display version information");
+    ACPI_OPTION ("-vd",                 "Display build date and time");
 
     ACPI_USAGE_TEXT ("\nExtract binary ACPI tables from text acpidump output\n");
     ACPI_USAGE_TEXT ("Default invocation extracts the DSDT and all SSDTs\n");
@@ -243,9 +244,25 @@ main (
         AxAction = AX_EXTRACT_SIGNATURE;    /* Extract only tables with this sig */
         break;
 
-    case 'v': /* -v: (Version): signon already emitted, just exit */
+    case 'v':
 
-        return (0);
+        switch (AcpiGbl_Optarg[0])
+        {
+        case '^':  /* -v: (Version): signon already emitted, just exit */
+
+            exit (0);
+
+        case 'd':
+
+            printf (ACPI_COMMON_BUILD_TIME);
+            return (0);
+
+        default:
+
+            printf ("Unknown option: -v%s\n", AcpiGbl_Optarg);
+            return (-1);
+        }
+        break;
 
     case 'h':
     default:
@@ -279,7 +296,7 @@ main (
 
     case AX_LIST_ALL:
 
-        Status = AxListTables (Filename);
+        Status = AxListAllTables (Filename);
         break;
 
     case AX_EXTRACT_SIGNATURE:

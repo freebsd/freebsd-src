@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: hwtimer.c - ACPI Power Management Timer Interface
+ * Module Name: aslcache -- Local cache support for iASL
  *
  *****************************************************************************/
 
@@ -149,200 +149,333 @@
  *
  *****************************************************************************/
 
-#define EXPORT_ACPI_INTERFACES
+#include "aslcompiler.h"
 
-#include "acpi.h"
-#include "accommon.h"
-
-#define _COMPONENT          ACPI_HARDWARE
-        ACPI_MODULE_NAME    ("hwtimer")
-
-
-#if (!ACPI_REDUCED_HARDWARE) /* Entire module */
-/******************************************************************************
+/*
+ * Local caches. The caches are fully deleted after the compilation/disassembly
+ * of each individual input file. Thus, individual allocations from the cache
+ * memory do not need to be freed or even released back into the cache.
  *
- * FUNCTION:    AcpiGetTimerResolution
- *
- * PARAMETERS:  Resolution          - Where the resolution is returned
- *
- * RETURN:      Status and timer resolution
- *
- * DESCRIPTION: Obtains resolution of the ACPI PM Timer (24 or 32 bits).
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiGetTimerResolution (
-    UINT32                  *Resolution)
-{
-    ACPI_FUNCTION_TRACE (AcpiGetTimerResolution);
+ * See aslallocate.c for standard heap allocations.
+ */
 
 
-    if (!Resolution)
-    {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
-    }
-
-    if ((AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) == 0)
-    {
-        *Resolution = 24;
-    }
-    else
-    {
-        *Resolution = 32;
-    }
-
-    return_ACPI_STATUS (AE_OK);
-}
-
-ACPI_EXPORT_SYMBOL (AcpiGetTimerResolution)
-
-
-/******************************************************************************
+/*******************************************************************************
  *
- * FUNCTION:    AcpiGetTimer
+ * FUNCTION:    UtLocalCacheCalloc
  *
- * PARAMETERS:  Ticks               - Where the timer value is returned
+ * PARAMETERS:  Length              - Size of buffer requested
  *
- * RETURN:      Status and current timer value (ticks)
+ * RETURN:      Pointer to the buffer. Aborts compiler on allocation failure
  *
- * DESCRIPTION: Obtains current value of ACPI PM Timer (in ticks).
+ * DESCRIPTION: Allocate a string buffer. Bypass the local
+ *              dynamic memory manager for performance reasons (This has a
+ *              major impact on the speed of the compiler.)
  *
  ******************************************************************************/
 
-ACPI_STATUS
-AcpiGetTimer (
-    UINT32                  *Ticks)
+char *
+UtLocalCacheCalloc (
+    UINT32                  Length)
 {
-    ACPI_STATUS             Status;
-    UINT64                  TimerValue;
+    char                    *Buffer;
+    ASL_CACHE_INFO          *Cache;
+    UINT32                  CacheSize = ASL_STRING_CACHE_SIZE;
 
 
-    ACPI_FUNCTION_TRACE (AcpiGetTimer);
-
-
-    if (!Ticks)
+    if (Length > CacheSize)
     {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
-    }
+        CacheSize = Length;
 
-    /* ACPI 5.0A: PM Timer is optional */
-
-    if (!AcpiGbl_FADT.XPmTimerBlock.Address)
-    {
-        return_ACPI_STATUS (AE_SUPPORT);
-    }
-
-    Status = AcpiHwRead (&TimerValue, &AcpiGbl_FADT.XPmTimerBlock);
-    if (ACPI_SUCCESS (Status))
-    {
-        /* ACPI PM Timer is defined to be 32 bits (PM_TMR_LEN) */
-
-        *Ticks = (UINT32) TimerValue;
-    }
-
-    return_ACPI_STATUS (Status);
-}
-
-ACPI_EXPORT_SYMBOL (AcpiGetTimer)
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiGetTimerDuration
- *
- * PARAMETERS:  StartTicks          - Starting timestamp
- *              EndTicks            - End timestamp
- *              TimeElapsed         - Where the elapsed time is returned
- *
- * RETURN:      Status and TimeElapsed
- *
- * DESCRIPTION: Computes the time elapsed (in microseconds) between two
- *              PM Timer time stamps, taking into account the possibility of
- *              rollovers, the timer resolution, and timer frequency.
- *
- *              The PM Timer's clock ticks at roughly 3.6 times per
- *              _microsecond_, and its clock continues through Cx state
- *              transitions (unlike many CPU timestamp counters) -- making it
- *              a versatile and accurate timer.
- *
- *              Note that this function accommodates only a single timer
- *              rollover. Thus for 24-bit timers, this function should only
- *              be used for calculating durations less than ~4.6 seconds
- *              (~20 minutes for 32-bit timers) -- calculations below:
- *
- *              2**24 Ticks / 3,600,000 Ticks/Sec = 4.66 sec
- *              2**32 Ticks / 3,600,000 Ticks/Sec = 1193 sec or 19.88 minutes
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiGetTimerDuration (
-    UINT32                  StartTicks,
-    UINT32                  EndTicks,
-    UINT32                  *TimeElapsed)
-{
-    ACPI_STATUS             Status;
-    UINT64                  DeltaTicks;
-    UINT64                  Quotient;
-
-
-    ACPI_FUNCTION_TRACE (AcpiGetTimerDuration);
-
-
-    if (!TimeElapsed)
-    {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
-    }
-
-    /* ACPI 5.0A: PM Timer is optional */
-
-    if (!AcpiGbl_FADT.XPmTimerBlock.Address)
-    {
-        return_ACPI_STATUS (AE_SUPPORT);
-    }
-
-    if (StartTicks == EndTicks)
-    {
-        *TimeElapsed = 0;
-        return_ACPI_STATUS (AE_OK);
-    }
-
-    /*
-     * Compute Tick Delta:
-     * Handle (max one) timer rollovers on 24-bit versus 32-bit timers.
-     */
-    DeltaTicks = EndTicks;
-    if (StartTicks > EndTicks)
-    {
-        if ((AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) == 0)
+        if (Gbl_StringCacheList)
         {
-            /* 24-bit Timer */
+            Cache = UtLocalCalloc (sizeof (Cache->Next) + CacheSize);
 
-            DeltaTicks |= (UINT64) 1 << 24;
-        }
-        else
-        {
-            /* 32-bit Timer */
+            /* Link new cache buffer just following head of list */
 
-            DeltaTicks |= (UINT64) 1 << 32;
+            Cache->Next = Gbl_StringCacheList->Next;
+            Gbl_StringCacheList->Next = Cache;
+
+            /* Leave cache management pointers alone as they pertain to head */
+
+            Gbl_StringCount++;
+            Gbl_StringSize += Length;
+
+            return (Cache->Buffer);
         }
     }
-    DeltaTicks -= StartTicks;
 
-    /*
-     * Compute Duration (Requires a 64-bit multiply and divide):
-     *
-     * TimeElapsed (microseconds) =
-     *  (DeltaTicks * ACPI_USEC_PER_SEC) / ACPI_PM_TIMER_FREQUENCY;
-     */
-    Status = AcpiUtShortDivide (DeltaTicks * ACPI_USEC_PER_SEC,
-                ACPI_PM_TIMER_FREQUENCY, &Quotient, NULL);
+    if ((Gbl_StringCacheNext + Length) >= Gbl_StringCacheLast)
+    {
+        /* Allocate a new buffer */
 
-    *TimeElapsed = (UINT32) Quotient;
-    return_ACPI_STATUS (Status);
+        Cache = UtLocalCalloc (sizeof (Cache->Next) + CacheSize);
+
+        /* Link new cache buffer to head of list */
+
+        Cache->Next = Gbl_StringCacheList;
+        Gbl_StringCacheList = Cache;
+
+        /* Setup cache management pointers */
+
+        Gbl_StringCacheNext = Cache->Buffer;
+        Gbl_StringCacheLast = Gbl_StringCacheNext + CacheSize;
+    }
+
+    Gbl_StringCount++;
+    Gbl_StringSize += Length;
+
+    Buffer = Gbl_StringCacheNext;
+    Gbl_StringCacheNext += Length;
+    return (Buffer);
 }
 
-ACPI_EXPORT_SYMBOL (AcpiGetTimerDuration)
 
-#endif /* !ACPI_REDUCED_HARDWARE */
+/*******************************************************************************
+ *
+ * FUNCTION:    UtParseOpCacheCalloc
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      New parse op. Aborts on allocation failure
+ *
+ * DESCRIPTION: Allocate a new parse op for the parse tree. Bypass the local
+ *              dynamic memory manager for performance reasons (This has a
+ *              major impact on the speed of the compiler.)
+ *
+ ******************************************************************************/
+
+ACPI_PARSE_OBJECT *
+UtParseOpCacheCalloc (
+    void)
+{
+    ASL_CACHE_INFO          *Cache;
+
+
+    if (Gbl_ParseOpCacheNext >= Gbl_ParseOpCacheLast)
+    {
+        /* Allocate a new buffer */
+
+        Cache = UtLocalCalloc (sizeof (Cache->Next) +
+            (sizeof (ACPI_PARSE_OBJECT) * ASL_PARSEOP_CACHE_SIZE));
+
+        /* Link new cache buffer to head of list */
+
+        Cache->Next = Gbl_ParseOpCacheList;
+        Gbl_ParseOpCacheList = Cache;
+
+        /* Setup cache management pointers */
+
+        Gbl_ParseOpCacheNext = ACPI_CAST_PTR (ACPI_PARSE_OBJECT, Cache->Buffer);
+        Gbl_ParseOpCacheLast = Gbl_ParseOpCacheNext + ASL_PARSEOP_CACHE_SIZE;
+    }
+
+    Gbl_ParseOpCount++;
+    return (Gbl_ParseOpCacheNext++);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtSubtableCacheCalloc - Data Table compiler
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Pointer to the buffer. Aborts on allocation failure
+ *
+ * DESCRIPTION: Allocate a subtable object buffer. Bypass the local
+ *              dynamic memory manager for performance reasons (This has a
+ *              major impact on the speed of the compiler.)
+ *
+ ******************************************************************************/
+
+DT_SUBTABLE *
+UtSubtableCacheCalloc (
+    void)
+{
+    ASL_CACHE_INFO          *Cache;
+
+
+    if (Gbl_SubtableCacheNext >= Gbl_SubtableCacheLast)
+    {
+        /* Allocate a new buffer */
+
+        Cache = UtLocalCalloc (sizeof (Cache->Next) +
+            (sizeof (DT_SUBTABLE) * ASL_SUBTABLE_CACHE_SIZE));
+
+        /* Link new cache buffer to head of list */
+
+        Cache->Next = Gbl_SubtableCacheList;
+        Gbl_SubtableCacheList = Cache;
+
+        /* Setup cache management pointers */
+
+        Gbl_SubtableCacheNext = ACPI_CAST_PTR (DT_SUBTABLE, Cache->Buffer);
+        Gbl_SubtableCacheLast = Gbl_SubtableCacheNext + ASL_SUBTABLE_CACHE_SIZE;
+    }
+
+    Gbl_SubtableCount++;
+    return (Gbl_SubtableCacheNext++);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtFieldCacheCalloc - Data Table compiler
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Pointer to the buffer. Aborts on allocation failure
+ *
+ * DESCRIPTION: Allocate a field object buffer. Bypass the local
+ *              dynamic memory manager for performance reasons (This has a
+ *              major impact on the speed of the compiler.)
+ *
+ ******************************************************************************/
+
+DT_FIELD *
+UtFieldCacheCalloc (
+    void)
+{
+    ASL_CACHE_INFO          *Cache;
+
+
+    if (Gbl_FieldCacheNext >= Gbl_FieldCacheLast)
+    {
+        /* Allocate a new buffer */
+
+        Cache = UtLocalCalloc (sizeof (Cache->Next) +
+            (sizeof (DT_FIELD) * ASL_FIELD_CACHE_SIZE));
+
+        /* Link new cache buffer to head of list */
+
+        Cache->Next = Gbl_FieldCacheList;
+        Gbl_FieldCacheList = Cache;
+
+        /* Setup cache management pointers */
+
+        Gbl_FieldCacheNext = ACPI_CAST_PTR (DT_FIELD, Cache->Buffer);
+        Gbl_FieldCacheLast = Gbl_FieldCacheNext + ASL_FIELD_CACHE_SIZE;
+    }
+
+    Gbl_FieldCount++;
+    return (Gbl_FieldCacheNext++);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtDeleteLocalCaches
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Delete all local cache buffer blocks
+ *
+ ******************************************************************************/
+
+void
+UtDeleteLocalCaches (
+    void)
+{
+    UINT32                  BufferCount;
+    ASL_CACHE_INFO          *Next;
+
+
+    /*
+     * Generic cache, arbitrary size allocations
+     */
+    BufferCount = 0;
+    while (Gbl_StringCacheList)
+    {
+        Next = Gbl_StringCacheList->Next;
+        ACPI_FREE (Gbl_StringCacheList);
+        Gbl_StringCacheList = Next;
+        BufferCount++;
+    }
+
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "%u Strings (%u bytes), Buffer size: %u bytes, %u Buffers\n",
+        Gbl_StringCount, Gbl_StringSize, ASL_STRING_CACHE_SIZE, BufferCount);
+
+    /* Reset cache globals */
+
+    Gbl_StringSize = 0;
+    Gbl_StringCount = 0;
+    Gbl_StringCacheNext = NULL;
+    Gbl_StringCacheLast = NULL;
+
+
+    /*
+     * Parse Op cache
+     */
+    BufferCount = 0;
+    while (Gbl_ParseOpCacheList)
+    {
+        Next = Gbl_ParseOpCacheList->Next;
+        ACPI_FREE (Gbl_ParseOpCacheList);
+        Gbl_ParseOpCacheList = Next;
+        BufferCount++;
+    }
+
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "%u ParseOps, Buffer size: %u ops (%u bytes), %u Buffers\n",
+        Gbl_ParseOpCount, ASL_PARSEOP_CACHE_SIZE,
+        (sizeof (ACPI_PARSE_OBJECT) * ASL_PARSEOP_CACHE_SIZE), BufferCount);
+
+    /* Reset cache globals */
+
+    Gbl_ParseOpCount = 0;
+    Gbl_ParseOpCacheNext = NULL;
+    Gbl_ParseOpCacheLast = NULL;
+    Gbl_ParseTreeRoot = NULL;
+
+
+    /*
+     * Table Compiler - Field cache
+     */
+    BufferCount = 0;
+    while (Gbl_FieldCacheList)
+    {
+        Next = Gbl_FieldCacheList->Next;
+        ACPI_FREE (Gbl_FieldCacheList);
+        Gbl_FieldCacheList = Next;
+        BufferCount++;
+    }
+
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "%u Fields, Buffer size: %u fields (%u bytes), %u Buffers\n",
+        Gbl_FieldCount, ASL_FIELD_CACHE_SIZE,
+        (sizeof (DT_FIELD) * ASL_FIELD_CACHE_SIZE), BufferCount);
+
+    /* Reset cache globals */
+
+    Gbl_FieldCount = 0;
+    Gbl_FieldCacheNext = NULL;
+    Gbl_FieldCacheLast = NULL;
+
+
+    /*
+     * Table Compiler - Subtable cache
+     */
+    BufferCount = 0;
+    while (Gbl_SubtableCacheList)
+    {
+        Next = Gbl_SubtableCacheList->Next;
+        ACPI_FREE (Gbl_SubtableCacheList);
+        Gbl_SubtableCacheList = Next;
+        BufferCount++;
+    }
+
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "%u Subtables, Buffer size: %u subtables (%u bytes), %u Buffers\n",
+        Gbl_SubtableCount, ASL_SUBTABLE_CACHE_SIZE,
+        (sizeof (DT_SUBTABLE) * ASL_SUBTABLE_CACHE_SIZE), BufferCount);
+
+    /* Reset cache globals */
+
+    Gbl_SubtableCount = 0;
+    Gbl_SubtableCacheNext = NULL;
+    Gbl_SubtableCacheLast = NULL;
+}

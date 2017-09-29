@@ -160,7 +160,7 @@ AbDisplayUsage (
 
 
 #define AB_UTILITY_NAME             "ACPI Binary Table Dump Utility"
-#define AB_SUPPORTED_OPTIONS        "a:c:d:h:o:s:tv"
+#define AB_SUPPORTED_OPTIONS        "a:c:d:h:o:s:tv^"
 
 
 /******************************************************************************
@@ -192,6 +192,7 @@ AbDisplayUsage (
     ACPI_OPTION ("-s <File>",               "Update checksum for binary AML file");
     ACPI_OPTION ("-t",                      "Terse mode");
     ACPI_OPTION ("-v",                      "Display version information");
+    ACPI_OPTION ("-vd",                     "Display build date and time");
 }
 
 
@@ -292,7 +293,23 @@ main (
 
     case 'v': /* -v: (Version): signon already emitted, just exit */
 
-        return (0);
+        switch (AcpiGbl_Optarg[0])
+        {
+        case '^':  /* -v: (Version): signon already emitted, just exit */
+
+            return (1);
+
+        case 'd':
+
+            printf (ACPI_COMMON_BUILD_TIME);
+            return (1);
+
+        default:
+
+            printf ("Unknown option: -v%s\n", AcpiGbl_Optarg);
+            return (-1);
+        }
+        break;
 
     default:
 

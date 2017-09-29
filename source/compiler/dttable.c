@@ -152,7 +152,6 @@
 /* Compile routines for the basic ACPI tables */
 
 #include "aslcompiler.h"
-#include "dtcompiler.h"
 
 #define _COMPONENT          DT_COMPILER
         ACPI_MODULE_NAME    ("dttable")

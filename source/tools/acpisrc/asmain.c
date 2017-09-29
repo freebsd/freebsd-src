@@ -374,6 +374,7 @@ AsDisplayUsage (
     ACPI_OPTION ("-s",          "Generate source statistics only");
     ACPI_OPTION ("-v",          "Display version information");
     ACPI_OPTION ("-vb",         "Verbose mode");
+    ACPI_OPTION ("-vd",         "Display build date and time");
     ACPI_OPTION ("-y",          "Suppress file overwrite prompts");
 }
 
@@ -477,6 +478,11 @@ main (
 
             Gbl_VerboseMode = TRUE;
             break;
+
+        case 'd':
+
+            printf (ACPI_COMMON_BUILD_TIME);
+            return (0);
 
         default:
 
