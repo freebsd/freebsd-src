@@ -29,4 +29,5 @@
  */
 
 #define CAPABILITY_VERSION
-#include "memmove.c"
+#define MEMMOVE
+#include "bcopy.c.orig"

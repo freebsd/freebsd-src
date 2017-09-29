@@ -28,5 +28,5 @@
  * SUCH DAMAGE.
  */
 
-#define MEMCPY
+#define BCOPY
 #include "jdw57_memcpy.c"

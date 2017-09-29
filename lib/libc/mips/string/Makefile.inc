@@ -15,14 +15,14 @@ MDSRCS+= \
 
 .if ${MK_CHERI} == "no"
 MDSRCS+= \
-	bcopy.S \
-	memcpy.S \
-	memmove.S
+	bcopy.c \
+	memcpy.c \
+	memmove.c
 .else
 CHERI_MDSRCS=	\
 		memchr_c.c \
 		memcmp_c.c \
-		memcpy_c.S \
+		memcpy_c.c \
 		memcpy_c_tofrom.c \
 		memmove_c.c \
 		memset_c.c \
