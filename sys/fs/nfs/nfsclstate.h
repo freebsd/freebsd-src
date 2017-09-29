@@ -258,9 +258,24 @@ struct nfscllayout {
 #define	NFSLY_RECALLALL		0x0040
 #define	NFSLY_RETONCLOSE	0x0080
 #define	NFSLY_WRITTEN		0x0100	/* Has been used to write to a DS. */
+#define	NFSLY_FLEXFILE		0x0200
 
 /*
- * MALLOC'd to the correct length to accommodate the file handle list.
+ * Flex file layout mirror specific stuff for nfsclflayout.
+ */
+struct nfsffm {
+	nfsv4stateid_t		st;
+	char			dev[NFSX_V4DEVICEID];
+	uint32_t		eff;
+	uid_t			user;
+	gid_t			group;
+	struct nfsfh		*fh[NFSDEV_MAXVERS];
+	uint16_t		fhcnt;
+};
+
+/*
+ * MALLOC'd to the correct length to accommodate the file handle list for File
+ * layout and the list of mirrors for the Flex File Layout.
  * These hang off of nfsly_flayread and nfsly_flayrw, sorted in increasing
  * offset order.
  * The nfsly_flayread list holds the ones with iomode == NFSLAYOUTIOMODE_READ,
@@ -268,23 +283,49 @@ struct nfscllayout {
  */
 struct nfsclflayout {
 	LIST_ENTRY(nfsclflayout)	nfsfl_list;
-	uint8_t				nfsfl_dev[NFSX_V4DEVICEID];
 	uint64_t			nfsfl_off;
 	uint64_t			nfsfl_end;
-	uint64_t			nfsfl_patoff;
-	struct nfscldevinfo		*nfsfl_devp;
 	uint32_t			nfsfl_iomode;
-	uint32_t			nfsfl_util;
-	uint32_t			nfsfl_stripe1;
+	struct nfscldevinfo		*nfsfl_devp;
 	uint16_t			nfsfl_flags;
-	uint16_t			nfsfl_fhcnt;
-	struct nfsfh			*nfsfl_fh[1];	/* FH list for DS */
+	union {
+		struct {
+			uint64_t	patoff;
+			uint32_t	util;
+			uint32_t	stripe1;
+			uint8_t		dev[NFSX_V4DEVICEID];
+			uint16_t	fhcnt;
+		} fl;
+		struct {
+			uint64_t	stripeunit;
+			uint32_t	fflags;
+			uint32_t	statshint;
+			uint16_t	mirrorcnt;
+		} ff;
+	} nfsfl_un;
+	union {
+		struct nfsfh		*fh[0];	/* FH list for DS File layout */
+		struct nfsffm		ffm[0];	/* Mirror list for Flex File */
+	} nfsfl_un2;	/* Must be last. Malloc'd to correct array length */
 };
+#define	nfsfl_patoff		nfsfl_un.fl.patoff
+#define	nfsfl_util		nfsfl_un.fl.util
+#define	nfsfl_stripe1		nfsfl_un.fl.stripe1
+#define	nfsfl_dev		nfsfl_un.fl.dev
+#define	nfsfl_fhcnt		nfsfl_un.fl.fhcnt
+#define	nfsfl_stripeunit	nfsfl_un.ff.stripeunit
+#define	nfsfl_fflags		nfsfl_un.ff.fflags
+#define	nfsfl_statshint		nfsfl_un.ff.statshint
+#define	nfsfl_mirrorcnt		nfsfl_un.ff.mirrorcnt
+#define	nfsfl_fh		nfsfl_un2.fh
+#define	nfsfl_ffm		nfsfl_un2.ffm
 
 /*
  * Flags for nfsfl_flags.
  */
 #define	NFSFL_RECALL	0x0001		/* File layout has been recalled */
+#define	NFSFL_FILE	0x0002		/* File layout */
+#define	NFSFL_FLEXFILE	0x0004		/* Flex File layout */
 
 /*
  * Structure that is used to store a LAYOUTRECALL.
@@ -306,6 +347,7 @@ struct nfsclrecalllayout {
  * - stripe indices, each stored as one byte, since there can be many
  *   of them. (This implies a limit of 256 on nfsdi_addrcnt, since the
  *   indices select which address.)
+ * For Flex File, the addrcnt is always one and no stripe indices exist.
  */
 struct nfscldevinfo {
 	LIST_ENTRY(nfscldevinfo)	nfsdi_list;
@@ -313,10 +355,33 @@ struct nfscldevinfo {
 	struct nfsclclient		*nfsdi_clp;
 	uint32_t			nfsdi_refcnt;
 	uint32_t			nfsdi_layoutrefs;
-	uint16_t			nfsdi_stripecnt;
+	union {
+		struct {
+			uint16_t	stripecnt;
+		} fl;
+		struct {
+			int		versindex;
+			uint32_t	vers;
+			uint32_t	minorvers;
+			uint32_t	rsize;
+			uint32_t	wsize;
+		} ff;
+	} nfsdi_un;
 	uint16_t			nfsdi_addrcnt;
+	uint16_t			nfsdi_flags;
 	struct nfsclds			*nfsdi_data[0];
 };
+#define	nfsdi_stripecnt	nfsdi_un.fl.stripecnt
+#define	nfsdi_versindex	nfsdi_un.ff.versindex
+#define	nfsdi_vers	nfsdi_un.ff.vers
+#define	nfsdi_minorvers	nfsdi_un.ff.minorvers
+#define	nfsdi_rsize	nfsdi_un.ff.rsize
+#define	nfsdi_wsize	nfsdi_un.ff.wsize
+
+/* Flags for nfsdi_flags. */
+#define	NFSDI_FILELAYOUT	0x0001
+#define	NFSDI_FLEXFILE		0x0002
+#define	NFSDI_TIGHTCOUPLED	0X0004
 
 /* These inline functions return values from nfsdi_data[]. */
 /*
