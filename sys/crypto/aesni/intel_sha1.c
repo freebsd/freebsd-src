@@ -59,9 +59,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <immintrin.h>
-
+#include <crypto/aesni/aesni_os.h>
 #include <crypto/aesni/sha_sse.h>
+
+#include <immintrin.h>
 
 void intel_sha1_step(uint32_t *digest, const char *data, uint32_t num_blks) {
    __m128i abcd, e0, e1;
