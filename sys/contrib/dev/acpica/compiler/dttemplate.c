@@ -151,7 +151,6 @@
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/include/acapps.h>
-#include <contrib/dev/acpica/compiler/dtcompiler.h>
 #include <contrib/dev/acpica/compiler/dttemplate.h> /* Contains the hex ACPI table templates */
 
 #define _COMPONENT          DT_COMPILER
@@ -315,7 +314,7 @@ Exit:
     /* Shutdown ACPICA subsystem */
 
     (void) AcpiTerminate ();
-    CmDeleteCaches ();
+    UtDeleteLocalCaches ();
     return (Status);
 }
 

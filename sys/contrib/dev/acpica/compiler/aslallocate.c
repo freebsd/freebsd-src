@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: asldebug -- Debug output support
+ * Module Name: aslallocate -- Local memory allocation
  *
  *****************************************************************************/
 
@@ -150,331 +150,154 @@
  *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include "aslcompiler.y.h"
 
-
-#define _COMPONENT          ACPI_COMPILER
-        ACPI_MODULE_NAME    ("asldebug")
-
-
-/* Local prototypes */
-
-static void
-UtDumpParseOpName (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  Level,
-    UINT32                  DataLength);
-
-static char *
-UtCreateEscapeSequences (
-    char                    *InString);
+/*
+ * Local heap allocation wrappers. See aslcache.c for allocation from local
+ * cache alloctions
+ */
 
 
 /*******************************************************************************
  *
- * FUNCTION:    CvDbgPrint
+ * FUNCTION:    UtLocalCalloc
  *
- * PARAMETERS:  Type                - Type of output
- *              Fmt                 - Printf format string
- *              ...                 - variable printf list
+ * PARAMETERS:  Size                - Bytes to be allocated
  *
- * RETURN:      None
+ * RETURN:      Pointer to the allocated memory. If this function returns
+ *              (the compiler is not aborted), the pointer is guaranteed to
+ *              be valid.
  *
- * DESCRIPTION: Print statement for debug messages within the converter.
+ * DESCRIPTION: Allocate zero-initialized memory. The point of this function
+ *              is to abort the compile on an allocation failure, on the
+ *              assumption that nothing more can be accomplished.
+ *
+ * NOTE:        For allocation from the local caches, see aslcache.c
  *
  ******************************************************************************/
 
-void
-CvDbgPrint (
-    char                    *Fmt,
-    ...)
+void *
+UtLocalCalloc (
+    UINT32                  Size)
 {
-    va_list                 Args;
+    void                    *Allocated;
 
 
-    if (!Gbl_CaptureComments || !AcpiGbl_DebugAslConversion)
+    Allocated = ACPI_ALLOCATE_ZEROED (Size);
+    if (!Allocated)
     {
+        AslCommonError (ASL_ERROR, ASL_MSG_MEMORY_ALLOCATION,
+            Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
+            Gbl_InputByteCount, Gbl_CurrentColumn,
+            Gbl_Files[ASL_FILE_INPUT].Filename, NULL);
+
+        CmCleanupAndExit ();
+        exit (1);
+    }
+
+    TotalAllocations++;
+    TotalAllocated += Size;
+    return (Allocated);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    UtExpandLineBuffers
+ *
+ * PARAMETERS:  None. Updates global line buffer pointers.
+ *
+ * RETURN:      None. Reallocates the global line buffers
+ *
+ * DESCRIPTION: Called if the current line buffer becomes filled. Reallocates
+ *              all global line buffers and updates Gbl_LineBufferSize. NOTE:
+ *              Also used for the initial allocation of the buffers, when
+ *              all of the buffer pointers are NULL. Initial allocations are
+ *              of size ASL_DEFAULT_LINE_BUFFER_SIZE
+ *
+ *****************************************************************************/
+
+void
+UtExpandLineBuffers (
+    void)
+{
+    UINT32                  NewSize;
+
+
+    /* Attempt to double the size of all line buffers */
+
+    NewSize = Gbl_LineBufferSize * 2;
+    if (Gbl_CurrentLineBuffer)
+    {
+        DbgPrint (ASL_DEBUG_OUTPUT,
+            "Increasing line buffer size from %u to %u\n",
+            Gbl_LineBufferSize, NewSize);
+    }
+
+    UtReallocLineBuffers (&Gbl_CurrentLineBuffer, Gbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&Gbl_MainTokenBuffer, Gbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&Gbl_MacroTokenBuffer, Gbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&Gbl_ExpressionTokenBuffer, Gbl_LineBufferSize, NewSize);
+
+    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
+    Gbl_LineBufferSize = NewSize;
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    UtReallocLineBuffers
+ *
+ * PARAMETERS:  Buffer              - Buffer to realloc
+ *              OldSize             - Old size of Buffer
+ *              NewSize             - New size of Buffer
+ *
+ * RETURN:      none
+ *
+ * DESCRIPTION: Reallocate and initialize Buffer
+ *
+ *****************************************************************************/
+
+void
+UtReallocLineBuffers (
+    char                    **Buffer,
+    UINT32                  OldSize,
+    UINT32                  NewSize)
+{
+
+    *Buffer = realloc (*Buffer, NewSize);
+    if (*Buffer)
+    {
+        memset (*Buffer + OldSize, 0, NewSize - OldSize);
         return;
     }
 
-    va_start (Args, Fmt);
-    (void) vfprintf (AcpiGbl_ConvDebugFile, Fmt, Args);
-    va_end (Args);
-    return;
+    printf ("Could not increase line buffer size from %u to %u\n",
+        OldSize, NewSize);
+
+    AslError (ASL_ERROR, ASL_MSG_BUFFER_ALLOCATION, NULL, NULL);
+    AslAbort ();
 }
 
 
-/*******************************************************************************
+/******************************************************************************
  *
- * FUNCTION:    UtDumpIntegerOp
+ * FUNCTION:    UtFreeLineBuffers
  *
- * PARAMETERS:  Op                  - Current parse op
- *              Level               - Current output indentation level
- *              IntegerLength       - Output length of the integer (2/4/8/16)
+ * PARAMETERS:  None
  *
  * RETURN:      None
  *
- * DESCRIPTION: Emit formatted debug output for "integer" ops.
- *              Note: IntegerLength must be one of 2,4,8,16.
+ * DESCRIPTION: Free all line buffers
  *
- ******************************************************************************/
+ *****************************************************************************/
 
 void
-UtDumpIntegerOp (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  Level,
-    UINT32                  IntegerLength)
+UtFreeLineBuffers (
+    void)
 {
 
-    /* Emit the ParseOp name, leaving room for the integer */
-
-    UtDumpParseOpName (Op, Level, IntegerLength);
-
-    /* Emit the integer based upon length */
-
-    switch (IntegerLength)
-    {
-    case 2: /* Byte */
-    case 4: /* Word */
-    case 8: /* Dword */
-
-        DbgPrint (ASL_TREE_OUTPUT,
-            "%*.*X", IntegerLength, IntegerLength, Op->Asl.Value.Integer);
-        break;
-
-    case 16: /* Qword and Integer */
-
-        DbgPrint (ASL_TREE_OUTPUT,
-            "%8.8X%8.8X", ACPI_FORMAT_UINT64 (Op->Asl.Value.Integer));
-        break;
-
-    default:
-        break;
-    }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    UtDumpStringOp
- *
- * PARAMETERS:  Op                  - Current parse op
- *              Level               - Current output indentation level
- *
- * RETURN:      None
- *
- * DESCRIPTION: Emit formatted debug output for String/Pathname ops.
- *
- ******************************************************************************/
-
-void
-UtDumpStringOp (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  Level)
-{
-    char                    *String;
-
-
-    String = Op->Asl.Value.String;
-    if (Op->Asl.ParseOpcode != PARSEOP_STRING_LITERAL)
-    {
-        /*
-         * For the "path" ops NAMEPATH, NAMESEG, METHODCALL -- if the
-         * ExternalName is valid, it takes precedence. In these cases the
-         * Value.String is the raw "internal" name from the AML code, which
-         * we don't want to use, because it contains non-ascii characters.
-         */
-        if (Op->Asl.ExternalName)
-        {
-            String = Op->Asl.ExternalName;
-        }
-    }
-
-    if (!String)
-    {
-        DbgPrint (ASL_TREE_OUTPUT,
-            " ERROR: Could not find a valid String/Path pointer\n");
-        return;
-    }
-
-    String = UtCreateEscapeSequences (String);
-
-    /* Emit the ParseOp name, leaving room for the string */
-
-    UtDumpParseOpName (Op, Level, strlen (String));
-    DbgPrint (ASL_TREE_OUTPUT, "%s", String);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    UtCreateEscapeSequences
- *
- * PARAMETERS:  InString            - ASCII string to be expanded
- *
- * RETURN:      Expanded string
- *
- * DESCRIPTION: Expand all non-printable ASCII bytes (0-0x1F) to escape
- *              sequences. For example, hex 14 becomes \x14
- *
- * NOTE:        Since this function is used for debug output only, it does
- *              not attempt to translate into the "known" escape sequences
- *              such as \a, \f, \t, etc.
- *
- ******************************************************************************/
-
-static char *
-UtCreateEscapeSequences (
-    char                    *InString)
-{
-    char                    *String = InString;
-    char                    *OutString;
-    char                    *OutStringPtr;
-    UINT32                  InStringLength = 0;
-    UINT32                  EscapeCount = 0;
-
-
-    /*
-     * Determine up front how many escapes are within the string.
-     * Obtain the input string length while doing so.
-     */
-    while (*String)
-    {
-        if ((*String <= 0x1F) || (*String >= 0x7F))
-        {
-            EscapeCount++;
-        }
-
-        InStringLength++;
-        String++;
-    }
-
-    if (!EscapeCount)
-    {
-        return (InString); /* No escapes, nothing to do */
-    }
-
-    /* New string buffer, 3 extra chars per escape (4 total) */
-
-    OutString = UtLocalCacheCalloc (InStringLength + (EscapeCount * 3));
-    OutStringPtr = OutString;
-
-    /* Convert non-ascii or non-printable chars to escape sequences */
-
-    while (*InString)
-    {
-        if ((*InString <= 0x1F) || (*InString >= 0x7F))
-        {
-            /* Insert a \x hex escape sequence */
-
-            OutStringPtr[0] = '\\';
-            OutStringPtr[1] = 'x';
-            OutStringPtr[2] = AcpiUtHexToAsciiChar (*InString, 4);
-            OutStringPtr[3] = AcpiUtHexToAsciiChar (*InString, 0);
-            OutStringPtr += 4;
-        }
-        else /* Normal ASCII character */
-        {
-            *OutStringPtr = *InString;
-            OutStringPtr++;
-        }
-
-        InString++;
-    }
-
-    return (OutString);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    UtDumpBasicOp
- *
- * PARAMETERS:  Op                  - Current parse op
- *              Level               - Current output indentation level
- *
- * RETURN:      None
- *
- * DESCRIPTION: Generic formatted debug output for "basic" ops that have no
- *              associated strings or integer values.
- *
- ******************************************************************************/
-
-void
-UtDumpBasicOp (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  Level)
-{
-
-    /* Just print out the ParseOp name, there is no extra data */
-
-    UtDumpParseOpName (Op, Level, 0);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    UtDumpParseOpName
- *
- * PARAMETERS:  Op                  - Current parse op
- *              Level               - Current output indentation level
- *              DataLength          - Length of data to appear after the name
- *
- * RETURN:      None
- *
- * DESCRIPTION: Indent and emit the ascii ParseOp name for the op
- *
- ******************************************************************************/
-
-static void
-UtDumpParseOpName (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  Level,
-    UINT32                  DataLength)
-{
-    char                    *ParseOpName;
-    UINT32                  IndentLength;
-    UINT32                  NameLength;
-    UINT32                  LineLength;
-    UINT32                  PaddingLength;
-
-
-    /* Emit the LineNumber/IndentLevel prefix on each output line */
-
-    DbgPrint (ASL_TREE_OUTPUT,
-        "%5.5d [%2d]", Op->Asl.LogicalLineNumber, Level);
-
-    ParseOpName = UtGetOpName (Op->Asl.ParseOpcode);
-
-    /* Calculate various lengths for output alignment */
-
-    IndentLength = Level * DEBUG_SPACES_PER_INDENT;
-    NameLength = strlen (ParseOpName);
-    LineLength = IndentLength + 1 + NameLength + 1 + DataLength;
-    PaddingLength = (DEBUG_MAX_LINE_LENGTH + 1) - LineLength;
-
-    /* Parse tree indentation is based upon the nesting/indent level */
-
-    if (Level)
-    {
-        DbgPrint (ASL_TREE_OUTPUT, "%*s", IndentLength, " ");
-    }
-
-    /* Emit the actual name here */
-
-    DbgPrint (ASL_TREE_OUTPUT, " %s", ParseOpName);
-
-    /* Emit extra padding blanks for alignment of later data items */
-
-    if (LineLength > DEBUG_MAX_LINE_LENGTH)
-    {
-        /* Split a long line immediately after the ParseOpName string */
-
-        DbgPrint (ASL_TREE_OUTPUT, "\n%*s",
-            (DEBUG_FULL_LINE_LENGTH - DataLength), " ");
-    }
-    else
-    {
-        DbgPrint (ASL_TREE_OUTPUT, "%*s", PaddingLength, " ");
-    }
+    free (Gbl_CurrentLineBuffer);
+    free (Gbl_MainTokenBuffer);
+    free (Gbl_MacroTokenBuffer);
+    free (Gbl_ExpressionTokenBuffer);
 }
