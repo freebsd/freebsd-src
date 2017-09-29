@@ -153,13 +153,6 @@
 	pushl	$0 ;							\
 	movw	%fs,(%esp)
 	
-#define	POP_FRAME							\
-	popl	%fs ;							\
-	popl	%es ;							\
-	popl	%ds ;							\
-	popal ;								\
-	addl	$4+4,%esp
-
 /*
  * Access per-CPU data.
  */

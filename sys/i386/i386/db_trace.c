@@ -326,7 +326,8 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 		else if (strncmp(name, "Xatpic_intr", 11) == 0 ||
 		    strncmp(name, "Xapic_isr", 9) == 0)
 			frame_type = INTERRUPT;
-		else if (strcmp(name, "Xint0x80_syscall") == 0)
+		else if (strcmp(name, "Xlcall_syscall") == 0 ||
+		    strcmp(name, "Xint0x80_syscall") == 0)
 			frame_type = SYSCALL;
 		else if (strcmp(name, "dblfault_handler") == 0)
 			frame_type = DOUBLE_FAULT;

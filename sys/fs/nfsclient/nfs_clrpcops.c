@@ -109,8 +109,8 @@ static int nfsrpc_setaclrpc(vnode_t, struct ucred *, NFSPROC_T *,
 static int nfsrpc_getlayout(struct nfsmount *, vnode_t, struct nfsfh *, int,
     uint32_t *, nfsv4stateid_t *, uint64_t, struct nfscllayout **,
     struct ucred *, NFSPROC_T *);
-static int nfsrpc_fillsa(struct nfsmount *, struct sockaddr_storage *,
-    struct nfsclds **, NFSPROC_T *);
+static int nfsrpc_fillsa(struct nfsmount *, struct sockaddr_in *,
+    struct sockaddr_in6 *, sa_family_t, int, struct nfsclds **, NFSPROC_T *);
 static void nfscl_initsessionslots(struct nfsclsession *);
 static int nfscl_doflayoutio(vnode_t, struct uio *, int *, int *, int *,
     nfsv4stateid_t *, int, struct nfscldevinfo *, struct nfscllayout *,
@@ -4885,14 +4885,17 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 	uint32_t cnt, *tl;
 	struct nfsrv_descript nfsd;
 	struct nfsrv_descript *nd = &nfsd;
-	struct sockaddr_storage ss;
-	struct nfsclds *dsp = NULL, **dspp;
+	struct sockaddr_in sin, ssin;
+	struct sockaddr_in6 sin6, ssin6;
+	struct nfsclds *dsp = NULL, **dspp, **gotdspp;
 	struct nfscldevinfo *ndi;
-	int addrcnt, bitcnt, error, i, isudp, j, pos, safilled, stripecnt;
+	int addrcnt = 0, bitcnt, error, gotvers, i, isudp, j, stripecnt;
 	uint8_t stripeindex;
+	sa_family_t af, safilled;
 
 	*ndip = NULL;
 	ndi = NULL;
+	gotdspp = NULL;
 	nfscl_reqstart(nd, NFSPROC_GETDEVICEINFO, nmp, NULL, 0, NULL, NULL, 0,
 	    0);
 	NFSM_BUILD(tl, uint32_t *, NFSX_V4DEVICEID + 3 * NFSX_UNSIGNED);
@@ -4960,7 +4963,7 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 		}
 
 		/* Now, dissect the server address(es). */
-		safilled = 0;
+		safilled = AF_UNSPEC;
 		for (i = 0; i < addrcnt; i++) {
 			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 			cnt = fxdr_unsigned(uint32_t, *tl);
@@ -4970,61 +4973,65 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 				goto nfsmout;
 			}
 			dspp = nfsfldi_addr(ndi, i);
-			pos = arc4random() % cnt;	/* Choose one. */
-			safilled = 0;
+			safilled = AF_UNSPEC;
 			for (j = 0; j < cnt; j++) {
-				error = nfsv4_getipaddr(nd, &ss, &isudp);
+				error = nfsv4_getipaddr(nd, &sin, &sin6, &af,
+				    &isudp);
 				if (error != 0 && error != EPERM) {
 					error = NFSERR_BADXDR;
 					goto nfsmout;
 				}
 				if (error == 0 && isudp == 0) {
 					/*
-					 * The algorithm is:
-					 * - use "pos" entry if it is of the
-					 *   same af_family or none of them
-					 *   is of the same af_family
-					 * else
-					 * - use the first one of the same
-					 *   af_family.
+					 * The priority is:
+					 * - Same address family.
+					 * Save the address and dspp, so that
+					 * the connection can be done after
+					 * parsing is complete.
 					 */
-					if ((safilled == 0 && ss.ss_family ==
-					     nmp->nm_nam->sa_family) ||
-					    (j == pos &&
-					     (safilled == 0 || ss.ss_family ==
-					      nmp->nm_nam->sa_family)) ||
-					    (safilled == 1 && ss.ss_family ==
-					     nmp->nm_nam->sa_family)) {
-						error = nfsrpc_fillsa(nmp, &ss,
-						    &dsp, p);
-						if (error == 0) {
-							*dspp = dsp;
-							if (ss.ss_family ==
-							 nmp->nm_nam->sa_family)
-								safilled = 2;
-							else
-								safilled = 1;
-						}
+					if (safilled == AF_UNSPEC ||
+					    (af == nmp->nm_nam->sa_family &&
+					     safilled != nmp->nm_nam->sa_family)
+					   ) {
+						if (af == AF_INET)
+							ssin = sin;
+						else
+							ssin6 = sin6;
+						safilled = af;
+						gotdspp = dspp;
 					}
 				}
 			}
-			if (safilled == 0)
-				break;
 		}
+
+		gotvers = NFS_VER4;	/* Always NFSv4 for File Layout. */
 
 		/* And the notify bits. */
 		NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
-		if (safilled != 0) {
-			bitcnt = fxdr_unsigned(int, *tl);
-			if (bitcnt > 0) {
-				NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
-				if (notifybitsp != NULL)
-					*notifybitsp =
-					    fxdr_unsigned(uint32_t, *tl);
-			}
+		bitcnt = fxdr_unsigned(int, *tl);
+		if (bitcnt > 0) {
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			if (notifybitsp != NULL)
+				*notifybitsp =
+				    fxdr_unsigned(uint32_t, *tl);
+		}
+		if (safilled != AF_UNSPEC) {
+			KASSERT(ndi != NULL, ("ndi is NULL"));
 			*ndip = ndi;
 		} else
 			error = EPERM;
+		if (error == 0) {
+			/*
+			 * Now we can do a TCP connection for the correct
+			 * NFS version and IP address.
+			 */
+			error = nfsrpc_fillsa(nmp, &ssin, &ssin6, safilled,
+			    gotvers, &dsp, p);
+		}
+		if (error == 0) {
+			KASSERT(gotdspp != NULL, ("gotdspp is NULL"));
+			*gotdspp = dsp;
+		}
 	}
 	if (nd->nd_repstat != 0)
 		error = nd->nd_repstat;
@@ -5213,11 +5220,12 @@ nfsrpc_getlayout(struct nfsmount *nmp, vnode_t vp, struct nfsfh *nfhp,
  * mount point and a pointer to it is returned.
  */
 static int
-nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
-    struct nfsclds **dspp, NFSPROC_T *p)
+nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_in *sin,
+    struct sockaddr_in6 *sin6, sa_family_t af, int vers, struct nfsclds **dspp,
+    NFSPROC_T *p)
 {
-	struct sockaddr_in *msad, *sad, *ssd;
-	struct sockaddr_in6 *msad6, *sad6, *ssd6;
+	struct sockaddr_in *msad, *sad;
+	struct sockaddr_in6 *msad6, *sad6;
 	struct nfsclclient *clp;
 	struct nfssockreq *nrp;
 	struct nfsclds *dsp, *tdsp;
@@ -5232,10 +5240,8 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 	NFSUNLOCKCLSTATE();
 	if (clp == NULL)
 		return (EPERM);
-	if (ssp->ss_family == AF_INET) {
-		ssd = (struct sockaddr_in *)ssp;
+	if (af == AF_INET) {
 		NFSLOCKMNT(nmp);
-
 		/*
 		 * Check to see if we already have a session for this
 		 * address that is usable for a DS.
@@ -5246,8 +5252,8 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 		tdsp = TAILQ_FIRST(&nmp->nm_sess);
 		while (tdsp != NULL) {
 			if (msad != NULL && msad->sin_family == AF_INET &&
-			    ssd->sin_addr.s_addr == msad->sin_addr.s_addr &&
-			    ssd->sin_port == msad->sin_port &&
+			    sin->sin_addr.s_addr == msad->sin_addr.s_addr &&
+			    sin->sin_port == msad->sin_port &&
 			    (tdsp->nfsclds_flags & NFSCLDS_DS) != 0 &&
 			    tdsp->nfsclds_sess.nfsess_defunct == 0) {
 				*dspp = tdsp;
@@ -5268,14 +5274,12 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 		sad = malloc(sizeof(*sad), M_SONAME, M_WAITOK | M_ZERO);
 		sad->sin_len = sizeof(*sad);
 		sad->sin_family = AF_INET;
-		sad->sin_port = ssd->sin_port;
-		sad->sin_addr.s_addr = ssd->sin_addr.s_addr;
+		sad->sin_port = sin->sin_port;
+		sad->sin_addr.s_addr = sin->sin_addr.s_addr;
 		nrp = malloc(sizeof(*nrp), M_NFSSOCKREQ, M_WAITOK | M_ZERO);
 		nrp->nr_nam = (struct sockaddr *)sad;
-	} else if (ssp->ss_family == AF_INET6) {
-		ssd6 = (struct sockaddr_in6 *)ssp;
+	} else if (af == AF_INET6) {
 		NFSLOCKMNT(nmp);
-
 		/*
 		 * Check to see if we already have a session for this
 		 * address that is usable for a DS.
@@ -5286,9 +5290,9 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 		tdsp = TAILQ_FIRST(&nmp->nm_sess);
 		while (tdsp != NULL) {
 			if (msad6 != NULL && msad6->sin6_family == AF_INET6 &&
-			    IN6_ARE_ADDR_EQUAL(&ssd6->sin6_addr,
+			    IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr,
 			    &msad6->sin6_addr) &&
-			    ssd6->sin6_port == msad6->sin6_port &&
+			    sin6->sin6_port == msad6->sin6_port &&
 			    (tdsp->nfsclds_flags & NFSCLDS_DS) != 0 &&
 			    tdsp->nfsclds_sess.nfsess_defunct == 0) {
 				*dspp = tdsp;
@@ -5308,8 +5312,8 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 		sad6 = malloc(sizeof(*sad6), M_SONAME, M_WAITOK | M_ZERO);
 		sad6->sin6_len = sizeof(*sad6);
 		sad6->sin6_family = AF_INET6;
-		sad6->sin6_port = ssd6->sin6_port;
-		NFSBCOPY(&ssd6->sin6_addr, &sad6->sin6_addr,
+		sad6->sin6_port = sin6->sin6_port;
+		NFSBCOPY(&sin6->sin6_addr, &sad6->sin6_addr,
 		    sizeof(struct in6_addr));
 		nrp = malloc(sizeof(*nrp), M_NFSSOCKREQ, M_WAITOK | M_ZERO);
 		nrp->nr_nam = (struct sockaddr *)sad6;
@@ -5319,7 +5323,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 	nrp->nr_sotype = SOCK_STREAM;
 	mtx_init(&nrp->nr_mtx, "nfssock", NULL, MTX_DEF);
 	nrp->nr_prog = NFS_PROG;
-	nrp->nr_vers = NFS_VER4;
+	nrp->nr_vers = vers;
 
 	/*
 	 * Use the credentials that were used for the mount, which are

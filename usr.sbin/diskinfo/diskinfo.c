@@ -630,7 +630,7 @@ slogbench(int fd, int isreg, off_t mediasize, u_int sectorsize)
 {
 	off_t off;
 	u_int size;
-	int error, n, N;
+	int error, n, N, nowritecache = 0;
 
 	printf("Synchronous random writes:\n");
 	for (size = sectorsize; size <= MAXTX; size *= 2) {
@@ -641,12 +641,18 @@ slogbench(int fd, int isreg, off_t mediasize, u_int sectorsize)
 			for (n = 0; n < 250; n++) {
 				off = random() % (mediasize / size);
 				parwrite(fd, size, off * size);
+				if (nowritecache)
+					continue;
 				if (isreg)
 					error = fsync(fd);
 				else
 					error = ioctl(fd, DIOCGFLUSH);
-				if (error < 0)
-					err(EX_IOERR, "Flush error");
+				if (error < 0) {
+					if (errno == ENOTSUP)
+						nowritecache = 1;
+					else
+						err(EX_IOERR, "Flush error");
+				}
 			}
 			N += 250;
 		} while (delta_t() < 1.0);
