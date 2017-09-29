@@ -896,6 +896,7 @@ int newnfs_realign(struct mbuf **, int);
 #define	NFSSTA_HASWRITEVERF	0x00040000  /* Has write verifier */
 #define	NFSSTA_GOTFSINFO	0x00100000  /* Got the fsinfo */
 #define	NFSSTA_OPENMODE		0x00200000  /* Must use correct open mode */
+#define	NFSSTA_FLEXFILE		0x00800000  /* Use Flex File Layout */
 #define	NFSSTA_NOLAYOUTCOMMIT	0x04000000  /* Don't do LayoutCommit */
 #define	NFSSTA_SESSPERSIST	0x08000000  /* Has a persistent session */
 #define	NFSSTA_TIMEO		0x10000000  /* Experiencing a timeout */
@@ -926,6 +927,7 @@ int newnfs_realign(struct mbuf **, int);
 #define	NFSHASNOLAYOUTCOMMIT(n)	((n)->nm_state & NFSSTA_NOLAYOUTCOMMIT)
 #define	NFSHASSESSPERSIST(n)	((n)->nm_state & NFSSTA_SESSPERSIST)
 #define	NFSHASPNFS(n)		((n)->nm_state & NFSSTA_PNFS)
+#define	NFSHASFLEXFILE(n)	((n)->nm_state & NFSSTA_FLEXFILE)
 #define	NFSHASOPENMODE(n)	((n)->nm_state & NFSSTA_OPENMODE)
 #define	NFSHASONEOPENOWN(n)	(((n)->nm_flag & NFSMNT_ONEOPENOWN) != 0 &&	\
 				    (n)->nm_minorvers > 0)

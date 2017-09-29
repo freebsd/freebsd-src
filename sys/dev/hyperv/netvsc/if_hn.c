@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_rss.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/counter.h>
 #include <sys/kernel.h>
@@ -77,7 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <sys/taskqueue.h>
 #include <sys/buf_ring.h>
 #include <sys/eventhandler.h>
