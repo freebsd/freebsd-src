@@ -204,7 +204,6 @@ AslCommandLine (
 
     if (argc < 2)
     {
-        printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
         Usage ();
         exit (1);
     }
@@ -538,7 +537,6 @@ AslDoOptions (
         {
         case '^':
 
-            printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
             Usage ();
             exit (0);
 

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: aslprintf - ASL Printf/Fprintf macro support
+ * Module Name: aslcache -- Local cache support for iASL
  *
  *****************************************************************************/
 
@@ -150,339 +150,332 @@
  *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include "aslcompiler.y.h"
-#include <contrib/dev/acpica/include/amlcode.h>
 
-#define _COMPONENT          ACPI_COMPILER
-        ACPI_MODULE_NAME    ("aslprintf")
-
-
-/* Local prototypes */
-
-static void
-OpcCreateConcatenateNode (
-    ACPI_PARSE_OBJECT       *Op,
-    ACPI_PARSE_OBJECT       *Node);
-
-static void
-OpcParsePrintf (
-    ACPI_PARSE_OBJECT       *Op,
-    ACPI_PARSE_OBJECT       *DestOp);
+/*
+ * Local caches. The caches are fully deleted after the compilation/disassembly
+ * of each individual input file. Thus, individual allocations from the cache
+ * memory do not need to be freed or even released back into the cache.
+ *
+ * See aslallocate.c for standard heap allocations.
+ */
 
 
 /*******************************************************************************
  *
- * FUNCTION:    OpcDoPrintf
+ * FUNCTION:    UtLocalCacheCalloc
  *
- * PARAMETERS:  Op                  - printf parse node
+ * PARAMETERS:  Length              - Size of buffer requested
+ *
+ * RETURN:      Pointer to the buffer. Aborts compiler on allocation failure
+ *
+ * DESCRIPTION: Allocate a string buffer. Bypass the local
+ *              dynamic memory manager for performance reasons (This has a
+ *              major impact on the speed of the compiler.)
+ *
+ ******************************************************************************/
+
+char *
+UtLocalCacheCalloc (
+    UINT32                  Length)
+{
+    char                    *Buffer;
+    ASL_CACHE_INFO          *Cache;
+    UINT32                  CacheSize = ASL_STRING_CACHE_SIZE;
+
+
+    if (Length > CacheSize)
+    {
+        CacheSize = Length;
+
+        if (Gbl_StringCacheList)
+        {
+            Cache = UtLocalCalloc (sizeof (Cache->Next) + CacheSize);
+
+            /* Link new cache buffer just following head of list */
+
+            Cache->Next = Gbl_StringCacheList->Next;
+            Gbl_StringCacheList->Next = Cache;
+
+            /* Leave cache management pointers alone as they pertain to head */
+
+            Gbl_StringCount++;
+            Gbl_StringSize += Length;
+
+            return (Cache->Buffer);
+        }
+    }
+
+    if ((Gbl_StringCacheNext + Length) >= Gbl_StringCacheLast)
+    {
+        /* Allocate a new buffer */
+
+        Cache = UtLocalCalloc (sizeof (Cache->Next) + CacheSize);
+
+        /* Link new cache buffer to head of list */
+
+        Cache->Next = Gbl_StringCacheList;
+        Gbl_StringCacheList = Cache;
+
+        /* Setup cache management pointers */
+
+        Gbl_StringCacheNext = Cache->Buffer;
+        Gbl_StringCacheLast = Gbl_StringCacheNext + CacheSize;
+    }
+
+    Gbl_StringCount++;
+    Gbl_StringSize += Length;
+
+    Buffer = Gbl_StringCacheNext;
+    Gbl_StringCacheNext += Length;
+    return (Buffer);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtParseOpCacheCalloc
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      New parse op. Aborts on allocation failure
+ *
+ * DESCRIPTION: Allocate a new parse op for the parse tree. Bypass the local
+ *              dynamic memory manager for performance reasons (This has a
+ *              major impact on the speed of the compiler.)
+ *
+ ******************************************************************************/
+
+ACPI_PARSE_OBJECT *
+UtParseOpCacheCalloc (
+    void)
+{
+    ASL_CACHE_INFO          *Cache;
+
+
+    if (Gbl_ParseOpCacheNext >= Gbl_ParseOpCacheLast)
+    {
+        /* Allocate a new buffer */
+
+        Cache = UtLocalCalloc (sizeof (Cache->Next) +
+            (sizeof (ACPI_PARSE_OBJECT) * ASL_PARSEOP_CACHE_SIZE));
+
+        /* Link new cache buffer to head of list */
+
+        Cache->Next = Gbl_ParseOpCacheList;
+        Gbl_ParseOpCacheList = Cache;
+
+        /* Setup cache management pointers */
+
+        Gbl_ParseOpCacheNext = ACPI_CAST_PTR (ACPI_PARSE_OBJECT, Cache->Buffer);
+        Gbl_ParseOpCacheLast = Gbl_ParseOpCacheNext + ASL_PARSEOP_CACHE_SIZE;
+    }
+
+    Gbl_ParseOpCount++;
+    return (Gbl_ParseOpCacheNext++);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtSubtableCacheCalloc - Data Table compiler
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Pointer to the buffer. Aborts on allocation failure
+ *
+ * DESCRIPTION: Allocate a subtable object buffer. Bypass the local
+ *              dynamic memory manager for performance reasons (This has a
+ *              major impact on the speed of the compiler.)
+ *
+ ******************************************************************************/
+
+DT_SUBTABLE *
+UtSubtableCacheCalloc (
+    void)
+{
+    ASL_CACHE_INFO          *Cache;
+
+
+    if (Gbl_SubtableCacheNext >= Gbl_SubtableCacheLast)
+    {
+        /* Allocate a new buffer */
+
+        Cache = UtLocalCalloc (sizeof (Cache->Next) +
+            (sizeof (DT_SUBTABLE) * ASL_SUBTABLE_CACHE_SIZE));
+
+        /* Link new cache buffer to head of list */
+
+        Cache->Next = Gbl_SubtableCacheList;
+        Gbl_SubtableCacheList = Cache;
+
+        /* Setup cache management pointers */
+
+        Gbl_SubtableCacheNext = ACPI_CAST_PTR (DT_SUBTABLE, Cache->Buffer);
+        Gbl_SubtableCacheLast = Gbl_SubtableCacheNext + ASL_SUBTABLE_CACHE_SIZE;
+    }
+
+    Gbl_SubtableCount++;
+    return (Gbl_SubtableCacheNext++);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtFieldCacheCalloc - Data Table compiler
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Pointer to the buffer. Aborts on allocation failure
+ *
+ * DESCRIPTION: Allocate a field object buffer. Bypass the local
+ *              dynamic memory manager for performance reasons (This has a
+ *              major impact on the speed of the compiler.)
+ *
+ ******************************************************************************/
+
+DT_FIELD *
+UtFieldCacheCalloc (
+    void)
+{
+    ASL_CACHE_INFO          *Cache;
+
+
+    if (Gbl_FieldCacheNext >= Gbl_FieldCacheLast)
+    {
+        /* Allocate a new buffer */
+
+        Cache = UtLocalCalloc (sizeof (Cache->Next) +
+            (sizeof (DT_FIELD) * ASL_FIELD_CACHE_SIZE));
+
+        /* Link new cache buffer to head of list */
+
+        Cache->Next = Gbl_FieldCacheList;
+        Gbl_FieldCacheList = Cache;
+
+        /* Setup cache management pointers */
+
+        Gbl_FieldCacheNext = ACPI_CAST_PTR (DT_FIELD, Cache->Buffer);
+        Gbl_FieldCacheLast = Gbl_FieldCacheNext + ASL_FIELD_CACHE_SIZE;
+    }
+
+    Gbl_FieldCount++;
+    return (Gbl_FieldCacheNext++);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtDeleteLocalCaches
+ *
+ * PARAMETERS:  None
  *
  * RETURN:      None
  *
- * DESCRIPTION: Convert printf macro to a Store(..., Debug) AML operation.
+ * DESCRIPTION: Delete all local cache buffer blocks
  *
  ******************************************************************************/
 
 void
-OpcDoPrintf (
-    ACPI_PARSE_OBJECT       *Op)
+UtDeleteLocalCaches (
+    void)
 {
-    ACPI_PARSE_OBJECT       *DestOp;
+    UINT32                  BufferCount;
+    ASL_CACHE_INFO          *Next;
 
-
-    /* Store destination is the Debug op */
-
-    DestOp = TrAllocateOp (PARSEOP_DEBUG);
-    DestOp->Asl.AmlOpcode = AML_DEBUG_OP;
-    DestOp->Asl.Parent = Op;
-    DestOp->Asl.LogicalLineNumber = Op->Asl.LogicalLineNumber;
-
-    OpcParsePrintf (Op, DestOp);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    OpcDoFprintf
- *
- * PARAMETERS:  Op                  - fprintf parse node
- *
- * RETURN:      None
- *
- * DESCRIPTION: Convert fprintf macro to a Store AML operation.
- *
- ******************************************************************************/
-
-void
-OpcDoFprintf (
-    ACPI_PARSE_OBJECT       *Op)
-{
-    ACPI_PARSE_OBJECT       *DestOp;
-
-
-    /* Store destination is the first argument of fprintf */
-
-    DestOp = Op->Asl.Child;
-    Op->Asl.Child = DestOp->Asl.Next;
-    DestOp->Asl.Next = NULL;
-
-    OpcParsePrintf (Op, DestOp);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    OpcParsePrintf
- *
- * PARAMETERS:  Op                  - Printf parse node
- *              DestOp              - Destination of Store operation
- *
- * RETURN:      None
- *
- * DESCRIPTION: Convert printf macro to a Store AML operation. The printf
- *              macro parse tree is layed out as follows:
- *
- *              Op        - printf parse op
- *              Op->Child - Format string
- *              Op->Next  - Format string arguments
- *
- ******************************************************************************/
-
-static void
-OpcParsePrintf (
-    ACPI_PARSE_OBJECT       *Op,
-    ACPI_PARSE_OBJECT       *DestOp)
-{
-    char                    *Format;
-    char                    *StartPosition = NULL;
-    ACPI_PARSE_OBJECT       *ArgNode;
-    ACPI_PARSE_OBJECT       *NextNode;
-    UINT32                  StringLength = 0;
-    char                    *NewString;
-    BOOLEAN                 StringToProcess = FALSE;
-    ACPI_PARSE_OBJECT       *NewOp;
-
-
-    /* Get format string */
-
-    Format = ACPI_CAST_PTR (char, Op->Asl.Child->Asl.Value.String);
-    ArgNode = Op->Asl.Child->Asl.Next;
 
     /*
-     * Detach argument list so that we can use a NULL check to distinguish
-     * the first concatenation operation we need to make
+     * Generic cache, arbitrary size allocations
      */
-    Op->Asl.Child = NULL;
-
-    for (; *Format; ++Format)
+    BufferCount = 0;
+    while (Gbl_StringCacheList)
     {
-        if (*Format != '%')
-        {
-            if (!StringToProcess)
-            {
-                /* Mark the beginning of a string */
-
-                StartPosition = Format;
-                StringToProcess = TRUE;
-            }
-
-            ++StringLength;
-            continue;
-        }
-
-        /* Save string, if any, to new string object and concat it */
-
-        if (StringToProcess)
-        {
-            NewString = UtLocalCacheCalloc (StringLength + 1);
-            strncpy (NewString, StartPosition, StringLength);
-
-            NewOp = TrAllocateOp (PARSEOP_STRING_LITERAL);
-            NewOp->Asl.Value.String = NewString;
-            NewOp->Asl.AmlOpcode = AML_STRING_OP;
-            NewOp->Asl.AcpiBtype = ACPI_BTYPE_STRING;
-            NewOp->Asl.LogicalLineNumber = Op->Asl.LogicalLineNumber;
-
-            OpcCreateConcatenateNode(Op, NewOp);
-
-            StringLength = 0;
-            StringToProcess = FALSE;
-        }
-
-        ++Format;
-
-        /*
-         * We have a format parameter and will need an argument to go
-         * with it
-         */
-        if (!ArgNode ||
-            ArgNode->Asl.ParseOpcode == PARSEOP_DEFAULT_ARG)
-        {
-            AslError(ASL_ERROR, ASL_MSG_ARG_COUNT_LO, Op, NULL);
-            return;
-        }
-
-        /*
-         * We do not support sub-specifiers of printf (flags, width,
-         * precision, length). For specifiers we only support %x/%X for
-         * hex or %s for strings. Also, %o for generic "acpi object".
-         */
-        switch (*Format)
-        {
-        case 's':
-
-            if (ArgNode->Asl.ParseOpcode != PARSEOP_STRING_LITERAL)
-            {
-                AslError(ASL_ERROR, ASL_MSG_INVALID_TYPE, ArgNode,
-                    "String required");
-                return;
-            }
-
-            NextNode = ArgNode->Asl.Next;
-            ArgNode->Asl.Next = NULL;
-            OpcCreateConcatenateNode(Op, ArgNode);
-            ArgNode = NextNode;
-            continue;
-
-        case 'X':
-        case 'x':
-        case 'o':
-
-            NextNode = ArgNode->Asl.Next;
-            ArgNode->Asl.Next = NULL;
-
-            /*
-             * Append an empty string if the first argument is
-             * not a string. This will implicitly conver the 2nd
-             * concat source to a string per the ACPI specification.
-             */
-            if (!Op->Asl.Child)
-            {
-                NewOp = TrAllocateOp (PARSEOP_STRING_LITERAL);
-                NewOp->Asl.Value.String = "";
-                NewOp->Asl.AmlOpcode = AML_STRING_OP;
-                NewOp->Asl.AcpiBtype = ACPI_BTYPE_STRING;
-                NewOp->Asl.LogicalLineNumber = Op->Asl.LogicalLineNumber;
-
-                OpcCreateConcatenateNode(Op, NewOp);
-            }
-
-            OpcCreateConcatenateNode(Op, ArgNode);
-            ArgNode = NextNode;
-            break;
-
-        default:
-
-            AslError(ASL_ERROR, ASL_MSG_INVALID_OPERAND, Op,
-                "Unrecognized format specifier");
-            continue;
-        }
+        Next = Gbl_StringCacheList->Next;
+        ACPI_FREE (Gbl_StringCacheList);
+        Gbl_StringCacheList = Next;
+        BufferCount++;
     }
 
-    /* Process any remaining string */
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "%u Strings (%u bytes), Buffer size: %u bytes, %u Buffers\n",
+        Gbl_StringCount, Gbl_StringSize, ASL_STRING_CACHE_SIZE, BufferCount);
 
-    if (StringToProcess)
-    {
-        NewString = UtLocalCacheCalloc (StringLength + 1);
-        strncpy (NewString, StartPosition, StringLength);
+    /* Reset cache globals */
 
-        NewOp = TrAllocateOp (PARSEOP_STRING_LITERAL);
-        NewOp->Asl.Value.String = NewString;
-        NewOp->Asl.AcpiBtype = ACPI_BTYPE_STRING;
-        NewOp->Asl.AmlOpcode = AML_STRING_OP;
-        NewOp->Asl.LogicalLineNumber = Op->Asl.LogicalLineNumber;
+    Gbl_StringSize = 0;
+    Gbl_StringCount = 0;
+    Gbl_StringCacheNext = NULL;
+    Gbl_StringCacheLast = NULL;
 
-        OpcCreateConcatenateNode(Op, NewOp);
-    }
 
     /*
-     * If we get here and there's no child node then Format
-     * was an empty string. Just make a no op.
+     * Parse Op cache
      */
-    if (!Op->Asl.Child)
+    BufferCount = 0;
+    while (Gbl_ParseOpCacheList)
     {
-        Op->Asl.ParseOpcode = PARSEOP_NOOP;
-        AslError(ASL_WARNING, ASL_MSG_NULL_STRING, Op,
-            "Converted to NOOP");
-        return;
+        Next = Gbl_ParseOpCacheList->Next;
+        ACPI_FREE (Gbl_ParseOpCacheList);
+        Gbl_ParseOpCacheList = Next;
+        BufferCount++;
     }
 
-     /* Check for erroneous extra arguments */
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "%u ParseOps, Buffer size: %u ops (%u bytes), %u Buffers\n",
+        Gbl_ParseOpCount, ASL_PARSEOP_CACHE_SIZE,
+        (sizeof (ACPI_PARSE_OBJECT) * ASL_PARSEOP_CACHE_SIZE), BufferCount);
 
-    if (ArgNode &&
-        ArgNode->Asl.ParseOpcode != PARSEOP_DEFAULT_ARG)
+    /* Reset cache globals */
+
+    Gbl_ParseOpCount = 0;
+    Gbl_ParseOpCacheNext = NULL;
+    Gbl_ParseOpCacheLast = NULL;
+    Gbl_ParseTreeRoot = NULL;
+
+
+    /*
+     * Table Compiler - Field cache
+     */
+    BufferCount = 0;
+    while (Gbl_FieldCacheList)
     {
-        AslError(ASL_WARNING, ASL_MSG_ARG_COUNT_HI, ArgNode,
-            "Extra arguments ignored");
+        Next = Gbl_FieldCacheList->Next;
+        ACPI_FREE (Gbl_FieldCacheList);
+        Gbl_FieldCacheList = Next;
+        BufferCount++;
     }
 
-    /* Change Op to a Store */
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "%u Fields, Buffer size: %u fields (%u bytes), %u Buffers\n",
+        Gbl_FieldCount, ASL_FIELD_CACHE_SIZE,
+        (sizeof (DT_FIELD) * ASL_FIELD_CACHE_SIZE), BufferCount);
 
-    Op->Asl.ParseOpcode = PARSEOP_STORE;
-    Op->Common.AmlOpcode = AML_STORE_OP;
-    Op->Asl.CompileFlags  = 0;
+    /* Reset cache globals */
 
-    /* Disable further optimization */
-
-    Op->Asl.CompileFlags &= ~OP_COMPILE_TIME_CONST;
-    UtSetParseOpName (Op);
-
-    /* Set Store destination */
-
-    Op->Asl.Child->Asl.Next = DestOp;
-}
+    Gbl_FieldCount = 0;
+    Gbl_FieldCacheNext = NULL;
+    Gbl_FieldCacheLast = NULL;
 
 
-/*******************************************************************************
- *
- * FUNCTION:    OpcCreateConcatenateNode
- *
- * PARAMETERS:  Op                  - Parse node
- *              Node                - Parse node to be concatenated
- *
- * RETURN:      None
- *
- * DESCRIPTION: Make Node the child of Op. If child node already exists, then
- *              concat child with Node and makes concat node the child of Op.
- *
- ******************************************************************************/
-
-static void
-OpcCreateConcatenateNode (
-    ACPI_PARSE_OBJECT       *Op,
-    ACPI_PARSE_OBJECT       *Node)
-{
-    ACPI_PARSE_OBJECT       *NewConcatOp;
-
-
-    if (!Op->Asl.Child)
+    /*
+     * Table Compiler - Subtable cache
+     */
+    BufferCount = 0;
+    while (Gbl_SubtableCacheList)
     {
-        Op->Asl.Child = Node;
-        Node->Asl.Parent = Op;
-        return;
+        Next = Gbl_SubtableCacheList->Next;
+        ACPI_FREE (Gbl_SubtableCacheList);
+        Gbl_SubtableCacheList = Next;
+        BufferCount++;
     }
 
-    NewConcatOp = TrAllocateOp (PARSEOP_CONCATENATE);
-    NewConcatOp->Asl.AmlOpcode = AML_CONCATENATE_OP;
-    NewConcatOp->Asl.AcpiBtype = 0x7;
-    NewConcatOp->Asl.LogicalLineNumber = Op->Asl.LogicalLineNumber;
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "%u Subtables, Buffer size: %u subtables (%u bytes), %u Buffers\n",
+        Gbl_SubtableCount, ASL_SUBTABLE_CACHE_SIZE,
+        (sizeof (DT_SUBTABLE) * ASL_SUBTABLE_CACHE_SIZE), BufferCount);
 
-    /* First arg is child of Op*/
+    /* Reset cache globals */
 
-    NewConcatOp->Asl.Child = Op->Asl.Child;
-    Op->Asl.Child->Asl.Parent = NewConcatOp;
-
-    /* Second arg is Node */
-
-    NewConcatOp->Asl.Child->Asl.Next = Node;
-    Node->Asl.Parent = NewConcatOp;
-
-    /* Third arg is Zero (not used) */
-
-    NewConcatOp->Asl.Child->Asl.Next->Asl.Next =
-        TrAllocateOp (PARSEOP_ZERO);
-    NewConcatOp->Asl.Child->Asl.Next->Asl.Next->Asl.Parent =
-        NewConcatOp;
-
-    Op->Asl.Child = NewConcatOp;
-    NewConcatOp->Asl.Parent = Op;
+    Gbl_SubtableCount = 0;
+    Gbl_SubtableCacheNext = NULL;
+    Gbl_SubtableCacheLast = NULL;
 }

@@ -350,7 +350,9 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_CONSTANT_REQUIRED */          "Non-reducible expression",
 /*    ASL_MSG_CROSS_TABLE_SCOPE */          "Illegal open scope on external object from within DSDT",
 /*    ASL_MSG_EXCEPTION_NOT_RECEIVED */     "Expected remark, warning, or error did not occur. Message ID:",
-/*    ASL_MSG_NULL_RESOURCE_TEMPLATE */     "Empty Resource Template (END_TAG only)"
+/*    ASL_MSG_NULL_RESOURCE_TEMPLATE */     "Empty Resource Template (END_TAG only)",
+/*    ASL_MSG_FOUND_HERE */                 "Original name creation/declaration below: ",
+/*    ASL_MSG_ILLEGAL_RECURSION */          "Illegal recursive call to method that creates named objects"
 };
 
 /* Table compiler */
