@@ -415,8 +415,6 @@ SUBDIR+=	mkesdb_static
 
 .include <bsd.arch.inc.mk>
 
-SUBDIR:=	${SUBDIR:O}
-
 SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>
