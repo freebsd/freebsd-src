@@ -152,6 +152,7 @@
 #define _DECLARE_DT_GLOBALS
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include <contrib/dev/acpica/compiler/dtcompiler.h>
 
 #define _COMPONENT          DT_COMPILER
         ACPI_MODULE_NAME    ("dtcompile")
@@ -280,6 +281,7 @@ DtDoCompile (
 CleanupAndExit:
 
     AcpiUtDeleteCaches ();
+    DtDeleteCaches ();
     CmCleanupAndExit ();
     return (Status);
 }
@@ -410,7 +412,7 @@ DtCompileDataTable (
         return (AE_ERROR);
     }
 
-    Gbl_Signature = UtLocalCacheCalloc (strlen (Signature) + 1);
+    Gbl_Signature = UtStringCacheCalloc (strlen (Signature) + 1);
     strcpy (Gbl_Signature, Signature);
 
     /*
@@ -583,7 +585,7 @@ DtCompileTable (
 
     if (Length > 0)
     {
-        String = UtLocalCacheCalloc (Length);
+        String = UtStringCacheCalloc (Length);
         Subtable->Buffer = ACPI_CAST_PTR (UINT8, String);
     }
 
@@ -826,7 +828,7 @@ DtCompilePadding (
 
     if (Length > 0)
     {
-        String = UtLocalCacheCalloc (Length);
+        String = UtStringCacheCalloc (Length);
         Subtable->Buffer = ACPI_CAST_PTR (UINT8, String);
     }
 

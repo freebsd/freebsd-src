@@ -150,6 +150,7 @@
  *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include <contrib/dev/acpica/compiler/dtcompiler.h>
 
 #define _COMPONENT          DT_COMPILER
         ACPI_MODULE_NAME    ("dtsubtable")
@@ -185,7 +186,7 @@ DtCreateSubtable (
 
     /* Create a new buffer for the subtable data */
 
-    String = UtLocalCacheCalloc (Length);
+    String = UtStringCacheCalloc (Length);
     Subtable->Buffer = ACPI_CAST_PTR (UINT8, String);
     memcpy (Subtable->Buffer, Buffer, Length);
 

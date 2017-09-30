@@ -382,7 +382,7 @@ AslPushInputFileStack (
     /* Reset the global line count and filename */
 
     Gbl_Files[ASL_FILE_INPUT].Filename =
-        UtLocalCacheCalloc (strlen (Filename) + 1);
+        UtStringCacheCalloc (strlen (Filename) + 1);
 
     strcpy (Gbl_Files[ASL_FILE_INPUT].Filename, Filename);
 
@@ -1009,7 +1009,7 @@ CompletedString:
      */
     *StringBuffer = 0;
 
-    CleanString = UtLocalCacheCalloc (strlen (MsgBuffer) + 1);
+    CleanString = UtStringCacheCalloc (strlen (MsgBuffer) + 1);
     strcpy (CleanString, MsgBuffer);
     AslCompilerlval.s = CleanString;
     return (TRUE);
