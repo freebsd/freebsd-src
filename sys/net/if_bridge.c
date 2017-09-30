@@ -537,6 +537,7 @@ static moduledata_t bridge_mod = {
 };
 
 DECLARE_MODULE(if_bridge, bridge_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(if_bridge, 1);
 MODULE_DEPEND(if_bridge, bridgestp, 1, 1, 1);
 
 /*
