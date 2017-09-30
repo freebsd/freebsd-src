@@ -179,10 +179,12 @@ build${libcompat}: .PHONY
 .endfor
 	${_+_}cd ${.CURDIR}; \
 	    ${LIBCOMPATWMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
-.if ${libcompat} == "32" && !defined(NO_RTLD)
+.if ${libcompat} == "32"
 .for _t in ${_obj} all
+.if !defined(NO_RTLD)
 	${_+_}cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIBCOMPATWMAKE} \
 	    -DNO_FSCHG DIRPRFX=libexec/rtld-elf/ ${_t}
+.endif
 	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIBCOMPATWMAKE} \
 	    DIRPRFX=usr.bin/ldd ${_t}
 .endfor
@@ -192,9 +194,11 @@ distribute${libcompat} install${libcompat}: .PHONY
 .for _dir in ${_LC_LIBDIRS.yes}
 	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATIMAKE} ${.TARGET:S/${libcompat}$//}
 .endfor
-.if ${libcompat} == "32" && !defined(NO_RTLD)
+.if ${libcompat} == "32"
+.if !defined(NO_RTLD)
 	${_+_}cd ${.CURDIR}/libexec/rtld-elf; \
 	    PROG=ld-elf32.so.1 ${LIBCOMPATIMAKE} ${.TARGET:S/32$//}
+.endif
 	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIBCOMPATIMAKE} \
 	    ${.TARGET:S/32$//}
 .endif
