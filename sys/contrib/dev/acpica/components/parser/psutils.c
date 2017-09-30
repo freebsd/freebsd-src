@@ -292,11 +292,11 @@ AcpiPsAllocOp (
         {
             AcpiGbl_CurrentScope = Op;
         }
+    }
 
-        if (Gbl_CaptureComments)
-        {
-            ASL_CV_TRANSFER_COMMENTS (Op);
-        }
+    if (Gbl_CaptureComments)
+    {
+        ASL_CV_TRANSFER_COMMENTS (Op);
     }
 
     return (Op);

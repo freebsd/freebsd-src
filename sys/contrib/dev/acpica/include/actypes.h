@@ -586,8 +586,6 @@ typedef void *                          ACPI_HANDLE;    /* Actually a ptr to a N
 #define ACPI_NSEC_PER_MSEC              1000000L
 #define ACPI_NSEC_PER_SEC               1000000000L
 
-#define ACPI_TIME_AFTER(a, b)           ((INT64)((b) - (a)) < 0)
-
 
 /* Owner IDs are used to track namespace nodes for selective deletion */
 

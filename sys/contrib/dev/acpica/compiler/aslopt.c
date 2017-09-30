@@ -275,7 +275,7 @@ OptSearchToRoot (
 
     /* We must allocate a new string for the name (TargetPath gets deleted) */
 
-    *NewPath = UtLocalCacheCalloc (ACPI_NAME_SIZE + 1);
+    *NewPath = UtStringCacheCalloc (ACPI_NAME_SIZE + 1);
     strcpy (*NewPath, Path);
 
     if (strncmp (*NewPath, "_T_", 3))

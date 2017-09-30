@@ -152,6 +152,7 @@
 #define _DECLARE_PR_GLOBALS
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include <contrib/dev/acpica/compiler/dtcompiler.h>
 
 /*
  * TBDs:
