@@ -904,7 +904,8 @@ main(int argc, char *argv[])
 	if (source)
 		fprintf(stderr, " from %s", source);
 	fprintf(stderr, ", %lu hops max, %lu byte packets\n",
-	    max_hops, datalen);
+	    max_hops,
+	    datalen + ((useproto == IPPROTO_UDP) ? sizeof(struct udphdr) : 0));
 	(void) fflush(stderr);
 
 	if (first_hop > 1)
