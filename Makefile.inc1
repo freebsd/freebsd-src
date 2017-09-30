@@ -1460,9 +1460,14 @@ _gcc_tools= gnu/usr.bin/cc/cc_tools
 _rescue= rescue/rescue
 .endif
 
+.if ${MK_TCSH} != "no"
+_tcsh=bin/csh
+.endif
+
 build-tools: .MAKE
+
 .for _tool in \
-    bin/csh \
+    ${_tcsh} \
     bin/sh \
     ${_rescue} \
     ${LOCAL_TOOL_DIRS} \
@@ -1580,7 +1585,7 @@ native-xtools: .PHONY
     bin/cat \
     bin/chmod \
     bin/cp \
-    bin/csh \
+    ${_tcsh} \
     bin/echo \
     bin/expr \
     bin/hostname \
