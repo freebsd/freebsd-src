@@ -272,10 +272,8 @@ typedef enum
     ACPI_DMT_PMTT,
     ACPI_DMT_PPTT,
     ACPI_DMT_SDEI,
-    ACPI_DMT_SDEV,
     ACPI_DMT_SLIC,
     ACPI_DMT_SRAT,
-    ACPI_DMT_TPM2,
 
     /* Special opcodes */
 
@@ -504,7 +502,6 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNfit4[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNfit5[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNfit6[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNfit6a[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPdtt[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPmtt[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPmtt0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPmtt1[];
@@ -518,7 +515,6 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPcct1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPcct2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPcct3[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPcct4[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPdtt0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPptt0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPptt0a[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPptt1[];
@@ -533,13 +529,6 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoS3pt0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoS3pt1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSbst[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSdei[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSdev[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSdevHdr[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSdev0[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSdev0a[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSdev1[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSdev1a[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSdev1b[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSlic[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSlit[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSpcr[];
@@ -557,8 +546,6 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTcpaHdr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTcpaClient[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTcpaServer[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTpm2[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTpm2a[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTpm211[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoUefi[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoVrtc[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoVrtc0[];
@@ -599,7 +586,7 @@ AcpiDmDumpTable (
     UINT32                  TableLength,
     UINT32                  TableOffset,
     void                    *Table,
-    UINT32                  SubtableLength,
+    UINT32                  SubTableLength,
     ACPI_DMTABLE_INFO        *Info);
 
 void
@@ -726,10 +713,6 @@ AcpiDmDumpPcct (
     ACPI_TABLE_HEADER       *Table);
 
 void
-AcpiDmDumpPdtt (
-    ACPI_TABLE_HEADER       *Table);
-
-void
 AcpiDmDumpPmtt (
     ACPI_TABLE_HEADER       *Table);
 
@@ -750,10 +733,6 @@ AcpiDmDumpS3pt (
     ACPI_TABLE_HEADER       *Table);
 
 void
-AcpiDmDumpSdev (
-    ACPI_TABLE_HEADER       *Table);
-
-void
 AcpiDmDumpSlic (
     ACPI_TABLE_HEADER       *Table);
 
@@ -771,10 +750,6 @@ AcpiDmDumpStao (
 
 void
 AcpiDmDumpTcpa (
-    ACPI_TABLE_HEADER       *Table);
-
-void
-AcpiDmDumpTpm2 (
     ACPI_TABLE_HEADER       *Table);
 
 void

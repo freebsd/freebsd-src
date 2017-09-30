@@ -834,7 +834,7 @@ typedef struct acpi_control_state
     union acpi_parse_object         *PredicateOp;
     UINT8                           *AmlPredicateStart;     /* Start of if/while predicate */
     UINT8                           *PackageEnd;            /* End of if/while block */
-    UINT64                          LoopTimeout;            /* While() loop timeout */
+    UINT32                          LoopCount;              /* While() loop counter */
 
 } ACPI_CONTROL_STATE;
 

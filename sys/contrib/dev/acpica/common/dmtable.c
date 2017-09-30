@@ -154,6 +154,7 @@
 #include <contrib/dev/acpica/include/acdisasm.h>
 #include <contrib/dev/acpica/include/actables.h>
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include <contrib/dev/acpica/compiler/dtcompiler.h>
 
 /* This module used for application-level code only */
 
@@ -289,9 +290,9 @@ static const char           *AcpiDmHestSubnames[] =
     "IA-32 Machine Check Exception",
     "IA-32 Corrected Machine Check",
     "IA-32 Non-Maskable Interrupt",
-    "Unknown Subtable Type",        /* 3 - Reserved */
-    "Unknown Subtable Type",        /* 4 - Reserved */
-    "Unknown Subtable Type",        /* 5 - Reserved */
+    "Unknown SubTable Type",        /* 3 - Reserved */
+    "Unknown SubTable Type",        /* 4 - Reserved */
+    "Unknown SubTable Type",        /* 5 - Reserved */
     "PCI Express Root Port AER",
     "PCI Express AER (AER Endpoint)",
     "PCI Express/PCI-X Bridge AER",
@@ -373,7 +374,7 @@ static const char           *AcpiDmPmttSubnames[] =
 {
     "Socket",                       /* ACPI_PMTT_TYPE_SOCKET */
     "Memory Controller",            /* ACPI_PMTT_TYPE_CONTROLLER */
-    "Physical Component (DIMM)",    /* ACPI_PMTT_TYPE_DIMM */
+    "Physical Component (DIMM)",    /* ACPI_PMTT_TYPE_DIMM  */
     "Unknown Subtable Type"         /* Reserved */
 };
 
@@ -381,14 +382,7 @@ static const char           *AcpiDmPpttSubnames[] =
 {
     "Processor Hierarchy Node",     /* ACPI_PPTT_TYPE_PROCESSOR */
     "Cache Type",                   /* ACPI_PPTT_TYPE_CACHE */
-    "ID",                           /* ACPI_PPTT_TYPE_ID */
-    "Unknown Subtable Type"         /* Reserved */
-};
-
-static const char           *AcpiDmSdevSubnames[] =
-{
-    "Namespace Device",             /* ACPI_SDEV_TYPE_NAMESPACE_DEVICE */
-    "PCIe Endpoint Device",         /* ACPI_SDEV_TYPE_PCIE_ENDPOINT_DEVICE */
+    "ID",                           /* ACPI_PMTT_TYPE_ID  */
     "Unknown Subtable Type"         /* Reserved */
 };
 
@@ -399,23 +393,6 @@ static const char           *AcpiDmSratSubnames[] =
     "Processor Local x2APIC Affinity",
     "GICC Affinity",
     "GIC ITS Affinity",             /* Acpi 6.2 */
-    "Unknown Subtable Type"         /* Reserved */
-};
-
-static const char           *AcpiDmTpm2Subnames[] =
-{
-    "Illegal Start Method value",
-    "Reserved",
-    "ACPI Start Method",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Memory Mapped I/O",
-    "Command Response Buffer",
-    "Command Response Buffer with ACPI Start Method",
-    "Reserved",
-    "Reserved",
-    "Command Response Buffer with ARM SMC",
     "Unknown Subtable Type"         /* Reserved */
 };
 
@@ -510,7 +487,6 @@ const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
     {ACPI_SIG_MTMR, NULL,                   AcpiDmDumpMtmr, DtCompileMtmr,  TemplateMtmr},
     {ACPI_SIG_NFIT, AcpiDmTableInfoNfit,    AcpiDmDumpNfit, DtCompileNfit,  TemplateNfit},
     {ACPI_SIG_PCCT, AcpiDmTableInfoPcct,    AcpiDmDumpPcct, DtCompilePcct,  TemplatePcct},
-    {ACPI_SIG_PDTT, AcpiDmTableInfoPdtt,    AcpiDmDumpPdtt, DtCompilePdtt,  TemplatePdtt},
     {ACPI_SIG_PMTT, NULL,                   AcpiDmDumpPmtt, DtCompilePmtt,  TemplatePmtt},
     {ACPI_SIG_PPTT, NULL,                   AcpiDmDumpPptt, DtCompilePptt,  TemplatePptt},
     {ACPI_SIG_RASF, AcpiDmTableInfoRasf,    NULL,           NULL,           TemplateRasf},
@@ -518,7 +494,6 @@ const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
     {ACPI_SIG_S3PT, NULL,                   NULL,           NULL,           TemplateS3pt},
     {ACPI_SIG_SBST, AcpiDmTableInfoSbst,    NULL,           NULL,           TemplateSbst},
     {ACPI_SIG_SDEI, AcpiDmTableInfoSdei,    NULL,           NULL,           TemplateSdei},
-    {ACPI_SIG_SDEV, AcpiDmTableInfoSdev,    AcpiDmDumpSdev, DtCompileSdev,  TemplateSdev},
     {ACPI_SIG_SLIC, NULL,                   AcpiDmDumpSlic, DtCompileSlic,  TemplateSlic},
     {ACPI_SIG_SLIT, NULL,                   AcpiDmDumpSlit, DtCompileSlit,  TemplateSlit},
     {ACPI_SIG_SPCR, AcpiDmTableInfoSpcr,    NULL,           NULL,           TemplateSpcr},
@@ -526,7 +501,7 @@ const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
     {ACPI_SIG_SRAT, NULL,                   AcpiDmDumpSrat, DtCompileSrat,  TemplateSrat},
     {ACPI_SIG_STAO, NULL,                   AcpiDmDumpStao, DtCompileStao,  TemplateStao},
     {ACPI_SIG_TCPA, NULL,                   AcpiDmDumpTcpa, DtCompileTcpa,  TemplateTcpa},
-    {ACPI_SIG_TPM2, AcpiDmTableInfoTpm2,    AcpiDmDumpTpm2, DtCompileTpm2,  TemplateTpm2},
+    {ACPI_SIG_TPM2, AcpiDmTableInfoTpm2,    NULL,           NULL,           TemplateTpm2},
     {ACPI_SIG_UEFI, AcpiDmTableInfoUefi,    NULL,           DtCompileUefi,  TemplateUefi},
     {ACPI_SIG_VRTC, AcpiDmTableInfoVrtc,    AcpiDmDumpVrtc, DtCompileVrtc,  TemplateVrtc},
     {ACPI_SIG_WAET, AcpiDmTableInfoWaet,    NULL,           NULL,           TemplateWaet},
@@ -942,7 +917,6 @@ AcpiDmDumpTable (
         case ACPI_DMT_PCCT:
         case ACPI_DMT_PMTT:
         case ACPI_DMT_PPTT:
-        case ACPI_DMT_SDEV:
         case ACPI_DMT_SRAT:
         case ACPI_DMT_ASF:
         case ACPI_DMT_HESTNTYP:
@@ -974,7 +948,6 @@ AcpiDmDumpTable (
         case ACPI_DMT_NAME4:
         case ACPI_DMT_SIG:
         case ACPI_DMT_LPIT:
-        case ACPI_DMT_TPM2:
 
             ByteLength = 4;
             break;
@@ -1610,20 +1583,6 @@ AcpiDmDumpTable (
                 CurrentOffset, NULL);
             break;
 
-        case ACPI_DMT_SDEV:
-
-            /* SDEV subtable types */
-
-            Temp8 = *Target;
-            if (Temp8 > ACPI_SDEV_TYPE_RESERVED)
-            {
-                Temp8 = ACPI_SDEV_TYPE_RESERVED;
-            }
-
-            AcpiOsPrintf (UINT8_FORMAT, *Target,
-                AcpiDmSdevSubnames[Temp8]);
-            break;
-
         case ACPI_DMT_SRAT:
 
             /* SRAT subtable types */
@@ -1637,22 +1596,6 @@ AcpiDmDumpTable (
             AcpiOsPrintf (UINT8_FORMAT, *Target,
                 AcpiDmSratSubnames[Temp8]);
             break;
-
-        case ACPI_DMT_TPM2:
-
-            /* TPM2 Start Method types */
-
-            Temp8 = *Target;
-            if (Temp8 > ACPI_TPM2_RESERVED)
-            {
-                Temp8 = ACPI_TPM2_RESERVED;
-            }
-
-            AcpiOsPrintf (UINT8_FORMAT, *Target,
-                AcpiDmTpm2Subnames[Temp8]);
-            break;
-
-
 
         case ACPI_DMT_FADTPM:
 

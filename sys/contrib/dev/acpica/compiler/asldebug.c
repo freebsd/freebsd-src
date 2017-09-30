@@ -356,7 +356,7 @@ UtCreateEscapeSequences (
 
     /* New string buffer, 3 extra chars per escape (4 total) */
 
-    OutString = UtLocalCacheCalloc (InStringLength + (EscapeCount * 3));
+    OutString = UtLocalCalloc (InStringLength + (EscapeCount * 3));
     OutStringPtr = OutString;
 
     /* Convert non-ascii or non-printable chars to escape sequences */
