@@ -289,23 +289,8 @@ static const char rcsid[] =
 #define freehostent(x)
 #endif
 
-/*
- * format of a (udp) probe packet.
- */
-struct tv32 {
-	u_int32_t tv32_sec;
-	u_int32_t tv32_usec;
-};
-
-struct opacket {
-	u_char seq;		/* sequence number of this packet */
-	u_char hops;		/* hop limit of the packet */
-	u_char pad[2];
-	struct tv32 tv;		/* time packet left */
-} __attribute__((__packed__));
-
 u_char	packet[512];		/* last inbound (icmp) packet */
-struct opacket	*outpacket;	/* last output (udp) packet */
+char 	*outpacket;		/* last output packet */
 
 int	main(int, char *[]);
 int	wait_for_reply(int, struct msghdr *);
@@ -333,7 +318,7 @@ int rcvhlim;
 struct in6_pktinfo *rcvpktinfo;
 
 struct sockaddr_in6 Src, Dst, Rcv;
-u_long datalen;			/* How much data */
+u_long datalen = 20;			/* How much data */
 #define	ICMP6ECHOLEN	8
 /* XXX: 2064 = 127(max hops in type 0 rthdr) * sizeof(ip6_hdr) + 16(margin) */
 char rtbuf[2064];
@@ -362,9 +347,7 @@ char *as_server = NULL;
 void *asn;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int mib[4] = { CTL_NET, PF_INET6, IPPROTO_IPV6, IPV6CTL_DEFHLIM };
 	char hbuf[NI_MAXHOST], src0[NI_MAXHOST], *ep;
@@ -533,11 +516,11 @@ main(argc, argv)
 			 */
 			source = optarg;
 			break;
-		case 'v':
-			verbose++;
-			break;
 		case 'U':
 			useproto = IPPROTO_UDP;
+			break;
+		case 'v':
+			verbose++;
 			break;
 		case 'w':
 			ep = NULL;
@@ -574,13 +557,13 @@ main(argc, argv)
 		}
 		break;
 	case IPPROTO_NONE:
-        	if ((sndsock = socket(AF_INET6, SOCK_RAW, IPPROTO_NONE)) < 0) {
+		if ((sndsock = socket(AF_INET6, SOCK_RAW, IPPROTO_NONE)) < 0) {
 			perror("socket(SOCK_RAW)");
 			exit(5);
 		}
 		break;
 	default:
-		fprintf(stderr, "traceroute6: unknown probe protocol %d",
+		fprintf(stderr, "traceroute6: unknown probe protocol %d\n",
 		    useproto);
 		exit(5);
 	}
@@ -641,7 +624,7 @@ main(argc, argv)
 		ep = NULL;
 		errno = 0;
 		datalen = strtoul(*argv, &ep, 0);
-		if (errno || !*argv || *ep) {
+		if (errno || *ep) {
 			fprintf(stderr,
 			    "traceroute6: invalid packet length.\n");
 			exit(1);
@@ -649,10 +632,10 @@ main(argc, argv)
 	}
 	switch (useproto) {
 	case IPPROTO_ICMPV6:
-		minlen = ICMP6ECHOLEN + sizeof(struct tv32);
+		minlen = ICMP6ECHOLEN;
 		break;
 	case IPPROTO_UDP:
-		minlen = sizeof(struct opacket);
+		minlen = sizeof(struct udphdr);
 		break;
 	case IPPROTO_NONE:
 		minlen = 0;
@@ -671,6 +654,8 @@ main(argc, argv)
 		    minlen, MAXPACKET);
 		exit(1);
 	}
+	if (useproto == IPPROTO_UDP)
+		datalen -= sizeof(struct udphdr);
 	outpacket = malloc(datalen);
 	if (!outpacket) {
 		perror("malloc");
@@ -735,8 +720,10 @@ main(argc, argv)
 
 #ifdef SO_SNDBUF
 	i = datalen;
+	if (i == 0)
+		i = 1;
 	if (setsockopt(sndsock, SOL_SOCKET, SO_SNDBUF, (char *)&i,
-	    sizeof(i)) < 0 && useproto != IPPROTO_NONE) {
+	    sizeof(i)) < 0) {
 		perror("setsockopt(SO_SNDBUF)");
 		exit(6);
 	}
@@ -977,9 +964,7 @@ main(argc, argv)
 }
 
 int
-wait_for_reply(sock, mhdr)
-	int sock;
-	struct msghdr *mhdr;
+wait_for_reply(int sock, struct msghdr *mhdr)
 {
 #ifdef HAVE_POLL
 	struct pollfd pfd[1];
@@ -1038,14 +1023,9 @@ setpolicy(so, policy)
 #endif
 
 void
-send_probe(seq, hops)
-	int seq;
-	u_long hops;
+send_probe(int seq, u_long hops)
 {
 	struct icmp6_hdr *icp;
-	struct opacket *op;
-	struct timeval tv;
-	struct tv32 tv32;
 	int i;
 
 	i = hops;
@@ -1055,9 +1035,6 @@ send_probe(seq, hops)
 	}
 
 	Dst.sin6_port = htons(port + seq);
-	(void) gettimeofday(&tv, NULL);
-	tv32.tv32_sec = htonl(tv.tv_sec);
-	tv32.tv32_usec = htonl(tv.tv_usec);
 
 	switch (useproto) {
 	case IPPROTO_ICMPV6:
@@ -1068,15 +1045,8 @@ send_probe(seq, hops)
 		icp->icmp6_cksum = 0;
 		icp->icmp6_id = ident;
 		icp->icmp6_seq = htons(seq);
-		bcopy(&tv32, ((u_int8_t *)outpacket + ICMP6ECHOLEN),
-		    sizeof(tv32));
 		break;
 	case IPPROTO_UDP:
-		op = outpacket;
-
-		op->seq = seq;
-		op->hops = hops;
-		bcopy(&tv32, &op->tv, sizeof tv32);
 		break;
 	case IPPROTO_NONE:
 		/* No space for anything. No harm as seq/tv32 are decorative. */
@@ -1098,8 +1068,7 @@ send_probe(seq, hops)
 }
 
 int
-get_hoplim(mhdr)
-	struct msghdr *mhdr;
+get_hoplim(struct msghdr *mhdr)
 {
 	struct cmsghdr *cm;
 
@@ -1115,8 +1084,7 @@ get_hoplim(mhdr)
 }
 
 double
-deltaT(t1p, t2p)
-	struct timeval *t1p, *t2p;
+deltaT(struct timeval *t1p, struct timeval *t2p)
 {
 	double dt;
 
@@ -1185,10 +1153,7 @@ pr_type(int t0)
 }
 
 int
-packet_ok(mhdr, cc, seq)
-	struct msghdr *mhdr;
-	int cc;
-	int seq;
+packet_ok(struct msghdr *mhdr, int cc, int seq)
 {
 	struct icmp6_hdr *icp;
 	struct sockaddr_in6 *from = (struct sockaddr_in6 *)mhdr->msg_name;
@@ -1262,6 +1227,8 @@ packet_ok(mhdr, cc, seq)
 	if ((type == ICMP6_TIME_EXCEEDED && code == ICMP6_TIME_EXCEED_TRANSIT)
 	    || type == ICMP6_DST_UNREACH) {
 		struct ip6_hdr *hip;
+		struct icmp6_hdr *icmp;
+		struct udphdr *udp;
 		void *up;
 
 		hip = (struct ip6_hdr *)(icp + 1);
@@ -1272,14 +1239,16 @@ packet_ok(mhdr, cc, seq)
 		}
 		switch (useproto) {
 		case IPPROTO_ICMPV6:
-			if (((struct icmp6_hdr *)up)->icmp6_id == ident &&
-			    ((struct icmp6_hdr *)up)->icmp6_seq == htons(seq))
+			icmp = (struct icmp6_hdr *)up;
+			if (icmp->icmp6_id == ident &&
+			    icmp->icmp6_seq == htons(seq))
 				return (type == ICMP6_TIME_EXCEEDED ?
 				    -1 : code + 1);
 			break;
 		case IPPROTO_UDP:
-			if (((struct udphdr *)up)->uh_sport == htons(srcport) &&
-			    ((struct udphdr *)up)->uh_dport == htons(port + seq))
+			udp = (struct udphdr *)up;
+			if (udp->uh_sport == htons(srcport) &&
+			    udp->uh_dport == htons(port + seq))
 				return (type == ICMP6_TIME_EXCEEDED ?
 				    -1 : code + 1);
 			break;
@@ -1328,9 +1297,7 @@ packet_ok(mhdr, cc, seq)
  * Increment pointer until find the UDP or ICMP header.
  */
 void *
-get_uphdr(ip6, lim)
-	struct ip6_hdr *ip6;
-	u_char *lim;
+get_uphdr(struct ip6_hdr *ip6, u_char *lim)
 {
 	u_char *cp = (u_char *)ip6, nh;
 	int hlen;
@@ -1374,9 +1341,7 @@ get_uphdr(ip6, lim)
 }
 
 void
-print(mhdr, cc)
-	struct msghdr *mhdr;
-	int cc;
+print(struct msghdr *mhdr, int cc)
 {
 	struct sockaddr_in6 *from = (struct sockaddr_in6 *)mhdr->msg_name;
 	char hbuf[NI_MAXHOST];
@@ -1412,8 +1377,7 @@ print(mhdr, cc)
  * numeric value, otherwise try for symbolic name.
  */
 const char *
-inetname(sa)
-	struct sockaddr *sa;
+inetname(struct sockaddr *sa)
 {
 	static char line[NI_MAXHOST], domain[MAXHOSTNAMELEN + 1];
 	static int first = 1;
@@ -1447,7 +1411,7 @@ inetname(sa)
 }
 
 void
-usage()
+usage(void)
 {
 
 	fprintf(stderr,
