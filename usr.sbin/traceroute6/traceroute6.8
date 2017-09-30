@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .Nm
 .Bk -words
-.Op Fl adIlnNrUv
+.Op Fl adIlnNrSTUv
 .Ek
 .Bk -words
 .Op Fl f Ar firsthop
@@ -119,7 +119,7 @@ Do not resolve numeric address to hostname.
 Use a packet with no upper layer header for the probes,
 instead of UDP datagrams.
 .It Fl p Ar port
-Set UDP port number to
+Set SCTP/TCP/UDP port number to
 .Ar port .
 .It Fl q Ar probes
 Set the number of probe per hop count to
@@ -138,6 +138,10 @@ that has no route through it
 .It Fl s Ar src
 .Ar Src
 specifies the source IPv6 address to be used.
+.It Fl S
+Use SCTP packets for the probes.
+.It Fl T
+Use TCP segments for the probes.
 .It Fl U
 Use UDP datagrams for the probes.
 This is the default.
