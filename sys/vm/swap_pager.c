@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/blist.h>
@@ -322,6 +323,10 @@ static int sysctl_swap_async_max(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vm, OID_AUTO, swap_async_max, CTLTYPE_INT | CTLFLAG_RW |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_swap_async_max, "I",
     "Maximum running async swap ops");
+static int sysctl_swap_fragmentation(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vm, OID_AUTO, swap_fragmentation, CTLTYPE_STRING | CTLFLAG_RD |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_swap_fragmentation, "A",
+    "Swap Fragmentation Info");
 
 static struct sx sw_alloc_sx;
 
@@ -776,6 +781,36 @@ swp_pager_freeswapspace(daddr_t blk, int npages)
 		}
 	}
 	panic("Swapdev not found");
+}
+
+/*
+ * SYSCTL_SWAP_FRAGMENTATION() -	produce raw swap space stats
+ */
+static int
+sysctl_swap_fragmentation(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sbuf;
+	struct swdevt *sp;
+	const char *devname;
+	int error;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+	mtx_lock(&sw_dev_mtx);
+	TAILQ_FOREACH(sp, &swtailq, sw_list) {
+		if (vn_isdisk(sp->sw_vp, NULL))
+			devname = devtoname(sp->sw_vp->v_rdev);
+		else
+			devname = "[file]";
+		sbuf_printf(&sbuf, "\nFree space on device %s:\n", devname);
+		blist_stats(sp->sw_blist, &sbuf);
+	}
+	mtx_unlock(&sw_dev_mtx);
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+	return (error);
 }
 
 /*
