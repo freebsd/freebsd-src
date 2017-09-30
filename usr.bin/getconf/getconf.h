@@ -41,3 +41,7 @@ int	find_limit(const char *name, intmax_t *value);
 int	find_pathconf(const char *name, int *key);
 int	find_progenv(const char *name, const char **alt_path);
 int	find_sysconf(const char *name, int *key);
+void	foreach_confstr(void (*func)(const char *, int));
+void	foreach_pathconf(void (*func)(const char *, int, const char *),
+	    const char *path);
+void	foreach_sysconf(void (*func)(const char *, int));

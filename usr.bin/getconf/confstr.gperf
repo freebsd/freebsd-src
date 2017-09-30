@@ -68,3 +68,14 @@ find_confstr(const char *name, int *key)
 	}
 	return 0;
 }
+
+void
+foreach_confstr(void (*func)(const char *, int))
+{
+	const struct map *mp;
+
+	for (mp = wordlist; mp->name != NULL; mp++) {
+		if (mp->valid)
+			func(mp->name, mp->key);
+	}
+}
