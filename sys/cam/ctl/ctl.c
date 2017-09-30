@@ -40,8 +40,6 @@
  * Author: Ken Merry <ken@FreeBSD.org>
  */
 
-#define _CTL_C
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -410,6 +408,11 @@ SYSCTL_INT(_kern_cam_ctl, OID_AUTO, debug, CTLFLAG_RWTUN,
 static int ctl_lun_map_size = 1024;
 SYSCTL_INT(_kern_cam_ctl, OID_AUTO, lun_map_size, CTLFLAG_RWTUN,
     &ctl_lun_map_size, 0, "Size of per-port LUN map (max LUN + 1)");
+#ifdef  CTL_TIME_IO
+static int ctl_time_io_secs = CTL_TIME_IO_DEFAULT_SECS;
+SYSCTL_INT(_kern_cam_ctl, OID_AUTO, time_io_secs, CTLFLAG_RWTUN,
+    &ctl_time_io_secs, 0, "Log requests taking more seconds");
+#endif
 
 /*
  * Supported pages (0x00), Serial number (0x80), Device ID (0x83),
