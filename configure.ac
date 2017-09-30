@@ -367,6 +367,14 @@ if test "x$with_lz4" != "xno"; then
   AC_CHECK_LIB(lz4,LZ4_decompress_safe)
 fi
 
+AC_ARG_WITH([zstd],
+  AS_HELP_STRING([--without-zstd], [Don't build support for zstd through libzstd]))
+
+if test "x$with_zstd" != "xno"; then
+  AC_CHECK_HEADERS([zstd.h])
+  AC_CHECK_LIB(zstd,ZSTD_compressStream)
+fi
+
 AC_ARG_WITH([lzma],
   AS_HELP_STRING([--without-lzma], [Don't build support for xz through lzma]))
 
@@ -682,7 +690,7 @@ AC_ARG_ENABLE([xattr],
 		[Disable Extended Attributes support (default: check)]))
 
 if test "x$enable_xattr" != "xno"; then
-    AC_SEARCH_LIBS([setxattr], [attr])
+    AC_SEARCH_LIBS([setxattr], [attr gnu])
     AC_CHECK_DECLS([EXTATTR_NAMESPACE_USER], [], [], [#include <sys/types.h>
 #include <sys/extattr.h>
 ])

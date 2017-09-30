@@ -723,6 +723,11 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 		}
 		case 0x9901:
 			/* WinZip AES extra data field. */
+			if (datasize < 6) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Incomplete AES field");
+				return ARCHIVE_FAILED;
+			}
 			if (p[offset + 2] == 'A' && p[offset + 3] == 'E') {
 				/* Vendor version. */
 				zip_entry->aes_extra.vendor =
