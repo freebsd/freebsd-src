@@ -167,6 +167,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_support_filter_rpm.c \
 	libarchive/archive_read_support_filter_uu.c \
 	libarchive/archive_read_support_filter_xz.c \
+	libarchive/archive_read_support_filter_zstd.c \
 	libarchive/archive_read_support_format_7zip.c \
 	libarchive/archive_read_support_format_all.c \
 	libarchive/archive_read_support_format_ar.c \
@@ -213,6 +214,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_add_filter_program.c \
 	libarchive/archive_write_add_filter_uuencode.c \
 	libarchive/archive_write_add_filter_xz.c \
+	libarchive/archive_write_add_filter_zstd.c \
 	libarchive/archive_write_set_format.c \
 	libarchive/archive_write_set_format_7zip.c \
 	libarchive/archive_write_set_format_ar.c \
@@ -402,6 +404,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_compat_uudecode_large.c \
 	libarchive/test/test_compat_xz.c \
 	libarchive/test/test_compat_zip.c \
+	libarchive/test/test_compat_zstd.c \
 	libarchive/test/test_empty_write.c \
 	libarchive/test/test_entry.c \
 	libarchive/test/test_entry_strmode.c \
@@ -559,6 +562,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_filter_program.c \
 	libarchive/test/test_write_filter_uuencode.c \
 	libarchive/test/test_write_filter_xz.c \
+	libarchive/test/test_write_filter_zstd.c \
 	libarchive/test/test_write_format_7zip.c \
 	libarchive/test/test_write_format_7zip_empty.c \
 	libarchive/test/test_write_format_7zip_large.c \
@@ -677,6 +681,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_zip_5.zip.uu \
 	libarchive/test/test_compat_zip_6.zip.uu \
 	libarchive/test/test_compat_zip_7.xps.uu \
+	libarchive/test/test_compat_zstd_1.tar.zst.uu \
 	libarchive/test/test_fuzz.cab.uu \
 	libarchive/test/test_fuzz.lzh.uu \
 	libarchive/test/test_fuzz_1.iso.Z.uu \
@@ -961,6 +966,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_extract_tar_lzma.c \
 	tar/test/test_extract_tar_lzo.c \
 	tar/test/test_extract_tar_xz.c \
+	tar/test/test_extract_tar_zstd.c \
 	tar/test/test_format_newc.c \
 	tar/test/test_help.c \
 	tar/test/test_leading_slash.c \
@@ -1000,6 +1006,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_xattrs.c \
 	tar/test/test_option_xz.c \
 	tar/test/test_option_z.c \
+	tar/test/test_option_zstd.c \
 	tar/test/test_patterns.c \
 	tar/test/test_print_longpath.c \
 	tar/test/test_stdio.c \
@@ -1036,6 +1043,7 @@ bsdtar_test_EXTRA_DIST= \
 	tar/test/test_extract.tar.lrz.uu \
 	tar/test/test_extract.tar.lz.uu \
 	tar/test/test_extract.tar.lz4.uu \
+	tar/test/test_extract.tar.zst.uu \
 	tar/test/test_extract.tar.lzma.uu \
 	tar/test/test_extract.tar.lzo.uu \
 	tar/test/test_extract.tar.xz.uu \
@@ -1121,6 +1129,7 @@ bsdcpio_test_SOURCES= \
 	cpio/test/test_extract_cpio_lzma.c \
 	cpio/test/test_extract_cpio_lzo.c \
 	cpio/test/test_extract_cpio_xz.c \
+	cpio/test/test_extract_cpio_zstd.c \
 	cpio/test/test_format_newc.c \
 	cpio/test/test_gcpio_compat.c \
 	cpio/test/test_missing_file.c \
@@ -1151,6 +1160,7 @@ bsdcpio_test_SOURCES= \
 	cpio/test/test_option_xz.c \
 	cpio/test/test_option_y.c \
 	cpio/test/test_option_z.c \
+	cpio/test/test_option_zstd.c \
 	cpio/test/test_owner_parse.c \
 	cpio/test/test_passthrough_dotdot.c \
 	cpio/test/test_passthrough_reverse.c
@@ -1184,6 +1194,7 @@ bsdcpio_test_EXTRA_DIST= \
 	cpio/test/test_extract.cpio.lrz.uu \
 	cpio/test/test_extract.cpio.lz.uu \
 	cpio/test/test_extract.cpio.lz4.uu \
+	cpio/test/test_extract.cpio.zst.uu \
 	cpio/test/test_extract.cpio.lzma.uu \
 	cpio/test/test_extract.cpio.lzo.uu \
 	cpio/test/test_extract.cpio.xz.uu \
@@ -1259,6 +1270,7 @@ bsdcat_test_SOURCES= \
 	cat/test/test_empty_gz.c \
 	cat/test/test_empty_lz4.c \
 	cat/test/test_empty_xz.c \
+	cat/test/test_empty_zstd.c \
 	cat/test/test_error.c \
 	cat/test/test_error_mixed.c \
 	cat/test/test_expand_Z.c \
@@ -1268,6 +1280,7 @@ bsdcat_test_SOURCES= \
 	cat/test/test_expand_mixed.c \
 	cat/test/test_expand_plain.c \
 	cat/test/test_expand_xz.c \
+	cat/test/test_expand_zstd.c \
 	cat/test/test_help.c \
 	cat/test/test_version.c
 
@@ -1294,11 +1307,13 @@ bsdcat_test_EXTRA_DIST= \
 	cat/test/list.h \
 	cat/test/test_empty.gz.uu \
 	cat/test/test_empty.lz4.uu \
+	cat/test/test_empty.zst.uu \
 	cat/test/test_empty.xz.uu \
 	cat/test/test_expand.Z.uu \
 	cat/test/test_expand.bz2.uu \
 	cat/test/test_expand.gz.uu \
 	cat/test/test_expand.lz4.uu \
+	cat/test/test_expand.zst.uu \
 	cat/test/test_expand.plain.uu \
 	cat/test/test_expand.xz.uu \
 	cat/test/CMakeLists.txt

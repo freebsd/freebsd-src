@@ -52,6 +52,17 @@
 #error Oops: No config.h and no pre-built configuration in archive_platform.h.
 #endif
 
+/* On macOS check for some symbols based on the deployment target version.  */
+#if defined(__APPLE__)
+# undef HAVE_FUTIMENS
+# undef HAVE_UTIMENSAT
+# include <AvailabilityMacros.h>
+# if MAC_OS_X_VERSION_MIN_REQUIRED >= 101300
+#  define HAVE_FUTIMENS 1
+#  define HAVE_UTIMENSAT 1
+# endif
+#endif
+
 /* It should be possible to get rid of this by extending the feature-test
  * macros to cover Windows API functions, probably along with non-trivial
  * refactoring of code to find structures that sit more cleanly on top of

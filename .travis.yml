@@ -25,6 +25,6 @@ matrix:
 before_install:
   - if [ `uname` = "Darwin" ]; then brew update; fi
 install:
-  - if [ `uname` = "Darwin" ]; then brew install xz lzop lz4; fi
+  - if [ `uname` = "Darwin" ]; then brew install xz lzop lz4 zstd; fi
 script:
   - build/ci_build.sh

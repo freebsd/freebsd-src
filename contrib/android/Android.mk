@@ -74,6 +74,7 @@ libarchive_src_files := libarchive/archive_acl.c \
 						libarchive/archive_read_support_filter_rpm.c \
 						libarchive/archive_read_support_filter_uu.c \
 						libarchive/archive_read_support_filter_xz.c \
+						libarchive/archive_read_support_filter_zstd.c \
 						libarchive/archive_read_support_format_7zip.c \
 						libarchive/archive_read_support_format_all.c \
 						libarchive/archive_read_support_format_ar.c \
@@ -116,6 +117,7 @@ libarchive_src_files := libarchive/archive_acl.c \
 						libarchive/archive_write_add_filter_program.c \
 						libarchive/archive_write_add_filter_uuencode.c \
 						libarchive/archive_write_add_filter_xz.c \
+						libarchive/archive_write_add_filter_zstd.c \
 						libarchive/archive_write_set_format.c \
 						libarchive/archive_write_set_format_7zip.c \
 						libarchive/archive_write_set_format_ar.c \
