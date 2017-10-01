@@ -1585,8 +1585,8 @@ mps_setup_sysctl(struct mps_softc *sc)
 	}
 
 	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
-	    OID_AUTO, "debug_level", CTLTYPE_STRING | CTLFLAG_RW, sc, 0,
-	    mps_debug_sysctl, "A", "mps debug level");
+	    OID_AUTO, "debug_level", CTLTYPE_STRING | CTLFLAG_RW |CTLFLAG_MPSAFE,
+	    sc, 0, mps_debug_sysctl, "A", "mps debug level");
 
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "disable_msix", CTLFLAG_RD, &sc->disable_msix, 0,
@@ -1679,7 +1679,7 @@ mps_setup_sysctl(struct mps_softc *sc)
 	    "Use the phy number for enumeration");
 }
 
-struct mps_debug_string {
+static struct mps_debug_string {
 	char	*name;
 	int	flag;
 } mps_debug_strings[] = {
@@ -1701,7 +1701,7 @@ mps_debug_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct mps_softc *sc;
 	struct mps_debug_string *string;
-	struct sbuf sbuf;
+	struct sbuf *sbuf;
 	char *buffer;
 	size_t sz;
 	int i, len, debug, error;
@@ -1712,20 +1712,20 @@ mps_debug_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 
-	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+	sbuf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
 	debug = sc->mps_debug;
 
-	sbuf_printf(&sbuf, "%#x", debug);
+	sbuf_printf(sbuf, "%#x", debug);
 
 	sz = sizeof(mps_debug_strings) / sizeof(mps_debug_strings[0]);
 	for (i = 0; i < sz; i++) {
 		string = &mps_debug_strings[i];
 		if (debug & string->flag)
-			sbuf_printf(&sbuf, ",%s", string->name);
+			sbuf_printf(sbuf, ",%s", string->name);
 	}
 
-	error = sbuf_finish(&sbuf);
-	sbuf_delete(&sbuf);
+	error = sbuf_finish(sbuf);
+	sbuf_delete(sbuf);
 
 	if (error || req->newptr == NULL)
 		return (error);

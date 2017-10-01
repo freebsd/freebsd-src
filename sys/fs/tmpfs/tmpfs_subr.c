@@ -350,7 +350,8 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 	case VREG:
 		uobj = node->tn_reg.tn_aobj;
 		if (uobj != NULL) {
-			atomic_subtract_long(&tmp->tm_pages_used, uobj->size);
+			if (uobj->size != 0)
+				atomic_subtract_long(&tmp->tm_pages_used, uobj->size);
 			KASSERT((uobj->flags & OBJ_TMPFS) == 0,
 			    ("leaked OBJ_TMPFS node %p vm_obj %p", node, uobj));
 			vm_object_deallocate(uobj);
@@ -1375,6 +1376,12 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 	oldpages = OFF_TO_IDX(oldsize + PAGE_MASK);
 	MPASS(oldpages == uobj->size);
 	newpages = OFF_TO_IDX(newsize + PAGE_MASK);
+
+	if (__predict_true(newpages == oldpages && newsize >= oldsize)) {
+		node->tn_size = newsize;
+		return (0);
+	}
+
 	if (newpages > oldpages &&
 	    tmpfs_pages_check_avail(tmp, newpages - oldpages) == 0)
 		return (ENOSPC);
