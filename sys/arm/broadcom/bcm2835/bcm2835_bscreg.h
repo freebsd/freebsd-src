@@ -40,6 +40,9 @@
 #define	BCM_BSC_CTRL_CLEAR1		(1 << 5)
 #define	BCM_BSC_CTRL_CLEAR0		(1 << 4)
 #define	BCM_BSC_CTRL_READ		(1 << 0)
+#define	BCM_BSC_CTRL_INT_ALL \
+    (BCM_BSC_CTRL_INTR | BCM_BSC_CTRL_INTT | BCM_BSC_CTRL_INTD)
+
 #define	BCM_BSC_STATUS		0x04
 #define	BCM_BSC_STATUS_CLKT		(1 << 9)
 #define	BCM_BSC_STATUS_ERR		(1 << 8)
@@ -51,6 +54,9 @@
 #define	BCM_BSC_STATUS_TXW		(1 << 2)
 #define	BCM_BSC_STATUS_DONE		(1 << 1)
 #define	BCM_BSC_STATUS_TA		(1 << 0)
+#define	BCM_BSC_STATUS_ERRBITS \
+    (BCM_BSC_STATUS_CLKT | BCM_BSC_STATUS_ERR)
+
 #define	BCM_BSC_DLEN		0x08
 #define	BCM_BSC_SLAVE		0x0c
 #define	BCM_BSC_DATA		0x10
