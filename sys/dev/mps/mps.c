@@ -1696,6 +1696,12 @@ static struct mps_debug_string {
 	{"trace", MPS_TRACE}
 };
 
+enum mps_debug_level_combiner {
+	COMB_NONE,
+	COMB_ADD,
+	COMB_SUB
+};
+
 static int
 mps_debug_sysctl(SYSCTL_HANDLER_ARGS)
 {
@@ -1747,11 +1753,23 @@ static void
 mps_parse_debug(struct mps_softc *sc, char *list)
 {
 	struct mps_debug_string *string;
+	enum mps_debug_level_combiner op;
 	char *token, *endtoken;
 	size_t sz;
 	int flags, i;
 
 	if (list == NULL || *list == '\0')
+		return;
+
+	if (*list == '+') {
+		op = COMB_ADD;
+		list++;
+	} else if (*list == '-') {
+		op = COMB_SUB;
+		list++;
+	} else
+		op = COMB_NONE;
+	if (*list == '\0')
 		return;
 
 	flags = 0;
@@ -1773,7 +1791,18 @@ mps_parse_debug(struct mps_softc *sc, char *list)
 		}
 	}
 
-	sc->mps_debug = flags;
+	switch (op) {
+	case COMB_NONE:
+		sc->mps_debug = flags;
+		break;
+	case COMB_ADD:
+		sc->mps_debug |= flags;
+		break;
+	case COMB_SUB:
+		sc->mps_debug &= (~flags);
+		break;
+	}
+
 	return;
 }
 
