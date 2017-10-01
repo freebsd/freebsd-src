@@ -3,7 +3,7 @@
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/cmd/zfs
 
 PROG=	zfs
-MAN=	zfs.8
+MAN=	zfs.8 zfs-program.8
 SRCS=	zfs_main.c zfs_iter.c
 
 WARNS?=	0

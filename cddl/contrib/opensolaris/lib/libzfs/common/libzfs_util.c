@@ -678,6 +678,10 @@ libzfs_init(void)
 	zpool_feature_init();
 	libzfs_mnttab_init(hdl);
 
+	if (getenv("ZFS_PROP_DEBUG") != NULL) {
+		hdl->libzfs_prop_debug = B_TRUE;
+	}
+
 	return (hdl);
 }
 
