@@ -867,7 +867,7 @@ static void addquoted (lua_State *L, luaL_Buffer *b, int arg) {
       luaL_addchar(b, '\\');
       luaL_addchar(b, *s);
     }
-    else if (*s == '\0' || iscntrl(uchar(*s))) {
+    else if (*s == '\0' || iscntrl(*s)) {
       char buff[10];
       if (!isdigit(uchar(*(s+1))))
         sprintf(buff, "\\%d", (int)uchar(*s));
