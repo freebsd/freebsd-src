@@ -408,8 +408,8 @@ SYSCTL_PROC(_sysctl, 0, reuse_test, CTLTYPE_STRING|CTLFLAG_RD|CTLFLAG_MPSAFE,
 	0, 0, sysctl_reuse_test, "-", "");
 #endif
 
-void
-sysctl_register_oid(struct sysctl_oid *oidp)
+static void
+sysctl_register_oid_impl(struct sysctl_oid *oidp, bool enable)
 {
 	struct sysctl_oid_list *parent = oidp->oid_parent;
 	struct sysctl_oid *p;
@@ -491,6 +491,17 @@ retry:
 	}
 	/* update the OID number, if any */
 	oidp->oid_number = oid_number;
+
+	/*
+	 * Mark the leaf as dormant if it's not to be immediately enabled.
+	 * We do not disable nodes as they can be shared between modules
+	 * and it is always safe to access a node.
+	 */
+	if (!enable && (oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE) {
+		KASSERT((oidp->oid_kind & CTLFLAG_DORMANT) == 0,
+		    ("internal flag is set in oid_kind"));
+		oidp->oid_kind |= CTLFLAG_DORMANT;
+	}
 	if (q != NULL)
 		SLIST_INSERT_AFTER(q, oidp, oid_link);
 	else
@@ -507,6 +518,35 @@ retry:
 		/* try to fetch value from kernel environment */
 		sysctl_load_tunable_by_oid_locked(oidp);
 	}
+}
+
+void
+sysctl_register_oid(struct sysctl_oid *oidp)
+{
+
+	sysctl_register_oid_impl(oidp, true);
+}
+
+void
+sysctl_register_disabled_oid(struct sysctl_oid *oidp)
+{
+
+	sysctl_register_oid_impl(oidp, false);
+}
+
+void
+sysctl_enable_oid(struct sysctl_oid *oidp)
+{
+
+	SYSCTL_ASSERT_WLOCKED();
+	if ((oidp->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+		KASSERT((oidp->oid_kind & CTLFLAG_DORMANT) == 0,
+		    ("sysctl node is marked as dormant"));
+		return;
+	}
+	KASSERT((oidp->oid_kind & CTLFLAG_DORMANT) != 0,
+	    ("enabling already enabled sysctl oid"));
+	oidp->oid_kind &= ~CTLFLAG_DORMANT;
 }
 
 void
@@ -1057,7 +1097,7 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 		*next = oidp->oid_number;
 		*oidpp = oidp;
 
-		if (oidp->oid_kind & CTLFLAG_SKIP)
+		if ((oidp->oid_kind & (CTLFLAG_SKIP | CTLFLAG_DORMANT)) != 0)
 			continue;
 
 		if (!namelen) {
@@ -1878,6 +1918,8 @@ sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 			}
 			lsp = SYSCTL_CHILDREN(oid);
 		} else if (indx == namelen) {
+			if ((oid->oid_kind & CTLFLAG_DORMANT) != 0)
+				return (ENOENT);
 			*noid = oid;
 			if (nindx != NULL)
 				*nindx = indx;
