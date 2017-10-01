@@ -19,7 +19,7 @@ FILESGROUPS+=	GCDAS
 CLEANFILES+=	${GCDAS}
 
 .for _gcda in ${GCDAS}
-${_gcda}: ${_gcda:.gcda=.o}
+${_gcda}: ${_gcda:R}.o
 GCDASDIR_${_gcda:T}=	${COVERAGEDIR}${_gcda:H:tA}
 .endfor
 .endif
