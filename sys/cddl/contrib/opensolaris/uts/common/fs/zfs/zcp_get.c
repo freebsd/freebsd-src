@@ -288,7 +288,7 @@ get_temporary_prop(dsl_dataset_t *ds, zfs_prop_t zfs_prop, uint64_t *val,
 #ifdef illumos
 		VFS_RELE(vfsp);
 #else
-		vfs_unbusy(vfsp);
+		vfs_rel(vfsp);
 #endif
 		return (ENOENT);
 	}
@@ -296,7 +296,7 @@ get_temporary_prop(dsl_dataset_t *ds, zfs_prop_t zfs_prop, uint64_t *val,
 #ifdef illumos
 	VFS_RELE(vfsp);
 #else
-	vfs_unbusy(vfsp);
+	vfs_rel(vfsp);
 #endif
 	if (tmp != *val) {
 		(void) strcpy(setpoint, "temporary");
