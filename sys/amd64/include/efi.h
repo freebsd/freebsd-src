@@ -32,8 +32,6 @@
 #ifndef __AMD64_INCLUDE_EFI_H_
 #define __AMD64_INCLUDE_EFI_H_
 
-#include <isa/rtc.h>
-
 /*
  * XXX: from gcc 6.2 manual:
  * Note, the ms_abi attribute for Microsoft Windows 64-bit targets
@@ -47,8 +45,12 @@
 #define	EFIABI_ATTR	__attribute__((ms_abi))
 #endif
 
+#ifdef _KERNEL
+#include <isa/rtc.h>
+
 #define	EFI_TIME_LOCK()		mtx_lock(&atrtc_time_lock);
 #define	EFI_TIME_UNLOCK()	mtx_unlock(&atrtc_time_lock);
 #define	EFI_TIME_OWNED()	mtx_assert(&atrtc_time_lock, MA_OWNED);
+#endif
 
 #endif /* __AMD64_INCLUDE_EFI_H_ */
