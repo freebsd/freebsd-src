@@ -775,7 +775,7 @@ a10_gpio_attach(device_t dev)
 	struct clk_list *clkp, *clkp_tmp;
 	clk_t clk;
 	hwreset_t rst = NULL;
-	int off, err;
+	int off, err, clkret;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -815,12 +815,15 @@ a10_gpio_attach(device_t dev)
 		error = hwreset_deassert(rst);
 		if (error != 0) {
 			device_printf(dev, "cannot de-assert reset\n");
-			return (error);
+			goto fail;
 		}
 	}
 
 	TAILQ_INIT(&sc->clk_list);
-	for (off = 0; clk_get_by_ofw_index(dev, 0, off, &clk) == 0; off++) {
+	for (off = 0, clkret = 0; clkret == 0; off++) {
+		clkret = clk_get_by_ofw_index(dev, 0, off, &clk);
+		if (clkret != 0)
+			break;
 		err = clk_enable(clk);
 		if (err != 0) {
 			device_printf(dev, "Could not enable clock %s\n",
@@ -830,6 +833,11 @@ a10_gpio_attach(device_t dev)
 		clkp = malloc(sizeof(*clkp), M_DEVBUF, M_WAITOK | M_ZERO);
 		clkp->clk = clk;
 		TAILQ_INSERT_TAIL(&sc->clk_list, clkp, next);
+	}
+	if (clkret != 0 && clkret != ENOENT) {
+		device_printf(dev, "Could not find clock at offset %d (%d)\n",
+		    off, clkret);
+		goto fail;
 	}
 
 	sc->sc_busdev = gpiobus_attach_bus(dev);
