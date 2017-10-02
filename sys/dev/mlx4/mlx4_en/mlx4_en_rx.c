@@ -814,6 +814,38 @@ void mlx4_en_destroy_drop_qp(struct mlx4_en_priv *priv)
 	mlx4_qp_release_range(priv->mdev->dev, qpn, 1);
 }
 
+const u32 *
+mlx4_en_get_rss_key(struct mlx4_en_priv *priv __unused,
+    u16 *keylen)
+{
+	static const u32 rsskey[10] = {
+		cpu_to_be32(0xD181C62C),
+		cpu_to_be32(0xF7F4DB5B),
+		cpu_to_be32(0x1983A2FC),
+		cpu_to_be32(0x943E1ADB),
+		cpu_to_be32(0xD9389E6B),
+		cpu_to_be32(0xD1039C2C),
+		cpu_to_be32(0xA74499AD),
+		cpu_to_be32(0x593D56D9),
+		cpu_to_be32(0xF3253C06),
+		cpu_to_be32(0x2ADC1FFC)
+	};
+
+	if (keylen != NULL)
+		*keylen = sizeof(rsskey);
+	return (rsskey);
+}
+
+u8 mlx4_en_get_rss_mask(struct mlx4_en_priv *priv)
+{
+	u8 rss_mask = (MLX4_RSS_IPV4 | MLX4_RSS_TCP_IPV4 | MLX4_RSS_IPV6 |
+			MLX4_RSS_TCP_IPV6);
+
+	if (priv->mdev->profile.udp_rss)
+		rss_mask |=  MLX4_RSS_UDP_IPV4 | MLX4_RSS_UDP_IPV6;
+	return (rss_mask);
+}
+
 /* Allocate rx qp's and configure them according to rss map */
 int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 {
@@ -821,16 +853,12 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	struct mlx4_en_rss_map *rss_map = &priv->rss_map;
 	struct mlx4_qp_context context;
 	struct mlx4_rss_context *rss_context;
+	const u32 *key;
 	int rss_rings;
 	void *ptr;
-	u8 rss_mask = (MLX4_RSS_IPV4 | MLX4_RSS_TCP_IPV4 | MLX4_RSS_IPV6 |
-			MLX4_RSS_TCP_IPV6);
 	int i;
 	int err = 0;
 	int good_qps = 0;
-	static const u32 rsskey[10] = { 0xD181C62C, 0xF7F4DB5B, 0x1983A2FC,
-				0x943E1ADB, 0xD9389E6B, 0xD1039C2C, 0xA74499AD,
-				0x593D56D9, 0xF3253C06, 0x2ADC1FFC};
 
 	en_dbg(DRV, priv, "Configuring rss steering\n");
 	err = mlx4_qp_reserve_range(mdev->dev, priv->rx_ring_num,
@@ -874,14 +902,13 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	rss_context->base_qpn = cpu_to_be32(ilog2(rss_rings) << 24 |
 					    (rss_map->base_qpn));
 	rss_context->default_qpn = cpu_to_be32(rss_map->base_qpn);
-	if (priv->mdev->profile.udp_rss) {
-		rss_mask |=  MLX4_RSS_UDP_IPV4 | MLX4_RSS_UDP_IPV6;
+	if (priv->mdev->profile.udp_rss)
 		rss_context->base_qpn_udp = rss_context->default_qpn;
-	}
-	rss_context->flags = rss_mask;
+	rss_context->flags = mlx4_en_get_rss_mask(priv);
 	rss_context->hash_fn = MLX4_RSS_HASH_TOP;
+	key = mlx4_en_get_rss_key(priv, NULL);
 	for (i = 0; i < 10; i++)
-		rss_context->rss_key[i] = cpu_to_be32(rsskey[i]);
+		rss_context->rss_key[i] = key[i];
 
 	err = mlx4_qp_to_ready(mdev->dev, &priv->res.mtt, &context,
 			       &rss_map->indir_qp, &rss_map->indir_state);
