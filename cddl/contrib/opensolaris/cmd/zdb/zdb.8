@@ -15,11 +15,12 @@
 .\" Copyright 2012, Richard Lowe.
 .\" Copyright (c) 2012, Marcelo Araujo <araujo@FreeBSD.org>.
 .\" Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+.\" Copyright 2016 Nexenta Systems, Inc.
 .\" All Rights Reserved.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 26, 2014
+.Dd October 1, 2017
 .Dt ZDB 8
 .Os
 .Sh NAME
@@ -27,7 +28,7 @@
 .Nd Display zpool debugging and consistency information
 .Sh SYNOPSIS
 .Nm
-.Op Fl CumdibcsDvhLMXFPA
+.Op Fl CmdibcsDvhLMXFPA
 .Op Fl e Op Fl p Ar path...
 .Op Fl t Ar txg
 .Op Fl U Ar cache
@@ -64,7 +65,7 @@
 .Ar poolname
 .Nm
 .Fl l
-.Op Fl uA
+.Op Fl Aqu
 .Ar device
 .Nm
 .Fl C
@@ -156,9 +157,14 @@ dataset.
 If specified multiple times, display counts of each intent log transaction
 type.
 .It Fl l Ar device
-Display the vdev labels from the specified device.
+Read the vdev labels from the specified device.
+Return 0 if a valid label was found, 1 if an error occurred, and 2 if no valid
+labels were found.
 If the
 .Fl u
+option is also specified, also display the uberblocks on this device.
+If the
+.Fl q
 option is also specified, also display the uberblocks on this device.
 .It Fl L
 Disable leak tracing and the loading of space maps.
