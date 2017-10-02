@@ -5282,7 +5282,15 @@ nfscl_dolayoutcommit(struct nfsmount *nmp, struct nfscllayout *lyp,
 	else
 		layouttype = NFSLAYOUT_FLEXFILE;
 	LIST_FOREACH(flp, &lyp->nfsly_flayrw, nfsfl_list) {
-		if (flp->nfsfl_off <= lyp->nfsly_lastbyte) {
+		if (layouttype == NFSLAYOUT_FLEXFILE &&
+		    (flp->nfsfl_fflags & NFSFLEXFLAG_NO_LAYOUTCOMMIT) != 0) {
+			NFSCL_DEBUG(4, "Flex file: no layoutcommit\n");
+			/* If not supported, don't bother doing it. */
+			NFSLOCKMNT(nmp);
+			nmp->nm_state |= NFSSTA_NOLAYOUTCOMMIT;
+			NFSUNLOCKMNT(nmp);
+			break;
+		} else if (flp->nfsfl_off <= lyp->nfsly_lastbyte) {
 			len = flp->nfsfl_end - flp->nfsfl_off;
 			error = nfsrpc_layoutcommit(nmp, lyp->nfsly_fh,
 			    lyp->nfsly_fhlen, 0, flp->nfsfl_off, len,
