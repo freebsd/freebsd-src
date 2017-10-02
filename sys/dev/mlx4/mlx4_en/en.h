@@ -795,6 +795,8 @@ int mlx4_en_map_buffer(struct mlx4_buf *buf);
 void mlx4_en_unmap_buffer(struct mlx4_buf *buf);
 void mlx4_en_calc_rx_buf(struct net_device *dev);
 
+const u32 *mlx4_en_get_rss_key(struct mlx4_en_priv *priv, u16 *keylen);
+u8 mlx4_en_get_rss_mask(struct mlx4_en_priv *priv);
 int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv);
 void mlx4_en_release_rss_steer(struct mlx4_en_priv *priv);
 int mlx4_en_create_drop_qp(struct mlx4_en_priv *priv);
