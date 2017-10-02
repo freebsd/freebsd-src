@@ -47,6 +47,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#ifndef INVARIANTS
+#include <sys/syslog.h>
+#endif
 #include <sys/protosw.h>
 #include <sys/random.h>
 
