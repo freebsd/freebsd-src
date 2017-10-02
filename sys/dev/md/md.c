@@ -1111,7 +1111,10 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		if (m != NULL) {
 			vm_page_xunbusy(m);
 			vm_page_lock(m);
-			vm_page_activate(m);
+			if (vm_page_active(m))
+				vm_page_reference(m);
+			else
+				vm_page_activate(m);
 			vm_page_unlock(m);
 		}
 
