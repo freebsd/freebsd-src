@@ -555,6 +555,51 @@ mlx4_en_rx_mb(struct mlx4_en_priv *priv, struct mlx4_en_rx_ring *ring,
 	return (mb);
 }
 
+static __inline int
+mlx4_en_rss_hash(__be16 status, int udp_rss)
+{
+	const __be16 status_all = cpu_to_be16(
+			MLX4_CQE_STATUS_IPV4    |
+			MLX4_CQE_STATUS_IPV4F   |
+			MLX4_CQE_STATUS_IPV6    |
+			MLX4_CQE_STATUS_TCP     |
+			MLX4_CQE_STATUS_UDP);
+	const __be16 status_ipv4_tcp = cpu_to_be16(
+			MLX4_CQE_STATUS_IPV4    |
+			MLX4_CQE_STATUS_TCP);
+	const __be16 status_ipv6_tcp = cpu_to_be16(
+			MLX4_CQE_STATUS_IPV6    |
+			MLX4_CQE_STATUS_TCP);
+	const __be16 status_ipv4_udp = cpu_to_be16(
+			MLX4_CQE_STATUS_IPV4    |
+			MLX4_CQE_STATUS_UDP);
+	const __be16 status_ipv6_udp = cpu_to_be16(
+			MLX4_CQE_STATUS_IPV6    |
+			MLX4_CQE_STATUS_UDP);
+	const __be16 status_ipv4 = cpu_to_be16(MLX4_CQE_STATUS_IPV4);
+	const __be16 status_ipv6 = cpu_to_be16(MLX4_CQE_STATUS_IPV6);
+
+	status &= status_all;
+	switch (status) {
+	case status_ipv4_tcp:
+		return (M_HASHTYPE_RSS_TCP_IPV4);
+	case status_ipv6_tcp:
+		return (M_HASHTYPE_RSS_TCP_IPV6);
+	case status_ipv4_udp:
+		return (udp_rss ? M_HASHTYPE_RSS_UDP_IPV4
+		    : M_HASHTYPE_RSS_IPV4);
+	case status_ipv6_udp:
+		return (udp_rss ? M_HASHTYPE_RSS_UDP_IPV6
+		    : M_HASHTYPE_RSS_IPV6);
+	default:
+		if (status & status_ipv4)
+			return (M_HASHTYPE_RSS_IPV4);
+		if (status & status_ipv6)
+			return (M_HASHTYPE_RSS_IPV6);
+		return (M_HASHTYPE_OPAQUE_HASH);
+	}
+}
+
 /* For cpu arch with cache line of 64B the performance is better when cqe size==64B
  * To enlarge cqe size from 32B to 64B --> 32B of garbage (i.e. 0xccccccc)
  * was added in the beginning of each cqe (the real data is in the corresponding 32B).
@@ -578,6 +623,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	u32 size_mask = ring->size_mask;
 	int size = cq->size;
 	int factor = priv->cqe_factor;
+	const int udp_rss = priv->mdev->profile.udp_rss;
 
 	if (!priv->port_up)
 		return 0;
@@ -625,7 +671,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 		/* forward Toeplitz compatible hash value */
 		mb->m_pkthdr.flowid = be32_to_cpu(cqe->immed_rss_invalid);
-		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE_HASH);
+		M_HASHTYPE_SET(mb, mlx4_en_rss_hash(cqe->status, udp_rss));
 		mb->m_pkthdr.rcvif = dev;
 		if (be32_to_cpu(cqe->vlan_my_qpn) &
 		    MLX4_CQE_VLAN_PRESENT_MASK) {
