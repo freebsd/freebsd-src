@@ -1460,7 +1460,8 @@ getzfsvfs_impl(objset_t *os, zfsvfs_t **zfvp)
 	return (error);
 }
 
-static int
+#ifdef illumos
+int
 getzfsvfs(const char *dsname, zfsvfs_t **zfvp)
 {
 	objset_t *os;
@@ -1472,16 +1473,44 @@ getzfsvfs(const char *dsname, zfsvfs_t **zfvp)
 
 	error = getzfsvfs_impl(os, zfvp);
 	dmu_objset_rele(os, FTAG);
-	if (error == 0) {
-		error = vfs_busy((*zfvp)->z_vfs, 0);
-		vfs_rel((*zfvp)->z_vfs);
-		if (error != 0) {
-			*zfvp = NULL;
-			error = SET_ERROR(ESRCH);
-		}
+	return (error);
+}
+
+#else
+
+static int
+getzfsvfs_ref(const char *dsname, zfsvfs_t **zfvp)
+{
+	objset_t *os;
+	int error;
+
+	error = dmu_objset_hold(dsname, FTAG, &os);
+	if (error != 0)
+		return (error);
+
+	error = getzfsvfs_impl(os, zfvp);
+	dmu_objset_rele(os, FTAG);
+	return (error);
+}
+
+int
+getzfsvfs(const char *dsname, zfsvfs_t **zfvp)
+{
+	objset_t *os;
+	int error;
+
+	error = getzfsvfs_ref(dsname, zfvp);
+	if (error != 0)
+		return (error);
+	error = vfs_busy((*zfvp)->z_vfs, 0);
+	vfs_rel((*zfvp)->z_vfs);
+	if (error != 0) {
+		*zfvp = NULL;
+		error = SET_ERROR(ESRCH);
 	}
 	return (error);
 }
+#endif
 
 /*
  * Find a zfsvfs_t for a mounted filesystem, or create our own, in which
@@ -3055,27 +3084,6 @@ zfs_ioc_get_fsacl(zfs_cmd_t *zc)
 	return (error);
 }
 
-/*
- * Search the vfs list for a specified resource.  Returns a pointer to it
- * or NULL if no suitable entry is found. The caller of this routine
- * is responsible for releasing the returned vfs pointer.
- */
-static vfs_t *
-zfs_get_vfs(const char *resource)
-{
-	vfs_t *vfsp;
-
-	mtx_lock(&mountlist_mtx);
-	TAILQ_FOREACH(vfsp, &mountlist, mnt_list) {
-		if (strcmp(refstr_value(vfsp->vfs_resource), resource) == 0) {
-			vfs_ref(vfsp);
-			break;
-		}
-	}
-	mtx_unlock(&mountlist_mtx);
-	return (vfsp);
-}
-
 /* ARGSUSED */
 static void
 zfs_create_cb(objset_t *os, void *arg, cred_t *cr, dmu_tx_t *tx)
@@ -3557,30 +3565,29 @@ zfs_ioc_nextboot(const char *unused, nvlist_t *innvl, nvlist_t *outnvl)
  * Returns 0 if the argument is not a snapshot, or it is not currently a
  * filesystem, or we were able to unmount it.  Returns error code otherwise.
  */
-int
+void
 zfs_unmount_snap(const char *snapname)
 {
-	vfs_t *vfsp;
-	zfsvfs_t *zfsvfs;
-#ifdef illumos
-	int err;
-#endif
+	vfs_t *vfsp = NULL;
+	zfsvfs_t *zfsvfs = NULL;
 
 	if (strchr(snapname, '@') == NULL)
-		return (0);
+		return;
 
-	vfsp = zfs_get_vfs(snapname);
-	if (vfsp == NULL)
-		return (0);
+	int err = getzfsvfs_ref(snapname, &zfsvfs);
+	if (err != 0) {
+		ASSERT3P(zfsvfs, ==, NULL);
+		return;
+	}
+	vfsp = zfsvfs->z_vfs;
 
-	zfsvfs = vfsp->vfs_data;
 	ASSERT(!dsl_pool_config_held(dmu_objset_pool(zfsvfs->z_os)));
 
 #ifdef illumos
 	err = vn_vfswlock(vfsp->vfs_vnodecovered);
 	VFS_RELE(vfsp);
 	if (err != 0)
-		return (SET_ERROR(err));
+		return;
 #endif
 
 	/*
@@ -3591,14 +3598,14 @@ zfs_unmount_snap(const char *snapname)
 #else
 	(void) dounmount(vfsp, MS_FORCE, curthread);
 #endif
-	return (0);
 }
 
 /* ARGSUSED */
 static int
 zfs_unmount_snap_cb(const char *snapname, void *arg)
 {
-	return (zfs_unmount_snap(snapname));
+	zfs_unmount_snap(snapname);
+	return (0);
 }
 
 /*
@@ -3621,7 +3628,7 @@ zfs_destroy_unmount_origin(const char *fsname)
 		char originname[ZFS_MAX_DATASET_NAME_LEN];
 		dsl_dataset_name(ds->ds_prev, originname);
 		dmu_objset_rele(os, FTAG);
-		(void) zfs_unmount_snap(originname);
+		zfs_unmount_snap(originname);
 	} else {
 		dmu_objset_rele(os, FTAG);
 	}
@@ -3662,9 +3669,7 @@ zfs_ioc_destroy_snaps(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 		    (name[poollen] != '/' && name[poollen] != '@'))
 			return (SET_ERROR(EXDEV));
 
-		error = zfs_unmount_snap(name);
-		if (error != 0)
-			return (error);
+		zfs_unmount_snap(nvpair_name(pair));
 #if defined(__FreeBSD__)
 		zvol_remove_minors(name);
 #endif
@@ -3810,11 +3815,8 @@ zfs_ioc_destroy(zfs_cmd_t *zc)
 {
 	int err;
 
-	if (zc->zc_objset_type == DMU_OST_ZFS) {
-		err = zfs_unmount_snap(zc->zc_name);
-		if (err != 0)
-			return (err);
-	}
+	if (zc->zc_objset_type == DMU_OST_ZFS)
+		zfs_unmount_snap(zc->zc_name);
 
 	if (strchr(zc->zc_name, '@'))
 		err = dsl_destroy_snapshot(zc->zc_name, zc->zc_defer_destroy);
@@ -3886,7 +3888,9 @@ recursive_unmount(const char *fsname, void *arg)
 	char fullname[ZFS_MAX_DATASET_NAME_LEN];
 
 	(void) snprintf(fullname, sizeof (fullname), "%s@%s", fsname, snapname);
-	return (zfs_unmount_snap(fullname));
+	zfs_unmount_snap(fullname);
+
+	return (0);
 }
 
 /*
