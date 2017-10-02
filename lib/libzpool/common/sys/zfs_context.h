@@ -197,7 +197,8 @@ extern struct proc p0;
 
 #define	PS_NONE		-1
 
-extern kthread_t *zk_thread_create(void (*func)(), void *arg);
+extern kthread_t *zk_thread_create(void (*func)(void*), void *arg,
+    uint64_t len);
 
 #define	issig(why)	(FALSE)
 #define	ISSIG(thr, why)	(FALSE)
