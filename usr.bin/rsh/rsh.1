@@ -36,7 +36,7 @@
 .Nd remote shell
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46dn
+.Op Fl 46dnN
 .Op Fl l Ar username
 .Op Fl t Ar timeout
 .Ar host
@@ -87,12 +87,22 @@ By default, the remote username is the same as the local username.
 Authorization is determined
 as in
 .Xr rlogin 1 .
+.It Fl N
+Opposite to
+.Fl n
+option: do not send the "end of file" (EOF) indication for input stream
+to the remote host. This option makes the
+.Nm
+utility compatible with protocol implementations confused by receiving
+EOF, like some Cisco IOS versions. Disables
+.Fl n .
 .It Fl n
 Redirect input from the special device
 .Pa /dev/null
 (see the
 .Sx BUGS
-section of this manual page).
+section of this manual page). Disables
+.Fl N .
 .It Fl t Ar timeout
 Allow a
 .Ar timeout
