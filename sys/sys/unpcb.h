@@ -33,6 +33,9 @@
 #ifndef _SYS_UNPCB_H_
 #define _SYS_UNPCB_H_
 
+typedef uint64_t unp_gen_t;
+
+#if defined(_KERNEL) || defined(_WANT_UNPCB)
 #include <sys/queue.h>
 #include <sys/ucred.h>
 
@@ -61,7 +64,6 @@
  * so that changes in the sockbuf may be computed to modify
  * back pressure on the sender accordingly.
  */
-typedef	u_quad_t	unp_gen_t;
 LIST_HEAD(unp_head, unpcb);
 
 struct unpcb {
@@ -74,8 +76,6 @@ struct unpcb {
 	struct	unp_head unp_refs;	/* referencing socket linked list */
 	LIST_ENTRY(unpcb) unp_reflink;	/* link in unp_refs list */
 	struct	sockaddr_un *unp_addr;	/* bound address of socket */
-	int	reserved1;
-	int	reserved2;
 	unp_gen_t unp_gencnt;		/* generation count of this instance */
 	short	unp_flags;		/* flags */
 	short	unp_gcflag;		/* Garbage collector flags. */
@@ -116,32 +116,50 @@ struct unpcb {
 
 #define	sotounpcb(so)	((struct unpcb *)((so)->so_pcb))
 
-/* Hack alert -- this structure depends on <sys/socketvar.h>. */
+#endif	/* _KERNEL || _WANT_UNPCB */
+
+/*
+ * UNPCB structure exported to user-land via sysctl(3).
+ *
+ * Fields prefixed with "xu_" are unique to the export structure, and fields
+ * with "unp_" or other prefixes match corresponding fields of 'struct unpcb'.
+ *
+ * Legend:
+ * (s) - used by userland utilities in src
+ * (p) - used by utilities in ports
+ * (3) - is known to be used by third party software not in ports
+ * (n) - no known usage
+ *
+ * Evil hack: declare only if sys/socketvar.h have been included.
+ */
 #ifdef	_SYS_SOCKETVAR_H_
 struct xunpcb {
-	size_t	xu_len;			/* length of this structure */
-	struct	unpcb *xu_unpp;		/* to help netstat, fstat */
-	struct	unpcb xu_unp;		/* our information */
+	size_t		xu_len;			/* length of this structure */
+	void		*xu_unpp;		/* to help netstat, fstat */
+	void		*unp_vnode;		/* (s) */
+	void		*unp_conn;		/* (s) */
+	void		*xu_firstref;		/* (s) */
+	void		*xu_nextref;		/* (s) */
+	unp_gen_t	unp_gencnt;		/* (s) */
+	int64_t		xu_spare64[8];
+	int32_t		xu_spare32[8];
 	union {
-		struct	sockaddr_un xuu_addr;	/* our bound address */
+		struct	sockaddr_un xu_addr;	/* our bound address */
 		char	xu_dummy1[256];
-	} xu_au;
-#define	xu_addr	xu_au.xuu_addr
+	};
 	union {
-		struct	sockaddr_un xuu_caddr; /* their bound address */
+		struct	sockaddr_un xu_caddr;	/* their bound address */
 		char	xu_dummy2[256];
-	} xu_cau;
-#define	xu_caddr xu_cau.xuu_caddr
-	struct	xsocket	xu_socket;
-	u_quad_t	xu_alignment_hack;
-};
+	};
+	struct xsocket	xu_socket;
+} __aligned(8);
 
 struct xunpgen {
 	size_t	xug_len;
 	u_int	xug_count;
 	unp_gen_t xug_gen;
 	so_gen_t xug_sogen;
-};
+} __aligned(8);;
 #endif /* _SYS_SOCKETVAR_H_ */
 
 #endif /* _SYS_UNPCB_H_ */

@@ -34,6 +34,12 @@
 #ifndef _SYS_SOCKETVAR_H_
 #define _SYS_SOCKETVAR_H_
 
+/*
+ * Socket generation count type.  Also used in xinpcb, xtcpcb, xunpcb.
+ */
+typedef uint64_t so_gen_t;
+
+#if defined(_KERNEL) || defined(_WANT_SOCKET)
 #include <sys/queue.h>			/* for TAILQ macros */
 #include <sys/selinfo.h>		/* for struct selinfo */
 #include <sys/_lock.h>
@@ -41,7 +47,6 @@
 #include <sys/osd.h>
 #include <sys/_sx.h>
 #include <sys/sockbuf.h>
-#include <sys/sockstate.h>
 #ifdef _KERNEL
 #include <sys/caprights.h>
 #include <sys/sockopt.h>
@@ -55,7 +60,6 @@ struct vnet;
  * handle on protocol and pointer to protocol
  * private data and error information.
  */
-typedef	uint64_t so_gen_t;
 typedef	int so_upcall_t(struct socket *, void *, int);
 
 struct socket;
@@ -167,6 +171,39 @@ struct socket {
 		};
 	};
 };
+#endif	/* defined(_KERNEL) || defined(_WANT_SOCKET) */
+
+/*
+ * Socket state bits.
+ *
+ * Historically, this bits were all kept in the so_state field.  For
+ * locking reasons, they are now in multiple fields, as they are
+ * locked differently.  so_state maintains basic socket state protected
+ * by the socket lock.  so_qstate holds information about the socket
+ * accept queues.  Each socket buffer also has a state field holding
+ * information relevant to that socket buffer (can't send, rcv).  Many
+ * fields will be read without locks to improve performance and avoid
+ * lock order issues.  However, this approach must be used with caution.
+ */
+#define	SS_NOFDREF		0x0001	/* no file table ref any more */
+#define	SS_ISCONNECTED		0x0002	/* socket connected to a peer */
+#define	SS_ISCONNECTING		0x0004	/* in process of connecting to peer */
+#define	SS_ISDISCONNECTING	0x0008	/* in process of disconnecting */
+#define	SS_NBIO			0x0100	/* non-blocking ops */
+#define	SS_ASYNC		0x0200	/* async i/o notify */
+#define	SS_ISCONFIRMING		0x0400	/* deciding to accept connection req */
+#define	SS_ISDISCONNECTED	0x2000	/* socket disconnected from peer */
+
+/*
+ * Protocols can mark a socket as SS_PROTOREF to indicate that, following
+ * pru_detach, they still want the socket to persist, and will free it
+ * themselves when they are done.  Protocols should only ever call sofree()
+ * following setting this flag in pru_detach(), and never otherwise, as
+ * sofree() bypasses socket reference counting.
+ */
+#define	SS_PROTOREF		0x4000	/* strong protocol reference */
+
+#ifdef _KERNEL
 
 #define	SOCK_MTX(so)		&(so)->so_lock
 #define	SOCK_LOCK(so)		mtx_lock(&(so)->so_lock)
@@ -192,32 +229,6 @@ struct socket {
 	KASSERT(SOLISTENING(sol),					\
 	    ("%s: %p not listening", __func__, (sol)));			\
 } while (0)
-
-/*
- * Externalized form of struct socket used by the sysctl(3) interface.
- */
-struct xsocket {
-	size_t	xso_len;	/* length of this structure */
-	struct	socket *xso_so;	/* makes a convenient handle sometimes */
-	short	so_type;
-	short	so_options;
-	short	so_linger;
-	short	so_state;
-	caddr_t	so_pcb;		/* another convenient handle */
-	int	xso_protocol;
-	int	xso_family;
-	u_int	so_qlen;
-	u_int	so_incqlen;
-	u_int	so_qlimit;
-	short	so_timeo;
-	u_short	so_error;
-	pid_t	so_pgid;
-	u_long	so_oobmark;
-	struct xsockbuf so_rcv, so_snd;
-	uid_t	so_uid;		/* XXX */
-};
-
-#ifdef _KERNEL
 
 /*
  * Macros for sockets and socket buffering.
@@ -422,7 +433,6 @@ int	sosend_generic(struct socket *so, struct sockaddr *addr,
 	    struct uio *uio, struct mbuf *top, struct mbuf *control,
 	    int flags, struct thread *td);
 int	soshutdown(struct socket *so, int how);
-void	sotoxsocket(struct socket *so, struct xsocket *xso);
 void	soupcall_clear(struct socket *, int);
 void	soupcall_set(struct socket *, int, so_upcall_t, void *);
 void	solisten_upcall_set(struct socket *, so_upcall_t, void *);
@@ -431,6 +441,14 @@ void	sowakeup_aio(struct socket *so, struct sockbuf *sb);
 void	solisten_wakeup(struct socket *);
 int	selsocket(struct socket *so, int events, struct timeval *tv,
 	    struct thread *td);
+void	soisconnected(struct socket *so);
+void	soisconnecting(struct socket *so);
+void	soisdisconnected(struct socket *so);
+void	soisdisconnecting(struct socket *so);
+void	socantrcvmore(struct socket *so);
+void	socantrcvmore_locked(struct socket *so);
+void	socantsendmore(struct socket *so);
+void	socantsendmore_locked(struct socket *so);
 
 /*
  * Accept filter functions (duh).
@@ -446,5 +464,59 @@ int	accept_filt_generic_mod_event(module_t mod, int event, void *data);
 #endif
 
 #endif /* _KERNEL */
+
+/*
+ * Structure to export socket from kernel to utilities, via sysctl(3).
+ */
+struct xsocket {
+	size_t		xso_len;	/* length of this structure */
+	union {
+		void	*xso_so;	/* kernel address of struct socket */
+		int64_t ph_so;
+	};
+	union {
+		void 	*so_pcb;	/* kernel address of struct inpcb */
+		int64_t ph_pcb;
+	};
+	uint64_t	so_oobmark;
+	int64_t		so_spare64[8];
+	int32_t		xso_protocol;
+	int32_t		xso_family;
+	uint32_t	so_qlen;
+	uint32_t	so_incqlen;
+	uint32_t	so_qlimit;
+	pid_t		so_pgid;
+	uid_t		so_uid;
+	int32_t		so_spare32[8];
+	int16_t		so_type;
+	int16_t		so_options;
+	int16_t		so_linger;
+	int16_t		so_state;
+	int16_t		so_timeo;
+	uint16_t	so_error;
+	struct xsockbuf {
+		uint32_t	sb_cc;
+		uint32_t	sb_hiwat;
+		uint32_t	sb_mbcnt;
+		uint32_t	sb_mcnt;
+		uint32_t	sb_ccnt;
+		uint32_t	sb_mbmax;
+		int32_t		sb_lowat;
+		int32_t		sb_timeo;
+		int16_t		sb_flags;
+	} so_rcv, so_snd;
+};
+
+#ifdef _KERNEL
+void	sotoxsocket(struct socket *so, struct xsocket *xso);
+void	sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb);
+#endif
+
+/*
+ * Socket buffer state bits.  Exported via libprocstat(3).
+ */
+#define	SBS_CANTSENDMORE	0x0010	/* can't send more data to peer */
+#define	SBS_CANTRCVMORE		0x0020	/* can't receive more data from peer */
+#define	SBS_RCVATMARK		0x0040	/* at mark on input */
 
 #endif /* !_SYS_SOCKETVAR_H_ */
