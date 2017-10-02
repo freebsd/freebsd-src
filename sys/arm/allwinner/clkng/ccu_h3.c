@@ -43,8 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <arm/allwinner/clkng/aw_clk_nkmp.h>
 #include <arm/allwinner/clkng/aw_clk_prediv_mux.h>
 
-#include <dt-bindings/clock/sun8i-h3-ccu.h>
-#include <dt-bindings/reset/sun8i-h3-ccu.h>
+#include <gnu/dts/include/dt-bindings/clock/sun8i-h3-ccu.h>
+#include <gnu/dts/include/dt-bindings/reset/sun8i-h3-ccu.h>
 
 #include "ccu_h3.h"
 
