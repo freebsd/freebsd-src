@@ -42,7 +42,8 @@ __FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 
-static struct pthread_key _thread_keytable[PTHREAD_KEYS_MAX];
+/* Used in symbol lookup of libthread_db */
+struct pthread_key _thread_keytable[PTHREAD_KEYS_MAX];
 
 __weak_reference(_pthread_key_create, pthread_key_create);
 __weak_reference(_pthread_key_delete, pthread_key_delete);
