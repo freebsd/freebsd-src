@@ -574,7 +574,7 @@ mlx5e_tx_cq_comp(struct mlx5_core_cq *mcq)
 
 	mtx_lock(&sq->comp_lock);
 	mlx5e_poll_tx_cq(sq, MLX5E_BUDGET_MAX);
-	mlx5e_cq_arm(&sq->cq);
+	mlx5e_cq_arm(&sq->cq, MLX5_GET_DOORBELL_LOCK(&sq->priv->doorbell_lock));
 	mtx_unlock(&sq->comp_lock);
 }
 
