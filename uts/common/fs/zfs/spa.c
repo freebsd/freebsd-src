@@ -5865,8 +5865,9 @@ spa_async_autoexpand(spa_t *spa, vdev_t *vd)
 }
 
 static void
-spa_async_thread(spa_t *spa)
+spa_async_thread(void *arg)
 {
+	spa_t *spa = (spa_t *)arg;
 	int tasks;
 
 	ASSERT(spa->spa_sync_on);
