@@ -64,7 +64,7 @@ Return the physical path of the disk.
 This is a string that identifies the physical path to the disk in the
 storage enclosure.
 .It Fl s
-Return the disk serial number
+Return the disk ident, usually the serial number.
 .It Fl S
 Perform synchronous random write test (ZFS SLOG test),
 measuring time required to write data blocks of different size and
@@ -82,13 +82,6 @@ with the following fields: device name, sectorsize, media size in bytes,
 media size in sectors, stripe size, stripe offset, firmware cylinders,
 firmware heads, and firmware sectors.
 The last three fields are only present if the information is available.
-.It Fl i
-Return the disk ident, usually the serial number.
-.It Fl p
-Return the physical path of the disk.
-This is a string that identifies the physical path to the disk in the
-storage enclosure.
-.El
 .Sh HISTORY
 The
 .Nm
