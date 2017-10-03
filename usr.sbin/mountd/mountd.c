@@ -101,7 +101,7 @@ struct dirlist {
 	struct dirlist	*dp_right;
 	int		dp_flag;
 	struct hostlist	*dp_hosts;	/* List of hosts this dir exported to */
-	char		dp_dirp[1];	/* Actually malloc'd to size of dir */
+	char		*dp_dirp;
 };
 /* dp_flag bits */
 #define	DP_DEFSET	0x1
@@ -1525,12 +1525,8 @@ get_exportlist_one(void)
 					if (ep == (struct exportlist *)NULL) {
 					    ep = get_exp();
 					    ep->ex_fs = fsb.f_fsid;
-					    ep->ex_fsdir = (char *)malloc
-					        (strlen(fsb.f_mntonname) + 1);
-					    if (ep->ex_fsdir)
-						strcpy(ep->ex_fsdir,
-						    fsb.f_mntonname);
-					    else
+					    ep->ex_fsdir = strdup(fsb.f_mntonname);
+					    if (ep->ex_fsdir == NULL)
 						out_of_mem();
 					    if (debug)
 						warnx(
@@ -1940,14 +1936,16 @@ add_expdir(struct dirlist **dpp, char *cp, int len)
 {
 	struct dirlist *dp;
 
-	dp = (struct dirlist *)malloc(sizeof (struct dirlist) + len);
+	dp = malloc(sizeof (struct dirlist));
 	if (dp == (struct dirlist *)NULL)
 		out_of_mem();
 	dp->dp_left = *dpp;
 	dp->dp_right = (struct dirlist *)NULL;
 	dp->dp_flag = 0;
 	dp->dp_hosts = (struct hostlist *)NULL;
-	strcpy(dp->dp_dirp, cp);
+	dp->dp_dirp = strndup(cp, len);
+	if (dp->dp_dirp == NULL)
+		out_of_mem();
 	*dpp = dp;
 	return (dp->dp_dirp);
 }
@@ -2161,7 +2159,8 @@ free_dir(struct dirlist *dp)
 		free_dir(dp->dp_left);
 		free_dir(dp->dp_right);
 		free_host(dp->dp_hosts);
-		free((caddr_t)dp);
+		free(dp->dp_dirp);
+		free(dp);
 	}
 }
 
