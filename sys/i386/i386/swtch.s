@@ -258,7 +258,7 @@ sw1:
 	movl	%eax,(%esp)
 
 	movl	%edx, PCPU(CURPCB)
-	movl	TD_TID(%ecx),%eax
+	/*movl	TD_TID(%ecx),%eax*/
 	movl	%ecx, PCPU(CURTHREAD)		/* into next thread */
 
 	/*
