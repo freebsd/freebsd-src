@@ -919,7 +919,7 @@ single_user(void)
 					_exit(0);
 				password = crypt(clear, pp->pw_passwd);
 				bzero(clear, _PASSWORD_LEN);
-				if (password == NULL ||
+				if (password != NULL &&
 				    strcmp(password, pp->pw_passwd) == 0)
 					break;
 				warning("single-user login failed\n");
