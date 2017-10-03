@@ -353,12 +353,12 @@ FreeBSD 5.2           |      |                 |                       |
  |     |      |       |   NetBSD 7.1           |                       |
  |     |      |       |      |                 |               DragonFly 4.8.0
  |     |      |       |      |            OpenBSD 6.1                  |
- |     |   FreeBSD    |      |                 |                       |
+ |  FreeBSD   |       |      |                 |                       |
+ |   11.1  FreeBSD    |      |                 |                       |
  |     |    10.4      |      |                 |                       |
- |  FreeBSD           |      |                 |                       |
- |   11.1             |      |                 |                       |
+ |     v              |      |                 |                       |
  |                    |      |                 |                       |
-FreeBSD 13 -current   |  NetBSD -current  OpenBSD -current    DragonFly -current
+FreeBSD 12 -current   |  NetBSD -current  OpenBSD -current    DragonFly -current
  |                    |      |                 |                       |
  v                    v      v                 v                       v
 
