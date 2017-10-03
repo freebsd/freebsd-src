@@ -158,7 +158,7 @@ boot</screen>
 	  be obtained using <application>svnlite</application>:</para>
 
 	<screen>&prompt.root; mkdir -p /usr/src
-&prompt.root; svnlite co svn://svn.freebsd.org/base/releng/10.2 /usr/src</screen>
+&prompt.root; svnlite co https://svn.freebsd.org/base/releng/10.4 /usr/src</screen>
 
 	<para>Build the <literal>kernel-toolchain</literal> required
 	  to rebuild the kernel:</para>
