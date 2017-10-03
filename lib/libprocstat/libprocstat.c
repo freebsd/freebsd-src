@@ -582,6 +582,10 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 			type = PS_FST_TYPE_SHM;
 			data = file.f_data;
 			break;
+		case DTYPE_PROCDESC:
+			type = PS_FST_TYPE_PROCDESC;
+			data = file.f_data;
+			break;
 		default:
 			continue;
 		}
@@ -665,6 +669,7 @@ kinfo_type2fst(int kftype)
 		int	kf_type;
 		int	fst_type;
 	} kftypes2fst[] = {
+		{ KF_TYPE_PROCDESC, PS_FST_TYPE_PROCDESC },
 		{ KF_TYPE_CRYPTO, PS_FST_TYPE_CRYPTO },
 		{ KF_TYPE_FIFO, PS_FST_TYPE_FIFO },
 		{ KF_TYPE_KQUEUE, PS_FST_TYPE_KQUEUE },
