@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/module.h>
 #include <sys/mount.h>
+#include <sys/queue.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
@@ -108,7 +109,6 @@ struct dirlist {
 #define DP_HOSTSET	0x2
 
 struct exportlist {
-	struct exportlist *ex_next;
 	struct dirlist	*ex_dirl;
 	struct dirlist	*ex_defdir;
 	int		ex_flag;
@@ -119,6 +119,8 @@ struct exportlist {
 	int		ex_secflavors[MAXSECFLAVORS];
 	int		ex_defnumsecflavors;
 	int		ex_defsecflavors[MAXSECFLAVORS];
+
+	SLIST_ENTRY(exportlist) entries;
 };
 /* ex_flag bits */
 #define	EX_LINKED	0x1
@@ -222,7 +224,7 @@ static int	xdr_fhs(XDR *, caddr_t);
 static int	xdr_mlist(XDR *, caddr_t);
 static void	terminate(int);
 
-static struct exportlist *exphead;
+static SLIST_HEAD(, exportlist) exphead = SLIST_HEAD_INITIALIZER(exphead);
 static struct mountlist *mlhead;
 static struct grouplist *grphead;
 static char *exnames_default[2] = { _PATH_EXPORTS, NULL };
@@ -445,7 +447,6 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 	grphead = (struct grouplist *)NULL;
-	exphead = (struct exportlist *)NULL;
 	mlhead = (struct mountlist *)NULL;
 	if (argc > 0)
 		exnames = argv;
@@ -1284,8 +1285,8 @@ xdr_explist_common(XDR *xdrsp, caddr_t cp __unused, int brief)
 	sigemptyset(&sighup_mask);
 	sigaddset(&sighup_mask, SIGHUP);
 	sigprocmask(SIG_BLOCK, &sighup_mask, NULL);
-	ep = exphead;
-	while (ep) {
+
+	SLIST_FOREACH(ep, &exphead, entries) {
 		putdef = 0;
 		if (put_exlist(ep->ex_dirl, xdrsp, ep->ex_defdir,
 			       &putdef, brief))
@@ -1294,7 +1295,6 @@ xdr_explist_common(XDR *xdrsp, caddr_t cp __unused, int brief)
 			put_exlist(ep->ex_defdir, xdrsp, (struct dirlist *)NULL,
 			&putdef, brief))
 			goto errout;
-		ep = ep->ex_next;
 	}
 	sigprocmask(SIG_UNBLOCK, &sighup_mask, NULL);
 	if (!xdr_bool(xdrsp, &false))
@@ -1397,9 +1397,8 @@ static FILE *exp_file;
 static void
 get_exportlist_one(void)
 {
-	struct exportlist *ep, *ep2;
+	struct exportlist *ep;
 	struct grouplist *grp, *tgrp;
-	struct exportlist **epp;
 	struct dirlist *dirhead;
 	struct statfs fsb;
 	struct xucred anon;
@@ -1676,19 +1675,8 @@ get_exportlist_one(void)
 		}
 		dirhead = (struct dirlist *)NULL;
 		if ((ep->ex_flag & EX_LINKED) == 0) {
-			ep2 = exphead;
-			epp = &exphead;
+			SLIST_INSERT_HEAD(&exphead, ep, entries);
 
-			/*
-			 * Insert in the list in alphabetical order.
-			 */
-			while (ep2 && strcmp(ep2->ex_fsdir, ep->ex_fsdir) < 0) {
-				epp = &ep2->ex_next;
-				ep2 = ep2->ex_next;
-			}
-			if (ep2)
-				ep->ex_next = ep2;
-			*epp = ep;
 			ep->ex_flag |= EX_LINKED;
 		}
 nextline:
@@ -1730,13 +1718,10 @@ get_exportlist(void)
 	/*
 	 * First, get rid of the old list
 	 */
-	ep = exphead;
-	while (ep) {
-		ep2 = ep;
-		ep = ep->ex_next;
-		free_exp(ep2);
+	SLIST_FOREACH_SAFE(ep, &exphead, entries, ep2) {
+		SLIST_REMOVE(&exphead, ep, exportlist, entries);
+		free_exp(ep);
 	}
-	exphead = (struct exportlist *)NULL;
 
 	grp = grphead;
 	while (grp) {
@@ -1918,13 +1903,12 @@ ex_search(fsid_t *fsid)
 {
 	struct exportlist *ep;
 
-	ep = exphead;
-	while (ep) {
+	SLIST_FOREACH(ep, &exphead, entries) {
 		if (ep->ex_fs.val[0] == fsid->val[0] &&
 		    ep->ex_fs.val[1] == fsid->val[1])
 			return (ep);
-		ep = ep->ex_next;
 	}
+
 	return (ep);
 }
 
