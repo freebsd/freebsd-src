@@ -165,6 +165,11 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,	0}
 };
 
+struct clk_list {
+	TAILQ_ENTRY(clk_list)	next;
+	clk_t			clk;
+};
+
 struct a10_gpio_softc {
 	device_t		sc_dev;
 	device_t		sc_busdev;
@@ -175,6 +180,7 @@ struct a10_gpio_softc {
 	bus_space_handle_t	sc_bsh;
 	void *			sc_intrhand;
 	const struct allwinner_padconf *	padconf;
+	TAILQ_HEAD(, clk_list)		clk_list;
 };
 
 #define	A10_GPIO_LOCK(_sc)		mtx_lock_spin(&(_sc)->sc_mtx)
@@ -194,6 +200,11 @@ struct a10_gpio_softc {
 #define	A10_GPIO_GP_INT_CTL		0x210
 #define	A10_GPIO_GP_INT_STA		0x214
 #define	A10_GPIO_GP_INT_DEB		0x218
+
+static int a10_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *value);
+static int a10_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value);
+static int a10_gpio_pin_get_locked(struct a10_gpio_softc *sc, uint32_t pin, unsigned int *value);
+static int a10_gpio_pin_set_locked(struct a10_gpio_softc *sc, uint32_t pin, unsigned int value);
 
 #define	A10_GPIO_WRITE(_sc, _off, _val)		\
     bus_space_write_4(_sc->sc_bst, _sc->sc_bsh, _off, _val)
@@ -316,29 +327,44 @@ a10_gpio_set_drv(struct a10_gpio_softc *sc, uint32_t pin, uint32_t drive)
 static int
 a10_gpio_pin_configure(struct a10_gpio_softc *sc, uint32_t pin, uint32_t flags)
 {
+	u_int val;
 	int err = 0;
 
 	/* Must be called with lock held. */
 	A10_GPIO_LOCK_ASSERT(sc);
 
+	if (pin > sc->padconf->npins)
+		return (EINVAL);
+
 	/* Manage input/output. */
-	if (flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) {
-		if (flags & GPIO_PIN_OUTPUT)
-			err = a10_gpio_set_function(sc, pin, A10_GPIO_OUTPUT);
-		else
+	if (flags & GPIO_PIN_INPUT) {
+		err = a10_gpio_set_function(sc, pin, A10_GPIO_INPUT);
+	} else if (flags & GPIO_PIN_OUTPUT) {
+		if (flags & GPIO_PIN_PRESET_LOW) {
+			a10_gpio_pin_set_locked(sc, pin, 0);
+		} else if (flags & GPIO_PIN_PRESET_HIGH) {
+			a10_gpio_pin_set_locked(sc, pin, 1);
+		} else {
+			/* Read the pin and preset output to current state. */
 			err = a10_gpio_set_function(sc, pin, A10_GPIO_INPUT);
+			if (err == 0) {
+				a10_gpio_pin_get_locked(sc, pin, &val);
+				a10_gpio_pin_set_locked(sc, pin, val);
+			}
+		}
+		if (err == 0)
+			err = a10_gpio_set_function(sc, pin, A10_GPIO_OUTPUT);
 	}
 
 	if (err)
 		return (err);
 
 	/* Manage Pull-up/pull-down. */
-	if (flags & (GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)) {
-		if (flags & GPIO_PIN_PULLUP)
-			a10_gpio_set_pud(sc, pin, A10_GPIO_PULLUP);
-		else
-			a10_gpio_set_pud(sc, pin, A10_GPIO_PULLDOWN);
-	} else
+	if (flags & GPIO_PIN_PULLUP)
+		a10_gpio_set_pud(sc, pin, A10_GPIO_PULLUP);
+	else if (flags & GPIO_PIN_PULLDOWN)
+		a10_gpio_set_pud(sc, pin, A10_GPIO_PULLDOWN);
+	else
 		a10_gpio_set_pud(sc, pin, A10_GPIO_NONE);
 
 	return (0);
@@ -455,26 +481,60 @@ a10_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 }
 
 static int
-a10_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
+a10_gpio_pin_set_locked(struct a10_gpio_softc *sc, uint32_t pin,
+    unsigned int value)
 {
-	struct a10_gpio_softc *sc;
 	uint32_t bank, data;
 
-	sc = device_get_softc(dev);
+	A10_GPIO_LOCK_ASSERT(sc);
+
 	if (pin > sc->padconf->npins)
 		return (EINVAL);
 
 	bank = sc->padconf->pins[pin].port;
 	pin = sc->padconf->pins[pin].pin;
 
-	A10_GPIO_LOCK(sc);
 	data = A10_GPIO_READ(sc, A10_GPIO_GP_DAT(bank));
 	if (value)
 		data |= (1 << pin);
 	else
 		data &= ~(1 << pin);
 	A10_GPIO_WRITE(sc, A10_GPIO_GP_DAT(bank), data);
+
+	return (0);
+}
+
+static int
+a10_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
+{
+	struct a10_gpio_softc *sc;
+	int ret;
+
+	sc = device_get_softc(dev);
+
+	A10_GPIO_LOCK(sc);
+	ret = a10_gpio_pin_set_locked(sc, pin, value);
 	A10_GPIO_UNLOCK(sc);
+
+	return (ret);
+}
+
+static int
+a10_gpio_pin_get_locked(struct a10_gpio_softc *sc,uint32_t pin,
+    unsigned int *val)
+{
+	uint32_t bank, reg_data;
+
+	A10_GPIO_LOCK_ASSERT(sc);
+
+	if (pin > sc->padconf->npins)
+		return (EINVAL);
+
+	bank = sc->padconf->pins[pin].port;
+	pin = sc->padconf->pins[pin].pin;
+
+	reg_data = A10_GPIO_READ(sc, A10_GPIO_GP_DAT(bank));
+	*val = (reg_data & (1 << pin)) ? 1 : 0;
 
 	return (0);
 }
@@ -483,21 +543,15 @@ static int
 a10_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 {
 	struct a10_gpio_softc *sc;
-	uint32_t bank, reg_data;
+	int ret;
 
 	sc = device_get_softc(dev);
-	if (pin > sc->padconf->npins)
-		return (EINVAL);
-
-	bank = sc->padconf->pins[pin].port;
-	pin = sc->padconf->pins[pin].pin;
 
 	A10_GPIO_LOCK(sc);
-	reg_data = A10_GPIO_READ(sc, A10_GPIO_GP_DAT(bank));
+	ret = a10_gpio_pin_get_locked(sc, pin, val);
 	A10_GPIO_UNLOCK(sc);
-	*val = (reg_data & (1 << pin)) ? 1 : 0;
 
-	return (0);
+	return (ret);
 }
 
 static int
@@ -523,6 +577,73 @@ a10_gpio_pin_toggle(device_t dev, uint32_t pin)
 	A10_GPIO_UNLOCK(sc);
 
 	return (0);
+}
+
+static int
+a10_gpio_pin_access_32(device_t dev, uint32_t first_pin, uint32_t clear_pins,
+    uint32_t change_pins, uint32_t *orig_pins)
+{
+	struct a10_gpio_softc *sc;
+	uint32_t bank, data, pin;
+
+	sc = device_get_softc(dev);
+	if (first_pin > sc->padconf->npins)
+		return (EINVAL);
+
+	/*
+	 * We require that first_pin refers to the first pin in a bank, because
+	 * this API is not about convenience, it's for making a set of pins
+	 * change simultaneously (required) with reasonably high performance
+	 * (desired); we need to do a read-modify-write on a single register.
+	 */
+	bank = sc->padconf->pins[first_pin].port;
+	pin = sc->padconf->pins[first_pin].pin;
+	if (pin != 0)
+		return (EINVAL);
+
+	A10_GPIO_LOCK(sc);
+	data = A10_GPIO_READ(sc, A10_GPIO_GP_DAT(bank));
+	if ((clear_pins | change_pins) != 0) 
+		A10_GPIO_WRITE(sc, A10_GPIO_GP_DAT(bank),
+		    (data & ~clear_pins) ^ change_pins);
+	A10_GPIO_UNLOCK(sc);
+
+	if (orig_pins != NULL)
+		*orig_pins = data;
+
+	return (0);
+}
+
+static int
+a10_gpio_pin_config_32(device_t dev, uint32_t first_pin, uint32_t num_pins,
+    uint32_t *pin_flags)
+{
+	struct a10_gpio_softc *sc;
+	uint32_t bank, pin;
+	int err;
+
+	sc = device_get_softc(dev);
+	if (first_pin > sc->padconf->npins)
+		return (EINVAL);
+
+	bank = sc->padconf->pins[first_pin].port;
+	if (sc->padconf->pins[first_pin].pin != 0)
+		return (EINVAL);
+
+	/*
+	 * The configuration for a bank of pins is scattered among several
+	 * registers; we cannot g'tee to simultaneously change the state of all
+	 * the pins in the flags array.  So just loop through the array
+	 * configuring each pin for now.  If there was a strong need, it might
+	 * be possible to support some limited simultaneous config, such as
+	 * adjacent groups of 8 pins that line up the same as the config regs.
+	 */
+	for (err = 0, pin = first_pin; err == 0 && pin < num_pins; ++pin) {
+		if (pin_flags[pin] & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT))
+			err = a10_gpio_pin_configure(sc, pin, pin_flags[pin]);
+	}
+
+	return (err);
 }
 
 static int
@@ -651,8 +772,10 @@ a10_gpio_attach(device_t dev)
 	int rid, error;
 	phandle_t gpio;
 	struct a10_gpio_softc *sc;
+	struct clk_list *clkp, *clkp_tmp;
 	clk_t clk;
-	hwreset_t rst;
+	hwreset_t rst = NULL;
+	int off, err, clkret;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -692,16 +815,29 @@ a10_gpio_attach(device_t dev)
 		error = hwreset_deassert(rst);
 		if (error != 0) {
 			device_printf(dev, "cannot de-assert reset\n");
-			return (error);
+			goto fail;
 		}
 	}
 
-	if (clk_get_by_ofw_index(dev, 0, 0, &clk) == 0) {
-		error = clk_enable(clk);
-		if (error != 0) {
-			device_printf(dev, "could not enable clock\n");
-			return (error);
+	TAILQ_INIT(&sc->clk_list);
+	for (off = 0, clkret = 0; clkret == 0; off++) {
+		clkret = clk_get_by_ofw_index(dev, 0, off, &clk);
+		if (clkret != 0)
+			break;
+		err = clk_enable(clk);
+		if (err != 0) {
+			device_printf(dev, "Could not enable clock %s\n",
+			    clk_get_name(clk));
+			goto fail;
 		}
+		clkp = malloc(sizeof(*clkp), M_DEVBUF, M_WAITOK | M_ZERO);
+		clkp->clk = clk;
+		TAILQ_INSERT_TAIL(&sc->clk_list, clkp, next);
+	}
+	if (clkret != 0 && clkret != ENOENT) {
+		device_printf(dev, "Could not find clock at offset %d (%d)\n",
+		    off, clkret);
+		goto fail;
 	}
 
 	sc->sc_busdev = gpiobus_attach_bus(dev);
@@ -724,6 +860,26 @@ fail:
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 	mtx_destroy(&sc->sc_mtx);
+
+	/* Disable clock */
+	TAILQ_FOREACH_SAFE(clkp, &sc->clk_list, next, clkp_tmp) {
+		err = clk_disable(clkp->clk);
+		if (err != 0)
+			device_printf(dev, "Could not disable clock %s\n",
+			    clk_get_name(clkp->clk));
+		err = clk_release(clkp->clk);
+		if (err != 0)
+			device_printf(dev, "Could not release clock %s\n",
+			    clk_get_name(clkp->clk));
+		TAILQ_REMOVE(&sc->clk_list, clkp, next);
+		free(clkp, M_DEVBUF);
+	}
+
+	/* Assert resets */
+	if (rst) {
+		hwreset_assert(rst);
+		hwreset_release(rst);
+	}
 
 	return (ENXIO);
 }
@@ -780,6 +936,8 @@ static device_method_t a10_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_get,		a10_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set,		a10_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	a10_gpio_pin_toggle),
+	DEVMETHOD(gpio_pin_access_32,	a10_gpio_pin_access_32),
+	DEVMETHOD(gpio_pin_config_32,	a10_gpio_pin_config_32),
 	DEVMETHOD(gpio_map_gpios,	a10_gpio_map_gpios),
 
 	/* ofw_bus interface */

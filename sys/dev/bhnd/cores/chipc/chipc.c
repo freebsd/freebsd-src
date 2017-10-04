@@ -1,7 +1,11 @@
 /*-
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
  * Copyright (c) 2016 Michael Zhilin <mizhka@gmail.com>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * This software was developed by Landon Fuller under sponsorship from
+ * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -211,6 +215,10 @@ chipc_attach(device_t dev)
 	if ((error = bus_generic_attach(dev)))
 		goto failed;
 
+	/* Register ourselves with the bus */
+	if ((error = bhnd_register_provider(dev, BHND_SERVICE_CHIPC)))
+		goto failed;
+
 	return (0);
 	
 failed:
@@ -233,6 +241,9 @@ chipc_detach(device_t dev)
 	int			 error;
 
 	sc = device_get_softc(dev);
+
+	if ((error = bhnd_deregister_provider(dev, BHND_SERVICE_ANY)))
+		return (error);
 
 	if ((error = bus_generic_detach(dev)))
 		return (error);
@@ -1087,7 +1098,7 @@ chipc_should_enable_muxed_sprom(struct chipc_softc *sc)
 	mtx_lock(&Giant);	/* for newbus */
 
 	parent = device_get_parent(sc->dev);
-	hostb = bhnd_find_hostb_device(parent);
+	hostb = bhnd_bus_find_hostb_device(parent);
 
 	if ((error = device_get_children(parent, &devs, &devcount))) {
 		mtx_unlock(&Giant);

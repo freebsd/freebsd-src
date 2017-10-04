@@ -86,12 +86,9 @@ event_continue(struct event *e, char *txt)
 		errx(1, "event_continue: cannot allocate memory");
 
 	free(e->text);
-	e->text = (char *)malloc(strlen(text) + strlen(txt) + 3);
+	asprintf(&e->text, "%s\n%s", text, txt);
 	if (e->text == NULL)
 		errx(1, "event_continue: cannot allocate memory");
-	strcpy(e->text, text);
-	strcat(e->text, "\n");
-	strcat(e->text, txt);
 	free(text);
 
 	return;

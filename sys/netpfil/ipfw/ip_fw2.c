@@ -1609,10 +1609,7 @@ do {								\
 
 			case O_IP_SRC_ME:
 				if (is_ipv4) {
-					struct ifnet *tif;
-
-					INADDR_TO_IFP(src_ip, tif);
-					match = (tif != NULL);
+					match = in_localip(src_ip);
 					break;
 				}
 #ifdef INET6
@@ -1648,10 +1645,7 @@ do {								\
 
 			case O_IP_DST_ME:
 				if (is_ipv4) {
-					struct ifnet *tif;
-
-					INADDR_TO_IFP(dst_ip, tif);
-					match = (tif != NULL);
+					match = in_localip(dst_ip);
 					break;
 				}
 #ifdef INET6
@@ -1669,8 +1663,8 @@ do {								\
 				 * to guarantee that we have a
 				 * packet with port info.
 				 */
-				if ((proto==IPPROTO_UDP || proto==IPPROTO_TCP)
-				    && offset == 0) {
+				if ((proto==IPPROTO_UDP || proto==IPPROTO_TCP ||
+				    proto==IPPROTO_SCTP) && offset == 0) {
 					u_int16_t x =
 					    (cmd->opcode == O_IP_SRCPORT) ?
 						src_port : dst_port ;

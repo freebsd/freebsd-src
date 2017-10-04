@@ -383,20 +383,23 @@ udf_pathconf(struct vop_pathconf_args *a)
 {
 
 	switch (a->a_name) {
+	case _PC_FILESIZEBITS:
+		*a->a_retval = 64;
+		return (0);
 	case _PC_LINK_MAX:
 		*a->a_retval = 65535;
 		return (0);
 	case _PC_NAME_MAX:
 		*a->a_retval = NAME_MAX;
 		return (0);
-	case _PC_PATH_MAX:
-		*a->a_retval = PATH_MAX;
+	case _PC_SYMLINK_MAX:
+		*a->a_retval = MAXPATHLEN;
 		return (0);
 	case _PC_NO_TRUNC:
 		*a->a_retval = 1;
 		return (0);
 	default:
-		return (EINVAL);
+		return (vop_stdpathconf(a));
 	}
 }
 

@@ -636,7 +636,6 @@ ahci_pci_resume(device_t dev)
 	return (bus_generic_resume(dev));
 }
 
-devclass_t ahci_devclass;
 static device_method_t ahci_methods[] = {
 	DEVMETHOD(device_probe,     ahci_probe),
 	DEVMETHOD(device_attach,    ahci_pci_attach),

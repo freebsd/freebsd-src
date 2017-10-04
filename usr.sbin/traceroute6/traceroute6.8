@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 24, 2009
+.Dd September 30, 2017
 .Dt TRACEROUTE6 8
 .Os
 .\"
@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .Nm
 .Bk -words
-.Op Fl adIlnNrvU
+.Op Fl adIlnNrSTUv
 .Ek
 .Bk -words
 .Op Fl f Ar firsthop
@@ -79,7 +79,7 @@ uses the IPv6 protocol hop limit field to elicit an ICMPv6 TIME_EXCEEDED
 response from each gateway along the path to some host.
 .Pp
 The only mandatory parameter is the destination host name or IPv6 address.
-The default probe datagram carries 12 bytes of payload,
+The default probe datagram carries 20 bytes of payload,
 in addition to the IPv6 header.
 The size of the payload can be specified by giving a length
 (in bytes)
@@ -96,9 +96,9 @@ Debug mode.
 .It Fl f Ar firsthop
 Specify how many hops to skip in trace.
 .It Fl g Ar gateway
-Specify intermediate gateway
-.Nm (
-uses routing header).
+Specify intermediate gateway. Please note that
+.Nm
+tries to use routing headers.
 .It Fl I
 Use ICMP6 ECHO instead of UDP datagrams.
 .It Fl l
@@ -119,7 +119,7 @@ Do not resolve numeric address to hostname.
 Use a packet with no upper layer header for the probes,
 instead of UDP datagrams.
 .It Fl p Ar port
-Set UDP port number to
+Set SCTP/TCP/UDP port number to
 .Ar port .
 .It Fl q Ar probes
 Set the number of probe per hop count to
@@ -138,6 +138,10 @@ that has no route through it
 .It Fl s Ar src
 .Ar Src
 specifies the source IPv6 address to be used.
+.It Fl S
+Use SCTP packets for the probes.
+.It Fl T
+Use TCP segments for the probes.
 .It Fl U
 Use UDP datagrams for the probes.
 This is the default.

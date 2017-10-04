@@ -95,13 +95,6 @@
 #define	HMAC_IPAD_VAL			0x36
 #define	HMAC_OPAD_VAL			0x5C
 /* HMAC Key Length */
-#define	NULL_HMAC_KEY_LEN		0
-#define	MD5_HMAC_KEY_LEN		16
-#define	SHA1_HMAC_KEY_LEN		20
-#define	RIPEMD160_HMAC_KEY_LEN		20
-#define	SHA2_256_HMAC_KEY_LEN		32
-#define	SHA2_384_HMAC_KEY_LEN		48
-#define	SHA2_512_HMAC_KEY_LEN		64
 #define	AES_128_GMAC_KEY_LEN		16
 #define	AES_192_GMAC_KEY_LEN		24
 #define	AES_256_GMAC_KEY_LEN		32
@@ -238,7 +231,8 @@ struct crypt_op {
 #define COP_ENCRYPT	1
 #define COP_DECRYPT	2
 	u_int16_t	flags;
-#define	COP_F_BATCH	0x0008		/* Batch op if possible */
+#define	COP_F_CIPHER_FIRST	0x0001	/* Cipher before MAC. */
+#define	COP_F_BATCH		0x0008	/* Batch op if possible */
 	u_int		len;
 	c_caddr_t	src;		/* become iov[] inside kernel */
 	caddr_t		dst;

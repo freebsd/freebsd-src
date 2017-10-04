@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2015-2016 Landon Fuller <landonf@FreeBSD.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,7 +38,10 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/queue.h>
+#include <sys/sx.h>
 
 #include "bhnd.h"
 
@@ -45,57 +52,51 @@
 MALLOC_DECLARE(M_BHND);
 DECLARE_CLASS(bhnd_driver);
 
-int			 bhnd_generic_attach(device_t dev);
-int			 bhnd_generic_detach(device_t dev);
-int			 bhnd_generic_shutdown(device_t dev);
-int			 bhnd_generic_resume(device_t dev);
-int			 bhnd_generic_suspend(device_t dev);
+int				 bhnd_generic_attach(device_t dev);
+int				 bhnd_generic_detach(device_t dev);
+int				 bhnd_generic_shutdown(device_t dev);
+int				 bhnd_generic_resume(device_t dev);
+int				 bhnd_generic_suspend(device_t dev);
 
-int			 bhnd_generic_get_probe_order(device_t dev,
-			     device_t child);
+int				 bhnd_generic_get_probe_order(device_t dev,
+				     device_t child);
 
-int			 bhnd_generic_alloc_pmu(device_t dev,
-			     device_t child);
-int			 bhnd_generic_release_pmu(device_t dev,
-			     device_t child);
-int			 bhnd_generic_request_clock(device_t dev,
-			     device_t child, bhnd_clock clock);
-int			 bhnd_generic_enable_clocks(device_t dev,
-			     device_t child, uint32_t clocks);
-int			 bhnd_generic_request_ext_rsrc(device_t dev,
-			     device_t child, u_int rsrc);
-int			 bhnd_generic_release_ext_rsrc(device_t dev,
-			     device_t child, u_int rsrc);
+int				 bhnd_generic_alloc_pmu(device_t dev,
+				     device_t child);
+int				 bhnd_generic_release_pmu(device_t dev,
+				     device_t child);
+int				 bhnd_generic_request_clock(device_t dev,
+				     device_t child, bhnd_clock clock);
+int				 bhnd_generic_enable_clocks(device_t dev,
+				     device_t child, uint32_t clocks);
+int				 bhnd_generic_request_ext_rsrc(device_t dev,
+				     device_t child, u_int rsrc);
+int				 bhnd_generic_release_ext_rsrc(device_t dev,
+				     device_t child, u_int rsrc);
 
-int			 bhnd_generic_print_child(device_t dev,
-			     device_t child);
-void			 bhnd_generic_probe_nomatch(device_t dev,
-			     device_t child);
+int				 bhnd_generic_print_child(device_t dev,
+				     device_t child);
+void				 bhnd_generic_probe_nomatch(device_t dev,
+				     device_t child);
 
-void			 bhnd_generic_child_deleted(device_t dev,
-			     device_t child);
-int			 bhnd_generic_suspend_child(device_t dev,
-			     device_t child);
-int			 bhnd_generic_resume_child(device_t dev,
-			     device_t child);
+void				 bhnd_generic_child_deleted(device_t dev,
+				     device_t child);
+int				 bhnd_generic_suspend_child(device_t dev,
+				     device_t child);
+int				 bhnd_generic_resume_child(device_t dev,
+				     device_t child);
 
-int			 bhnd_generic_get_nvram_var(device_t dev,
-			     device_t child, const char *name, void *buf,
-			     size_t *size, bhnd_nvram_type type);
+int				 bhnd_generic_get_nvram_var(device_t dev,
+				     device_t child, const char *name,
+				     void *buf, size_t *size,
+				     bhnd_nvram_type type);
 
 /**
  * bhnd driver instance state. Must be first member of all subclass
  * softc structures.
  */
 struct bhnd_softc {
-	device_t	dev;			/**< bus device */
-
-	bool		attach_done;		/**< true if initialization of 
-						  *  all platform devices has
-						  *  been completed */
-	device_t	chipc_dev;		/**< bhnd_chipc device */ 
-	device_t	nvram_dev;		/**< bhnd_nvram device, if any */
-	device_t	pmu_dev;		/**< bhnd_pmu device, if any */
+	device_t dev;	/**< bus device */
 };
 
 #endif /* _BHND_BHNDVAR_H_ */

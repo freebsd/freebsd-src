@@ -452,7 +452,7 @@ TUNABLE_INT("hw.cxgbe.toecaps_allowed", &t4_toecaps_allowed);
 static int t4_rdmacaps_allowed = -1;
 TUNABLE_INT("hw.cxgbe.rdmacaps_allowed", &t4_rdmacaps_allowed);
 
-static int t4_cryptocaps_allowed = 0;
+static int t4_cryptocaps_allowed = -1;
 TUNABLE_INT("hw.cxgbe.cryptocaps_allowed", &t4_cryptocaps_allowed);
 
 static int t4_iscsicaps_allowed = -1;
@@ -3575,6 +3575,18 @@ get_params__post_init(struct adapter *sc)
 	READ_CAPS(cryptocaps);
 	READ_CAPS(iscsicaps);
 	READ_CAPS(fcoecaps);
+
+	/*
+	 * The firmware attempts memfree TOE configuration for -SO cards and
+	 * will report toecaps=0 if it runs out of resources (this depends on
+	 * the config file).  It may not report 0 for other capabilities
+	 * dependent on the TOE in this case.  Set them to 0 here so that the
+	 * driver doesn't bother tracking resources that will never be used.
+	 */
+	if (sc->toecaps == 0) {
+		sc->iscsicaps = 0;
+		sc->rdmacaps = 0;
+	}
 
 	if (sc->niccaps & FW_CAPS_CONFIG_NIC_ETHOFLD) {
 		param[0] = FW_PARAM_PFVF(ETHOFLD_START);

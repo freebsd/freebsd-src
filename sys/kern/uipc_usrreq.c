@@ -1056,7 +1056,11 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 release:
 	if (control != NULL)
 		m_freem(control);
-	if (m != NULL)
+	/*
+	 * In case of PRUS_NOTREADY, uipc_ready() is responsible
+	 * for freeing memory.
+	 */   
+	if (m != NULL && (flags & PRUS_NOTREADY) == 0)
 		m_freem(m);
 	return (error);
 }
@@ -1071,7 +1075,12 @@ uipc_ready(struct socket *so, struct mbuf *m, int count)
 	unp = sotounpcb(so);
 
 	UNP_LINK_RLOCK();
-	unp2 = unp->unp_conn;
+	if ((unp2 = unp->unp_conn) == NULL) {
+		UNP_LINK_RUNLOCK();
+		for (int i = 0; i < count; i++)
+			m = m_free(m);
+		return (ECONNRESET);
+	}
 	UNP_PCB_LOCK(unp2);
 	so2 = unp2->unp_socket;
 
@@ -1637,12 +1646,20 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 			if (unp->unp_addr != NULL)
 				bcopy(unp->unp_addr, &xu->xu_addr,
 				      unp->unp_addr->sun_len);
+			else
+				bzero(&xu->xu_addr, sizeof(xu->xu_addr));
 			if (unp->unp_conn != NULL &&
 			    unp->unp_conn->unp_addr != NULL)
 				bcopy(unp->unp_conn->unp_addr,
 				      &xu->xu_caddr,
 				      unp->unp_conn->unp_addr->sun_len);
-			bcopy(unp, &xu->xu_unp, sizeof *unp);
+			else
+				bzero(&xu->xu_caddr, sizeof(xu->xu_caddr));
+			xu->unp_vnode = unp->unp_vnode;
+			xu->unp_conn = unp->unp_conn;
+			xu->xu_firstref = LIST_FIRST(&unp->unp_refs);
+			xu->xu_nextref = LIST_NEXT(unp, unp_reflink);
+			xu->unp_gencnt = unp->unp_gencnt;
 			sotoxsocket(unp->unp_socket, &xu->xu_socket);
 			UNP_PCB_UNLOCK(unp);
 			error = SYSCTL_OUT(req, xu, sizeof *xu);

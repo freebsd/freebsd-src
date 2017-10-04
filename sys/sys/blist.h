@@ -90,6 +90,8 @@ typedef struct blist {
 
 #define BLIST_MAX_ALLOC		BLIST_BMAP_RADIX
 
+struct sbuf;
+
 daddr_t	blist_alloc(blist_t blist, daddr_t count);
 daddr_t	blist_avail(blist_t blist);
 blist_t	blist_create(daddr_t blocks, int flags);
@@ -98,6 +100,7 @@ daddr_t	blist_fill(blist_t bl, daddr_t blkno, daddr_t count);
 void	blist_free(blist_t blist, daddr_t blkno, daddr_t count);
 void	blist_print(blist_t blist);
 void	blist_resize(blist_t *pblist, daddr_t count, int freenew, int flags);
+void	blist_stats(blist_t blist, struct sbuf *s);
 
 #endif	/* _SYS_BLIST_H_ */
 

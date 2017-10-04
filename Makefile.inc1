@@ -2559,7 +2559,7 @@ delete-old-files: .PHONY
 	done
 # Remove catpages without corresponding manpages.
 	@exec 3<&0; \
-	find ${DESTDIR}/usr/share/man/cat* ! -type d | \
+	find ${DESTDIR}/usr/share/man/cat* ! -type d 2>/dev/null | \
 	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
 	while read catpage; do \
 		read manpage; \

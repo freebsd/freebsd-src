@@ -1043,14 +1043,17 @@ addpartform:
 	/* Warn if no mountpoint set */
 	if (strcmp(items[0].text, "freebsd-ufs") == 0 &&
 	    items[2].text[0] != '/') {
-		dialog_vars.defaultno = TRUE;
-		choice = dialog_yesno("Warning",
-		    "This partition does not have a valid mountpoint "
-		    "(for the partition from which you intend to boot the "
-		    "operating system, the mountpoint should be /). Are you "
-		    "sure you want to continue?"
-		, 0, 0);
-		dialog_vars.defaultno = FALSE;
+		choice = 0;
+		if (interactive) {
+			dialog_vars.defaultno = TRUE;
+			choice = dialog_yesno("Warning",
+			    "This partition does not have a valid mountpoint "
+			    "(for the partition from which you intend to boot the "
+			    "operating system, the mountpoint should be /). Are you "
+			    "sure you want to continue?"
+			, 0, 0);
+			dialog_vars.defaultno = FALSE;
+		}
 		if (choice == 1) /* cancel */
 			goto addpartform;
 	}

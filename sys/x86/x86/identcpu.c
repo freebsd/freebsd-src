@@ -93,6 +93,7 @@ u_int	amd_feature;		/* AMD feature flags */
 u_int	amd_feature2;		/* AMD feature flags */
 u_int	amd_rascap;		/* AMD RAS capabilities */
 u_int	amd_pminfo;		/* AMD advanced power management info */
+u_int	amd_extended_feature_extensions;
 u_int	via_feature_rng;	/* VIA RNG features */
 u_int	via_feature_xcrypt;	/* VIA ACE features */
 u_int	cpu_high;		/* Highest arg to CPUID */
@@ -992,6 +993,16 @@ printcpuinfo(void)
 				}
 			}
 
+			if (amd_extended_feature_extensions != 0) {
+				printf("\n  "
+				    "AMD Extended Feature Extensions ID EBX="
+				    "0x%b", amd_extended_feature_extensions,
+				    "\020"
+				    "\001CLZERO"
+				    "\002IRPerf"
+				    "\003XSaveErPtr");
+			}
+
 			if (via_feature_rng != 0 || via_feature_xcrypt != 0)
 				print_via_padlock_info();
 
@@ -1468,6 +1479,7 @@ finishidentcpu(void)
 	if (cpu_exthigh >= 0x80000008) {
 		do_cpuid(0x80000008, regs);
 		cpu_maxphyaddr = regs[0] & 0xff;
+		amd_extended_feature_extensions = regs[1];
 		cpu_procinfo2 = regs[2];
 	} else {
 		cpu_maxphyaddr = (cpu_feature & CPUID_PAE) != 0 ? 36 : 32;
@@ -2152,9 +2164,27 @@ print_svm_info(void)
 	       "\011<b8>"
 	       "\012<b9>"
 	       "\013PauseFilter"	/* PAUSE intercept filter */    
-	       "\014<b11>"
+	       "\014EncryptedMcodePatch"
 	       "\015PauseFilterThreshold" /* PAUSE filter threshold */
 	       "\016AVIC"		/* virtual interrupt controller */
+	       "\017<b14>"
+	       "\020V_VMSAVE_VMLOAD"
+	       "\021vGIF"
+	       "\022<b17>"
+	       "\023<b18>"
+	       "\024<b19>"
+	       "\025<b20>"
+	       "\026<b21>"
+	       "\027<b22>"
+	       "\030<b23>"
+	       "\031<b24>"
+	       "\032<b25>"
+	       "\033<b26>"
+	       "\034<b27>"
+	       "\035<b28>"
+	       "\036<b29>"
+	       "\037<b30>"
+	       "\040<b31>"
                 );
 	printf("\nRevision=%d, ASIDs=%d", regs[0] & 0xff, regs[1]);
 }

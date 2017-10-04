@@ -210,7 +210,10 @@ struct vm_page {
 #define	PQ_UNSWAPPABLE	3
 #define	PQ_COUNT	4
 
+#ifndef VM_PAGE_HAVE_PGLIST
 TAILQ_HEAD(pglist, vm_page);
+#define VM_PAGE_HAVE_PGLIST
+#endif
 SLIST_HEAD(spglist, vm_page);
 
 struct vm_pagequeue {
@@ -470,15 +473,17 @@ vm_page_t vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
     u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
     vm_paddr_t boundary, vm_memattr_t memattr);
 vm_page_t vm_page_alloc_freelist(int, int);
+void vm_page_change_lock(vm_page_t m, struct mtx **mtx);
 vm_page_t vm_page_grab (vm_object_t, vm_pindex_t, int);
 int vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
     vm_page_t *ma, int count);
-int vm_page_try_to_free (vm_page_t);
 void vm_page_deactivate (vm_page_t);
 void vm_page_deactivate_noreuse(vm_page_t);
 void vm_page_dequeue(vm_page_t m);
 void vm_page_dequeue_locked(vm_page_t m);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
+void vm_page_free_phys_pglist(struct pglist *tq);
+bool vm_page_free_prep(vm_page_t m, bool pagequeue_locked);
 vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_initfake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
 int vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
@@ -507,6 +512,7 @@ void vm_page_set_valid_range(vm_page_t m, int base, int size);
 int vm_page_sleep_if_busy(vm_page_t m, const char *msg);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);
 void vm_page_sunbusy(vm_page_t m);
+bool vm_page_try_to_free(vm_page_t m);
 int vm_page_trysbusy(vm_page_t m);
 void vm_page_unhold_pages(vm_page_t *ma, int count);
 void vm_page_unswappable(vm_page_t m);

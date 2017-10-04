@@ -85,8 +85,9 @@ __ElfType(Auxinfo);
 #define	AT_TIMEKEEP	22	/* Pointer to timehands. */
 #define	AT_STACKPROT	23	/* Initial stack protection. */
 #define	AT_EHDRFLAGS	24	/* e_flags field from elf hdr */
+#define	AT_HWCAP	25	/* CPU feature flags. */
 
-#define	AT_COUNT	25	/* Count of defined aux entry types. */
+#define	AT_COUNT	26	/* Count of defined aux entry types. */
 
 #define	R_ARM_COUNT	33	/* Count of defined relocation types. */
 
@@ -113,5 +114,12 @@ __ElfType(Auxinfo);
 #define	MAGIC_TRAMP_NUMBER	0x5c000003
 
 #define	ET_DYN_LOAD_ADDR	0x12000
+
+/* Flags passed in AT_HWCAP. */
+#define	HWCAP_VFP		0x00000040
+#define	HWCAP_NEON		0x00001000
+#define	HWCAP_VFPv3		0x00002000
+#define	HWCAP_VFPv3D16		0x00004000
+#define	HWCAP_VFPD32		0x00080000
 
 #endif /* !_MACHINE_ELF_H_ */

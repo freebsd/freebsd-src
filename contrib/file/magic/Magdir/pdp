@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: pdp,v 1.10 2014/04/30 21:41:02 christos Exp $
+# $File: pdp,v 1.11 2017/03/17 21:35:28 christos Exp $
 # pdp:  file(1) magic for PDP-11 executable/object and APL workspace
 #
 0	lelong		0101555		PDP-11 single precision APL workspace
@@ -14,8 +14,8 @@
 
 # updated by Joerg Jenderek at Mar 2013
 # GRR: line below too general as it catches also Windows precompiled setup information *.PNF
-0	leshort		0401		
-# skip *.PNF with WinDirPathOffset 58h 
+0	leshort		0401
+# skip *.PNF with WinDirPathOffset 58h
 >68	ulelong		!0x00000058	PDP-11 UNIX/RT ldp
 # skip *.PNF with high byte of InfVersionDatumCount zero
 #>>15	byte		!0		PDP-11 UNIX/RT ldp

@@ -25,8 +25,8 @@
  *
  * $FreeBSD$
  */
-#ifndef __SMBONF_H
-#define __SMBONF_H
+#ifndef __DEV_SMBUS_SMBCONF_H
+#define	__DEV_SMBUS_SMBCONF_H
 
 #include <sys/queue.h>
 
@@ -124,4 +124,4 @@ extern devclass_t smbus_devclass;
 #define SMBUS_MAXVER	1
 #define SMBUS_PREFVER	SMBUS_MODVER
 
-#endif
+#endif	/* __DEV_SMBUS_SMBCONF_H */

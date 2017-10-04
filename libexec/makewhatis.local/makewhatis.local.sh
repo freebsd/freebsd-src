@@ -31,8 +31,6 @@
 # /usr may kill your NFS server -- all clients start makewhatis at the same
 # time! So use this wrapper instead calling makewhatis directly.
 #
-# PS: this wrapper works also for catman(1)
-#
 # $FreeBSD$
 
 PATH=/bin:/usr/bin:$PATH; export PATH

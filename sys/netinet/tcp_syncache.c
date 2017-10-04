@@ -1195,6 +1195,7 @@ syncache_tfo_expand(struct syncache *sc, struct socket **lsop, struct mbuf *m,
 		TCPSTAT_INC(tcps_sc_aborted);
 		atomic_subtract_int(pending_counter, 1);
 	} else {
+		soisconnected(*lsop);
 		inp = sotoinpcb(*lsop);
 		tp = intotcpcb(inp);
 		tp->t_flags |= TF_FASTOPEN;
@@ -1634,9 +1635,7 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked,
 	tlen = hlen + sizeof(struct tcphdr);
 
 	/* Determine MSS we advertize to other end of connection. */
-	mssopt = tcp_mssopt(&sc->sc_inc);
-	if (sc->sc_peer_mss)
-		mssopt = max( min(sc->sc_peer_mss, mssopt), V_tcp_minmss);
+	mssopt = max(tcp_mssopt(&sc->sc_inc), V_tcp_minmss);
 
 	/* XXX: Assume that the entire packet will fit in a header mbuf. */
 	KASSERT(max_linkhdr + tlen + TCP_MAXOLEN <= MHLEN,
@@ -1985,7 +1984,7 @@ syncookie_mac(struct in_conninfo *inc, tcp_seq irs, uint8_t flags,
 static tcp_seq
 syncookie_generate(struct syncache_head *sch, struct syncache *sc)
 {
-	u_int i, mss, secbit, wscale;
+	u_int i, secbit, wscale;
 	uint32_t iss, hash;
 	uint8_t *secbits;
 	union syncookie cookie;
@@ -1995,8 +1994,8 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc)
 	cookie.cookie = 0;
 
 	/* Map our computed MSS into the 3-bit index. */
-	mss = min(tcp_mssopt(&sc->sc_inc), max(sc->sc_peer_mss, V_tcp_minmss));
-	for (i = nitems(tcp_sc_msstab) - 1; tcp_sc_msstab[i] > mss && i > 0;
+	for (i = nitems(tcp_sc_msstab) - 1;
+	     tcp_sc_msstab[i] > sc->sc_peer_mss && i > 0;
 	     i--)
 		;
 	cookie.flags.mss_idx = i;

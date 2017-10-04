@@ -33,6 +33,7 @@ _PRIVATELIBS=	\
 		kafs5 \
 		kdc \
 		krb5 \
+		ifconfig \
 		ldns \
 		roken \
 		sqlite3 \
@@ -117,7 +118,6 @@ _LIBRARIES=	\
 		gpio \
 		gssapi \
 		heimsqlite \
-		ifconfig \
 		ipsec \
 		jail \
 		kiconv \

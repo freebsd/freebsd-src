@@ -197,8 +197,7 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 		sctp_send_initiate_ack(inp, stcb, net, m, iphlen, offset,
 		    src, dst, sh, cp,
 		    mflowtype, mflowid,
-		    vrf_id, port,
-		    ((stcb == NULL) ? SCTP_HOLDS_LOCK : SCTP_NOT_LOCKED));
+		    vrf_id, port);
 	}
 outnow:
 	if (stcb == NULL) {
@@ -700,6 +699,14 @@ sctp_handle_nat_colliding_state(struct sctp_tcb *stcb)
 	 */
 	struct sctpasochead *head;
 
+	if ((SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_WAIT) ||
+	    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_ECHOED)) {
+		atomic_add_int(&stcb->asoc.refcnt, 1);
+		SCTP_TCB_UNLOCK(stcb);
+		SCTP_INP_INFO_WLOCK();
+		SCTP_TCB_LOCK(stcb);
+		atomic_subtract_int(&stcb->asoc.refcnt, 1);
+	}
 	if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_WAIT) {
 		/* generate a new vtag and send init */
 		LIST_REMOVE(stcb, sctp_asocs);
@@ -711,6 +718,7 @@ sctp_handle_nat_colliding_state(struct sctp_tcb *stcb)
 		 */
 		LIST_INSERT_HEAD(head, stcb, sctp_asocs);
 		sctp_send_initiate(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
+		SCTP_INP_INFO_WUNLOCK();
 		return (1);
 	}
 	if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_ECHOED) {
@@ -732,6 +740,7 @@ sctp_handle_nat_colliding_state(struct sctp_tcb *stcb)
 		 */
 		LIST_INSERT_HEAD(head, stcb, sctp_asocs);
 		sctp_send_initiate(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
+		SCTP_INP_INFO_WUNLOCK();
 		return (1);
 	}
 	return (0);
@@ -2553,15 +2562,12 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	/* Expire time is in Ticks, so we convert to seconds */
 	time_expires.tv_sec = cookie->time_entered.tv_sec + TICKS_TO_SEC(cookie->cookie_life);
 	time_expires.tv_usec = cookie->time_entered.tv_usec;
-	/*
-	 * TODO sctp_constants.h needs alternative time macros when _KERNEL
-	 * is undefined.
-	 */
 	if (timevalcmp(&now, &time_expires, >)) {
 		/* cookie is stale! */
 		struct mbuf *op_err;
 		struct sctp_error_stale_cookie *cause;
-		uint32_t tim;
+		struct timeval diff;
+		uint32_t staleness;
 
 		op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_error_stale_cookie),
 		    0, M_NOWAIT, 1, MT_DATA);
@@ -2575,12 +2581,19 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		cause->cause.code = htons(SCTP_CAUSE_STALE_COOKIE);
 		cause->cause.length = htons((sizeof(struct sctp_paramhdr) +
 		    (sizeof(uint32_t))));
-		/* seconds to usec */
-		tim = (now.tv_sec - time_expires.tv_sec) * 1000000;
-		/* add in usec */
-		if (tim == 0)
-			tim = now.tv_usec - cookie->time_entered.tv_usec;
-		cause->stale_time = htonl(tim);
+		diff = now;
+		timevalsub(&diff, &time_expires);
+		if (diff.tv_sec > UINT32_MAX / 1000000) {
+			staleness = UINT32_MAX;
+		} else {
+			staleness = diff.tv_sec * 1000000;
+		}
+		if (UINT32_MAX - staleness >= (uint32_t)diff.tv_usec) {
+			staleness += diff.tv_usec;
+		} else {
+			staleness = UINT32_MAX;
+		}
+		cause->stale_time = htonl(staleness);
 		sctp_send_operr_to(src, dst, sh, cookie->peers_vtag, op_err,
 		    mflowtype, mflowid, l_inp->fibnum,
 		    vrf_id, port);
@@ -3133,14 +3146,14 @@ sctp_handle_ecn_cwr(struct sctp_cwr_chunk *cp, struct sctp_tcb *stcb, struct sct
 	 * make sure that we have a covered ECNE in the control chunk part.
 	 * If so remove it.
 	 */
-	struct sctp_tmit_chunk *chk;
+	struct sctp_tmit_chunk *chk, *nchk;
 	struct sctp_ecne_chunk *ecne;
 	int override;
 	uint32_t cwr_tsn;
 
 	cwr_tsn = ntohl(cp->tsn);
 	override = cp->ch.chunk_flags & SCTP_CWR_REDUCE_OVERRIDE;
-	TAILQ_FOREACH(chk, &stcb->asoc.control_send_queue, sctp_next) {
+	TAILQ_FOREACH_SAFE(chk, &stcb->asoc.control_send_queue, sctp_next, nchk) {
 		if (chk->rec.chunk_id.id != SCTP_ECN_ECHO) {
 			continue;
 		}

@@ -60,6 +60,7 @@ static const char *features_for_read[] = {
 	"org.open-zfs:large_blocks",
 	"org.illumos:sha512",
 	"org.illumos:skein",
+	"org.zfsonlinux:large_dnode",
 	NULL
 };
 
@@ -420,7 +421,7 @@ vdev_read_phys(vdev_t *vdev, const blkptr_t *bp, void *buf,
 		psize = size;
 	}
 
-	/*printf("ZFS: reading %d bytes at 0x%jx to %p\n", psize, (uintmax_t)offset, buf);*/
+	/*printf("ZFS: reading %zu bytes at 0x%jx to %p\n", psize, (uintmax_t)offset, buf);*/
 	rc = vdev->v_phys_read(vdev, vdev->v_read_priv, offset, buf, psize);
 	if (rc)
 		return (rc);
@@ -2280,7 +2281,7 @@ zfs_dnode_stat(const spa_t *spa, dnode_phys_t *dn, struct stat *sb)
 			sahdrp = (sa_hdr_phys_t *)DN_BONUS(dn);
 		else {
 			if ((dn->dn_flags & DNODE_FLAG_SPILL_BLKPTR) != 0) {
-				blkptr_t *bp = &dn->dn_spill;
+				blkptr_t *bp = DN_SPILL_BLKPTR(dn);
 				int error;
 
 				size = BP_GET_LSIZE(bp);
@@ -2330,7 +2331,7 @@ zfs_dnode_readlink(const spa_t *spa, dnode_phys_t *dn, char *path, size_t psize)
 
 			if ((dn->dn_flags & DNODE_FLAG_SPILL_BLKPTR) == 0)
 				return (EIO);
-			bp = &dn->dn_spill;
+			bp = DN_SPILL_BLKPTR(dn);
 
 			size = BP_GET_LSIZE(bp);
 			buf = zfs_alloc(size);

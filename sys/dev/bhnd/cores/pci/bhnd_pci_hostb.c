@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -561,7 +565,7 @@ bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc, bhnd_pci_war_state state)
 		bus_size_t	reg;
 		
 		bhnd = device_get_parent(sc->dev);
-		chipc = bhnd_find_child(bhnd, BHND_DEVCLASS_CC, 0);
+		chipc = bhnd_bus_find_child(bhnd, BHND_DEVCLASS_CC, 0);
 		KASSERT(chipc != NULL, ("missing chipcommon device"));
 
 		/* Write SerDes PLL disable flag to the ChipCommon core */

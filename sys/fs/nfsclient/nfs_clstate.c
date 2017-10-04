@@ -1627,6 +1627,14 @@ nfscl_cleanclient(struct nfsclclient *clp)
 {
 	struct nfsclowner *owp, *nowp;
 	struct nfsclopen *op, *nop;
+	struct nfscllayout *lyp, *nlyp;
+	struct nfscldevinfo *dip, *ndip;
+
+	TAILQ_FOREACH_SAFE(lyp, &clp->nfsc_layout, nfsly_list, nlyp)
+		nfscl_freelayout(lyp);
+
+	LIST_FOREACH_SAFE(dip, &clp->nfsc_devinfo, nfsdi_list, ndip)
+		nfscl_freedevinfo(dip);
 
 	/* Now, all the OpenOwners, etc. */
 	LIST_FOREACH_SAFE(owp, &clp->nfsc_owner, nfsow_list, nowp) {
@@ -5235,7 +5243,7 @@ nfscl_layoutreturn(struct nfsmount *nmp, struct nfscllayout *lyp,
 		    lyp->nfsly_fhlen, 0, NFSLAYOUT_NFSV4_1_FILES,
 		    rp->nfsrecly_iomode, rp->nfsrecly_recalltype,
 		    rp->nfsrecly_off, rp->nfsrecly_len,
-		    &stateid, 0, NULL, cred, p, NULL);
+		    &stateid, cred, p, NULL);
 	}
 }
 
@@ -5256,7 +5264,7 @@ nfscl_dolayoutcommit(struct nfsmount *nmp, struct nfscllayout *lyp,
 			error = nfsrpc_layoutcommit(nmp, lyp->nfsly_fh,
 			    lyp->nfsly_fhlen, 0, flp->nfsfl_off, len,
 			    lyp->nfsly_lastbyte, &lyp->nfsly_stateid,
-			    NFSLAYOUT_NFSV4_1_FILES, 0, NULL, cred, p, NULL);
+			    NFSLAYOUT_NFSV4_1_FILES, cred, p, NULL);
 			NFSCL_DEBUG(4, "layoutcommit err=%d\n", error);
 			if (error == NFSERR_NOTSUPP) {
 				/* If not supported, don't bother doing it. */

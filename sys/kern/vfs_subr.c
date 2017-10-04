@@ -3054,8 +3054,8 @@ vinactive(struct vnode *vp, struct thread *td)
 	 * point that VOP_INACTIVE() is called, there could still be
 	 * pending I/O and dirty pages in the object.
 	 */
-	obj = vp->v_object;
-	if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
+	if ((obj = vp->v_object) != NULL && (vp->v_vflag & VV_NOSYNC) == 0 &&
+	    (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
 		VM_OBJECT_WLOCK(obj);
 		vm_object_page_clean(obj, 0, 0, 0);
 		VM_OBJECT_WUNLOCK(obj);

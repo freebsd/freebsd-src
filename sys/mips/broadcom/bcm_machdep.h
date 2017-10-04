@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2016 Landon Fuller <landonf@FreeBSD.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,7 +40,7 @@
 #include <machine/cpuregs.h>
 
 #include <dev/bhnd/bhnd.h>
-#include <dev/bhnd/bhnd_erom.h>
+#include <dev/bhnd/bhnd_eromvar.h>
 
 #include <dev/bhnd/cores/pmu/bhnd_pmuvar.h>
 
@@ -45,33 +49,36 @@
 extern const struct bhnd_pmu_io	bcm_pmu_soc_io;
 
 struct bcm_platform {
-	struct bhnd_chipid	 cid;		/**< chip id */
-	struct bhnd_core_info	 cc_id;		/**< chipc core info */
-	uintptr_t		 cc_addr;	/**< chipc core phys address */
-	uint32_t		 cc_caps;	/**< chipc capabilities */
-	uint32_t		 cc_caps_ext;	/**< chipc extended capabilies */
+	struct bhnd_chipid		 cid;		/**< chip id */
+	struct bhnd_core_info		 cc_id;		/**< chipc core info */
+	uintptr_t			 cc_addr;	/**< chipc core phys address */
+	uint32_t			 cc_caps;	/**< chipc capabilities */
+	uint32_t			 cc_caps_ext;	/**< chipc extended capabilies */
 
 	/* On non-AOB devices, the PMU register block is mapped to chipc;
 	 * the pmu_id and pmu_addr values will be copied from cc_id
 	 * and cc_addr. */
-	struct bhnd_core_info	 pmu_id;		/**< PMU core info */
-	uintptr_t		 pmu_addr;	/**< PMU core phys address, or
+	struct bhnd_core_info		 pmu_id;		/**< PMU core info */
+	uintptr_t			 pmu_addr;	/**< PMU core phys address, or
 						     0x0 if no PMU */
 
-	struct bhnd_pmu_query	 pmu;		/**< PMU query instance */
+	struct bhnd_pmu_query		 pmu;		/**< PMU query instance */
 
-	bhnd_erom_class_t	*erom_impl;	/**< erom parser class */
-	struct kobj_ops		 erom_ops;	/**< compiled kobj opcache */
+	bhnd_erom_class_t		*erom_impl;	/**< erom parser class */
+	struct kobj_ops			 erom_ops;	/**< compiled kobj opcache */
+	struct bhnd_erom_iobus		 erom_io;	/**< erom I/O callbacks */
 	union {
 		bhnd_erom_static_t	 data;
 		bhnd_erom_t		 obj;
 	} erom;
 
-	struct bhnd_nvram_io	*nvram_io;	/**< NVRAM I/O context, or NULL if unavailable */
-	bhnd_nvram_data_class	*nvram_cls;	/**< NVRAM data class, or NULL if unavailable */
+	struct bhnd_nvram_io		*nvram_io;	/**< NVRAM I/O context, or NULL if unavailable */
+	bhnd_nvram_data_class		*nvram_cls;	/**< NVRAM data class, or NULL if unavailable */
+
+	struct bhnd_service_registry	 services;	/**< platform service providers */
 
 #ifdef CFE
-	int			cfe_console;	/**< Console handle, or -1 */
+	int				 cfe_console;	/**< Console handle, or -1 */
 #endif
 };
 

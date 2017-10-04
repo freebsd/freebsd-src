@@ -583,6 +583,8 @@ usage(boolean_t requested)
 	    "\t[-F freezeloops (default: %llu)] max loops in spa_freeze()\n"
 	    "\t[-P passtime (default: %llu sec)] time per pass\n"
 	    "\t[-B alt_ztest (default: <none>)] alternate ztest path\n"
+	    "\t[-o variable=value] ... set global variable to an unsigned\n"
+	    "\t    32-bit integer value\n"
 	    "\t[-h] (print help)\n"
 	    "",
 	    zo->zo_pool,
@@ -618,7 +620,7 @@ process_options(int argc, char **argv)
 	bcopy(&ztest_opts_defaults, zo, sizeof (*zo));
 
 	while ((opt = getopt(argc, argv,
-	    "v:s:a:m:r:R:d:t:g:i:k:p:f:VET:P:hF:B:")) != EOF) {
+	    "v:s:a:m:r:R:d:t:g:i:k:p:f:VET:P:hF:B:o:")) != EOF) {
 		value = 0;
 		switch (opt) {
 		case 'v':
@@ -704,6 +706,10 @@ process_options(int argc, char **argv)
 			break;
 		case 'B':
 			(void) strlcpy(altdir, optarg, sizeof (altdir));
+			break;
+		case 'o':
+			if (set_global_var(optarg) != 0)
+				usage(B_FALSE);
 			break;
 		case 'h':
 			usage(B_TRUE);
@@ -1825,13 +1831,14 @@ ztest_get_done(zgd_t *zgd, int error)
 	ztest_object_unlock(zd, object);
 
 	if (error == 0 && zgd->zgd_bp)
-		zil_add_block(zgd->zgd_zilog, zgd->zgd_bp);
+		zil_lwb_add_block(zgd->zgd_lwb, zgd->zgd_bp);
 
 	umem_free(zgd, sizeof (*zgd));
 }
 
 static int
-ztest_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
+ztest_get_data(void *arg, lr_write_t *lr, char *buf, struct lwb *lwb,
+    zio_t *zio)
 {
 	ztest_ds_t *zd = arg;
 	objset_t *os = zd->zd_os;
@@ -1844,6 +1851,10 @@ ztest_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 	dmu_buf_t *db;
 	zgd_t *zgd;
 	int error;
+
+	ASSERT3P(lwb, !=, NULL);
+	ASSERT3P(zio, !=, NULL);
+	ASSERT3U(size, !=, 0);
 
 	ztest_object_lock(zd, object, RL_READER);
 	error = dmu_bonus_hold(os, object, FTAG, &db);
@@ -1865,7 +1876,7 @@ ztest_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 	db = NULL;
 
 	zgd = umem_zalloc(sizeof (*zgd), UMEM_NOFAIL);
-	zgd->zgd_zilog = zd->zd_zilog;
+	zgd->zgd_lwb = lwb;
 	zgd->zgd_private = zd;
 
 	if (buf != NULL) {	/* immediate write */

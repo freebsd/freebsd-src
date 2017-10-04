@@ -906,7 +906,20 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		/* fetch user-space pointer */
 		data = *(void **)data;
 	}
-	if (filp->f_op->unlocked_ioctl)
+#if defined(__amd64__)
+	if (td->td_proc->p_elf_machine == EM_386) {
+		/* try the compat IOCTL handler first */
+		if (filp->f_op->compat_ioctl != NULL)
+			error = -filp->f_op->compat_ioctl(filp, cmd, (u_long)data);
+		else
+			error = ENOTTY;
+
+		/* fallback to the regular IOCTL handler, if any */
+		if (error == ENOTTY && filp->f_op->unlocked_ioctl != NULL)
+			error = -filp->f_op->unlocked_ioctl(filp, cmd, (u_long)data);
+	} else
+#endif
+	if (filp->f_op->unlocked_ioctl != NULL)
 		error = -filp->f_op->unlocked_ioctl(filp, cmd, (u_long)data);
 	else
 		error = ENOTTY;
@@ -1023,15 +1036,100 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	file = td->td_fpop;
 	filp->f_flags = file->f_flag;
 	linux_set_current(td);
-	if (filp->f_op->poll != NULL) {
-		selrecord(td, &filp->f_selinfo);
+	if (filp->f_op->poll != NULL)
 		revents = filp->f_op->poll(filp, NULL) & events;
-	} else
+	else
 		revents = 0;
 
 	return (revents);
 error:
 	return (events & (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
+}
+
+/*
+ * This function atomically updates the poll wakeup state and returns
+ * the previous state at the time of update.
+ */
+static uint8_t
+linux_poll_wakeup_state(atomic_t *v, const uint8_t *pstate)
+{
+	int c, old;
+
+	c = v->counter;
+
+	while ((old = atomic_cmpxchg(v, c, pstate[c])) != c)
+		c = old;
+
+	return (c);
+}
+
+
+static int
+linux_poll_wakeup_callback(wait_queue_t *wq, unsigned int wq_state, int flags, void *key)
+{
+	static const uint8_t state[LINUX_FWQ_STATE_MAX] = {
+		[LINUX_FWQ_STATE_INIT] = LINUX_FWQ_STATE_INIT, /* NOP */
+		[LINUX_FWQ_STATE_NOT_READY] = LINUX_FWQ_STATE_NOT_READY, /* NOP */
+		[LINUX_FWQ_STATE_QUEUED] = LINUX_FWQ_STATE_READY,
+		[LINUX_FWQ_STATE_READY] = LINUX_FWQ_STATE_READY, /* NOP */
+	};
+	struct linux_file *filp = container_of(wq, struct linux_file, f_wait_queue.wq);
+
+	switch (linux_poll_wakeup_state(&filp->f_wait_queue.state, state)) {
+	case LINUX_FWQ_STATE_QUEUED:
+		linux_poll_wakeup(filp);
+		return (1);
+	default:
+		return (0);
+	}
+}
+
+void
+linux_poll_wait(struct linux_file *filp, wait_queue_head_t *wqh, poll_table *p)
+{
+	static const uint8_t state[LINUX_FWQ_STATE_MAX] = {
+		[LINUX_FWQ_STATE_INIT] = LINUX_FWQ_STATE_NOT_READY,
+		[LINUX_FWQ_STATE_NOT_READY] = LINUX_FWQ_STATE_NOT_READY, /* NOP */
+		[LINUX_FWQ_STATE_QUEUED] = LINUX_FWQ_STATE_QUEUED, /* NOP */
+		[LINUX_FWQ_STATE_READY] = LINUX_FWQ_STATE_QUEUED,
+	};
+
+	selrecord(curthread, &filp->f_selinfo);
+
+	switch (linux_poll_wakeup_state(&filp->f_wait_queue.state, state)) {
+	case LINUX_FWQ_STATE_INIT:
+		/* NOTE: file handles can only belong to one wait-queue */
+		filp->f_wait_queue.wqh = wqh;
+		filp->f_wait_queue.wq.func = &linux_poll_wakeup_callback;
+		add_wait_queue(wqh, &filp->f_wait_queue.wq);
+		atomic_set(&filp->f_wait_queue.state, LINUX_FWQ_STATE_QUEUED);
+		break;
+	default:
+		break;
+	}
+}
+
+static void
+linux_poll_wait_dequeue(struct linux_file *filp)
+{
+	static const uint8_t state[LINUX_FWQ_STATE_MAX] = {
+		[LINUX_FWQ_STATE_INIT] = LINUX_FWQ_STATE_INIT,	/* NOP */
+		[LINUX_FWQ_STATE_NOT_READY] = LINUX_FWQ_STATE_INIT,
+		[LINUX_FWQ_STATE_QUEUED] = LINUX_FWQ_STATE_INIT,
+		[LINUX_FWQ_STATE_READY] = LINUX_FWQ_STATE_INIT,
+	};
+
+	seldrain(&filp->f_selinfo);
+
+	switch (linux_poll_wakeup_state(&filp->f_wait_queue.state, state)) {
+	case LINUX_FWQ_STATE_NOT_READY:
+	case LINUX_FWQ_STATE_QUEUED:
+	case LINUX_FWQ_STATE_READY:
+		remove_wait_queue(filp->f_wait_queue.wqh, &filp->f_wait_queue.wq);
+		break;
+	default:
+		break;
+	}
 }
 
 void
@@ -1358,6 +1456,7 @@ linux_file_close(struct file *file, struct thread *td)
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
 	linux_set_current(td);
+	linux_poll_wait_dequeue(filp);
 	error = -filp->f_op->release(NULL, filp);
 	funsetown(&filp->f_sigio);
 	kfree(filp);

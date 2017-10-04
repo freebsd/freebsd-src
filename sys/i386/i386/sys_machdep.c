@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 
+#include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/pcb_ext.h>
@@ -546,7 +547,7 @@ i386_set_ldt(td, uap, descs)
 	struct i386_ldt_args *uap;
 	union descriptor *descs;
 {
-	int error = 0, i;
+	int error, i;
 	int largest_ld;
 	struct mdproc *mdp = &td->td_proc->p_md;
 	struct proc_ldt *pldt;
@@ -556,6 +557,7 @@ i386_set_ldt(td, uap, descs)
 	printf("i386_set_ldt: start=%d num=%d descs=%p\n",
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
+	error = 0;
 
 	if (descs == NULL) {
 		/* Free descriptors */
@@ -578,9 +580,9 @@ i386_set_ldt(td, uap, descs)
 		largest_ld = uap->start + uap->num;
 		if (largest_ld > pldt->ldt_len)
 			largest_ld = pldt->ldt_len;
-		i = largest_ld - uap->start;
-		bzero(&((union descriptor *)(pldt->ldt_base))[uap->start],
-		    sizeof(union descriptor) * i);
+		for (i = uap->start; i < largest_ld; i++)
+			atomic_store_rel_64(&((uint64_t *)(pldt->ldt_base))[i],
+			    0);
 		mtx_unlock_spin(&dt_lock);
 		return (0);
 	}
@@ -702,17 +704,27 @@ again:
 
 static int
 i386_set_ldt_data(struct thread *td, int start, int num,
-	union descriptor *descs)
+    union descriptor *descs)
 {
-	struct mdproc *mdp = &td->td_proc->p_md;
-	struct proc_ldt *pldt = mdp->md_ldt;
+	struct mdproc *mdp;
+	struct proc_ldt *pldt;
+	uint64_t *dst, *src;
+	int i;
 
 	mtx_assert(&dt_lock, MA_OWNED);
 
-	/* Fill in range */
-	bcopy(descs,
-	    &((union descriptor *)(pldt->ldt_base))[start],
-	    num * sizeof(union descriptor));
+	mdp = &td->td_proc->p_md;
+	pldt = mdp->md_ldt;
+	dst = (uint64_t *)(pldt->ldt_base);
+	src = (uint64_t *)descs;
+
+	/*
+	 * Atomic(9) is used only to get 64bit atomic store with
+	 * cmpxchg8b when available.  There is no op without release
+	 * semantic.
+	 */
+	for (i = 0; i < num; i++)
+		atomic_store_rel_64(&dst[start + i], src[i]);
 	return (0);
 }
 

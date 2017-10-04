@@ -182,7 +182,6 @@ DIRDEPS+= \
 	usr.bin/c99 \
 	usr.bin/calendar \
 	usr.bin/cap_mkdb \
-	usr.bin/catman \
 	usr.bin/chat \
 	usr.bin/checknr \
 	usr.bin/chkey \
@@ -709,7 +708,6 @@ DIRDEPS+= \
 	usr.sbin/pppctl \
 	usr.sbin/praliases \
 	usr.sbin/praudit \
-	usr.sbin/procctl \
 	usr.sbin/prometheus_sysctl_exporter \
 	usr.sbin/pstat \
 	usr.sbin/pw \

@@ -30,7 +30,7 @@
 
 / {
 	model = "Raspberry Pi 2 Model B";
-	compatible = "brcm,bcm2709";
+	compatible = "brcm,bcm2836";
 
 	memreserve = <0x08000000 0x08000000>;	/* Set by VideoCore */
 

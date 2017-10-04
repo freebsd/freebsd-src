@@ -67,29 +67,6 @@ __FBSDID("$FreeBSD$");
 #define GOT1_RESERVED_FOR_RTLD(got)	((got)[1] & GOT1_MASK)
 #endif
 
-void
-init_pltgot(Obj_Entry *obj)
-{
-	if (obj->pltgot != NULL) {
-		obj->pltgot[0] = (Elf_Addr) &_rtld_bind_start;
-		if (GOT1_RESERVED_FOR_RTLD(obj->pltgot))
-			obj->pltgot[1] = (Elf_Addr) obj | GOT1_MASK;
-	}
-}
-
-int
-do_copy_relocations(Obj_Entry *dstobj)
-{
-	/* Do nothing */
-	return 0;
-}
-
-void _rtld_relocate_nonplt_self(Elf_Dyn *, Elf_Addr);
-
-/*
- * It is possible for the compiler to emit relocations for unaligned data.
- * We handle this situation with these inlines.
- */
 #ifdef __mips_n64
 /*
  * ELF64 MIPS encodes the relocs uniquely.  The first 32-bits of info contain
@@ -110,6 +87,86 @@ void _rtld_relocate_nonplt_self(Elf_Dyn *, Elf_Addr);
 #define	Elf_Sxword			Elf32_Sword
 #endif
 
+void _rtld_pltbind_start(void);
+
+void
+init_pltgot(Obj_Entry *obj)
+{
+
+	if (obj->pltgot != NULL) {
+		obj->pltgot[0] = (Elf_Addr) &_rtld_bind_start;
+		if (GOT1_RESERVED_FOR_RTLD(obj->pltgot))
+			obj->pltgot[1] = (Elf_Addr) obj | GOT1_MASK;
+	}
+	if (obj->mips_pltgot != NULL) {
+		obj->mips_pltgot[0] = (Elf_Addr) &_rtld_pltbind_start;
+		obj->mips_pltgot[1] = (Elf_Addr) obj;
+	}
+}
+
+int
+do_copy_relocations(Obj_Entry *dstobj)
+{
+	const Obj_Entry *srcobj, *defobj;
+	const Elf_Rel *rellim;
+	const Elf_Rel *rel;
+	const Elf_Sym *srcsym;
+	const Elf_Sym *dstsym;
+	const void *srcaddr;
+	const char *name;
+	void *dstaddr;
+	SymLook req;
+	size_t size;
+	int res;
+
+	/*
+	 * COPY relocs are invalid outside of the main program
+	 */
+	assert(dstobj->mainprog);
+
+	rellim = (const Elf_Rel *)((caddr_t)dstobj->rel + dstobj->relsize);
+	for (rel = dstobj->rel; rel < rellim; rel++) {
+		if (ELF_R_TYPE(rel->r_info) != R_MIPS_COPY)
+			continue;
+
+		dstaddr = (void *)(dstobj->relocbase + rel->r_offset);
+		dstsym = dstobj->symtab + ELF_R_SYM(rel->r_info);
+		name = dstobj->strtab + dstsym->st_name;
+		size = dstsym->st_size;
+
+		symlook_init(&req, name);
+		req.ventry = fetch_ventry(dstobj, ELF_R_SYM(rel->r_info));
+		req.flags = SYMLOOK_EARLY;
+
+		for (srcobj = globallist_next(dstobj); srcobj != NULL;
+		     srcobj = globallist_next(srcobj)) {
+			res = symlook_obj(&req, srcobj);
+			if (res == 0) {
+				srcsym = req.sym_out;
+				defobj = req.defobj_out;
+				break;
+			}
+		}
+		if (srcobj == NULL) {
+			_rtld_error(
+"Undefined symbol \"%s\" referenced from COPY relocation in %s",
+			    name, dstobj->path);
+			return (-1);
+		}
+
+		srcaddr = (const void *)(defobj->relocbase + srcsym->st_value);
+		memcpy(dstaddr, srcaddr, size);
+	}
+
+	return (0);
+}
+
+void _rtld_relocate_nonplt_self(Elf_Dyn *, Elf_Addr);
+
+/*
+ * It is possible for the compiler to emit relocations for unaligned data.
+ * We handle this situation with these inlines.
+ */
 static __inline Elf_Sxword
 load_ptr(void *where, size_t len)
 {
@@ -475,6 +532,20 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			break;
 		}
 
+		case R_TYPE(COPY):
+			/*
+			 * These are deferred until all other relocations have
+			 * been done. All we do here is make sure that the
+			 * COPY relocation is not in a shared library. They
+			 * are allowed only in executable files.
+			 */
+			if (!obj->mainprog) {
+				_rtld_error("%s: Unexpected R_MIPS_COPY "
+				    "relocation in shared library", obj->path);
+				return (-1);
+			}
+			break;
+			
 #ifdef __mips_n64
 		case R_TYPE(TLS_DTPMOD64):
 #else
@@ -581,23 +652,25 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 int
 reloc_plt(Obj_Entry *obj)
 {
-#if 0
 	const Elf_Rel *rellim;
 	const Elf_Rel *rel;
-		
-	dbg("reloc_plt obj:%p pltrel:%p sz:%s", obj, obj->pltrel, (int)obj->pltrelsize);
-	dbg("gottable %p num syms:%s", obj->pltgot, obj->symtabno );
-	dbg("*****************************************************");
-	rellim = (const Elf_Rel *)((char *)obj->pltrel +
-	    obj->pltrelsize);
-	for (rel = obj->pltrel;  rel < rellim;  rel++) {
+
+	rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+	for (rel = obj->pltrel; rel < rellim; rel++) {
 		Elf_Addr *where;
-		where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
-		*where += (Elf_Addr )obj->relocbase;
+
+		switch (ELF_R_TYPE(rel->r_info)) {
+		case R_MIPS_JUMP_SLOT:
+			where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
+			*where += (Elf_Addr )obj->relocbase;
+			break;
+		default:
+			_rtld_error("Unknown relocation type %u in PLT",
+			    (unsigned int)ELF_R_TYPE(rel->r_info));
+			return (-1);
+		}
 	}
 
-#endif
-	/* PLT fixups were done above in the GOT relocation. */
 	return (0);
 }
 
@@ -607,9 +680,34 @@ reloc_plt(Obj_Entry *obj)
 int
 reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 {
-	/* Do nothing */
-	obj->jmpslots_done = true;
-	
+	const Obj_Entry *defobj;
+	const Elf_Rel *rellim;
+	const Elf_Rel *rel;
+	const Elf_Sym *def;
+
+	rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+	for (rel = obj->pltrel; rel < rellim; rel++) {
+		Elf_Addr *where;
+
+		switch (ELF_R_TYPE(rel->r_info)) {
+		case R_MIPS_JUMP_SLOT:
+			def = find_symdef(ELF_R_SYM(rel->r_info), obj,
+			    &defobj, SYMLOOK_IN_PLT | flags, NULL, lockstate);
+			if (def == NULL) {
+				dbg("reloc_jmpslots: sym not found");
+				return (-1);
+			}
+
+			where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
+			*where = (Elf_Addr)(defobj->relocbase + def->st_value);
+			break;
+		default:
+			_rtld_error("Unknown relocation type %u in PLT",
+			    (unsigned int)ELF_R_TYPE(rel->r_info));
+			return (-1);
+		}
+	}
+
 	return (0);
 }
 
@@ -635,9 +733,11 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
     		const Obj_Entry *obj, const Elf_Rel *rel)
 {
 
-	/* Do nothing */
+	assert(ELF_R_TYPE(rel->r_info) == R_MIPS_JUMP_SLOT);
 
-	return target;
+	if (*where != target && !ld_bind_not)
+		*where = target;
+	return (target);
 }
 
 void

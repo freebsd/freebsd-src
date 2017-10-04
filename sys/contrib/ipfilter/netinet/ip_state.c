@@ -1383,10 +1383,10 @@ ipf_state_add(softc, fin, stsave, flags)
 	int out;
 
 	/*
-	 * If a packet that was created locally is trying to go out but we
-	 * do not match here here because of this lock, it is likely that
-	 * the policy will block it and return network unreachable back up
-	 * the stack. To mitigate this error, EAGAIN is returned instead,
+	 * If a locally created packet is trying to egress but it
+	 * does not match because of this lock, it is likely that
+	 * the policy will block it and return network unreachable further
+	 * up the stack. To mitigate this error, EAGAIN is returned instead,
 	 * telling the IP stack to try sending this packet again later.
 	 */
 	if (softs->ipf_state_lock) {
@@ -1449,7 +1449,7 @@ ipf_state_add(softc, fin, stsave, flags)
 	is->is_die = 1 + softc->ipf_ticks;
 	/*
 	 * We want to check everything that is a property of this packet,
-	 * but we don't (automatically) care about it's fragment status as
+	 * but we don't (automatically) care about its fragment status as
 	 * this may change.
 	 */
 	is->is_pass = pass;
