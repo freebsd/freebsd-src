@@ -262,9 +262,9 @@ state(KINFO *k, VARENT *ve __unused)
 	cp++;
 	if (!(flag & P_INMEM))
 		*cp++ = 'W';
-	if (k->ki_p->ki_nice < NZERO)
+	if (k->ki_p->ki_nice < NZERO || k->ki_p->ki_pri.pri_class == PRI_REALTIME)
 		*cp++ = '<';
-	else if (k->ki_p->ki_nice > NZERO)
+	else if (k->ki_p->ki_nice > NZERO || k->ki_p->ki_pri.pri_class == PRI_IDLE)
 		*cp++ = 'N';
 	if (flag & P_TRACED)
 		*cp++ = 'X';
