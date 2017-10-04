@@ -1485,6 +1485,7 @@ zfsvfs_hold(const char *name, void *tag, zfsvfs_t **zfvp, boolean_t writer)
 	if (error == 0) {
 		rrm_enter(&(*zfvp)->z_teardown_lock, (writer) ? RW_WRITER :
 		    RW_READER, tag);
+#ifdef illumos
 		if ((*zfvp)->z_unmounted) {
 			/*
 			 * XXX we could probably try again, since the unmounting
@@ -1494,6 +1495,13 @@ zfsvfs_hold(const char *name, void *tag, zfsvfs_t **zfvp, boolean_t writer)
 			rrm_exit(&(*zfvp)->z_teardown_lock, tag);
 			return (SET_ERROR(EBUSY));
 		}
+#else
+		/*
+		 * vfs_busy() ensures that the filesystem is not and
+		 * can not be unmounted.
+		 */
+		ASSERT(!(*zfvp)->z_unmounted);
+#endif
 	}
 	return (error);
 }
