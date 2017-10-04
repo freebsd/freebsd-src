@@ -191,11 +191,13 @@ may be used to request the use of a connected
 socket for queries.
 Queries will by default use
 .Tn UDP
-datagrams. If the
+datagrams.
+If the
 .Fa stayopen
 flag is non-zero, a
 .Tn TCP
-connection to the name server will be used. It will remain open after calls to
+connection to the name server will be used.
+It will remain open after calls to
 .Fn gethostbyname ,
 .Fn gethostbyname2
 or
