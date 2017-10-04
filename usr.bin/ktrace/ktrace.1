@@ -85,6 +85,9 @@ Clear the specified trace points associated with the given file or processes.
 .It Fl d
 Descendants; perform the operation for all current children of the
 designated processes.
+See also the
+.Fl i
+option.
 .It Fl f Ar trfile
 Log trace records to
 .Ar trfile
@@ -97,6 +100,9 @@ flag is permitted).
 .It Fl i
 Inherit; pass the trace flags to all future children of the designated
 processes.
+See also the
+.Fl d
+option.
 .It Fl p Ar pid
 Enable (disable) tracing on the indicated process id (only one
 .Fl p
@@ -148,6 +154,9 @@ and
 .Ar command
 options are mutually exclusive.
 .Sh EXAMPLES
+Run "make", then trace it and any child processes:
+.Dl $ ktrace -i make
+.Pp
 Trace all kernel operations of process id 34:
 .Dl $ ktrace -p 34
 .Pp
@@ -166,16 +175,15 @@ Enable tracing of
 on process 67:
 .Dl $ ktrace -ti -p 67
 .Pp
-Run the command "w", tracing only system calls:
-.Dl $ ktrace -tc w
-.Pp
 Disable all tracing to the file "tracedata":
 .Dl $ ktrace -c -f tracedata
 .Pp
 Disable tracing of all user-owned processes:
 .Dl $ ktrace -C
 .Sh SEE ALSO
+.Xr dtrace 1 ,
 .Xr kdump 1 ,
+.Xr truss 1 ,
 .Xr ktrace 2
 .Sh HISTORY
 The
