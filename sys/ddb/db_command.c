@@ -312,10 +312,25 @@ static void
 db_cmd_list(struct command_table *table)
 {
 	struct command	*cmd;
+	int have_subcommands;
 
+	have_subcommands = 0;
 	LIST_FOREACH(cmd, table, next) {
+		if (cmd->more != NULL)
+			have_subcommands++;
 		db_printf("%-16s", cmd->name);
 		db_end_line(16);
+	}
+
+	if (have_subcommands > 0) {
+		db_printf("\nThe following have subcommands; append \"help\" "
+		    "to list (e.g. \"show help\"):\n");
+		LIST_FOREACH(cmd, table, next) {
+			if (cmd->more == NULL)
+				continue;
+			db_printf("%-16s", cmd->name);
+			db_end_line(16);
+		}
 	}
 }
 
@@ -358,7 +373,8 @@ db_command(struct command **last_cmdp, struct command_table *cmd_table,
 				       &cmd);
 		switch (result) {
 		    case CMD_NONE:
-			db_printf("No such command\n");
+			db_printf("No such command; use \"help\" "
+			    "to list available commands\n");
 			db_flush_lex();
 			return;
 		    case CMD_AMBIGUOUS:
@@ -366,6 +382,13 @@ db_command(struct command **last_cmdp, struct command_table *cmd_table,
 			db_flush_lex();
 			return;
 		    case CMD_HELP:
+			if (cmd_table == &db_cmd_table) {
+			    db_printf("This is ddb(4), the kernel debugger; "
+			        "see http://man.freebsd.org/ddb/4 for help.\n");
+			    db_printf("Use \"bt\" for backtrace, \"dump\" for "
+			        "kernel core dump, \"reset\" to reboot.\n");
+			    db_printf("Available commands:\n");
+			}
 			db_cmd_list(cmd_table);
 			db_flush_lex();
 			return;
@@ -375,6 +398,8 @@ db_command(struct command **last_cmdp, struct command_table *cmd_table,
 		if ((cmd_table = cmd->more) != NULL) {
 		    t = db_read_token();
 		    if (t != tIDENT) {
+			db_printf("Subcommand required; "
+			    "available subcommands:\n");
 			db_cmd_list(cmd_table);
 			db_flush_lex();
 			return;
