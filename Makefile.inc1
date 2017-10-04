@@ -1914,6 +1914,18 @@ _dtc= usr.bin/dtc
 _dtc= gnu/usr.bin/dtc
 .endif
 
+.if ${MK_KERBEROS} != "no"
+_kerberos5_bootstrap_tools= \
+	kerberos5/tools/make-roken \
+	kerberos5/lib/libroken \
+	kerberos5/lib/libvers \
+	kerberos5/tools/asn1_compile \
+	kerberos5/tools/slc \
+	usr.bin/compile_et
+
+.ORDER: ${_kerberos5_bootstrap_tools:C/^/${_bt}-/g}
+.endif
+
 # r283777 makewhatis(1) replaced with mandoc version which builds a database.
 _libopenbsd?=	lib/libopenbsd
 _makewhatis=	usr.bin/mandoc
@@ -1926,6 +1938,7 @@ bootstrap-tools: .PHONY
 #	FreeBSD versions that need the tool built at this stage of the build.
 .for _tool in \
     ${_clang_tblgen} \
+    ${_kerberos5_bootstrap_tools} \
     ${_strfile} \
     ${_gperf} \
     ${_dtc} \

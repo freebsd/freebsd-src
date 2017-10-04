@@ -51,13 +51,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
-+20160714:
-	When building multiple kernels using KERNCONF, non-existent KERNCONF
-	files will produce an error and buildkernel will fail. Previously
-	missing KERNCONF files silently failed giving no indication as to
-	why, only to subsequently discover during installkernel that the
-	desired kernel was never built in the first place.
-
 20170912:
 	The default serial number format for CTL LUNs has changed.  This will
 	affect users who use /dev/diskid/* device nodes, or whose FibreChannel
