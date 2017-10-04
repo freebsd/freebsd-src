@@ -75,7 +75,7 @@ cloudabi32_sys_sock_recv(struct thread *td,
 
 	error = cloudabi_sock_recv(td, uap->sock, iov, ri.ri_data_len,
 	    TO_PTR(ri.ri_fds), ri.ri_fds_len, ri.ri_flags, &rdatalen,
-	    &rfdslen, &ro.ro_peername, &ro.ro_flags);
+	    &rfdslen, &ro.ro_flags);
 	free(iov, M_SOCKET);
 	if (error != 0)
 		return (error);
@@ -118,7 +118,7 @@ cloudabi32_sys_sock_send(struct thread *td,
 	}
 
 	error = cloudabi_sock_send(td, uap->sock, iov, si.si_data_len,
-	    TO_PTR(si.si_fds), si.si_fds_len, si.si_flags, &datalen);
+	    TO_PTR(si.si_fds), si.si_fds_len, &datalen);
 	free(iov, M_SOCKET);
 	if (error != 0)
 		return (error);
