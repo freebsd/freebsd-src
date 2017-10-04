@@ -160,16 +160,16 @@ static dtrace_pattr_t systrace_attr = {
 };
 
 static dtrace_pops_t systrace_pops = {
-	systrace_provide,
-	NULL,
-	systrace_enable,
-	systrace_disable,
-	NULL,
-	NULL,
-	systrace_getargdesc,
-	systrace_getargval,
-	NULL,
-	systrace_destroy
+	.dtps_provide =		systrace_provide,
+	.dtps_provide_module =	NULL,
+	.dtps_enable =		systrace_enable,
+	.dtps_disable =		systrace_disable,
+	.dtps_suspend =		NULL,
+	.dtps_resume =		NULL,
+	.dtps_getargdesc =	systrace_getargdesc,
+	.dtps_getargval =	systrace_getargval,
+	.dtps_usermode =	NULL,
+	.dtps_destroy =		systrace_destroy
 };
 
 static dtrace_provider_id_t	systrace_id;

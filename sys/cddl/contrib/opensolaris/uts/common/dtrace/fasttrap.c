@@ -1463,29 +1463,29 @@ static const dtrace_pattr_t pid_attr = {
 };
 
 static dtrace_pops_t pid_pops = {
-	fasttrap_pid_provide,
-	NULL,
-	fasttrap_pid_enable,
-	fasttrap_pid_disable,
-	NULL,
-	NULL,
-	fasttrap_pid_getargdesc,
-	fasttrap_pid_getarg,
-	NULL,
-	fasttrap_pid_destroy
+	.dtps_provide =		fasttrap_pid_provide,
+	.dtps_provide_module =	NULL,
+	.dtps_enable =		fasttrap_pid_enable,
+	.dtps_disable =		fasttrap_pid_disable,
+	.dtps_suspend =		NULL,
+	.dtps_resume =		NULL,
+	.dtps_getargdesc =	fasttrap_pid_getargdesc,
+	.dtps_getargval =	fasttrap_pid_getarg,
+	.dtps_usermode =	NULL,
+	.dtps_destroy =		fasttrap_pid_destroy
 };
 
 static dtrace_pops_t usdt_pops = {
-	fasttrap_pid_provide,
-	NULL,
-	fasttrap_pid_enable,
-	fasttrap_pid_disable,
-	NULL,
-	NULL,
-	fasttrap_pid_getargdesc,
-	fasttrap_usdt_getarg,
-	NULL,
-	fasttrap_pid_destroy
+	.dtps_provide =		fasttrap_pid_provide,
+	.dtps_provide_module =	NULL,
+	.dtps_enable =		fasttrap_pid_enable,
+	.dtps_disable =		fasttrap_pid_disable,
+	.dtps_suspend =		NULL,
+	.dtps_resume =		NULL,
+	.dtps_getargdesc =	fasttrap_pid_getargdesc,
+	.dtps_getargval =	fasttrap_usdt_getarg,
+	.dtps_usermode =	NULL,
+	.dtps_destroy =		fasttrap_pid_destroy
 };
 
 static fasttrap_proc_t *
@@ -2259,9 +2259,9 @@ fasttrap_meta_remove(void *arg, dtrace_helper_provdesc_t *dhpv, pid_t pid)
 }
 
 static dtrace_mops_t fasttrap_mops = {
-	fasttrap_meta_create_probe,
-	fasttrap_meta_provide,
-	fasttrap_meta_remove
+	.dtms_create_probe =	fasttrap_meta_create_probe,
+	.dtms_provide_pid =	fasttrap_meta_provide,
+	.dtms_remove_pid =	fasttrap_meta_remove
 };
 
 /*ARGSUSED*/
