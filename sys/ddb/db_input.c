@@ -218,6 +218,19 @@ db_inputchar(c)
 		    cnputc(db_lc[-1]);
 		}
 		break;
+	    case CTRL('w'):
+		/* erase previous word */
+		for (; db_lc > db_lbuf_start;) {
+		    if (*(db_lc - 1) != ' ')
+			break;
+		    db_delete(1, DEL_BWD);
+		}
+		for (; db_lc > db_lbuf_start;) {
+		    if (*(db_lc - 1) == ' ')
+			break;
+		    db_delete(1, DEL_BWD);
+		}
+		break;
 	    case CTRL('r'):
 		db_putstring("^R\n", 3);
 	    redraw:
