@@ -82,7 +82,7 @@ main(int argc, char *argv[])
 	struct passwd lpw, *old_pw, *pw;
 	int ch, pfd, tfd;
 	const char *password;
-	char *arg = NULL;
+	char *arg = NULL, *cryptpw;
 	uid_t uid;
 #ifdef YP
 	struct ypclnt *ypclnt;
@@ -228,8 +228,8 @@ main(int argc, char *argv[])
 
 	if (old_pw && !master_mode) {
 		password = getpass("Password: ");
-		if (strcmp(crypt(password, old_pw->pw_passwd),
-		    old_pw->pw_passwd) != 0)
+		cryptpw = crypt(password, old_pw->pw_passwd);
+		if (cryptpw == NULL || strcmp(cryptpw, old_pw->pw_passwd) != 0)
 			baduser();
 	} else {
 		password = "";
