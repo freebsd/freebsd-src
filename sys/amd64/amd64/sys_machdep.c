@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #define	MAX_LD		8192
 
-int max_ldt_segment = 1024;
+int max_ldt_segment = 512;
 SYSCTL_INT(_machdep, OID_AUTO, max_ldt_segment, CTLFLAG_RDTUN,
     &max_ldt_segment, 0,
     "Maximum number of allowed LDT segments in the single address space");
