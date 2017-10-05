@@ -219,7 +219,9 @@ struct vi_info {
 	int nnmrxq;
 	int first_nm_rxq;
 	int tmr_idx;
+	int ofld_tmr_idx;
 	int pktc_idx;
+	int ofld_pktc_idx;
 	int qsize_rxq;
 	int qsize_txq;
 

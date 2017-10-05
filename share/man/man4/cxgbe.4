@@ -215,23 +215,27 @@ for rx and tx as well an additional pair of queues for TOE rx and tx.
 The default is 1.
 .It Va hw.cxgbe.holdoff_timer_idx_10G
 .It Va hw.cxgbe.holdoff_timer_idx_1G
+.It Va hw.cxgbe.holdoff_timer_idx_ofld
 Timer index value used to delay interrupts.
 The holdoff timer list has the values 1, 5, 10, 50, 100, and 200
 by default (all values are in microseconds) and the index selects a
 value from this list.
+holdoff_timer_idx_ofld applies to queues used for TOE rx.
 The default value is 1 which means the timer value is 5us.
 Different interfaces can be assigned different values at any time via the
-dev.<port>.X.holdoff_tmr_idx sysctl.
+dev.<port>.X.holdoff_tmr_idx and dev.<port>.X.holdoff_tmr_idx_ofld sysctls.
 .It Va hw.cxgbe.holdoff_pktc_idx_10G
 .It Va hw.cxgbe.holdoff_pktc_idx_1G
+.It Va hw.cxgbe.holdoff_pktc_idx_ofld
 Packet-count index value used to delay interrupts.
 The packet-count list has the values 1, 8, 16, and 32 by default,
 and the index selects a value from this list.
+holdoff_pktc_idx_ofld applies to queues used for TOE rx.
 The default value is -1 which means packet counting is disabled and interrupts
 are generated based solely on the holdoff timer value.
 Different interfaces can be assigned different values via the
-dev.<port>.X.holdoff_pktc_idx sysctl.
-This sysctl works only when the interface has never been marked up (as done by
+dev.<port>.X.holdoff_pktc_idx and dev.<port>.X.holdoff_pktc_idx_ofld sysctls.
+These sysctls work only when the interface has never been marked up (as done by
 ifconfig up).
 .It Va hw.cxgbe.qsize_txq
 Number of entries in a transmit queue's descriptor ring.
