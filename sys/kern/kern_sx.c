@@ -605,18 +605,17 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, uintptr_t tid, int opts,
 						CTR4(KTR_LOCK,
 				    "%s: shared spinning on %p with %u and %u",
 						    __func__, sx, spintries, i);
-					x = sx->sx_lock;
+					cpu_spinwait();
+					x = SX_READ_VALUE(sx);
 					if ((x & SX_LOCK_SHARED) == 0 ||
 					    SX_SHARERS(x) == 0)
 						break;
-					cpu_spinwait();
-#ifdef KDTRACE_HOOKS
-					lda.spin_cnt++;
-#endif
 				}
+#ifdef KDTRACE_HOOKS
+				lda.spin_cnt += i;
+#endif
 				KTR_STATE0(KTR_SCHED, "thread",
 				    sched_tdname(curthread), "running");
-				x = SX_READ_VALUE(sx);
 				if (i != asx_loops)
 					continue;
 			}
