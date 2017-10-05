@@ -387,9 +387,7 @@ static void			hn_destroy_rx_data(struct hn_softc *);
 static int			hn_check_iplen(const struct mbuf *, int);
 static int			hn_set_rxfilter(struct hn_softc *, uint32_t);
 static int			hn_rxfilter_config(struct hn_softc *);
-#ifndef RSS
 static int			hn_rss_reconfig(struct hn_softc *);
-#endif
 static void			hn_rss_ind_fixup(struct hn_softc *);
 static void			hn_rss_mbuf_hash(struct hn_softc *, uint32_t);
 static int			hn_rxpkt(struct hn_rx_ring *, const void *,
@@ -1025,7 +1023,6 @@ hn_get_txswq_depth(const struct hn_tx_ring *txr)
 	return hn_tx_swq_depth;
 }
 
-#ifndef RSS
 static int
 hn_rss_reconfig(struct hn_softc *sc)
 {
@@ -1064,7 +1061,6 @@ hn_rss_reconfig(struct hn_softc *sc)
 	}
 	return (0);
 }
-#endif	/* !RSS */
 
 static void
 hn_rss_ind_fixup(struct hn_softc *sc)
