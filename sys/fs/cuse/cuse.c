@@ -390,6 +390,8 @@ cuse_convert_error(int error)
 		return (EFAULT);
 	case CUSE_ERR_SIGNAL:
 		return (EINTR);
+	case CUSE_ERR_NO_DEVICE:
+		return (ENODEV);
 	default:
 		return (ENXIO);
 	}
