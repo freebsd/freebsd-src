@@ -980,7 +980,19 @@ qla_set_multi(qla_host_t *ha, uint32_t add_multi)
 		return (-1);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		ret = ql_hw_set_multi(ha, mta, mcnt, add_multi);
+
+		if (!add_multi) {
+			ret = qla_hw_del_all_mcast(ha);
+
+			if (ret)
+				device_printf(ha->pci_dev,
+					"%s: qla_hw_del_all_mcast() failed\n",
+				__func__);
+		}
+
+		if (!ret)
+			ret = ql_hw_set_multi(ha, mta, mcnt, 1);
+
 	}
 
 	QLA_UNLOCK(ha, __func__);
