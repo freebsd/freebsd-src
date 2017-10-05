@@ -550,34 +550,36 @@ user_ldt_deref(struct proc_ldt *pldt)
 int
 amd64_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 {
-	int error = 0;
 	struct proc_ldt *pldt;
-	int num;
 	struct user_segment_descriptor *lp;
+	uint64_t *data;
+	u_int i, num;
+	int error;
 
 #ifdef	DEBUG
 	printf("amd64_get_ldt: start=%u num=%u descs=%p\n",
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
-	if ((pldt = td->td_proc->p_md.md_ldt) != NULL) {
-		lp = &((struct user_segment_descriptor *)(pldt->ldt_base))
-		    [uap->start];
-		num = min(uap->num, max_ldt_segment);
-	} else
+	if (uap->start >= max_ldt_segment)
 		return (EINVAL);
-
-	if ((uap->start > (unsigned int)max_ldt_segment) ||
-	    ((unsigned int)num > (unsigned int)max_ldt_segment) ||
-	    ((unsigned int)(uap->start + num) > (unsigned int)max_ldt_segment))
-		return(EINVAL);
-
-	error = copyout(lp, uap->descs, num *
+	num = min(uap->num, max_ldt_segment - uap->start);
+	pldt = td->td_proc->p_md.md_ldt;
+	if (pldt == NULL)
+		return (EINVAL);
+	lp = &((struct user_segment_descriptor *)(pldt->ldt_base))[uap->start];
+	data = malloc(num * sizeof(struct user_segment_descriptor), M_TEMP,
+	    M_WAITOK);
+	mtx_lock(&dt_lock);
+	for (i = 0; i < num; i++)
+		data[i] = ((volatile uint64_t *)lp)[i];
+	mtx_unlock(&dt_lock);
+	error = copyout(data, uap->descs, num *
 	    sizeof(struct user_segment_descriptor));
-	if (!error)
+	free(data, M_TEMP);
+	if (error == 0)
 		td->td_retval[0] = num;
-
-	return(error);
+	return (error);
 }
 
 int
