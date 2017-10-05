@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
 
@@ -80,11 +81,6 @@ max_ldt_segment_init(void *arg __unused)
 }
 SYSINIT(maxldt, SI_SUB_VM_CONF, SI_ORDER_ANY, max_ldt_segment_init, NULL);
 
-#ifdef notyet
-#ifdef SMP
-static void set_user_ldt_rv(struct vmspace *vmsp);
-#endif
-#endif
 static void user_ldt_derefl(struct proc_ldt *pldt);
 
 #ifndef _SYS_SYSPROTO_H_
@@ -430,14 +426,10 @@ static void
 set_user_ldt(struct mdproc *mdp)
 {
 
-	critical_enter();
 	*PCPU_GET(ldt) = mdp->md_ldt_sd;
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
-	critical_exit();
 }
 
-#ifdef notyet
-#ifdef SMP
 static void
 set_user_ldt_rv(struct vmspace *vmsp)
 {
@@ -449,8 +441,6 @@ set_user_ldt_rv(struct vmspace *vmsp)
 
 	set_user_ldt(&td->td_proc->p_md);
 }
-#endif
-#endif
 
 struct proc_ldt *
 user_ldt_alloc(struct proc *p, int force)
@@ -492,11 +482,13 @@ user_ldt_alloc(struct proc *p, int force)
 		    sizeof(struct user_segment_descriptor));
 		user_ldt_derefl(pldt);
 	}
+	critical_enter();
 	ssdtosyssd(&sldt, &p->p_md.md_ldt_sd);
-	atomic_store_rel_ptr((volatile uintptr_t *)&mdp->md_ldt,
-	    (uintptr_t)new_ldt);
-	if (p == curproc)
-		set_user_ldt(mdp);
+	atomic_thread_fence_rel();
+	mdp->md_ldt = new_ldt;
+	critical_exit();
+	smp_rendezvous(NULL, (void (*)(void *))set_user_ldt_rv, NULL,
+	    p->p_vmspace);
 
 	return (mdp->md_ldt);
 }
