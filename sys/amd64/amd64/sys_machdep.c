@@ -588,8 +588,8 @@ amd64_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 	struct proc_ldt *pldt;
 	struct user_segment_descriptor *dp;
 	struct proc *p;
+	u_int largest_ld, i;
 	int error;
-	unsigned int largest_ld, i;
 
 #ifdef	DEBUG
 	printf("amd64_set_ldt: start=%u num=%u descs=%p\n",
