@@ -426,7 +426,7 @@ done:
  * Update the GDT entry pointing to the LDT to point to the LDT of the
  * current process.
  */
-void
+static void
 set_user_ldt(struct mdproc *mdp)
 {
 
