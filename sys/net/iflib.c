@@ -5003,21 +5003,22 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 
 	if (tqrid != -1) {
 		cpuid = find_nth(ctx, &cpus, qid);
-		taskqgroup_attach_cpu(tqg, gtask, q, cpuid, irq->ii_rid, name);
+		taskqgroup_attach_cpu(tqg, gtask, q, cpuid, rman_get_start(irq->ii_res), name);
 	} else {
-		taskqgroup_attach(tqg, gtask, q, tqrid, name);
+		taskqgroup_attach(tqg, gtask, q, rman_get_start(irq->ii_res), name);
 	}
 
 	return (0);
 }
 
 void
-iflib_softirq_alloc_generic(if_ctx_t ctx, int rid, iflib_intr_type_t type,  void *arg, int qid, char *name)
+iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type,  void *arg, int qid, char *name)
 {
 	struct grouptask *gtask;
 	struct taskqgroup *tqg;
 	gtask_fn_t *fn;
 	void *q;
+	int irq_num = -1;
 
 	switch (type) {
 	case IFLIB_INTR_TX:
@@ -5025,25 +5026,28 @@ iflib_softirq_alloc_generic(if_ctx_t ctx, int rid, iflib_intr_type_t type,  void
 		gtask = &ctx->ifc_txqs[qid].ift_task;
 		tqg = qgroup_if_io_tqg;
 		fn = _task_fn_tx;
+		if (irq != NULL)
+			irq_num = rman_get_start(irq->ii_res);
 		break;
 	case IFLIB_INTR_RX:
 		q = &ctx->ifc_rxqs[qid];
 		gtask = &ctx->ifc_rxqs[qid].ifr_task;
 		tqg = qgroup_if_io_tqg;
 		fn = _task_fn_rx;
+		if (irq != NULL)
+			irq_num = rman_get_start(irq->ii_res);
 		break;
 	case IFLIB_INTR_IOV:
 		q = ctx;
 		gtask = &ctx->ifc_vflr_task;
 		tqg = qgroup_if_config_tqg;
-		rid = -1;
 		fn = _task_fn_iov;
 		break;
 	default:
 		panic("unknown net intr type");
 	}
 	GROUPTASK_INIT(gtask, 0, fn, q);
-	taskqgroup_attach(tqg, gtask, q, rid, name);
+	taskqgroup_attach(tqg, gtask, q, irq_num, name);
 }
 
 void
