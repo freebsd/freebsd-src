@@ -511,8 +511,8 @@ i386_get_ldt(td, uap)
 	int nldt, num;
 	union descriptor *lp;
 
-#ifdef	DEBUG
-	printf("i386_get_ldt: start=%d num=%d descs=%p\n",
+#ifdef DEBUG
+	printf("i386_get_ldt: start=%u num=%u descs=%p\n",
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
@@ -553,8 +553,8 @@ i386_set_ldt(td, uap, descs)
 	struct proc_ldt *pldt;
 	union descriptor *dp;
 
-#ifdef	DEBUG
-	printf("i386_set_ldt: start=%d num=%d descs=%p\n",
+#ifdef DEBUG
+	printf("i386_set_ldt: start=%u num=%u descs=%p\n",
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 	error = 0;
