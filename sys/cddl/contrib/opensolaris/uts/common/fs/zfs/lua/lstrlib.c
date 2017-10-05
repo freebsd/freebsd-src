@@ -35,10 +35,11 @@
 #ifdef illumos
 #define tolower(C)	(((C) >= 'A' && (C) <= 'Z') ? (C) - 'A' + 'a' : (C))
 #define toupper(C)      (((C) >= 'a' && (C) <= 'z') ? (C) - 'a' + 'A': (C))
+#define iscntrl(C)	((((C) >= 0) && ((C) <= 0x1f)) || ((C) == 0x7f))
 #else
 #define	isalnum(C)      (isalpha(C) || isdigit(C))
+#define iscntrl(C)	(uchar(C) <= 0x1f || uchar(C) == 0x7f)
 #endif
-#define iscntrl(C)	((((C) >= 0) && ((C) <= 0x1f)) || ((C) == 0x7f))
 #define isgraph(C)	((C) >= 0x21 && (C) <= 0x7E)
 #define ispunct(C)	(((C) >= 0x21 && (C) <= 0x2F) || \
     ((C) >= 0x3A && (C) <= 0x40) || \
@@ -867,7 +868,7 @@ static void addquoted (lua_State *L, luaL_Buffer *b, int arg) {
       luaL_addchar(b, '\\');
       luaL_addchar(b, *s);
     }
-    else if (*s == '\0' || iscntrl(*s)) {
+    else if (*s == '\0' || iscntrl(uchar(*s))) {
       char buff[10];
       if (!isdigit(uchar(*(s+1))))
         sprintf(buff, "\\%d", (int)uchar(*s));
