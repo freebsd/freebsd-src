@@ -19,7 +19,7 @@
 # $FreeBSD$
 
 ident		IMX6
-include 	"std.armv6"
+include 	"std.armv7"
 include 	"../freescale/imx/std.imx6"
 
 options 	INTRNG

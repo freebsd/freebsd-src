@@ -20,7 +20,7 @@
 
 ident		IMX53
 
-include 	"std.armv6"
+include 	"std.armv7"
 include 	"../freescale/imx/std.imx53"
 
 options 	SOC_IMX53

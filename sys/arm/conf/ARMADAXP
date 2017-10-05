@@ -23,7 +23,7 @@
 
 ident		MV-88F78XX0
 
-include 	"std.armv6"
+include 	"std.armv7"
 include 	"../mv/armadaxp/std.mv78x60"
 
 options 	SOC_MV_ARMADAXP

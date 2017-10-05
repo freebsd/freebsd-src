@@ -20,7 +20,7 @@
 
 ident		EFIKA_MX
 
-include 	"std.armv6"
+include 	"std.armv7"
 include 	"../freescale/imx/std.imx51"
 
 makeoptions	WITHOUT_MODULES="ahc"
