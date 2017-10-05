@@ -548,9 +548,7 @@ user_ldt_deref(struct proc_ldt *pldt)
  * the OS-specific one.
  */
 int
-amd64_get_ldt(td, uap)
-	struct thread *td;
-	struct i386_ldt_args *uap;
+amd64_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 {
 	int error = 0;
 	struct proc_ldt *pldt;
