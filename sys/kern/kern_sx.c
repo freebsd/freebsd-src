@@ -502,7 +502,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, uintptr_t tid, int opts,
 	GIANT_DECLARE;
 #ifdef ADAPTIVE_SX
 	volatile struct thread *owner;
-	u_int i, spintries = 0;
+	u_int i, n, spintries = 0;
 #endif
 #ifdef LOCK_PROFILING
 	uint64_t waittime = 0;
@@ -600,12 +600,13 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, uintptr_t tid, int opts,
 				    "lockname:\"%s\"", sx->lock_object.lo_name);
 				GIANT_SAVE();
 				spintries++;
-				for (i = 0; i < asx_loops; i++) {
+				for (i = 0; i < asx_loops; i += n) {
 					if (LOCK_LOG_TEST(&sx->lock_object, 0))
 						CTR4(KTR_LOCK,
 				    "%s: shared spinning on %p with %u and %u",
 						    __func__, sx, spintries, i);
-					cpu_spinwait();
+					n = SX_SHARERS(x);
+					lock_delay_spin(n);
 					x = SX_READ_VALUE(sx);
 					if ((x & SX_LOCK_SHARED) == 0 ||
 					    SX_SHARERS(x) == 0)
