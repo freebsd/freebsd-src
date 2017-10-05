@@ -255,6 +255,7 @@ EMBEDFS_ARCH.${MACHINE_ARCH}!= sed -n '/OUTPUT_ARCH/s/.*(\(.*\)).*/\1/p' ${LDSCR
 
 EMBEDFS_FORMAT.arm?=		elf32-littlearm
 EMBEDFS_FORMAT.armv6?=		elf32-littlearm
+EMBEDFS_FORMAT.armv7?=		elf32-littlearm
 EMBEDFS_FORMAT.aarch64?=	elf64-littleaarch64
 EMBEDFS_FORMAT.mips?=		elf32-tradbigmips
 EMBEDFS_FORMAT.mipsel?=		elf32-tradlittlemips
