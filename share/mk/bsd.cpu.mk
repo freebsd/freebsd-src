@@ -110,8 +110,6 @@ _CPUCFLAGS = -march=${CPUTYPE}
 _CPUCFLAGS = -march=armv5te -D__XSCALE__
 .  elif ${CPUTYPE:M*soft*} != ""
 _CPUCFLAGS = -mfloat-abi=softfp
-.  elif ${CPUTYPE} == "armv6"
-_CPUCFLAGS = -march=${CPUTYPE}
 .  elif ${CPUTYPE} == "cortexa"
 _CPUCFLAGS = -march=armv7 -mfpu=vfp
 .  elif ${CPUTYPE:Marmv[4567]*} != ""
@@ -339,18 +337,20 @@ MACHINE_CPU += arm
 . if ${MACHINE_ARCH:Marmv6*} != ""
 MACHINE_CPU += armv6
 . endif
-# armv6 is a hybrid. It can use the softfp ABI, but doesn't emulate
-# floating point in the general case, so don't define softfp for
-# it at this time. arm and armeb are pure softfp, so define it
-# for them.
-. if ${MACHINE_ARCH:Marmv6*} == ""
+. if ${MACHINE_ARCH:Marmv7*} != ""
+MACHINE_CPU += armv7
+. endif
+# armv6 and armv7 are a hybrid. It can use the softfp ABI, but doesn't emulate
+# floating point in the general case, so don't define softfp for it at this
+# time. arm and armeb are pure softfp, so define it for them.
+. if ${MACHINE_ARCH:Marmv[67]*} == ""
 MACHINE_CPU += softfp
 . endif
-# Normally armv6 is hard float ABI from FreeBSD 11 onwards. However
-# when CPUTYPE has 'soft' in it, we use the soft-float ABI to allow
-# building of soft-float ABI libraries. In this case, we have to
-# add the -mfloat-abi=softfp to force that.
-.if ${MACHINE_ARCH:Marmv6*} && defined(CPUTYPE) && ${CPUTYPE:M*soft*} != ""
+# Normally armv6 and armv7 are hard float ABI from FreeBSD 11 onwards. However
+# when CPUTYPE has 'soft' in it, we use the soft-float ABI to allow building of
+# soft-float ABI libraries. In this case, we have to add the -mfloat-abi=softfp
+# to force that.
+.if ${MACHINE_ARCH:Marmv[67]*} && defined(CPUTYPE) && ${CPUTYPE:M*soft*} != ""
 # Needs to be CFLAGS not _CPUCFLAGS because it's needed for the ABI
 # not a nice optimization.
 CFLAGS += -mfloat-abi=softfp

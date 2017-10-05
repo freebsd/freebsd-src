@@ -204,7 +204,7 @@ SRCF+=		stdatomic
 .endif
 
 .for file in ${SRCF}
-.if ${MACHINE_ARCH:Marmv6*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "") \
+.if ${MACHINE_ARCH:Marmv[67]*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "") \
     && exists(${CRTSRC}/${CRTARCH}/${file}vfp.S)
 SRCS+=		${file}vfp.S
 . elif exists(${CRTSRC}/${CRTARCH}/${file}.S)
