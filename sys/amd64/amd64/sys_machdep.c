@@ -558,7 +558,7 @@ amd64_get_ldt(td, uap)
 	struct user_segment_descriptor *lp;
 
 #ifdef	DEBUG
-	printf("amd64_get_ldt: start=%d num=%d descs=%p\n",
+	printf("amd64_get_ldt: start=%u num=%u descs=%p\n",
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
@@ -594,7 +594,7 @@ amd64_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 	unsigned int largest_ld, i;
 
 #ifdef	DEBUG
-	printf("amd64_set_ldt: start=%d num=%d descs=%p\n",
+	printf("amd64_set_ldt: start=%u num=%u descs=%p\n",
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 	mdp = &td->td_proc->p_md;
