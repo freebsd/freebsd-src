@@ -1138,7 +1138,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 	}
 	for_each_ofld_rxq(vi, i, ofld_rxq) {
 
-		init_iq(&ofld_rxq->iq, sc, vi->tmr_idx, vi->pktc_idx,
+		init_iq(&ofld_rxq->iq, sc, vi->ofld_tmr_idx, vi->ofld_pktc_idx,
 		    vi->qsize_rxq);
 
 		snprintf(name, sizeof(name), "%s ofld_rxq%d-fl",
