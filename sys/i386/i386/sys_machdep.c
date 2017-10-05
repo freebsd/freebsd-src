@@ -502,9 +502,7 @@ user_ldt_deref(struct proc_ldt *pldt)
  * the OS-specific one.
  */
 int
-i386_get_ldt(td, uap)
-	struct thread *td;
-	struct i386_ldt_args *uap;
+i386_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 {
 	int error = 0;
 	struct proc_ldt *pldt;
@@ -542,10 +540,8 @@ i386_get_ldt(td, uap)
 }
 
 int
-i386_set_ldt(td, uap, descs)
-	struct thread *td;
-	struct i386_ldt_args *uap;
-	union descriptor *descs;
+i386_set_ldt(struct thread *td, struct i386_ldt_args *uap,
+    union descriptor *descs)
 {
 	int error, i;
 	int largest_ld;
