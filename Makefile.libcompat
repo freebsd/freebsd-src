@@ -59,10 +59,10 @@ LIB32WMAKEFLAGS+=	-DCOMPAT_32BIT
 
 # -------------------------------------------------------------------
 # soft-fp world
-.if ${TARGET_ARCH} == "armv6"
+.if ${TARGET_ARCH:Marmv[67]*} != ""
 LIBSOFTCFLAGS=        -DCOMPAT_SOFTFP
 LIBSOFTCPUFLAGS= -mfloat-abi=softfp
-LIBSOFTWMAKEENV= CPUTYPE=soft MACHINE=arm MACHINE_ARCH=armv6
+LIBSOFTWMAKEENV= CPUTYPE=soft MACHINE=arm MACHINE_ARCH=${TARGET_ARCH}
 LIBSOFTWMAKEFLAGS=        -DCOMPAT_SOFTFP
 .endif
 

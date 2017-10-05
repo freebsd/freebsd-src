@@ -426,7 +426,7 @@ _autofs=	autofs
 .endif
 
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
-.if (${MACHINE_CPUARCH} != "arm" || ${MACHINE_ARCH:Marmv6*} != "") && \
+.if (${MACHINE_CPUARCH} != "arm" || ${MACHINE_ARCH:Marmv[67]*} != "") && \
 	${MACHINE_CPUARCH} != "mips" && \
 	${MACHINE_CPUARCH} != "sparc64"
 SUBDIR+=	dtrace
@@ -800,7 +800,7 @@ _em=		em
 _epic=		epic
 .endif
 
-.if (${MACHINE_CPUARCH} == "amd64" || ${MACHINE_ARCH} == "armv6" || \
+.if (${MACHINE_CPUARCH} == "amd64" || ${MACHINE_ARCH:Marmv[67]*} != "" || \
      ${MACHINE_CPUARCH} == "i386")
 _cloudabi32=	cloudabi32
 .endif
@@ -810,7 +810,7 @@ _cloudabi64=	cloudabi64
 
 .endif
 
-.if ${MACHINE_ARCH} == "armv6"
+.if ${MACHINE_ARCH:Marmv[67]*} != ""
 _ffec=		ffec
 .endif
 
