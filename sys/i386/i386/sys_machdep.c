@@ -166,7 +166,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		break;
 	}
 
-	switch(uap->op) {
+	switch (uap->op) {
 	case I386_GET_LDT:
 		error = i386_get_ldt(td, &kargs.largs);
 		break;
@@ -432,8 +432,7 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 
 	mtx_assert(&dt_lock, MA_OWNED);
 	mtx_unlock_spin(&dt_lock);
-	new_ldt = malloc(sizeof(struct proc_ldt),
-		M_SUBPROC, M_WAITOK);
+	new_ldt = malloc(sizeof(struct proc_ldt), M_SUBPROC, M_WAITOK);
 
 	new_ldt->ldt_len = len = NEW_MAX_LD(len);
 	new_ldt->ldt_base = (caddr_t)kmem_malloc(kernel_arena,
@@ -463,10 +462,11 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 void
 user_ldt_free(struct thread *td)
 {
-	struct mdproc *mdp = &td->td_proc->p_md;
+	struct mdproc *mdp;
 	struct proc_ldt *pldt;
 
 	mtx_assert(&dt_lock, MA_OWNED);
+	mdp = &td->td_proc->p_md;
 	if ((pldt = mdp->md_ldt) == NULL) {
 		mtx_unlock_spin(&dt_lock);
 		return;
@@ -587,12 +587,11 @@ i386_set_ldt(td, uap, descs)
 		return (0);
 	}
 
-	if (!(uap->start == LDT_AUTO_ALLOC && uap->num == 1)) {
+	if (uap->start != LDT_AUTO_ALLOC || uap->num != 1) {
 		/* verify range of descriptors to modify */
 		largest_ld = uap->start + uap->num;
-		if (uap->start >= MAX_LD || largest_ld > MAX_LD) {
+		if (uap->start >= MAX_LD || largest_ld > MAX_LD)
 			return (EINVAL);
-		}
 	}
 
 	/* Check descriptors for access violations */
@@ -618,12 +617,7 @@ i386_set_ldt(td, uap, descs)
 		case SDT_SYS386TGT: /* system 386 trap gate */
 		case SDT_SYS286CGT: /* system 286 call gate */ 
 		case SDT_SYS386CGT: /* system 386 call gate */
-			/* I can't think of any reason to allow a user proc
-			 * to create a segment of these types.  They are
-			 * for OS use only.
-			 */
 			return (EACCES);
-			/*NOTREACHED*/
 
 		/* memory segment types */
 		case SDT_MEMEC:   /* memory execute only conforming */
@@ -648,12 +642,11 @@ i386_set_ldt(td, uap, descs)
 		case SDT_MEMERA:  /* memory execute read accessed */
 			break;
 		default:
-			return(EINVAL);
-			/*NOTREACHED*/
+			return (EINVAL);
 		}
 
 		/* Only user (ring-3) descriptors may be present. */
-		if ((dp->sd.sd_p != 0) && (dp->sd.sd_dpl != SEL_UPL))
+		if (dp->sd.sd_p != 0 && dp->sd.sd_dpl != SEL_UPL)
 			return (EACCES);
 	}
 
