@@ -655,12 +655,7 @@ amd64_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 		case SDT_SYSNULL4:
 		case SDT_SYSIGT:
 		case SDT_SYSTGT:
-			/* I can't think of any reason to allow a user proc
-			 * to create a segment of these types.  They are
-			 * for OS use only.
-			 */
 			return (EACCES);
-			/*NOTREACHED*/
 
 		/* memory segment types */
 		case SDT_MEMEC:   /* memory execute only conforming */
@@ -686,7 +681,6 @@ amd64_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 			break;
 		default:
 			return(EINVAL);
-			/*NOTREACHED*/
 		}
 
 		/* Only user (ring-3) descriptors may be present. */
