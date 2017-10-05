@@ -75,7 +75,7 @@ CXXFLAGS+= ${DEBUG_FILES_CFLAGS}
 CTFFLAGS+= -g
 _WANTS_DEBUG=
 .endif
-.if ${MK_COVERAGE} != "no" && defined(_WANTS_DEBUG)
+.if ${MK_COVERAGE} != "no" && defined(_WANTS_DEBUG) && defined(SHLIB_NAME)
 _COV_FLAG= --coverage
 SHARED_CFLAGS+= ${_COV_FLAG}
 SHARED_CXXFLAGS+= ${_COV_FLAG}
@@ -460,8 +460,11 @@ _libinstall:
 .include <bsd.nls.mk>
 .if defined(_COV_FLAG)
 _GCDA_SRCS=	${SRCS:M*.c} ${SRCS:M*.cc} ${SRCS:M*.cpp} ${SRCS:M*.cxx} ${SRCS:M*.C}
-GCDAS=		${SRCS:R:S/$/.gcda/g}
+GCDAS=		${_GCDA_SRCS:R:S/$/.gcda/g}
 .undef _GCDA_SRCS
+.for _gcda in ${GCDAS}
+${_gcda}: ${_gcda:R}.pico
+.endfor
 .include <bsd.cov.mk>
 .endif
 .include <bsd.files.mk>
