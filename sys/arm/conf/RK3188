@@ -20,7 +20,7 @@
 
 ident		RK3188
 
-include 	"std.armv6"
+include 	"std.armv7"
 include 	"../rockchip/std.rk30xx"
 
 options 	SOC_ROCKCHIP_RK3188

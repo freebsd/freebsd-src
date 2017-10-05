@@ -19,7 +19,7 @@
 # $FreeBSD$
 
 ident		SOCFPGA
-include 	"std.armv6"
+include 	"std.armv7"
 include 	"../altera/socfpga/std.socfpga"
 
 makeoptions	MODULES_OVERRIDE=""

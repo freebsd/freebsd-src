@@ -20,7 +20,7 @@
 
 ident		ALLWINNER_UP
 
-include 	"std.armv6"
+include 	"std.armv7"
 include 	"../allwinner/std.allwinner_up"
 
 options 	INTRNG

@@ -18,7 +18,7 @@
 #
 # $FreeBSD$
 
-include  	"std.armv6"
+include  	"std.armv7"
 include 	"../nvidia/tegra124/std.tegra124"
 
 ident		TEGRA124
