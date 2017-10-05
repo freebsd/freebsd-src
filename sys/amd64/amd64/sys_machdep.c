@@ -514,10 +514,13 @@ user_ldt_free(struct thread *td)
 		return;
 	}
 
+	critical_enter();
 	mdp->md_ldt = NULL;
+	atomic_thread_fence_rel();
 	bzero(&mdp->md_ldt_sd, sizeof(mdp->md_ldt_sd));
 	if (td == curthread)
 		lldt(GSEL(GNULL_SEL, SEL_KPL));
+	critical_exit();
 	user_ldt_deref(pldt);
 }
 
