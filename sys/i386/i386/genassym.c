@@ -160,11 +160,15 @@ ASSYM(PCB_IDT, offsetof(struct pcb, pcb_idt));
 ASSYM(PCB_LDT, offsetof(struct pcb, pcb_ldt));
 ASSYM(PCB_TR, offsetof(struct pcb, pcb_tr));
 
+ASSYM(TF_FS, offsetof(struct trapframe, tf_fs));
+ASSYM(TF_ES, offsetof(struct trapframe, tf_es));
+ASSYM(TF_DS, offsetof(struct trapframe, tf_ds));
 ASSYM(TF_TRAPNO, offsetof(struct trapframe, tf_trapno));
 ASSYM(TF_ERR, offsetof(struct trapframe, tf_err));
 ASSYM(TF_EIP, offsetof(struct trapframe, tf_eip));
 ASSYM(TF_CS, offsetof(struct trapframe, tf_cs));
 ASSYM(TF_EFLAGS, offsetof(struct trapframe, tf_eflags));
+
 ASSYM(SIGF_HANDLER, offsetof(struct sigframe, sf_ahu.sf_handler));
 #ifdef COMPAT_43
 ASSYM(SIGF_SC, offsetof(struct osigframe, sf_siginfo.si_sc));
