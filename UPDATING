@@ -51,6 +51,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20171005:
+	The arm port has split armv6 into armv6 and armv7. armv7 is now
+	a valid TARGET_ARCH/MACHINE_ARCH setting.
+
 20171003:
 	When building multiple kernels using KERNCONF, non-existent KERNCONF
 	files will produce an error and buildkernel will fail. Previously
