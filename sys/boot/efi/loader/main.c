@@ -72,6 +72,15 @@ EFI_GUID debugimg = DEBUG_IMAGE_INFO_TABLE_GUID;
 EFI_GUID fdtdtb = FDT_TABLE_GUID;
 EFI_GUID inputid = SIMPLE_TEXT_INPUT_PROTOCOL;
 
+static EFI_LOADED_IMAGE *img;
+
+bool
+efi_zfs_is_preferred(EFI_HANDLE *h)
+{
+        return (h == img->DeviceHandle);
+}
+
+
 static int
 has_keyboard(void)
 {
@@ -300,7 +309,6 @@ EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
 	char var[128];
-	EFI_LOADED_IMAGE *img;
 	EFI_GUID *guid;
 	int i, j, vargood, howto;
 	UINTN k;
@@ -318,6 +326,9 @@ main(int argc, CHAR16 *argv[])
 	/* Note this needs to be set before ZFS init. */
 	archsw.arch_zfs_probe = efi_zfs_probe;
 #endif
+
+        /* Get our loaded image protocol interface structure. */
+	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
 
 	/* Init the time source */
 	efi_time_init();
@@ -445,9 +456,6 @@ main(int argc, CHAR16 *argv[])
 	for (i = 0; devsw[i] != NULL; i++)
 		if (devsw[i]->dv_init != NULL)
 			(devsw[i]->dv_init)();
-
-	/* Get our loaded image protocol interface structure. */
-	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
 
 	printf("Command line arguments:");
 	for (i = 0; i < argc; i++)
