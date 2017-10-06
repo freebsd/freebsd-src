@@ -172,8 +172,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		break;
 	case I386_SET_LDT:
 		if (kargs.largs.descs != NULL) {
-			lp = (union descriptor *)malloc(
-			    kargs.largs.num * sizeof(union descriptor),
+			lp = malloc(kargs.largs.num * sizeof(union descriptor),
 			    M_TEMP, M_WAITOK);
 			error = copyin(kargs.largs.descs, lp,
 			    kargs.largs.num * sizeof(union descriptor));
