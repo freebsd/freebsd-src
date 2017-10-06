@@ -23,8 +23,14 @@ pft_mkepair()
 pft_mkjail()
 {
 	jailname=$1
-	ifname=$2
-	jail -c name=${jailname} persist vnet vnet.interface=${ifname}
+	shift
+
+	vnet_interfaces=
+	for ifname in $@
+	do
+		vnet_interfaces="${vnet_interfaces} vnet.interface=${ifname}"
+	done
+	jail -c name=${jailname} persist vnet ${vnet_interfaces}
 
 	echo $jailname >> created_jails.lst
 }
