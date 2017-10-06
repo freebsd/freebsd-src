@@ -154,8 +154,6 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		if ((error = copyin(uap->parms, &kargs.largs,
 		    sizeof(struct i386_ldt_args))) != 0)
 			return (error);
-		if (kargs.largs.num > MAX_LD || kargs.largs.num <= 0)
-			return (EINVAL);
 		break;
 	case I386_GET_XFPUSTATE:
 		if ((error = copyin(uap->parms, &kargs.xfpu,
@@ -172,6 +170,8 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		break;
 	case I386_SET_LDT:
 		if (kargs.largs.descs != NULL) {
+			if (kargs.largs.num > MAX_LD)
+				return (EINVAL);
 			lp = malloc(kargs.largs.num * sizeof(union descriptor),
 			    M_TEMP, M_WAITOK);
 			error = copyin(kargs.largs.descs, lp,
@@ -503,38 +503,37 @@ user_ldt_deref(struct proc_ldt *pldt)
 int
 i386_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 {
-	int error = 0;
 	struct proc_ldt *pldt;
-	int nldt, num;
-	union descriptor *lp;
+	char *data;
+	u_int nldt, num;
+	int error;
 
 #ifdef DEBUG
 	printf("i386_get_ldt: start=%u num=%u descs=%p\n",
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
+	if (uap->start >= MAX_LD)
+		return (EINVAL);
+	num = min(uap->num, MAX_LD - uap->start);
+	data = malloc(uap->num * sizeof(union descriptor), M_TEMP, M_WAITOK);
 	mtx_lock_spin(&dt_lock);
-	if ((pldt = td->td_proc->p_md.md_ldt) != NULL) {
-		nldt = pldt->ldt_len;
-		lp = &((union descriptor *)(pldt->ldt_base))[uap->start];
+	pldt = td->td_proc->p_md.md_ldt;
+	nldt = pldt != NULL ? pldt->ldt_len : nitems(ldt);
+	num = min(num, nldt);
+	if (uap->start > nldt || uap->start + num > nldt) {
 		mtx_unlock_spin(&dt_lock);
-		num = min(uap->num, nldt);
-	} else {
-		mtx_unlock_spin(&dt_lock);
-		nldt = sizeof(ldt)/sizeof(ldt[0]);
-		num = min(uap->num, nldt);
-		lp = &ldt[uap->start];
+		return (EINVAL);
 	}
+	bcopy(pldt != NULL ?
+	    &((union descriptor *)(pldt->ldt_base))[uap->start] :
+	    &ldt[uap->start], data, num * sizeof(union descriptor));
+	mtx_unlock_spin(&dt_lock);
 
-	if ((uap->start > (unsigned int)nldt) ||
-	    ((unsigned int)num > (unsigned int)nldt) ||
-	    ((unsigned int)(uap->start + num) > (unsigned int)nldt))
-		return(EINVAL);
-
-	error = copyout(lp, uap->descs, num * sizeof(union descriptor));
+	error = copyout(data, uap->descs, num * sizeof(union descriptor));
 	if (error == 0)
 		td->td_retval[0] = num;
-
+	free(data, M_TEMP);
 	return (error);
 }
 
@@ -542,11 +541,11 @@ int
 i386_set_ldt(struct thread *td, struct i386_ldt_args *uap,
     union descriptor *descs)
 {
-	int error, i;
-	int largest_ld;
 	struct mdproc *mdp;
 	struct proc_ldt *pldt;
 	union descriptor *dp;
+	u_int largest_ld, i;
+	int error;
 
 #ifdef DEBUG
 	printf("i386_set_ldt: start=%u num=%u descs=%p\n",
@@ -565,8 +564,6 @@ i386_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 			uap->start = NLDT;
 			uap->num = MAX_LD - NLDT;
 		}
-		if (uap->num == 0)
-			return (EINVAL);
 		mtx_lock_spin(&dt_lock);
 		if ((pldt = mdp->md_ldt) == NULL ||
 		    uap->start >= pldt->ldt_len) {
