@@ -1,0 +1,47 @@
+# $FreeBSD$
+# Utility functions
+##
+
+pft_init()
+{
+	if [ ! -c /dev/pf ]; then
+		atf_skip "This test requires pf"
+	fi
+
+	if [ "`sysctl -i -n kern.features.vimage`" != 1 ]; then
+		atf_skip "This test requires VIMAGE"
+	fi
+}
+
+pft_mkepair()
+{
+	ifname=$(ifconfig epair create)
+	echo $ifname >> created_interfaces.lst
+	echo ${ifname%a}
+}
+
+pft_mkjail()
+{
+	jailname=$1
+	ifname=$2
+	jail -c name=${jailname} persist vnet vnet.interface=${ifname}
+
+	echo $jailname >> created_jails.lst
+}
+
+pft_cleanup()
+{
+	if [ -f created_interfaces.lst ]; then
+		for ifname in `cat created_interfaces.lst`
+		do
+			ifconfig ${ifname} destroy
+		done
+	fi
+
+	if [ -f created_jails.lst ]; then
+		for jailname in `cat created_jails.lst`
+		do
+			jail -r ${jailname}
+		done
+	fi
+}

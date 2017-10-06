@@ -476,6 +476,10 @@
         ..
         netinet
         ..
+        netpfil
+            pf
+            ..
+        ..
         opencrypto
         ..
         pjdfstest
