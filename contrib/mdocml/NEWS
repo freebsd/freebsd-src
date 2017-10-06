@@ -2,21 +2,6 @@ $Id: NEWS,v 1.26 2017/07/28 14:57:56 schwarze Exp $
 
 This file lists the most important changes in the mandoc.bsd.lv distribution.
 
-Changes in version 1.14.3, released on August 5, 2017
-
-    --- BUG FIXES ---
- * man(7): Do not crash with out-of-bounds read access to a constant
-   array if .sp or a blank line immediately precedes .SS or .SH.
- * mdoc(7): Do not crash with out-of-bounds read access to a constant
-   array if .sp or a blank line precede the first .Sh macro.
- * tbl(7): Ignore explicitly specified negative column widths rather than
-   wrapping around to huge numbers and risking memory exhaustion.
- * man(1): No longer use names that only occur in the SYNOPSIS section.
-   Gets rid of some surprising behaviour and bogus warnings.
-    --- THANKS TO ---
-   Leah Neukirchen (Void Linux), Markus Waldeck (Debian),
-   Peter Bui (nd.edu), and Yuri Pankov (illumos) for bug reports.
-
 Changes in version 1.14.2, released on July 28, 2017
 
     --- MAJOR NEW FEATURES ---
