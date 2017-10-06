@@ -34,8 +34,6 @@
         ..
         pwait
         ..
-        rcp
-        ..
         rmdir
         ..
         sh
