@@ -533,10 +533,10 @@ i386_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 		return(EINVAL);
 
 	error = copyout(lp, uap->descs, num * sizeof(union descriptor));
-	if (!error)
+	if (error == 0)
 		td->td_retval[0] = num;
 
-	return(error);
+	return (error);
 }
 
 int
@@ -545,7 +545,7 @@ i386_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 {
 	int error, i;
 	int largest_ld;
-	struct mdproc *mdp = &td->td_proc->p_md;
+	struct mdproc *mdp;
 	struct proc_ldt *pldt;
 	union descriptor *dp;
 
@@ -554,6 +554,7 @@ i386_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 	error = 0;
+	mdp = &td->td_proc->p_md;
 
 	if (descs == NULL) {
 		/* Free descriptors */
