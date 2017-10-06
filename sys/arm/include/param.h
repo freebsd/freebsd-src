@@ -52,10 +52,12 @@
 
 #define __PCI_REROUTE_INTERRUPT
 
-#if __ARM_ARCH >= 6
-#define	_V6_SUFFIX "v6"
+#if __ARM_ARCH >= 7
+#define	_V_SUFFIX "v7"
+#elif __ARM_ARCH >= 6
+#define	_V_SUFFIX "v6"
 #else
-#define	_V6_SUFFIX ""
+#define	_V_SUFFIX ""
 #endif
 
 #ifdef __ARM_BIG_ENDIAN
@@ -68,7 +70,7 @@
 #define	MACHINE		"arm"
 #endif
 #ifndef MACHINE_ARCH
-#define	MACHINE_ARCH	"arm" _V6_SUFFIX _EB_SUFFIX
+#define	MACHINE_ARCH	"arm" _V_SUFFIX _EB_SUFFIX
 #endif
 
 #if defined(SMP) || defined(KLD_MODULE)
