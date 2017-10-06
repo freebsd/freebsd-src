@@ -7107,20 +7107,6 @@ OLD_FILES+=usr/libexec/rbootd
 OLD_FILES+=usr/share/man/man8/rbootd.8.gz
 .endif
 
-.if ${MK_RCMDS} == no
-OLD_FILES+=bin/rcp
-OLD_FILES+=rescue/rcp
-OLD_FILES+=usr/bin/rlogin
-OLD_FILES+=usr/bin/rsh
-OLD_FILES+=usr/libexec/rlogind
-OLD_FILES+=usr/libexec/rshd
-OLD_FILES+=usr/share/man/man1/rcp.1.gz
-OLD_FILES+=usr/share/man/man1/rlogin.1.gz
-OLD_FILES+=usr/share/man/man1/rsh.1.gz
-OLD_FILES+=usr/share/man/man8/rlogind.8.gz
-OLD_FILES+=usr/share/man/man8/rshd.8.gz
-.endif
-
 .if ${MK_RESCUE} == no
 . if exists(${DESTDIR}${TESTSBASE})
 RESCUE_DIRS!=find ${DESTDIR}/rescue -type d 2>/dev/null | sed -e 's,^${DESTDIR}/,,'; echo
