@@ -988,8 +988,15 @@ void
 sysdecode_cap_rights(FILE *fp, cap_rights_t *rightsp)
 {
 	struct name_table *t;
+	int i;
 	bool comma;
 
+	for (i = 0; i < CAPARSIZE(rightsp); i++) {
+		if (CAPIDXBIT(rightsp->cr_rights[i]) != 1 << i) {
+			fprintf(fp, "invalid cap_rights_t");
+			return;
+		}
+	}
 	comma = false;
 	for (t = caprights; t->str != NULL; t++) {
 		if (cap_rights_is_set(rightsp, t->val)) {
