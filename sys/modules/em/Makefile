@@ -23,6 +23,6 @@ CFLAGS += -I${SRCTOP}/sys/dev/e1000
 #CFLAGS  += -DDEVICE_POLLING
 
 afterinstall:
-	ln -sf ${DESTDIR}${KMODDIR}/${KMOD}.ko ${DESTDIR}${KMODDIR}/if_igb.ko
+	cd ${DESTDIR}${KMODDIR} && ln -sf if_em.ko if_igb.ko
 
 .include <bsd.kmod.mk>
