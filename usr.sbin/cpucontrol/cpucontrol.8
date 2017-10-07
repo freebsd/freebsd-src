@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2009
+.Dd September 30, 2017
 .Dt CPUCONTROL 8
 .Os
 .Sh NAME
@@ -34,43 +34,43 @@
 device
 .Sh SYNOPSIS
 .Nm
-.Op Fl vh
+.Op Fl v
 .Fl m Ar msr
 .Bk
 .Ar device
 .Ek
 .Nm
-.Op Fl vh
+.Op Fl v
 .Fl m Ar msr Ns = Ns Ar value
 .Bk
 .Ar device
 .Ek
 .Nm
-.Op Fl vh
+.Op Fl v
 .Fl m Ar msr Ns &= Ns Ar mask
 .Bk
 .Ar device
 .Ek
 .Nm
-.Op Fl vh
+.Op Fl v
 .Fl m Ar msr Ns |= Ns Ar mask
 .Bk
 .Ar device
 .Ek
 .Nm
-.Op Fl vh
+.Op Fl v
 .Fl i Ar level
 .Bk
 .Ar device
 .Ek
 .Nm
-.Op Fl vh
+.Op Fl v
 .Fl i Ar level,level_type
 .Bk
 .Ar device
 .Ek
 .Nm
-.Op Fl vh
+.Op Fl vn
 .Op Fl d Ar datadir
 .Fl u
 .Bk
@@ -88,8 +88,14 @@ It can also be used to apply CPU firmware updates.
 The following options are available:
 .Bl -tag -width indent
 .It Fl d Ar datadir
-Where to look for microcode images.
+Directory paths where to look for microcode images.
 The option can be specified multiple times.
+The paths are added in order of the options appearance on the command
+line, default directories are appended after the user-supplied paths.
+.It Fl n
+Do not look for the microcode images in the standard directories.
+Currently standard directory to look for the microcode update files is
+.Pa /usr/local/share/cpucontrol .
 .It Fl m Ar msr
 Show value of the specified MSR.
 MSR register number should be given as a hexadecimal number.
@@ -163,10 +169,10 @@ The command
 will retrieve the CPUID level 0x1 from CPU 1.
 .Pp
 To perform firmware updates on CPU 0 from images located at
-.Pa /usr/local/share/cpuctl/
+.Pa /usr/local/share/cpuctl
 use the following command:
 .Pp
-.Dq Li "cpucontrol -d /usr/local/share/cpuctl/ -u /dev/cpuctl0"
+.Dq Li "cpucontrol -nd /usr/local/share/cpuctl -u /dev/cpuctl0"
 .Sh SEE ALSO
 .Xr cpuctl 4
 .Sh HISTORY
@@ -179,5 +185,3 @@ The
 .Nm
 utility and this manual page was written by
 .An Stanislav Sedov Aq Mt stas@FreeBSD.org .
-.Sh BUGS
-Yes, probably, report if any.
