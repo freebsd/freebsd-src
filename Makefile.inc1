@@ -640,8 +640,10 @@ build32: .PHONY
 	${_+_}cd ${.CURDIR}; \
 	    ${LIB32WMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
 .for _t in obj depend all
+.if !defined(NO_RTLD)
 	${_+_}cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32WMAKE} \
 	    -DNO_FSCHG DIRPRFX=libexec/rtld-elf/ ${_t}
+.endif
 	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32WMAKE} \
 	    DIRPRFX=usr.bin/ldd ${_t}
 .endfor
@@ -658,8 +660,10 @@ distribute32 install32: .MAKE .PHONY
 .if ${MK_KERBEROS} != "no"
 	${_+_}cd ${.CURDIR}/kerberos5/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .endif
+.if !defined(NO_RTLD)
 	${_+_}cd ${.CURDIR}/libexec/rtld-elf; \
 	    PROG=ld-elf32.so.1 ${LIB32IMAKE} ${.TARGET:S/32$//}
+.endif
 	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32IMAKE} \
 	    ${.TARGET:S/32$//}
 .endif
