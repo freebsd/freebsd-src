@@ -1,4 +1,6 @@
 /*-
+ * Copyright (c) 2017 Oliver Pinter
+ * Copyright (c) 2017 W. Dean Freeman
  * Copyright (c) 2000-2015 Mark R V Murray
  * Copyright (c) 2013 Arthur Mesh
  * Copyright (c) 2004 Robert N. M. Watson
@@ -240,7 +242,27 @@ read_rate_increment(u_int chunk)
 }
 
 /* ARGSUSED */
-RANDOM_CHECK_UINT(harvestmask, 0, RANDOM_HARVEST_EVERYTHING_MASK);
+static int
+random_check_uint_harvestmask(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	u_int value, orig_value;
+
+	orig_value = value = harvest_context.hc_source_mask;
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (flsl(value) > ENTROPYSOURCE)
+		return (EINVAL);
+
+	/*
+	 * Disallow userspace modification of pure entropy sources.
+	 */
+	harvest_context.hc_source_mask = (value & ~RANDOM_HARVEST_PURE_MASK) |
+	    (orig_value & RANDOM_HARVEST_PURE_MASK);
+	return (0);
+}
 
 /* ARGSUSED */
 static int
@@ -252,7 +274,7 @@ random_print_harvestmask(SYSCTL_HANDLER_ARGS)
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error == 0) {
 		sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
-		for (i = RANDOM_ENVIRONMENTAL_END; i >= 0; i--)
+		for (i = ENTROPYSOURCE - 1; i >= 0; i--)
 			sbuf_cat(&sbuf, (harvest_context.hc_source_mask & (1 << i)) ? "1" : "0");
 		error = sbuf_finish(&sbuf);
 		sbuf_delete(&sbuf);
@@ -272,7 +294,7 @@ static const char *random_source_descr[ENTROPYSOURCE] = {
 	[RANDOM_SWI] = "SWI",
 	[RANDOM_FS_ATIME] = "FS_ATIME",
 	[RANDOM_UMA] = "UMA", /* ENVIRONMENTAL_END */
-	[RANDOM_PURE_OCTEON] = "PURE_OCTEON",
+	[RANDOM_PURE_OCTEON] = "PURE_OCTEON", /* PURE_START */
 	[RANDOM_PURE_SAFE] = "PURE_SAFE",
 	[RANDOM_PURE_GLXSB] = "PURE_GLXSB",
 	[RANDOM_PURE_UBSEC] = "PURE_UBSEC",
@@ -291,15 +313,22 @@ random_print_harvestmask_symbolic(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sbuf;
 	int error, i;
+	bool first;
 
+	first = true;
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error == 0) {
 		sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
-		for (i = RANDOM_ENVIRONMENTAL_END; i >= 0; i--) {
-			sbuf_cat(&sbuf, (i == RANDOM_ENVIRONMENTAL_END) ? "" : ",");
+		for (i = ENTROPYSOURCE - 1; i >= 0; i--) {
+			if (i >= RANDOM_PURE_START &&
+			    (harvest_context.hc_source_mask & (1 << i)) == 0)
+				continue;
+			if (!first)
+				sbuf_cat(&sbuf, ",");
 			sbuf_cat(&sbuf, !(harvest_context.hc_source_mask & (1 << i)) ? "[" : "");
 			sbuf_cat(&sbuf, random_source_descr[i]);
 			sbuf_cat(&sbuf, !(harvest_context.hc_source_mask & (1 << i)) ? "]" : "");
+			first = false;
 		}
 		error = sbuf_finish(&sbuf);
 		sbuf_delete(&sbuf);
@@ -321,8 +350,7 @@ random_harvestq_init(void *unused __unused)
 	SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_o),
 	    OID_AUTO, "mask", CTLTYPE_UINT | CTLFLAG_RW,
-	    &harvest_context.hc_source_mask, 0,
-	    random_check_uint_harvestmask, "IU",
+	    NULL, 0, random_check_uint_harvestmask, "IU",
 	    "Entropy harvesting mask");
 	SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_o),
@@ -493,6 +521,20 @@ random_harvest_direct(const void *entropy, u_int size, u_int bits, enum random_e
 	memcpy(event.he_entropy, entropy, size);
 	random_harvestq_fast_process_event(&event);
 	explicit_bzero(&event, sizeof(event));
+}
+
+void
+random_harvest_register_source(enum random_entropy_source source)
+{
+
+	harvest_context.hc_source_mask |= (1 << source);
+}
+
+void
+random_harvest_deregister_source(enum random_entropy_source source)
+{
+
+	harvest_context.hc_source_mask &= ~(1 << source);
 }
 
 MODULE_VERSION(random_harvestq, 1);
