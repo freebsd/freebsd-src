@@ -40,12 +40,6 @@
 #ifndef	_CTL_IO_H_
 #define	_CTL_IO_H_
 
-#ifdef _CTL_C
-#define EXTERN(__var,__val) __var = __val
-#else
-#define EXTERN(__var,__val) extern __var
-#endif
-
 #define	CTL_MAX_CDBLEN	32
 /*
  * Uncomment this next line to enable printing out times for I/Os
@@ -55,7 +49,6 @@
 #define	CTL_TIME_IO
 #ifdef  CTL_TIME_IO
 #define	CTL_TIME_IO_DEFAULT_SECS	90
-EXTERN(int ctl_time_io_secs, CTL_TIME_IO_DEFAULT_SECS);
 #endif
 
 /*
