@@ -81,7 +81,8 @@ enum random_entropy_source {
 	RANDOM_UMA,	/* Special!! UMA/SLAB Allocator */
 	RANDOM_ENVIRONMENTAL_END = RANDOM_UMA,
 	/* Fast hardware random-number sources from here on. */
-	RANDOM_PURE_OCTEON,
+	RANDOM_PURE_START,
+	RANDOM_PURE_OCTEON = RANDOM_PURE_START,
 	RANDOM_PURE_SAFE,
 	RANDOM_PURE_GLXSB,
 	RANDOM_PURE_UBSEC,
@@ -95,6 +96,7 @@ enum random_entropy_source {
 };
 
 #define RANDOM_HARVEST_EVERYTHING_MASK ((1 << (RANDOM_ENVIRONMENTAL_END + 1)) - 1)
+#define RANDOM_HARVEST_PURE_MASK (((1 << ENTROPYSOURCE) - 1) & (-1UL << RANDOM_PURE_START))
 
 #define RANDOM_LEGACY_BOOT_ENTROPY_MODULE	"/boot/entropy"
 #define RANDOM_CACHED_BOOT_ENTROPY_MODULE	"boot_entropy_cache"
@@ -104,10 +106,14 @@ enum random_entropy_source {
 void random_harvest_queue(const void *, u_int, u_int, enum random_entropy_source);
 void random_harvest_fast(const void *, u_int, u_int, enum random_entropy_source);
 void random_harvest_direct(const void *, u_int, u_int, enum random_entropy_source);
+void random_harvest_register_source(enum random_entropy_source);
+void random_harvest_deregister_source(enum random_entropy_source);
 #else
 #define random_harvest_queue(a, b, c, d) do {} while (0)
 #define random_harvest_fast(a, b, c, d) do {} while (0)
 #define random_harvest_direct(a, b, c, d) do {} while (0)
+#define random_harvest_register_source(a) do {} while (0)
+#define random_harvest_deregister_source(a) do {} while (0)
 #endif
 
 #if defined(RANDOM_ENABLE_UMA)
