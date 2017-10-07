@@ -514,6 +514,11 @@ sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 	*so = (*sock_fp)->f_data;
 	if ((*so)->so_type != SOCK_STREAM)
 		return (EINVAL);
+	if ((*so)->so_error) {
+		error = (*so)->so_error;
+		(*so)->so_error = 0;
+		return (error);
+	}
 	if (((*so)->so_state & SS_ISCONNECTED) == 0)
 		return (ENOTCONN);
 	return (0);
