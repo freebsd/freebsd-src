@@ -1997,7 +1997,8 @@ again:
 			goto again;
 		}
 		if (p->wire_count != 0) {
-			if ((options & OBJPR_NOTMAPPED) == 0)
+			if ((options & OBJPR_NOTMAPPED) == 0 &&
+			    object->ref_count != 0)
 				pmap_remove_all(p);
 			if ((options & OBJPR_CLEANONLY) == 0) {
 				p->valid = 0;
@@ -2014,12 +2015,13 @@ again:
 		KASSERT((p->flags & PG_FICTITIOUS) == 0,
 		    ("vm_object_page_remove: page %p is fictitious", p));
 		if ((options & OBJPR_CLEANONLY) != 0 && p->valid != 0) {
-			if ((options & OBJPR_NOTMAPPED) == 0)
+			if ((options & OBJPR_NOTMAPPED) == 0 &&
+			    object->ref_count != 0)
 				pmap_remove_write(p);
-			if (p->dirty)
+			if (p->dirty != 0)
 				continue;
 		}
-		if ((options & OBJPR_NOTMAPPED) == 0)
+		if ((options & OBJPR_NOTMAPPED) == 0 && object->ref_count != 0)
 			pmap_remove_all(p);
 		p->flags &= ~PG_ZERO;
 		if (vm_page_free_prep(p, false))
