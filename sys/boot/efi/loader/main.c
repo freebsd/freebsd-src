@@ -74,12 +74,13 @@ EFI_GUID inputid = SIMPLE_TEXT_INPUT_PROTOCOL;
 
 static EFI_LOADED_IMAGE *img;
 
+#ifdef	EFI_ZFS_BOOT
 bool
 efi_zfs_is_preferred(EFI_HANDLE *h)
 {
         return (h == img->DeviceHandle);
 }
-
+#endif
 
 static int
 has_keyboard(void)
