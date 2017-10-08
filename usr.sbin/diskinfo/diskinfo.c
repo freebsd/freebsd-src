@@ -50,6 +50,8 @@
 #include <sys/time.h>
 
 #define	NAIO	128
+#define	MAXTX	(8*1024*1024)
+#define	MEGATX	(1024*1024)
 
 static void
 usage(void)
@@ -67,12 +69,14 @@ static void slogbench(int fd, int isreg, off_t mediasize, u_int sectorsize);
 static int zonecheck(int fd, uint32_t *zone_mode, char *zone_str,
 		     size_t zone_str_len);
 
+static uint8_t *buf;
+
 int
 main(int argc, char **argv)
 {
 	struct stat sb;
 	int i, ch, fd, error, exitval = 0;
-	char buf[BUFSIZ], ident[DISK_IDENT_SIZE], physpath[MAXPATHLEN];
+	char tstr[BUFSIZ], ident[DISK_IDENT_SIZE], physpath[MAXPATHLEN];
 	char zone_desc[64];
 	struct diocgattr_arg arg;
 	off_t	mediasize, stripesize, stripeoffset;
@@ -129,11 +133,13 @@ main(int argc, char **argv)
 		usage();
 	}
 
+	if (posix_memalign((void **)&buf, PAGE_SIZE, MAXTX))
+		errx(1, "Can't allocate memory buffer");
 	for (i = 0; i < argc; i++) {
 		fd = open(argv[i], (opt_w ? O_RDWR : O_RDONLY) | O_DIRECT);
 		if (fd < 0 && errno == ENOENT && *argv[i] != '/') {
-			snprintf(buf, BUFSIZ, "%s%s", _PATH_DEV, argv[i]);
-			fd = open(buf, O_RDONLY);
+			snprintf(tstr, sizeof(tstr), "%s%s", _PATH_DEV, argv[i]);
+			fd = open(tstr, O_RDONLY);
 		}
 		if (fd < 0) {
 			warn("%s", argv[i]);
@@ -216,12 +222,12 @@ main(int argc, char **argv)
 				printf("\t%u", fwsectors);
 			} 
 		} else {
-			humanize_number(buf, 5, (int64_t)mediasize, "",
+			humanize_number(tstr, 5, (int64_t)mediasize, "",
 			    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 			printf("%s\n", argv[i]);
 			printf("\t%-12u\t# sectorsize\n", sectorsize);
 			printf("\t%-12jd\t# mediasize in bytes (%s)\n",
-			    (intmax_t)mediasize, buf);
+			    (intmax_t)mediasize, tstr);
 			printf("\t%-12jd\t# mediasize in sectors\n",
 			    (intmax_t)mediasize/sectorsize);
 			printf("\t%-12jd\t# stripesize\n", stripesize);
@@ -255,12 +261,9 @@ main(int argc, char **argv)
 out:
 		close(fd);
 	}
+	free(buf);
 	exit (exitval);
 }
-
-#define MAXTX (8*1024*1024)
-#define MEGATX (1024*1024)
-static uint8_t buf[MAXTX];
 
 static void
 rdsect(int fd, off_t blockno, u_int sectorsize)
