@@ -28,6 +28,7 @@ TESTS_SRCS=	\
 	test_empty_gz.c				\
 	test_empty_lz4.c			\
 	test_empty_xz.c				\
+	test_empty_zstd.c			\
 	test_error.c				\
 	test_error_mixed.c			\
 	test_expand_Z.c				\
@@ -37,6 +38,7 @@ TESTS_SRCS=	\
 	test_expand_mixed.c			\
 	test_expand_plain.c			\
 	test_expand_xz.c			\
+	test_expand_zstd.c			\
 	test_help.c				\
 	test_version.c
 
@@ -59,11 +61,13 @@ CLEANFILES+=	list.h list.h.tmp
 ${PACKAGE}FILES+=	test_empty.gz.uu
 ${PACKAGE}FILES+=	test_empty.lz4.uu
 ${PACKAGE}FILES+=	test_empty.xz.uu
+${PACKAGE}FILES+=	test_empty.zst.uu
 ${PACKAGE}FILES+=	test_expand.Z.uu
 ${PACKAGE}FILES+=	test_expand.bz2.uu
 ${PACKAGE}FILES+=	test_expand.gz.uu
 ${PACKAGE}FILES+=	test_expand.lz4.uu
 ${PACKAGE}FILES+=	test_expand.plain.uu
 ${PACKAGE}FILES+=	test_expand.xz.uu
+${PACKAGE}FILES+=	test_expand.zst.uu
 
 .include <bsd.test.mk>
