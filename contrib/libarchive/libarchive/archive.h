@@ -177,6 +177,7 @@ __LA_DECL const char *  archive_zlib_version(void);
 __LA_DECL const char *  archive_liblzma_version(void);
 __LA_DECL const char *  archive_bzlib_version(void);
 __LA_DECL const char *  archive_liblz4_version(void);
+__LA_DECL const char *  archive_libzstd_version(void);
 
 /* Declare our basic types. */
 struct archive;
@@ -276,6 +277,7 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define	ARCHIVE_FILTER_LZOP	11
 #define	ARCHIVE_FILTER_GRZIP	12
 #define	ARCHIVE_FILTER_LZ4	13
+#define	ARCHIVE_FILTER_ZSTD	14
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 #define	ARCHIVE_COMPRESSION_NONE	ARCHIVE_FILTER_NONE
@@ -433,6 +435,7 @@ __LA_DECL int archive_read_support_filter_program_signature
 __LA_DECL int archive_read_support_filter_rpm(struct archive *);
 __LA_DECL int archive_read_support_filter_uu(struct archive *);
 __LA_DECL int archive_read_support_filter_xz(struct archive *);
+__LA_DECL int archive_read_support_filter_zstd(struct archive *);
 
 __LA_DECL int archive_read_support_format_7zip(struct archive *);
 __LA_DECL int archive_read_support_format_all(struct archive *);
@@ -778,6 +781,7 @@ __LA_DECL int archive_write_add_filter_program(struct archive *,
 		     const char *cmd);
 __LA_DECL int archive_write_add_filter_uuencode(struct archive *);
 __LA_DECL int archive_write_add_filter_xz(struct archive *);
+__LA_DECL int archive_write_add_filter_zstd(struct archive *);
 
 
 /* A convenience function to set the format based on the code or name. */
