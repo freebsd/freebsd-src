@@ -50,7 +50,8 @@ caph_limit_stream(int fd, int flags)
 	cap_rights_t rights;
 	unsigned long cmds[] = { TIOCGETA, TIOCGWINSZ, FIODTYPE };
 
-	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_IOCTL, CAP_SEEK);
+	cap_rights_init(&rights, CAP_EVENT, CAP_FCNTL, CAP_FSTAT,
+	    CAP_IOCTL, CAP_SEEK);
 
 	if ((flags & CAPH_READ) != 0)
 		cap_rights_set(&rights, CAP_READ);
