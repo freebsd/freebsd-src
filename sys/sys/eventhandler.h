@@ -293,4 +293,15 @@ typedef void (*swapoff_fn)(void *, struct swdevt *);
 EVENTHANDLER_DECLARE(swapon, swapon_fn);
 EVENTHANDLER_DECLARE(swapoff, swapoff_fn);
 
+/* newbus device events */
+enum evhdev_detach {
+	EVHDEV_DETACH_BEGIN,    /* Before detach() is called */
+	EVHDEV_DETACH_COMPLETE, /* After detach() returns 0 */
+	EVHDEV_DETACH_FAILED    /* After detach() returns err */
+};
+typedef void (*device_attach_fn)(void *, device_t);
+typedef void (*device_detach_fn)(void *, device_t, enum evhdev_detach);
+EVENTHANDLER_DECLARE(device_attach, device_attach_fn);
+EVENTHANDLER_DECLARE(device_detach, device_detach_fn);
+
 #endif /* _SYS_EVENTHANDLER_H_ */
