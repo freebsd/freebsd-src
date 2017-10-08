@@ -180,8 +180,9 @@ vimage_eventhandler_register(struct eventhandler_list *list, const char *name,
 }
 #endif
 
-void
-eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag)
+static void
+_eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag,
+    bool wait)
 {
     struct eventhandler_entry	*ep = tag;
 
@@ -215,9 +216,24 @@ eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag)
 		ep->ee_priority = EHE_DEAD_PRIORITY;
 	}
     }
-    while (list->el_runcount > 0)
+    while (wait && list->el_runcount > 0)
 	    mtx_sleep(list, &list->el_lock, 0, "evhrm", 0);
     EHL_UNLOCK(list);
+}
+
+void
+eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag)
+{
+
+	_eventhandler_deregister(list, tag, true);
+}
+
+void
+eventhandler_deregister_nowait(struct eventhandler_list *list,
+    eventhandler_tag tag)
+{
+
+	_eventhandler_deregister(list, tag, false);
 }
 
 /*
