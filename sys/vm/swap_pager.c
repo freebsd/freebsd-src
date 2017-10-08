@@ -1523,7 +1523,7 @@ swp_pager_async_iodone(struct buf *bp)
 				 * so it doesn't clog the inactive list,
 				 * then finish the I/O.
 				 */
-				vm_page_dirty(m);
+				MPASS(m->dirty == VM_PAGE_BITS_ALL);
 				vm_page_lock(m);
 				vm_page_activate(m);
 				vm_page_unlock(m);
