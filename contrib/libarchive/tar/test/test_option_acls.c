@@ -481,7 +481,7 @@ DEFINE_TEST(test_option_acls)
 	r = compare_acls("f", "acls_acls/f");
 	assertEqualInt(r, 1);
 
-	/* Extractl acls without acls */
+	/* Extract acls without acls */
 	assertMakeDir("acls_noacls", 0755);
 	clear_inheritance_flags("acls_noacls", acltype);
 	r = systemf("%s -x -C acls_noacls -p --no-acls -f acls.tar >acls_noacls.out 2>acls_noacls.err", testprog);
