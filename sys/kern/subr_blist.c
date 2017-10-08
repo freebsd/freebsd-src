@@ -108,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <stdio.h>
 #include <string.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -137,7 +138,6 @@ static void blst_copy(blmeta_t *scan, daddr_t blk, daddr_t radix,
 static daddr_t blst_leaf_fill(blmeta_t *scan, daddr_t blk, int count);
 static daddr_t blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count,
 		    u_daddr_t radix);
-static daddr_t	blst_radix_init(blmeta_t *scan, daddr_t radix, daddr_t count);
 #ifndef _KERNEL
 static void	blst_radix_print(blmeta_t *scan, daddr_t blk, daddr_t radix,
 		    int tab);
@@ -218,30 +218,69 @@ blist_t
 blist_create(daddr_t blocks, int flags)
 {
 	blist_t bl;
-	daddr_t nodes, radix;
+	daddr_t i, last_block;
+	u_daddr_t nodes, radix, skip;
+	int digit;
 
 	/*
-	 * Calculate the radix field used for scanning.
+	 * Calculate the radix and node count used for scanning.  Find the last
+	 * block that is followed by a terminator.
 	 */
+	last_block = blocks - 1;
 	radix = BLIST_BMAP_RADIX;
 	while (radix < blocks) {
+		if (((last_block / radix + 1) & BLIST_META_MASK) != 0)
+			/*
+			 * A terminator will be added.  Update last_block to the
+			 * position just before that terminator.
+			 */
+			last_block |= radix - 1;
 		radix *= BLIST_META_RADIX;
 	}
-	nodes = 1 + blst_radix_init(NULL, radix, blocks);
 
-	bl = malloc(sizeof(struct blist), M_SWAP, flags);
+	/*
+	 * Count the meta-nodes in the expanded tree, including the final
+	 * terminator, from the bottom level up to the root.
+	 */
+	nodes = (last_block >= blocks) ? 2 : 1;
+	last_block /= BLIST_BMAP_RADIX;
+	while (last_block > 0) {
+		nodes += last_block + 1;
+		last_block /= BLIST_META_RADIX;
+	}
+	bl = malloc(offsetof(struct blist, bl_root[nodes]), M_SWAP, flags);
 	if (bl == NULL)
 		return (NULL);
 
 	bl->bl_blocks = blocks;
 	bl->bl_radix = radix;
 	bl->bl_cursor = 0;
-	bl->bl_root = malloc(nodes * sizeof(blmeta_t), M_SWAP, flags);
-	if (bl->bl_root == NULL) {
-		free(bl, M_SWAP);
-		return (NULL);
+
+	/*
+	 * Initialize the empty tree by filling in root values, then initialize
+	 * just the terminators in the rest of the tree.
+	 */
+	bl->bl_root[0].bm_bighint = 0;
+	if (radix == BLIST_BMAP_RADIX)
+		bl->bl_root[0].u.bmu_bitmap = 0;
+	else
+		bl->bl_root[0].u.bmu_avail = 0;
+	last_block = blocks - 1;
+	i = 0;
+	while (radix > BLIST_BMAP_RADIX) {
+		radix /= BLIST_META_RADIX;
+		skip = radix_to_skip(radix);
+		digit = last_block / radix;
+		i += 1 + digit * skip;
+		if (digit != BLIST_META_MASK) {
+			/*
+			 * Add a terminator.
+			 */
+			bl->bl_root[i + skip].bm_bighint = (daddr_t)-1;
+			bl->bl_root[i + skip].u.bmu_bitmap = 0;
+		}
+		last_block %= radix;
 	}
-	blst_radix_init(bl->bl_root, radix, blocks);
 
 #if defined(BLIST_DEBUG)
 	printf(
@@ -261,7 +300,7 @@ blist_create(daddr_t blocks, int flags)
 void
 blist_destroy(blist_t bl)
 {
-	free(bl->bl_root, M_SWAP);
+
 	free(bl, M_SWAP);
 }
 
@@ -1070,83 +1109,6 @@ blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count, u_daddr_t radix)
 	}
 	scan->u.bmu_avail -= nblks;
 	return (nblks);
-}
-
-/*
- * BLST_RADIX_INIT() - initialize radix tree
- *
- *	Initialize our meta structures and bitmaps and calculate the exact
- *	amount of space required to manage 'count' blocks - this space may
- *	be considerably less than the calculated radix due to the large
- *	RADIX values we use.
- */
-static daddr_t
-blst_radix_init(blmeta_t *scan, daddr_t radix, daddr_t count)
-{
-	daddr_t i, memindex, next_skip, skip;
-
-	memindex = 0;
-
-	/*
-	 * Leaf node
-	 */
-
-	if (radix == BLIST_BMAP_RADIX) {
-		if (scan) {
-			scan->bm_bighint = 0;
-			scan->u.bmu_bitmap = 0;
-		}
-		return (memindex);
-	}
-
-	/*
-	 * Meta node.  If allocating the entire object we can special
-	 * case it.  However, we need to figure out how much memory
-	 * is required to manage 'count' blocks, so we continue on anyway.
-	 */
-
-	if (scan) {
-		scan->bm_bighint = 0;
-		scan->u.bmu_avail = 0;
-	}
-
-	skip = radix_to_skip(radix);
-	next_skip = skip / BLIST_META_RADIX;
-	radix /= BLIST_META_RADIX;
-
-	for (i = 1; i < skip; i += next_skip) {
-		if (count >= radix) {
-			/*
-			 * Allocate the entire object
-			 */
-			memindex = i +
-			    blst_radix_init(((scan) ? &scan[i] : NULL), radix,
-			    radix);
-			count -= radix;
-		} else if (count > 0) {
-			/*
-			 * Allocate a partial object
-			 */
-			memindex = i +
-			    blst_radix_init(((scan) ? &scan[i] : NULL), radix,
-			    count);
-			count = 0;
-		} else {
-			/*
-			 * Add terminator and break out.  Make terminator bitmap
-			 * zero to avoid a spanning leaf allocation that
-			 * includes the terminator.
-			 */
-			if (scan) {
-				scan[i].bm_bighint = (daddr_t)-1;
-				scan[i].u.bmu_bitmap = 0;
-			}
-			break;
-		}
-	}
-	if (memindex < i)
-		memindex = i;
-	return (memindex);
 }
 
 #ifdef BLIST_DEBUG
