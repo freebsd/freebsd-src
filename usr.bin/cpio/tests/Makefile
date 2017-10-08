@@ -44,6 +44,7 @@ TESTS_SRCS=	\
 	test_extract_cpio_lzma.c		\
 	test_extract_cpio_lzo.c			\
 	test_extract_cpio_xz.c			\
+	test_extract_cpio_zstd.c		\
 	test_format_newc.c			\
 	test_gcpio_compat.c			\
 	test_missing_file.c			\
@@ -74,6 +75,7 @@ TESTS_SRCS=	\
 	test_option_xz.c			\
 	test_option_y.c				\
 	test_option_z.c				\
+	test_option_zstd.c			\
 	test_owner_parse.c			\
 	test_passthrough_dotdot.c		\
 	test_passthrough_reverse.c
@@ -106,6 +108,7 @@ FILES+=	test_extract.cpio.lz4.uu
 FILES+= test_extract.cpio.lzma.uu
 FILES+= test_extract.cpio.lzo.uu
 FILES+= test_extract.cpio.xz.uu
+FILES+= test_extract.cpio.zst.uu
 FILES+= test_gcpio_compat_ref.bin.uu
 FILES+= test_gcpio_compat_ref.crc.uu
 FILES+= test_gcpio_compat_ref.newc.uu

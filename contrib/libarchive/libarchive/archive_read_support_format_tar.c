@@ -2243,7 +2243,7 @@ gnu_add_sparse_entry(struct archive_read *a, struct tar *tar,
 	else
 		tar->sparse_list = p;
 	tar->sparse_last = p;
-	if (remaining < 0 || offset < 0) {
+	if (remaining < 0 || offset < 0 || offset > INT64_MAX - remaining) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC, "Malformed sparse map data");
 		return (ARCHIVE_FATAL);
 	}

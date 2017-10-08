@@ -82,6 +82,7 @@ TESTS_SRCS= \
 	test_compat_uudecode_large.c		\
 	test_compat_xz.c			\
 	test_compat_zip.c			\
+	test_compat_zstd.c			\
 	test_empty_write.c			\
 	test_entry.c				\
 	test_entry_strmode.c			\
@@ -238,6 +239,7 @@ TESTS_SRCS= \
 	test_write_filter_program.c		\
 	test_write_filter_uuencode.c		\
 	test_write_filter_xz.c			\
+	test_write_filter_zstd.c		\
 	test_write_format_7zip.c		\
 	test_write_format_7zip_empty.c		\
 	test_write_format_7zip_large.c		\
@@ -373,6 +375,7 @@ FILES+=	test_compat_zip_4.zip.uu
 FILES+=	test_compat_zip_5.zip.uu
 FILES+=	test_compat_zip_6.zip.uu
 FILES+=	test_compat_zip_7.xps.uu
+FILES+=	test_compat_zstd_1.tar.zst.uu
 FILES+=	test_fuzz.cab.uu
 FILES+=	test_fuzz.lzh.uu
 FILES+=	test_fuzz_1.iso.Z.uu

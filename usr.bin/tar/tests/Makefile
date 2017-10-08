@@ -36,6 +36,7 @@ TESTS_SRCS=	\
 	test_extract_tar_lzma.c			\
 	test_extract_tar_lzo.c			\
 	test_extract_tar_xz.c			\
+	test_extract_tar_zstd.c			\
 	test_format_newc.c			\
 	test_help.c				\
 	test_leading_slash.c			\
@@ -75,6 +76,7 @@ TESTS_SRCS=	\
 	test_option_xattrs.c			\
 	test_option_xz.c			\
 	test_option_z.c				\
+	test_option_zstd.c			\
 	test_patterns.c				\
 	test_print_longpath.c			\
 	test_stdio.c				\
@@ -110,6 +112,7 @@ FILES+=	test_extract.tar.lz4.uu
 FILES+=	test_extract.tar.lzma.uu
 FILES+=	test_extract.tar.lzo.uu
 FILES+=	test_extract.tar.xz.uu
+FILES+=	test_extract.tar.zst.uu
 FILES+=	test_leading_slash.tar.uu
 FILES+=	test_option_keep_newer_files.tar.Z.uu
 FILES+=	test_option_passphrase.zip.uu

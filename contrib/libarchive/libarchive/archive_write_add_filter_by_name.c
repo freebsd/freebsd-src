@@ -57,6 +57,7 @@ struct { const char *name; int (*setter)(struct archive *); } names[] =
 	{ "lzop",		archive_write_add_filter_lzop },
 	{ "uuencode",		archive_write_add_filter_uuencode },
 	{ "xz",			archive_write_add_filter_xz },
+	{ "zstd",		archive_write_add_filter_zstd },
 	{ NULL,			NULL }
 };
 

@@ -28,6 +28,7 @@ TESTS_SRCS=	\
 	test_empty_gz.c				\
 	test_empty_lz4.c			\
 	test_empty_xz.c				\
+	test_empty_zstd.c			\
 	test_error.c				\
 	test_error_mixed.c			\
 	test_expand_Z.c				\
@@ -37,6 +38,7 @@ TESTS_SRCS=	\
 	test_expand_mixed.c			\
 	test_expand_plain.c			\
 	test_expand_xz.c			\
+	test_expand_zstd.c			\
 	test_help.c				\
 	test_version.c
 
@@ -65,5 +67,6 @@ FILES+=	test_expand.gz.uu
 FILES+=	test_expand.lz4.uu
 FILES+=	test_expand.plain.uu
 FILES+=	test_expand.xz.uu
+FILES+=	test_expand.zst.uu
 
 .include <bsd.test.mk>
