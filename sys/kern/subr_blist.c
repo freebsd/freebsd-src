@@ -248,7 +248,8 @@ blist_create(daddr_t blocks, int flags)
 		nodes += last_block + 1;
 		last_block /= BLIST_META_RADIX;
 	}
-	bl = malloc(offsetof(struct blist, bl_root[nodes]), M_SWAP, flags);
+	bl = malloc(offsetof(struct blist, bl_root[nodes]), M_SWAP, flags |
+	    M_ZERO);
 	if (bl == NULL)
 		return (NULL);
 
