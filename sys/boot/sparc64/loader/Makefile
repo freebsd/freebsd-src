@@ -86,7 +86,7 @@ CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 CFLAGS+=	-I${SRCTOP}/sys
 
 DPADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} -lstand
+LDADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} ${LIBSTAND}
 
 loader.help: help.common help.sparc64
 	cat ${.ALLSRC} | \
