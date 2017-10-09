@@ -91,7 +91,7 @@ LIBEFI=		${.OBJDIR}/../libefi/libefi.a
 # as well as required string and memory functions for all platforms.
 #
 DPADD+=		${LIBEFI} ${LIBSTAND}
-LDADD+=		${LIBEFI} -lstand
+LDADD+=		${LIBEFI} ${LIBSTAND}
 
 DPADD+=		${LDSCRIPT}
 
