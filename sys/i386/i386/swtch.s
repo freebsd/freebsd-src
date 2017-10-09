@@ -279,6 +279,10 @@ sw1:
 	pushl	%edx				/* Preserve pointer to pcb. */
 	addl	$P_MD,%eax			/* Pointer to mdproc is arg. */
 	pushl	%eax
+	/*
+	 * Holding dt_lock prevents context switches, so dt_lock cannot
+	 * be held now and set_user_ldt() will not deadlock acquiring it.
+	 */
 	call	set_user_ldt
 	addl	$4,%esp
 	popl	%edx
