@@ -197,17 +197,17 @@ struct pkthdr {
  * Compile-time assertions in uipc_mbuf.c test these values to ensure that
  * they are correct.
  */
+typedef	void m_ext_free_t(struct mbuf *);
 struct m_ext {
 	union {
 		volatile u_int	 ext_count;	/* value of ref count info */
 		volatile u_int	*ext_cnt;	/* pointer to ref count info */
 	};
-	caddr_t		 ext_buf;	/* start of buffer */
+	char		*ext_buf;	/* start of buffer */
 	uint32_t	 ext_size;	/* size of buffer, for ext_free */
 	uint32_t	 ext_type:8,	/* type of external storage */
 			 ext_flags:24;	/* external storage mbuf flags */
-	void		(*ext_free)	/* free routine if not the usual */
-			    (struct mbuf *, void *, void *);
+	m_ext_free_t	*ext_free;	/* free routine if not the usual */
 	void		*ext_arg1;	/* optional argument pointer */
 	void		*ext_arg2;	/* optional argument pointer */
 };
@@ -436,10 +436,10 @@ struct mbuf {
 
 #define	EXT_FLAG_NOFREE		0x000010	/* don't free mbuf to pool, notyet */
 
-#define	EXT_FLAG_VENDOR1	0x010000	/* for vendor-internal use */
-#define	EXT_FLAG_VENDOR2	0x020000	/* for vendor-internal use */
-#define	EXT_FLAG_VENDOR3	0x040000	/* for vendor-internal use */
-#define	EXT_FLAG_VENDOR4	0x080000	/* for vendor-internal use */
+#define	EXT_FLAG_VENDOR1	0x010000	/* These flags are vendor */
+#define	EXT_FLAG_VENDOR2	0x020000	/* or submodule specific, */
+#define	EXT_FLAG_VENDOR3	0x040000	/* not used by mbuf code. */
+#define	EXT_FLAG_VENDOR4	0x080000	/* Set/read by submodule. */
 
 #define	EXT_FLAG_EXP1		0x100000	/* for experimental use */
 #define	EXT_FLAG_EXP2		0x200000	/* for experimental use */
@@ -610,9 +610,8 @@ struct mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*)(char *, caddr_t, u_int));
 struct mbuf	*m_dup(const struct mbuf *, int);
 int		 m_dup_pkthdr(struct mbuf *, const struct mbuf *, int);
-void		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    void (*)(struct mbuf *, void *, void *), void *, void *,
-		    int, int);
+void		 m_extadd(struct mbuf *, char *, u_int, m_ext_free_t,
+		    void *, void *, int, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct mbuf	*m_fragment(struct mbuf *, int, int);
 void		 m_freem(struct mbuf *);
@@ -667,8 +666,8 @@ m_gettype(int size)
  * Associated an external reference counted buffer with an mbuf.
  */
 static __inline void
-m_extaddref(struct mbuf *m, caddr_t buf, u_int size, u_int *ref_cnt,
-    void (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2)
+m_extaddref(struct mbuf *m, char *buf, u_int size, u_int *ref_cnt,
+    m_ext_free_t freef, void *arg1, void *arg2)
 {
 
 	KASSERT(ref_cnt != NULL, ("%s: ref_cnt not provided", __func__));
@@ -864,7 +863,7 @@ m_extrefcnt(struct mbuf *m)
 #define	MGETHDR(m, how, type)	((m) = m_gethdr((how), (type)))
 #define	MCLGET(m, how)		m_clget((m), (how))
 #define	MEXTADD(m, buf, size, free, arg1, arg2, flags, type)		\
-    m_extadd((m), (caddr_t)(buf), (size), (free), (arg1), (arg2),	\
+    m_extadd((m), (char *)(buf), (size), (free), (arg1), (arg2),	\
     (flags), (type))
 #define	m_getm(m, len, how, type)					\
     m_getm2((m), (len), (how), (type), M_PKTHDR)
