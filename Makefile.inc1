@@ -558,7 +558,8 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		MK_GDB=no MK_LLD_IS_LD=${MK_LLD_BOOTSTRAP} MK_TESTS=no
+		MK_COVERAGE_SUPPORT=${MK_COVERAGE} MK_GDB=no \
+		MK_LLD_IS_LD=${MK_LLD_BOOTSTRAP} MK_TESTS=no
 
 # kernel-tools stage
 KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -2079,8 +2080,8 @@ _lld=		usr.bin/clang/lld
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_LLD_BOOTSTRAP} != "no"
 _clang_libs=	lib/clang
 .endif
-.if ${MK_COVERAGE} != "no"
-.if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no"
+.if ${MK_COVERAGE_SUPPORT} != "no"
+.if ${MK_CLANG} != "no"
 _coverage_libs= lib/libclang_rt/profile
 .endif
 .endif
