@@ -109,10 +109,9 @@ LDFLAGS=	-nostdlib				\
 
 # where to get libstand from
 CFLAGS+=	-I${SASRC}
-LIBSTAND=	${.OBJDIR}/../../../../../lib/libstand/libstand.a
 
-DPADD=		${LIBFICL} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBSTAND}
+DPADD=		${LIBFICL} ${LIBSA}
+LDADD=		${LIBFICL} ${LIBSA}
 
 loader.help: help.common help.mips
 	cat ${.ALLSRC} | \

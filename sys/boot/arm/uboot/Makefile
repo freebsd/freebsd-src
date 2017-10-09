@@ -112,7 +112,6 @@ LIBUBOOT=	${.OBJDIR}/../../uboot/lib/libuboot.a
 CFLAGS+=	-I${.CURDIR}/../../uboot/lib
 CFLAGS+=	-I${.OBJDIR}/../../uboot/lib
 
-# where to get libstand from
 CFLAGS+=	-I${SASRC}
 
 CFLAGS+=	-fPIC
@@ -120,8 +119,8 @@ CFLAGS+=	-fPIC
 # clang doesn't understand %D as a specifier to printf
 NO_WERROR.clang=
 
-DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSTAND}
+DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSA}
+LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSA}
 
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 

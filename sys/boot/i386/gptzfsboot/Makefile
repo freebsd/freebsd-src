@@ -60,8 +60,6 @@ CFLAGS.gcc+=	--param max-inline-insns-single=100
 
 LD_FLAGS=${LD_FLAGS_BIN}
 
-LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
-
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
 
@@ -87,7 +85,7 @@ gptzfsboot.bin: gptzfsboot.out
 
 gptzfsboot.out: ${BTXCRT} zfsboot.o sio.o gpt.o drv.o cons.o util.o \
 	skein.o skein_block.o ${OPENCRYPTO_XTS}
-	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBGELIBOOT} ${LIBSTAND}
+	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBGELIBOOT} ${LIBSA32}
 
 zfsboot.o: ${.CURDIR}/../../zfs/zfsimpl.c
 
