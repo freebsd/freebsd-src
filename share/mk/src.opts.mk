@@ -449,6 +449,7 @@ MK_${vv:H}:=	${MK_${vv:T}}
 .for var in \
     BLACKLIST \
     BZIP2 \
+    COVERAGE \
     INET \
     INET6 \
     KERBEROS \
