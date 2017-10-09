@@ -675,20 +675,20 @@ mb_free_ext(struct mbuf *m)
 			uma_zfree(zone_mbuf, mref);
 			break;
 		case EXT_SFBUF:
-			sf_ext_free(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
+			sf_ext_free(mref->m_ext.ext_arg1, mref->m_ext.ext_arg2);
 			uma_zfree(zone_mbuf, mref);
 			break;
 		case EXT_SFBUF_NOCACHE:
-			sf_ext_free_nocache(m->m_ext.ext_arg1,
-			    m->m_ext.ext_arg2);
+			sf_ext_free_nocache(mref->m_ext.ext_arg1,
+			    mref->m_ext.ext_arg2);
 			uma_zfree(zone_mbuf, mref);
 			break;
 		case EXT_NET_DRV:
 		case EXT_MOD_TYPE:
 		case EXT_DISPOSABLE:
-			KASSERT(m->m_ext.ext_free != NULL,
+			KASSERT(mref->m_ext.ext_free != NULL,
 				("%s: ext_free not set", __func__));
-			m->m_ext.ext_free(m);
+			mref->m_ext.ext_free(mref);
 			uma_zfree(zone_mbuf, mref);
 			break;
 		case EXT_EXTREF:

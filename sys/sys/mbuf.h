@@ -200,13 +200,29 @@ struct pkthdr {
 typedef	void m_ext_free_t(struct mbuf *);
 struct m_ext {
 	union {
-		volatile u_int	 ext_count;	/* value of ref count info */
-		volatile u_int	*ext_cnt;	/* pointer to ref count info */
+		/*
+		 * If EXT_FLAG_EMBREF is set, then we use refcount in the
+		 * mbuf, the 'ext_count' member.  Otherwise, we have a
+		 * shadow copy and we use pointer 'ext_cnt'.  The original
+		 * mbuf is responsible to carry the pointer to free routine
+		 * and its arguments.  They aren't copied into shadows in
+		 * mb_dupcl() to avoid dereferencing next cachelines.
+		 */
+		volatile u_int	 ext_count;
+		volatile u_int	*ext_cnt;
 	};
 	char		*ext_buf;	/* start of buffer */
 	uint32_t	 ext_size;	/* size of buffer, for ext_free */
 	uint32_t	 ext_type:8,	/* type of external storage */
 			 ext_flags:24;	/* external storage mbuf flags */
+	/*
+	 * Fields below store the free context for the external storage.
+	 * They are valid only in the refcount carrying mbuf, the one with
+	 * EXT_FLAG_EMBREF flag, with exclusion for EXT_EXTREF type, where
+	 * the free context is copied into all mbufs that use same external
+	 * storage.
+	 */
+#define	m_ext_copylen	offsetof(struct m_ext, ext_free)
 	m_ext_free_t	*ext_free;	/* free routine if not the usual */
 	void		*ext_arg1;	/* optional argument pointer */
 	void		*ext_arg2;	/* optional argument pointer */
