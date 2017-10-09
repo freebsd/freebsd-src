@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include "if_iwm_config.h"
 
 #define IWM8000_FW	"iwm8000Cfw"
+#define IWM8265_FW	"iwm8265fw"
 
 #define IWM_NVM_HW_SECTION_NUM_FAMILY_8000	10
 
@@ -90,6 +91,13 @@ __FBSDID("$FreeBSD$");
 const struct iwm_cfg iwm8260_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 8260",
 	.fw_name = IWM8000_FW,
+	IWM_DEVICE_8000_COMMON,
+	.host_interrupt_operation_mode = 0,
+};
+
+const struct iwm_cfg iwm8265_cfg = {
+	.name = "Intel(R) Dual Band Wireless AC 8265",
+	.fw_name = IWM8265_FW,
 	IWM_DEVICE_8000_COMMON,
 	.host_interrupt_operation_mode = 0,
 };
