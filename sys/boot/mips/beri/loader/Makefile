@@ -108,7 +108,7 @@ LDFLAGS=	-nostdlib				\
 		-e __start
 
 # where to get libstand from
-CFLAGS+=	-I${.CURDIR}/../../../../../lib/libstand/
+CFLAGS+=	-I${SASRC}
 LIBSTAND=	${.OBJDIR}/../../../../../lib/libstand/libstand.a
 
 DPADD=		${LIBFICL} ${LIBSTAND}

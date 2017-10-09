@@ -2,6 +2,11 @@
 
 .include <src.opts.mk>
 
+.if !defined(__BOOT_MAKEFILE_INC__)
+__BOOT_MAKEFILE_INC__=${MFILE}
+
+SASRC=${SRCTOP}/lib/libstand
+
 SSP_CFLAGS=
 
 .if ${MACHINE_CPUARCH} == "arm"
@@ -24,9 +29,9 @@ DD_NOSTATUS!=(dd status=none count=0 2> /dev/null && echo status=none) || true
 DD=dd ${DD_NOSTATUS}
 
 .if ${MK_LOADER_FORCE_LE} != "no"
-
 .if ${MACHINE_ARCH} == "powerpc64"
 CFLAGS+=	-mlittle-endian
+.endif
 .endif
 
 .endif
