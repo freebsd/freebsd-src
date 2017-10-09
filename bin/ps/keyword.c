@@ -199,7 +199,7 @@ static VAR var[] = {
 	{"tdaddr", "TDADDR", NULL, "thread-address", 0, kvar, KOFF(ki_tdaddr),
 	    KPTR, "lx", 0},
 	{"tdev", "TDEV", NULL, "terminal-device", 0, tdev, 0, CHAR, NULL, 0},
-	{"tdnam", "TDNAM", NULL, "terminal-device-name", LJUST, tdnam, 0, CHAR,
+	{"tdnam", "TDNAM", NULL, "thread-name", LJUST, tdnam, 0, CHAR,
 	    NULL, 0},
 	{"tdname", "", "tdnam", NULL, 0, NULL, 0, CHAR, NULL, 0},
 	{"time", "TIME", NULL, "cpu-time", USER, cputime, 0, CHAR, NULL, 0},
