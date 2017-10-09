@@ -534,23 +534,20 @@ i386_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
-	if (uap->start >= MAX_LD)
-		return (EINVAL);
-	num = min(uap->num, MAX_LD - uap->start);
-	data = malloc(uap->num * sizeof(union descriptor), M_TEMP, M_WAITOK);
+	num = min(uap->num, MAX_LD);
+	data = malloc(num * sizeof(union descriptor), M_TEMP, M_WAITOK);
 	mtx_lock_spin(&dt_lock);
 	pldt = td->td_proc->p_md.md_ldt;
 	nldt = pldt != NULL ? pldt->ldt_len : nitems(ldt);
-	num = min(num, nldt);
-	if (uap->start > nldt || uap->start + num > nldt) {
-		mtx_unlock_spin(&dt_lock);
-		return (EINVAL);
+	if (uap->start >= nldt) {
+		num = 0;
+	} else {
+		num = min(num, nldt - uap->start);
+		bcopy(pldt != NULL ?
+		    &((union descriptor *)(pldt->ldt_base))[uap->start] :
+		    &ldt[uap->start], data, num * sizeof(union descriptor));
 	}
-	bcopy(pldt != NULL ?
-	    &((union descriptor *)(pldt->ldt_base))[uap->start] :
-	    &ldt[uap->start], data, num * sizeof(union descriptor));
 	mtx_unlock_spin(&dt_lock);
-
 	error = copyout(data, uap->descs, num * sizeof(union descriptor));
 	if (error == 0)
 		td->td_retval[0] = num;
