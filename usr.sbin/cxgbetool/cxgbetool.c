@@ -1901,7 +1901,6 @@ dumpstate(int argc, const char *argv[])
 	dump.len = 8 * 1024 * 1024;
 	dump.data = malloc(dump.len);
 	if (dump.data == NULL) {
-		close(fd);
 		return (ENOMEM);
 	}
 
