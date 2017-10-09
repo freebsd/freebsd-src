@@ -91,11 +91,10 @@ LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 #.include	"${.CURDIR}/../../ofw/common/Makefile.inc"
 
 # where to get libstand from
-LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 CFLAGS+=	-I${SASRC}
 
-DPADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}
+DPADD=		${LIBFICL} ${LIBOFW} ${LIBSA32}
+LDADD=		${LIBFICL} ${LIBOFW} ${LIBSA32}
 
 SC_DFLT_FONT=cp437
 
