@@ -1670,10 +1670,10 @@ cl_metadata(struct adapter *sc, struct sge_fl *fl, struct cluster_layout *cll,
 }
 
 static void
-rxb_free(struct mbuf *m, void *arg1, void *arg2)
+rxb_free(struct mbuf *m)
 {
-	uma_zone_t zone = arg1;
-	caddr_t cl = arg2;
+	uma_zone_t zone = m->m_ext.ext_arg1;
+	void *cl = m->m_ext.ext_arg2;
 
 	uma_zfree(zone, cl);
 	counter_u64_add(extfree_rels, 1);

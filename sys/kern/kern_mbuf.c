@@ -504,7 +504,7 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 #endif
 	m = (struct mbuf *)arg;
 	if (m != NULL) {
-		m->m_ext.ext_buf = (caddr_t)mem;
+		m->m_ext.ext_buf = (char *)mem;
 		m->m_data = m->m_ext.ext_buf;
 		m->m_flags |= M_EXT;
 		m->m_ext.ext_free = NULL;
@@ -688,15 +688,13 @@ mb_free_ext(struct mbuf *m)
 		case EXT_DISPOSABLE:
 			KASSERT(m->m_ext.ext_free != NULL,
 				("%s: ext_free not set", __func__));
-			(*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
-			    m->m_ext.ext_arg2);
+			m->m_ext.ext_free(m);
 			uma_zfree(zone_mbuf, mref);
 			break;
 		case EXT_EXTREF:
 			KASSERT(m->m_ext.ext_free != NULL,
 				("%s: ext_free not set", __func__));
-			(*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
-			    m->m_ext.ext_arg2);
+			m->m_ext.ext_free(m);
 			break;
 		default:
 			KASSERT(m->m_ext.ext_type == 0,
@@ -918,9 +916,8 @@ m_getm2(struct mbuf *m, int len, int how, short type, int flags)
  *    Nothing.
  */
 void
-m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
-    void (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2,
-    int flags, int type)
+m_extadd(struct mbuf *mb, char *buf, u_int size, m_ext_free_t freef,
+    void *arg1, void *arg2, int flags, int type)
 {
 
 	KASSERT(type != EXT_CLUSTER, ("%s: EXT_CLUSTER not allowed", __func__));
