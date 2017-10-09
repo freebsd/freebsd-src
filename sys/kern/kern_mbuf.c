@@ -675,14 +675,6 @@ mb_free_ext(struct mbuf *m)
 			uma_zfree(zone_mbuf, mref);
 			break;
 		case EXT_SFBUF:
-			sf_ext_free(mref->m_ext.ext_arg1, mref->m_ext.ext_arg2);
-			uma_zfree(zone_mbuf, mref);
-			break;
-		case EXT_SFBUF_NOCACHE:
-			sf_ext_free_nocache(mref->m_ext.ext_arg1,
-			    mref->m_ext.ext_arg2);
-			uma_zfree(zone_mbuf, mref);
-			break;
 		case EXT_NET_DRV:
 		case EXT_MOD_TYPE:
 		case EXT_DISPOSABLE:
