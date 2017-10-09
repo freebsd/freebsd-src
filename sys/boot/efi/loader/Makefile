@@ -37,7 +37,7 @@ CWARNFLAGS.zfs.c+=	-Wno-missing-prototypes
 .endif
 
 .if defined(LOADER_NET_SUPPORT)
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
+CFLAGS+=	-I${SASRC}
 .endif
 
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201

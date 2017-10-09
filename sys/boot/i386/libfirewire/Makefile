@@ -10,7 +10,7 @@ SRCS+=		dcons.c fwcrom.c
 CFLAGS+=	-D_BOOT
 
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
+CFLAGS+=	-I${SASRC}
 CFLAGS+=	-I${.CURDIR}/../btx/lib
 CFLAGS+=	-I${.CURDIR}/../libi386
 

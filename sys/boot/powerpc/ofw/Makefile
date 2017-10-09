@@ -93,7 +93,7 @@ CFLAGS+=	-I${.CURDIR}/../../ofw/libofw
 
 # where to get libstand from
 LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
+CFLAGS+=	-I${SASRC}
 
 DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSTAND}
 LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSTAND}

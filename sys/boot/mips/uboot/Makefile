@@ -116,7 +116,7 @@ CFLAGS+=	-I${.CURDIR}/../../uboot/lib
 CFLAGS+=	-I${.OBJDIR}/../../uboot/lib
 
 # where to get libstand from
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
+CFLAGS+=	-I${SASRC}
 LIBSTAND=	${.OBJDIR}/../../../../lib/libstand/libstand.a
 
 # clang doesn't understand %D as a specifier to printf

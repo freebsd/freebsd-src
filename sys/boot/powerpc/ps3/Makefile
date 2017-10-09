@@ -92,7 +92,7 @@ LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 
 # where to get libstand from
 LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
+CFLAGS+=	-I${SASRC}
 
 DPADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}
 LDADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}

@@ -29,7 +29,7 @@ LIBZFSBOOT=	${.OBJDIR}/../../zfs/libzfsboot.a
 .endif
 
 .if defined(LOADER_NET_SUPPORT)
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
+CFLAGS+=	-I${SASRC}
 .endif
 
 .if defined(LOADER_TFTP_SUPPORT)
