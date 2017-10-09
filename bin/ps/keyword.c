@@ -201,6 +201,7 @@ static VAR var[] = {
 	{"tdev", "TDEV", NULL, "terminal-device", 0, tdev, 0, CHAR, NULL, 0},
 	{"tdnam", "TDNAM", NULL, "terminal-device-name", LJUST, tdnam, 0, CHAR,
 	    NULL, 0},
+	{"tdname", "", "tdnam", NULL, 0, NULL, 0, CHAR, NULL, 0},
 	{"time", "TIME", NULL, "cpu-time", USER, cputime, 0, CHAR, NULL, 0},
 	{"tpgid", "TPGID", NULL, "terminal-process-gid", 0, kvar,
 	    KOFF(ki_tpgid), UINT, PIDFMT, 0},
