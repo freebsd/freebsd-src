@@ -717,10 +717,10 @@ i386_set_ldt_data(struct thread *td, int start, int num,
 static int
 i386_ldt_grow(struct thread *td, int len) 
 {
-	struct mdproc *mdp = &td->td_proc->p_md;
+	struct mdproc *mdp;
 	struct proc_ldt *new_ldt, *pldt;
-	caddr_t old_ldt_base = NULL_LDT_BASE;
-	int old_ldt_len = 0;
+	caddr_t old_ldt_base;
+	int old_ldt_len;
 
 	mtx_assert(&dt_lock, MA_OWNED);
 
@@ -728,6 +728,10 @@ i386_ldt_grow(struct thread *td, int len)
 		return (ENOMEM);
 	if (len < NLDT + 1)
 		len = NLDT + 1;
+
+	mdp = &td->td_proc->p_md;
+	old_ldt_base = NULL_LDT_BASE;
+	old_ldt_len = 0;
 
 	/* Allocate a user ldt. */
 	if ((pldt = mdp->md_ldt) == NULL || len > pldt->ldt_len) {
