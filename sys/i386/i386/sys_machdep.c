@@ -91,6 +91,37 @@ fill_based_sd(struct segment_descriptor *sdp, uint32_t base)
 	sdp->sd_gran = 1;
 }
 
+/*
+ * Construct special descriptors for "base" selectors.  Store them in
+ * the PCB for later use by cpu_switch().  Store them in the GDT for
+ * more immediate use.  The GDT entries are part of the current
+ * context.  Callers must load related segment registers to complete
+ * setting up the current context.
+ */
+void
+set_fsbase(struct thread *td, uint32_t base)
+{
+	struct segment_descriptor sd;
+
+	fill_based_sd(&sd, base);
+	critical_enter();
+	td->td_pcb->pcb_fsd = sd;
+	PCPU_GET(fsgs_gdt)[0] = sd;
+	critical_exit();
+}
+
+void
+set_gsbase(struct thread *td, uint32_t base)
+{
+	struct segment_descriptor sd;
+
+	fill_based_sd(&sd, base);
+	critical_enter();
+	td->td_pcb->pcb_gsd = sd;
+	PCPU_GET(fsgs_gdt)[1] = sd;
+	critical_exit();
+}
+
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
 	int op;
@@ -109,7 +140,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		struct i386_get_xfpustate xfpu;
 	} kargs;
 	uint32_t base;
-	struct segment_descriptor sd, *sdp;
+	struct segment_descriptor *sdp;
 
 	AUDIT_ARG_CMD(uap->op);
 
@@ -204,16 +235,11 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		error = copyin(uap->parms, &base, sizeof(base));
 		if (error == 0) {
 			/*
-			 * Construct a descriptor and store it in the pcb for
-			 * the next context switch.  Also store it in the gdt
-			 * so that the load of tf_fs into %fs will activate it
-			 * at return to userland.
+			 * Construct the special descriptor for fsbase
+			 * and arrange for doreti to load its selector
+			 * soon enough.
 			 */
-			fill_based_sd(&sd, base);
-			critical_enter();
-			td->td_pcb->pcb_fsd = sd;
-			PCPU_GET(fsgs_gdt)[0] = sd;
-			critical_exit();
+			set_fsbase(td, base);
 			td->td_frame->tf_fs = GSEL(GUFS_SEL, SEL_UPL);
 		}
 		break;
@@ -226,15 +252,11 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		error = copyin(uap->parms, &base, sizeof(base));
 		if (error == 0) {
 			/*
-			 * Construct a descriptor and store it in the pcb for
-			 * the next context switch.  Also store it in the gdt
-			 * because we have to do a load_gs() right now.
+			 * Construct the special descriptor for gsbase.
+			 * The selector is loaded immediately, since we
+			 * normally only reload %gs on context switches.
 			 */
-			fill_based_sd(&sd, base);
-			critical_enter();
-			td->td_pcb->pcb_gsd = sd;
-			PCPU_GET(fsgs_gdt)[1] = sd;
-			critical_exit();
+			set_gsbase(td, base);
 			load_gs(GSEL(GUGS_SEL, SEL_UPL));
 		}
 		break;
