@@ -58,7 +58,7 @@ CFLAGS=		-ffreestanding			\
 		-g
 
 # where to get libstand from
-CFLAGS+=	-I${.CURDIR}/../../../../../lib/libstand/
+CFLAGS+=	-I${SASRC}
 LIBSTAND=	${.OBJDIR}/../../../../../lib/libstand/libstand.a
 
 LDFLAGS=	-nostdlib			\

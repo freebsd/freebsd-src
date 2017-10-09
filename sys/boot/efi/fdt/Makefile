@@ -17,7 +17,7 @@ CFLAGS+=	-mgeneral-regs-only
 CFLAGS+=	-msoft-float
 .endif
 
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
+CFLAGS+=	-I${SASRC}
 
 # EFI library headers
 CFLAGS+=	-I${.CURDIR}/../include

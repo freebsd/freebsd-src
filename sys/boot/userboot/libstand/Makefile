@@ -1,8 +1,9 @@
 # $FreeBSD$
 
 .include <src.opts.mk>
+.include "../Makefile.inc"
 
-LIBSTAND_SRC=	${.CURDIR}/../../../../lib/libstand
+LIBSTAND_SRC=	${SASRC}
 
 INTERNALLIB=
 INCS=
