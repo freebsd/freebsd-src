@@ -1132,6 +1132,15 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	else
 		mtx_unlock_spin(&dt_lock);
   
+	/*
+	 * Reset the fs and gs bases.  The values from the old address
+	 * space do not make sense for the new program.  In particular,
+	 * gsbase might be the TLS base for the old program but the new
+	 * program has no TLS now.
+	 */
+	set_fsbase(td, 0);
+	set_gsbase(td, 0);
+
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_eip = imgp->entry_addr;
 	regs->tf_esp = stack;
