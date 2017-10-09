@@ -7,7 +7,7 @@ __BOOT_MAKEFILE_INC__=${MFILE}
 
 SASRC=${SRCTOP}/lib/libstand
 # Normal stand alone library
-LIBSA=${OBJTOP}/lib/libstand/libstand.a
+LIBSA=${OBJTOP}/sys/boot/libsa/libstand.a
 # stand alone library compiled for 32-bit version of the processor
 LIBSA32=${OBJTOP}/sys/boot/libstand32/libstand.a
 # stand along library compiled for userboot
