@@ -49,8 +49,6 @@ CFLAGS+=	-DBF_DICTSIZE=15000
 LIBFICL=	${.OBJDIR}/../ficl/libficl.a
 .endif
 
-LIBSTAND=	${.OBJDIR}/../libstand/libstand.a
-
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-DUSERBOOT_ZFS_SUPPORT
 LIBZFSBOOT=	${.OBJDIR}/../zfs/libzfsboot.a
@@ -61,7 +59,7 @@ LIBZFSBOOT=	${.OBJDIR}/../zfs/libzfsboot.a
 .include	"${.CURDIR}/../../common/Makefile.inc"
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I.
-DPADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSTAND} 
-LDADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSTAND}
+DPADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSAU} 
+LDADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSAU}
 
 .include <bsd.lib.mk>

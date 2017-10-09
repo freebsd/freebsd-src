@@ -85,8 +85,8 @@ CFLAGS+=	-I${SASRC}
 # Need sys/ for crypto/intake.h
 CFLAGS+=	-I${SRCTOP}/sys
 
-DPADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} ${LIBSTAND}
+DPADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} ${LIBSA}
+LDADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} ${LIBSA}
 
 loader.help: help.common help.sparc64
 	cat ${.ALLSRC} | \

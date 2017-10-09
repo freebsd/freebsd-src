@@ -92,11 +92,10 @@ LIBOFW=		${.OBJDIR}/../../ofw/libofw/libofw.a
 CFLAGS+=	-I${.CURDIR}/../../ofw/libofw
 
 # where to get libstand from
-LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 CFLAGS+=	-I${SASRC}
 
-DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSTAND}
+DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA32}
+LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA32}
 
 loader.help: help.common help.ofw ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \
