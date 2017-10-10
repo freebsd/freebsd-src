@@ -240,6 +240,7 @@ BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GCC GCC_BOOTSTRAP GDB
 .endif
 .if ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=PROFILE # "sorry, unimplemented: profiler support for RISC-V"
+BROKEN_OPTIONS+=COVERAGE # External toolchain (GNU-based) doesn't have libgcov.a .
 BROKEN_OPTIONS+=TESTS   # "undefined reference to `_Unwind_Resume'"
 BROKEN_OPTIONS+=CXX     # "libcxxrt.so: undefined reference to `_Unwind_Resume_or_Rethrow'"
 .endif
@@ -410,6 +411,7 @@ MK_GCC_BOOTSTRAP:= no
 .if ${MK_TOOLCHAIN} == "no"
 MK_BINUTILS:=	no
 MK_CLANG:=	no
+MK_COVERAGE:=	no
 MK_GCC:=	no
 MK_GDB:=	no
 MK_INCLUDES:=	no
@@ -467,13 +469,15 @@ MK_${var}_SUPPORT:= yes
 MK_LLDB:=	no
 .endif
 
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40800
+# Cross-toolchains unfortunately don't install libgcov.a .
+MK_COVERAGE:=no
 # gcc 4.8 and newer supports libc++, so suppress gnuc++ in that case.
 # while in theory we could build it with that, we don't want to do
 # that since it creates too much confusion for too little gain.
 # XXX: This is incomplete and needs X_COMPILER_TYPE/VERSION checks too
 #      to prevent Makefile.inc1 from bootstrapping unneeded dependencies
 #      and to support 'make delete-old' when supplying an external toolchain.
-.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40800
 MK_GNUCXX:=no
 MK_GCC:=no
 .endif
