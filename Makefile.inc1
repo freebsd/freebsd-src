@@ -2251,7 +2251,7 @@ _prereq_libs+= gnu/lib/libssp/libssp_nonshared
 
 #
 # The coverage libraries must be built for the target prior to ${_startup_libs}
-# in order for them to have runtime coverage instrumentation.
+# for world to have runtime coverage instrumentation.
 #
 .if ${MK_COVERAGE} != "no"
 _coverage_libs.${MK_CLANG}+=	lib/libclang_rt/profile
