@@ -59,8 +59,6 @@ CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386 \
 		-I${.CURDIR}/../btx/lib \
 		-I${.CURDIR}/../../../contrib/dev/acpica/include \
 		-I${.CURDIR}/../../.. -I.
-# the location of libstand
-CFLAGS+=	-I${SASRC}
 
 # Handle FreeBSD specific %b and %D printf format specifiers
 CFLAGS+= ${FORMAT_EXTENSIONS}

@@ -96,9 +96,6 @@ LIBUBOOT=	${.OBJDIR}/../../uboot/lib/libuboot.a
 CFLAGS+=	-I${.CURDIR}/../../uboot/lib
 CFLAGS+=	-I${.OBJDIR}/../../uboot/lib
 
-# where to get libstand from
-CFLAGS+=	-I${SASRC}
-
 DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSA32}
 LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSA32}
 

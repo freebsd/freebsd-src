@@ -13,6 +13,8 @@ LIBSA32=${OBJTOP}/sys/boot/libstand32/libstand.a
 # stand along library compiled for userboot
 LIBSAU=${OBJTOP}/sys/boot/userboot/libstand/libstand.a
 
+CFLAGS+=-I${SASRC}
+
 SSP_CFLAGS=
 
 .if ${MACHINE_CPUARCH} == "arm"
