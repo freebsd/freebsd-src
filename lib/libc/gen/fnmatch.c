@@ -188,7 +188,8 @@ fnmatch1(pattern, string, stringstart, flags, patmbs, strmbs)
 			if (!(flags & FNM_NOESCAPE)) {
 				pclen = mbrtowc(&pc, pattern, MB_LEN_MAX,
 				    &patmbs);
-				if (pclen == (size_t)-1 || pclen == (size_t)-2)
+				if (pclen == 0 || pclen == (size_t)-1 ||
+				    pclen == (size_t)-2)
 					return (FNM_NOMATCH);
 				pattern += pclen;
 			}

@@ -131,7 +131,7 @@ struct testcase {
 	{ "\\(", "\\(", 0, FNM_NOMATCH },
 	{ "\\a", "\\a", 0, FNM_NOMATCH },
 	{ "\\", "\\", 0, FNM_NOMATCH },
-	{ "\\", "", 0, 0 },
+	{ "\\", "", 0, FNM_NOMATCH },
 	{ "\\*", "\\*", FNM_NOESCAPE, 0 },
 	{ "\\?", "\\?", FNM_NOESCAPE, 0 },
 	{ "\\", "\\", FNM_NOESCAPE, 0 },
