@@ -402,4 +402,13 @@ struct ndis_offload {
 #define	NDIS_TXCSUM_INFO_IPCS		0x00000010
 #define	NDIS_TXCSUM_INFO_THOFF		0x03ff0000
 
+#define	NDIS_TXCSUM_INFO_MKL4CS(thoff, flag)			\
+	((((uint32_t)(thoff)) << 16) | (flag))
+
+#define	NDIS_TXCSUM_INFO_MKTCPCS(thoff)				\
+	NDIS_TXCSUM_INFO_MKL4CS((thoff), NDIS_TXCSUM_INFO_TCPCS)
+
+#define	NDIS_TXCSUM_INFO_MKUDPCS(thoff)				\
+	NDIS_TXCSUM_INFO_MKL4CS((thoff), NDIS_TXCSUM_INFO_UDPCS)
+
 #endif	/* !_NET_NDIS_H_ */
