@@ -1135,7 +1135,12 @@ hunk_done:
 			if (*buf != '>')
 				fatal("> expected at line %ld of patch\n",
 				    p_input_line);
-			p_line[i] = savestr(buf + 2);
+			/* Don't overrun if we don't have enough line */
+			if (len > 2)
+				p_line[i] = savestr(buf + 2);
+			else
+				p_line[i] = savestr("");
+
 			if (out_of_mem) {
 				p_end = i - 1;
 				return false;

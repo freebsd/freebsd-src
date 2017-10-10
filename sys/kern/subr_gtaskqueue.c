@@ -681,7 +681,7 @@ taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *gtask,
 		mtx_unlock(&qgroup->tqg_lock);
 		error = intr_setaffinity(irq, CPU_WHICH_IRQ, &mask);
 		if (error)
-			printf("%s: setaffinity failed: %d\n", __func__, error);
+			printf("%s: setaffinity failed for %s: %d\n", __func__, gtask->gt_name, error);
 	} else
 		mtx_unlock(&qgroup->tqg_lock);
 }

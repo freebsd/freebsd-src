@@ -783,6 +783,9 @@ cd9660_pathconf(ap)
 {
 
 	switch (ap->a_name) {
+	case _PC_FILESIZEBITS:
+		*ap->a_retval = 32;
+		return (0);
 	case _PC_LINK_MAX:
 		*ap->a_retval = 1;
 		return (0);
@@ -792,6 +795,12 @@ cd9660_pathconf(ap)
 		else
 			*ap->a_retval = 37;
 		return (0);
+	case _PC_SYMLINK_MAX:
+		if (VTOI(ap->a_vp)->i_mnt->iso_ftype == ISO_FTYPE_RRIP) {
+			*ap->a_retval = MAXPATHLEN;
+			return (0);
+		}
+		return (EINVAL);
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 1;
 		return (0);

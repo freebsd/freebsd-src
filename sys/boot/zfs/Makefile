@@ -12,7 +12,6 @@ CFLAGS+=	-DSKEIN_LOOP=111
 
 CFLAGS+=	-DBOOTPROG=\"zfsloader\"
 CFLAGS+=	-I${.CURDIR}/../common -I${.CURDIR}/../.. -I.
-CFLAGS+=	-I${.CURDIR}/../../../lib/libstand
 CFLAGS+=	-I${.CURDIR}/../../cddl/boot/zfs
 CFLAGS+=	-I${.CURDIR}/../../crypto/skein
 

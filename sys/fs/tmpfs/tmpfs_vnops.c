@@ -1353,7 +1353,7 @@ tmpfs_pathconf(struct vop_pathconf_args *v)
 		break;
 
 	case _PC_FILESIZEBITS:
-		*retval = 0; /* XXX Don't know which value should I return. */
+		*retval = 64;
 		break;
 
 	default:

@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2017
+.Dd October 2, 2017
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -537,7 +537,7 @@ for filtering packets, among the following:
 .It Layer-2 header fields
 When available
 .It IPv4 and IPv6 Protocol
-TCP, UDP, ICMP, etc.
+SCTP, TCP, UDP, ICMP, etc.
 .It Source and dest. addresses and ports
 .It Direction
 See Section
@@ -1396,7 +1396,7 @@ error-prone.
 No support for sets of IPv6 addresses is provided because IPv6 addresses
 are typically random past the initial prefix.
 .It Ar ports : Bro Ar port | port Ns \&- Ns Ar port Ns Brc Ns Op , Ns Ar ports
-For protocols which support port numbers (such as TCP and UDP), optional
+For protocols which support port numbers (such as SCTP, TCP and UDP), optional
 .Cm ports
 may be specified as one or more ports or port ranges, separated
 by commas but no spaces, and an optional

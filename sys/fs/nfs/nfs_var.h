@@ -555,7 +555,7 @@ int nfscl_tryclose(struct nfsclopen *, struct ucred *,
     struct nfsmount *, NFSPROC_T *);
 void nfscl_cleanup(NFSPROC_T *);
 int nfscl_layout(struct nfsmount *, vnode_t, u_int8_t *, int, nfsv4stateid_t *,
-    int, struct nfsclflayouthead *, struct nfscllayout **, struct ucred *,
+    int, int, struct nfsclflayouthead *, struct nfscllayout **, struct ucred *,
     NFSPROC_T *);
 struct nfscllayout *nfscl_getlayout(struct nfsclclient *, uint8_t *, int,
     uint64_t, struct nfsclflayout **, int *);

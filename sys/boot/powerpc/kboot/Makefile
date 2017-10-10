@@ -94,12 +94,8 @@ CFLAGS+= -Wa,-mppc64bridge
 #.PATH:		${.CURDIR}/../../ofw/common
 #.include	"${.CURDIR}/../../ofw/common/Makefile.inc"
 
-# where to get libstand from
-LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
-
-DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSTAND}
+DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA32}
+LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA32}
 
 loader.help: help.common help.kboot ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \

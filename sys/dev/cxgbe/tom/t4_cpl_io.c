@@ -1979,9 +1979,9 @@ free_aiotx_buffer(struct aiotx_buffer *ab)
 }
 
 static void
-t4_aiotx_mbuf_free(struct mbuf *m, void *buffer, void *arg)
+t4_aiotx_mbuf_free(struct mbuf *m)
 {
-	struct aiotx_buffer *ab = buffer;
+	struct aiotx_buffer *ab = m->m_ext.ext_arg1;
 
 #ifdef VERBOSE_TRACES
 	CTR3(KTR_CXGBE, "%s: completed %d bytes for tid %d", __func__,

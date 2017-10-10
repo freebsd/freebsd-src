@@ -38,6 +38,23 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20161010: Remove libstand
+OLD_FILES+=usr/lib/libstand.a
+OLD_FILES+=usr/lib/libstand_p.a
+OLD_FILES+=usr/include/stand.h
+OLD_FILES+=usr/share/man/man3/libstand.3
+# 20171003: remove RCMDS
+OLD_FILES+=bin/rcp
+OLD_FILES+=rescue/rcp
+OLD_FILES+=usr/bin/rlogin
+OLD_FILES+=usr/bin/rsh
+OLD_FILES+=usr/libexec/rlogind
+OLD_FILES+=usr/libexec/rshd
+OLD_FILES+=usr/share/man/man1/rcp.1.gz
+OLD_FILES+=usr/share/man/man1/rlogin.1.gz
+OLD_FILES+=usr/share/man/man1/rsh.1.gz
+OLD_FILES+=usr/share/man/man8/rlogind.8.gz
+OLD_FILES+=usr/share/man/man8/rshd.8.gz
 # 20170927: crshared
 OLD_FILES+=usr/share/man/man9/crshared.9.gz
 # 20170927: procctl

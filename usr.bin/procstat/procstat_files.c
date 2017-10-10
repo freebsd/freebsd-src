@@ -400,6 +400,11 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 			xo_emit("{eq:fd_type/sem}");
 			break;
 
+		case PS_FST_TYPE_PROCDESC:
+			str = "P";
+			xo_emit("{eq:fd_type/procdesc}");
+			break;
+
 		case PS_FST_TYPE_NONE:
 			str = "?";
 			xo_emit("{eq:fd_type/none}");

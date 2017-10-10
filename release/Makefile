@@ -161,14 +161,18 @@ ports.txz:
 	    ${XZ_CMD} > ${.OBJDIR}/ports.txz
 
 reldoc:
-	cd ${.CURDIR}/doc && ${MAKE} all install clean 'FORMATS=html txt' \
+	cd ${DOCDIR}/en_US.ISO8859-1/htdocs/releases/${REVISION}R && \
+	    ${MAKE} all install clean 'FORMATS=html txt' \
 	    INSTALL_COMPRESSED='' URLS_ABSOLUTE=YES DOCDIR=${.OBJDIR}/rdoc
 	mkdir -p reldoc
 .for i in hardware readme relnotes errata
-	ln -f rdoc/${RELNOTES_LANG}/${i}/article.txt reldoc/${i:tu}.TXT
-	ln -f rdoc/${RELNOTES_LANG}/${i}/article.html reldoc/${i:tu}.HTM
+	ln -f ${DOCDIR}/${RELNOTES_LANG}/htdocs/releases/${REVISION}R/${i}/${i:tl}.txt \
+	    reldoc/${i:tu}.TXT
+	ln -f ${DOCDIR}/${RELNOTES_LANG}/htdocs/releases/${REVISION}R/${i}/${i:tl}.html \
+	    reldoc/${i:tu}.HTM
 .endfor
-	cp rdoc/${RELNOTES_LANG}/readme/docbook.css reldoc
+	cp ${DOCDIR}/${RELNOTES_LANG}/htdocs/releases/${REVISION}R/readme/docbook.css \
+	    reldoc
 
 disc1: packagesystem
 # Install system

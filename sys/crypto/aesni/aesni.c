@@ -773,12 +773,15 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptodesc *enccrd,
 	int error, ivlen;
 	bool encflag, allocated, authallocated;
 
+	KASSERT(ses->algo != CRYPTO_AES_NIST_GCM_16 || authcrd != NULL,
+	    ("AES_NIST_GCM_16 must include MAC descriptor"));
+
 	buf = aesni_cipher_alloc(enccrd, crp, &allocated);
 	if (buf == NULL)
 		return (ENOMEM);
 
 	authallocated = false;
-	if (ses->algo == CRYPTO_AES_NIST_GCM_16 && authcrd != NULL) {
+	if (ses->algo == CRYPTO_AES_NIST_GCM_16) {
 		authbuf = aesni_cipher_alloc(authcrd, crp, &authallocated);
 		if (authbuf == NULL) {
 			error = ENOMEM;
@@ -851,7 +854,7 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptodesc *enccrd,
 			    iv);
 		break;
 	case CRYPTO_AES_NIST_GCM_16:
-		if (authcrd != NULL && !encflag)
+		if (!encflag)
 			crypto_copydata(crp->crp_flags, crp->crp_buf,
 			    authcrd->crd_inject, GMAC_DIGEST_LEN, tag);
 		else

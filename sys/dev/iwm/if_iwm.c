@@ -1,4 +1,4 @@
-/*	$OpenBSD: if_iwm.c,v 1.42 2015/05/30 02:49:23 deraadt Exp $	*/
+/*	$OpenBSD: if_iwm.c,v 1.167 2017/04/04 00:40:52 claudio Exp $	*/
 
 /*
  * Copyright (c) 2014 genua mbh <info@genua.de>
@@ -5690,6 +5690,7 @@ iwm_intr(void *arg)
 #define	PCI_PRODUCT_INTEL_WL_7265_2	0x095b
 #define	PCI_PRODUCT_INTEL_WL_8260_1	0x24f3
 #define	PCI_PRODUCT_INTEL_WL_8260_2	0x24f4
+#define	PCI_PRODUCT_INTEL_WL_8265_1	0x24fd
 
 static const struct iwm_devices {
 	uint16_t		device;
@@ -5705,6 +5706,7 @@ static const struct iwm_devices {
 	{ PCI_PRODUCT_INTEL_WL_7265_2, &iwm7265_cfg },
 	{ PCI_PRODUCT_INTEL_WL_8260_1, &iwm8260_cfg },
 	{ PCI_PRODUCT_INTEL_WL_8260_2, &iwm8260_cfg },
+	{ PCI_PRODUCT_INTEL_WL_8265_1, &iwm8265_cfg },
 };
 
 static int

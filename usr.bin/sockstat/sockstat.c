@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 
 #include <sys/un.h>
+#define	_WANT_UNPCB
 #include <sys/unpcb.h>
 
 #include <net/route.h>
@@ -784,8 +785,8 @@ gather_unix(int proto)
 			warnx("struct xunpcb size mismatch");
 			goto out;
 		}
-		if ((xup->xu_unp.unp_conn == NULL && !opt_l) ||
-		    (xup->xu_unp.unp_conn != NULL && !opt_c))
+		if ((xup->unp_conn == NULL && !opt_l) ||
+		    (xup->unp_conn != NULL && !opt_c))
 			continue;
 		if ((sock = calloc(1, sizeof(*sock))) == NULL)
 			err(1, "malloc()");
@@ -798,11 +799,11 @@ gather_unix(int proto)
 		sock->proto = proto;
 		sock->family = AF_UNIX;
 		sock->protoname = protoname;
-		if (xup->xu_unp.unp_addr != NULL)
+		if (xup->xu_addr.sun_family == AF_UNIX)
 			laddr->address =
 			    *(struct sockaddr_storage *)(void *)&xup->xu_addr;
-		else if (xup->xu_unp.unp_conn != NULL)
-			*(void **)&(faddr->address) = xup->xu_unp.unp_conn;
+		else if (xup->unp_conn != NULL)
+			*(void **)&(faddr->address) = xup->unp_conn;
 		laddr->next = NULL;
 		faddr->next = NULL;
 		sock->laddr = laddr;

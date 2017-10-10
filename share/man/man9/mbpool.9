@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2003
+.Dd September 27, 2017
 .Dt MBPOOL 9
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@
 .Ft void
 .Fn mbp_free "struct mbpool *mbp" "void *p"
 .Ft void
-.Fn mbp_ext_free "void *" "void *"
+.Fn mbp_ext_free "struct mbuf *"
 .Ft void
 .Fn mbp_card_free "struct mbpool *mbp"
 .Ft void
@@ -223,8 +223,6 @@ The function
 can be given to
 .Fn m_extadd
 as the free function.
-The user argument must be the pointer to
-the pool.
 .Pp
 Before using the contents of a buffer returned by the card, the driver
 must call

@@ -67,10 +67,6 @@ CRUNCH_ALIAS_rm= unlink
 CRUNCH_ALIAS_ed= red
 CRUNCH_ALIAS_pkill= pgrep
 
-.if ${MK_RCMDS} != "no"
-CRUNCH_PROGS_bin+= rcp
-.endif
-
 .if ${MK_TCSH} != "no"
 CRUNCH_PROGS_bin+= csh
 CRUNCH_ALIAS_csh= -csh tcsh -tcsh

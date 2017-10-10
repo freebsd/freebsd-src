@@ -133,7 +133,7 @@ static void	cas_detach(struct cas_softc *sc);
 static int	cas_disable_rx(struct cas_softc *sc);
 static int	cas_disable_tx(struct cas_softc *sc);
 static void	cas_eint(struct cas_softc *sc, u_int status);
-static void	cas_free(struct mbuf *m, void *arg1, void* arg2);
+static void	cas_free(struct mbuf *m);
 static void	cas_init(void *xsc);
 static void	cas_init_locked(struct cas_softc *sc);
 static void	cas_init_regs(struct cas_softc *sc);
@@ -1732,16 +1732,10 @@ cas_rint(struct cas_softc *sc)
 				refcount_acquire(&rxds->rxds_refcount);
 				bus_dmamap_sync(sc->sc_rdmatag,
 				    rxds->rxds_dmamap, BUS_DMASYNC_POSTREAD);
-#if __FreeBSD_version < 800016
-				MEXTADD(m, (caddr_t)rxds->rxds_buf +
-				    off * 256 + ETHER_ALIGN, len, cas_free,
-				    rxds, M_RDONLY, EXT_NET_DRV);
-#else
-				MEXTADD(m, (caddr_t)rxds->rxds_buf +
+				m_extadd(m, (char *)rxds->rxds_buf +
 				    off * 256 + ETHER_ALIGN, len, cas_free,
 				    sc, (void *)(uintptr_t)idx,
 				    M_RDONLY, EXT_NET_DRV);
-#endif
 				if ((m->m_flags & M_EXT) == 0) {
 					m_freem(m);
 					m = NULL;
@@ -1779,16 +1773,10 @@ cas_rint(struct cas_softc *sc)
 				m->m_len = min(CAS_PAGE_SIZE - off, len);
 				bus_dmamap_sync(sc->sc_rdmatag,
 				    rxds->rxds_dmamap, BUS_DMASYNC_POSTREAD);
-#if __FreeBSD_version < 800016
-				MEXTADD(m, (caddr_t)rxds->rxds_buf + off,
-				    m->m_len, cas_free, rxds, M_RDONLY,
-				    EXT_NET_DRV);
-#else
-				MEXTADD(m, (caddr_t)rxds->rxds_buf + off,
+				m_extadd(m, (char *)rxds->rxds_buf + off,
 				    m->m_len, cas_free, sc,
 				    (void *)(uintptr_t)idx, M_RDONLY,
 				    EXT_NET_DRV);
-#endif
 				if ((m->m_flags & M_EXT) == 0) {
 					m_freem(m);
 					m = NULL;
@@ -1818,19 +1806,11 @@ cas_rint(struct cas_softc *sc)
 						    sc->sc_rdmatag,
 						    rxds2->rxds_dmamap,
 						    BUS_DMASYNC_POSTREAD);
-#if __FreeBSD_version < 800016
-						MEXTADD(m2,
-						    (caddr_t)rxds2->rxds_buf,
-						    m2->m_len, cas_free,
-						    rxds2, M_RDONLY,
-						    EXT_NET_DRV);
-#else
-						MEXTADD(m2,
-						    (caddr_t)rxds2->rxds_buf,
+						m_extadd(m2,
+						    (char *)rxds2->rxds_buf,
 						    m2->m_len, cas_free, sc,
 						    (void *)(uintptr_t)idx2,
 						    M_RDONLY, EXT_NET_DRV);
-#endif
 						if ((m2->m_flags & M_EXT) ==
 						    0) {
 							m_freem(m2);
@@ -1889,21 +1869,15 @@ cas_rint(struct cas_softc *sc)
 }
 
 static void
-cas_free(struct mbuf *m, void *arg1, void *arg2)
+cas_free(struct mbuf *m)
 {
 	struct cas_rxdsoft *rxds;
 	struct cas_softc *sc;
 	u_int idx, locked;
 
-#if __FreeBSD_version < 800016
-	rxds = arg2;
-	sc = rxds->rxds_sc;
-	idx = rxds->rxds_idx;
-#else
-	sc = arg1;
-	idx = (uintptr_t)arg2;
+	sc = m->m_ext.ext_arg1;
+	idx = (uintptr_t)m->m_ext.ext_arg2;
 	rxds = &sc->sc_rxdsoft[idx];
-#endif
 	if (refcount_release(&rxds->rxds_refcount) == 0)
 		return;
 

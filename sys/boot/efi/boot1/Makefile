@@ -91,8 +91,8 @@ LIBEFI=		${.OBJDIR}/../libefi/libefi.a
 # __aeabi_* (arm) or __divdi3 (i386).
 # as well as required string and memory functions for all platforms.
 #
-DPADD+=		${LIBEFI} ${LIBSTAND}
-LDADD+=		${LIBEFI} -lstand
+DPADD+=		${LIBEFI} ${LIBSA}
+LDADD+=		${LIBEFI} ${LIBSA}
 
 DPADD+=		${LDSCRIPT}
 

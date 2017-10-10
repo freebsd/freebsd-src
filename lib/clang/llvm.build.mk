@@ -20,10 +20,10 @@ CFLAGS+=	-D__STDC_CONSTANT_MACROS
 TARGET_ARCH?=	${MACHINE_ARCH}
 BUILD_ARCH?=	${MACHINE_ARCH}
 
-# Armv6 uses hard float abi, unless the CPUTYPE has soft in it.
+# Armv6 and armv7 uses hard float abi, unless the CPUTYPE has soft in it.
 # arm (for armv4 and armv5 CPUs) always uses the soft float ABI.
 # For all other targets, we stick with 'unknown'.
-.if ${TARGET_ARCH:Marmv6*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
+.if ${TARGET_ARCH:Marmv[67]*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
 TARGET_ABI=	-gnueabihf
 .elif ${TARGET_ARCH:Marm*}
 TARGET_ABI=	-gnueabi

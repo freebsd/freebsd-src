@@ -800,12 +800,12 @@ mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe, int bf_sz)
 }
 
 static inline void
-mlx5e_cq_arm(struct mlx5e_cq *cq)
+mlx5e_cq_arm(struct mlx5e_cq *cq, spinlock_t *dblock)
 {
 	struct mlx5_core_cq *mcq;
 
 	mcq = &cq->mcq;
-	mlx5_cq_arm(mcq, MLX5_CQ_DB_REQ_NOT, mcq->uar->map, NULL, cq->wq.cc);
+	mlx5_cq_arm(mcq, MLX5_CQ_DB_REQ_NOT, mcq->uar->map, dblock, cq->wq.cc);
 }
 
 extern const struct ethtool_ops mlx5e_ethtool_ops;

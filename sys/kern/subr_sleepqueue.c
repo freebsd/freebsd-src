@@ -1163,7 +1163,7 @@ sleepq_sbuf_print_stacks(struct sbuf *sb, void *wchan, int queue,
 		    M_TEMP, M_WAITOK);
 		for (stack_idx = 0; stack_idx < stacks_to_allocate;
 		    stack_idx++)
-			st[stack_idx] = stack_create();
+			st[stack_idx] = stack_create(M_WAITOK);
 
 		/* Where we will store the td name, tid, etc. */
 		td_infos = malloc(sizeof(struct sbuf *) * stacks_to_allocate,
@@ -1435,7 +1435,7 @@ found:
 		if (TAILQ_EMPTY(&sq->sq_blocked[i]))
 			db_printf("\tempty\n");
 		else
-			TAILQ_FOREACH(td, &sq->sq_blocked[0],
+			TAILQ_FOREACH(td, &sq->sq_blocked[i],
 				      td_slpq) {
 				db_printf("\t%p (tid %d, pid %d, \"%s\")\n", td,
 					  td->td_tid, td->td_proc->p_pid,

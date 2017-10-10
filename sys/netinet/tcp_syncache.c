@@ -1195,6 +1195,7 @@ syncache_tfo_expand(struct syncache *sc, struct socket **lsop, struct mbuf *m,
 		TCPSTAT_INC(tcps_sc_aborted);
 		atomic_subtract_int(pending_counter, 1);
 	} else {
+		soisconnected(*lsop);
 		inp = sotoinpcb(*lsop);
 		tp = intotcpcb(inp);
 		tp->t_flags |= TF_FASTOPEN;

@@ -1058,7 +1058,6 @@ cache_lookup_unlock(struct rwlock *blp, struct mtx *vlp)
 
 	if (blp != NULL) {
 		rw_runlock(blp);
-		mtx_assert(vlp, MA_NOTOWNED);
 	} else {
 		mtx_unlock(vlp);
 	}
@@ -1117,6 +1116,82 @@ cache_lookup_dot(struct vnode *dvp, struct vnode **vpp, struct componentname *cn
  * not recursively acquired.
  */
 
+static __noinline int
+cache_lookup_nomakeentry(struct vnode *dvp, struct vnode **vpp,
+    struct componentname *cnp, struct timespec *tsp, int *ticksp)
+{
+	struct namecache *ncp;
+	struct rwlock *blp;
+	struct mtx *dvlp, *dvlp2;
+	uint32_t hash;
+	int error;
+
+	if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
+		counter_u64_add(dotdothits, 1);
+		dvlp = VP2VNODELOCK(dvp);
+		dvlp2 = NULL;
+		mtx_lock(dvlp);
+retry_dotdot:
+		ncp = dvp->v_cache_dd;
+		if (ncp == NULL) {
+			SDT_PROBE3(vfs, namecache, lookup, miss, dvp,
+			    "..", NULL);
+			mtx_unlock(dvlp);
+			return (0);
+		}
+		if ((ncp->nc_flag & NCF_ISDOTDOT) != 0) {
+			if (ncp->nc_dvp != dvp)
+				panic("dvp %p v_cache_dd %p\n", dvp, ncp);
+			if (!cache_zap_locked_vnode_kl2(ncp,
+			    dvp, &dvlp2))
+				goto retry_dotdot;
+			MPASS(dvp->v_cache_dd == NULL);
+			mtx_unlock(dvlp);
+			if (dvlp2 != NULL)
+				mtx_unlock(dvlp2);
+			cache_free(ncp);
+		} else {
+			dvp->v_cache_dd = NULL;
+			mtx_unlock(dvlp);
+			if (dvlp2 != NULL)
+				mtx_unlock(dvlp2);
+		}
+		return (0);
+	}
+
+	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
+	blp = HASH2BUCKETLOCK(hash);
+retry:
+	rw_rlock(blp);
+
+	LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
+		counter_u64_add(numchecks, 1);
+		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
+		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
+			break;
+	}
+
+	/* We failed to find an entry */
+	if (ncp == NULL) {
+		rw_runlock(blp);
+		SDT_PROBE3(vfs, namecache, lookup, miss, dvp, cnp->cn_nameptr,
+		    NULL);
+		counter_u64_add(nummisszap, 1);
+		return (0);
+	}
+
+	counter_u64_add(numposzaps, 1);
+
+	error = cache_zap_rlocked_bucket(ncp, blp);
+	if (error != 0) {
+		zap_and_exit_bucket_fail++;
+		cache_maybe_yield();
+		goto retry;
+	}
+	cache_free(ncp);
+	return (0);
+}
+
 int
 cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
     struct timespec *tsp, int *ticksp)
@@ -1132,69 +1207,51 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 		cnp->cn_flags &= ~MAKEENTRY;
 		return (0);
 	}
-retry:
-	blp = NULL;
-	dvlp = VP2VNODELOCK(dvp);
-	error = 0;
+
 	counter_u64_add(numcalls, 1);
 
-	if (cnp->cn_nameptr[0] == '.') {
-		if (cnp->cn_namelen == 1)
-			return (cache_lookup_dot(dvp, vpp, cnp, tsp, ticksp));
-		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
-			counter_u64_add(dotdothits, 1);
-			dvlp2 = NULL;
-			mtx_lock(dvlp);
-retry_dotdot:
-			ncp = dvp->v_cache_dd;
-			if (ncp == NULL) {
-				SDT_PROBE3(vfs, namecache, lookup, miss, dvp,
-				    "..", NULL);
-				mtx_unlock(dvlp);
-				return (0);
-			}
-			if ((cnp->cn_flags & MAKEENTRY) == 0) {
-				if ((ncp->nc_flag & NCF_ISDOTDOT) != 0) {
-					if (ncp->nc_dvp != dvp)
-						panic("dvp %p v_cache_dd %p\n", dvp, ncp);
-					if (!cache_zap_locked_vnode_kl2(ncp,
-					    dvp, &dvlp2))
-						goto retry_dotdot;
-					MPASS(dvp->v_cache_dd == NULL);
-					mtx_unlock(dvlp);
-					if (dvlp2 != NULL)
-						mtx_unlock(dvlp2);
-					cache_free(ncp);
-				} else {
-					dvp->v_cache_dd = NULL;
-					mtx_unlock(dvlp);
-					if (dvlp2 != NULL)
-						mtx_unlock(dvlp2);
-				}
-				return (0);
-			}
-			if ((ncp->nc_flag & NCF_ISDOTDOT) != 0) {
-				if (ncp->nc_flag & NCF_NEGATIVE)
-					*vpp = NULL;
-				else
-					*vpp = ncp->nc_vp;
-			} else
-				*vpp = ncp->nc_dvp;
-			/* Return failure if negative entry was found. */
-			if (*vpp == NULL)
-				goto negative_success;
-			CTR3(KTR_VFS, "cache_lookup(%p, %s) found %p via ..",
-			    dvp, cnp->cn_nameptr, *vpp);
-			SDT_PROBE3(vfs, namecache, lookup, hit, dvp, "..",
-			    *vpp);
-			cache_out_ts(ncp, tsp, ticksp);
-			if ((ncp->nc_flag & (NCF_ISDOTDOT | NCF_DTS)) ==
-			    NCF_DTS && tsp != NULL) {
-				ncp_ts = __containerof(ncp, struct namecache_ts, nc_nc);
-				*tsp = ncp_ts->nc_dotdottime;
-			}
-			goto success;
+	if (__predict_false(cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.'))
+		return (cache_lookup_dot(dvp, vpp, cnp, tsp, ticksp));
+
+	if ((cnp->cn_flags & MAKEENTRY) == 0)
+		return (cache_lookup_nomakeentry(dvp, vpp, cnp, tsp, ticksp));
+
+retry:
+	blp = NULL;
+	error = 0;
+	if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
+		counter_u64_add(dotdothits, 1);
+		dvlp = VP2VNODELOCK(dvp);
+		dvlp2 = NULL;
+		mtx_lock(dvlp);
+		ncp = dvp->v_cache_dd;
+		if (ncp == NULL) {
+			SDT_PROBE3(vfs, namecache, lookup, miss, dvp,
+			    "..", NULL);
+			mtx_unlock(dvlp);
+			return (0);
 		}
+		if ((ncp->nc_flag & NCF_ISDOTDOT) != 0) {
+			if (ncp->nc_flag & NCF_NEGATIVE)
+				*vpp = NULL;
+			else
+				*vpp = ncp->nc_vp;
+		} else
+			*vpp = ncp->nc_dvp;
+		/* Return failure if negative entry was found. */
+		if (*vpp == NULL)
+			goto negative_success;
+		CTR3(KTR_VFS, "cache_lookup(%p, %s) found %p via ..",
+		    dvp, cnp->cn_nameptr, *vpp);
+		SDT_PROBE3(vfs, namecache, lookup, hit, dvp, "..",
+		    *vpp);
+		cache_out_ts(ncp, tsp, ticksp);
+		if ((ncp->nc_flag & (NCF_ISDOTDOT | NCF_DTS)) ==
+		    NCF_DTS && tsp != NULL) {
+			ncp_ts = __containerof(ncp, struct namecache_ts, nc_nc);
+			*tsp = ncp_ts->nc_dotdottime;
+		}
+		goto success;
 	}
 
 	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
@@ -1210,21 +1267,11 @@ retry_dotdot:
 
 	/* We failed to find an entry */
 	if (ncp == NULL) {
+		rw_runlock(blp);
 		SDT_PROBE3(vfs, namecache, lookup, miss, dvp, cnp->cn_nameptr,
 		    NULL);
-		if ((cnp->cn_flags & MAKEENTRY) == 0) {
-			counter_u64_add(nummisszap, 1);
-		} else {
-			counter_u64_add(nummiss, 1);
-		}
-		cache_lookup_unlock(blp, dvlp);
+		counter_u64_add(nummiss, 1);
 		return (0);
-	}
-
-	/* We don't want to have an entry, so dump it */
-	if ((cnp->cn_flags & MAKEENTRY) == 0) {
-		counter_u64_add(numposzaps, 1);
-		goto zap_and_exit;
 	}
 
 	/* We found a "positive" match, return the vnode */
