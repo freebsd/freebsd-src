@@ -497,6 +497,8 @@ hn_rndis_query_rsscaps(struct hn_softc *sc, int *rxr_cnt0)
 		    caps.ndis_caps);
 		return (EOPNOTSUPP);
 	}
+	if (bootverbose)
+		if_printf(sc->hn_ifp, "RSS caps %#x\n", caps.ndis_caps);
 
 	/* Commit! */
 	sc->hn_rss_ind_size = indsz;
