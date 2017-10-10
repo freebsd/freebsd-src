@@ -3303,6 +3303,8 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *)data, ifr_vf;
 	struct ifnet *vf_ifp;
 	int mask, error = 0;
+	struct ifrsskey *ifrk;
+	struct ifrsshash *ifrh;
 
 	switch (cmd) {
 	case SIOCSIFMTU:
@@ -3558,6 +3560,56 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		HN_UNLOCK(sc);
 		error = ifmedia_ioctl(ifp, ifr, &sc->hn_media, cmd);
+		break;
+
+	case SIOCGIFRSSHASH:
+		ifrh = (struct ifrsshash *)data;
+		HN_LOCK(sc);
+		if (sc->hn_rx_ring_inuse == 1) {
+			HN_UNLOCK(sc);
+			ifrh->ifrh_func = RSS_FUNC_NONE;
+			ifrh->ifrh_types = 0;
+			break;
+		}
+
+		if (sc->hn_rss_hash & NDIS_HASH_FUNCTION_TOEPLITZ)
+			ifrh->ifrh_func = RSS_FUNC_TOEPLITZ;
+		else
+			ifrh->ifrh_func = RSS_FUNC_PRIVATE;
+
+		ifrh->ifrh_types = 0;
+		if (sc->hn_rss_hash & NDIS_HASH_IPV4)
+			ifrh->ifrh_types |= RSS_TYPE_IPV4;
+		if (sc->hn_rss_hash & NDIS_HASH_TCP_IPV4)
+			ifrh->ifrh_types |= RSS_TYPE_TCP_IPV4;
+		if (sc->hn_rss_hash & NDIS_HASH_IPV6)
+			ifrh->ifrh_types |= RSS_TYPE_IPV6;
+		if (sc->hn_rss_hash & NDIS_HASH_IPV6_EX)
+			ifrh->ifrh_types |= RSS_TYPE_IPV6_EX;
+		if (sc->hn_rss_hash & NDIS_HASH_TCP_IPV6)
+			ifrh->ifrh_types |= RSS_TYPE_TCP_IPV6;
+		if (sc->hn_rss_hash & NDIS_HASH_TCP_IPV6_EX)
+			ifrh->ifrh_types |= RSS_TYPE_TCP_IPV6_EX;
+		HN_UNLOCK(sc);
+		break;
+
+	case SIOCGIFRSSKEY:
+		ifrk = (struct ifrsskey *)data;
+		HN_LOCK(sc);
+		if (sc->hn_rx_ring_inuse == 1) {
+			HN_UNLOCK(sc);
+			ifrk->ifrk_func = RSS_FUNC_NONE;
+			ifrk->ifrk_keylen = 0;
+			break;
+		}
+		if (sc->hn_rss_hash & NDIS_HASH_FUNCTION_TOEPLITZ)
+			ifrk->ifrk_func = RSS_FUNC_TOEPLITZ;
+		else
+			ifrk->ifrk_func = RSS_FUNC_PRIVATE;
+		ifrk->ifrk_keylen = NDIS_HASH_KEYSIZE_TOEPLITZ;
+		memcpy(ifrk->ifrk_key, sc->hn_rss.rss_key,
+		    NDIS_HASH_KEYSIZE_TOEPLITZ);
+		HN_UNLOCK(sc);
 		break;
 
 	default:
