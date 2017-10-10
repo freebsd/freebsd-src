@@ -51,6 +51,23 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20171010:
+	libstand has turned into a private library for sys/boot use only.
+	It is no longer supported as a public interface outside of sys/boot.
+
+20171005:
+	The arm port has split armv6 into armv6 and armv7. armv7 is now
+	a valid TARGET_ARCH/MACHINE_ARCH setting. If you have an armv7 system
+	and are running a kernel from before r324363, you will need to add
+	MACHINE_ARCH=armv7 to 'make buildworld' to do a native build.
+
+20171003:
+	When building multiple kernels using KERNCONF, non-existent KERNCONF
+	files will produce an error and buildkernel will fail. Previously
+	missing KERNCONF files silently failed giving no indication as to
+	why, only to subsequently discover during installkernel that the
+	desired kernel was never built in the first place.
+
 20170912:
 	The default serial number format for CTL LUNs has changed.  This will
 	affect users who use /dev/diskid/* device nodes, or whose FibreChannel

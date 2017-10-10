@@ -495,16 +495,20 @@ ndis_return(dobj, arg)
 	KeReleaseSpinLock(&block->nmb_returnlock, irql);
 }
 
-void
-ndis_return_packet(struct mbuf *m, void *buf, void *arg)
+static void
+ndis_ext_free(struct mbuf *m)
 {
-	ndis_packet		*p;
+
+	return (ndis_return_packet(m->m_ext.ext_arg1));
+}
+
+void
+ndis_return_packet(ndis_packet *p)
+{
 	ndis_miniport_block	*block;
 
-	if (arg == NULL)
+	if (p == NULL)
 		return;
-
-	p = arg;
 
 	/* Decrement refcount. */
 	p->np_refcnt--;
@@ -676,9 +680,8 @@ ndis_ptom(m0, p)
 			return (ENOBUFS);
 		}
 		m->m_len = MmGetMdlByteCount(buf);
-		m->m_data = MmGetMdlVirtualAddress(buf);
-		MEXTADD(m, m->m_data, m->m_len, ndis_return_packet,
-		    m->m_data, p, 0, EXT_NDIS);
+		m_extadd(m, MmGetMdlVirtualAddress(buf), m->m_len,
+		    ndis_ext_free, p, NULL, 0, EXT_NDIS);
 		p->np_refcnt++;
 
 		totlen += m->m_len;

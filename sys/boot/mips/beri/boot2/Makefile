@@ -57,10 +57,6 @@ CFLAGS=		-ffreestanding			\
 		-msoft-float			\
 		-g
 
-# where to get libstand from
-CFLAGS+=	-I${.CURDIR}/../../../../../lib/libstand/
-LIBSTAND=	${.OBJDIR}/../../../../../lib/libstand/libstand.a
-
 LDFLAGS=	-nostdlib			\
 		-static				\
 		-Wl,-N				\
@@ -72,7 +68,7 @@ CFLAGS+=	-I${.CURDIR}/../common
 
 flashboot.elf: relocate.o start.o boot2.o altera_jtag_uart.o cfi.o sdcard.o
 	${CC} ${LDFLAGS} -T ${.CURDIR}/flashboot.ldscript -o ${.TARGET}	\
-	    ${.ALLSRC} ${LIBSTAND}
+	    ${.ALLSRC} ${LIBSA}
 flashboot: flashboot.elf
 	${OBJCOPY} -S -O binary ${.TARGET}.elf ${.TARGET}
 flashboot.md5: flashboot
@@ -80,7 +76,7 @@ flashboot.md5: flashboot
 
 jtagboot: start.o boot2.o altera_jtag_uart.o cfi.o sdcard.o
 	${CC} ${LDFLAGS} -T ${.CURDIR}/jtagboot.ldscript -o ${.TARGET}	\
-	    ${.ALLSRC} ${LIBSTAND}
+	    ${.ALLSRC} ${LIBSA}
 jtagboot.md5: jtagboot
 	md5 jtagboot > jtagboot.md5
 

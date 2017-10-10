@@ -295,6 +295,14 @@ TUNABLE_INT("hw.cxgbe.nofldtxq_vi", &t4_nofldtxq_vi);
 static int t4_nofldrxq_vi = -NOFLDRXQ_VI;
 TUNABLE_INT("hw.cxgbe.nofldrxq_vi", &t4_nofldrxq_vi);
 
+#define TMR_IDX_OFLD 1
+int t4_tmr_idx_ofld = TMR_IDX_OFLD;
+TUNABLE_INT("hw.cxgbe.holdoff_timer_idx_ofld", &t4_tmr_idx_ofld);
+
+#define PKTC_IDX_OFLD (-1)
+int t4_pktc_idx_ofld = PKTC_IDX_OFLD;
+TUNABLE_INT("hw.cxgbe.holdoff_pktc_idx_ofld", &t4_pktc_idx_ofld);
+
 /* 0 means chip/fw default, non-zero number is value in microseconds */
 static u_long t4_toe_keepalive_idle = 0;
 TUNABLE_ULONG("hw.cxgbe.toe.keepalive_idle", &t4_toe_keepalive_idle);
@@ -600,6 +608,8 @@ static int sysctl_tp_dack_timer(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_timer(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_shift_cnt(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_backoff(SYSCTL_HANDLER_ARGS);
+static int sysctl_holdoff_tmr_idx_ofld(SYSCTL_HANDLER_ARGS);
+static int sysctl_holdoff_pktc_idx_ofld(SYSCTL_HANDLER_ARGS);
 #endif
 static uint32_t fconf_iconf_to_mode(uint32_t, uint32_t);
 static uint32_t mode_to_fconf(uint32_t);
@@ -1182,6 +1192,8 @@ t4_attach(device_t dev)
 				vi->rsrv_noflowq = 0;
 
 #ifdef TCP_OFFLOAD
+			vi->ofld_tmr_idx = t4_tmr_idx_ofld;
+			vi->ofld_pktc_idx = t4_pktc_idx_ofld;
 			vi->first_ofld_rxq = ofld_rqidx;
 			vi->first_ofld_txq = ofld_tqidx;
 			if (port_top_speed(pi) >= 10) {
@@ -5579,6 +5591,14 @@ vi_sysctls(struct vi_info *vi)
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "first_ofld_txq",
 		    CTLFLAG_RD, &vi->first_ofld_txq, 0,
 		    "index of first TOE tx queue");
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_tmr_idx_ofld",
+		    CTLTYPE_INT | CTLFLAG_RW, vi, 0,
+		    sysctl_holdoff_tmr_idx_ofld, "I",
+		    "holdoff timer index for TOE queues");
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_pktc_idx_ofld",
+		    CTLTYPE_INT | CTLFLAG_RW, vi, 0,
+		    sysctl_holdoff_pktc_idx_ofld, "I",
+		    "holdoff packet counter index for TOE queues");
 	}
 #endif
 #ifdef DEV_NETMAP
@@ -5929,9 +5949,6 @@ sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS)
 	struct adapter *sc = vi->pi->adapter;
 	int idx, rc, i;
 	struct sge_rxq *rxq;
-#ifdef TCP_OFFLOAD
-	struct sge_ofld_rxq *ofld_rxq;
-#endif
 	uint8_t v;
 
 	idx = vi->tmr_idx;
@@ -5956,15 +5973,6 @@ sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS)
 		rxq->iq.intr_params = v;
 #endif
 	}
-#ifdef TCP_OFFLOAD
-	for_each_ofld_rxq(vi, i, ofld_rxq) {
-#ifdef atomic_store_rel_8
-		atomic_store_rel_8(&ofld_rxq->iq.intr_params, v);
-#else
-		ofld_rxq->iq.intr_params = v;
-#endif
-	}
-#endif
 	vi->tmr_idx = idx;
 
 	end_synchronized_op(sc, LOCK_HELD);
@@ -8380,6 +8388,73 @@ sysctl_tp_backoff(SYSCTL_HANDLER_ARGS)
 
 	return (sysctl_handle_int(oidp, &v, 0, req));
 }
+
+static int
+sysctl_holdoff_tmr_idx_ofld(SYSCTL_HANDLER_ARGS)
+{
+	struct vi_info *vi = arg1;
+	struct adapter *sc = vi->pi->adapter;
+	int idx, rc, i;
+	struct sge_ofld_rxq *ofld_rxq;
+	uint8_t v;
+
+	idx = vi->ofld_tmr_idx;
+
+	rc = sysctl_handle_int(oidp, &idx, 0, req);
+	if (rc != 0 || req->newptr == NULL)
+		return (rc);
+
+	if (idx < 0 || idx >= SGE_NTIMERS)
+		return (EINVAL);
+
+	rc = begin_synchronized_op(sc, vi, HOLD_LOCK | SLEEP_OK | INTR_OK,
+	    "t4otmr");
+	if (rc)
+		return (rc);
+
+	v = V_QINTR_TIMER_IDX(idx) | V_QINTR_CNT_EN(vi->ofld_pktc_idx != -1);
+	for_each_ofld_rxq(vi, i, ofld_rxq) {
+#ifdef atomic_store_rel_8
+		atomic_store_rel_8(&ofld_rxq->iq.intr_params, v);
+#else
+		ofld_rxq->iq.intr_params = v;
+#endif
+	}
+	vi->ofld_tmr_idx = idx;
+
+	end_synchronized_op(sc, LOCK_HELD);
+	return (0);
+}
+
+static int
+sysctl_holdoff_pktc_idx_ofld(SYSCTL_HANDLER_ARGS)
+{
+	struct vi_info *vi = arg1;
+	struct adapter *sc = vi->pi->adapter;
+	int idx, rc;
+
+	idx = vi->ofld_pktc_idx;
+
+	rc = sysctl_handle_int(oidp, &idx, 0, req);
+	if (rc != 0 || req->newptr == NULL)
+		return (rc);
+
+	if (idx < -1 || idx >= SGE_NCOUNTERS)
+		return (EINVAL);
+
+	rc = begin_synchronized_op(sc, vi, HOLD_LOCK | SLEEP_OK | INTR_OK,
+	    "t4opktc");
+	if (rc)
+		return (rc);
+
+	if (vi->flags & VI_INIT_DONE)
+		rc = EBUSY; /* cannot be changed once the queues are created */
+	else
+		vi->ofld_pktc_idx = idx;
+
+	end_synchronized_op(sc, LOCK_HELD);
+	return (rc);
+}
 #endif
 
 static uint32_t
@@ -9908,6 +9983,12 @@ tweak_tunables(void)
 		    FW_CAPS_CONFIG_ISCSI_TARGET_PDU |
 		    FW_CAPS_CONFIG_ISCSI_T10DIF;
 	}
+
+	if (t4_tmr_idx_ofld < 0 || t4_tmr_idx_ofld >= SGE_NTIMERS)
+		t4_tmr_idx_ofld = TMR_IDX_OFLD;
+
+	if (t4_pktc_idx_ofld < -1 || t4_pktc_idx_ofld >= SGE_NCOUNTERS)
+		t4_pktc_idx_ofld = PKTC_IDX_OFLD;
 #else
 	if (t4_toecaps_allowed == -1)
 		t4_toecaps_allowed = 0;

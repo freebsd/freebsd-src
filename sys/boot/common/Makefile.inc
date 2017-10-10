@@ -70,7 +70,6 @@ CFLAGS+=	-DBOOT_PROMPT_123
 
 .if defined(LOADER_INSTALL_SUPPORT)
 SRCS+=	install.c
-CFLAGS+=-I${.CURDIR}/../../../../lib/libstand
 .endif
 
 CLEANFILES+=	vers.c

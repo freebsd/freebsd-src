@@ -4673,6 +4673,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 			if ((((ch->chunk_flags & SCTP_HAD_NO_TCB) == 0) &&
 			    (vtag_in == asoc->my_vtag)) ||
 			    (((ch->chunk_flags & SCTP_HAD_NO_TCB) == SCTP_HAD_NO_TCB) &&
+			    (asoc->peer_vtag != htonl(0)) &&
 			    (vtag_in == asoc->peer_vtag))) {
 				/* this is valid */
 			} else {

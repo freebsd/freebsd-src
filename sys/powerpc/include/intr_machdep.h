@@ -30,7 +30,7 @@
 
 #define	INTR_VECTORS	256
 
-#define	MAX_PICS		16
+#define	MAX_PICS		32
 #define	MAP_IRQ(node, pin)	powerpc_get_irq(node, pin)
 
 /*

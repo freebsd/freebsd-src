@@ -22,13 +22,13 @@ ident		GENERIC
 
 cpu		CPU_CORTEXA
 options 	SMP_ON_UP
-machine 	arm armv6
+machine 	arm armv7
 makeoptions	CONF_CFLAGS="-march=armv7a"
 
 makeoptions	KERNVIRTADDR=0xc0000000
 options 	KERNVIRTADDR=0xc0000000
 
-include 	"std.armv6"
+include 	"std.armv7"
 files		"../allwinner/files.allwinner"
 files		"../allwinner/files.allwinner_up"
 files		"../allwinner/a10/files.a10"

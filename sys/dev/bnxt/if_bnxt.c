@@ -1125,6 +1125,7 @@ bnxt_init(if_ctx_t ctx)
 
 	bnxt_do_enable_intr(&softc->def_cp_ring);
 	bnxt_media_status(softc->ctx, &ifmr);
+	bnxt_hwrm_cfa_l2_set_rx_mask(softc, &softc->vnic_info);
 	return;
 
 fail:
@@ -1649,8 +1650,7 @@ bnxt_msix_intr_assign(if_ctx_t ctx, int msix)
 	}
 
 	for (i=0; i<softc->scctx->isc_ntxqsets; i++)
-		iflib_softirq_alloc_generic(ctx, i + 1, IFLIB_INTR_TX, NULL, i,
-		    "tx_cp");
+		iflib_softirq_alloc_generic(ctx, NULL, IFLIB_INTR_TX, NULL, i, "tx_cp");
 
 	return rc;
 

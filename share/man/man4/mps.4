@@ -330,6 +330,11 @@ All
 variables can be named by either an integer value or a text string.
 Multiple values can be specified together by either ORing the
 integer values or by providing a comma-separated list of names.
+A text string prefixed by
+.Qq +
+adds the specified debug levels to the existing set, while the prefix
+.Qq -
+removes them from the existing set.
 The current
 .Va debug_level
 status is reported in both formats for convenience.

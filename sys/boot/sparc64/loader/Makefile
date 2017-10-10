@@ -80,14 +80,11 @@ LDFLAGS=	-static
 LIBOFW=		${.OBJDIR}/../../ofw/libofw/libofw.a
 CFLAGS+=	-I${.CURDIR}/../../ofw/libofw/
 
-# where to get libstand from
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
-
 # Need sys/ for crypto/intake.h
 CFLAGS+=	-I${SRCTOP}/sys
 
-DPADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} -lstand
+DPADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} ${LIBSA}
+LDADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} ${LIBSA}
 
 loader.help: help.common help.sparc64
 	cat ${.ALLSRC} | \

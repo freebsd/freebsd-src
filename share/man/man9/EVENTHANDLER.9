@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2017
+.Dd October 1, 2017
 .Dt EVENTHANDLER 9
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Ft eventhandler_tag
 .Fn EVENTHANDLER_REGISTER name func arg priority
 .Fn EVENTHANDLER_DEREGISTER name tag
+.Fn EVENTHANDLER_DEREGISTER_NOWAIT name tag
 .Ft eventhandler_tag
 .Fo eventhandler_register
 .Fa "struct eventhandler_list *list"
@@ -47,6 +48,11 @@
 .Fc
 .Ft void
 .Fo eventhandler_deregister
+.Fa "struct eventhandler_list *list"
+.Fa "eventhandler_tag tag"
+.Fc
+.Ft void
+.Fo eventhandler_deregister_nowait
 .Fa "struct eventhandler_list *list"
 .Fa "eventhandler_tag tag"
 .Fc
@@ -121,6 +127,18 @@ This macro removes a previously registered callback associated with tag
 .Fa tag
 from the event handler named by argument
 .Fa name .
+It waits until no threads are running handlers for this event before
+returning, making it safe to unload a module immediately upon return
+from this function.
+.It Fn EVENTHANDLER_DEREGISTER_NOWAIT
+This macro removes a previously registered callback associated with tag
+.Fa tag
+from the event handler named by argument
+.Fa name .
+Upon return, one or more threads could still be running the removed
+function(s), but no new calls will be made.
+To remove a handler function from within that function, use this
+version of deregister, to avoid a deadlock.
 .It Fn EVENTHANDLER_INVOKE
 This macro is used to invoke all the callbacks associated with event
 handler
@@ -176,6 +194,21 @@ that can later be used with
 .Fn eventhandler_deregister
 to remove the particular callback function.
 .It Fn eventhandler_deregister
+The
+.Fn eventhandler_deregister
+function removes the callback associated with tag
+.Fa tag
+from the event handler list pointed to by
+.Fa list .
+If
+.Fa tag
+is
+.Va NULL ,
+all callback functions for the event are removed.
+This function will not return until all threads have exited from the
+removed handler callback function(s).
+This function is not safe to call from inside an event handler callback.
+.It Fn eventhandler_deregister_nowait
 The
 .Fn eventhandler_deregister
 function removes the callback associated with tag

@@ -47,9 +47,7 @@
 
 struct smb_softc {
 	device_t sc_dev;
-	int sc_count;			/* >0 if device opened */
 	struct cdev *sc_devnode;
-	struct mtx sc_lock;
 };
 
 static void smb_identify(driver_t *driver, device_t parent);
@@ -78,15 +76,11 @@ static driver_t smb_driver = {
 	sizeof(struct smb_softc),
 };
 
-static	d_open_t	smbopen;
-static	d_close_t	smbclose;
 static	d_ioctl_t	smbioctl;
 
 static struct cdevsw smb_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_TRACKCLOSE,
-	.d_open =	smbopen,
-	.d_close =	smbclose,
 	.d_ioctl =	smbioctl,
 	.d_name =	"smb",
 };
@@ -112,59 +106,31 @@ smb_probe(device_t dev)
 static int
 smb_attach(device_t dev)
 {
-	struct smb_softc *sc = device_get_softc(dev);
-	int unit;
-	
-	unit = device_get_unit(dev);
+	struct smb_softc *sc;
+	struct make_dev_args mda;
+	int error;
+
+	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
-	sc->sc_devnode = make_dev(&smb_cdevsw, unit, UID_ROOT, GID_WHEEL,
-	    0600, "smb%d", unit);
-	sc->sc_devnode->si_drv1 = sc;
-	mtx_init(&sc->sc_lock, device_get_nameunit(dev), NULL, MTX_DEF);
-
-	return (0);
+	make_dev_args_init(&mda);
+	mda.mda_devsw = &smb_cdevsw;
+	mda.mda_unit = device_get_unit(dev);
+	mda.mda_uid = UID_ROOT;
+	mda.mda_gid = GID_WHEEL;
+	mda.mda_mode = 0600;
+	mda.mda_si_drv1 = sc;
+	error = make_dev_s(&mda, &sc->sc_devnode, "smb%d", mda.mda_unit);
+	return (error);
 }
 
 static int
 smb_detach(device_t dev)
 {
-	struct smb_softc *sc = (struct smb_softc *)device_get_softc(dev);
+	struct smb_softc *sc;
 
-	if (sc->sc_devnode)
-		destroy_dev(sc->sc_devnode);
-	mtx_destroy(&sc->sc_lock);
-
-	return (0);
-}
-
-static int
-smbopen(struct cdev *dev, int flags, int fmt, struct thread *td)
-{
-	struct smb_softc *sc = dev->si_drv1;
-
-	mtx_lock(&sc->sc_lock);
-	if (sc->sc_count != 0) {
-		mtx_unlock(&sc->sc_lock);
-		return (EBUSY);
-	}
-
-	sc->sc_count++;
-	mtx_unlock(&sc->sc_lock);
-
-	return (0);
-}
-
-static int
-smbclose(struct cdev *dev, int flags, int fmt, struct thread *td)
-{
-	struct smb_softc *sc = dev->si_drv1;
-
-	mtx_lock(&sc->sc_lock);
-	KASSERT(sc->sc_count == 1, ("device not busy"));
-	sc->sc_count--;
-	mtx_unlock(&sc->sc_lock);
-
+	sc = device_get_softc(dev);
+	destroy_dev(sc->sc_devnode);
 	return (0);
 }
 

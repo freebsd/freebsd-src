@@ -13,8 +13,6 @@ SRCS+=	module.c net.c reboot.c time.c
 
 CFLAGS+=	-ffreestanding -msoft-float
 
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
-
 .if !defined(LOADER_NO_DISK_SUPPORT)
 SRCS+=	disk.c
 CFLAGS+= -DLOADER_DISK_SUPPORT

@@ -2,7 +2,7 @@
 files		"../mv/armada38x/files.armada38x"
 files		"../mv/files.mv"
 cpu		CPU_CORTEXA
-machine		arm	armv6
+machine		arm	armv7
 
 makeoptions	CONF_CFLAGS="-march=armv7a"
 makeoptions	KERNVIRTADDR=0xc0000000

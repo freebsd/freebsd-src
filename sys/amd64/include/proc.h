@@ -88,7 +88,6 @@ struct syscall_args {
 	    (char *)&td;						\
 } while (0)
 
-void set_user_ldt(struct mdproc *);
 struct proc_ldt *user_ldt_alloc(struct proc *, int);
 void user_ldt_free(struct thread *);
 void user_ldt_deref(struct proc_ldt *);

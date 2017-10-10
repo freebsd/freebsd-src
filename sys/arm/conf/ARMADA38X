@@ -5,7 +5,7 @@
 #
 
 include 	"../mv/armada38x/std.armada38x"
-include 	"std.armv6"
+include 	"std.armv7"
 
 ident 	ARMADA38X
 

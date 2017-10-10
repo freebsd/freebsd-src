@@ -23,7 +23,7 @@
 
 ident		BEAGLEBONE
 
-include 	"std.armv6"
+include 	"std.armv7"
 include 	"../ti/am335x/std.am335x"
 
 makeoptions	MODULES_EXTRA="dtb/am335x am335x_dmtpps"

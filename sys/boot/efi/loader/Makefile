@@ -37,10 +37,6 @@ CWARNFLAGS.zfs.c+=	-Wno-array-bounds
 CWARNFLAGS.zfs.c+=	-Wno-missing-prototypes
 .endif
 
-.if defined(LOADER_NET_SUPPORT)
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
-.endif
-
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201
 CWARNFLAGS.self_reloc.c+=	-Wno-error=maybe-uninitialized
 .endif
@@ -151,9 +147,9 @@ loader.efi: ${PROG}
 
 LIBEFI=		${.OBJDIR}/../libefi/libefi.a
 
-DPADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSTAND} \
+DPADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSA} \
 		${LDSCRIPT}
-LDADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSTAND}
+LDADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSA}
 
 .include <bsd.prog.mk>
 

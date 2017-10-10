@@ -828,6 +828,7 @@ g_attach(struct g_consumer *cp, struct g_provider *pp)
 	g_trace(G_T_TOPOLOGY, "g_attach(%p, %p)", cp, pp);
 	KASSERT(cp->provider == NULL, ("attach but attached"));
 	cp->provider = pp;
+	cp->flags &= ~G_CF_ORPHAN;
 	LIST_INSERT_HEAD(&pp->consumers, cp, consumers);
 	error = redo_rank(cp->geom);
 	if (error) {

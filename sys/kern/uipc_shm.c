@@ -209,10 +209,10 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	}
 	vm_page_lock(m);
 	vm_page_hold(m);
-	if (m->queue != PQ_ACTIVE)
-		vm_page_activate(m);
-	else
+	if (vm_page_active(m))
 		vm_page_reference(m);
+	else
+		vm_page_activate(m);
 	vm_page_unlock(m);
 	VM_OBJECT_WUNLOCK(obj);
 	error = uiomove_fromphys(&m, offset, tlen, uio);

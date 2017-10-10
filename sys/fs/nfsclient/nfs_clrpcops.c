@@ -116,18 +116,28 @@ static int nfscl_doflayoutio(vnode_t, struct uio *, int *, int *, int *,
     nfsv4stateid_t *, int, struct nfscldevinfo *, struct nfscllayout *,
     struct nfsclflayout *, uint64_t, uint64_t, int, struct ucred *,
     NFSPROC_T *);
+static int nfscl_dofflayoutio(vnode_t, struct uio *, int *, int *, int *,
+    nfsv4stateid_t *, int, struct nfscldevinfo *, struct nfscllayout *,
+    struct nfsclflayout *, uint64_t, uint64_t, int, int, struct mbuf *,
+    struct ucred *, NFSPROC_T *);
+static struct mbuf *nfsm_copym(struct mbuf *, int, int);
 static int nfsrpc_readds(vnode_t, struct uio *, nfsv4stateid_t *, int *,
-    struct nfsclds *, uint64_t, int, struct nfsfh *, struct ucred *,
-    NFSPROC_T *);
+    struct nfsclds *, uint64_t, int, struct nfsfh *, int, int, int,
+    struct ucred *, NFSPROC_T *);
 static int nfsrpc_writeds(vnode_t, struct uio *, int *, int *,
     nfsv4stateid_t *, struct nfsclds *, uint64_t, int,
-    struct nfsfh *, int, struct ucred *, NFSPROC_T *);
+    struct nfsfh *, int, int, int, int, struct ucred *, NFSPROC_T *);
+static int nfsrpc_writedsmir(vnode_t, int *, int *, nfsv4stateid_t *,
+    struct nfsclds *, uint64_t, int, struct nfsfh *, struct mbuf *, int, int,
+    struct ucred *, NFSPROC_T *);
 static enum nfsclds_state nfscl_getsameserver(struct nfsmount *,
     struct nfsclds *, struct nfsclds **);
 static int nfsrpc_commitds(vnode_t, uint64_t, int, struct nfsclds *,
-    struct nfsfh *, struct ucred *, NFSPROC_T *);
+    struct nfsfh *, int, int, struct ucred *, NFSPROC_T *);
 static void nfsrv_setuplayoutget(struct nfsrv_descript *, int, uint64_t,
-    uint64_t, uint64_t, nfsv4stateid_t *, int, int);
+    uint64_t, uint64_t, nfsv4stateid_t *, int, int, int);
+static int nfsrv_parseug(struct nfsrv_descript *, int, uid_t *, gid_t *,
+    NFSPROC_T *);
 static int nfsrv_parselayoutget(struct nfsrv_descript *, nfsv4stateid_t *,
     int *, struct nfsclflayouthead *);
 static int nfsrpc_getopenlayout(struct nfsmount *, vnode_t, u_int8_t *,
@@ -139,19 +149,19 @@ static int nfsrpc_getcreatelayout(vnode_t, char *, int, struct vattr *,
     struct nfsfh **, int *, int *, void *, int *);
 static int nfsrpc_openlayoutrpc(struct nfsmount *, vnode_t, u_int8_t *,
     int, uint8_t *, int, uint32_t, struct nfsclopen *, uint8_t *, int,
-    struct nfscldeleg **, nfsv4stateid_t *, int, int, int *,
+    struct nfscldeleg **, nfsv4stateid_t *, int, int, int, int *,
     struct nfsclflayouthead *, int *, struct ucred *, NFSPROC_T *);
 static int nfsrpc_createlayout(vnode_t, char *, int, struct vattr *,
     nfsquad_t, int, struct nfsclowner *, struct nfscldeleg **,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
     struct nfsfh **, int *, int *, void *, int *, nfsv4stateid_t *,
-    int, int, int *, struct nfsclflayouthead *, int *);
+    int, int, int, int *, struct nfsclflayouthead *, int *);
 static int nfsrpc_layoutget(struct nfsmount *, uint8_t *, int, int, uint64_t,
-    uint64_t, uint64_t, int, nfsv4stateid_t *, int *, struct nfsclflayouthead *,
-    struct ucred *, NFSPROC_T *, void *);
+    uint64_t, uint64_t, int, int, nfsv4stateid_t *, int *,
+    struct nfsclflayouthead *, struct ucred *, NFSPROC_T *, void *);
 static int nfsrpc_layoutgetres(struct nfsmount *, vnode_t, uint8_t *,
     int, nfsv4stateid_t *, int, uint32_t *, struct nfscllayout **,
-    struct nfsclflayouthead *, int, int *, struct ucred *, NFSPROC_T *);
+    struct nfsclflayouthead *, int, int, int *, struct ucred *, NFSPROC_T *);
 
 /*
  * nfs null call from vfs.
@@ -4849,9 +4859,10 @@ nfsrpc_destroyclient(struct nfsmount *nmp, struct nfsclclient *clp,
  */
 static int
 nfsrpc_layoutget(struct nfsmount *nmp, uint8_t *fhp, int fhlen, int iomode,
-    uint64_t offset, uint64_t len, uint64_t minlen, int layoutlen,
-    nfsv4stateid_t *stateidp, int *retonclosep, struct nfsclflayouthead *flhp,
-    struct ucred *cred, NFSPROC_T *p, void *stuff)
+    uint64_t offset, uint64_t len, uint64_t minlen, int layouttype,
+    int layoutlen, nfsv4stateid_t *stateidp, int *retonclosep,
+    struct nfsclflayouthead *flhp, struct ucred *cred, NFSPROC_T *p,
+    void *stuff)
 {
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	int error;
@@ -4859,7 +4870,7 @@ nfsrpc_layoutget(struct nfsmount *nmp, uint8_t *fhp, int fhlen, int iomode,
 	nfscl_reqstart(nd, NFSPROC_LAYOUTGET, nmp, fhp, fhlen, NULL, NULL, 0,
 	    0);
 	nfsrv_setuplayoutget(nd, iomode, offset, len, minlen, stateidp,
-	    layoutlen, 0);
+	    layouttype, layoutlen, 0);
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
@@ -4882,7 +4893,7 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
     uint32_t *notifybitsp, struct nfscldevinfo **ndip, struct ucred *cred,
     NFSPROC_T *p)
 {
-	uint32_t cnt, *tl;
+	uint32_t cnt, *tl, vers, minorvers;
 	struct nfsrv_descript nfsd;
 	struct nfsrv_descript *nd = &nfsd;
 	struct sockaddr_in sin, ssin;
@@ -4915,51 +4926,68 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 	if (error != 0)
 		return (error);
 	if (nd->nd_repstat == 0) {
-		NFSM_DISSECT(tl, uint32_t *, 3 * NFSX_UNSIGNED);
-		if (layouttype != fxdr_unsigned(int, *tl++))
+		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+		if (layouttype != fxdr_unsigned(int, *tl))
 			printf("EEK! devinfo layout type not same!\n");
-		stripecnt = fxdr_unsigned(int, *++tl);
-		NFSCL_DEBUG(4, "stripecnt=%d\n", stripecnt);
-		if (stripecnt < 1 || stripecnt > 4096) {
-			printf("NFS devinfo stripecnt %d: out of range\n",
-			    stripecnt);
-			error = NFSERR_BADXDR;
-			goto nfsmout;
-		}
-		NFSM_DISSECT(tl, uint32_t *, (stripecnt + 1) * NFSX_UNSIGNED);
-		addrcnt = fxdr_unsigned(int, *(tl + stripecnt));
-		NFSCL_DEBUG(4, "addrcnt=%d\n", addrcnt);
-		if (addrcnt < 1 || addrcnt > 128) {
-			printf("NFS devinfo addrcnt %d: out of range\n",
-			    addrcnt);
-			error = NFSERR_BADXDR;
-			goto nfsmout;
-		}
-
-		/*
-		 * Now we know how many stripe indices and addresses, so
-		 * we can allocate the structure the correct size.
-		 */
-		i = (stripecnt * sizeof(uint8_t)) / sizeof(struct nfsclds *)
-		    + 1;
-		NFSCL_DEBUG(4, "stripeindices=%d\n", i);
-		ndi = malloc(sizeof(*ndi) + (addrcnt + i) *
-		    sizeof(struct nfsclds *), M_NFSDEVINFO, M_WAITOK | M_ZERO);
-		NFSBCOPY(deviceid, ndi->nfsdi_deviceid, NFSX_V4DEVICEID);
-		ndi->nfsdi_refcnt = 0;
-		ndi->nfsdi_stripecnt = stripecnt;
-		ndi->nfsdi_addrcnt = addrcnt;
-		/* Fill in the stripe indices. */
-		for (i = 0; i < stripecnt; i++) {
-			stripeindex = fxdr_unsigned(uint8_t, *tl++);
-			NFSCL_DEBUG(4, "stripeind=%d\n", stripeindex);
-			if (stripeindex >= addrcnt) {
-				printf("NFS devinfo stripeindex %d: too big\n",
-				    (int)stripeindex);
+		if (layouttype == NFSLAYOUT_NFSV4_1_FILES) {
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			stripecnt = fxdr_unsigned(int, *tl);
+			NFSCL_DEBUG(4, "stripecnt=%d\n", stripecnt);
+			if (stripecnt < 1 || stripecnt > 4096) {
+				printf("pNFS File layout devinfo stripecnt %d:"
+				    " out of range\n", stripecnt);
 				error = NFSERR_BADXDR;
 				goto nfsmout;
 			}
-			nfsfldi_setstripeindex(ndi, i, stripeindex);
+			NFSM_DISSECT(tl, uint32_t *, (stripecnt + 1) *
+			    NFSX_UNSIGNED);
+			addrcnt = fxdr_unsigned(int, *(tl + stripecnt));
+			NFSCL_DEBUG(4, "addrcnt=%d\n", addrcnt);
+			if (addrcnt < 1 || addrcnt > 128) {
+				printf("NFS devinfo addrcnt %d: out of range\n",
+				    addrcnt);
+				error = NFSERR_BADXDR;
+				goto nfsmout;
+			}
+	
+			/*
+			 * Now we know how many stripe indices and addresses, so
+			 * we can allocate the structure the correct size.
+			 */
+			i = (stripecnt * sizeof(uint8_t)) /
+			    sizeof(struct nfsclds *) + 1;
+			NFSCL_DEBUG(4, "stripeindices=%d\n", i);
+			ndi = malloc(sizeof(*ndi) + (addrcnt + i) *
+			    sizeof(struct nfsclds *), M_NFSDEVINFO, M_WAITOK |
+			    M_ZERO);
+			NFSBCOPY(deviceid, ndi->nfsdi_deviceid,
+			    NFSX_V4DEVICEID);
+			ndi->nfsdi_refcnt = 0;
+			ndi->nfsdi_flags = NFSDI_FILELAYOUT;
+			ndi->nfsdi_stripecnt = stripecnt;
+			ndi->nfsdi_addrcnt = addrcnt;
+			/* Fill in the stripe indices. */
+			for (i = 0; i < stripecnt; i++) {
+				stripeindex = fxdr_unsigned(uint8_t, *tl++);
+				NFSCL_DEBUG(4, "stripeind=%d\n", stripeindex);
+				if (stripeindex >= addrcnt) {
+					printf("pNFS File Layout devinfo"
+					    " stripeindex %d: too big\n",
+					    (int)stripeindex);
+					error = NFSERR_BADXDR;
+					goto nfsmout;
+				}
+				nfsfldi_setstripeindex(ndi, i, stripeindex);
+			}
+		} else if (layouttype == NFSLAYOUT_FLEXFILE) {
+			/* For Flex File, we only get one address list. */
+			ndi = malloc(sizeof(*ndi) + sizeof(struct nfsclds *),
+			    M_NFSDEVINFO, M_WAITOK | M_ZERO);
+			NFSBCOPY(deviceid, ndi->nfsdi_deviceid,
+			    NFSX_V4DEVICEID);
+			ndi->nfsdi_refcnt = 0;
+			ndi->nfsdi_flags = NFSDI_FLEXFILE;
+			addrcnt = ndi->nfsdi_addrcnt = 1;
 		}
 
 		/* Now, dissect the server address(es). */
@@ -5005,6 +5033,46 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 		}
 
 		gotvers = NFS_VER4;	/* Always NFSv4 for File Layout. */
+		/* For Flex File, we will take one of the versions to use. */
+		if (layouttype == NFSLAYOUT_FLEXFILE) {
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			j = fxdr_unsigned(int, *tl);
+			if (j < 1 || j > NFSDEV_MAXVERS) {
+				printf("pNFS: too many versions\n");
+				error = NFSERR_BADXDR;
+				goto nfsmout;
+			}
+			gotvers = 0;
+			for (i = 0; i < j; i++) {
+				NFSM_DISSECT(tl, uint32_t *, 5 * NFSX_UNSIGNED);
+				vers = fxdr_unsigned(uint32_t, *tl++);
+				minorvers = fxdr_unsigned(uint32_t, *tl++);
+				if ((vers == NFS_VER4 && minorvers ==
+				    NFSV41_MINORVERSION) || (vers == NFS_VER3 &&
+				    gotvers == 0)) {
+					gotvers = vers;
+					/* We'll take this one. */
+					ndi->nfsdi_versindex = i;
+					ndi->nfsdi_vers = vers;
+					ndi->nfsdi_minorvers = minorvers;
+					ndi->nfsdi_rsize = fxdr_unsigned(
+					    uint32_t, *tl++);
+					ndi->nfsdi_wsize = fxdr_unsigned(
+					    uint32_t, *tl++);
+					if (*tl == newnfs_true)
+						ndi->nfsdi_flags |=
+						    NFSDI_TIGHTCOUPLED;
+					else
+						ndi->nfsdi_flags &=
+						    ~NFSDI_TIGHTCOUPLED;
+				}
+			}
+			if (gotvers == 0) {
+				printf("pNFS: no NFSv3 or NFSv4.1\n");
+				error = NFSERR_BADXDR;
+				goto nfsmout;
+			}
+		}
 
 		/* And the notify bits. */
 		NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
@@ -5033,7 +5101,7 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 			*gotdspp = dsp;
 		}
 	}
-	if (nd->nd_repstat != 0)
+	if (nd->nd_repstat != 0 && error == 0)
 		error = nd->nd_repstat;
 nfsmout:
 	if (error != 0 && ndi != NULL)
@@ -5126,7 +5194,15 @@ nfsrpc_layoutreturn(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
 		*tl++ = stateidp->other[0];
 		*tl++ = stateidp->other[1];
 		*tl++ = stateidp->other[2];
-		*tl = txdr_unsigned(0);
+		if (layouttype == NFSLAYOUT_NFSV4_1_FILES)
+			*tl = txdr_unsigned(0);
+		else if (layouttype == NFSLAYOUT_FLEXFILE) {
+			*tl = txdr_unsigned(2 * NFSX_UNSIGNED);
+			NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+			/* No ioerrs or stats yet. */
+			*tl++ = 0;
+			*tl = 0;
+		}
 	}
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
@@ -5162,11 +5238,15 @@ nfsrpc_getlayout(struct nfsmount *nmp, vnode_t vp, struct nfsfh *nfhp,
 	struct nfscllayout *lyp;
 	struct nfsclflayout *flp;
 	struct nfsclflayouthead flh;
-	int error = 0, islocked, layoutlen, recalled, retonclose;
+	int error = 0, islocked, layoutlen, layouttype, recalled, retonclose;
 	nfsv4stateid_t stateid;
 	struct nfsclsession *tsep;
 
 	*lypp = NULL;
+	if (NFSHASFLEXFILE(nmp))
+		layouttype = NFSLAYOUT_FLEXFILE;
+	else
+		layouttype = NFSLAYOUT_NFSV4_1_FILES;
 	/*
 	 * If lyp is returned non-NULL, there will be a refcnt (shared lock)
 	 * on it, iff flp != NULL or a lock (exclusive lock) on it iff
@@ -5189,8 +5269,8 @@ nfsrpc_getlayout(struct nfsmount *nmp, vnode_t vp, struct nfsfh *nfhp,
 			stateid.other[2] = stateidp->other[2];
 			error = nfsrpc_layoutget(nmp, nfhp->nfh_fh,
 			    nfhp->nfh_len, iomode, (uint64_t)0, UINT64_MAX,
-			    (uint64_t)0, layoutlen, &stateid, &retonclose,
-			    &flh, cred, p, NULL);
+			    (uint64_t)0, layouttype, layoutlen, &stateid,
+			    &retonclose, &flh, cred, p, NULL);
 		} else {
 			islocked = 1;
 			stateid.seqid = lyp->nfsly_stateid.seqid;
@@ -5199,12 +5279,12 @@ nfsrpc_getlayout(struct nfsmount *nmp, vnode_t vp, struct nfsfh *nfhp,
 			stateid.other[2] = lyp->nfsly_stateid.other[2];
 			error = nfsrpc_layoutget(nmp, nfhp->nfh_fh,
 			    nfhp->nfh_len, iomode, off, UINT64_MAX,
-			    (uint64_t)0, layoutlen, &stateid, &retonclose,
-			    &flh, cred, p, NULL);
+			    (uint64_t)0, layouttype, layoutlen, &stateid,
+			    &retonclose, &flh, cred, p, NULL);
 		}
 		error = nfsrpc_layoutgetres(nmp, vp, nfhp->nfh_fh,
 		    nfhp->nfh_len, &stateid, retonclose, notifybitsp, &lyp,
-		    &flh, error, NULL, cred, p);
+		    &flh, layouttype, error, NULL, cred, p);
 		if (error == 0)
 			*lypp = lyp;
 		else if (islocked != 0)
@@ -5336,38 +5416,53 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_in *sin,
 	error = newnfs_connect(nmp, nrp, NULL, p, 0);
 	NFSCL_DEBUG(3, "DS connect=%d\n", error);
 
+	dsp = NULL;
 	/* Now, do the exchangeid and create session. */
 	if (error == 0) {
-		error = nfsrpc_exchangeid(nmp, clp, nrp, NFSV4EXCH_USEPNFSDS,
-		    &dsp, nrp->nr_cred, p);
-		NFSCL_DEBUG(3, "DS exchangeid=%d\n", error);
-		if (error != 0)
-			newnfs_disconnect(nrp);
+		if (vers == NFS_VER4) {
+			error = nfsrpc_exchangeid(nmp, clp, nrp,
+			    NFSV4EXCH_USEPNFSDS, &dsp, nrp->nr_cred, p);
+			NFSCL_DEBUG(3, "DS exchangeid=%d\n", error);
+			if (error != 0)
+				newnfs_disconnect(nrp);
+		} else {
+			dsp = malloc(sizeof(struct nfsclds), M_NFSCLDS,
+			    M_WAITOK | M_ZERO);
+			dsp->nfsclds_flags |= NFSCLDS_DS;
+			dsp->nfsclds_expire = INT32_MAX; /* No renews needed. */
+			mtx_init(&dsp->nfsclds_mtx, "nfsds", NULL, MTX_DEF);
+			mtx_init(&dsp->nfsclds_sess.nfsess_mtx, "nfssession",
+			    NULL, MTX_DEF);
+		}
 	}
 	if (error == 0) {
 		dsp->nfsclds_sockp = nrp;
-		NFSLOCKMNT(nmp);
-		retv = nfscl_getsameserver(nmp, dsp, &tdsp);
-		NFSCL_DEBUG(3, "getsame ret=%d\n", retv);
-		if (retv == NFSDSP_USETHISSESSION) {
+		if (vers == NFS_VER4) {
+			NFSLOCKMNT(nmp);
+			retv = nfscl_getsameserver(nmp, dsp, &tdsp);
+			NFSCL_DEBUG(3, "getsame ret=%d\n", retv);
+			if (retv == NFSDSP_USETHISSESSION) {
+				NFSUNLOCKMNT(nmp);
+				/*
+				 * If there is already a session for this
+				 * server, use it.
+				 */
+				(void)newnfs_disconnect(nrp);
+				nfscl_freenfsclds(dsp);
+				*dspp = tdsp;
+				return (0);
+			}
+			if (retv == NFSDSP_SEQTHISSESSION)
+				sequenceid =
+				    tdsp->nfsclds_sess.nfsess_sequenceid;
+			else
+				sequenceid =
+				    dsp->nfsclds_sess.nfsess_sequenceid;
 			NFSUNLOCKMNT(nmp);
-			/*
-			 * If there is already a session for this server,
-			 * use it.
-			 */
-			(void)newnfs_disconnect(nrp);
-			nfscl_freenfsclds(dsp);
-			*dspp = tdsp;
-			return (0);
+			error = nfsrpc_createsession(nmp, &dsp->nfsclds_sess,
+			    nrp, sequenceid, 0, nrp->nr_cred, p);
+			NFSCL_DEBUG(3, "DS createsess=%d\n", error);
 		}
-		if (retv == NFSDSP_SEQTHISSESSION)
-			sequenceid = tdsp->nfsclds_sess.nfsess_sequenceid;
-		else
-			sequenceid = dsp->nfsclds_sess.nfsess_sequenceid;
-		NFSUNLOCKMNT(nmp);
-		error = nfsrpc_createsession(nmp, &dsp->nfsclds_sess,
-		    nrp, sequenceid, 0, nrp->nr_cred, p);
-		NFSCL_DEBUG(3, "DS createsess=%d\n", error);
 	} else {
 		NFSFREECRED(nrp->nr_cred);
 		NFSFREEMUTEX(&nrp->nr_mtx);
@@ -5448,11 +5543,17 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	struct nfscllayout *layp;
 	struct nfscldevinfo *dip;
 	struct nfsclflayout *rflp;
+	struct mbuf *m;
 	nfsv4stateid_t stateid;
 	struct ucred *newcred;
 	uint64_t lastbyte, len, off, oresid, xfer;
-	int eof, error, iolaymode, recalled;
+	int eof, error, firstmirror, i, iolaymode, mirrorcnt, recalled;
 	void *lckp;
+	uint8_t *dev;
+	void *iovbase;
+	size_t iovlen;
+	off_t offs;
+	ssize_t resid;
 
 	if (!NFSHASPNFS(nmp) || nfscl_enablecallb == 0 || nfs_numnfscbd == 0 ||
 	    (np->n_flag & NNOLAYOUT) != 0)
@@ -5520,30 +5621,93 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			oresid = xfer = (uint64_t)uiop->uio_resid;
 			if (xfer > (rflp->nfsfl_end - rflp->nfsfl_off))
 				xfer = rflp->nfsfl_end - rflp->nfsfl_off;
-			dip = nfscl_getdevinfo(nmp->nm_clp, rflp->nfsfl_dev,
-			    rflp->nfsfl_devp);
-			if (dip != NULL) {
-				error = nfscl_doflayoutio(vp, uiop, iomode,
-				    must_commit, &eof, &stateid, rwaccess, dip,
-				    layp, rflp, off, xfer, docommit, newcred,
-				    p);
-				nfscl_reldevinfo(dip);
-				lastbyte = off + xfer - 1;
-				if (error == 0) {
-					NFSLOCKCLSTATE();
-					if (lastbyte > layp->nfsly_lastbyte)
-						layp->nfsly_lastbyte = lastbyte;
-					NFSUNLOCKCLSTATE();
-				} else if (error == NFSERR_OPENMODE &&
-				    rwaccess == NFSV4OPEN_ACCESSREAD) {
-					NFSLOCKMNT(nmp);
-					nmp->nm_state |= NFSSTA_OPENMODE;
-					NFSUNLOCKMNT(nmp);
+			/*
+			 * For Flex File layout with mirrored DSs, select one
+			 * of them at random for reads. For writes and commits,
+			 * do all mirrors.
+			 */
+			m = NULL;
+			firstmirror = 0;
+			mirrorcnt = 1;
+			if ((layp->nfsly_flags & NFSLY_FLEXFILE) != 0 &&
+			    (mirrorcnt = rflp->nfsfl_mirrorcnt) > 1) {
+				if (rwaccess == NFSV4OPEN_ACCESSREAD) {
+					firstmirror = arc4random() % mirrorcnt;
+					mirrorcnt = firstmirror + 1;
+				} else if (docommit == 0) {
+					/*
+					 * Save values, so uiop can be rolled
+					 * back upon a write error.
+					 */
+					offs = uiop->uio_offset;
+					resid = uiop->uio_resid;
+					iovbase = uiop->uio_iov->iov_base;
+					iovlen = uiop->uio_iov->iov_len;
+					m = nfsm_uiombuflist(uiop, len, NULL,
+					    NULL);
 				}
+			}
+			for (i = firstmirror; i < mirrorcnt && error == 0; i++){
+				if ((layp->nfsly_flags & NFSLY_FLEXFILE) != 0)
+					dev = rflp->nfsfl_ffm[i].dev;
+				else
+					dev = rflp->nfsfl_dev;
+				dip = nfscl_getdevinfo(nmp->nm_clp, dev,
+				    rflp->nfsfl_devp);
+				if (dip != NULL) {
+					if ((rflp->nfsfl_flags & NFSFL_FLEXFILE)
+					    != 0)
+						error = nfscl_dofflayoutio(vp,
+						    uiop, iomode, must_commit,
+						    &eof, &stateid, rwaccess,
+						    dip, layp, rflp, off, xfer,
+						    i, docommit, m, newcred,
+						    p);
+					else
+						error = nfscl_doflayoutio(vp,
+						    uiop, iomode, must_commit,
+						    &eof, &stateid, rwaccess,
+						    dip, layp, rflp, off, xfer,
+						    docommit, newcred, p);
+					nfscl_reldevinfo(dip);
+				} else
+					error = EIO;
+			}
+			if (m != NULL)
+				m_freem(m);
+			if (error == 0) {
+				if (mirrorcnt > 1 && rwaccess ==
+				    NFSV4OPEN_ACCESSWRITE && docommit == 0) {
+					NFSLOCKCLSTATE();
+					layp->nfsly_flags |= NFSLY_WRITTEN;
+					NFSUNLOCKCLSTATE();
+				}
+				lastbyte = off + xfer - 1;
+				NFSLOCKCLSTATE();
+				if (lastbyte > layp->nfsly_lastbyte)
+					layp->nfsly_lastbyte = lastbyte;
+				NFSUNLOCKCLSTATE();
+			} else if (error == NFSERR_OPENMODE &&
+			    rwaccess == NFSV4OPEN_ACCESSREAD) {
+				NFSLOCKMNT(nmp);
+				nmp->nm_state |= NFSSTA_OPENMODE;
+				NFSUNLOCKMNT(nmp);
 			} else
 				error = EIO;
 			if (error == 0)
 				len -= (oresid - (uint64_t)uiop->uio_resid);
+			else if (mirrorcnt > 1 && rwaccess ==
+			    NFSV4OPEN_ACCESSWRITE && docommit == 0) {
+				/*
+				 * In case the rpc gets retried, roll the
+				 * uio fields changed by nfsm_uiombuflist()
+				 * back.
+				 */
+				uiop->uio_offset = offs;
+				uiop->uio_resid = resid;
+				uiop->uio_iov->iov_base = iovbase;
+				uiop->uio_iov->iov_len = iovlen;
+			}
 		}
 	}
 	if (lckp != NULL)
@@ -5552,6 +5716,38 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	nfscl_rellayout(layp, 0);
 	nfscl_relref(nmp);
 	return (error);
+}
+
+/*
+ * Make a copy of the mbuf chain and add an mbuf for null padding, as required.
+ */
+static struct mbuf *
+nfsm_copym(struct mbuf *m, int off, int xfer)
+{
+	struct mbuf *m2, *m3, *m4;
+	uint32_t *tl;
+	int rem;
+
+	m2 = m_copym(m, off, xfer, M_WAITOK);
+	rem = NFSM_RNDUP(xfer) - xfer;
+	if (rem > 0) {
+		/*
+		 * The zero padding to a multiple of 4 bytes is required by
+		 * the XDR. So that the mbufs copied by reference aren't
+		 * modified, add an mbuf with the zero'd bytes to the list.
+		 * rem will be a maximum of 3, so one zero'd uint32_t is
+		 * sufficient.
+		 */
+		m3 = m2;
+		while (m3->m_next != NULL)
+			m3 = m3->m_next;
+		NFSMGET(m4);
+		tl = NFSMTOD(m4, uint32_t *);
+		*tl = 0;
+		mbuf_setlen(m4, rem);
+		mbuf_setnext(m3, m4);
+	}
+	return (m2);
 }
 
 /*
@@ -5659,7 +5855,7 @@ nfscl_doflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		if (docommit != 0) {
 			if (error == 0)
 				error = nfsrpc_commitds(vp, io_off, xfer,
-				    *dspp, fhp, cred, p);
+				    *dspp, fhp, 0, 0, cred, p);
 			if (error == 0) {
 				/*
 				 * Set both eof and uio_resid = 0 to end any
@@ -5674,11 +5870,11 @@ nfscl_doflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			}
 		} else if (rwflag == NFSV4OPEN_ACCESSREAD)
 			error = nfsrpc_readds(vp, uiop, stateidp, eofp, *dspp,
-			    io_off, xfer, fhp, cred, p);
+			    io_off, xfer, fhp, 0, 0, 0, cred, p);
 		else {
 			error = nfsrpc_writeds(vp, uiop, iomode, must_commit,
 			    stateidp, *dspp, io_off, xfer, fhp, commit_thru_mds,
-			    cred, p);
+			    0, 0, 0, cred, p);
 			if (error == 0) {
 				NFSLOCKCLSTATE();
 				lyp->nfsly_flags |= NFSLY_WRITTEN;
@@ -5696,42 +5892,174 @@ nfscl_doflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 }
 
 /*
+ * Do I/O using an NFSv4.1 flex file layout.
+ */
+static int
+nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
+    int *eofp, nfsv4stateid_t *stateidp, int rwflag, struct nfscldevinfo *dp,
+    struct nfscllayout *lyp, struct nfsclflayout *flp, uint64_t off,
+    uint64_t len, int mirror, int docommit, struct mbuf *mp, struct ucred *cred,
+    NFSPROC_T *p)
+{
+	uint64_t transfer, xfer;
+	int error, rel_off;
+	struct nfsnode *np;
+	struct nfsfh *fhp;
+	struct nfsclds **dspp;
+	struct ucred *tcred;
+	struct mbuf *m;
+
+	np = VTONFS(vp);
+	error = 0;
+	rel_off = 0;
+	NFSCL_DEBUG(4, "nfscl_dofflayoutio: off=%ju len=%ju\n", (uintmax_t)off,
+	    (uintmax_t)len);
+	/* Loop around, doing I/O for each stripe unit. */
+	while (len > 0 && error == 0) {
+		dspp = nfsfldi_addr(dp, 0);
+		fhp = flp->nfsfl_ffm[mirror].fh[dp->nfsdi_versindex];
+		stateidp = &flp->nfsfl_ffm[mirror].st;
+		NFSCL_DEBUG(4, "mirror=%d vind=%d fhlen=%d st.seqid=0x%x\n",
+		    mirror, dp->nfsdi_versindex, fhp->nfh_len, stateidp->seqid);
+		if ((dp->nfsdi_flags & NFSDI_TIGHTCOUPLED) == 0) {
+			tcred = NFSNEWCRED(cred);
+			tcred->cr_uid = flp->nfsfl_ffm[mirror].user;
+			tcred->cr_groups[0] = flp->nfsfl_ffm[mirror].group;
+			tcred->cr_ngroups = 1;
+		} else
+			tcred = cred;
+		if (rwflag == NFSV4OPEN_ACCESSREAD)
+			transfer = dp->nfsdi_rsize;
+		else
+			transfer = dp->nfsdi_wsize;
+		mtx_lock(&np->n_mtx);
+		np->n_flag |= NDSCOMMIT;
+		mtx_unlock(&np->n_mtx);
+		if (len > transfer && docommit == 0)
+			xfer = transfer;
+		else
+			xfer = len;
+		if (docommit != 0) {
+			if (error == 0)
+				error = nfsrpc_commitds(vp, off, xfer, *dspp,
+				    fhp, dp->nfsdi_vers, dp->nfsdi_minorvers,
+				    tcred, p);
+			NFSCL_DEBUG(4, "aft nfsrpc_commitds=%d\n", error);
+			if (error == 0) {
+				/*
+				 * Set both eof and uio_resid = 0 to end any
+				 * loops.
+				 */
+				*eofp = 1;
+				uiop->uio_resid = 0;
+			} else {
+				mtx_lock(&np->n_mtx);
+				np->n_flag &= ~NDSCOMMIT;
+				mtx_unlock(&np->n_mtx);
+			}
+		} else if (rwflag == NFSV4OPEN_ACCESSREAD)
+			error = nfsrpc_readds(vp, uiop, stateidp, eofp, *dspp,
+			    off, xfer, fhp, 1, dp->nfsdi_vers,
+			    dp->nfsdi_minorvers, tcred, p);
+		else {
+			if (flp->nfsfl_mirrorcnt == 1) {
+				error = nfsrpc_writeds(vp, uiop, iomode,
+				    must_commit, stateidp, *dspp, off, xfer,
+				    fhp, 0, 1, dp->nfsdi_vers,
+				    dp->nfsdi_minorvers, tcred, p);
+				if (error == 0) {
+					NFSLOCKCLSTATE();
+					lyp->nfsly_flags |= NFSLY_WRITTEN;
+					NFSUNLOCKCLSTATE();
+				}
+			} else {
+				m = nfsm_copym(mp, rel_off, xfer);
+				NFSCL_DEBUG(4, "mcopy reloff=%d xfer=%jd\n",
+				    rel_off, (uintmax_t)xfer);
+				error = nfsrpc_writedsmir(vp, iomode,
+				    must_commit, stateidp, *dspp, off, xfer,
+				    fhp, m, dp->nfsdi_vers, dp->nfsdi_minorvers,
+				    tcred, p);
+				NFSCL_DEBUG(4, "nfsrpc_writedsmir=%d\n", error);
+			}
+		}
+		NFSCL_DEBUG(4, "aft read/writeds=%d\n", error);
+		if (error == 0) {
+			len -= xfer;
+			off += xfer;
+			rel_off += xfer;
+		}
+		if ((dp->nfsdi_flags & NFSDI_TIGHTCOUPLED) == 0)
+			NFSFREECRED(tcred);
+	}
+	NFSCL_DEBUG(4, "eo nfscl_dofflayoutio=%d\n", error);
+	return (error);
+}
+
+/*
  * The actual read RPC done to a DS.
  */
 static int
 nfsrpc_readds(vnode_t vp, struct uio *uiop, nfsv4stateid_t *stateidp, int *eofp,
-    struct nfsclds *dsp, uint64_t io_off, int len, struct nfsfh *fhp,
-    struct ucred *cred, NFSPROC_T *p)
+    struct nfsclds *dsp, uint64_t io_off, int len, struct nfsfh *fhp, int flex,
+    int vers, int minorvers, struct ucred *cred, NFSPROC_T *p)
 {
 	uint32_t *tl;
-	int error, retlen;
+	int attrflag, error, retlen;
 	struct nfsrv_descript nfsd;
 	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
 	struct nfsrv_descript *nd = &nfsd;
 	struct nfssockreq *nrp;
+	struct nfsvattr na;
 
 	nd->nd_mrep = NULL;
-	nfscl_reqstart(nd, NFSPROC_READDS, nmp, fhp->nfh_fh, fhp->nfh_len,
-	    NULL, &dsp->nfsclds_sess, 0, 0);
-	nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSEQIDZERO);
+	if (vers == 0 || vers == NFS_VER4) {
+		nfscl_reqstart(nd, NFSPROC_READDS, nmp, fhp->nfh_fh,
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		vers = NFS_VER4;
+		NFSCL_DEBUG(4, "nfsrpc_readds: vers4 minvers=%d\n", minorvers);
+		if (flex != 0)
+			nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSTATEID);
+		else
+			nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSEQIDZERO);
+	} else {
+		nfscl_reqstart(nd, NFSPROC_READ, nmp, fhp->nfh_fh,
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		NFSCL_DEBUG(4, "nfsrpc_readds: vers3\n");
+	}
 	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED * 3);
 	txdr_hyper(io_off, tl);
 	*(tl + 2) = txdr_unsigned(len);
 	nrp = dsp->nfsclds_sockp;
+	NFSCL_DEBUG(4, "nfsrpc_readds: nrp=%p\n", nrp);
 	if (nrp == NULL)
 		/* If NULL, use the MDS socket. */
 		nrp = &nmp->nm_sockreq;
 	error = newnfs_request(nd, nmp, NULL, nrp, vp, p, cred,
-	    NFS_PROG, NFS_VER4, NULL, 1, NULL, &dsp->nfsclds_sess);
+	    NFS_PROG, vers, NULL, 1, NULL, &dsp->nfsclds_sess);
+	NFSCL_DEBUG(4, "nfsrpc_readds: stat=%d err=%d\n", nd->nd_repstat,
+	    error);
 	if (error != 0)
 		return (error);
+	if (vers == NFS_VER3) {
+		error = nfscl_postop_attr(nd, &na, &attrflag, NULL);
+		NFSCL_DEBUG(4, "nfsrpc_readds: postop=%d\n", error);
+		if (error != 0)
+			goto nfsmout;
+	}
 	if (nd->nd_repstat != 0) {
 		error = nd->nd_repstat;
 		goto nfsmout;
 	}
-	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
-	*eofp = fxdr_unsigned(int, *tl);
+	if (vers == NFS_VER3) {
+		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+		*eofp = fxdr_unsigned(int, *(tl + 1));
+	} else {
+		NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+		*eofp = fxdr_unsigned(int, *tl);
+	}
 	NFSM_STRSIZ(retlen, len);
+	NFSCL_DEBUG(4, "nfsrpc_readds: retlen=%d eof=%d\n", retlen, *eofp);
 	error = nfsm_mbufuio(nd, uiop, retlen);
 nfsmout:
 	if (nd->nd_mrep != NULL)
@@ -5745,24 +6073,40 @@ nfsmout:
 static int
 nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
     nfsv4stateid_t *stateidp, struct nfsclds *dsp, uint64_t io_off, int len,
-    struct nfsfh *fhp, int commit_thru_mds, struct ucred *cred, NFSPROC_T *p)
+    struct nfsfh *fhp, int commit_thru_mds, int flex, int vers, int minorvers,
+    struct ucred *cred, NFSPROC_T *p)
 {
 	uint32_t *tl;
 	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
-	int error, rlen, commit, committed = NFSWRITE_FILESYNC;
+	int attrflag, error, rlen, commit, committed = NFSWRITE_FILESYNC;
 	int32_t backup;
 	struct nfsrv_descript nfsd;
 	struct nfsrv_descript *nd = &nfsd;
 	struct nfssockreq *nrp;
+	struct nfsvattr na;
 
 	KASSERT(uiop->uio_iovcnt == 1, ("nfs: writerpc iovcnt > 1"));
 	nd->nd_mrep = NULL;
-	nfscl_reqstart(nd, NFSPROC_WRITEDS, nmp, fhp->nfh_fh, fhp->nfh_len,
-	    NULL, &dsp->nfsclds_sess, 0, 0);
-	nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSEQIDZERO);
-	NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + 2 * NFSX_UNSIGNED);
+	if (vers == 0 || vers == NFS_VER4) {
+		nfscl_reqstart(nd, NFSPROC_WRITEDS, nmp, fhp->nfh_fh,
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		NFSCL_DEBUG(4, "nfsrpc_writeds: vers4 minvers=%d\n", minorvers);
+		vers = NFS_VER4;
+		if (flex != 0)
+			nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSTATEID);
+		else
+			nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSEQIDZERO);
+		NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + 2 * NFSX_UNSIGNED);
+	} else {
+		nfscl_reqstart(nd, NFSPROC_WRITE, nmp, fhp->nfh_fh,
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		NFSCL_DEBUG(4, "nfsrpc_writeds: vers3\n");
+		NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + 3 * NFSX_UNSIGNED);
+	}
 	txdr_hyper(io_off, tl);
 	tl += 2;
+	if (vers == NFS_VER3)
+		*tl++ = txdr_unsigned(len);
 	*tl++ = txdr_unsigned(*iomode);
 	*tl = txdr_unsigned(len);
 	nfsm_uiombuf(nd, uiop, len);
@@ -5771,7 +6115,9 @@ nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		/* If NULL, use the MDS socket. */
 		nrp = &nmp->nm_sockreq;
 	error = newnfs_request(nd, nmp, NULL, nrp, vp, p, cred,
-	    NFS_PROG, NFS_VER4, NULL, 1, NULL, &dsp->nfsclds_sess);
+	    NFS_PROG, vers, NULL, 1, NULL, &dsp->nfsclds_sess);
+	NFSCL_DEBUG(4, "nfsrpc_writeds: err=%d stat=%d\n", error,
+	    nd->nd_repstat);
 	if (error != 0)
 		return (error);
 	if (nd->nd_repstat != 0) {
@@ -5786,8 +6132,16 @@ nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		uio_iov_len_add(uiop, len);
 		error = nd->nd_repstat;
 	} else {
+		if (vers == NFS_VER3) {
+			error = nfscl_wcc_data(nd, vp, &na, &attrflag, NULL,
+			    NULL);
+			NFSCL_DEBUG(4, "nfsrpc_writeds: wcc_data=%d\n", error);
+			if (error != 0)
+				goto nfsmout;
+		}
 		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED + NFSX_VERF);
 		rlen = fxdr_unsigned(int, *tl++);
+		NFSCL_DEBUG(4, "nfsrpc_writeds: len=%d rlen=%d\n", len, rlen);
 		if (rlen == 0) {
 			error = NFSERR_IO;
 			goto nfsmout;
@@ -5831,6 +6185,117 @@ nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			}
 			NFSUNLOCKDS(dsp);
 		}
+	}
+nfsmout:
+	if (nd->nd_mrep != NULL)
+		mbuf_freem(nd->nd_mrep);
+	*iomode = committed;
+	if (nd->nd_repstat != 0 && error == 0)
+		error = nd->nd_repstat;
+	return (error);
+}
+
+/*
+ * The actual write RPC done to a DS.
+ * This variant is called from a separate kernel process for mirrors.
+ * Any short write is considered an IO error.
+ */
+static int
+nfsrpc_writedsmir(vnode_t vp, int *iomode, int *must_commit,
+    nfsv4stateid_t *stateidp, struct nfsclds *dsp, uint64_t io_off, int len,
+    struct nfsfh *fhp, struct mbuf *m, int vers, int minorvers,
+    struct ucred *cred, NFSPROC_T *p)
+{
+	uint32_t *tl;
+	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	int attrflag, error, commit, committed = NFSWRITE_FILESYNC, rlen;
+	struct nfsrv_descript nfsd;
+	struct nfsrv_descript *nd = &nfsd;
+	struct nfssockreq *nrp;
+	struct nfsvattr na;
+
+	nd->nd_mrep = NULL;
+	if (vers == 0 || vers == NFS_VER4) {
+		nfscl_reqstart(nd, NFSPROC_WRITEDS, nmp, fhp->nfh_fh,
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		vers = NFS_VER4;
+		NFSCL_DEBUG(4, "nfsrpc_writedsmir: vers4 minvers=%d\n",
+		    minorvers);
+		nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSTATEID);
+		NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + 2 * NFSX_UNSIGNED);
+	} else {
+		nfscl_reqstart(nd, NFSPROC_WRITE, nmp, fhp->nfh_fh,
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		NFSCL_DEBUG(4, "nfsrpc_writedsmir: vers3\n");
+		NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + 3 * NFSX_UNSIGNED);
+	}
+	txdr_hyper(io_off, tl);
+	tl += 2;
+	if (vers == NFS_VER3)
+		*tl++ = txdr_unsigned(len);
+	*tl++ = txdr_unsigned(*iomode);
+	*tl = txdr_unsigned(len);
+	if (len > 0) {
+		/* Put data in mbuf chain. */
+		nd->nd_mb->m_next = m;
+		/* Set nd_mb and nd_bpos to end of data. */
+		while (m->m_next != NULL)
+			m = m->m_next;
+		nd->nd_mb = m;
+		nd->nd_bpos = mtod(m, char *) + m->m_len;
+		NFSCL_DEBUG(4, "nfsrpc_writedsmir: lastmb len=%d\n", m->m_len);
+	}
+	nrp = dsp->nfsclds_sockp;
+	if (nrp == NULL)
+		/* If NULL, use the MDS socket. */
+		nrp = &nmp->nm_sockreq;
+	error = newnfs_request(nd, nmp, NULL, nrp, vp, p, cred,
+	    NFS_PROG, vers, NULL, 1, NULL, &dsp->nfsclds_sess);
+	NFSCL_DEBUG(4, "nfsrpc_writedsmir: err=%d stat=%d\n", error,
+	    nd->nd_repstat);
+	if (error != 0)
+		return (error);
+	if (nd->nd_repstat != 0)
+		error = nd->nd_repstat;
+	else {
+		if (vers == NFS_VER3) {
+			error = nfscl_wcc_data(nd, vp, &na, &attrflag, NULL,
+			    NULL);
+			NFSCL_DEBUG(4, "nfsrpc_writedsmir: wcc_data=%d\n",
+			    error);
+			if (error != 0)
+				goto nfsmout;
+		}
+		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED + NFSX_VERF);
+		rlen = fxdr_unsigned(int, *tl++);
+		NFSCL_DEBUG(4, "nfsrpc_writedsmir: len=%d rlen=%d\n", len,
+		    rlen);
+		if (rlen != len) {
+			error = NFSERR_IO;
+			NFSCL_DEBUG(4, "nfsrpc_writedsmir: len=%d rlen=%d\n",
+			    len, rlen);
+			goto nfsmout;
+		}
+		commit = fxdr_unsigned(int, *tl++);
+
+		/*
+		 * Return the lowest commitment level
+		 * obtained by any of the RPCs.
+		 */
+		if (committed == NFSWRITE_FILESYNC)
+			committed = commit;
+		else if (committed == NFSWRITE_DATASYNC &&
+		    commit == NFSWRITE_UNSTABLE)
+			committed = commit;
+		NFSLOCKDS(dsp);
+		if ((dsp->nfsclds_flags & NFSCLDS_HASWRITEVERF) == 0) {
+			NFSBCOPY(tl, dsp->nfsclds_verf, NFSX_VERF);
+			dsp->nfsclds_flags |= NFSCLDS_HASWRITEVERF;
+		} else if (NFSBCMP(tl, dsp->nfsclds_verf, NFSX_VERF)) {
+			*must_commit = 1;
+			NFSBCOPY(tl, dsp->nfsclds_verf, NFSX_VERF);
+		}
+		NFSUNLOCKDS(dsp);
 	}
 nfsmout:
 	if (nd->nd_mrep != NULL)
@@ -5913,17 +6378,26 @@ nfscl_getsameserver(struct nfsmount *nmp, struct nfsclds *newdsp,
  */
 static int
 nfsrpc_commitds(vnode_t vp, uint64_t offset, int cnt, struct nfsclds *dsp,
-    struct nfsfh *fhp, struct ucred *cred, NFSPROC_T *p)
+    struct nfsfh *fhp, int vers, int minorvers, struct ucred *cred,
+    NFSPROC_T *p)
 {
 	uint32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
 	struct nfssockreq *nrp;
-	int error;
+	struct nfsvattr na;
+	int attrflag, error;
 	
 	nd->nd_mrep = NULL;
-	nfscl_reqstart(nd, NFSPROC_COMMITDS, nmp, fhp->nfh_fh, fhp->nfh_len,
-	    NULL, &dsp->nfsclds_sess, 0, 0);
+	if (vers == 0 || vers == NFS_VER4) {
+		nfscl_reqstart(nd, NFSPROC_COMMITDS, nmp, fhp->nfh_fh,
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		vers = NFS_VER4;
+	} else
+		nfscl_reqstart(nd, NFSPROC_COMMIT, nmp, fhp->nfh_fh,
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+	NFSCL_DEBUG(4, "nfsrpc_commitds: vers=%d minvers=%d\n", vers,
+	    minorvers);
 	NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + NFSX_UNSIGNED);
 	txdr_hyper(offset, tl);
 	tl += 2;
@@ -5933,10 +6407,19 @@ nfsrpc_commitds(vnode_t vp, uint64_t offset, int cnt, struct nfsclds *dsp,
 		/* If NULL, use the MDS socket. */
 		nrp = &nmp->nm_sockreq;
 	error = newnfs_request(nd, nmp, NULL, nrp, vp, p, cred,
-	    NFS_PROG, NFS_VER4, NULL, 1, NULL, &dsp->nfsclds_sess);
+	    NFS_PROG, vers, NULL, 1, NULL, &dsp->nfsclds_sess);
+	NFSCL_DEBUG(4, "nfsrpc_commitds: err=%d stat=%d\n", error,
+	    nd->nd_repstat);
 	if (error != 0)
 		return (error);
 	if (nd->nd_repstat == 0) {
+		if (vers == NFS_VER3) {
+			error = nfscl_wcc_data(nd, vp, &na, &attrflag, NULL,
+			    NULL);
+			NFSCL_DEBUG(4, "nfsrpc_commitds: wccdata=%d\n", error);
+			if (error != 0)
+				goto nfsmout;
+		}
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
 		NFSLOCKDS(dsp);
 		if (NFSBCMP(tl, dsp->nfsclds_verf, NFSX_VERF)) {
@@ -5957,15 +6440,15 @@ nfsmout:
  */
 static void
 nfsrv_setuplayoutget(struct nfsrv_descript *nd, int iomode, uint64_t offset,
-    uint64_t len, uint64_t minlen, nfsv4stateid_t *stateidp, int layoutlen,
-    int usecurstateid)
+    uint64_t len, uint64_t minlen, nfsv4stateid_t *stateidp, int layouttype,
+    int layoutlen, int usecurstateid)
 {
 	uint32_t *tl;
 
 	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED + 3 * NFSX_HYPER +
 	    NFSX_STATEID);
 	*tl++ = newnfs_false;		/* Don't signal availability. */
-	*tl++ = txdr_unsigned(NFSLAYOUT_NFSV4_1_FILES);
+	*tl++ = txdr_unsigned(layouttype);
 	*tl++ = txdr_unsigned(iomode);
 	txdr_hyper(offset, tl);
 	tl += 2;
@@ -5998,11 +6481,15 @@ nfsrv_parselayoutget(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp,
 {
 	uint32_t *tl;
 	struct nfsclflayout *flp, *prevflp, *tflp;
-	int cnt, error, gotiomode, fhcnt, nfhlen, i, j;
-	uint64_t retlen;
+	int cnt, error, fhcnt, gotiomode, i, iomode, j, k, l, laytype, nfhlen;
+	int m, mirrorcnt;
+	uint64_t retlen, off;
 	struct nfsfh *nfhp;
 	uint8_t *cp;
+	uid_t user;
+	gid_t grp;
 
+	NFSCL_DEBUG(4, "in nfsrv_parselayoutget\n");
 	error = 0;
 	flp = NULL;
 	gotiomode = -1;
@@ -6025,64 +6512,204 @@ nfsrv_parselayoutget(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp,
 		goto nfsmout;
 	}
 	for (i = 0; i < cnt; i++) {
-		/* Dissect all the way to the file handle cnt. */
-		NFSM_DISSECT(tl, uint32_t *, 3 * NFSX_HYPER +
-		    6 * NFSX_UNSIGNED + NFSX_V4DEVICEID);
-		fhcnt = fxdr_unsigned(int, *(tl + 11 +
-		    NFSX_V4DEVICEID / NFSX_UNSIGNED));
-		NFSCL_DEBUG(4, "fhcnt=%d\n", fhcnt);
-		if (fhcnt < 0 || fhcnt > 100) {
-			/* Don't accept more than 100 file handles. */
-			error = NFSERR_BADXDR;
-			goto nfsmout;
-		}
-		if (fhcnt > 1)
-			flp = malloc(sizeof(*flp) + (fhcnt - 1) *
-			    sizeof(struct nfsfh *), M_NFSFLAYOUT, M_WAITOK);
-		else
-			flp = malloc(sizeof(*flp), M_NFSFLAYOUT, M_WAITOK);
-		flp->nfsfl_flags = 0;
-		flp->nfsfl_fhcnt = 0;
-		flp->nfsfl_devp = NULL;
-		flp->nfsfl_off = fxdr_hyper(tl); tl += 2;
+		/* Dissect to the layout type. */
+		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_HYPER +
+		    3 * NFSX_UNSIGNED);
+		off = fxdr_hyper(tl); tl += 2;
 		retlen = fxdr_hyper(tl); tl += 2;
-		if (flp->nfsfl_off + retlen < flp->nfsfl_off)
-			flp->nfsfl_end = UINT64_MAX - flp->nfsfl_off;
-		else
-			flp->nfsfl_end = flp->nfsfl_off + retlen;
-		flp->nfsfl_iomode = fxdr_unsigned(int, *tl++);
-		if (gotiomode == -1)
-			gotiomode = flp->nfsfl_iomode;
-		if (fxdr_unsigned(int, *tl++) != NFSLAYOUT_NFSV4_1_FILES) {
-			printf("NFSv4.1: got non-files layout\n");
-			error = NFSERR_BADXDR;
-			goto nfsmout;
-		}
-		NFSBCOPY(++tl, flp->nfsfl_dev, NFSX_V4DEVICEID);
-		tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
-		flp->nfsfl_util = fxdr_unsigned(uint32_t, *tl++);
-		NFSCL_DEBUG(4, "flutil=0x%x\n", flp->nfsfl_util);
-		flp->nfsfl_stripe1 = fxdr_unsigned(uint32_t, *tl++);
-		flp->nfsfl_patoff = fxdr_hyper(tl); tl += 2;
-		if (fxdr_unsigned(int, *tl) != fhcnt) {
-			printf("EEK! bad fhcnt\n");
-			error = NFSERR_BADXDR;
-			goto nfsmout;
-		}
-		for (j = 0; j < fhcnt; j++) {
-			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
-			nfhlen = fxdr_unsigned(int, *tl);
-			if (nfhlen <= 0 || nfhlen > NFSX_V4FHMAX) {
+		iomode = fxdr_unsigned(int, *tl++);
+		laytype = fxdr_unsigned(int, *tl);
+		NFSCL_DEBUG(4, "layt=%d off=%ju len=%ju iom=%d\n", laytype,
+		    (uintmax_t)off, (uintmax_t)retlen, iomode);
+		/* Ignore length of layout body for now. */
+		if (laytype == NFSLAYOUT_NFSV4_1_FILES) {
+			/* Parse the File layout up to fhcnt. */
+			NFSM_DISSECT(tl, uint32_t *, 3 * NFSX_UNSIGNED +
+			    NFSX_HYPER + NFSX_V4DEVICEID);
+			fhcnt = fxdr_unsigned(int, *(tl + 4 +
+			    NFSX_V4DEVICEID / NFSX_UNSIGNED));
+			NFSCL_DEBUG(4, "fhcnt=%d\n", fhcnt);
+			if (fhcnt < 0 || fhcnt > 100) {
+				/* Don't accept more than 100 file handles. */
 				error = NFSERR_BADXDR;
 				goto nfsmout;
 			}
-			nfhp = malloc(sizeof(*nfhp) + nfhlen - 1, M_NFSFH,
-			    M_WAITOK);
-			flp->nfsfl_fh[j] = nfhp;
-			flp->nfsfl_fhcnt++;
-			nfhp->nfh_len = nfhlen;
-			NFSM_DISSECT(cp, uint8_t *, NFSM_RNDUP(nfhlen));
-			NFSBCOPY(cp, nfhp->nfh_fh, nfhlen);
+			if (fhcnt > 0)
+				flp = malloc(sizeof(*flp) + fhcnt *
+				    sizeof(struct nfsfh *), M_NFSFLAYOUT,
+				    M_WAITOK);
+			else
+				flp = malloc(sizeof(*flp), M_NFSFLAYOUT,
+				    M_WAITOK);
+			flp->nfsfl_flags = NFSFL_FILE;
+			flp->nfsfl_fhcnt = 0;
+			flp->nfsfl_devp = NULL;
+			flp->nfsfl_off = off;
+			if (flp->nfsfl_off + retlen < flp->nfsfl_off)
+				flp->nfsfl_end = UINT64_MAX - flp->nfsfl_off;
+			else
+				flp->nfsfl_end = flp->nfsfl_off + retlen;
+			flp->nfsfl_iomode = iomode;
+			if (gotiomode == -1)
+				gotiomode = flp->nfsfl_iomode;
+			/* Ignore layout body length for now. */
+			NFSBCOPY(tl, flp->nfsfl_dev, NFSX_V4DEVICEID);
+			tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
+			flp->nfsfl_util = fxdr_unsigned(uint32_t, *tl++);
+			NFSCL_DEBUG(4, "flutil=0x%x\n", flp->nfsfl_util);
+			flp->nfsfl_stripe1 = fxdr_unsigned(uint32_t, *tl++);
+			flp->nfsfl_patoff = fxdr_hyper(tl); tl += 2;
+			NFSCL_DEBUG(4, "stripe1=%u poff=%ju\n",
+			    flp->nfsfl_stripe1, (uintmax_t)flp->nfsfl_patoff);
+			for (j = 0; j < fhcnt; j++) {
+				NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+				nfhlen = fxdr_unsigned(int, *tl);
+				if (nfhlen <= 0 || nfhlen > NFSX_V4FHMAX) {
+					error = NFSERR_BADXDR;
+					goto nfsmout;
+				}
+				nfhp = malloc(sizeof(*nfhp) + nfhlen - 1,
+				    M_NFSFH, M_WAITOK);
+				flp->nfsfl_fh[j] = nfhp;
+				flp->nfsfl_fhcnt++;
+				nfhp->nfh_len = nfhlen;
+				NFSM_DISSECT(cp, uint8_t *, NFSM_RNDUP(nfhlen));
+				NFSBCOPY(cp, nfhp->nfh_fh, nfhlen);
+			}
+		} else if (laytype == NFSLAYOUT_FLEXFILE) {
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED +
+			    NFSX_HYPER);
+			mirrorcnt = fxdr_unsigned(int, *(tl + 2));
+			NFSCL_DEBUG(4, "mirrorcnt=%d\n", mirrorcnt);
+			if (mirrorcnt < 1 || mirrorcnt > NFSDEV_MAXMIRRORS) {
+				error = NFSERR_BADXDR;
+				goto nfsmout;
+			}
+			flp = malloc(sizeof(*flp) + mirrorcnt *
+			    sizeof(struct nfsffm), M_NFSFLAYOUT, M_WAITOK);
+			flp->nfsfl_flags = NFSFL_FLEXFILE;
+			flp->nfsfl_mirrorcnt = mirrorcnt;
+			flp->nfsfl_devp = NULL;
+			flp->nfsfl_off = off;
+			if (flp->nfsfl_off + retlen < flp->nfsfl_off)
+				flp->nfsfl_end = UINT64_MAX - flp->nfsfl_off;
+			else
+				flp->nfsfl_end = flp->nfsfl_off + retlen;
+			flp->nfsfl_iomode = iomode;
+			if (gotiomode == -1)
+				gotiomode = flp->nfsfl_iomode;
+			flp->nfsfl_stripeunit = fxdr_hyper(tl);
+			NFSCL_DEBUG(4, "stripeunit=%ju\n",
+			    (uintmax_t)flp->nfsfl_stripeunit);
+			for (j = 0; j < mirrorcnt; j++) {
+				NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+				k = fxdr_unsigned(int, *tl);
+				if (k < 1 || k > 128) {
+					error = NFSERR_BADXDR;
+					goto nfsmout;
+				}
+				NFSCL_DEBUG(4, "servercnt=%d\n", k);
+				for (l = 0; l < k; l++) {
+					NFSM_DISSECT(tl, uint32_t *,
+					    NFSX_V4DEVICEID + NFSX_STATEID +
+					    2 * NFSX_UNSIGNED);
+					if (l == 0) {
+						/* Just use the first server. */
+						NFSBCOPY(tl,
+						    flp->nfsfl_ffm[j].dev,
+						    NFSX_V4DEVICEID);
+						tl += (NFSX_V4DEVICEID /
+						    NFSX_UNSIGNED);
+						tl++;
+						flp->nfsfl_ffm[j].st.seqid =
+						    *tl++;
+						flp->nfsfl_ffm[j].st.other[0] =
+						    *tl++;
+						flp->nfsfl_ffm[j].st.other[1] =
+						    *tl++;
+						flp->nfsfl_ffm[j].st.other[2] =
+						    *tl++;
+						NFSCL_DEBUG(4, "st.seqid=%u "
+						 "st.o0=0x%x st.o1=0x%x "
+						 "st.o2=0x%x\n",
+						 flp->nfsfl_ffm[j].st.seqid,
+						 flp->nfsfl_ffm[j].st.other[0],
+						 flp->nfsfl_ffm[j].st.other[1],
+						 flp->nfsfl_ffm[j].st.other[2]);
+					} else
+						tl += ((NFSX_V4DEVICEID +
+						    NFSX_STATEID +
+						    NFSX_UNSIGNED) /
+						    NFSX_UNSIGNED);
+					fhcnt = fxdr_unsigned(int, *tl);
+					NFSCL_DEBUG(4, "fhcnt=%d\n", fhcnt);
+					if (fhcnt < 1 ||
+					    fhcnt > NFSDEV_MAXVERS) {
+						error = NFSERR_BADXDR;
+						goto nfsmout;
+					}
+					for (m = 0; m < fhcnt; m++) {
+						NFSM_DISSECT(tl, uint32_t *,
+						    NFSX_UNSIGNED);
+						nfhlen = fxdr_unsigned(int,
+						    *tl);
+						NFSCL_DEBUG(4, "nfhlen=%d\n",
+						    nfhlen);
+						if (nfhlen <= 0 || nfhlen >
+						    NFSX_V4FHMAX) {
+							error = NFSERR_BADXDR;
+							goto nfsmout;
+						}
+						NFSM_DISSECT(cp, uint8_t *,
+						    NFSM_RNDUP(nfhlen));
+						if (l == 0) {
+							flp->nfsfl_ffm[j].fhcnt 
+							    = fhcnt;
+							nfhp = malloc(
+							    sizeof(*nfhp) +
+							    nfhlen - 1, M_NFSFH,
+							    M_WAITOK);
+							flp->nfsfl_ffm[j].fh[m]
+							    = nfhp;
+							nfhp->nfh_len = nfhlen;
+							NFSBCOPY(cp,
+							    nfhp->nfh_fh,
+							    nfhlen);
+							NFSCL_DEBUG(4,
+							    "got fh\n");
+						}
+					}
+					/* Now, get the ffsd_user/ffds_group. */
+					error = nfsrv_parseug(nd, 0, &user,
+					    &grp, curthread);
+					NFSCL_DEBUG(4, "after parseu=%d\n",
+					    error);
+					if (error == 0)
+						error = nfsrv_parseug(nd, 1,
+						    &user, &grp, curthread);
+					NFSCL_DEBUG(4, "aft parseg=%d\n",
+					    grp);
+					if (error != 0)
+						goto nfsmout;
+					NFSCL_DEBUG(4, "user=%d group=%d\n",
+					    user, grp);
+					if (l == 0) {
+						flp->nfsfl_ffm[j].user = user;
+						flp->nfsfl_ffm[j].group = grp;
+						NFSCL_DEBUG(4,
+						    "usr=%d grp=%d\n", user,
+						    grp);
+					}
+				}
+			}
+			NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+			flp->nfsfl_fflags = fxdr_unsigned(uint32_t, *tl++);
+			flp->nfsfl_statshint = fxdr_unsigned(uint32_t, *tl);
+			NFSCL_DEBUG(4, "fflags=0x%x statshint=%d\n",
+			    flp->nfsfl_fflags, flp->nfsfl_statshint);
+		} else {
+			error = NFSERR_BADXDR;
+			goto nfsmout;
 		}
 		if (flp->nfsfl_iomode == gotiomode) {
 			/* Keep the list in increasing offset order. */
@@ -6098,6 +6725,7 @@ nfsrv_parselayoutget(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp,
 			else
 				LIST_INSERT_AFTER(prevflp, flp,
 				    nfsfl_list);
+			NFSCL_DEBUG(4, "flp inserted\n");
 		} else {
 			printf("nfscl_layoutget(): got wrong iomode\n");
 			nfscl_freeflayout(flp);
@@ -6105,8 +6733,54 @@ nfsrv_parselayoutget(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp,
 		flp = NULL;
 	}
 nfsmout:
+	NFSCL_DEBUG(4, "eo nfsrv_parselayoutget=%d\n", error);
 	if (error != 0 && flp != NULL)
 		nfscl_freeflayout(flp);
+	return (error);
+}
+
+/*
+ * Parse a user/group digit string.
+ */
+static int
+nfsrv_parseug(struct nfsrv_descript *nd, int dogrp, uid_t *uidp, gid_t *gidp,
+    NFSPROC_T *p)
+{
+	uint32_t *tl;
+	char *cp, *str, str0[NFSV4_SMALLSTR + 1];
+	uint32_t len = 0;
+	int error = 0;
+
+	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+	len = fxdr_unsigned(uint32_t, *tl);
+	if (len > NFSV4_OPAQUELIMIT) {
+		error = NFSERR_BADXDR;
+		goto nfsmout;
+	}
+	NFSCL_DEBUG(4, "nfsrv_parseug: len=%d\n", len);
+	if (len == 0) {
+		if (dogrp != 0)
+			*gidp = GID_NOGROUP;
+		else
+			*uidp = UID_NOBODY;
+		return (0);
+	}
+	if (len > NFSV4_SMALLSTR)
+		str = malloc(len + 1, M_TEMP, M_WAITOK);
+	else
+		str = str0;
+	NFSM_DISSECT(cp, char *, NFSM_RNDUP(len));
+	NFSBCOPY(cp, str, len);
+	str[len] = '\0';
+	NFSCL_DEBUG(4, "nfsrv_parseug: str=%s\n", str);
+	if (dogrp != 0)
+		error = nfsv4_strtogid(nd, str, len, gidp, p);
+	else
+		error = nfsv4_strtouid(nd, str, len, uidp, p);
+nfsmout:
+	if (len > NFSV4_SMALLSTR)
+		free(str, M_TEMP);
+	NFSCL_DEBUG(4, "eo nfsrv_parseug=%d\n", error);
 	return (error);
 }
 
@@ -6124,11 +6798,15 @@ nfsrpc_getopenlayout(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp,
 	struct nfsclflayout *flp;
 	struct nfsclflayouthead flh;
 	int error, islocked, layoutlen, recalled, retonclose, usecurstateid;
-	int laystat;
+	int layouttype, laystat;
 	nfsv4stateid_t stateid;
 	struct nfsclsession *tsep;
 
 	error = 0;
+	if (NFSHASFLEXFILE(nmp))
+		layouttype = NFSLAYOUT_FLEXFILE;
+	else
+		layouttype = NFSLAYOUT_NFSV4_1_FILES;
 	/*
 	 * If lyp is returned non-NULL, there will be a refcnt (shared lock)
 	 * on it, iff flp != NULL or a lock (exclusive lock) on it iff
@@ -6159,13 +6837,13 @@ nfsrpc_getopenlayout(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp,
 		}
 		error = nfsrpc_openlayoutrpc(nmp, vp, nfhp, fhlen,
 		    newfhp, newfhlen, mode, op, name, namelen,
-		    dpp, &stateid, usecurstateid, layoutlen,
+		    dpp, &stateid, usecurstateid, layouttype, layoutlen,
 		    &retonclose, &flh, &laystat, cred, p);
 		NFSCL_DEBUG(4, "aft nfsrpc_openlayoutrpc laystat=%d err=%d\n",
 		    laystat, error);
 		laystat = nfsrpc_layoutgetres(nmp, vp, newfhp, newfhlen,
-		    &stateid, retonclose, NULL, &lyp, &flh, laystat, &islocked,
-		    cred, p);
+		    &stateid, retonclose, NULL, &lyp, &flh, layouttype, laystat,
+		    &islocked, cred, p);
 	} else
 		error = nfsrpc_openrpc(nmp, vp, nfhp, fhlen, newfhp, newfhlen,
 		    mode, op, name, namelen, dpp, 0, 0, cred, p, 0, 0);
@@ -6187,7 +6865,7 @@ static int
 nfsrpc_openlayoutrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp,
     int fhlen, uint8_t *newfhp, int newfhlen, uint32_t mode,
     struct nfsclopen *op, uint8_t *name, int namelen, struct nfscldeleg **dpp,
-    nfsv4stateid_t *stateidp, int usecurstateid,
+    nfsv4stateid_t *stateidp, int usecurstateid, int layouttype,
     int layoutlen, int *retonclosep, struct nfsclflayouthead *flhp,
     int *laystatp, struct ucred *cred, NFSPROC_T *p)
 {
@@ -6229,7 +6907,7 @@ nfsrpc_openlayoutrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp,
 	else
 		iomode = NFSLAYOUTIOMODE_READ;
 	nfsrv_setuplayoutget(nd, iomode, 0, UINT64_MAX, 0, stateidp,
-	    layoutlen, usecurstateid);
+	    layouttype, layoutlen, usecurstateid);
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, vp, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error != 0)
@@ -6363,7 +7041,7 @@ nfsrpc_createlayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *dnap,
     struct nfsvattr *nnap, struct nfsfh **nfhpp, int *attrflagp,
     int *dattrflagp, void *dstuff, int *unlockedp, nfsv4stateid_t *stateidp,
-    int usecurstateid, int layoutlen, int *retonclosep,
+    int usecurstateid, int layouttype, int layoutlen, int *retonclosep,
     struct nfsclflayouthead *flhp, int *laystatp)
 {
 	uint32_t *tl;
@@ -6442,7 +7120,7 @@ nfsrpc_createlayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	*tl++ = txdr_unsigned(NFSV4OP_RESTOREFH);
 	*tl = txdr_unsigned(NFSV4OP_LAYOUTGET);
 	nfsrv_setuplayoutget(nd, NFSLAYOUTIOMODE_RW, 0, UINT64_MAX, 0, stateidp,
-	    layoutlen, usecurstateid);
+	    layouttype, layoutlen, usecurstateid);
 	error = nfscl_request(nd, dvp, p, cred, dstuff);
 	if (error != 0)
 		return (error);
@@ -6628,17 +7306,21 @@ nfsrpc_getcreatelayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	struct nfsclsession *tsep;
 	struct nfsmount *nmp;
 	nfsv4stateid_t stateid;
-	int error, layoutlen, retonclose, laystat;
+	int error, layoutlen, layouttype, retonclose, laystat;
 
 	error = 0;
 	nmp = VFSTONFS(dvp->v_mount);
+	if (NFSHASFLEXFILE(nmp))
+		layouttype = NFSLAYOUT_FLEXFILE;
+	else
+		layouttype = NFSLAYOUT_NFSV4_1_FILES;
 	LIST_INIT(&flh);
 	tsep = nfsmnt_mdssession(nmp);
 	layoutlen = tsep->nfsess_maxcache - (NFSX_STATEID + 3 * NFSX_UNSIGNED);
 	error = nfsrpc_createlayout(dvp, name, namelen, vap, cverf, fmode,
 	    owp, dpp, cred, p, dnap, nnap, nfhpp, attrflagp, dattrflagp,
-	    dstuff, unlockedp, &stateid, 1, layoutlen, &retonclose, &flh,
-	    &laystat);
+	    dstuff, unlockedp, &stateid, 1, layouttype, layoutlen, &retonclose,
+	    &flh, &laystat);
 	NFSCL_DEBUG(4, "aft nfsrpc_createlayoutrpc laystat=%d err=%d\n",
 	    laystat, error);
 	lyp = NULL;
@@ -6646,10 +7328,11 @@ nfsrpc_getcreatelayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		nfhp = *nfhpp;
 		laystat = nfsrpc_layoutgetres(nmp, dvp, nfhp->nfh_fh,
 		    nfhp->nfh_len, &stateid, retonclose, NULL, &lyp, &flh,
-		    laystat, NULL, cred, p);
+		    layouttype, laystat, NULL, cred, p);
 	} else
 		laystat = nfsrpc_layoutgetres(nmp, dvp, NULL, 0, &stateid,
-		    retonclose, NULL, &lyp, &flh, laystat, NULL, cred, p);
+		    retonclose, NULL, &lyp, &flh, layouttype, laystat, NULL,
+		    cred, p);
 	if (laystat == 0)
 		nfscl_rellayout(lyp, 0);
 	return (error);
@@ -6661,17 +7344,23 @@ nfsrpc_getcreatelayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 static int
 nfsrpc_layoutgetres(struct nfsmount *nmp, vnode_t vp, uint8_t *newfhp,
     int newfhlen, nfsv4stateid_t *stateidp, int retonclose, uint32_t *notifybit,
-    struct nfscllayout **lypp, struct nfsclflayouthead *flhp,
+    struct nfscllayout **lypp, struct nfsclflayouthead *flhp, int layouttype,
     int laystat, int *islockedp, struct ucred *cred, NFSPROC_T *p)
 {
 	struct nfsclflayout *tflp;
 	struct nfscldevinfo *dip;
+	uint8_t *dev;
 
 	if (laystat == NFSERR_UNKNLAYOUTTYPE) {
-		/* Disable PNFS. */
-		NFSCL_DEBUG(1, "disable PNFS\n");
 		NFSLOCKMNT(nmp);
-		nmp->nm_state &= ~NFSSTA_PNFS;
+		if (!NFSHASFLEXFILE(nmp)) {
+			/* Switch to using Flex File Layout. */
+			nmp->nm_state |= NFSSTA_FLEXFILE;
+		} else if (layouttype == NFSLAYOUT_FLEXFILE) {
+			/* Disable pNFS. */
+			NFSCL_DEBUG(1, "disable PNFS\n");
+			nmp->nm_state &= ~(NFSSTA_PNFS | NFSSTA_FLEXFILE);
+		}
 		NFSUNLOCKMNT(nmp);
 	}
 	if (laystat == 0) {
@@ -6680,9 +7369,12 @@ nfsrpc_layoutgetres(struct nfsmount *nmp, vnode_t vp, uint8_t *newfhp,
 			laystat = nfscl_adddevinfo(nmp, NULL, tflp);
 			NFSCL_DEBUG(4, "aft adddev=%d\n", laystat);
 			if (laystat != 0) {
-				laystat = nfsrpc_getdeviceinfo(nmp,
-				    tflp->nfsfl_dev, NFSLAYOUT_NFSV4_1_FILES,
-				    notifybit, &dip, cred, p);
+				if (layouttype == NFSLAYOUT_FLEXFILE)
+					dev = tflp->nfsfl_ffm[0].dev;
+				else
+					dev = tflp->nfsfl_dev;
+				laystat = nfsrpc_getdeviceinfo(nmp, dev,
+				    layouttype, notifybit, &dip, cred, p);
 				NFSCL_DEBUG(4, "aft nfsrpc_gdi=%d\n",
 				    laystat);
 				if (laystat != 0)
@@ -6701,7 +7393,7 @@ nfsrpc_layoutgetres(struct nfsmount *nmp, vnode_t vp, uint8_t *newfhp,
 		 * get the fsid for the file system.
 		 */
 		laystat = nfscl_layout(nmp, vp, newfhp, newfhlen, stateidp,
-		    retonclose, flhp, lypp, cred, p);
+		    layouttype, retonclose, flhp, lypp, cred, p);
 		NFSCL_DEBUG(4, "nfsrpc_layoutgetres: aft nfscl_layout=%d\n",
 		    laystat);
 		if (laystat == 0 && islockedp != NULL)
