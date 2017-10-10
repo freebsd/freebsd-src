@@ -562,26 +562,6 @@ mlx5_make_default_gid(struct net_device *dev, union ib_gid *gid)
 	mlx5_addrconf_ifid_eui48(&gid->raw[8], dev);
 }
 
-static inline int
-mlx5_ip2gid(const struct sockaddr *addr, union ib_gid *gid)
-{
-	switch (addr->sa_family) {
-	case AF_INET:
-		ipv6_addr_set_v4mapped(((const struct sockaddr_in *)addr)->sin_addr.s_addr,
-		    (struct in6_addr *)gid->raw);
-		break;
-	case AF_INET6:
-		memcpy(gid->raw, &((const struct sockaddr_in6 *)addr)->sin6_addr, 16);
-		/* clear SCOPE ID */
-		gid->raw[2] = 0;
-		gid->raw[3] = 0;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static void
 mlx5_ib_roce_port_update(void *arg)
 {
@@ -639,7 +619,7 @@ mlx5_ib_roce_port_update(void *arg)
 				    gid_index >= MLX5_IB_GID_MAX)
 					continue;
 				memset(&gid_temp, 0, sizeof(gid_temp));
-				mlx5_ip2gid(ifa->ifa_addr, &gid_temp);
+				rdma_ip2gid(ifa->ifa_addr, &gid_temp);
 				/* check for existing entry */
 				for (j = 0; j != gid_index; j++) {
 					if (bcmp(&gid_temp, &port->gid_table[j], sizeof(gid_temp)) == 0)
