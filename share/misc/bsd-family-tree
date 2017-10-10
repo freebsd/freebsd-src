@@ -351,12 +351,12 @@ FreeBSD 5.2           |      |                 |                       |
  *--FreeBSD   |     macOS    |            OpenBSD 6.0                  |
  |   11.0     |     10.12    |                 |                       |
  |     |      |       |   NetBSD 7.1           |                       |
- |     |      |       |      |                 |               DragonFly 4.8.0
- |     |      |       |      |            OpenBSD 6.1                  |
+ |     |      |     macOS    |                 |               DragonFly 4.8.0
+ |     |      |     10.13    |            OpenBSD 6.1                  |
  |  FreeBSD   |       |      |                 |                       |
  |   11.1  FreeBSD    |      |                 |                       |
- |     |    10.4    macOS    |                 |                       |
- |     v            10.13    |                 |                       |
+ |     |    10.4      |      |            OpenBSD 6.2                  |
+ |     v              |      |                 |                       |
  |                    |      |                 |                       |
 FreeBSD 12 -current   |  NetBSD -current  OpenBSD -current    DragonFly -current
  |                    |      |                 |                       |
@@ -719,6 +719,7 @@ OpenBSD 6.1		2017-04-11 [OBD]
 FreeBSD 11.1		2017-07-26 [FBD]
 macOS 10.13		2017-09-25 [APL]
 FreeBSD 10.4		2017-10-03 [FBD]
+OpenBSD 6.2		2017-10-09 [OBD]
 
 Bibliography
 ------------------------
