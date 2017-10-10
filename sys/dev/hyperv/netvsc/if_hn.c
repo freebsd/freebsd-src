@@ -1999,6 +1999,7 @@ hn_attach(device_t dev)
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	struct ifnet *ifp = NULL;
 	int error, ring_cnt, tx_ring_cnt;
+	uint32_t mtu;
 
 	sc->hn_dev = dev;
 	sc->hn_prichan = vmbus_get_channel(dev);
@@ -2154,6 +2155,12 @@ hn_attach(device_t dev)
 	error = hn_rndis_get_eaddr(sc, eaddr);
 	if (error)
 		goto failed;
+
+	error = hn_rndis_get_mtu(sc, &mtu);
+	if (error)
+		mtu = ETHERMTU;
+	else if (bootverbose)
+		device_printf(dev, "RNDIS mtu %u\n", mtu);
 
 #if __FreeBSD_version >= 1100099
 	if (sc->hn_rx_ring_inuse > 1) {
@@ -2338,6 +2345,10 @@ hn_attach(device_t dev)
 	if ((ifp->if_capabilities & (IFCAP_TSO6 | IFCAP_TSO4)) && bootverbose) {
 		if_printf(ifp, "TSO segcnt %u segsz %u\n",
 		    ifp->if_hw_tsomaxsegcount, ifp->if_hw_tsomaxsegsize);
+	}
+	if (mtu < ETHERMTU) {
+		if_printf(ifp, "fixup mtu %u -> %u\n", ifp->if_mtu, mtu);
+		ifp->if_mtu = mtu;
 	}
 
 	/* Inform the upper layer about the long frame support. */
@@ -3583,6 +3594,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int mask, error = 0;
 	struct ifrsskey *ifrk;
 	struct ifrsshash *ifrh;
+	uint32_t mtu;
 
 	switch (cmd) {
 	case SIOCSIFMTU:
@@ -3646,11 +3658,23 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
+		error = hn_rndis_get_mtu(sc, &mtu);
+		if (error)
+			mtu = ifr->ifr_mtu;
+		else if (bootverbose)
+			if_printf(ifp, "RNDIS mtu %u\n", mtu);
+
 		/*
 		 * Commit the requested MTU, after the synthetic parts
 		 * have been successfully attached.
 		 */
-		ifp->if_mtu = ifr->ifr_mtu;
+		if (mtu >= ifr->ifr_mtu) {
+			mtu = ifr->ifr_mtu;
+		} else {
+			if_printf(ifp, "fixup mtu %d -> %u\n",
+			    ifr->ifr_mtu, mtu);
+		}
+		ifp->if_mtu = mtu;
 
 		/*
 		 * Synthetic parts' reattach may change the chimney
