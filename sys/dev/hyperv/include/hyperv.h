@@ -90,6 +90,7 @@ int			hyperv_guid2str(const struct hyperv_guid *, char *,
  */
 extern hyperv_tc64_t	hyperv_tc64;
 extern u_int		hyperv_features;	/* CPUID_HV_MSR_ */
+extern u_int		hyperv_ver_major;
 
 #endif	/* _KERNEL */
 
