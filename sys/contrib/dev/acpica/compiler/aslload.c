@@ -327,8 +327,9 @@ LdLoadFieldElements (
                      * The name already exists in this scope
                      * But continue processing the elements
                      */
-                    AslError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Child,
-                        Child->Asl.Value.String);
+                    AslDualParseOpError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Child,
+                        Child->Asl.Value.String, ASL_MSG_FOUND_HERE, Node->Op,
+                        Node->Op->Asl.ExternalName);
                 }
             }
             else
@@ -388,8 +389,10 @@ LdLoadResourceElements (
         {
             /* Actual node causing the error was saved in ParentMethod */
 
-            AslError (ASL_ERROR, ASL_MSG_NAME_EXISTS,
-                (ACPI_PARSE_OBJECT *) Op->Asl.ParentMethod, Op->Asl.Namepath);
+            AslDualParseOpError (ASL_ERROR, ASL_MSG_NAME_EXISTS,
+                (ACPI_PARSE_OBJECT *) Op->Asl.ParentMethod,
+                Op->Asl.Namepath, ASL_MSG_FOUND_HERE, Node->Op,
+                Node->Op->Asl.ExternalName);
             return (AE_OK);
         }
         return (Status);
@@ -805,8 +808,8 @@ LdNamespace1Begin (
                 /*
                  * Allow one create on an object or segment that was
                  * previously declared External only if WalkState->OwnerId and
-                 * Node->OwnerId are found in different tables (meaning that
-                 * they have differnt OwnerIds).
+                 * Node->OwnerId are different (meaning that the current WalkState
+                 * and the Node are in different tables).
                  */
                 Node->Flags &= ~ANOBJ_IS_EXTERNAL;
                 Node->Type = (UINT8) ObjectType;
@@ -827,8 +830,9 @@ LdNamespace1Begin (
                 if (Node->OwnerId == WalkState->OwnerId &&
                     !(Node->Flags & IMPLICIT_EXTERNAL))
                 {
-                    AslError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Op,
-                        Op->Asl.ExternalName);
+                    AslDualParseOpError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Op,
+                        Op->Asl.ExternalName, ASL_MSG_FOUND_HERE, Node->Op,
+                        Node->Op->Asl.ExternalName);
                 }
                 if (Node->Flags & IMPLICIT_EXTERNAL)
                 {
@@ -849,8 +853,9 @@ LdNamespace1Begin (
 
                 if (Node->OwnerId == WalkState->OwnerId)
                 {
-                    AslError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Op,
-                        Op->Asl.ExternalName);
+                    AslDualParseOpError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Op,
+                        Op->Asl.ExternalName, ASL_MSG_FOUND_HERE, Node->Op,
+                        Node->Op->Asl.ExternalName);
                 }
             }
             else if ((Node->Flags & ANOBJ_IS_EXTERNAL) &&
@@ -905,8 +910,9 @@ LdNamespace1Begin (
             {
                 /* Valid error, object already exists */
 
-                AslError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Op,
-                    Op->Asl.ExternalName);
+                AslDualParseOpError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Op,
+                    Op->Asl.ExternalName, ASL_MSG_FOUND_HERE, Node->Op,
+                    Node->Op->Asl.ExternalName);
                 return_ACPI_STATUS (AE_OK);
             }
         }
