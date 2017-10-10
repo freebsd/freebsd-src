@@ -79,9 +79,6 @@ LDFLAGS=	-static
 LIBOFW=		${.OBJDIR}/../../ofw/libofw/libofw.a
 CFLAGS+=	-I${.CURDIR}/../../ofw/libofw/
 
-# where to get libstand from
-CFLAGS+=	-I${SASRC}
-
 # Need sys/ for crypto/intake.h
 CFLAGS+=	-I${SRCTOP}/sys
 

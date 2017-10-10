@@ -115,9 +115,6 @@ LIBUBOOT=	${.OBJDIR}/../../uboot/lib/libuboot.a
 CFLAGS+=	-I${.CURDIR}/../../uboot/lib
 CFLAGS+=	-I${.OBJDIR}/../../uboot/lib
 
-# where to get libstand from
-CFLAGS+=	-I${SASRC}
-
 # clang doesn't understand %D as a specifier to printf
 #NO_WERROR.clang=
 #NO_WERROR=
