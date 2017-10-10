@@ -444,7 +444,7 @@ TARGET_ARCHES_riscv?=	riscv64 riscv64sf
 TARGET_ARCHES_${target}?= ${target}
 .endfor
 
-MAKE_PARAMS_riscv?=	CROSS_TOOLCHAIN=riscv64-gcc
+MAKE_PARAMS_riscv?=	CROSS_TOOLCHAIN=riscv64-gcc MK_COVERAGE=no
 
 # XXX Remove architectures only supported by external toolchain from universe
 # if required toolchain packages are missing.
