@@ -1037,7 +1037,7 @@ OpnDoDefinitionBlock (
          * We will use the AML filename that is embedded in the source file
          * for the output filename.
          */
-        Filename = UtStringCacheCalloc (strlen (Gbl_DirectoryPath) +
+        Filename = UtLocalCacheCalloc (strlen (Gbl_DirectoryPath) +
             strlen ((char *) Child->Asl.Value.Buffer) + 1);
 
         /* Prepend the current directory path */
@@ -1094,7 +1094,7 @@ OpnDoDefinitionBlock (
     if (Child->Asl.Value.String)
     {
         Length = strlen (Child->Asl.Value.String);
-        Gbl_TableId = UtStringCacheCalloc (Length + 1);
+        Gbl_TableId = UtLocalCacheCalloc (Length + 1);
         strcpy (Gbl_TableId, Child->Asl.Value.String);
 
         /*

@@ -173,6 +173,7 @@ void
 Usage (
     void)
 {
+    printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
     printf ("%s\n\n", ASL_COMPLIANCE);
     ACPI_USAGE_HEADER ("iasl [Options] [Files]");
 
