@@ -507,8 +507,6 @@ sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 	*so = (*sock_fp)->f_data;
 	if ((*so)->so_type != SOCK_STREAM)
 		return (EINVAL);
-	if (((*so)->so_state & SS_ISCONNECTED) == 0)
-		return (ENOTCONN);
 	return (0);
 }
 
@@ -617,6 +615,12 @@ retry_space:
 			SOCKBUF_UNLOCK(&so->so_snd);
 			goto done;
 		}
+		if ((so->so_state & SS_ISCONNECTED) == 0) {
+			SOCKBUF_UNLOCK(&so->so_snd);
+			error = ENOTCONN;
+			goto done;
+		}
+
 		space = sbspace(&so->so_snd);
 		if (space < rem &&
 		    (space <= 0 ||
