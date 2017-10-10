@@ -534,6 +534,42 @@ struct ifi2creq {
 	uint8_t data[8];	/* read buffer */
 }; 
 
+/*
+ * RSS hash.
+ */
+
+#define	RSS_FUNC_NONE		0		/* RSS disabled */
+#define	RSS_FUNC_PRIVATE	1		/* non-standard */
+#define	RSS_FUNC_TOEPLITZ	2
+
+#define	RSS_TYPE_IPV4		0x00000001
+#define	RSS_TYPE_TCP_IPV4	0x00000002
+#define	RSS_TYPE_IPV6		0x00000004
+#define	RSS_TYPE_IPV6_EX	0x00000008
+#define	RSS_TYPE_TCP_IPV6	0x00000010
+#define	RSS_TYPE_TCP_IPV6_EX	0x00000020
+#define	RSS_TYPE_UDP_IPV4	0x00000040
+#define	RSS_TYPE_UDP_IPV6	0x00000080
+#define	RSS_TYPE_UDP_IPV6_EX	0x00000100
+
+#define	RSS_KEYLEN		128
+
+struct ifrsskey {
+	char		ifrk_name[IFNAMSIZ];	/* if name, e.g. "en0" */
+	uint8_t		ifrk_func;		/* RSS_FUNC_ */
+	uint8_t		ifrk_spare0;
+	uint16_t	ifrk_keylen;
+	uint8_t		ifrk_key[RSS_KEYLEN];
+};
+
+struct ifrsshash {
+	char		ifrh_name[IFNAMSIZ];	/* if name, e.g. "en0" */
+	uint8_t		ifrh_func;		/* RSS_FUNC_ */
+	uint8_t		ifrh_spare0;
+	uint16_t	ifrh_spare1;
+	uint32_t	ifrh_types;		/* RSS_TYPE_ */
+};
+
 #endif /* __BSD_VISIBLE */
 
 #ifdef _KERNEL
