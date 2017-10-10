@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
@@ -503,7 +504,7 @@ hn_nvs_conf_ndis(struct hn_softc *sc, int mtu)
 
 	memset(&conf, 0, sizeof(conf));
 	conf.nvs_type = HN_NVS_TYPE_NDIS_CONF;
-	conf.nvs_mtu = mtu;
+	conf.nvs_mtu = mtu + ETHER_HDR_LEN;
 	conf.nvs_caps = HN_NVS_NDIS_CONF_VLAN;
 	if (sc->hn_nvs_ver >= HN_NVS_VERSION_5)
 		conf.nvs_caps |= HN_NVS_NDIS_CONF_SRIOV;
