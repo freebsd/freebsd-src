@@ -1748,8 +1748,7 @@ mount_reload(const struct statfs *stfs)
  * Calculate the check-hash of the cylinder group.
  */
 static void
-cgckhash(cgp)
-	struct cg *cgp;
+cgckhash(struct cg *cgp)
 {
 
 	if ((sblock.fs_metackhash & CK_CYLGRP) == 0)
