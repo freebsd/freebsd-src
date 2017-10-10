@@ -502,7 +502,7 @@ hn_rndis_query_rsscaps(struct hn_softc *sc, int *rxr_cnt0)
 
 	/* Commit! */
 	sc->hn_rss_ind_size = indsz;
-	sc->hn_rss_hash = hash_func | hash_types;
+	sc->hn_rss_hcap = hash_func | hash_types;
 	*rxr_cnt0 = rxr_cnt;
 	return (0);
 }
