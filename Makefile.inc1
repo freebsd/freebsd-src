@@ -557,8 +557,7 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
-		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		MK_COVERAGE_SUPPORT=${MK_COVERAGE} MK_GDB=no \
+		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} MK_GDB=no \
 		MK_LLD_IS_LD=${MK_LLD_BOOTSTRAP} MK_TESTS=no
 
 # kernel-tools stage
@@ -2080,12 +2079,6 @@ _lld=		usr.bin/clang/lld
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_LLD_BOOTSTRAP} != "no"
 _clang_libs=	lib/clang
 .endif
-
-.if ${MK_COVERAGE_SUPPORT} != "no"
-_coverage_libs.${MK_CLANG}+=	lib/libclang_rt/profile
-_coverage_lib.${MK_GCC}+=	gnu/lib/libgcov
-.endif
-
 .if ${MK_GCC_BOOTSTRAP} != "no"
 _gcc=		gnu/usr.bin/cc
 .endif
@@ -2097,7 +2090,6 @@ cross-tools: .MAKE .PHONY
 .for _tool in \
     ${LOCAL_XTOOL_DIRS} \
     ${_clang_libs} \
-    ${_coverage_libs.yes} \
     ${_clang} \
     ${_lld} \
     ${_binutils} \
@@ -2251,6 +2243,16 @@ _prereq_libs= lib/libcompiler_rt
 .if ${MK_SSP} != "no"
 _prereq_libs+= gnu/lib/libssp/libssp_nonshared
 .endif
+
+#
+# The coverage libraries must be built for the target prior to ${_startup_libs}
+# in order for them to have runtime coverage instrumentation.
+#
+.if ${MK_COVERAGE} != "no"
+_coverage_libs.${MK_CLANG}+=	lib/libclang_rt/profile
+_coverage_lib.${MK_GCC}+=	gnu/lib/libgcov
+.endif
+_prereq_libs+=	${_coverage_libs.yes}
 
 # These dependencies are not automatically generated:
 #
