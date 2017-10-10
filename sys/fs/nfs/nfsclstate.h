@@ -91,6 +91,7 @@ struct nfsclds {
 #define	NFSCLDS_HASWRITEVERF	0x0001
 #define	NFSCLDS_MDS		0x0002
 #define	NFSCLDS_DS		0x0004
+#define	NFSCLDS_CLOSED		0x0008
 
 struct nfsclclient {
 	LIST_ENTRY(nfsclclient) nfsc_list;
