@@ -86,6 +86,7 @@ static const struct krping_option krping_opts[] = {
 	{"count", OPT_INT, 'C'},
 	{"size", OPT_INT, 'S'},
 	{"addr", OPT_STRING, 'a'},
+	{"addr6", OPT_STRING, 'A'},
 	{"port", OPT_INT, 'p'},
 	{"verbose", OPT_NOPARAM, 'v'},
 	{"validate", OPT_NOPARAM, 'V'},
@@ -220,7 +221,11 @@ struct krping_cb {
 	struct krping_stats stats;
 
 	uint16_t port;			/* dst port in NBO */
-	struct in_addr addr;		/* dst addr in NBO */
+	union {
+		struct in_addr v4;
+		struct in6_addr v6;
+	} addr;				/* dst addr in NBO */
+	int addr_type;			/* AF_INET or AF_INET6 */
 	char *addr_str;			/* dst addr string */
 	int verbose;			/* verbose logging */
 	int count;			/* ping count */
@@ -1600,14 +1605,30 @@ static int fastreg_supported(struct krping_cb *cb, int server)
 
 static int krping_bind_server(struct krping_cb *cb)
 {
-	struct sockaddr_in sin;
+	union {
+		struct sockaddr_in v4;
+		struct sockaddr_in6 v6;
+	} sin;
 	int ret;
 
 	memset(&sin, 0, sizeof(sin));
-	sin.sin_len = sizeof sin;
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = cb->addr.s_addr;
-	sin.sin_port = cb->port;
+
+	switch (cb->addr_type) {
+	case AF_INET:
+		sin.v4.sin_len = sizeof sin.v4;
+		sin.v4.sin_family = AF_INET;
+		sin.v4.sin_addr = cb->addr.v4;
+		sin.v4.sin_port = cb->port;
+		break;
+	case AF_INET6:
+		sin.v6.sin6_len = sizeof sin.v6;
+		sin.v6.sin6_family = AF_INET6;
+		sin.v6.sin6_addr = cb->addr.v6;
+		sin.v6.sin6_port = cb->port;
+		break;
+	default:
+		return (-EINVAL);
+	}
 
 	ret = rdma_bind_addr(cb->cm_id, (struct sockaddr *) &sin);
 	if (ret) {
@@ -3059,14 +3080,30 @@ static int krping_connect_client(struct krping_cb *cb)
 
 static int krping_bind_client(struct krping_cb *cb)
 {
-	struct sockaddr_in sin;
+	union {
+		struct sockaddr_in v4;
+		struct sockaddr_in6 v6;
+	} sin;
 	int ret;
 
 	memset(&sin, 0, sizeof(sin));
-	sin.sin_len = sizeof sin;
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = cb->addr.s_addr;
-	sin.sin_port = cb->port;
+
+	switch (cb->addr_type) {
+	case AF_INET:
+		sin.v4.sin_len = sizeof sin.v4;
+		sin.v4.sin_family = AF_INET;
+		sin.v4.sin_addr = cb->addr.v4;
+		sin.v4.sin_port = cb->port;
+		break;
+	case AF_INET6:
+		sin.v6.sin6_len = sizeof sin.v6;
+		sin.v6.sin6_family = AF_INET6;
+		sin.v6.sin6_addr = cb->addr.v6;
+		sin.v6.sin6_port = cb->port;
+		break;
+	default:
+		return (-EINVAL);
+	}
 
 	ret = rdma_resolve_addr(cb->cm_id, NULL, (struct sockaddr *) &sin,
 				2000);
@@ -3140,12 +3177,29 @@ err1:
 	krping_free_qp(cb);
 }
 
+static uint16_t
+krping_get_ipv6_scope_id(char *name)
+{
+	struct ifnet *ifp;
+	uint16_t retval;
+
+	if (name == NULL)
+		return (0);
+	ifp = ifunit_ref(name);
+	if (ifp == NULL)
+		return (0);
+	retval = ifp->if_index;
+	if_rele(ifp);
+	return (retval);
+}
+
 int krping_doit(char *cmd, void *cookie)
 {
 	struct krping_cb *cb;
 	int op;
 	int ret = 0;
 	char *optarg;
+	char *scope;
 	unsigned long optint;
 
 	cb = kzalloc(sizeof(*cb), GFP_KERNEL);
@@ -3162,6 +3216,7 @@ int krping_doit(char *cmd, void *cookie)
 	cb->size = 64;
 	cb->txdepth = RPING_SQ_DEPTH;
 	cb->mem = DMA;
+	cb->addr_type = AF_INET;
 	init_waitqueue_head(&cb->sem);
 
 	while ((op = krping_getopt("krping", &cmd, krping_opts, NULL, &optarg,
@@ -3169,11 +3224,33 @@ int krping_doit(char *cmd, void *cookie)
 		switch (op) {
 		case 'a':
 			cb->addr_str = optarg;
-			DEBUG_LOG(cb, "ipaddr (%s)\n", optarg);
-			if (!inet_aton(optarg, &cb->addr)) {
+			cb->addr_type = AF_INET;
+			DEBUG_LOG(cb, "ipv4addr (%s)\n", optarg);
+			if (inet_pton(AF_INET, optarg, &cb->addr) != 1) {
 				PRINTF(cb, "bad addr string %s\n",
 				    optarg);
 				ret = EINVAL;
+			}
+			break;
+		case 'A':
+			cb->addr_str = optarg;
+			cb->addr_type = AF_INET6;
+			DEBUG_LOG(cb, "ipv6addr (%s)\n", optarg);
+			scope = strstr(optarg, "%");
+			/* extract scope ID, if any */
+			if (scope != NULL)
+				*scope++ = 0;
+			/* extract IPv6 network address */
+			if (inet_pton(AF_INET6, optarg, &cb->addr) != 1) {
+				PRINTF(cb, "bad addr string %s\n",
+				    optarg);
+				ret = EINVAL;
+			} else if (IN6_IS_SCOPE_LINKLOCAL(&cb->addr.v6) ||
+			    IN6_IS_ADDR_MC_INTFACELOCAL(&cb->addr.v6)) {
+				uint16_t scope_id = krping_get_ipv6_scope_id(scope);
+				DEBUG_LOG(cb, "ipv6 scope ID = %d\n", scope_id);
+				cb->addr.v6.s6_addr[2] = scope_id >> 8;
+				cb->addr.v6.s6_addr[3] = scope_id & 0xFF;
 			}
 			break;
 		case 'p':
