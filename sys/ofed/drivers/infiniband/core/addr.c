@@ -172,7 +172,9 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 			sin6 = (struct sockaddr_in6 *)addr;
 			port = sin6->sin6_port;
 			sin6->sin6_port = 0;
+			CURVNET_SET_QUIET(&init_net);
 			ifa = ifa_ifwithaddr(addr);
+			CURVNET_RESTORE();
 			sin6->sin6_port = port;
 			if (ifa == NULL) {
 				ret = -ENODEV;
@@ -339,7 +341,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 #else
 #include <netinet/if_ether.h>
 
-static int addr_resolve(struct sockaddr *src_in,
+static int addr_resolve_sub(struct sockaddr *src_in,
 			struct sockaddr *dst_in,
 			struct rdma_dev_addr *addr)
 {
@@ -487,6 +489,18 @@ mcast:
 	return -error;
 }
 
+static int addr_resolve(struct sockaddr *src_in,
+			struct sockaddr *dst_in,
+			struct rdma_dev_addr *addr)
+{
+	int error;
+
+	CURVNET_SET_QUIET(&init_net);
+	error = addr_resolve_sub(src_in, dst_in, addr);
+	CURVNET_RESTORE();
+
+	return (error);
+}
 #endif
 
 static void process_req(struct work_struct *work)
