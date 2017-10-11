@@ -699,10 +699,13 @@ struct vm_exit {
 /* Used when saving and restoring vmcs for Intel or vmcb for AMD processors. */
 struct vmcx_state {
 	uint64_t guest_cr0;
+	uint64_t guest_cr2;
 	uint64_t guest_cr3;
 	uint64_t guest_cr4;
+	uint64_t guest_dr6;
 	uint64_t guest_dr7;
 
+	uint64_t guest_rax;
 	uint64_t guest_rsp;
 	uint64_t guest_rip;
 	uint64_t guest_rflags;
@@ -745,6 +748,8 @@ struct vmcx_state {
 
 	uint64_t vmcs_entry_ctls;
 	uint64_t vmcs_exit_ctls;
+
+	uint64_t guest_intr_shadow;
 };
 
 /* APIs to inject faults into the guest */
