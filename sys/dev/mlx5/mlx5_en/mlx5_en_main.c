@@ -1415,7 +1415,7 @@ mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param, int eq_ix)
 	if (err)
 		return (err);
 
-	mlx5e_cq_arm(cq);
+	mlx5e_cq_arm(cq, MLX5_GET_DOORBELL_LOCK(&cq->priv->doorbell_lock));
 
 	return (0);
 }
