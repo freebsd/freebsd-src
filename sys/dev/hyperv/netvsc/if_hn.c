@@ -584,7 +584,7 @@ SYSCTL_PROC(_hw_hn, OID_AUTO, vfmap, CTLFLAG_RD | CTLTYPE_STRING,
     0, 0, hn_vfmap_sysctl, "A", "VF mapping");
 
 /* Transparent VF */
-static int			hn_xpnt_vf = 0;
+static int			hn_xpnt_vf = 1;
 SYSCTL_INT(_hw_hn, OID_AUTO, vf_transparent, CTLFLAG_RDTUN,
     &hn_xpnt_vf, 0, "Transparent VF mod");
 
