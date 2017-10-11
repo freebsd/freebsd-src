@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+MK_COVERAGE=	no
+
 PROG=	boot1.elf
 INTERNALPROG=
 MAN=
