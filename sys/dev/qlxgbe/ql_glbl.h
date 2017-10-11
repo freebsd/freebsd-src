@@ -112,4 +112,8 @@ extern unsigned int ql83xx_resetseq_len;
 extern unsigned char ql83xx_minidump[];
 extern unsigned int ql83xx_minidump_len;
 
+extern void ql_alloc_drvr_state_buffer(qla_host_t *ha);
+extern void ql_free_drvr_state_buffer(qla_host_t *ha);
+extern void ql_capture_drvr_state(qla_host_t *ha);
+
 #endif /* #ifndef_QL_GLBL_H_ */
