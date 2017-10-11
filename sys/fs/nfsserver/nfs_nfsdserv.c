@@ -910,7 +910,7 @@ nfsrvd_write(struct nfsrv_descript *nd, __unused int isdgram,
 		    nd->nd_md, nd->nd_dpos, nd->nd_cred, p);
 		error = nfsm_advance(nd, NFSM_RNDUP(retlen), -1);
 		if (error)
-			panic("nfsrv_write mbuf");
+			goto nfsmout;
 	}
 	if (nd->nd_flag & ND_NFSV4)
 		aftat_ret = 0;
