@@ -72,6 +72,7 @@ extern struct mtx nfsrv_dsrmlock_mtx;
 extern struct mtx nfsrv_dwrpclock_mtx;
 extern struct mtx nfsrv_dsrpclock_mtx;
 extern struct mtx nfsrv_darpclock_mtx;
+extern int nfs_pnfsiothreads;
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
 NFSSTATESPINLOCK;
@@ -126,6 +127,8 @@ static int nfsrv_getattrdsrpc(fhandle_t *, struct ucred *, NFSPROC_T *,
 static int nfsrv_putfhname(fhandle_t *, char *);
 static int nfsrv_pnfslookupds(struct vnode *, struct pnfsdsfile *,
     struct vnode *, NFSPROC_T *);
+
+int nfs_pnfsio(task_fn_t *, void *);
 
 SYSCTL_NODE(_vfs, OID_AUTO, nfsd, CTLFLAG_RW, 0, "NFS server");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, mirrormnt, CTLFLAG_RW,
@@ -4419,6 +4422,9 @@ nfsmout:
  * so that this function can be executed by a separate kernel process.
  */
 struct nfsrvwritedsdorpc {
+	int			done;
+	int			inprog;
+	struct task		tsk;
 	fhandle_t		fh;
 	off_t			off;
 	int			len;
@@ -4426,7 +4432,6 @@ struct nfsrvwritedsdorpc {
 	struct ucred		*cred;
 	NFSPROC_T		*p;
 	struct mbuf		*m;
-	int			haskproc;
 	int			err;
 };
 
@@ -4543,18 +4548,15 @@ nfsmout:
  * Start up the thread that will execute nfsrv_writedsdorpc().
  */
 static void
-start_writedsdorpc(void *arg)
+start_writedsdorpc(void *arg, int pending)
 {
 	struct nfsrvwritedsdorpc *drpc;
 
 	drpc = (struct nfsrvwritedsdorpc *)arg;
 	drpc->err = nfsrv_writedsdorpc(drpc->nmp, &drpc->fh, drpc->off,
 	    drpc->len, NULL, drpc->m, drpc->cred, drpc->p);
-	NFSDWRPCLOCK();
-	drpc->haskproc = 0;
-	wakeup(drpc);
-	NFSDWRPCUNLOCK();
-	kproc_exit(0);
+	drpc->done = 1;
+	NFSD_DEBUG(4, "start_writedsdorpc: err=%d\n", drpc->err);
 }
 
 static int
@@ -4565,7 +4567,7 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 	struct nfsrvwritedsdorpc *drpc, *tdrpc;
 	struct nfsvattr na;
 	struct mbuf *m;
-	int error, haskproc, i, offs, ret;
+	int error, i, offs, ret, timo;
 
 	NFSD_DEBUG(4, "in nfsrv_writedsrpc\n");
 	KASSERT(*mpp != NULL, ("nfsrv_writedsrpc: NULL mbuf chain"));
@@ -4582,23 +4584,25 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 	 * Do the write RPC for every DS, using a separate kernel process
 	 * for every DS except the last one.
 	 */
-	haskproc = 0;
 	error = 0;
 	for (i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
+		tdrpc->done = 0;
 		tdrpc->fh = *fhp;
 		tdrpc->off = off;
 		tdrpc->len = len;
 		tdrpc->nmp = *nmpp;
 		tdrpc->cred = cred;
 		tdrpc->p = p;
+		tdrpc->inprog = 0;
+		tdrpc->err = 0;
 		tdrpc->m = m_copym(*mpp, offs, NFSM_RNDUP(len), M_WAITOK);
-		tdrpc->haskproc = 1;
-		ret = kproc_create(start_writedsdorpc, (void *)tdrpc, NULL, 0,
-		    0, "nfsdpw");
-		if (ret == 0)
-			haskproc = 1;
-		else {
-			tdrpc->haskproc = 0;
+		ret = EIO;
+		if (nfs_pnfsiothreads > 0) {
+			ret = nfs_pnfsio(start_writedsdorpc, tdrpc);
+			NFSD_DEBUG(4, "nfsrv_writedsrpc: nfs_pnfsio=%d\n",
+			    ret);
+		}
+		if (ret != 0) {
 			ret = nfsrv_writedsdorpc(*nmpp, fhp, off, len, NULL,
 			    tdrpc->m, cred, p);
 			if (error == 0 && ret != 0)
@@ -4615,17 +4619,16 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 		error = nfsrv_setextattr(vp, &na, p);
 	NFSD_DEBUG(4, "nfsrv_writedsrpc: aft setextat=%d\n",
 	    error);
-	if (haskproc != 0) {
-		/* Wait for kernel proc(s) to complete. */
-		NFSDWRPCLOCK();
-		for (tdrpc = drpc, i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
-			while (tdrpc->haskproc != 0)
-				mtx_sleep(tdrpc, NFSDWRPCLOCKMUTEXPTR, PVFS,
-				    "nfspw", 0);
-			if (error == 0 && tdrpc->err != 0)
-				error = tdrpc->err;
-		}
-		NFSDWRPCUNLOCK();
+	tdrpc = drpc;
+	timo = hz / 50;		/* Wait for 20msec. */
+	if (timo < 1)
+		timo = 1;
+	for (i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
+		/* Wait for RPCs on separate threads to complete. */
+		while (tdrpc->inprog != 0 && tdrpc->done == 0)
+			tsleep(&tdrpc->tsk, PVFS, "srvwrds", timo);
+		if (error == 0 && tdrpc->err != 0)
+			error = tdrpc->err;
 	}
 	free(drpc, M_TEMP);
 	return (error);
@@ -4715,6 +4718,9 @@ nfsmout:
 }
 
 struct nfsrvsetattrdsdorpc {
+	int			done;
+	int			inprog;
+	struct task		tsk;
 	fhandle_t		fh;
 	struct nfsmount		*nmp;
 	struct vnode		*vp;
@@ -4722,7 +4728,6 @@ struct nfsrvsetattrdsdorpc {
 	NFSPROC_T		*p;
 	struct nfsvattr		na;
 	struct nfsvattr		dsna;
-	int			haskproc;
 	int			err;
 };
 
@@ -4730,18 +4735,14 @@ struct nfsrvsetattrdsdorpc {
  * Start up the thread that will execute nfsrv_setattrdsdorpc().
  */
 static void
-start_setattrdsdorpc(void *arg)
+start_setattrdsdorpc(void *arg, int pending)
 {
 	struct nfsrvsetattrdsdorpc *drpc;
 
 	drpc = (struct nfsrvsetattrdsdorpc *)arg;
 	drpc->err = nfsrv_setattrdsdorpc(&drpc->fh, drpc->cred, drpc->p,
 	    drpc->vp, drpc->nmp, &drpc->na, &drpc->dsna);
-	NFSDSRPCLOCK();
-	drpc->haskproc = 0;
-	wakeup(drpc);
-	NFSDSRPCUNLOCK();
-	kproc_exit(0);
+	drpc->done = 1;
 }
 
 static int
@@ -4751,7 +4752,7 @@ nfsrv_setattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 {
 	struct nfsrvsetattrdsdorpc *drpc, *tdrpc;
 	struct nfsvattr na;
-	int error, haskproc, i, ret;
+	int error, i, ret, timo;
 
 	NFSD_DEBUG(4, "in nfsrv_setattrdsrpc\n");
 	drpc = NULL;
@@ -4763,22 +4764,24 @@ nfsrv_setattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	 * Do the setattr RPC for every DS, using a separate kernel process
 	 * for every DS except the last one.
 	 */
-	haskproc = 0;
 	error = 0;
 	for (i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
+		tdrpc->done = 0;
+		tdrpc->inprog = 0;
 		tdrpc->fh = *fhp;
 		tdrpc->nmp = *nmpp;
 		tdrpc->vp = vp;
 		tdrpc->cred = cred;
 		tdrpc->p = p;
 		tdrpc->na = *nap;
-		tdrpc->haskproc = 1;
-		ret = kproc_create(start_setattrdsdorpc, (void *)tdrpc, NULL, 0,
-		    0, "nfsdps");
-		if (ret == 0)
-			haskproc = 1;
-		else {
-			tdrpc->haskproc = 0;
+		tdrpc->err = 0;
+		ret = EIO;
+		if (nfs_pnfsiothreads > 0) {
+			ret = nfs_pnfsio(start_setattrdsdorpc, tdrpc);
+			NFSD_DEBUG(4, "nfsrv_setattrdsrpc: nfs_pnfsio=%d\n",
+			    ret);
+		}
+		if (ret != 0) {
 			ret = nfsrv_setattrdsdorpc(fhp, cred, p, vp, *nmpp, nap,
 			    &na);
 			if (error == 0 && ret != 0)
@@ -4793,17 +4796,16 @@ nfsrv_setattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	if (error == 0)
 		error = nfsrv_setextattr(vp, &na, p);
 	NFSD_DEBUG(4, "nfsrv_setattrdsrpc: aft setextat=%d\n", error);
-	if (haskproc != 0) {
-		/* Wait for kernel proc(s) to complete. */
-		NFSDSRPCLOCK();
-		for (tdrpc = drpc, i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
-			while (tdrpc->haskproc != 0)
-				mtx_sleep(tdrpc, NFSDSRPCLOCKMUTEXPTR, PVFS,
-				    "nfsps", 0);
-			if (error == 0 && tdrpc->err != 0)
-				error = tdrpc->err;
-		}
-		NFSDSRPCUNLOCK();
+	tdrpc = drpc;
+	timo = hz / 50;		/* Wait for 20msec. */
+	if (timo < 1)
+		timo = 1;
+	for (i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
+		/* Wait for RPCs on separate threads to complete. */
+		while (tdrpc->inprog != 0 && tdrpc->done == 0)
+			tsleep(&tdrpc->tsk, PVFS, "srvsads", timo);
+		if (error == 0 && tdrpc->err != 0)
+			error = tdrpc->err;
 	}
 	free(drpc, M_TEMP);
 	return (error);
@@ -4860,13 +4862,15 @@ nfsrv_setacldsdorpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 }
 
 struct nfsrvsetacldsdorpc {
+	int			done;
+	int			inprog;
+	struct task		tsk;
 	fhandle_t		fh;
 	struct nfsmount		*nmp;
 	struct vnode		*vp;
 	struct ucred		*cred;
 	NFSPROC_T		*p;
 	struct acl		*aclp;
-	int			haskproc;
 	int			err;
 };
 
@@ -4874,18 +4878,14 @@ struct nfsrvsetacldsdorpc {
  * Start up the thread that will execute nfsrv_setacldsdorpc().
  */
 static void
-start_setacldsdorpc(void *arg)
+start_setacldsdorpc(void *arg, int pending)
 {
 	struct nfsrvsetacldsdorpc *drpc;
 
 	drpc = (struct nfsrvsetacldsdorpc *)arg;
 	drpc->err = nfsrv_setacldsdorpc(&drpc->fh, drpc->cred, drpc->p,
 	    drpc->vp, drpc->nmp, drpc->aclp);
-	NFSDARPCLOCK();
-	drpc->haskproc = 0;
-	wakeup(drpc);
-	NFSDARPCUNLOCK();
-	kproc_exit(0);
+	drpc->done = 1;
 }
 
 static int
@@ -4893,7 +4893,7 @@ nfsrv_setacldsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
     struct vnode *vp, struct nfsmount **nmpp, int mirrorcnt, struct acl *aclp)
 {
 	struct nfsrvsetacldsdorpc *drpc, *tdrpc;
-	int error, haskproc, i, ret;
+	int error, i, ret, timo;
 
 	NFSD_DEBUG(4, "in nfsrv_setacldsrpc\n");
 	drpc = NULL;
@@ -4905,22 +4905,24 @@ nfsrv_setacldsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	 * Do the setattr RPC for every DS, using a separate kernel process
 	 * for every DS except the last one.
 	 */
-	haskproc = 0;
 	error = 0;
 	for (i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
+		tdrpc->done = 0;
+		tdrpc->inprog = 0;
 		tdrpc->fh = *fhp;
 		tdrpc->nmp = *nmpp;
 		tdrpc->vp = vp;
 		tdrpc->cred = cred;
 		tdrpc->p = p;
 		tdrpc->aclp = aclp;
-		tdrpc->haskproc = 1;
-		ret = kproc_create(start_setacldsdorpc, (void *)tdrpc, NULL, 0,
-		    0, "nfsdpa");
-		if (ret == 0)
-			haskproc = 1;
-		else {
-			tdrpc->haskproc = 0;
+		tdrpc->err = 0;
+		ret = EIO;
+		if (nfs_pnfsiothreads > 0) {
+			ret = nfs_pnfsio(start_setacldsdorpc, tdrpc);
+			NFSD_DEBUG(4, "nfsrv_setacldsrpc: nfs_pnfsio=%d\n",
+			    ret);
+		}
+		if (ret != 0) {
 			ret = nfsrv_setacldsdorpc(fhp, cred, p, vp, *nmpp,
 			    aclp);
 			if (error == 0 && ret != 0)
@@ -4933,17 +4935,16 @@ nfsrv_setacldsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	if (error == 0 && ret != 0)
 		error = ret;
 	NFSD_DEBUG(4, "nfsrv_setacldsrpc: aft setextat=%d\n", error);
-	if (haskproc != 0) {
-		/* Wait for kernel proc(s) to complete. */
-		NFSDARPCLOCK();
-		for (tdrpc = drpc, i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
-			while (tdrpc->haskproc != 0)
-				mtx_sleep(tdrpc, NFSDARPCLOCKMUTEXPTR, PVFS,
-				    "nfspa", 0);
-			if (error == 0 && tdrpc->err != 0)
-				error = tdrpc->err;
-		}
-		NFSDARPCUNLOCK();
+	tdrpc = drpc;
+	timo = hz / 50;		/* Wait for 20msec. */
+	if (timo < 1)
+		timo = 1;
+	for (i = 0; i < mirrorcnt - 1; i++, tdrpc++) {
+		/* Wait for RPCs on separate threads to complete. */
+		while (tdrpc->inprog != 0 && tdrpc->done == 0)
+			tsleep(&tdrpc->tsk, PVFS, "srvacds", timo);
+		if (error == 0 && tdrpc->err != 0)
+			error = tdrpc->err;
 	}
 	free(drpc, M_TEMP);
 	return (error);
