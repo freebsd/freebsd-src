@@ -445,7 +445,7 @@ mlx5e_rx_cq_comp(struct mlx5_core_cq *mcq)
 		mlx5e_post_rx_wqes(rq);
 	}
 	mlx5e_post_rx_wqes(rq);
-	mlx5e_cq_arm(&rq->cq);
+	mlx5e_cq_arm(&rq->cq, MLX5_GET_DOORBELL_LOCK(&rq->channel->priv->doorbell_lock));
 #ifdef HAVE_TURBO_LRO
 	tcp_tlro_flush(&rq->lro, 1);
 #endif
