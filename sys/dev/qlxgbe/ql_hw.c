@@ -2374,6 +2374,20 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 		}
 	}
 
+	for (i = 0; i < num_tx_cmds; i++) {
+		int j;
+
+		j = (tx_idx+i) & (NUM_TX_DESCRIPTORS - 1);
+
+		if (NULL != ha->tx_ring[txr_idx].tx_buf[j].m_head) {
+			QL_ASSERT(ha, 0, \
+				("%s [%d]: txr_idx = %d tx_idx = %d mbuf = %p\n",\
+				__func__, __LINE__, txr_idx, j,\
+				ha->tx_ring[txr_idx].tx_buf[j].m_head));
+			return (EINVAL);
+		}
+	}
+
 	tx_cmd = &hw->tx_cntxt[txr_idx].tx_ring_base[tx_idx];
 
         if (!(mp->m_pkthdr.csum_flags & CSUM_TSO)) {
