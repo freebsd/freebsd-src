@@ -2482,7 +2482,6 @@ OLD_FILES+=usr/share/man/man8/gpioctl.8.gz
 .if ${MK_GNU_DIFF} == no
 OLD_FILES+=usr/bin/diff3
 OLD_FILES+=usr/share/man/man1/diff3.1.gz
-OLD_FILES+=usr/share/man/man7/diff.7.gz
 .endif
 
 .if ${MK_GNU_GREP} == no
