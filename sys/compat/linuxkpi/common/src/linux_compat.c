@@ -94,7 +94,6 @@ struct device linux_root_device;
 struct class linux_class_misc;
 struct list_head pci_drivers;
 struct list_head pci_devices;
-struct net init_net;
 spinlock_t pci_lock;
 struct sx linux_global_rcu_lock;
 
