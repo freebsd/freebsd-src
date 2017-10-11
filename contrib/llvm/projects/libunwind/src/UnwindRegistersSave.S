@@ -470,4 +470,5 @@ DEFINE_LIBUNWIND_FUNCTION(unw_getcontext)
 
 #endif
 
-    .section .note.GNU-stack,"",@progbits
+NO_EXEC_STACK_DIRECTIVE
+
