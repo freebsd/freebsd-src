@@ -492,6 +492,7 @@ qla_pci_attach(device_t dev)
 		device_printf(dev, "%s: ql_minidump_init failed\n", __func__);
 		goto qla_pci_attach_err;
 	}
+	ql_alloc_drvr_state_buffer(ha);
 	/* create the o.s ethernet interface */
 	qla_init_ifnet(dev, ha);
 
@@ -645,6 +646,7 @@ qla_release(qla_host_t *ha)
 	if (ha->ifp != NULL)
 		ether_ifdetach(ha->ifp);
 
+	ql_free_drvr_state_buffer(ha);
 	ql_free_dma(ha); 
 	qla_free_parent_dma_tag(ha);
 
