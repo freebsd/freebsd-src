@@ -366,6 +366,27 @@ delete_unrhdr(struct unrhdr *uh)
 	Free(uh);
 }
 
+void
+clear_unrhdr(struct unrhdr *uh)
+{
+	struct unr *up, *uq;
+
+	KASSERT(TAILQ_EMPTY(&uh->ppfree),
+	    ("unrhdr has postponed item for free"));
+	up = TAILQ_FIRST(&uh->head);
+	while (up != NULL) {
+		uq = TAILQ_NEXT(up, list);
+		if (up->ptr != uh) {
+			Free(up->ptr);
+		}
+		Free(up);
+		up = uq;
+	}
+	TAILQ_INIT(&uh->head);
+	uh->busy = 0;
+	uh->alloc = 0;
+}
+
 static __inline int
 is_bitmap(struct unrhdr *uh, struct unr *up)
 {
