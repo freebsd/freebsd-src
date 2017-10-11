@@ -1424,6 +1424,8 @@ hn_rss_type_fromndis(uint32_t rss_hash)
 		types |= RSS_TYPE_TCP_IPV6;
 	if (rss_hash & NDIS_HASH_TCP_IPV6_EX)
 		types |= RSS_TYPE_TCP_IPV6_EX;
+	if (rss_hash & NDIS_HASH_UDP_IPV4_X)
+		types |= RSS_TYPE_UDP_IPV4;
 	return (types);
 }
 
@@ -1432,9 +1434,8 @@ hn_rss_type_tondis(uint32_t types)
 {
 	uint32_t rss_hash = 0;
 
-	KASSERT((types &
-	(RSS_TYPE_UDP_IPV4 | RSS_TYPE_UDP_IPV6 | RSS_TYPE_UDP_IPV6_EX)) == 0,
-	("UDP4, UDP6 and UDP6EX are not supported"));
+	KASSERT((types & (RSS_TYPE_UDP_IPV6 | RSS_TYPE_UDP_IPV6_EX)) == 0,
+	    ("UDP6 and UDP6EX are not supported"));
 
 	if (types & RSS_TYPE_IPV4)
 		rss_hash |= NDIS_HASH_IPV4;
@@ -1448,6 +1449,8 @@ hn_rss_type_tondis(uint32_t types)
 		rss_hash |= NDIS_HASH_TCP_IPV6;
 	if (types & RSS_TYPE_TCP_IPV6_EX)
 		rss_hash |= NDIS_HASH_TCP_IPV6_EX;
+	if (types & RSS_TYPE_UDP_IPV4)
+		rss_hash |= NDIS_HASH_UDP_IPV4_X;
 	return (rss_hash);
 }
 
@@ -1546,6 +1549,13 @@ hn_vf_rss_fixup(struct hn_softc *sc, bool reconf)
 	 * NOTE:
 	 * We don't disable the hash type, but stop delivery the hash
 	 * value/type through mbufs on RX path.
+	 *
+	 * XXX If HN_CAP_UDPHASH is set in hn_caps, then UDP 4-tuple
+	 * hash is delivered with type of TCP_IPV4.  This means if
+	 * UDP_IPV4 is enabled, then TCP_IPV4 should be forced, at
+	 * least to hn_mbuf_hash.  However, given that _all_ of the
+	 * NICs implement TCP_IPV4, this will _not_ impose any issues
+	 * here.
 	 */
 	if ((my_types & RSS_TYPE_IPV4) &&
 	    (diff_types & ifrh.ifrh_types &
@@ -3582,7 +3592,9 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 						    &l3proto, &l4proto);
 					}
 					if (l3proto == ETHERTYPE_IP) {
-						if (l4proto == IPPROTO_UDP) {
+						if (l4proto == IPPROTO_UDP &&
+						    (rxr->hn_mbuf_hash &
+						     NDIS_HASH_UDP_IPV4_X)) {
 							hash_type =
 							M_HASHTYPE_RSS_UDP_IPV4;
 							do_lro = 0;
