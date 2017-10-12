@@ -10,8 +10,6 @@ SASRC=${SRCTOP}/lib/libstand
 LIBSA=${OBJTOP}/sys/boot/libsa/libstand.a
 # Standalone library compiled for 32-bit version of the processor
 LIBSA32=${OBJTOP}/sys/boot/libstand32/libstand.a
-# Standalone library compiled for userboot
-LIBSAU=${OBJTOP}/sys/boot/userboot/libstand/libstand.a
 
 CFLAGS+=-I${SASRC}
 
