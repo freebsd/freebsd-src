@@ -42,6 +42,7 @@
  * using our derived config, and record the results.
  */
 
+#include <aio.h>
 #include <ctype.h>
 #include <devid.h>
 #include <dirent.h>
@@ -919,13 +920,17 @@ zpool_read_label(int fd, nvlist_t **config)
  * Given a file descriptor, read the label information and return an nvlist
  * describing the configuration, if there is one.
  * returns the number of valid labels found
+ * If a label is found, returns it via config.  The caller is responsible for
+ * freeing it.
  */
 int
 zpool_read_all_labels(int fd, nvlist_t **config)
 {
 	struct stat64 statbuf;
+	struct aiocb aiocbs[VDEV_LABELS];
+	struct aiocb *aiocbps[VDEV_LABELS];
 	int l;
-	vdev_label_t *label;
+	vdev_label_t *labels;
 	uint64_t state, txg, size;
 	int nlabels = 0;
 
@@ -935,19 +940,39 @@ zpool_read_all_labels(int fd, nvlist_t **config)
 		return (0);
 	size = P2ALIGN_TYPED(statbuf.st_size, sizeof (vdev_label_t), uint64_t);
 
-	if ((label = malloc(sizeof (vdev_label_t))) == NULL)
+	if ((labels = calloc(VDEV_LABELS, sizeof (vdev_label_t))) == NULL)
 		return (0);
+
+	memset(aiocbs, 0, sizeof(aiocbs));
+	for (l = 0; l < VDEV_LABELS; l++) {
+		aiocbs[l].aio_fildes = fd;
+		aiocbs[l].aio_offset = label_offset(size, l);
+		aiocbs[l].aio_buf = &labels[l];
+		aiocbs[l].aio_nbytes = sizeof(vdev_label_t);
+		aiocbs[l].aio_lio_opcode = LIO_READ;
+		aiocbps[l] = &aiocbs[l];
+	}
+
+	if (lio_listio(LIO_WAIT, aiocbps, VDEV_LABELS, NULL) != 0) {
+		if (errno == EAGAIN || errno == EINTR || errno == EIO) {
+			for (l = 0; l < VDEV_LABELS; l++) {
+				errno = 0;
+				int r = aio_error(&aiocbs[l]);
+				if (r != EINVAL)
+					(void)aio_return(&aiocbs[l]);
+			}
+		}
+		return (0);
+	}
 
 	for (l = 0; l < VDEV_LABELS; l++) {
 		nvlist_t *temp = NULL;
 
-		/* TODO: use aio_read so we can read al 4 labels in parallel */
-		if (pread64(fd, label, sizeof (vdev_label_t),
-		    label_offset(size, l)) != sizeof (vdev_label_t))
+		if (aio_return(&aiocbs[l]) != sizeof(vdev_label_t))
 			continue;
 
-		if (nvlist_unpack(label->vl_vdev_phys.vp_nvlist,
-		    sizeof (label->vl_vdev_phys.vp_nvlist), &temp, 0) != 0)
+		if (nvlist_unpack(labels[l].vl_vdev_phys.vp_nvlist,
+		    sizeof (labels[l].vl_vdev_phys.vp_nvlist), &temp, 0) != 0)
 			continue;
 
 		if (nvlist_lookup_uint64(temp, ZPOOL_CONFIG_POOL_STATE,
@@ -970,7 +995,7 @@ zpool_read_all_labels(int fd, nvlist_t **config)
 		nlabels++;
 	}
 
-	free(label);
+	free(labels);
 	return (nlabels);
 }
 
