@@ -25,8 +25,8 @@ CFLAGS+= -I${SASRC}
 
 # standalone components and stuff we have modified locally
 SRCS+=	gzguts.h zutil.h __main.c assert.c bcd.c environment.c getopt.c gets.c \
-	globals.c pager.c printf.c strdup.c strerror.c strtol.c strtoul.c random.c \
-	sbrk.c twiddle.c zalloc.c zalloc_malloc.c
+	globals.c pager.c panic.c printf.c strdup.c strerror.c strtol.c strtoul.c \
+	random.c sbrk.c twiddle.c zalloc.c zalloc_malloc.c
 
 # private (pruned) versions of libc string functions
 SRCS+=	strcasecmp.c
