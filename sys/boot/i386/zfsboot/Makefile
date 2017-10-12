@@ -1,7 +1,9 @@
 # $FreeBSD$
 
+.include "../Makefile.inc"
+
 .PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common \
-		${.CURDIR}/../../common ${.CURDIR}/../../../crypto/skein
+		${.CURDIR}/../../../crypto/skein ${SASRC}
 
 FILES=		zfsboot
 MAN=		zfsboot.8
