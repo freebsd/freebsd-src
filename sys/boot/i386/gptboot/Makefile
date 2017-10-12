@@ -78,7 +78,7 @@ gptboot.bin: gptboot.out
 gptboot.out: ${BTXCRT} gptboot.o sio.o crc32.o drv.o cons.o util.o ${OPENCRYPTO_XTS}
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBGELIBOOT} ${LIBSA32}
 
-gptboot.o: ${.CURDIR}/../../common/ufsread.c
+gptboot.o: ${SASRC}/ufsread.c
 
 .if ${MACHINE_CPUARCH} == "amd64"
 beforedepend gptboot.o: machine
