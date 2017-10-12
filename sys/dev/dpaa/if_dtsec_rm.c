@@ -347,7 +347,7 @@ dtsec_rm_fqr_mext_free(struct mbuf *m)
 	if (bman_count(sc->sc_rx_pool) <= DTSEC_RM_POOL_RX_MAX_SIZE)
 		bman_put_buffer(sc->sc_rx_pool, buffer);
 	else
-		dtsec_rm_pool_rx_put_buffer(arg, buffer, NULL);
+		dtsec_rm_pool_rx_put_buffer(sc, buffer, NULL);
 }
 
 static e_RxStoreResponse
