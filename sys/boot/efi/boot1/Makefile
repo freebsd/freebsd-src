@@ -2,7 +2,7 @@
 
 MAN=
 
-.include <src.opts.mk>
+.include "../Makefile.inc"
 
 MK_SSP=		no
 
@@ -120,7 +120,7 @@ boot1.efi: ${PROG}
 		-j .rela.dyn -j .reloc -j .eh_frame \
 		--output-target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
 
-boot1.o: ${.CURDIR}/../../common/ufsread.c
+boot1.o: ${SASRC}/ufsread.c
 
 # The following inserts our objects into a template FAT file system
 # created by generate-fat.sh
