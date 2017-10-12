@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-.PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common ${.CURDIR}/../../common
+.include "../Makefile.inc"
+
+.PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common ${SASRC}
 
 FILES=		gptboot
 MAN=		gptboot.8
@@ -20,7 +22,7 @@ GPTBOOT_UFS?=	UFS1_AND_UFS2
 #GPTBOOT_UFS?=	UFS2_ONLY
 #GPTBOOT_UFS?=	UFS1_ONLY
 
-CFLAGS=	-DBOOTPROG=\"gptboot\" \
+CFLAGS+=-DBOOTPROG=\"gptboot\" \
 	-O1 \
 	-DGPT \
 	-D${GPTBOOT_UFS} \
