@@ -4400,7 +4400,7 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 	if (offset > OFF_MAX - len)
 		return (EFBIG);
 	AUDIT_ARG_FD(fd);
-	error = fget(td, fd, cap_rights_init(&rights, CAP_WRITE), &fp);
+	error = fget(td, fd, cap_rights_init(&rights, CAP_PWRITE), &fp);
 	if (error != 0)
 		return (error);
 	AUDIT_ARG_FILE(td->td_proc, fp);
