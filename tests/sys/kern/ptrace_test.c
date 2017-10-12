@@ -3084,7 +3084,7 @@ ATF_TC_BODY(ptrace__PT_ATTACH_with_SBDRY_thread, tc)
 	ATF_REQUIRE((child = fork()) != -1);
 	if (child == 0) {
 		pthread_t t[2];
-		int error, cfd;
+		int cfd;
 
 		error = pthread_barrier_wait(&barrier);
 		if (error != 0 && error != PTHREAD_BARRIER_SERIAL_THREAD)
