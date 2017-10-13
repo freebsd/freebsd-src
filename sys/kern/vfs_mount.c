@@ -1262,7 +1262,7 @@ dounmount_cleanup(struct mount *mp, struct vnode *coveredvp, int mntkflags)
 int
 dounmount(struct mount *mp, int flags, struct thread *td)
 {
-	struct vnode *coveredvp, *fsrootvp;
+	struct vnode *coveredvp;
 	int error;
 	uint64_t async_flag;
 	int mnt_gen_r;
@@ -1364,22 +1364,6 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	MNT_IUNLOCK(mp);
 	cache_purgevfs(mp, false); /* remove cache entries for this file sys */
 	vfs_deallocate_syncvnode(mp);
-	/*
-	 * For forced unmounts, move process cdir/rdir refs on the fs root
-	 * vnode to the covered vnode.  For non-forced unmounts we want
-	 * such references to cause an EBUSY error.
-	 */
-	if ((flags & MNT_FORCE) &&
-	    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp) == 0) {
-		if (mp->mnt_vnodecovered != NULL &&
-		    (mp->mnt_flag & MNT_IGNORE) == 0)
-			mountcheckdirs(fsrootvp, mp->mnt_vnodecovered);
-		if (fsrootvp == rootvnode) {
-			vrele(rootvnode);
-			rootvnode = NULL;
-		}
-		vput(fsrootvp);
-	}
 	if ((mp->mnt_flag & MNT_RDONLY) != 0 || (flags & MNT_FORCE) != 0 ||
 	    (error = VFS_SYNC(mp, MNT_WAIT)) == 0)
 		error = VFS_UNMOUNT(mp, flags);
@@ -1391,17 +1375,6 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	 * it doesn't exist anymore.
 	 */
 	if (error && error != ENXIO) {
-		if ((flags & MNT_FORCE) &&
-		    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp) == 0) {
-			if (mp->mnt_vnodecovered != NULL &&
-			    (mp->mnt_flag & MNT_IGNORE) == 0)
-				mountcheckdirs(mp->mnt_vnodecovered, fsrootvp);
-			if (rootvnode == NULL) {
-				rootvnode = fsrootvp;
-				vref(rootvnode);
-			}
-			vput(fsrootvp);
-		}
 		MNT_ILOCK(mp);
 		mp->mnt_kern_flag &= ~MNTK_NOINSMNTQ;
 		if ((mp->mnt_flag & MNT_RDONLY) == 0) {
@@ -1432,6 +1405,10 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 		VOP_UNLOCK(coveredvp, 0);
 	}
 	vfs_event_signal(NULL, VQ_UNMOUNT, 0);
+	if (rootvnode != NULL && mp == rootvnode->v_mount) {
+		vrele(rootvnode);
+		rootvnode = NULL;
+	}
 	if (mp == rootdevmp)
 		rootdevmp = NULL;
 	vfs_mount_destroy(mp);
