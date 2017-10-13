@@ -278,7 +278,7 @@ ok:
 	 */
 	if (ieee80211_check_rxseq_amsdu_more(rxs)) {
 		ni->ni_rxseqs[tid] = rxseq;
-		if (ieee80211_check_rxseq_amsdu(rxs))
+		if ((rxs != NULL) && ieee80211_check_rxseq_amsdu(rxs))
 			IEEE80211_NODE_STAT(ni, rx_amsdu_more_end);
 	} else {
 		/* .. still waiting */
