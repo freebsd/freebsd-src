@@ -119,6 +119,11 @@ __FBSDID("$FreeBSD$");
 
 #define HN_IFSTART_SUPPORT
 
+/* NOTE: M_HASHTYPE_RSS_UDP_IPV4 is not available on stable/10. */
+#ifndef M_HASHTYPE_RSS_UDP_IPV4
+#define M_HASHTYPE_RSS_UDP_IPV4		M_HASHTYPE_OPAQUE
+#endif
+
 #define HN_RING_CNT_DEF_MAX		8
 
 #define HN_VFMAP_SIZE_DEF		8
@@ -378,6 +383,7 @@ static void			hn_link_status(struct hn_softc *);
 static int			hn_create_rx_data(struct hn_softc *, int);
 static void			hn_destroy_rx_data(struct hn_softc *);
 static int			hn_check_iplen(const struct mbuf *, int);
+static void			hn_rxpkt_proto(const struct mbuf *, int *, int *);
 static int			hn_set_rxfilter(struct hn_softc *, uint32_t);
 static int			hn_rxfilter_config(struct hn_softc *);
 static int			hn_rss_reconfig(struct hn_softc *);
@@ -392,6 +398,7 @@ static int			hn_tx_ring_create(struct hn_softc *, int);
 static void			hn_tx_ring_destroy(struct hn_tx_ring *);
 static int			hn_create_tx_data(struct hn_softc *, int);
 static void			hn_fixup_tx_data(struct hn_softc *);
+static void			hn_fixup_rx_data(struct hn_softc *);
 static void			hn_destroy_tx_data(struct hn_softc *);
 static void			hn_txdesc_dmamap_destroy(struct hn_txdesc *);
 static void			hn_txdesc_gc(struct hn_tx_ring *,
@@ -1413,6 +1420,8 @@ hn_rss_type_fromndis(uint32_t rss_hash)
 		types |= RSS_TYPE_TCP_IPV6;
 	if (rss_hash & NDIS_HASH_TCP_IPV6_EX)
 		types |= RSS_TYPE_TCP_IPV6_EX;
+	if (rss_hash & NDIS_HASH_UDP_IPV4_X)
+		types |= RSS_TYPE_UDP_IPV4;
 	return (types);
 }
 
@@ -1421,9 +1430,8 @@ hn_rss_type_tondis(uint32_t types)
 {
 	uint32_t rss_hash = 0;
 
-	KASSERT((types &
-	(RSS_TYPE_UDP_IPV4 | RSS_TYPE_UDP_IPV6 | RSS_TYPE_UDP_IPV6_EX)) == 0,
-	("UDP4, UDP6 and UDP6EX are not supported"));
+	KASSERT((types & (RSS_TYPE_UDP_IPV6 | RSS_TYPE_UDP_IPV6_EX)) == 0,
+	    ("UDP6 and UDP6EX are not supported"));
 
 	if (types & RSS_TYPE_IPV4)
 		rss_hash |= NDIS_HASH_IPV4;
@@ -1437,6 +1445,8 @@ hn_rss_type_tondis(uint32_t types)
 		rss_hash |= NDIS_HASH_TCP_IPV6;
 	if (types & RSS_TYPE_TCP_IPV6_EX)
 		rss_hash |= NDIS_HASH_TCP_IPV6_EX;
+	if (types & RSS_TYPE_UDP_IPV4)
+		rss_hash |= NDIS_HASH_UDP_IPV4_X;
 	return (rss_hash);
 }
 
@@ -1535,6 +1545,13 @@ hn_vf_rss_fixup(struct hn_softc *sc, bool reconf)
 	 * NOTE:
 	 * We don't disable the hash type, but stop delivery the hash
 	 * value/type through mbufs on RX path.
+	 *
+	 * XXX If HN_CAP_UDPHASH is set in hn_caps, then UDP 4-tuple
+	 * hash is delivered with type of TCP_IPV4.  This means if
+	 * UDP_IPV4 is enabled, then TCP_IPV4 should be forced, at
+	 * least to hn_mbuf_hash.  However, given that _all_ of the
+	 * NICs implement TCP_IPV4, this will _not_ impose any issues
+	 * here.
 	 */
 	if ((my_types & RSS_TYPE_IPV4) &&
 	    (diff_types & ifrh.ifrh_types &
@@ -2225,9 +2242,10 @@ hn_attach(device_t dev)
 #endif
 
 	/*
-	 * Fixup TX stuffs after synthetic parts are attached.
+	 * Fixup TX/RX stuffs after synthetic parts are attached.
 	 */
 	hn_fixup_tx_data(sc);
+	hn_fixup_rx_data(sc);
 
 	ctx = device_get_sysctl_ctx(dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
@@ -3371,6 +3389,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 	struct mbuf *m_new;
 	int size, do_lro = 0, do_csum = 1, is_vf = 0;
 	int hash_type = M_HASHTYPE_NONE;
+	int l3proto = ETHERTYPE_MAX, l4proto = IPPROTO_DONE;
 
 	ifp = hn_ifp;
 	if (rxr->hn_rxvf_ifp != NULL) {
@@ -3470,31 +3489,9 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 		    (NDIS_RXCSUM_INFO_TCPCS_OK | NDIS_RXCSUM_INFO_IPCS_OK))
 			do_lro = 1;
 	} else {
-		const struct ether_header *eh;
-		uint16_t etype;
-		int hoff;
-
-		hoff = sizeof(*eh);
-		/* Checked at the beginning of this function. */
-		KASSERT(m_new->m_len >= hoff, ("not ethernet frame"));
-
-		eh = mtod(m_new, struct ether_header *);
-		etype = ntohs(eh->ether_type);
-		if (etype == ETHERTYPE_VLAN) {
-			const struct ether_vlan_header *evl;
-
-			hoff = sizeof(*evl);
-			if (m_new->m_len < hoff)
-				goto skip;
-			evl = mtod(m_new, struct ether_vlan_header *);
-			etype = ntohs(evl->evl_proto);
-		}
-
-		if (etype == ETHERTYPE_IP) {
-			int pr;
-
-			pr = hn_check_iplen(m_new, hoff);
-			if (pr == IPPROTO_TCP) {
+		hn_rxpkt_proto(m_new, &l3proto, &l4proto);
+		if (l3proto == ETHERTYPE_IP) {
+			if (l4proto == IPPROTO_TCP) {
 				if (do_csum &&
 				    (rxr->hn_trust_hcsum &
 				     HN_TRUST_HCSUM_TCP)) {
@@ -3505,7 +3502,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 					m_new->m_pkthdr.csum_data = 0xffff;
 				}
 				do_lro = 1;
-			} else if (pr == IPPROTO_UDP) {
+			} else if (l4proto == IPPROTO_UDP) {
 				if (do_csum &&
 				    (rxr->hn_trust_hcsum &
 				     HN_TRUST_HCSUM_UDP)) {
@@ -3515,7 +3512,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 					m_new->m_pkthdr.csum_data = 0xffff;
 				}
-			} else if (pr != IPPROTO_DONE && do_csum &&
+			} else if (l4proto != IPPROTO_DONE && do_csum &&
 			    (rxr->hn_trust_hcsum & HN_TRUST_HCSUM_IP)) {
 				rxr->hn_csum_trusted++;
 				m_new->m_pkthdr.csum_flags |=
@@ -3523,7 +3520,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 			}
 		}
 	}
-skip:
+
 	if (info->vlan_info != HN_NDIS_VLAN_INFO_INVALID) {
 		m_new->m_pkthdr.ether_vtag = EVL_MAKETAG(
 		    NDIS_VLAN_INFO_ID(info->vlan_info),
@@ -3578,6 +3575,37 @@ skip:
 
 			case NDIS_HASH_TCP_IPV4:
 				hash_type = M_HASHTYPE_RSS_TCP_IPV4;
+				if (rxr->hn_rx_flags & HN_RX_FLAG_UDP_HASH) {
+					int def_htype = M_HASHTYPE_OPAQUE;
+
+					if (is_vf)
+						def_htype = M_HASHTYPE_NONE;
+
+					/*
+					 * UDP 4-tuple hash is delivered as
+					 * TCP 4-tuple hash.
+					 */
+					if (l3proto == ETHERTYPE_MAX) {
+						hn_rxpkt_proto(m_new,
+						    &l3proto, &l4proto);
+					}
+					if (l3proto == ETHERTYPE_IP) {
+						if (l4proto == IPPROTO_UDP &&
+						    (rxr->hn_mbuf_hash &
+						     NDIS_HASH_UDP_IPV4_X)) {
+							hash_type =
+							M_HASHTYPE_RSS_UDP_IPV4;
+							do_lro = 0;
+						} else if (l4proto !=
+						    IPPROTO_TCP) {
+							hash_type = def_htype;
+							do_lro = 0;
+						}
+					} else {
+						hash_type = def_htype;
+						do_lro = 0;
+					}
+				}
 				break;
 
 			case NDIS_HASH_IPV6:
@@ -4823,6 +4851,36 @@ hn_check_iplen(const struct mbuf *m, int hoff)
 	return ip->ip_p;
 }
 
+static void
+hn_rxpkt_proto(const struct mbuf *m_new, int *l3proto, int *l4proto)
+{
+	const struct ether_header *eh;
+	uint16_t etype;
+	int hoff;
+
+	hoff = sizeof(*eh);
+	/* Checked at the beginning of this function. */
+	KASSERT(m_new->m_len >= hoff, ("not ethernet frame"));
+
+	eh = mtod(m_new, const struct ether_header *);
+	etype = ntohs(eh->ether_type);
+	if (etype == ETHERTYPE_VLAN) {
+		const struct ether_vlan_header *evl;
+
+		hoff = sizeof(*evl);
+		if (m_new->m_len < hoff)
+			return;
+		evl = mtod(m_new, const struct ether_vlan_header *);
+		etype = ntohs(evl->evl_proto);
+	}
+	*l3proto = etype;
+
+	if (etype == ETHERTYPE_IP)
+		*l4proto = hn_check_iplen(m_new, hoff);
+	else
+		*l4proto = IPPROTO_DONE;
+}
+
 static int
 hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 {
@@ -5531,6 +5589,18 @@ hn_fixup_tx_data(struct hn_softc *sc)
 			if_printf(sc->hn_ifp, "support HASHVAL pktinfo\n");
 		for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
 			sc->hn_tx_ring[i].hn_tx_flags |= HN_TX_FLAG_HASHVAL;
+	}
+}
+
+static void
+hn_fixup_rx_data(struct hn_softc *sc)
+{
+
+	if (sc->hn_caps & HN_CAP_UDPHASH) {
+		int i;
+
+		for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+			sc->hn_rx_ring[i].hn_rx_flags |= HN_RX_FLAG_UDP_HASH;
 	}
 }
 
