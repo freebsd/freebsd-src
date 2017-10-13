@@ -65,15 +65,11 @@
  * State bits kept in mutex->mtx_lock, for the DEFAULT lock type. None of this,
  * with the exception of MTX_UNOWNED, applies to spin locks.
  */
+#define	MTX_UNOWNED	0x00000000	/* Cookie for free mutex */
 #define	MTX_RECURSED	0x00000001	/* lock recursed (for MTX_DEF only) */
 #define	MTX_CONTESTED	0x00000002	/* lock contested (for MTX_DEF only) */
-#define MTX_UNOWNED	0x00000004	/* Cookie for free mutex */
-#define	MTX_FLAGMASK	(MTX_RECURSED | MTX_CONTESTED | MTX_UNOWNED)
-
-/*
- * Value stored in mutex->mtx_lock to denote a destroyed mutex.
- */
-#define	MTX_DESTROYED	(MTX_CONTESTED | MTX_UNOWNED)
+#define	MTX_DESTROYED	0x00000004	/* lock destroyed */
+#define	MTX_FLAGMASK	(MTX_RECURSED | MTX_CONTESTED | MTX_DESTROYED)
 
 /*
  * Prototypes
