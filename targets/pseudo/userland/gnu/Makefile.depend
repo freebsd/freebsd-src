@@ -28,10 +28,7 @@ DIRDEPS = \
 	gnu/usr.bin/binutils/libiberty \
 	gnu/usr.bin/binutils/libopcodes \
 	gnu/usr.bin/binutils/objdump \
-	gnu/usr.bin/binutils/ranlib \
 	gnu/usr.bin/dialog \
-	gnu/usr.bin/diff \
-	gnu/usr.bin/diff/doc \
 	gnu/usr.bin/diff3 \
 	gnu/usr.bin/gdb/doc \
 	gnu/usr.bin/gdb/gdb \
@@ -43,26 +40,6 @@ DIRDEPS = \
 	gnu/usr.bin/gperf/doc \
 	gnu/usr.bin/grep \
 	gnu/usr.bin/grep/doc \
-	gnu/usr.bin/rcs/ci \
-	gnu/usr.bin/rcs/co \
-	gnu/usr.bin/rcs/ident \
-	gnu/usr.bin/rcs/lib \
-	gnu/usr.bin/rcs/merge \
-	gnu/usr.bin/rcs/rcs \
-	gnu/usr.bin/rcs/rcsclean \
-	gnu/usr.bin/rcs/rcsdiff \
-	gnu/usr.bin/rcs/rcsfreeze \
-	gnu/usr.bin/rcs/rcsmerge \
-	gnu/usr.bin/rcs/rlog \
-	gnu/usr.bin/sdiff \
-	gnu/usr.bin/send-pr/doc \
-	gnu/usr.bin/texinfo/doc \
-	gnu/usr.bin/texinfo/info \
-	gnu/usr.bin/texinfo/infokey \
-	gnu/usr.bin/texinfo/install-info \
-	gnu/usr.bin/texinfo/libtxi \
-	gnu/usr.bin/texinfo/makeinfo \
-	gnu/usr.bin/texinfo/texindex \
 
 .if ${MK_GPL_DTC} != "no"
 DIRDEPS+= gnu/usr.bin/dtc
