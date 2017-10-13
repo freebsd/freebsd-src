@@ -143,10 +143,23 @@ sendfile_free_page(vm_page_t pg, bool nocache)
 			vm_page_free(pg);
 		else if (nocache) {
 			if (!vm_page_xbusied(pg) && VM_OBJECT_TRYWLOCK(obj)) {
-				vm_page_free(pg);
+				bool freed;
+
+				/* Only free unmapped pages. */
+				if (obj->ref_count == 0 ||
+				    !pmap_page_is_mapped(pg))
+					/*
+					 * The busy test before the object is
+					 * locked cannot be relied upon.
+					 */
+					freed = vm_page_try_to_free(pg);
+				else
+					freed = false;
 				VM_OBJECT_WUNLOCK(obj);
+				if (!freed)
+					vm_page_deactivate_noreuse(pg);
 			} else
-				vm_page_deactivate(pg);
+				vm_page_deactivate_noreuse(pg);
 		}
 	}
 	vm_page_unlock(pg);
