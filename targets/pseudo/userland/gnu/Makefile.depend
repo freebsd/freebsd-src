@@ -43,53 +43,6 @@ DIRDEPS = \
 	gnu/usr.bin/gperf/doc \
 	gnu/usr.bin/grep \
 	gnu/usr.bin/grep/doc \
-	gnu/usr.bin/groff/contrib/mm \
-	gnu/usr.bin/groff/doc \
-	gnu/usr.bin/groff/font/devX100 \
-	gnu/usr.bin/groff/font/devX100-12 \
-	gnu/usr.bin/groff/font/devX75 \
-	gnu/usr.bin/groff/font/devX75-12 \
-	gnu/usr.bin/groff/font/devascii \
-	gnu/usr.bin/groff/font/devcp1047 \
-	gnu/usr.bin/groff/font/devdvi \
-	gnu/usr.bin/groff/font/devhtml \
-	gnu/usr.bin/groff/font/devkoi8-r \
-	gnu/usr.bin/groff/font/devlatin1 \
-	gnu/usr.bin/groff/font/devlbp \
-	gnu/usr.bin/groff/font/devlj4 \
-	gnu/usr.bin/groff/font/devps \
-	gnu/usr.bin/groff/font/devutf8 \
-	gnu/usr.bin/groff/man \
-	gnu/usr.bin/groff/src/devices/grodvi \
-	gnu/usr.bin/groff/src/devices/grohtml \
-	gnu/usr.bin/groff/src/devices/grolbp \
-	gnu/usr.bin/groff/src/devices/grolj4 \
-	gnu/usr.bin/groff/src/devices/grops \
-	gnu/usr.bin/groff/src/devices/grotty \
-	gnu/usr.bin/groff/src/libs/libbib \
-	gnu/usr.bin/groff/src/libs/libdriver \
-	gnu/usr.bin/groff/src/libs/libgroff \
-	gnu/usr.bin/groff/src/preproc/eqn \
-	gnu/usr.bin/groff/src/preproc/grn \
-	gnu/usr.bin/groff/src/preproc/html \
-	gnu/usr.bin/groff/src/preproc/pic \
-	gnu/usr.bin/groff/src/preproc/refer \
-	gnu/usr.bin/groff/src/preproc/soelim \
-	gnu/usr.bin/groff/src/preproc/tbl \
-	gnu/usr.bin/groff/src/roff/groff \
-	gnu/usr.bin/groff/src/roff/grog \
-	gnu/usr.bin/groff/src/roff/nroff \
-	gnu/usr.bin/groff/src/roff/psroff \
-	gnu/usr.bin/groff/src/roff/troff \
-	gnu/usr.bin/groff/src/utils/addftinfo \
-	gnu/usr.bin/groff/src/utils/afmtodit \
-	gnu/usr.bin/groff/src/utils/hpftodit \
-	gnu/usr.bin/groff/src/utils/indxbib \
-	gnu/usr.bin/groff/src/utils/lkbib \
-	gnu/usr.bin/groff/src/utils/lookbib \
-	gnu/usr.bin/groff/src/utils/pfbtops \
-	gnu/usr.bin/groff/src/utils/tfmtodit \
-	gnu/usr.bin/groff/tmac \
 	gnu/usr.bin/rcs/ci \
 	gnu/usr.bin/rcs/co \
 	gnu/usr.bin/rcs/ident \
