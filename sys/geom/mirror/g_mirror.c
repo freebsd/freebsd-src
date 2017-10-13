@@ -982,7 +982,13 @@ g_mirror_regular_request(struct bio *bp)
 			if (g_mirror_disconnect_on_failure &&
 			    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) > 1)
 			{
-				sc->sc_bump_id |= G_MIRROR_BUMP_GENID;
+				if (bp->bio_error == ENXIO &&
+				    bp->bio_cmd == BIO_READ)
+					sc->sc_bump_id |= G_MIRROR_BUMP_SYNCID;
+				else if (bp->bio_error == ENXIO)
+					sc->sc_bump_id |= G_MIRROR_BUMP_SYNCID_NOW;
+				else
+					sc->sc_bump_id |= G_MIRROR_BUMP_GENID;
 				g_mirror_event_send(disk,
 				    G_MIRROR_DISK_STATE_DISCONNECTED,
 				    G_MIRROR_EVENT_DONTWAIT);
@@ -2505,6 +2511,10 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 		if ((sc->sc_bump_id & G_MIRROR_BUMP_GENID) != 0) {
 			sc->sc_bump_id &= ~G_MIRROR_BUMP_GENID;
 			g_mirror_bump_genid(sc);
+		}
+		if ((sc->sc_bump_id & G_MIRROR_BUMP_SYNCID_NOW) != 0) {
+			sc->sc_bump_id &= ~G_MIRROR_BUMP_SYNCID_NOW;
+			g_mirror_bump_syncid(sc);
 		}
 		break;
 	default:
