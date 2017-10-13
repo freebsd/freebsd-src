@@ -129,6 +129,13 @@ static struct vmbus_softc	*vmbus_sc;
 
 extern inthand_t IDTVEC(rsvd), IDTVEC(vmbus_isr);
 
+SYSCTL_NODE(_hw, OID_AUTO, vmbus, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+    "Hyper-V vmbus");
+
+static int			vmbus_pin_evttask = 1;
+SYSCTL_INT(_hw_vmbus, OID_AUTO, pin_evttask, CTLFLAG_RDTUN,
+    &vmbus_pin_evttask, 0, "Pin event tasks to their respective CPU");
+
 static const uint32_t		vmbus_version[] = {
 	VMBUS_VERSION_WIN8_1,
 	VMBUS_VERSION_WIN8,
@@ -978,13 +985,15 @@ vmbus_intr_setup(struct vmbus_softc *sc)
 		taskqueue_start_threads(VMBUS_PCPU_PTR(sc, event_tq, cpu),
 		    1, PI_NET, "hvevent%d", cpu);
 
-		CPU_SETOF(cpu, &cpu_mask);
-		TASK_INIT(&cpuset_task, 0, vmbus_cpuset_setthread_task,
-		    &cpu_mask);
-		taskqueue_enqueue(VMBUS_PCPU_GET(sc, event_tq, cpu),
-		    &cpuset_task);
-		taskqueue_drain(VMBUS_PCPU_GET(sc, event_tq, cpu),
-		    &cpuset_task);
+		if (vmbus_pin_evttask) {
+			CPU_SETOF(cpu, &cpu_mask);
+			TASK_INIT(&cpuset_task, 0, vmbus_cpuset_setthread_task,
+			    &cpu_mask);
+			taskqueue_enqueue(VMBUS_PCPU_GET(sc, event_tq, cpu),
+			    &cpuset_task);
+			taskqueue_drain(VMBUS_PCPU_GET(sc, event_tq, cpu),
+			    &cpuset_task);
+		}
 
 		/*
 		 * Setup tasks and taskqueues to handle messages.
