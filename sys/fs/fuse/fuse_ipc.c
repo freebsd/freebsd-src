@@ -636,23 +636,20 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 		break;
 
 	case FUSE_SETXATTR:
-		panic("FUSE_SETXATTR implementor has forgotten to define a"
-		      " response body format check");
+		err = (blen == 0) ? 0 : EINVAL;
 		break;
 
 	case FUSE_GETXATTR:
-		panic("FUSE_GETXATTR implementor has forgotten to define a"
-		      " response body format check");
-		break;
-
 	case FUSE_LISTXATTR:
-		panic("FUSE_LISTXATTR implementor has forgotten to define a"
-		      " response body format check");
+		/*
+		 * These can have varying response lengths, and 0 length
+		 * isn't necessarily invalid.
+		 */
+		err = 0;
 		break;
 
 	case FUSE_REMOVEXATTR:
-		panic("FUSE_REMOVEXATTR implementor has forgotten to define a"
-		      " response body format check");
+		err = (blen == 0) ? 0 : EINVAL;
 		break;
 
 	case FUSE_FLUSH:
