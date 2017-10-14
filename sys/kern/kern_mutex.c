@@ -217,7 +217,7 @@ owner_mtx(const struct lock_object *lock, struct thread **owner)
 	m = (const struct mtx *)lock;
 	x = m->mtx_lock;
 	*owner = (struct thread *)(x & ~MTX_FLAGMASK);
-	return (x != MTX_UNOWNED);
+	return (*owner != NULL);
 }
 #endif
 
