@@ -558,26 +558,28 @@ mlx4_en_rx_mb(struct mlx4_en_priv *priv, struct mlx4_en_rx_ring *ring,
 static __inline int
 mlx4_en_rss_hash(__be16 status, int udp_rss)
 {
-	const __be16 status_all = cpu_to_be16(
+	enum {
+		status_all = cpu_to_be16(
 			MLX4_CQE_STATUS_IPV4    |
 			MLX4_CQE_STATUS_IPV4F   |
 			MLX4_CQE_STATUS_IPV6    |
 			MLX4_CQE_STATUS_TCP     |
-			MLX4_CQE_STATUS_UDP);
-	const __be16 status_ipv4_tcp = cpu_to_be16(
+			MLX4_CQE_STATUS_UDP),
+		status_ipv4_tcp = cpu_to_be16(
 			MLX4_CQE_STATUS_IPV4    |
-			MLX4_CQE_STATUS_TCP);
-	const __be16 status_ipv6_tcp = cpu_to_be16(
+			MLX4_CQE_STATUS_TCP),
+		status_ipv6_tcp = cpu_to_be16(
 			MLX4_CQE_STATUS_IPV6    |
-			MLX4_CQE_STATUS_TCP);
-	const __be16 status_ipv4_udp = cpu_to_be16(
+			MLX4_CQE_STATUS_TCP),
+		status_ipv4_udp = cpu_to_be16(
 			MLX4_CQE_STATUS_IPV4    |
-			MLX4_CQE_STATUS_UDP);
-	const __be16 status_ipv6_udp = cpu_to_be16(
+			MLX4_CQE_STATUS_UDP),
+		status_ipv6_udp = cpu_to_be16(
 			MLX4_CQE_STATUS_IPV6    |
-			MLX4_CQE_STATUS_UDP);
-	const __be16 status_ipv4 = cpu_to_be16(MLX4_CQE_STATUS_IPV4);
-	const __be16 status_ipv6 = cpu_to_be16(MLX4_CQE_STATUS_IPV6);
+			MLX4_CQE_STATUS_UDP),
+		status_ipv4 = cpu_to_be16(MLX4_CQE_STATUS_IPV4),
+		status_ipv6 = cpu_to_be16(MLX4_CQE_STATUS_IPV6)
+	};
 
 	status &= status_all;
 	switch (status) {
