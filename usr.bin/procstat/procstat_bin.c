@@ -46,7 +46,7 @@ procstat_bin(struct procstat *prstat, struct kinfo_proc *kipp)
 	int osrel;
 	static char pathname[PATH_MAX];
 
-	if (!hflag)
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0)
 		xo_emit("{T:/%5s %-16s %8s %s}\n", "PID", "COMM", "OSREL",
 		    "PATH");
 
