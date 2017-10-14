@@ -50,7 +50,7 @@ procstat_vm(struct procstat *procstat, struct kinfo_proc *kipp)
 	const char *str, *lstr;
 
 	ptrwidth = 2*sizeof(void *) + 2;
-	if (!hflag)
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0)
 		xo_emit("{T:/%5s %*s %*s %3s %4s %4s %3s %3s %-4s %-2s %-s}\n",
 		    "PID", ptrwidth, "START", ptrwidth, "END", "PRT", "RES",
 		    "PRES", "REF", "SHD", "FLAG", "TP", "PATH");
