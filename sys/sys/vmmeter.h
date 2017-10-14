@@ -140,7 +140,7 @@ struct vmmeter {
 	u_int v_inactive_count VMMETER_ALIGNED;	/* (a) pages inactive */
 	u_int v_laundry_count VMMETER_ALIGNED; /* (a) pages eligible for
 						  laundering */
-	u_int v_free_count VMMETER_ALIGNED; /* (a) pages free */
+	u_int v_free_count VMMETER_ALIGNED; /* (f) pages free */
 };
 #endif /* _KERNEL || _WANT_VMMETER */
 
