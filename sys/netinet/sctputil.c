@@ -2422,8 +2422,8 @@ uint32_t
 sctp_calculate_rto(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     struct sctp_nets *net,
-    struct timeval *told,
-    int safe, int rtt_from_sack)
+    struct timeval *old,
+    int rtt_from_sack)
 {
 	/*-
 	 * given an association and the starting time of the current RTT
@@ -2432,19 +2432,8 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	int32_t rtt;		/* RTT in ms */
 	uint32_t new_rto;
 	int first_measure = 0;
-	struct timeval now, then, *old;
+	struct timeval now;
 
-	/* Copy it out for sparc64 */
-	if (safe == sctp_align_unsafe_makecopy) {
-		old = &then;
-		memcpy(&then, told, sizeof(struct timeval));
-	} else if (safe == sctp_align_safe_nocopy) {
-		old = told;
-	} else {
-		/* error */
-		SCTP_PRINTF("Huh, bad rto calc call\n");
-		return (0);
-	}
 	/************************/
 	/* 1. calculate new RTT */
 	/************************/
