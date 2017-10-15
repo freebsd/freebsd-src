@@ -379,7 +379,7 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	struct	    cam_periph *periph;
 	struct	    nda_softc *softc;
 	u_int	    secsize;
-	union	    ccb ccb;
+	struct ccb_nvmeio nvmeio;
 	struct	    disk *dp;
 	uint64_t    lba;
 	uint32_t    count;
@@ -399,15 +399,15 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	}
 
 	if (length > 0) {
-		xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-		ccb.ccb_h.ccb_state = NDA_CCB_DUMP;
-		nda_nvme_write(softc, &ccb.nvmeio, virtual, lba, length, count);
-		xpt_polled_action(&ccb);
+		xpt_setup_ccb(&nvmeio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+		nvmeio.ccb_h.ccb_state = NDA_CCB_DUMP;
+		nda_nvme_write(softc, &nvmeio, virtual, lba, length, count);
+		xpt_polled_action((union ccb *)&nvmeio);
 
-		error = cam_periph_error(&ccb,
+		error = cam_periph_error((union ccb *)&nvmeio,
 		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
-		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
+		if ((nvmeio.ccb_h.status & CAM_DEV_QFRZN) != 0)
+			cam_release_devq(nvmeio.ccb_h.path, /*relsim_flags*/0,
 			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
 		if (error != 0)
 			printf("Aborting dump due to I/O error.\n");
@@ -417,16 +417,16 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	}
 	
 	/* Flush */
-	xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	xpt_setup_ccb(&nvmeio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 
-	ccb.ccb_h.ccb_state = NDA_CCB_DUMP;
-	nda_nvme_flush(softc, &ccb.nvmeio);
-	xpt_polled_action(&ccb);
+	nvmeio.ccb_h.ccb_state = NDA_CCB_DUMP;
+	nda_nvme_flush(softc, &nvmeio);
+	xpt_polled_action((union ccb *)&nvmeio);
 
-	error = cam_periph_error(&ccb,
+	error = cam_periph_error((union ccb *)&nvmeio,
 	    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
-	if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
+	if ((nvmeio.ccb_h.status & CAM_DEV_QFRZN) != 0)
+		cam_release_devq(nvmeio.ccb_h.path, /*relsim_flags*/0,
 		    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
 	if (error != 0)
 		xpt_print(periph->path, "flush cmd failed\n");
