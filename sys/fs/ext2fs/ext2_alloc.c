@@ -56,7 +56,6 @@
 static daddr_t	ext2_alloccg(struct inode *, int, daddr_t, int);
 static daddr_t	ext2_clusteralloc(struct inode *, int, daddr_t, int);
 static u_long	ext2_dirpref(struct inode *);
-static void	ext2_fserr(struct m_ext2fs *, uid_t, char *);
 static u_long	ext2_hashalloc(struct inode *, int, long, int,
 				daddr_t (*)(struct inode *, int, daddr_t, 
 						int));
@@ -1303,7 +1302,7 @@ ext2_mapsearch(struct m_ext2fs *fs, char *bbp, daddr_t bpref)
  * The form of the error message is:
  *	fs: error message
  */
-static void
+void
 ext2_fserr(struct m_ext2fs *fs, uid_t uid, char *cp)
 {
 
