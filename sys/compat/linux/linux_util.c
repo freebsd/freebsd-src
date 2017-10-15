@@ -146,6 +146,27 @@ linux_driver_get_major_minor(const char *node, int *major, int *minor)
 		return (0);
 	}
 
+	sz = sizeof("dri/card") - 1;
+	if (strncmp(node, "dri/card", sz) == 0 && node[sz] != '\0') {
+		devno = strtoul(node + sz, NULL, 10);
+		*major = 226 + (devno / 256);
+		*minor = devno % 256;
+		return (0);
+	}
+	sz = sizeof("dri/controlD") - 1;
+	if (strncmp(node, "dri/controlD", sz) == 0 && node[sz] != '\0') {
+		devno = strtoul(node + sz, NULL, 10);
+		*major = 226 + (devno / 256);
+		*minor = devno % 256;
+		return (0);
+	}
+	sz = sizeof("dri/renderD") - 1;
+	if (strncmp(node, "dri/renderD", sz) == 0 && node[sz] != '\0') {
+		devno = strtoul(node + sz, NULL, 10);
+		*major = 226 + (devno / 256);
+		*minor = devno % 256;
+		return (0);
+	}
 	sz = sizeof("drm/") - 1;
 	if (strncmp(node, "drm/", sz) == 0 && node[sz] != '\0') {
 		devno = strtoul(node + sz, NULL, 10);
