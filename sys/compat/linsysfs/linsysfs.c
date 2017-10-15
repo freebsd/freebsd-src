@@ -205,8 +205,8 @@ linsysfs_fill_uevent_drm(PFS_FILL_ARGS)
 	dev = (device_t)pn->pn_data;
 	unit = device_get_unit(dev);
 	sbuf_printf(sb,
-	    "MAJOR=226\nMINOR=%d\nDEVNAME=drm/%d\nDEVTYPE=dri_minor\n", unit,
-	    unit);
+	    "MAJOR=226\nMINOR=%d\nDEVNAME=dri/card%d\nDEVTYPE=dri_minor\n",
+	    unit, unit);
 	return (0);
 }
 
