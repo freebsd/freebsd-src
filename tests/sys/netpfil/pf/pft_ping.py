@@ -18,7 +18,7 @@ class Sniffer(threading.Thread):
 	def run(self):
 		self.packets = sp.sniff(iface=self._recvif, timeout=3)
 
-def check_ping_request(packet, dst_ip):
+def check_ping_request(packet, dst_ip, args):
 	"""
 	Verify that the packet matches what we'd have sent
 	"""
@@ -40,13 +40,27 @@ def check_ping_request(packet, dst_ip):
 	if raw.load != str(PAYLOAD_MAGIC):
 		return False
 
+	# Wait to check expectations until we've established this is the packet we
+	# sent.
+	if args.expect_tos:
+		if ip.tos != int(args.expect_tos[0]):
+			print "Unexpected ToS value %d, expected %s" \
+				% (ip.tos, args.expect_tos[0])
+			return False
+
+
 	return True
 
-def ping(send_if, dst_ip):
-	req = sp.Ether() \
-		/ sp.IP(dst=dst_ip) \
-		/ sp.ICMP(type='echo-request') \
-		/ sp.Raw(PAYLOAD_MAGIC)
+def ping(send_if, dst_ip, args):
+	ether = sp.Ether()
+	ip = sp.IP(dst=dst_ip)
+	icmp = sp.ICMP(type='echo-request')
+	raw = sp.Raw(PAYLOAD_MAGIC)
+
+	if args.send_tos:
+		ip.tos = int(args.send_tos[0])
+
+	req = ether / ip / icmp / raw
 	sp.sendp(req, iface=send_if, verbose=False)
 
 def main():
@@ -61,19 +75,27 @@ def main():
 		required=True,
 		help='The destination IP address for the ICMP echo request')
 
+	# Packet settings
+	parser.add_argument('--send-tos', nargs=1,
+		help='Set the ToS value for the transmitted packet')
+
+	# Expectations
+	parser.add_argument('--expect-tos', nargs=1,
+		help='The expected ToS value in the received packet')
+
 	args = parser.parse_args()
 
 	sniffer = None
 	if not args.recvif is None:
 		sniffer = Sniffer(args.recvif[0])
 
-	ping(args.sendif[0], args.to[0])
+	ping(args.sendif[0], args.to[0], args)
 
 	if sniffer:
 		sniffer.join()
 
 		for packet in sniffer.packets:
-			if check_ping_request(packet, args.to[0]):
+			if check_ping_request(packet, args.to[0], args):
 				sys.exit(0)
 
 		# We did not get the packet we expected
