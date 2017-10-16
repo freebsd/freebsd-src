@@ -28,22 +28,12 @@ SRCS+= load_elf64.c reloc_elf64.c
 SRCS+=	load_elf32.c reloc_elf32.c
 .endif
 
-.if defined(LOADER_NET_SUPPORT)
-SRCS+=	dev_net.c
+.if ${LOADER_DISK_SUPPORT:Uyes} == "yes"
+SRCS+=	disk.c part.c
 .endif
 
-.if !defined(LOADER_NO_DISK_SUPPORT)
-SRCS+=	disk.c part.c
-CFLAGS+= -DLOADER_DISK_SUPPORT
-.if !defined(LOADER_NO_GPT_SUPPORT)
-CFLAGS+= -DLOADER_GPT_SUPPORT
-.endif
-.if !defined(LOADER_NO_MBR_SUPPORT)
-CFLAGS+= -DLOADER_MBR_SUPPORT
-.endif
-.endif
-.if !defined(LOADER_NO_GELI_SUPPORT)
-CFLAGS+= -DLOADER_GELI_SUPPORT
+.if ${LOADER_NET_SUPPORT:Uno} == "yes"
+SRCS+= dev_net.c
 .endif
 
 .if defined(HAVE_BCACHE)

@@ -1,5 +1,7 @@
 # $FreeBSD$
 #
+.include "../../defs.mk"
+
 LIB=			i386
 INTERNALLIB=
 
@@ -11,13 +13,6 @@ SRCS=	biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
 	smbios.c time.c vidconsole.c amd64_tramp.S spinconsole.c
 .PATH:	${.CURDIR}/../../zfs
 SRCS+=	devicename_stubs.c
-
-.if defined(LOADER_TFTP_SUPPORT)
-CFLAGS+=	-DLOADER_TFTP_SUPPORT
-.endif
-.if defined(LOADER_NFS_SUPPORT)
-CFLAGS+=	-DLOADER_NFS_SUPPORT
-.endif
 
 BOOT_COMCONSOLE_PORT?= 0x3f8
 CFLAGS+=	-DCOMPORT=${BOOT_COMCONSOLE_PORT}

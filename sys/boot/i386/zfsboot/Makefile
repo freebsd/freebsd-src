@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+LOADER_GELI_SUPPORT=no
+
 .include "../Makefile.inc"
 
 .PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common \
