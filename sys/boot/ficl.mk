@@ -26,8 +26,7 @@ CFLAGS+=	-fPIC
 CFLAGS+=	-m32 -mcpu=powerpc -I.
 .endif
 
-CFLAGS+=	-I${FICLDIR} -I${FICLDIR}/${FICL_CPUARCH} \
-		-I${FICLDIR}/../common
+CFLAGS+=	-I${FICLDIR} -I${FICLDIR}/${FICL_CPUARCH} -I${SRCTOP}/sys/boot/common
 
 .if ${MACHINE_CPUARCH} == "amd64" && defined(FICL32)
 .if !exists(machine)
