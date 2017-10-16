@@ -5,6 +5,7 @@ MAN=
 .include "../Makefile.inc"
 
 MK_SSP=		no
+MK_FORTH=	no
 
 PROG=		boot1.sym
 INTERNALPROG=

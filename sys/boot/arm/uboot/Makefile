@@ -81,14 +81,6 @@ LIBUBOOT_FDT=	${.OBJDIR}/../../uboot/fdt/libuboot_fdt.a
 LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
 .endif
 
-.if ${MK_FORTH} != "no"
-# Enable BootForth
-BOOT_FORTH=	yes
-CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl
-CFLAGS+=	-I${.CURDIR}/../../ficl/arm
-LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-.endif
-
 # Always add MI sources
 .include	"../../loader.mk"
 CFLAGS+=	-I.

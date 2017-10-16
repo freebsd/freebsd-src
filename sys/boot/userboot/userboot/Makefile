@@ -39,14 +39,6 @@ LDFLAGS+=	-nostdlib -Wl,-Bsymbolic
 
 NEWVERSWHAT=	"User boot" ${MACHINE_CPUARCH}
 
-.if ${MK_FORTH} != "no"
-BOOT_FORTH=	yes
-CFLAGS+=        -DBOOT_FORTH -I${.CURDIR}/../../ficl
-CFLAGS+=        -I${.CURDIR}/../../ficl/i386
-CFLAGS+=	-DBF_DICTSIZE=15000
-LIBFICL=	${.OBJDIR}/../ficl/libficl.a
-.endif
-
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-DUSERBOOT_ZFS_SUPPORT
 LIBZFSBOOT=	${.OBJDIR}/../zfs/libzfsboot.a

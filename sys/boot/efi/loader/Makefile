@@ -78,14 +78,6 @@ CFLAGS+= -DSMBIOS_NETWORK_ENDIAN_UUID
 .endif
 .endif
 
-.if ${MK_FORTH} != "no"
-BOOT_FORTH=	yes
-CFLAGS+=	-DBOOT_FORTH
-CFLAGS+=	-I${.CURDIR}/../../ficl
-CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE_CPUARCH}
-LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-.endif
-
 LOADER_FDT_SUPPORT?=	no
 .if ${MK_FDT} != "no" && ${LOADER_FDT_SUPPORT} != "no"
 CFLAGS+=	-I${.CURDIR}/../../fdt
