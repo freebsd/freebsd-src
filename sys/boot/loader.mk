@@ -1,6 +1,11 @@
 # $FreeBSD$
 
-.PATH: ${SRCTOP}/sys/boot/common ${SRCTOP}/sys/boot/libsa
+BOOTDIR=${SRCTOP}/sys/boot
+LDR_MI=${BOOTDIR}/common
+
+.PATH: ${LDR_MI} ${BOOTDIR}/libsa
+
+CFLAGS+=-I${LDR_MI}
 
 SRCS+=	boot.c commands.c console.c devopen.c interp.c 
 SRCS+=	interp_backslash.c interp_parse.c ls.c misc.c 
@@ -62,7 +67,7 @@ SRCS+=	pnp.c
 # Forth interpreter
 .if defined(BOOT_FORTH)
 SRCS+=	interp_forth.c
-.include "../ficl.mk"
+.include "${BOOTDIR}/ficl.mk"
 .endif
 
 .if defined(BOOT_PROMPT_123)
@@ -78,6 +83,6 @@ VERSION_FILE?=	${.CURDIR}/version
 .if ${MK_REPRODUCIBLE_BUILD} != no
 REPRO_FLAG=	-r
 .endif
-vers.c: ${SRCTOP}/sys/boot/common/newvers.sh ${VERSION_FILE}
-	sh ${SRCTOP}/sys/boot/common/newvers.sh ${REPRO_FLAG} ${VERSION_FILE} \
+vers.c: ${LDR_MI}/newvers.sh ${VERSION_FILE}
+	sh ${LDR_MI}/newvers.sh ${REPRO_FLAG} ${VERSION_FILE} \
 	    ${NEWVERSWHAT}

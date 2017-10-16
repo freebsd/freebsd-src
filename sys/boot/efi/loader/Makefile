@@ -103,9 +103,7 @@ CFLAGS+=	-DEFI_STAGING_SIZE=${EFI_STAGING_SIZE}
 .endif
 
 # Always add MI sources
-.PATH:		${.CURDIR}/../../common
-.include	"${.CURDIR}/../../common/Makefile.inc"
-CFLAGS+=	-I${.CURDIR}/../../common
+.include	"../../loader.mk"
 
 FILES+=	loader.efi
 FILESMODE_loader.efi=	${BINMODE}

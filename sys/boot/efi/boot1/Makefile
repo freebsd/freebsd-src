@@ -53,9 +53,7 @@ CWARNFLAGS.self_reloc.c+=	-Wno-error=maybe-uninitialized
 .endif
 
 # Always add MI sources
-.PATH:		${.CURDIR}/../../common
-.include	"${.CURDIR}/../../common/Makefile.inc"
-CFLAGS+=	-I${.CURDIR}/../../common
+.include	"../../loader.mk"
 
 .PATH: ${.CURDIR}/arch/${MACHINE}
 

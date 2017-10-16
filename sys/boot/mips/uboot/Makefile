@@ -94,9 +94,7 @@ LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 .endif
 
 # Always add MI sources
-.PATH:		${.CURDIR}/../../common
-.include	"${.CURDIR}/../../common/Makefile.inc"
-CFLAGS+=	-I${.CURDIR}/../../common
+.include	"../../loader.mk"
 CFLAGS+=	-I.
 
 CLEANFILES+=	loader.help
@@ -126,7 +124,7 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 loader.help: help.common help.uboot ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \
-	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
+	    awk -f ${LDR_MI}/merge_help.awk > ${.TARGET}
 
 ldscript.abs:
 	echo "UBLDR_LOADADDR = ${UBLDR_LOADADDR};" >${.TARGET}

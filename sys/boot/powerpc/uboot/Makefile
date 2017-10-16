@@ -75,9 +75,9 @@ LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 .endif
 
 # Always add MI sources
-.PATH:		${.CURDIR}/../../common ${.CURDIR}/../../../libkern
-.include	"${.CURDIR}/../../common/Makefile.inc"
-CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../..
+.include	"../../loader.mk"
+.PATH:		${.CURDIR}/../../../libkern
+CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-I.
 
 CLEANFILES+=	${PROG}.help
@@ -101,7 +101,7 @@ LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSA32}
 
 loader.help: help.common help.uboot ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \
-	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
+	    awk -f ${LDR_MI}/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../forth
 FILES=	loader.help

@@ -30,7 +30,6 @@ SRCS+=		vers.c
 
 CFLAGS+=	-Wall
 CFLAGS+=	-I${.CURDIR}/..
-CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-ffreestanding -I.
 
@@ -54,9 +53,7 @@ LIBZFSBOOT=	${.OBJDIR}/../zfs/libzfsboot.a
 .endif
 
 # Always add MI sources 
-.PATH:		${.CURDIR}/../../common
-.include	"${.CURDIR}/../../common/Makefile.inc"
-CFLAGS+=	-I${.CURDIR}/../../common
+.include	"../../loader.mk"
 CFLAGS+=	-I.
 DPADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSA} 
 LDADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSA}
