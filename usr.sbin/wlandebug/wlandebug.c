@@ -43,6 +43,8 @@
 #include <string.h>
 #include <err.h>
 
+#include <libifconfig.h>
+
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
 
 const char *progname;
@@ -160,6 +162,21 @@ setoid(char oid[], size_t oidlen, const char *wlan)
 #endif
 }
 
+static void
+get_orig_iface_name(char *oid, size_t oid_size, char *name)
+{
+	struct ifconfig_handle *h;
+	char *orig_name;
+
+	h = ifconfig_open();
+	if (ifconfig_get_orig_name(h, name, &orig_name) < 0)
+		errc(1, ifconfig_err_errno(h), "cannot get interface name");
+
+	ifconfig_close(h);
+	setoid(oid, oid_size, orig_name);
+	free(orig_name);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -179,9 +196,7 @@ main(int argc, char *argv[])
 		} else if (strcmp(argv[1], "-i") == 0) {
 			if (argc <= 2)
 				errx(1, "missing interface name for -i option");
-			if (strncmp(argv[2], "wlan", 4) != 0)
-				errx(1, "expecting a wlan interface name");
-			setoid(oid, sizeof(oid), argv[2]);
+			get_orig_iface_name(oid, sizeof(oid), argv[2]);
 			argc -= 2, argv += 2;
 		} else if (strcmp(argv[1], "-?") == 0)
 			usage();
