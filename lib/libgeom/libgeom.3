@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2017
+.Dd October 16, 2017
 .Dt LIBGEOM 3
 .Os
 .Sh NAME
@@ -46,6 +46,10 @@
 .Nm gctl_issue ,
 .Nm gctl_free ,
 .Nm gctl_dump ,
+.Nm geom_getxml ,
+.Nm geom_xml2tree ,
+.Nm geom_gettree ,
+.Nm geom_deletetree ,
 .Nm g_open ,
 .Nm g_close ,
 .Nm g_mediasize ,
@@ -99,6 +103,14 @@
 .Ft void
 .Fn gctl_dump "struct gctl_req *req" "FILE *f"
 .Ss "Utility Functions"
+.Ft "char *"
+.Fn geom_getxml void
+.Ft int
+.Fn geom_xml2tree "struct gmesh *gmp" "char *p"
+.Ft int
+.Fn geom_gettree "struct gmesh *gmp"
+.Ft void
+.Fn geom_deletetree "struct gmesh *gmp"
 .Ft int
 .Fn g_open "const char *name" "int dowrite"
 .Ft int
@@ -278,6 +290,46 @@ which returns
 on success, or an error message corresponding to the
 first error which happened.
 .Ss "Utility Functions"
+The
+.Fn geom_getxml
+function is a wrapper around
+.Xr sysctl 3
+that fetches the
+.Ar kern.geom.confxml
+OID, and returns it's value.
+The allocated memory should be released with
+.Xr free 2
+after use.
+.Pp
+The
+.Fn geom_xml2tree
+function parses the XML representation of a GEOM topology passed as
+.Ar p ,
+allocates the needed data structures to access this information and fills in
+the passed
+.Ar gmp
+data structure.
+Memory allocated during this transformation should be released
+using
+.Fn geom_deletetree
+after use.
+.Pp
+The
+.Fn geom_gettree
+function is a wrapper around the
+.Fn geom_getxml
+and
+.Fn geom_xml2tree
+functions.
+Memory allocated during this operation should be released using
+.Fn geom_deletetree
+after use.
+.Pp
+The
+.Fn geom_deletetree
+function releases memory allocated for storing the data-structures referenced by
+.Ar gmp .
+.Pp
 The
 .Fn g_*
 functions are used to communicate with GEOM providers.
