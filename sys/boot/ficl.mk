@@ -27,6 +27,8 @@ CFLAGS+=	-m32 -mcpu=powerpc -I.
 .endif
 
 CFLAGS+=	-I${FICLDIR} -I${FICLDIR}/${FICL_CPUARCH} -I${LDR_MI}
+CFLAGS+=	-DBOOT_FORTH
+CFLAGS+=	-DBF_DICTSIZE=15000
 
 .if ${MACHINE_CPUARCH} == "amd64" && defined(FICL32)
 .if !exists(machine)
