@@ -2855,15 +2855,32 @@ issignal(struct thread *td)
 			mtx_lock(&ps->ps_mtx);
 
 			/* 
-			 * Keep looking if the debugger discarded the signal
-			 * or replaced it with a masked signal.
-			 *
-			 * If the traced bit got turned off, go back up
-			 * to the top to rescan signals.  This ensures
-			 * that p_sig* and p_sigact are consistent.
+			 * Keep looking if the debugger discarded or
+			 * replaced the signal.
 			 */
-			if (sig == 0 || (p->p_flag & P_TRACED) == 0)
+			if (sig == 0)
 				continue;
+
+			/*
+			 * If the signal became masked, re-queue it.
+			 */
+			if (SIGISMEMBER(td->td_sigmask, sig)) {
+				ksi.ksi_flags |= KSI_HEAD;
+				sigqueue_add(&p->p_sigqueue, sig, &ksi);
+				continue;
+			}
+
+			/*
+			 * If the traced bit got turned off, requeue
+			 * the signal and go back up to the top to
+			 * rescan signals.  This ensures that p_sig*
+			 * and p_sigact are consistent.
+			 */
+			if ((p->p_flag & P_TRACED) == 0) {
+				ksi.ksi_flags |= KSI_HEAD;
+				sigqueue_add(queue, sig, &ksi);
+				continue;
+			}
 		}
 
 		prop = sigprop(sig);
