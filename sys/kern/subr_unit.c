@@ -373,18 +373,17 @@ clear_unrhdr(struct unrhdr *uh)
 
 	KASSERT(TAILQ_EMPTY(&uh->ppfree),
 	    ("unrhdr has postponed item for free"));
-	up = TAILQ_FIRST(&uh->head);
-	while (up != NULL) {
-		uq = TAILQ_NEXT(up, list);
+	TAILQ_FOREACH_SAFE(up, &uh->head, list, uq) {
 		if (up->ptr != uh) {
 			Free(up->ptr);
 		}
 		Free(up);
-		up = uq;
 	}
-	TAILQ_INIT(&uh->head);
 	uh->busy = 0;
 	uh->alloc = 0;
+	init_unrhdr(uh, uh->low, uh->high, uh->mtx);
+
+	check_unrhdr(uh, __LINE__);
 }
 
 static __inline int
