@@ -3,7 +3,6 @@
 .include <src.opts.mk>
 
 .if ${MK_FORTH} != "no"
-CFLAGS+= -DBOOT_FORTH
 .include	"../../ficl.mk"
 .endif
 

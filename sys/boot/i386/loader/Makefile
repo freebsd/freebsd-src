@@ -42,17 +42,6 @@ HAVE_BCACHE=	yes
 HAVE_PNP=	yes
 HAVE_ISABUS=	yes
 
-.if ${MK_FORTH} != "no"
-# Enable BootForth
-BOOT_FORTH=	yes
-CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386
-.if ${MACHINE_CPUARCH} == "amd64"
-LIBFICL=	${.OBJDIR}/../../ficl32/libficl.a
-.else
-LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-.endif
-.endif
-
 .if defined(LOADER_BZIP2_SUPPORT)
 CFLAGS+=	-DLOADER_BZIP2_SUPPORT
 .endif
@@ -119,8 +108,15 @@ FILES+=	loader.rc menu.rc
 # XXX crt0.o needs to be first for pxeboot(8) to work
 OBJS=	${BTXCRT}
 
-DPADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBGELIBOOT} ${LIBSA32}
-LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBGELIBOOT} ${LIBSA32}
+# XXX not happy with this construct, revisit
+.if ${MACHINE_CPUARCH} == "amd64"
+FICL=	${LIBFICL32}
+.else
+FICL=	${LIBFICL}
+.endif
+
+DPADD=	${FICL} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBGELIBOOT} ${LIBSA32}
+LDADD=	${FICL} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBGELIBOOT} ${LIBSA32}
 
 .include <bsd.prog.mk>
 

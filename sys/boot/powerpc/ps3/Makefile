@@ -61,14 +61,6 @@ LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
 .endif
 
 
-.if ${MK_FORTH} != "no"
-# Enable BootForth
-BOOT_FORTH=	yes
-CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl
-CFLAGS+=	-I${.CURDIR}/../../ficl/powerpc
-LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-.endif
-
 CFLAGS+=	-mcpu=powerpc64
 
 # Always add MI sources
