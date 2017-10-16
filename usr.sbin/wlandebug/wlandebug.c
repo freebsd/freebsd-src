@@ -172,6 +172,9 @@ get_orig_iface_name(char *oid, size_t oid_size, char *name)
 	if (ifconfig_get_orig_name(h, name, &orig_name) < 0)
 		errc(1, ifconfig_err_errno(h), "cannot get interface name");
 
+	if (strlen(orig_name) < strlen("wlan") + 1)
+		errx(1, "expecting a wlan interface name");
+
 	ifconfig_close(h);
 	setoid(oid, oid_size, orig_name);
 	free(orig_name);
