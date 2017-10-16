@@ -29,8 +29,10 @@ v4_body()
 	jexec alcatraz arp -s 198.51.100.3 00:01:02:03:04:05
 	route add -net 198.51.100.0/24 192.0.2.2
 
+	jexec alcatraz pfctl -e
+
 	# No change is done if not requested
-	printf "scrub out proto icmp\n" | jexec alcatraz pfctl -ef -
+	pft_set_rules alcatraz "scrub out proto icmp"
 	atf_check -s exit:1 -o ignore $(atf_get_srcdir)/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
@@ -38,7 +40,7 @@ v4_body()
 		--expect-tos 42
 
 	# The requested ToS is set
-	printf "scrub out proto icmp set-tos 42\n" | jexec alcatraz pfctl -f -
+	pft_set_rules alcatraz "scrub out proto icmp set-tos 42"
 	atf_check -s exit:0 $(atf_get_srcdir)/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
@@ -46,7 +48,7 @@ v4_body()
 		--expect-tos 42
 
 	# ToS is not changed if the scrub rule does not match
-	printf "scrub out proto tcp set-tos 42\n" | jexec alcatraz pfctl -f -
+	pft_set_rules alcatraz "scrub out proto tcp set-tos 42"
 	atf_check -s exit:1 -o ignore $(atf_get_srcdir)/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
@@ -54,8 +56,8 @@ v4_body()
 		--expect-tos 42
 
 	# Multiple scrub rules match as expected
-	printf "scrub out proto tcp set-tos 13\nscrub out proto icmp set-tos 14\n" \
-		| jexec alcatraz pfctl -f -
+	pft_set_rules alcatraz "scrub out proto tcp set-tos 13" \
+		"scrub out proto icmp set-tos 14"
 	atf_check -s exit:0 $(atf_get_srcdir)/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
@@ -71,8 +73,7 @@ v4_body()
 		--expect-tos 14
 
 	# ToS values are unmolested if the packets do not match a scrub rule
-	printf "scrub out proto tcp set-tos 13\n" \
-		| jexec alcatraz pfctl -f -
+	pft_set_rules alcatraz "scrub out proto tcp set-tos 13"
 	atf_check -s exit:0 $(atf_get_srcdir)/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
