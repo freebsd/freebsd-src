@@ -76,14 +76,8 @@ CFLAGS+=	-I${.CURDIR}/../../../ficl/mips64
 LIBFICL=	${.OBJDIR}/../../../ficl/libficl.a
 .endif
 
-# Common code across BERI boot loader parts
-.PATH:		${.CURDIR}/../common
-CFLAGS+=	-I${.CURDIR}/../common
-
 # Always add MI sources
-.PATH:		${.CURDIR}/../../../common
-.include	"${.CURDIR}/../../../common/Makefile.inc"
-CFLAGS+=	-I${.CURDIR}/../../../common
+.include	"../../../loader.mk"
 
 # BERI files common to boot2 and loader
 .PATH:		${.CURDIR}/../common
@@ -112,7 +106,7 @@ LDADD=		${LIBFICL} ${LIBSA}
 
 loader.help: help.common help.mips
 	cat ${.ALLSRC} | \
-	    awk -f ${.CURDIR}/../../../common/merge_help.awk > ${.TARGET}
+	    awk -f ${LDR_MI}/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../../forth
 .include	"${.CURDIR}/../../../forth/Makefile.inc"
