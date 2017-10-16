@@ -35,21 +35,23 @@ v4_body()
 		--to 198.51.100.3 \
 		--recvif ${epair_recv}a
 
+	jexec alcatraz pfctl -e
+
 	# Forward with pf enabled
-	printf "block in\n" | jexec alcatraz pfctl -ef -
+	pft_set_rules alcatraz "block in"
 	atf_check -s exit:1 $(atf_get_srcdir)/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
 		--recvif ${epair_recv}a
 
-	printf "block out\n" | jexec alcatraz pfctl -f -
+	pft_set_rules alcatraz "block out"
 	atf_check -s exit:1 $(atf_get_srcdir)/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
 		--recv ${epair_recv}a
 
 	# Allow ICMP
-	printf "block in\npass in proto icmp\n" | jexec alcatraz pfctl -f -
+	pft_set_rules alcatraz "block in" "pass in proto icmp"
 	atf_check -s exit:0 $(atf_get_srcdir)/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \

@@ -28,11 +28,11 @@ v4_body()
 	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.2
 
 	# Block everything
-	printf "block in\n" | jexec alcatraz pfctl -f -
+	pft_set_rules alcatraz "block in"
 	atf_check -s exit:2 -o ignore ping -c 1 -t 1 192.0.2.2
 
 	# Block everything but ICMP
-	printf "block in\npass in proto icmp\n" | jexec alcatraz pfctl -f -
+	pft_set_rules alcatraz "block in" "pass in proto icmp"
 	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.2
 }
 
@@ -67,15 +67,15 @@ v6_body()
 	atf_check -s exit:0 -o ignore ping6 -c 1 -x 1 2001:db8:42::2
 
 	# Block everything
-	printf "block in\n" | jexec alcatraz pfctl -f -
+	pft_set_rules alcatraz "block in"
 	atf_check -s exit:2 -o ignore ping6 -c 1 -x 1 2001:db8:42::2
 
 	# Block everything but ICMP
-	printf "block in\npass in proto icmp6\n" | jexec alcatraz pfctl -f -
+	pft_set_rules alcatraz "block in" "pass in proto icmp6"
 	atf_check -s exit:0 -o ignore ping6 -c 1 -x 1 2001:db8:42::2
 
 	# Allowing ICMPv4 does not allow ICMPv6
-	printf "block in\npass in proto icmp\n" | jexec alcatraz pfctl -f -
+	pft_set_rules alcatraz "block in" "pass in proto icmp"
 	atf_check -s exit:2 -o ignore ping6 -c 1 -x 1 2001:db8:42::2
 }
 
