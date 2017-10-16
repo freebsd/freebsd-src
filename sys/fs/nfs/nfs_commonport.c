@@ -40,7 +40,9 @@ __FBSDID("$FreeBSD$");
  * to this BSD variant.
  */
 #include <fs/nfs/nfsport.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #include <rpc/rpc_com.h>
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -68,6 +70,8 @@ int nfsrv_lughashsize = 100;
 void (*nfsd_call_servertimer)(void) = NULL;
 void (*ncl_call_invalcaches)(struct vnode *) = NULL;
 
+int nfs_pnfsio(task_fn_t *, void *);
+
 static int nfs_realign_test;
 static int nfs_realign_count;
 static struct ext_nfsstats oldnfsstats;
@@ -84,6 +88,9 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nfscl_debuglevel,
     0, "Debug level for NFS client");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, userhashsize, CTLFLAG_RDTUN, &nfsrv_lughashsize,
     0, "Size of hash tables for uid/name mapping");
+int nfs_pnfsiothreads = 0;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, pnfsiothreads, CTLFLAG_RW, &nfs_pnfsiothreads,
+    0, "Number of pNFS mirror I/O threads");
 
 /*
  * Defines for malloc
@@ -689,6 +696,50 @@ nfs_supportsnfsv4acls(struct vnode *vp)
 	if (error == 0 && retval != 0)
 		return (1);
 	return (0);
+}
+
+/*
+ * These are the first fields of all the context structures passed into
+ * nfs_pnfsio().
+ */
+struct pnfsio {
+	int		done;
+	int		inprog;
+	struct task	tsk;
+};
+
+/*
+ * Do a mirror I/O on a pNFS thread.
+ */
+int
+nfs_pnfsio(task_fn_t *func, void *context)
+{
+	struct pnfsio *pio;
+	int ret;
+	static struct taskqueue *pnfsioq = NULL;
+
+	pio = (struct pnfsio *)context;
+	if (pnfsioq == NULL) {
+		if (nfs_pnfsiothreads == 0)
+			nfs_pnfsiothreads = mp_ncpus * 4;
+		pnfsioq = taskqueue_create("pnfsioq", M_WAITOK,
+		    taskqueue_thread_enqueue, &pnfsioq);
+		if (pnfsioq == NULL)
+			return (ENOMEM);
+		ret = taskqueue_start_threads(&pnfsioq, nfs_pnfsiothreads,
+		    0, "pnfsiot");
+		if (ret != 0) {
+			taskqueue_free(pnfsioq);
+			pnfsioq = NULL;
+			return (ret);
+		}
+	}
+	pio->inprog = 1;
+	TASK_INIT(&pio->tsk, 0, func, context);
+	ret = taskqueue_enqueue(pnfsioq, &pio->tsk);
+	if (ret != 0)
+		pio->inprog = 0;
+	return (ret);
 }
 
 extern int (*nfsd_call_nfscommon)(struct thread *, struct nfssvc_args *);
