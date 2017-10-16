@@ -2888,11 +2888,11 @@ reclaim_pv_chunk_leave_pmap(pmap_t pmap, pmap_t locked_pmap, bool start_di)
 static vm_page_t
 reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 {
-	struct pch new_tail;
-	struct pv_chunk *pc;
+	struct pv_chunk *pc, *pc_marker;
+	struct pv_chunk_header pc_marker_b;
 	struct md_page *pvh;
 	pd_entry_t *pde;
-	pmap_t pmap;
+	pmap_t next_pmap, pmap;
 	pt_entry_t *pte, tpte;
 	pt_entry_t PG_G, PG_A, PG_M, PG_RW;
 	pv_entry_t pv;
@@ -2909,7 +2909,8 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 	m_pc = NULL;
 	PG_G = PG_A = PG_M = PG_RW = 0;
 	SLIST_INIT(&free);
-	TAILQ_INIT(&new_tail);
+	bzero(&pc_marker_b, sizeof(pc_marker_b));
+	pc_marker = (struct pv_chunk *)&pc_marker_b;
 
 	/*
 	 * A delayed invalidation block should already be active if
@@ -2919,30 +2920,52 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 	start_di = pmap_not_in_di();
 
 	mtx_lock(&pv_chunks_mutex);
-	while ((pc = TAILQ_FIRST(&pv_chunks)) != NULL && SLIST_EMPTY(&free)) {
-		TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
+	TAILQ_INSERT_HEAD(&pv_chunks, pc_marker, pc_lru);
+	while ((pc = TAILQ_NEXT(pc_marker, pc_lru)) != NULL &&
+	    SLIST_EMPTY(&free)) {
+		next_pmap = pc->pc_pmap;
+		if (next_pmap == NULL)		/* marker */
+			goto next_chunk;
 		mtx_unlock(&pv_chunks_mutex);
-		if (pmap != pc->pc_pmap) {
+
+		/*
+		 * A pv_chunk can only be removed from the pc_lru list
+		 * when both pc_chunks_mutex is owned and the
+		 * corresponding pmap is locked.
+		 */
+		if (pmap != next_pmap) {
 			reclaim_pv_chunk_leave_pmap(pmap, locked_pmap,
 			    start_di);
-			pmap = pc->pc_pmap;
+			pmap = next_pmap;
 			/* Avoid deadlock and lock recursion. */
 			if (pmap > locked_pmap) {
 				RELEASE_PV_LIST_LOCK(lockp);
 				PMAP_LOCK(pmap);
-			} else if (pmap != locked_pmap &&
-			    !PMAP_TRYLOCK(pmap)) {
-				pmap = NULL;
-				TAILQ_INSERT_TAIL(&new_tail, pc, pc_lru);
+				if (start_di)
+					pmap_delayed_invl_started();
 				mtx_lock(&pv_chunks_mutex);
 				continue;
-			}
+			} else if (pmap != locked_pmap) {
+				if (PMAP_TRYLOCK(pmap)) {
+					if (start_di)
+						pmap_delayed_invl_started();
+					mtx_lock(&pv_chunks_mutex);
+					continue;
+				} else {
+					pmap = NULL; /* pmap is not locked */
+					mtx_lock(&pv_chunks_mutex);
+					pc = TAILQ_NEXT(pc_marker, pc_lru);
+					if (pc == NULL ||
+					    pc->pc_pmap != next_pmap)
+						continue;
+					goto next_chunk;
+				}
+			} else if (start_di)
+				pmap_delayed_invl_started();
 			PG_G = pmap_global_bit(pmap);
 			PG_A = pmap_accessed_bit(pmap);
 			PG_M = pmap_modified_bit(pmap);
 			PG_RW = pmap_rw_bit(pmap);
-			if (start_di)
-				pmap_delayed_invl_started();
 		}
 
 		/*
@@ -2987,9 +3010,8 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 			}
 		}
 		if (freed == 0) {
-			TAILQ_INSERT_TAIL(&new_tail, pc, pc_lru);
 			mtx_lock(&pv_chunks_mutex);
-			continue;
+			goto next_chunk;
 		}
 		/* Every freed mapping is for a 4 KB page. */
 		pmap_resident_count_dec(pmap, freed);
@@ -3006,16 +3028,19 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 			m_pc = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 			dump_drop_page(m_pc->phys_addr);
 			mtx_lock(&pv_chunks_mutex);
+			TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
 			break;
 		}
 		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
-		TAILQ_INSERT_TAIL(&new_tail, pc, pc_lru);
 		mtx_lock(&pv_chunks_mutex);
 		/* One freed pv entry in locked_pmap is sufficient. */
 		if (pmap == locked_pmap)
 			break;
+next_chunk:
+		TAILQ_REMOVE(&pv_chunks, pc_marker, pc_lru);
+		TAILQ_INSERT_AFTER(&pv_chunks, pc, pc_marker, pc_lru);
 	}
-	TAILQ_CONCAT(&pv_chunks, &new_tail, pc_lru);
+	TAILQ_REMOVE(&pv_chunks, pc_marker, pc_lru);
 	mtx_unlock(&pv_chunks_mutex);
 	reclaim_pv_chunk_leave_pmap(pmap, locked_pmap, start_di);
 	if (m_pc == NULL && !SLIST_EMPTY(&free)) {
