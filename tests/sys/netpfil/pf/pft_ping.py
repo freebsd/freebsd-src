@@ -19,6 +19,12 @@ class Sniffer(threading.Thread):
 		self.packets = sp.sniff(iface=self._recvif, timeout=3)
 
 def check_ping_request(packet, dst_ip, args):
+	if args.ip6:
+		return check_ping6_request(packet, dst_ip, args)
+	else:
+		return check_ping4_request(packet, dst_ip, args)
+
+def check_ping4_request(packet, dst_ip, args):
 	"""
 	Verify that the packet matches what we'd have sent
 	"""
@@ -51,6 +57,24 @@ def check_ping_request(packet, dst_ip, args):
 
 	return True
 
+def check_ping6_request(packet, dst_ip, args):
+	"""
+	Verify that the packet matches what we'd have sent
+	"""
+	ip = packet.getlayer(sp.IPv6)
+	if not ip:
+		return False
+	if ip.dst != dst_ip:
+		return False
+
+	icmp = packet.getlayer(sp.ICMPv6EchoRequest)
+	if not icmp:
+		return False
+	if icmp.data != str(PAYLOAD_MAGIC):
+		return False
+
+	return True
+
 def ping(send_if, dst_ip, args):
 	ether = sp.Ether()
 	ip = sp.IP(dst=dst_ip)
@@ -63,6 +87,14 @@ def ping(send_if, dst_ip, args):
 	req = ether / ip / icmp / raw
 	sp.sendp(req, iface=send_if, verbose=False)
 
+def ping6(send_if, dst_ip, args):
+	ether = sp.Ether()
+	ip6 = sp.IPv6(dst=dst_ip)
+	icmp = sp.ICMPv6EchoRequest(data=PAYLOAD_MAGIC)
+
+	req = ether / ip6 / icmp
+	sp.sendp(req, iface=send_if, verbose=False)
+
 def main():
 	parser = argparse.ArgumentParser("pft_ping.py",
 		description="Ping test tool")
@@ -71,6 +103,8 @@ def main():
 		help='The interface through which the packet(s) will be sent')
 	parser.add_argument('--recvif', nargs=1,
 		help='The interface on which to expect the ICMP echo response')
+	parser.add_argument('--ip6', action='store_true',
+		help='Use IPv6')
 	parser.add_argument('--to', nargs=1,
 		required=True,
 		help='The destination IP address for the ICMP echo request')
@@ -85,11 +119,17 @@ def main():
 
 	args = parser.parse_args()
 
+	# We may not have a default route. Tell scapy where to start looking for routes
+	sp.conf.iface6 = args.sendif[0]
+
 	sniffer = None
 	if not args.recvif is None:
 		sniffer = Sniffer(args.recvif[0])
 
-	ping(args.sendif[0], args.to[0], args)
+	if args.ip6:
+		ping6(args.sendif[0], args.to[0], args)
+	else:
+		ping(args.sendif[0], args.to[0], args)
 
 	if sniffer:
 		sniffer.join()
