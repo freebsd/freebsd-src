@@ -2467,12 +2467,16 @@ ATF_TC_WITHOUT_HEAD(ptrace__PT_CONTINUE_with_sigtrap_system_call_entry);
 ATF_TC_BODY(ptrace__PT_CONTINUE_with_sigtrap_system_call_entry, tc)
 {
 	struct ptrace_lwpinfo pl;
+	struct rlimit rl;
 	pid_t fpid, wpid;
 	int status;
 
 	ATF_REQUIRE((fpid = fork()) != -1);
 	if (fpid == 0) {
 		trace_me();
+		/* SIGTRAP expected to cause exit on syscall entry. */
+		rl.rlim_cur = rl.rlim_max = 0;
+		ATF_REQUIRE(setrlimit(RLIMIT_CORE, &rl) == 0);
 		getpid();
 		exit(1);
 	}
