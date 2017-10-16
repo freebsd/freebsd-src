@@ -4,7 +4,7 @@
 
 .if ${MK_FORTH} != "no"
 CFLAGS+= -DBOOT_FORTH
-.include "${.CURDIR}/../../Makefile.ficl"
+.include	"../../ficl.mk"
 .endif
 
 LIB=	efi
