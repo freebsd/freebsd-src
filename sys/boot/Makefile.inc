@@ -2,14 +2,10 @@
 
 .include <src.opts.mk>
 
+.include "defs.mk"
+
 .if !defined(__BOOT_MAKEFILE_INC__)
 __BOOT_MAKEFILE_INC__=${MFILE}
-
-SASRC=${SRCTOP}/sys/boot/libsa
-# Normal Standalone library
-LIBSA=${OBJTOP}/sys/boot/libsa/libsa.a
-# Standalone library compiled for 32-bit version of the processor
-LIBSA32=${OBJTOP}/sys/boot/libsa32/libsa32.a
 
 CFLAGS+=-I${SASRC}
 

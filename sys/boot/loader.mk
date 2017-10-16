@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-BOOTDIR=${SRCTOP}/sys/boot
-LDR_MI=${BOOTDIR}/common
+.include "defs.mk"
 
 .PATH: ${LDR_MI} ${BOOTDIR}/libsa
 
