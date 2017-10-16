@@ -5,6 +5,11 @@ MAN=
 .include <src.opts.mk>
 MK_SSP=		no
 
+LOADER_MSDOS_SUPPORT?=	yes
+LOADER_UFS_SUPPORT?=	yes
+LOADER_CD9660_SUPPORT?=	no
+LOADER_EXT2FS_SUPPORT?=	no
+
 SHLIB_NAME=	userboot.so
 MK_CTF=		no
 STRIP=

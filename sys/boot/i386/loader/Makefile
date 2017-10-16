@@ -13,6 +13,11 @@ LOADER_NET_SUPPORT?=	yes
 LOADER_NFS_SUPPORT?=	yes
 LOADER_TFTP_SUPPORT?=	yes
 
+LOADER_CD9660_SUPPORT?=	no
+LOADER_EXT2FS_SUPPORT?=	no
+LOADER_MSDOS_SUPPORT?=	no
+LOADER_UFS_SUPPORT?=	yes
+
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c chain.c
 
@@ -28,13 +33,6 @@ CFLAGS+=	-DLOADER_ZFS_SUPPORT
 LIBZFSBOOT=	${.OBJDIR}/../../zfs/libzfsboot.a
 .endif
 
-.if defined(LOADER_TFTP_SUPPORT)
-CFLAGS+=	-DLOADER_TFTP_SUPPORT
-.endif
-.if defined(LOADER_NFS_SUPPORT)
-CFLAGS+=	-DLOADER_NFS_SUPPORT
-.endif
-
 # Include bcache code.
 HAVE_BCACHE=	yes
 
@@ -42,16 +40,7 @@ HAVE_BCACHE=	yes
 HAVE_PNP=	yes
 HAVE_ISABUS=	yes
 
-.if defined(LOADER_BZIP2_SUPPORT)
-CFLAGS+=	-DLOADER_BZIP2_SUPPORT
-.endif
-.if !defined(LOADER_NO_GZIP_SUPPORT)
-CFLAGS+=	-DLOADER_GZIP_SUPPORT
-.endif
-.if defined(LOADER_NANDFS_SUPPORT)
-CFLAGS+=	-DLOADER_NANDFS_SUPPORT
-.endif
-.if !defined(LOADER_NO_GELI_SUPPORT)
+.if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 CFLAGS+=	-DLOADER_GELI_SUPPORT
 CFLAGS+=	-I${.CURDIR}/../../geli
 LIBGELIBOOT=	${.OBJDIR}/../../geli/libgeliboot.a
