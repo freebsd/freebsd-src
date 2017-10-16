@@ -2,7 +2,7 @@
 
 # Common flags to build FICL related files
 
-FICLDIR?=	${SRCTOP}/sys/boot/ficl
+.include "defs.mk"
 
 .if ${MACHINE_CPUARCH} == "amd64" && defined(FICL32)
 FICL_CPUARCH=	i386
@@ -26,7 +26,7 @@ CFLAGS+=	-fPIC
 CFLAGS+=	-m32 -mcpu=powerpc -I.
 .endif
 
-CFLAGS+=	-I${FICLDIR} -I${FICLDIR}/${FICL_CPUARCH} -I${SRCTOP}/sys/boot/common
+CFLAGS+=	-I${FICLDIR} -I${FICLDIR}/${FICL_CPUARCH} -I${LDR_MI}
 
 .if ${MACHINE_CPUARCH} == "amd64" && defined(FICL32)
 .if !exists(machine)
