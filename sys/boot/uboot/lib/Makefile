@@ -13,6 +13,10 @@ SRCS+=	module.c net.c reboot.c time.c
 
 CFLAGS+=	-ffreestanding -msoft-float
 
+.if ${LOADER_DISK_SUPPORT:Uyes} == "yes"
+SRCS+= disk.c
+.endif
+
 .if ${MK_FDT} != "no"
 LOADER_FDT_SUPPORT=	yes
 .else
