@@ -135,19 +135,20 @@ nospace:
  * Allocate EA's block for inode.
  */
 daddr_t
-ext2_allocfacl(struct inode *ip)
+ext2_alloc_meta(struct inode *ip)
 {
 	struct m_ext2fs *fs;
-	daddr_t facl;
+	daddr_t blk;
 
 	fs = ip->i_e2fs;
 
 	EXT2_LOCK(ip->i_ump);
-	facl = ext2_alloccg(ip, ino_to_cg(fs, ip->i_number), 0, fs->e2fs_bsize);
-	if (0 == facl)
+	blk = ext2_hashalloc(ip, ino_to_cg(fs, ip->i_number), 0, fs->e2fs_bsize,
+	    ext2_alloccg);
+	if (0 == blk)
 		EXT2_UNLOCK(ip->i_ump);
 
-	return (facl);
+	return (blk);
 }
 
 /*
@@ -200,7 +201,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	fs = ip->i_e2fs;
 	ump = ip->i_ump;
 
-	if (fs->e2fs_contigsumsize <= 0)
+	if (fs->e2fs_contigsumsize <= 0 || ip->i_flag & IN_E4EXTENTS)
 		return (ENOSPC);
 
 	buflist = ap->a_buflist;
@@ -375,7 +376,7 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	struct inode *ip;
 	struct ext2mount *ump;
 	ino_t ino, ipref;
-	int i, error, cg;
+	int error, cg;
 
 	*vpp = NULL;
 	pip = VTOI(pvp);
@@ -421,11 +422,12 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	ip->i_blocks = 0;
 	ip->i_mode = 0;
 	ip->i_flags = 0;
-	/* now we want to make sure that the block pointers are zeroed out */
-	for (i = 0; i < EXT2_NDADDR; i++)
-		ip->i_db[i] = 0;
-	for (i = 0; i < EXT2_NIADDR; i++)
-		ip->i_ib[i] = 0;
+	if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_EXTENTS)
+	    && (S_ISREG(mode) || S_ISDIR(mode)))
+		ext4_ext_tree_init(ip);
+	else
+		memset(ip->i_data, 0, sizeof(ip->i_data));
+	
 
 	/*
 	 * Set up a new generation number for this inode.
@@ -575,7 +577,10 @@ e4fs_daddr_t
 ext2_blkpref(struct inode *ip, e2fs_lbn_t lbn, int indx, e2fs_daddr_t *bap,
     e2fs_daddr_t blocknr)
 {
+	struct m_ext2fs *fs;
 	int tmp;
+
+	fs = ip->i_e2fs;
 
 	mtx_assert(EXT2_MTX(ip->i_ump), MA_OWNED);
 
@@ -599,10 +604,9 @@ ext2_blkpref(struct inode *ip, e2fs_lbn_t lbn, int indx, e2fs_daddr_t *bap,
 	 * Else lets fall back to the blocknr or, if there is none, follow
 	 * the rule that a block should be allocated near its inode.
 	 */
-	return blocknr ? blocknr :
+	return (blocknr ? blocknr :
 	    (e2fs_daddr_t)(ip->i_block_group *
-	    EXT2_BLOCKS_PER_GROUP(ip->i_e2fs)) +
-	    ip->i_e2fs->e2fs->e2fs_first_dblock;
+	    EXT2_BLOCKS_PER_GROUP(fs)) + fs->e2fs->e2fs_first_dblock);
 }
 
 /*
