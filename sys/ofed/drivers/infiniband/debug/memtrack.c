@@ -19,6 +19,8 @@
   Copyright (c) 2004 Mellanox Technologies Ltd.  All rights reserved.
 */
 
+#define	LINUXKPI_PARAM_PREFIX memtrack_
+
 #define C_MEMTRACK_C
 
 #ifdef kmalloc

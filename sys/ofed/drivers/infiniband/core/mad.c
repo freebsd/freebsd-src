@@ -33,6 +33,9 @@
  * SOFTWARE.
  *
  */
+
+#define	LINUXKPI_PARAM_PREFIX ibcore_
+
 #include <linux/dma-mapping.h>
 #include <rdma/ib_cache.h>
 

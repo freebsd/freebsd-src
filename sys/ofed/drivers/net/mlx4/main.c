@@ -33,6 +33,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX mlx4_
+
 #include <linux/kmod.h>
 /* 
  * kmod.h must be included before module.h since it includes (indirectly) sys/module.h
