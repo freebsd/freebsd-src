@@ -91,8 +91,6 @@
 
 static int ext2_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
 static void ext2_itimes_locked(struct vnode *);
-static int ext4_ext_read(struct vop_read_args *);
-static int ext2_ind_read(struct vop_read_args *);
 
 static vop_access_t	ext2_access;
 static int ext2_chmod(struct vnode *, int, struct ucred *, struct thread *);
@@ -630,7 +628,8 @@ ext2_mknod(struct vop_mknod_args *ap)
 		 * Want to be able to use this to make badblock
 		 * inodes, so don't truncate the dev number.
 		 */
-		ip->i_rdev = vap->va_rdev;
+		if (!(ip->i_flag & IN_E4EXTENTS))
+			ip->i_rdev = vap->va_rdev;
 	}
 	/*
 	 * Remove inode, then reload it through VFS_VGET so it is
@@ -1542,7 +1541,12 @@ ext2_strategy(struct vop_strategy_args *ap)
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("ext2_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
-		error = ext2_bmaparray(vp, bp->b_lblkno, &blkno, NULL, NULL);
+
+		if (VTOI(ap->a_vp)->i_flag & IN_E4EXTENTS)
+			error = ext4_bmapext(vp, bp->b_lblkno, &blkno, NULL, NULL);
+		else
+			error = ext2_bmaparray(vp, bp->b_lblkno, &blkno, NULL, NULL);
+
 		bp->b_blkno = blkno;
 		if (error) {
 			bp->b_error = error;
@@ -1990,28 +1994,6 @@ ext2_read(struct vop_read_args *ap)
 {
 	struct vnode *vp;
 	struct inode *ip;
-	int error;
-
-	vp = ap->a_vp;
-	ip = VTOI(vp);
-
-	/* EXT4_EXT_LOCK(ip); */
-	if (ip->i_flag & IN_E4EXTENTS)
-		error = ext4_ext_read(ap);
-	else
-		error = ext2_ind_read(ap);
-	/* EXT4_EXT_UNLOCK(ip); */
-	return (error);
-}
-
-/*
- * Vnode op for reading.
- */
-static int
-ext2_ind_read(struct vop_read_args *ap)
-{
-	struct vnode *vp;
-	struct inode *ip;
 	struct uio *uio;
 	struct m_ext2fs *fs;
 	struct buf *bp;
@@ -2128,122 +2110,6 @@ ext2_ioctl(struct vop_ioctl_args *ap)
 	default:
 		return (ENOTTY);
 	}
-}
-
-/*
- * this function handles ext4 extents block mapping
- */
-static int
-ext4_ext_read(struct vop_read_args *ap)
-{
-	static unsigned char zeroes[EXT2_MAX_BLOCK_SIZE];
-	struct vnode *vp;
-	struct inode *ip;
-	struct uio *uio;
-	struct m_ext2fs *fs;
-	struct buf *bp;
-	struct ext4_extent nex, *ep;
-	struct ext4_extent_path path;
-	daddr_t lbn, newblk;
-	off_t bytesinfile;
-	int cache_type;
-	ssize_t orig_resid;
-	int error;
-	long size, xfersize, blkoffset;
-
-	vp = ap->a_vp;
-	ip = VTOI(vp);
-	uio = ap->a_uio;
-	memset(&path, 0, sizeof(path));
-
-	orig_resid = uio->uio_resid;
-	KASSERT(orig_resid >= 0, ("%s: uio->uio_resid < 0", __func__));
-	if (orig_resid == 0)
-		return (0);
-	KASSERT(uio->uio_offset >= 0, ("%s: uio->uio_offset < 0", __func__));
-	fs = ip->i_e2fs;
-	if (uio->uio_offset < ip->i_size && uio->uio_offset >= fs->e2fs_maxfilesize)
-		return (EOVERFLOW);
-
-	while (uio->uio_resid > 0) {
-		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
-			break;
-		lbn = lblkno(fs, uio->uio_offset);
-		size = blksize(fs, ip, lbn);
-		blkoffset = blkoff(fs, uio->uio_offset);
-
-		xfersize = fs->e2fs_fsize - blkoffset;
-		xfersize = MIN(xfersize, uio->uio_resid);
-		xfersize = MIN(xfersize, bytesinfile);
-
-		/* get block from ext4 extent cache */
-		cache_type = ext4_ext_in_cache(ip, lbn, &nex);
-		switch (cache_type) {
-		case EXT4_EXT_CACHE_NO:
-			ext4_ext_find_extent(fs, ip, lbn, &path);
-			if (path.ep_is_sparse)
-				ep = &path.ep_sparse_ext;
-			else
-				ep = path.ep_ext;
-			if (ep == NULL)
-				return (EIO);
-
-			ext4_ext_put_cache(ip, ep,
-			    path.ep_is_sparse ? EXT4_EXT_CACHE_GAP : EXT4_EXT_CACHE_IN);
-
-			newblk = lbn - ep->e_blk + (ep->e_start_lo |
-			    (daddr_t)ep->e_start_hi << 32);
-
-			if (path.ep_bp != NULL) {
-				brelse(path.ep_bp);
-				path.ep_bp = NULL;
-			}
-			break;
-
-		case EXT4_EXT_CACHE_GAP:
-			/* block has not been allocated yet */
-			break;
-
-		case EXT4_EXT_CACHE_IN:
-			newblk = lbn - nex.e_blk + (nex.e_start_lo |
-			    (daddr_t)nex.e_start_hi << 32);
-			break;
-
-		default:
-			panic("%s: invalid cache type", __func__);
-		}
-
-		if (cache_type == EXT4_EXT_CACHE_GAP ||
-		    (cache_type == EXT4_EXT_CACHE_NO && path.ep_is_sparse)) {
-			if (xfersize > sizeof(zeroes))
-				xfersize = sizeof(zeroes);
-			error = uiomove(zeroes, xfersize, uio);
-			if (error)
-				return (error);
-		} else {
-			error = bread(ip->i_devvp, fsbtodb(fs, newblk), size,
-			    NOCRED, &bp);
-			if (error) {
-				brelse(bp);
-				return (error);
-			}
-
-			size -= bp->b_resid;
-			if (size < xfersize) {
-				if (size == 0) {
-					bqrelse(bp);
-					break;
-				}
-				xfersize = size;
-			}
-			error = uiomove(bp->b_data + blkoffset, xfersize, uio);
-			bqrelse(bp);
-			if (error)
-				return (error);
-		}
-	}
-
-	return (0);
 }
 
 /*

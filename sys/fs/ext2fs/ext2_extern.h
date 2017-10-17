@@ -51,7 +51,7 @@ struct vnode;
 int	ext2_add_entry(struct vnode *, struct ext2fs_direct_2 *);
 int	ext2_alloc(struct inode *, daddr_t, e4fs_daddr_t, int,
 	    struct ucred *, e4fs_daddr_t *);
-daddr_t ext2_allocfacl(struct inode *ip);
+daddr_t ext2_alloc_meta(struct inode *ip);
 int	ext2_balloc(struct inode *,
 	    e2fs_lbn_t, int, struct ucred *, struct buf **, int);
 int	ext2_blkatoff(struct vnode *, off_t, char **, struct buf **);
@@ -60,6 +60,7 @@ e4fs_daddr_t	ext2_blkpref(struct inode *, e2fs_lbn_t, int, e2fs_daddr_t *,
 	    e2fs_daddr_t);
 int	ext2_bmap(struct vop_bmap_args *);
 int	ext2_bmaparray(struct vnode *, daddr_t, daddr_t *, int *, int *);
+int	ext4_bmapext(struct vnode *, int32_t, int64_t *, int *, int *);
 void	ext2_clusteracct(struct m_ext2fs *, char *, int, daddr_t, int);
 void	ext2_dirbad(struct inode *ip, doff_t offset, char *how);
 void	ext2_fserr(struct m_ext2fs *, uid_t, char *);
@@ -101,6 +102,7 @@ int	ext2_search_dirblock(struct inode *, void *, int *, const char *, int,
 	    int *, doff_t *, doff_t *, doff_t *, struct ext2fs_searchslot *);
 int	ext2_gd_csum_verify(struct m_ext2fs *fs, struct cdev *dev);
 void	ext2_gd_csum_set(struct m_ext2fs *fs);
+void	ext2_fserr(struct m_ext2fs *, uid_t, char *);
 
 
 /* Flags to low-level allocation routines.
