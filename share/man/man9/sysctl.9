@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2015
+.Dd October 16, 2017
 .Dt SYSCTL 9
 .Os
 .Sh NAME
@@ -637,6 +637,10 @@ Additionally, any of the following optional flags may also be specified:
 .Bl -tag -width ".Dv CTLFLAG_ANYBODY"
 .It Dv CTLFLAG_ANYBODY
 Any user or process can write to this sysctl.
+.It Dv CTLFLAG_CAPRD
+A process in capability mode can read from this sysctl.
+.It Dv CTLFLAG_CAPWR
+A process in capability mode can write to this sysctl.
 .It Dv CTLFLAG_SECURE
 This sysctl can be written to only if the effective securelevel of the
 process is \[<=] 0.
