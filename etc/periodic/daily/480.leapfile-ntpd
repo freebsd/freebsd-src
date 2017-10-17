@@ -22,7 +22,7 @@ case "$daily_ntpd_leapfile_enable" in
 	    service ntpd onefetch
 	    ;;
 	esac
-        ;;
+	;;
 esac
 
 exit $rc
