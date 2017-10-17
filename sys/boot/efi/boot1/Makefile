@@ -9,10 +9,7 @@ MK_FORTH=	no
 
 PROG=		boot1.sym
 INTERNALPROG=
-WARNS?=		3
-
-# Include bcache code.
-HAVE_BCACHE=    yes
+WARNS?=		6
 
 # We implement a slightly non-standard %S in that it always takes a
 # CHAR16 that's common in UEFI-land instead of a wchar_t. This only
@@ -22,15 +19,13 @@ HAVE_BCACHE=    yes
 CWARNFLAGS.boot1.c+=	-Wno-format
 
 # Disable warnings that are currently incompatible with the zfs boot code
-CWARNFLAGS.zfs.c += -Wno-incompatible-pointer-types-discards-qualifiers
-CWARNFLAGS.zfs.c += -Wno-missing-variable-declarations
-CWARNFLAGS.zfs.c += -Wno-array-bounds
-CWARNFLAGS.zfs.c += -Wno-cast-align
-CWARNFLAGS.zfs.c += -Wno-cast-qual
-CWARNFLAGS.zfs.c += -Wno-missing-prototypes
-CWARNFLAGS.zfs.c += -Wno-sign-compare
-CWARNFLAGS.zfs.c += -Wno-unused-parameter
-CWARNFLAGS.zfs.c += -Wno-unused-function
+CWARNFLAGS.zfs_module.c += -Wno-array-bounds
+CWARNFLAGS.zfs_module.c += -Wno-cast-align
+CWARNFLAGS.zfs_module.c += -Wno-cast-qual
+CWARNFLAGS.zfs_module.c += -Wno-missing-prototypes
+CWARNFLAGS.zfs_module.c += -Wno-sign-compare
+CWARNFLAGS.zfs_module.c += -Wno-unused-parameter
+CWARNFLAGS.zfs_module.c += -Wno-unused-function
 CWARNFLAGS.skein.c += -Wno-cast-align
 .if ${COMPILER_TYPE} == "clang"
 CWARNFLAGS.skein.c += -Wno-missing-variable-declarations
@@ -39,24 +34,18 @@ CWARNFLAGS.skein.c += -Wno-missing-declarations
 .endif
 
 # architecture-specific loader code
-SRCS=	boot1.c self_reloc.c start.S
+SRCS=	boot1.c self_reloc.c start.S ufs_module.c
 .if ${MK_ZFS} != "no"
-.PATH:		${.CURDIR}/../../../crypto/skein
+SRCS+=		zfs_module.c
 SRCS+=		skein.c skein_block.c
 # Do not unroll skein loops, reduce code size
 CFLAGS+=	-DSKEIN_LOOP=111
-.PATH:		${.CURDIR}/../../zfs
-SRCS+=		zfs.c
+.PATH:		${.CURDIR}/../../../crypto/skein
 .endif
 
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201
 CWARNFLAGS.self_reloc.c+=	-Wno-error=maybe-uninitialized
 .endif
-
-# Always add MI sources
-.include	"../../loader.mk"
-
-.PATH: ${.CURDIR}/arch/${MACHINE}
 
 CFLAGS+=	-I.
 CFLAGS+=	-I${.CURDIR}/../include
@@ -129,7 +118,7 @@ boot1.efi: ${PROG}
 	SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 	${OBJCOPY} -j .peheader -j .text -j .sdata -j .data \
 		-j .dynamic -j .dynsym -j .rel.dyn \
-		-j .rela.dyn -j .reloc -j .eh_frame -j set_Xcommand_set \
+		-j .rela.dyn -j .reloc -j .eh_frame \
 		--output-target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
 
 boot1.o: ${SASRC}/ufsread.c
