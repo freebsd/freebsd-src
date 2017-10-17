@@ -31,6 +31,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX mlx4_
+
 #include <linux/module.h>
 
 #ifdef __linux__

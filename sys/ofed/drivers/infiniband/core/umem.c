@@ -32,6 +32,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX ibcore_
+
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/sched.h>
@@ -52,7 +54,7 @@
 #include "uverbs.h"
 
 static int allow_weak_ordering;
-module_param(allow_weak_ordering, bool, 0444);
+module_param(allow_weak_ordering, int, 0444);
 MODULE_PARM_DESC(allow_weak_ordering,  "Allow weak ordering for data registered memory");
 
 #define IB_UMEM_MAX_PAGE_CHUNK						\

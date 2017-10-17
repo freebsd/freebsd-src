@@ -54,24 +54,8 @@ enum {
 	SA_DB_MAX_RETRY_TIMER	 = 256000 /* 256 sec */
 };
 
-static int set_paths_per_dest(const char *val, struct kernel_param *kp);
 static unsigned long paths_per_dest = 0;
-module_param_call(paths_per_dest, set_paths_per_dest, param_get_ulong,
-		  &paths_per_dest, 0644);
-MODULE_PARM_DESC(paths_per_dest, "Maximum number of paths to retrieve "
-				 "to each destination (DGID).  Set to 0 "
-				 "to disable cache.");
-
-static int set_subscribe_inform_info(const char *val, struct kernel_param *kp);
 static char subscribe_inform_info = 1;
-module_param_call(subscribe_inform_info, set_subscribe_inform_info,
-		  param_get_bool, &subscribe_inform_info, 0644);
-MODULE_PARM_DESC(subscribe_inform_info,
-		 "Subscribe for SA InformInfo/Notice events.");
-
-static int do_refresh(const char *val, struct kernel_param *kp);
-module_param_call(refresh, do_refresh, NULL, NULL, 0200);
-
 static unsigned long retry_timer = SA_DB_MIN_RETRY_TIMER;
 
 enum sa_db_lookup_method {
@@ -79,13 +63,7 @@ enum sa_db_lookup_method {
 	SA_DB_LOOKUP_RANDOM
 };
 
-static int set_lookup_method(const char *val, struct kernel_param *kp);
-static int get_lookup_method(char *buf, struct kernel_param *kp);
 static unsigned long lookup_method;
-module_param_call(lookup_method, set_lookup_method, get_lookup_method,
-		  &lookup_method, 0644);
-MODULE_PARM_DESC(lookup_method, "Method used to return path records when "
-				"multiple paths exist to a given destination.");
 
 static void sa_db_add_dev(struct ib_device *device);
 static void sa_db_remove_dev(struct ib_device *device);
@@ -733,73 +711,6 @@ static void refresh_db(void)
 
 	list_for_each_entry(dev, &dev_list, list)
 		refresh_dev_db(dev);
-}
-
-static int do_refresh(const char *val, struct kernel_param *kp)
-{
-	mutex_lock(&lock);
-	refresh_db();
-	mutex_unlock(&lock);
-	return 0;
-}
-
-static int get_lookup_method(char *buf, struct kernel_param *kp)
-{
-	return sprintf(buf,
-		       "%c %d round robin\n"
-		       "%c %d random",
-		       (lookup_method == SA_DB_LOOKUP_LEAST_USED) ? '*' : ' ',
-		       SA_DB_LOOKUP_LEAST_USED,
-		       (lookup_method == SA_DB_LOOKUP_RANDOM) ? '*' : ' ',
-		       SA_DB_LOOKUP_RANDOM);
-}
-
-static int set_lookup_method(const char *val, struct kernel_param *kp)
-{
-	unsigned long method;
-	int ret = 0;
-
-	method = simple_strtoul(val, NULL, 0);
-
-	switch (method) {
-	case SA_DB_LOOKUP_LEAST_USED:
-	case SA_DB_LOOKUP_RANDOM:
-		lookup_method = method;
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
-static int set_paths_per_dest(const char *val, struct kernel_param *kp)
-{
-	int ret;
-
-	mutex_lock(&lock);
-	ret = param_set_ulong(val, kp);
-	if (ret)
-		goto out;
-
-	if (paths_per_dest > SA_DB_MAX_PATHS_PER_DEST)
-		paths_per_dest = SA_DB_MAX_PATHS_PER_DEST;
-	refresh_db();
-out:
-	mutex_unlock(&lock);
-	return ret;
-}
-
-static int set_subscribe_inform_info(const char *val, struct kernel_param *kp)
-{
-	int ret;
-
-	ret = param_set_bool(val, kp);
-	if (ret)
-		return ret;
-
-	return do_refresh(val, kp);
 }
 
 static void port_work_handler(struct work_struct *work)
