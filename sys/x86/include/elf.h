@@ -100,8 +100,10 @@ __ElfType(Auxinfo);
 #define	AT_PAGESIZESLEN	21	/* Number of pagesizes. */
 #define	AT_TIMEKEEP	22	/* Pointer to timehands. */
 #define	AT_STACKPROT	23	/* Initial stack protection. */
+#define	AT_EHDRFLAGS	24	/* e_flags field from elf hdr */
+#define	AT_HWCAP	25	/* CPU feature flags. */
 
-#define	AT_COUNT	24	/* Count of defined aux entry types. */
+#define	AT_COUNT	26	/* Count of defined aux entry types. */
 
 /*
  * Relocation types.
@@ -185,8 +187,10 @@ __ElfType(Auxinfo);
 #define	AT_PAGESIZESLEN	21	/* Number of pagesizes. */
 #define	AT_TIMEKEEP	22	/* Pointer to timehands. */
 #define	AT_STACKPROT	23	/* Initial stack protection. */
+#define	AT_EHDRFLAGS	24	/* e_flags field from elf hdr */
+#define	AT_HWCAP	25	/* CPU feature flags. */
 
-#define	AT_COUNT	24	/* Count of defined aux entry types. */
+#define	AT_COUNT	26	/* Count of defined aux entry types. */
 
 /*
  * Relocation types.

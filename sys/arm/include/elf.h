@@ -85,8 +85,9 @@ __ElfType(Auxinfo);
 #define	AT_TIMEKEEP	22	/* Pointer to timehands. */
 #define	AT_STACKPROT	23	/* Initial stack protection. */
 #define	AT_EHDRFLAGS	24	/* e_flags field from elf hdr */
+#define	AT_HWCAP	25	/* CPU feature flags. */
 
-#define	AT_COUNT	25	/* Count of defined aux entry types. */
+#define	AT_COUNT	26	/* Count of defined aux entry types. */
 
 #define	R_ARM_COUNT	33	/* Count of defined relocation types. */
 
