@@ -209,6 +209,8 @@ lib${LIB_PRIVATE}${LIB}.bc: ${BCOBJS}
 
 lib${LIB_PRIVATE}${LIB}.ll: ${LLOBJS}
 	${LLVM_LINK} -S -o ${.TARGET} ${LLOBJS}
+
+CLEANFILES+=	lib${LIB_PRIVATE}${LIB}.bc lib${LIB_PRIVATE}${LIB}.ll
 .endif
 
 .if defined(SHLIB_NAME) || \
