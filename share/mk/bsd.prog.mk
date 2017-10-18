@@ -158,6 +158,7 @@ ${PROG_FULL}.bc: ${BCOBJS}
 ${PROG_FULL}.ll: ${LLOBJS}
 	${LLVM_LINK} -S -o ${.TARGET} ${LLOBJS}
 
+CLEANFILES+=	${PROG_FULL}.bc ${PROG_FULL}.ll
 .endif # defined(LLVM_LINK)
 
 .if	${MK_MAN} != "no" && !defined(MAN) && \
@@ -181,7 +182,7 @@ all: all-man
 .if defined(PROG)
 CLEANFILES+= ${PROG} ${PROG}.bc ${PROG}.ll
 .if ${MK_DEBUG_FILES} != "no"
-CLEANFILES+= ${PROG_FULL} ${PROG_FULL}.bc ${PROGNAME}.debug ${PROG_FULL}.ll
+CLEANFILES+= ${PROG_FULL} ${PROGNAME}.debug
 .endif
 .endif
 
