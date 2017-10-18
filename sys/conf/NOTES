@@ -2210,8 +2210,6 @@ device		rtwnfw
 options 	MCLSHIFT=12	# mbuf cluster shift in bits, 12 == 4KB
 options 	MSIZE=512	# mbuf size in bytes
 
-options 	LIBMBPOOL
-
 #
 # Sound drivers
 #

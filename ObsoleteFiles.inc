@@ -38,6 +38,19 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171017: Removal of mbpool(9)
+OLD_FILES+=usr/include/sys/mbpool.h
+OLD_FILES+=usr/share/man/man9/mbpool.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_destroy.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_alloc.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_ext_free.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_count.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_card_free.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_get_keep.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_free.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_get.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_create.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_sync.9.gz
 # 20171010: Remove libstand
 OLD_FILES+=usr/lib/libstand.a
 OLD_FILES+=usr/lib/libstand_p.a
