@@ -350,7 +350,8 @@ readipv4(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 	last = NULL;
 	STAILQ_FOREACH(ipq, &ipr->ip_queue, ipq_next) {
 		if ((ntohs(ipq->ipq_hdr->ip_off) & IP_OFFMASK) != n / 8) {
-			errno = EAGAIN;
+			STAILQ_REMOVE(&ire_list, ipr, ip_reasm, ip_next);
+			ip_reasm_free(ipr);
 			return (-1);
 		}
 
