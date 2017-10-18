@@ -8,6 +8,7 @@
 
 #include "includes.h"
 #include <fcntl.h>
+#include <limits.h>
 
 #include "utils/common.h"
 #include "utils/eloop.h"
@@ -47,6 +48,7 @@ struct rfkill_data {
 	struct rfkill_config *cfg;
 	int fd;
 	int blocked;
+	uint32_t idx;
 };
 
 
@@ -69,12 +71,13 @@ static void rfkill_receive(int sock, void *eloop_ctx, void *sock_ctx)
 			   (int) len, RFKILL_EVENT_SIZE_V1);
 		return;
 	}
+	if (event.op != RFKILL_OP_CHANGE || event.idx != rfkill->idx)
+		return;
+
 	wpa_printf(MSG_DEBUG, "rfkill: event: idx=%u type=%d "
 		   "op=%u soft=%u hard=%u",
 		   event.idx, event.type, event.op, event.soft,
 		   event.hard);
-	if (event.op != RFKILL_OP_CHANGE || event.type != RFKILL_TYPE_WLAN)
-		return;
 
 	if (event.hard) {
 		wpa_printf(MSG_INFO, "rfkill: WLAN hard blocked");
@@ -102,10 +105,22 @@ struct rfkill_data * rfkill_init(struct rfkill_config *cfg)
 	struct rfkill_data *rfkill;
 	struct rfkill_event event;
 	ssize_t len;
+	char *phy = NULL, *rfk_phy;
+	char buf[24 + IFNAMSIZ + 1];
+	char buf2[31 + 11 + 1];
+	int found = 0;
 
 	rfkill = os_zalloc(sizeof(*rfkill));
 	if (rfkill == NULL)
 		return NULL;
+
+	os_snprintf(buf, sizeof(buf), "/sys/class/net/%s/phy80211",
+		    cfg->ifname);
+	phy = realpath(buf, NULL);
+	if (!phy) {
+		wpa_printf(MSG_INFO, "rfkill: Cannot get wiphy information");
+		goto fail;
+	}
 
 	rfkill->cfg = cfg;
 	rfkill->fd = open("/dev/rfkill", O_RDONLY);
@@ -136,13 +151,27 @@ struct rfkill_data * rfkill_init(struct rfkill_config *cfg)
 				   (int) len, RFKILL_EVENT_SIZE_V1);
 			continue;
 		}
+		if (event.op != RFKILL_OP_ADD ||
+		    event.type != RFKILL_TYPE_WLAN)
+			continue;
+
+		os_snprintf(buf2, sizeof(buf2),
+			    "/sys/class/rfkill/rfkill%d/device", event.idx);
+		rfk_phy = realpath(buf2, NULL);
+		if (!rfk_phy)
+			goto fail2;
+		found = os_strcmp(phy, rfk_phy) == 0;
+		free(rfk_phy);
+
+		if (!found)
+			continue;
+
 		wpa_printf(MSG_DEBUG, "rfkill: initial event: idx=%u type=%d "
 			   "op=%u soft=%u hard=%u",
 			   event.idx, event.type, event.op, event.soft,
 			   event.hard);
-		if (event.op != RFKILL_OP_ADD ||
-		    event.type != RFKILL_TYPE_WLAN)
-			continue;
+
+		rfkill->idx = event.idx;
 		if (event.hard) {
 			wpa_printf(MSG_INFO, "rfkill: WLAN hard blocked");
 			rfkill->blocked = 1;
@@ -150,8 +179,13 @@ struct rfkill_data * rfkill_init(struct rfkill_config *cfg)
 			wpa_printf(MSG_INFO, "rfkill: WLAN soft blocked");
 			rfkill->blocked = 1;
 		}
+		break;
 	}
 
+	if (!found)
+		goto fail2;
+
+	free(phy);
 	eloop_register_read_sock(rfkill->fd, rfkill_receive, rfkill, NULL);
 
 	return rfkill;
@@ -160,6 +194,8 @@ fail2:
 	close(rfkill->fd);
 fail:
 	os_free(rfkill);
+	/* use standard free function to match realpath() */
+	free(phy);
 	return NULL;
 }
 

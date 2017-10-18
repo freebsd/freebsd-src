@@ -325,7 +325,7 @@ DBusMessage * wpas_dbus_handler_wps_start(DBusMessage *message,
  * @wpa_s: %wpa_supplicant data structure
  * Returns: NULL on success or DBus error on failure
  *
- * Handler for "Cancel" method call. Returns NULL if WPS cancel successfull
+ * Handler for "Cancel" method call. Returns NULL if WPS cancel successful
  * or DBus error on WPS cancel failure
  */
 DBusMessage * wpas_dbus_handler_wps_cancel(DBusMessage *message,
@@ -349,9 +349,9 @@ DBusMessage * wpas_dbus_handler_wps_cancel(DBusMessage *message,
  * true if wps_cred_processing configuration field is not equal to 1 or false
  * if otherwise.
  */
-dbus_bool_t wpas_dbus_getter_process_credentials(DBusMessageIter *iter,
-						 DBusError *error,
-						 void *user_data)
+dbus_bool_t wpas_dbus_getter_process_credentials(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	dbus_bool_t process = wpa_s->conf->wps_cred_processing != 1;
@@ -371,9 +371,9 @@ dbus_bool_t wpas_dbus_getter_process_credentials(DBusMessageIter *iter,
  * Setter for "ProcessCredentials" property. Sets credentials_processed on 2
  * if boolean argument is true or on 1 if otherwise.
  */
-dbus_bool_t wpas_dbus_setter_process_credentials(DBusMessageIter *iter,
-						 DBusError *error,
-						 void *user_data)
+dbus_bool_t wpas_dbus_setter_process_credentials(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	dbus_bool_t process_credentials, old_pc;
@@ -407,9 +407,9 @@ dbus_bool_t wpas_dbus_setter_process_credentials(DBusMessageIter *iter,
  * Getter for "ConfigMethods" property. Returned boolean will be true if
  * providing the relevant string worked, or false otherwise.
  */
-dbus_bool_t wpas_dbus_getter_config_methods(DBusMessageIter *iter,
-					    DBusError *error,
-					    void *user_data)
+dbus_bool_t wpas_dbus_getter_config_methods(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	char *methods = wpa_s->conf->config_methods;
@@ -431,9 +431,9 @@ dbus_bool_t wpas_dbus_getter_config_methods(DBusMessageIter *iter,
  * Setter for "ConfigMethods" property. Sets the methods string, apply such
  * change and returns true on success. Returns false otherwise.
  */
-dbus_bool_t wpas_dbus_setter_config_methods(DBusMessageIter *iter,
-					    DBusError *error,
-					    void *user_data)
+dbus_bool_t wpas_dbus_setter_config_methods(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	char *methods, *new_methods;

@@ -93,8 +93,7 @@ void eap_fast_derive_master_secret(const u8 *pac_key, const u8 *server_random,
 }
 
 
-u8 * eap_fast_derive_key(void *ssl_ctx, struct tls_connection *conn,
-			 const char *label, size_t len)
+u8 * eap_fast_derive_key(void *ssl_ctx, struct tls_connection *conn, size_t len)
 {
 	u8 *out;
 
@@ -102,7 +101,7 @@ u8 * eap_fast_derive_key(void *ssl_ctx, struct tls_connection *conn,
 	if (out == NULL)
 		return NULL;
 
-	if (tls_connection_prf(ssl_ctx, conn, label, 1, 1, out, len)) {
+	if (tls_connection_get_eap_fast_key(ssl_ctx, conn, out, len)) {
 		os_free(out);
 		return NULL;
 	}
@@ -111,22 +110,24 @@ u8 * eap_fast_derive_key(void *ssl_ctx, struct tls_connection *conn,
 }
 
 
-void eap_fast_derive_eap_msk(const u8 *simck, u8 *msk)
+int eap_fast_derive_eap_msk(const u8 *simck, u8 *msk)
 {
 	/*
 	 * RFC 4851, Section 5.4: EAP Master Session Key Generation
 	 * MSK = T-PRF(S-IMCK[j], "Session Key Generating Function", 64)
 	 */
 
-	sha1_t_prf(simck, EAP_FAST_SIMCK_LEN,
-		   "Session Key Generating Function", (u8 *) "", 0,
-		   msk, EAP_FAST_KEY_LEN);
+	if (sha1_t_prf(simck, EAP_FAST_SIMCK_LEN,
+		       "Session Key Generating Function", (u8 *) "", 0,
+		       msk, EAP_FAST_KEY_LEN) < 0)
+		return -1;
 	wpa_hexdump_key(MSG_DEBUG, "EAP-FAST: Derived key (MSK)",
 			msk, EAP_FAST_KEY_LEN);
+	return 0;
 }
 
 
-void eap_fast_derive_eap_emsk(const u8 *simck, u8 *emsk)
+int eap_fast_derive_eap_emsk(const u8 *simck, u8 *emsk)
 {
 	/*
 	 * RFC 4851, Section 5.4: EAP Master Session Key Genreration
@@ -134,11 +135,13 @@ void eap_fast_derive_eap_emsk(const u8 *simck, u8 *emsk)
 	 *        "Extended Session Key Generating Function", 64)
 	 */
 
-	sha1_t_prf(simck, EAP_FAST_SIMCK_LEN,
-		   "Extended Session Key Generating Function", (u8 *) "", 0,
-		   emsk, EAP_EMSK_LEN);
+	if (sha1_t_prf(simck, EAP_FAST_SIMCK_LEN,
+		       "Extended Session Key Generating Function", (u8 *) "", 0,
+		       emsk, EAP_EMSK_LEN) < 0)
+		return -1;
 	wpa_hexdump_key(MSG_DEBUG, "EAP-FAST: Derived key (EMSK)",
 			emsk, EAP_EMSK_LEN);
+	return 0;
 }
 
 

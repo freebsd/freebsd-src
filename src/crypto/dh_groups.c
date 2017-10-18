@@ -1218,14 +1218,19 @@ struct wpabuf * dh_init(const struct dh_group *dh, struct wpabuf **priv)
 
 	pv_len = dh->prime_len;
 	pv = wpabuf_alloc(pv_len);
-	if (pv == NULL)
+	if (pv == NULL) {
+		wpabuf_clear_free(*priv);
+		*priv = NULL;
 		return NULL;
+	}
 	if (crypto_mod_exp(dh->generator, dh->generator_len,
 			   wpabuf_head(*priv), wpabuf_len(*priv),
 			   dh->prime, dh->prime_len, wpabuf_mhead(pv),
 			   &pv_len) < 0) {
 		wpabuf_clear_free(pv);
 		wpa_printf(MSG_INFO, "DH: crypto_mod_exp failed");
+		wpabuf_clear_free(*priv);
+		*priv = NULL;
 		return NULL;
 	}
 	wpabuf_put(pv, pv_len);

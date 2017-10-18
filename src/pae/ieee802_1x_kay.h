@@ -14,7 +14,6 @@
 #include "common/ieee802_1x_defs.h"
 
 struct macsec_init_params;
-struct ieee802_1x_cp_conf;
 
 #define MI_LEN			12
 #define MAX_KEY_LEN		32  /* 32 bytes, 256 bits */
@@ -32,7 +31,7 @@ struct ieee802_1x_mka_ki {
 
 struct ieee802_1x_mka_sci {
 	u8 addr[ETH_ALEN];
-	u16 port;
+	be16 port;
 };
 
 struct mka_key {
@@ -48,8 +47,6 @@ struct mka_key_name {
 enum mka_created_mode {
 	PSK,
 	EAP_EXCHANGE,
-	DISTRIBUTED,
-	CACHED,
 };
 
 struct ieee802_1x_kay_ctx {
@@ -61,7 +58,7 @@ struct ieee802_1x_kay_ctx {
 	int (*macsec_deinit)(void *ctx);
 	int (*enable_protect_frames)(void *ctx, Boolean enabled);
 	int (*set_replay_protect)(void *ctx, Boolean enabled, u32 window);
-	int (*set_current_cipher_suite)(void *ctx, const u8 *cs, size_t cs_len);
+	int (*set_current_cipher_suite)(void *ctx, u64 cs);
 	int (*enable_controlled_port)(void *ctx, Boolean enabled);
 	int (*get_receive_lowest_pn)(void *ctx, u32 channel, u8 an,
 				     u32 *lowest_pn);
@@ -126,7 +123,7 @@ struct ieee802_1x_kay {
 	Boolean is_obliged_key_server;
 	char if_name[IFNAMSIZ];
 
-	int macsec_csindex;  /*  MACsec cipher suite table index */
+	unsigned int macsec_csindex;  /* MACsec cipher suite table index */
 	int mka_algindex;  /* MKA alg table index */
 
 	u32 dist_kn;
@@ -171,7 +168,7 @@ void ieee802_1x_kay_mka_participate(struct ieee802_1x_kay *kay,
 				    Boolean status);
 int ieee802_1x_kay_new_sak(struct ieee802_1x_kay *kay);
 int ieee802_1x_kay_change_cipher_suite(struct ieee802_1x_kay *kay,
-				       int cs_index);
+				       unsigned int cs_index);
 
 int ieee802_1x_kay_set_latest_sa_attr(struct ieee802_1x_kay *kay,
 				      struct ieee802_1x_mka_ki *lki, u8 lan,
@@ -188,7 +185,5 @@ int ieee802_1x_kay_enable_tx_sas(struct ieee802_1x_kay *kay,
 int ieee802_1x_kay_enable_rx_sas(struct ieee802_1x_kay *kay,
 				 struct ieee802_1x_mka_ki *lki);
 int ieee802_1x_kay_enable_new_info(struct ieee802_1x_kay *kay);
-int ieee802_1x_kay_cp_conf(struct ieee802_1x_kay *kay,
-			   struct ieee802_1x_cp_conf *pconf);
 
 #endif /* IEEE802_1X_KAY_H */

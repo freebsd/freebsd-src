@@ -1335,7 +1335,6 @@ static u8 * eap_ttls_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 int eap_server_ttls_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_server_method_alloc(EAP_SERVER_METHOD_INTERFACE_VERSION,
 				      EAP_VENDOR_IETF, EAP_TYPE_TTLS, "TTLS");
@@ -1353,8 +1352,5 @@ int eap_server_ttls_register(void)
 	eap->getSessionId = eap_ttls_get_session_id;
 	eap->get_emsk = eap_ttls_get_emsk;
 
-	ret = eap_server_method_register(eap);
-	if (ret)
-		eap_server_method_free(eap);
-	return ret;
+	return eap_server_method_register(eap);
 }

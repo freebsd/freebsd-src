@@ -14,6 +14,10 @@
 extern int wps_version_number;
 extern int wps_testing_dummy_cred;
 extern int wps_corrupt_pkhash;
+extern int wps_force_auth_types_in_use;
+extern u16 wps_force_auth_types;
+extern int wps_force_encr_types_in_use;
+extern u16 wps_force_encr_types;
 #define WPS_VERSION wps_version_number
 
 #else /* CONFIG_WPS_TESTING */

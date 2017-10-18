@@ -29,6 +29,7 @@ enum wpas_dbus_prop {
 	WPAS_DBUS_PROP_CURRENT_AUTH_MODE,
 	WPAS_DBUS_PROP_BSSS,
 	WPAS_DBUS_PROP_DISCONNECT_REASON,
+	WPAS_DBUS_PROP_ASSOC_STATUS_CODE,
 };
 
 enum wpas_dbus_bss_prop {
@@ -189,8 +190,7 @@ void wpas_dbus_signal_p2p_go_neg_req(struct wpa_supplicant *wpa_s,
 				     const u8 *src, u16 dev_passwd_id,
 				     u8 go_intent);
 void wpas_dbus_signal_p2p_group_started(struct wpa_supplicant *wpa_s,
-					const struct wpa_ssid *ssid,
-					int client, int network_id);
+					int client, int persistent);
 void wpas_dbus_signal_p2p_group_formation_failure(struct wpa_supplicant *wpa_s,
 						  const char *reason);
 void wpas_dbus_register_p2p_group(struct wpa_supplicant *wpa_s,
@@ -400,8 +400,7 @@ static inline void wpas_dbus_signal_p2p_go_neg_req(struct wpa_supplicant *wpa_s,
 
 static inline void
 wpas_dbus_signal_p2p_group_started(struct wpa_supplicant *wpa_s,
-				   const struct wpa_ssid *ssid,
-				   int client, int network_id)
+				   int client, int persistent)
 {
 }
 

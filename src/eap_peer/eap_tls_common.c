@@ -80,6 +80,10 @@ static void eap_tls_params_flags(struct tls_connection_params *params,
 		params->flags |= TLS_CONN_DISABLE_TLSv1_2;
 	if (os_strstr(txt, "tls_disable_tlsv1_2=0"))
 		params->flags &= ~TLS_CONN_DISABLE_TLSv1_2;
+	if (os_strstr(txt, "tls_ext_cert_check=1"))
+		params->flags |= TLS_CONN_EXT_CERT_CHECK;
+	if (os_strstr(txt, "tls_ext_cert_check=0"))
+		params->flags &= ~TLS_CONN_EXT_CERT_CHECK;
 }
 
 
@@ -177,6 +181,8 @@ static int eap_tls_params_from_conf(struct eap_sm *sm,
 
 	params->openssl_ciphers = config->openssl_ciphers;
 
+	sm->ext_cert_check = !!(params->flags & TLS_CONN_EXT_CERT_CHECK);
+
 	return 0;
 }
 
@@ -190,8 +196,10 @@ static int eap_tls_init_connection(struct eap_sm *sm,
 
 	if (config->ocsp)
 		params->flags |= TLS_CONN_REQUEST_OCSP;
-	if (config->ocsp == 2)
+	if (config->ocsp >= 2)
 		params->flags |= TLS_CONN_REQUIRE_OCSP;
+	if (config->ocsp == 3)
+		params->flags |= TLS_CONN_REQUIRE_OCSP_ALL;
 	data->conn = tls_connection_init(data->ssl_ctx);
 	if (data->conn == NULL) {
 		wpa_printf(MSG_INFO, "SSL: Failed to initialize new TLS "
@@ -320,8 +328,8 @@ u8 * eap_peer_tls_derive_key(struct eap_sm *sm, struct eap_ssl_data *data,
 	if (out == NULL)
 		return NULL;
 
-	if (tls_connection_prf(data->ssl_ctx, data->conn, label, 0, 0,
-			       out, len)) {
+	if (tls_connection_export_key(data->ssl_ctx, data->conn, label, out,
+				      len)) {
 		os_free(out);
 		return NULL;
 	}
@@ -350,10 +358,8 @@ u8 * eap_peer_tls_derive_session_id(struct eap_sm *sm,
 	struct tls_random keys;
 	u8 *out;
 
-	if (tls_connection_get_random(sm->ssl_ctx, data->conn, &keys))
-		return NULL;
-
-	if (keys.client_random == NULL || keys.server_random == NULL)
+	if (tls_connection_get_random(sm->ssl_ctx, data->conn, &keys) ||
+	    keys.client_random == NULL || keys.server_random == NULL)
 		return NULL;
 
 	*len = 1 + keys.client_random_len + keys.server_random_len;
@@ -1035,6 +1041,9 @@ int eap_peer_select_phase2_methods(struct eap_peer_config *config,
 		if (vendor == EAP_VENDOR_IETF && method == EAP_TYPE_NONE) {
 			wpa_printf(MSG_ERROR, "TLS: Unsupported Phase2 EAP "
 				   "method '%s'", start);
+			os_free(methods);
+			os_free(buf);
+			return -1;
 		} else {
 			num_methods++;
 			_methods = os_realloc_array(methods, num_methods,

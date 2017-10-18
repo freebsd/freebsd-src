@@ -11,6 +11,7 @@
 #include "includes.h"
 #include <sys/ioctl.h>
 #include <net/if.h>
+#include <inttypes.h>
 #ifdef __linux__
 #include <netpacket/packet.h>
 #include <net/if_arp.h>
@@ -485,15 +486,12 @@ static int macsec_qca_set_replay_protect(void *priv, Boolean enabled,
 }
 
 
-static int macsec_qca_set_current_cipher_suite(void *priv, const u8 *cs,
-					       size_t cs_len)
+static int macsec_qca_set_current_cipher_suite(void *priv, u64 cs)
 {
-	u8 default_cs_id[] = CS_ID_GCM_AES_128;
-
-	if (cs_len != CS_ID_LEN ||
-	    os_memcmp(cs, default_cs_id, cs_len) != 0) {
-		wpa_hexdump(MSG_ERROR, "macsec: NOT supported CipherSuite",
-			    cs, cs_len);
+	if (cs != CS_ID_GCM_AES_128) {
+		wpa_printf(MSG_ERROR,
+			   "%s: NOT supported CipherSuite: %016" PRIx64,
+			   __func__, cs);
 		return -1;
 	}
 

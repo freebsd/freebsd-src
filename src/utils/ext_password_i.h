@@ -20,4 +20,10 @@ struct ext_password_backend {
 
 struct wpabuf * ext_password_alloc(size_t len);
 
+/* Available ext_password backends */
+
+#ifdef CONFIG_EXT_PASSWORD_TEST
+extern const struct ext_password_backend ext_password_test;
+#endif /* CONFIG_EXT_PASSWORD_TEST */
+
 #endif /* EXT_PASSWORD_I_H */

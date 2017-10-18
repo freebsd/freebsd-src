@@ -173,6 +173,8 @@ int authsrv_init(struct hostapd_data *hapd)
 		params.openssl_ciphers = hapd->conf->openssl_ciphers;
 		params.ocsp_stapling_response =
 			hapd->conf->ocsp_stapling_response;
+		params.ocsp_stapling_response_multi =
+			hapd->conf->ocsp_stapling_response_multi;
 
 		if (tls_global_set_params(hapd->ssl_ctx, &params)) {
 			wpa_printf(MSG_ERROR, "Failed to set TLS parameters");
@@ -193,6 +195,7 @@ int authsrv_init(struct hostapd_data *hapd)
 	if (hapd->conf->eap_sim_db) {
 		hapd->eap_sim_db_priv =
 			eap_sim_db_init(hapd->conf->eap_sim_db,
+					hapd->conf->eap_sim_db_timeout,
 					hostapd_sim_db_cb, hapd);
 		if (hapd->eap_sim_db_priv == NULL) {
 			wpa_printf(MSG_ERROR, "Failed to initialize EAP-SIM "

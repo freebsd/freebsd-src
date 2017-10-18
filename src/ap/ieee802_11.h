@@ -49,9 +49,13 @@ u8 * hostapd_eid_supp_rates(struct hostapd_data *hapd, u8 *eid);
 u8 * hostapd_eid_ext_supp_rates(struct hostapd_data *hapd, u8 *eid);
 u8 * hostapd_eid_ht_capabilities(struct hostapd_data *hapd, u8 *eid);
 u8 * hostapd_eid_ht_operation(struct hostapd_data *hapd, u8 *eid);
-u8 * hostapd_eid_vht_capabilities(struct hostapd_data *hapd, u8 *eid);
+u8 * hostapd_eid_secondary_channel(struct hostapd_data *hapd, u8 *eid);
+u8 * hostapd_eid_vht_capabilities(struct hostapd_data *hapd, u8 *eid, u32 nsts);
 u8 * hostapd_eid_vht_operation(struct hostapd_data *hapd, u8 *eid);
 u8 * hostapd_eid_vendor_vht(struct hostapd_data *hapd, u8 *eid);
+u8 * hostapd_eid_wb_chsw_wrapper(struct hostapd_data *hapd, u8 *eid);
+u8 * hostapd_eid_txpower_envelope(struct hostapd_data *hapd, u8 *eid);
+
 int hostapd_ht_operation_update(struct hostapd_iface *iface);
 void ieee802_11_send_sa_query_req(struct hostapd_data *hapd,
 				  const u8 *addr, const u8 *trans_id);
@@ -61,6 +65,7 @@ void hostapd_get_ht_capab(struct hostapd_data *hapd,
 void hostapd_get_vht_capab(struct hostapd_data *hapd,
 			   struct ieee80211_vht_capabilities *vht_cap,
 			   struct ieee80211_vht_capabilities *neg_vht_cap);
+int hostapd_get_aid(struct hostapd_data *hapd, struct sta_info *sta);
 u16 copy_sta_ht_capab(struct hostapd_data *hapd, struct sta_info *sta,
 		      const u8 *ht_capab);
 u16 copy_sta_vendor_vht(struct hostapd_data *hapd, struct sta_info *sta,
@@ -97,11 +102,37 @@ int auth_sae_init_committed(struct hostapd_data *hapd, struct sta_info *sta);
 #ifdef CONFIG_SAE
 void sae_clear_retransmit_timer(struct hostapd_data *hapd,
 				struct sta_info *sta);
+void sae_accept_sta(struct hostapd_data *hapd, struct sta_info *sta);
 #else /* CONFIG_SAE */
 static inline void sae_clear_retransmit_timer(struct hostapd_data *hapd,
 					      struct sta_info *sta)
 {
 }
 #endif /* CONFIG_SAE */
+
+#ifdef CONFIG_MBO
+
+u8 * hostapd_eid_mbo(struct hostapd_data *hapd, u8 *eid, size_t len);
+
+u8 hostapd_mbo_ie_len(struct hostapd_data *hapd);
+
+#else /* CONFIG_MBO */
+
+static inline u8 * hostapd_eid_mbo(struct hostapd_data *hapd, u8 *eid,
+				   size_t len)
+{
+	return eid;
+}
+
+static inline u8 hostapd_mbo_ie_len(struct hostapd_data *hapd)
+{
+	return 0;
+}
+
+#endif /* CONFIG_MBO */
+
+void ap_copy_sta_supp_op_classes(struct sta_info *sta,
+				 const u8 *supp_op_classes,
+				 size_t supp_op_classes_len);
 
 #endif /* IEEE802_11_H */

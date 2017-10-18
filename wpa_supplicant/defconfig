@@ -31,6 +31,9 @@ CONFIG_DRIVER_WEXT=y
 # Driver interface for Linux drivers using the nl80211 kernel interface
 CONFIG_DRIVER_NL80211=y
 
+# QCA vendor extensions to nl80211
+#CONFIG_DRIVER_NL80211_QCA=y
+
 # driver_nl80211.c requires libnl. If you are compiling it yourself
 # you may need to point hostapd to your version of libnl.
 #
@@ -267,6 +270,9 @@ CONFIG_BACKEND=file
 # Should we use epoll instead of select? Select is used by default.
 #CONFIG_ELOOP_EPOLL=y
 
+# Should we use kqueue instead of select? Select is used by default.
+#CONFIG_ELOOP_KQUEUE=y
+
 # Select layer 2 packet implementation
 # linux = Linux packet socket (default)
 # pcap = libpcap/libdnet/WinPcap
@@ -275,6 +281,12 @@ CONFIG_BACKEND=file
 # ndis = Windows NDISUIO (note: requires CONFIG_USE_NDISUIO=y)
 # none = Empty template
 #CONFIG_L2_PACKET=linux
+
+# Disable Linux packet socket workaround applicable for station interface
+# in a bridge for EAPOL frames. This should be uncommented only if the kernel
+# is known to not have the regression issue in packet socket behavior with
+# bridge interfaces (commit 'bridge: respect RFC2863 operational state')').
+#CONFIG_NO_LINUX_PACKET_SOCKET_WAR=y
 
 # PeerKey handshake for Station to Station Link (IEEE 802.11e DLS)
 CONFIG_PEERKEY=y
@@ -455,6 +467,9 @@ CONFIG_PEERKEY=y
 # Hotspot 2.0
 #CONFIG_HS20=y
 
+# Enable interface matching in wpa_supplicant
+#CONFIG_MATCH_IFACE=y
+
 # Disable roaming in wpa_supplicant
 #CONFIG_NO_ROAMING=y
 
@@ -504,3 +519,32 @@ CONFIG_PEERKEY=y
 
 # OS X builds. This is only for building eapol_test.
 #CONFIG_OSX=y
+
+# Automatic Channel Selection
+# This will allow wpa_supplicant to pick the channel automatically when channel
+# is set to "0".
+#
+# TODO: Extend parser to be able to parse "channel=acs_survey" as an alternative
+# to "channel=0". This would enable us to eventually add other ACS algorithms in
+# similar way.
+#
+# Automatic selection is currently only done through initialization, later on
+# we hope to do background checks to keep us moving to more ideal channels as
+# time goes by. ACS is currently only supported through the nl80211 driver and
+# your driver must have survey dump capability that is filled by the driver
+# during scanning.
+#
+# TODO: In analogy to hostapd be able to customize the ACS survey algorithm with
+# a newly to create wpa_supplicant.conf variable acs_num_scans.
+#
+# Supported ACS drivers:
+# * ath9k
+# * ath5k
+# * ath10k
+#
+# For more details refer to:
+# http://wireless.kernel.org/en/users/Documentation/acs
+#CONFIG_ACS=y
+
+# Support Multi Band Operation
+#CONFIG_MBO=y

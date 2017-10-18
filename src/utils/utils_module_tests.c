@@ -16,6 +16,7 @@
 #include "utils/base64.h"
 #include "utils/ip_addr.h"
 #include "utils/eloop.h"
+#include "utils/module_tests.h"
 
 
 struct printf_test_data {

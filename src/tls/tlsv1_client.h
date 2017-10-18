@@ -41,7 +41,7 @@ int tlsv1_client_get_keyblock_size(struct tlsv1_client *conn);
 int tlsv1_client_set_cipher_list(struct tlsv1_client *conn, u8 *ciphers);
 int tlsv1_client_set_cred(struct tlsv1_client *conn,
 			  struct tlsv1_credentials *cred);
-void tlsv1_client_set_time_checks(struct tlsv1_client *conn, int enabled);
+void tlsv1_client_set_flags(struct tlsv1_client *conn, unsigned int flags);
 
 typedef int (*tlsv1_client_session_ticket_cb)
 (void *ctx, const u8 *ticket, size_t len, const u8 *client_random,
@@ -50,5 +50,13 @@ typedef int (*tlsv1_client_session_ticket_cb)
 void tlsv1_client_set_session_ticket_cb(struct tlsv1_client *conn,
 					tlsv1_client_session_ticket_cb cb,
 					void *ctx);
+
+void tlsv1_client_set_cb(struct tlsv1_client *conn,
+			 void (*event_cb)(void *ctx, enum tls_event ev,
+					  union tls_event_data *data),
+			 void *cb_ctx,
+			 int cert_in_cb);
+int tlsv1_client_get_version(struct tlsv1_client *conn, char *buf,
+			     size_t buflen);
 
 #endif /* TLSV1_CLIENT_H */

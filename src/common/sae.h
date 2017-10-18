@@ -45,6 +45,7 @@ struct sae_data {
 	enum { SAE_NOTHING, SAE_COMMITTED, SAE_CONFIRMED, SAE_ACCEPTED } state;
 	u16 send_confirm;
 	u8 pmk[SAE_PMK_LEN];
+	u8 pmkid[SAE_PMKID_LEN];
 	struct crypto_bignum *peer_commit_scalar;
 	int group;
 	int sync;

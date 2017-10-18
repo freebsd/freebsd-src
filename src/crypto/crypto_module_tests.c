@@ -9,6 +9,7 @@
 #include "utils/includes.h"
 
 #include "utils/common.h"
+#include "utils/module_tests.h"
 #include "crypto/aes_siv.h"
 #include "crypto/aes_wrap.h"
 #include "crypto/aes.h"
@@ -1266,7 +1267,7 @@ static int test_sha1(void)
 }
 
 
-const struct {
+static const struct {
 	char *data;
 	u8 hash[32];
 } tests[] = {
@@ -1290,7 +1291,7 @@ const struct {
 	}
 };
 
-const struct hmac_test {
+static const struct hmac_test {
 	u8 key[80];
 	size_t key_len;
 	u8 data[128];
@@ -1503,6 +1504,7 @@ static int test_sha256(void)
 	const u8 *addr[2];
 	size_t len[2];
 	int errors = 0;
+	u8 *key;
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		wpa_printf(MSG_INFO, "SHA256 test case %d:", i + 1);
@@ -1573,9 +1575,63 @@ static int test_sha256(void)
 		   hash, sizeof(hash));
 	/* TODO: add proper test case for this */
 
+	key = os_malloc(8161);
+	if (key) {
+#ifdef CONFIG_HMAC_SHA256_KDF
+		int res;
+
+		res = hmac_sha256_kdf((u8 *) "secret", 6, "label",
+				      (u8 *) "seed", 4, key, 8160);
+		if (res) {
+			wpa_printf(MSG_INFO,
+				   "Unexpected hmac_sha256_kdf(outlen=8160) failure");
+			errors++;
+		}
+
+		res = hmac_sha256_kdf((u8 *) "secret", 6, "label",
+				      (u8 *) "seed", 4, key, 8161);
+		if (res == 0) {
+			wpa_printf(MSG_INFO,
+				   "Unexpected hmac_sha256_kdf(outlen=8161) success");
+			errors++;
+		}
+#endif /* CONFIG_HMAC_SHA256_KDF */
+
+		os_free(key);
+	}
+
 	if (!errors)
 		wpa_printf(MSG_INFO, "SHA256 test cases passed");
 	return errors;
+}
+
+
+static int test_fips186_2_prf(void)
+{
+	/* http://csrc.nist.gov/encryption/dss/Examples-1024bit.pdf */
+	u8 xkey[] = {
+		0xbd, 0x02, 0x9b, 0xbe, 0x7f, 0x51, 0x96, 0x0b,
+		0xcf, 0x9e, 0xdb, 0x2b, 0x61, 0xf0, 0x6f, 0x0f,
+		0xeb, 0x5a, 0x38, 0xb6
+	};
+	u8 w[] = {
+		0x20, 0x70, 0xb3, 0x22, 0x3d, 0xba, 0x37, 0x2f,
+		0xde, 0x1c, 0x0f, 0xfc, 0x7b, 0x2e, 0x3b, 0x49,
+		0x8b, 0x26, 0x06, 0x14, 0x3c, 0x6c, 0x18, 0xba,
+		0xcb, 0x0f, 0x6c, 0x55, 0xba, 0xbb, 0x13, 0x78,
+		0x8e, 0x20, 0xd7, 0x37, 0xa3, 0x27, 0x51, 0x16
+	};
+	u8 buf[40];
+
+	wpa_printf(MSG_INFO,
+		   "Testing EAP-SIM PRF (FIPS 186-2 + change notice 1)");
+	if (fips186_2_prf(xkey, sizeof(xkey), buf, sizeof(buf)) < 0 ||
+	    os_memcmp(w, buf, sizeof(w)) != 0) {
+		wpa_printf(MSG_INFO, "fips186_2_prf failed");
+		return 1;
+	}
+
+	return 0;
 }
 
 
@@ -1695,6 +1751,7 @@ int crypto_module_tests(void)
 	    test_md5() ||
 	    test_sha1() ||
 	    test_sha256() ||
+	    test_fips186_2_prf() ||
 	    test_ms_funcs())
 		ret = -1;
 

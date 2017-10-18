@@ -12,6 +12,7 @@
 #include "utils/eloop.h"
 #include "common/ieee802_11_defs.h"
 #include "drivers/driver.h"
+#include "eap_peer/eap.h"
 #include "wpa_supplicant_i.h"
 #include "config.h"
 #include "notify.h"
@@ -60,6 +61,9 @@ struct wpa_bss_anqp * wpa_bss_anqp_alloc(void)
 	anqp = os_zalloc(sizeof(*anqp));
 	if (anqp == NULL)
 		return NULL;
+#ifdef CONFIG_INTERWORKING
+	dl_list_init(&anqp->anqp_elems);
+#endif /* CONFIG_INTERWORKING */
 	anqp->users = 1;
 	return anqp;
 }
@@ -80,6 +84,7 @@ static struct wpa_bss_anqp * wpa_bss_anqp_clone(struct wpa_bss_anqp *anqp)
 
 #define ANQP_DUP(f) if (anqp->f) n->f = wpabuf_dup(anqp->f)
 #ifdef CONFIG_INTERWORKING
+	dl_list_init(&n->anqp_elems);
 	ANQP_DUP(capability_list);
 	ANQP_DUP(venue_name);
 	ANQP_DUP(network_auth_type);
@@ -141,6 +146,10 @@ int wpa_bss_anqp_unshare_alloc(struct wpa_bss *bss)
  */
 static void wpa_bss_anqp_free(struct wpa_bss_anqp *anqp)
 {
+#ifdef CONFIG_INTERWORKING
+	struct wpa_bss_anqp_elem *elem;
+#endif /* CONFIG_INTERWORKING */
+
 	if (anqp == NULL)
 		return;
 
@@ -159,6 +168,13 @@ static void wpa_bss_anqp_free(struct wpa_bss_anqp *anqp)
 	wpabuf_free(anqp->nai_realm);
 	wpabuf_free(anqp->anqp_3gpp);
 	wpabuf_free(anqp->domain_name);
+
+	while ((elem = dl_list_first(&anqp->anqp_elems,
+				     struct wpa_bss_anqp_elem, list))) {
+		dl_list_del(&elem->list);
+		wpabuf_free(elem->payload);
+		os_free(elem);
+	}
 #endif /* CONFIG_INTERWORKING */
 #ifdef CONFIG_HS20
 	wpabuf_free(anqp->hs20_capability_list);
@@ -198,8 +214,8 @@ static void wpa_bss_update_pending_connect(struct wpa_supplicant *wpa_s,
 }
 
 
-static void wpa_bss_remove(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
-			   const char *reason)
+void wpa_bss_remove(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
+		    const char *reason)
 {
 	if (wpa_s->last_scan_res) {
 		unsigned int i;
@@ -288,6 +304,47 @@ static void wpa_bss_copy_res(struct wpa_bss *dst, struct wpa_scan_res *src,
 }
 
 
+static int wpa_bss_is_wps_candidate(struct wpa_supplicant *wpa_s,
+				    struct wpa_bss *bss)
+{
+#ifdef CONFIG_WPS
+	struct wpa_ssid *ssid;
+	struct wpabuf *wps_ie;
+	int pbc = 0, ret;
+
+	wps_ie = wpa_bss_get_vendor_ie_multi(bss, WPS_IE_VENDOR_TYPE);
+	if (!wps_ie)
+		return 0;
+
+	if (wps_is_selected_pbc_registrar(wps_ie)) {
+		pbc = 1;
+	} else if (!wps_is_addr_authorized(wps_ie, wpa_s->own_addr, 1)) {
+		wpabuf_free(wps_ie);
+		return 0;
+	}
+
+	for (ssid = wpa_s->conf->ssid; ssid; ssid = ssid->next) {
+		if (!(ssid->key_mgmt & WPA_KEY_MGMT_WPS))
+			continue;
+		if (ssid->ssid_len &&
+		    (ssid->ssid_len != bss->ssid_len ||
+		     os_memcmp(ssid->ssid, bss->ssid, ssid->ssid_len) != 0))
+			continue;
+
+		if (pbc)
+			ret = eap_is_wps_pbc_enrollee(&ssid->eap);
+		else
+			ret = eap_is_wps_pin_enrollee(&ssid->eap);
+		wpabuf_free(wps_ie);
+		return ret;
+	}
+	wpabuf_free(wps_ie);
+#endif /* CONFIG_WPS */
+
+	return 0;
+}
+
+
 static int wpa_bss_known(struct wpa_supplicant *wpa_s, struct wpa_bss *bss)
 {
 	struct wpa_ssid *ssid;
@@ -326,7 +383,8 @@ static int wpa_bss_remove_oldest_unknown(struct wpa_supplicant *wpa_s)
 	struct wpa_bss *bss;
 
 	dl_list_for_each(bss, &wpa_s->bss, struct wpa_bss, list) {
-		if (!wpa_bss_known(wpa_s, bss)) {
+		if (!wpa_bss_known(wpa_s, bss) &&
+		    !wpa_bss_is_wps_candidate(wpa_s, bss)) {
 			wpa_bss_remove(wpa_s, bss, __func__);
 			return 0;
 		}
@@ -784,7 +842,7 @@ void wpa_bss_update_end(struct wpa_supplicant *wpa_s, struct scan_info *info,
 	struct wpa_bss *bss, *n;
 
 	os_get_reltime(&wpa_s->last_scan);
-	if (!new_scan)
+	if ((info && info->aborted) || !new_scan)
 		return; /* do not expire entries without new scan */
 
 	dl_list_for_each_safe(bss, n, &wpa_s->bss, struct wpa_bss, list) {
@@ -1004,20 +1062,7 @@ struct wpa_bss * wpa_bss_get_id_range(struct wpa_supplicant *wpa_s,
  */
 const u8 * wpa_bss_get_ie(const struct wpa_bss *bss, u8 ie)
 {
-	const u8 *end, *pos;
-
-	pos = (const u8 *) (bss + 1);
-	end = pos + bss->ie_len;
-
-	while (pos + 1 < end) {
-		if (pos + 2 + pos[1] > end)
-			break;
-		if (pos[0] == ie)
-			return pos;
-		pos += 2 + pos[1];
-	}
-
-	return NULL;
+	return get_ie((const u8 *) (bss + 1), bss->ie_len, ie);
 }
 
 
@@ -1037,8 +1082,8 @@ const u8 * wpa_bss_get_vendor_ie(const struct wpa_bss *bss, u32 vendor_type)
 	pos = (const u8 *) (bss + 1);
 	end = pos + bss->ie_len;
 
-	while (pos + 1 < end) {
-		if (pos + 2 + pos[1] > end)
+	while (end - pos > 1) {
+		if (2 + pos[1] > end - pos)
 			break;
 		if (pos[0] == WLAN_EID_VENDOR_SPECIFIC && pos[1] >= 4 &&
 		    vendor_type == WPA_GET_BE32(&pos[2]))
@@ -1074,8 +1119,8 @@ const u8 * wpa_bss_get_vendor_ie_beacon(const struct wpa_bss *bss,
 	pos += bss->ie_len;
 	end = pos + bss->beacon_ie_len;
 
-	while (pos + 1 < end) {
-		if (pos + 2 + pos[1] > end)
+	while (end - pos > 1) {
+		if (2 + pos[1] > end - pos)
 			break;
 		if (pos[0] == WLAN_EID_VENDOR_SPECIFIC && pos[1] >= 4 &&
 		    vendor_type == WPA_GET_BE32(&pos[2]))
@@ -1110,8 +1155,8 @@ struct wpabuf * wpa_bss_get_vendor_ie_multi(const struct wpa_bss *bss,
 	pos = (const u8 *) (bss + 1);
 	end = pos + bss->ie_len;
 
-	while (pos + 1 < end) {
-		if (pos + 2 + pos[1] > end)
+	while (end - pos > 1) {
+		if (2 + pos[1] > end - pos)
 			break;
 		if (pos[0] == WLAN_EID_VENDOR_SPECIFIC && pos[1] >= 4 &&
 		    vendor_type == WPA_GET_BE32(&pos[2]))
@@ -1155,8 +1200,8 @@ struct wpabuf * wpa_bss_get_vendor_ie_multi_beacon(const struct wpa_bss *bss,
 	pos += bss->ie_len;
 	end = pos + bss->beacon_ie_len;
 
-	while (pos + 1 < end) {
-		if (pos + 2 + pos[1] > end)
+	while (end - pos > 1) {
+		if (2 + pos[1] > end - pos)
 			break;
 		if (pos[0] == WLAN_EID_VENDOR_SPECIFIC && pos[1] >= 4 &&
 		    vendor_type == WPA_GET_BE32(&pos[2]))
