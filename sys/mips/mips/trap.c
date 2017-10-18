@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/trap.h>
 #include <machine/cpu.h>
+#include <machine/cpuinfo.h>
 #include <machine/pte.h>
 #include <machine/pmap.h>
 #include <machine/md_var.h>
@@ -970,12 +971,13 @@ dofault:
 	case T_COP_UNUSABLE + T_USER:
 		cop = (trapframe->cause & MIPS_CR_COP_ERR) >> MIPS_CR_COP_ERR_SHIFT;
 		if (cop == 1) {
-#if !defined(CPU_HAVEFPU)
-		/* FP (COP1) instruction */
-			log_illegal_instruction("COP1_UNUSABLE", trapframe);
-			i = SIGILL;
-			break;
-#else
+			/* FP (COP1) instruction */
+			if (cpuinfo.fpu_id == 0) {
+				log_illegal_instruction("COP1_UNUSABLE",
+				    trapframe);
+				i = SIGILL;
+				break;
+			}
 			addr = trapframe->pc;
 			MipsSwitchFPState(PCPU_GET(fpcurthread), td->td_frame);
 			PCPU_SET(fpcurthread, td);
@@ -986,7 +988,6 @@ dofault:
 #endif
 			td->td_md.md_flags |= MDTD_FPUSED;
 			goto out;
-#endif
 		}
 #ifdef	CPU_CNMIPS
 		else  if (cop == 2) {
