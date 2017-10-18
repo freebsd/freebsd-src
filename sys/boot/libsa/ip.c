@@ -229,8 +229,8 @@ readipv4(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 	}
 
 	/* Check ip header */
-	if (ip->ip_v != IPVERSION ||
-	    ip->ip_p != proto) {	/* half char */
+	if (ip->ip_v != IPVERSION ||	/* half char */
+	    ip->ip_p != proto) {
 #ifdef NET_DEBUG
 		if (debug) {
 			printf("readip: IP version or proto. ip_v=%d ip_p=%d\n",
