@@ -102,7 +102,6 @@ int	ext2_search_dirblock(struct inode *, void *, int *, const char *, int,
 	    int *, doff_t *, doff_t *, doff_t *, struct ext2fs_searchslot *);
 int	ext2_gd_csum_verify(struct m_ext2fs *fs, struct cdev *dev);
 void	ext2_gd_csum_set(struct m_ext2fs *fs);
-void	ext2_fserr(struct m_ext2fs *, uid_t, char *);
 
 
 /* Flags to low-level allocation routines.
