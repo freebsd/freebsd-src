@@ -1,0 +1,20 @@
+#
+# init.rc fragment for hostapd on Android
+# Copyright (c) 2002-2016, Jouni Malinen <j@w1.fi>
+#
+# This software may be distributed under the terms of the BSD license.
+# See README for more details.
+#
+
+on post-fs-data
+    mkdir /data/misc/wifi/hostapd 0770 wifi wifi
+
+service hostapd /system/bin/hostapd \
+        -e /data/misc/wifi/entropy.bin \
+        /data/misc/wifi/hostapd.conf
+    class main
+    user wifi
+    writepid /data/misc/wifi/hostapd.pid
+    group wifi
+    disabled
+    oneshot

@@ -276,9 +276,16 @@ static struct wpabuf * eap_pax_process_std_3(struct eap_pax_data *data,
 	left -= 2;
 	wpa_hexdump(MSG_MSGDUMP, "EAP-PAX: MAC_CK(B, CID)",
 		    pos, EAP_PAX_MAC_LEN);
-	eap_pax_mac(data->mac_id, data->ck, EAP_PAX_CK_LEN,
-		    data->rand.r.y, EAP_PAX_RAND_LEN,
-		    (u8 *) data->cid, data->cid_len, NULL, 0, mac);
+	if (eap_pax_mac(data->mac_id, data->ck, EAP_PAX_CK_LEN,
+			data->rand.r.y, EAP_PAX_RAND_LEN,
+			(u8 *) data->cid, data->cid_len, NULL, 0, mac) < 0) {
+		wpa_printf(MSG_INFO,
+			   "EAP-PAX: Could not derive MAC_CK(B, CID)");
+		ret->methodState = METHOD_DONE;
+		ret->decision = DECISION_FAIL;
+		return NULL;
+	}
+
 	if (os_memcmp_const(pos, mac, EAP_PAX_MAC_LEN) != 0) {
 		wpa_printf(MSG_INFO, "EAP-PAX: Invalid MAC_CK(B, CID) "
 			   "received");
@@ -306,9 +313,12 @@ static struct wpabuf * eap_pax_process_std_3(struct eap_pax_data *data,
 	/* Optional ADE could be added here, if needed */
 
 	rpos = wpabuf_put(resp, EAP_PAX_ICV_LEN);
-	eap_pax_mac(data->mac_id, data->ick, EAP_PAX_ICK_LEN,
-		    wpabuf_head(resp), wpabuf_len(resp) - EAP_PAX_ICV_LEN,
-		    NULL, 0, NULL, 0, rpos);
+	if (eap_pax_mac(data->mac_id, data->ick, EAP_PAX_ICK_LEN,
+			wpabuf_head(resp), wpabuf_len(resp) - EAP_PAX_ICV_LEN,
+			NULL, 0, NULL, 0, rpos) < 0) {
+		wpabuf_free(resp);
+		return NULL;
+	}
 	wpa_hexdump(MSG_MSGDUMP, "EAP-PAX: ICV", rpos, EAP_PAX_ICV_LEN);
 
 	data->state = PAX_DONE;
@@ -472,9 +482,13 @@ static u8 * eap_pax_getKey(struct eap_sm *sm, void *priv, size_t *len)
 		return NULL;
 
 	*len = EAP_MSK_LEN;
-	eap_pax_kdf(data->mac_id, data->mk, EAP_PAX_MK_LEN,
-		    "Master Session Key", data->rand.e, 2 * EAP_PAX_RAND_LEN,
-		    EAP_MSK_LEN, key);
+	if (eap_pax_kdf(data->mac_id, data->mk, EAP_PAX_MK_LEN,
+			"Master Session Key",
+			data->rand.e, 2 * EAP_PAX_RAND_LEN,
+			EAP_MSK_LEN, key) < 0) {
+		os_free(key);
+		return NULL;
+	}
 
 	return key;
 }
@@ -493,10 +507,13 @@ static u8 * eap_pax_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 		return NULL;
 
 	*len = EAP_EMSK_LEN;
-	eap_pax_kdf(data->mac_id, data->mk, EAP_PAX_MK_LEN,
-		    "Extended Master Session Key",
-		    data->rand.e, 2 * EAP_PAX_RAND_LEN,
-		    EAP_EMSK_LEN, key);
+	if (eap_pax_kdf(data->mac_id, data->mk, EAP_PAX_MK_LEN,
+			"Extended Master Session Key",
+			data->rand.e, 2 * EAP_PAX_RAND_LEN,
+			EAP_EMSK_LEN, key) < 0) {
+		os_free(key);
+		return NULL;
+	}
 
 	return key;
 }
@@ -525,7 +542,6 @@ static u8 * eap_pax_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
 int eap_peer_pax_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
 				    EAP_VENDOR_IETF, EAP_TYPE_PAX, "PAX");
@@ -540,8 +556,5 @@ int eap_peer_pax_register(void)
 	eap->get_emsk = eap_pax_get_emsk;
 	eap->getSessionId = eap_pax_get_session_id;
 
-	ret = eap_peer_method_register(eap);
-	if (ret)
-		eap_peer_method_free(eap);
-	return ret;
+	return eap_peer_method_register(eap);
 }

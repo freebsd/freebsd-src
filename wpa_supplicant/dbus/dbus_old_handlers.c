@@ -717,16 +717,13 @@ DBusMessage * wpas_dbus_iface_add_network(DBusMessage *message,
 	char path_buf[WPAS_DBUS_OBJECT_PATH_MAX], *path = path_buf;
 
 	if (wpa_s->dbus_path)
-		ssid = wpa_config_add_network(wpa_s->conf);
+		ssid = wpa_supplicant_add_network(wpa_s);
 	if (ssid == NULL) {
 		reply = dbus_message_new_error(
 			message, WPAS_ERROR_ADD_NETWORK_ERROR,
 			"wpa_supplicant could not add a network on this interface.");
 		goto out;
 	}
-	wpas_notify_network_added(wpa_s, ssid);
-	ssid->disabled = 1;
-	wpa_config_set_network_defaults(ssid);
 
 	/* Construct the object path for this network. */
 	os_snprintf(path, WPAS_DBUS_OBJECT_PATH_MAX,
@@ -758,7 +755,7 @@ DBusMessage * wpas_dbus_iface_remove_network(DBusMessage *message,
 	const char *op;
 	char *iface = NULL, *net_id = NULL;
 	int id;
-	struct wpa_ssid *ssid;
+	int result;
 
 	if (!dbus_message_get_args(message, NULL,
 				   DBUS_TYPE_OBJECT_PATH, &op,
@@ -781,19 +778,12 @@ DBusMessage * wpas_dbus_iface_remove_network(DBusMessage *message,
 	}
 
 	id = strtoul(net_id, NULL, 10);
-	ssid = wpa_config_get_network(wpa_s->conf, id);
-	if (ssid == NULL) {
+	result = wpa_supplicant_remove_network(wpa_s, id);
+	if (result == -1) {
 		reply = wpas_dbus_new_invalid_network_error(message);
 		goto out;
 	}
-
-	wpas_notify_network_removed(wpa_s, ssid);
-
-	if (ssid == wpa_s->current_ssid)
-		wpa_supplicant_deauthenticate(wpa_s,
-					      WLAN_REASON_DEAUTH_LEAVING);
-
-	if (wpa_config_remove_network(wpa_s->conf, id) < 0) {
+	if (result == -2) {
 		reply = dbus_message_new_error(
 			message, WPAS_ERROR_REMOVE_NETWORK_ERROR,
 			"error removing the specified on this interface.");
@@ -1069,8 +1059,7 @@ out:
 DBusMessage * wpas_dbus_iface_disconnect(DBusMessage *message,
 					 struct wpa_supplicant *wpa_s)
 {
-	wpa_s->disconnected = 1;
-	wpa_supplicant_deauthenticate(wpa_s, WLAN_REASON_DEAUTH_LEAVING);
+	wpas_request_disconnection(wpa_s);
 
 	return wpas_dbus_new_success_reply(message);
 }

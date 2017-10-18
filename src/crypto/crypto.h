@@ -80,6 +80,28 @@ int sha256_vector(size_t num_elem, const u8 *addr[], const size_t *len,
 		  u8 *mac);
 
 /**
+ * sha384_vector - SHA384 hash for data vector
+ * @num_elem: Number of elements in the data vector
+ * @addr: Pointers to the data areas
+ * @len: Lengths of the data blocks
+ * @mac: Buffer for the hash
+ * Returns: 0 on success, -1 on failure
+ */
+int sha384_vector(size_t num_elem, const u8 *addr[], const size_t *len,
+		  u8 *mac);
+
+/**
+ * sha512_vector - SHA512 hash for data vector
+ * @num_elem: Number of elements in the data vector
+ * @addr: Pointers to the data areas
+ * @len: Lengths of the data blocks
+ * @mac: Buffer for the hash
+ * Returns: 0 on success, -1 on failure
+ */
+int sha512_vector(size_t num_elem, const u8 *addr[], const size_t *len,
+		  u8 *mac);
+
+/**
  * des_encrypt - Encrypt one block with DES
  * @clear: 8 octets (in)
  * @key: 7 octets (in) (no parity bits included)
@@ -135,7 +157,8 @@ void aes_decrypt_deinit(void *ctx);
 enum crypto_hash_alg {
 	CRYPTO_HASH_ALG_MD5, CRYPTO_HASH_ALG_SHA1,
 	CRYPTO_HASH_ALG_HMAC_MD5, CRYPTO_HASH_ALG_HMAC_SHA1,
-	CRYPTO_HASH_ALG_SHA256, CRYPTO_HASH_ALG_HMAC_SHA256
+	CRYPTO_HASH_ALG_SHA256, CRYPTO_HASH_ALG_HMAC_SHA256,
+	CRYPTO_HASH_ALG_SHA384, CRYPTO_HASH_ALG_SHA512
 };
 
 struct crypto_hash;

@@ -48,15 +48,9 @@ Boolean fst_group_delete_if_empty(struct fst_group *group);
 struct fst_iface * fst_group_get_iface_by_name(struct fst_group *g,
 					       const char *ifname);
 struct fst_iface *
-fst_group_find_new_iface_by_stie(struct fst_group *g,
-				 struct fst_iface *iface,
-				 const u8 *peer_addr,
-				 const struct session_transition_ie *stie,
-				 u8 *iface_peer_addr);
-struct fst_iface *
-fst_group_get_new_iface_by_stie_and_mbie(
-	struct fst_group *g, const u8 *mb_ies_buff, size_t mb_ies_size,
-	const struct session_transition_ie *stie, u8 *iface_peer_addr);
+fst_group_get_peer_other_connection(struct fst_iface *iface,
+				    const u8 *peer_addr, u8 band_id,
+				    u8 *other_peer_addr);
 u8  fst_group_assign_dialog_token(struct fst_group *g);
 u32 fst_group_assign_fsts_id(struct fst_group *g);
 

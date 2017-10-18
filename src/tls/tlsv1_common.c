@@ -335,7 +335,7 @@ int tls_prf(u16 ver, const u8 *secret, size_t secret_len, const char *label,
 
 
 #ifdef CONFIG_TLSV12
-int tlsv12_key_x_server_params_hash(u16 tls_version,
+int tlsv12_key_x_server_params_hash(u16 tls_version, u8 hash_alg,
 				    const u8 *client_random,
 				    const u8 *server_random,
 				    const u8 *server_params,
@@ -343,14 +343,30 @@ int tlsv12_key_x_server_params_hash(u16 tls_version,
 {
 	size_t hlen;
 	struct crypto_hash *ctx;
+	enum crypto_hash_alg alg;
 
-	ctx = crypto_hash_init(CRYPTO_HASH_ALG_SHA256, NULL, 0);
+	switch (hash_alg) {
+	case TLS_HASH_ALG_SHA256:
+		alg = CRYPTO_HASH_ALG_SHA256;
+		hlen = SHA256_MAC_LEN;
+		break;
+	case TLS_HASH_ALG_SHA384:
+		alg = CRYPTO_HASH_ALG_SHA384;
+		hlen = 48;
+		break;
+	case TLS_HASH_ALG_SHA512:
+		alg = CRYPTO_HASH_ALG_SHA512;
+		hlen = 64;
+		break;
+	default:
+		return -1;
+	}
+	ctx = crypto_hash_init(alg, NULL, 0);
 	if (ctx == NULL)
 		return -1;
 	crypto_hash_update(ctx, client_random, TLS_RANDOM_LEN);
 	crypto_hash_update(ctx, server_random, TLS_RANDOM_LEN);
 	crypto_hash_update(ctx, server_params, server_params_len);
-	hlen = SHA256_MAC_LEN;
 	if (crypto_hash_finish(ctx, hash, &hlen) < 0)
 		return -1;
 
@@ -469,6 +485,21 @@ int tls_verify_signature(u16 tls_version, struct crypto_public_key *pk,
 			wpa_printf(MSG_DEBUG, "TLSv1.2: DigestAlgorithn = SHA-256");
 			decrypted = buf + 19;
 			buflen -= 19;
+		} else if (buflen >= 19 + 48 &&
+		    os_memcmp(buf, "\x30\x41\x30\x0d\x06\x09\x60\x86\x48\x01"
+			      "\x65\x03\x04\x02\x02\x05\x00\x04\x30", 19) == 0)
+		{
+			wpa_printf(MSG_DEBUG, "TLSv1.2: DigestAlgorithn = SHA-384");
+			decrypted = buf + 19;
+			buflen -= 19;
+		} else if (buflen >= 19 + 64 &&
+		    os_memcmp(buf, "\x30\x51\x30\x0d\x06\x09\x60\x86\x48\x01"
+			      "\x65\x03\x04\x02\x03\x05\x00\x04\x40", 19) == 0)
+		{
+			wpa_printf(MSG_DEBUG, "TLSv1.2: DigestAlgorithn = SHA-512");
+			decrypted = buf + 19;
+			buflen -= 19;
+
 		} else {
 			wpa_printf(MSG_DEBUG, "TLSv1.2: Unrecognized DigestInfo");
 			os_free(buf);

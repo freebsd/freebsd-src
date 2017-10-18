@@ -19,6 +19,12 @@ struct wpa_scan_res;
 #define WPA_BSS_ASSOCIATED		BIT(5)
 #define WPA_BSS_ANQP_FETCH_TRIED	BIT(6)
 
+struct wpa_bss_anqp_elem {
+	struct dl_list list;
+	u16 infoid;
+	struct wpabuf *payload;
+};
+
 /**
  * struct wpa_bss_anqp - ANQP data for a BSS entry (struct wpa_bss)
  */
@@ -34,6 +40,7 @@ struct wpa_bss_anqp {
 	struct wpabuf *nai_realm;
 	struct wpabuf *anqp_3gpp;
 	struct wpabuf *domain_name;
+	struct dl_list anqp_elems; /* list of struct wpa_bss_anqp_elem */
 #endif /* CONFIG_INTERWORKING */
 #ifdef CONFIG_HS20
 	struct wpabuf *hs20_capability_list;
@@ -106,6 +113,8 @@ void wpa_bss_update_start(struct wpa_supplicant *wpa_s);
 void wpa_bss_update_scan_res(struct wpa_supplicant *wpa_s,
 			     struct wpa_scan_res *res,
 			     struct os_reltime *fetch_time);
+void wpa_bss_remove(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
+		    const char *reason);
 void wpa_bss_update_end(struct wpa_supplicant *wpa_s, struct scan_info *info,
 			int new_scan);
 int wpa_bss_init(struct wpa_supplicant *wpa_s);
@@ -139,6 +148,17 @@ int wpa_bss_anqp_unshare_alloc(struct wpa_bss *bss);
 static inline int bss_is_dmg(const struct wpa_bss *bss)
 {
 	return bss->freq > 45000;
+}
+
+/**
+ * Test whether a BSS is a PBSS.
+ * This checks whether a BSS is a DMG-band PBSS. PBSS is used for P2P DMG
+ * network.
+ */
+static inline int bss_is_pbss(struct wpa_bss *bss)
+{
+	return bss_is_dmg(bss) &&
+		(bss->caps & IEEE80211_CAP_DMG_MASK) == IEEE80211_CAP_DMG_PBSS;
 }
 
 static inline void wpa_bss_update_level(struct wpa_bss *bss, int new_level)

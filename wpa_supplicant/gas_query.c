@@ -17,6 +17,7 @@
 #include "common/wpa_ctrl.h"
 #include "rsn_supp/wpa.h"
 #include "wpa_supplicant_i.h"
+#include "config.h"
 #include "driver_i.h"
 #include "offchannel.h"
 #include "gas_query.h"
@@ -25,6 +26,9 @@
 /** GAS query timeout in seconds */
 #define GAS_QUERY_TIMEOUT_PERIOD 2
 
+/* GAS query wait-time / duration in ms */
+#define GAS_QUERY_WAIT_TIME_INITIAL 1000
+#define GAS_QUERY_WAIT_TIME_COMEBACK 150
 
 /**
  * struct gas_query_pending - Pending GAS query
@@ -37,6 +41,7 @@ struct gas_query_pending {
 	u8 next_frag_id;
 	unsigned int wait_comeback:1;
 	unsigned int offchannel_tx_started:1;
+	unsigned int retry:1;
 	int freq;
 	u16 status_code;
 	struct wpabuf *req;
@@ -63,6 +68,10 @@ struct gas_query {
 
 static void gas_query_tx_comeback_timeout(void *eloop_data, void *user_ctx);
 static void gas_query_timeout(void *eloop_data, void *user_ctx);
+static void gas_query_rx_comeback_timeout(void *eloop_data, void *user_ctx);
+static void gas_query_tx_initial_req(struct gas_query *gas,
+				     struct gas_query_pending *query);
+static int gas_query_new_dialog_token(struct gas_query *gas, const u8 *dst);
 
 
 static int ms_from_time(struct os_reltime *last)
@@ -108,8 +117,6 @@ static const char * gas_result_txt(enum gas_query_result result)
 		return "PEER_ERROR";
 	case GAS_QUERY_INTERNAL_ERROR:
 		return "INTERNAL_ERROR";
-	case GAS_QUERY_CANCELLED:
-		return "CANCELLED";
 	case GAS_QUERY_DELETED_AT_DEINIT:
 		return "DELETED_AT_DEINIT";
 	}
@@ -151,6 +158,7 @@ static void gas_query_done(struct gas_query *gas,
 		offchannel_send_action_done(gas->wpa_s);
 	eloop_cancel_timeout(gas_query_tx_comeback_timeout, gas, query);
 	eloop_cancel_timeout(gas_query_timeout, gas, query);
+	eloop_cancel_timeout(gas_query_rx_comeback_timeout, gas, query);
 	dl_list_del(&query->list);
 	query->cb(query->ctx, query->addr, query->dialog_token, result,
 		  query->adv_proto, query->resp, query->status_code);
@@ -235,6 +243,13 @@ static void gas_query_tx_status(struct wpa_supplicant *wpa_s,
 		eloop_cancel_timeout(gas_query_timeout, gas, query);
 		eloop_register_timeout(GAS_QUERY_TIMEOUT_PERIOD, 0,
 				       gas_query_timeout, gas, query);
+		if (query->wait_comeback && !query->retry) {
+			eloop_cancel_timeout(gas_query_rx_comeback_timeout,
+					     gas, query);
+			eloop_register_timeout(
+				0, (GAS_QUERY_WAIT_TIME_COMEBACK + 10) * 1000,
+				gas_query_rx_comeback_timeout, gas, query);
+		}
 	}
 	if (result == OFFCHANNEL_SEND_ACTION_FAILED) {
 		eloop_cancel_timeout(gas_query_timeout, gas, query);
@@ -254,10 +269,13 @@ static int pmf_in_use(struct wpa_supplicant *wpa_s, const u8 *addr)
 
 
 static int gas_query_tx(struct gas_query *gas, struct gas_query_pending *query,
-			struct wpabuf *req)
+			struct wpabuf *req, unsigned int wait_time)
 {
-	unsigned int wait_time;
 	int res, prot = pmf_in_use(gas->wpa_s, query->addr);
+	const u8 *bssid;
+	const u8 wildcard_bssid[ETH_ALEN] = {
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	};
 
 	wpa_printf(MSG_DEBUG, "GAS: Send action frame to " MACSTR " len=%u "
 		   "freq=%d prot=%d", MAC2STR(query->addr),
@@ -267,12 +285,18 @@ static int gas_query_tx(struct gas_query *gas, struct gas_query_pending *query,
 		*categ = WLAN_ACTION_PROTECTED_DUAL;
 	}
 	os_get_reltime(&query->last_oper);
-	wait_time = 1000;
 	if (gas->wpa_s->max_remain_on_chan &&
 	    wait_time > gas->wpa_s->max_remain_on_chan)
 		wait_time = gas->wpa_s->max_remain_on_chan;
+	if (!gas->wpa_s->conf->gas_address3 ||
+	    (gas->wpa_s->current_ssid &&
+	     gas->wpa_s->wpa_state >= WPA_ASSOCIATED &&
+	     os_memcmp(query->addr, gas->wpa_s->bssid, ETH_ALEN) == 0))
+		bssid = query->addr;
+	else
+		bssid = wildcard_bssid;
 	res = offchannel_send_action(gas->wpa_s, query->freq, query->addr,
-				     gas->wpa_s->own_addr, query->addr,
+				     gas->wpa_s->own_addr, bssid,
 				     wpabuf_head(req), wpabuf_len(req),
 				     wait_time, gas_query_tx_status, 0);
 	if (res == 0)
@@ -285,6 +309,7 @@ static void gas_query_tx_comeback_req(struct gas_query *gas,
 				      struct gas_query_pending *query)
 {
 	struct wpabuf *req;
+	unsigned int wait_time;
 
 	req = gas_build_comeback_req(query->dialog_token);
 	if (req == NULL) {
@@ -292,13 +317,45 @@ static void gas_query_tx_comeback_req(struct gas_query *gas,
 		return;
 	}
 
-	if (gas_query_tx(gas, query, req) < 0) {
+	wait_time = (query->retry || !query->offchannel_tx_started) ?
+		GAS_QUERY_WAIT_TIME_INITIAL : GAS_QUERY_WAIT_TIME_COMEBACK;
+
+	if (gas_query_tx(gas, query, req, wait_time) < 0) {
 		wpa_printf(MSG_DEBUG, "GAS: Failed to send Action frame to "
 			   MACSTR, MAC2STR(query->addr));
 		gas_query_done(gas, query, GAS_QUERY_INTERNAL_ERROR);
 	}
 
 	wpabuf_free(req);
+}
+
+
+static void gas_query_rx_comeback_timeout(void *eloop_data, void *user_ctx)
+{
+	struct gas_query *gas = eloop_data;
+	struct gas_query_pending *query = user_ctx;
+	int dialog_token;
+
+	wpa_printf(MSG_DEBUG,
+		   "GAS: No response to comeback request received (retry=%u)",
+		   query->retry);
+	if (gas->current != query || query->retry)
+		return;
+	dialog_token = gas_query_new_dialog_token(gas, query->addr);
+	if (dialog_token < 0)
+		return;
+	wpa_printf(MSG_DEBUG,
+		   "GAS: Retry GAS query due to comeback response timeout");
+	query->retry = 1;
+	query->dialog_token = dialog_token;
+	*(wpabuf_mhead_u8(query->req) + 2) = dialog_token;
+	query->wait_comeback = 0;
+	query->next_frag_id = 0;
+	wpabuf_free(query->adv_proto);
+	query->adv_proto = NULL;
+	eloop_cancel_timeout(gas_query_tx_comeback_timeout, gas, query);
+	eloop_cancel_timeout(gas_query_timeout, gas, query);
+	gas_query_tx_initial_req(gas, query);
 }
 
 
@@ -318,6 +375,11 @@ static void gas_query_tx_comeback_req_delay(struct gas_query *gas,
 					    u16 comeback_delay)
 {
 	unsigned int secs, usecs;
+
+	if (comeback_delay > 1 && query->offchannel_tx_started) {
+		offchannel_send_action_done(gas->wpa_s);
+		query->offchannel_tx_started = 0;
+	}
 
 	secs = (comeback_delay * 1024) / 1000000;
 	usecs = comeback_delay * 1024 - secs * 1000000;
@@ -371,6 +433,7 @@ static void gas_query_rx_comeback(struct gas_query *gas,
 		   "comeback_delay=%u)",
 		   MAC2STR(query->addr), query->dialog_token, frag_id,
 		   more_frags, comeback_delay);
+	eloop_cancel_timeout(gas_query_rx_comeback_timeout, gas, query);
 
 	if ((size_t) 2 + adv_proto[1] != wpabuf_len(query->adv_proto) ||
 	    os_memcmp(adv_proto, wpabuf_head(query->adv_proto),
@@ -447,8 +510,16 @@ int gas_query_rx(struct gas_query *gas, const u8 *da, const u8 *sa,
 	if (gas == NULL || len < 4)
 		return -1;
 
+	pos = data;
+	action = *pos++;
+	dialog_token = *pos++;
+
+	if (action != WLAN_PA_GAS_INITIAL_RESP &&
+	    action != WLAN_PA_GAS_COMEBACK_RESP)
+		return -1; /* Not a GAS response */
+
 	prot = categ == WLAN_ACTION_PROTECTED_DUAL;
-	pmf = pmf_in_use(gas->wpa_s, bssid);
+	pmf = pmf_in_use(gas->wpa_s, sa);
 	if (prot && !pmf) {
 		wpa_printf(MSG_DEBUG, "GAS: Drop unexpected protected GAS frame when PMF is disabled");
 		return 0;
@@ -457,14 +528,6 @@ int gas_query_rx(struct gas_query *gas, const u8 *da, const u8 *sa,
 		wpa_printf(MSG_DEBUG, "GAS: Drop unexpected unprotected GAS frame when PMF is enabled");
 		return 0;
 	}
-
-	pos = data;
-	action = *pos++;
-	dialog_token = *pos++;
-
-	if (action != WLAN_PA_GAS_INITIAL_RESP &&
-	    action != WLAN_PA_GAS_COMEBACK_RESP)
-		return -1; /* Not a GAS response */
 
 	query = gas_query_get_pending(gas, sa, dialog_token);
 	if (query == NULL) {
@@ -620,11 +683,18 @@ static void gas_query_start_cb(struct wpa_radio_work *work, int deinit)
 	}
 
 	gas->work = work;
+	gas_query_tx_initial_req(gas, query);
+}
 
-	if (gas_query_tx(gas, query, query->req) < 0) {
+
+static void gas_query_tx_initial_req(struct gas_query *gas,
+				     struct gas_query_pending *query)
+{
+	if (gas_query_tx(gas, query, query->req,
+			 GAS_QUERY_WAIT_TIME_INITIAL) < 0) {
 		wpa_printf(MSG_DEBUG, "GAS: Failed to send Action frame to "
 			   MACSTR, MAC2STR(query->addr));
-		gas_query_free(query, 1);
+		gas_query_done(gas, query, GAS_QUERY_INTERNAL_ERROR);
 		return;
 	}
 	gas->current = query;
@@ -633,7 +703,24 @@ static void gas_query_start_cb(struct wpa_radio_work *work, int deinit)
 		   query->dialog_token);
 	eloop_register_timeout(GAS_QUERY_TIMEOUT_PERIOD, 0,
 			       gas_query_timeout, gas, query);
+}
 
+
+static int gas_query_new_dialog_token(struct gas_query *gas, const u8 *dst)
+{
+	static int next_start = 0;
+	int dialog_token;
+
+	for (dialog_token = 0; dialog_token < 256; dialog_token++) {
+		if (gas_query_dialog_token_available(
+			    gas, dst, (next_start + dialog_token) % 256))
+			break;
+	}
+	if (dialog_token == 256)
+		return -1; /* Too many pending queries */
+	dialog_token = (next_start + dialog_token) % 256;
+	next_start = (dialog_token + 1) % 256;
+	return dialog_token;
 }
 
 
@@ -658,20 +745,13 @@ int gas_query_req(struct gas_query *gas, const u8 *dst, int freq,
 {
 	struct gas_query_pending *query;
 	int dialog_token;
-	static int next_start = 0;
 
 	if (wpabuf_len(req) < 3)
 		return -1;
 
-	for (dialog_token = 0; dialog_token < 256; dialog_token++) {
-		if (gas_query_dialog_token_available(
-			    gas, dst, (next_start + dialog_token) % 256))
-			break;
-	}
-	if (dialog_token == 256)
-		return -1; /* Too many pending queries */
-	dialog_token = (next_start + dialog_token) % 256;
-	next_start = (dialog_token + 1) % 256;
+	dialog_token = gas_query_new_dialog_token(gas, dst);
+	if (dialog_token < 0)
+		return -1;
 
 	query = os_zalloc(sizeof(*query));
 	if (query == NULL)
@@ -694,26 +774,10 @@ int gas_query_req(struct gas_query *gas, const u8 *dst, int freq,
 
 	if (radio_add_work(gas->wpa_s, freq, "gas-query", 0, gas_query_start_cb,
 			   query) < 0) {
+		query->req = NULL; /* caller will free this in error case */
 		gas_query_free(query, 1);
 		return -1;
 	}
 
 	return dialog_token;
-}
-
-
-/**
- * gas_query_cancel - Cancel a pending GAS query
- * @gas: GAS query data from gas_query_init()
- * @dst: Destination MAC address for the query
- * @dialog_token: Dialog token from gas_query_req()
- */
-void gas_query_cancel(struct gas_query *gas, const u8 *dst, u8 dialog_token)
-{
-	struct gas_query_pending *query;
-
-	query = gas_query_get_pending(gas, dst, dialog_token);
-	if (query)
-		gas_query_done(gas, query, GAS_QUERY_CANCELLED);
-
 }

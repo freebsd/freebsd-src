@@ -1,0 +1,4 @@
+.moc
+.obj
+.ui
+qrc_icons.cpp

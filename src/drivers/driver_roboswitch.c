@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant - roboswitch driver interface
- * Copyright (c) 2008-2009 Jouke Witteveen
+ * Copyright (c) 2008-2012 Jouke Witteveen
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -401,7 +401,9 @@ static void * wpa_driver_roboswitch_init(void *ctx, const char *ifname)
 		os_free(drv);
 		return NULL;
 	}
-	if (if_mii(&drv->ifr)->phy_id != ROBO_PHY_ADDR) {
+	/* BCM63xx devices provide 0 here */
+	if (if_mii(&drv->ifr)->phy_id != ROBO_PHY_ADDR &&
+	    if_mii(&drv->ifr)->phy_id != 0) {
 		wpa_printf(MSG_INFO, "%s: Invalid phy address (not a "
 			   "RoboSwitch?)", __func__);
 		os_free(drv);

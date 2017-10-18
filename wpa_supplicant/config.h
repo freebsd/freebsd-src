@@ -39,6 +39,8 @@
 #define DEFAULT_KEY_MGMT_OFFLOAD 1
 #define DEFAULT_CERT_IN_CB 1
 #define DEFAULT_P2P_GO_CTWINDOW 0
+#define DEFAULT_WPA_RSC_RELAXATION 1
+#define DEFAULT_MBO_CELL_CAPA MBO_CELL_CAPA_NOT_SUPPORTED
 
 #include "config_ssid.h"
 #include "wps/wps.h"
@@ -331,6 +333,7 @@ struct wpa_cred {
 #define CFG_CHANGED_EXT_PW_BACKEND BIT(14)
 #define CFG_CHANGED_NFC_PASSWORD_TOKEN BIT(15)
 #define CFG_CHANGED_P2P_PASSPHRASE_LEN BIT(16)
+#define CFG_CHANGED_SCHED_SCAN_PLANS BIT(17)
 
 /**
  * struct wpa_config - wpa_supplicant configuration data
@@ -761,12 +764,17 @@ struct wpa_config {
 	 * frequency list of the local device and the peer device.
 	 *
 	 * @P2P_GO_FREQ_MOVE_STAY: Prefer to stay on the current frequency.
+	 *
+	 * @P2P_GO_FREQ_MOVE_SCM_ECSA: Same as
+	 * P2P_GO_FREQ_MOVE_SCM_PEER_SUPPORTS but a transition is possible only
+	 * if all the group members advertise eCSA support.
 	 */
 	enum {
 		P2P_GO_FREQ_MOVE_SCM = 0,
 		P2P_GO_FREQ_MOVE_SCM_PEER_SUPPORTS = 1,
 		P2P_GO_FREQ_MOVE_STAY = 2,
-		P2P_GO_FREQ_MOVE_MAX = P2P_GO_FREQ_MOVE_STAY,
+		P2P_GO_FREQ_MOVE_SCM_ECSA = 3,
+		P2P_GO_FREQ_MOVE_MAX = P2P_GO_FREQ_MOVE_SCM_ECSA,
 	} p2p_go_freq_change_policy;
 
 #define DEFAULT_P2P_GO_FREQ_MOVE P2P_GO_FREQ_MOVE_STAY
@@ -1031,7 +1039,8 @@ struct wpa_config {
 	 *
 	 * By default, PMF is disabled unless enabled by the per-network
 	 * ieee80211w=1 or ieee80211w=2 parameter. pmf=1/2 can be used to change
-	 * this default behavior.
+	 * this default behavior for RSN network (this is not applicable for
+	 * non-RSN cases).
 	 */
 	enum mfp_options pmf;
 
@@ -1247,6 +1256,78 @@ struct wpa_config {
 	 * interface.
 	 */
 	int fst_llt;
+
+	 /**
+	  * wpa_rsc_relaxation - RSC relaxation on GTK installation
+	  *
+	  * Values:
+	  * 0 - use the EAPOL-Key RSC value on GTK installation
+	  * 1 - use the null RSC if a bogus RSC value is detected in message 3
+	  * of 4-Way Handshake or message 1 of Group Key Handshake.
+	  */
+	 int wpa_rsc_relaxation;
+
+	/**
+	 * sched_scan_plans - Scan plans for scheduled scan
+	 *
+	 * Each scan plan specifies the interval between scans and the number of
+	 * iterations. The last scan plan only specifies the scan interval and
+	 * will be run infinitely.
+	 *
+	 * format: <interval:iterations> <interval2:iterations2> ... <interval>
+	 */
+	 char *sched_scan_plans;
+
+#ifdef CONFIG_MBO
+	/**
+	 * non_pref_chan - Non-preferred channels list, separated by spaces.
+	 *
+	 * format: op_class:chan:preference:reason<:detail>
+	 * Detail is optional.
+	 */
+	char *non_pref_chan;
+
+	/**
+	 * mbo_cell_capa - Cellular capabilities for MBO
+	 */
+	enum mbo_cellular_capa mbo_cell_capa;
+#endif /* CONFIG_MBO */
+
+	/**
+	 * gas_address3 - GAS Address3 field behavior
+	 *
+	 * Values:
+	 * 0 - P2P specification (Address3 = AP BSSID)
+	 * 1 = IEEE 802.11 standard compliant (Address3 = Wildcard BSSID when
+	 *	sent to not-associated AP; if associated, AP BSSID)
+	 */
+	int gas_address3;
+
+	/**
+	 * ftm_responder - Publish FTM (fine timing measurement)
+	 * responder functionality
+	 *
+	 * Values:
+	 * 0 - do not publish FTM responder functionality (Default)
+	 * 1 - publish FTM responder functionality in
+	 *	bit 70 of Extended Capabilities element
+	 * Note, actual FTM responder operation is managed outside
+	 * wpa_supplicant.
+	 */
+	int ftm_responder;
+
+	/**
+	 * ftm_initiator - Publish FTM (fine timing measurement)
+	 * initiator functionality
+	 *
+	 * Values:
+	 * 0 - do not publish FTM initiator functionality (Default)
+	 * 1 - publish FTM initiator functionality in
+	 *	bit 71 of Extended Capabilities element
+	 * Note, actual FTM initiator operation is managed outside
+	 * wpa_supplicant.
+	 */
+	int ftm_initiator;
 };
 
 
@@ -1305,6 +1386,9 @@ void wpa_config_debug_dump_networks(struct wpa_config *config);
 /* Prototypes for common functions from config.c */
 int wpa_config_process_global(struct wpa_config *config, char *pos, int line);
 
+int wpa_config_get_num_global_field_names(void);
+
+const char * wpa_config_get_global_field_name(unsigned int i, int *no_var);
 
 /* Prototypes for backend specific functions from the selected config_*.c */
 

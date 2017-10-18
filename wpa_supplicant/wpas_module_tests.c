@@ -9,6 +9,7 @@
 #include "utils/includes.h"
 
 #include "utils/common.h"
+#include "utils/module_tests.h"
 #include "wpa_supplicant_i.h"
 #include "blacklist.h"
 
@@ -79,30 +80,18 @@ int wpas_module_tests(void)
 		ret = -1;
 
 #ifdef CONFIG_WPS
-	{
-		int wps_module_tests(void);
-		if (wps_module_tests() < 0)
-			ret = -1;
-	}
+	if (wps_module_tests() < 0)
+		ret = -1;
 #endif /* CONFIG_WPS */
 
-	{
-		int utils_module_tests(void);
-		if (utils_module_tests() < 0)
-			ret = -1;
-	}
+	if (utils_module_tests() < 0)
+		ret = -1;
 
-	{
-		int common_module_tests(void);
-		if (common_module_tests() < 0)
-			ret = -1;
-	}
+	if (common_module_tests() < 0)
+		ret = -1;
 
-	{
-		int crypto_module_tests(void);
-		if (crypto_module_tests() < 0)
-			ret = -1;
-	}
+	if (crypto_module_tests() < 0)
+		ret = -1;
 
 	return ret;
 }

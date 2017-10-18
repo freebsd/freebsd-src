@@ -62,13 +62,15 @@ int ikev2_integ_hash(int alg, const u8 *key, size_t key_len, const u8 *data,
 	case AUTH_HMAC_SHA1_96:
 		if (key_len != 20)
 			return -1;
-		hmac_sha1(key, key_len, data, data_len, tmphash);
+		if (hmac_sha1(key, key_len, data, data_len, tmphash) < 0)
+			return -1;
 		os_memcpy(hash, tmphash, 12);
 		break;
 	case AUTH_HMAC_MD5_96:
 		if (key_len != 16)
 			return -1;
-		hmac_md5(key, key_len, data, data_len, tmphash);
+		if (hmac_md5(key, key_len, data, data_len, tmphash) < 0)
+			return -1;
 		os_memcpy(hash, tmphash, 12);
 		break;
 	default:
@@ -98,16 +100,13 @@ int ikev2_prf_hash(int alg, const u8 *key, size_t key_len,
 {
 	switch (alg) {
 	case PRF_HMAC_SHA1:
-		hmac_sha1_vector(key, key_len, num_elem, addr, len, hash);
-		break;
+		return hmac_sha1_vector(key, key_len, num_elem, addr, len,
+					hash);
 	case PRF_HMAC_MD5:
-		hmac_md5_vector(key, key_len, num_elem, addr, len, hash);
-		break;
+		return hmac_md5_vector(key, key_len, num_elem, addr, len, hash);
 	default:
 		return -1;
 	}
-
-	return 0;
 }
 
 

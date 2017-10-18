@@ -21,7 +21,7 @@ struct radius_msg;
 void ieee802_1x_receive(struct hostapd_data *hapd, const u8 *sa, const u8 *buf,
 			size_t len);
 void ieee802_1x_new_station(struct hostapd_data *hapd, struct sta_info *sta);
-void ieee802_1x_free_station(struct sta_info *sta);
+void ieee802_1x_free_station(struct hostapd_data *hapd, struct sta_info *sta);
 
 void ieee802_1x_abort_auth(struct hostapd_data *hapd, struct sta_info *sta);
 void ieee802_1x_set_sta_authorized(struct hostapd_data *hapd,

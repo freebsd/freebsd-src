@@ -1492,7 +1492,6 @@ static u8 * eap_aka_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 int eap_peer_aka_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
 				    EAP_VENDOR_IETF, EAP_TYPE_AKA, "AKA");
@@ -1511,10 +1510,7 @@ int eap_peer_aka_register(void)
 	eap->get_identity = eap_aka_get_identity;
 	eap->get_emsk = eap_aka_get_emsk;
 
-	ret = eap_peer_method_register(eap);
-	if (ret)
-		eap_peer_method_free(eap);
-	return ret;
+	return eap_peer_method_register(eap);
 }
 
 
@@ -1522,7 +1518,6 @@ int eap_peer_aka_register(void)
 int eap_peer_aka_prime_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
 				    EAP_VENDOR_IETF, EAP_TYPE_AKA_PRIME,
@@ -1542,10 +1537,6 @@ int eap_peer_aka_prime_register(void)
 	eap->get_identity = eap_aka_get_identity;
 	eap->get_emsk = eap_aka_get_emsk;
 
-	ret = eap_peer_method_register(eap);
-	if (ret)
-		eap_peer_method_free(eap);
-
-	return ret;
+	return eap_peer_method_register(eap);
 }
 #endif /* EAP_AKA_PRIME */

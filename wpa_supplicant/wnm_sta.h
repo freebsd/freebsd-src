@@ -56,7 +56,7 @@ void ieee802_11_rx_wnm_action(struct wpa_supplicant *wpa_s,
 			      const struct ieee80211_mgmt *mgmt, size_t len);
 
 int wnm_send_bss_transition_mgmt_query(struct wpa_supplicant *wpa_s,
-				       u8 query_reason);
+				       u8 query_reason, int cand_list);
 void wnm_deallocate_memory(struct wpa_supplicant *wpa_s);
 
 

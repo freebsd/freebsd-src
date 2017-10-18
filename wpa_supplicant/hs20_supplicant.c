@@ -25,6 +25,7 @@
 #include "gas_query.h"
 #include "interworking.h"
 #include "hs20_supplicant.h"
+#include "base64.h"
 
 
 #define OSU_MAX_ITEMS 10
@@ -58,6 +59,46 @@ struct osu_provider {
 	struct osu_icon icon[OSU_MAX_ITEMS];
 	size_t icon_count;
 };
+
+
+void hs20_configure_frame_filters(struct wpa_supplicant *wpa_s)
+{
+	struct wpa_bss *bss = wpa_s->current_bss;
+	u8 *bssid = wpa_s->bssid;
+	const u8 *ie;
+	const u8 *ext_capa;
+	u32 filter = 0;
+
+	if (!bss || !is_hs20_network(wpa_s, wpa_s->current_ssid, bss)) {
+		wpa_printf(MSG_DEBUG,
+			   "Not configuring frame filtering - BSS " MACSTR
+			   " is not a Hotspot 2.0 network", MAC2STR(bssid));
+		return;
+	}
+
+	ie = wpa_bss_get_vendor_ie(bss, HS20_IE_VENDOR_TYPE);
+
+	/* Check if DGAF disabled bit is zero (5th byte in the IE) */
+	if (!ie || ie[1] < 5)
+		wpa_printf(MSG_DEBUG,
+			   "Not configuring frame filtering - Can't extract DGAF bit");
+	else if (!(ie[6] & HS20_DGAF_DISABLED))
+		filter |= WPA_DATA_FRAME_FILTER_FLAG_GTK;
+
+	ext_capa = wpa_bss_get_ie(bss, WLAN_EID_EXT_CAPAB);
+	if (!ext_capa || ext_capa[1] < 2) {
+		wpa_printf(MSG_DEBUG,
+			   "Not configuring frame filtering - Can't extract Proxy ARP bit");
+		return;
+	}
+
+	/* Check if Proxy ARP is enabled (2nd byte in the IE) */
+	if (ext_capa[3] & BIT(4))
+		filter |= WPA_DATA_FRAME_FILTER_FLAG_ARP |
+			WPA_DATA_FRAME_FILTER_FLAG_NA;
+
+	wpa_drv_configure_frame_filters(wpa_s, filter);
+}
 
 
 void wpas_hs20_add_indication(struct wpabuf *buf, int pps_mo_id)
@@ -164,8 +205,8 @@ void hs20_put_anqp_req(u32 stypes, const u8 *payload, size_t payload_len,
 }
 
 
-struct wpabuf * hs20_build_anqp_req(u32 stypes, const u8 *payload,
-				    size_t payload_len)
+static struct wpabuf * hs20_build_anqp_req(u32 stypes, const u8 *payload,
+					   size_t payload_len)
 {
 	struct wpabuf *buf;
 
@@ -180,13 +221,14 @@ struct wpabuf * hs20_build_anqp_req(u32 stypes, const u8 *payload,
 
 
 int hs20_anqp_send_req(struct wpa_supplicant *wpa_s, const u8 *dst, u32 stypes,
-		       const u8 *payload, size_t payload_len)
+		       const u8 *payload, size_t payload_len, int inmem)
 {
 	struct wpabuf *buf;
 	int ret = 0;
 	int freq;
 	struct wpa_bss *bss;
 	int res;
+	struct icon_entry *icon_entry;
 
 	bss = wpa_bss_get_bssid(wpa_s, dst);
 	if (!bss) {
@@ -210,12 +252,124 @@ int hs20_anqp_send_req(struct wpa_supplicant *wpa_s, const u8 *dst, u32 stypes,
 	if (res < 0) {
 		wpa_printf(MSG_DEBUG, "ANQP: Failed to send Query Request");
 		wpabuf_free(buf);
-		ret = -1;
+		return -1;
 	} else
 		wpa_printf(MSG_DEBUG, "ANQP: Query started with dialog token "
 			   "%u", res);
 
+	if (inmem) {
+		icon_entry = os_zalloc(sizeof(struct icon_entry));
+		if (!icon_entry)
+			return -1;
+		os_memcpy(icon_entry->bssid, dst, ETH_ALEN);
+		icon_entry->file_name = os_malloc(payload_len + 1);
+		if (!icon_entry->file_name) {
+			os_free(icon_entry);
+			return -1;
+		}
+		os_memcpy(icon_entry->file_name, payload, payload_len);
+		icon_entry->file_name[payload_len] = '\0';
+		icon_entry->dialog_token = res;
+
+		dl_list_add(&wpa_s->icon_head, &icon_entry->list);
+	}
+
 	return ret;
+}
+
+
+static struct icon_entry * hs20_find_icon(struct wpa_supplicant *wpa_s,
+					  const u8 *bssid,
+					  const char *file_name)
+{
+	struct icon_entry *icon;
+
+	dl_list_for_each(icon, &wpa_s->icon_head, struct icon_entry, list) {
+		if (os_memcmp(icon->bssid, bssid, ETH_ALEN) == 0 &&
+		    os_strcmp(icon->file_name, file_name) == 0 && icon->image)
+			return icon;
+	}
+
+	return NULL;
+}
+
+
+int hs20_get_icon(struct wpa_supplicant *wpa_s, const u8 *bssid,
+		  const char *file_name, size_t offset, size_t size,
+		  char *reply, size_t buf_len)
+{
+	struct icon_entry *icon;
+	size_t out_size;
+	unsigned char *b64;
+	size_t b64_size;
+	int reply_size;
+
+	wpa_printf(MSG_DEBUG, "HS20: Get icon " MACSTR " %s @ %u +%u (%u)",
+		   MAC2STR(bssid), file_name, (unsigned int) offset,
+		   (unsigned int) size, (unsigned int) buf_len);
+
+	icon = hs20_find_icon(wpa_s, bssid, file_name);
+	if (!icon || !icon->image || offset >= icon->image_len)
+		return -1;
+	if (size > icon->image_len - offset)
+		size = icon->image_len - offset;
+	out_size = buf_len - 3 /* max base64 padding */;
+	if (size * 4 > out_size * 3)
+		size = out_size * 3 / 4;
+	if (size == 0)
+		return -1;
+
+	b64 = base64_encode(&icon->image[offset], size, &b64_size);
+	if (b64 && buf_len >= b64_size) {
+		os_memcpy(reply, b64, b64_size);
+		reply_size = b64_size;
+	} else {
+		reply_size = -1;
+	}
+	os_free(b64);
+	return reply_size;
+}
+
+
+static void hs20_free_icon_entry(struct icon_entry *icon)
+{
+	wpa_printf(MSG_DEBUG, "HS20: Free stored icon from " MACSTR
+		   " dialog_token=%u file_name=%s image_len=%u",
+		   MAC2STR(icon->bssid), icon->dialog_token,
+		   icon->file_name ? icon->file_name : "N/A",
+		   (unsigned int) icon->image_len);
+	os_free(icon->file_name);
+	os_free(icon->image);
+	os_free(icon);
+}
+
+
+int hs20_del_icon(struct wpa_supplicant *wpa_s, const u8 *bssid,
+		  const char *file_name)
+{
+	struct icon_entry *icon, *tmp;
+	int count = 0;
+
+	if (!bssid)
+		wpa_printf(MSG_DEBUG, "HS20: Delete all stored icons");
+	else if (!file_name)
+		wpa_printf(MSG_DEBUG, "HS20: Delete all stored icons for "
+			   MACSTR, MAC2STR(bssid));
+	else
+		wpa_printf(MSG_DEBUG, "HS20: Delete stored icons for "
+			   MACSTR " file name %s", MAC2STR(bssid), file_name);
+
+	dl_list_for_each_safe(icon, tmp, &wpa_s->icon_head, struct icon_entry,
+			      list) {
+		if ((!bssid || os_memcmp(icon->bssid, bssid, ETH_ALEN) == 0) &&
+		    (!file_name ||
+		     os_strcmp(icon->file_name, file_name) == 0)) {
+			dl_list_del(&icon->list);
+			hs20_free_icon_entry(icon);
+			count++;
+		}
+	}
+	return count == 0 ? -1 : 0;
 }
 
 
@@ -243,16 +397,53 @@ static void hs20_set_osu_access_permission(const char *osu_dir,
 	}
 }
 
+
+static void hs20_remove_duplicate_icons(struct wpa_supplicant *wpa_s,
+					struct icon_entry *new_icon)
+{
+	struct icon_entry *icon, *tmp;
+
+	dl_list_for_each_safe(icon, tmp, &wpa_s->icon_head, struct icon_entry,
+			      list) {
+		if (icon == new_icon)
+			continue;
+		if (os_memcmp(icon->bssid, new_icon->bssid, ETH_ALEN) == 0 &&
+		    os_strcmp(icon->file_name, new_icon->file_name) == 0) {
+			dl_list_del(&icon->list);
+			hs20_free_icon_entry(icon);
+		}
+	}
+}
+
+
 static int hs20_process_icon_binary_file(struct wpa_supplicant *wpa_s,
 					 const u8 *sa, const u8 *pos,
-					 size_t slen)
+					 size_t slen, u8 dialog_token)
 {
 	char fname[256];
 	int png;
 	FILE *f;
 	u16 data_len;
+	struct icon_entry *icon;
 
-	wpa_msg(wpa_s, MSG_INFO, "RX-HS20-ANQP " MACSTR " Icon Binary File",
+	dl_list_for_each(icon, &wpa_s->icon_head, struct icon_entry, list) {
+		if (icon->dialog_token == dialog_token && !icon->image &&
+		    os_memcmp(icon->bssid, sa, ETH_ALEN) == 0) {
+			icon->image = os_malloc(slen);
+			if (!icon->image)
+				return -1;
+			os_memcpy(icon->image, pos, slen);
+			icon->image_len = slen;
+			hs20_remove_duplicate_icons(wpa_s, icon);
+			wpa_msg(wpa_s, MSG_INFO,
+				RX_HS20_ICON MACSTR " %s %u",
+				MAC2STR(sa), icon->file_name,
+				(unsigned int) icon->image_len);
+			return 0;
+		}
+	}
+
+	wpa_msg(wpa_s, MSG_INFO, RX_HS20_ANQP MACSTR " Icon Binary File",
 		MAC2STR(sa));
 
 	if (slen < 4) {
@@ -315,7 +506,7 @@ static int hs20_process_icon_binary_file(struct wpa_supplicant *wpa_s,
 	}
 	fclose(f);
 
-	wpa_msg(wpa_s, MSG_INFO, "RX-HS20-ANQP-ICON %s", fname);
+	wpa_msg(wpa_s, MSG_INFO, RX_HS20_ANQP_ICON "%s", fname);
 	return 0;
 }
 
@@ -358,7 +549,7 @@ static void hs20_osu_icon_fetch_result(struct wpa_supplicant *wpa_s, int res)
 
 void hs20_parse_rx_hs20_anqp_resp(struct wpa_supplicant *wpa_s,
 				  struct wpa_bss *bss, const u8 *sa,
-				  const u8 *data, size_t slen)
+				  const u8 *data, size_t slen, u8 dialog_token)
 {
 	const u8 *pos = data;
 	u8 subtype;
@@ -379,7 +570,7 @@ void hs20_parse_rx_hs20_anqp_resp(struct wpa_supplicant *wpa_s,
 
 	switch (subtype) {
 	case HS20_STYPE_CAPABILITY_LIST:
-		wpa_msg(wpa_s, MSG_INFO, "RX-HS20-ANQP " MACSTR
+		wpa_msg(wpa_s, MSG_INFO, RX_HS20_ANQP MACSTR
 			" HS Capability List", MAC2STR(sa));
 		wpa_hexdump_ascii(MSG_DEBUG, "HS Capability List", pos, slen);
 		if (anqp) {
@@ -389,7 +580,7 @@ void hs20_parse_rx_hs20_anqp_resp(struct wpa_supplicant *wpa_s,
 		}
 		break;
 	case HS20_STYPE_OPERATOR_FRIENDLY_NAME:
-		wpa_msg(wpa_s, MSG_INFO, "RX-HS20-ANQP " MACSTR
+		wpa_msg(wpa_s, MSG_INFO, RX_HS20_ANQP MACSTR
 			" Operator Friendly Name", MAC2STR(sa));
 		wpa_hexdump_ascii(MSG_DEBUG, "oper friendly name", pos, slen);
 		if (anqp) {
@@ -405,7 +596,7 @@ void hs20_parse_rx_hs20_anqp_resp(struct wpa_supplicant *wpa_s,
 				"Metrics value from " MACSTR, MAC2STR(sa));
 			break;
 		}
-		wpa_msg(wpa_s, MSG_INFO, "RX-HS20-ANQP " MACSTR
+		wpa_msg(wpa_s, MSG_INFO, RX_HS20_ANQP MACSTR
 			" WAN Metrics %02x:%u:%u:%u:%u:%u", MAC2STR(sa),
 			pos[0], WPA_GET_LE32(pos + 1), WPA_GET_LE32(pos + 5),
 			pos[9], pos[10], WPA_GET_LE16(pos + 11));
@@ -415,7 +606,7 @@ void hs20_parse_rx_hs20_anqp_resp(struct wpa_supplicant *wpa_s,
 		}
 		break;
 	case HS20_STYPE_CONNECTION_CAPABILITY:
-		wpa_msg(wpa_s, MSG_INFO, "RX-HS20-ANQP " MACSTR
+		wpa_msg(wpa_s, MSG_INFO, RX_HS20_ANQP MACSTR
 			" Connection Capability", MAC2STR(sa));
 		wpa_hexdump_ascii(MSG_DEBUG, "conn capability", pos, slen);
 		if (anqp) {
@@ -425,7 +616,7 @@ void hs20_parse_rx_hs20_anqp_resp(struct wpa_supplicant *wpa_s,
 		}
 		break;
 	case HS20_STYPE_OPERATING_CLASS:
-		wpa_msg(wpa_s, MSG_INFO, "RX-HS20-ANQP " MACSTR
+		wpa_msg(wpa_s, MSG_INFO, RX_HS20_ANQP MACSTR
 			" Operating Class", MAC2STR(sa));
 		wpa_hexdump_ascii(MSG_DEBUG, "Operating Class", pos, slen);
 		if (anqp) {
@@ -435,7 +626,7 @@ void hs20_parse_rx_hs20_anqp_resp(struct wpa_supplicant *wpa_s,
 		}
 		break;
 	case HS20_STYPE_OSU_PROVIDERS_LIST:
-		wpa_msg(wpa_s, MSG_INFO, "RX-HS20-ANQP " MACSTR
+		wpa_msg(wpa_s, MSG_INFO, RX_HS20_ANQP MACSTR
 			" OSU Providers list", MAC2STR(sa));
 		wpa_s->num_prov_found++;
 		if (anqp) {
@@ -445,7 +636,8 @@ void hs20_parse_rx_hs20_anqp_resp(struct wpa_supplicant *wpa_s,
 		}
 		break;
 	case HS20_STYPE_ICON_BINARY_FILE:
-		ret = hs20_process_icon_binary_file(wpa_s, sa, pos, slen);
+		ret = hs20_process_icon_binary_file(wpa_s, sa, pos, slen,
+						    dialog_token);
 		if (wpa_s->fetch_osu_icon_in_progress) {
 			hs20_osu_icon_fetch_result(wpa_s, ret);
 			eloop_cancel_timeout(hs20_continue_icon_fetch,
@@ -511,7 +703,10 @@ static void hs20_osu_fetch_done(struct wpa_supplicant *wpa_s)
 		 wpa_s->conf->osu_dir);
 	f = fopen(fname, "w");
 	if (f == NULL) {
+		wpa_msg(wpa_s, MSG_INFO,
+			"Could not write OSU provider information");
 		hs20_free_osu_prov(wpa_s);
+		wpa_s->fetch_anqp_in_progress = 0;
 		return;
 	}
 
@@ -579,7 +774,8 @@ void hs20_next_osu_icon(struct wpa_supplicant *wpa_s)
 			if (hs20_anqp_send_req(wpa_s, osu->bssid,
 					       BIT(HS20_STYPE_ICON_REQUEST),
 					       (u8 *) icon->filename,
-					       os_strlen(icon->filename)) < 0) {
+					       os_strlen(icon->filename),
+					       0) < 0) {
 				icon->failed = 1;
 				continue;
 			}
@@ -617,7 +813,7 @@ static void hs20_osu_add_prov(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
 	prov->osu_ssid_len = osu_ssid_len;
 
 	/* OSU Friendly Name Length */
-	if (pos + 2 > end) {
+	if (end - pos < 2) {
 		wpa_printf(MSG_DEBUG, "HS 2.0: Not enough room for OSU "
 			   "Friendly Name Length");
 		return;
@@ -633,9 +829,9 @@ static void hs20_osu_add_prov(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
 	pos += len2;
 
 	/* OSU Friendly Name Duples */
-	while (pos2 + 4 <= pos && prov->friendly_name_count < OSU_MAX_ITEMS) {
+	while (pos - pos2 >= 4 && prov->friendly_name_count < OSU_MAX_ITEMS) {
 		struct osu_lang_string *f;
-		if (pos2 + 1 + pos2[0] > pos || pos2[0] < 3) {
+		if (1 + pos2[0] > pos - pos2 || pos2[0] < 3) {
 			wpa_printf(MSG_DEBUG, "Invalid OSU Friendly Name");
 			break;
 		}
@@ -646,7 +842,7 @@ static void hs20_osu_add_prov(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
 	}
 
 	/* OSU Server URI */
-	if (pos + 1 > end) {
+	if (end - pos < 1) {
 		wpa_printf(MSG_DEBUG,
 			   "HS 2.0: Not enough room for OSU Server URI length");
 		return;
@@ -661,7 +857,7 @@ static void hs20_osu_add_prov(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
 	pos += uri_len;
 
 	/* OSU Method list */
-	if (pos + 1 > end) {
+	if (end - pos < 1) {
 		wpa_printf(MSG_DEBUG, "HS 2.0: Not enough room for OSU Method "
 			   "list length");
 		return;
@@ -681,7 +877,7 @@ static void hs20_osu_add_prov(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
 	}
 
 	/* Icons Available Length */
-	if (pos + 2 > end) {
+	if (end - pos < 2) {
 		wpa_printf(MSG_DEBUG, "HS 2.0: Not enough room for Icons "
 			   "Available Length");
 		return;
@@ -701,7 +897,7 @@ static void hs20_osu_add_prov(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
 		struct osu_icon *icon = &prov->icon[prov->icon_count];
 		u8 flen;
 
-		if (pos2 + 2 + 2 + 3 + 1 + 1 > pos) {
+		if (2 + 2 + 3 + 1 + 1 > pos - pos2) {
 			wpa_printf(MSG_DEBUG, "HS 2.0: Invalid Icon Metadata");
 			break;
 		}
@@ -713,46 +909,46 @@ static void hs20_osu_add_prov(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
 		os_memcpy(icon->lang, pos2, 3);
 		pos2 += 3;
 
-		flen = pos2[0];
-		if (flen > pos - pos2 - 1) {
+		flen = *pos2++;
+		if (flen > pos - pos2) {
 			wpa_printf(MSG_DEBUG, "HS 2.0: Not room for Icon Type");
 			break;
 		}
-		os_memcpy(icon->icon_type, pos2 + 1, flen);
-		pos2 += 1 + flen;
+		os_memcpy(icon->icon_type, pos2, flen);
+		pos2 += flen;
 
-		if (pos2 + 1 > pos) {
+		if (pos - pos2 < 1) {
 			wpa_printf(MSG_DEBUG, "HS 2.0: Not room for Icon "
 				   "Filename length");
 			break;
 		}
-		flen = pos2[0];
-		if (flen > pos - pos2 - 1) {
+		flen = *pos2++;
+		if (flen > pos - pos2) {
 			wpa_printf(MSG_DEBUG, "HS 2.0: Not room for Icon "
 				   "Filename");
 			break;
 		}
-		os_memcpy(icon->filename, pos2 + 1, flen);
-		pos2 += 1 + flen;
+		os_memcpy(icon->filename, pos2, flen);
+		pos2 += flen;
 
 		prov->icon_count++;
 	}
 
 	/* OSU_NAI */
-	if (pos + 1 > end) {
+	if (end - pos < 1) {
 		wpa_printf(MSG_DEBUG, "HS 2.0: Not enough room for OSU_NAI");
 		return;
 	}
-	osu_nai_len = pos[0];
-	if (osu_nai_len > end - pos - 1) {
+	osu_nai_len = *pos++;
+	if (osu_nai_len > end - pos) {
 		wpa_printf(MSG_DEBUG, "HS 2.0: Not enough room for OSU_NAI");
 		return;
 	}
-	os_memcpy(prov->osu_nai, pos + 1, osu_nai_len);
-	pos += 1 + osu_nai_len;
+	os_memcpy(prov->osu_nai, pos, osu_nai_len);
+	pos += osu_nai_len;
 
 	/* OSU Service Description Length */
-	if (pos + 2 > end) {
+	if (end - pos < 2) {
 		wpa_printf(MSG_DEBUG, "HS 2.0: Not enough room for OSU "
 			   "Service Description Length");
 		return;
@@ -768,20 +964,20 @@ static void hs20_osu_add_prov(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
 	pos += len2;
 
 	/* OSU Service Description Duples */
-	while (pos2 + 4 <= pos && prov->serv_desc_count < OSU_MAX_ITEMS) {
+	while (pos - pos2 >= 4 && prov->serv_desc_count < OSU_MAX_ITEMS) {
 		struct osu_lang_string *f;
 		u8 descr_len;
 
-		descr_len = pos2[0];
-		if (descr_len > pos - pos2 - 1 || descr_len < 3) {
+		descr_len = *pos2++;
+		if (descr_len > pos - pos2 || descr_len < 3) {
 			wpa_printf(MSG_DEBUG, "Invalid OSU Service "
 				   "Description");
 			break;
 		}
 		f = &prov->serv_desc[prov->serv_desc_count++];
-		os_memcpy(f->lang, pos2 + 1, 3);
-		os_memcpy(f->text, pos2 + 1 + 3, descr_len - 3);
-		pos2 += 1 + descr_len;
+		os_memcpy(f->lang, pos2, 3);
+		os_memcpy(f->text, pos2 + 3, descr_len - 3);
+		pos2 += descr_len;
 	}
 
 	wpa_printf(MSG_DEBUG, "HS 2.0: Added OSU Provider through " MACSTR,
@@ -816,9 +1012,9 @@ void hs20_osu_icon_fetch(struct wpa_supplicant *wpa_s)
 		end = pos + wpabuf_len(prov_anqp);
 
 		/* OSU SSID */
-		if (pos + 1 > end)
+		if (end - pos < 1)
 			continue;
-		if (pos + 1 + pos[0] > end) {
+		if (1 + pos[0] > end - pos) {
 			wpa_printf(MSG_DEBUG, "HS 2.0: Not enough room for "
 				   "OSU SSID");
 			continue;
@@ -832,7 +1028,7 @@ void hs20_osu_icon_fetch(struct wpa_supplicant *wpa_s)
 		osu_ssid = pos;
 		pos += osu_ssid_len;
 
-		if (pos + 1 > end) {
+		if (end - pos < 1) {
 			wpa_printf(MSG_DEBUG, "HS 2.0: Not enough room for "
 				   "Number of OSU Providers");
 			continue;
@@ -842,7 +1038,7 @@ void hs20_osu_icon_fetch(struct wpa_supplicant *wpa_s)
 			   num_providers);
 
 		/* OSU Providers */
-		while (pos + 2 < end && num_providers > 0) {
+		while (end - pos > 2 && num_providers > 0) {
 			num_providers--;
 			len = WPA_GET_LE16(pos);
 			pos += 2;
@@ -882,7 +1078,7 @@ static void hs20_osu_scan_res_handler(struct wpa_supplicant *wpa_s,
 }
 
 
-int hs20_fetch_osu(struct wpa_supplicant *wpa_s)
+int hs20_fetch_osu(struct wpa_supplicant *wpa_s, int skip_scan)
 {
 	if (wpa_s->wpa_state == WPA_INTERFACE_DISABLED) {
 		wpa_printf(MSG_DEBUG, "HS 2.0: Cannot start fetch_osu - "
@@ -913,7 +1109,16 @@ int hs20_fetch_osu(struct wpa_supplicant *wpa_s)
 	wpa_msg(wpa_s, MSG_INFO, "Starting OSU provisioning information fetch");
 	wpa_s->num_osu_scans = 0;
 	wpa_s->num_prov_found = 0;
-	hs20_start_osu_scan(wpa_s);
+	if (skip_scan) {
+		wpa_s->network_select = 0;
+		wpa_s->fetch_all_anqp = 1;
+		wpa_s->fetch_osu_info = 1;
+		wpa_s->fetch_osu_icon_in_progress = 0;
+
+		interworking_start_fetch_anqp(wpa_s);
+	} else {
+		hs20_start_osu_scan(wpa_s);
+	}
 
 	return 0;
 }
@@ -1002,8 +1207,16 @@ void hs20_rx_deauth_imminent_notice(struct wpa_supplicant *wpa_s, u8 code,
 }
 
 
+void hs20_init(struct wpa_supplicant *wpa_s)
+{
+	dl_list_init(&wpa_s->icon_head);
+}
+
+
 void hs20_deinit(struct wpa_supplicant *wpa_s)
 {
 	eloop_cancel_timeout(hs20_continue_icon_fetch, wpa_s, NULL);
 	hs20_free_osu_prov(wpa_s);
+	if (wpa_s->icon_head.next)
+		hs20_del_icon(wpa_s, NULL, NULL);
 }

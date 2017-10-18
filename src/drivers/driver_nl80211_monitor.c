@@ -136,7 +136,7 @@ static void handle_monitor_read(int sock, void *eloop_ctx, void *sock_ctx)
 			break;
 		case IEEE80211_RADIOTAP_TX_FLAGS:
 			injected = 1;
-			failed = le_to_host16((*(uint16_t *) iter.this_arg)) &
+			failed = le_to_host16((*(le16 *) iter.this_arg)) &
 					IEEE80211_RADIOTAP_F_TX_FAIL;
 			break;
 		case IEEE80211_RADIOTAP_DATA_RETRIES:

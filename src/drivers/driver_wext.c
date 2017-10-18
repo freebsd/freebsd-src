@@ -422,7 +422,7 @@ static void wpa_driver_wext_event_assoc_ies(struct wpa_driver_wext_data *drv)
 
 
 static void wpa_driver_wext_event_wireless(struct wpa_driver_wext_data *drv,
-					   char *data, int len)
+					   char *data, unsigned int len)
 {
 	struct iw_event iwe_buf, *iwe = &iwe_buf;
 	char *pos, *end, *custom, *buf;
@@ -430,13 +430,13 @@ static void wpa_driver_wext_event_wireless(struct wpa_driver_wext_data *drv,
 	pos = data;
 	end = data + len;
 
-	while (pos + IW_EV_LCP_LEN <= end) {
+	while ((size_t) (end - pos) >= IW_EV_LCP_LEN) {
 		/* Event data may be unaligned, so make a local, aligned copy
 		 * before processing. */
 		os_memcpy(&iwe_buf, pos, IW_EV_LCP_LEN);
 		wpa_printf(MSG_DEBUG, "Wireless event: cmd=0x%x len=%d",
 			   iwe->cmd, iwe->len);
-		if (iwe->len <= IW_EV_LCP_LEN)
+		if (iwe->len <= IW_EV_LCP_LEN || iwe->len > end - pos)
 			return;
 
 		custom = pos + IW_EV_POINT_LEN;
@@ -480,7 +480,7 @@ static void wpa_driver_wext_event_wireless(struct wpa_driver_wext_data *drv,
 			}
 			break;
 		case IWEVMICHAELMICFAILURE:
-			if (custom + iwe->u.data.length > end) {
+			if (iwe->u.data.length > end - custom) {
 				wpa_printf(MSG_DEBUG, "WEXT: Invalid "
 					   "IWEVMICHAELMICFAILURE length");
 				return;
@@ -489,7 +489,7 @@ static void wpa_driver_wext_event_wireless(struct wpa_driver_wext_data *drv,
 				drv->ctx, custom, iwe->u.data.length);
 			break;
 		case IWEVCUSTOM:
-			if (custom + iwe->u.data.length > end) {
+			if (iwe->u.data.length > end - custom) {
 				wpa_printf(MSG_DEBUG, "WEXT: Invalid "
 					   "IWEVCUSTOM length");
 				return;
@@ -508,7 +508,7 @@ static void wpa_driver_wext_event_wireless(struct wpa_driver_wext_data *drv,
 					     NULL);
 			break;
 		case IWEVASSOCREQIE:
-			if (custom + iwe->u.data.length > end) {
+			if (iwe->u.data.length > end - custom) {
 				wpa_printf(MSG_DEBUG, "WEXT: Invalid "
 					   "IWEVASSOCREQIE length");
 				return;
@@ -517,7 +517,7 @@ static void wpa_driver_wext_event_wireless(struct wpa_driver_wext_data *drv,
 				drv, custom, iwe->u.data.length);
 			break;
 		case IWEVASSOCRESPIE:
-			if (custom + iwe->u.data.length > end) {
+			if (iwe->u.data.length > end - custom) {
 				wpa_printf(MSG_DEBUG, "WEXT: Invalid "
 					   "IWEVASSOCRESPIE length");
 				return;
@@ -526,7 +526,7 @@ static void wpa_driver_wext_event_wireless(struct wpa_driver_wext_data *drv,
 				drv, custom, iwe->u.data.length);
 			break;
 		case IWEVPMKIDCAND:
-			if (custom + iwe->u.data.length > end) {
+			if (iwe->u.data.length > end - custom) {
 				wpa_printf(MSG_DEBUG, "WEXT: Invalid "
 					   "IWEVPMKIDCAND length");
 				return;
@@ -1220,7 +1220,7 @@ static void wext_get_scan_ssid(struct iw_event *iwe,
 			       char *end)
 {
 	int ssid_len = iwe->u.essid.length;
-	if (custom + ssid_len > end)
+	if (ssid_len > end - custom)
 		return;
 	if (iwe->u.essid.flags &&
 	    ssid_len > 0 &&
@@ -1316,7 +1316,7 @@ static void wext_get_scan_rate(struct iw_event *iwe,
 	size_t clen;
 
 	clen = iwe->len;
-	if (custom + clen > end)
+	if (clen > (size_t) (end - custom))
 		return;
 	maxrate = 0;
 	while (((ssize_t) clen) >= (ssize_t) sizeof(struct iw_param)) {
@@ -1369,7 +1369,7 @@ static void wext_get_scan_custom(struct iw_event *iwe,
 	u8 *tmp;
 
 	clen = iwe->u.data.length;
-	if (custom + clen > end)
+	if (clen > (size_t) (end - custom))
 		return;
 
 	if (clen > 7 && os_strncmp(custom, "wpa_ie=", 7) == 0) {
@@ -1441,8 +1441,8 @@ static void wpa_driver_wext_add_scan_entry(struct wpa_scan_results *res,
 	/* Figure out whether we need to fake any IEs */
 	pos = data->ie;
 	end = pos + data->ie_len;
-	while (pos && pos + 1 < end) {
-		if (pos + 2 + pos[1] > end)
+	while (pos && end - pos > 1) {
+		if (2 + pos[1] > end - pos)
 			break;
 		if (pos[0] == WLAN_EID_SSID)
 			ssid_ie = pos;
@@ -1530,11 +1530,11 @@ struct wpa_scan_results * wpa_driver_wext_get_scan_results(void *priv)
 	end = (char *) res_buf + len;
 	os_memset(&data, 0, sizeof(data));
 
-	while (pos + IW_EV_LCP_LEN <= end) {
+	while ((size_t) (end - pos) >= IW_EV_LCP_LEN) {
 		/* Event data may be unaligned, so make a local, aligned copy
 		 * before processing. */
 		os_memcpy(&iwe_buf, pos, IW_EV_LCP_LEN);
-		if (iwe->len <= IW_EV_LCP_LEN)
+		if (iwe->len <= IW_EV_LCP_LEN || iwe->len > end - pos)
 			break;
 
 		custom = pos + IW_EV_POINT_LEN;

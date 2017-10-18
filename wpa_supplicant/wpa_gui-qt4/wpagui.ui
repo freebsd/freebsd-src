@@ -1,0 +1,524 @@
+<ui version="4.0" >
+ <class>WpaGui</class>
+ <widget class="QMainWindow" name="WpaGui" >
+  <property name="geometry" >
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>345</width>
+    <height>330</height>
+   </rect>
+  </property>
+  <property name="windowTitle" >
+   <string>wpa_gui</string>
+  </property>
+  <property name="windowIcon" >
+   <iconset resource="icons.qrc" >
+    <normaloff>:/icons/wpa_gui.svg</normaloff>:/icons/wpa_gui.svg</iconset>
+  </property>
+  <widget class="QWidget" name="widget" >
+   <layout class="QGridLayout" >
+    <item row="0" column="0" >
+     <widget class="QLabel" name="adapterLabel" >
+      <property name="text" >
+       <string>Adapter:</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="1" >
+     <widget class="QComboBox" name="adapterSelect" />
+    </item>
+    <item row="1" column="0" >
+     <widget class="QLabel" name="networkLabel" >
+      <property name="text" >
+       <string>Network:</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1" >
+     <widget class="QComboBox" name="networkSelect" />
+    </item>
+    <item row="2" column="0" colspan="2" >
+     <widget class="QTabWidget" name="wpaguiTab" >
+      <property name="currentIndex" >
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="statusTab" >
+       <attribute name="title" >
+        <string>Current Status</string>
+       </attribute>
+       <layout class="QGridLayout" >
+        <item row="0" column="0" colspan="5" >
+         <widget class="QFrame" name="frame3" >
+          <property name="frameShape" >
+           <enum>QFrame::NoFrame</enum>
+          </property>
+          <property name="frameShadow" >
+           <enum>QFrame::Plain</enum>
+          </property>
+          <layout class="QGridLayout" >
+           <item row="0" column="0" >
+            <widget class="QLabel" name="statusLabel" >
+             <property name="text" >
+              <string>Status:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0" >
+            <widget class="QLabel" name="lastMessageLabel" >
+             <property name="text" >
+              <string>Last message:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" >
+            <widget class="QLabel" name="authenticationLabel" >
+             <property name="text" >
+              <string>Authentication:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0" >
+            <widget class="QLabel" name="encryptionLabel" >
+             <property name="text" >
+              <string>Encryption:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0" >
+            <widget class="QLabel" name="ssidLabel" >
+             <property name="text" >
+              <string>SSID:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0" >
+            <widget class="QLabel" name="bssidLabel" >
+             <property name="text" >
+              <string>BSSID:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="0" >
+            <widget class="QLabel" name="ipAddressLabel" >
+             <property name="text" >
+              <string>IP address:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1" >
+            <widget class="QLabel" name="textStatus" >
+             <property name="text" >
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1" colspan="3" >
+            <widget class="QLabel" name="textLastMessage" >
+             <property name="text" >
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1" >
+            <widget class="QLabel" name="textAuthentication" >
+             <property name="text" >
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1" >
+            <widget class="QLabel" name="textEncryption" >
+             <property name="text" >
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="1" >
+            <widget class="QLabel" name="textSsid" >
+             <property name="text" >
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="1" >
+            <widget class="QLabel" name="textBssid" >
+             <property name="text" >
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="1" >
+            <widget class="QLabel" name="textIpAddress" >
+             <property name="text" >
+              <string/>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="1" column="0" >
+         <spacer>
+          <property name="orientation" >
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" >
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item row="1" column="1" >
+         <widget class="QPushButton" name="connectButton" >
+          <property name="text" >
+           <string>Connect</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2" >
+         <widget class="QPushButton" name="disconnectButton" >
+          <property name="text" >
+           <string>Disconnect</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="3" >
+         <widget class="QPushButton" name="scanButton" >
+          <property name="text" >
+           <string>Scan</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="4" >
+         <spacer>
+          <property name="orientation" >
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" >
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="networkconfigTab" >
+       <attribute name="title" >
+        <string>Manage Networks</string>
+       </attribute>
+       <layout class="QGridLayout" >
+        <item row="0" column="0" colspan="5" >
+         <widget class="QListWidget" name="networkList" >
+          <property name="selectionRectVisible" >
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item rowspan="2" row="1" column="0" >
+         <spacer>
+          <property name="orientation" >
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" >
+           <size>
+            <width>20</width>
+            <height>61</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item row="1" column="1" >
+         <widget class="QRadioButton" name="enableRadioButton" >
+          <property name="text" >
+           <string>Enabled</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2" >
+         <widget class="QPushButton" name="editNetworkButton" >
+          <property name="text" >
+           <string>Edit</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="3" >
+         <widget class="QPushButton" name="removeNetworkButton" >
+          <property name="text" >
+           <string>Remove</string>
+          </property>
+         </widget>
+        </item>
+        <item rowspan="2" row="1" column="4" >
+         <spacer>
+          <property name="orientation" >
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" >
+           <size>
+            <width>20</width>
+            <height>61</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item row="2" column="1" >
+         <widget class="QRadioButton" name="disableRadioButton" >
+          <property name="text" >
+           <string>Disabled</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="2" >
+         <widget class="QPushButton" name="addNetworkButton" >
+          <property name="text" >
+           <string>Add</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3" >
+         <widget class="QPushButton" name="scanNetworkButton" >
+          <property name="text" >
+           <string>Scan</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="wpsTab" >
+       <attribute name="title" >
+        <string>WPS</string>
+       </attribute>
+       <layout class="QGridLayout" name="wpsGridLayout" >
+        <item row="0" column="0" >
+         <widget class="QLabel" name="label_2" >
+          <property name="text" >
+           <string>Status:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1" colspan="3" >
+         <widget class="QLabel" name="wpsStatusText" >
+          <property name="text" >
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0" colspan="2" >
+         <widget class="QPushButton" name="wpsPbcButton" >
+          <property name="text" >
+           <string>PBC - push button</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0" colspan="2" >
+         <widget class="QPushButton" name="wpsPinButton" >
+          <property name="text" >
+           <string>Generate PIN</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="2" >
+         <widget class="QLabel" name="label" >
+          <property name="text" >
+           <string>PIN:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3" >
+         <widget class="QLineEdit" name="wpsPinEdit" >
+          <property name="enabled" >
+           <bool>false</bool>
+          </property>
+          <property name="readOnly" >
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0" colspan="2" >
+         <widget class="QPushButton" name="wpsApPinButton" >
+          <property name="enabled" >
+           <bool>false</bool>
+          </property>
+          <property name="text" >
+           <string>Use AP PIN</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="2" >
+         <widget class="QLabel" name="label_3" >
+          <property name="text" >
+           <string>AP PIN:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="3" >
+         <widget class="QLineEdit" name="wpsApPinEdit" >
+          <property name="enabled" >
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="0" colspan="4" >
+         <widget class="QTextEdit" name="wpsInstructions" >
+          <property name="readOnly" >
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="MenuBar" >
+   <property name="geometry" >
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>345</width>
+     <height>24</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="fileMenu" >
+    <property name="title" >
+     <string>&amp;File</string>
+    </property>
+    <addaction name="fileEventHistoryAction" />
+    <addaction name="fileSaveConfigAction" />
+    <addaction name="actionWPS" />
+    <addaction name="actionPeers" />
+    <addaction name="separator" />
+    <addaction name="fileExitAction" />
+   </widget>
+   <widget class="QMenu" name="networkMenu" >
+    <property name="title" >
+     <string>&amp;Network</string>
+    </property>
+    <addaction name="networkAddAction" />
+    <addaction name="networkEditAction" />
+    <addaction name="networkRemoveAction" />
+    <addaction name="separator" />
+    <addaction name="networkEnableAllAction" />
+    <addaction name="networkDisableAllAction" />
+    <addaction name="networkRemoveAllAction" />
+   </widget>
+   <widget class="QMenu" name="helpMenu" >
+    <property name="title" >
+     <string>&amp;Help</string>
+    </property>
+    <addaction name="helpContentsAction" />
+    <addaction name="helpIndexAction" />
+    <addaction name="separator" />
+    <addaction name="helpAboutAction" />
+   </widget>
+   <addaction name="fileMenu" />
+   <addaction name="networkMenu" />
+   <addaction name="helpMenu" />
+  </widget>
+  <action name="fileEventHistoryAction" >
+   <property name="text" >
+    <string>Event &amp;History</string>
+   </property>
+  </action>
+  <action name="fileSaveConfigAction" >
+   <property name="text" >
+    <string>&amp;Save Configuration</string>
+   </property>
+   <property name="shortcut" >
+    <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="fileExitAction" >
+   <property name="text" >
+    <string>E&amp;xit</string>
+   </property>
+   <property name="shortcut" >
+    <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="networkAddAction" >
+   <property name="text" >
+    <string>&amp;Add</string>
+   </property>
+  </action>
+  <action name="networkEditAction" >
+   <property name="text" >
+    <string>&amp;Edit</string>
+   </property>
+  </action>
+  <action name="networkRemoveAction" >
+   <property name="text" >
+    <string>&amp;Remove</string>
+   </property>
+  </action>
+  <action name="networkEnableAllAction" >
+   <property name="text" >
+    <string>E&amp;nable All</string>
+   </property>
+  </action>
+  <action name="networkDisableAllAction" >
+   <property name="text" >
+    <string>&amp;Disable All</string>
+   </property>
+  </action>
+  <action name="networkRemoveAllAction" >
+   <property name="text" >
+    <string>Re&amp;move All</string>
+   </property>
+  </action>
+  <action name="helpContentsAction" >
+   <property name="enabled" >
+    <bool>false</bool>
+   </property>
+   <property name="text" >
+    <string>&amp;Contents...</string>
+   </property>
+  </action>
+  <action name="helpIndexAction" >
+   <property name="enabled" >
+    <bool>false</bool>
+   </property>
+   <property name="text" >
+    <string>&amp;Index...</string>
+   </property>
+  </action>
+  <action name="helpAboutAction" >
+   <property name="text" >
+    <string>&amp;About</string>
+   </property>
+  </action>
+  <action name="actionWPS" >
+   <property name="enabled" >
+    <bool>false</bool>
+   </property>
+   <property name="text" >
+    <string>&amp;Wi-Fi Protected Setup</string>
+   </property>
+  </action>
+  <action name="actionPeers" >
+   <property name="text" >
+    <string>&amp;Peers</string>
+   </property>
+  </action>
+ </widget>
+ <layoutdefault spacing="6" margin="11" />
+ <pixmapfunction></pixmapfunction>
+ <includes>
+  <include location="global" >qtimer.h</include>
+  <include location="global" >qsocketnotifier.h</include>
+  <include location="local" >wpamsg.h</include>
+  <include location="local" >eventhistory.h</include>
+  <include location="local" >scanresults.h</include>
+  <include location="local" >peers.h</include>
+ </includes>
+ <resources>
+  <include location="icons.qrc" />
+ </resources>
+ <connections/>
+</ui>

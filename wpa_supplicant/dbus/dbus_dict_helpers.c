@@ -205,24 +205,6 @@ dbus_bool_t wpa_dbus_dict_append_string(DBusMessageIter *iter_dict,
 
 
 /**
- * Add a byte entry to the dict.
- *
- * @param iter_dict A valid DBusMessageIter returned from
- *    wpa_dbus_dict_open_write()
- * @param key The key of the dict item
- * @param value The byte value
- * @return TRUE on success, FALSE on failure
- *
- */
-dbus_bool_t wpa_dbus_dict_append_byte(DBusMessageIter *iter_dict,
-				      const char *key, const char value)
-{
-	return _wpa_dbus_add_dict_entry_basic(iter_dict, key, DBUS_TYPE_BYTE,
-					      &value);
-}
-
-
-/**
  * Add a boolean entry to the dict.
  *
  * @param iter_dict A valid DBusMessageIter returned from
@@ -312,62 +294,6 @@ dbus_bool_t wpa_dbus_dict_append_uint32(DBusMessageIter *iter_dict,
 					const dbus_uint32_t value)
 {
 	return _wpa_dbus_add_dict_entry_basic(iter_dict, key, DBUS_TYPE_UINT32,
-					      &value);
-}
-
-
-/**
- * Add a 64-bit integer entry to the dict.
- *
- * @param iter_dict A valid DBusMessageIter returned from
- *    wpa_dbus_dict_open_write()
- * @param key The key of the dict item
- * @param value The 64-bit integer value
- * @return TRUE on success, FALSE on failure
- *
- */
-dbus_bool_t wpa_dbus_dict_append_int64(DBusMessageIter *iter_dict,
-				       const char *key,
-				       const dbus_int64_t value)
-{
-	return _wpa_dbus_add_dict_entry_basic(iter_dict, key, DBUS_TYPE_INT64,
-					      &value);
-}
-
-
-/**
- * Add a 64-bit unsigned integer entry to the dict.
- *
- * @param iter_dict A valid DBusMessageIter returned from
- *    wpa_dbus_dict_open_write()
- * @param key The key of the dict item
- * @param value The 64-bit unsigned integer value
- * @return TRUE on success, FALSE on failure
- *
- */
-dbus_bool_t wpa_dbus_dict_append_uint64(DBusMessageIter *iter_dict,
-					const char *key,
-					const dbus_uint64_t value)
-{
-	return _wpa_dbus_add_dict_entry_basic(iter_dict, key, DBUS_TYPE_UINT64,
-					      &value);
-}
-
-
-/**
- * Add a double-precision floating point entry to the dict.
- *
- * @param iter_dict A valid DBusMessageIter returned from
- *    wpa_dbus_dict_open_write()
- * @param key The key of the dict item
- * @param value The double-precision floating point value
- * @return TRUE on success, FALSE on failure
- *
- */
-dbus_bool_t wpa_dbus_dict_append_double(DBusMessageIter *iter_dict,
-					const char *key, const double value)
-{
-	return _wpa_dbus_add_dict_entry_basic(iter_dict, key, DBUS_TYPE_DOUBLE,
 					      &value);
 }
 

@@ -161,11 +161,11 @@ wpa_driver_privsep_get_scan_results2(void *priv)
 		return NULL;
 	}
 
-	while (results->num < (size_t) num && pos + sizeof(int) < end) {
+	while (results->num < (size_t) num && end - pos > (int) sizeof(int)) {
 		int len;
 		os_memcpy(&len, pos, sizeof(int));
 		pos += sizeof(int);
-		if (len < 0 || len > 10000 || pos + len > end)
+		if (len < 0 || len > 10000 || len > end - pos)
 			break;
 
 		r = os_malloc(len);

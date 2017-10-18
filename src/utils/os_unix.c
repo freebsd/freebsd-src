@@ -372,6 +372,7 @@ void os_program_deinit(void)
 	if (total)
 		wpa_printf(MSG_INFO, "MEMLEAK: total %lu bytes",
 			   (unsigned long) total);
+	wpa_trace_deinit();
 #endif /* WPA_TRACE */
 }
 
@@ -434,27 +435,23 @@ char * os_readfile(const char *name, size_t *len)
 
 int os_file_exists(const char *fname)
 {
-	FILE *f = fopen(fname, "rb");
-	if (f == NULL)
-		return 0;
-	fclose(f);
-	return 1;
+	return access(fname, F_OK) == 0;
 }
 
 
 int os_fdatasync(FILE *stream)
 {
 	if (!fflush(stream)) {
-#ifndef __MACH__
+#ifdef __linux__
 		return fdatasync(fileno(stream));
-#else /* __MACH__ */
+#else /* !__linux__ */
 #ifdef F_FULLFSYNC
 		/* OS X does not implement fdatasync(). */
 		return fcntl(fileno(stream), F_FULLFSYNC);
 #else /* F_FULLFSYNC */
-#error Neither fdatasync nor F_FULLSYNC are defined
+		return fsync(fileno(stream));
 #endif /* F_FULLFSYNC */
-#endif /* __MACH__ */
+#endif /* __linux__ */
 	}
 
 	return -1;

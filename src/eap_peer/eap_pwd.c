@@ -418,7 +418,6 @@ eap_pwd_perform_commit_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 		wpa_printf(MSG_INFO, "EAP-PWD (peer): element inversion fail");
 		goto fin;
 	}
-	BN_clear_free(mask);
 
 	if (((x = BN_new()) == NULL) ||
 	    ((y = BN_new()) == NULL)) {
@@ -555,6 +554,7 @@ fin:
 	os_free(element);
 	BN_clear_free(x);
 	BN_clear_free(y);
+	BN_clear_free(mask);
 	BN_clear_free(cofactor);
 	EC_POINT_clear_free(K);
 	EC_POINT_clear_free(point);
@@ -774,7 +774,8 @@ eap_pwd_perform_confirm_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 	wpabuf_put_data(data->outbuf, conf, SHA256_MAC_LEN);
 
 fin:
-	bin_clear_free(cruft, BN_num_bytes(data->grp->prime));
+	if (data->grp)
+		bin_clear_free(cruft, BN_num_bytes(data->grp->prime));
 	BN_clear_free(x);
 	BN_clear_free(y);
 	if (data->outbuf == NULL) {
@@ -903,7 +904,7 @@ eap_pwd_process(struct eap_sm *sm, void *priv, struct eap_method_ret *ret,
 	/*
 	 * buffer and ACK the fragment
 	 */
-	if (EAP_PWD_GET_MORE_BIT(lm_exch)) {
+	if (EAP_PWD_GET_MORE_BIT(lm_exch) || data->in_frag_pos) {
 		data->in_frag_pos += len;
 		if (data->in_frag_pos > wpabuf_size(data->inbuf)) {
 			wpa_printf(MSG_INFO, "EAP-pwd: Buffer overflow attack "
@@ -916,7 +917,8 @@ eap_pwd_process(struct eap_sm *sm, void *priv, struct eap_method_ret *ret,
 			return NULL;
 		}
 		wpabuf_put_data(data->inbuf, pos, len);
-
+	}
+	if (EAP_PWD_GET_MORE_BIT(lm_exch)) {
 		resp = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_PWD,
 				     EAP_PWD_HDR_SIZE,
 				     EAP_CODE_RESPONSE, eap_get_id(reqData));
@@ -930,10 +932,8 @@ eap_pwd_process(struct eap_sm *sm, void *priv, struct eap_method_ret *ret,
 	 * we're buffering and this is the last fragment
 	 */
 	if (data->in_frag_pos) {
-		wpabuf_put_data(data->inbuf, pos, len);
 		wpa_printf(MSG_DEBUG, "EAP-pwd: Last fragment, %d bytes",
 			   (int) len);
-		data->in_frag_pos += len;
 		pos = wpabuf_head_u8(data->inbuf);
 		len = data->in_frag_pos;
 	}
@@ -1054,7 +1054,6 @@ static u8 * eap_pwd_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 int eap_peer_pwd_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
 				    EAP_VENDOR_IETF, EAP_TYPE_PWD, "PWD");
@@ -1069,8 +1068,5 @@ int eap_peer_pwd_register(void)
 	eap->getSessionId = eap_pwd_get_session_id;
 	eap->get_emsk = eap_pwd_get_emsk;
 
-	ret = eap_peer_method_register(eap);
-	if (ret)
-		eap_peer_method_free(eap);
-	return ret;
+	return eap_peer_method_register(eap);
 }

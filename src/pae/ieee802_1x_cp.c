@@ -20,7 +20,7 @@
 #define STATE_MACHINE_DATA struct ieee802_1x_cp_sm
 #define STATE_MACHINE_DEBUG_PREFIX "CP"
 
-static u8 default_cs_id[] = CS_ID_GCM_AES_128;
+static u64 default_cs_id = CS_ID_GCM_AES_128;
 
 /* The variable defined in clause 12 in IEEE Std 802.1X-2010 */
 enum connect_type { PENDING, UNAUTHENTICATED, AUTHENTICATED, SECURE };
@@ -45,7 +45,7 @@ struct ieee802_1x_cp_sm {
 	Boolean elected_self;
 	u8 *authorization_data1;
 	enum confidentiality_offset cipher_offset;
-	u8 *cipher_suite;
+	u64 cipher_suite;
 	Boolean new_sak; /* clear by CP */
 	struct ieee802_1x_mka_ki distributed_ki;
 	u8 distributed_an;
@@ -71,7 +71,7 @@ struct ieee802_1x_cp_sm {
 	Boolean replay_protect;
 	u32 replay_window;
 
-	u8 *current_cipher_suite;
+	u64 current_cipher_suite;
 	enum confidentiality_offset confidentiality_offset;
 	Boolean controlled_port_enabled;
 
@@ -97,8 +97,7 @@ static void ieee802_1x_cp_transmit_when_timeout(void *eloop_ctx,
 static int changed_cipher(struct ieee802_1x_cp_sm *sm)
 {
 	return sm->confidentiality_offset != sm->cipher_offset ||
-		os_memcmp(sm->current_cipher_suite, sm->cipher_suite,
-			  CS_ID_LEN) != 0;
+		sm->current_cipher_suite != sm->cipher_suite;
 }
 
 
@@ -185,21 +184,17 @@ SM_STATE(CP, AUTHENTICATED)
 
 SM_STATE(CP, SECURED)
 {
-	struct ieee802_1x_cp_conf conf;
-
 	SM_ENTRY(CP, SECURED);
 
 	sm->chgd_server = FALSE;
 
-	ieee802_1x_kay_cp_conf(sm->kay, &conf);
-	sm->protect_frames = conf.protect;
-	sm->replay_protect = conf.replay_protect;
-	sm->validate_frames = conf.validate;
+	sm->protect_frames = sm->kay->macsec_protect;
+	sm->replay_protect = sm->kay->macsec_replay_protect;
+	sm->validate_frames = sm->kay->macsec_validate;
 
-	/* NOTE: now no other than default cipher suiter(AES-GCM-128) */
-	os_memcpy(sm->current_cipher_suite, sm->cipher_suite, CS_ID_LEN);
-	secy_cp_control_current_cipher_suite(sm->kay, sm->current_cipher_suite,
-					     CS_ID_LEN);
+	/* NOTE: now no other than default cipher suite (AES-GCM-128) */
+	sm->current_cipher_suite = sm->cipher_suite;
+	secy_cp_control_current_cipher_suite(sm->kay, sm->current_cipher_suite);
 
 	sm->confidentiality_offset = sm->cipher_offset;
 
@@ -428,9 +423,7 @@ SM_STEP(CP)
 /**
  * ieee802_1x_cp_sm_init -
  */
-struct ieee802_1x_cp_sm * ieee802_1x_cp_sm_init(
-	struct ieee802_1x_kay *kay,
-	struct ieee802_1x_cp_conf *pcp_conf)
+struct ieee802_1x_cp_sm * ieee802_1x_cp_sm_init(struct ieee802_1x_kay *kay)
 {
 	struct ieee802_1x_cp_sm *sm;
 
@@ -446,10 +439,10 @@ struct ieee802_1x_cp_sm * ieee802_1x_cp_sm_init(
 
 	sm->chgd_server = FALSE;
 
-	sm->protect_frames = pcp_conf->protect;
-	sm->validate_frames = pcp_conf->validate;
-	sm->replay_protect = pcp_conf->replay_protect;
-	sm->replay_window = pcp_conf->replay_window;
+	sm->protect_frames = kay->macsec_protect;
+	sm->validate_frames = kay->macsec_validate;
+	sm->replay_protect = kay->macsec_replay_protect;
+	sm->replay_window = kay->macsec_replay_window;
 
 	sm->controlled_port_enabled = FALSE;
 
@@ -460,17 +453,8 @@ struct ieee802_1x_cp_sm * ieee802_1x_cp_sm_init(
 	sm->orx = FALSE;
 	sm->otx = FALSE;
 
-	sm->cipher_suite = os_zalloc(CS_ID_LEN);
-	sm->current_cipher_suite = os_zalloc(CS_ID_LEN);
-	if (!sm->cipher_suite || !sm->current_cipher_suite) {
-		wpa_printf(MSG_ERROR, "CP-%s: out of memory", __func__);
-		os_free(sm->cipher_suite);
-		os_free(sm->current_cipher_suite);
-		os_free(sm);
-		return NULL;
-	}
-	os_memcpy(sm->current_cipher_suite, default_cs_id, CS_ID_LEN);
-	os_memcpy(sm->cipher_suite, default_cs_id, CS_ID_LEN);
+	sm->current_cipher_suite = default_cs_id;
+	sm->cipher_suite = default_cs_id;
 	sm->cipher_offset = CONFIDENTIALITY_OFFSET_0;
 	sm->confidentiality_offset = sm->cipher_offset;
 	sm->transmit_delay = MKA_LIFE_TIME;
@@ -530,8 +514,6 @@ void ieee802_1x_cp_sm_deinit(struct ieee802_1x_cp_sm *sm)
 	eloop_cancel_timeout(ieee802_1x_cp_step_cb, sm, NULL);
 	os_free(sm->lki);
 	os_free(sm->oki);
-	os_free(sm->cipher_suite);
-	os_free(sm->current_cipher_suite);
 	os_free(sm->authorization_data);
 	os_free(sm);
 }
@@ -618,10 +600,10 @@ void ieee802_1x_cp_set_authorizationdata(void *cp_ctx, u8 *pdata, int len)
 /**
  * ieee802_1x_cp_set_ciphersuite -
  */
-void ieee802_1x_cp_set_ciphersuite(void *cp_ctx, void *pid)
+void ieee802_1x_cp_set_ciphersuite(void *cp_ctx, u64 cs)
 {
 	struct ieee802_1x_cp_sm *sm = cp_ctx;
-	os_memcpy(sm->cipher_suite, pid, CS_ID_LEN);
+	sm->cipher_suite = cs;
 }
 
 

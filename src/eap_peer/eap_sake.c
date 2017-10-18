@@ -309,11 +309,20 @@ static struct wpabuf * eap_sake_process_confirm(struct eap_sm *sm,
 		return NULL;
 	}
 
-	eap_sake_compute_mic(data->tek.auth, data->rand_s, data->rand_p,
-			     data->serverid, data->serverid_len,
-			     data->peerid, data->peerid_len, 0,
-			     wpabuf_head(reqData), wpabuf_len(reqData),
-			     attr.mic_s, mic_s);
+	if (eap_sake_compute_mic(data->tek.auth, data->rand_s, data->rand_p,
+				 data->serverid, data->serverid_len,
+				 data->peerid, data->peerid_len, 0,
+				 wpabuf_head(reqData), wpabuf_len(reqData),
+				 attr.mic_s, mic_s)) {
+		wpa_printf(MSG_INFO, "EAP-SAKE: Failed to compute MIC");
+		eap_sake_state(data, FAILURE);
+		ret->methodState = METHOD_DONE;
+		ret->decision = DECISION_FAIL;
+		ret->allowNotifications = FALSE;
+		wpa_printf(MSG_DEBUG, "EAP-SAKE: Sending Response/Auth-Reject");
+		return eap_sake_build_msg(data, id, 0,
+					  EAP_SAKE_SUBTYPE_AUTH_REJECT);
+	}
 	if (os_memcmp_const(attr.mic_s, mic_s, EAP_SAKE_MIC_LEN) != 0) {
 		wpa_printf(MSG_INFO, "EAP-SAKE: Incorrect AT_MIC_S");
 		eap_sake_state(data, FAILURE);
@@ -494,7 +503,6 @@ static u8 * eap_sake_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 int eap_peer_sake_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
 				    EAP_VENDOR_IETF, EAP_TYPE_SAKE, "SAKE");
@@ -509,8 +517,5 @@ int eap_peer_sake_register(void)
 	eap->getSessionId = eap_sake_get_session_id;
 	eap->get_emsk = eap_sake_get_emsk;
 
-	ret = eap_peer_method_register(eap);
-	if (ret)
-		eap_peer_method_free(eap);
-	return ret;
+	return eap_peer_method_register(eap);
 }

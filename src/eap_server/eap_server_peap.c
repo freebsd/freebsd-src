@@ -335,6 +335,18 @@ static int eap_peap_derive_cmk(struct eap_sm *sm, struct eap_peap_data *data)
 		return -1;
 	wpa_hexdump_key(MSG_DEBUG, "EAP-PEAP: TK", tk, 60);
 
+	if (tls_connection_resumed(sm->ssl_ctx, data->ssl.conn)) {
+		/* Fast-connect: IPMK|CMK = TK */
+		os_memcpy(data->ipmk, tk, 40);
+		wpa_hexdump_key(MSG_DEBUG, "EAP-PEAP: IPMK from TK",
+				data->ipmk, 40);
+		os_memcpy(data->cmk, tk + 40, 20);
+		wpa_hexdump_key(MSG_DEBUG, "EAP-PEAP: CMK from TK",
+				data->cmk, 20);
+		os_free(tk);
+		return 0;
+	}
+
 	eap_peap_get_isk(data, isk, sizeof(isk));
 	wpa_hexdump_key(MSG_DEBUG, "EAP-PEAP: ISK", isk, sizeof(isk));
 
@@ -357,7 +369,6 @@ static int eap_peap_derive_cmk(struct eap_sm *sm, struct eap_peap_data *data)
 
 	os_free(tk);
 
-	/* TODO: fast-connect: IPMK|CMK = TK */
 	os_memcpy(data->ipmk, imck, 40);
 	wpa_hexdump_key(MSG_DEBUG, "EAP-PEAP: IPMK (S-IPMKj)", data->ipmk, 40);
 	os_memcpy(data->cmk, imck + 40, 20);
@@ -1267,8 +1278,9 @@ static void eap_peap_process(struct eap_sm *sm, void *priv,
 
 	wpa_printf(MSG_DEBUG,
 		   "EAP-PEAP: Resuming previous session - skip Phase2");
-	eap_peap_state(data, SUCCESS_REQ);
-	tls_connection_set_success_data_resumed(data->ssl.conn);
+	eap_peap_req_success(sm, data);
+	if (data->state == SUCCESS_REQ)
+		tls_connection_set_success_data_resumed(data->ssl.conn);
 }
 
 
@@ -1351,7 +1363,6 @@ static u8 * eap_peap_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
 int eap_server_peap_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_server_method_alloc(EAP_SERVER_METHOD_INTERFACE_VERSION,
 				      EAP_VENDOR_IETF, EAP_TYPE_PEAP, "PEAP");
@@ -1368,8 +1379,5 @@ int eap_server_peap_register(void)
 	eap->isSuccess = eap_peap_isSuccess;
 	eap->getSessionId = eap_peap_get_session_id;
 
-	ret = eap_server_method_register(eap);
-	if (ret)
-		eap_server_method_free(eap);
-	return ret;
+	return eap_server_method_register(eap);
 }

@@ -46,7 +46,7 @@ static dbus_bool_t fill_dict_with_properties(
 			goto error;
 
 		/* An error getting a property fails the request entirely */
-		if (!dsc->getter(&entry_iter, error, user_data)) {
+		if (!dsc->getter(dsc, &entry_iter, error, user_data)) {
 			wpa_printf(MSG_INFO,
 				   "dbus: %s dbus_interface=%s dbus_property=%s getter failed",
 				   __func__, dsc->dbus_interface,
@@ -176,7 +176,7 @@ static DBusMessage * properties_get(DBusMessage *message,
 	dbus_message_iter_init_append(reply, &iter);
 
 	dbus_error_init(&error);
-	if (dsc->getter(&iter, &error, user_data) == FALSE) {
+	if (dsc->getter(dsc, &iter, &error, user_data) == FALSE) {
 		dbus_message_unref(reply);
 		reply = wpas_dbus_reply_new_from_error(
 			message, &error, DBUS_ERROR_FAILED,
@@ -213,7 +213,7 @@ static DBusMessage * properties_set(DBusMessage *message,
 
 	/* Iter will now point to the property's new value */
 	dbus_error_init(&error);
-	if (dsc->setter(&iter, &error, user_data) == TRUE) {
+	if (dsc->setter(dsc, &iter, &error, user_data) == TRUE) {
 		/* Success */
 		reply = dbus_message_new_method_return(message);
 	} else {
@@ -627,7 +627,8 @@ static dbus_bool_t put_changed_properties(
 			return FALSE;
 
 		dbus_error_init(&error);
-		if (!dsc->getter(&entry_iter, &error, obj_dsc->user_data)) {
+		if (!dsc->getter(dsc, &entry_iter, &error, obj_dsc->user_data))
+		{
 			if (dbus_error_is_set(&error)) {
 				wpa_printf(MSG_ERROR,
 					   "dbus: %s: Cannot get new value of property %s: (%s) %s",

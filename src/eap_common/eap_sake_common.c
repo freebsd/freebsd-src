@@ -121,7 +121,7 @@ static int eap_sake_parse_add_attr(struct eap_sake_parse_attr *attr,
 		attr->next_tmpid_len = len;
 		break;
 	case EAP_SAKE_AT_MSK_LIFE:
-		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_IV");
+		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_MSK_LIFE");
 		if (len != 4) {
 			wpa_printf(MSG_DEBUG, "EAP-SAKE: Invalid "
 				   "AT_MSK_LIFE payload length %d", len);

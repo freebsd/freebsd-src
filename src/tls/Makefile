@@ -24,6 +24,7 @@ LIB_OBJS= \
 	tlsv1_client.o \
 	tlsv1_client_read.o \
 	tlsv1_client_write.o \
+	tlsv1_client_ocsp.o \
 	tlsv1_common.o \
 	tlsv1_cred.o \
 	tlsv1_record.o \

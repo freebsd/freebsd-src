@@ -212,6 +212,8 @@ char * xml_node_to_str(struct xml_node_ctx *ctx, xml_node_t *node)
 	xmlDocSetRootElement(doc, n);
 	xmlDocDumpFormatMemory(doc, &buf, &bufsiz, 0);
 	xmlFreeDoc(doc);
+	if (!buf)
+		return NULL;
 	pos = (char *) buf;
 	if (strncmp(pos, "<?xml", 5) == 0) {
 		pos = strchr(pos, '>');
