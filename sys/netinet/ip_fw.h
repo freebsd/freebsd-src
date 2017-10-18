@@ -728,8 +728,6 @@ struct _ipfw_dyn_rule {
 
 #define	ICMP_REJECT_RST		0x100	/* fake ICMP code (send a TCP RST) */
 #define	ICMP6_UNREACH_RST	0x100	/* fake ICMPv6 code (send a TCP RST) */
-#define	ICMP_REJECT_ABORT	0x101	/* fake ICMP code (send an SCTP ABORT */
-#define	ICMP6_UNREACH_ABORT	0x101	/* fake ICMPv6 code (send an SCTP ABORT) */
 
 /*
  * These are used for lookup tables.
