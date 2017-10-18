@@ -4536,6 +4536,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 	if (ntohs(ch->chunk_length) < sizeof(*ch)) {
 		SCTPDBG(SCTP_DEBUG_INPUT1, "Invalid header length %d\n",
 		    ntohs(ch->chunk_length));
+		*offset = length;
 		return (stcb);
 	}
 	/*
