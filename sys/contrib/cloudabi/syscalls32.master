@@ -231,52 +231,44 @@
 					cloudabi32_event_t *out, \
 					size_t nsubscriptions); }
 
-38	AUE_NULL	STD	{ size_t cloudabi32_sys_poll_fd( \
-					cloudabi_fd_t fd, \
-					const cloudabi32_subscription_t *in, \
-					size_t in_len, \
-					cloudabi32_event_t *out, \
-					size_t out_len, \
-					const cloudabi32_subscription_t *timeout); }
-
-39	AUE_NULL	STD	{ void cloudabi_sys_proc_exec( \
+38	AUE_NULL	STD	{ void cloudabi_sys_proc_exec( \
 					cloudabi_fd_t fd, \
 					const void *data, \
 					size_t data_len, \
 					const cloudabi_fd_t *fds, \
 					size_t fds_len); }
 
-40	AUE_NULL	STD	{ void cloudabi_sys_proc_exit( \
+39	AUE_NULL	STD	{ void cloudabi_sys_proc_exit( \
 					cloudabi_exitcode_t rval); }
 
-41	AUE_NULL	STD	{ void cloudabi_sys_proc_fork(); }
+40	AUE_NULL	STD	{ void cloudabi_sys_proc_fork(); }
 
-42	AUE_NULL	STD	{ void cloudabi_sys_proc_raise( \
+41	AUE_NULL	STD	{ void cloudabi_sys_proc_raise( \
 					cloudabi_signal_t sig); }
 
-43	AUE_NULL	STD	{ void cloudabi_sys_random_get( \
+42	AUE_NULL	STD	{ void cloudabi_sys_random_get( \
 					void *buf, \
 					size_t buf_len); }
 
-44	AUE_NULL	STD	{ void cloudabi32_sys_sock_recv( \
+43	AUE_NULL	STD	{ void cloudabi32_sys_sock_recv( \
 					cloudabi_fd_t sock, \
 					const cloudabi32_recv_in_t *in, \
 					cloudabi32_recv_out_t *out); }
 
-45	AUE_NULL	STD	{ void cloudabi32_sys_sock_send( \
+44	AUE_NULL	STD	{ void cloudabi32_sys_sock_send( \
 					cloudabi_fd_t sock, \
 					const cloudabi32_send_in_t *in, \
 					cloudabi32_send_out_t *out); }
 
-46	AUE_NULL	STD	{ void cloudabi_sys_sock_shutdown( \
+45	AUE_NULL	STD	{ void cloudabi_sys_sock_shutdown( \
 					cloudabi_fd_t sock, \
 					cloudabi_sdflags_t how); }
 
-47	AUE_NULL	STD	{ cloudabi_tid_t cloudabi32_sys_thread_create( \
+46	AUE_NULL	STD	{ cloudabi_tid_t cloudabi32_sys_thread_create( \
 					cloudabi32_threadattr_t *attr); }
 
-48	AUE_NULL	STD	{ void cloudabi_sys_thread_exit( \
+47	AUE_NULL	STD	{ void cloudabi_sys_thread_exit( \
 					cloudabi_lock_t *lock, \
 					cloudabi_scope_t scope); }
 
-49	AUE_NULL	STD	{ void cloudabi_sys_thread_yield(); }
+48	AUE_NULL	STD	{ void cloudabi_sys_thread_yield(); }
