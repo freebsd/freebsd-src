@@ -157,7 +157,6 @@ struct kerneldumpcrypto {
 	uint8_t			kdc_iv[KERNELDUMP_IV_MAX_SIZE];
 	keyInstance		kdc_ki;
 	cipherInstance		kdc_ci;
-	off_t			kdc_nextoffset;
 	uint32_t		kdc_dumpkeysize;
 	struct kerneldumpkey	kdc_dumpkey[];
 };
@@ -931,8 +930,6 @@ kerneldumpcrypto_init(struct kerneldumpcrypto *kdc)
 		goto out;
 	}
 
-	kdc->kdc_nextoffset = 0;
-
 	kdk = kdc->kdc_dumpkey;
 	memcpy(kdk->kdk_iv, kdc->kdc_iv, sizeof(kdk->kdk_iv));
 out:
@@ -1024,22 +1021,18 @@ dump_check_bounds(struct dumperinfo *di, off_t offset, size_t length)
 		    (uintmax_t)length, (intmax_t)di->mediasize);
 		return (ENOSPC);
 	}
+	if (length % di->blocksize != 0) {
+		printf("Attempt to write partial block of length %ju.\n",
+		    (uintmax_t)length);
+		return (EINVAL);
+	}
+	if (offset % di->blocksize != 0) {
+		printf("Attempt to write at unaligned offset %jd.\n",
+		    (intmax_t)offset);
+		return (EINVAL);
+	}
 
 	return (0);
-}
-
-/* Call dumper with bounds checking. */
-static int
-dump_raw_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
-    off_t offset, size_t length)
-{
-	int error;
-
-	error = dump_check_bounds(di, offset, length);
-	if (error != 0)
-		return (error);
-
-	return (di->dumper(di->priv, virtual, physical, offset, length));
 }
 
 #ifdef EKCD
@@ -1067,39 +1060,15 @@ dump_encrypt(struct kerneldumpcrypto *kdc, uint8_t *buf, size_t size)
 
 /* Encrypt data and call dumper. */
 static int
-dump_encrypted_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
-    off_t offset, size_t length)
+dump_encrypted_write(struct dumperinfo *di, void *virtual,
+    vm_offset_t physical, off_t offset, size_t length)
 {
 	static uint8_t buf[KERNELDUMP_BUFFER_SIZE];
 	struct kerneldumpcrypto *kdc;
 	int error;
 	size_t nbytes;
-	off_t nextoffset;
 
 	kdc = di->kdc;
-
-	error = dump_check_bounds(di, offset, length);
-	if (error != 0)
-		return (error);
-
-	/* Signal completion. */
-	if (virtual == NULL && physical == 0 && offset == 0 && length == 0) {
-		return (di->dumper(di->priv, virtual, physical, offset,
-		    length));
-	}
-
-	/* Data have to be aligned to block size. */
-	if ((length % di->blocksize) != 0)
-		return (EINVAL);
-
-	/*
-	 * Data have to be written continuously becase we're encrypting using
-	 * CBC mode which has this assumption.
-	 */
-	if (kdc->kdc_nextoffset != 0 && kdc->kdc_nextoffset != offset)
-		return (EINVAL);
-
-	nextoffset = offset + (off_t)length;
 
 	while (length > 0) {
 		nbytes = MIN(length, sizeof(buf));
@@ -1108,7 +1077,7 @@ dump_encrypted_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
 		if (dump_encrypt(kdc, buf, nbytes) != 0)
 			return (EIO);
 
-		error = di->dumper(di->priv, buf, physical, offset, nbytes);
+		error = dump_write(di, buf, physical, offset, nbytes);
 		if (error != 0)
 			return (error);
 
@@ -1116,8 +1085,6 @@ dump_encrypted_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
 		virtual = (void *)((uint8_t *)virtual + nbytes);
 		length -= nbytes;
 	}
-
-	kdc->kdc_nextoffset = nextoffset;
 
 	return (0);
 }
@@ -1131,25 +1098,10 @@ dump_write_key(struct dumperinfo *di, vm_offset_t physical, off_t offset)
 	if (kdc == NULL)
 		return (0);
 
-	return (dump_raw_write(di, kdc->kdc_dumpkey, physical, offset,
+	return (dump_write(di, kdc->kdc_dumpkey, physical, offset,
 	    kdc->kdc_dumpkeysize));
 }
 #endif /* EKCD */
-
-int
-dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
-    off_t offset, size_t length)
-{
-
-#ifdef EKCD
-	if (di->kdc != NULL) {
-		return (dump_encrypted_write(di, virtual, physical, offset,
-		    length));
-	}
-#endif
-
-	return (dump_raw_write(di, virtual, physical, offset, length));
-}
 
 static int
 dump_write_header(struct dumperinfo *di, struct kerneldumpheader *kdh,
@@ -1170,7 +1122,7 @@ dump_write_header(struct dumperinfo *di, struct kerneldumpheader *kdh,
 		memcpy(buf, kdh, hdrsz);
 	}
 
-	return (dump_raw_write(di, buf, physical, offset, di->blocksize));
+	return (dump_write(di, buf, physical, offset, di->blocksize));
 }
 
 /*
@@ -1185,7 +1137,7 @@ dump_write_header(struct dumperinfo *di, struct kerneldumpheader *kdh,
  * key.
  */
 int
-dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh, off_t *dumplop)
+dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh)
 {
 	uint64_t dumpsize;
 	uint32_t keysize;
@@ -1204,21 +1156,53 @@ dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh, off_t *dumplop)
 	if (di->mediasize < SIZEOF_METADATA + dumpsize)
 		return (E2BIG);
 
-	*dumplop = di->mediaoffset + di->mediasize - dumpsize;
+	di->dumpoff = di->mediaoffset + di->mediasize - dumpsize;
 
-	error = dump_write_header(di, kdh, 0, *dumplop);
+	error = dump_write_header(di, kdh, 0, di->dumpoff);
 	if (error != 0)
 		return (error);
-	*dumplop += di->blocksize;
+	di->dumpoff += di->blocksize;
 
 #ifdef EKCD
-	error = dump_write_key(di, 0, *dumplop);
+	error = dump_write_key(di, 0, di->dumpoff);
 	if (error != 0)
 		return (error);
-	*dumplop += keysize;
+	di->dumpoff += keysize;
 #endif
 
 	return (0);
+}
+
+/* Write to the dump device at the current dump offset. */
+int
+dump_append(struct dumperinfo *di, void *virtual, vm_offset_t physical,
+    size_t length)
+{
+	int error;
+
+#ifdef EKCD
+	if (di->kdc != NULL)
+		error = dump_encrypted_write(di, virtual, physical, di->dumpoff,
+		    length);
+	else
+#endif
+		error = dump_write(di, virtual, physical, di->dumpoff, length);
+	if (error == 0)
+		di->dumpoff += length;
+	return (error);
+}
+
+/* Perform a raw write to the dump device at the specified offset. */
+int
+dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
+    off_t offset, size_t length)
+{
+	int error;
+
+	error = dump_check_bounds(di, offset, length);
+	if (error != 0)
+		return (error);
+	return (di->dumper(di->priv, virtual, physical, offset, length));
 }
 
 /*
@@ -1226,11 +1210,11 @@ dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh, off_t *dumplop)
  * dump has completed.
  */
 int
-dump_finish(struct dumperinfo *di, struct kerneldumpheader *kdh, off_t dumplo)
+dump_finish(struct dumperinfo *di, struct kerneldumpheader *kdh)
 {
 	int error;
 
-	error = dump_write_header(di, kdh, 0, dumplo);
+	error = dump_write_header(di, kdh, 0, di->dumpoff);
 	if (error != 0)
 		return (error);
 
