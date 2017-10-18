@@ -549,7 +549,7 @@ swap_pager_swap_init(void)
 	 */
 	n = uma_zone_get_max(swblk_zone);
 
-	if (n2 != n)
+	if (n < n2)
 		printf("Swap blk zone entries reduced from %lu to %lu.\n",
 		    n2, n);
 	swap_maxpages = n * SWAP_META_PAGES;
