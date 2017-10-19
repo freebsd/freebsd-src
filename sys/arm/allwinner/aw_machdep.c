@@ -186,6 +186,7 @@ allwinner_early_putc(int c)
 }
 early_putc_t *early_putc = allwinner_early_putc;
 #endif /* EARLY_PRINTF */
+#endif
 
 #if defined(SOC_ALLWINNER_A10)
 static platform_method_t a10_methods[] = {
