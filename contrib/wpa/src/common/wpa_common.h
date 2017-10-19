@@ -187,6 +187,17 @@ struct wpa_ptk {
 	} u;
 } STRUCT_PACKED;
 
+struct wpa_gtk {
+	u8 gtk[WPA_GTK_MAX_LEN];
+	size_t gtk_len;
+};
+
+#ifdef CONFIG_IEEE80211W
+struct wpa_igtk {
+	u8 igtk[WPA_IGTK_MAX_LEN];
+	size_t igtk_len;
+};
+#endif /* CONFIG_IEEE80211W */
 
 /* WPA IE version 1
  * 00-50-f2:1 (OUI:OUI type)
