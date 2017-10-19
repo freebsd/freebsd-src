@@ -175,8 +175,8 @@ static int proto_reg[] = {-1, -1};
  * Each softc has a lock sc_mtx. It is used to synchronise carp_input_c(),
  * callout-driven events and ioctl()s.
  *
- * To traverse the list of softcs on an ifnet we use CIF_LOCK(), to
- * traverse the global list we use the mutex carp_mtx.
+ * To traverse the list of softcs on an ifnet we use CIF_LOCK() or carp_sx.
+ * To traverse the global list we use the mutex carp_mtx.
  *
  * Known issues with locking:
  *
@@ -286,7 +286,8 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_carp, OID_AUTO, stats, struct carpstats,
 		++_i)
 
 #define	IFNET_FOREACH_CARP(ifp, sc)					\
-	CIF_LOCK_ASSERT(ifp->if_carp);					\
+	KASSERT(mtx_owned(&ifp->if_carp->cif_mtx) ||			\
+	    sx_xlocked(&carp_sx), ("cif_vrs not locked"));		\
 	TAILQ_FOREACH((sc), &(ifp)->if_carp->cif_vrs, sc_list)
 
 #define	DEMOTE_ADVSKEW(sc)					\
@@ -1562,6 +1563,8 @@ carp_alloc(struct ifnet *ifp)
 	struct carp_softc *sc;
 	struct carp_if *cif;
 
+	sx_assert(&carp_sx, SA_XLOCKED);
+
 	if ((cif = ifp->if_carp) == NULL)
 		cif = carp_alloc_if(ifp);
 
@@ -1751,11 +1754,9 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 		}
 
 		if (ifp->if_carp) {
-			CIF_LOCK(ifp->if_carp);
 			IFNET_FOREACH_CARP(ifp, sc)
 				if (sc->sc_vhid == carpr.carpr_vhid)
 					break;
-			CIF_UNLOCK(ifp->if_carp);
 		}
 		if (sc == NULL) {
 			sc = carp_alloc(ifp);
@@ -1826,11 +1827,9 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 
 		priveleged = (priv_check(td, PRIV_NETINET_CARP) == 0);
 		if (carpr.carpr_vhid != 0) {
-			CIF_LOCK(ifp->if_carp);
 			IFNET_FOREACH_CARP(ifp, sc)
 				if (sc->sc_vhid == carpr.carpr_vhid)
 					break;
-			CIF_UNLOCK(ifp->if_carp);
 			if (sc == NULL) {
 				error = ENOENT;
 				break;
@@ -1841,7 +1840,6 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 			int i, count;
 
 			count = 0;
-			CIF_LOCK(ifp->if_carp);
 			IFNET_FOREACH_CARP(ifp, sc)
 				count++;
 
@@ -1863,7 +1861,6 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 				}
 				i++;
 			}
-			CIF_UNLOCK(ifp->if_carp);
 		}
 		break;
 	    }
@@ -1918,11 +1915,9 @@ carp_attach(struct ifaddr *ifa, int vhid)
 		return (ENOPROTOOPT);
 	}
 
-	CIF_LOCK(cif);
 	IFNET_FOREACH_CARP(ifp, sc)
 		if (sc->sc_vhid == vhid)
 			break;
-	CIF_UNLOCK(cif);
 	if (sc == NULL) {
 		sx_xunlock(&carp_sx);
 		return (ENOENT);
