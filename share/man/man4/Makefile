@@ -580,6 +580,7 @@ MAN=	aac.4 \
 	wlan_tkip.4 \
 	wlan_wep.4 \
 	wlan_xauth.4 \
+	wmt.4 \
 	${_wpi.4} \
 	wsp.4 \
 	xe.4 \
