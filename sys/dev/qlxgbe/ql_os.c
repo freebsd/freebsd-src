@@ -1237,6 +1237,17 @@ qla_send(qla_host_t *ha, struct mbuf **m_headp, uint32_t txr_idx,
 	QL_DPRINT8(ha, (ha->pci_dev, "%s: enter\n", __func__));
 
 	tx_idx = ha->hw.tx_cntxt[txr_idx].txr_next;
+
+	if (NULL != ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head) {
+		QL_ASSERT(ha, 0, ("%s [%d]: txr_idx = %d tx_idx = %d "\
+			"mbuf = %p\n", __func__, __LINE__, txr_idx, tx_idx,\
+			ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head));
+		if (m_head)
+			m_freem(m_head);
+		*m_headp = NULL;
+		return (ret);
+	}
+
 	map = ha->tx_ring[txr_idx].tx_buf[tx_idx].map;
 
 	ret = bus_dmamap_load_mbuf_sg(ha->tx_tag, map, m_head, segs, &nsegs,
