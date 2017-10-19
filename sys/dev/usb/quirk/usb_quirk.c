@@ -609,6 +609,7 @@ static const char *usb_quirk_str[USB_QUIRK_MAX] = {
 	[UQ_SINGLE_CMD_MIDI]		= "UQ_SINGLE_CMD_MIDI",
 	[UQ_MSC_DYMO_EJECT]		= "UQ_MSC_DYMO_EJECT",
 	[UQ_AU_SET_SPDIF_CM6206]	= "UQ_AU_SET_SPDIF_CM6206",
+	[UQ_WMT_IGNORE]			= "UQ_WMT_IGNORE",
 };
 
 /*------------------------------------------------------------------------*
