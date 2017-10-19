@@ -226,6 +226,37 @@ retry:
 }
 
 void
+sysctl_register_disabled_oid(struct sysctl_oid *oidp)
+{
+
+	/*
+	 * Mark the leaf as dormant if it's not to be immediately enabled.
+	 * We do not disable nodes as they can be shared between modules
+	 * and it is always safe to access a node.
+	 */
+	KASSERT((oidp->oid_kind & CTLFLAG_DORMANT) == 0,
+	    ("internal flag is set in oid_kind"));
+	if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE)
+		oidp->oid_kind |= CTLFLAG_DORMANT;
+	sysctl_register_oid(oidp);
+}
+
+void
+sysctl_enable_oid(struct sysctl_oid *oidp)
+{
+
+	SYSCTL_ASSERT_XLOCKED();
+	if ((oidp->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+		KASSERT((oidp->oid_kind & CTLFLAG_DORMANT) == 0,
+		    ("sysctl node is marked as dormant"));
+		return;
+	}
+	KASSERT((oidp->oid_kind & CTLFLAG_DORMANT) != 0,
+	    ("enabling already enabled sysctl oid"));
+	oidp->oid_kind &= ~CTLFLAG_DORMANT;
+}
+
+void
 sysctl_unregister_oid(struct sysctl_oid *oidp)
 {
 	struct sysctl_oid *p;
@@ -768,7 +799,7 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 		*next = oidp->oid_number;
 		*oidpp = oidp;
 
-		if (oidp->oid_kind & CTLFLAG_SKIP)
+		if ((oidp->oid_kind & (CTLFLAG_SKIP | CTLFLAG_DORMANT)) != 0)
 			continue;
 
 		if (!namelen) {
@@ -1420,6 +1451,8 @@ sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 			}
 			lsp = SYSCTL_CHILDREN(oid);
 		} else if (indx == namelen) {
+			if ((oid->oid_kind & CTLFLAG_DORMANT) != 0)
+				return (ENOENT);
 			*noid = oid;
 			if (nindx != NULL)
 				*nindx = indx;
