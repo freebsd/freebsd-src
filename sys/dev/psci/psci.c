@@ -493,7 +493,7 @@ psci_v0_2_init(device_t dev)
 		return (1);
 
 	if ((PSCI_VER_MAJOR(version) == 0 && PSCI_VER_MINOR(version) == 2) ||
-	    (PSCI_VER_MAJOR(version) == 1 && PSCI_VER_MINOR(version) == 0)) {
+	    PSCI_VER_MAJOR(version) == 1) {
 		if (bootverbose)
 			device_printf(dev, "PSCI version 0.2 available\n");
 
