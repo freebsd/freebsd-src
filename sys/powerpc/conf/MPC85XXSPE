@@ -67,9 +67,11 @@ options 	DDB_CTF			# Kernel ELF linker loads CTF data
 device		ata
 device		bpf
 device		cfi
+device  	cpufreq
 device		crypto
 device		cryptodev
 device		da
+device  	ds1307
 device		ds1553
 device		em
 device		alc
@@ -103,6 +105,8 @@ device		uart
 options 	USB_DEBUG	# enable debug msgs
 #device		uhci
 device		ehci
+device  	ukbd
+device  	ums
 device		umass
 device		usb
 device		vlan
