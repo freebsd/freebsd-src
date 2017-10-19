@@ -900,10 +900,12 @@ exec_fail_dealloc:
 	free(imgp->freepath, M_TEMP);
 
 	if (error == 0) {
-		PROC_LOCK(p);
-		if (p->p_ptevents & PTRACE_EXEC)
-			td->td_dbgflags |= TDB_EXEC;
-		PROC_UNLOCK(p);
+		if (p->p_ptevents & PTRACE_EXEC) {
+			PROC_LOCK(p);
+			if (p->p_ptevents & PTRACE_EXEC)
+				td->td_dbgflags |= TDB_EXEC;
+			PROC_UNLOCK(p);
+		}
 
 		/*
 		 * Stop the process here if its stop event mask has
