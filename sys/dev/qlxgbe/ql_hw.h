@@ -1703,6 +1703,9 @@ typedef struct _qla_hw {
 	uint32_t	mdump_buffer_size;
 	void		*mdump_template;
 	uint32_t	mdump_template_size;
+
+	/* driver state related */
+	void		*drvr_state;
 } qla_hw_t;
 
 #define QL_UPDATE_RDS_PRODUCER_INDEX(ha, prod_reg, val) \
