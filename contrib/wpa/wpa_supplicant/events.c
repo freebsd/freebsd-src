@@ -181,6 +181,7 @@ void wpa_supplicant_mark_disassoc(struct wpa_supplicant *wpa_s)
 	wpa_s->ap_ies_from_associnfo = 0;
 	wpa_s->current_ssid = NULL;
 	wpa_s->key_mgmt = 0;
+	wpa_s->wnmsleep_used = 0;
 }
 
 
