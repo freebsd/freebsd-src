@@ -285,7 +285,7 @@ linker_file_sysuninit(linker_file_t lf)
 }
 
 static void
-linker_file_register_sysctls(linker_file_t lf)
+linker_file_register_sysctls(linker_file_t lf, bool enable)
 {
 	struct sysctl_oid **start, **stop, **oidp;
 
@@ -300,8 +300,34 @@ linker_file_register_sysctls(linker_file_t lf)
 
 	sx_xunlock(&kld_sx);
 	sysctl_lock();
+	for (oidp = start; oidp < stop; oidp++) {
+		if (enable)
+			sysctl_register_oid(*oidp);
+		else
+			sysctl_register_disabled_oid(*oidp);
+	}
+	sysctl_unlock();
+	sx_xlock(&kld_sx);
+}
+
+static void
+linker_file_enable_sysctls(linker_file_t lf)
+{
+	struct sysctl_oid **start, **stop, **oidp;
+
+	KLD_DPF(FILE,
+	    ("linker_file_enable_sysctls: enable SYSCTLs for %s\n",
+	    lf->filename));
+
+	sx_assert(&kld_sx, SA_XLOCKED);
+
+	if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
+		return;
+
+	sx_xunlock(&kld_sx);
+	sysctl_lock();
 	for (oidp = start; oidp < stop; oidp++)
-		sysctl_register_oid(*oidp);
+		sysctl_enable_oid(*oidp);
 	sysctl_unlock();
 	sx_xlock(&kld_sx);
 }
@@ -427,7 +453,7 @@ linker_load_file(const char *filename, linker_file_t *result)
 				return (error);
 			}
 			modules = !TAILQ_EMPTY(&lf->modules);
-			linker_file_register_sysctls(lf);
+			linker_file_register_sysctls(lf, false);
 			linker_file_sysinit(lf);
 			lf->flags |= LINKER_FILE_LINKED;
 
@@ -440,6 +466,7 @@ linker_load_file(const char *filename, linker_file_t *result)
 				linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 				return (ENOEXEC);
 			}
+			linker_file_enable_sysctls(lf);
 			EVENTHANDLER_INVOKE(kld_load, lf);
 			*result = lf;
 			return (0);
@@ -686,8 +713,8 @@ linker_file_unload(linker_file_t file, int flags)
 	 */
 	if (file->flags & LINKER_FILE_LINKED) {
 		file->flags &= ~LINKER_FILE_LINKED;
-		linker_file_sysuninit(file);
 		linker_file_unregister_sysctls(file);
+		linker_file_sysuninit(file);
 	}
 	TAILQ_REMOVE(&linker_files, file, link);
 
@@ -1618,7 +1645,7 @@ restart:
 		if (linker_file_lookup_set(lf, "sysinit_set", &si_start,
 		    &si_stop, NULL) == 0)
 			sysinit_add(si_start, si_stop);
-		linker_file_register_sysctls(lf);
+		linker_file_register_sysctls(lf, true);
 		lf->flags |= LINKER_FILE_LINKED;
 		continue;
 fail:
