@@ -201,7 +201,6 @@ struct qla_host {
 
 	qla_rx_buf_t		*rxb_free;
 	uint32_t		rxb_free_count;
-	volatile uint32_t	posting;
 
 	/* stats */
 	uint32_t		err_m_getcl;
@@ -264,7 +263,7 @@ struct qla_host {
 typedef struct qla_host qla_host_t;
 
 /* note that align has to be a power of 2 */
-#define QL_ALIGN(size, align) (size + (align - 1)) & ~(align - 1);
+#define QL_ALIGN(size, align) (((size) + ((align) - 1)) & (~((align) - 1)));
 #define QL_MIN(x, y) ((x < y) ? x : y)
 
 #define QL_RUNNING(ifp) (ifp->if_drv_flags & IFF_DRV_RUNNING)
