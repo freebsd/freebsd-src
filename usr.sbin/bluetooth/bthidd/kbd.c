@@ -569,6 +569,11 @@ kbd_status_changed(bthid_session_p s, uint8_t *data, int32_t len)
 	}
 	hid_end_parse(d);
 
+	if (report_id != NO_REPORT_ID) {
+		data[2] = data[1];
+		data[1] = report_id;
+	}
+
 	if (found)
 		write(s->intr, data, (report_id != NO_REPORT_ID) ? 3 : 2);
 
