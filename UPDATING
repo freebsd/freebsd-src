@@ -16,6 +16,10 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20171017	p22	FreeBSD-SA-17:07.wpa
+
+	Fix WPA2 protocol vulnerability. [SA-17:07]
+
 20170810	p21	FreeBSD-SA-17:06.openssh
 
 	Fix OpenSSH Denial of Service vulnerability. [SA-17:06]
