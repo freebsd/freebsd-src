@@ -1179,6 +1179,23 @@ vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 	VM_OBJECT_WLOCK(object);
 }
 
+static int
+vn_off2bidx(vm_ooffset_t offset)
+{
+
+	return ((offset & PAGE_MASK) / DEV_BSIZE);
+}
+
+static bool
+vn_dirty_blk(vm_page_t m, vm_ooffset_t offset)
+{
+
+	KASSERT(IDX_TO_OFF(m->pindex) <= offset &&
+	    offset < IDX_TO_OFF(m->pindex + 1),
+	    ("page %p pidx %ju offset %ju", m, (uintmax_t)m->pindex,
+	    (uintmax_t)offset));
+	return ((m->dirty & ((vm_page_bits_t)1 << vn_off2bidx(offset))) != 0);
+}
 
 /*
  * This is now called from local media FS's to operate against their
@@ -1195,10 +1212,12 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 {
 	vm_object_t object;
 	vm_page_t m;
-	vm_ooffset_t poffset;
+	vm_ooffset_t maxblksz, next_offset, poffset, prev_offset;
 	struct uio auio;
 	struct iovec aiov;
+	off_t prev_resid, wrsz;
 	int count, error, i, maxsize, ncount, pgoff, ppscheck;
+	bool in_hole;
 	static struct timeval lastfail;
 	static int curfail;
 
@@ -1260,34 +1279,102 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 		for (i = ncount; i < count; i++)
 			rtvals[i] = VM_PAGER_BAD;
 	}
-	for (i = 0; i < ncount - ((btoc(maxsize) & PAGE_MASK) != 0); i++)
-		MPASS(ma[i]->dirty == VM_PAGE_BITS_ALL);
-	VM_OBJECT_WUNLOCK(object);
 
-	aiov.iov_base = NULL;
-	aiov.iov_len = maxsize;
 	auio.uio_iov = &aiov;
-	auio.uio_iovcnt = 1;
-	auio.uio_offset = poffset;
 	auio.uio_segflg = UIO_NOCOPY;
 	auio.uio_rw = UIO_WRITE;
-	auio.uio_resid = maxsize;
 	auio.uio_td = NULL;
-	error = VOP_WRITE(vp, &auio, vnode_pager_putpages_ioflags(flags),
-	    curthread->td_ucred);
-	VM_CNT_INC(v_vnodeout);
-	VM_CNT_ADD(v_vnodepgsout, ncount);
+	maxblksz = roundup2(poffset + maxsize, DEV_BSIZE);
 
-	ppscheck = 0;
-	if (error != 0 && (ppscheck = ppsratecheck(&lastfail, &curfail, 1))
-	    != 0)
-		printf("vnode_pager_putpages: I/O error %d\n", error);
-	if (auio.uio_resid != 0 && (ppscheck != 0 ||
-	    ppsratecheck(&lastfail, &curfail, 1) != 0))
-		printf("vnode_pager_putpages: residual I/O %zd at %ju\n",
-		    auio.uio_resid, (uintmax_t)ma[0]->pindex);
-	for (i = 0; i < ncount; i++)
+	for (prev_offset = poffset; prev_offset < maxblksz;) {
+		/* Skip clean blocks. */
+		for (in_hole = true; in_hole && prev_offset < maxblksz;) {
+			m = ma[OFF_TO_IDX(prev_offset - poffset)];
+			for (i = vn_off2bidx(prev_offset);
+			    i < sizeof(vm_page_bits_t) * NBBY &&
+			    prev_offset < maxblksz; i++) {
+				if (vn_dirty_blk(m, prev_offset)) {
+					in_hole = false;
+					break;
+				}
+				prev_offset += DEV_BSIZE;
+			}
+		}
+		if (in_hole)
+			goto write_done;
+
+		/* Find longest run of dirty blocks. */
+		for (next_offset = prev_offset; next_offset < maxblksz;) {
+			m = ma[OFF_TO_IDX(next_offset - poffset)];
+			for (i = vn_off2bidx(next_offset);
+			    i < sizeof(vm_page_bits_t) * NBBY &&
+			    next_offset < maxblksz; i++) {
+				if (!vn_dirty_blk(m, next_offset))
+					goto start_write;
+				next_offset += DEV_BSIZE;
+			}
+		}
+start_write:
+		if (next_offset > poffset + maxsize)
+			next_offset = poffset + maxsize;
+
+		/*
+		 * Getting here requires finding a dirty block in the
+		 * 'skip clean blocks' loop.
+		 */
+		MPASS(prev_offset < next_offset);
+
+		VM_OBJECT_WUNLOCK(object);
+		aiov.iov_base = NULL;
+		auio.uio_iovcnt = 1;
+		auio.uio_offset = prev_offset;
+		prev_resid = auio.uio_resid = aiov.iov_len = next_offset -
+		    prev_offset;
+		error = VOP_WRITE(vp, &auio,
+		    vnode_pager_putpages_ioflags(flags), curthread->td_ucred);
+
+		wrsz = prev_resid - auio.uio_resid;
+		if (wrsz == 0) {
+			if (ppsratecheck(&lastfail, &curfail, 1) != 0) {
+				vn_printf(vp, "vnode_pager_putpages: "
+				    "zero-length write at %ju resid %zd\n",
+				    auio.uio_offset, auio.uio_resid);
+			}
+			VM_OBJECT_WLOCK(object);
+			break;
+		}
+
+		/* Adjust the starting offset for next iteration. */
+		prev_offset += wrsz;
+		MPASS(auio.uio_offset == prev_offset);
+
+		ppscheck = 0;
+		if (error != 0 && (ppscheck = ppsratecheck(&lastfail,
+		    &curfail, 1)) != 0)
+			vn_printf(vp, "vnode_pager_putpages: I/O error %d\n",
+			    error);
+		if (auio.uio_resid != 0 && (ppscheck != 0 ||
+		    ppsratecheck(&lastfail, &curfail, 1) != 0))
+			vn_printf(vp, "vnode_pager_putpages: residual I/O %zd "
+			    "at %ju\n", auio.uio_resid,
+			    (uintmax_t)ma[0]->pindex);
+		VM_OBJECT_WLOCK(object);
+		if (error != 0 || auio.uio_resid != 0)
+			break;
+	}
+write_done:
+	/* Mark completely processed pages. */
+	for (i = 0; i < OFF_TO_IDX(prev_offset - poffset); i++)
 		rtvals[i] = VM_PAGER_OK;
+	/* Mark partial EOF page. */
+	if (prev_offset == poffset + maxsize && (prev_offset & PAGE_MASK) != 0)
+		rtvals[i++] = VM_PAGER_OK;
+	/* Unwritten pages in range, free bonus if the page is clean. */
+	for (; i < ncount; i++)
+		rtvals[i] = ma[i]->dirty == 0 ? VM_PAGER_OK : VM_PAGER_ERROR;
+	VM_OBJECT_WUNLOCK(object);
+	VM_CNT_ADD(v_vnodepgsout, i);
+	VM_CNT_INC(v_vnodeout);
 	return (rtvals[0]);
 }
 
