@@ -55,8 +55,8 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
-	    "usage: truss [-cfaedDS] [-o file] [-s strsize] -p pid",
-	    "       truss [-cfaedDS] [-o file] [-s strsize] command [args]");
+	    "usage: truss [-cfaedDHS] [-o file] [-s strsize] -p pid",
+	    "       truss [-cfaedDHS] [-o file] [-s strsize] command [args]");
 	exit(1);
 }
 
