@@ -35,6 +35,7 @@ options 	PSERIES			#PAPR-compliant systems
 options		FDT
 options 	SCHED_ULE		#ULE scheduler
 options 	PREEMPTION		#Enable kernel thread preemption
+options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	IPSEC			# IP (v4/v6) security
