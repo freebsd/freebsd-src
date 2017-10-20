@@ -121,8 +121,7 @@ SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
  *	a mapping on demand through vm_fault() will result in a panic. 
  */
 vm_offset_t
-kva_alloc(size)
-	vm_size_t size;
+kva_alloc(vm_size_t size)
 {
 	vm_offset_t addr;
 
@@ -143,9 +142,7 @@ kva_alloc(size)
  *	This routine may not block on kernel maps.
  */
 void
-kva_free(addr, size)
-	vm_offset_t addr;
-	vm_size_t size;
+kva_free(vm_offset_t addr, vm_size_t size)
 {
 
 	size = round_page(size);
@@ -430,9 +427,7 @@ kmem_free(struct vmem *vmem, vm_offset_t addr, vm_size_t size)
  *	This routine may block.
  */
 vm_offset_t
-kmap_alloc_wait(map, size)
-	vm_map_t map;
-	vm_size_t size;
+kmap_alloc_wait(vm_map_t map, vm_size_t size)
 {
 	vm_offset_t addr;
 
@@ -470,10 +465,7 @@ kmap_alloc_wait(map, size)
  *	waiting for memory in that map.
  */
 void
-kmap_free_wakeup(map, addr, size)
-	vm_map_t map;
-	vm_offset_t addr;
-	vm_size_t size;
+kmap_free_wakeup(vm_map_t map, vm_offset_t addr, vm_size_t size)
 {
 
 	vm_map_lock(map);
@@ -517,8 +509,7 @@ kmem_init_zero_region(void)
  *	`start' as allocated, and the range between `start' and `end' as free.
  */
 void
-kmem_init(start, end)
-	vm_offset_t start, end;
+kmem_init(vm_offset_t start, vm_offset_t end)
 {
 	vm_map_t m;
 
