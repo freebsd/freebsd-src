@@ -365,7 +365,7 @@
 	ld	%r30, (TLBSAVE_BOOKE_R30)(br);				\
 	ld	%r31, (TLBSAVE_BOOKE_R31)(br);				
 #define TLB_NEST(outr,inr)						\
-	rlwinm	outr, inr, 7, 23, 24;	/* 8 x TLBSAVE_LEN */
+	rlwinm	outr, inr, 7, 22, 24;	/* 8 x TLBSAVE_LEN */
 #else
 #define TLB_SAVE_REGS(br)						\
 	stmw	%r20, TLBSAVE_BOOKE_R20(br)
