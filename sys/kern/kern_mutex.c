@@ -289,7 +289,9 @@ __mtx_lock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
     int line)
 {
 	struct mtx *m;
+#ifdef SMP
 	uintptr_t tid, v;
+#endif
 
 	m = mtxlock2mtx(c);
 
@@ -306,6 +308,7 @@ __mtx_lock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
 	opts &= ~MTX_RECURSE;
 	WITNESS_CHECKORDER(&m->lock_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
 	    file, line, NULL);
+#ifdef SMP
 	spinlock_enter();
 	tid = (uintptr_t)curthread;
 	v = MTX_UNOWNED;
@@ -314,6 +317,9 @@ __mtx_lock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
 	else
 		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire,
 		    m, 0, 0, file, line);
+#else
+	__mtx_lock_spin(m, curthread, opts, file, line);
+#endif
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
 	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
