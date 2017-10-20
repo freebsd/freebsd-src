@@ -540,7 +540,15 @@ swap_pager_swap_init(void)
 		 */
 		n -= ((n + 2) / 3);
 	} while (n > 0);
-	if (n2 != n)
+
+	/*
+	 * Often uma_zone_reserve_kva() cannot reserve exactly the
+	 * requested size.  Account for the difference when
+	 * calculating swap_maxpages.
+	 */
+	n = uma_zone_get_max(swblk_zone);
+
+	if (n < n2)
 		printf("Swap blk zone entries reduced from %lu to %lu.\n",
 		    n2, n);
 	swap_maxpages = n * SWAP_META_PAGES;
