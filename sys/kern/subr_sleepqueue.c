@@ -1435,7 +1435,7 @@ found:
 		if (TAILQ_EMPTY(&sq->sq_blocked[i]))
 			db_printf("\tempty\n");
 		else
-			TAILQ_FOREACH(td, &sq->sq_blocked[0],
+			TAILQ_FOREACH(td, &sq->sq_blocked[i],
 				      td_slpq) {
 				db_printf("\t%p (tid %d, pid %d, \"%s\")\n", td,
 					  td->td_tid, td->td_proc->p_pid,
