@@ -291,9 +291,6 @@ __mtx_lock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
 	struct mtx *m;
 	uintptr_t tid, v;
 
-	if (SCHEDULER_STOPPED())
-		return;
-
 	m = mtxlock2mtx(c);
 
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
@@ -355,9 +352,6 @@ __mtx_unlock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
     int line)
 {
 	struct mtx *m;
-
-	if (SCHEDULER_STOPPED())
-		return;
 
 	m = mtxlock2mtx(c);
 
