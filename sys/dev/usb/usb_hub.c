@@ -101,7 +101,9 @@ SYSCTL_INT(_hw_usb, OID_AUTO, power_timeout, CTLFLAG_RW,
 #if USB_HAVE_DISABLE_ENUM
 static int usb_disable_enumeration = 0;
 SYSCTL_INT(_hw_usb, OID_AUTO, disable_enumeration, CTLFLAG_RWTUN,
-    &usb_disable_enumeration, 0, "Set to disable all USB device enumeration.");
+    &usb_disable_enumeration, 0, "Set to disable all USB device enumeration. "
+	"This can secure against USB devices turning evil, "
+	"for example a USB memory stick becoming a USB keyboard.");
 TUNABLE_INT("hw.usb.disable_enumeration", &usb_disable_enumeration);
 
 static int usb_disable_port_power = 0;
