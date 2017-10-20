@@ -289,6 +289,7 @@ __mtx_lock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
     int line)
 {
 	struct mtx *m;
+	uintptr_t tid, v;
 
 	if (SCHEDULER_STOPPED())
 		return;
@@ -308,7 +309,14 @@ __mtx_lock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
 	opts &= ~MTX_RECURSE;
 	WITNESS_CHECKORDER(&m->lock_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
 	    file, line, NULL);
-	__mtx_lock_spin(m, curthread, opts, file, line);
+	spinlock_enter();
+	tid = (uintptr_t)curthread;
+	v = MTX_UNOWNED;
+	if (!_mtx_obtain_lock_fetch(m, &v, tid))
+		_mtx_lock_spin(m, v, opts, file, line);
+	else
+		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire,
+		    m, 0, 0, file, line);
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
 	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
@@ -682,12 +690,18 @@ _mtx_lock_spin_failed(struct mtx *m)
  * This is only called if we need to actually spin for the lock. Recursion
  * is handled inline.
  */
+#if LOCK_DEBUG > 0
 void
-_mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
-    int opts, const char *file, int line)
+_mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v, int opts,
+    const char *file, int line)
+#else
+void
+_mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v)
+#endif
 {
 	struct mtx *m;
 	struct lock_delay_arg lda;
+	uintptr_t tid;
 #ifdef LOCK_PROFILING
 	int contested = 0;
 	uint64_t waittime = 0;
@@ -699,10 +713,7 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 	int doing_lockprof;
 #endif
 
-	if (SCHEDULER_STOPPED())
-		return;
-
-	lock_delay_arg_init(&lda, &mtx_spin_delay);
+	tid = (uintptr_t)curthread;
 	m = mtxlock2mtx(c);
 
 	if (__predict_false(v == MTX_UNOWNED))
@@ -712,6 +723,11 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 		m->mtx_recurse++;
 		return;
 	}
+
+	if (SCHEDULER_STOPPED())
+		return;
+
+	lock_delay_arg_init(&lda, &mtx_spin_delay);
 
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
