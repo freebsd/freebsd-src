@@ -2442,6 +2442,7 @@ do {								\
 						sa6->sin6_len = sizeof(*sa6);
 						sa6->sin6_addr = TARG_VAL(
 						    chain, tablearg, nh6);
+						sa6->sin6_port = sa->sin_port;
 						/*
 						 * Set sin6_scope_id only for
 						 * link-local unicast addresses.
@@ -2455,6 +2456,8 @@ do {								\
 					} else
 #endif
 					{
+						args->hopstore.sin_port =
+						    sa->sin_port;
 						sa = args->next_hop =
 						    &args->hopstore;
 						sa->sin_family = AF_INET;
