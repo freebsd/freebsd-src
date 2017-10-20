@@ -1746,8 +1746,6 @@ flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 		    ((flags & V_ALT) && (bp->b_xflags & BX_ALTDATA) == 0)) {
 			continue;
 		}
-		lblkno = 0;
-		xflags = 0;
 		if (nbp != NULL) {
 			lblkno = nbp->b_lblkno;
 			xflags = nbp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN);
@@ -1782,6 +1780,8 @@ flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 		bp->b_flags &= ~B_ASYNC;
 		brelse(bp);
 		BO_LOCK(bo);
+		if (nbp == NULL)
+			break;
 		nbp = gbincore(bo, lblkno);
 		if (nbp == NULL || (nbp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
 		    != xflags)
