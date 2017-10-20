@@ -1,6 +1,12 @@
 /*-
- * Copyright (c) 1991, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1991 Regents of the University of California.
+ * All rights reserved.
+ * Copyright (c) 1994 John S. Dyson
+ * All rights reserved.
+ * Copyright (c) 1994 David Greenman
+ * All rights reserved.
+ * Copyright (c) 2005 Yahoo! Technologies Norway AS
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * The Mach Operating System project at Carnegie-Mellon University.
@@ -13,7 +19,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -29,13 +39,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)vm_pageout.h	8.2 (Berkeley) 1/12/94
+ *	from: @(#)vm_pageout.c	7.4 (Berkeley) 5/7/91
  *
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
  * All rights reserved.
  *
- * Author: Avadis Tevanian, Jr.
+ * Authors: Avadis Tevanian, Jr., Michael Wayne Young
  *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
@@ -56,55 +66,57 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- *
- * $FreeBSD$
  */
 
-#ifndef _VM_VM_PAGEOUT_H_
-#define _VM_VM_PAGEOUT_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-/*
- *	Header file for pageout daemon.
- */
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/sysctl.h>
+#include <sys/vmmeter.h>
 
-/*
- *	Exported data structures.
- */
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_pageout.h>
 
-extern int vm_page_max_wired;
-extern int vm_pageout_deficit;
-extern int vm_pageout_page_count;
-extern bool vm_pageout_wanted;
-extern bool vm_pages_needed;
+static int vm_swap_enabled = 0;
+SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled, CTLFLAG_RD,
+    &vm_swap_enabled, 0,
+    "Enable entire process swapout");
 
-#define	VM_OOM_MEM	1
-#define	VM_OOM_SWAPZ	2
+static int vm_swap_idle_enabled = 0;
+SYSCTL_INT(_vm, OID_AUTO, swap_idle_enabled, CTLFLAG_RD,
+    &vm_swap_idle_enabled, 0,
+    "Allow swapout on idle criteria");
 
-/*
- * vm_lowmem flags.
- */
-#define	VM_LOW_KMEM	0x01
-#define	VM_LOW_PAGES	0x02
+void
+vm_swapout_run(void)
+{
+}
 
-/*
- *	Exported routines.
- */
+void
+vm_swapout_run_idle(void)
+{
+}
 
-/*
- *	Signal pageout-daemon and wait for it.
- */
+void
+faultin(struct proc *p)
+{
 
-extern void pagedaemon_wakeup(void);
-#define VM_WAIT vm_wait()
-#define VM_WAITPFAULT vm_waitpfault()
-extern void vm_wait(void);
-extern void vm_waitpfault(void);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	if ((p->p_flag & P_INMEM) == 0)
+		panic("faultin: proc %p swapped out with NO_SWAPPING", p);
+}
 
-#ifdef _KERNEL
-int vm_pageout_flush(vm_page_t *, int, int, int, int *, boolean_t *);
-void vm_pageout_oom(int shortage);
+void
+swapper(void)
+{
 
-void vm_swapout_run(void);
-void vm_swapout_run_idle(void);
-#endif
-#endif	/* _VM_VM_PAGEOUT_H_ */
+	for (;;)
+		tsleep(&proc0, PVM, "swapin", MAXSLP * hz);
+}
