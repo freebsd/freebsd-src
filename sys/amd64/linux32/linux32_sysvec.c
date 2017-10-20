@@ -804,11 +804,8 @@ exec_linux_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
 
-	mtx_lock(&dt_lock);
 	if (td->td_proc->p_md.md_ldt != NULL)
 		user_ldt_free(td);
-	else
-		mtx_unlock(&dt_lock);
 
 	critical_enter();
 	wrmsr(MSR_FSBASE, 0);

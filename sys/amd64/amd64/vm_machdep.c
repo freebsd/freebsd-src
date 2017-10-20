@@ -299,11 +299,8 @@ cpu_exit(struct thread *td)
 	/*
 	 * If this process has a custom LDT, release it.
 	 */
-	mtx_lock(&dt_lock);
-	if (td->td_proc->p_md.md_ldt != 0)
+	if (td->td_proc->p_md.md_ldt != NULL)
 		user_ldt_free(td);
-	else
-		mtx_unlock(&dt_lock);
 }
 
 void
