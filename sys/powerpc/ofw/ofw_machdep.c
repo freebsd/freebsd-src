@@ -461,7 +461,7 @@ openfirmware_core(void *args)
 	/* Restore initially saved trap vectors */
 	ofw_restore_trap_vec(save_trap_init);
 
-#if defined(AIM) && !defined(__powerpc64__)
+#ifndef __powerpc64__
 	/*
 	 * Clear battable[] translations
 	 */
