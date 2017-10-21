@@ -201,12 +201,6 @@ struct tcpcb {
 #endif	/* _KERNEL || _WANT_TCPCB */
 
 #ifdef _KERNEL
-/*
- * Kernel variables for tcp.
- */
-VNET_DECLARE(int, tcp_do_rfc1323);
-#define	V_tcp_do_rfc1323	VNET(tcp_do_rfc1323)
-
 struct tcptemp {
 	u_char	tt_ipgen[40]; /* the size must be of max ip header, now IPv6 */
 	struct	tcphdr tt_t;
@@ -701,49 +695,82 @@ SYSCTL_DECL(_net_inet_tcp_sack);
 MALLOC_DECLARE(M_TCPLOG);
 #endif
 
-VNET_DECLARE(struct inpcbhead, tcb);		/* queue of active tcpcb's */
-VNET_DECLARE(struct inpcbinfo, tcbinfo);
 extern	int tcp_log_in_vain;
-VNET_DECLARE(int, tcp_mssdflt);	/* XXX */
-VNET_DECLARE(int, tcp_minmss);
-VNET_DECLARE(int, tcp_delack_enabled);
-VNET_DECLARE(int, tcp_do_rfc3390);
-VNET_DECLARE(int, tcp_initcwnd_segments);
-VNET_DECLARE(int, tcp_sendspace);
-VNET_DECLARE(int, tcp_recvspace);
+
+/*
+ * Global TCP tunables shared between different stacks.
+ * Please keep the list sorted.
+ */
+VNET_DECLARE(int, drop_synfin);
 VNET_DECLARE(int, path_mtu_discovery);
-VNET_DECLARE(int, tcp_do_rfc3465);
 VNET_DECLARE(int, tcp_abc_l_var);
-#define	V_tcb			VNET(tcb)
-#define	V_tcbinfo		VNET(tcbinfo)
-#define	V_tcp_mssdflt		VNET(tcp_mssdflt)
-#define	V_tcp_minmss		VNET(tcp_minmss)
-#define	V_tcp_delack_enabled	VNET(tcp_delack_enabled)
-#define	V_tcp_do_rfc3390	VNET(tcp_do_rfc3390)
-#define	V_tcp_initcwnd_segments	VNET(tcp_initcwnd_segments)
-#define	V_tcp_sendspace		VNET(tcp_sendspace)
-#define	V_tcp_recvspace		VNET(tcp_recvspace)
-#define	V_path_mtu_discovery	VNET(path_mtu_discovery)
-#define	V_tcp_do_rfc3465	VNET(tcp_do_rfc3465)
-#define	V_tcp_abc_l_var		VNET(tcp_abc_l_var)
-
-VNET_DECLARE(int, tcp_do_sack);			/* SACK enabled/disabled */
-VNET_DECLARE(int, tcp_sc_rst_sock_fail);	/* RST on sock alloc failure */
-#define	V_tcp_do_sack		VNET(tcp_do_sack)
-#define	V_tcp_sc_rst_sock_fail	VNET(tcp_sc_rst_sock_fail)
-
-VNET_DECLARE(int, tcp_do_ecn);			/* TCP ECN enabled/disabled */
+VNET_DECLARE(int, tcp_autorcvbuf_inc);
+VNET_DECLARE(int, tcp_autorcvbuf_max);
+VNET_DECLARE(int, tcp_autosndbuf_inc);
+VNET_DECLARE(int, tcp_autosndbuf_max);
+VNET_DECLARE(int, tcp_delack_enabled);
+VNET_DECLARE(int, tcp_do_autorcvbuf);
+VNET_DECLARE(int, tcp_do_autosndbuf);
+VNET_DECLARE(int, tcp_do_ecn);
+VNET_DECLARE(int, tcp_do_rfc1323);
+VNET_DECLARE(int, tcp_do_rfc3042);
+VNET_DECLARE(int, tcp_do_rfc3390);
+VNET_DECLARE(int, tcp_do_rfc3465);
+VNET_DECLARE(int, tcp_do_rfc6675_pipe);
+VNET_DECLARE(int, tcp_do_sack);
+VNET_DECLARE(int, tcp_do_tso);
 VNET_DECLARE(int, tcp_ecn_maxretries);
-#define	V_tcp_do_ecn		VNET(tcp_do_ecn)
-#define	V_tcp_ecn_maxretries	VNET(tcp_ecn_maxretries)
+VNET_DECLARE(int, tcp_initcwnd_segments);
+VNET_DECLARE(int, tcp_insecure_rst);
+VNET_DECLARE(int, tcp_insecure_syn);
+VNET_DECLARE(int, tcp_minmss);
+VNET_DECLARE(int, tcp_mssdflt);
+VNET_DECLARE(int, tcp_recvspace);
+VNET_DECLARE(int, tcp_sack_globalholes);
+VNET_DECLARE(int, tcp_sack_globalmaxholes);
+VNET_DECLARE(int, tcp_sack_maxholes);
+VNET_DECLARE(int, tcp_sc_rst_sock_fail);
+VNET_DECLARE(int, tcp_sendspace);
+VNET_DECLARE(struct inpcbhead, tcb);
+VNET_DECLARE(struct inpcbinfo, tcbinfo);
+
+#define	V_drop_synfin			VNET(drop_synfin)
+#define	V_path_mtu_discovery		VNET(path_mtu_discovery)
+#define	V_tcb				VNET(tcb)
+#define	V_tcbinfo			VNET(tcbinfo)
+#define	V_tcp_abc_l_var			VNET(tcp_abc_l_var)
+#define	V_tcp_autorcvbuf_inc		VNET(tcp_autorcvbuf_inc)
+#define	V_tcp_autorcvbuf_max		VNET(tcp_autorcvbuf_max)
+#define	V_tcp_autosndbuf_inc		VNET(tcp_autosndbuf_inc)
+#define	V_tcp_autosndbuf_max		VNET(tcp_autosndbuf_max)
+#define	V_tcp_delack_enabled		VNET(tcp_delack_enabled)
+#define	V_tcp_do_autorcvbuf		VNET(tcp_do_autorcvbuf)
+#define	V_tcp_do_autosndbuf		VNET(tcp_do_autosndbuf)
+#define	V_tcp_do_ecn			VNET(tcp_do_ecn)
+#define	V_tcp_do_rfc1323		VNET(tcp_do_rfc1323)
+#define	V_tcp_do_rfc3042		VNET(tcp_do_rfc3042)
+#define	V_tcp_do_rfc3390		VNET(tcp_do_rfc3390)
+#define	V_tcp_do_rfc3465		VNET(tcp_do_rfc3465)
+#define	V_tcp_do_rfc6675_pipe		VNET(tcp_do_rfc6675_pipe)
+#define	V_tcp_do_sack			VNET(tcp_do_sack)
+#define	V_tcp_do_tso			VNET(tcp_do_tso)
+#define	V_tcp_ecn_maxretries		VNET(tcp_ecn_maxretries)
+#define	V_tcp_initcwnd_segments		VNET(tcp_initcwnd_segments)
+#define	V_tcp_insecure_rst		VNET(tcp_insecure_rst)
+#define	V_tcp_insecure_syn		VNET(tcp_insecure_syn)
+#define	V_tcp_minmss			VNET(tcp_minmss)
+#define	V_tcp_mssdflt			VNET(tcp_mssdflt)
+#define	V_tcp_recvspace			VNET(tcp_recvspace)
+#define	V_tcp_sack_globalholes		VNET(tcp_sack_globalholes)
+#define	V_tcp_sack_globalmaxholes	VNET(tcp_sack_globalmaxholes)
+#define	V_tcp_sack_maxholes		VNET(tcp_sack_maxholes)
+#define	V_tcp_sc_rst_sock_fail		VNET(tcp_sc_rst_sock_fail)
+#define	V_tcp_sendspace			VNET(tcp_sendspace)
 
 #ifdef TCP_HHOOK
 VNET_DECLARE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST + 1]);
 #define	V_tcp_hhh		VNET(tcp_hhh)
 #endif
-
-VNET_DECLARE(int, tcp_do_rfc6675_pipe);
-#define V_tcp_do_rfc6675_pipe	VNET(tcp_do_rfc6675_pipe)
 
 int	 tcp_addoptions(struct tcpopt *, u_char *);
 int	 tcp_ccalgounload(struct cc_algo *unload_algo);

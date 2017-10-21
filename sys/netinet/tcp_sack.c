@@ -133,19 +133,16 @@ SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, enable, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_sack), 0, "Enable/Disable TCP SACK support");
 
 VNET_DEFINE(int, tcp_sack_maxholes) = 128;
-#define	V_tcp_sack_maxholes		VNET(tcp_sack_maxholes)
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, maxholes, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_sack_maxholes), 0,
     "Maximum number of TCP SACK holes allowed per connection");
 
 VNET_DEFINE(int, tcp_sack_globalmaxholes) = 65536;
-#define	V_tcp_sack_globalmaxholes	VNET(tcp_sack_globalmaxholes)
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, globalmaxholes, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_sack_globalmaxholes), 0, 
     "Global maximum number of TCP SACK holes");
 
 VNET_DEFINE(int, tcp_sack_globalholes) = 0;
-#define	V_tcp_sack_globalholes		VNET(tcp_sack_globalholes)
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, globalholes, CTLFLAG_VNET | CTLFLAG_RD,
     &VNET_NAME(tcp_sack_globalholes), 0,
     "Global number of TCP SACK holes currently allocated");

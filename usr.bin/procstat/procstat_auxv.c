@@ -51,7 +51,7 @@ procstat_auxv(struct procstat *procstat, struct kinfo_proc *kipp)
 	u_int count, i;
 	static char prefix[256];
 
-	if (!hflag)
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0)
 		xo_emit("{T:/%5s %-16s %-16s %-16s}\n", "PID", "COMM", "AUXV",
 		    "VALUE");
 

@@ -47,7 +47,7 @@ procstat_args(struct procstat *procstat, struct kinfo_proc *kipp)
 	int i;
 	char **args;
 
-	if (!hflag) {
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0) {
 		xo_emit("{T:/%5s %-16s %-53s}\n", "PID", "COMM", "ARGS");
 	}
 
@@ -74,7 +74,7 @@ procstat_env(struct procstat *procstat, struct kinfo_proc *kipp)
 	int i;
 	char **envs;
 
-	if (!hflag) {
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0) {
 		xo_emit("{T:/%5s %-16s %-53s}\n", "PID", "COMM", "ENVIRONMENT");
 	}
 

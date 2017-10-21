@@ -131,6 +131,7 @@ static const struct arm32_insn arm32_i[] = {
     { 0x0c500000, 0x04400000, "strb",	"daW" },
     { 0x0c500000, 0x04500000, "ldrb",	"daW" },
 #if __ARM_ARCH >= 6
+    { 0x0fff0ff0, 0x06bf0fb0, "rev16",  "dm" },
     { 0xffffffff, 0xf57ff01f, "clrex",	"c" },
     { 0x0ff00ff0, 0x01800f90, "strex",	"dmo" },
     { 0x0ff00fff, 0x01900f9f, "ldrex",	"do" },

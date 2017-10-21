@@ -15,8 +15,9 @@ desc="Network Time Protocol daemon"
 rcvar="ntpd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
-extra_commands="fetch"
+extra_commands="fetch needfetch"
 fetch_cmd="ntpd_fetch_leapfile"
+needfetch_cmd="ntpd_needfetch_leapfile"
 start_precmd="ntpd_precmd"
 
 load_rc_config $name
@@ -90,7 +91,7 @@ ntpd_init_leapfile() {
 	fi
 }
 
-ntpd_fetch_leapfile() {
+ntpd_needfetch_leapfile() {
 	local ntp_tmp_leapfile rc verbose
 	
 	if checkyesno ntp_leapfile_fetch_verbose; then
@@ -122,6 +123,21 @@ ntpd_fetch_leapfile() {
 	ntp_leap_fetch_date=$((ntp_leap_expiry-ntp_leapfile_expiry_seconds))
 	if [ $(current_ntp_ts) -ge $ntp_leap_fetch_date ]; then
 		$verbose Within ntp leapfile expiry limit, initiating fetch
+		# Return code 0: ntp leapfile fetch needed
+		return 0
+	fi
+	# Return code 1: ntp leapfile fetch not needed
+	return 1
+}
+
+ntpd_fetch_leapfile() {
+	if checkyesno ntp_leapfile_fetch_verbose; then
+		verbose=echo
+	else
+		verbose=:
+	fi
+
+	if ntpd_needfetch_leapfile ; then
 		for url in $ntp_leapfile_sources ; do
 			$verbose fetching $url
 			fetch $ntp_leapfile_fetch_opts -o $ntp_tmp_leapfile $url && break

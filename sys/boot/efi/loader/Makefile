@@ -12,6 +12,11 @@ INTERNALPROG=
 WARNS?=		3
 LOADER_NET_SUPPORT?=	yes
 
+LOADER_MSDOS_SUPPORT?=	yes
+LOADER_UFS_SUPPORT?=	yes
+LOADER_CD9660_SUPPORT?=	no
+LOADER_EXT2FS_SUPPORT?=	no
+
 # architecture-specific loader code
 SRCS=	autoload.c \
 	bootinfo.c \
@@ -80,14 +85,6 @@ CFLAGS+= -DSMBIOS_NETWORK_ENDIAN_UUID
 .endif
 .endif
 
-.if ${MK_FORTH} != "no"
-BOOT_FORTH=	yes
-CFLAGS+=	-DBOOT_FORTH
-CFLAGS+=	-I${.CURDIR}/../../ficl
-CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE_CPUARCH}
-LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-.endif
-
 LOADER_FDT_SUPPORT?=	no
 .if ${MK_FDT} != "no" && ${LOADER_FDT_SUPPORT} != "no"
 CFLAGS+=	-I${.CURDIR}/../../fdt
@@ -105,9 +102,7 @@ CFLAGS+=	-DEFI_STAGING_SIZE=${EFI_STAGING_SIZE}
 .endif
 
 # Always add MI sources
-.PATH:		${.CURDIR}/../../common
-.include	"${.CURDIR}/../../common/Makefile.inc"
-CFLAGS+=	-I${.CURDIR}/../../common
+.include	"../../loader.mk"
 
 FILES+=	loader.efi
 FILESMODE_loader.efi=	${BINMODE}

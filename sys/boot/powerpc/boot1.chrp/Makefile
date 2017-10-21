@@ -17,7 +17,8 @@ CFLAGS= -ffreestanding -msoft-float \
 	-D_STANDALONE
 LDFLAGS=-nostdlib -static -Wl,-N
 
-.include "${.CURDIR}/../Makefile.inc"
+.include "../Makefile.inc"
+
 .PATH:  ${.CURDIR}/../../../libkern ${.CURDIR}/../../../../lib/libc/powerpc/gen ${.CURDIR}
 
 # The following inserts out objects into a template HFS 
@@ -36,7 +37,7 @@ boot1.hfs: boot1.elf bootinfo.txt
 
 CLEANFILES= boot1.hfs
 
-boot1.o: ${.CURDIR}/../../common/ufsread.c
+boot1.o: ${SASRC}/ufsread.c
 
 .include <bsd.prog.mk>
 

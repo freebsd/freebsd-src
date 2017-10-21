@@ -94,7 +94,7 @@ procstat_rlimit(struct procstat *prstat, struct kinfo_proc *kipp)
 	struct rlimit rlimit;
 	int i;
 
-	if (!hflag) {
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0) {
 		xo_emit("{T:/%5s %-16s %-16s %16s %16s}\n",
 		    "PID", "COMM", "RLIMIT", "SOFT     ", "HARD     ");
 	}

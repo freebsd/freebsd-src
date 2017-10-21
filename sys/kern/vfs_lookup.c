@@ -1390,13 +1390,13 @@ kern_alternate_path(struct thread *td, const char *prefix, const char *path,
 		for (cp = &ptr[len] - 1; *cp != '/'; cp--);
 		*cp = '\0';
 
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
+		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, buf, td);
 		error = namei(&nd);
 		*cp = '/';
 		if (error != 0)
 			goto keeporig;
 	} else {
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
+		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, buf, td);
 
 		error = namei(&nd);
 		if (error != 0)

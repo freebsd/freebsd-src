@@ -3,8 +3,7 @@
 .include <src.opts.mk>
 
 .if ${MK_FORTH} != "no"
-CFLAGS+= -DBOOT_FORTH
-.include "${.CURDIR}/../../Makefile.ficl"
+.include	"../../ficl.mk"
 .endif
 
 LIB=	efi
@@ -35,6 +34,7 @@ CFLAGS+=	-mgeneral-regs-only
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+= -fPIC -mno-red-zone
 .endif
+CFLAGS+= -I${SYSDIR}
 CFLAGS+= -I${.CURDIR}/../include
 CFLAGS+= -I${.CURDIR}/../include/${MACHINE}
 .if ${MK_ZFS} != "no"

@@ -227,14 +227,6 @@ struct cloudabi64_sys_poll_args {
 	char out_l_[PADL_(cloudabi64_event_t *)]; cloudabi64_event_t * out; char out_r_[PADR_(cloudabi64_event_t *)];
 	char nsubscriptions_l_[PADL_(size_t)]; size_t nsubscriptions; char nsubscriptions_r_[PADR_(size_t)];
 };
-struct cloudabi64_sys_poll_fd_args {
-	char fd_l_[PADL_(cloudabi_fd_t)]; cloudabi_fd_t fd; char fd_r_[PADR_(cloudabi_fd_t)];
-	char in_l_[PADL_(const cloudabi64_subscription_t *)]; const cloudabi64_subscription_t * in; char in_r_[PADR_(const cloudabi64_subscription_t *)];
-	char in_len_l_[PADL_(size_t)]; size_t in_len; char in_len_r_[PADR_(size_t)];
-	char out_l_[PADL_(cloudabi64_event_t *)]; cloudabi64_event_t * out; char out_r_[PADR_(cloudabi64_event_t *)];
-	char out_len_l_[PADL_(size_t)]; size_t out_len; char out_len_r_[PADR_(size_t)];
-	char timeout_l_[PADL_(const cloudabi64_subscription_t *)]; const cloudabi64_subscription_t * timeout; char timeout_r_[PADR_(const cloudabi64_subscription_t *)];
-};
 struct cloudabi_sys_proc_exec_args {
 	char fd_l_[PADL_(cloudabi_fd_t)]; cloudabi_fd_t fd; char fd_r_[PADR_(cloudabi_fd_t)];
 	char data_l_[PADL_(const void *)]; const void * data; char data_r_[PADR_(const void *)];
@@ -317,7 +309,6 @@ int	cloudabi_sys_mem_protect(struct thread *, struct cloudabi_sys_mem_protect_ar
 int	cloudabi_sys_mem_sync(struct thread *, struct cloudabi_sys_mem_sync_args *);
 int	cloudabi_sys_mem_unmap(struct thread *, struct cloudabi_sys_mem_unmap_args *);
 int	cloudabi64_sys_poll(struct thread *, struct cloudabi64_sys_poll_args *);
-int	cloudabi64_sys_poll_fd(struct thread *, struct cloudabi64_sys_poll_fd_args *);
 int	cloudabi_sys_proc_exec(struct thread *, struct cloudabi_sys_proc_exec_args *);
 int	cloudabi_sys_proc_exit(struct thread *, struct cloudabi_sys_proc_exit_args *);
 int	cloudabi_sys_proc_fork(struct thread *, struct cloudabi_sys_proc_fork_args *);
@@ -403,7 +394,6 @@ int	cloudabi_sys_thread_yield(struct thread *, struct cloudabi_sys_thread_yield_
 #define	CLOUDABI64_SYS_AUE_cloudabi_sys_mem_sync	AUE_NULL
 #define	CLOUDABI64_SYS_AUE_cloudabi_sys_mem_unmap	AUE_NULL
 #define	CLOUDABI64_SYS_AUE_cloudabi64_sys_poll	AUE_NULL
-#define	CLOUDABI64_SYS_AUE_cloudabi64_sys_poll_fd	AUE_NULL
 #define	CLOUDABI64_SYS_AUE_cloudabi_sys_proc_exec	AUE_NULL
 #define	CLOUDABI64_SYS_AUE_cloudabi_sys_proc_exit	AUE_NULL
 #define	CLOUDABI64_SYS_AUE_cloudabi_sys_proc_fork	AUE_NULL

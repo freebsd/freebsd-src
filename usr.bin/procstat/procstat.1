@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2017
+.Dd October 14, 2017
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -34,14 +34,75 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl -libxo
-.Op Fl CHhn
+.Op Fl h
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl w Ar interval
-.Op Fl b | c | e | f | i | j | k | l | L | r | s | S | t | v | x
-.Op Fl a | Ar pid | Ar core ...
+.Ar command
+.Op Ar pid ... | Ar core ...
+.Nm
+.Op Fl -libxo
+.Fl a
+.Op Fl h
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl w Ar interval
+.Ar command
+.Nm
+.Op Fl -libxo
+.Op Fl h
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl w Ar interval
+.Oo
+.Fl b |
+.Fl c |
+.Fl e |
+.Fl f Oo Fl C Oc |
+.Fl i Oo Fl n Oc |
+.Fl j Oo Fl n Oc |
+.Fl k Oo Fl k Oc |
+.Fl l |
+.Fl r Oo Fl H Oc |
+.Fl s |
+.Fl S |
+.Fl t |
+.Fl v |
+.Fl x
+.Oc
+.Op Ar pid ... | Ar core ...
+.Nm
+.Op Fl -libxo
+.Fl a
+.Op Fl h
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl w Ar interval
+.Oo
+.Fl b |
+.Fl c |
+.Fl e |
+.Fl f Oo Fl C Oc |
+.Fl i Oo Fl n Oc |
+.Fl j Oo Fl n Oc |
+.Fl k Oo Fl k Oc |
+.Fl l |
+.Fl r Oo Fl H Oc |
+.Fl s |
+.Fl S |
+.Fl t |
+.Fl v |
+.Fl x
+.Oc
+.Nm
+.Op Fl -libxo
+.Fl L
+.Op Fl h
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl w Ar interval
+.Ar core ...
 .Sh DESCRIPTION
-The
 .Nm
 utility displays detailed information about the processes identified by the
 .Ar pid
@@ -51,49 +112,89 @@ flag is used, all processes.
 It can also display information extracted from a process core file, if
 the core file is specified as the argument.
 .Pp
-By default, basic process statistics are printed; one of the following
-options may be specified in order to select more detailed process information
-for printing:
-.Bl -tag -width indent
-.It Fl -libxo
-Generate output via
+If the
+.Fl -libxo
+flag is specified the output is generated via
 .Xr libxo 3
 in a selection of different human and machine readable formats.
 See
 .Xr xo_parse_args 3
 for details on command line arguments.
-.It Fl b
+.Pp
+The following commands are available:
+.Bl -tag -width indent
+.It Ar basic
+Print basic process statistics (this is the default).
+.It Ar binary | Fl b
 Display binary information for the process.
-.It Fl c
+.Pp
+Substring commands are accepted.
+.It Ar argument(s) | Fl c
 Display command line arguments for the process.
-.It Fl e
+.Pp
+Substring commands are accepted.
+.It Ar environment | Fl e
 Display environment variables for the process.
-.It Fl f
+.Pp
+Substring commands are accepted.
+.It Ar file(s) | Ar fd(s) | Fl f
 Display file descriptor information for the process.
-.It Fl i
+.Pp
+If the
+.Fl C
+subcommand flag is used then additional capability information is printed.
+.It Ar signal(s) | Fl i
 Display signal pending and disposition information for the process.
-.It Fl j
+.Pp
+If the
+.Fl n
+subcommand option is used, the signal numbers are shown instead of signal
+names.
+.Pp
+Substring commands are accepted.
+.It Ar tsignal(s) | Fl j
 Display signal pending and blocked information for the process's threads.
-.It Fl k
+.Pp
+If the
+.Fl n
+subcommand option is used, the signal numbers are shown instead of signal
+names.
+.Pp
+Substring commands are accepted.
+.It Ar kstack | Fl k
 Display the stacks of kernel threads in the process, excluding stacks of
 threads currently running on a CPU and threads with stacks swapped to disk.
-If the flag is repeated, function offsets as well as function names are
-printed.
-.It Fl l
+.Pp
+If the
+.Fl v
+subcommand option is used (or the command flag is repeated), function
+offsets as well as function names are printed.
+.It Ar rlimit | Fl l
 Display resource limits for the process.
-.It Fl L
+.It Ar ptlwpinfo | Fl L
 Display LWP info for the process pertaining to its signal driven exit.
-.It Fl r
+.It Ar rusage | Fl r
 Display resource usage information for the process.
-.It Fl s
+.Pp
+If the
+.Fl v
+.Pq or Fl H
+subcommand flag
+is used then per-thread statistics are printed, rather than per-process
+statistics.
+The second field in the table will list the thread ID to which the row of
+information corresponds.
+.It Ar credential(s) | Fl s
 Display security credential information for the process.
-.It Fl S
+.Pp
+Substring commands are accepted.
+.It Ar cpuset | Ar cs | Fl S
 Display the cpuset information for the thread.
-.It Fl t
+.It Ar thread(s) | Fl t
 Display thread information for the process.
-.It Fl v
+.It Ar vm | Fl v
 Display virtual memory mappings for the process.
-.It Fl x
+.It Ar auxv | Fl x
 Display ELF auxiliary vector for the process.
 .El
 .Pp
@@ -110,23 +211,6 @@ of the requested process information.
 If the
 .Fl w
 flag is not specified, the output will not repeat.
-.Pp
-The
-.Fl C
-flag requests the printing of additional capability information in the file
-descriptor view.
-.Pp
-The
-.Fl H
-flag may be used to request per-thread statistics rather than per-process
-statistics for some options.
-For those options, the second field in the table will list the thread ID
-to which the row of information corresponds.
-The
-.Fl H
-flag is implied for the
-.Fl S
-mode.
 .Pp
 Information for VM, file descriptor, and cpuset options is available
 only to the owner of a process or the superuser.

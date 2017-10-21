@@ -149,6 +149,8 @@ vfp_init(void)
 			    (tmp & VMVFR1_I_MASK) >> VMVFR1_I_OFF == 1 &&
 			    (tmp & VMVFR1_SP_MASK) >> VMVFR1_SP_OFF == 1)
 				elf_hwcap |= HWCAP_NEON;
+			if ((tmp & VMVFR1_FMAC_MASK) >>  VMVFR1_FMAC_OFF == 1)
+				elf_hwcap |= HWCAP_VFPv4;
 		}
 
 		/* initialize the coprocess 10 and 11 calls

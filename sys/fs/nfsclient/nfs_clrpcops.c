@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <fs/nfs/nfsport.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 
 SYSCTL_DECL(_vfs_nfs);
 
@@ -64,6 +65,7 @@ extern nfstype nfsv34_type[9];
 extern int nfsrv_useacl;
 extern char nfsv4_callbackaddr[INET6_ADDRSTRLEN];
 extern int nfscl_debuglevel;
+extern int nfs_pnfsiothreads;
 NFSCLSTATEMUTEX;
 int nfstest_outofseq = 0;
 int nfscl_assumeposixlocks = 1;
@@ -85,6 +87,30 @@ enum nfsclds_state {
 	NFSDSP_USETHISSESSION = 0,
 	NFSDSP_SEQTHISSESSION = 1,
 	NFSDSP_NOTFOUND = 2,
+};
+
+/*
+ * Do a write RPC on a DS data file, using this structure for the arguments,
+ * so that this function can be executed by a separate kernel process.
+ */
+struct nfsclwritedsdorpc {
+	int			done;
+	int			inprog;
+	struct task		tsk;
+	struct vnode		*vp;
+	int			iomode;
+	int			must_commit;
+	nfsv4stateid_t		*stateidp;
+	struct nfsclds		*dsp;
+	uint64_t		off;
+	int			len;
+	struct nfsfh		*fhp;
+	struct mbuf		*m;
+	int			vers;
+	int			minorvers;
+	struct ucred		*cred;
+	NFSPROC_T		*p;
+	int			err;
 };
 
 static int nfsrpc_setattrrpc(vnode_t , struct vattr *, nfsv4stateid_t *,
@@ -119,7 +145,7 @@ static int nfscl_doflayoutio(vnode_t, struct uio *, int *, int *, int *,
 static int nfscl_dofflayoutio(vnode_t, struct uio *, int *, int *, int *,
     nfsv4stateid_t *, int, struct nfscldevinfo *, struct nfscllayout *,
     struct nfsclflayout *, uint64_t, uint64_t, int, int, struct mbuf *,
-    struct ucred *, NFSPROC_T *);
+    struct nfsclwritedsdorpc *, struct ucred *, NFSPROC_T *);
 static struct mbuf *nfsm_copym(struct mbuf *, int, int);
 static int nfsrpc_readds(vnode_t, struct uio *, nfsv4stateid_t *, int *,
     struct nfsclds *, uint64_t, int, struct nfsfh *, int, int, int,
@@ -127,11 +153,17 @@ static int nfsrpc_readds(vnode_t, struct uio *, nfsv4stateid_t *, int *,
 static int nfsrpc_writeds(vnode_t, struct uio *, int *, int *,
     nfsv4stateid_t *, struct nfsclds *, uint64_t, int,
     struct nfsfh *, int, int, int, int, struct ucred *, NFSPROC_T *);
+static int nfsio_writedsmir(vnode_t, int *, int *, nfsv4stateid_t *,
+    struct nfsclds *, uint64_t, int, struct nfsfh *, struct mbuf *, int, int,
+    struct nfsclwritedsdorpc *, struct ucred *, NFSPROC_T *);
 static int nfsrpc_writedsmir(vnode_t, int *, int *, nfsv4stateid_t *,
     struct nfsclds *, uint64_t, int, struct nfsfh *, struct mbuf *, int, int,
     struct ucred *, NFSPROC_T *);
 static enum nfsclds_state nfscl_getsameserver(struct nfsmount *,
     struct nfsclds *, struct nfsclds **);
+static int nfsio_commitds(vnode_t, uint64_t, int, struct nfsclds *,
+    struct nfsfh *, int, int, struct nfsclwritedsdorpc *, struct ucred *,
+    NFSPROC_T *);
 static int nfsrpc_commitds(vnode_t, uint64_t, int, struct nfsclds *,
     struct nfsfh *, int, int, struct ucred *, NFSPROC_T *);
 static void nfsrv_setuplayoutget(struct nfsrv_descript *, int, uint64_t,
@@ -162,6 +194,8 @@ static int nfsrpc_layoutget(struct nfsmount *, uint8_t *, int, int, uint64_t,
 static int nfsrpc_layoutgetres(struct nfsmount *, vnode_t, uint8_t *,
     int, nfsv4stateid_t *, int, uint32_t *, struct nfscllayout **,
     struct nfsclflayouthead *, int, int, int *, struct ucred *, NFSPROC_T *);
+
+int nfs_pnfsio(task_fn_t *, void *);
 
 /*
  * nfs null call from vfs.
@@ -5544,10 +5578,11 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	struct nfscldevinfo *dip;
 	struct nfsclflayout *rflp;
 	struct mbuf *m;
+	struct nfsclwritedsdorpc *drpc, *tdrpc;
 	nfsv4stateid_t stateid;
 	struct ucred *newcred;
 	uint64_t lastbyte, len, off, oresid, xfer;
-	int eof, error, firstmirror, i, iolaymode, mirrorcnt, recalled;
+	int eof, error, firstmirror, i, iolaymode, mirrorcnt, recalled, timo;
 	void *lckp;
 	uint8_t *dev;
 	void *iovbase;
@@ -5627,6 +5662,7 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			 * do all mirrors.
 			 */
 			m = NULL;
+			drpc = NULL;
 			firstmirror = 0;
 			mirrorcnt = 1;
 			if ((layp->nfsly_flags & NFSLY_FLEXFILE) != 0 &&
@@ -5634,17 +5670,24 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 				if (rwaccess == NFSV4OPEN_ACCESSREAD) {
 					firstmirror = arc4random() % mirrorcnt;
 					mirrorcnt = firstmirror + 1;
-				} else if (docommit == 0) {
-					/*
-					 * Save values, so uiop can be rolled
-					 * back upon a write error.
-					 */
-					offs = uiop->uio_offset;
-					resid = uiop->uio_resid;
-					iovbase = uiop->uio_iov->iov_base;
-					iovlen = uiop->uio_iov->iov_len;
-					m = nfsm_uiombuflist(uiop, len, NULL,
-					    NULL);
+				} else {
+					if (docommit == 0) {
+						/*
+						 * Save values, so uiop can be
+						 * rolled back upon a write
+						 * error.
+						 */
+						offs = uiop->uio_offset;
+						resid = uiop->uio_resid;
+						iovbase =
+						    uiop->uio_iov->iov_base;
+						iovlen = uiop->uio_iov->iov_len;
+						m = nfsm_uiombuflist(uiop, len,
+						    NULL, NULL);
+					}
+					tdrpc = drpc = malloc(sizeof(*drpc) *
+					    (mirrorcnt - 1), M_TEMP, M_WAITOK |
+					    M_ZERO);
 				}
 			}
 			for (i = firstmirror; i < mirrorcnt && error == 0; i++){
@@ -5661,8 +5704,8 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 						    uiop, iomode, must_commit,
 						    &eof, &stateid, rwaccess,
 						    dip, layp, rflp, off, xfer,
-						    i, docommit, m, newcred,
-						    p);
+						    i, docommit, m, tdrpc,
+						    newcred, p);
 					else
 						error = nfscl_doflayoutio(vp,
 						    uiop, iomode, must_commit,
@@ -5672,9 +5715,27 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 					nfscl_reldevinfo(dip);
 				} else
 					error = EIO;
+				tdrpc++;
 			}
 			if (m != NULL)
 				m_freem(m);
+			tdrpc = drpc;
+			timo = hz / 50;		/* Wait for 20msec. */
+			if (timo < 1)
+				timo = 1;
+			for (i = firstmirror; i < mirrorcnt - 1 &&
+			    tdrpc != NULL; i++, tdrpc++) {
+				/*
+				 * For the unused drpc entries, both inprog and
+				 * err == 0, so this loop won't break.
+				 */
+				while (tdrpc->inprog != 0 && tdrpc->done == 0)
+					tsleep(&tdrpc->tsk, PVFS, "clrpcio",
+					    timo);
+				if (error == 0 && tdrpc->err != 0)
+					error = tdrpc->err;
+			}
+			free(drpc, M_TEMP);
 			if (error == 0) {
 				if (mirrorcnt > 1 && rwaccess ==
 				    NFSV4OPEN_ACCESSWRITE && docommit == 0) {
@@ -5898,8 +5959,8 @@ static int
 nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
     int *eofp, nfsv4stateid_t *stateidp, int rwflag, struct nfscldevinfo *dp,
     struct nfscllayout *lyp, struct nfsclflayout *flp, uint64_t off,
-    uint64_t len, int mirror, int docommit, struct mbuf *mp, struct ucred *cred,
-    NFSPROC_T *p)
+    uint64_t len, int mirror, int docommit, struct mbuf *mp,
+    struct nfsclwritedsdorpc *drpc, struct ucred *cred, NFSPROC_T *p)
 {
 	uint64_t transfer, xfer;
 	int error, rel_off;
@@ -5940,11 +6001,21 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		else
 			xfer = len;
 		if (docommit != 0) {
-			if (error == 0)
-				error = nfsrpc_commitds(vp, off, xfer, *dspp,
-				    fhp, dp->nfsdi_vers, dp->nfsdi_minorvers,
-				    tcred, p);
-			NFSCL_DEBUG(4, "aft nfsrpc_commitds=%d\n", error);
+			if (error == 0) {
+				/*
+				 * Do last mirrored DS commit with this thread.
+				 */
+				if (mirror < flp->nfsfl_mirrorcnt - 1)
+					error = nfsio_commitds(vp, off, xfer,
+					    *dspp, fhp, dp->nfsdi_vers,
+					    dp->nfsdi_minorvers, drpc, tcred,
+					    p);
+				else
+					error = nfsrpc_commitds(vp, off, xfer,
+					    *dspp, fhp, dp->nfsdi_vers,
+					    dp->nfsdi_minorvers, tcred, p);
+			}
+			NFSCL_DEBUG(4, "aft nfsio_commitds=%d\n", error);
 			if (error == 0) {
 				/*
 				 * Set both eof and uio_resid = 0 to end any
@@ -5976,11 +6047,22 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 				m = nfsm_copym(mp, rel_off, xfer);
 				NFSCL_DEBUG(4, "mcopy reloff=%d xfer=%jd\n",
 				    rel_off, (uintmax_t)xfer);
-				error = nfsrpc_writedsmir(vp, iomode,
-				    must_commit, stateidp, *dspp, off, xfer,
-				    fhp, m, dp->nfsdi_vers, dp->nfsdi_minorvers,
-				    tcred, p);
-				NFSCL_DEBUG(4, "nfsrpc_writedsmir=%d\n", error);
+				/*
+				 * Do last write to a mirrored DS with this
+				 * thread.
+				 */
+				if (mirror < flp->nfsfl_mirrorcnt - 1)
+					error = nfsio_writedsmir(vp, iomode,
+					    must_commit, stateidp, *dspp, off,
+					    xfer, fhp, m, dp->nfsdi_vers,
+					    dp->nfsdi_minorvers, drpc, tcred,
+					    p);
+				else
+					error = nfsrpc_writedsmir(vp, iomode,
+					    must_commit, stateidp, *dspp, off,
+					    xfer, fhp, m, dp->nfsdi_vers,
+					    dp->nfsdi_minorvers, tcred, p);
+				NFSCL_DEBUG(4, "nfsio_writedsmir=%d\n", error);
 			}
 		}
 		NFSCL_DEBUG(4, "aft read/writeds=%d\n", error);
@@ -6307,6 +6389,62 @@ nfsmout:
 }
 
 /*
+ * Start up the thread that will execute nfsrpc_writedsmir().
+ */
+static void
+start_writedsmir(void *arg, int pending)
+{
+	struct nfsclwritedsdorpc *drpc;
+
+	drpc = (struct nfsclwritedsdorpc *)arg;
+	drpc->err = nfsrpc_writedsmir(drpc->vp, &drpc->iomode,
+	    &drpc->must_commit, drpc->stateidp, drpc->dsp, drpc->off, drpc->len,
+	    drpc->fhp, drpc->m, drpc->vers, drpc->minorvers, drpc->cred,
+	    drpc->p);
+	drpc->done = 1;
+	NFSCL_DEBUG(4, "start_writedsmir: err=%d\n", drpc->err);
+}
+
+/*
+ * Set up the write DS mirror call for the pNFS I/O thread.
+ */
+static int
+nfsio_writedsmir(vnode_t vp, int *iomode, int *must_commit,
+    nfsv4stateid_t *stateidp, struct nfsclds *dsp, uint64_t off, int len,
+    struct nfsfh *fhp, struct mbuf *m, int vers, int minorvers,
+    struct nfsclwritedsdorpc *drpc, struct ucred *cred, NFSPROC_T *p)
+{
+	int error, ret;
+
+	error = 0;
+	drpc->done = 0;
+	drpc->vp = vp;
+	drpc->iomode = *iomode;
+	drpc->must_commit = *must_commit;
+	drpc->stateidp = stateidp;
+	drpc->dsp = dsp;
+	drpc->off = off;
+	drpc->len = len;
+	drpc->fhp = fhp;
+	drpc->m = m;
+	drpc->vers = vers;
+	drpc->minorvers = minorvers;
+	drpc->cred = cred;
+	drpc->p = p;
+	drpc->inprog = 0;
+	ret = EIO;
+	if (nfs_pnfsiothreads > 0) {
+		ret = nfs_pnfsio(start_writedsmir, drpc);
+		NFSCL_DEBUG(4, "nfsio_writedsmir: nfs_pnfsio=%d\n", ret);
+	}
+	if (ret != 0)
+		error = nfsrpc_writedsmir(vp, iomode, must_commit, stateidp,
+		    dsp, off, len, fhp, m, vers, minorvers, cred, p);
+	NFSCL_DEBUG(4, "nfsio_writedsmir: error=%d\n", error);
+	return (error);
+}
+
+/*
  * Free up the nfsclds structure.
  */
 void
@@ -6432,6 +6570,56 @@ nfsmout:
 	if (error == 0 && nd->nd_repstat != 0)
 		error = nd->nd_repstat;
 	mbuf_freem(nd->nd_mrep);
+	return (error);
+}
+
+/*
+ * Start up the thread that will execute nfsrpc_commitds().
+ */
+static void
+start_commitds(void *arg, int pending)
+{
+	struct nfsclwritedsdorpc *drpc;
+
+	drpc = (struct nfsclwritedsdorpc *)arg;
+	drpc->err = nfsrpc_commitds(drpc->vp, drpc->off, drpc->len,
+	    drpc->dsp, drpc->fhp, drpc->vers, drpc->minorvers, drpc->cred,
+	    drpc->p);
+	drpc->done = 1;
+	NFSCL_DEBUG(4, "start_commitds: err=%d\n", drpc->err);
+}
+
+/*
+ * Set up the commit DS mirror call for the pNFS I/O thread.
+ */
+static int
+nfsio_commitds(vnode_t vp, uint64_t offset, int cnt, struct nfsclds *dsp,
+    struct nfsfh *fhp, int vers, int minorvers,
+    struct nfsclwritedsdorpc *drpc, struct ucred *cred, NFSPROC_T *p)
+{
+	int error, ret;
+
+	error = 0;
+	drpc->done = 0;
+	drpc->vp = vp;
+	drpc->off = offset;
+	drpc->len = cnt;
+	drpc->dsp = dsp;
+	drpc->fhp = fhp;
+	drpc->vers = vers;
+	drpc->minorvers = minorvers;
+	drpc->cred = cred;
+	drpc->p = p;
+	drpc->inprog = 0;
+	ret = EIO;
+	if (nfs_pnfsiothreads > 0) {
+		ret = nfs_pnfsio(start_commitds, drpc);
+		NFSCL_DEBUG(4, "nfsio_commitds: nfs_pnfsio=%d\n", ret);
+	}
+	if (ret != 0)
+		error = nfsrpc_commitds(vp, offset, cnt, dsp, fhp, vers,
+		    minorvers, cred, p);
+	NFSCL_DEBUG(4, "nfsio_commitds: error=%d\n", error);
 	return (error);
 }
 

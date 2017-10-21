@@ -143,10 +143,23 @@ sendfile_free_page(vm_page_t pg, bool nocache)
 			vm_page_free(pg);
 		else if (nocache) {
 			if (!vm_page_xbusied(pg) && VM_OBJECT_TRYWLOCK(obj)) {
-				vm_page_free(pg);
+				bool freed;
+
+				/* Only free unmapped pages. */
+				if (obj->ref_count == 0 ||
+				    !pmap_page_is_mapped(pg))
+					/*
+					 * The busy test before the object is
+					 * locked cannot be relied upon.
+					 */
+					freed = vm_page_try_to_free(pg);
+				else
+					freed = false;
 				VM_OBJECT_WUNLOCK(obj);
+				if (!freed)
+					vm_page_deactivate_noreuse(pg);
 			} else
-				vm_page_deactivate(pg);
+				vm_page_deactivate_noreuse(pg);
 		}
 	}
 	vm_page_unlock(pg);
@@ -507,8 +520,6 @@ sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 	*so = (*sock_fp)->f_data;
 	if ((*so)->so_type != SOCK_STREAM)
 		return (EINVAL);
-	if (((*so)->so_state & SS_ISCONNECTED) == 0)
-		return (ENOTCONN);
 	return (0);
 }
 
@@ -617,6 +628,12 @@ retry_space:
 			SOCKBUF_UNLOCK(&so->so_snd);
 			goto done;
 		}
+		if ((so->so_state & SS_ISCONNECTED) == 0) {
+			SOCKBUF_UNLOCK(&so->so_snd);
+			error = ENOTCONN;
+			goto done;
+		}
+
 		space = sbspace(&so->so_snd);
 		if (space < rem &&
 		    (space <= 0 ||

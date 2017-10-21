@@ -992,6 +992,7 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	}
 #ifdef EXT2FS_DEBUG
 	ext2_print_inode(ip);
+	ext4_ext_print_extent_tree_status(ip);
 #endif
 	bqrelse(bp);
 

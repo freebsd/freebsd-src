@@ -99,6 +99,7 @@ device		ahci			# AHCI-compatible SATA controllers
 # PCI
 options 	NEW_PCIB
 device		pci
+device		pci_host_generic
 
 # PCI NICs
 device		re			# RealTek 8139C+/8169/8169S/8110S
@@ -106,6 +107,7 @@ device		re			# RealTek 8139C+/8169/8169S/8110S
 # VirtIO
 device		virtio
 device		virtio_mmio
+device		virtio_pci
 device		virtio_blk
 device		vtnet
 

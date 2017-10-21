@@ -95,7 +95,7 @@ void efi_time_fini(void);
 EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab);
 
 EFI_STATUS main(int argc, CHAR16 *argv[]);
-void exit(EFI_STATUS status) __dead2;
+void efi_exit(EFI_STATUS status) __dead2;
 void delay(int usecs);
 
 /* EFI environment initialization. */

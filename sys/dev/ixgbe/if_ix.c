@@ -469,9 +469,6 @@ ixgbe_initialize_rss_mapping(struct adapter *adapter)
 		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_EX_TCP;
 	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4)
 		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4_UDP;
-	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4_EX)
-		device_printf(adapter->dev, "%s: RSS_HASHTYPE_RSS_UDP_IPV4_EX defined, but not supported\n",
-		    __func__);
 	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6)
 		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
 	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6_EX)

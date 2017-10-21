@@ -246,7 +246,7 @@ static void
 nvme_sim_poll(struct cam_sim *sim)
 {
 
-	nvme_ctrlr_intx_handler(sim2ctrlr(sim));
+	nvme_ctrlr_poll(sim2ctrlr(sim));
 }
 
 static void *

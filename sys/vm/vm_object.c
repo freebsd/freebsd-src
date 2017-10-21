@@ -715,6 +715,7 @@ vm_object_terminate_pages(vm_object_t object)
 	vm_page_t p, p_next;
 	struct mtx *mtx, *mtx1;
 	struct vm_pagequeue *pq, *pq1;
+	int dequeued;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
@@ -739,6 +740,7 @@ vm_object_terminate_pages(vm_object_t object)
 				if (mtx != NULL)
 					mtx_unlock(mtx);
 				if (pq != NULL) {
+					vm_pagequeue_cnt_add(pq, dequeued);
 					vm_pagequeue_unlock(pq);
 					pq = NULL;
 				}
@@ -756,19 +758,27 @@ vm_object_terminate_pages(vm_object_t object)
 			    "page %p is not queued", p));
 			pq1 = vm_page_pagequeue(p);
 			if (pq != pq1) {
-				if (pq != NULL)
+				if (pq != NULL) {
+					vm_pagequeue_cnt_add(pq, dequeued);
 					vm_pagequeue_unlock(pq);
+				}
 				pq = pq1;
 				vm_pagequeue_lock(pq);
+				dequeued = 0;
 			}
+			p->queue = PQ_NONE;
+			TAILQ_REMOVE(&pq->pq_pl, p, plinks.q);
+			dequeued--;
 		}
 		if (vm_page_free_prep(p, true))
 			continue;
 unlist:
 		TAILQ_REMOVE(&object->memq, p, listq);
 	}
-	if (pq != NULL)
+	if (pq != NULL) {
+		vm_pagequeue_cnt_add(pq, dequeued);
 		vm_pagequeue_unlock(pq);
+	}
 	if (mtx != NULL)
 		mtx_unlock(mtx);
 

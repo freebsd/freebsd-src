@@ -500,7 +500,7 @@ user_ldt_free(struct thread *td)
 	struct mdproc *mdp = &p->p_md;
 	struct proc_ldt *pldt;
 
-	mtx_assert(&dt_lock, MA_OWNED);
+	mtx_lock(&dt_lock);
 	if ((pldt = mdp->md_ldt) == NULL) {
 		mtx_unlock(&dt_lock);
 		return;
