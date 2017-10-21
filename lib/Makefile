@@ -157,9 +157,7 @@ _libclang_rt=	libclang_rt
 .if ${MK_LIBCPLUSPLUS} != "no"
 _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
-.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 _libcplusplus+=	libc++experimental
-.endif
 .endif
 
 SUBDIR.${MK_EFI}+=	libefivar
