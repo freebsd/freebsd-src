@@ -486,7 +486,7 @@ struct qlnx_host {
 typedef struct qlnx_host qlnx_host_t;
 
 /* note that align has to be a power of 2 */
-#define QL_ALIGN(size, align) (size + (align - 1)) & ~(align - 1);
+#define QL_ALIGN(size, align) (((size) + ((align) - 1)) & (~((align) - 1)))
 #define QL_MIN(x, y) ((x < y) ? x : y)
 
 #define QL_RUNNING(ifp) \

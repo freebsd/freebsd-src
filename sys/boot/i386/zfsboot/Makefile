@@ -1,10 +1,11 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-MK_COVERAGE=	no
+LOADER_GELI_SUPPORT=no
+
+.include "../Makefile.inc"
 
 .PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common \
-		${.CURDIR}/../../common ${.CURDIR}/../../../crypto/skein
+		${.CURDIR}/../../../crypto/skein ${SASRC}
 
 FILES=		zfsboot
 MAN=		zfsboot.8
@@ -19,7 +20,7 @@ REL1=	0x700
 ORG1=	0x7c00
 ORG2=	0x2000
 
-CFLAGS=	-DBOOTPROG=\"zfsboot\" \
+CFLAGS+=-DBOOTPROG=\"zfsboot\" \
 	-O1 \
 	-DZFS -DBOOT2 \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \

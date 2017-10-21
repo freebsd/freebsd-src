@@ -55,9 +55,6 @@
 #include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2_extattr.h>
 
-static int ext2_indirtrunc(struct inode *, daddr_t, daddr_t,
-	    daddr_t, int, e4fs_daddr_t *);
-
 /*
  * Update the access, modified, and inode change times as specified by the
  * IN_ACCESS, IN_UPDATE, and IN_CHANGE flags respectively.  Write the inode
@@ -107,12 +104,123 @@ ext2_update(struct vnode *vp, int waitfor)
 #define	SINGLE	0	/* index of single indirect block */
 #define	DOUBLE	1	/* index of double indirect block */
 #define	TRIPLE	2	/* index of triple indirect block */
+
+/*
+ * Release blocks associated with the inode ip and stored in the indirect
+ * block bn.  Blocks are free'd in LIFO order up to (but not including)
+ * lastbn.  If level is greater than SINGLE, the block is an indirect block
+ * and recursive calls to indirtrunc must be used to cleanse other indirect
+ * blocks.
+ *
+ * NB: triple indirect blocks are untested.
+ */
+static int
+ext2_indirtrunc(struct inode *ip, daddr_t lbn, daddr_t dbn,
+    daddr_t lastbn, int level, e4fs_daddr_t *countp)
+{
+	struct buf *bp;
+	struct m_ext2fs *fs = ip->i_e2fs;
+	struct vnode *vp;
+	e2fs_daddr_t *bap, *copy;
+	int i, nblocks, error = 0, allerror = 0;
+	e2fs_lbn_t nb, nlbn, last;
+	e4fs_daddr_t blkcount, factor, blocksreleased = 0;
+
+	/*
+	 * Calculate index in current block of last
+	 * block to be kept.  -1 indicates the entire
+	 * block so we need not calculate the index.
+	 */
+	factor = 1;
+	for (i = SINGLE; i < level; i++)
+		factor *= NINDIR(fs);
+	last = lastbn;
+	if (lastbn > 0)
+		last /= factor;
+	nblocks = btodb(fs->e2fs_bsize);
+	/*
+	 * Get buffer of block pointers, zero those entries corresponding
+	 * to blocks to be free'd, and update on disk copy first.  Since
+	 * double(triple) indirect before single(double) indirect, calls
+	 * to bmap on these blocks will fail.  However, we already have
+	 * the on disk address, so we have to set the b_blkno field
+	 * explicitly instead of letting bread do everything for us.
+	 */
+	vp = ITOV(ip);
+	bp = getblk(vp, lbn, (int)fs->e2fs_bsize, 0, 0, 0);
+	if ((bp->b_flags & (B_DONE | B_DELWRI)) == 0) {
+		bp->b_iocmd = BIO_READ;
+		if (bp->b_bcount > bp->b_bufsize)
+			panic("ext2_indirtrunc: bad buffer size");
+		bp->b_blkno = dbn;
+		vfs_busy_pages(bp, 0);
+		bp->b_iooffset = dbtob(bp->b_blkno);
+		bstrategy(bp);
+		error = bufwait(bp);
+	}
+	if (error) {
+		brelse(bp);
+		*countp = 0;
+		return (error);
+	}
+	bap = (e2fs_daddr_t *)bp->b_data;
+	copy = malloc(fs->e2fs_bsize, M_TEMP, M_WAITOK);
+	bcopy((caddr_t)bap, (caddr_t)copy, (u_int)fs->e2fs_bsize);
+	bzero((caddr_t)&bap[last + 1],
+	    (NINDIR(fs) - (last + 1)) * sizeof(e2fs_daddr_t));
+	if (last == -1)
+		bp->b_flags |= B_INVAL;
+	if (DOINGASYNC(vp)) {
+		bdwrite(bp);
+	} else {
+		error = bwrite(bp);
+		if (error)
+			allerror = error;
+	}
+	bap = copy;
+
+	/*
+	 * Recursively free totally unused blocks.
+	 */
+	for (i = NINDIR(fs) - 1, nlbn = lbn + 1 - i * factor; i > last;
+	    i--, nlbn += factor) {
+		nb = bap[i];
+		if (nb == 0)
+			continue;
+		if (level > SINGLE) {
+			if ((error = ext2_indirtrunc(ip, nlbn,
+			    fsbtodb(fs, nb), (int32_t)-1, level - 1, &blkcount)) != 0)
+				allerror = error;
+			blocksreleased += blkcount;
+		}
+		ext2_blkfree(ip, nb, fs->e2fs_bsize);
+		blocksreleased += nblocks;
+	}
+
+	/*
+	 * Recursively free last partial block.
+	 */
+	if (level > SINGLE && lastbn >= 0) {
+		last = lastbn % factor;
+		nb = bap[i];
+		if (nb != 0) {
+			if ((error = ext2_indirtrunc(ip, nlbn, fsbtodb(fs, nb),
+			    last, level - 1, &blkcount)) != 0)
+				allerror = error;
+			blocksreleased += blkcount;
+		}
+	}
+	free(copy, M_TEMP);
+	*countp = blocksreleased;
+	return (allerror);
+}
+
 /*
  * Truncate the inode oip to at most length size, freeing the
  * disk blocks.
  */
-int
-ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
+static int
+ext2_ind_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
     struct thread *td)
 {
 	struct vnode *ovp = vp;
@@ -136,26 +244,6 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 	bo = &ovp->v_bufobj;
 #endif
 
-	ASSERT_VOP_LOCKED(vp, "ext2_truncate");
-
-	if (length < 0)
-		return (EINVAL);
-
-	if (ovp->v_type == VLNK &&
-	    oip->i_size < ovp->v_mount->mnt_maxsymlinklen) {
-#ifdef INVARIANTS
-		if (length != 0)
-			panic("ext2_truncate: partial truncate of symlink");
-#endif
-		bzero((char *)&oip->i_shortlink, (u_int)oip->i_size);
-		oip->i_size = 0;
-		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (ext2_update(ovp, 1));
-	}
-	if (oip->i_size == length) {
-		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (ext2_update(ovp, 0));
-	}
 	fs = oip->i_e2fs;
 	osize = oip->i_size;
 	/*
@@ -365,115 +453,131 @@ done:
 	return (allerror);
 }
 
-/*
- * Release blocks associated with the inode ip and stored in the indirect
- * block bn.  Blocks are free'd in LIFO order up to (but not including)
- * lastbn.  If level is greater than SINGLE, the block is an indirect block
- * and recursive calls to indirtrunc must be used to cleanse other indirect
- * blocks.
- *
- * NB: triple indirect blocks are untested.
- */
-
 static int
-ext2_indirtrunc(struct inode *ip, daddr_t lbn, daddr_t dbn,
-    daddr_t lastbn, int level, e4fs_daddr_t *countp)
+ext2_ext_truncate(struct vnode *vp, off_t length, int flags,
+    struct ucred *cred, struct thread *td)
 {
+	struct vnode *ovp = vp;
+	int32_t lastblock;
+	struct m_ext2fs *fs;
+	struct inode *oip;
 	struct buf *bp;
-	struct m_ext2fs *fs = ip->i_e2fs;
-	struct vnode *vp;
-	e2fs_daddr_t *bap, *copy;
-	int i, nblocks, error = 0, allerror = 0;
-	e2fs_lbn_t nb, nlbn, last;
-	e4fs_daddr_t blkcount, factor, blocksreleased = 0;
+	uint32_t lbn, offset;
+	int error, size;
+	off_t osize;
 
-	/*
-	 * Calculate index in current block of last
-	 * block to be kept.  -1 indicates the entire
-	 * block so we need not calculate the index.
-	 */
-	factor = 1;
-	for (i = SINGLE; i < level; i++)
-		factor *= NINDIR(fs);
-	last = lastbn;
-	if (lastbn > 0)
-		last /= factor;
-	nblocks = btodb(fs->e2fs_bsize);
-	/*
-	 * Get buffer of block pointers, zero those entries corresponding
-	 * to blocks to be free'd, and update on disk copy first.  Since
-	 * double(triple) indirect before single(double) indirect, calls
-	 * to bmap on these blocks will fail.  However, we already have
-	 * the on disk address, so we have to set the b_blkno field
-	 * explicitly instead of letting bread do everything for us.
-	 */
-	vp = ITOV(ip);
-	bp = getblk(vp, lbn, (int)fs->e2fs_bsize, 0, 0, 0);
-	if ((bp->b_flags & (B_DONE | B_DELWRI)) == 0) {
-		bp->b_iocmd = BIO_READ;
-		if (bp->b_bcount > bp->b_bufsize)
-			panic("ext2_indirtrunc: bad buffer size");
-		bp->b_blkno = dbn;
-		vfs_busy_pages(bp, 0);
-		bp->b_iooffset = dbtob(bp->b_blkno);
-		bstrategy(bp);
-		error = bufwait(bp);
+	oip = VTOI(ovp);
+	fs = oip->i_e2fs;
+	osize = oip->i_size;
+
+	if (osize < length) {
+		if (length > oip->i_e2fs->e2fs_maxfilesize) {
+			return (EFBIG);
+		}
+		vnode_pager_setsize(ovp, length);
+		offset = blkoff(fs, length - 1);
+		lbn = lblkno(fs, length - 1);
+		flags |= BA_CLRBUF;
+		error = ext2_balloc(oip, lbn, offset + 1, cred, &bp, flags);
+		if (error) {
+			vnode_pager_setsize(vp, osize);
+			return (error);
+		}
+		oip->i_size = length;
+		if (bp->b_bufsize == fs->e2fs_bsize)
+			bp->b_flags |= B_CLUSTEROK;
+		if (flags & IO_SYNC)
+			bwrite(bp);
+		else if (DOINGASYNC(ovp))
+			bdwrite(bp);
+		else
+			bawrite(bp);
+		oip->i_flag |= IN_CHANGE | IN_UPDATE;
+		return (ext2_update(ovp, !DOINGASYNC(ovp)));
 	}
-	if (error) {
-		brelse(bp);
-		*countp = 0;
+
+	lastblock = (length + fs->e2fs_bsize - 1) / fs->e2fs_bsize;
+	error = ext4_ext_remove_space(oip, lastblock, flags, cred, td);
+	if (error)
 		return (error);
-	}
-	bap = (e2fs_daddr_t *)bp->b_data;
-	copy = malloc(fs->e2fs_bsize, M_TEMP, M_WAITOK);
-	bcopy((caddr_t)bap, (caddr_t)copy, (u_int)fs->e2fs_bsize);
-	bzero((caddr_t)&bap[last + 1],
-	    (NINDIR(fs) - (last + 1)) * sizeof(e2fs_daddr_t));
-	if (last == -1)
-		bp->b_flags |= B_INVAL;
-	if (DOINGASYNC(vp)) {
-		bdwrite(bp);
+
+	offset = blkoff(fs, length);
+	if (offset == 0) {
+		oip->i_size = length;
 	} else {
-		error = bwrite(bp);
-		if (error)
-			allerror = error;
-	}
-	bap = copy;
-
-	/*
-	 * Recursively free totally unused blocks.
-	 */
-	for (i = NINDIR(fs) - 1, nlbn = lbn + 1 - i * factor; i > last;
-	    i--, nlbn += factor) {
-		nb = bap[i];
-		if (nb == 0)
-			continue;
-		if (level > SINGLE) {
-			if ((error = ext2_indirtrunc(ip, nlbn,
-			    fsbtodb(fs, nb), (int32_t)-1, level - 1, &blkcount)) != 0)
-				allerror = error;
-			blocksreleased += blkcount;
+		lbn = lblkno(fs, length);
+		flags |= BA_CLRBUF;
+		error = ext2_balloc(oip, lbn, offset, cred, &bp, flags);
+		if (error) {
+			return (error);
 		}
-		ext2_blkfree(ip, nb, fs->e2fs_bsize);
-		blocksreleased += nblocks;
+		oip->i_size = length;
+		size = blksize(fs, oip, lbn);
+		bzero((char *)bp->b_data + offset, (u_int)(size - offset));
+		allocbuf(bp, size);
+		if (bp->b_bufsize == fs->e2fs_bsize)
+			bp->b_flags |= B_CLUSTEROK;
+		if (flags & IO_SYNC)
+			bwrite(bp);
+		else if (DOINGASYNC(ovp))
+			bdwrite(bp);
+		else
+			bawrite(bp);
 	}
 
-	/*
-	 * Recursively free last partial block.
-	 */
-	if (level > SINGLE && lastbn >= 0) {
-		last = lastbn % factor;
-		nb = bap[i];
-		if (nb != 0) {
-			if ((error = ext2_indirtrunc(ip, nlbn, fsbtodb(fs, nb),
-			    last, level - 1, &blkcount)) != 0)
-				allerror = error;
-			blocksreleased += blkcount;
-		}
+	oip->i_size = osize;
+	error = vtruncbuf(ovp, cred, length, (int)fs->e2fs_bsize);
+	if (error)
+		return (error);
+
+	vnode_pager_setsize(ovp, length);
+
+	oip->i_size = length;
+	oip->i_flag |= IN_CHANGE | IN_UPDATE;
+	error = ext2_update(ovp, !DOINGASYNC(ovp));
+
+	return (error);
+}
+
+/*
+ * Truncate the inode ip to at most length size, freeing the
+ * disk blocks.
+ */
+int
+ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
+    struct thread *td)
+{
+	struct inode *ip;
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, "ext2_truncate");
+
+	if (length < 0)
+		return (EINVAL);
+
+	ip = VTOI(vp);
+	if (vp->v_type == VLNK &&
+	    ip->i_size < vp->v_mount->mnt_maxsymlinklen) {
+#ifdef INVARIANTS
+		if (length != 0)
+			panic("ext2_truncate: partial truncate of symlink");
+#endif
+		bzero((char *)&ip->i_shortlink, (u_int)ip->i_size);
+		ip->i_size = 0;
+		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		return (ext2_update(vp, 1));
 	}
-	free(copy, M_TEMP);
-	*countp = blocksreleased;
-	return (allerror);
+	if (ip->i_size == length) {
+		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		return (ext2_update(vp, 0));
+	}
+
+	if (ip->i_flag & IN_E4EXTENTS)
+		error = ext2_ext_truncate(vp, length, flags, cred, td);
+	else
+		error = ext2_ind_truncate(vp, length, flags, cred, td);
+
+	return (error);
 }
 
 /*
@@ -495,7 +599,8 @@ ext2_inactive(struct vop_inactive_args *ap)
 	if (ip->i_nlink <= 0) {
 		ext2_extattr_free(ip);
 		error = ext2_truncate(vp, (off_t)0, 0, NOCRED, td);
-		ip->i_rdev = 0;
+		if (!(ip->i_flag & IN_E4EXTENTS))
+			ip->i_rdev = 0;
 		mode = ip->i_mode;
 		ip->i_mode = 0;
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;

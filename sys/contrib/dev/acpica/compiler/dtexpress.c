@@ -150,7 +150,6 @@
  *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/compiler/dtcompiler.h>
 #include "dtparser.y.h"
 
 #define _COMPONENT          DT_COMPILER

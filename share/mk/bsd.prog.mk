@@ -102,6 +102,10 @@ PROGNAME?=	${PROG}
 
 OBJS+=  ${SRCS:N*.h:${OBJS_SRCS_FILTER:ts:}:S/$/.o/g}
 
+# LLVM bitcode / textual IR representations of the program
+BCOBJS+=${SRCS:N*.[hsS]:N*.asm:${OBJS_SRCS_FILTER:ts:}:S/$/.bco/g}
+LLOBJS+=${SRCS:N*.[hsS]:N*.asm:${OBJS_SRCS_FILTER:ts:}:S/$/.llo/g}
+
 .if target(beforelinking)
 beforelinking: ${OBJS}
 ${PROG_FULL}: beforelinking
@@ -132,7 +136,10 @@ SRCS=	${PROG}.c
 # - the name of the object gets put into the executable symbol table instead of
 #   the name of a variable temporary object.
 # - it's useful to keep objects around for crunching.
-OBJS+=	${PROG}.o
+OBJS+=		${PROG}.o
+BCOBJS+=	${PROG}.bc
+LLOBJS+=	${PROG}.ll
+CLEANFILES+=	${PROG}.o ${PROG}.bc ${PROG}.ll
 
 .if target(beforelinking)
 beforelinking: ${OBJS}
@@ -163,16 +170,13 @@ ${PROGNAME}.debug: ${PROG_FULL}
 .endif
 
 .if defined(LLVM_LINK)
-# LLVM bitcode / textual IR representations of the program
-BCOBJS=	${OBJS:.o=.bco}
-LLOBJS=	${OBJS:.o=.llo}
-
 ${PROG_FULL}.bc: ${BCOBJS}
 	${LLVM_LINK} -o ${.TARGET} ${BCOBJS}
 
 ${PROG_FULL}.ll: ${LLOBJS}
 	${LLVM_LINK} -S -o ${.TARGET} ${LLOBJS}
 
+CLEANFILES+=	${PROG_FULL}.bc ${PROG_FULL}.ll
 .endif # defined(LLVM_LINK)
 
 .if	${MK_MAN} != "no" && !defined(MAN) && \
@@ -196,7 +200,7 @@ all: all-man
 .if defined(PROG)
 CLEANFILES+= ${PROG} ${PROG}.bc ${PROG}.ll
 .if ${MK_DEBUG_FILES} != "no"
-CLEANFILES+= ${PROG_FULL} ${PROG_FULL}.bc ${PROGNAME}.debug ${PROG_FULL}.ll
+CLEANFILES+= ${PROG_FULL} ${PROGNAME}.debug
 .endif
 .endif
 

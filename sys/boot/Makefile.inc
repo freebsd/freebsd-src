@@ -2,16 +2,12 @@
 
 .include <src.opts.mk>
 
+MK_COVERAGE=	no
+
+.include "defs.mk"
+
 .if !defined(__BOOT_MAKEFILE_INC__)
 __BOOT_MAKEFILE_INC__=${MFILE}
-
-SASRC=${SRCTOP}/lib/libstand
-# Normal standalone library
-LIBSA=${OBJTOP}/sys/boot/libsa/libstand.a
-# Standalone library compiled for 32-bit version of the processor
-LIBSA32=${OBJTOP}/sys/boot/libstand32/libstand.a
-# Standalone library compiled for userboot
-LIBSAU=${OBJTOP}/sys/boot/userboot/libstand/libstand.a
 
 CFLAGS+=-I${SASRC}
 

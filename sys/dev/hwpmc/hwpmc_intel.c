@@ -179,8 +179,12 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_IVYBRIDGE_XEON;
 			nclasses = 3;
 			break;
+			/* Skylake */
 		case 0x4e:
 		case 0x5e:
+			/* Kabylake */
+		case 0x8E:	/* Per Intel document 325462-063US July 2017. */
+		case 0x9E:	/* Per Intel document 325462-063US July 2017. */
 			cputype = PMC_CPU_INTEL_SKYLAKE;
 			nclasses = 3;
 			break;

@@ -66,63 +66,22 @@ ext2_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
 	struct m_ext2fs *fs;
 	struct buf *bp;
 	e2fs_lbn_t lbn;
-	int bsize, error;
-	daddr_t newblk;
-	struct ext4_extent *ep;
-	struct ext4_extent_path path;
+	int error, bsize;
 
 	ip = VTOI(vp);
 	fs = ip->i_e2fs;
 	lbn = lblkno(fs, offset);
 	bsize = blksize(fs, ip, lbn);
-	*bpp = NULL;
 
-	/*
-	 * IN_E4EXTENTS requires special treatment as we can otherwise fall
-	 * back to the normal path.
-	 */
-	if (!(ip->i_flag & IN_E4EXTENTS))
-		goto normal;
-
-	memset(&path, 0, sizeof(path));
-	if (ext4_ext_find_extent(fs, ip, lbn, &path) == NULL)
-		goto normal;
-	ep = path.ep_ext;
-	if (ep == NULL)
-		goto normal;
-
-	newblk = lbn - ep->e_blk +
-	    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32);
-
-	if (path.ep_bp != NULL) {
-		brelse(path.ep_bp);
-		path.ep_bp = NULL;
-	}
-	error = bread(ip->i_devvp, fsbtodb(fs, newblk), bsize, NOCRED, &bp);
-	if (error != 0) {
+	if ((error = bread(vp, lbn, bsize, NOCRED, &bp)) != 0) {
 		brelse(bp);
 		return (error);
 	}
 	if (res)
 		*res = (char *)bp->b_data + blkoff(fs, offset);
-	/*
-	 * If IN_E4EXTENTS is enabled we would get a wrong offset so
-	 * reset b_offset here.
-	 */
-	bp->b_offset = lbn * bsize;
-	*bpp = bp;
-	return (0);
 
-normal:
-	if (*bpp == NULL) {
-		if ((error = bread(vp, lbn, bsize, NOCRED, &bp)) != 0) {
-			brelse(bp);
-			return (error);
-		}
-		if (res)
-			*res = (char *)bp->b_data + blkoff(fs, offset);
-		*bpp = bp;
-	}
+	*bpp = bp;
+
 	return (0);
 }
 

@@ -189,7 +189,7 @@ nda_nvme_flush(struct nda_softc *softc, struct ccb_nvmeio *nvmeio)
 	    CAM_DIR_NONE,	/* flags */
 	    NULL,		/* data_ptr */
 	    0,			/* dxfer_len */
-	    nda_default_timeout * 1000); /* timeout 5s */
+	    nda_default_timeout * 1000); /* timeout 30s */
 	nvme_ns_flush_cmd(&nvmeio->cmd, softc->nsid);
 }
 
@@ -203,7 +203,7 @@ nda_nvme_trim(struct nda_softc *softc, struct ccb_nvmeio *nvmeio,
 	    CAM_DIR_OUT,	/* flags */
 	    payload,		/* data_ptr */
 	    num_ranges * sizeof(struct nvme_dsm_range), /* dxfer_len */
-	    nda_default_timeout * 1000); /* timeout 5s */
+	    nda_default_timeout * 1000); /* timeout 30s */
 	nvme_ns_trim_cmd(&nvmeio->cmd, softc->nsid, num_ranges);
 }
 
@@ -217,7 +217,7 @@ nda_nvme_write(struct nda_softc *softc, struct ccb_nvmeio *nvmeio,
 	    CAM_DIR_OUT,	/* flags */
 	    payload,		/* data_ptr */
 	    len,		/* dxfer_len */
-	    nda_default_timeout * 1000); /* timeout 5s */
+	    nda_default_timeout * 1000); /* timeout 30s */
 	nvme_ns_write_cmd(&nvmeio->cmd, softc->nsid, lba, count);
 }
 
@@ -246,7 +246,7 @@ nda_nvme_rw_bio(struct nda_softc *softc, struct ccb_nvmeio *nvmeio,
 	    flags,		/* flags */
 	    payload,		/* data_ptr */
 	    bp->bio_bcount,	/* dxfer_len */
-	    nda_default_timeout * 1000);		/* timeout 5s */
+	    nda_default_timeout * 1000); /* timeout 30s */
 	nvme_ns_rw_cmd(&nvmeio->cmd, rwcmd, softc->nsid, lba, count);
 }
 
@@ -379,7 +379,7 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	struct	    cam_periph *periph;
 	struct	    nda_softc *softc;
 	u_int	    secsize;
-	union	    ccb ccb;
+	struct ccb_nvmeio nvmeio;
 	struct	    disk *dp;
 	uint64_t    lba;
 	uint32_t    count;
@@ -398,16 +398,18 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		return (ENXIO);
 	}
 
+	/* xpt_get_ccb returns a zero'd allocation for the ccb, mimic that here */
+	memset(&nvmeio, 0, sizeof(nvmeio));
 	if (length > 0) {
-		xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-		ccb.ccb_h.ccb_state = NDA_CCB_DUMP;
-		nda_nvme_write(softc, &ccb.nvmeio, virtual, lba, length, count);
-		xpt_polled_action(&ccb);
+		xpt_setup_ccb(&nvmeio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+		nvmeio.ccb_h.ccb_state = NDA_CCB_DUMP;
+		nda_nvme_write(softc, &nvmeio, virtual, lba, length, count);
+		xpt_polled_action((union ccb *)&nvmeio);
 
-		error = cam_periph_error(&ccb,
+		error = cam_periph_error((union ccb *)&nvmeio,
 		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
-		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
+		if ((nvmeio.ccb_h.status & CAM_DEV_QFRZN) != 0)
+			cam_release_devq(nvmeio.ccb_h.path, /*relsim_flags*/0,
 			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
 		if (error != 0)
 			printf("Aborting dump due to I/O error.\n");
@@ -417,16 +419,16 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	}
 	
 	/* Flush */
-	xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	xpt_setup_ccb(&nvmeio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 
-	ccb.ccb_h.ccb_state = NDA_CCB_DUMP;
-	nda_nvme_flush(softc, &ccb.nvmeio);
-	xpt_polled_action(&ccb);
+	nvmeio.ccb_h.ccb_state = NDA_CCB_DUMP;
+	nda_nvme_flush(softc, &nvmeio);
+	xpt_polled_action((union ccb *)&nvmeio);
 
-	error = cam_periph_error(&ccb,
+	error = cam_periph_error((union ccb *)&nvmeio,
 	    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
-	if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
+	if ((nvmeio.ccb_h.status & CAM_DEV_QFRZN) != 0)
+		cam_release_devq(nvmeio.ccb_h.path, /*relsim_flags*/0,
 		    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
 	if (error != 0)
 		xpt_print(periph->path, "flush cmd failed\n");

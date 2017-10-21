@@ -19,60 +19,17 @@ SRCS=		start.S conf.c self_reloc.c vers.c
 CWARNFLAGS.self_reloc.c+=	-Wno-error=maybe-uninitialized
 .endif
 
-.if !defined(LOADER_NO_DISK_SUPPORT)
-LOADER_DISK_SUPPORT?=	yes
-.else
-LOADER_DISK_SUPPORT=	no
-.endif
 LOADER_UFS_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	no
+LOADER_MSDOS_SUPPORT?=	no
 LOADER_EXT2FS_SUPPORT?=	no
-.if ${MK_NAND} != "no"
-LOADER_NANDFS_SUPPORT?= yes
-.else
-LOADER_NANDFS_SUPPORT?= no
-.endif
 LOADER_NET_SUPPORT?=	yes
 LOADER_NFS_SUPPORT?=	yes
 LOADER_TFTP_SUPPORT?=	no
 LOADER_GZIP_SUPPORT?=	no
 LOADER_BZIP2_SUPPORT?=	no
-.if ${MK_FDT} != "no"
-LOADER_FDT_SUPPORT=	yes
-.else
-LOADER_FDT_SUPPORT=	no
-.endif
+LOADER_FDT_SUPPORT=	${MK_FDT}
 
-.if ${LOADER_DISK_SUPPORT} == "yes"
-CFLAGS+=	-DLOADER_DISK_SUPPORT
-.endif
-.if ${LOADER_UFS_SUPPORT} == "yes"
-CFLAGS+=	-DLOADER_UFS_SUPPORT
-.endif
-.if ${LOADER_CD9660_SUPPORT} == "yes"
-CFLAGS+=	-DLOADER_CD9660_SUPPORT
-.endif
-.if ${LOADER_EXT2FS_SUPPORT} == "yes"
-CFLAGS+=	-DLOADER_EXT2FS_SUPPORT
-.endif
-.if ${LOADER_NANDFS_SUPPORT} == "yes"
-CFLAGS+=	-DLOADER_NANDFS_SUPPORT
-.endif
-.if ${LOADER_GZIP_SUPPORT} == "yes"
-CFLAGS+=	-DLOADER_GZIP_SUPPORT
-.endif
-.if ${LOADER_BZIP2_SUPPORT} == "yes"
-CFLAGS+=	-DLOADER_BZIP2_SUPPORT
-.endif
-.if ${LOADER_NET_SUPPORT} == "yes"
-CFLAGS+=	-DLOADER_NET_SUPPORT
-.endif
-.if ${LOADER_NFS_SUPPORT} == "yes"
-CFLAGS+=	-DLOADER_NFS_SUPPORT
-.endif
-.if ${LOADER_TFTP_SUPPORT} == "yes"
-CFLAGS+=	-DLOADER_TFTP_SUPPORT
-.endif
 .if ${LOADER_FDT_SUPPORT} == "yes"
 CFLAGS+=	-I${.CURDIR}/../../fdt
 CFLAGS+=	-I${.OBJDIR}/../../fdt
@@ -81,18 +38,8 @@ LIBUBOOT_FDT=	${.OBJDIR}/../../uboot/fdt/libuboot_fdt.a
 LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
 .endif
 
-.if ${MK_FORTH} != "no"
-# Enable BootForth
-BOOT_FORTH=	yes
-CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl
-CFLAGS+=	-I${.CURDIR}/../../ficl/arm
-LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-.endif
-
 # Always add MI sources
-.PATH:		${.CURDIR}/../../common
-.include	"${.CURDIR}/../../common/Makefile.inc"
-CFLAGS+=	-I${.CURDIR}/../../common
+.include	"../../loader.mk"
 CFLAGS+=	-I.
 
 CLEANFILES+=	loader.help
@@ -124,7 +71,7 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 loader.help: help.common help.uboot ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \
-	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
+	    awk -f ${LDR_MI}/merge_help.awk > ${.TARGET}
 
 ldscript.abs:
 	echo "UBLDR_LOADADDR = ${UBLDR_LOADADDR};" >${.TARGET}

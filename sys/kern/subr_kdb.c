@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 
-int kdb_active = 0;
+bool __read_frequently kdb_active = 0;
 static void *kdb_jmpbufp = NULL;
 struct kdb_dbbe *kdb_dbbe = NULL;
 static struct pcb kdb_pcb;

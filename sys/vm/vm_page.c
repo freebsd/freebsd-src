@@ -1588,6 +1588,7 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex, int req,
 {
 	vm_page_t m;
 	int flags, req_class;
+	u_int free_count;
 
 	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0) &&
 	    (object != NULL || (req & VM_ALLOC_SBUSY) == 0) &&
@@ -1655,7 +1656,7 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex, int req,
 	 *  At this point we had better have found a good page.
 	 */
 	KASSERT(m != NULL, ("missing page"));
-	vm_phys_freecnt_adj(m, -1);
+	free_count = vm_phys_freecnt_adj(m, -1);
 	mtx_unlock(&vm_page_queue_free_mtx);
 	vm_page_alloc_check(m);
 
@@ -1713,7 +1714,7 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex, int req,
 	 * Don't wakeup too often - wakeup the pageout daemon when
 	 * we would be nearly out of memory.
 	 */
-	if (vm_paging_needed())
+	if (vm_paging_needed(free_count))
 		pagedaemon_wakeup();
 
 	return (m);
@@ -1899,7 +1900,7 @@ retry:
 			pmap_page_set_memattr(m, memattr);
 		pindex++;
 	}
-	if (vm_paging_needed())
+	if (vm_paging_needed(vm_cnt.v_free_count))
 		pagedaemon_wakeup();
 	return (m_ret);
 }
@@ -1948,7 +1949,7 @@ vm_page_t
 vm_page_alloc_freelist(int flind, int req)
 {
 	vm_page_t m;
-	u_int flags;
+	u_int flags, free_count;
 	int req_class;
 
 	req_class = req & VM_ALLOC_CLASS_MASK;
@@ -1980,7 +1981,7 @@ vm_page_alloc_freelist(int flind, int req)
 		mtx_unlock(&vm_page_queue_free_mtx);
 		return (NULL);
 	}
-	vm_phys_freecnt_adj(m, -1);
+	free_count = vm_phys_freecnt_adj(m, -1);
 	mtx_unlock(&vm_page_queue_free_mtx);
 	vm_page_alloc_check(m);
 
@@ -2002,7 +2003,7 @@ vm_page_alloc_freelist(int flind, int req)
 	}
 	/* Unmanaged pages don't use "act_count". */
 	m->oflags = VPO_UNMANAGED;
-	if (vm_paging_needed())
+	if (vm_paging_needed(free_count))
 		pagedaemon_wakeup();
 	return (m);
 }
@@ -2779,6 +2780,16 @@ bool
 vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
 {
 
+#if defined(DIAGNOSTIC) && defined(PHYS_TO_DMAP)
+	if ((m->flags & PG_ZERO) != 0) {
+		uint64_t *p;
+		int i;
+		p = (uint64_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
+		for (i = 0; i < PAGE_SIZE / sizeof(uint64_t); i++, p++)
+			KASSERT(*p == 0, ("vm_page_free_prep %p PG_ZERO %d %jx",
+			    m, i, (uintmax_t)*p));
+	}
+#endif
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		vm_page_lock_assert(m, MA_OWNED);
 		KASSERT(!pmap_page_is_mapped(m),
@@ -2856,6 +2867,8 @@ vm_page_free_phys_pglist(struct pglist *tq)
 {
 	vm_page_t m;
 
+	if (TAILQ_EMPTY(tq))
+		return;
 	mtx_lock(&vm_page_queue_free_mtx);
 	TAILQ_FOREACH(m, tq, listq)
 		vm_page_free_phys(m);

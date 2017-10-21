@@ -492,6 +492,7 @@ qla_pci_attach(device_t dev)
 		device_printf(dev, "%s: ql_minidump_init failed\n", __func__);
 		goto qla_pci_attach_err;
 	}
+	ql_alloc_drvr_state_buffer(ha);
 	/* create the o.s ethernet interface */
 	qla_init_ifnet(dev, ha);
 
@@ -645,6 +646,7 @@ qla_release(qla_host_t *ha)
 	if (ha->ifp != NULL)
 		ether_ifdetach(ha->ifp);
 
+	ql_free_drvr_state_buffer(ha);
 	ql_free_dma(ha); 
 	qla_free_parent_dma_tag(ha);
 
@@ -1234,8 +1236,8 @@ qla_send(qla_host_t *ha, struct mbuf **m_headp, uint32_t txr_idx,
 	tx_idx = ha->hw.tx_cntxt[txr_idx].txr_next;
 
 	if (NULL != ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head) {
-		QL_ASSERT(ha, 0, ("%s: txr_idx = %d tx_idx = %d mbuf = %p\n",\
-			__func__, txr_idx, tx_idx,\
+		QL_ASSERT(ha, 0, ("%s [%d]: txr_idx = %d tx_idx = %d "\
+			"mbuf = %p\n", __func__, __LINE__, txr_idx, tx_idx,\
 			ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head));
 		if (m_head)
 			m_freem(m_head);

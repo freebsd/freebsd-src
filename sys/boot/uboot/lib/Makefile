@@ -8,14 +8,13 @@ LIB=		uboot
 INTERNALLIB=
 WARNS?=		2
 
-SRCS=	crc32.c console.c copy.c devicename.c elf_freebsd.c glue.c
+SRCS=	console.c copy.c devicename.c elf_freebsd.c glue.c
 SRCS+=	module.c net.c reboot.c time.c
 
 CFLAGS+=	-ffreestanding -msoft-float
 
-.if !defined(LOADER_NO_DISK_SUPPORT)
-SRCS+=	disk.c
-CFLAGS+= -DLOADER_DISK_SUPPORT
+.if ${LOADER_DISK_SUPPORT:Uyes} == "yes"
+SRCS+= disk.c
 .endif
 
 .if ${MK_FDT} != "no"

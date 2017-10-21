@@ -32,15 +32,9 @@
  */
 #ifndef _SYS_SOCKBUF_H_
 #define _SYS_SOCKBUF_H_
-#include <sys/_lock.h>
-#include <sys/_mutex.h>
-#include <sys/_sx.h>
-#include <sys/_task.h>
-
-#define	SB_MAX		(2*1024*1024)	/* default for max chars in sockbuf */
 
 /*
- * Constants for sb_flags field of struct sockbuf.
+ * Constants for sb_flags field of struct sockbuf/xsockbuf.
  */
 #define	SB_WAIT		0x04		/* someone is waiting for data/space */
 #define	SB_SEL		0x08		/* someone is selecting */
@@ -58,6 +52,14 @@
 #define	SBS_CANTSENDMORE	0x0010	/* can't send more data to peer */
 #define	SBS_CANTRCVMORE		0x0020	/* can't receive more data from peer */
 #define	SBS_RCVATMARK		0x0040	/* at mark on input */
+
+#if defined(_KERNEL) || defined(_WANT_SOCKET)
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+#include <sys/_sx.h>
+#include <sys/_task.h>
+
+#define	SB_MAX		(2*1024*1024)	/* default for max chars in sockbuf */
 
 struct mbuf;
 struct sockaddr;
@@ -101,6 +103,7 @@ struct	sockbuf {
 	struct	task sb_aiotask; /* AIO task */
 };
 
+#endif	/* defined(_KERNEL) || defined(_WANT_SOCKET) */
 #ifdef _KERNEL
 
 /*

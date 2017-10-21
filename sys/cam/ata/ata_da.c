@@ -1057,6 +1057,7 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		return (ENXIO);
 	}
 
+	memset(&ccb, 0, sizeof(ccb));
 	if (length > 0) {
 		xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		ccb.ccb_h.ccb_state = ADA_CCB_DUMP;

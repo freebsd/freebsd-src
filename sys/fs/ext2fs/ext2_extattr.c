@@ -612,7 +612,7 @@ ext2_extattr_block_clone(struct inode *ip, struct buf **bpp)
 	if (header->h_magic != EXTATTR_MAGIC || header->h_refcount == 1)
 		return (EINVAL);
 
-	facl = ext2_allocfacl(ip);
+	facl = ext2_alloc_meta(ip);
 	if (!facl)
 		return (ENOSPC);
 
@@ -1137,7 +1137,7 @@ ext2_extattr_block_set(struct inode *ip, int attrnamespace,
 		return (ENOSPC);
 
 	/* Allocate block, fill EA header and insert entry */
-	ip->i_facl = ext2_allocfacl(ip);
+	ip->i_facl = ext2_alloc_meta(ip);
 	if (0 == ip->i_facl)
 		return (ENOSPC);
 

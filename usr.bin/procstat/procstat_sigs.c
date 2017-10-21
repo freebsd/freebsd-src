@@ -48,7 +48,7 @@ procstat_print_signame(int sig)
 	char name[12];
 	int i;
 
-	if (!nflag && sig < sys_nsig) {
+	if ((procstat_opts & PS_OPT_SIGNUM) == 0 && sig < sys_nsig) {
 		strlcpy(name, sys_signame[sig], sizeof(name));
 		for (i = 0; name[i] != 0; i++)
 			name[i] = toupper(name[i]);
@@ -67,7 +67,7 @@ procstat_close_signame(int sig)
 	char name[12];
 	int i;
 
-	if (!nflag && sig < sys_nsig) {
+	if ((procstat_opts & PS_OPT_SIGNUM) == 0 && sig < sys_nsig) {
 		strlcpy(name, sys_signame[sig], sizeof(name));
 		for (i = 0; name[i] != 0; i++)
 			name[i] = toupper(name[i]);
@@ -110,7 +110,7 @@ procstat_sigs(struct procstat *prstat __unused, struct kinfo_proc *kipp)
 {
 	int j;
 
-	if (!hflag)
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0)
 		xo_emit("{T:/%5s %-16s %-7s %4s}\n", "PID", "COMM", "SIG",
 		    "FLAGS");
 
@@ -139,7 +139,7 @@ procstat_threads_sigs(struct procstat *procstat, struct kinfo_proc *kipp)
 	unsigned int count, i;
 	char *threadid;
 
-	if (!hflag)
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0)
 		xo_emit("{T:/%5s %6s %-16s %-7s %4s}\n", "PID", "TID", "COMM",
 		     "SIG", "FLAGS");
 

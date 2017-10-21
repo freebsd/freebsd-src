@@ -60,31 +60,15 @@ SRCS+=		altera_jtag_uart.c				\
 # Since we don't have a backward compatibility issue, default to this on BERI.
 CFLAGS+=	-DBOOT_PROMPT_123
 
-CFLAGS+=	-DLOADER_DISK_SUPPORT
-CFLAGS+=	-DLOADER_UFS_SUPPORT
-CFLAGS+=	-DLOADER_GZIP_SUPPORT
-CFLAGS+=	-DLOADER_BZIP2_SUPPORT
-
-#CFLAGS+=	-DLOADER_NET_SUPPORT
-#CFLAGS+=	-DLOADER_NFS_SUPPORT
-#CFLAGS+=	-DLOADER_TFTP_SUPPORT
-
-.if ${MK_FORTH} != "no"
-# Enable BootForth
-BOOT_FORTH=	yes
-CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../../ficl
-CFLAGS+=	-I${.CURDIR}/../../../ficl/mips64
-LIBFICL=	${.OBJDIR}/../../../ficl/libficl.a
-.endif
-
-# Common code across BERI boot loader parts
-.PATH:		${.CURDIR}/../common
-CFLAGS+=	-I${.CURDIR}/../common
+LOADER_MSDOS_SUPPORT?=	yes
+LOADER_UFS_SUPPORT?=	yes
+LOADER_CD9660_SUPPORT?=	no
+LOADER_EXT2FS_SUPPORT?=	no
+LOADER_GZIP_SUPPORT?= yes
+LOADER_BZIP2_SUPPORT?= yes
 
 # Always add MI sources
-.PATH:		${.CURDIR}/../../../common
-.include	"${.CURDIR}/../../../common/Makefile.inc"
-CFLAGS+=	-I${.CURDIR}/../../../common
+.include	"../../../loader.mk"
 
 # BERI files common to boot2 and loader
 .PATH:		${.CURDIR}/../common
@@ -113,7 +97,7 @@ LDADD=		${LIBFICL} ${LIBSA}
 
 loader.help: help.common help.mips
 	cat ${.ALLSRC} | \
-	    awk -f ${.CURDIR}/../../../common/merge_help.awk > ${.TARGET}
+	    awk -f ${LDR_MI}/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../../forth
 .include	"${.CURDIR}/../../../forth/Makefile.inc"

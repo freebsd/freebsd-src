@@ -362,7 +362,13 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 		panic("tmpfs_free_node: type %p %d", node, (int)node->tn_type);
 	}
 
-	free_unr(tmp->tm_ino_unr, node->tn_id);
+	/*
+	 * If we are unmounting there is no need for going through the overhead
+	 * of freeing the inodes from the unr individually, so free them all in
+	 * one go later.
+	 */
+	if (!detach)
+		free_unr(tmp->tm_ino_unr, node->tn_id);
 	uma_zfree(tmp->tm_node_pool, node);
 	TMPFS_LOCK(tmp);
 	tmpfs_free_tmp(tmp);

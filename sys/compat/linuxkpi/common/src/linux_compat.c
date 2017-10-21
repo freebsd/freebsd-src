@@ -1021,6 +1021,8 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	return (error);
 }
 
+#define	LINUX_POLL_TABLE_NORMAL ((poll_table *)1)
+
 static int
 linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 {
@@ -1037,7 +1039,7 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	filp->f_flags = file->f_flag;
 	linux_set_current(td);
 	if (filp->f_op->poll != NULL)
-		revents = filp->f_op->poll(filp, NULL) & events;
+		revents = filp->f_op->poll(filp, LINUX_POLL_TABLE_NORMAL) & events;
 	else
 		revents = 0;
 
@@ -1094,7 +1096,9 @@ linux_poll_wait(struct linux_file *filp, wait_queue_head_t *wqh, poll_table *p)
 		[LINUX_FWQ_STATE_READY] = LINUX_FWQ_STATE_QUEUED,
 	};
 
-	selrecord(curthread, &filp->f_selinfo);
+	/* check if we are called inside the select system call */
+	if (p == LINUX_POLL_TABLE_NORMAL)
+		selrecord(curthread, &filp->f_selinfo);
 
 	switch (linux_poll_wakeup_state(&filp->f_wait_queue.state, state)) {
 	case LINUX_FWQ_STATE_INIT:
@@ -1438,10 +1442,9 @@ linux_file_poll(struct file *file, int events, struct ucred *active_cred,
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
 	linux_set_current(td);
-	if (filp->f_op->poll != NULL) {
-		selrecord(td, &filp->f_selinfo);
-		revents = filp->f_op->poll(filp, NULL) & events;
-	} else
+	if (filp->f_op->poll != NULL)
+		revents = filp->f_op->poll(filp, LINUX_POLL_TABLE_NORMAL) & events;
+	else
 		revents = 0;
 
 	return (revents);
