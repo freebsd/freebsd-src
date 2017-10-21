@@ -32,6 +32,8 @@
 #include <sys/types.h>
 #include <machine/elf.h>
 
+__BEGIN_DECLS
 int elf_aux_info(int aux, void *buf, int buflen);
+__END_DECLS
 
 #endif /* !_SYS_AUXV_H_ */
