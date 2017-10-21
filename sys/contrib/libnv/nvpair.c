@@ -1411,7 +1411,6 @@ nvpair_create_nvlist_array(const char *name, const nvlist_t * const *value,
 	int flags;
 
 	nvls = NULL;
-	ii = 0;
 
 	if (value == NULL || nitems == 0) {
 		ERRNO_SET(EINVAL);
