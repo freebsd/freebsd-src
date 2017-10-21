@@ -1204,12 +1204,13 @@ nvlist_xunpack(const void *buf, size_t size, const int *fds, size_t nfds,
 			    &array);
 			if (ptr == NULL)
 				goto failed;
+			PJDLOG_ASSERT(array != NULL);
 			tmpnvl = array;
-			while (array != NULL) {
+			do {
 				nvlist_set_parent(array, nvp);
 				array = __DECONST(nvlist_t *,
 				    nvlist_get_array_next(array));
-			}
+			} while (array != NULL);
 			ptr = nvlist_unpack_header(tmpnvl, ptr, nfds, &isbe,
 			    &left);
 			break;
