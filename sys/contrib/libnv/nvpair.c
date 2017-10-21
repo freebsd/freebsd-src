@@ -614,7 +614,7 @@ nvpair_unpack_header(bool isbe, nvpair_t *nvp, const unsigned char *ptr,
 	struct nvpair_header nvphdr;
 
 	if (*leftp < sizeof(nvphdr))
-		goto failed;
+		goto fail;
 
 	memcpy(&nvphdr, ptr, sizeof(nvphdr));
 	ptr += sizeof(nvphdr);
@@ -622,12 +622,12 @@ nvpair_unpack_header(bool isbe, nvpair_t *nvp, const unsigned char *ptr,
 
 #if NV_TYPE_FIRST > 0
 	if (nvphdr.nvph_type < NV_TYPE_FIRST)
-		goto failed;
+		goto fail;
 #endif
 	if (nvphdr.nvph_type > NV_TYPE_LAST &&
 	    nvphdr.nvph_type != NV_TYPE_NVLIST_UP &&
 	    nvphdr.nvph_type != NV_TYPE_NVLIST_ARRAY_NEXT) {
-		goto failed;
+		goto fail;
 	}
 
 #if BYTE_ORDER == BIG_ENDIAN
@@ -643,14 +643,14 @@ nvpair_unpack_header(bool isbe, nvpair_t *nvp, const unsigned char *ptr,
 #endif
 
 	if (nvphdr.nvph_namesize > NV_NAME_MAX)
-		goto failed;
+		goto fail;
 	if (*leftp < nvphdr.nvph_namesize)
-		goto failed;
+		goto fail;
 	if (nvphdr.nvph_namesize < 1)
-		goto failed;
+		goto fail;
 	if (strnlen((const char *)ptr, nvphdr.nvph_namesize) !=
 	    (size_t)(nvphdr.nvph_namesize - 1)) {
-		goto failed;
+		goto fail;
 	}
 
 	memcpy(nvp->nvp_name, ptr, nvphdr.nvph_namesize);
@@ -658,7 +658,7 @@ nvpair_unpack_header(bool isbe, nvpair_t *nvp, const unsigned char *ptr,
 	*leftp -= nvphdr.nvph_namesize;
 
 	if (*leftp < nvphdr.nvph_datasize)
-		goto failed;
+		goto fail;
 
 	nvp->nvp_type = nvphdr.nvph_type;
 	nvp->nvp_data = 0;
@@ -666,7 +666,7 @@ nvpair_unpack_header(bool isbe, nvpair_t *nvp, const unsigned char *ptr,
 	nvp->nvp_nitems = nvphdr.nvph_nitems;
 
 	return (ptr);
-failed:
+fail:
 	ERRNO_SET(EINVAL);
 	return (NULL);
 }
@@ -1108,10 +1108,10 @@ nvpair_unpack(bool isbe, const unsigned char *ptr, size_t *leftp,
 
 	ptr = nvpair_unpack_header(isbe, nvp, ptr, leftp);
 	if (ptr == NULL)
-		goto failed;
+		goto fail;
 	tmp = nv_realloc(nvp, sizeof(*nvp) + strlen(nvp->nvp_name) + 1);
 	if (tmp == NULL)
-		goto failed;
+		goto fail;
 	nvp = tmp;
 
 	/* Update nvp_name after realloc(). */
@@ -1120,7 +1120,7 @@ nvpair_unpack(bool isbe, const unsigned char *ptr, size_t *leftp,
 	nvp->nvp_magic = NVPAIR_MAGIC;
 	*nvpp = nvp;
 	return (ptr);
-failed:
+fail:
 	nv_free(nvp);
 	return (NULL);
 }
