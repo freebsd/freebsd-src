@@ -602,44 +602,56 @@ ifc_name2unit(const char *name, int *unit)
 	return (0);
 }
 
-int
-ifc_alloc_unit(struct if_clone *ifc, int *unit)
+static int
+ifc_alloc_unit_specific(struct if_clone *ifc, int *unit)
 {
 	char name[IFNAMSIZ];
-	int wildcard;
 
-	wildcard = (*unit < 0);
-retry:
 	if (*unit > ifc->ifc_maxunit)
 		return (ENOSPC);
-	if (*unit < 0) {
-		*unit = alloc_unr(ifc->ifc_unrhdr);
-		if (*unit == -1)
-			return (ENOSPC);
-	} else {
-		*unit = alloc_unr_specific(ifc->ifc_unrhdr, *unit);
-		if (*unit == -1) {
-			if (wildcard) {
-				(*unit)++;
-				goto retry;
-			} else
-				return (EEXIST);
-		}
-	}
+
+	if (alloc_unr_specific(ifc->ifc_unrhdr, *unit) == -1)
+		return (EEXIST);
 
 	snprintf(name, IFNAMSIZ, "%s%d", ifc->ifc_name, *unit);
 	if (ifunit(name) != NULL) {
 		free_unr(ifc->ifc_unrhdr, *unit);
-		if (wildcard) {
-			(*unit)++;
-			goto retry;
-		} else
-			return (EEXIST);
+		return (EEXIST);
 	}
 
 	IF_CLONE_ADDREF(ifc);
 
 	return (0);
+}
+
+static int
+ifc_alloc_unit_next(struct if_clone *ifc, int *unit)
+{
+	int error;
+
+	*unit = alloc_unr(ifc->ifc_unrhdr);
+	if (*unit == -1)
+		return (ENOSPC);
+
+	free_unr(ifc->ifc_unrhdr, *unit);
+	for (;;) {
+		error = ifc_alloc_unit_specific(ifc, unit);
+		if (error != EEXIST)
+			break;
+
+		(*unit)++;
+	}
+
+	return (error);
+}
+
+int
+ifc_alloc_unit(struct if_clone *ifc, int *unit)
+{
+	if (*unit < 0)
+		return (ifc_alloc_unit_next(ifc, unit));
+	else
+		return (ifc_alloc_unit_specific(ifc, unit));
 }
 
 void
