@@ -127,9 +127,23 @@ void	__mtx_assert(const volatile uintptr_t *c, int what, const char *file,
 	    int line);
 #endif
 void	thread_lock_flags_(struct thread *, int, const char *, int);
+#if LOCK_DEBUG > 0
+void	_thread_lock(struct thread *td, int opts, const char *file, int line);
+#else
+void	_thread_lock(struct thread *);
+#endif
 
+#if defined(LOCK_PROFILING) || defined(KLD_MODULE)
 #define	thread_lock(tdp)						\
 	thread_lock_flags_((tdp), 0, __FILE__, __LINE__)
+#elif LOCK_DEBUG > 0
+#define	thread_lock(tdp)						\
+	_thread_lock((tdp), 0, __FILE__, __LINE__)
+#else
+#define	thread_lock(tdp)						\
+	_thread_lock((tdp))
+#endif
+
 #define	thread_lock_flags(tdp, opt)					\
 	thread_lock_flags_((tdp), (opt), __FILE__, __LINE__)
 #define	thread_unlock(tdp)						\
