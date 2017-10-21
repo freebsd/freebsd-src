@@ -292,6 +292,10 @@ __DEFAULT_YES_OPTIONS+=CXGBETOOL
 .else
 __DEFAULT_NO_OPTIONS+=CXGBETOOL
 .endif
+.if ${__T} == "aarch64" || ${__T} == "arm" || ${__T} == "armeb" || \
+    ${__T:M:armv6} != "" || ${__T:M:armv7} != ""
+BROKEN_OPTIONS+=COVERAGE
+.endif
 
 .include <bsd.mkopt.mk>
 
