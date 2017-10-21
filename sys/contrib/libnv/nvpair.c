@@ -1087,7 +1087,7 @@ nvpair_unpack_nvlist_array(bool isbe __unused, nvpair_t *nvp,
 	return (ptr);
 fail:
 	ERRNO_SAVE();
-	for (j = 0; j < ii; j++)
+	for (j = 0; j <= ii; j++)
 		nvlist_destroy(value[j]);
 	nv_free(value);
 	ERRNO_RESTORE();
