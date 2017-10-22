@@ -11,13 +11,15 @@ LDR_MI=		${BOOTDIR}/common
 SASRC=		${BOOTDIR}/libsa
 SYSDIR=		${SRCTOP}/sys
 
+BOOTOBJ=	${OBJTOP}/sys/boot
+
 # NB: The makefiles depend on these being empty when we don't build forth.
 .if ${MK_FORTH} != "no"
-LIBFICL=	${OBJTOP}/sys/boot/ficl/libficl.a
-LIBFICL32=	${OBJTOP}/sys/boot/ficl32/libficl.a
+LIBFICL=	${BOOTOBJ}/ficl/libficl.a
+LIBFICL32=	${BOOTOBJ}/ficl32/libficl.a
 .endif
-LIBSA=		${OBJTOP}/sys/boot/libsa/libsa.a
-LIBSA32=	${OBJTOP}/sys/boot/libsa32/libsa32.a
+LIBSA=		${BOOTOBJ}/libsa/libsa.a
+LIBSA32=	${BOOTOBJ}/libsa32/libsa32.a
 
 # Standard options:
 
