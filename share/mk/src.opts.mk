@@ -240,7 +240,6 @@ BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GCC GCC_BOOTSTRAP GDB
 .endif
 .if ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=PROFILE # "sorry, unimplemented: profiler support for RISC-V"
-BROKEN_OPTIONS+=COVERAGE # External toolchain (GNU-based) doesn't have libgcov.a .
 BROKEN_OPTIONS+=TESTS   # "undefined reference to `_Unwind_Resume'"
 BROKEN_OPTIONS+=CXX     # "libcxxrt.so: undefined reference to `_Unwind_Resume_or_Rethrow'"
 .endif
@@ -291,10 +290,6 @@ BROKEN_OPTIONS+=PROFILE
 __DEFAULT_YES_OPTIONS+=CXGBETOOL
 .else
 __DEFAULT_NO_OPTIONS+=CXGBETOOL
-.endif
-.if ${__T} == "aarch64" || ${__T} == "arm" || ${__T} == "armeb" || \
-    ${__T} == "armv6" || ${__T} == "armv7"
-BROKEN_OPTIONS+=COVERAGE
 .endif
 
 .include <bsd.mkopt.mk>
@@ -473,9 +468,7 @@ MK_${var}_SUPPORT:= yes
 MK_LLDB:=	no
 .endif
 
-.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40800
-# Cross-toolchains unfortunately don't install libgcov.a .
-MK_COVERAGE:=no
+.if ${COMPILER_TYPE} == "gcc"
 # gcc 4.8 and newer supports libc++, so suppress gnuc++ in that case.
 # while in theory we could build it with that, we don't want to do
 # that since it creates too much confusion for too little gain.
