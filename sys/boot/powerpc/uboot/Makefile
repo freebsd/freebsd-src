@@ -41,7 +41,7 @@ LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSA32}
 
 loader.help: help.common help.uboot ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \
-	    awk -f ${LDR_MI}/merge_help.awk > ${.TARGET}
+	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../forth
 FILES=	loader.help

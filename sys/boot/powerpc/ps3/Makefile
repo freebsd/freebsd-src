@@ -63,7 +63,7 @@ font.h:
 
 loader.help: help.common help.ps3 ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \
-	    awk -f ${LDR_MI}/merge_help.awk > ${.TARGET}
+	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../forth
 .include	"${.CURDIR}/../../forth/Makefile.inc"

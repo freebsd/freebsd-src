@@ -5,13 +5,13 @@
 .if !defined(__BOOT_DEFS_MK__)
 __BOOT_DEFS_MK__=${MFILE}
 
-BOOTDIR=	${SRCTOP}/sys/boot
-FICLDIR=	${BOOTDIR}/ficl
-LDR_MI=		${BOOTDIR}/common
-SASRC=		${BOOTDIR}/libsa
+BOOTSRC=	${SRCTOP}/sys/boot
+FDTSRC=		${BOOTSRC}/fdt
+FICLSRC=	${BOOTSRC}/ficl
+LDRSRC=		${BOOTSRC}/common
+SASRC=		${BOOTSRC}/libsa
 SYSDIR=		${SRCTOP}/sys
-FDTSRC=		${BOOTDIR}/fdt
-UBOOTSRC=	${BOOTDIR}/uboot
+UBOOTSRC=	${BOOTSRC}/uboot
 
 BOOTOBJ=	${OBJTOP}/sys/boot
 

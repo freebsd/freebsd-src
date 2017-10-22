@@ -2,9 +2,9 @@
 
 .include "defs.mk"
 
-.PATH: ${LDR_MI} ${BOOTDIR}/libsa
+.PATH: ${LDRSRC} ${BOOTSRC}/libsa
 
-CFLAGS+=-I${LDR_MI}
+CFLAGS+=-I${LDRSRC}
 
 SRCS+=	boot.c commands.c console.c devopen.c interp.c 
 SRCS+=	interp_backslash.c interp_parse.c ls.c misc.c 
@@ -58,7 +58,7 @@ SRCS+=	pnp.c
 # Forth interpreter
 .if ${MK_FORTH} != "no"
 SRCS+=	interp_forth.c
-.include "${BOOTDIR}/ficl.mk"
+.include "${BOOTSRC}/ficl.mk"
 .endif
 
 .if defined(BOOT_PROMPT_123)
@@ -74,6 +74,6 @@ VERSION_FILE?=	${.CURDIR}/version
 .if ${MK_REPRODUCIBLE_BUILD} != no
 REPRO_FLAG=	-r
 .endif
-vers.c: ${LDR_MI}/newvers.sh ${VERSION_FILE}
-	sh ${LDR_MI}/newvers.sh ${REPRO_FLAG} ${VERSION_FILE} \
+vers.c: ${LDRSRC}/newvers.sh ${VERSION_FILE}
+	sh ${LDRSRC}/newvers.sh ${REPRO_FLAG} ${VERSION_FILE} \
 	    ${NEWVERSWHAT}

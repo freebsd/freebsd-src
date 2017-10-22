@@ -96,7 +96,7 @@ LDADD=		${LIBFICL} ${LIBSA}
 
 loader.help: help.common help.mips
 	cat ${.ALLSRC} | \
-	    awk -f ${LDR_MI}/merge_help.awk > ${.TARGET}
+	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../../forth
 .include	"${.CURDIR}/../../../forth/Makefile.inc"
