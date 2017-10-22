@@ -21,7 +21,7 @@ CFLAGS+=        -m32
 WARNS?=		0
 
 # string functions from libc
-.PATH: ${.CURDIR}/../../../lib/libc/string
+.PATH: ${SRCTOP}/lib/libc/string
 SRCS+=  bcmp.c bcopy.c bzero.c
 
 # Our password input method
