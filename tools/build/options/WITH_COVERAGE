@@ -3,3 +3,15 @@ Set to build profiled libraries for use with
 .Xr gcov 1 ,
 .Xr lcov 1 ,
 etc.
+.Em Warning:
+this option is experimental.
+Profiled libraries and binaries with runtime instrumentation built in will
+consume large amounts of disk space (somewhere on the order of several
+gigabytes).
+.\" TODO: put this in build(7)?
+GCDA files are installed to the
+.Pa /usr/lib/cov
+prefix.
+.\" TODO: verify this claim in an e2e test.
+The install directory mirrors the install path for the object directory, e.g.,
+.Pa /usr/lib/cov/usr/obj/lib/libc/stdio/vfprintf.gcda
