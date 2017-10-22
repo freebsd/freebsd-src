@@ -157,7 +157,7 @@ static vm_ooffset_t swap_reserved;
 SYSCTL_QUAD(_vm, OID_AUTO, swap_reserved, CTLFLAG_RD, &swap_reserved, 0,
     "Amount of swap storage needed to back all allocated anonymous memory.");
 static int overcommit = 0;
-SYSCTL_INT(_vm, OID_AUTO, overcommit, CTLFLAG_RW, &overcommit, 0,
+SYSCTL_INT(_vm, VM_OVERCOMMIT, overcommit, CTLFLAG_RW, &overcommit, 0,
     "Configure virtual memory overcommit behavior. See tuning(7) "
     "for details.");
 static unsigned long swzone;

@@ -6,6 +6,7 @@ MAN=
 .include <src.opts.mk>
 MK_COVERAGE=	no
 MK_SSP=		no
+.include <bsd.init.mk>
 
 LIB=		geliboot
 INTERNALLIB=
@@ -22,14 +23,14 @@ CFLAGS+=        -m32
 WARNS?=		0
 
 # string functions from libc
-.PATH: ${.CURDIR}/../../../lib/libc/string
+.PATH: ${SRCTOP}/lib/libc/string
 SRCS+=  bcmp.c bcopy.c bzero.c
 
 # Our password input method
 SRCS+=  pwgets.c
 
 # sha256 and sha512 from sys/crypto
-.PATH: ${SRCTOP}/sys/crypto/sha2
+.PATH: ${SYSDIR}/crypto/sha2
 CFLAGS+=	-DWEAK_REFS
 SRCS+=		sha256c.c sha512c.c
 
@@ -38,15 +39,15 @@ SRCS+=		sha256c.c sha512c.c
 SRCS+=		md5c.c
 
 # AES implementation from sys/crypto
-.PATH: ${SRCTOP}/sys/crypto/rijndael
-CFLAGS+=	-I${.CURDIR}/../../
+.PATH: ${SYSDIR}/crypto/rijndael
+CFLAGS+=	-I${SYSDIR}
 CFLAGS+=	-I${.CURDIR}/../common/
 # Remove asserts
 CFLAGS+=	-DNDEBUG
 SRCS+=		rijndael-alg-fst.c rijndael-api-fst.c rijndael-api.c
 
 # local GELI Implementation
-.PATH: ${SRCTOP}/sys/geom/eli
+.PATH: ${SYSDIR}/geom/eli
 CFLAGS+=	-D_STAND
 SRCS+=		geliboot_crypto.c g_eli_hmac.c g_eli_key.c g_eli_key_cache.c pkcs5v2.c
 

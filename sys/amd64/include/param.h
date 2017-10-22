@@ -152,4 +152,8 @@
 #define	INKERNEL(va) (((va) >= DMAP_MIN_ADDRESS && (va) < DMAP_MAX_ADDRESS) \
     || ((va) >= VM_MIN_KERNEL_ADDRESS && (va) < VM_MAX_KERNEL_ADDRESS))
 
+#ifdef SMP
+#define SC_TABLESIZE    1024                     /* Must be power of 2. */
+#endif
+
 #endif /* !_AMD64_INCLUDE_PARAM_H_ */

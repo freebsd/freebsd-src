@@ -19,7 +19,7 @@ LDFLAGS=-nostdlib -static -Wl,-N
 
 .include "../Makefile.inc"
 
-.PATH:  ${.CURDIR}/../../../libkern ${.CURDIR}/../../../../lib/libc/powerpc/gen ${.CURDIR}
+.PATH:  ${.CURDIR}/../../../libkern ${SRCTOP}/lib/libc/powerpc/gen ${.CURDIR}
 
 # The following inserts out objects into a template HFS 
 # created by generate-hfs.sh
