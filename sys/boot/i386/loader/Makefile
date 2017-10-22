@@ -42,8 +42,8 @@ HAVE_ISABUS=	yes
 
 .if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 CFLAGS+=	-DLOADER_GELI_SUPPORT
-CFLAGS+=	-I${.CURDIR}/../../geli
-LIBGELIBOOT=	${.OBJDIR}/../../geli/libgeliboot.a
+CFLAGS+=	-I${BOOTDIR}/geli
+LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
 .PATH:		${.CURDIR}/../../../opencrypto
 SRCS+=		xform_aes_xts.c
 CFLAGS+=	-I${.CURDIR}/../../.. -D_STAND
