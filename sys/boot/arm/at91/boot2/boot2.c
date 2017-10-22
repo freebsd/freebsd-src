@@ -54,7 +54,7 @@ unsigned board_id; /* board type to pass to kernel, if set by board_* code */
 unsigned dsk_start;
 static char cmd[512];
 static char kname[1024];
-static uint32_t opts;
+uint32_t opts;
 static uint8_t dsk_meta;
 
 int main(void);
@@ -359,3 +359,10 @@ fixup_boot_drv(caddr_t addr, int klen, int bs, int bp)
 	DPRINTF("Changed boot device to %s\n", ps);
 }
 #endif
+
+/* Arm EABIs */
+void __aeabi_unwind_cpp_pr0(void);
+void
+__aeabi_unwind_cpp_pr0(void)
+{
+}
