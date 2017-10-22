@@ -55,7 +55,7 @@ LDADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} ${LIBSA}
 
 loader.help: help.common help.sparc64
 	cat ${.ALLSRC} | \
-	    awk -f ${LDR_MI}/merge_help.awk > ${.TARGET}
+	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../forth
 .include	"${.CURDIR}/../../forth/Makefile.inc"

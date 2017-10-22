@@ -50,7 +50,7 @@ CFLAGS+=	-DSKEIN_LOOP=111
 
 .if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 CFLAGS+=	-DLOADER_GELI_SUPPORT
-CFLAGS+=	-I${BOOTDIR}/geli
+CFLAGS+=	-I${BOOTSRC}/geli
 LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
 .PATH:		${.CURDIR}/../../../opencrypto
 OPENCRYPTO_XTS=	xform_aes_xts.o

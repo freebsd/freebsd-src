@@ -53,7 +53,7 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 loader.help: help.common help.uboot ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \
-	    awk -f ${LDR_MI}/merge_help.awk > ${.TARGET}
+	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
 
 ldscript.abs:
 	echo "UBLDR_LOADADDR = ${UBLDR_LOADADDR};" >${.TARGET}

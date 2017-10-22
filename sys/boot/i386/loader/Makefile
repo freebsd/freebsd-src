@@ -42,7 +42,7 @@ HAVE_ISABUS=	yes
 
 .if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 CFLAGS+=	-DLOADER_GELI_SUPPORT
-CFLAGS+=	-I${BOOTDIR}/geli
+CFLAGS+=	-I${BOOTSRC}/geli
 LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
 .PATH:		${.CURDIR}/../../../opencrypto
 SRCS+=		xform_aes_xts.c
@@ -80,7 +80,7 @@ ${LOADER}.bin: ${LOADER}.sym
 	strip -R .comment -R .note -o ${.TARGET} ${.ALLSRC}
 
 loader.help: help.common help.i386
-	cat ${.ALLSRC} | awk -f ${LDR_MI}/merge_help.awk > ${.TARGET}
+	cat ${.ALLSRC} | awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
 
 FILES=	${LOADER}
 # XXX INSTALLFLAGS_loader= -b
