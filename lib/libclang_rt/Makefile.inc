@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-CRTARCH=	${MACHINE_CPUARCH:C/amd64/x86_64/}
+CRTARCH=	${TARGET_CPUARCH:C/amd64/x86_64/}
 CRTSRC=		${SRCTOP}/contrib/compiler-rt
 
 .PATH:		${CRTSRC}/lib
