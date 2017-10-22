@@ -19,7 +19,11 @@ LIBFICL=	${BOOTOBJ}/ficl/libficl.a
 LIBFICL32=	${BOOTOBJ}/ficl32/libficl.a
 .endif
 LIBSA=		${BOOTOBJ}/libsa/libsa.a
+.if ${MACHINE} == "i386"
+LIBSA32=	${LIBSA}
+.else
 LIBSA32=	${BOOTOBJ}/libsa32/libsa32.a
+.endif
 
 # Standard options:
 
