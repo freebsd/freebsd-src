@@ -41,7 +41,7 @@ CFLAGS+=-DBOOTPROG=\"gptboot\" \
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100
 
-.if !defined(LOADER_NO_GELI_SUPPORT)
+.if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 CFLAGS+=	-DLOADER_GELI_SUPPORT
 CFLAGS+=	-I${.CURDIR}/../../geli
 CFLAGS+=	-I${.CURDIR}/../../..
