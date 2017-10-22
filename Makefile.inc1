@@ -1170,6 +1170,10 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/include >/dev/null
+.if ${MK_COVERAGE} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.cov.dist \
+	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib >/dev/null
+.endif
 .if ${MK_DEBUG_FILES} != "no"
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib >/dev/null
@@ -2492,7 +2496,7 @@ ${_lib}__PL: .PHONY .MAKE
 		if [ -z "${NO_OBJ}" ]; then ${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj; fi; \
 		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
 		    DIRPRFX=${_lib}/ all; \
-		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
+		${MAKE} MK_COVERAGE=no MK_TESTS=no MK_PROFILE=no -DNO_PIC \
 		    DIRPRFX=${_lib}/ install
 .endif
 .endfor
@@ -2504,7 +2508,7 @@ ${_lib}__L: .PHONY .MAKE
 		cd ${.CURDIR}/${_lib}; \
 		if [ -z "${NO_OBJ}" ]; then ${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj; fi; \
 		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ all; \
-		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ install
+		${MAKE} MK_COVERAGE=no MK_TESTS=no DIRPRFX=${_lib}/ install
 .endif
 .endfor
 
