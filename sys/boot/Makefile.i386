@@ -4,6 +4,6 @@ SUBDIR+=		efi
 SUBDIR+=		libsa32
 SUBDIR+=		zfs
 
-.if !defined(LOADER_NO_GELI_SUPPORT)
+.if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 SUBDIR+=		geli
 .endif

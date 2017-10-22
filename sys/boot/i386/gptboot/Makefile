@@ -41,11 +41,11 @@ CFLAGS+=-DBOOTPROG=\"gptboot\" \
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100
 
-.if !defined(LOADER_NO_GELI_SUPPORT)
+.if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 CFLAGS+=	-DLOADER_GELI_SUPPORT
-CFLAGS+=	-I${.CURDIR}/../../geli
+CFLAGS+=	-I${BOOTDIR}/geli
 CFLAGS+=	-I${.CURDIR}/../../..
-LIBGELIBOOT=	${.OBJDIR}/../../geli/libgeliboot.a
+LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
 .PATH:		${.CURDIR}/../../../opencrypto
 OPENCRYPTO_XTS=	xform_aes_xts.o
 .endif

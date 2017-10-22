@@ -48,10 +48,10 @@ CFLAGS+=	-Wno-tentative-definition-incomplete-type
 # Do not unroll skein loops, reduce code size
 CFLAGS+=	-DSKEIN_LOOP=111
 
-.if !defined(LOADER_NO_GELI_SUPPORT)
+.if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 CFLAGS+=	-DLOADER_GELI_SUPPORT
-CFLAGS+=	-I${.CURDIR}/../../geli
-LIBGELIBOOT=	${.OBJDIR}/../../geli/libgeliboot.a
+CFLAGS+=	-I${BOOTDIR}/geli
+LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
 .PATH:		${.CURDIR}/../../../opencrypto
 OPENCRYPTO_XTS=	xform_aes_xts.o
 .endif
