@@ -10,6 +10,8 @@ FICLDIR=	${BOOTDIR}/ficl
 LDR_MI=		${BOOTDIR}/common
 SASRC=		${BOOTDIR}/libsa
 SYSDIR=		${SRCTOP}/sys
+FDTSRC=		${BOOTDIR}/fdt
+UBOOTSRC=	${BOOTDIR}/uboot
 
 BOOTOBJ=	${OBJTOP}/sys/boot
 
