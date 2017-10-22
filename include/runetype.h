@@ -95,9 +95,7 @@ static __inline const _RuneLocale *__getCurrentRuneLocale(void)
 
 	if (_ThreadRuneLocale) 
 		return _ThreadRuneLocale;
-	if (_CurrentRuneLocale) 
-		return _CurrentRuneLocale;
-	return &_DefaultRuneLocale;
+	return _CurrentRuneLocale;
 }
 #endif /* __NO_TLS || __RUNETYPE_INTERNAL */
 #define _CurrentRuneLocale (__getCurrentRuneLocale())

@@ -28,7 +28,7 @@ CFLAGS+= -DLOADER_FDT_SUPPORT -I${.CURDIR}/../../fdt
 .endif
 
 # Pick up FDT includes
-CFLAGS+=	-I${.CURDIR}/../../../../sys/contrib/libfdt/
+CFLAGS+=	-I${SYSDIR}/contrib/libfdt/
 
 # Pick up the bootstrap header for some interface items
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.

@@ -43,7 +43,7 @@ CFLAGS.gcc+=	--param max-inline-insns-single=100
 
 .if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 CFLAGS+=	-DLOADER_GELI_SUPPORT
-CFLAGS+=	-I${BOOTDIR}/geli
+CFLAGS+=	-I${BOOTSRC}/geli
 CFLAGS+=	-I${.CURDIR}/../../..
 LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
 .PATH:		${.CURDIR}/../../../opencrypto

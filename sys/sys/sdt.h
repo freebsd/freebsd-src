@@ -80,13 +80,14 @@
 #include <sys/cdefs.h>
 #include <sys/linker_set.h>
 
+extern volatile bool sdt_probes_enabled;
+
 #ifndef KDTRACE_HOOKS
 
 #define SDT_PROVIDER_DEFINE(prov)
 #define SDT_PROVIDER_DECLARE(prov)
 #define SDT_PROBE_DEFINE(prov, mod, func, name)
 #define SDT_PROBE_DECLARE(prov, mod, func, name)
-#define SDT_PROBE_ENABLED(prov, mod, func, name)	0
 #define SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)
 #define SDT_PROBE_ARGTYPE(prov, mod, func, name, num, type, xtype)
 
@@ -161,14 +162,13 @@ SET_DECLARE(sdt_argtypes_set, struct sdt_argtype);
 #define SDT_PROBE_DECLARE(prov, mod, func, name)				\
 	extern struct sdt_probe sdt_##prov##_##mod##_##func##_##name[1]
 
-#define SDT_PROBE_ENABLED(prov, mod, func, name)				\
-	__predict_false((sdt_##prov##_##mod##_##func##_##name->id))
-
 #define SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)	do {	\
-	if (__predict_false(sdt_##prov##_##mod##_##func##_##name->id))		\
+	if (__predict_false(sdt_probes_enabled)) {				\
+		if (__predict_false(sdt_##prov##_##mod##_##func##_##name->id))	\
 		(*sdt_probe_func)(sdt_##prov##_##mod##_##func##_##name->id,	\
 		    (uintptr_t) arg0, (uintptr_t) arg1, (uintptr_t) arg2,	\
 		    (uintptr_t) arg3, (uintptr_t) arg4);			\
+	} \
 } while (0)
 
 #define SDT_PROBE_ARGTYPE(prov, mod, func, name, num, type, xtype)		\
