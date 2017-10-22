@@ -513,12 +513,12 @@ kdb_reenter(void)
 
 struct pcb *
 kdb_thr_ctx(struct thread *thr)
-{  
+{
 #if defined(SMP) && defined(KDB_STOPPEDPCB)
 	struct pcpu *pc;
 #endif
- 
-	if (thr == curthread) 
+
+	if (thr == curthread)
 		return (&kdb_pcb);
 
 #if defined(SMP) && defined(KDB_STOPPEDPCB)
