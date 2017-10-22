@@ -6,9 +6,9 @@
 __BOOT_DEFS_MK__=${MFILE}
 
 BOOTDIR=	${SRCTOP}/sys/boot
-FICLDIR=	${SRCTOP}/sys/boot/ficl
+FICLDIR=	${BOOTDIR}/ficl
 LDR_MI=		${BOOTDIR}/common
-SASRC=		${SRCTOP}/sys/boot/libsa
+SASRC=		${BOOTDIR}/libsa
 SYSDIR=		${SRCTOP}/sys
 
 # NB: The makefiles depend on these being empty when we don't build forth.
