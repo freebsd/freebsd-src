@@ -14,11 +14,25 @@
 FILESGROUPS?=	FILES
 
 .if !empty(GCNOS)
+
+GCNOSOWN?=	${BINOWN}
+GCNOSGRP?=	${BINGRP}
+GCNOSMODE?=	0644
+GCNOSDIRMODE?=	0755
+
 GCNOS:=		${GCNOS:O:u}
 FILESGROUPS+=	GCNOS
 CLEANFILES+=	${GCNOS}
 
 .for _gcno in ${GCNOS}
-GCNOSDIR_${_gcno:T}=	${COVERAGEDIR}${_gcno:H:tA}
+_gcno_dir=		${COVERAGEDIR}${_gcno:H:tA}
+GCNOSDIR_${_gcno:T}=	${_gcno_dir}
+# Create _gcno_dir if it doesn't already exist.
+.if !target(${DESTDIR}${_gcno_dir})
+${DESTDIR}${_gcno_dir}:
+	${INSTALL} -d -o ${GCNOSOWN} -g ${GCNOSGRP} -m ${GCNOSDIRMODE} \
+	    ${.TARGET}/
+.endif
+${_gcno}: ${DESTDIR}${_gcno_dir}
 .endfor
 .endif
