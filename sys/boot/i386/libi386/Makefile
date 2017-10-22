@@ -28,7 +28,7 @@ CFLAGS+= -DDISK_DEBUG
 .if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 # Decrypt encrypted drives
 CFLAGS+= -DLOADER_GELI_SUPPORT
-CFLAGS+= -I${.CURDIR}/../../geli
+CFLAGS+= -I${BOOTDIR}/geli
 .endif
 
 .if !defined(BOOT_HIDE_SERIAL_NUMBERS)
