@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=	tests
-
 _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 ATF_TESTS_SH+=	functional_test
@@ -61,6 +59,7 @@ CLEANFILES+=	list.h list.h.tmp
 FILES+=	test_empty.gz.uu
 FILES+=	test_empty.lz4.uu
 FILES+=	test_empty.xz.uu
+FILES+=	test_empty.zst.uu
 FILES+=	test_expand.Z.uu
 FILES+=	test_expand.bz2.uu
 FILES+=	test_expand.gz.uu
