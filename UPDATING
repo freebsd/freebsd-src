@@ -51,6 +51,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20171021:
+	As part of the boot loader infrastructure cleanup, LOADER_*_SUPPORT
+	options are changing from controlling the build if defined / undefined
+	to controlling the build with explicit 'yes' or 'no' values. They will
+	shift to WITH/WITHOUT options to match other options in the system.
+
 20171010:
 	libstand has turned into a private library for sys/boot use only.
 	It is no longer supported as a public interface outside of sys/boot.

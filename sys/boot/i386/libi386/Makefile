@@ -25,10 +25,10 @@ CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 CFLAGS+= -DDISK_DEBUG
 .endif
 
-.if !defined(LOADER_NO_GELI_SUPPORT)
+.if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 # Decrypt encrypted drives
 CFLAGS+= -DLOADER_GELI_SUPPORT
-CFLAGS+= -I${.CURDIR}/../../geli
+CFLAGS+= -I${BOOTDIR}/geli
 .endif
 
 .if !defined(BOOT_HIDE_SERIAL_NUMBERS)
