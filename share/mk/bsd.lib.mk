@@ -459,11 +459,11 @@ _libinstall:
 .if !defined(LIBRARIES_ONLY)
 .include <bsd.nls.mk>
 .if defined(_COV_FLAG)
-_GCDA_SRCS=	${SRCS:M*.c} ${SRCS:M*.cc} ${SRCS:M*.cpp} ${SRCS:M*.cxx} ${SRCS:M*.C}
-GCDAS:=		${_GCDA_SRCS:R:S/$/.gcda/g}
-.undef _GCDA_SRCS
-.for _gcda in ${GCDAS}
-${_gcda}: ${_gcda:R}.pico
+_GCNO_SRCS=	${SRCS:M*.c} ${SRCS:M*.cc} ${SRCS:M*.cpp} ${SRCS:M*.cxx} ${SRCS:M*.C}
+GCNOS:=		${_GCNO_SRCS:R:S/$/.gcno/g}
+.undef _GCNO_SRCS
+.for _gcno in ${GCNOS}
+${_gcno}: ${_gcno:R}.pico
 .endfor
 .include <bsd.cov.mk>
 .endif
