@@ -305,7 +305,7 @@ NLSNAME?=	${PROG}
 .include <bsd.nls.mk>
 
 .include <bsd.confs.mk>
-.if defined(_COV_FLAG)
+.if defined(_COV_FLAG) && !empty(SRCS)
 _GCDA_SRCS=	${SRCS:M*.c} ${SRCS:M*.cc} ${SRCS:M*.cpp} ${SRCS:M*.cxx} ${SRCS:M*.C}
 GCDAS:=		${_GCDA_SRCS:R:S/$/.gcno/g}
 .undef _GCDA_SRCS

@@ -458,7 +458,7 @@ _libinstall:
 
 .if !defined(LIBRARIES_ONLY)
 .include <bsd.nls.mk>
-.if defined(_COV_FLAG)
+.if defined(_COV_FLAG) && !empty(SRCS)
 _GCNO_SRCS=	${SRCS:M*.c} ${SRCS:M*.cc} ${SRCS:M*.cpp} ${SRCS:M*.cxx} ${SRCS:M*.C}
 GCNOS:=		${_GCNO_SRCS:R:S/$/.gcno/g}
 .undef _GCNO_SRCS
