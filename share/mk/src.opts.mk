@@ -468,7 +468,7 @@ MK_${var}_SUPPORT:= yes
 MK_LLDB:=	no
 .endif
 
-.if ${COMPILER_TYPE} == "gcc"
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40800
 # gcc 4.8 and newer supports libc++, so suppress gnuc++ in that case.
 # while in theory we could build it with that, we don't want to do
 # that since it creates too much confusion for too little gain.
