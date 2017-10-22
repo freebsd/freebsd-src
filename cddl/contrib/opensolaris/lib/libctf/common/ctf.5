@@ -52,17 +52,15 @@ file itself, it may also be referred to as a
 .Nm
 .Sy container .
 .Lp
-On illumos systems,
+On
+.Fx
+systems,
 .Nm
-data is consumed by multiple programs.
-It can be used by the modular debugger,
-.Xr mdb 1 ,
-as well as by
+data is consumed by
 .Xr dtrace 1 .
 Programmatic access to
 .Nm
-data can be obtained through
-.Xr libctf 3LIB .
+data can be obtained through libctf.
 .Lp
 The
 .Nm
@@ -73,7 +71,7 @@ and
 .Sy header ,
 which describes the version of the
 .Nm
-file, links it has to other
+file, the links it has to other
 .Nm
 files, and the sizes of the other sections.
 The next section is the
@@ -84,7 +82,7 @@ which provides a way of identifying similar groups of
 data across multiple files.
 This is followed by the
 .Sy object
-information section, which describes the type of global
+information section, which describes the types of global
 symbols.
 The subsequent section is the
 .Sy function
@@ -137,7 +135,9 @@ This documents version
 of the
 .Nm
 file format.
-All applications and tools currently produce and operate on this version.
+All applications and tools on
+.Fx
+currently produce and operate on this version.
 .Lp
 The file format can be summarized with the following image, the
 following sections will cover this in more detail.
@@ -300,13 +300,13 @@ In version two of the
 .Nm
 file format, the
 .Sy header
-denotes whether whether or not this
+denotes whether or not this
 .Nm
 file is the child of another
 .Nm
 file and also indicates the size of the remaining sections.
 The structure for the
-.Sy header ,
+.Sy header
 logically contains a copy of the
 .Sy preamble
 and the two have a combined size of 36 bytes.
@@ -534,7 +534,7 @@ files that corresponds with the particular build.
 This ensures that if files on the system were to become mixed up from multiple
 releases, that they are not used together by tools, particularly when a child
 needs to refer to a type in the parent.
-Because they are linked used the type identifiers, if the wrong parent is used
+Because they are linked using the type identifiers, if the wrong parent is used
 then the wrong type will be encountered.
 .Lp
 Each label is encoded in the file format using the following eight byte
@@ -561,7 +561,7 @@ file.
 Labels only refer to types in the current file, if the
 .Nm
 file is a child, then it will have the same label as its parent;
-however, its label will only refer to its types, not its parents.
+however, its label will only refer to its types, not its parent's.
 .Lp
 It is also possible, though rather uncommon, for a
 .Nm
@@ -585,8 +585,8 @@ in the ELF object that contains the
 .Nm
 data.
 Not every object is included in this section.
-Specifically, when walking the symbol table.
-An entry is skipped if it matches any of the following conditions:
+Specifically, when walking the symbol table, an entry is skipped if it matches
+any of the following conditions:
 .Lp
 .Bl -bullet -offset indent -compact
 .It
@@ -657,7 +657,7 @@ walk_symbols(uint16_t *objtoff, Elf_Data *symdata, Elf_Data *strdata,
 The function section of the
 .Nm
 file encodes the types of both the function's arguments and the function's
-return type.
+return value.
 Similar to
 .Sx The Object Section ,
 the function section encodes information for all symbols of type
@@ -790,14 +790,14 @@ is encoded as described in the section
 The string that it points to is the name of the type.
 If the identifier points to an empty string (one that consists solely of a null
 terminator) then the type does not have a name, this is common with anonymous
-structures and unions that only have a typedef to name them, as well as,
+structures and unions that only have a typedef to name them, as well as
 pointers and qualifiers.
 .Lp
 The next member, the
 .Em ctt_info ,
 is encoded as described in the section
 .Sx Type Encoding .
-The types kind tells us how to interpret the remaining data in the
+The type's kind tells us how to interpret the remaining data in the
 .Sy ctf_type_t
 and any variable length data that may exist.
 The rest of this section will be broken down into the interpretation of the
@@ -904,7 +904,7 @@ This encoding can be expressed through the following macros:
 	(((encoding) << 24) | ((offset) << 16) | (bits))
 .Ed
 .Lp
-Where as the encoding for integers was a series of flags, the encoding for
+Where as the encoding for integers is a series of flags, the encoding for
 floats maps to a specific kind of float.
 It is not a flag-based value.
 The kinds of floats correspond to both their size, and the encoding.
@@ -978,14 +978,18 @@ section.
 If the function's last argument is of type varargs, then it is also written out,
 but the type identifier is zero.
 This is included in the count of the function's arguments.
+An extra type identifier may follow the argument and return type identifiers
+in order to maintain four-byte alignment for the following type definition.
+Such a type identifier is not included in the argument count and has a value
+of zero.
 .Ss Encoding of Structures and Unions
 Structures and Unions, which are encoded with
 .Sy CTF_K_STRUCT
 and
 .Sy CTF_K_UNION
 respectively,  are very similar constructs in C.
-The main difference between them is the fact that every member of a structure
-follows one another, where as in a union, all members share the same memory.
+The main difference between them is the fact that members of a structure
+follow one another, where as in a union, all members share the same memory.
 They are also very similar in terms of their encoding in
 .Nm .
 The variable length argument for structures and unions represents the number of
@@ -1032,12 +1036,12 @@ They are encoded as per the section
 .Sx Type Identifiers .
 .Lp
 The last piece of information that is present is the offset which describes the
-offset in memory that the member begins at.
-For unions, this value will always be zero because the start of unions in memory
-is always zero.
+offset in memory at which the member begins.
+For unions, this value will always be zero because each member of a union has
+an offset of zero.
 For structures, this is the offset in
 .Sy bits
-that the member begins at.
+at which the member begins.
 Note that a compiler may lay out a type with padding.
 This means that the difference in offset between two consecutive members may be
 larger than the size of the member.
@@ -1069,12 +1073,16 @@ In C, an enumeration is always equivalent to the intrinsic type
 thus the value of the member
 .Em ctt_size
 is always the size of an integer which is determined based on the current model.
-For illumos systems, this will always be 4, as an integer is always defined to
+For
+.Fx
+systems, this will always be 4, as an integer is always defined to
 be 4 bytes large in both
 .Sy ILP32
 and
 .Sy LP64 ,
 regardless of the architecture.
+For further details, see
+.Xr arch 7 .
 .Lp
 The enumerators encoded in an enumeration have the following structure in the
 variable list:
@@ -1154,7 +1162,7 @@ This section encodes all of the strings that appear throughout the other
 sections.
 It is laid out as a series of characters followed by a null terminator.
 Generally, all names are written out in ASCII, as most C compilers do not allow
-and characters to appear in identifiers outside of a subset of ASCII.
+any characters to appear in identifiers outside of a subset of ASCII.
 However, any extended characters sets should be written out as a series of UTF-8
 bytes.
 .Lp
@@ -1166,7 +1174,7 @@ Offsets that refer to something in this section should refer to the first byte
 which begins a string.
 Beyond the first byte in the section being the null terminator, the order of
 strings is unimportant.
-.Sh Data Encoding and ELF Considerations
+.Ss Data Encoding and ELF Considerations
 .Nm
 data is generally included in ELF objects which specify information to
 identify the architecture and endianness of the file.
@@ -1212,4 +1220,5 @@ alignment must be 4.
 .Xr elf 3 ,
 .Xr gelf 3 ,
 .Xr a.out 5 ,
-.Xr elf 5
+.Xr elf 5 ,
+.Xr arch 7
