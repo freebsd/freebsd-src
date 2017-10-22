@@ -293,7 +293,7 @@ __DEFAULT_YES_OPTIONS+=CXGBETOOL
 __DEFAULT_NO_OPTIONS+=CXGBETOOL
 .endif
 .if ${__T} == "aarch64" || ${__T} == "arm" || ${__T} == "armeb" || \
-    ${__T:Marmv6} != "" || ${__T:Marmv7} != ""
+    ${__T} == "armv6" || ${__T} == "armv7"
 BROKEN_OPTIONS+=COVERAGE
 .endif
 
