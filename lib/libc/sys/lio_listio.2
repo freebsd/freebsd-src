@@ -161,7 +161,7 @@ function will fail if:
 There are not enough resources to enqueue the requests.
 .It Bq Er EAGAIN
 The request would cause the system-wide limit
-.Dv AIO_MAX
+.Dv {AIO_MAX}
 to be exceeded.
 .It Bq Er EINVAL
 The
@@ -173,7 +173,7 @@ nor
 or
 .Fa nent
 is greater than
-.Dv AIO_LISTIO_MAX .
+.Dv {AIO_LISTIO_MAX} .
 .It Bq Er EINVAL
 The asynchronous notification method in
 .Fa sig->sigev_notify
