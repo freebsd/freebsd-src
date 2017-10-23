@@ -32,7 +32,7 @@ GCNOSDIR_${_gcno:T}:=	${_gcno_dir}
 ${DESTDIR}${_gcno_dir}:
 	${INSTALL} -d -o ${GCNOSOWN} -g ${GCNOSGRP} -m ${GCNOSDIRMODE} \
 	    ${.TARGET}/
+beforeinstall: ${DESTDIR}${_gcno_dir}
 .endif
-${_gcno}: ${DESTDIR}${_gcno_dir}
 .endfor
 .endif
