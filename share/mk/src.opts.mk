@@ -468,7 +468,12 @@ MK_${var}_SUPPORT:= yes
 MK_LLDB:=	no
 .endif
 
-.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40800
+.if ${COMPILER_TYPE} == "gcc"
+.if ${COMPILER_VERSION} == 40201
+# gcc 4.2.1 (base) is a dead end. It lacks some niceties that would cleaning
+# integrate the output with the design of MK_COVERAGE, e.g., -fprofile-dir .
+MK_COVERAGE:=no
+.elif ${COMPILER_VERSION} >= 40800
 # gcc 4.8 and newer supports libc++, so suppress gnuc++ in that case.
 # while in theory we could build it with that, we don't want to do
 # that since it creates too much confusion for too little gain.
@@ -477,6 +482,7 @@ MK_LLDB:=	no
 #      and to support 'make delete-old' when supplying an external toolchain.
 MK_GNUCXX:=no
 MK_GCC:=no
+.endif
 .endif
 
 .endif #  !target(__<src.opts.mk>__)
