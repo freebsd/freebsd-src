@@ -25,8 +25,8 @@ FILESGROUPS+=	GCNOS
 CLEANFILES+=	${GCNOS}
 
 .for _gcno in ${GCNOS}
-_gcno_dir=		${COVERAGEDIR}${_gcno:H:tA}
-GCNOSDIR_${_gcno:T}=	${_gcno_dir}
+_gcno_dir:=		${COVERAGEDIR}${_gcno:H:tA}
+GCNOSDIR_${_gcno:T}:=	${_gcno_dir}
 # Create _gcno_dir if it doesn't already exist.
 .if !target(${DESTDIR}${_gcno_dir})
 ${DESTDIR}${_gcno_dir}:
