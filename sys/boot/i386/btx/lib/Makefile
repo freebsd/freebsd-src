@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 .include <src.opts.mk>
-MK_COVERAGE=no
 
 PROG=	crt0.o
 INTERNALPROG=

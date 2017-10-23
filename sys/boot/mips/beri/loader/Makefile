@@ -30,7 +30,6 @@
 # $FreeBSD$
 
 .include <src.opts.mk>
-MK_COVERAGE=	no
 MK_SSP=		no
 MAN=
 
