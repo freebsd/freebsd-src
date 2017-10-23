@@ -233,9 +233,6 @@ __DEFAULT_NO_OPTIONS+=CLANG_BOOTSTRAP CLANG_IS_CC GPL_DTC LLD
 # Everything else disables Clang, and uses GCC instead.
 __DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
 __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC LLD
-# gcc 4.2.1 (base) is a dead end. It lacks some niceties that would cleaning
-# integrate the output with the design of MK_COVERAGE, e.g., -fprofile-dir .
-BROKEN_OPTIONS=COVERAGE
 .endif
 # In-tree binutils/gcc are older versions without modern architecture support.
 .if ${__T} == "aarch64" || ${__T:Mriscv*} != ""
@@ -324,6 +321,9 @@ MK_${var}:=	no
 # Order is somewhat important.
 #
 .if !${COMPILER_FEATURES:Mc++11}
+# gcc 4.2.1 (base) is a dead end. It lacks some niceties that would cleaning
+# integrate the output with the design of MK_COVERAGE, e.g., -fprofile-dir .
+MK_COVERAGE:=		no
 MK_LLVM_LIBUNWIND:=	no
 .endif
 
