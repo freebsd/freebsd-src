@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-
 PROG=	crt0.o
 INTERNALPROG=
 MAN=
