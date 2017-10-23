@@ -278,9 +278,6 @@ BROKEN_OPTIONS+=LIBSOFT
 .if ${__T:Mmips*}
 BROKEN_OPTIONS+=SSP
 .endif
-.if ${__T:Mmips*} || ${__T:Mpowerpc*} || ${__T:Msparc64}
-BROKEN_OPTIONS+=COVERAGE
-.endif
 .if ${__T:Mmips*} || ${__T:Mpowerpc*} || ${__T:Msparc64} || ${__T:Mriscv*}
 BROKEN_OPTIONS+=EFI
 .endif
@@ -324,9 +321,6 @@ MK_${var}:=	no
 # Order is somewhat important.
 #
 .if !${COMPILER_FEATURES:Mc++11}
-# gcc 4.2.1 (base) is a dead end. It lacks some niceties that would cleaning
-# integrate the output with the design of MK_COVERAGE, e.g., -fprofile-dir .
-MK_COVERAGE:=		no
 MK_LLVM_LIBUNWIND:=	no
 .endif
 
@@ -429,6 +423,13 @@ MK_CLANG_EXTRAS:= no
 MK_CLANG_FULL:= no
 .endif
 
+# XXX: COMPILER_FEATURES and TARGET lies!
+.if ${MK_CLANG} == "no" && ${MK_GCC} != "no"
+# gcc 4.2.1 (base) is a dead end. It lacks some niceties that would cleaning
+# integrate the output with the design of MK_COVERAGE, e.g., -fprofile-dir .
+MK_COVERAGE:=		no
+.endif
+
 #
 # MK_* options whose default value depends on another option.
 #
@@ -474,9 +475,7 @@ MK_${var}_SUPPORT:= yes
 MK_LLDB:=	no
 .endif
 
-.if ${COMPILER_TYPE} == "gcc"
-.if ${COMPILER_VERSION} == 40201
-.elif ${COMPILER_VERSION} >= 40800
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40800
 # gcc 4.8 and newer supports libc++, so suppress gnuc++ in that case.
 # while in theory we could build it with that, we don't want to do
 # that since it creates too much confusion for too little gain.
@@ -485,7 +484,6 @@ MK_LLDB:=	no
 #      and to support 'make delete-old' when supplying an external toolchain.
 MK_GNUCXX:=no
 MK_GCC:=no
-.endif
 .endif
 
 .endif #  !target(__<src.opts.mk>__)
