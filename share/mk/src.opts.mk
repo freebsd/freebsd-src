@@ -279,6 +279,7 @@ BROKEN_OPTIONS+=LIBSOFT
 BROKEN_OPTIONS+=SSP
 .endif
 .if ${__T:Mmips*} || ${__T:Mpowerpc*} || ${__T:Msparc64} || ${__T:Mriscv*}
+BROKEN_OPTIONS+=COVERAGE
 BROKEN_OPTIONS+=EFI
 .endif
 .if ${__T:Mmips64*}
