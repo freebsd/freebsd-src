@@ -2263,6 +2263,7 @@ _prereq_libs+=	lib/libclang_rt/profile
 .else
 .error "Runtime coverage is only supported with c++11 capable compilers"
 .endif
+.endif
 
 # These dependencies are not automatically generated:
 #
