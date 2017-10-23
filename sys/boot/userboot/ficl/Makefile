@@ -1,7 +1,6 @@
 # $FreeBSD$
 #
 .include <bsd.own.mk>
-MK_COVERAGE=	no
 MK_SSP=		no
 
 .PATH: ${.CURDIR}/../../ficl
