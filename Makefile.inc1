@@ -2259,9 +2259,8 @@ _prereq_libs+= gnu/lib/libssp/libssp_nonshared
 #
 .if ${MK_COVERAGE} != "no"
 # XXX (ngie): make this conditional sometime later
-_coverage_libs+=	lib/libclang_rt/profile
-_coverage_libs+=	gnu/lib/libgcov
-_prereq_libs+=		${_coverage_libs}
+_prereq_libs+=	lib/libclang_rt/profile
+_prereq_libs+=	gnu/lib/libgcov
 .endif
 
 # These dependencies are not automatically generated:
