@@ -275,7 +275,7 @@ struct thread {
 	char		td_name[MAXCOMLEN + 1];	/* (*) Thread name. */
 	struct file	*td_fpop;	/* (k) file referencing cdev under op */
 	int		td_dbgflags;	/* (c) Userland debugger flags */
-	struct ksiginfo td_dbgksi;	/* (c) ksi reflected to debugger. */
+	uint64_t	padding3[14];
 	int		td_ng_outbound;	/* (k) Thread entered ng from above. */
 	struct osd	td_osd;		/* (k) Object specific data. */
 	struct vm_map_entry *td_map_def_user; /* (k) Deferred entries. */
@@ -346,6 +346,7 @@ struct thread {
 #define	td_siglist	td_sigqueue.sq_signals
 	struct syscall_args td_sa;	/* (kx) Syscall parameters. Copied on
 					   fork for child tracing. */
+	siginfo_t	td_si;		/* (c) For debugger or core file */
 };
 
 struct thread0_storage {

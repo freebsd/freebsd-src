@@ -38,7 +38,7 @@
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl w Ar interval
-.Op Fl b | c | e | f | i | j | k | l | r | s | S | t | v | x
+.Op Fl b | c | e | f | i | j | k | l | L | r | s | S | t | v | x
 .Op Fl a | Ar pid | Ar core ...
 .Sh DESCRIPTION
 The
@@ -81,6 +81,8 @@ If the flag is repeated, function offsets as well as function names are
 printed.
 .It Fl l
 Display resource limits for the process.
+.It Fl L
+Display LWP info for the process pertaining to it's signal driven exit.
 .It Fl r
 Display resource usage information for the process.
 .It Fl s
