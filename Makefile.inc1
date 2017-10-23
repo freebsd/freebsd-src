@@ -2258,10 +2258,10 @@ _prereq_libs+= gnu/lib/libssp/libssp_nonshared
 # for world to have runtime coverage instrumentation.
 #
 .if ${MK_COVERAGE} != "no"
-.if ${COMPILER_TYPE} == clang
+.if ${MK_CLANG} != "no"
 _prereq_libs+=	lib/libclang_rt/profile
 .else
-.error "Runtime coverage isn't supported with ${COMPILER_TYPE}"
+.error "Runtime coverage is only supported with clang"
 .endif
 .endif
 
