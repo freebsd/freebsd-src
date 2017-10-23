@@ -2259,7 +2259,9 @@ _prereq_libs+= gnu/lib/libssp/libssp_nonshared
 #
 .if ${MK_COVERAGE} != "no"
 # XXX (ngie): make this conditional sometime later
+.if ${COMPILER_FEATURES:Mc++11}
 _prereq_libs+=	lib/libclang_rt/profile
+.endif
 _prereq_libs+=	gnu/lib/libgcov
 .endif
 
