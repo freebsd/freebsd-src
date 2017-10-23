@@ -194,7 +194,7 @@ bsde_rule_to_string(struct mac_bsdextended_rule *rule, char *buf, size_t buflen)
 			cur += len;
 		}
 		if (rule->mbr_subject.mbs_flags & MBS_PRISON_DEFINED) {
-			len = snprintf(cur, left, "jailid %d ", 
+			len = snprintf(cur, left, "jailid %d ",
 			    rule->mbr_subject.mbs_prison);
 			if (len < 0 || len > left)
 				goto truncated;
@@ -334,7 +334,7 @@ bsde_rule_to_string(struct mac_bsdextended_rule *rule, char *buf, size_t buflen)
 				    &(mntbuf[i].f_fsid),
 				    sizeof(mntbuf[i].f_fsid)) == 0)
 					break;
-			len = snprintf(cur, left, "filesys %s ", 
+			len = snprintf(cur, left, "filesys %s ",
 			    i == numfs ? "???" : mntbuf[i].f_mntonname);
 			if (len < 0 || len > left)
 				goto truncated;
@@ -972,7 +972,7 @@ bsde_parse_mode(int argc, char *argv[], mode_t *mode, size_t buflen,
 			snprintf(errstr, buflen, "Unknown mode letter: %c",
 			    argv[0][i]);
 			return (-1);
-		} 
+		}
 	}
 
 	return (0);
