@@ -624,9 +624,6 @@ TARGET_ABI=	gnueabi
 .endif
 .if ${WANT_COMPILER_TYPE} == gcc || \
     (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
-# The cross-toolchain gcc packages are broken with respect to libgcov.a, etc.
-# PR: 223174
-MK_COVERAGE=	no
 # GCC requires -isystem and -L when using a cross-compiler.  --sysroot
 # won't set header path and -L is used to ensure the base library path
 # is added before the port PREFIX library path.
