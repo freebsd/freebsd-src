@@ -558,8 +558,8 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
-		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} MK_GDB=no \
-		MK_LLD_IS_LD=${MK_LLD_BOOTSTRAP} MK_TESTS=no
+		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		MK_GDB=no MK_LLD_IS_LD=${MK_LLD_BOOTSTRAP} MK_TESTS=no
 
 # kernel-tools stage
 KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -2258,11 +2258,10 @@ _prereq_libs+= gnu/lib/libssp/libssp_nonshared
 # for world to have runtime coverage instrumentation.
 #
 .if ${MK_COVERAGE} != "no"
-.if ${MK_CLANG} != "no"
+.if ${X_COMPILER_FEATURES:Mc++11}
 _prereq_libs+=	lib/libclang_rt/profile
 .else
-.error "Runtime coverage is only supported with clang"
-.endif
+.error "Runtime coverage is only supported with c++11 capable compilers"
 .endif
 
 # These dependencies are not automatically generated:
