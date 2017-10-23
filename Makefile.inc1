@@ -2259,9 +2259,16 @@ _prereq_libs+= gnu/lib/libssp/libssp_nonshared
 #
 .if ${MK_COVERAGE} != "no"
 .if ${X_COMPILER_FEATURES:Mc++11}
-_prereq_libs+=	lib/libclang_rt/profile
+_coverage_libs+=	lib/libclang_rt/profile
 .else
-.error "Runtime coverage is only supported with c++11 capable compilers"
+.endif
+.if empty(${_coverage_libs})
+# XXX(ngie): force MK_COVERAGE off since the compiler we're working with (at
+# whatever stage we're at) obviously doesn't support --coverage support per
+# src.opts.mk's minimum requirements.
+MK_COVERAGE:=	no
+.else
+_prereq_libs+=	${_coverage_libs}
 .endif
 .endif
 
