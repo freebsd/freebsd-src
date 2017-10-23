@@ -2261,13 +2261,10 @@ _prereq_libs+= gnu/lib/libssp/libssp_nonshared
 # for world to have runtime coverage instrumentation.
 #
 .if ${MK_COVERAGE} != "no"
-.if ${WANT_COMPILER_TYPE} == "clang" || ${MK_CLANG} != "no"
+# XXX (ngie): make this conditional sometime later
 _coverage_libs+=	lib/libclang_rt/profile
-.endif
-.if ${WANT_COMPILER_TYPE} == "gcc" || ${MK_GCC} != "no"
 _coverage_libs+=	gnu/lib/libgcov
-.endif
-_prereq_libs+=	${_coverage_libs}
+_prereq_libs+=		${_coverage_libs}
 .endif
 
 # These dependencies are not automatically generated:
