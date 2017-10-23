@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2017 Dell EMC
  * Copyright (c) 2009 Stanislav Sedov <stas@FreeBSD.org>
  * Copyright (c) 1988, 1993
  *      The Regents of the University of California.  All rights reserved.
@@ -65,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #define	_KERNEL
 #include <sys/mount.h>
 #include <sys/pipe.h>
+#include <sys/ptrace.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <fs/devfs/devfs.h>
@@ -2467,6 +2469,48 @@ procstat_freeauxv(struct procstat *procstat __unused, Elf_Auxinfo *auxv)
 {
 
 	free(auxv);
+}
+
+static struct ptrace_lwpinfo *
+procstat_getptlwpinfo_core(struct procstat_core *core, unsigned int *cntp)
+{
+	void *buf;
+	struct ptrace_lwpinfo *pl;
+	unsigned int cnt;
+	size_t len;
+
+	cnt = procstat_core_note_count(core, PSC_TYPE_PTLWPINFO);
+	if (cnt == 0)
+		return (NULL);
+
+	len = cnt * sizeof(*pl);
+	buf = calloc(1, len);
+	pl = procstat_core_get(core, PSC_TYPE_PTLWPINFO, buf, &len);
+	if (pl == NULL) {
+		free(buf);
+		return (NULL);
+	}
+	*cntp = len / sizeof(*pl);
+	return (pl);
+}
+
+struct ptrace_lwpinfo *
+procstat_getptlwpinfo(struct procstat *procstat, unsigned int *cntp)
+{
+	switch (procstat->type) {
+	case PROCSTAT_CORE:
+	 	return (procstat_getptlwpinfo_core(procstat->core, cntp));
+	default:
+		warnx("unknown access method: %d", procstat->type);
+		return (NULL);
+	}
+}
+
+void
+procstat_freeptlwpinfo(struct procstat *procstat __unused,
+    struct ptrace_lwpinfo *pl)
+{
+	free(pl);
 }
 
 static struct kinfo_kstack *

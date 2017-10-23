@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2007, 2011 Robert N. M. Watson
  * Copyright (c) 2015 Allan Jude <allanjude@freebsd.org>
+ * Copyright (c) 2017 Dell EMC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,8 +42,8 @@
 
 #include "procstat.h"
 
-static int aflag, bflag, cflag, eflag, fflag, iflag, jflag, kflag, lflag, rflag;
-static int sflag, tflag, vflag, xflag, Sflag;
+static int aflag, bflag, cflag, eflag, fflag, iflag, jflag, kflag;
+static int lflag, Lflag, rflag, sflag, tflag, vflag, xflag, Sflag;
 int	hflag, nflag, Cflag, Hflag;
 
 static void
@@ -85,6 +86,8 @@ procstat(struct procstat *prstat, struct kinfo_proc *kipp)
 		procstat_kstack(prstat, kipp, kflag);
 	else if (lflag)
 		procstat_rlimit(prstat, kipp);
+	else if (Lflag)
+		procstat_ptlwpinfo(prstat);
 	else if (rflag)
 		procstat_rusage(prstat, kipp);
 	else if (sflag)
@@ -162,7 +165,7 @@ main(int argc, char *argv[])
 	argc = xo_parse_args(argc, argv);
 	xocontainer = "basic";
 
-	while ((ch = getopt(argc, argv, "abCcefHhijklM:N:nrSstvw:x")) != -1) {
+	while ((ch = getopt(argc, argv, "abCcefHhijklLM:N:nrSstvw:x")) != -1) {
 		switch (ch) {
 		case 'C':
 			Cflag++;
@@ -224,6 +227,11 @@ main(int argc, char *argv[])
 		case 'l':
 			lflag++;
 			xocontainer = "rlimit";
+			break;
+
+		case 'L':
+			Lflag++;
+			xocontainer = "ptlwpinfo";
 			break;
 
 		case 'n':

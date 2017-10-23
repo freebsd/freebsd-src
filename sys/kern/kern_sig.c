@@ -1243,6 +1243,19 @@ sys_sigwaitinfo(struct thread *td, struct sigwaitinfo_args *uap)
 	return (error);
 }
 
+static void
+proc_td_siginfo_capture(struct thread *td, siginfo_t *si)
+{
+	struct thread *thr;
+
+	FOREACH_THREAD_IN_PROC(td->td_proc, thr) {
+		if (thr == td)
+			thr->td_si = *si;
+		else
+			thr->td_si.si_signo = 0;
+	}
+}
+
 int
 kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 	struct timespec *timeout)
@@ -1351,8 +1364,10 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 			ktrpsig(sig, action, &td->td_sigmask, ksi->ksi_code);
 		}
 #endif
-		if (sig == SIGKILL)
+		if (sig == SIGKILL) {
+			proc_td_siginfo_capture(td, &ksi->ksi_info);
 			sigexit(td, sig);
+		}
 	}
 	PROC_UNLOCK(p);
 	return (error);
@@ -2805,6 +2820,7 @@ issignal(struct thread *td)
 	struct sigqueue *queue;
 	sigset_t sigpending;
 	int prop, sig, traced;
+	ksiginfo_t ksi;
 
 	p = td->td_proc;
 	ps = p->p_sigacts;
@@ -2860,14 +2876,15 @@ issignal(struct thread *td)
 			 * be thrown away.
 			 */
 			queue = &td->td_sigqueue;
-			td->td_dbgksi.ksi_signo = 0;
-			if (sigqueue_get(queue, sig, &td->td_dbgksi) == 0) {
+			ksiginfo_init(&ksi);
+			if (sigqueue_get(queue, sig, &ksi) == 0) {
 				queue = &p->p_sigqueue;
-				sigqueue_get(queue, sig, &td->td_dbgksi);
+				sigqueue_get(queue, sig, &ksi);
 			}
+			td->td_si = ksi.ksi_info;
 
 			mtx_unlock(&ps->ps_mtx);
-			sig = ptracestop(td, sig, &td->td_dbgksi);
+			sig = ptracestop(td, sig, &ksi);
 			mtx_lock(&ps->ps_mtx);
 
 			/* 
@@ -3039,6 +3056,7 @@ postsig(int sig)
 		 * the process.  (Other cases were ignored above.)
 		 */
 		mtx_unlock(&ps->ps_mtx);
+		proc_td_siginfo_capture(td, &ksi.ksi_info);
 		sigexit(td, sig);
 		/* NOTREACHED */
 	} else {

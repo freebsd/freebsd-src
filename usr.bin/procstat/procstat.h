@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2007 Robert N. M. Watson
  * Copyright (c) 2015 Allan Jude <allanjude@freebsd.org>
+ * Copyright (c) 2017 Dell EMC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,6 +51,7 @@ void	procstat_env(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_files(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_kstack(struct procstat *prstat, struct kinfo_proc *kipp,
     int kflag);
+void	procstat_ptlwpinfo(struct procstat *prstat);
 void	procstat_rlimit(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_rusage(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
