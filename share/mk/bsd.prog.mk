@@ -62,7 +62,7 @@ TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
 LDFLAGS+= -static
 .else
 .if defined(_WANTS_DEBUG) && ${MK_COVERAGE} != "no"
-_COV_FLAG= --coverage
+_COV_FLAG= --coverage -fprofile_dir=${COVERAGEDIR}
 CFLAGS+= ${_COV_FLAG}
 CXXFLAGS+= ${_COV_FLAG}
 .endif
