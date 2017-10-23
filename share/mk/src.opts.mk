@@ -292,6 +292,17 @@ __DEFAULT_YES_OPTIONS+=CXGBETOOL
 __DEFAULT_NO_OPTIONS+=CXGBETOOL
 .endif
 
+# clang and gcc 4.8+ (c++11 supporting compilers) support -fprofile-dir and
+# can compile lib/libclang_rt/profile . libgcov, etc, in base is a dead end
+# that I (ngie) do not wish to support with MK_COVERAGE.
+#
+# NB: some gcc cross-toolchain packages are currently broken: bug 223174.
+.if ${COMPILER_FEATURES:Mc++11}
+__DEFAULT_NO_OPTIONS+=	COVERAGE
+.else
+BROKEN_OPTIONS+=COVERAGE
+.endif
+
 .include <bsd.mkopt.mk>
 
 #
@@ -421,13 +432,6 @@ MK_LLDB:=	no
 .if ${MK_CLANG} == "no"
 MK_CLANG_EXTRAS:= no
 MK_CLANG_FULL:= no
-.endif
-
-# XXX: COMPILER_FEATURES and TARGET lies!
-.if ${MK_CLANG} == "no" && ${MK_GCC} != "no"
-# gcc 4.2.1 (base) is a dead end. It lacks some niceties that would cleaning
-# integrate the output with the design of MK_COVERAGE, e.g., -fprofile-dir .
-MK_COVERAGE:=	no
 .endif
 
 #
