@@ -427,7 +427,7 @@ MK_CLANG_FULL:= no
 .if ${MK_CLANG} == "no" && ${MK_GCC} != "no"
 # gcc 4.2.1 (base) is a dead end. It lacks some niceties that would cleaning
 # integrate the output with the design of MK_COVERAGE, e.g., -fprofile-dir .
-MK_COVERAGE:=		no
+MK_COVERAGE:=	no
 .endif
 
 #
