@@ -56,8 +56,8 @@
 static daddr_t	ext2_alloccg(struct inode *, int, daddr_t, int);
 static daddr_t	ext2_clusteralloc(struct inode *, int, daddr_t, int);
 static u_long	ext2_dirpref(struct inode *);
-static u_long	ext2_hashalloc(struct inode *, int, long, int,
-				daddr_t (*)(struct inode *, int, daddr_t, 
+static e4fs_daddr_t ext2_hashalloc(struct inode *, int, long, int,
+    daddr_t (*)(struct inode *, int, daddr_t, 
 						int));
 static daddr_t	ext2_nodealloccg(struct inode *, int, daddr_t, int);
 static daddr_t  ext2_mapsearch(struct m_ext2fs *, char *, daddr_t);
@@ -85,7 +85,7 @@ ext2_alloc(struct inode *ip, daddr_t lbn, e4fs_daddr_t bpref, int size,
 {
 	struct m_ext2fs *fs;
 	struct ext2mount *ump;
-	int32_t bno;
+	e4fs_daddr_t bno;
 	int cg;
 
 	*bnp = 0;
@@ -134,7 +134,7 @@ nospace:
 /*
  * Allocate EA's block for inode.
  */
-daddr_t
+e4fs_daddr_t
 ext2_alloc_meta(struct inode *ip)
 {
 	struct m_ext2fs *fs;
@@ -617,12 +617,12 @@ ext2_blkpref(struct inode *ip, e2fs_lbn_t lbn, int indx, e2fs_daddr_t *bap,
  *   2) quadradically rehash on the cylinder group number.
  *   3) brute force search for a free block.
  */
-static u_long
+static e4fs_daddr_t
 ext2_hashalloc(struct inode *ip, int cg, long pref, int size,
     daddr_t (*allocator) (struct inode *, int, daddr_t, int))
 {
 	struct m_ext2fs *fs;
-	ino_t result;
+	e4fs_daddr_t result;
 	int i, icg = cg;
 
 	mtx_assert(EXT2_MTX(ip->i_ump), MA_OWNED);
@@ -1181,7 +1181,7 @@ ext2_blkfree(struct inode *ip, e4fs_daddr_t bno, long size)
 	fs = ip->i_e2fs;
 	ump = ip->i_ump;
 	cg = dtog(fs, bno);
-	if ((u_int)bno >= fs->e2fs->e2fs_bcount) {
+	if (bno >= fs->e2fs->e2fs_bcount) {
 		printf("bad block %lld, ino %ju\n", (long long)bno,
 		    (uintmax_t)ip->i_number);
 		ext2_fserr(fs, ip->i_uid, "bad block");
