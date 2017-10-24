@@ -4863,9 +4863,6 @@ process_control_chunks:
 				if ((stcb != NULL) && (stcb->asoc.total_output_queue_size)) {
 					;
 				} else {
-					if (stcb != NULL) {
-						SCTP_TCB_UNLOCK(stcb);
-					}
 					*offset = length;
 					if (stcb != NULL) {
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
