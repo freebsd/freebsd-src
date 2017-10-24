@@ -47,6 +47,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#ifndef INVARIANTS
+#include <sys/syslog.h>
+#endif
 #include <sys/protosw.h>
 #include <sys/random.h>
 
@@ -711,10 +714,29 @@ tcp_tw_2msl_scan(int reuse)
 			INP_WLOCK(inp);
 			tw = intotw(inp);
 			if (in_pcbrele_wlocked(inp)) {
-				KASSERT(tw == NULL, ("%s: held last inp "
-				    "reference but tw not NULL", __func__));
-				INP_INFO_RUNLOCK(&V_tcbinfo);
-				continue;
+				if (__predict_true(tw == NULL)) {
+					INP_INFO_RUNLOCK(&V_tcbinfo);
+					continue;
+				} else {
+					/* This should not happen as in TIMEWAIT
+					 * state the inp should not be destroyed
+					 * before its tcptw. If INVARIANTS is
+					 * defined panic.
+					 */
+#ifdef INVARIANTS
+					panic("%s: Panic before an infinite "
+					    "loop: INP_TIMEWAIT && (INP_FREED "
+					    "|| inp last reference) && tw != "
+					    "NULL", __func__);
+#else
+					log(LOG_ERR, "%s: Avoid an infinite "
+					    "loop: INP_TIMEWAIT && (INP_FREED "
+					    "|| inp last reference) && tw != "
+					    "NULL", __func__);
+#endif
+					INP_INFO_RUNLOCK(&V_tcbinfo);
+					break;
+				}
 			}
 
 			if (tw == NULL) {
