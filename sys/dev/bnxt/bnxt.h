@@ -211,6 +211,10 @@ __FBSDID("$FreeBSD$");
 #define BNXT_HWRM_LOCK_DESTROY(_softc)	mtx_destroy(&(_softc)->hwrm_lock)
 #define BNXT_HWRM_LOCK_ASSERT(_softc)	mtx_assert(&(_softc)->hwrm_lock,    \
     MA_OWNED)
+#define BNXT_IS_FLOW_CTRL_CHANGED(link_info)				    \
+	((link_info->last_flow_ctrl.tx != link_info->flow_ctrl.tx) ||       \
+         (link_info->last_flow_ctrl.rx != link_info->flow_ctrl.rx) ||       \
+	 (link_info->last_flow_ctrl.autoneg != link_info->flow_ctrl.autoneg))
 
 /* Chip info */
 #define BNXT_TSO_SIZE	UINT16_MAX
@@ -288,6 +292,12 @@ struct bnxt_bar_info {
 	int			rid;
 };
 
+struct bnxt_flow_ctrl {
+	bool rx;
+	bool tx;
+	bool autoneg;
+};
+
 struct bnxt_link_info {
 	uint8_t		media_type;
 	uint8_t		transceiver;
@@ -299,10 +309,8 @@ struct bnxt_link_info {
 	uint8_t		last_link_up;
 	uint8_t		duplex;
 	uint8_t		last_duplex;
-	uint8_t		pause;
-	uint8_t		last_pause;
-	uint8_t		auto_pause;
-	uint8_t		force_pause;
+	struct bnxt_flow_ctrl   flow_ctrl;
+	struct bnxt_flow_ctrl   last_flow_ctrl;
 	uint8_t		duplex_setting;
 	uint8_t		auto_mode;
 #define PHY_VER_LEN		3
@@ -320,7 +328,6 @@ struct bnxt_link_info {
 #define BNXT_AUTONEG_SPEED	1
 #define BNXT_AUTONEG_FLOW_CTRL	2
 	uint8_t		req_duplex;
-	uint8_t		req_flow_ctrl;
 	uint16_t	req_link_speed;
 };
 
@@ -596,6 +603,8 @@ struct bnxt_softc {
 	struct sysctl_oid	*hw_stats_oid;
 	struct sysctl_ctx_list	hw_lro_ctx;
 	struct sysctl_oid	*hw_lro_oid;
+	struct sysctl_ctx_list	flow_ctrl_ctx;
+	struct sysctl_oid	*flow_ctrl_oid;
 
 	struct bnxt_ver_info	*ver_info;
 	struct bnxt_nvram_info	*nvm_info;
