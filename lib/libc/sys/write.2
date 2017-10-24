@@ -28,7 +28,7 @@
 .\"     @(#)write.2	8.5 (Berkeley) 4/2/94
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2015
+.Dd October 23, 2017
 .Dt WRITE 2
 .Os
 .Sh NAME
@@ -199,7 +199,12 @@ to enable writing on the disk label area.
 The value
 .Fa nbytes
 is greater than
-.Dv INT_MAX .
+.Dv SSIZE_MAX
+(or greater than
+.Dv INT_MAX ,
+if the sysctl
+.Va debug.iosize_max_clamp
+is non-zero).
 .El
 .Pp
 In addition,
