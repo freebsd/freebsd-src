@@ -2802,27 +2802,26 @@ vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
 	if (vm_page_sbusied(m))
 		panic("vm_page_free: freeing busy page %p", m);
 
+	vm_page_remove(m);
+
 	/*
-	 * Unqueue, then remove page.  Note that we cannot destroy
-	 * the page here because we do not want to call the pager's
-	 * callback routine until after we've put the page on the
-	 * appropriate free queue.
+	 * If fictitious remove object association and
+	 * return.
 	 */
+	if ((m->flags & PG_FICTITIOUS) != 0) {
+		KASSERT(m->wire_count == 1,
+		    ("fictitious page %p is not wired", m));
+		KASSERT(m->queue == PQ_NONE,
+		    ("fictitious page %p is queued", m));
+		return (false);
+	}
+
 	if (m->queue != PQ_NONE) {
 		if (pagequeue_locked)
 			vm_page_dequeue_locked(m);
 		else
 			vm_page_dequeue(m);
 	}
-	vm_page_remove(m);
-
-	/*
-	 * If fictitious remove object association and
-	 * return, otherwise delay object association removal.
-	 */
-	if ((m->flags & PG_FICTITIOUS) != 0)
-		return (false);
-
 	m->valid = 0;
 	vm_page_undirty(m);
 
