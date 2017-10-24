@@ -91,11 +91,12 @@ ext2_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
  * Cnt == 1 means free; cnt == -1 means allocating.
  */
 void
-ext2_clusteracct(struct m_ext2fs *fs, char *bbp, int cg, daddr_t bno, int cnt)
+ext2_clusteracct(struct m_ext2fs *fs, char *bbp, int cg, e4fs_daddr_t bno, int cnt)
 {
 	int32_t *sump = fs->e2fs_clustersum[cg].cs_sum;
 	int32_t *lp;
-	int back, bit, end, forw, i, loc, start;
+	e4fs_daddr_t start, end, loc, forw, back;
+	int bit, i;
 
 	/* Initialize the cluster summary array. */
 	if (fs->e2fs_clustersum[cg].cs_init == 0) {
