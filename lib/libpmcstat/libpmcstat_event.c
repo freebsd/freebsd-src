@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009, Fabien Thomas
+ * Copyright (c) 2003-2008 Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,21 +22,51 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef	_PMCSTAT_PL_CALLTREE_H_
-#define	_PMCSTAT_PL_CALLTREE_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-/* Function prototypes */
-int pmcpl_ct_init(void);
-void pmcpl_ct_shutdown(FILE *mf);
-void pmcpl_ct_process(
-    struct pmcstat_process *pp, struct pmcstat_pmcrecord *pmcr,
-    uint32_t nsamples, uintfptr_t *cc, int usermode, uint32_t cpu);
-int pmcpl_ct_topkeypress(int c, void *w);
-void pmcpl_ct_topdisplay(void);
-int pmcpl_ct_configure(char *opt);
+#include <sys/types.h>
+#include <sys/cpuset.h>
+#include <sys/pmc.h>
 
-#endif	/* _PMCSTAT_PL_CALLTREE_H_ */
+#include <err.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sysexits.h>
+
+#include "libpmcstat.h"
+
+void
+pmcstat_clone_event_descriptor(struct pmcstat_ev *ev, const cpuset_t *cpumask,
+    struct pmcstat_args *args)
+{
+	int cpu;
+	struct pmcstat_ev *ev_clone;
+
+	for (cpu = 0; cpu < CPU_SETSIZE; cpu++) {
+		if (!CPU_ISSET(cpu, cpumask))
+			continue;
+
+		if ((ev_clone = malloc(sizeof(*ev_clone))) == NULL)
+			errx(EX_SOFTWARE, "ERROR: Out of memory");
+		(void) memset(ev_clone, 0, sizeof(*ev_clone));
+
+		ev_clone->ev_count = ev->ev_count;
+		ev_clone->ev_cpu   = cpu;
+		ev_clone->ev_cumulative = ev->ev_cumulative;
+		ev_clone->ev_flags = ev->ev_flags;
+		ev_clone->ev_mode  = ev->ev_mode;
+		ev_clone->ev_name  = strdup(ev->ev_name);
+		if (ev_clone->ev_name == NULL)
+			errx(EX_SOFTWARE, "ERROR: Out of memory");
+		ev_clone->ev_pmcid = ev->ev_pmcid;
+		ev_clone->ev_saved = ev->ev_saved;
+		ev_clone->ev_spec  = strdup(ev->ev_spec);
+		if (ev_clone->ev_spec == NULL)
+			errx(EX_SOFTWARE, "ERROR: Out of memory");
+
+		STAILQ_INSERT_TAIL(&args->pa_events, ev_clone, ev_next);
+	}
+}
