@@ -763,7 +763,8 @@ sctp_handle_nat_missing_state(struct sctp_tcb *stcb,
 }
 
 
-static void
+/* Returns 1 if the stcb was aborted, 0 otherwise */
+static int
 sctp_handle_abort(struct sctp_abort_chunk *abort,
     struct sctp_tcb *stcb, struct sctp_nets *net)
 {
@@ -775,29 +776,29 @@ sctp_handle_abort(struct sctp_abort_chunk *abort,
 
 	SCTPDBG(SCTP_DEBUG_INPUT2, "sctp_handle_abort: handling ABORT\n");
 	if (stcb == NULL)
-		return;
+		return (0);
 
 	len = ntohs(abort->ch.chunk_length);
-	if (len > sizeof(struct sctp_chunkhdr)) {
+	if (len >= sizeof(struct sctp_chunkhdr) + sizeof(struct sctp_error_cause)) {
 		/*
 		 * Need to check the cause codes for our two magic nat
 		 * aborts which don't kill the assoc necessarily.
 		 */
-		struct sctp_gen_error_cause *cause;
+		struct sctp_error_cause *cause;
 
-		cause = (struct sctp_gen_error_cause *)(abort + 1);
+		cause = (struct sctp_error_cause *)(abort + 1);
 		error = ntohs(cause->code);
 		if (error == SCTP_CAUSE_NAT_COLLIDING_STATE) {
 			SCTPDBG(SCTP_DEBUG_INPUT2, "Received Colliding state abort flags:%x\n",
 			    abort->ch.chunk_flags);
 			if (sctp_handle_nat_colliding_state(stcb)) {
-				return;
+				return (0);
 			}
 		} else if (error == SCTP_CAUSE_NAT_MISSING_STATE) {
 			SCTPDBG(SCTP_DEBUG_INPUT2, "Received missing state abort flags:%x\n",
 			    abort->ch.chunk_flags);
 			if (sctp_handle_nat_missing_state(stcb, net)) {
-				return;
+				return (0);
 			}
 		}
 	} else {
@@ -832,6 +833,7 @@ sctp_handle_abort(struct sctp_abort_chunk *abort,
 	SCTP_SOCKET_UNLOCK(so, 1);
 #endif
 	SCTPDBG(SCTP_DEBUG_INPUT2, "sctp_handle_abort: finished\n");
+	return (1);
 }
 
 static void
@@ -5121,11 +5123,16 @@ process_control_chunks:
 		case SCTP_ABORT_ASSOCIATION:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_ABORT, stcb %p\n",
 			    (void *)stcb);
-			if ((stcb) && netp && *netp)
-				sctp_handle_abort((struct sctp_abort_chunk *)ch,
-				    stcb, *netp);
 			*offset = length;
-			return (NULL);
+			if ((stcb != NULL) && (netp != NULL) && (*netp != NULL)) {
+				if (sctp_handle_abort((struct sctp_abort_chunk *)ch, stcb, *netp)) {
+					return (NULL);
+				} else {
+					return (stcb);
+				}
+			} else {
+				return (NULL);
+			}
 			break;
 		case SCTP_SHUTDOWN:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SHUTDOWN, stcb %p\n",
