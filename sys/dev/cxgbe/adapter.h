@@ -287,7 +287,8 @@ struct port_info {
 	uint8_t  mod_type;
 	uint8_t  port_id;
 	uint8_t  tx_chan;
-	uint8_t  rx_chan_map;	/* rx MPS channel bitmap */
+	uint8_t  mps_bg_map;	/* rx MPS buffer group bitmap */
+	uint8_t  rx_e_chan_map;	/* rx TP e-channel bitmap */
 
 	struct link_config link_cfg;
 	struct link_config old_link_cfg;
@@ -796,7 +797,7 @@ struct adapter {
 
 	struct taskqueue *tq[MAX_NCHAN];	/* General purpose taskqueues */
 	struct port_info *port[MAX_NPORTS];
-	uint8_t chan_map[MAX_NCHAN];
+	uint8_t chan_map[MAX_NCHAN];		/* channel -> port */
 
 	void *tom_softc;	/* (struct tom_data *) */
 	struct tom_tunables tt;
