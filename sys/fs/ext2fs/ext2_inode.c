@@ -224,9 +224,9 @@ ext2_ind_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
     struct thread *td)
 {
 	struct vnode *ovp = vp;
-	int32_t lastblock;
+	e4fs_daddr_t lastblock;
 	struct inode *oip;
-	int32_t bn, lbn, lastiblock[EXT2_NIADDR], indir_lbn[EXT2_NIADDR];
+	e4fs_daddr_t bn, lbn, lastiblock[EXT2_NIADDR], indir_lbn[EXT2_NIADDR];
 	uint32_t oldblks[EXT2_NDADDR + EXT2_NIADDR];
 	uint32_t newblks[EXT2_NDADDR + EXT2_NIADDR];
 	struct m_ext2fs *fs;
