@@ -438,7 +438,7 @@ native_xtools ( ) (
 	nano_make_install_env
 	set -o xtrace
 	cd "${NANO_SRC}"
-	${NANO_MAKE} native-xtools DESTDIR="${NANO_WORLDDIR}"
+	${NANO_MAKE} native-xtools NXBDESTDIR="${NANO_WORLDDIR}"
 
 	) > ${NANO_LOG}/_.native_xtools 2>&1
 )
