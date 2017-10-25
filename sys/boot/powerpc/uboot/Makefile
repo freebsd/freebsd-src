@@ -4,7 +4,6 @@
 
 PROG=		ubldr
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
-BINDIR?=	/boot
 INSTALLFLAGS=	-b
 MAN=
 

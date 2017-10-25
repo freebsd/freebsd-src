@@ -6,7 +6,6 @@ MAN=
 
 PROG=		loader
 NEWVERSWHAT=	"Open Firmware loader" ${MACHINE_ARCH}
-BINDIR?=	/boot
 INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
