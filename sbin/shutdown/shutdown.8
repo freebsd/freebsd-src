@@ -28,7 +28,7 @@
 .\"     @(#)shutdown.8	8.2 (Berkeley) 4/27/95
 .\" $FreeBSD$
 .\"
-.Dd September 21, 2016
+.Dd October 23, 2017
 .Dt SHUTDOWN 8
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Nm
 .Op Fl
 .Oo
-.Fl h | Fl p |
+.Fl c | Fl h | Fl p |
 .Fl r | Fl k
 .Oc
 .Oo
@@ -59,12 +59,22 @@ would otherwise not bother with such niceties.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl c
+The system is power cycled (power turned off and then back on)
+at the specified time.
+If the hardware doesn't support power cycle, the system will be
+halted.
+At the present time, only systems with BMC supported by the
+.Xr ipmi 4
+driver that implement this functionality support this flag.
+The amount of time the system is off is dependent on the device
+that implements this feature.
 .It Fl h
 The system is halted at the specified
 .Ar time .
 .It Fl p
 The system is halted and the power is turned off
-(hardware support required)
+(hardware support required, otherwise the system is halted)
 at the specified
 .Ar time .
 .It Fl r
@@ -79,6 +89,7 @@ does not actually halt the system, but leaves the
 system multi-user with logins disabled (for all but super-user).
 .It Fl o
 If one of the
+.Fl c ,
 .Fl h ,
 .Fl p
 or
