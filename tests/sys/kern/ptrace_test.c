@@ -3377,6 +3377,92 @@ ATF_TC_BODY(ptrace__PT_ATTACH_with_SBDRY_thread, tc)
 	ATF_REQUIRE(close(fd) == 0);
 }
 
+static void
+sigusr1_step_handler(int sig)
+{
+
+	CHILD_REQUIRE(sig == SIGUSR1);
+	raise(SIGABRT);
+}
+
+/*
+ * Verify that PT_STEP with a signal invokes the signal before
+ * stepping the next instruction (and that the next instruction is
+ * stepped correctly).
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__PT_STEP_with_signal);
+ATF_TC_BODY(ptrace__PT_STEP_with_signal, tc)
+{
+	struct ptrace_lwpinfo pl;
+	pid_t fpid, wpid;
+	int status;
+
+	ATF_REQUIRE((fpid = fork()) != -1);
+	if (fpid == 0) {
+		trace_me();
+		signal(SIGUSR1, sigusr1_step_handler);
+		raise(SIGABRT);
+		exit(1);
+	}
+
+	/* The first wait() should report the stop from SIGSTOP. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+	/* The next stop should report the SIGABRT in the child body. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGABRT);
+
+	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl, sizeof(pl)) != -1);
+	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SI);
+	ATF_REQUIRE(pl.pl_siginfo.si_signo == SIGABRT);
+
+	/* Step the child process inserting SIGUSR1. */
+	ATF_REQUIRE(ptrace(PT_STEP, fpid, (caddr_t)1, SIGUSR1) == 0);
+
+	/* The next stop should report the SIGABRT in the signal handler. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGABRT);
+
+	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl, sizeof(pl)) != -1);
+	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SI);
+	ATF_REQUIRE(pl.pl_siginfo.si_signo == SIGABRT);
+
+	/* Continue the child process discarding the signal. */
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+	/* The next stop should report a trace trap from PT_STEP. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGTRAP);
+
+	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl, sizeof(pl)) != -1);
+	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SI);
+	ATF_REQUIRE(pl.pl_siginfo.si_signo == SIGTRAP);
+	ATF_REQUIRE(pl.pl_siginfo.si_code == TRAP_TRACE);
+
+	/* Continue the child to let it exit. */
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+	/* The last event should be for the child process's exit. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(WIFEXITED(status));
+	ATF_REQUIRE(WEXITSTATUS(status) == 1);
+
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == -1);
+	ATF_REQUIRE(errno == ECHILD);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -3428,6 +3514,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__parent_terminate_with_pending_sigstop2);
 	ATF_TP_ADD_TC(tp, ptrace__event_mask_sigkill_discard);
 	ATF_TP_ADD_TC(tp, ptrace__PT_ATTACH_with_SBDRY_thread);
+	ATF_TP_ADD_TC(tp, ptrace__PT_STEP_with_signal);
 
 	return (atf_no_error());
 }
