@@ -634,13 +634,15 @@ lio_get_eeprom(SYSCTL_HANDLER_ARGS)
 
 	board_info = (struct lio_board_info *)(&oct_dev->boardinfo);
 	if (oct_dev->uboot_len == 0)
-		sprintf(buf, "boardname:%s serialnum:%s maj:%ld min:%ld",
+		sprintf(buf, "boardname:%s serialnum:%s maj:%lld min:%lld",
 			board_info->name, board_info->serial_number,
-			board_info->major, board_info->minor);
+			LIO_CAST64(board_info->major),
+		       	LIO_CAST64(board_info->minor));
 	else {
-		sprintf(buf, "boardname:%s serialnum:%s maj:%ld min:%ld\n%s",
+		sprintf(buf, "boardname:%s serialnum:%s maj:%lld min:%lld\n%s",
 			board_info->name, board_info->serial_number,
-			board_info->major, board_info->minor,
+			LIO_CAST64(board_info->major),
+		        LIO_CAST64(board_info->minor),
 			&oct_dev->uboot_version[oct_dev->uboot_sidx]);
 	}
 
@@ -777,184 +779,184 @@ lio_cn23xx_pf_read_csr_reg(char *s, struct octeon_device *oct)
 
 	/* 0x29030 or 0x29040 */
 	reg = LIO_CN23XX_SLI_PKT_MAC_RINFO64(oct->pcie_port, oct->pf_num);
-	len += sprintf(s + len, "[%08x] (SLI_PKT_MAC%d_PF%d_RINFO): %016lx\n",
+	len += sprintf(s + len, "[%08x] (SLI_PKT_MAC%d_PF%d_RINFO): %016llx\n",
 		       reg, oct->pcie_port, oct->pf_num,
-		       lio_read_csr64(oct, reg));
+		       LIO_CAST64(lio_read_csr64(oct, reg)));
 
 	/* 0x27080 or 0x27090 */
 	reg = LIO_CN23XX_SLI_MAC_PF_INT_ENB64(oct->pcie_port, oct->pf_num);
-	len += sprintf(s + len, "[%08x] (SLI_MAC%d_PF%d_INT_ENB): %016lx\n",
+	len += sprintf(s + len, "[%08x] (SLI_MAC%d_PF%d_INT_ENB): %016llx\n",
 		       reg, oct->pcie_port, oct->pf_num,
-		       lio_read_csr64(oct, reg));
+		       LIO_CAST64(lio_read_csr64(oct, reg)));
 
 	/* 0x27000 or 0x27010 */
 	reg = LIO_CN23XX_SLI_MAC_PF_INT_SUM64(oct->pcie_port, oct->pf_num);
-	len += sprintf(s + len, "[%08x] (SLI_MAC%d_PF%d_INT_SUM): %016lx\n",
+	len += sprintf(s + len, "[%08x] (SLI_MAC%d_PF%d_INT_SUM): %016llx\n",
 		       reg, oct->pcie_port, oct->pf_num,
-		       lio_read_csr64(oct, reg));
+		       LIO_CAST64(lio_read_csr64(oct, reg)));
 
 	/* 0x29120 */
 	reg = 0x29120;
-	len += sprintf(s + len, "[%08x] (SLI_PKT_MEM_CTL): %016lx\n", reg,
-		       lio_read_csr64(oct, reg));
+	len += sprintf(s + len, "[%08x] (SLI_PKT_MEM_CTL): %016llx\n", reg,
+		       LIO_CAST64(lio_read_csr64(oct, reg)));
 
 	/* 0x27300 */
 	reg = 0x27300 + oct->pcie_port * LIO_CN23XX_MAC_INT_OFFSET +
 	    (oct->pf_num) * LIO_CN23XX_PF_INT_OFFSET;
-	len += sprintf(s + len, "[%08x] (SLI_MAC%d_PF%d_PKT_VF_INT): %016lx\n",
+	len += sprintf(s + len, "[%08x] (SLI_MAC%d_PF%d_PKT_VF_INT): %016llx\n",
 		       reg, oct->pcie_port, oct->pf_num,
-		       lio_read_csr64(oct, reg));
+		       LIO_CAST64(lio_read_csr64(oct, reg)));
 
 	/* 0x27200 */
 	reg = 0x27200 + oct->pcie_port * LIO_CN23XX_MAC_INT_OFFSET +
 	    (oct->pf_num) * LIO_CN23XX_PF_INT_OFFSET;
-	len += sprintf(s + len, "[%08x] (SLI_MAC%d_PF%d_PP_VF_INT): %016lx\n",
+	len += sprintf(s + len, "[%08x] (SLI_MAC%d_PF%d_PP_VF_INT): %016llx\n",
 		       reg, oct->pcie_port, oct->pf_num,
-		       lio_read_csr64(oct, reg));
+		       LIO_CAST64(lio_read_csr64(oct, reg)));
 
 	/* 29130 */
 	reg = LIO_CN23XX_SLI_PKT_CNT_INT;
-	len += sprintf(s + len, "[%08x] (SLI_PKT_CNT_INT): %016lx\n", reg,
-		       lio_read_csr64(oct, reg));
+	len += sprintf(s + len, "[%08x] (SLI_PKT_CNT_INT): %016llx\n", reg,
+		       LIO_CAST64(lio_read_csr64(oct, reg)));
 
 	/* 0x29140 */
 	reg = LIO_CN23XX_SLI_PKT_TIME_INT;
-	len += sprintf(s + len, "[%08x] (SLI_PKT_TIME_INT): %016lx\n", reg,
-		       lio_read_csr64(oct, reg));
+	len += sprintf(s + len, "[%08x] (SLI_PKT_TIME_INT): %016llx\n", reg,
+		       LIO_CAST64(lio_read_csr64(oct, reg)));
 
 	/* 0x29160 */
 	reg = 0x29160;
-	len += sprintf(s + len, "[%08x] (SLI_PKT_INT): %016lx\n", reg,
-		       lio_read_csr64(oct, reg));
+	len += sprintf(s + len, "[%08x] (SLI_PKT_INT): %016llx\n", reg,
+		       LIO_CAST64(lio_read_csr64(oct, reg)));
 
 	/* 0x29180 */
 	reg = LIO_CN23XX_SLI_OQ_WMARK;
-	len += sprintf(s + len, "[%08x] (SLI_PKT_OUTPUT_WMARK): %016lx\n",
-		       reg, lio_read_csr64(oct, reg));
+	len += sprintf(s + len, "[%08x] (SLI_PKT_OUTPUT_WMARK): %016llx\n",
+		       reg, LIO_CAST64(lio_read_csr64(oct, reg)));
 
 	/* 0x291E0 */
 	reg = LIO_CN23XX_SLI_PKT_IOQ_RING_RST;
-	len += sprintf(s + len, "[%08x] (SLI_PKT_RING_RST): %016lx\n", reg,
-		       lio_read_csr64(oct, reg));
+	len += sprintf(s + len, "[%08x] (SLI_PKT_RING_RST): %016llx\n", reg,
+		       LIO_CAST64(lio_read_csr64(oct, reg)));
 
 	/* 0x29210 */
 	reg = LIO_CN23XX_SLI_GBL_CONTROL;
-	len += sprintf(s + len, "[%08x] (SLI_PKT_GBL_CONTROL): %016lx\n", reg,
-		       lio_read_csr64(oct, reg));
+	len += sprintf(s + len, "[%08x] (SLI_PKT_GBL_CONTROL): %016llx\n", reg,
+		       LIO_CAST64(lio_read_csr64(oct, reg)));
 
 	/* 0x29220 */
 	reg = 0x29220;
-	len += sprintf(s + len, "[%08x] (SLI_PKT_BIST_STATUS): %016lx\n",
-		       reg, lio_read_csr64(oct, reg));
+	len += sprintf(s + len, "[%08x] (SLI_PKT_BIST_STATUS): %016llx\n",
+		       reg, LIO_CAST64(lio_read_csr64(oct, reg)));
 
 	/* PF only */
 	if (pf_num == 0) {
 		/* 0x29260 */
 		reg = LIO_CN23XX_SLI_OUT_BP_EN_W1S;
-		len += sprintf(s + len, "[%08x] (SLI_PKT_OUT_BP_EN_W1S):  %016lx\n",
-			       reg, lio_read_csr64(oct, reg));
+		len += sprintf(s + len, "[%08x] (SLI_PKT_OUT_BP_EN_W1S):  %016llx\n",
+			       reg, LIO_CAST64(lio_read_csr64(oct, reg)));
 	} else if (pf_num == 1) {
 		/* 0x29270 */
 		reg = LIO_CN23XX_SLI_OUT_BP_EN2_W1S;
-		len += sprintf(s + len, "[%08x] (SLI_PKT_OUT_BP_EN2_W1S): %016lx\n",
-			       reg, lio_read_csr64(oct, reg));
+		len += sprintf(s + len, "[%08x] (SLI_PKT_OUT_BP_EN2_W1S): %016llx\n",
+			       reg, LIO_CAST64(lio_read_csr64(oct, reg)));
 	}
 
 	for (i = 0; i < LIO_CN23XX_PF_MAX_OUTPUT_QUEUES; i++) {
 		reg = LIO_CN23XX_SLI_OQ_BUFF_INFO_SIZE(i);
-		len += sprintf(s + len, "[%08x] (SLI_PKT%d_OUT_SIZE): %016lx\n",
-			       reg, i, lio_read_csr64(oct, reg));
+		len += sprintf(s + len, "[%08x] (SLI_PKT%d_OUT_SIZE): %016llx\n",
+			       reg, i, LIO_CAST64(lio_read_csr64(oct, reg)));
 	}
 
 	/* 0x10040 */
 	for (i = 0; i < LIO_CN23XX_PF_MAX_INPUT_QUEUES; i++) {
 		reg = LIO_CN23XX_SLI_IQ_INSTR_COUNT64(i);
-		len += sprintf(s + len, "[%08x] (SLI_PKT_IN_DONE%d_CNTS): %016lx\n",
-			       reg, i, lio_read_csr64(oct, reg));
+		len += sprintf(s + len, "[%08x] (SLI_PKT_IN_DONE%d_CNTS): %016llx\n",
+			       reg, i, LIO_CAST64(lio_read_csr64(oct, reg)));
 	}
 
 	/* 0x10080 */
 	for (i = 0; i < LIO_CN23XX_PF_MAX_OUTPUT_QUEUES; i++) {
 		reg = LIO_CN23XX_SLI_OQ_PKTS_CREDIT(i);
-		len += sprintf(s + len, "[%08x] (SLI_PKT%d_SLIST_BAOFF_DBELL): %016lx\n",
-			       reg, i, lio_read_csr64(oct, reg));
+		len += sprintf(s + len, "[%08x] (SLI_PKT%d_SLIST_BAOFF_DBELL): %016llx\n",
+			       reg, i, LIO_CAST64(lio_read_csr64(oct, reg)));
 	}
 
 	/* 0x10090 */
 	for (i = 0; i < LIO_CN23XX_PF_MAX_OUTPUT_QUEUES; i++) {
 		reg = LIO_CN23XX_SLI_OQ_SIZE(i);
-		len += sprintf(s + len, "[%08x] (SLI_PKT%d_SLIST_FIFO_RSIZE): %016lx\n",
-			       reg, i, lio_read_csr64(oct, reg));
+		len += sprintf(s + len, "[%08x] (SLI_PKT%d_SLIST_FIFO_RSIZE): %016llx\n",
+			       reg, i, LIO_CAST64(lio_read_csr64(oct, reg)));
 	}
 
 	/* 0x10050 */
 	for (i = 0; i < LIO_CN23XX_PF_MAX_OUTPUT_QUEUES; i++) {
 		reg = LIO_CN23XX_SLI_OQ_PKT_CONTROL(i);
-		len += sprintf(s + len, "[%08x] (SLI_PKT%d__OUTPUT_CONTROL): %016lx\n",
-			       reg, i, lio_read_csr64(oct, reg));
+		len += sprintf(s + len, "[%08x] (SLI_PKT%d__OUTPUT_CONTROL): %016llx\n",
+			       reg, i, LIO_CAST64(lio_read_csr64(oct, reg)));
 	}
 
 	/* 0x10070 */
 	for (i = 0; i < LIO_CN23XX_PF_MAX_OUTPUT_QUEUES; i++) {
 		reg = LIO_CN23XX_SLI_OQ_BASE_ADDR64(i);
-		len += sprintf(s + len, "[%08x] (SLI_PKT%d_SLIST_BADDR): %016lx\n",
-			       reg, i, lio_read_csr64(oct, reg));
+		len += sprintf(s + len, "[%08x] (SLI_PKT%d_SLIST_BADDR): %016llx\n",
+			       reg, i, LIO_CAST64(lio_read_csr64(oct, reg)));
 	}
 
 	/* 0x100a0 */
 	for (i = 0; i < LIO_CN23XX_PF_MAX_OUTPUT_QUEUES; i++) {
 		reg = LIO_CN23XX_SLI_OQ_PKT_INT_LEVELS(i);
-		len += sprintf(s + len, "[%08x] (SLI_PKT%d_INT_LEVELS): %016lx\n",
-			       reg, i, lio_read_csr64(oct, reg));
+		len += sprintf(s + len, "[%08x] (SLI_PKT%d_INT_LEVELS): %016llx\n",
+			       reg, i, LIO_CAST64(lio_read_csr64(oct, reg)));
 	}
 
 	/* 0x100b0 */
 	for (i = 0; i < LIO_CN23XX_PF_MAX_OUTPUT_QUEUES; i++) {
 		reg = LIO_CN23XX_SLI_OQ_PKTS_SENT(i);
-		len += sprintf(s + len, "[%08x] (SLI_PKT%d_CNTS): %016lx\n",
-			       reg, i, lio_read_csr64(oct, reg));
+		len += sprintf(s + len, "[%08x] (SLI_PKT%d_CNTS): %016llx\n",
+			       reg, i, LIO_CAST64(lio_read_csr64(oct, reg)));
 	}
 
 	/* 0x100c0 */
 	for (i = 0; i < LIO_CN23XX_PF_MAX_OUTPUT_QUEUES; i++) {
 		reg = 0x100c0 + i * LIO_CN23XX_OQ_OFFSET;
-		len += sprintf(s + len, "[%08x] (SLI_PKT%d_ERROR_INFO): %016lx\n",
-			       reg, i, lio_read_csr64(oct, reg));
+		len += sprintf(s + len, "[%08x] (SLI_PKT%d_ERROR_INFO): %016llx\n",
+			       reg, i, LIO_CAST64(lio_read_csr64(oct, reg)));
 	}
 
 	/* 0x10000 */
 	for (i = 0; i < LIO_CN23XX_PF_MAX_INPUT_QUEUES; i++) {
 		reg = LIO_CN23XX_SLI_IQ_PKT_CONTROL64(i);
-		len += sprintf(s + len, "[%08x] (SLI_PKT%d_INPUT_CONTROL): %016lx\n",
-			       reg, i, lio_read_csr64(oct, reg));
+		len += sprintf(s + len, "[%08x] (SLI_PKT%d_INPUT_CONTROL): %016llx\n",
+			       reg, i, LIO_CAST64(lio_read_csr64(oct, reg)));
 	}
 
 	/* 0x10010 */
 	for (i = 0; i < LIO_CN23XX_PF_MAX_INPUT_QUEUES; i++) {
 		reg = LIO_CN23XX_SLI_IQ_BASE_ADDR64(i);
-		len += sprintf(s + len, "[%08x] (SLI_PKT%d_INSTR_BADDR): %016lx\n",
-			       reg, i, lio_read_csr64(oct, reg));
+		len += sprintf(s + len, "[%08x] (SLI_PKT%d_INSTR_BADDR): %016llx\n",
+			       reg, i, LIO_CAST64(lio_read_csr64(oct, reg)));
 	}
 
 	/* 0x10020 */
 	for (i = 0; i < LIO_CN23XX_PF_MAX_INPUT_QUEUES; i++) {
 		reg = LIO_CN23XX_SLI_IQ_DOORBELL(i);
-		len += sprintf(s + len, "[%08x] (SLI_PKT%d_INSTR_BAOFF_DBELL): %016lx\n",
-			       reg, i, lio_read_csr64(oct, reg));
+		len += sprintf(s + len, "[%08x] (SLI_PKT%d_INSTR_BAOFF_DBELL): %016llx\n",
+			       reg, i, LIO_CAST64(lio_read_csr64(oct, reg)));
 	}
 
 	/* 0x10030 */
 	for (i = 0; i < LIO_CN23XX_PF_MAX_INPUT_QUEUES; i++) {
 		reg = LIO_CN23XX_SLI_IQ_SIZE(i);
-		len += sprintf(s + len, "[%08x] (SLI_PKT%d_INSTR_FIFO_RSIZE): %016lx\n",
-			       reg, i, lio_read_csr64(oct, reg));
+		len += sprintf(s + len, "[%08x] (SLI_PKT%d_INSTR_FIFO_RSIZE): %016llx\n",
+			       reg, i, LIO_CAST64(lio_read_csr64(oct, reg)));
 	}
 
 	/* 0x10040 */
 	for (i = 0; i < LIO_CN23XX_PF_MAX_INPUT_QUEUES; i++)
 		reg = LIO_CN23XX_SLI_IQ_INSTR_COUNT64(i);
-	len += sprintf(s + len, "[%08x] (SLI_PKT_IN_DONE%d_CNTS): %016lx\n",
-		       reg, i, lio_read_csr64(oct, reg));
+	len += sprintf(s + len, "[%08x] (SLI_PKT_IN_DONE%d_CNTS): %016llx\n",
+		       reg, i, LIO_CAST64(lio_read_csr64(oct, reg)));
 
 	return (len);
 }
@@ -1574,8 +1576,8 @@ lio_set_intrmod_cfg(struct lio *lio, struct octeon_intrmod_cfg *intr_cfg)
 		lio_dev_err(oct_dev, "intrmod config failed. Status: %llx\n",
 			    LIO_CAST64(retval));
 	else
-		lio_dev_info(oct_dev, "Rx-Adaptive Interrupt moderation enabled:%lx\n",
-			     intr_cfg->rx_enable);
+		lio_dev_info(oct_dev, "Rx-Adaptive Interrupt moderation enabled:%llx\n",
+			     LIO_CAST64(intr_cfg->rx_enable));
 
 	lio_free_soft_command(oct_dev, sc);
 
