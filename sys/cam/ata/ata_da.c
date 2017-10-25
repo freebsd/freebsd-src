@@ -3513,7 +3513,7 @@ adashutdown(void *arg, int howto)
 
 	adaflush();
 	if (ada_spindown_shutdown != 0 &&
-	    (howto & (RB_HALT | RB_POWEROFF)) != 0)
+	    (howto & (RB_HALT | RB_POWEROFF | RB_POWERCYCLE)) != 0)
 		adaspindown(ATA_STANDBY_IMMEDIATE, 0);
 }
 
