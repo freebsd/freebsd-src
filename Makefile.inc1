@@ -2262,6 +2262,7 @@ _prereq_libs+= gnu/lib/libssp/libssp_nonshared
 _coverage_libs+=	lib/libclang_rt/profile
 .else
 .endif
+.endif
 .if empty(_coverage_libs)
 # XXX(ngie): force MK_COVERAGE off since the compiler we're working with (at
 # whatever stage we're at) obviously doesn't support --coverage support per
@@ -2269,7 +2270,6 @@ _coverage_libs+=	lib/libclang_rt/profile
 WMAKEENV:=	${WMAKEENV:NMK_COVERAGE*} MK_COVERAGE=no
 .else
 _prereq_libs+=	${_coverage_libs}
-.endif
 .endif
 
 # These dependencies are not automatically generated:
