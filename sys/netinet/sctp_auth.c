@@ -1606,9 +1606,9 @@ sctp_zero_m(struct mbuf *m, uint32_t m_offset, uint32_t size)
 	/* now use the rest of the mbuf chain */
 	while ((m_tmp != NULL) && (size > 0)) {
 		data = mtod(m_tmp, uint8_t *)+m_offset;
-		if (size > (uint32_t)SCTP_BUF_LEN(m_tmp)) {
-			memset(data, 0, SCTP_BUF_LEN(m_tmp));
-			size -= SCTP_BUF_LEN(m_tmp);
+		if (size > (uint32_t)(SCTP_BUF_LEN(m_tmp) - m_offset)) {
+			memset(data, 0, SCTP_BUF_LEN(m_tmp) - m_offset);
+			size -= SCTP_BUF_LEN(m_tmp) - m_offset;
 		} else {
 			memset(data, 0, size);
 			size = 0;
