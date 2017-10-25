@@ -48,8 +48,9 @@ __FBSDID("$FreeBSD$");
 
 #if defined(__amd64__)
 #include <machine/specialreg.h>
-#include "framebuffer.h"
 #endif
+
+#include "framebuffer.h"
 
 #if defined(LOADER_FDT_SUPPORT)
 #include <fdt_platform.h>
@@ -247,12 +248,12 @@ bi_load_efi_data(struct preloaded_file *kfp)
 	UINT32 mmver;
 	struct efi_map_header *efihdr;
 
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__aarch64__)
 	struct efi_fb efifb;
 
 	if (efi_find_framebuffer(&efifb) == 0) {
 		printf("EFI framebuffer information:\n");
-		printf("addr, size     0x%lx, 0x%lx\n", efifb.fb_addr,
+		printf("addr, size     0x%jx, 0x%jx\n", efifb.fb_addr,
 		    efifb.fb_size);
 		printf("dimensions     %d x %d\n", efifb.fb_width,
 		    efifb.fb_height);
