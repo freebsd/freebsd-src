@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/poll.h>
+#include <sys/reboot.h>
 #include <sys/rman.h>
 #include <sys/selinfo.h>
 #include <sys/sysctl.h>
@@ -690,6 +691,45 @@ ipmi_wd_event(void *arg, unsigned int cmd, int *error)
 }
 
 static void
+ipmi_power_cycle(void *arg, int howto)
+{
+	struct ipmi_softc *sc = arg;
+	struct ipmi_request *req;
+
+	/*
+	 * Ignore everything except power cycling requests
+	 */
+	if ((howto & RB_POWERCYCLE) == 0)
+		return;
+
+	device_printf(sc->ipmi_dev, "Power cycling using IPMI\n");
+
+	/*
+	 * Send a CHASSIS_CONTROL command to the CHASSIS device, subcommand 2
+	 * as described in IPMI v2.0 spec section 28.3.
+	 */
+	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_CHASSIS_REQUEST, 0),
+	    IPMI_CHASSIS_CONTROL, 1, 0);
+	req->ir_request[0] = IPMI_CC_POWER_CYCLE;
+
+	ipmi_submit_driver_request(sc, req, MAX_TIMEOUT);
+
+	if (req->ir_error != 0 || req->ir_compcode != 0) {
+		device_printf(sc->ipmi_dev, "Power cycling via IPMI failed code %#x %#x\n",
+		    req->ir_error, req->ir_compcode);
+		return;
+	}
+
+	/*
+	 * BMCs are notoriously slow, give it up to 10s to effect the power
+	 * down leg of the power cycle. If that fails, fallback to the next
+	 * hanlder in the shutdown_final chain and/or the platform failsafe.
+	 */
+	DELAY(10 * 1000 * 1000);
+	device_printf(sc->ipmi_dev, "Power cycling via IPMI timed out\n");
+}
+
+static void
 ipmi_startup(void *arg)
 {
 	struct ipmi_softc *sc = arg;
@@ -737,10 +777,12 @@ ipmi_startup(void *arg)
 	}
 
 	device_printf(dev, "IPMI device rev. %d, firmware rev. %d.%d%d, "
-	    "version %d.%d\n",
-	     req->ir_reply[1] & 0x0f,
-	     req->ir_reply[2] & 0x7f, req->ir_reply[3] >> 4, req->ir_reply[3] & 0x0f,
-	     req->ir_reply[4] & 0x0f, req->ir_reply[4] >> 4);
+	    "version %d.%d, device support mask %#x\n",
+	    req->ir_reply[1] & 0x0f,
+	    req->ir_reply[2] & 0x7f, req->ir_reply[3] >> 4, req->ir_reply[3] & 0x0f,
+	    req->ir_reply[4] & 0x0f, req->ir_reply[4] >> 4, req->ir_reply[5]);
+
+	sc->ipmi_dev_support = req->ir_reply[5];
 
 	IPMI_INIT_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_CLEAR_FLAGS, 1, 0);
@@ -792,6 +834,17 @@ ipmi_startup(void *arg)
 		return;
 	}
 	sc->ipmi_cdev->si_drv1 = sc;
+
+	/*
+	 * Power cycle the system off using IPMI. We use last - 1 since we don't
+	 * handle all the other kinds of reboots. We'll let others handle them.
+	 * We only try to do this if the BMC supports the Chassis device.
+	 */
+	if (sc->ipmi_dev_support & IPMI_ADS_CHASSIS) {
+		device_printf(dev, "Establishing power cycle handler\n");
+		sc->ipmi_power_cycle_tag = EVENTHANDLER_REGISTER(shutdown_final,
+		    ipmi_power_cycle, sc, SHUTDOWN_PRI_LAST - 1);
+	}
 }
 
 int
@@ -843,6 +896,10 @@ ipmi_detach(device_t dev)
 		EVENTHANDLER_DEREGISTER(watchdog_list, sc->ipmi_watchdog_tag);
 		ipmi_set_watchdog(sc, 0);
 	}
+
+	/* Detach from shutdown handling for power cycle reboot */
+	if (sc->ipmi_power_cycle_tag)
+		EVENTHANDLER_DEREGISTER(shutdown_final, sc->ipmi_power_cycle_tag);
 
 	/* XXX: should use shutdown callout I think. */
 	/* If the backend uses a kthread, shut it down. */
