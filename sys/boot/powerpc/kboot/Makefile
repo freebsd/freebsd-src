@@ -6,7 +6,6 @@ MAN=
 
 PROG=		loader.kboot
 NEWVERSWHAT=	"kboot loader" ${MACHINE_ARCH}
-BINDIR?=	/boot
 INSTALLFLAGS=	-b
 
 # Architecture-specific loader code

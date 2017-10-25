@@ -6,7 +6,6 @@ MAN=
 
 PROG=		loader.ps3
 NEWVERSWHAT=	"Playstation 3 loader" ${MACHINE_ARCH}
-BINDIR?=	/boot
 INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
