@@ -2,7 +2,6 @@
 
 SRCS+=	amd64_tramp.S \
 	start.S \
-	framebuffer.c \
 	elf64_freebsd.c \
 	trap.c \
 	exc.S
