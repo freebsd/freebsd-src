@@ -1849,7 +1849,6 @@ _vtfontcvt=	usr.bin/vtfontcvt
 .endif
 
 .if ${BOOTSTRAPPING} < 1000033
-_libopenbsd=	lib/libopenbsd
 _m4=		usr.bin/m4
 _lex=		usr.bin/lex
 
@@ -1935,9 +1934,6 @@ _kerberos5_bootstrap_tools= \
 .ORDER: ${_kerberos5_bootstrap_tools:C/^/${_bt}-/g}
 .endif
 
-# r283777 makewhatis(1) replaced with mandoc version which builds a database.
-_libopenbsd?=	lib/libopenbsd
-_makewhatis=	usr.bin/mandoc
 ${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd
 
 bootstrap-tools: .PHONY
@@ -1954,8 +1950,8 @@ bootstrap-tools: .PHONY
     ${_cat} \
     ${_kbdcontrol} \
     usr.bin/lorder \
-    ${_libopenbsd} \
-    ${_makewhatis} \
+    lib/libopenbsd \
+    usr.bin/mandoc \
     usr.bin/rpcgen \
     ${_yacc} \
     ${_m4} \
