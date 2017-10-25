@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
 
 FILES=		ubldr ubldr.bin
 
@@ -31,7 +31,7 @@ LOADER_BZIP2_SUPPORT?=	no
 LOADER_FDT_SUPPORT=	${MK_FDT}
 
 # Always add MI sources
-.include	"../../loader.mk"
+.include	"${BOOTSRC}/loader.mk"
 CFLAGS+=	-I.
 
 CLEANFILES+=	loader.help
@@ -42,7 +42,7 @@ LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.${MACHINE_CPUARCH}
 LDFLAGS+=	-Wl,-znotext
 
 # Pull in common loader code
-.include	"../../uboot.mk"
+.include	"${BOOTSRC}/uboot.mk"
 
 CFLAGS+=	-fPIC
 
@@ -51,7 +51,7 @@ LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSA}
 
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
-loader.help: help.common help.uboot ${.CURDIR}/../../fdt/help.fdt
+loader.help: help.common help.uboot ${BOOTSRC}/fdt/help.fdt
 	cat ${.ALLSRC} | \
 	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
 
@@ -75,8 +75,8 @@ ubldr.bin: ubldr.pie
 CLEANFILES+=	ldscript.abs ldscript.pie ubldr ubldr.pie ubldr.bin
 
 .if !defined(LOADER_ONLY)
-.PATH: ${.CURDIR}/../../forth
-.include	"${.CURDIR}/../../forth/Makefile.inc"
+.PATH: ${BOOTSRC}/forth
+.include	"${BOOTSRC}/forth/Makefile.inc"
 
 # Install loader.rc.
 FILES+=	loader.rc
