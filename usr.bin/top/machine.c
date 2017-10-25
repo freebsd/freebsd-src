@@ -1671,8 +1671,9 @@ static int
 swapmode(int *retavail, int *retfree)
 {
 	int n;
-	int pagesize = getpagesize();
 	struct kvm_swap swapary[1];
+	static int pagesize = 0;
+	static u_long swap_maxpages = 0;
 
 	*retavail = 0;
 	*retfree = 0;
@@ -1682,6 +1683,16 @@ swapmode(int *retavail, int *retfree)
 	n = kvm_getswapinfo(kd, swapary, 1, 0);
 	if (n < 0 || swapary[0].ksw_total == 0)
 		return (0);
+
+	if (pagesize == 0)
+		pagesize = getpagesize();
+	if (swap_maxpages == 0)
+		GETSYSCTL("vm.swap_maxpages", swap_maxpages);
+
+	/* ksw_total contains the total size of swap all devices which may
+	   exceed the maximum swap size allocatable in the system */
+	if ( swapary[0].ksw_total > swap_maxpages )
+		swapary[0].ksw_total = swap_maxpages;
 
 	*retavail = CONVERT(swapary[0].ksw_total);
 	*retfree = CONVERT(swapary[0].ksw_total - swapary[0].ksw_used);
