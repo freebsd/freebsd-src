@@ -2266,7 +2266,7 @@ _coverage_libs+=	lib/libclang_rt/profile
 # XXX(ngie): force MK_COVERAGE off since the compiler we're working with (at
 # whatever stage we're at) obviously doesn't support --coverage support per
 # src.opts.mk's minimum requirements.
-MK_COVERAGE:=	no
+WMAKEENV:=	${WMAKEENV:NMK_COVERAGE*} MK_COVERAGE=no
 .else
 _prereq_libs+=	${_coverage_libs}
 .endif
