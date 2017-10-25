@@ -283,6 +283,8 @@ shutdown_nice(int howto)
 		PROC_LOCK(initproc);
 		if (howto & RB_POWEROFF)
 			kern_psignal(initproc, SIGUSR2);
+		else if (howto & RB_POWERCYCLE)
+			kern_psignal(initproc, SIGWINCH);
 		else if (howto & RB_HALT)
 			kern_psignal(initproc, SIGUSR1);
 		else
@@ -817,7 +819,7 @@ static void
 poweroff_wait(void *junk, int howto)
 {
 
-	if (!(howto & RB_POWEROFF) || poweroff_delay <= 0)
+	if ((howto & (RB_POWEROFF | RB_POWERCYCLE)) == 0 || poweroff_delay <= 0)
 		return;
 	DELAY(poweroff_delay * 1000);
 }
