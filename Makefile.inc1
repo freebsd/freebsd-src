@@ -637,6 +637,8 @@ XCXXFLAGS+=	-isystem ${WORLDTMP}/usr/include/c++/v1 -std=c++11 \
 .endif
 .elif ${WANT_COMPILER_TYPE} == clang || \
     (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == clang)
+MACHINE_ABI?=	unknown
+MACHINE_TRIPLE?=${MACHINE_ARCH:C/amd64/x86_64/}-${MACHINE_ABI}-freebsd12.0
 TARGET_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd12.0
 XCFLAGS+=	-target ${TARGET_TRIPLE}
@@ -2111,47 +2113,20 @@ cross-tools: .MAKE .PHONY
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX} install
 .endfor
 
-NXBDESTDIR=	${OBJTREE}/nxb-bin
-NXBENV=		MAKEOBJDIRPREFIX=${OBJTREE}/nxb \
-		TOOLS_PREFIX= \
-		INSTALL="sh ${.CURDIR}/tools/install.sh" \
-		PATH=${PATH}:${OBJTREE}/gperf_for_gcc/usr/bin
-NXBMAKE=	${NXBENV} ${MAKE} \
-		LLVM_TBLGEN=${NXBDESTDIR}/usr/bin/llvm-tblgen \
-		CLANG_TBLGEN=${NXBDESTDIR}/usr/bin/clang-tblgen \
-		MACHINE=${TARGET} MACHINE_ARCH=${TARGET_ARCH} \
-		MK_GDB=no MK_TESTS=no \
-		SSP_CFLAGS= \
-		MK_HTML=no NO_LINT=yes MK_MAN=no MK_MAN_UTILS=yes \
-		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
-		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
-		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
-		MK_LLDB=no MK_DEBUG_FILES=no
-
+#
 # native-xtools is the current target for qemu-user cross builds of ports
 # via poudriere and the imgact_binmisc kernel module.
-# For non-clang enabled targets that are still using the in tree gcc
-# we must build a gperf binary for one instance of its Makefiles.  On
-# clang-enabled systems, the gperf binary is obsolete.
-native-xtools: .PHONY
-.if ${MK_GCC_BOOTSTRAP} != "no"
-	mkdir -p ${OBJTREE}/gperf_for_gcc/usr/bin
-	${_+_}@${ECHODIR} "===> ${_gperf} (obj,all,install)"; \
-	cd ${.CURDIR}/${_gperf}; \
-	if [ -z "${NO_OBJ}" ]; then ${NXBMAKE} DIRPRFX=${_gperf}/ obj; fi; \
-	${NXBMAKE} DIRPRFX=${_gperf}/ all; \
-	${NXBMAKE} DIRPRFX=${_gperf}/ DESTDIR=${OBJTREE}/gperf_for_gcc install
-.endif
-	mkdir -p ${NXBDESTDIR}/bin ${NXBDESTDIR}/sbin ${NXBDESTDIR}/usr
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
-	    -p ${NXBDESTDIR}/usr >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
-	    -p ${NXBDESTDIR}/usr/include >/dev/null
-.if ${MK_DEBUG_FILES} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
-	    -p ${NXBDESTDIR}/usr/lib >/dev/null
-.endif
-.for _tool in \
+# This target merely builds a toolchan/sysroot, then builds the tools it wants
+# with the options it wants in a special MAKEOBJDIRPREFIX, using the toolchain
+# already built.  It then installs the static tools to NXBDESTDIR for Poudriere
+# to pickup.
+#
+NXBOBJDIR=	${MAKEOBJDIRPREFIX}/nxb/${TARGET}.${TARGET_ARCH}
+NXBDESTDIR=	${NXBOBJDIR}${.CURDIR}/nxb-bin
+
+# This is the list of tools to be built/installed as static and where
+# appropriate to build for the given TARGET.TARGET_ARCH.
+NXBDIRS+= \
     bin/cat \
     bin/chmod \
     bin/cp \
@@ -2169,24 +2144,18 @@ native-xtools: .PHONY
     bin/rmdir \
     bin/sh \
     bin/sleep \
-    ${_clang_tblgen} \
-    usr.bin/ar \
-    ${_binutils} \
-    ${_elftctools} \
-    ${_gcc} \
-    ${_gcc_tools} \
-    ${_clang_libs} \
-    ${_clang} \
-    ${_lld} \
     sbin/md5 \
     sbin/sysctl \
-    usr.bin/diff \
+    usr.bin/addr2line \
+    usr.bin/ar \
     usr.bin/awk \
     usr.bin/basename \
     usr.bin/bmake \
     usr.bin/bzip2 \
     usr.bin/cmp \
+    usr.bin/diff \
     usr.bin/dirname \
+    usr.bin/elfcopy \
     usr.bin/env \
     usr.bin/fetch \
     usr.bin/find \
@@ -2196,14 +2165,16 @@ native-xtools: .PHONY
     usr.bin/lex \
     usr.bin/limits \
     usr.bin/lorder \
-    ${_libopenbsd} \
-    ${_makewhatis} \
+    usr.bin/mandoc \
     usr.bin/mktemp \
     usr.bin/mt \
+    usr.bin/nm \
     usr.bin/patch \
     usr.bin/readelf \
     usr.bin/sed \
+    usr.bin/size \
     usr.bin/sort \
+    usr.bin/strings \
     usr.bin/tar \
     usr.bin/touch \
     usr.bin/tr \
@@ -2215,12 +2186,81 @@ native-xtools: .PHONY
     usr.bin/xz \
     usr.bin/yacc \
     usr.sbin/chown
-	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
-		cd ${.CURDIR}/${_tool}; \
-		if [ -z "${NO_OBJ}" ]; then ${NXBMAKE} DIRPRFX=${_tool}/ obj; fi; \
-		${NXBMAKE} DIRPRFX=${_tool}/ all; \
-		${NXBMAKE} DIRPRFX=${_tool}/ DESTDIR=${NXBDESTDIR} install
-.endfor
+
+.if ${MK_CLANG} != "no"
+NXBDIRS+=	lib/clang
+SUBDIR_DEPEND_usr.bin/clang=	lib/clang
+NXBDIRS+=	usr.bin/clang
+.elif ${MK_GCC} != "no"
+NXBDIRS+=	gnu/usr.bin/cc
+.endif
+.if ${MK_BINUTILS} != "no"
+NXBDIRS+=	gnu/usr.bin/binutils
+.endif
+
+NXBMAKEENV+= \
+	MAKEOBJDIRPREFIX=${NXBOBJDIR:Q}
+
+NXBMAKEARGS+= \
+	OBJTREE=${NXBOBJDIR:Q} \
+	-DNO_SHARED \
+	-DNO_CPU_CFLAGS \
+	-DNO_PIC \
+	SSP_CFLAGS= \
+	MK_CLANG_EXTRAS=no \
+	MK_CLANG_FULL=no \
+	MK_CTF=no \
+	MK_DEBUG_FILES=no \
+	MK_GDB=no \
+	MK_HTML=no \
+	MK_LLDB=no \
+	MK_MAN=no \
+	MK_MAN_UTILS=yes \
+	MK_OFED=no \
+	MK_OPENSSH=no \
+	MK_PROFILE=no \
+	MK_SENDMAIL=no \
+	MK_SVNLITE=no \
+	MK_TESTS=no \
+	MK_WARNS=no \
+	MK_ZFS=no
+
+
+# For 'toolchain' we want to produce native binaries that themselves generate
+# native binaries.
+NXBTMAKE=	${NXBMAKEENV} ${MAKE} ${NXBMAKEARGS:N-DNO_PIC:N-DNO_SHARED} \
+		TARGET=${MACHINE} TARGET_ARCH=${MACHINE_ARCH}
+# For 'everything' we want to produce native binaries (hence -target to
+# be MACHINE) that themselves generate TARGET.TARGET_ARCH binaries.
+# TARGET/TARGET_ARCH are still passed along from user.
+NXBMAKE=	${NXBMAKEENV} ${MAKE} ${NXBMAKEARGS} \
+		TARGET_TRIPLE=${MACHINE_TRIPLE:Q}
+native-xtools: .PHONY
+	# Build the bootstrap/host/cross tools that produce native binaries
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} kernel-toolchain
+	# Populate includes/libraries sysroot that produce native binaries.
+	# This is split out from 'toolchain' above mostly so that target LLVM
+	# libraries have a proper LLVM_DEFAULT_TARGET_TRIPLE without
+	# polluting the cross-compiler build.  The LLVM/GCC libs are skipped
+	# here to avoid the problem but are kept in 'toolchain' so that
+	# needed build tools are built.
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _includes MK_CLANG=no MK_GCC=no
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _libraries MK_CLANG=no MK_GCC=no
+.if !defined(NO_OBJ)
+	${_+_}cd ${.CURDIR}; ${NXBMAKE} SUBDIR_OVERRIDE="${NXBDIRS:M*}" _obj
+.endif
+	${_+_}cd ${.CURDIR}; ${NXBMAKE} SUBDIR_OVERRIDE="${NXBDIRS:M*}" \
+	    everything
+	mkdir -p ${NXBDESTDIR}/bin ${NXBDESTDIR}/sbin ${NXBDESTDIR}/usr
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	    -p ${NXBDESTDIR}/usr >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	    -p ${NXBDESTDIR}/usr/include >/dev/null
+	${_+_}cd ${.CURDIR}; ${NXBMAKE} -f Makefile.inc1 \
+	    DESTDIR=${NXBDESTDIR} \
+	    SUBDIR_OVERRIDE="${NXBDIRS:M*}" \
+	    -DNO_ROOT \
+	    install
 
 #
 # hierarchy - ensure that all the needed directories are present
