@@ -28,7 +28,7 @@
 .\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2016
+.Dd October 24, 2017
 .Dt DUMPON 8
 .Os
 .Sh NAME
@@ -38,6 +38,7 @@
 .Nm
 .Op Fl v
 .Op Fl k Ar public_key_file
+.Op Fl z
 .Ar special_file
 .Nm
 .Op Fl v
@@ -111,6 +112,22 @@ for use with the
 script.
 This flag requires a kernel compiled with the
 .Dv EKCD
+kernel option.
+.Pp
+The
+.Fl z
+option configures the kernel to compress the dump in gzip format before writing
+it to the dump device.
+This reduces the amount of space required for the dump and accelerates
+recovery with
+.Xr savecore 8
+since less data needs to be copied from the dump device.
+When compression is enabled, the
+.Nm
+utility will not verify that the dump device is sufficiently large for a full
+dump.
+This flag requires a kernel compiled with the
+.Dv GZIO
 kernel option.
 .Pp
 The
@@ -272,3 +289,7 @@ utility appeared in
 .Sh BUGS
 Because the file system layer is already dead by the time a crash dump
 is taken, it is not possible to send crash dumps directly to a file.
+.Pp
+It is currently not possible to configure both compression and encryption.
+The encrypted dump format assumes that the kernel dump size is a multiple
+of the cipher block size, which may not be true when the dump is compressed.
