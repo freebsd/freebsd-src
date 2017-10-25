@@ -671,7 +671,7 @@ META_MODE_BAD_ABI_VERS+=	1200031
 OBJDIR_HOST_OSRELDATE!=	\
     awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
     ${OBJTREE}${.CURDIR}/host-osreldate.h
-.else
+.elif exists(${WORLDTMP}/usr/include/osreldate.h)
 OBJDIR_HOST_OSRELDATE=	0
 .endif
 .export OBJDIR_HOST_OSRELDATE
@@ -680,6 +680,7 @@ OBJDIR_HOST_OSRELDATE=	0
 # Note that this logic is the opposite of normal BOOTSTRAP handling.  We want
 # to compare the WORLDTMP's OSRELDATE to the host's OSRELDATE.  If the WORLDTMP
 # is older than the ABI-breakage OSRELDATE of the HOST then we rebuild.
+.if defined(OBJDIR_HOST_OSRELDATE)
 .for _ver in ${META_MODE_BAD_ABI_VERS}
 .if ${OSRELDATE} >= ${_ver} && ${OBJDIR_HOST_OSRELDATE} < ${_ver}
 _meta_mode_need_rebuild=	${_ver}
@@ -689,8 +690,9 @@ _meta_mode_need_rebuild=	${_ver}
 .info META_MODE: Rebuilding host tools due to ABI breakage in __FreeBSD_version ${_meta_mode_need_rebuild}.
 NO_META_IGNORE_HOST_HEADERS=	1
 .export NO_META_IGNORE_HOST_HEADERS
-.endif
-.endif
+.endif	# defined(_meta_mode_need_rebuild)
+.endif	# defined(OBJDIR_HOST_OSRELDATE)
+.endif	# ${MK_META_MODE} == "yes" && defined(NO_CLEAN) ...
 # This is only used for META_MODE+filemon to track what the oldest
 # __FreeBSD_version is in WORLDTMP.  This purposely does NOT have
 # a make dependency on /usr/include/osreldate.h as the file should
