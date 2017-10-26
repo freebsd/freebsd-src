@@ -53,6 +53,20 @@ __FBSDID("$FreeBSD$");
 #include "nvlist_impl.h"
 #include "nvpair_impl.h"
 
+const char *
+cnvlist_name(void *cookiep)
+{
+
+	return (nvpair_name(cookiep));
+}
+
+int
+cnvlist_type(void *cookiep)
+{
+
+	return (nvpair_type(cookiep));
+}
+
 #define	CNVLIST_GET(ftype, type, NVTYPE)				\
 ftype									\
 cnvlist_get_##type(void *cookiep)					\
