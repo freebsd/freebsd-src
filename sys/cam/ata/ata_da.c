@@ -3466,7 +3466,7 @@ adaspindown(uint8_t cmd, int flags)
 {
 	struct cam_periph *periph;
 	struct ada_softc *softc;
-	union ccb *ccb;
+	struct ccb_ataio local_ccb;
 	int error;
 
 	CAM_PERIPH_FOREACH(periph, &adadriver) {
@@ -3486,8 +3486,11 @@ adaspindown(uint8_t cmd, int flags)
 		if (bootverbose)
 			xpt_print(periph->path, "spin-down\n");
 
-		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
-		cam_fill_ataio(&ccb->ataio,
+		memset(&local_ccb, 0, sizeof(local_ccb));
+		xpt_setup_ccb(&local_ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+		local_ccb.ccb_h.ccb_state = ADA_CCB_DUMP;
+
+		cam_fill_ataio(&local_ccb,
 				    0,
 				    adadone,
 				    CAM_DIR_NONE | flags,
@@ -3495,14 +3498,35 @@ adaspindown(uint8_t cmd, int flags)
 				    NULL,
 				    0,
 				    ada_default_timeout*1000);
-		ata_28bit_cmd(&ccb->ataio, cmd, 0, 0, 0);
+		ata_28bit_cmd(&local_ccb, cmd, 0, 0, 0);
 
-		error = cam_periph_runccb(ccb, adaerror, /*cam_flags*/0,
-		    /*sense_flags*/ SF_NO_RECOVERY | SF_NO_RETRY,
-		    softc->disk->d_devstat);
+		if (!SCHEDULER_STOPPED()) {
+			/*
+			 * Not panicing, can just do the normal runccb
+			 * XXX should make cam_periph_runccb work while
+			 * XXX panicing... later
+			 */
+			error = cam_periph_runccb((union ccb *)&local_ccb, adaerror,
+			    /*cam_flags*/0, /*sense_flags*/ SF_NO_RECOVERY | SF_NO_RETRY,
+			    softc->disk->d_devstat);
+		} else {
+			/*
+			 * Panicing, so we have to do this by hand: do
+			 * xpt_polled_action to run the request through the SIM,
+			 * extract the error, and if the queue was frozen,
+			 * unfreeze it. cam_periph_runccb takes care of these
+			 * details, but xpt_polled_action doesn't.
+			 */
+			xpt_polled_action((union ccb *)&local_ccb);
+			error = adaerror((union ccb *)&local_ccb, 0,
+			    SF_NO_RECOVERY | SF_NO_RETRY);
+			if ((local_ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
+				cam_release_devq(local_ccb.ccb_h.path,
+				    /*relsim_flags*/0, /*reduction*/0,
+				    /*timeout*/0, /*getcount_only*/0);
+		}
 		if (error != 0)
 			xpt_print(periph->path, "Spin-down disk failed\n");
-		xpt_release_ccb(ccb);
 		cam_periph_unlock(periph);
 	}
 }
@@ -3512,8 +3536,14 @@ adashutdown(void *arg, int howto)
 {
 
 	adaflush();
-	if (ada_spindown_shutdown != 0 &&
-	    (howto & (RB_HALT | RB_POWEROFF | RB_POWERCYCLE)) != 0)
+
+	/*
+	 * STANDBY IMMEDIATE flushes any volatile data to the drive so
+	 * do this always to ensure we flush a cosnsistent state to
+	 * the drive. adaspindown will ensure that we don't send this
+	 * to a drive that doesn't support it.
+	 */
+	if (ada_spindown_shutdown != 0)
 		adaspindown(ATA_STANDBY_IMMEDIATE, 0);
 }
 
@@ -3522,6 +3552,10 @@ adasuspend(void *arg)
 {
 
 	adaflush();
+	/*
+	 * SLEEP also fushes any volatile data, like STANDBY IMEDIATE,
+	 * so we don't need to send it as well.
+	 */
 	if (ada_spindown_suspend != 0)
 		adaspindown(ATA_SLEEP, CAM_DEV_QFREEZE);
 }
