@@ -2814,7 +2814,7 @@ freebsd32_aio_suspend(struct thread *td, struct freebsd32_aio_suspend_args *uap)
 	error = copyin(uap->aiocbp, ujoblist32, uap->nent *
 	    sizeof(ujoblist32[0]));
 	if (error == 0) {
-		for (i = uap->nent; i > 0; i--)
+		for (i = uap->nent - 1; i >= 0; i--)
 			ujoblist[i] = PTRIN(ujoblist32[i]);
 
 		error = kern_aio_suspend(td, uap->nent, ujoblist, tsp);
