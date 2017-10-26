@@ -878,6 +878,10 @@ bnxt_attach_pre(if_ctx_t ctx)
 	if (rc)
 		goto failed;
 
+	rc = bnxt_create_pause_fc_sysctls(softc);
+	if (rc)
+		goto failed;
+
 	/* Initialize the vlan list */
 	SLIST_INIT(&softc->vnic_info.vlan_tags);
 	softc->vnic_info.vlan_tag_list.idi_vaddr = NULL;
@@ -1377,13 +1381,10 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 		return;
 	}
 
-	if (link_info->pause == (HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX |
-	    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX))
-		ifmr->ifm_active |= (IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE);
-	else if (link_info->pause == HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX)
-		ifmr->ifm_active |= IFM_ETH_TXPAUSE;
-	else if (link_info->pause == HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX)
+	if (link_info->flow_ctrl.rx) 
 		ifmr->ifm_active |= IFM_ETH_RXPAUSE;
+	if (link_info->flow_ctrl.tx) 
+		ifmr->ifm_active |= IFM_ETH_TXPAUSE;
 
 	bnxt_report_link(softc);
 	return;
@@ -1471,7 +1472,7 @@ bnxt_media_change(if_ctx_t ctx)
 		softc->link_info.autoneg |= BNXT_AUTONEG_SPEED;
 		break;
 	}
-	rc = bnxt_hwrm_set_link_setting(softc, true, true);
+	rc = bnxt_hwrm_set_link_setting(softc, true, true, true);
 	bnxt_media_status(softc->ctx, &ifmr);
 	return rc;
 }
@@ -2096,18 +2097,6 @@ bnxt_probe_phy(struct bnxt_softc *softc)
 	if (link_info->auto_mode != HWRM_PORT_PHY_QCFG_OUTPUT_AUTO_MODE_NONE)
 		link_info->autoneg |= BNXT_AUTONEG_SPEED;
 
-	if (link_info->auto_pause & (HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX |
-	    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX)) {
-		if (link_info->auto_pause == (
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX |
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX))
-			link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
-		link_info->req_flow_ctrl = link_info->auto_pause;
-	} else if (link_info->force_pause & (
-	    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX |
-	    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX)) {
-		link_info->req_flow_ctrl = link_info->force_pause;
-	}
 	link_info->req_duplex = link_info->duplex_setting;
 	if (link_info->autoneg & BNXT_AUTONEG_SPEED)
 		link_info->req_link_speed = link_info->auto_link_speed;
@@ -2352,47 +2341,46 @@ exit:
 void
 bnxt_report_link(struct bnxt_softc *softc)
 {
+	struct bnxt_link_info *link_info = &softc->link_info;
 	const char *duplex = NULL, *flow_ctrl = NULL;
 
-	if (softc->link_info.link_up == softc->link_info.last_link_up) {
-		if (!softc->link_info.link_up)
+	if (link_info->link_up == link_info->last_link_up) {
+		if (!link_info->link_up)
 			return;
-		if (softc->link_info.pause == softc->link_info.last_pause &&
-		    softc->link_info.duplex == softc->link_info.last_duplex)
+		if ((link_info->duplex == link_info->last_duplex) &&
+                    (!(BNXT_IS_FLOW_CTRL_CHANGED(link_info))))
 			return;
 	}
 
-	if (softc->link_info.link_up) {
-		if (softc->link_info.duplex ==
+	if (link_info->link_up) {
+		if (link_info->duplex ==
 		    HWRM_PORT_PHY_QCFG_OUTPUT_DUPLEX_CFG_FULL)
 			duplex = "full duplex";
 		else
 			duplex = "half duplex";
-		if (softc->link_info.pause == (
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX |
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX))
+		if (link_info->flow_ctrl.tx & link_info->flow_ctrl.rx)
 			flow_ctrl = "FC - receive & transmit";
-		else if (softc->link_info.pause ==
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX)
+		else if (link_info->flow_ctrl.tx)
 			flow_ctrl = "FC - transmit";
-		else if (softc->link_info.pause ==
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX)
+		else if (link_info->flow_ctrl.rx)
 			flow_ctrl = "FC - receive";
 		else
 			flow_ctrl = "FC - none";
 		iflib_link_state_change(softc->ctx, LINK_STATE_UP,
 		    IF_Gbps(100));
 		device_printf(softc->dev, "Link is UP %s, %s - %d Mbps \n", duplex,
-		    flow_ctrl, (softc->link_info.link_speed * 100));
+		    flow_ctrl, (link_info->link_speed * 100));
 	} else {
 		iflib_link_state_change(softc->ctx, LINK_STATE_DOWN,
 		    bnxt_get_baudrate(&softc->link_info));
 		device_printf(softc->dev, "Link is Down\n");
 	}
 
-	softc->link_info.last_link_up = softc->link_info.link_up;
-	softc->link_info.last_pause = softc->link_info.pause;
-	softc->link_info.last_duplex = softc->link_info.duplex;
+	link_info->last_link_up = link_info->link_up;
+	link_info->last_duplex = link_info->duplex;
+	link_info->last_flow_ctrl.tx = link_info->flow_ctrl.tx;
+	link_info->last_flow_ctrl.rx = link_info->flow_ctrl.rx;
+	link_info->last_flow_ctrl.autoneg = link_info->flow_ctrl.autoneg;
 }
 
 static int

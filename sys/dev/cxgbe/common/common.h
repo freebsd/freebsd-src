@@ -369,6 +369,8 @@ struct adapter_params {
 
 	unsigned int max_ordird_qp;
 	unsigned int max_ird_adapter;
+
+	uint32_t mps_bg_map;	/* rx buffer group map for all ports (upto 4) */
 };
 
 #define CHELSIO_T4		0x4

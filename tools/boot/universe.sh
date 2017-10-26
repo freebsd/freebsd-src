@@ -19,6 +19,9 @@
 # Output is put into _.boot.$TARGET_ARCH.log in sys.boot.
 #
 
+top=$(make -V SRCTOP)
+cd $top/sys/boot
+
 for i in \
 	amd64/amd64 \
 	arm/arm arm/armeb arm/armv7 \

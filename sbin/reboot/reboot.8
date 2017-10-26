@@ -28,7 +28,7 @@
 .\"	@(#)reboot.8	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2017
+.Dd October 23, 2017
 .Dt REBOOT 8
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .Op Fl lNnpq
 .Op Fl k Ar kernel
 .Nm
-.Op Fl dlNnpqr
+.Op Fl cdlNnpqr
 .Op Fl k Ar kernel
 .Nm fasthalt
 .Op Fl lNnpq
@@ -66,6 +66,20 @@ accounting database.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl c
+The system will turn off the power and then turn it back on if it can.
+If the power down action fails, the system
+will halt or reboot normally, depending on whether
+.Nm halt
+or
+.Nm
+was called.
+At the present time, only the
+.Xr ipmi 4
+driver implements the power cycle functionality and only on hardware
+with a BMC that supports power cycling.
+Unlike power off, the amount of hardware that supports power cycling
+is small.
 .It Fl d
 The system is requested to create a crash dump.
 This option is
@@ -162,6 +176,7 @@ reboot -r
 .Sh SEE ALSO
 .Xr kenv 1 ,
 .Xr getutxent 3 ,
+.Xr ipmi 4 ,
 .Xr boot 8 ,
 .Xr dumpon 8 ,
 .Xr nextboot 8 ,

@@ -100,6 +100,7 @@ lmc_parse_file(char *path)
 {
 	struct lmc *p;
 	struct stat st;
+	ssize_t retval;
 	int fd;
 	char *lm_map;
 
@@ -128,10 +129,11 @@ lmc_parse_file(char *path)
 		}
 	}
 
-	lm_map = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-	if (lm_map == (const char *)MAP_FAILED) {
+	lm_map = xmalloc(st.st_size);
+	retval = read(fd, lm_map, st.st_size);
+	if (retval != st.st_size) {
 		close(fd);
-		dbg("lm_parse_file: mmap(\"%s\") failed, %s", path,
+		dbg("lm_parse_file: read(\"%s\") failed, %s", path,
 		    rtld_strerror(errno));
 		return;
 	}
@@ -142,7 +144,7 @@ lmc_parse_file(char *path)
 	p->ino = st.st_ino;
 	TAILQ_INSERT_HEAD(&lmc_head, p, next);
 	lmc_parse(lm_map, st.st_size);
-	munmap(lm_map, st.st_size);
+	free(lm_map);
 }
 
 static void

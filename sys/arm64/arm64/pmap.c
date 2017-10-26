@@ -105,6 +105,8 @@ __FBSDID("$FreeBSD$");
  *	and to when physical maps must be made correct.
  */
 
+#include "opt_vm.h"
+
 #include <sys/param.h>
 #include <sys/bitstring.h>
 #include <sys/bus.h>
@@ -2677,6 +2679,7 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
 	intr_restore(intr);
 }
 
+#if VM_NRESERVLEVEL > 0
 /*
  * After promotion from 512 4KB page mappings to a single 2MB page mapping,
  * replace the many pv entries for the 4KB page mappings by a single pv entry
@@ -2790,6 +2793,7 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 	CTR2(KTR_PMAP, "pmap_promote_l2: success for va %#lx in pmap %p", va,
 		    pmap);
 }
+#endif /* VM_NRESERVLEVEL > 0 */
 
 /*
  *	Insert the given physical page (p) at
@@ -3045,12 +3049,14 @@ validate:
 		    (prot & VM_PROT_EXECUTE) != 0)
 			cpu_icache_sync_range(va, PAGE_SIZE);
 
+#if VM_NRESERVLEVEL > 0
 		if ((mpte == NULL || mpte->wire_count == NL3PG) &&
 		    pmap_superpages_enabled() &&
 		    (m->flags & PG_FICTITIOUS) == 0 &&
 		    vm_reserv_level_iffullpop(m) == 0) {
 			pmap_promote_l2(pmap, pde, va, &lock);
 		}
+#endif
 	}
 
 	if (lock != NULL)

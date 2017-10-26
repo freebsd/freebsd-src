@@ -60,7 +60,7 @@ void pmcpl_cg_shutdown(FILE *mf);
 void pmcpl_cg_process(
     struct pmcstat_process *pp, struct pmcstat_pmcrecord *pmcr,
     uint32_t nsamples, uintfptr_t *cc, int usermode, uint32_t cpu);
-int pmcpl_cg_topkeypress(int c, WINDOW *w);
+int pmcpl_cg_topkeypress(int c, void *w);
 void pmcpl_cg_topdisplay(void);
 void pmcpl_cg_configure(char *opt);
 

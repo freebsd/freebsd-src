@@ -89,7 +89,7 @@ static struct interval {
 #undef S
 
 static time_t offset, shuttime;
-static int dohalt, dopower, doreboot, killflg, mbuflen, oflag;
+static int docycle, dohalt, dopower, doreboot, killflg, mbuflen, oflag;
 static char mbuf[BUFSIZ];
 static const char *nosync, *whom;
 
@@ -141,10 +141,13 @@ main(int argc, char **argv)
 		goto poweroff;
 	}
 
-	while ((ch = getopt(argc, argv, "-hknopr")) != -1)
+	while ((ch = getopt(argc, argv, "-chknopr")) != -1)
 		switch (ch) {
 		case '-':
 			readstdin = 1;
+			break;
+		case 'c':
+			docycle = 1;
 			break;
 		case 'h':
 			dohalt = 1;
@@ -174,11 +177,11 @@ main(int argc, char **argv)
 	if (argc < 1)
 		usage((char *)NULL);
 
-	if (killflg + doreboot + dohalt + dopower > 1)
-		usage("incompatible switches -h, -k, -p and -r");
+	if (killflg + doreboot + dohalt + dopower + docycle > 1)
+		usage("incompatible switches -c, -h, -k, -p and -r");
 
-	if (oflag && !(dohalt || dopower || doreboot))
-		usage("-o requires -h, -p or -r");
+	if (oflag && !(dohalt || dopower || doreboot || docycle))
+		usage("-o requires -c, -h, -p or -r");
 
 	if (nosync != NULL && !oflag)
 		usage("-n requires -o");
@@ -356,8 +359,8 @@ die_you_gravy_sucking_pig_dog(void)
 	char *empty_environ[] = { NULL };
 
 	syslog(LOG_NOTICE, "%s by %s: %s",
-	    doreboot ? "reboot" : dohalt ? "halt" : dopower ? "power-down" : 
-	    "shutdown", whom, mbuf);
+	    doreboot ? "reboot" : dohalt ? "halt" : dopower ? "power-down" :
+	    docycle ? "power-cycle" : "shutdown", whom, mbuf);
 
 	(void)printf("\r\nSystem shutdown time has arrived\007\007\r\n");
 	if (killflg) {
@@ -367,6 +370,8 @@ die_you_gravy_sucking_pig_dog(void)
 #ifdef DEBUG
 	if (doreboot)
 		(void)printf("reboot");
+	else if (docycle)
+		(void)printf("power-cycle");
 	else if (dohalt)
 		(void)printf("halt");
 	else if (dopower)
@@ -379,6 +384,7 @@ die_you_gravy_sucking_pig_dog(void)
 		(void)kill(1, doreboot ? SIGINT :	/* reboot */
 			      dohalt ? SIGUSR1 :	/* halt */
 			      dopower ? SIGUSR2 :	/* power-down */
+			      docycle ? SIGWINCH :	/* power-cycle */
 			      SIGTERM);			/* single-user */
 	} else {
 		if (doreboot) {
@@ -397,6 +403,13 @@ die_you_gravy_sucking_pig_dog(void)
 		}
 		else if (dopower) {
 			execle(_PATH_HALT, "halt", "-l", "-p", nosync,
+				(char *)NULL, empty_environ);
+			syslog(LOG_ERR, "shutdown: can't exec %s: %m.",
+				_PATH_HALT);
+			warn(_PATH_HALT);
+		}
+		else if (docycle) {
+			execle(_PATH_HALT, "halt", "-l", "-c", nosync,
 				(char *)NULL, empty_environ);
 			syslog(LOG_ERR, "shutdown: can't exec %s: %m.",
 				_PATH_HALT);
