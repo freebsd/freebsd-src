@@ -56,6 +56,7 @@ pft_cleanup()
 		do
 			jail -r ${jailname}
 		done
+		rm created_jails.lst
 	fi
 
 	if [ -f created_interfaces.lst ]; then
@@ -63,5 +64,6 @@ pft_cleanup()
 		do
 			ifconfig ${ifname} destroy
 		done
+		rm created_interfaces.lst
 	fi
 }
