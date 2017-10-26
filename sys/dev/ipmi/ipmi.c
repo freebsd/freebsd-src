@@ -81,10 +81,28 @@ static void ipmi_dtor(void *arg);
 int ipmi_attached = 0;
 
 static int on = 1;
+static bool wd_in_shutdown = false;
+static int wd_timer_actions = IPMI_SET_WD_ACTION_POWER_CYCLE;
+static int wd_shutdown_countdown = 420; /* sec */
+static int wd_startup_countdown = 420; /* sec */
+static int wd_pretimeout_countdown = 120; /* sec */
+
 static SYSCTL_NODE(_hw, OID_AUTO, ipmi, CTLFLAG_RD, 0,
     "IPMI driver parameters");
-SYSCTL_INT(_hw_ipmi, OID_AUTO, on, CTLFLAG_RW,
+SYSCTL_INT(_hw_ipmi, OID_AUTO, on, CTLFLAG_RWTUN,
 	&on, 0, "");
+SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_timer_actions, CTLFLAG_RW,
+	&wd_timer_actions, 0,
+	"IPMI watchdog timer actions (including pre-timeout interrupt)");
+SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_shutdown_countdown, CTLFLAG_RW,
+	&wd_shutdown_countdown, 0,
+	"IPMI watchdog countdown for shutdown (seconds)");
+SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_startup_countdown, CTLFLAG_RDTUN,
+	&wd_startup_countdown, 0,
+	"IPMI watchdog countdown initialized during startup (seconds)");
+SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_pretimeout_countdown, CTLFLAG_RW,
+	&wd_pretimeout_countdown, 0,
+	"IPMI watchdog pre-timeout countdown (seconds)");
 
 static struct cdevsw ipmi_cdevsw = {
 	.d_version =    D_VERSION,
@@ -631,8 +649,8 @@ ipmi_set_watchdog(struct ipmi_softc *sc, unsigned int sec)
 	if (sec) {
 		req->ir_request[0] = IPMI_SET_WD_TIMER_DONT_STOP
 		    | IPMI_SET_WD_TIMER_SMS_OS;
-		req->ir_request[1] = IPMI_SET_WD_ACTION_RESET;
-		req->ir_request[2] = 0;
+		req->ir_request[1] = (wd_timer_actions & 0xff);
+		req->ir_request[2] = (wd_pretimeout_countdown & 0xff);
 		req->ir_request[3] = 0;	/* Timer use */
 		req->ir_request[4] = (sec * 10) & 0xff;
 		req->ir_request[5] = (sec * 10) >> 8;
@@ -657,21 +675,40 @@ ipmi_wd_event(void *arg, unsigned int cmd, int *error)
 	unsigned int timeout;
 	int e;
 
-	if (dumping)
+	/* Ignore requests while disabled. */
+	if (!on)
 		return;
+
+	/*
+	 * To prevent infinite hangs, we don't let anyone pat or change
+	 * the watchdog when we're shutting down. (See ipmi_shutdown_event().)
+	 * However, we do want to keep patting the watchdog while we are doing
+	 * a coredump.
+	 */
+	if (wd_in_shutdown) {
+		if (dumping && sc->ipmi_watchdog_active)
+			ipmi_reset_watchdog(sc);
+		return;
+	}
 
 	cmd &= WD_INTERVAL;
 	if (cmd > 0 && cmd <= 63) {
 		timeout = ((uint64_t)1 << cmd) / 1000000000;
 		if (timeout == 0)
 			timeout = 1;
-		if (timeout != sc->ipmi_watchdog_active) {
+		if (timeout != sc->ipmi_watchdog_active ||
+		    wd_timer_actions != sc->ipmi_watchdog_actions ||
+		    wd_pretimeout_countdown != sc->ipmi_watchdog_pretimeout) {
 			e = ipmi_set_watchdog(sc, timeout);
 			if (e == 0) {
 				sc->ipmi_watchdog_active = timeout;
+				sc->ipmi_watchdog_actions = wd_timer_actions;
+				sc->ipmi_watchdog_pretimeout = wd_pretimeout_countdown;
 			} else {
 				(void)ipmi_set_watchdog(sc, 0);
 				sc->ipmi_watchdog_active = 0;
+				sc->ipmi_watchdog_actions = 0;
+				sc->ipmi_watchdog_pretimeout = 0;
 			}
 		}
 		if (sc->ipmi_watchdog_active != 0) {
@@ -681,12 +718,51 @@ ipmi_wd_event(void *arg, unsigned int cmd, int *error)
 			} else {
 				(void)ipmi_set_watchdog(sc, 0);
 				sc->ipmi_watchdog_active = 0;
+				sc->ipmi_watchdog_actions = 0;
+				sc->ipmi_watchdog_pretimeout = 0;
 			}
 		}
 	} else if (atomic_readandclear_int(&sc->ipmi_watchdog_active) != 0) {
+		sc->ipmi_watchdog_actions = 0;
+		sc->ipmi_watchdog_pretimeout = 0;
+
 		e = ipmi_set_watchdog(sc, 0);
 		if (e != 0 && cmd == 0)
 			*error = EOPNOTSUPP;
+	}
+}
+
+static void
+ipmi_shutdown_event(void *arg, unsigned int cmd, int *error)
+{
+	struct ipmi_softc *sc = arg;
+
+	/* Ignore event if disabled. */
+	if (!on)
+		return;
+
+	/*
+	 * Positive wd_shutdown_countdown value will re-arm watchdog;
+	 * Zero value in wd_shutdown_countdown will disable watchdog;
+	 * Negative value in wd_shutdown_countdown will keep existing state;
+	 *
+	 * Revert to using a power cycle to ensure that the watchdog will
+	 * do something useful here.  Having the watchdog send an NMI
+	 * instead is useless during shutdown, and might be ignored if an
+	 * NMI already triggered.
+	 */
+
+	wd_in_shutdown = true;
+	if (wd_shutdown_countdown == 0) {
+		/* disable watchdog */
+		ipmi_set_watchdog(sc, 0);
+		sc->ipmi_watchdog_active = 0;
+	} else if (wd_shutdown_countdown > 0) {
+		/* set desired action and time, and, reset watchdog */
+		wd_timer_actions = IPMI_SET_WD_ACTION_POWER_CYCLE;
+		ipmi_set_watchdog(sc, wd_shutdown_countdown);
+		sc->ipmi_watchdog_active = wd_shutdown_countdown;
+		ipmi_reset_watchdog(sc);
 	}
 }
 
@@ -823,7 +899,10 @@ ipmi_startup(void *arg)
 			device_printf(dev, "Attached watchdog\n");
 			/* register the watchdog event handler */
 			sc->ipmi_watchdog_tag = EVENTHANDLER_REGISTER(
-			    watchdog_list, ipmi_wd_event, sc, 0);
+				watchdog_list, ipmi_wd_event, sc, 0);
+			sc->ipmi_shutdown_tag = EVENTHANDLER_REGISTER(
+				shutdown_pre_sync, ipmi_shutdown_event,
+				sc, 0);
 		}
 	}
 
@@ -835,6 +914,23 @@ ipmi_startup(void *arg)
 	}
 	sc->ipmi_cdev->si_drv1 = sc;
 
+	/*
+	 * Set initial watchdog state. If desired, set an initial
+	 * watchdog on startup. Or, if the watchdog device is
+	 * disabled, clear any existing watchdog.
+	 */
+	if (on && wd_startup_countdown > 0) {
+		wd_timer_actions = IPMI_SET_WD_ACTION_POWER_CYCLE;
+		if (ipmi_set_watchdog(sc, wd_startup_countdown) == 0 &&
+		    ipmi_reset_watchdog(sc) == 0) {
+			sc->ipmi_watchdog_active = wd_startup_countdown;
+			sc->ipmi_watchdog_actions = wd_timer_actions;
+			sc->ipmi_watchdog_pretimeout = wd_pretimeout_countdown;
+		} else
+			(void)ipmi_set_watchdog(sc, 0);
+		ipmi_reset_watchdog(sc);
+	} else if (!on)
+		(void)ipmi_set_watchdog(sc, 0);
 	/*
 	 * Power cycle the system off using IPMI. We use last - 1 since we don't
 	 * handle all the other kinds of reboots. We'll let others handle them.
@@ -892,6 +988,9 @@ ipmi_detach(device_t dev)
 		destroy_dev(sc->ipmi_cdev);
 
 	/* Detach from watchdog handling and turn off watchdog. */
+	if (sc->ipmi_shutdown_tag)
+		EVENTHANDLER_DEREGISTER(shutdown_pre_sync,
+		sc->ipmi_shutdown_tag);
 	if (sc->ipmi_watchdog_tag) {
 		EVENTHANDLER_DEREGISTER(watchdog_list, sc->ipmi_watchdog_tag);
 		ipmi_set_watchdog(sc, 0);
