@@ -86,6 +86,7 @@ static int wd_timer_actions = IPMI_SET_WD_ACTION_POWER_CYCLE;
 static int wd_shutdown_countdown = 420; /* sec */
 static int wd_startup_countdown = 420; /* sec */
 static int wd_pretimeout_countdown = 120; /* sec */
+static int cycle_wait = 10; /* sec */
 
 static SYSCTL_NODE(_hw, OID_AUTO, ipmi, CTLFLAG_RD, 0,
     "IPMI driver parameters");
@@ -103,6 +104,9 @@ SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_startup_countdown, CTLFLAG_RDTUN,
 SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_pretimeout_countdown, CTLFLAG_RW,
 	&wd_pretimeout_countdown, 0,
 	"IPMI watchdog pre-timeout countdown (seconds)");
+SYSCTL_INT(_hw_ipmi, OID_AUTO, cyle_wait, CTLFLAG_RWTUN,
+	&cycle_wait, 0,
+	"IPMI power cycle on reboot delay time (seconds)");
 
 static struct cdevsw ipmi_cdevsw = {
 	.d_version =    D_VERSION,
@@ -797,11 +801,11 @@ ipmi_power_cycle(void *arg, int howto)
 	}
 
 	/*
-	 * BMCs are notoriously slow, give it up to 10s to effect the power
+	 * BMCs are notoriously slow, give it cyle_wait seconds for the power
 	 * down leg of the power cycle. If that fails, fallback to the next
 	 * hanlder in the shutdown_final chain and/or the platform failsafe.
 	 */
-	DELAY(10 * 1000 * 1000);
+	DELAY(cycle_wait * 1000 * 1000);
 	device_printf(sc->ipmi_dev, "Power cycling via IPMI timed out\n");
 }
 
