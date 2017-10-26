@@ -45,6 +45,7 @@
 #include <sys/mnttab.h>
 #include <sys/mntent.h>
 #include <sys/types.h>
+#include <libcmdutils.h>
 
 #include <libzfs.h>
 #include <libzfs_core.h>
@@ -572,42 +573,7 @@ zfs_strdup(libzfs_handle_t *hdl, const char *str)
 void
 zfs_nicenum(uint64_t num, char *buf, size_t buflen)
 {
-	uint64_t n = num;
-	int index = 0;
-	char u;
-
-	while (n >= 1024) {
-		n /= 1024;
-		index++;
-	}
-
-	u = " KMGTPE"[index];
-
-	if (index == 0) {
-		(void) snprintf(buf, buflen, "%llu", n);
-	} else if ((num & ((1ULL << 10 * index) - 1)) == 0) {
-		/*
-		 * If this is an even multiple of the base, always display
-		 * without any decimal precision.
-		 */
-		(void) snprintf(buf, buflen, "%llu%c", n, u);
-	} else {
-		/*
-		 * We want to choose a precision that reflects the best choice
-		 * for fitting in 5 characters.  This can get rather tricky when
-		 * we have numbers that are very close to an order of magnitude.
-		 * For example, when displaying 10239 (which is really 9.999K),
-		 * we want only a single place of precision for 10.0K.  We could
-		 * develop some complex heuristics for this, but it's much
-		 * easier just to try each combination in turn.
-		 */
-		int i;
-		for (i = 2; i >= 0; i--) {
-			if (snprintf(buf, buflen, "%.*f%c", i,
-			    (double)num / (1ULL << 10 * index), u) <= 5)
-				break;
-		}
-	}
+	nicenum(num, buf, buflen);
 }
 
 void

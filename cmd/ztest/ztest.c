@@ -24,6 +24,7 @@
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright 2017 Joyent, Inc.
  */
 
 /*
@@ -123,6 +124,7 @@
 #include <math.h>
 #include <sys/fs/zfs.h>
 #include <libnvpair.h>
+#include <libcmdutils.h>
 
 static int ztest_fd_data = -1;
 static int ztest_fd_rand = -1;
@@ -554,12 +556,13 @@ usage(boolean_t requested)
 {
 	const ztest_shared_opts_t *zo = &ztest_opts_defaults;
 
-	char nice_vdev_size[10];
-	char nice_gang_bang[10];
+	char nice_vdev_size[NN_NUMBUF_SZ];
+	char nice_gang_bang[NN_NUMBUF_SZ];
 	FILE *fp = requested ? stdout : stderr;
 
-	nicenum(zo->zo_vdev_size, nice_vdev_size);
-	nicenum(zo->zo_metaslab_gang_bang, nice_gang_bang);
+	nicenum(zo->zo_vdev_size, nice_vdev_size, sizeof (nice_vdev_size));
+	nicenum(zo->zo_metaslab_gang_bang, nice_gang_bang,
+	    sizeof (nice_gang_bang));
 
 	(void) fprintf(fp, "Usage: %s\n"
 	    "\t[-v vdevs (default: %llu)]\n"
@@ -3166,10 +3169,10 @@ ztest_vdev_LUN_growth(ztest_ds_t *zd, uint64_t id)
 		    old_class_space, new_class_space);
 
 	if (ztest_opts.zo_verbose >= 5) {
-		char oldnumbuf[6], newnumbuf[6];
+		char oldnumbuf[NN_NUMBUF_SZ], newnumbuf[NN_NUMBUF_SZ];
 
-		nicenum(old_class_space, oldnumbuf);
-		nicenum(new_class_space, newnumbuf);
+		nicenum(old_class_space, oldnumbuf, sizeof (oldnumbuf));
+		nicenum(new_class_space, newnumbuf, sizeof (newnumbuf));
 		(void) printf("%s grew from %s to %s\n",
 		    spa->spa_name, oldnumbuf, newnumbuf);
 	}
@@ -6207,7 +6210,7 @@ main(int argc, char **argv)
 	ztest_info_t *zi;
 	ztest_shared_callstate_t *zc;
 	char timebuf[100];
-	char numbuf[6];
+	char numbuf[NN_NUMBUF_SZ];
 	spa_t *spa;
 	char *cmd;
 	boolean_t hasalt;
@@ -6344,7 +6347,7 @@ main(int argc, char **argv)
 
 			now = MIN(now, zs->zs_proc_stop);
 			print_time(zs->zs_proc_stop - now, timebuf);
-			nicenum(zs->zs_space, numbuf);
+			nicenum(zs->zs_space, numbuf, sizeof (numbuf));
 
 			(void) printf("Pass %3d, %8s, %3llu ENOSPC, "
 			    "%4.1f%% of %5s used, %3.0f%% done, %8s to go\n",
