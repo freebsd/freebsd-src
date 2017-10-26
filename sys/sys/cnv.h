@@ -48,6 +48,12 @@ typedef struct nvlist nvlist_t;
 __BEGIN_DECLS
 
 /*
+ * Functions which returns information about the given cookie.
+ */
+const char	*cnvlist_name(void *cookiep);
+int		 cnvlist_type(void *cookiep);
+
+/*
  * The cnvlist_get functions returns value associated with the given cookie.
  * If it returns a pointer, the pointer represents internal buffer and should
  * not be freed by the caller.
