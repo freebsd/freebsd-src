@@ -62,7 +62,11 @@ class Guid
 {
 public:
 	/* Constructors */
+	/* Default constructor: an Invalid guid */
+	Guid();
+	/* Construct a guid from a provided integer */
 	Guid(uint64_t guid);
+	/* Construct a guid from a string in base 8, 10, or 16 */
 	Guid(const std::string &guid);
 	static Guid InvalidGuid();
 
@@ -88,6 +92,12 @@ protected:
 };
 
 //- Guid Inline Public Methods ------------------------------------------------
+inline
+Guid::Guid()
+  : m_GUID(INVALID_GUID)
+{
+}
+
 inline
 Guid::Guid(uint64_t guid)
   : m_GUID(guid)
