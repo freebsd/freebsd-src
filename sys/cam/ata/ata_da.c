@@ -1080,8 +1080,8 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		}
 		xpt_polled_action(&ccb);
 
-		error = cam_periph_error(&ccb,
-		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
+		error = adaerror(&ccb,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY);
 		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
 			cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
 			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
@@ -1116,8 +1116,8 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 			ata_28bit_cmd(&ccb.ataio, ATA_FLUSHCACHE, 0, 0, 0);
 		xpt_polled_action(&ccb);
 
-		error = cam_periph_error(&ccb,
-		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
+		error = adaerror(&ccb,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY);
 		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
 			cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
 			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
