@@ -1227,8 +1227,17 @@ prefetch(void *x)
 {
 	__asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
 }
+static __inline void
+prefetch2cachelines(void *x)
+{
+	__asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
+#if (CACHE_LINE_SIZE < 128)
+	__asm volatile("prefetcht0 %0" :: "m" (*(((unsigned long *)x)+CACHE_LINE_SIZE/(sizeof(unsigned long)))));
+#endif
+}
 #else
 #define prefetch(x)
+#define prefetch2cachelines(x)
 #endif
 
 static void
@@ -3086,12 +3095,12 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
 	m_head = *m_headp;
 
 	pkt_info_zero(&pi);
-	pi.ipi_len = m_head->m_pkthdr.len;
 	pi.ipi_mflags = (m_head->m_flags & (M_VLANTAG|M_BCAST|M_MCAST));
-	pi.ipi_csum_flags = m_head->m_pkthdr.csum_flags;
-	pi.ipi_vtag = (m_head->m_flags & M_VLANTAG) ? m_head->m_pkthdr.ether_vtag : 0;
 	pi.ipi_pidx = pidx;
 	pi.ipi_qsidx = txq->ift_id;
+	pi.ipi_len = m_head->m_pkthdr.len;
+	pi.ipi_csum_flags = m_head->m_pkthdr.csum_flags;
+	pi.ipi_vtag = (m_head->m_flags & M_VLANTAG) ? m_head->m_pkthdr.ether_vtag : 0;
 
 	/* deliberate bitwise OR to make one condition */
 	if (__predict_true((pi.ipi_csum_flags | pi.ipi_vtag))) {
@@ -3323,10 +3332,10 @@ _ring_peek_one(struct ifmp_ring *r, int cidx, int offset, int remaining)
 
 	prefetch(items[(cidx + offset) & (size-1)]);
 	if (remaining > 1) {
-		prefetch(&items[next]);
-		prefetch(items[(cidx + offset + 1) & (size-1)]);
-		prefetch(items[(cidx + offset + 2) & (size-1)]);
-		prefetch(items[(cidx + offset + 3) & (size-1)]);
+		prefetch2cachelines(&items[next]);
+		prefetch2cachelines(items[(cidx + offset + 1) & (size-1)]);
+		prefetch2cachelines(items[(cidx + offset + 2) & (size-1)]);
+		prefetch2cachelines(items[(cidx + offset + 3) & (size-1)]);
 	}
 	return (__DEVOLATILE(struct mbuf **, &r->items[(cidx + offset) & (size-1)]));
 }

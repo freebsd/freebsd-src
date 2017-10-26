@@ -317,8 +317,6 @@ tmpfs_unmount(struct mount *mp, int mntflags)
 			TMPFS_NODE_UNLOCK(node);
 	}
 
-	clear_unrhdr(tmp->tm_ino_unr);
-
 	mp->mnt_data = NULL;
 	tmpfs_free_tmp(tmp);
 	vfs_write_resume(mp, VR_START_WRITE);
@@ -344,6 +342,7 @@ tmpfs_free_tmp(struct tmpfs_mount *tmp)
 
 	uma_zdestroy(tmp->tm_dirent_pool);
 	uma_zdestroy(tmp->tm_node_pool);
+	clear_unrhdr(tmp->tm_ino_unr);
 	delete_unrhdr(tmp->tm_ino_unr);
 
 	mtx_destroy(&tmp->tm_allnode_lock);

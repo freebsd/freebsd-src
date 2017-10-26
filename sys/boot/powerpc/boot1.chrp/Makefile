@@ -4,7 +4,6 @@ SSP_CFLAGS=
 
 PROG=           boot1.elf
 NEWVERSWHAT=    "Open Firmware boot block" ${MACHINE_ARCH}
-BINDIR?=        /boot
 INSTALLFLAGS=   -b
 
 FILES=		boot1.hfs

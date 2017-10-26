@@ -5,7 +5,6 @@
 FILES=		ubldr
 
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
-BINDIR?=	/boot
 INSTALLFLAGS=	-b
 WARNS?=		1
 # Address at which ubldr will be loaded.

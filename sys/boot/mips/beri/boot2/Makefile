@@ -29,7 +29,6 @@
 #
 # $FreeBSD$
 
-BINDIR?=	/boot
 INSTALLFLAGS=	-b
 
 LOADERS=	flashboot jtagboot

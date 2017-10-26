@@ -3165,6 +3165,7 @@ pmap_pv_demote_pte1(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 	} while (va < va_last);
 }
 
+#if VM_NRESERVLEVEL > 0
 static void
 pmap_pv_promote_pte1(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 {
@@ -3198,6 +3199,7 @@ pmap_pv_promote_pte1(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 		pmap_pvh_free(&m->md, pmap, va);
 	} while (va < va_last);
 }
+#endif
 
 /*
  *  Conditionally create a pv entry.
@@ -3405,6 +3407,7 @@ pmap_change_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va,
 }
 #endif
 
+#if VM_NRESERVLEVEL > 0
 /*
  *  Tries to promote the NPTE2_IN_PT2, contiguous 4KB page mappings that are
  *  within a single page table page (PT2) to a single 1MB page mapping.
@@ -3532,6 +3535,7 @@ pmap_promote_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va)
 	PDEBUG(6, printf("%s(%p): success for va %#x pte1 %#x(%#x) at %p\n",
 	    __func__, pmap, va, npte1, pte1_load(pte1p), pte1p));
 }
+#endif /* VM_NRESERVLEVEL > 0 */
 
 /*
  *  Zero L2 page table page.
@@ -4053,6 +4057,8 @@ validate:
 		    va, opte2, npte2);
 	}
 #endif
+
+#if VM_NRESERVLEVEL > 0
 	/*
 	 * If both the L2 page table page and the reservation are fully
 	 * populated, then attempt promotion.
@@ -4061,6 +4067,7 @@ validate:
 	    sp_enabled && (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0)
 		pmap_promote_pte1(pmap, pte1p, va);
+#endif
 	sched_unpin();
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);

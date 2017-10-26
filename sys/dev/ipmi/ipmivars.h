@@ -103,9 +103,11 @@ struct ipmi_softc {
 	void			*ipmi_irq;
 	int			ipmi_detaching;
 	int			ipmi_opened;
+	uint8_t			ipmi_dev_support;	/* IPMI_ADS_* */
 	struct cdev		*ipmi_cdev;
 	TAILQ_HEAD(,ipmi_request) ipmi_pending_requests;
 	int			ipmi_driver_requests_polled;
+	eventhandler_tag	ipmi_power_cycle_tag;
 	eventhandler_tag	ipmi_watchdog_tag;
 	int			ipmi_watchdog_active;
 	struct intr_config_hook	ipmi_ich;

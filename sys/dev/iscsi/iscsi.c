@@ -2458,8 +2458,10 @@ static void
 iscsi_shutdown_post(struct iscsi_softc *sc)
 {
 
-	ISCSI_DEBUG("removing all sessions due to shutdown");
-	iscsi_terminate_sessions(sc);
+	if (panicstr == NULL) {
+		ISCSI_DEBUG("removing all sessions due to shutdown");
+		iscsi_terminate_sessions(sc);
+	}
 }
 
 static int
