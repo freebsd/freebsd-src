@@ -1129,6 +1129,13 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 
 	sendsig:
+		/*
+		 * Clear the pending event for the thread that just
+		 * reported its event (p_xthread).  This may not be
+		 * the thread passed to PT_CONTINUE, PT_STEP, etc. if
+		 * the debugger is resuming a different thread.
+		 */
+		td2 = p->p_xthread;
 		if (proctree_locked) {
 			sx_xunlock(&proctree_lock);
 			proctree_locked = 0;
