@@ -2848,6 +2848,8 @@ vm_page_free_phys_pglist(struct pglist *tq)
 {
 	vm_page_t m;
 
+	if (TAILQ_EMPTY(tq))
+		return;
 	mtx_lock(&vm_page_queue_free_mtx);
 	TAILQ_FOREACH(m, tq, listq)
 		vm_page_free_phys(m);
