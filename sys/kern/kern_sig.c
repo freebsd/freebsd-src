@@ -3598,6 +3598,8 @@ void
 sigexit(struct thread *td, int sig)
 {
 	struct proc *p = td->td_proc;
+	const char *coreinfo;
+	int rv;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	proc_set_p2_wexit(p);
@@ -3622,16 +3624,31 @@ sigexit(struct thread *td, int sig)
 		 * XXX : Todo, as well as euid, write out ruid too
 		 * Note that coredump() drops proc lock.
 		 */
-		if (coredump(td) == 0)
+		rv = coredump(td);
+		switch (rv) {
+		case 0:
 			sig |= WCOREFLAG;
+			coreinfo = " (core dumped)";
+			break;
+		case EFAULT:
+			coreinfo = " (no core dump - bad address)";
+			break;
+		case EINVAL:
+			coreinfo = " (no core dump - invalid argument)";
+			break;
+		case EFBIG:
+			coreinfo = " (no core dump - too large)";
+			break;
+		default:
+			coreinfo = " (no core dump - other error)";
+		}
 		if (kern_logsigexit)
 			log(LOG_INFO,
 			    "pid %d (%s), jid %d, uid %d: exited on "
 			    "signal %d%s\n", p->p_pid, p->p_comm,
 			    p->p_ucred->cr_prison->pr_id,
 			    td->td_ucred->cr_uid,
-			    sig &~ WCOREFLAG,
-			    sig & WCOREFLAG ? " (core dumped)" : "");
+			    sig &~ WCOREFLAG, coreinfo);
 	} else
 		PROC_UNLOCK(p);
 	exit1(td, 0, sig);
