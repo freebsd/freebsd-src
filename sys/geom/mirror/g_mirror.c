@@ -3088,8 +3088,10 @@ g_mirror_destroy(struct g_mirror_softc *sc, int how)
 		}
 	}
 
-	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) != 0)
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
+		sx_xunlock(&sc->sc_lock);
 		return (0);
+	}
 	sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
 	sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DRAIN;
 	G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__, sc);
