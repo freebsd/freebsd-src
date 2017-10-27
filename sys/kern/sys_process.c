@@ -87,20 +87,6 @@ struct ptrace_vm_entry32 {
 	u_int		pve_fsid;
 	uint32_t	pve_path;
 };
-
-struct ptrace_lwpinfo32 {
-	lwpid_t	pl_lwpid;	/* LWP described. */
-	int	pl_event;	/* Event that stopped the LWP. */
-	int	pl_flags;	/* LWP flags. */
-	sigset_t	pl_sigmask;	/* LWP signal mask */
-	sigset_t	pl_siglist;	/* LWP pending signal */
-	struct siginfo32 pl_siginfo;	/* siginfo for signal */
-	char	pl_tdname[MAXCOMLEN + 1];	/* LWP name. */
-	pid_t	pl_child_pid;		/* New child pid */
-	u_int		pl_syscall_code;
-	u_int		pl_syscall_narg;
-};
-
 #endif
 
 /*

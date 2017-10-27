@@ -81,15 +81,20 @@ typedef struct fpreg32 elfcore_fpregset_t;
 typedef struct reg32   elfcore_gregset_t;
 typedef struct prpsinfo32 elfcore_prpsinfo_t;
 typedef struct prstatus32 elfcore_prstatus_t;
+typedef struct ptrace_lwpinfo32 elfcore_lwpinfo_t;
 static void elf_convert_gregset(elfcore_gregset_t *rd, struct reg *rs);
 static void elf_convert_fpregset(elfcore_fpregset_t *rd, struct fpreg *rs);
+static void elf_convert_lwpinfo(struct ptrace_lwpinfo32 *pld,
+    struct ptrace_lwpinfo *pls);
 #else
 typedef fpregset_t elfcore_fpregset_t;
 typedef gregset_t  elfcore_gregset_t;
 typedef prpsinfo_t elfcore_prpsinfo_t;
 typedef prstatus_t elfcore_prstatus_t;
+typedef struct ptrace_lwpinfo elfcore_lwpinfo_t;
 #define elf_convert_gregset(d,s)	*d = *s
 #define elf_convert_fpregset(d,s)	*d = *s
+#define	elf_convert_lwpinfo(d,s)	*d = *s
 #endif
 
 typedef void* (*notefunc_t)(void *, size_t *);
@@ -668,15 +673,18 @@ static void *
 elf_note_ptlwpinfo(void *arg, size_t *sizep)
 {
 	lwpid_t tid;
+	elfcore_lwpinfo_t *elf_info;
+	struct ptrace_lwpinfo lwpinfo;
 	void *p;
 
 	tid = *(lwpid_t *)arg;
-	p = calloc(1, sizeof(int) + sizeof(struct ptrace_lwpinfo));
+	p = calloc(1, sizeof(int) + sizeof(elfcore_lwpinfo_t));
 	if (p == NULL)
 		errx(1, "out of memory");
-	*(int *)p = sizeof(struct ptrace_lwpinfo);
-	ptrace(PT_LWPINFO, tid,
-	    (char *)p + sizeof (int), sizeof(struct ptrace_lwpinfo));
+	*(int *)p = sizeof(elfcore_lwpinfo_t);
+	elf_info = (void *)((int *)p + 1);
+	ptrace(PT_LWPINFO, tid, (void *)&lwpinfo, sizeof(lwpinfo));
+	elf_convert_lwpinfo(elf_info, &lwpinfo);
 
 	*sizep = sizeof(int) + sizeof(struct ptrace_lwpinfo);
 	return (p);
