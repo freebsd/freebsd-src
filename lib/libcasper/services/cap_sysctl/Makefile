@@ -5,12 +5,15 @@ SHLIBDIR?=	/lib/casper
 .include <src.opts.mk>
 
 PACKAGE=libcasper
-LIB=	cap_sysctl
 
 SHLIB_MAJOR=	0
 INCSDIR?=	${INCLUDEDIR}/casper
 
+.if ${MK_CASPER} != "no"
+LIB=	cap_sysctl
+
 SRCS=	cap_sysctl.c
+.endif
 
 INCS=	cap_sysctl.h
 
