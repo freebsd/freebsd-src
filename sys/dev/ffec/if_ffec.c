@@ -103,12 +103,15 @@ enum {
 
 /*
  * Flags that describe general differences between the FEC hardware in various
- * SoCs.  These are ORed into the FECTYPE enum values.
+ * SoCs.  These are ORed into the FECTYPE enum values in the ofw_compat_data, so
+ * the low 8 bits are reserved for the type enum.  In the softc, the type and
+ * flags are put into separate members, so that you don't need to mask the flags
+ * out of the type to compare it.
  */
-#define	FECTYPE_MASK		0x0000ffff
-#define	FECFLAG_GBE		(1 << 16)
-#define	FECFLAG_AVB		(1 << 17)
-#define	FECFLAG_RACC		(1 << 18)
+#define	FECTYPE_MASK		0x000000ff
+#define	FECFLAG_GBE		(1 <<  8)
+#define	FECFLAG_AVB		(1 <<  9)
+#define	FECFLAG_RACC		(1 << 10)
 
 /*
  * Table of supported FDT compat strings and their associated FECTYPE values.
@@ -154,7 +157,8 @@ struct ffec_softc {
 	void *			intr_cookie[MAX_IRQ_COUNT];
 	struct callout		ffec_callout;
 	mii_contype_t		phy_conn_type;
-	uintptr_t		fectype;
+	uint32_t		fecflags;
+	uint8_t			fectype;
 	boolean_t		link_is_up;
 	boolean_t		is_attached;
 	boolean_t		is_detaching;
@@ -261,7 +265,7 @@ ffec_miigasket_setup(struct ffec_softc *sc)
 	 * We only need the gasket for MII and RMII connections on certain SoCs.
 	 */
 
-	switch (sc->fectype & FECTYPE_MASK)
+	switch (sc->fectype)
 	{
 	case FECTYPE_IMX53:
 		break;
@@ -762,7 +766,7 @@ ffec_setup_rxbuf(struct ffec_softc *sc, int idx, struct mbuf * m)
 	int error, nsegs;
 	struct bus_dma_segment seg;
 
-	if ((sc->fectype & FECFLAG_RACC) == 0) {
+	if (!(sc->fecflags & FECFLAG_RACC)) {
 		/*
 		 * The RACC[SHIFT16] feature is not available.  So, we need to
 		 * leave at least ETHER_ALIGN bytes free at the beginning of the
@@ -842,8 +846,7 @@ ffec_rxfinish_onebuf(struct ffec_softc *sc, int len)
 	 *  to it? That way we'd only need to copy like 64 bytes or whatever the
 	 *  biggest header is, instead of the whole 1530ish-byte frame.
 	 */
-
-	if (sc->fectype & FECFLAG_RACC) {
+	if (sc->fecflags & FECFLAG_RACC) {
 		m->m_data = mtod(m, uint8_t *) + 2;
 	} else {
 		src = mtod(m, uint8_t*);
@@ -1224,7 +1227,7 @@ ffec_init_locked(struct ffec_softc *sc)
 	ffec_clear_stats(sc);
 	WR4(sc, FEC_MIBC_REG, regval & ~FEC_MIBC_DIS);
 
-	if (sc->fectype & FECFLAG_RACC) {
+	if (sc->fecflags & FECFLAG_RACC) {
 		/*
 		 * RACC - Receive Accelerator Function Configuration.
 		 */
@@ -1460,10 +1463,11 @@ ffec_attach(device_t dev)
 	struct ifnet *ifp = NULL;
 	struct mbuf *m;
 	void *dummy;
+	uintptr_t typeflags;
 	phandle_t ofw_node;
+	uint32_t idx, mscr;
 	int error, phynum, rid, irq;
 	uint8_t eaddr[ETHER_ADDR_LEN];
-	uint32_t idx, mscr;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -1474,9 +1478,11 @@ ffec_attach(device_t dev)
 	 * There are differences in the implementation and features of the FEC
 	 * hardware on different SoCs, so figure out what type we are.
 	 */
-	sc->fectype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	typeflags = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	sc->fectype = (uint8_t)(typeflags & FECTYPE_MASK);
+	sc->fecflags = (uint32_t)(typeflags & ~FECTYPE_MASK);
 
-	if (sc->fectype & FECFLAG_AVB) {
+	if (sc->fecflags & FECFLAG_AVB) {
 		sc->rxbuf_align = 64;
 		sc->txbuf_align = 1;
 	} else {
@@ -1670,7 +1676,7 @@ ffec_attach(device_t dev)
 	 * be done unconditionally for all hardware variants, but that hasn't
 	 * been tested.
 	 */
-	if (sc->fectype & FECFLAG_AVB)
+	if (sc->fecflags & FECFLAG_AVB)
 		WR4(sc, FEC_ECR_REG, 0);
 	else
 		WR4(sc, FEC_ECR_REG, FEC_ECR_RESET);
@@ -1752,7 +1758,7 @@ ffec_attach(device_t dev)
 	}
 	error = mii_attach(dev, &sc->miibus, ifp, ffec_media_change,
 	    ffec_media_status, BMSR_DEFCAPMASK, phynum, MII_OFFSET_ANY,
-	    (sc->fectype & FECTYPE_MVF) ? MIIF_FORCEANEG : 0);
+	    (sc->fecflags & FECTYPE_MVF) ? MIIF_FORCEANEG : 0);
 	if (error != 0) {
 		device_printf(dev, "PHY attach failed\n");
 		goto out;
