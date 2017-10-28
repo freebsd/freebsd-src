@@ -2,7 +2,7 @@
 #
 # This file is in the public domain.
 #
-# From Paul Eggert (2014-07-31):
+# From Paul Eggert (2017-10-01):
 # This file contains a table where each row stands for a zone where
 # civil time stamps have agreed since 1970.  Columns are separated by
 # a single tab.  Lines beginning with '#' are comments.  All text uses
@@ -15,7 +15,7 @@
 #     either +-DDMM+-DDDMM or +-DDMMSS+-DDDMMSS,
 #     first latitude (+ is north), then longitude (+ is east).
 # 3.  Zone name used in value of TZ environment variable.
-#     Please see the 'Theory' file for how zone names are chosen.
+#     Please see the theory.html file for how zone names are chosen.
 #     If multiple zones overlap a country, each has a row in the
 #     table, with each column 1 containing the country code.
 # 4.  Comments; present if and only if a country has multiple zones.
@@ -316,10 +316,11 @@ RU	+6445+17729	Asia/Anadyr	MSK+09 - Bering Sea
 SA,KW,YE	+2438+04643	Asia/Riyadh
 SB	-0932+16012	Pacific/Guadalcanal
 SC	-0440+05528	Indian/Mahe
-SD,SS	+1536+03232	Africa/Khartoum
+SD	+1536+03232	Africa/Khartoum
 SE	+5920+01803	Europe/Stockholm
 SG	+0117+10351	Asia/Singapore
 SR	+0550-05510	America/Paramaribo
+SS	+0451+03137	Africa/Juba
 SV	+1342-08912	America/El_Salvador
 SY	+3330+03618	Asia/Damascus
 TC	+2128-07108	America/Grand_Turk
