@@ -97,7 +97,7 @@ enum {
 	FECTYPE_NONE,
 	FECTYPE_GENERIC,
 	FECTYPE_IMX53,
-	FECTYPE_IMX6,
+	FECTYPE_IMX6,	/* imx6 and imx7 */
 	FECTYPE_MVF,
 };
 
@@ -106,7 +106,8 @@ enum {
  * SoCs.  These are ORed into the FECTYPE enum values.
  */
 #define	FECTYPE_MASK		0x0000ffff
-#define	FECFLAG_GBE		(0x0001 << 16)
+#define	FECFLAG_GBE		(1 << 16)
+#define	FECFLAG_AVB		(1 << 17)
 
 /*
  * Table of supported FDT compat strings and their associated FECTYPE values.
@@ -116,6 +117,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx53-fec",	FECTYPE_IMX53},
 	{"fsl,imx6q-fec",	FECTYPE_IMX6 | FECFLAG_GBE},
 	{"fsl,imx6ul-fec",	FECTYPE_IMX6},
+	{"fsl,imx7d-fec",	FECTYPE_IMX6 | FECFLAG_GBE | FECFLAG_AVB},
 	{"fsl,mvf600-fec",	FECTYPE_MVF},
 	{"fsl,mvf-fec",		FECTYPE_MVF},
 	{NULL,		 	FECTYPE_NONE},
@@ -148,11 +150,13 @@ struct ffec_softc {
 	void *			intr_cookie;
 	struct callout		ffec_callout;
 	mii_contype_t		phy_conn_type;
-	uint8_t			fectype;
+	uintptr_t		fectype;
 	boolean_t		link_is_up;
 	boolean_t		is_attached;
 	boolean_t		is_detaching;
 	int			tx_watchdog_count;
+	int			rxbuf_align;
+	int			txbuf_align;
 
 	bus_dma_tag_t		rxdesc_tag;
 	bus_dmamap_t		rxdesc_map;
@@ -754,7 +758,7 @@ ffec_setup_rxbuf(struct ffec_softc *sc, int idx, struct mbuf * m)
 	 * have to ensure that the beginning of the buffer is aligned to the
 	 * hardware's requirements.
 	 */
-	m_adj(m, roundup(ETHER_ALIGN, FEC_RXBUF_ALIGN));
+	m_adj(m, roundup(ETHER_ALIGN, sc->rxbuf_align));
 
 	error = bus_dmamap_load_mbuf_sg(sc->rxbuf_tag, sc->rxbuf_map[idx].map,
 	    m, &seg, &nsegs, 0);
@@ -1098,7 +1102,7 @@ ffec_init_locked(struct ffec_softc *sc)
 	 * when we support jumbo frames and receiving fragments of them into
 	 * separate buffers.
 	 */
-	maxbuf = MCLBYTES - roundup(ETHER_ALIGN, FEC_RXBUF_ALIGN);
+	maxbuf = MCLBYTES - roundup(ETHER_ALIGN, sc->rxbuf_align);
 	maxfl = min(maxbuf, 0x7ff);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -1450,6 +1454,14 @@ ffec_attach(device_t dev)
 	 */
 	sc->fectype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 
+	if (sc->fectype & FECFLAG_AVB) {
+		sc->rxbuf_align = 64;
+		sc->txbuf_align = 1;
+	} else {
+		sc->rxbuf_align = 16;
+		sc->txbuf_align = 16;
+	}
+
 	/*
 	 * We have to be told what kind of electrical connection exists between
 	 * the MAC and PHY or we can't operate correctly.
@@ -1525,7 +1537,7 @@ ffec_attach(device_t dev)
 
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(dev),	/* Parent tag. */
-	    FEC_TXBUF_ALIGN, 0,		/* alignment, boundary */
+	    sc->txbuf_align, 0,		/* alignment, boundary */
 	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
