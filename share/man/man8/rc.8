@@ -91,6 +91,9 @@ The
 .Nm rc.d/
 directories contain scripts which will be automatically
 executed at boot time and shutdown time.
+.Pp
+The sysrc(8) command provides a scripting interface to modify system
+config files.
 .Ss Operation of Nm
 .Bl -enum
 .It
@@ -557,7 +560,8 @@ is unnecessary, but is often included.
 .Xr rcorder 8 ,
 .Xr rc.subr 8 ,
 .Xr reboot 8 ,
-.Xr savecore 8
+.Xr savecore 8 ,
+.Xr sysrc 8
 .Sh HISTORY
 The
 .Nm
