@@ -133,6 +133,8 @@ static struct ofw_compat_data compat_data[] = {
 
 #define	WATCHDOG_TIMEOUT_SECS	5
 
+#define	MAX_IRQ_COUNT 3
+
 struct ffec_bufmap {
 	struct mbuf	*mbuf;
 	bus_dmamap_t	map;
@@ -145,9 +147,9 @@ struct ffec_softc {
 	struct ifnet		*ifp;
 	int			if_flags;
 	struct mtx		mtx;
-	struct resource		*irq_res;
+	struct resource		*irq_res[MAX_IRQ_COUNT];
 	struct resource		*mem_res;
-	void *			intr_cookie;
+	void *			intr_cookie[MAX_IRQ_COUNT];
 	struct callout		ffec_callout;
 	mii_contype_t		phy_conn_type;
 	uintptr_t		fectype;
@@ -175,6 +177,13 @@ struct ffec_softc {
 	uint32_t		tx_idx_head;
 	uint32_t		tx_idx_tail;
 	int			txcount;
+};
+
+static struct resource_spec irq_res_spec[MAX_IRQ_COUNT + 1] = {
+	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
+	{ SYS_RES_IRQ,		1,	RF_ACTIVE | RF_OPTIONAL },
+	{ SYS_RES_IRQ,		2,	RF_ACTIVE | RF_OPTIONAL },
+	RESOURCE_SPEC_END
 };
 
 #define	FFEC_LOCK(sc)			mtx_lock(&(sc)->mtx)
@@ -1364,7 +1373,7 @@ ffec_detach(device_t dev)
 {
 	struct ffec_softc *sc;
 	bus_dmamap_t map;
-	int idx;
+	int idx, irq;
 
 	/*
 	 * NB: This function can be called internally to unwind a failure to
@@ -1415,14 +1424,16 @@ ffec_detach(device_t dev)
 		bus_dmamap_destroy(sc->txdesc_tag, sc->txdesc_map);
 	}
 	if (sc->txdesc_tag != NULL)
-	bus_dma_tag_destroy(sc->txdesc_tag);
+		bus_dma_tag_destroy(sc->txdesc_tag);
 
 	/* Release bus resources. */
-	if (sc->intr_cookie)
-		bus_teardown_intr(dev, sc->irq_res, sc->intr_cookie);
-
-	if (sc->irq_res != NULL)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+	for (irq = 0; irq < MAX_IRQ_COUNT; ++irq) {
+		if (sc->intr_cookie[irq] != NULL) {
+			bus_teardown_intr(dev, sc->irq_res[irq],
+			    sc->intr_cookie[irq]);
+		}
+	}
+	bus_release_resources(dev, irq_res_spec, sc->irq_res);
 
 	if (sc->mem_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->mem_res);
@@ -1439,7 +1450,7 @@ ffec_attach(device_t dev)
 	struct mbuf *m;
 	void *dummy;
 	phandle_t ofw_node;
-	int error, phynum, rid;
+	int error, phynum, rid, irq;
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	uint32_t idx, mscr;
 
@@ -1490,12 +1501,10 @@ ffec_attach(device_t dev)
 		error = ENOMEM;
 		goto out;
 	}
-	rid = 0;
-	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
-	if (sc->irq_res == NULL) {
-		device_printf(dev, "could not allocate interrupt resources.\n");
-		error = ENOMEM;
+
+	error = bus_alloc_resources(dev, irq_res_spec, sc->irq_res);
+	if (error != 0) {
+		device_printf(dev, "could not allocate interrupt resources\n");
 		goto out;
 	}
 
@@ -1656,11 +1665,17 @@ ffec_attach(device_t dev)
 		WR4(sc, FEC_ECR_REG, FEC_ECR_RESET);
 
 	/* Setup interrupt handler. */
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, ffec_intr, sc, &sc->intr_cookie);
-	if (error != 0) {
-		device_printf(dev, "could not setup interrupt handler.\n");
-		goto out;
+	for (irq = 0; irq < MAX_IRQ_COUNT; ++irq) {
+		if (sc->irq_res[irq] != NULL) {
+			error = bus_setup_intr(dev, sc->irq_res[irq],
+			    INTR_TYPE_NET | INTR_MPSAFE, NULL, ffec_intr, sc,
+			    &sc->intr_cookie[irq]);
+			if (error != 0) {
+				device_printf(dev,
+				    "could not setup interrupt handler.\n");
+				goto out;
+			}
+		}
 	}
 
 	/*
