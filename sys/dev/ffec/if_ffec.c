@@ -1639,8 +1639,21 @@ ffec_attach(device_t dev)
 	/* Try to get the MAC address from the hardware before resetting it. */
 	ffec_get_hwaddr(sc, eaddr);
 
-	/* Reset the hardware.  Disables all interrupts. */
-	WR4(sc, FEC_ECR_REG, FEC_ECR_RESET);
+	/*
+	 * Reset the hardware.  Disables all interrupts.
+	 *
+	 * When the FEC is connected to the AXI bus (indicated by AVB flag), a
+	 * MAC reset while a bus transaction is pending can hang the bus.
+	 * Instead of resetting, turn off the ENABLE bit, which allows the
+	 * hardware to complete any in-progress transfers (appending a bad CRC
+	 * to any partial packet) and release the AXI bus.  This could probably
+	 * be done unconditionally for all hardware variants, but that hasn't
+	 * been tested.
+	 */
+	if (sc->fectype & FECFLAG_AVB)
+		WR4(sc, FEC_ECR_REG, 0);
+	else
+		WR4(sc, FEC_ECR_REG, FEC_ECR_RESET);
 
 	/* Setup interrupt handler. */
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
