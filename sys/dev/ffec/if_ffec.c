@@ -108,6 +108,7 @@ enum {
 #define	FECTYPE_MASK		0x0000ffff
 #define	FECFLAG_GBE		(1 << 16)
 #define	FECFLAG_AVB		(1 << 17)
+#define	FECFLAG_RACC		(1 << 18)
 
 /*
  * Table of supported FDT compat strings and their associated FECTYPE values.
@@ -115,10 +116,11 @@ enum {
 static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx51-fec",	FECTYPE_GENERIC},
 	{"fsl,imx53-fec",	FECTYPE_IMX53},
-	{"fsl,imx6q-fec",	FECTYPE_IMX6 | FECFLAG_GBE},
-	{"fsl,imx6ul-fec",	FECTYPE_IMX6},
-	{"fsl,imx7d-fec",	FECTYPE_IMX6 | FECFLAG_GBE | FECFLAG_AVB},
-	{"fsl,mvf600-fec",	FECTYPE_MVF},
+	{"fsl,imx6q-fec",	FECTYPE_IMX6 | FECFLAG_RACC | FECFLAG_GBE },
+	{"fsl,imx6ul-fec",	FECTYPE_IMX6 | FECFLAG_RACC },
+	{"fsl,imx7d-fec",	FECTYPE_IMX6 | FECFLAG_RACC | FECFLAG_GBE |
+				FECFLAG_AVB },
+	{"fsl,mvf600-fec",	FECTYPE_MVF  | FECFLAG_RACC },
 	{"fsl,mvf-fec",		FECTYPE_MVF},
 	{NULL,		 	FECTYPE_NONE},
 };
@@ -760,14 +762,17 @@ ffec_setup_rxbuf(struct ffec_softc *sc, int idx, struct mbuf * m)
 	int error, nsegs;
 	struct bus_dma_segment seg;
 
-	/*
-	 * We need to leave at least ETHER_ALIGN bytes free at the beginning of
-	 * the buffer to allow the data to be re-aligned after receiving it (by
-	 * copying it backwards ETHER_ALIGN bytes in the same buffer).  We also
-	 * have to ensure that the beginning of the buffer is aligned to the
-	 * hardware's requirements.
-	 */
-	m_adj(m, roundup(ETHER_ALIGN, sc->rxbuf_align));
+	if ((sc->fectype & FECFLAG_RACC) == 0) {
+		/*
+		 * The RACC[SHIFT16] feature is not available.  So, we need to
+		 * leave at least ETHER_ALIGN bytes free at the beginning of the
+		 * buffer to allow the data to be re-aligned after receiving it
+		 * (by copying it backwards ETHER_ALIGN bytes in the same
+		 * buffer).  We also have to ensure that the beginning of the
+		 * buffer is aligned to the hardware's requirements.
+		 */
+		m_adj(m, roundup(ETHER_ALIGN, sc->rxbuf_align));
+	}
 
 	error = bus_dmamap_load_mbuf_sg(sc->rxbuf_tag, sc->rxbuf_map[idx].map,
 	    m, &seg, &nsegs, 0);
@@ -815,23 +820,6 @@ ffec_rxfinish_onebuf(struct ffec_softc *sc, int len)
 		return;
 	}
 
-	/*
-	 *  Unfortunately, the protocol headers need to be aligned on a 32-bit
-	 *  boundary for the upper layers.  The hardware requires receive
-	 *  buffers to be 16-byte aligned.  The ethernet header is 14 bytes,
-	 *  leaving the protocol header unaligned.  We used m_adj() after
-	 *  allocating the buffer to leave empty space at the start of the
-	 *  buffer, now we'll use the alignment agnostic bcopy() routine to
-	 *  shuffle all the data backwards 2 bytes and adjust m_data.
-	 *
-	 *  XXX imx6 hardware is able to do this 2-byte alignment by setting the
-	 *  SHIFT16 bit in the RACC register.  Older hardware doesn't have that
-	 *  feature, but for them could we speed this up by copying just the
-	 *  protocol headers into their own small mbuf then chaining the cluster
-	 *  to it?  That way we'd only need to copy like 64 bytes or whatever
-	 *  the biggest header is, instead of the whole 1530ish-byte frame.
-	 */
-
 	FFEC_UNLOCK(sc);
 
 	bmap = &sc->rxbuf_map[sc->rx_idx];
@@ -844,10 +832,25 @@ ffec_rxfinish_onebuf(struct ffec_softc *sc, int len)
 	m->m_pkthdr.len = len;
 	m->m_pkthdr.rcvif = sc->ifp;
 
-	src = mtod(m, uint8_t*);
-	dst = src - ETHER_ALIGN;
-	bcopy(src, dst, len);
-	m->m_data = dst;
+	/*
+	 * Align the protocol headers in the receive buffer on a 32-bit
+	 * boundary.  Newer hardware does the alignment for us.  On hardware
+	 * that doesn't support this feature, we have to copy-align the data.
+	 *
+	 *  XXX for older hardware, could we speed this up by copying just the
+	 *  protocol headers into their own small mbuf then chaining the cluster
+	 *  to it? That way we'd only need to copy like 64 bytes or whatever the
+	 *  biggest header is, instead of the whole 1530ish-byte frame.
+	 */
+
+	if (sc->fectype & FECFLAG_RACC) {
+		m->m_data = mtod(m, uint8_t *) + 2;
+	} else {
+		src = mtod(m, uint8_t*);
+		dst = src - ETHER_ALIGN;
+		bcopy(src, dst, len);
+		m->m_data = dst;
+	}
 	sc->ifp->if_input(sc->ifp, m);
 
 	FFEC_LOCK(sc);
@@ -1220,6 +1223,14 @@ ffec_init_locked(struct ffec_softc *sc)
 	WR4(sc, FEC_MIBC_REG, regval | FEC_MIBC_DIS);
 	ffec_clear_stats(sc);
 	WR4(sc, FEC_MIBC_REG, regval & ~FEC_MIBC_DIS);
+
+	if (sc->fectype & FECFLAG_RACC) {
+		/*
+		 * RACC - Receive Accelerator Function Configuration.
+		 */
+		regval = RD4(sc, FEC_RACC_REG);
+		WR4(sc, FEC_RACC_REG, regval | FEC_RACC_SHIFT16);
+	}
 
 	/*
 	 * ECR - Ethernet control register.
