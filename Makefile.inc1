@@ -2817,7 +2817,7 @@ CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDDESTDIR}/usr/bin:${PATH} ${MAKE} ${N
 # Don't rebuild build-tools targets during normal build.
 CD2MAKE+=	BUILD_TOOLS_META=.NOMETA
 .endif
-XDDESTDIR=${DESTDIR}/${XDTP}
+XDDESTDIR=${DESTDIR}${XDTP}
 
 .ORDER: xdev-build xdev-install xdev-links
 xdev: xdev-build xdev-install .PHONY
