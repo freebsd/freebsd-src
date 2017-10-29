@@ -135,6 +135,9 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	packages installconfig real-packages sign-packages package-pkg \
 	print-dir test-system-compiler
 
+# These targets require a TARGET and TARGET_ARCH be defined.
+XTGTS=	native-xtools xdev xdev-build xdev-install xdev-links
+
 # XXX: r156740: This can't work since bsd.subdir.mk is not included ever.
 # It will only work for SUBDIR_TARGETS in make.conf.
 TGTS+=	${SUBDIR_TARGETS}
@@ -270,6 +273,11 @@ _TARGET=	${XDEV}
 .if defined(XDEV_ARCH)
 _TARGET_ARCH=	${XDEV_ARCH}
 .endif
+# Some targets require a set TARGET/TARGET_ARCH, check before the default
+# MACHINE and after the compatibility handling.
+.if !defined(_TARGET) || !defined(_TARGET_ARCH)
+${XTGTS}: _assert_target
+.endif
 # Otherwise, default to current machine type and architecture.
 _TARGET?=	${MACHINE}
 _TARGET_ARCH?=	${MACHINE_ARCH}
@@ -277,6 +285,14 @@ _TARGET_ARCH?=	${MACHINE_ARCH}
 .if make(print-dir)
 .SILENT:
 .endif
+
+_assert_target: .PHONY .MAKE
+.for _tgt in ${XTGTS}
+.if make(${_tgt})
+	@echo "*** Error: Both TARGET and TARGET_ARCH must be defined for \"${_tgt}\" target"
+	@false
+.endif
+.endfor
 
 #
 # Make sure we have an up-to-date make(1). Only world and buildworld
