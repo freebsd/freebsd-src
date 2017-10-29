@@ -455,7 +455,7 @@ Try "whereis firefox" and "whereis whereis".
 		-- Konstantinos Konstantinidis <kkonstan@duth.gr>
 %
 Want to run the same command again?
-Type "!!".
+In many shells (e.g., tcsh, zsh, bash) you can type "!!".
 %
 Want to go the directory you were just in?
 Type "cd -"
