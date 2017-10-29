@@ -51,6 +51,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20171028:
+	The native-xtools target no longer installs the files by default to the
+	OBJDIR.  Use the native-xtools-install target with a DESTDIR to install
+	to ${DESTDIR}/${NXTP} where NXTP defaults to /nxb-bin.
+
 20171021:
 	As part of the boot loader infrastructure cleanup, LOADER_*_SUPPORT
 	options are changing from controlling the build if defined / undefined
