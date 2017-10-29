@@ -625,7 +625,7 @@ Various URLs of interest:
 
 http://www.netbsd.org		-	NetBSD's Web Page
 http://www.openbsd.org		-	OpenBSD's Web Page
-http://www.freebsd.org		-	FreeBSD's Web Page
+https://www.freebsd.org		-	FreeBSD's Web Page
 
 http://www.t10.org		-	ANSI SCSI Commitee's Web Page
 					(SCSI Specs)
