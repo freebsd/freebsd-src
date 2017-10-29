@@ -6,11 +6,11 @@ INTERNALLIB=
 SRCS=	devicename.c elf_freebsd.c ofw_console.c ofw_copy.c ofw_disk.c \
 	ofw_memory.c ofw_module.c ofw_net.c ofw_reboot.c \
 	ofw_time.c openfirm.c
-.PATH:	${.CURDIR}/../../zfs
+.PATH:	${BOOTSRC}/zfs
 SRCS+=  devicename_stubs.c
 
 # Pick up the bootstrap header for some interface items
-CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
+CFLAGS+=	-I${LDRSRC} -I${SYSDIR} -I.
 
 CFLAGS+=	-ffreestanding
 .if ${MACHINE_CPUARCH} == "powerpc"
@@ -24,7 +24,7 @@ CFLAGS+= -DDISK_DEBUG
 .endif
 
 machine: .NOMETA
-	ln -sf ${.CURDIR}/../../../${MACHINE_CPUARCH}/include machine
+	ln -sf ${SYSDIR}/${MACHINE_CPUARCH}/include machine
 
 CLEANFILES+=	machine
 
