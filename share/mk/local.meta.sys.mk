@@ -107,7 +107,7 @@ TARGET_OBJ_SPEC:= ${TARGET_SPEC:S;,;.;g}
 OBJTOP:= ${OBJROOT}${TARGET_OBJ_SPEC}
 
 .if defined(MAKEOBJDIR)
-.if ${MAKEOBJDIR:M*/*} == ""
+.if ${MAKEOBJDIR:M/*} == ""
 .error Cannot use MAKEOBJDIR=${MAKEOBJDIR}${.newline}Unset MAKEOBJDIR to get default:  MAKEOBJDIR='${_default_makeobjdir}'
 .endif
 .endif
