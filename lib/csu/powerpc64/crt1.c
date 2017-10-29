@@ -19,7 +19,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *          This product includes software developed for the
- *          FreeBSD Project.  See http://www.freebsd.org/ for
+ *          FreeBSD Project.  See https://www.freebsd.org/ for
  *          information about FreeBSD.
  *          This product includes software developed for the
  *          NetBSD Project.  See http://www.netbsd.org/ for

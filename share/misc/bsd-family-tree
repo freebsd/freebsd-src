@@ -371,7 +371,7 @@ was the announcement in Usenet or if it was available as tape.
 [44B] McKusick, Marshall Kirk, Keith Bostic, Michael J Karels,
 	and John Quarterman. The Design and Implementation of
 	the 4.4BSD Operating System.
-[APL] Apple website [http://www.apple.com/macosx/]
+[APL] Apple website [https://www.apple.com/macosx/]
 [BSDI] Berkeley Software Design, Inc.
 [DFB] DragonFlyBSD Project, The.
 [DOC] README, COPYRIGHT on tape.
@@ -757,10 +757,10 @@ Andreas Klemm, Lars Köller. If you're going to San Francisco ...
 Die freien BSD-Varianten von Unix. c't April 1997, page 368ff.
 
 BSD Release Announcements collection.
-URL: http://www.FreeBSD.org/releases/
+URL: https://www.FreeBSD.org/releases/
 
 BSD Hypertext Man Pages
-URL: http://www.FreeBSD.org/cgi/man.cgi
+URL: https://www.FreeBSD.org/cgi/man.cgi
 
 UNIX history graphing project
 URL: http://minnie.tuhs.org/Unix_History/index.html
