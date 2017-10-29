@@ -863,16 +863,6 @@ _worldtmp: .PHONY
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${WORLDTMP}/usr/lib >/dev/null
 .endif
-.if defined(LIBCOMPAT)
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
-	    -p ${WORLDTMP}/usr >/dev/null
-.if ${MK_DEBUG_FILES} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
-	    -p ${WORLDTMP}/legacy/usr/lib/debug/usr >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
-	    -p ${WORLDTMP}/usr/lib/debug/usr >/dev/null
-.endif
-.endif
 .if ${MK_TESTS} != "no"
 	mkdir -p ${WORLDTMP}${TESTSBASE}
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
