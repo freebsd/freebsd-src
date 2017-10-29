@@ -2098,7 +2098,11 @@ cross-tools: .MAKE .PHONY
 # to pickup.
 #
 NXBOBJDIR=	${MAKEOBJDIRPREFIX}/nxb/${TARGET}.${TARGET_ARCH}
-NXBDESTDIR=	${NXBOBJDIR}${.CURDIR}/nxb-bin
+NXTP?=		/nxb-bin
+.if ${NXTP:N/*}
+.error NXTP variable should be an absolute path
+.endif
+NXBDESTDIR?=	${DESTDIR}${NXTP}
 
 # This is the list of tools to be built/installed as static and where
 # appropriate to build for the given TARGET.TARGET_ARCH.
@@ -2227,6 +2231,9 @@ native-xtools: .PHONY
 .endif
 	${_+_}cd ${.CURDIR}; ${NXBMAKE} SUBDIR_OVERRIDE="${NXBDIRS:M*}" \
 	    everything
+	@echo ">> native-xtools done.  Use 'make native-xtools-install' to install to a given DESTDIR"
+
+native-xtools-install: .PHONY
 	mkdir -p ${NXBDESTDIR}/bin ${NXBDESTDIR}/sbin ${NXBDESTDIR}/usr
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${NXBDESTDIR}/usr >/dev/null

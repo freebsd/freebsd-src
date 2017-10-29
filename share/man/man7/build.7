@@ -234,6 +234,17 @@ performance by avoiding emulating binaries that do not need to be emulated.
 and
 .Sy TARGET_ARCH
 should be defined.
+.It Cm native-xtools-install
+Installs the results to
+.Pa ${DESTDIR}/${NXTP}
+where
+.Va NXTP
+defaults to
+.Pa nxb-bin .
+.Sy TARGET
+and
+.Sy TARGET_ARCH
+must be defined.
 .It Cm packageworld
 Archive the results of
 .Cm distributeworld ,

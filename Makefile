@@ -39,9 +39,11 @@
 # xdev-install        - Install cross-development tools.
 # xdev-links          - Create traditional links in /usr/bin for cc, etc
 # native-xtools       - Create host binaries that produce target objects
-#                       for use in qemu user-mode jails.  Override
-#                       target location with NXBDESTDIR.  TARGET and
+#                       for use in qemu user-mode jails.  TARGET and
 #                       TARGET_ARCH should be defined.
+# native-xtools-install
+#                     - Install the files to the given DESTDIR/NXTP where
+#                       NXTP defaults to /nxb-bin.
 # 
 # "quick" way to test all kernel builds:
 # 	_jflag=`sysctl -n hw.ncpu`
@@ -132,13 +134,15 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	_build-tools _build-metadata _cross-tools _includes _libraries \
 	build32 distribute32 install32 buildsoft distributesoft installsoft \
 	builddtb xdev xdev-build xdev-install \
-	xdev-links native-xtools stageworld stagekernel stage-packages \
+	xdev-links native-xtools native-xtools-install stageworld stagekernel \
+	stage-packages \
 	create-packages-world create-packages-kernel create-packages \
 	packages installconfig real-packages sign-packages package-pkg \
 	print-dir test-system-compiler
 
 # These targets require a TARGET and TARGET_ARCH be defined.
-XTGTS=	native-xtools xdev xdev-build xdev-install xdev-links
+XTGTS=	native-xtools native-xtools-install xdev xdev-build xdev-install \
+	xdev-links
 
 # XXX: r156740: This can't work since bsd.subdir.mk is not included ever.
 # It will only work for SUBDIR_TARGETS in make.conf.
