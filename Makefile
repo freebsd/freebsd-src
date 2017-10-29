@@ -34,7 +34,7 @@
 #                       for world and kernel targets.
 # toolchains          - Build a toolchain for all world and kernel targets.
 # xdev                - xdev-build + xdev-install for the architecture
-#                       specified with XDEV and XDEV_ARCH.
+#                       specified with TARGET and TARGET_ARCH.
 # xdev-build          - Build cross-development tools.
 # xdev-install        - Install cross-development tools.
 # xdev-links          - Create traditional links in /usr/bin for cc, etc
