@@ -817,18 +817,10 @@ _worldtmp: .PHONY
 	@echo "--------------------------------------------------------------"
 .if !defined(NO_CLEAN)
 	rm -rf ${WORLDTMP}
-.if defined(LIBCOMPAT)
-	rm -rf ${LIBCOMPATTMP}
-.endif
 .else
 .if exists(${WORLDTMP})
 	@echo ">>> Deleting stale files in build tree..."
 	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
-	    delete-old delete-old-libs >/dev/null
-.endif
-.if defined(LIBCOMPAT) && exists(${LIBCOMPATTMP})
-	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
-	    DESTDIR=${LIBCOMPATTMP} \
 	    delete-old delete-old-libs >/dev/null
 .endif
 	rm -rf ${WORLDTMP}/legacy/usr/include
