@@ -2848,6 +2848,7 @@ _xb-build-tools: .PHONY
 
 _xb-cross-tools: .PHONY
 .for _tool in \
+    ${_lld} \
     ${_binutils} \
     ${_elftctools} \
     usr.bin/ar \
@@ -2885,6 +2886,7 @@ xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries .P
 _xi-cross-tools: .PHONY
 	@echo "_xi-cross-tools"
 .for _tool in \
+    ${_lld} \
     ${_binutils} \
     ${_elftctools} \
     usr.bin/ar \
