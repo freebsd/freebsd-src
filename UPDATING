@@ -1843,21 +1843,6 @@ COMMON ITEMS:
 	make installkernel KERNCONF=YOUR_KERNEL_HERE KODIR=/boot/testkernel
 	nextboot -k testkernel
 
-	To just build a kernel when you know that it won't mess you up
-	--------------------------------------------------------------
-	This assumes you are already running a CURRENT system.  Replace
-	${arch} with the architecture of your machine (e.g. "i386",
-	"arm", "amd64", "ia64", "pc98", "sparc64", "powerpc", "mips", etc).
-
-	cd src/sys/${arch}/conf
-	config KERNEL_NAME_HERE
-	cd ../compile/KERNEL_NAME_HERE
-	make depend
-	make
-	make install
-
-	If this fails, go to the "To build a kernel" section.
-
 	To rebuild everything and install it on the current system.
 	-----------------------------------------------------------
 	# Note: sometimes if you are running current you gotta do more than
@@ -1865,7 +1850,8 @@ COMMON ITEMS:
 
 	<make sure you have good level 0 dumps>
 	make buildworld
-	make kernel KERNCONF=YOUR_KERNEL_HERE
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
 							[1]
 	<reboot in single user>				[3]
 	mergemaster -Fp					[5]
@@ -1965,10 +1951,7 @@ COMMON ITEMS:
 	Make sure that you merge any new devices from GENERIC since the
 	last time you updated your kernel config file.
 
-	[9] When checking out sources, you must include the -P flag to have
-	cvs prune empty directories.
-
-	If CPUTYPE is defined in your /etc/make.conf, make sure to use the
+	[9] If CPUTYPE is defined in your /etc/make.conf, make sure to use the
 	"?=" instead of the "=" assignment operator, so that buildworld can
 	override the CPUTYPE if it needs to.
 
