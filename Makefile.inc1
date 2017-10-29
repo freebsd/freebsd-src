@@ -2846,8 +2846,7 @@ _xb-build-tools: .PHONY
 	${_+_}@cd ${.CURDIR}; \
 	${CDBENV} ${MAKE} -f Makefile.inc1 ${NOFUN} build-tools
 
-_xb-cross-tools: .PHONY
-.for _tool in \
+XDEVDIRS= \
     ${_lld} \
     ${_binutils} \
     ${_elftctools} \
@@ -2855,6 +2854,9 @@ _xb-cross-tools: .PHONY
     ${_clang_libs} \
     ${_clang} \
     ${_gcc}
+
+_xb-cross-tools: .PHONY
+.for _tool in ${XDEVDIRS}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,all)"; \
 	cd ${.CURDIR}/${_tool}; \
 	if [ -z "${NO_OBJ}" ]; then ${CDMAKE} DIRPRFX=${_tool}/ obj; fi; \
@@ -2885,14 +2887,7 @@ xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries .P
 
 _xi-cross-tools: .PHONY
 	@echo "_xi-cross-tools"
-.for _tool in \
-    ${_lld} \
-    ${_binutils} \
-    ${_elftctools} \
-    usr.bin/ar \
-    ${_clang_libs} \
-    ${_clang} \
-    ${_gcc}
+.for _tool in ${XDEVDIRS}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (install)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ install DESTDIR=${XDDESTDIR}
