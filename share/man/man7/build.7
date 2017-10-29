@@ -222,6 +222,18 @@ variable
 .Va DISTDIR .
 This target is used while building a release; see
 .Xr release 7 .
+.It Cm native-xtools
+This target builds a cross-toolchain for the given
+.Sy TARGET
+and
+.Sy TARGET_ARCH ,
+as well as a select list of static userland tools for the host system.
+This is intended to be used in a jail where QEMU is used to improve
+performance by avoiding emulating binaries that do not need to be emulated.
+.Sy TARGET
+and
+.Sy TARGET_ARCH
+should be defined.
 .It Cm packageworld
 Archive the results of
 .Cm distributeworld ,

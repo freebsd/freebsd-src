@@ -39,7 +39,9 @@
 # xdev-install        - Install cross-development tools.
 # xdev-links          - Create traditional links in /usr/bin for cc, etc
 # native-xtools       - Create host binaries that produce target objects
-#                       for use in qemu user-mode jails.
+#                       for use in qemu user-mode jails.  Override
+#                       target location with NXBDESTDIR.  TARGET and
+#                       TARGET_ARCH should be defined.
 # 
 # "quick" way to test all kernel builds:
 # 	_jflag=`sysctl -n hw.ncpu`
