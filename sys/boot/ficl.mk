@@ -38,7 +38,7 @@ beforedepend ${OBJS}: machine
 .endif
 
 machine: .NOMETA
-	ln -sf ${.CURDIR}/../../i386/include machine
+	ln -sf ${SYSDIR}/i386/include machine
 
 CLEANFILES+=	machine
 .endif
