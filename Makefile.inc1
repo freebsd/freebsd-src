@@ -2897,6 +2897,10 @@ _xi-cross-tools: .PHONY
 .endfor
 
 _xi-includes: .PHONY
+.if !defined(NO_OBJ)
+	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 _obj \
+		DESTDIR=${XDDESTDIR}
+.endif
 	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 includes \
 		DESTDIR=${XDDESTDIR}
 
