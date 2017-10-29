@@ -752,7 +752,7 @@ KMAKE=		${KMAKEENV} ${MAKE} ${.MAKEFLAGS} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
 # Attempt to rebuild the entire system, with reasonable chance of
 # success, regardless of how old your existing system is.
 #
-_worldtmp: .PHONY
+_sanity_check: .PHONY
 .if ${.CURDIR:C/[^,]//g} != ""
 #	The m4 build of sendmail files doesn't like it if ',' is used
 #	anywhere in the path of it's files.
@@ -761,6 +761,8 @@ _worldtmp: .PHONY
 	@echo
 	false
 .endif
+
+_worldtmp: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding the temporary build tree"
@@ -957,7 +959,7 @@ everything: .PHONY
 
 WMAKE_TGTS=
 .if !defined(WORLDFAST)
-WMAKE_TGTS+=	_worldtmp _legacy
+WMAKE_TGTS+=	_sanity_check _worldtmp _legacy
 .if empty(SUBDIR_OVERRIDE)
 WMAKE_TGTS+=	_bootstrap-tools
 .endif
