@@ -862,16 +862,6 @@ _worldtmp: .PHONY
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${WORLDTMP}/usr/lib >/dev/null
 .endif
-.if ${MK_TESTS} != "no"
-	mkdir -p ${WORLDTMP}${TESTSBASE}
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
-	    -p ${WORLDTMP}${TESTSBASE} >/dev/null
-.if ${MK_DEBUG_FILES} != "no"
-	mkdir -p ${WORLDTMP}/usr/lib/debug/${TESTSBASE}
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
-	    -p ${WORLDTMP}/usr/lib/debug/${TESTSBASE} >/dev/null
-.endif
-.endif
 .for _mtree in ${LOCAL_MTREE}
 	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
 .endfor
