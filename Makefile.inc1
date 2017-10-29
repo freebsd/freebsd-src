@@ -782,7 +782,7 @@ _cleanobj_fast_depend_hack: .PHONY
 	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o; then \
 		echo Removing stale dependencies for ${f} syscall wrappers; \
 		rm -f ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
-		   ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*; \
+		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.*}; \
 	fi
 .endif
 .endfor
@@ -793,7 +793,7 @@ _cleanobj_fast_depend_hack: .PHONY
 	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o; then \
 		echo Removing stale dependencies for ${f} syscall wrappers; \
 		rm -f ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
-		   ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*; \
+		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.*}; \
 	fi
 .endif
 .endfor
@@ -805,8 +805,8 @@ _cleanobj_fast_depend_hack: .PHONY
 	@echo Removing stale generated ${f} syscall files
 	@rm -f ${OBJTREE}${.CURDIR}/lib/libc/${f}.* \
 	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
-	    ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/${f}.* \
-	    ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*
+	    ${LIBCOMPAT:D${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc/${f}.*} \
+	    ${LIBCOMPAT:D${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.*}
 .endif
 .endfor
 
