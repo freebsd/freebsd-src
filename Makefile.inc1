@@ -2760,8 +2760,6 @@ cleanworld: .PHONY
 	${_+_}@cd ${.CURDIR}; ${MAKE} cleandir
 .endif
 
-.if defined(TARGET) && defined(TARGET_ARCH)
-
 .if ${TARGET} == ${MACHINE} && ${TARGET_ARCH} == ${MACHINE_ARCH}
 XDEV_CPUTYPE?=${CPUTYPE}
 .else
@@ -2908,7 +2906,3 @@ xdev-links: .PHONY
 			ln -sf ../../${XDTP}/usr/bin/$$i \
 			    ../../../../usr/bin/${XDDIR}${_REVISION}-$$i; \
 		done
-.else
-xdev xdev-build xdev-install xdev-links: .PHONY
-	@echo "*** Error: Both TARGET and TARGET_ARCH must be defined for \"${.TARGET}\" target"
-.endif
