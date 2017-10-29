@@ -6,7 +6,7 @@ COMMON ITEMS: section later in the file.  These instructions assume that you
 basically know what you are doing.  If not, then please consult the FreeBSD
 handbook:
 
-    https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/updating-src.html
+    https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html
 
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
@@ -36,7 +36,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 	Due to a bug in some versions of clang that's very hard to workaround in
 	the upgrade process, to upgrade to -current you must first upgrade
-	either stable/9 after r286035 or stable/10 after r286033 (including
+	stable/10 after r286033 (including
 	10.3-RELEASE) or current after r286007 (including stable/11 and
 	11.0-RELEASE). These revisions post-date the 10.2 and 9.3 releases, so
 	you'll need to take the unusual step of upgrading to the tip of the
@@ -45,7 +45,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	from the historical situation where one could upgrade from anywhere on
 	the last couple of stable branches, so be careful.
 
-	If you're running a hybrid system on 9.x or 10.x with an updated clang
+	If you're running a hybrid system on 10.x with an updated clang
 	compiler or are using an supported external toolchain, the build system
 	will allow the upgrade. Otherwise it will print a reminder.
 
