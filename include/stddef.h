@@ -67,6 +67,6 @@ typedef	__max_align_t	max_align_t;
 #endif
 #endif
 
-#define	offsetof(type, member)	__offsetof(type, member)
+#define	offsetof(type, field)	__offsetof(type, field)
 
 #endif /* _STDDEF_H_ */
