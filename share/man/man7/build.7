@@ -288,6 +288,43 @@ In addition print a summary of all failed targets at the end and
 exit with an error if there were any.
 .It Cm toolchains
 Create a build toolchain for each architecture supported by the build system.
+.It Cm xdev
+Builds and installs a cross-toolchain and sysroot for the given
+.Sy TARGET
+and
+.Sy TARGET_ARCH .
+The sysroot contains target library and headers.
+The target is an alias for
+.Cm xdev-build
+and
+.Cm xdev-install .
+The location of the files installed can be controlled with
+.Va DESTDIR .
+The target location in
+.Va DESTDIR
+is
+.Pa ${DESTDIR}/${XDTP}
+where
+.Va XDTP
+defaults to
+.Pa /usr/${XDDIR}
+and
+.Va XDDIR
+defaults to
+.Pa ${TARGET_ARCH}-freebsd .
+.It Cm xdev-build
+Builds for the
+.Cm xdev
+target.
+.It Cm xdev-install
+Installs the files for the
+.Cm xdev
+target.
+.It Cm xdev-links
+Installs autoconf-style symlinks to
+.Pa ${DESTDIR}/usr/bin
+pointing into the xdev toolchain in
+.Pa ${DESTDIR}/${XDTP} .
 .El
 .Pp
 Kernel specific build targets in
