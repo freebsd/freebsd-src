@@ -179,7 +179,7 @@ META_TGT_WHITELIST+= \
 
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin
 MAKEOBJDIRPREFIX?=	/usr/obj
-_MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} MK_AUTO_OBJ=no ${MAKE} \
+_MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} MK_AUTO_OBJ=no \
     ${.MAKEFLAGS:MMAKEOBJDIRPREFIX=*} __MAKE_CONF=${__MAKE_CONF} \
     -f /dev/null -V MAKEOBJDIRPREFIX dummy
 .if !empty(_MAKEOBJDIRPREFIX)
