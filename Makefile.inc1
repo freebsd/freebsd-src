@@ -768,41 +768,10 @@ _sanity_check: .PHONY .MAKE
 	@false
 .endif
 
-_worldtmp: .PHONY
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding the temporary build tree"
-	@echo "--------------------------------------------------------------"
-.if !defined(NO_CLEAN)
-	rm -rf ${WORLDTMP}
-.if defined(LIBCOMPAT)
-	rm -rf ${LIBCOMPATTMP}
-.endif
-.else
-.if exists(${WORLDTMP})
-	@echo ">>> Deleting stale files in build tree..."
-	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
-	    delete-old delete-old-libs >/dev/null
-.endif
-.if defined(LIBCOMPAT) && exists(${LIBCOMPATTMP})
-	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
-	    DESTDIR=${LIBCOMPATTMP} \
-	    delete-old delete-old-libs >/dev/null
-.endif
-	rm -rf ${WORLDTMP}/legacy/usr/include
-.if ${USING_SYSTEM_COMPILER} == "yes"
-.for cc in cc c++
-	if [ -x ${WORLDTMP}/usr/bin/${cc} ]; then \
-		inum=$$(stat -f %i ${WORLDTMP}/usr/bin/${cc}); \
-		find ${WORLDTMP}/usr/bin -inum $${inum} -delete; \
-	fi
-.endfor
-.endif	# ${USING_SYSTEM_COMPILER} == "yes"
-
 # Our current approach to dependency tracking cannot cope with certain source
 # tree changes, particularly with respect to removing source files and
 # replacing generated files.  Handle these cases here in an ad-hoc fashion.
-#
+_cleanobj_fast_depend_hack: .PHONY
 # Syscall stubs rewritten in C
 # Date      SVN Rev  Syscalls
 # 20160829  r305012  ptrace
@@ -841,6 +810,36 @@ _worldtmp: .PHONY
 .endif
 .endfor
 
+_worldtmp: .PHONY
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Rebuilding the temporary build tree"
+	@echo "--------------------------------------------------------------"
+.if !defined(NO_CLEAN)
+	rm -rf ${WORLDTMP}
+.if defined(LIBCOMPAT)
+	rm -rf ${LIBCOMPATTMP}
+.endif
+.else
+.if exists(${WORLDTMP})
+	@echo ">>> Deleting stale files in build tree..."
+	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
+	    delete-old delete-old-libs >/dev/null
+.endif
+.if defined(LIBCOMPAT) && exists(${LIBCOMPATTMP})
+	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
+	    DESTDIR=${LIBCOMPATTMP} \
+	    delete-old delete-old-libs >/dev/null
+.endif
+	rm -rf ${WORLDTMP}/legacy/usr/include
+.if ${USING_SYSTEM_COMPILER} == "yes"
+.for cc in cc c++
+	if [ -x ${WORLDTMP}/usr/bin/${cc} ]; then \
+		inum=$$(stat -f %i ${WORLDTMP}/usr/bin/${cc}); \
+		find ${WORLDTMP}/usr/bin -inum $${inum} -delete; \
+	fi
+.endfor
+.endif	# ${USING_SYSTEM_COMPILER} == "yes"
 .endif	# !defined(NO_CLEAN)
 
 .for _dir in \
@@ -898,7 +897,9 @@ _cleanobj:
 .if defined(LIBCOMPAT)
 	${_+_}cd ${.CURDIR}; ${LIBCOMPATWMAKE} -f Makefile.inc1 ${CLEANDIR}
 .endif
-.endif
+.else
+	${_+_}cd ${.CURDIR}; ${WMAKE} _cleanobj_fast_depend_hack
+.endif	# !defined(NO_CLEAN)
 _obj:
 	@echo
 	@echo "--------------------------------------------------------------"
