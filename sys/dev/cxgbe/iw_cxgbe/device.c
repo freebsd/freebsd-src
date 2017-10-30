@@ -159,6 +159,8 @@ c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->status_page->db_off = 0;
 
 	rdev->status_page->wc_supported = rdev->adap->iwt.wc_en;
+	rdev->status_page->write_cmpl_supported =
+	    rdev->adap->params.write_cmpl_support;
 
 	rdev->free_workq = create_singlethread_workqueue("iw_cxgb4_free");
 	if (!rdev->free_workq) {

@@ -206,6 +206,7 @@ static struct ibv_context *c4iw_alloc_context(struct ibv_device *ibdev,
 		if (t5_en_wc && !context->status_page->wc_supported) {
 			t5_en_wc = 0;
 		}
+		rhp->write_cmpl_supported = context->status_page->write_cmpl_supported;
 	}
 
 	return &context->ibv_ctx;

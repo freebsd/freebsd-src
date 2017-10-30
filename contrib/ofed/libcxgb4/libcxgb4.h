@@ -62,6 +62,7 @@ struct c4iw_dev {
 	pthread_spinlock_t lock;
 	TAILQ_ENTRY(c4iw_dev) list;
 	int abi_version;
+	bool write_cmpl_supported;
 };
 
 static inline int dev_is_t7(struct c4iw_dev *dev)
