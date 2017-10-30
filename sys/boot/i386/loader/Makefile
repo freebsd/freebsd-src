@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
+
 MK_SSP=		no
 
 LOADER?=	loader
@@ -24,13 +25,13 @@ SRCS=		main.c conf.c vers.c chain.c
 # Put LOADER_FIREWIRE_SUPPORT=yes in /etc/make.conf for FireWire/dcons support
 .if defined(LOADER_FIREWIRE_SUPPORT)
 CFLAGS+=	-DLOADER_FIREWIRE_SUPPORT
-LIBFIREWIRE=	${.OBJDIR}/../libfirewire/libfirewire.a
+LIBFIREWIRE=	${BOOTSRC}/i386/libfirewire/libfirewire.a
 .endif
 
 # Set by zfsloader Makefile
 .if defined(LOADER_ZFS_SUPPORT)
 CFLAGS+=	-DLOADER_ZFS_SUPPORT
-LIBZFSBOOT=	${.OBJDIR}/../../zfs/libzfsboot.a
+LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 .endif
 
 # Include bcache code.
@@ -44,33 +45,30 @@ HAVE_ISABUS=	yes
 CFLAGS+=	-DLOADER_GELI_SUPPORT
 CFLAGS+=	-I${BOOTSRC}/geli
 LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
-.PATH:		${.CURDIR}/../../../opencrypto
+.PATH:		${SYSDIR}/opencrypto
 SRCS+=		xform_aes_xts.c
-CFLAGS+=	-I${.CURDIR}/../../.. -D_STAND
+CFLAGS+=	-I${SYSDIR} -D_STAND
 .endif
 
 # Always add MI sources
-.include	"../../loader.mk"
+.include	"${BOOTSRC}/loader.mk"
 CFLAGS+=	-I.
 
 CLEANFILES=	${LOADER} ${LOADER}.bin loader.help
 
 CFLAGS+=	-Wall
-LDFLAGS=	-static -Ttext 0x0
+LDFLAGS+=	-static -Ttext 0x0
 
 # i386 standalone support library
-LIBI386=	${.OBJDIR}/../libi386/libi386.a
-CFLAGS+=	-I${.CURDIR}/..
+LIBI386=	${BOOTOBJ}/i386/libi386/libi386.a
+CFLAGS+=	-I${BOOTSRC}/i386
 
 # BTX components
-CFLAGS+=	-I${.CURDIR}/../btx/lib
+CFLAGS+=	-I${BTXLIB}
 
 # Debug me!
 #CFLAGS+=	-g
 #LDFLAGS+=	-g
-
-# Pick up ../Makefile.inc early.
-.include <bsd.init.mk>
 
 ${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
 	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
@@ -87,8 +85,8 @@ FILES=	${LOADER}
 FILESMODE_${LOADER}= ${BINMODE} -b
 
 .if !defined(LOADER_ONLY)
-.PATH: ${.CURDIR}/../../forth
-.include	"${.CURDIR}/../../forth/Makefile.inc"
+.PATH: ${BOOTSRC}/forth
+.include	"${BOOTSRC}/forth/Makefile.inc"
 FILES+=	pcibios.4th
 
 FILES+=	loader.rc menu.rc
@@ -114,5 +112,5 @@ beforedepend ${OBJS}: machine
 CLEANFILES+=	machine
 CFLAGS+=	-DLOADER_PREFER_AMD64
 machine: .NOMETA
-	ln -sf ${.CURDIR}/../../../i386/include machine
+	ln -sf ${SYSDIR}/i386/include machine
 .endif
