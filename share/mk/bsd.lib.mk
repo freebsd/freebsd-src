@@ -3,6 +3,7 @@
 #
 
 .include <bsd.init.mk>
+.include <bsd.compiler.mk>
 
 .if defined(LIB_CXX) || defined(SHLIB_CXX)
 _LD=	${CXX}
@@ -75,8 +76,8 @@ CXXFLAGS+= ${DEBUG_FILES_CFLAGS}
 CTFFLAGS+= -g
 _WANTS_DEBUG=
 .endif
-.if defined(_WANTS_DEBUG) && ${MK_COVERAGE} != "no" && defined(SHLIB_NAME)
-.warning "_COV_FLAG set"
+.if defined(_WANTS_DEBUG) && ${MK_COVERAGE} != "no" && defined(SHLIB_NAME) && \
+    ${COMPILER_FEATURES:Mc++11}
 _COV_FLAG= --coverage -fprofile-dir=${COVERAGEDIR}
 SHARED_CFLAGS+= ${_COV_FLAG}
 SHARED_CXXFLAGS+= ${_COV_FLAG}
