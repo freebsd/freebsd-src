@@ -57,7 +57,7 @@ struct fman_softc {
 int	fman_attach(device_t dev);
 int	fman_detach(device_t dev);
 int	fman_suspend(device_t dev);
-int	fman_resume(device_t dev);
+int	fman_resume_dev(device_t dev);
 int	fman_shutdown(device_t dev);
 int	fman_read_ivar(device_t dev, device_t child, int index,
 	    uintptr_t *result);

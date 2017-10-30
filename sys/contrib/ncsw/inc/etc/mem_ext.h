@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
+/* Copyright (c) 2008-2012 Freescale Semiconductor, Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 
 /**************************************************************************//**
 
@@ -258,7 +259,7 @@ uint32_t MEM_ComputePartitionSize(uint32_t num,
                                   uint16_t alignment);
 
 #ifdef DEBUG_MEM_LEAKS
-#if !(defined(__MWERKS__) && (__dest_os == __ppc_eabi))
+#if !((defined(__MWERKS__) || defined(__GNUC__)) && (__dest_os == __ppc_eabi))
 #error  "Memory-Leaks-Debug option is supported only for freescale CodeWarrior"
 #endif /* !(defined(__MWERKS__) && ... */
 

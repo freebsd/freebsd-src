@@ -1,5 +1,5 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
- * All rights reserved.
+/*
+ * Copyright 2008-2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,52 +30,23 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*------------------------------------------------------*/
-/* File: sprint.c                                       */
-/*                                                      */
-/* Description:                                         */
-/*    Debug routines (externals)                        */
-/*------------------------------------------------------*/
-#include "string_ext.h"
-#include "stdlib_ext.h"
-#include "ctype_ext.h"
-#include "stdarg_ext.h"
-#include "sprint_ext.h"
+#ifndef __GENERAL_H
+#define __GENERAL_H
+
 #include "std_ext.h"
-#include "xx_ext.h"
+#if !defined(NCSW_LINUX) && !defined(NCSW_FREEBSD)
+#include "errno.h"
+#endif
 
 
-int Sprint(char * buf, const char *fmt, ...)
-{
-    va_list args;
-    int i;
+extern uint32_t get_mac_addr_crc(uint64_t _addr);
 
-    va_start(args, fmt);
-    i=vsprintf(buf,fmt,args);
-    va_end(args);
-    return i;
-}
+#ifndef CONFIG_FMAN_ARM
+#define iowrite32be(val, addr)  WRITE_UINT32(*addr, val)
+#define ioread32be(addr)        GET_UINT32(*addr)
+#endif
 
-int Snprint(char * buf, uint32_t size, const char *fmt, ...)
-{
-    va_list args;
-    int i;
+#define ether_crc(len, addr)    get_mac_addr_crc(*(uint64_t *)(addr)>>16)
 
-    va_start(args, fmt);
-    i=vsnprintf(buf,size,fmt,args);
-    va_end(args);
-    return i;
-}
 
-#ifndef NCSW_VXWORKS
-int Sscan(const char * buf, const char * fmt, ...)
-{
-    va_list args;
-    int i;
-
-    va_start(args,fmt);
-    i = vsscanf(buf,fmt,args);
-    va_end(args);
-    return i;
-}
-#endif /* NCSW_VXWORKS */
+#endif /* __GENERAL_H */

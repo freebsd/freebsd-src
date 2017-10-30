@@ -54,7 +54,7 @@ static device_method_t fman_methods[] = {
 
 	DEVMETHOD(device_shutdown,	fman_shutdown),
 	DEVMETHOD(device_suspend,	fman_suspend),
-	DEVMETHOD(device_resume,	fman_resume),
+	DEVMETHOD(device_resume,	fman_resume_dev),
 
 	{ 0, 0 }
 };
