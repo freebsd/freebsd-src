@@ -61,7 +61,7 @@ TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
 .if defined(NO_SHARED) && (${NO_SHARED} != "no" && ${NO_SHARED} != "NO")
 LDFLAGS+= -static
 .else
-.if defined(_WANTS_DEBUG) && ${MK_COVERAGE} != "no"
+.if defined(_WANTS_DEBUG) && ${MK_COVERAGE} != "no" && ${COMPILER_FEATURES:Mc++11}
 _COV_FLAG= --coverage -fprofile-dir=${COVERAGEDIR}
 CFLAGS+= ${_COV_FLAG}
 CXXFLAGS+= ${_COV_FLAG}
