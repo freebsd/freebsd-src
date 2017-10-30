@@ -2,7 +2,8 @@
 
 MAN=
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
+
 MK_SSP=		no
 
 LOADER_MSDOS_SUPPORT?=	yes
@@ -34,8 +35,8 @@ SRCS+=		userboot_disk.c
 SRCS+=		vers.c
 
 CFLAGS+=	-Wall
-CFLAGS+=	-I${.CURDIR}/..
-CFLAGS+=	-I${.CURDIR}/../../..
+CFLAGS+=	-I${BOOTSRC}/userboot
+CFLAGS+=	-I${SYSDIR}
 CFLAGS+=	-ffreestanding -I.
 
 CWARNFLAGS.main.c += -Wno-implicit-function-declaration
@@ -46,11 +47,11 @@ NEWVERSWHAT=	"User boot" ${MACHINE_CPUARCH}
 
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-DUSERBOOT_ZFS_SUPPORT
-LIBZFSBOOT=	${.OBJDIR}/../zfs/libzfsboot.a
+LIBZFSBOOT=	${BOOTOBJ}/userboot/zfs/libzfsboot.a
 .endif
 
 # Always add MI sources 
-.include	"../../loader.mk"
+.include	"${BOOTSRC}/loader.mk"
 CFLAGS+=	-I.
 DPADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSA} 
 LDADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSA}
