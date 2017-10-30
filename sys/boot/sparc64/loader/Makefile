@@ -25,8 +25,6 @@ LOADER_GZIP_SUPPORT?=	yes
 LOADER_BZIP2_SUPPORT?=	no
 LOADER_DEBUG?=		no
 
-CFLAGS+=-nostdlib
-
 .if ${LOADER_DEBUG} == "yes"
 CFLAGS+=	-DLOADER_DEBUG
 .endif
@@ -43,7 +41,7 @@ CFLAGS+=	-I.
 
 CLEANFILES+=	loader.help
 
-LDFLAGS=	-static
+LDFLAGS+=	-static
 
 # Open Firmware standalone support library
 LIBOFW=		${BOOTOBJ}/ofw/libofw/libofw.a

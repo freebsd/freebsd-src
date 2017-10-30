@@ -13,8 +13,8 @@ BOOTBLOCKBASE= 0x4000
 
 CFLAGS.clang+=-mcmodel=small
 CFLAGS.gcc+=-mcmodel=medlow
-CFLAGS+=-Os -I${LDRSRC} -nostdlib
-LDFLAGS=-Ttext ${BOOTBLOCKBASE} -Wl,-N
+CFLAGS+=-Os -I${LDRSRC}
+LDFLAGS+=-Ttext ${BOOTBLOCKBASE} -Wl,-N
 
 # Construct boot1. sunlabel expects it to contain zeroed-out space for the
 # label, and to be of the correct size.
