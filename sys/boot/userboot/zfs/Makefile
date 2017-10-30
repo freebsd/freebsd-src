@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-S=		${.CURDIR}/../../zfs
+.include <bsd.init.mk>
 
-.PATH:		${S} ${.CURDIR}/../../../crypto/skein
+.PATH:		${BOOTSRC}/zfs ${SYSDIR}/crypto/skein
 LIB=		zfsboot
 INTERNALLIB=
 
@@ -11,10 +11,10 @@ SRCS+=		zfs.c skein.c skein_block.c
 # Do not unroll skein loops, reduce code size
 CFLAGS+=	-DSKEIN_LOOP=111
 
-CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
+CFLAGS+=	-I${LDRSRC} -I${SYSDIR} -I.
 CFLAGS+=	-I${SASRC}
-CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs
-CFLAGS+=	-I${.CURDIR}/../../../crypto/skein
+CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
+CFLAGS+=	-I${SYSDIR}/crypto/skein
 
 CFLAGS+=	-ffreestanding -fPIC
 CFLAGS+=	-Wformat -Wall

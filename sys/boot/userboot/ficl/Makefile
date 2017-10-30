@@ -1,10 +1,10 @@
 # $FreeBSD$
 #
-.include <bsd.own.mk>
+.include <bsd.init.mk>
 MK_SSP=		no
 
-.PATH: ${.CURDIR}/../../ficl
-.PATH: ${.CURDIR}/../../ficl/${MACHINE_CPUARCH}
+.include "${BOOTSRC}/ficl.mk"
+
 BASE_SRCS=	dict.c ficl.c fileaccess.c float.c loader.c math64.c \
 		prefix.c search.c stack.c tools.c vm.c words.c
 
@@ -29,7 +29,7 @@ INTERNALLIB=
 .endif
 
 # Standard softwords
-.PATH: ${.CURDIR}/../../ficl/softwords
+.PATH: ${BOOTSRC}/ficl/softwords
 SOFTWORDS=	softcore.fr jhlocal.fr marker.fr freebsd.fr ficllocal.fr \
 		ifbrack.fr
 # Optional OO extension softwords
@@ -43,12 +43,8 @@ SOFTWORDS=	softcore.fr jhlocal.fr marker.fr freebsd.fr ficllocal.fr \
 CFLAGS+=	-m32 -mcpu=powerpc -I.
 .endif
 
-CFLAGS+=	-I${.CURDIR}/../../ficl
-CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE_CPUARCH}
-CFLAGS+=	-I${.CURDIR}/../../common
-
 softcore.c: ${SOFTWORDS} softcore.awk
-	(cd ${.CURDIR}/../../ficl/softwords; cat ${SOFTWORDS} \
+	(cd ${FICLSRC}/softwords; cat ${SOFTWORDS} \
 	    | awk -f softcore.awk -v datestamp="`LC_ALL=C date`") > ${.TARGET}
 
 #.if ${MACHINE_CPUARCH} == "amd64"
