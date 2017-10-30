@@ -288,7 +288,8 @@ typedef struct iflib_sw_tx_desc_array {
 
 /* magic number that should be high enough for any hardware */
 #define IFLIB_MAX_TX_SEGS		128
-#define IFLIB_MAX_RX_SEGS		32
+/* bnxt supports 64 with hardware LRO enabled */
+#define IFLIB_MAX_RX_SEGS		64
 #define IFLIB_RX_COPY_THRESH		128
 #define IFLIB_MAX_RX_REFRESH		32
 /* The minimum descriptors per second before we start coalescing */
