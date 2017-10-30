@@ -75,7 +75,8 @@ CXXFLAGS+= ${DEBUG_FILES_CFLAGS}
 CTFFLAGS+= -g
 _WANTS_DEBUG=
 .endif
-.if ${MK_COVERAGE} != "no" && defined(_WANTS_DEBUG) && defined(SHLIB_NAME)
+.if defined(_WANTS_DEBUG) && ${MK_COVERAGE} != "no" && defined(SHLIB_NAME)
+.warning "_COV_FLAG set"
 _COV_FLAG= --coverage -fprofile-dir=${COVERAGEDIR}
 SHARED_CFLAGS+= ${_COV_FLAG}
 SHARED_CXXFLAGS+= ${_COV_FLAG}
