@@ -29,7 +29,8 @@
 #
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
+
 MK_SSP=		no
 MAN=
 
@@ -67,11 +68,11 @@ LOADER_GZIP_SUPPORT?= yes
 LOADER_BZIP2_SUPPORT?= yes
 
 # Always add MI sources
-.include	"../../../loader.mk"
+.include	"${BOOTSRC}/loader.mk"
 
 # BERI files common to boot2 and loader
-.PATH:		${.CURDIR}/../common
-CFLAGS+=	-I${.CURDIR}/../common
+.PATH:		${BOOTSRC}/mips/beri/common
+CFLAGS+=	-I${BOOTSRC}/mips/beri/common
 
 # Loader-specific MD headers
 CFLAGS+=	-I${.CURDIR}
@@ -98,8 +99,8 @@ loader.help: help.common help.mips
 	cat ${.ALLSRC} | \
 	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
 
-.PATH: ${.CURDIR}/../../../forth
-.include	"${.CURDIR}/../../../forth/Makefile.inc"
+.PATH: ${BOOTSRC}/forth
+.include	"${BOOTSRC}/forth/Makefile.inc"
 
 FILES+= loader.rc menu.rc
 
@@ -108,8 +109,8 @@ FILES+= loader.rc menu.rc
 CFLAGS+= -ffunction-sections -fdata-sections
 CFLAGS+= -Wl,--gc-sections
 # Link USB BOOT library
-LDADD+= ${.OBJDIR}/../../../usb/libusbboot.a
-CFLAGS+= -I${.CURDIR}/../../../usb
+LDADD+= ${BOOTOBJ}/usb/libusbboot.a
+CFLAGS+= -I${BOOTSRC}/usb
 # Define USB SUPPORT
 CFLAGS+= -DLOADER_USB_SUPPORT
 .endif
