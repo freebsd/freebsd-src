@@ -13,7 +13,7 @@ CLEANFILES=	softcore.c testmain testmain.o
     (${MACHINE_CPUARCH} == "amd64" && defined(FICL32))
 CFLAGS+=	-march=i386
 .endif
-.if HAVE_PNP
+.if defined(HAVE_PNP)
 CFLAGS+=	-DHAVE_PNP
 .endif
 .include <bsd.stand.mk>
@@ -32,8 +32,6 @@ INTERNALLIB=
 .PATH: ${FICLSRC}/softwords
 SOFTWORDS=	softcore.fr jhlocal.fr marker.fr freebsd.fr ficllocal.fr \
 		ifbrack.fr
-# Optional OO extension softwords
-#SOFTWORDS+=	oo.fr classes.fr
 
 softcore.c: ${SOFTWORDS} softcore.awk
 	(cd ${FICLSRC}/softwords; cat ${SOFTWORDS} \
