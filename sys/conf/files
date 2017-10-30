@@ -2023,7 +2023,7 @@ iwm8265Cfw.fwo			optional iwm8265fw | iwmfw		\
 	dependency	"iwm8265.fw"					\
 	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
-	clean		"iwm8000Cfw.fwo"
+	clean		"iwm8265Cfw.fwo"
 dev/iwn/if_iwn.c		optional iwn
 iwn1000fw.c			optional iwn1000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn1000.fw:iwn1000fw -miwn1000fw -c${.TARGET}" \
