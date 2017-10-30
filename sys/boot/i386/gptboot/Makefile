@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-.include "../Makefile.inc"
+.include <bsd.init.mk>
 
-.PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common ${SASRC}
+.PATH:		${BOOTSRC}/i386/boot2 ${BOOTSRC}/i386/common ${SASRC}
 
 FILES=		gptboot
 MAN=		gptboot.8
@@ -29,11 +29,11 @@ CFLAGS+=-DBOOTPROG=\"gptboot\" \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 	-DSIOFMT=${B2SIOFMT} \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
-	-I${.CURDIR}/../../common \
-	-I${.CURDIR}/../common \
-	-I${.CURDIR}/../btx/lib -I. \
-	-I${.CURDIR}/../boot2 \
-	-I${.CURDIR}/../../.. \
+	-I${LDRSRC} \
+	-I${BOOTSRC}/i386/common \
+	-I${BTXLIB} -I. \
+	-I${BOOTSRC}/i386/boot2 \
+	-I${SYSDIR} \
 	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
@@ -44,16 +44,12 @@ CFLAGS.gcc+=	--param max-inline-insns-single=100
 .if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 CFLAGS+=	-DLOADER_GELI_SUPPORT
 CFLAGS+=	-I${BOOTSRC}/geli
-CFLAGS+=	-I${.CURDIR}/../../..
 LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
-.PATH:		${.CURDIR}/../../../opencrypto
+.PATH:		${SYSDIR}/opencrypto
 OPENCRYPTO_XTS=	xform_aes_xts.o
 .endif
 
-LD_FLAGS=${LD_FLAGS_BIN}
-
-# Pick up ../Makefile.inc early.
-.include <bsd.init.mk>
+LD_FLAGS+=${LD_FLAGS_BIN}
 
 CLEANFILES=	gptboot
 
@@ -84,7 +80,7 @@ gptboot.o: ${SASRC}/ufsread.c
 beforedepend gptboot.o: machine
 CLEANFILES+=	machine
 machine: .NOMETA
-	ln -sf ${.CURDIR}/../../../i386/include machine
+	ln -sf ${SYSDIR}/i386/include machine
 .endif
 
 .include <bsd.prog.mk>

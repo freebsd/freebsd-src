@@ -2,10 +2,10 @@
 
 LOADER_GELI_SUPPORT=no
 
-.include "../Makefile.inc"
+.include <bsd.init.mk>
 
-.PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common \
-		${.CURDIR}/../../../crypto/skein ${SASRC}
+.PATH:		${BOOTSRC}/i386/boot2 ${BOOTSRC}/i386/common \
+		${SYSDIR}/crypto/skein ${SASRC}
 
 FILES=		zfsboot
 MAN=		zfsboot.8
@@ -26,13 +26,14 @@ CFLAGS+=-DBOOTPROG=\"zfsboot\" \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 	-DSIOFMT=${B2SIOFMT} \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
-	-I${.CURDIR}/../../common \
-	-I${.CURDIR}/../common \
-	-I${.CURDIR}/../../zfs \
-	-I${.CURDIR}/../../../cddl/boot/zfs \
-	-I${.CURDIR}/../../../crypto/skein \
-	-I${.CURDIR}/../btx/lib -I. \
-	-I${.CURDIR}/../boot2 \
+	-I${LDRSRC} \
+	-I${BOOTSRC}/i386/common \
+	-I${BOOTSRC}/i386 \
+	-I${BOOTSRC}/zfs \
+	-I${SYSDIR}/cddl/boot/zfs \
+	-I${SYSDIR}/crypto/skein \
+	-I${BTXLIB} -I. \
+	-I${BOOTSRC}/i386/boot2 \
 	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
@@ -42,10 +43,7 @@ CFLAGS.gcc+=	--param max-inline-insns-single=100
 # Do not unroll skein loops, reduce code size
 CFLAGS+=	-DSKEIN_LOOP=111
 
-LD_FLAGS=${LD_FLAGS_BIN}
-
-# Pick up ../Makefile.inc early.
-.include <bsd.init.mk>
+LD_FLAGS+=${LD_FLAGS_BIN}
 
 CLEANFILES=	zfsboot
 
@@ -93,7 +91,7 @@ SRCS=	zfsboot.c
 beforedepend zfsboot.o: machine
 CLEANFILES+=	machine
 machine: .NOMETA
-	ln -sf ${.CURDIR}/../../../i386/include machine
+	ln -sf ${SYSDIR}/i386/include machine
 .endif
 
 .include <bsd.prog.mk>
