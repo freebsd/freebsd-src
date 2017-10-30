@@ -2285,7 +2285,6 @@ _prereq_libs+= gnu/lib/libssp/libssp_nonshared
 .if ${COMPILER_FEATURES:Mc++11} && \
     (defined(WANT_COMPILER) && ${WANT_COMPILER} == "clang")
 _coverage_libs+=	lib/libclang_rt/profile
-.else
 .endif
 .endif
 .if !empty(_coverage_libs)
