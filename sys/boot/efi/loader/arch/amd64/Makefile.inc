@@ -6,7 +6,7 @@ SRCS+=	amd64_tramp.S \
 	trap.c \
 	exc.S
 
-.PATH:	${.CURDIR}/../../i386/libi386
+.PATH:	${BOOTSRC}/i386/libi386
 SRCS+=	nullconsole.c \
 	comconsole.c \
 	spinconsole.c

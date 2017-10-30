@@ -68,10 +68,10 @@ f_dialog_hnerror()
 # with standards set-forth in RFC's 952 and 1123 of the Network Working Group:
 #
 # RFC 952 - DoD Internet host table specification
-# http://tools.ietf.org/html/rfc952
+# https://tools.ietf.org/html/rfc952
 #
 # RFC 1123 - Requirements for Internet Hosts - Application and Support
-# http://tools.ietf.org/html/rfc1123
+# https://tools.ietf.org/html/rfc1123
 #
 # If the hostname is determined to be invalid, the appropriate error will be
 # displayed using the f_dialog_hnerror function above.

@@ -6,6 +6,7 @@ TESTSDIR=       ${TESTSBASE}/sys/netpfil/pf
 
 ATF_TESTS_SH+=	pass_block \
 		forward \
+		fragmentation \
 		set_tos
 
 ${PACKAGE}FILES+=	utils.subr \

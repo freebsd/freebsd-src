@@ -79,8 +79,8 @@ LIBCOMPAT${_var}?=	${LIB${LIBCOMPAT}${_var}}
 .endfor
 
 # Shared flags
-LIBCOMPAT_OBJTREE?=	${OBJTREE}${.CURDIR}/world${libcompat}
-LIBCOMPATTMP?=		${OBJTREE}${.CURDIR}/lib${libcompat}
+LIBCOMPAT_OBJTREE?=	${OBJTREE}${.CURDIR}/obj-lib${libcompat}
+LIBCOMPATTMP?=		${LIBCOMPAT_OBJTREE}/tmp
 
 LIBCOMPATCFLAGS+=	${LIBCOMPATCPUFLAGS} \
 			-L${LIBCOMPATTMP}/usr/lib${libcompat} \
@@ -149,6 +149,16 @@ build${libcompat}: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 5.1: building lib${libcompat} shim libraries"
 	@echo "--------------------------------------------------------------"
+.if !defined(NO_CLEAN)
+	rm -rf ${LIBCOMPATTMP}
+.else
+.if exists(${LIBCOMPATTMP})
+	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
+	    DESTDIR=${LIBCOMPATTMP} \
+	    delete-old delete-old-libs >/dev/null
+.endif
+.endif	# !defined(NO_CLEAN)
+
 	mkdir -p ${LIBCOMPATTMP}/usr/include
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${LIBCOMPATTMP}/usr >/dev/null

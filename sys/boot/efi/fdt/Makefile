@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
 
-.PATH: ${.CURDIR}/../../common
+.PATH: ${LDRSRC}
 
 LIB=		efi_fdt
 INTERNALLIB=
@@ -18,17 +18,17 @@ CFLAGS+=	-msoft-float
 .endif
 
 # EFI library headers
-CFLAGS+=	-I${.CURDIR}/../include
-CFLAGS+=	-I${.CURDIR}/../include/${MACHINE}
+CFLAGS+=	-I${EFISRC}/include
+CFLAGS+=	-I${EFISRC}/include/${MACHINE}
 
 # libfdt headers
-CFLAGS+=	-I${.CURDIR}/../../fdt
+CFLAGS+=	-I${FDTSRC}
 
 # Pick up the bootstrap header for some interface items
-CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
+CFLAGS+=	-I${LDRSRC} -I${SYSDIR} -I.
 
 machine: .NOMETA
-	ln -sf ${.CURDIR}/../../../${MACHINE}/include machine
+	ln -sf ${SYSDIR}/${MACHINE}/include machine
 
 CLEANFILES+=	machine
 

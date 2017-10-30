@@ -792,13 +792,14 @@ fq_pie_classify_flow(struct mbuf *m, uint16_t fcount, struct fq_pie_si *si)
 	uint8_t tuple[41];
 	uint16_t hash=0;
 
+	ip = (struct ip *)mtodo(m, dn_tag_get(m)->iphdr_off);
 //#ifdef INET6
 	struct ip6_hdr *ip6;
 	int isip6;
-	isip6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
+	isip6 = (ip->ip_v == 6);
 
 	if(isip6) {
-		ip6 = mtod(m, struct ip6_hdr *);
+		ip6 = (struct ip6_hdr *)ip;
 		*((uint8_t *) &tuple[0]) = ip6->ip6_nxt;
 		*((uint32_t *) &tuple[1]) = si->perturbation;
 		memcpy(&tuple[5], ip6->ip6_src.s6_addr, 16);
@@ -826,7 +827,6 @@ fq_pie_classify_flow(struct mbuf *m, uint16_t fcount, struct fq_pie_si *si)
 //#endif
 
 	/* IPv4 */
-	ip = mtod(m, struct ip *);
 	*((uint8_t *) &tuple[0]) = ip->ip_p;
 	*((uint32_t *) &tuple[1]) = si->perturbation;
 	*((uint32_t *) &tuple[5]) = ip->ip_src.s_addr;

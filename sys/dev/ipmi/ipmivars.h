@@ -109,7 +109,10 @@ struct ipmi_softc {
 	int			ipmi_driver_requests_polled;
 	eventhandler_tag	ipmi_power_cycle_tag;
 	eventhandler_tag	ipmi_watchdog_tag;
+	eventhandler_tag	ipmi_shutdown_tag;
 	int			ipmi_watchdog_active;
+	int			ipmi_watchdog_actions;
+	int			ipmi_watchdog_pretimeout;
 	struct intr_config_hook	ipmi_ich;
 	struct mtx		ipmi_requests_lock;
 	struct cv		ipmi_request_added;

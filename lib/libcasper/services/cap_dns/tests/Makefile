@@ -1,9 +1,13 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 TAP_TESTS_C=	dns_test
 
+.if ${MK_CASPER} != "no"
 LIBADD+=	casper
 LIBADD+=	cap_dns
+.endif
 LIBADD+=	nv
 
 WARNS?=		3
