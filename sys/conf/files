@@ -2010,6 +2010,20 @@ iwm8000C.fw			optional iwm8000Cfw | iwmfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwm8000C.fw"
+iwm8265.fw			optional iwm8265fw | iwmfw		\
+	dependency	"$S/contrib/dev/iwm/iwm-8265-22.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwm8265.fw"
+iwm8265fw.c			optional iwm8265fw | iwmfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm8265.fw:iwm8265fw -miwm8265fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwm8265fw.c"
+iwm8265fw.fwo			optional iwm8265fw | iwmfw		\
+	dependency	"iwm8265.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwm8265fw.fwo"
 dev/iwn/if_iwn.c		optional iwn
 iwn1000fw.c			optional iwn1000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn1000.fw:iwn1000fw -miwn1000fw -c${.TARGET}" \
