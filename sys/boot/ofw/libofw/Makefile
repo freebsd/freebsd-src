@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.init.mk>
+
 LIB=		ofw
 INTERNALLIB=
 
