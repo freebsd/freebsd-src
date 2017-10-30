@@ -169,7 +169,7 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 	hid_data_t	d;
 	hid_item_t	h;
 	int32_t		report_id, usage, page, val,
-			mouse_x, mouse_y, mouse_z, mouse_butt,
+			mouse_x, mouse_y, mouse_z, mouse_t, mouse_butt,
 			mevents, kevents, i;
 
 	assert(s != NULL);
@@ -196,7 +196,8 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 	hid_device = get_hid_device(&s->bdaddr);
 	assert(hid_device != NULL);
 
-	mouse_x = mouse_y = mouse_z = mouse_butt = mevents = kevents = 0;
+	mouse_x = mouse_y = mouse_z = mouse_t = mouse_butt = 0;
+	mevents = kevents = 0;
 
 	for (d = hid_start_parse(hid_device->desc, 1 << hid_input, -1);
 	     hid_get_item(d, &h) > 0; ) {
@@ -283,11 +284,7 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 			switch (usage) {
 			case HUC_AC_PAN:
 				/* Horizontal scroll */
-				if (val < 0)
-					mouse_butt |= (1 << 5);
-				else
-					mouse_butt |= (1 << 6);
-
+				mouse_t = val;
 				mevents ++;
 				val = 0;
 				break;
@@ -529,7 +526,20 @@ check_middle_button:
 	if (mevents > 0) {
 		struct mouse_info	mi;
 
+		memset(&mi, 0, sizeof(mi));
 		mi.operation = MOUSE_ACTION;
+		mi.u.data.buttons = mouse_butt;
+
+		/* translate T-axis into button presses */
+		if (mouse_t != 0) {
+			mi.u.data.buttons |= 1 << (mouse_t > 0 ? 6 : 5);
+			if (ioctl(s->srv->cons, CONS_MOUSECTL, &mi) < 0)
+				syslog(LOG_ERR, "Could not process mouse " \
+					"events from %s. %s (%d)",
+					bt_ntoa(&s->bdaddr, NULL),
+					strerror(errno), errno);
+		}
+
 		mi.u.data.x = mouse_x;
 		mi.u.data.y = mouse_y;
 		mi.u.data.z = mouse_z;
