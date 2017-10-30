@@ -1,10 +1,10 @@
 # $FreeBSD$
 
-.include "../Makefile.inc"
+.include <bsd.init.mk>
 
-.PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../gptboot \
-		${.CURDIR}/../zfsboot ${.CURDIR}/../common \
-		${.CURDIR}/../../../crypto/skein ${SASRC}
+.PATH:		${BOOTSRC}/i386/boot2 ${BOOTSRC}/i386/gptboot \
+		${BOOTSRC}/i386/zfsboot ${BOOTSRC}/i386/common \
+		${SYSDIR}/crypto/skein ${SASRC}
 
 FILES=		gptzfsboot
 MAN=		gptzfsboot.8
@@ -25,14 +25,14 @@ CFLAGS+=-DBOOTPROG=\"gptzfsboot\" \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 	-DSIOFMT=${B2SIOFMT} \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
-	-I${.CURDIR}/../../common \
-	-I${.CURDIR}/../common \
-	-I${.CURDIR}/../../zfs \
-	-I${.CURDIR}/../../../cddl/boot/zfs \
-	-I${.CURDIR}/../../../crypto/skein \
-	-I${.CURDIR}/../btx/lib -I. \
-	-I${.CURDIR}/../boot2 \
-	-I${.CURDIR}/../../.. \
+	-I${LDRSRC} \
+	-I${BOOTSRC}/i386/common \
+	-I${BOOTSRC}/zfs \
+	-I${SYSDIR}/cddl/boot/zfs \
+	-I${SYSDIR}/crypto/skein \
+	-I${BOOTSRC}/i386/btx/lib -I. \
+	-I${BOOTSRC}/i386/boot2 \
+	-I${SYSDIR} \
 	-Wall -Waggregate-return -Wbad-function-cast \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
@@ -52,16 +52,13 @@ CFLAGS+=	-DSKEIN_LOOP=111
 CFLAGS+=	-DLOADER_GELI_SUPPORT
 CFLAGS+=	-I${BOOTSRC}/geli
 LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
-.PATH:		${.CURDIR}/../../../opencrypto
+.PATH:		${SYSDIR}/opencrypto
 OPENCRYPTO_XTS=	xform_aes_xts.o
 .endif
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100
 
-LD_FLAGS=${LD_FLAGS_BIN}
-
-# Pick up ../Makefile.inc early.
-.include <bsd.init.mk>
+LD_FLAGS+=${LD_FLAGS_BIN}
 
 CLEANFILES=	gptzfsboot
 
@@ -87,13 +84,13 @@ gptzfsboot.out: ${BTXCRT} zfsboot.o sio.o gpt.o drv.o cons.o util.o \
 	skein.o skein_block.o ${OPENCRYPTO_XTS}
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBGELIBOOT} ${LIBSA32}
 
-zfsboot.o: ${.CURDIR}/../../zfs/zfsimpl.c
+zfsboot.o: ${BOOTSRC}/zfs/zfsimpl.c
 
 .if ${MACHINE_CPUARCH} == "amd64"
 beforedepend zfsboot.o: machine
 CLEANFILES+=	machine
 machine: .NOMETA
-	ln -sf ${.CURDIR}/../../../i386/include machine
+	ln -sf ${SYSDIR}/i386/include machine
 .endif
 
 .include <bsd.prog.mk>
