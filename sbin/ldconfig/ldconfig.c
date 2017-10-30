@@ -550,7 +550,7 @@ readhints(void)
 	}
 
 	msize = PAGE_SIZE;
-	addr = mmap(0, msize, PROT_READ, MAP_COPY, fd, 0);
+	addr = mmap(0, msize, PROT_READ, MAP_PRIVATE, fd, 0);
 
 	if (addr == MAP_FAILED) {
 		warn("%s", hints_file);
@@ -573,7 +573,7 @@ readhints(void)
 	if (hdr->hh_ehints > msize) {
 		fsize = hdr->hh_ehints;
 		munmap(addr, msize);
-		addr = mmap(0, fsize, PROT_READ, MAP_COPY, fd, 0);
+		addr = mmap(0, fsize, PROT_READ, MAP_PRIVATE, fd, 0);
 		if (addr == MAP_FAILED) {
 			warn("%s", hints_file);
 			return -1;
