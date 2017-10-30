@@ -4537,6 +4537,8 @@ product TOSHIBA TRANSMEMORY	0x6545	USB ThumbDrive
 product TPLINK T4U		0x0101	Archer T4U
 product TPLINK WN822NV4		0x0108	TL-WN822N v4
 product TPLINK WN823NV2		0x0109	TL-WN823N v2
+product TPLINK T4UV2		0x010d	Archer T4U ver 2
+product TPLINK T4UHV2		0x010e	Archer T4UH ver 2
 
 /* Trek Technology products */
 product TREK THUMBDRIVE		0x1111	ThumbDrive
