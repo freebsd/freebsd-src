@@ -5260,6 +5260,19 @@ iflib_msix_init(if_ctx_t ctx)
 	
 	bar = ctx->ifc_softc_ctx.isc_msix_bar;
 	admincnt = sctx->isc_admin_intrcnt;
+	/* Override by global tuneable */
+	{
+		int i;
+		size_t len = sizeof(i);
+		err = kernel_sysctlbyname(curthread, "hw.pci.enable_msix", &i, &len, NULL, 0, NULL, 0);
+		if (err == 0) {
+			if (i == 0)
+				goto msi;
+		}
+		else {
+			device_printf(dev, "unable to read hw.pci.enable_msix.");
+		}
+	}
 	/* Override by tuneable */
 	if (scctx->isc_disable_msix)
 		goto msi;
