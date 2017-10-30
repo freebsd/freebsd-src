@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jan 3, 2017
+.Dd March 23, 2017
 .Dt ATOMIC 9
 .Os
 .Sh NAME
@@ -76,10 +76,41 @@
 .Ft int
 .Fn atomic_testandset_<type> "volatile <type> *p" "u_int v"
 .Sh DESCRIPTION
-Each of the atomic operations is guaranteed to be atomic across multiple
-threads and in the presence of interrupts.
-They can be used to implement reference counts or as building blocks for more
-advanced synchronization primitives such as mutexes.
+All of these operations are performed atomically across multiple
+threads and in the presence of interrupts, meaning that they are               
+performed in an indivisible manner from the perspective of concurrently
+running threads and interrupt handlers.
+.Pp
+When atomic operations are performed on cache-coherent memory, all
+operations on the same location are totally ordered.
+.Pp
+When an atomic load is performed on a location in cache-coherent memory,
+it reads the entire value that was defined by the last atomic store to
+each byte of the location.
+An atomic load will never return a value out of thin air.
+When an atomic store is performed on a location, no other thread or
+interrupt handler will observe a
+.Em torn write ,
+or partial modification of the location.
+.Pp
+On all architectures supported by
+.Fx ,
+ordinary loads and stores of naturally aligned integer types
+are atomic, as executed by the processor.
+.Pp
+Atomic operations can be used to implement reference counts or as
+building blocks for synchronization primitives such as mutexes.
+.Pp
+The semantics of
+.Fx Ns 's
+atomic operations are almost identical to those of the similarly named
+C11 operations.
+The one important difference is that the C11 standard does not
+require ordinary loads and stores to ever be atomic.
+This is is why the
+.Fn atomic_load_explicit memory_order_relaxed
+operation exists in the C11 standard, but is not provided by
+.In machine/atomic.h .
 .Ss Types
 Each atomic operation operates on a specific
 .Fa type .
