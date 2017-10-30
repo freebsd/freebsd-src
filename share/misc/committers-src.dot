@@ -113,6 +113,7 @@ andreast [label="Andreas Tobler\nandreast@FreeBSD.org\n2010/09/05"]
 andrew [label="Andrew Turner\nandrew@FreeBSD.org\n2010/07/19"]
 antoine [label="Antoine Brodin\nantoine@FreeBSD.org\n2008/02/03"]
 araujo [label="Marcelo Araujo\naraujo@FreeBSD.org\n2015/08/04"]
+arichardson [label="Alex Richardson\narichardson@FreeBSD.org\n2017/10/30"]
 ariff [label="Ariff Abdullah\nariff@FreeBSD.org\n2005/11/14"]
 art [label="Artem Belevich\nart@FreeBSD.org\n2011/03/29"]
 arybchik [label="Andrew Rybchenko\narybchik@FreeBSD.org\n2014/10/12"]
@@ -416,6 +417,7 @@ brian -> joe
 brooks -> bushman
 brooks -> jamie
 brooks -> theraven
+brooks -> arichardson
 
 bz -> anchie
 bz -> jamie
@@ -569,6 +571,7 @@ jhb -> peterj
 jhb -> pfg
 jhb -> rnoland
 jhb -> rpokala
+jhb -> arichardson
 
 jimharris -> carl
 
