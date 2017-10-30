@@ -297,9 +297,7 @@ __DEFAULT_NO_OPTIONS+=CXGBETOOL
 # that I (ngie) do not wish to support with MK_COVERAGE.
 #
 # NB: some gcc cross-toolchain packages are currently broken: bug 223174.
-.if ${COMPILER_FEATURES:Mc++11}
-__DEFAULT_NO_OPTIONS+=	COVERAGE
-.else
+.if !${COMPILER_FEATURES:Mc++11}
 BROKEN_OPTIONS+=COVERAGE
 .endif
 
