@@ -15,6 +15,7 @@ LDRSRC=		${BOOTSRC}/common
 SASRC=		${BOOTSRC}/libsa
 SYSDIR=		${SRCTOP}/sys
 UBOOTSRC=	${BOOTSRC}/uboot
+ZFSSRC=		${BOOTSRC}/zfs
 
 BOOTOBJ=	${OBJTOP}/sys/boot
 

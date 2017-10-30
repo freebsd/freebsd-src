@@ -38,9 +38,7 @@ CFLAGS+= -I${SYSDIR}
 CFLAGS+= -I${EFIINC}
 CFLAGS+= -I${EFIINCMD}
 .if ${MK_ZFS} != "no"
-CFLAGS+=	-I${BOOTSRC}/zfs
-CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
-CFLAGS+=	-I${SYSDIR}/crypto/skein
+CFLAGS+=	-I${ZFSSRC}
 CFLAGS+=	-DEFI_ZFS_BOOT
 .endif
 

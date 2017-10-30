@@ -4,8 +4,7 @@ LOADER_GELI_SUPPORT=no
 
 .include <bsd.init.mk>
 
-.PATH:		${BOOTSRC}/i386/boot2 ${BOOTSRC}/i386/common \
-		${SYSDIR}/crypto/skein ${SASRC}
+.PATH:		${BOOTSRC}/i386/boot2 ${BOOTSRC}/i386/common ${SASRC}
 
 FILES=		zfsboot
 MAN=		zfsboot.8
@@ -29,9 +28,8 @@ CFLAGS+=-DBOOTPROG=\"zfsboot\" \
 	-I${LDRSRC} \
 	-I${BOOTSRC}/i386/common \
 	-I${BOOTSRC}/i386 \
-	-I${BOOTSRC}/zfs \
+	-I${ZFSSRC} \
 	-I${SYSDIR}/cddl/boot/zfs \
-	-I${SYSDIR}/crypto/skein \
 	-I${BTXLIB} -I. \
 	-I${BOOTSRC}/i386/boot2 \
 	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
@@ -40,8 +38,11 @@ CFLAGS+=-DBOOTPROG=\"zfsboot\" \
 	-Winline
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100
-# Do not unroll skein loops, reduce code size
-CFLAGS+=	-DSKEIN_LOOP=111
+.if ${MACHINE} == "amd64"
+LIBZFSBOOT=${BOOTOBJ}/zfs32/libzfsboot.a
+.else
+LIBZFSBOOT=${BOOTOBJ}/zfs/libzfsboot.a
+.endif
 
 LD_FLAGS+=${LD_FLAGS_BIN}
 
@@ -59,8 +60,7 @@ zfsldr.out: zfsldr.o
 	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} zfsldr.o
 
 CLEANFILES+=	zfsboot2 zfsboot.ld zfsboot.ldr zfsboot.bin zfsboot.out \
-		zfsboot.o zfsboot.s zfsboot.s.tmp sio.o cons.o drv.o util.o \
-		skein.o skein_block.o
+		zfsboot.o zfsboot.s zfsboot.s.tmp sio.o cons.o drv.o util.o
 
 # We currently allow 128k bytes for zfsboot - in practice it could be
 # any size up to 3.5Mb but keeping it fixed size simplifies zfsldr.
@@ -82,8 +82,8 @@ zfsboot.ldr:
 zfsboot.bin: zfsboot.out
 	${OBJCOPY} -S -O binary zfsboot.out ${.TARGET}
 
-zfsboot.out: ${BTXCRT} zfsboot.o sio.o drv.o cons.o util.o skein.o skein_block.o
-	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSA32}
+zfsboot.out: ${BTXCRT} zfsboot.o sio.o drv.o cons.o util.o
+	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBZFSBOOT} ${LIBSA32}
 
 SRCS=	zfsboot.c
 

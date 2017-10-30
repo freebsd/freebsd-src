@@ -30,7 +30,7 @@ CFLAGS+=	-DLOADER_DEBUG
 .endif
 .if ${LOADER_ZFS_SUPPORT} == "yes"
 CFLAGS+=	-DLOADER_ZFS_SUPPORT
-CFLAGS+=	-I${BOOTSRC}/zfs
+CFLAGS+=	-I${ZFSSRC}
 CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
 LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 .endif

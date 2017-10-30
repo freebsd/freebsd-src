@@ -31,7 +31,11 @@ LIBFIREWIRE=	${BOOTSRC}/i386/libfirewire/libfirewire.a
 # Set by zfsloader Makefile
 .if defined(LOADER_ZFS_SUPPORT)
 CFLAGS+=	-DLOADER_ZFS_SUPPORT
+.if ${MACHINE} == "amd64"
+LIBZFSBOOT=	${BOOTOBJ}/zfs32/libzfsboot.a
+.else
 LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
+.endif
 .endif
 
 # Include bcache code.

@@ -29,17 +29,9 @@ SRCS=	autoload.c \
 	vers.c
 
 .if ${MK_ZFS} != "no"
-SRCS+=		zfs.c
-.PATH:		${BOOTSRC}/zfs
-SRCS+=		skein.c skein_block.c
-# Do not unroll skein loops, reduce code size
-CFLAGS+=	-DSKEIN_LOOP=111
-.PATH:		${SYSDIR}/crypto/skein
-
-# Disable warnings that are currently incompatible with the zfs boot code
-CWARNFLAGS.zfs.c+=	-Wno-sign-compare
-CWARNFLAGS.zfs.c+=	-Wno-array-bounds
-CWARNFLAGS.zfs.c+=	-Wno-missing-prototypes
+LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
+CFLAGS+=	-I${ZFSSRC}
+CFLAGS+=	-DEFI_ZFS_BOOT
 .endif
 
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201
@@ -65,12 +57,6 @@ CFLAGS+=	-I${EFISRC}/include/${MACHINE}
 CFLAGS+=	-I${SYSDIR}/contrib/dev/acpica/include
 CFLAGS+=	-I${SYSDIR}
 CFLAGS+=	-I${BOOTSRC}/i386/libi386
-.if ${MK_ZFS} != "no"
-CFLAGS+=	-I${BOOTSRC}/zfs
-CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
-CFLAGS+=	-I${SYSDIR}/crypto/skein
-CFLAGS+=	-DEFI_ZFS_BOOT
-.endif
 CFLAGS+=	-DNO_PCI -DEFI
 
 .if !defined(BOOT_HIDE_SERIAL_NUMBERS)
@@ -142,9 +128,9 @@ loader.efi: ${PROG}
 
 LIBEFI=		${BOOTOBJ}/efi/libefi/libefi.a
 
-DPADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSA} \
+DPADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBZFSBOOT} ${LIBSA} \
 		${LDSCRIPT}
-LDADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSA}
+LDADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBZFSBOOT} ${LIBSA}
 
 .include <bsd.prog.mk>
 
