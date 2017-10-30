@@ -17,6 +17,7 @@ CFLAGS+=	-D__STDC_LIMIT_MACROS
 CFLAGS+=	-D__STDC_CONSTANT_MACROS
 #CFLAGS+=	-DNDEBUG
 
+TARGET_ARCH?=	${MACHINE_ARCH}
 BUILD_ARCH?=	${MACHINE_ARCH}
 
 # Armv6 and armv7 uses hard float abi, unless the CPUTYPE has soft in it.
