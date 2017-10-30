@@ -125,7 +125,7 @@ WANT_COMPILER_VERSION!= \
 	awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3}' \
 	${SRCDIR}/${WANT_COMPILER_VERSION_FILE} || echo unknown
 .endif
-.export WANT_COMPILER_FREEBSD_VERSION WANT_COMPILER_VERSION
+.export WANT_COMPILER_FREEBSD_VERSION WANT_COMPILER_TYPE WANT_COMPILER_VERSION
 .endif	# !defined(WANT_COMPILER_FREEBSD_VERSION)
 # It needs to be the same revision as we would build for the bootstrap.
 # If the expected vs CC is different then we can't skip.
