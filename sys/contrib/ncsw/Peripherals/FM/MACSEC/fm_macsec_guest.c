@@ -1,5 +1,5 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
- * All rights reserved.
+/*
+ * Copyright 2008-2015 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,6 +30,30 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/******************************************************************************
+ @File          fm_macsec.c
+
+ @Description   FM MACSEC driver routines implementation.
+*//***************************************************************************/
+
+#include "std_ext.h"
+#include "error_ext.h"
+#include "xx_ext.h"
+#include "string_ext.h"
+#include "sprint_ext.h"
+#include "debug_ext.h"
+#include "fm_macsec.h"
 
 
+/****************************************/
+/*       static functions               */
+/****************************************/
 
+/****************************************/
+/*       API Init unit functions        */
+/****************************************/
+t_Handle FM_MACSEC_GUEST_Config(t_FmMacsecParams *p_FmMacsecParam)
+{
+    UNUSED(p_FmMacsecParam);
+    return NULL;
+}

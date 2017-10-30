@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
 
 PROG=		ubldr
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
@@ -22,9 +22,9 @@ LOADER_BZIP2_SUPPORT?=	no
 LOADER_FDT_SUPPORT=	${MK_FDT}
 
 # Always add MI sources
-.include	"../../loader.mk"
-.PATH:		${.CURDIR}/../../../libkern
-CFLAGS+=	-I${.CURDIR}/../../..
+.include	"${BOOTSRC}/loader.mk"
+.PATH:		${SYSDIR}/libkern
+CFLAGS+=	-I${SYSDIR}
 CFLAGS+=	-I.
 
 CLEANFILES+=	${PROG}.help
@@ -33,16 +33,16 @@ CFLAGS+=	-ffreestanding
 
 LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 
-.include	"../../uboot.mk"
+.include	"${BOOTSRC}/uboot.mk"
 
 DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSA32}
 LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSA32}
 
-loader.help: help.common help.uboot ${.CURDIR}/../../fdt/help.fdt
+loader.help: help.common help.uboot ${BOOTSRC}/fdt/help.fdt
 	cat ${.ALLSRC} | \
 	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
 
-.PATH: ${.CURDIR}/../../forth
+.PATH: ${BOOTSRC}/forth
 FILES=	loader.help
 
 .include <bsd.prog.mk>

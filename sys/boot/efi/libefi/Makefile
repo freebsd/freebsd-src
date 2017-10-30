@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
 
 .if ${MK_FORTH} != "no"
-.include	"../../ficl.mk"
+.include	"${BOOTSRC}/ficl.mk"
 .endif
 
 LIB=	efi
@@ -35,17 +35,17 @@ CFLAGS+=	-mgeneral-regs-only
 CFLAGS+= -fPIC -mno-red-zone
 .endif
 CFLAGS+= -I${SYSDIR}
-CFLAGS+= -I${.CURDIR}/../include
-CFLAGS+= -I${.CURDIR}/../include/${MACHINE}
+CFLAGS+= -I${EFIINC}
+CFLAGS+= -I${EFIINCMD}
 .if ${MK_ZFS} != "no"
-CFLAGS+=	-I${.CURDIR}/../../zfs
-CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs
-CFLAGS+=	-I${.CURDIR}/../../../crypto/skein
+CFLAGS+=	-I${BOOTSRC}/zfs
+CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
+CFLAGS+=	-I${SYSDIR}/crypto/skein
 CFLAGS+=	-DEFI_ZFS_BOOT
 .endif
 
 # Pick up the bootstrap header for some interface items
-CFLAGS+= -I${.CURDIR}/../../common
+CFLAGS+= -I${LDRSRC}
 
 # Handle FreeBSD specific %b and %D printf format specifiers
 CFLAGS+= ${FORMAT_EXTENSIONS}

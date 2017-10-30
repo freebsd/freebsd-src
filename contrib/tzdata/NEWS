@@ -1,5 +1,169 @@
 News for the tz database
 
+Release 2017c - 2017-10-20 14:49:34 -0700
+
+  Briefly:
+  Northern Cyprus switches from +03 to +02/+03 on 2017-10-29.
+  Fiji ends DST 2018-01-14, not 2018-01-21.
+  Namibia switches from +01/+02 to +02 on 2018-04-01.
+  Sudan switches from +03 to +02 on 2017-11-01.
+  Tonga likely switches from +13/+14 to +13 on 2017-11-05.
+  Turks & Caicos switches from -04 to -05/-04 on 2018-11-04.
+  A new file tzdata.zi now holds a small text copy of all data.
+  The zic input format has been regularized slightly.
+
+  Changes to future time stamps
+
+    Northern Cyprus has decided to resume EU rules starting
+    2017-10-29, thus reinstituting winter time.
+
+    Fiji ends DST 2018-01-14 instead of the 2018-01-21 previously
+    predicted.  (Thanks to Dominic Fok.)  Adjust future predictions
+    accordingly.
+
+    Namibia will switch from +01 with DST to +02 all year on
+    2017-09-03 at 02:00.  This affects UT offsets starting 2018-04-01
+    at 02:00.  (Thanks to Steffen Thorsen.)
+
+    Sudan will switch from +03 to +02 on 2017-11-01.  (Thanks to Ahmed
+    Atyya and Yahia Abdalla.)  South Sudan is not switching, so
+    Africa/Juba is no longer a link to Africa/Khartoum.
+
+    Tonga has likely ended its experiment with DST, and will not
+    adjust its clocks on 2017-11-05.  Although Tonga has not announced
+    whether it will continue to observe DST, the IATA is assuming that
+    it will not.  (Thanks to David Wade.)
+
+    Turks & Caicos will switch from -04 all year to -05 with US DST on
+    2018-03-11 at 03:00.  This affects UT offsets starting 2018-11-04
+    at 02:00.  (Thanks to Steffen Thorsen.)
+
+  Changes to past time stamps
+
+    Namibia switched from +02 to +01 on 1994-03-21, not 1994-04-03.
+    (Thanks to Arthur David Olson.)
+
+    Detroit did not observe DST in 1967.
+
+    Use railway time for Asia/Kolkata before 1941, by switching to
+    Madras local time (UT +052110) in 1870, then to IST (UT +0530) in
+    1906.  Also, treat 1941-2's +0630 as DST, like 1942-5.
+
+    Europe/Dublin's 1946 and 1947 fallback transitions occurred at
+    02:00 standard time, not 02:00 DST.  (Thanks to Michael Deckers.)
+
+    Pacific/Apia and Pacific/Pago_Pago switched from Antipodean to
+    American time in 1892, not 1879.  (Thanks to Michael Deckers.)
+
+    Adjust the 1867 transition in Alaska to better reflect the
+    historical record, by changing it to occur on 1867-10-18 at 15:30
+    Sitka time rather than at the start of 1867-10-17 local time.
+    Although strictly speaking this is accurate only for Sitka,
+    the rest of Alaska's blanks need to be filled in somehow.
+
+    Fix off-by-one errors in UT offsets for Adak and Nome before 1867.
+    (Thanks to Michael Deckers.)
+
+    Add 7 s to the UT offset in Asia/Yangon before 1920.
+
+  Changes to zone names
+
+    Remove Canada/East-Saskatchewan from the 'backward' file, as it
+    exceeded the 14-character limit and was an unused misnomer anyway.
+
+  Changes to build procedure
+
+    To support applications that prefer to read time zone data in text
+    form, two zic input files tzdata.zi and leapseconds are now
+    installed by default.  The commands 'zic tzdata.zi' and 'zic -L
+    leapseconds tzdata.zi' can reproduce the tzdata binary files
+    without and with leap seconds, respectively.  To prevent these two
+    new files from being installed, use 'make TZDATA_TEXT=', and to
+    suppress leap seconds from the tzdata text installation, use 'make
+    TZDATA_TEXT=tzdata.zi'.
+
+    'make BACKWARD=' now suppresses backward-compatibility names
+    like 'US/Pacific' that are defined in the 'backward' and
+    'pacificnew' files.
+
+    'make check' now works on systems that lack a UTF-8 locale,
+    or that lack the nsgmls program.  Set UTF8_LOCALE to configure
+    the name of a UTF-8 locale, if you have one.
+
+    Y2K runtime checks are no longer enabled by default.  Add
+    -DDEPRECATE_TWO_DIGIT_YEARS to CFLAGS to enable them, instead of
+    adding -DNO_RUN_TIME_WARNINGS_ABOUT_YEAR_2000_PROBLEMS_THANK_YOU
+    to disable them.  (New name suggested by Brian Inglis.)
+
+    The build procedure for zdump now works on AIX 7.1.
+    (Problem reported by Kees Dekker.)
+
+  Changes to code
+
+    zic and the reference runtime now reject multiple leap seconds
+    within 28 days of each other, or leap seconds before the Epoch.
+    As a result, support for double leap seconds, which was
+    obsolescent and undocumented, has been removed.  Double leap
+    seconds were an error in the C89 standard; they have never existed
+    in civil timekeeping.  (Thanks to Robert Elz and Bradley White for
+    noticing glitches in the code that uncovered this problem.)
+
+    zic now warns about use of the obsolescent and undocumented -y
+    option, and about use of the obsolescent TYPE field of Rule lines.
+
+    zic now allows unambiguous abbreviations like "Sa" and "Su" for
+    weekdays; formerly it rejected them due to a bug.  Conversely, zic
+    no longer considers non-prefixes to be abbreviations; for example,
+    it no longer accepts "lF" as an abbreviation for "lastFriday".
+    Also, zic warns about the undocumented usage with a "last-"
+    prefix, e.g., "last-Fri".
+
+    Similarly, zic now accepts the unambiguous abbreviation "L" for
+    "Link" in ordinary context and for "Leap" in leap-second context.
+    Conversely, zic no longer accepts non-prefixes such as "La" as
+    abbreviations for words like "Leap".
+
+    zic no longer accepts leap second lines in ordinary input, or
+    ordinary lines in leap second input.  Formerly, zic sometimes
+    warned about this undocumented usage and handled it incorrectly.
+
+    The new macro HAVE_TZNAME governs whether the tzname external
+    variable is exported, instead of USG_COMPAT.  USG_COMPAT now
+    governs only the external variables "timezone" and "daylight".
+    This change is needed because the three variables are not in the
+    same category: although POSIX requires tzname, it specifies the
+    other two variables as optional.  Also, USG_COMPAT is now 1 or 0:
+    if not defined, the code attempts to guess it from other macros.
+
+    localtime.c and difftime.c no longer require stdio.h, and .c files
+    other than zic.c no longer require sys/wait.h.
+
+    zdump.c no longer assumes snprintf.  (Reported by Jonathan Leffler.)
+
+    Calculation of time_t extrema works around a bug in GCC 4.8.4
+    (Reported by Stan Shebs and Joseph Myers.)
+
+    zic.c no longer mistranslates formats of line numbers in non-English
+    locales.  (Problem reported by Benno Schulenberg.)
+
+    Several minor changes have been made to the code to make it a
+    bit easier to port to MS-Windows and Solaris.  (Thanks to Kees
+    Dekker for reporting the problems.)
+
+  Changes to documentation and commentary
+
+    The two new files 'theory.html' and 'calendars' contain the
+    contents of the removed file 'Theory'.  The goal is to document
+    tzdb theory more accessibly.
+
+    The zic man page now documents abbreviation rules.
+
+    tz-link.htm now covers how to apply tzdata changes to clients.
+    (Thanks to Jorge Fábregas for the AIX link.)  It also mentions MySQL.
+
+    The leap-seconds.list URL has been updated to something that is
+    more reliable for tzdb.  (Thanks to Tim Parenti and Brian Inglis.)
+
 Release 2017b - 2017-03-17 07:30:38 -0700
 
   Briefly: Haiti has resumed DST.
@@ -14,6 +178,16 @@ Release 2017b - 2017-03-17 07:30:38 -0700
 
     Use "MMT" to abbreviate Liberia's time zone before 1972, as "-004430"
     is one byte over the POSIX limit.  (Problem reported by Derick Rethans.)
+
+  Changes to code
+
+    The reference localtime implementation now falls back on the
+    current US daylight-saving transition rules rather than the
+    1987-2006 rules.  This fallback occurs only when (1) the TZ
+    environment variable's value has a name like "AST4ADT" that asks
+    for daylight saving time but does not specify the rules, (2) there
+    is no file by that name, and (3) the TZDEFRULES file cannot be
+    loaded.  (Thanks to Tom Lane.)
 
 
 Release 2017a - 2017-02-28 00:05:36 -0800
@@ -1981,7 +2155,7 @@ Release 2013e - 2013-09-19 23:50:04 -0700
 
     The 'leapseconds' file is now generated automatically from a
     new file 'leap-seconds.list', which is a copy of
-    <ftp://time.nist.gov/pub/leap-seconds.list>.
+    <ftp://ftp.nist.gov/pub/time/leap-seconds.list>
     A new source file 'leapseconds.awk' implements this.
     The goal is simplification of the future maintenance of 'leapseconds'.
 
@@ -2187,7 +2361,7 @@ Release 2013a - 2013-02-27 09:20:35 -0800
 
   Many changes affect historical timestamps before 1940.
   These were deduced from: Milne J. Civil time. Geogr J. 1899
-  Feb;13(2):173-94 <http://www.jstor.org/stable/1774359>.
+  Feb;13(2):173-94 <https://www.jstor.org/stable/1774359>.
 
   Changes affecting the code:
 

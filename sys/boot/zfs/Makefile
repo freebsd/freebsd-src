@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.init.mk>
+
 LIB=		zfsboot
 INTERNALLIB=
 
@@ -8,12 +10,12 @@ SRCS+=		zfs.c
 SRCS+=		skein.c skein_block.c
 # Do not unroll skein loops, reduce code size
 CFLAGS+=	-DSKEIN_LOOP=111
-.PATH:		${.CURDIR}/../../crypto/skein
+.PATH:		${SYSDIR}/crypto/skein
 
 CFLAGS+=	-DBOOTPROG=\"zfsloader\"
-CFLAGS+=	-I${.CURDIR}/../common -I${.CURDIR}/../.. -I.
-CFLAGS+=	-I${.CURDIR}/../../cddl/boot/zfs
-CFLAGS+=	-I${.CURDIR}/../../crypto/skein
+CFLAGS+=	-I${LDRSRC} -I${SYSDIR} -I.
+CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
+CFLAGS+=	-I${SYSDIR}/crypto/skein
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-march=i386
@@ -27,7 +29,7 @@ CFLAGS+=	-Wformat -Wall
 .if ${MACHINE_CPUARCH} == "amd64"
 CLEANFILES+=    machine
 machine: .NOMETA
-	ln -sf ${.CURDIR}/../../i386/include machine
+	ln -sf ${SYSDIR}/i386/include machine
 .endif
 
 .include <bsd.stand.mk>

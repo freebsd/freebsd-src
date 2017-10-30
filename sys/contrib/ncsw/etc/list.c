@@ -40,30 +40,30 @@
 #include "list_ext.h"
 
 
-void LIST_Append(t_List *p_NewList, t_List *p_Head)
+void NCSW_LIST_Append(t_List *p_NewList, t_List *p_Head)
 {
     t_List *p_First = NCSW_LIST_FIRST(p_NewList);
 
     if (p_First != p_NewList)
     {
-        t_List *p_Last  = LIST_LAST(p_NewList);
+        t_List *p_Last  = NCSW_LIST_LAST(p_NewList);
         t_List *p_Cur   = NCSW_LIST_NEXT(p_Head);
 
         NCSW_LIST_PREV(p_First) = p_Head;
         NCSW_LIST_FIRST(p_Head) = p_First;
         NCSW_LIST_NEXT(p_Last)  = p_Cur;
-        LIST_LAST(p_Cur)   = p_Last;
+        NCSW_LIST_LAST(p_Cur)   = p_Last;
     }
 }
 
 
-int LIST_NumOfObjs(t_List *p_List)
+int NCSW_LIST_NumOfObjs(t_List *p_List)
 {
     t_List *p_Tmp;
     int    numOfObjs = 0;
 
-    if (!LIST_IsEmpty(p_List))
-        LIST_FOR_EACH(p_Tmp, p_List)
+    if (!NCSW_LIST_IsEmpty(p_List))
+        NCSW_LIST_FOR_EACH(p_Tmp, p_List)
             numOfObjs++;
 
     return numOfObjs;

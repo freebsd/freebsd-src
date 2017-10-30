@@ -133,6 +133,7 @@ lmc_parse_file(char *path)
 	retval = read(fd, lm_map, st.st_size);
 	if (retval != st.st_size) {
 		close(fd);
+		free(lm_map);
 		dbg("lm_parse_file: read(\"%s\") failed, %s", path,
 		    rtld_strerror(errno));
 		return;

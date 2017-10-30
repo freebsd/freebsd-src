@@ -365,11 +365,11 @@ OSRELDATE=	0
 
 # Set VERSION for CTFMERGE to use via the default CTFFLAGS=-L VERSION.
 .if !defined(_REVISION)
-_REVISION!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V REVISION
+_REVISION!=	${MAKE} -C ${SRCDIR}/release MK_AUTO_OBJ=no -V REVISION
 .export _REVISION
 .endif
 .if !defined(_BRANCH)
-_BRANCH!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V BRANCH
+_BRANCH!=	${MAKE} -C ${SRCDIR}/release MK_AUTO_OBJ=no -V BRANCH
 .export _BRANCH
 .endif
 .if !defined(SRCRELDATE)
@@ -439,8 +439,8 @@ _TARGET_CPUTYPE=${TARGET_CPUTYPE}
 .else
 _TARGET_CPUTYPE=dummy
 .endif
-_CPUTYPE!=	MK_AUTO_OBJ=no MAKEFLAGS= CPUTYPE=${_TARGET_CPUTYPE} ${MAKE} \
-		-f /dev/null -m ${.CURDIR}/share/mk -V CPUTYPE
+_CPUTYPE!=	MAKEFLAGS= CPUTYPE=${_TARGET_CPUTYPE} ${MAKE} -f /dev/null \
+		-m ${.CURDIR}/share/mk MK_AUTO_OBJ=no -V CPUTYPE
 .if ${_CPUTYPE} != ${_TARGET_CPUTYPE}
 .error CPUTYPE global should be set with ?=.
 .endif
@@ -753,49 +753,26 @@ KMAKE=		${KMAKEENV} ${MAKE} ${.MAKEFLAGS} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
 # Attempt to rebuild the entire system, with reasonable chance of
 # success, regardless of how old your existing system is.
 #
-_worldtmp: .PHONY
+_sanity_check: .PHONY .MAKE
 .if ${.CURDIR:C/[^,]//g} != ""
 #	The m4 build of sendmail files doesn't like it if ',' is used
 #	anywhere in the path of it's files.
 	@echo
 	@echo "*** Error: path to source tree contains a comma ','"
 	@echo
-	false
-.endif
+	@false
+.elif ${.CURDIR:M*\:*} != ""
+#	Using ':' leaks into PATH and breaks finding cross-tools.
 	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding the temporary build tree"
-	@echo "--------------------------------------------------------------"
-.if !defined(NO_CLEAN)
-	rm -rf ${WORLDTMP}
-.if defined(LIBCOMPAT)
-	rm -rf ${LIBCOMPATTMP}
+	@echo "*** Error: path to source tree contains a colon ':'"
+	@echo
+	@false
 .endif
-.else
-.if exists(${WORLDTMP})
-	@echo ">>> Deleting stale files in build tree..."
-	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
-	    delete-old delete-old-libs >/dev/null
-.endif
-.if defined(LIBCOMPAT) && exists(${LIBCOMPATTMP})
-	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
-	    DESTDIR=${LIBCOMPATTMP} \
-	    delete-old delete-old-libs >/dev/null
-.endif
-	rm -rf ${WORLDTMP}/legacy/usr/include
-.if ${USING_SYSTEM_COMPILER} == "yes"
-.for cc in cc c++
-	if [ -x ${WORLDTMP}/usr/bin/${cc} ]; then \
-		inum=$$(stat -f %i ${WORLDTMP}/usr/bin/${cc}); \
-		find ${WORLDTMP}/usr/bin -inum $${inum} -delete; \
-	fi
-.endfor
-.endif	# ${USING_SYSTEM_COMPILER} == "yes"
 
 # Our current approach to dependency tracking cannot cope with certain source
 # tree changes, particularly with respect to removing source files and
 # replacing generated files.  Handle these cases here in an ad-hoc fashion.
-#
+_cleanobj_fast_depend_hack: .PHONY
 # Syscall stubs rewritten in C
 # Date      SVN Rev  Syscalls
 # 20160829  r305012  ptrace
@@ -806,7 +783,7 @@ _worldtmp: .PHONY
 	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o; then \
 		echo Removing stale dependencies for ${f} syscall wrappers; \
 		rm -f ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
-		   ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*; \
+		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.*}; \
 	fi
 .endif
 .endfor
@@ -817,7 +794,7 @@ _worldtmp: .PHONY
 	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o; then \
 		echo Removing stale dependencies for ${f} syscall wrappers; \
 		rm -f ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
-		   ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*; \
+		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.*}; \
 	fi
 .endif
 .endfor
@@ -829,11 +806,33 @@ _worldtmp: .PHONY
 	@echo Removing stale generated ${f} syscall files
 	@rm -f ${OBJTREE}${.CURDIR}/lib/libc/${f}.* \
 	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
-	    ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/${f}.* \
-	    ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*
+	    ${LIBCOMPAT:D${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc/${f}.*} \
+	    ${LIBCOMPAT:D${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.*}
 .endif
 .endfor
 
+_worldtmp: .PHONY
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Rebuilding the temporary build tree"
+	@echo "--------------------------------------------------------------"
+.if !defined(NO_CLEAN)
+	rm -rf ${WORLDTMP}
+.else
+.if exists(${WORLDTMP})
+	@echo ">>> Deleting stale files in build tree..."
+	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
+	    delete-old delete-old-libs >/dev/null
+.endif
+	rm -rf ${WORLDTMP}/legacy/usr/include
+.if ${USING_SYSTEM_COMPILER} == "yes"
+.for cc in cc c++
+	if [ -x ${WORLDTMP}/usr/bin/${cc} ]; then \
+		inum=$$(stat -f %i ${WORLDTMP}/usr/bin/${cc}); \
+		find ${WORLDTMP}/usr/bin -inum $${inum} -delete; \
+	fi
+.endfor
+.endif	# ${USING_SYSTEM_COMPILER} == "yes"
 .endif	# !defined(NO_CLEAN)
 
 .for _dir in \
@@ -850,31 +849,10 @@ _worldtmp: .PHONY
 	    -p ${WORLDTMP}/usr/include >/dev/null
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 .if ${MK_DEBUG_FILES} != "no"
-	# We could instead disable debug files for these build stages
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${WORLDTMP}/legacy/usr/lib >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${WORLDTMP}/usr/lib >/dev/null
-.endif
-.if defined(LIBCOMPAT)
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
-	    -p ${WORLDTMP}/usr >/dev/null
-.if ${MK_DEBUG_FILES} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
-	    -p ${WORLDTMP}/legacy/usr/lib/debug/usr >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
-	    -p ${WORLDTMP}/usr/lib/debug/usr >/dev/null
-.endif
-.endif
-.if ${MK_TESTS} != "no"
-	mkdir -p ${WORLDTMP}${TESTSBASE}
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
-	    -p ${WORLDTMP}${TESTSBASE} >/dev/null
-.if ${MK_DEBUG_FILES} != "no"
-	mkdir -p ${WORLDTMP}/usr/lib/debug/${TESTSBASE}
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
-	    -p ${WORLDTMP}/usr/lib/debug/${TESTSBASE} >/dev/null
-.endif
 .endif
 .for _mtree in ${LOCAL_MTREE}
 	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
@@ -901,7 +879,9 @@ _cleanobj:
 .if defined(LIBCOMPAT)
 	${_+_}cd ${.CURDIR}; ${LIBCOMPATWMAKE} -f Makefile.inc1 ${CLEANDIR}
 .endif
-.endif
+.else
+	${_+_}cd ${.CURDIR}; ${WMAKE} _cleanobj_fast_depend_hack
+.endif	# !defined(NO_CLEAN)
 _obj:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -958,7 +938,7 @@ everything: .PHONY
 
 WMAKE_TGTS=
 .if !defined(WORLDFAST)
-WMAKE_TGTS+=	_worldtmp _legacy
+WMAKE_TGTS+=	_sanity_check _worldtmp _legacy
 .if empty(SUBDIR_OVERRIDE)
 WMAKE_TGTS+=	_bootstrap-tools
 .endif
@@ -1012,8 +992,7 @@ buildenv: .PHONY
 .if ${BUILDENV_SHELL:M*zsh*}
 	@echo For ZSH you must run: export CPUTYPE=${TARGET_CPUTYPE}
 .endif
-	@cd ${BUILDENV_DIR} && env ${WMAKEENV} BUILDENV=1 ${BUILDENV_SHELL} \
-	    || true
+	@cd ${BUILDENV_DIR} && env ${WMAKEENV} BUILDENV=1 ${BUILDENV_SHELL}
 
 TOOLCHAIN_TGTS=	${WMAKE_TGTS:Neverything:Nbuild${libcompat}}
 toolchain: ${TOOLCHAIN_TGTS} .PHONY
@@ -2123,7 +2102,11 @@ cross-tools: .MAKE .PHONY
 # to pickup.
 #
 NXBOBJDIR=	${MAKEOBJDIRPREFIX}/nxb/${TARGET}.${TARGET_ARCH}
-NXBDESTDIR=	${NXBOBJDIR}${.CURDIR}/nxb-bin
+NXTP?=		/nxb-bin
+.if ${NXTP:N/*}
+.error NXTP variable should be an absolute path
+.endif
+NXBDESTDIR?=	${DESTDIR}${NXTP}
 
 # This is the list of tools to be built/installed as static and where
 # appropriate to build for the given TARGET.TARGET_ARCH.
@@ -2252,6 +2235,9 @@ native-xtools: .PHONY
 .endif
 	${_+_}cd ${.CURDIR}; ${NXBMAKE} SUBDIR_OVERRIDE="${NXBDIRS:M*}" \
 	    everything
+	@echo ">> native-xtools done.  Use 'make native-xtools-install' to install to a given DESTDIR"
+
+native-xtools-install: .PHONY
 	mkdir -p ${NXBDESTDIR}/bin ${NXBDESTDIR}/sbin ${NXBDESTDIR}/usr
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${NXBDESTDIR}/usr >/dev/null
@@ -2804,8 +2790,6 @@ cleanworld: .PHONY
 	${_+_}@cd ${.CURDIR}; ${MAKE} cleandir
 .endif
 
-.if defined(TARGET) && defined(TARGET_ARCH)
-
 .if ${TARGET} == ${MACHINE} && ${TARGET_ARCH} == ${MACHINE_ARCH}
 XDEV_CPUTYPE?=${CPUTYPE}
 .else
@@ -2856,7 +2840,7 @@ CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDDESTDIR}/usr/bin:${PATH} ${MAKE} ${N
 # Don't rebuild build-tools targets during normal build.
 CD2MAKE+=	BUILD_TOOLS_META=.NOMETA
 .endif
-XDDESTDIR=${DESTDIR}/${XDTP}
+XDDESTDIR=${DESTDIR}${XDTP}
 
 .ORDER: xdev-build xdev-install xdev-links
 xdev: xdev-build xdev-install .PHONY
@@ -2885,14 +2869,17 @@ _xb-build-tools: .PHONY
 	${_+_}@cd ${.CURDIR}; \
 	${CDBENV} ${MAKE} -f Makefile.inc1 ${NOFUN} build-tools
 
-_xb-cross-tools: .PHONY
-.for _tool in \
+XDEVDIRS= \
+    ${_lld} \
     ${_binutils} \
     ${_elftctools} \
     usr.bin/ar \
     ${_clang_libs} \
     ${_clang} \
     ${_gcc}
+
+_xb-cross-tools: .PHONY
+.for _tool in ${XDEVDIRS}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,all)"; \
 	cd ${.CURDIR}/${_tool}; \
 	if [ -z "${NO_OBJ}" ]; then ${CDMAKE} DIRPRFX=${_tool}/ obj; fi; \
@@ -2923,19 +2910,17 @@ xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries .P
 
 _xi-cross-tools: .PHONY
 	@echo "_xi-cross-tools"
-.for _tool in \
-    ${_binutils} \
-    ${_elftctools} \
-    usr.bin/ar \
-    ${_clang_libs} \
-    ${_clang} \
-    ${_gcc}
+.for _tool in ${XDEVDIRS}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (install)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ install DESTDIR=${XDDESTDIR}
 .endfor
 
 _xi-includes: .PHONY
+.if !defined(NO_OBJ)
+	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 _obj \
+		DESTDIR=${XDDESTDIR}
+.endif
 	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 includes \
 		DESTDIR=${XDDESTDIR}
 
@@ -2952,7 +2937,3 @@ xdev-links: .PHONY
 			ln -sf ../../${XDTP}/usr/bin/$$i \
 			    ../../../../usr/bin/${XDDIR}${_REVISION}-$$i; \
 		done
-.else
-xdev xdev-build xdev-install xdev-links: .PHONY
-	@echo "*** Error: Both TARGET and TARGET_ARCH must be defined for \"${.TARGET}\" target"
-.endif

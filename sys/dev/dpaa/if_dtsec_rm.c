@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
+#include <contrib/ncsw/inc/integrations/dpaa_integration_ext.h>
+#include <contrib/ncsw/inc/Peripherals/fm_ext.h>
 #include <contrib/ncsw/inc/Peripherals/fm_mac_ext.h>
 #include <contrib/ncsw/inc/Peripherals/fm_port_ext.h>
 #include <contrib/ncsw/inc/xx_ext.h>
@@ -150,7 +152,7 @@ dtsec_rm_fm_port_rx_init(struct dtsec_softc *sc, int unit)
 {
 	t_FmPortParams params;
 	t_FmPortRxParams *rx_params;
-	t_FmPortExtPools *pool_params;
+	t_FmExtPools *pool_params;
 	t_Error error;
 
 	memset(&params, 0, sizeof(params));
@@ -639,9 +641,9 @@ dtsec_rm_if_start_locked(struct dtsec_softc *sc)
 		DPAA_FD_SET_LENGTH(&fd, psize);
 		DPAA_FD_SET_FORMAT(&fd, e_DPAA_FD_FORMAT_TYPE_SHORT_MBSF);
 
-		DPAA_FD_SET_DD(&fd, 0);
-		DPAA_FD_SET_PID(&fd, 0);
-		DPAA_FD_SET_BPID(&fd, 0);
+		fd.liodn = 0;
+		fd.bpid = 0;
+		fd.elion = 0;
 		DPAA_FD_SET_OFFSET(&fd, 0);
 		DPAA_FD_SET_STATUS(&fd, 0);
 

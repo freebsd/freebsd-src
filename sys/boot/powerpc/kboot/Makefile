@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
 MK_SSP=		no
 MAN=
 
@@ -25,19 +25,18 @@ LOADER_FDT_SUPPORT=	yes
 LOADER_BZIP2_SUPPORT?=	no
 
 .if ${LOADER_FDT_SUPPORT} == "yes"
-CFLAGS+=	-I${.CURDIR}/../../fdt
-CFLAGS+=	-I${.OBJDIR}/../../fdt
-CFLAGS+=	-I${.CURDIR}/../../../contrib/libfdt
+CFLAGS+=	-I${FDTSRC}
+CFLAGS+=	-I${SYSDIR}/contrib/libfdt
 CFLAGS+=	-DLOADER_FDT_SUPPORT
-LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
+LIBFDT=		${BOOTOBJ}/fdt/libfdt.a
 .endif
 
 CFLAGS+=	-mcpu=powerpc64
 
 # Always add MI sources
-.include	"../../loader.mk"
-.PATH:		${.CURDIR}/../../../libkern
-CFLAGS+=	-I${.CURDIR}/../../..
+.include	"${BOOTSRC}/loader.mk"
+.PATH:		${SYSDIR}/libkern
+CFLAGS+=	-I${SYSDIR}
 CFLAGS+=	-I.
 
 CLEANFILES+=	loader.help
@@ -52,19 +51,15 @@ LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 # 64-bit bridge extensions
 CFLAGS+= -Wa,-mppc64bridge
 
-# Pull in common loader code
-#.PATH:		${.CURDIR}/../../ofw/common
-#.include	"${.CURDIR}/../../ofw/common/Makefile.inc"
-
 DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA32}
 LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA32}
 
-loader.help: help.common help.kboot ${.CURDIR}/../../fdt/help.fdt
+loader.help: help.common help.kboot ${FDTSRC}/help.fdt
 	cat ${.ALLSRC} | \
 	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
 
-.PATH: ${.CURDIR}/../../forth
-.include	"${.CURDIR}/../../forth/Makefile.inc"
+.PATH: ${BOOTSRC}/forth
+.include	"${BOOTSRC}/forth/Makefile.inc"
 
 FILES+= loader.rc menu.rc
 

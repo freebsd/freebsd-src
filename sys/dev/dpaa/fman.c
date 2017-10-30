@@ -375,7 +375,7 @@ fman_suspend(device_t dev)
 }
 
 int
-fman_resume(device_t dev)
+fman_resume_dev(device_t dev)
 {
 
 	return (0);

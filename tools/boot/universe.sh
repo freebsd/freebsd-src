@@ -33,9 +33,33 @@ for i in \
 	; do
     ta=${i##*/}
     echo -n "Building $ta..."
-    ( ( make buildenv TARGET_ARCH=$ta BUILDENV_SHELL="make -j 20 clean cleandepend cleandir obj depend all" \
-	 > _.boot.${ta}.log 2>&1 ) && echo Success ) || echo Fail
+    if ! make buildenv TARGET_ARCH=$ta BUILDENV_SHELL="make clean cleandepend cleandir obj depend"  \
+	 > _.boot.${ta}.log 2>&1; then
+	echo "Fail (cleanup)"
+	continue
+    fi
+    if ! make buildenv TARGET_ARCH=$ta BUILDENV_SHELL="make -j 20 all"  \
+	 >> _.boot.${ta}.log 2>&1; then
+	echo "Fail (build)"
+	continue
+    fi
+    echo "Success"
 done
-
-
-
+for i in \
+	amd64/amd64 \
+	i386/i386 \
+	; do
+    ta=${i##*/}
+    echo -n "Building $ta MK_ZFS=no..."
+    if ! make buildenv TARGET_ARCH=$ta BUILDENV_SHELL="make clean cleandepend cleandir obj depend"  \
+	 > _.boot.${ta}.noZFS.log 2>&1; then
+	echo "Fail (cleanup)"
+	continue
+    fi
+    if ! make buildenv TARGET_ARCH=$ta BUILDENV_SHELL="make MK_ZFS=no -j 20 all"  \
+	 >> _.boot.${ta}.noZFS.log 2>&1; then
+	echo "Fail (build)"
+	continue
+    fi
+    echo "Success"
+done

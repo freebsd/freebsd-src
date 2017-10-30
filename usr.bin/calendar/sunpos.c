@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 /*
  * This code is created to match the formulas available at:
  * Formula and examples obtained from "How to Calculate alt/az: SAAO" at
- * http://www.saao.ac.za/public-info/sun-moon-stars/sun-index/how-to-calculate-altaz/
+ * http://old.saao.ac.za/public-info/sun-moon-stars/sun-index/how-to-calculate-altaz/
  */
 
 #include <stdio.h>

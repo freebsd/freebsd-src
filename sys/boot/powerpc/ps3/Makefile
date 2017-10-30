@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
 MK_SSP=		no
 MAN=
 
@@ -25,18 +25,17 @@ LOADER_FDT_SUPPORT?=	no
 LOADER_BZIP2_SUPPORT?=	no
 
 .if ${LOADER_FDT_SUPPORT} == "yes"
-CFLAGS+=	-I${.CURDIR}/../../fdt
-CFLAGS+=	-I${.OBJDIR}/../../fdt
+CFLAGS+=	-I${FDTSRC}
 CFLAGS+=	-DLOADER_FDT_SUPPORT
-LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
+LIBFDT=		${BOOTOBJ}/fdt/libfdt.a
 .endif
 
 CFLAGS+=	-mcpu=powerpc64
 
 # Always add MI sources
-.include	"../../loader.mk"
-.PATH:		${.CURDIR}/../../../libkern
-CFLAGS+=	-I${.CURDIR}/../../..
+.include	"${BOOTSRC}/loader.mk"
+.PATH:		${SYSDIR}/libkern
+CFLAGS+=	-I${SYSDIR}
 CFLAGS+=	-I.
 
 CLEANFILES+=	loader.help
@@ -48,10 +47,6 @@ CFLAGS+=	-DRELOC=${RELOC}
 
 LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 
-# Pull in common loader code
-#.PATH:		${.CURDIR}/../../ofw/common
-#.include	"${.CURDIR}/../../ofw/common/Makefile.inc"
-
 DPADD=		${LIBFICL} ${LIBOFW} ${LIBSA32}
 LDADD=		${LIBFICL} ${LIBOFW} ${LIBSA32}
 
@@ -60,12 +55,12 @@ SC_DFLT_FONT=cp437
 font.h:
 	uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h
 
-loader.help: help.common help.ps3 ${.CURDIR}/../../fdt/help.fdt
+loader.help: help.common help.ps3 ${FDTSRC}/help.fdt
 	cat ${.ALLSRC} | \
 	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
 
-.PATH: ${.CURDIR}/../../forth
-.include	"${.CURDIR}/../../forth/Makefile.inc"
+.PATH: ${BOOTSRC}/forth
+.include	"${BOOTSRC}/forth/Makefile.inc"
 
 FILES+= loader.rc menu.rc
 

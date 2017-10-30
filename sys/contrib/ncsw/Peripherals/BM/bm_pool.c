@@ -545,26 +545,6 @@ t_Handle BM_POOL_GetBufferContext(t_Handle h_BmPool, void *p_Buff)
     return *(t_Handle *)PTR_MOVE(p_Buff, -(sizeof(t_Handle)));
 }
 
-void * BM_POOL_PhysToVirt(t_Handle h_BmPool, physAddress_t addr)
-{
-    t_BmPool            *p_BmPool   = (t_BmPool *)h_BmPool;
-
-    SANITY_CHECK_RETURN_VALUE(p_BmPool, E_INVALID_HANDLE, NULL);
-    SANITY_CHECK_RETURN_VALUE(!p_BmPool->p_BmPoolDriverParams, E_INVALID_HANDLE, NULL);
-
-    return p_BmPool->bufferPoolInfo.f_PhysToVirt(addr);
-}
-
-physAddress_t BM_POOL_VirtToPhys(t_Handle h_BmPool, void *p_Buff)
-{
-    t_BmPool            *p_BmPool   = (t_BmPool *)h_BmPool;
-
-    SANITY_CHECK_RETURN_VALUE(p_BmPool, E_INVALID_HANDLE, (physAddress_t)0);
-    SANITY_CHECK_RETURN_VALUE(!p_BmPool->p_BmPoolDriverParams, E_INVALID_HANDLE, (physAddress_t)0);
-
-    return p_BmPool->bufferPoolInfo.f_VirtToPhys(p_Buff);
-}
-
 uint32_t BM_POOL_GetCounter(t_Handle h_BmPool, e_BmPoolCounters counter)
 {
     t_BmPool            *p_BmPool   = (t_BmPool *)h_BmPool;
