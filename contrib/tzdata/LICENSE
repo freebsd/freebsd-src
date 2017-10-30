@@ -1,4 +1,5 @@
-With a few exceptions, all files in the tz code and data (including
-this one) are in the public domain.  The exceptions are date.c,
-newstrftime.3, and strftime.c, which contain material derived from BSD
-and which use the BSD 3-clause license.
+Unless specified below, all files in the tz code and data (including
+this LICENSE file) are in the public domain.
+
+If the files date.c, newstrftime.3, and strftime.c are present, they
+contain material derived from BSD and use the BSD 3-clause license.
