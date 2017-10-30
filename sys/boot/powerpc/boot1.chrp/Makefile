@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.init.mk>
+
 SSP_CFLAGS=
 
 PROG=           boot1.elf
@@ -12,13 +14,11 @@ SRCS=		boot1.c ashldi3.c syncicache.c
 MAN=
 
 CFLAGS= -ffreestanding -msoft-float \
-	-I${.CURDIR}/../../common -I${.CURDIR}/../../../ \
+	-I${LDRSRC} -I${SYSDIR} -I${SASRC} \
 	-D_STANDALONE
 LDFLAGS=-nostdlib -static -Wl,-N
 
-.include "../Makefile.inc"
-
-.PATH:  ${.CURDIR}/../../../libkern ${SRCTOP}/lib/libc/powerpc/gen ${.CURDIR}
+.PATH:  ${SYSDIR}/libkern ${SRCTOP}/lib/libc/powerpc/gen ${.CURDIR}
 
 # The following inserts out objects into a template HFS 
 # created by generate-hfs.sh
