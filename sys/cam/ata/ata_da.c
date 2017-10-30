@@ -3534,17 +3534,29 @@ adaspindown(uint8_t cmd, int flags)
 static void
 adashutdown(void *arg, int howto)
 {
+	int how;
 
 	adaflush();
 
 	/*
-	 * STANDBY IMMEDIATE flushes any volatile data to the drive so
-	 * do this always to ensure we flush a cosnsistent state to
-	 * the drive. adaspindown will ensure that we don't send this
-	 * to a drive that doesn't support it.
+	 * STANDBY IMMEDIATE saves any volatile data to the drive. It also spins
+	 * down hard drives. IDLE IMMEDIATE also saves the volatile data without
+	 * a spindown. We send the former when we expect to lose power soon. For
+	 * a warm boot, we send the latter to avoid a thundering herd of spinups
+	 * just after the kernel loads while probing. We have to do something to
+	 * flush the data because the BIOS in many systems resets the HBA
+	 * causing a COMINIT/COMRESET negotiation, which some drives interpret
+	 * as license to toss the volatile data, and others count as unclean
+	 * shutdown when in the Active PM state in SMART attributes.
+	 *
+	 * adaspindown will ensure that we don't send this to a drive that
+	 * doesn't support it.
 	 */
-	if (ada_spindown_shutdown != 0)
-		adaspindown(ATA_STANDBY_IMMEDIATE, 0);
+	if (ada_spindown_shutdown != 0) {
+		how = (howto & (RB_HALT | RB_POWEROFF | RB_POWERCYCLE)) ?
+		    ATA_STANDBY_IMMEDIATE : ATA_IDLE_IMMEDIATE;
+		adaspindown(how, 0);
+	}
 }
 
 static void
