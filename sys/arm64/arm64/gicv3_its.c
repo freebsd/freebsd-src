@@ -457,7 +457,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 		/* Allocate the table */
 		table = (vm_offset_t)contigmalloc(npages * PAGE_SIZE,
 		    M_GICV3_ITS, M_WAITOK | M_ZERO, 0, (1ul << 48) - 1,
-		    PAGE_SIZE, 0);
+		    PAGE_SIZE_64K, 0);
 
 		sc->sc_its_ptab[i].ptab_vaddr = table;
 		sc->sc_its_ptab[i].ptab_size = npages * PAGE_SIZE;
