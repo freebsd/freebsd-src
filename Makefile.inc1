@@ -2853,11 +2853,11 @@ _xb-build-tools: .PHONY
 	${CDBENV} ${MAKE} -f Makefile.inc1 ${NOFUN} build-tools
 
 XDEVDIRS= \
+    ${_clang_libs} \
     ${_lld} \
     ${_binutils} \
     ${_elftctools} \
     usr.bin/ar \
-    ${_clang_libs} \
     ${_clang} \
     ${_gcc}
 
