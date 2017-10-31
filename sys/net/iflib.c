@@ -790,20 +790,6 @@ iflib_netmap_register(struct netmap_adapter *na, int onoff)
 	return (status);
 }
 
-static void
-iru_init(if_rxd_update_t iru, iflib_rxq_t rxq, uint8_t flid)
-{
-	iflib_fl_t fl;
-
-	fl = &rxq->ifr_fl[flid];
-	iru->iru_paddrs = fl->ifl_bus_addrs;
-	iru->iru_vaddrs = &fl->ifl_vm_addrs[0];
-	iru->iru_idxs = fl->ifl_rxd_idxs;
-	iru->iru_qsidx = rxq->ifr_id;
-	iru->iru_buf_size = fl->ifl_buf_size;
-	iru->iru_flidx = fl->ifl_id;
-}
-
 static int
 netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, uint32_t nm_i, bool init)
 {
@@ -1235,6 +1221,20 @@ prefetch2cachelines(void *x)
 #define prefetch(x)
 #define prefetch2cachelines(x)
 #endif
+
+static void
+iru_init(if_rxd_update_t iru, iflib_rxq_t rxq, uint8_t flid)
+{
+	iflib_fl_t fl;
+
+	fl = &rxq->ifr_fl[flid];
+	iru->iru_paddrs = fl->ifl_bus_addrs;
+	iru->iru_vaddrs = &fl->ifl_vm_addrs[0];
+	iru->iru_idxs = fl->ifl_rxd_idxs;
+	iru->iru_qsidx = rxq->ifr_id;
+	iru->iru_buf_size = fl->ifl_buf_size;
+	iru->iru_flidx = fl->ifl_id;
+}
 
 static void
 _iflib_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
