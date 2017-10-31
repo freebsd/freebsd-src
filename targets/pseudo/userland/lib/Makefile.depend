@@ -224,6 +224,12 @@ DIRDEPS+= lib/libgpio
 DIRDEPS+= lib/libefivar
 .endif
 
+.if ${MK_LLVM_LIBUNWIND} != "no"
+DIRDEPS+= \
+	lib/libgcc_eh \
+	lib/libgcc_s
+.endif
+
 .if ${MK_OFED} != "no"
 DIRDEPS+= \
 	contrib/ofed/usr.lib/libcxgb4 \
