@@ -7,36 +7,10 @@
 # we need this until there is an alternative
 MK_INSTALL_AS_USER= yes
 
-_default_makeobjdir=$${.CURDIR:S,^$${SRCTOP},$${OBJTOP},}
+# Default OBJROOT/MAKEOBJDIR handled in local.sys.obj.mk
+.include <src.sys.obj.mk>
 
-.if empty(OBJROOT) || ${.MAKE.LEVEL} == 0
-.if defined(MAKEOBJDIRPREFIX) && !empty(MAKEOBJDIRPREFIX)
-# put things approximately where they want
-OBJROOT:=${MAKEOBJDIRPREFIX}${SRCTOP}/
-MAKEOBJDIRPREFIX=
-.export MAKEOBJDIRPREFIX
-.endif
-.if empty(MAKEOBJDIR)
-# OBJTOP set below
-MAKEOBJDIR=${_default_makeobjdir}
-# export but do not track
-.export-env MAKEOBJDIR
-# Expand for our own use
-MAKEOBJDIR:= ${MAKEOBJDIR}
-.endif
-.if !empty(SB)
-SB_OBJROOT ?= ${SB}/obj/
-# this is what we use below
-OBJROOT ?= ${SB_OBJROOT}
-.endif
-OBJROOT ?= /usr/obj${SRCTOP}/
-.if ${OBJROOT:M*/} != ""
-OBJROOT:= ${OBJROOT:H:tA}/
-.else
-OBJROOT:= ${OBJROOT:H:tA}/${OBJROOT:T}
-.endif
-.export OBJROOT SRCTOP
-
+.if !defined(HOST_TARGET)
 # we need HOST_TARGET etc below.
 .include <host-target.mk>
 .export HOST_TARGET
