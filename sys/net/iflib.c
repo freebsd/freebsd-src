@@ -2718,10 +2718,6 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		pi->ipi_ehdrlen = ETHER_HDR_LEN;
 	}
 
-	if (if_getmtu(txq->ift_ctx->ifc_ifp) >= pi->ipi_len) {
-		pi->ipi_csum_flags &= ~(CSUM_IP_TSO|CSUM_IP6_TSO);
-	}
-
 	switch (pi->ipi_etype) {
 #ifdef INET
 	case ETHERTYPE_IP:
