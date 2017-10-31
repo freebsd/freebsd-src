@@ -78,8 +78,7 @@ aligned_int_from_ptr(const void *p)
 	KASSERT(ctx >= VM_MIN_KERNEL_ADDRESS, ("%p is too low!\n", p));
 	ctx -= VM_MIN_KERNEL_ADDRESS;
 	KASSERT((ctx & 0x07) == 0, ("Pointer %p is not 8-byte aligned!\n", p));
-	if ((ctx & (0x7)) != 0)
-		return (0);
+
 	return (ctx >> 3);
 }
 
@@ -88,7 +87,8 @@ ptr_from_aligned_int(uint32_t ctx)
 {
 	uintptr_t p;
 
-	p = VM_MIN_KERNEL_ADDRESS + (ctx << 3);
+	p = ctx;
+	p = VM_MIN_KERNEL_ADDRESS + (p << 3);
 
 	return ((void *)p);
 }
