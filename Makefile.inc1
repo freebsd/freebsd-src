@@ -1986,21 +1986,13 @@ _tcsh=bin/csh
     lib/libmagic \
     usr.bin/mkesdb_static \
     usr.bin/mkcsmapper_static \
-    usr.bin/vi/catalog
+    usr.bin/vi/catalog \
+    ${_gcc_tools}
 build-tools_${_tool}: .PHONY
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,build-tools)"; \
 		cd ${.CURDIR}/${_tool}; \
 		if [ -z "${NO_OBJ}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
 		${MAKE} DIRPRFX=${_tool}/ build-tools
-build-tools: build-tools_${_tool}
-.endfor
-.for _tool in \
-    ${_gcc_tools}
-build-tools_${_tool}: .PHONY
-	${_+_}@${ECHODIR} "===> ${_tool} (obj,all)"; \
-		cd ${.CURDIR}/${_tool}; \
-		if [ -z "${NO_OBJ}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
-		${MAKE} DIRPRFX=${_tool}/ all
 build-tools: build-tools_${_tool}
 .endfor
 
