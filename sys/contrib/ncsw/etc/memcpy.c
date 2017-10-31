@@ -38,7 +38,7 @@
 
 void * MemCpy8(void* pDst, void* pSrc, uint32_t size)
 {
-    int i;
+    uint32_t i;
 
     for(i = 0; i < size; ++i)
         *(((uint8_t*)(pDst)) + i) = *(((uint8_t*)(pSrc)) + i);
@@ -48,7 +48,7 @@ void * MemCpy8(void* pDst, void* pSrc, uint32_t size)
 
 void * MemSet8(void* pDst, int c, uint32_t size)
 {
-    int i;
+    uint32_t i;
 
     for(i = 0; i < size; ++i)
         *(((uint8_t*)(pDst)) + i) = (uint8_t)(c);
