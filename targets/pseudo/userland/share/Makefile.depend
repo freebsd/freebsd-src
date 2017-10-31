@@ -91,6 +91,7 @@ DIRDEPS = \
 	share/xml/atf \
 	share/xsl/atf \
 	share/zoneinfo \
+	sys/boot/man \
 
 
 .include <dirdeps.mk>

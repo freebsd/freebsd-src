@@ -122,10 +122,10 @@ DIRDEPS = \
 	lib/libpam/modules/pam_tacplus \
 	lib/libpam/modules/pam_unix \
 	lib/libpam/static_libpam \
+	lib/libpathconv \
 	lib/libpcap \
 	lib/libpe \
 	lib/libpjdlog \
-	lib/libpmc \
 	lib/libproc \
 	lib/libprocstat \
 	lib/libradius \
@@ -134,13 +134,14 @@ DIRDEPS = \
 	lib/librss \
 	lib/librt \
 	lib/librtld_db \
+	lib/libsa \
 	lib/libsbuf \
 	lib/libsdp \
 	lib/libsm \
 	lib/libsmb \
 	lib/libsmdb \
 	lib/libsmutil \
-	lib/libstand \
+	lib/libsqlite3 \
 	lib/libstdbuf \
 	lib/libstdthreads \
 	lib/libsysdecode \
@@ -193,6 +194,11 @@ DIRDEPS+= \
 
 .endif
 
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
+    ${MACHINE_CPUARCH} == "powerpc"
+DIRDEPS+= sys/boot/libsa32
+.endif
+
 .if defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mfilter}
 DIRDEPS+= lib/libdl
 .endif
@@ -228,6 +234,12 @@ DIRDEPS+= lib/libefivar
 DIRDEPS+= \
 	lib/libgcc_eh \
 	lib/libgcc_s
+.endif
+
+.if ${MK_PMC} != "no"
+DIRDEPS+= \
+	lib/libpmc \
+	lib/libpmcstat
 .endif
 
 .if ${MK_OFED} != "no"
