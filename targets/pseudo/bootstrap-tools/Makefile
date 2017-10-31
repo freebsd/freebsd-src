@@ -86,7 +86,7 @@ BSTCARGS= \
 
 # finally we build toolchain leveraging the above.
 bootstrap-toolchain:	.MAKE cross-tools
-	${BSTCENV} ${MAKE} -C ${.CURDIR:H:H} ${BSTCARGS} toolchain
+	${BSTCENV} ${MAKE} -C ${SRCTOP} ${BSTCARGS} toolchain
 
 # Ensure CCACHE_DIR is ignored since we are processing .meta files here.
 .include <bsd.compiler.mk>
