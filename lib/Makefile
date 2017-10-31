@@ -65,6 +65,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libopenbsd \
 	libopie \
 	libpam \
+	libpathconv \
 	libpcap \
 	libpjdlog \
 	${_libproc} \
