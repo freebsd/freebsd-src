@@ -100,11 +100,9 @@ DIRDEPS+= \
 	sbin/ipf/ipf \
 	sbin/ipf/ipfs \
 	sbin/ipf/ipfstat \
-	sbin/ipf/ipftest \
 	sbin/ipf/ipmon \
 	sbin/ipf/ipnat \
 	sbin/ipf/ippool \
-	sbin/ipf/ipresend \
 	sbin/ipf/libipf \
 	sbin/ipfw \
 	sbin/iscontrol \
