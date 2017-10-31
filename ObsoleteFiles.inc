@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171031: Disconnected libpathconv tests
+OLD_DIRS+=usr/tests/lib/libpathconv
 # 20171017: Removal of mbpool(9)
 OLD_FILES+=usr/include/sys/mbpool.h
 OLD_FILES+=usr/share/man/man9/mbpool.9.gz
