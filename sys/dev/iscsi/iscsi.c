@@ -429,6 +429,8 @@ iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 
 	sc = is->is_softc;
 	sx_xlock(&sc->sc_lock);
+	TAILQ_REMOVE(&sc->sc_sessions, is, is_next);
+	sx_xunlock(&sc->sc_lock);
 
 	icl_conn_close(is->is_conn);
 	callout_drain(&is->is_callout);
@@ -460,8 +462,6 @@ iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 #ifdef ICL_KERNEL_PROXY
 	cv_destroy(&is->is_login_cv);
 #endif
-	TAILQ_REMOVE(&sc->sc_sessions, is, is_next);
-	sx_xunlock(&sc->sc_lock);
 
 	ISCSI_SESSION_DEBUG(is, "terminated");
 	free(is, M_ISCSI);
