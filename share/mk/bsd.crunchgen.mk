@@ -140,10 +140,10 @@ objs: ${OUTMK} .META
 .for _tool in ${CRUNCH_BUILDTOOLS}
 build-tools-${_tool}:
 	${_+_}cd ${.CURDIR}/../../${_tool}; \
-	    ${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} \
-	        ${CRUNCHARGS} obj; \
-	    ${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} ${CRUNCHARGS} \
-	        build-tools
+	    if [ "${MK_AUTO_OBJ}" = "no" ]; then \
+	        ${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} obj; \
+	    fi; \
+	    ${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} build-tools
 build-tools: build-tools-${_tool}
 .endfor
 
