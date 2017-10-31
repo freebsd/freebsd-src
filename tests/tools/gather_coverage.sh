@@ -35,7 +35,7 @@ SCRIPT=${0##*/}
 
 error()
 {
-	printf >&2 "${SCRIPT}: ERROR: $@\n"
+	printf >&2 "${SCRIPT}: ERROR: %s\n" "$@"
 }
 
 require_command()
@@ -45,7 +45,7 @@ require_command()
 	if ! command -v $cmd >/dev/null; then
 		error "required command not found: $cmd"
 		if [ $# -gt 0 ]; then
-			printf >&2 "$@\n"
+			printf >&2 "%s\n" "$@"
 		fi
 		exit 1
 	fi
@@ -54,13 +54,13 @@ require_command()
 
 
 require_command ${GCOV} \
-    "Install gcov from base or the appropriate version from ports"
+    'Install gcov from base, or specify alternate version, e.g., from ports, using $GCOV.'
 for cmd in lcov genhtml; do
-	require_command ${cmd} "Install devel/lcov from ports"
+	require_command ${cmd} "Install devel/lcov from ports."
 done
 
 if ! COVERAGE_TMP=$(mktemp -d tmp.XXXXXX); then
-	error "failed to create COVERAGE_TMP"
+	error "failed to create COVERAGE_TMP."
 	exit 1
 fi
 trap "rm -Rf '$COVERAGE_TMP'" EXIT INT TERM
