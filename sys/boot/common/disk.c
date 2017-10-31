@@ -89,6 +89,12 @@ ptblread(void *d, void *buf, size_t blocks, uint64_t offset)
 	od = (struct open_disk *)dev->d_opendata;
 
 	/*
+	 * The strategy function assumes the offset is in units of 512 byte
+	 * sectors. For larger sector sizes, we need to adjust the offset to
+	 * match the actual sector size.
+	 */
+	offset *= (od->sectorsize / 512);
+	/*
 	 * As the GPT backup partition is located at the end of the disk,
 	 * to avoid reading past disk end, flag bcache not to use RA.
 	 */
