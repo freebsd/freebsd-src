@@ -12,6 +12,28 @@ DIRDEPS = \
 	usr.bin/clang/llvm-objdump \
 	usr.bin/clang/llvm-tblgen \
 
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+DIRDEPS+= \
+	lib/libclang_rt/include \
+	lib/libclang_rt/asan \
+	lib/libclang_rt/asan-preinit \
+	lib/libclang_rt/asan_dynamic \
+	lib/libclang_rt/asan_cxx \
+	lib/libclang_rt/safestack \
+	lib/libclang_rt/stats \
+	lib/libclang_rt/stats_client \
+	lib/libclang_rt/ubsan_standalone \
+	lib/libclang_rt/ubsan_standalone_cxx \
+
+.endif
+
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64" || \
+    (${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH} != "armeb")
+DIRDEPS+= \
+	lib/libclang_rt/profile \
+
+.endif
+
 .if ${MK_LLDB} == "yes"
 DIRDEPS+= \
 	usr.bin/clang/lldb
