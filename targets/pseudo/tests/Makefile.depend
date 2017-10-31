@@ -161,7 +161,6 @@ DIRDEPS= \
       lib/libcasper/services/cap_pwd/tests \
       lib/libcasper/services/cap_sysctl/tests \
       lib/libcrypt/tests \
-      lib/libdevdctl/tests \
       lib/libkvm/tests \
       lib/libmp/tests \
       lib/libnv/tests \
