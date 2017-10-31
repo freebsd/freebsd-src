@@ -45,7 +45,6 @@ DIRDEPS+= gnu/usr.bin/dtc
 .endif
 
 .if ${MK_LLVM_LIBUNWIND} == "no"
-DIRDEPS+= gnu/lib/libgcc
 .endif
 
 .include <dirdeps.mk>
