@@ -188,7 +188,7 @@ dtsec_fm_mac_init(struct dtsec_softc *sc, uint8_t *mac)
 	memset(&params, 0, sizeof(params));
 	memcpy(&params.addr, mac, sizeof(params.addr));
 
-	params.baseAddr = sc->sc_fm_base + sc->sc_mac_mem_offset;
+	params.baseAddr = rman_get_bushandle(sc->sc_mem);
 	params.enetMode = sc->sc_mac_enet_mode;
 	params.macId = sc->sc_eth_id;
 	params.mdioIrq = sc->sc_mac_mdio_irq;

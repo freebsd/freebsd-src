@@ -259,8 +259,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, dohalt ?
-	    "usage: halt [-lNnpq] [-k kernel]\n" :
-	    "usage: reboot [-dlNnpqr] [-k kernel]\n");
+	    "usage: halt [-clNnpq] [-k kernel]\n" :
+	    "usage: reboot [-cdlNnpqr] [-k kernel]\n");
 	exit(1);
 }
 

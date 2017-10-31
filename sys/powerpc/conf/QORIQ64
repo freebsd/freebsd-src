@@ -11,6 +11,7 @@ ident		MPC85XX
 
 machine		powerpc	powerpc64
 
+include 	"dpaa/config.dpaa"
 makeoptions	DEBUG="-Wa,-me500 -g"
 makeoptions	WERROR="-Werror -Wno-format -Wno-redundant-decls"
 makeoptions	NO_MODULES=yes
@@ -73,6 +74,7 @@ device		da
 device		ds1553
 device		em
 device		alc
+device  	dpaa
 device		ether
 device		fxp
 device  	gpio
