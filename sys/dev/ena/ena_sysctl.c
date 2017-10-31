@@ -219,6 +219,7 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	SYSCTL_ADD_PROC(ctx, hw_list, OID_AUTO, "update_stats",
 	    CTLTYPE_INT|CTLFLAG_RD, adapter, 0, ena_sysctl_update_stats,
 	    "A", "Update stats from hardware");
+
 	/* ENA Admin queue stats */
 	admin_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "admin_stats",
 	    CTLFLAG_RD, NULL, "ENA Admin Queue statistics");

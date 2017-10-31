@@ -40,7 +40,7 @@
 #include "ena-com/ena_eth_com.h"
 
 #define DRV_MODULE_VER_MAJOR	0
-#define DRV_MODULE_VER_MINOR	7
+#define DRV_MODULE_VER_MINOR	8
 #define DRV_MODULE_VER_SUBMINOR 0
 
 #define DRV_MODULE_NAME		"ena"
@@ -76,7 +76,7 @@
 #define	ENA_NAME_MAX_LEN		20
 #define	ENA_IRQNAME_SIZE		40
 
-#define	ENA_PKT_MAX_BUFS		19
+#define	ENA_PKT_MAX_BUFS 		19
 #define	ENA_STALL_TIMEOUT		100
 
 #define	ENA_RX_RSS_TABLE_LOG_SIZE	7
@@ -86,11 +86,11 @@
 
 #define	ENA_DMA_BITS_MASK		40
 #define	ENA_MAX_FRAME_LEN		10000
-#define	ENA_MIN_FRAME_LEN		60
+#define	ENA_MIN_FRAME_LEN 		60
 #define	ENA_RX_HASH_KEY_NUM		10
-#define	ENA_RX_THASH_TABLE_SIZE		(1 << 8)
+#define	ENA_RX_THASH_TABLE_SIZE 	(1 << 8)
 
-#define ENA_TX_CLEANUP_TRESHOLD		128
+#define ENA_TX_CLEANUP_THRESHOLD	128
 
 #define DB_THRESHOLD	64
 
@@ -410,6 +410,8 @@ struct ena_adapter {
 	/* Statistics */
 	struct ena_stats_dev dev_stats;
 	struct ena_hw_stats hw_stats;
+
+	enum ena_regs_reset_reason_types reset_reason;
 };
 
 

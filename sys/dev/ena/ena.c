@@ -1612,7 +1612,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 
 	rx_ring->next_to_clean = next_to_clean;
 
-	refill_required = ena_com_sq_empty_space(io_sq);
+	refill_required = ena_com_free_desc(io_sq);
 	refill_threshold = rx_ring->ring_size / ENA_RX_REFILL_THRESH_DEVIDER;
 
 	if (refill_required > refill_threshold) {
@@ -2047,17 +2047,17 @@ static int ena_rss_configure(struct ena_adapter *adapter)
 
 	/* Set indirect table */
 	rc = ena_com_indirect_table_set(ena_dev);
-	if (unlikely(rc && rc != EPERM))
+	if (unlikely(rc && rc != EOPNOTSUPP))
 		return rc;
 
 	/* Configure hash function (if supported) */
 	rc = ena_com_set_hash_function(ena_dev);
-	if (unlikely(rc && (rc != EPERM)))
+	if (unlikely(rc && (rc != EOPNOTSUPP)))
 		return rc;
 
 	/* Configure hash inputs (if supported) */
 	rc = ena_com_set_hash_ctrl(ena_dev);
-	if (unlikely(rc && (rc != EPERM)))
+	if (unlikely(rc && (rc != EOPNOTSUPP)))
 		return rc;
 
 	return 0;
@@ -2506,6 +2506,7 @@ ena_setup_ifnet(device_t pdev, struct ena_adapter *adapter,
 static void
 ena_down(struct ena_adapter *adapter)
 {
+	int rc;
 
 	if (adapter->up) {
 		device_printf(adapter->pdev, "device is going DOWN\n");
@@ -2521,6 +2522,14 @@ ena_down(struct ena_adapter *adapter)
 			taskqueue_drain(adapter->stats_tq, &adapter->stats_task);
 
 		ena_free_io_irq(adapter);
+
+		if (adapter->trigger_reset) {
+			rc = ena_com_dev_reset(adapter->ena_dev,
+			    adapter->reset_reason);
+			if (rc)
+				device_printf(adapter->pdev,
+				    "Device reset failed\n");
+		}
 
 		ena_destroy_all_io_queues(adapter);
 
@@ -2789,7 +2798,8 @@ ena_start_xmit(struct ena_ring *tx_ring)
 		    " header csum flags %#jx",
 		    mbuf, mbuf->m_flags, mbuf->m_pkthdr.csum_flags);
 
-		if (ena_com_sq_empty_space(io_sq) < ENA_TX_CLEANUP_TRESHOLD)
+		if (!ena_com_sq_have_enough_space(io_sq,
+		    ENA_TX_CLEANUP_THRESHOLD))
 			ena_tx_cleanup(tx_ring);
 
 		if ((ret = ena_xmit_mbuf(tx_ring, &mbuf)) != 0) {
@@ -2831,7 +2841,8 @@ ena_start_xmit(struct ena_ring *tx_ring)
 		counter_u64_add(tx_ring->tx_stats.doorbells, 1);
 	}
 
-	if (ena_com_sq_empty_space(io_sq) < ENA_TX_CLEANUP_TRESHOLD)
+	if (!ena_com_sq_have_enough_space(io_sq,
+	    ENA_TX_CLEANUP_THRESHOLD))
 		ena_tx_cleanup(tx_ring);
 }
 
@@ -3000,7 +3011,7 @@ static int ena_rss_init_default(struct ena_adapter *adapter)
 #endif
 		rc = ena_com_indirect_table_fill_entry(ena_dev, i,
 						       ENA_IO_RXQ_IDX(qid));
-		if (unlikely(rc && (rc != EPERM))) {
+		if (unlikely(rc && (rc != EOPNOTSUPP))) {
 			device_printf(dev, "Cannot fill indirect table\n");
 			goto err_fill_indir;
 		}
@@ -3008,13 +3019,13 @@ static int ena_rss_init_default(struct ena_adapter *adapter)
 
 	rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_CRC32, NULL,
 					ENA_HASH_KEY_SIZE, 0xFFFFFFFF);
-	if (unlikely(rc && (rc != EPERM))) {
+	if (unlikely(rc && (rc != EOPNOTSUPP))) {
 		device_printf(dev, "Cannot fill hash function\n");
 		goto err_fill_indir;
 	}
 
 	rc = ena_com_set_default_hash_ctrl(ena_dev);
-	if (unlikely(rc && (rc != EPERM))) {
+	if (unlikely(rc && (rc != EOPNOTSUPP))) {
 		device_printf(dev, "Cannot fill hash control\n");
 		goto err_fill_indir;
 	}
@@ -3087,7 +3098,7 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev)
 
 	rc = ena_com_set_host_attributes(ena_dev);
 	if (rc) {
-		if (rc == EPERM)
+		if (rc == EOPNOTSUPP)
 			ena_trace(ENA_WARNING, "Cannot set host attributes\n");
 		else
 			ena_trace(ENA_ALERT, "Cannot set host attributes\n");
@@ -3124,7 +3135,7 @@ ena_device_init(struct ena_adapter *adapter, device_t pdev,
 	readless_supported = !(pci_get_revid(pdev) & ENA_MMIO_DISABLE_REG_READ);
 	ena_com_set_mmio_read_mode(ena_dev, readless_supported);
 
-	rc = ena_com_dev_reset(ena_dev);
+	rc = ena_com_dev_reset(ena_dev, ENA_REGS_RESET_NORMAL);
 	if (rc) {
 		device_printf(pdev, "Can not reset device\n");
 		goto err_mmio_read_less;
@@ -3255,6 +3266,7 @@ static void check_for_missing_keep_alive(struct ena_adapter *adapter)
 		device_printf(adapter->pdev,
 		    "Keep alive watchdog timeout.\n");
 		counter_u64_add(adapter->dev_stats.wd_expired, 1);
+		adapter->reset_reason = ENA_REGS_RESET_KEEP_ALIVE_TO;
 		adapter->trigger_reset = true;
 	}
 }
@@ -3266,6 +3278,7 @@ static void check_for_admin_com_state(struct ena_adapter *adapter)
 		device_printf(adapter->pdev,
 		    "ENA admin queue is not in running state!\n");
 		counter_u64_add(adapter->dev_stats.admin_q_pause, 1);
+		adapter->reset_reason = ENA_REGS_RESET_ADMIN_TO;
 		adapter->trigger_reset = true;
 	}
 }
@@ -3331,6 +3344,8 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 					    "is above the threshold (%d > %d). "
 					    "Reset the device\n", missed_tx,
 					    adapter->missing_tx_threshold);
+					adapter->reset_reason =
+					    ENA_REGS_RESET_MISS_TX_CMPL;
 					adapter->trigger_reset = true;
 					return;
 				}
@@ -3398,15 +3413,15 @@ ena_reset_task(void *arg, int pending)
 	dev_up = adapter->up;
 
 	ena_com_set_admin_running_state(ena_dev, false);
-	ena_free_mgmnt_irq(adapter);
 	ena_down(adapter);
-	ena_com_dev_reset(ena_dev);
+	ena_free_mgmnt_irq(adapter);
 	ena_disable_msix(adapter);
 	ena_com_abort_admin_commands(ena_dev);
 	ena_com_wait_for_abort_completion(ena_dev);
 	ena_com_admin_destroy(ena_dev);
 	ena_com_mmio_reg_read_request_destroy(ena_dev);
 
+	adapter->reset_reason = ENA_REGS_RESET_NORMAL;
 	adapter->trigger_reset = false;
 
 	/* Finished destroy part. Restart the device */
@@ -3443,7 +3458,6 @@ ena_reset_task(void *arg, int pending)
 	return;
 
 err_msix_free:
-	ena_com_dev_reset(ena_dev);
 	ena_free_mgmnt_irq(adapter);
 	ena_disable_msix(adapter);
 err_com_free:
@@ -3588,6 +3602,8 @@ ena_attach(device_t pdev)
 		goto err_com_free;
 	}
 
+	adapter->reset_reason = ENA_REGS_RESET_NORMAL;
+
 	adapter->tx_ring_size = queue_size;
 	adapter->rx_ring_size = queue_size;
 
@@ -3664,6 +3680,7 @@ ena_attach(device_t pdev)
 err_stats_tq:
 	taskqueue_free(adapter->reset_tq);
 err_reset_tq:
+	ena_com_dev_reset(ena_dev, ENA_REGS_RESET_INIT_ERR);
 	ena_free_mgmnt_irq(adapter);
 	ena_disable_msix(adapter);
 err_ifp_free:
@@ -3745,7 +3762,7 @@ ena_detach(device_t pdev)
 
 	/* Reset the device only if the device is running. */
 	if (adapter->running)
-		ena_com_dev_reset(ena_dev);
+		ena_com_dev_reset(ena_dev, adapter->reset_reason);
 
 	ena_com_delete_host_info(ena_dev);
 
