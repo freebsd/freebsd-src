@@ -29,7 +29,8 @@ CXXFLAGS+=	-std=c++11
 .endif
 CXXFLAGS+=	-fno-rtti
 STATIC_CXXFLAGS+= -fvisibility=hidden -fPIC
+# Probably need to just move this earlier or use CXXFLAGS
 .if ${MK_DIRDEPS_BUILD} == "yes"
 # Avoid dependency on lib/libc++
-CFLAGS+=	-I${SRCTOP}/contrib/libc++/include
+CFLAGS+=	-isystem ${SRCTOP}/contrib/libc++/include -nostdinc++
 .endif
