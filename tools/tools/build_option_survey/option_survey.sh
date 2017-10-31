@@ -13,6 +13,7 @@ ODIR=/usr/obj/`pwd`
 FDIR=${ODIR}/files
 MNT=${ODIR}/_.mnt
 RDIR=${ODIR}/_.result
+: ${MAKE_JOBS:="-j$(sysctl -n hw.ncpu)"}
 
 export ODIR MNT RDIR FDIR
 
@@ -26,7 +27,7 @@ bw ( ) (
 	if [ $a -ne 0 ] ; then
 		exit 1
 	fi
-	make -j 4 buildworld \
+	make ${MAKE_JOBS} buildworld \
 		SRCCONF=${ODIR}/src.conf __MAKE_CONF=/dev/null \
 		> ${FDIR}/_.bw 2>&1
 	a=$?
@@ -34,7 +35,7 @@ bw ( ) (
 	if [ $a -ne 0 ] ; then
 		exit 1
 	fi
-	make -j 4 buildkernel \
+	make ${MAKE_JOBS} buildkernel \
 		KERNCONF=GENERIC \
 		SRCCONF=${ODIR}/src.conf __MAKE_CONF=/dev/null \
 		> ${FDIR}/_.bk 2>&1
@@ -53,7 +54,7 @@ iw ( ) (
 	mount /dev/md${MDUNIT} ${MNT}
 
 	cd ../../..
-	make installworld \
+	make ${MAKE_JOBS} installworld \
 		SRCCONF=${ODIR}/src.conf __MAKE_CONF=/dev/null \
 		DESTDIR=${MNT} \
 		> ${FDIR}/_.iw 2>&1
@@ -73,7 +74,7 @@ iw ( ) (
 		exit 1
 	fi
 	cd ..
-	make installkernel \
+	make ${MAKE_JOBS} installkernel \
 		KERNCONF=GENERIC \
 		DESTDIR=${MNT} \
 		SRCCONF=${ODIR}/src.conf __MAKE_CONF=/dev/null \
