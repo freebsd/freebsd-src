@@ -26,21 +26,15 @@ CWARNFLAGS.zfs_module.c += -Wno-missing-prototypes
 CWARNFLAGS.zfs_module.c += -Wno-sign-compare
 CWARNFLAGS.zfs_module.c += -Wno-unused-parameter
 CWARNFLAGS.zfs_module.c += -Wno-unused-function
-CWARNFLAGS.skein.c += -Wno-cast-align
-.if ${COMPILER_TYPE} == "clang"
-CWARNFLAGS.skein.c += -Wno-missing-variable-declarations
-.else if ${COMPILER_TYPE} == "gcc"
-CWARNFLAGS.skein.c += -Wno-missing-declarations
-.endif
 
 # architecture-specific loader code
 SRCS=	boot1.c self_reloc.c start.S ufs_module.c
 .if ${MK_ZFS} != "no"
 SRCS+=		zfs_module.c
-SRCS+=		skein.c skein_block.c
-# Do not unroll skein loops, reduce code size
-CFLAGS+=	-DSKEIN_LOOP=111
-.PATH:		${SYSDIR}/crypto/skein
+CFLAGS+=	-I${ZFSSRC}
+CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
+CFLAGS+=	-DEFI_ZFS_BOOT
+LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 .endif
 
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201
@@ -55,13 +49,6 @@ CFLAGS+=	-I${SYSDIR}
 CFLAGS+=	-DEFI_UFS_BOOT
 .ifdef(EFI_DEBUG)
 CFLAGS+=	-DEFI_DEBUG
-.endif
-
-.if ${MK_ZFS} != "no"
-CFLAGS+=	-I${BOOTSRC}/zfs/
-CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs/
-CFLAGS+=	-I${SYSDIR}/crypto/skein
-CFLAGS+=	-DEFI_ZFS_BOOT
 .endif
 
 # Always add MI sources and REGULAR efi loader bits
@@ -91,8 +78,8 @@ LIBEFI=		${BOOTOBJ}/efi/libefi/libefi.a
 # __aeabi_* (arm) or __divdi3 (i386).
 # as well as required string and memory functions for all platforms.
 #
-DPADD+=		${LIBEFI} ${LIBSA}
-LDADD+=		${LIBEFI} ${LIBSA}
+DPADD+=		${LIBEFI} ${LIBZFSBOOT} ${LIBSA}
+LDADD+=		${LIBEFI} ${LIBZFSBOOT} ${LIBSA}
 
 DPADD+=		${LDSCRIPT}
 

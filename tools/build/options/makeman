@@ -44,7 +44,7 @@ no_targets()
 
 show_options()
 {
-	ALL_TARGETS=$(echo $(${make} targets | tail -n +2))
+	ALL_TARGETS=$(echo $(${make} targets MK_AUTO_OBJ=no | tail -n +2))
 	rm -f $t/settings
 	for target in ${ALL_TARGETS} ; do
 		prev_opt=
@@ -245,7 +245,7 @@ EOF
 	show with SRC_ENV_CONF=/dev/null | sort | sed 's/$/=/' > $t/src.conf
 	show settings SRC_ENV_CONF=$t/src.conf | sort > $t/config_WITH_ALL
 	show without SRC_ENV_CONF=/dev/null | sort > $t/config_WITHOUT_ALL
-	env_only_options="$(${make} -V __ENV_ONLY_OPTIONS)"
+	env_only_options="$(${make} MK_AUTO_OBJ=no -V __ENV_ONLY_OPTIONS)"
 
 	show_options |
 	while read opt targets ; do

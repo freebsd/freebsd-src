@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-SUBDIR+=		efi
 SUBDIR+=		libsa32
-SUBDIR+=		zfs
-
 .if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 SUBDIR+=		geli
 .endif
+SUBDIR+=		zfs
+
+SUBDIR+=		efi

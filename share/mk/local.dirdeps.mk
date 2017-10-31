@@ -76,6 +76,19 @@ DIRDEPS += \
 	cddl/usr.bin/ctfmerge.host
 .endif
 
+# Add in proper libgcc (gnu or LLVM) if not building libcc and libc is needed.
+# Add both gcc_s and gcc_eh as dependencies as the decision to build
+# -static or not is not known here.
+.if ${DEP_RELDIR:M*libgcc*} == "" && ${DIRDEPS:Mlib/libc}
+.if ${MK_LLVM_LIBUNWIND} == "yes"
+DIRDEPS+= \
+	lib/libgcc_eh \
+	lib/libgcc_s
+.else
+DIRDEPS+= gnu/lib/libgcc
+.endif
+.endif
+
 # Bootstrap support.  Give hints to DIRDEPS if there is no Makefile.depend*
 # generated yet.  This can be based on things such as SRC files and LIBADD.
 # These hints will not factor into the final Makefile.depend as only what is
@@ -124,7 +137,6 @@ _SRCS= ${SRCS} ${_PROGS_SRCS}
 # Has C files. The C_DIRDEPS are shared with C++ files as well.
 C_DIRDEPS= \
 	gnu/lib/csu \
-	gnu/lib/libgcc \
 	include \
 	include/arpa \
 	include/protocols \
@@ -135,6 +147,7 @@ C_DIRDEPS= \
 	lib/libc \
 	lib/libcompiler_rt \
 
+# libgcc is needed as well but is added later.
 
 .if ${MK_GSSAPI} != "no"
 C_DIRDEPS+=  include/gssapi

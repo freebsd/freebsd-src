@@ -25,14 +25,12 @@ LOADER_GZIP_SUPPORT?=	yes
 LOADER_BZIP2_SUPPORT?=	no
 LOADER_DEBUG?=		no
 
-CFLAGS+=-nostdlib
-
 .if ${LOADER_DEBUG} == "yes"
 CFLAGS+=	-DLOADER_DEBUG
 .endif
 .if ${LOADER_ZFS_SUPPORT} == "yes"
 CFLAGS+=	-DLOADER_ZFS_SUPPORT
-CFLAGS+=	-I${BOOTSRC}/zfs
+CFLAGS+=	-I${ZFSSRC}
 CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
 LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 .endif
@@ -43,7 +41,7 @@ CFLAGS+=	-I.
 
 CLEANFILES+=	loader.help
 
-LDFLAGS=	-static
+LDFLAGS+=	-static
 
 # Open Firmware standalone support library
 LIBOFW=		${BOOTOBJ}/ofw/libofw/libofw.a

@@ -358,6 +358,8 @@
             dlopen
             ..
         ..
+        libpathconv
+        ..
         libutil
         ..
         libxo

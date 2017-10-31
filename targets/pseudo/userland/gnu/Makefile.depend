@@ -9,7 +9,6 @@
 DIRDEPS = \
 	gnu/lib/csu \
 	gnu/lib/libdialog \
-	gnu/lib/libgcc \
 	gnu/lib/libgcov \
 	gnu/lib/libgomp \
 	gnu/lib/libreadline/history/doc \
@@ -43,6 +42,9 @@ DIRDEPS = \
 
 .if ${MK_GPL_DTC} != "no"
 DIRDEPS+= gnu/usr.bin/dtc
+.endif
+
+.if ${MK_LLVM_LIBUNWIND} == "no"
 .endif
 
 .include <dirdeps.mk>
