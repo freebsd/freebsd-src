@@ -307,13 +307,13 @@ struct ena_stats_dev {
 };
 
 struct ena_hw_stats {
-	uint64_t rx_packets;
-	uint64_t tx_packets;
+	counter_u64_t rx_packets;
+	counter_u64_t tx_packets;
 
-	uint64_t rx_bytes;
-	uint64_t tx_bytes;
+	counter_u64_t rx_bytes;
+	counter_u64_t tx_bytes;
 
-	uint64_t rx_drops;
+	counter_u64_t rx_drops;
 };
 
 /* Board specific private data structure */
@@ -403,10 +403,6 @@ struct ena_adapter {
 	uint32_t missing_tx_max_queues;
 	uint32_t missing_tx_threshold;
 
-	/* Task updating hw stats */
-	struct task stats_task;
-	struct taskqueue *stats_tq;
-
 	/* Statistics */
 	struct ena_stats_dev dev_stats;
 	struct ena_hw_stats hw_stats;
@@ -426,8 +422,6 @@ struct ena_dev *ena_efa_enadev_get(device_t pdev);
 
 int ena_register_adapter(struct ena_adapter *adapter);
 void ena_unregister_adapter(struct ena_adapter *adapter);
-
-int ena_update_stats_counters(struct ena_adapter *adapter);
 
 static inline int ena_mbuf_count(struct mbuf *mbuf)
 {
