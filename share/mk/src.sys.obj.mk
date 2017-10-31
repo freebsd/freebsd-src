@@ -31,8 +31,10 @@ OBJROOT:=	${OBJROOT:H:tA}/${OBJROOT:T}
 .export OBJROOT SRCTOP
 .endif
 
+.if 0
 .if defined(MAKEOBJDIR)
 .if ${MAKEOBJDIR:M/*} == ""
 .error Cannot use MAKEOBJDIR=${MAKEOBJDIR}${.newline}Unset MAKEOBJDIR to get default:  MAKEOBJDIR='${_default_makeobjdir}'
+.endif
 .endif
 .endif
