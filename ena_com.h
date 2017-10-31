@@ -133,6 +133,15 @@ struct ena_com_tx_meta {
 	u16 l4_hdr_len; /* In words */
 };
 
+struct ena_com_llq_info {
+	bool inline_header;
+	u16 desc_stride_ctrl;
+
+	u16 desc_list_entry_size;
+	u16 descs_num_before_header;
+	u16 descs_per_entry;
+};
+
 struct ena_com_io_cq {
 	struct ena_com_io_desc_addr cdesc_addr;
 	void *bus;
@@ -171,6 +180,20 @@ struct ena_com_io_cq {
 
 } ____cacheline_aligned;
 
+struct ena_com_io_bounce_buffer_control {
+	u8 *base_buffer;
+	u16 next_to_use;
+	u16 buffer_size;
+	u16 buffers_num;  /* Must be a power of 2 */
+};
+
+/* This struct is to keep tracking the current location of the next llq entry */
+struct ena_com_llq_pkt_ctrl {
+	u8 *curr_bounce_buf;
+	u16 idx;
+	u16 descs_left_in_line;
+};
+
 struct ena_com_io_sq {
 	struct ena_com_io_desc_addr desc_addr;
 	void *bus;
@@ -183,6 +206,9 @@ struct ena_com_io_sq {
 
 	u32 msix_vector;
 	struct ena_com_tx_meta cached_tx_meta;
+	struct ena_com_llq_info llq_info;
+	struct ena_com_llq_pkt_ctrl llq_buf_ctrl;
+	struct ena_com_io_bounce_buffer_control bounce_buf_ctrl;
 
 	u16 q_depth;
 	u16 qid;
@@ -190,6 +216,7 @@ struct ena_com_io_sq {
 	u16 idx;
 	u16 tail;
 	u16 next_to_comp;
+	u16 llq_last_copy_tail;
 	u32 tx_max_header_size;
 	u8 phase;
 	u8 desc_entry_size;
@@ -321,6 +348,7 @@ struct ena_com_dev {
 	void __iomem *mem_bar;
 	void *dmadev;
 	void *bus;
+
 	enum ena_admin_placement_policy_type tx_mem_queue_type;
 	u32 tx_max_header_size;
 	u16 stats_func; /* Selected function for extended statistic dump */
@@ -337,6 +365,8 @@ struct ena_com_dev {
 	u16 intr_delay_resolution;
 	u32 intr_moder_tx_interval;
 	struct ena_intr_moder_entry *intr_moder_tbl;
+
+	struct ena_com_llq_info llq_info;
 };
 
 struct ena_com_dev_get_features_ctx {
@@ -345,6 +375,7 @@ struct ena_com_dev_get_features_ctx {
 	struct ena_admin_feature_aenq_desc aenq;
 	struct ena_admin_feature_offload_desc offload;
 	struct ena_admin_ena_hw_hints hw_hints;
+	struct ena_admin_feature_llq_desc llq;
 };
 
 struct ena_com_create_io_ctx {
@@ -426,10 +457,12 @@ void ena_com_admin_destroy(struct ena_com_dev *ena_dev);
 
 /* ena_com_dev_reset - Perform device FLR to the device.
  * @ena_dev: ENA communication layer struct
+ * @reset_reason: Specify what is the trigger for the reset in case of an error.
  *
  * @return - 0 on success, negative value on failure.
  */
-int ena_com_dev_reset(struct ena_com_dev *ena_dev);
+int ena_com_dev_reset(struct ena_com_dev *ena_dev,
+		      enum ena_regs_reset_reason_types reset_reason);
 
 /* ena_com_create_io_queue - Create io queue.
  * @ena_dev: ENA communication layer struct
@@ -939,6 +972,15 @@ void ena_com_get_intr_moderation_entry(struct ena_com_dev *ena_dev,
 				       enum ena_intr_moder_level level,
 				       struct ena_intr_moder_entry *entry);
 
+
+/* ena_com_config_dev_mode - Configure the placement policy of the device.
+ * @ena_dev: ENA communication layer struct
+ * @llq: LLQ feature descriptor, retrieve via ena_com_get_dev_attr_feat.
+ *
+ */
+int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
+			    struct ena_admin_feature_llq_desc *llq);
+
 static inline bool ena_com_get_adaptive_moderation_enabled(struct ena_com_dev *ena_dev)
 {
 	return ena_dev->adaptive_coalescing;
@@ -1048,6 +1090,30 @@ static inline void ena_com_update_intr_reg(struct ena_eth_io_intr_reg *intr_reg,
 		intr_reg->intr_control |= ENA_ETH_IO_INTR_REG_INTR_UNMASK_MASK;
 }
 
+static inline u8 *ena_com_get_next_bounce_buffer(struct ena_com_io_bounce_buffer_control *bounce_buf_ctrl)
+{
+	u16 size, buffers_num;
+	u8 *buf;
+
+	size = bounce_buf_ctrl->buffer_size;
+	buffers_num = bounce_buf_ctrl->buffers_num;
+
+	buf = bounce_buf_ctrl->base_buffer +
+		(bounce_buf_ctrl->next_to_use++ & (buffers_num - 1)) * size;
+
+	prefetch(bounce_buf_ctrl->base_buffer +
+		(bounce_buf_ctrl->next_to_use & (buffers_num - 1)) * size);
+
+	return buf;
+}
+
+#ifdef ENA_EXTENDED_STATS
+int ena_com_get_dev_extended_stats(struct ena_com_dev *ena_dev, char *buff,
+				   u32 len);
+
+int ena_com_extended_stats_set_func_queue(struct ena_com_dev *ena_dev,
+					  u32 funct_queue);
+#endif
 #if defined(__cplusplus)
 }
 #endif /* __cplusplus */
