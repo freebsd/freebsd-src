@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 
 #include "ena_sysctl.h"
 
-static int	ena_sysctl_update_stats(SYSCTL_HANDLER_ARGS);
 static void	ena_sysctl_add_stats(struct ena_adapter *);
 
 void
@@ -205,20 +204,16 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	    CTLFLAG_RD, NULL, "Statistics from hardware");
 	hw_list = SYSCTL_CHILDREN(hw_node);
 
-	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "rx_packets", CTLFLAG_RD,
-	    &hw_stats->rx_packets, 0, "Packets received");
-	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "tx_packets", CTLFLAG_RD,
-	    &hw_stats->tx_packets, 0, "Packets transmitted");
-	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "rx_bytes", CTLFLAG_RD,
-	    &hw_stats->rx_bytes, 0, "Bytes received");
-	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "tx_bytes", CTLFLAG_RD,
-	    &hw_stats->tx_bytes, 0, "Bytes transmitted");
-	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "rx_drops", CTLFLAG_RD,
-	    &hw_stats->rx_drops, 0, "Receive packet drops");
-
-	SYSCTL_ADD_PROC(ctx, hw_list, OID_AUTO, "update_stats",
-	    CTLTYPE_INT|CTLFLAG_RD, adapter, 0, ena_sysctl_update_stats,
-	    "A", "Update stats from hardware");
+	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "rx_packets", CTLFLAG_RD,
+	    &hw_stats->rx_packets, "Packets received");
+	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "tx_packets", CTLFLAG_RD,
+	    &hw_stats->tx_packets, "Packets transmitted");
+	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "rx_bytes", CTLFLAG_RD,
+	    &hw_stats->rx_bytes, "Bytes received");
+	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "tx_bytes", CTLFLAG_RD,
+	    &hw_stats->tx_bytes, "Bytes transmitted");
+	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "rx_drops", CTLFLAG_RD,
+	    &hw_stats->rx_drops, "Receive packet drops");
 
 	/* ENA Admin queue stats */
 	admin_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "admin_stats",
@@ -235,18 +230,5 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	    &admin_stats->out_of_space, 0, "Queue out of space");
 	SYSCTL_ADD_U32(ctx, admin_list, OID_AUTO, "no_completion", CTLFLAG_RD,
 	    &admin_stats->no_completion, 0, "Commands not completed");
-}
-
-static int
-ena_sysctl_update_stats(SYSCTL_HANDLER_ARGS)
-{
-	struct ena_adapter *adapter = (struct ena_adapter *)arg1;
-	int rc;
-
-	if (adapter->up)
-		ena_update_stats_counters(adapter);
-
-	rc = sysctl_handle_string(oidp, "", 1, req);
-	return (rc);
 }
 
