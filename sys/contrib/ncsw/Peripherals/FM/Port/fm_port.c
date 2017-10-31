@@ -1996,7 +1996,7 @@ t_Error FmPortGetSetCcParams(t_Handle h_FmPort,
                              t_FmPortGetSetCcParams *p_CcParams)
 {
     t_FmPort *p_FmPort = (t_FmPort*)h_FmPort;
-    int tmpInt;
+    uint32_t tmpInt;
     volatile uint32_t *p_BmiPrsStartOffset = NULL;
 
     /* this function called from Cc for pass and receive parameters port params between CC and PORT*/

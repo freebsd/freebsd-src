@@ -52,6 +52,7 @@ struct dtsec_softc {
 	struct ifnet			*sc_ifnet;
 
 	device_t			sc_dev;
+	struct resource			*sc_mem;
 	struct mtx			sc_lock;
 	int				sc_mode;
 

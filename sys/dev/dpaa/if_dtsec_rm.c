@@ -161,7 +161,7 @@ dtsec_rm_fm_port_rx_init(struct dtsec_softc *sc, int unit)
 	params.h_Fm = sc->sc_fmh;
 	params.portType = dtsec_fm_port_rx_type(sc->sc_eth_dev_type);
 	params.portId = sc->sc_eth_id;
-	params.independentModeEnable = FALSE;
+	params.independentModeEnable = false;
 	params.liodnBase = FM_PORT_LIODN_BASE;
 	params.f_Exception = dtsec_fm_port_rx_exception_callback;
 	params.h_App = sc;
@@ -209,7 +209,7 @@ dtsec_rm_fm_port_tx_init(struct dtsec_softc *sc, int unit)
 	params.h_Fm = sc->sc_fmh;
 	params.portType = dtsec_fm_port_tx_type(sc->sc_eth_dev_type);
 	params.portId = sc->sc_eth_id;
-	params.independentModeEnable = FALSE;
+	params.independentModeEnable = false;
 	params.liodnBase = FM_PORT_LIODN_BASE;
 	params.f_Exception = dtsec_fm_port_tx_exception_callback;
 	params.h_App = sc;
@@ -458,7 +458,7 @@ dtsec_rm_fqr_rx_init(struct dtsec_softc *sc)
 
 	/* Default Frame Queue */
 	fqr = qman_fqr_create(1, DTSEC_RM_FQR_RX_CHANNEL, DTSEC_RM_FQR_RX_WQ,
-	    FALSE, 0, FALSE, FALSE, TRUE, FALSE, 0, 0, 0);
+	    false, 0, false, false, true, false, 0, 0, 0);
 	if (fqr == NULL) {
 		device_printf(sc->sc_dev, "could not create default RX queue"
 		    "\n");
@@ -497,7 +497,7 @@ dtsec_rm_fqr_tx_init(struct dtsec_softc *sc)
 
 	/* TX Frame Queue */
 	fqr = qman_fqr_create(1, sc->sc_port_tx_qman_chan,
-	    DTSEC_RM_FQR_TX_WQ, FALSE, 0, FALSE, FALSE, TRUE, FALSE, 0, 0, 0);
+	    DTSEC_RM_FQR_TX_WQ, false, 0, false, false, true, false, 0, 0, 0);
 	if (fqr == NULL) {
 		device_printf(sc->sc_dev, "could not create default TX queue"
 		    "\n");
@@ -508,7 +508,7 @@ dtsec_rm_fqr_tx_init(struct dtsec_softc *sc)
 
 	/* TX Confirmation Frame Queue */
 	fqr = qman_fqr_create(1, DTSEC_RM_FQR_TX_CONF_CHANNEL,
-	    DTSEC_RM_FQR_TX_CONF_WQ, FALSE, 0, FALSE, FALSE, TRUE, FALSE, 0, 0,
+	    DTSEC_RM_FQR_TX_CONF_WQ, false, 0, false, false, true, false, 0, 0,
 	    0);
 	if (fqr == NULL) {
 		device_printf(sc->sc_dev, "could not create TX confirmation "
