@@ -218,10 +218,16 @@ __TT=${MACHINE}
 # This means that architectures that have GCC 4.2 as default can not
 # build Clang without using an external compiler.
 
+# Note about MK_COVERAGE:
+#
+# clang and gcc 4.8+ (c++11 supporting compilers) support -fprofile-dir and
+# can compile lib/libclang_rt/profile . libgcov, etc, in base is a dead end
+# that I do not wish to support.
+
 .if ${COMPILER_FEATURES:Mc++11} && (${__T} == "aarch64" || \
     ${__T} == "amd64" || ${__TT} == "arm" || ${__T} == "i386")
 # Clang is enabled, and will be installed as the default /usr/bin/cc.
-__DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC LLD
+__DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC COVERAGE LLD
 __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
 .elif ${COMPILER_FEATURES:Mc++11} && ${__T:Mriscv*} == "" && ${__T} != "sparc64"
 # If an external compiler that supports C++11 is used as ${CC} and Clang
@@ -229,10 +235,13 @@ __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
 # default /usr/bin/cc.
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
 __DEFAULT_NO_OPTIONS+=CLANG_BOOTSTRAP CLANG_IS_CC LLD
+# Some gcc cross-toolchain packages are currently broken: bug 223174.
+BROKEN_OPTIONS+=COVERAGE
 .else
 # Everything else disables Clang, and uses GCC instead.
 __DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
 __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC LLD
+BROKEN_OPTIONS+=COVERAGE
 .endif
 # In-tree binutils/gcc are older versions without modern architecture support.
 .if ${__T} == "aarch64" || ${__T:Mriscv*} != ""
@@ -290,15 +299,6 @@ BROKEN_OPTIONS+=PROFILE
 __DEFAULT_YES_OPTIONS+=CXGBETOOL
 .else
 __DEFAULT_NO_OPTIONS+=CXGBETOOL
-.endif
-
-# clang and gcc 4.8+ (c++11 supporting compilers) support -fprofile-dir and
-# can compile lib/libclang_rt/profile . libgcov, etc, in base is a dead end
-# that I (ngie) do not wish to support with MK_COVERAGE.
-#
-# NB: some gcc cross-toolchain packages are currently broken: bug 223174.
-.if !${COMPILER_FEATURES:Mc++11}
-BROKEN_OPTIONS+=COVERAGE
 .endif
 
 .include <bsd.mkopt.mk>
