@@ -2288,7 +2288,6 @@ _coverage_libs+=	lib/libclang_rt/profile
 .endif
 .if !empty(_coverage_libs)
 _prereq_libs+=	${_coverage_libs}
-_startup_libs+=	${_coverage_libs}
 .endif
 
 # These dependencies are not automatically generated:
