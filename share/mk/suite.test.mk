@@ -79,6 +79,41 @@ Kyuafile: Makefile
 
 KYUA= ${LOCALBASE}/bin/kyua
 
+MAKE_CHECK_SANDBOX_DIR=	${.OBJDIR}/checkdir
+CLEANDIRS+=	${MAKE_CHECK_SANDBOX_DIR}
+
+.if ${MK_MAKE_CHECK_USE_SANDBOX} != "no" && make(check)
+DESTDIR:=	${MAKE_CHECK_SANDBOX_DIR}
+
+.if ${MK_MAKE_CHECK_TEST_WITH_COVERAGE} != "no"
+GCOV?=		gcov
+GCOV_PREFIX?=
+
+TESTS_ENV+=	GCOV=${GCOV} GCOV_PREFIX=${GCOV_PREFIX}
+.endif
+
+beforecheck:
+.for t in clean depend all
+.for dir in ${SRCTOP}/tests/tools ${.CURDIR}
+	@cd ${dir} && ${MAKE} $t
+.endfor
+.endfor
+	@cd ${SRCTOP} && ${MAKE} hierarchy DESTDIR=${DESTDIR}
+.for dir in ${SRCTOP}/tests/tools ${.CURDIR}
+	@cd ${dir} && ${MAKE} install DESTDIR=${DESTDIR}
+.endfor
+
+# NOTE: this is intentional to ensure that "make check" can be run multiple
+#       times. "aftercheck" won't be run if "make check" fails, is interrupted,
+#       etc.
+aftercheck:
+	find ${GCOV_PREFIX} -name \*.gcda
+.if ${MK_MAKE_CHECK_TEST_WITH_COVERAGE} != "no"
+	@env ${TESTS_ENV:Q} ${TESTSBASE}/tools/gather_coverage
+.endif
+	@cd ${.CURDIR} && ${MAKE} clean
+.endif
+
 # Definition of the "make check" target and supporting variables.
 #
 # This target, by necessity, can only work for native builds (i.e. a FreeBSD
@@ -99,26 +134,5 @@ realcheck: .PHONY
 		echo "LOCALBASE=\"${LOCALBASE}\""; \
 		false; \
 	fi
-	@env ${TESTS_ENV:Q} ${KYUA} test -k ${DESTDIR}${TESTSDIR}/Kyuafile
-
-MAKE_CHECK_SANDBOX_DIR=	${.OBJDIR}/checkdir
-CLEANDIRS+=	${MAKE_CHECK_SANDBOX_DIR}
-
-.if ${MK_MAKE_CHECK_USE_SANDBOX} != "no" && make(check)
-DESTDIR:=	${MAKE_CHECK_SANDBOX_DIR}
-
-beforecheck:
-.for t in clean depend all
-	@cd ${.CURDIR} && ${MAKE} $t
-.endfor
-	@cd ${SRCTOP} && ${MAKE} hierarchy DESTDIR=${DESTDIR}
-	@cd ${.CURDIR} && ${MAKE} install \
-	    DESTDIR=${DESTDIR}
-
-# NOTE: this is intentional to ensure that "make check" can be run multiple
-#       times. "aftercheck" won't be run if "make check" fails, is interrupted,
-#       etc.
-aftercheck:
-	@cd ${.CURDIR} && ${MAKE} clean
-
-.endif
+	@env ${TESTS_ENV:Q} ${KYUA} test ${KYUA_VARIABLES} \
+	    -k ${DESTDIR}${TESTSDIR}/Kyuafile
