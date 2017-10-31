@@ -65,7 +65,7 @@ int cap_grp_limit_groups(cap_channel_t *chan, const char * const *names,
 
 #define	cap_setgroupent(chan, stayopen) etgroupent(stayopen)
 #define endgrent(chan)			endgrent()
-inline int
+static inline int
 cap_setgrent(cap_channel_t *chan __unused)
 {
 
