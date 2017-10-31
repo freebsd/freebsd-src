@@ -2752,7 +2752,8 @@ builddtb: .PHONY
 #
 # It is expected that BW_CANONICALOBJDIR == the CANONICALOBJDIR as would be
 # created by bsd.obj.mk, except that we don't want to .include that file
-# in this makefile.
+# in this makefile.  We don't do a cleandir walk if MK_AUTO_OBJ is yes
+# since it is not possible for files to land in the wrong place.
 #
 BW_CANONICALOBJDIR:=${OBJTREE}${.CURDIR}
 cleanworld: .PHONY
@@ -2761,9 +2762,11 @@ cleanworld: .PHONY
 	-chflags -R 0 ${BW_CANONICALOBJDIR}
 	rm -rf ${BW_CANONICALOBJDIR}/*
 .endif
+.if ${MK_AUTO_OBJ} == "no"
 .if ${.CURDIR} == ${.OBJDIR} || ${.CURDIR}/obj == ${.OBJDIR}
 	#   To be safe in this case, fall back to a 'make cleandir'
 	${_+_}@cd ${.CURDIR}; ${MAKE} cleandir
+.endif
 .endif
 
 .if ${TARGET} == ${MACHINE} && ${TARGET_ARCH} == ${MACHINE_ARCH}
