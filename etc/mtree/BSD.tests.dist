@@ -527,6 +527,8 @@
         vm
         ..
     ..
+    tools
+    ..
     usr.bin
         apply
         ..
