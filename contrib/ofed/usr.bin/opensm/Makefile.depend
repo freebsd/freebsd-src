@@ -8,7 +8,6 @@ DIRDEPS = \
 	contrib/ofed/usr.lib/libosmcomp \
 	contrib/ofed/usr.lib/libosmvendor \
 	gnu/lib/csu \
-	gnu/lib/libgcc \
 	include \
 	include/arpa \
 	include/xlocale \
