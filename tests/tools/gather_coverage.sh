@@ -32,6 +32,7 @@ SCRIPT=${0##*/}
 
 : ${COVERAGE_OUTPUT=coverage-output}
 : ${GCOV=gcov}
+: ${GCOV_PREFIX=$(pwd)}
 
 error()
 {
@@ -67,7 +68,7 @@ trap "rm -Rf '$COVERAGE_TMP'" EXIT INT TERM
 
 set -e
 
-lcov --gcov-tool ${GCOV} --capture --directory ${COVERAGE_TMP} --output-file \
+lcov --gcov-tool ${GCOV} --capture --directory ${GCOV_PREFIX} --output-file \
     ${COVERAGE_TMP}/coverage.info
 genhtml ${COVERAGE_TMP}/coverage.info --output-directory ${COVERAGE_OUTPUT}
 
