@@ -566,7 +566,7 @@ usage(const char *cp)
 	if (cp != NULL)
 		warnx("%s", cp);
 	(void)fprintf(stderr,
-	    "usage: shutdown [-] [-h | -p | -r | -k] [-o [-n]] time [warning-message ...]\n"
+	    "usage: shutdown [-] [-c | -h | -p | -r | -k] [-o [-n]] time [warning-message ...]\n"
 	    "       poweroff\n");
 	exit(1);
 }
