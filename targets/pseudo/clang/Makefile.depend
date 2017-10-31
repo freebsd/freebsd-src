@@ -62,6 +62,7 @@ DIRDEPS+= \
 	usr.bin/clang/llvm-modextract \
 	usr.bin/clang/llvm-nm \
 	usr.bin/clang/llvm-pdbdump \
+	usr.bin/clang/llvm-pdbutil \
 	usr.bin/clang/llvm-profdata \
 	usr.bin/clang/llvm-rtdyld \
 	usr.bin/clang/llvm-symbolizer \
