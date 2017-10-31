@@ -95,9 +95,9 @@ CFLAGS+= -I${.CURDIR} -I${.CURDIR}/${TARGET_CPUARCH}-freebsd
 NO_SHARED?=	yes
 .endif
 
-DPADD=	${RELTOP}/libbfd/libbfd.a
-DPADD+=	${RELTOP}/libiberty/libiberty.a
-DPADD+=	${RELTOP}/libopcodes/libopcodes.a
+DPADD=	${GNURELTOP}/libbfd/libbfd.a
+DPADD+=	${GNURELTOP}/libiberty/libiberty.a
+DPADD+=	${GNURELTOP}/libopcodes/libopcodes.a
 LDADD=	${DPADD}
 
 .include <bsd.prog.mk>

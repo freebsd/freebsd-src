@@ -6,10 +6,14 @@
 SRCTOP:= ${.PARSEDIR:tA:H:H}
 
 .if ${.CURDIR} == ${SRCTOP}
-RELDIR = .
+RELDIR= .
+RELTOP= .
 .elif ${.CURDIR:M${SRCTOP}/*}
-RELDIR := ${.CURDIR:S,${SRCTOP}/,,}
+RELDIR:= ${.CURDIR:S,${SRCTOP}/,,}
 .endif
+RELTOP?= 	${RELDIR:C,[^/]+,..,g}
+RELOBJTOP?=	${RELTOP}
+RELSRCTOP?=	${RELTOP}
 
 # site customizations that do not depend on anything!
 SRC_ENV_CONF?= /etc/src-env.conf
