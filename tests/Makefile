@@ -10,6 +10,7 @@ KYUAFILE= yes
 
 SUBDIR+= etc
 SUBDIR+= sys
+SUBDIR+= tools
 
 SUBDIR_PARALLEL=
 
