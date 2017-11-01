@@ -634,8 +634,6 @@ evdev_sparse_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 		break;
 
 	case EV_SND:
-		if (bit_test(evdev->ev_snd_states, code) == value)
-			return (EV_SKIP_EVENT);
 		bit_change(evdev->ev_snd_states, code, value);
 		break;
 
