@@ -131,7 +131,6 @@ struct loginclass *
 loginclass_find(const char *name)
 {
 	struct loginclass *lc, *new_lc;
-	struct ucred *cred;
 
 	if (name[0] == '\0' || strlen(name) >= MAXLOGNAME)
 		return (NULL);
