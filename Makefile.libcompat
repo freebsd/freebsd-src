@@ -70,7 +70,7 @@ LIBSOFTWMAKEFLAGS=        -DCOMPAT_SOFTFP
 # Generic code for each type.
 # Set defaults based on type.
 libcompat=	${LIBCOMPAT:tl}
-_LIBCOMPAT_MAKEVARS=	_OBJTREE TMP CPUFLAGS CFLAGS CXXFLAGS WMAKEENV \
+_LIBCOMPAT_MAKEVARS=	_OBJTOP TMP CPUFLAGS CFLAGS CXXFLAGS WMAKEENV \
 			WMAKEFLAGS WMAKE
 .for _var in ${_LIBCOMPAT_MAKEVARS}
 .if !empty(LIB${LIBCOMPAT}${_var})
@@ -79,8 +79,8 @@ LIBCOMPAT${_var}?=	${LIB${LIBCOMPAT}${_var}}
 .endfor
 
 # Shared flags
-LIBCOMPAT_OBJTREE?=	${OBJTREE}${.CURDIR}/obj-lib${libcompat}
-LIBCOMPATTMP?=		${LIBCOMPAT_OBJTREE}/tmp
+LIBCOMPAT_OBJTOP?=	${OBJTOP}/obj-lib${libcompat}
+LIBCOMPATTMP?=		${LIBCOMPAT_OBJTOP}/tmp
 
 LIBCOMPATCFLAGS+=	${LIBCOMPATCPUFLAGS} \
 			-L${LIBCOMPATTMP}/usr/lib${libcompat} \
@@ -107,7 +107,8 @@ LIBCOMPATCXXFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include/c++/v1 -std=c++11 \
 .endif
 
 # Yes, the flags are redundant.
-LIBCOMPATWMAKEENV+= MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTREE} \
+LIBCOMPATWMAKEENV+= \
+		MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTOP} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
 		SYSROOT=${LIBCOMPATTMP} \
@@ -183,7 +184,8 @@ build${libcompat}: .PHONY
 	${_+_}cd ${.CURDIR}/${_dir}; \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
-	    MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTREE} ${MAKE} SSP_CFLAGS= DESTDIR= \
+	    MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTOP} \
+	    ${MAKE} SSP_CFLAGS= DESTDIR= \
 	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 	    build-tools
 .endfor

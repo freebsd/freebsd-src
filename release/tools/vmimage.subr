@@ -14,13 +14,10 @@ write_partition_layout() {
 		SWAPOPT="-p freebsd-swap/swapfs::${SWAPSIZE}"
 	fi
 
-	_OBJDIR="$(make -C ${WORLDDIR} -V .OBJDIR)"
-	_OBJDIR="$(realpath ${_OBJDIR})"
-	if [ -d "${_OBJDIR%%/usr/src}/${TARGET}.${TARGET_ARCH}" ]; then
-		BOOTFILES="/${_OBJDIR%%/usr/src}/${TARGET}.${TARGET_ARCH}/usr/src/sys/boot"
-	else
-		BOOTFILES="/${_OBJDIR}/sys/boot"
-	fi
+	BOOTFILES="$(env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+	    WITH_UNIFIED_OBJDIR=yes \
+	    make -C ${WORLDDIR}/sys/boot -V .OBJDIR)"
+	BOOTFILES="$(realpath ${BOOTFILES})"
 
 	case "${TARGET}:${TARGET_ARCH}" in
 		amd64:amd64 | i386:i386)
