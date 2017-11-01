@@ -421,6 +421,9 @@ proc0_init(void *dummy __unused)
 	struct thread *td;
 	struct ucred *newcred;
 	struct uidinfo tmpuinfo;
+	struct loginclass tmplc = {
+		.lc_name = "",
+	};
 	vm_paddr_t pageablemem;
 	int i;
 
@@ -509,10 +512,11 @@ proc0_init(void *dummy __unused)
 	newcred->cr_uidinfo = newcred->cr_ruidinfo = &tmpuinfo;
 	newcred->cr_uidinfo = uifind(0);
 	newcred->cr_ruidinfo = uifind(0);
+	newcred->cr_loginclass = &tmplc;
+	newcred->cr_loginclass = loginclass_find("default");
 	/* End hack. creds get properly set later with thread_cow_get_proc */
 	curthread->td_ucred = NULL;
 	newcred->cr_prison = &prison0;
-	newcred->cr_loginclass = loginclass_find("default");
 	proc_set_cred_init(p, newcred);
 #ifdef AUDIT
 	audit_cred_kproc0(newcred);
