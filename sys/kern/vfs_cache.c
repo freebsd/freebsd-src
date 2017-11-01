@@ -1126,7 +1126,8 @@ cache_lookup_nomakeentry(struct vnode *dvp, struct vnode **vpp,
 	uint32_t hash;
 	int error;
 
-	if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
+	if (cnp->cn_namelen == 2 &&
+	    cnp->cn_nameptr[0] == '.' && cnp->cn_nameptr[1] == '.') {
 		counter_u64_add(dotdothits, 1);
 		dvlp = VP2VNODELOCK(dvp);
 		dvlp2 = NULL;
@@ -1219,7 +1220,8 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 retry:
 	blp = NULL;
 	error = 0;
-	if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
+	if (cnp->cn_namelen == 2 &&
+	    cnp->cn_nameptr[0] == '.' && cnp->cn_nameptr[1] == '.') {
 		counter_u64_add(dotdothits, 1);
 		dvlp = VP2VNODELOCK(dvp);
 		dvlp2 = NULL;
