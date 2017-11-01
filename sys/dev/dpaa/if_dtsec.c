@@ -569,11 +569,13 @@ int
 dtsec_attach(device_t dev)
 {
 	struct dtsec_softc *sc;
+	device_t parent;
 	int error;
 	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
 
+	parent = device_get_parent(dev);
 	sc->sc_dev = dev;
 	sc->sc_mac_mdio_irq = NO_IRQ;
 	sc->sc_eth_id = device_get_unit(dev);
@@ -594,13 +596,13 @@ dtsec_attach(device_t dev)
 	callout_init(&sc->sc_tick_callout, CALLOUT_MPSAFE);
 
 	/* Read configuraton */
-	if ((error = fman_get_handle(&sc->sc_fmh)) != 0)
+	if ((error = fman_get_handle(parent, &sc->sc_fmh)) != 0)
 		return (error);
 
-	if ((error = fman_get_muram_handle(&sc->sc_muramh)) != 0)
+	if ((error = fman_get_muram_handle(parent, &sc->sc_muramh)) != 0)
 		return (error);
 
-	if ((error = fman_get_bushandle(&sc->sc_fm_base)) != 0)
+	if ((error = fman_get_bushandle(parent, &sc->sc_fm_base)) != 0)
 		return (error);
 
 	/* Configure working mode */

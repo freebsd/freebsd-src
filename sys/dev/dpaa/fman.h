@@ -72,9 +72,8 @@ int	fman_qman_channel_id(device_t, int);
 /** @} */
 
 uint32_t	fman_get_clock(struct fman_softc *sc);
-int	fman_get_handle(t_Handle *fmh);
-int	fman_get_muram_handle(t_Handle *muramh);
-int	fman_get_bushandle(vm_offset_t *fm_base);
-int	fman_get_dev(device_t *fmd);
+int	fman_get_handle(device_t dev, t_Handle *fmh);
+int	fman_get_muram_handle(device_t dev, t_Handle *muramh);
+int	fman_get_bushandle(device_t dev, vm_offset_t *fm_base);
 
 #endif /* FMAN_H_ */
