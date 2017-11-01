@@ -813,7 +813,11 @@ evdev_inject_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 	case EV_ABS:
 	case EV_SW:
 push:
+		if (evdev->ev_lock_type != EV_LOCK_INTERNAL)
+			EVDEV_LOCK(evdev);
 		ret = evdev_push_event(evdev, type,  code, value);
+		if (evdev->ev_lock_type != EV_LOCK_INTERNAL)
+			EVDEV_UNLOCK(evdev);
 		break;
 
 	default:
