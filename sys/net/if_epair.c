@@ -980,6 +980,17 @@ vnet_epair_uninit(const void *unused __unused)
 VNET_SYSUNINIT(vnet_epair_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
     vnet_epair_uninit, NULL);
 
+static void
+epair_uninit(const void *unused __unused)
+{
+	netisr_unregister(&epair_nh);
+	epair_dpcpu_detach();
+	if (bootverbose)
+		printf("%s unloaded.\n", epairname);
+}
+SYSUNINIT(epair_uninit, SI_SUB_INIT_IF, SI_ORDER_MIDDLE,
+    epair_uninit, NULL);
+
 static int
 epair_modevent(module_t mod, int type, void *data)
 {
@@ -997,10 +1008,7 @@ epair_modevent(module_t mod, int type, void *data)
 			printf("%s initialized.\n", epairname);
 		break;
 	case MOD_UNLOAD:
-		netisr_unregister(&epair_nh);
-		epair_dpcpu_detach();
-		if (bootverbose)
-			printf("%s unloaded.\n", epairname);
+		/* Handled in epair_uninit() */
 		break;
 	default:
 		return (EOPNOTSUPP);
