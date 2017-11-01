@@ -13,8 +13,10 @@ fi
 
 case "$daily_ntpd_leapfile_enable" in
     [Yy][Ee][Ss])
-        anticongestion
-        service ntpd onefetch
+	if service ntpd oneneedfetch; then
+	    anticongestion
+	    service ntpd onefetch
+	fi
         ;;
 esac
 
