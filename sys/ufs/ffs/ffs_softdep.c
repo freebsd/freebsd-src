@@ -14281,25 +14281,14 @@ softdep_get_depcounts(struct mount *mp,
 
 /*
  * Wait for pending output on a vnode to complete.
- * Must be called with vnode lock and interlock locked.
- *
- * XXX: Should just be a call to bufobj_wwait().
  */
 static void
 drain_output(vp)
 	struct vnode *vp;
 {
-	struct bufobj *bo;
 
-	bo = &vp->v_bufobj;
 	ASSERT_VOP_LOCKED(vp, "drain_output");
-	ASSERT_BO_WLOCKED(bo);
-
-	while (bo->bo_numoutput) {
-		bo->bo_flag |= BO_WWAIT;
-		msleep((caddr_t)&bo->bo_numoutput,
-		    BO_LOCKPTR(bo), PRIBIO + 1, "drainvp", 0);
-	}
+	(void)bufobj_wwait(&vp->v_bufobj, 0, 0);
 }
 
 /*
