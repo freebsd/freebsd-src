@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171031: Removal of obsolete man files
+OLD_FILES+=usr/share/man/man7/adding_user.7.gz
 # 20171031: Disconnected libpathconv tests
 OLD_DIRS+=usr/tests/lib/libpathconv
 # 20171017: Removal of mbpool(9)
