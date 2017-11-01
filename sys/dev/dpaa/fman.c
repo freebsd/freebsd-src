@@ -87,7 +87,6 @@ struct fman_config {
  */
 const uint32_t fman_firmware[] = FMAN_UC_IMG;
 const uint32_t fman_firmware_size = sizeof(fman_firmware);
-static struct fman_softc *fm_sc = NULL;
 
 int
 fman_activate_resource(device_t bus, device_t child, int type, int rid,
@@ -386,49 +385,31 @@ fman_error_callback(t_Handle app_handle, e_FmPortType port_type,
  */
 
 int
-fman_get_handle(t_Handle *fmh)
+fman_get_handle(device_t dev, t_Handle *fmh)
 {
+	struct fman_softc *sc = device_get_softc(dev);
 
-	if (fm_sc == NULL)
-		return (ENOMEM);
-
-	*fmh = fm_sc->fm_handle;
+	*fmh = sc->fm_handle;
 
 	return (0);
 }
 
 int
-fman_get_muram_handle(t_Handle *muramh)
+fman_get_muram_handle(device_t dev, t_Handle *muramh)
 {
+	struct fman_softc *sc = device_get_softc(dev);
 
-	if (fm_sc == NULL)
-		return (ENOMEM);
-
-	*muramh = fm_sc->muram_handle;
+	*muramh = sc->muram_handle;
 
 	return (0);
 }
 
 int
-fman_get_bushandle(vm_offset_t *fm_base)
+fman_get_bushandle(device_t dev, vm_offset_t *fm_base)
 {
+	struct fman_softc *sc = device_get_softc(dev);
 
-	if (fm_sc == NULL)
-		return (ENOMEM);
-
-	*fm_base = rman_get_bushandle(fm_sc->mem_res);
-
-	return (0);
-}
-
-int
-fman_get_dev(device_t *fm_dev)
-{
-
-	if (fm_sc == NULL)
-		return (ENOMEM);
-
-	*fm_dev = fm_sc->sc_base.dev;
+	*fm_base = rman_get_bushandle(sc->mem_res);
 
 	return (0);
 }
@@ -443,7 +424,6 @@ fman_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->sc_base.dev = dev;
-	fm_sc = sc;
 
 	/* Check if MallocSmart allocator is ready */
 	if (XX_MallocSmartInit() != E_OK) {
