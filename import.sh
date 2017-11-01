@@ -33,7 +33,7 @@ option_parsing() {
 		-r) REVIEWER=$2; shift 2;;
 		-u) url=$2; shift 2;;
 		-h) echo "Usage:";
-     echo "  "$0 '[-ahnPr] [TARBALL=] [PR=] [REVIEWER=]'
+                    echo "  "$0 '[-ahnPr] [TARBALL=] [PR=] [REVIEWER=]'
 			echo "  "$0 '-a <filename>	  # (a)rchive'
 			echo "  "$0 '-h			  # print usage'
 			echo "  "$0 '-n			  # do not import, check only.'
@@ -64,7 +64,7 @@ rm -rf $thing
 tar zxf $TARBALL
 
 # steps unique to bmake
-VERSION=`grep '^_MAKE_VERSION' bmake/Makefile | sed 's,.*=[[:space:]]*,,'`
+VERSION=`grep '^_MAKE_VERSION' bmake/VERSION | sed 's,.*=[[:space:]]*,,'`
 rm -rf bmake/missing
 
 # the rest should be common
