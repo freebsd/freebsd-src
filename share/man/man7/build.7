@@ -207,8 +207,15 @@ for cross builds and native builds with variable
 set.
 .It Cm cleanworld
 Attempt to clean up targets built by a preceding
-.Cm buildworld
-step.
+.Cm buildworld ,
+or similar step built from this source directory.
+.It Cm cleanuniverse
+When
+.Va WITH_UNIFIED_OBJDIR
+is enabled, attempt to clean up targets built by a preceding
+.Cm buildworld ,
+.Cm universe ,
+or similar step, for any architecture built from this source directory.
 .It Cm distributeworld
 Distribute everything compiled by a preceding
 .Cm buildworld
