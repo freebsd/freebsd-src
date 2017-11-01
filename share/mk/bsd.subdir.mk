@@ -38,12 +38,16 @@
 .if !target(__<bsd.subdir.mk>__)
 __<bsd.subdir.mk>__:
 
+.if ${MK_AUTO_OBJ} == "no"
+_obj=	obj
+.endif
+
 SUBDIR_TARGETS+= \
 		all all-man analyze buildconfig buildfiles buildincludes \
 		checkdpadd clean cleandepend cleandir cleanilinks \
 		cleanobj depend distribute files includes installconfig \
 		installfiles installincludes print-dir realinstall lint \
-		maninstall manlint obj objlink tags \
+		maninstall manlint ${_obj} objlink tags \
 
 # Described above.
 STANDALONE_SUBDIR_TARGETS+= \
@@ -67,6 +71,10 @@ ECHODIR=	:
 print-dir:	.PHONY
 	@echo ${RELDIR}
 .endif
+.endif
+
+.if ${MK_AUTO_OBJ} == "yes" && !target(obj)
+obj: .PHONY
 .endif
 
 .if !defined(NEED_SUBDIR)
