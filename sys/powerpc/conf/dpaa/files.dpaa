@@ -3,7 +3,7 @@
 # NetCommSw drivers
 contrib/ncsw/etc/error.c				optional dpaa	\
 	no-depend compile-with "${DPAA_COMPILE_CMD}"
-contrib/ncsw/etc/list.c					optional dpaa	\
+contrib/ncsw/etc/ncsw_list.c				optional dpaa	\
 	no-depend compile-with "${DPAA_COMPILE_CMD}"
 contrib/ncsw/etc/memcpy.c				optional dpaa	\
 	no-depend compile-with "${DPAA_COMPILE_CMD}"
@@ -71,7 +71,7 @@ contrib/ncsw/Peripherals/FM/HC/hc.c			optional dpaa	\
 	no-depend compile-with "${DPAA_COMPILE_CMD}"
 contrib/ncsw/Peripherals/FM/fm_muram.c			optional dpaa	\
 	no-depend compile-with "${DPAA_COMPILE_CMD}"
-contrib/ncsw/Peripherals/FM/fm.c			optional dpaa	\
+contrib/ncsw/Peripherals/FM/fm_ncsw.c			optional dpaa	\
 	no-depend compile-with "${DPAA_COMPILE_CMD}"
 contrib/ncsw/Peripherals/FM/fman_ncsw.c			optional dpaa	\
 	no-depend compile-with "${DPAA_COMPILE_CMD}"
