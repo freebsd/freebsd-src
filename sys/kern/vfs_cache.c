@@ -194,7 +194,7 @@ static __read_mostly LIST_HEAD(nchashhead, namecache) *nchashtbl;/* Hash Table *
 static u_long __read_mostly	nchash;			/* size of hash table */
 SYSCTL_ULONG(_debug, OID_AUTO, nchash, CTLFLAG_RD, &nchash, 0,
     "Size of namecache hash table");
-static u_long __read_mostly	ncnegfactor = 16; /* ratio of negative entries */
+static u_long __read_mostly	ncnegfactor = 12; /* ratio of negative entries */
 SYSCTL_ULONG(_vfs, OID_AUTO, ncnegfactor, CTLFLAG_RW, &ncnegfactor, 0,
     "Ratio of negative namecache entries");
 static u_long __exclusive_cache_line	numneg;	/* number of negative entries allocated */
