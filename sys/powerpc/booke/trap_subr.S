@@ -970,19 +970,14 @@ int_debug_int:
 	GET_CPUINFO(%r3)
 	LOAD	%r3, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR0)(%r3)
 	bl	0f
-#ifdef __powerpc64__
-	.llong	interrupt_vector_base-.
-	.llong	interrupt_vector_top-.
-#else
-	.long	interrupt_vector_base-.
-	.long	interrupt_vector_top-.
-#endif
+	ADDR(interrupt_vector_base-.)
+	ADDR(interrupt_vector_top-.)
 0:	mflr	%r5
 	LOAD	%r4,0(%r5)	/* interrupt_vector_base in r4 */
 	add	%r4,%r4,%r5
 	CMPL	cr0, %r3, %r4
 	blt	trap_common
-	LOAD	%r4,4(%r5)	/* interrupt_vector_top in r4 */
+	LOAD	%r4,WORD_SIZE(%r5)	/* interrupt_vector_top in r4 */
 	add	%r4,%r4,%r5
 	addi	%r4,%r4,4
 	CMPL	cr0, %r3, %r4
