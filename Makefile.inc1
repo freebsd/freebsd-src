@@ -78,18 +78,11 @@ MK_CLANG_BOOTSTRAP=	no
 MK_GCC_BOOTSTRAP=	no
 .endif
 
-MAKEOBJDIRPREFIX?=	/usr/obj
-.if ${MACHINE} == ${TARGET} && ${MACHINE_ARCH} == ${TARGET_ARCH} && !defined(CROSS_BUILD_TESTING)
-OBJTREE=	${MAKEOBJDIRPREFIX}
-.else
-OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
-.endif
-
 # Pull in compiler metadata from buildworld/toolchain if possible to avoid
 # running CC from bsd.compiler.mk.
 .if make(installworld) || make(install) || make(distributeworld) || \
     make(stageworld)
-.-include "${OBJTREE}${.CURDIR}/compiler-metadata.mk"
+.-include "${OBJTOP}/compiler-metadata.mk"
 .endif
 
 # Pull in COMPILER_TYPE and COMPILER_FREEBSD_VERSION early.
@@ -450,7 +443,7 @@ BUILD_ARCH!=	uname -p
 .error To cross-build, set TARGET_ARCH.
 .endif
 .endif
-WORLDTMP=	${OBJTREE}${.CURDIR}/tmp
+WORLDTMP?=	${OBJTOP}/tmp
 BPATH=		${CCACHE_WRAPPER_PATH_PFX}${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/bin
 XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin
 STRICTTMPPATH=	${BPATH}:${XPATH}
@@ -508,7 +501,7 @@ MINIMUM_SUPPORTED_OSREL?= 900044
 MINIMUM_SUPPORTED_REL?= 9.1
 
 # Common environment for world related stages
-CROSSENV+=	MAKEOBJDIRPREFIX=${OBJTREE} \
+CROSSENV+=	\
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
 		CPUTYPE=${TARGET_CPUTYPE}
@@ -543,7 +536,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		${BSARGS}
 
 # build-tools stage
-TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
+TMAKE=		\
 		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		DESTDIR= \
@@ -670,10 +663,10 @@ LIBCOMPAT= SOFT
 META_MODE_BAD_ABI_VERS+=	1200031
 
 .if !defined(OBJDIR_HOST_OSRELDATE)
-.if exists(${OBJTREE}${.CURDIR}/host-osreldate.h)
+.if exists(${OBJTOP}/host-osreldate.h)
 OBJDIR_HOST_OSRELDATE!=	\
     awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
-    ${OBJTREE}${.CURDIR}/host-osreldate.h
+    ${OBJTOP}/host-osreldate.h
 .elif exists(${WORLDTMP}/usr/include/osreldate.h)
 OBJDIR_HOST_OSRELDATE=	0
 .endif
@@ -778,36 +771,36 @@ _cleanobj_fast_depend_hack: .PHONY
 # 20160829  r305012  ptrace
 # 20170624  r320278  fstat fstatat fstatfs getdirentries getfsstat statfs
 .for f in fstat fstatat fstatfs getdirentries getfsstat ptrace statfs           
-.if exists(${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o)
+.if exists(${OBJTOP}/lib/libc/.depend.${f}.o)
 	@if egrep -qw '${f}\.[sS]' \
-	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o; then \
+	    ${OBJTOP}/lib/libc/.depend.${f}.o; then \
 		echo Removing stale dependencies for ${f} syscall wrappers; \
-		rm -f ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
-		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.*}; \
+		rm -f ${OBJTOP}/lib/libc/.depend.${f}.* \
+		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}; \
 	fi
 .endif
 .endfor
 # 20170607 remove stale dependencies for utimens* wrappers removed in r319663
 .for f in futimens utimensat
-.if exists(${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o)
+.if exists(${OBJTOP}/lib/libc/.depend.${f}.o)
 	@if egrep -q '/${f}.c' \
-	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o; then \
+	    ${OBJTOP}/lib/libc/.depend.${f}.o; then \
 		echo Removing stale dependencies for ${f} syscall wrappers; \
-		rm -f ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
-		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.*}; \
+		rm -f ${OBJTOP}/lib/libc/.depend.${f}.* \
+		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}; \
 	fi
 .endif
 .endfor
 # 20170523 remove stale generated asm files for functions which are no longer
 # syscalls after r302092 (pipe) and r318736 (others)
 .for f in getdents lstat mknod pipe stat
-.if exists(${OBJTREE}${.CURDIR}/lib/libc/${f}.s) || \
-    exists(${OBJTREE}${.CURDIR}/lib/libc/${f}.S)
+.if exists(${OBJTOP}/lib/libc/${f}.s) || \
+    exists(${OBJTOP}/lib/libc/${f}.S)
 	@echo Removing stale generated ${f} syscall files
-	@rm -f ${OBJTREE}${.CURDIR}/lib/libc/${f}.* \
-	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
-	    ${LIBCOMPAT:D${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc/${f}.*} \
-	    ${LIBCOMPAT:D${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.*}
+	@rm -f ${OBJTOP}/lib/libc/${f}.* \
+	    ${OBJTOP}/lib/libc/.depend.${f}.* \
+	    ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/${f}.*} \
+	    ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}
 .endif
 .endfor
 
@@ -899,7 +892,7 @@ _cross-tools:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 3: cross tools"
 	@echo "--------------------------------------------------------------"
-	@rm -f ${OBJTREE}${.CURDIR}/compiler-metadata.mk
+	@rm -f ${OBJTOP}/compiler-metadata.mk
 	${_+_}cd ${.CURDIR}; ${XMAKE} cross-tools
 	${_+_}cd ${.CURDIR}; ${XMAKE} kernel-tools
 _build-metadata:
@@ -1071,7 +1064,7 @@ __installcheck_UGID: .PHONY
     (empty(DESTDIR) || ${DESTDIR} == "/") && empty(BYPASS_INSTALLCHECK_SH)
 _installcheck_world: __installcheck_sh_check
 __installcheck_sh_check: .PHONY
-	@if [ "`${OBJTREE}${.CURDIR}/rescue/rescue/rescue sh -c 'echo OK'`" != \
+	@if [ "`${OBJTOP}/rescue/rescue/rescue sh -c 'echo OK'`" != \
 	    OK ]; then \
 		echo "rescue/sh check failed, installation aborted" >&2; \
 		false; \
@@ -1333,7 +1326,7 @@ INSTKERNNAME?=	kernel
 
 KERNSRCDIR?=	${.CURDIR}/sys
 KRNLCONFDIR=	${KERNSRCDIR}/${TARGET}/conf
-KRNLOBJDIR=	${OBJTREE}${KERNSRCDIR}
+KRNLOBJDIR=	${OBJTOP}${KERNSRCDIR:C,^${.CURDIR},,}
 KERNCONFDIR?=	${KRNLCONFDIR}
 
 BUILDKERNELS=
@@ -1541,9 +1534,9 @@ stagekernel: .PHONY
 	${_+_}${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} distributekernel
 
 PORTSDIR?=	/usr/ports
-WSTAGEDIR?=	${MAKEOBJDIRPREFIX}${.CURDIR}/${TARGET}.${TARGET_ARCH}/worldstage
-KSTAGEDIR?=	${MAKEOBJDIRPREFIX}${.CURDIR}/${TARGET}.${TARGET_ARCH}/kernelstage
-REPODIR?=	${MAKEOBJDIRPREFIX}${.CURDIR}/repo
+WSTAGEDIR?=	${OBJTOP}/worldstage
+KSTAGEDIR?=	${OBJTOP}/kernelstage
+REPODIR?=	${OBJROOT}repo
 PKGSIGNKEY?=	# empty
 
 .ORDER:		stage-packages create-packages
@@ -1806,10 +1799,10 @@ legacy: .PHONY
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,all,install)"; \
 	    cd ${.CURDIR}/${_tool}; \
 	    if [ -z "${NO_OBJ}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
-	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy includes; \
+	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${WORLDTMP}/legacy includes; \
 	    ${MAKE} DIRPRFX=${_tool}/ MK_INCLUDES=no all; \
 	    ${MAKE} DIRPRFX=${_tool}/ MK_INCLUDES=no \
-	        DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
+	        DESTDIR=${WORLDTMP}/legacy install
 .endfor
 
 #
@@ -1953,7 +1946,7 @@ ${_bt}-${_tool}: .PHONY .MAKE
 		cd ${.CURDIR}/${_tool}; \
 		if [ -z "${NO_OBJ}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
 		${MAKE} DIRPRFX=${_tool}/ all; \
-		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
+		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${WORLDTMP}/legacy install
 
 bootstrap-tools: ${_bt}-${_tool}
 .endfor
@@ -2011,9 +2004,9 @@ build-tools: build-tools_${_tool}
 # kernel-tools: Build kernel-building tools
 #
 kernel-tools: .PHONY
-	mkdir -p ${MAKEOBJDIRPREFIX}/usr
+	mkdir -p ${WORLDTMP}/usr
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
-	    -p ${MAKEOBJDIRPREFIX}/usr >/dev/null
+	    -p ${WORLDTMP}/usr >/dev/null
 
 #
 # cross-tools: All the tools needed to build the rest of the system after
@@ -2089,7 +2082,7 @@ cross-tools: .MAKE .PHONY
 		cd ${.CURDIR}/${_tool}; \
 		if [ -z "${NO_OBJ}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
 		${MAKE} DIRPRFX=${_tool}/ all; \
-		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX} install
+		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${WORLDTMP} install
 .endfor
 
 #
@@ -2100,7 +2093,8 @@ cross-tools: .MAKE .PHONY
 # already built.  It then installs the static tools to NXBDESTDIR for Poudriere
 # to pickup.
 #
-NXBOBJDIR=	${MAKEOBJDIRPREFIX}/nxb/${TARGET}.${TARGET_ARCH}
+NXBOBJROOT=	${OBJROOT}nxb/
+NXBOBJTOP=	${NXBOBJROOT}${TARGET}.${TARGET_ARCH}
 NXTP?=		/nxb-bin
 .if ${NXTP:N/*}
 .error NXTP variable should be an absolute path
@@ -2181,11 +2175,9 @@ NXBDIRS+=	gnu/usr.bin/cc
 NXBDIRS+=	gnu/usr.bin/binutils
 .endif
 
-NXBMAKEENV+= \
-	MAKEOBJDIRPREFIX=${NXBOBJDIR:Q}
-
 NXBMAKEARGS+= \
-	OBJTREE=${NXBOBJDIR:Q} \
+	OBJTOP=${NXBOBJTOP:Q} \
+	OBJROOT=${NXBOBJROOT:Q} \
 	-DNO_SHARED \
 	-DNO_CPU_CFLAGS \
 	-DNO_PIC \
@@ -2759,7 +2751,7 @@ builddtb: .PHONY
 # in this makefile.  We don't do a cleandir walk if MK_AUTO_OBJ is yes
 # since it is not possible for files to land in the wrong place.
 #
-BW_CANONICALOBJDIR:=${OBJTREE}${.CURDIR}
+BW_CANONICALOBJDIR:=${OBJTOP}
 cleanworld: .PHONY
 .if exists(${BW_CANONICALOBJDIR}/)
 	-rm -rf ${BW_CANONICALOBJDIR}/*
@@ -2791,7 +2783,7 @@ XDTP?=/usr/${XDDIR}
 .error XDTP variable should be an absolute path
 .endif
 
-CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR} \
+CDBENV=MAKEOBJDIRPREFIX=${OBJTOP}/${XDDIR} \
 	INSTALL="sh ${.CURDIR}/tools/install.sh"
 CDENV= ${CDBENV} \
 	TOOLS_PREFIX=${XDTP}
@@ -2816,7 +2808,7 @@ CD2ENV=${CDENV} CC="${CC} ${CD2CFLAGS}" CXX="${CXX} ${CD2CXXFLAGS} ${CD2CFLAGS}"
 	CPP="${CPP} ${CD2CFLAGS}" \
 	MACHINE=${TARGET} MACHINE_ARCH=${TARGET_ARCH}
 
-CDTMP=	${MAKEOBJDIRPREFIX}/${XDDIR}/${.CURDIR}/tmp
+CDTMP=	${OBJTOP}/${XDDIR}/tmp
 CDMAKE=${CDENV} PATH=${CDTMP}/usr/bin:${PATH} ${MAKE} ${NOFUN}
 CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDDESTDIR}/usr/bin:${PATH} ${MAKE} ${NOFUN}
 .if ${MK_META_MODE} != "no"

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2017
+.Dd October 26, 2017
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -82,18 +82,7 @@ or under
 if variable
 .Va MAKEOBJDIRPREFIX
 is not set.
-For a given source directory, its canonical object directory
-would be
-.Pa ${MAKEOBJDIRPREFIX}${.CURDIR}
-if
-.Xr make 1
-variable
-.Va MAKEOBJDIRPREFIX
-is set, or
-.Pa /usr/obj${.CURDIR}
-if this variable is not set.
-Cross-builds set the object directory as described in the
-documentation for the
+The canonical object directory is described in the documentation for the
 .Cm buildworld
 target below.
 .Pp
@@ -201,10 +190,18 @@ by setting the
 .Pa MAKEOBJDIRPREFIX
 .Xr make 1
 variable.
-The actual build location prefix used is
+The actual build location prefix used
+depends on the
+.Va WITH_UNIFIED_OBJDIR
+option from
+.Xr src.conf 5 .
+If enabled it is
+.Pa ${MAKEOBJDIRPREFIX}${.CURDIR}/${TARGET}.${TARGET_ARCH}
+for all builds.
+If disabled it is
 .Pa ${MAKEOBJDIRPREFIX}${.CURDIR}
 for native builds, and
-.Pa ${MAKEOBJDIRPREFIX}/${TARGET}${.CURDIR}
+.Pa ${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}${.CURDIR}
 for cross builds and native builds with variable
 .Va CROSS_BUILD_TESTING
 set.
@@ -460,8 +457,12 @@ Defines the prefix for directory names in the tree of built objects.
 Defaults to
 .Pa /usr/obj
 if not defined.
-This variable should only be set in the environment and not via
+This variable should only be set in the environment or
+.Pa /etc/src-env.conf
+and not via
 .Pa /etc/make.conf
+or
+.Pa /etc/src.conf
 or the command line.
 .It Va NO_WERROR
 If defined, compiler warnings will not cause the build to halt,
