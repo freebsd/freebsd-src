@@ -16,11 +16,8 @@ makeoptions	DEBUG="-Wa,-me500 -g"
 makeoptions	WERROR="-Werror -Wno-format -Wno-redundant-decls"
 makeoptions	NO_MODULES=yes
 
-#options 	EARLY_PRINTF
-
 options 	FPU_EMU
 
-options 	BOOTVERBOSE=1
 options 	_KPOSIX_PRIORITY_SCHEDULING
 options 	ALT_BREAK_TO_DEBUGGER
 options 	BREAK_TO_DEBUGGER
@@ -36,15 +33,22 @@ options 	DEVICE_POLLING
 #options 	DIAGNOSTIC
 options 	FDT
 #makeoptions	FDT_DTS_FILE=mpc8555cds.dts
-options 	FFS
+options 	FFS			#Berkeley Fast Filesystem
+options 	SOFTUPDATES		#Enable FFS soft updates support
+options 	UFS_ACL			#Support for access control lists
+options 	UFS_DIRHASH		#Improve performance on big directories
+options 	UFS_GJOURNAL		#Enable gjournal-based UFS journaling
+options 	QUOTA			#Enable disk quotas for UFS
 options 	GDB
 options 	GEOM_PART_GPT
+options 	GEOM_LABEL		#Provides labelization
 options 	INET
 options 	INET6
 options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	INVARIANTS
 options 	INVARIANT_SUPPORT
 options 	KDB
+options 	KDB_TRACE		# Print a stack trace for a panic.
 options 	KTRACE
 options 	MD_ROOT
 options 	MPC85XX
@@ -52,18 +56,22 @@ options 	MSDOSFS
 options 	NFS_ROOT
 options 	NFSCL
 options 	NFSLOCKD
-options		PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
+options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	PROCFS
 options 	PSEUDOFS
 options 	SCHED_ULE
 options 	CAPABILITIES
 options 	CAPABILITY_MODE
 options 	SMP
+options 	STACK			#stack(9) support
 options 	SYSVMSG
 options 	SYSVSEM
 options 	SYSVSHM
 options 	WITNESS
 options 	WITNESS_SKIPSPIN
+options 	HWPMC_HOOKS
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	DDB_CTF			# Kernel ELF linker loads CTF data
 
 device		ata
 device		bpf
@@ -71,6 +79,7 @@ device		cfi
 device		crypto
 device		cryptodev
 device		da
+device  	ds1307
 device		ds1553
 device		em
 device		alc
@@ -95,6 +104,8 @@ device		scbus
 device		scc
 device  	sdhci
 device		sec
+device  	spibus
+device  	spigen
 device		tun
 device		uart
 options 	USB_DEBUG	# enable debug msgs
