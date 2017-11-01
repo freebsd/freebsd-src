@@ -71,10 +71,19 @@ g_slice_alloc(unsigned nslice, unsigned scsize)
 }
 
 static void
-g_slice_free(struct g_slicer *gsp)
+g_slice_free(struct g_geom *gp)
 {
+	struct g_slicer *gsp;
 
-	if (gsp == NULL)	/* XXX: phk thinks about this */
+	gsp = gp->softc;
+	gp->softc = NULL;
+
+	/*
+	 * We can get multiple spoiled events before wither-washer
+	 * detaches our consumer, so this can get called multiple
+	 * times.
+	 */
+	if (gsp == NULL)
 		return;
 	g_free(gsp->slices);
 	if (gsp->hotspot != NULL)
@@ -133,7 +142,7 @@ g_slice_access(struct g_provider *pp, int dr, int dw, int de)
 	 */
 	if (error == 0 && (gp->flags & G_GEOM_WITHER) != 0 &&
 	    (cp->acr + cp->acw + cp->ace) == 0)
-		g_slice_free(gsp);
+		g_slice_free(gp);
 
 	return (error);
 }
@@ -492,7 +501,7 @@ g_slice_orphan(struct g_consumer *cp)
 	 * otherwise g_slice_access() will do that after the last close.
 	 */
 	if ((cp->acr + cp->acw + cp->ace) == 0)
-		g_slice_free(gp->softc);
+		g_slice_free(gp);
 }
 
 void
