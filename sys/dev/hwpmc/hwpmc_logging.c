@@ -681,8 +681,11 @@ pmclog_deconfigure_log(struct pmc_owner *po)
 	}
 
 	/* drop a reference to the fd */
-	error = fdrop(po->po_file, curthread);
-	po->po_file  = NULL;
+	if (po->po_file != NULL) {
+		error = fdrop(po->po_file, curthread);
+		po->po_file  = NULL;
+	} else
+		error = 0;
 	po->po_error = 0;
 
 	return (error);
