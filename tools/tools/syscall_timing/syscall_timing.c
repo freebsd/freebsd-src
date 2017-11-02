@@ -31,6 +31,7 @@
 
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -161,6 +162,22 @@ test_gettimeofday(uintmax_t num, uintmax_t int_arg, const char *path)
 	benchmark_stop();
 	return (i);
 }
+
+uintmax_t
+test_getpriority(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	uintmax_t i;
+
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
+		(void)getpriority(PRIO_PROCESS, 0);
+	}
+	benchmark_stop();
+	return (i);
+}
+
 
 uintmax_t
 test_pipe(uintmax_t num, uintmax_t int_arg, const char *path)
@@ -634,6 +651,7 @@ static const struct test tests[] = {
 	{ "getppid", test_getppid },
 	{ "clock_gettime", test_clock_gettime },
 	{ "gettimeofday", test_gettimeofday },
+	{ "getpriority", test_getpriority },
 	{ "pipe", test_pipe },
 	{ "socket_local_stream", test_socket_stream, .t_int = PF_LOCAL },
 	{ "socket_local_dgram", test_socket_dgram, .t_int = PF_LOCAL },
