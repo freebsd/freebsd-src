@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_EncryptInit 3"
-.TH EVP_EncryptInit 3 "2017-05-25" "1.0.2l" "OpenSSL"
+.TH EVP_EncryptInit 3 "2017-11-02" "1.0.2m" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -512,8 +512,7 @@ processed (e.g. after an \fIEVP_EncryptFinal()\fR call).
 .Ve
 .PP
 Sets the expected tag to \fBtaglen\fR bytes from \fBtag\fR. This call is only legal
-when decrypting data and must be made \fBbefore\fR any data is processed (e.g.
-before any \fIEVP_DecryptUpdate()\fR call).
+when decrypting data.
 .SH "CCM Mode"
 .IX Header "CCM Mode"
 The behaviour of \s-1CCM\s0 mode ciphers is similar to \s-1CCM\s0 mode but with a few
