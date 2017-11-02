@@ -13,10 +13,10 @@ TARGET_MACHINE= host
 HOST_MACHINE!= uname -m
 HOST_MACHINE_ARCH!= uname -p
 BTOOLSDIR?= ${HOST_OBJTOP}/tools
+WORLDTMP= ${BTOOLSDIR}
 LEGACY_TOOLS?= ${BTOOLSDIR}/legacy
 
 BSENV= \
-	unset MAKEOBJDIR; MAKEOBJDIRPREFIX=${BTOOLSDIR} \
 	MAKESYSPATH=${SRCTOP}/tools/build/mk:${SRCTOP}/share/mk \
 	TARGET=${HOST_MACHINE} TARGET_ARCH=${HOST_MACHINE_ARCH} \
 	WITHOUT_STAGING=1 STAGE_ROOT= BOOTSTRAPPING_TOOLS=1 \
@@ -34,6 +34,8 @@ OSRELDATE?= 0
 
 # need to keep this in sync with src/Makefile.inc1 
 BSARGS= 	DESTDIR= \
+		OBJTOP='${WORLDTMP}/obj-$${BWPHASE}' \
+		OBJROOT='$${OBJTOP}/' \
 		BOOTSTRAPPING=${OSRELDATE} \
 		BWPHASE=${.TARGET} \
 		SSP_CFLAGS= \
@@ -44,8 +46,6 @@ BSARGS= 	DESTDIR= \
 		MK_LLDB=no MK_TESTS=no \
 		MK_INCLUDES=yes
 
-# Need to override these so OBJTOP uses are proper in the non-meta build.
-BSARGS+= OBJTOP=${BTOOLSDIR}${SRCTOP} OBJROOT='$${OBJTOP}/'
 # We will handle building the toolchain and cross-compiler.
 BSARGS+= MK_CROSS_COMPILER=no MK_CLANG=no MK_GCC=no
 
