@@ -49,6 +49,7 @@ TOPDIR=		/usr/local
 # "Compiled" time zone information is placed in the "TZDIR" directory
 # (and subdirectories).
 # Use an absolute path name for TZDIR unless you're just testing the software.
+# TZDIR_BASENAME should not contain "/" and should not be ".", ".." or empty.
 
 TZDIR_BASENAME=	zoneinfo
 TZDIR=		$(TOPDIR)/etc/$(TZDIR_BASENAME)
@@ -75,7 +76,7 @@ LIBDIR=		$(TOPDIR)/lib
 # If you want only POSIX time, with time values interpreted as
 # seconds since the epoch (not counting leap seconds), use
 #	REDO=		posix_only
-# below.  If you want want only "right" time, with values interpreted
+# below.  If you want only "right" time, with values interpreted
 # as seconds since the epoch (counting leap seconds), use
 #	REDO=		right_only
 # below.  If you want both sets of data available, with leap seconds not
@@ -92,12 +93,35 @@ LIBDIR=		$(TOPDIR)/lib
 
 REDO=		posix_right
 
+# To install data in text form that has all the information of the binary data,
+# (optionally incorporating leap second information), use
+#	TZDATA_TEXT=	tzdata.zi leapseconds
+# To install text data without leap second information (e.g., because
+# REDO='posix_only'), use
+#	TZDATA_TEXT=	tzdata.zi
+# To avoid installing text data, use
+#	TZDATA_TEXT=
+
+TZDATA_TEXT=	leapseconds tzdata.zi
+
+# For backward-compatibility links for old zone names, use
+#	BACKWARD=	backward pacificnew
+# To omit these links, use
+#	BACKWARD=
+
+BACKWARD=	backward pacificnew
+
 # If you want out-of-scope and often-wrong data from the file 'backzone', use
 #	PACKRATDATA=	backzone
 # To omit this data, use
 #	PACKRATDATA=
 
 PACKRATDATA=
+
+# The name of a locale using the UTF-8 encoding, used during self-tests.
+# The tests are skipped if the name does not appear to work on this system.
+
+UTF8_LOCALE=	en_US.utf8
 
 # Since "." may not be in PATH...
 
@@ -106,50 +130,53 @@ YEARISTYPE=	./yearistype
 # Non-default libraries needed to link.
 LDLIBS=
 
-# Add the following to the end of the "CFLAGS=" line as needed.
+# Add the following to the end of the "CFLAGS=" line as needed to override
+# defaults specified in the source code.  "-DFOO" is equivalent to "-DFOO=1".
 #  -DBIG_BANG=-9999999LL if the Big Bang occurred at time -9999999 (see zic.c)
-#  -DHAVE_DECL_ASCTIME_R=0 if <time.h> does not declare asctime_r
-#  -DHAVE_DIRECT_H if mkdir needs <direct.h> (MS-Windows)
-#  -DHAVE_DOS_FILE_NAMES if file names have drive specifiers etc. (MS-DOS)
-#  -DHAVE_GETTEXT=1 if 'gettext' works (e.g., GNU/Linux, FreeBSD, Solaris)
-#  -DHAVE_INCOMPATIBLE_CTIME_R=1 if your system's time.h declares
-#	ctime_r and asctime_r incompatibly with the POSIX standard
-#	(Solaris when _POSIX_PTHREAD_SEMANTICS is not defined).
-#  -DHAVE_INTTYPES_H=1 if you have a pre-C99 compiler with "inttypes.h"
-#  -DHAVE_LINK=0 if your system lacks a link function
-#  -DHAVE_LOCALTIME_R=0 if your system lacks a localtime_r function
-#  -DHAVE_LOCALTIME_RZ=0 if you do not want zdump to use localtime_rz
-#	This defaults to 1 if a working localtime_rz seems to be available.
-#	localtime_rz can make zdump significantly faster, but is nonstandard.
-#  -DHAVE_POSIX_DECLS=0 if your system's include files do not declare
-#	functions like 'link' or variables like 'tzname' required by POSIX
-#  -DHAVE_STDINT_H=1 if you have a pre-C99 compiler with "stdint.h"
-#  -DHAVE_STRFTIME_L=1 if <time.h> declares locale_t and strftime_l
-#	This defaults to 0 if _POSIX_VERSION < 200809, 1 otherwise.
-#  -DHAVE_STRDUP=0 if your system lacks the strdup function
-#  -DHAVE_SYMLINK=0 if your system lacks the symlink function
-#  -DHAVE_SYS_STAT_H=0 if your compiler lacks a "sys/stat.h"
-#  -DHAVE_SYS_WAIT_H=0 if your compiler lacks a "sys/wait.h"
-#  -DHAVE_TZSET=0 if your system lacks a tzset function
-#  -DHAVE_UNISTD_H=0 if your compiler lacks a "unistd.h" (Microsoft C++ 7?)
-#  -DEPOCH_LOCAL=1 if the 'time' function returns local time not UT
+#  -DDEPRECATE_TWO_DIGIT_YEARS for optional runtime warnings about strftime
+#	formats that generate only the last two digits of year numbers
+#  -DEPOCH_LOCAL if the 'time' function returns local time not UT
 #  -DEPOCH_OFFSET=N if the 'time' function returns a value N greater
 #	than what POSIX specifies, assuming local time is UT.
 #	For example, N is 252460800 on AmigaOS.
-#  -DNO_RUN_TIME_WARNINGS_ABOUT_YEAR_2000_PROBLEMS_THANK_YOU=1
-#	if you do not want run time warnings about formats that may cause
-#	year 2000 grief
-#  -Dssize_t=long on ancient hosts that lack ssize_t
-#  -DTHREAD_SAFE=1 to make localtime.c thread-safe, as POSIX requires;
+#  -DHAVE_DECL_ASCTIME_R=0 if <time.h> does not declare asctime_r
+#  -DHAVE_DECL_ENVIRON if <unistd.h> declares 'environ'
+#  -DHAVE_DIRECT_H if mkdir needs <direct.h> (MS-Windows)
+#  -DHAVE_GENERIC=0 if _Generic does not work
+#  -DHAVE_GETTEXT if 'gettext' works (e.g., GNU/Linux, FreeBSD, Solaris)
+#  -DHAVE_INCOMPATIBLE_CTIME_R if your system's time.h declares
+#	ctime_r and asctime_r incompatibly with the POSIX standard
+#	(Solaris when _POSIX_PTHREAD_SEMANTICS is not defined).
+#  -DHAVE_INTTYPES_H if you have a non-C99 compiler with <inttypes.h>
+#  -DHAVE_LINK=0 if your system lacks a link function
+#  -DHAVE_LOCALTIME_R=0 if your system lacks a localtime_r function
+#  -DHAVE_LOCALTIME_RZ=0 if you do not want zdump to use localtime_rz
+#	localtime_rz can make zdump significantly faster, but is nonstandard.
+#  -DHAVE_POSIX_DECLS=0 if your system's include files do not declare
+#	functions like 'link' or variables like 'tzname' required by POSIX
+#  -DHAVE_SNPRINTF=0 if your system lacks the snprintf function
+#  -DHAVE_STDBOOL_H if you have a non-C99 compiler with <stdbool.h>
+#  -DHAVE_STDINT_H if you have a non-C99 compiler with <stdint.h>
+#  -DHAVE_STRFTIME_L if <time.h> declares locale_t and strftime_l
+#  -DHAVE_STRDUP=0 if your system lacks the strdup function
+#  -DHAVE_SYMLINK=0 if your system lacks the symlink function
+#  -DHAVE_SYS_STAT_H=0 if your compiler lacks a <sys/stat.h>
+#  -DHAVE_SYS_WAIT_H=0 if your compiler lacks a <sys/wait.h>
+#  -DHAVE_TZSET=0 if your system lacks a tzset function
+#  -DHAVE_UNISTD_H=0 if your compiler lacks a <unistd.h>
+#  -Dlocale_t=XXX if your system uses XXX instead of locale_t
+#  -Dssize_t=long on hosts like MS-Windows that lack ssize_t
+#  -DTHREAD_SAFE to make localtime.c thread-safe, as POSIX requires;
 #	not needed by the main-program tz code, which is single-threaded.
 #	Append other compiler flags as needed, e.g., -pthread on GNU/Linux.
 #  -Dtime_tz=\"T\" to use T as the time_t type, rather than the system time_t
+#	This is intended for internal use only; it mangles external names.
 #  -DTZ_DOMAIN=\"foo\" to use "foo" for gettext domain name; default is "tz"
 #  -DTZ_DOMAINDIR=\"/path\" to use "/path" for gettext directory;
 #	the default is system-supplied, typically "/usr/lib/locale"
 #  -DTZDEFRULESTRING=\",date/time,date/time\" to default to the specified
 #	DST transitions if the time zone files cannot be accessed
-#  -DUNINIT_TRAP=1 if reading uninitialized storage can cause problems
+#  -DUNINIT_TRAP if reading uninitialized storage can cause problems
 #	other than simply getting garbage data
 #  -DUSE_LTZ=0 to build zdump with the system time zone library
 #	Also set TZDOBJS=zdump.o and CHECK_TIME_T_ALTERNATIVES= below.
@@ -157,26 +184,27 @@ LDLIBS=
 #	(or some other number) to set the maximum time zone abbreviation length
 #	that zic will accept without a warning (the default is 6)
 #  $(GCC_DEBUG_FLAGS) if you are using recent GCC and want lots of checking
-GCC_DEBUG_FLAGS = -Dlint -g3 -O3 -fno-common -fstrict-aliasing \
-	-Wall -Wextra \
-	-Wbad-function-cast -Wcast-align -Wdate-time \
-	-Wdeclaration-after-statement \
-	-Wdouble-promotion \
-	-Wformat=2 -Winit-self -Wjump-misses-init \
-	-Wlogical-op -Wmissing-prototypes -Wnested-externs \
-	-Wold-style-definition -Woverlength-strings -Wpointer-arith \
-	-Wshadow -Wstrict-prototypes -Wsuggest-attribute=const \
-	-Wsuggest-attribute=format -Wsuggest-attribute=noreturn \
-	-Wsuggest-attribute=pure -Wtrampolines \
-	-Wundef -Wunused -Wwrite-strings \
-	-Wno-address -Wno-format-nonliteral -Wno-sign-compare \
-	-Wno-type-limits -Wno-unused-parameter
-#
-# If you want to use System V compatibility code, add
-#	-DUSG_COMPAT
-# to the end of the "CFLAGS=" line.  This arrange for "timezone" and "daylight"
-# variables to be kept up-to-date by the time conversion functions.  Neither
-# "timezone" nor "daylight" is described in X3J11's work.
+# Select instrumentation via "make GCC_INSTRUMENT='whatever'".
+GCC_INSTRUMENT = \
+  -fsanitize=undefined -fsanitize-address-use-after-scope \
+  -fsanitize-undefined-trap-on-error -fstack-protector
+GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 -fno-common \
+  $(GCC_INSTRUMENT) \
+  -Wall -Wextra \
+  -Walloc-size-larger-than=100000 -Warray-bounds=2 \
+  -Wbad-function-cast -Wcast-align -Wdate-time \
+  -Wdeclaration-after-statement -Wdouble-promotion \
+  -Wformat=2 -Wformat-overflow=2 -Wformat-signedness -Wformat-truncation \
+  -Winit-self -Wjump-misses-init -Wlogical-op \
+  -Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
+  -Wold-style-definition -Woverlength-strings -Wpointer-arith \
+  -Wshadow -Wshift-overflow=2 -Wstrict-prototypes -Wstringop-overflow=5 \
+  -Wsuggest-attribute=const -Wsuggest-attribute=format \
+  -Wsuggest-attribute=noreturn -Wsuggest-attribute=pure \
+  -Wtrampolines -Wundef -Wuninitialized -Wunused \
+  -Wvariadic-macros -Wvla -Wwrite-strings \
+  -Wno-address -Wno-format-nonliteral -Wno-sign-compare \
+  -Wno-type-limits -Wno-unused-parameter
 #
 # If your system has a "GMT offset" field in its "struct tm"s
 # (or if you decide to add such a field in your system's "time.h" file),
@@ -188,6 +216,31 @@ GCC_DEBUG_FLAGS = -Dlint -g3 -O3 -fno-common -fstrict-aliasing \
 #	-DTM_ZONE=tm_zone
 # and define NO_TM_ZONE to suppress any guessing.  These two fields are not
 # required by POSIX, but are widely available on GNU/Linux and BSD systems.
+#
+# The next batch of options control support for external variables
+# exported by tzcode.  In practice these variables are less useful
+# than TM_GMTOFF and TM_ZONE.  However, most of them are standardized.
+# #
+# # To omit or support the external variable "tzname", add one of:
+# #	-DHAVE_TZNAME=0
+# #	-DHAVE_TZNAME=1
+# # to the "CFLAGS=" line.  "tzname" is required by POSIX 1988 and later.
+# # If not defined, the code attempts to guess HAVE_TZNAME from other macros.
+# # Warning: unless time_tz is also defined, HAVE_TZNAME=1 can cause
+# # crashes when combined with some platforms' standard libraries,
+# # presumably due to memory allocation issues.
+# #
+# # To omit or support the external variables "timezone" and "daylight", add
+# #	-DUSG_COMPAT=0
+# #	-DUSG_COMPAT=1
+# # to the "CFLAGS=" line; "timezone" and "daylight" are inspired by
+# # Unix Systems Group code and are required by POSIX 2008 (with XSI) and later.
+# # If not defined, the code attempts to guess USG_COMPAT from other macros.
+# #
+# # To support the external variable "altzone", add
+# #	-DALTZONE
+# # to the end of the "CFLAGS=" line; although "altzone" appeared in
+# # System V Release 3.1 it has not been standardized.
 #
 # If you want functions that were inspired by early versions of X3J11's work,
 # add
@@ -226,11 +279,6 @@ GCC_DEBUG_FLAGS = -Dlint -g3 -O3 -fno-common -fstrict-aliasing \
 #	-DALL_STATE
 # to the end of the "CFLAGS=" line.  Storage is obtained by calling malloc.
 #
-# If you want an "altzone" variable (a la System V Release 3.1), add
-#	-DALTZONE
-# to the end of the "CFLAGS=" line.
-# This variable is not described in X3J11's work.
-#
 # NIST-PCTS:151-2, Version 1.4, (1993-12-03) is a test suite put
 # out by the National Institute of Standards and Technology
 # which claims to test C and Posix conformance.  If you want to pass PCTS, add
@@ -240,8 +288,8 @@ GCC_DEBUG_FLAGS = -Dlint -g3 -O3 -fno-common -fstrict-aliasing \
 # If you want strict compliance with XPG4 as of 1994-04-09, add
 #	-DXPG4_1994_04_09
 # to the end of the "CFLAGS=" line.  This causes "strftime" to always return
-# 53 as a week number (rather than 52 or 53) for those days in January that
-# before the first Monday in January when a "%V" format is used and January 1
+# 53 as a week number (rather than 52 or 53) for January days before
+# January's first Monday when a "%V" format is used and January 1
 # falls on a Friday, Saturday, or Sunday.
 
 CFLAGS=
@@ -265,7 +313,7 @@ ZFLAGS=
 
 # How to use zic to install tz binary files.
 
-ZIC_INSTALL=	$(ZIC) -y $(YEARISTYPE) -d $(DESTDIR)$(TZDIR) $(LEAPSECONDS)
+ZIC_INSTALL=	$(ZIC) -d $(DESTDIR)$(TZDIR) $(LEAPSECONDS)
 
 # The name of a Posix-compliant 'awk' on your system.
 AWK=		awk
@@ -289,6 +337,7 @@ SGML_CATALOG_FILES= \
 # The name, arguments and environment of a program to validate your web pages.
 # See <http://openjade.sourceforge.net/doc/> for a validator, and
 # <https://validator.w3.org/source/> for a validation library.
+# Set VALIDATE=':' if you do not have such a program.
 VALIDATE = nsgmls
 VALIDATE_FLAGS = -s -B -wall -wno-unused-param
 VALIDATE_ENV = \
@@ -355,7 +404,7 @@ AR=		ar
 RANLIB=		:
 
 TZCOBJS=	zic.o
-TZDOBJS=	zdump.o localtime.o asctime.o
+TZDOBJS=	zdump.o localtime.o asctime.o strftime.o
 DATEOBJS=	date.o localtime.o strftime.o asctime.o
 LIBSRCS=	localtime.c asctime.c difftime.c
 LIBOBJS=	localtime.o asctime.o difftime.o
@@ -370,33 +419,35 @@ MANTXTS=	newctime.3.txt newstrftime.3.txt newtzset.3.txt \
 			time2posix.3.txt \
 			tzfile.5.txt tzselect.8.txt zic.8.txt zdump.8.txt \
 			date.1.txt
-COMMON=		CONTRIBUTING LICENSE Makefile NEWS README Theory version
+COMMON=		calendars CONTRIBUTING LICENSE Makefile \
+			NEWS README theory.html version
 WEB_PAGES=	tz-art.htm tz-how-to.html tz-link.htm
 DOCS=		$(MANS) date.1 $(MANTXTS) $(WEB_PAGES)
 PRIMARY_YDATA=	africa antarctica asia australasia \
 		europe northamerica southamerica
-YDATA=		$(PRIMARY_YDATA) pacificnew etcetera backward
+YDATA=		$(PRIMARY_YDATA) etcetera $(BACKWARD)
 NDATA=		systemv factory
 TDATA=		$(YDATA) $(NDATA)
 ZONETABLES=	zone1970.tab zone.tab
-TABDATA=	iso3166.tab leapseconds $(ZONETABLES)
+TABDATA=	iso3166.tab $(TZDATA_TEXT) $(ZONETABLES)
 LEAP_DEPS=	leapseconds.awk leap-seconds.list
-DATA=		$(YDATA) $(NDATA) backzone $(TABDATA) \
-			leap-seconds.list yearistype.sh
-AWK_SCRIPTS=	checklinks.awk checktab.awk leapseconds.awk
+TZDATA_ZI_DEPS=	zishrink.awk $(TDATA) $(PACKRATDATA)
+DATA=		$(YDATA) $(NDATA) backzone iso3166.tab leap-seconds.list \
+			leapseconds yearistype.sh $(ZONETABLES)
+AWK_SCRIPTS=	checklinks.awk checktab.awk leapseconds.awk zishrink.awk
 MISC=		$(AWK_SCRIPTS) zoneinfo2tdf.pl
 TZS_YEAR=	2050
 TZS=		to$(TZS_YEAR).tzs
 TZS_NEW=	to$(TZS_YEAR)new.tzs
 TZS_DEPS=	$(PRIMARY_YDATA) asctime.c localtime.c \
 			private.h tzfile.h zdump.c zic.c
-ENCHILADA=	$(COMMON) $(DOCS) $(SOURCES) $(DATA) $(MISC) $(TZS)
+ENCHILADA=	$(COMMON) $(DOCS) $(SOURCES) $(DATA) $(MISC) $(TZS) tzdata.zi
 
 # Consult these files when deciding whether to rebuild the 'version' file.
 # This list is not the same as the output of 'git ls-files', since
 # .gitignore is not distributed.
 VERSION_DEPS= \
-		CONTRIBUTING LICENSE Makefile NEWS README Theory \
+		calendars CONTRIBUTING LICENSE Makefile NEWS README \
 		africa antarctica asctime.c asia australasia \
 		backward backzone \
 		checklinks.awk checktab.awk \
@@ -405,7 +456,7 @@ VERSION_DEPS= \
 		leap-seconds.list leapseconds.awk localtime.c \
 		newctime.3 newstrftime.3 newtzset.3 northamerica \
 		pacificnew private.h \
-		southamerica strftime.c systemv \
+		southamerica strftime.c systemv theory.html \
 		time2posix.3 tz-art.htm tz-how-to.html tz-link.htm \
 		tzfile.5 tzfile.h tzselect.8 tzselect.ksh \
 		workman.sh yearistype.sh \
@@ -427,7 +478,7 @@ install:	all $(DATA) $(REDO) $(MANS)
 			$(DESTDIR)$(MANDIR)/man3 $(DESTDIR)$(MANDIR)/man5 \
 			$(DESTDIR)$(MANDIR)/man8
 		$(ZIC_INSTALL) -l $(LOCALTIME) -p $(POSIXRULES)
-		cp -f iso3166.tab $(ZONETABLES) $(DESTDIR)$(TZDIR)/.
+		cp -f $(TABDATA) $(DESTDIR)$(TZDIR)/.
 		cp tzselect zic zdump $(DESTDIR)$(ETCDIR)/.
 		cp libtz.a $(DESTDIR)$(LIBDIR)/.
 		$(RANLIB) $(DESTDIR)$(LIBDIR)/libtz.a
@@ -446,6 +497,11 @@ version:	$(VERSION_DEPS)
 				--abbrev=7 --dirty` || \
 		  V=$(VERSION); } && \
 		printf '%s\n' "$$V" >$@.out
+		mv $@.out $@
+
+# This file can be tailored by setting BACKWARD, PACKRATDATA, etc.
+tzdata.zi:	$(TZDATA_ZI_DEPS)
+		LC_ALL=C $(AWK) -f zishrink.awk $(TDATA) $(PACKRATDATA) >$@.out
 		mv $@.out $@
 
 version.h:	version
@@ -473,6 +529,7 @@ leapseconds:	$(LEAP_DEPS)
 # Arguments to pass to submakes of install_data.
 # They can be overridden by later submake arguments.
 INSTALLARGS = \
+ BACKWARD=$(BACKWARD) \
  DESTDIR=$(DESTDIR) \
  LEAPSECONDS='$(LEAPSECONDS)' \
  PACKRATDATA='$(PACKRATDATA)' \
@@ -481,10 +538,8 @@ INSTALLARGS = \
  ZIC='$(ZIC)'
 
 # 'make install_data' installs one set of tz binary files.
-# It can be tailored by setting LEAPSECONDS, PACKRATDATA, etc.
-install_data:	zic leapseconds yearistype $(PACKRATDATA) $(TDATA)
-		$(ZIC_INSTALL) $(TDATA)
-		$(AWK) '/^Rule/' $(TDATA) | $(ZIC_INSTALL) - $(PACKRATDATA)
+install_data:	zic leapseconds yearistype tzdata.zi
+		$(ZIC_INSTALL) tzdata.zi
 
 posix_only:
 		$(MAKE) $(INSTALLARGS) LEAPSECONDS= install_data
@@ -521,14 +576,14 @@ posix_packrat:
 
 zones:		$(REDO)
 
-$(TZS_NEW):	$(TDATA) zdump zic
+$(TZS_NEW):	tzdata.zi zdump zic
 		mkdir -p tzs.dir
-		$(zic) -d tzs.dir $(TDATA)
-		$(AWK) '/^Link/{print $$1 "\t" $$2 "\t" $$3}' \
-		   $(TDATA) | LC_ALL=C sort >$@.out
+		$(zic) -d tzs.dir tzdata.zi
+		$(AWK) '/^L/{print "Link\t" $$2 "\t" $$3}' \
+		   tzdata.zi | LC_ALL=C sort >$@.out
 		wd=`pwd` && \
 		zones=`$(AWK) -v wd="$$wd" \
-				'/^Zone/{print wd "/tzs.dir/" $$2}' $(TDATA) \
+				'/^Z/{print wd "/tzs.dir/" $$2}' tzdata.zi \
 			 | LC_ALL=C sort` && \
 		./zdump -i -c $(TZS_YEAR) $$zones >>$@.out
 		sed 's,^TZ=".*tzs\.dir/,TZ=",' $@.out >$@.sed.out
@@ -564,23 +619,36 @@ tzselect:	tzselect.ksh version
 		chmod +x $@.out
 		mv $@.out $@
 
-check:		check_character_set check_white_space check_links check_sorted \
-		  check_tables check_tzs check_web
+check:		check_character_set check_white_space check_links \
+		  check_name_lengths check_sorted \
+		  check_tables check_web check_zishrink check_tzs
 
 check_character_set: $(ENCHILADA)
-		LC_ALL=en_US.utf8 && export LC_ALL && \
+	test ! '$(UTF8_LOCALE)' || \
+	! printf 'A\304\200B\n' | \
+	  LC_ALL='$(UTF8_LOCALE)' grep -q '^A.B$$' >/dev/null 2>&1 || { \
+		LC_ALL='$(UTF8_LOCALE)' && export LC_ALL && \
 		sharp='#' && \
 		! grep -Env $(SAFE_LINE) $(MANS) date.1 $(MANTXTS) \
 			$(MISC) $(SOURCES) $(WEB_PAGES) \
-			CONTRIBUTING LICENSE Makefile README version && \
+			CONTRIBUTING LICENSE Makefile README \
+			version tzdata.zi && \
 		! grep -Env $(SAFE_SHARP_LINE) $(TDATA) backzone \
 			leapseconds yearistype.sh zone.tab && \
-		! grep -Env $(OK_LINE) $(ENCHILADA)
+		! grep -Env $(OK_LINE) $(ENCHILADA); \
+	}
 
 check_white_space: $(ENCHILADA)
 		patfmt=' \t|[\f\r\v]' && pat=`printf "$$patfmt\\n"` && \
 		! grep -En "$$pat" $(ENCHILADA)
 		! grep -n '[[:space:]]$$' $(ENCHILADA)
+
+PRECEDES_FILE_NAME = ^(Zone|Link[[:space:]]+[^[:space:]]+)[[:space:]]+
+FILE_NAME_COMPONENT_TOO_LONG = \
+  $(PRECEDES_FILE_NAME)[^[:space:]]*[^/[:space:]]{15}
+
+check_name_lengths: $(TDATA) backzone
+		! grep -En '$(FILE_NAME_COMPONENT_TOO_LONG)' $(TDATA) backzone
 
 CHECK_CC_LIST = { n = split($$1,a,/,/); for (i=2; i<=n; i++) print a[1], a[i]; }
 
@@ -596,6 +664,7 @@ check_sorted: backward backzone iso3166.tab zone.tab zone1970.tab
 
 check_links:	checklinks.awk $(TDATA)
 		$(AWK) -f checklinks.awk $(TDATA)
+		$(AWK) -f checklinks.awk tzdata.zi
 
 check_tables:	checktab.awk $(PRIMARY_YDATA) $(ZONETABLES)
 		for tab in $(ZONETABLES); do \
@@ -606,14 +675,32 @@ check_tables:	checktab.awk $(PRIMARY_YDATA) $(ZONETABLES)
 check_tzs:	$(TZS) $(TZS_NEW)
 		diff -u $(TZS) $(TZS_NEW)
 
-check_web:	$(WEB_PAGES)
-		$(VALIDATE_ENV) $(VALIDATE) $(VALIDATE_FLAGS) $(WEB_PAGES)
+# This checks only the HTML 4.01 strict page.
+# To check the the other pages, use <https://validator.w3.org/>.
+check_web:	tz-how-to.html
+		$(VALIDATE_ENV) $(VALIDATE) $(VALIDATE_FLAGS) tz-how-to.html
+
+# Check that tzdata.zi generates the same binary data that its sources do.
+check_zishrink: tzdata.zi zic leapseconds $(PACKRATDATA) $(TDATA)
+		for type in posix right; do \
+		  mkdir -p time_t.dir/$$type time_t.dir/$$type-shrunk && \
+		  case $$type in \
+		    right) leap='-L leapseconds';; \
+	            *) leap=;; \
+		  esac && \
+		  $(ZIC) $$leap -d time_t.dir/$$type $(TDATA) && \
+		  $(AWK) '/^Rule/' $(TDATA) | \
+		    $(ZIC) $$leap -d time_t.dir/$$type - $(PACKRATDATA) && \
+		  $(ZIC) $$leap -d time_t.dir/$$type-shrunk tzdata.zi && \
+		  diff -r time_t.dir/$$type time_t.dir/$$type-shrunk || exit; \
+		done
+		rm -fr time_t.dir
 
 clean_misc:
 		rm -f core *.o *.out \
 		  date tzselect version.h zdump zic yearistype libtz.a
 clean:		clean_misc
-		rm -fr *.dir tzdb-*/ $(TZS_NEW)
+		rm -fr *.dir tzdata.zi tzdb-*/ $(TZS_NEW)
 
 maintainer-clean: clean
 		@echo 'This command is intended for maintainers to use; it'
@@ -667,6 +754,7 @@ set-timestamps.out: $(ENCHILADA)
 		  touch -cmr `ls -t $$file workman.sh | sed 1q` $$file.txt || \
 		    exit; \
 		done
+		touch -cmr `ls -t $(TZDATA_ZI_DEPS) | sed 1q` tzdata.zi
 		touch -cmr `ls -t $(TZS_DEPS) | sed 1q` $(TZS)
 		touch -cmr `ls -t $(VERSION_DEPS) | sed 1q` version
 		touch $@
@@ -678,7 +766,7 @@ check_public:
 		$(MAKE) maintainer-clean
 		$(MAKE) "CFLAGS=$(GCC_DEBUG_FLAGS)" ALL
 		mkdir -p public.dir
-		for i in $(TDATA) ; do \
+		for i in $(TDATA) tzdata.zi; do \
 		  $(zic) -v -d public.dir $$i 2>&1 || exit; \
 		done
 		$(zic) -v -d public.dir $(TDATA)
@@ -772,8 +860,8 @@ typecheck:
 			$(MAKE) clean ; \
 		done
 
-zonenames:	$(TDATA)
-		@$(AWK) '/^Zone/ { print $$2 } /^Link/ { print $$3 }' $(TDATA)
+zonenames:	tzdata.zi
+		@$(AWK) '/^Z/ { print $$2 } /^L/ { print $$3 }' tzdata.zi
 
 asctime.o:	private.h tzfile.h
 date.o:		private.h
@@ -789,6 +877,7 @@ zic.o:		private.h tzfile.h version.h
 .PHONY: check check_character_set check_links
 .PHONY: check_public check_sorted check_tables
 .PHONY: check_time_t_alternatives check_tzs check_web check_white_space
+.PHONY: check_zishrink
 .PHONY: clean clean_misc force_tzs
 .PHONY: install install_data maintainer-clean names
 .PHONY: posix_only posix_packrat posix_right
