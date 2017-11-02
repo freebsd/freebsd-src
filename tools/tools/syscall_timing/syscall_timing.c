@@ -340,6 +340,28 @@ test_socketpair_dgram(uintmax_t num, uintmax_t int_arg, const char *path)
 }
 
 uintmax_t
+test_access(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	uintmax_t i;
+	int fd;
+
+	fd = access(path, O_RDONLY);
+	if (fd < 0)
+		err(-1, "test_access: %s", path);
+	close(fd);
+
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
+		access(path, O_RDONLY);
+		close(fd);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+uintmax_t
 test_create_unlink(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	uintmax_t i;
@@ -716,6 +738,7 @@ static const struct test tests[] = {
 	{ "socketpair_dgram", test_socketpair_dgram },
 	{ "socket_tcp", test_socket_stream, .t_int = PF_INET },
 	{ "socket_udp", test_socket_dgram, .t_int = PF_INET },
+	{ "access", test_access, .t_flags = FLAG_PATH },
 	{ "create_unlink", test_create_unlink, .t_flags = FLAG_PATH },
 	{ "bad_open", test_bad_open },
 	{ "open_close", test_open_close, .t_flags = FLAG_PATH },
