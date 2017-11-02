@@ -43,7 +43,8 @@ MAKEOBJDIRPREFIX:=	${MAKEOBJDIRPREFIX}${TARGET:D/${TARGET}.${TARGET_ARCH}}
 # put things approximately where they want
 OBJROOT:=	${MAKEOBJDIRPREFIX}${SRCTOP}/
 MAKEOBJDIRPREFIX=
-.export MAKEOBJDIRPREFIX
+# export but do not track
+.export-env MAKEOBJDIRPREFIX
 .endif
 .if empty(MAKEOBJDIR)
 # OBJTOP set below
