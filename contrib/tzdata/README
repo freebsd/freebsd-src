@@ -10,24 +10,9 @@ locations around the globe.  It is updated periodically to reflect
 changes made by political bodies to time zone boundaries, UTC offsets,
 and daylight-saving rules.
 
-Here is a recipe for acquiring, building, installing, and testing the
-tz distribution on a GNU/Linux or similar host.
-
-To acquire the distribution, run the following shell commands:
-
-	mkdir tz
-	cd tz
-	wget --retr-symlinks 'ftp://ftp.iana.org/tz/tz*-latest.tar.gz'
-	gzip -dc tzcode-latest.tar.gz | tar -xf -
-	gzip -dc tzdata-latest.tar.gz | tar -xf -
-
-Alternatively, the following shell commands acquire the same
-distribution, with extra data useful for regression testing:
-
-	wget --retr-symlinks 'ftp://ftp.iana.org/tz/tzdb-latest.tar.lz'
-	lzip -dc tzdb-latest.tar.lz | tar -xf -
-
-Be sure to read the comments in "Makefile" and make any changes needed
+See <https://www.iana.org/time-zones/repository/tz-link.html> or the
+file tz-link.htm for how to acquire the code and data.  Once acquired,
+read the comments in the file 'Makefile' and make any changes needed
 to make things right for your system, especially if you are using some
 platform other than GNU/Linux.  Then run the following commands,
 substituting your desired installation directory for "$HOME/tzdir":
@@ -59,10 +44,6 @@ for testing work, and to Gwillim Law for checking local mean time data.
 Thanks in particular to Arthur David Olson, the project's founder and first
 maintainer, to whom the time zone community owes the greatest debt of all.
 None of them are responsible for remaining errors.
-
-Look in <ftp://ftp.iana.org/tz/releases/> for updated versions of these files.
-
-Please send comments or information to tz@iana.org.
 
 -----
 
