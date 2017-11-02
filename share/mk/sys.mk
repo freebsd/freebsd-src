@@ -20,6 +20,12 @@ MACHINE_CPUARCH=${MACHINE_ARCH:${__TO_CPUARCH}}
 __DEFAULT_YES_OPTIONS+= \
 	UNIFIED_OBJDIR
 
+# src.sys.obj.mk enables AUTO_OBJ by default if possible but it is otherwise
+# disabled.  Ensure src.conf.5 shows it as default on.
+.if make(showconfig)
+__DEFAULT_YES_OPTIONS+= AUTO_OBJ
+.endif
+
 # Some options we need now
 __DEFAULT_NO_OPTIONS= \
 	DIRDEPS_BUILD \

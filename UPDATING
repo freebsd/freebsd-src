@@ -51,6 +51,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20171102:
+	Building in a FreeBSD src checkout will automatically create object
+	directories now rather than store files in the current directory if
+	'make obj' was not ran.  Calling 'make obj' is no longer necesarry.
+	This feature can be disabled by setting WITHOUT_AUTO_OBJ=yes in
+	/etc/src-env.conf (not /etc/src.conf), or passing the option in the
+	environment.
+
 20171101:
 	The default MAKEOBJDIR has changed from /usr/obj/<srcdir> for native
 	builds, and /usr/obj/<arch>/<srcdir> for cross-builds, to a unified
