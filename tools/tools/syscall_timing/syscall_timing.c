@@ -38,6 +38,7 @@
 
 #include <assert.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -693,15 +694,17 @@ main(int argc, char *argv[])
 	struct timespec ts_res;
 	const struct test *the_test;
 	const char *path;
+	char *tmp_dir, *tmp_path;
 	long long ll;
 	char *endp;
-	int ch, error, i, j, k;
+	int ch, fd, error, i, j, k, rv;
 	uintmax_t iterations, loops;
 
 	alarm_timeout = 1;
 	iterations = 0;
 	loops = 10;
 	path = NULL;
+	tmp_path = NULL;
 	while ((ch = getopt(argc, argv, "i:l:p:s:")) != -1) {
 		switch (ch) {
 		case 'i':
@@ -760,7 +763,15 @@ main(int argc, char *argv[])
 		if (the_test == NULL)
 			usage();
 		if ((the_test->t_flags & FLAG_PATH) && (path == NULL)) {
-			errx(-1, "%s requires -p", the_test->t_name);
+			tmp_dir = strdup("/tmp/syscall_timing.XXXXXXXX");
+			if (tmp_dir == NULL)
+				err(1, "strdup");
+			tmp_dir = mkdtemp(tmp_dir);
+			if (tmp_dir == NULL)
+				err(1, "mkdtemp");
+			rv = asprintf(&tmp_path, "%s/testfile", tmp_dir);
+			if (rv <= 0)
+				err(1, "asprintf");
 		}
 	}
 
@@ -777,6 +788,19 @@ main(int argc, char *argv[])
 		for (i = 0; i < tests_count; i++) {
 			if (strcmp(argv[j], tests[i].t_name) == 0)
 				the_test = &tests[i];
+		}
+
+		if (tmp_path != NULL) {
+			fd = open(tmp_path, O_WRONLY | O_CREAT, 0700);
+			if (fd < 0)
+				err(1, "cannot open %s", tmp_path);
+			error = ftruncate(fd, 1000000);
+			if (error != 0)
+				err(1, "ftruncate");
+			error = close(fd);
+			if (error != 0)
+				err(1, "close");
+			path = tmp_path;
 		}
 
 		/*
@@ -804,5 +828,15 @@ main(int argc, char *argv[])
 			printf("0.%09ju\n", (uintmax_t)nsecsperit);
 		}
 	}
+
+	if (tmp_path != NULL) {
+		error = unlink(tmp_path);
+		if (error != 0 && errno != ENOENT)
+			warn("cannot unlink %s", tmp_path);
+		error = rmdir(tmp_dir);
+		if (error != 0)
+			warn("cannot rmdir %s", tmp_dir);
+	}
+
 	return (0);
 }
