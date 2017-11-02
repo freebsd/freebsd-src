@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CIPHERS 1"
-.TH CIPHERS 1 "2017-01-26" "1.0.2k" "OpenSSL"
+.TH CIPHERS 1 "2017-05-25" "1.0.2l" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -283,7 +283,8 @@ Be careful when building cipherlists out of lower-level primitives such as
 When in doubt, include \fB!aNULL\fR in your cipherlist.
 .IP "\fBkRSA\fR, \fB\s-1RSA\s0\fR" 4
 .IX Item "kRSA, RSA"
-cipher suites using \s-1RSA\s0 key exchange.
+cipher suites using \s-1RSA\s0 key exchange or authentication. \fB\s-1RSA\s0\fR is an alias for
+\&\fBkRSA\fR.
 .IP "\fBkDHr\fR, \fBkDHd\fR, \fBkDH\fR" 4
 .IX Item "kDHr, kDHd, kDH"
 cipher suites using \s-1DH\s0 key agreement and \s-1DH\s0 certificates signed by CAs with \s-1RSA\s0
