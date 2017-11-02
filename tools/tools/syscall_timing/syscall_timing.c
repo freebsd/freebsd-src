@@ -392,6 +392,21 @@ test_open_close(uintmax_t num, uintmax_t int_arg, const char *path)
 }
 
 uintmax_t
+test_bad_open(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	uintmax_t i;
+
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
+		open("", O_RDONLY);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+uintmax_t
 test_read(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	char buf[int_arg];
@@ -702,6 +717,7 @@ static const struct test tests[] = {
 	{ "socket_tcp", test_socket_stream, .t_int = PF_INET },
 	{ "socket_udp", test_socket_dgram, .t_int = PF_INET },
 	{ "create_unlink", test_create_unlink, .t_flags = FLAG_PATH },
+	{ "bad_open", test_bad_open },
 	{ "open_close", test_open_close, .t_flags = FLAG_PATH },
 	{ "open_read_close_1", test_open_read_close, .t_flags = FLAG_PATH,
 	    .t_int = 1 },
