@@ -94,7 +94,68 @@ OBJTOP:=	${MAKEOBJDIRPREFIX}${SRCTOP}
 OBJROOT:=	${OBJTOP}/
 .endif
 
-# Assign this directory as .OBJDIR if possible
+# Try to enable MK_AUTO_OBJ by default if we can write to the OBJROOT.  Only
+# do this if AUTO_OBJ is not disabled by the user, not cleaning, and this
+# is the first make ran.
+.if ${.MAKE.LEVEL} == 0 && \
+    ${MK_AUTO_OBJ} == "no" && empty(.MAKEOVERRIDES:MMK_AUTO_OBJ) && \
+    !defined(WITHOUT_AUTO_OBJ) && !make(showconfig) && !make(print-dir) && \
+    !defined(NO_OBJ) && \
+    (${.TARGETS} == "" || ${.TARGETS:Nclean*:N*clean:Ndestroy*} != "")
+# Find the last existing directory component and check if we can write to it.
+# If the last component is a symlink then recurse on the new path.
+CheckAutoObj= \
+DirIsCreatable() { \
+	[ -w "$${1}" ] && return 0; \
+	d="$${1}"; \
+	IFS=/; \
+	set -- $${d}; \
+	unset dir; \
+	while [ $$\# -gt 0 ]; do \
+		d="$${1}"; \
+		shift; \
+		if [ ! -d "$${dir}$${d}/" ]; then \
+			if [ -L "$${dir}$${d}" ]; then \
+				dir="$$(readlink "$${dir}$${d}")/"; \
+				for d in "$${@}"; do \
+					dir="$${dir}$${d}/"; \
+				done; \
+				ret=0; \
+				DirIsCreatable "$${dir%/}" || ret=$$?; \
+				return $${ret}; \
+			else \
+				break; \
+			fi; \
+		fi; \
+		dir="$${dir}$${d}/"; \
+	done; \
+	[ -w "$${dir}" ]; \
+}; \
+CheckAutoObj() { \
+	if DirIsCreatable "$${1}"; then \
+		echo yes; \
+	else \
+		echo no; \
+	fi; \
+}
+.if !empty(MAKEOBJDIRPREFIX)
+WANTED_OBJDIR=	${MAKEOBJDIRPREFIX}${.CURDIR}
+.else
+WANTED_OBJDIR=	${MAKEOBJDIR}
+.endif
+OBJDIR_WRITABLE!= \
+	${CheckAutoObj}; CheckAutoObj "${WANTED_OBJDIR}" || echo no
+# Export the decision to sub-makes.
+MK_AUTO_OBJ:=	${OBJDIR_WRITABLE}
+.export MK_AUTO_OBJ
+.elif make(showconfig)
+# Need to export for showconfig internally running make -dg1.  It is enabled
+# in sys.mk by default.
+.export MK_AUTO_OBJ
+.endif	# ${MK_AUTO_OBJ} == "no" && ...
+
+# Assign this directory as .OBJDIR if possible after determining if AUTO_OBJ
+# can be enabled by default.
 .if ${MK_AUTO_OBJ} == "no"
 # The expected OBJDIR already exists, set it as .OBJDIR.
 .if !empty(MAKEOBJDIRPREFIX) && exists(${MAKEOBJDIRPREFIX}${.CURDIR})
