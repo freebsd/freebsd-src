@@ -1,3 +1,4 @@
+.error Bad revision, please wait for a fix in head
 #
 # $FreeBSD$
 #
