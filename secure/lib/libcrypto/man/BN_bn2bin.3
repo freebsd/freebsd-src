@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BN_bn2bin 3"
-.TH BN_bn2bin 3 "2017-05-25" "1.0.2l" "OpenSSL"
+.TH BN_bn2bin 3 "2017-11-02" "1.0.2m" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -202,8 +202,9 @@ if \fBret\fR is \s-1NULL.\s0
 \&\fIBN_bin2bn()\fR returns the \fB\s-1BIGNUM\s0\fR, \s-1NULL\s0 on error.
 .PP
 \&\fIBN_bn2hex()\fR and \fIBN_bn2dec()\fR return a null-terminated string, or \s-1NULL\s0
-on error. \fIBN_hex2bn()\fR and \fIBN_dec2bn()\fR return the number's length in
-hexadecimal or decimal digits, and 0 on error.
+on error. \fIBN_hex2bn()\fR and \fIBN_dec2bn()\fR return the number of characters
+used in parsing, or 0 on error, in which
+case no new \fB\s-1BIGNUM\s0\fR will be created.
 .PP
 \&\fIBN_print_fp()\fR and \fIBN_print()\fR return 1 on success, 0 on write errors.
 .PP
