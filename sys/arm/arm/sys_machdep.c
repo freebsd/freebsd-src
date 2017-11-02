@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/sysarch.h>
+#include <machine/machdep.h>
 #include <machine/vmparam.h>
 
 #ifndef _SYS_SYSPROTO_H_
@@ -206,6 +207,7 @@ sysarch(td, uap)
 		case ARM_DRAIN_WRITEBUF:
 		case ARM_SET_TP:
 		case ARM_GET_TP:
+		case ARM_GET_VFPSTATE:
 			break;
 
 		default:
@@ -230,6 +232,9 @@ sysarch(td, uap)
 		break;
 	case ARM_GET_TP:
 		error = arm32_get_tp(td, uap->parms);
+		break;
+	case ARM_GET_VFPSTATE:
+		error = arm_get_vfpstate(td, uap->parms);
 		break;
 	default:
 		error = EINVAL;
