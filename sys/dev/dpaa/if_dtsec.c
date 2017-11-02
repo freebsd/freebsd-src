@@ -578,8 +578,6 @@ dtsec_attach(device_t dev)
 	parent = device_get_parent(dev);
 	sc->sc_dev = dev;
 	sc->sc_mac_mdio_irq = NO_IRQ;
-	sc->sc_eth_id = device_get_unit(dev);
-
 
 	/* Check if MallocSmart allocator is ready */
 	if (XX_MallocSmartInit() != E_OK)
