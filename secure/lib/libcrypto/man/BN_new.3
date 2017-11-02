@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BN_new 3"
-.TH BN_new 3 "2017-05-25" "1.0.2l" "OpenSSL"
+.TH BN_new 3 "2017-11-02" "1.0.2m" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -163,9 +163,11 @@ to the value 0.
 \&\fIBN_free()\fR frees the components of the \fB\s-1BIGNUM\s0\fR, and if it was created
 by \fIBN_new()\fR, also the structure itself. \fIBN_clear_free()\fR additionally
 overwrites the data before the memory is returned to the system.
+If \fBa\fR is \s-1NULL,\s0 nothing is done.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fIBN_new()\fR returns a pointer to the \fB\s-1BIGNUM\s0\fR. If the allocation fails,
+\&\fIBN_new()\fR returns a pointer to the \fB\s-1BIGNUM\s0\fR initialised to the value 0.
+If the allocation fails,
 it returns \fB\s-1NULL\s0\fR and sets an error code that can be obtained
 by \fIERR_get_error\fR\|(3).
 .PP
