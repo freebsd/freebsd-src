@@ -129,12 +129,13 @@
 .\" ========================================================================
 .\"
 .IX Title "RSAUTL 1"
-.TH RSAUTL 1 "2017-05-25" "1.0.2l" "OpenSSL"
+.TH RSAUTL 1 "2017-11-02" "1.0.2m" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
+openssl\-rsautl,
 rsautl \- RSA utility
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
@@ -223,7 +224,7 @@ Recover the signed data
 Examine the raw signed data:
 .PP
 .Vb 1
-\& openssl rsautl \-verify \-in file \-inkey key.pem \-raw \-hexdump
+\& openssl rsautl \-verify \-in sig \-inkey key.pem \-raw \-hexdump
 \&
 \& 0000 \- 00 01 ff ff ff ff ff ff\-ff ff ff ff ff ff ff ff   ................
 \& 0010 \- ff ff ff ff ff ff ff ff\-ff ff ff ff ff ff ff ff   ................
