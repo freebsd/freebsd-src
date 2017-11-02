@@ -19,6 +19,7 @@ LOADER_EXT2FS_SUPPORT?=	no
 LOADER_MSDOS_SUPPORT?=	no
 LOADER_UFS_SUPPORT?=	yes
 LOADER_GZIP_SUPPORT?=	yes
+LOADER_BZIP2_SUPPORT?=	yes
 
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c chain.c
