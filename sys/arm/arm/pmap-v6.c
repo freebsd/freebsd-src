@@ -6404,6 +6404,22 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 	 */
 
 	PMAP_LOCK(pmap);
+#ifdef INVARIANTS
+	pte1 = pte1_load(pmap_pte1(pmap, far));
+	if (pte1_is_link(pte1)) {
+		/*
+		 * Check in advance that associated L2 page table is mapped into
+		 * PT2MAP space. Note that faulty access to not mapped L2 page
+		 * table is caught in more general check above where "far" is
+		 * checked that it does not lay in PT2MAP space. Note also that
+		 * L1 page table and PT2TAB always exist and are mapped.
+		 */
+		pte2 = pt2tab_load(pmap_pt2tab_entry(pmap, far));
+		if (!pte2_is_valid(pte2))
+			panic("%s: missing L2 page table (%p, %#x)",
+			    __func__, pmap, far);
+	}
+#endif
 #ifdef SMP
 	/*
 	 * Special treatment is due to break-before-make approach done when
@@ -6424,10 +6440,23 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 	 *      for aborts from user mode.
 	 */
 	if (idx == FAULT_ACCESS_L2) {
-		pte2p = pt2map_entry(far);
-		pte2 = pte2_load(pte2p);
-		if (pte2_is_valid(pte2)) {
-			pte2_store(pte2p, pte2 | PTE2_A);
+		pte1 = pte1_load(pmap_pte1(pmap, far));
+		if (pte1_is_link(pte1)) {
+			/* L2 page table should exist and be mapped. */
+			pte2p = pt2map_entry(far);
+			pte2 = pte2_load(pte2p);
+			if (pte2_is_valid(pte2)) {
+				pte2_store(pte2p, pte2 | PTE2_A);
+				PMAP_UNLOCK(pmap);
+				return (KERN_SUCCESS);
+			}
+		} else {
+			/*
+			 * We got L2 access fault but PTE1 is not a link.
+			 * Probably some race happened, do nothing.
+			 */
+			CTR3(KTR_PMAP, "%s: FAULT_ACCESS_L2 - pmap %#x far %#x",
+			    __func__, pmap, far);
 			PMAP_UNLOCK(pmap);
 			return (KERN_SUCCESS);
 		}
@@ -6437,6 +6466,15 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 		pte1 = pte1_load(pte1p);
 		if (pte1_is_section(pte1)) {
 			pte1_store(pte1p, pte1 | PTE1_A);
+			PMAP_UNLOCK(pmap);
+			return (KERN_SUCCESS);
+		} else {
+			/*
+			 * We got L1 access fault but PTE1 is not section
+			 * mapping. Probably some race happened, do nothing.
+			 */
+			CTR3(KTR_PMAP, "%s: FAULT_ACCESS_L1 - pmap %#x far %#x",
+			    __func__, pmap, far);
 			PMAP_UNLOCK(pmap);
 			return (KERN_SUCCESS);
 		}
@@ -6451,12 +6489,25 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 	 *      for aborts from user mode.
 	 */
 	if ((fsr & FSR_WNR) && (idx == FAULT_PERM_L2)) {
-		pte2p = pt2map_entry(far);
-		pte2 = pte2_load(pte2p);
-		if (pte2_is_valid(pte2) && !(pte2 & PTE2_RO) &&
-		    (pte2 & PTE2_NM)) {
-			pte2_store(pte2p, pte2 & ~PTE2_NM);
-			tlb_flush(trunc_page(far));
+		pte1 = pte1_load(pmap_pte1(pmap, far));
+		if (pte1_is_link(pte1)) {
+			/* L2 page table should exist and be mapped. */
+			pte2p = pt2map_entry(far);
+			pte2 = pte2_load(pte2p);
+			if (pte2_is_valid(pte2) && !(pte2 & PTE2_RO) &&
+			    (pte2 & PTE2_NM)) {
+				pte2_store(pte2p, pte2 & ~PTE2_NM);
+				tlb_flush(trunc_page(far));
+				PMAP_UNLOCK(pmap);
+				return (KERN_SUCCESS);
+			}
+		} else {
+			/*
+			 * We got L2 permission fault but PTE1 is not a link.
+			 * Probably some race happened, do nothing.
+			 */
+			CTR3(KTR_PMAP, "%s: FAULT_PERM_L2 - pmap %#x far %#x",
+			    __func__, pmap, far);
 			PMAP_UNLOCK(pmap);
 			return (KERN_SUCCESS);
 		}
@@ -6464,10 +6515,20 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 	if ((fsr & FSR_WNR) && (idx == FAULT_PERM_L1)) {
 		pte1p = pmap_pte1(pmap, far);
 		pte1 = pte1_load(pte1p);
-		if (pte1_is_section(pte1) && !(pte1 & PTE1_RO) &&
-		    (pte1 & PTE1_NM)) {
-			pte1_store(pte1p, pte1 & ~PTE1_NM);
-			tlb_flush(pte1_trunc(far));
+		if (pte1_is_section(pte1)) {
+			if (!(pte1 & PTE1_RO) && (pte1 & PTE1_NM)) {
+				pte1_store(pte1p, pte1 & ~PTE1_NM);
+				tlb_flush(pte1_trunc(far));
+				PMAP_UNLOCK(pmap);
+				return (KERN_SUCCESS);
+			}
+		} else {
+			/*
+			 * We got L1 permission fault but PTE1 is not section
+			 * mapping. Probably some race happened, do nothing.
+			 */
+			CTR3(KTR_PMAP, "%s: FAULT_PERM_L1 - pmap %#x far %#x",
+			    __func__, pmap, far);
 			PMAP_UNLOCK(pmap);
 			return (KERN_SUCCESS);
 		}
@@ -6478,33 +6539,6 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 	 *      modify bits aborts, could be moved to ASM. Now we are
 	 *      starting to deal with not fast aborts.
 	 */
-
-#ifdef INVARIANTS
-	/*
-	 * Read an entry in PT2TAB associated with both pmap and far.
-	 * It's safe because PT2TAB is always mapped.
-	 */
-	pte2 = pt2tab_load(pmap_pt2tab_entry(pmap, far));
-	if (pte2_is_valid(pte2)) {
-		/*
-		 * Now, when we know that L2 page table is allocated,
-		 * we can use PT2MAP to get L2 page table entry.
-		 */
-		pte2 = pte2_load(pt2map_entry(far));
-		if (pte2_is_valid(pte2)) {
-			/*
-			 * If L2 page table entry is valid, make sure that
-			 * L1 page table entry is valid too.  Note that we
-			 * leave L2 page entries untouched when promoted.
-			 */
-			pte1 = pte1_load(pmap_pte1(pmap, far));
-			if (!pte1_is_valid(pte1)) {
-				panic("%s: missing L1 page entry (%p, %#x)",
-				    __func__, pmap, far);
-			}
-		}
-	}
-#endif
 	PMAP_UNLOCK(pmap);
 	return (KERN_FAILURE);
 }
