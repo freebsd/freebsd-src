@@ -430,6 +430,30 @@ set_vfpcontext(struct thread *td, mcontext_vfp_t *vfp)
 }
 #endif
 
+int
+arm_get_vfpstate(struct thread *td, void *args)
+{
+	int rv;
+	struct arm_get_vfpstate_args ua;
+	mcontext_vfp_t	mcontext_vfp;
+
+	rv = copyin(args, &ua, sizeof(ua));
+	if (rv != 0)
+		return (rv);
+	if (ua.mc_vfp_size != sizeof(mcontext_vfp_t))
+		return (EINVAL);
+#ifdef VFP
+	get_vfpcontext(td, &mcontext_vfp);
+#else
+	bzero(&mcontext_vfp, sizeof(mcontext_vfp));
+#endif
+
+	rv = copyout(&mcontext_vfp, ua.mc_vfp,  sizeof(mcontext_vfp));
+	if (rv != 0)
+		return (rv);
+	return (0);
+}
+
 /*
  * Get machine context.
  */
