@@ -108,7 +108,8 @@ LIBCOMPATCXXFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include/c++/v1 -std=c++11 \
 
 # Yes, the flags are redundant.
 LIBCOMPATWMAKEENV+= \
-		MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTOP} \
+		OBJTOP=${LIBCOMPAT_OBJTOP} \
+		OBJROOT='$${OBJTOP}/' \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
 		SYSROOT=${LIBCOMPATTMP} \
@@ -184,7 +185,8 @@ build${libcompat}: .PHONY
 	${_+_}cd ${.CURDIR}/${_dir}; \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
-	    MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTOP} \
+	    OBJTOP=${LIBCOMPAT_OBJTOP} \
+	    OBJROOT='$${OBJTOP}/' \
 	    ${MAKE} SSP_CFLAGS= DESTDIR= \
 	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 	    build-tools
