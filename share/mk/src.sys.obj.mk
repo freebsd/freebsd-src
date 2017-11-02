@@ -97,7 +97,7 @@ OBJROOT:=	${OBJTOP}/
 # Try to enable MK_AUTO_OBJ by default if we can write to the OBJROOT.  Only
 # do this if AUTO_OBJ is not disabled by the user, not cleaning, and this
 # is the first make ran.
-.if ${.MAKE.LEVEL} == 0 && \
+.if 0 && ${.MAKE.LEVEL} == 0 && \
     ${MK_AUTO_OBJ} == "no" && empty(.MAKEOVERRIDES:MMK_AUTO_OBJ) && \
     !defined(WITHOUT_AUTO_OBJ) && !make(showconfig) && !make(print-dir) && \
     !defined(NO_OBJ) && \
