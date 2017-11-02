@@ -26,7 +26,7 @@ SRCS=		main.c conf.c vers.c chain.c
 # Put LOADER_FIREWIRE_SUPPORT=yes in /etc/make.conf for FireWire/dcons support
 .if defined(LOADER_FIREWIRE_SUPPORT)
 CFLAGS+=	-DLOADER_FIREWIRE_SUPPORT
-LIBFIREWIRE=	${BOOTSRC}/i386/libfirewire/libfirewire.a
+LIBFIREWIRE=	${BOOTOBJ}/i386/libfirewire/libfirewire.a
 .endif
 
 # Set by zfsloader Makefile
