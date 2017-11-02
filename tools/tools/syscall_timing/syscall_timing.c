@@ -132,6 +132,22 @@ test_getppid(uintmax_t num, uintmax_t int_arg, const char *path)
 }
 
 uintmax_t
+test_getresuid(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	uid_t ruid, euid, suid;
+	uintmax_t i;
+
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
+		(void)getresuid(&ruid, &euid, &suid);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+uintmax_t
 test_clock_gettime(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	struct timespec ts;
@@ -673,6 +689,7 @@ struct test {
 static const struct test tests[] = {
 	{ "getuid", test_getuid },
 	{ "getppid", test_getppid },
+	{ "getresuid", test_getresuid },
 	{ "clock_gettime", test_clock_gettime },
 	{ "gettimeofday", test_gettimeofday },
 	{ "getpriority", test_getpriority },
