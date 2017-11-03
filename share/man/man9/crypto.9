@@ -331,6 +331,17 @@ Do callback immediately if operation is synchronous (that the driver
 specified the
 .Dv CRYPTOCAP_F_SYNC
 flag).
+.It Dv CRYPTO_F_ASYNC
+Try to do the crypto operation in a pool of workers
+if the operation is synchronous (that the driver specified the
+.Dv CRYPTOCAP_F_SYNC
+flag). It aims to speed up processing by dispatching crypto operations
+on different processors.
+.It Dv CRYPTO_F_ASYNC_KEEPORDER
+Dispatch callbacks in the same order they are posted.
+Only relevant if the
+.Dv CRYPTO_F_ASYNC
+flag is set and if the operation is synchronous.
 .El
 .It Va crp_buf
 Points to the input buffer.
