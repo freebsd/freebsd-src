@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 26, 2017
+.Dd November 3, 2017
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -683,7 +683,7 @@ documentation as part of the
 target.
 .It Va NO_LIBS
 If set, the libraries phase will be skipped.
-.It Va NO_OBJ
+.It Va NO_OBJWALK
 If set, no object directories will be created.
 This should only be used if object directories were created in a
 previous build and no new directories are connected.
@@ -700,7 +700,7 @@ If set, the build target
 .Cm buildworld
 defaults to setting
 .Va NO_CLEAN ,
-.Va NO_OBJ ,
+.Va NO_OBJWALK ,
 and will skip most bootstrap phases.
 It will only bootstrap libraries and build all of userland.
 This option should be used only when it is known that none of the bootstrap
