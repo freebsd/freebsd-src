@@ -70,7 +70,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/sdt.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 
 #include <ddb/ddb.h>
 
@@ -135,26 +137,51 @@ static	int crypto_drivers_num = 0;
  * operations.
  */
 static	int crp_sleep = 0;
-static	TAILQ_HEAD(,cryptop) crp_q;		/* request queues */
+static	TAILQ_HEAD(cryptop_q ,cryptop) crp_q;		/* request queues */
 static	TAILQ_HEAD(,cryptkop) crp_kq;
 static	struct mtx crypto_q_mtx;
 #define	CRYPTO_Q_LOCK()		mtx_lock(&crypto_q_mtx)
 #define	CRYPTO_Q_UNLOCK()	mtx_unlock(&crypto_q_mtx)
 
 /*
- * There are two queues for processing completed crypto requests; one
- * for the symmetric and one for the asymmetric ops.  We only need one
- * but have two to avoid type futzing (cryptop vs. cryptkop).  A single
- * mutex is used to lock access to both queues.  Note that this lock
- * must be separate from the lock on request queues to insure driver
- * callbacks don't generate lock order reversals.
+ * Taskqueue used to dispatch the crypto requests
+ * that have the CRYPTO_F_ASYNC flag
  */
-static	TAILQ_HEAD(,cryptop) crp_ret_q;		/* callback queues */
-static	TAILQ_HEAD(,cryptkop) crp_ret_kq;
-static	struct mtx crypto_ret_q_mtx;
-#define	CRYPTO_RETQ_LOCK()	mtx_lock(&crypto_ret_q_mtx)
-#define	CRYPTO_RETQ_UNLOCK()	mtx_unlock(&crypto_ret_q_mtx)
-#define	CRYPTO_RETQ_EMPTY()	(TAILQ_EMPTY(&crp_ret_q) && TAILQ_EMPTY(&crp_ret_kq))
+static struct taskqueue *crypto_tq;
+
+/*
+ * Crypto seq numbers are operated on with modular arithmetic
+ */
+#define	CRYPTO_SEQ_GT(a,b)	((int)((a)-(b)) > 0)
+
+struct crypto_ret_worker {
+	struct mtx crypto_ret_mtx;
+
+	TAILQ_HEAD(,cryptop) crp_ordered_ret_q;	/* ordered callback queue for symetric jobs */
+	TAILQ_HEAD(,cryptop) crp_ret_q;		/* callback queue for symetric jobs */
+	TAILQ_HEAD(,cryptkop) crp_ret_kq;	/* callback queue for asym jobs */
+
+	u_int32_t reorder_ops;		/* total ordered sym jobs received */
+	u_int32_t reorder_cur_seq;	/* current sym job dispatched */
+
+	struct proc *cryptoretproc;
+};
+static struct crypto_ret_worker *crypto_ret_workers = NULL;
+
+#define CRYPTO_RETW(i)		(&crypto_ret_workers[i])
+#define CRYPTO_RETW_ID(w)	((w) - crypto_ret_workers)
+#define FOREACH_CRYPTO_RETW(w) \
+	for (w = crypto_ret_workers; w < crypto_ret_workers + crypto_workers_num; ++w)
+
+#define	CRYPTO_RETW_LOCK(w)	mtx_lock(&w->crypto_ret_mtx)
+#define	CRYPTO_RETW_UNLOCK(w)	mtx_unlock(&w->crypto_ret_mtx)
+#define	CRYPTO_RETW_EMPTY(w) \
+	(TAILQ_EMPTY(&w->crp_ret_q) && TAILQ_EMPTY(&w->crp_ret_kq) && TAILQ_EMPTY(&w->crp_ordered_ret_q))
+
+static int crypto_workers_num = 0;
+SYSCTL_INT(_kern, OID_AUTO, crypto_workers_num, CTLFLAG_RDTUN,
+	   &crypto_workers_num, 0,
+	   "Number of crypto workers used to dispatch crypto jobs");
 
 static	uma_zone_t cryptop_zone;
 static	uma_zone_t cryptodesc_zone;
@@ -172,11 +199,12 @@ MALLOC_DEFINE(M_CRYPTO_DATA, "crypto", "crypto session records");
 
 static	void crypto_proc(void);
 static	struct proc *cryptoproc;
-static	void crypto_ret_proc(void);
-static	struct proc *cryptoretproc;
+static	void crypto_ret_proc(struct crypto_ret_worker *ret_worker);
 static	void crypto_destroy(void);
 static	int crypto_invoke(struct cryptocap *cap, struct cryptop *crp, int hint);
 static	int crypto_kinvoke(struct cryptkop *krp, int flags);
+static	void crypto_task_invoke(void *ctx, int pending);
+static void crypto_batch_enqueue(struct cryptop *crp);
 
 static	struct cryptostats cryptostats;
 SYSCTL_STRUCT(_kern, OID_AUTO, crypto_stats, CTLFLAG_RW, &cryptostats,
@@ -222,6 +250,7 @@ struct keybuf * get_keybuf(void) {
 static int
 crypto_init(void)
 {
+	struct crypto_ret_worker *ret_worker;
 	int error;
 
 	mtx_init(&crypto_drivers_mtx, "crypto", "crypto driver table",
@@ -230,10 +259,6 @@ crypto_init(void)
 	TAILQ_INIT(&crp_q);
 	TAILQ_INIT(&crp_kq);
 	mtx_init(&crypto_q_mtx, "crypto", "crypto op queues", MTX_DEF);
-
-	TAILQ_INIT(&crp_ret_q);
-	TAILQ_INIT(&crp_ret_kq);
-	mtx_init(&crypto_ret_q_mtx, "crypto", "crypto return queues", MTX_DEF);
 
 	cryptop_zone = uma_zcreate("cryptop", sizeof (struct cryptop),
 				    0, 0, 0, 0,
@@ -256,6 +281,20 @@ crypto_init(void)
 		goto bad;
 	}
 
+	if (crypto_workers_num < 1 || crypto_workers_num > mp_ncpus)
+		crypto_workers_num = mp_ncpus;
+
+	crypto_tq = taskqueue_create("crypto", M_WAITOK|M_ZERO,
+				taskqueue_thread_enqueue, &crypto_tq);
+	if (crypto_tq == NULL) {
+		printf("crypto init: cannot setup crypto taskqueue\n");
+		error = ENOMEM;
+		goto bad;
+	}
+
+	taskqueue_start_threads(&crypto_tq, crypto_workers_num, PRI_MIN_KERN,
+		"crypto");
+
 	error = kproc_create((void (*)(void *)) crypto_proc, NULL,
 		    &cryptoproc, 0, 0, "crypto");
 	if (error) {
@@ -264,15 +303,35 @@ crypto_init(void)
 		goto bad;
 	}
 
-	error = kproc_create((void (*)(void *)) crypto_ret_proc, NULL,
-		    &cryptoretproc, 0, 0, "crypto returns");
-	if (error) {
-		printf("crypto_init: cannot start cryptoret thread; error %d",
-			error);
+	crypto_ret_workers = malloc(crypto_workers_num * sizeof(struct crypto_ret_worker),
+			M_CRYPTO_DATA, M_NOWAIT|M_ZERO);
+	if (crypto_ret_workers == NULL) {
+		error = ENOMEM;
+		printf("crypto_init: cannot allocate ret workers\n");
 		goto bad;
 	}
 
-        keybuf_init();
+
+	FOREACH_CRYPTO_RETW(ret_worker) {
+		TAILQ_INIT(&ret_worker->crp_ordered_ret_q);
+		TAILQ_INIT(&ret_worker->crp_ret_q);
+		TAILQ_INIT(&ret_worker->crp_ret_kq);
+
+		ret_worker->reorder_ops = 0;
+		ret_worker->reorder_cur_seq = 0;
+
+		mtx_init(&ret_worker->crypto_ret_mtx, "crypto", "crypto return queues", MTX_DEF);
+
+		error = kproc_create((void (*)(void *)) crypto_ret_proc, ret_worker,
+				&ret_worker->cryptoretproc, 0, 0, "crypto returns %td", CRYPTO_RETW_ID(ret_worker));
+		if (error) {
+			printf("crypto_init: cannot start cryptoret thread; error %d",
+				error);
+			goto bad;
+		}
+	}
+
+	keybuf_init();
 
 	return 0;
 bad:
@@ -308,12 +367,17 @@ crypto_terminate(struct proc **pp, void *q)
 static void
 crypto_destroy(void)
 {
+	struct crypto_ret_worker *ret_worker;
+
 	/*
 	 * Terminate any crypto threads.
 	 */
+	if (crypto_tq != NULL)
+		taskqueue_drain_all(crypto_tq);
 	CRYPTO_DRIVER_LOCK();
 	crypto_terminate(&cryptoproc, &crp_q);
-	crypto_terminate(&cryptoretproc, &crp_ret_q);
+	FOREACH_CRYPTO_RETW(ret_worker)
+		crypto_terminate(&ret_worker->cryptoretproc, &ret_worker->crp_ret_q);
 	CRYPTO_DRIVER_UNLOCK();
 
 	/* XXX flush queues??? */
@@ -329,7 +393,11 @@ crypto_destroy(void)
 	if (cryptop_zone != NULL)
 		uma_zdestroy(cryptop_zone);
 	mtx_destroy(&crypto_q_mtx);
-	mtx_destroy(&crypto_ret_q_mtx);
+	FOREACH_CRYPTO_RETW(ret_worker)
+		mtx_destroy(&ret_worker->crypto_ret_mtx);
+	free(crypto_ret_workers, M_CRYPTO_DATA);
+	if (crypto_tq != NULL)
+		taskqueue_free(crypto_tq);
 	mtx_destroy(&crypto_drivers_mtx);
 }
 
@@ -828,9 +896,26 @@ crypto_dispatch(struct cryptop *crp)
 		binuptime(&crp->crp_tstamp);
 #endif
 
-	hid = CRYPTO_SESID2HID(crp->crp_sid);
+	if (CRYPTOP_ASYNC(crp)) {
+		if (crp->crp_flags & CRYPTO_F_ASYNC_KEEPORDER) {
+			struct crypto_ret_worker *ret_worker;
+
+			crp->crp_retw_id = crp->crp_sid % crypto_workers_num;
+			ret_worker = CRYPTO_RETW(crp->crp_retw_id);
+
+			CRYPTO_RETW_LOCK(ret_worker);
+			crp->crp_seq = ret_worker->reorder_ops++;
+			CRYPTO_RETW_UNLOCK(ret_worker);
+		}
+
+		TASK_INIT(&crp->crp_task, 0, crypto_task_invoke, crp);
+		taskqueue_enqueue(crypto_tq, &crp->crp_task);
+		return (0);
+	}
 
 	if ((crp->crp_flags & CRYPTO_F_BATCH) == 0) {
+		hid = CRYPTO_SESID2HID(crp->crp_sid);
+
 		/*
 		 * Caller marked the request to be processed
 		 * immediately; dispatch it directly to the
@@ -849,12 +934,19 @@ crypto_dispatch(struct cryptop *crp)
 			 */
 		}
 	}
+	crypto_batch_enqueue(crp);
+	return 0;
+}
+
+void
+crypto_batch_enqueue(struct cryptop *crp)
+{
+
 	CRYPTO_Q_LOCK();
 	TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
 	if (crp_sleep)
 		wakeup_one(&crp_q);
 	CRYPTO_Q_UNLOCK();
-	return 0;
 }
 
 /*
@@ -1035,6 +1127,23 @@ crypto_tstat(struct cryptotstat *ts, struct bintime *bt)
 }
 #endif
 
+static void
+crypto_task_invoke(void *ctx, int pending)
+{
+	struct cryptocap *cap;
+	struct cryptop *crp;
+	int hid, result;
+
+	crp = (struct cryptop *)ctx;
+
+	hid = CRYPTO_SESID2HID(crp->crp_sid);
+	cap = crypto_checkdriver(hid);
+
+	result = crypto_invoke(cap, crp, 0);
+	if (result == ERESTART)
+		crypto_batch_enqueue(crp);
+}
+
 /*
  * Dispatch a crypto request to the appropriate crypto devices.
  */
@@ -1097,6 +1206,7 @@ crypto_freereq(struct cryptop *crp)
 #ifdef DIAGNOSTIC
 	{
 		struct cryptop *crp2;
+		struct crypto_ret_worker *ret_worker;
 
 		CRYPTO_Q_LOCK();
 		TAILQ_FOREACH(crp2, &crp_q, crp_next) {
@@ -1105,13 +1215,16 @@ crypto_freereq(struct cryptop *crp)
 			    crp));
 		}
 		CRYPTO_Q_UNLOCK();
-		CRYPTO_RETQ_LOCK();
-		TAILQ_FOREACH(crp2, &crp_ret_q, crp_next) {
-			KASSERT(crp2 != crp,
-			    ("Freeing cryptop from the return queue (%p).",
-			    crp));
+
+		FOREACH_CRYPTO_RETW(ret_worker) {
+			CRYPTO_RETW_LOCK(ret_worker);
+			TAILQ_FOREACH(crp2, &ret_worker->crp_ret_q, crp_next) {
+				KASSERT(crp2 != crp,
+				    ("Freeing cryptop from the return queue (%p).",
+				    crp));
+			}
+			CRYPTO_RETW_UNLOCK(ret_worker);
 		}
-		CRYPTO_RETQ_UNLOCK();
 	}
 #endif
 
@@ -1169,9 +1282,10 @@ crypto_done(struct cryptop *crp)
 	 * doing extraneous context switches; the latter is mostly
 	 * used with the software crypto driver.
 	 */
-	if ((crp->crp_flags & CRYPTO_F_CBIMM) ||
+	if (!CRYPTOP_ASYNC_KEEPORDER(crp) &&
+	    ((crp->crp_flags & CRYPTO_F_CBIMM) ||
 	    ((crp->crp_flags & CRYPTO_F_CBIFSYNC) &&
-	     (CRYPTO_SESID2CAPS(crp->crp_sid) & CRYPTOCAP_F_SYNC))) {
+	     (CRYPTO_SESID2CAPS(crp->crp_sid) & CRYPTOCAP_F_SYNC)))) {
 		/*
 		 * Do the callback directly.  This is ok when the
 		 * callback routine does very little (e.g. the
@@ -1192,14 +1306,45 @@ crypto_done(struct cryptop *crp)
 #endif
 			crp->crp_callback(crp);
 	} else {
+		struct crypto_ret_worker *ret_worker;
+		bool wake;
+
+		ret_worker = CRYPTO_RETW(crp->crp_retw_id);
+		wake = false;
+
 		/*
 		 * Normal case; queue the callback for the thread.
 		 */
-		CRYPTO_RETQ_LOCK();
-		if (CRYPTO_RETQ_EMPTY())
-			wakeup_one(&crp_ret_q);	/* shared wait channel */
-		TAILQ_INSERT_TAIL(&crp_ret_q, crp, crp_next);
-		CRYPTO_RETQ_UNLOCK();
+		CRYPTO_RETW_LOCK(ret_worker);
+		if (CRYPTOP_ASYNC_KEEPORDER(crp)) {
+			struct cryptop *tmp;
+
+			TAILQ_FOREACH_REVERSE(tmp, &ret_worker->crp_ordered_ret_q,
+					cryptop_q, crp_next) {
+				if (CRYPTO_SEQ_GT(crp->crp_seq, tmp->crp_seq)) {
+					TAILQ_INSERT_AFTER(&ret_worker->crp_ordered_ret_q,
+							tmp, crp, crp_next);
+					break;
+				}
+			}
+			if (tmp == NULL) {
+				TAILQ_INSERT_HEAD(&ret_worker->crp_ordered_ret_q,
+						crp, crp_next);
+			}
+
+			if (crp->crp_seq == ret_worker->reorder_cur_seq)
+				wake = true;
+		}
+		else {
+			if (CRYPTO_RETW_EMPTY(ret_worker))
+				wake = true;
+
+			TAILQ_INSERT_TAIL(&ret_worker->crp_ret_q, crp, crp_next);
+		}
+
+		if (wake)
+			wakeup_one(&ret_worker->crp_ret_q);	/* shared wait channel */
+		CRYPTO_RETW_UNLOCK(ret_worker);
 	}
 }
 
@@ -1209,6 +1354,7 @@ crypto_done(struct cryptop *crp)
 void
 crypto_kdone(struct cryptkop *krp)
 {
+	struct crypto_ret_worker *ret_worker;
 	struct cryptocap *cap;
 
 	if (krp->krp_status != 0)
@@ -1223,11 +1369,14 @@ crypto_kdone(struct cryptkop *krp)
 			crypto_remove(cap);
 	}
 	CRYPTO_DRIVER_UNLOCK();
-	CRYPTO_RETQ_LOCK();
-	if (CRYPTO_RETQ_EMPTY())
-		wakeup_one(&crp_ret_q);		/* shared wait channel */
-	TAILQ_INSERT_TAIL(&crp_ret_kq, krp, krp_next);
-	CRYPTO_RETQ_UNLOCK();
+
+	ret_worker = CRYPTO_RETW(0);
+
+	CRYPTO_RETW_LOCK(ret_worker);
+	if (CRYPTO_RETW_EMPTY(ret_worker))
+		wakeup_one(&ret_worker->crp_ret_q);		/* shared wait channel */
+	TAILQ_INSERT_TAIL(&ret_worker->crp_ret_kq, krp, krp_next);
+	CRYPTO_RETW_UNLOCK(ret_worker);
 }
 
 int
@@ -1427,24 +1576,36 @@ crypto_proc(void)
  * callbacks typically are expensive and would slow interrupt handling.
  */
 static void
-crypto_ret_proc(void)
+crypto_ret_proc(struct crypto_ret_worker *ret_worker)
 {
 	struct cryptop *crpt;
 	struct cryptkop *krpt;
 
-	CRYPTO_RETQ_LOCK();
+	CRYPTO_RETW_LOCK(ret_worker);
 	for (;;) {
 		/* Harvest return q's for completed ops */
-		crpt = TAILQ_FIRST(&crp_ret_q);
-		if (crpt != NULL)
-			TAILQ_REMOVE(&crp_ret_q, crpt, crp_next);
+		crpt = TAILQ_FIRST(&ret_worker->crp_ordered_ret_q);
+		if (crpt != NULL) {
+			if (crpt->crp_seq == ret_worker->reorder_cur_seq) {
+				TAILQ_REMOVE(&ret_worker->crp_ordered_ret_q, crpt, crp_next);
+				ret_worker->reorder_cur_seq++;
+			} else {
+				crpt = NULL;
+			}
+		}
 
-		krpt = TAILQ_FIRST(&crp_ret_kq);
+		if (crpt == NULL) {
+			crpt = TAILQ_FIRST(&ret_worker->crp_ret_q);
+			if (crpt != NULL)
+				TAILQ_REMOVE(&ret_worker->crp_ret_q, crpt, crp_next);
+		}
+
+		krpt = TAILQ_FIRST(&ret_worker->crp_ret_kq);
 		if (krpt != NULL)
-			TAILQ_REMOVE(&crp_ret_kq, krpt, krp_next);
+			TAILQ_REMOVE(&ret_worker->crp_ret_kq, krpt, krp_next);
 
 		if (crpt != NULL || krpt != NULL) {
-			CRYPTO_RETQ_UNLOCK();
+			CRYPTO_RETW_UNLOCK(ret_worker);
 			/*
 			 * Run callbacks unlocked.
 			 */
@@ -1466,22 +1627,22 @@ crypto_ret_proc(void)
 			}
 			if (krpt != NULL)
 				krpt->krp_callback(krpt);
-			CRYPTO_RETQ_LOCK();
+			CRYPTO_RETW_LOCK(ret_worker);
 		} else {
 			/*
 			 * Nothing more to be processed.  Sleep until we're
 			 * woken because there are more returns to process.
 			 */
-			msleep(&crp_ret_q, &crypto_ret_q_mtx, PWAIT,
+			msleep(&ret_worker->crp_ret_q, &ret_worker->crypto_ret_mtx, PWAIT,
 				"crypto_ret_wait", 0);
-			if (cryptoretproc == NULL)
+			if (ret_worker->cryptoretproc == NULL)
 				break;
 			cryptostats.cs_rets++;
 		}
 	}
-	CRYPTO_RETQ_UNLOCK();
+	CRYPTO_RETW_UNLOCK(ret_worker);
 
-	crypto_finis(&crp_ret_q);
+	crypto_finis(&ret_worker->crp_ret_q);
 }
 
 #ifdef DDB
@@ -1516,6 +1677,7 @@ db_show_drivers(void)
 DB_SHOW_COMMAND(crypto, db_show_crypto)
 {
 	struct cryptop *crp;
+	struct crypto_ret_worker *ret_worker;
 
 	db_show_drivers();
 	db_printf("\n");
@@ -1534,16 +1696,19 @@ DB_SHOW_COMMAND(crypto, db_show_crypto)
 		    , crp->crp_callback
 		);
 	}
-	if (!TAILQ_EMPTY(&crp_ret_q)) {
-		db_printf("\n%4s %4s %4s %8s\n",
-		    "HID", "Etype", "Flags", "Callback");
-		TAILQ_FOREACH(crp, &crp_ret_q, crp_next) {
-			db_printf("%4u %4u %04x %8p\n"
-			    , (int) CRYPTO_SESID2HID(crp->crp_sid)
-			    , crp->crp_etype
-			    , crp->crp_flags
-			    , crp->crp_callback
-			);
+	FOREACH_CRYPTO_RETW(ret_worker) {
+		db_printf("\n%8s %4s %4s %4s %8s\n",
+		    "ret_worker", "HID", "Etype", "Flags", "Callback");
+		if (!TAILQ_EMPTY(&ret_worker->crp_ret_q)) {
+			TAILQ_FOREACH(crp, &ret_worker->crp_ret_q, crp_next) {
+				db_printf("%8td %4u %4u %04x %8p\n"
+				    , CRYPTO_RETW_ID(ret_worker)
+				    , (int) CRYPTO_SESID2HID(crp->crp_sid)
+				    , crp->crp_etype
+				    , crp->crp_flags
+				    , crp->crp_callback
+				);
+			}
 		}
 	}
 }
@@ -1551,6 +1716,7 @@ DB_SHOW_COMMAND(crypto, db_show_crypto)
 DB_SHOW_COMMAND(kcrypto, db_show_kcrypto)
 {
 	struct cryptkop *krp;
+	struct crypto_ret_worker *ret_worker;
 
 	db_show_drivers();
 	db_printf("\n");
@@ -1566,10 +1732,12 @@ DB_SHOW_COMMAND(kcrypto, db_show_kcrypto)
 		    , krp->krp_callback
 		);
 	}
-	if (!TAILQ_EMPTY(&crp_ret_q)) {
+
+	ret_worker = CRYPTO_RETW(0);
+	if (!TAILQ_EMPTY(&ret_worker->crp_ret_q)) {
 		db_printf("%4s %5s %8s %4s %8s\n",
 		    "Op", "Status", "CRID", "HID", "Callback");
-		TAILQ_FOREACH(krp, &crp_ret_kq, krp_next) {
+		TAILQ_FOREACH(krp, &ret_worker->crp_ret_kq, krp_next) {
 			db_printf("%4u %5u %08x %4u %8p\n"
 			    , krp->krp_op
 			    , krp->krp_status
