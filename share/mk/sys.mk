@@ -120,8 +120,14 @@ NO_META_IGNORE_HOST_HEADERS=	1
 # is not expected.
 .if !make(showconfig) && !make(print-dir)
 .sinclude <auto.obj.mk>
+# The .OBJDIR was not set, disable MK_AUTO_OBJ so downstream checks won't
+# assume .OBJDIR is proper.
+.if defined(__objdir) && ${.OBJDIR} != ${__objdir}
+.MAKEOVERRIDES+= MK_AUTO_OBJ
+MK_AUTO_OBJ=	no
 .endif
 .endif
+.endif	# ${MK_AUTO_OBJ} == "yes"
 .else # bmake
 .include <bsd.mkopt.mk>
 .endif
