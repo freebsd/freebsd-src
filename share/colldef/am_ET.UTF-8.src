@@ -34,15 +34,15 @@ collating-symbol <X050E>
 collating-symbol <X0600>
 collating-symbol <X0700>
 collating-symbol <X0722>
-collating-symbol <X072C>
-collating-symbol <X0734>
+collating-symbol <X072E>
 collating-symbol <X0736>
 collating-symbol <X0738>
 collating-symbol <X073A>
 collating-symbol <X073C>
-collating-symbol <X0750>
-collating-symbol <X0758>
-collating-symbol <X0764>
+collating-symbol <X073E>
+collating-symbol <X0752>
+collating-symbol <X075A>
+collating-symbol <X0766>
 collating-symbol <X0800>
 collating-symbol <X0900>
 collating-symbol <X090C>
@@ -76,7 +76,7 @@ collating-symbol <X0C82>
 collating-symbol <X0C86>
 collating-symbol <X0C8A>
 collating-symbol <X0D00>
-collating-symbol <X0D6A>
+collating-symbol <X0D76>
 collating-symbol <X0E00>
 collating-symbol <X0F00>
 collating-symbol <X1000>
@@ -372,15 +372,15 @@ order_start forward;forward;forward;forward
 <X0600>
 <X0700>
 <X0722>
-<X072C>
-<X0734>
+<X072E>
 <X0736>
 <X0738>
 <X073A>
 <X073C>
-<X0750>
-<X0758>
-<X0764>
+<X073E>
+<X0752>
+<X075A>
+<X0766>
 <X0800>
 <X0900>
 <X090C>
@@ -414,7 +414,7 @@ order_start forward;forward;forward;forward
 <X0C86>
 <X0C8A>
 <X0D00>
-<X0D6A>
+<X0D76>
 <X0E00>
 <X0F00>
 <X1000>
@@ -725,15 +725,15 @@ order_start forward;forward;forward;forward
 <HYPHEN-MINUS> <X050E>;<X05>;<X05>;<HYPHEN-MINUS>
 <COMMA> <X0600>;<X05>;<X05>;<COMMA>
 <SEMICOLON> <X0722>;<X05>;<X05>;<SEMICOLON>
-<COLON> <X072C>;<X05>;<X05>;<COLON>
-<ETHIOPIC_WORDSPACE> <X0734>;<X05>;<X05>;<ETHIOPIC_WORDSPACE>
-<ETHIOPIC_COMMA> <X0736>;<X05>;<X05>;<ETHIOPIC_COMMA>
-<ETHIOPIC_SEMICOLON> <X0738>;<X05>;<X05>;<ETHIOPIC_SEMICOLON>
-<ETHIOPIC_COLON> <X073A>;<X05>;<X05>;<ETHIOPIC_COLON>
-<ETHIOPIC_PREFACE_COLON> <X073C>;<X05>;<X05>;<ETHIOPIC_PREFACE_COLON>
-<EXCLAMATION_MARK> <X0750>;<X05>;<X05>;<EXCLAMATION_MARK>
-<QUESTION_MARK> <X0758>;<X05>;<X05>;<QUESTION_MARK>
-<ETHIOPIC_QUESTION_MARK> <X0764>;<X05>;<X05>;<ETHIOPIC_QUESTION_MARK>
+<COLON> <X072E>;<X05>;<X05>;<COLON>
+<ETHIOPIC_WORDSPACE> <X0736>;<X05>;<X05>;<ETHIOPIC_WORDSPACE>
+<ETHIOPIC_COMMA> <X0738>;<X05>;<X05>;<ETHIOPIC_COMMA>
+<ETHIOPIC_SEMICOLON> <X073A>;<X05>;<X05>;<ETHIOPIC_SEMICOLON>
+<ETHIOPIC_COLON> <X073C>;<X05>;<X05>;<ETHIOPIC_COLON>
+<ETHIOPIC_PREFACE_COLON> <X073E>;<X05>;<X05>;<ETHIOPIC_PREFACE_COLON>
+<EXCLAMATION_MARK> <X0752>;<X05>;<X05>;<EXCLAMATION_MARK>
+<QUESTION_MARK> <X075A>;<X05>;<X05>;<QUESTION_MARK>
+<ETHIOPIC_QUESTION_MARK> <X0766>;<X05>;<X05>;<ETHIOPIC_QUESTION_MARK>
 <FULL_STOP> <X0800>;<X05>;<X05>;<FULL_STOP>
 <ETHIOPIC_FULL_STOP> <X090C>;<X05>;<X05>;<ETHIOPIC_FULL_STOP>
 <ETHIOPIC_SECTION_MARK> <X0939>;<X05>;<X05>;<ETHIOPIC_SECTION_MARK>
@@ -771,7 +771,7 @@ order_start forward;forward;forward;forward
 <GREATER-THAN_SIGN> <X0C82>;<X05>;<X05>;<GREATER-THAN_SIGN>
 <VERTICAL_LINE> <X0C86>;<X05>;<X05>;<VERTICAL_LINE>
 <TILDE> <X0C8A>;<X05>;<X05>;<TILDE>
-<DOLLAR_SIGN> <X0D6A>;<X05>;<X05>;<DOLLAR_SIGN>
+<DOLLAR_SIGN> <X0D76>;<X05>;<X05>;<DOLLAR_SIGN>
 <ETHIOPIC_NUMBER_TEN> <X1050>;<X05>;<X05>;<ETHIOPIC_NUMBER_TEN>
 <ETHIOPIC_NUMBER_TWENTY> <X1052>;<X05>;<X05>;<ETHIOPIC_NUMBER_TWENTY>
 <ETHIOPIC_NUMBER_THIRTY> <X1054>;<X05>;<X05>;<ETHIOPIC_NUMBER_THIRTY>
