@@ -24,11 +24,11 @@ _srcconf_included_:
 .MAKE.MODE+=	curdirOk=yes
 .endif
 
-.if defined(NO_OBJ) || ${MK_AUTO_OBJ} == "yes"
-NO_OBJ=		t
+.if defined(NO_OBJWALK) || ${MK_AUTO_OBJ} == "yes"
+NO_OBJWALK=		t
 NO_MODULES_OBJ=	t
 .endif
-.if !defined(NO_OBJ)
+.if !defined(NO_OBJWALK)
 _obj=		obj
 .endif
 
