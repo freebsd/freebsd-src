@@ -34,7 +34,7 @@ OSRELDATE?= 0
 
 # need to keep this in sync with src/Makefile.inc1 
 BSARGS= 	DESTDIR= \
-		OBJTOP='${WORLDTMP}/obj-$${BWPHASE}' \
+		OBJTOP='${WORLDTMP}/obj-tools' \
 		OBJROOT='$${OBJTOP}/' \
 		BOOTSTRAPPING=${OSRELDATE} \
 		BWPHASE=${.TARGET} \

@@ -521,7 +521,7 @@ BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}"
 # need to keep this in sync with targets/pseudo/bootstrap-tools/Makefile
 BSARGS= 	DESTDIR= \
-		OBJTOP='${WORLDTMP}/obj-$${BWPHASE}' \
+		OBJTOP='${WORLDTMP}/obj-tools' \
 		OBJROOT='$${OBJTOP}/' \
 		BOOTSTRAPPING=${OSRELDATE} \
 		BWPHASE=${.TARGET:C,^_,,} \
