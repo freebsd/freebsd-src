@@ -708,15 +708,17 @@ out:
 static int *
 nvlist_xdescriptors(const nvlist_t *nvl, int *descs)
 {
+	void *cookie;
 	nvpair_t *nvp;
 	int type;
 
 	NVLIST_ASSERT(nvl);
 	PJDLOG_ASSERT(nvl->nvl_error == 0);
 
-	nvp = NULL;
+	cookie = NULL;
 	do {
-		while (nvlist_next(nvl, &type, (void *)&nvp) != NULL) {
+		while (nvlist_next(nvl, &type, &cookie) != NULL) {
+			nvp = cookie;
 			switch (type) {
 			case NV_TYPE_DESCRIPTOR:
 				*descs = nvpair_get_descriptor(nvp);
@@ -738,7 +740,7 @@ nvlist_xdescriptors(const nvlist_t *nvl, int *descs)
 			    }
 			case NV_TYPE_NVLIST:
 				nvl = nvpair_get_nvlist(nvp);
-				nvp = NULL;
+				cookie = NULL;
 				break;
 			case NV_TYPE_NVLIST_ARRAY:
 			    {
@@ -750,12 +752,12 @@ nvlist_xdescriptors(const nvlist_t *nvl, int *descs)
 				PJDLOG_ASSERT(nitems > 0);
 
 				nvl = value[0];
-				nvp = NULL;
+				cookie = NULL;
 				break;
 			    }
 			}
 		}
-	} while ((nvl = nvlist_get_pararr(nvl, (void *)&nvp)) != NULL);
+	} while ((nvl = nvlist_get_pararr(nvl, &cookie)) != NULL);
 
 	return (descs);
 }
@@ -785,6 +787,7 @@ size_t
 nvlist_ndescriptors(const nvlist_t *nvl)
 {
 #ifndef _KERNEL
+	void *cookie;
 	nvpair_t *nvp;
 	size_t ndescs;
 	int type;
@@ -793,16 +796,17 @@ nvlist_ndescriptors(const nvlist_t *nvl)
 	PJDLOG_ASSERT(nvl->nvl_error == 0);
 
 	ndescs = 0;
-	nvp = NULL;
+	cookie = NULL;
 	do {
-		while (nvlist_next(nvl, &type, (void *)&nvp) != NULL) {
+		while (nvlist_next(nvl, &type, &cookie) != NULL) {
+			nvp = cookie;
 			switch (type) {
 			case NV_TYPE_DESCRIPTOR:
 				ndescs++;
 				break;
 			case NV_TYPE_NVLIST:
 				nvl = nvpair_get_nvlist(nvp);
-				nvp = NULL;
+				cookie = NULL;
 				break;
 			case NV_TYPE_NVLIST_ARRAY:
 			    {
@@ -814,7 +818,7 @@ nvlist_ndescriptors(const nvlist_t *nvl)
 				PJDLOG_ASSERT(nitems > 0);
 
 				nvl = value[0];
-				nvp = NULL;
+				cookie = NULL;
 				break;
 			    }
 			case NV_TYPE_DESCRIPTOR_ARRAY:
@@ -828,7 +832,7 @@ nvlist_ndescriptors(const nvlist_t *nvl)
 			    }
 			}
 		}
-	} while ((nvl = nvlist_get_pararr(nvl, (void *)&nvp)) != NULL);
+	} while ((nvl = nvlist_get_pararr(nvl, &cookie)) != NULL);
 
 	return (ndescs);
 #else
