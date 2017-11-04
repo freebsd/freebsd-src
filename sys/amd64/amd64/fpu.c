@@ -806,6 +806,7 @@ fpusetregs(struct thread *td, struct savefpu *addr, char *xfpustate,
 	struct pcb *pcb;
 	int error;
 
+	addr->sv_env.en_mxcsr &= cpu_mxcsr_mask;
 	pcb = td->td_pcb;
 	critical_enter();
 	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {

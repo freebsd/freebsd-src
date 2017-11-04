@@ -22,6 +22,14 @@ TARGET_CPUARCH=${MACHINE_CPUARCH}
 .endif
 .endif
 
+__DEFAULT_YES_OPTIONS+= \
+	UNIFIED_OBJDIR
+
+# src.sys.obj.mk enables AUTO_OBJ by default if possible but it is otherwise
+# disabled.  Ensure src.conf.5 shows it as default on.
+.if make(showconfig)
+__DEFAULT_YES_OPTIONS+= AUTO_OBJ
+.endif
 
 # Some options we need now
 __DEFAULT_NO_OPTIONS= \
@@ -56,8 +64,11 @@ MK_META_MODE=	no
 .if ${MK_DIRDEPS_BUILD} == "yes"
 .sinclude <meta.sys.mk>
 .elif ${MK_META_MODE} == "yes"
+META_MODE+=	meta
+.if empty(.MAKEFLAGS:M-s)
 # verbose will show .MAKE.META.PREFIX for each target.
-META_MODE+=	meta verbose
+META_MODE+=	verbose
+.endif
 .if !defined(NO_META_MISSING)
 META_MODE+=	missing-meta=yes
 .endif
@@ -114,8 +125,14 @@ NO_META_IGNORE_HOST_HEADERS=	1
 # is not expected.
 .if !make(showconfig) && !make(print-dir)
 .sinclude <auto.obj.mk>
+# The .OBJDIR was not set, disable MK_AUTO_OBJ so downstream checks won't
+# assume .OBJDIR is proper.
+.if defined(__objdir) && ${.OBJDIR} != ${__objdir}
+.MAKEOVERRIDES+= MK_AUTO_OBJ
+MK_AUTO_OBJ=	no
 .endif
 .endif
+.endif	# ${MK_AUTO_OBJ} == "yes"
 .else # bmake
 .include <bsd.mkopt.mk>
 .endif

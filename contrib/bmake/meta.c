@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.68 2017/07/09 04:54:00 sjg Exp $ */
+/*      $NetBSD: meta.c,v 1.69 2017/08/10 21:07:48 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -250,6 +250,8 @@ meta_name(char *mname, size_t mnamelen,
     char *rp;
     char *cp;
     char *tp;
+    char *dtp;
+    size_t ldname;
 
     /*
      * Weed out relative paths from the target file name.
@@ -286,10 +288,15 @@ meta_name(char *mname, size_t mnamelen,
     }
     /* on some systems dirname may modify its arg */
     tp = bmake_strdup(tname);
-    if (strcmp(dname, dirname(tp)) == 0)
+    dtp = dirname(tp);
+    if (strcmp(dname, dtp) == 0)
 	snprintf(mname, mnamelen, "%s.meta", tname);
     else {
-	snprintf(mname, mnamelen, "%s/%s.meta", dname, tname);
+	ldname = strlen(dname);
+	if (strncmp(dname, dtp, ldname) == 0 && dtp[ldname] == '/')
+	    snprintf(mname, mnamelen, "%s/%s.meta", dname, &tname[ldname+1]);
+	else
+	    snprintf(mname, mnamelen, "%s/%s.meta", dname, tname);
 
 	/*
 	 * Replace path separators in the file name after the

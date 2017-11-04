@@ -1818,20 +1818,22 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 	int n, i = 0;
 	uint64_t bus_addr;
 	int err;
+	qidx_t credits;
 
 	sd_m = fl->ifl_sds.ifsd_m;
 	sd_map = fl->ifl_sds.ifsd_map;
 	sd_cl = fl->ifl_sds.ifsd_cl;
 	sd_flags = fl->ifl_sds.ifsd_flags;
 	idx = pidx;
+	credits = fl->ifl_credits;
 
 	n  = count;
 	MPASS(n > 0);
-	MPASS(fl->ifl_credits + n <= fl->ifl_size);
+	MPASS(credits + n <= fl->ifl_size);
 
 	if (pidx < fl->ifl_cidx)
 		MPASS(pidx + n <= fl->ifl_cidx);
-	if (pidx == fl->ifl_cidx && (fl->ifl_credits < fl->ifl_size))
+	if (pidx == fl->ifl_cidx && (credits < fl->ifl_size))
 		MPASS(fl->ifl_gen == 0);
 	if (pidx > fl->ifl_cidx)
 		MPASS(n <= fl->ifl_size - pidx + fl->ifl_cidx);
@@ -1904,9 +1906,9 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 		fl->ifl_rxd_idxs[i] = frag_idx;
 		fl->ifl_bus_addrs[i] = bus_addr;
 		fl->ifl_vm_addrs[i] = cl;
-		fl->ifl_credits++;
+		credits++;
 		i++;
-		MPASS(fl->ifl_credits <= fl->ifl_size);
+		MPASS(credits <= fl->ifl_size);
 		if (++idx == fl->ifl_size) {
 			fl->ifl_gen = 1;
 			idx = 0;
@@ -1918,10 +1920,18 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 			i = 0;
 			pidx = idx;
 			fl->ifl_pidx = idx;
+			fl->ifl_credits = credits;
 		}
 
 	}
 done:
+	if (i) {
+		iru.iru_pidx = pidx;
+		iru.iru_count = i;
+		ctx->isc_rxd_refill(ctx->ifc_softc, &iru);
+		fl->ifl_pidx = idx;
+		fl->ifl_credits = credits;
+	}
 	DBG_COUNTER_INC(rxd_flush);
 	if (fl->ifl_pidx == 0)
 		pidx = fl->ifl_size - 1;
@@ -2706,10 +2716,6 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 	} else {
 		pi->ipi_etype = ntohs(eh->evl_encap_proto);
 		pi->ipi_ehdrlen = ETHER_HDR_LEN;
-	}
-
-	if (if_getmtu(txq->ift_ctx->ifc_ifp) >= pi->ipi_len) {
-		pi->ipi_csum_flags &= ~(CSUM_IP_TSO|CSUM_IP6_TSO);
 	}
 
 	switch (pi->ipi_etype) {

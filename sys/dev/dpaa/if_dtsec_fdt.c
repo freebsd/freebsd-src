@@ -136,7 +136,7 @@ dtsec_fdt_attach(device_t dev)
 	phandle_t enet_node, phy_node;
 	phandle_t fman_rxtx_node[2];
 	char phy_type[6];
-	pcell_t fman_tx_cell;
+	pcell_t fman_tx_cell, mac_id;
 	int rid;
 
 	sc = device_get_softc(dev);
@@ -191,6 +191,11 @@ dtsec_fdt_attach(device_t dev)
 		sc->sc_mac_enet_mode = e_ENET_MODE_XGMII_10000;
 	else
 		return (ENXIO);
+
+	if (OF_getencprop(enet_node, "cell-index",
+	    (void *)&mac_id, sizeof(mac_id)) <= 0)
+		return (ENXIO);
+	sc->sc_eth_id = mac_id;
 
 	/* Get RX/TX port handles */
 	if (OF_getprop(enet_node, "fsl,fman-ports", (void *)fman_rxtx_node,

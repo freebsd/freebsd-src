@@ -1,4 +1,4 @@
-# $Id: dpadd.mk,v 1.23 2017/02/13 16:46:01 sjg Exp $
+# $Id: dpadd.mk,v 1.24 2017/10/25 23:44:20 sjg Exp $
 #
 #	@(#) Copyright (c) 2004, Simon J. Gerraty
 #
@@ -195,7 +195,7 @@ __dpadd_incs += ${__dpadd_libs:O:u:@s@${SRC_LIBS_${s:T:R}:U}@:@x@${INCLUDES_${x:
 __dpadd_last_incs += ${__dpadd_libs:u:@x@${INCLUDES_LAST_${x:T:R}}@}
 __dpadd_last_incs += ${__dpadd_libs:O:u:@s@${SRC_LIBS_${s:T:R}:U}@:@x@${INCLUDES_LAST_${x:T:R}}@}
 
-.if defined(HOSTPROG) || ${MACHINE} == "host"
+.if defined(HOSTPROG) || ${MACHINE:Nhost*} == ""
 # we want any -I/usr/* last
 __dpadd_last_incs := \
 	${__dpadd_last_incs:N-I/usr/*} \

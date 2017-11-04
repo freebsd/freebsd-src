@@ -287,7 +287,7 @@ bluetooth_start()
 	bluetooth_device_authentication_enable="0"
 	bluetooth_device_class="ff:01:0c"
 	bluetooth_device_connectable="1"
-	bluetooth_device_discoverable="1"
+	bluetooth_device_discoverable="0"
 	bluetooth_device_encryption_mode="0"
 	bluetooth_device_hci_debug_level="3"
 	bluetooth_device_l2cap_debug_level="3"

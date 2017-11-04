@@ -45,15 +45,16 @@
 #define	PSL_FP		0x00002000UL	/* floating point enable */
 #define	PSL_ME		0x00001000UL	/* machine check enable */
 #define	PSL_FE0		0x00000800UL	/* floating point interrupt mode 0 */
-#define	PSL_BE		0x00000200UL	/* branch trace enable */
 #define	PSL_FE1		0x00000100UL	/* floating point interrupt mode 1 */
 #define	PSL_PMM		0x00000004UL	/* performance monitor mark */
+#define	PSL_RI		0x00000002UL	/* recoverable interrupt */
 
 /* Machine State Register - Book-E cores */
 #ifdef __powerpc64__
 #define	PSL_CM		0x80000000UL	/* Computation Mode (64-bit) */
 #endif
 
+#define PSL_GS		0x10000000UL	/* Guest state */
 #define PSL_UCLE	0x04000000UL	/* User mode cache lock enable */
 #define PSL_WE		0x00040000UL	/* Wait state enable */
 #define PSL_CE		0x00020000UL	/* Critical interrupt enable */
@@ -72,10 +73,10 @@
 #define	PSL_POW		0x00040000UL	/* power management */
 #define	PSL_ILE		0x00010000UL	/* interrupt endian mode (1 == le) */
 #define	PSL_SE		0x00000400UL	/* single-step trace enable */
+#define	PSL_BE		0x00000200UL	/* branch trace enable */
 #define	PSL_IP		0x00000040UL	/* interrupt prefix - 601 only */
 #define	PSL_IR		0x00000020UL	/* instruction address relocation */
 #define	PSL_DR		0x00000010UL	/* data address relocation */
-#define	PSL_RI		0x00000002UL	/* recoverable interrupt */
 #define	PSL_LE		0x00000001UL	/* endian mode (1 == le) */
 
 /*

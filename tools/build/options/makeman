@@ -217,12 +217,10 @@ variable, which defaults to
 Some examples that may only be set in this file are
 .Va WITH_DIRDEPS_BUILD ,
 and
-.Va WITH_META_MODE
-as they are environment-only variables.
-Note that
+.Va WITH_META_MODE ,
+and
 .Va MAKEOBJDIRPREFIX
-may be set here only when using
-.Va WITH_DIRDEPS_BUILD .
+as they are environment-only variables.
 .Pp
 The values of variables are ignored regardless of their setting;
 even if they would be set to

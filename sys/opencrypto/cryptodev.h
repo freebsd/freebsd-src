@@ -63,6 +63,7 @@
 #define _CRYPTO_CRYPTO_H_
 
 #include <sys/ioccom.h>
+#include <sys/_task.h>
 
 /* Some initial values */
 #define CRYPTO_DRIVERS_INITIAL	4
@@ -391,6 +392,8 @@ struct cryptodesc {
 struct cryptop {
 	TAILQ_ENTRY(cryptop) crp_next;
 
+	struct task	crp_task;
+
 	u_int64_t	crp_sid;	/* Session ID */
 	int		crp_ilen;	/* Input data total length */
 	int		crp_olen;	/* Result total length */
@@ -413,6 +416,14 @@ struct cryptop {
 #define	CRYPTO_F_CBIMM		0x0010	/* Do callback immediately */
 #define	CRYPTO_F_DONE		0x0020	/* Operation completed */
 #define	CRYPTO_F_CBIFSYNC	0x0040	/* Do CBIMM if op is synchronous */
+#define	CRYPTO_F_ASYNC		0x0080	/* Dispatch crypto jobs on several threads
+					 * if op is synchronous
+					 */
+#define	CRYPTO_F_ASYNC_KEEPORDER	0x0100	/*
+					 * Dispatch the crypto jobs in the same
+					 * order there are submitted. Applied only
+					 * if CRYPTO_F_ASYNC flags is set
+					 */
 
 	caddr_t		crp_buf;	/* Data to be processed */
 	caddr_t		crp_opaque;	/* Opaque pointer, passed along */
@@ -421,7 +432,19 @@ struct cryptop {
 	int (*crp_callback)(struct cryptop *); /* Callback function */
 
 	struct bintime	crp_tstamp;	/* performance time stamp */
+	uint32_t	crp_seq;	/* used for ordered dispatch */
+	uint32_t	crp_retw_id;	/*
+					 * the return worker to be used,
+					 *  used for ordered dispatch
+					 */
 };
+
+#define	CRYPTOP_ASYNC(crp) \
+	(((crp)->crp_flags & CRYPTO_F_ASYNC) && \
+	CRYPTO_SESID2CAPS((crp)->crp_sid) & CRYPTOCAP_F_SYNC)
+#define	CRYPTOP_ASYNC_KEEPORDER(crp) \
+	(CRYPTOP_ASYNC(crp) && \
+	(crp)->crp_flags & CRYPTO_F_ASYNC_KEEPORDER)
 
 #define	CRYPTO_BUF_CONTIG	0x0
 #define	CRYPTO_BUF_IOV		0x1

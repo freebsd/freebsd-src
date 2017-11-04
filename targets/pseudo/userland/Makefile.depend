@@ -197,7 +197,6 @@ DIRDEPS+= \
 	usr.bin/cpio \
 	usr.bin/cpuset \
 	usr.bin/csplit \
-	usr.bin/csup \
 	usr.bin/ctags \
 	usr.bin/ctlstat \
 	usr.bin/cut \

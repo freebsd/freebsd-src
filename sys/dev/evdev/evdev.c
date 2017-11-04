@@ -64,12 +64,14 @@ MALLOC_DEFINE(M_EVDEV, "evdev", "evdev memory");
 int evdev_rcpt_mask = EVDEV_RCPT_SYSMOUSE | EVDEV_RCPT_KBDMUX;
 int evdev_sysmouse_t_axis = 0;
 
+#ifdef EVDEV_SUPPORT
 SYSCTL_NODE(_kern, OID_AUTO, evdev, CTLFLAG_RW, 0, "Evdev args");
 SYSCTL_INT(_kern_evdev, OID_AUTO, rcpt_mask, CTLFLAG_RW, &evdev_rcpt_mask, 0,
     "Who is receiving events: bit0 - sysmouse, bit1 - kbdmux, "
     "bit2 - mouse hardware, bit3 - keyboard hardware");
 SYSCTL_INT(_kern_evdev, OID_AUTO, sysmouse_t_axis, CTLFLAG_RW,
     &evdev_sysmouse_t_axis, 0, "Extract T-axis from 0-none, 1-ums, 2-psm");
+#endif
 
 static void evdev_start_repeat(struct evdev_dev *, uint16_t);
 static void evdev_stop_repeat(struct evdev_dev *);
@@ -577,7 +579,8 @@ evdev_modify_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 				*value = KEY_EVENT_REPEAT;
 		} else {
 			/* Start/stop callout for evdev repeats */
-			if (bit_test(evdev->ev_key_states, code) == !*value) {
+			if (bit_test(evdev->ev_key_states, code) == !*value &&
+			    !LIST_EMPTY(&evdev->ev_clients)) {
 				if (*value == KEY_EVENT_DOWN)
 					evdev_start_repeat(evdev, code);
 				else
@@ -632,8 +635,6 @@ evdev_sparse_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 		break;
 
 	case EV_SND:
-		if (bit_test(evdev->ev_snd_states, code) == value)
-			return (EV_SKIP_EVENT);
 		bit_change(evdev->ev_snd_states, code, value);
 		break;
 
@@ -811,7 +812,11 @@ evdev_inject_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 	case EV_ABS:
 	case EV_SW:
 push:
+		if (evdev->ev_lock_type != EV_LOCK_INTERNAL)
+			EVDEV_LOCK(evdev);
 		ret = evdev_push_event(evdev, type,  code, value);
+		if (evdev->ev_lock_type != EV_LOCK_INTERNAL)
+			EVDEV_UNLOCK(evdev);
 		break;
 
 	default:

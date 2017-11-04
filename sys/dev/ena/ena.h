@@ -40,7 +40,7 @@
 #include "ena-com/ena_eth_com.h"
 
 #define DRV_MODULE_VER_MAJOR	0
-#define DRV_MODULE_VER_MINOR	7
+#define DRV_MODULE_VER_MINOR	8
 #define DRV_MODULE_VER_SUBMINOR 0
 
 #define DRV_MODULE_NAME		"ena"
@@ -76,7 +76,7 @@
 #define	ENA_NAME_MAX_LEN		20
 #define	ENA_IRQNAME_SIZE		40
 
-#define	ENA_PKT_MAX_BUFS		19
+#define	ENA_PKT_MAX_BUFS 		19
 #define	ENA_STALL_TIMEOUT		100
 
 #define	ENA_RX_RSS_TABLE_LOG_SIZE	7
@@ -86,11 +86,11 @@
 
 #define	ENA_DMA_BITS_MASK		40
 #define	ENA_MAX_FRAME_LEN		10000
-#define	ENA_MIN_FRAME_LEN		60
+#define	ENA_MIN_FRAME_LEN 		60
 #define	ENA_RX_HASH_KEY_NUM		10
-#define	ENA_RX_THASH_TABLE_SIZE		(1 << 8)
+#define	ENA_RX_THASH_TABLE_SIZE 	(1 << 8)
 
-#define ENA_TX_CLEANUP_TRESHOLD		128
+#define ENA_TX_CLEANUP_THRESHOLD	128
 
 #define DB_THRESHOLD	64
 
@@ -307,13 +307,13 @@ struct ena_stats_dev {
 };
 
 struct ena_hw_stats {
-	uint64_t rx_packets;
-	uint64_t tx_packets;
+	counter_u64_t rx_packets;
+	counter_u64_t tx_packets;
 
-	uint64_t rx_bytes;
-	uint64_t tx_bytes;
+	counter_u64_t rx_bytes;
+	counter_u64_t tx_bytes;
 
-	uint64_t rx_drops;
+	counter_u64_t rx_drops;
 };
 
 /* Board specific private data structure */
@@ -403,13 +403,11 @@ struct ena_adapter {
 	uint32_t missing_tx_max_queues;
 	uint32_t missing_tx_threshold;
 
-	/* Task updating hw stats */
-	struct task stats_task;
-	struct taskqueue *stats_tq;
-
 	/* Statistics */
 	struct ena_stats_dev dev_stats;
 	struct ena_hw_stats hw_stats;
+
+	enum ena_regs_reset_reason_types reset_reason;
 };
 
 
@@ -424,8 +422,6 @@ struct ena_dev *ena_efa_enadev_get(device_t pdev);
 
 int ena_register_adapter(struct ena_adapter *adapter);
 void ena_unregister_adapter(struct ena_adapter *adapter);
-
-int ena_update_stats_counters(struct ena_adapter *adapter);
 
 static inline int ena_mbuf_count(struct mbuf *mbuf)
 {

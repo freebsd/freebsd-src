@@ -122,6 +122,7 @@
 TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	check check-old check-old-dirs check-old-files check-old-libs \
 	checkdpadd checkworld clean cleandepend cleandir cleanworld \
+	cleanuniverse \
 	delete-old delete-old-dirs delete-old-files delete-old-libs \
 	depend distribute distributekernel distributekernel.debug \
 	distributeworld distrib-dirs distribution doxygen \

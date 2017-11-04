@@ -1253,6 +1253,18 @@ struct uidinfo *
 uifind(uid_t uid)
 {
 	struct uidinfo *new_uip, *uip;
+	struct ucred *cred;
+
+	cred = curthread->td_ucred;
+	if (cred->cr_uidinfo->ui_uid == uid) {
+		uip = cred->cr_uidinfo;
+		uihold(uip);
+		return (uip);
+	} else if (cred->cr_ruidinfo->ui_uid == uid) {
+		uip = cred->cr_ruidinfo;
+		uihold(uip);
+		return (uip);
+	}
 
 	rw_rlock(&uihashtbl_lock);
 	uip = uilookup(uid);
