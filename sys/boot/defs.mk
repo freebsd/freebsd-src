@@ -84,6 +84,40 @@ CFLAGS+= -DLOADER_MBR_SUPPORT
 .if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 CFLAGS+= -DLOADER_GELI_SUPPORT
 .endif
+
+_ILINKS=machine
+.if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
+_ILINKS+=${MACHINE_CPUARCH}
 .endif
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_ILINKS+=x86
+.endif
+CLEANFILES+=${_ILINKS}
+
+all: ${PROG}
+
+beforedepend: ${_ILINKS}
+beforebuild: ${_ILINKS}
+
+# Ensure that the links exist without depending on it when it exists which
+# causes all the modules to be rebuilt when the directory pointed to changes.
+.for _link in ${_ILINKS}
+.if !exists(${.OBJDIR}/${_link})
+${OBJS}:	${_link}
+.endif
+.endfor
+
+.NOPATH: ${_ILINKS}
+
+${_ILINKS}:
+	@case ${.TARGET} in \
+	machine) \
+		path=${SYSDIR}/${MACHINE}/include ;; \
+	*) \
+		path=${SYSDIR}/${.TARGET:T}/include ;; \
+	esac ; \
+	path=`(cd $$path && /bin/pwd)` ; \
+	${ECHO} ${.TARGET:T} "->" $$path ; \
+	ln -fhs $$path ${.TARGET:T}
 
 .endif # __BOOT_DEFS_MK__
