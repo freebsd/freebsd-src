@@ -435,7 +435,7 @@ login_chap(struct connection *conn, struct auth_group *ag)
 	 * Yay, authentication succeeded!
 	 */
 	log_debugx("authentication succeeded for user \"%s\"; "
-	    "transitioning to Negotiation Phase", auth->a_user);
+	    "transitioning to operational parameter negotiation", auth->a_user);
 	login_send_chap_success(request, auth);
 	pdu_delete(request);
 
