@@ -229,6 +229,10 @@ sctp6_notify(struct sctp_inpcb *inp,
 		}
 		break;
 	case ICMP6_PACKET_TOO_BIG:
+		if ((net->dest_state & SCTP_ADDR_NO_PMTUD) == 0) {
+			SCTP_TCB_UNLOCK(stcb);
+			break;
+		}
 		if (SCTP_OS_TIMER_PENDING(&net->pmtu_timer.timer)) {
 			timer_stopped = 1;
 			sctp_timer_stop(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, net,

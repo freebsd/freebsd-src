@@ -350,7 +350,9 @@ chroot_build_release() {
 # chroot_arm_build_release(): Create arm SD card image.
 chroot_arm_build_release() {
 	load_target_env
-	eval chroot ${CHROOTDIR} make -C /usr/src/release obj
+	MAKE_FLAGS="${MAKE_FLAGS} TARGET=${EMBEDDED_TARGET}"
+	MAKE_FLAGS="${MAKE_FLAGS} TARGET_ARCH=${EMBEDDED_TARGET_ARCH}"
+	eval chroot ${CHROOTDIR} make ${MAKE_FLAGS} -C /usr/src/release obj
 	case ${EMBEDDED_TARGET} in
 		arm|arm64)
 			if [ -e "${RELENGDIR}/tools/arm.subr" ]; then
@@ -361,11 +363,11 @@ chroot_arm_build_release() {
 			;;
 	esac
 	[ ! -z "${RELEASECONF}" ] && . "${RELEASECONF}"
-	WORLDDIR="$(eval chroot ${CHROOTDIR} make -C /usr/src/release -V WORLDDIR)"
-	OBJDIR="$(eval chroot ${CHROOTDIR} make -C /usr/src/release -V .OBJDIR)"
+	WORLDDIR="$(eval chroot ${CHROOTDIR} make ${MAKE_FLAGS} -C /usr/src/release -V WORLDDIR)"
+	OBJDIR="$(eval chroot ${CHROOTDIR} make ${MAKE_FLAGS} -C /usr/src/release -V .OBJDIR)"
 	DESTDIR="${OBJDIR}/${KERNEL}"
 	IMGBASE="${CHROOTDIR}/${OBJDIR}/${KERNEL}.img"
-	OSRELEASE="$(eval chroot ${CHROOTDIR} make -C /usr/src/release \
+	OSRELEASE="$(eval chroot ${CHROOTDIR} make ${MAKE_FLAGS} -C /usr/src/release \
 		TARGET=${EMBEDDED_TARGET} TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
 		-V OSRELEASE)"
 	chroot ${CHROOTDIR} mkdir -p ${DESTDIR}

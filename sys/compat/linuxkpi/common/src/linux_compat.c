@@ -745,8 +745,6 @@ linux_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	int error;
 
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (0);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -879,8 +877,6 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	int error;
 
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -948,8 +944,6 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 
 	td = curthread;
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -990,8 +984,6 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 	td = curthread;
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -1030,8 +1022,6 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	struct file *file;
 	int revents;
 
-	if (dev->si_drv1 == NULL)
-		goto error;
 	if (devfs_get_cdevpriv((void **)&filp) != 0)
 		goto error;
 
@@ -1233,8 +1223,6 @@ linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
 
 	td = curthread;
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -1285,8 +1273,6 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 
 	td = curthread;
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENODEV);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;

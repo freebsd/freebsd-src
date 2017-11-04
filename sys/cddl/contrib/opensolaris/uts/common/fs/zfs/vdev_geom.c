@@ -934,13 +934,18 @@ skip_open:
 static void
 vdev_geom_close(vdev_t *vd)
 {
+	struct g_consumer *cp;
 
-	if (vd->vdev_reopening)
-		return;
+	cp = vd->vdev_tsd;
 
 	DROP_GIANT();
 	g_topology_lock();
-	vdev_geom_close_locked(vd);
+
+	if (!vd->vdev_reopening ||
+	    (cp != NULL && ((cp->flags & G_CF_ORPHAN) != 0 ||
+	    (cp->provider != NULL && cp->provider->error != 0))))
+		vdev_geom_close_locked(vd);
+
 	g_topology_unlock();
 	PICKUP_GIANT();
 }

@@ -31,6 +31,7 @@
 
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -38,6 +39,7 @@
 
 #include <assert.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -130,6 +132,22 @@ test_getppid(uintmax_t num, uintmax_t int_arg, const char *path)
 }
 
 uintmax_t
+test_getresuid(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	uid_t ruid, euid, suid;
+	uintmax_t i;
+
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
+		(void)getresuid(&ruid, &euid, &suid);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+uintmax_t
 test_clock_gettime(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	struct timespec ts;
@@ -162,6 +180,21 @@ test_gettimeofday(uintmax_t num, uintmax_t int_arg, const char *path)
 }
 
 uintmax_t
+test_getpriority(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	uintmax_t i;
+
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
+		(void)getpriority(PRIO_PROCESS, 0);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+uintmax_t
 test_pipe(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	int fd[2], i;
@@ -184,6 +217,31 @@ test_pipe(uintmax_t num, uintmax_t int_arg, const char *path)
 			err(-1, "test_pipe: pipe");
 		close(fd[0]);
 		close(fd[1]);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+uintmax_t
+test_select(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	fd_set readfds, writefds, exceptfds;
+	struct timeval tv;
+	uintmax_t i;
+	int error;
+
+	FD_ZERO(&readfds);
+	FD_ZERO(&writefds);
+	FD_ZERO(&exceptfds);
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
+
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
+		(void)select(0, &readfds, &writefds, &exceptfds, &tv);
 	}
 	benchmark_stop();
 	return (i);
@@ -282,6 +340,28 @@ test_socketpair_dgram(uintmax_t num, uintmax_t int_arg, const char *path)
 }
 
 uintmax_t
+test_access(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	uintmax_t i;
+	int fd;
+
+	fd = access(path, O_RDONLY);
+	if (fd < 0)
+		err(-1, "test_access: %s", path);
+	close(fd);
+
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
+		access(path, O_RDONLY);
+		close(fd);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+uintmax_t
 test_create_unlink(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	uintmax_t i;
@@ -328,6 +408,21 @@ test_open_close(uintmax_t num, uintmax_t int_arg, const char *path)
 		if (fd < 0)
 			err(-1, "test_open_close: %s", path);
 		close(fd);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+uintmax_t
+test_bad_open(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	uintmax_t i;
+
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
+		open("", O_RDONLY);
 	}
 	benchmark_stop();
 	return (i);
@@ -631,16 +726,21 @@ struct test {
 static const struct test tests[] = {
 	{ "getuid", test_getuid },
 	{ "getppid", test_getppid },
+	{ "getresuid", test_getresuid },
 	{ "clock_gettime", test_clock_gettime },
 	{ "gettimeofday", test_gettimeofday },
+	{ "getpriority", test_getpriority },
 	{ "pipe", test_pipe },
+	{ "select", test_select },
 	{ "socket_local_stream", test_socket_stream, .t_int = PF_LOCAL },
 	{ "socket_local_dgram", test_socket_dgram, .t_int = PF_LOCAL },
 	{ "socketpair_stream", test_socketpair_stream },
 	{ "socketpair_dgram", test_socketpair_dgram },
 	{ "socket_tcp", test_socket_stream, .t_int = PF_INET },
 	{ "socket_udp", test_socket_dgram, .t_int = PF_INET },
+	{ "access", test_access, .t_flags = FLAG_PATH },
 	{ "create_unlink", test_create_unlink, .t_flags = FLAG_PATH },
+	{ "bad_open", test_bad_open },
 	{ "open_close", test_open_close, .t_flags = FLAG_PATH },
 	{ "open_read_close_1", test_open_read_close, .t_flags = FLAG_PATH,
 	    .t_int = 1 },
@@ -693,20 +793,22 @@ main(int argc, char *argv[])
 	struct timespec ts_res;
 	const struct test *the_test;
 	const char *path;
+	char *tmp_dir, *tmp_path;
 	long long ll;
 	char *endp;
-	int ch, error, i, j, k;
+	int ch, fd, error, i, j, k, rv;
 	uintmax_t iterations, loops;
 
 	alarm_timeout = 1;
 	iterations = 0;
 	loops = 10;
 	path = NULL;
+	tmp_path = NULL;
 	while ((ch = getopt(argc, argv, "i:l:p:s:")) != -1) {
 		switch (ch) {
 		case 'i':
 			ll = strtol(optarg, &endp, 10);
-			if (*endp != 0 || ll < 1 || ll > 100000)
+			if (*endp != 0 || ll < 1)
 				usage();
 			iterations = ll;
 			break;
@@ -760,7 +862,15 @@ main(int argc, char *argv[])
 		if (the_test == NULL)
 			usage();
 		if ((the_test->t_flags & FLAG_PATH) && (path == NULL)) {
-			errx(-1, "%s requires -p", the_test->t_name);
+			tmp_dir = strdup("/tmp/syscall_timing.XXXXXXXX");
+			if (tmp_dir == NULL)
+				err(1, "strdup");
+			tmp_dir = mkdtemp(tmp_dir);
+			if (tmp_dir == NULL)
+				err(1, "mkdtemp");
+			rv = asprintf(&tmp_path, "%s/testfile", tmp_dir);
+			if (rv <= 0)
+				err(1, "asprintf");
 		}
 	}
 
@@ -777,6 +887,19 @@ main(int argc, char *argv[])
 		for (i = 0; i < tests_count; i++) {
 			if (strcmp(argv[j], tests[i].t_name) == 0)
 				the_test = &tests[i];
+		}
+
+		if (tmp_path != NULL) {
+			fd = open(tmp_path, O_WRONLY | O_CREAT, 0700);
+			if (fd < 0)
+				err(1, "cannot open %s", tmp_path);
+			error = ftruncate(fd, 1000000);
+			if (error != 0)
+				err(1, "ftruncate");
+			error = close(fd);
+			if (error != 0)
+				err(1, "close");
+			path = tmp_path;
 		}
 
 		/*
@@ -804,5 +927,15 @@ main(int argc, char *argv[])
 			printf("0.%09ju\n", (uintmax_t)nsecsperit);
 		}
 	}
+
+	if (tmp_path != NULL) {
+		error = unlink(tmp_path);
+		if (error != 0 && errno != ENOENT)
+			warn("cannot unlink %s", tmp_path);
+		error = rmdir(tmp_dir);
+		if (error != 0)
+			warn("cannot rmdir %s", tmp_dir);
+	}
+
 	return (0);
 }

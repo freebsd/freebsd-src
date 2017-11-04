@@ -389,23 +389,28 @@ pget(pid_t pid, int flags, struct proc **pp)
 	struct proc *p;
 	int error;
 
-	sx_slock(&allproc_lock);
-	if (pid <= PID_MAX) {
-		p = pfind_locked(pid);
-		if (p == NULL && (flags & PGET_NOTWEXIT) == 0)
-			p = zpfind_locked(pid);
-	} else if ((flags & PGET_NOTID) == 0) {
-		p = pfind_tid_locked(pid);
+	p = curproc;
+	if (p->p_pid == pid) {
+		PROC_LOCK(p);
 	} else {
-		p = NULL;
-	}
-	sx_sunlock(&allproc_lock);
-	if (p == NULL)
-		return (ESRCH);
-	if ((flags & PGET_CANSEE) != 0) {
-		error = p_cansee(curthread, p);
-		if (error != 0)
-			goto errout;
+		sx_slock(&allproc_lock);
+		if (pid <= PID_MAX) {
+			p = pfind_locked(pid);
+			if (p == NULL && (flags & PGET_NOTWEXIT) == 0)
+				p = zpfind_locked(pid);
+		} else if ((flags & PGET_NOTID) == 0) {
+			p = pfind_tid_locked(pid);
+		} else {
+			p = NULL;
+		}
+		sx_sunlock(&allproc_lock);
+		if (p == NULL)
+			return (ESRCH);
+		if ((flags & PGET_CANSEE) != 0) {
+			error = p_cansee(curthread, p);
+			if (error != 0)
+				goto errout;
+		}
 	}
 	if ((flags & PGET_CANDEBUG) != 0) {
 		error = p_candebug(curthread, p);

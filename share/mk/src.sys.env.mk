@@ -43,3 +43,5 @@ MAKESYSPATH:= ${MAKESYSPATH:S,.../share/mk,${.PARSEDIR:tA},}
 MAKESYSPATH:=	${.PARSEDIR:tA}
 .export MAKESYSPATH
 .endif
+
+.include <src.sys.obj.mk>

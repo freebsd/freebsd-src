@@ -75,7 +75,7 @@ __objdir_made != umask ${OBJDIR_UMASK:U002}; ${Mkdirs}; \
 	done
 .endif
 .endif	# !empty(SRCS:M*/*) || !empty(DPSRCS:M*/*)
-.elif defined(MAKEOBJDIRPREFIX)
+.elif !empty(MAKEOBJDIRPREFIX)
 CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
 .elif defined(MAKEOBJDIR) && ${MAKEOBJDIR:M/*} != ""
 CANONICALOBJDIR:=${MAKEOBJDIR}

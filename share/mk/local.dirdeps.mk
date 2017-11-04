@@ -49,6 +49,20 @@ DIRDEPS_FILTER.host = \
 DIRDEPS_FILTER+= \
 	Nbin/cat.host \
 	${DIRDEPS_FILTER.xtras:U}
+
+# Cleanup a buildworld's WORLDTMP so that any files generated from it
+# or using it will rebuild with the DIRDEPS SYSROOT.  Otherwise existing
+# object .meta files may still reference those directories and not be
+# rebuilt and lead to incorrect Makefile.depend files due to lack of
+# .dirdep files.
+.if !defined(NO_CLEANUP_WORLDTMP) && exists(${OBJTOP}/tmp/_worldtmp)
+cleanup_worldtmp: .PHONY .NOMETA
+	@echo "Cleaning leftover WORLDTMP from buildworld."
+	-rm -rf ${OBJTOP}/tmp/*
+	-chflags -R 0 ${OBJTOP}/tmp/*
+	rm -rf ${OBJTOP}/tmp
+beforedirdeps: cleanup_worldtmp
+.endif
 .endif
 
 # reset this each time

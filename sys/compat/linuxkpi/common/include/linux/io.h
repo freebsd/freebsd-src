@@ -109,6 +109,13 @@ ioread16(const volatile void *addr)
 	return *(const volatile uint16_t *)addr;
 }
 
+#undef ioread16be
+static inline uint16_t
+ioread16be(const volatile void *addr)
+{
+	return be16toh(*(const volatile uint16_t *)addr);
+}
+
 #undef ioread32
 static inline uint32_t
 ioread32(const volatile void *addr)

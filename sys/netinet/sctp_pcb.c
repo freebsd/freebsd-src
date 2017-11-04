@@ -2577,6 +2577,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	/* number of streams to pre-open on a association */
 	m->pre_open_stream_count = SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default);
 
+	m->default_mtu = 0;
 	/* Add adaptation cookie */
 	m->adaptation_layer_indicator = 0;
 	m->adaptation_layer_indicator_provided = 0;
@@ -3942,7 +3943,28 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		    net,
 		    0,
 		    stcb->asoc.vrf_id);
-		if (net->ro._s_addr != NULL) {
+		if (stcb->asoc.default_mtu > 0) {
+			net->mtu = stcb->asoc.default_mtu;
+			switch (net->ro._l_addr.sa.sa_family) {
+#ifdef INET
+			case AF_INET:
+				net->mtu += SCTP_MIN_V4_OVERHEAD;
+				break;
+#endif
+#ifdef INET6
+			case AF_INET6:
+				net->mtu += SCTP_MIN_OVERHEAD;
+				break;
+#endif
+			default:
+				break;
+			}
+#if defined(INET) || defined(INET6)
+			if (net->port) {
+				net->mtu += (uint32_t)sizeof(struct udphdr);
+			}
+#endif
+		} else if (net->ro._s_addr != NULL) {
 			uint32_t imtu, rmtu, hcmtu;
 
 			net->src_addr_selected = 1;
@@ -3966,19 +3988,42 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		}
 	}
 	if (net->mtu == 0) {
-		switch (newaddr->sa_family) {
+		if (stcb->asoc.default_mtu > 0) {
+			net->mtu = stcb->asoc.default_mtu;
+			switch (net->ro._l_addr.sa.sa_family) {
 #ifdef INET
-		case AF_INET:
-			net->mtu = SCTP_DEFAULT_MTU;
-			break;
+			case AF_INET:
+				net->mtu += SCTP_MIN_V4_OVERHEAD;
+				break;
 #endif
 #ifdef INET6
-		case AF_INET6:
-			net->mtu = 1280;
-			break;
+			case AF_INET6:
+				net->mtu += SCTP_MIN_OVERHEAD;
+				break;
 #endif
-		default:
-			break;
+			default:
+				break;
+			}
+#if defined(INET) || defined(INET6)
+			if (net->port) {
+				net->mtu += (uint32_t)sizeof(struct udphdr);
+			}
+#endif
+		} else {
+			switch (newaddr->sa_family) {
+#ifdef INET
+			case AF_INET:
+				net->mtu = SCTP_DEFAULT_MTU;
+				break;
+#endif
+#ifdef INET6
+			case AF_INET6:
+				net->mtu = 1280;
+				break;
+#endif
+			default:
+				break;
+			}
 		}
 	}
 #if defined(INET) || defined(INET6)

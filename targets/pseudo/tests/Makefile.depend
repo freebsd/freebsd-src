@@ -170,7 +170,6 @@ DIRDEPS= \
       lib/libkvm/tests \
       lib/libmp/tests \
       lib/libnv/tests \
-      lib/libpathconv/tests \
       lib/libproc/tests \
       lib/librt/tests \
       lib/libsbuf/tests \

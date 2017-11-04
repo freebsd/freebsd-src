@@ -254,6 +254,7 @@ woodsb02 [label="Ben Woods\nwoodsb02@FreeBSD.org\n2016/05/09"]
 wxs [label="Wesley Shields\nwxs@FreeBSD.org\n2008/01/03"]
 xmj [label="Johannes Jost Meixner\nxmj@FreeBSD.org\n2014/04/07"]
 xride [label="Soeren Straarup\nxride@FreeBSD.org\n2006/09/27"]
+yuri [label="Yuri Victorovich\nyuri@FreeBSD.org\n2017/10/30"]
 yzlin [label="Yi-Jheng Lin\nyzlin@FreeBSD.org\n2009/07/19"]
 zeising [label="Niclas Zeising\nzeising@FreeBSD.org\n2012/07/03"]
 zi [label="Ryan Steinmetz\nzi@FreeBSD.org\n2011/07/14"]
@@ -652,6 +653,7 @@ tabthorpe -> zi
 tabthorpe -> gblach
 
 tcberner -> adridg
+tcberner -> yuri
 
 thierry -> jadawin
 thierry -> riggs

@@ -14,6 +14,6 @@ SRCS=		abs2rel.c rel2abs.c
 #SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 
 HAS_TESTS=
-SUBDIR.${MK_TESTS}+= tests
+#SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>
