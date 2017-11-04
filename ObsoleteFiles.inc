@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171104: libcap_random should be in /lib not in /usr/lib
+OLD_LIBS+=usr/lib/libcap_random.so.0
 # 20171104: Casper can work only as shared library
 OLD_FILES+=usr/lib/libcasper.a
 OLD_FILES+=usr/lib/libcasper_p.a
