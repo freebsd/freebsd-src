@@ -14,7 +14,7 @@ MK_SSP=		no
 .include "../Makefile.inc"
 
 INTERNALLIB=
-LIBSTAND_CPUARCH?=${MACHINE_CPUARCH}
+LIBSA_CPUARCH?=${MACHINE_CPUARCH}
 LIBC_SRC=	${SRCTOP}/lib/libc
 
 LIB?=		sa
@@ -83,7 +83,7 @@ SRCS+=	syncicache.c
 SRCS+= uuid_create_nil.c uuid_equal.c uuid_from_string.c uuid_is_nil.c uuid_to_string.c
 
 # _setjmp/_longjmp
-.PATH: ${SASRC}/${LIBSTAND_CPUARCH}
+.PATH: ${SASRC}/${LIBSA_CPUARCH}
 SRCS+=	_setjmp.S
 
 # decompression functionality from libbz2
@@ -91,41 +91,41 @@ SRCS+=	_setjmp.S
 # loader(8) with LOADER_BZIP2_SUPPORT defined
 .PATH: ${SRCTOP}/contrib/bzip2
 CFLAGS+= -DBZ_NO_STDIO -DBZ_NO_COMPRESS
-SRCS+=	libstand_bzlib_private.h
+SRCS+=	libsa_bzlib_private.h
 
 .for file in bzlib.c crctable.c decompress.c huffman.c randtable.c
 SRCS+=	_${file}
 CLEANFILES+=	_${file}
 
 _${file}: ${file}
-	sed "s|bzlib_private\.h|libstand_bzlib_private.h|" \
+	sed "s|bzlib_private\.h|libsa_bzlib_private.h|" \
 	    ${.ALLSRC} > ${.TARGET}
 .endfor
 
-CLEANFILES+= libstand_bzlib_private.h
-libstand_bzlib_private.h: bzlib_private.h
+CLEANFILES+= libsa_bzlib_private.h
+libsa_bzlib_private.h: bzlib_private.h
 	sed -e 's|<stdlib.h>|"stand.h"|' \
 		${.ALLSRC} > ${.TARGET}
 
 # decompression functionality from zlib
 .PATH: ${SRCTOP}/contrib/zlib
 CFLAGS+=-DHAVE_MEMCPY -I${SRCTOP}/contrib/zlib
-SRCS+=	adler32.c crc32.c libstand_zutil.h libstand_gzguts.h
+SRCS+=	adler32.c crc32.c libsa_zutil.h libsa_gzguts.h
 
 .for file in infback.c inffast.c inflate.c inftrees.c zutil.c
 SRCS+=	_${file}
 CLEANFILES+=	_${file}
 
 _${file}: ${file}
-	sed -e "s|zutil\.h|libstand_zutil.h|" \
-	    -e "s|gzguts\.h|libstand_gzguts.h|" \
+	sed -e "s|zutil\.h|libsa_zutil.h|" \
+	    -e "s|gzguts\.h|libsa_gzguts.h|" \
 	    ${.ALLSRC} > ${.TARGET}
 .endfor
 
 # depend on stand.h being able to be included multiple times
 .for file in zutil.h gzguts.h
-CLEANFILES+= libstand_${file}
-libstand_${file}: ${file}
+CLEANFILES+= libsa_${file}
+libsa_${file}: ${file}
 	sed -e 's|<fcntl.h>|"stand.h"|' \
 	    -e 's|<stddef.h>|"stand.h"|' \
 	    -e 's|<string.h>|"stand.h"|' \
