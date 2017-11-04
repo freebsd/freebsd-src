@@ -14,7 +14,7 @@ MK_SSP=		no
 .include "../Makefile.inc"
 
 INTERNALLIB=
-LIBSA_CPUARCH?=${MACHINE_CPUARCH}
+LIBSTAND_CPUARCH?=${MACHINE_CPUARCH}
 LIBC_SRC=	${SRCTOP}/lib/libc
 
 LIB?=		sa
@@ -83,7 +83,7 @@ SRCS+=	syncicache.c
 SRCS+= uuid_create_nil.c uuid_equal.c uuid_from_string.c uuid_is_nil.c uuid_to_string.c
 
 # _setjmp/_longjmp
-.PATH: ${SASRC}/${LIBSA_CPUARCH}
+.PATH: ${SASRC}/${LIBSTAND_CPUARCH}
 SRCS+=	_setjmp.S
 
 # decompression functionality from libbz2
