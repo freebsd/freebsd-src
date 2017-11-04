@@ -11,7 +11,8 @@ ident		MPC85XX
 machine		powerpc	powerpc
 
 include 	"dpaa/config.dpaa"
-makeoptions	DEBUG="-Wa,-me500 -g"
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	WITH_CTF=1
 makeoptions	WERROR="-Werror -Wno-format -Wno-redundant-decls"
 makeoptions	NO_MODULES=yes
 
