@@ -84,6 +84,7 @@ CFLAGS+= -DLOADER_MBR_SUPPORT
 .if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 CFLAGS+= -DLOADER_GELI_SUPPORT
 .endif
+.endif
 
 _ILINKS=machine
 .if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
