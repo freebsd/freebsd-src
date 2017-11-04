@@ -8,7 +8,7 @@ SHLIB_MAJOR=	0
 SHLIBDIR?=	/lib
 
 .if ${MK_CASPER} != "no"
-LIB=	casper
+SHLIB=	casper
 
 SRCS=	libcasper.c
 SRCS+=	libcasper_impl.c
