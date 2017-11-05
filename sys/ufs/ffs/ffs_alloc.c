@@ -2584,6 +2584,15 @@ ffs_mapsearch(fs, cgp, bpref, allocsiz)
 	return (-1);
 }
 
+static const struct statfs *
+ffs_getmntstat(struct vnode *devvp)
+{
+
+	if (devvp->v_type == VCHR)
+		return (&devvp->v_rdev->si_mountpt->mnt_stat);
+	return (ffs_getmntstat(VFSTOUFS(devvp->v_mount)->um_devvp));
+}
+
 /*
  * Fetch and verify a cylinder group.
  */
@@ -2597,6 +2606,7 @@ ffs_getcg(fs, devvp, cg, bpp, cgpp)
 {
 	struct buf *bp;
 	struct cg *cgp;
+	const struct statfs *sfs;
 	int flags, error;
 
 	*bpp = NULL;
@@ -2615,7 +2625,11 @@ ffs_getcg(fs, devvp, cg, bpp, cgpp)
 	    (bp->b_flags & B_CKHASH) != 0 &&
 	    cgp->cg_ckhash != bp->b_ckhash) ||
 	    !cg_chkmagic(cgp) || cgp->cg_cgx != cg) {
-		printf("checksum failed: cg %u, cgp: 0x%x != bp: 0x%jx\n",
+		sfs = ffs_getmntstat(devvp);
+		printf("UFS %s%s (%s) cylinder checksum failed: cg %u, cgp: "
+		    "0x%x != bp: 0x%jx\n",
+		    devvp->v_type == VCHR ? "" : "snapshot of ",
+		    sfs->f_mntfromname, sfs->f_mntonname,
 		    cg, cgp->cg_ckhash, (uintmax_t)bp->b_ckhash);
 		bp->b_flags &= ~B_CKHASH;
 		bp->b_flags |= B_INVAL | B_NOCACHE;
