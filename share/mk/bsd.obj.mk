@@ -85,7 +85,7 @@ OBJTOP?= ${MAKEOBJDIR}
 CANONICALOBJDIR:=/usr/obj${.CURDIR}
 .endif
 
-.if defined(SRCTOP) && \
+.if defined(SRCTOP) && defined(RELDIR) && \
     (${CANONICALOBJDIR} == /${RELDIR} || ${.OBJDIR} == /${RELDIR})
 .error .OBJDIR incorrectly set to /${RELDIR}
 .endif
