@@ -448,7 +448,6 @@
 ./sbin
 ./sbin/adjkerntz
 ./sbin/atacontrol
-./sbin/badsect
 ./sbin/bsdlabel
 ./sbin/camcontrol
 ./sbin/ccdconfig
