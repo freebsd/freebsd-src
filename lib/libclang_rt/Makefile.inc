@@ -2,7 +2,12 @@
 
 .include <src.opts.mk>
 
-CRTARCH=	${MACHINE_CPUARCH:C/amd64/x86_64/}
+.if ${MACHINE} == "arm"
+.if ${MACHINE_ARCH:Marmv[67]*} != "" && ${CPUTYPE:M*soft*} == ""
+CRTARCH=	armhf
+.endif
+.endif
+CRTARCH?=	${MACHINE_CPUARCH:C/amd64/x86_64/}
 CRTSRC=		${SRCTOP}/contrib/compiler-rt
 
 .PATH:		${CRTSRC}/lib
