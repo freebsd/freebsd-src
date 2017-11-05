@@ -10,6 +10,14 @@
 __<bsd.init.mk>__:
 .include <bsd.opts.mk>
 .-include "local.init.mk"
+
+.if ${MK_AUTO_OBJ} == "yes"
+# This is also done in bsd.obj.mk
+.if defined(NO_OBJ)
+.OBJDIR: ${.CURDIR}
+.endif
+.endif
+
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
