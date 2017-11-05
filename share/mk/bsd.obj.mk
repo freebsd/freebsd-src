@@ -164,7 +164,8 @@ whereobj:
 .endif
 
 # Same check in bsd.progs.mk
-.if ${CANONICALOBJDIR} != ${.CURDIR} && exists(${CANONICALOBJDIR}/)
+.if ${CANONICALOBJDIR} != ${.CURDIR} && exists(${CANONICALOBJDIR}/) && \
+    (${MK_AUTO_OBJ} == "no" || ${.TARGETS:Nclean*:N*clean:Ndestroy*} == "")
 cleanobj:
 	-rm -rf ${CANONICALOBJDIR}
 .else
@@ -188,6 +189,10 @@ clean:
 .endif
 .endif
 .ORDER: clean all
+.if ${MK_AUTO_OBJ} == "yes"
+.ORDER: cleanobj all
+.ORDER: cleandir all
+.endif
 
 .include <bsd.subdir.mk>
 

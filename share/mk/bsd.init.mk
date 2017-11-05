@@ -64,7 +64,8 @@ _SKIP_BUILD=	not building at level 0
     ${.TARGETS:M*install*} == ${.TARGETS} || \
     ${.TARGETS:Mclean*} == ${.TARGETS} || \
     ${.TARGETS:Mdestroy*} == ${.TARGETS} || \
-    make(obj) || make(analyze) || make(print-dir)
+    ${.TARGETS:Mobj} == ${.TARGETS} || \
+    make(analyze) || make(print-dir)
 # Skip building, but don't show a warning.
 _SKIP_BUILD=
 .endif
