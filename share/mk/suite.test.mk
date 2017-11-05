@@ -101,11 +101,11 @@ realcheck: .PHONY
 	fi
 	@env ${TESTS_ENV:Q} ${KYUA} test -k ${DESTDIR}${TESTSDIR}/Kyuafile
 
-MAKE_CHECK_SANDBOX_DIR=	${.OBJDIR}/checkdir
+MAKE_CHECK_SANDBOX_DIR=	checkdir
 CLEANDIRS+=	${MAKE_CHECK_SANDBOX_DIR}
 
 .if ${MK_MAKE_CHECK_USE_SANDBOX} != "no" && make(check)
-DESTDIR:=	${MAKE_CHECK_SANDBOX_DIR}
+DESTDIR:=	${.OBJDIR}/${MAKE_CHECK_SANDBOX_DIR}
 
 beforecheck:
 .for t in clean depend all
