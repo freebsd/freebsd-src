@@ -108,8 +108,6 @@ LIBCOMPATCXXFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include/c++/v1 -std=c++11 \
 
 # Yes, the flags are redundant.
 LIBCOMPATWMAKEENV+= \
-		OBJTOP=${LIBCOMPAT_OBJTOP} \
-		OBJROOT='$${OBJTOP}/' \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
 		SYSROOT=${LIBCOMPATTMP} \
@@ -129,6 +127,8 @@ LIBCOMPATWMAKEFLAGS+= CC="${XCC} ${LIBCOMPATCFLAGS}" \
 		-DNO_LINT \
 		MK_TESTS=no
 LIBCOMPATWMAKE+=	${LIBCOMPATWMAKEENV} ${MAKE} ${LIBCOMPATWMAKEFLAGS} \
+			OBJTOP=${LIBCOMPAT_OBJTOP} \
+			OBJROOT='$${OBJTOP}/' \
 			MK_MAN=no MK_HTML=no
 LIBCOMPATIMAKE+=	${LIBCOMPATWMAKE:NINSTALL=*:NDESTDIR=*} \
 			MK_TOOLCHAIN=no ${IMAKE_INSTALL} \
@@ -185,9 +185,9 @@ build${libcompat}: .PHONY
 	${_+_}cd ${.CURDIR}/${_dir}; \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
+	    ${MAKE} SSP_CFLAGS= DESTDIR= \
 	    OBJTOP=${LIBCOMPAT_OBJTOP} \
 	    OBJROOT='$${OBJTOP}/' \
-	    ${MAKE} SSP_CFLAGS= DESTDIR= \
 	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 	    build-tools
 .endfor
