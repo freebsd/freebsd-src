@@ -38,21 +38,6 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20171105: fixing lib/libclang_rt CRTARCH for arm:armv[67].
-.if ${MACHINE} == "arm"
-.if ${MACHINE_ARCH:Marmv[67]*} != "" && ${CPUTYPE:M*soft*} == ""
-OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.asan-preinit-arm.a
-OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.asan-arm.a
-OLD_LIBS+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.asan-arm.so
-OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.asan_cxx-arm.a
-OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.profile-arm.a
-OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.safestack-arm.a
-OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.stats-arm.a
-OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.stats_client-arm.a
-OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.ubsan_standalone-arm.a
-OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-arm.a
-.endif
-.endif
 # 20171104: libcap_random should be in /lib not in /usr/lib
 OLD_LIBS+=usr/lib/libcap_random.so.0
 # 20171104: Casper can work only as shared library
