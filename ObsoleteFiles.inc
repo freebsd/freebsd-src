@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171108: badsect(8) removal
+OLD_FILES+=sbin/badsect
+OLD_FILES+=rescue/badsect
+OLD_FILES+=usr/share/man/man8/badsect.8.gz
 # 20171105: fixing lib/libclang_rt CRTARCH for arm:armv[67].
 .if ${MACHINE} == "arm"
 .if ${MACHINE_ARCH:Marmv[67]*} != "" && ${CPUTYPE:M*soft*} == ""
