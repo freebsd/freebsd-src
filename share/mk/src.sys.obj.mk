@@ -154,9 +154,8 @@ MK_AUTO_OBJ:=	${OBJDIR_WRITABLE}
 .export MK_AUTO_OBJ
 .endif	# ${MK_AUTO_OBJ} == "no" && ...
 
-# Assign this directory as .OBJDIR if possible after determining if AUTO_OBJ
-# can be enabled by default.
-.if ${MK_AUTO_OBJ} == "no"
+# Assign this directory as .OBJDIR if possible.
+#
 # The expected OBJDIR already exists, set it as .OBJDIR.
 .if !empty(MAKEOBJDIRPREFIX) && exists(${MAKEOBJDIRPREFIX}${.CURDIR})
 .OBJDIR: ${MAKEOBJDIRPREFIX}${.CURDIR}
@@ -169,5 +168,10 @@ MK_AUTO_OBJ:=	${OBJDIR_WRITABLE}
 .elif ${MAKE_VERSION} <= 20170720 && \
     ${.CURDIR} == ${SRCTOP} && ${.OBJDIR} == ${SRCTOP}/
 .OBJDIR: ${.CURDIR}
+.else
+# The OBJDIR we wanted does not yet exist, ensure we default to safe .CURDIR
+# in case make started with a bogus MAKEOBJDIR, that expanded before OBJTOP
+# was set, that happened to match some unexpected directory.  Either
+# auto.obj.mk or bsd.obj.mk will create the directory and fix .OBJDIR later.
+.OBJDIR: ${.CURDIR}
 .endif
-.endif	# ${MK_AUTO_OBJ} == "no"
