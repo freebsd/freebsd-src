@@ -47,6 +47,7 @@ __<bsd.obj.mk>__:
 objwarn:
 obj:
 CANONICALOBJDIR= ${.OBJDIR}
+# This is also done in bsd.init.mk
 .if defined(NO_OBJ)
 # but this makefile does not want it!
 .OBJDIR: ${.CURDIR}
