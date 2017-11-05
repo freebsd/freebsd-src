@@ -15,6 +15,11 @@ unix		?=	We run FreeBSD, not UNIX.
 #
 __TO_CPUARCH=C/mips(n32|64)?(el)?(hf)?/mips/:C/arm(v[67])?(eb)?/arm/:C/powerpc(64|spe)/powerpc/:C/riscv64(sf)?/riscv/
 MACHINE_CPUARCH=${MACHINE_ARCH:${__TO_CPUARCH}}
+.ifdef TARGET_ARCH
+TARGET_CPUARCH=${TARGET_ARCH:${__TO_CPUARCH}}
+.else
+TARGET_CPUARCH=${MACHINE_CPUARCH}
+.endif
 .endif
 
 __DEFAULT_YES_OPTIONS+= \
