@@ -310,7 +310,7 @@ _GCDA_SRCS=	${SRCS:M*.c} ${SRCS:M*.cc} ${SRCS:M*.cpp} ${SRCS:M*.cxx} ${SRCS:M*.C
 GCDAS:=		${_GCDA_SRCS:R:S/$/.gcno/g}
 .undef _GCDA_SRCS
 .for _gcno in ${GCDAS}
-${_gcno}: ${_gcno:R}.pico
+${_gcno}: ${_gcno:R}.o
 .endfor
 .include <bsd.cov.mk>
 .endif
