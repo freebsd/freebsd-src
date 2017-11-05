@@ -2915,7 +2915,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 	PG_G = PG_A = PG_M = PG_RW = 0;
 	SLIST_INIT(&free);
 	bzero(&pc_marker_b, sizeof(pc_marker_b));
-	bzero(&pc_marker_end, sizeof(pc_marker_end));
+	bzero(&pc_marker_end_b, sizeof(pc_marker_end_b));
 	pc_marker = (struct pv_chunk *)&pc_marker_b;
 	pc_marker_end = (struct pv_chunk *)&pc_marker_end_b;
 
