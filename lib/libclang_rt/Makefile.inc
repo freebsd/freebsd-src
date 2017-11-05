@@ -3,11 +3,9 @@
 .include <src.opts.mk>
 
 # NOTE: based on TARGET_ABI/TARGET_CPUTYPE, set in Makefile.inc1 .
-.if defined(TARGET) && defined(TARGET_ARCH)
-.if ${TARGET} == "arm"
-.if ${TARGET_ARCH:Marmv[67]*} != "" && ${TARGET_CPUTYPE:M*soft*} == ""
+.if ${MACHINE} == "arm"
+.if ${MACHINE_ARCH:Marmv[67]*} != "" && ${CPUTYPE:M*soft*} == ""
 CRTARCH=	armhf
-.endif
 .endif
 .endif
 
