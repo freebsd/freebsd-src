@@ -114,14 +114,10 @@ echo ''
     ${MM_MAKE} DESTDIR=${DESTDIR} distrib-dirs
     ;;
   esac
-  od=${TEMPROOT}/usr/obj
   ${MM_MAKE} DESTDIR=${TEMPROOT} distrib-dirs &&
-  MAKEOBJDIRPREFIX=$od ${MM_MAKE} kernel-toolchain \
-      MK_TOOLCHAIN=no MK_CROSS_COMPILER=no \
-      MK_CDDL=no MK_TESTS=no MK_RESCUE=no &&
-  MAKEOBJDIRPREFIX=$od ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc &&
-  MAKEOBJDIRPREFIX=$od ${MM_MAKE} everything SUBDIR_OVERRIDE=etc &&
-  MAKEOBJDIRPREFIX=$od ${MM_MAKE} DESTDIR=${TEMPROOT} distribution;} ||
+  ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc &&
+  ${MM_MAKE} everything SUBDIR_OVERRIDE=etc &&
+  ${MM_MAKE} DESTDIR=${TEMPROOT} distribution;} ||
   { echo '';
     echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
     echo "      the temproot environment";
