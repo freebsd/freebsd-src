@@ -10,6 +10,14 @@
 __<bsd.init.mk>__:
 .include <bsd.opts.mk>
 .-include "local.init.mk"
+
+.if ${MK_AUTO_OBJ} == "yes"
+# This is also done in bsd.obj.mk
+.if defined(NO_OBJ)
+.OBJDIR: ${.CURDIR}
+.endif
+.endif
+
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
@@ -56,7 +64,8 @@ _SKIP_BUILD=	not building at level 0
     ${.TARGETS:M*install*} == ${.TARGETS} || \
     ${.TARGETS:Mclean*} == ${.TARGETS} || \
     ${.TARGETS:Mdestroy*} == ${.TARGETS} || \
-    make(obj) || make(analyze) || make(print-dir)
+    ${.TARGETS:Mobj} == ${.TARGETS} || \
+    make(analyze) || make(print-dir)
 # Skip building, but don't show a warning.
 _SKIP_BUILD=
 .endif

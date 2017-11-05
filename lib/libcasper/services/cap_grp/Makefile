@@ -10,7 +10,7 @@ SHLIB_MAJOR=	0
 INCSDIR?=	${INCLUDEDIR}/casper
 
 .if ${MK_CASPER} != "no"
-LIB=	cap_grp
+SHLIB=	cap_grp
 
 SRCS=	cap_grp.c
 .endif

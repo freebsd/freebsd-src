@@ -38,6 +38,21 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171104: libcap_random should be in /lib not in /usr/lib
+OLD_LIBS+=usr/lib/libcap_random.so.0
+# 20171104: Casper can work only as shared library
+OLD_FILES+=usr/lib/libcasper.a
+OLD_FILES+=usr/lib/libcasper_p.a
+OLD_FILES+=usr/lib/libcap_dns.a
+OLD_FILES+=usr/lib/libcap_dns_p.a
+OLD_FILES+=usr/lib/libcap_grp.a
+OLD_FILES+=usr/lib/libcap_grp_p.a
+OLD_FILES+=usr/lib/libcap_pwd.a
+OLD_FILES+=usr/lib/libcap_pwd_p.a
+OLD_FILES+=usr/lib/libcap_random.a
+OLD_FILES+=usr/lib/libcap_random_p.a
+OLD_FILES+=usr/lib/libcap_sysctl.a
+OLD_FILES+=usr/lib/libcap_sysctl_p.a
 # 20171031: Removal of obsolete man files
 OLD_FILES+=usr/share/man/man7/adding_user.7.gz
 # 20171031: Disconnected libpathconv tests
