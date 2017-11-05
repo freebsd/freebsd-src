@@ -94,9 +94,17 @@ OBJROOT:=	${OBJTOP}/
 .endif
 .endif
 
-# Try to enable MK_AUTO_OBJ by default if we can write to the OBJROOT.  Only
-# do this if AUTO_OBJ is not disabled by the user, not cleaning, and this
-# is the first make ran.
+# __objdir is the expected .OBJDIR we want to use and that auto.obj.mk will
+# try to create.
+.if !empty(MAKEOBJDIRPREFIX)
+__objdir:=	${MAKEOBJDIRPREFIX}${.CURDIR}
+.elif !empty(MAKEOBJDIR)
+__objdir:=	${MAKEOBJDIR}
+.endif
+
+# Try to enable MK_AUTO_OBJ by default if we can write to the __objdir.  Only
+# do this if AUTO_OBJ is not disabled by the user, not cleaning, and this is
+# the first make ran.
 .if 0 && ${.MAKE.LEVEL} == 0 && \
     ${MK_AUTO_OBJ} == "no" && empty(.MAKEOVERRIDES:MMK_AUTO_OBJ) && \
     !defined(WITHOUT_AUTO_OBJ) && !make(showconfig) && !make(print-dir) && \
@@ -138,15 +146,13 @@ CheckAutoObj() { \
 		echo no; \
 	fi; \
 }
-.if !empty(MAKEOBJDIRPREFIX)
-WANTED_OBJDIR=	${MAKEOBJDIRPREFIX}${.CURDIR}
-.else
-WANTED_OBJDIR=	${MAKEOBJDIR}
+.if !empty(__objdir)
+__objdir_writable!= \
+	${CheckAutoObj}; CheckAutoObj "${__objdir}" || echo no
 .endif
-OBJDIR_WRITABLE!= \
-	${CheckAutoObj}; CheckAutoObj "${WANTED_OBJDIR}" || echo no
+__objdir_writable?= no
 # Export the decision to sub-makes.
-MK_AUTO_OBJ:=	${OBJDIR_WRITABLE}
+MK_AUTO_OBJ:=	${__objdir_writable}
 .export MK_AUTO_OBJ
 .elif make(showconfig)
 # Need to export for showconfig internally running make -dg1.  It is enabled
@@ -157,10 +163,8 @@ MK_AUTO_OBJ:=	${OBJDIR_WRITABLE}
 # Assign this directory as .OBJDIR if possible.
 #
 # The expected OBJDIR already exists, set it as .OBJDIR.
-.if !empty(MAKEOBJDIRPREFIX) && exists(${MAKEOBJDIRPREFIX}${.CURDIR})
-.OBJDIR: ${MAKEOBJDIRPREFIX}${.CURDIR}
-.elif exists(${MAKEOBJDIR})
-.OBJDIR: ${MAKEOBJDIR}
+.if !empty(__objdir) && exists(${__objdir})
+.OBJDIR: ${__objdir}
 # Special case to work around bmake bug.  If the top-level .OBJDIR does not yet
 # exist and MAKEOBJDIR is passed into environment and yield a blank value,
 # bmake will incorrectly set .OBJDIR=${SRCTOP}/ rather than the expected
