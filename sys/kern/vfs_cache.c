@@ -1163,6 +1163,9 @@ retry_dotdot:
 	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
 	blp = HASH2BUCKETLOCK(hash);
 retry:
+	if (LIST_EMPTY(NCHHASH(hash)))
+		goto out_no_entry;
+
 	rw_rlock(blp);
 
 	LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
@@ -1175,10 +1178,7 @@ retry:
 	/* We failed to find an entry */
 	if (ncp == NULL) {
 		rw_runlock(blp);
-		SDT_PROBE3(vfs, namecache, lookup, miss, dvp, cnp->cn_nameptr,
-		    NULL);
-		counter_u64_add(nummisszap, 1);
-		return (0);
+		goto out_no_entry;
 	}
 
 	counter_u64_add(numposzaps, 1);
@@ -1190,6 +1190,10 @@ retry:
 		goto retry;
 	}
 	cache_free(ncp);
+	return (0);
+out_no_entry:
+	SDT_PROBE3(vfs, namecache, lookup, miss, dvp, cnp->cn_nameptr, NULL);
+	counter_u64_add(nummisszap, 1);
 	return (0);
 }
 
