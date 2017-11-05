@@ -984,6 +984,28 @@ out:
 }
 
 static int
+cache_zap_wlocked_bucket(struct namecache *ncp, struct rwlock *blp)
+{
+	struct mtx *dvlp, *vlp;
+
+	cache_assert_bucket_locked(ncp, RA_WLOCKED);
+
+	dvlp = VP2VNODELOCK(ncp->nc_dvp);
+	vlp = NULL;
+	if (!(ncp->nc_flag & NCF_NEGATIVE))
+		vlp = VP2VNODELOCK(ncp->nc_vp);
+	if (cache_trylock_vnodes(dvlp, vlp) == 0) {
+		cache_zap_locked(ncp, false);
+		rw_wunlock(blp);
+		cache_unlock_vnodes(dvlp, vlp);
+		return (0);
+	}
+
+	rw_wunlock(blp);
+	return (EAGAIN);
+}
+
+static int
 cache_zap_rlocked_bucket(struct namecache *ncp, struct rwlock *blp)
 {
 	struct mtx *dvlp, *vlp;
@@ -1166,7 +1188,7 @@ retry:
 	if (LIST_EMPTY(NCHHASH(hash)))
 		goto out_no_entry;
 
-	rw_rlock(blp);
+	rw_wlock(blp);
 
 	LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
 		counter_u64_add(numchecks, 1);
@@ -1177,13 +1199,13 @@ retry:
 
 	/* We failed to find an entry */
 	if (ncp == NULL) {
-		rw_runlock(blp);
+		rw_wunlock(blp);
 		goto out_no_entry;
 	}
 
 	counter_u64_add(numposzaps, 1);
 
-	error = cache_zap_rlocked_bucket(ncp, blp);
+	error = cache_zap_wlocked_bucket(ncp, blp);
 	if (error != 0) {
 		zap_and_exit_bucket_fail++;
 		cache_maybe_yield();
