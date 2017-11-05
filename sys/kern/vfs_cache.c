@@ -1967,6 +1967,8 @@ cache_purge_negative(struct vnode *vp)
 
 	CTR1(KTR_VFS, "cache_purge_negative(%p)", vp);
 	SDT_PROBE1(vfs, namecache, purge_negative, done, vp);
+	if (LIST_EMPTY(&vp->v_cache_src))
+		return;
 	TAILQ_INIT(&ncps);
 	vlp = VP2VNODELOCK(vp);
 	mtx_lock(vlp);
