@@ -2,7 +2,16 @@
 
 .include <src.opts.mk>
 
-CRTARCH=	${TARGET_CPUARCH:C/amd64/x86_64/}
+# NOTE: based on TARGET_ABI/TARGET_CPUTYPE, set in Makefile.inc1 .
+.if defined(TARGET) && defined(TARGET_ARCH)
+.if ${TARGET} == "arm"
+.if ${TARGET_ARCH:Marmv[67]*} != "" && ${TARGET_CPUTYPE:M*soft*} == ""
+CRTARCH=	armhf
+.endif
+.endif
+.endif
+
+CRTARCH?=	${TARGET_CPUARCH:C/amd64/x86_64/}
 CRTSRC=		${SRCTOP}/contrib/compiler-rt
 
 .PATH:		${CRTSRC}/lib
