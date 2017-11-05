@@ -327,6 +327,10 @@ cleandepend:
 .endif
 .ORDER: cleandepend all
 .ORDER: cleandepend depend
+.if ${MK_AUTO_OBJ} == "yes"
+.ORDER: cleanobj depend
+.ORDER: cleandir depend
+.endif
 
 .if !target(checkdpadd) && (defined(DPADD) || defined(LDADD))
 _LDADD_FROM_DPADD=	${DPADD:R:T:C;^lib(.*)$;-l\1;g}

@@ -10,7 +10,7 @@ SHLIB_MAJOR=	0
 INCSDIR?=	${INCLUDEDIR}/casper
 
 .if ${MK_CASPER} != "no"
-LIB=	cap_sysctl
+SHLIB=	cap_sysctl
 
 SRCS=	cap_sysctl.c
 .endif

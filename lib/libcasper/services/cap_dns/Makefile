@@ -10,7 +10,7 @@ SHLIB_MAJOR=	0
 INCSDIR?=	${INCLUDEDIR}/casper
 
 .if ${MK_CASPER} != "no"
-LIB=	cap_dns
+SHLIB=	cap_dns
 
 SRCS=	cap_dns.c
 .endif

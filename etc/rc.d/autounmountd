@@ -4,7 +4,8 @@
 #
 
 # PROVIDE: autounmountd
-# REQUIRE: DAEMON
+# REQUIRE: FILESYSTEMS
+# BEFORE: DAEMON
 # KEYWORD: nojail
 
 . /etc/rc.subr
