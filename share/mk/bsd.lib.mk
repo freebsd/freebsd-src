@@ -309,9 +309,9 @@ ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
 _LIBS+=		lib${LIB_PRIVATE}${LIB}_pic.a
 
 .if ${MK_COVERAGE} != "no"
-PIC_OBJS=	${SPOBJS}
+PIC_OBJS:=	${SPOBJS}
 .else
-PIC_OBJS=	${SOBJS}
+PIC_OBJS:=	${SOBJS}
 .endif
 
 lib${LIB_PRIVATE}${LIB}_pic.a: ${PIC_OBJS}
