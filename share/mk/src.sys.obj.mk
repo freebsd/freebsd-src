@@ -77,13 +77,6 @@ OBJTOP:=	${OBJROOT}${TARGET:D${TARGET}.${TARGET_ARCH}:U${MACHINE}.${MACHINE_ARCH
 OBJTOP:=	${OBJROOT:H}
 .endif	# ${MK_UNIFIED_OBJDIR} == "yes"
 
-# Wait to validate MAKEOBJDIR until OBJTOP is set.
-.if defined(MAKEOBJDIR)
-.if ${MAKEOBJDIR:M/*} == ""
-.error Cannot use MAKEOBJDIR=${MAKEOBJDIR}${.newline}Unset MAKEOBJDIR to get default:  MAKEOBJDIR='${_default_makeobjdir}'
-.endif
-.endif
-
 # Fixup OBJROOT/OBJTOP if using MAKEOBJDIRPREFIX but leave it alone
 # for DIRDEPS_BUILD which really wants to know the absolute top at
 # all times.  This intenionally comes after adding TARGET.TARGET_ARCH
@@ -92,6 +85,13 @@ OBJTOP:=	${OBJROOT:H}
 .if !empty(MAKEOBJDIRPREFIX) && ${MK_DIRDEPS_BUILD} == "no"
 OBJTOP:=	${MAKEOBJDIRPREFIX}${SRCTOP}
 OBJROOT:=	${OBJTOP}/
+.endif
+
+# Wait to validate MAKEOBJDIR until OBJTOP is set.
+.if defined(MAKEOBJDIR)
+.if ${MAKEOBJDIR:M/*} == ""
+.error Cannot use MAKEOBJDIR=${MAKEOBJDIR}${.newline}Unset MAKEOBJDIR to get default:  MAKEOBJDIR='${_default_makeobjdir}'
+.endif
 .endif
 
 # Try to enable MK_AUTO_OBJ by default if we can write to the OBJROOT.  Only
