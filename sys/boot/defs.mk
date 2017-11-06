@@ -96,6 +96,16 @@ CFLAGS+= -DLOADER_GELI_SUPPORT
 CFLAGS+=	-m32 -mcpu=powerpc
 .endif
 
+# For amd64, there's a bit of mixed bag. Some of the tree (i386, lib*32) is
+# build 32-bit and some 64-bit (lib*, efi). Centralize all the 32-bit magic here
+# and activate it when DO32 is explicitly defined to be 1.
+.if ${MACHINE_ARCH} == "amd64" && ${DO32:U0} == 1
+CFLAGS+=	-m32 -mcpu=i386
+# LD_FLAGS is passed directly to ${LD}, not via ${CC}:
+LD_FLAGS+=	-m elf_i386_fbsd
+AFLAGS+=	--32
+.endif
+
 _ILINKS=machine
 .if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
 _ILINKS+=${MACHINE_CPUARCH}
