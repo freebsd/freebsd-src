@@ -306,9 +306,9 @@ NLSNAME?=	${PROG}
 
 .include <bsd.confs.mk>
 .if defined(_COV_FLAG) && !empty(SRCS)
-_GCDA_SRCS=	${SRCS:M*.c} ${SRCS:M*.cc} ${SRCS:M*.cpp} ${SRCS:M*.cxx} ${SRCS:M*.C}
-GCNOS:=		${_GCDA_SRCS:R:S/$/.gcno/g}
-.undef _GCDA_SRCS
+_GCNO_SRCS=	${SRCS:M*.c} ${SRCS:M*.cc} ${SRCS:M*.cpp} ${SRCS:M*.cxx} ${SRCS:M*.C}
+GCNOS:=		${_GCNO_SRCS:R:S/$/.gcno/g}
+.undef _GCNO_SRCS
 .for _gcno in ${GCNOS}
 ${_gcno}: ${_gcno:R}.o
 .endfor
