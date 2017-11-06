@@ -4,7 +4,7 @@
 
 .include "defs.mk"
 
-.if ${MACHINE_CPUARCH} == "amd64" && defined(FICL32)
+.if ${MACHINE_CPUARCH} == "amd64" && ${DO32:U0} == 1
 FICL_CPUARCH=	i386
 .elif ${MACHINE_ARCH:Mmips64*} != ""
 FICL_CPUARCH=	mips64
@@ -15,7 +15,7 @@ FICL_CPUARCH=	${MACHINE_CPUARCH}
 .PATH: ${FICLSRC} ${FICLSRC}/${FICL_CPUARCH}
 
 .if ${MACHINE_CPUARCH} == "amd64"
-.if defined(FICL32)
+.if ${DO32:U0} == 1
 CFLAGS+=	-m32 -I.
 .else
 CFLAGS+=	-fPIC
@@ -30,7 +30,7 @@ CFLAGS+=	-I${FICLSRC} -I${FICLSRC}/${FICL_CPUARCH} -I${LDRSRC}
 CFLAGS+=	-DBOOT_FORTH
 CFLAGS+=	-DBF_DICTSIZE=15000
 
-.if ${MACHINE_CPUARCH} == "amd64" && defined(FICL32)
+.if ${MACHINE_CPUARCH} == "amd64" && ${DO32:U0} == 1
 .if !exists(machine)
 ${SRCS:M*.c:R:S/$/.o/g}: machine
 
