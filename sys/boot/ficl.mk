@@ -14,16 +14,8 @@ FICL_CPUARCH=	${MACHINE_CPUARCH}
 
 .PATH: ${FICLSRC} ${FICLSRC}/${FICL_CPUARCH}
 
-.if ${MACHINE_CPUARCH} == "amd64"
-.if ${DO32:U0} == 1
-CFLAGS+=	-m32 -I.
-.else
+.if ${MACHINE_CPUARCH} == "amd64" && ${DO32:U0} == 0
 CFLAGS+=	-fPIC
-.endif
-.endif
-
-.if ${MACHINE_ARCH} == "powerpc64"
-CFLAGS+=	-m32 -mcpu=powerpc -I.
 .endif
 
 CFLAGS+=	-I${FICLSRC} -I${FICLSRC}/${FICL_CPUARCH} -I${LDRSRC}

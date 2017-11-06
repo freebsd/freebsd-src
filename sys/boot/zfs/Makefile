@@ -16,14 +16,6 @@ CFLAGS+=	-I${LDRSRC} -I${SYSDIR} -I.
 CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
 CFLAGS+=	-I${SYSDIR}/crypto/skein
 
-.if ${MACHINE_CPUARCH} == "i386" || \
-	(${MACHINE_CPUARCH} == "amd64" && defined(DO32))
-CFLAGS+=	-march=i386
-.endif
-.if ${MACHINE_CPUARCH} == "amd64" && defined(DO32)
-CFLAGS+=	-m32
-.endif
-
 CFLAGS+=	-Wformat -Wall
 
 .include <bsd.stand.mk>
