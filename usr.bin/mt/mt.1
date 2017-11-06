@@ -29,7 +29,7 @@
 .\"	@(#)mt.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd August 11, 2017
+.Dd November 3, 2017
 .Dt MT 1
 .Os
 .Sh NAME
@@ -522,6 +522,7 @@ Value  Width        Tracks    Density         Code Type Reference   Note
 0x58   12.7  (0.5) 1280      15,142 (384,607)       C   LTO-5
 0x5A   12.7  (0.5) 2176      15,142 (384,607)       C   LTO-6
 0x5C   12.7  (0.5) 3584      19,107 (485,318)       C   LTO-7
+0x5D   12.7  (0.5) 5376      19,107 (485,318)       C   LTO-M8       14
 0x5E   12.7  (0.5) 6656      20,669 (524,993)       C   LTO-8
 0x71   12.7  (0.5)  512      11,800 (299,720)       C   3592A1 (encrypted)
 0x72   12.7  (0.5)  896      11,800 (299,720)       C   3592A2 (encrypted)
@@ -565,6 +566,10 @@ NOTES
 12. This is Exabyte 8500 uncompressed format.  The compressed format
     density code is 0x8c.
 13. This density code (0x48) was also used for DAT-160.
+14. Officially known as LTO-8 Type M, abbreviated M8.  This is a pristine
+    LTO-7 cartridge initialized with a higher density format by an LTO-8
+    drive.  It cannot be read by an LTO-7 drive.  Uncompressed capacity
+    is 9TB, compared to 6TB for LTO-7 and 12TB for LTO-8.
 .Ed
 .Bd -literal -offset 2n
 NOTE ON QIC STREAMERS
