@@ -9,9 +9,7 @@
 MK_PROFILE=	no
 MK_SSP=		no
 
-.include <src.opts.mk>
-
-.include "../Makefile.inc"
+.include <bsd.init.mk>
 
 INTERNALLIB=
 LIBSA_CPUARCH?=${MACHINE_CPUARCH}
