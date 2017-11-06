@@ -2481,6 +2481,7 @@ iflib_check_lro_possible(struct lro_ctrl *lc, struct mbuf *m)
 	eh = mtod(m, struct ether_header *);
 	eh_type = ntohs(eh->ether_type);
 	switch (eh_type) {
+#if defined(INET6)
 		case ETHERTYPE_IPV6:
 		{
 			CURVNET_SET(lc->ifp->if_vnet);
@@ -2491,6 +2492,8 @@ iflib_check_lro_possible(struct lro_ctrl *lc, struct mbuf *m)
 			CURVNET_RESTORE();
 			break;
 		}
+#endif
+#if defined (INET)
 		case ETHERTYPE_IP:
 		{
 			CURVNET_SET(lc->ifp->if_vnet);
@@ -2501,6 +2504,7 @@ iflib_check_lro_possible(struct lro_ctrl *lc, struct mbuf *m)
 			CURVNET_RESTORE();
 			break;
 		}
+#endif
 	}
 
 	return false;
