@@ -238,11 +238,6 @@ CLEANFILES+=	lib${LIB_PRIVATE}${LIB}.bc lib${LIB_PRIVATE}${LIB}.ll
 SOBJS+=		${OBJS:.o=.pico}
 DEPENDOBJS+=	${SOBJS}
 CLEANFILES+=	${SOBJS}
-.if defined(INSTALL_PIC_ARCHIVE) && ${MK_COVERAGE} != "no"
-SPOBJS:=	${SOBJS:.pico=.ppico}
-DEPENDOBJS+=	${SPOBJS}
-CLEANFILES+=	${SPOBJS}
-.endif
 .endif
 
 .if defined(SHLIB_NAME)
@@ -260,7 +255,7 @@ SOLINKOPTS+=	-Wl,--fatal-warnings
 SOLINKOPTS+=	-Wl,--warn-shared-textrel
 
 .if target(beforelinking)
-beforelinking: ${SOBJS} ${SPOBJS}
+beforelinking: ${SOBJS}
 ${SHLIB_NAME_FULL}: beforelinking
 .endif
 
@@ -309,7 +304,9 @@ ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
 _LIBS+=		lib${LIB_PRIVATE}${LIB}_pic.a
 
 .if ${MK_COVERAGE} != "no"
-PIC_OBJS:=	${SPOBJS}
+PIC_OBJS:=	${SOBJS:.pico=.ppico}
+DEPENDOBJS+=	${PIC_OBJS}
+CLEANFILES+=	${PIC_OBJS}
 .else
 PIC_OBJS:=	${SOBJS}
 .endif
