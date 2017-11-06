@@ -3,9 +3,8 @@
 
 MAN=
 
-.include <src.opts.mk>
-MK_SSP=		no
 .include <bsd.init.mk>
+MK_SSP=		no
 
 LIB=		geliboot
 INTERNALLIB=

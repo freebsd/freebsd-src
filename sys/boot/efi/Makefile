@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
 
 # In-tree GCC does not support __attribute__((ms_abi)), but gcc newer
 # than 4.5 supports it.
