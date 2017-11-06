@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+DO32=1
+
 .include <bsd.init.mk>
 
 LIB=sa32
