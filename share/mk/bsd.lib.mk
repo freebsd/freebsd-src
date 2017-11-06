@@ -79,8 +79,6 @@ _WANTS_DEBUG=
 .if defined(_WANTS_DEBUG) && ${MK_COVERAGE} != "no" && defined(SHLIB_NAME) && \
     ${COMPILER_FEATURES:Mc++11}
 _COV_FLAG= --coverage -fprofile-dir=${COVERAGEDIR}
-SHARED_CFLAGS+= ${_COV_FLAG}
-SHARED_CXXFLAGS+= ${_COV_FLAG}
 .endif
 
 .include <bsd.libnames.mk>
@@ -104,21 +102,21 @@ PO_FLAG=-pg
 	${CTFCONVERT_CMD}
 
 .c.pico:
-	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS} ${_COV_FLAG} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .c.ppico:
-	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS:N${_COV_FLAG}} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .cc.po .C.po .cpp.po .cxx.po:
 	${CXX} ${PO_FLAG} ${STATIC_CXXFLAGS} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.pico .C.pico .cpp.pico .cxx.pico:
-	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS} ${_COV_FLAG} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.ppico .C.ppico .cpp.ppico .cxx.ppico:
-	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS:N${_COV_FLAG}} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
