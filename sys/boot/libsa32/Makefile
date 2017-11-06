@@ -9,7 +9,7 @@ LIBSA_CPUARCH=i386
 LIBSA_CPUARCH=${MACHINE_CPUARCH}
 .endif
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
+.if ${MACHINE_ARCH} == "amd64"
 CFLAGS+=	-m32 -I.
 .endif
 

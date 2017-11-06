@@ -51,8 +51,8 @@ LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 # 64-bit bridge extensions
 CFLAGS+= -Wa,-mppc64bridge
 
-DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA32}
-LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA32}
+DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
+LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
 
 loader.help: help.common help.kboot ${FDTSRC}/help.fdt
 	cat ${.ALLSRC} | \

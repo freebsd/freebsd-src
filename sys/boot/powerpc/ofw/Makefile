@@ -55,8 +55,8 @@ LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 LIBOFW=		${BOOTOBJ}/ofw/libofw/libofw.a
 CFLAGS+=	-I${BOOTSRC}/ofw/libofw
 
-DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA32}
-LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA32}
+DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
+LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
 
 loader.help: help.common help.ofw ${FDTSRC}/help.fdt
 	cat ${.ALLSRC} | \

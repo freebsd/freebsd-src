@@ -86,4 +86,10 @@ CFLAGS+= -DLOADER_GELI_SUPPORT
 .endif
 .endif
 
+# All PowerPC builds are 32 bit. We have no 64-bit loaders on powerpc
+# or powerpc64.
+.if ${MACHINE_ARCH} == "powerpc64"
+CFLAGS+=	-m32 -mcpu=powerpc
+.endif
+
 .endif # __BOOT_DEFS_MK__
