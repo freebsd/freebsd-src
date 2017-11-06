@@ -1198,7 +1198,10 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 	struct bnxt_link_info *link_info = &softc->link_info;
-	uint8_t phy_type = get_phy_type(softc);
+	struct ifmedia_entry *next;
+	uint64_t target_baudrate = bnxt_get_baudrate(link_info);
+	int active_media = IFM_UNKNOWN;
+
 
 	bnxt_update_link(softc, true);
 
@@ -1215,171 +1218,17 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 	else
 		ifmr->ifm_active |= IFM_HDX;
 
-	switch (link_info->link_speed) {
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_100MB:
-		ifmr->ifm_active |= IFM_100_T;
-		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_1GB:
-		switch (phy_type) {
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKX:
-			ifmr->ifm_active |= IFM_1000_KX;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASET:
-			ifmr->ifm_active |= IFM_1000_T;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_SGMIIEXTPHY:
-			ifmr->ifm_active |= IFM_1000_SGMII;
-			break;
-		default:
-                        /*
-                         * Workaround: 
-                         *    Don't return IFM_UNKNOWN until 
-                         *    Stratus return proper media_type 
-                         */  
-			ifmr->ifm_active |= IFM_1000_KX;
+        /*
+         * Go through the list of supported media which got prepared 
+         * as part of bnxt_add_media_types() using api ifmedia_add(). 
+         */
+	LIST_FOREACH(next, &(iflib_get_media(ctx)->ifm_list), ifm_list) {
+		if (ifmedia_baudrate(next->ifm_media) == target_baudrate) {
+			active_media = next->ifm_media;
 			break;
 		}
-	break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_2_5GB:
-		switch (phy_type) {
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKX:
-			ifmr->ifm_active |= IFM_2500_KX;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASET:
-			ifmr->ifm_active |= IFM_2500_T;
-			break;
-		default:
-			ifmr->ifm_active |= IFM_UNKNOWN;
-			break;
-		}
-		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_10GB:
-		switch (phy_type) {
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASECR:
-			ifmr->ifm_active |= IFM_10G_CR1;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR4:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR2:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR:
-			ifmr->ifm_active |= IFM_10G_KR;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASELR:
-			ifmr->ifm_active |= IFM_10G_LR;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASESR:
-			ifmr->ifm_active |= IFM_10G_SR;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKX:
-			ifmr->ifm_active |= IFM_10G_KX4;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASET:
-			ifmr->ifm_active |= IFM_10G_T;
-			break;
-		default:
-                        /*
-                         * Workaround: 
-                         *    Don't return IFM_UNKNOWN until 
-                         *    Stratus return proper media_type 
-                         */  
-			ifmr->ifm_active |= IFM_10G_CR1;
-			break;
-		}
-		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_20GB:
-		ifmr->ifm_active |= IFM_20G_KR2;
-		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_25GB:
-		switch (phy_type) {
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASECR:
-			ifmr->ifm_active |= IFM_25G_CR;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR4:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR2:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR:
-			ifmr->ifm_active |= IFM_25G_KR;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASESR:
-			ifmr->ifm_active |= IFM_25G_SR;
-			break;
-		default:
-                        /*
-                         * Workaround: 
-                         *    Don't return IFM_UNKNOWN until 
-                         *    Stratus return proper media_type 
-                         */  
-			ifmr->ifm_active |= IFM_25G_CR;
-			break;
-		}
-		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_40GB:
-		switch (phy_type) {
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASECR:
-			ifmr->ifm_active |= IFM_40G_CR4;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR4:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR2:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR:
-			ifmr->ifm_active |= IFM_40G_KR4;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASELR:
-			ifmr->ifm_active |= IFM_40G_LR4;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASESR:
-			ifmr->ifm_active |= IFM_40G_SR4;
-			break;
-		default:
-			ifmr->ifm_active |= IFM_UNKNOWN;
-			break;
-		}
-		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_50GB:
-		switch (phy_type) {
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASECR:
-			ifmr->ifm_active |= IFM_50G_CR2;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR4:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR2:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR:
-			ifmr->ifm_active |= IFM_50G_KR2;
-			break;
-		default:
-                        /*
-                         * Workaround: 
-                         *    Don't return IFM_UNKNOWN until 
-                         *    Stratus return proper media_type 
-                         */  
-			ifmr->ifm_active |= IFM_50G_CR2;
-			break;
-		}
-		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_100GB:
-		switch (phy_type) {
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASECR:
-			ifmr->ifm_active |= IFM_100G_CR4;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR4:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR2:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR:
-			ifmr->ifm_active |= IFM_100G_KR4;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASELR:
-			ifmr->ifm_active |= IFM_100G_LR4;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASESR:
-			ifmr->ifm_active |= IFM_100G_SR4;
-			break;
-		default:
-                        /*
-                         * Workaround: 
-                         *    Don't return IFM_UNKNOWN until 
-                         *    Stratus return proper media_type 
-                         */  
-			ifmr->ifm_active |= IFM_100G_CR4;
-			break;
-		}
-	default:
-		return;
 	}
+	ifmr->ifm_active |= active_media;
 
 	if (link_info->flow_ctrl.rx) 
 		ifmr->ifm_active |= IFM_ETH_RXPAUSE;
@@ -2184,6 +2033,8 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_1G_BASET:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASET:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASETE:
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_T);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_2_5GB, IFM_2500_T);
 		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_T);
 		BNXT_IFMEDIA_ADD(supported, SPEEDS_100MB, IFM_100_T);
 		BNXT_IFMEDIA_ADD(supported, SPEEDS_10MB, IFM_10_T);
@@ -2191,6 +2042,7 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 	
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKX:
 		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_KR);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_2_5GB, IFM_2500_KX);
 		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_KX);
 		break;
 
