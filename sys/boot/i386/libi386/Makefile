@@ -58,18 +58,8 @@ CFLAGS+=	-I${BOOTSRC}/ficl -I${BOOTSRC}/ficl/i386 \
 # Handle FreeBSD specific %b and %D printf format specifiers
 CFLAGS+= ${FORMAT_EXTENSIONS}
 
-.if ${MACHINE_CPUARCH} == "amd64"
-CLEANFILES+=	machine
-machine: .NOMETA
-	ln -sf ${SYSDIR}/i386/include machine
-.endif
-
 .include <bsd.lib.mk>
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 CFLAGS.amd64_tramp.S=	${CLANG_NO_IAS}
 CFLAGS.multiboot_tramp.S=	${CLANG_NO_IAS}
-
-.if ${MACHINE_CPUARCH} == "amd64"
-beforedepend ${OBJS}: machine
-.endif

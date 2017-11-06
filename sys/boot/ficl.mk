@@ -29,16 +29,3 @@ CFLAGS+=	-m32 -mcpu=powerpc -I.
 CFLAGS+=	-I${FICLSRC} -I${FICLSRC}/${FICL_CPUARCH} -I${LDRSRC}
 CFLAGS+=	-DBOOT_FORTH
 CFLAGS+=	-DBF_DICTSIZE=15000
-
-.if ${MACHINE_CPUARCH} == "amd64" && ${DO32:U0} == 1
-.if !exists(machine)
-${SRCS:M*.c:R:S/$/.o/g}: machine
-
-beforedepend ${OBJS}: machine
-.endif
-
-machine: .NOMETA
-	ln -sf ${SYSDIR}/i386/include machine
-
-CLEANFILES+=	machine
-.endif

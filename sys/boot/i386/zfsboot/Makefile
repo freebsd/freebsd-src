@@ -87,13 +87,6 @@ zfsboot.out: ${BTXCRT} zfsboot.o sio.o drv.o cons.o util.o
 
 SRCS=	zfsboot.c
 
-.if ${MACHINE_CPUARCH} == "amd64"
-beforedepend zfsboot.o: machine
-CLEANFILES+=	machine
-machine: .NOMETA
-	ln -sf ${SYSDIR}/i386/include machine
-.endif
-
 .include <bsd.prog.mk>
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet

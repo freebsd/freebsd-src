@@ -129,18 +129,3 @@ boot1.efifat: boot1.efi
 CLEANFILES= boot1.efi boot1.efifat
 
 .include <bsd.prog.mk>
-
-beforedepend ${OBJS}: machine
-
-CLEANFILES+=   machine
-
-machine: .NOMETA
-	ln -sf ${SYSDIR}/${MACHINE}/include machine
-
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
-beforedepend ${OBJS}: x86
-CLEANFILES+=   x86
-
-x86: .NOMETA
-	ln -sf ${SYSDIR}/x86/include x86
-.endif

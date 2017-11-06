@@ -25,11 +25,4 @@ SRCS+=		ppc64_elf_freebsd.c
 CFLAGS+= -DDISK_DEBUG
 .endif
 
-machine: .NOMETA
-	ln -sf ${SYSDIR}/${MACHINE_CPUARCH}/include machine
-
-CLEANFILES+=	machine
-
 .include <bsd.lib.mk>
-
-beforedepend ${OBJS}: machine
