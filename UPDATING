@@ -51,6 +51,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20171106:
+	The naive and non-compliant support of posix_fallocate(2) in ZFS
+	has been removed as of r325320.  The system call now returns EINVAL
+	when used on a ZFS file.  Although the new behavior complies with the
+	standard, some consumers are not prepared to cope with it.
+	One known victim is lld prior to r325420.
+
 20171102:
 	Building in a FreeBSD src checkout will automatically create object
 	directories now rather than store files in the current directory if
