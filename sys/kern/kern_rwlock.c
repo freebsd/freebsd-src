@@ -842,12 +842,12 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 	struct lock_delay_arg lda;
 #endif
 #ifdef KDTRACE_HOOKS
-	uintptr_t state;
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
 #endif
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	uintptr_t state;
 	int doing_lockprof;
 #endif
 
