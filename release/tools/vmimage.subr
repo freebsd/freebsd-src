@@ -134,6 +134,10 @@ vm_install_base() {
 			>> ${DESTDIR}/etc/fstab
 	fi
 
+	local hostname
+	hostname="$(echo $(uname -o) | tr '[:upper:]' '[:lower:]')"
+	echo "hostname=\"${hostname}\"" >> ${DESTDIR}/etc/rc.conf
+
 	mkdir -p ${DESTDIR}/dev
 	mount -t devfs devfs ${DESTDIR}/dev
 	chroot ${DESTDIR} /usr/bin/newaliases
