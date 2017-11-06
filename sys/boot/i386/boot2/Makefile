@@ -93,13 +93,6 @@ boot2.h: boot1.out
 	    ORG1=`printf "%d" ${ORG1}` \
 	    REL1=`printf "%d" ${REL1}` > ${.TARGET}
 
-.if ${MACHINE_CPUARCH} == "amd64"
-beforedepend boot2.s: machine
-CLEANFILES+=	machine
-machine: ${SYSDIR}/i386/include .NOMETA
-	ln -sf ${.ALLSRC} ${.TARGET}
-.endif
-
 .include <bsd.prog.mk>
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet

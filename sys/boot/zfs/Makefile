@@ -26,17 +26,5 @@ CFLAGS+=	-m32
 
 CFLAGS+=	-Wformat -Wall
 
-.if ${MACHINE_CPUARCH} == "amd64" && defined(DO32)
-CLEANFILES+=    machine
-machine: .NOMETA
-	ln -sf ${SYSDIR}/i386/include machine
-.endif
-
 .include <bsd.stand.mk>
 .include <bsd.lib.mk>
-
-.if ${MACHINE_CPUARCH} == "amd64" && defined(DO32)
-.if !exists(machine)
-beforedepend ${OBJS}: machine
-.endif
-.endif

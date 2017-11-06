@@ -104,12 +104,8 @@ OBJS=	${BTXCRT}
 DPADD=	${LIBFICL32} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBGELIBOOT} ${LIBSA32}
 LDADD=	${LIBFICL32} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBGELIBOOT} ${LIBSA32}
 
-.include <bsd.prog.mk>
-
 .if ${MACHINE_CPUARCH} == "amd64"
-beforedepend ${OBJS}: machine
-CLEANFILES+=	machine
 CFLAGS+=	-DLOADER_PREFER_AMD64
-machine: .NOMETA
-	ln -sf ${SYSDIR}/i386/include machine
 .endif
+
+.include <bsd.prog.mk>
