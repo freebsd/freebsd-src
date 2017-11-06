@@ -86,7 +86,7 @@ __DEFAULT_DEPENDENT_OPTIONS = \
 .include <bsd.mkopt.mk>
 
 .if ${MK_COVERAGE} == "no" || ${MK_MAKE_CHECK_USE_SANDBOX} == "no"
-MK_MAKE_CHECK_WITH_COVERAGE:=	no
+MK_MAKE_CHECK_TEST_WITH_COVERAGE:=	no
 .endif
 
 #
