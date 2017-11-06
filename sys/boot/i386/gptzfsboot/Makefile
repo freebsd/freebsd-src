@@ -88,13 +88,6 @@ gptzfsboot.out: ${BTXCRT} zfsboot.o sio.o gpt.o drv.o cons.o util.o \
 
 zfsboot.o: ${ZFSSRC}/zfsimpl.c
 
-.if ${MACHINE_CPUARCH} == "amd64"
-beforedepend zfsboot.o: machine
-CLEANFILES+=	machine
-machine: .NOMETA
-	ln -sf ${SYSDIR}/i386/include machine
-.endif
-
 .include <bsd.prog.mk>
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet

@@ -17,10 +17,3 @@ CFLAGS+=	-m32 -I.
 
 .PATH:	${SASRC}
 .include "${SASRC}/Makefile"
-
-.if ${MACHINE_CPUARCH} == "amd64"
-CLEANFILES+= machine
-beforedepend ${OBJS}: machine
-machine: .NOMETA
-	ln -fs ${SYSDIR}/i386/include machine
-.endif

@@ -30,6 +30,7 @@ ACFLAGS+=	-m32
 # LD_FLAGS is passed directly to ${LD}, not via ${CC}:
 LD_FLAGS+=	-m elf_i386_fbsd
 AFLAGS+=	--32
+DO32=1
 .endif
 
 .include "../Makefile.inc"

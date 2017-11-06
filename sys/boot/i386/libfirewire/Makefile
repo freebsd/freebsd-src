@@ -17,15 +17,4 @@ CFLAGS+=	-I${BOOTSRC}/i386/libi386
 
 CFLAGS+=	-Wformat -Wall
 
-.if ${MACHINE_CPUARCH} == "amd64"
-CLEANFILES+=    machine
-machine: .NOMETA
-	ln -sf ${SYSDIR}/i386/include machine
-.endif
-
 .include <bsd.lib.mk>
-
-.if ${MACHINE_CPUARCH} == "amd64"
-beforedepend ${OBJS}: machine
-.endif
-

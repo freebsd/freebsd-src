@@ -27,11 +27,4 @@ CFLAGS+=	-I${FDTSRC}
 # Pick up the bootstrap header for some interface items
 CFLAGS+=	-I${LDRSRC} -I${SYSDIR} -I.
 
-machine: .NOMETA
-	ln -sf ${SYSDIR}/${MACHINE}/include machine
-
-CLEANFILES+=	machine
-
 .include <bsd.lib.mk>
-
-beforedepend ${OBJS}: machine
