@@ -87,8 +87,7 @@ DESTDIR:=	${.OBJDIR}/${MAKE_CHECK_SANDBOX_DIR}
 
 .if ${MK_MAKE_CHECK_TEST_WITH_COVERAGE} != "no"
 GCOV?=		gcov
-GCOV_PREFIX?=
-
+GCOV_PREFIX?=	${DESTDIR}
 TESTS_ENV+=	GCOV=${GCOV} GCOV_PREFIX=${GCOV_PREFIX}
 .endif
 
@@ -107,9 +106,8 @@ beforecheck:
 #       times. "aftercheck" won't be run if "make check" fails, is interrupted,
 #       etc.
 aftercheck:
-	find ${GCOV_PREFIX} -name \*.gcda
 .if ${MK_MAKE_CHECK_TEST_WITH_COVERAGE} != "no"
-	@env ${TESTS_ENV:Q} ${TESTSBASE}/tools/gather_coverage
+	@env ${TESTS_ENV:Q} ${DESTDIR}${TESTSBASE}/tools/gather_coverage
 .endif
 	@cd ${.CURDIR} && ${MAKE} clean
 .endif
