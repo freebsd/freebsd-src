@@ -985,8 +985,8 @@ fsl_sata_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	for (i = 0, j = 0; i < nsegs; i++, j++) {
 		if (j == FSL_SATA_PRD_EXT_INDEX &&
 		    FSL_SATA_PRD_MAX_DIRECT < nsegs) {
-			prd[j].dba = FSL_SATA_CTP_BUS(ch, slot) +
-				     FSL_SATA_PRD_OFFSET(j+1);
+			prd[j].dba = htole32(FSL_SATA_CTP_BUS(ch, slot) +
+				     FSL_SATA_PRD_OFFSET(j+1));
 			j++;
 			extlen = 0;
 		}
