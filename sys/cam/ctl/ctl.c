@@ -415,6 +415,29 @@ SYSCTL_INT(_kern_cam_ctl, OID_AUTO, time_io_secs, CTLFLAG_RWTUN,
 #endif
 
 /*
+ * Maximum number of LUNs we support.  MUST be a power of 2.
+ */
+#define	CTL_DEFAULT_MAX_LUNS	1024
+static int ctl_max_luns = CTL_DEFAULT_MAX_LUNS;
+TUNABLE_INT("kern.cam.ctl.max_luns", &ctl_max_luns);
+SYSCTL_INT(_kern_cam_ctl, OID_AUTO, max_luns, CTLFLAG_RDTUN,
+    &ctl_max_luns, CTL_DEFAULT_MAX_LUNS, "Maximum number of LUNs");
+
+/*
+ * Maximum number of ports registered at one time.
+ */
+#define	CTL_DEFAULT_MAX_PORTS		256
+static int ctl_max_ports = CTL_DEFAULT_MAX_PORTS;
+TUNABLE_INT("kern.cam.ctl.max_ports", &ctl_max_ports);
+SYSCTL_INT(_kern_cam_ctl, OID_AUTO, max_ports, CTLFLAG_RDTUN,
+    &ctl_max_ports, CTL_DEFAULT_MAX_LUNS, "Maximum number of ports");
+
+/*
+ * Maximum number of initiators we support.
+ */
+#define	CTL_MAX_INITIATORS	(CTL_MAX_INIT_PER_PORT * ctl_max_ports)
+
+/*
  * Supported pages (0x00), Serial number (0x80), Device ID (0x83),
  * Extended INQUIRY Data (0x86), Mode Page Policy (0x87),
  * SCSI Ports (0x88), Third-party Copy (0x8F), Block limits (0xB0),
@@ -1005,8 +1028,8 @@ ctl_isc_ha_link_up(struct ctl_softc *softc)
 	msg.login.version = CTL_HA_VERSION;
 	msg.login.ha_mode = softc->ha_mode;
 	msg.login.ha_id = softc->ha_id;
-	msg.login.max_luns = CTL_MAX_LUNS;
-	msg.login.max_ports = CTL_MAX_PORTS;
+	msg.login.max_luns = ctl_max_luns;
+	msg.login.max_ports = ctl_max_ports;
 	msg.login.max_init_per_port = CTL_MAX_INIT_PER_PORT;
 	ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg.login, sizeof(msg.login),
 	    M_WAITOK);
@@ -1069,7 +1092,7 @@ ctl_isc_ua(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 	uint32_t iid = ctl_get_initindex(&msg->hdr.nexus);
 
 	mtx_lock(&softc->ctl_lock);
-	if (msg->hdr.nexus.targ_mapped_lun >= CTL_MAX_LUNS ||
+	if (msg->hdr.nexus.targ_mapped_lun >= ctl_max_luns ||
 	    (lun = softc->ctl_luns[msg->hdr.nexus.targ_mapped_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		return;
@@ -1103,7 +1126,7 @@ ctl_isc_lun_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 
 	targ_lun = msg->hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
-	if (targ_lun >= CTL_MAX_LUNS ||
+	if (targ_lun >= ctl_max_luns ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		return;
@@ -1325,8 +1348,8 @@ ctl_isc_login(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
 		return;
 	}
-	if (msg->login.max_luns != CTL_MAX_LUNS ||
-	    msg->login.max_ports != CTL_MAX_PORTS ||
+	if (msg->login.max_luns != ctl_max_luns ||
+	    msg->login.max_ports != ctl_max_ports ||
 	    msg->login.max_init_per_port != CTL_MAX_INIT_PER_PORT) {
 		printf("CTL HA peers have different limits\n");
 		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
@@ -1343,7 +1366,7 @@ ctl_isc_mode_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 
 	targ_lun = msg->hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
-	if (targ_lun >= CTL_MAX_LUNS ||
+	if (targ_lun >= ctl_max_luns ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		return;
@@ -1873,6 +1896,26 @@ ctl_init(void)
 	    OID_AUTO, "ha_mode", CTLFLAG_RDTUN, (int *)&softc->ha_mode, 0,
 	    "HA mode (0 - act/stby, 1 - serialize only, 2 - xfer)");
 
+	if (ctl_max_luns <= 0 || powerof2(ctl_max_luns) == 0) {
+		printf("Bad value %d for kern.cam.ctl.max_luns, must be a power of two, using %d\n",
+		    ctl_max_luns, CTL_DEFAULT_MAX_LUNS);
+		ctl_max_luns = CTL_DEFAULT_MAX_LUNS;
+	}
+	softc->ctl_luns = malloc(sizeof(struct ctl_lun *) * ctl_max_luns,
+	    M_DEVBUF, M_WAITOK | M_ZERO);
+	softc->ctl_lun_mask = malloc(sizeof(uint32_t) *
+	    ((ctl_max_luns + 31) / 32), M_DEVBUF, M_WAITOK | M_ZERO);
+	if (ctl_max_ports <= 0 || powerof2(ctl_max_ports) == 0) {
+		printf("Bad value %d for kern.cam.ctl.max_ports, must be a power of two, using %d\n",
+		    ctl_max_ports, CTL_DEFAULT_MAX_PORTS);
+		ctl_max_ports = CTL_DEFAULT_MAX_PORTS;
+	}
+	softc->ctl_port_mask = malloc(sizeof(uint32_t) *
+	  ((ctl_max_ports + 31) / 32), M_DEVBUF, M_WAITOK | M_ZERO);
+	softc->ctl_ports = malloc(sizeof(struct ctl_port *) * ctl_max_ports,
+	     M_DEVBUF, M_WAITOK | M_ZERO);
+
+
 	/*
 	 * In Copan's HA scheme, the "master" and "slave" roles are
 	 * figured out through the slot the controller is in.  Although it
@@ -1884,10 +1927,10 @@ ctl_init(void)
 	if (softc->ha_id == 0 || softc->ha_id > NUM_HA_SHELVES) {
 		softc->flags |= CTL_FLAG_ACTIVE_SHELF;
 		softc->is_single = 1;
-		softc->port_cnt = CTL_MAX_PORTS;
+		softc->port_cnt = ctl_max_ports;
 		softc->port_min = 0;
 	} else {
-		softc->port_cnt = CTL_MAX_PORTS / NUM_HA_SHELVES;
+		softc->port_cnt = ctl_max_ports / NUM_HA_SHELVES;
 		softc->port_min = (softc->ha_id - 1) * softc->port_cnt;
 	}
 	softc->port_max = softc->port_min + softc->port_cnt;
@@ -1987,6 +2030,11 @@ ctl_shutdown(void)
 	ctl_tpc_shutdown(softc);
 	uma_zdestroy(softc->io_zone);
 	mtx_destroy(&softc->ctl_lock);
+
+	free(softc->ctl_luns, M_DEVBUF);
+	free(softc->ctl_lun_mask, M_DEVBUF);
+	free(softc->ctl_port_mask, M_DEVBUF);
+	free(softc->ctl_ports, M_DEVBUF);
 
 	sysctl_ctx_free(&softc->sysctl_ctx);
 
@@ -2249,7 +2297,7 @@ ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio)
 
 	/* Make sure that we know about this LUN. */
 	mtx_lock(&softc->ctl_lock);
-	if (targ_lun >= CTL_MAX_LUNS ||
+	if (targ_lun >= ctl_max_luns ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 
@@ -2717,7 +2765,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 		mtx_lock(&softc->ctl_lock);
 		if ((ooa_hdr->flags & CTL_OOA_FLAG_ALL_LUNS) == 0 &&
-		    (ooa_hdr->lun_num >= CTL_MAX_LUNS ||
+		    (ooa_hdr->lun_num >= ctl_max_luns ||
 		     softc->ctl_luns[ooa_hdr->lun_num] == NULL)) {
 			mtx_unlock(&softc->ctl_lock);
 			free(entries, M_CTL);
@@ -2770,7 +2818,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 #ifdef CTL_IO_DELAY
 		mtx_lock(&softc->ctl_lock);
-		if (delay_info->lun_id >= CTL_MAX_LUNS ||
+		if (delay_info->lun_id >= ctl_max_luns ||
 		    (lun = softc->ctl_luns[delay_info->lun_id]) == NULL) {
 			mtx_unlock(&softc->ctl_lock);
 			delay_info->status = CTL_DELAY_STATUS_INVALID_LUN;
@@ -2849,7 +2897,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		bcopy(err_desc, new_err_desc, sizeof(*new_err_desc));
 
 		mtx_lock(&softc->ctl_lock);
-		if (err_desc->lun_id >= CTL_MAX_LUNS ||
+		if (err_desc->lun_id >= ctl_max_luns ||
 		    (lun = softc->ctl_luns[err_desc->lun_id]) == NULL) {
 			mtx_unlock(&softc->ctl_lock);
 			free(new_err_desc, M_CTL);
@@ -2893,7 +2941,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		delete_done = 0;
 
 		mtx_lock(&softc->ctl_lock);
-		if (delete_desc->lun_id >= CTL_MAX_LUNS ||
+		if (delete_desc->lun_id >= ctl_max_luns ||
 		    (lun = softc->ctl_luns[delete_desc->lun_id]) == NULL) {
 			mtx_unlock(&softc->ctl_lock);
 			printf("%s: CTL_ERROR_INJECT_DELETE: invalid LUN %ju\n",
@@ -2936,7 +2984,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				continue;
 			}
 
-			for (j = 0; j < CTL_MAX_PORTS; j++) {
+			for (j = 0; j < ctl_max_ports; j++) {
 				if (lun->pr_keys[j] == NULL)
 					continue;
 				for (k = 0; k < CTL_MAX_INIT_PER_PORT; k++){
@@ -3411,7 +3459,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		if (lm->plun != UINT32_MAX) {
 			if (lm->lun == UINT32_MAX)
 				retval = ctl_lun_map_unset(port, lm->plun);
-			else if (lm->lun < CTL_MAX_LUNS &&
+			else if (lm->lun < ctl_max_luns &&
 			    softc->ctl_luns[lm->lun] != NULL)
 				retval = ctl_lun_map_set(port, lm->plun, lm->lun);
 			else
@@ -4519,6 +4567,13 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	if (lun_malloced)
 		lun->flags = CTL_LUN_MALLOCED;
 
+	lun->pending_sense = malloc(sizeof(struct scsi_sense_data *) *
+	    ctl_max_ports, M_DEVBUF, M_WAITOK | M_ZERO);
+	lun->pending_ua = malloc(sizeof(ctl_ua_type *) * ctl_max_ports,
+	    M_DEVBUF, M_WAITOK | M_ZERO);
+	lun->pr_keys = malloc(sizeof(uint64_t *) * ctl_max_ports,
+	    M_DEVBUF, M_WAITOK | M_ZERO);
+
 	/* Generate LUN ID. */
 	devidlen = max(CTL_DEVID_MIN_LEN,
 	    strnlen(be_lun->device_id, CTL_DEVID_LEN));
@@ -4605,13 +4660,13 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	 * if it is available.  Otherwise, allocate the first available LUN.
 	 */
 	if (be_lun->flags & CTL_LUN_FLAG_ID_REQ) {
-		if ((be_lun->req_lun_id > (CTL_MAX_LUNS - 1))
+		if ((be_lun->req_lun_id > (ctl_max_luns - 1))
 		 || (ctl_is_set(ctl_softc->ctl_lun_mask, be_lun->req_lun_id))) {
 			mtx_unlock(&ctl_softc->ctl_lock);
-			if (be_lun->req_lun_id > (CTL_MAX_LUNS - 1)) {
+			if (be_lun->req_lun_id > (ctl_max_luns - 1)) {
 				printf("ctl: requested LUN ID %d is higher "
-				       "than CTL_MAX_LUNS - 1 (%d)\n",
-				       be_lun->req_lun_id, CTL_MAX_LUNS - 1);
+				       "than ctl_max_luns - 1 (%d)\n",
+				       be_lun->req_lun_id, ctl_max_luns - 1);
 			} else {
 				/*
 				 * XXX KDM return an error, or just assign
@@ -4630,7 +4685,7 @@ fail:
 		}
 		lun_number = be_lun->req_lun_id;
 	} else {
-		lun_number = ctl_ffz(ctl_softc->ctl_lun_mask, 0, CTL_MAX_LUNS);
+		lun_number = ctl_ffz(ctl_softc->ctl_lun_mask, 0, ctl_max_luns);
 		if (lun_number == -1) {
 			mtx_unlock(&ctl_softc->ctl_lock);
 			printf("ctl: can't allocate LUN, out of LUNs\n");
@@ -4697,7 +4752,9 @@ fail:
 	lun->legacy_stats.blocksize = be_lun->blocksize;
 	if (be_lun->blocksize == 0)
 		lun->legacy_stats.flags = CTL_LUN_STATS_NO_BLOCKSIZE;
-	for (len = 0; len < CTL_MAX_PORTS; len++)
+	lun->legacy_stats.ports = malloc(sizeof(struct ctl_lun_io_port_stats) *
+	    ctl_max_ports, M_DEVBUF, M_WAITOK | M_ZERO);
+	for (len = 0; len < ctl_max_ports; len++)
 		lun->legacy_stats.ports[len].targ_port = len;
 #endif /* CTL_LEGACY_STATS */
 	lun->stats.item = lun_number;
@@ -4760,10 +4817,12 @@ ctl_free_lun(struct ctl_lun *lun)
 	ctl_tpc_lun_shutdown(lun);
 	mtx_destroy(&lun->lun_lock);
 	free(lun->lun_devid, M_CTL);
-	for (i = 0; i < CTL_MAX_PORTS; i++)
+	for (i = 0; i < ctl_max_ports; i++)
 		free(lun->pending_ua[i], M_CTL);
-	for (i = 0; i < CTL_MAX_PORTS; i++)
+	free(lun->pending_ua, M_DEVBUF);
+	for (i = 0; i < ctl_max_ports; i++)
 		free(lun->pr_keys[i], M_CTL);
+	free(lun->pr_keys, M_DEVBUF);
 	free(lun->write_buffer, M_CTL);
 	free(lun->prevent, M_CTL);
 	if (lun->flags & CTL_LUN_MALLOCED)
@@ -8483,7 +8542,7 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_io *io)
 
 	targ_lun = msg->hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
-	if (targ_lun >= CTL_MAX_LUNS ||
+	if (targ_lun >= ctl_max_luns ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		return;
@@ -9010,7 +9069,7 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_report_luns\n"));
 
 	num_luns = 0;
-	num_port_luns = port->lun_map ? port->lun_map_size : CTL_MAX_LUNS;
+	num_port_luns = port->lun_map ? port->lun_map_size : ctl_max_luns;
 	mtx_lock(&softc->ctl_lock);
 	for (targ_lun_id = 0; targ_lun_id < num_port_luns; targ_lun_id++) {
 		if (ctl_lun_map_from_port(port, targ_lun_id) != UINT32_MAX)
@@ -11200,7 +11259,7 @@ ctl_failover_lun(union ctl_io *rio)
 
 	/* Find and lock the LUN. */
 	mtx_lock(&softc->ctl_lock);
-	if (targ_lun > CTL_MAX_LUNS ||
+	if (targ_lun > ctl_max_luns ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		return;
@@ -11282,7 +11341,7 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 
 	lun = NULL;
 	targ_lun = ctsio->io_hdr.nexus.targ_mapped_lun;
-	if (targ_lun < CTL_MAX_LUNS)
+	if (targ_lun < ctl_max_luns)
 		lun = softc->ctl_luns[targ_lun];
 	if (lun) {
 		/*
@@ -11672,7 +11731,7 @@ ctl_do_lun_reset(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua_type)
 		xio->io_hdr.flags |= CTL_FLAG_ABORT | CTL_FLAG_ABORT_STATUS;
 	}
 	/* Clear CA. */
-	for (i = 0; i < CTL_MAX_PORTS; i++) {
+	for (i = 0; i < ctl_max_ports; i++) {
 		free(lun->pending_sense[i], M_CTL);
 		lun->pending_sense[i] = NULL;
 	}
@@ -11705,7 +11764,7 @@ ctl_lun_reset(union ctl_io *io)
 	targ_lun = io->io_hdr.nexus.targ_mapped_lun;
 	initidx = ctl_get_initindex(&io->io_hdr.nexus);
 	mtx_lock(&softc->ctl_lock);
-	if (targ_lun >= CTL_MAX_LUNS ||
+	if (targ_lun >= ctl_max_luns ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		io->taskio.task_status = CTL_TASK_LUN_DOES_NOT_EXIST;
@@ -11784,7 +11843,7 @@ ctl_abort_task_set(union ctl_io *io)
 	 */
 	targ_lun = io->io_hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
-	if (targ_lun >= CTL_MAX_LUNS ||
+	if (targ_lun >= ctl_max_luns ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		io->taskio.task_status = CTL_TASK_LUN_DOES_NOT_EXIST;
@@ -11886,7 +11945,7 @@ ctl_abort_task(union ctl_io *io)
 	 */
 	targ_lun = io->io_hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
-	if (targ_lun >= CTL_MAX_LUNS ||
+	if (targ_lun >= ctl_max_luns ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		io->taskio.task_status = CTL_TASK_LUN_DOES_NOT_EXIST;
@@ -12010,7 +12069,7 @@ ctl_query_task(union ctl_io *io, int task_set)
 
 	targ_lun = io->io_hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
-	if (targ_lun >= CTL_MAX_LUNS ||
+	if (targ_lun >= ctl_max_luns ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		io->taskio.task_status = CTL_TASK_LUN_DOES_NOT_EXIST;
@@ -12049,7 +12108,7 @@ ctl_query_async_event(union ctl_io *io)
 
 	targ_lun = io->io_hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
-	if (targ_lun >= CTL_MAX_LUNS ||
+	if (targ_lun >= ctl_max_luns ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		io->taskio.task_status = CTL_TASK_LUN_DOES_NOT_EXIST;
@@ -12141,7 +12200,7 @@ ctl_handle_isc(union ctl_io *io)
 		break;
 	case CTL_MSG_R2R:		/* Only used in SER_ONLY mode. */
 		entry = ctl_get_cmd_entry(&io->scsiio, NULL);
-		if (targ_lun >= CTL_MAX_LUNS ||
+		if (targ_lun >= ctl_max_luns ||
 		    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 			ctl_done(io);
 			break;
@@ -12161,7 +12220,7 @@ ctl_handle_isc(union ctl_io *io)
 			ctl_done(io);
 			break;
 		}
-		if (targ_lun >= CTL_MAX_LUNS ||
+		if (targ_lun >= ctl_max_luns ||
 		    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 			ctl_free_io(io);
 			break;
@@ -13130,7 +13189,7 @@ ctl_queue_sense(union ctl_io *io)
 	 * If we don't have a LUN for this, just toss the sense information.
 	 */
 	mtx_lock(&softc->ctl_lock);
-	if (targ_lun >= CTL_MAX_LUNS ||
+	if (targ_lun >= ctl_max_luns ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		goto bailout;
