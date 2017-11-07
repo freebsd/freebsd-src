@@ -122,7 +122,7 @@ static void	ena_destroy_all_io_queues(struct ena_adapter *);
 static int	ena_create_io_queues(struct ena_adapter *);
 static int	ena_tx_cleanup(struct ena_ring *);
 static int	ena_rx_cleanup(struct ena_ring *);
-static int	validate_tx_req_id(struct ena_ring *, uint16_t);
+static inline int validate_tx_req_id(struct ena_ring *, uint16_t);
 static void	ena_rx_hash_mbuf(struct ena_ring *, struct ena_com_rx_ctx *,
     struct mbuf *);
 static struct mbuf* ena_rx_mbuf(struct ena_ring *, struct ena_com_rx_buf_info *,
@@ -1165,7 +1165,7 @@ ena_destroy_all_io_queues(struct ena_adapter *adapter)
 	ena_destroy_all_rx_queues(adapter);
 }
 
-static int
+static inline int
 validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id)
 {
 	struct ena_tx_buffer *tx_info = NULL;
