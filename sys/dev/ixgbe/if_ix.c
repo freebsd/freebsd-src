@@ -1754,15 +1754,17 @@ ixgbe_setup_vlan_hw_support(struct adapter *adapter)
 		return;
 
 	/* Setup the queues for vlans */
-	for (i = 0; i < adapter->num_queues; i++) {
-		rxr = &adapter->rx_rings[i];
-		/* On 82599 the VLAN enable is per/queue in RXDCTL */
-		if (hw->mac.type != ixgbe_mac_82598EB) {
-			ctrl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(rxr->me));
-			ctrl |= IXGBE_RXDCTL_VME;
-			IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(rxr->me), ctrl);
+	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
+		for (i = 0; i < adapter->num_queues; i++) {
+			rxr = &adapter->rx_rings[i];
+			/* On 82599 the VLAN enable is per/queue in RXDCTL */
+			if (hw->mac.type != ixgbe_mac_82598EB) {
+				ctrl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(rxr->me));
+				ctrl |= IXGBE_RXDCTL_VME;
+				IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(rxr->me), ctrl);
+			}
+			rxr->vtag_strip = TRUE;
 		}
-		rxr->vtag_strip = TRUE;
 	}
 
 	if ((ifp->if_capenable & IFCAP_VLAN_HWFILTER) == 0)

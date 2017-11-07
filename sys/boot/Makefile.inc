@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-
 MK_COVERAGE=	no
 
 .include "defs.mk"

@@ -25,7 +25,11 @@ BINDIR?=	/boot
 # NB: The makefiles depend on these being empty when we don't build forth.
 .if ${MK_FORTH} != "no"
 LIBFICL=	${BOOTOBJ}/ficl/libficl.a
+.if ${MACHINE} == "i386"
+LIBFICL32=	${LIBFICL}
+.else
 LIBFICL32=	${BOOTOBJ}/ficl32/libficl.a
+.endif
 .endif
 LIBSA=		${BOOTOBJ}/libsa/libsa.a
 .if ${MACHINE} == "i386"
@@ -85,5 +89,60 @@ CFLAGS+= -DLOADER_MBR_SUPPORT
 CFLAGS+= -DLOADER_GELI_SUPPORT
 .endif
 .endif
+
+# All PowerPC builds are 32 bit. We have no 64-bit loaders on powerpc
+# or powerpc64.
+.if ${MACHINE_ARCH} == "powerpc64"
+CFLAGS+=	-m32 -mcpu=powerpc
+.endif
+
+# For amd64, there's a bit of mixed bag. Some of the tree (i386, lib*32) is
+# build 32-bit and some 64-bit (lib*, efi). Centralize all the 32-bit magic here
+# and activate it when DO32 is explicitly defined to be 1.
+.if ${MACHINE_ARCH} == "amd64" && ${DO32:U0} == 1
+CFLAGS+=	-m32 -mcpu=i386
+# LD_FLAGS is passed directly to ${LD}, not via ${CC}:
+LD_FLAGS+=	-m elf_i386_fbsd
+AFLAGS+=	--32
+.endif
+
+_ILINKS=machine
+.if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
+_ILINKS+=${MACHINE_CPUARCH}
+.endif
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_ILINKS+=x86
+.endif
+CLEANFILES+=${_ILINKS}
+
+all: ${PROG}
+
+beforedepend: ${_ILINKS}
+beforebuild: ${_ILINKS}
+
+# Ensure that the links exist without depending on it when it exists which
+# causes all the modules to be rebuilt when the directory pointed to changes.
+.for _link in ${_ILINKS}
+.if !exists(${.OBJDIR}/${_link})
+${OBJS}:       ${_link}
+.endif
+.endfor
+
+.NOPATH: ${_ILINKS}
+
+${_ILINKS}:
+	@case ${.TARGET} in \
+	machine) \
+		if [ ${DO32:U0} -eq 0 ]; then \
+			path=${SYSDIR}/${MACHINE}/include ; \
+		else \
+			path=${SYSDIR}/${MACHINE:C/amd64/i386/}/include ; \
+		fi ;; \
+	*) \
+		path=${SYSDIR}/${.TARGET:T}/include ;; \
+	esac ; \
+	path=`(cd $$path && /bin/pwd)` ; \
+	${ECHO} ${.TARGET:T} "->" $$path ; \
+	ln -fhs $$path ${.TARGET:T}
 
 .endif # __BOOT_DEFS_MK__

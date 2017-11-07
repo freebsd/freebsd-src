@@ -9,10 +9,7 @@ BASE_SRCS=	dict.c ficl.c fileaccess.c float.c loader.c math64.c \
 
 SRCS=		${BASE_SRCS} sysdep.c softcore.c
 CLEANFILES=	softcore.c testmain testmain.o
-.if ${MACHINE_CPUARCH} == "i386" || \
-    (${MACHINE_CPUARCH} == "amd64" && defined(FICL32))
-CFLAGS+=	-march=i386
-.endif
+
 .if defined(HAVE_PNP)
 CFLAGS+=	-DHAVE_PNP
 .endif

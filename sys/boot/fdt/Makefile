@@ -22,10 +22,6 @@ CFLAGS+=	-ffreestanding
 CFLAGS+=	-msoft-float
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc64"
-CFLAGS+=	-m32
-.endif
-
 CFLAGS+=	-Wformat -Wall
 
 .include <bsd.stand.mk>

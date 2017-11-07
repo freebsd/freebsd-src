@@ -76,13 +76,6 @@ gptboot.out: ${BTXCRT} gptboot.o sio.o crc32.o drv.o cons.o util.o ${OPENCRYPTO_
 
 gptboot.o: ${SASRC}/ufsread.c
 
-.if ${MACHINE_CPUARCH} == "amd64"
-beforedepend gptboot.o: machine
-CLEANFILES+=	machine
-machine: .NOMETA
-	ln -sf ${SYSDIR}/i386/include machine
-.endif
-
 .include <bsd.prog.mk>
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
