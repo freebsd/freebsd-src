@@ -1143,40 +1143,96 @@ void
 ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
     struct mbuf *m)
 {
+	bool stamped;
 
+	stamped = false;
 	if ((inp->inp_socket->so_options & SO_BINTIME) ||
 	    CHECK_SO_CT(inp->inp_socket, SO_TS_BINTIME)) {
-		struct bintime bt;
+		struct bintime boottimebin, bt;
+		struct timespec ts1;
 
-		bintime(&bt);
+		if ((m->m_flags & (M_PKTHDR | M_TSTMP)) == (M_PKTHDR |
+		    M_TSTMP)) {
+			mbuf_tstmp2timespec(m, &ts1);
+			timespec2bintime(&ts1, &bt);
+			getboottimebin(&boottimebin);
+			bintime_add(&bt, &boottimebin);
+		} else {
+			bintime(&bt);
+		}
 		*mp = sbcreatecontrol((caddr_t)&bt, sizeof(bt),
 		    SCM_BINTIME, SOL_SOCKET);
-		if (*mp)
+		if (*mp != NULL) {
 			mp = &(*mp)->m_next;
+			stamped = true;
+		}
 	}
 	if (CHECK_SO_CT(inp->inp_socket, SO_TS_REALTIME_MICRO)) {
+		struct bintime boottimebin, bt1;
+		struct timespec ts1;;
 		struct timeval tv;
 
-		microtime(&tv);
+		if ((m->m_flags & (M_PKTHDR | M_TSTMP)) == (M_PKTHDR |
+		    M_TSTMP)) {
+			mbuf_tstmp2timespec(m, &ts1);
+			timespec2bintime(&ts1, &bt1);
+			getboottimebin(&boottimebin);
+			bintime_add(&bt1, &boottimebin);
+			bintime2timeval(&bt1, &tv);
+		} else {
+			microtime(&tv);
+		}
 		*mp = sbcreatecontrol((caddr_t)&tv, sizeof(tv),
 		    SCM_TIMESTAMP, SOL_SOCKET);
-		if (*mp)
+		if (*mp != NULL) {
 			mp = &(*mp)->m_next;
+			stamped = true;
+		}
 	} else if (CHECK_SO_CT(inp->inp_socket, SO_TS_REALTIME)) {
-		struct timespec ts;
+		struct bintime boottimebin;
+		struct timespec ts, ts1;
 
-		nanotime(&ts);
+		if ((m->m_flags & (M_PKTHDR | M_TSTMP)) == (M_PKTHDR |
+		    M_TSTMP)) {
+			mbuf_tstmp2timespec(m, &ts);
+			getboottimebin(&boottimebin);
+			bintime2timespec(&boottimebin, &ts1);
+			timespecadd(&ts, &ts1);
+		} else {
+			nanotime(&ts);
+		}
 		*mp = sbcreatecontrol((caddr_t)&ts, sizeof(ts),
 		    SCM_REALTIME, SOL_SOCKET);
-		if (*mp)
+		if (*mp != NULL) {
 			mp = &(*mp)->m_next;
+			stamped = true;
+		}
 	} else if (CHECK_SO_CT(inp->inp_socket, SO_TS_MONOTONIC)) {
 		struct timespec ts;
 
-		nanouptime(&ts);
+		if ((m->m_flags & (M_PKTHDR | M_TSTMP)) == (M_PKTHDR |
+		    M_TSTMP))
+			mbuf_tstmp2timespec(m, &ts);
+		else
+			nanouptime(&ts);
 		*mp = sbcreatecontrol((caddr_t)&ts, sizeof(ts),
 		    SCM_MONOTONIC, SOL_SOCKET);
-		if (*mp)
+		if (*mp != NULL) {
+			mp = &(*mp)->m_next;
+			stamped = true;
+		}
+	}
+	if (stamped && (m->m_flags & (M_PKTHDR | M_TSTMP)) == (M_PKTHDR |
+	    M_TSTMP)) {
+		struct sock_timestamp_info sti;
+
+		bzero(&sti, sizeof(sti));
+		sti.st_info_flags = ST_INFO_HW;
+		if ((m->m_flags & M_TSTMP_HPREC) != 0)
+			sti.st_info_flags |= ST_INFO_HW_HPREC;
+		*mp = sbcreatecontrol((caddr_t)&sti, sizeof(sti), SCM_TIME_INFO,
+		    SOL_SOCKET);
+		if (*mp != NULL)
 			mp = &(*mp)->m_next;
 	}
 	if (inp->inp_flags & INP_RECVDSTADDR) {
