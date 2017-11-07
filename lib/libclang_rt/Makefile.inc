@@ -3,7 +3,7 @@
 .include <bsd.compiler.mk>
 
 .if ${MACHINE} == "arm"
-.if ${MACHINE_ARCH:Marmv[67]*} != "" && ${CPUTYPE:M*soft*} == ""
+.if ${MACHINE_ARCH:Marmv[67]*} != "" && ${CPUTYPE:U:M*soft*} == ""
 CRTARCH=	armhf
 .endif
 .endif
