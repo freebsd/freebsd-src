@@ -154,14 +154,20 @@ struct pkthdr {
 
 	/* Layer crossing persistent information. */
 	uint32_t	 flowid;	/* packet's 4-tuple system */
-	uint64_t	 csum_flags;	/* checksum and offload features */
+	uint32_t	 csum_flags;	/* checksum and offload features */
 	uint16_t	 fibnum;	/* this packet should use this fib */
 	uint8_t		 cosqos;	/* class/quality of service */
 	uint8_t		 rsstype;	/* hash type */
-	uint8_t		 l2hlen;	/* layer 2 header length */
-	uint8_t		 l3hlen;	/* layer 3 header length */
-	uint8_t		 l4hlen;	/* layer 4 header length */
-	uint8_t		 l5hlen;	/* layer 5 header length */
+	union {
+		uint64_t	rcv_tstmp;	/* timestamp in ns */
+		struct {
+			uint8_t		 l2hlen;	/* layer 2 hdr len */
+			uint8_t		 l3hlen;	/* layer 3 hdr len */
+			uint8_t		 l4hlen;	/* layer 4 hdr len */
+			uint8_t		 l5hlen;	/* layer 5 hdr len */
+			uint32_t	 spare;
+		};
+	};
 	union {
 		uint8_t  eight[8];
 		uint16_t sixteen[4];
@@ -293,6 +299,10 @@ struct mbuf {
 #define	M_VLANTAG	0x00000080 /* ether_vtag is valid */
 #define	M_UNUSED_8	0x00000100 /* --available-- */
 #define	M_NOFREE	0x00000200 /* do not free mbuf, embedded in cluster */
+#define	M_TSTMP		0x00000400 /* rcv_tstmp field is valid */
+#define	M_TSTMP_HPREC	0x00000800 /* rcv_tstmp is high-prec, typically
+				      hw-stamped on port (useful for IEEE 1588
+				      and 802.1AS) */
 
 #define	M_PROTO1	0x00001000 /* protocol-specific */
 #define	M_PROTO2	0x00002000 /* protocol-specific */
@@ -320,15 +330,15 @@ struct mbuf {
  * Flags preserved when copying m_pkthdr.
  */
 #define M_COPYFLAGS \
-    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_PROMISC|M_VLANTAG| \
-     M_PROTOFLAGS)
+    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_PROMISC|M_VLANTAG|M_TSTMP| \
+     M_TSTMP_HPREC|M_PROTOFLAGS)
 
 /*
  * Mbuf flag description for use with printf(9) %b identifier.
  */
 #define	M_FLAG_BITS \
     "\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY\5M_BCAST\6M_MCAST" \
-    "\7M_PROMISC\10M_VLANTAG"
+    "\7M_PROMISC\10M_VLANTAG\13M_TSTMP\14M_TSTMP_HPREC"
 #define	M_FLAG_PROTOBITS \
     "\15M_PROTO1\16M_PROTO2\17M_PROTO3\20M_PROTO4\21M_PROTO5" \
     "\22M_PROTO6\23M_PROTO7\24M_PROTO8\25M_PROTO9\26M_PROTO10" \
@@ -1347,6 +1357,18 @@ mbufq_concat(struct mbufq *mq_dst, struct mbufq *mq_src)
 	STAILQ_CONCAT(&mq_dst->mq_head, &mq_src->mq_head);
 	mq_src->mq_len = 0;
 }
+
+#ifdef _SYS_TIMESPEC_H_
+static inline void
+mbuf_tstmp2timespec(struct mbuf *m, struct timespec *ts)
+{
+
+	KASSERT((m->m_flags & M_PKTHDR) != 0, ("mbuf %p no M_PKTHDR", m));
+	KASSERT((m->m_flags & M_TSTMP) != 0, ("mbuf %p no M_TSTMP", m));
+	ts->tv_sec = m->m_pkthdr.rcv_tstmp / 1000000000;
+	ts->tv_nsec = m->m_pkthdr.rcv_tstmp % 1000000000;
+}
+#endif
 
 #endif /* _KERNEL */
 #endif /* !_SYS_MBUF_H_ */
