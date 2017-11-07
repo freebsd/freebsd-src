@@ -24,6 +24,9 @@ SRCS+=	resource.c
 SRCS+=	vnode_if.h
 
 CFLAGS+= -I${CXGBE} -I${SRCTOP}/sys/ofed/include -DLINUX_TYPES_DEFINED
+CFLAGS+= -I${SRCTOP}/sys/ofed/include/uapi
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
+CFLAGS+= -DCONFIG_INFINIBAND_USER_MEM
+CFLAGS+= -DINET6 -DINET
 
 .include <bsd.kmod.mk>
