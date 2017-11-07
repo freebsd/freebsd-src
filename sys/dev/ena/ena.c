@@ -91,7 +91,7 @@ static inline void ena_free_counters(counter_u64_t *, int);
 static inline void ena_reset_counters(counter_u64_t *, int);
 static void	ena_init_io_rings_common(struct ena_adapter *,
     struct ena_ring *, uint16_t);
-static int	ena_init_io_rings(struct ena_adapter *);
+static void	ena_init_io_rings(struct ena_adapter *);
 static void	ena_free_io_ring_resources(struct ena_adapter *, unsigned int);
 static void	ena_free_all_io_rings_resources(struct ena_adapter *);
 static int	ena_setup_tx_dma_tag(struct ena_adapter *);
@@ -420,14 +420,13 @@ ena_init_io_rings_common(struct ena_adapter *adapter, struct ena_ring *ring,
 	ring->ena_dev = adapter->ena_dev;
 }
 
-static int
+static void
 ena_init_io_rings(struct ena_adapter *adapter)
 {
 	struct ena_com_dev *ena_dev;
 	struct ena_ring *txr, *rxr;
 	struct ena_que *que;
 	int i;
-	int rc;
 
 	ena_dev = adapter->ena_dev;
 
@@ -449,12 +448,6 @@ ena_init_io_rings(struct ena_adapter *adapter)
 		/* Allocate a buf ring */
 		txr->br = buf_ring_alloc(ena_buf_ring_size, M_DEVBUF,
 		    M_WAITOK, &txr->ring_mtx);
-		if (txr->br == NULL) {
-			device_printf(adapter->pdev,
-			    "Error while setting up bufring\n");
-			rc = ENOMEM;
-			goto err_bufr_free;
-		}
 
 		/* Alloc TX statistics. */
 		ena_alloc_counters((counter_u64_t *)&txr->tx_stats,
@@ -487,14 +480,6 @@ ena_init_io_rings(struct ena_adapter *adapter)
 		txr->que = que;
 		rxr->que = que;
 	}
-
-	return 0;
-
-err_bufr_free:
-	while (i--)
-		ena_free_io_ring_resources(adapter, i);
-
-	return (rc);
 }
 
 static void
@@ -621,12 +606,12 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	size = sizeof(struct ena_tx_buffer) * tx_ring->ring_size;
 
 	tx_ring->tx_buffer_info = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (!tx_ring->tx_buffer_info)
+	if (tx_ring->tx_buffer_info == NULL)
 		goto err_tx_buffer_info;
 
 	size = sizeof(uint16_t) * tx_ring->ring_size;
 	tx_ring->free_tx_ids = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (!tx_ring->free_tx_ids)
+	if (tx_ring->free_tx_ids == NULL)
 		goto err_tx_reqs;
 
 	/* Req id stack for TX OOO completions */
@@ -685,9 +670,9 @@ err_tx_map:
 		bus_dmamap_destroy(adapter->tx_buf_tag,
 		    tx_ring->tx_buffer_info[i].map);
 	}
-	ENA_MEM_FREE(adapter->ena_dev->dmadev, tx_ring->free_tx_ids);
+	free(tx_ring->free_tx_ids, M_DEVBUF);
 err_tx_reqs:
-	ENA_MEM_FREE(adapter->ena_dev->dmadev, tx_ring->tx_buffer_info);
+	free(tx_ring->tx_buffer_info, M_DEVBUF);
 err_tx_buffer_info:
 	return (ENOMEM);
 }
@@ -726,10 +711,10 @@ ena_free_tx_resources(struct ena_adapter *adapter, int qid)
 	ENA_RING_MTX_UNLOCK(tx_ring);
 
 	/* And free allocated memory. */
-	ENA_MEM_FREE(adapter->ena_dev->dmadev, tx_ring->tx_buffer_info);
+	free(tx_ring->tx_buffer_info, M_DEVBUF);
 	tx_ring->tx_buffer_info = NULL;
 
-	ENA_MEM_FREE(adapter->ena_dev->dmadev, tx_ring->free_tx_ids);
+	free(tx_ring->free_tx_ids, M_DEVBUF);
 	tx_ring->free_tx_ids = NULL;
 }
 
@@ -746,7 +731,7 @@ ena_setup_all_tx_resources(struct ena_adapter *adapter)
 
 	for (i = 0; i < adapter->num_queues; i++) {
 		rc = ena_setup_tx_resources(adapter, i);
-		if (!rc)
+		if (rc == 0)
 			continue;
 
 		device_printf(adapter->pdev,
@@ -805,9 +790,7 @@ ena_setup_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 	 */
 	size += sizeof(struct ena_rx_buffer);
 
-	rx_ring->rx_buffer_info = ENA_MEM_ALLOC(adapter->ena_dev->dmadev, size);
-	if (!rx_ring->rx_buffer_info)
-		return (ENOMEM);
+	rx_ring->rx_buffer_info = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	/* Reset RX statistics. */
 	ena_reset_counters((counter_u64_t *)&rx_ring->rx_stats,
@@ -848,7 +831,7 @@ err_rx_dma:
 		    rx_ring->rx_buffer_info[i].map);
 	}
 
-	ENA_MEM_FREE(adapter->ena_dev->dmadev, rx_ring->rx_buffer_info);
+	free(rx_ring->rx_buffer_info, M_DEVBUF);
 	rx_ring->rx_buffer_info = NULL;
 	ena_trace(ENA_ALERT, "RX resource allocation fail");
 	return (ENOMEM);
@@ -882,7 +865,7 @@ ena_free_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 	tcp_lro_free(&rx_ring->lro);
 
 	/* free allocated memory */
-	ENA_MEM_FREE(adapter->ena_dev->dmadev, rx_ring->rx_buffer_info);
+	free(rx_ring->rx_buffer_info, M_DEVBUF);
 	rx_ring->rx_buffer_info = NULL;
 
 	return;
@@ -901,7 +884,7 @@ ena_setup_all_rx_resources(struct ena_adapter *adapter)
 
 	for (i = 0; i < adapter->num_queues; i++) {
 		rc = ena_setup_rx_resources(adapter, i);
-		if (!rc)
+		if (rc == 0)
 			continue;
 
 		device_printf(adapter->pdev,
@@ -949,7 +932,7 @@ ena_alloc_rx_mbuf(struct ena_adapter *adapter,
 	/* Get mbuf using UMA allocator */
 	rx_info->mbuf = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM16BYTES);
 
-	if (!rx_info->mbuf) {
+	if (rx_info->mbuf == NULL) {
 		counter_u64_add(rx_ring->rx_stats.mbuf_alloc_fail, 1);
 		return (ENOMEM);
 	}
@@ -993,7 +976,7 @@ ena_free_rx_mbuf(struct ena_adapter *adapter, struct ena_ring *rx_ring,
     struct ena_rx_buffer *rx_info)
 {
 
-	if (!rx_info->mbuf)
+	if (rx_info->mbuf == NULL)
 		return;
 
 	bus_dmamap_unload(adapter->rx_buf_tag, rx_info->map);
@@ -1716,14 +1699,9 @@ ena_enable_msix(struct ena_adapter *adapter)
 	/* Reserved the max msix vectors we might need */
 	msix_vecs = ENA_MAX_MSIX_VEC(adapter->num_queues);
 
-	adapter->msix_entries = ENA_MEM_ALLOC(adapter->ena_dev->dmadev,
-	    msix_vecs * sizeof(struct msix_entry));
-	if (!adapter->msix_entries) {
-		device_printf(dev,
-		    "Failed to allocate msix_entries, vectors %d\n", msix_vecs);
-		rc = ENOMEM;
-		goto error;
-	}
+	adapter->msix_entries = malloc(msix_vecs * sizeof(struct msix_entry),
+	    M_DEVBUF, M_WAITOK | M_ZERO);
+
 	device_printf(dev, "Allocated msix_entries, vectors (cnt: %d)\n",
 	    msix_vecs);
 
@@ -1737,7 +1715,7 @@ ena_enable_msix(struct ena_adapter *adapter)
 	if (rc != 0) {
 		device_printf(dev,
 		    "Failed to enable MSIX, vectors %d rc %d\n", msix_vecs, rc);
-		ENA_MEM_FREE(adapter->ena_dev->dmadev, adapter->msix_entries);
+		free(adapter->msix_entries, M_DEVBUF);
 		adapter->msix_entries = NULL;
 		rc = ENOSPC;
 		goto error;
@@ -2025,7 +2003,7 @@ ena_disable_msix(struct ena_adapter *adapter)
 	pci_release_msi(adapter->pdev);
 
 	adapter->msix_vecs = 0;
-	ENA_MEM_FREE(adapter->ena_dev->dmadev, adapter->msix_entries);
+	free(adapter->msix_entries, M_DEVBUF);
 	adapter->msix_entries = NULL;
 }
 
@@ -3319,7 +3297,7 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 		}
 
 		budget--;
-		if (!budget) {
+		if (budget == 0) {
 			i++;
 			break;
 		}
@@ -3502,16 +3480,12 @@ ena_attach(device_t pdev)
 	if (rc) {
 		device_printf(pdev, "PCI resource allocation failed!\n");
 		ena_free_pci_resources(adapter);
-		goto err_pci_res;
+		return (rc);
 	}
 
 	/* Allocate memory for ena_dev structure */
-	ena_dev = ENA_MEM_ALLOC(pdev, sizeof(struct ena_com_dev));
-	if (!ena_dev) {
-		device_printf(pdev, "allocating ena_dev failed\n");
-		rc = ENOMEM;
-		goto err_select_region;
-	}
+	ena_dev = malloc(sizeof(struct ena_com_dev), M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 
 	adapter->ena_dev = ena_dev;
 	ena_dev->dmadev = pdev;
@@ -3527,7 +3501,7 @@ ena_attach(device_t pdev)
 	if (((struct ena_bus*)(ena_dev->bus))->reg_bar_h == 0) {
 		device_printf(pdev, "failed to pmap registers bar\n");
 		rc = ENXIO;
-		goto err_dev_free;
+		goto err_bus_free;
 	}
 
 	ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
@@ -3579,25 +3553,21 @@ ena_attach(device_t pdev)
 	/* set up dma tags for rx and tx buffers */
 	rc = ena_setup_tx_dma_tag(adapter);
 	if (rc)
-		goto dma_tx_err;
+		goto err_com_free;
 
 	rc = ena_setup_rx_dma_tag(adapter);
 	if (rc)
-		goto dma_rx_err;
+		goto err_tx_tag_free;
 
 	/* initialize rings basic information */
 	device_printf(pdev, "initalize %d io queues\n", io_queue_num);
-	rc = ena_init_io_rings(adapter);
-	if (rc) {
-		device_printf(pdev,"Error with initialization of IO rings\n");
-		goto err_io_init;
-	}
+	ena_init_io_rings(adapter);
 
 	/* setup network interface */
 	rc = ena_setup_ifnet(pdev, adapter, &get_feat_ctx);
 	if (rc) {
 		device_printf(pdev,"Error with network interface setup\n");
-		goto err_com_free;
+		goto err_io_free;
 	}
 
 	rc = ena_enable_msix_and_set_admin_interrupts(adapter, io_queue_num);
@@ -3611,11 +3581,6 @@ ena_attach(device_t pdev)
 	TASK_INIT(&adapter->reset_task, 0, ena_reset_task, adapter);
 	adapter->reset_tq = taskqueue_create("ena_reset_enqueue",
 	    M_WAITOK | M_ZERO, taskqueue_thread_enqueue, &adapter->reset_tq);
-	if (adapter->reset_tq == NULL) {
-		device_printf(adapter->pdev,
-		    "Unable to create reset task queue\n");
-		goto err_reset_tq;
-	}
 	taskqueue_start_threads(&adapter->reset_tq, 1, PI_NET,
 	    "%s rstq", device_get_nameunit(adapter->pdev));
 
@@ -3632,29 +3597,23 @@ ena_attach(device_t pdev)
 	adapter->running = true;
 	return (0);
 
-err_reset_tq:
-	ena_com_dev_reset(ena_dev, ENA_REGS_RESET_INIT_ERR);
-	ena_free_mgmnt_irq(adapter);
-	ena_disable_msix(adapter);
 err_ifp_free:
 	if_detach(adapter->ifp);
 	if_free(adapter->ifp);
-err_com_free:
+err_io_free:
 	ena_free_all_io_rings_resources(adapter);
-err_io_init:
 	ena_free_rx_dma_tag(adapter);
-dma_rx_err:
+err_tx_tag_free:
 	ena_free_tx_dma_tag(adapter);
-dma_tx_err:
+err_com_free:
 	ena_com_admin_destroy(ena_dev);
 	ena_com_delete_host_info(ena_dev);
+	ena_com_mmio_reg_read_request_destroy(ena_dev);
 err_bus_free:
 	free(ena_dev->bus, M_DEVBUF);
-err_dev_free:
 	free(ena_dev, M_DEVBUF);
-err_select_region:
 	ena_free_pci_resources(adapter);
-err_pci_res:
+
 	return (rc);
 }
 
