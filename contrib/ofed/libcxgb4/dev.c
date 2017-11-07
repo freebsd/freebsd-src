@@ -39,6 +39,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <signal.h>
+#include <stdbool.h>
 
 #include "libcxgb4.h"
 #include "cxgb4-abi.h"
@@ -194,6 +195,17 @@ static struct ibv_context *c4iw_alloc_context(struct ibv_device *ibdev,
 		rhp->cqid2ptr = calloc(rhp->max_cq, sizeof(void *));
 		if (!rhp->cqid2ptr)
 			goto err_unmap;
+
+		/* Disable userspace WC if architecture/adapter does not
+		 * support WC.
+		 * Note: To forcefully disable WC in kernel driver use the
+		 * loader tunable "hw.cxl.write_combine=0"
+		 */
+		if (t5_en_wc && !context->status_page->wc_supported) {
+			fprintf(stderr, "iw_cxgb4 driver doesn't support Write "
+				"Combine, so regular DB writes will be used\n");
+			t5_en_wc = 0;
+		}
 	}
 
 	return &context->ibv_ctx;
@@ -400,11 +412,44 @@ int c4iw_abi_version = 1;
 static struct verbs_device *cxgb4_driver_init(const char *uverbs_sys_path,
 					      int abi_version)
 {
-	char devstr[IBV_SYSFS_PATH_MAX], ibdev[16], value[32], *cp;
+	char devstr[IBV_SYSFS_PATH_MAX], ibdev[16], value[128], *cp;
+	char dev_str[IBV_SYSFS_PATH_MAX];
 	struct c4iw_dev *dev;
 	unsigned vendor, device, fw_maj, fw_min;
 	int i;
+	char devnum;
+	char ib_param[16];
 
+#ifndef __linux__
+	if (ibv_read_sysfs_file(uverbs_sys_path, "ibdev",
+				ibdev, sizeof ibdev) < 0)
+		return NULL;
+
+	devnum = atoi(&ibdev[5]);
+
+	if (ibdev[0] == 't' && ibdev[1] >= '4' && ibdev[1] <= '6' &&
+	    strstr(&ibdev[2], "nex") && devnum >= 0) {
+		snprintf(dev_str, sizeof(dev_str), "/dev/t%cnex/%d", ibdev[1],
+		    devnum);
+	} else
+		return NULL;
+
+	if (ibv_read_sysfs_file(dev_str, "\%pnpinfo", value, sizeof value) < 0)
+		return NULL;
+	else {
+		if (strstr(value, "vendor=")) {
+			strncpy(ib_param, strstr(value, "vendor=") +
+					strlen("vendor="), 6);
+			sscanf(ib_param, "%i", &vendor);
+		}
+
+		if (strstr(value, "device=")) {
+			strncpy(ib_param, strstr(value, "device=") +
+					strlen("device="), 6);
+			sscanf(ib_param, "%i", &device);
+		}
+	}
+#else
 	if (ibv_read_sysfs_file(uverbs_sys_path, "device/vendor",
 				value, sizeof value) < 0)
 		return NULL;
@@ -414,6 +459,7 @@ static struct verbs_device *cxgb4_driver_init(const char *uverbs_sys_path,
 				value, sizeof value) < 0)
 		return NULL;
 	sscanf(value, "%i", &device);
+#endif
 
 	for (i = 0; i < sizeof hca_table / sizeof hca_table[0]; ++i)
 		if (vendor == hca_table[i].vendor &&
@@ -425,6 +471,11 @@ static struct verbs_device *cxgb4_driver_init(const char *uverbs_sys_path,
 found:
 	c4iw_abi_version = abi_version;	
 
+#ifndef __linux__
+	if (ibv_read_sysfs_file(dev_str, "firmware_version",
+				value, sizeof value) < 0)
+		return NULL;
+#else
 	/*
 	 * Verify that the firmware major number matches.  Major number
 	 * mismatches are fatal.  Minor number mismatches are tolerated.
@@ -438,6 +489,7 @@ found:
 		 ibv_get_sysfs_path(), ibdev);
 	if (ibv_read_sysfs_file(devstr, "fw_ver", value, sizeof value) < 0)
 		return NULL;
+#endif
 
 	cp = strtok(value+1, ".");
 	sscanf(cp, "%i", &fw_maj);

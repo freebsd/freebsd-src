@@ -44,10 +44,13 @@ struct c4iw_stats c4iw_stats;
 
 static void copy_wr_to_sq(struct t4_wq *wq, union t4_wr *wqe, u8 len16)
 {
-	u64 *src, *dst;
+	void *src, *dst;
+	uintptr_t end;
+	int total, len;
 
-	src = (u64 *)wqe;
-	dst = (u64 *)((u8 *)wq->sq.queue + wq->sq.wq_pidx * T4_EQ_ENTRY_SIZE);
+	src = &wqe->flits[0];
+	dst = &wq->sq.queue->flits[wq->sq.wq_pidx *
+	    (T4_EQ_ENTRY_SIZE / sizeof(__be64))];
 	if (t4_sq_onchip(wq)) {
 		len16 = align(len16, 4);
 
@@ -57,17 +60,18 @@ static void copy_wr_to_sq(struct t4_wq *wq, union t4_wr *wqe, u8 len16)
 		 * happens */
 		mmio_wc_start();
 	}
-	while (len16) {
-		*dst++ = *src++;
-		if (dst == (u64 *)&wq->sq.queue[wq->sq.size])
-			dst = (u64 *)wq->sq.queue;
-		*dst++ = *src++;
-		if (dst == (u64 *)&wq->sq.queue[wq->sq.size])
-			dst = (u64 *)wq->sq.queue;
-		len16--;
 
-		/* NOTE len16 cannot be large enough to write to the
-		   same sq.queue memory twice in this loop */
+	/* NOTE len16 cannot be large enough to write to the
+	   same sq.queue memory twice in this loop */
+	total = len16 * 16;
+	end = (uintptr_t)&wq->sq.queue[wq->sq.size];
+	if (__predict_true((uintptr_t)dst + total <= end)) {
+		/* Won't wrap around. */
+		memcpy(dst, src, total);
+	} else {
+		len = end - (uintptr_t)dst;
+		memcpy(dst, src, len);
+		memcpy(wq->sq.queue, src + len, total - len);
 	}
 
 	if (t4_sq_onchip(wq))
@@ -76,18 +80,23 @@ static void copy_wr_to_sq(struct t4_wq *wq, union t4_wr *wqe, u8 len16)
 
 static void copy_wr_to_rq(struct t4_wq *wq, union t4_recv_wr *wqe, u8 len16)
 {
-	u64 *src, *dst;
+	void *src, *dst;
+	uintptr_t end;
+	int total, len;
 
-	src = (u64 *)wqe;
-	dst = (u64 *)((u8 *)wq->rq.queue + wq->rq.wq_pidx * T4_EQ_ENTRY_SIZE);
-	while (len16) {
-		*dst++ = *src++;
-		if (dst >= (u64 *)&wq->rq.queue[wq->rq.size])
-			dst = (u64 *)wq->rq.queue;
-		*dst++ = *src++;
-		if (dst >= (u64 *)&wq->rq.queue[wq->rq.size])
-			dst = (u64 *)wq->rq.queue;
-		len16--;
+	src = &wqe->flits[0];
+	dst = &wq->rq.queue->flits[wq->rq.wq_pidx *
+	    (T4_EQ_ENTRY_SIZE / sizeof(__be64))];
+
+	total = len16 * 16;
+	end = (uintptr_t)&wq->rq.queue[wq->rq.size];
+	if (__predict_true((uintptr_t)dst + total <= end)) {
+		/* Won't wrap around. */
+		memcpy(dst, src, total);
+	} else {
+		len = end - (uintptr_t)dst;
+		memcpy(dst, src, len);
+		memcpy(wq->rq.queue, src + len, total - len);
 	}
 }
 

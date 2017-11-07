@@ -87,7 +87,7 @@
 #define T4_MAX_CQ_DEPTH (T4_MAX_IQ_SIZE - 1)
 #define T4_MAX_NUM_STAG (1<<15)
 #define T4_MAX_MR_SIZE (~0ULL - 1)
-#define T4_PAGESIZE_MASK 0xffff000  /* 4KB-128MB */
+#define T4_PAGESIZE_MASK 0xffffffff000  /* 4KB-8TB */
 #define T4_STAG_UNSET 0xffffffff
 #define T4_FW_MAJ 0
 
@@ -723,7 +723,7 @@ static inline void t4_reset_cq_in_error(struct t4_cq *cq)
 struct t4_dev_status_page 
 {
 	u8 db_off;
-	u8 pad1;
+	u8 wc_supported;
 	u16 pad2;
 	u32 pad3;
 	u64 qp_start;

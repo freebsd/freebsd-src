@@ -468,7 +468,7 @@ static struct ibv_qp *create_qp(struct ibv_pd *pd,
 	}
 
 	qhp->wq.sq.queue = mmap(NULL, qhp->wq.sq.memsize,
-			    PROT_WRITE, MAP_SHARED,
+			    PROT_READ|PROT_WRITE, MAP_SHARED,
 			    pd->context->cmd_fd, resp.sq_key);
 	if (qhp->wq.sq.queue == MAP_FAILED)
 		goto err4;
@@ -490,7 +490,7 @@ static struct ibv_qp *create_qp(struct ibv_pd *pd,
 		qhp->wq.rq.udb += 2;
 	}
 	qhp->wq.rq.queue = mmap(NULL, qhp->wq.rq.memsize,
-			    PROT_WRITE, MAP_SHARED,
+			    PROT_READ|PROT_WRITE, MAP_SHARED,
 			    pd->context->cmd_fd, resp.rq_key);
 	if (qhp->wq.rq.queue == MAP_FAILED)
 		goto err6;
