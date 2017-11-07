@@ -511,6 +511,9 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 		   (((uintptr_t)stack->ss_sp + stack->ss_size - 4) & ~0x0f) - 4;
 		td->td_frame->tf_rip = (uintptr_t)entry;
 
+		/* Return address sentinel value to stop stack unwinding. */
+		suword32((void *)td->td_frame->tf_rsp, 0);
+
 		/* Pass the argument to the entry point. */
 		suword32((void *)(td->td_frame->tf_rsp + sizeof(int32_t)),
 		    (uint32_t)(uintptr_t)arg);
@@ -533,6 +536,9 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	td->td_frame->tf_fs = _ufssel;
 	td->td_frame->tf_gs = _ugssel;
 	td->td_frame->tf_flags = TF_HASSEGS;
+
+	/* Return address sentinel value to stop stack unwinding. */
+	suword((void *)td->td_frame->tf_rsp, 0);
 
 	/* Pass the argument to the entry point. */
 	td->td_frame->tf_rdi = (register_t)arg;

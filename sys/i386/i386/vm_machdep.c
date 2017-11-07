@@ -530,6 +530,9 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	    (((int)stack->ss_sp + stack->ss_size - 4) & ~0x0f) - 4;
 	td->td_frame->tf_eip = (int)entry;
 
+	/* Return address sentinel value to stop stack unwinding. */
+	suword((void *)td->td_frame->tf_esp, 0);
+
 	/* Pass the argument to the entry point. */
 	suword((void *)(td->td_frame->tf_esp + sizeof(void *)),
 	    (int)arg);
