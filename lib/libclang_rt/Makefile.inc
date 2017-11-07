@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.compiler.mk>
 
 .if ${MACHINE} == "arm"
 .if ${MACHINE_ARCH:Marmv[67]*} != "" && ${CPUTYPE:M*soft*} == ""
