@@ -105,7 +105,7 @@ __objdir:=	${MAKEOBJDIR}
 # Try to enable MK_AUTO_OBJ by default if we can write to the __objdir.  Only
 # do this if AUTO_OBJ is not disabled by the user, not cleaning, and this is
 # the first make ran.
-.if 0 && ${.MAKE.LEVEL} == 0 && \
+.if ${.MAKE.LEVEL} == 0 && \
     ${MK_AUTO_OBJ} == "no" && empty(.MAKEOVERRIDES:MMK_AUTO_OBJ) && \
     !defined(WITHOUT_AUTO_OBJ) && !make(showconfig) && !make(print-dir) && \
     !defined(NO_OBJ) && \
