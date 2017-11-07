@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <bsd.init.mk>
 
 FILES=		boot boot1 boot2
 
@@ -22,7 +22,7 @@ BOOT2_UFS?=	UFS1_AND_UFS2
 #BOOT2_UFS?=	UFS2_ONLY
 #BOOT2_UFS?=	UFS1_ONLY
 
-CFLAGS=	-fomit-frame-pointer \
+CFLAGS+=-fomit-frame-pointer \
 	-mrtd \
 	-mregparm=3 \
 	-D${BOOT2_UFS} \
@@ -30,8 +30,8 @@ CFLAGS=	-fomit-frame-pointer \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 	-DSIOFMT=${B2SIOFMT} \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
-	-I${.CURDIR}/../../common \
-	-I${.CURDIR}/../btx/lib -I. \
+	-I${LDRSRC} \
+	-I${BTXLIB} -I. \
 	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
@@ -46,10 +46,7 @@ CFLAGS.gcc+=   -mno-align-long-strings
 
 CFLAGS.clang+=	-Oz ${CLANG_OPT_SMALL}
 
-LD_FLAGS=${LD_FLAGS_BIN}
-
-# Pick up ../Makefile.inc early.
-.include <bsd.init.mk>
+LD_FLAGS+=${LD_FLAGS_BIN}
 
 CLEANFILES=	boot
 
@@ -95,13 +92,6 @@ boot2.h: boot1.out
 	    printf("#define XREADORG %#x\n", REL1 + x) }' \
 	    ORG1=`printf "%d" ${ORG1}` \
 	    REL1=`printf "%d" ${REL1}` > ${.TARGET}
-
-.if ${MACHINE_CPUARCH} == "amd64"
-beforedepend boot2.s: machine
-CLEANFILES+=	machine
-machine: ${.CURDIR}/../../../i386/include .NOMETA
-	ln -sf ${.ALLSRC} ${.TARGET}
-.endif
 
 .include <bsd.prog.mk>
 

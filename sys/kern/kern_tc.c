@@ -1413,10 +1413,8 @@ tc_windup(struct bintime *new_boottimebin)
 		if (bt.sec != t)
 			th->th_boottime.sec += bt.sec - t;
 	}
-	th->th_bintime = th->th_offset;
-	bintime_add(&th->th_bintime, &th->th_boottime);
 	/* Update the UTC timestamps used by the get*() functions. */
-	/* XXX shouldn't do this here.  Should force non-`get' versions. */
+	th->th_bintime = bt;
 	bintime2timeval(&bt, &th->th_microtime);
 	bintime2timespec(&bt, &th->th_nanotime);
 

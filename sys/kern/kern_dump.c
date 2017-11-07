@@ -51,8 +51,6 @@ CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
 #define	MD_ALIGN(x)	roundup2((off_t)(x), PAGE_SIZE)
 
-off_t dumplo;
-
 /* Handle buffered writes. */
 static size_t fragsz;
 
@@ -122,11 +120,9 @@ dumpsys_buf_seek(struct dumperinfo *di, size_t sz)
 	while (sz > 0) {
 		nbytes = MIN(sz, sizeof(buf));
 
-		error = dump_write(di, buf, 0, dumplo, nbytes);
+		error = dump_append(di, buf, 0, nbytes);
 		if (error)
 			return (error);
-		dumplo += nbytes;
-
 		sz -= nbytes;
 	}
 
@@ -148,11 +144,9 @@ dumpsys_buf_write(struct dumperinfo *di, char *ptr, size_t sz)
 		ptr += len;
 		sz -= len;
 		if (fragsz == di->blocksize) {
-			error = dump_write(di, di->blockbuf, 0, dumplo,
-			    di->blocksize);
+			error = dump_append(di, di->blockbuf, 0, di->blocksize);
 			if (error)
 				return (error);
-			dumplo += di->blocksize;
 			fragsz = 0;
 		}
 	}
@@ -167,8 +161,7 @@ dumpsys_buf_flush(struct dumperinfo *di)
 	if (fragsz == 0)
 		return (0);
 
-	error = dump_write(di, di->blockbuf, 0, dumplo, di->blocksize);
-	dumplo += di->blocksize;
+	error = dump_append(di, di->blockbuf, 0, di->blocksize);
 	fragsz = 0;
 	return (error);
 }
@@ -216,11 +209,10 @@ dumpsys_cb_dumpdata(struct dump_pa *mdp, int seqnr, void *arg)
 		wdog_kern_pat(WD_LASTVAL);
 #endif
 
-		error = dump_write(di, va, 0, dumplo, sz);
+		error = dump_append(di, va, 0, sz);
 		dumpsys_unmap_chunk(pa, chunk, va);
 		if (error)
 			break;
-		dumplo += sz;
 		pgs -= chunk;
 		pa += sz;
 
@@ -347,7 +339,7 @@ dumpsys_generic(struct dumperinfo *di)
 	printf("Dumping %ju MB (%d chunks)\n", (uintmax_t)dumpsize >> 20,
 	    ehdr.e_phnum - DUMPSYS_NUM_AUX_HDRS);
 
-	error = dump_start(di, &kdh, &dumplo);
+	error = dump_start(di, &kdh);
 	if (error != 0)
 		goto fail;
 
@@ -369,19 +361,18 @@ dumpsys_generic(struct dumperinfo *di)
 	 * All headers are written using blocked I/O, so we know the
 	 * current offset is (still) block aligned. Skip the alignement
 	 * in the file to have the segment contents aligned at page
-	 * boundary. We cannot use MD_ALIGN on dumplo, because we don't
-	 * care and may very well be unaligned within the dump device.
+	 * boundary.
 	 */
 	error = dumpsys_buf_seek(di, (size_t)hdrgap);
 	if (error)
 		goto fail;
 
-	/* Dump memory chunks (updates dumplo) */
+	/* Dump memory chunks. */
 	error = dumpsys_foreach_chunk(dumpsys_cb_dumpdata, di);
 	if (error < 0)
 		goto fail;
 
-	error = dump_finish(di, &kdh, dumplo);
+	error = dump_finish(di, &kdh);
 	if (error != 0)
 		goto fail;
 

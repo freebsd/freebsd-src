@@ -342,6 +342,7 @@ tmpfs_free_tmp(struct tmpfs_mount *tmp)
 
 	uma_zdestroy(tmp->tm_dirent_pool);
 	uma_zdestroy(tmp->tm_node_pool);
+	clear_unrhdr(tmp->tm_ino_unr);
 	delete_unrhdr(tmp->tm_ino_unr);
 
 	mtx_destroy(&tmp->tm_allnode_lock);

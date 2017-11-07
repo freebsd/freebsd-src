@@ -59,10 +59,10 @@ LIB32WMAKEFLAGS+=	-DCOMPAT_32BIT
 
 # -------------------------------------------------------------------
 # soft-fp world
-.if ${TARGET_ARCH} == "armv6"
+.if ${TARGET_ARCH:Marmv[67]*} != ""
 LIBSOFTCFLAGS=        -DCOMPAT_SOFTFP
 LIBSOFTCPUFLAGS= -mfloat-abi=softfp
-LIBSOFTWMAKEENV= CPUTYPE=soft MACHINE=arm MACHINE_ARCH=armv6
+LIBSOFTWMAKEENV= CPUTYPE=soft MACHINE=arm MACHINE_ARCH=${TARGET_ARCH}
 LIBSOFTWMAKEFLAGS=        -DCOMPAT_SOFTFP
 .endif
 
@@ -70,7 +70,7 @@ LIBSOFTWMAKEFLAGS=        -DCOMPAT_SOFTFP
 # Generic code for each type.
 # Set defaults based on type.
 libcompat=	${LIBCOMPAT:tl}
-_LIBCOMPAT_MAKEVARS=	_OBJTREE TMP CPUFLAGS CFLAGS CXXFLAGS WMAKEENV \
+_LIBCOMPAT_MAKEVARS=	_OBJTOP TMP CPUFLAGS CFLAGS CXXFLAGS WMAKEENV \
 			WMAKEFLAGS WMAKE
 .for _var in ${_LIBCOMPAT_MAKEVARS}
 .if !empty(LIB${LIBCOMPAT}${_var})
@@ -79,8 +79,8 @@ LIBCOMPAT${_var}?=	${LIB${LIBCOMPAT}${_var}}
 .endfor
 
 # Shared flags
-LIBCOMPAT_OBJTREE?=	${OBJTREE}${.CURDIR}/world${libcompat}
-LIBCOMPATTMP?=		${OBJTREE}${.CURDIR}/lib${libcompat}
+LIBCOMPAT_OBJTOP?=	${OBJTOP}/obj-lib${libcompat}
+LIBCOMPATTMP?=		${LIBCOMPAT_OBJTOP}/tmp
 
 LIBCOMPATCFLAGS+=	${LIBCOMPATCPUFLAGS} \
 			-L${LIBCOMPATTMP}/usr/lib${libcompat} \
@@ -107,7 +107,7 @@ LIBCOMPATCXXFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include/c++/v1 -std=c++11 \
 .endif
 
 # Yes, the flags are redundant.
-LIBCOMPATWMAKEENV+= MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTREE} \
+LIBCOMPATWMAKEENV+= \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
 		SYSROOT=${LIBCOMPATTMP} \
@@ -127,6 +127,9 @@ LIBCOMPATWMAKEFLAGS+= CC="${XCC} ${LIBCOMPATCFLAGS}" \
 		-DNO_LINT \
 		MK_TESTS=no
 LIBCOMPATWMAKE+=	${LIBCOMPATWMAKEENV} ${MAKE} ${LIBCOMPATWMAKEFLAGS} \
+			OBJTOP=${LIBCOMPAT_OBJTOP} \
+			OBJROOT='$${OBJTOP}/' \
+			MAKEOBJDIRPREFIX= \
 			MK_MAN=no MK_HTML=no
 LIBCOMPATIMAKE+=	${LIBCOMPATWMAKE:NINSTALL=*:NDESTDIR=*} \
 			MK_TOOLCHAIN=no ${IMAKE_INSTALL} \
@@ -148,6 +151,16 @@ build${libcompat}: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 5.1: building lib${libcompat} shim libraries"
 	@echo "--------------------------------------------------------------"
+.if !defined(NO_CLEAN)
+	rm -rf ${LIBCOMPATTMP}
+.else
+.if exists(${LIBCOMPATTMP})
+	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
+	    DESTDIR=${LIBCOMPATTMP} \
+	    delete-old delete-old-libs >/dev/null
+.endif
+.endif	# !defined(NO_CLEAN)
+
 	mkdir -p ${LIBCOMPATTMP}/usr/include
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${LIBCOMPATTMP}/usr >/dev/null
@@ -173,16 +186,21 @@ build${libcompat}: .PHONY
 	${_+_}cd ${.CURDIR}/${_dir}; \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
-	    MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTREE} ${MAKE} SSP_CFLAGS= DESTDIR= \
+	    ${MAKE} SSP_CFLAGS= DESTDIR= \
+	    OBJTOP=${LIBCOMPAT_OBJTOP} \
+	    OBJROOT='$${OBJTOP}/' \
+	    MAKEOBJDIRPREFIX= \
 	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 	    build-tools
 .endfor
 	${_+_}cd ${.CURDIR}; \
 	    ${LIBCOMPATWMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
-.if ${libcompat} == "32" && !defined(NO_RTLD)
+.if ${libcompat} == "32"
 .for _t in ${_obj} all
+.if !defined(NO_RTLD)
 	${_+_}cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIBCOMPATWMAKE} \
 	    -DNO_FSCHG DIRPRFX=libexec/rtld-elf/ ${_t}
+.endif
 	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIBCOMPATWMAKE} \
 	    DIRPRFX=usr.bin/ldd ${_t}
 .endfor
@@ -192,9 +210,11 @@ distribute${libcompat} install${libcompat}: .PHONY
 .for _dir in ${_LC_LIBDIRS.yes}
 	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATIMAKE} ${.TARGET:S/${libcompat}$//}
 .endfor
-.if ${libcompat} == "32" && !defined(NO_RTLD)
+.if ${libcompat} == "32"
+.if !defined(NO_RTLD)
 	${_+_}cd ${.CURDIR}/libexec/rtld-elf; \
 	    PROG=ld-elf32.so.1 ${LIBCOMPATIMAKE} ${.TARGET:S/32$//}
+.endif
 	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIBCOMPATIMAKE} \
 	    ${.TARGET:S/32$//}
 .endif

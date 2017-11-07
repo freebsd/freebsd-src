@@ -67,13 +67,6 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_tcb.h"
 #include "tom/t4_tom.h"
 
-VNET_DECLARE(int, tcp_do_autorcvbuf);
-#define V_tcp_do_autorcvbuf VNET(tcp_do_autorcvbuf)
-VNET_DECLARE(int, tcp_autorcvbuf_inc);
-#define V_tcp_autorcvbuf_inc VNET(tcp_autorcvbuf_inc)
-VNET_DECLARE(int, tcp_autorcvbuf_max);
-#define V_tcp_autorcvbuf_max VNET(tcp_autorcvbuf_max)
-
 /*
  * Use the 'backend3' field in AIO jobs to store the amount of data
  * received by the AIO job so far.
@@ -1277,7 +1270,8 @@ pscmp(struct pageset *ps, struct vmspace *vm, vm_offset_t start, int npages,
     int pgoff, int len)
 {
 
-	if (ps->npages != npages || ps->offset != pgoff || ps->len != len)
+	if (ps->start != start || ps->npages != npages ||
+	    ps->offset != pgoff || ps->len != len)
 		return (1);
 
 	return (ps->vm != vm || ps->vm_timestamp != vm->vm_map.timestamp);
@@ -1378,6 +1372,7 @@ hold_aio(struct toepcb *toep, struct kaiocb *job, struct pageset **pps)
 	ps->len = job->uaiocb.aio_nbytes;
 	atomic_add_int(&vm->vm_refcnt, 1);
 	ps->vm = vm;
+	ps->start = start;
 
 	CTR5(KTR_CXGBE, "%s: tid %d, new pageset %p for job %p, npages %d",
 	    __func__, toep->tid, ps, job, ps->npages);

@@ -339,22 +339,24 @@ FreeBSD 5.2           |      |                 |                       |
  |     |              |      |                 |               DragonFly 4.2.0
  |  FreeBSD           |      |                 |                       |
  |   10.2             |      |                 |                       |
- |     |            OS X  NetBSD 7.0           |                       |
+ |     |            macOS  NetBSD 7.0           |                       |
  |     |            10.11    |            OpenBSD 5.8                  |
  |     |              |      |                 |               DragonFly 4.4.1
  |  FreeBSD           |      |            OpenBSD 5.9                  |
  |   10.3             |      |                 |                       |
- |                    |   NetBSD 7.0.1         |                       |
- |                    |      |                 |               DragonFly 4.6.0
- |                    |      |                 |                       |
- |                    |      |                 |                       |
- *--FreeBSD         macOS    |            OpenBSD 6.0                  |
- |   11.0           10.12    |                 |                       |
- |     |              |   NetBSD 7.1           |                       |
- |     |              |      |                 |               DragonFly 4.8.0
- |     |              |      |            OpenBSD 6.1                  |
- |  FreeBSD           |      |                 |                       |
- |   11.1             |      |                 |                       |
+ |     |              |   NetBSD 7.0.1         |                       |
+ |     `------.       |      |                 |               DragonFly 4.6.0
+ |            |       |      |                 |                       |
+ |            |       |      |                 |                       |
+ *--FreeBSD   |     macOS    |            OpenBSD 6.0                  |
+ |   11.0     |     10.12    |                 |                       |
+ |     |      |       |   NetBSD 7.1           |                       |
+ |     |      |     macOS    |                 |               DragonFly 4.8.0
+ |     |      |     10.13    |            OpenBSD 6.1                  |
+ |  FreeBSD   |       |      |                 |                       |
+ |   11.1  FreeBSD    |      |                 |                       |
+ |     |    10.4      |      |            OpenBSD 6.2                  |
+ |     v              |      |                 |               DragonFly 5.0.0
  |                    |      |                 |                       |
 FreeBSD 12 -current   |  NetBSD -current  OpenBSD -current    DragonFly -current
  |                    |      |                 |                       |
@@ -369,7 +371,7 @@ was the announcement in Usenet or if it was available as tape.
 [44B] McKusick, Marshall Kirk, Keith Bostic, Michael J Karels,
 	and John Quarterman. The Design and Implementation of
 	the 4.4BSD Operating System.
-[APL] Apple website [http://www.apple.com/macosx/]
+[APL] Apple website [https://www.apple.com/macosx/]
 [BSDI] Berkeley Software Design, Inc.
 [DFB] DragonFlyBSD Project, The.
 [DOC] README, COPYRIGHT on tape.
@@ -715,6 +717,10 @@ NetBSD 7.1		2017-03-11 [NBD]
 DragonFly 4.8.0		2017-03-27 [DFB]
 OpenBSD 6.1		2017-04-11 [OBD]
 FreeBSD 11.1		2017-07-26 [FBD]
+macOS 10.13		2017-09-25 [APL]
+FreeBSD 10.4		2017-10-03 [FBD]
+OpenBSD 6.2		2017-10-09 [OBD]
+DragonFly 5.0.0		2017-10-16 [DFB]
 
 Bibliography
 ------------------------
@@ -751,10 +757,10 @@ Andreas Klemm, Lars Köller. If you're going to San Francisco ...
 Die freien BSD-Varianten von Unix. c't April 1997, page 368ff.
 
 BSD Release Announcements collection.
-URL: http://www.FreeBSD.org/releases/
+URL: https://www.FreeBSD.org/releases/
 
 BSD Hypertext Man Pages
-URL: http://www.FreeBSD.org/cgi/man.cgi
+URL: https://www.FreeBSD.org/cgi/man.cgi
 
 UNIX history graphing project
 URL: http://minnie.tuhs.org/Unix_History/index.html

@@ -927,7 +927,7 @@ cgaccount(cg, vp, nbp, passno)
 	error = UFS_BALLOC(vp, lblktosize(fs, (off_t)(base + loc)),
 	    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 	if (error) {
-		return (error);
+		goto out;
 	}
 	indiroff = (base + loc - UFS_NDADDR) % NINDIR(fs);
 	for ( ; loc < len; loc++, indiroff++) {
@@ -939,7 +939,7 @@ cgaccount(cg, vp, nbp, passno)
 			    lblktosize(fs, (off_t)(base + loc)),
 			    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			if (error) {
-				return (error);
+				goto out;
 			}
 			indiroff = 0;
 		}
@@ -967,7 +967,21 @@ cgaccount(cg, vp, nbp, passno)
 	if (passno == 2)
 		ibp->b_flags |= B_VALIDSUSPWRT;
 	bdwrite(ibp);
-	return (0);
+out:
+	/*
+	 * We have to calculate the crc32c here rather than just setting the
+	 * BX_CYLGRP b_xflags because the allocation of the block for the
+	 * the cylinder group map will always be a full size block (fs_bsize)
+	 * even though the cylinder group may be smaller (fs_cgsize). The
+	 * crc32c must be computed only over fs_cgsize whereas the BX_CYLGRP
+	 * flag causes it to be computed over the size of the buffer.
+	 */
+	if ((fs->fs_metackhash & CK_CYLGRP) != 0) {
+		((struct cg *)nbp->b_data)->cg_ckhash = 0;
+		((struct cg *)nbp->b_data)->cg_ckhash =
+		    calculate_crc32c(~0L, nbp->b_data, fs->fs_cgsize);
+	}
+	return (error);
 }
 
 /*

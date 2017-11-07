@@ -27,6 +27,7 @@
  */
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifndef _EFIZFS_H_
 #define _EFIZFS_H_
@@ -45,6 +46,7 @@ extern uint64_t pool_guid;
 
 extern void efi_zfs_probe(void);
 extern zfsinfo_list_t *efizfs_get_zfsinfo_list(void);
+extern bool efi_zfs_is_preferred(EFI_HANDLE *h);
 extern EFI_HANDLE efizfs_get_handle_by_guid(uint64_t);
 
 #endif

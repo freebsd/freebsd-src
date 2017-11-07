@@ -56,9 +56,8 @@
 static daddr_t	ext2_alloccg(struct inode *, int, daddr_t, int);
 static daddr_t	ext2_clusteralloc(struct inode *, int, daddr_t, int);
 static u_long	ext2_dirpref(struct inode *);
-static void	ext2_fserr(struct m_ext2fs *, uid_t, char *);
-static u_long	ext2_hashalloc(struct inode *, int, long, int,
-				daddr_t (*)(struct inode *, int, daddr_t, 
+static e4fs_daddr_t ext2_hashalloc(struct inode *, int, long, int,
+    daddr_t (*)(struct inode *, int, daddr_t, 
 						int));
 static daddr_t	ext2_nodealloccg(struct inode *, int, daddr_t, int);
 static daddr_t  ext2_mapsearch(struct m_ext2fs *, char *, daddr_t);
@@ -86,7 +85,7 @@ ext2_alloc(struct inode *ip, daddr_t lbn, e4fs_daddr_t bpref, int size,
 {
 	struct m_ext2fs *fs;
 	struct ext2mount *ump;
-	int32_t bno;
+	e4fs_daddr_t bno;
 	int cg;
 
 	*bnp = 0;
@@ -135,20 +134,21 @@ nospace:
 /*
  * Allocate EA's block for inode.
  */
-daddr_t
-ext2_allocfacl(struct inode *ip)
+e4fs_daddr_t
+ext2_alloc_meta(struct inode *ip)
 {
 	struct m_ext2fs *fs;
-	daddr_t facl;
+	daddr_t blk;
 
 	fs = ip->i_e2fs;
 
 	EXT2_LOCK(ip->i_ump);
-	facl = ext2_alloccg(ip, ino_to_cg(fs, ip->i_number), 0, fs->e2fs_bsize);
-	if (0 == facl)
+	blk = ext2_hashalloc(ip, ino_to_cg(fs, ip->i_number), 0, fs->e2fs_bsize,
+	    ext2_alloccg);
+	if (0 == blk)
 		EXT2_UNLOCK(ip->i_ump);
 
-	return (facl);
+	return (blk);
 }
 
 /*
@@ -173,7 +173,7 @@ static int doasyncfree = 1;
 SYSCTL_INT(_vfs_ext2fs, OID_AUTO, doasyncfree, CTLFLAG_RW, &doasyncfree, 0,
     "Use asychronous writes to update block pointers when freeing blocks");
 
-static int doreallocblks = 1;
+static int doreallocblks = 0;
 
 SYSCTL_INT(_vfs_ext2fs, OID_AUTO, doreallocblks, CTLFLAG_RW, &doreallocblks, 0, "");
 
@@ -201,7 +201,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	fs = ip->i_e2fs;
 	ump = ip->i_ump;
 
-	if (fs->e2fs_contigsumsize <= 0)
+	if (fs->e2fs_contigsumsize <= 0 || ip->i_flag & IN_E4EXTENTS)
 		return (ENOSPC);
 
 	buflist = ap->a_buflist;
@@ -376,7 +376,7 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	struct inode *ip;
 	struct ext2mount *ump;
 	ino_t ino, ipref;
-	int i, error, cg;
+	int error, cg;
 
 	*vpp = NULL;
 	pip = VTOI(pvp);
@@ -422,11 +422,12 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	ip->i_blocks = 0;
 	ip->i_mode = 0;
 	ip->i_flags = 0;
-	/* now we want to make sure that the block pointers are zeroed out */
-	for (i = 0; i < EXT2_NDADDR; i++)
-		ip->i_db[i] = 0;
-	for (i = 0; i < EXT2_NIADDR; i++)
-		ip->i_ib[i] = 0;
+	if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_EXTENTS)
+	    && (S_ISREG(mode) || S_ISDIR(mode)))
+		ext4_ext_tree_init(ip);
+	else
+		memset(ip->i_data, 0, sizeof(ip->i_data));
+	
 
 	/*
 	 * Set up a new generation number for this inode.
@@ -576,7 +577,10 @@ e4fs_daddr_t
 ext2_blkpref(struct inode *ip, e2fs_lbn_t lbn, int indx, e2fs_daddr_t *bap,
     e2fs_daddr_t blocknr)
 {
+	struct m_ext2fs *fs;
 	int tmp;
+
+	fs = ip->i_e2fs;
 
 	mtx_assert(EXT2_MTX(ip->i_ump), MA_OWNED);
 
@@ -600,10 +604,9 @@ ext2_blkpref(struct inode *ip, e2fs_lbn_t lbn, int indx, e2fs_daddr_t *bap,
 	 * Else lets fall back to the blocknr or, if there is none, follow
 	 * the rule that a block should be allocated near its inode.
 	 */
-	return blocknr ? blocknr :
+	return (blocknr ? blocknr :
 	    (e2fs_daddr_t)(ip->i_block_group *
-	    EXT2_BLOCKS_PER_GROUP(ip->i_e2fs)) +
-	    ip->i_e2fs->e2fs->e2fs_first_dblock;
+	    EXT2_BLOCKS_PER_GROUP(fs)) + fs->e2fs->e2fs_first_dblock);
 }
 
 /*
@@ -614,12 +617,12 @@ ext2_blkpref(struct inode *ip, e2fs_lbn_t lbn, int indx, e2fs_daddr_t *bap,
  *   2) quadradically rehash on the cylinder group number.
  *   3) brute force search for a free block.
  */
-static u_long
+static e4fs_daddr_t
 ext2_hashalloc(struct inode *ip, int cg, long pref, int size,
     daddr_t (*allocator) (struct inode *, int, daddr_t, int))
 {
 	struct m_ext2fs *fs;
-	ino_t result;
+	e4fs_daddr_t result;
 	int i, icg = cg;
 
 	mtx_assert(EXT2_MTX(ip->i_ump), MA_OWNED);
@@ -1178,7 +1181,7 @@ ext2_blkfree(struct inode *ip, e4fs_daddr_t bno, long size)
 	fs = ip->i_e2fs;
 	ump = ip->i_ump;
 	cg = dtog(fs, bno);
-	if ((u_int)bno >= fs->e2fs->e2fs_bcount) {
+	if (bno >= fs->e2fs->e2fs_bcount) {
 		printf("bad block %lld, ino %ju\n", (long long)bno,
 		    (uintmax_t)ip->i_number);
 		ext2_fserr(fs, ip->i_uid, "bad block");
@@ -1303,7 +1306,7 @@ ext2_mapsearch(struct m_ext2fs *fs, char *bbp, daddr_t bpref)
  * The form of the error message is:
  *	fs: error message
  */
-static void
+void
 ext2_fserr(struct m_ext2fs *fs, uid_t uid, char *cp)
 {
 

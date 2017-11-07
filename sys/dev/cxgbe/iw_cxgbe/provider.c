@@ -388,6 +388,24 @@ c4iw_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr *props)
 	return 0;
 }
 
+static int c4iw_port_immutable(struct ib_device *ibdev, u8 port_num,
+			       struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
+
+	err = ib_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+
+	return 0;
+}
+
 /*
  * Returns -errno on error.
  */
@@ -471,6 +489,7 @@ c4iw_register_device(struct c4iw_dev *dev)
 	ibdev->post_send = c4iw_post_send;
 	ibdev->post_recv = c4iw_post_receive;
 	ibdev->uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
+	ibdev->get_port_immutable = c4iw_port_immutable;
 
 	iwcm = kmalloc(sizeof(*iwcm), GFP_KERNEL);
 	if (iwcm == NULL)

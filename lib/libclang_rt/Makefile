@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 SUBDIR+=	include
 SUBDIR+=	asan

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
+#define	_WANT_SOCKET
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
@@ -172,7 +173,7 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
 	xso->xso_family = domain.dom_family;
 	xso->so_timeo = so->so_timeo;
 	xso->so_error = so->so_error;
-	if (SOLISTENING(so)) {
+	if ((so->so_options & SO_ACCEPTCONN) != 0) {
 		xso->so_qlen = so->sol_qlen;
 		xso->so_incqlen = so->sol_incqlen;
 		xso->so_qlimit = so->sol_qlimit;

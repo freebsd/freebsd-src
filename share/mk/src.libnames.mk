@@ -20,6 +20,7 @@ _PRIVATELIBS=	\
 		event \
 		heimipcc \
 		heimipcs \
+		ifconfig \
 		ldns \
 		sqlite3 \
 		ssh \
@@ -42,6 +43,7 @@ _INTERNALLIBS=	\
 		opts \
 		parse \
 		pe \
+		pmcstat \
 		readline \
 		sl \
 		sm \
@@ -108,7 +110,6 @@ _LIBRARIES=	\
 		heimntlm \
 		heimsqlite \
 		hx509 \
-		ifconfig \
 		ipsec \
 		jail \
 		kadm5clnt \
@@ -464,6 +465,9 @@ LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 
 LIBAMUDIR=	${OBJTOP}/usr.sbin/amd/libamu
 LIBAMU?=	${LIBAMUDIR}/libamu.a
+
+LIBPMCSTATDIR=	${OBJTOP}/lib/libpmcstat
+LIBPMCSTAT?=	${LIBPMCSTATDIR}/libpmcstat.a
 
 # Define a directory for each library.  This is useful for adding -L in when
 # not using a --sysroot or for meta mode bootstrapping when there is no

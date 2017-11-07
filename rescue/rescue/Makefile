@@ -67,10 +67,6 @@ CRUNCH_ALIAS_rm= unlink
 CRUNCH_ALIAS_ed= red
 CRUNCH_ALIAS_pkill= pgrep
 
-.if ${MK_RCMDS} != "no"
-CRUNCH_PROGS_bin+= rcp
-.endif
-
 .if ${MK_TCSH} != "no"
 CRUNCH_PROGS_bin+= csh
 CRUNCH_ALIAS_csh= -csh tcsh -tcsh
@@ -89,7 +85,7 @@ CRUNCH_SUPPRESS_LINK_-tcsh= 1
 # headers in addition to the standard 'paths.h' header.
 #
 CRUNCH_SRCDIRS+= sbin
-CRUNCH_PROGS_sbin= badsect					\
+CRUNCH_PROGS_sbin= 						\
 	camcontrol clri devfs dmesg dump			\
 	dumpfs dumpon fsck fsck_ffs fsck_msdosfs fsdb		\
 	fsirand gbde geom ifconfig init 			\

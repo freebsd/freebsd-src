@@ -4,11 +4,11 @@
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
 #
-#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
 # The handbook is also available locally in /usr/share/doc/handbook
 # if you've installed the doc distribution, otherwise always see the
-# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
@@ -22,13 +22,13 @@ ident		GENERIC
 
 cpu		CPU_CORTEXA
 options 	SMP_ON_UP
-machine 	arm armv6
+machine 	arm armv7
 makeoptions	CONF_CFLAGS="-march=armv7a"
 
 makeoptions	KERNVIRTADDR=0xc0000000
 options 	KERNVIRTADDR=0xc0000000
 
-include 	"std.armv6"
+include 	"std.armv7"
 files		"../allwinner/files.allwinner"
 files		"../allwinner/files.allwinner_up"
 files		"../allwinner/a10/files.a10"
@@ -40,11 +40,13 @@ files		"../allwinner/a83t/files.a83t"
 files		"../allwinner/h3/files.h3"
 files		"../broadcom/bcm2835/files.bcm2836"
 files		"../broadcom/bcm2835/files.bcm283x"
+files		"../freescale/imx/files.imx6"
 files		"../nvidia/tegra124/files.tegra124"
 files		"../qemu/files.qemu"
 files		"../ti/files.ti"
 files		"../ti/am335x/files.am335x"
 files		"../ti/omap4/files.omap4"
+files		"../xilinx/files.zynq7"
 
 options 	SOC_ALLWINNER_A10
 options 	SOC_ALLWINNER_A13
@@ -97,6 +99,7 @@ device		ahci			# AHCI-compatible SATA controllers
 # PCI
 options 	NEW_PCIB
 device		pci
+device		pci_host_generic
 
 # PCI NICs
 device		re			# RealTek 8139C+/8169/8169S/8110S
@@ -104,6 +107,7 @@ device		re			# RealTek 8139C+/8169/8169S/8110S
 # VirtIO
 device		virtio
 device		virtio_mmio
+device		virtio_pci
 device		virtio_blk
 device		vtnet
 
@@ -116,6 +120,7 @@ device		pty
 device		snp
 device		md			# Memory "disks"
 device		random			# Entropy device
+device		firmware		# firmware assist module
 device		pl310			# PL310 L2 cache controller
 device		psci
 
@@ -128,6 +133,7 @@ device		p2wi			# Allwinner Push-Pull Two Wire
 device		axp209			# AXP209 Power Management Unit
 device		axp81x			# AXP813/818 Power Management Unit
 device		bcm2835_bsc
+device		fsliic			# Freescale i2c/iic
 device		icee			# AT24Cxxx and compatible EEPROMs
 device		sy8106a			# SY8106A Buck Regulator
 device		ti_i2c
@@ -171,6 +177,7 @@ device		ti_adc
 # reboot automatically because the boot loader might have enabled the
 # watchdog.
 device		ti_wdt
+device		imxwdt			# Watchdog. WARNING: can't be disabled!!!
 
 device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
@@ -186,6 +193,7 @@ device		ehci
 device		dwcotg			# DWC OTG controller
 device		musb
 
+device		axe			# USB-Ethernet
 device		umass			# Disks/Mass storage - Requires scbus and da
 device		uhid			# "Human Interface Devices"
 device		ukbd			# Allow keyboard like HIDs to control console
@@ -205,8 +213,10 @@ device		miibus
 
 device		awg			# 10/100/1000 integrated EMAC controller
 device		cpsw			# TI Common Platform Ethernet Switch (CPSW)
+device		cgem			# Zynq-7000 gig ethernet device
 device		dwc			# 10/100/1000 integrated GMAC controller
 device		emac			# 10/100 integrated EMAC controller
+device		ffec			# Freescale Fast Ethernet Controller
 device		smsc			# SMSC LAN91C111
 
 # Sound support
@@ -230,6 +240,7 @@ device		ti_pruss
 device		ti_mbox
 
 # DMA controller
+device		fslsdma
 device		ti_sdma
 
 # Extensible Firmware Interface
@@ -237,4 +248,4 @@ options 	EFI
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
-makeoptions	MODULES_EXTRA="dtb/allwinner dtb/am335x dtb/nvidia dtb/rpi dtb/omap4"
+makeoptions	MODULES_EXTRA="dtb/allwinner dtb/am335x dtb/imx6 dtb/nvidia dtb/rpi dtb/zynq dtb/omap4"

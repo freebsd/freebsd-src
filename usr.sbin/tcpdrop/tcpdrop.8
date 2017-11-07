@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 12, 2017
+.Dd September 15, 2017
 .Dt TCPDROP 8
 .Os
 .Sh NAME
@@ -77,6 +77,26 @@ is one of
 .Dv LAST_ACK ,
 .Dv FIN_WAIT_2 , or
 .Dv TIME_WAIT .
+.Pp
+If
+.Fl S Ar stack
+and
+.Fl s Ar state
+are specified,
+.Nm
+will attempt to drop all TCP connections being in the state
+.Ar state
+and using the TCP stack
+.Ar stack .
+Since TCP connections in the
+.Dv TIME_WAIT
+state are not tied to any TCP stack, using the option
+.Fl s Dv TIME_WAIT
+in combination with the
+.Fl S Ar stack
+option results in
+.Nm
+not dropping any TCP connection.
 .Pp
 The
 .Fl l
@@ -152,7 +172,9 @@ LAST_ACK state use:
 .Ed
 .Sh SEE ALSO
 .Xr netstat 1 ,
-.Xr sockstat 1
+.Xr sockstat 1 ,
+.Xr tcp 4 ,
+.Xr tcp_functions 9
 .Sh AUTHORS
 .An Markus Friedl Aq Mt markus@openbsd.org
 .An Juli Mallett Aq Mt jmallett@FreeBSD.org

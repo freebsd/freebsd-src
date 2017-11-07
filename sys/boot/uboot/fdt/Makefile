@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
 
-.PATH: ${.CURDIR}/../../common
+.PATH: ${LDRSRC}
 
 LIB=		uboot_fdt
 INTERNALLIB=
@@ -12,23 +12,14 @@ SRCS=		uboot_fdt.c
 
 CFLAGS+=	-ffreestanding -msoft-float
 
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
-
 # U-Boot library headers
-CFLAGS+=	-I${.CURDIR}/../lib
+CFLAGS+=	-I${UBOOTSRC}/lib
 
 # libfdt headers
-CFLAGS+=	-I${.CURDIR}/../../fdt
+CFLAGS+=	-I${FDTSRC}
 
 # Pick up the bootstrap header for some interface items
-CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
-
-machine: .NOMETA
-	ln -sf ${.CURDIR}/../../../${MACHINE_CPUARCH}/include machine
-
-CLEANFILES+=	machine
+CFLAGS+=	-I${LDRSRC} -I${SYSDIR} -I.
 
 .include <bsd.stand.mk>
 .include <bsd.lib.mk>
-
-beforedepend ${OBJS}: machine

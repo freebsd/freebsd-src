@@ -1,6 +1,60 @@
+2017-09-02  11:53  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.32
+
+2017-08-28  16:37  Christos Zoulas <christos@zoulas.com>
+
+	* Always reset state in {file,buffer}_apprentice (Krzysztof Wilczynski)
+
+2017-08-27  03:55  Christos Zoulas <christos@zoulas.com>
+
+	* Fix always true condition (Thomas Jarosch)
+
+2017-05-24  17:30  Christos Zoulas <christos@zoulas.com>
+
+	* pickier parsing of numeric values in magic files.
+
+2017-05-23  17:55  Christos Zoulas <christos@zoulas.com>
+
+	* PR/615 add magic_getflags()
+
+2017-05-23  13:55  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.31
+
+2017-03-17  20:32  Christos Zoulas <christos@zoulas.com>
+
+	* remove trailing spaces from magic files
+	* refactor is_tar
+	* better bounds checks for cdf
+
+2017-02-10  12:24  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.30
+
+2017-02-07  23:27  Christos Zoulas <christos@zoulas.com>
+
+	* If we exceeded the offset in a search return no match
+	  (Christoph Biedl)
+	* Be more lenient on corrupt CDF files (Christoph Biedl)
+
+2017-02-04  16:46  Christos Zoulas <christos@zoulas.com>
+
+	* pacify ubsan sign extension (oss-fuzz/524)
+
+2017-02-01  12:42  Christos Zoulas <christos@zoulas.com>
+
+	* off by one in cdf parsing (PR/593)
+	* report debugging sections in elf (PR/591)
+
+2016-11-06  10:52  Christos Zoulas <christos@zoulas.com>
+
+	* Allow @@@ in extensions
+	* Add missing overflow check in der magic (Jonas Wagner)
+
 2016-10-25  10:40  Christos Zoulas <christos@zoulas.com>
 	
-	* release 5.28
+	* release 5.29
 
 2016-10-24  11:20  Christos Zoulas <christos@zoulas.com>
 
@@ -387,7 +441,7 @@
 		`
 2013-11-06  14:40  Christos Zoulas <christos@zoulas.com>
 
-	* fix erroneous non-zero exit code from non-existant file and message
+	* fix erroneous non-zero exit code from non-existent file and message
 
 2013-10-29  14:25  Christos Zoulas <christos@zoulas.com>
 

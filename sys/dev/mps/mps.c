@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/endian.h>
 #include <sys/eventhandler.h>
+#include <sys/sbuf.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -102,6 +103,9 @@ static int mps_reregister_events(struct mps_softc *sc);
 static void mps_enqueue_request(struct mps_softc *sc, struct mps_command *cm);
 static int mps_get_iocfacts(struct mps_softc *sc, MPI2_IOC_FACTS_REPLY *facts);
 static int mps_wait_db_ack(struct mps_softc *sc, int timeout, int sleep_flag);
+static int mps_debug_sysctl(SYSCTL_HANDLER_ARGS);
+static void mps_parse_debug(struct mps_softc *sc, char *list);
+
 SYSCTL_NODE(_hw, OID_AUTO, mps, CTLFLAG_RD, 0, "MPS Driver Parameters");
 
 MALLOC_DEFINE(M_MPT2, "mps", "mpt2 driver memory");
@@ -1452,7 +1456,7 @@ mps_init_queues(struct mps_softc *sc)
 void
 mps_get_tunables(struct mps_softc *sc)
 {
-	char tmpstr[80];
+	char tmpstr[80], mps_debug[80];
 
 	/* XXX default to some debugging for now */
 	sc->mps_debug = MPS_INFO|MPS_FAULT;
@@ -1472,7 +1476,9 @@ mps_get_tunables(struct mps_softc *sc)
 	/*
 	 * Grab the global variables.
 	 */
-	TUNABLE_INT_FETCH("hw.mps.debug_level", &sc->mps_debug);
+	bzero(mps_debug, 80);
+	if (TUNABLE_STR_FETCH("hw.mps.debug_level", mps_debug, 80) != 0)
+		mps_parse_debug(sc, mps_debug);
 	TUNABLE_INT_FETCH("hw.mps.disable_msix", &sc->disable_msix);
 	TUNABLE_INT_FETCH("hw.mps.disable_msi", &sc->disable_msi);
 	TUNABLE_INT_FETCH("hw.mps.max_msix", &sc->max_msix);
@@ -1489,7 +1495,9 @@ mps_get_tunables(struct mps_softc *sc)
 	/* Grab the unit-instance variables */
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.debug_level",
 	    device_get_unit(sc->mps_dev));
-	TUNABLE_INT_FETCH(tmpstr, &sc->mps_debug);
+	bzero(mps_debug, 80);
+	if (TUNABLE_STR_FETCH(tmpstr, mps_debug, 80) != 0)
+		mps_parse_debug(sc, mps_debug);
 
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.disable_msix",
 	    device_get_unit(sc->mps_dev));
@@ -1576,9 +1584,9 @@ mps_setup_sysctl(struct mps_softc *sc)
 		sysctl_tree = sc->sysctl_tree;
 	}
 
-	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
-	    OID_AUTO, "debug_level", CTLFLAG_RW, &sc->mps_debug, 0,
-	    "mps debug level");
+	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "debug_level", CTLTYPE_STRING | CTLFLAG_RW |CTLFLAG_MPSAFE,
+	    sc, 0, mps_debug_sysctl, "A", "mps debug level");
 
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "disable_msix", CTLFLAG_RD, &sc->disable_msix, 0,
@@ -1669,6 +1677,133 @@ mps_setup_sysctl(struct mps_softc *sc)
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "use_phy_num", CTLFLAG_RD, &sc->use_phynum, 0,
 	    "Use the phy number for enumeration");
+}
+
+static struct mps_debug_string {
+	char	*name;
+	int	flag;
+} mps_debug_strings[] = {
+	{"info", MPS_INFO},
+	{"fault", MPS_FAULT},
+	{"event", MPS_EVENT},
+	{"log", MPS_LOG},
+	{"recovery", MPS_RECOVERY},
+	{"error", MPS_ERROR},
+	{"init", MPS_INIT},
+	{"xinfo", MPS_XINFO},
+	{"user", MPS_USER},
+	{"mapping", MPS_MAPPING},
+	{"trace", MPS_TRACE}
+};
+
+enum mps_debug_level_combiner {
+	COMB_NONE,
+	COMB_ADD,
+	COMB_SUB
+};
+
+static int
+mps_debug_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct mps_softc *sc;
+	struct mps_debug_string *string;
+	struct sbuf *sbuf;
+	char *buffer;
+	size_t sz;
+	int i, len, debug, error;
+
+	sc = (struct mps_softc *)arg1;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+
+	sbuf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+	debug = sc->mps_debug;
+
+	sbuf_printf(sbuf, "%#x", debug);
+
+	sz = sizeof(mps_debug_strings) / sizeof(mps_debug_strings[0]);
+	for (i = 0; i < sz; i++) {
+		string = &mps_debug_strings[i];
+		if (debug & string->flag)
+			sbuf_printf(sbuf, ",%s", string->name);
+	}
+
+	error = sbuf_finish(sbuf);
+	sbuf_delete(sbuf);
+
+	if (error || req->newptr == NULL)
+		return (error);
+
+	len = req->newlen - req->newidx;
+	if (len == 0)
+		return (0);
+
+	buffer = malloc(len, M_MPT2, M_ZERO|M_WAITOK);
+	error = SYSCTL_IN(req, buffer, len);
+
+	mps_parse_debug(sc, buffer);
+
+	free(buffer, M_MPT2);
+	return (error);
+}
+
+static void
+mps_parse_debug(struct mps_softc *sc, char *list)
+{
+	struct mps_debug_string *string;
+	enum mps_debug_level_combiner op;
+	char *token, *endtoken;
+	size_t sz;
+	int flags, i;
+
+	if (list == NULL || *list == '\0')
+		return;
+
+	if (*list == '+') {
+		op = COMB_ADD;
+		list++;
+	} else if (*list == '-') {
+		op = COMB_SUB;
+		list++;
+	} else
+		op = COMB_NONE;
+	if (*list == '\0')
+		return;
+
+	flags = 0;
+	sz = sizeof(mps_debug_strings) / sizeof(mps_debug_strings[0]);
+	while ((token = strsep(&list, ":,")) != NULL) {
+
+		/* Handle integer flags */
+		flags |= strtol(token, &endtoken, 0);
+		if (token != endtoken)
+			continue;
+
+		/* Handle text flags */
+		for (i = 0; i < sz; i++) {
+			string = &mps_debug_strings[i];
+			if (strcasecmp(token, string->name) == 0) {
+				flags |= string->flag;
+				break;
+			}
+		}
+	}
+
+	switch (op) {
+	case COMB_NONE:
+		sc->mps_debug = flags;
+		break;
+	case COMB_ADD:
+		sc->mps_debug |= flags;
+		break;
+	case COMB_SUB:
+		sc->mps_debug &= (~flags);
+		break;
+	}
+
+	return;
 }
 
 int

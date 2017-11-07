@@ -188,6 +188,24 @@ hn_rndis_get_linkstatus(struct hn_softc *sc, uint32_t *link_status)
 	return (0);
 }
 
+int
+hn_rndis_get_mtu(struct hn_softc *sc, uint32_t *mtu)
+{
+	size_t size;
+	int error;
+
+	size = sizeof(*mtu);
+	error = hn_rndis_query(sc, OID_GEN_MAXIMUM_FRAME_SIZE, NULL, 0,
+	    mtu, &size);
+	if (error)
+		return (error);
+	if (size != sizeof(uint32_t)) {
+		if_printf(sc->hn_ifp, "invalid mtu len %zu\n", size);
+		return (EINVAL);
+	}
+	return (0);
+}
+
 static const void *
 hn_rndis_xact_exec1(struct hn_softc *sc, struct vmbus_xact *xact, size_t reqlen,
     struct hn_nvs_sendctx *sndc, size_t *comp_len)
@@ -502,7 +520,11 @@ hn_rndis_query_rsscaps(struct hn_softc *sc, int *rxr_cnt0)
 
 	/* Commit! */
 	sc->hn_rss_ind_size = indsz;
-	sc->hn_rss_hash = hash_func | hash_types;
+	sc->hn_rss_hcap = hash_func | hash_types;
+	if (sc->hn_caps & HN_CAP_UDPHASH) {
+		/* UDP 4-tuple hash is unconditionally enabled. */
+		sc->hn_rss_hcap |= NDIS_HASH_UDP_IPV4_X;
+	}
 	*rxr_cnt0 = rxr_cnt;
 	return (0);
 }
@@ -742,8 +764,10 @@ hn_rndis_conf_rss(struct hn_softc *sc, uint16_t flags)
 	    ("NDIS 6.20+ is required, NDIS version 0x%08x", sc->hn_ndis_ver));
 
 	/* XXX only one can be specified through, popcnt? */
-	KASSERT((sc->hn_rss_hash & NDIS_HASH_FUNCTION_MASK), ("no hash func"));
-	KASSERT((sc->hn_rss_hash & NDIS_HASH_TYPE_MASK), ("no hash types"));
+	KASSERT((sc->hn_rss_hash & NDIS_HASH_FUNCTION_MASK),
+	    ("no hash func %08x", sc->hn_rss_hash));
+	KASSERT((sc->hn_rss_hash & NDIS_HASH_STD),
+	    ("no standard hash types %08x", sc->hn_rss_hash));
 	KASSERT(sc->hn_rss_ind_size > 0, ("no indirect table size"));
 
 	if (bootverbose) {
@@ -762,7 +786,8 @@ hn_rndis_conf_rss(struct hn_softc *sc, uint16_t flags)
 	prm->ndis_hdr.ndis_rev = NDIS_RSS_PARAMS_REV_2;
 	prm->ndis_hdr.ndis_size = rss_size;
 	prm->ndis_flags = flags;
-	prm->ndis_hash = sc->hn_rss_hash;
+	prm->ndis_hash = sc->hn_rss_hash &
+	    (NDIS_HASH_FUNCTION_MASK | NDIS_HASH_STD);
 	prm->ndis_indsize = sizeof(rss->rss_ind[0]) * sc->hn_rss_ind_size;
 	prm->ndis_indoffset =
 	    __offsetof(struct ndis_rssprm_toeplitz, rss_ind[0]);

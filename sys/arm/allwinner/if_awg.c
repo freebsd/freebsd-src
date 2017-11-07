@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
 #define	TX_SKIP(n, o)		(((n) + (o)) & (TX_DESC_COUNT - 1))
 #define	RX_NEXT(n)		(((n) + 1) & (RX_DESC_COUNT - 1))
 
-#define	TX_MAX_SEGS		10
+#define	TX_MAX_SEGS		20
 
 #define	SOFT_RST_RETRY		1000
 #define	MII_BUSY_RETRY		1000
@@ -192,6 +192,7 @@ struct awg_softc {
 	struct resource		*res[_RES_NITEMS];
 	struct mtx		mtx;
 	if_t			ifp;
+	device_t		dev;
 	device_t		miibus;
 	struct callout		stat_ch;
 	struct task		link_task;
@@ -421,14 +422,18 @@ awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
 	    sc->tx.buf_map[index].map, m, segs, &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
 		m = m_collapse(m, M_NOWAIT, TX_MAX_SEGS);
-		if (m == NULL)
+		if (m == NULL) {
+			device_printf(sc->dev, "awg_setup_txbuf: m_collapse failed\n");
 			return (0);
+		}
 		*mp = m;
 		error = bus_dmamap_load_mbuf_sg(sc->tx.buf_tag,
 		    sc->tx.buf_map[index].map, m, segs, &nsegs, BUS_DMA_NOWAIT);
 	}
-	if (error != 0)
+	if (error != 0) {
+		device_printf(sc->dev, "awg_setup_txbuf: bus_dmamap_load_mbuf_sg failed\n");
 		return (0);
+	}
 
 	bus_dmamap_sync(sc->tx.buf_tag, sc->tx.buf_map[index].map,
 	    BUS_DMASYNC_PREWRITE);
@@ -1041,10 +1046,10 @@ awg_ioctl(if_t ifp, u_long cmd, caddr_t data)
 			if_togglecapenable(ifp, IFCAP_RXCSUM);
 		if (mask & IFCAP_TXCSUM)
 			if_togglecapenable(ifp, IFCAP_TXCSUM);
-		if ((if_getcapenable(ifp) & (IFCAP_RXCSUM|IFCAP_TXCSUM)) != 0)
-			if_sethwassistbits(ifp, CSUM_IP, 0);
+		if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
+			if_sethwassistbits(ifp, CSUM_IP | CSUM_UDP | CSUM_TCP, 0);
 		else
-			if_sethwassistbits(ifp, 0, CSUM_IP);
+			if_sethwassistbits(ifp, 0, CSUM_IP | CSUM_UDP | CSUM_TCP);
 		break;
 	default:
 		error = ether_ioctl(ifp, cmd, data);
@@ -1613,6 +1618,7 @@ awg_attach(device_t dev)
 	int error;
 
 	sc = device_get_softc(dev);
+	sc->dev = dev;
 	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	node = ofw_bus_get_node(dev);
 

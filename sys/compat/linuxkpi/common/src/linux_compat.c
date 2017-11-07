@@ -745,8 +745,6 @@ linux_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	int error;
 
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (0);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -879,8 +877,6 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	int error;
 
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -906,7 +902,20 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		/* fetch user-space pointer */
 		data = *(void **)data;
 	}
-	if (filp->f_op->unlocked_ioctl)
+#if defined(__amd64__)
+	if (td->td_proc->p_elf_machine == EM_386) {
+		/* try the compat IOCTL handler first */
+		if (filp->f_op->compat_ioctl != NULL)
+			error = -filp->f_op->compat_ioctl(filp, cmd, (u_long)data);
+		else
+			error = ENOTTY;
+
+		/* fallback to the regular IOCTL handler, if any */
+		if (error == ENOTTY && filp->f_op->unlocked_ioctl != NULL)
+			error = -filp->f_op->unlocked_ioctl(filp, cmd, (u_long)data);
+	} else
+#endif
+	if (filp->f_op->unlocked_ioctl != NULL)
 		error = -filp->f_op->unlocked_ioctl(filp, cmd, (u_long)data);
 	else
 		error = ENOTTY;
@@ -935,8 +944,6 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 
 	td = curthread;
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -977,8 +984,6 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 	td = curthread;
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -1008,6 +1013,8 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	return (error);
 }
 
+#define	LINUX_POLL_TABLE_NORMAL ((poll_table *)1)
+
 static int
 linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 {
@@ -1015,8 +1022,6 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	struct file *file;
 	int revents;
 
-	if (dev->si_drv1 == NULL)
-		goto error;
 	if (devfs_get_cdevpriv((void **)&filp) != 0)
 		goto error;
 
@@ -1024,7 +1029,7 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	filp->f_flags = file->f_flag;
 	linux_set_current(td);
 	if (filp->f_op->poll != NULL)
-		revents = filp->f_op->poll(filp, NULL) & events;
+		revents = filp->f_op->poll(filp, LINUX_POLL_TABLE_NORMAL) & events;
 	else
 		revents = 0;
 
@@ -1081,7 +1086,9 @@ linux_poll_wait(struct linux_file *filp, wait_queue_head_t *wqh, poll_table *p)
 		[LINUX_FWQ_STATE_READY] = LINUX_FWQ_STATE_QUEUED,
 	};
 
-	selrecord(curthread, &filp->f_selinfo);
+	/* check if we are called inside the select system call */
+	if (p == LINUX_POLL_TABLE_NORMAL)
+		selrecord(curthread, &filp->f_selinfo);
 
 	switch (linux_poll_wakeup_state(&filp->f_wait_queue.state, state)) {
 	case LINUX_FWQ_STATE_INIT:
@@ -1216,8 +1223,6 @@ linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
 
 	td = curthread;
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -1268,8 +1273,6 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 
 	td = curthread;
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENODEV);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -1425,10 +1428,9 @@ linux_file_poll(struct file *file, int events, struct ucred *active_cred,
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
 	linux_set_current(td);
-	if (filp->f_op->poll != NULL) {
-		selrecord(td, &filp->f_selinfo);
-		revents = filp->f_op->poll(filp, NULL) & events;
-	} else
+	if (filp->f_op->poll != NULL)
+		revents = filp->f_op->poll(filp, LINUX_POLL_TABLE_NORMAL) & events;
+	else
 		revents = 0;
 
 	return (revents);

@@ -2,6 +2,7 @@
 
 use strict;
 use warnings;
+use POSIX;
 use Test::More tests => 19;
 use Fcntl qw(:DEFAULT :seek);
 
@@ -10,6 +11,22 @@ use constant BLKS_PER_MB => 2048;
 
 my $unit;
 END { system "mdconfig -du$unit" if defined $unit };
+
+sub fsck_md {
+    my ($is_clean, $md);
+
+    $md = shift;
+
+    chomp(my @fsck_output = `fsck_ffs -Ffy ${md}a`);
+    $is_clean = WIFEXITED($?) &&
+    	(WEXITSTATUS($?) == 0 || WEXITSTATUS($?) == 7);
+    ok($is_clean, "checking ${md}a's filesystem");
+    if ($is_clean) {
+	diag "filesystem reported clean";
+    } else {
+	diag "filesystem not reported clean: " . join("\n", @fsck_output);
+    }
+}
 
 sub setsize {
     my ($partszMB, $unitszMB) = @_;
@@ -46,9 +63,8 @@ SKIP: {
 	    ok(setsize(10, 40), "Sized ${md}a to 10m");
 	    system "newfs -O $type -U ${md}a >/dev/null";
 	    is($?, 0, "Initialised the filesystem on ${md}a as UFS$type");
-	    chomp(my @out = `fsck -tufs -y ${md}a`);
-	    ok(!grep(/MODIFIED/, @out), "fsck says ${md}a is clean, " .
-		scalar(@out) . " lines of output");
+
+	    fsck_md($md);
 	}
 
 	extend20_zeroed: {
@@ -62,9 +78,7 @@ SKIP: {
 	    fill(30 * BLKS_PER_MB - $unallocated, $unallocated, chr(0))
 		if $unallocated;
 
-	    chomp(my @out = `fsck -tufs -y ${md}a`);
-	    ok(!grep(/MODIFIED/, @out), "fsck says ${md}a is clean, " .
-		scalar(@out) . " lines of output");
+	    fsck_md($md);
 	}
 
 	extend30_garbaged: {
@@ -78,9 +92,7 @@ SKIP: {
 	    fill(30 * BLKS_PER_MB - $unallocated, $unallocated, chr(0))
 		if $unallocated;
 
-	    chomp(my @out = `fsck -tufs -y ${md}a`);
-	    ok(!grep(/MODIFIED/, @out), "fsck says ${md}a is clean, " .
-		scalar(@out) . " lines of output");
+	    fsck_md($md);
 	}
     }
 

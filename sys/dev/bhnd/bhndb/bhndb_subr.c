@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -183,9 +187,10 @@ bhnd_generic_br_resume_child(device_t dev, device_t child)
 }
 
 /**
- * Find a SYS_RES_MEMORY resource containing the given address range.
+ * Find a host resource of @p type that maps the given range.
  * 
- * @param br The bhndb resource state to search.
+ * @param hr The resource state to search.
+ * @param type The resource type to search for (see SYS_RES_*).
  * @param start The start address of the range to search for.
  * @param count The size of the range to search for.
  * 
@@ -193,15 +198,13 @@ bhnd_generic_br_resume_child(device_t dev, device_t child)
  * @retval NULL if no resource containing the requested range can be found.
  */
 struct resource *
-bhndb_find_resource_range(struct bhndb_resources *br, rman_res_t start,
-     rman_res_t count)
+bhndb_host_resource_for_range(struct bhndb_host_resources *hr, int type,
+    rman_res_t start, rman_res_t count)
 {
-	KASSERT(br->res_avail, ("no host resources allocated"));
+	for (u_int i = 0; hr->resource_specs[i].type != -1; i++) {
+		struct resource *r = hr->resources[i];
 
-	for (u_int i = 0; br->res_spec[i].type != -1; i++) {
-		struct resource *r = br->res[i];
-
-		if (br->res_spec->type != SYS_RES_MEMORY)
+		if (hr->resource_specs[i].type != type)
 			continue;
 
 		/* Verify range */
@@ -218,23 +221,21 @@ bhndb_find_resource_range(struct bhndb_resources *br, rman_res_t start,
 }
 
 /**
- * Find the resource containing @p win.
+ * Find a host resource of that matches the given register window definition.
  * 
- * @param br The bhndb resource state to search.
- * @param win A register window.
+ * @param hr The resource state to search.
+ * @param win A register window definition.
  * 
- * @retval resource the resource containing @p win.
- * @retval NULL if no resource containing @p win can be found.
+ * @retval resource the host resource corresponding to @p win.
+ * @retval NULL if no resource corresponding to @p win can be found.
  */
 struct resource *
-bhndb_find_regwin_resource(struct bhndb_resources *br,
+bhndb_host_resource_for_regwin(struct bhndb_host_resources *hr,
     const struct bhndb_regwin *win)
 {
 	const struct resource_spec *rspecs;
 
-	KASSERT(br->res_avail, ("no host resources allocated"));
-
-	rspecs = br->cfg->resource_specs;
+	rspecs = hr->resource_specs;
 	for (u_int i = 0; rspecs[i].type != -1; i++) {			
 		if (win->res.type != rspecs[i].type)
 			continue;
@@ -243,12 +244,11 @@ bhndb_find_regwin_resource(struct bhndb_resources *br,
 			continue;
 
 		/* Found declared resource */
-		return (br->res[i]);
+		return (hr->resources[i]);
 	}
 
-	device_printf(br->dev,
-	    "missing regwin resource spec (type=%d, rid=%d)\n",
-	    win->res.type, win->res.rid);
+	device_printf(hr->owner, "missing regwin resource spec "
+	    "(type=%d, rid=%d)\n", win->res.type, win->res.rid);
 
 	return (NULL);
 }
@@ -281,8 +281,8 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 
 	/* Basic initialization */
 	r->dev = dev;
-	r->parent_dev = parent_dev;
 	r->cfg = cfg;
+	r->res = NULL;
 	r->min_prio = BHNDB_PRIORITY_NONE;
 	STAILQ_INIT(&r->bus_regions);
 	
@@ -380,6 +380,72 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 		rnid++;
 	}
 
+	/* Allocate host resources */
+	error = bhndb_alloc_host_resources(parent_dev, r->cfg, &r->res);
+	if (error) {
+		device_printf(r->dev,
+		    "could not allocate host resources on %s: %d\n",
+		    device_get_nameunit(parent_dev), error);
+		goto failed;
+	}
+
+	/* Populate (and validate) parent resource references for all
+	 * dynamic windows */
+	for (size_t i = 0; i < r->dwa_count; i++) {
+		struct bhndb_dw_alloc		*dwa;
+		const struct bhndb_regwin	*win;
+
+		dwa = &r->dw_alloc[i];
+		win = dwa->win;
+
+		/* Find and validate corresponding resource. */
+		dwa->parent_res = bhndb_host_resource_for_regwin(r->res, win);
+		if (dwa->parent_res == NULL) {
+			device_printf(r->dev, "no host resource found for %u "
+			    "register window with offset %#jx and "
+			    "size %#jx\n",
+			    win->win_type,
+			    (uintmax_t)win->win_offset,
+			    (uintmax_t)win->win_size);
+
+			error = ENXIO;
+			goto failed;
+		}
+
+		if (rman_get_size(dwa->parent_res) < win->win_offset +
+		    win->win_size)
+		{
+			device_printf(r->dev, "resource %d too small for "
+			    "register window with offset %llx and size %llx\n",
+			    rman_get_rid(dwa->parent_res),
+			    (unsigned long long) win->win_offset,
+			    (unsigned long long) win->win_size);
+
+			error = EINVAL;
+			goto failed;
+		}
+	}
+
+	/* Add allocated memory resources to our host memory resource manager */
+	for (u_int i = 0; r->res->resource_specs[i].type != -1; i++) {
+		struct resource *res;
+		
+		/* skip non-memory resources */
+		if (r->res->resource_specs[i].type != SYS_RES_MEMORY)
+			continue;
+
+		/* add host resource to set of managed regions */
+		res = r->res->resources[i];
+		error = rman_manage_region(&r->ht_mem_rman,
+		    rman_get_start(res), rman_get_end(res));
+		if (error) {
+			device_printf(r->dev,
+			    "could not register host memory region with "
+			    "ht_mem_rman: %d\n", error);
+			goto failed;
+		}
+	}
+
 	return (r);
 
 failed:
@@ -395,134 +461,12 @@ failed:
 	if (r->dwa_freelist != NULL)
 		free(r->dwa_freelist, M_BHND);
 
+	if (r->res != NULL)
+		bhndb_release_host_resources(r->res);
+
 	free(r, M_BHND);
 
 	return (NULL);
-}
-
-/**
- * Allocate host resources required by @p br, and initialize
- * internal BHNDB_ADDRSPACE_NATIVE resource manager state.
- * 
- * @param br Resource state.
- */
-int
-bhndb_alloc_host_resources(struct bhndb_resources *br)
-{
-	size_t	res_num;
-	int	error;
-
-	KASSERT(!br->res_avail, ("host resources already allocated"));
-
-	/* Determine our bridge resource count from the hardware config. */
-	res_num = 0;
-	for (size_t i = 0; br->cfg->resource_specs[i].type != -1; i++)
-		res_num++;
-
-	/* Allocate space for a non-const copy of our resource_spec
-	 * table; this will be updated with the RIDs assigned by
-	 * bus_alloc_resources. */
-	br->res_spec = malloc(sizeof(br->res_spec[0]) * (res_num + 1), M_BHND,
-	    M_NOWAIT);
-	if (br->res_spec == NULL) {
-		error = ENOMEM;
-		goto failed;
-	}
-
-	/* Initialize and terminate the table */
-	for (size_t i = 0; i < res_num; i++)
-		br->res_spec[i] = br->cfg->resource_specs[i];
-	
-	br->res_spec[res_num].type = -1;
-
-	/* Allocate space for our resource references */
-	br->res = malloc(sizeof(br->res[0]) * res_num, M_BHND, M_NOWAIT);
-	if (br->res == NULL) {
-		error = ENOMEM;
-		goto failed;
-	}
-
-	/* Allocate host resources */
-	error = bus_alloc_resources(br->parent_dev, br->res_spec, br->res);
-	if (error) {
-		device_printf(br->dev,
-		    "could not allocate bridge resources on %s: %d\n",
-		    device_get_nameunit(br->parent_dev), error);
-		goto failed;
-	} else {
-		br->res_avail = true;
-	}
-
-	/* Populate (and validate) parent resource references for all
-	 * dynamic windows */
-	for (size_t i = 0; i < br->dwa_count; i++) {
-		struct bhndb_dw_alloc		*dwa;
-		const struct bhndb_regwin	*win;
-
-		dwa = &br->dw_alloc[i];
-		win = dwa->win;
-
-		/* Find and validate corresponding resource. */
-		dwa->parent_res = bhndb_find_regwin_resource(br, win);
-		if (dwa->parent_res == NULL) {
-			device_printf(br->dev, "no host resource found for %u "
-			    "register window with offset %#jx and "
-			    "size %#jx\n",
-			    win->win_type,
-			    (uintmax_t)win->win_offset,
-			    (uintmax_t)win->win_size);
-
-			error = ENXIO;
-			goto failed;
-		}
-
-		if (rman_get_size(dwa->parent_res) < win->win_offset +
-		    win->win_size)
-		{
-			device_printf(br->dev, "resource %d too small for "
-			    "register window with offset %llx and size %llx\n",
-			    rman_get_rid(dwa->parent_res),
-			    (unsigned long long) win->win_offset,
-			    (unsigned long long) win->win_size);
-
-			error = EINVAL;
-			goto failed;
-		}
-	}
-
-	/* Add allocated memory resources to our host memory resource manager */
-	for (u_int i = 0; br->res_spec[i].type != -1; i++) {
-		struct resource *res;
-		
-		/* skip non-memory resources */
-		if (br->res_spec[i].type != SYS_RES_MEMORY)
-			continue;
-
-		/* add host resource to set of managed regions */
-		res = br->res[i];
-		error = rman_manage_region(&br->ht_mem_rman,
-		    rman_get_start(res), rman_get_end(res));
-		if (error) {
-			device_printf(br->dev,
-			    "could not register host memory region with "
-			    "ht_mem_rman: %d\n", error);
-			goto failed;
-		}
-	}
-
-	return (0);
-
-failed:
-	if (br->res_avail)
-		bus_release_resources(br->parent_dev, br->res_spec, br->res);
-	
-	if (br->res != NULL)
-		free(br->res, M_BHND);
-
-	if (br->res_spec != NULL)
-		free(br->res_spec, M_BHND);
-
-	return (error);
 }
 
 /**
@@ -551,9 +495,9 @@ bhndb_free_resources(struct bhndb_resources *br)
 		}
 	}
 
-	/* Release resources allocated through our parent. */
-	if (br->res_avail)
-		bus_release_resources(br->parent_dev, br->res_spec, br->res);
+	/* Release host resources allocated through our parent. */
+	if (br->res != NULL)
+		bhndb_release_host_resources(br->res);
 
 	/* Clean up resource reservations */
 	for (size_t i = 0; i < br->dwa_count; i++) {
@@ -575,15 +519,151 @@ bhndb_free_resources(struct bhndb_resources *br)
 	rman_fini(&br->ht_mem_rman);
 	rman_fini(&br->br_mem_rman);
 
-	/* Free backing resource state structures */
-	if (br->res != NULL)
-		free(br->res, M_BHND);
-
-	if (br->res_spec != NULL)
-		free(br->res_spec, M_BHND);
-
 	free(br->dw_alloc, M_BHND);
 	free(br->dwa_freelist, M_BHND);
+}
+
+/**
+ * Allocate host bus resources defined by @p hwcfg.
+ * 
+ * On success, the caller assumes ownership of the allocated host resources,
+ * which must be freed via bhndb_release_host_resources().
+ *
+ * @param	dev		The device to be used when allocating resources
+ *				(e.g. via bus_alloc_resources()).
+ * @param	hwcfg		The hardware configuration defining the host
+ *				resources to be allocated
+ * @param[out]	resources	On success, the allocated host resources.
+ */
+int
+bhndb_alloc_host_resources(device_t dev, const struct bhndb_hwcfg *hwcfg,
+    struct bhndb_host_resources **resources)
+{
+	struct bhndb_host_resources	*hr;
+	size_t				 nres;
+	int				 error;
+
+	hr = malloc(sizeof(*hr), M_BHND, M_WAITOK);
+	hr->owner = dev;
+	hr->cfg = hwcfg;
+	hr->resource_specs = NULL;
+	hr->resources = NULL;
+
+	/* Determine our bridge resource count from the hardware config. */
+	nres = 0;
+	for (size_t i = 0; hwcfg->resource_specs[i].type != -1; i++)
+		nres++;
+
+	/* Allocate space for a non-const copy of our resource_spec
+	 * table; this will be updated with the RIDs assigned by
+	 * bus_alloc_resources. */
+	hr->resource_specs = malloc(sizeof(hr->resource_specs[0]) * (nres + 1),
+	    M_BHND, M_WAITOK);
+
+	/* Initialize and terminate the table */
+	for (size_t i = 0; i < nres; i++)
+		hr->resource_specs[i] = hwcfg->resource_specs[i];
+
+	hr->resource_specs[nres].type = -1;
+
+	/* Allocate space for our resource references */
+	hr->resources = malloc(sizeof(hr->resources[0]) * nres, M_BHND,
+	    M_WAITOK);
+
+	/* Allocate host resources */
+	error = bus_alloc_resources(hr->owner, hr->resource_specs,
+	    hr->resources);
+	if (error) {
+		device_printf(dev, "could not allocate bridge resources via "
+		    "%s: %d\n", device_get_nameunit(dev), error);
+		goto failed;
+	}
+
+	*resources = hr;
+	return (0);
+
+failed:
+	if (hr->resource_specs != NULL)
+		free(hr->resource_specs, M_BHND);
+
+	if (hr->resources != NULL)
+		free(hr->resources, M_BHND);
+
+	free(hr, M_BHND);
+
+	return (error);
+}
+
+/**
+ * Deallocate a set of bridge host resources.
+ * 
+ * @param hr The resources to be freed.
+ */
+void
+bhndb_release_host_resources(struct bhndb_host_resources *hr)
+{
+	bus_release_resources(hr->owner, hr->resource_specs, hr->resources);
+
+	free(hr->resources, M_BHND);
+	free(hr->resource_specs, M_BHND);
+	free(hr, M_BHND);
+}
+
+
+/**
+ * Search @p cores for the core serving as the bhnd host bridge.
+ * 
+ * This function uses a heuristic valid on all known PCI/PCIe/PCMCIA-bridged
+ * bhnd(4) devices to determine the hostb core:
+ * 
+ * - The core must have a Broadcom vendor ID.
+ * - The core devclass must match the bridge type.
+ * - The core must be the first device on the bus with the bridged device
+ *   class.
+ * 
+ * @param	cores		The core table to search.
+ * @param	ncores		The number of cores in @p cores.
+ * @param	bridge_devclass	The expected device class of the bridge core.
+ * @param[out]	core		If found, the matching host bridge core info.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	not found
+ */
+int
+bhndb_find_hostb_core(struct bhnd_core_info *cores, u_int ncores,
+    bhnd_devclass_t bridge_devclass, struct bhnd_core_info *core)
+{
+	struct bhnd_core_match	 md;
+	struct bhnd_core_info	*match;
+	u_int			 match_core_idx;
+
+	/* Set up a match descriptor for the required device class. */
+	md = (struct bhnd_core_match) {
+		BHND_MATCH_CORE_CLASS(bridge_devclass),
+		BHND_MATCH_CORE_UNIT(0)
+	};
+
+	/* Find the matching core with the lowest core index */
+	match = NULL;
+	match_core_idx = UINT_MAX;
+
+	for (u_int i = 0; i < ncores; i++) {
+		if (!bhnd_core_matches(&cores[i], &md))
+			continue;
+
+		/* Lower core indices take precedence */ 
+		if (match != NULL && match_core_idx < match->core_idx)
+			continue;
+
+		match = &cores[i];
+		match_core_idx = match->core_idx;
+	}
+
+	if (match == NULL)
+		return (ENOENT);
+
+	*core = *match;
+	return (0);
 }
 
 /**

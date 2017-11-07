@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 27, 2013
+.Dd October 16, 2017
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -129,8 +129,11 @@ in
 The MTU of the first member interface to be added is used as the bridge MTU.
 All additional members are required to have exactly the same value.
 .Pp
-The TXCSUM capability is disabled for any interface added to the bridge, and it
-is restored when the interface is removed again.
+The TOE, TSO, TXCSUM and TXCSUM6 capabilities on all interfaces added to the
+bridge are disabled if any of the interfaces doesn't support/enable them.
+The LRO capability is always disabled.
+All the capabilities are restored when the interface is removed from bridge.
+Changing capabilities in run time may cause NIC reinit and the link flap.
 .Pp
 The bridge supports
 .Dq monitor mode ,

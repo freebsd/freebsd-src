@@ -1,10 +1,11 @@
 # $FreeBSD$
 
+.include <bsd.init.mk>
+
 SSP_CFLAGS=
 
 PROG=           boot1.elf
 NEWVERSWHAT=    "Open Firmware boot block" ${MACHINE_ARCH}
-BINDIR?=        /boot
 INSTALLFLAGS=   -b
 
 FILES=		boot1.hfs
@@ -13,12 +14,11 @@ SRCS=		boot1.c ashldi3.c syncicache.c
 MAN=
 
 CFLAGS= -ffreestanding -msoft-float \
-	-I${.CURDIR}/../../common -I${.CURDIR}/../../../ \
+	-I${LDRSRC} -I${SYSDIR} -I${SASRC} \
 	-D_STANDALONE
 LDFLAGS=-nostdlib -static -Wl,-N
 
-.include "${.CURDIR}/../Makefile.inc"
-.PATH:  ${.CURDIR}/../../../libkern ${.CURDIR}/../../../../lib/libc/powerpc/gen ${.CURDIR}
+.PATH:  ${SYSDIR}/libkern ${SRCTOP}/lib/libc/powerpc/gen ${.CURDIR}
 
 # The following inserts out objects into a template HFS 
 # created by generate-hfs.sh
@@ -36,7 +36,7 @@ boot1.hfs: boot1.elf bootinfo.txt
 
 CLEANFILES= boot1.hfs
 
-boot1.o: ${.CURDIR}/../../common/ufsread.c
+boot1.o: ${SASRC}/ufsread.c
 
 .include <bsd.prog.mk>
 

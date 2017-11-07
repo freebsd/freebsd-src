@@ -31,6 +31,7 @@
  * $FreeBSD$
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -42,6 +43,7 @@
 #include <libutil.h>
 #include <paths.h>
 #include <err.h>
+#include <geom/geom_disk.h>
 #include <sysexits.h>
 #include <sys/aio.h>
 #include <sys/disk.h>
@@ -50,6 +52,8 @@
 #include <sys/time.h>
 
 #define	NAIO	128
+#define	MAXTX	(8*1024*1024)
+#define	MEGATX	(1024*1024)
 
 static void
 usage(void)
@@ -60,20 +64,25 @@ usage(void)
 
 static int opt_c, opt_i, opt_p, opt_s, opt_S, opt_t, opt_v, opt_w;
 
+static bool candelete(int fd);
 static void speeddisk(int fd, off_t mediasize, u_int sectorsize);
 static void commandtime(int fd, off_t mediasize, u_int sectorsize);
 static void iopsbench(int fd, off_t mediasize, u_int sectorsize);
+static void rotationrate(int fd, char *buf, size_t buflen);
 static void slogbench(int fd, int isreg, off_t mediasize, u_int sectorsize);
 static int zonecheck(int fd, uint32_t *zone_mode, char *zone_str,
 		     size_t zone_str_len);
+
+static uint8_t *buf;
 
 int
 main(int argc, char **argv)
 {
 	struct stat sb;
 	int i, ch, fd, error, exitval = 0;
-	char buf[BUFSIZ], ident[DISK_IDENT_SIZE], physpath[MAXPATHLEN];
+	char tstr[BUFSIZ], ident[DISK_IDENT_SIZE], physpath[MAXPATHLEN];
 	char zone_desc[64];
+	char rrate[64];
 	struct diocgattr_arg arg;
 	off_t	mediasize, stripesize, stripeoffset;
 	u_int	sectorsize, fwsectors, fwheads, zoned = 0, isreg;
@@ -129,11 +138,13 @@ main(int argc, char **argv)
 		usage();
 	}
 
+	if (posix_memalign((void **)&buf, PAGE_SIZE, MAXTX))
+		errx(1, "Can't allocate memory buffer");
 	for (i = 0; i < argc; i++) {
 		fd = open(argv[i], (opt_w ? O_RDWR : O_RDONLY) | O_DIRECT);
 		if (fd < 0 && errno == ENOENT && *argv[i] != '/') {
-			snprintf(buf, BUFSIZ, "%s%s", _PATH_DEV, argv[i]);
-			fd = open(buf, O_RDONLY);
+			snprintf(tstr, sizeof(tstr), "%s%s", _PATH_DEV, argv[i]);
+			fd = open(tstr, O_RDONLY);
 		}
 		if (fd < 0) {
 			warn("%s", argv[i]);
@@ -216,12 +227,12 @@ main(int argc, char **argv)
 				printf("\t%u", fwsectors);
 			} 
 		} else {
-			humanize_number(buf, 5, (int64_t)mediasize, "",
+			humanize_number(tstr, 5, (int64_t)mediasize, "",
 			    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 			printf("%s\n", argv[i]);
 			printf("\t%-12u\t# sectorsize\n", sectorsize);
 			printf("\t%-12jd\t# mediasize in bytes (%s)\n",
-			    (intmax_t)mediasize, buf);
+			    (intmax_t)mediasize, tstr);
 			printf("\t%-12jd\t# mediasize in sectors\n",
 			    (intmax_t)mediasize/sectorsize);
 			printf("\t%-12jd\t# stripesize\n", stripesize);
@@ -240,6 +251,10 @@ main(int argc, char **argv)
 				printf("\t%-12s\t# Disk ident.\n", ident);
 			if (ioctl(fd, DIOCGPHYSPATH, physpath) == 0)
 				printf("\t%-12s\t# Physical path\n", physpath);
+			printf("\t%-12s\t# TRIM/UNMAP support\n",
+			    candelete(fd) ? "Yes" : "No");
+			rotationrate(fd, rrate, sizeof(rrate));
+			printf("\t%-12s\t# Rotation rate in RPM\n", rrate);
 			if (zoned != 0)
 				printf("\t%-12s\t# Zone Mode\n", zone_desc);
 		}
@@ -255,12 +270,42 @@ main(int argc, char **argv)
 out:
 		close(fd);
 	}
+	free(buf);
 	exit (exitval);
 }
 
-#define MAXTX (8*1024*1024)
-#define MEGATX (1024*1024)
-static uint8_t buf[MAXTX];
+static bool
+candelete(int fd)
+{
+	struct diocgattr_arg arg;
+
+	strlcpy(arg.name, "GEOM::candelete", sizeof(arg.name));
+	arg.len = sizeof(arg.value.i);
+	if (ioctl(fd, DIOCGATTR, &arg) == 0)
+		return (arg.value.i != 0);
+	else
+		return (false);
+}
+
+static void
+rotationrate(int fd, char *rate, size_t buflen)
+{
+	struct diocgattr_arg arg;
+	int ret;
+
+	strlcpy(arg.name, "GEOM::rotation_rate", sizeof(arg.name));
+	arg.len = sizeof(arg.value.u16);
+
+	ret = ioctl(fd, DIOCGATTR, &arg);
+	if (ret < 0 || arg.value.u16 == DISK_RR_UNKNOWN)
+		snprintf(rate, buflen, "Unknown");
+	else if (arg.value.u16 == DISK_RR_NON_ROTATING)
+		snprintf(rate, buflen, "%d", 0);
+	else if (arg.value.u16 >= DISK_RR_MIN && arg.value.u16 <= DISK_RR_MAX)
+		snprintf(rate, buflen, "%d", arg.value.u16);
+	else
+		snprintf(rate, buflen, "Invalid");
+}
 
 static void
 rdsect(int fd, off_t blockno, u_int sectorsize)
@@ -630,7 +675,7 @@ slogbench(int fd, int isreg, off_t mediasize, u_int sectorsize)
 {
 	off_t off;
 	u_int size;
-	int error, n, N;
+	int error, n, N, nowritecache = 0;
 
 	printf("Synchronous random writes:\n");
 	for (size = sectorsize; size <= MAXTX; size *= 2) {
@@ -641,12 +686,18 @@ slogbench(int fd, int isreg, off_t mediasize, u_int sectorsize)
 			for (n = 0; n < 250; n++) {
 				off = random() % (mediasize / size);
 				parwrite(fd, size, off * size);
+				if (nowritecache)
+					continue;
 				if (isreg)
 					error = fsync(fd);
 				else
 					error = ioctl(fd, DIOCGFLUSH);
-				if (error < 0)
-					err(EX_IOERR, "Flush error");
+				if (error < 0) {
+					if (errno == ENOTSUP)
+						nowritecache = 1;
+					else
+						err(EX_IOERR, "Flush error");
+				}
 			}
 			N += 250;
 		} while (delta_t() < 1.0);

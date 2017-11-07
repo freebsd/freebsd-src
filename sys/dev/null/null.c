@@ -114,7 +114,7 @@ null_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data __unused,
 	case DIOCSKERNELDUMP_FREEBSD11:
 #endif
 	case DIOCSKERNELDUMP:
-		error = set_dumper(NULL, NULL, td, 0, NULL, 0, NULL);
+		error = set_dumper(NULL, NULL, td, 0, 0, NULL, 0, NULL);
 		break;
 	case FIONBIO:
 		break;

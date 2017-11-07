@@ -3096,6 +3096,8 @@ spa_load_best(spa_t *spa, spa_load_state_t state, int mosconfig,
 
 	if (config && (rewind_error || state != SPA_LOAD_RECOVER))
 		spa_config_set(spa, config);
+	else
+		nvlist_free(config);
 
 	if (state == SPA_LOAD_RECOVER) {
 		ASSERT3P(loadinfo, ==, NULL);
@@ -6244,8 +6246,6 @@ spa_async_thread_vd(void *arg)
 {
 	spa_t *spa = arg;
 	int tasks;
-
-	ASSERT(spa->spa_sync_on);
 
 	mutex_enter(&spa->spa_async_lock);
 	tasks = spa->spa_async_tasks;

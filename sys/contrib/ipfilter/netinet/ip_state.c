@@ -1449,7 +1449,7 @@ ipf_state_add(softc, fin, stsave, flags)
 	is->is_die = 1 + softc->ipf_ticks;
 	/*
 	 * We want to check everything that is a property of this packet,
-	 * but we don't (automatically) care about it's fragment status as
+	 * but we don't (automatically) care about its fragment status as
 	 * this may change.
 	 */
 	is->is_pass = pass;

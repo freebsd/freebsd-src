@@ -820,30 +820,34 @@ int
 siba_add_children(device_t dev)
 {
 	const struct bhnd_chipid	*chipid;
-	struct bhnd_core_info		*cores;
-	struct siba_devinfo		*dinfo;
+	struct siba_core_id		*cores;
 	struct bhnd_resource		*r;
+	device_t			*children;
 	int				 rid;
 	int				 error;
 
-	dinfo = NULL;
 	cores = NULL;
 	r = NULL;
 
 	chipid = BHND_BUS_GET_CHIPID(dev, dev);
 
-	/* Allocate our temporary core table and enumerate all cores */
-	cores = malloc(sizeof(*cores) * chipid->ncores, M_BHND, M_NOWAIT);
-	if (cores == NULL)
-		return (ENOMEM);
+	/* Allocate our temporary core and device table */
+	cores = malloc(sizeof(*cores) * chipid->ncores, M_BHND, M_WAITOK);
+	children = malloc(sizeof(*children) * chipid->ncores, M_BHND,
+	    M_WAITOK | M_ZERO);
 
-	/* Add all cores. */
+	/*
+	 * Add child devices for all discovered cores.
+	 * 
+	 * On bridged devices, we'll exhaust our available register windows if
+	 * we map config blocks on unpopulated/disabled cores. To avoid this, we
+	 * defer mapping of the per-core siba(4) config blocks until all cores
+	 * have been enumerated and otherwise configured.
+	 */
 	for (u_int i = 0; i < chipid->ncores; i++) {
-		struct siba_core_id	 cid;
-		device_t		 child;
+		struct siba_devinfo	*dinfo;
 		uint32_t		 idhigh, idlow;
 		rman_res_t		 r_count, r_end, r_start;
-		int			 nintr;
 
 		/* Map the core's register block */
 		rid = 0;
@@ -854,51 +858,73 @@ siba_add_children(device_t dev)
 		    r_end, r_count, RF_ACTIVE);
 		if (r == NULL) {
 			error = ENXIO;
-			goto cleanup;
+			goto failed;
 		}
 
-		/* Add the child device */
-		child = BUS_ADD_CHILD(dev, 0, NULL, -1);
-		if (child == NULL) {
-			error = ENXIO;
-			goto cleanup;
-		}
-		
 		/* Read the core info */
 		idhigh = bhnd_bus_read_4(r, SB0_REG_ABS(SIBA_CFG0_IDHIGH));
 		idlow = bhnd_bus_read_4(r, SB0_REG_ABS(SIBA_CFG0_IDLOW));
 
-		cid = siba_parse_core_id(idhigh, idlow, i, 0);
-		cores[i] = cid.core_info;
+		cores[i] = siba_parse_core_id(idhigh, idlow, i, 0);
 
-		/* Determine unit number */
+		/* Determine and set unit number */
 		for (u_int j = 0; j < i; j++) {
-			if (cores[j].vendor == cores[i].vendor &&
-			    cores[j].device == cores[i].device)
-				cores[i].unit++;
+			struct bhnd_core_info *cur = &cores[i].core_info;
+			struct bhnd_core_info *prev = &cores[j].core_info;
+
+			if (prev->vendor == cur->vendor &&
+			    prev->device == cur->device)
+				cur->unit++;
+		}
+
+		/* Add the child device */
+		children[i] = BUS_ADD_CHILD(dev, 0, NULL, -1);
+		if (children[i] == NULL) {
+			error = ENXIO;
+			goto failed;
 		}
 
 		/* Initialize per-device bus info */
-		if ((dinfo = device_get_ivars(child)) == NULL) {
+		if ((dinfo = device_get_ivars(children[i])) == NULL) {
 			error = ENXIO;
-			goto cleanup;
+			goto failed;
 		}
 
-		if ((error = siba_init_dinfo(dev, dinfo, &cid)))
-			goto cleanup;
+		if ((error = siba_init_dinfo(dev, dinfo, &cores[i])))
+			goto failed;
 
 		/* Register the core's address space(s). */
 		if ((error = siba_register_addrspaces(dev, dinfo, r)))
-			goto cleanup;
+			goto failed;
 
-		/* Release our resource covering the register blocks
-		 * we're about to map */
+		/* Unmap the core's register block */
 		bhnd_release_resource(dev, SYS_RES_MEMORY, rid, r);
 		r = NULL;
 
+		/* If pins are floating or the hardware is otherwise
+		 * unpopulated, the device shouldn't be used. */
+		if (bhnd_is_hw_disabled(children[i]))
+			device_disable(children[i]);
+	}
+
+	/* Map all valid core's config register blocks and perform interrupt
+	 * assignment */
+	for (u_int i = 0; i < chipid->ncores; i++) {
+		struct siba_devinfo	*dinfo;
+		device_t		 child;
+		int			 nintr;
+
+		child = children[i];
+
+		/* Skip if core is disabled */
+		if (bhnd_is_hw_disabled(child))
+			continue;
+
+		dinfo = device_get_ivars(child);
+
 		/* Map the core's config blocks */
 		if ((error = siba_map_cfg_resources(dev, dinfo)))
-			goto cleanup;
+			goto failed;
 
 		/* Assign interrupts */
 		nintr = bhnd_get_intr_count(child);
@@ -910,18 +936,25 @@ siba_add_children(device_t dev)
 			}
 		}
 
-		/* If pins are floating or the hardware is otherwise
-		 * unpopulated, the device shouldn't be used. */
-		if (bhnd_is_hw_disabled(child))
-			device_disable(child);
-
 		/* Issue bus callback for fully initialized child. */
 		BHND_BUS_CHILD_ADDED(dev, child);
 	}
-	
-cleanup:
-	if (cores != NULL)
-		free(cores, M_BHND);
+
+	free(cores, M_BHND);
+	free(children, M_BHND);
+
+	return (0);
+
+failed:
+	for (u_int i = 0; i < chipid->ncores; i++) {
+		if (children[i] == NULL)
+			continue;
+
+		device_delete_child(dev, children[i]);
+	}
+
+	free(cores, M_BHND);
+	free(children, M_BHND);
 
 	if (r != NULL)
 		bhnd_release_resource(dev, SYS_RES_MEMORY, rid, r);

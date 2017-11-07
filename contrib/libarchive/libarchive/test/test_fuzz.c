@@ -413,6 +413,12 @@ DEFINE_TEST(test_fuzz_tar)
 		NULL
 	};
 #endif
+#if HAVE_ZSTD_H && HAVE_LIBZSTD
+	static const char *fileset10[] = {
+		"test_compat_zstd_1.tar.zst",
+		NULL
+	};
+#endif
 	static const struct files filesets[] = {
 		{0, fileset1}, /* Exercise bzip2 decompressor. */
 		{1, fileset1},
@@ -425,6 +431,9 @@ DEFINE_TEST(test_fuzz_tar)
 		{0, fileset8},
 #if HAVE_LIBLZO2 && HAVE_LZO_LZO1X_H && HAVE_LZO_LZOCONF_H
 		{0, fileset9}, /* Exercise lzo decompressor. */
+#endif
+#if HAVE_ZSTD_H && HAVE_LIBZSTD
+		{0, fileset10}, /* Excercise zstd decompressor. */
 #endif
 		{1, NULL}
 	};

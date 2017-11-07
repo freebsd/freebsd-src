@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
 
 SUBDIR=		mbr pmbr boot0 boot0sio btx boot2 cdboot gptboot \
 		libi386 libfirewire loader

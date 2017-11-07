@@ -39,10 +39,10 @@
 #include "procstat.h"
 
 void
-procstat_basic(struct kinfo_proc *kipp)
+procstat_basic(struct procstat *procstat __unused, struct kinfo_proc *kipp)
 {
 
-	if (!hflag)
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0)
 		xo_emit("{T:/%5s %5s %5s %5s %5s %3s %-8s %-9s %-13s %-12s}\n",
 		    "PID", "PPID", "PGID", "SID", "TSID", "THR", "LOGIN",
 		    "WCHAN", "EMUL", "COMM");

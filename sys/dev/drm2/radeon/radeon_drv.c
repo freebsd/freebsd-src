@@ -401,3 +401,5 @@ MODULE_DEPEND(radeonkms, iicbus, 1, 1, 1);
 MODULE_DEPEND(radeonkms, iic, 1, 1, 1);
 MODULE_DEPEND(radeonkms, iicbb, 1, 1, 1);
 MODULE_DEPEND(radeonkms, firmware, 1, 1, 1);
+MODULE_PNP_INFO("U32:vendor;U32:device;P:#;D:human", vgapci, radeonkms,
+    pciidlist, sizeof(pciidlist[0]), nitems(pciidlist));

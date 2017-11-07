@@ -11,7 +11,7 @@ more information).
 
 The Makefile in this directory supports a number of targets for
 building components (or all) of the FreeBSD source tree.  See build(7)
-and http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
+and https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
 for more information, including setting make(1) variables.
 
 The `buildkernel` and `installkernel` targets build and install
@@ -20,7 +20,7 @@ the Makefile in this directory for more information on the
 standard build targets and compile-time flags.
 
 Building a kernel is a somewhat more involved process.  See build(7), config(8),
-and http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig.html
+and https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig.html
 for more information.
 
 Note: If you want to build and install the kernel with the
@@ -83,4 +83,4 @@ usr.sbin		System administration commands.
 For information on synchronizing your source tree with one or more of
 the FreeBSD Project's development branches, please see:
 
-   http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/synching.html
+   https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html

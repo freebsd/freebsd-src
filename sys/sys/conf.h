@@ -336,21 +336,24 @@ struct dumperinfo {
 	off_t	mediaoffset;	/* Initial offset in bytes. */
 	off_t	mediasize;	/* Space available in bytes. */
 	void	*blockbuf;	/* Buffer for padding shorter dump blocks */
+	off_t	dumpoff;	/* Offset of ongoing kernel dump. */
 	struct kerneldumpcrypto	*kdc; /* Kernel dump crypto. */
+	struct kerneldumpgz *kdgz; /* Kernel dump compression. */
 };
 
+extern int dumping;		/* system is dumping */
+
+int doadump(boolean_t);
 int set_dumper(struct dumperinfo *di, const char *devname, struct thread *td,
-    uint8_t encrypt, const uint8_t *key, uint32_t encryptedkeysize,
-    const uint8_t *encryptedkey);
+    uint8_t compression, uint8_t encryption, const uint8_t *key,
+    uint32_t encryptedkeysize, const uint8_t *encryptedkey);
+
+int dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh);
+int dump_append(struct dumperinfo *, void *, vm_offset_t, size_t);
+int dump_write(struct dumperinfo *, void *, vm_offset_t, off_t, size_t);
+int dump_finish(struct dumperinfo *di, struct kerneldumpheader *kdh);
 void dump_init_header(const struct dumperinfo *di, struct kerneldumpheader *kdh,
     char *magic, uint32_t archver, uint64_t dumplen);
-int dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh,
-    off_t *dumplop);
-int dump_finish(struct dumperinfo *di, struct kerneldumpheader *kdh,
-    off_t dumplo);
-int dump_write(struct dumperinfo *, void *, vm_offset_t, off_t, size_t);
-int doadump(boolean_t);
-extern int dumping;		/* system is dumping */
 
 #endif /* _KERNEL */
 

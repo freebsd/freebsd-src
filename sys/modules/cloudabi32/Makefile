@@ -18,7 +18,7 @@ CLEANFILES=cloudabi32_vdso.o
 VDSO_SRCS=${SYSDIR}/contrib/cloudabi/cloudabi_vdso_i686_on_64bit.S
 OUTPUT_TARGET=elf64-x86-64-freebsd
 BINARY_ARCHITECTURE=i386
-.elif ${MACHINE_ARCH} == "armv6"
+.elif ${MACHINE_ARCH:Marmv[67]*} != ""
 VDSO_SRCS=${SYSDIR}/contrib/cloudabi/cloudabi_vdso_armv6.S
 OUTPUT_TARGET=elf32-littlearm
 BINARY_ARCHITECTURE=arm

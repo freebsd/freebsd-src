@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
+#include <contrib/ncsw/inc/integrations/dpaa_integration_ext.h>
+#include <contrib/ncsw/inc/Peripherals/fm_ext.h>
 #include <contrib/ncsw/inc/Peripherals/fm_mac_ext.h>
 #include <contrib/ncsw/inc/Peripherals/fm_port_ext.h>
 #include <contrib/ncsw/inc/xx_ext.h>
@@ -150,7 +152,7 @@ dtsec_rm_fm_port_rx_init(struct dtsec_softc *sc, int unit)
 {
 	t_FmPortParams params;
 	t_FmPortRxParams *rx_params;
-	t_FmPortExtPools *pool_params;
+	t_FmExtPools *pool_params;
 	t_Error error;
 
 	memset(&params, 0, sizeof(params));
@@ -159,7 +161,7 @@ dtsec_rm_fm_port_rx_init(struct dtsec_softc *sc, int unit)
 	params.h_Fm = sc->sc_fmh;
 	params.portType = dtsec_fm_port_rx_type(sc->sc_eth_dev_type);
 	params.portId = sc->sc_eth_id;
-	params.independentModeEnable = FALSE;
+	params.independentModeEnable = false;
 	params.liodnBase = FM_PORT_LIODN_BASE;
 	params.f_Exception = dtsec_fm_port_rx_exception_callback;
 	params.h_App = sc;
@@ -207,7 +209,7 @@ dtsec_rm_fm_port_tx_init(struct dtsec_softc *sc, int unit)
 	params.h_Fm = sc->sc_fmh;
 	params.portType = dtsec_fm_port_tx_type(sc->sc_eth_dev_type);
 	params.portId = sc->sc_eth_id;
-	params.independentModeEnable = FALSE;
+	params.independentModeEnable = false;
 	params.liodnBase = FM_PORT_LIODN_BASE;
 	params.f_Exception = dtsec_fm_port_tx_exception_callback;
 	params.h_App = sc;
@@ -337,15 +339,17 @@ dtsec_rm_pool_rx_init(struct dtsec_softc *sc)
  * @{
  */
 static void
-dtsec_rm_fqr_mext_free(struct mbuf *m, void *buffer, void *arg)
+dtsec_rm_fqr_mext_free(struct mbuf *m)
 {
 	struct dtsec_softc *sc;
+	void *buffer;
 
-	sc = arg;
+	buffer = m->m_ext.ext_arg1;
+	sc = m->m_ext.ext_arg2;
 	if (bman_count(sc->sc_rx_pool) <= DTSEC_RM_POOL_RX_MAX_SIZE)
 		bman_put_buffer(sc->sc_rx_pool, buffer);
 	else
-		dtsec_rm_pool_rx_put_buffer(arg, buffer, NULL);
+		dtsec_rm_pool_rx_put_buffer(sc, buffer, NULL);
 }
 
 static e_RxStoreResponse
@@ -454,7 +458,7 @@ dtsec_rm_fqr_rx_init(struct dtsec_softc *sc)
 
 	/* Default Frame Queue */
 	fqr = qman_fqr_create(1, DTSEC_RM_FQR_RX_CHANNEL, DTSEC_RM_FQR_RX_WQ,
-	    FALSE, 0, FALSE, FALSE, TRUE, FALSE, 0, 0, 0);
+	    false, 0, false, false, true, false, 0, 0, 0);
 	if (fqr == NULL) {
 		device_printf(sc->sc_dev, "could not create default RX queue"
 		    "\n");
@@ -493,7 +497,7 @@ dtsec_rm_fqr_tx_init(struct dtsec_softc *sc)
 
 	/* TX Frame Queue */
 	fqr = qman_fqr_create(1, sc->sc_port_tx_qman_chan,
-	    DTSEC_RM_FQR_TX_WQ, FALSE, 0, FALSE, FALSE, TRUE, FALSE, 0, 0, 0);
+	    DTSEC_RM_FQR_TX_WQ, false, 0, false, false, true, false, 0, 0, 0);
 	if (fqr == NULL) {
 		device_printf(sc->sc_dev, "could not create default TX queue"
 		    "\n");
@@ -504,7 +508,7 @@ dtsec_rm_fqr_tx_init(struct dtsec_softc *sc)
 
 	/* TX Confirmation Frame Queue */
 	fqr = qman_fqr_create(1, DTSEC_RM_FQR_TX_CONF_CHANNEL,
-	    DTSEC_RM_FQR_TX_CONF_WQ, FALSE, 0, FALSE, FALSE, TRUE, FALSE, 0, 0,
+	    DTSEC_RM_FQR_TX_CONF_WQ, false, 0, false, false, true, false, 0, 0,
 	    0);
 	if (fqr == NULL) {
 		device_printf(sc->sc_dev, "could not create TX confirmation "
@@ -637,9 +641,9 @@ dtsec_rm_if_start_locked(struct dtsec_softc *sc)
 		DPAA_FD_SET_LENGTH(&fd, psize);
 		DPAA_FD_SET_FORMAT(&fd, e_DPAA_FD_FORMAT_TYPE_SHORT_MBSF);
 
-		DPAA_FD_SET_DD(&fd, 0);
-		DPAA_FD_SET_PID(&fd, 0);
-		DPAA_FD_SET_BPID(&fd, 0);
+		fd.liodn = 0;
+		fd.bpid = 0;
+		fd.elion = 0;
 		DPAA_FD_SET_OFFSET(&fd, 0);
 		DPAA_FD_SET_STATUS(&fd, 0);
 

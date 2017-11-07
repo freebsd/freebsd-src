@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: animation,v 1.58 2016/07/03 14:13:11 christos Exp $
+# $File: animation,v 1.63 2017/05/26 14:33:07 christos Exp $
 # animation:  file(1) magic for animation/movie formats
 #
 # animation formats
@@ -34,14 +34,23 @@
 !:mime	image/jp2
 # http://www.ftyps.com/ with local additions
 4	string		ftyp		ISO Media
+# http://aeroquartet.com/wordpress/2016/03/05/3-xavc-s/
+>8	string		XAVC		\b, MPEG v4 system, Sony XAVC Codec
+>>96	string		x		\b, Audio "%.4s"
+>>118	beshort		x		at %dHz
+>>140	string		x		\b, Video "%.4s"
+>>168	beshort		x		%d
+>>170	beshort		x		\bx%d
 >8	string		3g2		\b, MPEG v4 system, 3GPP2
 !:mime	video/3gpp2
 >>11	byte		4		\b v4 (H.263/AMR GSM 6.10)
 >>11	byte		5		\b v5 (H.263/AMR GSM 6.10)
 >>11	byte		6		\b v6 (ITU H.264/AMR GSM 6.10)
->>11	byte		a		\b C.S0050-0 V1.0
->>11	byte		b		\b C.S0050-0-A V1.0.0
->>11	byte		c		\b C.S0050-0-B V1.0
+# http://www.3gpp2.org/Public_html/Specs/C.S0050-B_v1.0_070521.pdf
+# Section 8.1.1, corresponds to a, b, c
+>>11	byte		0x61		\b C.S0050-0 V1.0
+>>11	byte		0x62		\b C.S0050-0-A V1.0.0
+>>11	byte		0x63		\b C.S0050-0-B V1.0
 >8	string		3ge		\b, MPEG v4 system, 3GPP
 !:mime	video/3gpp
 >>11	byte		6		\b, Release 6 MBMS Extended Presentations
@@ -186,13 +195,13 @@
 
 # MPEG sequences
 # Scans for all common MPEG header start codes
-0	 belong		    0x00000001     
+0	 belong		    0x00000001
 >4	 byte&0x1F	    0x07	   JVT NAL sequence, H.264 video
 >>5      byte               66             \b, baseline
 >>5      byte               77             \b, main
 >>5      byte               88             \b, extended
 >>7      byte               x              \b @ L %u
-0        belong&0xFFFFFF00  0x00000100     
+0        belong&0xFFFFFF00  0x00000100
 >3       byte               0xBA           MPEG sequence
 !:mime  video/mpeg
 >>4      byte               &0x40          \b, v2, program multiplex
@@ -493,8 +502,8 @@
 # GRR the original test are too common for many DOS files, so test 32 <= kbits <= 448
 # GRR this test is still too general as it catches a BOM of UTF-16 files (0xFFFE)
 # FIXME: Almost all little endian UTF-16 text with BOM are clobbered by these entries
-#0	beshort&0xFFFE		0xFFFE	
-#>2	ubyte&0xF0	>0x0F		
+#0	beshort&0xFFFE		0xFFFE
+#>2	ubyte&0xF0	>0x0F
 #>>2	ubyte&0xF0	<0xE1		MPEG ADTS, layer I, v1
 ## rate
 #>>>2      byte&0xF0       0x10           \b,  32 kbps
@@ -566,9 +575,9 @@
 # MP2, M2A
 0       beshort&0xFFFE  0xFFF4         MPEG ADTS, layer II, v2
 !:mime	audio/mpeg
-# rate 
+# rate
 >2      byte&0xF0       0x10           \b,   8 kbps
->2      byte&0xF0       0x20           \b,  16 kbps 
+>2      byte&0xF0       0x20           \b,  16 kbps
 >2      byte&0xF0       0x30           \b,  24 kbps
 >2      byte&0xF0       0x40           \b,  32 kbps
 >2      byte&0xF0       0x50           \b,  40 kbps
@@ -636,7 +645,7 @@
 # MP3, M25A
 0       beshort&0xFFFE  0xFFE2         MPEG ADTS, layer III,  v2.5
 !:mime	audio/mpeg
-# rate  
+# rate
 >2      byte&0xF0       0x10           \b,   8 kbps
 >2      byte&0xF0       0x20           \b,  16 kbps
 >2      byte&0xF0       0x30           \b,  24 kbps
@@ -855,10 +864,12 @@
 
 # X3D (Extensible 3D) [http://www.web3d.org/specifications/x3d-3.0.dtd]
 # From Michel Briand <michelbriand@free.fr>
-0	string/t		\<?xml\ version="
-!:strength +1
->20	search/1000/cw  \<!DOCTYPE\ X3D		X3D (Extensible 3D) model xml text
-!:mime model/x3d
+# mimetype from https://www.iana.org/assignments/media-types/model/x3d+xml
+# Example http://www.web3d.org/x3d/content/examples/Basic/course/CreateX3DFromStringRandomSpheres.x3d
+0	string/w	\<?xml\ version=
+!:strength + 5
+>20	search/1000/w	\<!DOCTYPE\ X3D		X3D (Extensible 3D) model xml text
+!:mime model/x3d+xml
 
 #---------------------------------------------------------------------------
 # HVQM4: compressed movie format designed by Hudson for Nintendo GameCube

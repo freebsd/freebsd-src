@@ -287,8 +287,8 @@ void nfsrv_cleanusergroup(void);
 int nfsrv_checkutf8(u_int8_t *, int);
 int newnfs_sndlock(int *);
 void newnfs_sndunlock(int *);
-int nfsv4_getipaddr(struct nfsrv_descript *, struct sockaddr_storage *,
-    int *);
+int nfsv4_getipaddr(struct nfsrv_descript *, struct sockaddr_in *,
+    struct sockaddr_in6 *, sa_family_t *, int *);
 int nfsv4_seqsession(uint32_t, uint32_t, uint32_t, struct nfsslot *,
     struct mbuf **, uint16_t);
 void nfsv4_seqsess_cacherep(uint32_t, struct nfsslot *, int, struct mbuf **);
@@ -301,8 +301,9 @@ struct ucred *nfsrv_getgrpscred(struct ucred *);
 
 /* nfs_clcomsubs.c */
 void nfsm_uiombuf(struct nfsrv_descript *, struct uio *, int);
+struct mbuf *nfsm_uiombuflist(struct uio *, int, struct mbuf **, char **);
 void nfscl_reqstart(struct nfsrv_descript *, int, struct nfsmount *,
-    u_int8_t *, int, u_int32_t **, struct nfsclsession *);
+    u_int8_t *, int, u_int32_t **, struct nfsclsession *, int, int);
 nfsuint64 *nfscl_getcookie(struct nfsnode *, off_t off, int);
 void nfscl_fillsattr(struct nfsrv_descript *, struct vattr *,
       vnode_t, int, u_int32_t);
@@ -478,17 +479,14 @@ int nfsrpc_destroysession(struct nfsmount *, struct nfsclclient *,
     struct ucred *, NFSPROC_T *);
 int nfsrpc_destroyclient(struct nfsmount *, struct nfsclclient *,
     struct ucred *, NFSPROC_T *);
-int nfsrpc_layoutget(struct nfsmount *, uint8_t *, int, int, uint64_t, uint64_t,
-    uint64_t, int, nfsv4stateid_t *, int *, struct nfsclflayouthead *,
-    struct ucred *, NFSPROC_T *, void *);
 int nfsrpc_getdeviceinfo(struct nfsmount *, uint8_t *, int, uint32_t *,
     struct nfscldevinfo **, struct ucred *, NFSPROC_T *);
 int nfsrpc_layoutcommit(struct nfsmount *, uint8_t *, int, int,
-    uint64_t, uint64_t, uint64_t, nfsv4stateid_t *, int, int, uint8_t *,
-    struct ucred *, NFSPROC_T *, void *);
-int nfsrpc_layoutreturn(struct nfsmount *, uint8_t *, int, int, int, uint32_t,
-    int, uint64_t, uint64_t, nfsv4stateid_t *, int, uint32_t *, struct ucred *,
+    uint64_t, uint64_t, uint64_t, nfsv4stateid_t *, int, struct ucred *,
     NFSPROC_T *, void *);
+int nfsrpc_layoutreturn(struct nfsmount *, uint8_t *, int, int, int, uint32_t,
+    int, uint64_t, uint64_t, nfsv4stateid_t *, struct ucred *, NFSPROC_T *,
+    void *);
 int nfsrpc_reclaimcomplete(struct nfsmount *, struct ucred *, NFSPROC_T *);
 int nfscl_doiods(vnode_t, struct uio *, int *, int *, uint32_t, int,
     struct ucred *, NFSPROC_T *);
@@ -557,7 +555,7 @@ int nfscl_tryclose(struct nfsclopen *, struct ucred *,
     struct nfsmount *, NFSPROC_T *);
 void nfscl_cleanup(NFSPROC_T *);
 int nfscl_layout(struct nfsmount *, vnode_t, u_int8_t *, int, nfsv4stateid_t *,
-    int, struct nfsclflayouthead *, struct nfscllayout **, struct ucred *,
+    int, int, struct nfsclflayouthead *, struct nfscllayout **, struct ucred *,
     NFSPROC_T *);
 struct nfscllayout *nfscl_getlayout(struct nfsclclient *, uint8_t *, int,
     uint64_t, struct nfsclflayout **, int *);

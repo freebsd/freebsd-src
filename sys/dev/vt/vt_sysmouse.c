@@ -139,11 +139,11 @@ sysmouse_evdev_store(int x, int y, int z, int buttons)
 		}
 		break;
 	case EVDEV_SYSMOUSE_T_AXIS_UMS:
-		/* XXX: Edge triggering should be used here */
-		if (buttons & (1 << 5))
+		if (buttons & (1 << 6))
 			evdev_push_rel(sysmouse_evdev, REL_HWHEEL, 1);
-		else if (buttons & (1 << 6))
+		else if (buttons & (1 << 5))
 			evdev_push_rel(sysmouse_evdev, REL_HWHEEL, -1);
+		buttons &= ~((1 << 5)|(1 << 6));
 		/* PASSTHROUGH */
 	case EVDEV_SYSMOUSE_T_AXIS_NONE:
 	default:

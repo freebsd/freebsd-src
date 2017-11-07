@@ -690,12 +690,15 @@ and returns its exit status.
 .Bl -tag -width "lshift(a, b)"
 .It Fn compl x
 Returns the bitwise complement of integer argument x.
-.It Fn and x y
-Performs a bitwise AND on integer arguments x and y.
-.It Fn or x y
-Performs a bitwise OR on integer arguments x and y.
-.It Fn xor x y
-Performs a bitwise Exclusive-OR on integer arguments x and y.
+.It Fn and v1 v2 ...
+Performs a bitwise AND on all arguments provided, as integers.
+There must be at least two values.
+.It Fn or v1 v2 ...
+Performs a bitwise OR on all arguments provided, as integers.
+There must be at least two values.
+.It Fn xor v1 v2 ...
+Performs a bitwise Exclusive-OR on all arguments provided, as integers.
+There must be at least two values.
 .It Fn lshift x n
 Returns integer argument x shifted by n bits to the left.
 .It Fn rshift x n

@@ -121,6 +121,9 @@ printheader(xo_handle_t *xo, const struct kerneldumpheader *h,
 	    (long long)dumplen);
 	xo_emit_h(xo, "{P:  }{Lwc:Blocksize}{:blocksize/%d}\n",
 	    dtoh32(h->blocksize));
+	xo_emit_h(xo, "{P:  }{Lwc:Compression}{:compression/%s}\n",
+	    h->compression == KERNELDUMP_COMP_GZIP ?
+	    "gzip" : "none");
 
 	t = dtoh64(h->dumptime);
 	xo_emit_h(xo, "{P:  }{Lwc:Dumptime}{:dumptime/%s}", ctime(&t));
@@ -357,7 +360,7 @@ compare_magic(const struct kerneldumpheader *kdh, const char *magic)
 #define BLOCKMASK (~(BLOCKSIZE-1))
 
 static int
-DoRegularFile(int fd, bool isencrypted, off_t dumpsize, char *buf,
+DoRegularFile(int fd, off_t dumpsize, u_int sectorsize, bool sparse, char *buf,
     const char *device, const char *filename, FILE *fp)
 {
 	int he, hs, nr, nw, wl;
@@ -370,8 +373,8 @@ DoRegularFile(int fd, bool isencrypted, off_t dumpsize, char *buf,
 		wl = BUFFERSIZE;
 		if (wl > dumpsize)
 			wl = dumpsize;
-		nr = read(fd, buf, wl);
-		if (nr != wl) {
+		nr = read(fd, buf, roundup(wl, sectorsize));
+		if (nr != (int)roundup(wl, sectorsize)) {
 			if (nr == 0)
 				syslog(LOG_WARNING,
 				    "WARNING: EOF on dump device");
@@ -380,7 +383,7 @@ DoRegularFile(int fd, bool isencrypted, off_t dumpsize, char *buf,
 			nerr++;
 			return (-1);
 		}
-		if (compress || isencrypted) {
+		if (!sparse) {
 			nw = fwrite(buf, 1, wl, fp);
 		} else {
 			for (nw = 0; nw < nr; nw = he) {
@@ -506,15 +509,14 @@ DoFile(const char *savedir, const char *device)
 	char *temp = NULL;
 	struct kerneldumpheader kdhf, kdhl;
 	uint8_t *dumpkey;
-	off_t mediasize, dumpsize, firsthd, lasthd;
+	off_t mediasize, dumpextent, dumplength, firsthd, lasthd;
 	FILE *info, *fp;
 	mode_t oumask;
 	int fd, fdinfo, error;
 	int bounds, status;
 	u_int sectorsize, xostyle;
-	int istextdump;
 	uint32_t dumpkeysize;
-	bool isencrypted, ret;
+	bool iscompressed, isencrypted, istextdump, ret;
 
 	bounds = getbounds();
 	dumpkey = NULL;
@@ -582,12 +584,12 @@ DoFile(const char *savedir, const char *device)
 		goto closefd;
 	}
 	memcpy(&kdhl, temp, sizeof(kdhl));
-	istextdump = 0;
+	iscompressed = istextdump = false;
 	if (compare_magic(&kdhl, TEXTDUMPMAGIC)) {
 		if (verbose)
 			printf("textdump magic on last dump header on %s\n",
 			    device);
-		istextdump = 1;
+		istextdump = true;
 		if (dtoh32(kdhl.version) != KERNELDUMP_TEXT_VERSION) {
 			syslog(LOG_ERR,
 			    "unknown version (%d) in last dump header on %s",
@@ -607,6 +609,20 @@ DoFile(const char *savedir, const char *device)
 			if (force == 0)
 				goto closefd;
 		}
+		switch (kdhl.compression) {
+		case KERNELDUMP_COMP_NONE:
+			break;
+		case KERNELDUMP_COMP_GZIP:
+			if (compress && verbose)
+				printf("dump is already compressed\n");
+			compress = false;
+			iscompressed = true;
+			break;
+		default:
+			syslog(LOG_ERR, "unknown compression type %d on %s",
+			    kdhl.compression, device);
+			break;
+		}
 	} else {
 		if (verbose)
 			printf("magic mismatch on last dump header on %s\n",
@@ -619,8 +635,7 @@ DoFile(const char *savedir, const char *device)
 		if (compare_magic(&kdhl, KERNELDUMPMAGIC_CLEARED)) {
 			if (verbose)
 				printf("forcing magic on %s\n", device);
-			memcpy(kdhl.magic, KERNELDUMPMAGIC,
-			    sizeof kdhl.magic);
+			memcpy(kdhl.magic, KERNELDUMPMAGIC, sizeof(kdhl.magic));
 		} else {
 			syslog(LOG_ERR, "unable to force dump - bad magic");
 			goto closefd;
@@ -648,9 +663,10 @@ DoFile(const char *savedir, const char *device)
 		if (force == 0)
 			goto closefd;
 	}
-	dumpsize = dtoh64(kdhl.dumplength);
+	dumpextent = dtoh64(kdhl.dumpextent);
+	dumplength = dtoh64(kdhl.dumplength);
 	dumpkeysize = dtoh32(kdhl.dumpkeysize);
-	firsthd = lasthd - dumpsize - sectorsize - dumpkeysize;
+	firsthd = lasthd - dumpextent - sectorsize - dumpkeysize;
 	if (lseek(fd, firsthd, SEEK_SET) != firsthd ||
 	    read(fd, temp, sectorsize) != (ssize_t)sectorsize) {
 		syslog(LOG_ERR,
@@ -696,7 +712,7 @@ DoFile(const char *savedir, const char *device)
 	if (verbose)
 		printf("Checking for available free space\n");
 
-	if (!check_space(savedir, dumpsize, bounds)) {
+	if (!check_space(savedir, dumplength, bounds)) {
 		nerr++;
 		goto closefd;
 	}
@@ -724,6 +740,9 @@ DoFile(const char *savedir, const char *device)
 		    istextdump ? "textdump.tar" :
 		    (isencrypted ? "vmcore_encrypted" : "vmcore"), bounds);
 		fp = zopen(corename, "w");
+	} else if (iscompressed && !isencrypted) {
+		snprintf(corename, sizeof(corename), "vmcore.%d.gz", bounds);
+		fp = fopen(corename, "w");
 	} else {
 		snprintf(corename, sizeof(corename), "%s.%d",
 		    istextdump ? "textdump.tar" :
@@ -792,11 +811,12 @@ DoFile(const char *savedir, const char *device)
 	    savedir, corename);
 
 	if (istextdump) {
-		if (DoTextdumpFile(fd, dumpsize, lasthd, buf, device,
+		if (DoTextdumpFile(fd, dumplength, lasthd, buf, device,
 		    corename, fp) < 0)
 			goto closeall;
 	} else {
-		if (DoRegularFile(fd, isencrypted, dumpsize, buf, device,
+		if (DoRegularFile(fd, dumplength, sectorsize,
+		    !(compress || iscompressed || isencrypted), buf, device,
 		    corename, fp) < 0) {
 			goto closeall;
 		}
@@ -822,7 +842,7 @@ DoFile(const char *savedir, const char *device)
 			    "key.last");
 		}
 	}
-	if (compress) {
+	if (compress || iscompressed) {
 		snprintf(linkname, sizeof(linkname), "%s.last.gz",
 		    istextdump ? "textdump.tar" :
 		    (isencrypted ? "vmcore_encrypted" : "vmcore"));

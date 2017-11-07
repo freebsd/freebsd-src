@@ -51,6 +51,76 @@
 #include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2_mount.h>
 
+static int
+ext2_ext_balloc(struct inode *ip, uint32_t lbn, int size,
+    struct ucred *cred, struct buf **bpp, int flags)
+{
+	struct m_ext2fs *fs;
+	struct buf *bp = NULL;
+	struct vnode *vp = ITOV(ip);
+	uint32_t nb;
+	int osize, nsize, blks, error, allocated;
+
+	fs = ip->i_e2fs;
+	blks = howmany(size, fs->e2fs_bsize);
+
+	error = ext4_ext_get_blocks(ip, lbn, blks, cred, NULL, &allocated, &nb);
+	if (error)
+		return (error);
+
+	if (allocated) {
+		if (ip->i_size < (lbn + 1) * fs->e2fs_bsize)
+			nsize = fragroundup(fs, size);
+		else
+			nsize = fs->e2fs_bsize;
+
+		bp = getblk(vp, lbn, nsize, 0, 0, 0);
+		if(!bp)
+			return (EIO);
+
+		bp->b_blkno = fsbtodb(fs, nb);
+		if (flags & BA_CLRBUF)
+			vfs_bio_clrbuf(bp);
+	} else {
+		if (ip->i_size >= (lbn + 1) * fs->e2fs_bsize) {
+
+			error = bread(vp, lbn, fs->e2fs_bsize, NOCRED, &bp);
+			if (error) {
+				brelse(bp);
+				return (error);
+			}
+			bp->b_blkno = fsbtodb(fs, nb);
+			*bpp = bp;
+			return (0);
+		}
+
+		/*
+		 * Consider need to reallocate a fragment.
+		 */
+		osize = fragroundup(fs, blkoff(fs, ip->i_size));
+		nsize = fragroundup(fs, size);
+		if (nsize <= osize) {
+			error = bread(vp, lbn, osize, NOCRED, &bp);
+			if (error) {
+				brelse(bp);
+				return (error);
+			}
+			bp->b_blkno = fsbtodb(fs, nb);
+		} else {
+			error = bread(vp, lbn, fs->e2fs_bsize, NOCRED, &bp);
+			if (error) {
+				brelse(bp);
+				return (error);
+			}
+			bp->b_blkno = fsbtodb(fs, nb);
+		}
+	}
+
+	*bpp = bp;
+
+	return (error);
+}
+
 /*
  * Balloc defines the structure of filesystem storage
  * by allocating the physical blocks on a device given
@@ -84,6 +154,10 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 		ip->i_next_alloc_block++;
 		ip->i_next_alloc_goal++;
 	}
+
+	if (ip->i_flag & IN_E4EXTENTS)
+		return (ext2_ext_balloc(ip, lbn, size, cred, bpp, flags));
+
 	/*
 	 * The first EXT2_NDADDR blocks are direct blocks
 	 */

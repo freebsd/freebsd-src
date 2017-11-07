@@ -223,7 +223,7 @@ main(int argc, char **argv)
 		if (usemine) {
 			s[strlen(s) - 1] = '\0';
 			cryptpw = crypt(s, mypw);
-			if (cryptpw == NULL || !strcmp(mypw, cryptpw))
+			if (cryptpw != NULL && !strcmp(mypw, cryptpw))
 				break;
 		}
 		else if (!strcmp(s, s1))

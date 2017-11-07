@@ -713,8 +713,14 @@ static void
 vm_object_terminate_pages(vm_object_t object)
 {
 	vm_page_t p, p_next;
+	struct mtx *mtx, *mtx1;
+	struct vm_pagequeue *pq, *pq1;
+	int dequeued;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
+
+	mtx = NULL;
+	pq = NULL;
 
 	/*
 	 * Free any remaining pageable pages.  This also removes them from the
@@ -724,21 +730,60 @@ vm_object_terminate_pages(vm_object_t object)
 	 */
 	TAILQ_FOREACH_SAFE(p, &object->memq, listq, p_next) {
 		vm_page_assert_unbusied(p);
-		vm_page_lock(p);
-		/*
-		 * Optimize the page's removal from the object by resetting
-		 * its "object" field.  Specifically, if the page is not
-		 * wired, then the effect of this assignment is that
-		 * vm_page_free()'s call to vm_page_remove() will return
-		 * immediately without modifying the page or the object.
-		 */ 
-		p->object = NULL;
-		if (p->wire_count == 0) {
-			vm_page_free(p);
-			VM_CNT_INC(v_pfree);
+		if ((object->flags & OBJ_UNMANAGED) == 0) {
+			/*
+			 * vm_page_free_prep() only needs the page
+			 * lock for managed pages.
+			 */
+			mtx1 = vm_page_lockptr(p);
+			if (mtx1 != mtx) {
+				if (mtx != NULL)
+					mtx_unlock(mtx);
+				if (pq != NULL) {
+					vm_pagequeue_cnt_add(pq, dequeued);
+					vm_pagequeue_unlock(pq);
+					pq = NULL;
+				}
+				mtx = mtx1;
+				mtx_lock(mtx);
+			}
 		}
-		vm_page_unlock(p);
+		p->object = NULL;
+		if (p->wire_count != 0)
+			goto unlist;
+		VM_CNT_INC(v_pfree);
+		p->flags &= ~PG_ZERO;
+		if (p->queue != PQ_NONE) {
+			KASSERT(p->queue < PQ_COUNT, ("vm_object_terminate: "
+			    "page %p is not queued", p));
+			pq1 = vm_page_pagequeue(p);
+			if (pq != pq1) {
+				if (pq != NULL) {
+					vm_pagequeue_cnt_add(pq, dequeued);
+					vm_pagequeue_unlock(pq);
+				}
+				pq = pq1;
+				vm_pagequeue_lock(pq);
+				dequeued = 0;
+			}
+			p->queue = PQ_NONE;
+			TAILQ_REMOVE(&pq->pq_pl, p, plinks.q);
+			dequeued--;
+		}
+		if (vm_page_free_prep(p, true))
+			continue;
+unlist:
+		TAILQ_REMOVE(&object->memq, p, listq);
 	}
+	if (pq != NULL) {
+		vm_pagequeue_cnt_add(pq, dequeued);
+		vm_pagequeue_unlock(pq);
+	}
+	if (mtx != NULL)
+		mtx_unlock(mtx);
+
+	vm_page_free_phys_pglist(&object->memq);
+
 	/*
 	 * If the object contained any pages, then reset it to an empty state.
 	 * None of the object's fields, including "resident_page_count", were
@@ -1048,8 +1093,8 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 	 * I/O.
 	 */
 	if (object->type == OBJT_VNODE &&
-	    (object->flags & OBJ_MIGHTBEDIRTY) != 0) {
-		vp = object->handle;
+	    (object->flags & OBJ_MIGHTBEDIRTY) != 0 &&
+	    ((vp = object->handle)->v_vflag & VV_NOSYNC) == 0) {
 		VM_OBJECT_WUNLOCK(object);
 		(void) vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
@@ -1918,6 +1963,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 {
 	vm_page_t p, next;
 	struct mtx *mtx;
+	struct pglist pgl;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->flags & OBJ_UNMANAGED) == 0 ||
@@ -1926,6 +1972,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	if (object->resident_page_count == 0)
 		return;
 	vm_object_pip_add(object, 1);
+	TAILQ_INIT(&pgl);
 again:
 	p = vm_page_find_least(object, start);
 	mtx = NULL;
@@ -1953,7 +2000,8 @@ again:
 			goto again;
 		}
 		if (p->wire_count != 0) {
-			if ((options & OBJPR_NOTMAPPED) == 0)
+			if ((options & OBJPR_NOTMAPPED) == 0 &&
+			    object->ref_count != 0)
 				pmap_remove_all(p);
 			if ((options & OBJPR_CLEANONLY) == 0) {
 				p->valid = 0;
@@ -1970,17 +2018,21 @@ again:
 		KASSERT((p->flags & PG_FICTITIOUS) == 0,
 		    ("vm_object_page_remove: page %p is fictitious", p));
 		if ((options & OBJPR_CLEANONLY) != 0 && p->valid != 0) {
-			if ((options & OBJPR_NOTMAPPED) == 0)
+			if ((options & OBJPR_NOTMAPPED) == 0 &&
+			    object->ref_count != 0)
 				pmap_remove_write(p);
-			if (p->dirty)
+			if (p->dirty != 0)
 				continue;
 		}
-		if ((options & OBJPR_NOTMAPPED) == 0)
+		if ((options & OBJPR_NOTMAPPED) == 0 && object->ref_count != 0)
 			pmap_remove_all(p);
-		vm_page_free(p);
+		p->flags &= ~PG_ZERO;
+		if (vm_page_free_prep(p, false))
+			TAILQ_INSERT_TAIL(&pgl, p, listq);
 	}
 	if (mtx != NULL)
 		mtx_unlock(mtx);
+	vm_page_free_phys_pglist(&pgl);
 	vm_object_pip_wakeup(object);
 }
 

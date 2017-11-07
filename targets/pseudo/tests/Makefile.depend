@@ -7,6 +7,7 @@
 # find . -name Makefile -exec grep -l '^\.include.*\.test.mk' {} + | grep -v '^\./contrib' | sed -e 's,/Makefile,,' -e 's,^\./,,' -e 's,^,	,' -e 's,$, \\,' | sort
 DIRDEPS= \
       bin/cat/tests \
+      bin/chflags/tests \
       bin/chmod/tests \
       bin/date/tests \
       bin/dd/tests \
@@ -14,15 +15,18 @@ DIRDEPS= \
       bin/expr/tests \
       bin/ln/tests \
       bin/ls/tests \
+      bin/mkdir/tests \
       bin/mv/tests \
       bin/pax/tests \
       bin/pkill/tests \
       bin/pwait/tests \
+      bin/rmdir/tests \
       bin/sh/tests \
       bin/sh/tests/builtins \
       bin/sh/tests/errors \
       bin/sh/tests/execution \
       bin/sh/tests/expansion \
+      bin/sh/tests/invocation \
       bin/sh/tests/parameters \
       bin/sh/tests/parser \
       bin/sh/tests/set-e \
@@ -152,20 +156,20 @@ DIRDEPS= \
       lib/libc/tests/string \
       lib/libc/tests/sys \
       lib/libc/tests/termios \
-      lib/libc/tests/time \
       lib/libc/tests/tls \
+      lib/libc/tests/tls/dso \
+      lib/libc/tests/tls_dso \
       lib/libc/tests/ttyio \
       lib/libcam/tests \
       lib/libcasper/services/cap_dns/tests \
       lib/libcasper/services/cap_grp/tests \
       lib/libcasper/services/cap_pwd/tests \
       lib/libcasper/services/cap_sysctl/tests \
+      lib/libcasper/services/tests \
       lib/libcrypt/tests \
-      lib/libdevdctl/tests \
       lib/libkvm/tests \
       lib/libmp/tests \
       lib/libnv/tests \
-      lib/libpathconv/tests \
       lib/libproc/tests \
       lib/librt/tests \
       lib/libsbuf/tests \
@@ -175,6 +179,7 @@ DIRDEPS= \
       lib/libthread_db/tests \
       lib/libutil/tests \
       lib/libxo/tests \
+      lib/libxo/tests/encoder \
       lib/msun/tests \
       lib/tests \
       libexec/atf/atf-check/tests \
@@ -188,6 +193,7 @@ DIRDEPS= \
       sbin/ifconfig/tests \
       sbin/mdconfig/tests \
       sbin/pfctl/tests \
+      sbin/pfctl/tests/files \
       sbin/savecore/tests \
       sbin/tests \
       secure/lib/tests \
@@ -234,6 +240,8 @@ DIRDEPS= \
       tests/sys/mac/portacl \
       tests/sys/mqueue \
       tests/sys/netinet \
+      tests/sys/netpfil \
+      tests/sys/netpfil/pf \
       tests/sys/opencrypto \
       tests/sys/pjdfstest/tests \
       tests/sys/pjdfstest/tests/chflags \

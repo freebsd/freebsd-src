@@ -62,6 +62,7 @@ struct g_mountver_softc {
 	char				*sc_provider_name;
 	char				sc_ident[DISK_IDENT_SIZE];
 	int				sc_orphaned;
+	int				sc_shutting_down;
 	int				sc_access_r;
 	int				sc_access_w;
 	int				sc_access_e;

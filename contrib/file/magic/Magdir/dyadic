@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: dyadic,v 1.7 2015/05/27 18:02:48 christos Exp $
+# $File: dyadic,v 1.8 2017/03/17 21:35:28 christos Exp $
 # Dyadic: file(1) magic for Dyalog APL.
 #
 # updated by Joerg Jenderek at Oct 2013
@@ -10,9 +10,9 @@
 # .DIN Dyalog APL Input Table
 # .DOT Dyalog APL Output Table
 # .DFT Dyalog APL Format File
-0	ubeshort&0xFF60	0xaa00		
+0	ubeshort&0xFF60	0xaa00
 # skip biblio.dbt
->1	byte		!4		
+>1	byte		!4
 # real Dyalog APL have non zero version numbers like 7.3 or 13.4
 >>2	ubeshort	>0x0000		Dyalog APL
 >>>1	byte		0x00		aplcore

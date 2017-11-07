@@ -185,17 +185,14 @@ kmod_icmpstat_inc(int statnum)
 void
 icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 {
-	struct ip *oip = mtod(n, struct ip *), *nip;
-	unsigned oiphlen = oip->ip_hl << 2;
+	struct ip *oip, *nip;
 	struct icmp *icp;
 	struct mbuf *m;
-	unsigned icmplen, icmpelen, nlen;
+	unsigned icmplen, icmpelen, nlen, oiphlen;
 
-	KASSERT((u_int)type <= ICMP_MAXTYPE, ("%s: illegal ICMP type", __func__));
-#ifdef ICMPPRINTFS
-	if (icmpprintfs)
-		printf("icmp_error(%p, %x, %d)\n", oip, type, code);
-#endif
+	KASSERT((u_int)type <= ICMP_MAXTYPE, ("%s: illegal ICMP type",
+	    __func__));
+
 	if (type != ICMP_REDIRECT)
 		ICMPSTAT_INC(icps_error);
 	/*
@@ -207,19 +204,28 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 	 */
 	if (n->m_flags & M_DECRYPTED)
 		goto freeit;
-	if (oip->ip_off & htons(~(IP_MF|IP_DF)))
-		goto freeit;
 	if (n->m_flags & (M_BCAST|M_MCAST))
 		goto freeit;
+
+	/* Drop if IP header plus 8 bytes is not contiguous in first mbuf. */
+	if (n->m_len < sizeof(struct ip) + ICMP_MINLEN)
+		goto freeit;
+	oip = mtod(n, struct ip *);
+	oiphlen = oip->ip_hl << 2;
+	if (n->m_len < oiphlen + ICMP_MINLEN)
+		goto freeit;
+#ifdef ICMPPRINTFS
+	if (icmpprintfs)
+		printf("icmp_error(%p, %x, %d)\n", oip, type, code);
+#endif
+	if (oip->ip_off & htons(~(IP_MF|IP_DF)))
+		goto freeit;
 	if (oip->ip_p == IPPROTO_ICMP && type != ICMP_REDIRECT &&
-	  n->m_len >= oiphlen + ICMP_MINLEN &&
-	  !ICMP_INFOTYPE(((struct icmp *)((caddr_t)oip + oiphlen))->icmp_type)) {
+	    !ICMP_INFOTYPE(((struct icmp *)((caddr_t)oip +
+		oiphlen))->icmp_type)) {
 		ICMPSTAT_INC(icps_oldicmp);
 		goto freeit;
 	}
-	/* Drop if IP header plus 8 bytes is not contignous in first mbuf. */
-	if (oiphlen + 8 > n->m_len)
-		goto freeit;
 	/*
 	 * Calculate length to quote from original packet and
 	 * prevent the ICMP mbuf from overflowing.
@@ -235,9 +241,10 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 		    n->m_next == NULL)
 			goto stdreply;
 		if (n->m_len < oiphlen + sizeof(struct tcphdr) &&
-		    ((n = m_pullup(n, oiphlen + sizeof(struct tcphdr))) == NULL))
+		    (n = m_pullup(n, oiphlen + sizeof(struct tcphdr))) == NULL)
 			goto freeit;
-		th = (struct tcphdr *)((caddr_t)oip + oiphlen);
+		oip = mtod(n, struct ip *);
+		th = mtodo(n, oiphlen);
 		tcphlen = th->th_off << 2;
 		if (tcphlen < sizeof(struct tcphdr))
 			goto freeit;
@@ -245,8 +252,8 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 			goto freeit;
 		if (oiphlen + tcphlen > n->m_len && n->m_next == NULL)
 			goto stdreply;
-		if (n->m_len < oiphlen + tcphlen && 
-		    ((n = m_pullup(n, oiphlen + tcphlen)) == NULL))
+		if (n->m_len < oiphlen + tcphlen &&
+		    (n = m_pullup(n, oiphlen + tcphlen)) == NULL)
 			goto freeit;
 		icmpelen = max(tcphlen, min(V_icmp_quotelen,
 		    ntohs(oip->ip_len) - oiphlen));
@@ -262,24 +269,31 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 		if (n->m_len < oiphlen + sizeof(struct sctphdr) &&
 		    (n = m_pullup(n, oiphlen + sizeof(struct sctphdr))) == NULL)
 			goto freeit;
+		oip = mtod(n, struct ip *);
 		icmpelen = max(sizeof(struct sctphdr),
 		    min(V_icmp_quotelen, ntohs(oip->ip_len) - oiphlen));
-		sh = (struct sctphdr *)((caddr_t)oip + oiphlen);
+		sh = mtodo(n, oiphlen);
 		if (ntohl(sh->v_tag) == 0 &&
-		    ntohs(oip->ip_len) >= oiphlen + sizeof(struct sctphdr) + 8 &&
+		    ntohs(oip->ip_len) >= oiphlen +
+		    sizeof(struct sctphdr) + 8 &&
 		    (n->m_len >= oiphlen + sizeof(struct sctphdr) + 8 ||
 		     n->m_next != NULL)) {
 			if (n->m_len < oiphlen + sizeof(struct sctphdr) + 8 &&
-			    (n = m_pullup(n, oiphlen + sizeof(struct sctphdr) + 8)) == NULL)
+			    (n = m_pullup(n, oiphlen +
+			    sizeof(struct sctphdr) + 8)) == NULL)
 				goto freeit;
+			oip = mtod(n, struct ip *);
+			sh = mtodo(n, oiphlen);
 			ch = (struct sctp_chunkhdr *)(sh + 1);
 			if (ch->chunk_type == SCTP_INITIATION) {
 				icmpelen = max(sizeof(struct sctphdr) + 8,
-				    min(V_icmp_quotelen, ntohs(oip->ip_len) - oiphlen));
+				    min(V_icmp_quotelen, ntohs(oip->ip_len) -
+				    oiphlen));
 			}
 		}
 	} else
-stdreply:	icmpelen = max(8, min(V_icmp_quotelen, ntohs(oip->ip_len) - oiphlen));
+stdreply:	icmpelen = max(8, min(V_icmp_quotelen, ntohs(oip->ip_len) -
+		    oiphlen));
 
 	icmplen = min(oiphlen + icmpelen, nlen);
 	if (icmplen < sizeof(struct ip))
@@ -294,7 +308,8 @@ stdreply:	icmpelen = max(8, min(V_icmp_quotelen, ntohs(oip->ip_len) - oiphlen));
 #ifdef MAC
 	mac_netinet_icmp_reply(n, m);
 #endif
-	icmplen = min(icmplen, M_TRAILINGSPACE(m) - sizeof(struct ip) - ICMP_MINLEN);
+	icmplen = min(icmplen, M_TRAILINGSPACE(m) -
+	    sizeof(struct ip) - ICMP_MINLEN);
 	m_align(m, ICMP_MINLEN + icmplen);
 	m->m_len = ICMP_MINLEN + icmplen;
 

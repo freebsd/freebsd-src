@@ -57,6 +57,7 @@
 #define	THREAD_REG	%r13
 #define	ADDR(x)	\
 	.llong	x
+#define	WORD_SIZE	8
 #else
 #define	GET_TOCBASE(r)
 #define	TOC_RESTORE
@@ -72,6 +73,7 @@
 #define	THREAD_REG	%r2
 #define	ADDR(x)	\
 	.long	x
+#define	WORD_SIZE	4
 #endif
 
 	.text

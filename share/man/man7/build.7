@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2017
+.Dd November 3, 2017
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -82,18 +82,7 @@ or under
 if variable
 .Va MAKEOBJDIRPREFIX
 is not set.
-For a given source directory, its canonical object directory
-would be
-.Pa ${MAKEOBJDIRPREFIX}${.CURDIR}
-if
-.Xr make 1
-variable
-.Va MAKEOBJDIRPREFIX
-is set, or
-.Pa /usr/obj${.CURDIR}
-if this variable is not set.
-Cross-builds set the object directory as described in the
-documentation for the
+The canonical object directory is described in the documentation for the
 .Cm buildworld
 target below.
 .Pp
@@ -201,17 +190,32 @@ by setting the
 .Pa MAKEOBJDIRPREFIX
 .Xr make 1
 variable.
-The actual build location prefix used is
+The actual build location prefix used
+depends on the
+.Va WITH_UNIFIED_OBJDIR
+option from
+.Xr src.conf 5 .
+If enabled it is
+.Pa ${MAKEOBJDIRPREFIX}${.CURDIR}/${TARGET}.${TARGET_ARCH}
+for all builds.
+If disabled it is
 .Pa ${MAKEOBJDIRPREFIX}${.CURDIR}
 for native builds, and
-.Pa ${MAKEOBJDIRPREFIX}/${TARGET}${.CURDIR}
+.Pa ${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}${.CURDIR}
 for cross builds and native builds with variable
 .Va CROSS_BUILD_TESTING
 set.
 .It Cm cleanworld
 Attempt to clean up targets built by a preceding
-.Cm buildworld
-step.
+.Cm buildworld ,
+or similar step built from this source directory.
+.It Cm cleanuniverse
+When
+.Va WITH_UNIFIED_OBJDIR
+is enabled, attempt to clean up targets built by a preceding
+.Cm buildworld ,
+.Cm universe ,
+or similar step, for any architecture built from this source directory.
 .It Cm distributeworld
 Distribute everything compiled by a preceding
 .Cm buildworld
@@ -222,6 +226,29 @@ variable
 .Va DISTDIR .
 This target is used while building a release; see
 .Xr release 7 .
+.It Cm native-xtools
+This target builds a cross-toolchain for the given
+.Sy TARGET
+and
+.Sy TARGET_ARCH ,
+as well as a select list of static userland tools for the host system.
+This is intended to be used in a jail where QEMU is used to improve
+performance by avoiding emulating binaries that do not need to be emulated.
+.Sy TARGET
+and
+.Sy TARGET_ARCH
+should be defined.
+.It Cm native-xtools-install
+Installs the results to
+.Pa ${DESTDIR}/${NXTP}
+where
+.Va NXTP
+defaults to
+.Pa nxb-bin .
+.Sy TARGET
+and
+.Sy TARGET_ARCH
+must be defined.
 .It Cm packageworld
 Archive the results of
 .Cm distributeworld ,
@@ -276,6 +303,43 @@ In addition print a summary of all failed targets at the end and
 exit with an error if there were any.
 .It Cm toolchains
 Create a build toolchain for each architecture supported by the build system.
+.It Cm xdev
+Builds and installs a cross-toolchain and sysroot for the given
+.Sy TARGET
+and
+.Sy TARGET_ARCH .
+The sysroot contains target library and headers.
+The target is an alias for
+.Cm xdev-build
+and
+.Cm xdev-install .
+The location of the files installed can be controlled with
+.Va DESTDIR .
+The target location in
+.Va DESTDIR
+is
+.Pa ${DESTDIR}/${XDTP}
+where
+.Va XDTP
+defaults to
+.Pa /usr/${XDDIR}
+and
+.Va XDDIR
+defaults to
+.Pa ${TARGET_ARCH}-freebsd .
+.It Cm xdev-build
+Builds for the
+.Cm xdev
+target.
+.It Cm xdev-install
+Installs the files for the
+.Cm xdev
+target.
+.It Cm xdev-links
+Installs autoconf-style symlinks to
+.Pa ${DESTDIR}/usr/bin
+pointing into the xdev toolchain in
+.Pa ${DESTDIR}/${XDTP} .
 .El
 .Pp
 Kernel specific build targets in
@@ -400,8 +464,12 @@ Defines the prefix for directory names in the tree of built objects.
 Defaults to
 .Pa /usr/obj
 if not defined.
-This variable should only be set in the environment and not via
+This variable should only be set in the environment or
+.Pa /etc/src-env.conf
+and not via
 .Pa /etc/make.conf
+or
+.Pa /etc/src.conf
 or the command line.
 .It Va NO_WERROR
 If defined, compiler warnings will not cause the build to halt,
@@ -615,7 +683,7 @@ documentation as part of the
 target.
 .It Va NO_LIBS
 If set, the libraries phase will be skipped.
-.It Va NO_OBJ
+.It Va NO_OBJWALK
 If set, no object directories will be created.
 This should only be used if object directories were created in a
 previous build and no new directories are connected.
@@ -632,7 +700,7 @@ If set, the build target
 .Cm buildworld
 defaults to setting
 .Va NO_CLEAN ,
-.Va NO_OBJ ,
+.Va NO_OBJWALK ,
 and will skip most bootstrap phases.
 It will only bootstrap libraries and build all of userland.
 This option should be used only when it is known that none of the bootstrap

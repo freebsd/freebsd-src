@@ -47,6 +47,7 @@ __<bsd.obj.mk>__:
 objwarn:
 obj:
 CANONICALOBJDIR= ${.OBJDIR}
+# This is also done in bsd.init.mk
 .if defined(NO_OBJ)
 # but this makefile does not want it!
 .OBJDIR: ${.CURDIR}
@@ -75,13 +76,18 @@ __objdir_made != umask ${OBJDIR_UMASK:U002}; ${Mkdirs}; \
 	done
 .endif
 .endif	# !empty(SRCS:M*/*) || !empty(DPSRCS:M*/*)
-.elif defined(MAKEOBJDIRPREFIX)
+.elif !empty(MAKEOBJDIRPREFIX)
 CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
 .elif defined(MAKEOBJDIR) && ${MAKEOBJDIR:M/*} != ""
 CANONICALOBJDIR:=${MAKEOBJDIR}
 OBJTOP?= ${MAKEOBJDIR}
 .else
 CANONICALOBJDIR:=/usr/obj${.CURDIR}
+.endif
+
+.if defined(SRCTOP) && defined(RELDIR) && \
+    (${CANONICALOBJDIR} == /${RELDIR} || ${.OBJDIR} == /${RELDIR})
+.error .OBJDIR incorrectly set to /${RELDIR}
 .endif
 
 OBJTOP?= ${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
@@ -158,7 +164,8 @@ whereobj:
 .endif
 
 # Same check in bsd.progs.mk
-.if ${CANONICALOBJDIR} != ${.CURDIR} && exists(${CANONICALOBJDIR}/)
+.if ${CANONICALOBJDIR} != ${.CURDIR} && exists(${CANONICALOBJDIR}/) && \
+    (${MK_AUTO_OBJ} == "no" || ${.TARGETS:Nclean*:N*clean:Ndestroy*} == "")
 cleanobj:
 	-rm -rf ${CANONICALOBJDIR}
 .else
@@ -182,6 +189,10 @@ clean:
 .endif
 .endif
 .ORDER: clean all
+.if ${MK_AUTO_OBJ} == "yes"
+.ORDER: cleanobj all
+.ORDER: cleandir all
+.endif
 
 .include <bsd.subdir.mk>
 

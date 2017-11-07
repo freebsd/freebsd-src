@@ -119,6 +119,8 @@ static void vfs_vmio_truncate(struct buf *bp, int npages);
 static void vfs_vmio_extend(struct buf *bp, int npages, int size);
 static int vfs_bio_clcheck(struct vnode *vp, int size,
 		daddr_t lblkno, daddr_t blkno);
+static void breada(struct vnode *, daddr_t *, int *, int, struct ucred *, int,
+		void (*)(struct buf *));
 static int buf_flush(struct vnode *vp, int);
 static int buf_recycle(bool);
 static int buf_scan(bool);
@@ -1783,15 +1785,14 @@ bufkva_reclaim(vmem_t *vmem, int flags)
 	return;
 }
 
-
 /*
  * Attempt to initiate asynchronous I/O on read-ahead blocks.  We must
  * clear BIO_ERROR and B_INVAL prior to initiating I/O . If B_CACHE is set,
  * the buffer is valid and we do not have to do anything.
  */
-void
-breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
-    int cnt, struct ucred * cred)
+static void
+breada(struct vnode * vp, daddr_t * rablkno, int * rabsize, int cnt,
+    struct ucred * cred, int flags, void (*ckhashfunc)(struct buf *))
 {
 	struct buf *rabp;
 	int i;
@@ -1800,31 +1801,34 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
 		if (inmem(vp, *rablkno))
 			continue;
 		rabp = getblk(vp, *rablkno, *rabsize, 0, 0, 0);
-
-		if ((rabp->b_flags & B_CACHE) == 0) {
-			if (!TD_IS_IDLETHREAD(curthread)) {
-#ifdef RACCT
-				if (racct_enable) {
-					PROC_LOCK(curproc);
-					racct_add_buf(curproc, rabp, 0);
-					PROC_UNLOCK(curproc);
-				}
-#endif /* RACCT */
-				curthread->td_ru.ru_inblock++;
-			}
-			rabp->b_flags |= B_ASYNC;
-			rabp->b_flags &= ~B_INVAL;
-			rabp->b_ioflags &= ~BIO_ERROR;
-			rabp->b_iocmd = BIO_READ;
-			if (rabp->b_rcred == NOCRED && cred != NOCRED)
-				rabp->b_rcred = crhold(cred);
-			vfs_busy_pages(rabp, 0);
-			BUF_KERNPROC(rabp);
-			rabp->b_iooffset = dbtob(rabp->b_blkno);
-			bstrategy(rabp);
-		} else {
+		if ((rabp->b_flags & B_CACHE) != 0) {
 			brelse(rabp);
+			continue;
 		}
+		if (!TD_IS_IDLETHREAD(curthread)) {
+#ifdef RACCT
+			if (racct_enable) {
+				PROC_LOCK(curproc);
+				racct_add_buf(curproc, rabp, 0);
+				PROC_UNLOCK(curproc);
+			}
+#endif /* RACCT */
+			curthread->td_ru.ru_inblock++;
+		}
+		rabp->b_flags |= B_ASYNC;
+		rabp->b_flags &= ~B_INVAL;
+		if ((flags & GB_CKHASH) != 0) {
+			rabp->b_flags |= B_CKHASH;
+			rabp->b_ckhashcalc = ckhashfunc;
+		}
+		rabp->b_ioflags &= ~BIO_ERROR;
+		rabp->b_iocmd = BIO_READ;
+		if (rabp->b_rcred == NOCRED && cred != NOCRED)
+			rabp->b_rcred = crhold(cred);
+		vfs_busy_pages(rabp, 0);
+		BUF_KERNPROC(rabp);
+		rabp->b_iooffset = dbtob(rabp->b_blkno);
+		bstrategy(rabp);
 	}
 }
 
@@ -1840,10 +1844,11 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
  */
 int
 breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
-    int *rabsize, int cnt, struct ucred *cred, int flags, struct buf **bpp)
+    int *rabsize, int cnt, struct ucred *cred, int flags,
+    void (*ckhashfunc)(struct buf *), struct buf **bpp)
 {
 	struct buf *bp;
-	int rv = 0, readwait = 0;
+	int readwait, rv;
 
 	CTR3(KTR_BUF, "breadn(%p, %jd, %d)", vp, blkno, size);
 	/*
@@ -1853,7 +1858,10 @@ breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
 	if (bp == NULL)
 		return (EBUSY);
 
-	/* if not found in cache, do some I/O */
+	/*
+	 * If not found in cache, do some I/O
+	 */
+	readwait = 0;
 	if ((bp->b_flags & B_CACHE) == 0) {
 		if (!TD_IS_IDLETHREAD(curthread)) {
 #ifdef RACCT
@@ -1867,6 +1875,10 @@ breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
 		}
 		bp->b_iocmd = BIO_READ;
 		bp->b_flags &= ~B_INVAL;
+		if ((flags & GB_CKHASH) != 0) {
+			bp->b_flags |= B_CKHASH;
+			bp->b_ckhashcalc = ckhashfunc;
+		}
 		bp->b_ioflags &= ~BIO_ERROR;
 		if (bp->b_rcred == NOCRED && cred != NOCRED)
 			bp->b_rcred = crhold(cred);
@@ -1876,8 +1888,12 @@ breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
 		++readwait;
 	}
 
-	breada(vp, rablkno, rabsize, cnt, cred);
+	/*
+	 * Attempt to initiate asynchronous I/O on read-ahead blocks.
+	 */
+	breada(vp, rablkno, rabsize, cnt, cred, flags, ckhashfunc);
 
+	rv = 0;
 	if (readwait) {
 		rv = bufwait(bp);
 		if (rv != 0) {
@@ -4048,6 +4064,10 @@ bufdone(struct buf *bp)
 	runningbufwakeup(bp);
 	if (bp->b_iocmd == BIO_WRITE)
 		dropobj = bp->b_bufobj;
+	else if ((bp->b_flags & B_CKHASH) != 0) {
+		KASSERT(buf_mapped(bp), ("biodone: bp %p not mapped", bp));
+		(*bp->b_ckhashcalc)(bp);
+	}
 	/* call optional completion function if requested */
 	if (bp->b_iodone != NULL) {
 		biodone = bp->b_iodone;

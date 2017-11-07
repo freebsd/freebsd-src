@@ -42,6 +42,7 @@
 	(copyout((from), (to), (size)), 0)
 int ddi_strtol(const char *str, char **nptr, int base, long *result);
 int ddi_strtoul(const char *str, char **nptr, int base, unsigned long *result);
+int ddi_strtoll(const char *str, char **nptr, int base, long long *result);
 int ddi_strtoull(const char *str, char **nptr, int base,
     unsigned long long *result);
 

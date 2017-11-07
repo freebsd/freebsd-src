@@ -53,8 +53,6 @@
 #include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2_mount.h>
 
-static int ext4_bmapext(struct vnode *, int32_t, int64_t *, int *, int *);
-
 /*
  * Bmap converts the logical block number of a file to its physical block
  * number on the disk. The conversion is done by using the logical block
@@ -89,55 +87,52 @@ ext2_bmap(struct vop_bmap_args *ap)
  * Convert the logical block number of a file to its physical block number
  * on the disk within ext4 extents.
  */
-static int
+int
 ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 {
 	struct inode *ip;
 	struct m_ext2fs *fs;
+	struct ext4_extent_header *ehp;
 	struct ext4_extent *ep;
-	struct ext4_extent_path path = {.ep_bp = NULL};
+	struct ext4_extent_path *path = NULL;
 	daddr_t lbn;
-	int error;
+	int error, depth;
 
 	ip = VTOI(vp);
 	fs = ip->i_e2fs;
 	lbn = bn;
+	ehp = (struct ext4_extent_header *)ip->i_data;
+	depth = ehp->eh_depth;
 
+	*bnp = -1;
 	if (runp != NULL)
 		*runp = 0;
 	if (runb != NULL)
 		*runb = 0;
-	error = 0;
 
-	ext4_ext_find_extent(fs, ip, lbn, &path);
-	if (path.ep_is_sparse) {
-		*bnp = -1;
-		if (runp != NULL)
-			*runp = path.ep_sparse_ext.e_len -
-			    (lbn - path.ep_sparse_ext.e_blk) - 1;
-		if (runb != NULL)
-			*runb = lbn - path.ep_sparse_ext.e_blk;
-	} else {
-		if (path.ep_ext == NULL) {
-			error = EIO;
-			goto out;
+	error = ext4_ext_find_extent(ip, lbn, &path);
+	if (error)
+		return (error);
+
+	ep = path[depth].ep_ext;
+	if(ep) {
+		if (lbn < ep->e_blk) {
+			if (runp != NULL)
+				*runp = ep->e_blk - lbn - 1;
+		} else if (ep->e_blk <= lbn && lbn < ep->e_blk + ep->e_len) {
+			*bnp = fsbtodb(fs, lbn - ep->e_blk +
+			    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32));
+			if (runp != NULL)
+				*runp = ep->e_len - (lbn - ep->e_blk) - 1;
+			if (runb != NULL)
+				*runb = lbn - ep->e_blk;
+		} else {
+			if (runb != NULL)
+				*runb = ep->e_blk + lbn - ep->e_len;
 		}
-		ep = path.ep_ext;
-		*bnp = fsbtodb(fs, lbn - ep->e_blk +
-		    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32));
-
-		if (*bnp == 0)
-			*bnp = -1;
-
-		if (runp != NULL)
-			*runp = ep->e_len - (lbn - ep->e_blk) - 1;
-		if (runb != NULL)
-			*runb = lbn - ep->e_blk;
 	}
 
-out:
-	if (path.ep_bp != NULL)
-		brelse(path.ep_bp);
+	ext4_ext_path_free(path);
 
 	return (error);
 }

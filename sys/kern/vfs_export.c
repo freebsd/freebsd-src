@@ -448,44 +448,45 @@ static struct netcred *
 vfs_export_lookup(struct mount *mp, struct sockaddr *nam)
 {
 	struct netexport *nep;
-	struct netcred *np;
+	struct netcred *np = NULL;
 	struct radix_node_head *rnh;
 	struct sockaddr *saddr;
 
 	nep = mp->mnt_export;
 	if (nep == NULL)
 		return (NULL);
-	np = NULL;
-	if (mp->mnt_flag & MNT_EXPORTED) {
-		/*
-		 * Lookup in the export list first.
-		 */
-		if (nam != NULL) {
-			saddr = nam;
-			rnh = NULL;
-			switch (saddr->sa_family) {
-			case AF_INET:
-				rnh = nep->ne4;
-				break;
-			case AF_INET6:
-				rnh = nep->ne6;
-				break;
-			}
-			if (rnh != NULL) {
-				RADIX_NODE_HEAD_RLOCK(rnh);
-				np = (struct netcred *)
-				    (*rnh->rnh_matchaddr)(saddr, &rnh->rh);
-				RADIX_NODE_HEAD_RUNLOCK(rnh);
-				if (np && np->netc_rnodes->rn_flags & RNF_ROOT)
-					np = NULL;
-			}
+	if ((mp->mnt_flag & MNT_EXPORTED) == 0)
+		return (NULL);
+
+	/*
+	 * Lookup in the export list
+	 */
+	if (nam != NULL) {
+		saddr = nam;
+		rnh = NULL;
+		switch (saddr->sa_family) {
+		case AF_INET:
+			rnh = nep->ne4;
+			break;
+		case AF_INET6:
+			rnh = nep->ne6;
+			break;
 		}
-		/*
-		 * If no address match, use the default if it exists.
-		 */
-		if (np == NULL && mp->mnt_flag & MNT_DEFEXPORTED)
-			np = &nep->ne_defexported;
+		if (rnh != NULL) {
+			RADIX_NODE_HEAD_RLOCK(rnh);
+			np = (struct netcred *) (*rnh->rnh_matchaddr)(saddr, &rnh->rh);
+			RADIX_NODE_HEAD_RUNLOCK(rnh);
+			if (np != NULL && (np->netc_rnodes->rn_flags & RNF_ROOT) != 0)
+				return (NULL);
+		}
 	}
+
+	/*
+	 * If no address match, use the default if it exists.
+	 */
+	if (np == NULL && (mp->mnt_flag & MNT_DEFEXPORTED) != 0)
+		return (&nep->ne_defexported);
+
 	return (np);
 }
 

@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_set_connect_state 3"
-.TH SSL_set_connect_state 3 "2017-05-25" "1.0.2l" "OpenSSL"
+.TH SSL_set_connect_state 3 "2017-11-02" "1.0.2m" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -157,7 +157,7 @@ it was either assigned a dedicated client method, a dedicated server
 method, or a generic method, that can be used for both client and
 server connections. (The method might have been changed with
 \&\fISSL_CTX_set_ssl_version\fR\|(3) or
-\&\fISSL_set_ssl_method()\fR.)
+\&\fISSL_set_ssl_method\fR\|(3).)
 .PP
 When beginning a new handshake, the \s-1SSL\s0 engine must know whether it must
 call the connect (client) or accept (server) routines. Even though it may

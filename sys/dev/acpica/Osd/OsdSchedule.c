@@ -274,9 +274,6 @@ AcpiOsGetTimer(void)
     struct bintime bt;
     UINT64 t;
 
-    /* XXX During early boot there is no (decent) timer available yet. */
-    KASSERT(cold == 0, ("acpi: timer op not yet supported during boot"));
-
     binuptime(&bt);
     t = (uint64_t)bt.sec * 10000000;
     t += ((uint64_t)10000000 * (uint32_t)(bt.frac >> 32)) >> 32;

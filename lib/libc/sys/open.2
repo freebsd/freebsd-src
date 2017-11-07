@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2016
+.Dd September 15, 2017
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -487,7 +487,9 @@ is specified and the process is in capability mode.
 was called and the process is in capability mode.
 .It Bq Er ENOTCAPABLE
 .Fa path
-is an absolute path or contained "..".
+is an absolute path or contained a ".." component leading to a
+directory outside of the directory hierarchy specified by
+.Fa fd .
 .El
 .Sh SEE ALSO
 .Xr chmod 2 ,

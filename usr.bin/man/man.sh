@@ -333,7 +333,7 @@ man_display_page() {
 	if [ -n "$use_width" ]; then
 		mandoc_args="-O width=${use_width}"
 	fi
-	testline="mandoc -Tlint -Wunsupp 2>/dev/null"
+	testline="mandoc -Tlint -Wunsupp >/dev/null 2>&1"
 	if [ -n "$tflag" ]; then
 		pipeline="mandoc -Tps $mandoc_args"
 	else

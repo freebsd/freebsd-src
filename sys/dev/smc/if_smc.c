@@ -782,7 +782,7 @@ smc_task_rx(void *context, int pending)
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 smc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct smc_softc	*sc;
@@ -792,12 +792,13 @@ smc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	SMC_LOCK(sc);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		SMC_UNLOCK(sc);
-		return;
+		return (0);
 	}
 	SMC_UNLOCK(sc);
 
 	if (cmd == POLL_AND_CHECK_STATUS)
 		taskqueue_enqueue(sc->smc_tq, &sc->smc_intr);
+        return (0);
 }
 #endif
 

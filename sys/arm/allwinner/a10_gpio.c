@@ -165,6 +165,11 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,	0}
 };
 
+struct clk_list {
+	TAILQ_ENTRY(clk_list)	next;
+	clk_t			clk;
+};
+
 struct a10_gpio_softc {
 	device_t		sc_dev;
 	device_t		sc_busdev;
@@ -175,6 +180,7 @@ struct a10_gpio_softc {
 	bus_space_handle_t	sc_bsh;
 	void *			sc_intrhand;
 	const struct allwinner_padconf *	padconf;
+	TAILQ_HEAD(, clk_list)		clk_list;
 };
 
 #define	A10_GPIO_LOCK(_sc)		mtx_lock_spin(&(_sc)->sc_mtx)
@@ -197,6 +203,8 @@ struct a10_gpio_softc {
 
 static int a10_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *value);
 static int a10_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value);
+static int a10_gpio_pin_get_locked(struct a10_gpio_softc *sc, uint32_t pin, unsigned int *value);
+static int a10_gpio_pin_set_locked(struct a10_gpio_softc *sc, uint32_t pin, unsigned int value);
 
 #define	A10_GPIO_WRITE(_sc, _off, _val)		\
     bus_space_write_4(_sc->sc_bst, _sc->sc_bsh, _off, _val)
@@ -333,15 +341,15 @@ a10_gpio_pin_configure(struct a10_gpio_softc *sc, uint32_t pin, uint32_t flags)
 		err = a10_gpio_set_function(sc, pin, A10_GPIO_INPUT);
 	} else if (flags & GPIO_PIN_OUTPUT) {
 		if (flags & GPIO_PIN_PRESET_LOW) {
-			a10_gpio_pin_set(sc->sc_dev, pin, 0);
+			a10_gpio_pin_set_locked(sc, pin, 0);
 		} else if (flags & GPIO_PIN_PRESET_HIGH) {
-			a10_gpio_pin_set(sc->sc_dev, pin, 1);
+			a10_gpio_pin_set_locked(sc, pin, 1);
 		} else {
 			/* Read the pin and preset output to current state. */
 			err = a10_gpio_set_function(sc, pin, A10_GPIO_INPUT);
 			if (err == 0) {
-				a10_gpio_pin_get(sc->sc_dev, pin, &val);
-				a10_gpio_pin_set(sc->sc_dev, pin, val); 
+				a10_gpio_pin_get_locked(sc, pin, &val);
+				a10_gpio_pin_set_locked(sc, pin, val);
 			}
 		}
 		if (err == 0)
@@ -473,26 +481,60 @@ a10_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 }
 
 static int
-a10_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
+a10_gpio_pin_set_locked(struct a10_gpio_softc *sc, uint32_t pin,
+    unsigned int value)
 {
-	struct a10_gpio_softc *sc;
 	uint32_t bank, data;
 
-	sc = device_get_softc(dev);
+	A10_GPIO_LOCK_ASSERT(sc);
+
 	if (pin > sc->padconf->npins)
 		return (EINVAL);
 
 	bank = sc->padconf->pins[pin].port;
 	pin = sc->padconf->pins[pin].pin;
 
-	A10_GPIO_LOCK(sc);
 	data = A10_GPIO_READ(sc, A10_GPIO_GP_DAT(bank));
 	if (value)
 		data |= (1 << pin);
 	else
 		data &= ~(1 << pin);
 	A10_GPIO_WRITE(sc, A10_GPIO_GP_DAT(bank), data);
+
+	return (0);
+}
+
+static int
+a10_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
+{
+	struct a10_gpio_softc *sc;
+	int ret;
+
+	sc = device_get_softc(dev);
+
+	A10_GPIO_LOCK(sc);
+	ret = a10_gpio_pin_set_locked(sc, pin, value);
 	A10_GPIO_UNLOCK(sc);
+
+	return (ret);
+}
+
+static int
+a10_gpio_pin_get_locked(struct a10_gpio_softc *sc,uint32_t pin,
+    unsigned int *val)
+{
+	uint32_t bank, reg_data;
+
+	A10_GPIO_LOCK_ASSERT(sc);
+
+	if (pin > sc->padconf->npins)
+		return (EINVAL);
+
+	bank = sc->padconf->pins[pin].port;
+	pin = sc->padconf->pins[pin].pin;
+
+	reg_data = A10_GPIO_READ(sc, A10_GPIO_GP_DAT(bank));
+	*val = (reg_data & (1 << pin)) ? 1 : 0;
 
 	return (0);
 }
@@ -501,21 +543,15 @@ static int
 a10_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 {
 	struct a10_gpio_softc *sc;
-	uint32_t bank, reg_data;
+	int ret;
 
 	sc = device_get_softc(dev);
-	if (pin > sc->padconf->npins)
-		return (EINVAL);
-
-	bank = sc->padconf->pins[pin].port;
-	pin = sc->padconf->pins[pin].pin;
 
 	A10_GPIO_LOCK(sc);
-	reg_data = A10_GPIO_READ(sc, A10_GPIO_GP_DAT(bank));
+	ret = a10_gpio_pin_get_locked(sc, pin, val);
 	A10_GPIO_UNLOCK(sc);
-	*val = (reg_data & (1 << pin)) ? 1 : 0;
 
-	return (0);
+	return (ret);
 }
 
 static int
@@ -736,8 +772,10 @@ a10_gpio_attach(device_t dev)
 	int rid, error;
 	phandle_t gpio;
 	struct a10_gpio_softc *sc;
+	struct clk_list *clkp, *clkp_tmp;
 	clk_t clk;
-	hwreset_t rst;
+	hwreset_t rst = NULL;
+	int off, err, clkret;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -777,16 +815,29 @@ a10_gpio_attach(device_t dev)
 		error = hwreset_deassert(rst);
 		if (error != 0) {
 			device_printf(dev, "cannot de-assert reset\n");
-			return (error);
+			goto fail;
 		}
 	}
 
-	if (clk_get_by_ofw_index(dev, 0, 0, &clk) == 0) {
-		error = clk_enable(clk);
-		if (error != 0) {
-			device_printf(dev, "could not enable clock\n");
-			return (error);
+	TAILQ_INIT(&sc->clk_list);
+	for (off = 0, clkret = 0; clkret == 0; off++) {
+		clkret = clk_get_by_ofw_index(dev, 0, off, &clk);
+		if (clkret != 0)
+			break;
+		err = clk_enable(clk);
+		if (err != 0) {
+			device_printf(dev, "Could not enable clock %s\n",
+			    clk_get_name(clk));
+			goto fail;
 		}
+		clkp = malloc(sizeof(*clkp), M_DEVBUF, M_WAITOK | M_ZERO);
+		clkp->clk = clk;
+		TAILQ_INSERT_TAIL(&sc->clk_list, clkp, next);
+	}
+	if (clkret != 0 && clkret != ENOENT) {
+		device_printf(dev, "Could not find clock at offset %d (%d)\n",
+		    off, clkret);
+		goto fail;
 	}
 
 	sc->sc_busdev = gpiobus_attach_bus(dev);
@@ -809,6 +860,26 @@ fail:
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 	mtx_destroy(&sc->sc_mtx);
+
+	/* Disable clock */
+	TAILQ_FOREACH_SAFE(clkp, &sc->clk_list, next, clkp_tmp) {
+		err = clk_disable(clkp->clk);
+		if (err != 0)
+			device_printf(dev, "Could not disable clock %s\n",
+			    clk_get_name(clkp->clk));
+		err = clk_release(clkp->clk);
+		if (err != 0)
+			device_printf(dev, "Could not release clock %s\n",
+			    clk_get_name(clkp->clk));
+		TAILQ_REMOVE(&sc->clk_list, clkp, next);
+		free(clkp, M_DEVBUF);
+	}
+
+	/* Assert resets */
+	if (rst) {
+		hwreset_assert(rst);
+		hwreset_release(rst);
+	}
 
 	return (ENXIO);
 }

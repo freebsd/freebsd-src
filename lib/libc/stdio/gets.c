@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <unistd.h>
 #include <stdio.h>
-#include <sys/cdefs.h>
 #include "un-namespace.h"
 #include "libc_private.h"
 #include "local.h"
@@ -62,13 +61,13 @@ gets(char *buf)
 		warned = 1;
 	}
 	for (s = buf; (c = __sgetc(stdin)) != '\n'; ) {
-		if (c == EOF)
+		if (c == EOF) {
 			if (s == buf) {
 				ret = NULL;
 				goto end;
 			} else
 				break;
-		else
+		} else
 			*s++ = c;
 	}
 	*s = 0;

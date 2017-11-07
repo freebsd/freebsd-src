@@ -457,7 +457,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 		/* Allocate the table */
 		table = (vm_offset_t)contigmalloc(npages * PAGE_SIZE,
 		    M_GICV3_ITS, M_WAITOK | M_ZERO, 0, (1ul << 48) - 1,
-		    PAGE_SIZE, 0);
+		    PAGE_SIZE_64K, 0);
 
 		sc->sc_its_ptab[i].ptab_vaddr = table;
 		sc->sc_its_ptab[i].ptab_size = npages * PAGE_SIZE;
@@ -557,7 +557,7 @@ gicv3_its_pendtables_init(struct gicv3_its_softc *sc)
 {
 	int i;
 
-	for (i = 0; i < mp_ncpus; i++) {
+	for (i = 0; i <= mp_maxid; i++) {
 		if (CPU_ISSET(i, &sc->sc_cpus) == 0)
 			continue;
 
@@ -736,7 +736,7 @@ gicv3_its_attach(device_t dev)
 	gicv3_its_cmdq_init(sc);
 
 	/* Allocate the per-CPU collections */
-	for (int cpu = 0; cpu < mp_ncpus; cpu++)
+	for (int cpu = 0; cpu <= mp_maxid; cpu++)
 		if (CPU_ISSET(cpu, &sc->sc_cpus) != 0)
 			sc->sc_its_cols[cpu] = malloc(
 			    sizeof(*sc->sc_its_cols[0]), M_GICV3_ITS,

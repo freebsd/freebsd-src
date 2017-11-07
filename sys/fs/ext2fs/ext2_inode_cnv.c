@@ -51,7 +51,7 @@ ext2_print_inode(struct inode *in)
 
 	printf("Inode: %5ju", (uintmax_t)in->i_number);
 	printf(	/* "Inode: %5d" */
-	    " Type: %10s Mode: 0x%o Flags: 0x%x  Version: %d acl: 0x%llx\n",
+	    " Type: %10s Mode: 0x%o Flags: 0x%x  Version: %d acl: 0x%lx\n",
 	    "n/a", in->i_mode, in->i_flags, in->i_gen, in->i_facl);
 	printf("User: %5u Group: %5u  Size: %ju\n",
 	    in->i_uid, in->i_gid, (uintmax_t)in->i_size);
@@ -62,19 +62,22 @@ ext2_print_inode(struct inode *in)
 	printf("mtime: 0x%x", in->i_mtime);
 	if (E2DI_HAS_XTIME(in))
 		printf("crtime %#x ", in->i_birthtime);
-	printf("BLOCKS:");
-	for (i = 0; i < (in->i_blocks <= 24 ? (in->i_blocks + 1) / 2 : 12); i++)
-		printf("  %d", in->i_db[i]);
-	printf("\n");
-	printf("Extents:\n");
-	ehp = (struct ext4_extent_header *)in->i_db;
-	printf("Header (magic 0x%x entries %d max %d depth %d gen %d)\n",
-	    ehp->eh_magic, ehp->eh_ecount, ehp->eh_max, ehp->eh_depth,
-	    ehp->eh_gen);
-	ep = (struct ext4_extent *)(char *)(ehp + 1);
-	printf("Index (blk %d len %d start_lo %d start_hi %d)\n", ep->e_blk,
-	    ep->e_len, ep->e_start_lo, ep->e_start_hi);
-	printf("\n");
+	if (in->i_flag & IN_E4EXTENTS) {
+		printf("Extents:\n");
+		ehp = (struct ext4_extent_header *)in->i_db;
+		printf("Header (magic 0x%x entries %d max %d depth %d gen %d)\n",
+		    ehp->eh_magic, ehp->eh_ecount, ehp->eh_max, ehp->eh_depth,
+		    ehp->eh_gen);
+		ep = (struct ext4_extent *)(char *)(ehp + 1);
+		printf("Index (blk %d len %d start_lo %d start_hi %d)\n", ep->e_blk,
+		    ep->e_len, ep->e_start_lo, ep->e_start_hi);
+		printf("\n");
+	} else {
+		printf("BLOCKS:");
+		for (i = 0; i < (in->i_blocks <= 24 ? (in->i_blocks + 1) / 2 : 12); i++)
+			printf("  %d", in->i_db[i]);
+		printf("\n");
+	}
 }
 #endif	/* EXT2FS_DEBUG */
 
@@ -84,8 +87,6 @@ ext2_print_inode(struct inode *in)
 void
 ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 {
-	int i;
-
 	ip->i_nlink = ei->e2di_nlink;
 	/*
 	 * Godmar thinks - if the link count is zero, then the inode is
@@ -127,20 +128,18 @@ ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 	ip->i_uid |= (uint32_t)ei->e2di_uid_high << 16;
 	ip->i_gid |= (uint32_t)ei->e2di_gid_high << 16;
 
-	for (i = 0; i < EXT2_NDADDR; i++)
-		ip->i_db[i] = ei->e2di_blocks[i];
-	for (i = 0; i < EXT2_NIADDR; i++)
-		ip->i_ib[i] = ei->e2di_blocks[EXT2_NDIR_BLOCKS + i];
+	memcpy(ip->i_data, ei->e2di_blocks, sizeof(ei->e2di_blocks));
 }
 
 /*
  *	inode to raw ext2 inode
  */
-void
+int
 ext2_i2ei(struct inode *ip, struct ext2fs_dinode *ei)
 {
-	int i;
+	struct m_ext2fs *fs;
 
+	fs = ip->i_e2fs;
 	ei->e2di_mode = ip->i_mode;
 	ei->e2di_nlink = ip->i_nlink;
 	/*
@@ -167,8 +166,19 @@ ext2_i2ei(struct inode *ip, struct ext2fs_dinode *ei)
 	ei->e2di_flags |= (ip->i_flags & UF_NODUMP) ? EXT2_NODUMP : 0;
 	ei->e2di_flags |= (ip->i_flag & IN_E3INDEX) ? EXT3_INDEX : 0;
 	ei->e2di_flags |= (ip->i_flag & IN_E4EXTENTS) ? EXT4_EXTENTS : 0;
-	ei->e2di_nblock = ip->i_blocks & 0xffffffff;
-	ei->e2di_nblock_high = ip->i_blocks >> 32 & 0xffff;
+	if (ip->i_blocks > ~0U &&
+	    !EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_HUGE_FILE)) {
+		ext2_fserr(fs, ip->i_uid, "i_blocks value is out of range");
+		return (EIO);
+	}
+	if (ip->i_blocks <= 0xffffffffffffULL) {
+		ei->e2di_nblock = ip->i_blocks & 0xffffffff;
+		ei->e2di_nblock_high = ip->i_blocks >> 32 & 0xffff;
+	} else {
+		ei->e2di_flags |= EXT4_HUGE_FILE;
+		ei->e2di_nblock = dbtofsb(fs, ip->i_blocks);
+		ei->e2di_nblock_high = dbtofsb(fs, ip->i_blocks) >> 32 & 0xffff;
+	}
 	ei->e2di_facl = ip->i_facl & 0xffffffff;
 	ei->e2di_facl_high = ip->i_facl >> 32 & 0xffff;
 	ei->e2di_gen = ip->i_gen;
@@ -177,8 +187,7 @@ ext2_i2ei(struct inode *ip, struct ext2fs_dinode *ei)
 	ei->e2di_gid = ip->i_gid & 0xffff;
 	ei->e2di_gid_high = ip->i_gid >> 16 & 0xffff;
 
-	for (i = 0; i < EXT2_NDADDR; i++)
-		ei->e2di_blocks[i] = ip->i_db[i];
-	for (i = 0; i < EXT2_NIADDR; i++)
-		ei->e2di_blocks[EXT2_NDIR_BLOCKS + i] = ip->i_ib[i];
+	memcpy(ei->e2di_blocks, ip->i_data, sizeof(ei->e2di_blocks));
+
+	return (0);
 }

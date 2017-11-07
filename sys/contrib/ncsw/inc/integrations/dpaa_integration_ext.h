@@ -177,7 +177,7 @@ typedef enum
 
 /* RAMs defines */
 #define FM_MURAM_SIZE                   (160 * KILOBYTE)
-#define FM_IRAM_SIZE                    ( 64 * KILOBYTE)
+#define FM_IRAM_SIZE(a,b)               ( 64 * KILOBYTE)
 
 /* PCD defines */
 #define FM_PCD_PLCR_NUM_ENTRIES         256                 /**< Total number of policer profiles */
@@ -207,113 +207,6 @@ typedef enum
 #define BMI_MAX_FIFO_SIZE               (FM_MURAM_SIZE)
 #define PORT_MAX_WEIGHT                 16
 
-
-/**************************************************************************//**
- @Description   Enum for inter-module interrupts registration
-*//***************************************************************************/
-typedef enum e_FmEventModules
-{
-    e_FM_MOD_PRS,                   /**< Parser event */
-    e_FM_MOD_KG,                    /**< Keygen event */
-    e_FM_MOD_PLCR,                  /**< Policer event */
-    e_FM_MOD_10G_MAC,               /**< 10G MAC error event */
-    e_FM_MOD_1G_MAC,                /**< 1G MAC error event */
-    e_FM_MOD_TMR,                   /**< Timer event */
-    e_FM_MOD_1G_MAC_TMR,            /**< 1G MAC timer event */
-    e_FM_MOD_FMAN_CTRL,             /**< FMAN Controller timer event */
-    e_FM_MOD_DUMMY_LAST
-} e_FmEventModules;
-
-/**************************************************************************//**
- @Description   Enum for interrupts types
-*//***************************************************************************/
-typedef enum e_FmIntrType
-{
-    e_FM_INTR_TYPE_ERR,
-    e_FM_INTR_TYPE_NORMAL
-} e_FmIntrType;
-
-/**************************************************************************//**
- @Description   Enum for inter-module interrupts registration
-*//***************************************************************************/
-typedef enum e_FmInterModuleEvent
-{
-    e_FM_EV_PRS,                    /**< Parser event */
-    e_FM_EV_ERR_PRS,                /**< Parser error event */
-    e_FM_EV_KG,                     /**< Keygen event */
-    e_FM_EV_ERR_KG,                 /**< Keygen error event */
-    e_FM_EV_PLCR,                   /**< Policer event */
-    e_FM_EV_ERR_PLCR,               /**< Policer error event */
-    e_FM_EV_ERR_10G_MAC0,           /**< 10G MAC 0 error event */
-    e_FM_EV_ERR_1G_MAC0,            /**< 1G MAC 0 error event */
-    e_FM_EV_ERR_1G_MAC1,            /**< 1G MAC 1 error event */
-    e_FM_EV_ERR_1G_MAC2,            /**< 1G MAC 2 error event */
-    e_FM_EV_ERR_1G_MAC3,            /**< 1G MAC 3 error event */
-    e_FM_EV_ERR_1G_MAC4,            /**< 1G MAC 4 error event */
-    e_FM_EV_TMR,                    /**< Timer event */
-    e_FM_EV_1G_MAC0_TMR,            /**< 1G MAC 0 timer event */
-    e_FM_EV_1G_MAC1_TMR,            /**< 1G MAC 1 timer event */
-    e_FM_EV_1G_MAC2_TMR,            /**< 1G MAC 2 timer event */
-    e_FM_EV_1G_MAC3_TMR,            /**< 1G MAC 3 timer event */
-    e_FM_EV_1G_MAC4_TMR,            /**< 1G MAC 4 timer event */
-    e_FM_EV_FMAN_CTRL_0,            /**< Fman controller event 0 */
-    e_FM_EV_FMAN_CTRL_1,            /**< Fman controller event 1 */
-    e_FM_EV_FMAN_CTRL_2,            /**< Fman controller event 2 */
-    e_FM_EV_FMAN_CTRL_3,            /**< Fman controller event 3 */
-    e_FM_EV_DUMMY_LAST
-} e_FmInterModuleEvent;
-
-#define GET_FM_MODULE_EVENT(mod, id, intrType, event)                                               \
-    switch(mod){                                                                                    \
-        case e_FM_MOD_PRS:                                                                          \
-            if (id) event = e_FM_EV_DUMMY_LAST;                                                     \
-            else event = (intrType == e_FM_INTR_TYPE_ERR) ? e_FM_EV_ERR_PRS : e_FM_EV_PRS;          \
-            break;                                                                                  \
-        case e_FM_MOD_KG:                                                                           \
-            if (id) event = e_FM_EV_DUMMY_LAST;                                                     \
-            else event = (intrType == e_FM_INTR_TYPE_ERR) ? e_FM_EV_ERR_KG : e_FM_EV_DUMMY_LAST;    \
-            break;                                                                                  \
-        case e_FM_MOD_PLCR:                                                                         \
-            if (id) event = e_FM_EV_DUMMY_LAST;                                                     \
-            else event = (intrType == e_FM_INTR_TYPE_ERR) ? e_FM_EV_ERR_PLCR : e_FM_EV_PLCR;        \
-            break;                                                                                  \
-        case e_FM_MOD_10G_MAC:                                                                      \
-            if (id) event = e_FM_EV_DUMMY_LAST;                                                     \
-            else event = (intrType == e_FM_INTR_TYPE_ERR) ? e_FM_EV_ERR_10G_MAC0 : e_FM_EV_DUMMY_LAST; \
-            break;                                                                                  \
-        case e_FM_MOD_1G_MAC:                                                                       \
-            switch(id){                                                                             \
-                 case(0): event = (intrType == e_FM_INTR_TYPE_ERR) ? e_FM_EV_ERR_1G_MAC0 : e_FM_EV_DUMMY_LAST; break; \
-                 case(1): event = (intrType == e_FM_INTR_TYPE_ERR) ? e_FM_EV_ERR_1G_MAC1 : e_FM_EV_DUMMY_LAST; break; \
-                 case(2): event = (intrType == e_FM_INTR_TYPE_ERR) ? e_FM_EV_ERR_1G_MAC2 : e_FM_EV_DUMMY_LAST; break; \
-                 case(3): event = (intrType == e_FM_INTR_TYPE_ERR) ? e_FM_EV_ERR_1G_MAC3 : e_FM_EV_DUMMY_LAST; break; \
-                 case(4): event = (intrType == e_FM_INTR_TYPE_ERR) ? e_FM_EV_ERR_1G_MAC4 : e_FM_EV_DUMMY_LAST; break; \
-                 }                                                                                  \
-            break;                                                                                  \
-        case e_FM_MOD_TMR:                                                                          \
-            if (id) event = e_FM_EV_DUMMY_LAST;                                                     \
-            else event = (intrType == e_FM_INTR_TYPE_ERR) ? e_FM_EV_DUMMY_LAST : e_FM_EV_TMR;       \
-            break;                                                                                  \
-        case e_FM_MOD_1G_MAC_TMR:                                                                   \
-            switch(id){                                                                             \
-                 case(0): event = (intrType == e_FM_INTR_TYPE_ERR) ? e_FM_EV_DUMMY_LAST : e_FM_EV_1G_MAC0_TMR; break; \
-                 case(1): event = (intrType == e_FM_INTR_TYPE_ERR) ? e_FM_EV_DUMMY_LAST : e_FM_EV_1G_MAC1_TMR; break; \
-                 case(2): event = (intrType == e_FM_INTR_TYPE_ERR) ? e_FM_EV_DUMMY_LAST : e_FM_EV_1G_MAC2_TMR; break; \
-                 case(3): event = (intrType == e_FM_INTR_TYPE_ERR) ? e_FM_EV_DUMMY_LAST : e_FM_EV_1G_MAC3_TMR; break; \
-                 case(4): event = (intrType == e_FM_INTR_TYPE_ERR) ? e_FM_EV_DUMMY_LAST : e_FM_EV_1G_MAC4_TMR; break; \
-                 }                                                                                  \
-            break;                                                                                  \
-        case e_FM_MOD_FMAN_CTRL:                                                                    \
-            if (intrType == e_FM_INTR_TYPE_ERR) event = e_FM_EV_DUMMY_LAST;                         \
-            else switch(id){                                                                        \
-                 case(0): event = e_FM_EV_FMAN_CTRL_0; break;                                       \
-                 case(1): event = e_FM_EV_FMAN_CTRL_1; break;                                       \
-                 case(2): event = e_FM_EV_FMAN_CTRL_2; break;                                       \
-                 case(3): event = e_FM_EV_FMAN_CTRL_3; break;                                       \
-                 }                                                                                  \
-            break;                                                                                  \
-        default: event = e_FM_EV_DUMMY_LAST;                                                        \
-        break;}
 
 #define FM_CHECK_PORT_RESTRICTIONS(__validPorts, __newPortIndx)   TRUE
 
@@ -374,5 +267,9 @@ typedef enum e_FmInterModuleEvent
 #define FM_PRS_MEM_ERRATA_FMAN_SW003
 #define FM_LEN_CHECK_ERRATA_FMAN_SW002
 
+#define	DPAA_VERSION	10
+#define	FM_PCD_SW_PRS_SIZE	0x00000800
+#define	FM_PCD_PRS_SW_PATCHES_SIZE	0x00000200
+#define	FM_NUM_OF_CTRL	2
 
 #endif /* __DPAA_INTEGRATION_EXT_H */

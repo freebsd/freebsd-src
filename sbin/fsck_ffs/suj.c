@@ -1395,7 +1395,7 @@ ino_adjust(struct suj_ino *sino)
 	}
 	ip = ino_read(ino);
 	mode = DIP(ip, di_mode) & IFMT;
-	if (nlink > LINK_MAX)
+	if (nlink > UFS_LINK_MAX)
 		err_suj("ino %ju nlink manipulation error, new %ju, old %d\n",
 		    (uintmax_t)ino, (uintmax_t)nlink, DIP(ip, di_nlink));
 	if (debug)

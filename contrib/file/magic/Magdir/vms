@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: vms,v 1.9 2014/08/17 13:47:59 christos Exp $
+# $File: vms,v 1.10 2017/03/17 21:35:28 christos Exp $
 # vms:  file(1) magic for VMS executables (experimental)
 #
 # VMS .exe formats, both VAX and AXP (Greg Roelofs, newt@uchicago.edu)
@@ -25,6 +25,6 @@
 #   00040  00 00 00 00 ff ff ff ff  ff ff ff ff 02 00 00 00  ................
 #
 # GRR this test is still too general as it catches example adressen.dbt
-0	belong	0x03000000	
+0	belong	0x03000000
 >8	ubelong	0xec020000	VMS Alpha executable
 >>75264	string	PK\003\004	\b, Info-ZIP SFX archive v5.12 w/decryption

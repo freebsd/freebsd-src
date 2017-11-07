@@ -123,7 +123,7 @@ static int lge_detach(device_t);
 static int lge_alloc_jumbo_mem(struct lge_softc *);
 static void lge_free_jumbo_mem(struct lge_softc *);
 static void *lge_jalloc(struct lge_softc *);
-static void lge_jfree(struct mbuf *, void *, void *);
+static void lge_jfree(struct mbuf *);
 
 static int lge_newbuf(struct lge_softc *, struct lge_rx_desc *, struct mbuf *);
 static int lge_encap(struct lge_softc *, struct mbuf *, u_int32_t *);
@@ -689,7 +689,7 @@ lge_newbuf(sc, c, m)
 	struct mbuf		*m;
 {
 	struct mbuf		*m_new = NULL;
-	caddr_t			*buf = NULL;
+	char			*buf = NULL;
 
 	if (m == NULL) {
 		MGETHDR(m_new, M_NOWAIT, MT_DATA);
@@ -710,10 +710,9 @@ lge_newbuf(sc, c, m)
 			return(ENOBUFS);
 		}
 		/* Attach the buffer to the mbuf */
-		m_new->m_data = (void *)buf;
 		m_new->m_len = m_new->m_pkthdr.len = LGE_JUMBO_FRAMELEN;
-		MEXTADD(m_new, buf, LGE_JUMBO_FRAMELEN, lge_jfree,
-		    buf, (struct lge_softc *)sc, 0, EXT_NET_DRV);
+		m_extadd(m_new, buf, LGE_JUMBO_FRAMELEN, lge_jfree, sc, NULL,
+		    0, EXT_NET_DRV);
 	} else {
 		m_new = m;
 		m_new->m_len = m_new->m_pkthdr.len = LGE_JUMBO_FRAMELEN;
@@ -848,20 +847,20 @@ lge_jalloc(sc)
  * Release a jumbo buffer.
  */
 static void
-lge_jfree(struct mbuf *m, void *buf, void *args)
+lge_jfree(struct mbuf *m)
 {
 	struct lge_softc	*sc;
 	int		        i;
 	struct lge_jpool_entry   *entry;
 
 	/* Extract the softc struct pointer. */
-	sc = args;
+	sc = m->m_ext.ext_arg1;
 
 	if (sc == NULL)
 		panic("lge_jfree: can't find softc pointer!");
 
 	/* calculate the slot this buffer belongs to */
-	i = ((vm_offset_t)buf
+	i = ((vm_offset_t)m->m_ext.ext_buf
 	     - (vm_offset_t)sc->lge_cdata.lge_jumbo_buf) / LGE_JLEN;
 
 	if ((i < 0) || (i >= LGE_JSLOTS))

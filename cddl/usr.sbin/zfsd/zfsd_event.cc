@@ -101,7 +101,7 @@ DevfsEvent::ReadLabel(int devFd, bool &inUse, bool &degraded)
 	poolName = NULL;
 	if (zpool_in_use(g_zfsHandle, devFd, &poolState,
 			 &poolName, &b_inuse) == 0) {
-		nvlist_t *devLabel;
+		nvlist_t *devLabel = NULL;
 
 		inUse = b_inuse == B_TRUE;
 		if (poolName != NULL)
@@ -116,8 +116,10 @@ DevfsEvent::ReadLabel(int devFd, bool &inUse, bool &degraded)
 		 * might be damaged.  In that case, zfsd should do nothing and
 		 * wait for the sysadmin to decide.
 		 */
-		if (nlabels != VDEV_LABELS || devLabel == NULL)
+		if (nlabels != VDEV_LABELS || devLabel == NULL) {
+			nvlist_free(devLabel);
 			return (NULL);
+		}
 
 		try {
 			Vdev vdev(devLabel);
@@ -131,6 +133,7 @@ DevfsEvent::ReadLabel(int devFd, bool &inUse, bool &degraded)
 
 			exp.GetString().insert(0, context);
 			exp.Log();
+			nvlist_free(devLabel);
 		}
 	}
 	return (NULL);
