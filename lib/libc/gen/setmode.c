@@ -356,7 +356,7 @@ getumask(void)
 	 * security.bsd.unprivileged_proc_debug is set to 0.
 	 */
 	len = sizeof(smask);
-	if (sysctl((int[4]){ CTL_KERN, KERN_PROC, KERN_PROC_UMASK, getpid() },
+	if (sysctl((int[4]){ CTL_KERN, KERN_PROC, KERN_PROC_UMASK, 0 },
 	    4, &smask, &len, NULL, 0) == 0)
 		return (smask);
 
