@@ -1221,42 +1221,96 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 			struct bintime bt;
 			struct timespec ts;
 		} t;
+		struct bintime boottimebin, bt1;
+		struct timespec ts1;
+		bool stamped;
 
+		stamped = false;
 		switch (inp->inp_socket->so_ts_clock) {
 		case SO_TS_REALTIME_MICRO:
-			microtime(&t.tv);
+			if ((m->m_flags & (M_PKTHDR | M_TSTMP)) == (M_PKTHDR |
+			    M_TSTMP)) {
+				mbuf_tstmp2timespec(m, &ts1);
+				timespec2bintime(&ts1, &bt1);
+				getboottimebin(&boottimebin);
+				bintime_add(&bt1, &boottimebin);
+				bintime2timeval(&bt1, &t.tv);
+			} else {
+				microtime(&t.tv);
+			}
 			*mp = sbcreatecontrol((caddr_t) &t.tv, sizeof(t.tv),
 			    SCM_TIMESTAMP, SOL_SOCKET);
-			if (*mp)
+			if (*mp != NULL) {
 				mp = &(*mp)->m_next;
+				stamped = true;
+			}
 			break;
 
 		case SO_TS_BINTIME:
-			bintime(&t.bt);
+			if ((m->m_flags & (M_PKTHDR | M_TSTMP)) == (M_PKTHDR |
+			    M_TSTMP)) {
+				mbuf_tstmp2timespec(m, &ts1);
+				timespec2bintime(&ts1, &t.bt);
+				getboottimebin(&boottimebin);
+				bintime_add(&t.bt, &boottimebin);
+			} else {
+				bintime(&t.bt);
+			}
 			*mp = sbcreatecontrol((caddr_t)&t.bt, sizeof(t.bt),
 			    SCM_BINTIME, SOL_SOCKET);
-			if (*mp)
+			if (*mp != NULL) {
 				mp = &(*mp)->m_next;
+				stamped = true;
+			}
 			break;
 
 		case SO_TS_REALTIME:
-			nanotime(&t.ts);
+			if ((m->m_flags & (M_PKTHDR | M_TSTMP)) == (M_PKTHDR |
+			    M_TSTMP)) {
+				mbuf_tstmp2timespec(m, &t.ts);
+				getboottimebin(&boottimebin);
+				bintime2timespec(&boottimebin, &ts1);
+				timespecadd(&t.ts, &ts1);
+			} else {
+				nanotime(&t.ts);
+			}
 			*mp = sbcreatecontrol((caddr_t)&t.ts, sizeof(t.ts),
 			    SCM_REALTIME, SOL_SOCKET);
-			if (*mp)
+			if (*mp != NULL) {
 				mp = &(*mp)->m_next;
+				stamped = true;
+			}
 			break;
 
 		case SO_TS_MONOTONIC:
-			nanouptime(&t.ts);
+			if ((m->m_flags & (M_PKTHDR | M_TSTMP)) == (M_PKTHDR |
+			    M_TSTMP))
+				mbuf_tstmp2timespec(m, &t.ts);
+			else
+				nanouptime(&t.ts);
 			*mp = sbcreatecontrol((caddr_t)&t.ts, sizeof(t.ts),
 			    SCM_MONOTONIC, SOL_SOCKET);
-			if (*mp)
+			if (*mp != NULL) {
 				mp = &(*mp)->m_next;
+				stamped = true;
+			}
 			break;
 
 		default:
 			panic("unknown (corrupted) so_ts_clock");
+		}
+		if (stamped && (m->m_flags & (M_PKTHDR | M_TSTMP)) ==
+		    (M_PKTHDR | M_TSTMP)) {
+			struct sock_timestamp_info sti;
+
+			bzero(&sti, sizeof(sti));
+			sti.st_info_flags = ST_INFO_HW;
+			if ((m->m_flags & M_TSTMP_HPREC) != 0)
+				sti.st_info_flags |= ST_INFO_HW_HPREC;
+			*mp = sbcreatecontrol((caddr_t)&sti, sizeof(sti),
+			    SCM_TIME_INFO, SOL_SOCKET);
+			if (*mp != NULL)
+				mp = &(*mp)->m_next;
 		}
 	}
 #endif
