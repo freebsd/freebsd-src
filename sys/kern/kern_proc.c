@@ -2770,18 +2770,25 @@ sysctl_kern_proc_umask(SYSCTL_HANDLER_ARGS)
 	struct proc *p;
 	int error;
 	u_short fd_cmask;
+	pid_t pid;
 
 	if (namelen != 1)
 		return (EINVAL);
 
-	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
+	pid = (pid_t)name[0];
+	p = curproc;
+	if (pid == p->p_pid || pid == 0) {
+		fd_cmask = p->p_fd->fd_cmask;
+		goto out;
+	}
+
+	error = pget(pid, PGET_WANTREAD, &p);
 	if (error != 0)
 		return (error);
 
-	FILEDESC_SLOCK(p->p_fd);
 	fd_cmask = p->p_fd->fd_cmask;
-	FILEDESC_SUNLOCK(p->p_fd);
 	PRELE(p);
+out:
 	error = SYSCTL_OUT(req, &fd_cmask, sizeof(fd_cmask));
 	return (error);
 }
