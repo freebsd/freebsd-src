@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/refcount.h>
 #include <sys/systm.h>
 
 #include <machine/bus.h>
@@ -51,6 +56,14 @@ __FBSDID("$FreeBSD$");
 
 #include "bhndreg.h"
 #include "bhndvar.h"
+#include "bhnd_private.h"
+
+static void	bhnd_service_registry_free_entry(
+		    struct bhnd_service_entry *entry);
+
+static int	compare_ascending_probe_order(const void *lhs, const void *rhs);
+static int	compare_descending_probe_order(const void *lhs,
+		    const void *rhs);
 
 /* BHND core device description table. */
 static const struct bhnd_core_desc {
@@ -331,9 +344,9 @@ bhnd_get_core_info(device_t dev) {
 }
 
 /**
- * Find a @p class child device with @p unit on @p dev.
+ * Find a @p class child device with @p unit on @p bus.
  * 
- * @param parent The bhnd-compatible bus to be searched.
+ * @param bus The bhnd-compatible bus to be searched.
  * @param class The device class to match on.
  * @param unit The core unit number; specify -1 to return the first match
  * regardless of unit number.
@@ -342,7 +355,7 @@ bhnd_get_core_info(device_t dev) {
  * @retval NULL if no matching child device is found.
  */
 device_t
-bhnd_find_child(device_t dev, bhnd_devclass_t class, int unit)
+bhnd_bus_find_child(device_t bus, bhnd_devclass_t class, int unit)
 {
 	struct bhnd_core_match md = {
 		BHND_MATCH_CORE_CLASS(class),
@@ -352,27 +365,27 @@ bhnd_find_child(device_t dev, bhnd_devclass_t class, int unit)
 	if (unit == -1)
 		md.m.match.core_unit = 0;
 
-	return bhnd_match_child(dev, &md);
+	return bhnd_bus_match_child(bus, &md);
 }
 
 /**
- * Find the first child device on @p dev that matches @p desc.
+ * Find the first child device on @p bus that matches @p desc.
  * 
- * @param parent The bhnd-compatible bus to be searched.
+ * @param bus The bhnd-compatible bus to be searched.
  * @param desc A match descriptor.
  * 
  * @retval device_t if a matching child device is found.
  * @retval NULL if no matching child device is found.
  */
 device_t
-bhnd_match_child(device_t dev, const struct bhnd_core_match *desc)
+bhnd_bus_match_child(device_t bus, const struct bhnd_core_match *desc)
 {
 	device_t	*devlistp;
 	device_t	 match;
 	int		 devcnt;
 	int		 error;
 
-	error = device_get_children(dev, &devlistp, &devcnt);
+	error = device_get_children(bus, &devlistp, &devcnt);
 	if (error != 0)
 		return (NULL);
 
@@ -389,6 +402,146 @@ bhnd_match_child(device_t dev, const struct bhnd_core_match *desc)
 done:
 	free(devlistp, M_TEMP);
 	return match;
+}
+
+/**
+ * Retrieve an ordered list of all device instances currently connected to
+ * @p bus, returning a pointer to the array in @p devlistp and the count
+ * in @p ndevs.
+ * 
+ * The memory allocated for the table must be freed via
+ * bhnd_bus_free_children().
+ * 
+ * @param	bus		The bhnd-compatible bus to be queried.
+ * @param[out]	devlist		The array of devices.
+ * @param[out]	devcount	The number of devices in @p devlistp
+ * @param	order		The order in which devices will be returned
+ *				in @p devlist.
+ * 
+ * @retval 0		success
+ * @retval non-zero	if an error occurs, a regular unix error code will
+ *			be returned.
+ */
+int
+bhnd_bus_get_children(device_t bus, device_t **devlist, int *devcount,
+    bhnd_device_order order)
+{
+	int error;
+
+	/* Fetch device array */
+	if ((error = device_get_children(bus, devlist, devcount)))
+		return (error);
+
+	/* Perform requested sorting */
+	if ((error = bhnd_sort_devices(*devlist, *devcount, order))) {
+		bhnd_bus_free_children(*devlist);
+		return (error);
+	}
+
+	return (0);
+}
+
+/**
+ * Free any memory allocated in a previous call to bhnd_bus_get_children().
+ *
+ * @param devlist The device array returned by bhnd_bus_get_children().
+ */
+void
+bhnd_bus_free_children(device_t *devlist)
+{
+	free(devlist, M_TEMP);
+}
+
+/**
+ * Perform in-place sorting of an array of bhnd device instances.
+ * 
+ * @param devlist	An array of bhnd devices.
+ * @param devcount	The number of devices in @p devs.
+ * @param order		The sort order to be used.
+ */
+int
+bhnd_sort_devices(device_t *devlist, size_t devcount, bhnd_device_order order)
+{
+	int (*compare)(const void *, const void *);
+
+	switch (order) {
+	case BHND_DEVICE_ORDER_ATTACH:
+		compare = compare_ascending_probe_order;
+		break;
+	case BHND_DEVICE_ORDER_DETACH:
+		compare = compare_descending_probe_order;
+		break;
+	default:
+		printf("unknown sort order: %d\n", order);
+		return (EINVAL);
+	}
+
+	qsort(devlist, devcount, sizeof(*devlist), compare);
+	return (0);
+}
+
+/*
+ * Ascending comparison of bhnd device's probe order.
+ */
+static int
+compare_ascending_probe_order(const void *lhs, const void *rhs)
+{
+	device_t	ldev, rdev;
+	int		lorder, rorder;
+
+	ldev = (*(const device_t *) lhs);
+	rdev = (*(const device_t *) rhs);
+
+	lorder = BHND_BUS_GET_PROBE_ORDER(device_get_parent(ldev), ldev);
+	rorder = BHND_BUS_GET_PROBE_ORDER(device_get_parent(rdev), rdev);
+
+	if (lorder < rorder) {
+		return (-1);
+	} else if (lorder > rorder) {
+		return (1);
+	} else {
+		return (0);
+	}
+}
+
+/*
+ * Descending comparison of bhnd device's probe order.
+ */
+static int
+compare_descending_probe_order(const void *lhs, const void *rhs)
+{
+	return (compare_ascending_probe_order(rhs, lhs));
+}
+
+/**
+ * Call device_probe_and_attach() for each of the bhnd bus device's
+ * children, in bhnd attach order.
+ * 
+ * @param bus The bhnd-compatible bus for which all children should be probed
+ * and attached.
+ */
+int
+bhnd_bus_probe_children(device_t bus)
+{
+	device_t	*devs;
+	int		 ndevs;
+	int		 error;
+
+	/* Fetch children in attach order */
+	error = bhnd_bus_get_children(bus, &devs, &ndevs,
+	    BHND_DEVICE_ORDER_ATTACH);
+	if (error)
+		return (error);
+
+	/* Probe and attach all children */
+	for (int i = 0; i < ndevs; i++) {
+		device_t child = devs[i];
+		device_probe_and_attach(child);
+	}
+
+	bhnd_bus_free_children(devs);
+
+	return (0);
 }
 
 /**
@@ -727,7 +880,7 @@ bhnd_device_lookup(device_t dev, const struct bhnd_device *table,
 	uint32_t			 dflags;
 
 	parent = device_get_parent(dev);
-	hostb = bhnd_find_hostb_device(parent);
+	hostb = bhnd_bus_find_hostb_device(parent);
 	attach_type = bhnd_get_attach_type(dev);
 
 	for (entry = table; !BHND_DEVICE_IS_END(entry); entry =
@@ -1345,6 +1498,277 @@ bhnd_nvram_getvar_array(device_t dev, const char *name, void *buf, size_t size,
 }
 
 /**
+ * Initialize a service provider registry.
+ * 
+ * @param bsr		The service registry to initialize.
+ * 
+ * @retval 0            success
+ * @retval non-zero     if an error occurs initializing the service registry,
+ *                      a regular unix error code will be returned.
+
+ */
+int
+bhnd_service_registry_init(struct bhnd_service_registry *bsr)
+{
+	STAILQ_INIT(&bsr->entries);
+	mtx_init(&bsr->lock, "bhnd_service_registry lock", NULL, MTX_DEF);
+
+	return (0);
+}
+
+/**
+ * Release all resources held by @p bsr.
+ * 
+ * @param bsr		A service registry instance previously successfully
+ *			initialized via bhnd_service_registry_init().
+ *
+ * @retval 0		success
+ * @retval EBUSY	if active references to service providers registered
+ *			with @p bsr exist.
+ */
+int
+bhnd_service_registry_fini(struct bhnd_service_registry *bsr)
+{
+	struct bhnd_service_entry *entry, *enext;
+
+	/* Remove everthing we can */
+	mtx_lock(&bsr->lock);
+	STAILQ_FOREACH_SAFE(entry, &bsr->entries, link, enext) {
+		if (entry->refs > 0)
+			continue;
+
+		STAILQ_REMOVE(&bsr->entries, entry, bhnd_service_entry, link);
+		free(entry, M_BHND);
+	}
+
+	if (!STAILQ_EMPTY(&bsr->entries)) {
+		mtx_unlock(&bsr->lock);
+		return (EBUSY);
+	}
+	mtx_unlock(&bsr->lock);
+
+	mtx_destroy(&bsr->lock);
+	return (0);
+}
+
+/**
+ * Register a @p provider for the given @p service.
+ *
+ * @param bsr		Service registry to be modified.
+ * @param provider	Service provider to register.
+ * @param service	Service for which @p provider will be registered.
+ * @param flags		Service provider flags (see BHND_SPF_*).
+ *
+ * @retval 0		success
+ * @retval EEXIST	if an entry for @p service already exists.
+ * @retval EINVAL	if @p service is BHND_SERVICE_ANY.
+ * @retval non-zero	if registering @p provider otherwise fails, a regular
+ *			unix error code will be returned.
+ */
+int
+bhnd_service_registry_add(struct bhnd_service_registry *bsr, device_t provider,
+    bhnd_service_t service, uint32_t flags)
+{
+	struct bhnd_service_entry *entry;
+
+	if (service == BHND_SERVICE_ANY)
+		return (EINVAL);
+
+	mtx_lock(&bsr->lock);
+
+	/* Is a service provider already registered? */
+	STAILQ_FOREACH(entry, &bsr->entries, link) {
+		if (entry->service == service) {
+			mtx_unlock(&bsr->lock);
+			return (EEXIST);
+		}
+	}
+
+	/* Initialize and insert our new entry */
+	entry = malloc(sizeof(*entry), M_BHND, M_NOWAIT);
+	if (entry == NULL) {
+		mtx_unlock(&bsr->lock);
+		return (ENOMEM);
+	}
+
+	entry->provider = provider;
+	entry->service = service;
+	entry->flags = flags;
+	refcount_init(&entry->refs, 0);
+
+	STAILQ_INSERT_HEAD(&bsr->entries, entry, link);
+
+	mtx_unlock(&bsr->lock);
+	return (0);
+}
+
+/**
+ * Free an unreferenced registry entry.
+ * 
+ * @param entry	The entry to be deallocated.
+ */
+static void
+bhnd_service_registry_free_entry(struct bhnd_service_entry *entry)
+{
+	KASSERT(entry->refs == 0, ("provider has active references"));
+	free(entry, M_BHND);
+}
+
+/**
+ * Attempt to remove the @p service provider registration for @p provider.
+ *
+ * @param bsr		The service registry to be modified.
+ * @param provider	The service provider to be deregistered.
+ * @param service	The service for which @p provider will be deregistered,
+ *			or BHND_SERVICE_ANY to remove all service
+ *			registrations for @p provider.
+ *
+ * @retval 0		success
+ * @retval EBUSY	if active references to @p provider exist; @see
+ *			bhnd_service_registry_retain() and
+ *			bhnd_service_registry_release().
+ */
+int
+bhnd_service_registry_remove(struct bhnd_service_registry *bsr,
+    device_t provider, bhnd_service_t service)
+{
+	struct bhnd_service_entry *entry, *enext;
+
+	mtx_lock(&bsr->lock);
+
+#define	BHND_PROV_MATCH(_e)	\
+	((_e)->provider == provider &&	\
+	 (service == BHND_SERVICE_ANY || (_e)->service == service))
+
+	/* Validate matching provider entries before making any
+	 * modifications */
+	STAILQ_FOREACH(entry, &bsr->entries, link) {
+		/* Skip non-matching entries */
+		if (!BHND_PROV_MATCH(entry))
+			continue;
+
+		/* Entry is in use? */
+		if (entry->refs > 0) {
+			mtx_unlock(&bsr->lock);
+			return (EBUSY);
+		}
+	}
+
+	/* We can now safely remove matching entries */
+	STAILQ_FOREACH_SAFE(entry, &bsr->entries, link, enext) {
+		/* Skip non-matching entries */
+		if (!BHND_PROV_MATCH(entry))
+			continue;
+
+		/* Remove from list */
+		STAILQ_REMOVE(&bsr->entries, entry, bhnd_service_entry, link);
+
+		/* Free provider entry */
+		bhnd_service_registry_free_entry(entry);
+	}
+#undef	BHND_PROV_MATCH
+
+	mtx_unlock(&bsr->lock);
+	return (0);
+}
+
+/**
+ * Retain and return a reference to a registered @p service provider, if any.
+ *
+ * @param bsr		The service registry to be queried.
+ * @param service	The service for which a provider should be returned.
+ *
+ * On success, the caller assumes ownership the returned provider, and
+ * is responsible for releasing this reference via
+ * bhnd_service_registry_release().
+ *
+ * @retval device_t	success
+ * @retval NULL		if no provider is registered for @p service.
+ */
+device_t
+bhnd_service_registry_retain(struct bhnd_service_registry *bsr,
+    bhnd_service_t service)
+{
+	struct bhnd_service_entry *entry;
+
+	mtx_lock(&bsr->lock);
+	STAILQ_FOREACH(entry, &bsr->entries, link) {
+		if (entry->service != service)
+			continue;
+
+		/* With a live refcount, entry is gauranteed to remain alive
+		 * after we release our lock */
+		refcount_acquire(&entry->refs);
+
+		mtx_unlock(&bsr->lock);
+		return (entry->provider);
+	}
+	mtx_unlock(&bsr->lock);
+
+	/* Not found */
+	return (NULL);
+}
+
+/**
+ * Release a reference to a service provider previously returned by
+ * bhnd_service_registry_retain().
+ * 
+ * If this is the last reference to an inherited service provider registration
+ * (@see BHND_SPF_INHERITED), the registration will also be removed, and
+ * true will be returned.
+ *
+ * @param bsr		The service registry from which @p provider
+ *			was returned.
+ * @param provider	The provider to be released.
+ * @param service	The service for which @p provider was previously
+ *			retained.
+ * @retval true		The inherited service provider registration was removed;
+ *			the caller should release its own reference to the
+ *			provider.
+ * @retval false	The service provider was not inherited, or active
+ *			references to the provider remain.
+ */
+bool
+bhnd_service_registry_release(struct bhnd_service_registry *bsr,
+    device_t provider, bhnd_service_t service)
+{
+	struct bhnd_service_entry *entry;
+
+	/* Exclusive lock, as we need to prevent any new references to the
+	 * entry from being taken if it's to be removed */
+	mtx_lock(&bsr->lock);
+	STAILQ_FOREACH(entry, &bsr->entries, link) {
+		bool removed;
+
+		if (entry->provider != provider)
+			continue;
+
+		if (entry->service != service)
+			continue;
+
+		if (refcount_release(&entry->refs) &&
+		    (entry->flags & BHND_SPF_INHERITED))
+		{
+			/* If an inherited entry is no longer actively
+			 * referenced, remove the local registration and inform
+			 * the caller. */
+			STAILQ_REMOVE(&bsr->entries, entry, bhnd_service_entry,
+			    link);
+			bhnd_service_registry_free_entry(entry);
+			removed = true;
+		} else {
+			removed = false;
+		}
+
+		mtx_unlock(&bsr->lock);
+		return (removed);
+	}
+
+	/* Caller owns a reference, but no such provider is registered? */
+	panic("invalid service provider reference");
+}
+
+/**
  * Using the bhnd(4) bus-level core information and a custom core name,
  * populate @p dev's device description.
  * 
@@ -1425,6 +1849,222 @@ bhnd_set_default_bus_desc(device_t dev, const struct bhnd_chipid *chip_id)
 		device_set_desc(dev, bus_name);
 	}
 	
+}
+
+/**
+ * Helper function for implementing BHND_BUS_REGISTER_PROVIDER().
+ * 
+ * This implementation delegates the request to the BHND_BUS_REGISTER_PROVIDER()
+ * method on the parent of @p dev. If no parent exists, the implementation
+ * will return an error. 
+ */
+int
+bhnd_bus_generic_register_provider(device_t dev, device_t child,
+    device_t provider, bhnd_service_t service)
+{
+	device_t parent = device_get_parent(dev);
+
+	if (parent != NULL) {
+		return (BHND_BUS_REGISTER_PROVIDER(parent, child,
+		    provider, service));
+	}
+
+	return (ENXIO);
+}
+
+/**
+ * Helper function for implementing BHND_BUS_DEREGISTER_PROVIDER().
+ * 
+ * This implementation delegates the request to the
+ * BHND_BUS_DEREGISTER_PROVIDER() method on the parent of @p dev. If no parent
+ * exists, the implementation will panic.
+ */
+int
+bhnd_bus_generic_deregister_provider(device_t dev, device_t child,
+    device_t provider, bhnd_service_t service)
+{
+	device_t parent = device_get_parent(dev);
+
+	if (parent != NULL) {
+		return (BHND_BUS_DEREGISTER_PROVIDER(parent, child,
+		    provider, service));
+	}
+
+	panic("missing BHND_BUS_DEREGISTER_PROVIDER()");
+}
+
+/**
+ * Helper function for implementing BHND_BUS_RETAIN_PROVIDER().
+ * 
+ * This implementation delegates the request to the
+ * BHND_BUS_DEREGISTER_PROVIDER() method on the parent of @p dev. If no parent
+ * exists, the implementation will return NULL.
+ */
+device_t
+bhnd_bus_generic_retain_provider(device_t dev, device_t child,
+    bhnd_service_t service)
+{
+	device_t parent = device_get_parent(dev);
+
+	if (parent != NULL) {
+		return (BHND_BUS_RETAIN_PROVIDER(parent, child,
+		    service));
+	}
+
+	return (NULL);
+}
+
+/**
+ * Helper function for implementing BHND_BUS_RELEASE_PROVIDER().
+ * 
+ * This implementation delegates the request to the
+ * BHND_BUS_DEREGISTER_PROVIDER() method on the parent of @p dev. If no parent
+ * exists, the implementation will panic.
+ */
+void
+bhnd_bus_generic_release_provider(device_t dev, device_t child,
+    device_t provider, bhnd_service_t service)
+{
+	device_t parent = device_get_parent(dev);
+
+	if (parent != NULL) {
+		return (BHND_BUS_RELEASE_PROVIDER(parent, child,
+		    provider, service));
+	}
+
+	panic("missing BHND_BUS_RELEASE_PROVIDER()");
+}
+
+/**
+ * Helper function for implementing BHND_BUS_REGISTER_PROVIDER().
+ * 
+ * This implementation uses the bhnd_service_registry_add() function to
+ * do most of the work. It calls BHND_BUS_GET_SERVICE_REGISTRY() to find
+ * a suitable service registry to edit.
+ */
+int
+bhnd_bus_generic_sr_register_provider(device_t dev, device_t child,
+    device_t provider, bhnd_service_t service)
+{
+	struct bhnd_service_registry *bsr;
+
+	bsr = BHND_BUS_GET_SERVICE_REGISTRY(dev, child);
+
+	KASSERT(bsr != NULL, ("NULL service registry"));
+
+	return (bhnd_service_registry_add(bsr, provider, service, 0));
+}
+
+/**
+ * Helper function for implementing BHND_BUS_DEREGISTER_PROVIDER().
+ * 
+ * This implementation uses the bhnd_service_registry_remove() function to
+ * do most of the work. It calls BHND_BUS_GET_SERVICE_REGISTRY() to find
+ * a suitable service registry to edit.
+ */
+int
+bhnd_bus_generic_sr_deregister_provider(device_t dev, device_t child,
+    device_t provider, bhnd_service_t service)
+{
+	struct bhnd_service_registry *bsr;
+
+	bsr = BHND_BUS_GET_SERVICE_REGISTRY(dev, child);
+
+	KASSERT(bsr != NULL, ("NULL service registry"));
+
+	return (bhnd_service_registry_remove(bsr, provider, service));
+}
+
+/**
+ * Helper function for implementing BHND_BUS_RETAIN_PROVIDER().
+ * 
+ * This implementation uses the bhnd_service_registry_retain() function to
+ * do most of the work. It calls BHND_BUS_GET_SERVICE_REGISTRY() to find
+ * a suitable service registry.
+ * 
+ * If a local provider for the service is not available, and a parent device is
+ * available, this implementation will attempt to fetch and locally register
+ * a service provider reference from the parent of @p dev.
+ */
+device_t
+bhnd_bus_generic_sr_retain_provider(device_t dev, device_t child,
+    bhnd_service_t service)
+{
+	struct bhnd_service_registry	*bsr;
+	device_t			 parent, provider;
+	int				 error;
+
+	bsr = BHND_BUS_GET_SERVICE_REGISTRY(dev, child);
+	KASSERT(bsr != NULL, ("NULL service registry"));
+
+	/*
+	 * Attempt to fetch a service provider reference from either the local
+	 * service registry, or if not found, from our parent.
+	 * 
+	 * If we fetch a provider from our parent, we register the provider
+	 * with the local service registry to prevent conflicting local
+	 * registrations from being added.
+	 */
+	while (1) {
+		/* Check the local service registry first */
+		provider = bhnd_service_registry_retain(bsr, service);
+		if (provider != NULL)
+			return (provider);
+
+		/* Otherwise, try to delegate to our parent (if any) */
+		if ((parent = device_get_parent(dev)) == NULL)
+			return (NULL);
+
+		provider = BHND_BUS_RETAIN_PROVIDER(parent, dev, service);
+		if (provider == NULL)
+			return (NULL);
+
+		/* Register the inherited service registration with the local
+		 * registry */
+		error = bhnd_service_registry_add(bsr, provider, service,
+		    BHND_SPF_INHERITED);
+		if (error) {
+			BHND_BUS_RELEASE_PROVIDER(parent, dev, provider,
+			    service);
+			if (error == EEXIST) {
+				/* A valid service provider was registered
+				 * concurrently; retry fetching from the local
+				 * registry */
+				continue;
+			}
+
+			device_printf(dev, "failed to register service "
+			    "provider: %d\n", error);
+			return (NULL);
+		}
+	}
+}
+
+/**
+ * Helper function for implementing BHND_BUS_RELEASE_PROVIDER().
+ * 
+ * This implementation uses the bhnd_service_registry_release() function to
+ * do most of the work. It calls BHND_BUS_GET_SERVICE_REGISTRY() to find
+ * a suitable service registry.
+ */
+void
+bhnd_bus_generic_sr_release_provider(device_t dev, device_t child,
+    device_t provider, bhnd_service_t service)
+{
+	struct bhnd_service_registry	*bsr;
+
+	bsr = BHND_BUS_GET_SERVICE_REGISTRY(dev, child);
+	KASSERT(bsr != NULL, ("NULL service registry"));
+
+	/* Release the provider reference; if the refcount hits zero on an
+	 * inherited reference, true will be returned, and we need to drop
+	 * our own bus reference to the provider */
+	if (!bhnd_service_registry_release(bsr, provider, service))
+		return;
+
+	/* Drop our reference to the borrowed provider */
+	BHND_BUS_RELEASE_PROVIDER(device_get_parent(dev), dev, provider,
+	    service);
 }
 
 /**

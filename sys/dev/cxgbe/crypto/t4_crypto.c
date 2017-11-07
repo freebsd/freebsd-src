@@ -1483,11 +1483,12 @@ ccr_sysctls(struct ccr_softc *sc)
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "pad_error", CTLFLAG_RD,
 	    &sc->stats_pad_error, 0, "Padding errors");
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "bad_session", CTLFLAG_RD,
-	    &sc->stats_pad_error, 0, "Requests with invalid session ID");
+	    &sc->stats_bad_session, 0, "Requests with invalid session ID");
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "sglist_error", CTLFLAG_RD,
-	    &sc->stats_pad_error, 0, "Requests for which DMA mapping failed");
+	    &sc->stats_sglist_error, 0,
+	    "Requests for which DMA mapping failed");
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "process_error", CTLFLAG_RD,
-	    &sc->stats_pad_error, 0, "Requests failed during queueing");
+	    &sc->stats_process_error, 0, "Requests failed during queueing");
 }
 
 static int

@@ -36,11 +36,18 @@ static EFI_PHYSICAL_ADDRESS heap;
 static UINTN heapsize;
 
 void
-exit(EFI_STATUS exit_code)
+efi_exit(EFI_STATUS exit_code)
 {
 
 	BS->FreePages(heap, EFI_SIZE_TO_PAGES(heapsize));
 	BS->Exit(IH, exit_code, 0, NULL);
+}
+
+void
+exit(int status)
+{
+
+	efi_exit(EFI_LOAD_ERROR);
 }
 
 static CHAR16 *
@@ -92,11 +99,11 @@ efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 
 	setheap((void *)(uintptr_t)heap, (void *)(uintptr_t)(heap + heapsize));
 
-	/* Use exit() from here on... */
+	/* Use efi_exit() from here on... */
 
 	status = BS->HandleProtocol(IH, &image_protocol, (VOID**)&img);
 	if (status != EFI_SUCCESS)
-		exit(status);
+		efi_exit(status);
 
 	/*
 	 * Pre-process the (optional) load options. If the option string
@@ -176,6 +183,6 @@ efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	argv[argc] = NULL;
 
 	status = main(argc, argv);
-	exit(status);
+	efi_exit(status);
 	return (status);
 }

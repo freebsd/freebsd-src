@@ -168,6 +168,25 @@ struct efi_systbl {
 };
 
 extern vm_paddr_t efi_systbl_phys;
+
+/* Internal MD EFI functions */
+int efi_arch_enter(void);
+void efi_arch_leave(void);
+bool efi_create_1t1_map(struct efi_md *, int, int);
+void efi_destroy_1t1_map(void);
+
+/* Public MI EFI functions */
+int efi_rt_ok(void);
+int efi_get_table(struct uuid *uuid, void **ptr);
+int efi_get_time(struct efi_tm *tm);
+int efi_reset_system(void);
+int efi_set_time(struct efi_tm *tm);
+int efi_var_get(uint16_t *name, struct uuid *vendor, uint32_t *attrib,
+    size_t *datasize, void *data);
+int efi_var_nextname(size_t *namesize, uint16_t *name, struct uuid *vendor);
+int efi_var_set(uint16_t *name, struct uuid *vendor, uint32_t attrib,
+    size_t datasize, void *data);
+
 #endif	/* _KERNEL */
 
 #endif /* _SYS_EFI_H_ */

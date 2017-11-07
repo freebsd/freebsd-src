@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
+#include <machine/undefined.h>
 #include <machine/vmparam.h>
 
 #ifdef VFP
@@ -120,6 +121,12 @@ int64_t idcache_line_size;	/* The minimum cache line size */
 int64_t dczva_line_size;	/* The size of cache line the dc zva zeroes */
 int has_pan;
 
+/*
+ * Physical address of the EFI System Table. Stashed from the metadata hints
+ * passed into the kernel and used by the EFI code to call runtime services.
+ */
+vm_paddr_t efi_systbl_phys;
+
 /* pagezero_* implementations are provided in support.S */
 void pagezero_simple(void *);
 void pagezero_cache(void *);
@@ -162,6 +169,7 @@ static void
 cpu_startup(void *dummy)
 {
 
+	undef_init();
 	identify_cpu();
 
 	vm_ksubmap_init(&kmi);
@@ -983,6 +991,8 @@ initarm(struct arm64_bootparams *abp)
 #ifdef FDT
 	try_load_dtb(kmdp);
 #endif
+
+	efi_systbl_phys = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
 
 	/* Find the address to start allocating from */
 	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);

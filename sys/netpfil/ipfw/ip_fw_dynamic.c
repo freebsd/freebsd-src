@@ -418,9 +418,7 @@ dyn_create(struct ip_fw_chain *ch, struct tid_info *ti,
 		return (ENOSPC);
 	}
 	ipfw_objhash_add(ni, &obj->no);
-	IPFW_WLOCK(ch);
 	SRV_OBJECT(ch, obj->no.kidx) = obj;
-	IPFW_WUNLOCK(ch);
 	obj->no.refcnt++;
 	*pkidx = obj->no.kidx;
 	IPFW_UH_WUNLOCK(ch);
@@ -440,10 +438,8 @@ dyn_destroy(struct ip_fw_chain *ch, struct named_object *no)
 	    no->name, no->etlv, no->kidx, no->refcnt));
 
 	DYN_DEBUG("kidx %d", no->kidx);
-	IPFW_WLOCK(ch);
 	obj = SRV_OBJECT(ch, no->kidx);
 	SRV_OBJECT(ch, no->kidx) = NULL;
-	IPFW_WUNLOCK(ch);
 	ipfw_objhash_del(CHAIN_TO_SRV(ch), no);
 	ipfw_objhash_free_idx(CHAIN_TO_SRV(ch), no->kidx);
 

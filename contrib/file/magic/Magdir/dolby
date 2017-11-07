@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: dolby,v 1.7 2014/01/08 22:37:23 christos Exp $
+# $File: dolby,v 1.8 2017/03/17 21:35:28 christos Exp $
 # ATSC A/53 aka AC-3 aka Dolby Digital <ashitaka@gmx.at>
 # from http://www.atsc.org/standards/a_52a.pdf
 # corrections, additions, etc. are always welcome!
@@ -23,7 +23,7 @@
 >5	byte&0x07 = 0x04	\b, dialogue (D)
 >5	byte&0x07 = 0x05	\b, commentary (C)
 >5	byte&0x07 = 0x06	\b, emergency (E)
->5	beshort&0x07e0  0x0720	\b, voiceover (VO) 
+>5	beshort&0x07e0  0x0720	\b, voiceover (VO)
 >5	beshort&0x07e0 >0x0720	\b, karaoke
 # acmod
 >6	byte&0xe0 = 0x00	1+1 front,

@@ -58,7 +58,6 @@ CWARNEXTRA?=	-Wno-error=address				\
 		-Wno-error=maybe-uninitialized			\
 		-Wno-error=overflow				\
 		-Wno-error=sequence-point			\
-		-Wno-error=strict-overflow			\
 		-Wno-error=unused-but-set-variable
 .if ${COMPILER_VERSION} >= 60100
 CWARNEXTRA+=	-Wno-error=misleading-indentation		\
@@ -185,9 +184,6 @@ CFLAGS.gcc+=	-mcall-aixdesc
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-msoft-float
 INLINE_LIMIT?=	8000
-.if ${MACHINE_ARCH:Mmips*hf} != ""
-CFLAGS+= -DCPU_HAVEFPU
-.endif
 .endif
 
 #
@@ -260,6 +256,7 @@ LD_EMULATION_amd64=elf_x86_64_fbsd
 LD_EMULATION_arm=armelf_fbsd
 LD_EMULATION_armeb=armelfb_fbsd
 LD_EMULATION_armv6=armelf_fbsd
+LD_EMULATION_armv7=armelf_fbsd
 LD_EMULATION_i386=elf_i386_fbsd
 LD_EMULATION_mips= elf32btsmip_fbsd
 LD_EMULATION_mips64= elf64btsmip_fbsd

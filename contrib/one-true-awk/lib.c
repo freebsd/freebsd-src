@@ -62,6 +62,7 @@ void recinit(unsigned int n)
 	  || (fldtab = (Cell **) malloc((nfields+1) * sizeof(Cell *))) == NULL
 	  || (fldtab[0] = (Cell *) malloc(sizeof(Cell))) == NULL )
 		FATAL("out of space for $0 and fields");
+	*record = '\0';
 	*fldtab[0] = dollar0;
 	fldtab[0]->sval = record;
 	fldtab[0]->nval = tostring("0");
@@ -616,7 +617,7 @@ void eprint(void)	/* try to print context around error */
 	static int been_here = 0;
 	extern char ebuf[], *ep;
 
-	if (compile_time == 2 || compile_time == 0 || been_here++ > 0)
+	if (compile_time == 2 || compile_time == 0 || been_here++ > 0 || ebuf == ep)
 		return;
 	p = ep - 1;
 	if (p > ebuf && *p == '\n')

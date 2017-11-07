@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sched.h>
 
+#include <linux/compiler.h>
 #include <linux/interrupt.h>
 #include <linux/compat.h>
 
@@ -45,10 +46,10 @@ __FBSDID("$FreeBSD$");
 	atomic_cmpset_ptr((volatile uintptr_t *)&(ts)->entry.tqe_prev, old, new)
 
 #define	TASKLET_ST_SET(ts, new)	\
-	atomic_store_rel_ptr((volatile uintptr_t *)&(ts)->entry.tqe_prev, new)
+	WRITE_ONCE(*(volatile uintptr_t *)&(ts)->entry.tqe_prev, new)
 
 #define	TASKLET_ST_GET(ts) \
-	atomic_load_acq_ptr((volatile uintptr_t *)&(ts)->entry.tqe_prev)
+	READ_ONCE(*(volatile uintptr_t *)&(ts)->entry.tqe_prev)
 
 struct tasklet_worker {
 	struct mtx mtx;

@@ -36,6 +36,9 @@ __FBSDID("$FreeBSD$");
 #include "dev_net.h"
 #endif
 
+/* Make sure we have an explicit reference to exit so libsa's panic pulls in the MD exit */
+void (*exitfn)(int) = exit;
+
 struct devsw *devsw[] = {
 #if defined(LOADER_DISK_SUPPORT) || defined(LOADER_CD9660_SUPPORT)
 	&uboot_storage,

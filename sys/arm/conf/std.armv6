@@ -1,10 +1,11 @@
-# Standard kernel config items for all ARMv6/v7 systems.
+# Standard kernel config items for all ARMv6 systems.
 #
 # $FreeBSD$
 
 options 	HZ=1000
 options 	ARM_L2_PIPT		# Only L2 PIPT is supported
 options 	PREEMPTION		# Enable kernel thread preemption
+options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	TCP_HHOOK		# hhook(9) framework for TCP

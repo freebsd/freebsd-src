@@ -43,6 +43,7 @@ arm/allwinner/clkng/aw_clk_nm.c	optional	aw_ccu fdt
 arm/allwinner/clkng/aw_clk_prediv_mux.c	optional	aw_ccu fdt
 arm/allwinner/clkng/ccu_a64.c	optional	aw_ccu fdt
 arm/allwinner/clkng/ccu_h3.c	optional	aw_ccu fdt
+arm/allwinner/clkng/ccu_sun8i_r.c	optional	aw_ccu fdt
 
 arm/allwinner/if_awg.c		optional	awg fdt
 arm/annapurna/alpine/alpine_ccu.c		optional	al_ccu fdt
@@ -94,6 +95,7 @@ arm64/arm64/db_trace.c		optional	ddb
 arm64/arm64/debug_monitor.c	optional	ddb
 arm64/arm64/disassem.c		optional	ddb
 arm64/arm64/dump_machdep.c	standard
+arm64/arm64/efirt_machdep.c	optional	efirt
 arm64/arm64/elf_machdep.c	standard
 arm64/arm64/exception.S		standard
 arm64/arm64/gicv3_its.c		optional	intrng fdt
@@ -118,6 +120,7 @@ arm64/arm64/sys_machdep.c	standard
 arm64/arm64/trap.c		standard
 arm64/arm64/uio_machdep.c	standard
 arm64/arm64/uma_machdep.c	standard
+arm64/arm64/undefined.c		standard
 arm64/arm64/unwind.c		optional	ddb | kdtrace_hooks | stack
 arm64/arm64/vfp.c		standard
 arm64/arm64/vm_machdep.c	standard

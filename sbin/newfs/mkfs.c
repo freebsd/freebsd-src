@@ -98,6 +98,7 @@ static void iput(union dinode *, ino_t);
 static int makedir(struct direct *, int);
 static void setblock(struct fs *, unsigned char *, int);
 static void wtfs(ufs2_daddr_t, int, char *);
+static void cgckhash(struct cg *);
 static u_int32_t newfs_random(void);
 
 static int
@@ -491,6 +492,11 @@ restart:
 		sblock.fs_old_cstotal.cs_nifree = sblock.fs_cstotal.cs_nifree;
 		sblock.fs_old_cstotal.cs_nffree = sblock.fs_cstotal.cs_nffree;
 	}
+	/*
+	 * Set flags for metadata that is being check-hashed.
+	 */
+	if (Oflag > 1)
+		sblock.fs_metackhash = CK_CYLGRP;
 
 	/*
 	 * Dump out summary information about file system.
@@ -791,6 +797,7 @@ initcg(int cylno, time_t utime)
 		}
 	}
 	*cs = acg.cg_cs;
+	cgckhash(&acg);
 	/*
 	 * Write out the duplicate super block, the cylinder group map
 	 * and two blocks worth of inodes in a single write.
@@ -1006,6 +1013,7 @@ goth:
 			setbit(cg_blksfree(&acg), d + i);
 	}
 	/* XXX cgwrite(&disk, 0)??? */
+	cgckhash(&acg);
 	wtfs(fsbtodb(&sblock, cgtod(&sblock, 0)), sblock.fs_cgsize,
 	    (char *)&acg);
 	return ((ufs2_daddr_t)d);
@@ -1027,6 +1035,7 @@ iput(union dinode *ip, ino_t ino)
 	}
 	acg.cg_cs.cs_nifree--;
 	setbit(cg_inosused(&acg), ino);
+	cgckhash(&acg);
 	wtfs(fsbtodb(&sblock, cgtod(&sblock, 0)), sblock.fs_cgsize,
 	    (char *)&acg);
 	sblock.fs_cstotal.cs_nifree--;
@@ -1057,6 +1066,20 @@ wtfs(ufs2_daddr_t bno, int size, char *bf)
 		return;
 	if (bwrite(&disk, part_ofs + bno, bf, size) < 0)
 		err(36, "wtfs: %d bytes at sector %jd", size, (intmax_t)bno);
+}
+
+/*
+ * Calculate the check-hash of the cylinder group.
+ */
+static void
+cgckhash(cgp)
+	struct cg *cgp;
+{
+
+	if ((sblock.fs_metackhash & CK_CYLGRP) == 0)
+		return;
+	cgp->cg_ckhash = 0;
+	cgp->cg_ckhash = calculate_crc32c(~0L, (void *)cgp, sblock.fs_cgsize);
 }
 
 /*

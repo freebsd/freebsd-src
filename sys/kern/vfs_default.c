@@ -486,20 +486,11 @@ vop_stdpathconf(ap)
 		case _PC_LINK_MAX:
 			*ap->a_retval = LINK_MAX;
 			return (0);
-		case _PC_MAX_CANON:
-			*ap->a_retval = MAX_CANON;
-			return (0);
-		case _PC_MAX_INPUT:
-			*ap->a_retval = MAX_INPUT;
-			return (0);
 		case _PC_PIPE_BUF:
 			*ap->a_retval = PIPE_BUF;
 			return (0);
 		case _PC_CHOWN_RESTRICTED:
 			*ap->a_retval = 1;
-			return (0);
-		case _PC_VDISABLE:
-			*ap->a_retval = _POSIX_VDISABLE;
 			return (0);
 		default:
 			return (EINVAL);

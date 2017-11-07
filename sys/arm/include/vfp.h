@@ -119,6 +119,12 @@
 #define	VMVFR0_RB_MASK		(0x0000000f)	/* VFP 64 bit media support */
 
 /* VMVFR1 */
+#define	VMVFR1_FMAC_OFF		28
+#define	VMVFR1_FMAC_MASK 	(0xf0000000)	/* Neon FMAC support */
+#define	VMVFR1_VFP_HP_OFF	24
+#define	VMVFR1_VFP_HP_MASK 	(0x0f000000)	/* VFP half prec support */
+#define	VMVFR1_HP_OFF		20
+#define	VMVFR1_HP_MASK 		(0x00f00000)	/* Neon half prec support */
 #define	VMVFR1_SP_OFF		16
 #define	VMVFR1_SP_MASK 		(0x000f0000)	/* Neon single prec support */
 #define VMVFR1_I_OFF		12
@@ -142,6 +148,8 @@ struct vfp_state {
 };
 
 #ifdef _KERNEL
+void	get_vfpcontext(struct thread *, mcontext_vfp_t *);
+void	set_vfpcontext(struct thread *, mcontext_vfp_t *);
 void    vfp_init(void);
 void    vfp_store(struct vfp_state *, boolean_t);
 void    vfp_discard(struct thread *);

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2017
+.Dd October 24, 2017
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -63,6 +63,9 @@ The file
 is used to override settings in
 .Pa /etc/rc.conf
 for historical reasons.
+.Pp
+The sysrc(8) command provides a scripting interface to modify system
+config files.
 .Pp
 In addition to
 .Pa /etc/rc.conf.local
@@ -3377,6 +3380,13 @@ Otherwise, the value of this variable is passed as the argument to
 .Xr dumpon 8 .
 To disable crash dumps, set this variable to
 .Dq Li NO .
+.It Va dumpon_flags
+.Pq Vt str
+Flags to pass to
+.Xr dumpon 8
+when configuring
+.Va dumpdev
+as the system dump device.
 .It Va dumpdir
 .Pq Vt str
 When the system reboots after a crash and a crash dump is found on the
@@ -3397,18 +3407,6 @@ to not run
 at boot time when
 .Va dumpdir
 is set.
-.It Va dumppubkey
-.Pq Vt str
-Path to a public key.
-It is used by
-.Xr dumpon 8
-to encrypt a one-time key for a crash dump.
-The public key has to match a private key used by
-.Xr decryptcore 8
-to decrypt a crash dump after reboot.
-See
-.Xr dumpon 8
-for more details.
 .It Va savecore_enable
 .Pq Vt bool
 If set to
@@ -4537,6 +4535,7 @@ configuration file.
 .Xr swapon 8 ,
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
+.Xr sysrc 8 ,
 .Xr timed 8 ,
 .Xr unbound 8 ,
 .Xr usbconfig 8 ,

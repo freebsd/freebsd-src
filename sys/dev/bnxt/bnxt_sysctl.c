@@ -84,6 +84,26 @@ bnxt_init_sysctl_ctx(struct bnxt_softc *softc)
 		return ENOMEM;
 	}
 
+	sysctl_ctx_init(&softc->hw_lro_ctx);
+	ctx = device_get_sysctl_ctx(softc->dev);
+	softc->hw_lro_oid = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
+	    "hw_lro", CTLFLAG_RD, 0, "hardware lro");
+	if (!softc->hw_lro_oid) {
+		sysctl_ctx_free(&softc->hw_lro_ctx);
+		return ENOMEM;
+	}
+
+	sysctl_ctx_init(&softc->flow_ctrl_ctx);
+	ctx = device_get_sysctl_ctx(softc->dev);
+	softc->flow_ctrl_oid = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
+	    "fc", CTLFLAG_RD, 0, "flow ctrl");
+	if (!softc->flow_ctrl_oid) {
+		sysctl_ctx_free(&softc->flow_ctrl_ctx);
+		return ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -113,6 +133,21 @@ bnxt_free_sysctl_ctx(struct bnxt_softc *softc)
 			rc = orc;
 		else
 			softc->nvm_info->nvm_oid = NULL;
+	}
+	if (softc->hw_lro_oid != NULL) {
+		orc = sysctl_ctx_free(&softc->hw_lro_ctx);
+		if (orc)
+			rc = orc;
+		else
+			softc->hw_lro_oid = NULL;
+	}
+
+	if (softc->flow_ctrl_oid != NULL) {
+		orc = sysctl_ctx_free(&softc->flow_ctrl_ctx);
+		if (orc)
+			rc = orc;
+		else
+			softc->flow_ctrl_oid = NULL;
 	}
 
 	return rc;
@@ -1210,6 +1245,130 @@ bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 	return 0;
 }
 
+#define BNXT_HW_LRO_FN(fn_name, arg)			                   \
+static int						                   \
+fn_name(SYSCTL_HANDLER_ARGS) {				                   \
+	struct bnxt_softc *softc = arg1;		                   \
+	int rc;						                   \
+	int val;					                   \
+							                   \
+	if (softc == NULL)				                   \
+		return EBUSY;				                   \
+							                   \
+	val = softc->hw_lro.arg;			                   \
+	rc = sysctl_handle_int(oidp, &val, 0, req);	                   \
+	if (rc || !req->newptr)				                   \
+		return rc;				                   \
+							                   \
+	if ((if_getdrvflags(iflib_get_ifp(softc->ctx)) & IFF_DRV_RUNNING)) \
+		return EBUSY;				                   \
+							                   \
+	softc->hw_lro.arg = val;			                   \
+	bnxt_validate_hw_lro_settings(softc);		                   \
+	rc = bnxt_hwrm_vnic_tpa_cfg(softc);		                   \
+							                   \
+	return rc;					                   \
+}
+
+BNXT_HW_LRO_FN(bnxt_hw_lro_enable_disable, enable)
+BNXT_HW_LRO_FN(bnxt_hw_lro_set_mode, is_mode_gro)
+BNXT_HW_LRO_FN(bnxt_hw_lro_set_max_agg_segs, max_agg_segs)
+BNXT_HW_LRO_FN(bnxt_hw_lro_set_max_aggs, max_aggs)
+BNXT_HW_LRO_FN(bnxt_hw_lro_set_min_agg_len, min_agg_len)
+
+#define BNXT_FLOW_CTRL_FN(fn_name, arg)			                   \
+static int						                   \
+fn_name(SYSCTL_HANDLER_ARGS) {				                   \
+	struct bnxt_softc *softc = arg1;		                   \
+	int rc;						                   \
+	int val;					                   \
+							                   \
+	if (softc == NULL)				                   \
+		return EBUSY;				                   \
+							                   \
+	val = softc->link_info.flow_ctrl.arg;			           \
+	rc = sysctl_handle_int(oidp, &val, 0, req);	                   \
+	if (rc || !req->newptr)				                   \
+		return rc;				                   \
+							                   \
+	if (val)					                   \
+	   	val = 1; 				                   \
+	        					                   \
+	if (softc->link_info.flow_ctrl.arg != val) {		           \
+		softc->link_info.flow_ctrl.arg = val;		           \
+		rc = bnxt_hwrm_set_link_setting(softc, true, false, false);\
+		rc = bnxt_hwrm_port_phy_qcfg(softc);			   \
+	}						                   \
+							                   \
+	return rc;					                   \
+}
+
+BNXT_FLOW_CTRL_FN(bnxt_flow_ctrl_tx, tx)
+BNXT_FLOW_CTRL_FN(bnxt_flow_ctrl_rx, rx)
+BNXT_FLOW_CTRL_FN(bnxt_flow_ctrl_autoneg, autoneg)
+int
+bnxt_create_pause_fc_sysctls(struct bnxt_softc *softc)
+{
+	struct sysctl_oid *oid = softc->flow_ctrl_oid;
+
+	if (!oid)
+		return ENOMEM;
+
+	SYSCTL_ADD_PROC(&softc->flow_ctrl_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"tx", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_flow_ctrl_tx, "A",
+			"Enable or Disable Tx Flow Ctrl: 0 / 1");
+
+	SYSCTL_ADD_PROC(&softc->flow_ctrl_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"rx", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_flow_ctrl_rx, "A",
+			"Enable or Disable Tx Flow Ctrl: 0 / 1");
+
+	SYSCTL_ADD_PROC(&softc->flow_ctrl_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"autoneg", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_flow_ctrl_autoneg, "A",
+			"Enable or Disable Autoneg Flow Ctrl: 0 / 1");
+
+	return 0;
+}
+
+int
+bnxt_create_hw_lro_sysctls(struct bnxt_softc *softc)
+{
+	struct sysctl_oid *oid = softc->hw_lro_oid;
+
+	if (!oid)
+		return ENOMEM;
+
+	SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"enable", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_hw_lro_enable_disable, "A",
+			"Enable or Disable HW LRO: 0 / 1");
+
+	SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"gro_mode", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_hw_lro_set_mode, "A",
+			"Set mode: 1 = GRO mode, 0 = RSC mode");
+
+	SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"max_agg_segs", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_hw_lro_set_max_agg_segs, "A",
+			"Set Max Agg Seg Value (unit is Log2): "
+			"0 (= 1 seg) / 1 (= 2 segs) /  ... / 31 (= 2^31 segs)");
+	
+        SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"max_aggs", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_hw_lro_set_max_aggs, "A",
+			"Set Max Aggs Value (unit is Log2): "
+			"0 (= 1 agg) / 1 (= 2 aggs) /  ... / 7 (= 2^7 segs)"); 
+
+	SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"min_agg_len", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_hw_lro_set_min_agg_len, "A",
+			"Min Agg Len: 1 to 9000");
+
+	return 0;
+}
 static int
 bnxt_vlan_only_sysctl(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;

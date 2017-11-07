@@ -1621,7 +1621,7 @@ ti_newbuf_jumbo(struct ti_softc *sc, int idx, struct mbuf *m_old)
 			}
 			sf[i] = sf_buf_alloc(frame, SFB_NOWAIT);
 			if (sf[i] == NULL) {
-				vm_page_unwire(frame, PQ_INACTIVE);
+				vm_page_unwire(frame, PQ_NONE);
 				vm_page_free(frame);
 				device_printf(sc->ti_dev, "buffer allocation "
 				    "failed -- packet dropped!\n");

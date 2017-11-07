@@ -207,6 +207,7 @@ struct md_s {
 	unsigned opencount;
 	unsigned fwheads;
 	unsigned fwsectors;
+	char ident[32];
 	unsigned flags;
 	char name[20];
 	struct proc *procp;
@@ -1111,7 +1112,10 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		if (m != NULL) {
 			vm_page_xunbusy(m);
 			vm_page_lock(m);
-			vm_page_activate(m);
+			if (vm_page_active(m))
+				vm_page_reference(m);
+			else
+				vm_page_activate(m);
 			vm_page_unlock(m);
 		}
 
@@ -1177,6 +1181,9 @@ md_kthread(void *arg)
 			    g_handleattr_int(bp, "GEOM::fwheads",
 			    sc->fwheads))) ||
 			    g_handleattr_int(bp, "GEOM::candelete", 1))
+				error = -1;
+			else if (sc->ident[0] != '\0' &&
+			    g_handleattr_str(bp, "GEOM::ident", sc->ident))
 				error = -1;
 			else if (g_handleattr_int(bp, "MNT::verified", isv))
 				error = -1;
@@ -1411,6 +1418,8 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 		sc->fwsectors = mdio->md_fwsectors;
 	if (mdio->md_fwheads != 0)
 		sc->fwheads = mdio->md_fwheads;
+	snprintf(sc->ident, sizeof(sc->ident), "MD-DEV%ju-INO%ju",
+	    (uintmax_t)vattr.va_fsid, (uintmax_t)vattr.va_fileid);
 	sc->flags = mdio->md_options & (MD_FORCE | MD_ASYNC | MD_VERIFY);
 	if (!(flags & FWRITE))
 		sc->flags |= MD_READONLY;
@@ -1895,6 +1904,11 @@ g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			    indent, (uintmax_t) mp->fwheads);
 			sbuf_printf(sb, "%s<fwsectors>%ju</fwsectors>\n",
 			    indent, (uintmax_t) mp->fwsectors);
+			if (mp->ident[0] != '\0') {
+				sbuf_printf(sb, "%s<ident>", indent);
+				g_conf_printf_escaped(sb, "%s", mp->ident);
+				sbuf_printf(sb, "</ident>\n");
+			}
 			sbuf_printf(sb, "%s<length>%ju</length>\n",
 			    indent, (uintmax_t) mp->mediasize);
 			sbuf_printf(sb, "%s<compression>%s</compression>\n", indent,

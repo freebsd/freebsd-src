@@ -34,9 +34,9 @@
 
 /**
  * The default address at which the ChipCommon core is mapped on all siba(4)
- * devices, and most bcma(4) devices.
+ * devices, and most (all?) bcma(4) devices.
  */
-#define	BHND_DEFAULT_CHIPC_ADDR		0x18000000
+#define	BHND_DEFAULT_CHIPC_ADDR	0x18000000
 
 /**
  * The standard size of a primary BHND_PORT_DEVICE or BHND_PORT_AGENT
@@ -44,5 +44,9 @@
  */
 #define	BHND_DEFAULT_CORE_SIZE	0x1000
 
+/**
+ * The standard size of the siba(4) and bcma(4) enumeration space.
+ */
+#define	BHND_DEFAULT_ENUM_SIZE	0x00100000
 
 #endif /* _BHND_BHNDREG_H_ */

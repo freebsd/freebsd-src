@@ -2,8 +2,11 @@
  * Copyright (c) 2007 Bruce M. Simpson.
  * Copyright (c) 2016 Michael Zhilin <mizhka@gmail.com>
  * Copyright (c) 2016 Landon Fuller <landonf@FreeBSD.org>
- *
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -74,6 +77,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/bhnd/bhnd.h>
 #include <dev/bhnd/bhndreg.h>
+#include <dev/bhnd/bhnd_eromvar.h>
 
 #include <dev/bhnd/bcma/bcma_eromvar.h>
 
@@ -105,7 +109,7 @@ static int	bcm_find_core(struct bcm_platform *bp,
 
 static int	bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls,
 		    kobj_ops_t erom_ops, bhnd_erom_t *erom, size_t esize,
-		    struct bhnd_chipid *cid);
+		    struct bhnd_erom_io *eio, struct bhnd_chipid *cid);
 
 extern int	*edata;
 extern int	*end;
@@ -144,6 +148,17 @@ bcm_get_bus_addr(void)
 		return ((u_long)maddr);
 
 	return (BHND_DEFAULT_CHIPC_ADDR);
+}
+
+static bus_size_t
+bcm_get_bus_size(void)
+{
+	long msize;
+
+	if (resource_long_value("bhnd", 0, "msize", &msize) == 0)
+		return ((u_long)msize);
+
+	return (BHND_DEFAULT_ENUM_SIZE);
 }
 
 /**
@@ -239,24 +254,30 @@ bcm_get_nvram(struct bcm_platform *bp, const char *name, void *buf, size_t *len,
  * @param	esize		The total available number of bytes allocated
  *				for @p erom. If this is less than is required
  *				by @p erom_cls ENOMEM will be returned.
+ * @param	eio		EROM I/O callbacks to be used.
  * @param[out]	cid		On success, the probed chip identification.
  */
 static int
 bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls, kobj_ops_t erom_ops,
-    bhnd_erom_t *erom, size_t esize, struct bhnd_chipid *cid)
+    bhnd_erom_t *erom, size_t esize, struct bhnd_erom_io *eio,
+    struct bhnd_chipid *cid)
 {
 	bhnd_erom_class_t	**clsp;
-	bus_space_tag_t		  bst;
-	bus_space_handle_t	  bsh;
 	bus_addr_t		  bus_addr;
 	int			  error, prio, result;
 
-	bus_addr = bcm_get_bus_addr();
 	*erom_cls = NULL;
 	prio = 0;
 
-	bst = mips_bus_space_generic;
-	bsh = BCM_SOC_BSH(bus_addr, 0);
+	/* Map our first bus core for the erom probe */
+	bus_addr = bcm_get_bus_addr();
+	if ((error = bhnd_erom_io_map(eio, bus_addr, BHND_DEFAULT_CORE_SIZE))) {
+		BCM_ERR("failed to map first core at %#jx+%#jx: %d\n",
+		    (uintmax_t)bus_addr, (uintmax_t)BHND_DEFAULT_CORE_SIZE,
+		    error);
+
+		return (error);
+	}
 
 	SET_FOREACH(clsp, bhnd_erom_class_set) {
 		struct bhnd_chipid	 pcid;
@@ -269,8 +290,7 @@ bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls, kobj_ops_t erom_ops,
 		kobj_class_compile_static(cls, &kops);
 
 		/* Probe the bus address */
-		result = bhnd_erom_probe_static(cls, bst, bsh, bus_addr, NULL,
-		    &pcid);
+		result = bhnd_erom_probe(cls, eio, NULL, &pcid);
 
 		/* Drop pointer to stack allocated ops table */
 		cls->ops = NULL;
@@ -296,6 +316,7 @@ bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls, kobj_ops_t erom_ops,
 	if (*erom_cls == NULL) {
 		BCM_ERR("no erom parser found for root bus at %#jx\n", 
 		    (uintmax_t)bus_addr);
+
 		return (ENOENT);
 	}
 
@@ -303,9 +324,7 @@ bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls, kobj_ops_t erom_ops,
 	kobj_class_compile_static(*erom_cls, erom_ops);
 
 	/* ... and initialize the erom parser instance */
-	bsh = BCM_SOC_BSH(cid->enum_addr, 0);
-	error = bhnd_erom_init_static(*erom_cls, erom, esize, cid,
-	    mips_bus_space_generic, bsh);
+	error = bhnd_erom_init_static(*erom_cls, erom, esize, cid, eio);
 
 	return (error);
 }
@@ -316,8 +335,14 @@ bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls, kobj_ops_t erom_ops,
 static int
 bcm_init_platform_data(struct bcm_platform *bp)
 {
-	bool	aob, pmu;
-	int	error;
+	bus_addr_t		bus_addr, bus_size;
+	bus_space_tag_t		erom_bst;
+	bus_space_handle_t	erom_bsh;
+	bool			aob, pmu;
+	int			error;
+
+	bus_addr = bcm_get_bus_addr();
+	bus_size = bcm_get_bus_size();
 
 #ifdef CFE
 	/* Fetch CFE console handle (if any). Must be initialized before
@@ -336,10 +361,21 @@ bcm_init_platform_data(struct bcm_platform *bp)
 
 	/* Probe and attach device table provider, populating our
 	 * chip identification */
+	erom_bst = mips_bus_space_generic;
+	erom_bsh = BCM_SOC_BSH(bus_addr, 0);
+
+	error = bhnd_erom_iobus_init(&bp->erom_io, bus_addr, bus_size, erom_bst,
+	    erom_bsh);
+	if (error) {
+		BCM_ERR("failed to initialize erom I/O callbacks: %d\n", error);
+		return (error);
+	}
+
 	error = bcm_erom_probe_and_attach(&bp->erom_impl, &bp->erom_ops,
-	    &bp->erom.obj, sizeof(bp->erom), &bp->cid);
+	    &bp->erom.obj, sizeof(bp->erom), &bp->erom_io.eio, &bp->cid);
 	if (error) {
 		BCM_ERR("error attaching erom parser: %d\n", error);
+		bhnd_erom_io_fini(&bp->erom_io.eio);
 		return (error);
 	}
 
@@ -391,6 +427,12 @@ bcm_init_platform_data(struct bcm_platform *bp)
 			BCM_ERR("bhnd_pmu_query_init() failed: %d\n", error);
 			return (error);
 		}
+	}
+
+	/* Initialize our platform service registry */
+	if ((error = bhnd_service_registry_init(&bp->services))) {
+		BCM_ERR("error initializing service registry: %d\n", error);
+		return (error);
 	}
 
 	bcm_platform_data_avail = true;

@@ -188,7 +188,17 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
 	KASSERT(m->m_flags & M_EXT, ("%s: M_EXT not set on %p", __func__, m));
 	KASSERT(!(n->m_flags & M_EXT), ("%s: M_EXT set on %p", __func__, n));
 
-	n->m_ext = m->m_ext;
+	/*
+	 * Cache access optimization.  For most kinds of external
+	 * storage we don't need full copy of m_ext, since the
+	 * holder of the 'ext_count' is responsible to carry the
+	 * free routine and its arguments.  Exclusion is EXT_EXTREF,
+	 * where 'ext_cnt' doesn't point into mbuf at all.
+	 */
+	if (m->m_ext.ext_type == EXT_EXTREF)
+		bcopy(&m->m_ext, &n->m_ext, sizeof(struct m_ext));
+	else
+		bcopy(&m->m_ext, &n->m_ext, m_ext_copylen);
 	n->m_flags |= M_EXT;
 	n->m_flags |= m->m_flags & M_RDONLY;
 
@@ -1439,62 +1449,59 @@ bad:
 struct mbuf *
 m_fragment(struct mbuf *m0, int how, int length)
 {
-	struct mbuf *m_new = NULL, *m_final = NULL;
-	int progress = 0;
+	struct mbuf *m_first, *m_last;
+	int divisor = 255, progress = 0, fraglen;
 
 	if (!(m0->m_flags & M_PKTHDR))
 		return (m0);
 
-	if ((length == 0) || (length < -2))
+	if (length == 0 || length < -2)
 		return (m0);
+	if (length > MCLBYTES)
+		length = MCLBYTES;
+	if (length < 0 && divisor > MCLBYTES)
+		divisor = MCLBYTES;
+	if (length == -1)
+		length = 1 + (arc4random() % divisor);
+	if (length > 0)
+		fraglen = length;
 
 	m_fixhdr(m0); /* Needed sanity check */
 
-	m_final = m_getcl(how, MT_DATA, M_PKTHDR);
-
-	if (m_final == NULL)
+	m_first = m_getcl(how, MT_DATA, M_PKTHDR);
+	if (m_first == NULL)
 		goto nospace;
 
-	if (m_dup_pkthdr(m_final, m0, how) == 0)
+	if (m_dup_pkthdr(m_first, m0, how) == 0)
 		goto nospace;
 
-	m_new = m_final;
-
-	if (length == -1)
-		length = 1 + (arc4random() & 255);
+	m_last = m_first;
 
 	while (progress < m0->m_pkthdr.len) {
-		int fraglen;
-
-		if (length > 0)
-			fraglen = length;
-		else
-			fraglen = 1 + (arc4random() & 255);
+		if (length == -2)
+			fraglen = 1 + (arc4random() % divisor);
 		if (fraglen > m0->m_pkthdr.len - progress)
 			fraglen = m0->m_pkthdr.len - progress;
 
-		if (fraglen > MCLBYTES)
-			fraglen = MCLBYTES;
-
-		if (m_new == NULL) {
-			m_new = m_getcl(how, MT_DATA, 0);
+		if (progress != 0) {
+			struct mbuf *m_new = m_getcl(how, MT_DATA, 0);
 			if (m_new == NULL)
 				goto nospace;
+
+			m_last->m_next = m_new;
+			m_last = m_new;
 		}
 
-		m_copydata(m0, progress, fraglen, mtod(m_new, caddr_t));
+		m_copydata(m0, progress, fraglen, mtod(m_last, caddr_t));
 		progress += fraglen;
-		m_new->m_len = fraglen;
-		if (m_new != m_final)
-			m_cat(m_final, m_new);
-		m_new = NULL;
+		m_last->m_len = fraglen;
 	}
 	m_freem(m0);
-	m0 = m_final;
+	m0 = m_first;
 	return (m0);
 nospace:
-	if (m_final)
-		m_freem(m_final);
+	if (m_first)
+		m_freem(m_first);
 	/* Return the original chain on failure */
 	return (m0);
 }

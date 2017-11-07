@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
 
@@ -64,7 +65,7 @@ __FBSDID("$FreeBSD$");
 
 #define	MAX_LD		8192
 
-int max_ldt_segment = 1024;
+int max_ldt_segment = 512;
 SYSCTL_INT(_machdep, OID_AUTO, max_ldt_segment, CTLFLAG_RDTUN,
     &max_ldt_segment, 0,
     "Maximum number of allowed LDT segments in the single address space");
@@ -80,11 +81,6 @@ max_ldt_segment_init(void *arg __unused)
 }
 SYSINIT(maxldt, SI_SUB_VM_CONF, SI_ORDER_ANY, max_ldt_segment_init, NULL);
 
-#ifdef notyet
-#ifdef SMP
-static void set_user_ldt_rv(struct vmspace *vmsp);
-#endif
-#endif
 static void user_ldt_derefl(struct proc_ldt *pldt);
 
 #ifndef _SYS_SYSPROTO_H_
@@ -426,18 +422,14 @@ done:
  * Update the GDT entry pointing to the LDT to point to the LDT of the
  * current process.
  */
-void
+static void
 set_user_ldt(struct mdproc *mdp)
 {
 
-	critical_enter();
 	*PCPU_GET(ldt) = mdp->md_ldt_sd;
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
-	critical_exit();
 }
 
-#ifdef notyet
-#ifdef SMP
 static void
 set_user_ldt_rv(struct vmspace *vmsp)
 {
@@ -449,8 +441,6 @@ set_user_ldt_rv(struct vmspace *vmsp)
 
 	set_user_ldt(&td->td_proc->p_md);
 }
-#endif
-#endif
 
 struct proc_ldt *
 user_ldt_alloc(struct proc *p, int force)
@@ -492,11 +482,13 @@ user_ldt_alloc(struct proc *p, int force)
 		    sizeof(struct user_segment_descriptor));
 		user_ldt_derefl(pldt);
 	}
+	critical_enter();
 	ssdtosyssd(&sldt, &p->p_md.md_ldt_sd);
-	atomic_store_rel_ptr((volatile uintptr_t *)&mdp->md_ldt,
-	    (uintptr_t)new_ldt);
-	if (p == curproc)
-		set_user_ldt(mdp);
+	atomic_thread_fence_rel();
+	mdp->md_ldt = new_ldt;
+	critical_exit();
+	smp_rendezvous(NULL, (void (*)(void *))set_user_ldt_rv, NULL,
+	    p->p_vmspace);
 
 	return (mdp->md_ldt);
 }
@@ -508,16 +500,19 @@ user_ldt_free(struct thread *td)
 	struct mdproc *mdp = &p->p_md;
 	struct proc_ldt *pldt;
 
-	mtx_assert(&dt_lock, MA_OWNED);
+	mtx_lock(&dt_lock);
 	if ((pldt = mdp->md_ldt) == NULL) {
 		mtx_unlock(&dt_lock);
 		return;
 	}
 
+	critical_enter();
 	mdp->md_ldt = NULL;
+	atomic_thread_fence_rel();
 	bzero(&mdp->md_ldt_sd, sizeof(mdp->md_ldt_sd));
 	if (td == curthread)
 		lldt(GSEL(GNULL_SEL, SEL_KPL));
+	critical_exit();
 	user_ldt_deref(pldt);
 }
 
@@ -548,57 +543,57 @@ user_ldt_deref(struct proc_ldt *pldt)
  * the OS-specific one.
  */
 int
-amd64_get_ldt(td, uap)
-	struct thread *td;
-	struct i386_ldt_args *uap;
+amd64_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 {
-	int error = 0;
 	struct proc_ldt *pldt;
-	int num;
 	struct user_segment_descriptor *lp;
+	uint64_t *data;
+	u_int i, num;
+	int error;
 
 #ifdef	DEBUG
-	printf("amd64_get_ldt: start=%d num=%d descs=%p\n",
+	printf("amd64_get_ldt: start=%u num=%u descs=%p\n",
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
-	if ((pldt = td->td_proc->p_md.md_ldt) != NULL) {
-		lp = &((struct user_segment_descriptor *)(pldt->ldt_base))
-		    [uap->start];
-		num = min(uap->num, max_ldt_segment);
-	} else
-		return (EINVAL);
-
-	if ((uap->start > (unsigned int)max_ldt_segment) ||
-	    ((unsigned int)num > (unsigned int)max_ldt_segment) ||
-	    ((unsigned int)(uap->start + num) > (unsigned int)max_ldt_segment))
-		return(EINVAL);
-
-	error = copyout(lp, uap->descs, num *
+	pldt = td->td_proc->p_md.md_ldt;
+	if (pldt == NULL || uap->start >= max_ldt_segment || uap->num == 0) {
+		td->td_retval[0] = 0;
+		return (0);
+	}
+	num = min(uap->num, max_ldt_segment - uap->start);
+	lp = &((struct user_segment_descriptor *)(pldt->ldt_base))[uap->start];
+	data = malloc(num * sizeof(struct user_segment_descriptor), M_TEMP,
+	    M_WAITOK);
+	mtx_lock(&dt_lock);
+	for (i = 0; i < num; i++)
+		data[i] = ((volatile uint64_t *)lp)[i];
+	mtx_unlock(&dt_lock);
+	error = copyout(data, uap->descs, num *
 	    sizeof(struct user_segment_descriptor));
-	if (!error)
+	free(data, M_TEMP);
+	if (error == 0)
 		td->td_retval[0] = num;
-
-	return(error);
+	return (error);
 }
 
 int
-amd64_set_ldt(td, uap, descs)
-	struct thread *td;
-	struct i386_ldt_args *uap;
-	struct user_segment_descriptor *descs;
+amd64_set_ldt(struct thread *td, struct i386_ldt_args *uap,
+    struct user_segment_descriptor *descs)
 {
-	int error = 0;
-	unsigned int largest_ld, i;
-	struct mdproc *mdp = &td->td_proc->p_md;
+	struct mdproc *mdp;
 	struct proc_ldt *pldt;
 	struct user_segment_descriptor *dp;
 	struct proc *p;
+	u_int largest_ld, i;
+	int error;
 
 #ifdef	DEBUG
-	printf("amd64_set_ldt: start=%d num=%d descs=%p\n",
+	printf("amd64_set_ldt: start=%u num=%u descs=%p\n",
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
+	mdp = &td->td_proc->p_md;
+	error = 0;
 
 	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	p = td->td_proc;
@@ -616,10 +611,9 @@ amd64_set_ldt(td, uap, descs)
 			largest_ld = max_ldt_segment;
 		if (largest_ld < uap->start)
 			return (EINVAL);
-		i = largest_ld - uap->start;
 		mtx_lock(&dt_lock);
-		bzero(&((struct user_segment_descriptor *)(pldt->ldt_base))
-		    [uap->start], sizeof(struct user_segment_descriptor) * i);
+		for (i = uap->start; i < largest_ld; i++)
+			((volatile uint64_t *)(pldt->ldt_base))[i] = 0;
 		mtx_unlock(&dt_lock);
 		return (0);
 	}
@@ -656,12 +650,7 @@ amd64_set_ldt(td, uap, descs)
 		case SDT_SYSNULL4:
 		case SDT_SYSIGT:
 		case SDT_SYSTGT:
-			/* I can't think of any reason to allow a user proc
-			 * to create a segment of these types.  They are
-			 * for OS use only.
-			 */
 			return (EACCES);
-			/*NOTREACHED*/
 
 		/* memory segment types */
 		case SDT_MEMEC:   /* memory execute only conforming */
@@ -687,7 +676,6 @@ amd64_set_ldt(td, uap, descs)
 			break;
 		default:
 			return(EINVAL);
-			/*NOTREACHED*/
 		}
 
 		/* Only user (ring-3) descriptors may be present. */
@@ -741,14 +729,18 @@ int
 amd64_set_ldt_data(struct thread *td, int start, int num,
     struct user_segment_descriptor *descs)
 {
-	struct mdproc *mdp = &td->td_proc->p_md;
-	struct proc_ldt *pldt = mdp->md_ldt;
+	struct mdproc *mdp;
+	struct proc_ldt *pldt;
+	volatile uint64_t *dst, *src;
+	int i;
 
 	mtx_assert(&dt_lock, MA_OWNED);
 
-	/* Fill in range */
-	bcopy(descs,
-	    &((struct user_segment_descriptor *)(pldt->ldt_base))[start],
-	    num * sizeof(struct user_segment_descriptor));
+	mdp = &td->td_proc->p_md;
+	pldt = mdp->md_ldt;
+	dst = (volatile uint64_t *)(pldt->ldt_base);
+	src = (volatile uint64_t *)descs;
+	for (i = 0; i < num; i++)
+		dst[start + i] = src[i];
 	return (0);
 }

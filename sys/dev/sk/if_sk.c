@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
  * the SK-984x series adapters, both single port and dual port.
  * References:
  * 	The XaQti XMAC II datasheet,
- *  http://www.freebsd.org/~wpaul/SysKonnect/xmacii_datasheet_rev_c_9-29.pdf
+ *  https://www.freebsd.org/~wpaul/SysKonnect/xmacii_datasheet_rev_c_9-29.pdf
  *	The SysKonnect GEnesis manual, http://www.syskonnect.com
  *
  * Note: XaQti has been acquired by Vitesse, and Vitesse does not have the

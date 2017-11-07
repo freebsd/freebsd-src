@@ -62,6 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 
+#define	EXT_FLAG_SYNC		EXT_FLAG_VENDOR1
+#define	EXT_FLAG_NOCACHE	EXT_FLAG_VENDOR2
+
 /*
  * Structure describing a single sendfile(2) I/O, which may consist of
  * several underlying pager I/Os.
@@ -80,7 +83,7 @@ struct sf_io {
 	volatile u_int	nios;
 	u_int		error;
 	int		npages;
-	struct file	*sock_fp;
+	struct socket	*so;
 	struct mbuf	*m;
 	vm_page_t	pa[];
 };
@@ -122,63 +125,66 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, sfstat, CTLTYPE_OPAQUE | CTLFLAG_RW,
  * Detach mapped page and release resources back to the system.  Called
  * by mbuf(9) code when last reference to a page is freed.
  */
-void
-sf_ext_free(void *arg1, void *arg2)
+static void
+sendfile_free_page(vm_page_t pg, bool nocache)
 {
-	struct sf_buf *sf = arg1;
-	struct sendfile_sync *sfs = arg2;
-	vm_page_t pg = sf_buf_page(sf);
-
-	sf_buf_free(sf);
 
 	vm_page_lock(pg);
 	/*
-	 * Check for the object going away on us. This can
-	 * happen since we don't hold a reference to it.
-	 * If so, we're responsible for freeing the page.
+	 * In either case check for the object going away on us.  This can
+	 * happen since we don't hold a reference to it.  If so, we're
+	 * responsible for freeing the page.  In 'noncache' case try to free
+	 * the page, but only if it is cheap to.
 	 */
-	if (vm_page_unwire(pg, PQ_INACTIVE) && pg->object == NULL)
-		vm_page_free(pg);
-	vm_page_unlock(pg);
-
-	if (sfs != NULL) {
-		mtx_lock(&sfs->mtx);
-		KASSERT(sfs->count > 0, ("Sendfile sync botchup count == 0"));
-		if (--sfs->count == 0)
-			cv_signal(&sfs->cv);
-		mtx_unlock(&sfs->mtx);
-	}
-}
-
-/*
- * Same as above, but forces the page to be detached from the object
- * and go into free pool.
- */
-void
-sf_ext_free_nocache(void *arg1, void *arg2)
-{
-	struct sf_buf *sf = arg1;
-	struct sendfile_sync *sfs = arg2;
-	vm_page_t pg = sf_buf_page(sf);
-
-	sf_buf_free(sf);
-
-	vm_page_lock(pg);
-	if (vm_page_unwire(pg, PQ_NONE)) {
+	if (vm_page_unwire(pg, nocache ? PQ_NONE : PQ_INACTIVE)) {
 		vm_object_t obj;
 
-		/* Try to free the page, but only if it is cheap to. */
 		if ((obj = pg->object) == NULL)
 			vm_page_free(pg);
-		else if (!vm_page_xbusied(pg) && VM_OBJECT_TRYWLOCK(obj)) {
-			vm_page_free(pg);
-			VM_OBJECT_WUNLOCK(obj);
-		} else
-			vm_page_deactivate(pg);
+		else if (nocache) {
+			if (!vm_page_xbusied(pg) && VM_OBJECT_TRYWLOCK(obj)) {
+				bool freed;
+
+				/* Only free unmapped pages. */
+				if (obj->ref_count == 0 ||
+				    !pmap_page_is_mapped(pg))
+					/*
+					 * The busy test before the object is
+					 * locked cannot be relied upon.
+					 */
+					freed = vm_page_try_to_free(pg);
+				else
+					freed = false;
+				VM_OBJECT_WUNLOCK(obj);
+				if (!freed)
+					vm_page_deactivate_noreuse(pg);
+			} else
+				vm_page_deactivate_noreuse(pg);
+		}
 	}
 	vm_page_unlock(pg);
+}
 
-	if (sfs != NULL) {
+static void
+sendfile_free_mext(struct mbuf *m)
+{
+	struct sf_buf *sf;
+	vm_page_t pg;
+	bool nocache;
+
+	KASSERT(m->m_flags & M_EXT && m->m_ext.ext_type == EXT_SFBUF,
+	    ("%s: m %p !M_EXT or !EXT_SFBUF", __func__, m));
+
+	sf = m->m_ext.ext_arg1;
+	pg = sf_buf_page(sf);
+	nocache = m->m_ext.ext_flags & EXT_FLAG_NOCACHE;
+
+	sf_buf_free(sf);
+	sendfile_free_page(pg, nocache);
+
+	if (m->m_ext.ext_flags & EXT_FLAG_SYNC) {
+		struct sendfile_sync *sfs = m->m_ext.ext_arg2;
+
 		mtx_lock(&sfs->mtx);
 		KASSERT(sfs->count > 0, ("Sendfile sync botchup count == 0"));
 		if (--sfs->count == 0)
@@ -255,7 +261,7 @@ static void
 sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 {
 	struct sf_io *sfio = arg;
-	struct socket *so;
+	struct socket *so = sfio->so;
 
 	for (int i = 0; i < count; i++)
 		if (pg[i] != bogus_page)
@@ -266,8 +272,6 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 
 	if (!refcount_release(&sfio->nios))
 		return;
-
-	so = sfio->sock_fp->f_data;
 
 	if (sfio->error) {
 		struct mbuf *m;
@@ -296,8 +300,8 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 		CURVNET_RESTORE();
 	}
 
-	/* XXXGL: curthread */
-	fdrop(sfio->sock_fp, curthread);
+	SOCK_LOCK(so);
+	sorele(so);
 	free(sfio, M_TEMP);
 }
 
@@ -516,8 +520,6 @@ sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 	*so = (*sock_fp)->f_data;
 	if ((*so)->so_type != SOCK_STREAM)
 		return (EINVAL);
-	if (((*so)->so_state & SS_ISCONNECTED) == 0)
-		return (ENOTCONN);
 	return (0);
 }
 
@@ -626,6 +628,12 @@ retry_space:
 			SOCKBUF_UNLOCK(&so->so_snd);
 			goto done;
 		}
+		if ((so->so_state & SS_ISCONNECTED) == 0) {
+			SOCKBUF_UNLOCK(&so->so_snd);
+			error = ENOTCONN;
+			goto done;
+		}
+
 		space = sbspace(&so->so_snd);
 		if (space < rem &&
 		    (space <= 0 ||
@@ -724,6 +732,7 @@ retry_space:
 		sfio = malloc(sizeof(struct sf_io) +
 		    npages * sizeof(vm_page_t), M_TEMP, M_WAITOK);
 		refcount_init(&sfio->nios, 1);
+		sfio->so = so;
 		sfio->error = 0;
 
 		nios = sendfile_swapin(obj, sfio, off, space, npages, rhpages,
@@ -778,7 +787,9 @@ retry_space:
 			m0->m_ext.ext_buf = (char *)sf_buf_kva(sf);
 			m0->m_ext.ext_size = PAGE_SIZE;
 			m0->m_ext.ext_arg1 = sf;
-			m0->m_ext.ext_arg2 = sfs;
+			m0->m_ext.ext_type = EXT_SFBUF;
+			m0->m_ext.ext_flags = EXT_FLAG_EMBREF;
+			m0->m_ext.ext_free = sendfile_free_mext;
 			/*
 			 * SF_NOCACHE sets the page as being freed upon send.
 			 * However, we ignore it for the last page in 'space',
@@ -786,14 +797,18 @@ retry_space:
 			 * send (rem > space), or if we have readahead
 			 * configured (rhpages > 0).
 			 */
-			if ((flags & SF_NOCACHE) == 0 ||
-			    (i == npages - 1 &&
-			    ((off + space) & PAGE_MASK) &&
-			    (rem > space || rhpages > 0)))
-				m0->m_ext.ext_type = EXT_SFBUF;
-			else
-				m0->m_ext.ext_type = EXT_SFBUF_NOCACHE;
-			m0->m_ext.ext_flags = EXT_FLAG_EMBREF;
+			if ((flags & SF_NOCACHE) &&
+			    (i != npages - 1 ||
+			    !((off + space) & PAGE_MASK) ||
+			    !(rem > space || rhpages > 0)))
+				m0->m_ext.ext_flags |= EXT_FLAG_NOCACHE;
+			if (sfs != NULL) {
+				m0->m_ext.ext_flags |= EXT_FLAG_SYNC;
+				m0->m_ext.ext_arg2 = sfs;
+				mtx_lock(&sfs->mtx);
+				sfs->count++;
+				mtx_unlock(&sfs->mtx);
+			}
 			m0->m_ext.ext_count = 1;
 			m0->m_flags |= (M_EXT | M_RDONLY);
 			if (nios)
@@ -811,12 +826,6 @@ retry_space:
 			else
 				m = m0;
 			mtail = m0;
-
-			if (sfs != NULL) {
-				mtx_lock(&sfs->mtx);
-				sfs->count++;
-				mtx_unlock(&sfs->mtx);
-			}
 		}
 
 		if (vp != NULL)
@@ -858,9 +867,8 @@ prepend_header:
 			error = (*so->so_proto->pr_usrreqs->pru_send)
 			    (so, 0, m, NULL, NULL, td);
 		} else {
-			sfio->sock_fp = sock_fp;
 			sfio->npages = npages;
-			fhold(sock_fp);
+			soref(so);
 			error = (*so->so_proto->pr_usrreqs->pru_send)
 			    (so, PRUS_NOTREADY, m, NULL, NULL, td);
 			sendfile_iodone(sfio, NULL, 0, 0);

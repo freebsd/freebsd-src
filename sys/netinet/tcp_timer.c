@@ -141,16 +141,14 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, rexmit_drop_options, CTLFLAG_RW,
     &tcp_rexmit_drop_options, 0,
     "Drop TCP options from 3rd and later retransmitted SYN");
 
-static VNET_DEFINE(int, tcp_pmtud_blackhole_detect);
-#define	V_tcp_pmtud_blackhole_detect	VNET(tcp_pmtud_blackhole_detect)
+VNET_DEFINE(int, tcp_pmtud_blackhole_detect);
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_detection,
     CTLFLAG_RW|CTLFLAG_VNET,
     &VNET_NAME(tcp_pmtud_blackhole_detect), 0,
     "Path MTU Discovery Black Hole Detection Enabled");
 
 #ifdef INET
-static VNET_DEFINE(int, tcp_pmtud_blackhole_mss) = 1200;
-#define	V_tcp_pmtud_blackhole_mss	VNET(tcp_pmtud_blackhole_mss)
+VNET_DEFINE(int, tcp_pmtud_blackhole_mss) = 1200;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_mss,
     CTLFLAG_RW|CTLFLAG_VNET,
     &VNET_NAME(tcp_pmtud_blackhole_mss), 0,
@@ -158,8 +156,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_mss,
 #endif
 
 #ifdef INET6
-static VNET_DEFINE(int, tcp_v6pmtud_blackhole_mss) = 1220;
-#define	V_tcp_v6pmtud_blackhole_mss	VNET(tcp_v6pmtud_blackhole_mss)
+VNET_DEFINE(int, tcp_v6pmtud_blackhole_mss) = 1220;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, v6pmtud_blackhole_mss,
     CTLFLAG_RW|CTLFLAG_VNET,
     &VNET_NAME(tcp_v6pmtud_blackhole_mss), 0,

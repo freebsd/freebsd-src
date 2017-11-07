@@ -4049,9 +4049,13 @@ ath_txq_update(struct ath_softc *sc, int ac)
 #define	ATH_EXPONENT_TO_VALUE(v)	((1<<v)-1)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_txq *txq = sc->sc_ac2q[ac];
-	struct wmeParams *wmep = &ic->ic_wme.wme_chanParams.cap_wmeParams[ac];
+	struct chanAccParams chp;
+	struct wmeParams *wmep;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_TXQ_INFO qi;
+
+	ieee80211_wme_ic_getparams(ic, &chp);
+	wmep = &chp.cap_wmeParams[ac];
 
 	ath_hal_gettxqueueprops(ah, txq->axq_qnum, &qi);
 #ifdef IEEE80211_SUPPORT_TDMA

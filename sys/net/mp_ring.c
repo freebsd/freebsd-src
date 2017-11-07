@@ -226,15 +226,11 @@ drain_ring_lockless(struct ifmp_ring *r, union ring_state os, uint16_t prev, int
 		if (cidx != pidx && pending < 64 && total < budget)
 			continue;
 		critical_enter();
-		os.state = ns.state = r->state;
-		ns.cidx = cidx;
-		ns.flags = state_to_flags(ns, total >= budget);
-		while (atomic_cmpset_acq_64(&r->state, os.state, ns.state) == 0) {
-			cpu_spinwait();
+		do {
 			os.state = ns.state = r->state;
 			ns.cidx = cidx;
 			ns.flags = state_to_flags(ns, total >= budget);
-		}
+		} while (atomic_cmpset_acq_64(&r->state, os.state, ns.state) == 0);
 		critical_exit();
 
 		if (ns.flags == ABDICATED)

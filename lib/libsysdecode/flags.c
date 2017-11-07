@@ -647,9 +647,9 @@ sysdecode_reboot_howto(FILE *fp, int howto, int *rem)
 	/*
 	 * RB_AUTOBOOT is special in that its value is zero, but it is
 	 * also an implied argument if a different operation is not
-	 * requested via RB_HALT, RB_POWEROFF, or RB_REROOT.
+	 * requested via RB_HALT, RB_POWERCYCLE, RB_POWEROFF, or RB_REROOT.
 	 */
-	if (howto != 0 && (howto & (RB_HALT | RB_POWEROFF | RB_REROOT)) == 0) {
+	if (howto != 0 && (howto & (RB_HALT | RB_POWEROFF | RB_REROOT | RB_POWERCYCLE)) == 0) {
 		fputs("RB_AUTOBOOT|", fp);
 		printed = true;
 	} else
@@ -1028,8 +1028,15 @@ void
 sysdecode_cap_rights(FILE *fp, cap_rights_t *rightsp)
 {
 	struct name_table *t;
+	int i;
 	bool comma;
 
+	for (i = 0; i < CAPARSIZE(rightsp); i++) {
+		if (CAPIDXBIT(rightsp->cr_rights[i]) != 1 << i) {
+			fprintf(fp, "invalid cap_rights_t");
+			return;
+		}
+	}
 	comma = false;
 	for (t = caprights; t->str != NULL; t++) {
 		if (cap_rights_is_set(rightsp, t->val)) {

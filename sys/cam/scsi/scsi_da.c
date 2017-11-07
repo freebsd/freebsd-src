@@ -1646,6 +1646,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 		return (ENXIO);
 	}
 
+	memset(&csio, 0, sizeof(csio));
 	if (length > 0) {
 		xpt_setup_ccb(&csio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		csio.ccb_h.ccb_state = DA_CCB_DUMP;

@@ -88,7 +88,7 @@ type:  d i o u x X f e g E G c s p n
 
 
 The function needs to allocate memory to store the full text before to
-actually writting it.  i.e if you want to fnprintf() 1000 characters, the
+actually writing it.  i.e if you want to fnprintf() 1000 characters, the
 functions will allocate 1000 bytes.
 This behaviour can be modified: you have to customise the code to flush the
 internal buffer (writing to screen or file) when it reach a given size. Then
@@ -108,7 +108,7 @@ you use strange formats.
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: vasprintf.c,v 1.13 2014/12/04 15:56:46 christos Exp $")
+FILE_RCSID("@(#)$File: vasprintf.c,v 1.14 2017/08/13 00:21:47 christos Exp $")
 #endif	/* lint */
 
 #include <assert.h>

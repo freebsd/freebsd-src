@@ -35,7 +35,7 @@
  *   in the source code.  This is because RFC2553 is silent about which error
  *   code must be returned for which situation.
  * - freeaddrinfo(NULL).  RFC2553 is silent about it.  XNET 5.2 says it is
- *   invalid.  current code - SEGV on freeaddrinfo(NULL)
+ *   invalid.  Current code accepts NULL to be compatible with other OSes.
  *
  * Note:
  * - The code filters out AFs that are not supported by the kernel,
@@ -359,14 +359,13 @@ freeaddrinfo(struct addrinfo *ai)
 {
 	struct addrinfo *next;
 
-	do {
+	while (ai != NULL) {
 		next = ai->ai_next;
-		if (ai->ai_canonname)
-			free(ai->ai_canonname);
+		free(ai->ai_canonname);
 		/* no need to free(ai->ai_addr) */
 		free(ai);
 		ai = next;
-	} while (ai);
+	}
 }
 
 static int

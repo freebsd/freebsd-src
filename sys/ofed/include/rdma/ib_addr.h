@@ -177,6 +177,12 @@ static inline int rdma_ip2gid(const struct sockaddr *addr, union ib_gid *gid)
 		break;
 	case AF_INET6:
 		memcpy(gid->raw, &((const struct sockaddr_in6 *)addr)->sin6_addr, 16);
+		/* make sure scope ID gets zeroed inside GID */
+		if (IN6_IS_SCOPE_LINKLOCAL((struct in6_addr *)gid->raw) ||
+		    IN6_IS_ADDR_MC_INTFACELOCAL((struct in6_addr *)gid->raw)) {
+			gid->raw[2] = 0;
+			gid->raw[3] = 0;
+		}
 		break;
 	default:
 		return -EINVAL;

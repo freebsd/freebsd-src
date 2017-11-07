@@ -5,7 +5,7 @@
 PROG=	pmcstat
 MAN=	pmcstat.8
 
-LIBADD=	elf kvm pmc m ncursesw
+LIBADD=	kvm pmc m ncursesw pmcstat elf
 
 SRCS=	pmcstat.c pmcstat.h pmcstat_log.c \
 pmcpl_callgraph.c pmcpl_gprof.c pmcpl_annotate.c \

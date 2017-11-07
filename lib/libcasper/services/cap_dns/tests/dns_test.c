@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/capsicum.h>
+#include <sys/nv.h>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>

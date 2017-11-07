@@ -1292,17 +1292,19 @@ install_dir(char *path)
 {
 	char *p;
 	struct stat sb;
-	int ch;
+	int ch, tried_mkdir;
 
 	for (p = path;; ++p)
 		if (!*p || (p != path && *p  == '/')) {
+			tried_mkdir = 0;
 			ch = *p;
 			*p = '\0';
 again:
 			if (stat(path, &sb) < 0) {
-				if (errno != ENOENT)
+				if (errno != ENOENT || tried_mkdir)
 					err(EX_OSERR, "stat %s", path);
 				if (mkdir(path, 0755) < 0) {
+					tried_mkdir = 1;
 					if (errno == EEXIST)
 						goto again;
 					err(EX_OSERR, "mkdir %s", path);

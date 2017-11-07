@@ -152,7 +152,7 @@ struct includepath {
 SLIST_HEAD(, includepath) includepath;
 
 /*
- * Tag present in the kernelconf.tmlp template file. It's mandatory for those
+ * Tag present in the kernconf.tmpl template file. It's mandatory for those
  * two strings to be the same. Otherwise you'll get into trouble.
  */
 #define	KERNCONFTAG	"%%KERNCONFFILE%%"

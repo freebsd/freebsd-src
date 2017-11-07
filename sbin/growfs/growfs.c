@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 #include <libutil.h>
+#include <libufs.h>
 
 #include "debug.h"
 
@@ -121,6 +122,7 @@ static void	updcsloc(time_t, int, int, unsigned int);
 static void	frag_adjust(ufs2_daddr_t, int);
 static void	updclst(int);
 static void	mount_reload(const struct statfs *stfs);
+static void	cgckhash(struct cg *);
 
 /*
  * Here we actually start growing the file system. We basically read the
@@ -480,6 +482,7 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 	sblock.fs_cstotal.cs_nifree += acg.cg_cs.cs_nifree;
 	*cs = acg.cg_cs;
 
+	cgckhash(&acg);
 	memcpy(iobuf, &acg, sblock.fs_cgsize);
 	memset(iobuf + sblock.fs_cgsize, '\0',
 	    sblock.fs_bsize * 3 - sblock.fs_cgsize);
@@ -771,6 +774,7 @@ updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
 	/*
 	 * Write the updated "joining" cylinder group back to disk.
 	 */
+	cgckhash(&acg);
 	wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)), (size_t)sblock.fs_cgsize,
 	    (void *)&acg, fso, Nflag);
 	DBG_PRINT0("jcg written\n");
@@ -1738,4 +1742,17 @@ mount_reload(const struct statfs *stfs)
 		err(9, "%s: cannot reload filesystem%s%s", stfs->f_mntonname,
 		    *errmsg != '\0' ? ": " : "", errmsg);
 	}
+}
+
+/*
+ * Calculate the check-hash of the cylinder group.
+ */
+static void
+cgckhash(struct cg *cgp)
+{
+
+	if ((sblock.fs_metackhash & CK_CYLGRP) == 0)
+		return;
+	cgp->cg_ckhash = 0;
+	cgp->cg_ckhash = calculate_crc32c(~0L, (void *)cgp, sblock.fs_cgsize);
 }

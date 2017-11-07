@@ -220,7 +220,6 @@ static inline void
 get_page(struct vm_page *page)
 {
 	vm_page_lock(page);
-	vm_page_hold(page);
 	vm_page_wire(page);
 	vm_page_unlock(page);
 }
@@ -245,7 +244,6 @@ put_page(struct vm_page *page)
 {
 	vm_page_lock(page);
 	vm_page_unwire(page, PQ_ACTIVE);
-	vm_page_unhold(page);
 	vm_page_unlock(page);
 }
 

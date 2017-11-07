@@ -530,16 +530,32 @@ cpu_booke_setup(int cpuid, uint16_t vers)
 {
 #ifdef BOOKE_E500
 	register_t hid0;
+	const char *bitmask;
 
 	hid0 = mfspr(SPR_HID0);
 
-	/* Programe power-management mode. */
-	hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
-	hid0 |= HID0_DOZE;
+	switch (vers) {
+	case FSL_E500mc:
+		bitmask = HID0_E500MC_BITMASK;
+		break;
+	case FSL_E5500:
+	case FSL_E6500:
+		bitmask = HID0_E5500_BITMASK;
+		break;
+	case FSL_E500v1:
+	case FSL_E500v2:
+		/* Only e500v1/v2 support HID0 power management setup. */
 
-	mtspr(SPR_HID0, hid0);
+		/* Programe power-management mode. */
+		hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
+		hid0 |= HID0_DOZE;
 
-	printf("cpu%d: HID0 %b\n", cpuid, (int)hid0, HID0_E500_BITMASK);
+		mtspr(SPR_HID0, hid0);
+	default:
+		bitmask = HID0_E500_BITMASK;
+		break;
+	}
+	printf("cpu%d: HID0 %b\n", cpuid, (int)hid0, bitmask);
 #endif
 
 	if (cpu_idle_hook == NULL)

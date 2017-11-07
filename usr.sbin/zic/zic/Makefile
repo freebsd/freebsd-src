@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 .PATH: ${SRCTOP}/contrib/tzcode/zic
 
 PROG=	zic
@@ -12,5 +14,9 @@ CFLAGS+= -DHAVE_STRERROR -DHAVE_UNISTD_H
 CFLAGS+= -I${.CURDIR:H} -I${SRCTOP}/contrib/tzcode/stdtime
 
 WARNS?=	2
+
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 50300
+CWARNFLAGS+=	-Wno-error=strict-overflow
+.endif
 
 .include <bsd.prog.mk>

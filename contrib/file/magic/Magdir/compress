@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: compress,v 1.66 2016/09/16 12:12:05 christos Exp $
+# $File: compress,v 1.68 2017/05/25 20:07:23 christos Exp $
 # compress:  file(1) magic for pure-compression formats (no archives)
 #
 # compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
@@ -223,7 +223,7 @@
 # Zstandard/LZ4 skippable frames
 # https://github.com/facebook/zstd/blob/dev/zstd_compression_format.md
 0         lelong&0xFFFFFFF0  0x184D2A50
->(4.l+8)  indirect
+>(4.l+8)  indirect	x
 
 # Zstandard Dictionary ID subroutine
 0     name        zstd-dictionary-id
@@ -310,7 +310,7 @@
 
 # Zlib https://www.ietf.org/rfc/rfc6713.txt
 0	string/b	x
->0	beshort%31	=0	
+>0	beshort%31	=0
 >>0	byte&0xf	=8
 >>>0	byte&0x80 	=0	zlib compressed data
 !:mime	application/zlib

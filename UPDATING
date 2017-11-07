@@ -6,7 +6,7 @@ COMMON ITEMS: section later in the file.  These instructions assume that you
 basically know what you are doing.  If not, then please consult the FreeBSD
 handbook:
 
-    https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/updating-src.html
+    https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html
 
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
@@ -51,6 +51,60 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20171106:
+	The naive and non-compliant support of posix_fallocate(2) in ZFS
+	has been removed as of r325320.  The system call now returns EINVAL
+	when used on a ZFS file.  Although the new behavior complies with the
+	standard, some consumers are not prepared to cope with it.
+	One known victim is lld prior to r325420.
+
+20171102:
+	Building in a FreeBSD src checkout will automatically create object
+	directories now rather than store files in the current directory if
+	'make obj' was not ran.  Calling 'make obj' is no longer necesarry.
+	This feature can be disabled by setting WITHOUT_AUTO_OBJ=yes in
+	/etc/src-env.conf (not /etc/src.conf), or passing the option in the
+	environment.
+
+20171101:
+	The default MAKEOBJDIR has changed from /usr/obj/<srcdir> for native
+	builds, and /usr/obj/<arch>/<srcdir> for cross-builds, to a unified
+	/usr/obj/<srcdir>/<arch>.  This behavior can be changed to the old
+	format by setting WITHOUT_UNIFIED_OBJDIR=yes in /etc/src-env.conf,
+	the environment, or with -DWITHOUT_UNIFIED_OBJDIR when building.
+	The UNIFIED_OBJDIR option is a transitional feature that will be
+	removed for 12.0 release; please migrate to the new format for any
+	tools by looking up the OBJDIR used by 'make -V .OBJDIR' means rather
+	than hardcoding paths.
+
+20171028:
+	The native-xtools target no longer installs the files by default to the
+	OBJDIR.  Use the native-xtools-install target with a DESTDIR to install
+	to ${DESTDIR}/${NXTP} where NXTP defaults to /nxb-bin.
+
+20171021:
+	As part of the boot loader infrastructure cleanup, LOADER_*_SUPPORT
+	options are changing from controlling the build if defined / undefined
+	to controlling the build with explicit 'yes' or 'no' values. They will
+	shift to WITH/WITHOUT options to match other options in the system.
+
+20171010:
+	libstand has turned into a private library for sys/boot use only.
+	It is no longer supported as a public interface outside of sys/boot.
+
+20171005:
+	The arm port has split armv6 into armv6 and armv7. armv7 is now
+	a valid TARGET_ARCH/MACHINE_ARCH setting. If you have an armv7 system
+	and are running a kernel from before r324363, you will need to add
+	MACHINE_ARCH=armv7 to 'make buildworld' to do a native build.
+
+20171003:
+	When building multiple kernels using KERNCONF, non-existent KERNCONF
+	files will produce an error and buildkernel will fail. Previously
+	missing KERNCONF files silently failed giving no indication as to
+	why, only to subsequently discover during installkernel that the
+	desired kernel was never built in the first place.
+
 20170912:
 	The default serial number format for CTL LUNs has changed.  This will
 	affect users who use /dev/diskid/* device nodes, or whose FibreChannel
@@ -66,8 +120,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	soft-float everything else should be affected.
 
 20170826:
-       During boot the geli passphrase will be hidden. To restore previous
-       behavior see geli(8) configuration options.
+	The geli password typed at boot is now hidden.  To restore the previous
+	behavior, see geli(8) for configuration options.
 
 20170825:
 	Move PMTUD blackhole counters to TCPSTATS and remove them from bare
@@ -1815,21 +1869,6 @@ COMMON ITEMS:
 	make installkernel KERNCONF=YOUR_KERNEL_HERE KODIR=/boot/testkernel
 	nextboot -k testkernel
 
-	To just build a kernel when you know that it won't mess you up
-	--------------------------------------------------------------
-	This assumes you are already running a CURRENT system.  Replace
-	${arch} with the architecture of your machine (e.g. "i386",
-	"arm", "amd64", "ia64", "pc98", "sparc64", "powerpc", "mips", etc).
-
-	cd src/sys/${arch}/conf
-	config KERNEL_NAME_HERE
-	cd ../compile/KERNEL_NAME_HERE
-	make depend
-	make
-	make install
-
-	If this fails, go to the "To build a kernel" section.
-
 	To rebuild everything and install it on the current system.
 	-----------------------------------------------------------
 	# Note: sometimes if you are running current you gotta do more than
@@ -1837,7 +1876,8 @@ COMMON ITEMS:
 
 	<make sure you have good level 0 dumps>
 	make buildworld
-	make kernel KERNCONF=YOUR_KERNEL_HERE
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
 							[1]
 	<reboot in single user>				[3]
 	mergemaster -Fp					[5]
@@ -1937,10 +1977,7 @@ COMMON ITEMS:
 	Make sure that you merge any new devices from GENERIC since the
 	last time you updated your kernel config file.
 
-	[9] When checking out sources, you must include the -P flag to have
-	cvs prune empty directories.
-
-	If CPUTYPE is defined in your /etc/make.conf, make sure to use the
+	[9] If CPUTYPE is defined in your /etc/make.conf, make sure to use the
 	"?=" instead of the "=" assignment operator, so that buildworld can
 	override the CPUTYPE if it needs to.
 

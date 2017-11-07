@@ -1896,6 +1896,10 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 	struct ifreq *ifr;
 	int error;
 	int mask;
+	struct ifrsskey *ifrk;
+	const u32 *key;
+	struct ifrsshash *ifrh;
+	u8 rss_mask;
 
 	error = 0;
 	mask = 0;
@@ -2024,6 +2028,39 @@ out:
 		break;
 	}
 #endif
+	case SIOCGIFRSSKEY:
+		ifrk = (struct ifrsskey *)data;
+		ifrk->ifrk_func = RSS_FUNC_TOEPLITZ;
+		mutex_lock(&mdev->state_lock);
+		key = mlx4_en_get_rss_key(priv, &ifrk->ifrk_keylen);
+		if (ifrk->ifrk_keylen > RSS_KEYLEN)
+			error = EINVAL;
+		else
+			memcpy(ifrk->ifrk_key, key, ifrk->ifrk_keylen);
+		mutex_unlock(&mdev->state_lock);
+		break;
+
+	case SIOCGIFRSSHASH:
+		mutex_lock(&mdev->state_lock);
+		rss_mask = mlx4_en_get_rss_mask(priv);
+		mutex_unlock(&mdev->state_lock);
+		ifrh = (struct ifrsshash *)data;
+		ifrh->ifrh_func = RSS_FUNC_TOEPLITZ;
+		ifrh->ifrh_types = 0;
+		if (rss_mask & MLX4_RSS_IPV4)
+			ifrh->ifrh_types |= RSS_TYPE_IPV4;
+		if (rss_mask & MLX4_RSS_TCP_IPV4)
+			ifrh->ifrh_types |= RSS_TYPE_TCP_IPV4;
+		if (rss_mask & MLX4_RSS_IPV6)
+			ifrh->ifrh_types |= RSS_TYPE_IPV6;
+		if (rss_mask & MLX4_RSS_TCP_IPV6)
+			ifrh->ifrh_types |= RSS_TYPE_TCP_IPV6;
+		if (rss_mask & MLX4_RSS_UDP_IPV4)
+			ifrh->ifrh_types |= RSS_TYPE_UDP_IPV4;
+		if (rss_mask & MLX4_RSS_UDP_IPV6)
+			ifrh->ifrh_types |= RSS_TYPE_UDP_IPV6;
+		break;
+
 	default:
 		error = ether_ioctl(dev, command, data);
 		break;

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2016
+.Dd September 27, 2017
 .Dt MBUF 9
 .Os
 .\"
@@ -44,12 +44,12 @@
 .Fn MCLGET "struct mbuf *mbuf" "int how"
 .Fo MEXTADD
 .Fa "struct mbuf *mbuf"
-.Fa "caddr_t buf"
+.Fa "char *buf"
 .Fa "u_int size"
-.Fa "void (*free)(void *opt_arg1, void *opt_arg2)"
+.Fa "void (*free)(struct mbuf *)"
 .Fa "void *opt_arg1"
 .Fa "void *opt_arg2"
-.Fa "short flags"
+.Fa "int flags"
 .Fa "int type"
 .Fc
 .\"
@@ -416,8 +416,13 @@ The
 .Fa opt_arg1
 and
 .Fa opt_arg2
-arguments will be passed unmodified to
-.Fa free .
+arguments will be saved in
+.Va ext_arg1
+and
+.Va ext_arg2
+fields of the
+.Va struct m_ext
+of the mbuf.
 The
 .Fa flags
 argument specifies additional

@@ -51,9 +51,9 @@ collating-symbol <X050A>
 collating-symbol <X050E>
 collating-symbol <X0600>
 collating-symbol <X0722>
-collating-symbol <X072C>
-collating-symbol <X0750>
-collating-symbol <X0758>
+collating-symbol <X072E>
+collating-symbol <X0752>
+collating-symbol <X075A>
 collating-symbol <X0800>
 collating-symbol <X0900>
 collating-symbol <X0969>
@@ -90,8 +90,8 @@ collating-symbol <X0C80>
 collating-symbol <X0C82>
 collating-symbol <X0C86>
 collating-symbol <X0C8A>
-collating-symbol <X0D66>
-collating-symbol <X0D6A>
+collating-symbol <X0D72>
+collating-symbol <X0D76>
 collating-symbol <X1200>
 collating-symbol <X1400>
 collating-symbol <X1600>
@@ -174,9 +174,9 @@ order_start forward;forward;forward;forward
 <X050E>
 <X0600>
 <X0722>
-<X072C>
-<X0750>
-<X0758>
+<X072E>
+<X0752>
+<X075A>
 <X0800>
 <X0900>
 <X0969>
@@ -213,8 +213,8 @@ order_start forward;forward;forward;forward
 <X0C82>
 <X0C86>
 <X0C8A>
-<X0D66>
-<X0D6A>
+<X0D72>
+<X0D76>
 <X1200>
 <X1400>
 <X1600>
@@ -334,9 +334,9 @@ order_start forward;forward;forward;forward
 <HYPHEN-MINUS>                             <X050E>;<X05>;<X05>;<HYPHEN-MINUS>
 <COMMA>                                    <X0600>;<X05>;<X05>;<COMMA>
 <SEMICOLON>                                <X0722>;<X05>;<X05>;<SEMICOLON>
-<COLON>                                    <X072C>;<X05>;<X05>;<COLON>
-<EXCLAMATION_MARK>                         <X0750>;<X05>;<X05>;<EXCLAMATION_MARK>
-<QUESTION_MARK>                            <X0758>;<X05>;<X05>;<QUESTION_MARK>
+<COLON>                                    <X072E>;<X05>;<X05>;<COLON>
+<EXCLAMATION_MARK>                         <X0752>;<X05>;<X05>;<EXCLAMATION_MARK>
+<QUESTION_MARK>                            <X075A>;<X05>;<X05>;<QUESTION_MARK>
 <FULL_STOP>                                <X0800>;<X05>;<X05>;<FULL_STOP>
 <APOSTROPHE>                               <X0969>;<X05>;<X05>;<APOSTROPHE>
 <QUOTATION_MARK>                           <X0977>;<X05>;<X05>;<QUOTATION_MARK>
@@ -373,8 +373,8 @@ order_start forward;forward;forward;forward
 <GREATER-THAN_SIGN>                        <X0C82>;<X05>;<X05>;<GREATER-THAN_SIGN>
 <VERTICAL_LINE>                            <X0C86>;<X05>;<X05>;<VERTICAL_LINE>
 <TILDE>                                    <X0C8A>;<X05>;<X05>;<TILDE>
-<CURRENCY_SIGN>                            <X0D66>;<X05>;<X05>;<CURRENCY_SIGN>
-<DOLLAR_SIGN>                              <X0D6A>;<X05>;<X05>;<DOLLAR_SIGN>
+<CURRENCY_SIGN>                            <X0D72>;<X05>;<X05>;<CURRENCY_SIGN>
+<DOLLAR_SIGN>                              <X0D76>;<X05>;<X05>;<DOLLAR_SIGN>
 <zero>                                     <X1200>;<X05>;<X05>;<zero>
 <one>                                      <X1400>;<X05>;<X05>;<one>
 <two>                                      <X1600>;<X05>;<X05>;<two>

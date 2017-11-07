@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: gnu,v 1.17 2016/07/16 22:17:04 christos Exp $
+# $File: gnu,v 1.18 2017/03/17 21:35:28 christos Exp $
 # gnu:  file(1) magic for various GNU tools
 #
 # GNU nlsutils message catalog file format
@@ -71,7 +71,7 @@
 # they will ordinarily reported as "compressed", but at least -z helps
 39      string          =<gmr:Workbook           Gnumeric spreadsheet
 
-# From: James Youngman <jay@gnu.org> 
+# From: James Youngman <jay@gnu.org>
 # gnu find magic
 0	string	\0LOCATE	GNU findutils locate database data
 >7	string	>\0		\b, format %s

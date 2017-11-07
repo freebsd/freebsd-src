@@ -921,7 +921,7 @@ nfsrvd_write(struct nfsrv_descript *nd, __unused int isdgram,
 		    nd->nd_md, nd->nd_dpos, nd->nd_cred, p);
 		error = nfsm_advance(nd, NFSM_RNDUP(retlen), -1);
 		if (error)
-			panic("nfsrv_write mbuf");
+			goto nfsmout;
 	}
 	if (nd->nd_flag & ND_NFSV4)
 		aftat_ret = 0;
@@ -3729,6 +3729,7 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 	uint32_t sp4type, v41flags;
 	uint64_t owner_minor;
 	struct timespec verstime;
+	struct sockaddr_in *sad, *rad;
 
 	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
 		nd->nd_repstat = NFSERR_WRONGSEC;
@@ -3752,6 +3753,13 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 	NFSINITSOCKMUTEX(&clp->lc_req.nr_mtx);
 	NFSSOCKADDRALLOC(clp->lc_req.nr_nam);
 	NFSSOCKADDRSIZE(clp->lc_req.nr_nam, sizeof (struct sockaddr_in));
+	sad = NFSSOCKADDR(nd->nd_nam, struct sockaddr_in *);
+	rad = NFSSOCKADDR(clp->lc_req.nr_nam, struct sockaddr_in *);
+	rad->sin_family = AF_INET;
+	rad->sin_addr.s_addr = 0;
+	rad->sin_port = 0;
+	if (sad->sin_family == AF_INET)
+		rad->sin_addr.s_addr = sad->sin_addr.s_addr;
 	clp->lc_req.nr_cred = NULL;
 	NFSBCOPY(verf, clp->lc_verf, NFSX_VERF);
 	clp->lc_idlen = idlen;

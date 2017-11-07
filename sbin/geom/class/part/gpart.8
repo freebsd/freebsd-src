@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2016
+.Dd September 19, 2017
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -1324,6 +1324,29 @@ partition to contain a UFS filesystem and aligned on 4KB boundaries:
 After creating all required partitions, embed bootstrap code into them:
 .Bd -literal -offset indent
 /sbin/gpart bootcode -p /boot/boot1 da0
+.Ed
+.Ss Deleting partitions and partitioning scheme
+If you get a
+.Em "Device busy"
+error when trying to destroy a partition table, remember that you must
+delete all its partitions first with the
+.Cm delete
+action.
+In this example, assume we have
+.Pa da0
+with three partitions:
+.Bd -literal -offset indent
+/sbin/gpart delete -i 3 da0
+/sbin/gpart delete -i 2 da0
+/sbin/gpart delete -i 1 da0
+/sbin/gpart destroy da0
+.Ed
+.Pp
+Alternatively, you can invoke the
+.Cm destroy
+action with the
+.Fl F
+flag.
 .Ed
 .Ss Backup and Restore
 .Pp

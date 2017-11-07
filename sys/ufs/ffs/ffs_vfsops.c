@@ -838,7 +838,11 @@ ffs_mountfs(devvp, mp, td)
 		goto out;
 	}
 	fs->fs_fmod = 0;
-	fs->fs_flags &= ~FS_INDEXDIRS;	/* no support for directory indices */
+	/* none of these types of check-hashes are maintained */
+	fs->fs_metackhash &= ~(CK_SUPERBLOCK | CK_INODE | CK_INDIR | CK_DIR);
+	/* no support for directory indices or any other undefined flags */
+	fs->fs_flags &= ~FS_INDEXDIRS;
+	fs->fs_flags &= FS_SUPPORTED;
 	fs->fs_flags &= ~FS_UNCLEAN;
 	if (fs->fs_clean == 0) {
 		fs->fs_flags |= FS_UNCLEAN;
@@ -2150,7 +2154,8 @@ ffs_bufwrite(struct buf *bp)
 		BO_LOCK(bp->b_bufobj);
 		bp->b_vflags |= BV_BKGRDINPROG;
 		BO_UNLOCK(bp->b_bufobj);
-		newbp->b_xflags |= BX_BKGRDMARKER;
+		newbp->b_xflags |=
+		    (bp->b_xflags & BX_FSPRIV) | BX_BKGRDMARKER;
 		newbp->b_lblkno = bp->b_lblkno;
 		newbp->b_blkno = bp->b_blkno;
 		newbp->b_offset = bp->b_offset;
@@ -2194,9 +2199,8 @@ static void
 ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 {
 	struct vnode *vp;
-	int error;
 	struct buf *tbp;
-	int nocopy;
+	int error, nocopy;
 
 	vp = bo2vnode(bo);
 	if (bp->b_iocmd == BIO_WRITE) {
@@ -2247,6 +2251,32 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 		}
 
 #endif
+		/*
+		 * Check for metadata that needs check-hashes and update them.
+		 */
+		switch (bp->b_xflags & BX_FSPRIV) {
+		case BX_CYLGRP:
+			((struct cg *)bp->b_data)->cg_ckhash = 0;
+			((struct cg *)bp->b_data)->cg_ckhash =
+			    calculate_crc32c(~0L, bp->b_data, bp->b_bcount);
+			break;
+
+		case BX_SUPERBLOCK:
+		case BX_INODE:
+		case BX_INDIR:
+		case BX_DIR:
+			printf("Check-hash write is unimplemented!!!\n");
+			break;
+
+		case 0:
+			break;
+
+		default:
+			printf("multiple buffer types 0x%b\n",
+			    (u_int)(bp->b_xflags & BX_FSPRIV),
+			    PRINT_UFS_BUF_XFLAGS);
+			break;
+		}
 	}
 	g_vfs_strategy(bo, bp);
 }

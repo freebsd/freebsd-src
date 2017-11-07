@@ -404,11 +404,6 @@ typedef struct rtentry sctp_rtentry_t;
 #define SCTP_RTALLOC(ro, vrf_id, fibnum) \
 	rtalloc_ign_fib((struct route *)ro, 0UL, fibnum)
 
-/* Future zero copy wakeup/send  function */
-#define SCTP_ZERO_COPY_EVENT(inp, so)
-/* This is re-pulse ourselves for sendbuf */
-#define SCTP_ZERO_COPY_SENDQ_EVENT(inp, so)
-
 /*
  * SCTP protocol specific mbuf flags.
  */

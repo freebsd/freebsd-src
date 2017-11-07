@@ -32,7 +32,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 #include <sys/socket.h>
+
+#include <machine/bus.h>
 
 #include <powerpc/mpc85xx/mpc85xx.h>
 
@@ -133,7 +136,8 @@ dtsec_fdt_attach(device_t dev)
 	phandle_t enet_node, phy_node;
 	phandle_t fman_rxtx_node[2];
 	char phy_type[6];
-	pcell_t fman_tx_cell;
+	pcell_t fman_tx_cell, mac_id;
+	int rid;
 
 	sc = device_get_softc(dev);
 	enet_node = ofw_bus_get_node(dev);
@@ -154,8 +158,9 @@ dtsec_fdt_attach(device_t dev)
 		return(ENXIO);
 
 	/* Get MAC memory offset in SoC */
-	if (OF_getprop(enet_node, "reg", (void *)&sc->sc_mac_mem_offset,
-	    sizeof(sc->sc_mac_mem_offset)) <= 0)
+	rid = 0;
+	sc->sc_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	if (sc->sc_mem == NULL)
 		return (ENXIO);
 
 	/* Get PHY address */
@@ -186,6 +191,11 @@ dtsec_fdt_attach(device_t dev)
 		sc->sc_mac_enet_mode = e_ENET_MODE_XGMII_10000;
 	else
 		return (ENXIO);
+
+	if (OF_getencprop(enet_node, "cell-index",
+	    (void *)&mac_id, sizeof(mac_id)) <= 0)
+		return (ENXIO);
+	sc->sc_eth_id = mac_id;
 
 	/* Get RX/TX port handles */
 	if (OF_getprop(enet_node, "fsl,fman-ports", (void *)fman_rxtx_node,

@@ -963,7 +963,7 @@ ipfw_chk(struct ip_fw_args *args)
 	uint8_t proto;
 	uint16_t src_port = 0, dst_port = 0;	/* NOTE: host format	*/
 	struct in_addr src_ip, dst_ip;		/* NOTE: network format	*/
-	uint16_t iplen=0;
+	int iplen = 0;
 	int pktlen;
 	uint16_t	etype = 0;	/* Host order stored ether type */
 
@@ -1205,6 +1205,7 @@ do {								\
 		args->f_id.src_ip = 0;
 		args->f_id.dst_ip = 0;
 		args->f_id.flow_id6 = ntohl(ip6->ip6_flow);
+		iplen = ntohs(ip6->ip6_plen) + sizeof(*ip6);
 	} else if (pktlen >= sizeof(struct ip) &&
 	    (args->eh == NULL || etype == ETHERTYPE_IP) && ip->ip_v == 4) {
 	    	is_ipv4 = 1;
@@ -1219,7 +1220,6 @@ do {								\
 		dst_ip = ip->ip_dst;
 		offset = ntohs(ip->ip_off) & IP_OFFMASK;
 		iplen = ntohs(ip->ip_len);
-		pktlen = iplen < pktlen ? iplen : pktlen;
 
 		if (offset == 0) {
 			switch (proto) {
@@ -1258,6 +1258,7 @@ do {								\
 		args->f_id.dst_ip = ntohl(dst_ip.s_addr);
 	}
 #undef PULLUP_TO
+	pktlen = iplen < pktlen ? iplen: pktlen;
 	if (proto) { /* we may have port numbers, store them */
 		args->f_id.proto = proto;
 		args->f_id.src_port = src_port = ntohs(src_port);
@@ -1609,10 +1610,7 @@ do {								\
 
 			case O_IP_SRC_ME:
 				if (is_ipv4) {
-					struct ifnet *tif;
-
-					INADDR_TO_IFP(src_ip, tif);
-					match = (tif != NULL);
+					match = in_localip(src_ip);
 					break;
 				}
 #ifdef INET6
@@ -1648,10 +1646,7 @@ do {								\
 
 			case O_IP_DST_ME:
 				if (is_ipv4) {
-					struct ifnet *tif;
-
-					INADDR_TO_IFP(dst_ip, tif);
-					match = (tif != NULL);
+					match = in_localip(dst_ip);
 					break;
 				}
 #ifdef INET6
@@ -1669,8 +1664,8 @@ do {								\
 				 * to guarantee that we have a
 				 * packet with port info.
 				 */
-				if ((proto==IPPROTO_UDP || proto==IPPROTO_TCP)
-				    && offset == 0) {
+				if ((proto==IPPROTO_UDP || proto==IPPROTO_TCP ||
+				    proto==IPPROTO_SCTP) && offset == 0) {
 					u_int16_t x =
 					    (cmd->opcode == O_IP_SRCPORT) ?
 						src_port : dst_port ;
@@ -1777,10 +1772,25 @@ do {								\
 				    uint16_t x;
 				    uint16_t *p;
 				    int i;
+#ifdef INET6
+				    if (is_ipv6) {
+					    struct ip6_hdr *ip6;
 
+					    ip6 = (struct ip6_hdr *)ip;
+					    if (ip6->ip6_plen == 0) {
+						    /*
+						     * Jumbo payload is not
+						     * supported by this
+						     * opcode.
+						     */
+						    break;
+					    }
+					    x = iplen - hlen;
+				    } else
+#endif /* INET6 */
+					    x = iplen - (ip->ip_hl << 2);
 				    tcp = TCP(ulp);
-				    x = iplen -
-					((ip->ip_hl + tcp->th_off) << 2);
+				    x -= tcp->th_off << 2;
 				    if (cmdlen == 1) {
 					match = (cmd->arg1 == x);
 					break;
@@ -2448,6 +2458,7 @@ do {								\
 						sa6->sin6_len = sizeof(*sa6);
 						sa6->sin6_addr = TARG_VAL(
 						    chain, tablearg, nh6);
+						sa6->sin6_port = sa->sin_port;
 						/*
 						 * Set sin6_scope_id only for
 						 * link-local unicast addresses.
@@ -2461,6 +2472,8 @@ do {								\
 					} else
 #endif
 					{
+						args->hopstore.sin_port =
+						    sa->sin_port;
 						sa = args->next_hop =
 						    &args->hopstore;
 						sa->sin_family = AF_INET;

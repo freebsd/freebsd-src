@@ -79,7 +79,6 @@ convert_signal(int sig)
 struct cloudabi64_kevent_args {
 	const cloudabi64_subscription_t *in;
 	cloudabi64_event_t *out;
-	bool once;
 };
 
 /* Converts CloudABI's subscription objects to FreeBSD's struct kevent. */
@@ -124,9 +123,7 @@ cloudabi64_kevent_copyin(void *arg, struct kevent *kevp, int count)
 		case CLOUDABI_EVENTTYPE_FD_READ:
 			kevp->filter = EVFILT_READ;
 			kevp->ident = sub.fd_readwrite.fd;
-			if ((sub.fd_readwrite.flags &
-			    CLOUDABI_SUBSCRIPTION_FD_READWRITE_POLL) != 0)
-				kevp->fflags = NOTE_FILE_POLL;
+			kevp->fflags = NOTE_FILE_POLL;
 			break;
 		case CLOUDABI_EVENTTYPE_FD_WRITE:
 			kevp->filter = EVFILT_WRITE;
@@ -138,24 +135,7 @@ cloudabi64_kevent_copyin(void *arg, struct kevent *kevp, int count)
 			kevp->fflags = NOTE_EXIT;
 			break;
 		}
-		if (args->once) {
-			/* Ignore flags. Simply use oneshot mode. */
-			kevp->flags = EV_ADD | EV_ONESHOT;
-		} else {
-			/* Translate flags. */
-			if ((sub.flags & CLOUDABI_SUBSCRIPTION_ADD) != 0)
-				kevp->flags |= EV_ADD;
-			if ((sub.flags & CLOUDABI_SUBSCRIPTION_CLEAR) != 0)
-				kevp->flags |= EV_CLEAR;
-			if ((sub.flags & CLOUDABI_SUBSCRIPTION_DELETE) != 0)
-				kevp->flags |= EV_DELETE;
-			if ((sub.flags & CLOUDABI_SUBSCRIPTION_DISABLE) != 0)
-				kevp->flags |= EV_DISABLE;
-			if ((sub.flags & CLOUDABI_SUBSCRIPTION_ENABLE) != 0)
-				kevp->flags |= EV_ENABLE;
-			if ((sub.flags & CLOUDABI_SUBSCRIPTION_ONESHOT) != 0)
-				kevp->flags |= EV_ONESHOT;
-		}
+		kevp->flags = EV_ADD | EV_ONESHOT;
 		++kevp;
 	}
 	return (0);
@@ -238,7 +218,6 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 	struct cloudabi64_kevent_args args = {
 		.in	= uap->in,
 		.out	= uap->out,
-		.once	= true,
 	};
 	struct kevent_copyops copyops = {
 		.k_copyin	= cloudabi64_kevent_copyin,
@@ -368,41 +347,4 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 	}
 
 	return (kern_kevent_anonymous(td, uap->nsubscriptions, &copyops));
-}
-
-int
-cloudabi64_sys_poll_fd(struct thread *td,
-    struct cloudabi64_sys_poll_fd_args *uap)
-{
-	struct cloudabi64_kevent_args args = {
-		.in	= uap->in,
-		.out	= uap->out,
-		.once	= false,
-	};
-	struct kevent_copyops copyops = {
-		.k_copyin	= cloudabi64_kevent_copyin,
-		.k_copyout	= cloudabi64_kevent_copyout,
-		.arg		= &args,
-	};
-	cloudabi64_subscription_t subtimo;
-	struct timespec timeout;
-	int error;
-
-	if (uap->timeout != NULL) {
-		/* Poll with a timeout. */
-		error = copyin(uap->timeout, &subtimo, sizeof(subtimo));
-		if (error != 0)
-			return (error);
-		if (subtimo.type != CLOUDABI_EVENTTYPE_CLOCK ||
-		    subtimo.clock.flags != 0)
-			return (EINVAL);
-		timeout.tv_sec = subtimo.clock.timeout / 1000000000;
-		timeout.tv_nsec = subtimo.clock.timeout % 1000000000;
-		return (kern_kevent(td, uap->fd, uap->in_len, uap->out_len,
-		    &copyops, &timeout));
-	} else {
-		/* Poll without a timeout. */
-		return (kern_kevent(td, uap->fd, uap->in_len, uap->out_len,
-		    &copyops, NULL));
-	}
 }

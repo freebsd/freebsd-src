@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: pdf,v 1.8 2015/01/11 18:19:18 christos Exp $
+# $File: pdf,v 1.9 2017/05/24 17:35:20 christos Exp $
 # pdf:  file(1) magic for Portable Document Format
 #
 
@@ -20,3 +20,8 @@
 !:mime application/vnd.fdf
 >5      byte            x               \b, version %c
 >7      byte            x               \b.%c
+
+0	search/256	%PDF-		PDF document
+!:mime	application/pdf
+>&0	byte		x		\b, version %c
+>&2	byte		x		\b.%c

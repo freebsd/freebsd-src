@@ -368,17 +368,61 @@ zfs_readdir(struct open_file *f, struct dirent *d)
 }
 
 static int
-vdev_read(vdev_t *vdev, void *priv, off_t offset, void *buf, size_t size)
+vdev_read(vdev_t *vdev, void *priv, off_t offset, void *buf, size_t bytes)
 {
-	int fd;
+	int fd, ret;
+	size_t res, size, remainder, rb_size, blksz;
+	unsigned secsz;
+	off_t off;
+	char *bouncebuf, *rb_buf;
 
 	fd = (uintptr_t) priv;
-	lseek(fd, offset, SEEK_SET);
-	if (read(fd, buf, size) == size) {
-		return 0;
-	} else {
-		return (EIO);
+	bouncebuf = NULL;
+
+	ret = ioctl(fd, DIOCGSECTORSIZE, &secsz);
+	if (ret != 0)
+		return (ret);
+
+	off = offset / secsz;
+	remainder = offset % secsz;
+	if (lseek(fd, off * secsz, SEEK_SET) == -1)
+		return (errno);
+
+	rb_buf = buf;
+	rb_size = bytes;
+	size = roundup2(bytes + remainder, secsz);
+	blksz = size;
+	if (remainder != 0 || size != bytes) {
+		bouncebuf = zfs_alloc(secsz);
+		if (bouncebuf == NULL) {
+			printf("vdev_read: out of memory\n");
+			return (ENOMEM);
+		}
+		rb_buf = bouncebuf;
+		blksz = rb_size - remainder;
 	}
+
+	while (bytes > 0) {
+		res = read(fd, rb_buf, rb_size);
+		if (res != rb_size) {
+			ret = EIO;
+			goto error;
+		}
+		if (bytes < blksz)
+			blksz = bytes;
+		if (bouncebuf != NULL)
+			memcpy(buf, rb_buf + remainder, blksz);
+		buf = (void *)((uintptr_t)buf + blksz);
+		bytes -= blksz;
+		remainder = 0;
+		blksz = rb_size;
+	}
+
+	ret = 0;
+error:
+	if (bouncebuf != NULL)
+		zfs_free(bouncebuf, secsz);
+	return (ret);
 }
 
 static int

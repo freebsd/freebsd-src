@@ -86,7 +86,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *, struct sctp_tcb *,
     struct sockaddr *, struct sockaddr *,
     struct sctphdr *, struct sctp_init_chunk *,
     uint8_t, uint32_t,
-    uint32_t, uint16_t, int);
+    uint32_t, uint16_t);
 
 struct mbuf *
 sctp_arethere_unrecognized_parameters(struct mbuf *, int, int *,

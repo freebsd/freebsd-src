@@ -243,6 +243,8 @@ MODULE_DEPEND(bnxt, pci, 1, 1, 1);
 MODULE_DEPEND(bnxt, ether, 1, 1, 1);
 MODULE_DEPEND(bnxt, iflib, 1, 1, 1);
 
+IFLIB_PNP_INFO(pci, bnxt, bnxt_vendor_info_array);
+
 static device_method_t bnxt_iflib_methods[] = {
 	DEVMETHOD(ifdi_tx_queues_alloc, bnxt_tx_queues_alloc),
 	DEVMETHOD(ifdi_rx_queues_alloc, bnxt_rx_queues_alloc),
@@ -657,7 +659,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 	scctx = softc->scctx;
 
 	/* TODO: Better way of detecting NPAR/VF is needed */
-	switch (softc->sctx->isc_vendor_info->pvi_device_id) {
+	switch (pci_get_device(softc->dev)) {
 	case BCM57402_NPAR:
 	case BCM57404_NPAR:
 	case BCM57406_NPAR:
@@ -826,6 +828,17 @@ bnxt_attach_pre(if_ctx_t ctx)
 	/* iflib will map and release this bar */
 	scctx->isc_msix_bar = pci_msix_table_bar(softc->dev);
 
+        /* 
+         * Default settings for HW LRO (TPA):
+         *  Disable HW LRO by default
+         *  Can be enabled after taking care of 'packet forwarding'
+         */
+	softc->hw_lro.enable = 0;
+	softc->hw_lro.is_mode_gro = 0;
+	softc->hw_lro.max_agg_segs = 5; /* 2^5 = 32 segs */
+	softc->hw_lro.max_aggs = HWRM_VNIC_TPA_CFG_INPUT_MAX_AGGS_MAX;
+	softc->hw_lro.min_agg_len = 512;
+
 	/* Allocate the default completion ring */
 	softc->def_cp_ring.stats_ctx_id = HWRM_NA_SIGNATURE;
 	softc->def_cp_ring.ring.phys_id = (uint16_t)HWRM_NA_SIGNATURE;
@@ -858,6 +871,14 @@ bnxt_attach_pre(if_ctx_t ctx)
 	    HWRM_VNIC_RSS_CFG_INPUT_HASH_TYPE_TCP_IPV6 |
 	    HWRM_VNIC_RSS_CFG_INPUT_HASH_TYPE_UDP_IPV6;
 	rc = bnxt_create_config_sysctls_pre(softc);
+	if (rc)
+		goto failed;
+
+	rc = bnxt_create_hw_lro_sysctls(softc);
+	if (rc)
+		goto failed;
+
+	rc = bnxt_create_pause_fc_sysctls(softc);
 	if (rc)
 		goto failed;
 
@@ -980,7 +1001,7 @@ bnxt_init(if_ctx_t ctx)
 		goto fail;
 
 	/* And now set the default CP ring as the async CP ring */
-	rc = bnxt_hwrm_func_cfg(softc);
+	rc = bnxt_cfg_async_cr(softc);
 	if (rc)
 		goto fail;
 
@@ -1071,15 +1092,7 @@ bnxt_init(if_ctx_t ctx)
 	if (rc)
 		goto fail;
 
-	/* 
-         * Enable LRO/TPA/GRO 
-         * TBD: 
-         *      Enable / Disable HW_LRO based on
-         *      ifconfig lro / ifconfig -lro setting
-         */
-	rc = bnxt_hwrm_vnic_tpa_cfg(softc, &softc->vnic_info,
-	    (if_getcapenable(iflib_get_ifp(ctx)) & IFCAP_LRO) ?
-	    HWRM_VNIC_TPA_CFG_INPUT_FLAGS_TPA : 0);
+	rc = bnxt_hwrm_vnic_tpa_cfg(softc);
 	if (rc)
 		goto fail;
 
@@ -1116,6 +1129,7 @@ bnxt_init(if_ctx_t ctx)
 
 	bnxt_do_enable_intr(&softc->def_cp_ring);
 	bnxt_media_status(softc->ctx, &ifmr);
+	bnxt_hwrm_cfa_l2_set_rx_mask(softc, &softc->vnic_info);
 	return;
 
 fail:
@@ -1184,7 +1198,10 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 	struct bnxt_link_info *link_info = &softc->link_info;
-	uint8_t phy_type = get_phy_type(softc);
+	struct ifmedia_entry *next;
+	uint64_t target_baudrate = bnxt_get_baudrate(link_info);
+	int active_media = IFM_UNKNOWN;
+
 
 	bnxt_update_link(softc, true);
 
@@ -1201,179 +1218,22 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 	else
 		ifmr->ifm_active |= IFM_HDX;
 
-	switch (link_info->link_speed) {
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_100MB:
-		ifmr->ifm_active |= IFM_100_T;
-		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_1GB:
-		switch (phy_type) {
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKX:
-			ifmr->ifm_active |= IFM_1000_KX;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASET:
-			ifmr->ifm_active |= IFM_1000_T;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_SGMIIEXTPHY:
-			ifmr->ifm_active |= IFM_1000_SGMII;
-			break;
-		default:
-                        /*
-                         * Workaround: 
-                         *    Don't return IFM_UNKNOWN until 
-                         *    Stratus return proper media_type 
-                         */  
-			ifmr->ifm_active |= IFM_1000_KX;
+        /*
+         * Go through the list of supported media which got prepared 
+         * as part of bnxt_add_media_types() using api ifmedia_add(). 
+         */
+	LIST_FOREACH(next, &(iflib_get_media(ctx)->ifm_list), ifm_list) {
+		if (ifmedia_baudrate(next->ifm_media) == target_baudrate) {
+			active_media = next->ifm_media;
 			break;
 		}
-	break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_2_5GB:
-		switch (phy_type) {
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKX:
-			ifmr->ifm_active |= IFM_2500_KX;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASET:
-			ifmr->ifm_active |= IFM_2500_T;
-			break;
-		default:
-			ifmr->ifm_active |= IFM_UNKNOWN;
-			break;
-		}
-		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_10GB:
-		switch (phy_type) {
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASECR:
-			ifmr->ifm_active |= IFM_10G_CR1;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR4:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR2:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR:
-			ifmr->ifm_active |= IFM_10G_KR;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASELR:
-			ifmr->ifm_active |= IFM_10G_LR;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASESR:
-			ifmr->ifm_active |= IFM_10G_SR;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKX:
-			ifmr->ifm_active |= IFM_10G_KX4;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASET:
-			ifmr->ifm_active |= IFM_10G_T;
-			break;
-		default:
-                        /*
-                         * Workaround: 
-                         *    Don't return IFM_UNKNOWN until 
-                         *    Stratus return proper media_type 
-                         */  
-			ifmr->ifm_active |= IFM_10G_CR1;
-			break;
-		}
-		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_20GB:
-		ifmr->ifm_active |= IFM_20G_KR2;
-		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_25GB:
-		switch (phy_type) {
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASECR:
-			ifmr->ifm_active |= IFM_25G_CR;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR4:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR2:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR:
-			ifmr->ifm_active |= IFM_25G_KR;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASESR:
-			ifmr->ifm_active |= IFM_25G_SR;
-			break;
-		default:
-                        /*
-                         * Workaround: 
-                         *    Don't return IFM_UNKNOWN until 
-                         *    Stratus return proper media_type 
-                         */  
-			ifmr->ifm_active |= IFM_25G_CR;
-			break;
-		}
-		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_40GB:
-		switch (phy_type) {
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASECR:
-			ifmr->ifm_active |= IFM_40G_CR4;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR4:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR2:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR:
-			ifmr->ifm_active |= IFM_40G_KR4;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASELR:
-			ifmr->ifm_active |= IFM_40G_LR4;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASESR:
-			ifmr->ifm_active |= IFM_40G_SR4;
-			break;
-		default:
-			ifmr->ifm_active |= IFM_UNKNOWN;
-			break;
-		}
-		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_50GB:
-		switch (phy_type) {
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASECR:
-			ifmr->ifm_active |= IFM_50G_CR2;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR4:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR2:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR:
-			ifmr->ifm_active |= IFM_50G_KR2;
-			break;
-		default:
-                        /*
-                         * Workaround: 
-                         *    Don't return IFM_UNKNOWN until 
-                         *    Stratus return proper media_type 
-                         */  
-			ifmr->ifm_active |= IFM_50G_CR2;
-			break;
-		}
-		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_100GB:
-		switch (phy_type) {
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASECR:
-			ifmr->ifm_active |= IFM_100G_CR4;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR4:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR2:
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR:
-			ifmr->ifm_active |= IFM_100G_KR4;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASELR:
-			ifmr->ifm_active |= IFM_100G_LR4;
-			break;
-		case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASESR:
-			ifmr->ifm_active |= IFM_100G_SR4;
-			break;
-		default:
-                        /*
-                         * Workaround: 
-                         *    Don't return IFM_UNKNOWN until 
-                         *    Stratus return proper media_type 
-                         */  
-			ifmr->ifm_active |= IFM_100G_CR4;
-			break;
-		}
-	default:
-		return;
 	}
+	ifmr->ifm_active |= active_media;
 
-	if (link_info->pause == (HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX |
-	    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX))
-		ifmr->ifm_active |= (IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE);
-	else if (link_info->pause == HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX)
-		ifmr->ifm_active |= IFM_ETH_TXPAUSE;
-	else if (link_info->pause == HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX)
+	if (link_info->flow_ctrl.rx) 
 		ifmr->ifm_active |= IFM_ETH_RXPAUSE;
+	if (link_info->flow_ctrl.tx) 
+		ifmr->ifm_active |= IFM_ETH_TXPAUSE;
 
 	bnxt_report_link(softc);
 	return;
@@ -1461,7 +1321,7 @@ bnxt_media_change(if_ctx_t ctx)
 		softc->link_info.autoneg |= BNXT_AUTONEG_SPEED;
 		break;
 	}
-	rc = bnxt_hwrm_set_link_setting(softc, true, true);
+	rc = bnxt_hwrm_set_link_setting(softc, true, true, true);
 	bnxt_media_status(softc->ctx, &ifmr);
 	return rc;
 }
@@ -1640,9 +1500,7 @@ bnxt_msix_intr_assign(if_ctx_t ctx, int msix)
 	}
 
 	for (i=0; i<softc->scctx->isc_ntxqsets; i++)
-		/* TODO: Benchmark and see if tying to the RX irqs helps */
-		iflib_softirq_alloc_generic(ctx, -1, IFLIB_INTR_TX, NULL, i,
-		    "tx_cp");
+		iflib_softirq_alloc_generic(ctx, NULL, IFLIB_INTR_TX, NULL, i, "tx_cp");
 
 	return rc;
 
@@ -2088,18 +1946,6 @@ bnxt_probe_phy(struct bnxt_softc *softc)
 	if (link_info->auto_mode != HWRM_PORT_PHY_QCFG_OUTPUT_AUTO_MODE_NONE)
 		link_info->autoneg |= BNXT_AUTONEG_SPEED;
 
-	if (link_info->auto_pause & (HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX |
-	    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX)) {
-		if (link_info->auto_pause == (
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX |
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX))
-			link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
-		link_info->req_flow_ctrl = link_info->auto_pause;
-	} else if (link_info->force_pause & (
-	    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX |
-	    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX)) {
-		link_info->req_flow_ctrl = link_info->force_pause;
-	}
 	link_info->req_duplex = link_info->duplex_setting;
 	if (link_info->autoneg & BNXT_AUTONEG_SPEED)
 		link_info->req_link_speed = link_info->auto_link_speed;
@@ -2124,129 +1970,89 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 		return;
 
 	switch (phy_type) {
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASECR4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_BASECR4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_25G_BASECR_CA_L:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_25G_BASECR_CA_S:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_25G_BASECR_CA_N:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASECR:
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_100GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_100G_CR4, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_50GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_50G_CR2, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_40GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_40G_CR4, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_25GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_25G_CR, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_10GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_10G_CR1, 0,
-			    NULL);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_100GB, IFM_100G_CR4);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_50GB, IFM_50G_CR2);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_CR4);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_CR);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_CR1);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_T);
 		break;
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASELR4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_BASELR4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASELR:
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_100GB, IFM_100G_LR4);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_LR4);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_LR);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_LR);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_LX);
+		break;
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASESR10:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASESR4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_BASESR4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASESR:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_BASEER4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASEER4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_25G_BASESR:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_1G_BASESX:
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_100GB, IFM_100G_SR4);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_SR4);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_SR);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_SR);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_SX);
+		break;
+
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR2:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR:
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_100GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_100G_KR4, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_50GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_50G_KR2, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_40GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_40G_KR4, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_25GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_25G_KR, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_20GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_20G_KR2, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_10GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_10G_KR, 0,
-			    NULL);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_100GB, IFM_100G_KR4);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_50GB, IFM_50G_KR2);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_KR4);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_KR);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_20GB, IFM_20G_KR2);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_KR);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_KX);
 		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASELR:
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_100GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_100G_LR4, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_40GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_40G_LR4, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_10GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_10G_LR, 0,
-			    NULL);
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_ACTIVE_CABLE:
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_ACC);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_AOC);
 		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASESR:
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_100GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_100G_SR4, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_40GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_40G_SR4, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_25GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_25G_SR, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_10GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_10G_SR, 0,
-			    NULL);
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_1G_BASECX:
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GBHD, IFM_1000_CX);
 		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKX:
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_10GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_10G_KX4, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_2_5GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_2500_KX, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_1GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_1000_KX, 0,
-			    NULL);
-		break;
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_1G_BASET:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASET:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASETE:
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_10MB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_10_T, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_100MB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_100_T, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_1GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_1000_T, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_2_5GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_2500_T, 0,
-			    NULL);
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_10GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_10G_T, 0,
-			    NULL);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_T);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_2_5GB, IFM_2500_T);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_T);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_100MB, IFM_100_T);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_10MB, IFM_10_T);
 		break;
+	
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKX:
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_KR);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_2_5GB, IFM_2500_KX);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_KX);
+		break;
+
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_SGMIIEXTPHY:
-		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_1GB)
-			ifmedia_add(softc->media, IFM_ETHER | IFM_1000_SGMII, 0,
-			    NULL);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_SGMII);
 		break;
+
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_UNKNOWN:
         default:
-                /*
-                 * Workaround for Cumulus & Stratus 
-                 *  For Stratus: 
-                 *      media_type is being returned as 0x0
-                 *      Return support speeds as 10G, 25G, 50G & 100G
-                 *
-                 *  For Cumulus: 
-                 *      phy_type is being returned as 0x14 (PHY_TYPE_40G_BASECR4)
-                 *      Return support speeds as 1G, 10G, 25G & 50G
-                 */
-		if (pci_get_device(softc->dev) == BCM57454) {
-                        /* For Stratus: 10G, 25G, 50G & 100G */
-			ifmedia_add(softc->media, IFM_ETHER | IFM_100G_CR4, 0, NULL);
-			ifmedia_add(softc->media, IFM_ETHER | IFM_50G_CR2, 0, NULL);
-			ifmedia_add(softc->media, IFM_ETHER | IFM_25G_CR, 0, NULL);
-			ifmedia_add(softc->media, IFM_ETHER | IFM_10G_CR1, 0, NULL);
-		} else if (pci_get_device(softc->dev) == BCM57414) {
-                        /* For Cumulus: 1G, 10G, 25G & 50G */
-			ifmedia_add(softc->media, IFM_ETHER | IFM_50G_CR2, 0, NULL);
-			ifmedia_add(softc->media, IFM_ETHER | IFM_25G_CR, 0, NULL);
-			ifmedia_add(softc->media, IFM_ETHER | IFM_10G_CR1, 0, NULL);
-			ifmedia_add(softc->media, IFM_ETHER | IFM_1000_T, 0, NULL);
-                } 
+		/* Only Autoneg is supported for TYPE_UNKNOWN */
 		break;
 	}
 
@@ -2344,47 +2150,46 @@ exit:
 void
 bnxt_report_link(struct bnxt_softc *softc)
 {
+	struct bnxt_link_info *link_info = &softc->link_info;
 	const char *duplex = NULL, *flow_ctrl = NULL;
 
-	if (softc->link_info.link_up == softc->link_info.last_link_up) {
-		if (!softc->link_info.link_up)
+	if (link_info->link_up == link_info->last_link_up) {
+		if (!link_info->link_up)
 			return;
-		if (softc->link_info.pause == softc->link_info.last_pause &&
-		    softc->link_info.duplex == softc->link_info.last_duplex)
+		if ((link_info->duplex == link_info->last_duplex) &&
+                    (!(BNXT_IS_FLOW_CTRL_CHANGED(link_info))))
 			return;
 	}
 
-	if (softc->link_info.link_up) {
-		if (softc->link_info.duplex ==
+	if (link_info->link_up) {
+		if (link_info->duplex ==
 		    HWRM_PORT_PHY_QCFG_OUTPUT_DUPLEX_CFG_FULL)
 			duplex = "full duplex";
 		else
 			duplex = "half duplex";
-		if (softc->link_info.pause == (
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX |
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX))
+		if (link_info->flow_ctrl.tx & link_info->flow_ctrl.rx)
 			flow_ctrl = "FC - receive & transmit";
-		else if (softc->link_info.pause ==
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX)
+		else if (link_info->flow_ctrl.tx)
 			flow_ctrl = "FC - transmit";
-		else if (softc->link_info.pause ==
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX)
+		else if (link_info->flow_ctrl.rx)
 			flow_ctrl = "FC - receive";
 		else
 			flow_ctrl = "FC - none";
 		iflib_link_state_change(softc->ctx, LINK_STATE_UP,
 		    IF_Gbps(100));
 		device_printf(softc->dev, "Link is UP %s, %s - %d Mbps \n", duplex,
-		    flow_ctrl, (softc->link_info.link_speed * 100));
+		    flow_ctrl, (link_info->link_speed * 100));
 	} else {
 		iflib_link_state_change(softc->ctx, LINK_STATE_DOWN,
 		    bnxt_get_baudrate(&softc->link_info));
 		device_printf(softc->dev, "Link is Down\n");
 	}
 
-	softc->link_info.last_link_up = softc->link_info.link_up;
-	softc->link_info.last_pause = softc->link_info.pause;
-	softc->link_info.last_duplex = softc->link_info.duplex;
+	link_info->last_link_up = link_info->link_up;
+	link_info->last_duplex = link_info->duplex;
+	link_info->last_flow_ctrl.tx = link_info->flow_ctrl.tx;
+	link_info->last_flow_ctrl.rx = link_info->flow_ctrl.rx;
+	link_info->last_flow_ctrl.autoneg = link_info->flow_ctrl.autoneg;
 }
 
 static int

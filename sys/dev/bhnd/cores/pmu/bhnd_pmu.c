@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -128,7 +132,7 @@ bhnd_pmu_attach(device_t dev, struct bhnd_resource *res)
 	/* Fetch capability flags */
 	sc->caps = bhnd_bus_read_4(sc->res, BHND_PMU_CAP);
 
-	/* Find the bus-attached core */
+	/* Find the bus and bus-attached core */
 	bhnd_class = devclass_find("bhnd");
 	core = sc->dev;
 	while ((bus = device_get_parent(core)) != NULL) {
@@ -153,7 +157,7 @@ bhnd_pmu_attach(device_t dev, struct bhnd_resource *res)
 	}
 
 	/* Locate ChipCommon device */
-	sc->chipc_dev = bhnd_find_child(bus, BHND_DEVCLASS_CC, 0);
+	sc->chipc_dev = bhnd_bus_find_child(bus, BHND_DEVCLASS_CC, 0);
 	if (sc->chipc_dev == NULL) {
 		device_printf(sc->dev, "chipcommon device not found\n");
 		return (ENXIO);
@@ -183,6 +187,13 @@ bhnd_pmu_attach(device_t dev, struct bhnd_resource *res)
 	/* Initialize PMU */
 	if ((error = bhnd_pmu_init(sc))) {
 		device_printf(sc->dev, "PMU init failed: %d\n", error);
+		goto failed;
+	}
+
+	/* Register ourselves with the bus */
+	if ((error = bhnd_register_provider(dev, BHND_SERVICE_PMU))) {
+		device_printf(sc->dev, "failed to register PMU with bus : %d\n",
+		    error);
 		goto failed;
 	}
 
@@ -217,8 +228,12 @@ int
 bhnd_pmu_detach(device_t dev)
 {
 	struct bhnd_pmu_softc	*sc;
+	int			 error;
 
 	sc = device_get_softc(dev);
+
+	if ((error = bhnd_deregister_provider(dev, BHND_SERVICE_ANY)))
+		return (error);
 
 	BPMU_LOCK_DESTROY(sc);
 	bhnd_pmu_query_fini(&sc->query);

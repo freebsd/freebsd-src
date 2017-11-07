@@ -38,16 +38,205 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171108: badsect(8) removal
+OLD_FILES+=sbin/badsect
+OLD_FILES+=rescue/badsect
+OLD_FILES+=usr/share/man/man8/badsect.8.gz
+# 20171105: fixing lib/libclang_rt CRTARCH for arm:armv[67].
+.if ${MACHINE} == "arm"
+.if ${MACHINE_ARCH:Marmv[67]*} != "" && ${CPUTYPE:M*soft*} == ""
+OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.asan-preinit-arm.a
+OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.asan-arm.a
+OLD_LIBS+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.asan-arm.so
+OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.asan_cxx-arm.a
+OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.safestack-arm.a
+OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.stats-arm.a
+OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.stats_client-arm.a
+OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.ubsan_standalone-arm.a
+OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-arm.a
+.endif
+.endif
+# 20171104: libcap_random should be in /lib not in /usr/lib
+OLD_LIBS+=usr/lib/libcap_random.so.0
+# 20171104: Casper can work only as shared library
+OLD_FILES+=usr/lib/libcasper.a
+OLD_FILES+=usr/lib/libcasper_p.a
+OLD_FILES+=usr/lib/libcap_dns.a
+OLD_FILES+=usr/lib/libcap_dns_p.a
+OLD_FILES+=usr/lib/libcap_grp.a
+OLD_FILES+=usr/lib/libcap_grp_p.a
+OLD_FILES+=usr/lib/libcap_pwd.a
+OLD_FILES+=usr/lib/libcap_pwd_p.a
+OLD_FILES+=usr/lib/libcap_random.a
+OLD_FILES+=usr/lib/libcap_random_p.a
+OLD_FILES+=usr/lib/libcap_sysctl.a
+OLD_FILES+=usr/lib/libcap_sysctl_p.a
+# 20171031: Removal of obsolete man files
+OLD_FILES+=usr/share/man/man7/adding_user.7.gz
+# 20171031: Disconnected libpathconv tests
+OLD_DIRS+=usr/tests/lib/libpathconv
+# 20171017: Removal of mbpool(9)
+OLD_FILES+=usr/include/sys/mbpool.h
+OLD_FILES+=usr/share/man/man9/mbpool.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_destroy.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_alloc.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_ext_free.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_count.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_card_free.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_get_keep.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_free.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_get.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_create.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_sync.9.gz
+# 20171010: Remove libstand
+OLD_FILES+=usr/lib/libstand.a
+OLD_FILES+=usr/lib/libstand_p.a
+OLD_FILES+=usr/include/stand.h
+OLD_FILES+=usr/share/man/man3/libstand.3
+# 20171003: remove RCMDS
+OLD_FILES+=bin/rcp
+OLD_FILES+=rescue/rcp
+OLD_FILES+=usr/bin/rlogin
+OLD_FILES+=usr/bin/rsh
+OLD_FILES+=usr/libexec/rlogind
+OLD_FILES+=usr/libexec/rshd
+OLD_FILES+=usr/share/man/man1/rcp.1.gz
+OLD_FILES+=usr/share/man/man1/rlogin.1.gz
+OLD_FILES+=usr/share/man/man1/rsh.1.gz
+OLD_FILES+=usr/share/man/man8/rlogind.8.gz
+OLD_FILES+=usr/share/man/man8/rshd.8.gz
+# 20170927: crshared
+OLD_FILES+=usr/share/man/man9/crshared.9.gz
+# 20170927: procctl
+OLD_FILES+=usr/share/man/man8/procctl.8.gz
+OLD_FILES+=usr/sbin/procctl
+# 20170926: remove unneeded man aliases and locales directory
+OLD_FILES+=usr/share/man/en.ISO8859-1/man1
+OLD_FILES+=usr/share/man/en.ISO8859-1/man2
+OLD_FILES+=usr/share/man/en.ISO8859-1/man3
+OLD_FILES+=usr/share/man/en.ISO8859-1/man4
+OLD_FILES+=usr/share/man/en.ISO8859-1/man5
+OLD_FILES+=usr/share/man/en.ISO8859-1/man6
+OLD_FILES+=usr/share/man/en.ISO8859-1/man7
+OLD_FILES+=usr/share/man/en.ISO8859-1/man8
+OLD_FILES+=usr/share/man/en.ISO8859-1/man9
+OLD_DIRS+=usr/share/man/en.ISO8859-1
+OLD_FILES+=usr/share/man/en.ISO8859-1/mandoc.db
+OLD_FILES+=usr/share/man/en.UTF-8/man1
+OLD_FILES+=usr/share/man/en.UTF-8/man2
+OLD_FILES+=usr/share/man/en.UTF-8/man3
+OLD_FILES+=usr/share/man/en.UTF-8/man4
+OLD_FILES+=usr/share/man/en.UTF-8/man5
+OLD_FILES+=usr/share/man/en.UTF-8/man6
+OLD_FILES+=usr/share/man/en.UTF-8/man7
+OLD_FILES+=usr/share/man/en.UTF-8/man8
+OLD_FILES+=usr/share/man/en.UTF-8/man9
+OLD_FILES+=usr/share/man/en.UTF-8/mandoc.db
+OLD_DIRS+=usr/share/man/en.UTF-8
+OLD_FILES+=usr/share/man/en.ISO8859-15
+OLD_FILES+=usr/share/openssl/man/en.ISO8859-1/man1
+OLD_FILES+=usr/share/openssl/man/en.ISO8859-1/man3
+OLD_FILES+=usr/share/openssl/man/en.ISO8859-1/mandoc.db
+OLD_DIRS+=usr/share/openssl/man/en.ISO8859-1
+OLD_FILES+=usr/share/openssl/man/en.ISO8859-15
+OLD_DIRS+=usr/share/man/ja/man1
+OLD_DIRS+=usr/share/man/ja/man2
+OLD_DIRS+=usr/share/man/ja/man3
+OLD_DIRS+=usr/share/man/ja/man4
+OLD_DIRS+=usr/share/man/ja/man5
+OLD_DIRS+=usr/share/man/ja/man6
+OLD_DIRS+=usr/share/man/ja/man7
+OLD_DIRS+=usr/share/man/ja/man8
+OLD_DIRS+=usr/share/man/ja/man9
+OLD_DIRS+=usr/share/man/ja
 # 20170913: remove unneeded catman utility
 OLD_FILES+=etc/periodic/weekly/330.catman
 OLD_FILES+=usr/bin/catman
 OLD_FILES+=usr/libexec/catman.local
 OLD_FILES+=usr/share/man/man1/catman.1.gz
 OLD_FILES+=usr/share/man/man8/catman.local.8.gz
-
+OLD_DIRS+=usr/share/man/cat1
+OLD_DIRS+=usr/share/man/cat2
+OLD_DIRS+=usr/share/man/cat3
+OLD_DIRS+=usr/share/man/cat4/amd64
+OLD_DIRS+=usr/share/man/cat4/arm
+OLD_DIRS+=usr/share/man/cat4/i386
+OLD_DIRS+=usr/share/man/cat4/powerpc
+OLD_DIRS+=usr/share/man/cat4/sparc64
+OLD_DIRS+=usr/share/man/cat4
+OLD_DIRS+=usr/share/man/cat5
+OLD_DIRS+=usr/share/man/cat6
+OLD_DIRS+=usr/share/man/cat7
+OLD_DIRS+=usr/share/man/cat8/amd64
+OLD_DIRS+=usr/share/man/cat8/arm
+OLD_DIRS+=usr/share/man/cat8/i386
+OLD_DIRS+=usr/share/man/cat8/powerpc
+OLD_DIRS+=usr/share/man/cat8/sparc64
+OLD_DIRS+=usr/share/man/cat8
+OLD_DIRS+=usr/share/man/cat9
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat1
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat2
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat3
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat4/amd64
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat4/arm
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat4/i386
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat4/powerpc
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat4/sparc64
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat4
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat5
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat6
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat7
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat8/amd64
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat8/arm
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat8/i386
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat8/powerpc
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat8/sparc64
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat8
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat9
+OLD_DIRS+=usr/share/man/en.UTF-8/cat1
+OLD_DIRS+=usr/share/man/en.UTF-8/cat2
+OLD_DIRS+=usr/share/man/en.UTF-8/cat3
+OLD_DIRS+=usr/share/man/en.UTF-8/cat4/amd64
+OLD_DIRS+=usr/share/man/en.UTF-8/cat4/arm
+OLD_DIRS+=usr/share/man/en.UTF-8/cat4/i386
+OLD_DIRS+=usr/share/man/en.UTF-8/cat4/powerpc
+OLD_DIRS+=usr/share/man/en.UTF-8/cat4/sparc64
+OLD_DIRS+=usr/share/man/en.UTF-8/cat4
+OLD_DIRS+=usr/share/man/en.UTF-8/cat5
+OLD_DIRS+=usr/share/man/en.UTF-8/cat6
+OLD_DIRS+=usr/share/man/en.UTF-8/cat7
+OLD_DIRS+=usr/share/man/en.UTF-8/cat8/amd64
+OLD_DIRS+=usr/share/man/en.UTF-8/cat8/arm
+OLD_DIRS+=usr/share/man/en.UTF-8/cat8/i386
+OLD_DIRS+=usr/share/man/en.UTF-8/cat8/powerpc
+OLD_DIRS+=usr/share/man/en.UTF-8/cat8/sparc64
+OLD_DIRS+=usr/share/man/en.UTF-8/cat8
+OLD_DIRS+=usr/share/man/en.UTF-8/cat9
+OLD_DIRS+=usr/share/man/ja/cat1
+OLD_DIRS+=usr/share/man/ja/cat2
+OLD_DIRS+=usr/share/man/ja/cat3
+OLD_DIRS+=usr/share/man/ja/cat4/amd64
+OLD_DIRS+=usr/share/man/ja/cat4/arm
+OLD_DIRS+=usr/share/man/ja/cat4/i386
+OLD_DIRS+=usr/share/man/ja/cat4/powerpc
+OLD_DIRS+=usr/share/man/ja/cat4/sparc64
+OLD_DIRS+=usr/share/man/ja/cat4
+OLD_DIRS+=usr/share/man/ja/cat5
+OLD_DIRS+=usr/share/man/ja/cat6
+OLD_DIRS+=usr/share/man/ja/cat7
+OLD_DIRS+=usr/share/man/ja/cat8/amd64
+OLD_DIRS+=usr/share/man/ja/cat8/arm
+OLD_DIRS+=usr/share/man/ja/cat8/powerpc
+OLD_DIRS+=usr/share/man/ja/cat8/sparc64
+OLD_DIRS+=usr/share/man/ja/cat8
+OLD_DIRS+=usr/share/man/ja/cat9
+OLD_DIRS+=usr/share/openssl/man/cat1
+OLD_DIRS+=usr/share/openssl/man/cat3
+OLD_DIRS+=usr/share/openssl/man/en.ISO8859-1/cat1
+OLD_DIRS+=usr/share/openssl/man/en.ISO8859-1/cat3
 # 20170802: ksyms(4) ioctl interface was removed
 OLD_FILES+=usr/include/sys/ksyms.h
-
 # 20170722: new clang import which bumps version from 4.0.0 to 5.0.0.
 OLD_FILES+=usr/lib/clang/4.0.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/4.0.0/include/sanitizer/asan_interface.h

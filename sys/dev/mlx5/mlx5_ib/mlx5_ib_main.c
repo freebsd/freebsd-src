@@ -562,26 +562,6 @@ mlx5_make_default_gid(struct net_device *dev, union ib_gid *gid)
 	mlx5_addrconf_ifid_eui48(&gid->raw[8], dev);
 }
 
-static inline int
-mlx5_ip2gid(const struct sockaddr *addr, union ib_gid *gid)
-{
-	switch (addr->sa_family) {
-	case AF_INET:
-		ipv6_addr_set_v4mapped(((const struct sockaddr_in *)addr)->sin_addr.s_addr,
-		    (struct in6_addr *)gid->raw);
-		break;
-	case AF_INET6:
-		memcpy(gid->raw, &((const struct sockaddr_in6 *)addr)->sin6_addr, 16);
-		/* clear SCOPE ID */
-		gid->raw[2] = 0;
-		gid->raw[3] = 0;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static void
 mlx5_ib_roce_port_update(void *arg)
 {
@@ -639,7 +619,7 @@ mlx5_ib_roce_port_update(void *arg)
 				    gid_index >= MLX5_IB_GID_MAX)
 					continue;
 				memset(&gid_temp, 0, sizeof(gid_temp));
-				mlx5_ip2gid(ifa->ifa_addr, &gid_temp);
+				rdma_ip2gid(ifa->ifa_addr, &gid_temp);
 				/* check for existing entry */
 				for (j = 0; j != gid_index; j++) {
 					if (bcmp(&gid_temp, &port->gid_table[j], sizeof(gid_temp)) == 0)
@@ -1690,6 +1670,57 @@ static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 	mlx5_ib_dealloc_pd(devr->p0);
 }
 
+static u32 get_core_cap_flags(struct ib_device *ibdev)
+{
+	struct mlx5_ib_dev *dev = to_mdev(ibdev);
+	enum rdma_link_layer ll = mlx5_ib_port_link_layer(ibdev, 1);
+	u8 l3_type_cap = MLX5_CAP_ROCE(dev->mdev, l3_type);
+	u8 roce_version_cap = MLX5_CAP_ROCE(dev->mdev, roce_version);
+	u32 ret = 0;
+
+	if (ll == IB_LINK_LAYER_INFINIBAND)
+		return RDMA_CORE_PORT_IBA_IB;
+
+	ret = RDMA_CORE_PORT_RAW_PACKET;
+
+	if (!(l3_type_cap & MLX5_ROCE_L3_TYPE_IPV4_CAP))
+		return ret;
+
+	if (!(l3_type_cap & MLX5_ROCE_L3_TYPE_IPV6_CAP))
+		return ret;
+
+	if (roce_version_cap & MLX5_ROCE_VERSION_1_CAP)
+		ret |= RDMA_CORE_PORT_IBA_ROCE;
+
+	if (roce_version_cap & MLX5_ROCE_VERSION_2_CAP)
+		ret |= RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
+
+	return ret;
+}
+
+static int mlx5_port_immutable(struct ib_device *ibdev, u8 port_num,
+			       struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	struct mlx5_ib_dev *dev = to_mdev(ibdev);
+	enum rdma_link_layer ll = mlx5_ib_port_link_layer(ibdev, port_num);
+	int err;
+
+	immutable->core_cap_flags = get_core_cap_flags(ibdev);
+
+	err = ib_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = get_core_cap_flags(ibdev);
+	if ((ll == IB_LINK_LAYER_INFINIBAND) || MLX5_CAP_GEN(dev->mdev, roce))
+		immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+
+	return 0;
+}
+
 static void enable_dc_tracer(struct mlx5_ib_dev *dev)
 {
 	struct device *device = dev->ib_dev.dma_device;
@@ -2135,6 +2166,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	dev->ib_dev.attach_mcast	= mlx5_ib_mcg_attach;
 	dev->ib_dev.detach_mcast	= mlx5_ib_mcg_detach;
 	dev->ib_dev.process_mad		= mlx5_ib_process_mad;
+	dev->ib_dev.get_port_immutable  = mlx5_port_immutable;
 	dev->ib_dev.alloc_fast_reg_mr	= mlx5_ib_alloc_fast_reg_mr;
 	dev->ib_dev.alloc_fast_reg_page_list = mlx5_ib_alloc_fast_reg_page_list;
 	dev->ib_dev.free_fast_reg_page_list  = mlx5_ib_free_fast_reg_page_list;

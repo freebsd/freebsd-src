@@ -41,8 +41,8 @@
 #include <vm/uma.h>
 
 
-static atomic_t ioerr_queue_count;
 #ifdef ENCRYPT_ENHANCE
+static atomic_t ioerr_queue_count;
 /******************************************************************************
 careful_write():
 

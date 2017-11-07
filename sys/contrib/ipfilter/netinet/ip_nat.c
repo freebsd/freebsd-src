@@ -6093,8 +6093,8 @@ ipf_nat_icmpquerytype(icmptype)
 	{
 	case ICMP_ECHOREPLY:
 	case ICMP_ECHO:
-	/* route aedvertisement/solliciation is currently unsupported: */
-	/* it would require rewriting the ICMP data section            */
+	/* route advertisement/solicitation is currently unsupported: */
+	/* it would require rewriting the ICMP data section          */
 	case ICMP_TSTAMP:
 	case ICMP_TSTAMPREPLY:
 	case ICMP_IREQ:

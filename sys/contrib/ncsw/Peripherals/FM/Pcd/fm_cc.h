@@ -1,5 +1,5 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
- * All rights reserved.
+/*
+ * Copyright 2008-2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,6 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 /******************************************************************************
  @File          fm_cc.h
 
@@ -48,6 +49,8 @@
 /***********************************************************************/
 /*          Coarse classification defines                              */
 /***********************************************************************/
+
+#define CC_MAX_NUM_OF_KEYS                  (FM_PCD_MAX_NUM_OF_KEYS + 1)
 
 #define CC_PC_FF_MACDST                     0x00
 #define CC_PC_FF_MACSRC                     0x01
@@ -81,6 +84,9 @@
 #define CC_PC_FF_IPV6SRC1                   0x10
 #define CC_PC_FF_IPV6SRC2                   0x1e
 #define CC_PC_FF_IPV6HOP_LIMIT              0x2a
+#define CC_PC_FF_IPPID                      0x24
+#define CC_PC_FF_IPDSCP                     0x76
+
 #define CC_PC_FF_GREPTYPE                   0x11
 
 #define CC_PC_FF_MINENCAP_PTYPE             0x12
@@ -101,6 +107,7 @@
 #define CC_PC_GENERIC_WITH_MASK             0x28
 #define CC_PC_GENERIC_IC_GMASK              0x2B
 #define CC_PC_GENERIC_IC_HASH_INDEXED       0x2C
+#define CC_PC_GENERIC_IC_AGING_MASK         0x2D
 
 #define CC_PR_OFFSET                        0x25
 #define CC_PR_WITHOUT_OFFSET                0x26
@@ -126,9 +133,10 @@
 #define CC_SIZE_ILLEGAL                     0
 
 #define FM_PCD_CC_KEYS_MATCH_TABLE_ALIGN    16
-#define FM_PCD_CC_AD_TABLE_ALIGN            256
+#define FM_PCD_CC_AD_TABLE_ALIGN            16
 #define FM_PCD_CC_AD_ENTRY_SIZE             16
 #define FM_PCD_CC_NUM_OF_KEYS               255
+#define FM_PCD_CC_TREE_ADDR_ALIGN           256
 
 #define FM_PCD_AD_RESULT_CONTRL_FLOW_TYPE   0x00000000
 #define FM_PCD_AD_RESULT_DATA_FLOW_TYPE     0x80000000
@@ -137,17 +145,37 @@
 #define FM_PCD_AD_RESULT_NADEN              0x20000000
 #define FM_PCD_AD_RESULT_STATISTICS_EN      0x40000000
 
-
 #define FM_PCD_AD_CONT_LOOKUP_TYPE          0x40000000
 #define FM_PCD_AD_CONT_LOOKUP_LCL_MASK      0x00800000
+
+#define FM_PCD_AD_STATS_TYPE                0x40000000
+#define FM_PCD_AD_STATS_FLR_ADDR_MASK       0x00FFFFFF
+#define FM_PCD_AD_STATS_COUNTERS_ADDR_MASK  0x00FFFFFF
+#define FM_PCD_AD_STATS_NEXT_ACTION_MASK    0xFFFF0000
+#define FM_PCD_AD_STATS_NEXT_ACTION_SHIFT   12
+#define FM_PCD_AD_STATS_NAD_EN              0x00008000
+#define FM_PCD_AD_STATS_OP_CODE             0x00000036
+#define FM_PCD_AD_STATS_FLR_EN              0x00004000
+#define FM_PCD_AD_STATS_COND_EN             0x00002000
+
+
+
+#define FM_PCD_AD_BYPASS_TYPE               0xc0000000
 
 #define FM_PCD_AD_TYPE_MASK                 0xc0000000
 #define FM_PCD_AD_OPCODE_MASK               0x0000000f
 
 #define FM_PCD_AD_PROFILEID_FOR_CNTRL_SHIFT 16
+#if (DPAA_VERSION >= 11)
+#define FM_PCD_AD_RESULT_VSP_SHIFT           24
+#define FM_PCD_AD_RESULT_NO_OM_VSPE          0x02000000
+#define FM_PCD_AD_RESULT_VSP_MASK            0x3f
+#define FM_PCD_AD_NCSPFQIDM_MASK             0x80000000
+#endif /* (DPAA_VERSION >= 11) */
 
 #define GLBL_MASK_FOR_HASH_INDEXED          0xfff00000
 #define CC_GLBL_MASK_SIZE                   4
+#define CC_AGING_MASK_SIZE                  4
 
 typedef uint32_t ccPrivateInfo_t; /**< private info of CC: */
 
@@ -157,156 +185,215 @@ typedef uint32_t ccPrivateInfo_t; /**< private info of CC: */
 #define CC_PRIVATE_INFO_IC_KEY_EXACT_MATCH         0x20000000
 #define CC_PRIVATE_INFO_IC_DEQ_FQID_INDEX_LOOKUP   0x10000000
 
+#define CC_BUILD_AGING_MASK(numOfKeys)      ((((1LL << ((numOfKeys) + 1)) - 1)) << (31 - (numOfKeys)))
 /***********************************************************************/
 /*          Memory map                                                 */
 /***********************************************************************/
 #if defined(__MWERKS__) && !defined(__GNUC__)
 #pragma pack(push,1)
 #endif /* defined(__MWERKS__) && ... */
-#define MEM_MAP_START
 
-typedef _Packed struct {
+typedef struct
+{
     volatile uint32_t fqid;
     volatile uint32_t plcrProfile;
     volatile uint32_t nia;
-    volatile uint32_t  res;
-} _PackedType t_AdOfTypeResult;
+    volatile uint32_t res;
+} t_AdOfTypeResult;
 
-typedef _Packed struct {
+typedef struct
+{
     volatile uint32_t ccAdBase;
     volatile uint32_t matchTblPtr;
     volatile uint32_t pcAndOffsets;
     volatile uint32_t gmask;
-} _PackedType t_AdOfTypeContLookup;
+} t_AdOfTypeContLookup;
 
-typedef _Packed union {
+typedef struct
+{
+    volatile uint32_t profileTableAddr;
+    volatile uint32_t reserved;
+    volatile uint32_t nextActionIndx;
+    volatile uint32_t statsTableAddr;
+} t_AdOfTypeStats;
+
+typedef union
+{
     volatile t_AdOfTypeResult        adResult;
     volatile t_AdOfTypeContLookup    adContLookup;
-} _PackedType t_Ad;
+} t_Ad;
 
-#define MEM_MAP_END
 #if defined(__MWERKS__) && !defined(__GNUC__)
 #pragma pack(pop)
 #endif /* defined(__MWERKS__) && ... */
 
 
 /***********************************************************************/
-/*  Driver's internal structures                                        */
+/*  Driver's internal structures                                       */
 /***********************************************************************/
 
-typedef enum e_ModifyState {
-    e_MODIFY_STATE_ADD = 0,
-    e_MODIFY_STATE_REMOVE,
-    e_MODIFY_STATE_CHANGE
-} e_ModifyState;
+typedef struct t_FmPcdStatsObj
+{
+    t_Handle        h_StatsAd;
+    t_Handle        h_StatsCounters;
+    t_List          node;
+} t_FmPcdStatsObj;
 
-typedef struct {
+typedef struct
+{
+    uint8_t                     key[FM_PCD_MAX_SIZE_OF_KEY];
+    uint8_t                     mask[FM_PCD_MAX_SIZE_OF_KEY];
+
     t_FmPcdCcNextEngineParams   nextEngineParams;
     uint32_t                    requiredAction;
     uint32_t                    shadowAction;
-} t_FmPcdCcNextEngineAndRequiredActionParams;
 
-typedef struct {
-    t_Handle         p_Ad;
-    e_FmPcdEngine    fmPcdEngine;
-    bool             adAllocated;
-    bool             isTree;
+    t_FmPcdStatsObj             *p_StatsObj;
 
-    uint32_t    myInfo;
-    t_List      *h_CcNextNodesLst;
-    t_Handle    h_AdditionalInfo;
-    t_Handle    h_Node;
+} t_FmPcdCcKeyAndNextEngineParams;
+
+typedef struct
+{
+    t_Handle        p_Ad;
+    e_FmPcdEngine   fmPcdEngine;
+    bool            adAllocated;
+    bool            isTree;
+
+    uint32_t        myInfo;
+    t_List          *h_CcNextNodesLst;
+    t_Handle        h_AdditionalInfo;
+    t_Handle        h_Node;
 } t_FmPcdModifyCcAdditionalParams;
 
-typedef struct {
-    t_Handle p_AdTableNew;
-    t_Handle p_KeysMatchTableNew;
-    t_Handle p_AdTableOld;
-    t_Handle p_KeysMatchTableOld;
-    uint16_t numOfKeys;
-    t_Handle h_CurrentNode;
-    uint16_t keyIndex;
-    t_Handle h_NodeForAdd;
-    t_Handle h_NodeForRmv;
-    t_Handle h_ManipForRmv;
-    bool     tree;
+typedef struct
+{
+    t_Handle            p_AdTableNew;
+    t_Handle            p_KeysMatchTableNew;
+    t_Handle            p_AdTableOld;
+    t_Handle            p_KeysMatchTableOld;
+    uint16_t            numOfKeys;
+    t_Handle            h_CurrentNode;
+    uint16_t            savedKeyIndex;
+    t_Handle            h_NodeForAdd;
+    t_Handle            h_NodeForRmv;
+    t_Handle            h_ManipForRmv;
+    t_Handle            h_ManipForAdd;
+    t_FmPcdStatsObj     *p_StatsObjForRmv;
+#if (DPAA_VERSION >= 11)
+    t_Handle            h_FrmReplicForAdd;
+    t_Handle            h_FrmReplicForRmv;
+#endif /* (DPAA_VERSION >= 11) */
+    bool                tree;
 
-    t_FmPcdCcNextEngineAndRequiredActionParams nextEngineAndRequiredAction[256];
+    t_FmPcdCcKeyAndNextEngineParams  keyAndNextEngineParams[CC_MAX_NUM_OF_KEYS];
 } t_FmPcdModifyCcKeyAdditionalParams;
 
-typedef struct {
-    t_Handle h_Manip;
-    t_Handle h_CcNode;
+typedef struct
+{
+    t_Handle    h_Manip;
+    t_Handle    h_CcNode;
 } t_CcNextEngineInfo;
 
-typedef struct {
-    uint16_t    numOfKeys;
-    bool        glblMaskUpdated;
-    t_Handle    p_GlblMask;
-    bool        lclMask;
-    uint8_t     parseCode;
-    uint8_t     offset;
-    uint8_t     prsArrayOffset;
-    bool        ctrlFlow;
-    uint8_t     owners;
+typedef struct
+{
+    uint16_t            numOfKeys;
+    uint16_t            maxNumOfKeys;
 
-    uint8_t     ccKeySizeAccExtraction;
-    uint8_t     sizeOfExtraction;
-    uint8_t     glblMaskSize;
+    bool                maskSupport;
+    uint32_t            keysMatchTableMaxSize;
 
-    t_Handle    h_KeysMatchTable;
-    t_Handle    h_AdTable;
+    e_FmPcdCcStatsMode  statisticsMode;
+    uint32_t            numOfStatsFLRs;
+    uint32_t            countersArraySize;
 
-    t_List      ccPrevNodesLst;
+    bool                isHashBucket;               /**< Valid for match table node that is a bucket of a hash table only */
+    t_Handle            h_MissStatsCounters;        /**< Valid for hash table node and match table that is a bucket;
+                                                         Holds the statistics counters allocated by the hash table and
+                                                         are shared by all hash table buckets; */
+    t_Handle            h_PrivMissStatsCounters;    /**< Valid for match table node that is a bucket of a hash table only;
+                                                         Holds the statistics counters that were allocated for this node
+                                                         and replaced by the shared counters (allocated by the hash table); */
+    bool                statsEnForMiss;             /**< Valid for hash table node only; TRUE is statistics are currently
+                                                         enabled for hash 'miss', FALSE otherwise; This parameter effects the
+                                                         returned statistics count to user, statistics AD always present for 'miss'
+                                                         for all hash buckets; */
+    bool                glblMaskUpdated;
+    t_Handle            p_GlblMask;
+    bool                lclMask;
+    uint8_t             parseCode;
+    uint8_t             offset;
+    uint8_t             prsArrayOffset;
+    bool                ctrlFlow;
+    uint16_t            owners;
 
-    t_List      ccTreeIdLst;
-    t_List      ccTreesLst;
+    uint8_t             ccKeySizeAccExtraction;
+    uint8_t             sizeOfExtraction;
+    uint8_t             glblMaskSize;
 
-    t_Handle    h_FmPcd;
-    uint32_t    shadowAction;
-    bool        modifiedState;
-    uint8_t     userSizeOfExtraction;
+    t_Handle            h_KeysMatchTable;
+    t_Handle            h_AdTable;
+    t_Handle            h_StatsAds;
+    t_Handle            h_TmpAd;
+    t_Handle            h_Ad;
+    t_Handle            h_StatsFLRs;
 
-    t_FmPcdCcNextEngineAndRequiredActionParams nextEngineAndRequiredAction[256];
+    t_List              availableStatsLst;
+
+    t_List              ccPrevNodesLst;
+
+    t_List              ccTreeIdLst;
+    t_List              ccTreesLst;
+
+    t_Handle            h_FmPcd;
+    uint32_t            shadowAction;
+    uint8_t             userSizeOfExtraction;
+    uint8_t             userOffset;
+    uint8_t             kgHashShift;            /* used in hash-table */
+
+    t_Handle            h_Spinlock;
+
+    t_FmPcdCcKeyAndNextEngineParams keyAndNextEngineParams[CC_MAX_NUM_OF_KEYS];
 } t_FmPcdCcNode;
 
-typedef struct {
+typedef struct
+{
     t_FmPcdCcNode       *p_FmPcdCcNode;
     bool                occupied;
-    uint8_t             owners;
+    uint16_t            owners;
     volatile bool       lock;
 } t_FmPcdCcNodeArray;
 
-typedef struct {
+typedef struct
+{
     uint8_t             numOfEntriesInGroup;
     uint32_t            totalBitsMask;
     uint8_t             baseGroupEntry;
 } t_FmPcdCcGroupParam;
 
-typedef struct {
+typedef struct
+{
+    t_Handle            h_FmPcd;
     uint8_t             netEnvId;
     uintptr_t           ccTreeBaseAddr;
     uint8_t             numOfGrps;
     t_FmPcdCcGroupParam fmPcdGroupParam[FM_PCD_MAX_NUM_OF_CC_GROUPS];
     t_List              fmPortsLst;
-    volatile bool       lock;
+    t_FmPcdLock         *p_Lock;
     uint8_t             numOfEntries;
-    uint8_t             owners;
-    t_Handle            *fmPcdCcSavedManipParams[256];
+    uint16_t            owners;
+    t_Handle            h_FmPcdCcSavedManipParams;
     bool                modifiedState;
     uint32_t            requiredAction;
-    t_FmPcdCcNextEngineAndRequiredActionParams nextEngineAndRequiredAction[FM_PCD_MAX_NUM_OF_KEYS];
+    t_Handle            h_IpReassemblyManip;
+    t_Handle            h_CapwapReassemblyManip;
+
+    t_FmPcdCcKeyAndNextEngineParams keyAndNextEngineParams[FM_PCD_MAX_NUM_OF_CC_GROUPS];
 } t_FmPcdCcTree;
 
-typedef struct {
-    t_FmPcdCcTree       *p_FmPcdCcTree;
-    bool                occupied;
-    uint8_t             owners;
-    volatile bool       lock;
-} t_FmPcdCcTreeArray;
 
-
-bool FmPcdManipIsManipNode(t_Handle h_Ad);
+t_Error     FmPcdCcNodeTreeTryLock(t_Handle h_FmPcd,t_Handle h_FmPcdCcNode, t_List *p_List);
+void        FmPcdCcNodeTreeReleaseLock(t_Handle h_FmPcd, t_List *p_List);
+t_Error     FmPcdUpdateCcShadow (t_FmPcd *p_FmPcd, uint32_t size, uint32_t align);
 
 
 #endif /* __FM_CC_H */

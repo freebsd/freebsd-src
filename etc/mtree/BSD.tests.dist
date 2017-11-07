@@ -34,8 +34,6 @@
         ..
         pwait
         ..
-        rcp
-        ..
         rmdir
         ..
         sh
@@ -477,6 +475,10 @@
         mqueue
         ..
         netinet
+        ..
+        netpfil
+            pf
+            ..
         ..
         opencrypto
         ..

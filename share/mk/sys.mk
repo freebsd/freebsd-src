@@ -13,10 +13,18 @@ unix		?=	We run FreeBSD, not UNIX.
 # and/or endian.  This is called MACHINE_CPU in NetBSD, but that's used
 # for something different in FreeBSD.
 #
-__TO_CPUARCH=C/mips(n32|64)?(el)?(hf)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc(64|spe)/powerpc/:C/riscv64(sf)?/riscv/
+__TO_CPUARCH=C/mips(n32|64)?(el)?(hf)?/mips/:C/arm(v[67])?(eb)?/arm/:C/powerpc(64|spe)/powerpc/:C/riscv64(sf)?/riscv/
 MACHINE_CPUARCH=${MACHINE_ARCH:${__TO_CPUARCH}}
 .endif
 
+__DEFAULT_YES_OPTIONS+= \
+	UNIFIED_OBJDIR
+
+# src.sys.obj.mk enables AUTO_OBJ by default if possible but it is otherwise
+# disabled.  Ensure src.conf.5 shows it as default on.
+.if make(showconfig)
+__DEFAULT_YES_OPTIONS+= AUTO_OBJ
+.endif
 
 # Some options we need now
 __DEFAULT_NO_OPTIONS= \
@@ -51,8 +59,11 @@ MK_META_MODE=	no
 .if ${MK_DIRDEPS_BUILD} == "yes"
 .sinclude <meta.sys.mk>
 .elif ${MK_META_MODE} == "yes"
+META_MODE+=	meta
+.if empty(.MAKEFLAGS:M-s)
 # verbose will show .MAKE.META.PREFIX for each target.
-META_MODE+=	meta verbose
+META_MODE+=	verbose
+.endif
 .if !defined(NO_META_MISSING)
 META_MODE+=	missing-meta=yes
 .endif
@@ -110,7 +121,7 @@ NO_META_IGNORE_HOST_HEADERS=	1
 .if !make(showconfig) && !make(print-dir)
 .sinclude <auto.obj.mk>
 .endif
-.endif
+.endif	# ${MK_AUTO_OBJ} == "yes"
 .else # bmake
 .include <bsd.mkopt.mk>
 .endif

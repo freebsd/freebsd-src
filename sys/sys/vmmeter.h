@@ -131,7 +131,6 @@ struct vmmeter {
 	u_int v_free_reserved;	/* (c) pages reserved for deadlock */
 	u_int v_free_target;	/* (c) pages desired free */
 	u_int v_free_min;	/* (c) pages desired free */
-	u_int v_free_count;	/* (f) pages free */
 	u_int v_inactive_target; /* (c) pages desired inactive */
 	u_int v_pageout_free_min;   /* (c) min pages reserved for kernel */
 	u_int v_interrupt_free_min; /* (c) reserved pages for int code */
@@ -141,6 +140,7 @@ struct vmmeter {
 	u_int v_inactive_count VMMETER_ALIGNED;	/* (a) pages inactive */
 	u_int v_laundry_count VMMETER_ALIGNED; /* (a) pages eligible for
 						  laundering */
+	u_int v_free_count VMMETER_ALIGNED; /* (f) pages free */
 };
 #endif /* _KERNEL || _WANT_VMMETER */
 
@@ -208,10 +208,10 @@ vm_paging_target(void)
  * Returns TRUE if the pagedaemon needs to be woken up.
  */
 static inline int
-vm_paging_needed(void)
+vm_paging_needed(u_int free_count)
 {
 
-	return (vm_cnt.v_free_count < vm_pageout_wakeup_thresh);
+	return (free_count < vm_pageout_wakeup_thresh);
 }
 
 /*

@@ -34,12 +34,16 @@
 #                       for world and kernel targets.
 # toolchains          - Build a toolchain for all world and kernel targets.
 # xdev                - xdev-build + xdev-install for the architecture
-#                       specified with XDEV and XDEV_ARCH.
+#                       specified with TARGET and TARGET_ARCH.
 # xdev-build          - Build cross-development tools.
 # xdev-install        - Install cross-development tools.
 # xdev-links          - Create traditional links in /usr/bin for cc, etc
 # native-xtools       - Create host binaries that produce target objects
-#                       for use in qemu user-mode jails.
+#                       for use in qemu user-mode jails.  TARGET and
+#                       TARGET_ARCH should be defined.
+# native-xtools-install
+#                     - Install the files to the given DESTDIR/NXTP where
+#                       NXTP defaults to /nxb-bin.
 # 
 # "quick" way to test all kernel builds:
 # 	_jflag=`sysctl -n hw.ncpu`
@@ -118,6 +122,7 @@
 TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	check check-old check-old-dirs check-old-files check-old-libs \
 	checkdpadd checkworld clean cleandepend cleandir cleanworld \
+	cleanuniverse \
 	delete-old delete-old-dirs delete-old-files delete-old-libs \
 	depend distribute distributekernel distributekernel.debug \
 	distributeworld distrib-dirs distribution doxygen \
@@ -130,10 +135,15 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	_build-tools _build-metadata _cross-tools _includes _libraries \
 	build32 distribute32 install32 buildsoft distributesoft installsoft \
 	builddtb xdev xdev-build xdev-install \
-	xdev-links native-xtools stageworld stagekernel stage-packages \
+	xdev-links native-xtools native-xtools-install stageworld stagekernel \
+	stage-packages \
 	create-packages-world create-packages-kernel create-packages \
 	packages installconfig real-packages sign-packages package-pkg \
 	print-dir test-system-compiler
+
+# These targets require a TARGET and TARGET_ARCH be defined.
+XTGTS=	native-xtools native-xtools-install xdev xdev-build xdev-install \
+	xdev-links
 
 # XXX: r156740: This can't work since bsd.subdir.mk is not included ever.
 # It will only work for SUBDIR_TARGETS in make.conf.
@@ -179,7 +189,7 @@ META_TGT_WHITELIST+= \
 
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin
 MAKEOBJDIRPREFIX?=	/usr/obj
-_MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} MK_AUTO_OBJ=no ${MAKE} \
+_MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} MK_AUTO_OBJ=no \
     ${.MAKEFLAGS:MMAKEOBJDIRPREFIX=*} __MAKE_CONF=${__MAKE_CONF} \
     -f /dev/null -V MAKEOBJDIRPREFIX dummy
 .if !empty(_MAKEOBJDIRPREFIX)
@@ -199,7 +209,7 @@ WANT_MAKE_VERSION= 20160604
 # 20160220 - support .dinclude for FAST_DEPEND.
 WANT_MAKE_VERSION= 20160220
 .endif
-MYMAKE=		${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}/${WANT_MAKE}
+MYMAKE=		${OBJROOT}make.${MACHINE}/${WANT_MAKE}
 .if defined(.PARSEDIR)
 HAVE_MAKE=	bmake
 .else
@@ -270,6 +280,11 @@ _TARGET=	${XDEV}
 .if defined(XDEV_ARCH)
 _TARGET_ARCH=	${XDEV_ARCH}
 .endif
+# Some targets require a set TARGET/TARGET_ARCH, check before the default
+# MACHINE and after the compatibility handling.
+.if !defined(_TARGET) || !defined(_TARGET_ARCH)
+${XTGTS}: _assert_target
+.endif
 # Otherwise, default to current machine type and architecture.
 _TARGET?=	${MACHINE}
 _TARGET_ARCH?=	${MACHINE_ARCH}
@@ -277,6 +292,14 @@ _TARGET_ARCH?=	${MACHINE_ARCH}
 .if make(print-dir)
 .SILENT:
 .endif
+
+_assert_target: .PHONY .MAKE
+.for _tgt in ${XTGTS}
+.if make(${_tgt})
+	@echo "*** Error: Both TARGET and TARGET_ARCH must be defined for \"${_tgt}\" target"
+	@false
+.endif
+.endfor
 
 #
 # Make sure we have an up-to-date make(1). Only world and buildworld
@@ -384,10 +407,13 @@ upgrade_checks: .PHONY
 # headers, libraries and tools.  Also, allow the location of
 # the system bsdmake-like utility to be overridden.
 #
-MMAKEENV=	MAKEOBJDIRPREFIX=${MYMAKE:H} \
+MMAKEENV=	\
 		DESTDIR= \
 		INSTALL="sh ${.CURDIR}/tools/install.sh"
 MMAKE=		${MMAKEENV} ${MAKE} \
+		OBJTOP=${MYMAKE:H}/obj \
+		OBJROOT='$${OBJTOP}/' \
+		MAKEOBJDIRPREFIX= \
 		MAN= -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WERROR \
 		-DNO_SUBDIR \
@@ -435,7 +461,7 @@ worlds: .PHONY
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
 TARGETS?=amd64 arm arm64 i386 mips powerpc riscv sparc64
 _UNIVERSE_TARGETS=	${TARGETS}
-TARGET_ARCHES_arm?=	arm armeb armv6
+TARGET_ARCHES_arm?=	arm armeb armv6 armv7
 TARGET_ARCHES_arm64?=	aarch64
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32 mipselhf mipshf mips64elhf mips64hf
 TARGET_ARCHES_powerpc?=	powerpc powerpc64 powerpcspe

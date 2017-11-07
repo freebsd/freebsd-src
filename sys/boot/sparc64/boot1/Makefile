@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.init.mk>
+
 PROG=	boot1.elf
 INTERNALPROG=
 MAN=
@@ -11,8 +13,8 @@ BOOTBLOCKBASE= 0x4000
 
 CFLAGS.clang+=-mcmodel=small
 CFLAGS.gcc+=-mcmodel=medlow
-CFLAGS+=-Os -I${.CURDIR}/../../common
-LDFLAGS=-Ttext ${BOOTBLOCKBASE} -Wl,-N
+CFLAGS+=-Os -I${LDRSRC}
+LDFLAGS+=-Ttext ${BOOTBLOCKBASE} -Wl,-N
 
 # Construct boot1. sunlabel expects it to contain zeroed-out space for the
 # label, and to be of the correct size.
@@ -25,6 +27,6 @@ ${FILES}: boot1.aout
 boot1.aout: boot1.elf
 	elf2aout -o ${.TARGET} ${.ALLSRC}
 
-boot1.o: ${.CURDIR}/../../common/ufsread.c
+boot1.o: ${SASRC}/ufsread.c
 
 .include <bsd.prog.mk>

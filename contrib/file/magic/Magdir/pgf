@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: pgf,v 1.1 2013/04/22 15:19:49 christos Exp $
+# $File: pgf,v 1.2 2017/03/17 21:35:28 christos Exp $
 # pgf: file(1) magic for Progressive Graphics File (PGF)
 #
 # <http://www.libpgf.org/uploads/media/PGF_Details_01.pdf>
@@ -42,7 +42,7 @@
 >>20	byte	19	RGB color 12,
 >>20	byte	20	RGB color 16,
 >>20	byte	255	unknown format,
->>20	default	x	format 
+>>20	default	x	format
 >>>20	byte	x	\b %d,
 >>21	byte	x	%d bpc
 #	PGFPostHeader

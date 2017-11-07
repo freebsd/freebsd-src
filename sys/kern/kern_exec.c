@@ -849,28 +849,23 @@ interpret:
 	p->p_args = newargs;
 	newargs = NULL;
 
+	PROC_UNLOCK(p);
+
 #ifdef	HWPMC_HOOKS
 	/*
 	 * Check if system-wide sampling is in effect or if the
 	 * current process is using PMCs.  If so, do exec() time
 	 * processing.  This processing needs to happen AFTER the
 	 * P_INEXEC flag is cleared.
-	 *
-	 * The proc lock needs to be released before taking the PMC
-	 * SX.
 	 */
 	if (PMC_SYSTEM_SAMPLING_ACTIVE() || PMC_PROC_IS_USING_PMCS(p)) {
-		PROC_UNLOCK(p);
 		VOP_UNLOCK(imgp->vp, 0);
 		pe.pm_credentialschanged = credential_changing;
 		pe.pm_entryaddr = imgp->entry_addr;
 
 		PMC_CALL_HOOK_X(td, PMC_FN_PROCESS_EXEC, (void *) &pe);
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
-	} else
-		PROC_UNLOCK(p);
-#else  /* !HWPMC_HOOKS */
-	PROC_UNLOCK(p);
+	}
 #endif
 
 	/* Set values passed into the program in registers. */
@@ -905,10 +900,12 @@ exec_fail_dealloc:
 	free(imgp->freepath, M_TEMP);
 
 	if (error == 0) {
-		PROC_LOCK(p);
-		if (p->p_ptevents & PTRACE_EXEC)
-			td->td_dbgflags |= TDB_EXEC;
-		PROC_UNLOCK(p);
+		if (p->p_ptevents & PTRACE_EXEC) {
+			PROC_LOCK(p);
+			if (p->p_ptevents & PTRACE_EXEC)
+				td->td_dbgflags |= TDB_EXEC;
+			PROC_UNLOCK(p);
+		}
 
 		/*
 		 * Stop the process here if its stop event mask has

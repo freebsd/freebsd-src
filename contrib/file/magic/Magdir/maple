@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: maple,v 1.7 2013/01/11 16:45:23 christos Exp $
+# $File: maple,v 1.8 2017/03/17 21:35:28 christos Exp $
 # maple:  file(1) magic for maple files
 # "H. Nanosecond" <aldomel@ix.netcom.com>
 # Maple V release 4, a multi-purpose math program
@@ -13,7 +13,7 @@
 # no magic for these :-(
 # they are compiled indexes for maple files
 
-# .hdb 
+# .hdb
 0	string	\000\004\000\000	Maple help database
 
 # .mhp
@@ -40,7 +40,7 @@
 # from byte 4 it is either 'nul E' or 'soh R'
 # I think 'nul E' means a file that was saved as  a different name
 # a sort of revision marking
-# 'soh R' means new 
+# 'soh R' means new
 >4	string	\000\105	An old revision
 >4	string	\001\122	The latest save
 

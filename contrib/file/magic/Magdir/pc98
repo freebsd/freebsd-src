@@ -8,7 +8,7 @@
 # http://www.jisyo.com/viewer/faq/maki_tech.htm
 0	string/b		MAKI01 	Maki-chan v1.
 >6	ubyte|0x20	x		\b%c image
->8	ubelong		>0x40404040	\b, system ID: 
+>8	ubelong		>0x40404040	\b, system ID:
 >>8	byte		x		%c
 >>9	byte		x		\b%c
 >>10	byte		x		\b%c

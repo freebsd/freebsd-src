@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -55,6 +59,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <dev/bhnd/bhnd.h>
+#include <dev/bhnd/bhndreg.h>
+
+#include <dev/bhnd/bhnd_erom.h>
+#include <dev/bhnd/bhnd_eromvar.h>
 
 #include <dev/bhnd/cores/pci/bhnd_pcireg.h>
 
@@ -62,15 +70,24 @@ __FBSDID("$FreeBSD$");
 #include "bhndb_pcivar.h"
 #include "bhndb_private.h"
 
+struct bhndb_pci_eio;
+
 static int		bhndb_pci_init_msi(struct bhndb_pci_softc *sc);
+static int		bhndb_pci_read_core_table(device_t dev,
+			    struct bhnd_chipid *chipid,
+			    struct bhnd_core_info **cores, u_int *ncores,
+			    bhnd_erom_class_t **eromcls);
 static int		bhndb_pci_add_children(struct bhndb_pci_softc *sc);
 
-static int		bhndb_enable_pci_clocks(struct bhndb_pci_softc *sc);
-static int		bhndb_disable_pci_clocks(struct bhndb_pci_softc *sc);
+static bool		bhndb_is_pcie_attached(device_t dev);
 
-static int		bhndb_pci_compat_setregwin(struct bhndb_pci_softc *,
-			    const struct bhndb_regwin *, bhnd_addr_t);
-static int		bhndb_pci_fast_setregwin(struct bhndb_pci_softc *,
+static int		bhndb_enable_pci_clocks(device_t dev);
+static int		bhndb_disable_pci_clocks(device_t dev);
+
+static int		bhndb_pci_compat_setregwin(device_t dev,
+			    device_t pci_dev, const struct bhndb_regwin *,
+			    bhnd_addr_t);
+static int		bhndb_pci_fast_setregwin(device_t dev, device_t pci_dev,
 			    const struct bhndb_regwin *, bhnd_addr_t);
 
 static void		bhndb_init_sromless_pci_config(
@@ -79,7 +96,29 @@ static void		bhndb_init_sromless_pci_config(
 static bus_addr_t	bhndb_pci_sprom_addr(struct bhndb_pci_softc *sc);
 static bus_size_t	bhndb_pci_sprom_size(struct bhndb_pci_softc *sc);
 
+static int		bhndb_pci_eio_init(struct bhndb_pci_eio *pio,
+			    device_t dev, device_t pci_dev,
+			    struct bhndb_host_resources *hr);
+static int		bhndb_pci_eio_map(struct bhnd_erom_io *eio,
+			    bhnd_addr_t addr, bhnd_size_t size);
+static uint32_t		bhndb_pci_eio_read(struct bhnd_erom_io *eio,
+			    bhnd_size_t offset, u_int width);
+
 #define	BHNDB_PCI_MSI_COUNT	1
+
+/* bhndb_pci erom I/O implementation */
+struct bhndb_pci_eio {
+	struct bhnd_erom_io		 eio;
+	device_t			 dev;		/**< bridge device */
+	device_t			 pci_dev;	/**< parent PCI device */
+	struct bhndb_host_resources	*hr;		/**< borrowed reference to host resources */
+	const struct bhndb_regwin	*win;		/**< mapped register window, or NULL */
+	struct resource			*res;		/**< resource containing the register window, or NULL if no window mapped */
+	bhnd_addr_t			 res_target;	/**< current target address (if mapped) */
+	bool				 mapped;	/**< true if a valid mapping exists, false otherwise */
+	bhnd_addr_t			 addr;		/**< mapped address */
+	bhnd_size_t			 size;		/**< mapped size */
+};
 
 /** 
  * Default bhndb_pci implementation of device_probe().
@@ -137,17 +176,23 @@ static int
 bhndb_pci_attach(device_t dev)
 {
 	struct bhndb_pci_softc	*sc;
+	struct bhnd_chipid	 cid;
+	struct bhnd_core_info	*cores, hostb_core;
+	bhnd_erom_class_t	*erom_class;
+	u_int			 ncores;
 	int			 error, reg;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->parent = device_get_parent(dev);
-	sc->set_regwin = bhndb_pci_compat_setregwin;
+	sc->set_regwin = NULL;
+
+	cores = NULL;
 
 	/* Enable PCI bus mastering */
 	pci_enable_busmaster(sc->parent);
 
-	/* Set up interrupt handling */
+	/* Set up PCI interrupt handling */
 	if (bhndb_pci_init_msi(sc) == 0) {
 		device_printf(dev, "Using MSI interrupts on %s\n",
 		    device_get_nameunit(sc->parent));
@@ -165,22 +210,32 @@ bhndb_pci_attach(device_t dev)
 		sc->pci_devclass = BHND_DEVCLASS_PCI;
 
 	/* Enable clocks (if required by this hardware) */
-	if ((error = bhndb_enable_pci_clocks(sc)))
+	if ((error = bhndb_enable_pci_clocks(sc->dev)))
 		goto cleanup;
 
-	/* Perform bridge attach, fully initializing the bridge
-	 * configuration. */
-	if ((error = bhndb_attach(dev, sc->pci_devclass)))
+	/* Identify the chip and enumerate the bridged cores */
+	error = bhndb_pci_read_core_table(dev, &cid, &cores, &ncores,
+	    &erom_class);
+	if (error)
 		goto cleanup;
 
-	/* If supported, switch to faster regwin handling */
-	if (sc->bhndb.chipid.chip_type != BHND_CHIPTYPE_SIBA) {
-		atomic_store_rel_ptr((volatile void *) &sc->set_regwin,
-		    (uintptr_t) &bhndb_pci_fast_setregwin);
+	/* Select the appropriate register window handler */
+	if (cid.chip_type == BHND_CHIPTYPE_SIBA) {
+		sc->set_regwin = bhndb_pci_compat_setregwin;
+	} else {
+		sc->set_regwin = bhndb_pci_fast_setregwin;
 	}
 
-	/* Enable PCI bus mastering */
-	pci_enable_busmaster(sc->parent);
+	/* Determine our host bridge core */
+	error = bhndb_find_hostb_core(cores, ncores, sc->pci_devclass,
+	    &hostb_core);
+	if (error)
+		goto cleanup;
+
+	/* Perform bridge attach */
+	error = bhndb_attach(dev, &cid, cores, ncores, &hostb_core, erom_class);
+	if (error)
+		goto cleanup;
 
 	/* Fix-up power on defaults for SROM-less devices. */
 	bhndb_init_sromless_pci_config(sc);
@@ -193,13 +248,19 @@ bhndb_pci_attach(device_t dev)
 	if ((error = bus_generic_attach(dev)))
 		goto cleanup;
 
+	free(cores, M_BHND);
+
 	return (0);
 
 cleanup:
 	device_delete_children(dev);
-	bhndb_disable_pci_clocks(sc);
+	bhndb_disable_pci_clocks(sc->dev);
+
 	if (sc->intr.msi_count > 0)
 		pci_release_msi(dev);
+
+	if (cores != NULL)
+		free(cores, M_BHND);
 
 	pci_disable_busmaster(sc->parent);
 
@@ -223,7 +284,7 @@ bhndb_pci_detach(device_t dev)
 		return (error);
 
 	/* Disable clocks (if required by this hardware) */
-	if ((error = bhndb_disable_pci_clocks(sc)))
+	if ((error = bhndb_disable_pci_clocks(sc->dev)))
 		return (error);
 
 	/* Release MSI interrupts */
@@ -234,6 +295,124 @@ bhndb_pci_detach(device_t dev)
 	pci_disable_busmaster(sc->parent);
 
 	return (0);
+}
+
+/**
+ * Use the generic PCI bridge hardware configuration to enumerate the bridged
+ * bhnd(4) bus' core table.
+ * 
+ * @note This function may be safely called prior to device attach, (e.g.
+ * from DEVICE_PROBE).
+ * @note This function requires exclusive ownership over allocating and 
+ * configuring host bridge resources, and should only be called prior to
+ * completion of device attach and full configuration of the bridge.
+ * 
+ * @param	dev		The bhndb_pci bridge device.
+ * @param[out]	chipid		On success, the parsed chip identification.
+ * @param[out]	cores		On success, the enumerated core table. The
+ *				caller is responsible for freeing this table via
+ *				bhndb_pci_free_core_table().
+ * @param[out]	ncores		On success, the number of cores found in
+ *				@p cores.
+ * @param[out]	eromcls		On success, a pointer to the erom class used to
+ *				parse the device enumeration table. This
+ *				argument may be NULL if the class is not
+ *				desired.
+ * 
+ * @retval 0		success
+ * @retval non-zero	if enumerating the bridged bhnd(4) bus fails, a regular
+ * 			unix error code will be returned.
+ */
+static int
+bhndb_pci_read_core_table(device_t dev, struct bhnd_chipid *chipid,
+    struct bhnd_core_info **cores, u_int *ncores,
+    bhnd_erom_class_t **eromcls)
+{
+	const struct bhndb_hwcfg	*cfg;
+	struct bhndb_host_resources	*hr;
+	struct bhndb_pci_eio		 pio;
+	struct bhnd_core_info		*erom_cores;
+	const struct bhnd_chipid	*hint;
+	struct bhnd_chipid		 cid;
+	bhnd_erom_class_t		*erom_class;
+	bhnd_erom_t			*erom;
+	device_t			 parent_dev;
+	u_int				 erom_ncores;
+	int				 error;
+
+	parent_dev = device_get_parent(dev);
+	erom = NULL;
+	erom_cores = NULL;
+
+	/* Fetch our chipid hint (if any) and generic hardware configuration */
+	cfg = BHNDB_BUS_GET_GENERIC_HWCFG(parent_dev, dev);
+	hint = BHNDB_BUS_GET_CHIPID(parent_dev, dev);
+
+	/* Allocate our host resources */
+	if ((error = bhndb_alloc_host_resources(parent_dev, cfg, &hr)))
+		return (error);
+
+	/* Initialize our erom I/O state */
+	if ((error = bhndb_pci_eio_init(&pio, dev, parent_dev, hr)))
+		goto failed;
+
+	/* Map the first bus core from our bridged bhnd(4) bus */
+	error = bhndb_pci_eio_map(&pio.eio, BHND_DEFAULT_CHIPC_ADDR,
+	    BHND_DEFAULT_CORE_SIZE);
+	if (error)
+		goto failed;
+
+	/* Probe for a usable EROM class, and read the chip identifier */
+	erom_class = bhnd_erom_probe_driver_classes(device_get_devclass(dev),
+	    &pio.eio, hint, &cid);
+	if (erom_class == NULL) {
+		device_printf(dev, "device enumeration unsupported; no "
+		    "compatible driver found\n");
+
+		error = ENXIO;
+		goto failed;
+	}
+
+	/* Allocate EROM parser */
+	if ((erom = bhnd_erom_alloc(erom_class, &cid, &pio.eio)) == NULL) {
+		device_printf(dev, "failed to allocate device enumeration "
+		    "table parser\n");
+		error = ENXIO;
+		goto failed;
+	}
+
+	/* Read the full core table */
+	error = bhnd_erom_get_core_table(erom, &erom_cores, &erom_ncores);
+	if (error) {
+		device_printf(dev, "error fetching core table: %d\n", error);
+		goto failed;
+	}
+
+	/* Provide the results to our caller */
+	*cores = malloc(sizeof(erom_cores[0]) * erom_ncores, M_BHND, M_WAITOK);
+	memcpy(*cores, erom_cores, sizeof(erom_cores[0]) * erom_ncores);
+	*ncores = erom_ncores;
+
+	*chipid = cid;
+	if (eromcls != NULL)
+		*eromcls = erom_class;
+
+	/* Clean up */
+	bhnd_erom_free_core_table(erom, erom_cores);
+	bhnd_erom_free(erom);
+	bhndb_release_host_resources(hr);
+
+	return (0);
+
+failed:
+	if (erom_cores != NULL)
+		bhnd_erom_free_core_table(erom, erom_cores);
+
+	if (erom != NULL)
+		bhnd_erom_free(erom);
+
+	bhndb_release_host_resources(hr);
+	return (error);
 }
 
 static int
@@ -309,7 +488,7 @@ bhndb_pci_sprom_addr(struct bhndb_pci_softc *sc)
 	KASSERT(sprom_win != NULL, ("requested sprom address on PCI_V2+"));
 
 	/* Fetch the associated resource */
-	r = bhndb_find_regwin_resource(sc->bhndb.bus_res, sprom_win);
+	r = bhndb_host_resource_for_regwin(sc->bhndb.bus_res->res, sprom_win);
 	KASSERT(r != NULL, ("missing resource for sprom window\n"));
 
 	return (rman_get_start(r) + sprom_win->win_offset);
@@ -419,7 +598,7 @@ bhndb_init_sromless_pci_config(struct bhndb_pci_softc *sc)
 	}
 
 	/* Fetch the resource containing the register window */
-	core_regs = bhndb_find_regwin_resource(bres, win);
+	core_regs = bhndb_host_resource_for_regwin(bres->res, win);
 	if (core_regs == NULL) {
 		device_printf(sc->dev, "missing PCI core register resource\n");
 		return;
@@ -449,7 +628,7 @@ bhndb_pci_resume(device_t dev)
 	sc = device_get_softc(dev);
 	
 	/* Enable clocks (if supported by this hardware) */
-	if ((error = bhndb_enable_pci_clocks(sc)))
+	if ((error = bhndb_enable_pci_clocks(sc->dev)))
 		return (error);
 
 	/* Perform resume */
@@ -465,7 +644,7 @@ bhndb_pci_suspend(device_t dev)
 	sc = device_get_softc(dev);
 	
 	/* Disable clocks (if supported by this hardware) */
-	if ((error = bhndb_disable_pci_clocks(sc)))
+	if ((error = bhndb_disable_pci_clocks(sc->dev)))
 		return (error);
 
 	/* Perform suspend */
@@ -477,7 +656,7 @@ bhndb_pci_set_window_addr(device_t dev, const struct bhndb_regwin *rw,
     bhnd_addr_t addr)
 {
 	struct bhndb_pci_softc *sc = device_get_softc(dev);
-	return (sc->set_regwin(sc, rw, addr));
+	return (sc->set_regwin(sc->dev, sc->parent, rw, addr));
 }
 
 /**
@@ -491,7 +670,7 @@ bhndb_pci_set_window_addr(device_t dev, const struct bhndb_regwin *rw,
  * validating the register, there's no harm in performing the verification.
  */
 static int
-bhndb_pci_compat_setregwin(struct bhndb_pci_softc *sc,
+bhndb_pci_compat_setregwin(device_t dev, device_t pci_dev,
     const struct bhndb_regwin *rw, bhnd_addr_t addr)
 {
 	int		error;
@@ -502,10 +681,10 @@ bhndb_pci_compat_setregwin(struct bhndb_pci_softc *sc,
 
 	reg = rw->d.dyn.cfg_offset;
 	for (u_int i = 0; i < BHNDB_PCI_BARCTRL_WRITE_RETRY; i++) {
-		if ((error = bhndb_pci_fast_setregwin(sc, rw, addr)))
+		if ((error = bhndb_pci_fast_setregwin(dev, pci_dev, rw, addr)))
 			return (error);
 
-		if (pci_read_config(sc->parent, reg, 4) == addr)
+		if (pci_read_config(pci_dev, reg, 4) == addr)
 			return (0);
 
 		DELAY(10);
@@ -519,7 +698,7 @@ bhndb_pci_compat_setregwin(struct bhndb_pci_softc *sc,
  * A bcma(4)-only bhndb_set_window_addr implementation.
  */
 static int
-bhndb_pci_fast_setregwin(struct bhndb_pci_softc *sc,
+bhndb_pci_fast_setregwin(device_t dev, device_t pci_dev,
     const struct bhndb_regwin *rw, bhnd_addr_t addr)
 {
 	/* The PCI bridge core only supports 32-bit addressing, regardless
@@ -533,7 +712,7 @@ bhndb_pci_fast_setregwin(struct bhndb_pci_softc *sc,
 		if (addr % rw->win_size != 0)
 			return (EINVAL);
 
-		pci_write_config(sc->parent, rw->d.dyn.cfg_offset, addr, 4);
+		pci_write_config(pci_dev, rw->d.dyn.cfg_offset, addr, 4);
 		break;
 	default:
 		return (ENODEV);
@@ -591,6 +770,23 @@ bhndb_pci_populate_board_info(device_t dev, device_t child,
 }
 
 /**
+ * Return true if the bridge device @p bhndb is attached via PCIe,
+ * false otherwise.
+ *
+ * @param dev The bhndb bridge device
+ */
+static bool
+bhndb_is_pcie_attached(device_t dev)
+{
+	int reg;
+
+	if (pci_find_cap(device_get_parent(dev), PCIY_EXPRESS, &reg) == 0)
+		return (true);
+
+	return (false);
+}
+
+/**
  * Enable externally managed clocks, if required.
  * 
  * Some PCI chipsets (BCM4306, possibly others) chips do not support
@@ -598,77 +794,89 @@ bhndb_pci_populate_board_info(device_t dev, device_t child,
  * attach/resume by directly adjusting GPIO registers exposed in the
  * PCI config space, and correspondingly, explicitly shutdown at
  * detach/suspend.
- * 
- * @param sc Bridge driver state.
+ *
+ * @note This function may be safely called prior to device attach, (e.g.
+ * from DEVICE_PROBE).
+ *
+ * @param dev The bhndb bridge device
  */
 static int
-bhndb_enable_pci_clocks(struct bhndb_pci_softc *sc)
+bhndb_enable_pci_clocks(device_t dev)
 {
+	device_t		pci_dev;
 	uint32_t		gpio_in, gpio_out, gpio_en;
 	uint32_t		gpio_flags;
 	uint16_t		pci_status;
 
+	pci_dev = device_get_parent(dev);
+
 	/* Only supported and required on PCI devices */
-	if (sc->pci_devclass != BHND_DEVCLASS_PCI)
+	if (!bhndb_is_pcie_attached(dev))
 		return (0);
 
 	/* Read state of XTAL pin */
-	gpio_in = pci_read_config(sc->parent, BHNDB_PCI_GPIO_IN, 4);
+	gpio_in = pci_read_config(pci_dev, BHNDB_PCI_GPIO_IN, 4);
 	if (gpio_in & BHNDB_PCI_GPIO_XTAL_ON)
 		return (0); /* already enabled */
 
 	/* Fetch current config */
-	gpio_out = pci_read_config(sc->parent, BHNDB_PCI_GPIO_OUT, 4);
-	gpio_en = pci_read_config(sc->parent, BHNDB_PCI_GPIO_OUTEN, 4);
+	gpio_out = pci_read_config(pci_dev, BHNDB_PCI_GPIO_OUT, 4);
+	gpio_en = pci_read_config(pci_dev, BHNDB_PCI_GPIO_OUTEN, 4);
 
 	/* Set PLL_OFF/XTAL_ON pins to HIGH and enable both pins */
 	gpio_flags = (BHNDB_PCI_GPIO_PLL_OFF|BHNDB_PCI_GPIO_XTAL_ON);
 	gpio_out |= gpio_flags;
 	gpio_en |= gpio_flags;
 
-	pci_write_config(sc->parent, BHNDB_PCI_GPIO_OUT, gpio_out, 4);
-	pci_write_config(sc->parent, BHNDB_PCI_GPIO_OUTEN, gpio_en, 4);
+	pci_write_config(pci_dev, BHNDB_PCI_GPIO_OUT, gpio_out, 4);
+	pci_write_config(pci_dev, BHNDB_PCI_GPIO_OUTEN, gpio_en, 4);
 	DELAY(1000);
 
 	/* Reset PLL_OFF */
 	gpio_out &= ~BHNDB_PCI_GPIO_PLL_OFF;
-	pci_write_config(sc->parent, BHNDB_PCI_GPIO_OUT, gpio_out, 4);
+	pci_write_config(pci_dev, BHNDB_PCI_GPIO_OUT, gpio_out, 4);
 	DELAY(5000);
 
 	/* Clear any PCI 'sent target-abort' flag. */
-	pci_status = pci_read_config(sc->parent, PCIR_STATUS, 2);
+	pci_status = pci_read_config(pci_dev, PCIR_STATUS, 2);
 	pci_status &= ~PCIM_STATUS_STABORT;
-	pci_write_config(sc->parent, PCIR_STATUS, pci_status, 2);
+	pci_write_config(pci_dev, PCIR_STATUS, pci_status, 2);
 
 	return (0);
 }
 
 /**
  * Disable externally managed clocks, if required.
- * 
- * @param sc Bridge driver state.
+ *
+ * This function may be safely called prior to device attach, (e.g.
+ * from DEVICE_PROBE).
+ *
+ * @param dev The bhndb bridge device
  */
 static int
-bhndb_disable_pci_clocks(struct bhndb_pci_softc *sc)
+bhndb_disable_pci_clocks(device_t dev)
 {
+	device_t	pci_dev;
 	uint32_t	gpio_out, gpio_en;
 
+	pci_dev = device_get_parent(dev);
+
 	/* Only supported and required on PCI devices */
-	if (sc->pci_devclass != BHND_DEVCLASS_PCI)
+	if (bhndb_is_pcie_attached(dev))
 		return (0);
 
 	/* Fetch current config */
-	gpio_out = pci_read_config(sc->parent, BHNDB_PCI_GPIO_OUT, 4);
-	gpio_en = pci_read_config(sc->parent, BHNDB_PCI_GPIO_OUTEN, 4);
+	gpio_out = pci_read_config(pci_dev, BHNDB_PCI_GPIO_OUT, 4);
+	gpio_en = pci_read_config(pci_dev, BHNDB_PCI_GPIO_OUTEN, 4);
 
 	/* Set PLL_OFF to HIGH, XTAL_ON to LOW. */
 	gpio_out &= ~BHNDB_PCI_GPIO_XTAL_ON;
 	gpio_out |= BHNDB_PCI_GPIO_PLL_OFF;
-	pci_write_config(sc->parent, BHNDB_PCI_GPIO_OUT, gpio_out, 4);
+	pci_write_config(pci_dev, BHNDB_PCI_GPIO_OUT, gpio_out, 4);
 
 	/* Enable both output pins */
 	gpio_en |= (BHNDB_PCI_GPIO_PLL_OFF|BHNDB_PCI_GPIO_XTAL_ON);
-	pci_write_config(sc->parent, BHNDB_PCI_GPIO_OUTEN, gpio_en, 4);
+	pci_write_config(pci_dev, BHNDB_PCI_GPIO_OUTEN, gpio_en, 4);
 
 	return (0);
 }
@@ -683,7 +891,7 @@ bhndb_pci_pwrctl_get_clksrc(device_t dev, device_t child,
 	sc = device_get_softc(dev);
 
 	/* Only supported on PCI devices */
-	if (sc->pci_devclass != BHND_DEVCLASS_PCI)
+	if (bhndb_is_pcie_attached(sc->dev))
 		return (ENODEV);
 
 	/* Only ILP is supported */
@@ -704,14 +912,14 @@ bhndb_pci_pwrctl_gate_clock(device_t dev, device_t child,
 	struct bhndb_pci_softc *sc = device_get_softc(dev);
 
 	/* Only supported on PCI devices */
-	if (sc->pci_devclass != BHND_DEVCLASS_PCI)
+	if (bhndb_is_pcie_attached(sc->dev))
 		return (ENODEV);
 
 	/* Only HT is supported */
 	if (clock != BHND_CLOCK_HT)
 		return (ENXIO);
 
-	return (bhndb_disable_pci_clocks(sc));
+	return (bhndb_disable_pci_clocks(sc->dev));
 }
 
 static int
@@ -721,14 +929,14 @@ bhndb_pci_pwrctl_ungate_clock(device_t dev, device_t child,
 	struct bhndb_pci_softc *sc = device_get_softc(dev);
 
 	/* Only supported on PCI devices */
-	if (sc->pci_devclass != BHND_DEVCLASS_PCI)
+	if (bhndb_is_pcie_attached(sc->dev))
 		return (ENODEV);
 
 	/* Only HT is supported */
 	if (clock != BHND_CLOCK_HT)
 		return (ENXIO);
 
-	return (bhndb_enable_pci_clocks(sc));
+	return (bhndb_enable_pci_clocks(sc->dev));
 }
 
 static int
@@ -752,6 +960,191 @@ bhndb_pci_assign_intr(device_t dev, device_t child, int rid)
 
 	/* Add to child's resource list */
         return (bus_set_resource(child, SYS_RES_IRQ, rid, start, count));
+}
+
+/**
+ * Initialize a new bhndb PCI bridge EROM I/O instance. This EROM I/O
+ * implementation supports mapping of the device enumeration table via the
+ * @p hr host resources.
+ * 
+ * @param pio		The instance to be initialized.
+ * @param dev		The bridge device.
+ * @param pci_dev	The bridge's parent PCI device.
+ * @param hr		The host resources to be used to map the device
+ *			enumeration table.
+ */
+static int
+bhndb_pci_eio_init(struct bhndb_pci_eio *pio, device_t dev, device_t pci_dev,
+    struct bhndb_host_resources *hr)
+{
+	memset(&pio->eio, sizeof(pio->eio), 0);
+	pio->eio.map = bhndb_pci_eio_map;
+	pio->eio.read = bhndb_pci_eio_read;
+	pio->eio.fini = NULL;
+
+	pio->dev = dev;
+	pio->pci_dev = pci_dev;
+	pio->hr = hr;
+	pio->win = NULL;
+	pio->res = NULL;
+
+	return (0);
+}
+
+/**
+ * Attempt to adjust the dynamic register window backing @p pio to permit
+ * reading @p size bytes at @p addr.
+ * 
+ * If @p addr or @p size fall outside the existing mapped range, or if
+ * @p pio is not backed by a dynamic register window, ENXIO will be returned.
+ * 
+ * @param pio	The bhndb PCI erom I/O state to be modified.
+ * @param addr	The address to be include
+ */
+static int
+bhndb_pci_eio_adjust_mapping(struct bhndb_pci_eio *pio, bhnd_addr_t addr,
+    bhnd_size_t size)
+{
+	bhnd_addr_t	 target;
+	bhnd_size_t	 offset;
+	int		 error;
+
+
+	KASSERT(pio->win != NULL, ("missing register window"));
+	KASSERT(pio->res != NULL, ("missing regwin resource"));
+	KASSERT(pio->win->win_type == BHNDB_REGWIN_T_DYN,
+	    ("unexpected window type %d", pio->win->win_type));
+
+	/* The requested subrange must fall within the total mapped range */
+	if (addr < pio->addr || (addr - pio->addr) > pio->size ||
+	    size > pio->size || (addr - pio->addr) - pio->size < size)
+	{
+		return (ENXIO);
+	}
+
+	/* Do we already have a useable mapping? */
+	if (addr >= pio->res_target &&
+	    addr <= pio->res_target + pio->win->win_size &&
+	    (pio->res_target + pio->win->win_size) - addr >= size)
+	{
+		return (0);
+	}
+
+	/* Page-align the target address */
+	offset = addr % pio->win->win_size;
+	target = addr - offset;
+
+	/* Configure the register window */
+	error = bhndb_pci_compat_setregwin(pio->dev, pio->pci_dev, pio->win,
+	    target);
+	if (error) {
+		device_printf(pio->dev, "failed to configure dynamic register "
+		    "window: %d\n", error);
+		return (error);
+	}
+
+	pio->res_target = target;
+	return (0);
+}
+
+/* bhnd_erom_io_map() implementation */
+static int
+bhndb_pci_eio_map(struct bhnd_erom_io *eio, bhnd_addr_t addr,
+    bhnd_size_t size)
+{
+	struct bhndb_pci_eio		*pio;
+	const struct bhndb_regwin	*regwin;
+	struct resource			*r;
+	bhnd_addr_t			 target;
+	bhnd_size_t			 offset;
+	int				 error;
+
+	pio = (struct bhndb_pci_eio *)eio;
+
+	/* Locate a useable dynamic register window */
+	regwin = bhndb_regwin_find_type(pio->hr->cfg->register_windows,
+	    BHNDB_REGWIN_T_DYN, MIN(size, BHND_DEFAULT_CORE_SIZE));
+	if (regwin == NULL) {
+		device_printf(pio->dev, "unable to map %#jx+%#jx; no "
+		    "usable dynamic register window found\n", addr, size);
+		return (ENXIO);
+	}
+
+	/* Locate the host resource mapping our register window */
+	if ((r = bhndb_host_resource_for_regwin(pio->hr, regwin)) == NULL) {
+		device_printf(pio->dev, "unable to map %#jx+%#jx; no "
+		    "usable register resource found\n", addr, size);
+		return (ENXIO);
+	}
+
+	/* Page-align the target address */
+	offset = addr % regwin->win_size;
+	target = addr - offset;
+
+	/* Configure the register window */
+	error = bhndb_pci_compat_setregwin(pio->dev, pio->pci_dev, regwin,
+	    target);
+	if (error) {
+		device_printf(pio->dev, "failed to configure dynamic register "
+		    "window: %d\n", error);
+		return (error);
+	}
+
+	/* Update our mapping state */
+	pio->win = regwin;
+	pio->res = r;
+	pio->addr = addr;
+	pio->size = size;
+	pio->res_target = target;
+
+	return (0);
+}
+
+/* bhnd_erom_io_read() implementation */
+static uint32_t
+bhndb_pci_eio_read(struct bhnd_erom_io *eio, bhnd_size_t offset, u_int width)
+{
+	struct bhndb_pci_eio		*pio;
+	bhnd_addr_t			 addr;
+	bus_size_t			 res_offset;
+	int				 error;
+
+	pio = (struct bhndb_pci_eio *)eio;
+
+	/* Calculate absolute address */
+	if (BHND_SIZE_MAX - offset < pio->addr) {
+		device_printf(pio->dev, "invalid offset %#jx+%#jx\n", pio->addr,
+		    offset);
+		return (UINT32_MAX);
+	}
+
+	addr = pio->addr + offset;
+
+	/* Adjust the mapping for our read */
+	if ((error = bhndb_pci_eio_adjust_mapping(pio, addr, width))) {
+		device_printf(pio->dev, "failed to adjust register mapping: "
+		    "%d\n", error);
+		return (UINT32_MAX);
+	}
+
+	KASSERT(pio->res_target <= addr, ("invalid mapping (%#jx vs. %#jx)",
+	    pio->res_target, addr));
+
+	/* Determine the actual read offset within our register window
+	 * resource */
+	res_offset = (addr - pio->res_target) + pio->win->win_offset;
+
+	/* Perform our read */
+	switch (width) {
+	case 1:
+		return (bus_read_1(pio->res, res_offset));
+	case 2:
+		return (bus_read_2(pio->res, res_offset));
+	case 4:
+		return (bus_read_4(pio->res, res_offset));
+	default:
+		panic("unsupported width: %u", width);
+	}
 }
 
 static device_method_t bhndb_pci_methods[] = {

@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.53 2017/01/11 20:01:09 sjg Exp $
+#	$Id: os.sh,v 1.54 2017/09/08 06:17:22 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -246,5 +246,7 @@ case /$0 in
 		echo "$v='$vv'"
 	done
 	;;
+*/host_target32) echo $HOST_TARGET32;;
+*/host_target) echo $HOST_TARGET;;
 esac
 

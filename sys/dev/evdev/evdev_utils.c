@@ -32,7 +32,9 @@
 #include <sys/conf.h>
 #include <sys/kbio.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 
 #include <dev/evdev/evdev.h>
@@ -138,7 +140,7 @@ static uint16_t evdev_at_set1_scancodes[] = {
 	KEY_KP8,	KEY_KP9,	KEY_KPMINUS,	KEY_KP4,
 	KEY_KP5,	KEY_KP6,	KEY_KPPLUS,	KEY_KP1,
 	KEY_KP2,	KEY_KP3,	KEY_KP0,	KEY_KPDOT,
-	NONE,		NONE,		NONE,		KEY_F11,
+	NONE,		NONE,		KEY_102ND,	KEY_F11,
 	KEY_F12,	NONE,		NONE,		NONE,
 	NONE,		NONE,		NONE,		NONE,
 	/* 0x60 - 0x7f */
@@ -314,19 +316,26 @@ evdev_ev_kbd_event(struct evdev_dev *evdev, void *softc, uint16_t type,
 					leds |= 1 << i;
 				else
 					leds &= ~(1 << i);
-				if (leds != oleds)
+				if (leds != oleds) {
+					mtx_lock(&Giant);
 					kbdd_ioctl(kbd, KDSETLED,
 					    (caddr_t)&leds);
+					mtx_unlock(&Giant);
+				}
 				break;
 			}
 		}
 	} else if (type == EV_REP && code == REP_DELAY) {
 		delay[0] = value;
 		delay[1] = kbd->kb_delay2;
+		mtx_lock(&Giant);
 		kbdd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
+		mtx_unlock(&Giant);
 	} else if (type == EV_REP && code == REP_PERIOD) {
 		delay[0] = kbd->kb_delay1;
 		delay[1] = value;
+		mtx_lock(&Giant);
 		kbdd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
+		mtx_unlock(&Giant);
 	}
 }

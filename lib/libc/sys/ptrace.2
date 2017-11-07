@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd June 11, 2017
+.Dd September 14, 2017
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -762,6 +762,28 @@ The
 .Fa data
 argument is ignored.
 .El
+.Sh ARM MACHINE-SPECIFIC REQUESTS
+.Bl -tag -width "Dv PT_SETVFPREGS"
+.It Dv PT_GETVFPREGS
+Return the thread's
+.Dv VFP
+machine state in the buffer pointed to by
+.Fa addr .
+.Pp
+The
+.Fa data
+argument is ignored.
+.It Dv PT_SETVFPREGS
+Set the thread's
+.Dv VFP
+machine state from the buffer pointed to by
+.Fa addr .
+.Pp
+The
+.Fa data
+argument is ignored.
+.El
+.Pp
 .Sh x86 MACHINE-SPECIFIC REQUESTS
 .Bl -tag -width "Dv PT_GETXSTATE_INFO"
 .It Dv PT_GETXMMREGS

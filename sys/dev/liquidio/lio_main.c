@@ -1013,7 +1013,7 @@ lio_get_media_subtype(struct octeon_device *oct)
 	return (IFM_10G_SR);
 }
 
-static unsigned long
+static uint64_t
 lio_get_baudrate(struct octeon_device *oct)
 {
 
@@ -1318,15 +1318,16 @@ lio_setup_nic_devices(struct octeon_device *octeon_dev)
 
 		if (!(num_iqueues) || !(num_oqueues)) {
 			lio_dev_err(octeon_dev,
-				    "Got bad iqueues (%016lX) or oqueues (%016lX) from firmware.\n",
-				    resp->cfg_info.iqmask,
-				    resp->cfg_info.oqmask);
+				    "Got bad iqueues (%016llX) or oqueues (%016llX) from firmware.\n",
+				    LIO_CAST64(resp->cfg_info.iqmask),
+				    LIO_CAST64(resp->cfg_info.oqmask));
 			goto setup_nic_dev_fail;
 		}
 
 		lio_dev_dbg(octeon_dev,
-			    "interface %d, iqmask %016lx, oqmask %016lx, numiqueues %d, numoqueues %d\n",
-			    i, resp->cfg_info.iqmask, resp->cfg_info.oqmask,
+			    "interface %d, iqmask %016llx, oqmask %016llx, numiqueues %d, numoqueues %d\n",
+			    i, LIO_CAST64(resp->cfg_info.iqmask),
+			    LIO_CAST64(resp->cfg_info.oqmask),
 			    num_iqueues, num_oqueues);
 
 		ifp = if_alloc(IFT_ETHER);

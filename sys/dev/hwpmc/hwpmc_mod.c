@@ -311,27 +311,23 @@ SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_syspmcs, CTLFLAG_RWTUN,
 
 /* The `sysent' for the new syscall */
 static struct sysent pmc_sysent = {
-	2,			/* sy_narg */
-	pmc_syscall_handler	/* sy_call */
+	.sy_narg =	2,
+	.sy_call =	pmc_syscall_handler,
 };
 
 static struct syscall_module_data pmc_syscall_mod = {
-	load,
-	NULL,
-	&pmc_syscall_num,
-	&pmc_sysent,
-#if (__FreeBSD_version >= 1100000)
-	{ 0, NULL },
-	SY_THR_STATIC_KLD,
-#else
-	{ 0, NULL }
-#endif
+	.chainevh =	load,
+	.chainarg =	NULL,
+	.offset =	&pmc_syscall_num,
+	.new_sysent =	&pmc_sysent,
+	.old_sysent =	{ .sy_narg = 0, .sy_call = NULL },
+	.flags =	SY_THR_STATIC_KLD,
 };
 
 static moduledata_t pmc_mod = {
-	PMC_MODULE_NAME,
-	syscall_module_handler,
-	&pmc_syscall_mod
+	.name =		PMC_MODULE_NAME,
+	.evhand =	syscall_module_handler,
+	.priv =		&pmc_syscall_mod,
 };
 
 #ifdef EARLY_AP_STARTUP
@@ -2858,21 +2854,30 @@ static const char *pmc_op_to_name[] = {
 static int
 pmc_syscall_handler(struct thread *td, void *syscall_args)
 {
-	int error, is_sx_downgraded, is_sx_locked, op;
+	int error, is_sx_downgraded, op;
 	struct pmc_syscall_args *c;
+	void *pmclog_proc_handle;
 	void *arg;
 
-	PMC_GET_SX_XLOCK(ENOSYS);
-
-	DROP_GIANT();
-
-	is_sx_downgraded = 0;
-	is_sx_locked = 1;
-
-	c = (struct pmc_syscall_args *) syscall_args;
-
+	c = (struct pmc_syscall_args *)syscall_args;
 	op = c->pmop_code;
 	arg = c->pmop_data;
+	if (op == PMC_OP_CONFIGURELOG) {
+		/*
+		 * We cannot create the logging process inside
+		 * pmclog_configure_log() because there is a LOR
+		 * between pmc_sx and process structure locks.
+		 * Instead, pre-create the process and ignite the loop
+		 * if everything is fine, otherwise direct the process
+		 * to exit.
+		 */
+		error = pmclog_proc_create(td, &pmclog_proc_handle);
+		if (error != 0)
+			goto done_syscall;
+	}
+
+	PMC_GET_SX_XLOCK(ENOSYS);
+	is_sx_downgraded = 0;
 
 	PMCDBG3(MOD,PMS,1, "syscall op=%d \"%s\" arg=%p", op,
 	    pmc_op_to_name[op], arg);
@@ -2880,8 +2885,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 	error = 0;
 	atomic_add_int(&pmc_stats.pm_syscalls, 1);
 
-	switch(op)
-	{
+	switch (op) {
 
 
 	/*
@@ -2897,15 +2901,16 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		struct pmc_owner *po;
 		struct pmc_op_configurelog cl;
 
-		sx_assert(&pmc_sx, SX_XLOCKED);
-
-		if ((error = copyin(arg, &cl, sizeof(cl))) != 0)
+		if ((error = copyin(arg, &cl, sizeof(cl))) != 0) {
+			pmclog_proc_ignite(pmclog_proc_handle, NULL);
 			break;
+		}
 
 		/* mark this process as owning a log file */
 		p = td->td_proc;
 		if ((po = pmc_find_owner_descriptor(p)) == NULL)
 			if ((po = pmc_allocate_owner_descriptor(p)) == NULL) {
+				pmclog_proc_ignite(pmclog_proc_handle, NULL);
 				error = ENOMEM;
 				break;
 			}
@@ -2917,10 +2922,11 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		 * de-configure it.
 		 */
 		if (cl.pm_logfd >= 0) {
-			sx_xunlock(&pmc_sx);
-			is_sx_locked = 0;
 			error = pmclog_configure_log(md, po, cl.pm_logfd);
+			pmclog_proc_ignite(pmclog_proc_handle, error == 0 ?
+			    po : NULL);
 		} else if (po->po_flags & PMC_PO_OWNS_LOGFILE) {
+			pmclog_proc_ignite(pmclog_proc_handle, NULL);
 			pmclog_process_closelog(po);
 			error = pmclog_close(po);
 			if (error == 0) {
@@ -2930,11 +2936,10 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 					    pmc_stop(pm);
 				error = pmclog_deconfigure_log(po);
 			}
-		} else
+		} else {
+			pmclog_proc_ignite(pmclog_proc_handle, NULL);
 			error = EINVAL;
-
-		if (error)
-			break;
+		}
 	}
 	break;
 
@@ -4029,19 +4034,15 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		break;
 	}
 
-	if (is_sx_locked != 0) {
-		if (is_sx_downgraded)
-			sx_sunlock(&pmc_sx);
-		else
-			sx_xunlock(&pmc_sx);
-	}
-
+	if (is_sx_downgraded)
+		sx_sunlock(&pmc_sx);
+	else
+		sx_xunlock(&pmc_sx);
+done_syscall:
 	if (error)
 		atomic_add_int(&pmc_stats.pm_syscall_errors, 1);
 
-	PICKUP_GIANT();
-
-	return error;
+	return (error);
 }
 
 /*

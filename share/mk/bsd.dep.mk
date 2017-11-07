@@ -101,7 +101,7 @@ _SKIP_DEPEND=	1
 CLEANFILES?=
 
 .for _S in ${SRCS:N*.[dhly]}
-OBJS_DEPEND_GUESS.${_S:R}.o+=	${_S}
+OBJS_DEPEND_GUESS.${_S:${OBJS_SRCS_FILTER:ts:}}.o+=	${_S}
 .endfor
 
 # Lexical analyzers
@@ -180,7 +180,7 @@ DEPEND_MP?=	-MP
 DEPEND_FILTER=	C,/,_,g
 DEPENDSRCS=	${SRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
 .if !empty(DEPENDSRCS)
-DEPENDOBJS+=	${DEPENDSRCS:R:S,$,.o,}
+DEPENDOBJS+=	${DEPENDSRCS:${OBJS_SRCS_FILTER:ts:}:S,$,.o,}
 .endif
 DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:${DEPEND_FILTER}:C/^/${DEPENDFILE}./}
 .if defined(_SKIP_DEPEND)
@@ -327,6 +327,10 @@ cleandepend:
 .endif
 .ORDER: cleandepend all
 .ORDER: cleandepend depend
+.if ${MK_AUTO_OBJ} == "yes"
+.ORDER: cleanobj depend
+.ORDER: cleandir depend
+.endif
 
 .if !target(checkdpadd) && (defined(DPADD) || defined(LDADD))
 _LDADD_FROM_DPADD=	${DPADD:R:T:C;^lib(.*)$;-l\1;g}

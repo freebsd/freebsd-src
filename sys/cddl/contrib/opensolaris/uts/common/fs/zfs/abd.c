@@ -150,6 +150,13 @@ boolean_t zfs_abd_scatter_enabled = B_TRUE;
  */
 size_t zfs_abd_chunk_size = 4096;
 
+#if defined(__FreeBSD__) && defined(_KERNEL)
+SYSCTL_DECL(_vfs_zfs);
+
+SYSCTL_ULONG(_vfs_zfs, OID_AUTO, abd_chunk_size, CTLFLAG_RDTUN,
+    &zfs_abd_chunk_size, 0, "The size of the chunks ABD allocates");
+#endif
+
 #ifdef _KERNEL
 extern vmem_t *zio_alloc_arena;
 #endif

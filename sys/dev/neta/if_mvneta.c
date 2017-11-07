@@ -97,16 +97,6 @@ __FBSDID("$FreeBSD$");
 
 #define	A3700_TCLK_250MHZ		250000000
 
-STATIC uint32_t
-mvneta_get_clk()
-{
-#if defined(__aarch64__)
-	return (A3700_TCLK_250MHZ);
-#else
-	return (get_tclk());
-#endif
-}
-
 /* Device Register Initialization */
 STATIC int mvneta_initreg(struct ifnet *);
 
@@ -212,6 +202,9 @@ STATIC int mvneta_detach(device_t);
 /* MII */
 STATIC int mvneta_miibus_readreg(device_t, int, int);
 STATIC int mvneta_miibus_writereg(device_t, int, int, int);
+
+/* Clock */
+STATIC uint32_t mvneta_get_clk(void);
 
 static device_method_t mvneta_methods[] = {
 	/* Device interface */
@@ -353,6 +346,16 @@ static struct {
 } mvneta_intrs[] = {
 	{ mvneta_rxtxth_intr, "MVNETA aggregated interrupt" },
 };
+
+STATIC uint32_t
+mvneta_get_clk()
+{
+#if defined(__aarch64__)
+	return (A3700_TCLK_250MHZ);
+#else
+	return (get_tclk());
+#endif
+}
 
 static int
 mvneta_set_mac_address(struct mvneta_softc *sc, uint8_t *addr)
@@ -831,11 +834,9 @@ STATIC int
 mvneta_detach(device_t dev)
 {
 	struct mvneta_softc *sc;
-	struct ifnet *ifp;
 	int q;
 
 	sc = device_get_softc(dev);
-	ifp = sc->ifp;
 
 	mvneta_stop(sc);
 	/* Detach network interface */
@@ -3410,6 +3411,7 @@ sysctl_mvneta_init(struct mvneta_softc *sc)
 	};
 #undef MVNETA_SYSCTL_NAME
 
+#ifndef NO_SYSCTL_DESCR
 #define	MVNETA_SYSCTL_DESCR(num) "configuration parameters for queue " # num
 	static const char *sysctl_queue_descrs[] = {
 		MVNETA_SYSCTL_DESCR(0), MVNETA_SYSCTL_DESCR(1),
@@ -3418,6 +3420,7 @@ sysctl_mvneta_init(struct mvneta_softc *sc)
 		MVNETA_SYSCTL_DESCR(6), MVNETA_SYSCTL_DESCR(7),
 	};
 #undef MVNETA_SYSCTL_DESCR
+#endif
 
 
 	ctx = device_get_sysctl_ctx(sc->dev);
@@ -3441,15 +3444,14 @@ sysctl_mvneta_init(struct mvneta_softc *sc)
 	 */
 	/* dev.mvneta.[unit].mib.<mibs> */
 	for (i = 0; i < MVNETA_PORTMIB_NOCOUNTER; i++) {
-		const char *name = mvneta_mib_list[i].sysctl_name;
-		const char *desc = mvneta_mib_list[i].desc;
 		struct mvneta_sysctl_mib *mib_arg = &sc->sysctl_mib[i];
 
 		mib_arg->sc = sc;
 		mib_arg->index = i;
-		SYSCTL_ADD_PROC(ctx, mchildren, OID_AUTO, name,
+		SYSCTL_ADD_PROC(ctx, mchildren, OID_AUTO,
+		    mvneta_mib_list[i].sysctl_name,
 		    CTLTYPE_U64|CTLFLAG_RD, (void *)mib_arg, 0,
-		    sysctl_read_mib, "I", desc);
+		    sysctl_read_mib, "I", mvneta_mib_list[i].desc);
 	}
 	SYSCTL_ADD_UQUAD(ctx, mchildren, OID_AUTO, "rx_discard",
 	    CTLFLAG_RD, &sc->counter_pdfc, "Port Rx Discard Frame Counter");
