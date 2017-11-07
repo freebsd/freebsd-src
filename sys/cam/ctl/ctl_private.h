@@ -390,8 +390,8 @@ struct ctl_lun {
 	TAILQ_HEAD(ctl_ooaq, ctl_io_hdr)  ooa_queue;
 	TAILQ_HEAD(ctl_blockq,ctl_io_hdr) blocked_queue;
 	STAILQ_ENTRY(ctl_lun)		links;
-	struct scsi_sense_data		*pending_sense[CTL_MAX_PORTS];
-	ctl_ua_type			*pending_ua[CTL_MAX_PORTS];
+	struct scsi_sense_data		**pending_sense;
+	ctl_ua_type			**pending_ua;
 	uint8_t				ua_tpt_info[8];
 	time_t				lasttpt;
 	uint8_t				ie_asc;	/* Informational exceptions */
@@ -407,7 +407,7 @@ struct ctl_lun {
 	struct ctl_io_stats		stats;
 	uint32_t			res_idx;
 	uint32_t			pr_generation;
-	uint64_t			*pr_keys[CTL_MAX_PORTS];
+	uint64_t			**pr_keys;
 	int				pr_key_count;
 	uint32_t			pr_res_idx;
 	uint8_t				pr_res_type;
@@ -453,16 +453,16 @@ struct ctl_softc {
 	struct sysctl_oid	*sysctl_tree;
 	void			*othersc_pool;
 	struct proc		*ctl_proc;
-	uint32_t		ctl_lun_mask[(CTL_MAX_LUNS + 31) / 32];
-	struct ctl_lun		*ctl_luns[CTL_MAX_LUNS];
-	uint32_t		ctl_port_mask[(CTL_MAX_PORTS + 31) / 32];
+	uint32_t		*ctl_lun_mask;
+	struct ctl_lun		**ctl_luns;
+	uint32_t		*ctl_port_mask;
 	STAILQ_HEAD(, ctl_lun)	lun_list;
 	STAILQ_HEAD(, ctl_be_lun)	pending_lun_queue;
 	uint32_t		num_frontends;
 	STAILQ_HEAD(, ctl_frontend)	fe_list;
 	uint32_t		num_ports;
 	STAILQ_HEAD(, ctl_port)	port_list;
-	struct ctl_port		*ctl_ports[CTL_MAX_PORTS];
+	struct ctl_port		**ctl_ports;
 	uint32_t		num_backends;
 	STAILQ_HEAD(, ctl_backend_driver)	be_list;
 	struct uma_zone		*io_zone;
