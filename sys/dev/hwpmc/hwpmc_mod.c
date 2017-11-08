@@ -2876,8 +2876,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 	error = 0;
 	atomic_add_int(&pmc_stats.pm_syscalls, 1);
 
-	switch(op)
-	{
+	switch (op) {
 
 
 	/*
@@ -4037,7 +4036,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 	PICKUP_GIANT();
 
-	return error;
+	return (error);
 }
 
 /*
