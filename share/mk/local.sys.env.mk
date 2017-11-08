@@ -44,4 +44,8 @@ TIME_STAMP_END?= ${TIME_STAMP_DATE}
 # error spam and show a proper error.
 Mkdirs= Mkdirs() { mkdir -p $$* || :; }
 
+.if !empty(.MAKEFLAGS:M-s)
+ECHO_TRACE?=	true
+.endif
+
 .include "src.sys.env.mk"
