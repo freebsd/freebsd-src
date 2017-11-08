@@ -6129,8 +6129,6 @@ spa_async_thread_vd(void *arg)
 	spa_t *spa = arg;
 	int tasks;
 
-	ASSERT(spa->spa_sync_on);
-
 	mutex_enter(&spa->spa_async_lock);
 	tasks = spa->spa_async_tasks;
 retry:
