@@ -4,7 +4,7 @@ SHLIBDIR?=	/lib
 
 .include <src.opts.mk>
 
-PACKAGE=${LIB}
+PACKAGE=casper
 
 .if ${MK_CASPER} != "no"
 SHLIB=	casper
