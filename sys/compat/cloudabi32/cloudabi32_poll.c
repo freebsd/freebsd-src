@@ -78,7 +78,7 @@ convert_signal(int sig)
 
 struct cloudabi32_kevent_args {
 	const cloudabi32_subscription_t *in;
-	cloudabi32_event_t *out;
+	cloudabi_event_t *out;
 };
 
 /* Converts CloudABI's subscription objects to FreeBSD's struct kevent. */
@@ -145,7 +145,7 @@ cloudabi32_kevent_copyin(void *arg, struct kevent *kevp, int count)
 static int
 cloudabi32_kevent_copyout(void *arg, struct kevent *kevp, int count)
 {
-	cloudabi32_event_t ev;
+	cloudabi_event_t ev;
 	struct cloudabi32_kevent_args *args;
 	int error;
 
@@ -157,19 +157,15 @@ cloudabi32_kevent_copyout(void *arg, struct kevent *kevp, int count)
 		switch (kevp->filter) {
 		case EVFILT_TIMER:
 			ev.type = CLOUDABI_EVENTTYPE_CLOCK;
-			ev.clock.identifier = kevp->ident;
 			break;
 		case EVFILT_READ:
 			ev.type = CLOUDABI_EVENTTYPE_FD_READ;
-			ev.fd_readwrite.fd = kevp->ident;
 			break;
 		case EVFILT_WRITE:
 			ev.type = CLOUDABI_EVENTTYPE_FD_WRITE;
-			ev.fd_readwrite.fd = kevp->ident;
 			break;
 		case EVFILT_PROCDESC:
 			ev.type = CLOUDABI_EVENTTYPE_PROC_TERMINATE;
-			ev.proc_terminate.fd = kevp->ident;
 			break;
 		}
 
@@ -231,7 +227,7 @@ cloudabi32_sys_poll(struct thread *td, struct cloudabi32_sys_poll_args *uap)
 	 */
 	if (uap->nsubscriptions == 1) {
 		cloudabi32_subscription_t sub;
-		cloudabi32_event_t ev = {};
+		cloudabi_event_t ev = {};
 		int error;
 
 		error = copyin(uap->in, &sub, sizeof(sub));
@@ -241,7 +237,6 @@ cloudabi32_sys_poll(struct thread *td, struct cloudabi32_sys_poll_args *uap)
 		ev.type = sub.type;
 		if (sub.type == CLOUDABI_EVENTTYPE_CONDVAR) {
 			/* Wait on a condition variable. */
-			ev.condvar.condvar = sub.condvar.condvar;
 			ev.error = cloudabi_convert_errno(
 			    cloudabi_futex_condvar_wait(
 			        td, TO_PTR(sub.condvar.condvar),
@@ -253,7 +248,6 @@ cloudabi32_sys_poll(struct thread *td, struct cloudabi32_sys_poll_args *uap)
 			return (copyout(&ev, uap->out, sizeof(ev)));
 		} else if (sub.type == CLOUDABI_EVENTTYPE_LOCK_RDLOCK) {
 			/* Acquire a read lock. */
-			ev.lock.lock = sub.lock.lock;
 			ev.error = cloudabi_convert_errno(
 			    cloudabi_futex_lock_rdlock(
 			        td, TO_PTR(sub.lock.lock),
@@ -263,7 +257,6 @@ cloudabi32_sys_poll(struct thread *td, struct cloudabi32_sys_poll_args *uap)
 			return (copyout(&ev, uap->out, sizeof(ev)));
 		} else if (sub.type == CLOUDABI_EVENTTYPE_LOCK_WRLOCK) {
 			/* Acquire a write lock. */
-			ev.lock.lock = sub.lock.lock;
 			ev.error = cloudabi_convert_errno(
 			    cloudabi_futex_lock_wrlock(
 			        td, TO_PTR(sub.lock.lock),
@@ -274,7 +267,7 @@ cloudabi32_sys_poll(struct thread *td, struct cloudabi32_sys_poll_args *uap)
 		}
 	} else if (uap->nsubscriptions == 2) {
 		cloudabi32_subscription_t sub[2];
-		cloudabi32_event_t ev[2] = {};
+		cloudabi_event_t ev[2] = {};
 		int error;
 
 		error = copyin(uap->in, &sub, sizeof(sub));
@@ -288,8 +281,6 @@ cloudabi32_sys_poll(struct thread *td, struct cloudabi32_sys_poll_args *uap)
 		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK &&
 		    sub[1].clock.flags == CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) {
 			/* Wait for a condition variable with timeout. */
-			ev[0].condvar.condvar = sub[0].condvar.condvar;
-			ev[1].clock.identifier = sub[1].clock.identifier;
 			error = cloudabi_futex_condvar_wait(
 			    td, TO_PTR(sub[0].condvar.condvar),
 			    sub[0].condvar.condvar_scope,
@@ -309,8 +300,6 @@ cloudabi32_sys_poll(struct thread *td, struct cloudabi32_sys_poll_args *uap)
 		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK &&
 		    sub[1].clock.flags == CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) {
 			/* Acquire a read lock with a timeout. */
-			ev[0].lock.lock = sub[0].lock.lock;
-			ev[1].clock.identifier = sub[1].clock.identifier;
 			error = cloudabi_futex_lock_rdlock(
 			    td, TO_PTR(sub[0].lock.lock),
 			    sub[0].lock.lock_scope, sub[1].clock.clock_id,
@@ -328,8 +317,6 @@ cloudabi32_sys_poll(struct thread *td, struct cloudabi32_sys_poll_args *uap)
 		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK &&
 		    sub[1].clock.flags == CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) {
 			/* Acquire a write lock with a timeout. */
-			ev[0].lock.lock = sub[0].lock.lock;
-			ev[1].clock.identifier = sub[1].clock.identifier;
 			error = cloudabi_futex_lock_wrlock(
 			    td, TO_PTR(sub[0].lock.lock),
 			    sub[0].lock.lock_scope, sub[1].clock.clock_id,
