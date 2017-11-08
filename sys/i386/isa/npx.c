@@ -1124,6 +1124,10 @@ npxsetregs(struct thread *td, union savefpu *addr, char *xfpustate,
 	if (!hw_float)
 		return (ENXIO);
 
+#ifdef CPU_ENABLE_SSE
+	if (cpu_fxsr)
+		addr->sv_xmm.sv_env.en_mxcsr &= cpu_mxcsr_mask;
+#endif
 	pcb = td->td_pcb;
 	critical_enter();
 	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
