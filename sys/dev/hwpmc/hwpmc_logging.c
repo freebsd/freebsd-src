@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmclog.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
@@ -254,6 +255,7 @@ pmclog_loop(void *arg)
 	struct ucred *ownercred;
 	struct ucred *mycred;
 	struct thread *td;
+	sigset_t unb;
 	struct uio auio;
 	struct iovec aiov;
 	size_t nbytes;
@@ -261,6 +263,11 @@ pmclog_loop(void *arg)
 	po = (struct pmc_owner *) arg;
 	p = po->po_owner;
 	td = curthread;
+
+	SIGEMPTYSET(unb);
+	SIGADDSET(unb, SIGHUP);
+	(void)kern_sigprocmask(td, SIG_UNBLOCK, &unb, NULL, 0);
+
 	mycred = td->td_ucred;
 
 	PROC_LOCK(p);
@@ -295,16 +302,8 @@ pmclog_loop(void *arg)
 				mtx_unlock_spin(&po->po_mtx);
 
 				/* No more buffers and shutdown required. */
-				if (po->po_flags & PMC_PO_SHUTDOWN) {
-					mtx_unlock(&pmc_kthread_mtx);
-					/*
-			 		 * Close the file to get PMCLOG_EOF
-					 * error in pmclog(3).
-					 */
-					fo_close(po->po_file, curthread);
-					mtx_lock(&pmc_kthread_mtx);
+				if (po->po_flags & PMC_PO_SHUTDOWN)
 					break;
-				}
 
 				(void) msleep(po, &pmc_kthread_mtx, PWAIT,
 				    "pmcloop", 0);
@@ -545,19 +544,16 @@ pmclog_schedule_io(struct pmc_owner *po)
 static void
 pmclog_stop_kthread(struct pmc_owner *po)
 {
-	/*
-	 * Close the file to force the thread out of fo_write,
-	 * unset flag, wakeup the helper thread,
-	 * wait for it to exit
-	 */
-
-	if (po->po_file != NULL)
-		fo_close(po->po_file, curthread);
 
 	mtx_lock(&pmc_kthread_mtx);
 	po->po_flags &= ~PMC_PO_OWNS_LOGFILE;
+	if (po->po_kthread != NULL) {
+		PROC_LOCK(po->po_kthread);
+		kern_psignal(po->po_kthread, SIGHUP);
+		PROC_UNLOCK(po->po_kthread);
+	}
 	wakeup_one(po);
-	if (po->po_kthread)
+	while (po->po_kthread)
 		msleep(po->po_kthread, &pmc_kthread_mtx, PPAUSE, "pmckstp", 0);
 	mtx_unlock(&pmc_kthread_mtx);
 }
