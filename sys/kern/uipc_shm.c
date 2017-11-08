@@ -454,13 +454,10 @@ retry:
 				if (vm_page_sleep_if_busy(m, "shmtrc"))
 					goto retry;
 			} else if (vm_pager_has_page(object, idx, NULL, NULL)) {
-				m = vm_page_alloc(object, idx, VM_ALLOC_NORMAL);
-				if (m == NULL) {
-					VM_OBJECT_WUNLOCK(object);
-					VM_WAIT;
-					VM_OBJECT_WLOCK(object);
+				m = vm_page_alloc(object, idx,
+				    VM_ALLOC_NORMAL | VM_ALLOC_WAITFAIL);
+				if (m == NULL)
 					goto retry;
-				}
 				rv = vm_pager_get_pages(object, &m, 1, NULL,
 				    NULL);
 				vm_page_lock(m);

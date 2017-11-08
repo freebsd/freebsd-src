@@ -4515,18 +4515,14 @@ vm_hold_load_pages(struct buf *bp, vm_offset_t from, vm_offset_t to)
 	index = (from - trunc_page((vm_offset_t)bp->b_data)) >> PAGE_SHIFT;
 
 	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
-tryagain:
 		/*
 		 * note: must allocate system pages since blocking here
 		 * could interfere with paging I/O, no matter which
 		 * process we are.
 		 */
 		p = vm_page_alloc(NULL, 0, VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ |
-		    VM_ALLOC_WIRED | VM_ALLOC_COUNT((to - pg) >> PAGE_SHIFT));
-		if (p == NULL) {
-			VM_WAIT;
-			goto tryagain;
-		}
+		    VM_ALLOC_WIRED | VM_ALLOC_COUNT((to - pg) >> PAGE_SHIFT) |
+		    VM_ALLOC_WAITOK);
 		pmap_qenter(pg, &p, 1);
 		bp->b_pages[index] = p;
 	}
