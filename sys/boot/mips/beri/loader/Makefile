@@ -29,6 +29,13 @@
 #
 # $FreeBSD$
 
+LOADER_MSDOS_SUPPORT?=	yes
+LOADER_UFS_SUPPORT?=	yes
+LOADER_CD9660_SUPPORT?=	no
+LOADER_EXT2FS_SUPPORT?=	no
+LOADER_GZIP_SUPPORT?=	yes
+LOADER_BZIP2_SUPPORT?=	yes
+
 .include <bsd.init.mk>
 
 MK_SSP=		no
@@ -59,13 +66,6 @@ SRCS+=		altera_jtag_uart.c				\
 
 # Since we don't have a backward compatibility issue, default to this on BERI.
 CFLAGS+=	-DBOOT_PROMPT_123
-
-LOADER_MSDOS_SUPPORT?=	yes
-LOADER_UFS_SUPPORT?=	yes
-LOADER_CD9660_SUPPORT?=	no
-LOADER_EXT2FS_SUPPORT?=	no
-LOADER_GZIP_SUPPORT?= yes
-LOADER_BZIP2_SUPPORT?= yes
 
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
