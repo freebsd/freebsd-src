@@ -558,7 +558,7 @@ universe_${target}_kernels: universe_${target}_prologue .MAKE .PHONY
 	    "check _.${target}.makeLINT for details"| ${MAKEFAIL}))
 .endif
 	@cd ${.CURDIR}; ${SUB_MAKE} ${.MAKEFLAGS} TARGET=${target} \
-	    universe_kernels
+	    universe_kernels MK_AUTO_OBJ=no
 .endif # !MAKE_JUST_WORLDS
 
 # Tell the user the worlds and kernels have completed
