@@ -65,6 +65,14 @@ ddi_strtoull(const char *str, char **nptr, int base, unsigned long long *result)
 	return (0);
 }
 
+int
+ddi_strtoll(const char *str, char **nptr, int base, long long *result)
+{
+
+	*result = (long long)strtoq(str, nptr, base);
+	return (0);
+}
+
 struct ddi_soft_state_item {
 	int	 ssi_item;
 	void	*ssi_data;
