@@ -4,6 +4,8 @@
 
 # ZFS_COMMON_SRCS
 .PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
+# LUA_SRCS
+.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs/lua
 # ZFS_SHARED_SRCS
 .PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
 # KERNEL_SRCS
@@ -28,11 +30,12 @@ LIB=		zpool
 
 ZFS_COMMON_SRCS= ${ZFS_COMMON_OBJS:C/.o$/.c/} vdev_file.c trim_map.c
 ZFS_SHARED_SRCS= ${ZFS_SHARED_OBJS:C/.o$/.c/}
+LUA_SRCS=	${LUA_OBJS:C/.o$/.c/}
 KERNEL_SRCS=	kernel.c taskq.c util.c
 LIST_SRCS=	list.c
 UNICODE_SRCS=	u8_textprep.c
 
-SRCS=		${ZFS_COMMON_SRCS} ${ZFS_SHARED_SRCS} \
+SRCS=		${ZFS_COMMON_SRCS} ${ZFS_SHARED_SRCS} ${LUA_SRCS} \
 		${KERNEL_SRCS} ${LIST_SRCS} ${ATOMIC_SRCS} \
 		${UNICODE_SRCS}
 
@@ -43,6 +46,7 @@ CFLAGS+=	-I${SRCTOP}/cddl/compat/opensolaris/lib/libumem
 CFLAGS+=	-I${SRCTOP}/cddl/contrib/opensolaris/lib/libzpool/common
 CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/sys
 CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
+CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs/lua
 CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
 CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common
 CFLAGS+=	-I${SRCTOP}/cddl/contrib/opensolaris/head
