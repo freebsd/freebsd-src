@@ -311,27 +311,23 @@ SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_syspmcs, CTLFLAG_RWTUN,
 
 /* The `sysent' for the new syscall */
 static struct sysent pmc_sysent = {
-	2,			/* sy_narg */
-	pmc_syscall_handler	/* sy_call */
+	.sy_narg =	2,
+	.sy_call =	pmc_syscall_handler,
 };
 
 static struct syscall_module_data pmc_syscall_mod = {
-	load,
-	NULL,
-	&pmc_syscall_num,
-	&pmc_sysent,
-#if (__FreeBSD_version >= 1100000)
-	{ 0, NULL },
-	SY_THR_STATIC_KLD,
-#else
-	{ 0, NULL }
-#endif
+	.chainevh =	load,
+	.chainarg =	NULL,
+	.offset =	&pmc_syscall_num,
+	.new_sysent =	&pmc_sysent,
+	.old_sysent =	{ .sy_narg = 0, .sy_call = NULL },
+	.flags =	SY_THR_STATIC_KLD,
 };
 
 static moduledata_t pmc_mod = {
-	PMC_MODULE_NAME,
-	syscall_module_handler,
-	&pmc_syscall_mod
+	.name =		PMC_MODULE_NAME,
+	.evhand =	syscall_module_handler,
+	.priv =		&pmc_syscall_mod,
 };
 
 #ifdef EARLY_AP_STARTUP
