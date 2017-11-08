@@ -1110,7 +1110,8 @@ noobj_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *flags, int wait)
 	while (npages > 0) {
 		p = vm_page_alloc(NULL, 0, VM_ALLOC_INTERRUPT |
 		    VM_ALLOC_WIRED | VM_ALLOC_NOOBJ |
-		    (wait & M_WAITOK) ? VM_ALLOC_WAITOK : VM_ALLOC_NOWAIT);
+		    ((wait & M_WAITOK) != 0 ? VM_ALLOC_WAITOK :
+		    VM_ALLOC_NOWAIT));
 		if (p != NULL) {
 			/*
 			 * Since the page does not belong to an object, its
