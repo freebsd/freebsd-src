@@ -567,7 +567,7 @@ INTERRUPT(int_external_input)
 	addi	%r3, %r1, CALLSIZE
 	bl	CNAME(powerpc_interrupt)
 	TOC_RESTORE
-	b	clear_we
+	b	trapexit
 
 
 INTERRUPT(int_alignment)
@@ -607,7 +607,7 @@ INTERRUPT(int_decrementer)
 	addi	%r3, %r1, CALLSIZE
 	bl	CNAME(powerpc_interrupt)
 	TOC_RESTORE
-	b	clear_we
+	b	trapexit
 
 
 /*****************************************************************************
@@ -1090,12 +1090,6 @@ dbleave:
 	FRAME_LEAVE(SPR_SRR0, SPR_SRR1)
 	rfi
 #endif /* KDB */
-
-clear_we:
-	LOAD	%r3, (FRAME_SRR1+CALLSIZE)(%r1)
-	rlwinm	%r3, %r3, 0, 14, 12
-	STORE	%r3, (FRAME_SRR1+CALLSIZE)(%r1)
-	b	trapexit
 
 #ifdef SMP
 ENTRY(tlb_lock)
