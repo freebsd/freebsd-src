@@ -775,6 +775,12 @@ vm_radix_replace(struct vm_radix *rtree, vm_page_t newpage)
 	panic("%s: original replacing page not found", __func__);
 }
 
+void
+vm_radix_wait(void)
+{
+	uma_zwait(vm_radix_node_zone);
+}
+
 #ifdef DDB
 /*
  * Show details about the given radix node.
