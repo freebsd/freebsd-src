@@ -224,7 +224,7 @@ struct cloudabi_sys_mem_unmap_args {
 };
 struct cloudabi32_sys_poll_args {
 	char in_l_[PADL_(const cloudabi32_subscription_t *)]; const cloudabi32_subscription_t * in; char in_r_[PADR_(const cloudabi32_subscription_t *)];
-	char out_l_[PADL_(cloudabi32_event_t *)]; cloudabi32_event_t * out; char out_r_[PADR_(cloudabi32_event_t *)];
+	char out_l_[PADL_(cloudabi_event_t *)]; cloudabi_event_t * out; char out_r_[PADR_(cloudabi_event_t *)];
 	char nsubscriptions_l_[PADL_(size_t)]; size_t nsubscriptions; char nsubscriptions_r_[PADR_(size_t)];
 };
 struct cloudabi_sys_proc_exec_args {
