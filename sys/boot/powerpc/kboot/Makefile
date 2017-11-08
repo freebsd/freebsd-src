@@ -1,5 +1,16 @@
 # $FreeBSD$
 
+LOADER_CD9660_SUPPORT?=	yes
+LOADER_MSDOS_SUPPORT?=	no
+LOADER_EXT2FS_SUPPORT?=	yes
+LOADER_UFS_SUPPORT?=	yes
+LOADER_NET_SUPPORT?=	yes
+LOADER_NFS_SUPPORT?=	yes
+LOADER_TFTP_SUPPORT?=	no
+LOADER_GZIP_SUPPORT?=	yes
+LOADER_FDT_SUPPORT=	yes
+LOADER_BZIP2_SUPPORT?=	no
+
 .include <bsd.init.mk>
 MK_SSP=		no
 MAN=
@@ -12,17 +23,6 @@ INSTALLFLAGS=	-b
 SRCS=		conf.c metadata.c vers.c main.c ppc64_elf_freebsd.c
 SRCS+=		host_syscall.S hostcons.c hostdisk.c kerneltramp.S kbootfdt.c
 SRCS+=		ucmpdi2.c
-
-LOADER_CD9660_SUPPORT?=	yes
-LOADER_MSDOS_SUPPORT?=	no
-LOADER_EXT2FS_SUPPORT?=	yes
-LOADER_UFS_SUPPORT?=	yes
-LOADER_NET_SUPPORT?=	yes
-LOADER_NFS_SUPPORT?=	yes
-LOADER_TFTP_SUPPORT?=	no
-LOADER_GZIP_SUPPORT?=	yes
-LOADER_FDT_SUPPORT=	yes
-LOADER_BZIP2_SUPPORT?=	no
 
 .if ${LOADER_FDT_SUPPORT} == "yes"
 CFLAGS+=	-I${FDTSRC}
