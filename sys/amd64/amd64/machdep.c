@@ -2248,7 +2248,6 @@ static int
 set_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpustate,
     size_t xfpustate_len)
 {
-	struct savefpu *fpstate;
 	int error;
 
 	if (mcp->mc_fpformat == _MC_FPFMT_NODEV)
@@ -2261,9 +2260,8 @@ set_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpustate,
 		error = 0;
 	} else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
-		fpstate = (struct savefpu *)&mcp->mc_fpstate;
-		fpstate->sv_env.en_mxcsr &= cpu_mxcsr_mask;
-		error = fpusetregs(td, fpstate, xfpustate, xfpustate_len);
+		error = fpusetregs(td, (struct savefpu *)&mcp->mc_fpstate,
+		    xfpustate, xfpustate_len);
 	} else
 		return (EINVAL);
 	return (error);
