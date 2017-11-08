@@ -78,6 +78,7 @@
 ** 1.20.00.29   12/18/2013  Ching Huang     Change simq allocation number, support ARC1883
 ** 1.30.00.00   11/30/2015  Ching Huang     Added support ARC1203
 ** 1.40.00.00   07/11/2017  Ching Huang     Added support ARC1884
+** 1.40.00.01   10/30/2017  Ching Huang     Fixed release memory resource
 ******************************************************************************************
 */
 
@@ -149,7 +150,7 @@ __FBSDID("$FreeBSD$");
 #define arcmsr_callout_init(a)	callout_init(a);
 #endif
 
-#define ARCMSR_DRIVER_VERSION	"arcmsr version 1.40.00.00 2017-07-11"
+#define ARCMSR_DRIVER_VERSION	"arcmsr version 1.40.00.01 2017-10-30"
 #include <dev/arcmsr/arcmsr.h>
 /*
 **************************************************************************
@@ -187,7 +188,7 @@ static void arcmsr_polling_devmap(void *arg);
 static void arcmsr_srb_timeout(void *arg);
 static void arcmsr_hbd_postqueue_isr(struct AdapterControlBlock *acb);
 static void arcmsr_hbe_postqueue_isr(struct AdapterControlBlock *acb);
-void arcmsr_teardown_intr(device_t dev, struct AdapterControlBlock *acb);
+static void arcmsr_teardown_intr(device_t dev, struct AdapterControlBlock *acb);
 #ifdef ARCMSR_DEBUG1
 static void arcmsr_dump_data(struct AdapterControlBlock *acb);
 #endif
@@ -910,6 +911,10 @@ static void arcmsr_drain_donequeue(struct AdapterControlBlock *acb, u_int32_t fl
 
 	/* check if command done with no error*/
 	switch (acb->adapter_type) {
+	case ACB_ADAPTER_TYPE_A:
+	case ACB_ADAPTER_TYPE_B:
+		srb = (struct CommandControlBlock *)(acb->vir2phy_offset+(flag_srb << 5));/*frame must be 32 bytes aligned*/
+		break;
 	case ACB_ADAPTER_TYPE_C:
 	case ACB_ADAPTER_TYPE_D:
 		srb = (struct CommandControlBlock *)(acb->vir2phy_offset+(flag_srb & 0xFFFFFFE0)); /*frame must be 32 bytes aligned*/
@@ -917,8 +922,6 @@ static void arcmsr_drain_donequeue(struct AdapterControlBlock *acb, u_int32_t fl
 	case ACB_ADAPTER_TYPE_E:
 		srb = acb->psrb_pool[flag_srb];
 		break;
-	case ACB_ADAPTER_TYPE_A:
-	case ACB_ADAPTER_TYPE_B:
 	default:
 		srb = (struct CommandControlBlock *)(acb->vir2phy_offset+(flag_srb << 5));/*frame must be 32 bytes aligned*/
 		break;
@@ -1585,8 +1588,7 @@ static u_int32_t arcmsr_Read_iop_rqbuffer_data(struct AdapterControlBlock *acb,
 	u_int8_t *iop_data;
 	u_int32_t iop_len;
 
-	if((acb->adapter_type == ACB_ADAPTER_TYPE_C) || (acb->adapter_type == ACB_ADAPTER_TYPE_D) ||
-		(acb->adapter_type == ACB_ADAPTER_TYPE_E)) {
+	if(acb->adapter_type >= ACB_ADAPTER_TYPE_B) {
 		return(arcmsr_Read_iop_rqbuffer_data_D(acb, prbuffer));
 	}
 	iop_data = (u_int8_t *)prbuffer->data;
@@ -1681,8 +1683,7 @@ static void arcmsr_Write_data_2iop_wqbuffer(struct AdapterControlBlock *acb)
 	u_int8_t *iop_data;
 	int32_t allxfer_len=0;
 
-	if((acb->adapter_type == ACB_ADAPTER_TYPE_C) || (acb->adapter_type == ACB_ADAPTER_TYPE_D) ||
-		(acb->adapter_type == ACB_ADAPTER_TYPE_E)) {
+	if(acb->adapter_type >= ACB_ADAPTER_TYPE_B) {
 		arcmsr_Write_data_2iop_wqbuffer_D(acb);
 		return;
 	}
@@ -2495,7 +2496,7 @@ static void arcmsr_iop_parking(struct AdapterControlBlock *acb)
 **
 ************************************************************************
 */
-u_int32_t arcmsr_iop_ioctlcmd(struct AdapterControlBlock *acb, u_int32_t ioctl_cmd, caddr_t arg)
+static u_int32_t arcmsr_iop_ioctlcmd(struct AdapterControlBlock *acb, u_int32_t ioctl_cmd, caddr_t arg)
 {
 	struct CMD_MESSAGE_FIELD *pcmdmessagefld;
 	u_int32_t retvalue = EINVAL;
@@ -2683,7 +2684,7 @@ static void arcmsr_free_srb(struct CommandControlBlock *srb)
 **************************************************************************
 **************************************************************************
 */
-struct CommandControlBlock *arcmsr_get_freesrb(struct AdapterControlBlock *acb)
+static struct CommandControlBlock *arcmsr_get_freesrb(struct AdapterControlBlock *acb)
 {
 	struct CommandControlBlock *srb = NULL;
 	u_int32_t workingsrb_startindex, workingsrb_doneindex;
@@ -4115,12 +4116,11 @@ static void arcmsr_clear_doorbell_queue_buffer( struct AdapterControlBlock *acb)
 			outbound_doorbell = CHIP_REG_READ32(HBA_MessageUnit, 0, outbound_doorbell);
 			CHIP_REG_WRITE32(HBA_MessageUnit, 0, outbound_doorbell, outbound_doorbell);	/*clear doorbell interrupt */
 			CHIP_REG_WRITE32(HBA_MessageUnit, 0, inbound_doorbell, ARCMSR_INBOUND_DRIVER_DATA_READ_OK);
-			
 		}
 		break;
 	case ACB_ADAPTER_TYPE_B: {
 			struct HBB_MessageUnit *phbbmu = (struct HBB_MessageUnit *)acb->pmu;
-			WRITE_CHIP_REG32(0, phbbmu->iop2drv_doorbell, ARCMSR_MESSAGE_INT_CLEAR_PATTERN);/*clear interrupt and message state*/
+			WRITE_CHIP_REG32(0, phbbmu->iop2drv_doorbell, ARCMSR_DOORBELL_INT_CLEAR_PATTERN);/*clear interrupt and message state*/
 			WRITE_CHIP_REG32(0, phbbmu->drv2iop_doorbell, ARCMSR_DRV2IOP_DATA_READ_OK);
 			/* let IOP know data has been read */
 		}
@@ -4139,7 +4139,6 @@ static void arcmsr_clear_doorbell_queue_buffer( struct AdapterControlBlock *acb)
 			outbound_doorbell = CHIP_REG_READ32(HBD_MessageUnit, 0, outbound_doorbell);
 			CHIP_REG_WRITE32(HBD_MessageUnit, 0, outbound_doorbell, outbound_doorbell);	/*clear doorbell interrupt */
 			CHIP_REG_WRITE32(HBD_MessageUnit, 0, inbound_doorbell, ARCMSR_HBDMU_DRV2IOP_DATA_OUT_READ);
-			
 		}
 		break;
 	case ACB_ADAPTER_TYPE_E: {
@@ -4353,7 +4352,8 @@ static void arcmsr_map_free_srb(void *arg, bus_dma_segment_t *segs, int nseg, in
 		srb_phyaddr = srb_phyaddr + SRB_SIZE;
 		srb_tmp = (struct CommandControlBlock *)((unsigned long)srb_tmp + SRB_SIZE);
 	}
-	acb->pCompletionQ = (pCompletion_Q)srb_tmp;
+	if (acb->adapter_type == ACB_ADAPTER_TYPE_E)
+		acb->pCompletionQ = (pCompletion_Q)srb_tmp;
 	acb->vir2phy_offset = (unsigned long)srb_tmp - (unsigned long)srb_phyaddr;
 }
 /*
@@ -4414,7 +4414,9 @@ static u_int32_t arcmsr_initialize(device_t dev)
 	case PCIDevVenIDARC1213:
 	case PCIDevVenIDARC1223: {
 			acb->adapter_type = ACB_ADAPTER_TYPE_C;
-			if (acb->sub_device_id == ARECA_SUB_DEV_ID_1883)
+			if ((acb->sub_device_id == ARECA_SUB_DEV_ID_1883) ||
+			    (acb->sub_device_id == ARECA_SUB_DEV_ID_1216) ||
+			    (acb->sub_device_id == ARECA_SUB_DEV_ID_1226))
 				acb->adapter_bus_speed = ACB_BUS_SPEED_12G;
 			else
 				acb->adapter_bus_speed = ACB_BUS_SPEED_6G;
@@ -4598,7 +4600,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 		acb->btag[0] = rman_get_bustag(acb->sys_res_arcmsr[0]);
 		acb->bhandle[0] = rman_get_bushandle(acb->sys_res_arcmsr[0]);
 		acb->pmu = (struct MessageUnit_UNION *)mem_base0;
-		acb->rid = 0;
+		acb->rid[0] = rid0;
 		}
 		break;
 	case ACB_ADAPTER_TYPE_B: {
@@ -4606,19 +4608,8 @@ static u_int32_t arcmsr_initialize(device_t dev)
 		struct CommandControlBlock *freesrb;
 		u_int32_t rid[]={ PCIR_BAR(0), PCIR_BAR(2) };
 		vm_offset_t	mem_base[]={0,0};
-		u_long	size;
-		if (vendor_dev_id == PCIDevVenIDARC1203)
-			size = sizeof(struct HBB_DOORBELL_1203);
-		else
-			size = sizeof(struct HBB_DOORBELL);
 		for(i=0; i < 2; i++) {
-			if(i == 0) {
-				acb->sys_res_arcmsr[i] = bus_alloc_resource_any(dev,SYS_RES_MEMORY, &rid[i],
-										RF_ACTIVE);
-			} else {
-				acb->sys_res_arcmsr[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid[i],
-										RF_ACTIVE);
-			}
+			acb->sys_res_arcmsr[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid[i], RF_ACTIVE);
 			if(acb->sys_res_arcmsr[i] == NULL) {
 				arcmsr_free_resource(acb);
 				printf("arcmsr%d: bus_alloc_resource %d failure!\n", device_get_unit(dev), i);
@@ -4654,7 +4645,8 @@ static u_int32_t arcmsr_initialize(device_t dev)
 			phbbmu->iop2drv_doorbell = offsetof(struct HBB_DOORBELL, iop2drv_doorbell);
 			phbbmu->iop2drv_doorbell_mask = offsetof(struct HBB_DOORBELL, iop2drv_doorbell_mask);
 		}
-		acb->rid = 0;
+		acb->rid[0] = rid[0];
+		acb->rid[1] = rid[1];
 		}
 		break;
 	case ACB_ADAPTER_TYPE_C: {
@@ -4681,7 +4673,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 		acb->btag[0] = rman_get_bustag(acb->sys_res_arcmsr[0]);
 		acb->bhandle[0] = rman_get_bushandle(acb->sys_res_arcmsr[0]);
 		acb->pmu = (struct MessageUnit_UNION *)mem_base0;
-		acb->rid = 1;
+		acb->rid[0] = rid0;
 		}
 		break;
 	case ACB_ADAPTER_TYPE_D: {
@@ -4711,14 +4703,14 @@ static u_int32_t arcmsr_initialize(device_t dev)
 		acb->pmu = (struct MessageUnit_UNION *)((unsigned long)acb->uncacheptr+ARCMSR_SRBS_POOL_SIZE);
 		phbdmu = (struct HBD_MessageUnit0 *)acb->pmu;
 		phbdmu->phbdmu = (struct HBD_MessageUnit *)mem_base0;
-		acb->rid = 0;
+		acb->rid[0] = rid0;
 		}
 		break;
 	case ACB_ADAPTER_TYPE_E: {
 		u_int32_t rid0 = PCIR_BAR(1);
 		vm_offset_t	mem_base0;
 
-		acb->sys_res_arcmsr[0] = bus_alloc_resource(dev,SYS_RES_MEMORY, &rid0, 0ul, ~0ul, sizeof(struct HBE_MessageUnit), RF_ACTIVE);
+		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid0, RF_ACTIVE);
 		if(acb->sys_res_arcmsr[0] == NULL) {
 			arcmsr_free_resource(acb);
 			printf("arcmsr%d: bus_alloc_resource failure!\n", device_get_unit(dev));
@@ -4741,7 +4733,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 		acb->doneq_index = 0;
 		acb->in_doorbell = 0;
 		acb->out_doorbell = 0;
-		acb->rid = 1;
+		acb->rid[0] = rid0;
 		CHIP_REG_WRITE32(HBE_MessageUnit, 0, host_int_status, 0); /*clear interrupt*/
 		CHIP_REG_WRITE32(HBE_MessageUnit, 0, iobound_doorbell, ARCMSR_HBEMU_DOORBELL_SYNC); /* synchronize doorbell to 0 */
 		}
@@ -4773,7 +4765,7 @@ static int arcmsr_setup_msix(struct AdapterControlBlock *acb)
 	int i;
 
 	for (i = 0; i < acb->msix_vectors; i++) {
-		acb->irq_id[i] = acb->rid + i;
+		acb->irq_id[i] = 1 + i;
 		acb->irqres[i] = bus_alloc_resource_any(acb->pci_dev,
 		    SYS_RES_IRQ, &acb->irq_id[i], RF_ACTIVE);
 		if (acb->irqres[i] == NULL) {
@@ -4825,7 +4817,7 @@ static int arcmsr_attach(device_t dev)
 		if (arcmsr_setup_msix(acb) == TRUE)
 			goto irqx;
 	}
-	acb->irq_id[0] = acb->rid;
+	acb->irq_id[0] = 0;
 	irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &acb->irq_id[0], RF_SHAREABLE | RF_ACTIVE);
 	if(irqres == NULL || 
 #if __FreeBSD_version >= 700025
@@ -4957,7 +4949,9 @@ static int arcmsr_probe(device_t dev)
 	case PCIDevVenIDARC1882:
 	case PCIDevVenIDARC1213:
 	case PCIDevVenIDARC1223:
-		if (sub_device_id == ARECA_SUB_DEV_ID_1883)
+		if ((sub_device_id == ARECA_SUB_DEV_ID_1883) ||
+		    (sub_device_id == ARECA_SUB_DEV_ID_1216) ||
+		    (sub_device_id == ARECA_SUB_DEV_ID_1226))
 			type = "SAS 12G";
 		else
 			type = "SAS 6G";
@@ -5027,7 +5021,7 @@ static int arcmsr_shutdown(device_t dev)
 ************************************************************************
 ************************************************************************
 */
-void arcmsr_teardown_intr(device_t dev, struct AdapterControlBlock *acb)
+static void arcmsr_teardown_intr(device_t dev, struct AdapterControlBlock *acb)
 {
 	int i;
 
@@ -5066,7 +5060,7 @@ static int arcmsr_detach(device_t dev)
 	arcmsr_shutdown(dev);
 	arcmsr_free_resource(acb);
 	for(i=0; (acb->sys_res_arcmsr[i]!=NULL) && (i<2); i++) {
-		bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(i), acb->sys_res_arcmsr[i]);
+		bus_release_resource(dev, SYS_RES_MEMORY, acb->rid[i], acb->sys_res_arcmsr[i]);
 	}
 	ARCMSR_LOCK_ACQUIRE(&acb->isr_lock);
 	xpt_async(AC_LOST_DEVICE, acb->ppath, NULL);
@@ -5089,4 +5083,3 @@ static void arcmsr_dump_data(struct AdapterControlBlock *acb)
 	printf("Queued Command Count    =0x%x\n",acb->srboutstandingcount);
 }
 #endif
-
