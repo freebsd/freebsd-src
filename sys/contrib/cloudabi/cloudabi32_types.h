@@ -53,47 +53,6 @@ _Static_assert(sizeof(cloudabi32_ciovec_t) == 8, "Incorrect layout");
 _Static_assert(_Alignof(cloudabi32_ciovec_t) == 4, "Incorrect layout");
 
 typedef struct {
-  _Alignas(8) cloudabi_userdata_t userdata;
-  _Alignas(2) cloudabi_errno_t error;
-  _Alignas(1) cloudabi_eventtype_t type;
-  union {
-    struct {
-      _Alignas(8) cloudabi_userdata_t identifier;
-    } clock;
-    struct {
-      _Alignas(4) uint32_t condvar;
-    } condvar;
-    struct {
-      _Alignas(8) cloudabi_filesize_t nbytes;
-      _Alignas(4) cloudabi_fd_t fd;
-      _Alignas(2) cloudabi_eventrwflags_t flags;
-    } fd_readwrite;
-    struct {
-      _Alignas(4) uint32_t lock;
-    } lock;
-    struct {
-      _Alignas(4) cloudabi_fd_t fd;
-      _Alignas(1) cloudabi_signal_t signal;
-      _Alignas(4) cloudabi_exitcode_t exitcode;
-    } proc_terminate;
-  };
-} cloudabi32_event_t;
-_Static_assert(offsetof(cloudabi32_event_t, userdata) == 0, "Incorrect layout");
-_Static_assert(offsetof(cloudabi32_event_t, error) == 8, "Incorrect layout");
-_Static_assert(offsetof(cloudabi32_event_t, type) == 10, "Incorrect layout");
-_Static_assert(offsetof(cloudabi32_event_t, clock.identifier) == 16, "Incorrect layout");
-_Static_assert(offsetof(cloudabi32_event_t, condvar.condvar) == 16, "Incorrect layout");
-_Static_assert(offsetof(cloudabi32_event_t, fd_readwrite.nbytes) == 16, "Incorrect layout");
-_Static_assert(offsetof(cloudabi32_event_t, fd_readwrite.fd) == 24, "Incorrect layout");
-_Static_assert(offsetof(cloudabi32_event_t, fd_readwrite.flags) == 28, "Incorrect layout");
-_Static_assert(offsetof(cloudabi32_event_t, lock.lock) == 16, "Incorrect layout");
-_Static_assert(offsetof(cloudabi32_event_t, proc_terminate.fd) == 16, "Incorrect layout");
-_Static_assert(offsetof(cloudabi32_event_t, proc_terminate.signal) == 20, "Incorrect layout");
-_Static_assert(offsetof(cloudabi32_event_t, proc_terminate.exitcode) == 24, "Incorrect layout");
-_Static_assert(sizeof(cloudabi32_event_t) == 32, "Incorrect layout");
-_Static_assert(_Alignof(cloudabi32_event_t) == 8, "Incorrect layout");
-
-typedef struct {
   _Alignas(4) uint32_t buf;
   _Alignas(4) uint32_t buf_len;
 } cloudabi32_iovec_t;

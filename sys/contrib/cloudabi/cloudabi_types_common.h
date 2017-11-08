@@ -56,6 +56,7 @@ typedef uint32_t cloudabi_auxtype_t;
 #define CLOUDABI_AT_PAGESZ         6
 #define CLOUDABI_AT_PHDR           3
 #define CLOUDABI_AT_PHNUM          4
+#define CLOUDABI_AT_PID          263
 #define CLOUDABI_AT_SYSINFO_EHDR 262
 #define CLOUDABI_AT_TID          261
 
@@ -351,6 +352,35 @@ _Static_assert(offsetof(cloudabi_dirent_t, d_namlen) == 16, "Incorrect layout");
 _Static_assert(offsetof(cloudabi_dirent_t, d_type) == 20, "Incorrect layout");
 _Static_assert(sizeof(cloudabi_dirent_t) == 24, "Incorrect layout");
 _Static_assert(_Alignof(cloudabi_dirent_t) == 8, "Incorrect layout");
+
+typedef struct {
+  _Alignas(8) cloudabi_userdata_t userdata;
+  _Alignas(2) cloudabi_errno_t error;
+  _Alignas(1) cloudabi_eventtype_t type;
+  union {
+    struct {
+      _Alignas(8) cloudabi_filesize_t nbytes;
+      _Alignas(1) char unused[4];
+      _Alignas(2) cloudabi_eventrwflags_t flags;
+    } fd_readwrite;
+    struct {
+      _Alignas(1) char unused[4];
+      _Alignas(1) cloudabi_signal_t signal;
+      _Alignas(4) cloudabi_exitcode_t exitcode;
+    } proc_terminate;
+  };
+} cloudabi_event_t;
+_Static_assert(offsetof(cloudabi_event_t, userdata) == 0, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, error) == 8, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, type) == 10, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, fd_readwrite.nbytes) == 16, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, fd_readwrite.unused) == 24, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, fd_readwrite.flags) == 28, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, proc_terminate.unused) == 16, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, proc_terminate.signal) == 20, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, proc_terminate.exitcode) == 24, "Incorrect layout");
+_Static_assert(sizeof(cloudabi_event_t) == 32, "Incorrect layout");
+_Static_assert(_Alignof(cloudabi_event_t) == 8, "Incorrect layout");
 
 typedef struct {
   _Alignas(1) cloudabi_filetype_t fs_filetype;

@@ -352,7 +352,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 37: {
 		struct cloudabi64_sys_poll_args *p = params;
 		uarg[0] = (intptr_t) p->in; /* const cloudabi64_subscription_t * */
-		uarg[1] = (intptr_t) p->out; /* cloudabi64_event_t * */
+		uarg[1] = (intptr_t) p->out; /* cloudabi_event_t * */
 		uarg[2] = p->nsubscriptions; /* size_t */
 		*n_args = 3;
 		break;
@@ -1062,7 +1062,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const cloudabi64_subscription_t *";
 			break;
 		case 1:
-			p = "userland cloudabi64_event_t *";
+			p = "userland cloudabi_event_t *";
 			break;
 		case 2:
 			p = "size_t";

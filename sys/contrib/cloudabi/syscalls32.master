@@ -228,7 +228,7 @@
 
 37	AUE_NULL	STD	{ size_t cloudabi32_sys_poll( \
 					const cloudabi32_subscription_t *in, \
-					cloudabi32_event_t *out, \
+					cloudabi_event_t *out, \
 					size_t nsubscriptions); }
 
 38	AUE_NULL	STD	{ void cloudabi_sys_proc_exec( \
