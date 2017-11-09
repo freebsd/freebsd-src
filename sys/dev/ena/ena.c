@@ -3862,9 +3862,13 @@ ena_detach(device_t pdev)
 
 	ena_com_delete_host_info(ena_dev);
 
-	ena_com_admin_destroy(ena_dev);
-
 	ena_free_irqs(adapter);
+
+	ena_com_abort_admin_commands(ena_dev);
+
+	ena_com_wait_for_abort_completion(ena_dev);
+
+	ena_com_admin_destroy(ena_dev);
 
 	ena_com_mmio_reg_read_request_destroy(ena_dev);
 
