@@ -32,12 +32,51 @@ __FBSDID("$FreeBSD$");
 
 #include "ena_sysctl.h"
 
+static void	ena_sysctl_add_wd(struct ena_adapter *);
 static void	ena_sysctl_add_stats(struct ena_adapter *);
 
 void
 ena_sysctl_add_nodes(struct ena_adapter *adapter)
 {
+	ena_sysctl_add_wd(adapter);
 	ena_sysctl_add_stats(adapter);
+}
+
+static void
+ena_sysctl_add_wd(struct ena_adapter *adapter)
+{
+	device_t dev;
+
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
+	struct sysctl_oid_list *child;
+
+	dev = adapter->pdev;
+
+	ctx = device_get_sysctl_ctx(dev);
+	tree = device_get_sysctl_tree(dev);
+	child = SYSCTL_CHILDREN(tree);
+
+	/* Sysctl calls for Watchdog service */
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "wd_active",
+	    CTLFLAG_RWTUN, &adapter->wd_active, 0,
+	    "Watchdog is active");
+
+	SYSCTL_ADD_QUAD(ctx, child, OID_AUTO, "keep_alive_timeout",
+	    CTLFLAG_RWTUN, &adapter->keep_alive_timeout,
+	    "Timeout for Keep Alive messages");
+
+	SYSCTL_ADD_QUAD(ctx, child, OID_AUTO, "missing_tx_timeout",
+	    CTLFLAG_RWTUN, &adapter->missing_tx_timeout,
+	    "Timeout for TX completion");
+
+	SYSCTL_ADD_U32(ctx, child, OID_AUTO, "missing_tx_max_queues",
+	    CTLFLAG_RWTUN, &adapter->missing_tx_max_queues, 0,
+	    "Number of TX queues to check per run");
+
+	SYSCTL_ADD_U32(ctx, child, OID_AUTO, "missing_tx_threshold",
+	    CTLFLAG_RWTUN, &adapter->missing_tx_threshold, 0,
+	    "Max number of timeouted packets");
 }
 
 static void

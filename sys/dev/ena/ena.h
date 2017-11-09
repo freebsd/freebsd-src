@@ -246,7 +246,6 @@ struct ena_stats_rx {
 	counter_u64_t empty_rx_ring;
 };
 
-
 struct ena_ring {
 	/* Holds the empty requests for TX/RX out of order completions */
 	union {
@@ -422,7 +421,6 @@ struct ena_adapter {
 
 	enum ena_regs_reset_reason_types reset_reason;
 };
-
 
 #define	ENA_DEV_LOCK			mtx_lock(&adapter->global_mtx)
 #define	ENA_DEV_UNLOCK			mtx_unlock(&adapter->global_mtx)
