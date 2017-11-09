@@ -3349,6 +3349,56 @@ static void check_for_admin_com_state(struct ena_adapter *adapter)
 	}
 }
 
+static int
+check_missing_comp_in_queue(struct ena_adapter *adapter,
+    struct ena_ring *tx_ring)
+{
+	struct bintime curtime, time;
+	struct ena_tx_buffer *tx_buf;
+	uint32_t missed_tx = 0;
+	int i;
+
+	getbinuptime(&curtime);
+
+	for (i = 0; i < tx_ring->ring_size; i++) {
+		tx_buf = &tx_ring->tx_buffer_info[i];
+
+		if (!bintime_isset(&tx_buf->timestamp))
+			continue;
+
+		time = curtime;
+		bintime_sub(&time, &tx_buf->timestamp);
+
+		/* Check again if packet is still waiting */
+		if (unlikely(bttosbt(time) > adapter->missing_tx_timeout)) {
+
+			if (!tx_buf->print_once)
+				ena_trace(ENA_WARNING, "Found a Tx that wasn't "
+				    "completed on time, qid %d, index %d.\n",
+				    tx_ring->qid, i);
+
+			tx_buf->print_once = true;
+			missed_tx++;
+
+			if (unlikely(missed_tx >
+			    adapter->missing_tx_threshold)) {
+				device_printf(adapter->pdev,
+					      "The number of lost tx completion "
+					      "is above the threshold (%d > %d). "
+					      "Reset the device\n",
+					      missed_tx,
+					      adapter->missing_tx_threshold);
+				adapter->reset_reason =
+				    ENA_REGS_RESET_MISS_TX_CMPL;
+				adapter->trigger_reset = true;
+				return (EIO);
+			}
+		}
+	}
+
+	return (0);
+}
+
 /*
  * Check for TX which were not completed on time.
  * Timeout is defined by "missing_tx_timeout".
@@ -3358,9 +3408,7 @@ static void check_for_admin_com_state(struct ena_adapter *adapter)
 static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 {
 	struct ena_ring *tx_ring;
-	struct ena_tx_buffer *tx_info;
-	struct bintime curtime, time;
-	int i, j, budget, missed_tx;
+	int i, budget, rc;
 
 	/* Make sure the driver doesn't turn the device in other process */
 	rmb();
@@ -3375,48 +3423,13 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 		return;
 
 	budget = adapter->missing_tx_max_queues;
-	getbinuptime(&curtime);
 
 	for (i = adapter->next_monitored_tx_qid; i < adapter->num_queues; i++) {
 		tx_ring = &adapter->tx_ring[i];
 
-		missed_tx = 0;
-
-		for (j = 0; j < tx_ring->ring_size; j++) {
-			tx_info = &tx_ring->tx_buffer_info[j];
-
-			if (!bintime_isset(&tx_info->timestamp))
-				continue;
-
-			time = curtime;
-			bintime_sub(&time, &tx_info->timestamp);
-
-			/* Check again if packet is still waiting */
-			if (bintime_isset(&tx_info->timestamp) && unlikely(
-			    bttosbt(time) > adapter->missing_tx_timeout)) {
-				if (tx_info->print_once)
-					device_printf(adapter->pdev,
-					    "Found a Tx that wasn't completed "
-					    "on time, qid %d, index %d.\n",
-					    tx_ring->qid, j);
-
-				tx_info->print_once = false;
-				missed_tx++;
-
-				if (unlikely(missed_tx >
-				    adapter->missing_tx_threshold)) {
-					device_printf(adapter->pdev,
-					    "The number of lost tx completion "
-					    "is above the threshold (%d > %d). "
-					    "Reset the device\n", missed_tx,
-					    adapter->missing_tx_threshold);
-					adapter->reset_reason =
-					    ENA_REGS_RESET_MISS_TX_CMPL;
-					adapter->trigger_reset = true;
-					return;
-				}
-			}
-		}
+		rc = check_missing_comp_in_queue(adapter, tx_ring);
+		if (unlikely(rc))
+			return;
 
 		budget--;
 		if (budget == 0) {
