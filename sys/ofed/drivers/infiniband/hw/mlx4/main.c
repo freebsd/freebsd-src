@@ -1864,6 +1864,38 @@ err:
 			    "is incorrect. The parameter value is discarded!");
 }
 
+static int mlx4_port_immutable(struct ib_device *ibdev, u8 port_num,
+			       struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	struct mlx4_ib_dev *mdev = to_mdev(ibdev);
+	int err;
+
+	if (mlx4_ib_port_link_layer(ibdev, port_num) == IB_LINK_LAYER_INFINIBAND) {
+		immutable->core_cap_flags = RDMA_CORE_PORT_IBA_IB;
+		immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+	} else {
+		if (mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_IBOE)
+			immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
+		if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ROCEV2)
+			immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE |
+				RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
+		immutable->core_cap_flags |= RDMA_CORE_PORT_RAW_PACKET;
+		if (immutable->core_cap_flags & (RDMA_CORE_PORT_IBA_ROCE |
+		    RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP))
+			immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+	}
+
+	err = ib_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+
+	return 0;
+}
+
 static void *mlx4_ib_add(struct mlx4_dev *dev)
 {
 	struct mlx4_ib_dev *ibdev;
@@ -1993,6 +2025,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.attach_flow	= mlx4_ib_flow_attach;
 	ibdev->ib_dev.detach_flow	= mlx4_ib_flow_detach;
 	ibdev->ib_dev.process_mad	= mlx4_ib_process_mad;
+	ibdev->ib_dev.get_port_immutable = mlx4_port_immutable;
 
 	if (!mlx4_is_slave(ibdev->dev)) {
 		ibdev->ib_dev.alloc_fmr		= mlx4_ib_fmr_alloc;
