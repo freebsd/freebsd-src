@@ -86,7 +86,7 @@ associated with it.
 .Pp
 The normal way to use this subsystem is via the macro interface.
 For events that are high frequency it is suggested that you additionally use
-.Fn EVENTHANDLER_DEFINE_LIST
+.Fn EVENTHANDLER_LIST_DEFINE
 so that the event handlers can be invoked directly using
 .Fn EVENTHANDLER_DIRECT_INVOKE
 (see below).
