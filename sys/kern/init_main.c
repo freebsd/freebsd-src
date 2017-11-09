@@ -223,10 +223,10 @@ restart:
 	 * Perform a selection sort of the system initialization objects by
 	 * their subsystem (primary key) and order (secondary key).
 	 */
-	for (sipp = sysinit; sipp < sysinit_end-1; sipp++) {
-		register struct sysinit **xipp;	/* interior loop of sort*/
-		register struct sysinit **min;
-		register struct sysinit *save;
+	for (sipp = sysinit; sipp < sysinit_end - 1; sipp++) {
+		struct sysinit **xipp;	/* interior loop of sort*/
+		struct sysinit **min;
+		struct sysinit *save;
 
 		min = sipp;
 		for (xipp = sipp + 1; xipp < sysinit_end; xipp++) {
