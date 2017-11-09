@@ -269,9 +269,8 @@ ena_dma_alloc(device_t dmadev, bus_size_t size,
 	return (0);
 
 fail_map_load:
-	bus_dmamap_unload(dma->tag, dma->map);
-fail_map_create:
 	bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
+fail_map_create:
 	bus_dma_tag_destroy(dma->tag);
 fail_tag:
 	dma->tag = NULL;
@@ -498,11 +497,12 @@ ena_free_io_ring_resources(struct ena_adapter *adapter, unsigned int qid)
 	ena_free_counters((counter_u64_t *)&rxr->rx_stats,
 	    sizeof(rxr->rx_stats));
 
+	ENA_RING_MTX_LOCK(txr);
+	drbr_free(txr->br, M_DEVBUF);
+	ENA_RING_MTX_UNLOCK(txr);
+
 	mtx_destroy(&txr->ring_mtx);
 	mtx_destroy(&rxr->ring_mtx);
-
-	drbr_free(txr->br, M_DEVBUF);
-
 }
 
 static void
@@ -613,12 +613,12 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 
 	tx_ring->tx_buffer_info = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (tx_ring->tx_buffer_info == NULL)
-		goto err_tx_buffer_info;
+		return (ENOMEM);
 
 	size = sizeof(uint16_t) * tx_ring->ring_size;
 	tx_ring->free_tx_ids = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (tx_ring->free_tx_ids == NULL)
-		goto err_tx_reqs;
+		goto err_buf_info_free;
 
 	/* Req id stack for TX OOO completions */
 	for (i = 0; i < tx_ring->ring_size; i++)
@@ -643,7 +643,7 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 		if (err != 0) {
 			device_printf(adapter->pdev,
 			    "Unable to create Tx DMA map for buffer %d\n", i);
-			goto err_tx_map;
+			goto err_buf_info_unmap;
 		}
 	}
 
@@ -655,7 +655,7 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 		device_printf(adapter->pdev,
 		    "Unable to create taskqueue for enqueue task\n");
 		i = tx_ring->ring_size;
-		goto err_tx_map;
+		goto err_buf_info_unmap;
 	}
 
 	/* RSS set cpu for thread */
@@ -671,15 +671,17 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 
 	return (0);
 
-err_tx_map:
+err_buf_info_unmap:
 	while (i--) {
 		bus_dmamap_destroy(adapter->tx_buf_tag,
 		    tx_ring->tx_buffer_info[i].map);
 	}
 	free(tx_ring->free_tx_ids, M_DEVBUF);
-err_tx_reqs:
+	tx_ring->free_tx_ids = NULL;
+err_buf_info_free:
 	free(tx_ring->tx_buffer_info, M_DEVBUF);
-err_tx_buffer_info:
+	tx_ring->tx_buffer_info = NULL;
+
 	return (ENOMEM);
 }
 
@@ -737,12 +739,11 @@ ena_setup_all_tx_resources(struct ena_adapter *adapter)
 
 	for (i = 0; i < adapter->num_queues; i++) {
 		rc = ena_setup_tx_resources(adapter, i);
-		if (rc == 0)
-			continue;
-
-		device_printf(adapter->pdev,
-		    "Allocation for Tx Queue %u failed\n", i);
-		goto err_setup_tx;
+		if (rc) {
+			device_printf(adapter->pdev,
+			    "Allocation for Tx Queue %u failed\n", i);
+			goto err_setup_tx;
+		}
 	}
 
 	return (0);
@@ -835,7 +836,7 @@ ena_setup_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 		if (err != 0) {
 			device_printf(adapter->pdev,
 			    "Unable to create Rx DMA map for buffer %d\n", i);
-			goto err_rx_dma;
+			goto err_buf_info_unmap;
 		}
 	}
 
@@ -870,7 +871,7 @@ ena_setup_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 
 	return (0);
 
-err_rx_dma:
+err_buf_info_unmap:
 	while (i--) {
 		bus_dmamap_destroy(adapter->rx_buf_tag,
 		    rx_ring->rx_buffer_info[i].map);
@@ -939,12 +940,11 @@ ena_setup_all_rx_resources(struct ena_adapter *adapter)
 
 	for (i = 0; i < adapter->num_queues; i++) {
 		rc = ena_setup_rx_resources(adapter, i);
-		if (rc == 0)
-			continue;
-
-		device_printf(adapter->pdev,
-		    "Allocation for Rx Queue %u failed\n", i);
-		goto err_setup_rx;
+		if (rc) {
+			device_printf(adapter->pdev,
+			    "Allocation for Rx Queue %u failed\n", i);
+			goto err_setup_rx;
+		}
 	}
 	return (0);
 
@@ -1837,16 +1837,20 @@ ena_enable_msix(struct ena_adapter *adapter)
 	if (rc != 0) {
 		device_printf(dev,
 		    "Failed to enable MSIX, vectors %d rc %d\n", msix_vecs, rc);
-		free(adapter->msix_entries, M_DEVBUF);
-		adapter->msix_entries = NULL;
+
 		rc = ENOSPC;
-		goto error;
+		goto err_msix_free;
 	}
 
 	adapter->msix_vecs = msix_vecs;
 	adapter->msix_enabled = true;
 
-error:
+	return (0);
+
+err_msix_free:
+	free(adapter->msix_entries, M_DEVBUF);
+	adapter->msix_entries = NULL;
+
 	return (rc);
 }
 
@@ -1922,15 +1926,14 @@ ena_request_mgmnt_irq(struct ena_adapter *adapter)
 	if (irq->res == NULL) {
 		device_printf(adapter->pdev, "could not allocate "
 		    "irq vector: %d\n", irq->vector);
-		rc = ENXIO;
-		goto exit_res;
+		return (ENXIO);
 	}
 
 	if ((rc = bus_activate_resource(adapter->pdev, SYS_RES_IRQ, irq->vector,
 	    irq->res)) != 0) {
 		device_printf(adapter->pdev, "could not activate "
 		    "irq vector: %d\n", irq->vector);
-		goto exit_intr;
+		goto err_res_free;
 	}
 
 	if ((rc = bus_setup_intr(adapter->pdev, irq->res,
@@ -1939,15 +1942,15 @@ ena_request_mgmnt_irq(struct ena_adapter *adapter)
 		device_printf(adapter->pdev, "failed to register "
 		    "interrupt handler for irq %ju: %d\n",
 		    rman_get_start(irq->res), rc);
-		goto exit_intr;
+		goto err_res_free;
 	}
 	irq->requested = true;
 
 	return (rc);
 
-exit_intr:
-	device_printf(adapter->pdev, "exit_intr: releasing resource"
-	    " for irq %d\n", irq->vector);
+err_res_free:
+	device_printf(adapter->pdev, "releasing resource for irq %d\n",
+	    irq->vector);
 	rcc = bus_release_resource(adapter->pdev, SYS_RES_IRQ,
 	    irq->vector, irq->res);
 	if (rcc)
@@ -1955,7 +1958,6 @@ exit_intr:
 		    "releasing res for irq: %d\n", irq->vector);
 	irq->res = NULL;
 
-exit_res:
 	return (rc);
 }
 
@@ -2181,7 +2183,10 @@ ena_up_complete(struct ena_adapter *adapter)
 			return (rc);
 	}
 
-	ena_change_mtu(adapter->ifp, adapter->ifp->if_mtu);
+	rc = ena_change_mtu(adapter->ifp, adapter->ifp->if_mtu);
+	if (rc != 0)
+		return (rc);
+
 	ena_refill_all_rx_bufs(adapter);
 	ena_reset_counters((counter_u64_t *)&adapter->hw_stats,
 	    sizeof(adapter->hw_stats));
@@ -3057,7 +3062,7 @@ static int ena_rss_init_default(struct ena_adapter *adapter)
 	rc = ena_com_rss_init(ena_dev, ENA_RX_RSS_TABLE_LOG_SIZE);
 	if (unlikely(rc)) {
 		device_printf(dev, "Cannot init RSS\n");
-		goto err_rss_init;
+		return (rc);
 	}
 
 	for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; i++) {
@@ -3071,7 +3076,7 @@ static int ena_rss_init_default(struct ena_adapter *adapter)
 						       ENA_IO_RXQ_IDX(qid));
 		if (unlikely(rc && (rc != EOPNOTSUPP))) {
 			device_printf(dev, "Cannot fill indirect table\n");
-			goto err_fill_indir;
+			goto err_rss_destroy;
 		}
 	}
 
@@ -3079,20 +3084,19 @@ static int ena_rss_init_default(struct ena_adapter *adapter)
 					ENA_HASH_KEY_SIZE, 0xFFFFFFFF);
 	if (unlikely(rc && (rc != EOPNOTSUPP))) {
 		device_printf(dev, "Cannot fill hash function\n");
-		goto err_fill_indir;
+		goto err_rss_destroy;
 	}
 
 	rc = ena_com_set_default_hash_ctrl(ena_dev);
 	if (unlikely(rc && (rc != EOPNOTSUPP))) {
 		device_printf(dev, "Cannot fill hash control\n");
-		goto err_fill_indir;
+		goto err_rss_destroy;
 	}
 
 	return (0);
 
-err_fill_indir:
+err_rss_destroy:
 	ena_com_rss_destroy(ena_dev);
-err_rss_init:
 	return (rc);
 }
 
