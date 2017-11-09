@@ -213,16 +213,8 @@ struct ena_rx_buffer {
 struct ena_stats_tx {
 	counter_u64_t cnt;
 	counter_u64_t bytes;
-	counter_u64_t queue_stop;
 	counter_u64_t prepare_ctx_err;
-	counter_u64_t queue_wakeup;
 	counter_u64_t dma_mapping_err;
-	/* Not counted */
-	counter_u64_t unsupported_desc_num;
-	/* Not counted */
-	counter_u64_t napi_comp;
-	/* Not counted */
-	counter_u64_t tx_poll;
 	counter_u64_t doorbells;
 	counter_u64_t missing_tx_comp;
 	counter_u64_t bad_req_id;
@@ -235,13 +227,9 @@ struct ena_stats_rx {
 	counter_u64_t bytes;
 	counter_u64_t refil_partial;
 	counter_u64_t bad_csum;
-	/* Not counted */
-	counter_u64_t page_alloc_fail;
 	counter_u64_t mbuf_alloc_fail;
 	counter_u64_t dma_mapping_err;
 	counter_u64_t bad_desc_num;
-	/* Not counted */
-	counter_u64_t small_copy_len_pkt;
 	counter_u64_t bad_req_id;
 	counter_u64_t empty_rx_ring;
 };
@@ -304,17 +292,9 @@ struct ena_ring {
 } __aligned(CACHE_LINE_SIZE);
 
 struct ena_stats_dev {
-	/* Not counted */
-	counter_u64_t tx_timeout;
-	/* Not counted */
-	counter_u64_t io_suspend;
-	/* Not counted */
-	counter_u64_t io_resume;
-	/* Not counted */
 	counter_u64_t wd_expired;
 	counter_u64_t interface_up;
 	counter_u64_t interface_down;
-	/* Not counted */
 	counter_u64_t admin_q_pause;
 };
 

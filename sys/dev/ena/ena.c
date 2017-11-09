@@ -2777,10 +2777,7 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	rc = ena_com_prepare_tx(io_sq, &ena_tx_ctx, &nb_hw_desc);
 	if (unlikely(rc != 0)) {
 		ena_trace(ENA_WARNING, "failed to prepare tx bufs\n");
-		counter_enter();
-		counter_u64_add_protected(tx_ring->tx_stats.queue_stop, 1);
-		counter_u64_add_protected(tx_ring->tx_stats.prepare_ctx_err, 1);
-		counter_exit();
+		counter_u64_add(tx_ring->tx_stats.prepare_ctx_err, 1);
 		goto dma_error;
 	}
 
