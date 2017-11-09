@@ -1576,7 +1576,7 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, const struct ib_ah_attr *ah,
 	int gid_type;
 
 	if ((ll == IB_LINK_LAYER_ETHERNET) || (ah->ah_flags & IB_AH_GRH)) {
-		int len = dev->ib_dev.gid_tbl_len[port - 1];
+		int len = dev->mdev->port_caps[port - 1].gid_table_len;
 		if (ah->grh.sgid_index >= len) {
 			printf("mlx5_ib: ERR: ""sgid_index (%u) too large. max is %d\n", ah->grh.sgid_index, len - 1);
 			return -EINVAL;

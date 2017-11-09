@@ -1297,6 +1297,25 @@ out:
 	return err;
 }
 
+static int mthca_port_immutable(struct ib_device *ibdev, u8 port_num,
+			        struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_IB;
+
+	err = ib_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+
+	return 0;
+}
+
 int mthca_register_device(struct mthca_dev *dev)
 {
 	int ret;
@@ -1376,6 +1395,7 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.reg_phys_mr          = mthca_reg_phys_mr;
 	dev->ib_dev.reg_user_mr          = mthca_reg_user_mr;
 	dev->ib_dev.dereg_mr             = mthca_dereg_mr;
+	dev->ib_dev.get_port_immutable   = mthca_port_immutable;
 
 	if (dev->mthca_flags & MTHCA_FLAG_FMR) {
 		dev->ib_dev.alloc_fmr            = mthca_alloc_fmr;
