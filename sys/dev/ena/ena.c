@@ -122,6 +122,7 @@ static void	ena_destroy_all_rx_queues(struct ena_adapter *);
 static void	ena_destroy_all_io_queues(struct ena_adapter *);
 static int	ena_create_io_queues(struct ena_adapter *);
 static int	ena_tx_cleanup(struct ena_ring *);
+static void	ena_deferred_rx_cleanup(void *, int);
 static int	ena_rx_cleanup(struct ena_ring *);
 static inline int validate_tx_req_id(struct ena_ring *, uint16_t);
 static void	ena_rx_hash_mbuf(struct ena_ring *, struct ena_com_rx_ctx *,
@@ -471,6 +472,7 @@ ena_init_io_rings(struct ena_adapter *adapter)
 		    device_get_nameunit(adapter->pdev), i);
 
 		mtx_init(&txr->ring_mtx, txr->mtx_name, NULL, MTX_DEF);
+		mtx_init(&rxr->ring_mtx, rxr->mtx_name, NULL, MTX_DEF);
 
 		que = &adapter->que[i];
 		que->adapter = adapter;
@@ -480,6 +482,8 @@ ena_init_io_rings(struct ena_adapter *adapter)
 
 		txr->que = que;
 		rxr->que = que;
+
+		rxr->empty_rx_queue = 0;
 	}
 }
 
@@ -495,6 +499,7 @@ ena_free_io_ring_resources(struct ena_adapter *adapter, unsigned int qid)
 	    sizeof(rxr->rx_stats));
 
 	mtx_destroy(&txr->ring_mtx);
+	mtx_destroy(&rxr->ring_mtx);
 
 	drbr_free(txr->br, M_DEVBUF);
 
@@ -847,6 +852,22 @@ ena_setup_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 		}
 	}
 
+	/* Allocate taskqueues */
+	TASK_INIT(&rx_ring->cmpl_task, 0, ena_deferred_rx_cleanup, rx_ring);
+	rx_ring->cmpl_tq = taskqueue_create_fast("ena RX completion", M_WAITOK,
+	    taskqueue_thread_enqueue, &rx_ring->cmpl_tq);
+
+	/* RSS set cpu for thread */
+#ifdef RSS
+	CPU_SETOF(que->cpu, &cpu_mask);
+	taskqueue_start_threads_cpuset(&rx_ring->cmpl_tq, 1, PI_NET, &cpu_mask,
+	    "%s rx_ring cmpl (bucket %d)",
+	    device_get_nameunit(adapter->pdev), que->cpu);
+#else
+	taskqueue_start_threads(&rx_ring->cmpl_tq, 1, PI_NET,
+	    "%s rx_ring cmpl %d", device_get_nameunit(adapter->pdev), que->cpu);
+#endif
+
 	return (0);
 
 err_rx_dma:
@@ -876,6 +897,11 @@ ena_free_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 	struct ena_ring *rx_ring = &adapter->rx_ring[qid];
 
 	ena_trace(ENA_INFO, "%s qid %d\n", __func__, qid);
+
+	while (taskqueue_cancel(rx_ring->cmpl_tq, &rx_ring->cmpl_task, NULL) != 0)
+		taskqueue_drain(rx_ring->cmpl_tq, &rx_ring->cmpl_task);
+
+	taskqueue_free(rx_ring->cmpl_tq);
 
 	/* Free buffer DMA maps, */
 	for (int i = 0; i < rx_ring->ring_size; i++) {
@@ -1565,6 +1591,24 @@ ena_rx_checksum(struct ena_ring *rx_ring, struct ena_com_rx_ctx *ena_rx_ctx,
 	return;
 }
 
+static void
+ena_deferred_rx_cleanup(void *arg, int pending)
+{
+	struct ena_ring *rx_ring = arg;
+	int budget = CLEAN_BUDGET;
+
+	ENA_RING_MTX_LOCK(rx_ring);
+	/*
+	 * If deferred task was executed, perform cleanup of all awaiting
+	 * descs (or until given budget is depleted to avoid infinite loop).
+	 */
+	while (budget--) {
+		if (ena_rx_cleanup(rx_ring) == 0)
+			break;
+	}
+	ENA_RING_MTX_UNLOCK(rx_ring);
+}
+
 /**
  * ena_rx_cleanup - handle rx irq
  * @arg: ring for which irq is being handled
@@ -1736,7 +1780,17 @@ ena_handle_msix(void *arg)
 	io_cq = &adapter->ena_dev->io_cq_queues[ena_qid];
 
 	for (i = 0; i < CLEAN_BUDGET; ++i) {
-		rxc = ena_rx_cleanup(rx_ring);
+		/*
+		 * If lock cannot be acquired, then deferred cleanup task was
+		 * being executed and rx ring is being cleaned up in
+		 * another thread.
+		 */
+		if (ENA_RING_MTX_TRYLOCK(rx_ring)) {
+			rxc = ena_rx_cleanup(rx_ring);
+			ENA_RING_MTX_UNLOCK(rx_ring);
+		} else {
+			rxc = 0;
+		}
 
 		/* Protection from calling ena_tx_cleanup from ena_start_xmit */
 		ENA_RING_MTX_LOCK(tx_ring);
@@ -3374,6 +3428,53 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 	adapter->next_monitored_tx_qid = i % adapter->num_queues;
 }
 
+/* trigger deferred rx cleanup after 2 consecutive detections */
+#define EMPTY_RX_REFILL 2
+/* For the rare case where the device runs out of Rx descriptors and the
+ * msix handler failed to refill new Rx descriptors (due to a lack of memory
+ * for example).
+ * This case will lead to a deadlock:
+ * The device won't send interrupts since all the new Rx packets will be dropped
+ * The msix handler won't allocate new Rx descriptors so the device won't be
+ * able to send new packets.
+ *
+ * When such a situation is detected - execute rx cleanup task in another thread
+ */
+static void
+check_for_empty_rx_ring(struct ena_adapter *adapter)
+{
+	struct ena_ring *rx_ring;
+	int i, refill_required;
+
+	if (!adapter->up)
+		return;
+
+	if (adapter->trigger_reset)
+		return;
+
+	for (i = 0; i < adapter->num_queues; i++) {
+		rx_ring = &adapter->rx_ring[i];
+
+		refill_required = ena_com_free_desc(rx_ring->ena_com_io_sq);
+		if (unlikely(refill_required == (rx_ring->ring_size - 1))) {
+			rx_ring->empty_rx_queue++;
+
+			if (rx_ring->empty_rx_queue >= EMPTY_RX_REFILL)	{
+				counter_u64_add(rx_ring->rx_stats.empty_rx_ring,
+				    1);
+
+				device_printf(adapter->pdev,
+				    "trigger refill for ring %d\n", i);
+
+				taskqueue_enqueue(rx_ring->cmpl_tq,
+				    &rx_ring->cmpl_task);
+				rx_ring->empty_rx_queue = 0;
+			}
+		} else {
+			rx_ring->empty_rx_queue = 0;
+		}
+	}
+}
 
 static void
 ena_timer_service(void *data)
@@ -3387,6 +3488,8 @@ ena_timer_service(void *data)
 	check_for_admin_com_state(adapter);
 
 	check_for_missing_tx_completions(adapter);
+
+	check_for_empty_rx_ring(adapter);
 
 	if (host_info)
 		ena_update_host_info(host_info, adapter->ifp);

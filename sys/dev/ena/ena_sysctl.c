@@ -200,6 +200,9 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "bad_req_id", CTLFLAG_RD,
 		    &rx_stats->bad_req_id, "Bad request id count");
+		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
+		    "empty_rx_ring", CTLFLAG_RD,
+		    &rx_stats->empty_rx_ring, "RX descriptors depletion count");
 	}
 
 	/* Stats read from device */
