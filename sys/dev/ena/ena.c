@@ -2725,7 +2725,7 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	ena_qid = ENA_IO_TXQ_IDX(tx_ring->que->id);
 	adapter = tx_ring->que->adapter;
 	ena_dev = adapter->ena_dev;
-	io_sq = &adapter->ena_dev->io_sq_queues[ena_qid];
+	io_sq = &ena_dev->io_sq_queues[ena_qid];
 
 	rc = ena_check_and_collapse_mbuf(tx_ring, mbuf);
 	if (unlikely(rc != 0)) {
