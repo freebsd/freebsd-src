@@ -197,6 +197,9 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "small_copy_len_pkt", CTLFLAG_RD,
 		    &rx_stats->small_copy_len_pkt, "Small copy packet count");
+		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
+		    "bad_req_id", CTLFLAG_RD,
+		    &rx_stats->bad_req_id, "Bad request id count");
 	}
 
 	/* Stats read from device */
