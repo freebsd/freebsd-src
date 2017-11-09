@@ -2094,13 +2094,23 @@ static ssize_t __uverbs_modify_qp(struct ib_uverbs_file *file,
 					attr->smac);
 			attr->vlan_id = rdma_get_vlan_id(&sgid);
 		} else {
+			struct net_device *idev;
+			int if_index;
+
+			if (qp->device->get_netdev != NULL &&
+			    (idev = qp->device->get_netdev(qp->device, port_num)) != NULL)
+				if_index = idev->if_index;
+			else
+				if_index = 0;
+
 			ret = rdma_addr_find_dmac_by_grh(&sgid, dgid,
 							 attr->ah_attr.dmac,
-							 &attr->vlan_id, -1U);
+							 &attr->vlan_id,
+							 &if_index);
 			if (ret)
 				goto out;
 			ret = rdma_addr_find_smac_by_sgid(&sgid, attr->smac,
-							  NULL, -1U);
+							  NULL);
 			if (ret)
 				goto out;
 		}

@@ -110,14 +110,6 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct ifnet *dev,
 }
 EXPORT_SYMBOL(rdma_copy_addr);
 
-#define	SCOPE_ID_CACHE(_scope_id, _addr6) do {		\
-	(_addr6)->sin6_addr.s6_addr[3] = (_scope_id);	\
-	(_addr6)->sin6_scope_id = 0; } while (0)
-
-#define	SCOPE_ID_RESTORE(_scope_id, _addr6) do {	\
-	(_addr6)->sin6_scope_id = (_scope_id);		\
-	(_addr6)->sin6_addr.s6_addr[3] = 0; } while (0)
-
 int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr,
 		      u16 *vlan_id)
 {
@@ -149,34 +141,17 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr,
 
 #if defined(INET6)
 	case AF_INET6:
-		{
-			struct sockaddr_in6 *sin6;
-			struct ifaddr *ifa;
-			in_port_t port;
-			uint32_t scope_id;
+		dev = ip6_dev_find(&init_net,
+			((const struct sockaddr_in6 *)addr)->sin6_addr);
 
-			sin6 = (struct sockaddr_in6 *)addr;
-			port = sin6->sin6_port;
-			sin6->sin6_port = 0;
-			scope_id = sin6->sin6_scope_id;
-			if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr))
-				SCOPE_ID_CACHE(scope_id, sin6);
-			CURVNET_SET_QUIET(&init_net);
-			ifa = ifa_ifwithaddr(addr);
-			CURVNET_RESTORE();
-			sin6->sin6_port = port;
-			if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr))
-				SCOPE_ID_RESTORE(scope_id, sin6);
-			if (ifa == NULL) {
-				ret = -ENODEV;
-				break;
-			}
-			ret = rdma_copy_addr(dev_addr, ifa->ifa_ifp, NULL);
-			if (vlan_id)
-				*vlan_id = rdma_vlan_dev_vlan_id(ifa->ifa_ifp);
-			ifa_free(ifa);
-			break;
-		}
+		if (!dev)
+			return ret;
+
+		ret = rdma_copy_addr(dev_addr, dev, NULL);
+		if (vlan_id)
+			*vlan_id = rdma_vlan_dev_vlan_id(dev);
+		dev_put(dev);
+		break;
 #endif
 	default:
 		break;
@@ -222,11 +197,8 @@ static int addr_resolve(struct sockaddr *src_in,
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
 	struct rtentry *rte;
-#if defined(INET) || defined(INET6)
-	in_port_t port;
-#endif
-#ifdef INET6
-	uint32_t scope_id;
+#if defined(INET6)
+	struct sockaddr_in6 dstv6_tmp;
 #endif
 	u_char edst[MAX_ADDR_LEN];
 	int multi;
@@ -247,11 +219,7 @@ static int addr_resolve(struct sockaddr *src_in,
 	ifp = NULL;
 	rte = NULL;
 	ifa = NULL;
-	ifp = NULL;
 	memset(edst, 0, sizeof(edst));
-#ifdef INET6
-	scope_id = -1U;
-#endif
 
 	switch (dst_in->sa_family) {
 #ifdef INET
@@ -263,29 +231,11 @@ static int addr_resolve(struct sockaddr *src_in,
 			multi = 1;
 		sin = (struct sockaddr_in *)src_in;
 		if (sin->sin_addr.s_addr != INADDR_ANY) {
-			/*
-			 * Address comparison fails if the port is set
-			 * cache it here to be restored later.
-			 */
-			port = sin->sin_port;
-			sin->sin_port = 0;
-			memset(&sin->sin_zero, 0, sizeof(sin->sin_zero));
-
-			/*
-			 * If we have a source address to use look it
-			 * up first and verify that it is a local
-			 * interface:
-			 */
-			CURVNET_SET_QUIET(&init_net);
-			ifa = ifa_ifwithaddr(src_in);
-			CURVNET_RESTORE();
-			sin->sin_port = port;
-			if (ifa == NULL) {
+			ifp = ip_dev_find(&init_net, sin->sin_addr.s_addr);
+			if (ifp == NULL) {
 				error = ENETUNREACH;
 				goto done;
 			}
-			ifp = ifa->ifa_ifp;
-			ifa_free(ifa);
 			if (bcast || multi)
 				goto mcast;
 		}
@@ -293,42 +243,26 @@ static int addr_resolve(struct sockaddr *src_in,
 #endif
 #ifdef INET6
 	case AF_INET6:
+		/* Make destination socket address writeable */
+		dstv6_tmp = *(struct sockaddr_in6 *)dst_in;
+		dst_in = (struct sockaddr *)&dstv6_tmp;
 		sin6 = (struct sockaddr_in6 *)dst_in;
 		if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			multi = 1;
-		if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr)) {
-			/*
-			 * The IB address comparison fails if the
-			 * scope ID is set and not part of the addr:
-			 */
-			scope_id = sin6->sin6_scope_id;
-			if (scope_id < 256)
-				SCOPE_ID_CACHE(scope_id, sin6);
-		}
+		/*
+		 * Make sure the scope ID gets embedded, else rtalloc1() will
+		 * resolve to the loopback interface.
+		 */
+		sin6->sin6_scope_id = addr->bound_dev_if;
+		sa6_embedscope(sin6, 0);
+
 		sin6 = (struct sockaddr_in6 *)src_in;
 		if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
-			port = sin6->sin6_port;
-			sin6->sin6_port = 0;
-			if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr)) {
-				if (scope_id < 256)
-					SCOPE_ID_CACHE(scope_id, sin6);
-			}
-
-			/*
-			 * If we have a source address to use look it
-			 * up first and verify that it is a local
-			 * interface:
-			 */
-			CURVNET_SET_QUIET(&init_net);
-			ifa = ifa_ifwithaddr(src_in);
-			CURVNET_RESTORE();
-			sin6->sin6_port = port;
-			if (ifa == NULL) {
+			ifp = ip6_dev_find(&init_net, sin6->sin6_addr);
+			if (ifp == NULL) {
 				error = ENETUNREACH;
 				goto done;
 			}
-			ifp = ifa->ifa_ifp;
-			ifa_free(ifa);
 			if (bcast || multi)
 				goto mcast;
 		}
@@ -342,9 +276,13 @@ static int addr_resolve(struct sockaddr *src_in,
 	 * Make sure the route exists and has a valid link.
 	 */
 	rte = rtalloc1(dst_in, 1, 0);
-	if (rte == NULL || rte->rt_ifp == NULL || !RT_LINK_IS_UP(rte->rt_ifp)) {
-		if (rte)
+	if (rte == NULL || rte->rt_ifp == NULL ||
+	    RT_LINK_IS_UP(rte->rt_ifp) == 0 ||
+	    rte->rt_ifp == V_loif) {
+		if (rte != NULL) {
 			RTFREE_LOCKED(rte);
+			rte = NULL;
+		}
 		error = EHOSTUNREACH;
 		goto done;
 	}
@@ -356,20 +294,27 @@ static int addr_resolve(struct sockaddr *src_in,
 	 * correct interface pointer and unlock the route.
 	 */
 	if (multi || bcast) {
+		/* rt_ifa holds the route answer source address */
+		ifa = rte->rt_ifa;
+
 		if (ifp == NULL) {
 			ifp = rte->rt_ifp;
-			/* rt_ifa holds the route answer source address */
-			ifa = rte->rt_ifa;
+			dev_hold(ifp);
 		}
 		RTFREE_LOCKED(rte);
-	} else if (ifp && ifp != rte->rt_ifp) {
+		rte = NULL;
+	} else if (ifp != NULL && ifp != rte->rt_ifp) {
 		RTFREE_LOCKED(rte);
+		rte = NULL;
 		error = ENETUNREACH;
 		goto done;
 	} else {
+		/* rt_ifa holds the route answer source address */
+		ifa = rte->rt_ifa;
+
 		if (ifp == NULL) {
 			ifp = rte->rt_ifp;
-			ifa = rte->rt_ifa;
+			dev_hold(ifp);
 		}
 		RT_UNLOCK(rte);
 	}
@@ -418,23 +363,17 @@ mcast:
 		error = EINVAL;
 		break;
 	}
-	RTFREE(rte);
 done:
 	if (error == 0)
 		error = -rdma_copy_addr(addr, ifp, edst);
 	if (error == 0)
 		memcpy(src_in, ifa->ifa_addr, ip_addr_size(ifa->ifa_addr));
-#ifdef INET6
-	if (scope_id < 256) {
-		sin6 = (struct sockaddr_in6 *)src_in;
-		if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr))
-			SCOPE_ID_RESTORE(scope_id, sin6);
-		sin6 = (struct sockaddr_in6 *)dst_in;
-		SCOPE_ID_RESTORE(scope_id, sin6);
-	}
-#endif
 	if (error == EWOULDBLOCK)
 		error = ENODATA;
+	if (rte != NULL)
+		RTFREE(rte);
+	if (ifp != NULL)
+		dev_put(ifp);
 
 	CURVNET_RESTORE();
 	return -error;
@@ -567,7 +506,7 @@ static void resolve_cb(int status, struct sockaddr *src_addr,
 }
 
 int rdma_addr_find_dmac_by_grh(union ib_gid *sgid, union ib_gid *dgid, u8 *dmac,
-			       u16 *vlan_id, u32 scope_id)
+			       u16 *vlan_id, int *if_index)
 {
 	int ret = 0;
 	struct rdma_dev_addr dev_addr;
@@ -580,16 +519,17 @@ int rdma_addr_find_dmac_by_grh(union ib_gid *sgid, union ib_gid *dgid, u8 *dmac,
 		struct sockaddr_in6 _sockaddr_in6;
 	} sgid_addr, dgid_addr;
 
-
-	ret = rdma_gid2ip(&sgid_addr._sockaddr, sgid, scope_id);
+	ret = rdma_gid2ip(&sgid_addr._sockaddr, sgid);
 	if (ret)
 		return ret;
 
-	ret = rdma_gid2ip(&dgid_addr._sockaddr, dgid, scope_id);
+	ret = rdma_gid2ip(&dgid_addr._sockaddr, dgid);
 	if (ret)
 		return ret;
 
 	memset(&dev_addr, 0, sizeof(dev_addr));
+	if (if_index)
+		dev_addr.bound_dev_if = *if_index;
 
 	ctx.addr = &dev_addr;
 	init_completion(&ctx.comp);
@@ -611,23 +551,7 @@ int rdma_addr_find_dmac_by_grh(union ib_gid *sgid, union ib_gid *dgid, u8 *dmac,
 }
 EXPORT_SYMBOL(rdma_addr_find_dmac_by_grh);
 
-u32 rdma_get_ipv6_scope_id(struct ib_device *ib, u8 port_num)
-{
-#ifdef INET6
-	struct ifnet *ifp;
-	if (ib->get_netdev == NULL)
-		return (-1U);
-	ifp = ib->get_netdev(ib, port_num);
-	if (ifp == NULL)
-		return (-1U);
-	return (in6_getscopezone(ifp, IPV6_ADDR_SCOPE_LINKLOCAL));
-#else
-	return (-1U);
-#endif
-}
-
-int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id,
-    u32 scope_id)
+int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id)
 {
 	int ret = 0;
 	struct rdma_dev_addr dev_addr;
@@ -637,7 +561,7 @@ int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id,
 		struct sockaddr_in6 _sockaddr_in6;
 	} gid_addr;
 
-	ret = rdma_gid2ip(&gid_addr._sockaddr, sgid, scope_id);
+	ret = rdma_gid2ip(&gid_addr._sockaddr, sgid);
 	if (ret)
 		return ret;
 	memset(&dev_addr, 0, sizeof(dev_addr));

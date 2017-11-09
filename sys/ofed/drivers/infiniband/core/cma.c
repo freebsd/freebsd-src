@@ -51,6 +51,9 @@
 #include <net/tcp.h>
 #include <net/ipv6.h>
 
+#include <netinet6/scope6_var.h>
+#include <netinet6/ip6_var.h>
+
 #include <rdma/rdma_cm.h>
 #include <rdma/rdma_cm_ib.h>
 #include <rdma/ib_cache.h>
@@ -710,11 +713,7 @@ static int cma_modify_qp_rtr(struct rdma_id_private *id_priv,
 	    == RDMA_TRANSPORT_IB &&
 	    rdma_port_get_link_layer(id_priv->id.device, id_priv->id.port_num)
 	    == IB_LINK_LAYER_ETHERNET) {
-		u32 scope_id = rdma_get_ipv6_scope_id(id_priv->id.device,
-		    id_priv->id.port_num);
-
-		ret = rdma_addr_find_smac_by_sgid(&sgid, qp_attr.smac, NULL,
-		    scope_id);
+		ret = rdma_addr_find_smac_by_sgid(&sgid, qp_attr.smac, NULL);
 		if (ret)
 			goto out;
 	}
@@ -1452,19 +1451,16 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		goto err3;
 
 	if (is_iboe && !is_sidr) {
-		u32 scope_id = rdma_get_ipv6_scope_id(cm_id->device,
-		    ib_event->param.req_rcvd.port);
-
 		if (ib_event->param.req_rcvd.primary_path != NULL)
 			rdma_addr_find_smac_by_sgid(
 				&ib_event->param.req_rcvd.primary_path->sgid,
-				psmac, NULL, scope_id);
+				psmac, NULL);
 		else
 			psmac = NULL;
 		if (ib_event->param.req_rcvd.alternate_path != NULL)
 			rdma_addr_find_smac_by_sgid(
 				&ib_event->param.req_rcvd.alternate_path->sgid,
-				palt_smac, NULL, scope_id);
+				palt_smac, NULL);
 		else
 			palt_smac = NULL;
 	}
@@ -2311,8 +2307,12 @@ static int cma_bind_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 		src_addr->sa_family = dst_addr->sa_family;
 #ifdef INET6
 		if (dst_addr->sa_family == AF_INET6) {
-			((struct sockaddr_in6 *) src_addr)->sin6_scope_id =
-				((struct sockaddr_in6 *) dst_addr)->sin6_scope_id;
+			struct sockaddr_in6 *src_addr6 = (struct sockaddr_in6 *) src_addr;
+			struct sockaddr_in6 *dst_addr6 = (struct sockaddr_in6 *) dst_addr;
+			src_addr6->sin6_scope_id = dst_addr6->sin6_scope_id;
+			if (IN6_IS_SCOPE_LINKLOCAL(&dst_addr6->sin6_addr) ||
+			    IN6_IS_ADDR_MC_INTFACELOCAL(&dst_addr6->sin6_addr))
+				id->route.addr.dev_addr.bound_dev_if = dst_addr6->sin6_scope_id;
 		}
 #endif
 	}
@@ -2666,20 +2666,23 @@ out:
 static int cma_check_linklocal(struct rdma_dev_addr *dev_addr,
 			       struct sockaddr *addr)
 {
-#if defined(INET6)
-	struct sockaddr_in6 *sin6;
+#ifdef INET6
+	struct sockaddr_in6 sin6;
 
 	if (addr->sa_family != AF_INET6)
 		return 0;
 
-	sin6 = (struct sockaddr_in6 *) addr;
-	if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr) &&
-	    !sin6->sin6_scope_id)
-			return -EINVAL;
+	sin6 = *(struct sockaddr_in6 *)addr;
 
-	dev_addr->bound_dev_if = sin6->sin6_scope_id;
+	if (IN6_IS_SCOPE_LINKLOCAL(&sin6.sin6_addr) ||
+	    IN6_IS_ADDR_MC_INTFACELOCAL(&sin6.sin6_addr)) {
+		/* check if IPv6 scope ID is set */
+		if (sa6_recoverscope(&sin6) || sin6.sin6_scope_id == 0)
+			return -EINVAL;
+		dev_addr->bound_dev_if = sin6.sin6_scope_id;
+	}
 #endif
-	return 0;
+	return (0);
 }
 
 int rdma_listen(struct rdma_cm_id *id, int backlog)
