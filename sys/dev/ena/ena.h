@@ -103,6 +103,8 @@
 #define RX_IRQ_INTERVAL 20
 #define TX_IRQ_INTERVAL 50
 
+#define	ENA_MIN_MTU		128
+
 #define	ENA_TSO_MAXSIZE		65536
 
 #define	ENA_MMIO_DISABLE_REG_READ	BIT(0)
@@ -325,6 +327,8 @@ struct ena_adapter {
 	bus_dma_tag_t tx_buf_tag;
 	bus_dma_tag_t rx_buf_tag;
 	int dma_width;
+
+	uint32_t max_mtu;
 
 	uint16_t max_tx_sgl_size;
 	uint16_t max_rx_sgl_size;
