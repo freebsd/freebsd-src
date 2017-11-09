@@ -730,6 +730,8 @@ ixgbe_attach(device_t dev)
 	ctrl_ext |= IXGBE_CTRL_EXT_DRV_LOAD;
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL_EXT, ctrl_ext);
 
+	hw->allow_unsupported_sfp = allow_unsupported_sfp;
+
 	/*
 	 * Initialize the shared code
 	 */
@@ -742,7 +744,6 @@ ixgbe_attach(device_t dev)
 	if (hw->mbx.ops.init_params)
 		hw->mbx.ops.init_params(hw);
 
-	hw->allow_unsupported_sfp = allow_unsupported_sfp;
 
 	/* Pick up the 82599 settings */
 	if (hw->mac.type != ixgbe_mac_82598EB) {

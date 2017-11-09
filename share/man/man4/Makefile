@@ -258,6 +258,7 @@ MAN=	aac.4 \
 	led.4 \
 	lge.4 \
 	${_linux.4} \
+	${_liquidio.4} \
 	lm75.4 \
 	lmc.4 \
 	lo.4 \
@@ -821,6 +822,7 @@ _if_wpi.4=	if_wpi.4
 _ipmi.4=	ipmi.4
 _io.4=		io.4
 _linux.4=	linux.4
+_liquidio.4=	liquidio.4
 _ndis.4=	ndis.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
