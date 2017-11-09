@@ -200,6 +200,9 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		    "mbuf_alloc_fail", CTLFLAG_RD,
 		    &rx_stats->mbuf_alloc_fail, "Failed mbuf allocs");
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
+		    "mjum_alloc_fail", CTLFLAG_RD,
+		    &rx_stats->mjum_alloc_fail, "Failed jumbo mbuf allocs");
+		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "dma_mapping_err", CTLFLAG_RD,
 		    &rx_stats->dma_mapping_err, "DMA mapping errors");
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
