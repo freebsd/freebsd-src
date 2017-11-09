@@ -119,15 +119,6 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	dev_stats = &adapter->dev_stats;
 	admin_stats = &adapter->ena_dev->admin_queue.stats;
 
-	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "tx_timeout",
-	    CTLFLAG_RD, &dev_stats->tx_timeout,
-	    "Driver TX timeouts");
-	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "io_suspend",
-	    CTLFLAG_RD, &dev_stats->io_suspend,
-	    "IO queue suspends");
-	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "io_resume",
-	    CTLFLAG_RD, &dev_stats->io_resume,
-	    "IO queue resumes");
 	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "wd_expired",
 	    CTLFLAG_RD, &dev_stats->wd_expired,
 	    "Watchdog expiry count");
@@ -166,21 +157,8 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		    &tx_stats->prepare_ctx_err,
 		    "TX buffer preparation failures");
 		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
-		    "queue_wakeup", CTLFLAG_RD,
-		    &tx_stats->queue_wakeup, "Queue wakeups");
-		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 		    "dma_mapping_err", CTLFLAG_RD,
 		    &tx_stats->dma_mapping_err, "DMA mapping failures");
-		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
-		    "unsupported_desc_num", CTLFLAG_RD,
-		    &tx_stats->unsupported_desc_num,
-		    "Excessive descriptor packet discards");
-		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
-		    "napi_comp", CTLFLAG_RD,
-		    &tx_stats->napi_comp, "Napi completions");
-		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
-		    "tx_poll", CTLFLAG_RD,
-		    &tx_stats->tx_poll, "TX poll count");
 		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 		    "doorbells", CTLFLAG_RD,
 		    &tx_stats->doorbells, "Queue doorbells");
@@ -190,9 +168,6 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 		    "bad_req_id", CTLFLAG_RD,
 		    &tx_stats->bad_req_id, "Bad request id count");
-		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
-		    "stops", CTLFLAG_RD,
-		    &tx_stats->queue_stop, "Queue stops");
 		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 		        "mbuf_collapses", CTLFLAG_RD,
 		        &tx_stats->collapse,
@@ -222,9 +197,6 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		    "bad_csum", CTLFLAG_RD,
 		    &rx_stats->bad_csum, "Bad RX checksum");
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
-		    "page_alloc_fail", CTLFLAG_RD,
-		    &rx_stats->page_alloc_fail, "Failed page allocs");
-		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "mbuf_alloc_fail", CTLFLAG_RD,
 		    &rx_stats->mbuf_alloc_fail, "Failed mbuf allocs");
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
@@ -233,9 +205,6 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "bad_desc_num", CTLFLAG_RD,
 		    &rx_stats->bad_desc_num, "Bad descriptor count");
-		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
-		    "small_copy_len_pkt", CTLFLAG_RD,
-		    &rx_stats->small_copy_len_pkt, "Small copy packet count");
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "bad_req_id", CTLFLAG_RD,
 		    &rx_stats->bad_req_id, "Bad request id count");
