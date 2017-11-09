@@ -104,14 +104,11 @@ extern struct ena_bus_space ebs;
 #define ENA_IOQ 	(1 << 7) /* Detailed info about IO queues. 	      */
 #define ENA_ADMQ	(1 << 8) /* Detailed info about admin queue. 	      */
 
-#ifndef ENA_DEBUG_LEVEL
-#define ENA_DEBUG_LEVEL (ENA_ALERT | ENA_WARNING)
-#endif
+extern int ena_log_level;
 
-#ifdef ENA_TRACE
 #define ena_trace_raw(level, fmt, args...)			\
 	do {							\
-		if (((level) & ENA_DEBUG_LEVEL) != (level))	\
+		if (((level) & ena_log_level) != (level))	\
 			break;					\
 		printf(fmt, ##args);				\
 	} while (0)
@@ -120,10 +117,6 @@ extern struct ena_bus_space ebs;
 	ena_trace_raw(level, "%s() [TID:%d]: "			\
 	    fmt " \n", __func__, curthread->td_tid, ##args)
 
-#else /* ENA_TRACE */
-#define ena_trace_raw(...)
-#define ena_trace(...)
-#endif /* ENA_TRACE */
 
 #define ena_trc_dbg(format, arg...) 	ena_trace(ENA_DBG, format, ##arg)
 #define ena_trc_info(format, arg...) 	ena_trace(ENA_INFO, format, ##arg)
