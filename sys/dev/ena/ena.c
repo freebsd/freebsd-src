@@ -1400,7 +1400,7 @@ ena_rx_hash_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_ctx *ena_rx_ctx,
 		mbuf->m_pkthdr.flowid = ena_rx_ctx->hash;
 
 		if (ena_rx_ctx->frag &&
-		    (ena_rx_ctx->l3_proto != ENA_ETH_IO_L4_PROTO_UNKNOWN)) {
+		    (ena_rx_ctx->l3_proto != ENA_ETH_IO_L3_PROTO_UNKNOWN)) {
 			M_HASHTYPE_SET(mbuf, M_HASHTYPE_OPAQUE_HASH);
 			return;
 		}
