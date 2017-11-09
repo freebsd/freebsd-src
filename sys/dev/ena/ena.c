@@ -351,39 +351,25 @@ static int
 ena_change_mtu(if_t ifp, int new_mtu)
 {
 	struct ena_adapter *adapter = if_getsoftc(ifp);
-	struct ena_com_dev_get_features_ctx get_feat_ctx;
-	int rc, old_mtu, max_frame;
+	int rc;
 
-	rc = ena_com_get_dev_attr_feat(adapter->ena_dev, &get_feat_ctx);
-	if (unlikely(rc != 0)) {
-		device_printf(adapter->pdev,
-		    "Cannot get attribute for ena device\n");
-		return (ENXIO);
-	}
-
-	/* Save old MTU in case of fail */
-	old_mtu = if_getmtu(ifp);
-
-	/* Change MTU and calculate max frame */
-	if_setmtu(ifp, new_mtu);
-	max_frame = ETHER_MAX_FRAME(ifp, ETHERTYPE_VLAN, 1);
-
-	if (unlikely((new_mtu < ENA_MIN_FRAME_LEN) ||
-	    (new_mtu > get_feat_ctx.dev_attr.max_mtu) ||
-	    (max_frame > ENA_MAX_FRAME_LEN))) {
+	if ((new_mtu > adapter->max_mtu) || (new_mtu < ENA_MIN_MTU)) {
 		device_printf(adapter->pdev, "Invalid MTU setting. "
-		    "new_mtu: %d\n", new_mtu);
-		goto error;
+		    "new_mtu: %d max mtu: %d min mtu: %d\n",
+		    new_mtu, adapter->max_mtu, ENA_MIN_MTU);
+		return (EINVAL);
 	}
 
 	rc = ena_com_set_dev_mtu(adapter->ena_dev, new_mtu);
-	if (rc != 0)
-		goto error;
+	if (likely(rc == 0)) {
+		ena_trace(ENA_DBG, "set MTU to %d\n", new_mtu);
+		if_setmtu(ifp, new_mtu);
+	} else {
+		device_printf(adapter->pdev, "Failed to set MTU to %d\n",
+		    new_mtu);
+	}
 
-	return (0);
-error:
-	if_setmtu(ifp, old_mtu);
-	return (EINVAL);
+	return (rc);
 }
 
 static inline void
@@ -3703,6 +3689,8 @@ ena_attach(device_t pdev)
 	ENA_ASSERT(io_queue_num > 0, "Invalid queue number: %d\n",
 	    io_queue_num);
 	adapter->num_queues = io_queue_num;
+
+	adapter->max_mtu = get_feat_ctx.dev_attr.max_mtu;
 
 	/* calculatre ring sizes */
 	queue_size = ena_calc_queue_size(adapter,&tx_sgl_size,
