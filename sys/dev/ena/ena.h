@@ -58,7 +58,8 @@
 #define ENA_DMA_BIT_MASK(x)		((1ULL << (x)) - 1ULL)
 
 /* 1 for AENQ + ADMIN */
-#define	ENA_MAX_MSIX_VEC(io_queues)	(1 + (io_queues))
+#define	ENA_ADMIN_MSIX_VEC		1
+#define	ENA_MAX_MSIX_VEC(io_queues)	(ENA_ADMIN_MSIX_VEC + (io_queues))
 
 #define	ENA_REG_BAR			0
 #define	ENA_MEM_BAR			2

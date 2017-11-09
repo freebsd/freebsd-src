@@ -1796,7 +1796,8 @@ static int
 ena_enable_msix(struct ena_adapter *adapter)
 {
 	device_t dev = adapter->pdev;
-	int i, msix_vecs, rc = 0;
+	int msix_vecs, msix_req;
+	int i, rc = 0;
 
 	/* Reserved the max msix vectors we might need */
 	msix_vecs = ENA_MAX_MSIX_VEC(adapter->num_queues);
@@ -1813,6 +1814,7 @@ ena_enable_msix(struct ena_adapter *adapter)
 		adapter->msix_entries[i].vector = i + 1;
 	}
 
+	msix_req = msix_vecs;
 	rc = pci_alloc_msix(dev, &msix_vecs);
 	if (unlikely(rc != 0)) {
 		device_printf(dev,
@@ -1820,6 +1822,12 @@ ena_enable_msix(struct ena_adapter *adapter)
 
 		rc = ENOSPC;
 		goto err_msix_free;
+	}
+
+	if (msix_vecs != msix_req) {
+		device_printf(dev, "Enable only %d MSI-x (out of %d), reduce "
+		    "the number of queues\n", msix_vecs, msix_req);
+		adapter->num_queues = msix_vecs - ENA_ADMIN_MSIX_VEC;
 	}
 
 	adapter->msix_vecs = msix_vecs;
