@@ -102,6 +102,7 @@ static int	ena_setup_tx_resources(struct ena_adapter *, int);
 static void	ena_free_tx_resources(struct ena_adapter *, int);
 static int	ena_setup_all_tx_resources(struct ena_adapter *);
 static void	ena_free_all_tx_resources(struct ena_adapter *);
+static inline int validate_rx_req_id(struct ena_ring *, uint16_t);
 static int	ena_setup_rx_resources(struct ena_adapter *, unsigned int);
 static void	ena_free_rx_resources(struct ena_adapter *, unsigned int);
 static int	ena_setup_all_rx_resources(struct ena_adapter *);
@@ -765,6 +766,23 @@ ena_free_all_tx_resources(struct ena_adapter *adapter)
 	return;
 }
 
+static inline int
+validate_rx_req_id(struct ena_ring *rx_ring, uint16_t req_id)
+{
+	if (likely(req_id < rx_ring->ring_size))
+		return (0);
+
+	device_printf(rx_ring->adapter->pdev, "Invalid rx req_id: %hu\n",
+	    req_id);
+	counter_u64_add(rx_ring->rx_stats.bad_req_id, 1);
+
+	/* Trigger device reset */
+	rx_ring->adapter->reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
+	rx_ring->adapter->trigger_reset = true;
+
+	return (EFAULT);
+}
+
 /**
  * ena_setup_rx_resources - allocate Rx resources (Descriptors)
  * @adapter: network interface device structure
@@ -791,6 +809,12 @@ ena_setup_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 	size += sizeof(struct ena_rx_buffer);
 
 	rx_ring->rx_buffer_info = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
+
+	size = sizeof(uint16_t) * rx_ring->ring_size;
+	rx_ring->free_rx_ids = malloc(size, M_DEVBUF, M_WAITOK);
+
+	for (i = 0; i < rx_ring->ring_size; i++)
+		rx_ring->free_rx_ids[i] = i;
 
 	/* Reset RX statistics. */
 	ena_reset_counters((counter_u64_t *)&rx_ring->rx_stats,
@@ -831,6 +855,8 @@ err_rx_dma:
 		    rx_ring->rx_buffer_info[i].map);
 	}
 
+	free(rx_ring->free_rx_ids, M_DEVBUF);
+	rx_ring->free_rx_ids = NULL;
 	free(rx_ring->rx_buffer_info, M_DEVBUF);
 	rx_ring->rx_buffer_info = NULL;
 	ena_trace(ENA_ALERT, "RX resource allocation fail");
@@ -867,6 +893,9 @@ ena_free_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 	/* free allocated memory */
 	free(rx_ring->rx_buffer_info, M_DEVBUF);
 	rx_ring->rx_buffer_info = NULL;
+
+	free(rx_ring->free_rx_ids, M_DEVBUF);
+	rx_ring->free_rx_ids = NULL;
 
 	return;
 }
@@ -997,7 +1026,7 @@ static int
 ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num)
 {
 	struct ena_adapter *adapter = rx_ring->adapter;
-	uint16_t next_to_use;
+	uint16_t next_to_use, req_id;
 	uint32_t i;
 	int rc;
 
@@ -1007,11 +1036,17 @@ ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num)
 	next_to_use = rx_ring->next_to_use;
 
 	for (i = 0; i < num; i++) {
+		struct ena_rx_buffer *rx_info;
+
 		ena_trace(ENA_DBG | ENA_RXPTH | ENA_RSC,
 		    "RX buffer - next to use: %d", next_to_use);
 
-		struct ena_rx_buffer *rx_info =
-		    &rx_ring->rx_buffer_info[next_to_use];
+		req_id = rx_ring->free_rx_ids[next_to_use];
+		rc = validate_rx_req_id(rx_ring, req_id);
+		if (unlikely(rc))
+			break;
+
+		rx_info = &rx_ring->rx_buffer_info[req_id];
 
 		rc = ena_alloc_rx_mbuf(adapter, rx_ring, rx_info);
 		if (rc != 0) {
@@ -1020,7 +1055,7 @@ ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num)
 			break;
 		}
 		rc = ena_com_add_single_rx_desc(rx_ring->ena_com_io_sq,
-		    &rx_info->ena_buf, next_to_use);
+		    &rx_info->ena_buf, req_id);
 		if (unlikely(rc)) {
 			device_printf(adapter->pdev,
 			    "failed to add buffer for rx queue %d\n",
@@ -1404,7 +1439,7 @@ ena_rx_hash_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_ctx *ena_rx_ctx,
  * @rx_ring: ring for which we want to clean packets
  * @ena_bufs: buffer info
  * @ena_rx_ctx: metadata for this packet(s)
- * @next_to_clean: ring pointer
+ * @next_to_clean: ring pointer, will be updated only upon success
  *
  **/
 static struct mbuf*
@@ -1414,15 +1449,22 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 	struct mbuf *mbuf;
 	struct ena_rx_buffer *rx_info;
 	struct ena_adapter *adapter;
-	unsigned int len, buf = 0;
 	unsigned int descs = ena_rx_ctx->descs;
+	uint16_t ntc, len, req_id, buf = 0;
 
+	ntc = *next_to_clean;
 	adapter = rx_ring->adapter;
-	rx_info = &rx_ring->rx_buffer_info[*next_to_clean];
+	rx_info = &rx_ring->rx_buffer_info[ntc];
 
-	ENA_ASSERT(rx_info->mbuf, "Invalid alloc frag buffer\n");
+	if (unlikely(rx_info->mbuf == NULL)) {
+		device_printf(adapter->pdev, "NULL mbuf in rx_info");
+		return (NULL);
+	}
 
-	len = ena_bufs[0].len;
+	len = ena_bufs[buf].len;
+	req_id = ena_bufs[buf].req_id;
+	rx_info = &rx_ring->rx_buffer_info[req_id];
+
 	ena_trace(ENA_DBG | ENA_RXPTH, "rx_info %p, mbuf %p, paddr %jx",
 	    rx_info, rx_info->mbuf, (uintmax_t)rx_info->ena_buf.paddr);
 
@@ -1442,18 +1484,36 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 	bus_dmamap_unload(rx_ring->adapter->rx_buf_tag, rx_info->map);
 
 	rx_info->mbuf = NULL;
-	*next_to_clean = ENA_RX_RING_IDX_NEXT(*next_to_clean,
-	    rx_ring->ring_size);
+	rx_ring->free_rx_ids[ntc] = req_id;
+	ntc = ENA_RX_RING_IDX_NEXT(ntc, rx_ring->ring_size);
 
 	/*
 	 * While we have more than 1 descriptors for one rcvd packet, append
 	 * other mbufs to the main one
 	 */
 	while (--descs) {
-		rx_info = &rx_ring->rx_buffer_info[*next_to_clean];
-		len = ena_bufs[++buf].len;
+		++buf;
+		len = ena_bufs[buf].len;
+		req_id = ena_bufs[buf].req_id;
+		rx_info = &rx_ring->rx_buffer_info[req_id];
 
-		if (!m_append(mbuf, len, rx_info->mbuf->m_data)) {
+		if (unlikely(rx_info->mbuf == NULL)) {
+			device_printf(adapter->pdev, "NULL mbuf in rx_info");
+			/*
+			 * If one of the required mbufs was not allocated yet,
+			 * we can break there.
+			 * All earlier used descriptors will be reallocated
+			 * later and not used mbufs can be reused.
+			 * The next_to_clean pointer will not be updated in case
+			 * of an error, so caller should advance it manually
+			 * in error handling routine to keep it up to date
+			 * with hw ring.
+			 */
+			m_freem(mbuf);
+			return (NULL);
+		}
+
+		if (m_append(mbuf, len, rx_info->mbuf->m_data) == 0) {
 			counter_u64_add(rx_ring->rx_stats.mbuf_alloc_fail, 1);
 			ena_trace(ENA_WARNING, "Failed to append Rx mbuf %p",
 			    mbuf);
@@ -1463,9 +1523,11 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 		m_freem(rx_info->mbuf);
 		rx_info->mbuf = NULL;
 
-		*next_to_clean = ENA_RX_RING_IDX_NEXT(*next_to_clean,
-		    rx_ring->ring_size);
+		rx_ring->free_rx_ids[ntc] = req_id;
+		ntc = ENA_RX_RING_IDX_NEXT(ntc, rx_ring->ring_size);
 	}
+
+	*next_to_clean = ntc;
 
 	return (mbuf);
 }
@@ -1523,7 +1585,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 	uint32_t refill_threshold;
 	uint32_t do_if_input = 0;
 	unsigned int qid;
-	int rc;
+	int rc, i;
 	int budget = RX_BUDGET;
 
 	adapter = rx_ring->que->adapter;
@@ -1552,8 +1614,14 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 
 		/* Exit if we failed to retrieve a buffer */
 		if (unlikely(!mbuf)) {
-			next_to_clean = ENA_RX_RING_IDX_ADD(next_to_clean,
-			    ena_rx_ctx.descs, rx_ring->ring_size);
+			for (i = 0; i < ena_rx_ctx.descs; ++i) {
+				rx_ring->free_rx_ids[next_to_clean] =
+				    rx_ring->ena_bufs[i].req_id;
+				next_to_clean =
+				    ENA_RX_RING_IDX_NEXT(next_to_clean,
+				    rx_ring->ring_size);
+
+			}
 			break;
 		}
 		ena_trace(ENA_DBG | ENA_RXPTH, "Rx: %d bytes",

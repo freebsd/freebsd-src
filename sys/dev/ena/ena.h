@@ -242,12 +242,17 @@ struct ena_stats_rx {
 	counter_u64_t bad_desc_num;
 	/* Not counted */
 	counter_u64_t small_copy_len_pkt;
+	counter_u64_t bad_req_id;
+	counter_u64_t empty_rx_ring;
 };
 
 
 struct ena_ring {
-	/* Holds the empty requests for TX out of order completions */
-	uint16_t *free_tx_ids;
+	/* Holds the empty requests for TX/RX out of order completions */
+	union {
+		uint16_t *free_tx_ids;
+		uint16_t *free_rx_ids;
+	};
 	struct ena_com_dev *ena_dev;
 	struct ena_adapter *adapter;
 	struct ena_com_io_cq *ena_com_io_cq;
