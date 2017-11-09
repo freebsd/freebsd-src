@@ -3245,11 +3245,7 @@ ena_device_init(struct ena_adapter *adapter, device_t pdev,
 		goto err_admin_init;
 	}
 
-	aenq_groups = BIT(ENA_ADMIN_LINK_CHANGE) |
-	    BIT(ENA_ADMIN_FATAL_ERROR) |
-	    BIT(ENA_ADMIN_WARNING) |
-	    BIT(ENA_ADMIN_NOTIFICATION) |
-	    BIT(ENA_ADMIN_KEEP_ALIVE);
+	aenq_groups = BIT(ENA_ADMIN_LINK_CHANGE) | BIT(ENA_ADMIN_KEEP_ALIVE);
 
 	aenq_groups &= get_feat_ctx->aenq.supported_groups;
 	rc = ena_com_set_aenq_config(ena_dev, aenq_groups);
