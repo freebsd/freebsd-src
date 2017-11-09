@@ -549,7 +549,7 @@ ena_setup_rx_dma_tag(struct ena_adapter *adapter)
 	    BUS_SPACE_MAXADDR, 			  /* highaddr of excl window */
 	    NULL, NULL,				  /* filter, filterarg 	     */
 	    MJUM16BYTES,			  /* maxsize 		     */
-	    1,					  /* nsegments 		     */
+	    adapter->max_rx_sgl_size,		  /* nsegments 		     */
 	    MJUM16BYTES,			  /* maxsegsize 	     */
 	    0,					  /* flags 		     */
 	    NULL,				  /* lockfunc 		     */
@@ -950,6 +950,7 @@ ena_alloc_rx_mbuf(struct ena_adapter *adapter,
 	struct ena_com_buf *ena_buf;
 	bus_dma_segment_t segs[1];
 	int nsegs, error;
+	int mlen;
 
 	/* if previous allocated frag is not used */
 	if (unlikely(rx_info->mbuf != NULL))
@@ -959,11 +960,18 @@ ena_alloc_rx_mbuf(struct ena_adapter *adapter,
 	rx_info->mbuf = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM16BYTES);
 
 	if (unlikely(rx_info->mbuf == NULL)) {
-		counter_u64_add(rx_ring->rx_stats.mbuf_alloc_fail, 1);
-		return (ENOMEM);
+		counter_u64_add(rx_ring->rx_stats.mjum_alloc_fail, 1);
+		rx_info->mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		if (unlikely(rx_info->mbuf == NULL)) {
+			counter_u64_add(rx_ring->rx_stats.mbuf_alloc_fail, 1);
+			return (ENOMEM);
+		}
+		mlen = MCLBYTES;
+	} else {
+		mlen = MJUM16BYTES;
 	}
 	/* Set mbuf length*/
-	rx_info->mbuf->m_pkthdr.len = rx_info->mbuf->m_len = MJUM16BYTES;
+	rx_info->mbuf->m_pkthdr.len = rx_info->mbuf->m_len = mlen;
 
 	/* Map packets for DMA */
 	ena_trace(ENA_DBG | ENA_RSC | ENA_RXPTH,
@@ -983,7 +991,7 @@ ena_alloc_rx_mbuf(struct ena_adapter *adapter,
 
 	ena_buf = &rx_info->ena_buf;
 	ena_buf->paddr = segs[0].ds_addr;
-	ena_buf->len = MJUM16BYTES;
+	ena_buf->len = mlen;
 
 	ena_trace(ENA_DBG | ENA_RSC | ENA_RXPTH,
 	    "ALLOC RX BUF: mbuf %p, rx_info %p, len %d, paddr %#jx\n",
