@@ -5554,10 +5554,6 @@ zfs_ioc_send_space(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 	dsl_dataset_t *tosnap;
 	int error;
 	char *fromname;
-	/* LINTED E_FUNC_SET_NOT_USED */
-	boolean_t largeblockok;
-	/* LINTED E_FUNC_SET_NOT_USED */
-	boolean_t embedok;
 	boolean_t compressok;
 	uint64_t space;
 
@@ -5571,8 +5567,6 @@ zfs_ioc_send_space(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 		return (error);
 	}
 
-	largeblockok = nvlist_exists(innvl, "largeblockok");
-	embedok = nvlist_exists(innvl, "embedok");
 	compressok = nvlist_exists(innvl, "compressok");
 
 	error = nvlist_lookup_string(innvl, "from", &fromname);
@@ -5613,7 +5607,9 @@ zfs_ioc_send_space(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 			goto out;
 		}
 	} else {
-		// If estimating the size of a full send, use dmu_send_estimate
+		/*
+		 * If estimating the size of a full send, use dmu_send_estimate.
+		 */
 		error = dmu_send_estimate(tosnap, NULL, compressok, &space);
 	}
 
