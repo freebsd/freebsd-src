@@ -67,29 +67,20 @@
 #define	ENA_BUS_DMA_SEGS		32
 
 #define	ENA_DEFAULT_RING_SIZE		1024
-#define	ENA_DEFAULT_SMALL_PACKET_LEN	128
-#define	ENA_DEFAULT_MAX_RX_BUFF_ALLOC_SIZE	1536
 
-#define	ENA_RX_REFILL_THRESH_DEVIDER	8
+#define	ENA_RX_REFILL_THRESH_DIVIDER	8
 
-#define	ENA_MAX_PUSH_PKT_SIZE		128
-
-#define	ENA_NAME_MAX_LEN		20
 #define	ENA_IRQNAME_SIZE		40
 
 #define	ENA_PKT_MAX_BUFS 		19
-#define	ENA_STALL_TIMEOUT		100
 
 #define	ENA_RX_RSS_TABLE_LOG_SIZE	7
 #define	ENA_RX_RSS_TABLE_SIZE		(1 << ENA_RX_RSS_TABLE_LOG_SIZE)
 
 #define	ENA_HASH_KEY_SIZE		40
 
-#define	ENA_DMA_BITS_MASK		40
 #define	ENA_MAX_FRAME_LEN		10000
 #define	ENA_MIN_FRAME_LEN 		60
-#define	ENA_RX_HASH_KEY_NUM		10
-#define	ENA_RX_THASH_TABLE_SIZE 	(1 << 8)
 
 #define ENA_TX_CLEANUP_THRESHOLD	128
 
@@ -112,18 +103,13 @@
 #define RX_IRQ_INTERVAL 20
 #define TX_IRQ_INTERVAL 50
 
-#define	ENA_MAX_MTU		9216
 #define	ENA_TSO_MAXSIZE		65536
-#define	ENA_TSO_NSEGS		ENA_PKT_MAX_BUFS
-#define	ENA_RX_OFFSET		NET_SKB_PAD + NET_IP_ALIGN
 
 #define	ENA_MMIO_DISABLE_REG_READ	BIT(0)
 
 #define	ENA_TX_RING_IDX_NEXT(idx, ring_size) (((idx) + 1) & ((ring_size) - 1))
 
 #define	ENA_RX_RING_IDX_NEXT(idx, ring_size) (((idx) + 1) & ((ring_size) - 1))
-#define	ENA_RX_RING_IDX_ADD(idx, n, ring_size)	\
-	(((idx) + (n)) & ((ring_size) - 1))
 
 #define	ENA_IO_TXQ_IDX(q)		(2 * (q))
 #define	ENA_IO_RXQ_IDX(q)		(2 * (q) + 1)
@@ -210,7 +196,6 @@ struct ena_rx_buffer {
 	struct ena_com_buf ena_buf;
 } __aligned(CACHE_LINE_SIZE);
 
-
 struct ena_stats_tx {
 	counter_u64_t cnt;
 	counter_u64_t bytes;
@@ -246,14 +231,19 @@ struct ena_ring {
 	struct ena_com_io_cq *ena_com_io_cq;
 	struct ena_com_io_sq *ena_com_io_sq;
 
-	/* The maximum length the driver can push to the device (For LLQ) */
-	enum ena_admin_placement_policy_type tx_mem_queue_type;
-	uint16_t rx_small_copy_len;
 	uint16_t qid;
-	uint16_t mtu;
+
+	/* Determines if device will use LLQ or normal mode for TX */
+	enum ena_admin_placement_policy_type tx_mem_queue_type;
+	/* The maximum length the driver can push to the device (For LLQ) */
 	uint8_t tx_max_header_size;
 
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
+
+	/*
+	 * Fields used for Adaptive Interrupt Modulation - to be implemented in
+	 * the future releases
+	 */
 	uint32_t  smoothed_interval;
 	enum ena_intr_moder_level moder_tbl_idx;
 
@@ -270,8 +260,10 @@ struct ena_ring {
 	int ring_size; /* number of tx/rx_buffer_info's entries */
 
 	struct buf_ring *br; /* only for TX */
+
 	struct mtx ring_mtx;
 	char mtx_name[16];
+
 	union {
 		struct {
 			struct task enqueue_task;
@@ -289,7 +281,6 @@ struct ena_ring {
 	};
 
 	int empty_rx_queue;
-
 } __aligned(CACHE_LINE_SIZE);
 
 struct ena_stats_dev {
@@ -319,8 +310,8 @@ struct ena_adapter {
 	struct ifmedia	media;
 
 	/* OS resources */
-	struct resource * memory;
-	struct resource * registers;
+	struct resource *memory;
+	struct resource *registers;
 
 	struct mtx global_mtx;
 	struct sx ioctl_sx;
@@ -334,11 +325,6 @@ struct ena_adapter {
 	bus_dma_tag_t tx_buf_tag;
 	bus_dma_tag_t rx_buf_tag;
 	int dma_width;
-	/*
-	 * RX packets that shorter that this len will be copied to the skb
-	 * header
-	 */
-	unsigned int small_copy_len;
 
 	uint16_t max_tx_sgl_size;
 	uint16_t max_rx_sgl_size;
@@ -348,27 +334,20 @@ struct ena_adapter {
 	/* Tx fast path data */
 	int num_queues;
 
-	unsigned int tx_usecs, rx_usecs; /* Interrupt coalescing */
-
 	unsigned int tx_ring_size;
 	unsigned int rx_ring_size;
 
 	/* RSS*/
-	uint8_t	 rss_ind_tbl[ENA_RX_RSS_TABLE_SIZE];
+	uint8_t	rss_ind_tbl[ENA_RX_RSS_TABLE_SIZE];
 	bool rss_support;
-
-	uint32_t msg_enable;
 
 	uint8_t mac_addr[ETHER_ADDR_LEN];
 	/* mdio and phy*/
 
-	char name[ENA_NAME_MAX_LEN];
 	bool link_status;
 	bool trigger_reset;
 	bool up;
 	bool running;
-
-	uint32_t wol;
 
 	/* Queue will represent one TX and one RX ring */
 	struct ena_que que[ENA_MAX_NUM_IO_QUEUES]
@@ -403,17 +382,9 @@ struct ena_adapter {
 	enum ena_regs_reset_reason_types reset_reason;
 };
 
-#define	ENA_DEV_LOCK			mtx_lock(&adapter->global_mtx)
-#define	ENA_DEV_UNLOCK			mtx_unlock(&adapter->global_mtx)
-
 #define	ENA_RING_MTX_LOCK(_ring)		mtx_lock(&(_ring)->ring_mtx)
 #define	ENA_RING_MTX_TRYLOCK(_ring)		mtx_trylock(&(_ring)->ring_mtx)
 #define	ENA_RING_MTX_UNLOCK(_ring)		mtx_unlock(&(_ring)->ring_mtx)
-
-struct ena_dev *ena_efa_enadev_get(device_t pdev);
-
-int ena_register_adapter(struct ena_adapter *adapter);
-void ena_unregister_adapter(struct ena_adapter *adapter);
 
 static inline int ena_mbuf_count(struct mbuf *mbuf)
 {
