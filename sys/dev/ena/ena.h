@@ -215,6 +215,7 @@ struct ena_stats_rx {
 	counter_u64_t bytes;
 	counter_u64_t refil_partial;
 	counter_u64_t bad_csum;
+	counter_u64_t mjum_alloc_fail;
 	counter_u64_t mbuf_alloc_fail;
 	counter_u64_t dma_mapping_err;
 	counter_u64_t bad_desc_num;
