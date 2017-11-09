@@ -3006,7 +3006,7 @@ ena_calc_io_queue_num(struct ena_adapter *adapter,
 	int io_sq_num, io_cq_num, io_queue_num;
 
 	io_sq_num = get_feat_ctx->max_queues.max_sq_num;
-	io_cq_num = get_feat_ctx->max_queues.max_sq_num;
+	io_cq_num = get_feat_ctx->max_queues.max_cq_num;
 
 	io_queue_num = min_t(int, mp_ncpus, ENA_MAX_NUM_IO_QUEUES);
 	io_queue_num = min_t(int, io_queue_num, io_sq_num);
