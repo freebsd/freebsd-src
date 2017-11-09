@@ -284,15 +284,23 @@ struct ena_ring {
 	struct buf_ring *br; /* only for TX */
 	struct mtx ring_mtx;
 	char mtx_name[16];
-	struct task enqueue_task;
-	struct taskqueue *enqueue_tq;
-	struct task cmpl_task;
-	struct taskqueue *cmpl_tq;
+	union {
+		struct {
+			struct task enqueue_task;
+			struct taskqueue *enqueue_tq;
+		};
+		struct {
+			struct task cmpl_task;
+			struct taskqueue *cmpl_tq;
+		};
+	};
 
 	union {
 		struct ena_stats_tx tx_stats;
 		struct ena_stats_rx rx_stats;
 	};
+
+	int empty_rx_queue;
 
 } __aligned(CACHE_LINE_SIZE);
 
