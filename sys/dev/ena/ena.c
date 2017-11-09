@@ -453,7 +453,6 @@ ena_init_io_rings(struct ena_adapter *adapter)
 
 		/* RX specific ring state */
 		rxr->ring_size = adapter->rx_ring_size;
-		rxr->rx_small_copy_len = adapter->small_copy_len;
 		rxr->smoothed_interval =
 		    ena_com_get_nonadaptive_moderation_interval_rx(ena_dev);
 
@@ -1695,7 +1694,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 	rx_ring->next_to_clean = next_to_clean;
 
 	refill_required = ena_com_free_desc(io_sq);
-	refill_threshold = rx_ring->ring_size / ENA_RX_REFILL_THRESH_DEVIDER;
+	refill_threshold = rx_ring->ring_size / ENA_RX_REFILL_THRESH_DIVIDER;
 
 	if (refill_required > refill_threshold) {
 		ena_com_update_dev_comp_head(rx_ring->ena_com_io_cq);
@@ -2300,13 +2299,13 @@ ena_media_status(if_t ifp, struct ifmediareq *ifmr)
 	struct ena_adapter *adapter = if_getsoftc(ifp);
 	ena_trace(ENA_DBG, "enter");
 
-	ENA_DEV_LOCK;
+	mtx_lock(&adapter->global_mtx);
 
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
 
 	if (!adapter->link_status) {
-		ENA_DEV_UNLOCK;
+		mtx_unlock(&adapter->global_mtx);
 		ena_trace(ENA_WARNING, "link_status = false");
 		return;
 	}
@@ -2314,7 +2313,7 @@ ena_media_status(if_t ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_status |= IFM_ACTIVE;
 	ifmr->ifm_active |= IFM_10G_T | IFM_FDX;
 
-	ENA_DEV_UNLOCK;
+	mtx_unlock(&adapter->global_mtx);
 }
 
 static void
@@ -3366,6 +3365,7 @@ check_missing_comp_in_queue(struct ena_adapter *adapter,
 
 			tx_buf->print_once = true;
 			missed_tx++;
+			counter_u64_add(tx_ring->tx_stats.missing_tx_comp, 1);
 
 			if (unlikely(missed_tx >
 			    adapter->missing_tx_threshold)) {
@@ -3669,9 +3669,6 @@ ena_attach(device_t pdev)
 
 	memcpy(adapter->mac_addr, get_feat_ctx.dev_attr.mac_addr,
 	    ETHER_ADDR_LEN);
-
-	adapter->small_copy_len =
-	    ENA_DEFAULT_SMALL_PACKET_LEN;
 
 	/* calculate IO queue number to create */
 	io_queue_num = ena_calc_io_queue_num(adapter, &get_feat_ctx);
