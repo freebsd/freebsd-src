@@ -934,6 +934,17 @@ static int cma_get_net_info(void *hdr, enum rdma_port_space ps,
 	return 0;
 }
 
+static void cma_ip6_clear_scope_id(struct in6_addr *addr)
+{
+	/* make sure link local scope ID gets zeroed */
+	if (IN6_IS_SCOPE_LINKLOCAL(addr) ||
+	    IN6_IS_ADDR_MC_INTFACELOCAL(addr)) {
+		/* use byte-access to be alignment safe */
+		addr->s6_addr[2] = 0;
+		addr->s6_addr[3] = 0;
+	}
+}
+
 static void cma_save_net_info(struct rdma_addr *addr,
 			      struct rdma_addr *listen_addr,
 			      u8 ip_ver, __be16 port,
@@ -965,6 +976,7 @@ static void cma_save_net_info(struct rdma_addr *addr,
 		ip6->sin6_port = listen6->sin6_port;
 		ip6->sin6_len = sizeof(struct sockaddr_in6);
 		ip6->sin6_scope_id = listen6->sin6_scope_id;
+		cma_ip6_clear_scope_id(&ip6->sin6_addr);
 
 		ip6 = (struct sockaddr_in6 *) &addr->dst_addr;
 		ip6->sin6_family = listen6->sin6_family;
@@ -972,6 +984,7 @@ static void cma_save_net_info(struct rdma_addr *addr,
 		ip6->sin6_port = port;
 		ip6->sin6_len = sizeof(struct sockaddr_in6);
 		ip6->sin6_scope_id = listen6->sin6_scope_id;
+		cma_ip6_clear_scope_id(&ip6->sin6_addr);
 		break;
 	default:
 		break;
@@ -1535,6 +1548,7 @@ static void cma_set_compare_data(enum rdma_port_space ps, struct sockaddr *addr,
 		break;
 	case AF_INET6:
 		ip6_addr = ((struct sockaddr_in6 *) addr)->sin6_addr;
+		cma_ip6_clear_scope_id(&ip6_addr);
 		if (ps == RDMA_PS_SDP) {
 			sdp_set_ip_ver(sdp_data, 6);
 			sdp_set_ip_ver(sdp_mask, 0xF);
@@ -2840,6 +2854,8 @@ static int cma_format_hdr(void *hdr, enum rdma_port_space ps,
 			cma_hdr->src_addr.ip6 = src6->sin6_addr;
 			cma_hdr->dst_addr.ip6 = dst6->sin6_addr;
 			cma_hdr->port = src6->sin6_port;
+			cma_ip6_clear_scope_id(&cma_hdr->src_addr.ip6);
+			cma_ip6_clear_scope_id(&cma_hdr->dst_addr.ip6);
 			break;
 		}
 	}
