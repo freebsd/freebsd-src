@@ -2640,7 +2640,7 @@ ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct mbuf *mbuf)
 	switch (etype) {
 	case ETHERTYPE_IP:
 		ena_tx_ctx->l3_proto = ENA_ETH_IO_L3_PROTO_IPV4;
-		if (ip->ip_off == 0)
+		if ((ip->ip_off & htons(IP_DF)) != 0)
 			ena_tx_ctx->df = 1;
 		break;
 	case ETHERTYPE_IPV6:
