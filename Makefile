@@ -130,7 +130,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	installkernel.debug packagekernel packageworld \
 	reinstallkernel reinstallkernel.debug \
 	installworld kernel-toolchain libraries lint maninstall \
-	obj objlink rerelease showconfig tags toolchain update \
+	obj objlink showconfig tags toolchain update \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _build-metadata _cross-tools _includes _libraries \
 	build32 distribute32 install32 buildsoft distributesoft installsoft \
