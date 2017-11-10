@@ -58,7 +58,7 @@ CFLAGS+=	-I${BOOTSRC}/ofw/libofw
 DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
 LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
 
-loader.help: help.common help.ofw ${FDTSRC}/help.fdt
+loader.help: help.common ${FDTSRC}/help.fdt
 	cat ${.ALLSRC} | \
 	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
 
