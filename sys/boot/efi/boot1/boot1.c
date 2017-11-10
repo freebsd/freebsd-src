@@ -460,22 +460,23 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	imgpath = NULL;
 	if (status == EFI_SUCCESS) {
 		text = efi_devpath_name(img->FilePath);
-		printf("   Load Path: %S\n", text);
-		efi_setenv_freebsd_wcs("Boot1Path", text);
-		efi_free_devpath_name(text);
-
-		status = BS->HandleProtocol(img->DeviceHandle, &DevicePathGUID,
-		    (void **)&imgpath);
-		if (status != EFI_SUCCESS) {
-			DPRINTF("Failed to get image DevicePath (%lu)\n",
-			    EFI_ERROR_CODE(status));
-		} else {
-			text = efi_devpath_name(imgpath);
-			printf("   Load Device: %S\n", text);
-			efi_setenv_freebsd_wcs("Boot1Dev", text);
+		if (text != NULL) {
+			printf("   Load Path: %S\n", text);
+			efi_setenv_freebsd_wcs("Boot1Path", text);
 			efi_free_devpath_name(text);
-		}
 
+			status = BS->HandleProtocol(img->DeviceHandle,
+			    &DevicePathGUID, (void **)&imgpath);
+			if (status != EFI_SUCCESS) {
+				DPRINTF("Failed to get image DevicePath (%lu)\n",
+				    EFI_ERROR_CODE(status));
+			} else {
+				text = efi_devpath_name(imgpath);
+				printf("   Load Device: %S\n", text);
+				efi_setenv_freebsd_wcs("Boot1Dev", text);
+				efi_free_devpath_name(text);
+			}
+		}
 	}
 
 	/* Get all the device handles */
