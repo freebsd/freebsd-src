@@ -38,6 +38,10 @@ struct kstack_cache_entry {
 
 extern struct kstack_cache_entry *kstack_cache;
 
+#ifndef KSTACK_MAX_PAGES
+#define KSTACK_MAX_PAGES 32
+#endif
+
 #endif
 
 
