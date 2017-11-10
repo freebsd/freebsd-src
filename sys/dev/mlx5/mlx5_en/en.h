@@ -408,6 +408,8 @@ struct mlx5e_params {
   m(+1, u64 tx_completion_fact_max, "tx_completion_fact_max", "Maximum completion event ratio") \
   m(+1, u64 hw_lro, "hw_lro", "set to enable hw_lro") \
   m(+1, u64 cqe_zipping, "cqe_zipping", "0 : CQE zipping disabled") \
+  m(+1, u64 modify_tx_dma, "modify_tx_dma", "0: Enable TX 1: Disable TX") \
+  m(+1, u64 modify_rx_dma, "modify_rx_dma", "0: Enable RX 1: Disable RX") \
   m(+1, u64 diag_pci_enable, "diag_pci_enable", "0: Disabled 1: Enabled") \
   m(+1, u64 diag_general_enable, "diag_general_enable", "0: Disabled 1: Enabled")
 
@@ -837,5 +839,8 @@ int	mlx5e_enable_sq(struct mlx5e_sq *, struct mlx5e_sq_param *, int tis_num);
 int	mlx5e_modify_sq(struct mlx5e_sq *, int curr_state, int next_state);
 void	mlx5e_disable_sq(struct mlx5e_sq *);
 void	mlx5e_drain_sq(struct mlx5e_sq *);
+void	mlx5e_modify_tx_dma(struct mlx5e_priv *priv, uint8_t value);
+void	mlx5e_modify_rx_dma(struct mlx5e_priv *priv, uint8_t value);
+void	mlx5e_resume_sq(struct mlx5e_sq *sq);
 
 #endif					/* _MLX5_EN_H_ */
