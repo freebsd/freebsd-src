@@ -43,8 +43,7 @@
  *      a2      rtld object (filled in by dynamic loader)
  *      a3      ps_strings
  */
-LEAF(rtld_start)
-	.frame	sp, 4*PTR_SIZE, ra
+NESTED(rtld_start, 4*PTR_SIZE, ra)	
 	.mask	0x10090000,-PTR_SIZE
 	.set	noreorder
 	SETUP_GP
