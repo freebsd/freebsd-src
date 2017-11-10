@@ -1,4 +1,57 @@
 ----------------------------------------
+10 November 2017. Summary of changes for version 20171110:
+
+
+1) ACPICA kernel-resident subsystem:
+
+This release implements full support for ACPI 6.2A:
+    NFIT - Added a new subtable, "Platform Capabilities Structure"
+No other changes to ACPICA were required, since ACPI 6.2A is primarily an 
+errata release of the specification.
+
+Other ACPI table changes:
+    IORT: Added the SMMUv3 Device ID mapping index. Hanjun Guo
+    PPTT: Added cache attribute flag definitions to actbl1.h. Jeremy 
+Linton
+
+Utilities: Modified the string/integer conversion functions to use 
+internal 64-bit divide support instead of a native divide. On 32-bit 
+platforms, a 64-bit divide typically requires a library function which 
+may not be present in the build (kernel or otherwise).
+
+Implemented a targeted error message for timeouts returned from the 
+Embedded Controller device driver. This is seen frequently enough to 
+special-case an AE_TIME returned from an EC operation region access:
+    "Timeout from EC hardware or EC device driver"
+
+Changed the "ACPI Exception" message prefix to "ACPI Error" so that all 
+runtime error messages have the identical prefix.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+AcpiXtract: Fixed a problem with table header detection within the 
+acpidump file. Processing a table could be ended early if a 0x40 (@) 
+appears in the original binary table, resulting in the @ symbol appearing 
+in the decoded ASCII field at the end of the acpidump text line. The 
+symbol caused acpixtract to incorrectly think it had reached the end of 
+the current table and the beginning of a new table.
+
+AcpiXtract: Added an option (-f) to ignore some errors during table 
+extraction. This initial implementation ignores non-ASCII and non-
+printable characters found in the acpidump text file.
+
+TestSuite(ASLTS)/AcpiExec: Fixed and restored the memory usage statistics 
+for ASLTS. This feature is used to track memory allocations from 
+different memory caches within the ACPICA code. At the end of an ASLTS 
+run, these memory statistics are recorded and stored in a log file.
+
+Debugger (user-space version): Implemented a simple "Background" command. 
+Creates a new thread to execute a control method in the background, while 
+control returns to the debugger prompt to allow additional commands.
+    Syntax: Background <Namepath> [Arguments]
+
+----------------------------------------
 29 September 2017. Summary of changes for version 20170929:
 
 
