@@ -638,6 +638,8 @@ int ipoib_ib_dev_open(struct ipoib_dev_priv *priv)
 	clear_bit(IPOIB_STOP_REAPER, &priv->flags);
 	queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task, HZ);
 
+	set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
+
 	return 0;
 }
 
@@ -744,6 +746,8 @@ int ipoib_ib_dev_stop(struct ipoib_dev_priv *priv, int flush)
 	unsigned long begin;
 	struct ipoib_tx_buf *tx_req;
 	int i;
+
+	clear_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
 
 	ipoib_cm_dev_stop(priv);
 
