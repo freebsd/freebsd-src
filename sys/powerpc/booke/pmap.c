@@ -2884,6 +2884,7 @@ static void
 mmu_booke_page_init(mmu_t mmu, vm_page_t m)
 {
 
+	m->md.pv_tracked = 0;
 	TAILQ_INIT(&m->md.pv_list);
 }
 
