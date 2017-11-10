@@ -182,7 +182,7 @@ DEPENDSRCS=	${SRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
 .if !empty(DEPENDSRCS)
 DEPENDOBJS+=	${DEPENDSRCS:${OBJS_SRCS_FILTER:ts:}:S,$,.o,}
 .endif
-DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:${DEPEND_FILTER}:C/^/${DEPENDFILE}./}
+DEPENDFILES+=	${DEPENDOBJS:O:u:${DEPEND_FILTER}:C/^/${DEPENDFILE}./}
 .if defined(_SKIP_DEPEND)
 # Don't bother statting any .meta files for .depend*
 ${DEPENDOBJS}:	.NOMETA
@@ -190,7 +190,7 @@ ${DEPENDFILE}:	.NOMETA
 # Unset these to avoid looping/statting on them later.
 .undef DEPENDSRCS
 .undef DEPENDOBJS
-.undef DEPENDFILES_OBJS
+.undef DEPENDFILES
 .endif	# defined(_SKIP_DEPEND)
 DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF${DEPENDFILE}.${.TARGET:${DEPEND_FILTER}}
 DEPEND_CFLAGS+=	-MT${.TARGET}
@@ -201,7 +201,7 @@ DEPEND_CFLAGS+=	-MT${.TARGET}
 DEPEND_CFLAGS_CONDITION= "${DEPENDOBJS:${DEPEND_FILTER}:M${.TARGET:${DEPEND_FILTER}}}" != ""
 CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
 .endif
-.for __depend_obj in ${DEPENDFILES_OBJS}
+.for __depend_obj in ${DEPENDFILES}
 .if ${MAKE_VERSION} < 20160220
 .sinclude "${.OBJDIR}/${__depend_obj}"
 .else
@@ -273,7 +273,7 @@ beforebuild: depend
 depend: beforedepend ${DEPENDFILE} afterdepend
 
 # Tell bmake not to look for generated files via .PATH
-.NOPATH: ${DEPENDFILE} ${DEPENDFILES_OBJS}
+.NOPATH: ${DEPENDFILE} ${DEPENDFILES}
 
 DPSRCS+= ${SRCS}
 # A .depend file will only be generated if there are commands in
