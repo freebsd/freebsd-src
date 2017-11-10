@@ -1211,8 +1211,14 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	 * We do not under any circumstances truncate the valid bits, as
 	 * this will screw up bogus page replacement.
 	 */
-	VM_OBJECT_WLOCK(object);
+	VM_OBJECT_RLOCK(object);
 	if (maxsize + poffset > object->un_pager.vnp.vnp_size) {
+		if (!VM_OBJECT_TRYUPGRADE(object)) {
+			VM_OBJECT_RUNLOCK(object);
+			VM_OBJECT_WLOCK(object);
+			if (maxsize + poffset <= object->un_pager.vnp.vnp_size)
+				goto downgrade;
+		}
 		if (object->un_pager.vnp.vnp_size > poffset) {
 			maxsize = object->un_pager.vnp.vnp_size - poffset;
 			ncount = btoc(maxsize);
@@ -1237,6 +1243,8 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 		}
 		for (i = ncount; i < count; i++)
 			rtvals[i] = VM_PAGER_BAD;
+downgrade:
+		VM_OBJECT_LOCK_DOWNGRADE(object);
 	}
 
 	auio.uio_iov = &aiov;
@@ -1283,7 +1291,7 @@ start_write:
 		 */
 		MPASS(prev_offset < next_offset);
 
-		VM_OBJECT_WUNLOCK(object);
+		VM_OBJECT_RUNLOCK(object);
 		aiov.iov_base = NULL;
 		auio.uio_iovcnt = 1;
 		auio.uio_offset = prev_offset;
@@ -1299,7 +1307,7 @@ start_write:
 				    "zero-length write at %ju resid %zd\n",
 				    auio.uio_offset, auio.uio_resid);
 			}
-			VM_OBJECT_WLOCK(object);
+			VM_OBJECT_RLOCK(object);
 			break;
 		}
 
@@ -1317,7 +1325,7 @@ start_write:
 			vn_printf(vp, "vnode_pager_putpages: residual I/O %zd "
 			    "at %ju\n", auio.uio_resid,
 			    (uintmax_t)ma[0]->pindex);
-		VM_OBJECT_WLOCK(object);
+		VM_OBJECT_RLOCK(object);
 		if (error != 0 || auio.uio_resid != 0)
 			break;
 	}
@@ -1331,7 +1339,7 @@ write_done:
 	/* Unwritten pages in range, free bonus if the page is clean. */
 	for (; i < ncount; i++)
 		rtvals[i] = ma[i]->dirty == 0 ? VM_PAGER_OK : VM_PAGER_ERROR;
-	VM_OBJECT_WUNLOCK(object);
+	VM_OBJECT_RUNLOCK(object);
 	PCPU_ADD(cnt.v_vnodepgsout, i);
 	PCPU_INC(cnt.v_vnodeout);
 	return (rtvals[0]);
