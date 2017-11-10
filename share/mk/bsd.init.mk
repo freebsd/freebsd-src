@@ -13,7 +13,7 @@ __<bsd.init.mk>__:
 
 .if ${MK_AUTO_OBJ} == "yes"
 # This is also done in bsd.obj.mk
-.if defined(NO_OBJ)
+.if defined(NO_OBJ) && ${.OBJDIR} != ${.CURDIR}
 .OBJDIR: ${.CURDIR}
 .endif
 .endif

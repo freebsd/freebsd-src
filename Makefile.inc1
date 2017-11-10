@@ -2776,7 +2776,8 @@ BW_CANONICALOBJDIR:=${OBJROOT}
 .endif
 .endif
 cleanworld cleanuniverse: .PHONY
-.if !empty(BW_CANONICALOBJDIR) && exists(${BW_CANONICALOBJDIR})
+.if !empty(BW_CANONICALOBJDIR) && exists(${BW_CANONICALOBJDIR}) && \
+    ${.CURDIR:tA} != ${BW_CANONICALOBJDIR:tA}
 	-rm -rf ${BW_CANONICALOBJDIR}*
 	-chflags -R 0 ${BW_CANONICALOBJDIR}
 	rm -rf ${BW_CANONICALOBJDIR}*

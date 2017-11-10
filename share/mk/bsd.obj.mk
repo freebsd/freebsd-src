@@ -48,7 +48,7 @@ objwarn: .PHONY
 obj: .PHONY
 CANONICALOBJDIR= ${.OBJDIR}
 # This is also done in bsd.init.mk
-.if defined(NO_OBJ)
+.if defined(NO_OBJ) && ${.OBJDIR} != ${.CURDIR}
 # but this makefile does not want it!
 .OBJDIR: ${.CURDIR}
 .endif
