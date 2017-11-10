@@ -143,4 +143,6 @@ int mlx5_query_vport_counter(struct mlx5_core_dev *dev,
 			     void *out, int out_size);
 int mlx5_get_vport_counters(struct mlx5_core_dev *dev, u8 port_num,
 			    struct mlx5_vport_counters *vc);
+int mlx5_core_query_ib_ppcnt(struct mlx5_core_dev *dev,
+			     u8 port_num, void *out, size_t sz);
 #endif /* __MLX5_VPORT_H__ */
