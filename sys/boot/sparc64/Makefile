@@ -1,5 +1,10 @@
 # $FreeBSD$
 
-SUBDIR=	boot1 loader zfsboot zfsloader
+.include <bsd.init.mk>
+
+SUBDIR=	boot1 loader
+.if ${MK_ZFS} != "no"
+SUBDIR+=zfsboot zfsloader
+.endif
 
 .include <bsd.subdir.mk>

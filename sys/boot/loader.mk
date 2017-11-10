@@ -69,6 +69,19 @@ CFLAGS+=	-DBOOT_PROMPT_123
 SRCS+=	install.c
 .endif
 
+.if defined(HAVE_ZFS)
+CFLAGS+=	-DLOADER_ZFS_SUPPORT
+CFLAGS+=	-I${ZFSSRC}
+CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
+.if ${MACHINE} == "amd64"
+# Have to override to use 32-bit version of zfs library...
+# kinda lame to select that there XXX
+LIBZFSBOOT=	${BOOTOBJ}/zfs32/libzfsboot.a
+.else
+LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
+.endif
+.endif
+
 CLEANFILES+=	vers.c
 VERSION_FILE?=	${.CURDIR}/version
 .if ${MK_REPRODUCIBLE_BUILD} != no

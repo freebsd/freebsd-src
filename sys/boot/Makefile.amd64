@@ -1,7 +1,9 @@
 # $FreeBSD$
 
 SUBDIR+=		libsa32
+.if ${MK_ZFS} != "no"
 SUBDIR+=		zfs zfs32
+.endif
 .if ${MK_FORTH} != "no"
 SUBDIR+=		ficl32
 .endif
