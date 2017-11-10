@@ -3682,7 +3682,7 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 {
 	struct fw_port_cmd c;
 	unsigned int mdi = V_FW_PORT_CAP_MDI(FW_PORT_CAP_MDI_AUTO);
-	unsigned int aneg, fc, fec, speed;
+	unsigned int aneg, fc, fec, speed, rcap;
 
 	fc = 0;
 	if (lc->requested_fc & PAUSE_RX)
@@ -3727,6 +3727,13 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		    V_FW_PORT_CAP_SPEED(M_FW_PORT_CAP_SPEED);
 	}
 
+	rcap = aneg | speed | fc | fec | mdi;
+	if ((rcap | lc->supported) != lc->supported) {
+		CH_WARN(adap, "rcap 0x%08x, pcap 0x%08x\n", rcap,
+		    lc->supported);
+		rcap &= lc->supported;
+	}
+
 	memset(&c, 0, sizeof(c));
 	c.op_to_portid = cpu_to_be32(V_FW_CMD_OP(FW_PORT_CMD) |
 				     F_FW_CMD_REQUEST | F_FW_CMD_EXEC |
@@ -3734,7 +3741,7 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 	c.action_to_len16 =
 		cpu_to_be32(V_FW_PORT_CMD_ACTION(FW_PORT_ACTION_L1_CFG) |
 			    FW_LEN16(c));
-	c.u.l1cfg.rcap = cpu_to_be32(aneg | speed | fc | fec | mdi);
+	c.u.l1cfg.rcap = cpu_to_be32(rcap);
 
 	return t4_wr_mbox_ns(adap, mbox, &c, sizeof(c), NULL);
 }

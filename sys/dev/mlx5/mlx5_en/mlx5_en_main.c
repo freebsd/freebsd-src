@@ -2298,10 +2298,13 @@ mlx5e_set_dev_port_mtu(struct ifnet *ifp, int sw_mtu)
 		    __func__, sw_mtu, err);
 		return (err);
 	}
+
+	ifp->if_mtu = sw_mtu;
 	err = mlx5_query_port_oper_mtu(mdev, &hw_mtu);
 	if (err) {
 		if_printf(ifp, "Query port MTU, after setting new "
 		    "MTU value, failed\n");
+		return (err);
 	} else if (MLX5E_HW2SW_MTU(hw_mtu) < sw_mtu) {
 		err = -E2BIG,
 		if_printf(ifp, "Port MTU %d is smaller than "
@@ -2311,7 +2314,8 @@ mlx5e_set_dev_port_mtu(struct ifnet *ifp, int sw_mtu)
                 if_printf(ifp, "Port MTU %d is bigger than "
                     "ifp mtu %d\n", hw_mtu, sw_mtu);
 	}
-	ifp->if_mtu = sw_mtu;
+	priv->params_ethtool.hw_mtu = hw_mtu;
+
 	return (err);
 }
 
@@ -2925,6 +2929,164 @@ sysctl_firmware(SYSCTL_HANDLER_ARGS)
 	    fw_rev_sub(priv->mdev));
 	error = sysctl_handle_string(oidp, fw, sizeof(fw), req);
 	return (error);
+}
+
+static void
+mlx5e_disable_tx_dma(struct mlx5e_channel *ch)
+{
+	int i;
+
+	for (i = 0; i < ch->num_tc; i++)
+		mlx5e_drain_sq(&ch->sq[i]);
+}
+
+static void
+mlx5e_reset_sq_doorbell_record(struct mlx5e_sq *sq)
+{
+
+	sq->doorbell.d32[0] = cpu_to_be32(MLX5_OPCODE_NOP);
+	sq->doorbell.d32[1] = cpu_to_be32(sq->sqn << 8);
+	mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
+	sq->doorbell.d64 = 0;
+}
+
+void
+mlx5e_resume_sq(struct mlx5e_sq *sq)
+{
+	int err;
+
+	/* check if already enabled */
+	if (sq->stopped == 0)
+		return;
+
+	err = mlx5e_modify_sq(sq, MLX5_SQC_STATE_ERR,
+	    MLX5_SQC_STATE_RST);
+	if (err != 0) {
+		if_printf(sq->ifp,
+		    "mlx5e_modify_sq() from ERR to RST failed: %d\n", err);
+	}
+
+	sq->cc = 0;
+	sq->pc = 0;
+
+	/* reset doorbell prior to moving from RST to RDY */
+	mlx5e_reset_sq_doorbell_record(sq);
+
+	err = mlx5e_modify_sq(sq, MLX5_SQC_STATE_RST,
+	    MLX5_SQC_STATE_RDY);
+	if (err != 0) {
+		if_printf(sq->ifp,
+		    "mlx5e_modify_sq() from RST to RDY failed: %d\n", err);
+	}
+
+	mtx_lock(&sq->lock);
+	sq->cev_next_state = MLX5E_CEV_STATE_INITIAL;
+	sq->stopped = 0;
+	mtx_unlock(&sq->lock);
+
+}
+
+static void
+mlx5e_enable_tx_dma(struct mlx5e_channel *ch)
+{
+        int i;
+
+	for (i = 0; i < ch->num_tc; i++)
+		mlx5e_resume_sq(&ch->sq[i]);
+}
+
+static void
+mlx5e_disable_rx_dma(struct mlx5e_channel *ch)
+{
+	struct mlx5e_rq *rq = &ch->rq;
+	int err;
+
+	mtx_lock(&rq->mtx);
+	rq->enabled = 0;
+	callout_stop(&rq->watchdog);
+	mtx_unlock(&rq->mtx);
+
+	callout_drain(&rq->watchdog);
+
+	err = mlx5e_modify_rq(rq, MLX5_RQC_STATE_RDY, MLX5_RQC_STATE_ERR);
+	if (err != 0) {
+		if_printf(rq->ifp,
+		    "mlx5e_modify_rq() from RDY to RST failed: %d\n", err);
+	}
+
+	while (!mlx5_wq_ll_is_empty(&rq->wq)) {
+		msleep(1);
+		rq->cq.mcq.comp(&rq->cq.mcq);
+	}
+
+	/*
+	 * Transitioning into RST state will allow the FW to track less ERR state queues,
+	 * thus reducing the recv queue flushing time
+	 */
+	err = mlx5e_modify_rq(rq, MLX5_RQC_STATE_ERR, MLX5_RQC_STATE_RST);
+	if (err != 0) {
+		if_printf(rq->ifp,
+		    "mlx5e_modify_rq() from ERR to RST failed: %d\n", err);
+	}
+}
+
+static void
+mlx5e_enable_rx_dma(struct mlx5e_channel *ch)
+{
+	struct mlx5e_rq *rq = &ch->rq;
+	int err;
+
+	rq->wq.wqe_ctr = 0;
+	mlx5_wq_ll_update_db_record(&rq->wq);
+	err = mlx5e_modify_rq(rq, MLX5_RQC_STATE_RST, MLX5_RQC_STATE_RDY);
+	if (err != 0) {
+		if_printf(rq->ifp,
+		    "mlx5e_modify_rq() from RST to RDY failed: %d\n", err);
+        }
+
+	rq->enabled = 1;
+
+	rq->cq.mcq.comp(&rq->cq.mcq);
+}
+
+void
+mlx5e_modify_tx_dma(struct mlx5e_priv *priv, uint8_t value)
+{
+	int i;
+
+	if (priv->channel == NULL)
+		return;
+
+	for (i = 0; i < priv->params.num_channels; i++) {
+
+		if (!priv->channel[i])
+			continue;
+
+		if (value)
+			mlx5e_disable_tx_dma(priv->channel[i]);
+		else
+			mlx5e_enable_tx_dma(priv->channel[i]);
+	}
+}
+
+void
+mlx5e_modify_rx_dma(struct mlx5e_priv *priv, uint8_t value)
+{
+	int i;
+
+	if (priv->channel == NULL)
+		return;
+
+	for (i = 0; i < priv->params.num_channels; i++) {
+
+		if (!priv->channel[i])
+			continue;
+
+		if (value)
+			mlx5e_disable_rx_dma(priv->channel[i]);
+		else
+			mlx5e_enable_rx_dma(priv->channel[i]);
+	}
 }
 
 static void

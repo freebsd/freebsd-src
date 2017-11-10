@@ -43,8 +43,8 @@ OLD_FILES+=sbin/badsect
 OLD_FILES+=rescue/badsect
 OLD_FILES+=usr/share/man/man8/badsect.8.gz
 # 20171105: fixing lib/libclang_rt CRTARCH for arm:armv[67].
-.if ${MACHINE} == "arm"
-.if ${MACHINE_ARCH:Marmv[67]*} != "" && ${CPUTYPE:M*soft*} == ""
+.if ${MACHINE_ARCH:Marmv[67]*} != "" && \
+    (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
 OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.asan-preinit-arm.a
 OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.asan-arm.a
 OLD_LIBS+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.asan-arm.so
@@ -55,7 +55,6 @@ OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.stats-arm.a
 OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.stats_client-arm.a
 OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.ubsan_standalone-arm.a
 OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-arm.a
-.endif
 .endif
 # 20171104: libcap_random should be in /lib not in /usr/lib
 OLD_LIBS+=usr/lib/libcap_random.so.0

@@ -225,9 +225,10 @@ raw_usend(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	KASSERT(sotorawcb(so) != NULL, ("raw_usend: rp == NULL"));
 
 	if ((flags & PRUS_OOB) || (control && control->m_len)) {
-		/* XXXRW: Should control also be freed here? */
 		if (m != NULL)
 			m_freem(m);
+		if (control != NULL)
+			m_freem(control);
 		return (EOPNOTSUPP);
 	}
 
