@@ -51,7 +51,6 @@ CFLAGS=		-ffreestanding			\
 		-I${.CURDIR}			\
 		-I${SASRC}			\
 		-I${LDRSRC}			\
-		-I${SYSDIR}			\
 		-D_KERNEL			\
 		-Wall				\
 		-G0 				\

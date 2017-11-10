@@ -12,7 +12,7 @@ SRCS=	devicename.c elf_freebsd.c ofw_console.c ofw_copy.c ofw_disk.c \
 SRCS+=  devicename_stubs.c
 
 # Pick up the bootstrap header for some interface items
-CFLAGS+=	-I${LDRSRC} -I${SYSDIR} -I.
+CFLAGS+=	-I${LDRSRC}
 
 CFLAGS+=	-ffreestanding
 .if ${MACHINE_CPUARCH} == "powerpc"

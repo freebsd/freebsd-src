@@ -25,6 +25,6 @@ CFLAGS+=	-I${EFISRC}/include/${MACHINE}
 CFLAGS+=	-I${FDTSRC}
 
 # Pick up the bootstrap header for some interface items
-CFLAGS+=	-I${LDRSRC} -I${SYSDIR} -I.
+CFLAGS+=	-I${LDRSRC}
 
 .include <bsd.lib.mk>

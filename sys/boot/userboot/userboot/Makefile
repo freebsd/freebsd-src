@@ -36,8 +36,7 @@ SRCS+=		vers.c
 
 CFLAGS+=	-Wall
 CFLAGS+=	-I${BOOTSRC}/userboot
-CFLAGS+=	-I${SYSDIR}
-CFLAGS+=	-ffreestanding -I.
+CFLAGS+=	-ffreestanding
 
 CWARNFLAGS.main.c += -Wno-implicit-function-declaration
 
@@ -51,6 +50,7 @@ LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 .endif
 
 # Always add MI sources 
+HELP_FILES=	# Disable
 .include	"${BOOTSRC}/loader.mk"
 CFLAGS+=	-I.
 DPADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSA} 

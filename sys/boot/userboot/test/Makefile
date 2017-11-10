@@ -10,6 +10,5 @@ PROG=		test
 INTERNALPROG=
 
 CFLAGS+=	-I${BOOTSRC}/userboot
-CFLAGS+=	-I${SYSDIR}
 
 .include <bsd.prog.mk>

@@ -20,7 +20,7 @@ SRCS+= disk.c
 .include	"${BOOTSRC}/fdt.mk"
 
 # Pick up the bootstrap header for some interface items
-CFLAGS+=	-I${LDRSRC} -I${SYSDIR} -I.
+CFLAGS+=	-I${LDRSRC}
 
 .ifdef(BOOT_DISK_DEBUG)
 # Make the disk code more talkative

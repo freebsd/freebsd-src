@@ -12,7 +12,7 @@ CFLAGS+=	-DSKEIN_LOOP=111
 .PATH:		${SYSDIR}/crypto/skein
 
 CFLAGS+=	-DBOOTPROG=\"zfsloader\"
-CFLAGS+=	-I${LDRSRC} -I${SYSDIR} -I.
+CFLAGS+=	-I${LDRSRC}
 CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
 CFLAGS+=	-I${SYSDIR}/crypto/skein
 
