@@ -2396,6 +2396,9 @@ lib/libcasper__L: lib/libnv__L
 lib/liblzma__L: lib/libthr__L
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}
+.if ${MK_IPFILTER} != "no"
+_generic_libs+=	sbin/ipf/libipf
+.endif
 .for _DIR in ${LOCAL_LIB_DIRS}
 .if exists(${.CURDIR}/${_DIR}/Makefile) && empty(_generic_libs:M${_DIR})
 _generic_libs+= ${_DIR}
