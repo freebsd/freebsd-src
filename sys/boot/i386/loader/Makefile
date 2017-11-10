@@ -26,18 +26,17 @@ VERSION_FILE=	${.CURDIR}/../loader/version
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c chain.c
 
-# Put LOADER_FIREWIRE_SUPPORT=yes in /etc/make.conf for FireWire/dcons support
-.if defined(LOADER_FIREWIRE_SUPPORT)
-CFLAGS+=	-DLOADER_FIREWIRE_SUPPORT
-LIBFIREWIRE=	${BOOTOBJ}/i386/libfirewire/libfirewire.a
-.endif
-
 # Include bcache code.
 HAVE_BCACHE=	yes
 
 # Enable PnP and ISA-PnP code.
 HAVE_PNP=	yes
 HAVE_ISABUS=	yes
+
+.if ${MK_LOADER_FIREWIRE} == "yes"
+CFLAGS+=	-DLOADER_FIREWIRE_SUPPORT
+LIBFIREWIRE=	${BOOTOBJ}/i386/libfirewire/libfirewire.a
+.endif
 
 .if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 CFLAGS+=	-DLOADER_GELI_SUPPORT
