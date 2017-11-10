@@ -154,7 +154,10 @@ build-tools: build-tools-${_tool}
 # Yes, this does seem to partly duplicate bsd.subdir.mk, but I can't
 # get that to cooperate with bsd.prog.mk.  Besides, many of the standard
 # targets should NOT be propagated into the components.
-.for __target in clean cleandepend cleandir obj objlink
+.if ${MK_AUTO_OBJ} == "no"
+_obj=	obj
+.endif
+.for __target in clean cleandepend cleandir ${_obj} objlink
 .for D in ${CRUNCH_SRCDIRS}
 .for P in ${CRUNCH_PROGS_${D}}
 ${__target}_crunchdir_${P}: .PHONY .MAKE
