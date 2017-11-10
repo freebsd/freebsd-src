@@ -17,11 +17,7 @@ CFLAGS+=	-ffreestanding -msoft-float
 SRCS+= disk.c
 .endif
 
-.if ${MK_FDT} != "no"
-LOADER_FDT_SUPPORT=	yes
-.else
-LOADER_FDT_SUPPORT=	no
-.endif
+LOADER_FDT_SUPPORT=	${MK_FDT}
 
 .if ${LOADER_FDT_SUPPORT} == "yes"
 CFLAGS+= -DLOADER_FDT_SUPPORT -I${FDTSRC}
