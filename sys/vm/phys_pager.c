@@ -209,13 +209,10 @@ retry:
 		if (m == NULL) {
 			ahead = MIN(end - i, PHYSALLOC);
 			m = vm_page_alloc(object, i, VM_ALLOC_NORMAL |
-			    VM_ALLOC_ZERO | VM_ALLOC_COUNT(ahead));
-			if (m == NULL) {
-				VM_OBJECT_WUNLOCK(object);
-				VM_WAIT;
-				VM_OBJECT_WLOCK(object);
+			    VM_ALLOC_ZERO | VM_ALLOC_WAITFAIL |
+			    VM_ALLOC_COUNT(ahead));
+			if (m == NULL)
 				goto retry;
-			}
 			if ((m->flags & PG_ZERO) == 0)
 				pmap_zero_page(m);
 			m->valid = VM_PAGE_BITS_ALL;

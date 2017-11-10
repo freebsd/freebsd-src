@@ -51,8 +51,7 @@ struct eventhandler_entry_vimage {
 
 struct eventhandler_list {
 	char				*el_name;
-	int				el_flags;
-#define EHL_INITTED	(1<<0)
+	int				el_flags;	/* Unused. */
 	u_int				el_runcount;
 	struct mtx			el_lock;
 	TAILQ_ENTRY(eventhandler_list)	el_link;
@@ -72,8 +71,6 @@ typedef struct eventhandler_entry	*eventhandler_tag;
 	struct eventhandler_entry *_ep;					\
 	struct eventhandler_entry_ ## name *_t;				\
 									\
-	KASSERT((list)->el_flags & EHL_INITTED,				\
- 	   ("eventhandler_invoke: running non-inited list"));		\
 	EHL_LOCK_ASSERT((list), MA_OWNED);				\
 	(list)->el_runcount++;						\
 	KASSERT((list)->el_runcount > 0,				\
@@ -98,10 +95,41 @@ typedef struct eventhandler_entry	*eventhandler_tag;
 } while (0)
 
 /*
- * Slow handlers are entirely dynamic; lists are created
- * when entries are added to them, and thus have no concept of "owner",
- *
- * Slow handlers need to be declared, but do not need to be defined. The
+ * You can optionally use the EVENTHANDLER_LIST and EVENTHANDLER_DIRECT macros
+ * to pre-define a symbol for the eventhandler list. This symbol can be used by
+ * EVENTHANDLER_DIRECT_INVOKE, which has the advantage of not needing to do a
+ * locked search of the global list of eventhandler lists. At least
+ * EVENTHANDLER_LIST_DEFINE must be be used for EVENTHANDLER_DIRECT_INVOKE to
+ * work. EVENTHANDLER_LIST_DECLARE is only needed if the call to
+ * EVENTHANDLER_DIRECT_INVOKE is in a different compilation unit from
+ * EVENTHANDLER_LIST_DEFINE. If the events are even relatively high frequency
+ * it is suggested that you directly define a list for them.
+ */
+#define	EVENTHANDLER_LIST_DECLARE(name)					\
+extern struct eventhandler_list *_eventhandler_list_ ## name		\
+
+#define	EVENTHANDLER_LIST_DEFINE(name)					\
+struct eventhandler_list *_eventhandler_list_ ## name ;			\
+static void _ehl_init_ ## name (void * ctx __unused)			\
+{									\
+	_eventhandler_list_ ## name = eventhandler_create_list(#name);	\
+}									\
+SYSINIT(name ## _ehl_init, SI_SUB_EVENTHANDLER, SI_ORDER_ANY,		\
+	    _ehl_init_ ## name, NULL);					\
+	struct __hack
+
+#define	EVENTHANDLER_DIRECT_INVOKE(name, ...) do {			\
+	struct eventhandler_list *_el;					\
+									\
+	_el = _eventhandler_list_ ## name ;				\
+	if (!TAILQ_EMPTY(&_el->el_entries)) {				\
+		EHL_LOCK(_el);						\
+		_EVENTHANDLER_INVOKE(name, _el , ## __VA_ARGS__);	\
+	}								\
+} while (0)
+
+/*
+ * Event handlers need to be declared, but do not need to be defined. The
  * declaration must be in scope wherever the handler is to be invoked.
  */
 #define EVENTHANDLER_DECLARE(name, type)				\
@@ -158,6 +186,7 @@ void	eventhandler_deregister_nowait(struct eventhandler_list *list,
 	    eventhandler_tag tag);
 struct eventhandler_list *eventhandler_find_list(const char *name);
 void	eventhandler_prune_list(struct eventhandler_list *list);
+struct eventhandler_list *eventhandler_create_list(const char *name);
 
 #ifdef VIMAGE
 typedef	void (*vimage_iterator_func_t)(void *, ...);

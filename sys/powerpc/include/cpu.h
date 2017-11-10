@@ -68,6 +68,7 @@ extern int cpu_features2;
 
 #define	PPC_FEATURE2_ARCH_2_07	0x80000000
 #define	PPC_FEATURE2_HAS_HTM	0x40000000
+#define	PPC_FEATURE2_ISEL	0x08000000
 #define	PPC_FEATURE2_HAS_VCRYPTO 0x02000000
 
 #define	PPC_FEATURE_BITMASK						\
@@ -77,7 +78,7 @@ extern int cpu_features2;
 	"\011ARCH206\010VSX"
 #define	PPC_FEATURE2_BITMASK						\
 	"\20"								\
-	"\040ARCH207\037HTM\032VCRYPTO"
+	"\040ARCH207\037HTM\034ISEL\032VCRYPTO"
 
 #define	TRAPF_USERMODE(frame)	(((frame)->srr1 & PSL_PR) != 0)
 #define	TRAPF_PC(frame)		((frame)->srr0)

@@ -1,5 +1,16 @@
 # $FreeBSD$
 
+LOADER_UFS_SUPPORT?=	yes
+LOADER_CD9660_SUPPORT?=	no
+LOADER_MSDOS_SUPPORT?=	no
+LOADER_EXT2FS_SUPPORT?=	no
+LOADER_NET_SUPPORT?=	yes
+LOADER_NFS_SUPPORT?=	yes
+LOADER_TFTP_SUPPORT?=	no
+LOADER_GZIP_SUPPORT?=	no
+LOADER_BZIP2_SUPPORT?=	no
+LOADER_FDT_SUPPORT=	${MK_FDT}
+
 .include <bsd.init.mk>
 
 FILES=		ubldr ubldr.bin
@@ -17,17 +28,6 @@ SRCS=		start.S conf.c self_reloc.c vers.c
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201
 CWARNFLAGS.self_reloc.c+=	-Wno-error=maybe-uninitialized
 .endif
-
-LOADER_UFS_SUPPORT?=	yes
-LOADER_CD9660_SUPPORT?=	no
-LOADER_MSDOS_SUPPORT?=	no
-LOADER_EXT2FS_SUPPORT?=	no
-LOADER_NET_SUPPORT?=	yes
-LOADER_NFS_SUPPORT?=	yes
-LOADER_TFTP_SUPPORT?=	no
-LOADER_GZIP_SUPPORT?=	no
-LOADER_BZIP2_SUPPORT?=	no
-LOADER_FDT_SUPPORT=	${MK_FDT}
 
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"

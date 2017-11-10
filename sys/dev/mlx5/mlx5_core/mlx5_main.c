@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,6 +42,7 @@
 #include <linux/delay.h>
 #include <dev/mlx5/mlx5_ifc.h>
 #include "mlx5_core.h"
+#include "fs_core.h"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
@@ -71,6 +72,11 @@ struct mlx5_device_context {
 	struct list_head	list;
 	struct mlx5_interface  *intf;
 	void		       *context;
+};
+
+enum {
+	MLX5_ATOMIC_REQ_MODE_BE = 0x0,
+	MLX5_ATOMIC_REQ_MODE_HOST_ENDIANNESS = 0x1,
 };
 
 static struct mlx5_profile profiles[] = {
@@ -392,6 +398,53 @@ query_ex:
 	return err;
 }
 
+static int handle_hca_cap_atomic(struct mlx5_core_dev *dev)
+{
+	void *set_ctx;
+	void *set_hca_cap;
+	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
+	int req_endianness;
+	int err;
+
+	if (MLX5_CAP_GEN(dev, atomic)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ATOMIC,
+					 HCA_CAP_OPMOD_GET_MAX);
+		if (err)
+			return err;
+
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ATOMIC,
+					 HCA_CAP_OPMOD_GET_CUR);
+		if (err)
+			return err;
+	} else {
+		return 0;
+	}
+
+	req_endianness =
+		MLX5_CAP_ATOMIC(dev,
+				supported_atomic_req_8B_endianess_mode_1);
+
+	if (req_endianness != MLX5_ATOMIC_REQ_MODE_HOST_ENDIANNESS)
+		return 0;
+
+	set_ctx = kzalloc(set_sz, GFP_KERNEL);
+	if (!set_ctx)
+		return -ENOMEM;
+
+	MLX5_SET(set_hca_cap_in, set_ctx, op_mod,
+		 MLX5_SET_HCA_CAP_OP_MOD_ATOMIC << 1);
+	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx, capability);
+
+	/* Set requestor to host endianness */
+	MLX5_SET(atomic_caps, set_hca_cap, atomic_req_8B_endianess_mode,
+		 MLX5_ATOMIC_REQ_MODE_HOST_ENDIANNESS);
+
+	err = set_caps(dev, set_ctx, set_sz);
+
+	kfree(set_ctx);
+	return err;
+}
+
 static int set_hca_ctrl(struct mlx5_core_dev *dev)
 {
 	struct mlx5_reg_host_endianess he_in;
@@ -663,8 +716,8 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 		goto err_clr_master;
 	}
 
-	dev->iseg = ioremap(pci_resource_start(dev->pdev, 0),
-			    sizeof(*dev->iseg));
+	dev->iseg_base = pci_resource_start(dev->pdev, 0);
+	dev->iseg = ioremap(dev->iseg_base, sizeof(*dev->iseg));
 	if (!dev->iseg) {
 		err = -ENOMEM;
 		device_printf((&pdev->dev)->bsddev, "ERR: ""Failed mapping initialization segment, aborting\n");
@@ -716,15 +769,21 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 		goto err_pagealloc_stop;
 	}
 
+	err = set_hca_ctrl(dev);
+	if (err) {
+		device_printf((&pdev->dev)->bsddev, "ERR: ""set_hca_ctrl failed\n");
+		goto reclaim_boot_pages;
+	}
+
 	err = handle_hca_cap(dev);
 	if (err) {
 		device_printf((&pdev->dev)->bsddev, "ERR: ""handle_hca_cap failed\n");
 		goto reclaim_boot_pages;
 	}
 
-	err = set_hca_ctrl(dev);
+	err = handle_hca_cap_atomic(dev);
 	if (err) {
-		device_printf((&pdev->dev)->bsddev, "ERR: ""set_hca_ctrl failed\n");
+		device_printf((&pdev->dev)->bsddev, "ERR: ""handle_hca_cap_atomic failed\n");
 		goto reclaim_boot_pages;
 	}
 
@@ -794,7 +853,20 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 	mlx5_init_srq_table(dev);
 	mlx5_init_mr_table(dev);
 
+	err = mlx5_init_fs(dev);
+	if (err) {
+		mlx5_core_err(dev, "flow steering init %d\n", err);
+		goto err_init_tables;
+	}
+
 	return 0;
+
+err_init_tables:
+	mlx5_cleanup_mr_table(dev);
+	mlx5_cleanup_srq_table(dev);
+	mlx5_cleanup_qp_table(dev);
+	mlx5_cleanup_cq_table(dev);
+	unmap_bf_area(dev);
 
 err_stop_eqs:
 	mlx5_stop_eqs(dev);
@@ -848,6 +920,7 @@ static void mlx5_dev_cleanup(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 
+	mlx5_cleanup_fs(dev);
 	mlx5_cleanup_mr_table(dev);
 	mlx5_cleanup_srq_table(dev);
 	mlx5_cleanup_qp_table(dev);
@@ -1061,6 +1134,12 @@ static void remove_one(struct pci_dev *pdev)
 	kfree(dev);
 }
 
+static void shutdown_one(struct pci_dev *pdev)
+{
+	/* prevent device from accessing host memory after shutdown */
+	pci_clear_master(pdev);
+}
+
 static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 4113) }, /* Connect-IB */
 	{ PCI_VDEVICE(MELLANOX, 4114) }, /* Connect-IB VF */
@@ -1102,6 +1181,7 @@ MODULE_DEVICE_TABLE(pci, mlx5_core_pci_table);
 static struct pci_driver mlx5_core_driver = {
 	.name           = DRIVER_NAME,
 	.id_table       = mlx5_core_pci_table,
+	.shutdown	= shutdown_one,
 	.probe          = init_one,
 	.remove         = remove_one
 };

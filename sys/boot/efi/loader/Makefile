@@ -2,6 +2,12 @@
 
 MAN=
 
+LOADER_NET_SUPPORT?=	yes
+LOADER_MSDOS_SUPPORT?=	yes
+LOADER_UFS_SUPPORT?=	yes
+LOADER_CD9660_SUPPORT?=	no
+LOADER_EXT2FS_SUPPORT?=	no
+
 .include <bsd.init.mk>
 
 MK_SSP=		no
@@ -9,12 +15,6 @@ MK_SSP=		no
 PROG=		loader.sym
 INTERNALPROG=
 WARNS?=		3
-LOADER_NET_SUPPORT?=	yes
-
-LOADER_MSDOS_SUPPORT?=	yes
-LOADER_UFS_SUPPORT?=	yes
-LOADER_CD9660_SUPPORT?=	no
-LOADER_EXT2FS_SUPPORT?=	no
 
 # architecture-specific loader code
 SRCS=	autoload.c \

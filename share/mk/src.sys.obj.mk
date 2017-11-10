@@ -70,7 +70,10 @@ OBJROOT:=	${OBJROOT:H:tA}/${OBJROOT:T}
 .export OBJROOT SRCTOP
 .endif
 
-.if ${MK_UNIFIED_OBJDIR} == "yes"
+# SRCTOP == OBJROOT only happens with clever MAKEOBJDIRPREFIX=/.  Don't
+# append TARGET.TARGET_ARCH for that case since the user wants to build
+# in the source tree.
+.if ${MK_UNIFIED_OBJDIR} == "yes" && ${SRCTOP} != ${OBJROOT:tA}
 OBJTOP:=	${OBJROOT}${TARGET:D${TARGET}.${TARGET_ARCH}:U${MACHINE}.${MACHINE_ARCH}}
 .else
 # TARGET.TARGET_ARCH handled in OBJROOT already.
@@ -103,13 +106,12 @@ __objdir:=	${MAKEOBJDIR}
 .endif
 
 # Try to enable MK_AUTO_OBJ by default if we can write to the __objdir.  Only
-# do this if AUTO_OBJ is not disabled by the user, not cleaning, and this is
-# the first make ran.
-.if 0 && ${.MAKE.LEVEL} == 0 && \
+# do this if AUTO_OBJ is not disabled by the user, and this is the first make
+# ran.
+.if ${.MAKE.LEVEL} == 0 && \
     ${MK_AUTO_OBJ} == "no" && empty(.MAKEOVERRIDES:MMK_AUTO_OBJ) && \
     !defined(WITHOUT_AUTO_OBJ) && !make(showconfig) && !make(print-dir) && \
-    !defined(NO_OBJ) && \
-    (${.TARGETS} == "" || ${.TARGETS:Nclean*:N*clean:Ndestroy*} != "")
+    !defined(NO_OBJ)
 # Find the last existing directory component and check if we can write to it.
 # If the last component is a symlink then recurse on the new path.
 CheckAutoObj= \
@@ -147,8 +149,12 @@ CheckAutoObj() { \
 	fi; \
 }
 .if !empty(__objdir)
+.if ${.CURDIR} == ${__objdir}
+__objdir_writable?= yes
+.else
 __objdir_writable!= \
 	${CheckAutoObj}; CheckAutoObj "${__objdir}" || echo no
+.endif
 .endif
 __objdir_writable?= no
 # Export the decision to sub-makes.
@@ -179,3 +185,14 @@ MK_AUTO_OBJ:=	${__objdir_writable}
 # auto.obj.mk or bsd.obj.mk will create the directory and fix .OBJDIR later.
 .OBJDIR: ${.CURDIR}
 .endif
+
+# Ensure .OBJDIR=.CURDIR cases have a proper OBJTOP and .OBJDIR
+.if defined(NO_OBJ) || ${__objdir_writable:Uunknown} == "no" || \
+    ${__objdir} == ${.CURDIR}
+OBJTOP=		${SRCTOP}
+OBJROOT=	${SRCTOP}/
+# Compare only to avoid an unneeded chdir(2), :tA purposely left out.
+.if ${.OBJDIR} != ${.CURDIR}
+.OBJDIR:	${.CURDIR}
+.endif
+.endif	# defined(NO_OBJ)

@@ -408,8 +408,13 @@ struct mlx5e_params {
   m(+1, u64 tx_completion_fact_max, "tx_completion_fact_max", "Maximum completion event ratio") \
   m(+1, u64 hw_lro, "hw_lro", "set to enable hw_lro") \
   m(+1, u64 cqe_zipping, "cqe_zipping", "0 : CQE zipping disabled") \
+  m(+1, u64 modify_tx_dma, "modify_tx_dma", "0: Enable TX 1: Disable TX") \
+  m(+1, u64 modify_rx_dma, "modify_rx_dma", "0: Enable RX 1: Disable RX") \
   m(+1, u64 diag_pci_enable, "diag_pci_enable", "0: Disabled 1: Enabled") \
-  m(+1, u64 diag_general_enable, "diag_general_enable", "0: Disabled 1: Enabled")
+  m(+1, u64 diag_general_enable, "diag_general_enable", "0: Disabled 1: Enabled") \
+  m(+1, u64 hw_mtu, "hw_mtu", "Current hardware MTU value") \
+  m(+1, u64 mc_local_lb, "mc_local_lb", "0: Local multicast loopback enabled 1: Disabled") \
+  m(+1, u64 uc_local_lb, "uc_local_lb", "0: Local unicast loopback enabled 1: Disabled")
 
 #define	MLX5E_PARAMS_NUM (0 MLX5E_PARAMS(MLX5E_STATS_COUNT))
 
@@ -590,10 +595,13 @@ enum {
 	MLX5E_NUM_RQT = 2,
 };
 
+struct mlx5_flow_rule;
+
 struct mlx5e_eth_addr_info {
 	u8	addr [ETH_ALEN + 2];
 	u32	tt_vec;
-	u32	ft_ix[MLX5E_NUM_TT];	/* flow table index per traffic type */
+	/* flow table rule per traffic type */
+	struct mlx5_flow_rule	*ft_rule[MLX5E_NUM_TT];
 };
 
 #define	MLX5E_ETH_ADDR_HASH_SIZE (1 << BITS_PER_BYTE)
@@ -622,15 +630,24 @@ enum {
 
 struct mlx5e_vlan_db {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
-	u32	active_vlans_ft_ix[VLAN_N_VID];
-	u32	untagged_rule_ft_ix;
-	u32	any_vlan_rule_ft_ix;
+	struct mlx5_flow_rule	*active_vlans_ft_rule[VLAN_N_VID];
+	struct mlx5_flow_rule	*untagged_ft_rule;
+	struct mlx5_flow_rule	*any_cvlan_ft_rule;
+	struct mlx5_flow_rule	*any_svlan_ft_rule;
 	bool	filter_disabled;
 };
 
 struct mlx5e_flow_table {
-	void   *vlan;
-	void   *main;
+	int num_groups;
+	struct mlx5_flow_table *t;
+	struct mlx5_flow_group **g;
+};
+
+struct mlx5e_flow_tables {
+	struct mlx5_flow_namespace *ns;
+	struct mlx5e_flow_table vlan;
+	struct mlx5e_flow_table main;
+	struct mlx5e_flow_table inner_rss;
 };
 
 struct mlx5e_priv {
@@ -657,7 +674,7 @@ struct mlx5e_priv {
 	u32	rqtn;
 	u32	tirn[MLX5E_NUM_TT];
 
-	struct mlx5e_flow_table ft;
+	struct mlx5e_flow_tables fts;
 	struct mlx5e_eth_addr_db eth_addr;
 	struct mlx5e_vlan_db vlan;
 
@@ -825,5 +842,8 @@ int	mlx5e_enable_sq(struct mlx5e_sq *, struct mlx5e_sq_param *, int tis_num);
 int	mlx5e_modify_sq(struct mlx5e_sq *, int curr_state, int next_state);
 void	mlx5e_disable_sq(struct mlx5e_sq *);
 void	mlx5e_drain_sq(struct mlx5e_sq *);
+void	mlx5e_modify_tx_dma(struct mlx5e_priv *priv, uint8_t value);
+void	mlx5e_modify_rx_dma(struct mlx5e_priv *priv, uint8_t value);
+void	mlx5e_resume_sq(struct mlx5e_sq *sq);
 
 #endif					/* _MLX5_EN_H_ */

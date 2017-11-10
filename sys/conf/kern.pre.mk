@@ -24,6 +24,9 @@ _srcconf_included_:
 .MAKE.MODE+=	curdirOk=yes
 .endif
 
+# The kernel build always expects .OBJDIR=.CURDIR.
+.OBJDIR: ${.CURDIR}
+
 .if defined(NO_OBJWALK) || ${MK_AUTO_OBJ} == "yes"
 NO_OBJWALK=		t
 NO_MODULES_OBJ=	t

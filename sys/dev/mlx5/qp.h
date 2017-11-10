@@ -28,9 +28,7 @@
 #ifndef MLX5_QP_H
 #define MLX5_QP_H
 
-#include <dev/mlx5/device.h>
 #include <dev/mlx5/driver.h>
-#include <dev/mlx5/mlx5_ifc.h>
 
 #define MLX5_INVALID_LKEY	0x100
 #define MLX5_SIG_WQE_SIZE	(MLX5_SEND_WQE_BB * 5)
@@ -45,6 +43,7 @@
 #define MLX5_BSF_REPEAT_BLOCK	(1 << 7)
 #define MLX5_BSF_APPTAG_ESCAPE	0x1
 #define MLX5_BSF_APPREF_ESCAPE	0x2
+#define MLX5_WQE_DS_UNITS 16
 
 enum mlx5_qp_optpar {
 	MLX5_QP_OPTPAR_ALT_ADDR_PATH		= 1 << 0,
@@ -78,7 +77,16 @@ enum mlx5_qp_state {
 	MLX5_QP_STATE_ERR			= 6,
 	MLX5_QP_STATE_SQ_DRAINING		= 7,
 	MLX5_QP_STATE_SUSPENDED			= 9,
-	MLX5_QP_NUM_STATE
+	MLX5_QP_NUM_STATE,
+	MLX5_QP_STATE,
+	MLX5_QP_STATE_BAD,
+};
+
+enum {
+	MLX5_SQ_STATE_NA	= MLX5_SQC_STATE_ERR + 1,
+	MLX5_SQ_NUM_STATE	= MLX5_SQ_STATE_NA + 1,
+	MLX5_RQ_STATE_NA	= MLX5_RQC_STATE_ERR + 1,
+	MLX5_RQ_NUM_STATE	= MLX5_RQ_STATE_NA + 1,
 };
 
 enum {
@@ -157,6 +165,7 @@ enum {
 enum {
 	MLX5_FENCE_MODE_NONE			= 0 << 5,
 	MLX5_FENCE_MODE_INITIATOR_SMALL		= 1 << 5,
+	MLX5_FENCE_MODE_FENCE			= 2 << 5,
 	MLX5_FENCE_MODE_STRONG_ORDERING		= 3 << 5,
 	MLX5_FENCE_MODE_SMALL_AND_FENCE		= 4 << 5,
 };
@@ -198,6 +207,8 @@ struct mlx5_wqe_ctrl_seg {
 	__be32			imm;
 };
 
+#define MLX5_WQE_CTRL_DS_MASK 0x3f
+
 enum {
 	MLX5_MLX_FLAG_MASK_VL15 = 0x40,
 	MLX5_MLX_FLAG_MASK_SLR	= 0x20,
@@ -221,10 +232,10 @@ enum {
 };
 
 enum {
-	MLX5_ETH_WQE_SWP_OUTER_L3_TYPE = 1 << 0,
-	MLX5_ETH_WQE_SWP_OUTER_L4_TYPE = 1 << 1,
-	MLX5_ETH_WQE_SWP_INNER_L3_TYPE = 1 << 4,
-	MLX5_ETH_WQE_SWP_INNER_L4_TYPE = 1 << 5,
+	MLX5_ETH_WQE_SWP_INNER_L3_TYPE = 1 << 0,
+	MLX5_ETH_WQE_SWP_INNER_L4_TYPE = 1 << 1,
+	MLX5_ETH_WQE_SWP_OUTER_L3_TYPE = 1 << 4,
+	MLX5_ETH_WQE_SWP_OUTER_L4_TYPE = 1 << 5,
 };
 
 struct mlx5_wqe_eth_seg {
@@ -415,6 +426,42 @@ struct mlx5_stride_block_ctrl_seg {
 	__be16		num_entries;
 };
 
+enum mlx5_pagefault_flags {
+	MLX5_PFAULT_REQUESTOR = 1 << 0,
+	MLX5_PFAULT_WRITE     = 1 << 1,
+	MLX5_PFAULT_RDMA      = 1 << 2,
+};
+
+/* Contains the details of a pagefault. */
+struct mlx5_pagefault {
+	u32			bytes_committed;
+	u8			event_subtype;
+	enum mlx5_pagefault_flags flags;
+	union {
+		/* Initiator or send message responder pagefault details. */
+		struct {
+			/* Received packet size, only valid for responders. */
+			u32	packet_size;
+			/*
+			 * WQE index. Refers to either the send queue or
+			 * receive queue, according to event_subtype.
+			 */
+			u16	wqe_index;
+		} wqe;
+		/* RDMA responder pagefault details */
+		struct {
+			u32	r_key;
+			/*
+			 * Received packet size, minimal size page fault
+			 * resolution required for forward progress.
+			 */
+			u32	packet_size;
+			u32	rdma_op_len;
+			u64	rdma_va;
+		} rdma;
+	};
+};
+
 struct mlx5_core_qp {
 	struct mlx5_core_rsc_common	common; /* must be first */
 	void (*event)		(struct mlx5_core_qp *, int);
@@ -462,7 +509,8 @@ struct mlx5_qp_context {
 	u8			reserved2[4];
 	__be32			next_send_psn;
 	__be32			cqn_send;
-	u8			reserved3[8];
+	__be32			deth_sqpn;
+	u8			reserved3[4];
 	__be32			last_acked_psn;
 	__be32			ssn;
 	__be32			params2;
