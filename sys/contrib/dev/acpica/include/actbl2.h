@@ -1048,6 +1048,7 @@ typedef struct acpi_iort_smmu_v3
     UINT8                   Pxm;
     UINT8                   Reserved1;
     UINT16                  Reserved2;
+    UINT32                  IdMappingIndex;
 
 } ACPI_IORT_SMMU_V3;
 
