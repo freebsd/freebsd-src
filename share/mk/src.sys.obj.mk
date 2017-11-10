@@ -70,6 +70,7 @@ OBJROOT:=	${OBJROOT:H:tA}/${OBJROOT:T}
 .export OBJROOT SRCTOP
 .endif
 
+.if empty(OBJTOP)
 # SRCTOP == OBJROOT only happens with clever MAKEOBJDIRPREFIX=/.  Don't
 # append TARGET.TARGET_ARCH for that case since the user wants to build
 # in the source tree.
@@ -79,6 +80,7 @@ OBJTOP:=	${OBJROOT}${TARGET:D${TARGET}.${TARGET_ARCH}:U${MACHINE}.${MACHINE_ARCH
 # TARGET.TARGET_ARCH handled in OBJROOT already.
 OBJTOP:=	${OBJROOT:H}
 .endif	# ${MK_UNIFIED_OBJDIR} == "yes"
+.endif
 
 # Fixup OBJROOT/OBJTOP if using MAKEOBJDIRPREFIX but leave it alone
 # for DIRDEPS_BUILD which really wants to know the absolute top at
