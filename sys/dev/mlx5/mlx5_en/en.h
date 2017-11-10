@@ -590,10 +590,13 @@ enum {
 	MLX5E_NUM_RQT = 2,
 };
 
+struct mlx5_flow_rule;
+
 struct mlx5e_eth_addr_info {
 	u8	addr [ETH_ALEN + 2];
 	u32	tt_vec;
-	u32	ft_ix[MLX5E_NUM_TT];	/* flow table index per traffic type */
+	/* flow table rule per traffic type */
+	struct mlx5_flow_rule	*ft_rule[MLX5E_NUM_TT];
 };
 
 #define	MLX5E_ETH_ADDR_HASH_SIZE (1 << BITS_PER_BYTE)
@@ -622,15 +625,24 @@ enum {
 
 struct mlx5e_vlan_db {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
-	u32	active_vlans_ft_ix[VLAN_N_VID];
-	u32	untagged_rule_ft_ix;
-	u32	any_vlan_rule_ft_ix;
+	struct mlx5_flow_rule	*active_vlans_ft_rule[VLAN_N_VID];
+	struct mlx5_flow_rule	*untagged_ft_rule;
+	struct mlx5_flow_rule	*any_cvlan_ft_rule;
+	struct mlx5_flow_rule	*any_svlan_ft_rule;
 	bool	filter_disabled;
 };
 
 struct mlx5e_flow_table {
-	void   *vlan;
-	void   *main;
+	int num_groups;
+	struct mlx5_flow_table *t;
+	struct mlx5_flow_group **g;
+};
+
+struct mlx5e_flow_tables {
+	struct mlx5_flow_namespace *ns;
+	struct mlx5e_flow_table vlan;
+	struct mlx5e_flow_table main;
+	struct mlx5e_flow_table inner_rss;
 };
 
 struct mlx5e_priv {
@@ -657,7 +669,7 @@ struct mlx5e_priv {
 	u32	rqtn;
 	u32	tirn[MLX5E_NUM_TT];
 
-	struct mlx5e_flow_table ft;
+	struct mlx5e_flow_tables fts;
 	struct mlx5e_eth_addr_db eth_addr;
 	struct mlx5e_vlan_db vlan;
 
