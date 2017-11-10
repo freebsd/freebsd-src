@@ -38,7 +38,7 @@ LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSA}
 LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSA}
 
-loader.help: help.common help.uboot ${BOOTSRC}/fdt/help.fdt
+loader.help: help.common ${BOOTSRC}/fdt/help.fdt
 	cat ${.ALLSRC} | \
 	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
 

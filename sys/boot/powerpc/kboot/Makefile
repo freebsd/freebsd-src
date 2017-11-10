@@ -54,7 +54,7 @@ CFLAGS+= -Wa,-mppc64bridge
 DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
 LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
 
-loader.help: help.common help.kboot ${FDTSRC}/help.fdt
+loader.help: help.common ${FDTSRC}/help.fdt
 	cat ${.ALLSRC} | \
 	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
 
