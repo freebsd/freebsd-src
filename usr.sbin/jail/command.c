@@ -432,7 +432,7 @@ run_command(struct cfjail *j)
 
 		argv[argc] = down ? "-alias" : "alias";
 		argv[argc + 1] = NULL;
-		break;	
+		break;
 #endif
 
 	case IP_VNET_INTERFACE:
@@ -603,13 +603,13 @@ run_command(struct cfjail *j)
 				bg = 1;
 			}
 			comcs = alloca(comstring->len + 1);
-			strcpy(comcs, comstring->s);	
+			strcpy(comcs, comstring->s);
 			argc = 0;
 			for (cs = strtok(comcs, " \t\f\v\r\n"); cs;
 			     cs = strtok(NULL, " \t\f\v\r\n"))
 				argc++;
 			argv = alloca((argc + 1) * sizeof(char *));
-			strcpy(comcs, comstring->s);	
+			strcpy(comcs, comstring->s);
 			argc = 0;
 			for (cs = strtok(comcs, " \t\f\v\r\n"); cs;
 			     cs = strtok(NULL, " \t\f\v\r\n"))
