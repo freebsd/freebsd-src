@@ -167,13 +167,13 @@ efi_devpath_match(EFI_DEVICE_PATH *devpath1, EFI_DEVICE_PATH *devpath2)
 	return (true);
 }
 
-int
+bool
 efi_devpath_is_prefix(EFI_DEVICE_PATH *prefix, EFI_DEVICE_PATH *path)
 {
-	int len;
+	size_t len;
 
 	if (prefix == NULL || path == NULL)
-		return (0);
+		return (false);
 
 	while (1) {
 		if (IsDevicePathEnd(prefix))
@@ -181,17 +181,17 @@ efi_devpath_is_prefix(EFI_DEVICE_PATH *prefix, EFI_DEVICE_PATH *path)
 
 		if (DevicePathType(prefix) != DevicePathType(path) ||
 		    DevicePathSubType(prefix) != DevicePathSubType(path))
-			return (0);
+			return (false);
 
 		len = DevicePathNodeLength(prefix);
 		if (len != DevicePathNodeLength(path))
-			return (0);
+			return (false);
 
-		if (memcmp(prefix, path, (size_t)len) != 0)
-			return (0);
+		if (memcmp(prefix, path, len) != 0)
+			return (false);
 
 		prefix = NextDevicePathNode(prefix);
 		path = NextDevicePathNode(path);
 	}
-	return (1);
+	return (true);
 }
