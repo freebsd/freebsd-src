@@ -41,11 +41,9 @@ LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 CWARNFLAGS.self_reloc.c+=	-Wno-error=maybe-uninitialized
 .endif
 
-CFLAGS+=	-I.
 CFLAGS+=	-I${EFIINC}
 CFLAGS+=	-I${EFIINCMD}
 CFLAGS+=	-I${SYSDIR}/contrib/dev/acpica/include
-CFLAGS+=	-I${SYSDIR}
 CFLAGS+=	-DEFI_UFS_BOOT
 .ifdef(EFI_DEBUG)
 CFLAGS+=	-DEFI_DEBUG
@@ -126,6 +124,6 @@ boot1.efifat: boot1.efi
 	xz -d -c ${.CURDIR}/fat-${MACHINE}.tmpl.xz > ${.TARGET}
 	${DD} if=${.ALLSRC} of=${.TARGET} seek=${BOOT1_OFFSET} conv=notrunc
 
-CLEANFILES= boot1.efi boot1.efifat
+CLEANFILES+= boot1.efi boot1.efifat
 
 .include <bsd.prog.mk>

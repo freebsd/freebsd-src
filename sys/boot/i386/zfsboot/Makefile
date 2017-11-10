@@ -30,7 +30,7 @@ CFLAGS+=-DBOOTPROG=\"zfsboot\" \
 	-I${BOOTSRC}/i386 \
 	-I${ZFSSRC} \
 	-I${SYSDIR}/cddl/boot/zfs \
-	-I${BTXLIB} -I. \
+	-I${BTXLIB} \
 	-I${BOOTSRC}/i386/boot2 \
 	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
@@ -46,7 +46,7 @@ LIBZFSBOOT=${BOOTOBJ}/zfs/libzfsboot.a
 
 LD_FLAGS+=${LD_FLAGS_BIN}
 
-CLEANFILES=	zfsboot
+CLEANFILES+=	zfsboot
 
 zfsboot: zfsboot1 zfsboot2
 	cat zfsboot1 zfsboot2 > zfsboot

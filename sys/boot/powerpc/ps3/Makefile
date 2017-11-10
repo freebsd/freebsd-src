@@ -26,12 +26,9 @@ SRCS+=		ucmpdi2.c
 CFLAGS+=	-mcpu=powerpc64
 
 # Always add MI sources
+HELP_FILES=	# Disable
 .include	"${BOOTSRC}/loader.mk"
 .PATH:		${SYSDIR}/libkern
-CFLAGS+=	-I${SYSDIR}
-CFLAGS+=	-I.
-
-CLEANFILES+=	loader.help
 
 CFLAGS+=	-Wall -ffreestanding -msoft-float -DAIM
 # load address. set in linker script
@@ -47,14 +44,5 @@ SC_DFLT_FONT=cp437
 
 font.h:
 	uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h
-
-loader.help: help.common
-	cat ${.ALLSRC} | \
-	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
-
-.PATH: ${BOOTSRC}/forth
-.include	"${BOOTSRC}/forth/Makefile.inc"
-
-FILES+= loader.rc menu.rc
 
 .include <bsd.prog.mk>

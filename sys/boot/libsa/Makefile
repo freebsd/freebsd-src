@@ -19,7 +19,7 @@ LIB?=		sa
 NO_PIC=
 WARNS?=		0
 
-CFLAGS+= -I${SASRC} -I${SYSDIR}
+CFLAGS+= -I${SASRC}
 
 # standalone components and stuff we have modified locally
 SRCS+=	gzguts.h zutil.h __main.c assert.c bcd.c environment.c getopt.c gets.c \

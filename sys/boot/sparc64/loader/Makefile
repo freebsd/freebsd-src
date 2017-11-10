@@ -29,11 +29,14 @@ SRCS=		locore.S main.c metadata.c vers.c
 CFLAGS+=	-DLOADER_DEBUG
 .endif
 
+.if exists(${.CURDIR}/help.sparc64)
+HELP_FILES+=	help.sparc64
+.else
+HELP_FILES=
+.endif
+
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
-CFLAGS+=	-I.
-
-CLEANFILES+=	loader.help
 
 LDFLAGS+=	-static
 
@@ -41,19 +44,7 @@ LDFLAGS+=	-static
 LIBOFW=		${BOOTOBJ}/ofw/libofw/libofw.a
 CFLAGS+=	-I${BOOTSRC}/ofw/libofw/
 
-# Need sys/ for crypto/intake.h
-CFLAGS+=	-I${SRCTOP}/sys
-
 DPADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} ${LIBSA}
 LDADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} ${LIBSA}
-
-loader.help: help.common help.sparc64
-	cat ${.ALLSRC} | \
-	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
-
-.PATH: ${BOOTSRC}/forth
-.include	"${BOOTSRC}/forth/Makefile.inc"
-
-FILES+= loader.rc menu.rc
 
 .include <bsd.prog.mk>

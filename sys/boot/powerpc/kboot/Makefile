@@ -28,12 +28,9 @@ SRCS+=		ucmpdi2.c
 CFLAGS+=	-mcpu=powerpc64
 
 # Always add MI sources
+HELP_FILES=	# Disable
 .include	"${BOOTSRC}/loader.mk"
 .PATH:		${SYSDIR}/libkern
-CFLAGS+=	-I${SYSDIR}
-CFLAGS+=	-I.
-
-CLEANFILES+=	loader.help
 
 CFLAGS+=	-Wall -ffreestanding -msoft-float -DAIM
 # load address. set in linker script
@@ -48,13 +45,6 @@ CFLAGS+= -Wa,-mppc64bridge
 DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
 LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
 
-loader.help: help.common ${FDTSRC}/help.fdt
-	cat ${.ALLSRC} | \
-	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
-
-.PATH: ${BOOTSRC}/forth
-.include	"${BOOTSRC}/forth/Makefile.inc"
-
-FILES+= loader.rc menu.rc
+HELP_FILES+=	${FDTSRC}/help.fdt
 
 .include <bsd.prog.mk>

@@ -55,7 +55,6 @@ CFLAGS+=	-I${.CURDIR}/arch/${MACHINE}
 CFLAGS+=	-I${EFISRC}/include
 CFLAGS+=	-I${EFISRC}/include/${MACHINE}
 CFLAGS+=	-I${SYSDIR}/contrib/dev/acpica/include
-CFLAGS+=	-I${SYSDIR}
 CFLAGS+=	-I${BOOTSRC}/i386/libi386
 CFLAGS+=	-DNO_PCI -DEFI
 
@@ -84,6 +83,7 @@ CFLAGS+=	-DEFI_STAGING_SIZE=${EFI_STAGING_SIZE}
 .endif
 
 # Always add MI sources
+HELP_FILES=
 .include	"${BOOTSRC}/loader.mk"
 
 FILES+=	loader.efi

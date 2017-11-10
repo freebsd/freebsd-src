@@ -31,9 +31,8 @@ CFLAGS+=-DBOOTPROG=\"gptzfsboot\" \
 	-I${BOOTSRC}/i386/common \
 	-I${ZFSSRC} \
 	-I${SYSDIR}/cddl/boot/zfs \
-	-I${BOOTSRC}/i386/btx/lib -I. \
+	-I${BOOTSRC}/i386/btx/lib \
 	-I${BOOTSRC}/i386/boot2 \
-	-I${SYSDIR} \
 	-Wall -Waggregate-return -Wbad-function-cast \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
@@ -56,7 +55,7 @@ CFLAGS.gcc+=	--param max-inline-insns-single=100
 
 LD_FLAGS+=${LD_FLAGS_BIN}
 
-CLEANFILES=	gptzfsboot
+CLEANFILES+=	gptzfsboot
 
 gptzfsboot: gptldr.bin gptzfsboot.bin ${BTXKERN}
 	btxld -v -E ${ORG2} -f bin -b ${BTXKERN} -l gptldr.bin \

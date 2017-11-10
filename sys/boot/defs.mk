@@ -122,6 +122,9 @@ LD_FLAGS+=	-m elf_i386_fbsd
 AFLAGS+=	--32
 .endif
 
+# Make sure we use the machine link we're about to create
+CFLAGS+=-I.
+
 _ILINKS=machine
 .if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
 _ILINKS+=${MACHINE_CPUARCH}
@@ -160,5 +163,9 @@ ${_ILINKS}:
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET:T} "->" $$path ; \
 	ln -fhs $$path ${.TARGET:T}
+
+# For loader implementations, we generate a loader.help file. This can be suppressed by
+# setting HELP_FILES to nothing.
+HELP_FILES=	${LDRSRC}/help.common
 
 .endif # __BOOT_DEFS_MK__

@@ -33,9 +33,8 @@ CFLAGS+=-DBOOTPROG=\"gptboot\" \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
 	-I${LDRSRC} \
 	-I${BOOTSRC}/i386/common \
-	-I${BTXLIB} -I. \
+	-I${BTXLIB} \
 	-I${BOOTSRC}/i386/boot2 \
-	-I${SYSDIR} \
 	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
@@ -45,7 +44,7 @@ CFLAGS.gcc+=	--param max-inline-insns-single=100
 
 LD_FLAGS+=${LD_FLAGS_BIN}
 
-CLEANFILES=	gptboot
+CLEANFILES+=	gptboot
 
 gptboot: gptldr.bin gptboot.bin ${BTXKERN}
 	btxld -v -E ${ORG2} -f bin -b ${BTXKERN} -l gptldr.bin \
