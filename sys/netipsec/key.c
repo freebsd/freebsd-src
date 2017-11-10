@@ -5100,7 +5100,7 @@ key_updateaddresses(struct socket *so, struct mbuf *m,
 	newsav->natt = NULL;
 	newsav->sah = sah;
 	newsav->state = SADB_SASTATE_MATURE;
-	error = key_setnatt(sav, mhp);
+	error = key_setnatt(newsav, mhp);
 	if (error != 0)
 		goto fail;
 
