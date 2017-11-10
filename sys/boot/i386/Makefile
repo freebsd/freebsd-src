@@ -3,7 +3,13 @@
 .include <bsd.init.mk>
 
 SUBDIR=		mbr pmbr boot0 boot0sio btx boot2 cdboot gptboot \
-		libi386 libfirewire loader
+		libi386
+
+.if ${MK_LOADER_FIREWIRE} == "yes"
+SUBDIR+=	libfirewire
+.endif
+
+SUBDIR+=	loader
 
 # special boot programs, 'self-extracting boot2+loader'
 SUBDIR+=	pxeldr
