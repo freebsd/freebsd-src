@@ -421,6 +421,30 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		    priv->params_ethtool.diag_general_enable);
 		break;
 
+	case MLX5_PARAM_OFFSET(mc_local_lb):
+		priv->params_ethtool.mc_local_lb =
+		    priv->params_ethtool.mc_local_lb ? 1 : 0;
+
+		if (MLX5_CAP_GEN(priv->mdev, disable_local_lb)) {
+			error = mlx5_nic_vport_modify_local_lb(priv->mdev,
+			    MLX5_LOCAL_MC_LB, priv->params_ethtool.mc_local_lb);
+		} else {
+			error = EOPNOTSUPP;
+		}
+		break;
+
+	case MLX5_PARAM_OFFSET(uc_local_lb):
+		priv->params_ethtool.uc_local_lb =
+		    priv->params_ethtool.uc_local_lb ? 1 : 0;
+
+		if (MLX5_CAP_GEN(priv->mdev, disable_local_lb)) {
+			error = mlx5_nic_vport_modify_local_lb(priv->mdev,
+			    MLX5_LOCAL_UC_LB, priv->params_ethtool.uc_local_lb);
+		} else {
+			error = EOPNOTSUPP;
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -731,6 +755,20 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 	priv->params_ethtool.hw_lro = priv->params.hw_lro_en;
 	priv->params_ethtool.cqe_zipping = priv->params.cqe_zipping_en;
 	mlx5e_ethtool_sync_tx_completion_fact(priv);
+
+	/* get default values for local loopback, if any */
+	if (MLX5_CAP_GEN(priv->mdev, disable_local_lb)) {
+		int err;
+		u8 val;
+
+		err = mlx5_nic_vport_query_local_lb(priv->mdev, MLX5_LOCAL_MC_LB, &val);
+		if (err == 0)
+			priv->params_ethtool.mc_local_lb = val;
+
+		err = mlx5_nic_vport_query_local_lb(priv->mdev, MLX5_LOCAL_UC_LB, &val);
+		if (err == 0)
+			priv->params_ethtool.uc_local_lb = val;
+	}
 
 	/* create root node */
 	node = SYSCTL_ADD_NODE(&priv->sysctl_ctx,
