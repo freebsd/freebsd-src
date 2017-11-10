@@ -3471,16 +3471,17 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	 * check whether a sequence of TLB1 entries exist that match the
 	 * requirement, but now only checks the easy case.
 	 */
-	if (ma == VM_MEMATTR_DEFAULT) {
-		for (i = 0; i < TLB1_ENTRIES; i++) {
-			tlb1_read_entry(&e, i);
-			if (!(e.mas1 & MAS1_VALID))
-				continue;
-			if (pa >= e.phys &&
-			    (pa + size) <= (e.phys + e.size))
-				return (void *)(e.virt +
-				    (vm_offset_t)(pa - e.phys));
-		}
+	for (i = 0; i < TLB1_ENTRIES; i++) {
+		tlb1_read_entry(&e, i);
+		if (!(e.mas1 & MAS1_VALID))
+			continue;
+		if (pa >= e.phys &&
+		    (pa + size) <= (e.phys + e.size) &&
+		    (ma == VM_MEMATTR_DEFAULT ||
+		     tlb_calc_wimg(pa, ma) ==
+		      (e.mas2 & (MAS2_WIMGE_MASK & ~_TLB_ENTRY_SHARED))))
+			return (void *)(e.virt +
+			    (vm_offset_t)(pa - e.phys));
 	}
 
 	size = roundup(size, PAGE_SIZE);
@@ -3494,10 +3495,19 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	 * With a sparse mapdev, align to the largest starting region.  This
 	 * could feasibly be optimized for a 'best-fit' alignment, but that
 	 * calculation could be very costly.
+	 * Align to the smaller of:
+	 * - first set bit in overlap of (pa & size mask)
+	 * - largest size envelope
+	 *
+	 * It's possible the device mapping may start at a PA that's not larger
+	 * than the size mask, so we need to offset in to maximize the TLB entry
+	 * range and minimize the number of used TLB entries.
 	 */
 	do {
 	    tmpva = tlb1_map_base;
-	    va = roundup(tlb1_map_base, 1 << flsl(size));
+	    sz = ffsl(((1 << flsl(size-1)) - 1) & pa);
+	    sz = sz ? min(roundup(sz + 3, 4), flsl(size) - 1) : flsl(size) - 1;
+	    va = roundup(tlb1_map_base, 1 << sz) | (((1 << sz) - 1) & pa);
 #ifdef __powerpc64__
 	} while (!atomic_cmpset_long(&tlb1_map_base, tmpva, va + size));
 #else
@@ -3514,6 +3524,13 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 
 	do {
 		sz = 1 << (ilog2(size) & ~1);
+		/* Align size to PA */
+		if (pa % sz != 0) {
+			do {
+				sz >>= 2;
+			} while (pa % sz != 0);
+		}
+		/* Now align from there to VA */
 		if (va % sz != 0) {
 			do {
 				sz >>= 2;
@@ -3522,8 +3539,9 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 		if (bootverbose)
 			printf("Wiring VA=%lx to PA=%jx (size=%lx)\n",
 			    va, (uintmax_t)pa, sz);
-		tlb1_set_entry(va, pa, sz,
-		    _TLB_ENTRY_SHARED | tlb_calc_wimg(pa, ma));
+		if (tlb1_set_entry(va, pa, sz,
+		    _TLB_ENTRY_SHARED | tlb_calc_wimg(pa, ma)) < 0)
+			return (NULL);
 		size -= sz;
 		pa += sz;
 		va += sz;
