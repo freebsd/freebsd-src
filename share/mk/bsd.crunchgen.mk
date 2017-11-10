@@ -122,7 +122,11 @@ ${OUTPUTS}: ${CONF}
 	    ${CRUNCHGEN} -fq -m ${OUTMK} -c ${OUTC} ${CONF}
 	# Avoid redundantly calling 'make objs' which we've done by our
 	# own dependencies.
-	sed -i '' -e "s/^\(${PROG}:.*\) \$$(SUBMAKE_TARGETS)/\1/" ${OUTMK}
+	# Also avoid unneeded 'make depend' call.
+	sed -i '' \
+	    -e "s/^\(${PROG}:.*\) \$$(SUBMAKE_TARGETS)/\1/" \
+	    -e '/$$(CRUNCHMAKE) $$(BUILDOPTS).* \<depend\> &&.*/d' \
+	    ${OUTMK}
 
 # These 2 targets cannot use .MAKE since they depend on the generated
 # ${OUTMK} above.
