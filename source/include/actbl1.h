@@ -1449,7 +1449,8 @@ enum AcpiNfitType
     ACPI_NFIT_TYPE_CONTROL_REGION       = 4,
     ACPI_NFIT_TYPE_DATA_REGION          = 5,
     ACPI_NFIT_TYPE_FLUSH_ADDRESS        = 6,
-    ACPI_NFIT_TYPE_RESERVED             = 7     /* 7 and greater are reserved */
+    ACPI_NFIT_TYPE_CAPABILITIES         = 7,
+    ACPI_NFIT_TYPE_RESERVED             = 8     /* 8 and greater are reserved */
 };
 
 /*
@@ -1463,7 +1464,7 @@ typedef struct acpi_nfit_system_address
     ACPI_NFIT_HEADER        Header;
     UINT16                  RangeIndex;
     UINT16                  Flags;
-    UINT32                  Reserved;           /* Reseved, must be zero */
+    UINT32                  Reserved;           /* Reserved, must be zero */
     UINT32                  ProximityDomain;
     UINT8                   RangeGuid[16];
     UINT64                  Address;
@@ -1602,6 +1603,75 @@ typedef struct acpi_nfit_flush_address
 } ACPI_NFIT_FLUSH_ADDRESS;
 
 
+/* 7: Platform Capabilities Structure */
+
+typedef struct acpi_nfit_capabilities
+{
+    ACPI_NFIT_HEADER        Header;
+    UINT8                   HighestCapability;
+    UINT8                   Reserved[3];       /* Reserved, must be zero */
+    UINT32                  Capabilities;
+    UINT32                  Reserved2;
+
+} ACPI_NFIT_CAPABILITIES;
+
+/* Capabilities Flags */
+
+#define ACPI_NFIT_CAPABILITY_CACHE_FLUSH       (1)     /* 00: Cache Flush to NVDIMM capable */
+#define ACPI_NFIT_CAPABILITY_MEM_FLUSH         (1<<1)  /* 01: Memory Flush to NVDIMM capable */
+#define ACPI_NFIT_CAPABILITY_MEM_MIRRORING     (1<<2)  /* 02: Memory Mirroring capable */
+
+
+/*
+ * NFIT/DVDIMM device handle support - used as the _ADR for each NVDIMM
+ */
+typedef struct nfit_device_handle
+{
+    UINT32                  Handle;
+
+} NFIT_DEVICE_HANDLE;
+
+/* Device handle construction and extraction macros */
+
+#define ACPI_NFIT_DIMM_NUMBER_MASK              0x0000000F
+#define ACPI_NFIT_CHANNEL_NUMBER_MASK           0x000000F0
+#define ACPI_NFIT_MEMORY_ID_MASK                0x00000F00
+#define ACPI_NFIT_SOCKET_ID_MASK                0x0000F000
+#define ACPI_NFIT_NODE_ID_MASK                  0x0FFF0000
+
+#define ACPI_NFIT_DIMM_NUMBER_OFFSET            0
+#define ACPI_NFIT_CHANNEL_NUMBER_OFFSET         4
+#define ACPI_NFIT_MEMORY_ID_OFFSET              8
+#define ACPI_NFIT_SOCKET_ID_OFFSET              12
+#define ACPI_NFIT_NODE_ID_OFFSET                16
+
+/* Macro to construct a NFIT/NVDIMM device handle */
+
+#define ACPI_NFIT_BUILD_DEVICE_HANDLE(dimm, channel, memory, socket, node) \
+    ((dimm)                                         | \
+    ((channel) << ACPI_NFIT_CHANNEL_NUMBER_OFFSET)  | \
+    ((memory)  << ACPI_NFIT_MEMORY_ID_OFFSET)       | \
+    ((socket)  << ACPI_NFIT_SOCKET_ID_OFFSET)       | \
+    ((node)    << ACPI_NFIT_NODE_ID_OFFSET))
+
+/* Macros to extract individual fields from a NFIT/NVDIMM device handle */
+
+#define ACPI_NFIT_GET_DIMM_NUMBER(handle) \
+    ((handle) & ACPI_NFIT_DIMM_NUMBER_MASK)
+
+#define ACPI_NFIT_GET_CHANNEL_NUMBER(handle) \
+    (((handle) & ACPI_NFIT_CHANNEL_NUMBER_MASK) >> ACPI_NFIT_CHANNEL_NUMBER_OFFSET)
+
+#define ACPI_NFIT_GET_MEMORY_ID(handle) \
+    (((handle) & ACPI_NFIT_MEMORY_ID_MASK)      >> ACPI_NFIT_MEMORY_ID_OFFSET)
+
+#define ACPI_NFIT_GET_SOCKET_ID(handle) \
+    (((handle) & ACPI_NFIT_SOCKET_ID_MASK)      >> ACPI_NFIT_SOCKET_ID_OFFSET)
+
+#define ACPI_NFIT_GET_NODE_ID(handle) \
+    (((handle) & ACPI_NFIT_NODE_ID_MASK)        >> ACPI_NFIT_NODE_ID_OFFSET)
+
+
 /*******************************************************************************
  *
  * PDTT - Platform Debug Trigger Table (ACPI 6.2)
@@ -1634,7 +1704,7 @@ typedef struct acpi_pdtt_channel
 /* Flags for above */
 
 #define ACPI_PDTT_RUNTIME_TRIGGER           (1)
-#define ACPI_PPTT_WAIT_COMPLETION           (1<<1)
+#define ACPI_PDTT_WAIT_COMPLETION           (1<<1)
 
 
 /*******************************************************************************
@@ -1712,6 +1782,19 @@ typedef struct acpi_pptt_cache
 #define ACPI_PPTT_MASK_CACHE_TYPE           (0x0C)  /* Cache type */
 #define ACPI_PPTT_MASK_WRITE_POLICY         (0x10)  /* Write policy */
 
+/* Attributes describing cache */
+#define ACPI_PPTT_CACHE_READ_ALLOCATE       (0x0)   /* Cache line is allocated on read */
+#define ACPI_PPTT_CACHE_WRITE_ALLOCATE      (0x01)  /* Cache line is allocated on write */
+#define ACPI_PPTT_CACHE_RW_ALLOCATE         (0x02)  /* Cache line is allocated on read and write */
+#define ACPI_PPTT_CACHE_RW_ALLOCATE_ALT     (0x03)  /* Alternate representation of above */
+
+#define ACPI_PPTT_CACHE_TYPE_DATA           (0x0)   /* Data cache */
+#define ACPI_PPTT_CACHE_TYPE_INSTR          (1<<2)  /* Instruction cache */
+#define ACPI_PPTT_CACHE_TYPE_UNIFIED        (2<<2)  /* Unified I & D cache */
+#define ACPI_PPTT_CACHE_TYPE_UNIFIED_ALT    (3<<2)  /* Alternate representation of above */
+
+#define ACPI_PPTT_CACHE_POLICY_WB           (0x0)   /* Cache is write back */
+#define ACPI_PPTT_CACHE_POLICY_WT           (1<<4)  /* Cache is write through */
 
 /* 2: ID Structure */
 

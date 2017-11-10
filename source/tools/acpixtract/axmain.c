@@ -176,6 +176,7 @@ DisplayUsage (
     ACPI_USAGE_HEADER ("acpixtract [option] <InputFile>");
 
     ACPI_OPTION ("-a",                  "Extract all tables, not just DSDT/SSDT");
+    ACPI_OPTION ("-f",                  "Force extraction, even if there are errors");
     ACPI_OPTION ("-l",                  "List table summaries, do not extract");
     ACPI_OPTION ("-m",                  "Extract multiple DSDT/SSDTs to a single file");
     ACPI_OPTION ("-s <signature>",      "Extract all tables with <signature>");
@@ -208,6 +209,7 @@ main (
 
     Gbl_TableCount = 0;
     Gbl_TableListHead = NULL;
+    Gbl_ForceExtraction = FALSE;
     AxAction = AX_EXTRACT_AML_TABLES; /* Default: DSDT & SSDTs */
 
     ACPI_DEBUG_INITIALIZE (); /* For debug version only */
@@ -227,6 +229,11 @@ main (
     case 'a':
 
         AxAction = AX_EXTRACT_ALL;          /* Extract all tables found */
+        break;
+
+    case 'f':
+
+        Gbl_ForceExtraction = TRUE;           /* Ignore errors */
         break;
 
     case 'l':

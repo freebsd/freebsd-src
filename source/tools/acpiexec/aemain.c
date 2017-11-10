@@ -810,11 +810,15 @@ EnterDebugger:
 
     AcpiTerminateDebugger ();
 
+    /* re-enable debug output for AcpiTerminate output */
+
+    AcpiGbl_DbOutputFlags = ACPI_DB_CONSOLE_OUTPUT;
+
 NormalExit:
     ExitCode = 0;
 
 ErrorExit:
-    (void) AcpiOsTerminate ();
+    (void) AcpiTerminate ();
     AcDeleteTableList (ListHead);
     return (ExitCode);
 }

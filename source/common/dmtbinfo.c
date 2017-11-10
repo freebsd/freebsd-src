@@ -336,6 +336,7 @@
 #define ACPI_NFIT4_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_NFIT_CONTROL_REGION,f)
 #define ACPI_NFIT5_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_NFIT_DATA_REGION,f)
 #define ACPI_NFIT6_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_NFIT_FLUSH_ADDRESS,f)
+#define ACPI_NFIT7_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_NFIT_CAPABILITIES,f)
 #define ACPI_PCCT0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_PCCT_SUBSPACE,f)
 #define ACPI_PCCT1_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_PCCT_HW_REDUCED,f)
 #define ACPI_PCCT2_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_PCCT_HW_REDUCED_TYPE2,f)
@@ -419,6 +420,7 @@
 #define ACPI_NFIT0_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_NFIT_SYSTEM_ADDRESS,f,o)
 #define ACPI_NFIT1_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_NFIT_MEMORY_MAP,f,o)
 #define ACPI_NFIT4_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_NFIT_CONTROL_REGION,f,o)
+#define ACPI_NFIT7_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_NFIT_CAPABILITIES,f,o)
 #define ACPI_PCCT_FLAG_OFFSET(f,o)      ACPI_FLAG_OFFSET (ACPI_TABLE_PCCT,f,o)
 #define ACPI_PCCT1_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_PCCT_HW_REDUCED,f,o)
 #define ACPI_PCCT2_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_PCCT_HW_REDUCED_TYPE2,f,o)
@@ -1861,6 +1863,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoIort4[] =
     {ACPI_DMT_UINT8,    ACPI_IORT4_OFFSET (Pxm),                    "Proximity Domain", 0},
     {ACPI_DMT_UINT8,    ACPI_IORT4_OFFSET (Reserved1),              "Reserved", 0},
     {ACPI_DMT_UINT16,   ACPI_IORT4_OFFSET (Reserved2),              "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_IORT4_OFFSET (IdMappingIndex),         "Device ID Mapping Index", 0},
     ACPI_DMT_TERMINATOR
 };
 
@@ -2561,6 +2564,18 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoNfit6[] =
 ACPI_DMTABLE_INFO           AcpiDmTableInfoNfit6a[] =
 {
     {ACPI_DMT_UINT64,   0,                                          "Hint Address", DT_OPTIONAL},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoNfit7[] =
+{
+    {ACPI_DMT_UINT8,    ACPI_NFIT7_OFFSET (HighestCapability),      "Highest Capability", 0},
+    {ACPI_DMT_UINT24,   ACPI_NFIT7_OFFSET (Reserved[0]),            "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_NFIT7_OFFSET (Capabilities),           "Capabilities (decoded below)", DT_FLAG},
+    {ACPI_DMT_FLAG0,    ACPI_NFIT7_FLAG_OFFSET (Capabilities,0),    "Cache Flush to NVDIMM", 0},
+    {ACPI_DMT_FLAG1,    ACPI_NFIT7_FLAG_OFFSET (Capabilities,0),    "Memory Flush to MVDIMM", 0},
+    {ACPI_DMT_FLAG2,    ACPI_NFIT7_FLAG_OFFSET (Capabilities,0),    "Memory Mirroring", 0},
+    {ACPI_DMT_UINT32,   ACPI_NFIT7_OFFSET (Reserved2),              "Reserved", 0},
     ACPI_DMT_TERMINATOR
 };
 

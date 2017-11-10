@@ -167,13 +167,13 @@ AcpiUtInsertDigit (
 static ACPI_STATUS
 AcpiUtStrtoulMultiply64 (
     UINT64                  Multiplicand,
-    UINT64                  Multiplier,
+    UINT32                  Base,
     UINT64                  *OutProduct);
 
 static ACPI_STATUS
 AcpiUtStrtoulAdd64 (
     UINT64                  Addend1,
-    UINT64                  Addend2,
+    UINT32                  Digit,
     UINT64                  *OutSum);
 
 
@@ -518,7 +518,7 @@ AcpiUtInsertDigit (
  * FUNCTION:    AcpiUtStrtoulMultiply64
  *
  * PARAMETERS:  Multiplicand            - Current accumulated converted integer
- *              Multiplier              - Base/Radix
+ *              Base                    - Base/Radix
  *              OutProduct              - Where the product is returned
  *
  * RETURN:      Status and 64-bit product
@@ -532,28 +532,36 @@ AcpiUtInsertDigit (
 static ACPI_STATUS
 AcpiUtStrtoulMultiply64 (
     UINT64                  Multiplicand,
-    UINT64                  Multiplier,
+    UINT32                  Base,
     UINT64                  *OutProduct)
 {
     UINT64                  Product;
+    UINT64                  Quotient;
 
 
     /* Exit if either operand is zero */
 
     *OutProduct = 0;
-    if (!Multiplicand || !Multiplier)
+    if (!Multiplicand || !Base)
     {
         return (AE_OK);
     }
 
-    /* Check for 64-bit overflow before the actual multiplication */
-
-    if (Multiplicand > (ACPI_UINT64_MAX / Multiplier))
+    /*
+     * Check for 64-bit overflow before the actual multiplication.
+     *
+     * Notes: 64-bit division is often not supported on 32-bit platforms
+     * (it requires a library function), Therefore ACPICA has a local
+     * 64-bit divide function. Also, Multiplier is currently only used
+     * as the radix (8/10/16), to the 64/32 divide will always work.
+     */
+    AcpiUtShortDivide (ACPI_UINT64_MAX, Base, &Quotient, NULL);
+    if (Multiplicand > Quotient)
     {
         return (AE_NUMERIC_OVERFLOW);
     }
 
-    Product = Multiplicand * Multiplier;
+    Product = Multiplicand * Base;
 
     /* Check for 32-bit overflow if necessary */
 
@@ -572,7 +580,7 @@ AcpiUtStrtoulMultiply64 (
  * FUNCTION:    AcpiUtStrtoulAdd64
  *
  * PARAMETERS:  Addend1                 - Current accumulated converted integer
- *              Addend2                 - New hex value/char
+ *              Digit                   - New hex value/char
  *              OutSum                  - Where sum is returned (Accumulator)
  *
  * RETURN:      Status and 64-bit sum
@@ -586,7 +594,7 @@ AcpiUtStrtoulMultiply64 (
 static ACPI_STATUS
 AcpiUtStrtoulAdd64 (
     UINT64                  Addend1,
-    UINT64                  Addend2,
+    UINT32                  Digit,
     UINT64                  *OutSum)
 {
     UINT64                  Sum;
@@ -594,12 +602,12 @@ AcpiUtStrtoulAdd64 (
 
     /* Check for 64-bit overflow before the actual addition */
 
-    if ((Addend1 > 0) && (Addend2 > (ACPI_UINT64_MAX - Addend1)))
+    if ((Addend1 > 0) && (Digit > (ACPI_UINT64_MAX - Addend1)))
     {
         return (AE_NUMERIC_OVERFLOW);
     }
 
-    Sum = Addend1 + Addend2;
+    Sum = Addend1 + Digit;
 
     /* Check for 32-bit overflow if necessary */
 
