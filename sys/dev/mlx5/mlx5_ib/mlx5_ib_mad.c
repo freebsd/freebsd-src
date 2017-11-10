@@ -25,11 +25,11 @@
  * $FreeBSD$
  */
 
+#include <dev/mlx5/vport.h>
 #include <rdma/ib_mad.h>
 #include <rdma/ib_smi.h>
 #include <rdma/ib_pma.h>
 #include "mlx5_ib.h"
-#include <dev/mlx5/vport.h>
 
 enum {
 	MLX5_IB_VENDOR_CLASS1 = 0x9,
@@ -37,8 +37,8 @@ enum {
 };
 
 int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
-		 u8 port, struct ib_wc *in_wc, struct ib_grh *in_grh,
-		 void *in_mad, void *response_mad)
+		 u8 port, const struct ib_wc *in_wc, const struct ib_grh *in_grh,
+		 const void *in_mad, void *response_mad)
 {
 	u8 op_modifier = 0;
 
@@ -54,8 +54,8 @@ int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
 }
 
 static int process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
-		       struct ib_wc *in_wc, struct ib_grh *in_grh,
-		       struct ib_mad *in_mad, struct ib_mad *out_mad)
+		       const struct ib_wc *in_wc, const struct ib_grh *in_grh,
+		       const struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
 	u16 slid;
 	int err;
@@ -106,89 +106,148 @@ static int process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 }
 
 static void pma_cnt_ext_assign(struct ib_pma_portcounters_ext *pma_cnt_ext,
-			       struct mlx5_vport_counters *vc)
+			       void *out)
 {
-	pma_cnt_ext->port_xmit_data = cpu_to_be64((vc->transmitted_ib_unicast.octets +
-						   vc->transmitted_ib_multicast.octets) >> 2);
-	pma_cnt_ext->port_rcv_data = cpu_to_be64((vc->received_ib_unicast.octets +
-						  vc->received_ib_multicast.octets) >> 2);
-	pma_cnt_ext->port_xmit_packets = cpu_to_be64(vc->transmitted_ib_unicast.packets +
-						     vc->transmitted_ib_multicast.packets);
-	pma_cnt_ext->port_rcv_packets = cpu_to_be64(vc->received_ib_unicast.packets +
-						    vc->received_ib_multicast.packets);
-	pma_cnt_ext->port_unicast_xmit_packets = cpu_to_be64(vc->transmitted_ib_unicast.packets);
-	pma_cnt_ext->port_unicast_rcv_packets = cpu_to_be64(vc->received_ib_unicast.packets);
-	pma_cnt_ext->port_multicast_xmit_packets = cpu_to_be64(vc->transmitted_ib_multicast.packets);
-	pma_cnt_ext->port_multicast_rcv_packets = cpu_to_be64(vc->received_ib_multicast.packets);
+#define MLX5_SUM_CNT(p, cntr1, cntr2)	\
+	(MLX5_GET64(query_vport_counter_out, p, cntr1) + \
+	MLX5_GET64(query_vport_counter_out, p, cntr2))
+
+	pma_cnt_ext->port_xmit_data =
+		cpu_to_be64(MLX5_SUM_CNT(out, transmitted_ib_unicast.octets,
+					 transmitted_ib_multicast.octets) >> 2);
+	pma_cnt_ext->port_rcv_data =
+		cpu_to_be64(MLX5_SUM_CNT(out, received_ib_unicast.octets,
+					 received_ib_multicast.octets) >> 2);
+	pma_cnt_ext->port_xmit_packets =
+		cpu_to_be64(MLX5_SUM_CNT(out, transmitted_ib_unicast.packets,
+					 transmitted_ib_multicast.packets));
+	pma_cnt_ext->port_rcv_packets =
+		cpu_to_be64(MLX5_SUM_CNT(out, received_ib_unicast.packets,
+					 received_ib_multicast.packets));
+	pma_cnt_ext->port_unicast_xmit_packets =
+		MLX5_GET64_BE(query_vport_counter_out,
+			      out, transmitted_ib_unicast.packets);
+	pma_cnt_ext->port_unicast_rcv_packets =
+		MLX5_GET64_BE(query_vport_counter_out,
+			      out, received_ib_unicast.packets);
+	pma_cnt_ext->port_multicast_xmit_packets =
+		MLX5_GET64_BE(query_vport_counter_out,
+			      out, transmitted_ib_multicast.packets);
+	pma_cnt_ext->port_multicast_rcv_packets =
+		MLX5_GET64_BE(query_vport_counter_out,
+			      out, received_ib_multicast.packets);
 }
 
 static void pma_cnt_assign(struct ib_pma_portcounters *pma_cnt,
-			   struct mlx5_vport_counters *vc)
+			   void *out)
 {
-	ASSIGN_32BIT_COUNTER(pma_cnt->port_xmit_data,
-			     (vc->transmitted_ib_unicast.octets +
-			      vc->transmitted_ib_multicast.octets) >> 2);
-	ASSIGN_32BIT_COUNTER(pma_cnt->port_rcv_data,
-			     (vc->received_ib_unicast.octets +
-			      vc->received_ib_multicast.octets) >> 2);
-	ASSIGN_32BIT_COUNTER(pma_cnt->port_xmit_packets,
-			     vc->transmitted_ib_unicast.packets +
-			     vc->transmitted_ib_multicast.packets);
-	ASSIGN_32BIT_COUNTER(pma_cnt->port_rcv_packets,
-			     vc->received_ib_unicast.packets +
-			     vc->received_ib_multicast.packets);
+	/* Traffic counters will be reported in
+	 * their 64bit form via ib_pma_portcounters_ext by default.
+	 */
+	void *out_pma = MLX5_ADDR_OF(ppcnt_reg, out,
+				     counter_set);
+
+#define MLX5_ASSIGN_PMA_CNTR(counter_var, counter_name)	{		\
+	counter_var = MLX5_GET_BE(typeof(counter_var),			\
+				  ib_port_cntrs_grp_data_layout,	\
+				  out_pma, counter_name);		\
+	}
+
+	MLX5_ASSIGN_PMA_CNTR(pma_cnt->symbol_error_counter,
+			     symbol_error_counter);
+	MLX5_ASSIGN_PMA_CNTR(pma_cnt->link_error_recovery_counter,
+			     link_error_recovery_counter);
+	MLX5_ASSIGN_PMA_CNTR(pma_cnt->link_downed_counter,
+			     link_downed_counter);
+	MLX5_ASSIGN_PMA_CNTR(pma_cnt->port_rcv_errors,
+			     port_rcv_errors);
+	MLX5_ASSIGN_PMA_CNTR(pma_cnt->port_rcv_remphys_errors,
+			     port_rcv_remote_physical_errors);
+	MLX5_ASSIGN_PMA_CNTR(pma_cnt->port_rcv_switch_relay_errors,
+			     port_rcv_switch_relay_errors);
+	MLX5_ASSIGN_PMA_CNTR(pma_cnt->port_xmit_discards,
+			     port_xmit_discards);
+	MLX5_ASSIGN_PMA_CNTR(pma_cnt->port_xmit_constraint_errors,
+			     port_xmit_constraint_errors);
+	MLX5_ASSIGN_PMA_CNTR(pma_cnt->port_rcv_constraint_errors,
+			     port_rcv_constraint_errors);
+	MLX5_ASSIGN_PMA_CNTR(pma_cnt->link_overrun_errors,
+			     link_overrun_errors);
+	MLX5_ASSIGN_PMA_CNTR(pma_cnt->vl15_dropped,
+			     vl_15_dropped);
 }
 
 static int process_pma_cmd(struct ib_device *ibdev, u8 port_num,
-			   struct ib_mad *in_mad, struct ib_mad *out_mad)
+			   const struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
-	struct mlx5_vport_counters *vc;
 	int err;
-	int ext;
+	void *out_cnt;
 
-	vc = kzalloc(sizeof(*vc), GFP_KERNEL);
-	if (!vc)
-		return -ENOMEM;
+	/* Decalring support of extended counters */
+	if (in_mad->mad_hdr.attr_id == IB_PMA_CLASS_PORT_INFO) {
+		struct ib_class_port_info cpi = {};
 
-	ext = in_mad->mad_hdr.attr_id == IB_PMA_PORT_COUNTERS_EXT;
-
-	err = mlx5_get_vport_counters(dev->mdev, port_num, vc);
-	if (!err) {
-		if (ext) {
-			struct ib_pma_portcounters_ext *pma_cnt_ext =
-				(struct ib_pma_portcounters_ext *)(out_mad->data + 40);
-
-			pma_cnt_ext_assign(pma_cnt_ext, vc);
-		} else {
-			struct ib_pma_portcounters *pma_cnt =
-				(struct ib_pma_portcounters *)(out_mad->data + 40);
-
-			ASSIGN_16BIT_COUNTER(pma_cnt->port_rcv_errors,
-					     (u16)vc->received_errors.packets);
-
-			pma_cnt_assign(pma_cnt, vc);
-		}
-		err = IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
+		cpi.capability_mask = IB_PMA_CLASS_CAP_EXT_WIDTH;
+		memcpy((out_mad->data + 40), &cpi, sizeof(cpi));
+		return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
 	}
 
-	kfree(vc);
-	return err;
+	if (in_mad->mad_hdr.attr_id == IB_PMA_PORT_COUNTERS_EXT) {
+		struct ib_pma_portcounters_ext *pma_cnt_ext =
+			(struct ib_pma_portcounters_ext *)(out_mad->data + 40);
+		int sz = MLX5_ST_SZ_BYTES(query_vport_counter_out);
+
+		out_cnt = mlx5_vzalloc(sz);
+		if (!out_cnt)
+			return IB_MAD_RESULT_FAILURE;
+
+		err = mlx5_core_query_vport_counter(dev->mdev, 0, 0,
+						    port_num, out_cnt, sz);
+		if (!err)
+			pma_cnt_ext_assign(pma_cnt_ext, out_cnt);
+	} else {
+		struct ib_pma_portcounters *pma_cnt =
+			(struct ib_pma_portcounters *)(out_mad->data + 40);
+		int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
+
+		out_cnt = mlx5_vzalloc(sz);
+		if (!out_cnt)
+			return IB_MAD_RESULT_FAILURE;
+
+		err = mlx5_core_query_ib_ppcnt(dev->mdev, port_num,
+					       out_cnt, sz);
+		if (!err)
+			pma_cnt_assign(pma_cnt, out_cnt);
+		}
+
+	kvfree(out_cnt);
+	if (err)
+		return IB_MAD_RESULT_FAILURE;
+
+	return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
 }
 
 int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
-			struct ib_wc *in_wc, struct ib_grh *in_grh,
-			struct ib_mad *in_mad, struct ib_mad *out_mad)
+			const struct ib_wc *in_wc, const struct ib_grh *in_grh,
+			const struct ib_mad_hdr *in, size_t in_mad_size,
+			struct ib_mad_hdr *out, size_t *out_mad_size,
+			u16 *out_mad_pkey_index)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	struct mlx5_core_dev *mdev = dev->mdev;
+	const struct ib_mad *in_mad = (const struct ib_mad *)in;
+	struct ib_mad *out_mad = (struct ib_mad *)out;
+
+	if (WARN_ON_ONCE(in_mad_size != sizeof(*in_mad) ||
+			 *out_mad_size != sizeof(*out_mad)))
+		return IB_MAD_RESULT_FAILURE;
 
 	memset(out_mad->data, 0, sizeof(out_mad->data));
 
 	if (MLX5_CAP_GEN(mdev, vport_counters) &&
 	    in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_PERF_MGMT &&
 	    in_mad->mad_hdr.method == IB_MGMT_METHOD_GET) {
-		/* TBD: read error counters from the PPCNT */
 		return process_pma_cmd(ibdev, port_num, in_mad, out_mad);
 	} else {
 		return process_mad(ibdev, mad_flags, port_num, in_wc, in_grh,
@@ -225,7 +284,7 @@ out:
 	return err;
 }
 
-int mlx5_query_smp_attr_node_info_mad_ifc(struct ib_device *ibdev,
+int mlx5_query_mad_ifc_smp_attr_node_info(struct ib_device *ibdev,
 					  struct ib_smp *out_mad)
 {
 	struct ib_smp *in_mad = NULL;
@@ -245,7 +304,7 @@ int mlx5_query_smp_attr_node_info_mad_ifc(struct ib_device *ibdev,
 	return err;
 }
 
-int mlx5_query_system_image_guid_mad_ifc(struct ib_device *ibdev,
+int mlx5_query_mad_ifc_system_image_guid(struct ib_device *ibdev,
 					 __be64 *sys_image_guid)
 {
 	struct ib_smp *out_mad = NULL;
@@ -255,7 +314,7 @@ int mlx5_query_system_image_guid_mad_ifc(struct ib_device *ibdev,
 	if (!out_mad)
 		return -ENOMEM;
 
-	err = mlx5_query_smp_attr_node_info_mad_ifc(ibdev, out_mad);
+	err = mlx5_query_mad_ifc_smp_attr_node_info(ibdev, out_mad);
 	if (err)
 		goto out;
 
@@ -267,7 +326,7 @@ out:
 	return err;
 }
 
-int mlx5_query_max_pkeys_mad_ifc(struct ib_device *ibdev,
+int mlx5_query_mad_ifc_max_pkeys(struct ib_device *ibdev,
 				 u16 *max_pkeys)
 {
 	struct ib_smp *out_mad = NULL;
@@ -277,7 +336,7 @@ int mlx5_query_max_pkeys_mad_ifc(struct ib_device *ibdev,
 	if (!out_mad)
 		return -ENOMEM;
 
-	err = mlx5_query_smp_attr_node_info_mad_ifc(ibdev, out_mad);
+	err = mlx5_query_mad_ifc_smp_attr_node_info(ibdev, out_mad);
 	if (err)
 		goto out;
 
@@ -289,7 +348,7 @@ out:
 	return err;
 }
 
-int mlx5_query_vendor_id_mad_ifc(struct ib_device *ibdev,
+int mlx5_query_mad_ifc_vendor_id(struct ib_device *ibdev,
 				 u32 *vendor_id)
 {
 	struct ib_smp *out_mad = NULL;
@@ -299,7 +358,7 @@ int mlx5_query_vendor_id_mad_ifc(struct ib_device *ibdev,
 	if (!out_mad)
 		return -ENOMEM;
 
-	err = mlx5_query_smp_attr_node_info_mad_ifc(ibdev, out_mad);
+	err = mlx5_query_mad_ifc_smp_attr_node_info(ibdev, out_mad);
 	if (err)
 		goto out;
 
@@ -311,7 +370,7 @@ out:
 	return err;
 }
 
-int mlx5_query_node_desc_mad_ifc(struct mlx5_ib_dev *dev, char *node_desc)
+int mlx5_query_mad_ifc_node_desc(struct mlx5_ib_dev *dev, char *node_desc)
 {
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
@@ -329,14 +388,14 @@ int mlx5_query_node_desc_mad_ifc(struct mlx5_ib_dev *dev, char *node_desc)
 	if (err)
 		goto out;
 
-	memcpy(node_desc, out_mad->data, 64);
+	memcpy(node_desc, out_mad->data, IB_DEVICE_NODE_DESC_MAX);
 out:
 	kfree(in_mad);
 	kfree(out_mad);
 	return err;
 }
 
-int mlx5_query_node_guid_mad_ifc(struct mlx5_ib_dev *dev, u64 *node_guid)
+int mlx5_query_mad_ifc_node_guid(struct mlx5_ib_dev *dev, __be64 *node_guid)
 {
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
@@ -354,14 +413,14 @@ int mlx5_query_node_guid_mad_ifc(struct mlx5_ib_dev *dev, u64 *node_guid)
 	if (err)
 		goto out;
 
-	memcpy(&dev->ib_dev.node_guid, out_mad->data + 12, 8);
+	memcpy(node_guid, out_mad->data + 12, 8);
 out:
 	kfree(in_mad);
 	kfree(out_mad);
 	return err;
 }
 
-int mlx5_query_pkey_mad_ifc(struct ib_device *ibdev, u8 port, u16 index,
+int mlx5_query_mad_ifc_pkey(struct ib_device *ibdev, u8 port, u16 index,
 			    u16 *pkey)
 {
 	struct ib_smp *in_mad  = NULL;
@@ -390,7 +449,7 @@ out:
 	return err;
 }
 
-int mlx5_query_gids_mad_ifc(struct ib_device *ibdev, u8 port, int index,
+int mlx5_query_mad_ifc_gids(struct ib_device *ibdev, u8 port, int index,
 			    union ib_gid *gid)
 {
 	struct ib_smp *in_mad  = NULL;
@@ -430,7 +489,7 @@ out:
 	return err;
 }
 
-int mlx5_query_port_mad_ifc(struct ib_device *ibdev, u8 port,
+int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 			    struct ib_port_attr *props)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
