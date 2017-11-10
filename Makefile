@@ -290,6 +290,15 @@ ${XTGTS}: _assert_target
 _TARGET?=	${MACHINE}
 _TARGET_ARCH?=	${MACHINE_ARCH}
 
+.if make(native-xtools*)
+NXB_TARGET:=		${_TARGET}
+NXB_TARGET_ARCH:=	${_TARGET_ARCH}
+_TARGET=		${MACHINE}
+_TARGET_ARCH=		${MACHINE_ARCH}
+_MAKE+=			NXB_TARGET=${NXB_TARGET} \
+			NXB_TARGET_ARCH=${NXB_TARGET_ARCH}
+.endif
+
 .if make(print-dir)
 .SILENT:
 .endif
