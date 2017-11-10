@@ -716,8 +716,8 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 		goto err_clr_master;
 	}
 
-	dev->iseg = ioremap(pci_resource_start(dev->pdev, 0),
-			    sizeof(*dev->iseg));
+	dev->iseg_base = pci_resource_start(dev->pdev, 0);
+	dev->iseg = ioremap(dev->iseg_base, sizeof(*dev->iseg));
 	if (!dev->iseg) {
 		err = -ENOMEM;
 		device_printf((&pdev->dev)->bsddev, "ERR: ""Failed mapping initialization segment, aborting\n");
