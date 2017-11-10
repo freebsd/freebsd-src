@@ -100,6 +100,9 @@ ${CONF}: Makefile
 .else
 	echo special ${P} buildopts DIRPRFX=${DIRPRFX}${P}/ >>${.TARGET}
 .endif
+.ifdef CRUNCH_LIBS_${P}
+	echo special ${P} lib ${CRUNCH_LIBS_${P}} >>${.TARGET}
+.endif
 .for A in ${CRUNCH_ALIAS_${P}}
 	echo ln ${P} ${A} >>${.TARGET}
 .endfor
