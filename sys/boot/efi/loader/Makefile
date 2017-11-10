@@ -71,13 +71,9 @@ CFLAGS+= -DSMBIOS_NETWORK_ENDIAN_UUID
 .endif
 .endif
 
-LOADER_FDT_SUPPORT?=	no
-.if ${MK_FDT} != "no" && ${LOADER_FDT_SUPPORT} != "no"
-CFLAGS+=	-I${BOOTSRC}/fdt
-CFLAGS+=	-I${BOOTSRC}/fdt
-CFLAGS+=	-DLOADER_FDT_SUPPORT
+.if defined(HAVE_FDT) && ${MK_FDT} != "no"
+.include	"${BOOTSRC}/fdt.mk"
 LIBEFI_FDT=	${BOOTOBJ}/efi/fdt/libefi_fdt.a
-LIBFDT=		${BOOTOBJ}/fdt/libfdt.a
 .endif
 
 # Include bcache code.
