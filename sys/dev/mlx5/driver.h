@@ -306,6 +306,11 @@ struct cmd_msg_cache {
 
 };
 
+struct mlx5_traffic_counter {
+	u64         packets;
+	u64         octets;
+};
+
 struct mlx5_cmd_stats {
 	u64		sum;
 	u64		n;
@@ -743,6 +748,13 @@ struct mlx5_pas {
 	u8	log_sz;
 };
 
+enum port_state_policy {
+	MLX5_POLICY_DOWN        = 0,
+	MLX5_POLICY_UP          = 1,
+	MLX5_POLICY_FOLLOW      = 2,
+	MLX5_POLICY_INVALID     = 0xffffffff
+};
+
 static inline void *
 mlx5_buf_offset(struct mlx5_buf *buf, int offset)
 {
@@ -809,6 +821,11 @@ static inline void *mlx5_vmalloc(unsigned long size)
 	if (!rtn)
 		rtn = vmalloc(size);
 	return rtn;
+}
+
+static inline u32 mlx5_base_mkey(const u32 key)
+{
+	return key & 0xffffff00u;
 }
 
 void mlx5_enter_error_state(struct mlx5_core_dev *dev);
