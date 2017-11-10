@@ -486,6 +486,11 @@ struct mlx5_eqe_port_module_event {
 	u8        error_type;
 };
 
+struct mlx5_eqe_general_notification_event {
+	u32       rq_user_index_delay_drop;
+	u32       rsvd0[6];
+};
+
 union ev_data {
 	__be32				raw[7];
 	struct mlx5_eqe_cmd		cmd;
@@ -499,6 +504,7 @@ union ev_data {
 	struct mlx5_eqe_page_req	req_pages;
 	struct mlx5_eqe_port_module_event port_module_event;
 	struct mlx5_eqe_vport_change	vport_change;
+	struct mlx5_eqe_general_notification_event general_notifications;
 } __packed;
 
 struct mlx5_eqe {
@@ -1386,6 +1392,10 @@ static inline int mlx5_get_cqe_format(const struct mlx5_cqe64 *cqe)
 {
 	return (cqe->op_own & MLX5E_CQE_FORMAT_MASK) >> 2;
 }
+
+enum {
+	MLX5_GEN_EVENT_SUBTYPE_DELAY_DROP_TIMEOUT = 0x1,
+};
 
 /* 8 regular priorities + 1 for multicast */
 #define MLX5_NUM_BYPASS_FTS	9
