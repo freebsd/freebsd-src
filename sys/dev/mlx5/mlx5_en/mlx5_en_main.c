@@ -2298,10 +2298,13 @@ mlx5e_set_dev_port_mtu(struct ifnet *ifp, int sw_mtu)
 		    __func__, sw_mtu, err);
 		return (err);
 	}
+
+	ifp->if_mtu = sw_mtu;
 	err = mlx5_query_port_oper_mtu(mdev, &hw_mtu);
 	if (err) {
 		if_printf(ifp, "Query port MTU, after setting new "
 		    "MTU value, failed\n");
+		return (err);
 	} else if (MLX5E_HW2SW_MTU(hw_mtu) < sw_mtu) {
 		err = -E2BIG,
 		if_printf(ifp, "Port MTU %d is smaller than "
@@ -2311,7 +2314,8 @@ mlx5e_set_dev_port_mtu(struct ifnet *ifp, int sw_mtu)
                 if_printf(ifp, "Port MTU %d is bigger than "
                     "ifp mtu %d\n", hw_mtu, sw_mtu);
 	}
-	ifp->if_mtu = sw_mtu;
+	priv->params_ethtool.hw_mtu = hw_mtu;
+
 	return (err);
 }
 
