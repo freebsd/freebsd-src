@@ -5,7 +5,6 @@ LOADER_UFS_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	yes
 LOADER_EXT2FS_SUPPORT?=	no
 LOADER_MSDOS_SUPPORT?=	no
-LOADER_ZFS_SUPPORT?=	no
 LOADER_NET_SUPPORT?=	yes
 LOADER_NFS_SUPPORT?=	yes
 LOADER_TFTP_SUPPORT?=	yes
@@ -27,12 +26,6 @@ SRCS=		locore.S main.c metadata.c vers.c
 
 .if ${LOADER_DEBUG} == "yes"
 CFLAGS+=	-DLOADER_DEBUG
-.endif
-.if ${LOADER_ZFS_SUPPORT} == "yes"
-CFLAGS+=	-DLOADER_ZFS_SUPPORT
-CFLAGS+=	-I${ZFSSRC}
-CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
-LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 .endif
 
 # Always add MI sources
