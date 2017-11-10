@@ -992,6 +992,9 @@ nicvf_xmit_locked(struct snd_queue *sq)
 	err = 0;
 
 	while ((next = drbr_peek(ifp, sq->br)) != NULL) {
+		/* Send a copy of the frame to the BPF listener */
+		ETHER_BPF_MTAP(ifp, next);
+
 		err = nicvf_tx_mbuf_locked(sq, &next);
 		if (err != 0) {
 			if (next == NULL)
@@ -1002,8 +1005,6 @@ nicvf_xmit_locked(struct snd_queue *sq)
 			break;
 		}
 		drbr_advance(ifp, sq->br);
-		/* Send a copy of the frame to the BPF listener */
-		ETHER_BPF_MTAP(ifp, next);
 	}
 	return (err);
 }
