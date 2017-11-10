@@ -45,9 +45,11 @@ OBJECTS = \
 	$(OBJDIR)/aeexception.o\
 	$(OBJDIR)/aehandlers.o\
 	$(OBJDIR)/aeinitfile.o\
+	$(OBJDIR)/aeinstall.o\
 	$(OBJDIR)/aemain.o\
 	$(OBJDIR)/aeregion.o\
 	$(OBJDIR)/aetables.o\
+	$(OBJDIR)/aetests.o\
 	$(OBJDIR)/ahids.o\
 	$(OBJDIR)/ahuuids.o\
 	$(OBJDIR)/cmfsize.o\

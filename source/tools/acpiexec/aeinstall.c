@@ -1,8 +1,8 @@
-/*******************************************************************************
+/******************************************************************************
  *
- * Module Name: utmutex - local mutex support
+ * Module Name: aeinstall - Installation of operation region handlers
  *
- ******************************************************************************/
+ *****************************************************************************/
 
 /******************************************************************************
  *
@@ -149,291 +149,259 @@
  *
  *****************************************************************************/
 
-#include "acpi.h"
-#include "accommon.h"
+#include "aecommon.h"
 
-#define _COMPONENT          ACPI_UTILITIES
-        ACPI_MODULE_NAME    ("utmutex")
+#define _COMPONENT          ACPI_TOOLS
+        ACPI_MODULE_NAME    ("aeinstall")
 
-/* Local prototypes */
 
 static ACPI_STATUS
-AcpiUtCreateMutex (
-    ACPI_MUTEX_HANDLE       MutexId);
-
-static void
-AcpiUtDeleteMutex (
-    ACPI_MUTEX_HANDLE       MutexId);
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtMutexInitialize
- *
- * PARAMETERS:  None.
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Create the system mutex objects. This includes mutexes,
- *              spin locks, and reader/writer locks.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiUtMutexInitialize (
-    void)
-{
-    UINT32                  i;
-    ACPI_STATUS             Status;
-
-
-    ACPI_FUNCTION_TRACE (UtMutexInitialize);
-
-
-    /* Create each of the predefined mutex objects */
-
-    for (i = 0; i < ACPI_NUM_MUTEX; i++)
-    {
-        Status = AcpiUtCreateMutex (i);
-        if (ACPI_FAILURE (Status))
-        {
-            return_ACPI_STATUS (Status);
-        }
-    }
-
-    /* Create the spinlocks for use at interrupt level or for speed */
-
-    Status = AcpiOsCreateLock (&AcpiGbl_GpeLock);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    Status = AcpiOsCreateLock (&AcpiGbl_HardwareLock);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    Status = AcpiOsCreateLock (&AcpiGbl_ReferenceCountLock);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Mutex for _OSI support */
-
-    Status = AcpiOsCreateMutex (&AcpiGbl_OsiMutex);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Create the reader/writer lock for namespace access */
-
-    Status = AcpiUtCreateRwLock (&AcpiGbl_NamespaceRwLock);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    return_ACPI_STATUS (Status);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtMutexTerminate
- *
- * PARAMETERS:  None.
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Delete all of the system mutex objects. This includes mutexes,
- *              spin locks, and reader/writer locks.
- *
- ******************************************************************************/
-
-void
-AcpiUtMutexTerminate (
-    void)
-{
-    UINT32                  i;
-
-
-    ACPI_FUNCTION_TRACE (UtMutexTerminate);
-
-
-    /* Delete each predefined mutex object */
-
-    for (i = 0; i < ACPI_NUM_MUTEX; i++)
-    {
-        AcpiUtDeleteMutex (i);
-    }
-
-    AcpiOsDeleteMutex (AcpiGbl_OsiMutex);
-
-    /* Delete the spinlocks */
-
-    AcpiOsDeleteLock (AcpiGbl_GpeLock);
-    AcpiOsDeleteLock (AcpiGbl_HardwareLock);
-    AcpiOsDeleteLock (AcpiGbl_ReferenceCountLock);
-
-    /* Delete the reader/writer lock */
-
-    AcpiUtDeleteRwLock (&AcpiGbl_NamespaceRwLock);
-    return_VOID;
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtCreateMutex
- *
- * PARAMETERS:  MutexID         - ID of the mutex to be created
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Create a mutex object.
- *
- ******************************************************************************/
+AeRegionInit (
+    ACPI_HANDLE             RegionHandle,
+    UINT32                  Function,
+    void                    *HandlerContext,
+    void                    **RegionContext);
 
 static ACPI_STATUS
-AcpiUtCreateMutex (
-    ACPI_MUTEX_HANDLE       MutexId)
+AeInstallEcHandler (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue);
+
+static ACPI_STATUS
+AeInstallPciHandler (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue);
+
+
+BOOLEAN                     AcpiGbl_DisplayRegionAccess = FALSE;
+ACPI_CONNECTION_INFO        AeMyContext;
+
+
+/*
+ * We will override some of the default region handlers, especially
+ * the SystemMemory handler, which must be implemented locally.
+ * These handlers are installed "early" - before any _REG methods
+ * are executed - since they are special in the sense that the ACPI spec
+ * declares that they must "always be available". Cannot override the
+ * DataTable region handler either -- needed for test execution.
+ *
+ * NOTE: The local region handler will simulate access to these address
+ * spaces by creating a memory buffer behind each operation region.
+ */
+static ACPI_ADR_SPACE_TYPE  DefaultSpaceIdList[] =
 {
-    ACPI_STATUS             Status = AE_OK;
+    ACPI_ADR_SPACE_SYSTEM_MEMORY,
+    ACPI_ADR_SPACE_SYSTEM_IO,
+    ACPI_ADR_SPACE_PCI_CONFIG,
+    ACPI_ADR_SPACE_EC
+};
+
+/*
+ * We will install handlers for some of the various address space IDs.
+ * Test one user-defined address space (used by aslts).
+ */
+#define ACPI_ADR_SPACE_USER_DEFINED1        0x80
+#define ACPI_ADR_SPACE_USER_DEFINED2        0xE4
+
+static ACPI_ADR_SPACE_TYPE  SpaceIdList[] =
+{
+    ACPI_ADR_SPACE_SMBUS,
+    ACPI_ADR_SPACE_CMOS,
+    ACPI_ADR_SPACE_PCI_BAR_TARGET,
+    ACPI_ADR_SPACE_IPMI,
+    ACPI_ADR_SPACE_GPIO,
+    ACPI_ADR_SPACE_GSBUS,
+    ACPI_ADR_SPACE_FIXED_HARDWARE,
+    ACPI_ADR_SPACE_USER_DEFINED1,
+    ACPI_ADR_SPACE_USER_DEFINED2
+};
 
 
-    ACPI_FUNCTION_TRACE_U32 (UtCreateMutex, MutexId);
-
-
-    if (!AcpiGbl_MutexInfo[MutexId].Mutex)
-    {
-        Status = AcpiOsCreateMutex (&AcpiGbl_MutexInfo[MutexId].Mutex);
-        AcpiGbl_MutexInfo[MutexId].ThreadId = ACPI_MUTEX_NOT_ACQUIRED;
-        AcpiGbl_MutexInfo[MutexId].UseCount = 0;
-    }
-
-    return_ACPI_STATUS (Status);
-}
-
-
-/*******************************************************************************
+/******************************************************************************
  *
- * FUNCTION:    AcpiUtDeleteMutex
+ * FUNCTION:    AeRegionInit
  *
- * PARAMETERS:  MutexID         - ID of the mutex to be deleted
+ * PARAMETERS:  Region init handler
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Delete a mutex object.
+ * DESCRIPTION: Opregion init function.
  *
- ******************************************************************************/
+ *****************************************************************************/
 
-static void
-AcpiUtDeleteMutex (
-    ACPI_MUTEX_HANDLE       MutexId)
+static ACPI_STATUS
+AeRegionInit (
+    ACPI_HANDLE                 RegionHandle,
+    UINT32                      Function,
+    void                        *HandlerContext,
+    void                        **RegionContext)
 {
 
-    ACPI_FUNCTION_TRACE_U32 (UtDeleteMutex, MutexId);
-
-
-    AcpiOsDeleteMutex (AcpiGbl_MutexInfo[MutexId].Mutex);
-
-    AcpiGbl_MutexInfo[MutexId].Mutex = NULL;
-    AcpiGbl_MutexInfo[MutexId].ThreadId = ACPI_MUTEX_NOT_ACQUIRED;
-
-    return_VOID;
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtAcquireMutex
- *
- * PARAMETERS:  MutexID         - ID of the mutex to be acquired
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Acquire a mutex object.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiUtAcquireMutex (
-    ACPI_MUTEX_HANDLE       MutexId)
-{
-    ACPI_STATUS             Status;
-    ACPI_THREAD_ID          ThisThreadId;
-
-
-    ACPI_FUNCTION_NAME (UtAcquireMutex);
-
-
-    if (MutexId > ACPI_MAX_MUTEX)
+    if (Function == ACPI_REGION_DEACTIVATE)
     {
-        return (AE_BAD_PARAMETER);
-    }
-
-    ThisThreadId = AcpiOsGetThreadId ();
-
-#ifdef ACPI_MUTEX_DEBUG
-    {
-        UINT32                  i;
-        /*
-         * Mutex debug code, for internal debugging only.
-         *
-         * Deadlock prevention. Check if this thread owns any mutexes of value
-         * greater than or equal to this one. If so, the thread has violated
-         * the mutex ordering rule. This indicates a coding error somewhere in
-         * the ACPI subsystem code.
-         */
-        for (i = MutexId; i < ACPI_NUM_MUTEX; i++)
-        {
-            if (AcpiGbl_MutexInfo[i].ThreadId == ThisThreadId)
-            {
-                if (i == MutexId)
-                {
-                    ACPI_ERROR ((AE_INFO,
-                        "Mutex [%s] already acquired by this thread [%u]",
-                        AcpiUtGetMutexName (MutexId),
-                        (UINT32) ThisThreadId));
-
-                    return (AE_ALREADY_ACQUIRED);
-                }
-
-                ACPI_ERROR ((AE_INFO,
-                    "Invalid acquire order: Thread %u owns [%s], wants [%s]",
-                    (UINT32) ThisThreadId, AcpiUtGetMutexName (i),
-                    AcpiUtGetMutexName (MutexId)));
-
-                return (AE_ACQUIRE_DEADLOCK);
-            }
-        }
-    }
-#endif
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX,
-        "Thread %u attempting to acquire Mutex [%s]\n",
-        (UINT32) ThisThreadId, AcpiUtGetMutexName (MutexId)));
-
-    Status = AcpiOsAcquireMutex (
-        AcpiGbl_MutexInfo[MutexId].Mutex, ACPI_WAIT_FOREVER);
-    if (ACPI_SUCCESS (Status))
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX,
-            "Thread %u acquired Mutex [%s]\n",
-            (UINT32) ThisThreadId, AcpiUtGetMutexName (MutexId)));
-
-        AcpiGbl_MutexInfo[MutexId].UseCount++;
-        AcpiGbl_MutexInfo[MutexId].ThreadId = ThisThreadId;
+        *RegionContext = NULL;
     }
     else
     {
+        *RegionContext = RegionHandle;
+    }
+
+    return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AeOverrideRegionHandlers
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Override the default region handlers for memory, i/o, and
+ *              pci_config. Also install a handler for EC. This is part of
+ *              the "install early handlers" functionality.
+ *
+ *****************************************************************************/
+
+void
+AeOverrideRegionHandlers (
+    void)
+{
+    UINT32                  i;
+    ACPI_STATUS             Status;
+
+    /*
+     * Install handlers that will override the default handlers for some of
+     * the space IDs.
+     */
+    for (i = 0; i < ACPI_ARRAY_LENGTH (DefaultSpaceIdList); i++)
+    {
+        /* Install handler at the root object */
+
+        Status = AcpiInstallAddressSpaceHandler (ACPI_ROOT_OBJECT,
+            DefaultSpaceIdList[i], AeRegionHandler, AeRegionInit,
+            &AeMyContext);
+
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_EXCEPTION ((AE_INFO, Status,
+                "Could not install an OpRegion handler for %s space(%u)",
+                AcpiUtGetRegionName ((UINT8) DefaultSpaceIdList[i]),
+                DefaultSpaceIdList[i]));
+        }
+    }
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AeInstallRegionHandlers
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Install handlers for the address spaces other than
+ *              SystemMemory, SystemIO, and PCI_CONFIG.
+ *
+ *****************************************************************************/
+
+void
+AeInstallRegionHandlers (
+    void)
+{
+    UINT32                  i;
+    ACPI_STATUS             Status;
+
+
+    /*
+     * Install handlers for some of the "device driver" address spaces
+     * such as SMBus, etc.
+     */
+    for (i = 0; i < ACPI_ARRAY_LENGTH (SpaceIdList); i++)
+    {
+        /* Install handler at the root object */
+
+        Status = AcpiInstallAddressSpaceHandler (ACPI_ROOT_OBJECT,
+            SpaceIdList[i], AeRegionHandler, AeRegionInit,
+            &AeMyContext);
+
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_EXCEPTION ((AE_INFO, Status,
+                "Could not install an OpRegion handler for %s space(%u)",
+                AcpiUtGetRegionName((UINT8) SpaceIdList[i]), SpaceIdList[i]));
+            return;
+        }
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AeInstallDeviceHandlers
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Install handlers for all EC and PCI devices in the namespace
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AeInstallDeviceHandlers (
+    void)
+{
+
+    /* Find all Embedded Controller devices */
+
+    AcpiGetDevices ("PNP0C09", AeInstallEcHandler, NULL, NULL);
+
+    /* Install a PCI handler */
+
+    AcpiGetDevices ("PNP0A08", AeInstallPciHandler, NULL, NULL);
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AeInstallEcHandler
+ *
+ * PARAMETERS:  ACPI_WALK_NAMESPACE callback
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Walk entire namespace, install a handler for every EC
+ *              device found.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AeInstallEcHandler (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue)
+{
+    ACPI_STATUS             Status;
+
+
+    /* Install the handler for this EC device */
+
+    Status = AcpiInstallAddressSpaceHandler (ObjHandle,
+        ACPI_ADR_SPACE_EC, AeRegionHandler, AeRegionInit, &AeMyContext);
+    if (ACPI_FAILURE (Status))
+    {
         ACPI_EXCEPTION ((AE_INFO, Status,
-            "Thread %u could not acquire Mutex [%s] (0x%X)",
-            (UINT32) ThisThreadId, AcpiUtGetMutexName (MutexId), MutexId));
+            "Could not install an OpRegion handler for EC device (%p)",
+            ObjHandle));
     }
 
     return (Status);
@@ -442,77 +410,48 @@ AcpiUtAcquireMutex (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiUtReleaseMutex
+ * FUNCTION:    AeInstallPciHandler
  *
- * PARAMETERS:  MutexID         - ID of the mutex to be released
+ * PARAMETERS:  ACPI_WALK_NAMESPACE callback
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Release a mutex object.
+ * DESCRIPTION: Walk entire namespace, install a handler for every PCI
+ *              device found.
  *
  ******************************************************************************/
 
-ACPI_STATUS
-AcpiUtReleaseMutex (
-    ACPI_MUTEX_HANDLE       MutexId)
+static ACPI_STATUS
+AeInstallPciHandler (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue)
 {
-    ACPI_FUNCTION_NAME (UtReleaseMutex);
+    ACPI_STATUS             Status;
 
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX, "Thread %u releasing Mutex [%s]\n",
-        (UINT32) AcpiOsGetThreadId (), AcpiUtGetMutexName (MutexId)));
+    /* Install memory and I/O handlers for the PCI device */
 
-    if (MutexId > ACPI_MAX_MUTEX)
+    Status = AcpiInstallAddressSpaceHandler (ObjHandle,
+        ACPI_ADR_SPACE_SYSTEM_IO, AeRegionHandler, AeRegionInit,
+        &AeMyContext);
+    if (ACPI_FAILURE (Status))
     {
-        return (AE_BAD_PARAMETER);
+        ACPI_EXCEPTION ((AE_INFO, Status,
+            "Could not install an OpRegion handler for PCI device (%p)",
+            ObjHandle));
     }
 
-    /*
-     * Mutex must be acquired in order to release it!
-     */
-    if (AcpiGbl_MutexInfo[MutexId].ThreadId == ACPI_MUTEX_NOT_ACQUIRED)
+    Status = AcpiInstallAddressSpaceHandler (ObjHandle,
+        ACPI_ADR_SPACE_SYSTEM_MEMORY, AeRegionHandler, AeRegionInit,
+        &AeMyContext);
+    if (ACPI_FAILURE (Status))
     {
-        ACPI_ERROR ((AE_INFO,
-            "Mutex [%s] (0x%X) is not acquired, cannot release",
-            AcpiUtGetMutexName (MutexId), MutexId));
-
-        return (AE_NOT_ACQUIRED);
+        ACPI_EXCEPTION ((AE_INFO, Status,
+            "Could not install an OpRegion handler for PCI device (%p)",
+            ObjHandle));
     }
 
-#ifdef ACPI_MUTEX_DEBUG
-    {
-        UINT32                  i;
-        /*
-         * Mutex debug code, for internal debugging only.
-         *
-         * Deadlock prevention. Check if this thread owns any mutexes of value
-         * greater than this one. If so, the thread has violated the mutex
-         * ordering rule. This indicates a coding error somewhere in
-         * the ACPI subsystem code.
-         */
-        for (i = MutexId; i < ACPI_NUM_MUTEX; i++)
-        {
-            if (AcpiGbl_MutexInfo[i].ThreadId == AcpiOsGetThreadId ())
-            {
-                if (i == MutexId)
-                {
-                    continue;
-                }
-
-                ACPI_ERROR ((AE_INFO,
-                    "Invalid release order: owns [%s], releasing [%s]",
-                    AcpiUtGetMutexName (i), AcpiUtGetMutexName (MutexId)));
-
-                return (AE_RELEASE_DEADLOCK);
-            }
-        }
-    }
-#endif
-
-    /* Mark unlocked FIRST */
-
-    AcpiGbl_MutexInfo[MutexId].ThreadId = ACPI_MUTEX_NOT_ACQUIRED;
-
-    AcpiOsReleaseMutex (AcpiGbl_MutexInfo[MutexId].Mutex);
-    return (AE_OK);
+    return (AE_CTRL_TERMINATE);
 }

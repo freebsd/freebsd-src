@@ -3061,6 +3061,11 @@ AcpiDmDumpNfit (
             FieldOffset = sizeof (ACPI_NFIT_FLUSH_ADDRESS) - sizeof (UINT64);
             break;
 
+        case ACPI_NFIT_TYPE_CAPABILITIES:    /* ACPI 6.0A */
+
+            InfoTable = AcpiDmTableInfoNfit7;
+            break;
+
         default:
             AcpiOsPrintf ("\n**** Unknown NFIT subtable type 0x%X\n",
                 Subtable->Type);

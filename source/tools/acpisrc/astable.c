@@ -793,6 +793,8 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_MPST_POWER_STATE",               SRC_TYPE_STRUCT},
     {"ACPI_MCFG_ALLOCATION",                SRC_TYPE_STRUCT},
     {"ACPI_MSCT_PROXIMITY",                 SRC_TYPE_STRUCT},
+    {"ACPI_NFIT_CAPABILITIES",              SRC_TYPE_STRUCT},
+    {"ACPI_NFIT_DEVICE_HANDLE",             SRC_TYPE_STRUCT},
     {"ACPI_NFIT_HEADER",                    SRC_TYPE_STRUCT},
     {"ACPI_NFIT_SYSTEM_ADDRESS",            SRC_TYPE_STRUCT},
     {"ACPI_NFIT_MEMORY_MAP",                SRC_TYPE_STRUCT},
