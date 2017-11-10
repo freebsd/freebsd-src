@@ -161,7 +161,8 @@ ${__target}_crunchdir_${P}: .PHONY .MAKE
 	${_+_}cd ${CRUNCH_SRCDIR_${P}} && \
 	    ${CRUNCHENV} MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
 	    ${CRUNCHARGS} \
-	    DIRPRFX=${DIRPRFX}${P}/ ${CRUNCH_BUILDOPTS} ${__target}
+	    DIRPRFX=${DIRPRFX}${P}/ ${CRUNCH_BUILDOPTS} \
+	    ${CRUNCH_BUILDOPTS_${P}} ${__target}
 ${__target}: ${__target}_crunchdir_${P}
 .endfor
 .endfor
