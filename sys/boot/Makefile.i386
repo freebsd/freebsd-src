@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-SUBDIR+=		libsa32
 .if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 SUBDIR+=		geli
 .endif
