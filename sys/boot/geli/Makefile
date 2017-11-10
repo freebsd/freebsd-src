@@ -38,7 +38,6 @@ SRCS+=		md5c.c
 
 # AES implementation from sys/crypto
 .PATH: ${SYSDIR}/crypto/rijndael
-CFLAGS+=	-I${SYSDIR}
 CFLAGS+=	-I${LDRSRC}
 # Remove asserts
 CFLAGS+=	-DNDEBUG

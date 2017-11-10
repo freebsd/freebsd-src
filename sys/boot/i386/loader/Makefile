@@ -40,11 +40,16 @@ CFLAGS+=	-DLOADER_FIREWIRE_SUPPORT
 LIBFIREWIRE=	${BOOTOBJ}/i386/libfirewire/libfirewire.a
 .endif
 
+.if exists(${.CURDIR}/help.i386)
+HELP_FILES+=	help.i386
+.else
+HELP_FILES=
+.endif
+
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
-CFLAGS+=	-I.
 
-CLEANFILES=	${LOADER} ${LOADER}.bin loader.help
+CLEANFILES+=	${LOADER} ${LOADER}.bin
 
 CFLAGS+=	-Wall
 LDFLAGS+=	-static -Ttext 0x0
@@ -67,20 +72,9 @@ ${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
 ${LOADER}.bin: ${LOADER}.sym
 	strip -R .comment -R .note -o ${.TARGET} ${.ALLSRC}
 
-loader.help: help.common help.i386
-	cat ${.ALLSRC} | awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
-
-FILES=	${LOADER}
+FILES+=	${LOADER}
 # XXX INSTALLFLAGS_loader= -b
 FILESMODE_${LOADER}= ${BINMODE} -b
-
-.if !defined(LOADER_ONLY)
-.PATH: ${BOOTSRC}/forth
-.include	"${BOOTSRC}/forth/Makefile.inc"
-FILES+=	pcibios.4th
-
-FILES+=	loader.rc menu.rc
-.endif
 
 # XXX crt0.o needs to be first for pxeboot(8) to work
 OBJS=	${BTXCRT}

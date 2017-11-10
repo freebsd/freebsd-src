@@ -21,12 +21,9 @@ SRCS=		start.S conf.c vers.c
 SRCS+=		ucmpdi2.c
 
 # Always add MI sources
+HELP_FILES=	# Disable
 .include	"${BOOTSRC}/loader.mk"
 .PATH:		${SYSDIR}/libkern
-CFLAGS+=	-I${SYSDIR}
-CFLAGS+=	-I.
-
-CLEANFILES+=	${PROG}.help
 
 CFLAGS+=	-ffreestanding
 
@@ -36,12 +33,5 @@ LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 
 DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSA}
 LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSA}
-
-loader.help: help.common ${BOOTSRC}/fdt/help.fdt
-	cat ${.ALLSRC} | \
-	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
-
-.PATH: ${BOOTSRC}/forth
-FILES=	loader.help
 
 .include <bsd.prog.mk>

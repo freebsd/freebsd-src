@@ -27,14 +27,12 @@ SRCS+=		ucmpdi2.c
 SRCS+=		ofwfdt.c
 .endif
 
+HELP_FILES+=	${FDTSRC}/help.fdt
+
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
 
 .PATH:		${SYSDIR}/libkern
-CFLAGS+=	-I${SYSDIR}
-CFLAGS+=	-I.
-
-CLEANFILES+=	loader.help
 
 CFLAGS+=	-ffreestanding -msoft-float
 # load address. set in linker script
@@ -53,14 +51,5 @@ CFLAGS+=	-I${BOOTSRC}/ofw/libofw
 
 DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
 LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
-
-loader.help: help.common ${FDTSRC}/help.fdt
-	cat ${.ALLSRC} | \
-	    awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
-
-.PATH: ${BOOTSRC}/forth
-.include	"${BOOTSRC}/forth/Makefile.inc"
-
-FILES+= loader.rc menu.rc
 
 .include <bsd.prog.mk>

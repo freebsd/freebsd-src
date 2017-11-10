@@ -49,8 +49,7 @@ CFLAGS+= -Dalloca=__builtin_alloca
 CFLAGS+=	-I${BOOTSRC}/ficl -I${BOOTSRC}/ficl/i386 \
 		-I${LDRSRC} -I${BOOTSRC}/i386/common \
 		-I${BTXLIB} \
-		-I${SYSDIR}/contrib/dev/acpica/include \
-		-I${SYSDIR} -I.
+		-I${SYSDIR}/contrib/dev/acpica/include
 
 # Handle FreeBSD specific %b and %D printf format specifiers
 CFLAGS+= ${FORMAT_EXTENSIONS}

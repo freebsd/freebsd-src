@@ -34,7 +34,7 @@ boot1.hfs: boot1.elf bootinfo.txt
 	${DD} if=${.CURDIR}/bootinfo.txt of=${.TARGET} seek=${BOOTINFO_OFFSET} \
 	    conv=notrunc
 
-CLEANFILES= boot1.hfs
+CLEANFILES+= boot1.hfs
 
 boot1.o: ${SASRC}/ufsread.c
 

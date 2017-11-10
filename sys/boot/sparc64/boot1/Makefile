@@ -7,7 +7,7 @@ INTERNALPROG=
 MAN=
 FILES?=	boot1
 SRCS=	_start.s boot1.c
-CLEANFILES=${FILES} boot1.aout
+CLEANFILES+=${FILES} boot1.aout
 
 BOOTBLOCKBASE= 0x4000
 

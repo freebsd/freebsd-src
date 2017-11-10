@@ -90,3 +90,11 @@ REPRO_FLAG=	-r
 vers.c: ${LDRSRC}/newvers.sh ${VERSION_FILE}
 	sh ${LDRSRC}/newvers.sh ${REPRO_FLAG} ${VERSION_FILE} \
 	    ${NEWVERSWHAT}
+
+.if !empty(HELP_FILES)
+CLEANFILES+=	loader.help
+FILES+=		loader.help
+
+loader.help: ${HELP_FILES}
+	cat ${HELP_FILES} | awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
+.endif

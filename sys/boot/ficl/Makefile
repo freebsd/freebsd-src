@@ -8,7 +8,7 @@ BASE_SRCS=	dict.c ficl.c fileaccess.c float.c loader.c math64.c \
 		prefix.c search.c stack.c tools.c vm.c words.c
 
 SRCS=		${BASE_SRCS} sysdep.c softcore.c
-CLEANFILES=	softcore.c testmain testmain.o
+CLEANFILES+=	softcore.c testmain testmain.o
 
 .include <bsd.stand.mk>
 .ifmake testmain
