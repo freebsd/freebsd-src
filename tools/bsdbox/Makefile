@@ -72,7 +72,7 @@ CRUNCH_SRCDIRS+= sbin
 
 CRUNCH_LIBS+= -l80211 -lalias -lcam -lcursesw -ldevstat -lipsec
 # Don't forget this - ifconfig, etc -adrian
-CRUNCH_LIBS+= -lprivateifconfig
+CRUNCH_LIBS+= ${LDADD_ifconfig}
 CRUNCH_LIBS+= -lgeom -lbsdxml -ljail -lkiconv -lmd -lsbuf -lufs
 
 ##################################################################
