@@ -85,10 +85,26 @@ CFLAGS+= -DLOADER_GPT_SUPPORT
 .if ${LOADER_MBR_SUPPORT:Uyes} == "yes"
 CFLAGS+= -DLOADER_MBR_SUPPORT
 .endif
-.if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
-CFLAGS+= -DLOADER_GELI_SUPPORT
+
+# GELI Support, with backward compat hooks
+.if defined(HAVE_GELI)
+.if defined(LOADER_NO_GELI_SUPPORT)
+MK_LOADER_GELI=no
+.warning "Please move from LOADER_NO_GELI_SUPPORT to WITHOUT_LOADER_GELI"
+.endif
+.if defined(LOADER_GELI_SUPPORT)
+MK_LOADER_GELI=yes
+.warning "Please move from LOADER_GELI_SUPPORT to WITH_LOADER_GELI"
+.endif
+.if ${MK_LOADER_GELI} == "yes"
+CFLAGS+=	-DLOADER_GELI_SUPPORT
+CFLAGS+=	-I${BOOTSRC}/geli
+LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
 .endif
 .endif
+.endif
+
+CFLAGS+=	-I${SYSDIR}
 
 # All PowerPC builds are 32 bit. We have no 64-bit loaders on powerpc
 # or powerpc64.

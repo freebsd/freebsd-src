@@ -63,7 +63,7 @@ for i in \
 	sparc64/sparc64 \
 	; do
     ta=${i##*/}
-    dobuild $ta _.boot.${ta}.noZFS.log "MK_ZFS=no"
+    dobuild $ta _.boot.${ta}.no_zfs.log "MK_ZFS=no"
 done
 
 # Build with firewire
@@ -73,4 +73,13 @@ for i in \
 	; do
     ta=${i##*/}
     dobuild $ta _.boot.${ta}.firewire.log "MK_LOADER_FIREWIRE=yes"
+done
+
+# Build without GELI
+for i in \
+	amd64/amd64 \
+	i386/i386 \
+	; do
+    ta=${i##*/}
+    dobuild $ta _.boot.${ta}.no_geli.log "MK_LOADER_GELI=no"
 done

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+HAVE_GELI=		yes
+
 .include <bsd.init.mk>
 
 .PATH:		${BOOTSRC}/i386/boot2 ${BOOTSRC}/i386/common ${SASRC}
@@ -41,14 +43,6 @@ CFLAGS+=-DBOOTPROG=\"gptboot\" \
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100
 
-.if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
-CFLAGS+=	-DLOADER_GELI_SUPPORT
-CFLAGS+=	-I${BOOTSRC}/geli
-LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
-.PATH:		${SYSDIR}/opencrypto
-OPENCRYPTO_XTS=	xform_aes_xts.o
-.endif
-
 LD_FLAGS+=${LD_FLAGS_BIN}
 
 CLEANFILES=	gptboot
@@ -66,12 +60,12 @@ gptldr.out: gptldr.o
 	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} gptldr.o
 
 CLEANFILES+=	gptboot.bin gptboot.out gptboot.o sio.o crc32.o drv.o \
-		cons.o util.o ${OPENCRYPTO_XTS}
+		cons.o ${OPENCRYPTO_XTS}
 
 gptboot.bin: gptboot.out
 	${OBJCOPY} -S -O binary gptboot.out ${.TARGET}
 
-gptboot.out: ${BTXCRT} gptboot.o sio.o crc32.o drv.o cons.o util.o ${OPENCRYPTO_XTS}
+gptboot.out: ${BTXCRT} gptboot.o sio.o crc32.o drv.o cons.o ${OPENCRYPTO_XTS}
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBGELIBOOT} ${LIBSA32}
 
 gptboot.o: ${SASRC}/ufsread.c
