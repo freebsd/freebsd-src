@@ -966,6 +966,8 @@ int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num);
 void mlx5_core_put_rsc(struct mlx5_core_rsc_common *common);
 u8 mlx5_is_wol_supported(struct mlx5_core_dev *dev);
 int mlx5_set_wol(struct mlx5_core_dev *dev, u8 wol_mode);
+int mlx5_set_dropless_mode(struct mlx5_core_dev *dev, u16 timeout);
+int mlx5_query_dropless_mode(struct mlx5_core_dev *dev, u16 *timeout);
 int mlx5_query_wol(struct mlx5_core_dev *dev, u8 *wol_mode);
 int mlx5_core_access_pvlc(struct mlx5_core_dev *dev,
 			  struct mlx5_pvlc_reg *pvlc, int write);
