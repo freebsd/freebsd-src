@@ -2110,7 +2110,7 @@ cross-tools: .MAKE .PHONY
 # to pickup.
 #
 NXBOBJROOT=	${OBJROOT}${MACHINE}.${MACHINE_ARCH}/nxb/
-NXBOBJTOP=	${NXBOBJROOT}${TARGET}.${TARGET_ARCH}
+NXBOBJTOP=	${NXBOBJROOT}${NXB_TARGET}.${NXB_TARGET_ARCH}
 NXTP?=		/nxb-bin
 .if ${NXTP:N/*}
 .error NXTP variable should be an absolute path
@@ -2180,20 +2180,27 @@ NXBDIRS+= \
     usr.bin/yacc \
     usr.sbin/chown
 
+SUBDIR_DEPEND_usr.bin/clang=	lib/clang
 .if ${MK_CLANG} != "no"
 NXBDIRS+=	lib/clang
-SUBDIR_DEPEND_usr.bin/clang=	lib/clang
 NXBDIRS+=	usr.bin/clang
-.elif ${MK_GCC} != "no"
+.endif
+.if ${MK_GCC} != "no"
 NXBDIRS+=	gnu/usr.bin/cc
 .endif
 .if ${MK_BINUTILS} != "no"
 NXBDIRS+=	gnu/usr.bin/binutils
 .endif
+# XXX: native-xtools passes along ${NXBDIRS} in SUBDIR_OVERRIDE that needs
+# to be evaluated after NXBDIRS is set.
+.if make(install) && !empty(SUBDIR_OVERRIDE)
+SUBDIR=	${SUBDIR_OVERRIDE}
+.endif
 
 NXBMAKEARGS+= \
 	OBJTOP=${NXBOBJTOP:Q} \
 	OBJROOT=${NXBOBJROOT:Q} \
+	MAKEOBJDIRPREFIX= \
 	-DNO_SHARED \
 	-DNO_CPU_CFLAGS \
 	-DNO_PIC \
@@ -2216,7 +2223,10 @@ NXBMAKEARGS+= \
 	MK_WARNS=no \
 	MK_ZFS=no
 
-
+.if make(native-xtools*) && \
+    (!defined(NXB_TARGET) || !defined(NXB_TARGET_ARCH))
+.error Missing NXB_TARGET / NXB_TARGET_ARCH
+.endif
 # For 'toolchain' we want to produce native binaries that themselves generate
 # native binaries.
 NXBTMAKE=	${NXBMAKEENV} ${MAKE} ${NXBMAKEARGS:N-DNO_PIC:N-DNO_SHARED} \
@@ -2224,11 +2234,32 @@ NXBTMAKE=	${NXBMAKEENV} ${MAKE} ${NXBMAKEARGS:N-DNO_PIC:N-DNO_SHARED} \
 # For 'everything' we want to produce native binaries (hence -target to
 # be MACHINE) that themselves generate TARGET.TARGET_ARCH binaries.
 # TARGET/TARGET_ARCH are still passed along from user.
-NXBMAKE=	${NXBMAKEENV} ${MAKE} ${NXBMAKEARGS} \
+#
+# Use the toolchain we create as an external toolchain.
+.if ${USING_SYSTEM_COMPILER} == "yes" || ${XCC:N${CCACHE_BIN}:M/*}
+NXBMAKE+=	XCC="${XCC}" \
+		XCXX="${XCXX}" \
+		XCPP="${XCPP}"
+.else
+NXBMAKE+=	XCC="${NXBOBJTOP}/tmp/usr/bin/cc" \
+		XCXX="${NXBOBJTOP}/tmp/usr/bin/c++" \
+		XCPP="${NXBOBJTOP}/tmp/usr/bin/cpp"
+.endif
+NXBMAKE+=	${NXBMAKEENV} ${MAKE} -f Makefile.inc1 ${NXBMAKEARGS} \
+		TARGET=${NXB_TARGET} TARGET_ARCH=${NXB_TARGET_ARCH} \
 		TARGET_TRIPLE=${MACHINE_TRIPLE:Q}
+# NXBDIRS is improperly based on MACHINE rather than NXB_TARGET.  Need to
+# invoke a sub-make to reevaluate MK_GCC, etc, for NXBDIRS.
+NXBMAKE+=	SUBDIR_OVERRIDE='$${NXBDIRS:M*}'
+# Need to avoid the -isystem logic when using clang as an external toolchain
+# even if the TARGET being built for wants GCC.
+NXBMAKE+=	WANT_COMPILER_TYPE='$${X_COMPILER_TYPE}'
 native-xtools: .PHONY
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _cleanobj
 	# Build the bootstrap/host/cross tools that produce native binaries
-	${_+_}cd ${.CURDIR}; ${NXBTMAKE} kernel-toolchain
+	# Pass along MK_GCC=yes to ensure GCC-needed build tools are built.
+	# We don't quite know what the NXB_TARGET wants so just build it.
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} kernel-toolchain MK_GCC=yes
 	# Populate includes/libraries sysroot that produce native binaries.
 	# This is split out from 'toolchain' above mostly so that target LLVM
 	# libraries have a proper LLVM_DEFAULT_TARGET_TRIPLE without
@@ -2238,10 +2269,9 @@ native-xtools: .PHONY
 	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _includes MK_CLANG=no MK_GCC=no
 	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _libraries MK_CLANG=no MK_GCC=no
 .if !defined(NO_OBJWALK)
-	${_+_}cd ${.CURDIR}; ${NXBMAKE} SUBDIR_OVERRIDE="${NXBDIRS:M*}" _obj
+	${_+_}cd ${.CURDIR}; ${NXBMAKE} _obj
 .endif
-	${_+_}cd ${.CURDIR}; ${NXBMAKE} SUBDIR_OVERRIDE="${NXBDIRS:M*}" \
-	    everything
+	${_+_}cd ${.CURDIR}; ${NXBMAKE} everything
 	@echo ">> native-xtools done.  Use 'make native-xtools-install' to install to a given DESTDIR"
 
 native-xtools-install: .PHONY
@@ -2250,9 +2280,8 @@ native-xtools-install: .PHONY
 	    -p ${NXBDESTDIR}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${NXBDESTDIR}/usr/include >/dev/null
-	${_+_}cd ${.CURDIR}; ${NXBMAKE} -f Makefile.inc1 \
+	${_+_}cd ${.CURDIR}; ${NXBMAKE} \
 	    DESTDIR=${NXBDESTDIR} \
-	    SUBDIR_OVERRIDE="${NXBDIRS:M*}" \
 	    -DNO_ROOT \
 	    install
 
