@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../loader
-
 PROG=		zfsloader
 NEWVERSWHAT=	"ZFS enabled bootstrap loader" sparc64
 HAVE_ZFS=	yes

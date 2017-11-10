@@ -53,7 +53,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 201711xx:
 	The LOADER_FIREWIRE_SUPPORT build variable as been renamed to
-	WITH_LOADER_FIREWIRE (or WITHOUT_LOADER_FIREWIRE).
+	WITH/OUT_LOADER_FIREWIRE. LOADER_{NO_,}GELI_SUPPORT has been renamed
+	to WITH/OUT_LOADER_GELI.
 
 20171106:
 	The naive and non-compliant support of posix_fallocate(2) in ZFS
