@@ -3,6 +3,8 @@
 .if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 SUBDIR+=		geli
 .endif
+.if ${MK_ZFS} != "no"
 SUBDIR+=		zfs
+.endif
 
 SUBDIR+=		efi

@@ -21,6 +21,8 @@ INTERNALPROG=
 NEWVERSWHAT?=	"bootstrap loader" x86
 VERSION_FILE=	${.CURDIR}/../loader/version
 
+.PATH:		${BOOTSRC}/i386/loader
+
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c chain.c
 
@@ -28,16 +30,6 @@ SRCS=		main.c conf.c vers.c chain.c
 .if defined(LOADER_FIREWIRE_SUPPORT)
 CFLAGS+=	-DLOADER_FIREWIRE_SUPPORT
 LIBFIREWIRE=	${BOOTOBJ}/i386/libfirewire/libfirewire.a
-.endif
-
-# Set by zfsloader Makefile
-.if defined(LOADER_ZFS_SUPPORT)
-CFLAGS+=	-DLOADER_ZFS_SUPPORT
-.if ${MACHINE} == "amd64"
-LIBZFSBOOT=	${BOOTOBJ}/zfs32/libzfsboot.a
-.else
-LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
-.endif
 .endif
 
 # Include bcache code.
