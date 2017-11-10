@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+HAVE_GELI=		yes
+
 LOADER_NET_SUPPORT?=	yes
 LOADER_NFS_SUPPORT?=	yes
 LOADER_TFTP_SUPPORT?=	yes
@@ -36,15 +38,6 @@ HAVE_ISABUS=	yes
 .if ${MK_LOADER_FIREWIRE} == "yes"
 CFLAGS+=	-DLOADER_FIREWIRE_SUPPORT
 LIBFIREWIRE=	${BOOTOBJ}/i386/libfirewire/libfirewire.a
-.endif
-
-.if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
-CFLAGS+=	-DLOADER_GELI_SUPPORT
-CFLAGS+=	-I${BOOTSRC}/geli
-LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
-.PATH:		${SYSDIR}/opencrypto
-SRCS+=		xform_aes_xts.c
-CFLAGS+=	-I${SYSDIR} -D_STAND
 .endif
 
 # Always add MI sources

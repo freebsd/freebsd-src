@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+HAVE_GPT=	yes
+
 .include <bsd.init.mk>
 
 .PATH:		${BOOTSRC}/i386/boot2 ${BOOTSRC}/i386/gptboot \
@@ -48,14 +50,6 @@ CFLAGS+=	-Wno-tentative-definition-incomplete-type
 LIBZFSBOOT=${BOOTOBJ}/zfs32/libzfsboot.a
 .else
 LIBZFSBOOT=${BOOTOBJ}/zfs/libzfsboot.a
-.endif
-
-.if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
-CFLAGS+=	-DLOADER_GELI_SUPPORT
-CFLAGS+=	-I${BOOTSRC}/geli
-LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
-.PATH:		${SYSDIR}/opencrypto
-OPENCRYPTO_XTS=	xform_aes_xts.o
 .endif
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100

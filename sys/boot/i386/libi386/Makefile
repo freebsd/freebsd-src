@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+HAVE_GPT=		yes
+HAVE_GELI=		yes
+
 .include <bsd.init.mk>
 
 LIB=			i386
@@ -23,12 +26,6 @@ CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 .ifdef(BOOT_BIOSDISK_DEBUG)
 # Make the disk code more talkative
 CFLAGS+= -DDISK_DEBUG
-.endif
-
-.if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
-# Decrypt encrypted drives
-CFLAGS+= -DLOADER_GELI_SUPPORT
-CFLAGS+= -I${BOOTSRC}/geli
 .endif
 
 .if !defined(BOOT_HIDE_SERIAL_NUMBERS)

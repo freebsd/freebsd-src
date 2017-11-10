@@ -119,6 +119,7 @@ __DEFAULT_YES_OPTIONS = \
     LIB32 \
     LIBPTHREAD \
     LIBTHR \
+    LOADER_GELI \
     LOCALES \
     LOCATE \
     LPR \
