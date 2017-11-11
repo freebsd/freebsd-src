@@ -102,7 +102,12 @@ OBJROOT:=	${OBJTOP}/
 # __objdir is the expected .OBJDIR we want to use and that auto.obj.mk will
 # try to create.
 .if !empty(MAKEOBJDIRPREFIX)
+.if ${.CURDIR:M${MAKEOBJDIRPREFIX}/*} != ""
+# we are already in obj tree!
+__objdir=	${.CURDIR}
+.else
 __objdir:=	${MAKEOBJDIRPREFIX}${.CURDIR}
+.endif
 .elif !empty(MAKEOBJDIR)
 __objdir:=	${MAKEOBJDIR}
 .endif
