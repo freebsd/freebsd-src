@@ -1765,10 +1765,8 @@ sys_kill(struct thread *td, struct kill_args *uap)
 
 	if (uap->pid > 0) {
 		/* kill single process */
-		if ((p = pfind(uap->pid)) == NULL) {
-			if ((p = zpfind(uap->pid)) == NULL)
-				return (ESRCH);
-		}
+		if ((p = pfind_any(uap->pid)) == NULL)
+			return (ESRCH);
 		AUDIT_ARG_PROCESS(p);
 		error = p_cansignal(td, p, uap->signum);
 		if (error == 0 && uap->signum)
