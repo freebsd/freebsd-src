@@ -353,6 +353,23 @@ pfind(pid_t pid)
 	return (p);
 }
 
+/*
+ * Same as pfind but allow zombies.
+ */
+struct proc *
+pfind_any(pid_t pid)
+{
+	struct proc *p;
+
+	sx_slock(&allproc_lock);
+	p = pfind_locked(pid);
+	if (p == NULL)
+		p = zpfind_locked(pid);
+	sx_sunlock(&allproc_lock);
+
+	return (p);
+}
+
 static struct proc *
 pfind_tid_locked(pid_t tid)
 {
