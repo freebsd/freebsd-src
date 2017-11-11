@@ -929,9 +929,8 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 		if ((v & RW_LOCK_READ) && RW_READERS(v) &&
 		    spintries < rowner_retries) {
 			if (!(v & RW_LOCK_WRITE_SPINNER)) {
-				if (!atomic_cmpset_ptr(&rw->rw_lock, v,
+				if (!atomic_fcmpset_ptr(&rw->rw_lock, &v,
 				    v | RW_LOCK_WRITE_SPINNER)) {
-					v = RW_READ_VALUE(rw);
 					continue;
 				}
 			}
