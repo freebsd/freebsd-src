@@ -586,7 +586,7 @@ usage(void)
 }
 
 int
-main(int argc, char **argv)
+main(int argc __unused, char **argv __unused)
 {
 	int ch, aflag = 0, hflag = 0, nflag = 0, lflag = 0, rflag = 0,
 	    uflag = 0;
