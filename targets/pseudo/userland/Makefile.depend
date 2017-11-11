@@ -48,7 +48,6 @@ DIRDEPS+= \
 	sbin/adjkerntz \
 	sbin/atacontrol \
 	sbin/atm/atmconfig \
-	sbin/badsect \
 	sbin/camcontrol \
 	sbin/ccdconfig \
 	sbin/clri \
@@ -686,13 +685,6 @@ DIRDEPS+= \
 	usr.sbin/pciconf \
 	usr.sbin/periodic \
 	usr.sbin/pkg \
-	usr.sbin/pkg_install/add \
-	usr.sbin/pkg_install/create \
-	usr.sbin/pkg_install/delete \
-	usr.sbin/pkg_install/info \
-	usr.sbin/pkg_install/lib \
-	usr.sbin/pkg_install/updating \
-	usr.sbin/pkg_install/version \
 	usr.sbin/pmcannotate \
 	usr.sbin/pmccontrol \
 	usr.sbin/pmcstat \
