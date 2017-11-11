@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171110: Removal of mailaddr man page
+OLD_FILES+=usr/share/man/man7/mailaddr.7.gz
 # 20171108: badsect(8) removal
 OLD_FILES+=sbin/badsect
 OLD_FILES+=rescue/badsect
@@ -71,7 +73,7 @@ OLD_FILES+=usr/lib/libcap_random.a
 OLD_FILES+=usr/lib/libcap_random_p.a
 OLD_FILES+=usr/lib/libcap_sysctl.a
 OLD_FILES+=usr/lib/libcap_sysctl_p.a
-# 20171031: Removal of obsolete man files
+# 20171031: Removal of adding_user man page
 OLD_FILES+=usr/share/man/man7/adding_user.7.gz
 # 20171031: Disconnected libpathconv tests
 OLD_DIRS+=usr/tests/lib/libpathconv
