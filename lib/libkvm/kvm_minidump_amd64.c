@@ -46,11 +46,58 @@ __FBSDID("$FreeBSD$");
 #include "kvm_amd64.h"
 
 #define	amd64_round_page(x)	roundup2((kvaddr_t)(x), AMD64_PAGE_SIZE)
+#define	VM_IS_V1(vm)		(vm->hdr.version == 1)
+#define	VA_OFF(vm, va)		\
+	(VM_IS_V1(vm) ? ((va) & (AMD64_PAGE_SIZE - 1)) : ((va) & AMD64_PAGE_MASK))
 
 struct vmstate {
 	struct minidumphdr hdr;
-	amd64_pte_t *page_map;
 };
+
+static vm_prot_t
+_amd64_entry_to_prot(uint64_t entry)
+{
+	vm_prot_t prot = VM_PROT_READ;
+
+	if ((entry & PG_RW) != 0)
+		prot |= VM_PROT_WRITE;
+	if ((entry & PG_NX) == 0)
+		prot |= VM_PROT_EXECUTE;
+	return prot;
+}
+
+/*
+ * Version 2 minidumps use page directory entries, while version 1 use page
+ * table entries.
+ */
+
+static amd64_pde_t
+_amd64_pde_get(kvm_t *kd, u_long pdeindex)
+{
+	amd64_pde_t *pde = _kvm_pmap_get(kd, pdeindex, sizeof(*pde));
+
+	return le64toh(*pde);
+}
+
+static amd64_pte_t
+_amd64_pte_get(kvm_t *kd, u_long pteindex)
+{
+	amd64_pte_t *pte = _kvm_pmap_get(kd, pteindex, sizeof(*pte));
+
+	return le64toh(*pte);
+}
+
+/* Get the first page table entry for a given page directory index. */
+static amd64_pte_t *
+_amd64_pde_first_pte(kvm_t *kd, u_long pdeindex)
+{
+	u_long *pa;
+
+	pa = _kvm_pmap_get(kd, pdeindex, sizeof(amd64_pde_t));
+	if (pa == NULL)
+		return NULL;
+	return _kvm_map_get(kd, *pa & AMD64_PG_FRAME, AMD64_PAGE_SIZE);
+}
 
 static int
 _amd64_minidump_probe(kvm_t *kd)
@@ -65,7 +112,6 @@ _amd64_minidump_freevtop(kvm_t *kd)
 {
 	struct vmstate *vm = kd->vmst;
 
-	free(vm->page_map);
 	free(vm);
 	kd->vmst = NULL;
 }
@@ -116,21 +162,11 @@ _amd64_minidump_initvtop(kvm_t *kd)
 	    amd64_round_page(vmst->hdr.pmapsize);
 	if (_kvm_pt_init(kd, vmst->hdr.bitmapsize, off, sparse_off,
 	    AMD64_PAGE_SIZE, sizeof(uint64_t)) == -1) {
-		_kvm_err(kd, kd->program, "cannot load core bitmap");
 		return (-1);
 	}
 	off += amd64_round_page(vmst->hdr.bitmapsize);
 
-	vmst->page_map = _kvm_malloc(kd, vmst->hdr.pmapsize);
-	if (vmst->page_map == NULL) {
-		_kvm_err(kd, kd->program, "cannot allocate %d bytes for page_map",
-		    vmst->hdr.pmapsize);
-		return (-1);
-	}
-	if (pread(kd->pmfd, vmst->page_map, vmst->hdr.pmapsize, off) !=
-	    (ssize_t)vmst->hdr.pmapsize) {
-		_kvm_err(kd, kd->program, "cannot read %d bytes for page_map",
-		    vmst->hdr.pmapsize);
+	if (_kvm_pmap_init(kd, vmst->hdr.pmapsize, off) == -1) {
 		return (-1);
 	}
 	off += amd64_round_page(vmst->hdr.pmapsize);
@@ -153,16 +189,16 @@ _amd64_minidump_vatop_v1(kvm_t *kd, kvaddr_t va, off_t *pa)
 
 	if (va >= vm->hdr.kernbase) {
 		pteindex = (va - vm->hdr.kernbase) >> AMD64_PAGE_SHIFT;
-		if (pteindex >= vm->hdr.pmapsize / sizeof(*vm->page_map))
+		if (pteindex >= vm->hdr.pmapsize / sizeof(pte))
 			goto invalid;
-		pte = le64toh(vm->page_map[pteindex]);
+		pte = _amd64_pte_get(kd, pteindex);
 		if ((pte & AMD64_PG_V) == 0) {
 			_kvm_err(kd, kd->program,
 			    "_amd64_minidump_vatop_v1: pte not valid");
 			goto invalid;
 		}
 		a = pte & AMD64_PG_FRAME;
-		ofs = _kvm_pt_find(kd, a);
+		ofs = _kvm_pt_find(kd, a, AMD64_PAGE_SIZE);
 		if (ofs == -1) {
 			_kvm_err(kd, kd->program,
 	    "_amd64_minidump_vatop_v1: physical address 0x%jx not in minidump",
@@ -173,7 +209,7 @@ _amd64_minidump_vatop_v1(kvm_t *kd, kvaddr_t va, off_t *pa)
 		return (AMD64_PAGE_SIZE - offset);
 	} else if (va >= vm->hdr.dmapbase && va < vm->hdr.dmapend) {
 		a = (va - vm->hdr.dmapbase) & ~AMD64_PAGE_MASK;
-		ofs = _kvm_pt_find(kd, a);
+		ofs = _kvm_pt_find(kd, a, AMD64_PAGE_SIZE);
 		if (ofs == -1) {
 			_kvm_err(kd, kd->program,
     "_amd64_minidump_vatop_v1: direct map address 0x%jx not in minidump",
@@ -212,9 +248,9 @@ _amd64_minidump_vatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 
 	if (va >= vm->hdr.kernbase) {
 		pdeindex = (va - vm->hdr.kernbase) >> AMD64_PDRSHIFT;
-		if (pdeindex >= vm->hdr.pmapsize / sizeof(*vm->page_map))
+		if (pdeindex >= vm->hdr.pmapsize / sizeof(pde))
 			goto invalid;
-		pde = le64toh(vm->page_map[pdeindex]);
+		pde = _amd64_pde_get(kd, pdeindex);
 		if ((pde & AMD64_PG_V) == 0) {
 			_kvm_err(kd, kd->program,
 			    "_amd64_minidump_vatop: pde not valid");
@@ -223,7 +259,7 @@ _amd64_minidump_vatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 		if ((pde & AMD64_PG_PS) == 0) {
 			a = pde & AMD64_PG_FRAME;
 			/* TODO: Just read the single PTE */
-			ofs = _kvm_pt_find(kd, a);
+			ofs = _kvm_pt_find(kd, a, AMD64_PAGE_SIZE);
 			if (ofs == -1) {
 				_kvm_err(kd, kd->program,
 				    "cannot find page table entry for %ju",
@@ -250,7 +286,7 @@ _amd64_minidump_vatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 			a = pde & AMD64_PG_PS_FRAME;
 			a += (va & AMD64_PDRMASK) ^ offset;
 		}
-		ofs = _kvm_pt_find(kd, a);
+		ofs = _kvm_pt_find(kd, a, AMD64_PAGE_SIZE);
 		if (ofs == -1) {
 			_kvm_err(kd, kd->program,
 	    "_amd64_minidump_vatop: physical address 0x%jx not in minidump",
@@ -261,7 +297,7 @@ _amd64_minidump_vatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 		return (AMD64_PAGE_SIZE - offset);
 	} else if (va >= vm->hdr.dmapbase && va < vm->hdr.dmapend) {
 		a = (va - vm->hdr.dmapbase) & ~AMD64_PAGE_MASK;
-		ofs = _kvm_pt_find(kd, a);
+		ofs = _kvm_pt_find(kd, a, AMD64_PAGE_SIZE);
 		if (ofs == -1) {
 			_kvm_err(kd, kd->program,
 	    "_amd64_minidump_vatop: direct map address 0x%jx not in minidump",
@@ -297,12 +333,99 @@ _amd64_minidump_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 		return (_amd64_minidump_vatop(kd, va, pa));
 }
 
+static int
+_amd64_minidump_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *arg)
+{
+	struct vmstate *vm = kd->vmst;
+	u_long npdes = vm->hdr.pmapsize / sizeof(amd64_pde_t);
+	u_long bmindex, dva, pa, pdeindex, va;
+	struct kvm_bitmap bm;
+	int ret = 0;
+	vm_prot_t prot;
+	unsigned int pgsz = AMD64_PAGE_SIZE;
+
+	if (vm->hdr.version < 2)
+		return (0);
+
+	if (!_kvm_bitmap_init(&bm, vm->hdr.bitmapsize, &bmindex))
+		return (0);
+
+	for (pdeindex = 0; pdeindex < npdes; pdeindex++) {
+		pd_entry_t pde = _amd64_pde_get(kd, pdeindex);
+		pt_entry_t *ptes;
+		u_long i;
+
+		va = vm->hdr.kernbase + (pdeindex << AMD64_PDRSHIFT);
+		if ((pde & PG_V) == 0)
+			continue;
+
+		if ((pde & AMD64_PG_PS) != 0) {
+			/*
+			 * Large page.  Iterate on each 4K page section
+			 * within this page.  This differs from 4K pages in
+			 * that every page here uses the same PDE to
+			 * generate permissions.
+			 */
+			pa = pde & AMD64_PG_PS_FRAME +
+			    ((va & AMD64_PDRMASK) ^ VA_OFF(vm, va));
+			dva = vm->hdr.dmapbase + pa;
+			_kvm_bitmap_set(&bm, pa, AMD64_PAGE_SIZE);
+			if (!_kvm_visit_cb(kd, cb, arg, pa, va, dva,
+			    _amd64_entry_to_prot(pde), AMD64_NBPDR, pgsz)) {
+				goto out;
+			}
+			continue;
+		}
+
+		/* 4K pages: pde references another page of entries. */
+		ptes = _amd64_pde_first_pte(kd, pdeindex);
+		/* Ignore page directory pages that were not dumped. */
+		if (ptes == NULL)
+			continue;
+
+		for (i = 0; i < NPTEPG; i++) {
+			pt_entry_t pte = (u_long)ptes[i];
+
+			pa = pte & AMD64_PG_FRAME;
+			dva = vm->hdr.dmapbase + pa;
+			if ((pte & PG_V) != 0) {
+				_kvm_bitmap_set(&bm, pa, AMD64_PAGE_SIZE);
+				if (!_kvm_visit_cb(kd, cb, arg, pa, va, dva,
+				    _amd64_entry_to_prot(pte), pgsz, 0)) {
+					goto out;
+				}
+			}
+			va += AMD64_PAGE_SIZE;
+		}
+	}
+
+	while (_kvm_bitmap_next(&bm, &bmindex)) {
+		pa = bmindex * AMD64_PAGE_SIZE;
+		dva = vm->hdr.dmapbase + pa;
+		if (vm->hdr.dmapend < (dva + pgsz))
+			break;
+		va = 0;
+		/* amd64/pmap.c: create_pagetables(): dmap always R|W. */
+		prot = VM_PROT_READ | VM_PROT_WRITE;
+		if (!_kvm_visit_cb(kd, cb, arg, pa, va, dva, prot, pgsz, 0)) {
+			goto out;
+		}
+	}
+
+	ret = 1;
+
+out:
+	_kvm_bitmap_deinit(&bm);
+	return (ret);
+}
+
 static struct kvm_arch kvm_amd64_minidump = {
 	.ka_probe = _amd64_minidump_probe,
 	.ka_initvtop = _amd64_minidump_initvtop,
 	.ka_freevtop = _amd64_minidump_freevtop,
 	.ka_kvatop = _amd64_minidump_kvatop,
 	.ka_native = _amd64_native,
+	.ka_walk_pages = _amd64_minidump_walk_pages,
 };
 
 KVM_ARCH(kvm_amd64_minidump);
