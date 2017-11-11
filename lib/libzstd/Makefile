@@ -19,7 +19,12 @@ SRCS=	entropy_common.c \
 	zbuff_decompress.c \
 	cover.c \
 	divsufsort.c \
-	zdict.c
+	zdict.c \
+	zstd_fast.c \
+	zstd_lazy.c \
+	zstd_ldm.c \
+	zstd_opt.c \
+	zstd_double_fast.c
 WARNS=	2
 INCS=	zstd.h
 CFLAGS+=	-I${ZSTDDIR}/lib -I${ZSTDDIR}/lib/common -DXXH_NAMESPACE=ZSTD_ \
