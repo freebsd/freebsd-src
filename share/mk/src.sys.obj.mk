@@ -26,7 +26,7 @@ _default_makeobjdir=	$${.CURDIR:S,^$${SRCTOP},$${OBJTOP},}
 .include <bsd.mkopt.mk>
 
 .if ${.MAKE.LEVEL} == 0 || empty(OBJROOT)
-.if ${MK_UNIFIED_OBJDIR} == "no"
+.if ${MK_UNIFIED_OBJDIR} == "no" && ${MK_DIRDEPS_BUILD} == "no"
 # Fall back to historical behavior.
 # We always want to set a default MAKEOBJDIRPREFIX...
 MAKEOBJDIRPREFIX?=	${_default_makeobjdirprefix}
@@ -70,6 +70,7 @@ OBJROOT:=	${OBJROOT:H:tA}/${OBJROOT:T}
 .export OBJROOT SRCTOP
 .endif
 
+.if ${MK_DIRDEPS_BUILD} == "no"
 .if empty(OBJTOP)
 # SRCTOP == OBJROOT only happens with clever MAKEOBJDIRPREFIX=/.  Don't
 # append TARGET.TARGET_ARCH for that case since the user wants to build
@@ -90,12 +91,11 @@ OBJTOP:=	${OBJROOT:H}
 .endif	# ${MK_UNIFIED_OBJDIR} == "yes"
 .endif	# empty(OBJTOP)
 
-# Fixup OBJROOT/OBJTOP if using MAKEOBJDIRPREFIX but leave it alone
-# for DIRDEPS_BUILD which really wants to know the absolute top at
-# all times.  This intenionally comes after adding TARGET.TARGET_ARCH
-# so that is truncated away for nested objdirs.  This logic also
-# will not trigger if the OBJROOT block above unsets MAKEOBJDIRPREFIX.
-.if !empty(MAKEOBJDIRPREFIX) && ${MK_DIRDEPS_BUILD} == "no"
+# Fixup OBJROOT/OBJTOP if using MAKEOBJDIRPREFIX.
+# This intenionally comes after adding TARGET.TARGET_ARCH so that is truncated
+# away for nested objdirs.  This logic also will not trigger if the OBJROOT
+# block above unsets MAKEOBJDIRPREFIX.
+.if !empty(MAKEOBJDIRPREFIX)
 OBJTOP:=	${MAKEOBJDIRPREFIX}${SRCTOP}
 OBJROOT:=	${OBJTOP}/
 .endif
@@ -211,3 +211,5 @@ OBJROOT=	${SRCTOP}/
 .OBJDIR:	${.CURDIR}
 .endif
 .endif	# defined(NO_OBJ)
+
+.endif	# ${MK_DIRDEPS_BUILD} == "no"
