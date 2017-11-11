@@ -167,6 +167,18 @@ META_TGT_WHITELIST+= \
 	tinderbox toolchain \
 	toolchains universe world worlds xdev xdev-build
 
+# Likewise for AUTO_OBJ.  Many targets do not need object directories created
+# for each visited directory.  Only when things are being built are they
+# needed.  Having AUTO_OBJ disabled in a build target is fine as it should
+# fallback to running 'make obj' as needed.  If a target is not in this list
+# then it is ran with MK_AUTO_OBJ=no in environment.
+# 'showconfig' is in the list to avoid forcing MK_AUTO_OBJ=no for it.
+AUTO_OBJ_TGT_WHITELIST+= \
+	_* all all-man build* depend everything *toolchain* includes \
+	libraries obj objlink showconfig tags xdev xdev-build native-xtools \
+	stage* create-packages* real-packages sign-packages package-pkg \
+	tinderbox universe* kernel kernels world worlds bmake
+
 .ORDER: buildworld installworld
 .ORDER: buildworld distrib-dirs
 .ORDER: buildworld distribution
@@ -255,6 +267,21 @@ _MAKE+=	MK_META_MODE=no
     ${.newline}ERROR: 'kldload filemon' or pass -DNO_FILEMON to suppress this error.
 .endif	# !exists(/dev/filemon) && !defined(NO_FILEMON)
 .endif	# !defined(_CAN_USE_META_MODE)
+
+# Only allow AUTO_OBJ for the whitelisted targets.  See AUTO_OBJ_TGT_WHITELIST
+# above.  MK_AUTO_OBJ not checked here for "yes" as it may not yet be enabled
+# since it is opportunistic.
+.if empty(.MAKEOVERRIDES:MMK_AUTO_OBJ)
+.for _tgt in ${AUTO_OBJ_TGT_WHITELIST}
+.if make(${_tgt})
+_CAN_USE_AUTO_OBJ?= yes
+.endif
+.endfor
+.if !defined(_CAN_USE_AUTO_OBJ)
+_MAKE+=	MK_AUTO_OBJ=no
+MK_AUTO_OBJ= no
+.endif
+.endif	# empty(.MAKEOVERRIDES:MMK_AUTO_OBJ)
 
 # Guess target architecture from target type, and vice versa, based on
 # historic FreeBSD practice of tending to have TARGET == TARGET_ARCH
