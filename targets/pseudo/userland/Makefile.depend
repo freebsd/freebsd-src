@@ -48,7 +48,6 @@ DIRDEPS+= \
 	sbin/adjkerntz \
 	sbin/atacontrol \
 	sbin/atm/atmconfig \
-	sbin/badsect \
 	sbin/camcontrol \
 	sbin/ccdconfig \
 	sbin/clri \
