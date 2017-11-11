@@ -75,12 +75,20 @@ OBJROOT:=	${OBJROOT:H:tA}/${OBJROOT:T}
 # append TARGET.TARGET_ARCH for that case since the user wants to build
 # in the source tree.
 .if ${MK_UNIFIED_OBJDIR} == "yes" && ${SRCTOP} != ${OBJROOT:tA}
-OBJTOP:=	${OBJROOT}${TARGET:D${TARGET}.${TARGET_ARCH}:U${MACHINE}.${MACHINE_ARCH}}
+.if defined(TARGET) && defined(TARGET_ARCH)
+OBJTOP:=	${OBJROOT}${TARGET}.${TARGET_ARCH}
+.elif defined(TARGET) && ${.CURDIR} == ${SRCTOP}
+# Not enough information, just use basic OBJDIR.  This can happen with some
+# 'make universe' targets or if TARGET is not being used as expected.
+OBJTOP:=	${OBJROOT:H}
+.else
+OBJTOP:=	${OBJROOT}${MACHINE}.${MACHINE_ARCH}
+.endif
 .else
 # TARGET.TARGET_ARCH handled in OBJROOT already.
 OBJTOP:=	${OBJROOT:H}
 .endif	# ${MK_UNIFIED_OBJDIR} == "yes"
-.endif
+.endif	# empty(OBJTOP)
 
 # Fixup OBJROOT/OBJTOP if using MAKEOBJDIRPREFIX but leave it alone
 # for DIRDEPS_BUILD which really wants to know the absolute top at
