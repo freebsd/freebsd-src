@@ -1577,8 +1577,7 @@ umtx_pi_setowner(struct umtx_pi *pi, struct thread *owner)
 
 	uq_owner = owner->td_umtxq;
 	mtx_assert(&umtx_lock, MA_OWNED);
-	if (pi->pi_owner != NULL)
-		panic("pi_owner != NULL");
+	MPASS(pi->pi_owner == NULL);
 	pi->pi_owner = owner;
 	TAILQ_INSERT_TAIL(&uq_owner->uq_pi_contested, pi, pi_link);
 }
