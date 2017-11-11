@@ -88,7 +88,6 @@ ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PFLAGS, offsetof(struct thread, td_pflags));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
-ASSYM(TD_TID, offsetof(struct thread, td_tid));
 
 ASSYM(TDP_CALLCHAIN, TDP_CALLCHAIN);
 
