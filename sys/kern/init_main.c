@@ -229,13 +229,11 @@ restart:
 		struct sysinit *save;
 
 		min = sipp;
-		for (xipp = sipp + 1; xipp < sysinit_end; xipp++) {
+		for (xipp = sipp + 1; xipp < sysinit_end; xipp++)
 			if ((*xipp)->subsystem < (*min)->subsystem ||
 			    ((*xipp)->subsystem == (*min)->subsystem &&
-			     (*xipp)->order < (*min)->order)) {
-			        min = xipp;
-			}
-		}
+			     (*xipp)->order < (*min)->order))
+				min = xipp;
 		save = *sipp;
 		*sipp = *min;
 		*min = save;
