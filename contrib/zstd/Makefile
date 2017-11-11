@@ -1,10 +1,10 @@
 # ################################################################
-# Copyright (c) 2015-present, Yann Collet, Facebook, Inc.
+# Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
-# This source code is licensed under both the BSD-style license (found in the
-# LICENSE file in the root directory of this source tree) and the GPLv2 (found
-# in the COPYING file in the root directory of this source tree).
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree. An additional grant
+# of patent rights can be found in the PATENTS file in the same directory.
 # ################################################################
 
 PRGDIR   = programs
@@ -12,7 +12,6 @@ ZSTDDIR  = lib
 BUILDIR  = build
 ZWRAPDIR = zlibWrapper
 TESTDIR  = tests
-FUZZDIR  = $(TESTDIR)/fuzz
 
 # Define nul output
 VOID = /dev/null
@@ -30,12 +29,15 @@ default: lib-release zstd-release
 all: | allmost examples manual
 
 .PHONY: allmost
-allmost: allzstd
+allmost:
+	$(MAKE) -C $(ZSTDDIR) all
+	$(MAKE) -C $(PRGDIR) all
+	$(MAKE) -C $(TESTDIR) all
 	$(MAKE) -C $(ZWRAPDIR) all
 
 #skip zwrapper, can't build that on alternate architectures without the proper zlib installed
-.PHONY: allzstd
-allzstd:
+.PHONY: allarch
+allarch:
 	$(MAKE) -C $(ZSTDDIR) all
 	$(MAKE) -C $(PRGDIR) all
 	$(MAKE) -C $(TESTDIR) all
@@ -98,7 +100,6 @@ clean:
 	@$(MAKE) -C examples/ $@ > $(VOID)
 	@$(MAKE) -C contrib/gen_html $@ > $(VOID)
 	@$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
-	@$(RM) -r lz4
 	@echo Cleaning completed
 
 #------------------------------------------------------------------------------
@@ -113,7 +114,7 @@ CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_B
 list:
 	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
 
-.PHONY: install clangtest armtest usan asan uasan
+.PHONY: install clangtest gpptest armtest usan asan uasan
 install:
 	@$(MAKE) -C $(ZSTDDIR) $@
 	@$(MAKE) -C $(PRGDIR) $@
@@ -157,16 +158,16 @@ m32build: clean
 	$(MAKE) all32
 
 armbuild: clean
-	CC=arm-linux-gnueabi-gcc CFLAGS="-Werror" $(MAKE) allzstd
+	CC=arm-linux-gnueabi-gcc CFLAGS="-Werror" $(MAKE) allarch
 
 aarch64build: clean
-	CC=aarch64-linux-gnu-gcc CFLAGS="-Werror" $(MAKE) allzstd
+	CC=aarch64-linux-gnu-gcc CFLAGS="-Werror" $(MAKE) allarch
 
 ppcbuild: clean
-	CC=powerpc-linux-gnu-gcc CLAGS="-m32 -Wno-attributes -Werror" $(MAKE) allzstd
+	CC=powerpc-linux-gnu-gcc CLAGS="-m32 -Wno-attributes -Werror" $(MAKE) allarch
 
 ppc64build: clean
-	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) allzstd
+	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) allarch
 
 armfuzz: clean
 	CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static MOREFLAGS="-static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest
@@ -180,10 +181,8 @@ ppcfuzz: clean
 ppc64fuzz: clean
 	CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static MOREFLAGS="-m64 -static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest
 
-.PHONY: cxxtest
-cxxtest: CXXFLAGS += -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror
-cxxtest: clean
-	$(MAKE) -C $(PRGDIR) all CC="$(CXX) -Wno-deprecated" CFLAGS="$(CXXFLAGS)"   # adding -Wno-deprecated to avoid clang++ warning on dealing with C files directly
+gpptest: clean
+	CC=$(CXX) $(MAKE) -C $(PRGDIR) all CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
 gcc5test: clean
 	gcc-5 -v
@@ -218,15 +217,6 @@ arm-ppc-compilation:
 	$(MAKE) -C $(PRGDIR) clean zstd CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64-static ZSTDRTTEST= MOREFLAGS="-Werror -static"
 	$(MAKE) -C $(PRGDIR) clean zstd CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc-static ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static"
 	$(MAKE) -C $(PRGDIR) clean zstd CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static ZSTDRTTEST= MOREFLAGS="-m64 -static"
-
-regressiontest:
-	$(MAKE) -C $(FUZZDIR) regressiontest
-
-uasanregressiontest:
-	$(MAKE) -C $(FUZZDIR) regressiontest CC=clang CXX=clang++ CFLAGS="-O3 -fsanitize=address,undefined" CXXFLAGS="-O3 -fsanitize=address,undefined"
-
-msanregressiontest:
-	$(MAKE) -C $(FUZZDIR) regressiontest CC=clang CXX=clang++ CFLAGS="-O3 -fsanitize=memory" CXXFLAGS="-O3 -fsanitize=memory"
 
 # run UBsan with -fsanitize-recover=signed-integer-overflow
 # due to a bug in UBsan when doing pointer subtraction
@@ -287,10 +277,6 @@ gpp6install: apt-add-repo
 clang38install:
 	APT_PACKAGES="clang-3.8" $(MAKE) apt-install
 
-# Ubuntu 14.04 ships a too-old lz4
-lz4install:
-	[ -e lz4 ] || git clone https://github.com/lz4/lz4 && sudo $(MAKE) -C lz4 install
-
 endif
 
 
@@ -301,7 +287,7 @@ endif
 
 
 #------------------------------------------------------------------------
-# target specific tests
+#make tests validated only for MSYS, Linux, OSX, kFreeBSD and Hurd targets
 #------------------------------------------------------------------------
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
 cmakebuild:
@@ -311,38 +297,38 @@ cmakebuild:
 	cd $(BUILDIR)/cmake/build ; cmake -DCMAKE_INSTALL_PREFIX:PATH=~/install_test_dir $(CMAKE_PARAMS) .. ; $(MAKE) install ; $(MAKE) uninstall
 
 c90build: clean
-	$(CC) -v
+	gcc -v
 	CFLAGS="-std=c90" $(MAKE) allmost  # will fail, due to missing support for `long long`
 
 gnu90build: clean
-	$(CC) -v
+	gcc -v
 	CFLAGS="-std=gnu90" $(MAKE) allmost
 
 c99build: clean
-	$(CC) -v
+	gcc -v
 	CFLAGS="-std=c99" $(MAKE) allmost
 
 gnu99build: clean
-	$(CC) -v
+	gcc -v
 	CFLAGS="-std=gnu99" $(MAKE) allmost
 
 c11build: clean
-	$(CC) -v
+	gcc -v
 	CFLAGS="-std=c11" $(MAKE) allmost
 
 bmix64build: clean
-	$(CC) -v
+	gcc -v
 	CFLAGS="-O3 -mbmi -Werror" $(MAKE) -C $(TESTDIR) test
 
 bmix32build: clean
-	$(CC) -v
+	gcc -v
 	CFLAGS="-O3 -mbmi -mx32 -Werror" $(MAKE) -C $(TESTDIR) test
 
 bmi32build: clean
-	$(CC) -v
+	gcc -v
 	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(TESTDIR) test
 
 staticAnalyze: clean
-	$(CC) -v
+	gcc -v
 	CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) all
 endif

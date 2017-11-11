@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -34,6 +34,7 @@
 #ifndef ZSTDCLI_CLEVEL_DEFAULT
 #  define ZSTDCLI_CLEVEL_DEFAULT 3
 #endif
+
 
 
 /*-************************************
@@ -161,6 +162,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
     ZSTD_CCtx* const ctx = ZSTD_createCCtx();
     ZSTD_DCtx* const dctx = ZSTD_createDCtx();
     U32 nbBlocks;
+    UTIL_freq_t ticksPerSecond;
 
     /* checks */
     if (!compressedBuffer || !resultBuffer || !blockTable || !ctx || !dctx)
@@ -168,6 +170,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
 
     /* init */
     if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* can only display 17 characters */
+    UTIL_initTimer(&ticksPerSecond);
 
     /* Init blockTable data */
     {   z_const char* srcPtr = (z_const char*)srcBuffer;
@@ -207,17 +210,17 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
         size_t cSize = 0;
         double ratio = 0.;
 
-        coolTime = UTIL_getTime();
+        UTIL_getTime(&coolTime);
         DISPLAYLEVEL(2, "\r%79s\r", "");
         while (!cCompleted | !dCompleted) {
             UTIL_time_t clockStart;
             U64 clockLoop = g_nbIterations ? TIMELOOP_MICROSEC : 1;
 
             /* overheat protection */
-            if (UTIL_clockSpanMicro(coolTime) > ACTIVEPERIOD_MICROSEC) {
+            if (UTIL_clockSpanMicro(coolTime, ticksPerSecond) > ACTIVEPERIOD_MICROSEC) {
                 DISPLAYLEVEL(2, "\rcooling down ...    \r");
                 UTIL_sleep(COOLPERIOD_SEC);
-                coolTime = UTIL_getTime();
+                UTIL_getTime(&coolTime);
             }
 
             /* Compression */
@@ -225,15 +228,15 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
             if (!cCompleted) memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
             UTIL_sleepMilli(1);  /* give processor time to other processes */
-            UTIL_waitForNextTick();
-            clockStart = UTIL_getTime();
+            UTIL_waitForNextTick(ticksPerSecond);
+            UTIL_getTime(&clockStart);
 
             if (!cCompleted) {   /* still some time to do compression tests */
                 U32 nbLoops = 0;
                 if (compressor == BMK_ZSTD) {
                     ZSTD_parameters const zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
                     ZSTD_customMem const cmem = { NULL, NULL, NULL };
-                    ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, ZSTD_dlm_byRef, ZSTD_dm_auto, zparams.cParams, cmem);
+                    ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, 1 /*byRef*/, ZSTD_dm_auto, zparams.cParams, cmem);
                     if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict_advanced() allocation failure");
 
                     do {
@@ -254,7 +257,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                             blockTable[blockNb].cSize = rSize;
                         }
                         nbLoops++;
-                    } while (UTIL_clockSpanMicro(clockStart) < clockLoop);
+                    } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
                     ZSTD_freeCDict(cdict);
                 } else if (compressor == BMK_ZSTD_STREAM) {
                     ZSTD_parameters const zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
@@ -283,7 +286,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                             blockTable[blockNb].cSize = outBuffer.pos;
                         }
                         nbLoops++;
-                    } while (UTIL_clockSpanMicro(clockStart) < clockLoop);
+                    } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
                     ZSTD_freeCStream(zbc);
                 } else if (compressor == BMK_ZWRAP_ZLIB_REUSE || compressor == BMK_ZWRAP_ZSTD_REUSE || compressor == BMK_ZLIB_REUSE) {
                     z_stream def;
@@ -324,7 +327,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                             blockTable[blockNb].cSize = def.total_out;
                         }
                         nbLoops++;
-                    } while (UTIL_clockSpanMicro(clockStart) < clockLoop);
+                    } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
                     ret = deflateEnd(&def);
                     if (ret != Z_OK) EXM_THROW(1, "deflateEnd failure");
                 } else {
@@ -357,9 +360,9 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                             blockTable[blockNb].cSize = def.total_out;
                         }
                         nbLoops++;
-                    } while (UTIL_clockSpanMicro(clockStart) < clockLoop);
+                    } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
                 }
-                {   U64 const clockSpan = UTIL_clockSpanMicro(clockStart);
+                {   U64 const clockSpan = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
                     if (clockSpan < fastestC*nbLoops) fastestC = clockSpan / nbLoops;
                     totalCTime += clockSpan;
                     cCompleted = totalCTime>maxTime;
@@ -379,8 +382,8 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
             if (!dCompleted) memset(resultBuffer, 0xD6, srcSize);  /* warm result buffer */
 
             UTIL_sleepMilli(1); /* give processor time to other processes */
-            UTIL_waitForNextTick();
-            clockStart = UTIL_getTime();
+            UTIL_waitForNextTick(ticksPerSecond);
+            UTIL_getTime(&clockStart);
 
             if (!dCompleted) {
                 U32 nbLoops = 0;
@@ -403,7 +406,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                             blockTable[blockNb].resSize = regenSize;
                         }
                         nbLoops++;
-                    } while (UTIL_clockSpanMicro(clockStart) < clockLoop);
+                    } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
                     ZSTD_freeDDict(ddict);
                 } else if (compressor == BMK_ZSTD_STREAM) {
                     ZSTD_inBuffer inBuffer;
@@ -429,7 +432,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                             blockTable[blockNb].resSize = outBuffer.pos;
                         }
                         nbLoops++;
-                    } while (UTIL_clockSpanMicro(clockStart) < clockLoop);
+                    } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
                     ZSTD_freeDStream(zbd);
                 } else if (compressor == BMK_ZWRAP_ZLIB_REUSE || compressor == BMK_ZWRAP_ZSTD_REUSE || compressor == BMK_ZLIB_REUSE) {
                     z_stream inf;
@@ -465,7 +468,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                             blockTable[blockNb].resSize = inf.total_out;
                         }
                         nbLoops++;
-                    } while (UTIL_clockSpanMicro(clockStart) < clockLoop);
+                    } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
                     ret = inflateEnd(&inf);
                     if (ret != Z_OK) EXM_THROW(1, "inflateEnd failure");
                 } else {
@@ -499,9 +502,9 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                             blockTable[blockNb].resSize = inf.total_out;
                         }
                         nbLoops++;
-                    } while (UTIL_clockSpanMicro(clockStart) < clockLoop);
+                    } while (UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop);
                 }
-                {   U64 const clockSpan = UTIL_clockSpanMicro(clockStart);
+                {   U64 const clockSpan = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
                     if (clockSpan < fastestD*nbLoops) fastestD = clockSpan / nbLoops;
                     totalDTime += clockSpan;
                     dCompleted = totalDTime>maxTime;

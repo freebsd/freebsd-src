@@ -1,11 +1,10 @@
 /*
- * Copyright (c) 2015-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
- * You may select, at your option, one of the above-listed licenses.
  */
 
 
@@ -376,7 +375,6 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
             skippedSize = frameHeaderSize + ZSTD_blockHeaderSize;
             memcpy(buff2, dstBuff+skippedSize, g_cSize-skippedSize);
             srcSize = srcSize > 128 KB ? 128 KB : srcSize;    /* speed relative to block */
-            ZSTD_decompressBegin(g_zdc);
             break;
         }
     case 32:   /* ZSTD_decodeSeqHeaders */
@@ -423,6 +421,8 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     {   U32 loopNb;
 #       define TIME_SEC_MICROSEC     (1*1000000ULL) /* 1 second */
         U64 const clockLoop = TIMELOOP_S * TIME_SEC_MICROSEC;
+        UTIL_freq_t ticksPerSecond;
+        UTIL_initTimer(&ticksPerSecond);
         DISPLAY("%2i- %-30.30s : \r", benchNb, benchName);
         for (loopNb = 1; loopNb <= g_nbIterations; loopNb++) {
             UTIL_time_t clockStart;
@@ -430,13 +430,13 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
             U32 nbRounds;
 
             UTIL_sleepMilli(1);  /* give processor time to other processes */
-            UTIL_waitForNextTick();
-            clockStart = UTIL_getTime();
-            for (nbRounds=0; UTIL_clockSpanMicro(clockStart) < clockLoop; nbRounds++) {
+            UTIL_waitForNextTick(ticksPerSecond);
+            UTIL_getTime(&clockStart);
+            for (nbRounds=0; UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop; nbRounds++) {
                 benchResult = benchFunction(dstBuff, dstBuffSize, buff2, src, srcSize);
                 if (ZSTD_isError(benchResult)) { DISPLAY("ERROR ! %s() => %s !! \n", benchName, ZSTD_getErrorName(benchResult)); exit(1); }
             }
-            {   U64 const clockSpanMicro = UTIL_clockSpanMicro(clockStart);
+            {   U64 const clockSpanMicro = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
                 double const averageTime = (double)clockSpanMicro / TIME_SEC_MICROSEC / nbRounds;
                 if (averageTime < bestTime) bestTime = averageTime;
                 DISPLAY("%2i- %-30.30s : %7.1f MB/s  (%9u)\r", loopNb, benchName, (double)srcSize / (1 MB) / bestTime, (U32)benchResult);
