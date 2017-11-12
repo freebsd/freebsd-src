@@ -547,6 +547,62 @@
 #define	MSR_IA32_XSS		0xda0
 
 /*
+ * Intel Processor Trace (PT) MSRs.
+ */
+#define	MSR_IA32_RTIT_OUTPUT_BASE	0x560	/* Trace Output Base Register (R/W) */
+#define	MSR_IA32_RTIT_OUTPUT_MASK_PTRS	0x561	/* Trace Output Mask Pointers Register (R/W) */
+#define	MSR_IA32_RTIT_CTL		0x570	/* Trace Control Register (R/W) */
+#define	 RTIT_CTL_TRACEEN	(1 << 0)
+#define	 RTIT_CTL_CYCEN		(1 << 1)
+#define	 RTIT_CTL_OS		(1 << 2)
+#define	 RTIT_CTL_USER		(1 << 3)
+#define	 RTIT_CTL_PWREVTEN	(1 << 4)
+#define	 RTIT_CTL_FUPONPTW	(1 << 5)
+#define	 RTIT_CTL_FABRICEN	(1 << 6)
+#define	 RTIT_CTL_CR3FILTER	(1 << 7)
+#define	 RTIT_CTL_TOPA		(1 << 8)
+#define	 RTIT_CTL_MTCEN		(1 << 9)
+#define	 RTIT_CTL_TSCEN		(1 << 10)
+#define	 RTIT_CTL_DISRETC	(1 << 11)
+#define	 RTIT_CTL_PTWEN		(1 << 12)
+#define	 RTIT_CTL_BRANCHEN	(1 << 13)
+#define	 RTIT_CTL_MTC_FREQ_S	14
+#define	 RTIT_CTL_MTC_FREQ(n)	((n) << RTIT_CTL_MTC_FREQ_S)
+#define	 RTIT_CTL_MTC_FREQ_M	(0xf << RTIT_CTL_MTC_FREQ_S)
+#define	 RTIT_CTL_CYC_THRESH_S	19
+#define	 RTIT_CTL_CYC_THRESH_M	(0xf << RTIT_CTL_CYC_THRESH_S)
+#define	 RTIT_CTL_PSB_FREQ_S	24
+#define	 RTIT_CTL_PSB_FREQ_M	(0xf << RTIT_CTL_PSB_FREQ_S)
+#define	 RTIT_CTL_ADDR_CFG_S(n) (32 + (n) * 4)
+#define	 RTIT_CTL_ADDR0_CFG_S	32
+#define	 RTIT_CTL_ADDR0_CFG_M	(0xfULL << RTIT_CTL_ADDR0_CFG_S)
+#define	 RTIT_CTL_ADDR1_CFG_S	36
+#define	 RTIT_CTL_ADDR1_CFG_M	(0xfULL << RTIT_CTL_ADDR1_CFG_S)
+#define	 RTIT_CTL_ADDR2_CFG_S	40
+#define	 RTIT_CTL_ADDR2_CFG_M	(0xfULL << RTIT_CTL_ADDR2_CFG_S)
+#define	 RTIT_CTL_ADDR3_CFG_S	44
+#define	 RTIT_CTL_ADDR3_CFG_M	(0xfULL << RTIT_CTL_ADDR3_CFG_S)
+#define	MSR_IA32_RTIT_STATUS		0x571	/* Tracing Status Register (R/W) */
+#define	 RTIT_STATUS_FILTEREN	(1 << 0)
+#define	 RTIT_STATUS_CONTEXTEN	(1 << 1)
+#define	 RTIT_STATUS_TRIGGEREN	(1 << 2)
+#define	 RTIT_STATUS_ERROR	(1 << 4)
+#define	 RTIT_STATUS_STOPPED	(1 << 5)
+#define	 RTIT_STATUS_PACKETBYTECNT_S	32
+#define	 RTIT_STATUS_PACKETBYTECNT_M	(0x1ffffULL << RTIT_STATUS_PACKETBYTECNT_S)
+#define	MSR_IA32_RTIT_CR3_MATCH		0x572	/* Trace Filter CR3 Match Register (R/W) */
+#define	MSR_IA32_RTIT_ADDR_A(n)		(0x580 + (n) * 2)
+#define	MSR_IA32_RTIT_ADDR_B(n)		(0x581 + (n) * 2)
+#define	MSR_IA32_RTIT_ADDR0_A		0x580	/* Region 0 Start Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR0_B		0x581	/* Region 0 End Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR1_A		0x582	/* Region 1 Start Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR1_B		0x583	/* Region 1 End Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR2_A		0x584	/* Region 2 Start Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR2_B		0x585	/* Region 2 End Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR3_A		0x586	/* Region 3 Start Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR3_B		0x587	/* Region 3 End Address (R/W) */
+
+/*
  * Constants related to MSR's.
  */
 #define	APICBASE_RESERVED	0x000002ff
