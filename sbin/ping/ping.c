@@ -709,7 +709,7 @@ main(int argc, char *const *argv)
 	if (options & F_NUMERIC)
 		cansandbox = true;
 	else if (capdns != NULL)
-		cansandbox = true;
+		cansandbox = CASPER_SUPPORT;
 	else
 		cansandbox = false;
 
