@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.init.mk>
+
 MAN+=	beastie.4th.8 \
 	brand.4th.8 \
 	check-password.4th.8 \
@@ -36,8 +38,13 @@ FILES+=	support.4th
 FILES+=	version.4th
 FILESDIR_loader.conf=	/boot/defaults
 
-# Everybody has these, but you can override
-.PATH:	${BOOTSRC}/${MACHINE:C/amd64/i386/}/common ${BOOTSRC}/forth
-FILES+= loader.rc menu.rc
+# Allow machine specific loader.rc to be installed.
+.for f in loader.rc menu.rc
+.if exists(${BOOTSRC}/${MACHINE:C/amd64/i386/}/loader/${f})
+FILES+= ${BOOTSRC}/${MACHINE:C/amd64/i386/}/loader/${f}
+.else
+FILES+= ${f}
+.endif
+.endfor
 
 .include <bsd.prog.mk>
