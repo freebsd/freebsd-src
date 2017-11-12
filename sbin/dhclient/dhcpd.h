@@ -73,6 +73,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <libcasper.h>
+#include <casper/cap_syslog.h>
+
 #include "dhcp.h"
 #include "tree.h"
 
@@ -352,6 +355,7 @@ int addr_eq(struct iaddr, struct iaddr);
 char *piaddr(struct iaddr);
 
 /* dhclient.c */
+extern cap_channel_t *capsyslog;
 extern char *path_dhclient_conf;
 extern char *path_dhclient_db;
 extern time_t cur_time;
