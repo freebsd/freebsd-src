@@ -261,9 +261,9 @@ popcount_bytes(uint64_t *addr, uint32_t bit0, uint32_t bitN)
 }
 
 void *
-_kvm_pmap_get(kvm_t *kd, u_long index, size_t len)
+_kvm_pmap_get(kvm_t *kd, u_long idx, size_t len)
 {
-	off_t off = index * len;
+	off_t off = idx * len;
 
 	if (off >= kd->pt_sparse_off)
 		return (NULL);
@@ -699,10 +699,10 @@ again:
 }
 
 int
-_kvm_bitmap_init(struct kvm_bitmap *bm, u_long bitmapsize, u_long *index)
+_kvm_bitmap_init(struct kvm_bitmap *bm, u_long bitmapsize, u_long *idx)
 {
 
-	*index = ULONG_MAX;
+	*idx = ULONG_MAX;
 	bm->map = calloc(bitmapsize, sizeof *bm->map);
 	if (bm->map == NULL)
 		return (0);
@@ -720,23 +720,23 @@ _kvm_bitmap_set(struct kvm_bitmap *bm, u_long pa, unsigned int page_size)
 }
 
 int
-_kvm_bitmap_next(struct kvm_bitmap *bm, u_long *index)
+_kvm_bitmap_next(struct kvm_bitmap *bm, u_long *idx)
 {
 	u_long first_invalid = bm->size * CHAR_BIT;
 
-	if (*index == ULONG_MAX)
-		*index = 0;
+	if (*idx == ULONG_MAX)
+		*idx = 0;
 	else
-		(*index)++;
+		(*idx)++;
 
-	/* Find the next valid index. */
-	for (; *index < first_invalid; (*index)++) {
-		unsigned int mask = *index % CHAR_BIT;
-		if ((bm->map[*index * CHAR_BIT] & mask) == 0)
+	/* Find the next valid idx. */
+	for (; *idx < first_invalid; (*idx)++) {
+		unsigned int mask = *idx % CHAR_BIT;
+		if ((bm->map[*idx * CHAR_BIT] & mask) == 0)
 			break;
 	}
 
-	return (*index < first_invalid);
+	return (*idx < first_invalid);
 }
 
 void
