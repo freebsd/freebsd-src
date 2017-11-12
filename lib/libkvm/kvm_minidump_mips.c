@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
+#include <vm/vm.h>
 #include <kvm.h>
 #include <limits.h>
 #include <stdint.h>
@@ -296,6 +297,8 @@ _mips_iterator_next(struct mips_iter *it, u_long *pa, u_long *va, u_long *dva,
 	 * pages are R|X at least.
 	 */
 	*prot = VM_PROT_READ | VM_PROT_EXECUTE;
+	*pa = 0;
+	*va = 0;
 	*dva = 0;
 	for (;it->pteindex < it->nptes && found == 0; it->pteindex++) {
 		if (vm->pte_size == 64) {

@@ -42,8 +42,8 @@ typedef uint64_t	aarch64_pte_t;
 
 /* Source: arm64/include/pte.h */
 #define	AARCH64_ATTR_MASK	0xfff0000000000fff
-#define	AARCH64_ATTR_UXN	(1UL << 54)
-#define	AARCH64_ATTR_PXN	(1UL << 53)
+#define	AARCH64_ATTR_UXN	(1ULL << 54)
+#define	AARCH64_ATTR_PXN	(1ULL << 53)
 #define	AARCH64_ATTR_XN		(AARCH64_ATTR_PXN | AARCH64_ATTR_UXN)
 #define	AARCH64_ATTR_AP(x)	((x) << 6)
 #define	AARCH64_ATTR_AP_RO	(1 << 1)

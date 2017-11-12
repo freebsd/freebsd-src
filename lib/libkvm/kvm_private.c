@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <fcntl.h>
+#include <vm/vm.h>
 #include <kvm.h>
 #include <limits.h>
 #include <paths.h>
@@ -263,9 +264,9 @@ popcount_bytes(uint64_t *addr, uint32_t bit0, uint32_t bitN)
 void *
 _kvm_pmap_get(kvm_t *kd, u_long idx, size_t len)
 {
-	off_t off = idx * len;
+	uintptr_t off = idx * len;
 
-	if (off >= kd->pt_sparse_off)
+	if ((off_t)off >= kd->pt_sparse_off)
 		return (NULL);
 	return (void *)((uintptr_t)kd->page_map + off);
 }
@@ -362,9 +363,9 @@ _kvm_pt_init(kvm_t *kd, size_t map_len, off_t map_off, off_t sparse_off,
 	    MAP_PRIVATE, kd->pmfd, kd->pt_sparse_off);
 	if (kd->sparse_map == MAP_FAILED) {
 		_kvm_err(kd, kd->program, "cannot map %" PRIu64
-		    " bytes from fd %d offset %ld for sparse map: %s",
+		    " bytes from fd %d offset %jd for sparse map: %s",
 		    kd->pt_sparse_size, kd->pmfd,
-		    kd->pt_sparse_off, strerror(errno));
+		    (intmax_t)kd->pt_sparse_off, strerror(errno));
 		return (-1);
 	}
 	return (0);
@@ -385,7 +386,7 @@ _kvm_pmap_init(kvm_t *kd, uint32_t pmap_size, off_t pmap_off)
 	}
 	if (pread(kd->pmfd, kd->page_map, pmap_size, pmap_off) != exp_len) {
 		_kvm_err(kd, kd->program, "cannot read %d bytes from "
-		    "offset %ld for page map", pmap_size, pmap_off);
+		    "offset %jd for page map", pmap_size, (intmax_t)pmap_off);
 		return (-1);
 	}
 	return (0);

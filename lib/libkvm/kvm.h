@@ -36,7 +36,14 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <nlist.h>
-#include <vm/vm.h>
+
+/*
+ * Including vm/vm.h causes namespace pollution issues.  For the
+ * most part, only things using kvm_walk_pages() need to #include it.
+ */
+#ifndef VM_H
+typedef u_char vm_prot_t;
+#endif
 
 /* Default version symbol. */
 #define	VRS_SYM		"_version"
