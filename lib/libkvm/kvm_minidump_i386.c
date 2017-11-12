@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <vm/vm.h>
 #include <kvm.h>
 
 #include "../../sys/i386/include/minidump.h"
@@ -285,6 +286,10 @@ _i386_iterator_next(struct i386_iter *it, u_long *pa, u_long *va, u_long *dva,
 	int found = 0;
 
 	*dva = 0;
+	*pa = 0;
+	*va = 0;
+	*dva = 0;
+	*prot = 0;
 	for (; it->pteindex < it->nptes && found == 0; it->pteindex++) {
 		if (vm->hdr.paemode) {
 			pte64 = _i386_pte_pae_get(it->kd, it->pteindex);
