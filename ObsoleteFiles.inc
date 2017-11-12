@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171112: Removal of eqnchar definition
+OLD_FILES+=usr/share/misc/eqnchar
 # 20171110: Removal of mailaddr man page
 OLD_FILES+=usr/share/man/man7/mailaddr.7.gz
 # 20171108: badsect(8) removal
