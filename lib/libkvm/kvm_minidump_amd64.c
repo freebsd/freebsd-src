@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <vm/vm.h>
 #include <kvm.h>
 
 #include "../../sys/amd64/include/minidump.h"
@@ -59,9 +60,9 @@ _amd64_entry_to_prot(uint64_t entry)
 {
 	vm_prot_t prot = VM_PROT_READ;
 
-	if ((entry & PG_RW) != 0)
+	if ((entry & AMD64_PG_RW) != 0)
 		prot |= VM_PROT_WRITE;
-	if ((entry & PG_NX) == 0)
+	if ((entry & AMD64_PG_NX) == 0)
 		prot |= VM_PROT_EXECUTE;
 	return prot;
 }
@@ -351,12 +352,12 @@ _amd64_minidump_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *arg)
 		return (0);
 
 	for (pdeindex = 0; pdeindex < npdes; pdeindex++) {
-		pd_entry_t pde = _amd64_pde_get(kd, pdeindex);
-		pt_entry_t *ptes;
+		amd64_pde_t pde = _amd64_pde_get(kd, pdeindex);
+		amd64_pte_t *ptes;
 		u_long i;
 
 		va = vm->hdr.kernbase + (pdeindex << AMD64_PDRSHIFT);
-		if ((pde & PG_V) == 0)
+		if ((pde & AMD64_PG_V) == 0)
 			continue;
 
 		if ((pde & AMD64_PG_PS) != 0) {
@@ -366,7 +367,7 @@ _amd64_minidump_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *arg)
 			 * that every page here uses the same PDE to
 			 * generate permissions.
 			 */
-			pa = pde & AMD64_PG_PS_FRAME +
+			pa = (pde & AMD64_PG_PS_FRAME) +
 			    ((va & AMD64_PDRMASK) ^ VA_OFF(vm, va));
 			dva = vm->hdr.dmapbase + pa;
 			_kvm_bitmap_set(&bm, pa, AMD64_PAGE_SIZE);
@@ -383,12 +384,12 @@ _amd64_minidump_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *arg)
 		if (ptes == NULL)
 			continue;
 
-		for (i = 0; i < NPTEPG; i++) {
-			pt_entry_t pte = (u_long)ptes[i];
+		for (i = 0; i < AMD64_NPTEPG; i++) {
+			amd64_pte_t pte = (u_long)ptes[i];
 
 			pa = pte & AMD64_PG_FRAME;
 			dva = vm->hdr.dmapbase + pa;
-			if ((pte & PG_V) != 0) {
+			if ((pte & AMD64_PG_V) != 0) {
 				_kvm_bitmap_set(&bm, pa, AMD64_PAGE_SIZE);
 				if (!_kvm_visit_cb(kd, cb, arg, pa, va, dva,
 				    _amd64_entry_to_prot(pte), pgsz, 0)) {
