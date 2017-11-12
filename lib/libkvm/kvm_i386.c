@@ -51,6 +51,7 @@ static char sccsid[] = "@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <vm/vm.h>
 #include <kvm.h>
 
 #ifdef __i386__
