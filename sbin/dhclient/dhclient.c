@@ -2423,7 +2423,7 @@ go_daemon(void)
 	/* Stop logging to stderr... */
 	log_perror = 0;
 
-	if (daemon(1, 0) == -1)
+	if (daemon(1, 1) == -1)
 		error("daemon");
 
 	cap_rights_init(&rights);
