@@ -4550,8 +4550,6 @@ dev/mlx4/mlx4_ib/mlx4_ib_mad.c			optional mlx4ib pci ofed \
 	compile-with "${OFED_C}"
 dev/mlx4/mlx4_ib/mlx4_ib_main.c			optional mlx4ib pci ofed \
 	compile-with "${OFED_C}"
-dev/mlx4/mlx4_ib/mlx4_ib_exp.c			optional mlx4ib pci ofed \
-	compile-with "${OFED_C}"
 dev/mlx4/mlx4_ib/mlx4_ib_mr.c			optional mlx4ib pci ofed \
 	compile-with "${OFED_C}"
 dev/mlx4/mlx4_ib/mlx4_ib_qp.c			optional mlx4ib pci ofed \
