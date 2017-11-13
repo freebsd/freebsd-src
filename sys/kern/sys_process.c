@@ -869,17 +869,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 
 		/* not currently stopped */
-		if ((p->p_flag & (P_STOPPED_SIG | P_STOPPED_TRACE)) == 0 ||
+		if ((p->p_flag & P_STOPPED_TRACE) == 0 ||
 		    p->p_suspcount != p->p_numthreads  ||
 		    (p->p_flag & P_WAITED) == 0) {
 			error = EBUSY;
 			goto fail;
-		}
-
-		if ((p->p_flag & P_STOPPED_TRACE) == 0) {
-			static int count = 0;
-			if (count++ == 0)
-				printf("P_STOPPED_TRACE not set.\n");
 		}
 
 		/* OK */
@@ -1130,24 +1124,32 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 
 	sendsig:
-		/*
-		 * Clear the pending event for the thread that just
-		 * reported its event (p_xthread).  This may not be
-		 * the thread passed to PT_CONTINUE, PT_STEP, etc. if
-		 * the debugger is resuming a different thread.
-		 */
-		td2 = p->p_xthread;
+		/* proctree_locked is true for all but PT_KILL. */
 		if (proctree_locked) {
 			sx_xunlock(&proctree_lock);
 			proctree_locked = 0;
 		}
-		p->p_xsig = data;
-		p->p_xthread = NULL;
-		if ((p->p_flag & (P_STOPPED_SIG | P_STOPPED_TRACE)) != 0) {
-			/* deliver or queue signal */
-			td2->td_dbgflags &= ~TDB_XSIG;
-			td2->td_xsig = data;
+		
+		/* 
+		 * Clear the pending event for the thread that just
+		 * reported its event (p_xthread).  This may not be
+		 * the thread passed to PT_CONTINUE, PT_STEP, etc. if
+		 * the debugger is resuming a different thread.
+		 *
+		 * Deliver any pending signal via the reporting thread.
+		 */
+		if ((p->p_flag & P_STOPPED_TRACE) != 0) {
+			MPASS(p->p_xthread != NULL);
+			p->p_xthread->td_dbgflags &= ~TDB_XSIG;
+			p->p_xthread->td_xsig = data;
+			p->p_xthread = NULL;
+			p->p_xsig = data;
+		} else {
+			MPASS(p->p_xthread == NULL);
+			MPASS(req == PT_ATTACH);
+		}
 
+		if ((p->p_flag & (P_STOPPED_SIG | P_STOPPED_TRACE)) != 0) {
 			/*
 			 * P_WKILLED is insurance that a PT_KILL/SIGKILL always
 			 * works immediately, even if another thread is
@@ -1162,21 +1164,28 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 				FOREACH_THREAD_IN_PROC(p, td3)
 					td3->td_dbgflags &= ~TDB_SUSPEND;
 			}
+
 			/*
-			 * unsuspend all threads, to not let a thread run,
-			 * you should use PT_SUSPEND to suspend it before
-			 * continuing process.
+			 * Unsuspend all threads.  To leave a thread
+			 * suspended, use PT_SUSPEND to suspend it
+			 * before continuing the process.
 			 */
 			PROC_SLOCK(p);
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG|P_WAITED);
 			thread_unsuspend(p);
 			PROC_SUNLOCK(p);
-			if (req == PT_ATTACH)
-				kern_psignal(p, data);
-		} else {
-			if (data)
-				kern_psignal(p, data);
 		}
+
+		/*
+		 * For requests other than PT_ATTACH, P_STOPPED_TRACE
+		 * was set, so any pending signal in 'data' is
+		 * delivered via the reporting thread (p_xthread).
+		 * For PT_ATTACH the process is not yet stopped for
+		 * tracing, so P_STOPPED_TRACE cannot be set and the
+		 * SIGSTOP must be delivered to the process.
+		 */
+		if (req == PT_ATTACH)
+			kern_psignal(p, data);
 		break;
 
 	case PT_WRITE_I:
