@@ -340,6 +340,90 @@ Architecture-specific macros:
 .It riscv64sf   Ta Dv __riscv, Dv __riscv_xlen == 64
 .It sparc64     Ta Dv __sparc64__
 .El
+.Ss Important Xr make 1 variables
+Most of the externally settable variables are defined in the
+.Xr build 7
+man page.
+These variables are not otherwise documented and are used extensively
+in the build system.
+.Bl -column -offset indent "Sy Variable" "Sy Meaning and usage"
+.It Dv MACHINE	Represent the hardware platform.
+This is the same as the native platform's
+.Xr uname 1
+.Fl m
+output.
+It defines both the userland / kernel interface, as well as the
+bootloader / kernel interface.
+It should only be used in these contexts.
+Each CPU architecture may have multiple hardware platforms it supports
+where
+.Dv MACHINE
+differs among them.
+It is used to collect together all the files from
+.Xr config 8
+to build the kernel.
+It is often the same as
+.Dv MACHINE_ARCH
+just as one CPU architecture can be implemented by many different
+hardware platforms, one hardware platform may support multiple CPU
+architecture family members, though with different binaries.
+For example, 
+.Dv MACHINE
+of i386 supported the IBM-AT hardware platform while the
+.Dv MACHINE
+of pc98 supported the Japanese company NEC's PC-9801 and PC-9821
+hardware platforms.
+Both of these hardware platforms supported only the
+.Dv MACHINE_ARCH
+of i386 where they shared a common ABI, except for certain kernel /
+userland interfaces relating to underlying hardware platform
+differences in bus architecture, device enumeration and boot interface.
+.It Dv MACHINE_ARCH	Represents the CPU processor architecture.
+This is the same as the native platforms
+.Xr uname 1
+.Fl p
+output.
+It defines the CPU instruction family supported.
+It may also encode a variation in the byte ordering of multi-byte
+integers (endian).
+It may also encode a variation in the size of the integer or pointer.
+It may also encode a ISA revision.
+It may also encode hard versus soft floating point ABI and usage.
+It may also encode a variant ABI when there other factors don't
+uniquely define the ABI (eg, MIPS' n32 ABI).
+It, along with
+.Dv MACHINE, define the ABI used by the system.
+For example, the MIPS CPU processor family supports 9 different
+combinations encoding pointer size, endian and hard vs soft float (for
+8 combinations) as well as N32 (which only ever had one variation of
+all these).
+Generally, the plain CPU name specifies the most common (or at least
+first) variant of the CPU.
+This is why mips and mips64 imply 'big endian' while 'arm' and 'armv7'
+imply little endian.
+If we ever were to support the so-called x32 ABI (using 32-bit
+pointers on the amd64 architecture), it would most likely be encoded
+as amd64-x32.
+It is unfortunate that amd64 speifies the 64-bit evolution of the x86
+platform (it matches the 'first rule') as everybody else uses x86_64.
+There is no standard name for the processor: each OS selects its own
+conventions.
+.It Dv CPUTYPE	Sets the flavor of
+.Dv MACHINE_ARCH
+to build.
+It is used to optimize the build for a specific CPU / core that the
+binaries run on.
+Generally, this doesn't change the ABI, though it can be a fine line
+between optimization for specific cases.
+.It Dv TARGET	Used to set Dv MACHINE in the top level Makefile for cross building.
+Unused outside of that scope.
+It is not passed down to the rest of the build.
+Makefiles outside of the top level shouldn't use it at all (though
+some have their own private copy for hysterical raisons).
+.It Dv TARGET_ARCH	Used to set Dv MACHINE_ARCH by Fx's top level Makefile for cross building.
+Like
+.Dv TARGET , it is unused outside of that scope.
+.El
 .Sh SEE ALSO
 .Xr src.conf 5 ,
 .Xr build 7
