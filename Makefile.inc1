@@ -1986,6 +1986,9 @@ _rescue=rescue/rescue
 .if ${MK_TCSH} != "no"
 _tcsh=bin/csh
 .endif
+.if ${MK_FILE} != "no"
+_libmagic=lib/libmagic
+.endif
 
 # kernel-toolchain skips _cleanobj, so handle cleaning up previous
 # build-tools directories if needed.
@@ -2002,7 +2005,7 @@ _bt_clean=	${CLEANDIR}
     ${_rescue} \
     ${_share} \
     usr.bin/awk \
-    lib/libmagic \
+    ${_libmagic} \
     usr.bin/mkesdb_static \
     usr.bin/mkcsmapper_static \
     usr.bin/vi/catalog \
