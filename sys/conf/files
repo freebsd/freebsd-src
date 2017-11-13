@@ -4696,43 +4696,6 @@ dev/mlx5/mlx5_en/mlx5_en_rx.c			optional mlx5en pci inet inet6	\
 dev/mlx5/mlx5_en/mlx5_en_txrx.c			optional mlx5en pci inet inet6	\
 	compile-with "${OFED_C}"
 
-ofed/drivers/infiniband/hw/mthca/mthca_allocator.c	optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_av.c		optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_catas.c		optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_cmd.c		optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_cq.c		optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_eq.c		optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_mad.c		optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_main.c		optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_mcg.c		optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_memfree.c	optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_mr.c		optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_pd.c		optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_profile.c	optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_provider.c	optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_qp.c		optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_reset.c		optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_srq.c		optional mthca	\
-	compile-with "${OFED_C}"
-ofed/drivers/infiniband/hw/mthca/mthca_uar.c		optional mthca	\
-	compile-with "${OFED_C}"
-
 # crypto support
 opencrypto/cast.c		optional crypto | ipsec | ipsec_support
 opencrypto/criov.c		optional crypto | ipsec | ipsec_support
