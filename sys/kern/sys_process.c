@@ -1128,8 +1128,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 					sigqueue_delete(&td3->td_sigqueue,
 					    SIGSTOP);
 				}
-				td3->td_dbgflags &= ~(TDB_XSIG | TDB_FSTP);
+				td3->td_dbgflags &= ~(TDB_XSIG | TDB_FSTP |
+				    TDB_SUSPEND);
 			}
+
 			if ((p->p_flag2 & P2_PTRACE_FSTP) != 0) {
 				sigqueue_delete(&p->p_sigqueue, SIGSTOP);
 				p->p_flag2 &= ~P2_PTRACE_FSTP;
@@ -1169,11 +1171,6 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		 */
 		if (data == SIGKILL)
 			p->p_flag |= P_WKILLED;
-
-		if (req == PT_DETACH) {
-			FOREACH_THREAD_IN_PROC(p, td3)
-			    td3->td_dbgflags &= ~TDB_SUSPEND;
-		}
 
 		/*
 		 * Unsuspend all threads.  To leave a thread
