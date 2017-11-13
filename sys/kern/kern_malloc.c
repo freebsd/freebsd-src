@@ -237,7 +237,7 @@ sysctl_kmem_map_size(SYSCTL_HANDLER_ARGS)
 {
 	u_long size;
 
-	size = vmem_size(kmem_arena, VMEM_ALLOC);
+	size = vmem_size(kernel_arena, VMEM_ALLOC);
 	return (sysctl_handle_long(oidp, &size, 0, req));
 }
 
@@ -246,7 +246,7 @@ sysctl_kmem_map_free(SYSCTL_HANDLER_ARGS)
 {
 	u_long size;
 
-	size = vmem_size(kmem_arena, VMEM_FREE);
+	size = vmem_size(kernel_arena, VMEM_FREE);
 	return (sysctl_handle_long(oidp, &size, 0, req));
 }
 
@@ -757,9 +757,8 @@ kmeminit(void)
 #else
 	tmp = vm_kmem_size;
 #endif
-	vmem_init(kmem_arena, "kmem arena", kva_alloc(tmp), tmp, PAGE_SIZE,
-	    0, 0);
-	vmem_set_reclaim(kmem_arena, kmem_reclaim);
+	vmem_set_limit(kernel_arena, tmp);
+	vmem_set_reclaim(kernel_arena, kmem_reclaim);
 
 #ifdef DEBUG_MEMGUARD
 	/*
@@ -767,7 +766,7 @@ kmeminit(void)
 	 * replacement allocator used for detecting tamper-after-free
 	 * scenarios as they occur.  It is only used for debugging.
 	 */
-	memguard_init(kmem_arena);
+	memguard_init(kernel_arena);
 #endif
 }
 

@@ -1077,8 +1077,8 @@ page_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *pflag, int wait)
 {
 	void *p;	/* Returned page */
 
-	*pflag = UMA_SLAB_KMEM;
-	p = (void *) kmem_malloc(kmem_arena, bytes, wait);
+	*pflag = UMA_SLAB_KERNEL;
+	p = (void *) kmem_malloc(kernel_arena, bytes, wait);
 
 	return (p);
 }
@@ -1159,9 +1159,7 @@ page_free(void *mem, vm_size_t size, uint8_t flags)
 {
 	struct vmem *vmem;
 
-	if (flags & UMA_SLAB_KMEM)
-		vmem = kmem_arena;
-	else if (flags & UMA_SLAB_KERNEL)
+	if (flags & UMA_SLAB_KERNEL)
 		vmem = kernel_arena;
 	else
 		panic("UMA: page_free used with invalid flags %x", flags);
