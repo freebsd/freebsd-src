@@ -12,11 +12,7 @@ osm_log.c \
 osm_mad_pool.c \
 osm_helper.c
 
-.if defined(TESTBUILD)
-LDFLAGS=	-lpthread
-.else
 LIBADD=		pthread
-.endif
 CFLAGS+=	-I${.CURDIR}/.. -DHAVE_CONFIG_H=1
 CFLAGS+=	-I${INCLUDEDIR}/infiniband
 VERSION_MAP=	${.CURDIR}/../opensm/libopensm.map

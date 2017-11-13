@@ -8,9 +8,5 @@ CFLAGS+= -I${INCLUDEDIR}/infiniband
 CFLAGS+= -DHAVE_CONFIG_H=1
 CFLAGS+= -I${.CURDIR}/../../
 CFLAGS+= -I${.CURDIR}/../../src
-.if defined(TESTBUILD)
-LDFLAGS+= -losmcomp -libmad -libumad
-.else
 LIBADD+= osmcomp ibmad ibumad
-.endif
 

@@ -96,10 +96,6 @@ st.c
 MAN=		opensm.8
 CFLAGS+=	-I${.CURDIR}/.. -DHAVE_CONFIG_H=1
 CFLAGS+=	-I${INCLUDEDIR}/infiniband
-.if defined(TESTBUILD)
-LDFLAGS=	-lopensm -losmvendor -losmcomp -lwrap -lpthread
-.else
 LDADD=		opensm osmvendor osmcomp wrap pthread
-.endif
 
 .include <bsd.prog.mk>

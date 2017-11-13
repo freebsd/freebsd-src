@@ -23,11 +23,7 @@ serv.c \
 smp.c \
 vendor.c
 
-.if defined(TESTBUILD)
-LDFLAGS=	-libumad
-.else
 LIBADD=		ibumad
-.endif
 CFLAGS+=	-DHAVE_CONFIG_H=1
 CFLAGS+=	-I${.CURDIR}
 VERSION_MAP=	${.CURDIR}/libibmad.map
