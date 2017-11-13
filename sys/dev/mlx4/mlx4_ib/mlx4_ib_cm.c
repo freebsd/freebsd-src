@@ -242,8 +242,7 @@ static void sl_id_map_add(struct ib_device *ibdev, struct id_map_entry *new)
 static struct id_map_entry *
 id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
 {
-	int ret, id;
-	static int next_id;
+	int ret;
 	struct id_map_entry *ent;
 	struct mlx4_ib_sriov *sriov = &to_mdev(ibdev)->sriov;
 
@@ -259,25 +258,22 @@ id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
 	ent->dev = to_mdev(ibdev);
 	INIT_DELAYED_WORK(&ent->timeout, id_map_ent_timeout);
 
-	do {
-		spin_lock(&to_mdev(ibdev)->sriov.id_map_lock);
-		ret = idr_get_new_above(&sriov->pv_id_table, ent,
-					next_id, &id);
-		if (!ret) {
-			next_id = ((unsigned) id + 1) & MAX_IDR_MASK;
-			ent->pv_cm_id = (u32)id;
-			sl_id_map_add(ibdev, ent);
-		}
+	idr_preload(GFP_KERNEL);
+	spin_lock(&to_mdev(ibdev)->sriov.id_map_lock);
 
-		spin_unlock(&sriov->id_map_lock);
-	} while (ret == -EAGAIN && idr_pre_get(&sriov->pv_id_table, GFP_KERNEL));
-	/*the function idr_get_new_above can return -ENOSPC, so don't insert in that case.*/
-	if (!ret) {
-		spin_lock(&sriov->id_map_lock);
+	ret = idr_alloc_cyclic(&sriov->pv_id_table, ent, 0, 0, GFP_NOWAIT);
+	if (ret >= 0) {
+		ent->pv_cm_id = (u32)ret;
+		sl_id_map_add(ibdev, ent);
 		list_add_tail(&ent->list, &sriov->cm_list);
-		spin_unlock(&sriov->id_map_lock);
-		return ent;
 	}
+
+	spin_unlock(&sriov->id_map_lock);
+	idr_preload_end();
+
+	if (ret >= 0)
+		return ent;
+
 	/*error flow*/
 	kfree(ent);
 	mlx4_ib_warn(ibdev, "No more space in the idr (err:0x%x)\n", ret);
@@ -327,8 +323,7 @@ int mlx4_ib_multiplex_cm_handler(struct ib_device *ibdev, int port, int slave_id
 
 	if (mad->mad_hdr.attr_id == CM_REQ_ATTR_ID ||
 			mad->mad_hdr.attr_id == CM_REP_ATTR_ID ||
-			mad->mad_hdr.attr_id == CM_SIDR_REQ_ATTR_ID ||
-			mad->mad_hdr.attr_id == CM_SIDR_REP_ATTR_ID) {
+			mad->mad_hdr.attr_id == CM_SIDR_REQ_ATTR_ID) {
 		sl_cm_id = get_local_comm_id(mad);
 		id = id_map_alloc(ibdev, slave_id, sl_cm_id);
 		if (IS_ERR(id)) {
@@ -361,7 +356,7 @@ int mlx4_ib_multiplex_cm_handler(struct ib_device *ibdev, int port, int slave_id
 }
 
 int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
-			     struct ib_mad *mad, int is_eth)
+			     struct ib_mad *mad)
 {
 	u32 pv_cm_id;
 	struct id_map_entry *id;
@@ -370,7 +365,7 @@ int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
 	    mad->mad_hdr.attr_id == CM_SIDR_REQ_ATTR_ID) {
 		union ib_gid gid;
 
-		if (is_eth)
+		if (!slave)
 			return 0;
 
 		gid = gid_from_req_msg(ibdev, mad);
@@ -391,7 +386,7 @@ int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
 		return -ENOENT;
 	}
 
-	if (!is_eth)
+	if (slave)
 		*slave = id->slave_id;
 	set_remote_comm_id(mad, id->sl_cm_id);
 
@@ -411,7 +406,6 @@ void mlx4_ib_cm_paravirt_init(struct mlx4_ib_dev *dev)
 	INIT_LIST_HEAD(&dev->sriov.cm_list);
 	dev->sriov.sl_id_map = RB_ROOT;
 	idr_init(&dev->sriov.pv_id_table);
-	idr_pre_get(&dev->sriov.pv_id_table, GFP_KERNEL);
 }
 
 /* slave = -1 ==> all slaves */
