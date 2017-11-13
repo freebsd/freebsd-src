@@ -11,11 +11,7 @@ SRCS= \
 osm_vendor_ibumad.c \
 osm_vendor_ibumad_sa.c
 
-.if defined(TESTBUILD)
-LDFLAGS=	-libumad -lpthread
-.else
 LIBADD=		ibumad pthread
-.endif
 CFLAGS+=	-I${.CURDIR}/.. -DHAVE_CONFIG_H=1
 CFLAGS+=	-I${INCLUDEDIR}/infiniband
 VERSION_MAP=	${.CURDIR}/libosmvendor.map

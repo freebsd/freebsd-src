@@ -44,12 +44,4 @@ SUBDIR+= ${SUBDIR_${L}}
 
 SUBDIR_PARALLEL=
 
-.if defined(TESTBUILD)
-all-install:
-.for D in ${SUBDIR}
-	cd ${.CURDIR}/${D} ; ${MAKE} clean cleandepend
-	cd ${.CURDIR}/${D} ; ${MAKE} depend all install
-.endfor
-.else
 .include <bsd.subdir.mk>
-.endif

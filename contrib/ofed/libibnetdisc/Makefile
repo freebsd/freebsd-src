@@ -24,11 +24,7 @@ ibnd_iter_nodes.3 \
 ibnd_iter_nodes_type.3 \
 ibnd_show_progress.3
 
-.if defined(TESTBUILD)
-LDFLAGS=	-losmcomp -libmad -libumad
-.else
 LIBADD=		osmcomp ibmad ibumad
-.endif
 CFLAGS+=	-DHAVE_CONFIG_H=1
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${INCLUDEDIR}/infiniband

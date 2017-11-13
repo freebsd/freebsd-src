@@ -65,11 +65,7 @@ rdma_resolve_addr.3 \
 rdma_resolve_route.3 \
 rdma_set_option.3
 
-.if defined(TESTBUILD)
-LDFLAGS=	-libverbs
-.else
 LDADD=		ibverbs
-.endif
 VERSION_MAP=	${.CURDIR}/librdmacm.map
 
 .include <bsd.lib.mk>
