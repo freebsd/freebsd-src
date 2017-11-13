@@ -833,9 +833,6 @@ vmem_import(vmem_t *vm, vmem_size_t size, vmem_size_t align, int flags)
 	vmem_addr_t addr;
 	int error;
 
-	if (vm->vm_limit != 0 && vm->vm_limit < vm->vm_size + size)
-		return ENOMEM;
-
 	if (vm->vm_importfn == NULL)
 		return EINVAL;
 
@@ -846,6 +843,9 @@ vmem_import(vmem_t *vm, vmem_size_t size, vmem_size_t align, int flags)
 	if (align != vm->vm_quantum_mask + 1)
 		size = (align * 2) + size;
 	size = roundup(size, vm->vm_import_quantum);
+
+	if (vm->vm_limit != 0 && vm->vm_limit < vm->vm_size + size)
+		return ENOMEM;
 
 	/*
 	 * Hide MAXALLOC tags so we're guaranteed to be able to add this

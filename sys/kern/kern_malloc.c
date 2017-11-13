@@ -237,16 +237,22 @@ sysctl_kmem_map_size(SYSCTL_HANDLER_ARGS)
 {
 	u_long size;
 
-	size = vmem_size(kernel_arena, VMEM_ALLOC);
+	size = uma_size();
 	return (sysctl_handle_long(oidp, &size, 0, req));
 }
 
 static int
 sysctl_kmem_map_free(SYSCTL_HANDLER_ARGS)
 {
-	u_long size;
+	u_long size, limit;
 
-	size = vmem_size(kernel_arena, VMEM_FREE);
+	/* The sysctl is unsigned, implement as a saturation value. */
+	size = uma_size();
+	limit = uma_limit();
+	if (size > limit)
+		size = 0;
+	else
+		size = limit - size;
 	return (sysctl_handle_long(oidp, &size, 0, req));
 }
 
@@ -667,19 +673,6 @@ reallocf(void *addr, unsigned long size, struct malloc_type *mtp, int flags)
 	return (mem);
 }
 
-/*
- * Wake the uma reclamation pagedaemon thread when we exhaust KVA.  It
- * will call the lowmem handler and uma_reclaim() callbacks in a
- * context that is safe.
- */
-static void
-kmem_reclaim(vmem_t *vm, int flags)
-{
-
-	uma_reclaim_wakeup();
-	pagedaemon_wakeup();
-}
-
 #ifndef __sparc64__
 CTASSERT(VM_KMEM_SIZE_SCALE >= 1);
 #endif
@@ -757,8 +750,7 @@ kmeminit(void)
 #else
 	tmp = vm_kmem_size;
 #endif
-	vmem_set_limit(kernel_arena, tmp);
-	vmem_set_reclaim(kernel_arena, kmem_reclaim);
+	uma_set_limit(tmp);
 
 #ifdef DEBUG_MEMGUARD
 	/*
