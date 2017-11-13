@@ -2578,10 +2578,9 @@ pmc_find_pmc(pmc_id_t pmcid, struct pmc **pmc)
 	struct pmc_owner *po;
 	struct pmc_process *pp;
 
-	KASSERT(PMC_ID_TO_ROWINDEX(pmcid) < md->pmd_npmc,
-	    ("[pmc,%d] Illegal pmc index %d (max %d)", __LINE__,
-		PMC_ID_TO_ROWINDEX(pmcid), md->pmd_npmc));
 	PMCDBG1(PMC,FND,1, "find-pmc id=%d", pmcid);
+	if (PMC_ID_TO_ROWINDEX(pmcid) >= md->pmd_npmc)
+		return (EINVAL);
 
 	if ((po = pmc_find_owner_descriptor(curthread->td_proc)) == NULL) {
 		/*
