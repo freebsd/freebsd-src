@@ -28,7 +28,7 @@ ib_statustext.c
 
 CFLAGS+=	-I${.CURDIR}/.. -DHAVE_CONFIG_H=1
 CFLAGS+=	-I${INCLUDEDIR}/infiniband
-LDADD=		pthread
+LIBADD=		pthread
 VERSION_MAP=	${.CURDIR}/libosmcomp.map
 
 .include <bsd.lib.mk>

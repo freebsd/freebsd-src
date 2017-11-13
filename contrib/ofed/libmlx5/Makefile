@@ -16,7 +16,7 @@ qp.c \
 srq.c \
 verbs.c
 
-LDADD=		ibverbs pthread
+LIBADD=		ibverbs pthread
 CFLAGS+=	-I${.CURDIR}
 VERSION_MAP=	${.CURDIR}/libmlx5.map
 
