@@ -199,7 +199,6 @@ _LIBRARIES+= \
 		ibumad \
 		ibverbs \
 		mlx4 \
-		mthca \
 		opensm \
 		osmcomp \
 		osmvendor \
@@ -336,7 +335,6 @@ _DP_ibcm=	ibverbs
 _DP_ibmad=	ibcommon ibumad
 _DP_ibumad=	ibcommon
 _DP_mlx4=	ibverbs pthread
-_DP_mthca=	ibverbs pthread
 _DP_opensm=	pthread
 _DP_osmcomp=	pthread
 _DP_osmvendor=	ibumad opensm osmcomp pthread
@@ -488,7 +486,6 @@ LIBIBMADDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibmad
 LIBIBUMADDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibumad
 LIBIBVERBSDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibverbs
 LIBMLX4DIR=	${OBJTOP}/contrib/ofed/usr.lib/libmlx4
-LIBMTHCADIR=	${OBJTOP}/contrib/ofed/usr.lib/libmthca
 LIBOPENSMDIR=	${OBJTOP}/contrib/ofed/usr.lib/libopensm
 LIBOSMCOMPDIR=	${OBJTOP}/contrib/ofed/usr.lib/libosmcomp
 LIBOSMVENDORDIR=	${OBJTOP}/contrib/ofed/usr.lib/libosmvendor
