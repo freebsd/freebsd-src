@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/fnv_hash.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/ksem.h>
 #include <sys/lock.h>
@@ -444,12 +445,24 @@ ksem_remove(char *path, Fnv32_t fnv, struct ucred *ucred)
 static void
 ksem_info_impl(struct ksem *ks, char *path, size_t size, uint32_t *value)
 {
+	const char *ks_path, *pr_path;
+	size_t pr_pathlen;
 
 	if (ks->ks_path == NULL)
 		return;
 	sx_slock(&ksem_dict_lock);
-	if (ks->ks_path != NULL)
-		strlcpy(path, ks->ks_path, size);
+	ks_path = ks->ks_path;
+	if (ks_path != NULL) {
+		pr_path = curthread->td_ucred->cr_prison->pr_path;
+		if (strcmp(pr_path, "/") != 0) {
+			/* Return the jail-rooted pathname. */
+			pr_pathlen = strlen(pr_path);
+			if (strncmp(ks_path, pr_path, pr_pathlen) == 0 &&
+			    ks_path[pr_pathlen] == '/')
+				ks_path += pr_pathlen;
+		}
+		strlcpy(path, ks_path, size);
+	}
 	if (value != NULL)
 		*value = ks->ks_value;
 	sx_sunlock(&ksem_dict_lock);
@@ -493,6 +506,8 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 	struct ksem *ks;
 	struct file *fp;
 	char *path;
+	const char *pr_path;
+	size_t pr_pathlen;
 	Fnv32_t fnv;
 	int error, fd;
 
@@ -529,10 +544,16 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 			ks->ks_flags |= KS_ANONYMOUS;
 	} else {
 		path = malloc(MAXPATHLEN, M_KSEM, M_WAITOK);
-		error = copyinstr(name, path, MAXPATHLEN, NULL);
+		pr_path = td->td_ucred->cr_prison->pr_path;
+
+		/* Construct a full pathname for jailed callers. */
+		pr_pathlen = strcmp(pr_path, "/") == 0 ? 0
+		    : strlcpy(path, pr_path, MAXPATHLEN);
+		error = copyinstr(name, path + pr_pathlen,
+		    MAXPATHLEN - pr_pathlen, NULL);
 
 		/* Require paths to start with a '/' character. */
-		if (error == 0 && path[0] != '/')
+		if (error == 0 && path[pr_pathlen] != '/')
 			error = EINVAL;
 		if (error) {
 			fdclose(td, fp, fd);
@@ -668,11 +689,17 @@ int
 sys_ksem_unlink(struct thread *td, struct ksem_unlink_args *uap)
 {
 	char *path;
+	const char *pr_path;
+	size_t pr_pathlen;
 	Fnv32_t fnv;
 	int error;
 
 	path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	error = copyinstr(uap->name, path, MAXPATHLEN, NULL);
+	pr_path = td->td_ucred->cr_prison->pr_path;
+	pr_pathlen = strcmp(pr_path, "/") == 0 ? 0
+	    : strlcpy(path, pr_path, MAXPATHLEN);
+	error = copyinstr(uap->name, path + pr_pathlen, MAXPATHLEN - pr_pathlen,
+	    NULL);
 	if (error) {
 		free(path, M_TEMP);
 		return (error);
