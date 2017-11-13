@@ -22,7 +22,6 @@ FILES+=	delay.4th
 FILES+=	efi.4th
 FILES+=	frames.4th
 FILES+=	loader.4th
-FILES+=	loader.conf
 FILES+=	logo-beastie.4th
 FILES+=	logo-beastiebw.4th
 FILES+=	logo-fbsdbw.4th
@@ -39,7 +38,7 @@ FILES+=	version.4th
 FILESDIR_loader.conf=	/boot/defaults
 
 # Allow machine specific loader.rc to be installed.
-.for f in loader.rc menu.rc
+.for f in loader.rc menu.rc loader.conf
 .if exists(${BOOTSRC}/${MACHINE:C/amd64/i386/}/loader/${f})
 FILES+= ${BOOTSRC}/${MACHINE:C/amd64/i386/}/loader/${f}
 .else
