@@ -44,7 +44,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include <boot/userboot/userboot.h>
+#include <userboot.h>
 
 char *host_base = NULL;
 struct termios term, oldterm;
