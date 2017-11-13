@@ -65,7 +65,7 @@ rdma_resolve_addr.3 \
 rdma_resolve_route.3 \
 rdma_set_option.3
 
-LDADD=		ibverbs
+LIBADD=		ibverbs
 VERSION_MAP=	${.CURDIR}/librdmacm.map
 
 .include <bsd.lib.mk>
