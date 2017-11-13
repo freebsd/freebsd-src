@@ -523,12 +523,12 @@ after_sack_rexmit:
 	 * XXXGL: should there be used sbused() or sbavail()?
 	 */
 	if (V_tcp_do_autosndbuf && so->so_snd.sb_flags & SB_AUTOSIZE) {
-		int autosndbuf_mod = 0;
-		if (V_tcp_sendbuf_auto_lowat)
-			autosndbuf_mod = so->so_snd.sb_lowat;
+		int lowat;
 
-		if ((tp->snd_wnd / 4 * 5) >= so->so_snd.sb_hiwat - autosndbuf_mod &&
-		    sbused(&so->so_snd) >= (so->so_snd.sb_hiwat / 8 * 7) - autosndbuf_mod &&
+		lowat = V_tcp_sendbuf_auto_lowat ? so->so_snd.sb_lowat : 0;
+		if ((tp->snd_wnd / 4 * 5) >= so->so_snd.sb_hiwat - lowat &&
+		    sbused(&so->so_snd) >=
+		    (so->so_snd.sb_hiwat / 8 * 7) - lowat &&
 		    sbused(&so->so_snd) < V_tcp_autosndbuf_max &&
 		    sendwin >= (sbused(&so->so_snd) -
 		    (tp->snd_nxt - tp->snd_una))) {
