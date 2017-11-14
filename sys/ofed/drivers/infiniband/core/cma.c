@@ -2752,10 +2752,6 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 {
 	struct rdma_id_private *id_priv;
 	int ret;
-#if defined(INET6)
-	int ipv6only;
-	size_t var_size = sizeof(int);
-#endif
 
 	if (addr->sa_family != AF_INET && addr->sa_family != AF_INET6)
 		return -EAFNOSUPPORT;
@@ -2783,9 +2779,11 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 		if (addr->sa_family == AF_INET)
 			id_priv->afonly = 1;
 #if defined(INET6)
-		else if (addr->sa_family == AF_INET6)
-			id_priv->afonly = kernel_sysctlbyname(&thread0, "net.inet6.ip6.v6only",
-			                    &ipv6only, &var_size, NULL, 0, NULL, 0);
+		else if (addr->sa_family == AF_INET6) {
+			CURVNET_SET_QUIET(&init_net);
+			id_priv->afonly = V_ip6_v6only;
+			CURVNET_RESTORE();
+		}
 #endif
 	}
 	ret = cma_get_port(id_priv);
