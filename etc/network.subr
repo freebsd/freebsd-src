@@ -216,6 +216,10 @@ ifconfig_up()
 	ifalias $1 link alias
 	ifalias $1 ether alias
 
+	if [ ${_cfg} -eq 0 ]; then
+		${IFCONFIG_CMD} $1 up
+	fi
+
 	_ifconfig_descr=`get_if_var $1 ifconfig_IF_descr`
 	if [ -n "${_ifconfig_descr}" ]; then
 		${IFCONFIG_CMD} $1 description "${_ifconfig_descr}"
