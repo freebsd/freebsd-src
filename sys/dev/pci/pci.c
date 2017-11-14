@@ -6115,3 +6115,31 @@ pcie_flr(device_t dev, u_int max_delay, bool force)
 		pci_printf(&dinfo->cfg, "Transactions pending after FLR!\n");
 	return (true);
 }
+
+uint16_t
+pcie_link_status(device_t dev)
+{
+	struct pci_devinfo *dinfo;
+	struct pcicfg_pcie *cfg;
+	int pos;
+
+	dinfo = device_get_ivars(dev);
+	cfg = &dinfo->cfg.pcie;
+	pos = cfg->pcie_location;
+
+	return pci_read_config(dev, pos + PCIER_LINK_STA, 2);
+}
+
+uint16_t
+pcie_link_caps(device_t dev)
+{
+	struct pci_devinfo *dinfo;
+	struct pcicfg_pcie *cfg;
+	int pos;
+
+	dinfo = device_get_ivars(dev);
+	cfg = &dinfo->cfg.pcie;
+	pos = cfg->pcie_location;
+
+	return pci_read_config(dev, pos + PCIER_LINK_CAP, 2);
+}
