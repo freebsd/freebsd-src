@@ -4524,7 +4524,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 	char msg[SCTP_DIAG_INFO_LEN];
 	uint32_t vtag_in;
 	int num_chunks = 0;	/* number of control chunks processed */
-	uint32_t chk_length;
+	uint32_t chk_length, contiguous;
 	int ret;
 	int abort_no_unlock = 0;
 	int ecne_seen = 0;
@@ -4750,58 +4750,30 @@ process_control_chunks:
 		}
 		SCTP_STAT_INCR_COUNTER64(sctps_incontrolchunks);
 		/*
-		 * INIT-ACK only gets the init ack "header" portion only
-		 * because we don't have to process the peer's COOKIE. All
-		 * others get a complete chunk.
+		 * INIT and INIT-ACK only gets the init ack "header" portion
+		 * only because we don't have to process the peer's COOKIE.
+		 * All others get a complete chunk.
 		 */
-		if ((ch->chunk_type == SCTP_INITIATION_ACK) ||
-		    (ch->chunk_type == SCTP_INITIATION)) {
-			/* get an init-ack chunk */
-			ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
-			    sizeof(struct sctp_init_ack_chunk), chunk_buf);
-			if (ch == NULL) {
-				*offset = length;
-				if (stcb != NULL) {
-					SCTP_TCB_UNLOCK(stcb);
-				}
-				return (NULL);
+		switch (ch->chunk_type) {
+		case SCTP_INITIATION:
+			contiguous = sizeof(struct sctp_init_chunk);
+			break;
+		case SCTP_INITIATION_ACK:
+			contiguous = sizeof(struct sctp_init_ack_chunk);
+			break;
+		default:
+			contiguous = min(chk_length, sizeof(chunk_buf));
+			break;
+		}
+		ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
+		    contiguous,
+		    chunk_buf);
+		if (ch == NULL) {
+			*offset = length;
+			if (stcb != NULL) {
+				SCTP_TCB_UNLOCK(stcb);
 			}
-		} else {
-			/* For cookies and all other chunks. */
-			if (chk_length > sizeof(chunk_buf)) {
-				/*
-				 * use just the size of the chunk buffer so
-				 * the front part of our chunks fit in
-				 * contiguous space up to the chunk buffer
-				 * size (508 bytes). For chunks that need to
-				 * get more than that they must use the
-				 * sctp_m_getptr() function or other means
-				 * (e.g. know how to parse mbuf chains).
-				 * Cookies do this already.
-				 */
-				ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
-				    (sizeof(chunk_buf) - 4),
-				    chunk_buf);
-				if (ch == NULL) {
-					*offset = length;
-					if (stcb != NULL) {
-						SCTP_TCB_UNLOCK(stcb);
-					}
-					return (NULL);
-				}
-			} else {
-				/* We can fit it all */
-				ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
-				    chk_length, chunk_buf);
-				if (ch == NULL) {
-					SCTP_PRINTF("sctp_process_control: Can't get the all data....\n");
-					*offset = length;
-					if (stcb != NULL) {
-						SCTP_TCB_UNLOCK(stcb);
-					}
-					return (NULL);
-				}
-			}
+			return (NULL);
 		}
 		num_chunks++;
 		/* Save off the last place we got a control from */
@@ -5410,7 +5382,7 @@ process_control_chunks:
 				}
 				sctp_handle_packet_dropped((struct sctp_pktdrop_chunk *)ch,
 				    stcb, *netp,
-				    min(chk_length, (sizeof(chunk_buf) - 4)));
+				    min(chk_length, contiguous));
 			}
 			break;
 		case SCTP_AUTHENTICATION:
