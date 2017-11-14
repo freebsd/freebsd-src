@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/cpuinfo.h>
+#include <machine/elf.h>
+#include <machine/md_var.h>
 
 struct cpuinfo cpuinfo =
 {
@@ -47,6 +49,9 @@ struct cpuinfo cpuinfo =
 void
 cpuinfo_init(void)
 {
+#if __ARM_ARCH >= 6
+	uint32_t tmp;
+#endif
 
 	cpuinfo.midr = cp15_midr_get();
 	/* Test old version id schemes first */
@@ -150,6 +155,47 @@ cpuinfo_init(void)
 	}
 	cpuinfo.dcache_line_mask = cpuinfo.dcache_line_size - 1;
 	cpuinfo.icache_line_mask = cpuinfo.icache_line_size - 1;
+
+	/* Fill AT_HWCAP bits. */
+	elf_hwcap |= HWCAP_HALF | HWCAP_FAST_MULT; /* Requierd for all CPUs */
+	elf_hwcap |= HWCAP_TLS | HWCAP_EDSP;	   /* Requierd for v6+ CPUs */
+
+	tmp = (cpuinfo.id_isar0 >> 24) & 0xF;	/* Divide_instrs */
+	if (tmp >= 1)
+		elf_hwcap |= HWCAP_IDIVT;
+	if (tmp >= 2)
+		elf_hwcap |= HWCAP_IDIVA;
+
+	tmp = (cpuinfo.id_pfr0 >> 4) & 0xF; 	/* State1  */
+	if (tmp >= 1)
+		elf_hwcap |= HWCAP_THUMB;
+
+	tmp = (cpuinfo.id_pfr0 >> 12) & 0xF; 	/* State3  */
+	if (tmp >= 1)
+		elf_hwcap |= HWCAP_THUMBEE;
+
+	tmp = (cpuinfo.id_mmfr0 >> 0) & 0xF; 	/* VMSA */
+	if (tmp >= 5)
+		elf_hwcap |= HWCAP_LPAE;
+
+	/* Fill AT_HWCAP2 bits. */
+	tmp = (cpuinfo.id_isar5 >> 4) & 0xF;	/* AES */
+	if (tmp >= 1)
+		elf_hwcap2 |= HWCAP2_AES;
+	if (tmp >= 2)
+		elf_hwcap2 |= HWCAP2_PMULL;
+
+	tmp = (cpuinfo.id_isar5 >> 8) & 0xF;	/* SHA1 */
+	if (tmp >= 1)
+		elf_hwcap2 |= HWCAP2_SHA1;
+
+	tmp = (cpuinfo.id_isar5 >> 12) & 0xF;	/* SHA2 */
+	if (tmp >= 1)
+		elf_hwcap2 |= HWCAP2_SHA2;
+
+	tmp = (cpuinfo.id_isar5 >> 16) & 0xF;	/* CRC32 */
+	if (tmp >= 1)
+		elf_hwcap2 |= HWCAP2_CRC32;
 #endif
 }
 
