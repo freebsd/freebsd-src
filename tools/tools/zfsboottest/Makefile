@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:		${SRCTOP}/sys/boot/zfs ${SRCTOP}/sys/cddl/boot/zfs
+.PATH:		${SRCTOP}/stand/zfs ${SRCTOP}/sys/cddl/boot/zfs
 
 BINDIR?=	/usr/bin
 SCRIPTSDIR?=	/usr/bin
@@ -11,7 +11,7 @@ SCRIPTSNAME=	zfsboottest.sh
 MAN=
 
 CFLAGS=	-O1 \
-	-I${SRCTOP}/sys/boot/zfs \
+	-I${SRCTOP}/stand/zfs \
 	-I${SRCTOP}/sys/cddl/boot/zfs \
 	-I. \
 	-fdiagnostics-show-option \

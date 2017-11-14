@@ -1,4 +1,4 @@
-# Common defines for all of /sys/boot/i386/
+# Common defines for all of stand/i386/
 #
 # $FreeBSD$
 

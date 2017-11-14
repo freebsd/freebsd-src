@@ -3,8 +3,11 @@
 
 DIRDEPS = \
 	include \
-	sys/boot/i386/btx/btx \
-	sys/boot/i386/btx/lib \
+	include/xlocale \
+	lib/libmd \
+	stand/efi/libefi \
+	stand/libsa \
+	stand/zfs \
 
 
 .include <dirdeps.mk>
