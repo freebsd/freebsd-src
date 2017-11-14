@@ -257,7 +257,7 @@ g_mountver_create(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 	}
 	gp = g_new_geomf(mp, "%s", name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
-	mtx_init(&sc->sc_mtx, "gmountver", NULL, MTX_DEF);
+	mtx_init(&sc->sc_mtx, "gmountver", NULL, MTX_DEF | MTX_RECURSE);
 	TAILQ_INIT(&sc->sc_queue);
 	sc->sc_provider_name = strdup(pp->name, M_GEOM);
 	gp->softc = sc;
@@ -270,6 +270,7 @@ g_mountver_create(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 	newpp = g_new_providerf(gp, "%s", gp->name);
 	newpp->mediasize = pp->mediasize;
 	newpp->sectorsize = pp->sectorsize;
+	newpp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 
 	if ((pp->flags & G_PF_ACCEPT_UNMAPPED) != 0) {
 		G_MOUNTVER_DEBUG(0, "Unmapped supported for %s.", gp->name);
@@ -280,6 +281,7 @@ g_mountver_create(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 	}
 
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 	if (error != 0) {
 		gctl_error(req, "Cannot attach to provider %s.", pp->name);
