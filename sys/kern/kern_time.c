@@ -408,7 +408,7 @@ kern_clock_settime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 	if (ats->tv_nsec < 0 || ats->tv_nsec >= 1000000000 ||
 	    ats->tv_sec < 0)
 		return (EINVAL);
-	if (!allow_insane_settime && ats->tv_sec > 9999ULL * 366 * 24 * 60 * 60)
+	if (!allow_insane_settime && ats->tv_sec > 8000ULL * 365 * 24 * 60 * 60)
 		return (EINVAL);
 	/* XXX Don't convert nsec->usec and back */
 	TIMESPEC_TO_TIMEVAL(&atv, ats);
