@@ -16,7 +16,7 @@ write_partition_layout() {
 
 	BOOTFILES="$(env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 	    WITH_UNIFIED_OBJDIR=yes \
-	    make -C ${WORLDDIR}/sys/boot -V .OBJDIR)"
+	    make -C ${WORLDDIR}/stand -V .OBJDIR)"
 	BOOTFILES="$(realpath ${BOOTFILES})"
 
 	case "${TARGET}:${TARGET_ARCH}" in

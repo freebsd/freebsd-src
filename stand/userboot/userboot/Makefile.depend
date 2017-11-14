@@ -4,10 +4,9 @@
 DIRDEPS = \
 	include \
 	include/xlocale \
-	lib/libmd \
-	sys/boot/efi/libefi \
-	sys/boot/libsa \
-	sys/boot/zfs \
+	stand/ficl \
+	stand/libsa \
+	stand/zfs \
 
 
 .include <dirdeps.mk>

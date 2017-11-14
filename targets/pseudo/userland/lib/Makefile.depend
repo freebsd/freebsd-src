@@ -196,7 +196,7 @@ DIRDEPS+= \
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
     ${MACHINE_CPUARCH} == "powerpc"
-DIRDEPS+= sys/boot/libsa32
+DIRDEPS+= stand/libsa32
 .endif
 
 .if defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mfilter}
