@@ -152,8 +152,6 @@ BIN1+= regdomain.xml
 # -rwxr-xr-x root:wheel, for the new cron root:wheel
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
-PPPCNF=	ppp.conf
-
 .if ${MK_SENDMAIL} == "no"
 ETCMAIL=mailer.conf aliases
 .else
