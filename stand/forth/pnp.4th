@@ -45,7 +45,7 @@ structure: pnpident
 	sizeof STAILQ_ENTRY cells member: pnpid.link	\ pnpident
 ;structure
 
-structure: pnpinfo \ sync with sys/boot/config/bootstrap.h
+structure: pnpinfo \ sync with stand/common/bootstrap.h
 	ptr pnpi.desc
 	int pnpi.revision
 	ptr pnpi.module				\ (char*) module args
