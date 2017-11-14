@@ -598,6 +598,8 @@ uint32_t pcie_adjust_config(device_t dev, int reg, uint32_t mask,
 bool	pcie_flr(device_t dev, u_int max_delay, bool force);
 int	pcie_get_max_completion_timeout(device_t dev);
 bool	pcie_wait_for_pending_transactions(device_t dev, u_int max_delay);
+uint16_t pcie_link_status(device_t dev);
+uint16_t pcie_link_caps(device_t dev);
 
 #ifdef BUS_SPACE_MAXADDR
 #if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
