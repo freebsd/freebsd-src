@@ -33,9 +33,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/imgact_elf.h>
 #include <sys/kernel.h>
 
 #include <machine/armreg.h>
+#include <machine/elf.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
@@ -115,6 +117,7 @@ vfp_init(void)
 		vfp_exists = 1;
 		is_d32 = 0;
 		PCPU_SET(vfpsid, fpsid);	/* save the fpsid */
+		elf_hwcap |= HWCAP_VFP;
 
 		vfp_arch =
 		    (fpsid & VFPSID_SUBVERSION2_MASK) >> VFPSID_SUBVERSION_OFF;
@@ -122,9 +125,13 @@ vfp_init(void)
 		if (vfp_arch >= VFP_ARCH3) {
 			tmp = fmrx(mvfr0);
 			PCPU_SET(vfpmvfr0, tmp);
+			elf_hwcap |= HWCAP_VFPv3;
 
-			if ((tmp & VMVFR0_RB_MASK) == 2)
+			if ((tmp & VMVFR0_RB_MASK) == 2) {
+				elf_hwcap |= HWCAP_VFPD32;
 				is_d32 = 1;
+			} else
+				elf_hwcap |= HWCAP_VFPv3D16;
 
 			tmp = fmrx(mvfr1);
 			PCPU_SET(vfpmvfr1, tmp);
@@ -137,6 +144,13 @@ vfp_init(void)
 					    initial_fpscr;
 				}
 			}
+
+			if ((tmp & VMVFR1_LS_MASK) >> VMVFR1_LS_OFF == 1 &&
+			    (tmp & VMVFR1_I_MASK) >> VMVFR1_I_OFF == 1 &&
+			    (tmp & VMVFR1_SP_MASK) >> VMVFR1_SP_OFF == 1)
+				elf_hwcap |= HWCAP_NEON;
+			if ((tmp & VMVFR1_FMAC_MASK) >>  VMVFR1_FMAC_OFF == 1)
+				elf_hwcap |= HWCAP_VFPv4;
 		}
 
 		/* initialize the coprocess 10 and 11 calls

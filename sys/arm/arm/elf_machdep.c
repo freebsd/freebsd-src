@@ -48,6 +48,9 @@ __FBSDID("$FreeBSD$");
 
 static boolean_t elf32_arm_abi_supported(struct image_params *);
 
+u_long elf_hwcap;
+u_long elf_hwcap2;
+
 struct sysentvec elf32_freebsd_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= sysent,
@@ -77,7 +80,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 #if __ARM_ARCH >= 6
 			  SV_SHP | SV_TIMEKEEP |
 #endif
-			  SV_ABI_FREEBSD | SV_ILP32,
+			  SV_ABI_FREEBSD | SV_ILP32 | SV_HWCAP,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
@@ -86,6 +89,8 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
 	.sv_trap	= NULL,
+	.sv_hwcap	= &elf_hwcap,
+	.sv_hwcap2	= &elf_hwcap2,
 };
 INIT_SYSENTVEC(elf32_sysvec, &elf32_freebsd_sysvec);
 
