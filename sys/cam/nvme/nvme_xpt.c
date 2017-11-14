@@ -639,12 +639,14 @@ nvme_announce_periph(struct cam_periph *periph)
 static void
 nvme_proto_announce(struct cam_ed *device)
 {
+
 	nvme_print_ident(device->nvme_cdata, device->nvme_data);
 }
 
 static void
 nvme_proto_denounce(struct cam_ed *device)
 {
+
 	nvme_print_ident(device->nvme_cdata, device->nvme_data);
 }
 
