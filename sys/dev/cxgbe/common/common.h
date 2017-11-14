@@ -373,6 +373,9 @@ struct adapter_params {
 	unsigned int max_ird_adapter;
 
 	uint32_t mps_bg_map;	/* rx buffer group map for all ports (upto 4) */
+
+	bool ulptx_memwrite_dsgl;        /* use of T5 DSGL allowed */
+	bool fr_nsmr_tpte_wr_support;    /* FW support for FR_NSMR_TPTE_WR */
 };
 
 #define CHELSIO_T4		0x4
