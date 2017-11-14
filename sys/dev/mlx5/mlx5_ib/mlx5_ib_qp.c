@@ -2497,7 +2497,7 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	}
 
 	for (nreq = 0; wr; nreq++, wr = wr->next) {
-		if (unlikely(wr->opcode >= ARRAY_SIZE(mlx5_ib_opcode))) {
+		if (unlikely(wr->opcode < 0 || wr->opcode >= ARRAY_SIZE(mlx5_ib_opcode))) {
 			mlx5_ib_warn(dev, "Invalid opcode 0x%x\n", wr->opcode);
 			err = -EINVAL;
 			*bad_wr = wr;
