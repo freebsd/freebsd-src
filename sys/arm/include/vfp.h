@@ -148,6 +148,8 @@ struct vfp_state {
 };
 
 #ifdef _KERNEL
+void	get_vfpcontext(struct thread *, mcontext_vfp_t *);
+void	set_vfpcontext(struct thread *, mcontext_vfp_t *);
 void    vfp_init(void);
 void    vfp_store(struct vfp_state *, boolean_t);
 void    vfp_discard(struct thread *);
