@@ -271,6 +271,14 @@ g_mountver_create(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 	newpp->mediasize = pp->mediasize;
 	newpp->sectorsize = pp->sectorsize;
 
+	if ((pp->flags & G_PF_ACCEPT_UNMAPPED) != 0) {
+		G_MOUNTVER_DEBUG(0, "Unmapped supported for %s.", gp->name);
+		newpp->flags |= G_PF_ACCEPT_UNMAPPED;
+	} else {
+		G_MOUNTVER_DEBUG(0, "Unmapped unsupported for %s.", gp->name);
+		newpp->flags &= ~G_PF_ACCEPT_UNMAPPED;
+	}
+
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
 	if (error != 0) {
