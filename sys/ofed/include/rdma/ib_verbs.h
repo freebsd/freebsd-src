@@ -1136,6 +1136,8 @@ enum ib_wr_opcode {
 	IB_WR_RESERVED8,
 	IB_WR_RESERVED9,
 	IB_WR_RESERVED10,
+
+	IB_WR_DUMMY = -1,	/* force enum type signed */
 };
 
 enum ib_send_flags {

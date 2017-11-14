@@ -1765,7 +1765,7 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 		qp->wrid[ind] = wr->wr_id;
 
-		if (wr->opcode >= ARRAY_SIZE(mthca_opcode)) {
+		if (wr->opcode < 0 || wr->opcode >= ARRAY_SIZE(mthca_opcode)) {
 			mthca_err(dev, "opcode invalid\n");
 			err = -EINVAL;
 			*bad_wr = wr;
