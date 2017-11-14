@@ -31,4 +31,6 @@
 
 verify_runnable "global"
 
-default_cleanup
+default_cleanup_noexit
+cleanup_devices ${DISKS}
+log_pass
