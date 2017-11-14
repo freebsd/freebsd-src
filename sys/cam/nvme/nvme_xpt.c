@@ -619,35 +619,49 @@ nvme_announce_periph(struct cam_periph *periph)
 	struct	ccb_pathinq cpi;
 	struct	ccb_trans_settings cts;
 	struct	cam_path *path = periph->path;
+	struct ccb_trans_settings_nvme	*nvmex;
 
 	cam_periph_assert(periph, MA_OWNED);
 
+	/* Ask the SIM for connection details */
 	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_CURRENT_SETTINGS;
 	xpt_action((union ccb*)&cts);
 	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 		return;
+	nvmex = &cts.xport_specific.nvme;
+
 	/* Ask the SIM for its base transfer speed */
 	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
-	/* XXX NVME STUFF HERE */
+	printf("%s%d: nvme version %d.%d x%d (max x%d) lanes PCIe Gen%d (max Gen%d) link",
+	    periph->periph_name, periph->unit_number,
+	    NVME_MAJOR(nvmex->spec),
+	    NVME_MINOR(nvmex->spec),
+	    nvmex->lanes, nvmex->max_lanes,
+	    nvmex->speed, nvmex->max_speed);
 	printf("\n");
 }
 
 static void
 nvme_proto_announce(struct cam_ed *device)
 {
+	struct sbuf	sb;
+	char		buffer[120];
 
-	nvme_print_ident(device->nvme_cdata, device->nvme_data);
+	sbuf_new(&sb, buffer, sizeof(buffer), SBUF_FIXEDLEN);
+	nvme_print_ident(device->nvme_cdata, device->nvme_data, &sb);
+	sbuf_finish(&sb);
+	sbuf_putbuf(&sb);
 }
 
 static void
 nvme_proto_denounce(struct cam_ed *device)
 {
 
-	nvme_print_ident(device->nvme_cdata, device->nvme_data);
+	nvme_proto_announce(device);
 }
 
 static void
