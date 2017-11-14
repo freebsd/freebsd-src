@@ -77,7 +77,13 @@ function verify_export_import #pool #file #chksum
 	typeset file=$2
 	typeset checksum1=$3
 
-	log_must $ZPOOL export $pool
+	if ! $ZPOOL export $pool; then
+		# Rarely, this can fail with EBUSY if the pool's configuration
+		# has already changed within the same transaction group.  In
+		# that case, it is appropriate to retry.
+		$SYNC
+		log_must $ZPOOL export $POOL
+	fi
 	log_must $ZPOOL import -d $HOTSPARE_TMPDIR $pool
 
 	[[ ! -e $file ]] && \
