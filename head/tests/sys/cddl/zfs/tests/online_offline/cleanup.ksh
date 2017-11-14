@@ -31,6 +31,7 @@
 
 verify_runnable "global"
 
+reap_children
 default_cleanup_noexit
 cleanup_devices ${DISKS}
 log_pass

@@ -30,11 +30,6 @@
 
 verify_runnable "global"
 
-function cleanup
-{
-	reap_children
-}
-
 function verify_assertion
 {
 	busy_path $TESTDIR
