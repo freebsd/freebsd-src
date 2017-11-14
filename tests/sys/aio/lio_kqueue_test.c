@@ -47,7 +47,6 @@
 
 #define PATH_TEMPLATE   "aio.XXXXXXXXXX"
 
-#define DEBUG
 #define LIO_MAX 5
 #define MAX_IOCBS_PER_LIO	64
 #define MAX_IOCBS (LIO_MAX * MAX_IOCBS_PER_LIO)
@@ -119,8 +118,8 @@ main(int argc, char *argv[])
 				    = iocb[k]->aio_nbytes * k * (run + 1);
 
 #ifdef DEBUG
-				printf("hello iocb[k] %ld\n",
-				       iocb[k]->aio_offset);
+				printf("hello iocb[k] %jd\n",
+				       (intmax_t)iocb[k]->aio_offset);
 #endif
 				iocb[k]->aio_lio_opcode = LIO_WRITE;
 			}
@@ -133,8 +132,9 @@ main(int argc, char *argv[])
 			error = errno;
 			time(&time2);
 #ifdef DEBUG
-			printf("Time %ld %ld %ld result -> %d\n",
-			    time1, time2, time2-time1, result);
+			printf("Time %jd %jd %jd result -> %d\n",
+			    (intmax_t)time1, (intmax_t)time2,
+			    (intmax_t)time2-time1, result);
 #endif
 			if (result != 0) {
 			        errno = error;
