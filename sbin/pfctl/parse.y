@@ -4390,8 +4390,11 @@ route_host	: STRING			{
 			$$->tail = $$;
 		}
 		| '(' STRING host ')'		{
+			struct node_host *n;
+
 			$$ = $3;
-			$$->ifname = $2;
+			for (n = $3; n != NULL; n = n->next)
+				n->ifname = $2;
 		}
 		;
 
