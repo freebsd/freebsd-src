@@ -16,6 +16,16 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20171115	p24	FreeBSD-SA-17:08.ptrace
+			FreeBSD-SA-17:09.shm
+			FreeBSD-SA-17:10.kldstat
+
+	Fix ptrace(2) vulnerability. [SA-17:08.ptrace]
+
+	Fix POSIX shm namespace vulnerability. [SA-17:09.shm]
+
+	Fix kldstat(2) vulnerability. [SA-17:10.kldstat]
+
 20171102	p23	FreeBSD-EN-17:09.tzdata
 
 	Update timezone database information. [EN-17:09]
