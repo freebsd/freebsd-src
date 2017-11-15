@@ -641,7 +641,7 @@ static int init_qpg_parent(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *pqp,
 		err = mlx4_ib_steer_qp_alloc(dev, tss_align_num, &tss_base);
 	else
 		err = mlx4_qp_reserve_range(dev->dev, tss_align_num,
-				tss_align_num, &tss_base, MLX4_RESERVE_BF_QP);
+				tss_align_num, &tss_base, MLX4_RESERVE_ETH_BF_QP);
 	if (err)
 		goto err1;
 
@@ -801,7 +801,7 @@ static int alloc_qpn_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 		 * VLAN insertion. */
 		if (attr->qp_type == IB_QPT_RAW_PACKET) {
 			err = mlx4_qp_reserve_range(dev->dev, 1, 1, qpn,
-						    MLX4_RESERVE_BF_QP);
+						    MLX4_RESERVE_ETH_BF_QP);
 		} else {
 			if(qp->flags & MLX4_IB_QP_NETIF)
 				err = mlx4_ib_steer_qp_alloc(dev, 1, qpn);
@@ -1016,7 +1016,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			goto err;
 
 		if (mlx4_ib_qp_has_rq(init_attr)) {
-			err = mlx4_db_alloc(dev->dev, &qp->db, 0);
+			err = mlx4_db_alloc(dev->dev, &qp->db, 0, GFP_KERNEL);
 			if (err)
 				goto err;
 
@@ -1033,7 +1033,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		} else
 			qp->bf.uar = &dev->priv_uar;
 
-		if (mlx4_buf_alloc(dev->dev, qp->buf_size, PAGE_SIZE * 2, &qp->buf)) {
+		if (mlx4_buf_alloc(dev->dev, qp->buf_size, PAGE_SIZE * 2, &qp->buf, GFP_KERNEL)) {
 			err = -ENOMEM;
 			goto err_db;
 		}
@@ -1043,7 +1043,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		if (err)
 			goto err_buf;
 
-		err = mlx4_buf_write_mtt(dev->dev, &qp->mtt, &qp->buf);
+		err = mlx4_buf_write_mtt(dev->dev, &qp->mtt, &qp->buf, GFP_KERNEL);
 		if (err)
 			goto err_mtt;
 
@@ -1070,7 +1070,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			goto err_proxy;
 	}
 
-	err = mlx4_qp_alloc(dev->dev, qpn, &qp->mqp);
+	err = mlx4_qp_alloc(dev->dev, qpn, &qp->mqp, GFP_KERNEL);
 	if (err)
 		goto err_qpn;
 
@@ -1408,12 +1408,10 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 		       return ERR_PTR(-EINVAL);
 	}
 
-	if ((mlx4_qp_flags &
+	if (mlx4_qp_flags &
 		(MLX4_IB_QP_CAP_CROSS_CHANNEL |
 		 MLX4_IB_QP_CAP_MANAGED_SEND |
-		 MLX4_IB_QP_CAP_MANAGED_RECV)) &&
-	     !(to_mdev(device)->dev->caps.flags &
-		MLX4_DEV_CAP_FLAG_CROSS_CHANNEL)) {
+		 MLX4_IB_QP_CAP_MANAGED_RECV)) {
 		pr_debug("%s Does not support cross-channel operations\n",
 			 to_mdev(device)->ib_dev.name);
 		return ERR_PTR(-EINVAL);
@@ -1956,27 +1954,6 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 		optpar |= MLX4_QP_OPTPAR_RWE | MLX4_QP_OPTPAR_RRE | MLX4_QP_OPTPAR_RAE;
 	}
 
-	if (attr_mask & IB_M_EXT_CLASS_1)
-		context->params2 |= cpu_to_be32(MLX4_QP_BIT_COLL_MASTER);
-
-	/* for now we enable also sqe on send */
-	if (attr_mask & IB_M_EXT_CLASS_2) {
-		context->params2 |= cpu_to_be32(MLX4_QP_BIT_COLL_SYNC_SQ);
-		context->params2 |= cpu_to_be32(MLX4_QP_BIT_COLL_MASTER);
-	}
-
-	if (attr_mask & IB_M_EXT_CLASS_3)
-		context->params2 |= cpu_to_be32(MLX4_QP_BIT_COLL_SYNC_RQ);
-
-	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
-		context->params2 |= (qp->flags & MLX4_IB_QP_CAP_CROSS_CHANNEL ?
-			cpu_to_be32(MLX4_QP_BIT_COLL_MASTER) : 0);
-		context->params2 |= (qp->flags & MLX4_IB_QP_CAP_MANAGED_SEND ?
-			cpu_to_be32(MLX4_QP_BIT_COLL_MASTER | MLX4_QP_BIT_COLL_SYNC_SQ) : 0);
-		context->params2 |= (qp->flags & MLX4_IB_QP_CAP_MANAGED_RECV ?
-			cpu_to_be32(MLX4_QP_BIT_COLL_MASTER | MLX4_QP_BIT_COLL_SYNC_RQ) : 0);
-	}
-
 	if (ibqp->srq)
 		context->params2 |= cpu_to_be32(MLX4_QP_BIT_RIC);
 
@@ -2067,7 +2044,7 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 		sqd_event = 0;
 
 	if (!ibqp->uobject && cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
-		context->rlkey |= (1 << 4);
+		context->rlkey_roce_mode |= (1 << 4);
 
 	if ((attr_mask & IB_QP_GROUP_RSS) &&
 		(qp->qpg_data->rss_child_count > 1)) {
@@ -2152,29 +2129,6 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 
 	if (is_sqp(dev, qp))
 		store_sqp_attrs(to_msqp(qp), attr, attr_mask);
-
-	/* Set 'ignore_cq_overrun' bits for collectives offload */
-	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
-		if (attr_mask & (IB_M_EXT_CLASS_2 | IB_M_EXT_CLASS_3)) {
-			err = mlx4_ib_ignore_overrun_cq(ibqp->send_cq);
-			if (err) {
-				pr_err("Failed to set ignore CQ "
-				       "overrun for QP 0x%x's send CQ\n",
-				       ibqp->qp_num);
-				goto out;
-			}
-
-			if (ibqp->recv_cq != ibqp->send_cq) {
-				err = mlx4_ib_ignore_overrun_cq(ibqp->recv_cq);
-				if (err) {
-					pr_err("Failed to set ignore "
-					       "CQ overrun for QP 0x%x's recv "
-					       "CQ\n", ibqp->qp_num);
-					goto out;
-				}
-			}
-		}
-	}
 
 	/*
 	 * If we moved QP0 to RTR, bring the IB link up; if we moved
@@ -2333,19 +2287,12 @@ int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		ll = rdma_port_get_link_layer(&dev->ib_dev, port);
 	}
 
-	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type,
-				attr_mask & ~IB_M_QP_MOD_VEND_MASK, ll)) {
+	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask, ll)) {
 		pr_debug("qpn 0x%x: invalid attribute mask specified "
 			 "for transition %d to %d. qp_type %d,"
 			 " attr_mask 0x%x\n",
 			 ibqp->qp_num, cur_state, new_state,
 			 ibqp->qp_type, attr_mask);
-		goto out;
-	}
-
-	if ((attr_mask & IB_M_QP_MOD_VEND_MASK) && !dev->dev->caps.sync_qp) {
-		pr_err("extended verbs are not supported by %s\n",
-		       dev->ib_dev.name);
 		goto out;
 	}
 

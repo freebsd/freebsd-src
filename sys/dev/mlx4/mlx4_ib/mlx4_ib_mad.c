@@ -788,204 +788,51 @@ static int ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 	return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
 }
 
-static void edit_counter_ext(struct mlx4_if_stat_extended *cnt, void *counters,
-			     __be16 attr_id)
+static void edit_counter(struct mlx4_counter *cnt, void *counters,
+			 __be16 attr_id)
 {
 	switch (attr_id) {
 	case IB_PMA_PORT_COUNTERS:
 	{
 		struct ib_pma_portcounters *pma_cnt =
-				(struct ib_pma_portcounters *)counters;
-		pma_cnt->port_xmit_data =
-			cpu_to_be32((be64_to_cpu(cnt->counters[0].
-						 IfTxUnicastOctets) +
-				     be64_to_cpu(cnt->counters[0].
-						 IfTxMulticastOctets) +
-				     be64_to_cpu(cnt->counters[0].
-						 IfTxBroadcastOctets) +
-				     be64_to_cpu(cnt->counters[0].
-						 IfTxDroppedOctets)) >> 2);
-		pma_cnt->port_rcv_data  =
-			cpu_to_be32((be64_to_cpu(cnt->counters[0].
-						 IfRxUnicastOctets) +
-				     be64_to_cpu(cnt->counters[0].
-						 IfRxMulticastOctets) +
-				     be64_to_cpu(cnt->counters[0].
-						 IfRxBroadcastOctets) +
-				     be64_to_cpu(cnt->counters[0].
-						 IfRxNoBufferOctets) +
-				     be64_to_cpu(cnt->counters[0].
-						 IfRxErrorOctets)) >> 2);
-		pma_cnt->port_xmit_packets =
-			cpu_to_be32(be64_to_cpu(cnt->counters[0].
-						IfTxUnicastFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfTxMulticastFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfTxBroadcastFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfTxDroppedFrames));
-		pma_cnt->port_rcv_packets  =
-			cpu_to_be32(be64_to_cpu(cnt->counters[0].
-						IfRxUnicastFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfRxMulticastFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfRxBroadcastFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfRxNoBufferFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfRxErrorFrames));
-		pma_cnt->port_rcv_errors = cpu_to_be32(be64_to_cpu(cnt->
-						       counters[0].
-						       IfRxErrorFrames));
-		break;
-	}
+			(struct ib_pma_portcounters *)counters;
 
-	case IB_PMA_PORT_COUNTERS_EXT:
-	{
-		struct ib_pma_portcounters_ext *pma_cnt_ext =
-				(struct ib_pma_portcounters_ext *)counters;
-
-		pma_cnt_ext->port_xmit_data =
-			cpu_to_be64((be64_to_cpu(cnt->counters[0].
-						 IfTxUnicastOctets) +
-				     be64_to_cpu(cnt->counters[0].
-						 IfTxMulticastOctets) +
-				     be64_to_cpu(cnt->counters[0].
-						 IfTxBroadcastOctets) +
-				     be64_to_cpu(cnt->counters[0].
-						 IfTxDroppedOctets)) >> 2);
-		pma_cnt_ext->port_rcv_data  =
-			cpu_to_be64((be64_to_cpu(cnt->counters[0].
-						 IfRxUnicastOctets) +
-				     be64_to_cpu(cnt->counters[0].
-						 IfRxMulticastOctets) +
-				     be64_to_cpu(cnt->counters[0].
-						 IfRxBroadcastOctets) +
-				     be64_to_cpu(cnt->counters[0].
-						 IfRxNoBufferOctets) +
-				     be64_to_cpu(cnt->counters[0].
-						 IfRxErrorOctets)) >> 2);
-		pma_cnt_ext->port_xmit_packets =
-			cpu_to_be64(be64_to_cpu(cnt->counters[0].
-						IfTxUnicastFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfTxMulticastFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfTxBroadcastFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfTxDroppedFrames));
-		pma_cnt_ext->port_rcv_packets  =
-			cpu_to_be64(be64_to_cpu(cnt->counters[0].
-						IfRxUnicastFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfRxMulticastFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfRxBroadcastFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfRxNoBufferFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfRxErrorFrames));
-		pma_cnt_ext->port_unicast_xmit_packets = cnt->counters[0].
-						IfTxUnicastFrames;
-		pma_cnt_ext->port_unicast_rcv_packets = cnt->counters[0].
-						IfRxUnicastFrames;
-		pma_cnt_ext->port_multicast_xmit_packets =
-			cpu_to_be64(be64_to_cpu(cnt->counters[0].
-						IfTxMulticastFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfTxBroadcastFrames));
-		pma_cnt_ext->port_multicast_rcv_packets =
-			cpu_to_be64(be64_to_cpu(cnt->counters[0].
-						IfTxMulticastFrames) +
-				    be64_to_cpu(cnt->counters[0].
-						IfTxBroadcastFrames));
-
-		break;
-	}
-
-	default:
-		pr_warn("Unsupported attr_id 0x%x\n", attr_id);
-		break;
-	}
-
-}
-
-static void edit_counter(struct mlx4_if_stat_basic *cnt, void *counters,
-			 __be16	attr_id)
-{
-	switch (attr_id) {
-	case IB_PMA_PORT_COUNTERS:
-	{
-		struct ib_pma_portcounters *pma_cnt =
-				(struct ib_pma_portcounters *) counters;
-		pma_cnt->port_xmit_data =
-			cpu_to_be32(be64_to_cpu(
-				    cnt->counters[0].IfTxOctets) >> 2);
-		pma_cnt->port_rcv_data  =
-			cpu_to_be32(be64_to_cpu(
-				    cnt->counters[0].IfRxOctets) >> 2);
-		pma_cnt->port_xmit_packets =
-			cpu_to_be32(be64_to_cpu(cnt->counters[0].IfTxFrames));
-		pma_cnt->port_rcv_packets  =
-			cpu_to_be32(be64_to_cpu(cnt->counters[0].IfRxFrames));
+		ASSIGN_32BIT_COUNTER(pma_cnt->port_xmit_data,
+				     (be64_to_cpu(cnt->tx_bytes) >> 2));
+		ASSIGN_32BIT_COUNTER(pma_cnt->port_rcv_data,
+				     (be64_to_cpu(cnt->rx_bytes) >> 2));
+		ASSIGN_32BIT_COUNTER(pma_cnt->port_xmit_packets,
+				     be64_to_cpu(cnt->tx_frames));
+		ASSIGN_32BIT_COUNTER(pma_cnt->port_rcv_packets,
+				     be64_to_cpu(cnt->rx_frames));
 		break;
 	}
 	case IB_PMA_PORT_COUNTERS_EXT:
 	{
 		struct ib_pma_portcounters_ext *pma_cnt_ext =
-				(struct ib_pma_portcounters_ext *) counters;
+			(struct ib_pma_portcounters_ext *)counters;
 
 		pma_cnt_ext->port_xmit_data =
-			cpu_to_be64((be64_to_cpu(cnt->counters[0].
-						 IfTxOctets) >> 2));
-		pma_cnt_ext->port_rcv_data  =
-			cpu_to_be64((be64_to_cpu(cnt->counters[0].
-						 IfRxOctets) >> 2));
-		pma_cnt_ext->port_xmit_packets = cnt->counters[0].IfTxFrames;
-		pma_cnt_ext->port_rcv_packets  = cnt->counters[0].IfRxFrames;
+			cpu_to_be64(be64_to_cpu(cnt->tx_bytes) >> 2);
+		pma_cnt_ext->port_rcv_data =
+			cpu_to_be64(be64_to_cpu(cnt->rx_bytes) >> 2);
+		pma_cnt_ext->port_xmit_packets = cnt->tx_frames;
+		pma_cnt_ext->port_rcv_packets = cnt->rx_frames;
 		break;
 	}
 	default:
-		pr_warn("Unsupported attr_id 0x%x\n", attr_id);
 		break;
 	}
-}
-
-int mlx4_ib_query_if_stat(struct mlx4_ib_dev *dev, u32 counter_index,
-		       union mlx4_counter *counter, u8 clear)
-{
-	struct mlx4_cmd_mailbox *mailbox;
-	int err;
-	u32 inmod = counter_index | ((clear & 1) << 31);
-
-	mailbox = mlx4_alloc_cmd_mailbox(dev->dev);
-	if (IS_ERR(mailbox))
-		return IB_MAD_RESULT_FAILURE;
-
-	err = mlx4_cmd_box(dev->dev, 0, mailbox->dma, inmod, 0,
-			   MLX4_CMD_QUERY_IF_STAT, MLX4_CMD_TIME_CLASS_C,
-			   MLX4_CMD_NATIVE);
-	if (!err)
-		memcpy(counter, mailbox->buf, MLX4_IF_STAT_SZ(1));
-
-	mlx4_free_cmd_mailbox(dev->dev, mailbox);
-
-	return err;
 }
 
 static int iboe_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
-			struct ib_wc *in_wc, struct ib_grh *in_grh,
-			struct ib_mad *in_mad, struct ib_mad *out_mad)
+			const struct ib_wc *in_wc, const struct ib_grh *in_grh,
+			const struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
+	struct mlx4_counter counter_stats;
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	int err;
 	u32 counter_index = dev->counters[port_num - 1].counter_index & 0xffff;
-	u8 mode;
-	char				counter_buf[MLX4_IF_STAT_SZ(1)] __aligned(8);
-	union  mlx4_counter		*counter = (union mlx4_counter *)
-						   counter_buf;
 
 	if (in_mad->mad_hdr.mgmt_class != IB_MGMT_CLASS_PERF_MGMT)
 		return -EINVAL;
@@ -996,22 +843,20 @@ static int iboe_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		memset(out_mad->data, 0, sizeof out_mad->data);
 		err = IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
 	} else {
-		if (mlx4_ib_query_if_stat(dev, counter_index, counter, 0))
+		memset(&counter_stats, 0, sizeof(counter_stats));
+		err = mlx4_get_counter_stats(dev->dev,
+					     counter_index,
+					     &counter_stats, 0);
+		if (err)
 			return IB_MAD_RESULT_FAILURE;
 
 		memset(out_mad->data, 0, sizeof(out_mad->data));
-		mode = counter->control.cnt_mode & 0xFF;
 		err = IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
-		switch (mode & 0xf) {
+		switch (counter_stats.counter_mode & 0xf) {
 		case 0:
-			edit_counter((void *)counter,
+			edit_counter(&counter_stats,
 				     (void *)(out_mad->data + 40),
 				     in_mad->mad_hdr.attr_id);
-			break;
-		case 1:
-			edit_counter_ext((void *)counter,
-					 (void *)(out_mad->data + 40),
-					 in_mad->mad_hdr.attr_id);
 			break;
 		default:
 			err = IB_MAD_RESULT_FAILURE;
@@ -1106,7 +951,7 @@ static void handle_lid_change_event(struct mlx4_ib_dev *dev, u8 port_num)
 
 	if (mlx4_is_master(dev->dev) && !dev->sriov.is_going_down)
 		mlx4_gen_slaves_port_mgt_ev(dev->dev, port_num,
-					    MLX4_EQ_PORT_INFO_LID_CHANGE_MASK, 0, 0);
+					    MLX4_EQ_PORT_INFO_LID_CHANGE_MASK);
 }
 
 static void handle_client_rereg_event(struct mlx4_ib_dev *dev, u8 port_num)
@@ -1118,7 +963,7 @@ static void handle_client_rereg_event(struct mlx4_ib_dev *dev, u8 port_num)
 		if (!dev->sriov.is_going_down) {
 			mlx4_ib_mcg_port_cleanup(&dev->sriov.demux[port_num - 1], 0);
 			mlx4_gen_slaves_port_mgt_ev(dev->dev, port_num,
-						    MLX4_EQ_PORT_INFO_CLIENT_REREG_MASK, 0, 0);
+						    MLX4_EQ_PORT_INFO_CLIENT_REREG_MASK);
 		}
 	}
 	mlx4_ib_dispatch_event(dev, port_num, IB_EVENT_CLIENT_REREGISTER);
@@ -1204,11 +1049,6 @@ void handle_port_mgmt_change_event(struct work_struct *work)
 			u16 lid = be16_to_cpu(eqe->event.port_mgmt_change.params.port_info.mstr_sm_lid);
 			u8 sl = eqe->event.port_mgmt_change.params.port_info.mstr_sm_sl & 0xf;
 			update_sm_ah(dev, port, lid, sl);
-			mlx4_ib_dispatch_event(dev, port, IB_EVENT_SM_CHANGE);
-			if (mlx4_is_master(dev->dev))
-				mlx4_gen_slaves_port_mgt_ev(dev->dev, port,
-							    changed_attr & MSTR_SM_CHANGE_MASK,
-							    lid, sl);
 		}
 
 		/* Check if it is a lid change event */
@@ -1221,7 +1061,7 @@ void handle_port_mgmt_change_event(struct work_struct *work)
 			/*if master, notify all slaves*/
 			if (mlx4_is_master(dev->dev))
 				mlx4_gen_slaves_port_mgt_ev(dev->dev, port,
-							    MLX4_EQ_PORT_INFO_GID_PFX_CHANGE_MASK, 0, 0);
+							    MLX4_EQ_PORT_INFO_GID_PFX_CHANGE_MASK);
 		}
 
 		if (changed_attr & MLX4_EQ_PORT_INFO_CLIENT_REREG_MASK)
@@ -1436,7 +1276,7 @@ static int get_slave_base_gid_ix(struct mlx4_ib_dev *dev, int slave, int port)
 		return slave;
 
 	gids = MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS;
-	vfs = dev->dev->num_vfs;
+	vfs = dev->dev->persist->num_vfs;
 
 	if (slave == 0)
 		return 0;

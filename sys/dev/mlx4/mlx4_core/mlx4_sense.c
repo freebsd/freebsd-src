@@ -53,7 +53,7 @@ int mlx4_SENSE_PORT(struct mlx4_dev *dev, int port,
 	}
 
 	if (out_param > 2) {
-		mlx4_err(dev, "Sense returned illegal value: 0x%llx\n", (unsigned long long)out_param);
+		mlx4_err(dev, "Sense returned illegal value: 0x%llx\n", (long long)out_param);
 		return -EINVAL;
 	}
 
@@ -98,6 +98,10 @@ static void mlx4_sense_port(struct work_struct *work)
 	enum mlx4_port_type stype[MLX4_MAX_PORTS];
 
 	mutex_lock(&priv->port_mutex);
+	if (sense->gone != 0) {
+		mutex_unlock(&priv->port_mutex);
+		return;
+	}
 	mlx4_do_sense_ports(dev, stype, &dev->caps.port_type[1]);
 
 	if (mlx4_check_port_params(dev, stype))
@@ -107,9 +111,9 @@ static void mlx4_sense_port(struct work_struct *work)
 		mlx4_err(dev, "Failed to change port_types\n");
 
 sense_again:
-	mutex_unlock(&priv->port_mutex);
 	queue_delayed_work(mlx4_wq , &sense->sense_poll,
 			   round_jiffies_relative(MLX4_SENSE_RANGE));
+	mutex_unlock(&priv->port_mutex);
 }
 
 void mlx4_start_sense(struct mlx4_dev *dev)
@@ -120,12 +124,22 @@ void mlx4_start_sense(struct mlx4_dev *dev)
 	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_DPDP))
 		return;
 
+	mutex_lock(&priv->port_mutex);
+	sense->gone = 0;
 	queue_delayed_work(mlx4_wq , &sense->sense_poll,
 			   round_jiffies_relative(MLX4_SENSE_RANGE));
+	mutex_unlock(&priv->port_mutex);
 }
 
 void mlx4_stop_sense(struct mlx4_dev *dev)
 {
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_sense *sense = &priv->sense;
+
+	mutex_lock(&priv->port_mutex);
+	sense->gone = 1;
+	mutex_unlock(&priv->port_mutex);
+
 	cancel_delayed_work_sync(&mlx4_priv(dev)->sense.sense_poll);
 }
 

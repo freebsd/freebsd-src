@@ -77,28 +77,6 @@ int mlx4_ib_sm_guid_assign = 1;
 module_param_named(sm_guid_assign, mlx4_ib_sm_guid_assign, int, 0444);
 MODULE_PARM_DESC(sm_guid_assign, "Enable SM alias_GUID assignment if sm_guid_assign > 0 (Default: 1)");
 
-enum {
-	MAX_NUM_STR_BITMAP = 1 << 15,
-	DEFAULT_TBL_VAL = -1
-};
-
-static struct mlx4_dbdf2val_lst dev_assign_str = {
-	.name		= "dev_assign_str param",
-	.num_vals	= 1,
-	.def_val	= {DEFAULT_TBL_VAL},
-	.range		= {0, MAX_NUM_STR_BITMAP - 1}
-};
-module_param_string(dev_assign_str, dev_assign_str.str,
-		    sizeof(dev_assign_str.str), 0444);
-MODULE_PARM_DESC(dev_assign_str,
-		 "Map device function numbers to IB device numbers (e.g. '0000:04:00.0-0,002b:1c:0b.a-1,...').\n"
-		 "\t\tHexadecimal digits for the device function (e.g. 002b:1c:0b.a) and decimal for IB device numbers (e.g. 1).\n"
-		 "\t\tMax supported devices - 32");
-
-
-static unsigned long *dev_num_str_bitmap;
-static spinlock_t dev_num_str_lock;
-
 static const char mlx4_ib_version[] =
 	DRV_NAME ": Mellanox ConnectX InfiniBand driver v"
 	DRV_VERSION "\n";
@@ -116,8 +94,6 @@ struct dev_rec {
 	int	func;
 	int	nr;
 };
-
-static int dr_active;
 
 static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init);
 
@@ -169,6 +145,7 @@ int mlx4_ib_query_device(struct ib_device *ibdev,
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
 	int err = -ENOMEM;
+	struct mlx4_clock_params clock_params;
 
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
@@ -213,8 +190,6 @@ int mlx4_ib_query_device(struct ib_device *ibdev,
 		props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
 	if (dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC)
 		props->device_cap_flags |= IB_DEVICE_XRC;
-	if (dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_CROSS_CHANNEL)
-		props->device_cap_flags |= IB_DEVICE_CROSS_CHANNEL;
 
 	if (check_flow_steering_support(dev->dev))
 		props->device_cap_flags |= IB_DEVICE_MANAGED_FLOW_STEERING;
@@ -235,7 +210,7 @@ int mlx4_ib_query_device(struct ib_device *ibdev,
 	}
 	props->vendor_id	   = be32_to_cpup((__be32 *) (out_mad->data + 36)) &
 		0xffffff;
-	props->vendor_part_id	   = dev->dev->pdev->device;
+	props->vendor_part_id	   = dev->dev->persist->pdev->device;
 	props->hw_ver		   = be32_to_cpup((__be32 *) (out_mad->data + 32));
 	memcpy(&props->sys_image_guid, out_mad->data +	4, 8);
 
@@ -267,9 +242,12 @@ int mlx4_ib_query_device(struct ib_device *ibdev,
 					   props->max_mcast_grp;
 	props->max_map_per_fmr = dev->dev->caps.max_fmr_maps;
 	props->hca_core_clock = dev->dev->caps.hca_core_clock;
+
+	if (!mlx4_is_slave(dev->dev))
+		err = mlx4_get_internal_clock_params(dev->dev, &clock_params);
 	if (dev->dev->caps.hca_core_clock > 0)
 		props->comp_mask |= IB_DEVICE_ATTR_WITH_HCA_CORE_CLOCK;
-	if (dev->dev->caps.cq_timestamp) {
+	if (!err && !mlx4_is_slave(dev->dev)) {
 		props->timestamp_mask = 0xFFFFFFFFFFFF;
 		props->comp_mask |= IB_DEVICE_ATTR_WITH_TIMESTAMP_MASK;
 	}
@@ -831,8 +809,9 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 		if (io_remap_pfn_range(vma, vma->vm_start,
-				       (pci_resource_start(dev->dev->pdev,
-				       params.bar) + params.offset)
+				       (pci_resource_start(dev->dev->persist->pdev,
+							   params.bar) +
+					params.offset)
 				       >> PAGE_SHIFT,
 				       PAGE_SIZE, vma->vm_page_prot))
 			return -EAGAIN;
@@ -1088,12 +1067,12 @@ static int parse_flow_attr(struct mlx4_dev *dev,
 	default:
 		return -EINVAL;
 	}
-	if (map_sw_to_hw_steering_id(dev, type) < 0 ||
-	    hw_rule_sz(dev, type) < 0)
+	if (mlx4_map_sw_to_hw_steering_id(dev, type) < 0 ||
+	    mlx4_hw_rule_sz(dev, type) < 0)
 		return -EINVAL;
-	mlx4_spec->id = cpu_to_be16(map_sw_to_hw_steering_id(dev, type));
-	mlx4_spec->size = hw_rule_sz(dev, type) >> 2;
-	return hw_rule_sz(dev, type);
+	mlx4_spec->id = cpu_to_be16(mlx4_map_sw_to_hw_steering_id(dev, type));
+	mlx4_spec->size = mlx4_hw_rule_sz(dev, type) >> 2;
+	return mlx4_hw_rule_sz(dev, type);
 }
 
 static int __mlx4_ib_create_flow(struct ib_qp *qp, struct ib_flow_attr *flow_attr,
@@ -1125,7 +1104,8 @@ static int __mlx4_ib_create_flow(struct ib_qp *qp, struct ib_flow_attr *flow_att
 		pr_err("Invalid domain value.\n");
 		return -EINVAL;
 	}
-	if (map_sw_to_hw_steering_mode(mdev->dev, flow_type) < 0)
+
+	if (mlx4_map_sw_to_hw_steering_mode(mdev->dev, flow_type) < 0)
 		return -EINVAL;
 
 	mailbox = mlx4_alloc_cmd_mailbox(mdev->dev);
@@ -1136,7 +1116,7 @@ static int __mlx4_ib_create_flow(struct ib_qp *qp, struct ib_flow_attr *flow_att
 
 	ctrl->prio = cpu_to_be16(__mlx4_domain[domain] |
 				 flow_attr->priority);
-	ctrl->type = map_sw_to_hw_steering_mode(mdev->dev, flow_type);
+	ctrl->type = mlx4_map_sw_to_hw_steering_mode(mdev->dev, flow_type);
 	ctrl->port = flow_attr->port;
 	ctrl->qpn = cpu_to_be32(qp->qp_num);
 
@@ -1511,7 +1491,7 @@ static ssize_t show_hca(struct device *device, struct device_attribute *attr,
 {
 	struct mlx4_ib_dev *dev =
 		container_of(device, struct mlx4_ib_dev, ib_dev.dev);
-	return sprintf(buf, "MT%d\n", dev->dev->pdev->device);
+	return sprintf(buf, "MT%d\n", dev->dev->persist->pdev->device);
 }
 
 static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
@@ -1541,33 +1521,16 @@ static ssize_t show_board(struct device *device, struct device_attribute *attr,
 		       dev->dev->board_id);
 }
 
-static ssize_t show_vsd(struct device *device, struct device_attribute *attr,
-			  char *buf)
-{
-	struct mlx4_ib_dev *dev =
-		container_of(device, struct mlx4_ib_dev, ib_dev.dev);
-	ssize_t len = MLX4_VSD_LEN;
-
-	if (dev->dev->vsd_vendor_id == PCI_VENDOR_ID_MELLANOX)
-		len = sprintf(buf, "%.*s\n", MLX4_VSD_LEN, dev->dev->vsd);
-	else
-		memcpy(buf, dev->dev->vsd, MLX4_VSD_LEN);
-
-	return len;
-}
-
 static DEVICE_ATTR(hw_rev,   S_IRUGO, show_rev,    NULL);
 static DEVICE_ATTR(fw_ver,   S_IRUGO, show_fw_ver, NULL);
 static DEVICE_ATTR(hca_type, S_IRUGO, show_hca,    NULL);
 static DEVICE_ATTR(board_id, S_IRUGO, show_board,  NULL);
-static DEVICE_ATTR(vsd,      S_IRUGO, show_vsd,    NULL);
 
 static struct device_attribute *mlx4_class_attributes[] = {
 	&dev_attr_hw_rev,
 	&dev_attr_fw_ver,
 	&dev_attr_hca_type,
-	&dev_attr_board_id,
-	&dev_attr_vsd
+	&dev_attr_board_id
 };
 
 static void mlx4_addrconf_ifid_eui48(u8 *eui, u16 vlan_id, struct net_device *dev, u8 port)
@@ -1951,7 +1914,8 @@ static void init_pkeys(struct mlx4_ib_dev *ibdev)
 	int i;
 
 	if (mlx4_is_master(ibdev->dev)) {
-		for (slave = 0; slave <= ibdev->dev->num_vfs; ++slave) {
+		for (slave = 0; slave <= ibdev->dev->persist->num_vfs;
+		     ++slave) {
 			for (port = 1; port <= ibdev->dev->caps.num_ports; ++port) {
 				for (i = 0;
 				     i < ibdev->dev->phys_caps.pkey_phys_table_len[port];
@@ -1978,82 +1942,52 @@ static void init_pkeys(struct mlx4_ib_dev *ibdev)
 
 static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 {
-	char name[32];
-	int eq_per_port = 0;
-	int added_eqs = 0;
-	int total_eqs = 0;
-	int i, j, eq;
+	int i, j, eq = 0, total_eqs = 0;
 
-	/* Legacy mode or comp_pool is not large enough */
-	if (dev->caps.comp_pool == 0 ||
-	    dev->caps.num_ports > dev->caps.comp_pool)
-		return;
-
-	eq_per_port = rounddown_pow_of_two(dev->caps.comp_pool/
-					dev->caps.num_ports);
-
-	/* Init eq table */
-	added_eqs = 0;
-	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
-		added_eqs += eq_per_port;
-
-	total_eqs = dev->caps.num_comp_vectors + added_eqs;
-
-	ibdev->eq_table = kzalloc(total_eqs * sizeof(int), GFP_KERNEL);
+	ibdev->eq_table = kcalloc(dev->caps.num_comp_vectors,
+				  sizeof(ibdev->eq_table[0]), GFP_KERNEL);
 	if (!ibdev->eq_table)
 		return;
 
-	ibdev->eq_added = added_eqs;
-
-	eq = 0;
-	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB) {
-		for (j = 0; j < eq_per_port; j++) {
-			sprintf(name, "mlx4-ib-%d-%d@%d:%d:%d:%d", i, j,
-						pci_get_domain(dev->pdev->dev.bsddev),
-						pci_get_bus(dev->pdev->dev.bsddev),
-						PCI_SLOT(dev->pdev->devfn),
-						PCI_FUNC(dev->pdev->devfn));
-
-			/* Set IRQ for specific name (per ring) */
-			if (mlx4_assign_eq(dev, name,
-					   &ibdev->eq_table[eq])) {
-				/* Use legacy (same as mlx4_en driver) */
-				pr_warn("Can't allocate EQ %d; reverting to legacy\n", eq);
-				ibdev->eq_table[eq] =
-					(eq % dev->caps.num_comp_vectors);
-			}
-			eq++;
+	for (i = 1; i <= dev->caps.num_ports; i++) {
+		for (j = 0; j < mlx4_get_eqs_per_port(dev, i);
+		     j++, total_eqs++) {
+			if (i > 1 &&  mlx4_is_eq_shared(dev, total_eqs))
+				continue;
+			ibdev->eq_table[eq] = total_eqs;
+			if (!mlx4_assign_eq(dev, i,
+					    &ibdev->eq_table[eq]))
+				eq++;
+			else
+				ibdev->eq_table[eq] = -1;
 		}
 	}
 
-	/* Fill the reset of the vector with legacy EQ */
-	for (i = 0, eq = added_eqs; i < dev->caps.num_comp_vectors; i++)
-		ibdev->eq_table[eq++] = i;
+	for (i = eq; i < dev->caps.num_comp_vectors;
+	     ibdev->eq_table[i++] = -1)
+		;
 
 	/* Advertise the new number of EQs to clients */
-	ibdev->ib_dev.num_comp_vectors = total_eqs;
+	ibdev->ib_dev.num_comp_vectors = eq;
 }
 
 static void mlx4_ib_free_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 {
 	int i;
+	int total_eqs = ibdev->ib_dev.num_comp_vectors;
 
-	/* no additional eqs were added */
+	/* no eqs were allocated */
 	if (!ibdev->eq_table)
 		return;
 
 	/* Reset the advertised EQ number */
-	ibdev->ib_dev.num_comp_vectors = dev->caps.num_comp_vectors;
+	ibdev->ib_dev.num_comp_vectors = 0;
 
-	/* Free only the added eqs */
-	for (i = 0; i < ibdev->eq_added; i++) {
-		/* Don't free legacy eqs if used */
-		if (ibdev->eq_table[i] <= dev->caps.num_comp_vectors)
-			continue;
+	for (i = 0; i < total_eqs; i++)
 		mlx4_release_eq(dev, ibdev->eq_table[i]);
-	}
 
 	kfree(ibdev->eq_table);
+	ibdev->eq_table = NULL;
 }
 
 /*
@@ -2079,8 +2013,8 @@ static size_t show_diag_rprt(struct device *device, char *buf,
 	struct mlx4_ib_dev *dev = container_of(device, struct mlx4_ib_dev,
 					       ib_dev.dev);
 
-	ret = mlx4_query_diag_counters(dev->dev, 1, op_modifier,
-				       &counter_offset, &diag_counter);
+	ret = mlx4_query_diag_counters(dev->dev, op_modifier,
+				       &counter_offset, &diag_counter, 1, 0);
 	if (ret)
 		return ret;
 
@@ -2095,8 +2029,8 @@ static ssize_t clear_diag_counters(struct device *device,
 	struct mlx4_ib_dev *dev = container_of(device, struct mlx4_ib_dev,
 					       ib_dev.dev);
 
-	ret = mlx4_query_diag_counters(dev->dev, 0, MLX4_DIAG_RPRT_CLEAR_DIAGS,
-				       NULL, NULL);
+	ret = mlx4_query_diag_counters(dev->dev, MLX4_DIAG_RPRT_CLEAR_DIAGS,
+				       NULL, NULL, 0, 0);
 	if (ret)
 		return ret;
 
@@ -2172,63 +2106,6 @@ static struct attribute_group diag_counters_group = {
 	.attrs  = diag_rprt_attrs
 };
 
-static void init_dev_assign(void)
-{
-	int i = 1;
-
-	spin_lock_init(&dev_num_str_lock);
-	if (mlx4_fill_dbdf2val_tbl(&dev_assign_str))
-		return;
-	dev_num_str_bitmap =
-		kmalloc(BITS_TO_LONGS(MAX_NUM_STR_BITMAP) * sizeof(long),
-			GFP_KERNEL);
-	if (!dev_num_str_bitmap) {
-		pr_warn("bitmap alloc failed -- cannot apply dev_assign_str parameter\n");
-		return;
-	}
-	bitmap_zero(dev_num_str_bitmap, MAX_NUM_STR_BITMAP);
-	while ((i < MLX4_DEVS_TBL_SIZE) && (dev_assign_str.tbl[i].dbdf !=
-	       MLX4_ENDOF_TBL)) {
-		if (bitmap_allocate_region(dev_num_str_bitmap,
-					   dev_assign_str.tbl[i].val[0], 0))
-			goto err;
-		i++;
-	}
-	dr_active = 1;
-	return;
-
-err:
-	kfree(dev_num_str_bitmap);
-	dev_num_str_bitmap = NULL;
-	pr_warn("mlx4_ib: The value of 'dev_assign_str' parameter "
-			    "is incorrect. The parameter value is discarded!");
-}
-
-static int mlx4_ib_dev_idx(struct mlx4_dev *dev)
-{
-	int i, val;
-
-	if (!dr_active)
-		return -1;
-	if (!dev)
-		return -1;
-	if (mlx4_get_val(dev_assign_str.tbl, dev->pdev, 0, &val))
-		return -1;
-
-	if (val != DEFAULT_TBL_VAL) {
-		dev->flags |= MLX4_FLAG_DEV_NUM_STR;
-		return val;
-	}
-
-	spin_lock(&dev_num_str_lock);
-	i = bitmap_find_free_region(dev_num_str_bitmap, MAX_NUM_STR_BITMAP, 0);
-	spin_unlock(&dev_num_str_lock);
-	if (i >= 0)
-		return i;
-
-	return -1;
-}
-
 static int mlx4_port_immutable(struct ib_device *ibdev, u8 port_num,
 			       struct ib_port_immutable *immutable)
 {
@@ -2242,7 +2119,7 @@ static int mlx4_port_immutable(struct ib_device *ibdev, u8 port_num,
 	} else {
 		if (mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_IBOE)
 			immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
-		if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ROCEV2)
+		if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ROCE_V1_V2)
 			immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE |
 				RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
 		immutable->core_cap_flags |= RDMA_CORE_PORT_RAW_PACKET;
@@ -2268,7 +2145,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	int i, j;
 	int err;
 	struct mlx4_ib_iboe *iboe;
-	int dev_idx;
 
         pr_info_once("%s", mlx4_ib_version);
 
@@ -2281,7 +2157,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	ibdev = (struct mlx4_ib_dev *) ib_alloc_device(sizeof *ibdev);
 	if (!ibdev) {
-		dev_err(&dev->pdev->dev, "Device struct alloc failed\n");
+		dev_err(&dev->persist->pdev->dev,
+			"Device struct alloc failed\n");
 		return NULL;
 	}
 
@@ -2303,11 +2180,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	ibdev->dev = dev;
 
-	dev_idx = mlx4_ib_dev_idx(dev);
-	if (dev_idx >= 0)
-		sprintf(ibdev->ib_dev.name, "mlx4_%d", dev_idx);
-	else
-		strlcpy(ibdev->ib_dev.name, "mlx4_%d", IB_DEVICE_NAME_MAX);
+	strlcpy(ibdev->ib_dev.name, "mlx4_%d", IB_DEVICE_NAME_MAX);
 
 	ibdev->ib_dev.owner		= THIS_MODULE;
 	ibdev->ib_dev.node_type		= RDMA_NODE_IB_CA;
@@ -2315,7 +2188,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->num_ports		= num_ports;
 	ibdev->ib_dev.phys_port_cnt     = ibdev->num_ports;
 	ibdev->ib_dev.num_comp_vectors	= dev->caps.num_comp_vectors;
-	ibdev->ib_dev.dma_device	= &dev->pdev->dev;
+	ibdev->ib_dev.dma_device	= &dev->persist->pdev->dev;
 
 	if (dev->caps.userspace_caps)
 		ibdev->ib_dev.uverbs_abi_ver = MLX4_IB_UVERBS_ABI_VERSION;
@@ -2457,18 +2330,20 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 						IB_LINK_LAYER_ETHERNET) {
 			if (mlx4_is_slave(dev)) {
 				ibdev->counters[i].status = mlx4_counter_alloc(ibdev->dev,
-									       i + 1,
 									       &ibdev->counters[i].counter_index);
+				if (ibdev->counters[i].status)
+					ibdev->counters[i].counter_index = mlx4_get_default_counter_index(dev,
+								       i + 1);
 			} else {/* allocating the PF IB default counter indices reserved in mlx4_init_counters_table */
 				ibdev->counters[i].counter_index = ((i + 1) << 1) - 1;
 				ibdev->counters[i].status = 0;
 			}
 
-			dev_info(&dev->pdev->dev,
+			dev_info(&dev->persist->pdev->dev,
 				 "%s: allocated counter index %d for port %d\n",
 				 __func__, ibdev->counters[i].counter_index, i+1);
 		} else {
-			ibdev->counters[i].counter_index = MLX4_SINK_COUNTER_INDEX;
+			ibdev->counters[i].counter_index = MLX4_SINK_COUNTER_INDEX(dev);
 			ibdev->counters[i].status = -ENOSPC;
 		}
 	}
@@ -2489,7 +2364,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 				sizeof(long),
 				GFP_KERNEL);
 		if (!ibdev->ib_uc_qpns_bitmap) {
-			dev_err(&dev->pdev->dev, "bit map alloc failed\n");
+			dev_err(&dev->persist->pdev->dev,
+				"bit map alloc failed\n");
 			goto err_steer_qp_release;
 		}
 
@@ -2591,7 +2467,6 @@ err_counter:
 		if (mlx4_ib_port_link_layer(&ibdev->ib_dev, i) ==
 						IB_LINK_LAYER_ETHERNET) {
 			mlx4_counter_free(ibdev->dev,
-					  i,
 					  ibdev->counters[i - 1].counter_index);
 		}
 	}
@@ -2678,7 +2553,6 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 {
 	struct mlx4_ib_dev *ibdev = ibdev_ptr;
 	int p, j;
-	int dev_idx, ret;
 
 	if (ibdev->iboe.nb_inet.notifier_call) {
 		if (unregister_inetaddr_notifier(&ibdev->iboe.nb_inet))
@@ -2695,19 +2569,7 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 			mlx4_class_attributes[j]);
 	}
 
-
-	dev_idx = -1;
-	if (dr_active && !(ibdev->dev->flags & MLX4_FLAG_DEV_NUM_STR)) {
-		ret = sscanf(ibdev->ib_dev.name, "mlx4_%d", &dev_idx);
-		if (ret != 1)
-			dev_idx = -1;
-	}
 	ib_unregister_device(&ibdev->ib_dev);
-	if (dev_idx >= 0) {
-		spin_lock(&dev_num_str_lock);
-		bitmap_release_region(dev_num_str_bitmap, dev_idx, 0);
-		spin_unlock(&dev_num_str_lock);
-	}
 
 	if (dev->caps.steering_mode == MLX4_STEERING_MODE_DEVICE_MANAGED) {
 		mlx4_qp_release_range(dev, ibdev->steer_qpn_base,
@@ -2726,7 +2588,6 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 		if (mlx4_ib_port_link_layer(&ibdev->ib_dev, p + 1) ==
 						IB_LINK_LAYER_ETHERNET) {
 			mlx4_counter_free(ibdev->dev,
-					  p + 1,
 					  ibdev->counters[p].counter_index);
 		}
 	}
@@ -2883,8 +2744,6 @@ static int __init mlx4_ib_init(void)
 	if (err)
 		goto clean_proc;
 
-	init_dev_assign();
-
 	err = mlx4_register_interface(&mlx4_ib_interface);
 	if (err)
 		goto clean_mcg;
@@ -2904,8 +2763,6 @@ static void __exit mlx4_ib_cleanup(void)
 	mlx4_unregister_interface(&mlx4_ib_interface);
 	mlx4_ib_mcg_destroy();
 	destroy_workqueue(wq);
-
-	kfree(dev_num_str_bitmap);
 }
 
 module_init_order(mlx4_ib_init, SI_ORDER_MIDDLE);
