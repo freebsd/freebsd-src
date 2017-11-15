@@ -241,23 +241,17 @@ SLIST_HEAD(, uld_info) t4_uld_list;
  */
 
 /*
- * Number of queues for tx and rx, 10G and 1G, NIC and offload.
+ * Number of queues for tx and rx, NIC and offload.
  */
-#define NTXQ_10G 16
-int t4_ntxq10g = -NTXQ_10G;
-TUNABLE_INT("hw.cxgbe.ntxq10g", &t4_ntxq10g);
+#define NTXQ 16
+int t4_ntxq = -NTXQ;
+TUNABLE_INT("hw.cxgbe.ntxq", &t4_ntxq);
+TUNABLE_INT("hw.cxgbe.ntxq10g", &t4_ntxq);	/* Old name, undocumented */
 
-#define NRXQ_10G 8
-int t4_nrxq10g = -NRXQ_10G;
-TUNABLE_INT("hw.cxgbe.nrxq10g", &t4_nrxq10g);
-
-#define NTXQ_1G 4
-int t4_ntxq1g = -NTXQ_1G;
-TUNABLE_INT("hw.cxgbe.ntxq1g", &t4_ntxq1g);
-
-#define NRXQ_1G 2
-int t4_nrxq1g = -NRXQ_1G;
-TUNABLE_INT("hw.cxgbe.nrxq1g", &t4_nrxq1g);
+#define NRXQ 8
+int t4_nrxq = -NRXQ;
+TUNABLE_INT("hw.cxgbe.nrxq", &t4_nrxq);
+TUNABLE_INT("hw.cxgbe.nrxq10g", &t4_nrxq);	/* Old name, undocumented */
 
 #define NTXQ_VI 1
 static int t4_ntxq_vi = -NTXQ_VI;
@@ -271,21 +265,13 @@ static int t4_rsrv_noflowq = 0;
 TUNABLE_INT("hw.cxgbe.rsrv_noflowq", &t4_rsrv_noflowq);
 
 #ifdef TCP_OFFLOAD
-#define NOFLDTXQ_10G 8
-static int t4_nofldtxq10g = -NOFLDTXQ_10G;
-TUNABLE_INT("hw.cxgbe.nofldtxq10g", &t4_nofldtxq10g);
+#define NOFLDTXQ 8
+static int t4_nofldtxq = -NOFLDTXQ;
+TUNABLE_INT("hw.cxgbe.nofldtxq", &t4_nofldtxq);
 
-#define NOFLDRXQ_10G 2
-static int t4_nofldrxq10g = -NOFLDRXQ_10G;
-TUNABLE_INT("hw.cxgbe.nofldrxq10g", &t4_nofldrxq10g);
-
-#define NOFLDTXQ_1G 2
-static int t4_nofldtxq1g = -NOFLDTXQ_1G;
-TUNABLE_INT("hw.cxgbe.nofldtxq1g", &t4_nofldtxq1g);
-
-#define NOFLDRXQ_1G 1
-static int t4_nofldrxq1g = -NOFLDRXQ_1G;
-TUNABLE_INT("hw.cxgbe.nofldrxq1g", &t4_nofldrxq1g);
+#define NOFLDRXQ 2
+static int t4_nofldrxq = -NOFLDRXQ;
+TUNABLE_INT("hw.cxgbe.nofldrxq", &t4_nofldrxq);
 
 #define NOFLDTXQ_VI 1
 static int t4_nofldtxq_vi = -NOFLDTXQ_VI;
@@ -360,23 +346,15 @@ TUNABLE_INT("hw.cxgbe.nnmrxq_vi", &t4_nnmrxq_vi);
 #endif
 
 /*
- * Holdoff parameters for 10G and 1G ports.
+ * Holdoff parameters for ports.
  */
-#define TMR_IDX_10G 1
-int t4_tmr_idx_10g = TMR_IDX_10G;
-TUNABLE_INT("hw.cxgbe.holdoff_timer_idx_10G", &t4_tmr_idx_10g);
+#define TMR_IDX 1
+int t4_tmr_idx = TMR_IDX;
+TUNABLE_INT("hw.cxgbe.holdoff_timer_idx", &t4_tmr_idx);
 
-#define PKTC_IDX_10G (-1)
-int t4_pktc_idx_10g = PKTC_IDX_10G;
-TUNABLE_INT("hw.cxgbe.holdoff_pktc_idx_10G", &t4_pktc_idx_10g);
-
-#define TMR_IDX_1G 1
-int t4_tmr_idx_1g = TMR_IDX_1G;
-TUNABLE_INT("hw.cxgbe.holdoff_timer_idx_1G", &t4_tmr_idx_1g);
-
-#define PKTC_IDX_1G (-1)
-int t4_pktc_idx_1g = PKTC_IDX_1G;
-TUNABLE_INT("hw.cxgbe.holdoff_pktc_idx_1G", &t4_pktc_idx_1g);
+#define PKTC_IDX (-1)
+int t4_pktc_idx = PKTC_IDX;
+TUNABLE_INT("hw.cxgbe.holdoff_pktc_idx", &t4_pktc_idx);
 
 /*
  * Size (# of entries) of each tx and rx queue.
@@ -489,17 +467,12 @@ static int vi_mac_funcs[] = {
 struct intrs_and_queues {
 	uint16_t intr_type;	/* INTx, MSI, or MSI-X */
 	uint16_t nirq;		/* Total # of vectors */
-	uint16_t intr_flags_10g;/* Interrupt flags for each 10G port */
-	uint16_t intr_flags_1g;	/* Interrupt flags for each 1G port */
-	uint16_t ntxq10g;	/* # of NIC txq's for each 10G port */
-	uint16_t nrxq10g;	/* # of NIC rxq's for each 10G port */
-	uint16_t ntxq1g;	/* # of NIC txq's for each 1G port */
-	uint16_t nrxq1g;	/* # of NIC rxq's for each 1G port */
+	uint16_t intr_flags;	/* Interrupt flags for each port */
+	uint16_t ntxq;		/* # of NIC txq's for each port */
+	uint16_t nrxq;		/* # of NIC rxq's for each port */
 	uint16_t rsrv_noflowq;	/* Flag whether to reserve queue 0 */
-	uint16_t nofldtxq10g;	/* # of TOE txq's for each 10G port */
-	uint16_t nofldrxq10g;	/* # of TOE rxq's for each 10G port */
-	uint16_t nofldtxq1g;	/* # of TOE txq's for each 1G port */
-	uint16_t nofldrxq1g;	/* # of TOE rxq's for each 1G port */
+	uint16_t nofldtxq;	/* # of TOE txq's for each port */
+	uint16_t nofldrxq;	/* # of TOE rxq's for each port */
 
 	/* The vcxgbe/vcxl interfaces use these and not the ones above. */
 	uint16_t ntxq_vi;	/* # of NIC txq's */
@@ -532,7 +505,7 @@ static int fwmtype_to_hwmtype(int);
 static int validate_mt_off_len(struct adapter *, int, uint32_t, int,
     uint32_t *);
 static int fixup_devlog_params(struct adapter *);
-static int cfg_itype_and_nqueues(struct adapter *, int, int, int,
+static int cfg_itype_and_nqueues(struct adapter *, int, int,
     struct intrs_and_queues *);
 static int prep_firmware(struct adapter *);
 static int partition_resources(struct adapter *, const struct firmware *,
@@ -857,7 +830,7 @@ static int
 t4_attach(device_t dev)
 {
 	struct adapter *sc;
-	int rc = 0, i, j, n10g, n1g, rqidx, tqidx;
+	int rc = 0, i, j, rqidx, tqidx, nports;
 	struct make_dev_args mda;
 	struct intrs_and_queues iaq;
 	struct sge *s;
@@ -1011,11 +984,8 @@ t4_attach(device_t dev)
 
 	/*
 	 * First pass over all the ports - allocate VIs and initialize some
-	 * basic parameters like mac address, port type, etc.  We also figure
-	 * out whether a port is 10G or 1G and use that information when
-	 * calculating how many interrupts to attempt to allocate.
+	 * basic parameters like mac address, port type, etc.
 	 */
-	n10g = n1g = 0;
 	for_each_port(sc, i) {
 		struct port_info *pi;
 
@@ -1051,12 +1021,6 @@ t4_attach(device_t dev)
 		mtx_init(&pi->pi_lock, pi->lockname, 0, MTX_DEF);
 		sc->chan_map[pi->tx_chan] = i;
 
-		if (port_top_speed(pi) >= 10) {
-			n10g++;
-		} else {
-			n1g++;
-		}
-
 		/* All VIs on this port share this media. */
 		ifmedia_init(&pi->media, IFM_IMASK, cxgbe_media_change,
 		    cxgbe_media_status);
@@ -1075,7 +1039,8 @@ t4_attach(device_t dev)
 	/*
 	 * Interrupt type, # of interrupts, # of rx/tx queues, etc.
 	 */
-	rc = cfg_itype_and_nqueues(sc, n10g, n1g, num_vis, &iaq);
+	nports = sc->params.nports;
+	rc = cfg_itype_and_nqueues(sc, nports, num_vis, &iaq);
 	if (rc != 0)
 		goto done; /* error message displayed already */
 	if (iaq.nrxq_vi + iaq.nofldrxq_vi + iaq.nnmrxq_vi == 0)
@@ -1085,24 +1050,22 @@ t4_attach(device_t dev)
 	sc->intr_count = iaq.nirq;
 
 	s = &sc->sge;
-	s->nrxq = n10g * iaq.nrxq10g + n1g * iaq.nrxq1g;
-	s->ntxq = n10g * iaq.ntxq10g + n1g * iaq.ntxq1g;
+	s->nrxq = nports * iaq.nrxq;
+	s->ntxq = nports * iaq.ntxq;
 	if (num_vis > 1) {
-		s->nrxq += (n10g + n1g) * (num_vis - 1) * iaq.nrxq_vi;
-		s->ntxq += (n10g + n1g) * (num_vis - 1) * iaq.ntxq_vi;
+		s->nrxq += nports * (num_vis - 1) * iaq.nrxq_vi;
+		s->ntxq += nports * (num_vis - 1) * iaq.ntxq_vi;
 	}
 	s->neq = s->ntxq + s->nrxq;	/* the free list in an rxq is an eq */
-	s->neq += sc->params.nports + 1;/* ctrl queues: 1 per port + 1 mgmt */
+	s->neq += nports + 1;/* ctrl queues: 1 per port + 1 mgmt */
 	s->niq = s->nrxq + 1;		/* 1 extra for firmware event queue */
 #ifdef TCP_OFFLOAD
 	if (is_offload(sc)) {
-		s->nofldrxq = n10g * iaq.nofldrxq10g + n1g * iaq.nofldrxq1g;
-		s->nofldtxq = n10g * iaq.nofldtxq10g + n1g * iaq.nofldtxq1g;
+		s->nofldrxq = nports * iaq.nofldrxq;
+		s->nofldtxq = nports * iaq.nofldtxq;
 		if (num_vis > 1) {
-			s->nofldrxq += (n10g + n1g) * (num_vis - 1) *
-			    iaq.nofldrxq_vi;
-			s->nofldtxq += (n10g + n1g) * (num_vis - 1) *
-			    iaq.nofldtxq_vi;
+			s->nofldrxq += nports * (num_vis - 1) * iaq.nofldrxq_vi;
+			s->nofldtxq += nports * (num_vis - 1) * iaq.nofldtxq_vi;
 		}
 		s->neq += s->nofldtxq + s->nofldrxq;
 		s->niq += s->nofldrxq;
@@ -1115,8 +1078,8 @@ t4_attach(device_t dev)
 #endif
 #ifdef DEV_NETMAP
 	if (num_vis > 1) {
-		s->nnmrxq = (n10g + n1g) * (num_vis - 1) * iaq.nnmrxq_vi;
-		s->nnmtxq = (n10g + n1g) * (num_vis - 1) * iaq.nnmtxq_vi;
+		s->nnmrxq = nports * (num_vis - 1) * iaq.nnmrxq_vi;
+		s->nnmtxq = nports * (num_vis - 1) * iaq.nnmtxq_vi;
 	}
 	s->neq += s->nnmtxq + s->nnmrxq;
 	s->niq += s->nnmrxq;
@@ -1127,7 +1090,7 @@ t4_attach(device_t dev)
 	    M_CXGBE, M_ZERO | M_WAITOK);
 #endif
 
-	s->ctrlq = malloc(sc->params.nports * sizeof(struct sge_wrq), M_CXGBE,
+	s->ctrlq = malloc(nports * sizeof(struct sge_wrq), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 	s->rxq = malloc(s->nrxq * sizeof(struct sge_rxq), M_CXGBE,
 	    M_ZERO | M_WAITOK);
@@ -1170,19 +1133,12 @@ t4_attach(device_t dev)
 
 			vi->first_rxq = rqidx;
 			vi->first_txq = tqidx;
-			if (port_top_speed(pi) >= 10) {
-				vi->tmr_idx = t4_tmr_idx_10g;
-				vi->pktc_idx = t4_pktc_idx_10g;
-				vi->flags |= iaq.intr_flags_10g & INTR_RXQ;
-				vi->nrxq = j == 0 ? iaq.nrxq10g : iaq.nrxq_vi;
-				vi->ntxq = j == 0 ? iaq.ntxq10g : iaq.ntxq_vi;
-			} else {
-				vi->tmr_idx = t4_tmr_idx_1g;
-				vi->pktc_idx = t4_pktc_idx_1g;
-				vi->flags |= iaq.intr_flags_1g & INTR_RXQ;
-				vi->nrxq = j == 0 ? iaq.nrxq1g : iaq.nrxq_vi;
-				vi->ntxq = j == 0 ? iaq.ntxq1g : iaq.ntxq_vi;
-			}
+			vi->tmr_idx = t4_tmr_idx;
+			vi->pktc_idx = t4_pktc_idx;
+			vi->flags |= iaq.intr_flags & INTR_RXQ;
+			vi->nrxq = j == 0 ? iaq.nrxq : iaq.nrxq_vi;
+			vi->ntxq = j == 0 ? iaq.ntxq : iaq.ntxq_vi;
+
 			rqidx += vi->nrxq;
 			tqidx += vi->ntxq;
 
@@ -1196,19 +1152,10 @@ t4_attach(device_t dev)
 			vi->ofld_pktc_idx = t4_pktc_idx_ofld;
 			vi->first_ofld_rxq = ofld_rqidx;
 			vi->first_ofld_txq = ofld_tqidx;
-			if (port_top_speed(pi) >= 10) {
-				vi->flags |= iaq.intr_flags_10g & INTR_OFLD_RXQ;
-				vi->nofldrxq = j == 0 ? iaq.nofldrxq10g :
-				    iaq.nofldrxq_vi;
-				vi->nofldtxq = j == 0 ? iaq.nofldtxq10g :
-				    iaq.nofldtxq_vi;
-			} else {
-				vi->flags |= iaq.intr_flags_1g & INTR_OFLD_RXQ;
-				vi->nofldrxq = j == 0 ? iaq.nofldrxq1g :
-				    iaq.nofldrxq_vi;
-				vi->nofldtxq = j == 0 ? iaq.nofldtxq1g :
-				    iaq.nofldtxq_vi;
-			}
+			vi->flags |= iaq.intr_flags & INTR_OFLD_RXQ;
+			vi->nofldrxq = j == 0 ? iaq.nofldrxq : iaq.nofldrxq_vi;
+			vi->nofldtxq = j == 0 ? iaq.nofldtxq : iaq.nofldtxq_vi;
+
 			ofld_rqidx += vi->nofldrxq;
 			ofld_tqidx += vi->nofldtxq;
 #endif
@@ -2715,28 +2662,25 @@ fixup_devlog_params(struct adapter *sc)
 }
 
 static int
-cfg_itype_and_nqueues(struct adapter *sc, int n10g, int n1g, int num_vis,
+cfg_itype_and_nqueues(struct adapter *sc, int nports, int num_vis,
     struct intrs_and_queues *iaq)
 {
-	int rc, itype, navail, nrxq10g, nrxq1g, n;
-	int nofldrxq10g = 0, nofldrxq1g = 0;
+	int rc, itype, navail, nrxq, n;
+	int nofldrxq = 0;
+
+	MPASS(nports > 0);
 
 	bzero(iaq, sizeof(*iaq));
-
-	iaq->ntxq10g = t4_ntxq10g;
-	iaq->ntxq1g = t4_ntxq1g;
+	iaq->ntxq = t4_ntxq;
 	iaq->ntxq_vi = t4_ntxq_vi;
-	iaq->nrxq10g = nrxq10g = t4_nrxq10g;
-	iaq->nrxq1g = nrxq1g = t4_nrxq1g;
+	iaq->nrxq = nrxq = t4_nrxq;
 	iaq->nrxq_vi = t4_nrxq_vi;
 	iaq->rsrv_noflowq = t4_rsrv_noflowq;
 #ifdef TCP_OFFLOAD
 	if (is_offload(sc)) {
-		iaq->nofldtxq10g = t4_nofldtxq10g;
-		iaq->nofldtxq1g = t4_nofldtxq1g;
+		iaq->nofldtxq = t4_nofldtxq;
 		iaq->nofldtxq_vi = t4_nofldtxq_vi;
-		iaq->nofldrxq10g = nofldrxq10g = t4_nofldrxq10g;
-		iaq->nofldrxq1g = nofldrxq1g = t4_nofldrxq1g;
+		iaq->nofldrxq = nofldrxq = t4_nofldrxq;
 		iaq->nofldrxq_vi = t4_nofldrxq_vi;
 	}
 #endif
@@ -2761,8 +2705,7 @@ restart:
 			continue;
 
 		iaq->intr_type = itype;
-		iaq->intr_flags_10g = 0;
-		iaq->intr_flags_1g = 0;
+		iaq->intr_flags = 0;
 
 		/*
 		 * Best option: an interrupt vector for errors, one for the
@@ -2772,15 +2715,13 @@ restart:
 		 * because only one set of queues is active at a time.
 		 */
 		iaq->nirq = T4_EXTRA_INTR;
-		iaq->nirq += n10g * (nrxq10g + nofldrxq10g);
-		iaq->nirq += n1g * (nrxq1g + nofldrxq1g);
-		iaq->nirq += (n10g + n1g) * (num_vis - 1) *
+		iaq->nirq += nports * (nrxq + nofldrxq);
+		iaq->nirq += nports * (num_vis - 1) *
 		    max(iaq->nrxq_vi, iaq->nnmrxq_vi);	/* See comment above. */
-		iaq->nirq += (n10g + n1g) * (num_vis - 1) * iaq->nofldrxq_vi;
+		iaq->nirq += nports * (num_vis - 1) * iaq->nofldrxq_vi;
 		if (iaq->nirq <= navail &&
 		    (itype != INTR_MSI || powerof2(iaq->nirq))) {
-			iaq->intr_flags_10g = INTR_ALL;
-			iaq->intr_flags_1g = INTR_ALL;
+			iaq->intr_flags = INTR_ALL;
 			goto allocate;
 		}
 
@@ -2788,13 +2729,11 @@ restart:
 		if (num_vis > 1) {
 			device_printf(sc->dev, "virtual interfaces disabled "
 			    "because num_vis=%u with current settings "
-			    "(nrxq10g=%u, nrxq1g=%u, nofldrxq10g=%u, "
-			    "nofldrxq1g=%u, nrxq_vi=%u nofldrxq_vi=%u, "
+			    "(nrxq=%u, nofldrxq=%u, nrxq_vi=%u nofldrxq_vi=%u, "
 			    "nnmrxq_vi=%u) would need %u interrupts but "
-			    "only %u are available.\n", num_vis, nrxq10g,
-			    nrxq1g, nofldrxq10g, nofldrxq1g, iaq->nrxq_vi,
-			    iaq->nofldrxq_vi, iaq->nnmrxq_vi, iaq->nirq,
-			    navail);
+			    "only %u are available.\n", num_vis, nrxq,
+			    nofldrxq, iaq->nrxq_vi, iaq->nofldrxq_vi,
+			    iaq->nnmrxq_vi, iaq->nirq, navail);
 			num_vis = 1;
 			iaq->ntxq_vi = iaq->nrxq_vi = 0;
 			iaq->nofldtxq_vi = iaq->nofldrxq_vi = 0;
@@ -2809,19 +2748,12 @@ restart:
 		 * will forward their interrupts to those that do.
 		 */
 		iaq->nirq = T4_EXTRA_INTR;
-		if (nrxq10g >= nofldrxq10g) {
-			iaq->intr_flags_10g = INTR_RXQ;
-			iaq->nirq += n10g * nrxq10g;
+		if (nrxq >= nofldrxq) {
+			iaq->intr_flags = INTR_RXQ;
+			iaq->nirq += nports * nrxq;
 		} else {
-			iaq->intr_flags_10g = INTR_OFLD_RXQ;
-			iaq->nirq += n10g * nofldrxq10g;
-		}
-		if (nrxq1g >= nofldrxq1g) {
-			iaq->intr_flags_1g = INTR_RXQ;
-			iaq->nirq += n1g * nrxq1g;
-		} else {
-			iaq->intr_flags_1g = INTR_OFLD_RXQ;
-			iaq->nirq += n1g * nofldrxq1g;
+			iaq->intr_flags = INTR_OFLD_RXQ;
+			iaq->nirq += nports * nofldrxq;
 		}
 		if (iaq->nirq <= navail &&
 		    (itype != INTR_MSI || powerof2(iaq->nirq)))
@@ -2834,45 +2766,24 @@ restart:
 		 * fit what's available to us.
 		 */
 		iaq->nirq = T4_EXTRA_INTR;
-		iaq->nirq += n10g + n1g;
+		iaq->nirq += nports;
 		if (iaq->nirq <= navail) {
 			int leftover = navail - iaq->nirq;
+			int target = max(nrxq, nofldrxq);
 
-			if (n10g > 0) {
-				int target = max(nrxq10g, nofldrxq10g);
+			iaq->intr_flags = nrxq >= nofldrxq ?
+			    INTR_RXQ : INTR_OFLD_RXQ;
 
-				iaq->intr_flags_10g = nrxq10g >= nofldrxq10g ?
-				    INTR_RXQ : INTR_OFLD_RXQ;
-
-				n = 1;
-				while (n < target && leftover >= n10g) {
-					leftover -= n10g;
-					iaq->nirq += n10g;
-					n++;
-				}
-				iaq->nrxq10g = min(n, nrxq10g);
-#ifdef TCP_OFFLOAD
-				iaq->nofldrxq10g = min(n, nofldrxq10g);
-#endif
+			n = 1;
+			while (n < target && leftover >= nports) {
+				leftover -= nports;
+				iaq->nirq += nports;
+				n++;
 			}
-
-			if (n1g > 0) {
-				int target = max(nrxq1g, nofldrxq1g);
-
-				iaq->intr_flags_1g = nrxq1g >= nofldrxq1g ?
-				    INTR_RXQ : INTR_OFLD_RXQ;
-
-				n = 1;
-				while (n < target && leftover >= n1g) {
-					leftover -= n1g;
-					iaq->nirq += n1g;
-					n++;
-				}
-				iaq->nrxq1g = min(n, nrxq1g);
+			iaq->nrxq = min(n, nrxq);
 #ifdef TCP_OFFLOAD
-				iaq->nofldrxq1g = min(n, nofldrxq1g);
+			iaq->nofldrxq = min(n, nofldrxq);
 #endif
-			}
 
 			if (itype != INTR_MSI || powerof2(iaq->nirq))
 				goto allocate;
@@ -2881,11 +2792,11 @@ restart:
 		/*
 		 * Least desirable option: one interrupt vector for everything.
 		 */
-		iaq->nirq = iaq->nrxq10g = iaq->nrxq1g = 1;
-		iaq->intr_flags_10g = iaq->intr_flags_1g = 0;
+		iaq->nirq = iaq->nrxq = 1;
+		iaq->intr_flags = 0;
 #ifdef TCP_OFFLOAD
 		if (is_offload(sc))
-			iaq->nofldrxq10g = iaq->nofldrxq1g = 1;
+			iaq->nofldrxq = 1;
 #endif
 allocate:
 		navail = iaq->nirq;
@@ -9941,50 +9852,30 @@ tweak_tunables(void)
 {
 	int nc = mp_ncpus;	/* our snapshot of the number of CPUs */
 
-	if (t4_ntxq10g < 1) {
+	if (t4_ntxq < 1) {
 #ifdef RSS
-		t4_ntxq10g = rss_getnumbuckets();
+		t4_ntxq = rss_getnumbuckets();
 #else
-		calculate_nqueues(&t4_ntxq10g, nc, NTXQ_10G);
-#endif
-	}
-
-	if (t4_ntxq1g < 1) {
-#ifdef RSS
-		/* XXX: way too many for 1GbE? */
-		t4_ntxq1g = rss_getnumbuckets();
-#else
-		calculate_nqueues(&t4_ntxq1g, nc, NTXQ_1G);
+		calculate_nqueues(&t4_ntxq, nc, NTXQ);
 #endif
 	}
 
 	calculate_nqueues(&t4_ntxq_vi, nc, NTXQ_VI);
 
-	if (t4_nrxq10g < 1) {
+	if (t4_nrxq < 1) {
 #ifdef RSS
-		t4_nrxq10g = rss_getnumbuckets();
+		t4_nrxq = rss_getnumbuckets();
 #else
-		calculate_nqueues(&t4_nrxq10g, nc, NRXQ_10G);
-#endif
-	}
-
-	if (t4_nrxq1g < 1) {
-#ifdef RSS
-		/* XXX: way too many for 1GbE? */
-		t4_nrxq1g = rss_getnumbuckets();
-#else
-		calculate_nqueues(&t4_nrxq1g, nc, NRXQ_1G);
+		calculate_nqueues(&t4_nrxq, nc, NRXQ);
 #endif
 	}
 
 	calculate_nqueues(&t4_nrxq_vi, nc, NRXQ_VI);
 
 #ifdef TCP_OFFLOAD
-	calculate_nqueues(&t4_nofldtxq10g, nc, NOFLDTXQ_10G);
-	calculate_nqueues(&t4_nofldtxq1g, nc, NOFLDTXQ_1G);
+	calculate_nqueues(&t4_nofldtxq, nc, NOFLDTXQ);
 	calculate_nqueues(&t4_nofldtxq_vi, nc, NOFLDTXQ_VI);
-	calculate_nqueues(&t4_nofldrxq10g, nc, NOFLDRXQ_10G);
-	calculate_nqueues(&t4_nofldrxq1g, nc, NOFLDRXQ_1G);
+	calculate_nqueues(&t4_nofldrxq, nc, NOFLDRXQ);
 	calculate_nqueues(&t4_nofldrxq_vi, nc, NOFLDRXQ_VI);
 
 	if (t4_toecaps_allowed == -1)
@@ -10022,17 +9913,11 @@ tweak_tunables(void)
 	calculate_nqueues(&t4_nnmrxq_vi, nc, NNMRXQ_VI);
 #endif
 
-	if (t4_tmr_idx_10g < 0 || t4_tmr_idx_10g >= SGE_NTIMERS)
-		t4_tmr_idx_10g = TMR_IDX_10G;
+	if (t4_tmr_idx < 0 || t4_tmr_idx >= SGE_NTIMERS)
+		t4_tmr_idx = TMR_IDX;
 
-	if (t4_pktc_idx_10g < -1 || t4_pktc_idx_10g >= SGE_NCOUNTERS)
-		t4_pktc_idx_10g = PKTC_IDX_10G;
-
-	if (t4_tmr_idx_1g < 0 || t4_tmr_idx_1g >= SGE_NTIMERS)
-		t4_tmr_idx_1g = TMR_IDX_1G;
-
-	if (t4_pktc_idx_1g < -1 || t4_pktc_idx_1g >= SGE_NCOUNTERS)
-		t4_pktc_idx_1g = PKTC_IDX_1G;
+	if (t4_pktc_idx < -1 || t4_pktc_idx >= SGE_NCOUNTERS)
+		t4_pktc_idx = PKTC_IDX;
 
 	if (t4_qsize_txq < 128)
 		t4_qsize_txq = 128;
