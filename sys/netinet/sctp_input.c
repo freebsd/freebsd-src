@@ -1098,19 +1098,11 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp SCTP_UNUSED,
 #endif
 }
 
-/*
- * Skip past the param header and then we will find the chunk that caused the
- * problem. There are two possibilities ASCONF or FWD-TSN other than that and
- * our peer must be broken.
- */
 static void
-sctp_process_unrecog_chunk(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr,
+sctp_process_unrecog_chunk(struct sctp_tcb *stcb, uint8_t chunk_type,
     struct sctp_nets *net)
 {
-	struct sctp_chunkhdr *chk;
-
-	chk = (struct sctp_chunkhdr *)((caddr_t)phdr + sizeof(*phdr));
-	switch (chk->chunk_type) {
+	switch (chunk_type) {
 	case SCTP_ASCONF_ACK:
 	case SCTP_ASCONF:
 		sctp_asconf_cleanup(stcb, net);
@@ -1121,8 +1113,8 @@ sctp_process_unrecog_chunk(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr,
 		break;
 	default:
 		SCTPDBG(SCTP_DEBUG_INPUT2,
-		    "Peer does not support chunk type %d(%x)??\n",
-		    chk->chunk_type, (uint32_t)chk->chunk_type);
+		    "Peer does not support chunk type %d (0x%x).\n",
+		    chunk_type, chunk_type);
 		break;
 	}
 }
@@ -1134,12 +1126,9 @@ sctp_process_unrecog_chunk(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr,
  * XXX: Is this the right thing to do?
  */
 static void
-sctp_process_unrecog_param(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr)
+sctp_process_unrecog_param(struct sctp_tcb *stcb, uint16_t parameter_type)
 {
-	struct sctp_paramhdr *pbad;
-
-	pbad = phdr + 1;
-	switch (ntohs(pbad->param_type)) {
+	switch (parameter_type) {
 		/* pr-sctp draft */
 	case SCTP_PRSCTP_SUPPORTED:
 		stcb->asoc.prsctp_supported = 0;
@@ -1164,63 +1153,69 @@ sctp_process_unrecog_param(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr)
 		break;
 	default:
 		SCTPDBG(SCTP_DEBUG_INPUT2,
-		    "Peer does not support param type %d(%x)??\n",
-		    pbad->param_type, (uint32_t)pbad->param_type);
+		    "Peer does not support param type %d (0x%x)??\n",
+		    parameter_type, parameter_type);
 		break;
 	}
 }
 
 static int
 sctp_handle_error(struct sctp_chunkhdr *ch,
-    struct sctp_tcb *stcb, struct sctp_nets *net)
+    struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t limit)
 {
-	int chklen;
-	struct sctp_paramhdr *phdr;
-	uint16_t error, error_type;
-	uint16_t error_len;
+	struct sctp_error_cause *cause;
 	struct sctp_association *asoc;
-	int adjust;
+	uint32_t remaining_length, adjust;
+	uint16_t code, cause_code, cause_length;
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
 #endif
 
 	/* parse through all of the errors and process */
 	asoc = &stcb->asoc;
-	phdr = (struct sctp_paramhdr *)((caddr_t)ch +
+	cause = (struct sctp_error_cause *)((caddr_t)ch +
 	    sizeof(struct sctp_chunkhdr));
-	chklen = ntohs(ch->chunk_length) - sizeof(struct sctp_chunkhdr);
-	error = 0;
-	while ((size_t)chklen >= sizeof(struct sctp_paramhdr)) {
+	remaining_length = ntohs(ch->chunk_length);
+	if (remaining_length > limit) {
+		remaining_length = limit;
+	}
+	if (remaining_length >= sizeof(struct sctp_chunkhdr)) {
+		remaining_length -= sizeof(struct sctp_chunkhdr);
+	} else {
+		remaining_length = 0;
+	}
+	code = 0;
+	while (remaining_length >= sizeof(struct sctp_error_cause)) {
 		/* Process an Error Cause */
-		error_type = ntohs(phdr->param_type);
-		error_len = ntohs(phdr->param_length);
-		if ((error_len > chklen) || (error_len == 0)) {
-			/* invalid param length for this param */
-			SCTPDBG(SCTP_DEBUG_INPUT1, "Bogus length in error param- chunk left:%d errorlen:%d\n",
-			    chklen, error_len);
+		cause_code = ntohs(cause->code);
+		cause_length = ntohs(cause->length);
+		if ((cause_length > remaining_length) || (cause_length == 0)) {
+			/* Invalid cause length, possibly due to truncation. */
+			SCTPDBG(SCTP_DEBUG_INPUT1, "Bogus length in cause - bytes left: %u cause length: %u\n",
+			    remaining_length, cause_length);
 			return (0);
 		}
-		if (error == 0) {
+		if (code == 0) {
 			/* report the first error cause */
-			error = error_type;
+			code = cause_code;
 		}
-		switch (error_type) {
+		switch (cause_code) {
 		case SCTP_CAUSE_INVALID_STREAM:
 		case SCTP_CAUSE_MISSING_PARAM:
 		case SCTP_CAUSE_INVALID_PARAM:
 		case SCTP_CAUSE_NO_USER_DATA:
-			SCTPDBG(SCTP_DEBUG_INPUT1, "Software error we got a %d back? We have a bug :/ (or do they?)\n",
-			    error_type);
+			SCTPDBG(SCTP_DEBUG_INPUT1, "Software error we got a %u back? We have a bug :/ (or do they?)\n",
+			    cause_code);
 			break;
 		case SCTP_CAUSE_NAT_COLLIDING_STATE:
-			SCTPDBG(SCTP_DEBUG_INPUT2, "Received Colliding state abort flags:%x\n",
+			SCTPDBG(SCTP_DEBUG_INPUT2, "Received Colliding state abort flags: %x\n",
 			    ch->chunk_flags);
 			if (sctp_handle_nat_colliding_state(stcb)) {
 				return (0);
 			}
 			break;
 		case SCTP_CAUSE_NAT_MISSING_STATE:
-			SCTPDBG(SCTP_DEBUG_INPUT2, "Received missing state abort flags:%x\n",
+			SCTPDBG(SCTP_DEBUG_INPUT2, "Received missing state abort flags: %x\n",
 			    ch->chunk_flags);
 			if (sctp_handle_nat_missing_state(stcb, net)) {
 				return (0);
@@ -1231,12 +1226,18 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 			 * We only act if we have echoed a cookie and are
 			 * waiting.
 			 */
-			if (SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_ECHOED) {
-				int *p;
+			if ((cause_length >= sizeof(struct sctp_error_stale_cookie)) &&
+			    (SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_ECHOED)) {
+				struct sctp_error_stale_cookie *stale_cookie;
 
-				p = (int *)((caddr_t)phdr + sizeof(*phdr));
-				/* Save the time doubled */
-				asoc->cookie_preserve_req = ntohl(*p) << 1;
+				stale_cookie = (struct sctp_error_stale_cookie *)cause;
+				asoc->cookie_preserve_req = ntohl(stale_cookie->stale_time);
+				/* Double it to be more robust on RTX */
+				if (asoc->cookie_preserve_req <= UINT32_MAX / 2) {
+					asoc->cookie_preserve_req *= 2;
+				} else {
+					asoc->cookie_preserve_req = UINT32_MAX;
+				}
 				asoc->stale_cookie_count++;
 				if (asoc->stale_cookie_count >
 				    asoc->max_init_times) {
@@ -1279,10 +1280,21 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 			 */
 			break;
 		case SCTP_CAUSE_UNRECOG_CHUNK:
-			sctp_process_unrecog_chunk(stcb, phdr, net);
+			if (cause_length >= sizeof(struct sctp_error_unrecognized_chunk)) {
+				struct sctp_error_unrecognized_chunk *unrec_chunk;
+
+				unrec_chunk = (struct sctp_error_unrecognized_chunk *)cause;
+				sctp_process_unrecog_chunk(stcb, unrec_chunk->ch.chunk_type, net);
+			}
 			break;
 		case SCTP_CAUSE_UNRECOG_PARAM:
-			sctp_process_unrecog_param(stcb, phdr);
+			/* XXX: We only consider the first parameter */
+			if (cause_length >= sizeof(struct sctp_error_cause) + sizeof(struct sctp_paramhdr)) {
+				struct sctp_paramhdr *unrec_parameter;
+
+				unrec_parameter = (struct sctp_paramhdr *)(cause + 1);
+				sctp_process_unrecog_param(stcb, ntohs(unrec_parameter->param_type));
+			}
 			break;
 		case SCTP_CAUSE_COOKIE_IN_SHUTDOWN:
 			/*
@@ -1299,8 +1311,8 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 			 * We should NOT get these here, but in a
 			 * ASCONF-ACK.
 			 */
-			SCTPDBG(SCTP_DEBUG_INPUT2, "Peer sends ASCONF errors in a Operational Error?<%d>?\n",
-			    error_type);
+			SCTPDBG(SCTP_DEBUG_INPUT2, "Peer sends ASCONF errors in a error cause with code %u.\n",
+			    cause_code);
 			break;
 		case SCTP_CAUSE_OUT_OF_RESC:
 			/*
@@ -1312,15 +1324,19 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 			 */
 			break;
 		default:
-			SCTPDBG(SCTP_DEBUG_INPUT1, "sctp_handle_error: unknown error type = 0x%xh\n",
-			    error_type);
+			SCTPDBG(SCTP_DEBUG_INPUT1, "sctp_handle_error: unknown code 0x%x\n",
+			    cause_code);
 			break;
 		}
-		adjust = SCTP_SIZE32(error_len);
-		chklen -= adjust;
-		phdr = (struct sctp_paramhdr *)((caddr_t)phdr + adjust);
+		adjust = SCTP_SIZE32(cause_length);
+		if (remaining_length >= adjust) {
+			remaining_length -= adjust;
+		} else {
+			remaining_length = 0;
+		}
+		cause = (struct sctp_error_cause *)((caddr_t)cause + adjust);
 	}
-	sctp_ulp_notify(SCTP_NOTIFY_REMOTE_ERROR, stcb, error, ch, SCTP_SO_NOT_LOCKED);
+	sctp_ulp_notify(SCTP_NOTIFY_REMOTE_ERROR, stcb, code, ch, SCTP_SO_NOT_LOCKED);
 	return (0);
 }
 
@@ -5072,7 +5088,7 @@ process_control_chunks:
 		case SCTP_OPERATION_ERROR:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_OP_ERR\n");
 			if ((stcb != NULL) && (netp != NULL) && (*netp != NULL) &&
-			    sctp_handle_error(ch, stcb, *netp) < 0) {
+			    sctp_handle_error(ch, stcb, *netp, contiguous) < 0) {
 				*offset = length;
 				return (NULL);
 			}
