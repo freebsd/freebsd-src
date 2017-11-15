@@ -3068,8 +3068,8 @@ freebsd32_copyout_strings(struct image_params *imgp)
 int
 freebsd32_kldstat(struct thread *td, struct freebsd32_kldstat_args *uap)
 {
-	struct kld_file_stat stat;
-	struct kld32_file_stat stat32;
+	struct kld_file_stat *stat;
+	struct kld32_file_stat *stat32;
 	int error, version;
 
 	if ((error = copyin(&uap->stat->version, &version, sizeof(version)))
@@ -3079,17 +3079,22 @@ freebsd32_kldstat(struct thread *td, struct freebsd32_kldstat_args *uap)
 	    version != sizeof(struct kld32_file_stat))
 		return (EINVAL);
 
-	error = kern_kldstat(td, uap->fileid, &stat);
-	if (error != 0)
-		return (error);
-
-	bcopy(&stat.name[0], &stat32.name[0], sizeof(stat.name));
-	CP(stat, stat32, refs);
-	CP(stat, stat32, id);
-	PTROUT_CP(stat, stat32, address);
-	CP(stat, stat32, size);
-	bcopy(&stat.pathname[0], &stat32.pathname[0], sizeof(stat.pathname));
-	return (copyout(&stat32, uap->stat, version));
+	stat = malloc(sizeof(*stat), M_TEMP, M_WAITOK | M_ZERO);
+	stat32 = malloc(sizeof(*stat32), M_TEMP, M_WAITOK | M_ZERO);
+	error = kern_kldstat(td, uap->fileid, stat);
+	if (error == 0) {
+		bcopy(&stat->name[0], &stat32->name[0], sizeof(stat->name));
+		CP(*stat, *stat32, refs);
+		CP(*stat, *stat32, id);
+		PTROUT_CP(*stat, *stat32, address);
+		CP(*stat, *stat32, size);
+		bcopy(&stat->pathname[0], &stat32->pathname[0],
+		    sizeof(stat->pathname));
+		error = copyout(stat32, uap->stat, version);
+	}
+	free(stat, M_TEMP);
+	free(stat32, M_TEMP);
+	return (error);
 }
 
 int
