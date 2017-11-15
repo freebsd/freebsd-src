@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20171115	p15	FreeBSD-SA-17:08.ptrace
+			FreeBSD-SA-17:10.kldstat
+
+	Fix ptrace(2) vulnerability. [SA-17:08.ptrace]
+
+	Fix kldstat(2) vulnerability. [SA-17:10.kldstat]
+
 20171102	p14	FreeBSD-EN-17:09.tzdata
 
 	Update timezone database information. [EN-17:09]
