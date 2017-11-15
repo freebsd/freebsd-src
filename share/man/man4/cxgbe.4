@@ -172,37 +172,22 @@ types.
 A negative value for such a tunable instructs the driver to create
 up to that many queues if there are enough CPU cores available.
 .Bl -tag -width indent
-.It Va hw.cxgbe.ntxq10g
-Number of tx queues used for a 10Gb or higher-speed port.
+.It Va hw.cxgbe.ntxq
+Number of NIC tx queues used for a port.
 The default is 16 or the number
 of CPU cores in the system, whichever is less.
-.It Va hw.cxgbe.nrxq10g
-Number of rx queues used for a 10Gb or higher-speed port.
+.It Va hw.cxgbe.nrxq
+Number of NIC rx queues used for a port.
 The default is 8 or the number
 of CPU cores in the system, whichever is less.
-.It Va hw.cxgbe.ntxq1g
-Number of tx queues used for a 1Gb port.
-The default is 4 or the number
-of CPU cores in the system, whichever is less.
-.It Va hw.cxgbe.nrxq1g
-Number of rx queues used for a 1Gb port.
-The default is 2 or the number
-of CPU cores in the system, whichever is less.
-.It Va hw.cxgbe.nofldtxq10g
-Number of TOE tx queues used for a 10Gb or higher-speed port.
+.It Va hw.cxgbe.nofldtxq
+Number of TOE tx queues used for a port.
 The default is 8 or the
 number of CPU cores in the system, whichever is less.
-.It Va hw.cxgbe.nofldrxq10g
-Number of TOE rx queues used for a 10Gb or higher-speed port.
+.It Va hw.cxgbe.nofldrxq
+Number of TOE rx queues used for a port.
 The default is 2 or the
 number of CPU cores in the system, whichever is less.
-.It Va hw.cxgbe.nofldtxq1g
-Number of TOE tx queues used for a 1Gb port.
-The default is 2 or the
-number of CPU cores in the system, whichever is less.
-.It Va hw.cxgbe.nofldrxq1g
-Number of TOE rx queues used for a 1Gb port.
-The default is 1.
 .It Va hw.cxgbe.num_vis
 Number of virtual interfaces (VIs) created for each port.
 Each virtual interface creates a separate network interface.
@@ -213,8 +198,7 @@ name from the table above.
 Additional virtual interfaces use a single pair of queues
 for rx and tx as well an additional pair of queues for TOE rx and tx.
 The default is 1.
-.It Va hw.cxgbe.holdoff_timer_idx_10G
-.It Va hw.cxgbe.holdoff_timer_idx_1G
+.It Va hw.cxgbe.holdoff_timer_idx
 .It Va hw.cxgbe.holdoff_timer_idx_ofld
 Timer index value used to delay interrupts.
 The holdoff timer list has the values 1, 5, 10, 50, 100, and 200
@@ -224,8 +208,7 @@ holdoff_timer_idx_ofld applies to queues used for TOE rx.
 The default value is 1 which means the timer value is 5us.
 Different interfaces can be assigned different values at any time via the
 dev.<port>.X.holdoff_tmr_idx and dev.<port>.X.holdoff_tmr_idx_ofld sysctls.
-.It Va hw.cxgbe.holdoff_pktc_idx_10G
-.It Va hw.cxgbe.holdoff_pktc_idx_1G
+.It Va hw.cxgbe.holdoff_pktc_idx
 .It Va hw.cxgbe.holdoff_pktc_idx_ofld
 Packet-count index value used to delay interrupts.
 The packet-count list has the values 1, 8, 16, and 32 by default,
