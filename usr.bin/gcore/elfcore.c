@@ -109,6 +109,9 @@ static void *elf_note_prpsinfo(void *, size_t *);
 static void *elf_note_prstatus(void *, size_t *);
 static void *elf_note_thrmisc(void *, size_t *);
 static void *elf_note_ptlwpinfo(void *, size_t *);
+#if defined(__arm__)
+static void *elf_note_arm_vfp(void *, size_t *);
+#endif
 #if defined(__i386__) || defined(__amd64__)
 static void *elf_note_x86_xstate(void *, size_t *);
 #endif
@@ -366,6 +369,9 @@ elf_putnotes(pid_t pid, struct sbuf *sb, size_t *sizep)
 		elf_putnote(NT_FPREGSET, elf_note_fpregset, tids + i, sb);
 		elf_putnote(NT_THRMISC, elf_note_thrmisc, tids + i, sb);
 		elf_putnote(NT_PTLWPINFO, elf_note_ptlwpinfo, tids + i, sb);
+#if defined(__arm__)
+		elf_putnote(NT_ARM_VFP, elf_note_arm_vfp, tids + i, sb);
+#endif
 #if defined(__i386__) || defined(__amd64__)
 		elf_putnote(NT_X86_XSTATE, elf_note_x86_xstate, tids + i, sb);
 #endif
@@ -689,6 +695,31 @@ elf_note_ptlwpinfo(void *arg, size_t *sizep)
 	*sizep = sizeof(int) + sizeof(struct ptrace_lwpinfo);
 	return (p);
 }
+
+#if defined(__arm__)
+static void *
+elf_note_arm_vfp(void *arg, size_t *sizep)
+{
+	lwpid_t tid;
+	struct vfpreg *vfp;
+	static bool has_vfp = true;
+	struct vfpreg info;
+
+	tid = *(lwpid_t *)arg;
+	if (has_vfp) {
+		if (ptrace(PT_GETVFPREGS, tid, (void *)&info, 0) != 0)
+			has_vfp = false;
+	}
+	if (!has_vfp) {
+		*sizep = 0;
+		return (NULL);
+	}
+	vfp = calloc(1, sizeof(*vfp));
+	memcpy(vfp, &info, sizeof(*vfp));
+	*sizep = sizeof(*vfp);
+	return (vfp);
+}
+#endif
 
 #if defined(__i386__) || defined(__amd64__)
 static void *
