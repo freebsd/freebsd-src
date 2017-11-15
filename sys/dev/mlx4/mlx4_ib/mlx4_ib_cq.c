@@ -105,12 +105,8 @@ int mlx4_ib_modify_cq(struct ib_cq *cq,
 		if (cq_attr->cq_cap_flags & IB_CQ_TIMESTAMP)
 			return -ENOTSUPP;
 
-		if (cq_attr->cq_cap_flags & IB_CQ_IGNORE_OVERRUN) {
-			if (dev->dev->caps.cq_flags & MLX4_DEV_CAP_CQ_FLAG_IO)
-				err = mlx4_cq_ignore_overrun(dev->dev, &mcq->mcq);
-			else
-				err = -ENOSYS;
-		}
+		if (cq_attr->cq_cap_flags & IB_CQ_IGNORE_OVERRUN)
+			return -ENOSYS;
 	}
 
 	if (!err)
@@ -127,7 +123,7 @@ static int mlx4_ib_alloc_cq_buf(struct mlx4_ib_dev *dev, struct mlx4_ib_cq_buf *
 	int err;
 
 	err = mlx4_buf_alloc(dev->dev, nent * dev->dev->caps.cqe_size,
-			     PAGE_SIZE * 2, &buf->buf);
+			     PAGE_SIZE * 2, &buf->buf, GFP_KERNEL);
 
 	if (err)
 		goto out;
@@ -138,7 +134,7 @@ static int mlx4_ib_alloc_cq_buf(struct mlx4_ib_dev *dev, struct mlx4_ib_cq_buf *
 	if (err)
 		goto err_buf;
 
-	err = mlx4_buf_write_mtt(dev->dev, &buf->mtt, &buf->buf);
+	err = mlx4_buf_write_mtt(dev->dev, &buf->mtt, &buf->buf, GFP_KERNEL);
 	if (err)
 		goto err_mtt;
 
@@ -248,7 +244,7 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 
 		uar = &to_mucontext(context)->uar;
 	} else {
-		err = mlx4_db_alloc(dev->dev, &cq->db, 1);
+		err = mlx4_db_alloc(dev->dev, &cq->db, 1, GFP_KERNEL);
 		if (err)
 			goto err_cq;
 
@@ -509,13 +505,7 @@ out:
 
 int mlx4_ib_ignore_overrun_cq(struct ib_cq *ibcq)
 {
-	struct mlx4_ib_dev *dev = to_mdev(ibcq->device);
-	struct mlx4_ib_cq *cq = to_mcq(ibcq);
-
-	if (dev->dev->caps.fw_ver < MLX4_FW_VER_IGNORE_OVERRUN_CQ)
-		return -ENOSYS;
-
-	return mlx4_cq_ignore_overrun(dev->dev, &cq->mcq);
+	return -ENOSYS;
 }
 
 int mlx4_ib_destroy_cq(struct ib_cq *cq)
@@ -862,6 +852,8 @@ repoll:
 		}
 
 		if (timestamp_en) {
+			const struct mlx4_ts_cqe *ts_cqe =
+			    (const struct mlx4_ts_cqe *)cqe;
 			/* currently, only CQ_CREATE_WITH_TIMESTAMPING_RAW is
 			 * supported. CQ_CREATE_WITH_TIMESTAMPING_SYS isn't
 			 * supported */
@@ -869,9 +861,9 @@ repoll:
 				wc->ts.timestamp = 0;
 			} else {
 				wc->ts.timestamp =
-					((u64)(be32_to_cpu(cqe->timestamp_16_47)
-					       + !cqe->timestamp_0_15) << 16)
-					| be16_to_cpu(cqe->timestamp_0_15);
+					((u64)(be32_to_cpu(ts_cqe->timestamp_hi)
+					       + !ts_cqe->timestamp_lo) << 16)
+					| be16_to_cpu(ts_cqe->timestamp_lo);
 				wc->wc_flags |= IB_WC_WITH_TIMESTAMP;
 			}
 		} else {
@@ -895,7 +887,7 @@ repoll:
 			wc->wc_flags	  |= IB_WC_WITH_SL;
 		}
 		if ((be32_to_cpu(cqe->vlan_my_qpn) &
-		    MLX4_CQE_VLAN_PRESENT_MASK) && !timestamp_en) {
+		    MLX4_CQE_CVLAN_PRESENT_MASK) && !timestamp_en) {
 			wc->vlan_id = be16_to_cpu(cqe->sl_vid) &
 				MLX4_CQE_VID_MASK;
 			wc->wc_flags	  |= IB_WC_WITH_VLAN;

@@ -315,7 +315,7 @@ int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem,
 						u64 start_va,
 						int *num_of_mtts)
 {
-	u64 block_shift = MLX4_MAX_MTT_SHIFT;
+	u64 block_shift = 31;
 	u64 current_block_len = 0;
 	u64 current_block_start = 0;
 	u64 misalignment_bits;
@@ -763,7 +763,7 @@ struct ib_fast_reg_page_list *mlx4_ib_alloc_fast_reg_page_list(struct ib_device 
 	if (!mfrpl->ibfrpl.page_list)
 		goto err_free;
 
-	mfrpl->mapped_page_list = dma_alloc_coherent(&dev->dev->pdev->dev,
+	mfrpl->mapped_page_list = dma_alloc_coherent(&dev->dev->persist->pdev->dev,
 						     size, &mfrpl->map,
 						     GFP_KERNEL);
 	if (!mfrpl->mapped_page_list)
@@ -785,7 +785,7 @@ void mlx4_ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list)
 	struct mlx4_ib_fast_reg_page_list *mfrpl = to_mfrpl(page_list);
 	int size = page_list->max_page_list_len * sizeof (u64);
 
-	dma_free_coherent(&dev->dev->pdev->dev, size, mfrpl->mapped_page_list,
+	dma_free_coherent(&dev->dev->persist->pdev->dev, size, mfrpl->mapped_page_list,
 			  mfrpl->map);
 	kfree(mfrpl->ibfrpl.page_list);
 	kfree(mfrpl);

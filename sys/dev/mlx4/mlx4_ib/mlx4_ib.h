@@ -771,9 +771,6 @@ int __mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 int mlx4_ib_resolve_grh(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah_attr,
 			u8 *mac, int *is_mcast, u8 port);
 
-int mlx4_ib_query_if_stat(struct mlx4_ib_dev *dev, u32 counter_index,
-		       union mlx4_counter *counter, u8 clear);
-
 static inline int mlx4_ib_ah_grh_present(struct mlx4_ib_ah *ah)
 {
 	u8 port = be32_to_cpu(ah->av.ib.port_pd) >> 24 & 3;

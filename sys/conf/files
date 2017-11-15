@@ -4569,6 +4569,8 @@ dev/mlx4/mlx4_core/mlx4_eq.c			optional mlx4 pci \
 	compile-with "${OFED_C}"
 dev/mlx4/mlx4_core/mlx4_fw.c			optional mlx4 pci \
 	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_fw_qos.c		optional mlx4 pci \
+	compile-with "${OFED_C}"
 dev/mlx4/mlx4_core/mlx4_icm.c			optional mlx4 pci \
 	compile-with "${OFED_C}"
 dev/mlx4/mlx4_core/mlx4_intf.c			optional mlx4 pci \
@@ -4594,8 +4596,6 @@ dev/mlx4/mlx4_core/mlx4_sense.c			optional mlx4 pci \
 dev/mlx4/mlx4_core/mlx4_srq.c			optional mlx4 pci \
 	compile-with "${OFED_C}"
 dev/mlx4/mlx4_core/mlx4_resource_tracker.c	optional mlx4 pci \
-	compile-with "${OFED_C}"
-dev/mlx4/mlx4_core/mlx4_sys_tune.c		optional mlx4 pci \
 	compile-with "${OFED_C}"
 
 dev/mlx4/mlx4_en/mlx4_en_cq.c			optional mlx4en pci inet inet6	\
