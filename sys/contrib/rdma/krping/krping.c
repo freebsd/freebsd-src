@@ -219,7 +219,7 @@ struct krping_cb {
 	struct krping_stats stats;
 
 	uint16_t port;			/* dst port in NBO */
-	u8 addr[16];			/* dst addr in NBO */
+	u8 addr[16] __aligned(8);	/* dst addr in NBO */
 	char *addr_str;			/* dst addr string */
 	uint8_t addr_type;		/* ADDR_FAMILY - IPv4/V6 */
 	int verbose;			/* verbose logging */
@@ -1961,12 +1961,31 @@ err1:
 	krping_free_qp(cb);
 }
 
+static uint16_t
+krping_get_ipv6_scope_id(char *name)
+{
+	struct ifnet *ifp;
+	uint16_t retval;
+
+	if (name == NULL)
+		return (0);
+	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
+	ifp = ifunit_ref(name);
+	CURVNET_RESTORE();
+	if (ifp == NULL)
+		return (0);
+	retval = ifp->if_index;
+	if_rele(ifp);
+	return (retval);
+}
+
 int krping_doit(char *cmd)
 {
 	struct krping_cb *cb;
 	int op;
 	int ret = 0;
 	char *optarg;
+	char *scope;
 	unsigned long optint;
 
 	cb = kzalloc(sizeof(*cb), GFP_KERNEL);
@@ -1986,23 +2005,36 @@ int krping_doit(char *cmd)
 	while ((op = krping_getopt("krping", &cmd, krping_opts, NULL, &optarg,
 			      &optint)) != 0) {
 		switch (op) {
-		struct in_addr in_addr;
 		case 'a':
 			cb->addr_str = optarg;
 			cb->addr_type = AF_INET;
 			DEBUG_LOG("ipaddr (%s)\n", optarg);
-			if (!inet_aton(optarg, &in_addr)) {
+			if (inet_pton(AF_INET, optarg, cb->addr) != 1) {
 				printk(KERN_ERR PFX "bad addr string %s\n",
 				    optarg);
 				ret = EINVAL;
 			}
-			memcpy(cb->addr, &in_addr.s_addr, sizeof(in_addr.s_addr));
 			break;
 		case 'A':
 			cb->addr_str = optarg;
 			cb->addr_type = AF_INET6;
 			DEBUG_LOG("ipv6addr (%s)\n", optarg);
-			ret = EAFNOSUPPORT;	/* XXX not supported */
+			scope = strstr(optarg, "%");
+			/* extract scope ID, if any */
+			if (scope != NULL)
+				*scope++ = 0;
+			/* extract IPv6 network address */
+			if (inet_pton(AF_INET6, optarg, cb->addr) != 1) {
+				printk(KERN_ERR PFX "bad addr string %s\n",
+				    optarg);
+				ret = EINVAL;
+			} else if (IN6_IS_SCOPE_LINKLOCAL((struct in6_addr *)cb->addr) ||
+			    IN6_IS_ADDR_MC_INTFACELOCAL((struct in6_addr *)cb->addr)) {
+				uint16_t scope_id = krping_get_ipv6_scope_id(scope);
+				DEBUG_LOG("ipv6 scope ID = %d\n", scope_id);
+				cb->addr[2] = scope_id >> 8;
+				cb->addr[3] = scope_id & 0xFF;
+			}
 			break;
 		case 'p':
 			cb->port = htons(optint);
