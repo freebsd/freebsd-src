@@ -342,9 +342,31 @@ pfind(pid_t pid)
 {
 	struct proc *p;
 
+	p = curproc;
+	if (p->p_pid == pid) {
+		PROC_LOCK(p);
+		return (p);
+	}
 	sx_slock(&allproc_lock);
 	p = pfind_locked(pid);
 	sx_sunlock(&allproc_lock);
+	return (p);
+}
+
+/*
+ * Same as pfind but allow zombies.
+ */
+struct proc *
+pfind_any(pid_t pid)
+{
+	struct proc *p;
+
+	sx_slock(&allproc_lock);
+	p = pfind_locked(pid);
+	if (p == NULL)
+		p = zpfind_locked(pid);
+	sx_sunlock(&allproc_lock);
+
 	return (p);
 }
 
@@ -1369,16 +1391,12 @@ kern_proc_out(struct proc *p, struct sbuf *sb, int flags)
 }
 
 static int
-sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags,
-    int doingzomb)
+sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 {
 	struct sbuf sb;
 	struct kinfo_proc ki;
-	struct proc *np;
 	int error, error2;
-	pid_t pid;
 
-	pid = p->p_pid;
 	sbuf_new_for_sysctl(&sb, (char *)&ki, sizeof(ki), req);
 	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 	error = kern_proc_out(p, &sb, flags);
@@ -1388,20 +1406,6 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags,
 		return (error);
 	else if (error2 != 0)
 		return (error2);
-	if (doingzomb)
-		np = zpfind(pid);
-	else {
-		if (pid == 0)
-			return (0);
-		np = pfind(pid);
-	}
-	if (np == NULL)
-		return (ESRCH);
-	if (np != p) {
-		PROC_UNLOCK(np);
-		return (ESRCH);
-	}
-	PROC_UNLOCK(np);
 	return (0);
 }
 
@@ -1435,7 +1439,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		sx_slock(&proctree_lock);
 		error = pget((pid_t)name[0], PGET_CANSEE, &p);
 		if (error == 0)
-			error = sysctl_out_proc(p, req, flags, 0);
+			error = sysctl_out_proc(p, req, flags);
 		sx_sunlock(&proctree_lock);
 		return (error);
 	}
@@ -1566,7 +1570,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 
 			}
 
-			error = sysctl_out_proc(p, req, flags, doingzomb);
+			error = sysctl_out_proc(p, req, flags);
 			if (error) {
 				sx_sunlock(&allproc_lock);
 				sx_sunlock(&proctree_lock);
@@ -1905,14 +1909,27 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	struct proc *p;
 	struct sbuf sb;
 	int flags, error = 0, error2;
+	pid_t pid;
 
 	if (namelen != 1)
 		return (EINVAL);
 
+	pid = (pid_t)name[0];
+	/*
+	 * If the query is for this process and it is single-threaded, there
+	 * is nobody to modify pargs, thus we can just read.
+	 */
+	p = curproc;
+	if (pid == p->p_pid && p->p_numthreads == 1 && req->newptr == NULL) {
+		if ((pa = p->p_args) != NULL)
+			error = SYSCTL_OUT(req, pa->ar_args, pa->ar_length);
+		return (error);
+	}
+
 	flags = PGET_CANSEE;
 	if (req->newptr != NULL)
 		flags |= PGET_ISCURRENT;
-	error = pget((pid_t)name[0], flags, &p);
+	error = pget(pid, flags, &p);
 	if (error)
 		return (error);
 
@@ -1939,7 +1956,7 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
-	if (req->newlen + sizeof(struct pargs) > ps_arg_cache_limit)
+	if (req->newlen > ps_arg_cache_limit - sizeof(struct pargs))
 		return (ENOMEM);
 	newpa = pargs_alloc(req->newlen);
 	error = SYSCTL_IN(req, newpa->ar_args, req->newlen);

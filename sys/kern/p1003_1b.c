@@ -292,8 +292,8 @@ int
 sys_sched_yield(struct thread *td, struct sched_yield_args *uap)
 {
 
-	sched_relinquish(curthread);
-	return 0;
+	sched_relinquish(td);
+	return (0);
 }
 
 int

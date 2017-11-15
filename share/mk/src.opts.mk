@@ -119,6 +119,7 @@ __DEFAULT_YES_OPTIONS = \
     LIB32 \
     LIBPTHREAD \
     LIBTHR \
+    LOADER_GELI \
     LOCALES \
     LOCATE \
     LPR \
@@ -180,6 +181,7 @@ __DEFAULT_NO_OPTIONS = \
     GNU_GREP_COMPAT \
     HESIOD \
     LIBSOFT \
+    LOADER_FIREWIRE \
     LOADER_FORCE_LE \
     NAND \
     OFED \

@@ -148,7 +148,7 @@ env_check() {
 		WITH_COMPRESSED_IMAGES=
 		NODOC=yes
 		case ${EMBEDDED_TARGET}:${EMBEDDED_TARGET_ARCH} in
-			arm:armv6|arm:armv7|arm64:aarch64)
+			arm:arm*|arm64:aarch64)
 				chroot_build_release_cmd="chroot_arm_build_release"
 				;;
 			*)

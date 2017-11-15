@@ -44,6 +44,7 @@ struct kvm_arch {
 	void	(*ka_freevtop)(kvm_t *);
 	int	(*ka_kvatop)(kvm_t *, kvaddr_t, off_t *);
 	int	(*ka_native)(kvm_t *);
+	int	(*ka_walk_pages)(kvm_t *, kvm_walk_pages_cb_t *, void *);
 };
 
 #define	KVM_ARCH(ka)	DATA_SET(kvm_arch, ka)
@@ -107,6 +108,17 @@ struct __kvm {
 	uint32_t	*pt_popcounts;
 	unsigned int	pt_page_size;
 	unsigned int	pt_word_size;
+
+	/* Page & sparse map structures. */
+	void		*page_map;
+	uint32_t	page_map_size;
+	off_t		page_map_off;
+	void		*sparse_map;
+};
+
+struct kvm_bitmap {
+	uint8_t *map;
+	u_long size;
 };
 
 /* Page table lookup constants. */
@@ -137,6 +149,11 @@ _kvm64toh(kvm_t *kd, uint64_t val)
 		return (be64toh(val));
 }
 
+int	 _kvm_bitmap_init(struct kvm_bitmap *, u_long, u_long *);
+void	 _kvm_bitmap_set(struct kvm_bitmap *, u_long, unsigned int);
+int	 _kvm_bitmap_next(struct kvm_bitmap *, u_long *);
+void	 _kvm_bitmap_deinit(struct kvm_bitmap *);
+
 void	 _kvm_err(kvm_t *kd, const char *program, const char *fmt, ...)
 	    __printflike(3, 4);
 void	 _kvm_freeprocs(kvm_t *kd);
@@ -154,4 +171,9 @@ int	 _kvm_probe_elf_kernel(kvm_t *, int, int);
 int	 _kvm_is_minidump(kvm_t *);
 int	 _kvm_read_core_phdrs(kvm_t *, size_t *, GElf_Phdr **);
 int	 _kvm_pt_init(kvm_t *, size_t, off_t, off_t, int, int);
-off_t	 _kvm_pt_find(kvm_t *, uint64_t);
+off_t	 _kvm_pt_find(kvm_t *, uint64_t, unsigned int);
+int	 _kvm_visit_cb(kvm_t *, kvm_walk_pages_cb_t *, void *, u_long,
+	    u_long, u_long, vm_prot_t, size_t, unsigned int);
+int	 _kvm_pmap_init(kvm_t *, uint32_t, off_t);
+void *	 _kvm_pmap_get(kvm_t *, u_long, size_t);
+void *	 _kvm_map_get(kvm_t *, u_long, unsigned int);

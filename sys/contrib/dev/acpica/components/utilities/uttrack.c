@@ -891,7 +891,7 @@ Exit:
     }
     else
     {
-        ACPI_ERROR ((AE_INFO, "%u(0x%X) Outstanding allocations",
+        ACPI_ERROR ((AE_INFO, "%u (0x%X) Outstanding cache allocations",
             NumOutstanding, NumOutstanding));
     }
 

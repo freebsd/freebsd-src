@@ -26,7 +26,7 @@ _default_makeobjdir=	$${.CURDIR:S,^$${SRCTOP},$${OBJTOP},}
 .include <bsd.mkopt.mk>
 
 .if ${.MAKE.LEVEL} == 0 || empty(OBJROOT)
-.if ${MK_UNIFIED_OBJDIR} == "no"
+.if ${MK_UNIFIED_OBJDIR} == "no" && ${MK_DIRDEPS_BUILD} == "no"
 # Fall back to historical behavior.
 # We always want to set a default MAKEOBJDIRPREFIX...
 MAKEOBJDIRPREFIX?=	${_default_makeobjdirprefix}
@@ -70,22 +70,32 @@ OBJROOT:=	${OBJROOT:H:tA}/${OBJROOT:T}
 .export OBJROOT SRCTOP
 .endif
 
+.if ${MK_DIRDEPS_BUILD} == "no"
+.if empty(OBJTOP)
 # SRCTOP == OBJROOT only happens with clever MAKEOBJDIRPREFIX=/.  Don't
 # append TARGET.TARGET_ARCH for that case since the user wants to build
 # in the source tree.
 .if ${MK_UNIFIED_OBJDIR} == "yes" && ${SRCTOP} != ${OBJROOT:tA}
-OBJTOP:=	${OBJROOT}${TARGET:D${TARGET}.${TARGET_ARCH}:U${MACHINE}.${MACHINE_ARCH}}
+.if defined(TARGET) && defined(TARGET_ARCH)
+OBJTOP:=	${OBJROOT}${TARGET}.${TARGET_ARCH}
+.elif defined(TARGET) && ${.CURDIR} == ${SRCTOP}
+# Not enough information, just use basic OBJDIR.  This can happen with some
+# 'make universe' targets or if TARGET is not being used as expected.
+OBJTOP:=	${OBJROOT:H}
+.else
+OBJTOP:=	${OBJROOT}${MACHINE}.${MACHINE_ARCH}
+.endif
 .else
 # TARGET.TARGET_ARCH handled in OBJROOT already.
 OBJTOP:=	${OBJROOT:H}
 .endif	# ${MK_UNIFIED_OBJDIR} == "yes"
+.endif	# empty(OBJTOP)
 
-# Fixup OBJROOT/OBJTOP if using MAKEOBJDIRPREFIX but leave it alone
-# for DIRDEPS_BUILD which really wants to know the absolute top at
-# all times.  This intenionally comes after adding TARGET.TARGET_ARCH
-# so that is truncated away for nested objdirs.  This logic also
-# will not trigger if the OBJROOT block above unsets MAKEOBJDIRPREFIX.
-.if !empty(MAKEOBJDIRPREFIX) && ${MK_DIRDEPS_BUILD} == "no"
+# Fixup OBJROOT/OBJTOP if using MAKEOBJDIRPREFIX.
+# This intenionally comes after adding TARGET.TARGET_ARCH so that is truncated
+# away for nested objdirs.  This logic also will not trigger if the OBJROOT
+# block above unsets MAKEOBJDIRPREFIX.
+.if !empty(MAKEOBJDIRPREFIX)
 OBJTOP:=	${MAKEOBJDIRPREFIX}${SRCTOP}
 OBJROOT:=	${OBJTOP}/
 .endif
@@ -100,7 +110,12 @@ OBJROOT:=	${OBJTOP}/
 # __objdir is the expected .OBJDIR we want to use and that auto.obj.mk will
 # try to create.
 .if !empty(MAKEOBJDIRPREFIX)
+.if ${.CURDIR:M${MAKEOBJDIRPREFIX}/*} != ""
+# we are already in obj tree!
+__objdir=	${.CURDIR}
+.else
 __objdir:=	${MAKEOBJDIRPREFIX}${.CURDIR}
+.endif
 .elif !empty(MAKEOBJDIR)
 __objdir:=	${MAKEOBJDIR}
 .endif
@@ -196,3 +211,5 @@ OBJROOT=	${SRCTOP}/
 .OBJDIR:	${.CURDIR}
 .endif
 .endif	# defined(NO_OBJ)
+
+.endif	# ${MK_DIRDEPS_BUILD} == "no"

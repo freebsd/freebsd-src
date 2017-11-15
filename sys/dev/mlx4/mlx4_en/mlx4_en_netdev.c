@@ -34,6 +34,7 @@
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/compat.h>
 #ifdef CONFIG_NET_RX_BUSY_POLL
 #include <net/busy_poll.h>
 #endif
@@ -73,7 +74,7 @@ static int mlx4_en_low_latency_recv(struct napi_struct *napi)
 
 	done = mlx4_en_process_rx_cq(dev, cq, 4);
 #ifdef LL_EXTENDED_STATS
-	if (done)
+	if (likely(done))
 		rx_ring->cleaned += done;
 	else
 		rx_ring->misses++;
@@ -118,7 +119,7 @@ static enum mlx4_net_trans_rule_id mlx4_ip_proto_to_trans_rule_id(u8 ip_proto)
 	case IPPROTO_TCP:
 		return MLX4_NET_TRANS_RULE_ID_TCP;
 	default:
-		return -EPROTONOSUPPORT;
+		return MLX4_NET_TRANS_RULE_NUM;
 	}
 };
 
@@ -165,7 +166,7 @@ static void mlx4_en_filter_work(struct work_struct *work)
 	int rc;
 	__be64 mac_mask = cpu_to_be64(MLX4_MAC_MASK << 16);
 
-	if (spec_tcp_udp.id < 0) {
+	if (spec_tcp_udp.id >= MLX4_NET_TRANS_RULE_NUM) {
 		en_warn(priv, "RFS: ignoring unsupported ip protocol (%d)\n",
 			filter->ip_proto);
 		goto ignore;
@@ -344,8 +345,7 @@ err:
 	return ret;
 }
 
-void mlx4_en_cleanup_filters(struct mlx4_en_priv *priv,
-			     struct mlx4_en_rx_ring *rx_ring)
+void mlx4_en_cleanup_filters(struct mlx4_en_priv *priv)
 {
 	struct mlx4_en_filter *filter, *tmp;
 	LIST_HEAD(del_list);
@@ -450,6 +450,25 @@ static void mlx4_en_vlan_rx_kill_vid(void *arg, struct net_device *dev, u16 vid)
 
 }
 
+static int mlx4_en_tunnel_steer_add(struct mlx4_en_priv *priv, unsigned char *addr,
+				    int qpn, u64 *reg_id)
+{
+	int err;
+
+	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN ||
+	    priv->mdev->dev->caps.dmfs_high_steer_mode == MLX4_STEERING_DMFS_A0_STATIC)
+		return 0; /* do nothing */
+
+	err = mlx4_tunnel_steer_add(priv->mdev->dev, addr, priv->port, qpn,
+				    MLX4_DOMAIN_NIC, reg_id);
+	if (err) {
+		en_err(priv, "failed to add vxlan steering rule, err %d\n", err);
+		return err;
+	}
+	en_dbg(DRV, priv, "added vxlan steering rule, mac %pM reg_id %llx\n", addr, (long long)*reg_id);
+	return 0;
+}
+
 static int mlx4_en_uc_steer_add(struct mlx4_en_priv *priv,
 				unsigned char *mac, int *qpn, u64 *reg_id)
 {
@@ -533,10 +552,8 @@ static int mlx4_en_get_qp(struct mlx4_en_priv *priv)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_dev *dev = mdev->dev;
-	struct mlx4_mac_entry *entry;
 	int index = 0;
 	int err = 0;
-	u64 reg_id;
 	int *qpn = &priv->base_qpn;
 	u64 mac = mlx4_mac_to_u64(IF_LLADDR(priv->dev));
 
@@ -556,39 +573,15 @@ static int mlx4_en_get_qp(struct mlx4_en_priv *priv)
 		return 0;
 	}
 
-	err = mlx4_qp_reserve_range(dev, 1, 1, qpn, 0);
+	err = mlx4_qp_reserve_range(dev, 1, 1, qpn, MLX4_RESERVE_A0_QP);
 	en_dbg(DRV, priv, "Reserved qp %d\n", *qpn);
 	if (err) {
 		en_err(priv, "Failed to reserve qp for mac registration\n");
-		goto qp_err;
+		mlx4_unregister_mac(dev, priv->port, mac);
+		return err;
 	}
-
-	err = mlx4_en_uc_steer_add(priv, IF_LLADDR(priv->dev), qpn, &reg_id);
-	if (err)
-		goto steer_err;
-
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry) {
-		err = -ENOMEM;
-		goto alloc_err;
-	}
-	memcpy(entry->mac, IF_LLADDR(priv->dev), sizeof(entry->mac));
-	entry->reg_id = reg_id;
-
-	hlist_add_head(&entry->hlist,
-			   &priv->mac_hash[entry->mac[MLX4_EN_MAC_HASH_IDX]]);
 
 	return 0;
-
-alloc_err:
-	mlx4_en_uc_steer_release(priv, IF_LLADDR(priv->dev), *qpn, reg_id);
-
-steer_err:
-	mlx4_qp_release_range(dev, *qpn, 1);
-
-qp_err:
-	mlx4_unregister_mac(dev, priv->port, mac);
-	return err;
 }
 
 static void mlx4_en_put_qp(struct mlx4_en_priv *priv)
@@ -596,34 +589,13 @@ static void mlx4_en_put_qp(struct mlx4_en_priv *priv)
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_dev *dev = mdev->dev;
 	int qpn = priv->base_qpn;
-	u64 mac;
 
 	if (dev->caps.steering_mode == MLX4_STEERING_MODE_A0) {
-		mac = mlx4_mac_to_u64(IF_LLADDR(priv->dev));
+		u64 mac = mlx4_mac_to_u64(IF_LLADDR(priv->dev));
 		en_dbg(DRV, priv, "Registering MAC: %pM for deleting\n",
 		       IF_LLADDR(priv->dev));
 		mlx4_unregister_mac(dev, priv->port, mac);
 	} else {
-		struct mlx4_mac_entry *entry;
-		struct hlist_node *tmp;
-		struct hlist_head *bucket;
-		unsigned int i;
-
-		for (i = 0; i < MLX4_EN_MAC_HASH_SIZE; ++i) {
-			bucket = &priv->mac_hash[i];
-			hlist_for_each_entry_safe(entry, tmp, bucket, hlist) {
-				mac = mlx4_mac_to_u64(entry->mac);
-				en_dbg(DRV, priv, "Registering MAC: %pM for deleting\n",
-				       entry->mac);
-				mlx4_en_uc_steer_release(priv, entry->mac,
-							 qpn, entry->reg_id);
-
-				mlx4_unregister_mac(dev, priv->port, mac);
-				hlist_del(&entry->hlist);
-				kfree(entry);
-			}
-		}
-
 		en_dbg(DRV, priv, "Releasing qp: port %d, qpn %d\n",
 		       priv->port, qpn);
 		mlx4_qp_release_range(dev, qpn, 1);
@@ -631,10 +603,48 @@ static void mlx4_en_put_qp(struct mlx4_en_priv *priv)
 	}
 }
 
-static void mlx4_en_clear_list(struct net_device *dev)
+static void mlx4_en_clear_uclist(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_mc_list *tmp, *mc_to_del;
+	struct mlx4_en_addr_list *tmp, *uc_to_del;
+
+	list_for_each_entry_safe(uc_to_del, tmp, &priv->uc_list, list) {
+		list_del(&uc_to_del->list);
+		kfree(uc_to_del);
+	}
+}
+
+static void mlx4_en_cache_uclist(struct net_device *dev)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_addr_list *tmp;
+	struct ifaddr *ifa;
+
+	mlx4_en_clear_uclist(dev);
+
+	if_addr_rlock(dev);
+	TAILQ_FOREACH(ifa, &dev->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_LINK)
+			continue;
+		if (((struct sockaddr_dl *)ifa->ifa_addr)->sdl_alen !=
+				ETHER_ADDR_LEN)
+			continue;
+		tmp = kzalloc(sizeof(struct mlx4_en_addr_list), GFP_ATOMIC);
+		if (tmp == NULL) {
+			en_err(priv, "Failed to allocate address list\n");
+			break;
+		}
+		memcpy(tmp->addr,
+			LLADDR((struct sockaddr_dl *)ifa->ifa_addr), ETH_ALEN);
+		list_add_tail(&tmp->list, &priv->uc_list);
+	}
+	if_addr_runlock(dev);
+}
+
+static void mlx4_en_clear_mclist(struct net_device *dev)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_addr_list *tmp, *mc_to_del;
 
 	list_for_each_entry_safe(mc_to_del, tmp, &priv->mc_list, list) {
 		list_del(&mc_to_del->list);
@@ -644,35 +654,36 @@ static void mlx4_en_clear_list(struct net_device *dev)
 
 static void mlx4_en_cache_mclist(struct net_device *dev)
 {
-        struct ifmultiaddr *ifma;
-	struct mlx4_en_mc_list *tmp;
 	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_addr_list *tmp;
+	struct ifmultiaddr *ifma;
 
-        if_maddr_rlock(dev);
-        TAILQ_FOREACH(ifma, &dev->if_multiaddrs, ifma_link) {
-                if (ifma->ifma_addr->sa_family != AF_LINK)
-                        continue;
-                if (((struct sockaddr_dl *)ifma->ifma_addr)->sdl_alen !=
-                                ETHER_ADDR_LEN)
-                        continue;
-                /* Make sure the list didn't grow. */
-		tmp = kzalloc(sizeof(struct mlx4_en_mc_list), GFP_ATOMIC);
+	mlx4_en_clear_mclist(dev);
+
+	if_maddr_rlock(dev);
+	TAILQ_FOREACH(ifma, &dev->if_multiaddrs, ifma_link) {
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+		if (((struct sockaddr_dl *)ifma->ifma_addr)->sdl_alen !=
+				ETHER_ADDR_LEN)
+			continue;
+		tmp = kzalloc(sizeof(struct mlx4_en_addr_list), GFP_ATOMIC);
 		if (tmp == NULL) {
-			en_err(priv, "Failed to allocate multicast list\n");
+			en_err(priv, "Failed to allocate address list\n");
 			break;
 		}
 		memcpy(tmp->addr,
 			LLADDR((struct sockaddr_dl *)ifma->ifma_addr), ETH_ALEN);
 		list_add_tail(&tmp->list, &priv->mc_list);
-        }
-        if_maddr_runlock(dev);
+	}
+	if_maddr_runlock(dev);
 }
 
-static void update_mclist_flags(struct mlx4_en_priv *priv,
+static void update_addr_list_flags(struct mlx4_en_priv *priv,
 				struct list_head *dst,
 				struct list_head *src)
 {
-	struct mlx4_en_mc_list *dst_tmp, *src_tmp, *new_mc;
+	struct mlx4_en_addr_list *dst_tmp, *src_tmp, *new_mc;
 	bool found;
 
 	/* Find all the entries that should be removed from dst,
@@ -687,7 +698,7 @@ static void update_mclist_flags(struct mlx4_en_priv *priv,
 			}
 		}
 		if (!found)
-			dst_tmp->action = MCLIST_REM;
+			dst_tmp->action = MLX4_ADDR_LIST_REM;
 	}
 
 	/* Add entries that exist in src but not in dst
@@ -697,21 +708,21 @@ static void update_mclist_flags(struct mlx4_en_priv *priv,
 		found = false;
 		list_for_each_entry(dst_tmp, dst, list) {
 			if (!memcmp(dst_tmp->addr, src_tmp->addr, ETH_ALEN)) {
-				dst_tmp->action = MCLIST_NONE;
+				dst_tmp->action = MLX4_ADDR_LIST_NONE;
 				found = true;
 				break;
 			}
 		}
 		if (!found) {
-			new_mc = kmalloc(sizeof(struct mlx4_en_mc_list),
+			new_mc = kmalloc(sizeof(struct mlx4_en_addr_list),
 					 GFP_KERNEL);
 			if (!new_mc) {
 				en_err(priv, "Failed to allocate current multicast list\n");
 				return;
 			}
 			memcpy(new_mc, src_tmp,
-			       sizeof(struct mlx4_en_mc_list));
-			new_mc->action = MCLIST_ADD;
+			       sizeof(struct mlx4_en_addr_list));
+			new_mc->action = MLX4_ADDR_LIST_ADD;
 			list_add_tail(&new_mc->list, dst);
 		}
 	}
@@ -731,6 +742,7 @@ static void mlx4_en_set_promisc_mode(struct mlx4_en_priv *priv,
 				     struct mlx4_en_dev *mdev)
 {
 	int err = 0;
+
 	if (!(priv->flags & MLX4_EN_FLAG_PROMISC)) {
 		priv->flags |= MLX4_EN_FLAG_PROMISC;
 
@@ -833,7 +845,7 @@ static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
 				 struct net_device *dev,
 				 struct mlx4_en_dev *mdev)
 {
-	struct mlx4_en_mc_list *mclist, *tmp;
+	struct mlx4_en_addr_list *addr_list, *tmp;
 	u8 mc_list[16] = {0};
 	int err = 0;
 	u64 mcast_addr = 0;
@@ -893,6 +905,28 @@ static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
 			priv->flags &= ~MLX4_EN_FLAG_MC_PROMISC;
 		}
 
+		/* Update unicast list */
+		mlx4_en_cache_uclist(dev);
+
+		update_addr_list_flags(priv, &priv->curr_uc_list, &priv->uc_list);
+
+		list_for_each_entry_safe(addr_list, tmp, &priv->curr_uc_list, list) {
+			if (addr_list->action == MLX4_ADDR_LIST_REM) {
+				mlx4_en_uc_steer_release(priv, addr_list->addr,
+							       priv->rss_map.indir_qp.qpn,
+							       addr_list->reg_id);
+				/* remove from list */
+				list_del(&addr_list->list);
+				kfree(addr_list);
+			} else if (addr_list->action == MLX4_ADDR_LIST_ADD) {
+				err = mlx4_en_uc_steer_add(priv, addr_list->addr,
+							   &priv->rss_map.indir_qp.qpn,
+							   &addr_list->reg_id);
+				if (err)
+					en_err(priv, "Fail to add unicast address\n");
+			}
+		}
+
 		err = mlx4_SET_MCAST_FLTR(mdev->dev, priv->port, 0,
 					  0, MLX4_MCAST_DISABLE);
 		if (err)
@@ -905,8 +939,8 @@ static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
 		/* Update multicast list - we cache all addresses so they won't
 		 * change while HW is updated holding the command semaphor */
 		mlx4_en_cache_mclist(dev);
-		list_for_each_entry(mclist, &priv->mc_list, list) {
-			mcast_addr = mlx4_mac_to_u64(mclist->addr);
+		list_for_each_entry(addr_list, &priv->mc_list, list) {
+			mcast_addr = mlx4_mac_to_u64(addr_list->addr);
 			mlx4_SET_MCAST_FLTR(mdev->dev, priv->port,
 					mcast_addr, 0, MLX4_MCAST_CONFIG);
 		}
@@ -915,26 +949,33 @@ static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
 		if (err)
 			en_err(priv, "Failed enabling multicast filter\n");
 
-		update_mclist_flags(priv, &priv->curr_list, &priv->mc_list);
-		list_for_each_entry_safe(mclist, tmp, &priv->curr_list, list) {
-			if (mclist->action == MCLIST_REM) {
+		update_addr_list_flags(priv, &priv->curr_mc_list, &priv->mc_list);
+
+		list_for_each_entry_safe(addr_list, tmp, &priv->curr_mc_list, list) {
+			if (addr_list->action == MLX4_ADDR_LIST_REM) {
 				/* detach this address and delete from list */
-				memcpy(&mc_list[10], mclist->addr, ETH_ALEN);
+				memcpy(&mc_list[10], addr_list->addr, ETH_ALEN);
 				mc_list[5] = priv->port;
 				err = mlx4_multicast_detach(mdev->dev,
 							    &priv->rss_map.indir_qp,
 							    mc_list,
 							    MLX4_PROT_ETH,
-							    mclist->reg_id);
+							    addr_list->reg_id);
 				if (err)
 					en_err(priv, "Fail to detach multicast address\n");
 
+				if (addr_list->tunnel_reg_id) {
+					err = mlx4_flow_detach(priv->mdev->dev, addr_list->tunnel_reg_id);
+					if (err)
+						en_err(priv, "Failed to detach multicast address\n");
+				}
+
 				/* remove from list */
-				list_del(&mclist->list);
-				kfree(mclist);
-			} else if (mclist->action == MCLIST_ADD) {
+				list_del(&addr_list->list);
+				kfree(addr_list);
+			} else if (addr_list->action == MLX4_ADDR_LIST_ADD) {
 				/* attach the address */
-				memcpy(&mc_list[10], mclist->addr, ETH_ALEN);
+				memcpy(&mc_list[10], addr_list->addr, ETH_ALEN);
 				/* needed for B0 steering support */
 				mc_list[5] = priv->port;
 				err = mlx4_multicast_attach(mdev->dev,
@@ -942,10 +983,14 @@ static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
 							    mc_list,
 							    priv->port, 0,
 							    MLX4_PROT_ETH,
-							    &mclist->reg_id);
+							    &addr_list->reg_id);
 				if (err)
 					en_err(priv, "Fail to attach multicast address\n");
 
+				err = mlx4_en_tunnel_steer_add(priv, &mc_list[10], priv->base_qpn,
+							       &addr_list->tunnel_reg_id);
+				if (err)
+					en_err(priv, "Failed to attach multicast address\n");
 			}
 		}
 	}
@@ -957,7 +1002,6 @@ static void mlx4_en_do_set_rx_mode(struct work_struct *work)
 						 rx_mode_task);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct net_device *dev = priv->dev;
-
 
 	mutex_lock(&mdev->state_lock);
 	if (!mdev->device_up) {
@@ -998,24 +1042,6 @@ out:
 	mutex_unlock(&mdev->state_lock);
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void mlx4_en_netpoll(struct net_device *dev)
-{
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_cq *cq;
-	unsigned long flags;
-	int i;
-
-	for (i = 0; i < priv->rx_ring_num; i++) {
-		cq = priv->rx_cq[i];
-		spin_lock_irqsave(&cq->lock, flags);
-		napi_synchronize(&cq->napi);
-		mlx4_en_process_rx_cq(dev, cq, 0);
-		spin_unlock_irqrestore(&cq->lock, flags);
-	}
-}
-#endif
-
 static void mlx4_en_watchdog_timeout(void *arg)
 {
         struct mlx4_en_priv *priv = arg;
@@ -1038,10 +1064,10 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 	/* If we haven't received a specific coalescing setting
 	 * (module param), we set the moderation parameters as follows:
 	 * - moder_cnt is set to the number of mtu sized packets to
-	 *   satisfy our coelsing target.
+	 *   satisfy our coalescing target.
 	 * - moder_time is set to a fixed value.
 	 */
-	priv->rx_frames = MLX4_EN_RX_COAL_TARGET / priv->dev->if_mtu + 1;
+	priv->rx_frames = MLX4_EN_RX_COAL_TARGET;
 	priv->rx_usecs = MLX4_EN_RX_COAL_TIME;
 	priv->tx_frames = MLX4_EN_TX_COAL_PKTS;
 	priv->tx_usecs = MLX4_EN_TX_COAL_TIME;
@@ -1126,6 +1152,7 @@ static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
 			priv->last_moder_time[ring] = moder_time;
 			cq = priv->rx_cq[ring];
 			cq->moder_time = moder_time;
+			cq->moder_cnt = priv->rx_frames;
 			err = mlx4_en_set_cq_moder(priv, cq);
 			if (err)
 				en_err(priv, "Failed modifying moderation for cq:%d\n",
@@ -1149,7 +1176,10 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 	mutex_lock(&mdev->state_lock);
 	if (mdev->device_up) {
 		if (priv->port_up) {
-                        err = mlx4_en_DUMP_ETH_STATS(mdev, priv->port, 0);
+			if (mlx4_is_slave(mdev->dev))
+				err = mlx4_en_get_vport_stats(mdev, priv->port);
+			else
+				err = mlx4_en_DUMP_ETH_STATS(mdev, priv->port, 0);
 			if (err)
 				en_dbg(HW, priv, "Could not update stats\n");
 
@@ -1236,7 +1266,9 @@ int mlx4_en_start_port(struct net_device *dev)
 	}
 
 	INIT_LIST_HEAD(&priv->mc_list);
-	INIT_LIST_HEAD(&priv->curr_list);
+	INIT_LIST_HEAD(&priv->uc_list);
+	INIT_LIST_HEAD(&priv->curr_mc_list);
+	INIT_LIST_HEAD(&priv->curr_uc_list);
 	INIT_LIST_HEAD(&priv->ethtool_list);
 
 	/* Calculate Rx buf size */
@@ -1281,12 +1313,8 @@ int mlx4_en_start_port(struct net_device *dev)
 	}
 	mdev->mac_removed[priv->port] = 0;
 
-	/* gets default allocated counter index from func cap */
-	/* or sink counter index if no resources */
-	priv->counter_index = mdev->dev->caps.def_counter_index[priv->port - 1];
-
-	en_dbg(DRV, priv, "%s: default counter index %d for port %d\n",
-	       __func__, priv->counter_index, priv->port);
+	priv->counter_index =
+			mlx4_get_default_counter_index(mdev->dev, priv->port);
 
 	err = mlx4_en_config_rss_steer(priv);
 	if (err) {
@@ -1332,7 +1360,7 @@ int mlx4_en_start_port(struct net_device *dev)
 
 		/* Set initial ownership of all Tx TXBBs to SW (1) */
 		for (j = 0; j < tx_ring->buf_size; j += STAMP_STRIDE)
-			*((u32 *) (tx_ring->buf + j)) = 0xffffffff;
+			*((u32 *) (tx_ring->buf + j)) = INIT_OWNER_BIT;
 		++tx_index;
 	}
 
@@ -1415,7 +1443,7 @@ void mlx4_en_stop_port(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
-	struct mlx4_en_mc_list *mclist, *tmp;
+	struct mlx4_en_addr_list *addr_list, *tmp;
 	int i;
 	u8 mc_list[16] = {0};
 
@@ -1433,10 +1461,7 @@ void mlx4_en_stop_port(struct net_device *dev)
 
 	/* Set port as not active */
 	priv->port_up = false;
-	if (priv->counter_index != 0xff) {
-		mlx4_counter_free(mdev->dev, priv->port, priv->counter_index);
-		priv->counter_index = 0xff;
-	}
+	priv->counter_index = MLX4_SINK_COUNTER_INDEX(mdev->dev);
 
 	/* Promsicuous mode */
 	if (mdev->dev->caps.steering_mode ==
@@ -1464,21 +1489,33 @@ void mlx4_en_stop_port(struct net_device *dev)
 		}
 	}
 
+	/* Detach All unicasts */
+	list_for_each_entry(addr_list, &priv->curr_uc_list, list) {
+		mlx4_en_uc_steer_release(priv, addr_list->addr,
+					 priv->rss_map.indir_qp.qpn,
+					 addr_list->reg_id);
+	}
+	mlx4_en_clear_uclist(dev);
+	list_for_each_entry_safe(addr_list, tmp, &priv->curr_uc_list, list) {
+		list_del(&addr_list->list);
+		kfree(addr_list);
+	}
+
 	/* Detach All multicasts */
 	memset(&mc_list[10], 0xff, ETH_ALEN);
 	mc_list[5] = priv->port; /* needed for B0 steering support */
 	mlx4_multicast_detach(mdev->dev, &priv->rss_map.indir_qp, mc_list,
 			      MLX4_PROT_ETH, priv->broadcast_id);
-	list_for_each_entry(mclist, &priv->curr_list, list) {
-		memcpy(&mc_list[10], mclist->addr, ETH_ALEN);
+	list_for_each_entry(addr_list, &priv->curr_mc_list, list) {
+		memcpy(&mc_list[10], addr_list->addr, ETH_ALEN);
 		mc_list[5] = priv->port;
 		mlx4_multicast_detach(mdev->dev, &priv->rss_map.indir_qp,
-				      mc_list, MLX4_PROT_ETH, mclist->reg_id);
+				      mc_list, MLX4_PROT_ETH, addr_list->reg_id);
 	}
-	mlx4_en_clear_list(dev);
-	list_for_each_entry_safe(mclist, tmp, &priv->curr_list, list) {
-		list_del(&mclist->list);
-		kfree(mclist);
+	mlx4_en_clear_mclist(dev);
+	list_for_each_entry_safe(addr_list, tmp, &priv->curr_mc_list, list) {
+		list_del(&addr_list->list);
+		kfree(addr_list);
 	}
 
 	/* Flush multicast filter */
@@ -1716,10 +1753,16 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 
 	en_dbg(DRV, priv, "Destroying netdev on port:%d\n", priv->port);
 
-        if (priv->vlan_attach != NULL)
-                EVENTHANDLER_DEREGISTER(vlan_config, priv->vlan_attach);
-        if (priv->vlan_detach != NULL)
-                EVENTHANDLER_DEREGISTER(vlan_unconfig, priv->vlan_detach);
+	/* don't allow more IOCTLs */
+	priv->gone = 1;
+
+	/* XXX wait a bit to allow IOCTL handlers to complete */
+	pause("W", hz);
+
+	if (priv->vlan_attach != NULL)
+		EVENTHANDLER_DEREGISTER(vlan_config, priv->vlan_attach);
+	if (priv->vlan_detach != NULL)
+		EVENTHANDLER_DEREGISTER(vlan_unconfig, priv->vlan_detach);
 
 	/* Unregister device - this will close the port if it was up */
 	if (priv->registered) {
@@ -1805,9 +1848,12 @@ static int mlx4_en_calc_media(struct mlx4_en_priv *priv)
 	if (priv->last_link_state == MLX4_DEV_EVENT_PORT_DOWN)
 		return (active);
 	active |= IFM_FDX;
-	trans_type = priv->port_state.transciver;
+	trans_type = priv->port_state.transceiver;
 	/* XXX I don't know all of the transceiver values. */
 	switch (priv->port_state.link_speed) {
+	case 100:
+		active |= IFM_100_T;
+		break;
 	case 1000:
 		active |= IFM_1000_T;
 		break;
@@ -1904,10 +1950,15 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 	error = 0;
 	mask = 0;
 	priv = dev->if_softc;
+
+	/* check if detaching */
+	if (priv == NULL || priv->gone != 0)
+		return (ENXIO);
+
 	mdev = priv->mdev;
 	ifr = (struct ifreq *) data;
-	switch (command) {
 
+	switch (command) {
 	case SIOCSIFMTU:
 		error = -mlx4_en_change_mtu(dev, ifr->ifr_mtu);
 		break;
@@ -2155,9 +2206,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 		}
 	}
 #endif
-
-	for (i = 0; i < MLX4_EN_MAC_HASH_SIZE; ++i)
-		INIT_HLIST_HEAD(&priv->mac_hash[i]);
 
 	/* Query for default mac and max mtu */
 	priv->max_mtu = mdev->dev->caps.eth_mtu_cap[priv->port];
@@ -2602,7 +2650,6 @@ static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv)
         struct sysctl_oid *coal;
         struct sysctl_oid_list *coal_list;
 	const char *pnameunit;
-
         dev = priv->dev;
         ctx = &priv->conf_ctx;
 	pnameunit = device_get_nameunit(priv->mdev->pdev->dev.bsddev);
@@ -2641,7 +2688,6 @@ static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv)
         SYSCTL_ADD_STRING(ctx, node_list, OID_AUTO, "device_name",
 	    CTLFLAG_RD, __DECONST(void *, pnameunit), 0,
 	    "PCI device name");
-
         /* Add coalescer configuration. */
         coal = SYSCTL_ADD_NODE(ctx, node_list, OID_AUTO,
             "coalesce", CTLFLAG_RD, NULL, "Interrupt coalesce configuration");
@@ -2700,109 +2746,107 @@ static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 	    &priv->pstats.rx_coal_avg, "RX average coalesced completions");
 #endif
 
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tso_packets", CTLFLAG_RD,
-	    &priv->port_stats.tso_packets, "TSO packets sent");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "queue_stopped", CTLFLAG_RD,
-	    &priv->port_stats.queue_stopped, "Queue full");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "wake_queue", CTLFLAG_RD,
-	    &priv->port_stats.wake_queue, "Queue resumed after full");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_timeout", CTLFLAG_RD,
-	    &priv->port_stats.tx_timeout, "Transmit timeouts");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_oversized_packets", CTLFLAG_RD,
-	    &priv->port_stats.oversized_packets, "TX oversized packets, m_defrag failed");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_alloc_failed", CTLFLAG_RD,
-	    &priv->port_stats.rx_alloc_failed, "RX failed to allocate mbuf");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_chksum_good", CTLFLAG_RD,
-	    &priv->port_stats.rx_chksum_good, "RX checksum offload success");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_chksum_none", CTLFLAG_RD,
-	    &priv->port_stats.rx_chksum_none, "RX without checksum offload");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_chksum_offload",
-	    CTLFLAG_RD, &priv->port_stats.tx_chksum_offload,
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tso_packets", CTLFLAG_RD,
+	    &priv->port_stats.tso_packets, 0, "TSO packets sent");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "queue_stopped", CTLFLAG_RD,
+	    &priv->port_stats.queue_stopped, 0, "Queue full");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "wake_queue", CTLFLAG_RD,
+	    &priv->port_stats.wake_queue, 0, "Queue resumed after full");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_timeout", CTLFLAG_RD,
+	    &priv->port_stats.tx_timeout, 0, "Transmit timeouts");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_oversized_packets", CTLFLAG_RD,
+	    &priv->port_stats.oversized_packets, 0, "TX oversized packets, m_defrag failed");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_alloc_failed", CTLFLAG_RD,
+	    &priv->port_stats.rx_alloc_failed, 0, "RX failed to allocate mbuf");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_chksum_good", CTLFLAG_RD,
+            &priv->port_stats.rx_chksum_good, 0, "RX checksum offload success");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_chksum_none", CTLFLAG_RD,
+	    &priv->port_stats.rx_chksum_none, 0, "RX without checksum offload");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_chksum_offload",
+	    CTLFLAG_RD, &priv->port_stats.tx_chksum_offload, 0,
 	    "TX checksum offloads");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "defrag_attempts", CTLFLAG_RD,
-	    &priv->port_stats.defrag_attempts, "Oversized chains defragged");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "defrag_attempts",
+	    CTLFLAG_RD, &priv->port_stats.defrag_attempts, 0,
+	    "Oversized chains defragged");
 
 	/* Could strdup the names and add in a loop.  This is simpler. */
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_bytes", CTLFLAG_RD,
-	    &priv->pkstats.rx_bytes, "RX Bytes");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_packets", CTLFLAG_RD,
-	    &priv->pkstats.rx_packets, "RX packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_multicast_packets", CTLFLAG_RD,
-	    &priv->pkstats.rx_multicast_packets, "RX Multicast Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_broadcast_packets", CTLFLAG_RD,
-	    &priv->pkstats.rx_broadcast_packets, "RX Broadcast Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_errors", CTLFLAG_RD,
-	    &priv->pkstats.rx_errors, "RX Errors");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_dropped", CTLFLAG_RD,
-	    &priv->pkstats.rx_dropped, "RX Dropped");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_length_errors", CTLFLAG_RD,
-	    &priv->pkstats.rx_length_errors, "RX Length Errors");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_over_errors", CTLFLAG_RD,
-	    &priv->pkstats.rx_over_errors, "RX Over Errors");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_crc_errors", CTLFLAG_RD,
-	    &priv->pkstats.rx_crc_errors, "RX CRC Errors");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_jabbers", CTLFLAG_RD,
-	    &priv->pkstats.rx_jabbers, "RX Jabbers");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_bytes", CTLFLAG_RD,
+	    &priv->pkstats.rx_bytes, 0, "RX Bytes");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_packets", CTLFLAG_RD,
+	    &priv->pkstats.rx_packets, 0, "RX packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_multicast_packets", CTLFLAG_RD,
+	    &priv->pkstats.rx_multicast_packets, 0, "RX Multicast Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_broadcast_packets", CTLFLAG_RD,
+	    &priv->pkstats.rx_broadcast_packets, 0, "RX Broadcast Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_errors", CTLFLAG_RD,
+	    &priv->pkstats.rx_errors, 0, "RX Errors");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_dropped", CTLFLAG_RD,
+	    &priv->pkstats.rx_dropped, 0, "RX Dropped");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_length_errors", CTLFLAG_RD,
+	    &priv->pkstats.rx_length_errors, 0, "RX Length Errors");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_over_errors", CTLFLAG_RD,
+	    &priv->pkstats.rx_over_errors, 0, "RX Over Errors");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_crc_errors", CTLFLAG_RD,
+	    &priv->pkstats.rx_crc_errors, 0, "RX CRC Errors");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_jabbers", CTLFLAG_RD,
+	    &priv->pkstats.rx_jabbers, 0, "RX Jabbers");
 
-
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_in_range_length_error", CTLFLAG_RD,
-	    &priv->pkstats.rx_in_range_length_error, "RX IN_Range Length Error");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_out_range_length_error",
-		CTLFLAG_RD, &priv->pkstats.rx_out_range_length_error,
-		"RX Out Range Length Error");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_lt_64_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.rx_lt_64_bytes_packets, "RX Lt 64 Bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_127_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.rx_127_bytes_packets, "RX 127 bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_255_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.rx_255_bytes_packets, "RX 255 bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_511_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.rx_511_bytes_packets, "RX 511 bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_1023_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.rx_1023_bytes_packets, "RX 1023 bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_1518_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.rx_1518_bytes_packets, "RX 1518 bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_1522_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.rx_1522_bytes_packets, "RX 1522 bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_1548_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.rx_1548_bytes_packets, "RX 1548 bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_gt_1548_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.rx_gt_1548_bytes_packets,
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_in_range_length_error", CTLFLAG_RD,
+	    &priv->pkstats.rx_in_range_length_error, 0, "RX IN_Range Length Error");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_out_range_length_error",
+	    CTLFLAG_RD, &priv->pkstats.rx_out_range_length_error, 0,
+	    "RX Out Range Length Error");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_lt_64_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.rx_lt_64_bytes_packets, 0, "RX Lt 64 Bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_127_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.rx_127_bytes_packets, 0, "RX 127 bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_255_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.rx_255_bytes_packets, 0, "RX 255 bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_511_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.rx_511_bytes_packets, 0, "RX 511 bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_1023_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.rx_1023_bytes_packets, 0, "RX 1023 bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_1518_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.rx_1518_bytes_packets, 0, "RX 1518 bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_1522_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.rx_1522_bytes_packets, 0, "RX 1522 bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_1548_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.rx_1548_bytes_packets, 0, "RX 1548 bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "rx_gt_1548_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.rx_gt_1548_bytes_packets, 0,
 	    "RX Greater Then 1548 bytes Packets");
 
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_packets", CTLFLAG_RD,
-	    &priv->pkstats.tx_packets, "TX packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_bytes", CTLFLAG_RD,
-	    &priv->pkstats.tx_bytes, "TX Bytes");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_multicast_packets", CTLFLAG_RD,
-	    &priv->pkstats.tx_multicast_packets, "TX Multicast Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_broadcast_packets", CTLFLAG_RD,
-	    &priv->pkstats.tx_broadcast_packets, "TX Broadcast Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_errors", CTLFLAG_RD,
-	    &priv->pkstats.tx_errors, "TX Errors");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_dropped", CTLFLAG_RD,
-	    &priv->pkstats.tx_dropped, "TX Dropped");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_lt_64_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.tx_lt_64_bytes_packets, "TX Less Then 64 Bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_127_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.tx_127_bytes_packets, "TX 127 Bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_255_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.tx_255_bytes_packets, "TX 255 Bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_511_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.tx_511_bytes_packets, "TX 511 Bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_1023_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.tx_1023_bytes_packets, "TX 1023 Bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_1518_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.tx_1518_bytes_packets, "TX 1518 Bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_1522_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.tx_1522_bytes_packets, "TX 1522 Bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_1548_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.tx_1548_bytes_packets, "TX 1548 Bytes Packets");
-	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_gt_1548_bytes_packets", CTLFLAG_RD,
-	    &priv->pkstats.tx_gt_1548_bytes_packets,
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_packets", CTLFLAG_RD,
+	    &priv->pkstats.tx_packets, 0, "TX packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_bytes", CTLFLAG_RD,
+	    &priv->pkstats.tx_bytes, 0, "TX Bytes");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_multicast_packets", CTLFLAG_RD,
+	    &priv->pkstats.tx_multicast_packets, 0, "TX Multicast Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_broadcast_packets", CTLFLAG_RD,
+	    &priv->pkstats.tx_broadcast_packets, 0, "TX Broadcast Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_errors", CTLFLAG_RD,
+	    &priv->pkstats.tx_errors, 0, "TX Errors");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_dropped", CTLFLAG_RD,
+	    &priv->pkstats.tx_dropped, 0, "TX Dropped");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_lt_64_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.tx_lt_64_bytes_packets, 0, "TX Less Then 64 Bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_127_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.tx_127_bytes_packets, 0, "TX 127 Bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_255_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.tx_255_bytes_packets, 0, "TX 255 Bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_511_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.tx_511_bytes_packets, 0, "TX 511 Bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_1023_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.tx_1023_bytes_packets, 0, "TX 1023 Bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_1518_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.tx_1518_bytes_packets, 0, "TX 1518 Bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_1522_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.tx_1522_bytes_packets, 0, "TX 1522 Bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_1548_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.tx_1548_bytes_packets, 0, "TX 1548 Bytes Packets");
+	SYSCTL_ADD_U64(ctx, node_list, OID_AUTO, "tx_gt_1548_bytes_packets", CTLFLAG_RD,
+	    &priv->pkstats.tx_gt_1548_bytes_packets, 0,
 	    "TX Greater Then 1548 Bytes Packets");
-
-
 
 	for (i = 0; i < priv->tx_ring_num; i++) {
 		tx_ring = priv->tx_ring[i];
@@ -2810,14 +2854,15 @@ static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 		ring_node = SYSCTL_ADD_NODE(ctx, node_list, OID_AUTO, namebuf,
 		    CTLFLAG_RD, NULL, "TX Ring");
 		ring_list = SYSCTL_CHILDREN(ring_node);
-		SYSCTL_ADD_ULONG(ctx, ring_list, OID_AUTO, "packets",
-		    CTLFLAG_RD, &tx_ring->packets, "TX packets");
-		SYSCTL_ADD_ULONG(ctx, ring_list, OID_AUTO, "bytes",
-		    CTLFLAG_RD, &tx_ring->bytes, "TX bytes");
-		SYSCTL_ADD_ULONG(ctx, ring_list, OID_AUTO, "tso_packets",
-		    CTLFLAG_RD, &tx_ring->tso_packets, "TSO packets");
-		SYSCTL_ADD_ULONG(ctx, ring_list, OID_AUTO, "defrag_attempts",
-		    CTLFLAG_RD, &tx_ring->defrag_attempts, "Oversized chains defragged");
+		SYSCTL_ADD_U64(ctx, ring_list, OID_AUTO, "packets",
+		    CTLFLAG_RD, &tx_ring->packets, 0, "TX packets");
+		SYSCTL_ADD_U64(ctx, ring_list, OID_AUTO, "bytes",
+		    CTLFLAG_RD, &tx_ring->bytes, 0, "TX bytes");
+		SYSCTL_ADD_U64(ctx, ring_list, OID_AUTO, "tso_packets",
+		    CTLFLAG_RD, &tx_ring->tso_packets, 0, "TSO packets");
+		SYSCTL_ADD_U64(ctx, ring_list, OID_AUTO, "defrag_attempts",
+		    CTLFLAG_RD, &tx_ring->defrag_attempts, 0,
+		    "Oversized chains defragged");
 	}
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
@@ -2826,11 +2871,11 @@ static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 		ring_node = SYSCTL_ADD_NODE(ctx, node_list, OID_AUTO, namebuf,
 		    CTLFLAG_RD, NULL, "RX Ring");
 		ring_list = SYSCTL_CHILDREN(ring_node);
-		SYSCTL_ADD_ULONG(ctx, ring_list, OID_AUTO, "packets",
-		    CTLFLAG_RD, &rx_ring->packets, "RX packets");
-		SYSCTL_ADD_ULONG(ctx, ring_list, OID_AUTO, "bytes",
-		    CTLFLAG_RD, &rx_ring->bytes, "RX bytes");
-		SYSCTL_ADD_ULONG(ctx, ring_list, OID_AUTO, "error",
-		    CTLFLAG_RD, &rx_ring->errors, "RX soft errors");
+		SYSCTL_ADD_U64(ctx, ring_list, OID_AUTO, "packets",
+		    CTLFLAG_RD, &rx_ring->packets, 0, "RX packets");
+		SYSCTL_ADD_U64(ctx, ring_list, OID_AUTO, "bytes",
+		    CTLFLAG_RD, &rx_ring->bytes, 0, "RX bytes");
+		SYSCTL_ADD_U64(ctx, ring_list, OID_AUTO, "error",
+		    CTLFLAG_RD, &rx_ring->errors, 0, "RX soft errors");
 	}
 }

@@ -130,7 +130,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	installkernel.debug packagekernel packageworld \
 	reinstallkernel reinstallkernel.debug \
 	installworld kernel-toolchain libraries lint maninstall \
-	obj objlink rerelease showconfig tags toolchain update \
+	obj objlink showconfig tags toolchain update \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _build-metadata _cross-tools _includes _libraries \
 	build32 distribute32 install32 buildsoft distributesoft installsoft \
@@ -166,6 +166,18 @@ META_TGT_WHITELIST+= \
 	kernels libraries native-xtools showconfig test-system-compiler \
 	tinderbox toolchain \
 	toolchains universe world worlds xdev xdev-build
+
+# Likewise for AUTO_OBJ.  Many targets do not need object directories created
+# for each visited directory.  Only when things are being built are they
+# needed.  Having AUTO_OBJ disabled in a build target is fine as it should
+# fallback to running 'make obj' as needed.  If a target is not in this list
+# then it is ran with MK_AUTO_OBJ=no in environment.
+# 'showconfig' is in the list to avoid forcing MK_AUTO_OBJ=no for it.
+AUTO_OBJ_TGT_WHITELIST+= \
+	_* all all-man build* depend everything *toolchain* includes \
+	libraries obj objlink showconfig tags xdev xdev-build native-xtools \
+	stage* create-packages* real-packages sign-packages package-pkg \
+	tinderbox universe* kernel kernels world worlds bmake
 
 .ORDER: buildworld installworld
 .ORDER: buildworld distrib-dirs
@@ -235,8 +247,11 @@ SUB_MAKE= ${MAKE} -m ${.CURDIR}/share/mk
 _MAKE=	PATH=${PATH} MAKE_CMD="${MAKE}" ${SUB_MAKE} -f Makefile.inc1 \
 	TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
 
+.if defined(MK_META_MODE) && ${MK_META_MODE} == "yes"
 # Only allow meta mode for the whitelisted targets.  See META_TGT_WHITELIST
-# above.
+# above.  If overridden as a make argument then don't bother trying to
+# disable it.
+.if empty(.MAKEOVERRIDES:MMK_META_MODE)
 .for _tgt in ${META_TGT_WHITELIST}
 .if make(${_tgt})
 _CAN_USE_META_MODE?= yes
@@ -244,17 +259,37 @@ _CAN_USE_META_MODE?= yes
 .endfor
 .if !defined(_CAN_USE_META_MODE)
 _MAKE+=	MK_META_MODE=no
+MK_META_MODE= no
 .if defined(.PARSEDIR)
 .unexport META_MODE
 .endif
-.elif defined(MK_META_MODE) && ${MK_META_MODE} == "yes"
+.endif	# !defined(_CAN_USE_META_MODE)
+.endif	# empty(.MAKEOVERRIDES:MMK_META_MODE)
+
+.if ${MK_META_MODE} == "yes"
 .if !exists(/dev/filemon) && !defined(NO_FILEMON) && !make(showconfig)
 # Require filemon be loaded to provide a working incremental build
 .error ${.newline}ERROR: The filemon module (/dev/filemon) is not loaded. \
     ${.newline}ERROR: WITH_META_MODE is enabled but requires filemon for an incremental build. \
     ${.newline}ERROR: 'kldload filemon' or pass -DNO_FILEMON to suppress this error.
 .endif	# !exists(/dev/filemon) && !defined(NO_FILEMON)
-.endif	# !defined(_CAN_USE_META_MODE)
+.endif	# ${MK_META_MODE} == yes
+.endif	# defined(MK_META_MODE) && ${MK_META_MODE} == yes
+
+# Only allow AUTO_OBJ for the whitelisted targets.  See AUTO_OBJ_TGT_WHITELIST
+# above.  MK_AUTO_OBJ not checked here for "yes" as it may not yet be enabled
+# since it is opportunistic.
+.if empty(.MAKEOVERRIDES:MMK_AUTO_OBJ)
+.for _tgt in ${AUTO_OBJ_TGT_WHITELIST}
+.if make(${_tgt})
+_CAN_USE_AUTO_OBJ?= yes
+.endif
+.endfor
+.if !defined(_CAN_USE_AUTO_OBJ)
+_MAKE+=	MK_AUTO_OBJ=no
+MK_AUTO_OBJ= no
+.endif
+.endif	# empty(.MAKEOVERRIDES:MMK_AUTO_OBJ)
 
 # Guess target architecture from target type, and vice versa, based on
 # historic FreeBSD practice of tending to have TARGET == TARGET_ARCH
@@ -289,6 +324,15 @@ ${XTGTS}: _assert_target
 # Otherwise, default to current machine type and architecture.
 _TARGET?=	${MACHINE}
 _TARGET_ARCH?=	${MACHINE_ARCH}
+
+.if make(native-xtools*)
+NXB_TARGET:=		${_TARGET}
+NXB_TARGET_ARCH:=	${_TARGET_ARCH}
+_TARGET=		${MACHINE}
+_TARGET_ARCH=		${MACHINE_ARCH}
+_MAKE+=			NXB_TARGET=${NXB_TARGET} \
+			NXB_TARGET_ARCH=${NXB_TARGET_ARCH}
+.endif
 
 .if make(print-dir)
 .SILENT:
@@ -554,7 +598,7 @@ universe_${target}_kernels: universe_${target}_worlds .PHONY
 universe_${target}_kernels: universe_${target}_prologue .MAKE .PHONY
 .if exists(${KERNSRCDIR}/${target}/conf/NOTES)
 	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
-	    ${SUB_MAKE} -DNO_OBJ LINT \
+	    ${SUB_MAKE} LINT \
 	    > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
 	    (echo "${target} 'make LINT' failed," \
 	    "check _.${target}.makeLINT for details"| ${MAKEFAIL}))
