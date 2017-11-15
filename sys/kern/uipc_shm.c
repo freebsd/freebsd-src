@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/uio.h>
 #include <sys/signal.h>
+#include <sys/jail.h>
 #include <sys/ktrace.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -711,6 +712,8 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 	struct shmfd *shmfd;
 	struct file *fp;
 	char *path;
+	const char *pr_path;
+	size_t pr_pathlen;
 	Fnv32_t fnv;
 	mode_t cmode;
 	int fd, error;
@@ -748,13 +751,19 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 		shmfd = shm_alloc(td->td_ucred, cmode);
 	} else {
 		path = malloc(MAXPATHLEN, M_SHMFD, M_WAITOK);
-		error = copyinstr(uap->path, path, MAXPATHLEN, NULL);
+		pr_path = td->td_ucred->cr_prison->pr_path;
+
+		/* Construct a full pathname for jailed callers. */
+		pr_pathlen = strcmp(pr_path, "/") == 0 ? 0
+		    : strlcpy(path, pr_path, MAXPATHLEN);
+		error = copyinstr(uap->path, path + pr_pathlen,
+		    MAXPATHLEN - pr_pathlen, NULL);
 #ifdef KTRACE
 		if (error == 0 && KTRPOINT(curthread, KTR_NAMEI))
 			ktrnamei(path);
 #endif
 		/* Require paths to start with a '/' character. */
-		if (error == 0 && path[0] != '/')
+		if (error == 0 && path[pr_pathlen] != '/')
 			error = EINVAL;
 		if (error) {
 			fdclose(fdp, fp, fd, td);
@@ -841,11 +850,17 @@ int
 sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 {
 	char *path;
+	const char *pr_path;
+	size_t pr_pathlen;
 	Fnv32_t fnv;
 	int error;
 
 	path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	error = copyinstr(uap->path, path, MAXPATHLEN, NULL);
+	pr_path = td->td_ucred->cr_prison->pr_path;
+	pr_pathlen = strcmp(pr_path, "/") == 0 ? 0
+	    : strlcpy(path, pr_path, MAXPATHLEN);
+	error = copyinstr(uap->path, path + pr_pathlen, MAXPATHLEN - pr_pathlen,
+	    NULL);
 	if (error) {
 		free(path, M_TEMP);
 		return (error);
@@ -1052,11 +1067,23 @@ shm_unmap(struct file *fp, void *mem, size_t size)
 void
 shm_path(struct shmfd *shmfd, char *path, size_t size)
 {
+	const char *shm_path, *pr_path;
+	size_t pr_pathlen;
 
 	if (shmfd->shm_path == NULL)
 		return;
 	sx_slock(&shm_dict_lock);
-	if (shmfd->shm_path != NULL)
-		strlcpy(path, shmfd->shm_path, size);
+	shm_path = shmfd->shm_path;
+	if (shm_path != NULL) {
+		pr_path = curthread->td_ucred->cr_prison->pr_path;
+		if (strcmp(pr_path, "/") != 0) {
+			/* Return the jail-rooted pathname. */
+			pr_pathlen = strlen(pr_path);
+			if (strncmp(shm_path, pr_path, pr_pathlen) == 0 &&
+			    shm_path[pr_pathlen] == '/')
+				shm_path += pr_pathlen;
+		}
+		strlcpy(path, shm_path, size);
+	}
 	sx_sunlock(&shm_dict_lock);
 }
