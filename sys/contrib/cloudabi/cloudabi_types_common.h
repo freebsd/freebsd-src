@@ -56,10 +56,9 @@ typedef uint32_t cloudabi_auxtype_t;
 #define CLOUDABI_AT_PAGESZ         6
 #define CLOUDABI_AT_PHDR           3
 #define CLOUDABI_AT_PHNUM          4
+#define CLOUDABI_AT_PID          263
 #define CLOUDABI_AT_SYSINFO_EHDR 262
 #define CLOUDABI_AT_TID          261
-
-typedef uint32_t cloudabi_backlog_t;
 
 typedef uint32_t cloudabi_clockid_t;
 #define CLOUDABI_CLOCK_MONOTONIC          1
@@ -191,7 +190,6 @@ typedef uint8_t cloudabi_filetype_t;
 #define CLOUDABI_FILETYPE_BLOCK_DEVICE      16
 #define CLOUDABI_FILETYPE_CHARACTER_DEVICE  17
 #define CLOUDABI_FILETYPE_DIRECTORY         32
-#define CLOUDABI_FILETYPE_POLL              64
 #define CLOUDABI_FILETYPE_PROCESS           80
 #define CLOUDABI_FILETYPE_REGULAR_FILE      96
 #define CLOUDABI_FILETYPE_SHARED_MEMORY    112
@@ -276,9 +274,7 @@ typedef uint64_t cloudabi_rights_t;
 #define CLOUDABI_RIGHT_MEM_MAP               0x0000000004000000
 #define CLOUDABI_RIGHT_MEM_MAP_EXEC          0x0000000008000000
 #define CLOUDABI_RIGHT_POLL_FD_READWRITE     0x0000000010000000
-#define CLOUDABI_RIGHT_POLL_MODIFY           0x0000000020000000
 #define CLOUDABI_RIGHT_POLL_PROC_TERMINATE   0x0000000040000000
-#define CLOUDABI_RIGHT_POLL_WAIT             0x0000000080000000
 #define CLOUDABI_RIGHT_PROC_EXEC             0x0000000100000000
 #define CLOUDABI_RIGHT_SOCK_SHUTDOWN         0x0000008000000000
 
@@ -327,14 +323,6 @@ typedef uint8_t cloudabi_signal_t;
 typedef uint16_t cloudabi_subclockflags_t;
 #define CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME 0x0001
 
-typedef uint16_t cloudabi_subflags_t;
-#define CLOUDABI_SUBSCRIPTION_ADD     0x0001
-#define CLOUDABI_SUBSCRIPTION_CLEAR   0x0002
-#define CLOUDABI_SUBSCRIPTION_DELETE  0x0004
-#define CLOUDABI_SUBSCRIPTION_DISABLE 0x0008
-#define CLOUDABI_SUBSCRIPTION_ENABLE  0x0010
-#define CLOUDABI_SUBSCRIPTION_ONESHOT 0x0020
-
 typedef uint16_t cloudabi_subrwflags_t;
 #define CLOUDABI_SUBSCRIPTION_FD_READWRITE_POLL 0x0001
 
@@ -364,6 +352,35 @@ _Static_assert(offsetof(cloudabi_dirent_t, d_namlen) == 16, "Incorrect layout");
 _Static_assert(offsetof(cloudabi_dirent_t, d_type) == 20, "Incorrect layout");
 _Static_assert(sizeof(cloudabi_dirent_t) == 24, "Incorrect layout");
 _Static_assert(_Alignof(cloudabi_dirent_t) == 8, "Incorrect layout");
+
+typedef struct {
+  _Alignas(8) cloudabi_userdata_t userdata;
+  _Alignas(2) cloudabi_errno_t error;
+  _Alignas(1) cloudabi_eventtype_t type;
+  union {
+    struct {
+      _Alignas(8) cloudabi_filesize_t nbytes;
+      _Alignas(1) char unused[4];
+      _Alignas(2) cloudabi_eventrwflags_t flags;
+    } fd_readwrite;
+    struct {
+      _Alignas(1) char unused[4];
+      _Alignas(1) cloudabi_signal_t signal;
+      _Alignas(4) cloudabi_exitcode_t exitcode;
+    } proc_terminate;
+  };
+} cloudabi_event_t;
+_Static_assert(offsetof(cloudabi_event_t, userdata) == 0, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, error) == 8, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, type) == 10, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, fd_readwrite.nbytes) == 16, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, fd_readwrite.unused) == 24, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, fd_readwrite.flags) == 28, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, proc_terminate.unused) == 16, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, proc_terminate.signal) == 20, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_event_t, proc_terminate.exitcode) == 24, "Incorrect layout");
+_Static_assert(sizeof(cloudabi_event_t) == 32, "Incorrect layout");
+_Static_assert(_Alignof(cloudabi_event_t) == 8, "Incorrect layout");
 
 typedef struct {
   _Alignas(1) cloudabi_filetype_t fs_filetype;
