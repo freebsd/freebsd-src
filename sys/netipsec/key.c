@@ -6263,7 +6263,7 @@ key_getsizes_ah(const struct auth_hash *ah, int alg, u_int16_t* min,
     u_int16_t* max)
 {
 
-	*min = *max = ah->keysize;
+	*min = *max = ah->hashsize;
 	if (ah->keysize == 0) {
 		/*
 		 * Transform takes arbitrary key size but algorithm
