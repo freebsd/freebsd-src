@@ -418,9 +418,12 @@ For example,
 .Dv MACHINE_CPUARCH
 is defined to be mips for all the flavors of mips that we support
 since we support them all with a shared set of sources.
-One might thing that it should be x86 for both amd64 and i386.
-However, since we don't support these two architectures with the same
-source base, that's not done despite it's logical appeal.
+While amd64 and i386 are closely related, MACHINE_CPUARCH is not x86
+for them.
+The FreeBSD source base supports amd64 and i386 with two
+distinct source bases living in subdirectories named amd64 and i386
+(though behind the scenes there's some sharing that fits into this
+framework).
 .It Dv CPUTYPE	Sets the flavor of
 .Dv MACHINE_ARCH
 to build.
@@ -433,7 +436,8 @@ Unused outside of that scope.
 It is not passed down to the rest of the build.
 Makefiles outside of the top level shouldn't use it at all (though
 some have their own private copy for hysterical raisons).
-.It Dv TARGET_ARCH	Used to set Dv MACHINE_ARCH by Fx's top level Makefile for cross building.
+.It Dv TARGET_ARCH	Used to set
+.Dv MACHINE_ARCH by Fx's top level Makefile for cross building.
 Like
 .Dv TARGET , it is unused outside of that scope.
 .El
