@@ -129,9 +129,11 @@ static uint32_t
 nvme_link_kBps(struct nvme_controller *ctrlr)
 {
 	uint32_t speed, lanes, link[] = { 1, 250000, 500000, 985000, 1970000 };
+	uint32_t status;
 
-	speed = pcie_link_status(ctrlr->dev) & PCIEM_LINK_STA_SPEED;
-	lanes = (pcie_link_status(ctrlr->dev) & PCIEM_LINK_STA_WIDTH) >> 4;
+	status = pcie_read_config(ctrlr->dev, PCIER_LINK_STA, 2);
+	speed = status & PCIEM_LINK_STA_SPEED;
+	lanes = (status & PCIEM_LINK_STA_WIDTH) >> 4;
 	/*
 	 * Failsafe on link speed indicator. If it is insane report the number of
 	 * lanes as the speed. Not 100% accurate, but may be diagnostic.
@@ -217,18 +219,21 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_trans_settings_nvme	*nvmep;
 		struct ccb_trans_settings_nvme	*nvmex;
 		device_t dev;
+		uint32_t status, caps;
 
 		dev = ctrlr->dev;
 		cts = &ccb->cts;
 		nvmex = &cts->xport_specific.nvme;
 		nvmep = &cts->proto_specific.nvme;
 
+		status = pcie_read_config(dev, PCIER_LINK_STA, 2);
+		caps = pcie_read_config(dev, PCIER_LINK_CAP, 2);
 		nvmex->valid = CTS_NVME_VALID_SPEC | CTS_NVME_VALID_LINK;
 		nvmex->spec = nvme_mmio_read_4(ctrlr, vs);
-		nvmex->speed = pcie_link_status(dev) & PCIEM_LINK_STA_SPEED;
-		nvmex->lanes = (pcie_link_status(dev) & PCIEM_LINK_STA_WIDTH) >> 4;
-		nvmex->max_speed = pcie_link_caps(dev) & PCIEM_LINK_CAP_MAX_SPEED;
-		nvmex->max_lanes = (pcie_link_caps(dev) & PCIEM_LINK_CAP_MAX_WIDTH) >> 4;
+		nvmex->speed = status & PCIEM_LINK_STA_SPEED;
+		nvmex->lanes = (status & PCIEM_LINK_STA_WIDTH) >> 4;
+		nvmex->max_speed = caps & PCIEM_LINK_CAP_MAX_SPEED;
+		nvmex->max_lanes = (caps & PCIEM_LINK_CAP_MAX_WIDTH) >> 4;
 
 		/* XXX these should be something else maybe ? */
 		nvmep->valid = 1;
