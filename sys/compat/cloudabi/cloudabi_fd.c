@@ -73,9 +73,7 @@ __FBSDID("$FreeBSD$");
 	MAPPING(CLOUDABI_RIGHT_MEM_MAP, CAP_MMAP)			\
 	MAPPING(CLOUDABI_RIGHT_MEM_MAP_EXEC, CAP_MMAP_X)		\
 	MAPPING(CLOUDABI_RIGHT_POLL_FD_READWRITE, CAP_EVENT)		\
-	MAPPING(CLOUDABI_RIGHT_POLL_MODIFY, CAP_KQUEUE_CHANGE)		\
 	MAPPING(CLOUDABI_RIGHT_POLL_PROC_TERMINATE, CAP_EVENT)		\
-	MAPPING(CLOUDABI_RIGHT_POLL_WAIT, CAP_KQUEUE_EVENT)		\
 	MAPPING(CLOUDABI_RIGHT_PROC_EXEC, CAP_FEXECVE)			\
 	MAPPING(CLOUDABI_RIGHT_SOCK_SHUTDOWN, CAP_SHUTDOWN)		\
 
@@ -93,9 +91,6 @@ cloudabi_sys_fd_create1(struct thread *td,
 	struct filecaps fcaps = {};
 
 	switch (uap->type) {
-	case CLOUDABI_FILETYPE_POLL:
-		cap_rights_init(&fcaps.fc_rights, CAP_FSTAT, CAP_KQUEUE);
-		return (kern_kqueue(td, 0, &fcaps));
 	case CLOUDABI_FILETYPE_SHARED_MEMORY:
 		cap_rights_init(&fcaps.fc_rights, CAP_FSTAT, CAP_FTRUNCATE,
 		    CAP_MMAP_RWX);
@@ -201,8 +196,6 @@ cloudabi_convert_filetype(const struct file *fp)
 	switch (fp->f_type) {
 	case DTYPE_FIFO:
 		return (CLOUDABI_FILETYPE_SOCKET_STREAM);
-	case DTYPE_KQUEUE:
-		return (CLOUDABI_FILETYPE_POLL);
 	case DTYPE_PIPE:
 		return (CLOUDABI_FILETYPE_SOCKET_STREAM);
 	case DTYPE_PROCDESC:
@@ -315,10 +308,6 @@ cloudabi_remove_conflicting_rights(cloudabi_filetype_t filetype,
 		    CLOUDABI_RIGHT_MEM_MAP_EXEC |
 		    CLOUDABI_RIGHT_POLL_FD_READWRITE |
 		    CLOUDABI_RIGHT_PROC_EXEC;
-		break;
-	case CLOUDABI_FILETYPE_POLL:
-		*base &= ~CLOUDABI_RIGHT_FILE_ADVISE;
-		*inheriting = 0;
 		break;
 	case CLOUDABI_FILETYPE_PROCESS:
 		*base &= ~(CLOUDABI_RIGHT_FILE_ADVISE |
