@@ -378,6 +378,10 @@ Both of these hardware platforms supported only the
 of i386 where they shared a common ABI, except for certain kernel /
 userland interfaces relating to underlying hardware platform
 differences in bus architecture, device enumeration and boot interface.
+Generally,
+.Dv MACHINE
+should only be used in src/sys and src/stand or in system imagers or
+installers.
 .It Dv MACHINE_ARCH	Represents the CPU processor architecture.
 This is the same as the native platforms
 .Xr uname 1
@@ -408,6 +412,15 @@ It is unfortunate that amd64 speifies the 64-bit evolution of the x86
 platform (it matches the 'first rule') as everybody else uses x86_64.
 There is no standard name for the processor: each OS selects its own
 conventions.
+.It Dv MACHINE_CPUARCH	Represents the source location for a given
+.Dv MACHINE_ARCH .
+For example,
+.Dv MACHINE_CPUARCH
+is defined to be mips for all the flavors of mips that we support
+since we support them all with a shared set of sources.
+One might thing that it should be x86 for both amd64 and i386.
+However, since we don't support these two architectures with the same
+source base, that's not done despite it's logical appeal.
 .It Dv CPUTYPE	Sets the flavor of
 .Dv MACHINE_ARCH
 to build.
