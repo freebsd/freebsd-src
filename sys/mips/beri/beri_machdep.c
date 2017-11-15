@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_subr.h>
 #endif
 
 #include <vm/vm.h>
@@ -161,46 +162,6 @@ platform_reset(void)
 		__asm__ __volatile("wait");
 }
 
-#ifdef FDT
-/* Parse cmd line args as env - copied from xlp_machdep. */
-/* XXX-BZ this should really be centrally provided for all (boot) code. */
-static void
-_parse_bootargs(char *cmdline)
-{
-	char *n, *v;
-
-	while ((v = strsep(&cmdline, " \n")) != NULL) {
-		if (*v == '\0')
-			continue;
-		if (*v == '-') {
-			while (*v != '\0') {
-				v++;
-				switch (*v) {
-				case 'a': boothowto |= RB_ASKNAME; break;
-				/* Someone should simulate that ;-) */
-				case 'C': boothowto |= RB_CDROM; break;
-				case 'd': boothowto |= RB_KDB; break;
-				case 'D': boothowto |= RB_MULTIPLE; break;
-				case 'm': boothowto |= RB_MUTE; break;
-				case 'g': boothowto |= RB_GDB; break;
-				case 'h': boothowto |= RB_SERIAL; break;
-				case 'p': boothowto |= RB_PAUSE; break;
-				case 'r': boothowto |= RB_DFLTROOT; break;
-				case 's': boothowto |= RB_SINGLE; break;
-				case 'v': boothowto |= RB_VERBOSE; break;
-				}
-			}
-		} else {
-			n = strsep(&v, "=");
-			if (v == NULL)
-				kern_setenv(n, "1");
-			else
-				kern_setenv(n, v);
-		}
-	}
-}
-#endif
-
 void
 platform_start(__register_t a0, __register_t a1,  __register_t a2, 
     __register_t a3)
@@ -279,9 +240,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	/*
 	 * Get bootargs from FDT if specified.
 	 */
-	chosen = OF_finddevice("/chosen");
-	if (OF_getprop(chosen, "bootargs", buf, sizeof(buf)) != -1)
-		_parse_bootargs(buf);
+	ofw_parse_bootargs();
 #endif
 
 	/*

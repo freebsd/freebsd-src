@@ -683,6 +683,7 @@ pmclog_configure_log(struct pmc_mdep *md, struct pmc_owner *po, int logfd)
 		(void) fdrop(po->po_file, curthread);
 	po->po_file  = NULL;	/* clear file and error state */
 	po->po_error = 0;
+	po->po_flags &= ~PMC_PO_OWNS_LOGFILE;
 
 	return (error);
 }
@@ -735,7 +736,7 @@ pmclog_deconfigure_log(struct pmc_owner *po)
 	/* drop a reference to the fd */
 	if (po->po_file != NULL) {
 		error = fdrop(po->po_file, curthread);
-		po->po_file  = NULL;
+		po->po_file = NULL;
 	} else
 		error = 0;
 	po->po_error = 0;

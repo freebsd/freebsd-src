@@ -53,18 +53,10 @@
 
 void mlx4_cq_completion(struct mlx4_dev *dev, u32 cqn)
 {
-	struct mlx4_cq_table *cq_table = &mlx4_priv(dev)->cq_table;
 	struct mlx4_cq *cq;
-
-	read_lock(&cq_table->cq_table_lock);
 
 	cq = radix_tree_lookup(&mlx4_priv(dev)->cq_table.tree,
 			       cqn & (dev->caps.num_cqs - 1));
-	if (cq)
-		atomic_inc(&cq->refcount);
-
-	read_unlock(&cq_table->cq_table_lock);
-
 	if (!cq) {
 		mlx4_dbg(dev, "Completion event for bogus CQ %08x\n", cqn);
 		return;
@@ -73,9 +65,6 @@ void mlx4_cq_completion(struct mlx4_dev *dev, u32 cqn)
 	++cq->arm_sn;
 
 	cq->comp(cq);
-
-	if (atomic_dec_and_test(&cq->refcount))
-		complete(&cq->free);
 }
 
 void mlx4_cq_event(struct mlx4_dev *dev, u32 cqn, int event_type)
@@ -83,13 +72,13 @@ void mlx4_cq_event(struct mlx4_dev *dev, u32 cqn, int event_type)
 	struct mlx4_cq_table *cq_table = &mlx4_priv(dev)->cq_table;
 	struct mlx4_cq *cq;
 
-	read_lock(&cq_table->cq_table_lock);
+	spin_lock(&cq_table->lock);
 
 	cq = radix_tree_lookup(&cq_table->tree, cqn & (dev->caps.num_cqs - 1));
 	if (cq)
 		atomic_inc(&cq->refcount);
 
-	read_unlock(&cq_table->cq_table_lock);
+	spin_unlock(&cq_table->lock);
 
 	if (!cq) {
 		mlx4_warn(dev, "Async event for bogus CQ %08x\n", cqn);
@@ -137,8 +126,6 @@ int mlx4_cq_modify(struct mlx4_dev *dev, struct mlx4_cq *cq,
 		return PTR_ERR(mailbox);
 
 	cq_context = mailbox->buf;
-	memset(cq_context, 0, sizeof *cq_context);
-
 	cq_context->cq_max_count = cpu_to_be16(count);
 	cq_context->cq_period    = cpu_to_be16(period);
 
@@ -162,8 +149,6 @@ int mlx4_cq_resize(struct mlx4_dev *dev, struct mlx4_cq *cq,
 		return PTR_ERR(mailbox);
 
 	cq_context = mailbox->buf;
-	memset(cq_context, 0, sizeof *cq_context);
-
 	cq_context->logsize_usrpage = cpu_to_be32(ilog2(entries) << 24);
 	cq_context->log_page_size   = mtt->page_shift - 12;
 	mtt_addr = mlx4_mtt_addr(dev, mtt);
@@ -177,28 +162,6 @@ int mlx4_cq_resize(struct mlx4_dev *dev, struct mlx4_cq *cq,
 }
 EXPORT_SYMBOL_GPL(mlx4_cq_resize);
 
-int mlx4_cq_ignore_overrun(struct mlx4_dev *dev, struct mlx4_cq *cq)
-{
-	struct mlx4_cmd_mailbox *mailbox;
-	struct mlx4_cq_context *cq_context;
-	int err;
-
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
-
-	cq_context = mailbox->buf;
-	memset(cq_context, 0, sizeof *cq_context);
-
-	cq_context->flags |= cpu_to_be32(MLX4_CQ_FLAG_OI);
-
-	err = mlx4_MODIFY_CQ(dev, mailbox, cq->cqn, 3);
-
-	mlx4_free_cmd_mailbox(dev, mailbox);
-	return err;
-}
-EXPORT_SYMBOL_GPL(mlx4_cq_ignore_overrun);
-
 int __mlx4_cq_alloc_icm(struct mlx4_dev *dev, int *cqn)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -209,11 +172,11 @@ int __mlx4_cq_alloc_icm(struct mlx4_dev *dev, int *cqn)
 	if (*cqn == -1)
 		return -ENOMEM;
 
-	err = mlx4_table_get(dev, &cq_table->table, *cqn);
+	err = mlx4_table_get(dev, &cq_table->table, *cqn, GFP_KERNEL);
 	if (err)
 		goto err_out;
 
-	err = mlx4_table_get(dev, &cq_table->cmpt_table, *cqn);
+	err = mlx4_table_get(dev, &cq_table->cmpt_table, *cqn, GFP_KERNEL);
 	if (err)
 		goto err_put;
 	return 0;
@@ -283,7 +246,7 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent,
 	u64 mtt_addr;
 	int err;
 
-	if (vector > dev->caps.num_comp_vectors + dev->caps.comp_pool)
+	if (vector >= dev->caps.num_comp_vectors)
 		return -EINVAL;
 
 	cq->vector = vector;
@@ -305,14 +268,14 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent,
 	}
 
 	cq_context = mailbox->buf;
-	memset(cq_context, 0, sizeof *cq_context);
-
 	cq_context->flags	    = cpu_to_be32(!!collapsed << 18);
 	if (timestamp_en)
 		cq_context->flags  |= cpu_to_be32(1 << 19);
 
-	cq_context->logsize_usrpage = cpu_to_be32((ilog2(nent) << 24) | uar->index);
-	cq_context->comp_eqn	    = priv->eq_table.eq[vector].eqn;
+	cq_context->logsize_usrpage =
+		cpu_to_be32((ilog2(nent) << 24) |
+			    mlx4_to_hw_uar_index(dev, uar->index));
+	cq_context->comp_eqn	    = priv->eq_table.eq[MLX4_CQ_TO_EQ_VECTOR(vector)].eqn;
 	cq_context->log_page_size   = mtt->page_shift - MLX4_ICM_PAGE_SHIFT;
 
 	mtt_addr = mlx4_mtt_addr(dev, mtt);
@@ -331,9 +294,7 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent,
 	atomic_set(&cq->refcount, 1);
 	init_completion(&cq->free);
 
-	cq->eqn = priv->eq_table.eq[cq->vector].eqn;
-	cq->irq = priv->eq_table.eq[cq->vector].irq;
-
+	cq->irq = priv->eq_table.eq[MLX4_CQ_TO_EQ_VECTOR(vector)].irq;
 	return 0;
 
 err_radix:
@@ -358,7 +319,10 @@ void mlx4_cq_free(struct mlx4_dev *dev, struct mlx4_cq *cq)
 	if (err)
 		mlx4_warn(dev, "HW2SW_CQ failed (%d) for CQN %06x\n", err, cq->cqn);
 
-	synchronize_irq(priv->eq_table.eq[cq->vector].irq);
+	synchronize_irq(priv->eq_table.eq[MLX4_CQ_TO_EQ_VECTOR(cq->vector)].irq);
+	if (priv->eq_table.eq[MLX4_CQ_TO_EQ_VECTOR(cq->vector)].irq !=
+	    priv->eq_table.eq[MLX4_EQ_ASYNC].irq)
+		synchronize_irq(priv->eq_table.eq[MLX4_EQ_ASYNC].irq);
 
 	spin_lock_irq(&cq_table->lock);
 	radix_tree_delete(&cq_table->tree, cq->cqn);
@@ -378,7 +342,6 @@ int mlx4_init_cq_table(struct mlx4_dev *dev)
 	int err;
 
 	spin_lock_init(&cq_table->lock);
-	rwlock_init(&cq_table->cq_table_lock);
 	INIT_RADIX_TREE(&cq_table->tree, GFP_ATOMIC);
 	if (mlx4_is_slave(dev))
 		return 0;

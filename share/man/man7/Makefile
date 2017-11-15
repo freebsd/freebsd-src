@@ -22,7 +22,6 @@ MAN=	arch.7 \
 	hostname.7 \
 	intro.7 \
 	maclabel.7 \
-	mailaddr.7 \
 	operator.7 \
 	ports.7 \
 	release.7 \

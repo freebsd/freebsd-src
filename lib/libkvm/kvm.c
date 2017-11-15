@@ -49,6 +49,7 @@ static char sccsid[] = "@(#)kvm.c	8.2 (Berkeley) 2/13/94";
 #include <sys/linker.h>
 #include <sys/pcpu.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 
 #include <net/vnet.h>
 
@@ -299,6 +300,10 @@ kvm_close(kvm_t *kd)
 		free((void *)kd->argv);
 	if (kd->pt_map != NULL)
 		free(kd->pt_map);
+	if (kd->page_map != NULL)
+		free(kd->page_map);
+	if (kd->sparse_map != MAP_FAILED)
+		munmap(kd->sparse_map, kd->pt_sparse_size);
 	free((void *)kd);
 
 	return (error);
@@ -486,4 +491,14 @@ kvm_native(kvm_t *kd)
 	if (ISALIVE(kd))
 		return (1);
 	return (kd->arch->ka_native(kd));
+}
+
+int
+kvm_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *closure)
+{
+
+	if (kd->arch->ka_walk_pages == NULL)
+		return (0);
+
+	return (kd->arch->ka_walk_pages(kd, cb, closure));
 }

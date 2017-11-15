@@ -3727,12 +3727,13 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		    V_FW_PORT_CAP_SPEED(M_FW_PORT_CAP_SPEED);
 	}
 
-	rcap = aneg | speed | fc | fec | mdi;
+	rcap = aneg | speed | fc | fec;
 	if ((rcap | lc->supported) != lc->supported) {
 		CH_WARN(adap, "rcap 0x%08x, pcap 0x%08x\n", rcap,
 		    lc->supported);
 		rcap &= lc->supported;
 	}
+	rcap |= mdi;
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_portid = cpu_to_be32(V_FW_CMD_OP(FW_PORT_CMD) |

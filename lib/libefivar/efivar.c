@@ -150,7 +150,7 @@ efi_append_variable(efi_guid_t guid, const char *name,
 {
 
 	return efi_set_variable(guid, name, data, data_size,
-	    attributes | EFI_VARIABLE_APPEND_WRITE, 0);
+	    attributes | EFI_VARIABLE_APPEND_WRITE);
 }
 
 int
@@ -158,7 +158,7 @@ efi_del_variable(efi_guid_t guid, const char *name)
 {
 
 	/* data_size of 0 deletes the variable */
-	return efi_set_variable(guid, name, NULL, 0, 0, 0);
+	return efi_set_variable(guid, name, NULL, 0, 0);
 }
 
 int
@@ -358,7 +358,7 @@ efi_name_to_guid(const char *name, efi_guid_t *guid)
 
 int
 efi_set_variable(efi_guid_t guid, const char *name,
-    uint8_t *data, size_t data_size, uint32_t attributes, mode_t mode __unused)
+    uint8_t *data, size_t data_size, uint32_t attributes)
 {
 	struct efi_var_ioc var;
 	int rv;

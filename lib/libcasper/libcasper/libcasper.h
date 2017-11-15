@@ -56,11 +56,13 @@ typedef struct nvlist nvlist_t;
 struct cap_channel;
 
 typedef struct cap_channel cap_channel_t;
+#define	CASPER_SUPPORT	(1)
 #else
 struct cap_channel {
 	int cch_fd;
 };
 typedef struct cap_channel cap_channel_t;
+#define	CASPER_SUPPORT	(0)
 #endif /* ! WITH_CASPER */
 #endif /* ! _CAP_CHANNEL_T_DECLARED */
 

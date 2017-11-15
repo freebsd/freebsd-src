@@ -52,17 +52,6 @@
 
 #include "en.h"
 
-enum {
-	MAX_INLINE = 104, /* 128 - 16 - 4 - 4 */
-	MAX_BF = 256,
-	MIN_PKT_LEN = 17,
-};
-
-static int inline_thold __read_mostly = MAX_INLINE;
-
-module_param_named(inline_thold, inline_thold, uint, 0444);
-MODULE_PARM_DESC(inline_thold, "threshold for using inline data");
-
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_tx_ring **pring, u32 size,
 			   u16 stride, int node, int queue_idx)
@@ -101,7 +90,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	ring->size = size;
 	ring->size_mask = size - 1;
 	ring->stride = stride;
-	ring->inline_thold = MAX(MIN_PKT_LEN, MIN(inline_thold, MAX_INLINE));
+	ring->inline_thold = MAX(MIN_PKT_LEN, MIN(priv->prof->inline_thold, MAX_INLINE));
 	mtx_init(&ring->tx_lock.m, "mlx4 tx", NULL, MTX_DEF);
 	mtx_init(&ring->comp_lock.m, "mlx4 comp", NULL, MTX_DEF);
 
@@ -163,13 +152,13 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	       ring->buf_size, (unsigned long long) ring->wqres.buf.direct.map);
 
 	err = mlx4_qp_reserve_range(mdev->dev, 1, 1, &ring->qpn,
-				    MLX4_RESERVE_BF_QP);
+				    MLX4_RESERVE_ETH_BF_QP);
 	if (err) {
 		en_err(priv, "failed reserving qp for TX ring\n");
 		goto err_map;
 	}
 
-	err = mlx4_qp_alloc(mdev->dev, ring->qpn, &ring->qp);
+	err = mlx4_qp_alloc(mdev->dev, ring->qpn, &ring->qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed allocating qp %d\n", ring->qpn);
 		goto err_reserve;
@@ -185,8 +174,6 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	} else
 		ring->bf_enabled = true;
 	ring->queue_index = queue_idx;
-	if (queue_idx < priv->num_tx_rings_p_up )
-		CPU_SET(queue_idx, &ring->affinity_mask);
 
 	*pring = ring;
 	return 0;
@@ -447,8 +434,8 @@ static int mlx4_en_process_tx_cq(struct net_device *dev,
 		ring->blocked = 0;
 		if (atomic_fetchadd_int(&priv->blocked, -1) == 1)
 			atomic_clear_int(&dev->if_drv_flags ,IFF_DRV_OACTIVE);
-		ring->wake_queue++;
 		priv->port_stats.wake_queue++;
+		ring->wake_queue++;
 	}
 	return (0);
 }
@@ -752,7 +739,7 @@ static int mlx4_en_xmit(struct mlx4_en_priv *priv, int tx_ind, struct mbuf **mbp
 	/* check for VLAN tag */
 	if (mb->m_flags & M_VLANTAG) {
 		tx_desc->ctrl.vlan_tag = cpu_to_be16(mb->m_pkthdr.ether_vtag);
-		tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_VLAN;
+		tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_CVLAN;
 	} else {
 		tx_desc->ctrl.vlan_tag = 0;
 		tx_desc->ctrl.ins_vlan = 0;
@@ -930,7 +917,7 @@ static int mlx4_en_xmit(struct mlx4_en_priv *priv, int tx_ind, struct mbuf **mbp
 	ring->prod += tx_info->nr_txbb;
 
 	if (ring->bf_enabled && bf_size <= MAX_BF &&
-	    (tx_desc->ctrl.ins_vlan != MLX4_WQE_CTRL_INS_VLAN)) {
+	    (tx_desc->ctrl.ins_vlan != MLX4_WQE_CTRL_INS_CVLAN)) {
 
 		/* store doorbell number */
 		*(volatile __be32 *) (&tx_desc->ctrl.vlan_tag) |= cpu_to_be32(ring->doorbell_qpn);

@@ -187,5 +187,5 @@ usage(void)
 
 	fprintf(stderr, "%s\n",
 	    "usage: jexec [-l] [-u username | -U username] jail [command ...]");
-	exit(1); 
+	exit(1);
 }

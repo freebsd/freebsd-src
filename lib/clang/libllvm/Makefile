@@ -1412,16 +1412,7 @@ TGHDRS+=	X86GenRegisterBank.inc
 TGHDRS+=	X86GenRegisterInfo.inc
 TGHDRS+=	X86GenSubtargetInfo.inc
 
-.for dep in ${TGHDRS:C/$/.d/}
-. if ${MAKE_VERSION} < 20160220
-.  if !make(depend)
-.   sinclude "${dep}"
-.  endif
-. else
-.   dinclude "${dep}"
-. endif
-.endfor
-
+DEPENDFILES+=	${TGHDRS:C/$/.d/}
 DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
