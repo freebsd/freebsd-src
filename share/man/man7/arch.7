@@ -393,10 +393,11 @@ integers (endian).
 It may also encode a variation in the size of the integer or pointer.
 It may also encode a ISA revision.
 It may also encode hard versus soft floating point ABI and usage.
-It may also encode a variant ABI when there other factors do not
-uniquely define the ABI (eg, MIPS' n32 ABI).
+It may also encode a variant ABI when the other factors do not
+uniquely define the ABI (e.g., MIPS' n32 ABI).
 It, along with
-.Dv MACHINE, define the ABI used by the system.
+.Dv MACHINE ,
+defines the ABI used by the system.
 For example, the MIPS CPU processor family supports 9 different
 combinations encoding pointer size, endian and hard versus soft float (for
 8 combinations) as well as N32 (which only ever had one variation of
