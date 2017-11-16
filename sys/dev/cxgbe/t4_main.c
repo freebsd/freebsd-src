@@ -471,7 +471,6 @@ struct intrs_and_queues {
 	uint16_t intr_flags;	/* Interrupt flags for each port */
 	uint16_t ntxq;		/* # of NIC txq's for each port */
 	uint16_t nrxq;		/* # of NIC rxq's for each port */
-	uint16_t rsrv_noflowq;	/* Flag whether to reserve queue 0 */
 	uint16_t nofldtxq;	/* # of TOE txq's for each port */
 	uint16_t nofldrxq;	/* # of TOE rxq's for each port */
 
@@ -1124,7 +1123,7 @@ t4_attach(device_t dev)
 			tqidx += vi->ntxq;
 
 			if (j == 0 && vi->ntxq > 1)
-				vi->rsrv_noflowq = iaq.rsrv_noflowq ? 1 : 0;
+				vi->rsrv_noflowq = t4_rsrv_noflowq ? 1 : 0;
 			else
 				vi->rsrv_noflowq = 0;
 
@@ -2657,7 +2656,6 @@ cfg_itype_and_nqueues(struct adapter *sc, struct intrs_and_queues *iaq)
 	iaq->ntxq_vi = t4_ntxq_vi;
 	iaq->nrxq = nrxq = t4_nrxq;
 	iaq->nrxq_vi = t4_nrxq_vi;
-	iaq->rsrv_noflowq = t4_rsrv_noflowq;
 #ifdef TCP_OFFLOAD
 	if (is_offload(sc)) {
 		iaq->nofldtxq = t4_nofldtxq;
