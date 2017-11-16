@@ -696,6 +696,14 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
+		 * Same as for SAMSUNG MZ7* but enable the quirks for SSD
+		 * starting with MZ7* too
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "MZ7*", "*" },
+		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
+	},
+	{
+		/*
 		 * Samsung PM851 Series SSDs Dell OEM
 		 * device model          "SAMSUNG SSD PM851 mSATA 256GB"
 		 * 4k optimised, NCQ broken
