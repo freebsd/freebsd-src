@@ -58,6 +58,4 @@ typedef uint32_t __be32;
 typedef uint64_t __le64;
 typedef uint64_t __be64;
 
-typedef unsigned int    uint;
-
 #endif	/* _INFINIBAND_TYPES_H_ */
