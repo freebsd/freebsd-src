@@ -158,6 +158,7 @@ iommu_init(void)
 {
 	int error, bus, slot, func;
 	vm_paddr_t maxaddr;
+	devclass_t dc;
 	device_t dev;
 
 	if (!iommu_enable)
@@ -195,6 +196,7 @@ iommu_init(void)
 	 */
 	iommu_create_mapping(host_domain, 0, 0, maxaddr);
 
+	dc = devclass_find("ppt");
 	for (bus = 0; bus <= PCI_BUSMAX; bus++) {
 		for (slot = 0; slot <= PCI_SLOTMAX; slot++) {
 			for (func = 0; func <= PCI_FUNCMAX; func++) {
@@ -202,7 +204,15 @@ iommu_init(void)
 				if (dev == NULL)
 					continue;
 
-				/* Everything belongs to the host domain. */
+				/* Skip passthrough devices. */
+				if (dc != NULL &&
+				    device_get_devclass(dev) == dc)
+					continue;
+
+				/*
+				 * Everything else belongs to the host
+				 * domain.
+				 */
 				iommu_add_device(host_domain,
 				    pci_get_rid(dev));
 			}
