@@ -1416,8 +1416,15 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 				    "expected %s to be of type function", s));
 			}
 
-			len = snprintf(NULL, 0, dt_symfmt, dt_symprefix,
-			    objkey, s) + 1;
+			/*
+			 * Aliases of weak symbols don't get a uniquifier.
+			 */
+			if (GELF_ST_BIND(fsym.st_info) == STB_WEAK)
+				len = snprintf(NULL, 0, dt_weaksymfmt,
+				    dt_symprefix, s) + 1;
+			else
+				len = snprintf(NULL, 0, dt_symfmt, dt_symprefix,
+				    objkey, s) + 1;
 			if ((p = dt_alloc(dtp, len)) == NULL) {
 				dt_strtab_destroy(strtab);
 				goto err;
