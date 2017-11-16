@@ -296,7 +296,7 @@ main(int argc, char *argv[])
 			cmd = getcmd("tsignals");
 			break;
 		case 'k':
-			if (cmd->cmd == procstat_kstack) {
+			if (cmd != NULL && cmd->cmd == procstat_kstack) {
 				if ((procstat_opts & PS_OPT_VERBOSE) != 0)
 					usage();
 				procstat_opts |= PS_OPT_VERBOSE;
