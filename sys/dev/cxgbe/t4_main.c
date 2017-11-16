@@ -466,6 +466,7 @@ static int vi_mac_funcs[] = {
 
 struct intrs_and_queues {
 	uint16_t intr_type;	/* INTx, MSI, or MSI-X */
+	uint16_t num_vis;	/* number of VIs for each port */
 	uint16_t nirq;		/* Total # of vectors */
 	uint16_t intr_flags;	/* Interrupt flags for each port */
 	uint16_t ntxq;		/* # of NIC txq's for each port */
@@ -505,8 +506,7 @@ static int fwmtype_to_hwmtype(int);
 static int validate_mt_off_len(struct adapter *, int, uint32_t, int,
     uint32_t *);
 static int fixup_devlog_params(struct adapter *);
-static int cfg_itype_and_nqueues(struct adapter *, int, int,
-    struct intrs_and_queues *);
+static int cfg_itype_and_nqueues(struct adapter *, struct intrs_and_queues *);
 static int prep_firmware(struct adapter *);
 static int partition_resources(struct adapter *, const struct firmware *,
     const char *);
@@ -965,24 +965,6 @@ t4_attach(device_t dev)
 		goto done; /* error message displayed already */
 
 	/*
-	 * Number of VIs to create per-port.  The first VI is the "main" regular
-	 * VI for the port.  The rest are additional virtual interfaces on the
-	 * same physical port.  Note that the main VI does not have native
-	 * netmap support but the extra VIs do.
-	 *
-	 * Limit the number of VIs per port to the number of available
-	 * MAC addresses per port.
-	 */
-	if (t4_num_vis >= 1)
-		num_vis = t4_num_vis;
-	else
-		num_vis = 1;
-	if (num_vis > nitems(vi_mac_funcs)) {
-		num_vis = nitems(vi_mac_funcs);
-		device_printf(dev, "Number of VIs limited to %d\n", num_vis);
-	}
-
-	/*
 	 * First pass over all the ports - allocate VIs and initialize some
 	 * basic parameters like mac address, port type, etc.
 	 */
@@ -999,7 +981,7 @@ t4_attach(device_t dev)
 		 * XXX: vi[0] is special so we can't delay this allocation until
 		 * pi->nvi's final value is known.
 		 */
-		pi->vi = malloc(sizeof(struct vi_info) * num_vis, M_CXGBE,
+		pi->vi = malloc(sizeof(struct vi_info) * t4_num_vis, M_CXGBE,
 		    M_ZERO | M_WAITOK);
 
 		/*
@@ -1040,12 +1022,11 @@ t4_attach(device_t dev)
 	 * Interrupt type, # of interrupts, # of rx/tx queues, etc.
 	 */
 	nports = sc->params.nports;
-	rc = cfg_itype_and_nqueues(sc, nports, num_vis, &iaq);
+	rc = cfg_itype_and_nqueues(sc, &iaq);
 	if (rc != 0)
 		goto done; /* error message displayed already */
-	if (iaq.nrxq_vi + iaq.nofldrxq_vi + iaq.nnmrxq_vi == 0)
-		num_vis = 1;
 
+	num_vis = iaq.num_vis;
 	sc->intr_type = iaq.intr_type;
 	sc->intr_count = iaq.nirq;
 
@@ -2662,15 +2643,16 @@ fixup_devlog_params(struct adapter *sc)
 }
 
 static int
-cfg_itype_and_nqueues(struct adapter *sc, int nports, int num_vis,
-    struct intrs_and_queues *iaq)
+cfg_itype_and_nqueues(struct adapter *sc, struct intrs_and_queues *iaq)
 {
-	int rc, itype, navail, nrxq, n;
+	int rc, itype, navail, nrxq, nports, n;
 	int nofldrxq = 0;
 
+	nports = sc->params.nports;
 	MPASS(nports > 0);
 
 	bzero(iaq, sizeof(*iaq));
+	iaq->num_vis = t4_num_vis;
 	iaq->ntxq = t4_ntxq;
 	iaq->ntxq_vi = t4_ntxq_vi;
 	iaq->nrxq = nrxq = t4_nrxq;
@@ -2716,9 +2698,9 @@ restart:
 		 */
 		iaq->nirq = T4_EXTRA_INTR;
 		iaq->nirq += nports * (nrxq + nofldrxq);
-		iaq->nirq += nports * (num_vis - 1) *
+		iaq->nirq += nports * (iaq->num_vis - 1) *
 		    max(iaq->nrxq_vi, iaq->nnmrxq_vi);	/* See comment above. */
-		iaq->nirq += nports * (num_vis - 1) * iaq->nofldrxq_vi;
+		iaq->nirq += nports * (iaq->num_vis - 1) * iaq->nofldrxq_vi;
 		if (iaq->nirq <= navail &&
 		    (itype != INTR_MSI || powerof2(iaq->nirq))) {
 			iaq->intr_flags = INTR_ALL;
@@ -2726,15 +2708,15 @@ restart:
 		}
 
 		/* Disable the VIs (and netmap) if there aren't enough intrs */
-		if (num_vis > 1) {
+		if (iaq->num_vis > 1) {
 			device_printf(sc->dev, "virtual interfaces disabled "
 			    "because num_vis=%u with current settings "
 			    "(nrxq=%u, nofldrxq=%u, nrxq_vi=%u nofldrxq_vi=%u, "
 			    "nnmrxq_vi=%u) would need %u interrupts but "
-			    "only %u are available.\n", num_vis, nrxq,
+			    "only %u are available.\n", iaq->num_vis, nrxq,
 			    nofldrxq, iaq->nrxq_vi, iaq->nofldrxq_vi,
 			    iaq->nnmrxq_vi, iaq->nirq, navail);
-			num_vis = 1;
+			iaq->num_vis = 1;
 			iaq->ntxq_vi = iaq->nrxq_vi = 0;
 			iaq->nofldtxq_vi = iaq->nofldrxq_vi = 0;
 			iaq->nnmtxq_vi = iaq->nnmrxq_vi = 0;
@@ -9928,6 +9910,22 @@ tweak_tunables(void)
 		t4_qsize_rxq++;
 
 	t4_intr_types &= INTR_MSIX | INTR_MSI | INTR_INTX;
+
+	/*
+	 * Number of VIs to create per-port.  The first VI is the "main" regular
+	 * VI for the port.  The rest are additional virtual interfaces on the
+	 * same physical port.  Note that the main VI does not have native
+	 * netmap support but the extra VIs do.
+	 *
+	 * Limit the number of VIs per port to the number of available
+	 * MAC addresses per port.
+	 */
+	if (t4_num_vis < 1)
+		t4_num_vis = 1;
+	if (t4_num_vis > nitems(vi_mac_funcs)) {
+		t4_num_vis = nitems(vi_mac_funcs);
+		printf("cxgbe: number of VIs limited to %d\n", t4_num_vis);
+	}
 }
 
 #ifdef DDB
