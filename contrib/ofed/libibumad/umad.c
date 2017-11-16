@@ -46,6 +46,7 @@
 #include <dirent.h>
 #include <ctype.h>
 #include <inttypes.h>
+#include <assert.h>
 
 #include <infiniband/umad.h>
 
@@ -63,6 +64,9 @@ typedef struct ib_user_mad_reg_req {
 	uint8_t rmpp_version;
 } ib_user_mad_reg_req_t;
 
+static_assert(sizeof(struct ib_user_mad_reg_req) == IOCPARM_LEN(IB_USER_MAD_REGISTER_AGENT),
+    "Invalid structure size");
+
 struct ib_user_mad_reg_req2 {
 	uint32_t id;
 	uint32_t qpn;
@@ -75,6 +79,9 @@ struct ib_user_mad_reg_req2 {
 	uint8_t  rmpp_version;
 	uint8_t  reserved[3];
 };
+
+static_assert(sizeof(struct ib_user_mad_reg_req2) == IOCPARM_LEN(IB_USER_MAD_REGISTER_AGENT2),
+    "Invalid structure size");
 
 #define IBWARN(fmt, args...) fprintf(stderr, "ibwarn: [%d] %s: " fmt "\n", getpid(), __func__, ## args)
 

@@ -44,7 +44,6 @@ ${RDMACM}/rdma_cma_abi.h \
 ${RDMACM}/rdma_verbs.h \
 ${RDMACM}/rsocket.h \
 ${RDMA}/ib_user_cm.h \
-${RDMA}/ib_user_mad.h \
 ${RDMA}/ib_user_sa.h \
 ${RDMA}/ib_user_verbs.h	\
 ${RDMA}/rdma_user_cm.h \
