@@ -395,7 +395,7 @@ iser_conn_connect(struct icl_conn *ic, int domain, int socktype,
 
 	iser_conn->state = ISER_CONN_PENDING;
 
-	ib_conn->cma_id = rdma_create_id(iser_cma_handler, (void *)iser_conn,
+	ib_conn->cma_id = rdma_create_id(&init_net, iser_cma_handler, (void *)iser_conn,
 			RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(ib_conn->cma_id)) {
 		err = -PTR_ERR(ib_conn->cma_id);
