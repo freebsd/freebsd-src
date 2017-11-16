@@ -101,7 +101,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_pmap.h"
 #include "opt_smp.h"
 #include "opt_vm.h"
-#include "opt_xbox.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -147,10 +146,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #ifdef SMP
 #include <machine/smp.h>
-#endif
-
-#ifdef XBOX
-#include <machine/xbox.h>
 #endif
 
 #ifndef PMAP_SHPGPERPROC
@@ -501,12 +496,6 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	 * physical memory region that is used by the ACPI wakeup code.  This
 	 * mapping must not have PG_G set. 
 	 */
-#ifdef XBOX
-	/* FIXME: This is gross, but needed for the XBOX. Since we are in such
-	 * an early stadium, we cannot yet neatly map video memory ... :-(
-	 * Better fixes are very welcome! */
-	if (!arch_i386_is_xbox)
-#endif
 	for (i = 1; i < NKPT; i++)
 		PTD[i] = 0;
 
