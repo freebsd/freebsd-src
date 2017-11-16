@@ -398,10 +398,6 @@ main(int argc, char *argv[])
 		if (pp != NULL)
 			pp->p_size *= secperblk;
 	}
-	if (getosreldate() < __FreeBSD_version) {
-		warnx("%s is newer than the running kernel and may not be compatible",
-		    getprogname());
-	}
 	mkfs(pp, special);
 	ufs_disk_close(&disk);
 	if (!jflag)
