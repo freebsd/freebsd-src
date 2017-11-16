@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_npx.h"
 #include "opt_reset.h"
 #include "opt_cpu.h"
-#include "opt_xbox.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -90,10 +89,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 
 #include <isa/isareg.h>
-
-#ifdef XBOX
-#include <machine/xbox.h>
-#endif
 
 #ifndef NSFBUFS
 #define	NSFBUFS		(512 + maxusers * 16)
@@ -600,14 +595,6 @@ cpu_reset_proxy()
 void
 cpu_reset()
 {
-#ifdef XBOX
-	if (arch_i386_is_xbox) {
-		/* Kick the PIC16L, it can reboot the box */
-		pic16l_reboot();
-		for (;;);
-	}
-#endif
-
 #ifdef SMP
 	cpuset_t map;
 	u_int cnt;
