@@ -520,8 +520,8 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, uintptr_t tid, int opts,
 #endif
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
 	uintptr_t state;
-	int extra_work;
 #endif
+	int extra_work = 0;
 
 	if (SCHEDULER_STOPPED())
 		return (0);
@@ -880,8 +880,8 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line, uintptr_t x)
 #endif
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
 	uintptr_t state;
-	int extra_work;
 #endif
+	int extra_work = 0;
 
 	if (SCHEDULER_STOPPED())
 		return (0);

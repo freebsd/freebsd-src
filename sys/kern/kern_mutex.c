@@ -462,9 +462,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 	struct mtx *m;
 	struct turnstile *ts;
 	uintptr_t tid;
-#ifdef ADAPTIVE_MUTEXES
 	struct thread *owner;
-#endif
 #ifdef KTR
 	int cont_logged = 0;
 #endif
@@ -628,6 +626,9 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 		 */
 #ifdef KDTRACE_HOOKS
 		sleep_time -= lockstat_nsecs(&m->lock_object);
+#endif
+#ifndef ADAPTIVE_MUTEXES
+		owner = mtx_owner(m);
 #endif
 		MPASS(owner == mtx_owner(m));
 		turnstile_wait(ts, owner, TS_EXCLUSIVE_QUEUE);
