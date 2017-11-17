@@ -443,6 +443,12 @@ __rw_rlock_hard(volatile uintptr_t *c, struct thread *td, uintptr_t v,
 #endif
 	rw = rwlock2rw(c);
 
+#ifdef HWPMC_HOOKS
+	PMC_SOFT_CALL( , , lock, failed);
+#endif
+	lock_profile_obtain_lock_failed(&rw->lock_object,
+	    &contested, &waittime);
+
 #ifdef LOCK_PROFILING
 	doing_lockprof = 1;
 	state = v;
@@ -460,11 +466,6 @@ __rw_rlock_hard(volatile uintptr_t *c, struct thread *td, uintptr_t v,
 #ifdef KDTRACE_HOOKS
 		lda.spin_cnt++;
 #endif
-#ifdef HWPMC_HOOKS
-		PMC_SOFT_CALL( , , lock, failed);
-#endif
-		lock_profile_obtain_lock_failed(&rw->lock_object,
-		    &contested, &waittime);
 
 #ifdef ADAPTIVE_RWLOCKS
 		/*
@@ -890,6 +891,12 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 		CTR5(KTR_LOCK, "%s: %s contested (lock=%p) at %s:%d", __func__,
 		    rw->lock_object.lo_name, (void *)rw->rw_lock, file, line);
 
+#ifdef HWPMC_HOOKS
+	PMC_SOFT_CALL( , , lock, failed);
+#endif
+	lock_profile_obtain_lock_failed(&rw->lock_object,
+	    &contested, &waittime);
+
 #ifdef LOCK_PROFILING
 	doing_lockprof = 1;
 	state = v;
@@ -910,11 +917,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 #ifdef KDTRACE_HOOKS
 		lda.spin_cnt++;
 #endif
-#ifdef HWPMC_HOOKS
-		PMC_SOFT_CALL( , , lock, failed);
-#endif
-		lock_profile_obtain_lock_failed(&rw->lock_object,
-		    &contested, &waittime);
+
 #ifdef ADAPTIVE_RWLOCKS
 		/*
 		 * If the lock is write locked and the owner is
