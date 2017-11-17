@@ -47,6 +47,9 @@
 #include <net/tcp.h>
 #include <net/ipv6.h>
 
+#include <netinet6/scope6_var.h>
+#include <netinet6/ip6_var.h>
+
 #include <rdma/rdma_cm.h>
 #include <rdma/rdma_cm_ib.h>
 #include <rdma/ib_cache.h>
@@ -852,11 +855,13 @@ static void cma_save_net_info(struct rdma_addr *addr,
 		ip4->sin_family = listen4->sin_family;
 		ip4->sin_addr.s_addr = dst->ip4.addr;
 		ip4->sin_port = listen4->sin_port;
+		ip4->sin_len = sizeof(struct sockaddr_in);
 
 		ip4 = (struct sockaddr_in *) &addr->dst_addr;
 		ip4->sin_family = listen4->sin_family;
 		ip4->sin_addr.s_addr = src->ip4.addr;
 		ip4->sin_port = port;
+		ip4->sin_len = sizeof(struct sockaddr_in);
 		break;
 	case 6:
 		listen6 = (struct sockaddr_in6 *) &listen_addr->src_addr;
@@ -864,11 +869,15 @@ static void cma_save_net_info(struct rdma_addr *addr,
 		ip6->sin6_family = listen6->sin6_family;
 		ip6->sin6_addr = dst->ip6;
 		ip6->sin6_port = listen6->sin6_port;
+		ip6->sin6_len = sizeof(struct sockaddr_in6);
+		ip6->sin6_scope_id = listen6->sin6_scope_id;
 
 		ip6 = (struct sockaddr_in6 *) &addr->dst_addr;
 		ip6->sin6_family = listen6->sin6_family;
 		ip6->sin6_addr = src->ip6;
 		ip6->sin6_port = port;
+		ip6->sin6_len = sizeof(struct sockaddr_in6);
+		ip6->sin6_scope_id = listen6->sin6_scope_id;
 		break;
 	default:
 		break;
@@ -2127,20 +2136,52 @@ static int cma_bind_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 {
 	if (!src_addr || !src_addr->sa_family) {
 		src_addr = (struct sockaddr *) &id->route.addr.src_addr;
-		if ((src_addr->sa_family = dst_addr->sa_family) == AF_INET6) {
-			((struct sockaddr_in6 *) src_addr)->sin6_scope_id =
-				((struct sockaddr_in6 *) dst_addr)->sin6_scope_id;
+		src_addr->sa_family = dst_addr->sa_family;
+#ifdef INET6
+		if (dst_addr->sa_family == AF_INET6) {
+			struct sockaddr_in6 *src_addr6 = (struct sockaddr_in6 *) src_addr;
+			struct sockaddr_in6 *dst_addr6 = (struct sockaddr_in6 *) dst_addr;
+			src_addr6->sin6_scope_id = dst_addr6->sin6_scope_id;
+			if (IN6_IS_SCOPE_LINKLOCAL(&dst_addr6->sin6_addr) ||
+			    IN6_IS_ADDR_MC_INTFACELOCAL(&dst_addr6->sin6_addr))
+				id->route.addr.dev_addr.bound_dev_if = dst_addr6->sin6_scope_id;
 		}
+#endif
 	}
 	if (!cma_any_addr(src_addr))
 		return rdma_bind_addr(id, src_addr);
 	else {
-		struct sockaddr_in addr_in;
+#if defined(INET6) || defined(INET)
+		union {
+#ifdef INET
+			struct sockaddr_in in;
+#endif
+#ifdef INET6
+			struct sockaddr_in6 in6;
+#endif
+		} addr;
+#endif
 
-        	memset(&addr_in, 0, sizeof addr_in);
-        	addr_in.sin_family = dst_addr->sa_family;
-        	addr_in.sin_len = sizeof addr_in;
-        	return rdma_bind_addr(id, (struct sockaddr *) &addr_in);
+		switch(dst_addr->sa_family) {
+#ifdef INET
+		case AF_INET:
+			memset(&addr.in, 0, sizeof(addr.in));
+			addr.in.sin_family = dst_addr->sa_family;
+			addr.in.sin_len = sizeof(addr.in);
+			return rdma_bind_addr(id, (struct sockaddr *)&addr.in);
+#endif
+#ifdef INET6
+		case AF_INET6:
+			memset(&addr.in6, 0, sizeof(addr.in6));
+			addr.in6.sin6_family = dst_addr->sa_family;
+			addr.in6.sin6_len = sizeof(addr.in6);
+			addr.in6.sin6_scope_id =
+			    ((struct sockaddr_in6 *)dst_addr)->sin6_scope_id;
+			return rdma_bind_addr(id, (struct sockaddr *)&addr.in6);
+#endif
+		default:
+			return -EINVAL;
+		}
 	}
 }
 
@@ -2403,24 +2444,23 @@ out:
 static int cma_check_linklocal(struct rdma_dev_addr *dev_addr,
 			       struct sockaddr *addr)
 {
-#if defined(INET6)
-	struct sockaddr_in6 *sin6;
+#ifdef INET6
+	struct sockaddr_in6 sin6;
 
 	if (addr->sa_family != AF_INET6)
 		return 0;
 
-	sin6 = (struct sockaddr_in6 *) addr;
-#ifdef __linux__
-	if ((ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL) &&
-#else
-	if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr) &&
-#endif
-	    !sin6->sin6_scope_id)
-			return -EINVAL;
+	sin6 = *(struct sockaddr_in6 *)addr;
 
-	dev_addr->bound_dev_if = sin6->sin6_scope_id;
+	if (IN6_IS_SCOPE_LINKLOCAL(&sin6.sin6_addr) ||
+	    IN6_IS_ADDR_MC_INTFACELOCAL(&sin6.sin6_addr)) {
+		/* check if IPv6 scope ID is set */
+		if (sa6_recoverscope(&sin6) || sin6.sin6_scope_id == 0)
+			return -EINVAL;
+		dev_addr->bound_dev_if = sin6.sin6_scope_id;
+	}
 #endif
-	return 0;
+	return (0);
 }
 
 int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
@@ -3287,17 +3327,10 @@ static int cma_netdev_change(struct net_device *ndev, struct rdma_id_private *id
 
 	dev_addr = &id_priv->id.route.addr.dev_addr;
 
-#ifdef __linux__
-	if ((dev_addr->bound_dev_if == ndev->ifindex) &&
-	    memcmp(dev_addr->src_dev_addr, ndev->dev_addr, ndev->addr_len)) {
-		printk(KERN_INFO "RDMA CM addr change for ndev %s used by id %p\n",
-		       ndev->name, &id_priv->id);
-#else
 	if ((dev_addr->bound_dev_if == ndev->if_index) &&
 	    memcmp(dev_addr->src_dev_addr, IF_LLADDR(ndev), ndev->if_addrlen)) {
 		printk(KERN_INFO "RDMA CM addr change for ndev %s used by id %p\n",
 		       ndev->if_xname, &id_priv->id);
-#endif
 		work = kzalloc(sizeof *work, GFP_KERNEL);
 		if (!work)
 			return -ENOMEM;

@@ -43,6 +43,8 @@
 #include <net/netevent.h>
 #include <rdma/ib_addr.h>
 #include <netinet/if_ether.h>
+#include <netinet/toecore.h>
+#include <netinet6/scope6_var.h>
 
 
 MODULE_AUTHOR("Sean Hefty");
@@ -89,19 +91,6 @@ void rdma_addr_unregister_client(struct rdma_addr_client *client)
 }
 EXPORT_SYMBOL(rdma_addr_unregister_client);
 
-#ifdef __linux__
-int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
-		     const unsigned char *dst_dev_addr)
-{
-	dev_addr->dev_type = dev->type;
-	memcpy(dev_addr->src_dev_addr, dev->dev_addr, MAX_ADDR_LEN);
-	memcpy(dev_addr->broadcast, dev->broadcast, MAX_ADDR_LEN);
-	if (dst_dev_addr)
-		memcpy(dev_addr->dst_dev_addr, dst_dev_addr, MAX_ADDR_LEN);
-	dev_addr->bound_dev_if = dev->ifindex;
-	return 0;
-}
-#else
 int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct ifnet *dev,
 		     const unsigned char *dst_dev_addr)
 {
@@ -119,7 +108,6 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct ifnet *dev,
 	dev_addr->bound_dev_if = dev->if_index;
 	return 0;
 }
-#endif
 EXPORT_SYMBOL(rdma_copy_addr);
 
 int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
@@ -139,7 +127,7 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 	switch (addr->sa_family) {
 #ifdef INET
 	case AF_INET:
-		dev = ip_dev_find(NULL,
+		dev = ip_dev_find(&init_net,
 			((struct sockaddr_in *) addr)->sin_addr.s_addr);
 
 		if (!dev)
@@ -152,41 +140,18 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 
 #if defined(INET6)
 	case AF_INET6:
-#ifdef __linux__
-		read_lock(&dev_base_lock);
-		for_each_netdev(&init_net, dev) {
-			if (ipv6_chk_addr(&init_net,
-					  &((struct sockaddr_in6 *) addr)->sin6_addr,
-					  dev, 1)) {
-				ret = rdma_copy_addr(dev_addr, dev, NULL);
-				break;
-			}
-		}
-		read_unlock(&dev_base_lock);
-#else
-		{
-			struct sockaddr_in6 *sin6;
-			struct ifaddr *ifa;
-			in_port_t port;
+		dev = ip6_dev_find(&init_net,
+			((const struct sockaddr_in6 *)addr)->sin6_addr);
 
-			sin6 = (struct sockaddr_in6 *)addr;
-			port = sin6->sin6_port;
-			sin6->sin6_port = 0;
-			CURVNET_SET_QUIET(&init_net);
-			ifa = ifa_ifwithaddr(addr);
-			CURVNET_RESTORE();
-			sin6->sin6_port = port;
-			if (ifa == NULL) {
-				ret = -ENODEV;
-				break;
-			}
-			ret = rdma_copy_addr(dev_addr, ifa->ifa_ifp, NULL);
-			ifa_free(ifa);
-			break;
-		}
-#endif
+		if (!dev)
+			return ret;
+
+		ret = rdma_copy_addr(dev_addr, dev, NULL);
+		dev_put(dev);
 		break;
 #endif
+	default:
+		break;
 	}
 	return ret;
 }
@@ -220,128 +185,7 @@ static void queue_req(struct addr_req *req)
 	mutex_unlock(&lock);
 }
 
-#ifdef __linux__
-static int addr4_resolve(struct sockaddr_in *src_in,
-			 struct sockaddr_in *dst_in,
-			 struct rdma_dev_addr *addr)
-{
-	__be32 src_ip = src_in->sin_addr.s_addr;
-	__be32 dst_ip = dst_in->sin_addr.s_addr;
-	struct flowi fl;
-	struct rtable *rt;
-	struct neighbour *neigh;
-	int ret;
-
-	memset(&fl, 0, sizeof fl);
-	fl.nl_u.ip4_u.daddr = dst_ip;
-	fl.nl_u.ip4_u.saddr = src_ip;
-	fl.oif = addr->bound_dev_if;
-
-	ret = ip_route_output_key(&init_net, &rt, &fl);
-	if (ret)
-		goto out;
-
-	src_in->sin_family = AF_INET;
-	src_in->sin_addr.s_addr = rt->rt_src;
-
-	if (rt->idev->dev->flags & IFF_LOOPBACK) {
-		ret = rdma_translate_ip((struct sockaddr *) dst_in, addr);
-		if (!ret)
-			memcpy(addr->dst_dev_addr, addr->src_dev_addr, MAX_ADDR_LEN);
-		goto put;
-	}
-
-	/* If the device does ARP internally, return 'done' */
-	if (rt->idev->dev->flags & IFF_NOARP) {
-		rdma_copy_addr(addr, rt->idev->dev, NULL);
-		goto put;
-	}
-
-	neigh = neigh_lookup(&arp_tbl, &rt->rt_gateway, rt->idev->dev);
-	if (!neigh || !(neigh->nud_state & NUD_VALID)) {
-		neigh_event_send(rt->u.dst.neighbour, NULL);
-		ret = -ENODATA;
-		if (neigh)
-			goto release;
-		goto put;
-	}
-
-	ret = rdma_copy_addr(addr, neigh->dev, neigh->ha);
-release:
-	neigh_release(neigh);
-put:
-	ip_rt_put(rt);
-out:
-	return ret;
-}
-
-#if defined(INET6)
-static int addr6_resolve(struct sockaddr_in6 *src_in,
-			 struct sockaddr_in6 *dst_in,
-			 struct rdma_dev_addr *addr)
-{
-	struct flowi fl;
-	struct neighbour *neigh;
-	struct dst_entry *dst;
-	int ret;
-
-	memset(&fl, 0, sizeof fl);
-	ipv6_addr_copy(&fl.fl6_dst, &dst_in->sin6_addr);
-	ipv6_addr_copy(&fl.fl6_src, &src_in->sin6_addr);
-	fl.oif = addr->bound_dev_if;
-
-	dst = ip6_route_output(&init_net, NULL, &fl);
-	if ((ret = dst->error))
-		goto put;
-
-	if (ipv6_addr_any(&fl.fl6_src)) {
-		ret = ipv6_dev_get_saddr(&init_net, ip6_dst_idev(dst)->dev,
-					 &fl.fl6_dst, 0, &fl.fl6_src);
-		if (ret)
-			goto put;
-
-		src_in->sin6_family = AF_INET6;
-		ipv6_addr_copy(&src_in->sin6_addr, &fl.fl6_src);
-	}
-
-	if (dst->dev->flags & IFF_LOOPBACK) {
-		ret = rdma_translate_ip((struct sockaddr *) dst_in, addr);
-		if (!ret)
-			memcpy(addr->dst_dev_addr, addr->src_dev_addr, MAX_ADDR_LEN);
-		goto put;
-	}
-
-	/* If the device does ARP internally, return 'done' */
-	if (dst->dev->flags & IFF_NOARP) {
-		ret = rdma_copy_addr(addr, dst->dev, NULL);
-		goto put;
-	}
-	
-	neigh = dst->neighbour;
-	if (!neigh || !(neigh->nud_state & NUD_VALID)) {
-		neigh_event_send(dst->neighbour, NULL);
-		ret = -ENODATA;
-		goto put;
-	}
-
-	ret = rdma_copy_addr(addr, dst->dev, neigh->ha);
-put:
-	dst_release(dst);
-	return ret;
-}
-#else
-static int addr6_resolve(struct sockaddr_in6 *src_in,
-			 struct sockaddr_in6 *dst_in,
-			 struct rdma_dev_addr *addr)
-{
-	return -EADDRNOTAVAIL;
-}
-#endif
-
-#else
-#include <netinet/if_ether.h>
-
-static int addr_resolve_sub(struct sockaddr *src_in,
+static int addr_resolve(struct sockaddr *src_in,
 			struct sockaddr *dst_in,
 			struct rdma_dev_addr *addr)
 {
@@ -349,15 +193,21 @@ static int addr_resolve_sub(struct sockaddr *src_in,
 	struct sockaddr_in6 *sin6;
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
+	struct rtentry *rte;
 #if defined(INET) || defined(INET6)
 	struct llentry *lle;
 #endif
-	struct rtentry *rte;
-	in_port_t port;
+#if defined(INET6)
+	struct sockaddr_in6 dstv6_tmp;
+	uint16_t vlan_id;
+#endif
 	u_char edst[MAX_ADDR_LEN];
 	int multi;
 	int bcast;
+	int is_gw = 0;
 	int error = 0;
+
+	CURVNET_SET_QUIET(&init_net);
 
 	/*
 	 * Determine whether the address is unicast, multicast, or broadcast
@@ -369,6 +219,9 @@ static int addr_resolve_sub(struct sockaddr *src_in,
 	sin6 = NULL;
 	ifp = NULL;
 	rte = NULL;
+	ifa = NULL;
+	memset(edst, 0, sizeof(edst));
+
 	switch (dst_in->sa_family) {
 #ifdef INET
 	case AF_INET:
@@ -379,89 +232,118 @@ static int addr_resolve_sub(struct sockaddr *src_in,
 			multi = 1;
 		sin = (struct sockaddr_in *)src_in;
 		if (sin->sin_addr.s_addr != INADDR_ANY) {
-			/*
-			 * Address comparison fails if the port is set
-			 * cache it here to be restored later.
-			 */
-			port = sin->sin_port;
-			sin->sin_port = 0;
-			memset(&sin->sin_zero, 0, sizeof(sin->sin_zero));
-		} else
-			src_in = NULL; 
+			ifp = ip_dev_find(&init_net, sin->sin_addr.s_addr);
+			if (ifp == NULL) {
+				error = ENETUNREACH;
+				goto done;
+			}
+			if (bcast || multi)
+				goto mcast;
+		}
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
+		/* Make destination socket address writeable */
+		dstv6_tmp = *(struct sockaddr_in6 *)dst_in;
+		dst_in = (struct sockaddr *)&dstv6_tmp;
 		sin6 = (struct sockaddr_in6 *)dst_in;
 		if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			multi = 1;
+		/*
+		 * Make sure the scope ID gets embedded, else rtalloc1() will
+		 * resolve to the loopback interface.
+		 */
+		sin6->sin6_scope_id = addr->bound_dev_if;
+		sa6_embedscope(sin6, 0);
+
 		sin6 = (struct sockaddr_in6 *)src_in;
 		if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
-			port = sin6->sin6_port;
-			sin6->sin6_port = 0;
-		} else
-			src_in = NULL;
+			ifp = ip6_dev_find(&init_net, sin6->sin6_addr);
+			if (ifp == NULL) {
+				error = ENETUNREACH;
+				goto done;
+			}
+			if (bcast || multi)
+				goto mcast;
+		}
 		break;
 #endif
 	default:
-		return -EINVAL;
-	}
-	/*
-	 * If we have a source address to use look it up first and verify
-	 * that it is a local interface.
-	 */
-	if (src_in) {
-		ifa = ifa_ifwithaddr(src_in);
-		if (sin)
-			sin->sin_port = port;
-		if (sin6)
-			sin6->sin6_port = port;
-		if (ifa == NULL)
-			return -ENETUNREACH;
-		ifp = ifa->ifa_ifp;
-		ifa_free(ifa);
-		if (bcast || multi)
-			goto mcast;
+		error = EINVAL;
+		goto done;
 	}
 	/*
 	 * Make sure the route exists and has a valid link.
 	 */
 	rte = rtalloc1(dst_in, 1, 0);
-	if (rte == NULL || rte->rt_ifp == NULL || !RT_LINK_IS_UP(rte->rt_ifp)) {
-		if (rte) 
+	if (rte == NULL || rte->rt_ifp == NULL ||
+	    RT_LINK_IS_UP(rte->rt_ifp) == 0 ||
+	    rte->rt_ifp == V_loif) {
+		if (rte != NULL) {
 			RTFREE_LOCKED(rte);
-		return -EHOSTUNREACH;
+			rte = NULL;
+		}
+		error = EHOSTUNREACH;
+		goto done;
 	}
+	if (rte->rt_flags & RTF_GATEWAY)
+		is_gw = 1;
 	/*
 	 * If it's not multicast or broadcast and the route doesn't match the
 	 * requested interface return unreachable.  Otherwise fetch the
 	 * correct interface pointer and unlock the route.
 	 */
 	if (multi || bcast) {
-		if (ifp == NULL)
+		/* rt_ifa holds the route answer source address */
+		ifa = rte->rt_ifa;
+
+		if (ifp == NULL) {
 			ifp = rte->rt_ifp;
+			dev_hold(ifp);
+		}
 		RTFREE_LOCKED(rte);
-	} else if (ifp && ifp != rte->rt_ifp) {
+		rte = NULL;
+	} else if (ifp != NULL && ifp != rte->rt_ifp) {
 		RTFREE_LOCKED(rte);
-		return -ENETUNREACH;
+		rte = NULL;
+		error = ENETUNREACH;
+		goto done;
 	} else {
-		if (ifp == NULL)
+		/* rt_ifa holds the route answer source address */
+		ifa = rte->rt_ifa;
+
+		if (ifp == NULL) {
 			ifp = rte->rt_ifp;
+			dev_hold(ifp);
+		}
 		RT_UNLOCK(rte);
 	}
+#if defined(INET) || defined(INET6)
 mcast:
-	if (bcast)
-		return rdma_copy_addr(addr, ifp, ifp->if_broadcastaddr);
-	if (multi) {
-		struct sockaddr *llsa;
+#endif
+	if (bcast) {
+		memcpy(edst, ifp->if_broadcastaddr, ifp->if_addrlen);
+		goto done;
+	} else if (multi) {
+		struct sockaddr *llsa = NULL;
 
+		if (ifp->if_resolvemulti == NULL) {
+			error = EOPNOTSUPP;
+			goto done;
+		}
 		error = ifp->if_resolvemulti(ifp, &llsa, dst_in);
-		if (error)
-			return -error;
-		error = rdma_copy_addr(addr, ifp,
-		    LLADDR((struct sockaddr_dl *)llsa));
-		free(llsa, M_IFMADDR);
-		return error;
+		if (error == 0) {
+			if (llsa == NULL) {
+				error = EAFNOSUPPORT;
+				goto done;
+			} else {
+				memcpy(edst, LLADDR((struct sockaddr_dl *)llsa),
+				    ifp->if_addrlen);
+				free(llsa, M_IFMADDR);
+			}
+		}
+		goto done;
 	}
 	/*
 	 * Resolve the link local address.
@@ -469,39 +351,34 @@ mcast:
 	switch (dst_in->sa_family) {
 #ifdef INET
 	case AF_INET:
-		error = arpresolve(ifp, rte, NULL, dst_in, edst, &lle);
+		error = arpresolve(ifp, rte, NULL, is_gw ? rte->rt_gateway : dst_in, edst, &lle);
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, NULL, dst_in, (u_char *)edst, &lle);
+		error = toe_l2_resolve(NULL, ifp, is_gw ? rte->rt_gateway : dst_in, edst, &vlan_id);
 		break;
 #endif
 	default:
-		/* XXX: Shouldn't happen. */
-		error = -EINVAL;
+		KASSERT(0, ("rdma_addr_resolve: Unreachable"));
+		error = EINVAL;
+		break;
 	}
-	RTFREE(rte);
+done:
 	if (error == 0)
-		return rdma_copy_addr(addr, ifp, edst);
+		error = -rdma_copy_addr(addr, ifp, edst);
+	if (error == 0)
+		memcpy(src_in, ifa->ifa_addr, ip_addr_size(ifa->ifa_addr));
 	if (error == EWOULDBLOCK)
-		return -ENODATA;
+		error = ENODATA;
+	if (rte != NULL)
+		RTFREE(rte);
+	if (ifp != NULL)
+		dev_put(ifp);
+
+	CURVNET_RESTORE();
 	return -error;
 }
-
-static int addr_resolve(struct sockaddr *src_in,
-			struct sockaddr *dst_in,
-			struct rdma_dev_addr *addr)
-{
-	int error;
-
-	CURVNET_SET_QUIET(&init_net);
-	error = addr_resolve_sub(src_in, dst_in, addr);
-	CURVNET_RESTORE();
-
-	return (error);
-}
-#endif
 
 static void process_req(struct work_struct *work)
 {
@@ -616,27 +493,6 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 }
 EXPORT_SYMBOL(rdma_addr_cancel);
 
-static int netevent_callback(struct notifier_block *self, unsigned long event,
-	void *ctx)
-{
-	if (event == NETEVENT_NEIGH_UPDATE) {
-#ifdef __linux__
-		struct neighbour *neigh = ctx;
-
-		if (neigh->nud_state & NUD_VALID) {
-			set_timeout(jiffies);
-		}
-#else
-		set_timeout(jiffies);
-#endif
-	}
-	return 0;
-}
-
-static struct notifier_block nb = {
-	.notifier_call = netevent_callback
-};
-
 static int __init addr_init(void)
 {
 	INIT_DELAYED_WORK(&work, process_req);
@@ -644,13 +500,11 @@ static int __init addr_init(void)
 	if (!addr_wq)
 		return -ENOMEM;
 
-	register_netevent_notifier(&nb);
 	return 0;
 }
 
 static void __exit addr_cleanup(void)
 {
-	unregister_netevent_notifier(&nb);
 	destroy_workqueue(addr_wq);
 }
 
