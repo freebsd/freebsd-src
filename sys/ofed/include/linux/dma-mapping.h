@@ -126,7 +126,7 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	size_t align;
 	void *mem;
 
-	if (dev->dma_mask)
+	if (dev != NULL && dev->dma_mask)
 		high = *dev->dma_mask;
 	else
 		high = BUS_SPACE_MAXADDR_32BIT;
