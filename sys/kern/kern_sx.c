@@ -551,6 +551,12 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, uintptr_t tid, int opts,
 		CTR5(KTR_LOCK, "%s: %s contested (lock=%p) at %s:%d", __func__,
 		    sx->lock_object.lo_name, (void *)sx->sx_lock, file, line);
 
+#ifdef HWPMC_HOOKS
+	PMC_SOFT_CALL( , , lock, failed);
+#endif
+	lock_profile_obtain_lock_failed(&sx->lock_object, &contested,
+	    &waittime);
+
 #ifdef LOCK_PROFILING
 	extra_work = 1;
 	state = x;
@@ -571,11 +577,6 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, uintptr_t tid, int opts,
 #ifdef KDTRACE_HOOKS
 		lda.spin_cnt++;
 #endif
-#ifdef HWPMC_HOOKS
-		PMC_SOFT_CALL( , , lock, failed);
-#endif
-		lock_profile_obtain_lock_failed(&sx->lock_object, &contested,
-		    &waittime);
 #ifdef ADAPTIVE_SX
 		/*
 		 * If the lock is write locked and the owner is
@@ -889,6 +890,12 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line, uintptr_t x)
 	lock_delay_arg_init(&lda, NULL);
 #endif
 
+#ifdef HWPMC_HOOKS
+	PMC_SOFT_CALL( , , lock, failed);
+#endif
+	lock_profile_obtain_lock_failed(&sx->lock_object, &contested,
+	    &waittime);
+
 #ifdef LOCK_PROFILING
 	extra_work = 1;
 	state = x;
@@ -910,12 +917,6 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line, uintptr_t x)
 #ifdef KDTRACE_HOOKS
 		lda.spin_cnt++;
 #endif
-
-#ifdef HWPMC_HOOKS
-		PMC_SOFT_CALL( , , lock, failed);
-#endif
-		lock_profile_obtain_lock_failed(&sx->lock_object, &contested,
-		    &waittime);
 
 #ifdef ADAPTIVE_SX
 		/*
