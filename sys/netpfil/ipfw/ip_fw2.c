@@ -2560,6 +2560,10 @@ do {								\
 			case O_NAT:
 				l = 0;          /* exit inner loop */
 				done = 1;       /* exit outer loop */
+				/*
+				 * Ensure that we do not invoke NAT handler for
+				 * non IPv4 packets. Libalias expects only IPv4.
+				 */
 				if (!is_ipv4 || !IPFW_NAT_LOADED) {
 				    retval = IP_FW_DENY;
 				    break;
