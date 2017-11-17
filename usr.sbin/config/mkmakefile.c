@@ -690,18 +690,11 @@ do_rules(FILE *f)
 				continue;
 			}
 			if (ftp->f_depends) {
-				fprintf(f, "%s%sln: $S/%s%c %s\n",
-					ftp->f_objprefix, tail(np), np, och,
-					ftp->f_depends);
-				fprintf(f, "\t${NORMAL_LINT}\n\n");
 				fprintf(f, "%s%so: $S/%s%c %s\n",
 					ftp->f_objprefix, tail(np), np, och,
 					ftp->f_depends);
 			}
 			else {
-				fprintf(f, "%s%sln: $S/%s%c\n",
-					ftp->f_objprefix, tail(np), np, och);
-				fprintf(f, "\t${NORMAL_LINT}\n\n");
 				fprintf(f, "%s%so: $S/%s%c\n",
 					ftp->f_objprefix, tail(np), np, och);
 			}

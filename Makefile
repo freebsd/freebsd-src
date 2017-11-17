@@ -129,7 +129,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	everything hier hierarchy install installcheck installkernel \
 	installkernel.debug packagekernel packageworld \
 	reinstallkernel reinstallkernel.debug \
-	installworld kernel-toolchain libraries lint maninstall \
+	installworld kernel-toolchain libraries maninstall \
 	obj objlink showconfig tags toolchain update \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _build-metadata _cross-tools _includes _libraries \
