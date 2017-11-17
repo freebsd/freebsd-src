@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #error "IPFIREWALL requires INET"
 #endif /* INET */
 #include "opt_inet6.h"
-#include "opt_ipsec.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1945,10 +1944,8 @@ do {								\
 				break;
 
 			case O_IPSEC:
-#ifdef IPSEC
 				match = (m_tag_find(m,
 				    PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL);
-#endif
 				/* otherwise no match */
 				break;
 
@@ -2563,7 +2560,7 @@ do {								\
 			case O_NAT:
 				l = 0;          /* exit inner loop */
 				done = 1;       /* exit outer loop */
- 				if (!IPFW_NAT_LOADED) {
+				if (!is_ipv4 || !IPFW_NAT_LOADED) {
 				    retval = IP_FW_DENY;
 				    break;
 				}
