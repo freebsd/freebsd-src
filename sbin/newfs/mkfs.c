@@ -496,7 +496,7 @@ restart:
 	/*
 	 * Set flags for metadata that is being check-hashed.
 	 */
-	if (Oflag > 1 && getosreldate() >= P_OSREL_CK_CLYGRP)
+	if (Oflag > 1 && getosreldate() >= P_OSREL_CK_CYLGRP)
 		sblock.fs_metackhash = CK_CYLGRP;
 
 	/*
