@@ -463,7 +463,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 	struct turnstile *ts;
 	uintptr_t tid;
 #ifdef ADAPTIVE_MUTEXES
-	volatile struct thread *owner;
+	struct thread *owner;
 #endif
 #ifdef KTR
 	int cont_logged = 0;
@@ -1003,7 +1003,7 @@ __mtx_unlock_sleep(volatile uintptr_t *c)
 {
 	struct mtx *m;
 	struct turnstile *ts;
-	uintptr_t tid;
+	uintptr_t tid, v;
 
 	if (SCHEDULER_STOPPED())
 		return;
