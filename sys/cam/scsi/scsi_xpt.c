@@ -1171,6 +1171,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	softc = (probe_softc *)periph->softc;
 	path = done_ccb->ccb_h.path;
 	priority = done_ccb->ccb_h.pinfo.priority;
+	cam_periph_assert(periph, MA_OWNED);
 
 	switch (softc->action) {
 	case PROBE_TUR:
