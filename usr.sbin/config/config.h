@@ -54,6 +54,7 @@ struct file_list {
 	char	*f_clean;		/* File list to add to clean rule */
 	char	*f_warn;		/* warning message */
 	const char *f_objprefix;	/* prefix string for object name */
+	const char *f_srcprefix;	/* source prefix such as $S/ */
 };
 
 struct files_name {
