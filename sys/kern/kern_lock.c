@@ -26,7 +26,6 @@
  * DAMAGE.
  */
 
-#include "opt_adaptive_lockmgrs.h"
 #include "opt_ddb.h"
 #include "opt_hwpmc_hooks.h"
 
@@ -158,15 +157,6 @@ struct lock_class lock_class_lockmgr = {
 	.lc_owner = owner_lockmgr,
 #endif
 };
-
-#ifdef ADAPTIVE_LOCKMGRS
-static u_int alk_retries = 10;
-static u_int alk_loops = 10000;
-static SYSCTL_NODE(_debug, OID_AUTO, lockmgr, CTLFLAG_RD, NULL,
-    "lockmgr debugging");
-SYSCTL_UINT(_debug_lockmgr, OID_AUTO, retries, CTLFLAG_RW, &alk_retries, 0, "");
-SYSCTL_UINT(_debug_lockmgr, OID_AUTO, loops, CTLFLAG_RW, &alk_loops, 0, "");
-#endif
 
 static bool __always_inline lockmgr_slock_try(struct lock *lk, uintptr_t *xp,
     int flags);
@@ -661,10 +651,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	uint64_t waittime = 0;
 	int contested = 0;
 #endif
-#ifdef ADAPTIVE_LOCKMGRS
-	volatile struct thread *owner;
-	u_int i, spintries = 0;
-#endif
 
 	error = 0;
 	tid = (uintptr_t)curthread;
@@ -748,75 +734,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				break;
 			}
 
-#ifdef ADAPTIVE_LOCKMGRS
-			/*
-			 * If the owner is running on another CPU, spin until
-			 * the owner stops running or the state of the lock
-			 * changes.  We need a double-state handle here
-			 * because for a failed acquisition the lock can be
-			 * either held in exclusive mode or shared mode
-			 * (for the writer starvation avoidance technique).
-			 */
-			if (LK_CAN_ADAPT(lk, flags) && (x & LK_SHARE) == 0 &&
-			    LK_HOLDER(x) != LK_KERNPROC) {
-				owner = (struct thread *)LK_HOLDER(x);
-				if (LOCK_LOG_TEST(&lk->lock_object, 0))
-					CTR3(KTR_LOCK,
-					    "%s: spinning on %p held by %p",
-					    __func__, lk, owner);
-				KTR_STATE1(KTR_SCHED, "thread",
-				    sched_tdname(td), "spinning",
-				    "lockname:\"%s\"", lk->lock_object.lo_name);
-
-				/*
-				 * If we are holding also an interlock drop it
-				 * in order to avoid a deadlock if the lockmgr
-				 * owner is adaptively spinning on the
-				 * interlock itself.
-				 */
-				if (flags & LK_INTERLOCK) {
-					class->lc_unlock(ilk);
-					flags &= ~LK_INTERLOCK;
-				}
-				GIANT_SAVE();
-				while (LK_HOLDER(lk->lk_lock) ==
-				    (uintptr_t)owner && TD_IS_RUNNING(owner))
-					cpu_spinwait();
-				KTR_STATE0(KTR_SCHED, "thread",
-				    sched_tdname(td), "running");
-				GIANT_RESTORE();
-				continue;
-			} else if (LK_CAN_ADAPT(lk, flags) &&
-			    (x & LK_SHARE) != 0 && LK_SHARERS(x) &&
-			    spintries < alk_retries) {
-				KTR_STATE1(KTR_SCHED, "thread",
-				    sched_tdname(td), "spinning",
-				    "lockname:\"%s\"", lk->lock_object.lo_name);
-				if (flags & LK_INTERLOCK) {
-					class->lc_unlock(ilk);
-					flags &= ~LK_INTERLOCK;
-				}
-				GIANT_SAVE();
-				spintries++;
-				for (i = 0; i < alk_loops; i++) {
-					if (LOCK_LOG_TEST(&lk->lock_object, 0))
-						CTR4(KTR_LOCK,
-				    "%s: shared spinning on %p with %u and %u",
-						    __func__, lk, spintries, i);
-					x = lk->lk_lock;
-					if ((x & LK_SHARE) == 0 ||
-					    LK_CAN_SHARE(x, flags) != 0)
-						break;
-					cpu_spinwait();
-				}
-				KTR_STATE0(KTR_SCHED, "thread",
-				    sched_tdname(td), "running");
-				GIANT_RESTORE();
-				if (i != alk_loops)
-					continue;
-			}
-#endif
-
 			/*
 			 * Acquire the sleepqueue chain lock because we
 			 * probabilly will need to manipulate waiters flags.
@@ -832,24 +749,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				sleepq_release(&lk->lock_object);
 				continue;
 			}
-
-#ifdef ADAPTIVE_LOCKMGRS
-			/*
-			 * The current lock owner might have started executing
-			 * on another CPU (or the lock could have changed
-			 * owner) while we were waiting on the turnstile
-			 * chain lock.  If so, drop the turnstile lock and try
-			 * again.
-			 */
-			if (LK_CAN_ADAPT(lk, flags) && (x & LK_SHARE) == 0 &&
-			    LK_HOLDER(x) != LK_KERNPROC) {
-				owner = (struct thread *)LK_HOLDER(x);
-				if (TD_IS_RUNNING(owner)) {
-					sleepq_release(&lk->lock_object);
-					continue;
-				}
-			}
-#endif
 
 			/*
 			 * Try to set the LK_SHARED_WAITERS flag.  If we fail,
@@ -992,76 +891,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				break;
 			}
 
-#ifdef ADAPTIVE_LOCKMGRS
-			/*
-			 * If the owner is running on another CPU, spin until
-			 * the owner stops running or the state of the lock
-			 * changes.
-			 */
-			x = lk->lk_lock;
-			if (LK_CAN_ADAPT(lk, flags) && (x & LK_SHARE) == 0 &&
-			    LK_HOLDER(x) != LK_KERNPROC) {
-				owner = (struct thread *)LK_HOLDER(x);
-				if (LOCK_LOG_TEST(&lk->lock_object, 0))
-					CTR3(KTR_LOCK,
-					    "%s: spinning on %p held by %p",
-					    __func__, lk, owner);
-				KTR_STATE1(KTR_SCHED, "thread",
-				    sched_tdname(td), "spinning",
-				    "lockname:\"%s\"", lk->lock_object.lo_name);
-
-				/*
-				 * If we are holding also an interlock drop it
-				 * in order to avoid a deadlock if the lockmgr
-				 * owner is adaptively spinning on the
-				 * interlock itself.
-				 */
-				if (flags & LK_INTERLOCK) {
-					class->lc_unlock(ilk);
-					flags &= ~LK_INTERLOCK;
-				}
-				GIANT_SAVE();
-				while (LK_HOLDER(lk->lk_lock) ==
-				    (uintptr_t)owner && TD_IS_RUNNING(owner))
-					cpu_spinwait();
-				KTR_STATE0(KTR_SCHED, "thread",
-				    sched_tdname(td), "running");
-				GIANT_RESTORE();
-				continue;
-			} else if (LK_CAN_ADAPT(lk, flags) &&
-			    (x & LK_SHARE) != 0 && LK_SHARERS(x) &&
-			    spintries < alk_retries) {
-				if ((x & LK_EXCLUSIVE_SPINNERS) == 0 &&
-				    !atomic_cmpset_ptr(&lk->lk_lock, x,
-				    x | LK_EXCLUSIVE_SPINNERS))
-					continue;
-				KTR_STATE1(KTR_SCHED, "thread",
-				    sched_tdname(td), "spinning",
-				    "lockname:\"%s\"", lk->lock_object.lo_name);
-				if (flags & LK_INTERLOCK) {
-					class->lc_unlock(ilk);
-					flags &= ~LK_INTERLOCK;
-				}
-				GIANT_SAVE();
-				spintries++;
-				for (i = 0; i < alk_loops; i++) {
-					if (LOCK_LOG_TEST(&lk->lock_object, 0))
-						CTR4(KTR_LOCK,
-				    "%s: shared spinning on %p with %u and %u",
-						    __func__, lk, spintries, i);
-					if ((lk->lk_lock &
-					    LK_EXCLUSIVE_SPINNERS) == 0)
-						break;
-					cpu_spinwait();
-				}
-				KTR_STATE0(KTR_SCHED, "thread",
-				    sched_tdname(td), "running");
-				GIANT_RESTORE();
-				if (i != alk_loops)
-					continue;
-			}
-#endif
-
 			/*
 			 * Acquire the sleepqueue chain lock because we
 			 * probabilly will need to manipulate waiters flags.
@@ -1077,24 +906,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				sleepq_release(&lk->lock_object);
 				continue;
 			}
-
-#ifdef ADAPTIVE_LOCKMGRS
-			/*
-			 * The current lock owner might have started executing
-			 * on another CPU (or the lock could have changed
-			 * owner) while we were waiting on the turnstile
-			 * chain lock.  If so, drop the turnstile lock and try
-			 * again.
-			 */
-			if (LK_CAN_ADAPT(lk, flags) && (x & LK_SHARE) == 0 &&
-			    LK_HOLDER(x) != LK_KERNPROC) {
-				owner = (struct thread *)LK_HOLDER(x);
-				if (TD_IS_RUNNING(owner)) {
-					sleepq_release(&lk->lock_object);
-					continue;
-				}
-			}
-#endif
 
 			/*
 			 * The lock can be in the state where there is a
