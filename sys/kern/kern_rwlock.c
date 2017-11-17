@@ -424,10 +424,13 @@ __rw_rlock_hard(volatile uintptr_t *c, struct thread *td, uintptr_t v,
 	struct lock_delay_arg lda;
 #endif
 #ifdef KDTRACE_HOOKS
-	uintptr_t state;
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
+#endif
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	uintptr_t state;
+	int doing_lockprof;
 #endif
 
 	if (SCHEDULER_STOPPED())
@@ -440,12 +443,17 @@ __rw_rlock_hard(volatile uintptr_t *c, struct thread *td, uintptr_t v,
 #endif
 	rw = rwlock2rw(c);
 
-#ifdef KDTRACE_HOOKS
-	all_time -= lockstat_nsecs(&rw->lock_object);
-#endif
-#ifdef KDTRACE_HOOKS
+#ifdef LOCK_PROFILING
+	doing_lockprof = 1;
 	state = v;
+#elif defined(KDTRACE_HOOKS)
+	doing_lockprof = lockstat_enabled;
+	if (__predict_false(doing_lockprof)) {
+		all_time -= lockstat_nsecs(&rw->lock_object);
+		state = v;
+	}
 #endif
+
 	for (;;) {
 		if (__rw_rlock_try(rw, td, &v, file, line))
 			break;
@@ -583,6 +591,10 @@ __rw_rlock_hard(volatile uintptr_t *c, struct thread *td, uintptr_t v,
 			    __func__, rw);
 		v = RW_READ_VALUE(rw);
 	}
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	if (__predict_true(!doing_lockprof))
+		return;
+#endif
 #ifdef KDTRACE_HOOKS
 	all_time += lockstat_nsecs(&rw->lock_object);
 	if (sleep_time)
