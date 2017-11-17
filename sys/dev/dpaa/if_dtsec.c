@@ -67,6 +67,10 @@ __FBSDID("$FreeBSD$");
 #include "if_dtsec_im.h"
 #include "if_dtsec_rm.h"
 
+#define	DTSEC_MIN_FRAME_SIZE	64
+#define	DTSEC_MAX_FRAME_SIZE	9600
+
+#define	DTSEC_REG_MAXFRM	0x110
 
 /**
  * @group dTSEC private defines.
@@ -321,6 +325,22 @@ dtsec_fm_port_free_both(struct dtsec_softc *sc)
  * @{
  */
 static int
+dtsec_set_mtu(struct dtsec_softc *sc, unsigned int mtu)
+{
+
+	mtu += ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + ETHER_CRC_LEN;
+
+	DTSEC_LOCK_ASSERT(sc);
+
+	if (mtu >= DTSEC_MIN_FRAME_SIZE && mtu <= DTSEC_MAX_FRAME_SIZE) {
+		bus_write_4(sc->sc_mem, DTSEC_REG_MAXFRM, mtu);
+		return (mtu);
+	}
+
+	return (0);
+}
+
+static int
 dtsec_if_enable_locked(struct dtsec_softc *sc)
 {
 	int error;
@@ -384,6 +404,14 @@ dtsec_if_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	/* Basic functionality to achieve media status reports */
 	switch (command) {
+	case SIOCSIFMTU:
+		DTSEC_LOCK(sc);
+		if (dtsec_set_mtu(sc, ifr->ifr_mtu))
+			ifp->if_mtu = ifr->ifr_mtu;
+		else
+			error = EINVAL;
+		DTSEC_UNLOCK(sc);
+		break;
 	case SIOCSIFFLAGS:
 		DTSEC_LOCK(sc);
 
@@ -678,7 +706,7 @@ dtsec_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = TSEC_TX_NUM_DESC - 1;
 	IFQ_SET_READY(&ifp->if_snd);
 #endif
-	ifp->if_capabilities = 0; /* TODO: Check */
+	ifp->if_capabilities = IFCAP_JUMBO_MTU; /* TODO: HWCSUM */
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Attach PHY(s) */
