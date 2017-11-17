@@ -88,8 +88,9 @@ PMC_SOFT_DECLARE( , , lock, failed);
 	int _giantcnt = 0;						\
 	WITNESS_SAVE_DECL(Giant)					\
 
-#define	GIANT_SAVE() do {						\
+#define	GIANT_SAVE(work) do {						\
 	if (mtx_owned(&Giant)) {					\
+		work++;							\
 		WITNESS_SAVE(&Giant.lock_object, Giant);		\
 		while (mtx_owned(&Giant)) {				\
 			_giantcnt++;					\
@@ -513,10 +514,13 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, uintptr_t tid, int opts,
 	struct lock_delay_arg lda;
 #endif
 #ifdef	KDTRACE_HOOKS
-	uintptr_t state;
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
+#endif
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	uintptr_t state;
+	int extra_work;
 #endif
 
 	if (SCHEDULER_STOPPED())
@@ -547,10 +551,17 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, uintptr_t tid, int opts,
 		CTR5(KTR_LOCK, "%s: %s contested (lock=%p) at %s:%d", __func__,
 		    sx->lock_object.lo_name, (void *)sx->sx_lock, file, line);
 
-#ifdef KDTRACE_HOOKS
-	all_time -= lockstat_nsecs(&sx->lock_object);
+#ifdef LOCK_PROFILING
+	extra_work = 1;
 	state = x;
+#elif defined(KDTRACE_HOOKS)
+	extra_work = lockstat_enabled;
+	if (__predict_false(extra_work)) {
+		all_time -= lockstat_nsecs(&sx->lock_object);
+		state = x;
+	}
 #endif
+
 	for (;;) {
 		if (x == SX_LOCK_UNLOCKED) {
 			if (atomic_fcmpset_acq_ptr(&sx->sx_lock, &x, tid))
@@ -583,7 +594,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, uintptr_t tid, int opts,
 					    sched_tdname(curthread), "spinning",
 					    "lockname:\"%s\"",
 					    sx->lock_object.lo_name);
-					GIANT_SAVE();
+					GIANT_SAVE(extra_work);
 					do {
 						lock_delay(&lda);
 						x = SX_READ_VALUE(sx);
@@ -598,7 +609,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, uintptr_t tid, int opts,
 				KTR_STATE1(KTR_SCHED, "thread",
 				    sched_tdname(curthread), "spinning",
 				    "lockname:\"%s\"", sx->lock_object.lo_name);
-				GIANT_SAVE();
+				GIANT_SAVE(extra_work);
 				spintries++;
 				for (i = 0; i < asx_loops; i += n) {
 					if (LOCK_LOG_TEST(&sx->lock_object, 0))
@@ -705,7 +716,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, uintptr_t tid, int opts,
 #ifdef KDTRACE_HOOKS
 		sleep_time -= lockstat_nsecs(&sx->lock_object);
 #endif
-		GIANT_SAVE();
+		GIANT_SAVE(extra_work);
 		sleepq_add(&sx->lock_object, NULL, sx->lock_object.lo_name,
 		    SLEEPQ_SX | ((opts & SX_INTERRUPTIBLE) ?
 		    SLEEPQ_INTERRUPTIBLE : 0), SQ_EXCLUSIVE_QUEUE);
@@ -729,6 +740,10 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, uintptr_t tid, int opts,
 			    __func__, sx);
 		x = SX_READ_VALUE(sx);
 	}
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	if (__predict_true(!extra_work))
+		return (error);
+#endif
 #ifdef KDTRACE_HOOKS
 	all_time += lockstat_nsecs(&sx->lock_object);
 	if (sleep_time)
@@ -856,10 +871,13 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line, uintptr_t x)
 	struct lock_delay_arg lda;
 #endif
 #ifdef KDTRACE_HOOKS
-	uintptr_t state;
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
+#endif
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	uintptr_t state;
+	int extra_work;
 #endif
 
 	if (SCHEDULER_STOPPED())
@@ -870,9 +888,16 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line, uintptr_t x)
 #elif defined(KDTRACE_HOOKS)
 	lock_delay_arg_init(&lda, NULL);
 #endif
-#ifdef KDTRACE_HOOKS
-	all_time -= lockstat_nsecs(&sx->lock_object);
+
+#ifdef LOCK_PROFILING
+	extra_work = 1;
 	state = x;
+#elif defined(KDTRACE_HOOKS)
+	extra_work = lockstat_enabled;
+	if (__predict_false(extra_work)) {
+		all_time -= lockstat_nsecs(&sx->lock_object);
+		state = x;
+	}
 #endif
 
 	/*
@@ -908,7 +933,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line, uintptr_t x)
 				KTR_STATE1(KTR_SCHED, "thread",
 				    sched_tdname(curthread), "spinning",
 				    "lockname:\"%s\"", sx->lock_object.lo_name);
-				GIANT_SAVE();
+				GIANT_SAVE(extra_work);
 				do {
 					lock_delay(&lda);
 					x = SX_READ_VALUE(sx);
@@ -982,7 +1007,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line, uintptr_t x)
 #ifdef KDTRACE_HOOKS
 		sleep_time -= lockstat_nsecs(&sx->lock_object);
 #endif
-		GIANT_SAVE();
+		GIANT_SAVE(extra_work);
 		sleepq_add(&sx->lock_object, NULL, sx->lock_object.lo_name,
 		    SLEEPQ_SX | ((opts & SX_INTERRUPTIBLE) ?
 		    SLEEPQ_INTERRUPTIBLE : 0), SQ_SHARED_QUEUE);
@@ -1006,6 +1031,10 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line, uintptr_t x)
 			    __func__, sx);
 		x = SX_READ_VALUE(sx);
 	}
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	if (__predict_true(!extra_work))
+		return (error);
+#endif
 #ifdef KDTRACE_HOOKS
 	all_time += lockstat_nsecs(&sx->lock_object);
 	if (sleep_time)
