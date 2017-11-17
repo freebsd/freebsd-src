@@ -74,7 +74,7 @@ pass5(void)
 	newcg->cg_niblk = fs->fs_ipg;
 	if (preen == 0 && yflag == 0 && fs->fs_magic == FS_UFS2_MAGIC &&
 	    fswritefd != -1 && (fs->fs_metackhash & CK_CYLGRP) == 0 &&
-	    getosreldate() >= P_OSREL_CK_CLYGRP &&
+	    getosreldate() >= P_OSREL_CK_CYLGRP &&
 	    reply("ADD CYLINDER GROUP CHECKSUM PROTECTION") != 0) {
 		fs->fs_metackhash |= CK_CYLGRP;
 		rewritecg = 1;
