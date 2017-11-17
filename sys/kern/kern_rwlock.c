@@ -1081,7 +1081,7 @@ __rw_wunlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 {
 	struct rwlock *rw;
 	struct turnstile *ts;
-	uintptr_t v;
+	uintptr_t v, setv;
 	int queue;
 
 	if (SCHEDULER_STOPPED())
@@ -1108,8 +1108,6 @@ __rw_wunlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 		CTR2(KTR_LOCK, "%s: %p contested", __func__, rw);
 
 	turnstile_chain_lock(&rw->lock_object);
-	ts = turnstile_lookup(&rw->lock_object);
-	MPASS(ts != NULL);
 
 	/*
 	 * Use the same algo as sx locks for now.  Prefer waking up shared
@@ -1127,19 +1125,23 @@ __rw_wunlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 	 * there that could be worked around either by waking both queues
 	 * of waiters or doing some complicated lock handoff gymnastics.
 	 */
-	v = RW_UNLOCKED;
-	if (rw->rw_lock & RW_LOCK_WRITE_WAITERS) {
+	setv = RW_UNLOCKED;
+	v = RW_READ_VALUE(rw);
+	queue = TS_SHARED_QUEUE;
+	if (v & RW_LOCK_WRITE_WAITERS) {
 		queue = TS_EXCLUSIVE_QUEUE;
-		v |= (rw->rw_lock & RW_LOCK_READ_WAITERS);
-	} else
-		queue = TS_SHARED_QUEUE;
+		setv |= (v & RW_LOCK_READ_WAITERS);
+	}
+	atomic_store_rel_ptr(&rw->rw_lock, setv);
 
 	/* Wake up all waiters for the specific queue. */
 	if (LOCK_LOG_TEST(&rw->lock_object, 0))
 		CTR3(KTR_LOCK, "%s: %p waking up %s waiters", __func__, rw,
 		    queue == TS_SHARED_QUEUE ? "read" : "write");
+
+	ts = turnstile_lookup(&rw->lock_object);
+	MPASS(ts != NULL);
 	turnstile_broadcast(ts, queue);
-	atomic_store_rel_ptr(&rw->rw_lock, v);
 	turnstile_unpend(ts, TS_EXCLUSIVE_LOCK);
 	turnstile_chain_unlock(&rw->lock_object);
 }
