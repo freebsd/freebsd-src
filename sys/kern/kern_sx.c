@@ -772,7 +772,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, uintptr_t tid, int opts,
 void
 _sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 {
-	uintptr_t x;
+	uintptr_t x, setx;
 	int queue, wakeup_swapper;
 
 	if (SCHEDULER_STOPPED())
@@ -801,7 +801,7 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 		CTR2(KTR_LOCK, "%s: %p contested", __func__, sx);
 
 	sleepq_lock(&sx->lock_object);
-	x = SX_LOCK_UNLOCKED;
+	x = SX_READ_VALUE(sx);
 
 	/*
 	 * The wake up algorithm here is quite simple and probably not
@@ -812,19 +812,21 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 	 * starvation for the threads sleeping on the exclusive queue by giving
 	 * them precedence and cleaning up the shared waiters bit anyway.
 	 */
-	if ((sx->sx_lock & SX_LOCK_SHARED_WAITERS) != 0 &&
+	setx = SX_LOCK_UNLOCKED;
+	queue = SQ_EXCLUSIVE_QUEUE;
+	if ((x & SX_LOCK_SHARED_WAITERS) != 0 &&
 	    sleepq_sleepcnt(&sx->lock_object, SQ_SHARED_QUEUE) != 0) {
 		queue = SQ_SHARED_QUEUE;
-		x |= (sx->sx_lock & SX_LOCK_EXCLUSIVE_WAITERS);
-	} else
-		queue = SQ_EXCLUSIVE_QUEUE;
+		setx |= (x & SX_LOCK_EXCLUSIVE_WAITERS);
+	}
+	atomic_store_rel_ptr(&sx->sx_lock, setx);
 
 	/* Wake up all the waiters for the specific queue. */
 	if (LOCK_LOG_TEST(&sx->lock_object, 0))
 		CTR3(KTR_LOCK, "%s: %p waking up all threads on %s queue",
 		    __func__, sx, queue == SQ_SHARED_QUEUE ? "shared" :
 		    "exclusive");
-	atomic_store_rel_ptr(&sx->sx_lock, x);
+
 	wakeup_swapper = sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, 0,
 	    queue);
 	sleepq_release(&sx->lock_object);
