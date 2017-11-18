@@ -33,6 +33,11 @@ _CAN_USE_AUTO_OBJ?= yes
 .if !defined(_CAN_USE_AUTO_OBJ)
 _MAKEARGS+=		MK_AUTO_OBJ=no
 MK_AUTO_OBJ=		no
+# This will prevent src.sys.obj.mk from opportunistically enabling AUTO_OBJ
+# in this make execution and for sub-makes.  For all of these targets we
+# just want to read any existing OBJDIR but we don't care if we can create
+# or write to them.
+.MAKEOVERRIDES+=	MK_AUTO_OBJ
 .endif
 .endif	# empty(.MAKEOVERRIDES:MMK_AUTO_OBJ)
 
