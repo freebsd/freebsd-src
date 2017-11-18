@@ -390,17 +390,19 @@ awg_media_change(if_t ifp)
 static int
 awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
 {
+	bus_dmamap_t map;
 	bus_dma_segment_t segs[TX_MAX_SEGS];
-	int error, nsegs, cur, first, i;
+	int error, nsegs, cur, first, last, i;
 	u_int csum_flags;
 	uint32_t flags, status;
 	struct mbuf *m;
 
 	cur = first = index;
+	map = sc->tx.buf_map[first].map;
 
 	m = *mp;
-	error = bus_dmamap_load_mbuf_sg(sc->tx.buf_tag,
-	    sc->tx.buf_map[index].map, m, segs, &nsegs, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(sc->tx.buf_tag, map, m, segs,
+	    &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
 		m = m_collapse(m, M_NOWAIT, TX_MAX_SEGS);
 		if (m == NULL) {
@@ -408,16 +410,15 @@ awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
 			return (0);
 		}
 		*mp = m;
-		error = bus_dmamap_load_mbuf_sg(sc->tx.buf_tag,
-		    sc->tx.buf_map[index].map, m, segs, &nsegs, BUS_DMA_NOWAIT);
+		error = bus_dmamap_load_mbuf_sg(sc->tx.buf_tag, map, m,
+		    segs, &nsegs, BUS_DMA_NOWAIT);
 	}
 	if (error != 0) {
 		device_printf(sc->dev, "awg_setup_txbuf: bus_dmamap_load_mbuf_sg failed\n");
 		return (0);
 	}
 
-	bus_dmamap_sync(sc->tx.buf_tag, sc->tx.buf_map[index].map,
-	    BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->tx.buf_tag, map, BUS_DMASYNC_PREWRITE);
 
 	flags = TX_FIR_DESC;
 	status = 0;
@@ -458,7 +459,11 @@ awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
 		cur = TX_NEXT(cur);
 	}
 
-	sc->tx.buf_map[first].mbuf = m;
+	/* Store mapping and mbuf in the last segment */
+	last = TX_SKIP(cur, TX_DESC_COUNT - 1);
+	sc->tx.buf_map[first].map = sc->tx.buf_map[last].map;
+	sc->tx.buf_map[last].map = map;
+	sc->tx.buf_map[last].mbuf = m;
 
 	/*
 	 * The whole mbuf chain has been DMA mapped,
