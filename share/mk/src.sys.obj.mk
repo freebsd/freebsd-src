@@ -19,6 +19,12 @@
 #  TARGET.TARGET_ARCH added in as it assumes that MAKEOBJDIRPREFIX is
 #  nested in the existing OBJTOP with TARGET.TARGET_ARCH in it.
 #
+#  The expected OBJDIR is stored in __objdir for auto.obj.mk to use.
+#
+#  AUTO_OBJ is opportunistically enabled if the computed .OBJDIR is writable
+#  by the current user.  Some top-level targets disable this behavior in
+#  Makefile.sys.inc.
+#
 
 _default_makeobjdirprefix?=	/usr/obj
 _default_makeobjdir=	$${.CURDIR:S,^$${SRCTOP},$${OBJTOP},}
