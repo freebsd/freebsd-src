@@ -1,6 +1,8 @@
 /*	$NetBSD: sprite.h,v 1.1 1999/11/23 05:28:22 mrg Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1989 by Berkeley Softworks
@@ -38,6 +40,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sprite.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 /*

@@ -1,6 +1,8 @@
 /*	$NetBSD: lockd_lock.c,v 1.5 2000/11/21 03:47:41 enami Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 Andrew P. Lentvorski, Jr.
  * Copyright (c) 2000 Manuel Bouyer.
  *

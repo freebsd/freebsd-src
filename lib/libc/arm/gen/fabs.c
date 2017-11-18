@@ -1,6 +1,8 @@
 /*	$NetBSD: fabs.c,v 1.2 2002/05/26 11:48:01 wiz Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1996 Mark Brinicombe
  *
  * Redistribution and use in source and binary forms, with or without

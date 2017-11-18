@@ -1,6 +1,8 @@
 /*	$OpenBSD: diffreg.c,v 1.91 2016/03/01 20:57:35 natano Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) Caldera International Inc.  2001-2002.
  * All rights reserved.
  *
