@@ -22,6 +22,8 @@ SRC_ENV_CONF?= /etc/src-env.conf
 _src_env_conf_included_:	.NOTMAIN
 .endif
 
+.include <bsd.mkopt.mk>
+
 # Top-level installs should not use meta mode as it may prevent installing
 # based on cookies.
 .if make(*install*) && ${.MAKE.LEVEL} == 0
