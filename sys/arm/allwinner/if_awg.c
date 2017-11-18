@@ -179,6 +179,7 @@ struct awg_rxring {
 	bus_addr_t		desc_ring_paddr;
 	bus_dma_tag_t		buf_tag;
 	struct awg_bufmap	buf_map[RX_DESC_COUNT];
+	bus_dmamap_t		buf_spare_map;
 	u_int			cur;
 };
 
@@ -519,24 +520,45 @@ awg_setup_rxdesc(struct awg_softc *sc, int index, bus_addr_t paddr)
 
 	sc->rx.desc_ring[index].addr = htole32((uint32_t)paddr);
 	sc->rx.desc_ring[index].size = htole32(size);
-	sc->rx.desc_ring[index].next =
-	    htole32(sc->rx.desc_ring_paddr + DESC_OFF(RX_NEXT(index)));
 	sc->rx.desc_ring[index].status = htole32(status);
 }
 
-static int
-awg_setup_rxbuf(struct awg_softc *sc, int index, struct mbuf *m)
+static void
+awg_reuse_rxdesc(struct awg_softc *sc, int index)
 {
-	bus_dma_segment_t seg;
-	int error, nsegs;
 
+	sc->rx.desc_ring[index].status = htole32(RX_DESC_CTL);
+}
+
+static int
+awg_newbuf_rx(struct awg_softc *sc, int index)
+{
+	struct mbuf *m;
+	bus_dma_segment_t seg;
+	bus_dmamap_t map;
+	int nsegs;
+
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL)
+		return (ENOBUFS);
+
+	m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
 	m_adj(m, ETHER_ALIGN);
 
-	error = bus_dmamap_load_mbuf_sg(sc->rx.buf_tag,
-	    sc->rx.buf_map[index].map, m, &seg, &nsegs, 0);
-	if (error != 0)
-		return (error);
+	if (bus_dmamap_load_mbuf_sg(sc->rx.buf_tag, sc->rx.buf_spare_map,
+	    m, &seg, &nsegs, BUS_DMA_NOWAIT) != 0) {
+		m_freem(m);
+		return (ENOBUFS);
+	}
 
+	if (sc->rx.buf_map[index].mbuf != NULL) {
+		bus_dmamap_sync(sc->rx.buf_tag, sc->rx.buf_map[index].map,
+		    BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->rx.buf_tag, sc->rx.buf_map[index].map);
+	}
+	map = sc->rx.buf_map[index].map;
+	sc->rx.buf_map[index].map = sc->rx.buf_spare_map;
+	sc->rx.buf_spare_map = map;
 	bus_dmamap_sync(sc->rx.buf_tag, sc->rx.buf_map[index].map,
 	    BUS_DMASYNC_PREREAD);
 
@@ -544,18 +566,6 @@ awg_setup_rxbuf(struct awg_softc *sc, int index, struct mbuf *m)
 	awg_setup_rxdesc(sc, index, seg.ds_addr);
 
 	return (0);
-}
-
-static struct mbuf *
-awg_alloc_mbufcl(struct awg_softc *sc)
-{
-	struct mbuf *m;
-
-	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-	if (m != NULL)
-		m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
-
-	return (m);
 }
 
 static void
@@ -840,7 +850,7 @@ static int
 awg_rxintr(struct awg_softc *sc)
 {
 	if_t ifp;
-	struct mbuf *m, *m0, *mh, *mt;
+	struct mbuf *m, *mh, *mt;
 	int error, index, len, cnt, npkt;
 	uint32_t status;
 
@@ -857,61 +867,62 @@ awg_rxintr(struct awg_softc *sc)
 		if ((status & RX_DESC_CTL) != 0)
 			break;
 
-		bus_dmamap_sync(sc->rx.buf_tag, sc->rx.buf_map[index].map,
-		    BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->rx.buf_tag, sc->rx.buf_map[index].map);
-
 		len = (status & RX_FRM_LEN) >> RX_FRM_LEN_SHIFT;
-		if (len != 0) {
-			m = sc->rx.buf_map[index].mbuf;
-			m->m_pkthdr.rcvif = ifp;
-			m->m_pkthdr.len = len;
-			m->m_len = len;
-			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
-			if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0 &&
-			    (status & RX_FRM_TYPE) != 0) {
-				m->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
-				if ((status & RX_HEADER_ERR) == 0)
-					m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
-				if ((status & RX_PAYLOAD_ERR) == 0) {
-					m->m_pkthdr.csum_flags |=
-					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-					m->m_pkthdr.csum_data = 0xffff;
-				}
-			}
-
-			m->m_nextpkt = NULL;
-			if (mh == NULL)
-				mh = m;
-			else
-				mt->m_nextpkt = m;
-			mt = m;
-			++cnt;
-			++npkt;
-
-			if (cnt == awg_rx_batch) {
-				AWG_UNLOCK(sc);
-				if_input(ifp, mh);
-				AWG_LOCK(sc);
-				mh = mt = NULL;
-				cnt = 0;
-			}
-			
+		if (len == 0) {
+			if ((status & (RX_NO_ENOUGH_BUF_ERR | RX_OVERFLOW_ERR)) != 0)
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+			awg_reuse_rxdesc(sc, index);
+			continue;
 		}
 
-		if ((m0 = awg_alloc_mbufcl(sc)) != NULL) {
-			error = awg_setup_rxbuf(sc, index, m0);
-			if (error != 0) {
-				/* XXX hole in RX ring */
-			}
-		} else
+		m = sc->rx.buf_map[index].mbuf;
+
+		error = awg_newbuf_rx(sc, index);
+		if (error != 0) {
 			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+			awg_reuse_rxdesc(sc, index);
+			continue;
+		}
+
+		m->m_pkthdr.rcvif = ifp;
+		m->m_pkthdr.len = len;
+		m->m_len = len;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+
+		if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0 &&
+		    (status & RX_FRM_TYPE) != 0) {
+			m->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
+			if ((status & RX_HEADER_ERR) == 0)
+				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			if ((status & RX_PAYLOAD_ERR) == 0) {
+				m->m_pkthdr.csum_flags |=
+				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+		}
+
+		m->m_nextpkt = NULL;
+		if (mh == NULL)
+			mh = m;
+		else
+			mt->m_nextpkt = m;
+		mt = m;
+		++cnt;
+		++npkt;
+
+		if (cnt == awg_rx_batch) {
+			AWG_UNLOCK(sc);
+			if_input(ifp, mh);
+			AWG_LOCK(sc);
+			mh = mt = NULL;
+			cnt = 0;
+		}
 	}
 
 	if (index != sc->rx.cur) {
 		bus_dmamap_sync(sc->rx.desc_tag, sc->rx.desc_map,
-		    BUS_DMASYNC_PREWRITE);
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	}
 
 	if (mh != NULL) {
@@ -1500,7 +1511,6 @@ static int
 awg_setup_dma(device_t dev)
 {
 	struct awg_softc *sc;
-	struct mbuf *m;
 	int error, i;
 
 	sc = device_get_softc(dev);
@@ -1615,18 +1625,25 @@ awg_setup_dma(device_t dev)
 		return (error);
 	}
 
+	error = bus_dmamap_create(sc->rx.buf_tag, 0, &sc->rx.buf_spare_map);
+	if (error != 0) {
+		device_printf(dev,
+		    "cannot create RX buffer spare map\n");
+		return (error);
+	}
+
 	for (i = 0; i < RX_DESC_COUNT; i++) {
+		sc->rx.desc_ring[i].next =
+		    htole32(sc->rx.desc_ring_paddr + DESC_OFF(RX_NEXT(i)));
+
 		error = bus_dmamap_create(sc->rx.buf_tag, 0,
 		    &sc->rx.buf_map[i].map);
 		if (error != 0) {
 			device_printf(dev, "cannot create RX buffer map\n");
 			return (error);
 		}
-		if ((m = awg_alloc_mbufcl(sc)) == NULL) {
-			device_printf(dev, "cannot allocate RX mbuf\n");
-			return (ENOMEM);
-		}
-		error = awg_setup_rxbuf(sc, i, m);
+		sc->rx.buf_map[i].mbuf = NULL;
+		error = awg_newbuf_rx(sc, i);
 		if (error != 0) {
 			device_printf(dev, "cannot create RX buffer\n");
 			return (error);
