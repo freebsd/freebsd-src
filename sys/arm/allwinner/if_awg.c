@@ -916,7 +916,7 @@ awg_txintr(struct awg_softc *sc)
 	struct emac_desc *desc;
 	uint32_t status, size;
 	if_t ifp;
-	int i;
+	int i, prog;
 
 	AWG_ASSERT_LOCKED(sc);
 
@@ -924,6 +924,8 @@ awg_txintr(struct awg_softc *sc)
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 	ifp = sc->ifp;
+
+	prog = 0;
 	for (i = sc->tx.next; sc->tx.queued > 0; i = TX_NEXT(i)) {
 		desc = &sc->tx.desc_ring[i];
 		status = le32toh(desc->status);
@@ -936,11 +938,14 @@ awg_txintr(struct awg_softc *sc)
 			else
 				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		}
+		prog++;
 		awg_clean_txbuf(sc, i);
-		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 	}
 
-	sc->tx.next = i;
+	if (prog > 0) {
+		sc->tx.next = i;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
+	}
 }
 
 static void
