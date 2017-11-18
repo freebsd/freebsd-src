@@ -1,3 +1,5 @@
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
 /*-
  * Copyright (c) 1995, 1996
  *	Matt Thomas <matt@3am-software.com>.  All rights reserved.

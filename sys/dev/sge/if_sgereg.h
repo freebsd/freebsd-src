@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2008, 2009, 2010 Nikolay Denev <ndenev@gmail.com>
  * Copyright (c) 2007, 2008 Alexander Pohoyda <alexander.pohoyda@gmx.net>
  * Copyright (c) 1997, 1998, 1999
