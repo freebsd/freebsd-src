@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2013	Justin Hibbits
  * All rights reserved.
  * Copyright (c) 1997, 1998, 1999
