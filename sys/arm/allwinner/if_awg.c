@@ -388,7 +388,7 @@ awg_media_change(if_t ifp)
 }
 
 static int
-awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
+awg_encap(struct awg_softc *sc, struct mbuf **mp)
 {
 	bus_dmamap_t map;
 	bus_dma_segment_t segs[TX_MAX_SEGS];
@@ -397,7 +397,7 @@ awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
 	uint32_t flags, status;
 	struct mbuf *m;
 
-	cur = first = index;
+	cur = first = sc->tx.cur;
 	map = sc->tx.buf_map[first].map;
 
 	m = *mp;
@@ -406,16 +406,32 @@ awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
 	if (error == EFBIG) {
 		m = m_collapse(m, M_NOWAIT, TX_MAX_SEGS);
 		if (m == NULL) {
-			device_printf(sc->dev, "awg_setup_txbuf: m_collapse failed\n");
-			return (0);
+			device_printf(sc->dev, "awg_encap: m_collapse failed\n");
+			m_freem(*mp);
+			*mp = NULL;
+			return (ENOMEM);
 		}
 		*mp = m;
 		error = bus_dmamap_load_mbuf_sg(sc->tx.buf_tag, map, m,
 		    segs, &nsegs, BUS_DMA_NOWAIT);
+		if (error != 0) {
+			m_freem(*mp);
+			*mp = NULL;
+		}
 	}
 	if (error != 0) {
-		device_printf(sc->dev, "awg_setup_txbuf: bus_dmamap_load_mbuf_sg failed\n");
-		return (0);
+		device_printf(sc->dev, "awg_encap: bus_dmamap_load_mbuf_sg failed\n");
+		return (error);
+	}
+	if (nsegs == 0) {
+		m_freem(*mp);
+		*mp = NULL;
+		return (EIO);
+	}
+
+	if (sc->tx.queued + nsegs > TX_DESC_COUNT) {
+		bus_dmamap_unload(sc->tx.buf_tag, map);
+		return (ENOBUFS);
 	}
 
 	bus_dmamap_sync(sc->tx.buf_tag, map, BUS_DMASYNC_PREWRITE);
@@ -459,6 +475,8 @@ awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
 		cur = TX_NEXT(cur);
 	}
 
+	sc->tx.cur = cur;
+
 	/* Store mapping and mbuf in the last segment */
 	last = TX_SKIP(cur, TX_DESC_COUNT - 1);
 	sc->tx.buf_map[first].map = sc->tx.buf_map[last].map;
@@ -471,7 +489,7 @@ awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
 	 */
 	sc->tx.desc_ring[first].status = htole32(TX_DESC_CTL);
 
-	return (nsegs);
+	return (0);
 }
 
 static void
@@ -546,7 +564,7 @@ awg_start_locked(struct awg_softc *sc)
 	struct mbuf *m;
 	uint32_t val;
 	if_t ifp;
-	int cnt, nsegs;
+	int cnt, err;
 
 	AWG_ASSERT_LOCKED(sc);
 
@@ -560,22 +578,19 @@ awg_start_locked(struct awg_softc *sc)
 		return;
 
 	for (cnt = 0; ; cnt++) {
-		if (sc->tx.queued >= TX_DESC_COUNT - TX_MAX_SEGS) {
-			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
-			break;
-		}
-
 		m = if_dequeue(ifp);
 		if (m == NULL)
 			break;
 
-		nsegs = awg_setup_txbuf(sc, sc->tx.cur, &m);
-		if (nsegs == 0) {
-			if_sendq_prepend(ifp, m);
+		err = awg_encap(sc, &m);
+		if (err != 0) {
+			if (err == ENOBUFS)
+				if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
+			if (m != NULL)
+				if_sendq_prepend(ifp, m);
 			break;
 		}
 		if_bpfmtap(ifp, m);
-		sc->tx.cur = TX_SKIP(sc->tx.cur, nsegs);
 	}
 
 	if (cnt != 0) {
@@ -911,7 +926,7 @@ awg_rxintr(struct awg_softc *sc)
 }
 
 static void
-awg_txintr(struct awg_softc *sc)
+awg_txeof(struct awg_softc *sc)
 {
 	struct emac_desc *desc;
 	uint32_t status, size;
@@ -964,7 +979,7 @@ awg_intr(void *arg)
 		awg_rxintr(sc);
 
 	if (val & TX_INT)
-		awg_txintr(sc);
+		awg_txeof(sc);
 
 	if (val & (TX_INT | TX_BUF_UA_INT)) {
 		if (!if_sendq_empty(sc->ifp))
@@ -993,7 +1008,7 @@ awg_poll(if_t ifp, enum poll_cmd cmd, int count)
 	}
 
 	rx_npkts = awg_rxintr(sc);
-	awg_txintr(sc);
+	awg_txeof(sc);
 	if (!if_sendq_empty(ifp))
 		awg_start_locked(sc);
 
