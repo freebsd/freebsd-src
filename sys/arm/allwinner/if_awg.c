@@ -215,6 +215,8 @@ static struct resource_spec awg_spec[] = {
 	{ -1, 0 }
 };
 
+static void awg_txeof(struct awg_softc *sc);
+
 static int
 awg_miibus_readreg(device_t dev, int phy, int reg)
 {
@@ -809,6 +811,7 @@ awg_stop(struct awg_softc *sc)
 {
 	if_t ifp;
 	uint32_t val;
+	int i;
 
 	AWG_ASSERT_LOCKED(sc);
 
@@ -842,6 +845,39 @@ awg_stop(struct awg_softc *sc)
 	WR4(sc, EMAC_RX_CTL_1, val & ~RX_DMA_EN);
 
 	sc->link = 0;
+
+	/* Finish handling transmitted buffers */
+	awg_txeof(sc);
+
+	/* Release any untransmitted buffers. */
+	for (i = sc->tx.next; sc->tx.queued > 0; i = TX_NEXT(i)) {
+		val = le32toh(sc->tx.desc_ring[i].status);
+		if ((val & TX_DESC_CTL) != 0)
+			break;
+		awg_clean_txbuf(sc, i);
+	}
+	sc->tx.next = i;
+	for (; sc->tx.queued > 0; i = TX_NEXT(i)) {
+		sc->tx.desc_ring[i].status = 0;
+		awg_clean_txbuf(sc, i);
+	}
+	sc->tx.cur = sc->tx.next;
+	bus_dmamap_sync(sc->tx.desc_tag, sc->tx.desc_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
+	/* Setup RX buffers for reuse */
+	bus_dmamap_sync(sc->rx.desc_tag, sc->rx.desc_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
+	for (i = sc->rx.cur; ; i = RX_NEXT(i)) {
+		val = le32toh(sc->rx.desc_ring[i].status);
+		if ((val & RX_DESC_CTL) != 0)
+			break;
+		awg_reuse_rxdesc(sc, i);
+	}
+	sc->rx.cur = i;
+	bus_dmamap_sync(sc->rx.desc_tag, sc->rx.desc_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
