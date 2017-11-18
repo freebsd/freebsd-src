@@ -192,13 +192,6 @@ MK_AUTO_OBJ:=	${__objdir_writable}
 # The expected OBJDIR already exists, set it as .OBJDIR.
 .if !empty(__objdir) && exists(${__objdir})
 .OBJDIR: ${__objdir}
-# Special case to work around bmake bug.  If the top-level .OBJDIR does not yet
-# exist and MAKEOBJDIR is passed into environment and yield a blank value,
-# bmake will incorrectly set .OBJDIR=${SRCTOP}/ rather than the expected
-# ${SRCTOP} to match ${.CURDIR}.
-.elif ${MAKE_VERSION} <= 20170720 && \
-    ${.CURDIR} == ${SRCTOP} && ${.OBJDIR} == ${SRCTOP}/
-.OBJDIR: ${.CURDIR}
 .else
 # The OBJDIR we wanted does not yet exist, ensure we default to safe .CURDIR
 # in case make started with a bogus MAKEOBJDIR, that expanded before OBJTOP
