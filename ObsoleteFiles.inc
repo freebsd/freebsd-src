@@ -38,6 +38,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171118: Remove old etc capser failes
+OLD_FILES+=etc/casper/system.dns
+OLD_FILES+=etc/casper/system.grp
+OLD_FILES+=etc/casper/system.pwd
+OLD_FILES+=etc/casper/system.random
+OLD_FILES+=etc/casper/system.sysctl
+OLD_DIRS+=etc/casper
 # 20171116: lint(1) removal
 OLD_FILES+=usr/bin/lint
 OLD_FILES+=usr/libexec/lint1
