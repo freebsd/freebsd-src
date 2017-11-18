@@ -963,8 +963,10 @@ awg_intr(void *arg)
 	if (val & RX_INT)
 		awg_rxintr(sc);
 
-	if (val & (TX_INT|TX_BUF_UA_INT)) {
+	if (val & TX_INT)
 		awg_txintr(sc);
+
+	if (val & (TX_INT | TX_BUF_UA_INT)) {
 		if (!if_sendq_empty(sc->ifp))
 			awg_start_locked(sc);
 	}
