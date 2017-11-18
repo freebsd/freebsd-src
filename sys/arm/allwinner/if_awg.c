@@ -387,34 +387,16 @@ awg_media_change(if_t ifp)
 	return (error);
 }
 
-static void
-awg_setup_txdesc(struct awg_softc *sc, int index, int flags, bus_addr_t paddr,
-    u_int len)
-{
-	uint32_t status, size;
-
-	if (paddr == 0 || len == 0) {
-		status = 0;
-		size = 0;
-		--sc->tx.queued;
-	} else {
-		status = TX_DESC_CTL;
-		size = flags | len;
-		++sc->tx.queued;
-	}
-
-	sc->tx.desc_ring[index].addr = htole32((uint32_t)paddr);
-	sc->tx.desc_ring[index].size = htole32(size);
-	sc->tx.desc_ring[index].status = htole32(status);
-}
-
 static int
 awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
 {
 	bus_dma_segment_t segs[TX_MAX_SEGS];
-	int error, nsegs, cur, i, flags;
+	int error, nsegs, cur, first, i;
 	u_int csum_flags;
+	uint32_t flags, status;
 	struct mbuf *m;
+
+	cur = first = index;
 
 	m = *mp;
 	error = bus_dmamap_load_mbuf_sg(sc->tx.buf_tag,
@@ -438,6 +420,7 @@ awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
 	    BUS_DMASYNC_PREWRITE);
 
 	flags = TX_FIR_DESC;
+	status = 0;
 	if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0) {
 		if ((m->m_pkthdr.csum_flags & (CSUM_TCP|CSUM_UDP)) != 0)
 			csum_flags = TX_CHECKSUM_CTL_FULL;
@@ -446,8 +429,7 @@ awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
 		flags |= (csum_flags << TX_CHECKSUM_CTL_SHIFT);
 	}
 
-	for (cur = index, i = 0; i < nsegs; i++) {
-		sc->tx.buf_map[cur].mbuf = (i == 0 ? m : NULL);
+	for (i = 0; i < nsegs; i++) {
 		sc->tx.segs++;
 		if (i == nsegs - 1) {
 			flags |= TX_LAST_DESC;
@@ -460,13 +442,48 @@ awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
 				flags |= TX_INT_CTL;
 			}
 		}
-		awg_setup_txdesc(sc, cur, flags, segs[i].ds_addr,
-		    segs[i].ds_len);
+
+		sc->tx.desc_ring[cur].addr = htole32((uint32_t)segs[i].ds_addr);
+		sc->tx.desc_ring[cur].size = htole32(flags | segs[i].ds_len);
+		sc->tx.desc_ring[cur].status = htole32(status);
+
 		flags &= ~TX_FIR_DESC;
+		/*
+		 * Setting of the valid bit in the first descriptor is
+		 * deferred until the whole chain is fully set up.
+		 */
+		status = TX_DESC_CTL;
+
+		++sc->tx.queued;
 		cur = TX_NEXT(cur);
 	}
 
+	sc->tx.buf_map[first].mbuf = m;
+
+	/*
+	 * The whole mbuf chain has been DMA mapped,
+	 * fix the first descriptor.
+	 */
+	sc->tx.desc_ring[first].status = htole32(TX_DESC_CTL);
+
 	return (nsegs);
+}
+
+static void
+awg_clean_txbuf(struct awg_softc *sc, int index)
+{
+	struct awg_bufmap *bmap;
+
+	--sc->tx.queued;
+
+	bmap = &sc->tx.buf_map[index];
+	if (bmap->mbuf != NULL) {
+		bus_dmamap_sync(sc->tx.buf_tag, bmap->map,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(sc->tx.buf_tag, bmap->map);
+		m_freem(bmap->mbuf);
+		bmap->mbuf = NULL;
+	}
 }
 
 static void
@@ -891,7 +908,6 @@ awg_rxintr(struct awg_softc *sc)
 static void
 awg_txintr(struct awg_softc *sc)
 {
-	struct awg_bufmap *bmap;
 	struct emac_desc *desc;
 	uint32_t status;
 	if_t ifp;
@@ -908,23 +924,12 @@ awg_txintr(struct awg_softc *sc)
 		status = le32toh(desc->status);
 		if ((status & TX_DESC_CTL) != 0)
 			break;
-		bmap = &sc->tx.buf_map[i];
-		if (bmap->mbuf != NULL) {
-			bus_dmamap_sync(sc->tx.buf_tag, bmap->map,
-			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(sc->tx.buf_tag, bmap->map);
-			m_freem(bmap->mbuf);
-			bmap->mbuf = NULL;
-		}
-		awg_setup_txdesc(sc, i, 0, 0, 0);
+		awg_clean_txbuf(sc, i);
 		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	}
 
 	sc->tx.next = i;
-
-	bus_dmamap_sync(sc->tx.desc_tag, sc->tx.desc_map,
-	    BUS_DMASYNC_PREWRITE);
 }
 
 static void
@@ -1519,7 +1524,7 @@ awg_setup_dma(device_t dev)
 		return (error);
 	}
 
-	sc->tx.queued = TX_DESC_COUNT;
+	sc->tx.queued = 0;
 	for (i = 0; i < TX_DESC_COUNT; i++) {
 		error = bus_dmamap_create(sc->tx.buf_tag, 0,
 		    &sc->tx.buf_map[i].map);
@@ -1527,7 +1532,6 @@ awg_setup_dma(device_t dev)
 			device_printf(dev, "cannot create TX buffer map\n");
 			return (error);
 		}
-		awg_setup_txdesc(sc, i, 0, 0, 0);
 	}
 
 	/* Setup RX ring */
