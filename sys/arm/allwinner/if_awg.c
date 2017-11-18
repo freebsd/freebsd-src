@@ -169,6 +169,7 @@ struct awg_txring {
 	bus_dma_tag_t		buf_tag;
 	struct awg_bufmap	buf_map[TX_DESC_COUNT];
 	u_int			cur, next, queued;
+	u_int			segs;
 };
 
 struct awg_rxring {
@@ -399,8 +400,6 @@ awg_setup_txdesc(struct awg_softc *sc, int index, int flags, bus_addr_t paddr,
 	} else {
 		status = TX_DESC_CTL;
 		size = flags | len;
-		if ((index & (awg_tx_interval - 1)) == 0)
-			size |= TX_INT_CTL;
 		++sc->tx.queued;
 	}
 
@@ -449,8 +448,18 @@ awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
 
 	for (cur = index, i = 0; i < nsegs; i++) {
 		sc->tx.buf_map[cur].mbuf = (i == 0 ? m : NULL);
-		if (i == nsegs - 1)
+		sc->tx.segs++;
+		if (i == nsegs - 1) {
 			flags |= TX_LAST_DESC;
+			/*
+			 * Can only request TX completion
+			 * interrupt on last descriptor.
+			 */
+			if (sc->tx.segs >= awg_tx_interval) {
+				sc->tx.segs = 0;
+				flags |= TX_INT_CTL;
+			}
+		}
 		awg_setup_txdesc(sc, cur, flags, segs[i].ds_addr,
 		    segs[i].ds_len);
 		flags &= ~TX_FIR_DESC;
