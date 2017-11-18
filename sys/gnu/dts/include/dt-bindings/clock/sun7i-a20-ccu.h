@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2016 Amarula Solutions B.V.
- * Copyright (C) 2016 Engicam S.r.l.
+ * Copyright (C) 2017 Priit Laes <plaes@plaes.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -8,8 +7,9 @@
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License
- *     version 2 as published by the Free Software Foundation.
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
  *
  *     This file is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -35,67 +35,19 @@
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
  *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/dts-v1/;
+#ifndef _DT_BINDINGS_CLK_SUN7I_A20_H_
+#define _DT_BINDINGS_CLK_SUN7I_A20_H_
 
-#include <dt-bindings/gpio/gpio.h>
-#include "imx6ul-geam.dtsi"
+#include <dt-bindings/clock/sun4i-a10-ccu.h>
 
-/ {
-	model = "Engicam GEAM6UL";
-	compatible = "engicam,imx6ul-geam", "fsl,imx6ul";
-};
+#define CLK_MBUS		166
+#define CLK_HDMI1_SLOW		167
+#define CLK_HDMI1		168
+#define CLK_OUT_A		169
+#define CLK_OUT_B		170
 
-&can1 {
-	status = "okay";
-};
-
-&can2 {
-	status = "okay";
-};
-
-&lcdif {
-	display = <&display0>;
-	status = "okay";
-
-	display0: display {
-		bits-per-pixel = <16>;
-		bus-width = <18>;
-		status = "okay";
-
-		display-timings {
-			native-mode = <&timing0>;
-			timing0: timing0 {
-				clock-frequency = <28000000>;
-				hactive = <800>;
-				vactive = <480>;
-				hfront-porch = <30>;
-				hback-porch = <30>;
-				hsync-len = <64>;
-				vback-porch = <5>;
-				vfront-porch = <5>;
-				vsync-len = <20>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <1>;
-				pixelclk-active = <0>;
-			};
-		};
-	};
-};
-
-&usdhc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc1>;
-	status = "okay";
-};
-
-&tsc {
-	measure-delay-time = <0x1ffff>;
-	pre-charge-time = <0x1fff>;
-	status = "okay";
-};
+#endif /* _DT_BINDINGS_CLK_SUN7I_A20_H_ */
