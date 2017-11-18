@@ -914,7 +914,7 @@ static void
 awg_txintr(struct awg_softc *sc)
 {
 	struct emac_desc *desc;
-	uint32_t status;
+	uint32_t status, size;
 	if_t ifp;
 	int i;
 
@@ -929,9 +929,15 @@ awg_txintr(struct awg_softc *sc)
 		status = le32toh(desc->status);
 		if ((status & TX_DESC_CTL) != 0)
 			break;
+		size = le32toh(desc->size);
+		if (size & TX_LAST_DESC) {
+			if ((status & (TX_HEADER_ERR | TX_PAYLOAD_ERR)) != 0)
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			else
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		}
 		awg_clean_txbuf(sc, i);
 		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
-		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	}
 
 	sc->tx.next = i;
