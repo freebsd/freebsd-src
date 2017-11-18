@@ -1127,7 +1127,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_eip = imgp->entry_addr;
 	regs->tf_esp = stack;
-	regs->tf_eflags = PSL_USER | (regs->tf_eflags & PSL_T);
+	regs->tf_eflags = PSL_USER;
 	regs->tf_ss = _udatasel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
