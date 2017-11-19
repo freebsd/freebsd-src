@@ -35,10 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 
 int
-scanc(size, cp, table, mask0)
-	u_int size;
-	const u_char *cp, table[];
-	int mask0;
+scanc(u_int size, const u_char *cp, const u_char table[], int mask0)
 {
 	const u_char *end;
 	u_char mask;
