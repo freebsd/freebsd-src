@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2017
+.Dd November 15, 2017
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -68,7 +68,7 @@ and
 .Vt ptrdiff_t
 should be avoided.
 .Pp
-On some architectures, e.g.
+On some architectures, e.g.,
 .Dv sparc64 ,
 .Dv powerpc
 and AIM variants of
@@ -367,7 +367,7 @@ It is often the same as
 just as one CPU architecture can be implemented by many different
 hardware platforms, one hardware platform may support multiple CPU
 architecture family members, though with different binaries.
-For example, 
+For example,
 .Dv MACHINE
 of i386 supported the IBM-AT hardware platform while the
 .Dv MACHINE
@@ -393,12 +393,13 @@ integers (endian).
 It may also encode a variation in the size of the integer or pointer.
 It may also encode a ISA revision.
 It may also encode hard versus soft floating point ABI and usage.
-It may also encode a variant ABI when there other factors don't
-uniquely define the ABI (eg, MIPS' n32 ABI).
+It may also encode a variant ABI when the other factors do not
+uniquely define the ABI (e.g., MIPS' n32 ABI).
 It, along with
-.Dv MACHINE, define the ABI used by the system.
+.Dv MACHINE ,
+defines the ABI used by the system.
 For example, the MIPS CPU processor family supports 9 different
-combinations encoding pointer size, endian and hard vs soft float (for
+combinations encoding pointer size, endian and hard versus soft float (for
 8 combinations) as well as N32 (which only ever had one variation of
 all these).
 Generally, the plain CPU name specifies the most common (or at least
@@ -418,22 +419,29 @@ For example,
 .Dv MACHINE_CPUARCH
 is defined to be mips for all the flavors of mips that we support
 since we support them all with a shared set of sources.
-One might thing that it should be x86 for both amd64 and i386.
-However, since we don't support these two architectures with the same
-source base, that's not done despite it's logical appeal.
+While amd64 and i386 are closely related, MACHINE_CPUARCH is not x86
+for them.
+The FreeBSD source base supports amd64 and i386 with two
+distinct source bases living in subdirectories named amd64 and i386
+(though behind the scenes there's some sharing that fits into this
+framework).
 .It Dv CPUTYPE	Sets the flavor of
 .Dv MACHINE_ARCH
 to build.
 It is used to optimize the build for a specific CPU / core that the
 binaries run on.
-Generally, this doesn't change the ABI, though it can be a fine line
+Generally, this does not change the ABI, though it can be a fine line
 between optimization for specific cases.
-.It Dv TARGET	Used to set Dv MACHINE in the top level Makefile for cross building.
+.It Dv TARGET	Used to set
+.Dv MACHINE
+in the top level Makefile for cross building.
 Unused outside of that scope.
 It is not passed down to the rest of the build.
-Makefiles outside of the top level shouldn't use it at all (though
+Makefiles outside of the top level should not use it at all (though
 some have their own private copy for hysterical raisons).
-.It Dv TARGET_ARCH	Used to set Dv MACHINE_ARCH by Fx's top level Makefile for cross building.
+.It Dv TARGET_ARCH	Used to set
+.Dv MACHINE_ARCH
+by the top level Makefile for cross building.
 Like
 .Dv TARGET , it is unused outside of that scope.
 .El

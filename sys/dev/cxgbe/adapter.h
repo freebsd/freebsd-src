@@ -1115,15 +1115,11 @@ t4_use_ldst(struct adapter *sc)
 }
 
 /* t4_main.c */
-extern int t4_ntxq10g;
-extern int t4_nrxq10g;
-extern int t4_ntxq1g;
-extern int t4_nrxq1g;
+extern int t4_ntxq;
+extern int t4_nrxq;
 extern int t4_intr_types;
-extern int t4_tmr_idx_10g;
-extern int t4_pktc_idx_10g;
-extern int t4_tmr_idx_1g;
-extern int t4_pktc_idx_1g;
+extern int t4_tmr_idx;
+extern int t4_pktc_idx;
 extern unsigned int t4_qsize_rxq;
 extern unsigned int t4_qsize_txq;
 extern device_method_t cxgbe_methods[];

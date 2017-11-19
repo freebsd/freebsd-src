@@ -424,10 +424,13 @@ __rw_rlock_hard(volatile uintptr_t *c, struct thread *td, uintptr_t v,
 	struct lock_delay_arg lda;
 #endif
 #ifdef KDTRACE_HOOKS
-	uintptr_t state;
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
+#endif
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	uintptr_t state;
+	int doing_lockprof;
 #endif
 
 	if (SCHEDULER_STOPPED())
@@ -440,23 +443,29 @@ __rw_rlock_hard(volatile uintptr_t *c, struct thread *td, uintptr_t v,
 #endif
 	rw = rwlock2rw(c);
 
-#ifdef KDTRACE_HOOKS
-	all_time -= lockstat_nsecs(&rw->lock_object);
+#ifdef HWPMC_HOOKS
+	PMC_SOFT_CALL( , , lock, failed);
 #endif
-#ifdef KDTRACE_HOOKS
+	lock_profile_obtain_lock_failed(&rw->lock_object,
+	    &contested, &waittime);
+
+#ifdef LOCK_PROFILING
+	doing_lockprof = 1;
 	state = v;
+#elif defined(KDTRACE_HOOKS)
+	doing_lockprof = lockstat_enabled;
+	if (__predict_false(doing_lockprof)) {
+		all_time -= lockstat_nsecs(&rw->lock_object);
+		state = v;
+	}
 #endif
+
 	for (;;) {
 		if (__rw_rlock_try(rw, td, &v, file, line))
 			break;
 #ifdef KDTRACE_HOOKS
 		lda.spin_cnt++;
 #endif
-#ifdef HWPMC_HOOKS
-		PMC_SOFT_CALL( , , lock, failed);
-#endif
-		lock_profile_obtain_lock_failed(&rw->lock_object,
-		    &contested, &waittime);
 
 #ifdef ADAPTIVE_RWLOCKS
 		/*
@@ -583,6 +592,10 @@ __rw_rlock_hard(volatile uintptr_t *c, struct thread *td, uintptr_t v,
 			    __func__, rw);
 		v = RW_READ_VALUE(rw);
 	}
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	if (__predict_true(!doing_lockprof))
+		return;
+#endif
 #ifdef KDTRACE_HOOKS
 	all_time += lockstat_nsecs(&rw->lock_object);
 	if (sleep_time)
@@ -878,6 +891,12 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 		CTR5(KTR_LOCK, "%s: %s contested (lock=%p) at %s:%d", __func__,
 		    rw->lock_object.lo_name, (void *)rw->rw_lock, file, line);
 
+#ifdef HWPMC_HOOKS
+	PMC_SOFT_CALL( , , lock, failed);
+#endif
+	lock_profile_obtain_lock_failed(&rw->lock_object,
+	    &contested, &waittime);
+
 #ifdef LOCK_PROFILING
 	doing_lockprof = 1;
 	state = v;
@@ -898,11 +917,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 #ifdef KDTRACE_HOOKS
 		lda.spin_cnt++;
 #endif
-#ifdef HWPMC_HOOKS
-		PMC_SOFT_CALL( , , lock, failed);
-#endif
-		lock_profile_obtain_lock_failed(&rw->lock_object,
-		    &contested, &waittime);
+
 #ifdef ADAPTIVE_RWLOCKS
 		/*
 		 * If the lock is write locked and the owner is
@@ -1066,7 +1081,7 @@ __rw_wunlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 {
 	struct rwlock *rw;
 	struct turnstile *ts;
-	uintptr_t v;
+	uintptr_t v, setv;
 	int queue;
 
 	if (SCHEDULER_STOPPED())
@@ -1093,8 +1108,6 @@ __rw_wunlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 		CTR2(KTR_LOCK, "%s: %p contested", __func__, rw);
 
 	turnstile_chain_lock(&rw->lock_object);
-	ts = turnstile_lookup(&rw->lock_object);
-	MPASS(ts != NULL);
 
 	/*
 	 * Use the same algo as sx locks for now.  Prefer waking up shared
@@ -1112,19 +1125,23 @@ __rw_wunlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 	 * there that could be worked around either by waking both queues
 	 * of waiters or doing some complicated lock handoff gymnastics.
 	 */
-	v = RW_UNLOCKED;
-	if (rw->rw_lock & RW_LOCK_WRITE_WAITERS) {
+	setv = RW_UNLOCKED;
+	v = RW_READ_VALUE(rw);
+	queue = TS_SHARED_QUEUE;
+	if (v & RW_LOCK_WRITE_WAITERS) {
 		queue = TS_EXCLUSIVE_QUEUE;
-		v |= (rw->rw_lock & RW_LOCK_READ_WAITERS);
-	} else
-		queue = TS_SHARED_QUEUE;
+		setv |= (v & RW_LOCK_READ_WAITERS);
+	}
+	atomic_store_rel_ptr(&rw->rw_lock, setv);
 
 	/* Wake up all waiters for the specific queue. */
 	if (LOCK_LOG_TEST(&rw->lock_object, 0))
 		CTR3(KTR_LOCK, "%s: %p waking up %s waiters", __func__, rw,
 		    queue == TS_SHARED_QUEUE ? "read" : "write");
+
+	ts = turnstile_lookup(&rw->lock_object);
+	MPASS(ts != NULL);
 	turnstile_broadcast(ts, queue);
-	atomic_store_rel_ptr(&rw->rw_lock, v);
 	turnstile_unpend(ts, TS_EXCLUSIVE_LOCK);
 	turnstile_chain_unlock(&rw->lock_object);
 }

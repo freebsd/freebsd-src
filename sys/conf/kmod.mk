@@ -469,9 +469,6 @@ genassym.o: ${SRCS:Mopt_*.h}
 	    ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 .endif
 
-lint: ${SRCS}
-	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC:M*.c}
-
 .if defined(KERNBUILDDIR)
 ${OBJS}: opt_global.h
 .endif

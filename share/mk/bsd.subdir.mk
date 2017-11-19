@@ -46,7 +46,7 @@ SUBDIR_TARGETS+= \
 		all all-man analyze buildconfig buildfiles buildincludes \
 		checkdpadd clean cleandepend cleandir cleanilinks \
 		cleanobj depend distribute files includes installconfig \
-		installfiles installincludes print-dir realinstall lint \
+		installfiles installincludes print-dir realinstall \
 		maninstall manlint ${_obj} objlink tags \
 
 # Described above.

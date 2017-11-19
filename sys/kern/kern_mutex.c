@@ -462,9 +462,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 	struct mtx *m;
 	struct turnstile *ts;
 	uintptr_t tid;
-#ifdef ADAPTIVE_MUTEXES
-	volatile struct thread *owner;
-#endif
+	struct thread *owner;
 #ifdef KTR
 	int cont_logged = 0;
 #endif
@@ -629,7 +627,11 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 #ifdef KDTRACE_HOOKS
 		sleep_time -= lockstat_nsecs(&m->lock_object);
 #endif
-		turnstile_wait(ts, mtx_owner(m), TS_EXCLUSIVE_QUEUE);
+#ifndef ADAPTIVE_MUTEXES
+		owner = mtx_owner(m);
+#endif
+		MPASS(owner == mtx_owner(m));
+		turnstile_wait(ts, owner, TS_EXCLUSIVE_QUEUE);
 #ifdef KDTRACE_HOOKS
 		sleep_time += lockstat_nsecs(&m->lock_object);
 		sleep_cnt++;
@@ -1028,12 +1030,12 @@ __mtx_unlock_sleep(volatile uintptr_t *c)
 	 * can be removed from the hash list if it is empty.
 	 */
 	turnstile_chain_lock(&m->lock_object);
+	_mtx_release_lock_quick(m);
 	ts = turnstile_lookup(&m->lock_object);
+	MPASS(ts != NULL);
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p contested", m);
-	MPASS(ts != NULL);
 	turnstile_broadcast(ts, TS_EXCLUSIVE_QUEUE);
-	_mtx_release_lock_quick(m);
 
 	/*
 	 * This turnstile is now no longer associated with the mutex.  We can

@@ -44,6 +44,7 @@ static char sccsid[] = "@(#)mkfs.c	8.11 (Berkeley) 5/3/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define	IN_RTLD			/* So we pickup the P_OSREL defines */
 #include <sys/param.h>
 #include <sys/disklabel.h>
 #include <sys/file.h>
@@ -495,7 +496,7 @@ restart:
 	/*
 	 * Set flags for metadata that is being check-hashed.
 	 */
-	if (Oflag > 1)
+	if (Oflag > 1 && getosreldate() >= P_OSREL_CK_CYLGRP)
 		sblock.fs_metackhash = CK_CYLGRP;
 
 	/*

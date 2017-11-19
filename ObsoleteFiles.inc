@@ -38,6 +38,22 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171118: Remove old etc capser failes
+OLD_FILES+=etc/casper/system.dns
+OLD_FILES+=etc/casper/system.grp
+OLD_FILES+=etc/casper/system.pwd
+OLD_FILES+=etc/casper/system.random
+OLD_FILES+=etc/casper/system.sysctl
+OLD_DIRS+=etc/casper
+# 20171116: lint(1) removal
+OLD_FILES+=usr/bin/lint
+OLD_FILES+=usr/libexec/lint1
+OLD_FILES+=usr/libexec/lint2
+OLD_FILES+=usr/libdata/lint/llib-lposix.ln
+OLD_FILES+=usr/libdata/lint/llib-lstdc.ln
+OLD_FILES+=usr/share/man/man1/lint.1.gz
+OLD_FILES+=usr/share/man/man7/lint.7.gz
+OLD_DIRS+=usr/libdata/lint
 # 20171114: Removal of all fortune datfiles other than freebsd-tips
 OLD_FILES+=usr/share/games/fortune/fortunes
 OLD_FILES+=usr/share/games/fortune/fortunes.dat
