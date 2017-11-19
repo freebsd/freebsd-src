@@ -184,6 +184,7 @@ static struct task	vmem_periodic_wk;
 
 static struct mtx_padalign __exclusive_cache_line vmem_list_lock;
 static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
+static uma_zone_t vmem_zone;
 
 /* ---- misc */
 #define	VMEM_CONDVAR_INIT(vm, wchan)	cv_init(&vm->vm_cv, wchan)
@@ -655,6 +656,9 @@ vmem_startup(void)
 {
 
 	mtx_init(&vmem_list_lock, "vmem list lock", NULL, MTX_DEF);
+	vmem_zone = uma_zcreate("vmem",
+	    sizeof(struct vmem), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, UMA_ZONE_VM);
 	vmem_bt_zone = uma_zcreate("vmem btag",
 	    sizeof(struct vmem_btag), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, UMA_ZONE_VM);
@@ -824,7 +828,7 @@ vmem_destroy1(vmem_t *vm)
 
 	VMEM_CONDVAR_DESTROY(vm);
 	VMEM_LOCK_DESTROY(vm);
-	free(vm, M_VMEM);
+	uma_zfree(vmem_zone, vm);
 }
 
 static int
@@ -1056,7 +1060,7 @@ vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
 
 	vmem_t *vm;
 
-	vm = malloc(sizeof(*vm), M_VMEM, flags & (M_WAITOK|M_NOWAIT));
+	vm = uma_zalloc(vmem_zone, flags & (M_WAITOK|M_NOWAIT));
 	if (vm == NULL)
 		return (NULL);
 	if (vmem_init(vm, name, base, size, quantum, qcache_max,
