@@ -1270,22 +1270,14 @@ wlan_up()
 			fi
 			if expr $child : 'wlan[0-9][0-9]*$' >/dev/null 2>&1; then
 				${IFCONFIG_CMD} $child create ${create_args} && cfg=0
-				if [ $? -eq 0 ]; then
-					_list="$_list $child"
-				fi
-				if [ -n "${debug_flags}" ]; then
-					wlandebug -i $child ${debug_flags}
-				fi
 			else
-				i=`${IFCONFIG_CMD} wlan create ${create_args}`
-				# XXXGL: wlandebug should accept any name
-				if [ -n "${debug_flags}" ]; then
-					wlandebug -i $i ${debug_flags}
-				fi
-				${IFCONFIG_CMD} $i name $child && cfg=0
-				if [ $? -eq 0 ]; then
-					_list="$_list $child"
-				fi
+				${IFCONFIG_CMD} wlan create ${create_args} name $child && cfg=0
+			fi
+			if [ $? -eq 0 ]; then
+				_list="$_list $child"
+			fi
+			if [ -n "${debug_flags}" ]; then
+				wlandebug -i $child ${debug_flags}
 			fi
 		done
 	done
