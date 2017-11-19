@@ -39,8 +39,7 @@ __FBSDID("$FreeBSD$");
 static u_long randseed = 937186357; /* after srandom(1), NSHUFF counted */
 
 void
-srandom(seed)
-	u_long seed;
+srandom(u_long seed)
 {
 	int i;
 
