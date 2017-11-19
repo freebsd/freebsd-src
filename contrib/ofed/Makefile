@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR_A_DEPEND= ${_libthr}
+SUBDIR_A_DEPEND=
 SUBDIR_A= \
 include
 
