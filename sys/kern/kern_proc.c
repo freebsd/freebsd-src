@@ -1479,11 +1479,9 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			/*
 			 * Skip embryonic processes.
 			 */
-			PROC_LOCK(p);
-			if (p->p_state == PRS_NEW) {
-				PROC_UNLOCK(p);
+			if (p->p_state == PRS_NEW)
 				continue;
-			}
+			PROC_LOCK(p);
 			KASSERT(p->p_ucred != NULL,
 			    ("process credential is NULL for non-NEW proc"));
 			/*

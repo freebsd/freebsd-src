@@ -416,10 +416,6 @@ DIRDEPS+= \
 	usr.bin/write \
 	usr.bin/xargs \
 	usr.bin/xinstall \
-	usr.bin/xlint/lint1 \
-	usr.bin/xlint/lint2 \
-	usr.bin/xlint/llib \
-	usr.bin/xlint/xlint \
 	usr.bin/xo \
 	usr.bin/xstr \
 	usr.bin/xz \

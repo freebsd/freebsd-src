@@ -46,7 +46,6 @@ M=		${MACHINE}
 
 AWK?=		awk
 CP?=		cp
-LINT?=		lint
 NM?=		nm
 OBJCOPY?=	objcopy
 SIZE?=		size
@@ -121,9 +120,6 @@ CFLAGS+=	${CONF_CFLAGS}
 LDFLAGS+=	-Wl,--build-id=sha1
 .endif
 
-# Optional linting. This can be overridden in /etc/make.conf.
-LINTFLAGS=	${LINTOBJKERNFLAGS}
-
 NORMAL_C= ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
 NORMAL_S= ${CC:N${CCACHE_BIN}} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
 PROFILE_C= ${CC} -c ${CFLAGS} ${WERROR} ${.IMPSRC}
@@ -175,8 +171,6 @@ NORMAL_CTFCONVERT=
 .else
 NORMAL_CTFCONVERT=	@:
 .endif
-
-NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 
 # Linux Kernel Programming Interface C-flags
 LINUXKPI_INCLUDES=	-I$S/compat/linuxkpi/common/include

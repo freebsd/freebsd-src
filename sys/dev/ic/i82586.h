@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1992, University of Vermont and State Agricultural College.
  * Copyright (c) 1992, Garrett A. Wollman.
  * All rights reserved.

@@ -87,7 +87,7 @@ ${__target}: ports-${__target}
 ports-${__target}:
 .for __i in ${PORTS_MODULES}
 	@${ECHO} "===> Ports module ${__i} (${__target})"
-	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target:C/install/deinstall reinstall/:C/reinstall/deinstall reinstall/}
+	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target:C/(re)?install/deinstall reinstall/}
 .endfor
 .endfor
 .endif
@@ -153,7 +153,6 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 
 OBJS_DEPEND_GUESS+=	assym.s vnode_if.h ${BEFORE_DEPEND:M*.h} \
 			${MFILES:T:S/.m$/.h/}
-LNFILES=	${CFILES:T:S/.c$/.ln/}
 
 .for mfile in ${MFILES}
 # XXX the low quality .m.o rules gnerated by config are normally used
@@ -167,14 +166,10 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 kernel-clean:
 	rm -f *.o *.so *.pico *.ko *.s eddep errs \
 	    ${FULLKERNEL} ${KERNEL_KO} ${KERNEL_KO}.debug \
-	    linterrs tags vers.c \
+	    tags vers.c \
 	    vnode_if.c vnode_if.h vnode_if_newproto.h vnode_if_typedef.h \
 	    ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	    ${CLEAN}
-
-lint: ${LNFILES}
-	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC} 2>&1 | \
-	    tee -a linterrs
 
 # This is a hack.  BFD "optimizes" away dynamic mode if there are no
 # dynamic references.  We could probably do a '-Bforcedynamic' mode like
@@ -364,9 +359,6 @@ kernel-reinstall:
 config.o env.o hints.o vers.o vnode_if.o:
 	${NORMAL_C}
 	${NORMAL_CTFCONVERT}
-
-config.ln env.ln hints.ln vers.ln vnode_if.ln:
-	${NORMAL_LINT}
 
 .if ${MK_REPRODUCIBLE_BUILD} != "no"
 REPRO_FLAG="-r"
