@@ -93,10 +93,10 @@ __FBSDID("$FreeBSD$");
 
 
 #if VM_NRESERVLEVEL > 0
-#define	KVA_QUANTUM	1 << (VM_LEVEL_0_ORDER + PAGE_SHIFT)
+#define	KVA_QUANTUM	(1 << (VM_LEVEL_0_ORDER + PAGE_SHIFT))
 #else
 	/* On non-superpage architectures want large import sizes. */
-#define	KVA_QUANTUM	PAGE_SIZE * 1024
+#define	KVA_QUANTUM	(PAGE_SIZE * 1024)
 #endif
 long physmem;
 
@@ -114,7 +114,10 @@ kva_import(void *unused, vmem_size_t size, int flags, vmem_addr_t *addrp)
 {
 	vm_offset_t addr;
 	int result;
- 
+
+	KASSERT((size % KVA_QUANTUM) == 0,
+	    ("kva_import: Size %jd is not a multiple of %u",
+	    size, KVA_QUANTUM));
 	addr = vm_map_min(kernel_map);
 	result = vm_map_find(kernel_map, NULL, 0, &addr, size, 0,
 	    VMFS_SUPER_SPACE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);

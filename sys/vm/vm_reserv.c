@@ -713,7 +713,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, int domain,
 	LIST_INSERT_HEAD(&object->rvq, rv, objq);
 	rv->object = object;
 	rv->pindex = first;
-	rv->domain = vm_phys_domidx(m);
+	rv->domain = domain;
 	KASSERT(rv->popcnt == 0,
 	    ("vm_reserv_alloc_page: reserv %p's popcnt is corrupted", rv));
 	KASSERT(!rv->inpartpopq,
@@ -732,6 +732,8 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, int domain,
 found:
 	index = VM_RESERV_INDEX(object, pindex);
 	m = &rv->pages[index];
+	KASSERT(object != kernel_object || vm_phys_domidx(m) == domain,
+	    ("vm_reserv_alloc_page: Domain mismatch from reservation."));
 	/* Handle vm_page_rename(m, new_object, ...). */
 	if (popmap_is_set(rv->popmap, index))
 		return (NULL);

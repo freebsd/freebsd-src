@@ -65,6 +65,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_vm.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>		/* for ticks and hz */
@@ -464,6 +466,9 @@ retry:
 			kmem_unback(object, addr, i);
 			return (KERN_NO_SPACE);
 		}
+		KASSERT(vm_phys_domidx(m) == domain,
+		    ("kmem_back_domain: Domain mismatch %d != %d",
+		    vm_phys_domidx(m), domain));
 		if (flags & M_ZERO && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
 		KASSERT((m->oflags & VPO_UNMANAGED) != 0,
