@@ -1,6 +1,8 @@
 /*
   rpcsec_gss.h
   
+  SPDX-License-Identifier: BSD-3-Clause
+
   Copyright (c) 2000 The Regents of the University of Michigan.
   All rights reserved.
   

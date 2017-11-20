@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2006-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *

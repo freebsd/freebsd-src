@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999-2008 Apple Inc.
  * Copyright (c) 2006-2008, 2016 Robert N. M. Watson
  * All rights reserved.
