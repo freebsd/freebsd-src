@@ -1,6 +1,8 @@
 /*	$KAME: lexer.l,v 1.7 2000/11/08 02:40:53 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *

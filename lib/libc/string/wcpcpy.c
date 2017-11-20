@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999
  *	David E. O'Brien
  * Copyright (c) 1988, 1993

@@ -1,6 +1,8 @@
 /*	$KAME: traceroute6.c,v 1.68 2004/01/25 11:16:12 suz Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
