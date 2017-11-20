@@ -2025,7 +2025,7 @@ iflib_fl_setup(iflib_fl_t fl)
 	if_ctx_t ctx = rxq->ifr_ctx;
 	if_softc_ctx_t sctx = &ctx->ifc_softc_ctx;
 
-	bit_nclear(fl->ifl_rx_bitmap, 0, fl->ifl_size);
+	bit_nclear(fl->ifl_rx_bitmap, 0, fl->ifl_size - 1);
 	/*
 	** Free current RX buffer structs and their mbufs
 	*/
