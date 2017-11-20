@@ -1,6 +1,8 @@
 /*	$NetBSD: vmparam.h,v 1.26 2003/08/07 16:27:47 agc Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988 The Regents of the University of California.
  * All rights reserved.
  *
