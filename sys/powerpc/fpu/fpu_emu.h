@@ -1,7 +1,9 @@
 /*	$NetBSD: fpu_emu.h,v 1.3 2005/12/11 12:18:42 christos Exp $ */
 /* $FreeBSD$ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
