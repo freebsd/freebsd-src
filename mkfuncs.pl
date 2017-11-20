@@ -11,7 +11,7 @@ while (<>) {
 		$state = 1;
 		$params = 0;
 	} elsif ($state == 1 and /(\w+)\s*\(/) {
-		$def .= " $1 LESSPARAMS((";
+		$def .= " $1 LESSPARAMS ((";
 		$state = 2;
 	} elsif ($state == 2) {
 		if (/^{/) {

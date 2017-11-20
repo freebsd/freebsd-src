@@ -62,6 +62,8 @@ lesskey$(EXEEXT): lesskey.${O} version.${O}
 lessecho$(EXEEXT): lessecho.${O} version.${O}
 	${CC} ${LDFLAGS} -o $@ lessecho.${O} version.${O}
 
+charset.${O}: compose.uni ubin.uni wide.uni
+
 ${OBJ}: ${srcdir}/less.h ${srcdir}/funcs.h defines.h 
 
 install: all ${srcdir}/less.nro ${srcdir}/lesskey.nro ${srcdir}/lessecho.nro installdirs

@@ -3,7 +3,7 @@
 EMAIL = bug-less@gnu.org
 HOMEPAGE = http://www.greenwoodsoftware.com/less
 SHELL = /bin/sh
-RCS = rcs
+GIT = git
 NROFF = nroff -man
 
 srcdir = .
@@ -22,7 +22,7 @@ DISTFILES_W = \
 	defines.wn  Makefile.wnm Makefile.wnb \
 	configure 
 UNICODE_FILES = \
-	compose.uni ubin.uni wide.uni
+	compose.uni fmt.uni ubin.uni wide.uni
 DISTFILES = \
 	${SRC} regexp.c regexp.h \
 	COPYING INSTALL LICENSE Makefile.in Makefile.aut NEWS README \
@@ -32,7 +32,7 @@ DISTFILES = \
 	install.sh defines.h.in mkinstalldirs \
 	less.nro less.man lesskey.nro lesskey.man lessecho.nro lessecho.man \
 	less.hlp \
-	mkfuncs.pl mkhelp.c \
+	mkfuncs.pl mkhelp.pl \
 	mkutable $(UNICODE_FILES) \
 	${DISTFILES_W}
 
@@ -46,14 +46,11 @@ release: .FORCE
 
 .FORCE:
 
-help.c: less.hlp mkhelp
+help.c: less.hlp 
 	-mv -f ${srcdir}/help.c ${srcdir}/help.c.old
 	rm -rf help.c
-	./mkhelp < less.hlp > help.c
+	${srcdir}/mkhelp.pl < less.hlp > help.c
 	if cmp -s help.c help.c.old; then mv -f help.c.old help.c; fi
-
-mkhelp: mkhelp.c
-	${CC} -o mkhelp mkhelp.c
 
 ${srcdir}/configure: ${srcdir}/configure.ac \
 		${srcdir}/Makefile.in
@@ -108,8 +105,10 @@ ${srcdir}/lessecho.man: ${srcdir}/lessecho.nro
 
 compose.uni: unicode/UnicodeData.txt
 	./mkutable -f2 Mn Me -- unicode/UnicodeData.txt > $@
+fmt.uni: unicode/UnicodeData.txt
+	./mkutable -f2 Cf -- unicode/UnicodeData.txt > $@
 ubin.uni: unicode/UnicodeData.txt
-	./mkutable -f2 Cc Cf Cs Co Zl Zp -- unicode/UnicodeData.txt > $@
+	./mkutable -f2 Cc Cs Co Zl Zp -- unicode/UnicodeData.txt > $@
 wide.uni: unicode/EastAsianWidth.txt
 	./mkutable -f1 W F -- unicode/EastAsianWidth.txt > $@
 
@@ -130,6 +129,7 @@ dist: ${DISTFILES}
 	tar -cf - $$REL | gzip -c >release/$$REL/$$REL.tar.gz; \
 	echo "Signing release/$$REL/$$REL.tar.gz"; \
 	gpg --detach-sign release/$$REL/$$REL.tar.gz; \
+	mv release/$$REL/$$REL.tar.gz.sig release/$$REL/$$REL.sig; \
 	echo "Creating release/$$REL/$$REL.zip"; \
 	zip -rq release/$$REL/$$REL.zip $$REL; \
 	rm -rf $$REL
@@ -137,7 +137,4 @@ dist: ${DISTFILES}
 tagall:
 	@REL=`sed -e '/char version/!d' -e 's/[^0-9.]*\([0-9.]*\).*/v\1/' -e q ${srcdir}/version.c`; \
 	echo "tagging $$REL"; \
-	for f in ${srcdir}/RCS/*,v; do \
-	  REV=`co -p $$f 2>&1 | sed -e '1d' -e '3,$$d' -e 's/revision //'`; \
-	  ${RCS} -N$$REL:$$REV $$f; \
-	done
+	$(GIT) tag -f "$$REL"

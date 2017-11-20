@@ -659,7 +659,7 @@ AH_TOP([
 /*
  * Default shell metacharacters and meta-escape character.
  */
-#define	DEF_METACHARS	"; *?\t\n'\"()<>[]|&^`#\\$%=~"
+#define	DEF_METACHARS	"; *?\t\n'\"()<>[]|&^`#\\$%=~{},"
 #define	DEF_METAESCAPE	"\\"
 
 /* 
