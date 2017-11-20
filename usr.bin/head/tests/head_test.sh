@@ -113,8 +113,9 @@ read_from_stdin_head() {
 	atf_set "descr" "Test head(1)'s reading of stdin"
 }
 read_from_stdin_body() {
-	jot -b test 2 > outfile
-	jot -b test 10 | head -2 > expectfile
+	#head(1) defaults to head -n 10 if no args are given.
+	jot -b test 10 > outfile
+	jot -b test 20 | head > expectfile
 	atf_check cmp outfile expectfile 
 }
 
