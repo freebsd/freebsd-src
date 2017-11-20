@@ -2,6 +2,8 @@
 /* From: NetBSD: ffs_extern.h,v 1.19 2001/08/17 02:18:48 lukem Exp */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *

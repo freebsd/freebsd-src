@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1996 Jeffrey Hsu <hsu@freebsd.org>.
  * All rights reserved.
  *

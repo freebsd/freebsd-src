@@ -1,6 +1,8 @@
 /*	$NetBSD: clnt_simple.c,v 1.21 2000/07/06 03:10:34 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *

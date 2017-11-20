@@ -2,7 +2,9 @@
 
 /* Definitions for address trees... */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995 The Internet Software Consortium.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +39,8 @@
  * Enterprises.  To learn more about the Internet Software Consortium,
  * see ``http://www.vix.com/isc''.  To learn more about Vixie
  * Enterprises, see ``http://www.vix.com''.
+ *
+ * $FreeBSD$
  */
 
 /* A pair of pointers, suitable for making a linked list. */

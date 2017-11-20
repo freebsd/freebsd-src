@@ -2,6 +2,8 @@
 /* $NetBSD: _strtol.h,v 1.2 2009/05/20 22:03:29 christos Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
