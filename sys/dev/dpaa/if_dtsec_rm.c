@@ -358,10 +358,12 @@ dtsec_rm_fqr_rx_callback(t_Handle app, t_Handle fqr, t_Handle portal,
 {
 	struct dtsec_softc *sc;
 	struct mbuf *m;
+	void *frame_va;
 
 	m = NULL;
 	sc = app;
 
+	frame_va = DPAA_FD_GET_ADDR(frame);
 	KASSERT(DPAA_FD_GET_FORMAT(frame) == e_DPAA_FD_FORMAT_TYPE_SHORT_SBSF,
 	    ("%s(): Got unsupported frame format 0x%02X!", __func__,
 	    DPAA_FD_GET_FORMAT(frame)));
@@ -379,8 +381,8 @@ dtsec_rm_fqr_rx_callback(t_Handle app, t_Handle fqr, t_Handle portal,
 	if (m == NULL)
 		goto err;
 
-	m_extadd(m, DPAA_FD_GET_ADDR(frame), FM_PORT_BUFFER_SIZE,
-	    dtsec_rm_fqr_mext_free, DPAA_FD_GET_ADDR(frame), sc, 0,
+	m_extadd(m, frame_va, FM_PORT_BUFFER_SIZE,
+	    dtsec_rm_fqr_mext_free, frame_va, sc, 0,
 	    EXT_NET_DRV);
 
 	m->m_pkthdr.rcvif = sc->sc_ifnet;
@@ -392,7 +394,7 @@ dtsec_rm_fqr_rx_callback(t_Handle app, t_Handle fqr, t_Handle portal,
 	return (e_RX_STORE_RESPONSE_CONTINUE);
 
 err:
-	bman_put_buffer(sc->sc_rx_pool, DPAA_FD_GET_ADDR(frame));
+	bman_put_buffer(sc->sc_rx_pool, frame_va);
 	if (m != NULL)
 		m_freem(m);
 
@@ -545,7 +547,6 @@ dtsec_rm_if_start_locked(struct dtsec_softc *sc)
 	unsigned int qlen, i;
 	struct mbuf *m0, *m;
 	vm_offset_t vaddr;
-	vm_paddr_t paddr;
 	t_DpaaFD fd;
 
 	DTSEC_LOCK_ASSERT(sc);
@@ -602,8 +603,7 @@ dtsec_rm_if_start_locked(struct dtsec_softc *sc)
 			dsize = m->m_len;
 			vaddr = (vm_offset_t)m->m_data;
 			while (dsize > 0 && i < DPAA_NUM_OF_SG_TABLE_ENTRY) {
-				paddr = XX_VirtToPhys((void *)vaddr);
-				ssize = PAGE_SIZE - (paddr & PAGE_MASK);
+				ssize = PAGE_SIZE - (vaddr & PAGE_MASK);
 				if (m->m_len < ssize)
 					ssize = m->m_len;
 
