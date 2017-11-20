@@ -9,6 +9,20 @@ CFLAGS+=-I${SASRC}
 
 SSP_CFLAGS=
 
+# Add in the no float / no SIMD stuff and announce we're freestanding
+CFLAGS+=	-ffreestanding ${CFLAGS_NO_SIMD}
+.if ${MACHINE_CPUARCH} == "aarch64"
+CFLAGS+=	-mgeneral-regs-only
+.else
+CFLAGS+=	-msoft-float
+.endif
+
+.if ${MACHINE_CPUARCH} == "i386" || (${MACHINE_CPUARCH} == "amd64" && ${DO32:U0} == 1)
+CFLAGS+=	-march=i386
+CFLAGS.gcc+=	-mpreferred-stack-boundary=2
+.endif
+
+
 .if ${MACHINE_CPUARCH} == "arm"
 # Do not generate movt/movw, because the relocation fixup for them does not
 # translate to the -Bsymbolic -pie format required by self_reloc() in loader(8).
