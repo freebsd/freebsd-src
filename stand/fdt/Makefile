@@ -16,12 +16,6 @@ SRCS+=		fdt_loader_cmd.c fdt_overlay.c
 
 CFLAGS+=	-I${SYSDIR}/contrib/libfdt/ -I${LDRSRC}
 
-CFLAGS+=	-ffreestanding
-
-.if ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "mips"
-CFLAGS+=	-msoft-float
-.endif
-
 CFLAGS+=	-Wformat -Wall
 
 .include <bsd.stand.mk>
