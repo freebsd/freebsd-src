@@ -50,6 +50,9 @@
 
 #ifdef FEATURE
 FEATURE(evdev, "Input event devices support");
+#ifdef EVDEV_SUPPORT
+FEATURE(evdev_support, "Evdev support in hybrid drivers");
+#endif
 #endif
 
 enum evdev_sparse_result
