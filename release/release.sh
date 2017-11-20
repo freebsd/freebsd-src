@@ -246,8 +246,8 @@ chroot_setup() {
 extra_chroot_setup() {
 	mkdir -p ${CHROOTDIR}/dev
 	mount -t devfs devfs ${CHROOTDIR}/dev
-	[ -e /etc/resolv.conf ] && cp /etc/resolv.conf \
-		${CHROOTDIR}/etc/resolv.conf
+	[ -e /etc/resolv.conf -a ! -e ${CHROOTDIR}/etc/resolv.conf ] && \
+		cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
 	# Run ldconfig(8) in the chroot directory so /var/run/ld-elf*.so.hints
 	# is created.  This is needed by ports-mgmt/pkg.
 	eval chroot ${CHROOTDIR} /etc/rc.d/ldconfig forcerestart
