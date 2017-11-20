@@ -660,6 +660,8 @@
         ..
         gzip
         ..
+        head
+        ..
         hexdump
         ..
         ident
