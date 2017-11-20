@@ -53,6 +53,8 @@ public int quit_on_intr;	/* Quit on interrupt */
 public int follow_mode;		/* F cmd Follows file desc or file name? */
 public int oldbot;		/* Old bottom of screen behavior {{REMOVE}} */
 public int opt_use_backslash;	/* Use backslash escaping in option parsing */
+public LWCHAR rscroll_char;	/* Char which marks chopped lines with -S */
+public int rscroll_attr;	/* Attribute of rscroll_char */
 #if HILITE_SEARCH
 public int hilite_search;	/* Highlight matched search patterns? */
 #endif
@@ -117,6 +119,7 @@ static struct optname keypad_optname = { "no-keypad",            NULL };
 static struct optname oldbot_optname = { "old-bot",              NULL };
 static struct optname follow_optname = { "follow-name",          NULL };
 static struct optname use_backslash_optname = { "use-backslash", NULL };
+static struct optname rscroll_optname = { "rscroll", NULL };
 
 
 /*
@@ -455,6 +458,10 @@ static struct loption option[] =
 			"Don't use backslash escaping in command line parameters",
 			NULL
 		}
+	},
+	{ OLETTER_NONE, &rscroll_optname,
+		STRING|REPAINT|INIT_HANDLER, 0, NULL, opt_rscroll,
+		{ "right scroll character: ", NULL, NULL }
 	},
 	{ '\0', NULL, NOVAR, 0, NULL, NULL, { NULL, NULL, NULL } }
 };

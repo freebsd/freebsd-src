@@ -33,15 +33,15 @@ extern int less_is_more;
 #endif
 
 #if HAVE_RE_COMP
-char *re_comp();
-int re_exec();
+char *re_comp LESSPARAMS ((char*));
+int re_exec LESSPARAMS ((char*));
 #define PATTERN_TYPE          int
 #define CLEAR_PATTERN(name)   name = 0
 #endif
 
 #if HAVE_REGCMP
-char *regcmp();
-char *regex();
+char *regcmp LESSPARAMS ((char*));
+char *regex LESSPARAMS ((char**, char*));
 extern char *__loc1;
 #define PATTERN_TYPE          char **
 #define CLEAR_PATTERN(name)   name = NULL

@@ -15,6 +15,9 @@
 #include "less.h"
 #if MSDOS_COMPILER==WIN32C
 #include "windows.h"
+#ifndef COMMON_LVB_UNDERSCORE
+#define COMMON_LVB_UNDERSCORE 0x8000
+#endif
 #endif
 
 public int errmsgs;	/* Count of messages displayed by error() */
@@ -38,6 +41,9 @@ extern int ul_fg_color, ul_bg_color;
 extern int so_fg_color, so_bg_color;
 extern int bl_fg_color, bl_bg_color;
 extern int sgr_mode;
+#if MSDOS_COMPILER==WIN32C
+extern int have_ul;
+#endif
 #endif
 
 /*
@@ -127,9 +133,9 @@ flush()
 			 * the -D command-line option.
 			 */
 			char *anchor, *p, *p_next;
-			static unsigned char fg, fgi, bg, bgi;
-			static unsigned char at;
-			unsigned char f, b;
+			static int fg, fgi, bg, bgi;
+			static int at;
+			int f, b;
 #if MSDOS_COMPILER==WIN32C
 			/* Screen colors used by 3x and 4x SGR commands. */
 			static unsigned char screen_color[] = {
@@ -259,8 +265,13 @@ flush()
 						case 7: /* inverse on */
 							at |= 2;
 							break;
-						case 4:	/* underline on */
-							bgi = 8;
+						case 4: /* underline on */
+#if MSDOS_COMPILER==WIN32C
+							if (have_ul)
+								bgi = COMMON_LVB_UNDERSCORE >> 4;
+							else
+#endif
+								bgi = 8;
 							at |= 4;
 							break;
 						case 5: /* slow blink on */
@@ -356,7 +367,11 @@ flush()
 					if (at & 16)
 						f = b ^ 8;
 					f &= 0xf;
-					b &= 0xf;
+#if MSDOS_COMPILER==WIN32C
+					b &= 0xf | (COMMON_LVB_UNDERSCORE >> 4);
+#else
+ 					b &= 0xf;
+#endif
 					WIN32setcolors(f, b);
 					p_next = anchor = p + 1;
 				} else
@@ -536,6 +551,9 @@ less_printf(fmt, parg)
 				col += iprint_linenum(parg->p_linenum);
 				parg++;
 				break;
+			case '%':
+				putchr('%');
+				break;
 			}
 		}
 	}
@@ -600,7 +618,7 @@ error(fmt, parg)
 
 	get_return();
 	lower_left();
-    clear_eol();
+	clear_eol();
 
 	if (col >= sc_width)
 		/*

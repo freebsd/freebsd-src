@@ -7,9 +7,9 @@
 **************************************************************************
 **************************************************************************
 
-                            Less, version 491
+                            Less, version 529
 
-    This is the distribution of less, version 491, released 07 Apr 2017.
+    This is the distribution of less, version 529, released 13 Nov 2017.
     This program is part of the GNU project (http://www.gnu.org).
 
     This program is free software.  You may redistribute it and/or
@@ -23,6 +23,7 @@
 
     Please report any problems to bug-less@gnu.org.
     See http://www.greenwoodsoftware.com/less for the latest info.
+    Source repository is at https://github.com/gwsw/less.git.
 
 =========================================================================
 
