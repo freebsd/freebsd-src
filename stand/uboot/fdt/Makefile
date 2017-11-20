@@ -10,8 +10,6 @@ WARNS?=		2
 
 SRCS=		uboot_fdt.c
 
-CFLAGS+=	-ffreestanding -msoft-float
-
 # U-Boot library headers
 CFLAGS+=	-I${UBOOTSRC}/lib
 

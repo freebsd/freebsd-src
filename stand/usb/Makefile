@@ -36,15 +36,10 @@ INTERNALLIB=
 
 CFLAGS+=	-DBOOTPROG=\"usbloader\"
 CFLAGS+=	-ffunction-sections -fdata-sections
-CFLAGS+=	-ffreestanding
 CFLAGS+=	-Wformat -Wall
 CFLAGS+=	-g
 CFLAGS+=	-fno-pic
 
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+=	-march=i386
-CFLAGS.gcc+=	-mpreferred-stack-boundary=2
-.endif
 .if ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-m32
 .endif

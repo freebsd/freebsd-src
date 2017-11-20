@@ -36,7 +36,6 @@ SRCS+=		vers.c
 
 CFLAGS+=	-Wall
 CFLAGS+=	-I${BOOTSRC}/userboot
-CFLAGS+=	-ffreestanding
 
 CWARNFLAGS.main.c += -Wno-implicit-function-declaration
 

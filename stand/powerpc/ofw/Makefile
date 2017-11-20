@@ -34,7 +34,6 @@ HELP_FILES+=	${FDTSRC}/help.fdt
 
 .PATH:		${SYSDIR}/libkern
 
-CFLAGS+=	-ffreestanding -msoft-float
 # load address. set in linker script
 RELOC?=		0x1C00000
 CFLAGS+=	-DRELOC=${RELOC}
