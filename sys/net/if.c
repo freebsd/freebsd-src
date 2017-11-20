@@ -1667,7 +1667,7 @@ ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 
 	bzero(&info, sizeof(info));
 	info.rti_ifp = V_loif;
-	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
+	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC | RTF_PINNED;
 	info.rti_info[RTAX_DST] = ia;
 	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
 	error = rtrequest1_fib(RTM_ADD, &info, &rt, ifa->ifa_ifp->if_fib);
