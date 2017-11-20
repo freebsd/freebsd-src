@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2000-2010, LSI Logic Corporation and its contributors.
  * All rights reserved.
  * 

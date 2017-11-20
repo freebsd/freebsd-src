@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2007-2014 QLogic Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
