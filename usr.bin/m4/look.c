@@ -1,6 +1,8 @@
 /*	$OpenBSD: look.c,v 1.24 2014/12/21 09:33:12 espie Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
