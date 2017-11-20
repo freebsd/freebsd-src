@@ -1,5 +1,4 @@
-#! /usr/libexec/atf-sh
-# Copyright (c) 2016 Alan Somers
+# Copyright (c) 2017 Fred Schlechter 
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -76,7 +75,8 @@ sparse_file_text_at_beginning_head() {
 sparse_file_text_at_beginning_body () {
 	jot -b test 10 > outfile
 	truncate -s +1K outfile
-	atf_check -s exit:0 -o ignore head -c 2048 outfile
+	head -c 512 outfile > expectfile
+	atf_check -o inline:"     512 expectfile\n" wc -c expectfile
 }
 
 atf_test_case sparse_file_text_at_end
@@ -90,6 +90,34 @@ sparse_file_text_at_end_body () {
 	atf_check cmp infile outpipe 
 }
 
+atf_test_case missing_line_count
+missing_line_count_head() {
+	atf_set "descr" "Test head(1)'s handling of a missing line count arg"
+}
+missing_line_count_body () {
+	jot -b test 100 > outfile
+	atf_check -s not-exit:0 -e not-empty head -n outfile 
+}
+
+atf_test_case invalid_line_count
+invalid_line_count_head() {
+	atf_set "descr" "Test head(1)'s handling of an invalid line count arg"
+}
+invalid_line_count_body () {
+	jot -b test 100 > outfile
+	atf_check -s not-exit:0 -e not-empty head -n -10 outfile 
+}
+
+atf_test_case read_from_stdin
+read_from_stdin_head() {
+	atf_set "descr" "Test head(1)'s reading of stdin"
+}
+read_from_stdin_body() {
+	jot -b test 2 > outfile
+	jot -b test 10 | head -2 > expectfile
+	atf_check cmp outfile expectfile 
+}
+
 atf_init_test_cases() {
 	atf_add_test_case empty_file 
 	atf_add_test_case default_no_options
@@ -97,4 +125,7 @@ atf_init_test_cases() {
 	atf_add_test_case byte_count
 	atf_add_test_case sparse_file_text_at_beginning
 	atf_add_test_case sparse_file_text_at_end
+	atf_add_test_case missing_line_count
+	atf_add_test_case invalid_line_count
+	atf_add_test_case read_from_stdin
 }
