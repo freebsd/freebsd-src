@@ -103,7 +103,7 @@ case $arg in
         dirlist="$arg"
     else
         echo "$0: $arg not found" >&2
-        continue
+        exit 1
     fi
     ;;
 *)  dirlist=
