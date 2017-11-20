@@ -393,7 +393,7 @@ CFLAGS += ${_CPUCFLAGS}
 # (-mfpmath= is not supported)
 #
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-CFLAGS_NO_SIMD.clang= -mno-avx
+CFLAGS_NO_SIMD.clang= -mno-avx -mno-avx2
 CFLAGS_NO_SIMD= -mno-mmx -mno-sse
 .endif
 CFLAGS_NO_SIMD += ${CFLAGS_NO_SIMD.${COMPILER_TYPE}}
