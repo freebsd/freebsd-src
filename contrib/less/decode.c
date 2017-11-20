@@ -140,6 +140,8 @@ static unsigned char cmdtable[] =
 	ESC,'N',0,			A_T_REVERSE_SEARCH,
 	'&',0,				A_FILTER,
 	'm',0,				A_SETMARK,
+	'M',0,				A_SETMARKBOT,
+	ESC,'m',0,			A_CLRMARK,
 	'\'',0,				A_GOMARK,
 	CONTROL('X'),CONTROL('X'),0,	A_GOMARK,
 	'E',0,				A_EXAMINE,
@@ -291,6 +293,33 @@ expand_special_keys(table, len)
 }
 
 /*
+ * Expand special key abbreviations in a list of command tables.
+ */
+	static void
+expand_cmd_table(tlist)
+	struct tablelist *tlist;
+{
+	struct tablelist *t;
+	for (t = tlist;  t != NULL;  t = t->t_next)
+	{
+		expand_special_keys(t->t_start, t->t_end - t->t_start);
+	}
+}
+
+/*
+ * Expand special key abbreviations in all command tables.
+ */
+	public void
+expand_cmd_tables()
+{
+	expand_cmd_table(list_fcmd_tables);
+	expand_cmd_table(list_ecmd_tables);
+	expand_cmd_table(list_var_tables);
+	expand_cmd_table(list_sysvar_tables);
+}
+
+
+/*
  * Initialize the command lists.
  */
 	public void
@@ -342,7 +371,6 @@ add_cmd_table(tlist, buf, len)
 	{
 		return (-1);
 	}
-	expand_special_keys(buf, len);
 	t->t_start = buf;
 	t->t_end = buf + len;
 	t->t_next = *tlist;
@@ -661,9 +689,7 @@ lesskey(filename, sysvar)
 	/*
 	 * Try to open the lesskey file.
 	 */
-	filename = shell_unquote(filename);
 	f = open(filename, OPEN_READ);
-	free(filename);
 	if (f < 0)
 		return (1);
 

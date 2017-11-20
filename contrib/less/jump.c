@@ -51,7 +51,7 @@ jump_forw()
 	end_pos = ch_tell();
 	pos = back_line(end_pos);
 	if (pos == NULL_POSITION)
-		jump_loc((POSITION)0, sc_height-1);
+		jump_loc(ch_zero(), sc_height-1);
 	else
 	{
 		jump_loc(pos, sc_height-1);
@@ -122,11 +122,11 @@ repaint()
 	 * Start at the line currently at the top of the screen
 	 * and redisplay the screen.
 	 */
-	get_scrpos(&scrpos);
+	get_scrpos(&scrpos, TOP);
 	pos_clear();
 	if (scrpos.pos == NULL_POSITION)
 		/* Screen hasn't been drawn yet. */
-		jump_loc(0, 0);
+		jump_loc(ch_zero(), 1);
 	else
 		jump_loc(scrpos.pos, scrpos.ln);
 }
@@ -201,13 +201,14 @@ jump_loc(pos, sline)
 	int sline;
 {
 	int nline;
+	int sindex;
 	POSITION tpos;
 	POSITION bpos;
 
 	/*
 	 * Normalize sline.
 	 */
-	sline = adjsline(sline);
+	sindex = sindex_from_sline(sline);
 
 	if ((nline = onscreen(pos)) >= 0)
 	{
@@ -215,10 +216,10 @@ jump_loc(pos, sline)
 		 * The line is currently displayed.  
 		 * Just scroll there.
 		 */
-		nline -= sline;
+		nline -= sindex;
 		if (nline > 0)
 			forw(nline, position(BOTTOM_PLUS_ONE), 1, 0, 0);
-		else
+		else if (nline < 0)
 			back(-nline, position(TOP), 1, 0);
 #if HILITE_SEARCH
 		if (show_attn)
@@ -251,7 +252,7 @@ jump_loc(pos, sline)
 		 * call forw() and put the desired line at the 
 		 * sline-th line on the screen.
 		 */
-		for (nline = 0;  nline < sline;  nline++)
+		for (nline = 0;  nline < sindex;  nline++)
 		{
 			if (bpos != NULL_POSITION && pos <= bpos)
 			{
@@ -260,7 +261,7 @@ jump_loc(pos, sline)
 				 * close enough to the current screen
 				 * that we can just scroll there after all.
 				 */
-				forw(sc_height-sline+nline-1, bpos, 1, 0, 0);
+				forw(sc_height-sindex+nline-1, bpos, 1, 0, 0);
 #if HILITE_SEARCH
 				if (show_attn)
 					repaint_hilite(1);
@@ -282,16 +283,16 @@ jump_loc(pos, sline)
 		lastmark();
 		squished = 0;
 		screen_trashed = 0;
-		forw(sc_height-1, pos, 1, 0, sline-nline);
+		forw(sc_height-1, pos, 1, 0, sindex-nline);
 	} else
 	{
 		/*
 		 * The desired line is before the current screen.
 		 * Move forward in the file far enough so that we
 		 * can call back() and put the desired line at the 
-		 * sline-th line on the screen.
+		 * sindex-th line on the screen.
 		 */
-		for (nline = sline;  nline < sc_height - 1;  nline++)
+		for (nline = sindex;  nline < sc_height - 1;  nline++)
 		{
 			pos = forw_line(pos);
 			if (pos == NULL_POSITION)
