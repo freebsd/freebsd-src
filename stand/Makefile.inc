@@ -10,10 +10,12 @@ CFLAGS+=-I${SASRC}
 SSP_CFLAGS=
 
 # Add in the no float / no SIMD stuff and announce we're freestanding
+# aarch64 and riscv don't have -msoft-float, but all others do. riscv
+# currently has no /boot/loader, but may soon.
 CFLAGS+=	-ffreestanding ${CFLAGS_NO_SIMD}
 .if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS+=	-mgeneral-regs-only
-.else
+.elif ${MACHINE_CPUARCH} != "riscv"
 CFLAGS+=	-msoft-float
 .endif
 
