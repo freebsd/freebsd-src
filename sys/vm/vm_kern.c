@@ -528,6 +528,8 @@ _kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	KASSERT(object == kernel_object,
 	    ("kmem_unback: only supports kernel object."));
 
+	if (size == 0)
+		return 0;
 	pmap_remove(kernel_pmap, addr, addr + size);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	end = offset + size;
