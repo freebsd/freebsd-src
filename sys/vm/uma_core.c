@@ -3306,16 +3306,19 @@ void
 uma_reclaim_worker(void *arg __unused)
 {
 
-	sx_xlock(&uma_drain_lock);
 	for (;;) {
-		sx_sleep(uma_reclaim, &uma_drain_lock, PVM, "umarcl", 0);
-		if (uma_reclaim_needed) {
-			sx_xunlock(&uma_drain_lock);
-			EVENTHANDLER_INVOKE(vm_lowmem, VM_LOW_KMEM);
-			sx_xlock(&uma_drain_lock);
-			uma_reclaim_locked(true);
-			atomic_set_int(&uma_reclaim_needed, 0);
-		}
+		sx_xlock(&uma_drain_lock);
+		while (uma_reclaim_needed == 0)
+			sx_sleep(uma_reclaim, &uma_drain_lock, PVM, "umarcl",
+			    hz);
+		sx_xunlock(&uma_drain_lock);
+		EVENTHANDLER_INVOKE(vm_lowmem, VM_LOW_KMEM);
+		sx_xlock(&uma_drain_lock);
+		uma_reclaim_locked(true);
+		atomic_set_int(&uma_reclaim_needed, 0);
+		sx_xunlock(&uma_drain_lock);
+		/* Don't fire more than once per-second. */
+		pause("umarclslp", hz);
 	}
 }
 
