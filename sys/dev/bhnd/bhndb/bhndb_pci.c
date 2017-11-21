@@ -509,7 +509,7 @@ bhndb_pci_read_core_table(device_t dev, struct bhnd_chipid *chipid,
 	hint = BHNDB_BUS_GET_CHIPID(parent_dev, dev);
 
 	/* Allocate our host resources */
-	if ((error = bhndb_alloc_host_resources(parent_dev, cfg, &hr)))
+	if ((error = bhndb_alloc_host_resources(&hr, dev, parent_dev, cfg)))
 		return (error);
 
 	/* Initialize our erom I/O state */

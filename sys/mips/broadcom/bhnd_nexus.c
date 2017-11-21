@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/bhnd/bhndvar.h>
 #include <dev/bhnd/bhnd_ids.h>
 
+#include <dev/bhnd/cores/chipc/chipcreg.h>
+
 #include "bcm_machdep.h"
 #include "bcm_mipsvar.h"
 
@@ -194,6 +196,44 @@ bhnd_nexus_unmap_intr(device_t dev, device_t child, rman_res_t irq)
 	intr_unmap_irq(irq);
 }
 
+/**
+ * Default bhnd_nexus implementation of BHND_BUS_GET_DMA_TRANSLATION().
+ */
+static int
+bhnd_nexus_get_dma_translation(device_t dev, device_t child,
+    u_int width, uint32_t flags, bus_dma_tag_t *dmat,
+    struct bhnd_dma_translation *translation)
+{
+	struct bcm_platform *bp = bcm_get_platform();
+
+	/* We don't (currently) support any flags */
+	if (flags != 0x0)
+		return (ENOENT);
+
+	KASSERT(width > 0 && width <= BHND_DMA_ADDR_64BIT,
+	    ("invalid width %u", width));
+
+	if (width > BHND_DMA_ADDR_32BIT) {
+		/* Backplane must support 64-bit addressing */
+		if (!(bp->cc_caps & CHIPC_CAP_BKPLN64))
+			return (ENOENT);
+	}
+
+	/* No DMA address translation required */
+	if (dmat != NULL)
+		*dmat = bus_get_dma_tag(dev);
+
+	if (translation != NULL) {
+		*translation = (struct bhnd_dma_translation) {
+			.base_addr	= 0x0,
+			.addr_mask	= BHND_DMA_ADDR_BITMASK(width),
+			.addrext_mask	= 0
+		};
+	}
+
+	return (0);
+}
+
 static device_method_t bhnd_nexus_methods[] = {
 	/* bhnd interface */
 	DEVMETHOD(bhnd_bus_get_service_registry,bhnd_nexus_get_service_registry),
@@ -206,6 +246,7 @@ static device_method_t bhnd_nexus_methods[] = {
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_nexus_is_hw_disabled),
 	DEVMETHOD(bhnd_bus_get_attach_type,	bhnd_nexus_get_attach_type),
 	DEVMETHOD(bhnd_bus_get_chipid,		bhnd_nexus_get_chipid),
+	DEVMETHOD(bhnd_bus_get_dma_translation,	bhnd_nexus_get_dma_translation),
 	DEVMETHOD(bhnd_bus_get_intr_domain,	bhnd_bus_generic_get_intr_domain),
 	DEVMETHOD(bhnd_bus_map_intr,		bhnd_nexus_map_intr),
 	DEVMETHOD(bhnd_bus_unmap_intr,		bhnd_nexus_unmap_intr),

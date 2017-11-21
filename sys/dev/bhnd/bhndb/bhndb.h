@@ -107,12 +107,13 @@ struct bhndb_regwin {
 /**
  * Bridge hardware configuration.
  * 
- * Provides the bridge's register/address mappings, and the resources
- * via which those mappings may be accessed.
+ * Provides the bridge's DMA address translation descriptions, register/address
+ * mappings, and the resources via which those mappings may be accessed.
  */
 struct bhndb_hwcfg {
-	const struct resource_spec	*resource_specs;
-	const struct bhndb_regwin	*register_windows;
+	const struct resource_spec		*resource_specs;	/**< resources required by our register windows */
+	const struct bhndb_regwin		*register_windows;	/**< register window table */
+	const struct bhnd_dma_translation	*dma_translations;	/**< DMA address translation table, or NULL if DMA is not supported */
 };
 
 /**
