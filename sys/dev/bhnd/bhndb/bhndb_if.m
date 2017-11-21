@@ -1,6 +1,10 @@
 #-
-# Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+# Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+# Copyright (c) 2017 The FreeBSD Foundation
 # All rights reserved.
+#
+# Portions of this software were developed by Landon Fuller
+# under sponsorship from the FreeBSD Foundation.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -40,6 +44,7 @@
 INTERFACE bhndb;
 
 HEADER {
+	struct bhndb_intr_isrc;
 	struct bhndb_regwin;
 	struct bhndb_hw;
 	struct bhndb_hw_priority;
@@ -91,10 +96,23 @@ CODE {
 	}
 
 	static int
+	bhndb_null_route_interrupts(device_t dev, device_t child)
+	{
+		panic("bhndb_route_interrupts unimplemented");
+	}
+
+	static int
 	bhndb_null_set_window_addr(device_t dev,
 	    const struct bhndb_regwin *rw, bhnd_addr_t addr)
 	{
 		panic("bhndb_set_window_addr unimplemented");
+	}
+
+	static int
+	bhndb_null_map_intr_isrc(device_t dev, struct resource *irq,
+	    struct bhndb_intr_isrc **isrc)
+	{
+		panic("bhndb_map_intr_isrc unimplemented");
 	}
 }
 
@@ -208,6 +226,17 @@ METHOD int resume_resource {
 } DEFAULT bhndb_null_resume_resource;
 
 /**
+ * Enable bridge-level interrupt routing for @p child.
+ *
+ * @param dev The bridge device.
+ * @param child The bhnd child device for which interrupts should be routed.
+ */
+METHOD int route_interrupts {
+	device_t dev;
+	device_t child;
+} DEFAULT bhndb_null_route_interrupts;
+
+/**
  * Set a given register window's base address.
  *
  * @param dev The bridge device.
@@ -224,3 +253,22 @@ METHOD int set_window_addr {
 	const struct bhndb_regwin *win;
 	bhnd_addr_t addr;
 } DEFAULT bhndb_null_set_window_addr;
+
+/**
+ * Map a bridged interrupt resource to its corresponding host interrupt source,
+ * if any.
+ *
+ * @param dev The bridge device.
+ * @param irq The bridged interrupt resource.
+ * @param[out] isrc The host interrupt source to which the bridged interrupt
+ * is routed.
+ *
+ * @retval 0 success
+ * @retval non-zero if mapping @p irq otherwise fails, a regular unix error code
+ * will be returned.
+ */
+METHOD int map_intr_isrc {
+	device_t dev;
+	struct resource *irq;
+	struct bhndb_intr_isrc **isrc;
+} DEFAULT bhndb_null_map_intr_isrc;

@@ -141,25 +141,6 @@ CODE {
 		panic("bhnd_bus_read_boardinfo unimplemented");
 	}
 
-	static int
-	bhnd_bus_null_get_intr_count(device_t dev, device_t child)
-	{
-		panic("bhnd_bus_get_intr_count unimplemented");
-	}
-
-	static int
-	bhnd_bus_null_assign_intr(device_t dev, device_t child, int rid)
-	{
-		panic("bhnd_bus_assign_intr unimplemented");
-	}
-
-	static int
-	bhnd_bus_null_get_core_ivec(device_t dev, device_t child, u_int intr,
-	    uint32_t *ivec)
-	{
-		panic("bhnd_bus_get_core_ivec unimplemented");
-	}
-
 	static void
 	bhnd_bus_null_child_added(device_t dev, device_t child)
 	{
@@ -241,6 +222,39 @@ CODE {
 	bhnd_bus_null_get_probe_order(device_t dev, device_t child)
 	{
 		panic("bhnd_bus_get_probe_order unimplemented");
+	}
+
+	static uintptr_t
+	bhnd_bus_null_get_intr_domain(device_t dev, device_t child, bool self)
+	{
+		/* Unsupported */
+		return (0);
+	}
+
+	static u_int
+	bhnd_bus_null_get_intr_count(device_t dev, device_t child)
+	{
+		return (0);
+	}
+
+	static int
+	bhnd_bus_null_get_intr_ivec(device_t dev, device_t child, u_int intr,
+	    u_int *ivec)
+	{
+		panic("bhnd_bus_get_intr_ivec unimplemented");
+	}
+	
+	static int
+	bhnd_bus_null_map_intr(device_t dev, device_t child, u_int intr,
+	    rman_res_t *irq)
+	{
+	    panic("bhnd_bus_map_intr unimplemented");
+	}
+
+	static int
+	bhnd_bus_null_unmap_intr(device_t dev, device_t child, rman_res_t irq)
+	{
+	    panic("bhnd_bus_unmap_intr unimplemented");
 	}
 
 	static int
@@ -486,77 +500,6 @@ METHOD int read_board_info {
 	device_t child;
 	struct bhnd_board_info *info;
 } DEFAULT bhnd_bus_null_read_board_info;
-
-/**
- * Return the number of interrupts to be assigned to @p child via
- * BHND_BUS_ASSIGN_INTR().
- * 
- * @param dev The bhnd bus parent of @p child.
- * @param child The bhnd device for which a count should be returned.
- *
- * @retval 0		If no interrupts should be assigned.
- * @retval non-zero	The count of interrupt resource IDs to be
- *			assigned, starting at rid 0.
- */
-METHOD int get_intr_count {
-	device_t dev;
-	device_t child;
-} DEFAULT bhnd_bus_null_get_intr_count;
-
-/**
- * Assign an interrupt to @p child via bus_set_resource().
- *
- * The default bus implementation of this method should assign backplane
- * interrupt values to @p child.
- *
- * Bridge-attached bus implementations may instead override standard
- * interconnect IRQ assignment, providing IRQs inherited from the parent bus.
- *
- * TODO: Once we can depend on INTRNG, investigate replacing this with a
- * bridge-level interrupt controller.
- * 
- * @param dev The bhnd bus parent of @p child.
- * @param child The bhnd device to which an interrupt should be assigned.
- * @param rid The interrupt resource ID to be assigned.
- *
- * @retval 0		If an interrupt was assigned.
- * @retval non-zero	If assigning an interrupt otherwise fails, a regular
- *			unix error code will be returned.
- */
-METHOD int assign_intr {
-	device_t dev;
-	device_t child;
-	int rid;
-} DEFAULT bhnd_bus_null_assign_intr;
-
-/**
- * Return the backplane interrupt vector corresponding to @p child's given
- * @p intr number.
- * 
- * @param dev The bhnd bus parent of @p child.
- * @param child The bhnd device for which the assigned interrupt vector should
- * be queried.
- * @param intr The interrupt number being queried. This is equivalent to the
- * bus resource ID for the interrupt.
- * @param[out] ivec On success, the assigned hardware interrupt vector be
- * written to this pointer.
- *
- * On bcma(4) devices, this returns the OOB bus line assigned to the
- * interrupt.
- *
- * On siba(4) devices, this returns the target OCP slave flag number assigned
- * to the interrupt.
- *
- * @retval 0		success
- * @retval ENXIO	If @p intr exceeds the number of interrupts available
- *			to @p child.
- */
-METHOD int get_core_ivec {
-	device_t dev;
-	device_t child;
-	u_int intr;
-	uint32_t *ivec;
-} DEFAULT bhnd_bus_null_get_core_ivec;
 
 /**
  * Notify a bhnd bus that a child was added.
@@ -996,6 +939,106 @@ METHOD int deactivate_resource {
 	int rid;
         struct bhnd_resource *r;
 } DEFAULT bhnd_bus_generic_deactivate_resource;
+
+/**
+ * Return the interrupt domain.
+ *
+ * This globally unique value may be used as the interrupt controller 'xref'
+ * on targets that support INTRNG.
+ *
+ * @param dev The device whose child is being examined.
+ * @param child The child device.
+ * @parem self If true, return @p child's interrupt domain, rather than the
+ * domain in which @p child resides.
+ *
+ * On Non-OFW targets, this should either return:
+ *   - The pointer address of a device that can uniquely identify @p child's
+ *     interrupt domain (e.g., the bhnd bus' device_t address), or
+ *   - 0 if unsupported by the bus.
+ *
+ * On OFW (including FDT) targets, this should return the @p child's iparent
+ * property's xref if @p self is false, the child's own node xref value if
+ * @p self is true, or 0 if no interrupt parent is found.
+ */
+METHOD uintptr_t get_intr_domain {
+	device_t dev;
+	device_t child;
+	bool self;
+} DEFAULT bhnd_bus_null_get_intr_domain;
+ 
+/**
+ * Return the number of interrupt lines assigned to @p child.
+ * 
+ * @param dev The bhnd device whose child is being examined.
+ * @param child The child device.
+ */
+METHOD u_int get_intr_count {
+	device_t dev;
+	device_t child;
+} DEFAULT bhnd_bus_null_get_intr_count;
+
+/**
+ * Get the backplane interrupt vector of the @p intr line attached to @p child.
+ * 
+ * @param dev The device whose child is being examined.
+ * @param child The child device.
+ * @param intr The index of the interrupt line being queried.
+ * @param[out] ivec On success, the assigned hardware interrupt vector will be
+ * written to this pointer.
+ *
+ * On bcma(4) devices, this returns the OOB bus line assigned to the
+ * interrupt.
+ *
+ * On siba(4) devices, this returns the target OCP slave flag number assigned
+ * to the interrupt.
+ *
+ * @retval 0		success
+ * @retval ENXIO	If @p intr exceeds the number of interrupt lines
+ *			assigned to @p child.
+ */
+METHOD int get_intr_ivec {
+	device_t dev;
+	device_t child;
+	u_int intr;
+	u_int *ivec;
+} DEFAULT bhnd_bus_null_get_intr_ivec;
+
+/**
+ * Map the given @p intr to an IRQ number; until unmapped, this IRQ may be used
+ * to allocate a resource of type SYS_RES_IRQ.
+ * 
+ * On success, the caller assumes ownership of the interrupt mapping, and
+ * is responsible for releasing the mapping via BHND_BUS_UNMAP_INTR().
+ * 
+ * @param dev The bhnd bus device.
+ * @param child The requesting child device.
+ * @param intr The interrupt being mapped.
+ * @param[out] irq On success, the bus interrupt value mapped for @p intr.
+ *
+ * @retval 0		If an interrupt was assigned.
+ * @retval non-zero	If mapping an interrupt otherwise fails, a regular
+ *			unix error code will be returned.
+ */
+METHOD int map_intr {
+	device_t dev;
+	device_t child;
+	u_int intr;
+	rman_res_t *irq;
+} DEFAULT bhnd_bus_null_map_intr;
+
+/**
+ * Unmap an bus interrupt previously mapped via BHND_BUS_MAP_INTR().
+ * 
+ * @param dev The bhnd bus device.
+ * @param child The requesting child device.
+ * @param intr The interrupt number being unmapped. This is equivalent to the
+ * bus resource ID for the interrupt.
+ */
+METHOD void unmap_intr {
+	device_t dev;
+	device_t child;
+	rman_res_t irq;
+} DEFAULT bhnd_bus_null_unmap_intr;
 
 /**
  * Return true if @p region_num is a valid region on @p port_num of

@@ -86,6 +86,12 @@ int				 bhnd_generic_suspend_child(device_t dev,
 int				 bhnd_generic_resume_child(device_t dev,
 				     device_t child);
 
+int				 bhnd_generic_setup_intr(device_t dev,
+				     device_t child, struct resource *irq,
+				     int flags, driver_filter_t *filter,
+				     driver_intr_t *intr, void *arg,
+				     void **cookiep);
+
 int				 bhnd_generic_get_nvram_var(device_t dev,
 				     device_t child, const char *name,
 				     void *buf, size_t *size,

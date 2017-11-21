@@ -39,9 +39,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/bhnd/bhnd_ids.h>
 
+#include <dev/bhnd/siba/sibareg.h>
 #include <dev/bhnd/siba/sibavar.h>
 
 #include "bcm_machdep.h"
+#include "bcm_mipsvar.h"
 
 #include "bhnd_nexusvar.h"
 
@@ -50,6 +52,9 @@ __FBSDID("$FreeBSD$");
  * 
  * Derived from Bruce M. Simpson' original siba(4) driver.
  */
+
+_Static_assert(SIBA_MAX_INTR == BCM_MIPS_NINTR, "SIBA incompatible with "
+    "generic NINTR");
 
 static int
 siba_nexus_probe(device_t dev)

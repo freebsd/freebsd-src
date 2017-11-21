@@ -814,6 +814,22 @@ bhnd_generic_resume_child(device_t dev, device_t child)
 	return bus_generic_resume_child(dev, child);
 }
 
+
+/**
+ * Default bhnd(4) bus driver implementation of BUS_SETUP_INTR().
+ *
+ * This implementation of BUS_SETUP_INTR() will delegate interrupt setup
+ * to the parent of @p dev, if any.
+ */
+int
+bhnd_generic_setup_intr(device_t dev, device_t child, struct resource *irq,
+    int flags, driver_filter_t *filter, driver_intr_t *intr, void *arg,
+    void **cookiep)
+{
+	return (bus_generic_setup_intr(dev, child, irq, flags, filter, intr,
+	    arg, cookiep));
+}
+
 /*
  * Delegate all indirect I/O to the parent device. When inherited by
  * non-bridged bus implementations, resources will never be marked as
@@ -917,7 +933,7 @@ static device_method_t bhnd_methods[] = {
 	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
 
-	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
+	DEVMETHOD(bus_setup_intr,		bhnd_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
 	DEVMETHOD(bus_config_intr,		bus_generic_config_intr),
 	DEVMETHOD(bus_bind_intr,		bus_generic_bind_intr),

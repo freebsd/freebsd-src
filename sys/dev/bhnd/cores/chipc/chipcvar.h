@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -138,6 +142,8 @@ enum {
  */
 struct chipc_devinfo {
 	struct resource_list	resources;	/**< child resources */
+	rman_res_t		irq;		/**< child IRQ, if mapped */
+	bool			irq_mapped;	/**< true if IRQ mapped, false otherwise */
 };
 
 /**

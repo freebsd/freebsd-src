@@ -162,22 +162,69 @@ chipc_init_child_resource(struct resource *r,
 }
 
 /**
- * Associate a resource with a given resource ID, relative to the given
- * port and region.
+ * Map an interrupt line to an IRQ, and then register a corresponding SYS_RES_IRQ
+ * with @p child's resource list.
+ *
+ * @param sc chipc driver state.
+ * @param child The device to set the resource on.
+ * @param rid The resource ID.
+ * @param intr The interrupt line to be mapped.
+ * @param count The length of the resource.
+ * @param port The mapping port number (ignored if not SYS_RES_MEMORY).
+ * @param region The mapping region number (ignored if not SYS_RES_MEMORY).
+ */
+int
+chipc_set_irq_resource(struct chipc_softc *sc, device_t child, int rid,
+    u_int intr)
+{
+	struct chipc_devinfo	*dinfo;
+	int			 error;
+
+	KASSERT(device_get_parent(child) == sc->dev, ("not a direct child"));
+	dinfo = device_get_ivars(child);
+
+	/* We currently only support a single IRQ mapping */
+	if (dinfo->irq_mapped) {
+		device_printf(sc->dev, "irq already mapped for child\n");
+		return (ENOMEM);
+	}
+
+	/* Map the IRQ */
+	if ((error = bhnd_map_intr(sc->dev, intr, &dinfo->irq))) {
+		device_printf(sc->dev, "failed to map intr %u: %d\n", intr,
+		    error);
+		return (error);
+	}
+
+	dinfo->irq_mapped = true;
+
+	/* Add to child's resource list */
+	error = bus_set_resource(child, SYS_RES_IRQ, rid, dinfo->irq, 1);
+	if (error) {
+		device_printf(sc->dev, "failed to set child irq resource %d to "
+		    "%ju: %d\n", rid, dinfo->irq, error);
+
+		bhnd_unmap_intr(sc->dev, dinfo->irq);
+		return (error);
+	}
+
+	return (0);
+}
+
+
+/**
+ * Add a SYS_RES_MEMORY resource with a given resource ID, relative to the
+ * given port and region, to @p child's resource list.
  * 
- * This function behaves identically to bus_set_resource() for all resource
- * types other than SYS_RES_MEMORY.
- * 
- * For SYS_RES_MEMORY resources, the specified @p region's address and size
- * will be fetched from the bhnd(4) bus, and bus_set_resource() will be called
- * with @p start added the region's actual base address.
+ * The specified @p region's address and size will be fetched from the bhnd(4)
+ * bus, and bus_set_resource() will be called with @p start added the region's
+ * actual base address.
  * 
  * To use the default region values for @p start and @p count, specify
  * a @p start value of 0ul, and an end value of RMAN_MAX_END
  * 
  * @param sc chipc driver state.
  * @param child The device to set the resource on.
- * @param type The resource type.
  * @param rid The resource ID.
  * @param start The resource start address (if SYS_RES_MEMORY, this is
  * relative to @p region's base address).
@@ -186,7 +233,7 @@ chipc_init_child_resource(struct resource *r,
  * @param region The mapping region number (ignored if not SYS_RES_MEMORY).
  */
 int
-chipc_set_resource(struct chipc_softc *sc, device_t child, int type, int rid,
+chipc_set_mem_resource(struct chipc_softc *sc, device_t child, int rid,
     rman_res_t start, rman_res_t count, u_int port, u_int region)
 {
 	bhnd_addr_t	region_addr;
@@ -194,9 +241,7 @@ chipc_set_resource(struct chipc_softc *sc, device_t child, int type, int rid,
 	bool		isdefault;
 	int		error;
 
-	if (type != SYS_RES_MEMORY)
-		return (bus_set_resource(child, type, rid, start, count));
-
+	KASSERT(device_get_parent(child) == sc->dev, ("not a direct child"));
 	isdefault = RMAN_IS_DEFAULT_RANGE(start, count);
 
 	/* Fetch region address and size */
@@ -224,7 +269,8 @@ chipc_set_resource(struct chipc_softc *sc, device_t child, int type, int rid,
 		return (ERANGE);
 	}
 
-	return (bus_set_resource(child, type, rid, region_addr + start, count));
+	return (bus_set_resource(child, SYS_RES_MEMORY, rid,
+	    region_addr + start, count));
 }
 
 

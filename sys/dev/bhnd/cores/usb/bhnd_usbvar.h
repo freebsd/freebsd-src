@@ -50,7 +50,8 @@ struct bhnd_usb_softc {
 struct bhnd_usb_devinfo {
 	struct resource_list	sdi_rl;
 	uint8_t			sdi_unit;	/* core index on bus */
-	uint8_t			sdi_irq;
+	rman_res_t		sdi_irq;	/**< child IRQ, if mapped */
+	bool			sdi_irq_mapped;	/**< true if IRQ mapped, false otherwise */
 	char 			sdi_name[8];
 	rman_res_t 		sdi_maddr;
 	rman_res_t 		sdi_msize;
