@@ -220,6 +220,94 @@ struct bhnd_core_info {
 };
 
 /**
+ * bhnd(4) DMA address widths.
+ */
+typedef enum {
+	BHND_DMA_ADDR_30BIT	= 30,	/**< 30-bit DMA */
+	BHND_DMA_ADDR_32BIT	= 32,	/**< 32-bit DMA */
+	BHND_DMA_ADDR_64BIT	= 64,	/**< 64-bit DMA */
+} bhnd_dma_addrwidth;
+
+/**
+ * Convert an address width (in bits) to its corresponding mask.
+ */
+#define	BHND_DMA_ADDR_BITMASK(_width)	\
+	((_width >= 64) ? ~0ULL :	\
+	 (_width == 0) ? 0x0 :		\
+	 ((1ULL << (_width)) - 1))	\
+
+/**
+ * bhnd(4) DMA address translation descriptor.
+ */
+struct bhnd_dma_translation {
+	/**
+	 * Host-to-device physical address translation.
+	 * 
+	 * This may be added to the host physical address to produce a device
+	 * DMA address.
+	 */
+	bhnd_addr_t	base_addr;
+
+	/**
+	 * Device-addressable address mask.
+	 * 
+	 * This defines the device's DMA address range, excluding any bits
+	 * reserved for mapping the address to the base_addr.
+	 */
+	bhnd_addr_t	addr_mask;
+
+	/**
+	 * Device-addressable extended address mask.
+	 *
+	 * If a per-core bhnd(4) DMA engine supports the 'addrext' control
+	 * field, it can be used to provide address bits excluded by addr_mask.
+	 *
+	 * Support for DMA extended address changes – including coordination
+	 * with the core providing DMA translation – is handled transparently by
+	 * the DMA engine. For example, on PCI(e) Wi-Fi chipsets, the Wi-Fi
+	 * core DMA engine will (in effect) update the PCI core's DMA
+	 * sbtopcitranslation base address to map the full address prior to
+	 * performing a DMA transaction.
+	 */
+	bhnd_addr_t	addrext_mask;
+
+	/**
+	 * Translation flags (see bhnd_dma_translation_flags)
+	 */
+	uint32_t	flags;
+};
+
+#define	BHND_DMA_TRANSLATION_TABLE_END	{ 0, 0, 0, 0 }
+
+#define	BHND_DMA_IS_TRANSLATION_TABLE_END(_dt)			\
+	((_dt)->base_addr == 0 && (_dt)->addr_mask == 0 &&	\
+	 (_dt)->addrext_mask == 0 && (_dt)->flags == 0)
+
+/**
+ * bhnd(4) DMA address translation flags.
+ */
+enum bhnd_dma_translation_flags {
+	/**
+	 * The translation remaps the device's physical address space.
+	 * 
+	 * This is used in conjunction with BHND_DMA_TRANSLATION_BYTESWAPPED to
+	 * define a DMA translation that provides byteswapped access to
+	 * physical memory on big-endian MIPS SoCs.
+	 */
+	BHND_DMA_TRANSLATION_PHYSMAP		= (1<<0),
+
+	/**
+	 * Provides a byte-swapped mapping; write requests will be byte-swapped
+	 * before being written to memory, and read requests will be
+	 * byte-swapped before being returned.
+	 *
+	 * This is primarily used to perform efficient byte swapping of DMA
+	 * data on embedded MIPS SoCs executing in big-endian mode.
+	 */
+	BHND_DMA_TRANSLATION_BYTESWAPPED	= (1<<1),	
+};
+
+/**
 * A bhnd(4) bus resource.
 * 
 * This provides an abstract interface to per-core resources that may require
@@ -512,6 +600,10 @@ int				 bhnd_bus_generic_get_nvram_var(device_t dev,
 				     bhnd_nvram_type type);
 const struct bhnd_chipid	*bhnd_bus_generic_get_chipid(device_t dev,
 				     device_t child);
+int				 bhnd_bus_generic_get_dma_translation(
+				     device_t dev, device_t child, u_int width,
+				     uint32_t flags, bus_dma_tag_t *dmat,
+				     struct bhnd_dma_translation *translation);
 int				 bhnd_bus_generic_read_board_info(device_t dev,
 				     device_t child,
 				     struct bhnd_board_info *info);
@@ -840,6 +932,38 @@ bhnd_pwrctl_ungate_clock(device_t dev, bhnd_clock clock)
 static inline bhnd_attach_type
 bhnd_get_attach_type (device_t dev) {
 	return (BHND_BUS_GET_ATTACH_TYPE(device_get_parent(dev), dev));
+}
+
+/**
+ * Find the best available DMA address translation capable of mapping a
+ * physical host address to a BHND DMA device address of @p width with
+ * @p flags.
+ *
+ * @param dev A bhnd bus child device.
+ * @param width The address width within which the translation window must
+ * reside (see BHND_DMA_ADDR_*).
+ * @param flags Required translation flags (see BHND_DMA_TRANSLATION_*).
+ * @param[out] dmat On success, will be populated with a DMA tag specifying the
+ * @p translation DMA address restrictions. This argment may be NULL if the DMA
+ * tag is not desired.
+ * the set of valid host DMA addresses reachable via @p translation.
+ * @param[out] translation On success, will be populated with a DMA address
+ * translation descriptor for @p child. This argment may be NULL if the
+ * descriptor is not desired.
+ *
+ * @retval 0 success
+ * @retval ENODEV If DMA is not supported.
+ * @retval ENOENT If no DMA translation matching @p width and @p flags is
+ * available.
+ * @retval non-zero If determining the DMA address translation for @p child
+ * otherwise fails, a regular unix error code will be returned.
+ */
+static inline int
+bhnd_get_dma_translation(device_t dev, u_int width, uint32_t flags,
+    bus_dma_tag_t *dmat, struct bhnd_dma_translation *translation)
+{
+	return (BHND_BUS_GET_DMA_TRANSLATION(device_get_parent(dev), dev, width,
+	    flags, dmat, translation));
 }
 
 /**
