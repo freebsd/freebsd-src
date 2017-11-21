@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-HAVE_GPT=		yes
 HAVE_GELI=		yes
 
 .include <bsd.init.mk>
