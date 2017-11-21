@@ -46,6 +46,7 @@ HEADER {
 	struct bhnd_board_info;
 	struct bhnd_core_info;
 	struct bhnd_chipid;
+	struct bhnd_dma_translation;
 	struct bhnd_devinfo;
 	struct bhnd_resource;
 }
@@ -112,7 +113,7 @@ CODE {
 	{
 		panic("bhnd_bus_get_attach_type unimplemented");
 	}
-	
+
 	static bhnd_clksrc
 	bhnd_bus_null_pwrctl_get_clksrc(device_t dev, device_t child,
 	    bhnd_clock clock)
@@ -478,6 +479,41 @@ METHOD bhnd_attach_type get_attach_type {
 	device_t dev;
 	device_t child;
 } DEFAULT bhnd_bus_null_get_attach_type;
+
+
+/**
+ * Find the best available DMA address translation capable of mapping a
+ * physical host address to a BHND DMA device address of @p width with
+ * @p flags.
+ *
+ * @param dev The parent of @p child.
+ * @param child The bhnd device requesting the DMA address translation.
+ * @param width The address width within which the translation window must
+ * reside (see BHND_DMA_ADDR_*).
+ * @param flags Required translation flags (see BHND_DMA_TRANSLATION_*).
+ * @param[out] dmat On success, will be populated with a DMA tag specifying the
+ * @p translation DMA address restrictions. This argment may be NULL if the DMA
+ * tag is not desired.
+ * the set of valid host DMA addresses reachable via @p translation.
+ * @param[out] translation On success, will be populated with a DMA address
+ * translation descriptor for @p child. This argment may be NULL if the
+ * descriptor is not desired.
+ *
+ * @retval 0 success
+ * @retval ENODEV If DMA is not supported.
+ * @retval ENOENT If no DMA translation matching @p width and @p flags is
+ * available.
+ * @retval non-zero If determining the DMA address translation for @p child
+ * otherwise fails, a regular unix error code will be returned.
+ */
+METHOD int get_dma_translation {
+	device_t dev;
+	device_t child;
+	u_int width;
+	uint32_t flags;
+	bus_dma_tag_t *dmat;
+	struct bhnd_dma_translation *translation;
+} DEFAULT bhnd_bus_generic_get_dma_translation;
 
 /**
  * Attempt to read the BHND board identification from the parent bus.
