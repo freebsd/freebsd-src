@@ -1615,6 +1615,7 @@ dev/ed/if_ed_pccard.c		optional ed pccard
 dev/ed/if_ed_pci.c		optional ed pci
 dev/efidev/efidev.c		optional efirt
 dev/efidev/efirt.c		optional efirt
+dev/efidev/efirtc.c		optional efirt
 dev/e1000/if_em.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/em_txrx.c		optional em \
