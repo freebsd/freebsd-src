@@ -127,7 +127,7 @@ static int g_part_bsd64_destroy(struct g_part_table *, struct g_part_parms *);
 static void g_part_bsd64_dumpconf(struct g_part_table *, struct g_part_entry *,
     struct sbuf *, const char *);
 static int g_part_bsd64_dumpto(struct g_part_table *, struct g_part_entry *);
-static int g_part_bsd64_modify(struct g_part_table *, struct g_part_entry *,  
+static int g_part_bsd64_modify(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static const char *g_part_bsd64_name(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
@@ -409,7 +409,7 @@ g_part_bsd64_dumpconf(struct g_part_table *basetable,
 }
 
 static int
-g_part_bsd64_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)  
+g_part_bsd64_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 {
 	struct g_part_bsd64_entry *entry;
 
@@ -577,7 +577,7 @@ invalid_label:
 }
 
 static const char *
-g_part_bsd64_type(struct g_part_table *basetable, struct g_part_entry *baseentry, 
+g_part_bsd64_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {
 	struct g_part_bsd64_entry *entry;
