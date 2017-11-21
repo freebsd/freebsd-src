@@ -59,6 +59,10 @@
 #define	MIPS_PIC_XREF		1	/**< unique xref */
 #endif
 
+#define NHARD_IRQS		6
+#define NSOFT_IRQS		2
+#define NREAL_IRQS		(NHARD_IRQS + NSOFT_IRQS)
+
 #define INTR_IRQ_NSPC_SWI	4
 
 /* MIPS32 PIC APIs */

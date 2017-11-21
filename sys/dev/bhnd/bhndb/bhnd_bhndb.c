@@ -98,10 +98,17 @@ bhnd_bhndb_find_hostb_device(device_t dev)
 }
 
 static int
-bhnd_bhndb_assign_intr(device_t dev, device_t child, int rid)
+bhnd_bhndb_map_intr(device_t dev, device_t child, u_int intr, rman_res_t *irq)
 {
 	/* Delegate to parent bridge */
-	return (BHND_BUS_ASSIGN_INTR(device_get_parent(dev), child, rid));
+	return (BHND_BUS_MAP_INTR(device_get_parent(dev), child, intr, irq));
+}
+
+static void
+bhnd_bhndb_unmap_intr(device_t dev, device_t child, rman_res_t irq)
+{
+	/* Delegate to parent bridge */
+	return (BHND_BUS_UNMAP_INTR(device_get_parent(dev), child, irq));
 }
 
 static bhnd_clksrc
@@ -131,13 +138,48 @@ bhnd_bhndb_pwrctl_ungate_clock(device_t dev, device_t child,
 	    clock));
 }
 
+static int
+bhnd_bhndb_setup_intr(device_t dev, device_t child, struct resource *irq,
+    int flags, driver_filter_t *filter, driver_intr_t *intr, void *arg,
+    void **cookiep)
+{
+	device_t	core, bus;
+	int		error;
+
+	/* Find the actual bus-attached child core */
+	core = child;
+	while ((bus = device_get_parent(core)) != NULL) {
+		if (bus == dev)
+			break;
+
+		core = bus;
+	}
+
+	KASSERT(core != NULL, ("%s is not a child of %s",
+	    device_get_nameunit(child), device_get_nameunit(dev)));
+
+	/* Ask our bridge to enable interrupt routing for the child core */
+	error = BHNDB_ROUTE_INTERRUPTS(device_get_parent(dev), core);
+	if (error)
+		return (error);
+
+	/* Delegate actual interrupt setup to the default bhnd bus
+	 * implementation */
+	return (bhnd_generic_setup_intr(dev, child, irq, flags, filter, intr,
+	    arg, cookiep));
+}
+
 static device_method_t bhnd_bhndb_methods[] = {
+	/* Bus interface */
+	DEVMETHOD(bus_setup_intr,		bhnd_bhndb_setup_intr),
+
 	/* BHND interface */
 	DEVMETHOD(bhnd_bus_get_attach_type,	bhnd_bhndb_get_attach_type),
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_bhndb_is_hw_disabled),
 	DEVMETHOD(bhnd_bus_find_hostb_device,	bhnd_bhndb_find_hostb_device),
 	DEVMETHOD(bhnd_bus_read_board_info,	bhnd_bhndb_read_board_info),
-	DEVMETHOD(bhnd_bus_assign_intr,		bhnd_bhndb_assign_intr),
+	DEVMETHOD(bhnd_bus_map_intr,		bhnd_bhndb_map_intr),
+	DEVMETHOD(bhnd_bus_unmap_intr,		bhnd_bhndb_unmap_intr),
 
 	DEVMETHOD(bhnd_bus_pwrctl_get_clksrc,	bhnd_bhndb_pwrctl_get_clksrc),
 	DEVMETHOD(bhnd_bus_pwrctl_gate_clock,	bhnd_bhndb_pwrctl_gate_clock),
