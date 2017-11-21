@@ -2089,18 +2089,23 @@ static vm_paddr_t
 mmu_booke_kextract(mmu_t mmu, vm_offset_t va)
 {
 	tlb_entry_t e;
+	vm_paddr_t p;
 	int i;
 
-	/* Check TLB1 mappings */
-	for (i = 0; i < TLB1_ENTRIES; i++) {
-		tlb1_read_entry(&e, i);
-		if (!(e.mas1 & MAS1_VALID))
-			continue;
-		if (va >= e.virt && va < e.virt + e.size)
-			return (e.phys + (va - e.virt));
+	p = pte_vatopa(mmu, kernel_pmap, va);
+	
+	if (p == 0) {
+		/* Check TLB1 mappings */
+		for (i = 0; i < TLB1_ENTRIES; i++) {
+			tlb1_read_entry(&e, i);
+			if (!(e.mas1 & MAS1_VALID))
+				continue;
+			if (va >= e.virt && va < e.virt + e.size)
+				return (e.phys + (va - e.virt));
+		}
 	}
 
-	return (pte_vatopa(mmu, kernel_pmap, va));
+	return (p);
 }
 
 /*
