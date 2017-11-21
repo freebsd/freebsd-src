@@ -322,7 +322,7 @@ g_part_mbr_dumpconf(struct g_part_table *basetable, struct g_part_entry *baseent
 		if (entry->ent.dp_flag & 0x80)
 			sbuf_printf(sb, "%s<attrib>active</attrib>\n", indent);
 		dsn = le32dec(table->mbr + DOSDSNOFF);
-		sbuf_printf(sb, "%s<efimedia>HD(%d,MBR,%d,%#jx,%#jx)", indent,
+		sbuf_printf(sb, "%s<efimedia>HD(%d,MBR,%#08x,%#jx,%#jx)", indent,
 		    entry->base.gpe_index, dsn, (intmax_t)entry->base.gpe_start,
 		    (intmax_t)(entry->base.gpe_end - entry->base.gpe_start + 1));
 		sbuf_printf(sb, "</efimedia>\n");
