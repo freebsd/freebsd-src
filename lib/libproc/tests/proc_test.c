@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014-2016 Mark Johnston <markj@FreeBSD.org>
+ * Copyright (c) 2014-2017 Mark Johnston <markj@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -370,6 +370,93 @@ ATF_TC_BODY(signal_forward, tc)
 	proc_free(phdl);
 }
 
+ATF_TC(symbol_sort_local);
+ATF_TC_HEAD(symbol_sort_local, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Ensure that proc_addr2sym() returns the non-local alias when "
+	    "the address resolves to multiple symbols.");
+}
+ATF_TC_BODY(symbol_sort_local, tc)
+{
+	char symname[32];
+	GElf_Sym bar_sym;
+	struct proc_handle *phdl;
+	int error;
+
+	phdl = start_prog(tc, true);
+
+	error = proc_name2sym(phdl, target_prog_file, "bar", &bar_sym, NULL);
+	ATF_REQUIRE_MSG(error == 0, "failed to look up 'bar' in %s",
+	    target_prog_file);
+	ATF_REQUIRE(GELF_ST_BIND(bar_sym.st_info) == STB_LOCAL);
+
+	error = proc_addr2sym(phdl, bar_sym.st_value, symname, sizeof(symname),
+	    &bar_sym);
+	ATF_REQUIRE_MSG(error == 0, "failed to resolve 'bar' by addr");
+
+	ATF_REQUIRE_MSG(strcmp(symname, "baz") == 0,
+	    "unexpected symbol name '%s'", symname);
+	ATF_REQUIRE(GELF_ST_BIND(bar_sym.st_info) == STB_GLOBAL);
+}
+
+ATF_TC(symbol_sort_prefix);
+ATF_TC_HEAD(symbol_sort_prefix, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Ensure that proc_addr2sym() returns the alias whose name is not "
+	    "prefixed with '$' if one exists.");
+}
+ATF_TC_BODY(symbol_sort_prefix, tc)
+{
+	char symname[32];
+	GElf_Sym qux_sym;
+	struct proc_handle *phdl;
+	int error;
+
+	phdl = start_prog(tc, true);
+
+	error = proc_name2sym(phdl, target_prog_file, "$qux", &qux_sym, NULL);
+	ATF_REQUIRE_MSG(error == 0, "failed to look up '$qux' in %s",
+	    target_prog_file);
+
+	error = proc_addr2sym(phdl, qux_sym.st_value, symname, sizeof(symname),
+	    &qux_sym);
+	ATF_REQUIRE_MSG(error == 0, "failed to resolve 'qux' by addr");
+
+	ATF_REQUIRE_MSG(strcmp(symname, "qux") == 0,
+	    "unexpected symbol name '%s'", symname);
+}
+
+ATF_TC(symbol_sort_underscore);
+ATF_TC_HEAD(symbol_sort_underscore, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Ensure that proc_addr2sym() returns the alias with fewest leading "
+	    "underscores in the name when the address resolves to multiple "
+	    "symbols.");
+}
+ATF_TC_BODY(symbol_sort_underscore, tc)
+{
+	char symname[32];
+	GElf_Sym foo_sym;
+	struct proc_handle *phdl;
+	int error;
+
+	phdl = start_prog(tc, true);
+
+	error = proc_name2sym(phdl, target_prog_file, "foo", &foo_sym, NULL);
+	ATF_REQUIRE_MSG(error == 0, "failed to look up 'foo' in %s",
+	    target_prog_file);
+
+	error = proc_addr2sym(phdl, foo_sym.st_value, symname, sizeof(symname),
+	    &foo_sym);
+	ATF_REQUIRE_MSG(error == 0, "failed to resolve 'foo' by addr");
+
+	ATF_REQUIRE_MSG(strcmp(symname, "foo") == 0,
+	    "unexpected symbol name '%s'", symname);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -379,6 +466,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, symbol_lookup);
 	ATF_TP_ADD_TC(tp, symbol_lookup_fail);
 	ATF_TP_ADD_TC(tp, signal_forward);
+	ATF_TP_ADD_TC(tp, symbol_sort_local);
+	ATF_TP_ADD_TC(tp, symbol_sort_prefix);
+	ATF_TP_ADD_TC(tp, symbol_sort_underscore);
 
 	return (atf_no_error());
 }
