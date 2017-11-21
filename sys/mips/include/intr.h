@@ -55,7 +55,16 @@
 #define	NIRQ			MIPS_NIRQ
 #endif
 
+#ifndef FDT
+#define	MIPS_PIC_XREF		1	/**< unique xref */
+#endif
+
 #define INTR_IRQ_NSPC_SWI	4
+
+/* MIPS32 PIC APIs */
+int mips_pic_map_fixed_intrs(void);
+int mips_pic_activate_intr(device_t child, struct resource *r);
+int mips_pic_deactivate_intr(device_t child, struct resource *r);
 
 /* MIPS compatibility for legacy mips code */
 void cpu_init_interrupts(void);
@@ -63,8 +72,6 @@ void cpu_establish_hardintr(const char *, driver_filter_t *, driver_intr_t *,
     void *, int, int, void **);
 void cpu_establish_softintr(const char *, driver_filter_t *, void (*)(void*),
     void *, int, int, void **);
-int cpu_create_intr_map(int);
-struct resource *cpu_get_irq_resource(int);
 /* MIPS interrupt C entry point */
 void cpu_intr(struct trapframe *);
 
