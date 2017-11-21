@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 28, 2016
+.Dd November 11, 2017
 .Dt SX 9
 .Os
 .Sh NAME
@@ -49,7 +49,8 @@
 .Nm sx_xholder ,
 .Nm sx_xlocked ,
 .Nm sx_assert ,
-.Nm SX_SYSINIT
+.Nm SX_SYSINIT ,
+.Nm SX_SYSINIT_FLAGS
 .Nd kernel shared/exclusive lock
 .Sh SYNOPSIS
 .In sys/param.h
@@ -95,7 +96,8 @@
 .Ft void
 .Fn sx_assert "const struct sx *sx" "int what"
 .In sys/kernel.h
-.Fn SX_SYSINIT "name" "struct sx *sx" "const char *description"
+.Fn SX_SYSINIT "name" "struct sx *sx" "const char *desc"
+.Fn SX_SYSINIT_FLAGS "name" "struct sx *sx" "const char *desc" "int flags"
 .Sh DESCRIPTION
 Shared/exclusive locks are used to protect data that are read far more often
 than they are written.
@@ -295,6 +297,12 @@ but with an additional argument,
 .Fa name ,
 that is used in generating unique variable names for the related
 structures associated with the lock and the sysinit routine.
+The
+.Fn SX_SYSINIT_FLAGS
+macro can similarly be used to initialize a given
+.Fa sx
+lock using
+.Fn sx_init_flags .
 .Pp
 A thread may not hold both a shared lock and an exclusive lock on the same
 lock simultaneously;

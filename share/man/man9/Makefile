@@ -1548,6 +1548,7 @@ MLINKS+=rmlock.9 rm_assert.9 \
 	rmlock.9 rm_runlock.9 \
 	rmlock.9 rm_sleep.9 \
 	rmlock.9 RM_SYSINIT.9 \
+	rmlock.9 RM_SYSINIT_FLAGS.9 \
 	rmlock.9 rm_try_rlock.9 \
 	rmlock.9 rm_wlock.9 \
 	rmlock.9 rm_wowned.9 \
@@ -1580,6 +1581,7 @@ MLINKS+=rwlock.9 rw_assert.9 \
 	rwlock.9 rw_unlock.9 \
 	rwlock.9 rw_sleep.9 \
 	rwlock.9 RW_SYSINIT.9 \
+	rwlock.9 RW_SYSINIT_FLAGS.9 \
 	rwlock.9 rw_try_rlock.9 \
 	rwlock.9 rw_try_upgrade.9 \
 	rwlock.9 rw_try_wlock.9 \
@@ -1788,6 +1790,7 @@ MLINKS+=sx.9 sx_assert.9 \
 	sx.9 sx_slock_sig.9 \
 	sx.9 sx_sunlock.9 \
 	sx.9 SX_SYSINIT.9 \
+	sx.9 SX_SYSINIT_FLAGS.9 \
 	sx.9 sx_try_slock.9 \
 	sx.9 sx_try_upgrade.9 \
 	sx.9 sx_try_xlock.9 \
