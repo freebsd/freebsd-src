@@ -25,12 +25,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2017
+.Dd September 3, 2017
 .Dt sysdecode_mask 3
 .Os
 .Sh NAME
 .Nm sysdecode_mask ,
 .Nm sysdecode_accessmode ,
+.Nm sysdecode_atflags ,
 .Nm sysdecode_capfcntlrights ,
 .Nm sysdecode_fcntl_fileflags ,
 .Nm sysdecode_fileflags ,
@@ -65,6 +66,8 @@
 .In sysdecode.h
 .Ft bool
 .Fn sysdecode_access_mode "FILE *fp" "int mode" "int *rem"
+.Ft bool
+.Fn sysdecode_atflags "FILE *fp" "int flags" "int *rem"
 .Ft bool
 .Fn sysdecode_cap_fcntlrights "FILE *fp" "uint32_t rights" "uint32_t *rem"
 .Ft bool
@@ -148,6 +151,7 @@ Most of these functions decode an argument passed to a system call:
 .Bl -column "Fn sysdecode_flock_operation" "Xr cap_fcntls_limit 2"
 .It Sy Function Ta Sy System Call Ta Sy Argument
 .It Fn sysdecode_access_mode Ta Xr access 2 Ta Fa mode
+.It Fn sysdecode_atflags Ta Xr chflagsat 2 , Xr fstatat 2 Ta Fa atflag , Fa flag
 .It Fn sysdecode_cap_fcntlrights Ta Xr cap_fcntls_limit 2 Ta Fa fcntlrights
 .It Fn sysdecode_fileflags Ta Xr chflags 2 Ta Fa flags
 .It Fn sysdecode_filemode Ta Xr chmod 2 , Xr open 2 Ta mode

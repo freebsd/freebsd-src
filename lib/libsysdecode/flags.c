@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/thr.h>
 #include <sys/umtx.h>
+#include <machine/sysarch.h>
 #include <netinet/in.h>
 #include <netinet/sctp.h>
 #include <netinet/tcp.h>
@@ -248,6 +249,13 @@ sysdecode_atfd(int fd)
 	if (fd == AT_FDCWD)
 		return ("AT_FDCWD");
 	return (NULL);
+}
+
+bool
+sysdecode_atflags(FILE *fp, int flag, int *rem)
+{
+
+	return (print_mask_int(fp, atflags, flag, rem));
 }
 
 static struct name_table semctlops[] = {
@@ -487,6 +495,13 @@ sysdecode_getfsstat_mode(int mode)
 }
 
 const char *
+sysdecode_getrusage_who(int who)
+{
+
+	return (lookup_value(rusage, who));
+}
+
+const char *
 sysdecode_kldsym_cmd(int cmd)
 {
 
@@ -627,8 +642,19 @@ sysdecode_quotactl_cmd(FILE *fp, int cmd)
 bool
 sysdecode_reboot_howto(FILE *fp, int howto, int *rem)
 {
+	bool printed;
 
-	return (print_mask_int(fp, rebootopt, howto, rem));
+	/*
+	 * RB_AUTOBOOT is special in that its value is zero, but it is
+	 * also an implied argument if a different operation is not
+	 * requested via RB_HALT, RB_POWEROFF, or RB_REROOT.
+	 */
+	if (howto != 0 && (howto & (RB_HALT | RB_POWEROFF | RB_REROOT)) == 0) {
+		fputs("RB_AUTOBOOT|", fp);
+		printed = true;
+	} else
+		printed = false;
+	return (print_mask_int(fp, rebootopt, howto, rem) || printed);
 }
 
 bool
@@ -930,6 +956,13 @@ sysdecode_mmap_flags(FILE *fp, int flags, int *rem)
 }
 
 const char *
+sysdecode_pathconf_name(int name)
+{
+
+	return (lookup_value(pathconfname, name));
+}
+
+const char *
 sysdecode_rtprio_function(int function)
 {
 
@@ -968,6 +1001,13 @@ sysdecode_sigcode(int sig, int si_code)
 	default:
 		return (NULL);
 	}
+}
+
+const char *
+sysdecode_sysarch_number(int number)
+{
+
+	return (lookup_value(sysarchnum, number));
 }
 
 bool

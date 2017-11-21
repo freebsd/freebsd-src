@@ -1097,11 +1097,20 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				ip++;
 				narg--;
 				break;
-			case SYS_setpriority:
-				print_number(ip, narg, c);
+			case SYS_pathconf:
+			case SYS_lpathconf:
+			case SYS_fpathconf:
 				print_number(ip, narg, c);
 				putchar(',');
+				print_integer_arg(sysdecode_pathconf_name, *ip);
+				ip++;
+				narg--;
+				break;
+			case SYS_getpriority:
+			case SYS_setpriority:
+				putchar('(');
 				print_integer_arg(sysdecode_prio_which, *ip);
+				c = ',';
 				ip++;
 				narg--;
 				break;
@@ -1227,6 +1236,13 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				narg--;
 				c = ',';
 				break;
+			case SYS_getrusage:
+				putchar('(');
+				print_integer_arg(sysdecode_getrusage_who, *ip);
+				ip++;
+				narg--;
+				c = ',';
+				break;
 			case SYS_quotactl:
 				print_number(ip, narg, c);
 				putchar(',');
@@ -1249,6 +1265,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				c = ',';
 				break;
 			case SYS_rtprio:
+			case SYS_rtprio_thread:
 				putchar('(');
 				print_integer_arg(sysdecode_rtprio_function,
 				    *ip);
@@ -1448,6 +1465,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				print_integer_arg_valid(sysdecode_atfd, *ip);
 				ip++;
 				narg--;
+				print_number(ip, narg, c);
 				break;
 			case SYS_cap_fcntls_limit:
 				print_number(ip, narg, c);
@@ -1505,6 +1523,41 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 			case SYS_truncate:
 				print_number(ip, narg, c);
 				print_number64(first, ip, narg, c);
+				break;
+			case SYS_fchownat:
+				print_number(ip, narg, c);
+				print_number(ip, narg, c);
+				print_number(ip, narg, c);
+				break;
+			case SYS_fstatat:
+			case SYS_utimensat:
+				print_number(ip, narg, c);
+				print_number(ip, narg, c);
+				break;
+			case SYS_unlinkat:
+				print_number(ip, narg, c);
+				break;
+			case SYS_sysarch:
+				putchar('(');
+				print_integer_arg(sysdecode_sysarch_number, *ip);
+				ip++;
+				narg--;
+				c = ',';
+				break;
+			}
+			switch (ktr->ktr_code) {
+			case SYS_chflagsat:
+			case SYS_fchownat:
+			case SYS_faccessat:
+			case SYS_fchmodat:
+			case SYS_fstatat:
+			case SYS_linkat:
+			case SYS_unlinkat:
+			case SYS_utimensat:
+				putchar(',');
+				print_mask_arg0(sysdecode_atflags, *ip);
+				ip++;
+				narg--;
 				break;
 			}
 		}
