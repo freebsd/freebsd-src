@@ -42,6 +42,7 @@
 
 #include <sys/types.h>
 #include <sys/uio.h>
+#include <sys/vnode.h>
 
 /*
  * same as uiomove() but doesn't modify uio structure.
@@ -50,63 +51,42 @@
 int
 uiocopy(void *p, size_t n, enum uio_rw rw, struct uio *uio, size_t *cbytes)
 {
-	struct iovec *iov;
-	ulong_t cnt;
-	int error, iovcnt;
+	struct iovec small_iovec[1];
+	struct uio small_uio_clone;
+	struct uio *uio_clone;
+	int error;
 
-	iovcnt = uio->uio_iovcnt;
-	*cbytes = 0;
-
-	for (iov = uio->uio_iov; n > 0 && iovcnt > 0; iov++, iovcnt--) {
-		cnt = MIN(iov->iov_len, n);
-		if (cnt == 0)
-			continue;
-
-		switch (uio->uio_segflg) {
-		case UIO_USERSPACE:
-			if (rw == UIO_READ)
-				error = copyout(p, iov->iov_base, cnt);
-			else
-				error = copyin(iov->iov_base, p, cnt);
-			if (error)
-				return (error);
-			break;
-		case UIO_SYSSPACE:
-			if (uio->uio_rw == UIO_READ)
-				bcopy(p, iov->iov_base, cnt);
-			else
-				bcopy(iov->iov_base, p, cnt);
-			break;
-		}
-
-		p = (caddr_t)p + cnt;
-		n -= cnt;
-		*cbytes += cnt;
+	ASSERT3U(uio->uio_rw, ==, rw);
+	if (uio->uio_iovcnt == 1) {
+		small_uio_clone = *uio;
+		small_iovec[0] = *uio->uio_iov;
+		small_uio_clone.uio_iov = small_iovec;
+		uio_clone = &small_uio_clone;
+	} else {
+		uio_clone = cloneuio(uio);
 	}
-	return (0);
+
+	error = vn_io_fault_uiomove(p, n, uio_clone);
+	*cbytes = uio->uio_resid - uio_clone->uio_resid;
+	if (uio_clone != &small_uio_clone)
+		free(uio_clone, M_IOV);
+	return (error);
 }
 
 /*
  * Drop the next n chars out of *uiop.
  */
 void
-uioskip(uio_t *uiop, size_t n)
+uioskip(uio_t *uio, size_t n)
 {
-	if (n > uiop->uio_resid)
-		return;
-	while (n != 0) {
-		register iovec_t	*iovp = uiop->uio_iov;
-		register size_t		niovb = MIN(iovp->iov_len, n);
+	enum uio_seg segflg;
 
-		if (niovb == 0) {
-			uiop->uio_iov++;
-			uiop->uio_iovcnt--;
-			continue;
-		}
-		iovp->iov_base += niovb;
-		uiop->uio_loffset += niovb;
-		iovp->iov_len -= niovb;
-		uiop->uio_resid -= niovb;
-		n -= niovb;
-	}
+	/* For the full compatibility with illumos. */
+	if (n > uio->uio_resid)
+		return;
+
+	segflg = uio->uio_segflg;
+	uio->uio_segflg = UIO_NOCOPY;
+	uiomove(NULL, n, uio->uio_rw, uio);
+	uio->uio_segflg = segflg;
 }
