@@ -235,7 +235,8 @@ cam_strmatch(const u_int8_t *str, const u_int8_t *pattern, int str_len)
 			return (1);
 		} else if (*pattern == '[') {
 			int negate_range, ok;
-			uint8_t pc, sc;
+			uint8_t pc = UCHAR_MAX;
+			uint8_t sc;
 
 			ok = 0;
 			sc = *str++;
