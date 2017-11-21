@@ -42,9 +42,32 @@ usr1(int sig __unused)
 	saw = 1;
 }
 
+void	foo(void);
+void	qux(void);
+
+void
+foo(void)
+{
+}
+__weak_reference(foo, _foo);
+
+static void
+bar(void)
+{
+}
+__strong_reference(bar, baz);
+
+void
+qux(void)
+{
+}
+__strong_reference(qux, $qux);
+
 int
 main(int argc, char **argv)
 {
+
+	bar(); /* force the symbol to be emitted */
 
 	if (argc == 1)
 		return (EXIT_SUCCESS);
