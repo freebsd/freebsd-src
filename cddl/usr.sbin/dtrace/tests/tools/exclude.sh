@@ -174,6 +174,9 @@ exclude EXFAIL common/usdt/tst.badguess.ksh
 exclude EXFAIL common/usdt/tst.guess32.ksh
 exclude EXFAIL common/usdt/tst.guess64.ksh
 
+# Depends on non-standard static linker behaviour.
+exclude EXFAIL common/usdt/tst.eliminate.ksh
+
 # Generated headers include <sys/sdt.h>, so _DTRACE_VERSION is always defined.
 exclude EXFAIL common/usdt/tst.nodtrace.ksh
 
