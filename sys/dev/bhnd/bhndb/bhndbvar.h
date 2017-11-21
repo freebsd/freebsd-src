@@ -55,6 +55,8 @@
 
 DECLARE_CLASS(bhndb_driver);
 
+/* forward declarations */
+struct bhndb_intr_isrc;
 struct bhndb_resources;
 struct bhndb_host_resources;
 
@@ -81,6 +83,12 @@ int				 bhndb_find_hostb_core(
 				     struct bhnd_core_info *cores, u_int ncores,
 				     bhnd_devclass_t bridge_devclass,
 				     struct bhnd_core_info *core);
+
+struct bhndb_intr_isrc		*bhndb_alloc_intr_isrc(device_t owner, int rid,
+				     rman_res_t start, rman_res_t end,
+				     rman_res_t count, u_int flags);
+void				 bhndb_free_intr_isrc(
+				     struct bhndb_intr_isrc *isrc);
 
 int				 bhndb_alloc_host_resources(device_t dev,
 				     const struct bhndb_hwcfg *hwcfg,
@@ -137,6 +145,15 @@ struct bhndb_devinfo {
 };
 
 /**
+ * Host interrupt source to which bridged interrupts may be routed.
+ */
+struct bhndb_intr_isrc {
+	device_t	 is_owner;	/**< host device (e.g. the pci device). */
+	struct resource	*is_res;	/**< irq resource */
+	int		 is_rid;	/**< irq resource ID */
+};
+
+/**
  * Host resources allocated for a bridge hardware configuration.
  */
 struct bhndb_host_resources {
@@ -162,6 +179,7 @@ struct bhndb_softc {
 
 	struct mtx			 sc_mtx;	/**< resource lock. */
 	struct bhndb_resources		*bus_res;	/**< bus resource state */
+	STAILQ_HEAD(,bhndb_intr_handler) bus_intrs;	/**< attached child interrupt handlers */
 };
 
 #endif /* _BHND_BHNDBVAR_H_ */

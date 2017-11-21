@@ -270,10 +270,11 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 	bus_size_t			 last_window_size;
 	int				 rnid;
 	int				 error;
-	bool				 free_ht_mem, free_br_mem;
+	bool				 free_ht_mem, free_br_mem, free_br_irq;
 
 	free_ht_mem = false;
 	free_br_mem = false;
+	free_br_irq = false;
 
 	r = malloc(sizeof(*r), M_BHND, M_NOWAIT|M_ZERO);
 	if (r == NULL)
@@ -285,6 +286,7 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 	r->res = NULL;
 	r->min_prio = BHNDB_PRIORITY_NONE;
 	STAILQ_INIT(&r->bus_regions);
+	STAILQ_INIT(&r->bus_intrs);
 	
 	/* Initialize host address space resource manager. */
 	r->ht_mem_rman.rm_start = 0;
@@ -313,6 +315,25 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 	error = rman_manage_region(&r->br_mem_rman, 0, BUS_SPACE_MAXADDR_32BIT);
 	if (error) {
 		device_printf(r->dev, "could not configure br_mem_rman\n");
+		goto failed;
+	}
+
+
+	/* Initialize resource manager for the bridged interrupt controller. */
+	r->br_irq_rman.rm_start = 0;
+	r->br_irq_rman.rm_end = RM_MAX_END;
+	r->br_irq_rman.rm_type = RMAN_ARRAY;
+	r->br_irq_rman.rm_descr = "BHNDB bridged interrupts";
+
+	if ((error = rman_init(&r->br_irq_rman))) {
+		device_printf(r->dev, "could not initialize br_irq_rman\n");
+		goto failed;
+	}
+	free_br_irq = true;
+
+	error = rman_manage_region(&r->br_irq_rman, 0, RM_MAX_END);
+	if (error) {
+		device_printf(r->dev, "could not configure br_irq_rman\n");
 		goto failed;
 	}
 
@@ -455,6 +476,9 @@ failed:
 	if (free_br_mem)
 		rman_fini(&r->br_mem_rman);
 
+	if (free_br_irq)
+		rman_fini(&r->br_irq_rman);
+
 	if (r->dw_alloc != NULL)
 		free(r->dw_alloc, M_BHND);
 
@@ -477,9 +501,14 @@ failed:
 void
 bhndb_free_resources(struct bhndb_resources *br)
 {
-	struct bhndb_region	*region, *r_next;
-	struct bhndb_dw_alloc	*dwa;
-	struct bhndb_dw_rentry	*dwr, *dwr_next;
+	struct bhndb_region		*region, *r_next;
+	struct bhndb_dw_alloc		*dwa;
+	struct bhndb_dw_rentry		*dwr, *dwr_next;
+	struct bhndb_intr_handler	*ih;
+	bool				 leaked_regions, leaked_intrs;
+
+	leaked_regions = false;
+	leaked_intrs = false;
 
 	/* No window regions may still be held */
 	if (!bhndb_dw_all_free(br)) {
@@ -492,7 +521,19 @@ bhndb_free_resources(struct bhndb_resources *br)
 
 			device_printf(br->dev,
 			    "leaked dynamic register window %d\n", dwa->rnid);
+			leaked_regions = true;
 		}
+	}
+
+	/* There should be no interrupt handlers still registered */
+	STAILQ_FOREACH(ih, &br->bus_intrs, ih_link) {
+		device_printf(br->dev, "interrupt handler leaked %p\n",
+		    ih->ih_cookiep);
+	}
+
+	if (leaked_intrs || leaked_regions) {
+		panic("leaked%s%s", leaked_intrs ? " active interrupts" : "",
+		    leaked_regions ? " active register windows" : "");
 	}
 
 	/* Release host resources allocated through our parent. */
@@ -518,6 +559,7 @@ bhndb_free_resources(struct bhndb_resources *br)
 	/* Release our resource managers */
 	rman_fini(&br->ht_mem_rman);
 	rman_fini(&br->br_mem_rman);
+	rman_fini(&br->br_irq_rman);
 
 	free(br->dw_alloc, M_BHND);
 	free(br->dwa_freelist, M_BHND);
@@ -667,6 +709,222 @@ bhndb_find_hostb_core(struct bhnd_core_info *cores, u_int ncores,
 }
 
 /**
+ * Allocate a host interrupt source and its backing SYS_RES_IRQ host resource.
+ * 
+ * @param owner	The device to be used to allocate a SYS_RES_IRQ
+ *		resource with @p rid.
+ * @param rid	The resource ID of the IRQ to be allocated.
+ * @param start	The start value to be passed to bus_alloc_resource().
+ * @param end	The end value to be passed to bus_alloc_resource().
+ * @param count	The count to be passed to bus_alloc_resource().
+ * @param flags	The flags to be passed to bus_alloc_resource().
+ * 
+ * @retval non-NULL	success
+ * @retval NULL		if allocation fails.
+ */
+struct bhndb_intr_isrc *
+bhndb_alloc_intr_isrc(device_t owner, int rid, rman_res_t start, rman_res_t end,
+    rman_res_t count, u_int flags)
+{
+	struct bhndb_intr_isrc *isrc;
+
+	isrc = malloc(sizeof(*isrc), M_BHND, M_NOWAIT);
+	if (isrc == NULL)
+		return (NULL);
+
+	isrc->is_owner = owner;
+	isrc->is_rid = rid;
+	isrc->is_res = bus_alloc_resource(owner, SYS_RES_IRQ, &isrc->is_rid,
+	    start, end, count, flags);
+	if (isrc->is_res == NULL) {
+		free(isrc, M_BHND);
+		return (NULL);
+	}
+
+	return (isrc);
+}
+
+/**
+ * Free a host interrupt source and its backing host resource.
+ * 
+ * @param isrc	The interrupt source to be freed.
+ */
+void
+bhndb_free_intr_isrc(struct bhndb_intr_isrc *isrc)
+{
+	bus_release_resource(isrc->is_owner, SYS_RES_IRQ, isrc->is_rid,
+	    isrc->is_res);
+	free(isrc, M_BHND);
+}
+
+/**
+ * Allocate and initialize a new interrupt handler entry.
+ * 
+ * @param owner	The child device that owns this entry.
+ * @param r	The child's interrupt resource.
+ * @param isrc	The isrc mapped for this entry.
+ * 
+ * @retval non-NULL	success
+ * @retval NULL		if allocation fails.
+ */
+struct bhndb_intr_handler *
+bhndb_alloc_intr_handler(device_t owner, struct resource *r,
+    struct bhndb_intr_isrc *isrc)
+{
+	struct bhndb_intr_handler *ih;
+
+	ih = malloc(sizeof(*ih), M_BHND, M_NOWAIT | M_ZERO);
+	ih->ih_owner = owner;
+	ih->ih_res = r;
+	ih->ih_isrc = isrc;
+	ih->ih_cookiep = NULL;
+	ih->ih_active = false;
+
+	return (ih);
+}
+
+/**
+ * Free an interrupt handler entry.
+ *
+ * @param br The resource state owning @p ih.
+ * @param ih The interrupt handler entry to be removed.
+ */
+void
+bhndb_free_intr_handler(struct bhndb_intr_handler *ih)
+{
+	KASSERT(!ih->ih_active, ("free of active interrupt handler %p",
+	    ih->ih_cookiep));
+
+	free(ih, M_BHND);
+}
+
+/**
+ * Add an active interrupt handler to the given resource state.
+  * 
+ * @param br The resource state to be modified.
+ * @param ih The interrupt handler entry to be added.
+ */
+void
+bhndb_register_intr_handler(struct bhndb_resources *br,
+    struct bhndb_intr_handler *ih)
+{
+	KASSERT(!ih->ih_active, ("duplicate registration of interrupt "
+	    "handler %p", ih->ih_cookiep));
+	KASSERT(ih->ih_cookiep != NULL, ("missing cookiep"));
+
+	ih->ih_active = true;
+	STAILQ_INSERT_HEAD(&br->bus_intrs, ih, ih_link);
+}
+
+/**
+ * Remove an interrupt handler from the given resource state.
+ * 
+ * @param br The resource state containing @p ih.
+ * @param ih The interrupt handler entry to be removed.
+ */
+void
+bhndb_deregister_intr_handler(struct bhndb_resources *br,
+    struct bhndb_intr_handler *ih)
+{
+	KASSERT(!ih->ih_active, ("duplicate deregistration of interrupt "
+	    "handler %p", ih->ih_cookiep));
+
+	KASSERT(bhndb_find_intr_handler(br, ih) == ih,
+	    ("unknown interrupt handler %p", ih));
+
+	STAILQ_REMOVE(&br->bus_intrs, ih, bhndb_intr_handler, ih_link);
+	ih->ih_active = false;
+}
+
+/**
+ * Return the interrupt handler entry corresponding to @p cookiep, or NULL
+ * if no entry is found.
+ * 
+ * @param br The resource state to search for the given @p cookiep.
+ * @param cookiep The interrupt handler's bus-assigned cookiep value.
+ */
+struct bhndb_intr_handler *
+bhndb_find_intr_handler(struct bhndb_resources *br, void *cookiep)
+{
+	struct bhndb_intr_handler *ih;
+
+	STAILQ_FOREACH(ih, &br->bus_intrs, ih_link) {
+		if (ih == cookiep)
+			return (ih);
+	}
+
+	/* Not found */
+	return (NULL);
+}
+
+/**
+ * Find the maximum start and end limits of the bridged resource @p r.
+ * 
+ * If the resource is not currently mapped by the bridge, ENOENT will be
+ * returned.
+ * 
+ * @param	br		The resource state to search.
+ * @param	type The resource type (see SYS_RES_*).
+ * @param	r The resource to search for in @p br.
+ * @param[out]	start	On success, the minimum supported start address.
+ * @param[out]	end	On success, the maximum supported end address.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	no active mapping found for @p r of @p type
+ */
+int
+bhndb_find_resource_limits(struct bhndb_resources *br, int type,
+    struct resource *r, rman_res_t *start, rman_res_t *end)
+{
+	struct bhndb_dw_alloc		*dynamic;
+	struct bhndb_region		*sregion;
+	struct bhndb_intr_handler	*ih;
+
+	switch (type) {
+	case SYS_RES_IRQ:
+		/* Is this one of ours? */
+		STAILQ_FOREACH(ih, &br->bus_intrs, ih_link) {
+			if (ih->ih_res == r)
+				continue;
+
+			/* We don't support adjusting IRQ resource limits */
+			*start = rman_get_start(r);
+			*end = rman_get_end(r);
+			return (0);
+		}
+
+		/* Not found */
+		return (ENOENT);
+
+	case SYS_RES_MEMORY: {
+		/* Check for an enclosing dynamic register window */
+		if ((dynamic = bhndb_dw_find_resource(br, r))) {
+			*start = dynamic->target;
+			*end = dynamic->target + dynamic->win->win_size - 1;
+			return (0);
+		}
+
+		/* Check for a static region */
+		sregion = bhndb_find_resource_region(br, rman_get_start(r),
+		rman_get_size(r));
+		if (sregion != NULL && sregion->static_regwin != NULL) {
+			*start = sregion->addr;
+			*end = sregion->addr + sregion->size - 1;
+
+			return (0);
+		}
+
+		/* Not found */
+		return (ENOENT);
+	}
+
+	default:
+		device_printf(br->dev, "unknown resource type: %d\n", type);
+		return (ENOENT);
+	}
+}
+
+/**
  * Add a bus region entry to @p r for the given base @p addr and @p size.
  * 
  * @param br The resource state to which the bus region entry will be added.
@@ -704,49 +962,6 @@ bhndb_add_resource_region(struct bhndb_resources *br, bhnd_addr_t addr,
 	return (0);
 }
 
-
-/**
- * Find the maximum start and end limits of the register window mapping
- * resource @p r.
- * 
- * If the memory range is not mapped by an existing dynamic or static register
- * window, ENOENT will be returned.
- * 
- * @param br The resource state to search.
- * @param r The resource to search for in @p br.
- * @param addr The requested starting address.
- * @param size The requested size.
- * 
- * @retval bhndb_region A region that fully contains the requested range.
- * @retval NULL If no mapping region can be found.
- */
-int
-bhndb_find_resource_limits(struct bhndb_resources *br, struct resource *r,
-    rman_res_t *start, rman_res_t *end)
-{
-	struct bhndb_dw_alloc	*dynamic;
-	struct bhndb_region	*sregion;
-
-	/* Check for an enclosing dynamic register window */
-	if ((dynamic = bhndb_dw_find_resource(br, r))) {
-		*start = dynamic->target;
-		*end = dynamic->target + dynamic->win->win_size - 1;
-		return (0);
-	}
-
-	/* Check for a static region */
-	sregion = bhndb_find_resource_region(br, rman_get_start(r),
-	    rman_get_size(r));
-	if (sregion != NULL && sregion->static_regwin != NULL) {
-		*start = sregion->addr;
-		*end = sregion->addr + sregion->size - 1;
-
-		return (0);
-	}
-
-	/* Not found */
-	return (ENOENT);
-}
 
 /**
  * Find the bus region that maps @p size bytes at @p addr.

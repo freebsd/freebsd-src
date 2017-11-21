@@ -139,13 +139,13 @@ static const struct bhnd_device_quirk bhnd_pcie_quirks[] = {
 		BHND_PCIE_QUIRK_BFL2_PCIEWAR_EN },
 
 	/* Apple BCM4322 boards that require 700mV SerDes TX drive strength. */
-	{{ BHND_CHIP_ID(BCM4322),
+	{{ BHND_MATCH_CHIP_ID(BCM4322),
 	   BHND_MATCH_BOARD(PCI_VENDOR_APPLE, BCM94322X9), },
 		BHND_PCIE_QUIRK_SERDES_TXDRV_700MV },
 
 	/* Apple BCM4331 board-specific quirks */
 #define	BHND_A4331_QUIRK(_board, ...)	\
-	{{ BHND_CHIP_ID(BCM4331),		\
+	{{ BHND_MATCH_CHIP_ID(BCM4331),		\
 	    BHND_MATCH_BOARD(PCI_VENDOR_APPLE, _board) }, __VA_ARGS__ }
 
 	BHND_A4331_QUIRK(BCM94331X19,	BHND_PCIE_QUIRK_SERDES_TXDRV_MAX |

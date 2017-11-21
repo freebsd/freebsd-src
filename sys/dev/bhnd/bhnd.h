@@ -250,10 +250,10 @@ struct bhnd_device_quirk {
 	{{ BHND_MATCH_CORE_REV(_rev) }, (_flags) }
 
 #define	BHND_CHIP_QUIRK(_chip, _rev, _flags)	\
-	{{ BHND_CHIP_IR(BCM ## _chip, _rev) }, (_flags) }
+	{{ BHND_MATCH_CHIP_IR(BCM ## _chip, _rev) }, (_flags) }
 
 #define	BHND_PKG_QUIRK(_chip, _pkg, _flags)	\
-	{{ BHND_CHIP_IP(BCM ## _chip, BCM ## _chip ## _pkg) }, (_flags) }
+	{{ BHND_MATCH_CHIP_IP(BCM ## _chip, BCM ## _chip ## _pkg) }, (_flags) }
 
 #define	BHND_BOARD_QUIRK(_board, _flags)	\
 	{{ BHND_MATCH_BOARD_TYPE(_board) },	\
@@ -528,8 +528,8 @@ int				 bhnd_bus_generic_activate_resource (device_t dev,
 int				 bhnd_bus_generic_deactivate_resource (device_t dev,
 				     device_t child, int type, int rid,
 				     struct bhnd_resource *r);
-bhnd_attach_type		 bhnd_bus_generic_get_attach_type(device_t dev,
-				     device_t child);
+uintptr_t			 bhnd_bus_generic_get_intr_domain(device_t dev,
+				     device_t child, bool self);
 
 /**
  * Return the bhnd(4) bus driver's device enumeration parser class
@@ -865,25 +865,22 @@ bhnd_read_board_info(device_t dev, struct bhnd_board_info *info)
 }
 
 /**
- * Return the number of interrupts to be assigned to @p child via
- * BHND_BUS_ASSIGN_INTR().
+ * Return the number of interrupt lines assigned to @p dev.
  * 
  * @param dev A bhnd bus child device.
  */
-static inline int
+static inline u_int
 bhnd_get_intr_count(device_t dev)
 {
 	return (BHND_BUS_GET_INTR_COUNT(device_get_parent(dev), dev));
 }
 
 /**
- * Return the backplane interrupt vector corresponding to @p dev's given
- * @p intr number.
+ * Get the backplane interrupt vector of the @p intr line attached to @p dev.
  * 
  * @param dev A bhnd bus child device.
- * @param intr The interrupt number being queried. This is equivalent to the
- * bus resource ID for the interrupt.
- * @param[out] ivec On success, the assigned hardware interrupt vector be
+ * @param intr The index of the interrupt line being queried.
+ * @param[out] ivec On success, the assigned hardware interrupt vector will be
  * written to this pointer.
  *
  * On bcma(4) devices, this returns the OOB bus line assigned to the
@@ -893,14 +890,48 @@ bhnd_get_intr_count(device_t dev)
  * to the interrupt.
  *
  * @retval 0		success
- * @retval ENXIO	If @p intr exceeds the number of interrupts available
- *			to @p child.
+ * @retval ENXIO	If @p intr exceeds the number of interrupt lines
+ *			assigned to @p child.
  */
 static inline int
-bhnd_get_core_ivec(device_t dev, u_int intr, uint32_t *ivec)
+bhnd_get_intr_ivec(device_t dev, u_int intr, u_int *ivec)
 {
-	return (BHND_BUS_GET_CORE_IVEC(device_get_parent(dev), dev, intr,
+	return (BHND_BUS_GET_INTR_IVEC(device_get_parent(dev), dev, intr,
 	    ivec));
+}
+
+/**
+ * Map the given @p intr to an IRQ number; until unmapped, this IRQ may be used
+ * to allocate a resource of type SYS_RES_IRQ.
+ * 
+ * On success, the caller assumes ownership of the interrupt mapping, and
+ * is responsible for releasing the mapping via bhnd_unmap_intr().
+ * 
+ * @param dev The requesting device.
+ * @param intr The interrupt being mapped.
+ * @param[out] irq On success, the bus interrupt value mapped for @p intr.
+ *
+ * @retval 0		If an interrupt was assigned.
+ * @retval non-zero	If mapping an interrupt otherwise fails, a regular
+ *			unix error code will be returned.
+ */
+static inline int
+bhnd_map_intr(device_t dev, u_int intr, rman_res_t *irq)
+{
+	return (BHND_BUS_MAP_INTR(device_get_parent(dev), dev, intr, irq));
+}
+
+/**
+ * Unmap an bus interrupt previously mapped via bhnd_map_intr().
+ * 
+ * @param dev The requesting device.
+ * @param intr The interrupt number being unmapped. This is equivalent to the
+ * bus resource ID for the interrupt.
+ */
+static inline void
+bhnd_unmap_intr(device_t dev, rman_res_t irq)
+{
+	return (BHND_BUS_UNMAP_INTR(device_get_parent(dev), dev, irq));
 }
 
 /**

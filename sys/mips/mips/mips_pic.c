@@ -70,10 +70,6 @@ __FBSDID("$FreeBSD$");
 
 #include "pic_if.h"
 
-#define NHARD_IRQS	6
-#define NSOFT_IRQS	2
-#define NREAL_IRQS	(NHARD_IRQS + NSOFT_IRQS)
-
 struct mips_pic_softc;
 
 static int			 mips_pic_intr(void *);

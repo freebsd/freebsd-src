@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,6 +50,7 @@
  */
 
 struct siba_addrspace;
+struct siba_cfg_block;
 struct siba_devinfo;
 struct siba_core_id;
 
@@ -54,9 +59,9 @@ int			 siba_attach(device_t dev);
 int			 siba_detach(device_t dev);
 int			 siba_resume(device_t dev);
 int			 siba_suspend(device_t dev);
-int			 siba_get_intr_count(device_t dev, device_t child);
-int			 siba_get_core_ivec(device_t dev, device_t child,
-			     u_int intr, uint32_t *ivec);
+u_int			 siba_get_intr_count(device_t dev, device_t child);
+int			 siba_get_intr_ivec(device_t dev, device_t child,
+			     u_int intr, u_int *ivec);
 
 uint16_t		 siba_get_bhnd_mfgid(uint16_t ocp_vendor);
 
@@ -69,22 +74,36 @@ struct siba_devinfo	*siba_alloc_dinfo(device_t dev);
 int			 siba_init_dinfo(device_t dev,
 			     struct siba_devinfo *dinfo,
 			     const struct siba_core_id *core_id);
-void			 siba_free_dinfo(device_t dev,
+void			 siba_free_dinfo(device_t dev, device_t child,
 			     struct siba_devinfo *dinfo);
 
-u_int			 siba_addrspace_port_count(u_int num_addrspace);
-u_int			 siba_addrspace_region_count(u_int num_addrspace,
-			     u_int port);
+u_int			 siba_port_count(struct siba_core_id *core_id,
+			     bhnd_port_type port_type);
+bool			 siba_is_port_valid(struct siba_core_id *core_id,
+			     bhnd_port_type port_type, u_int port);
 
-u_int			 siba_addrspace_port(u_int addrspace);
-u_int			 siba_addrspace_region(u_int addrspace);
-int			 siba_addrspace_index(u_int num_addrspace,
+u_int			 siba_port_region_count(
+			     struct siba_core_id *core_id,
+			     bhnd_port_type port_type, u_int port);
+
+int			 siba_cfg_index(struct siba_core_id *core_id,
+			     bhnd_port_type type, u_int port, u_int region,
+			     u_int *cfgidx);
+
+int			 siba_addrspace_index(struct siba_core_id *core_id,
 			     bhnd_port_type type, u_int port, u_int region,
 			     u_int *addridx);
-bool			 siba_is_port_valid(u_int num_addrspace,
-			     bhnd_port_type type, u_int port);
+
+u_int			 siba_addrspace_device_port(u_int addrspace);
+u_int			 siba_addrspace_device_region(u_int addrspace);
+
+u_int			 siba_cfg_agent_port(u_int cfg);
+u_int			 siba_cfg_agent_region(u_int cfg);
 
 struct siba_addrspace	*siba_find_addrspace(struct siba_devinfo *dinfo,
+			     bhnd_port_type type, u_int port, u_int region);
+
+struct siba_cfg_block	*siba_find_cfg_block(struct siba_devinfo *dinfo,
 			     bhnd_port_type type, u_int port, u_int region);
 
 int			 siba_append_dinfo_region(struct siba_devinfo *dinfo,
@@ -134,6 +153,21 @@ struct siba_addrspace {
 					  *  address space reserved for the bus */
 };
 
+/** siba(4) config block descriptor */
+struct siba_cfg_block {
+	uint32_t	cb_base;	/**< base address */
+	uint32_t	cb_size;	/**< size */
+	int		cb_rid;		/**< bus resource id */
+};
+
+/** siba(4) backplane interrupt flag descriptor */
+struct siba_intr {
+	u_int		flag;	/**< backplane flag # */
+	bool		mapped;	/**< if an irq has been mapped */
+	int		rid;	/**< bus resource id, or -1 if unassigned */
+	rman_res_t	irq;	/**< the mapped bus irq, if any */
+};
+
 /**
  * siba(4) per-core identification info.
  */
@@ -156,9 +190,12 @@ struct siba_devinfo {
 	struct resource_list		 resources;			/**< per-core memory regions. */
 	struct siba_core_id		 core_id;			/**< core identification info */
 	struct siba_addrspace		 addrspace[SIBA_MAX_ADDRSPACE];	/**< memory map descriptors */
+	struct siba_cfg_block		 cfg[SIBA_MAX_CFG];		/**< config block descriptors */
+	struct siba_intr		 intr;				/**< interrupt flag descriptor, if any */
+	bool				 intr_en;			/**< if true, core has an assigned interrupt flag */
 
-	struct bhnd_resource		*cfg[SIBA_MAX_CFG];		/**< SIBA_CFG_* registers */
-	int				 cfg_rid[SIBA_MAX_CFG];		/**< SIBA_CFG_* resource IDs */
+	struct bhnd_resource		*cfg_res[SIBA_MAX_CFG];		/**< bus-mapped config block registers */
+	int				 cfg_rid[SIBA_MAX_CFG];		/**< bus-mapped config block resource IDs */
 	struct bhnd_core_pmu_info	*pmu_info;			/**< Bus-managed PMU state, or NULL */
 };
 
