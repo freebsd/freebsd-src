@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Mark Johnston <markj@FreeBSD.org>
+ * Copyright (c) 2016-2017 Mark Johnston <markj@FreeBSD.org>
  * Copyright (c) 2010 The FreeBSD Foundation
  * Copyright (c) 2008 John Birrell (jb@freebsd.org)
  * All rights reserved.
@@ -100,27 +100,59 @@ fail:
 	strlcpy(buf, symbol, len);
 }
 
-static int
-symvalcomp(void *thunk, const void *a1, const void *a2)
-{
+struct symsort_thunk {
+	Elf *e;
 	struct symtab *symtab;
+};
+
+static int
+symvalcmp(void *_thunk, const void *a1, const void *a2)
+{
 	GElf_Sym sym1, sym2;
+	struct symsort_thunk *thunk;
+	const char *s1, *s2;
 	u_int i1, i2;
-	int ret;
+	int bind1, bind2;
 
 	i1 = *(const u_int *)a1;
 	i2 = *(const u_int *)a2;
-	symtab = thunk;
+	thunk = _thunk;
 
-	(void)gelf_getsym(symtab->data, i1, &sym1);
-	(void)gelf_getsym(symtab->data, i2, &sym2);
-	if (sym1.st_value < sym2.st_value)
-		ret = -1;
-	else if (sym1.st_value == sym2.st_value)
-		ret = 0;
-	else
-		ret = 1;
-	return (ret);
+	(void)gelf_getsym(thunk->symtab->data, i1, &sym1);
+	(void)gelf_getsym(thunk->symtab->data, i2, &sym2);
+
+	if (sym1.st_value != sym2.st_value)
+		return (sym1.st_value < sym2.st_value ? -1 : 1);
+
+	/* Prefer non-local symbols. */
+	bind1 = GELF_ST_BIND(sym1.st_info);
+	bind2 = GELF_ST_BIND(sym2.st_info);
+	if (bind1 != bind2) {
+		if (bind1 == STB_LOCAL && bind2 != STB_LOCAL)
+			return (-1);
+		if (bind1 != STB_LOCAL && bind2 == STB_LOCAL)
+			return (1);
+	}
+
+	s1 = elf_strptr(thunk->e, thunk->symtab->stridx, sym1.st_name);
+	s2 = elf_strptr(thunk->e, thunk->symtab->stridx, sym2.st_name);
+	if (s1 != NULL && s2 != NULL) {
+		/* Prefer symbols without a leading '$'. */
+		if (*s1 == '$')
+			return (-1);
+		if (*s2 == '$')
+			return (1);
+
+		/* Prefer symbols with fewer leading underscores. */
+		for (; *s1 == '_' && *s2 == '_'; s1++, s2++)
+			;
+		if (*s1 == '_')
+			return (-1);
+		if (*s2 == '_')
+			return (1);
+	}
+
+	return (0);
 }
 
 static int
@@ -128,6 +160,7 @@ load_symtab(Elf *e, struct symtab *symtab, u_long sh_type)
 {
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr;
+	struct symsort_thunk thunk;
 	Elf_Scn *scn;
 	u_int nsyms;
 
@@ -155,9 +188,13 @@ load_symtab(Elf *e, struct symtab *symtab, u_long sh_type)
 		return (-1);
 	for (u_int i = 0; i < nsyms; i++)
 		symtab->index[i] = i;
-	qsort_r(symtab->index, nsyms, sizeof(u_int), symtab, symvalcomp);
 	symtab->nsyms = nsyms;
 	symtab->stridx = shdr.sh_link;
+
+	thunk.e = e;
+	thunk.symtab = symtab;
+	qsort_r(symtab->index, nsyms, sizeof(u_int), &thunk, symvalcmp);
+
 	return (0);
 }
 
@@ -416,12 +453,16 @@ proc_addr2map(struct proc_handle *p, uintptr_t addr)
  * symbol and its name.
  */
 static int
-lookup_symbol_by_addr(Elf *elf, struct symtab *symtab, uintptr_t addr,
-    const char **namep, GElf_Sym *sym)
+lookup_symbol_by_addr(Elf *e, struct symtab *symtab, uintptr_t addr,
+    const char **namep, GElf_Sym *symp)
 {
+	GElf_Sym sym;
 	Elf_Data *data;
 	const char *s;
-	int min, max, mid;
+	u_int i, min, max, mid;
+
+	if (symtab->nsyms == 0)
+		return (ENOENT);
 
 	data = symtab->data;
 	min = 0;
@@ -429,21 +470,31 @@ lookup_symbol_by_addr(Elf *elf, struct symtab *symtab, uintptr_t addr,
 
 	while (min <= max) {
 		mid = (max + min) / 2;
-		(void)gelf_getsym(data, symtab->index[mid], sym);
-		if (addr >= sym->st_value &&
-		    addr < sym->st_value + sym->st_size) {
-			s = elf_strptr(elf, symtab->stridx, sym->st_name);
-			if (s != NULL && namep != NULL)
-				*namep = s;
-			return (0);
-		}
+		(void)gelf_getsym(data, symtab->index[mid], &sym);
+		if (addr >= sym.st_value && addr < sym.st_value + sym.st_size)
+			break;
 
-		if (addr < sym->st_value)
+		if (addr < sym.st_value)
 			max = mid - 1;
 		else
 			min = mid + 1;
 	}
-	return (ENOENT);
+	if (min > max)
+		return (ENOENT);
+
+	/*
+	 * Advance until we find the matching symbol with largest index.
+	 */
+	for (i = mid; i < symtab->nsyms; i++) {
+		(void)gelf_getsym(data, symtab->index[i], &sym);
+		if (addr < sym.st_value || addr >= sym.st_value + sym.st_size)
+			break;
+	}
+	(void)gelf_getsym(data, symtab->index[i - 1], symp);
+	s = elf_strptr(e, symtab->stridx, symp->st_name);
+	if (s != NULL && namep != NULL)
+		*namep = s;
+	return (0);
 }
 
 int
