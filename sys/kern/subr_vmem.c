@@ -497,7 +497,7 @@ bt_insfree(vmem_t *vm, bt_t *bt)
  * Import from the arena into the quantum cache in UMA.
  */
 static int
-qc_import(void *arg, void **store, int cnt, int flags)
+qc_import(void *arg, void **store, int cnt, int domain, int flags)
 {
 	qcache_t *qc;
 	vmem_addr_t addr;
@@ -611,7 +611,8 @@ static struct mtx_padalign __exclusive_cache_line vmem_bt_lock;
  * we are really out of KVA.
  */
 static void *
-vmem_bt_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *pflag, int wait)
+vmem_bt_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
+    int wait)
 {
 	vmem_addr_t addr;
 
@@ -625,7 +626,7 @@ vmem_bt_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *pflag, int wait)
 	if (vmem_xalloc(kernel_arena, bytes, 0, 0, 0, VMEM_ADDR_MIN,
 	    VMEM_ADDR_MAX, M_NOWAIT | M_NOVM | M_USE_RESERVE | M_BESTFIT,
 	    &addr) == 0) {
-		if (kmem_back(kernel_object, addr, bytes,
+		if (kmem_back_domain(domain, kernel_object, addr, bytes,
 		    M_NOWAIT | M_USE_RESERVE) == 0) {
 			mtx_unlock(&vmem_bt_lock);
 			return ((void *)addr);
