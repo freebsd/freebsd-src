@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <ctype.h>
 #include <efivar.h>
 #include <efivar-dp.h>
 #include <err.h>
@@ -133,16 +134,22 @@ main(int argc, char **argv)
 	} else if (flag_parse) {
 		efidp dp;
 		ssize_t dplen;
-		char *str;
+		char *str, *walker;
 
-		dp = malloc(8192);
+		dplen = 8192;
+		dp = malloc(dplen);
 		str = realloc(data, len + 1);
 		if (str == NULL || dp == NULL)
 			errx(1, "Can't allocate memory.");
 		str[len] = '\0';
-		dplen = efidp_parse_device_path(str, dp, 8192);
+		walker = str;
+		while (isspace(*walker))
+			walker++;
+		dplen = efidp_parse_device_path(walker, dp, dplen);
 		if (dplen == -1)
-			errx(1, "Can't parse %s", str);
+			errx(1, "Can't parse %s", walker);
 		write(STDOUT_FILENO, dp, dplen);
+		free(dp);
+		free(str);
 	}
 }
