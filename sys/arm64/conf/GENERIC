@@ -226,6 +226,7 @@ device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		firmware	# firmware assist module
 device		psci		# Support for ARM PSCI
+options 	EFIRT		# EFI Runtime Services
 
 # EXT_RESOURCES pseudo devices
 options 	EXT_RESOURCES
