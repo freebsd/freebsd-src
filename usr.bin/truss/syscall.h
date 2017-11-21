@@ -28,6 +28,7 @@
  * Kevent -- a pointer to an array of struct kevents.  Prints all elements.
  * Pathconf -- the 2nd argument of pathconf().
  * Utrace -- utrace(2) buffer.
+ * CapRights -- a pointer to a cap_rights_t.  Prints all set capabilities.
  *
  * In addition, the pointer types (String, Ptr) may have OUT masked in --
  * this means that the data is set on *return* from the system call -- or
@@ -41,13 +42,16 @@ enum Argtype { None = 1, Hex, Octal, Int, UInt, LongHex, Name, Ptr, Stat, Ioctl,
 	Quad, Signal, Sockaddr, StringArray, Timespec, Timeval, Itimerval,
 	Pollfd, Fd_set, Sigaction, Fcntl, Mprot, Mmapflags, Whence, Readlinkres,
 	Sigset, Sigprocmask, StatFs, Kevent, Sockdomain, Socktype, Open,
-	Fcntlflag, Rusage, BinString, Shutdown, Resource, Rlimit, Timeval2,
-	Pathconf, Rforkflags, ExitStatus, Waitoptions, Idtype, Procctl,
+	Fcntlflag, Rusage, RusageWho, BinString, Shutdown, Resource, Rlimit,
+	Timeval2, Pathconf, Rforkflags, ExitStatus, Waitoptions, Idtype, Procctl,
 	LinuxSockArgs, Umtxop, Atfd, Atflags, Timespec2, Accessmode, Long,
 	Sysarch, ExecArgs, ExecEnv, PipeFds, QuadHex, Utrace, IntArray, Pipe2,
 	CapFcntlRights, Fadvice, FileFlags, Flockop, Getfsstatmode, Kldsymcmd,
 	Kldunloadflags, Sizet, Madvice, Socklent, Sockprotocol, Sockoptlevel,
-	Sockoptname, Msgflags,
+	Sockoptname, Msgflags, CapRights, PUInt, PQuadHex, Acltype,
+	Extattrnamespace, Minherit, Mlockall, Mountflags, Msync, Priowhich,
+	Ptraceop, Quotactlcmd, Reboothowto, Rtpriofunc, Schedpolicy, Schedparam,
+	PSig, Siginfo,
 
 	CloudABIAdvice, CloudABIClockID, ClouduABIFDSFlags,
 	CloudABIFDStat, CloudABIFileStat, CloudABIFileType,
