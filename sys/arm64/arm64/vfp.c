@@ -273,11 +273,8 @@ fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 		critical_enter();
 		if (curthread == PCPU_GET(fpcurthread)) {
 			vfp_save_state(curthread, pcb);
-			PCPU_SET(fpcurthread, NULL);
-		} else {
-			KASSERT(PCPU_GET(fpcurthread) == NULL,
-			    ("invalid fpcurthread"));
 		}
+		PCPU_SET(fpcurthread, NULL);
 
 		vfp_enable();
 		pcb->pcb_fpflags |= PCB_FP_KERN | PCB_FP_NOSAVE |
