@@ -121,7 +121,7 @@ siba_bhndb_attach(device_t dev)
 
 	/* Perform initial attach and enumerate our children. */
 	if ((error = siba_attach(dev)))
-		goto failed;
+		return (error);
 
 	/* Fetch bus-level quirks required by the host bridge core */
 	if ((hostb = bhnd_bus_find_hostb_device(dev)) != NULL) {
@@ -140,7 +140,7 @@ siba_bhndb_attach(device_t dev)
 	return (0);
 
 failed:
-	device_delete_children(dev);
+	siba_detach(dev);
 	return (error);
 }
 

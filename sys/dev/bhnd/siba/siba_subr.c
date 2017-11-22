@@ -137,6 +137,7 @@ siba_alloc_dinfo(device_t bus)
 
 	resource_list_init(&dinfo->resources);
 
+	dinfo->pmu_state = SIBA_PMU_NONE;
 	dinfo->intr_en = false;
 
 	return dinfo;

@@ -94,6 +94,14 @@ bhnd_pmu_core_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	/* Allocate our per-core PMU state */
+	if ((error = bhnd_alloc_pmu(dev))) {
+		device_printf(sc->dev, "failed to allocate PMU state: %d\n",
+		    error);
+
+		return (error);
+	}
+
 	/* Delegate to common driver implementation */
 	if ((error = bhnd_pmu_attach(dev, res))) {
 		bhnd_release_resource(dev, SYS_RES_MEMORY, rid, res);
