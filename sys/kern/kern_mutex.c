@@ -380,9 +380,8 @@ __mtx_unlock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
  * is already owned, it will recursively acquire the lock.
  */
 int
-_mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
+_mtx_trylock_flags_int(struct mtx *m, int opts LOCK_FILE_LINE_ARG_DEF)
 {
-	struct mtx *m;
 	struct thread *td;
 	uintptr_t tid, v;
 #ifdef LOCK_PROFILING
@@ -396,8 +395,6 @@ _mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
 	tid = (uintptr_t)td;
 	if (SCHEDULER_STOPPED_TD(td))
 		return (1);
-
-	m = mtxlock2mtx(c);
 
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(td),
 	    ("mtx_trylock() by idle thread %p on sleep mutex %s @ %s:%d",
@@ -441,6 +438,15 @@ _mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
 	}
 
 	return (rval);
+}
+
+int
+_mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
+{
+	struct mtx *m;
+
+	m = mtxlock2mtx(c);
+	return (_mtx_trylock_flags_int(m, opts LOCK_FILE_LINE_ARG));
 }
 
 /*

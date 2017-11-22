@@ -105,7 +105,7 @@
 									\
 	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(rw__acquire) ||	\
 	    !_rw_write_lock_fetch((rw), &_v, _tid)))			\
-		_rw_wlock_hard((rw), _v, _tid, (file), (line));		\
+		_rw_wlock_hard((rw), _v, (file), (line));		\
 } while (0)
 
 /* Release a write lock. */
@@ -128,16 +128,22 @@ void	rw_sysinit(void *arg);
 void	rw_sysinit_flags(void *arg);
 int	_rw_wowned(const volatile uintptr_t *c);
 void	_rw_wlock_cookie(volatile uintptr_t *c, const char *file, int line);
+int	__rw_try_wlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF);
 int	__rw_try_wlock(volatile uintptr_t *c, const char *file, int line);
 void	_rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line);
+void	__rw_rlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF);
 void	__rw_rlock(volatile uintptr_t *c, const char *file, int line);
+int	__rw_try_rlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF);
 int	__rw_try_rlock(volatile uintptr_t *c, const char *file, int line);
+void	_rw_runlock_cookie_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF);
 void	_rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line);
-void	__rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
-	    const char *file, int line);
-void	__rw_wunlock_hard(volatile uintptr_t *c, uintptr_t tid,
-	    const char *file, int line);
+void	__rw_wlock_hard(volatile uintptr_t *c, uintptr_t v
+	    LOCK_FILE_LINE_ARG_DEF);
+void	__rw_wunlock_hard(volatile uintptr_t *c, uintptr_t v
+	    LOCK_FILE_LINE_ARG_DEF);
+int	__rw_try_upgrade_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF);
 int	__rw_try_upgrade(volatile uintptr_t *c, const char *file, int line);
+void	__rw_downgrade_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF);
 void	__rw_downgrade(volatile uintptr_t *c, const char *file, int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void	__rw_assert(const volatile uintptr_t *c, int what, const char *file,
@@ -163,20 +169,38 @@ void	__rw_assert(const volatile uintptr_t *c, int what, const char *file,
 	__rw_try_wlock(&(rw)->rw_lock, f, l)
 #define	_rw_wunlock(rw, f, l)						\
 	_rw_wunlock_cookie(&(rw)->rw_lock, f, l)
-#define	_rw_rlock(rw, f, l)						\
-	__rw_rlock(&(rw)->rw_lock, f, l)
 #define	_rw_try_rlock(rw, f, l)						\
 	__rw_try_rlock(&(rw)->rw_lock, f, l)
+#if LOCK_DEBUG > 0
+#define	_rw_rlock(rw, f, l)						\
+	__rw_rlock(&(rw)->rw_lock, f, l)
 #define	_rw_runlock(rw, f, l)						\
 	_rw_runlock_cookie(&(rw)->rw_lock, f, l)
-#define	_rw_wlock_hard(rw, v, t, f, l)					\
-	__rw_wlock_hard(&(rw)->rw_lock, v, t, f, l)
-#define	_rw_wunlock_hard(rw, t, f, l)					\
-	__rw_wunlock_hard(&(rw)->rw_lock, t, f, l)
+#else
+#define	_rw_rlock(rw, f, l)						\
+	__rw_rlock_int((struct rwlock *)rw)
+#define	_rw_runlock(rw, f, l)						\
+	_rw_runlock_cookie_int((struct rwlock *)rw)
+#endif
+#if LOCK_DEBUG > 0
+#define	_rw_wlock_hard(rw, v, f, l)					\
+	__rw_wlock_hard(&(rw)->rw_lock, v, f, l)
+#define	_rw_wunlock_hard(rw, v, f, l)					\
+	__rw_wunlock_hard(&(rw)->rw_lock, v, f, l)
 #define	_rw_try_upgrade(rw, f, l)					\
 	__rw_try_upgrade(&(rw)->rw_lock, f, l)
 #define	_rw_downgrade(rw, f, l)						\
 	__rw_downgrade(&(rw)->rw_lock, f, l)
+#else
+#define	_rw_wlock_hard(rw, v, f, l)					\
+	__rw_wlock_hard(&(rw)->rw_lock, v)
+#define	_rw_wunlock_hard(rw, v, f, l)					\
+	__rw_wunlock_hard(&(rw)->rw_lock, v)
+#define	_rw_try_upgrade(rw, f, l)					\
+	__rw_try_upgrade_int(rw)
+#define	_rw_downgrade(rw, f, l)						\
+	__rw_downgrade_int(rw)
+#endif
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 #define	_rw_assert(rw, w, f, l)						\
 	__rw_assert(&(rw)->rw_lock, w, f, l)
