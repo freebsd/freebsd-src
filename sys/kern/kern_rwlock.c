@@ -364,12 +364,20 @@ _rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line)
  * is unlocked and has no writer waiters or spinners.  Failing otherwise
  * prioritizes writers before readers.
  */
-#define	RW_CAN_READ(td, _rw)						\
-    (((_rw) & (RW_LOCK_READ | RW_LOCK_WRITE_WAITERS | RW_LOCK_WRITE_SPINNER)) ==\
-    RW_LOCK_READ || ((td)->td_rw_rlocks && (_rw) & RW_LOCK_READ))
+static bool __always_inline
+__rw_can_read(struct thread *td, uintptr_t v, bool fp)
+{
+
+	if ((v & (RW_LOCK_READ | RW_LOCK_WRITE_WAITERS | RW_LOCK_WRITE_SPINNER))
+	    == RW_LOCK_READ)
+		return (true);
+	if (!fp && td->td_rw_rlocks && (v & RW_LOCK_READ))
+		return (true);
+	return (false);
+}
 
 static bool __always_inline
-__rw_rlock_try(struct rwlock *rw, struct thread *td, uintptr_t *vp
+__rw_rlock_try(struct rwlock *rw, struct thread *td, uintptr_t *vp, bool fp
     LOCK_FILE_LINE_ARG_DEF)
 {
 
@@ -383,7 +391,7 @@ __rw_rlock_try(struct rwlock *rw, struct thread *td, uintptr_t *vp
 	 * completely unlocked rwlock since such a lock is encoded
 	 * as a read lock with no waiters.
 	 */
-	while (RW_CAN_READ(td, *vp)) {
+	while (__rw_can_read(td, *vp, fp)) {
 		if (atomic_fcmpset_acq_ptr(&rw->rw_lock, vp,
 			*vp + RW_ONE_READER)) {
 			if (LOCK_LOG_TEST(&rw->lock_object, 0))
@@ -452,7 +460,7 @@ __rw_rlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
 #endif
 
 	for (;;) {
-		if (__rw_rlock_try(rw, td, &v LOCK_FILE_LINE_ARG))
+		if (__rw_rlock_try(rw, td, &v, false LOCK_FILE_LINE_ARG))
 			break;
 #ifdef KDTRACE_HOOKS
 		lda.spin_cnt++;
@@ -492,7 +500,7 @@ __rw_rlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
 				n = RW_READERS(v);
 				lock_delay_spin(n);
 				v = RW_READ_VALUE(rw);
-				if ((v & RW_LOCK_READ) == 0 || RW_CAN_READ(td, v))
+				if ((v & RW_LOCK_READ) == 0 || __rw_can_read(td, v, false))
 					break;
 			}
 #ifdef KDTRACE_HOOKS
@@ -518,7 +526,7 @@ __rw_rlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
 		 * recheck its state and restart the loop if needed.
 		 */
 		v = RW_READ_VALUE(rw);
-		if (RW_CAN_READ(td, v)) {
+		if (__rw_can_read(td, v, false)) {
 			turnstile_cancel(ts);
 			continue;
 		}
@@ -630,7 +638,7 @@ __rw_rlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 
 	v = RW_READ_VALUE(rw);
 	if (__predict_false(LOCKSTAT_OOL_PROFILE_ENABLED(rw__acquire) ||
-	    !__rw_rlock_try(rw, td, &v LOCK_FILE_LINE_ARG)))
+	    !__rw_rlock_try(rw, td, &v, true LOCK_FILE_LINE_ARG)))
 		__rw_rlock_hard(rw, td, v LOCK_FILE_LINE_ARG);
 
 	LOCK_LOG_LOCK("RLOCK", &rw->lock_object, 0, 0, file, line);
