@@ -116,7 +116,7 @@ void	_sx_sunlock_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF);
 void	_sx_sunlock(struct sx *sx, const char *file, int line);
 void	_sx_xunlock(struct sx *sx, const char *file, int line);
 int	_sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF);
-void	_sx_xunlock_hard(struct sx *sx, uintptr_t tid LOCK_FILE_LINE_ARG_DEF);
+void	_sx_xunlock_hard(struct sx *sx, uintptr_t x LOCK_FILE_LINE_ARG_DEF);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void	_sx_assert(const struct sx *sx, int what, const char *file, int line);
 #endif
@@ -170,11 +170,11 @@ __sx_xlock(struct sx *sx, struct thread *td, int opts, const char *file,
 static __inline void
 __sx_xunlock(struct sx *sx, struct thread *td, const char *file, int line)
 {
-	uintptr_t tid = (uintptr_t)td;
+	uintptr_t x = (uintptr_t)td;
 
 	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(sx__release) ||
-	    !atomic_cmpset_rel_ptr(&sx->sx_lock, tid, SX_LOCK_UNLOCKED)))
-		_sx_xunlock_hard(sx, tid);
+	    !atomic_fcmpset_rel_ptr(&sx->sx_lock, &x, SX_LOCK_UNLOCKED)))
+		_sx_xunlock_hard(sx, x);
 }
 #endif
 

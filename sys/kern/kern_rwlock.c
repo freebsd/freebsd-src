@@ -1078,18 +1078,21 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
  * on this lock.
  */
 void
-__rw_wunlock_hard(volatile uintptr_t *c, uintptr_t tid LOCK_FILE_LINE_ARG_DEF)
+__rw_wunlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 {
 	struct rwlock *rw;
 	struct turnstile *ts;
-	uintptr_t v, setv;
+	uintptr_t tid, setv;
 	int queue;
 
+	tid = (uintptr_t)curthread;
 	if (SCHEDULER_STOPPED())
 		return;
 
 	rw = rwlock2rw(c);
-	v = RW_READ_VALUE(rw);
+	if (__predict_false(v == tid))
+		v = RW_READ_VALUE(rw);
+
 	if (v & RW_LOCK_WRITER_RECURSED) {
 		if (--(rw->rw_recurse) == 0)
 			atomic_clear_ptr(&rw->rw_lock, RW_LOCK_WRITER_RECURSED);
