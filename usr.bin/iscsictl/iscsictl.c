@@ -813,41 +813,41 @@ main(int argc, char **argv)
 	if (Aflag != 0) {
 		if (aflag != 0) {
 			if (enable != ENABLE_UNSPECIFIED)
-				xo_errx(1, "-a and -e and mutually exclusive");
+				xo_errx(1, "-a and -e are mutually exclusive");
 			if (portal != NULL)
-				xo_errx(1, "-a and -p and mutually exclusive");
+				xo_errx(1, "-a and -p are mutually exclusive");
 			if (target != NULL)
-				xo_errx(1, "-a and -t and mutually exclusive");
+				xo_errx(1, "-a and -t are mutually exclusive");
 			if (user != NULL)
-				xo_errx(1, "-a and -u and mutually exclusive");
+				xo_errx(1, "-a and -u are mutually exclusive");
 			if (secret != NULL)
-				xo_errx(1, "-a and -s and mutually exclusive");
+				xo_errx(1, "-a and -s are mutually exclusive");
 			if (nickname != NULL)
-				xo_errx(1, "-a and -n and mutually exclusive");
+				xo_errx(1, "-a and -n are mutually exclusive");
 			if (discovery_host != NULL)
-				xo_errx(1, "-a and -d and mutually exclusive");
+				xo_errx(1, "-a and -d are mutually exclusive");
 			if (rflag != 0)
-				xo_errx(1, "-a and -r and mutually exclusive");
+				xo_errx(1, "-a and -r are mutually exclusive");
 		} else if (nickname != NULL) {
 			if (enable != ENABLE_UNSPECIFIED)
-				xo_errx(1, "-n and -e and mutually exclusive");
+				xo_errx(1, "-n and -e are mutually exclusive");
 			if (portal != NULL)
-				xo_errx(1, "-n and -p and mutually exclusive");
+				xo_errx(1, "-n and -p are mutually exclusive");
 			if (target != NULL)
-				xo_errx(1, "-n and -t and mutually exclusive");
+				xo_errx(1, "-n and -t are mutually exclusive");
 			if (user != NULL)
-				xo_errx(1, "-n and -u and mutually exclusive");
+				xo_errx(1, "-n and -u are mutually exclusive");
 			if (secret != NULL)
-				xo_errx(1, "-n and -s and mutually exclusive");
+				xo_errx(1, "-n and -s are mutually exclusive");
 			if (discovery_host != NULL)
-				xo_errx(1, "-n and -d and mutually exclusive");
+				xo_errx(1, "-n and -d are mutually exclusive");
 			if (rflag != 0)
-				xo_errx(1, "-n and -r and mutually exclusive");
+				xo_errx(1, "-n and -r are mutually exclusive");
 		} else if (discovery_host != NULL) {
 			if (portal != NULL)
-				xo_errx(1, "-d and -p and mutually exclusive");
+				xo_errx(1, "-d and -p are mutually exclusive");
 			if (target != NULL)
-				xo_errx(1, "-d and -t and mutually exclusive");
+				xo_errx(1, "-d and -t are mutually exclusive");
 		} else {
 			if (target == NULL && portal == NULL)
 				xo_errx(1, "must specify -a, -n or -t/-p");
@@ -874,15 +874,15 @@ main(int argc, char **argv)
 
 		if (nickname != NULL) {
 			if (enable != ENABLE_UNSPECIFIED)
-				xo_errx(1, "-n and -e and mutually exclusive");
+				xo_errx(1, "-n and -e are mutually exclusive");
 			if (portal != NULL)
-				xo_errx(1, "-n and -p and mutually exclusive");
+				xo_errx(1, "-n and -p are mutually exclusive");
 			if (target != NULL)
-				xo_errx(1, "-n and -t and mutually exclusive");
+				xo_errx(1, "-n and -t are mutually exclusive");
 			if (user != NULL)
-				xo_errx(1, "-n and -u and mutually exclusive");
+				xo_errx(1, "-n and -u are mutually exclusive");
 			if (secret != NULL)
-				xo_errx(1, "-n and -s and mutually exclusive");
+				xo_errx(1, "-n and -s are mutually exclusive");
 		}
 
 		if (aflag != 0)
@@ -899,16 +899,16 @@ main(int argc, char **argv)
 	} else if (Rflag != 0) {
 		if (aflag != 0) {
 			if (portal != NULL)
-				xo_errx(1, "-a and -p and mutually exclusive");
+				xo_errx(1, "-a and -p are mutually exclusive");
 			if (target != NULL)
-				xo_errx(1, "-a and -t and mutually exclusive");
+				xo_errx(1, "-a and -t are mutually exclusive");
 			if (nickname != NULL)
-				xo_errx(1, "-a and -n and mutually exclusive");
+				xo_errx(1, "-a and -n are mutually exclusive");
 		} else if (nickname != NULL) {
 			if (portal != NULL)
-				xo_errx(1, "-n and -p and mutually exclusive");
+				xo_errx(1, "-n and -p are mutually exclusive");
 			if (target != NULL)
-				xo_errx(1, "-n and -t and mutually exclusive");
+				xo_errx(1, "-n and -t are mutually exclusive");
 		} else if (target == NULL && portal == NULL) {
 			xo_errx(1, "must specify either -a, -n, -t, or -p");
 		}
