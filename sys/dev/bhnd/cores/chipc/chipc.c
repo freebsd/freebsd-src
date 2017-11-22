@@ -306,6 +306,20 @@ chipc_add_children(struct chipc_softc *sc)
 		}
 	}
 
+	/* GPIO */
+	child = BUS_ADD_CHILD(sc->dev, 0, "gpio", 0);
+	if (child == NULL) {
+		device_printf(sc->dev, "failed to add gpio\n");
+		return (ENXIO);
+	}
+
+	error = chipc_set_mem_resource(sc, child, 0, 0, RM_MAX_END, 0, 0);
+	if (error) {
+		device_printf(sc->dev, "failed to set gpio memory resource: "
+		    "%d\n", error);
+		return (error);
+	}
+
 	/* All remaining devices are SoC-only */
 	if (bhnd_get_attach_type(sc->dev) != BHND_ATTACH_NATIVE)
 		return (0);
@@ -835,6 +849,25 @@ chipc_alloc_resource(device_t dev, device_t child, int type,
 	if ((cr = chipc_find_region(sc, start, end)) == NULL) {
 		/* Resource requests outside our shared port regions can be
 		 * delegated to our parent. */
+		rv = bus_generic_rl_alloc_resource(dev, child, type, rid,
+		    start, end, count, flags);
+		return (rv);
+	}
+
+	/*
+	 * As a special case, children that map the complete ChipCommon register
+	 * block are delegated to our parent.
+	 *
+	 * The rman API does not support sharing resources that are not
+	 * identical in size; since we allocate subregions to various children,
+	 * any children that need to map the entire register block (e.g. because
+	 * they require access to discontiguous register ranges) must make the
+	 * allocation through our parent, where we hold a compatible
+	 * RF_SHAREABLE allocation.
+	 */
+	if (cr == sc->core_region && cr->cr_addr == start &&
+	    cr->cr_end == end && cr->cr_count == count)
+	{
 		rv = bus_generic_rl_alloc_resource(dev, child, type, rid,
 		    start, end, count, flags);
 		return (rv);
