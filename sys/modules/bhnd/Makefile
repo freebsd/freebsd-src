@@ -16,8 +16,10 @@ SRCS+=	bhnd_erom_if.c bhnd_erom_if.h
 # ChipCommon
 SRCS+=	chipc.c chipc_subr.c
 SRCS+=	bhnd_sprom_chipc.c \
-	bhnd_pmu_chipc.c \
-	bhnd_pwrctl.c bhnd_pwrctl_subr.c
+	bhnd_pmu_chipc.c
+SRCS+=	bhnd_pwrctl.c bhnd_pwrctl_subr.c \
+	bhnd_pwrctl_if.c bhnd_pwrctl_if.h \
+	bhnd_pwrctl_hostb_if.c bhnd_pwrctl_hostb_if.h
 SRCS+=	bhnd_chipc_if.c bhnd_chipc_if.h
 
 # PMU
