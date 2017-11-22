@@ -92,6 +92,9 @@
 #define	_rw_write_unlock(rw, tid)					\
 	atomic_cmpset_rel_ptr(&(rw)->rw_lock, (tid), RW_UNLOCKED)
 
+#define	_rw_write_unlock_fetch(rw, tid)					\
+	atomic_fcmpset_rel_ptr(&(rw)->rw_lock, (tid), RW_UNLOCKED)
+
 /*
  * Full lock operations that are suitable to be inlined in non-debug
  * kernels.  If the lock cannot be acquired or released trivially then
@@ -110,11 +113,11 @@
 
 /* Release a write lock. */
 #define	__rw_wunlock(rw, tid, file, line) do {				\
-	uintptr_t _tid = (uintptr_t)(tid);				\
+	uintptr_t _v = (uintptr_t)(tid);				\
 									\
 	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(rw__release) ||	\
-	    !_rw_write_unlock((rw), _tid)))				\
-		_rw_wunlock_hard((rw), _tid, (file), (line));		\
+	    !_rw_write_unlock_fetch((rw), &_v)))			\
+		_rw_wunlock_hard((rw), _v, (file), (line));		\
 } while (0)
 
 /*
