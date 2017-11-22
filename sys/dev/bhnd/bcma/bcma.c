@@ -193,7 +193,7 @@ bcma_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 	case BHND_IVAR_CORE_UNIT:
 		return (EINVAL);
 	case BHND_IVAR_PMU_INFO:
-		dinfo->pmu_info = (struct bhnd_core_pmu_info *) value;
+		dinfo->pmu_info = (void *)value;
 		return (0);
 	default:
 		return (ENOENT);
@@ -349,17 +349,15 @@ bcma_reset_hw(device_t dev, device_t child, uint16_t ioctl)
 static int
 bcma_suspend_hw(device_t dev, device_t child)
 {
-	struct bcma_devinfo		*dinfo;
-	struct bhnd_core_pmu_info	*pm;
-	struct bhnd_resource		*r;
-	uint32_t			 rst;
-	int				 error;
+	struct bcma_devinfo	*dinfo;
+	struct bhnd_resource	*r;
+	uint32_t		 rst;
+	int			 error;
 
 	if (device_get_parent(child) != dev)
 		return (EINVAL);
 
 	dinfo = device_get_ivars(child);
-	pm = dinfo->pmu_info;
 
 	/* Can't suspend the core without access to the agent registers */
 	if ((r = dinfo->res_agent) == NULL)
@@ -381,12 +379,6 @@ bcma_suspend_hw(device_t dev, device_t child)
 	/* Clear core flags */
 	if ((error = bhnd_write_ioctl(child, 0x0, UINT16_MAX)))
 		return (error);
-
-	/* Inform PMU that all outstanding request state should be discarded */
-	if (pm != NULL) {
-		if ((error = BHND_PMU_CORE_RELEASE(pm->pm_pmu, pm)))
-			return (error);
-	}
 
 	return (0);
 }

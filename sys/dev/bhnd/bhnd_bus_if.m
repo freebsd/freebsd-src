@@ -114,27 +114,6 @@ CODE {
 		panic("bhnd_bus_get_attach_type unimplemented");
 	}
 
-	static bhnd_clksrc
-	bhnd_bus_null_pwrctl_get_clksrc(device_t dev, device_t child,
-	    bhnd_clock clock)
-	{
-		return (BHND_CLKSRC_UNKNOWN);
-	}
-
-	static int
-	bhnd_bus_null_pwrctl_gate_clock(device_t dev, device_t child,
-	    bhnd_clock clock)
-	{
-		return (ENODEV);
-	}
-
-	static int
-	bhnd_bus_null_pwrctl_ungate_clock(device_t dev, device_t child,
-	    bhnd_clock clock)
-	{
-		return (ENODEV);
-	}
-
 	static int
 	bhnd_bus_null_read_board_info(device_t dev, device_t child,
 	    struct bhnd_board_info *info)
@@ -157,6 +136,20 @@ CODE {
 	bhnd_bus_null_release_pmu(device_t dev, device_t child)
 	{
 		panic("bhnd_bus_release_pmu unimplemented");
+	}
+
+	static int
+	bhnd_bus_null_get_clock_latency(device_t dev, device_t child,
+	    bhnd_clock clock, u_int *latency)
+	{
+		panic("bhnd_pmu_get_clock_latency unimplemented");
+	}
+
+	static int
+	bhnd_bus_null_get_clock_freq(device_t dev, device_t child,
+	    bhnd_clock clock, u_int *freq)
+	{
+		panic("bhnd_pmu_get_clock_freq unimplemented");
 	}
 
 	static int
@@ -671,70 +664,7 @@ METHOD int suspend_hw {
 } DEFAULT bhnd_bus_null_suspend_hw;
 
 /**
- * If supported by the chipset, return the clock source for the given clock.
- *
- * This function is only supported on early PWRCTL-equipped chipsets
- * that expose clock management via their host bridge interface. Currently,
- * this includes PCI (not PCIe) devices, with ChipCommon core revisions 0-9.
- *
- * @param dev The parent of @p child.
- * @param child The bhnd device requesting a clock source.
- * @param clock The clock for which a clock source will be returned.
- *
- * @retval	bhnd_clksrc		The clock source for @p clock.
- * @retval	BHND_CLKSRC_UNKNOWN	If @p clock is unsupported, or its
- *					clock source is not known to the bus.
- */
-METHOD bhnd_clksrc pwrctl_get_clksrc {
-	device_t dev;
-	device_t child;
-	bhnd_clock clock;
-} DEFAULT bhnd_bus_null_pwrctl_get_clksrc;
-
-/**
- * If supported by the chipset, gate the clock source for @p clock
- *
- * This function is only supported on early PWRCTL-equipped chipsets
- * that expose clock management via their host bridge interface. Currently,
- * this includes PCI (not PCIe) devices, with ChipCommon core revisions 0-9.
- *
- * @param dev The parent of @p child.
- * @param child The bhnd device requesting clock gating.
- * @param clock The clock to be disabled.
- *
- * @retval 0 success
- * @retval ENODEV If bus-level clock source management is not supported.
- * @retval ENXIO If bus-level management of @p clock is not supported.
- */
-METHOD int pwrctl_gate_clock {
-	device_t dev;
-	device_t child;
-	bhnd_clock clock;
-} DEFAULT bhnd_bus_null_pwrctl_gate_clock;
-
-/**
- * If supported by the chipset, ungate the clock source for @p clock
- *
- * This function is only supported on early PWRCTL-equipped chipsets
- * that expose clock management via their host bridge interface. Currently,
- * this includes PCI (not PCIe) devices, with ChipCommon core revisions 0-9.
- *
- * @param dev The parent of @p child.
- * @param child The bhnd device requesting clock gating.
- * @param clock The clock to be enabled.
- *
- * @retval 0 success
- * @retval ENODEV If bus-level clock source management is not supported.
- * @retval ENXIO If bus-level management of @p clock is not supported.
- */
-METHOD int pwrctl_ungate_clock {
-	device_t dev;
-	device_t child;
-	bhnd_clock clock;
-} DEFAULT bhnd_bus_null_pwrctl_ungate_clock;
-
-/**
- * Allocate and enable per-core PMU request handling for @p child.
+ * Allocate per-core PMU resources and enable PMU request handling for @p child.
  *
  * The region containing the core's PMU register block (if any) must be
  * allocated via bus_alloc_resource(9) (or bhnd_alloc_resource) before
@@ -743,6 +673,10 @@ METHOD int pwrctl_ungate_clock {
  *
  * @param dev The parent of @p child.
  * @param child The requesting bhnd device.
+ *
+ * @retval 0		success
+ * @retval non-zero	if enabling per-core PMU request handling fails, a
+ *			regular unix error code will be returned.
  */
 METHOD int alloc_pmu {
 	device_t dev;
@@ -761,6 +695,53 @@ METHOD int release_pmu {
 	device_t child;
 } DEFAULT bhnd_bus_null_release_pmu;
 
+/**
+ * Return the transition latency required for @p clock in microseconds, if
+ * known.
+ *
+ * The BHND_CLOCK_HT latency value is suitable for use as the D11 core's
+ * 'fastpwrup_dly' value. 
+ *
+ * @note A driver must ask the bhnd bus to allocate PMU request state
+ * via BHND_BUS_ALLOC_PMU() before querying PMU clocks.
+ *
+ * @param dev The parent of @p child.
+ * @param child The requesting bhnd device.
+ * @param clock	The clock to be queried for transition latency.
+ * @param[out] latency On success, the transition latency of @p clock in
+ * microseconds.
+ * 
+ * @retval 0		success
+ * @retval ENODEV	If the transition latency for @p clock is not available.
+ */
+METHOD int get_clock_latency {
+	device_t dev;
+	device_t child;
+	bhnd_clock clock;
+	u_int *latency;
+} DEFAULT bhnd_bus_null_get_clock_latency;
+
+/**
+ * Return the frequency for @p clock in Hz, if known.
+ *
+ * @param dev The parent of @p child.
+ * @param child The requesting bhnd device.
+ * @param clock The clock to be queried.
+ * @param[out] freq On success, the frequency of @p clock in Hz.
+ *
+ * @note A driver must ask the bhnd bus to allocate PMU request state
+ * via BHND_BUS_ALLOC_PMU() before querying PMU clocks.
+ * 
+ * @retval 0		success
+ * @retval ENODEV	If the frequency for @p clock is not available.
+ */
+METHOD int get_clock_freq {
+	device_t dev;
+	device_t child;
+	bhnd_clock clock;
+	u_int *freq;
+} DEFAULT bhnd_bus_null_get_clock_freq;
+
 /** 
  * Request that @p clock (or faster) be routed to @p child.
  * 
@@ -772,11 +753,13 @@ METHOD int release_pmu {
  *
  * @param dev The parent of @p child.
  * @param child The bhnd device requesting @p clock.
- * @param clock The requested clock source. 
+ * @param clock The requested clock source.
  *
- * @retval 0 success
- * @retval ENODEV If an unsupported clock was requested.
- * @retval ENXIO If the PMU has not been initialized or is otherwise unvailable.
+ * @retval 0		success
+ * @retval ENODEV	If an unsupported clock was requested.
+ * @retval ETIMEDOUT	If the clock request succeeds, but the clock is not
+ *			detected as ready within the PMU's maximum transition
+ *			delay. This should not occur in normal operation.
  */
 METHOD int request_clock {
 	device_t dev;
@@ -801,9 +784,11 @@ METHOD int request_clock {
  * @param child The bhnd device requesting @p clock.
  * @param clock The requested clock source.
  *
- * @retval 0 success
- * @retval ENODEV If an unsupported clock was requested.
- * @retval ENXIO If the PMU has not been initialized or is otherwise unvailable.
+ * @retval 0		success
+ * @retval ENODEV	If an unsupported clock was requested.
+ * @retval ETIMEDOUT	If the clock request succeeds, but the clock is not
+ *			detected as ready within the PMU's maximum transition
+ *			delay. This should not occur in normal operation.
  */
 METHOD int enable_clocks {
 	device_t dev;
@@ -824,9 +809,11 @@ METHOD int enable_clocks {
  * @param child The bhnd device requesting @p rsrc.
  * @param rsrc The core-specific external resource identifier.
  *
- * @retval 0 success
- * @retval ENODEV If the PMU does not support @p rsrc.
- * @retval ENXIO If the PMU has not been initialized or is otherwise unvailable.
+ * @retval 0		success
+ * @retval ENODEV	If the PMU does not support @p rsrc.
+ * @retval ETIMEDOUT	If the clock request succeeds, but the clock is not
+ *			detected as ready within the PMU's maximum transition
+ *			delay. This should not occur in normal operation.
  */
 METHOD int request_ext_rsrc {
 	device_t dev;
@@ -844,9 +831,11 @@ METHOD int request_ext_rsrc {
  * @param child The bhnd device requesting @p rsrc.
  * @param rsrc The core-specific external resource number.
  *
- * @retval 0 success
- * @retval ENODEV If the PMU does not support @p rsrc.
- * @retval ENXIO If the PMU has not been initialized or is otherwise unvailable.
+ * @retval 0		success
+ * @retval ENODEV	If the PMU does not support @p rsrc.
+ * @retval ETIMEDOUT	If the clock request succeeds, but the clock is not
+ *			detected as ready within the PMU's maximum transition
+ *			delay. This should not occur in normal operation.
  */
 METHOD int release_ext_rsrc {
 	device_t dev;

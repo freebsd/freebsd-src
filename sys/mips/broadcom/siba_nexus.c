@@ -80,7 +80,7 @@ siba_nexus_attach(device_t dev)
 
 	/* Perform initial attach and enumerate our children. */
 	if ((error = siba_attach(dev)))
-		goto failed;
+		return (error);
 
 	/* Delegate remainder to standard bhnd method implementation */
 	if ((error = bhnd_generic_attach(dev)))
@@ -89,7 +89,7 @@ siba_nexus_attach(device_t dev)
 	return (0);
 
 failed:
-	device_delete_children(dev);
+	siba_detach(dev);
 	return (error);
 }
 

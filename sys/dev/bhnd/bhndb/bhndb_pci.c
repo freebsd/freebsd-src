@@ -68,6 +68,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/bhnd/cores/pci/bhnd_pcireg.h>
 
+#include "bhnd_pwrctl_hostb_if.h"
+
 #include "bhndb_pcireg.h"
 #include "bhndb_pcivar.h"
 #include "bhndb_private.h"
@@ -1136,11 +1138,11 @@ bhndb_pci_pwrctl_get_clksrc(device_t dev, device_t child,
 
 	/* Only supported on PCI devices */
 	if (bhndb_is_pcie_attached(sc->dev))
-		return (ENODEV);
+		return (BHND_CLKSRC_UNKNOWN);
 
 	/* Only ILP is supported */
 	if (clock != BHND_CLOCK_ILP)
-		return (ENXIO);
+		return (BHND_CLKSRC_UNKNOWN);
 
 	gpio_out = pci_read_config(sc->parent, BHNDB_PCI_GPIO_OUT, 4);
 	if (gpio_out & BHNDB_PCI_GPIO_SCS)
@@ -1451,22 +1453,22 @@ bhndb_pci_eio_read(struct bhnd_erom_io *eio, bhnd_size_t offset, u_int width)
 
 static device_method_t bhndb_pci_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,			bhndb_pci_probe),
-	DEVMETHOD(device_attach,		bhndb_pci_attach),
-	DEVMETHOD(device_resume,		bhndb_pci_resume),
-	DEVMETHOD(device_suspend,		bhndb_pci_suspend),
-	DEVMETHOD(device_detach,		bhndb_pci_detach),
-
-	/* BHND interface */
-	DEVMETHOD(bhnd_bus_pwrctl_get_clksrc,	bhndb_pci_pwrctl_get_clksrc),
-	DEVMETHOD(bhnd_bus_pwrctl_gate_clock,	bhndb_pci_pwrctl_gate_clock),
-	DEVMETHOD(bhnd_bus_pwrctl_ungate_clock,	bhndb_pci_pwrctl_ungate_clock),
+	DEVMETHOD(device_probe,				bhndb_pci_probe),
+	DEVMETHOD(device_attach,			bhndb_pci_attach),
+	DEVMETHOD(device_resume,			bhndb_pci_resume),
+	DEVMETHOD(device_suspend,			bhndb_pci_suspend),
+	DEVMETHOD(device_detach,			bhndb_pci_detach),
 
 	/* BHNDB interface */
-	DEVMETHOD(bhndb_set_window_addr,	bhndb_pci_set_window_addr),
-	DEVMETHOD(bhndb_populate_board_info,	bhndb_pci_populate_board_info),
-	DEVMETHOD(bhndb_map_intr_isrc,		bhndb_pci_map_intr_isrc),
-	DEVMETHOD(bhndb_route_interrupts,	bhndb_pci_route_interrupts),
+	DEVMETHOD(bhndb_set_window_addr,		bhndb_pci_set_window_addr),
+	DEVMETHOD(bhndb_populate_board_info,		bhndb_pci_populate_board_info),
+	DEVMETHOD(bhndb_map_intr_isrc,			bhndb_pci_map_intr_isrc),
+	DEVMETHOD(bhndb_route_interrupts,		bhndb_pci_route_interrupts),
+
+	/* BHND PWRCTL hostb interface */
+	DEVMETHOD(bhnd_pwrctl_hostb_get_clksrc,		bhndb_pci_pwrctl_get_clksrc),
+	DEVMETHOD(bhnd_pwrctl_hostb_gate_clock,		bhndb_pci_pwrctl_gate_clock),
+	DEVMETHOD(bhnd_pwrctl_hostb_ungate_clock,	bhndb_pci_pwrctl_ungate_clock),
 
 	DEVMETHOD_END
 };
