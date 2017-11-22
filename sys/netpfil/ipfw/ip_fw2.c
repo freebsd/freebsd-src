@@ -2842,11 +2842,6 @@ vnet_ipfw_init(const void *unused)
 	ipfw_init_srv(chain);
 
 	ipfw_init_counters();
-	/* insert the default rule and create the initial map */
-	chain->n_rules = 1;
-	chain->map = malloc(sizeof(struct ip_fw *), M_IPFW, M_WAITOK | M_ZERO);
-	rule = ipfw_alloc_rule(chain, sizeof(struct ip_fw));
-
 	/* Set initial number of tables */
 	V_fw_tables_max = default_fw_tables;
 	error = ipfw_init_tables(chain, first);
@@ -2857,19 +2852,16 @@ vnet_ipfw_init(const void *unused)
 		return (ENOSPC);
 	}
 
+	IPFW_LOCK_INIT(chain);
+
 	/* fill and insert the default rule */
-	rule->act_ofs = 0;
-	rule->rulenum = IPFW_DEFAULT_RULE;
+	rule = ipfw_alloc_rule(chain, sizeof(struct ip_fw));
 	rule->cmd_len = 1;
-	rule->set = RESVD_SET;
 	rule->cmd[0].len = 1;
 	rule->cmd[0].opcode = default_to_accept ? O_ACCEPT : O_DENY;
-	chain->default_rule = chain->map[0] = rule;
-	chain->id = rule->id = 1;
-	/* Pre-calculate rules length for legacy dump format */
-	chain->static_len = sizeof(struct ip_fw_rule0);
+	chain->default_rule = rule;
+	ipfw_add_protected_rule(chain, rule, 0);
 
-	IPFW_LOCK_INIT(chain);
 	ipfw_dyn_init(chain);
 	ipfw_eaction_init(chain, first);
 #ifdef LINEAR_SKIPTO
