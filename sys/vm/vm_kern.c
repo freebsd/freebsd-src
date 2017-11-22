@@ -185,13 +185,13 @@ kmem_alloc_attr_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		tries = 0;
 retry:
-		m = vm_page_alloc_contig(object, atop(offset + i),
-		    pflags, 1, low, high, PAGE_SIZE, 0, memattr);
+		m = vm_page_alloc_contig_domain(object, atop(offset + i),
+		    domain, pflags, 1, low, high, PAGE_SIZE, 0, memattr);
 		if (m == NULL) {
 			VM_OBJECT_WUNLOCK(object);
 			if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-				if (!vm_page_reclaim_contig(pflags, 1,
-				    low, high, PAGE_SIZE, 0) &&
+				if (!vm_page_reclaim_contig_domain(pflags, 1,
+				    domain, low, high, PAGE_SIZE, 0) &&
 				    (flags & M_WAITOK) != 0)
 					VM_WAIT;
 				VM_OBJECT_WLOCK(object);
@@ -202,6 +202,9 @@ retry:
 			vmem_free(vmem, addr, size);
 			return (0);
 		}
+		KASSERT(vm_phys_domidx(m) == domain,
+		    ("kmem_alloc_attr_domain: Domain mismatch %d != %d",
+		    vm_phys_domidx(m), domain));
 		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
 		m->valid = VM_PAGE_BITS_ALL;
@@ -274,13 +277,14 @@ kmem_alloc_contig_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 	VM_OBJECT_WLOCK(object);
 	tries = 0;
 retry:
-	m = vm_page_alloc_contig(object, atop(offset), pflags,
+	m = vm_page_alloc_contig_domain(object, atop(offset), domain, pflags,
 	    npages, low, high, alignment, boundary, memattr);
 	if (m == NULL) {
 		VM_OBJECT_WUNLOCK(object);
 		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-			if (!vm_page_reclaim_contig(pflags, npages, low, high,
-			    alignment, boundary) && (flags & M_WAITOK) != 0)
+			if (!vm_page_reclaim_contig_domain(pflags, npages,
+			    domain, low, high, alignment, boundary) &&
+			    (flags & M_WAITOK) != 0)
 				VM_WAIT;
 			VM_OBJECT_WLOCK(object);
 			tries++;
@@ -289,6 +293,9 @@ retry:
 		vmem_free(vmem, addr, size);
 		return (0);
 	}
+	KASSERT(vm_phys_domidx(m) == domain,
+	    ("kmem_alloc_contig_domain: Domain mismatch %d != %d",
+	    vm_phys_domidx(m), domain));
 	end_m = m + npages;
 	tmp = addr;
 	for (; m < end_m; m++) {

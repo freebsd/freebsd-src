@@ -2540,8 +2540,8 @@ CTASSERT(powerof2(NRUNS));
  *	must be a power of two.
  */
 bool
-vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
-    u_long alignment, vm_paddr_t boundary)
+vm_page_reclaim_contig_domain(int req, u_long npages, int domain,
+    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
 {
 	vm_paddr_t curr_low;
 	vm_page_t m_run, m_runs[NRUNS];
@@ -2581,8 +2581,8 @@ vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
 		curr_low = low;
 		count = 0;
 		for (;;) {
-			m_run = vm_phys_scan_contig(npages, curr_low, high,
-			    alignment, boundary, options);
+			m_run = vm_phys_scan_contig(domain, npages, curr_low,
+			    high, alignment, boundary, options);
 			if (m_run == NULL)
 				break;
 			curr_low = VM_PAGE_TO_PHYS(m_run) + ptoa(npages);
@@ -2622,6 +2622,28 @@ vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
 			return (reclaimed != 0);
 	}
 }
+
+bool
+vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
+    u_long alignment, vm_paddr_t boundary)
+{
+	struct vm_domain_iterator vi;
+	int domain;
+	bool ret;
+
+	ret = false;
+	vm_policy_iterator_init(&vi);
+	while ((vm_domain_iterator_run(&vi, &domain)) == 0) {
+		ret = vm_page_reclaim_contig_domain(req, npages, domain, low,
+		    high, alignment, boundary);
+		if (ret)
+			break;
+	}
+	vm_policy_iterator_finish(&vi);
+
+	return (ret);
+}
+
 
 /*
  *	vm_wait:	(also see VM_WAIT macro)
