@@ -101,18 +101,22 @@ void	sx_sysinit(void *arg);
 #define	sx_init(sx, desc)	sx_init_flags((sx), (desc), 0)
 void	sx_init_flags(struct sx *sx, const char *description, int opts);
 void	sx_destroy(struct sx *sx);
+int	sx_try_slock_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF);
 int	sx_try_slock_(struct sx *sx, const char *file, int line);
+int	sx_try_xlock_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF);
 int	sx_try_xlock_(struct sx *sx, const char *file, int line);
+int	sx_try_upgrade_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF);
 int	sx_try_upgrade_(struct sx *sx, const char *file, int line);
+void	sx_downgrade_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF);
 void	sx_downgrade_(struct sx *sx, const char *file, int line);
+int	_sx_slock_int(struct sx *sx, int opts LOCK_FILE_LINE_ARG_DEF);
 int	_sx_slock(struct sx *sx, int opts, const char *file, int line);
 int	_sx_xlock(struct sx *sx, int opts, const char *file, int line);
+void	_sx_sunlock_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF);
 void	_sx_sunlock(struct sx *sx, const char *file, int line);
 void	_sx_xunlock(struct sx *sx, const char *file, int line);
-int	_sx_xlock_hard(struct sx *sx, uintptr_t v, uintptr_t tid, int opts,
-	    const char *file, int line);
-void	_sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int
-	    line);
+int	_sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF);
+void	_sx_xunlock_hard(struct sx *sx, uintptr_t tid LOCK_FILE_LINE_ARG_DEF);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void	_sx_assert(const struct sx *sx, int what, const char *file, int line);
 #endif
@@ -157,7 +161,7 @@ __sx_xlock(struct sx *sx, struct thread *td, int opts, const char *file,
 
 	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(sx__acquire) ||
 	    !atomic_fcmpset_acq_ptr(&sx->sx_lock, &v, tid)))
-		error = _sx_xlock_hard(sx, v, tid, opts, file, line);
+		error = _sx_xlock_hard(sx, v, opts);
 
 	return (error);
 }
@@ -170,7 +174,7 @@ __sx_xunlock(struct sx *sx, struct thread *td, const char *file, int line)
 
 	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(sx__release) ||
 	    !atomic_cmpset_rel_ptr(&sx->sx_lock, tid, SX_LOCK_UNLOCKED)))
-		_sx_xunlock_hard(sx, tid, file, line);
+		_sx_xunlock_hard(sx, tid);
 }
 #endif
 
@@ -195,6 +199,7 @@ __sx_xunlock(struct sx *sx, struct thread *td, const char *file, int line)
 #define	sx_xunlock_(sx, file, line)					\
 	__sx_xunlock((sx), curthread, (file), (line))
 #endif	/* LOCK_DEBUG > 0 || SX_NOINLINE */
+#if	(LOCK_DEBUG > 0)
 #define	sx_slock_(sx, file, line)					\
 	(void)_sx_slock((sx), 0, (file), (line))
 #define	sx_slock_sig_(sx, file, line)					\
@@ -205,6 +210,18 @@ __sx_xunlock(struct sx *sx, struct thread *td, const char *file, int line)
 #define	sx_try_xlock(sx)	sx_try_xlock_((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_try_upgrade(sx)	sx_try_upgrade_((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_downgrade(sx)	sx_downgrade_((sx), LOCK_FILE, LOCK_LINE)
+#else
+#define	sx_slock_(sx, file, line)					\
+	(void)_sx_slock_int((sx), 0)
+#define	sx_slock_sig_(sx, file, line)					\
+	_sx_slock_int((sx), SX_INTERRUPTIBLE)
+#define	sx_sunlock_(sx, file, line)					\
+	_sx_sunlock_int((sx))
+#define	sx_try_slock(sx)	sx_try_slock_int((sx))
+#define	sx_try_xlock(sx)	sx_try_xlock_int((sx))
+#define	sx_try_upgrade(sx)	sx_try_upgrade_int((sx))
+#define	sx_downgrade(sx)	sx_downgrade_int((sx))
+#endif
 #ifdef INVARIANTS
 #define	sx_assert_(sx, what, file, line)				\
 	_sx_assert((sx), (what), (file), (line))
