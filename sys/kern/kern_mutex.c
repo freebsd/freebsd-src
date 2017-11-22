@@ -277,7 +277,7 @@ __mtx_unlock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 	mtx_assert(m, MA_OWNED);
 
 #ifdef LOCK_PROFILING
-	__mtx_unlock_sleep(c, opts, file, line);
+	__mtx_unlock_sleep(c, (uintptr_t)curthread, opts, file, line);
 #else
 	__mtx_unlock(m, curthread, opts, file, line);
 #endif
@@ -1002,24 +1002,27 @@ thread_lock_set(struct thread *td, struct mtx *new)
  */
 #if LOCK_DEBUG > 0
 void
-__mtx_unlock_sleep(volatile uintptr_t *c, int opts, const char *file, int line)
+__mtx_unlock_sleep(volatile uintptr_t *c, uintptr_t v, int opts,
+    const char *file, int line)
 #else
 void
-__mtx_unlock_sleep(volatile uintptr_t *c)
+__mtx_unlock_sleep(volatile uintptr_t *c, uintptr_t v)
 #endif
 {
 	struct mtx *m;
 	struct turnstile *ts;
-	uintptr_t tid, v;
+	uintptr_t tid;
 
 	if (SCHEDULER_STOPPED())
 		return;
 
 	tid = (uintptr_t)curthread;
 	m = mtxlock2mtx(c);
-	v = MTX_READ_VALUE(m);
 
-	if (v & MTX_RECURSED) {
+	if (__predict_false(v == tid))
+		v = MTX_READ_VALUE(m);
+
+	if (__predict_false(v & MTX_RECURSED)) {
 		if (--(m->mtx_recurse) == 0)
 			atomic_clear_ptr(&m->mtx_lock, MTX_RECURSED);
 		if (LOCK_LOG_TEST(&m->lock_object, opts))
