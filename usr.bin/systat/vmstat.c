@@ -138,10 +138,10 @@ static void allocinfo(struct Info *);
 static void copyinfo(struct Info *, struct Info *);
 static float cputime(int);
 static void dinfo(int, int, struct statinfo *, struct statinfo *);
+static void do_putuint64(uint64_t, int, int, int, int);
 static void getinfo(struct Info *);
 static void putint(int, int, int, int);
 static void putuint64(uint64_t, int, int, int);
-static void do_putuint64(uint64_t, int, int, int, int);
 static void putfloat(double, int, int, int, int, int);
 static void putlongdouble(long double, int, int, int, int, int);
 static int ucount(void);
@@ -699,7 +699,7 @@ do_putuint64(uint64_t n, int l, int lc, int w, int div)
 			addch(' ');
 		return;
 	}
-	snr = snprintf(b, sizeof(b), "%*jd", w, (uintmax_t)n);
+	snr = snprintf(b, sizeof(b), "%*ju", w, (uintmax_t)n);
 	if (snr != w) {
 		humanize_number(buf, w, n, "", HN_AUTOSCALE,
 		    HN_NOSPACE | HN_DECIMAL | div);
