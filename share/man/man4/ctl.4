@@ -191,6 +191,17 @@ If there is no primary node (both nodes are secondary, or secondary node has
 no connection to primary one), secondary node(s) report Transitioning state.
 State with two primary nodes is illegal (split brain condition).
 .El
+.Sh TUNABLE VARIABLES
+The following variables are available as
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va kern.cam.ctl.max_luns
+Specifies the maximum number of LUNs we support, must be a power of 2.
+The default value is 1024.
+.It Va kern.cam.ctl.max_ports
+Specifies the maximum number of ports we support, must be a power of 2.
+The default value is 256.
 .Sh SEE ALSO
 .Xr cfiscsi 4 ,
 .Xr cfumass 4 ,
