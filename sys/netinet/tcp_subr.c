@@ -1238,16 +1238,20 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	if (flags & TH_RST)
 		TCP_PROBE5(accept__refused, NULL, NULL, m, tp, nth);
 
-	TCP_PROBE5(send, NULL, tp, m, tp, nth);
 #ifdef INET6
-	if (isipv6)
-		(void) ip6_output(m, NULL, NULL, 0, NULL, NULL, inp);
+	if (isipv6) {
+		TCP_PROBE5(send, NULL, tp, ip6, tp, nth);
+		(void)ip6_output(m, NULL, NULL, 0, NULL, NULL, inp);
+	}
 #endif /* INET6 */
 #if defined(INET) && defined(INET6)
 	else
 #endif
 #ifdef INET
-		(void) ip_output(m, NULL, NULL, 0, NULL, inp);
+	{
+		TCP_PROBE5(send, NULL, tp, ip, tp, nth);
+		(void)ip_output(m, NULL, NULL, 0, NULL, inp);
+	}
 #endif
 }
 
