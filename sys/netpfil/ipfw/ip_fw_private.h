@@ -625,6 +625,8 @@ void ipfw_destroy_skipto_cache(struct ip_fw_chain *chain);
 int ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id);
 int ipfw_ctl3(struct sockopt *sopt);
 int ipfw_chk(struct ip_fw_args *args);
+int ipfw_add_protected_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
+    int locked);
 void ipfw_reap_add(struct ip_fw_chain *chain, struct ip_fw **head,
     struct ip_fw *rule);
 void ipfw_reap_rules(struct ip_fw *head);
