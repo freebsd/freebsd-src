@@ -473,7 +473,7 @@ chipc_retain_region(struct chipc_softc *sc, struct chipc_region *cr, int flags)
 			/* Allocate resource */
 			cr->cr_res = bhnd_alloc_resource(sc->dev,
 			    SYS_RES_MEMORY, &cr->cr_res_rid, cr->cr_addr,
-			    cr->cr_end, cr->cr_count, 0);
+			    cr->cr_end, cr->cr_count, RF_SHAREABLE);
 			if (cr->cr_res == NULL) {
 				CHIPC_UNLOCK(sc);
 				return (ENXIO);

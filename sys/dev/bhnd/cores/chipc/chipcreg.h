@@ -557,7 +557,12 @@ enum {
 #define	CHIPC_SRC_PRESENT		0x00000001
 
 /* gpiotimerval */
-#define	CHIPC_GPIO_ONTIME_SHIFT	16
+#define	CHIPC_GPIO_ONTIME_SHIFT		16
+#define	CHIPC_GPIOTIMERVAL_DEFAULT_ON	10	/**< default 10% on duty cycle */
+#define	CHIPC_GPIOTIMERVAL_DEFAULT_OFF	90	/**< default 90% off duty cycle */
+#define	CHIPC_GPIOTIMERVAL_DEFAULT					\
+    ((CHIPC_GPIOTIMERVAL_DEFAULT_ON << CHIPC_GPIO_ONTIME_SHIFT) |	\
+     (CHIPC_GPIOTIMERVAL_DEFAULT_OFF))
 
 /* clockcontrol_n */
 #define	CHIPC_CN_N1_MASK		0x3f	/* n1 control */
