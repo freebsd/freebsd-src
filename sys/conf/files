@@ -1246,6 +1246,7 @@ dev/bhnd/cores/chipc/bhnd_sprom_chipc.c	optional bhnd
 dev/bhnd/cores/chipc/bhnd_pmu_chipc.c	optional bhnd
 dev/bhnd/cores/chipc/chipc.c		optional bhnd
 dev/bhnd/cores/chipc/chipc_cfi.c	optional bhnd cfi 
+dev/bhnd/cores/chipc/chipc_gpio.c	optional bhnd gpio
 dev/bhnd/cores/chipc/chipc_slicer.c	optional bhnd cfi | bhnd spibus
 dev/bhnd/cores/chipc/chipc_spi.c	optional bhnd spibus
 dev/bhnd/cores/chipc/chipc_subr.c	optional bhnd

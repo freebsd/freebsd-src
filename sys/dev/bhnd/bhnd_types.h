@@ -75,6 +75,7 @@ typedef enum {
 	BHND_SERVICE_PWRCTL,		/**< legacy pwrctl service; implements the bhnd_pwrctl interface */
 	BHND_SERVICE_PMU,		/**< pmu service; implements the bhnd_pmu interface */
 	BHND_SERVICE_NVRAM,		/**< nvram service; implements the bhnd_nvram interface */
+	BHND_SERVICE_GPIO,		/**< gpio service; implements the standard gpio interface */
 
 	BHND_SERVICE_ANY = 1000,	/**< match on any service type */
 } bhnd_service_t;
