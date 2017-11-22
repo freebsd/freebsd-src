@@ -750,6 +750,34 @@ struct vmcx_state {
 	uint64_t vmcs_exit_ctls;
 
 	uint64_t guest_intr_shadow;
+
+	uint64_t vmcb_npt;		    // 8 bytes
+
+	uint64_t vmcb_off_cr_intercept;	    // 4 bytes
+	uint64_t vmcb_off_dr_intercept;	    // 4 bytes
+	uint64_t vmcb_off_exc_intercept;    // 4 bytes
+	uint64_t vmcb_off_inst1_intercept; // 4 bytes
+	uint64_t vmcb_off_inst2_intercept; // 4 bytes
+
+	uint64_t vmcb_off_tlb_ctrl;	    // 4 bytes
+
+	uint64_t vmcb_off_exitinfo1;	    // 8 bytes
+	uint64_t vmcb_off_exitinfo2;	    // 8 bytes
+	uint64_t vmcb_off_exitintinfo;	    // 8 bytes
+	uint64_t vmcb_off_virq;		    // 8 bytes
+	uint64_t vmcb_off_guest_pat;	    // 8 bytes
+
+
+	uint64_t vmcb_off_avic_bar;	    // 8 bytes
+	uint64_t vmcb_off_avic_page;	    // 8 bytes
+	uint64_t vmcb_off_avic_lt;	    // 8 bytes
+	uint64_t vmcb_off_avic_pt;	    // 8 bytes
+
+	uint64_t vmcb_off_io_perm;	    // 8 bytes
+	uint64_t vmcb_off_msr_perm;	    // 8 bytes
+
+	uint64_t vmcb_off_asid;		    // 4 bytes
+	uint64_t vmcb_off_exit_reason;	    // 8 bytes
 };
 
 /* APIs to inject faults into the guest */

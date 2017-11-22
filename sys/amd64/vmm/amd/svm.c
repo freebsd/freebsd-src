@@ -2322,96 +2322,65 @@ svm_snapshot_vmcx(void *arg, struct vmcx_state *vmcx, int vcpu)
 		return (EINVAL);
 	}
 
-	printf("%s: Virtual cpu to restore %d && running is %d\n", __func__, vcpu, running);
 //	TODO - Intel has vmcs_getreg in sys/amd64/vmm/intel/vmcs.c
 //	TODO - but AMD does not have a similar function for vmcb
 //	TODO - vmcs_getreg uses vmx_getreg which is equivalent with svm_getreg
 //	TODO - on AMD
 
-	printf("%s: save CR0; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_CR0, &vmcx->guest_cr0);
-	printf("%s: save CR2; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_CR2, &vmcx->guest_cr2);
-	printf("%s: save CR3; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_CR3, &vmcx->guest_cr3);
-	printf("%s: save CR4; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_CR4, &vmcx->guest_cr4);
 
-	printf("%s: save DR6; err = %d\n", __func__, err);
 //	err += svm_getreg(sc, vcpu, VM_REG_GUEST_DR6, &vmcx->guest_dr6);
 	vmcx->guest_dr6 = vmcb->state.dr6;
 
-	printf("%s: save DR7; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_DR7, &vmcx->guest_dr7);
 
-	printf("%s: save RAX; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_RAX, &vmcx->guest_rax);
 
-	printf("%s: save RSP; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_RSP, &vmcx->guest_rsp);
-	printf("%s: save RIP; err = %d;\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_RIP, &vmcx->guest_rip);
-	printf("%s: value of saved RIP = %lx\n", __func__, vmcx->guest_rip);
-	printf("%s: save RFLAGS; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_RFLAGS, &vmcx->guest_rflags);
 
 	/* Guest segments */
 	/* ES */
-	printf("%s: save GUEST ES; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_ES, &vmcx->guest_es);
-	printf("%s: save GUEST ES DESC; err = %d\n", __func__, err);
 	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_ES, &vmcx->guest_es_desc);
 
 	/* CS */
-	printf("%s: save GUEST CS; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_CS, &vmcx->guest_cs);
-	printf("%s: save GUEST CS DESC; err = %d\n", __func__, err);
 	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_CS, &vmcx->guest_cs_desc);
 
 	/* SS */
-	printf("%s: save GUEST SS; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_SS, &vmcx->guest_ss);
-	printf("%s: save GUEST SS DESC; err = %d\n", __func__, err);
 	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_SS, &vmcx->guest_ss_desc);
 
 	/* DS */
-	printf("%s: save GUEST DS; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_DS, &vmcx->guest_ds);
-	printf("%s: save GUEST DS DESC; err = %d\n", __func__, err);
 	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_DS, &vmcx->guest_ds_desc);
 
 	/* FS */
-	printf("%s: save GUEST FS; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_FS, &vmcx->guest_fs);
-	printf("%s: save GUESR FS DESC; err = %d\n", __func__, err);
 	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_FS, &vmcx->guest_fs_desc);
 
 	/* GS */
-	printf("%s: save GUEST GS; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_GS, &vmcx->guest_gs);
-	printf("%s: save GUEST GS; err = %d\n", __func__, err);
 	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_GS, &vmcx->guest_gs_desc);
 
 	/* TR */
-	printf("%s: save GUEST TR; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_TR, &vmcx->guest_tr);
-	printf("%s: save GUEST TR DESC; err = %d\n", __func__, err);
 	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_TR, &vmcx->guest_tr_desc);
 
 	/* LDTR */
-	printf("%s: save GUEST LDTR; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_LDTR, &vmcx->guest_ldtr);
-	printf("%s: save GUEST LDTR DESC; err = %d\n", __func__, err);
 	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_LDTR, &vmcx->guest_ldtr_desc);
 
 	/* EFER */
-	printf("%s: save GUEST EFER; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_EFER, &vmcx->guest_efer);
 
 	/* IDTR and GDTR */
-	printf("%s: save IDTR; err = %d\n", __func__, err);
 	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_IDTR, &vmcx->guest_idtr_desc);
-	printf("%s: save GDTR; err = %d\n", __func__, err);
 	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_GDTR, &vmcx->guest_gdtr_desc);
 
 	/* Guest page tables */
@@ -2434,20 +2403,89 @@ svm_snapshot_vmcx(void *arg, struct vmcx_state *vmcx, int vcpu)
 	// VMCB_OFF_SYSENTER_EIP is VMCS_GUEST_IA32_SYSENTER_EIP
 	//
 #if 1
-	printf("%s: save SYSENTER CS\n", __func__);
 	err += vmcb_getany(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_SYSENTER_CS, 8),
 				&vmcx->guest_ia32_sysenter_cs);
-	printf("%s: save SYSENTER ESP\n", __func__);
 	err += vmcb_getany(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_SYSENTER_ESP, 8),
 				&vmcx->guest_ia32_sysenter_esp);
-	printf("%s: save SYSENTER EIP\n", __func__);
 	err += vmcb_getany(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_SYSENTER_EIP, 8),
 				&vmcx->guest_ia32_sysenter_eip);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_NPT_BASE, 8),
+				&vmcx->vmcb_npt);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_CR_INTERCEPT, 4),
+				&vmcx->vmcb_off_cr_intercept);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_DR_INTERCEPT, 4),
+				&vmcx->vmcb_off_dr_intercept);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_EXC_INTERCEPT, 4),
+				&vmcx->vmcb_off_exc_intercept);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_INST1_INTERCEPT, 4),
+				&vmcx->vmcb_off_inst1_intercept);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_INST2_INTERCEPT, 4),
+				&vmcx->vmcb_off_inst2_intercept);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_TLB_CTRL, 4),
+				&vmcx->vmcb_off_tlb_ctrl);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_EXITINFO1, 8),
+				&vmcx->vmcb_off_exitinfo1);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_EXITINFO2, 8),
+				&vmcx->vmcb_off_exitinfo2);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_EXITINTINFO, 8),
+				&vmcx->vmcb_off_exitintinfo);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_VIRQ, 8),
+				&vmcx->vmcb_off_virq);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_GUEST_PAT, 8),
+				&vmcx->vmcb_off_guest_pat);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_AVIC_BAR, 8),
+				&vmcx->vmcb_off_avic_bar);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_AVIC_PAGE, 8),
+				&vmcx->vmcb_off_avic_page);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_AVIC_LT, 8),
+				&vmcx->vmcb_off_avic_lt);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_AVIC_PT, 8),
+				&vmcx->vmcb_off_avic_pt);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_IO_PERM, 8),
+				&vmcx->vmcb_off_io_perm);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_MSR_PERM, 8),
+				&vmcx->vmcb_off_msr_perm);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_ASID, 4),
+				&vmcx->vmcb_off_asid);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_EXIT_REASON, 8),
+				&vmcx->vmcb_off_exit_reason);
+
+
+
 #endif
-	printf("%s: save GDTR; err = %d\n", __func__, err);
 	err += svm_getreg(sc, vcpu, VM_REG_GUEST_INTR_SHADOW, &vmcx->guest_intr_shadow);
 
 	/* TODO - Save other registers such as:
@@ -2480,91 +2518,63 @@ svm_restore_vmcx(void *arg, struct vmcx_state *vmcx, int vcpu)
 		return (EINVAL);
 	}
 
-	printf("%s: restore GUEST CR0; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_CR0, vmcx->guest_cr0);
-	printf("%s: restore GUEST CR2; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_CR2, vmcx->guest_cr2);
-	printf("%s: restore GUEST CR3; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_CR3, vmcx->guest_cr3);
-	printf("%s: restore GUEST CR4; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_CR4, vmcx->guest_cr4);
 
-	printf("%s: restore GUEST DR6; err = %d\n", __func__, err);
-//	err += svm_setreg(sc, vcpu, VM_REG_GUEST_DR6, vmcx->guest_dr6);
 	vmcb->state.dr6 = vmcx->guest_dr6;
 
-	printf("%s: restore GUEST DR7; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_DR7, vmcx->guest_dr7);
 
-	printf("%s: restore GUEST RAX; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_RAX, vmcx->guest_rax);
 
-	printf("%s: restore GUEST RSP; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_RSP, vmcx->guest_rsp);
 
-	printf("%s: restore GUEST RIP; err = %d; val = %lx\n", __func__, err, vmcx->guest_rip);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_RIP, vmcx->guest_rip);
 
-	printf("%s: restore GUEST RFLAGS; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_RFLAGS, vmcx->guest_rflags);
 
 	/* Guest segments */
 	/* ES */
-	printf("%s: restore GUEST ES; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_ES, vmcx->guest_es);
-	printf("%s: restore GUEST ES desc; err = %d\n", __func__, err);
 	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_ES, &vmcx->guest_es_desc);
 
 	/* CS */
-	printf("%s: restore GUEST CS; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_CS, vmcx->guest_cs);
-	printf("%s: restore GUEST CS desc; err = %d\n", __func__, err);
 	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_CS, &vmcx->guest_cs_desc);
 
 	/* SS */
-	printf("%s: restore GUEST SS; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_SS, vmcx->guest_ss);
-	printf("%s: restore GUEST SS desc; err = %d\n", __func__, err);
 	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_SS, &vmcx->guest_ss_desc);
 
 	/* DS */
-	printf("%s: restore GUEST DS; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_DS, vmcx->guest_ds);
-	printf("%s: restore GUEST DS desc; err = %d\n", __func__, err);
 	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_DS, &vmcx->guest_ds_desc);
 
 	/* FS */
-	printf("%s: restore GUEST FS; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_FS, vmcx->guest_fs);
-	printf("%s: restore GUEST FS desc; err = %d\n", __func__, err);
 	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_FS, &vmcx->guest_fs_desc);
 
 	/* GS */
-	printf("%s: restore GUEST GS; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_GS, vmcx->guest_gs);
-	printf("%s: restore GUEST GS desc; err = %d\n", __func__, err);
 	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_GS, &vmcx->guest_gs_desc);
 
 	/* TR */
-	printf("%s: restore GUEST TR; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_TR, vmcx->guest_tr);
-	printf("%s: restore GUEST TR desc; err = %d\n", __func__, err);
 	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_TR, &vmcx->guest_tr_desc);
 
 	/* LDTR */
-	printf("%s: restore GUEST LDTR; err = %d\n", __func__, err);
+#if 1
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_LDTR, vmcx->guest_ldtr);
-	printf("%s: restore GUEST LDTR desc; err = %d\n", __func__, err);
 	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_LDTR, &vmcx->guest_ldtr_desc);
+#endif
 
 	/* EFER */
-	printf("%s: restore GUEST EFER; err = %d\n", __func__, err);
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_EFER, vmcx->guest_efer);
 
 	/* IDTR and GDTR */
-	printf("%s: restore GUEST IDTR desc; err = %d\n", __func__, err);
 	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_IDTR, &vmcx->guest_idtr_desc);
-	printf("%s: restore GUEST GDTR desc; err = %d\n", __func__, err);
 	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_GDTR, &vmcx->guest_gdtr_desc);
 
 	/* Guest page tables */
@@ -2582,21 +2592,95 @@ svm_restore_vmcx(void *arg, struct vmcx_state *vmcx, int vcpu)
 	// VMCB_OFF_SYSENTER_EIP is VMCS_GUEST_IA32_SYSENTER_EIP
 	//
 #if 1
-	printf("%s: restore GUEST SYSENTER_CS desc; err = %d\n", __func__, err);
 	err += vmcb_setany(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_SYSENTER_CS, 8),
 				vmcx->guest_ia32_sysenter_cs);
-	printf("%s: restore GUEST SYSENTER ESP desc; err = %d\n", __func__, err);
 	err += vmcb_setany(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_SYSENTER_ESP, 8),
 				vmcx->guest_ia32_sysenter_esp);
-	printf("%s: restore GUEST SYSENTER EIP desc; err = %d\n", __func__, err);
 	err += vmcb_setany(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_SYSENTER_EIP, 8),
 				vmcx->guest_ia32_sysenter_eip);
 #endif
+#if 0
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_NPT_BASE, 8),
+				vmcx->vmcb_npt);
+#endif
 
-	printf("%s: restore VM_REG_GUEST_INTR_SHADOW desc; err = %d\n", __func__, err);
+#if 0
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_CR_INTERCEPT, 4),
+				vmcx->vmcb_off_cr_intercept);
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_DR_INTERCEPT, 4),
+				vmcx->vmcb_off_dr_intercept);
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_EXC_INTERCEPT, 4),
+				vmcx->vmcb_off_exc_intercept);
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_INST1_INTERCEPT, 4),
+				vmcx->vmcb_off_inst1_intercept);
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_INST2_INTERCEPT, 4),
+				vmcx->vmcb_off_inst2_intercept);
+
+#endif
+#if 0
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_TLB_CTRL, 4),
+				vmcx->vmcb_off_tlb_ctrl);
+#endif
+
+#if 0
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_EXITINFO1, 8),
+				vmcx->vmcb_off_exitinfo1);
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_EXITINFO2, 8),
+				vmcx->vmcb_off_exitinfo2);
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_EXITINTINFO, 8),
+				vmcx->vmcb_off_exitintinfo);
+
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_VIRQ, 8),
+				vmcx->vmcb_off_virq);
+
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_GUEST_PAT, 8),
+				vmcx->vmcb_off_guest_pat);
+
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_AVIC_BAR, 8),
+				vmcx->vmcb_off_avic_bar);
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_AVIC_PAGE, 8),
+				vmcx->vmcb_off_avic_page);
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_AVIC_LT, 8),
+				vmcx->vmcb_off_avic_lt);
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_AVIC_PT, 8),
+				vmcx->vmcb_off_avic_pt);
+
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_IO_PERM, 8),
+				vmcx->vmcb_off_io_perm);
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_MSR_PERM, 8),
+				vmcx->vmcb_off_msr_perm);
+
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_ASID, 4),
+				vmcx->vmcb_off_asid);
+
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_EXIT_REASON, 8),
+				vmcx->vmcb_off_exit_reason);
+
+#endif
+
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_INTR_SHADOW, vmcx->guest_intr_shadow);
 	/* TODO - Restore other registers such as:
 	 * INTRRERUT_SHADOW - VM_REG_GUEST_INTR_SHADOW
@@ -2609,6 +2693,23 @@ svm_restore_vmcx(void *arg, struct vmcx_state *vmcx, int vcpu)
 	 * CPL - vmcb->state.cpl
 	 */
 
+#if 1
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_ASID);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_IOPM);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_I);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_CR2);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_CR);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_DT);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_SEG);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_NP);
+#endif
+
+//	int i;
+//	for (i = 0 ; i < PAGE_SIZE * 10; i++)
+//		printf("Super Sync 2\r\n");
+
+	flush_by_asid();
 	return (err);
 }
 
@@ -2625,57 +2726,109 @@ svm_restore_vmi(void *arg, void *buffer, size_t size)
 	printf("%s: restore nptp\n", __func__);
 	sc->nptp = from_sc->nptp;
 
+	memcpy(sc->iopm_bitmap, from_sc->iopm_bitmap, SVM_IO_BITMAP_SIZE);
+
+	memcpy(sc->msr_bitmap, from_sc->msr_bitmap, SVM_MSR_BITMAP_SIZE);
+
 	for (i = 0; i < VM_MAXCPU; i++) {
-//		for (j = 0; j < PAGE_SIZE; j++) {
-//			sc->apic_page[i][j] = from_sc->apic_page[i][j];
-//		}
-//
-		printf("%s: restore vmcb directly for CPU %d\n", __func__, i);
+		/* Restore apic pages */
+		memcpy(sc->apic_page[i], from_sc->apic_page[i], PAGE_SIZE);
+
+		/* Restore VMCB fields for virtual cpu i */
 		sc->vcpu[i].vmcb.ctrl.v_tpr = from_sc->vcpu[i].vmcb.ctrl.v_tpr;
 		sc->vcpu[i].vmcb.ctrl.v_irq = from_sc->vcpu[i].vmcb.ctrl.v_irq;
 
+#if 1 // TO_DELETE
 		sc->vcpu[i].vmcb.ctrl.iopm_base_pa = from_sc->vcpu[i].vmcb.ctrl.iopm_base_pa;
 		sc->vcpu[i].vmcb.ctrl.msrpm_base_pa = from_sc->vcpu[i].vmcb.ctrl.msrpm_base_pa;
-		sc->vcpu[i].vmcb.ctrl.intr_shadow = from_sc->vcpu[i].vmcb.ctrl.intr_shadow;
+
+#endif
+
+#if 0
+		sc->vcpu[i].vmcb.ctrl.v_intr_prio = from_sc->vcpu[i].vmcb.ctrl.v_intr_prio;
+		sc->vcpu[i].vmcb.ctrl.v_ign_tpr = from_sc->vcpu[i].vmcb.ctrl.v_ign_tpr;
+		sc->vcpu[i].vmcb.ctrl.v_intr_vector = from_sc->vcpu[i].vmcb.ctrl.v_intr_vector;
+#endif
+
+		/* ADDED */
+#if 1
+//		sc->vcpu[i].vmcb.ctrl.tsc_offset = from_sc->vcpu[i].vmcb.ctrl.tsc_offset;
+		sc->vcpu[i].vmcb.ctrl.asid = from_sc->vcpu[i].vmcb.ctrl.asid;
+
 		sc->vcpu[i].vmcb.ctrl.np_enable = from_sc->vcpu[i].vmcb.ctrl.np_enable;
+//		sc->vcpu[i].vmcb.ctrl.v_intr_masking = from_sc->vcpu[i].vmcb.ctrl.v_intr_masking;
+
+		// intr_shadow freezez vm
+		sc->vcpu[i].vmcb.ctrl.intr_shadow = from_sc->vcpu[i].vmcb.ctrl.intr_shadow;
+
+		/* ADDED */
+//		sc->vcpu[i].vmcb.ctrl.eventinj = from_sc->vcpu[i].vmcb.ctrl.eventinj;
+#endif
 
 		sc->vcpu[i].vmcb.ctrl.tlb_ctrl = from_sc->vcpu[i].vmcb.ctrl.tlb_ctrl;
-
 //		sc->vcpu[i].vmcb.ctrl.n_cr3 = from_sc->vcpu[i].vmcb.ctrl.n_cr3;
-		sc->vcpu[i].swctx = from_sc->vcpu[i].swctx;
+
+#if 1
+//		sc->vcpu[i].vmcb.ctrl.vmcb_clean = from_sc->vcpu[i].vmcb.ctrl.vmcb_clean;
+//		sc->vcpu[i].vmcb.ctrl.nrip = from_sc->vcpu[i].vmcb.ctrl.nrip;
 
 		sc->vcpu[i].vmcb.state = from_sc->vcpu[i].vmcb.state;
+//		sc->vcpu[i].vmcb.state.cr3 = from_sc->vcpu[i].vmcb.state.cr3;
 
-		printf("%s: restore sc apic_page for CPU %d\n", __func__, i);
-		memcpy(sc->apic_page[i], from_sc->apic_page[i], PAGE_SIZE);
+		/* state.{star, lstar, cstar} cause vm to hang*/
+//		sc->vcpu[i].vmcb.state.star = from_sc->vcpu[i].vmcb.state.star;
+//		sc->vcpu[i].vmcb.state.lstar = from_sc->vcpu[i].vmcb.state.lstar;
+//		sc->vcpu[i].vmcb.state.cstar = from_sc->vcpu[i].vmcb.state.cstar;
 
+		/* VM hangs */
+//		sc->vcpu[i].vmcb.state.cpl = from_sc->vcpu[i].vmcb.state.cpl;
+//		sc->vcpu[i].vmcb.state.sfmask = from_sc->vcpu[i].vmcb.state.sfmask;
+
+#endif
+		/* Restore swctx for virtual cpu i*/
+		sc->vcpu[i].swctx = from_sc->vcpu[i].swctx;
+
+		/* Restore other svm_vcpu struct fields */
 //		It cause host panic && enter in db state
 //		printf("%s: restore sc vcpu vmcb_pa for CPU %d\n", __func__, i);
 //		sc->vcpu[i].vmcb_pa = from_sc->vcpu[i].vmcb_pa;
 
+		/* Restore NEXTRIP field */
+#if 1
 		printf("%s: restore sc vcpu nextrip for CPU %d\n", __func__, i);
 		sc->vcpu[i].nextrip = from_sc->vcpu[i].nextrip;
 
+		/* Restore lastcpu field */
 		printf("%s: restore sc vcpu lastcpu for CPU %d\n", __func__, i);
 		sc->vcpu[i].lastcpu = from_sc->vcpu[i].lastcpu;
 
 		printf("%s: restore sc vcpu dirty for CPU %d\n", __func__, i);
 		sc->vcpu[i].dirty = from_sc->vcpu[i].dirty;
 
+		/* Restore EPTGEN field - EPT is Extended Page Tabel */
 		printf("%s: restore sc vcpu eptgen for CPU %d\n", __func__, i);
 		sc->vcpu[i].eptgen = from_sc->vcpu[i].eptgen;
 
 		printf("%s: restore sc vcpu asid for CPU %d\n", __func__, i);
 		sc->vcpu[i].asid = from_sc->vcpu[i].asid;
+#endif
+
+		svm_set_dirty(sc, i, VMCB_CACHE_ASID);
+		svm_set_dirty(sc, i, VMCB_CACHE_IOPM);
+		svm_set_dirty(sc, i, VMCB_CACHE_I);
+		svm_set_dirty(sc, i, VMCB_CACHE_TPR);
+		svm_set_dirty(sc, i, VMCB_CACHE_CR2);
+		svm_set_dirty(sc, i, VMCB_CACHE_CR);
+		svm_set_dirty(sc, i, VMCB_CACHE_DT);
+		svm_set_dirty(sc, i, VMCB_CACHE_SEG);
+		svm_set_dirty(sc, i, VMCB_CACHE_NP);
 	}
 
+	flush_by_asid();
 //	TODO
+//	for (i = 0 ; i < PAGE_SIZE * 20; i++)
+//		printf("Super Sync\r\n");
 
-	memcpy(sc->iopm_bitmap, from_sc->iopm_bitmap, SVM_IO_BITMAP_SIZE);
-
-	memcpy(sc->msr_bitmap, from_sc->msr_bitmap, SVM_MSR_BITMAP_SIZE);
-
-//	TODO - Restore struct svm_cpu vcpu[VM_MAXCPU] ??? maybe
 	return (0);
 }
 
