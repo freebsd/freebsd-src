@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -55,10 +59,11 @@ int			 chipc_init_child_resource(struct resource *r,
 			     struct resource *parent, 
 			     bhnd_size_t offset, bhnd_size_t size);
 
-int			 chipc_set_resource(struct chipc_softc *sc,
-			     device_t child, int type, int rid,
-			     rman_res_t start, rman_res_t count, u_int port,
-			     u_int region);
+int			 chipc_set_irq_resource(struct chipc_softc *sc,
+			     device_t child, int rid, u_int intr);
+int			 chipc_set_mem_resource(struct chipc_softc *sc,
+			     device_t child, int rid, rman_res_t start,
+			     rman_res_t count, u_int port, u_int region);
 
 struct chipc_region	*chipc_alloc_region(struct chipc_softc *sc,
 			     bhnd_port_type type, u_int port,

@@ -1352,7 +1352,7 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 			/* Deny shrinking of an opened partition. */
 			gctl_error(req, "%d", EBUSY);
 			return (EBUSY);
-		} 
+		}
 	}
 
 	error = G_PART_RESIZE(table, entry, gpp);

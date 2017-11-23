@@ -183,15 +183,14 @@ struct ip_fw_chain;
 struct sockopt_data;
 int ipfw_is_dyn_rule(struct ip_fw *rule);
 void ipfw_expire_dyn_rules(struct ip_fw_chain *, ipfw_range_tlv *);
-void ipfw_dyn_unlock(ipfw_dyn_rule *q);
 
 struct tcphdr;
 struct mbuf *ipfw_send_pkt(struct mbuf *, struct ipfw_flow_id *,
     u_int32_t, u_int32_t, int);
-int ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
+int ipfw_dyn_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
     ipfw_insn_limit *cmd, struct ip_fw_args *args, uint32_t tablearg);
-ipfw_dyn_rule *ipfw_lookup_dyn_rule(struct ipfw_flow_id *pkt,
-	int *match_direction, struct tcphdr *tcp, uint16_t kidx);
+struct ip_fw *ipfw_dyn_lookup_state(const struct ipfw_flow_id *pkt,
+    const void *ulp, int pktlen, int *match_direction, uint16_t kidx);
 void ipfw_remove_dyn_children(struct ip_fw *rule);
 void ipfw_get_dynamic(struct ip_fw_chain *chain, char **bp, const char *ep);
 int ipfw_dump_states(struct ip_fw_chain *chain, struct sockopt_data *sd);
@@ -625,6 +624,8 @@ void ipfw_destroy_skipto_cache(struct ip_fw_chain *chain);
 int ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id);
 int ipfw_ctl3(struct sockopt *sopt);
 int ipfw_chk(struct ip_fw_args *args);
+int ipfw_add_protected_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
+    int locked);
 void ipfw_reap_add(struct ip_fw_chain *chain, struct ip_fw **head,
     struct ip_fw *rule);
 void ipfw_reap_rules(struct ip_fw *head);

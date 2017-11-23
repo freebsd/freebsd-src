@@ -72,7 +72,7 @@ static int g_part_bsd_destroy(struct g_part_table *, struct g_part_parms *);
 static void g_part_bsd_dumpconf(struct g_part_table *, struct g_part_entry *,
     struct sbuf *, const char *);
 static int g_part_bsd_dumpto(struct g_part_table *, struct g_part_entry *);
-static int g_part_bsd_modify(struct g_part_table *, struct g_part_entry *,  
+static int g_part_bsd_modify(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static const char *g_part_bsd_name(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
@@ -256,7 +256,7 @@ g_part_bsd_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 }
 
 static void
-g_part_bsd_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry, 
+g_part_bsd_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
     struct sbuf *sb, const char *indent)
 {
 	struct g_part_bsd_entry *entry;
@@ -275,7 +275,7 @@ g_part_bsd_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 }
 
 static int
-g_part_bsd_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)  
+g_part_bsd_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 {
 	struct g_part_bsd_entry *entry;
 
@@ -471,7 +471,7 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 }
 
 static const char *
-g_part_bsd_type(struct g_part_table *basetable, struct g_part_entry *baseentry, 
+g_part_bsd_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {
 	struct g_part_bsd_entry *entry;

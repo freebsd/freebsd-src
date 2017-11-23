@@ -171,6 +171,34 @@ static const struct bhnd_core_desc {
 	{ 0, 0, 0, NULL }
 };
 
+static const struct bhnd_device_quirk bhnd_chipc_clkctl_quirks[];
+static const struct bhnd_device_quirk bhnd_pcmcia_clkctl_quirks[];
+
+/**
+ * Device table entries for core-specific CLKCTL quirk lookup.
+ */
+static const struct bhnd_device bhnd_clkctl_devices[] = {
+	BHND_DEVICE(BCM, CC,		NULL,	bhnd_chipc_clkctl_quirks),
+	BHND_DEVICE(BCM, PCMCIA,	NULL,	bhnd_pcmcia_clkctl_quirks),
+	BHND_DEVICE_END,
+};
+
+/** ChipCommon CLKCTL quirks */
+static const struct bhnd_device_quirk bhnd_chipc_clkctl_quirks[] = {
+	/* HTAVAIL/ALPAVAIL are bitswapped in chipc's CLKCTL */
+	BHND_CHIP_QUIRK(4328,	HWREV_ANY,	BHND_CLKCTL_QUIRK_CCS0),
+	BHND_CHIP_QUIRK(5354,	HWREV_ANY,	BHND_CLKCTL_QUIRK_CCS0),
+	BHND_DEVICE_QUIRK_END
+};
+
+/** PCMCIA CLKCTL quirks */
+static const struct bhnd_device_quirk bhnd_pcmcia_clkctl_quirks[] = {
+	/* HTAVAIL/ALPAVAIL are bitswapped in pcmcia's CLKCTL */
+	BHND_CHIP_QUIRK(4328,	HWREV_ANY,	BHND_CLKCTL_QUIRK_CCS0),
+	BHND_CHIP_QUIRK(5354,	HWREV_ANY,	BHND_CLKCTL_QUIRK_CCS0),
+	BHND_DEVICE_QUIRK_END
+};
+
 /**
  * Return the name for a given JEP106 manufacturer ID.
  * 
@@ -738,6 +766,9 @@ bhnd_chip_matches(const struct bhnd_chipid *chip,
 	    !bhnd_hwrev_matches(chip->chip_rev, &desc->chip_rev))
 		return (false);
 
+	if (desc->m.match.chip_type && chip->chip_type != desc->chip_type)
+		return (false);
+
 	return (true);
 }
 
@@ -1175,6 +1206,119 @@ cleanup:
 	/* Clean up */
 	bus_release_resource(dev, rtype, rid, res);
 	return (error);
+}
+
+/**
+ * Allocate and return a new per-core PMU clock control/status (clkctl)
+ * instance for @p dev.
+ * 
+ * @param dev		The bhnd(4) core device mapped by @p r.
+ * @param pmu_dev	The bhnd(4) PMU device, implmenting the bhnd_pmu_if
+ *			interface. The caller is responsible for ensuring that
+ *			this reference remains valid for the lifetime of the
+ *			returned clkctl instance.
+ * @param r		A resource mapping the core's clock control register
+ * 			(see BHND_CLK_CTL_ST). The caller is responsible for
+ *			ensuring that this resource remains valid for the
+ *			lifetime of the returned clkctl instance.
+ * @param offset	The offset to the clock control register within @p r.
+ * @param max_latency	The PMU's maximum state transition latency in
+ *			microseconds; this upper bound will be used to busy-wait
+ *			on PMU state transitions.
+ * 
+ * @retval non-NULL	success
+ * @retval NULL		if allocation fails.
+ * 
+ */
+struct bhnd_core_clkctl *
+bhnd_alloc_core_clkctl(device_t dev, device_t pmu_dev, struct bhnd_resource *r,
+    bus_size_t offset, u_int max_latency)
+{
+	struct bhnd_core_clkctl	*clkctl;
+
+	clkctl = malloc(sizeof(*clkctl), M_BHND, M_ZERO | M_NOWAIT);
+	if (clkctl == NULL)
+		return (NULL);
+
+	clkctl->cc_dev = dev;
+	clkctl->cc_pmu_dev = pmu_dev;
+	clkctl->cc_res = r;
+	clkctl->cc_res_offset = offset;
+	clkctl->cc_max_latency = max_latency;
+	clkctl->cc_quirks = bhnd_device_quirks(dev, bhnd_clkctl_devices,
+	    sizeof(bhnd_clkctl_devices[0]));
+
+	BHND_CLKCTL_LOCK_INIT(clkctl);
+
+	return (clkctl);
+}
+
+/**
+ * Free a clkctl instance previously allocated via bhnd_alloc_core_clkctl().
+ * 
+ * @param clkctl	The clkctl instance to be freed.
+ */
+void
+bhnd_free_core_clkctl(struct bhnd_core_clkctl *clkctl)
+{
+	BHND_CLKCTL_LOCK_DESTROY(clkctl);
+
+	free(clkctl, M_BHND);
+}
+
+/**
+ * Wait for the per-core clock status to be equal to @p value after
+ * applying @p mask, timing out after the maximum transition latency is reached.
+ * 
+ * @param clkctl	Per-core clkctl state to be queryied.
+ * @param value		Value to wait for.
+ * @param mask		Mask to apply prior to value comparison.
+ * 
+ * @retval 0		success
+ * @retval ETIMEDOUT	if the PMU's maximum transition delay is reached before
+ *			the clock status matches @p value and @p mask.
+ */
+int
+bhnd_core_clkctl_wait(struct bhnd_core_clkctl *clkctl, uint32_t value,
+    uint32_t mask)
+{
+	uint32_t	clkst;
+
+	BHND_CLKCTL_LOCK_ASSERT(clkctl, MA_OWNED);
+
+	/* Bitswapped HTAVAIL/ALPAVAIL work-around */
+	if (clkctl->cc_quirks & BHND_CLKCTL_QUIRK_CCS0) {
+		uint32_t fmask, fval;
+
+		fmask = mask & ~(BHND_CCS_HTAVAIL | BHND_CCS_ALPAVAIL);
+		fval = value & ~(BHND_CCS_HTAVAIL | BHND_CCS_ALPAVAIL);
+
+		if (mask & BHND_CCS_HTAVAIL)
+			fmask |= BHND_CCS0_HTAVAIL;
+		if (value & BHND_CCS_HTAVAIL)
+			fval |= BHND_CCS0_HTAVAIL;
+
+		if (mask & BHND_CCS_ALPAVAIL) 
+			fmask |= BHND_CCS0_ALPAVAIL;
+		if (value & BHND_CCS_ALPAVAIL)
+			fval |= BHND_CCS0_ALPAVAIL;
+
+		mask = fmask;
+		value = fval;
+	}
+
+	for (u_int i = 0; i < clkctl->cc_max_latency; i += 10) {
+		clkst = bhnd_bus_read_4(clkctl->cc_res, clkctl->cc_res_offset);
+		if ((clkst & mask) == (value & mask))
+			return (0);
+
+		DELAY(10);
+	}
+
+	device_printf(clkctl->cc_dev, "clkst wait timeout (value=%#x, "
+	    "mask=%#x)\n", value, mask);
+
+	return (ETIMEDOUT);
 }
 
 /**
@@ -2101,6 +2245,27 @@ bhnd_bus_generic_get_chipid(device_t dev, device_t child)
 	panic("missing BHND_BUS_GET_CHIPID()");
 }
 
+/**
+ * Helper function for implementing BHND_BUS_GET_DMA_TRANSLATION().
+ * 
+ * If a parent device is available, this implementation delegates the
+ * request to the BHND_BUS_GET_DMA_TRANSLATION() method on the parent of @p dev.
+ *
+ * If no parent device is available, this implementation will panic.
+ */
+int
+bhnd_bus_generic_get_dma_translation(device_t dev, device_t child, u_int width,
+    uint32_t flags, bus_dma_tag_t *dmat,
+    struct bhnd_dma_translation *translation)
+{
+	if (device_get_parent(dev) != NULL) {
+		return (BHND_BUS_GET_DMA_TRANSLATION(device_get_parent(dev),
+		    child, width, flags, dmat, translation));
+	}
+
+	panic("missing BHND_BUS_GET_DMA_TRANSLATION()");
+}
+
 /* nvram board_info population macros for bhnd_bus_generic_read_board_info() */
 #define	BHND_GV(_dest, _name)	\
 	bhnd_nvram_getvar_uint(child, BHND_NVAR_ ## _name, &_dest,	\
@@ -2317,3 +2482,14 @@ bhnd_bus_generic_deactivate_resource(device_t dev, device_t child,
 	return (EINVAL);
 }
 
+/**
+ * Helper function for implementing BHND_BUS_GET_INTR_DOMAIN().
+ * 
+ * This implementation simply returns the address of nearest bhnd(4) bus,
+ * which may be @p dev; this behavior may be incompatible with FDT/OFW targets.
+ */
+uintptr_t
+bhnd_bus_generic_get_intr_domain(device_t dev, device_t child, bool self)
+{
+	return ((uintptr_t)dev);
+}

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993, Garrett A. Wollman.
  * Copyright (c) 1993, University of Vermont and State Agricultural College.
  * All rights reserved.

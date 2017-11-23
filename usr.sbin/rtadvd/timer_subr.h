@@ -1,7 +1,9 @@
 /*	$FreeBSD$	*/
 /*	$KAME: timer.h,v 1.5 2002/05/31 13:30:38 jinmei Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
  *

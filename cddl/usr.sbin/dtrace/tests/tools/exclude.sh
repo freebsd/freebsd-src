@@ -139,6 +139,11 @@ exclude EXFAIL common/pid/tst.newprobes.ksh
 exclude EXFAIL common/pid/tst.provregex2.ksh
 exclude EXFAIL common/pid/tst.provregex4.ksh
 
+# This test appears to be invalid. dtrace is supposed to press on if a
+# depends_on pragma cannot be satisfied, per the comment above
+# dt_load_libs_dir() in libdtrace.
+exclude EXFAIL common/pragma/err.invalidlibdep.ksh
+
 # This test checks for a leading tab on a line before #define. That is illegal
 # on Solaris, but the clang pre-processor on FreeBSD is happy with code like
 # that.
@@ -173,6 +178,9 @@ exclude EXFAIL common/uctf/tst.linkmap.ksh
 exclude EXFAIL common/usdt/tst.badguess.ksh
 exclude EXFAIL common/usdt/tst.guess32.ksh
 exclude EXFAIL common/usdt/tst.guess64.ksh
+
+# Depends on non-standard static linker behaviour.
+exclude EXFAIL common/usdt/tst.eliminate.ksh
 
 # Generated headers include <sys/sdt.h>, so _DTRACE_VERSION is always defined.
 exclude EXFAIL common/usdt/tst.nodtrace.ksh

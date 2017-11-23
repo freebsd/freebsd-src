@@ -1,4 +1,7 @@
-/* Copyright (c) 1983, 1989
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Copyright (c) 1983, 1989
  *    The Regents of the University of California.  All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without

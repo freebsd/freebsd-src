@@ -790,6 +790,30 @@ commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci, int count)
 	return (0);
 }
 
+int
+ipfw_add_protected_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
+    int locked)
+{
+	struct ip_fw **map;
+
+	map = get_map(chain, 1, locked);
+	if (map == NULL)
+		return (ENOMEM);
+	if (chain->n_rules > 0)
+		bcopy(chain->map, map,
+		    chain->n_rules * sizeof(struct ip_fw *));
+	map[chain->n_rules] = rule;
+	rule->rulenum = IPFW_DEFAULT_RULE;
+	rule->set = RESVD_SET;
+	rule->id = chain->id + 1;
+	/* We add rule in the end of chain, no need to update skipto cache */
+	map = swap_map(chain, map, chain->n_rules + 1);
+	chain->static_len += RULEUSIZE0(rule);
+	IPFW_UH_WUNLOCK(chain);
+	free(map, M_IPFW);
+	return (0);
+}
+
 /*
  * Adds @rule to the list of rules to reap
  */
@@ -997,10 +1021,9 @@ delete_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt, int *ndel)
 	if ((rt->flags & IPFW_RCFLAG_RANGE) != 0) {
 		start = ipfw_find_rule(chain, rt->start_rule, 0);
 
-		end = ipfw_find_rule(chain, rt->end_rule, 0);
-		if (rt->end_rule != IPFW_DEFAULT_RULE)
-			while (chain->map[end]->rulenum == rt->end_rule)
-				end++;
+		if (rt->end_rule >= IPFW_DEFAULT_RULE)
+			rt->end_rule = IPFW_DEFAULT_RULE - 1;
+		end = ipfw_find_rule(chain, rt->end_rule, UINT32_MAX);
 	}
 
 	/* Allocate new map of the same size */
@@ -2377,9 +2400,9 @@ dump_config(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 		if ((rnum = hdr->start_rule) > IPFW_DEFAULT_RULE)
 			rnum = IPFW_DEFAULT_RULE;
 		da.b = ipfw_find_rule(chain, rnum, 0);
-		rnum = hdr->end_rule;
-		rnum = (rnum < IPFW_DEFAULT_RULE) ? rnum+1 : IPFW_DEFAULT_RULE;
-		da.e = ipfw_find_rule(chain, rnum, 0) + 1;
+		rnum = (hdr->end_rule < IPFW_DEFAULT_RULE) ?
+		    hdr->end_rule + 1: IPFW_DEFAULT_RULE;
+		da.e = ipfw_find_rule(chain, rnum, UINT32_MAX) + 1;
 	}
 
 	if (hdr->flags & IPFW_CFG_GET_STATIC) {

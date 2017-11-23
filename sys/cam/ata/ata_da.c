@@ -753,7 +753,7 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		 * Drive Managed SATA hard drive.  This drive doesn't report
 		 * in firmware that it is a drive managed SMR drive.
 		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST8000AS0002*", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST8000AS000[23]*", "*" },
 		/*quirks*/ADA_Q_SMR_DM
 	},
 	{

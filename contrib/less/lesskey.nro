@@ -1,4 +1,4 @@
-.TH LESSKEY 1 "Version 491: 07 Apr 2017"
+.TH LESSKEY 1 "Version 529: 13 Nov 2017"
 .SH NAME
 lesskey \- specify key bindings for less
 .SH SYNOPSIS
@@ -208,6 +208,8 @@ default command keys used by less:
 	\eeN		reverse-search-all 
 	&		filter
 	m		set-mark 
+	M		set-mark-bottom
+	\eem		clear-mark
 	'		goto-mark 
 	^X^X		goto-mark 
 	E		examine 

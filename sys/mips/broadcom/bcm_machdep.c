@@ -126,6 +126,13 @@ static const struct bhnd_core_match bcm_chipc_cores[] = {
 	{ BHND_MATCH_CORE(BHND_MFGID_BCM,	BHND_COREID_4706_CC)	},
 };
 
+static const struct bhnd_core_match bcm_cpu0_cores[] = {
+	{
+		BHND_MATCH_CORE_CLASS(BHND_DEVCLASS_CPU),
+		BHND_MATCH_CORE_UNIT(0)
+	}
+};
+
 static const struct bhnd_core_match bcm_pmu_cores[] = {
 	{ BHND_MATCH_CORE(BHND_MFGID_BCM,	BHND_COREID_PMU)	},
 };
@@ -427,6 +434,14 @@ bcm_init_platform_data(struct bcm_platform *bp)
 			BCM_ERR("bhnd_pmu_query_init() failed: %d\n", error);
 			return (error);
 		}
+	}
+
+	/* Find CPU core info */
+	error = bcm_find_core(bp, bcm_cpu0_cores, nitems(bcm_cpu0_cores),
+	    &bp->cpu_id,  &bp->cpu_addr);
+	if (error) {
+		BCM_ERR("error locating CPU core: %d\n", error);
+		return (error);
 	}
 
 	/* Initialize our platform service registry */

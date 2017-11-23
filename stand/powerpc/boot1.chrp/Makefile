@@ -13,9 +13,7 @@ SRCS=		boot1.c ashldi3.c syncicache.c
 
 MAN=
 
-CFLAGS= -ffreestanding -msoft-float \
-	-I${LDRSRC} -I${SYSDIR} -I${SASRC} \
-	-D_STANDALONE
+CFLAGS= -I${LDRSRC} -I${SYSDIR} -I${SASRC} -D_STANDALONE
 LDFLAGS=-nostdlib -static -Wl,-N
 
 .PATH:  ${SYSDIR}/libkern ${SRCTOP}/lib/libc/powerpc/gen ${.CURDIR}

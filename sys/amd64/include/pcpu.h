@@ -74,18 +74,7 @@
 
 #ifdef _KERNEL
 
-#ifdef lint
-
-extern struct pcpu *pcpup;
-
-#define	get_pcpu()		(pcpup)
-#define	PCPU_GET(member)	(pcpup->pc_ ## member)
-#define	PCPU_ADD(member, val)	(pcpup->pc_ ## member += (val))
-#define	PCPU_INC(member)	PCPU_ADD(member, 1)
-#define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
-#define	PCPU_SET(member, val)	(pcpup->pc_ ## member = (val))
-
-#elif defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF)
+#if defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF)
 
 /*
  * Evaluates to the byte offset of the per-cpu variable name.
@@ -251,11 +240,11 @@ __curpcb(void)
 
 #define	IS_BSP()	(PCPU_GET(cpuid) == 0)
 
-#else /* !lint || defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF) */
+#else /* !__GNUCLIKE_ASM || !__GNUCLIKE___TYPEOF */
 
 #error "this file needs to be ported to your compiler"
 
-#endif /* lint, etc. */
+#endif /* __GNUCLIKE_ASM && __GNUCLIKE___TYPEOF */
 
 #endif /* _KERNEL */
 

@@ -52,11 +52,11 @@
 
 /* Chip Control indirect registers */
 #define	BHND_PMU_CCTRL_READ(_sc, _reg)			\
-	BHND_PMU_IND_READ((_sc), CHIPCTL, (_reg))
+	BHND_PMU_IND_READ((_sc), CHIP_CONTROL, (_reg))
 #define	BHND_PMU_CCTRL_WRITE(_sc, _reg, _val, _mask)	\
-	BHND_PMU_IND_WRITE((_sc), CHIPCTL, (_reg), (_val), (_mask))
+	BHND_PMU_IND_WRITE((_sc), CHIP_CONTROL, (_reg), (_val), (_mask))
 
-/* Register Control indirect registers */
+/* Regulator Control indirect registers */
 #define	BHND_PMU_REGCTRL_READ(_sc, _reg)			\
 	BHND_PMU_IND_READ((_sc), REG_CONTROL, (_reg))
 #define	BHND_PMU_REGCTRL_WRITE(_sc, _reg, _val, _mask)	\
@@ -98,10 +98,6 @@ void		bhnd_pmu_ind_write(const struct bhnd_pmu_io *io, void *io_ctx,
 		    bus_size_t addr, bus_size_t data, uint32_t reg,
 		    uint32_t val, uint32_t mask);
 
-bool		bhnd_pmu_wait_clkst(struct bhnd_pmu_softc *sc, device_t dev,
-		    struct bhnd_resource *r, bus_size_t clkst_reg,
-		    uint32_t value, uint32_t mask);
-
 int		bhnd_pmu_init(struct bhnd_pmu_softc *sc);
 void		bhnd_pmu_pll_init(struct bhnd_pmu_softc *sc, uint32_t xtalfreq);
 int		bhnd_pmu_res_init(struct bhnd_pmu_softc *sc);
@@ -111,13 +107,13 @@ uint32_t	bhnd_pmu_force_ilp(struct bhnd_pmu_softc *sc, bool force);
 
 void		bhnd_pmu_set_switcher_voltage(struct bhnd_pmu_softc *sc,
 		    uint8_t bb_voltage, uint8_t rf_voltage);
-void		bhnd_pmu_set_ldo_voltage(struct bhnd_pmu_softc *sc,
+int		bhnd_pmu_set_ldo_voltage(struct bhnd_pmu_softc *sc,
 		    uint8_t ldo, uint8_t voltage);
 int		bhnd_pmu_fast_pwrup_delay(struct bhnd_pmu_softc *sc,
-		    uint16_t *pwrup_delay);
+		    u_int *pwrup_delay);
 void		bhnd_pmu_rcal(struct bhnd_pmu_softc *sc);
-void		bhnd_pmu_spuravoid(struct bhnd_pmu_softc *sc,
-		    uint8_t spuravoid);
+int		bhnd_pmu_set_spuravoid(struct bhnd_pmu_softc *sc,
+		    bhnd_pmu_spuravoid spuravoid);
 
 bool		bhnd_pmu_is_otp_powered(struct bhnd_pmu_softc *sc);
 uint32_t	bhnd_pmu_measure_alpclk(struct bhnd_pmu_softc *sc);
@@ -132,7 +128,7 @@ int		bhnd_pmu_otp_power(struct bhnd_pmu_softc *sc, bool on);
 void		bhnd_pmu_sdiod_drive_strength_init(struct bhnd_pmu_softc *sc,
 		    uint32_t drivestrength);
 
-void		bhnd_pmu_paref_ldo_enable(struct bhnd_pmu_softc *sc,
+int		bhnd_pmu_paref_ldo_enable(struct bhnd_pmu_softc *sc,
 		    bool enable);
 
 #endif /* _BHND_CORES_PMU_BHND_PMU_PRIVATE_H_ */

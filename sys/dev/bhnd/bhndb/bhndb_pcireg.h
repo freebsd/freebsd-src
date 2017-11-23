@@ -184,6 +184,7 @@
 
 /* BHNDB_PCI_INT_MASK */
 #define	BHNDB_PCI_SBIM_SHIFT		8	/* backplane core interrupt mask bits offset */
+#define	BHNDB_PCI_SBIM_COREIDX_MAX	15	/**< maximum representible core index (in 16 bit field) */
 #define	BHNDB_PCI_SBIM_MASK		0xff00	/* backplane core interrupt mask */
 #define	BHNDB_PCI_SBIM_MASK_SERR	0x4	/* backplane SBErr interrupt mask */
 

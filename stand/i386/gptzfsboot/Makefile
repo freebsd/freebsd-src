@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-HAVE_GPT=	yes
+HAVE_GELI=	yes
 
 .include <bsd.init.mk>
 
@@ -70,12 +70,12 @@ gptldr.out: gptldr.o
 	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} gptldr.o
 
 CLEANFILES+=	gptzfsboot.bin gptzfsboot.out zfsboot.o sio.o cons.o \
-		drv.o gpt.o util.o ${OPENCRYPTO_XTS}
+		drv.o gpt.o ${OPENCRYPTO_XTS}
 
 gptzfsboot.bin: gptzfsboot.out
 	${OBJCOPY} -S -O binary gptzfsboot.out ${.TARGET}
 
-gptzfsboot.out: ${BTXCRT} zfsboot.o sio.o gpt.o drv.o cons.o util.o \
+gptzfsboot.out: ${BTXCRT} zfsboot.o sio.o gpt.o drv.o cons.o \
 	${OPENCRYPTO_XTS}
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBGELIBOOT} ${LIBZFSBOOT} ${LIBSA32}
 

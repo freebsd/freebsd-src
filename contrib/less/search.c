@@ -258,7 +258,7 @@ prev_pattern(info)
 repaint_hilite(on)
 	int on;
 {
-	int slinenum;
+	int sindex;
 	POSITION pos;
 	int save_hide_hilite;
 
@@ -280,13 +280,13 @@ repaint_hilite(on)
 		return;
 	}
 
-	for (slinenum = TOP;  slinenum < TOP + sc_height-1;  slinenum++)
+	for (sindex = TOP;  sindex < TOP + sc_height-1;  sindex++)
 	{
-		pos = position(slinenum);
+		pos = position(sindex);
 		if (pos == NULL_POSITION)
 			continue;
 		(void) forw_line(pos);
-		goto_line(slinenum);
+		goto_line(sindex);
 		put_line();
 	}
 	lower_left();
@@ -299,7 +299,7 @@ repaint_hilite(on)
 	public void
 clear_attn()
 {
-	int slinenum;
+	int sindex;
 	POSITION old_start_attnpos;
 	POSITION old_end_attnpos;
 	POSITION pos;
@@ -320,17 +320,17 @@ clear_attn()
 	if (squished)
 		repaint();
 
-	for (slinenum = TOP;  slinenum < TOP + sc_height-1;  slinenum++)
+	for (sindex = TOP;  sindex < TOP + sc_height-1;  sindex++)
 	{
-		pos = position(slinenum);
+		pos = position(sindex);
 		if (pos == NULL_POSITION)
 			continue;
-		epos = position(slinenum+1);
-		if (pos < old_end_attnpos &&
+		epos = position(sindex+1);
+		if (pos <= old_end_attnpos &&
 		     (epos == NULL_POSITION || epos > old_start_attnpos))
 		{
 			(void) forw_line(pos);
-			goto_line(slinenum);
+			goto_line(sindex);
 			put_line();
 			moved = 1;
 		}
@@ -348,9 +348,14 @@ undo_search()
 {
 	if (!prev_pattern(&search_info))
 	{
-		error("No previous regular expression", NULL_PARG);
-		return;
+		if (hilite_anchor.first == NULL)
+		{
+			error("No previous regular expression", NULL_PARG);
+			return;
+		}
+		clr_hilite(); /* Next time, hilite_anchor.first will be NULL. */
 	}
+	clear_pattern(&search_info);
 #if HILITE_SEARCH
 	hide_hilite = !hide_hilite;
 	repaint_hilite(1);
@@ -620,11 +625,18 @@ is_hilited(pos, epos, nohide, p_matches)
 	if (!match)
 		return (0);
 
-	if (p_matches != NULL)
+	if (p_matches == NULL)
 		/*
-		 * Report matches, even if we're hiding highlights.
+		 * Kinda kludgy way to recognize that caller is checking for
+		 * hilite in status column. In this case we want to return
+		 * hilite status even if hiliting is disabled or hidden.
 		 */
-		*p_matches = 1;
+		return (1);
+
+	/*
+	 * Report matches, even if we're hiding highlights.
+	 */
+	*p_matches = 1;
 
 	if (hilite_search == 0)
 		/*
@@ -1023,7 +1035,7 @@ hilite_screen()
 {
 	struct scrpos scrpos;
 
-	get_scrpos(&scrpos);
+	get_scrpos(&scrpos, TOP);
 	if (scrpos.pos == NULL_POSITION)
 		return;
 	prep_hilite(scrpos.pos, position(BOTTOM_PLUS_ONE), -1);
@@ -1058,7 +1070,7 @@ search_pos(search_type)
 	int search_type;
 {
 	POSITION pos;
-	int linenum;
+	int sindex;
 
 	if (empty_screen())
 	{
@@ -1081,7 +1093,7 @@ search_pos(search_type)
 				pos = ch_length();
 			}
 		}
-		linenum = 0;
+		sindex = 0;
 	} else 
 	{
 		int add_one = 0;
@@ -1092,18 +1104,18 @@ search_pos(search_type)
 			 * Search does not include current screen.
 			 */
 			if (search_type & SRCH_FORW)
-				linenum = sc_height-1; /* BOTTOM_PLUS_ONE */
+				sindex = sc_height-1; /* BOTTOM_PLUS_ONE */
 			else
-				linenum = 0; /* TOP */
+				sindex = 0; /* TOP */
 		} else if (how_search == OPT_ONPLUS && !(search_type & SRCH_AFTER_TARGET))
 		{
 			/*
 			 * Search includes all of displayed screen.
 			 */
 			if (search_type & SRCH_FORW)
-				linenum = 0; /* TOP */
+				sindex = 0; /* TOP */
 			else
-				linenum = sc_height-1; /* BOTTOM_PLUS_ONE */
+				sindex = sc_height-1; /* BOTTOM_PLUS_ONE */
 		} else 
 		{
 			/*
@@ -1111,11 +1123,11 @@ search_pos(search_type)
 			 * It starts at the jump target (if searching backwards),
 			 * or at the jump target plus one (if forwards).
 			 */
-			linenum = adjsline(jump_sline);
+			sindex = sindex_from_sline(jump_sline);
 			if (search_type & SRCH_FORW) 
 				add_one = 1;
 		}
-		pos = position(linenum);
+		pos = position(sindex);
 		if (add_one)
 			pos = forw_raw_line(pos, (char **)NULL, (int *)NULL);
 	}
@@ -1127,17 +1139,17 @@ search_pos(search_type)
 	{
 		while (pos == NULL_POSITION)
 		{
-			if (++linenum >= sc_height)
+			if (++sindex >= sc_height)
 				break;
-			pos = position(linenum);
+			pos = position(sindex);
 		}
 	} else 
 	{
 		while (pos == NULL_POSITION)
 		{
-			if (--linenum < 0)
+			if (--sindex < 0)
 				break;
-			pos = position(linenum);
+			pos = position(sindex);
 		}
 	}
 	return (pos);
@@ -1419,7 +1431,7 @@ search(search_type, pattern, n)
 			return -1;
 		}
 #if HILITE_SEARCH
-		if (hilite_search == OPT_ON)
+		if (hilite_search == OPT_ON || status_col)
 		{
 			/*
 			 * Erase the highlights currently on screen.
@@ -1446,7 +1458,7 @@ search(search_type, pattern, n)
 		if (set_pattern(&search_info, pattern, search_type) < 0)
 			return (-1);
 #if HILITE_SEARCH
-		if (hilite_search)
+		if (hilite_search || status_col)
 		{
 			/*
 			 * Erase the highlights currently on screen.
@@ -1456,7 +1468,7 @@ search(search_type, pattern, n)
 			hide_hilite = 0;
 			clr_hilite();
 		}
-		if (hilite_search == OPT_ONPLUS)
+		if (hilite_search == OPT_ONPLUS || status_col)
 		{
 			/*
 			 * Highlight any matches currently on screen,
@@ -1478,7 +1490,8 @@ search(search_type, pattern, n)
 		 */
 		if (search_type & SRCH_PAST_EOF)
 			return (n);
-		/* repaint(); -- why was this here? */
+		if (hilite_search == OPT_ON || status_col)
+			repaint_hilite(1);
 		error("Nothing to search", NULL_PARG);
 		return (-1);
 	}
@@ -1491,7 +1504,7 @@ search(search_type, pattern, n)
 		 * Search was unsuccessful.
 		 */
 #if HILITE_SEARCH
-		if (hilite_search == OPT_ON && n > 0)
+		if ((hilite_search == OPT_ON || status_col) && n > 0)
 			/*
 			 * Redisplay old hilites.
 			 */
@@ -1509,7 +1522,7 @@ search(search_type, pattern, n)
 	}
 
 #if HILITE_SEARCH
-	if (hilite_search == OPT_ON)
+	if (hilite_search == OPT_ON || status_col)
 		/*
 		 * Display new hilites in the matching line.
 		 */

@@ -1246,10 +1246,13 @@ dev/bhnd/cores/chipc/bhnd_sprom_chipc.c	optional bhnd
 dev/bhnd/cores/chipc/bhnd_pmu_chipc.c	optional bhnd
 dev/bhnd/cores/chipc/chipc.c		optional bhnd
 dev/bhnd/cores/chipc/chipc_cfi.c	optional bhnd cfi 
+dev/bhnd/cores/chipc/chipc_gpio.c	optional bhnd gpio
 dev/bhnd/cores/chipc/chipc_slicer.c	optional bhnd cfi | bhnd spibus
 dev/bhnd/cores/chipc/chipc_spi.c	optional bhnd spibus
 dev/bhnd/cores/chipc/chipc_subr.c	optional bhnd
 dev/bhnd/cores/chipc/pwrctl/bhnd_pwrctl.c	optional bhnd
+dev/bhnd/cores/chipc/pwrctl/bhnd_pwrctl_if.m	optional bhnd
+dev/bhnd/cores/chipc/pwrctl/bhnd_pwrctl_hostb_if.m	optional bhnd
 dev/bhnd/cores/chipc/pwrctl/bhnd_pwrctl_subr.c	optional bhnd
 dev/bhnd/cores/pci/bhnd_pci.c		optional bhnd pci
 dev/bhnd/cores/pci/bhnd_pci_hostb.c	optional bhndb bhnd pci
@@ -1615,6 +1618,7 @@ dev/ed/if_ed_pccard.c		optional ed pccard
 dev/ed/if_ed_pci.c		optional ed pci
 dev/efidev/efidev.c		optional efirt
 dev/efidev/efirt.c		optional efirt
+dev/efidev/efirtc.c		optional efirt
 dev/e1000/if_em.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/em_txrx.c		optional em \

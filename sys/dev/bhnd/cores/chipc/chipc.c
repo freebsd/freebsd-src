@@ -4,8 +4,8 @@
  * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
  *
- * This software was developed by Landon Fuller under sponsorship from
- * the FreeBSD Foundation.
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -112,9 +112,6 @@ static struct bhnd_device_quirk chipc_quirks[] = {
 	BHND_DEVICE_QUIRK_END
 };
 
-// FIXME: IRQ shouldn't be hard-coded
-#define	CHIPC_MIPS_IRQ	2
-
 static int		 chipc_add_children(struct chipc_softc *sc);
 
 static bhnd_nvram_src	 chipc_find_nvram_src(struct chipc_softc *sc,
@@ -212,11 +209,17 @@ chipc_attach(device_t dev)
 	if ((error = chipc_add_children(sc)))
 		goto failed;
 
-	if ((error = bus_generic_attach(dev)))
+	/*
+	 * Register ourselves with the bus; we're fully initialized and can
+	 * response to ChipCommin API requests.
+	 * 
+	 * Since our children may need access to ChipCommon, this must be done
+	 * before attaching our children below (via bus_generic_attach).
+	 */
+	if ((error = bhnd_register_provider(dev, BHND_SERVICE_CHIPC)))
 		goto failed;
 
-	/* Register ourselves with the bus */
-	if ((error = bhnd_register_provider(dev, BHND_SERVICE_CHIPC)))
+	if ((error = bus_generic_attach(dev)))
 		goto failed;
 
 	return (0);
@@ -274,10 +277,13 @@ chipc_add_children(struct chipc_softc *sc)
 		}
 
 		/* Both OTP and external SPROM are mapped at CHIPC_SPROM_OTP */
-		error = chipc_set_resource(sc, child, SYS_RES_MEMORY, 0,
-		    CHIPC_SPROM_OTP, CHIPC_SPROM_OTP_SIZE, 0, 0);
-		if (error)
+		error = chipc_set_mem_resource(sc, child, 0, CHIPC_SPROM_OTP,
+		    CHIPC_SPROM_OTP_SIZE, 0, 0);
+		if (error) {
+			device_printf(sc->dev, "failed to set OTP memory "
+			    "resource: %d\n", error);
 			return (error);
+		}
 	}
 
 	/*
@@ -286,12 +292,32 @@ chipc_add_children(struct chipc_softc *sc)
 	 * On AOB ("Always on Bus") devices, the PMU core (if it exists) is
 	 * attached directly to the bhnd(4) bus -- not chipc.
 	 */
-	if (sc->caps.pwr_ctrl || (sc->caps.pmu && !sc->caps.aob)) {
-		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_pmu", -1);
+	if (sc->caps.pmu && !sc->caps.aob) {
+		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_pmu", 0);
 		if (child == NULL) {
 			device_printf(sc->dev, "failed to add pmu\n");
 			return (ENXIO);
 		}
+	} else if (sc->caps.pwr_ctrl) {
+		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_pwrctl", 0);
+		if (child == NULL) {
+			device_printf(sc->dev, "failed to add pwrctl\n");
+			return (ENXIO);
+		}
+	}
+
+	/* GPIO */
+	child = BUS_ADD_CHILD(sc->dev, 0, "gpio", 0);
+	if (child == NULL) {
+		device_printf(sc->dev, "failed to add gpio\n");
+		return (ENXIO);
+	}
+
+	error = chipc_set_mem_resource(sc, child, 0, 0, RM_MAX_END, 0, 0);
+	if (error) {
+		device_printf(sc->dev, "failed to set gpio memory resource: "
+		    "%d\n", error);
+		return (error);
 	}
 
 	/* All remaining devices are SoC-only */
@@ -300,6 +326,11 @@ chipc_add_children(struct chipc_softc *sc)
 
 	/* UARTs */
 	for (u_int i = 0; i < min(sc->caps.num_uarts, CHIPC_UART_MAX); i++) {
+		int irq_rid, mem_rid;
+
+		irq_rid = 0;
+		mem_rid = 0;
+
 		child = BUS_ADD_CHILD(sc->dev, 0, "uart", -1);
 		if (child == NULL) {
 			device_printf(sc->dev, "failed to add uart%u\n", i);
@@ -307,24 +338,28 @@ chipc_add_children(struct chipc_softc *sc)
 		}
 
 		/* Shared IRQ */
-		error = bus_set_resource(child, SYS_RES_IRQ, 0, CHIPC_MIPS_IRQ,
-		    1);
+		error = chipc_set_irq_resource(sc, child, irq_rid, 0);
 		if (error) {
 			device_printf(sc->dev, "failed to set uart%u irq %u\n",
-			    i, CHIPC_MIPS_IRQ);
+			    i, 0);
 			return (error);
 		}
 
 		/* UART registers are mapped sequentially */
-		error = chipc_set_resource(sc, child, SYS_RES_MEMORY, 0,
+		error = chipc_set_mem_resource(sc, child, mem_rid,
 		    CHIPC_UART(i), CHIPC_UART_SIZE, 0, 0);
-		if (error)
+		if (error) {
+			device_printf(sc->dev, "failed to set uart%u memory "
+			    "resource: %d\n", i, error);
 			return (error);
+		}
 	}
 
 	/* Flash */
 	flash_bus = chipc_flash_bus_name(sc->caps.flash_type);
 	if (flash_bus != NULL) {
+		int rid;
+
 		child = BUS_ADD_CHILD(sc->dev, 0, flash_bus, -1);
 		if (child == NULL) {
 			device_printf(sc->dev, "failed to add %s device\n",
@@ -333,16 +368,24 @@ chipc_add_children(struct chipc_softc *sc)
 		}
 
 		/* flash memory mapping */
-		error = chipc_set_resource(sc, child, SYS_RES_MEMORY, 0,
-		    0, RM_MAX_END, 1, 1);
-		if (error)
+		rid = 0;
+		error = chipc_set_mem_resource(sc, child, rid, 0, RM_MAX_END, 1,
+		    1);
+		if (error) {
+			device_printf(sc->dev, "failed to set flash memory "
+			    "resource %d: %d\n", rid, error);
 			return (error);
+		}
 
 		/* flashctrl registers */
-		error = chipc_set_resource(sc, child, SYS_RES_MEMORY, 1,
+		rid++;
+		error = chipc_set_mem_resource(sc, child, rid,
 		    CHIPC_SFLASH_BASE, CHIPC_SFLASH_SIZE, 0, 0);
-		if (error)
+		if (error) {
+			device_printf(sc->dev, "failed to set flash memory "
+			    "resource %d: %d\n", rid, error);
 			return (error);
+		}
 	}
 
 	return (0);
@@ -592,6 +635,7 @@ chipc_add_child(device_t dev, u_int order, const char *name, int unit)
 	}
 
 	resource_list_init(&dinfo->resources);
+	dinfo->irq_mapped = false;
 	device_set_ivars(child, dinfo);
 
 	return (child);
@@ -603,7 +647,15 @@ chipc_child_deleted(device_t dev, device_t child)
 	struct chipc_devinfo *dinfo = device_get_ivars(child);
 
 	if (dinfo != NULL) {
+		/* Free the child's resource list */
 		resource_list_free(&dinfo->resources);
+
+		/* Unmap the child's IRQ */
+		if (dinfo->irq_mapped) {
+			bhnd_unmap_intr(dev, dinfo->irq);
+			dinfo->irq_mapped = false;
+		}
+
 		free(dinfo, M_BHND);
 	}
 
@@ -731,8 +783,7 @@ chipc_get_rman(struct chipc_softc *sc, int type)
 		return (&sc->mem_rman);
 
 	case SYS_RES_IRQ:
-		/* IRQs can be used with RF_SHAREABLE, so we don't perform
-		 * any local proxying of resource requests. */
+		/* We delegate IRQ resource management to the parent bus */
 		return (NULL);
 
 	default:
@@ -798,6 +849,25 @@ chipc_alloc_resource(device_t dev, device_t child, int type,
 	if ((cr = chipc_find_region(sc, start, end)) == NULL) {
 		/* Resource requests outside our shared port regions can be
 		 * delegated to our parent. */
+		rv = bus_generic_rl_alloc_resource(dev, child, type, rid,
+		    start, end, count, flags);
+		return (rv);
+	}
+
+	/*
+	 * As a special case, children that map the complete ChipCommon register
+	 * block are delegated to our parent.
+	 *
+	 * The rman API does not support sharing resources that are not
+	 * identical in size; since we allocate subregions to various children,
+	 * any children that need to map the entire register block (e.g. because
+	 * they require access to discontiguous register ranges) must make the
+	 * allocation through our parent, where we hold a compatible
+	 * RF_SHAREABLE allocation.
+	 */
+	if (cr == sc->core_region && cr->cr_addr == start &&
+	    cr->cr_end == end && cr->cr_count == count)
+	{
 		rv = bus_generic_rl_alloc_resource(dev, child, type, rid,
 		    start, end, count, flags);
 		return (rv);
