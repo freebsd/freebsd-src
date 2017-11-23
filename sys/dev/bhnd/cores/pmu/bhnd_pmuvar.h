@@ -60,20 +60,6 @@ uint32_t	bhnd_pmu_mem_clock(struct bhnd_pmu_query *sc);
 uint32_t	bhnd_pmu_alp_clock(struct bhnd_pmu_query *sc);
 uint32_t	bhnd_pmu_ilp_clock(struct bhnd_pmu_query *sc);
 
-/* 
- * BHND PMU device quirks / features
- */
-enum {
-	/** No quirks */
-	BPMU_QUIRK_NONE			= 0,
-
-	/** On BCM4328-derived chipsets, the CLK_CTL_ST register CCS_HTAVAIL
-	 *  and CCS_ALPAVAIL bits are swapped; the BHND_CCS0_* constants should
-	 *  be used. */
-	BPMU_QUIRK_CLKCTL_CCS0	= 1
-};
-
-
 /**
  * PMU read-only query support.
  * 
@@ -110,7 +96,6 @@ struct bhnd_pmu_io {
  */
 struct bhnd_pmu_softc {
 	device_t			 dev;
-	uint32_t			 quirks;	/**< device quirk flags */
 	uint32_t			 caps;		/**< pmu capability flags. */
 	struct bhnd_chipid		 cid;		/**< chip identification */
 
@@ -121,6 +106,7 @@ struct bhnd_pmu_softc {
 
 	struct bhnd_resource		*res;		/**< pmu register block. */
 	int				 rid;		/**< pmu register RID */
+	struct bhnd_core_clkctl		*clkctl;	/**< pmu clkctl register */
 
 	struct mtx			 mtx;		/**< state mutex */
 
@@ -132,11 +118,10 @@ struct bhnd_pmu_softc {
 };
 
 #define	BPMU_LOCK_INIT(sc) \
-	mtx_init(&(sc)->mtx, device_get_nameunit((sc)->dev), \
-	    "BHND chipc driver lock", MTX_DEF)
-#define	BPMU_LOCK(sc)				mtx_lock(&(sc)->mtx)
+    mtx_init(&(sc)->mtx, device_get_nameunit((sc)->dev), NULL, MTX_DEF)
+#define	BPMU_LOCK(sc)			mtx_lock(&(sc)->mtx)
 #define	BPMU_UNLOCK(sc)			mtx_unlock(&(sc)->mtx)
-#define	BPMU_LOCK_ASSERT(sc, what)		mtx_assert(&(sc)->mtx, what)
-#define	BPMU_LOCK_DESTROY(sc)			mtx_destroy(&(sc)->mtx)
+#define	BPMU_LOCK_ASSERT(sc, what)	mtx_assert(&(sc)->mtx, what)
+#define	BPMU_LOCK_DESTROY(sc)		mtx_destroy(&(sc)->mtx)
 
 #endif /* _BHND_CORES_PMU_BHND_PMUVAR_H_ */

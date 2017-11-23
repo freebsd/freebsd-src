@@ -1,4 +1,5 @@
 # $FreeBSD$
 
+arm/allwinner/clkng/ccu_a83t.c		standard
 arm/allwinner/a83t/a83t_padconf.c	standard
 arm/allwinner/a83t/a83t_r_padconf.c	standard

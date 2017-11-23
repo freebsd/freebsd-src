@@ -251,7 +251,7 @@ SYSEND
 
 #ifdef INET6
 static __inline int
-hash_packet6(struct ipfw_flow_id *id)
+hash_packet6(const struct ipfw_flow_id *id)
 {
 	u_int32_t i;
 	i = (id->dst_ip6.__u6_addr.__u6_addr32[2]) ^
@@ -268,7 +268,7 @@ hash_packet6(struct ipfw_flow_id *id)
  * and we want to find both in the same bucket.
  */
 static __inline int
-hash_packet(struct ipfw_flow_id *id, int buckets)
+hash_packet(const struct ipfw_flow_id *id, int buckets)
 {
 	u_int32_t i;
 
@@ -476,8 +476,8 @@ static struct opcode_obj_rewrite dyn_opcodes[] = {
  * Print customizable flow id description via log(9) facility.
  */
 static void
-print_dyn_rule_flags(struct ipfw_flow_id *id, int dyn_type, int log_flags,
-    char *prefix, char *postfix)
+print_dyn_rule_flags(const struct ipfw_flow_id *id, int dyn_type,
+    int log_flags, char *prefix, char *postfix)
 {
 	struct in_addr da;
 #ifdef INET6
@@ -511,12 +511,14 @@ print_dyn_rule_flags(struct ipfw_flow_id *id, int dyn_type, int log_flags,
 
 static void
 dyn_update_proto_state(ipfw_dyn_rule *q, const struct ipfw_flow_id *id,
-    const struct tcphdr *tcp, int dir)
+    const void *ulp, int dir)
 {
+	const struct tcphdr *tcp;
 	uint32_t ack;
 	u_char flags;
 
 	if (id->proto == IPPROTO_TCP) {
+		tcp = (const struct tcphdr *)ulp;
 		flags = id->_flags & (TH_FIN | TH_SYN | TH_RST);
 #define BOTH_SYN	(TH_SYN | (TH_SYN << 8))
 #define BOTH_FIN	(TH_FIN | (TH_FIN << 8))
@@ -592,8 +594,8 @@ dyn_update_proto_state(ipfw_dyn_rule *q, const struct ipfw_flow_id *id,
  * Lookup a dynamic rule, locked version.
  */
 static ipfw_dyn_rule *
-lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int i, int *match_direction,
-    struct tcphdr *tcp, uint16_t kidx)
+lookup_dyn_rule_locked(const struct ipfw_flow_id *pkt, const void *ulp,
+    int i, int *match_direction, uint16_t kidx)
 {
 	/*
 	 * Stateful ipfw extensions.
@@ -607,6 +609,9 @@ lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int i, int *match_direction,
 	dir = MATCH_NONE;
 	for (prev = NULL, q = V_ipfw_dyn_v[i].head; q; prev = q, q = q->next) {
 		if (q->dyn_type == O_LIMIT_PARENT)
+			continue;
+
+		if (pkt->addr_type != q->id.addr_type)
 			continue;
 
 		if (pkt->proto != q->id.proto)
@@ -657,39 +662,33 @@ lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int i, int *match_direction,
 	}
 
 	/* update state according to flags */
-	dyn_update_proto_state(q, pkt, tcp, dir);
+	dyn_update_proto_state(q, pkt, ulp, dir);
 done:
 	if (match_direction != NULL)
 		*match_direction = dir;
 	return (q);
 }
 
-ipfw_dyn_rule *
-ipfw_lookup_dyn_rule(struct ipfw_flow_id *pkt, int *match_direction,
-    struct tcphdr *tcp, uint16_t kidx)
+struct ip_fw *
+ipfw_dyn_lookup_state(const struct ipfw_flow_id *pkt, const void *ulp,
+    int pktlen, int *match_direction, uint16_t kidx)
 {
+	struct ip_fw *rule;
 	ipfw_dyn_rule *q;
 	int i;
 
 	i = hash_packet(pkt, V_curr_dyn_buckets);
 
 	IPFW_BUCK_LOCK(i);
-	q = lookup_dyn_rule_locked(pkt, i, match_direction, tcp, kidx);
+	q = lookup_dyn_rule_locked(pkt, ulp, i, match_direction, kidx);
 	if (q == NULL)
-		IPFW_BUCK_UNLOCK(i);
-	/* NB: return table locked when q is not NULL */
-	return q;
-}
-
-/*
- * Unlock bucket mtx
- * @p - pointer to dynamic rule
- */
-void
-ipfw_dyn_unlock(ipfw_dyn_rule *q)
-{
-
-	IPFW_BUCK_UNLOCK(q->bucket);
+		rule = NULL;
+	else {
+		rule = q->rule;
+		IPFW_INC_DYN_COUNTER(q, pktlen);
+	}
+	IPFW_BUCK_UNLOCK(i);
+	return (rule);
 }
 
 static int
@@ -784,7 +783,7 @@ resize_dynamic_table(struct ip_fw_chain *chain, int nbuckets)
  * - "parent" rules for the above (O_LIMIT_PARENT).
  */
 static ipfw_dyn_rule *
-add_dyn_rule(struct ipfw_flow_id *id, int i, uint8_t dyn_type,
+add_dyn_rule(const struct ipfw_flow_id *id, int i, uint8_t dyn_type,
     struct ip_fw *rule, uint16_t kidx)
 {
 	ipfw_dyn_rule *r;
@@ -834,8 +833,8 @@ add_dyn_rule(struct ipfw_flow_id *id, int i, uint8_t dyn_type,
  * If the lookup fails, then install one.
  */
 static ipfw_dyn_rule *
-lookup_dyn_parent(struct ipfw_flow_id *pkt, int *pindex, struct ip_fw *rule,
-    uint16_t kidx)
+lookup_dyn_parent(const struct ipfw_flow_id *pkt, int *pindex,
+    struct ip_fw *rule, uint16_t kidx)
 {
 	ipfw_dyn_rule *q;
 	int i, is_v6;
@@ -879,7 +878,7 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, int *pindex, struct ip_fw *rule,
  * session limitations are enforced.
  */
 int
-ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
+ipfw_dyn_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
     ipfw_insn_limit *cmd, struct ip_fw_args *args, uint32_t tablearg)
 {
 	ipfw_dyn_rule *q;
@@ -892,7 +891,7 @@ ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
 
 	IPFW_BUCK_LOCK(i);
 
-	q = lookup_dyn_rule_locked(&args->f_id, i, NULL, NULL, cmd->o.arg1);
+	q = lookup_dyn_rule_locked(&args->f_id, NULL, i, NULL, cmd->o.arg1);
 	if (q != NULL) {	/* should never occur */
 		DEB(
 		if (last_log != time_uptime) {
@@ -1017,155 +1016,6 @@ ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
 	dyn_update_proto_state(q, &args->f_id, NULL, MATCH_FORWARD);
 	IPFW_BUCK_UNLOCK(i);
 	return (0);
-}
-
-/*
- * Generate a TCP packet, containing either a RST or a keepalive.
- * When flags & TH_RST, we are sending a RST packet, because of a
- * "reset" action matched the packet.
- * Otherwise we are sending a keepalive, and flags & TH_
- * The 'replyto' mbuf is the mbuf being replied to, if any, and is required
- * so that MAC can label the reply appropriately.
- */
-struct mbuf *
-ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
-    u_int32_t ack, int flags)
-{
-	struct mbuf *m = NULL;		/* stupid compiler */
-	int len, dir;
-	struct ip *h = NULL;		/* stupid compiler */
-#ifdef INET6
-	struct ip6_hdr *h6 = NULL;
-#endif
-	struct tcphdr *th = NULL;
-
-	MGETHDR(m, M_NOWAIT, MT_DATA);
-	if (m == NULL)
-		return (NULL);
-
-	M_SETFIB(m, id->fib);
-#ifdef MAC
-	if (replyto != NULL)
-		mac_netinet_firewall_reply(replyto, m);
-	else
-		mac_netinet_firewall_send(m);
-#else
-	(void)replyto;		/* don't warn about unused arg */
-#endif
-
-	switch (id->addr_type) {
-	case 4:
-		len = sizeof(struct ip) + sizeof(struct tcphdr);
-		break;
-#ifdef INET6
-	case 6:
-		len = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
-		break;
-#endif
-	default:
-		/* XXX: log me?!? */
-		FREE_PKT(m);
-		return (NULL);
-	}
-	dir = ((flags & (TH_SYN | TH_RST)) == TH_SYN);
-
-	m->m_data += max_linkhdr;
-	m->m_flags |= M_SKIP_FIREWALL;
-	m->m_pkthdr.len = m->m_len = len;
-	m->m_pkthdr.rcvif = NULL;
-	bzero(m->m_data, len);
-
-	switch (id->addr_type) {
-	case 4:
-		h = mtod(m, struct ip *);
-
-		/* prepare for checksum */
-		h->ip_p = IPPROTO_TCP;
-		h->ip_len = htons(sizeof(struct tcphdr));
-		if (dir) {
-			h->ip_src.s_addr = htonl(id->src_ip);
-			h->ip_dst.s_addr = htonl(id->dst_ip);
-		} else {
-			h->ip_src.s_addr = htonl(id->dst_ip);
-			h->ip_dst.s_addr = htonl(id->src_ip);
-		}
-
-		th = (struct tcphdr *)(h + 1);
-		break;
-#ifdef INET6
-	case 6:
-		h6 = mtod(m, struct ip6_hdr *);
-
-		/* prepare for checksum */
-		h6->ip6_nxt = IPPROTO_TCP;
-		h6->ip6_plen = htons(sizeof(struct tcphdr));
-		if (dir) {
-			h6->ip6_src = id->src_ip6;
-			h6->ip6_dst = id->dst_ip6;
-		} else {
-			h6->ip6_src = id->dst_ip6;
-			h6->ip6_dst = id->src_ip6;
-		}
-
-		th = (struct tcphdr *)(h6 + 1);
-		break;
-#endif
-	}
-
-	if (dir) {
-		th->th_sport = htons(id->src_port);
-		th->th_dport = htons(id->dst_port);
-	} else {
-		th->th_sport = htons(id->dst_port);
-		th->th_dport = htons(id->src_port);
-	}
-	th->th_off = sizeof(struct tcphdr) >> 2;
-
-	if (flags & TH_RST) {
-		if (flags & TH_ACK) {
-			th->th_seq = htonl(ack);
-			th->th_flags = TH_RST;
-		} else {
-			if (flags & TH_SYN)
-				seq++;
-			th->th_ack = htonl(seq);
-			th->th_flags = TH_RST | TH_ACK;
-		}
-	} else {
-		/*
-		 * Keepalive - use caller provided sequence numbers
-		 */
-		th->th_seq = htonl(seq);
-		th->th_ack = htonl(ack);
-		th->th_flags = TH_ACK;
-	}
-
-	switch (id->addr_type) {
-	case 4:
-		th->th_sum = in_cksum(m, len);
-
-		/* finish the ip header */
-		h->ip_v = 4;
-		h->ip_hl = sizeof(*h) >> 2;
-		h->ip_tos = IPTOS_LOWDELAY;
-		h->ip_off = htons(0);
-		h->ip_len = htons(len);
-		h->ip_ttl = V_ip_defttl;
-		h->ip_sum = 0;
-		break;
-#ifdef INET6
-	case 6:
-		th->th_sum = in6_cksum(m, IPPROTO_TCP, sizeof(*h6),
-		    sizeof(struct tcphdr));
-
-		/* finish the ip6 header */
-		h6->ip6_vfc |= IPV6_VERSION;
-		h6->ip6_hlim = IPV6_DEFHLIM;
-		break;
-#endif
-	}
-
-	return (m);
 }
 
 /*

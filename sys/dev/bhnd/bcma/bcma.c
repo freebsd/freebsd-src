@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -124,7 +128,7 @@ bcma_child_deleted(device_t dev, device_t child)
 
 	/* Free bcma device info */
 	if ((dinfo = device_get_ivars(child)) != NULL)
-		bcma_free_dinfo(dev, dinfo);
+		bcma_free_dinfo(dev, child, dinfo);
 
 	device_set_ivars(child, NULL);
 }
@@ -189,7 +193,7 @@ bcma_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 	case BHND_IVAR_CORE_UNIT:
 		return (EINVAL);
 	case BHND_IVAR_PMU_INFO:
-		dinfo->pmu_info = (struct bhnd_core_pmu_info *) value;
+		dinfo->pmu_info = (void *)value;
 		return (0);
 	default:
 		return (ENOENT);
@@ -345,17 +349,15 @@ bcma_reset_hw(device_t dev, device_t child, uint16_t ioctl)
 static int
 bcma_suspend_hw(device_t dev, device_t child)
 {
-	struct bcma_devinfo		*dinfo;
-	struct bhnd_core_pmu_info	*pm;
-	struct bhnd_resource		*r;
-	uint32_t			 rst;
-	int				 error;
+	struct bcma_devinfo	*dinfo;
+	struct bhnd_resource	*r;
+	uint32_t		 rst;
+	int			 error;
 
 	if (device_get_parent(child) != dev)
 		return (EINVAL);
 
 	dinfo = device_get_ivars(child);
-	pm = dinfo->pmu_info;
 
 	/* Can't suspend the core without access to the agent registers */
 	if ((r = dinfo->res_agent) == NULL)
@@ -377,12 +379,6 @@ bcma_suspend_hw(device_t dev, device_t child)
 	/* Clear core flags */
 	if ((error = bhnd_write_ioctl(child, 0x0, UINT16_MAX)))
 		return (error);
-
-	/* Inform PMU that all outstanding request state should be discarded */
-	if (pm != NULL) {
-		if ((error = BHND_PMU_CORE_RELEASE(pm->pm_pmu, pm)))
-			return (error);
-	}
 
 	return (0);
 }
@@ -613,66 +609,46 @@ bcma_get_region_addr(device_t dev, device_t child, bhnd_port_type port_type,
 
 /**
  * Default bcma(4) bus driver implementation of BHND_BUS_GET_INTR_COUNT().
- * 
- * This implementation consults @p child's agent register block,
- * returning the number of interrupt output lines routed to @p child.
  */
-int
+u_int
 bcma_get_intr_count(device_t dev, device_t child)
 {
-	struct bcma_devinfo	*dinfo;
-	uint32_t		 dmpcfg, oobw;
+	struct bcma_devinfo *dinfo;
+
+	/* delegate non-bus-attached devices to our parent */
+	if (device_get_parent(child) != dev)
+		return (BHND_BUS_GET_INTR_COUNT(device_get_parent(dev), child));
 
 	dinfo = device_get_ivars(child);
-
-	/* Agent block must be mapped */
-	if (dinfo->res_agent == NULL)
-		return (0);
-
-	/* Agent must support OOB */
-	dmpcfg = bhnd_bus_read_4(dinfo->res_agent, BCMA_DMP_CONFIG);
-	if (!BCMA_DMP_GET_FLAG(dmpcfg, BCMA_DMP_CFG_OOB))
-		return (0);
-
-	/* Return OOB width as interrupt count */
-	oobw = bhnd_bus_read_4(dinfo->res_agent,
-	    BCMA_DMP_OOB_OUTWIDTH(BCMA_OOB_BANK_INTR));
-	if (oobw > BCMA_OOB_NUM_SEL) {
-		device_printf(dev, "ignoring invalid OOBOUTWIDTH for core %u: "
-		    "%#x\n", BCMA_DINFO_COREIDX(dinfo), oobw);
-		return (0);
-	}
-	
-	return (oobw);
+	return (dinfo->num_intrs);
 }
 
 /**
- * Default bcma(4) bus driver implementation of BHND_BUS_GET_CORE_IVEC().
- * 
- * This implementation consults @p child's agent register block,
- * returning the interrupt output line routed to @p child, at OOB selector
- * @p intr.
+ * Default bcma(4) bus driver implementation of BHND_BUS_GET_INTR_IVEC().
  */
 int
-bcma_get_core_ivec(device_t dev, device_t child, u_int intr, uint32_t *ivec)
+bcma_get_intr_ivec(device_t dev, device_t child, u_int intr, u_int *ivec)
 {
 	struct bcma_devinfo	*dinfo;
-	uint32_t		 oobsel;
+	struct bcma_intr	*desc;
+
+	/* delegate non-bus-attached devices to our parent */
+	if (device_get_parent(child) != dev) {
+		return (BHND_BUS_GET_INTR_IVEC(device_get_parent(dev), child,
+		    intr, ivec));
+	}
 
 	dinfo = device_get_ivars(child);
 
-	/* Interrupt ID must be valid. */
-	if (intr >= bcma_get_intr_count(dev, child))
-		return (ENXIO);
+	STAILQ_FOREACH(desc, &dinfo->intrs, i_link) {
+		if (desc->i_sel == intr) {
+			*ivec = desc->i_busline;
+			return (0);
+		}
+	}
 
-	/* Fetch OOBSEL busline value */
-	KASSERT(dinfo->res_agent != NULL, ("missing agent registers"));
-	oobsel = bhnd_bus_read_4(dinfo->res_agent, BCMA_DMP_OOBSELOUT(
-	    BCMA_OOB_BANK_INTR, intr));
-	*ivec = (oobsel >> BCMA_DMP_OOBSEL_SHIFT(intr)) &
-	    BCMA_DMP_OOBSEL_BUSLINE_MASK;
-
-	return (0);
+	/* Not found */
+	return (ENXIO);
 }
 
 /**
@@ -707,8 +683,6 @@ bcma_add_children(device_t bus)
 	/* Add all cores. */
 	bcma_erom = (struct bcma_erom *)erom;
 	while ((error = bcma_erom_next_corecfg(bcma_erom, &corecfg)) == 0) {
-		int nintr;
-
 		/* Add the child device */
 		child = BUS_ADD_CHILD(bus, 0, NULL, -1);
 		if (child == NULL) {
@@ -718,26 +692,11 @@ bcma_add_children(device_t bus)
 
 		/* Initialize device ivars */
 		dinfo = device_get_ivars(child);
-		if ((error = bcma_init_dinfo(bus, dinfo, corecfg)))
+		if ((error = bcma_init_dinfo(bus, child, dinfo, corecfg)))
 			goto cleanup;
 
 		/* The dinfo instance now owns the corecfg value */
 		corecfg = NULL;
-
-		/* Allocate device's agent registers, if any */
-		if ((error = bcma_dinfo_alloc_agent(bus, child, dinfo)))
-			goto cleanup;
-
-		/* Assign interrupts */
-		nintr = bhnd_get_intr_count(child);
-		for (int rid = 0; rid < nintr; rid++) {
-			error = BHND_BUS_ASSIGN_INTR(bus, child, rid);
-			if (error) {
-				device_printf(bus, "failed to assign interrupt "
-				    "%d to core %u: %d\n", rid,
-				    BCMA_DINFO_COREIDX(dinfo), error);
-			}
-		}
 
 		/* If pins are floating or the hardware is otherwise
 		 * unpopulated, the device shouldn't be used. */
@@ -794,7 +753,7 @@ static device_method_t bcma_methods[] = {
 	DEVMETHOD(bhnd_bus_decode_port_rid,	bcma_decode_port_rid),
 	DEVMETHOD(bhnd_bus_get_region_addr,	bcma_get_region_addr),
 	DEVMETHOD(bhnd_bus_get_intr_count,	bcma_get_intr_count),
-	DEVMETHOD(bhnd_bus_get_core_ivec,	bcma_get_core_ivec),
+	DEVMETHOD(bhnd_bus_get_intr_ivec,	bcma_get_intr_ivec),
 
 	DEVMETHOD_END
 };

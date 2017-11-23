@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -319,7 +321,6 @@ __END_DECLS
 #endif
 #endif
 
-#ifndef lint
 #ifndef _BYTEORDER_FUNC_DEFINED
 #define	_BYTEORDER_FUNC_DEFINED
 #define	htonl(x)	__htonl(x)
@@ -327,7 +328,6 @@ __END_DECLS
 #define	ntohl(x)	__ntohl(x)
 #define	ntohs(x)	__ntohs(x)
 #endif /* !_BYTEORDER_FUNC_DEFINED */
-#endif /* lint */
 #endif /* _KERNEL */
 
 /*

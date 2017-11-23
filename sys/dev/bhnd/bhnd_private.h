@@ -54,4 +54,49 @@ struct bhnd_service_entry {
 	STAILQ_ENTRY(bhnd_service_entry) link;
 };
 
+/**
+ * bhnd(4) per-core PMU clkctl quirks.
+ */
+enum {
+	/** On BCM4328-derived chipsets, the CLK_CTL_ST register CCS_HTAVAIL
+	 *  and CCS_ALPAVAIL bits are swapped in the ChipCommon and PCMCIA
+	 *  cores; the BHND_CCS0_* constants should be used. */
+	BHND_CLKCTL_QUIRK_CCS0	= 1
+};
+
+/**
+ * Per-core bhnd(4) PMU clkctl registers.
+ */
+struct bhnd_core_clkctl {
+	device_t		 cc_dev;		/**< core device */
+	device_t		 cc_pmu_dev;		/**< pmu device */
+	uint32_t		 cc_quirks;		/**< core-specific clkctl quirks */
+	struct bhnd_resource	*cc_res;		/**< resource mapping core's clkctl register */
+	bus_size_t		 cc_res_offset;		/**< offset to clkctl register */
+	u_int			 cc_max_latency;	/**< maximum PMU transition latency, in microseconds */
+	struct mtx		 cc_mtx;		/**< register read/modify/write lock */
+};
+
+#define	BHND_ASSERT_CLKCTL_AVAIL(_clkctl)			\
+	KASSERT(!bhnd_is_hw_suspended((_clkctl)->cc_dev),	\
+	    ("reading clkctl on suspended core will trigger system livelock"))
+
+#define	BHND_CLKCTL_LOCK_INIT(_clkctl)		mtx_init(&(_clkctl)->cc_mtx, \
+    device_get_nameunit((_clkctl)->cc_dev), NULL, MTX_DEF)
+#define	BHND_CLKCTL_LOCK(_clkctl)		mtx_lock(&(_clkctl)->cc_mtx)
+#define	BHND_CLKCTL_UNLOCK(_clkctl)		mtx_unlock(&(_clkctl)->cc_mtx)
+#define	BHND_CLKCTL_LOCK_ASSERT(_clkctl, what)	\
+    mtx_assert(&(_clkctl)->cc_mtx, what)
+#define	BHND_CLKCTL_LOCK_DESTROY(_clkctl)	mtx_destroy(&(_clkctl->cc_mtx))
+
+#define	BHND_CLKCTL_READ_4(_clkctl)		\
+	bhnd_bus_read_4((_clkctl)->cc_res, (_clkctl)->cc_res_offset)
+
+#define	BHND_CLKCTL_WRITE_4(_clkctl, _val)	\
+	bhnd_bus_write_4((_clkctl)->cc_res, (_clkctl)->cc_res_offset, (_val))
+	
+#define	BHND_CLKCTL_SET_4(_clkctl, _val, _mask)	\
+	BHND_CLKCTL_WRITE_4((_clkctl),		\
+	    ((_val) & (_mask)) | (BHND_CLKCTL_READ_4(_clkctl) & ~(_mask)))
+
 #endif /* _BHND_BHND_PRIVATE_H_ */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
  * Copyright (c) 1998 Matthew Dillon.  All Rights Reserved.
@@ -2063,8 +2065,10 @@ vm_page_scan_contig(u_long npages, vm_page_t m_start, vm_page_t m_end,
 	run_len = 0;
 	m_mtx = NULL;
 	for (m = m_start; m < m_end && run_len < npages; m += m_inc) {
-		KASSERT((m->flags & (PG_FICTITIOUS | PG_MARKER)) == 0,
-		    ("page %p is PG_FICTITIOUS or PG_MARKER", m));
+		KASSERT((m->flags & PG_MARKER) == 0,
+		    ("page %p is PG_MARKER", m));
+		KASSERT((m->flags & PG_FICTITIOUS) == 0 || m->wire_count == 1,
+		    ("fictitious page %p has invalid wire count", m));
 
 		/*
 		 * If the current page would be the start of a run, check its

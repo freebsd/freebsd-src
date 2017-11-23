@@ -1,6 +1,8 @@
 /*	$KAME: ip6opt.c,v 1.13 2003/06/06 10:08:20 suz Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  * 

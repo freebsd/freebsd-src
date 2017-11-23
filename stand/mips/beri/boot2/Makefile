@@ -47,15 +47,13 @@ MAN=
 
 AFLAGS=		-G0
 
-CFLAGS=		-ffreestanding			\
-		-I${.CURDIR}			\
+CFLAGS+=	-I${.CURDIR}			\
 		-I${SASRC}			\
 		-I${LDRSRC}			\
 		-D_KERNEL			\
 		-Wall				\
 		-G0 				\
 		-fno-pic -mno-abicalls		\
-		-msoft-float			\
 		-g
 
 LDFLAGS=	-nostdlib			\

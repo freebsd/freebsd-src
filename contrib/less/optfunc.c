@@ -50,6 +50,8 @@ extern int jump_sline;
 extern long jump_sline_fraction;
 extern int shift_count;
 extern long shift_count_fraction;
+extern LWCHAR rscroll_char;
+extern int rscroll_attr;
 extern int less_is_more;
 #if LOGFILE
 extern char *namelogfile;
@@ -68,6 +70,11 @@ extern int ul_fg_color, ul_bg_color;
 extern int so_fg_color, so_bg_color;
 extern int bl_fg_color, bl_bg_color;
 extern int sgr_mode;
+#if MSDOS_COMPILER==WIN32C
+#ifndef COMMON_LVB_UNDERSCORE
+#define COMMON_LVB_UNDERSCORE 0x8000
+#endif
+#endif
 #endif
 
 
@@ -81,6 +88,7 @@ opt_o(type, s)
 	char *s;
 {
 	PARG parg;
+	char *filename;
 
 	if (secure)
 	{
@@ -106,7 +114,9 @@ opt_o(type, s)
 		s = skipsp(s);
 		if (namelogfile != NULL)
 			free(namelogfile);
-		namelogfile = lglob(s);
+		filename = lglob(s);
+		namelogfile = shell_unquote(filename);
+		free(filename);
 		use_logfile(namelogfile);
 		sync_logfile();
 		break;
@@ -336,6 +346,7 @@ opt__T(type, s)
 	char *s;
 {
 	PARG parg;
+	char *filename;
 
 	switch (type)
 	{
@@ -346,7 +357,9 @@ opt__T(type, s)
 		s = skipsp(s);
 		if (tags != NULL && tags != ztags)
 			free(tags);
-		tags = lglob(s);
+		filename = lglob(s);
+		tags = shell_unquote(filename);
+		free(filename);
 		break;
 	case QUERY:
 		parg.p_string = tags;
@@ -540,12 +553,27 @@ colordesc(s, fg_color, bg_color)
 {
 	int fg, bg;
 	int err;
-	
+#if MSDOS_COMPILER==WIN32C
+	int ul = 0;
+ 	
+	if (*s == 'u')
+	{
+		ul = COMMON_LVB_UNDERSCORE;
+		++s;
+	}
+#endif
 	fg = getnum(&s, "D", &err);
 	if (err)
 	{
-		error("Missing fg color in -D", NULL_PARG);
-		return;
+#if MSDOS_COMPILER==WIN32C
+		if (ul)
+			fg = nm_fg_color;
+		else
+#endif
+		{
+			error("Missing fg color in -D", NULL_PARG);
+			return;
+		}
 	}
 	if (*s != '.')
 		bg = nm_bg_color;
@@ -559,6 +587,14 @@ colordesc(s, fg_color, bg_color)
 			return;
 		}
 	}
+#if MSDOS_COMPILER==WIN32C
+	if (*s == 'u')
+	{
+		ul = COMMON_LVB_UNDERSCORE;
+		++s;
+	}
+	fg |= ul;
+#endif
 	if (*s != '\0')
 		error("Extra characters at end of -D option", NULL_PARG);
 	*fg_color = fg;
@@ -714,6 +750,40 @@ opt_quote(type, s)
 		parg.p_string = buf;
 		error("quotes %s", &parg);
 		break;
+	}
+}
+
+/*
+ * Handler for the --rscroll option.
+ */
+	/*ARGSUSED*/
+	public void
+opt_rscroll(type, s)
+	int type;
+	char *s;
+{
+	PARG p;
+
+	switch (type)
+	{
+	case INIT:
+	case TOGGLE: {
+		char *fmt;
+		int attr = AT_STANDOUT;
+		setfmt(s, &fmt, &attr, "*s>");
+		if (strcmp(fmt, "-") == 0)
+		{
+			rscroll_char = 0;
+		} else
+		{
+			rscroll_char = *fmt ? *fmt : '>';
+			rscroll_attr = attr;
+		}
+		break; }
+	case QUERY: {
+		p.p_string = rscroll_char ? prchar(rscroll_char) : "-";
+		error("rscroll char is %s", &p);
+		break; }
 	}
 }
 

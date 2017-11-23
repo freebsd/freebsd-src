@@ -46,6 +46,7 @@ HEADER {
 	struct bhnd_board_info;
 	struct bhnd_core_info;
 	struct bhnd_chipid;
+	struct bhnd_dma_translation;
 	struct bhnd_devinfo;
 	struct bhnd_resource;
 }
@@ -112,52 +113,12 @@ CODE {
 	{
 		panic("bhnd_bus_get_attach_type unimplemented");
 	}
-	
-	static bhnd_clksrc
-	bhnd_bus_null_pwrctl_get_clksrc(device_t dev, device_t child,
-	    bhnd_clock clock)
-	{
-		return (BHND_CLKSRC_UNKNOWN);
-	}
-
-	static int
-	bhnd_bus_null_pwrctl_gate_clock(device_t dev, device_t child,
-	    bhnd_clock clock)
-	{
-		return (ENODEV);
-	}
-
-	static int
-	bhnd_bus_null_pwrctl_ungate_clock(device_t dev, device_t child,
-	    bhnd_clock clock)
-	{
-		return (ENODEV);
-	}
 
 	static int
 	bhnd_bus_null_read_board_info(device_t dev, device_t child,
 	    struct bhnd_board_info *info)
 	{
 		panic("bhnd_bus_read_boardinfo unimplemented");
-	}
-
-	static int
-	bhnd_bus_null_get_intr_count(device_t dev, device_t child)
-	{
-		panic("bhnd_bus_get_intr_count unimplemented");
-	}
-
-	static int
-	bhnd_bus_null_assign_intr(device_t dev, device_t child, int rid)
-	{
-		panic("bhnd_bus_assign_intr unimplemented");
-	}
-
-	static int
-	bhnd_bus_null_get_core_ivec(device_t dev, device_t child, u_int intr,
-	    uint32_t *ivec)
-	{
-		panic("bhnd_bus_get_core_ivec unimplemented");
 	}
 
 	static void
@@ -175,6 +136,20 @@ CODE {
 	bhnd_bus_null_release_pmu(device_t dev, device_t child)
 	{
 		panic("bhnd_bus_release_pmu unimplemented");
+	}
+
+	static int
+	bhnd_bus_null_get_clock_latency(device_t dev, device_t child,
+	    bhnd_clock clock, u_int *latency)
+	{
+		panic("bhnd_pmu_get_clock_latency unimplemented");
+	}
+
+	static int
+	bhnd_bus_null_get_clock_freq(device_t dev, device_t child,
+	    bhnd_clock clock, u_int *freq)
+	{
+		panic("bhnd_pmu_get_clock_freq unimplemented");
 	}
 
 	static int
@@ -241,6 +216,39 @@ CODE {
 	bhnd_bus_null_get_probe_order(device_t dev, device_t child)
 	{
 		panic("bhnd_bus_get_probe_order unimplemented");
+	}
+
+	static uintptr_t
+	bhnd_bus_null_get_intr_domain(device_t dev, device_t child, bool self)
+	{
+		/* Unsupported */
+		return (0);
+	}
+
+	static u_int
+	bhnd_bus_null_get_intr_count(device_t dev, device_t child)
+	{
+		return (0);
+	}
+
+	static int
+	bhnd_bus_null_get_intr_ivec(device_t dev, device_t child, u_int intr,
+	    u_int *ivec)
+	{
+		panic("bhnd_bus_get_intr_ivec unimplemented");
+	}
+	
+	static int
+	bhnd_bus_null_map_intr(device_t dev, device_t child, u_int intr,
+	    rman_res_t *irq)
+	{
+	    panic("bhnd_bus_map_intr unimplemented");
+	}
+
+	static int
+	bhnd_bus_null_unmap_intr(device_t dev, device_t child, rman_res_t irq)
+	{
+	    panic("bhnd_bus_unmap_intr unimplemented");
 	}
 
 	static int
@@ -465,6 +473,41 @@ METHOD bhnd_attach_type get_attach_type {
 	device_t child;
 } DEFAULT bhnd_bus_null_get_attach_type;
 
+
+/**
+ * Find the best available DMA address translation capable of mapping a
+ * physical host address to a BHND DMA device address of @p width with
+ * @p flags.
+ *
+ * @param dev The parent of @p child.
+ * @param child The bhnd device requesting the DMA address translation.
+ * @param width The address width within which the translation window must
+ * reside (see BHND_DMA_ADDR_*).
+ * @param flags Required translation flags (see BHND_DMA_TRANSLATION_*).
+ * @param[out] dmat On success, will be populated with a DMA tag specifying the
+ * @p translation DMA address restrictions. This argment may be NULL if the DMA
+ * tag is not desired.
+ * the set of valid host DMA addresses reachable via @p translation.
+ * @param[out] translation On success, will be populated with a DMA address
+ * translation descriptor for @p child. This argment may be NULL if the
+ * descriptor is not desired.
+ *
+ * @retval 0 success
+ * @retval ENODEV If DMA is not supported.
+ * @retval ENOENT If no DMA translation matching @p width and @p flags is
+ * available.
+ * @retval non-zero If determining the DMA address translation for @p child
+ * otherwise fails, a regular unix error code will be returned.
+ */
+METHOD int get_dma_translation {
+	device_t dev;
+	device_t child;
+	u_int width;
+	uint32_t flags;
+	bus_dma_tag_t *dmat;
+	struct bhnd_dma_translation *translation;
+} DEFAULT bhnd_bus_generic_get_dma_translation;
+
 /**
  * Attempt to read the BHND board identification from the parent bus.
  *
@@ -486,77 +529,6 @@ METHOD int read_board_info {
 	device_t child;
 	struct bhnd_board_info *info;
 } DEFAULT bhnd_bus_null_read_board_info;
-
-/**
- * Return the number of interrupts to be assigned to @p child via
- * BHND_BUS_ASSIGN_INTR().
- * 
- * @param dev The bhnd bus parent of @p child.
- * @param child The bhnd device for which a count should be returned.
- *
- * @retval 0		If no interrupts should be assigned.
- * @retval non-zero	The count of interrupt resource IDs to be
- *			assigned, starting at rid 0.
- */
-METHOD int get_intr_count {
-	device_t dev;
-	device_t child;
-} DEFAULT bhnd_bus_null_get_intr_count;
-
-/**
- * Assign an interrupt to @p child via bus_set_resource().
- *
- * The default bus implementation of this method should assign backplane
- * interrupt values to @p child.
- *
- * Bridge-attached bus implementations may instead override standard
- * interconnect IRQ assignment, providing IRQs inherited from the parent bus.
- *
- * TODO: Once we can depend on INTRNG, investigate replacing this with a
- * bridge-level interrupt controller.
- * 
- * @param dev The bhnd bus parent of @p child.
- * @param child The bhnd device to which an interrupt should be assigned.
- * @param rid The interrupt resource ID to be assigned.
- *
- * @retval 0		If an interrupt was assigned.
- * @retval non-zero	If assigning an interrupt otherwise fails, a regular
- *			unix error code will be returned.
- */
-METHOD int assign_intr {
-	device_t dev;
-	device_t child;
-	int rid;
-} DEFAULT bhnd_bus_null_assign_intr;
-
-/**
- * Return the backplane interrupt vector corresponding to @p child's given
- * @p intr number.
- * 
- * @param dev The bhnd bus parent of @p child.
- * @param child The bhnd device for which the assigned interrupt vector should
- * be queried.
- * @param intr The interrupt number being queried. This is equivalent to the
- * bus resource ID for the interrupt.
- * @param[out] ivec On success, the assigned hardware interrupt vector be
- * written to this pointer.
- *
- * On bcma(4) devices, this returns the OOB bus line assigned to the
- * interrupt.
- *
- * On siba(4) devices, this returns the target OCP slave flag number assigned
- * to the interrupt.
- *
- * @retval 0		success
- * @retval ENXIO	If @p intr exceeds the number of interrupts available
- *			to @p child.
- */
-METHOD int get_core_ivec {
-	device_t dev;
-	device_t child;
-	u_int intr;
-	uint32_t *ivec;
-} DEFAULT bhnd_bus_null_get_core_ivec;
 
 /**
  * Notify a bhnd bus that a child was added.
@@ -692,70 +664,7 @@ METHOD int suspend_hw {
 } DEFAULT bhnd_bus_null_suspend_hw;
 
 /**
- * If supported by the chipset, return the clock source for the given clock.
- *
- * This function is only supported on early PWRCTL-equipped chipsets
- * that expose clock management via their host bridge interface. Currently,
- * this includes PCI (not PCIe) devices, with ChipCommon core revisions 0-9.
- *
- * @param dev The parent of @p child.
- * @param child The bhnd device requesting a clock source.
- * @param clock The clock for which a clock source will be returned.
- *
- * @retval	bhnd_clksrc		The clock source for @p clock.
- * @retval	BHND_CLKSRC_UNKNOWN	If @p clock is unsupported, or its
- *					clock source is not known to the bus.
- */
-METHOD bhnd_clksrc pwrctl_get_clksrc {
-	device_t dev;
-	device_t child;
-	bhnd_clock clock;
-} DEFAULT bhnd_bus_null_pwrctl_get_clksrc;
-
-/**
- * If supported by the chipset, gate the clock source for @p clock
- *
- * This function is only supported on early PWRCTL-equipped chipsets
- * that expose clock management via their host bridge interface. Currently,
- * this includes PCI (not PCIe) devices, with ChipCommon core revisions 0-9.
- *
- * @param dev The parent of @p child.
- * @param child The bhnd device requesting clock gating.
- * @param clock The clock to be disabled.
- *
- * @retval 0 success
- * @retval ENODEV If bus-level clock source management is not supported.
- * @retval ENXIO If bus-level management of @p clock is not supported.
- */
-METHOD int pwrctl_gate_clock {
-	device_t dev;
-	device_t child;
-	bhnd_clock clock;
-} DEFAULT bhnd_bus_null_pwrctl_gate_clock;
-
-/**
- * If supported by the chipset, ungate the clock source for @p clock
- *
- * This function is only supported on early PWRCTL-equipped chipsets
- * that expose clock management via their host bridge interface. Currently,
- * this includes PCI (not PCIe) devices, with ChipCommon core revisions 0-9.
- *
- * @param dev The parent of @p child.
- * @param child The bhnd device requesting clock gating.
- * @param clock The clock to be enabled.
- *
- * @retval 0 success
- * @retval ENODEV If bus-level clock source management is not supported.
- * @retval ENXIO If bus-level management of @p clock is not supported.
- */
-METHOD int pwrctl_ungate_clock {
-	device_t dev;
-	device_t child;
-	bhnd_clock clock;
-} DEFAULT bhnd_bus_null_pwrctl_ungate_clock;
-
-/**
- * Allocate and enable per-core PMU request handling for @p child.
+ * Allocate per-core PMU resources and enable PMU request handling for @p child.
  *
  * The region containing the core's PMU register block (if any) must be
  * allocated via bus_alloc_resource(9) (or bhnd_alloc_resource) before
@@ -764,6 +673,10 @@ METHOD int pwrctl_ungate_clock {
  *
  * @param dev The parent of @p child.
  * @param child The requesting bhnd device.
+ *
+ * @retval 0		success
+ * @retval non-zero	if enabling per-core PMU request handling fails, a
+ *			regular unix error code will be returned.
  */
 METHOD int alloc_pmu {
 	device_t dev;
@@ -782,6 +695,53 @@ METHOD int release_pmu {
 	device_t child;
 } DEFAULT bhnd_bus_null_release_pmu;
 
+/**
+ * Return the transition latency required for @p clock in microseconds, if
+ * known.
+ *
+ * The BHND_CLOCK_HT latency value is suitable for use as the D11 core's
+ * 'fastpwrup_dly' value. 
+ *
+ * @note A driver must ask the bhnd bus to allocate PMU request state
+ * via BHND_BUS_ALLOC_PMU() before querying PMU clocks.
+ *
+ * @param dev The parent of @p child.
+ * @param child The requesting bhnd device.
+ * @param clock	The clock to be queried for transition latency.
+ * @param[out] latency On success, the transition latency of @p clock in
+ * microseconds.
+ * 
+ * @retval 0		success
+ * @retval ENODEV	If the transition latency for @p clock is not available.
+ */
+METHOD int get_clock_latency {
+	device_t dev;
+	device_t child;
+	bhnd_clock clock;
+	u_int *latency;
+} DEFAULT bhnd_bus_null_get_clock_latency;
+
+/**
+ * Return the frequency for @p clock in Hz, if known.
+ *
+ * @param dev The parent of @p child.
+ * @param child The requesting bhnd device.
+ * @param clock The clock to be queried.
+ * @param[out] freq On success, the frequency of @p clock in Hz.
+ *
+ * @note A driver must ask the bhnd bus to allocate PMU request state
+ * via BHND_BUS_ALLOC_PMU() before querying PMU clocks.
+ * 
+ * @retval 0		success
+ * @retval ENODEV	If the frequency for @p clock is not available.
+ */
+METHOD int get_clock_freq {
+	device_t dev;
+	device_t child;
+	bhnd_clock clock;
+	u_int *freq;
+} DEFAULT bhnd_bus_null_get_clock_freq;
+
 /** 
  * Request that @p clock (or faster) be routed to @p child.
  * 
@@ -793,11 +753,13 @@ METHOD int release_pmu {
  *
  * @param dev The parent of @p child.
  * @param child The bhnd device requesting @p clock.
- * @param clock The requested clock source. 
+ * @param clock The requested clock source.
  *
- * @retval 0 success
- * @retval ENODEV If an unsupported clock was requested.
- * @retval ENXIO If the PMU has not been initialized or is otherwise unvailable.
+ * @retval 0		success
+ * @retval ENODEV	If an unsupported clock was requested.
+ * @retval ETIMEDOUT	If the clock request succeeds, but the clock is not
+ *			detected as ready within the PMU's maximum transition
+ *			delay. This should not occur in normal operation.
  */
 METHOD int request_clock {
 	device_t dev;
@@ -822,9 +784,11 @@ METHOD int request_clock {
  * @param child The bhnd device requesting @p clock.
  * @param clock The requested clock source.
  *
- * @retval 0 success
- * @retval ENODEV If an unsupported clock was requested.
- * @retval ENXIO If the PMU has not been initialized or is otherwise unvailable.
+ * @retval 0		success
+ * @retval ENODEV	If an unsupported clock was requested.
+ * @retval ETIMEDOUT	If the clock request succeeds, but the clock is not
+ *			detected as ready within the PMU's maximum transition
+ *			delay. This should not occur in normal operation.
  */
 METHOD int enable_clocks {
 	device_t dev;
@@ -845,9 +809,11 @@ METHOD int enable_clocks {
  * @param child The bhnd device requesting @p rsrc.
  * @param rsrc The core-specific external resource identifier.
  *
- * @retval 0 success
- * @retval ENODEV If the PMU does not support @p rsrc.
- * @retval ENXIO If the PMU has not been initialized or is otherwise unvailable.
+ * @retval 0		success
+ * @retval ENODEV	If the PMU does not support @p rsrc.
+ * @retval ETIMEDOUT	If the clock request succeeds, but the clock is not
+ *			detected as ready within the PMU's maximum transition
+ *			delay. This should not occur in normal operation.
  */
 METHOD int request_ext_rsrc {
 	device_t dev;
@@ -865,9 +831,11 @@ METHOD int request_ext_rsrc {
  * @param child The bhnd device requesting @p rsrc.
  * @param rsrc The core-specific external resource number.
  *
- * @retval 0 success
- * @retval ENODEV If the PMU does not support @p rsrc.
- * @retval ENXIO If the PMU has not been initialized or is otherwise unvailable.
+ * @retval 0		success
+ * @retval ENODEV	If the PMU does not support @p rsrc.
+ * @retval ETIMEDOUT	If the clock request succeeds, but the clock is not
+ *			detected as ready within the PMU's maximum transition
+ *			delay. This should not occur in normal operation.
  */
 METHOD int release_ext_rsrc {
 	device_t dev;
@@ -996,6 +964,106 @@ METHOD int deactivate_resource {
 	int rid;
         struct bhnd_resource *r;
 } DEFAULT bhnd_bus_generic_deactivate_resource;
+
+/**
+ * Return the interrupt domain.
+ *
+ * This globally unique value may be used as the interrupt controller 'xref'
+ * on targets that support INTRNG.
+ *
+ * @param dev The device whose child is being examined.
+ * @param child The child device.
+ * @parem self If true, return @p child's interrupt domain, rather than the
+ * domain in which @p child resides.
+ *
+ * On Non-OFW targets, this should either return:
+ *   - The pointer address of a device that can uniquely identify @p child's
+ *     interrupt domain (e.g., the bhnd bus' device_t address), or
+ *   - 0 if unsupported by the bus.
+ *
+ * On OFW (including FDT) targets, this should return the @p child's iparent
+ * property's xref if @p self is false, the child's own node xref value if
+ * @p self is true, or 0 if no interrupt parent is found.
+ */
+METHOD uintptr_t get_intr_domain {
+	device_t dev;
+	device_t child;
+	bool self;
+} DEFAULT bhnd_bus_null_get_intr_domain;
+ 
+/**
+ * Return the number of interrupt lines assigned to @p child.
+ * 
+ * @param dev The bhnd device whose child is being examined.
+ * @param child The child device.
+ */
+METHOD u_int get_intr_count {
+	device_t dev;
+	device_t child;
+} DEFAULT bhnd_bus_null_get_intr_count;
+
+/**
+ * Get the backplane interrupt vector of the @p intr line attached to @p child.
+ * 
+ * @param dev The device whose child is being examined.
+ * @param child The child device.
+ * @param intr The index of the interrupt line being queried.
+ * @param[out] ivec On success, the assigned hardware interrupt vector will be
+ * written to this pointer.
+ *
+ * On bcma(4) devices, this returns the OOB bus line assigned to the
+ * interrupt.
+ *
+ * On siba(4) devices, this returns the target OCP slave flag number assigned
+ * to the interrupt.
+ *
+ * @retval 0		success
+ * @retval ENXIO	If @p intr exceeds the number of interrupt lines
+ *			assigned to @p child.
+ */
+METHOD int get_intr_ivec {
+	device_t dev;
+	device_t child;
+	u_int intr;
+	u_int *ivec;
+} DEFAULT bhnd_bus_null_get_intr_ivec;
+
+/**
+ * Map the given @p intr to an IRQ number; until unmapped, this IRQ may be used
+ * to allocate a resource of type SYS_RES_IRQ.
+ * 
+ * On success, the caller assumes ownership of the interrupt mapping, and
+ * is responsible for releasing the mapping via BHND_BUS_UNMAP_INTR().
+ * 
+ * @param dev The bhnd bus device.
+ * @param child The requesting child device.
+ * @param intr The interrupt being mapped.
+ * @param[out] irq On success, the bus interrupt value mapped for @p intr.
+ *
+ * @retval 0		If an interrupt was assigned.
+ * @retval non-zero	If mapping an interrupt otherwise fails, a regular
+ *			unix error code will be returned.
+ */
+METHOD int map_intr {
+	device_t dev;
+	device_t child;
+	u_int intr;
+	rman_res_t *irq;
+} DEFAULT bhnd_bus_null_map_intr;
+
+/**
+ * Unmap an bus interrupt previously mapped via BHND_BUS_MAP_INTR().
+ * 
+ * @param dev The bhnd bus device.
+ * @param child The requesting child device.
+ * @param intr The interrupt number being unmapped. This is equivalent to the
+ * bus resource ID for the interrupt.
+ */
+METHOD void unmap_intr {
+	device_t dev;
+	device_t child;
+	rman_res_t irq;
+} DEFAULT bhnd_bus_null_unmap_intr;
 
 /**
  * Return true if @p region_num is a valid region on @p port_num of

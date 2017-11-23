@@ -1787,6 +1787,18 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	is = malloc(sizeof(*is), M_ISCSI, M_ZERO | M_WAITOK);
 	memcpy(&is->is_conf, &isa->isa_conf, sizeof(is->is_conf));
 
+	/*
+	 * Set some default values, from RFC 3720, section 12.
+	 *
+	 * These values are updated by the handoff IOCTL, but are
+	 * needed prior to the handoff to support sending the ISER
+	 * login PDU.
+	 */
+	is->is_max_recv_data_segment_length = 8192;
+	is->is_max_send_data_segment_length = 8192;
+	is->is_max_burst_length = 262144;
+	is->is_first_burst_length = 65536;
+
 	sx_xlock(&sc->sc_lock);
 
 	/*

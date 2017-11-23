@@ -1,6 +1,8 @@
 /*	$NetBSD: xdr_stdio.c,v 1.14 2000/01/22 22:19:19 mycroft Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2010, Oracle America, Inc.
  *
  * Redistribution and use in source and binary forms, with or without

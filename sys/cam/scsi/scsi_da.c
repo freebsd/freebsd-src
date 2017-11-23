@@ -1346,7 +1346,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * Drive Managed SATA hard drive.  This drive doesn't report
 		 * in firmware that it is a drive managed SMR drive.
 		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST8000AS0002*", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST8000AS000[23]*", "*" },
 		/*quirks*/DA_Q_SMR_DM
 	},
 	{
@@ -3038,6 +3038,18 @@ more:
 		}
 		case BIO_FLUSH:
 			/*
+			 * If we don't support sync cache, or the disk
+			 * isn't dirty, FLUSH is a no-op.  Use the
+			 * allocated * CCB for the next bio if one is
+			 * available.
+			 */
+			if ((softc->quirks & DA_Q_NO_SYNC_CACHE) != 0 ||
+			    (softc->flags & DA_FLAG_DIRTY) == 0) {
+				biodone(bp);
+				goto skipstate;
+			}
+
+			/*
 			 * BIO_FLUSH doesn't currently communicate
 			 * range data, so we synchronize the cache
 			 * over the whole disk.  We also force
@@ -3052,6 +3064,15 @@ more:
 					       /*lb_count*/0,
 					       SSD_FULL_SIZE,
 					       da_default_timeout*1000);
+			/*
+			 * Clear the dirty flag before sending the command.
+			 * Either this sync cache will be successful, or it
+			 * will fail after a retry.  If it fails, it is
+			 * unlikely to be successful if retried later, so
+			 * we'll save ourselves time by just marking the
+			 * device clean.
+			 */
+			softc->flags &= ~DA_FLAG_DIRTY;
 			break;
 		case BIO_ZONE: {
 			int error, queue_ccb;

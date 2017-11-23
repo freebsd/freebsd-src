@@ -677,6 +677,7 @@ struct {
 	/* Custom */
 	{0x6480, "Chelsio T6225 80"},
 	{0x6481, "Chelsio T62100 81"},
+	{0x6484, "Chelsio T62100 84"},
 };
 
 #ifdef TCP_OFFLOAD

@@ -48,6 +48,7 @@ Periph clocks:
 
 Clock Source/Divider N/Divider M
 Clock Source/Divider N/Divider M/2
+Clock Source*N/(Divider M+1)/(Divider P+1)
 
  */
 
@@ -389,6 +390,36 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.prediv.flags = _prediv_flags,			\
 		.prediv.cond_shift = _prediv_cond_shift,	\
 		.prediv.cond_width = _prediv_cond_width,	\
+		.prediv.cond_value = _prediv_cond_value,	\
+	}
+
+#define PREDIV_CLK_WITH_MASK(_clkname, _id, _name, _pnames,	\
+  _offset,							\
+  _mux_shift, _mux_width,					\
+  _div_shift, _div_width, _div_value, _div_flags,		\
+  _prediv_shift, _prediv_width, _prediv_value, _prediv_flags,	\
+  _prediv_cond_mask, _prediv_cond_value)			\
+	static struct aw_clk_prediv_mux_def _clkname = {	\
+		.clkdef = {					\
+			.id = _id,				\
+			.name = _name,				\
+			.parent_names = _pnames,		\
+			.parent_cnt = nitems(_pnames),		\
+		},						\
+		.offset = _offset,				\
+		.mux_shift = _mux_shift,			\
+		.mux_width = _mux_width,			\
+		.div.shift = _div_shift,			\
+		.div.width = _div_width,			\
+		.div.value = _div_value,			\
+		.div.flags = _div_flags,			\
+		.prediv.shift = _prediv_shift,			\
+		.prediv.width = _prediv_width,			\
+		.prediv.value = _prediv_value,			\
+		.prediv.flags = _prediv_flags,			\
+		.prediv.cond_shift = 0,				\
+		.prediv.cond_width = 0,				\
+		.prediv.cond_mask = _prediv_cond_mask,		\
 		.prediv.cond_value = _prediv_cond_value,	\
 	}
 
