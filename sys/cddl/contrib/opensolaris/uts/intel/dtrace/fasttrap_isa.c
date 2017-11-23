@@ -1728,11 +1728,7 @@ fasttrap_pid_probe(struct reg *rp)
 
 		ASSERT(i <= sizeof (scratch));
 
-#ifdef illumos
 		if (fasttrap_copyout(scratch, (char *)addr, i)) {
-#else
-		if (uwrite(p, scratch, i, addr)) {
-#endif
 			fasttrap_sigtrap(p, curthread, pc);
 			new_pc = pc;
 			break;
