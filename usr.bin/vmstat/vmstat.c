@@ -665,7 +665,7 @@ getcpuinfo(u_long *maskp, int *maxidp)
 
 
 static void
-prthuman(const char *name, u_int64_t val, int size)
+prthuman(const char *name, uint64_t val, int size)
 {
 	char buf[10];
 	int flags;
@@ -822,10 +822,10 @@ dovmstat(unsigned int interval, int reps)
 		if (hflag) {
 			xo_emit("");
 			prthuman("available-memory",
-			         total.t_avm * (u_int64_t)sum.v_page_size, 5);
+			         total.t_avm * (uint64_t)sum.v_page_size, 5);
 			xo_emit(" ");
 			prthuman("free-memory",
-			         total.t_free * (u_int64_t)sum.v_page_size, 5);
+			         total.t_free * (uint64_t)sum.v_page_size, 5);
 			xo_emit(" ");
 		} else {
 			xo_emit(" ");
