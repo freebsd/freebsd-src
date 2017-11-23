@@ -28,7 +28,7 @@
 .\"     @(#)kgmon.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd November 23, 2017
 .Dt KGMON 8
 .Os
 .Sh NAME
@@ -40,6 +40,13 @@
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Sh DESCRIPTION
+.Bf -symbolic
+This command is obsolete.
+Users are advised to use
+.Xr pmcstat 8
+instead.
+.Ef
+.Pp
 The
 .Nm
 utility is used when profiling the operating system.
