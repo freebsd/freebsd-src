@@ -262,12 +262,10 @@ iser_create_device_ib_res(struct iser_device *device)
 	INIT_IB_EVENT_HANDLER(&device->event_handler, device->ib_device,
 				iser_event_handler);
 	if (ib_register_event_handler(&device->event_handler))
-		goto handler_err;
+		goto tq_err;
 
 	return (0);
 
-handler_err:
-	ib_dereg_mr(device->mr);
 tq_err:
 	for (i = 0; i < device->comps_used; i++) {
 		struct iser_comp *comp = &device->comps[i];
@@ -306,7 +304,6 @@ iser_free_device_ib_res(struct iser_device *device)
 	}
 
 	(void)ib_unregister_event_handler(&device->event_handler);
-	(void)ib_dereg_mr(device->mr);
 	(void)ib_dealloc_pd(device->pd);
 
 	free(device->comps, M_ISER_VERBS);
