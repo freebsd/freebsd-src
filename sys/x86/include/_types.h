@@ -62,15 +62,9 @@ typedef	unsigned int		__uint32_t;
 typedef	long			__int64_t;
 typedef	unsigned long		__uint64_t;
 #else
-#ifndef lint
 __extension__
-#endif
-/* LONGLONG */
 typedef	long long		__int64_t;
-#ifndef lint
 __extension__
-#endif
-/* LONGLONG */
 typedef	unsigned long long	__uint64_t;
 #endif
 

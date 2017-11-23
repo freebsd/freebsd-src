@@ -71,10 +71,6 @@
 			 : "ax", "dx", "cx", "memory")
 #define	MEXITCOUNT_OVERHEAD_GETLABEL(labelp)				\
 	__asm __volatile("movl $1b,%0" : "=rm" (labelp))
-#elif defined(lint)
-#define	MCOUNT_OVERHEAD(label)
-#define	MEXITCOUNT_OVERHEAD()
-#define	MEXITCOUNT_OVERHEAD_GETLABEL()
 #else
 #error
 #endif /* !__GNUCLIKE_ASM */

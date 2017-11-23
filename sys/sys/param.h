@@ -321,7 +321,6 @@ __END_DECLS
 #endif
 #endif
 
-#ifndef lint
 #ifndef _BYTEORDER_FUNC_DEFINED
 #define	_BYTEORDER_FUNC_DEFINED
 #define	htonl(x)	__htonl(x)
@@ -329,7 +328,6 @@ __END_DECLS
 #define	ntohl(x)	__ntohl(x)
 #define	ntohs(x)	__ntohs(x)
 #endif /* !_BYTEORDER_FUNC_DEFINED */
-#endif /* lint */
 #endif /* _KERNEL */
 
 /*

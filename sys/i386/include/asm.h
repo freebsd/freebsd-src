@@ -113,10 +113,10 @@
 #define RCSID(x)	.text; .asciz x
 
 #undef __FBSDID
-#if !defined(lint) && !defined(STRIP_FBSDID)
+#if !defined(STRIP_FBSDID)
 #define __FBSDID(s)	.ident s
 #else
 #define __FBSDID(s)	/* nothing */
-#endif /* not lint and not STRIP_FBSDID */
+#endif /* not STRIP_FBSDID */
 
 #endif /* !_MACHINE_ASM_H_ */
