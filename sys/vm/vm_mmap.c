@@ -1196,7 +1196,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 {
 	struct vattr va;
 	vm_object_t obj;
-	vm_offset_t foff;
+	vm_ooffset_t foff;
 	struct ucred *cred;
 	int error, flags, locktype;
 
