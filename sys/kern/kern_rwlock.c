@@ -551,7 +551,7 @@ __rw_rlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
 		/*
 		 * The lock is held in write mode or it already has waiters.
 		 */
-		MPASS(!RW_CAN_READ(td, v));
+		MPASS(!__rw_can_read(td, v, false));
 
 		/*
 		 * If the RW_LOCK_READ_WAITERS flag is already set, then
