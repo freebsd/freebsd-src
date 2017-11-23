@@ -1122,7 +1122,7 @@ ipfw_chk(struct ip_fw_args *args)
 	 */
 	int dyn_dir = MATCH_UNKNOWN;
 	uint16_t dyn_name = 0;
-	ipfw_dyn_rule *q = NULL;
+	struct ip_fw *q = NULL;
 	struct ip_fw_chain *chain = &V_layer3_chain;
 
 	/*
@@ -2307,7 +2307,7 @@ do {								\
 			 */
 			case O_LIMIT:
 			case O_KEEP_STATE:
-				if (ipfw_install_state(chain, f,
+				if (ipfw_dyn_install_state(chain, f,
 				    (ipfw_insn_limit *)cmd, args, tablearg)) {
 					/* error or limit violation */
 					retval = IP_FW_DENY;
@@ -2347,28 +2347,25 @@ do {								\
 				if ((dyn_dir == MATCH_UNKNOWN ||
 				    (dyn_name != 0 &&
 				    dyn_name != cmd->arg1)) &&
-				    (q = ipfw_lookup_dyn_rule(&args->f_id,
-				     &dyn_dir, proto == IPPROTO_TCP ?
-				     TCP(ulp): NULL,
+				    (q = ipfw_dyn_lookup_state(&args->f_id,
+				     ulp, pktlen, &dyn_dir,
 				     (dyn_name = cmd->arg1))) != NULL) {
 					/*
-					 * Found dynamic entry, update stats
-					 * and jump to the 'action' part of
-					 * the parent rule by setting
-					 * f, cmd, l and clearing cmdlen.
+					 * Found dynamic entry, jump to the
+					 * 'action' part of the parent rule
+					 * by setting f, cmd, l and clearing
+					 * cmdlen.
 					 */
-					IPFW_INC_DYN_COUNTER(q, pktlen);
+					f = q;
 					/* XXX we would like to have f_pos
 					 * readily accessible in the dynamic
 				         * rule, instead of having to
 					 * lookup q->rule.
 					 */
-					f = q->rule;
 					f_pos = ipfw_find_rule(chain,
-						f->rulenum, f->id);
+					    f->rulenum, f->id);
 					cmd = ACTION_PTR(f);
 					l = f->cmd_len - f->act_ofs;
-					ipfw_dyn_unlock(q);
 					cmdlen = 0;
 					match = 1;
 					break;
@@ -2580,8 +2577,7 @@ do {								\
 			case O_FORWARD_IP:
 				if (args->eh)	/* not valid on layer2 pkts */
 					break;
-				if (q == NULL || q->rule != f ||
-				    dyn_dir == MATCH_FORWARD) {
+				if (q != f || dyn_dir == MATCH_FORWARD) {
 				    struct sockaddr_in *sa;
 
 				    sa = &(((ipfw_insn_sa *)cmd)->sa);
@@ -2641,8 +2637,7 @@ do {								\
 			case O_FORWARD_IP6:
 				if (args->eh)	/* not valid on layer2 pkts */
 					break;
-				if (q == NULL || q->rule != f ||
-				    dyn_dir == MATCH_FORWARD) {
+				if (q != f || dyn_dir == MATCH_FORWARD) {
 					struct sockaddr_in6 *sin6;
 
 					sin6 = &(((ipfw_insn_sa6 *)cmd)->sa);
