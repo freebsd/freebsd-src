@@ -116,6 +116,7 @@ efirtc_settime(device_t dev, struct timespec *ts)
 
 	clock_ts_to_ct(ts, &ct);
 
+	bzero(&tm, sizeof(tm));
 	tm.tm_sec = ct.sec;
 	tm.tm_min = ct.min;
 	tm.tm_hour = ct.hour;
