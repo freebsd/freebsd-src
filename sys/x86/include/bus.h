@@ -101,9 +101,7 @@
 #include <machine/cpufunc.h>
 
 #ifndef __GNUCLIKE_ASM
-# ifndef lint
-#  error "no assembler code for your compiler"
-# endif
+#error "no assembler code for your compiler"
 #endif
 
 /*
