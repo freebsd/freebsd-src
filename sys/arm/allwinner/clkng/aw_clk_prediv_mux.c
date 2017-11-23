@@ -157,7 +157,10 @@ aw_clk_prediv_mux_register(struct clkdom *clkdom, struct aw_clk_prediv_mux_def *
 	sc->prediv.mask = ((1 << clkdef->prediv.width) - 1) << sc->prediv.shift;
 	sc->prediv.value = clkdef->prediv.value;
 	sc->prediv.cond_shift = clkdef->prediv.cond_shift;
-	sc->prediv.cond_mask = ((1 << clkdef->prediv.cond_width) - 1) << sc->prediv.shift;
+	if (clkdef->prediv.cond_width != 0)
+		sc->prediv.cond_mask = ((1 << clkdef->prediv.cond_width) - 1) << sc->prediv.shift;
+	else
+		sc->prediv.cond_mask = clkdef->prediv.cond_mask;
 	sc->prediv.cond_value = clkdef->prediv.cond_value;
 	sc->prediv.flags = clkdef->prediv.flags;
 
