@@ -817,7 +817,7 @@ dovmstat(unsigned int interval, int reps)
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
 		xo_close_container("processes");
 		xo_open_container("memory");
-#define vmstat_pgtok(a) ((a) * (sum.v_page_size >> 10))
+#define vmstat_pgtok(a) ((uintmax_t)(a) * (sum.v_page_size >> 10))
 #define	rate(x)	(((x) * rate_adj + halfuptime) / uptime)	/* round */
 		if (hflag) {
 			xo_emit("");
@@ -829,10 +829,10 @@ dovmstat(unsigned int interval, int reps)
 			xo_emit(" ");
 		} else {
 			xo_emit(" ");
-			xo_emit("{:available-memory/%7d}",
+			xo_emit("{:available-memory/%7ju}",
 			        vmstat_pgtok(total.t_avm));
 			xo_emit(" ");
-			xo_emit("{:free-memory/%7d}",
+			xo_emit("{:free-memory/%7ju}",
 			        vmstat_pgtok(total.t_free));
 			xo_emit(" ");
 		}
@@ -1555,9 +1555,9 @@ display_object(struct kinfo_vmobject *kvo)
 	const char *str;
 
 	xo_open_instance("object");
-        xo_emit("{:resident/%5jd} ", (uintmax_t)kvo->kvo_resident);
-	xo_emit("{:active/%5jd} ", (uintmax_t)kvo->kvo_active);
-	xo_emit("{:inactive/%5jd} ", (uintmax_t)kvo->kvo_inactive);
+	xo_emit("{:resident/%5ju} ", (uintmax_t)kvo->kvo_resident);
+	xo_emit("{:active/%5ju} ", (uintmax_t)kvo->kvo_active);
+	xo_emit("{:inactive/%5ju} ", (uintmax_t)kvo->kvo_inactive);
 	xo_emit("{:refcount/%3d} ", kvo->kvo_ref_count);
 	xo_emit("{:shadowcount/%3d} ", kvo->kvo_shadow_count);
 	switch (kvo->kvo_memattr) {
