@@ -828,12 +828,12 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 	    atomic_cmpset_rel_ptr(&sx->sx_lock, tid, SX_LOCK_UNLOCKED))
 		return;
 
-	MPASS(x & (SX_LOCK_SHARED_WAITERS | SX_LOCK_EXCLUSIVE_WAITERS));
 	if (LOCK_LOG_TEST(&sx->lock_object, 0))
 		CTR2(KTR_LOCK, "%s: %p contested", __func__, sx);
 
 	sleepq_lock(&sx->lock_object);
 	x = SX_READ_VALUE(sx);
+	MPASS(x & (SX_LOCK_SHARED_WAITERS | SX_LOCK_EXCLUSIVE_WAITERS));
 
 	/*
 	 * The wake up algorithm here is quite simple and probably not
