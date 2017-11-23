@@ -486,7 +486,11 @@ iser_conn_task_done(struct icl_conn *ic, void *prv)
 static int
 iser_limits(struct icl_drv_limits *idl)
 {
+
 	idl->idl_max_recv_data_segment_length = 128 * 1024;
+	idl->idl_max_send_data_segment_length = 128 * 1024;
+	idl->idl_max_burst_length = 262144;
+	idl->idl_first_burst_length = 65536;
 
 	return (0);
 }
