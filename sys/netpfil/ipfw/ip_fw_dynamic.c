@@ -251,7 +251,7 @@ SYSEND
 
 #ifdef INET6
 static __inline int
-hash_packet6(struct ipfw_flow_id *id)
+hash_packet6(const struct ipfw_flow_id *id)
 {
 	u_int32_t i;
 	i = (id->dst_ip6.__u6_addr.__u6_addr32[2]) ^
@@ -268,7 +268,7 @@ hash_packet6(struct ipfw_flow_id *id)
  * and we want to find both in the same bucket.
  */
 static __inline int
-hash_packet(struct ipfw_flow_id *id, int buckets)
+hash_packet(const struct ipfw_flow_id *id, int buckets)
 {
 	u_int32_t i;
 
@@ -476,8 +476,8 @@ static struct opcode_obj_rewrite dyn_opcodes[] = {
  * Print customizable flow id description via log(9) facility.
  */
 static void
-print_dyn_rule_flags(struct ipfw_flow_id *id, int dyn_type, int log_flags,
-    char *prefix, char *postfix)
+print_dyn_rule_flags(const struct ipfw_flow_id *id, int dyn_type,
+    int log_flags, char *prefix, char *postfix)
 {
 	struct in_addr da;
 #ifdef INET6
@@ -511,12 +511,14 @@ print_dyn_rule_flags(struct ipfw_flow_id *id, int dyn_type, int log_flags,
 
 static void
 dyn_update_proto_state(ipfw_dyn_rule *q, const struct ipfw_flow_id *id,
-    const struct tcphdr *tcp, int dir)
+    const void *ulp, int dir)
 {
+	const struct tcphdr *tcp;
 	uint32_t ack;
 	u_char flags;
 
 	if (id->proto == IPPROTO_TCP) {
+		tcp = (const struct tcphdr *)ulp;
 		flags = id->_flags & (TH_FIN | TH_SYN | TH_RST);
 #define BOTH_SYN	(TH_SYN | (TH_SYN << 8))
 #define BOTH_FIN	(TH_FIN | (TH_FIN << 8))
@@ -592,8 +594,8 @@ dyn_update_proto_state(ipfw_dyn_rule *q, const struct ipfw_flow_id *id,
  * Lookup a dynamic rule, locked version.
  */
 static ipfw_dyn_rule *
-lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int i, int *match_direction,
-    struct tcphdr *tcp, uint16_t kidx)
+lookup_dyn_rule_locked(const struct ipfw_flow_id *pkt, const void *ulp,
+    int i, int *match_direction, uint16_t kidx)
 {
 	/*
 	 * Stateful ipfw extensions.
@@ -660,39 +662,33 @@ lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int i, int *match_direction,
 	}
 
 	/* update state according to flags */
-	dyn_update_proto_state(q, pkt, tcp, dir);
+	dyn_update_proto_state(q, pkt, ulp, dir);
 done:
 	if (match_direction != NULL)
 		*match_direction = dir;
 	return (q);
 }
 
-ipfw_dyn_rule *
-ipfw_lookup_dyn_rule(struct ipfw_flow_id *pkt, int *match_direction,
-    struct tcphdr *tcp, uint16_t kidx)
+struct ip_fw *
+ipfw_dyn_lookup_state(const struct ipfw_flow_id *pkt, const void *ulp,
+    int pktlen, int *match_direction, uint16_t kidx)
 {
+	struct ip_fw *rule;
 	ipfw_dyn_rule *q;
 	int i;
 
 	i = hash_packet(pkt, V_curr_dyn_buckets);
 
 	IPFW_BUCK_LOCK(i);
-	q = lookup_dyn_rule_locked(pkt, i, match_direction, tcp, kidx);
+	q = lookup_dyn_rule_locked(pkt, ulp, i, match_direction, kidx);
 	if (q == NULL)
-		IPFW_BUCK_UNLOCK(i);
-	/* NB: return table locked when q is not NULL */
-	return q;
-}
-
-/*
- * Unlock bucket mtx
- * @p - pointer to dynamic rule
- */
-void
-ipfw_dyn_unlock(ipfw_dyn_rule *q)
-{
-
-	IPFW_BUCK_UNLOCK(q->bucket);
+		rule = NULL;
+	else {
+		rule = q->rule;
+		IPFW_INC_DYN_COUNTER(q, pktlen);
+	}
+	IPFW_BUCK_UNLOCK(i);
+	return (rule);
 }
 
 static int
@@ -787,7 +783,7 @@ resize_dynamic_table(struct ip_fw_chain *chain, int nbuckets)
  * - "parent" rules for the above (O_LIMIT_PARENT).
  */
 static ipfw_dyn_rule *
-add_dyn_rule(struct ipfw_flow_id *id, int i, uint8_t dyn_type,
+add_dyn_rule(const struct ipfw_flow_id *id, int i, uint8_t dyn_type,
     struct ip_fw *rule, uint16_t kidx)
 {
 	ipfw_dyn_rule *r;
@@ -837,8 +833,8 @@ add_dyn_rule(struct ipfw_flow_id *id, int i, uint8_t dyn_type,
  * If the lookup fails, then install one.
  */
 static ipfw_dyn_rule *
-lookup_dyn_parent(struct ipfw_flow_id *pkt, int *pindex, struct ip_fw *rule,
-    uint16_t kidx)
+lookup_dyn_parent(const struct ipfw_flow_id *pkt, int *pindex,
+    struct ip_fw *rule, uint16_t kidx)
 {
 	ipfw_dyn_rule *q;
 	int i, is_v6;
@@ -882,7 +878,7 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, int *pindex, struct ip_fw *rule,
  * session limitations are enforced.
  */
 int
-ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
+ipfw_dyn_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
     ipfw_insn_limit *cmd, struct ip_fw_args *args, uint32_t tablearg)
 {
 	ipfw_dyn_rule *q;
@@ -895,7 +891,7 @@ ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
 
 	IPFW_BUCK_LOCK(i);
 
-	q = lookup_dyn_rule_locked(&args->f_id, i, NULL, NULL, cmd->o.arg1);
+	q = lookup_dyn_rule_locked(&args->f_id, NULL, i, NULL, cmd->o.arg1);
 	if (q != NULL) {	/* should never occur */
 		DEB(
 		if (last_log != time_uptime) {
