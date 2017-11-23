@@ -609,6 +609,9 @@ lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int i, int *match_direction,
 		if (q->dyn_type == O_LIMIT_PARENT)
 			continue;
 
+		if (pkt->addr_type != q->id.addr_type)
+			continue;
+
 		if (pkt->proto != q->id.proto)
 			continue;
 
