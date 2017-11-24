@@ -88,7 +88,7 @@ ivrs_hdr_iterate_tbl(ivhd_iter_t iter, void *arg)
 			if (!iter(ivrs_hdr, arg))
 				return;
 			break;
-		
+
 		case ACPI_IVRS_TYPE_MEMORY1:
 		case ACPI_IVRS_TYPE_MEMORY2:
 		case ACPI_IVRS_TYPE_MEMORY3:
@@ -96,7 +96,7 @@ ivrs_hdr_iterate_tbl(ivhd_iter_t iter, void *arg)
 				return;
 
 			break;
-		
+
 		default:
 			printf("AMD-Vi:Not IVHD/IVMD type(%d)", ivrs_hdr->Type);
 
