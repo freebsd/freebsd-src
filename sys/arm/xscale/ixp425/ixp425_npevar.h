@@ -102,8 +102,8 @@
 #define	NPE_MAX		(NPE_C+1)
 
 #define	IXP425_NPE_A_IMAGEID	0x10820200
-#define	IXP425_NPE_B_IMAGEID	0x01020201
-#define	IXP425_NPE_C_IMAGEID	0x02050201
+#define	IXP425_NPE_B_IMAGEID	0x01000201
+#define	IXP425_NPE_C_IMAGEID	0x02000201
 
 struct ixpnpe_softc;
 struct ixpnpe_softc *ixpnpe_attach(device_t, int npeid);
