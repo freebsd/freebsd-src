@@ -520,22 +520,11 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	 *	- ps_strings is a NetBSD extention, and will be
 	 * 	  ignored by executables which are strictly
 	 *	  compliant with the SVR4 ABI.
-	 *
-	 * XXX We have to set both regs and retval here due to different
-	 * XXX calling convention in trap.c and init_main.c.
 	 */
 
 	/* Collect argc from the user stack */
 	argc = fuword((void *)stack);
 
-        /*
-         * XXX PG: these get overwritten in the syscall return code.
-         * execve() should return EJUSTRETURN, like it does on NetBSD.
-         * Emulate by setting the syscall return value cells. The
-         * registers still have to be set for init's fork trampoline.
-         */
-        td->td_retval[0] = argc;
-        td->td_retval[1] = stack + sizeof(register_t);
 	tf->fixreg[3] = argc;
 	tf->fixreg[4] = stack + sizeof(register_t);
 	tf->fixreg[5] = stack + (2 + argc)*sizeof(register_t);
@@ -572,8 +561,6 @@ ppc32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 	argc = fuword32((void *)stack);
 
-        td->td_retval[0] = argc;
-        td->td_retval[1] = stack + sizeof(uint32_t);
 	tf->fixreg[3] = argc;
 	tf->fixreg[4] = stack + sizeof(uint32_t);
 	tf->fixreg[5] = stack + (2 + argc)*sizeof(uint32_t);
