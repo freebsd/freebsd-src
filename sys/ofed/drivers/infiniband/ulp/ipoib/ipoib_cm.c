@@ -830,7 +830,7 @@ void ipoib_cm_dev_stop(struct ipoib_dev_priv *priv)
 
 	ipoib_cm_free_rx_reap_list(priv);
 
-	cancel_delayed_work(&priv->cm.stale_task);
+	cancel_delayed_work_sync(&priv->cm.stale_task);
 }
 
 static int ipoib_cm_rep_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
