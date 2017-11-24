@@ -89,7 +89,7 @@ ppc64_elf_exec(struct preloaded_file *fp)
 	dev_cleanup();
 
 	entry(0 /* FDT */, 0 /* Phys. mem offset */, 0 /* OF entry */,
-	     (void *)mdp, sizeof(mdp));
+	     (void *)mdp, 0xfb5d104d);
 
 	panic("exec returned");
 }
