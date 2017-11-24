@@ -1783,7 +1783,7 @@ static void krping_fr_test(struct krping_cb *cb)
 		return;
 	}
 
-	sg_dma_address(&sg) = 0xcafebabe0000UL;
+	sg_dma_address(&sg) = (dma_addr_t)0xcafebabe0000ULL;
 	sg_dma_len(&sg) = size;
 	ret = ib_map_mr_sg(mr, &sg, 1, NULL, PAGE_SIZE);
 	if (ret <= 0) {
