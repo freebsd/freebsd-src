@@ -1315,7 +1315,7 @@ alloc:
 	snprintf(intmtx_str, sizeof(intmtx_str), "int(%s`struct mtx *)",p);
 	snprintf(threadmtx_str, sizeof(threadmtx_str), "struct thread *(%s`struct mtx *)",p);
 	snprintf(rwlock_str, sizeof(rwlock_str), "int(%s`struct rwlock *)",p);
-	snprintf(sxlock_str, sizeof(sxlock_str), "int(%s`struct sxlock *)",p);
+	snprintf(sxlock_str, sizeof(sxlock_str), "int(%s`struct sx *)",p);
 	}
 #endif
 
