@@ -480,10 +480,8 @@ sx_downgrade_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF)
 	x = sx->sx_lock;
 	if (!(x & SX_LOCK_SHARED_WAITERS) &&
 	    atomic_cmpset_rel_ptr(&sx->sx_lock, x, SX_SHARERS_LOCK(1) |
-	    (x & SX_LOCK_EXCLUSIVE_WAITERS))) {
-		LOCK_LOG_LOCK("XDOWNGRADE", &sx->lock_object, 0, 0, file, line);
-		return;
-	}
+	    (x & SX_LOCK_EXCLUSIVE_WAITERS)))
+		goto out;
 
 	/*
 	 * Lock the sleep queue so we can read the waiters bits
@@ -504,11 +502,12 @@ sx_downgrade_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF)
 		    0, SQ_SHARED_QUEUE);
 	sleepq_release(&sx->lock_object);
 
-	LOCK_LOG_LOCK("XDOWNGRADE", &sx->lock_object, 0, 0, file, line);
-	LOCKSTAT_RECORD0(sx__downgrade, sx);
-
 	if (wakeup_swapper)
 		kick_proc0();
+
+out:
+	LOCK_LOG_LOCK("XDOWNGRADE", &sx->lock_object, 0, 0, file, line);
+	LOCKSTAT_RECORD0(sx__downgrade, sx);
 }
 
 void
