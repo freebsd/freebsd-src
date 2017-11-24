@@ -2410,33 +2410,20 @@ _lib_libradius=	lib/libradius
 .endif
 
 .if ${MK_OFED} != "no"
+#
+# The OFED libraries are built in four steps
+# as reflected below, due to interdependencies.
+#
 _ofed_lib= \
-contrib/ofed/include \
-contrib/ofed/libcxgb4 \
-contrib/ofed/libibcm \
-contrib/ofed/libibmad \
-contrib/ofed/libibnetdisc \
-contrib/ofed/libibumad \
-contrib/ofed/libibverbs \
-contrib/ofed/libmlx4 \
-contrib/ofed/libmlx5 \
-contrib/ofed/librdmacm \
-contrib/ofed/opensm/complib \
-contrib/ofed/opensm/libopensm \
-contrib/ofed/opensm/libvendor
+contrib/ofed/usr.lib/0 \
+contrib/ofed/usr.lib/1 \
+contrib/ofed/usr.lib/2 \
+contrib/ofed/usr.lib/3
 
-contrib/ofed/libcxgb4__L: contrib/ofed/libibverbs__L lib/libthr__L contrib/ofed/include__L
-contrib/ofed/libibcm__L: contrib/ofed/libibverbs__L contrib/ofed/include__L
-contrib/ofed/libibmad__L: contrib/ofed/libibumad__L contrib/ofed/include__L
-contrib/ofed/libibnetdisc__L: contrib/ofed/opensm/complib__L contrib/ofed/libibmad__L contrib/ofed/libibumad__L contrib/ofed/include__L
-contrib/ofed/libibumad__L: contrib/ofed/include__L
-contrib/ofed/libibverbs__L: contrib/ofed/include__L
-contrib/ofed/libmlx4__L: contrib/ofed/libibverbs__L lib/libthr__L contrib/ofed/include__L
-contrib/ofed/libmlx5__L: contrib/ofed/libibverbs__L lib/libthr__L contrib/ofed/include__L
-contrib/ofed/librdmacm__L: contrib/ofed/libibverbs__L contrib/ofed/include__L
-contrib/ofed/opensm/complib__L: lib/libthr__L contrib/ofed/include__L
-contrib/ofed/opensm/libopensm__L: lib/libthr__L contrib/ofed/include__L
-contrib/ofed/opensm/libvendor__L: contrib/ofed/libibumad__L lib/libthr__L contrib/ofed/include__L
+contrib/ofed/usr.lib/0__L: lib/libthr__L
+contrib/ofed/usr.lib/1__L: contrib/ofed/usr.lib/0__L
+contrib/ofed/usr.lib/2__L: contrib/ofed/usr.lib/1__L
+contrib/ofed/usr.lib/3__L: contrib/ofed/usr.lib/2__L
 .endif
 
 .if ${MK_CASPER} != "no"
