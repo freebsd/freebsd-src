@@ -76,6 +76,10 @@ __FBSDID("$FreeBSD$");
 #include <arm/allwinner/clkng/ccu_sun8i_r.h>
 #endif
 
+#if defined(SOC_ALLWINNER_A83T)
+#include <arm/allwinner/clkng/ccu_a83t.h>
+#endif
+
 #include "clkdev_if.h"
 #include "hwreset_if.h"
 
@@ -102,6 +106,10 @@ static struct resource_spec aw_ccung_spec[] = {
 #define	A13_CCU		6
 #endif
 
+#if defined(SOC_ALLWINNER_A83T)
+#define	A83T_CCU	7
+#endif
+
 static struct ofw_compat_data compat_data[] = {
 #if defined(SOC_ALLWINNER_A31)
 	{ "allwinner,sun5i-a13-ccu", A13_CCU},
@@ -116,6 +124,9 @@ static struct ofw_compat_data compat_data[] = {
 #if defined(SOC_ALLWINNER_A64)
 	{ "allwinner,sun50i-a64-ccu", A64_CCU },
 	{ "allwinner,sun50i-a64-r-ccu", A64_R_CCU },
+#endif
+#if defined(SOC_ALLWINNER_A83T)
+	{ "allwinner,sun8i-a83t-ccu", A83T_CCU },
 #endif
 	{NULL, 0 }
 };
@@ -357,6 +368,11 @@ aw_ccung_attach(device_t dev)
 		break;
 	case A64_R_CCU:
 		ccu_sun8i_r_register_clocks(sc);
+		break;
+#endif
+#if defined(SOC_ALLWINNER_A83T)
+	case A83T_CCU:
+		ccu_a83t_register_clocks(sc);
 		break;
 #endif
 	}
