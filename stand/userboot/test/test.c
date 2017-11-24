@@ -422,7 +422,7 @@ int
 main(int argc, char** argv)
 {
 	void *h;
-	void (*func)(struct loader_callbacks *, void *, int, int);
+	void (*func)(struct loader_callbacks *, void *, int, int) __dead2;
 	int opt;
 	char *disk_image = NULL;
 	const char *userboot_obj = "/boot/userboot.so";

@@ -72,7 +72,7 @@
 					 G_MIRROR_DEVICE_FLAG_NOFAILSYNC)
 
 #ifdef _KERNEL
-extern u_int g_mirror_debug;
+extern int g_mirror_debug;
 
 #define	G_MIRROR_DEBUG(lvl, ...)	do {				\
 	if (g_mirror_debug >= (lvl)) {					\
