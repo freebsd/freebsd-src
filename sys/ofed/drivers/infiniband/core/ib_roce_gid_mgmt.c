@@ -168,7 +168,9 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 	};
 	struct ipx_entry *entry;
 	struct net_device *idev;
+#if defined(INET) || defined(INET6)
 	struct ifaddr *ifa;
+#endif
 	union ib_gid gid;
 	int default_gids;
 	u16 index_num;

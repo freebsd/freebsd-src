@@ -355,7 +355,9 @@ static int ib_get_header_version(const union rdma_network_hdr *hdr)
 	 */
 	memcpy(&ip4h_checked, ip4h, sizeof(ip4h_checked));
 	ip4h_checked.ip_sum = 0;
+#if defined(INET) || defined(INET6)
 	ip4h_checked.ip_sum = in_cksum_hdr(&ip4h_checked);
+#endif
 	/* if IPv4 header checksum is OK, believe it */
 	if (ip4h->ip_sum == ip4h_checked.ip_sum)
 		return 4;
