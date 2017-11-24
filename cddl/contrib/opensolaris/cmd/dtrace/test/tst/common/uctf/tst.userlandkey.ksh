@@ -38,7 +38,7 @@ fi
 ./$exe &
 pid=$!
 
-$dtrace -qs /dev/stdin <<EOF
+$dtrace -32 -qs /dev/stdin <<EOF
 typedef struct info {
         char    *zi_gamename;
         int     zi_ndungeons;
