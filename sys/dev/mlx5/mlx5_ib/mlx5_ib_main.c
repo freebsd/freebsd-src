@@ -1355,14 +1355,14 @@ static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
 	err = io_remap_pfn_range(vma, vma->vm_start, pfn,
 				 PAGE_SIZE, vma->vm_page_prot);
 	if (err) {
-		mlx5_ib_err(dev, "io_remap_pfn_range failed with error=%d, vm_start=0x%lx, pfn=%pa, mmap_cmd=%s\n",
-			    err, vma->vm_start, &pfn, mmap_cmd2str(cmd));
+		mlx5_ib_err(dev, "io_remap_pfn_range failed with error=%d, vm_start=0x%llx, pfn=%pa, mmap_cmd=%s\n",
+			    err, (unsigned long long)vma->vm_start, &pfn, mmap_cmd2str(cmd));
 		return -EAGAIN;
 	}
 
 	pa = pfn << PAGE_SHIFT;
-	mlx5_ib_dbg(dev, "mapped %s at 0x%lx, PA %pa\n", mmap_cmd2str(cmd),
-		    vma->vm_start, &pa);
+	mlx5_ib_dbg(dev, "mapped %s at 0x%llx, PA %pa\n", mmap_cmd2str(cmd),
+		    (unsigned long long)vma->vm_start, &pa);
 
 	return mlx5_ib_set_vma_data(vma, context);
 }
@@ -1403,8 +1403,8 @@ static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vm
 				       PAGE_SIZE, vma->vm_page_prot))
 			return -EAGAIN;
 
-		mlx5_ib_dbg(dev, "mapped internal timer at 0x%lx, PA 0x%llx\n",
-			    vma->vm_start,
+		mlx5_ib_dbg(dev, "mapped internal timer at 0x%llx, PA 0x%llx\n",
+			    (unsigned long long)vma->vm_start,
 			    (unsigned long long)pfn << PAGE_SHIFT);
 		break;
 
