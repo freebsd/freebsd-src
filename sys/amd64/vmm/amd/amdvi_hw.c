@@ -582,7 +582,7 @@ amdvi_decode_evt_flag(uint16_t flag)
 {
 
 	flag &= AMDVI_EVENT_FLAG_MASK;
-	printf("0x%b]\n", flag,
+	printf(" 0x%b]\n", flag,
 		"\020"
 		"\001GN"
 		"\002NX"
@@ -692,7 +692,7 @@ amdvi_decode_evt(struct amdvi_event *evt)
 	case AMDVI_EVENT_ILLEGAL_CMD:
 		/* FALL THROUGH */
 	case AMDVI_EVENT_CMD_HW_ERROR:
-		printf("\t[%s EVT]", (evt->opcode == AMDVI_EVENT_ILLEGAL_CMD) ?
+		printf("\t[%s EVT]\n", (evt->opcode == AMDVI_EVENT_ILLEGAL_CMD) ?
 		    "ILLEGAL CMD" : "CMD HW ERR");
 		cmd = (struct amdvi_cmd *)PHYS_TO_DMAP(evt->addr);
 		printf("\tCMD opcode= 0x%x 0x%x 0x%x 0x%lx\n",
@@ -700,7 +700,7 @@ amdvi_decode_evt(struct amdvi_event *evt)
 		break;
 
 	case AMDVI_EVENT_IOTLB_TIMEOUT:
-		printf("\t[IOTLB_INV_TIMEOUT devid:0x%x addr:0x%lx",
+		printf("\t[IOTLB_INV_TIMEOUT devid:0x%x addr:0x%lx]\n",
 		    evt->devid, evt->addr);
 		break;
 
@@ -716,7 +716,7 @@ amdvi_decode_evt(struct amdvi_event *evt)
 		break;
 
 	default:
-		printf("Unsupported AMD-Vi event:%d", evt->opcode);
+		printf("Unsupported AMD-Vi event:%d\n", evt->opcode);
 	}
 }
 
