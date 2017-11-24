@@ -230,7 +230,7 @@ struct amdvi_ctrl {
 	uint64_t :45;
 	uint32_t evt_tail:19;
 	uint64_t :45;
-	uint8_t	 status:19;
+	uint32_t status:19;
 	uint64_t :45;
 	uint64_t pad2;
 	uint8_t  :4;
