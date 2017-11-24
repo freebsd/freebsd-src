@@ -1,9 +1,4 @@
-BINDIR?= /usr/bin
-
-CFLAGS+= \
-	-I../../../../../../sys/ofed/include \
-	-I../../../../libibverbs/include \
-	-I../../../../include
-
-LDADD+= -libverbs -lmlx4 -lmthca -pthread
+BINDIR?=	/usr/bin
+CFLAGS+=	-I${.CURDIR}/../../..
+LDFLAGS+=	-libverbs -lmlx4 -lmlx5 -lcxgb4 -lpthread
 

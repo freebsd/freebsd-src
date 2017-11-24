@@ -1,9 +1,0 @@
-DIAGPATH=	${.CURDIR}/../../management/infiniband-diags
-BINDIR?=	/usr/bin
-CFLAGS+=	-I${.CURDIR}/../../include/infiniband
-CFLAGS+=	-I${.CURDIR}/../../include
-CFLAGS+=	-I${.CURDIR}/../../management/opensm/include/
-CFLAGS+=	-I${.CURDIR}/../../management/opensm
-CFLAGS+=	-I${.CURDIR}/../../management/libibcommon/include
-CFLAGS+=	-I${.CURDIR}/../../management/libibumad/include
-CFLAGS+=	-I${.CURDIR}/../../management/libibmad/include
