@@ -134,7 +134,7 @@ sdp_pcbbind(struct sdp_sock *ssk, struct sockaddr *nam, struct ucred *cred)
 	/* rdma_bind_addr handles bind races.  */
 	SDP_WUNLOCK(ssk);
 	if (ssk->id == NULL)
-		ssk->id = rdma_create_id(sdp_cma_handler, ssk, RDMA_PS_SDP, IB_QPT_RC);
+		ssk->id = rdma_create_id(&init_net, sdp_cma_handler, ssk, RDMA_PS_SDP, IB_QPT_RC);
 	if (ssk->id == NULL) {
 		SDP_WLOCK(ssk);
 		return (ENOMEM);
@@ -1710,14 +1710,9 @@ int sdp_mod_usec = 0;
 void
 sdp_set_default_moderation(struct sdp_sock *ssk)
 {
-	struct ib_cq_attr attr;
 	if (sdp_mod_count <= 0 || sdp_mod_usec <= 0)
 		return;
-	memset(&attr, 0, sizeof(attr));
-	attr.moderation.cq_count = sdp_mod_count;
-	attr.moderation.cq_period = sdp_mod_usec;
-
-	ib_modify_cq(ssk->rx_ring.cq, &attr, IB_CQ_MODERATION);
+	ib_modify_cq(ssk->rx_ring.cq, sdp_mod_count, sdp_mod_usec);
 }
 
 static void
@@ -1727,12 +1722,9 @@ sdp_dev_add(struct ib_device *device)
 	struct sdp_device *sdp_dev;
 
 	sdp_dev = malloc(sizeof(*sdp_dev), M_SDP, M_WAITOK | M_ZERO);
-	sdp_dev->pd = ib_alloc_pd(device);
+	sdp_dev->pd = ib_alloc_pd(device, 0);
 	if (IS_ERR(sdp_dev->pd))
 		goto out_pd;
-        sdp_dev->mr = ib_get_dma_mr(sdp_dev->pd, IB_ACCESS_LOCAL_WRITE);
-        if (IS_ERR(sdp_dev->mr))
-		goto out_mr;
 	memset(&param, 0, sizeof param);
 	param.max_pages_per_fmr = SDP_FMR_SIZE;
 	param.page_shift = PAGE_SHIFT;
@@ -1747,15 +1739,13 @@ sdp_dev_add(struct ib_device *device)
 	return;
 
 out_fmr:
-	ib_dereg_mr(sdp_dev->mr);
-out_mr:
 	ib_dealloc_pd(sdp_dev->pd);
 out_pd:
 	free(sdp_dev, M_SDP);
 }
 
 static void
-sdp_dev_rem(struct ib_device *device)
+sdp_dev_rem(struct ib_device *device, void *client_data)
 {
 	struct sdp_device *sdp_dev;
 	struct sdp_sock *ssk;
@@ -1779,7 +1769,6 @@ sdp_dev_rem(struct ib_device *device)
 		return;
 	ib_flush_fmr_pool(sdp_dev->fmr_pool);
 	ib_destroy_fmr_pool(sdp_dev->fmr_pool);
-	ib_dereg_mr(sdp_dev->mr);
 	ib_dealloc_pd(sdp_dev->pd);
 	free(sdp_dev, M_SDP);
 }

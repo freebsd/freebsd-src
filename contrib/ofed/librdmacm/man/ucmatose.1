@@ -1,13 +1,16 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
 .TH "UCMATOSE" 1 "2007-05-15" "librdmacm" "librdmacm" librdmacm
 .SH NAME
 ucmatose \- RDMA CM connection and simple ping-pong test.
 .SH SYNOPSIS
 .sp
 .nf
-\fIucmatose\fR [-s server_address] [-b bind_address] [-c connections]
-		[-C message_count] [-S message_size]
-\fIucmatose\fR -s server_address [-b bind_address] [-c connections]
-		[-C message_count] [-S message_size] [-t tos]
+\fIucmatose\fR [-s server_address] [-b bind_address]
+		[-f address_format] [-P port_space]
+		[-c connections] [-C message_count] [-S message_size]
+\fIucmatose\fR -s server_address [-b bind_address]
+		[-f address_format] [-P port_space]
+		[-c connections] [-C message_count] [-S message_size] [-t tos]
 .fi
 .SH "DESCRIPTION"
 Establishes a set of reliable RDMA connections between two nodes using the
@@ -21,6 +24,19 @@ This option must be specified by the client.
 .TP
 \-b bind_address
 The local network address to bind to.
+To bind to any address with IPv6 use -b ::0 .
+.TP
+\-f address_format
+Specifies the format of the server and bind address.  Be default, the
+format is determined by getaddrinfo() as either being a hostname, an IPv4
+address, or an IPv6 address.  This option may be used to indicate that
+a specific address format has been provided.  Supported address_format
+values are: name, ip, ipv6, and gid.
+.TP
+\-P port_space
+Specifies the port space for the connection.  Be default, the port space
+is the RDMA TCP port space. (Note that the RDMA port space may be separate
+from that used for IP.)  Supported port_space values are: tcp and ib.
 .TP
 \-c connections
 The number of connections to establish between the client and server.

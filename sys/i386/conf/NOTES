@@ -538,7 +538,6 @@ hint.mse.0.irq="5"
 #	Requires the iwn firmware module
 # mlx4ib: Mellanox ConnectX HCA InfiniBand
 # mlx4en: Mellanox ConnectX HCA Ethernet
-# mthca: Mellanox HCA InfiniBand
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
 # sbni: Granch SBNI12-xx ISA and PCI adapters
 # vmx:	VMware VMXNET3 Ethernet (BSD open source)
@@ -579,7 +578,6 @@ hint.le.0.drq="0"
 device		mlx4		# Shared code module between IB and Ethernet
 device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
 device  	mlx4en		# Mellanox ConnectX HCA Ethernet
-device  	mthca		# Mellanox HCA InfiniBand
 device		nfe		# nVidia nForce MCP on-board Ethernet
 device		sbni
 hint.sbni.0.at="isa"
