@@ -91,7 +91,7 @@ __elfN(ofw_exec)(struct preloaded_file *fp)
 		    mdp, sizeof(mdp));
 	} else {
 		OF_chain((void *)reloc, end - (char *)reloc, (void *)entry,
-		    (void *)mdp, sizeof(mdp));
+		    (void *)mdp, 0xfb5d104d);
 	}
 
 	panic("exec returned");

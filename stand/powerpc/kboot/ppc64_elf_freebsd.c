@@ -96,7 +96,7 @@ ppc64_elf_exec(struct preloaded_file *fp)
 
 	trampoline[3] = dtb;
 	trampoline[6] = mdp;
-	trampoline[7] = sizeof(mdp);
+	trampoline[7] = 0xfb5d104d;
 	printf("Kernel entry at %#jx (%#x) ...\n", e->e_entry, trampoline[2]);
 	printf("DTB at %#x, mdp at %#x\n", dtb, mdp);
 
