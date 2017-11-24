@@ -2410,16 +2410,24 @@ _lib_libradius=	lib/libradius
 .endif
 
 .if ${MK_OFED} != "no"
-_ofed_lib=		contrib/ofed/usr.lib
-_prebuild_libs+=	contrib/ofed/usr.lib/libosmcomp
-_prebuild_libs+=	contrib/ofed/usr.lib/libopensm
-_prebuild_libs+=	contrib/ofed/usr.lib/libibcommon
-_prebuild_libs+=	contrib/ofed/usr.lib/libibverbs
-_prebuild_libs+=	contrib/ofed/usr.lib/libibumad
+#
+# The OFED libraries are built in four steps
+# as reflected below, due to interdependencies.
+#
+# NOTE: Depending on contrib/ofed/include is only needed for
+# the lib32 compat build.
+#
+_ofed_lib= \
+contrib/ofed/include \
+contrib/ofed/usr.lib/0 \
+contrib/ofed/usr.lib/1 \
+contrib/ofed/usr.lib/2 \
+contrib/ofed/usr.lib/3
 
-contrib/ofed/usr.lib/libopensm__L: lib/libthr__L
-contrib/ofed/usr.lib/libosmcomp__L: lib/libthr__L
-contrib/ofed/usr.lib/libibumad__L: contrib/ofed/usr.lib/libibcommon__L
+contrib/ofed/usr.lib/0__L: contrib/ofed/include__L lib/libthr__L
+contrib/ofed/usr.lib/1__L: contrib/ofed/usr.lib/0__L
+contrib/ofed/usr.lib/2__L: contrib/ofed/usr.lib/1__L
+contrib/ofed/usr.lib/3__L: contrib/ofed/usr.lib/2__L
 .endif
 
 .if ${MK_CASPER} != "no"
