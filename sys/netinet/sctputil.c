@@ -4677,14 +4677,14 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 		stcb->asoc.abandoned_sent[PR_SCTP_POLICY(tp1->flags)]++;
 		stcb->asoc.strmout[sid].abandoned_sent[0]++;
 #if defined(SCTP_DETAILED_STR_STATS)
-		stcb->asoc.strmout[stream].abandoned_sent[PR_SCTP_POLICY(tp1->flags)]++;
+		stcb->asoc.strmout[sid].abandoned_sent[PR_SCTP_POLICY(tp1->flags)]++;
 #endif
 	} else {
 		stcb->asoc.abandoned_unsent[0]++;
 		stcb->asoc.abandoned_unsent[PR_SCTP_POLICY(tp1->flags)]++;
 		stcb->asoc.strmout[sid].abandoned_unsent[0]++;
 #if defined(SCTP_DETAILED_STR_STATS)
-		stcb->asoc.strmout[stream].abandoned_unsent[PR_SCTP_POLICY(tp1->flags)]++;
+		stcb->asoc.strmout[sid].abandoned_unsent[PR_SCTP_POLICY(tp1->flags)]++;
 #endif
 	}
 	do {
