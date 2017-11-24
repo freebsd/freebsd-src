@@ -282,6 +282,7 @@ static const struct ib_field deth_table[] = {
 
 __sum16 ib_ud_ip4_csum(struct ib_ud_header *header)
 {
+#if defined(INET) || defined(INET6)
 	struct ip iph;
 
 	iph.ip_hl	= 5;
@@ -297,6 +298,9 @@ __sum16 ib_ud_ip4_csum(struct ib_ud_header *header)
 	iph.ip_dst.s_addr = header->ip4.daddr;
 
 	return in_cksum_hdr(&iph);
+#else
+	return 0;
+#endif
 }
 EXPORT_SYMBOL(ib_ud_ip4_csum);
 
