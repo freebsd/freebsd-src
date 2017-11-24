@@ -456,7 +456,7 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
      * think the rule is going to have to be that you must strip a
      * file to remove symbols before gzipping it.
      */
-    chunk = ehdr->e_shnum * ehdr->e_shentsize;
+    chunk = (size_t)ehdr->e_shnum * (size_t)ehdr->e_shentsize;
     if (chunk == 0 || ehdr->e_shoff == 0)
 	goto nosyms;
     shdr = alloc_pread(ef->fd, ehdr->e_shoff, chunk);
@@ -747,7 +747,7 @@ __elfN(load_modmetadata)(struct preloaded_file *fp, u_int64_t dest)
 		goto out;
 	}
 
-	size = ef.ehdr->e_shnum * ef.ehdr->e_shentsize;
+	size = (size_t)ef.ehdr->e_shnum * (size_t)ef.ehdr->e_shentsize;
 	shdr = alloc_pread(ef.fd, ef.ehdr->e_shoff, size);
 	if (shdr == NULL) {
 		err = ENOMEM;
