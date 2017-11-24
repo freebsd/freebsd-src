@@ -705,8 +705,9 @@ amdvi_decode_evt(struct amdvi_event *evt)
 		break;
 
 	case AMDVI_EVENT_INVALID_DTE_REQ:
-		printf("\t[INV_DTE devid:0x%x addr:0x%lx",
-		    evt->devid, evt->addr);
+		printf("\t[INV_DTE devid:0x%x addr:0x%lx type:0x%x tr:%d]\n",
+		    evt->devid, evt->addr, evt->flag >> 9,
+		    (evt->flag >> 8) & 1);
 		break;
 
 	case AMDVI_EVENT_INVALID_PPR_REQ:
