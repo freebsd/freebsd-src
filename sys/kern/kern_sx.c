@@ -1180,8 +1180,6 @@ _sx_sunlock_hard(struct sx *sx, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 	if (SCHEDULER_STOPPED())
 		return;
 
-	LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx, LOCKSTAT_READER);
-
 	for (;;) {
 		if (_sx_sunlock_try(sx, &x))
 			break;
@@ -1217,6 +1215,7 @@ _sx_sunlock_hard(struct sx *sx, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 			kick_proc0();
 		break;
 	}
+	LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx, LOCKSTAT_READER);
 }
 
 void
