@@ -186,7 +186,7 @@ linux_common_execve(struct thread *td, struct image_args *eargs)
 
 	error = kern_execve(td, eargs, NULL);
 	post_execve(td, error, oldvmspace);
-	if (error != 0)
+	if (error != EJUSTRETURN)
 		return (error);
 
 	/*
@@ -213,7 +213,7 @@ linux_common_execve(struct thread *td, struct image_args *eargs)
 		free(em, M_TEMP);
 		free(pem, M_LINUX);
 	}
-	return (0);
+	return (EJUSTRETURN);
 }
 
 void 

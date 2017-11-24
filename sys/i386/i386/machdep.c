@@ -1126,6 +1126,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	set_fsbase(td, 0);
 	set_gsbase(td, 0);
 
+	/* Make sure edx is 0x0 on entry. Linux binaries depend on it. */
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_eip = imgp->entry_addr;
 	regs->tf_esp = stack;
@@ -1168,13 +1169,6 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	 * clean FP state if it uses the FPU again.
 	 */
 	fpstate_drop(td);
-
-	/*
-	 * XXX - Linux emulator
-	 * Make sure sure edx is 0x0 on entry. Linux binaries depend
-	 * on it.
-	 */
-	td->td_retval[1] = 0;
 }
 
 void
