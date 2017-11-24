@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 1991 Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 2017 Nuxi, https://nuxi.nl/
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,14 +9,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -25,33 +21,50 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *      from: @(#)proc.h        7.1 (Berkeley) 5/15/91
- *	from: FreeBSD: src/sys/i386/include/proc.h,v 1.11 2001/06/29
- * $FreeBSD$
  */
 
-#ifndef	_MACHINE_PROC_H_
-#define	_MACHINE_PROC_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-struct mdthread {
-	int	md_spinlock_count;	/* (k) */
-	register_t md_saved_daif;	/* (k) */
-};
+#include <sys/types.h>
 
-struct mdproc {
-	vm_offset_t	md_l0addr;
-};
+#include <compat/freebsd32/freebsd32_proto.h>
 
-#define	KINFO_PROC_SIZE	1088
-#define	KINFO_PROC32_SIZE 816
+/*
+ * Stubs for machine dependent 32-bits system calls.
+ */
 
-#define	MAXARGS		8
-struct syscall_args {
-	u_int code;
-	struct sysent *callp;
-	register_t args[MAXARGS];
-	int narg;
-};
+int
+freebsd32_getcontext(struct thread *td, struct freebsd32_getcontext_args *uap)
+{
 
-#endif /* !_MACHINE_PROC_H_ */
+	return (ENOSYS);
+}
+
+int
+freebsd32_setcontext(struct thread *td, struct freebsd32_setcontext_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+freebsd32_sigreturn(struct thread *td, struct freebsd32_sigreturn_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+freebsd32_swapcontext(struct thread *td, struct freebsd32_swapcontext_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
+{
+
+	return (ENOSYS);
+}

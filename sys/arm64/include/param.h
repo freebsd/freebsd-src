@@ -50,6 +50,9 @@
 #ifndef MACHINE_ARCH
 #define	MACHINE_ARCH	"aarch64"
 #endif
+#ifndef MACHINE_ARCH32
+#define	MACHINE_ARCH32	"armv7"
+#endif
 
 #if defined(SMP) || defined(KLD_MODULE)
 #ifndef MAXCPU
