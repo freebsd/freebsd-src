@@ -989,15 +989,12 @@ amdvi_add_sysctl(struct amdvi_softc *softc)
 	    &softc->event_intr_cnt, "Event interrupt count");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "command_count", CTLFLAG_RD,
 	    &softc->total_cmd, "Command submitted count");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "pci_rid", CTLFLAG_RD,
-	    (int *)&softc->pci_rid, 0,
-	    "IOMMU RID");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "start_dev_rid", CTLFLAG_RD,
-	    (int *)&softc->start_dev_rid, 0,
-	    "Start of device under this IOMMU");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "end_dev_rid", CTLFLAG_RD,
-	    (int *)&softc->end_dev_rid, 0,
-	    "End of device under this IOMMU");
+	SYSCTL_ADD_U16(ctx, child, OID_AUTO, "pci_rid", CTLFLAG_RD,
+	    &softc->pci_rid, 0, "IOMMU RID");
+	SYSCTL_ADD_U16(ctx, child, OID_AUTO, "start_dev_rid", CTLFLAG_RD,
+	    &softc->start_dev_rid, 0, "Start of device under this IOMMU");
+	SYSCTL_ADD_U16(ctx, child, OID_AUTO, "end_dev_rid", CTLFLAG_RD,
+	    &softc->end_dev_rid, 0, "End of device under this IOMMU");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "command_head",
 	    CTLTYPE_UINT | CTLFLAG_RD, softc, 0,
 	    amdvi_handle_sysctl, "IU", "Command head");
