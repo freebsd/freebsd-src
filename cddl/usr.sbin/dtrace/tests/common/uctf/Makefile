@@ -40,4 +40,6 @@ CFILES= \
 
 WITH_CTF=YES
 
+CFLAGS.tst.chasestrings.exe+= -m32
+
 .include "../../dtrace.test.mk"
