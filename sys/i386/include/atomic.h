@@ -129,6 +129,7 @@ int		atomic_cmpset_64(volatile uint64_t *, uint64_t, uint64_t);
 uint64_t	atomic_load_acq_64(volatile uint64_t *);
 void		atomic_store_rel_64(volatile uint64_t *, uint64_t);
 uint64_t	atomic_swap_64(volatile uint64_t *, uint64_t);
+uint64_t	atomic_fetchadd_64(volatile uint64_t *, uint64_t);
 
 #else /* !KLD_MODULE && __GNUCLIKE_ASM */
 
@@ -563,6 +564,17 @@ atomic_swap_64(volatile uint64_t *p, uint64_t v)
 		return (atomic_swap_64_i386(p, v));
 	else
 		return (atomic_swap_64_i586(p, v));
+}
+
+static __inline uint64_t
+atomic_fetchadd_64(volatile uint64_t *p, uint64_t v)
+{
+
+	for (;;) {
+		uint64_t t = *p;
+		if (atomic_cmpset_64(p, t, t + v))
+			return (t);
+	}
 }
 
 #endif /* _KERNEL */
