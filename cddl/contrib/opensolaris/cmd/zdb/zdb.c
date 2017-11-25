@@ -3739,6 +3739,11 @@ zdb_embedded_block(char *thing)
 	}
 	ASSERT3U(BPE_GET_LSIZE(&bp), <=, SPA_MAXBLOCKSIZE);
 	buf = malloc(SPA_MAXBLOCKSIZE);
+	if (buf == NULL) {
+		(void) fprintf(stderr, "%s: failed to allocate %llu bytes\n",
+		    __func__, SPA_MAXBLOCKSIZE);
+		exit(1);
+	}
 	err = decode_embedded_bp(&bp, buf, BPE_GET_LSIZE(&bp));
 	if (err != 0) {
 		(void) printf("decode failed: %u\n", err);
