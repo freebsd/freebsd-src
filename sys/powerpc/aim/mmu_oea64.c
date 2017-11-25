@@ -572,8 +572,10 @@ moea64_probe_large_page(void)
 		
 		/* FALLTHROUGH */
 	default:
-		moea64_large_page_size = 0x1000000; /* 16 MB */
-		moea64_large_page_shift = 24;
+		if (moea64_large_page_size == 0) {
+			moea64_large_page_size = 0x1000000; /* 16 MB */
+			moea64_large_page_shift = 24;
+		}
 	}
 
 	moea64_large_page_mask = moea64_large_page_size - 1;
@@ -873,9 +875,9 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 	/*
 	 * Calculate the last available physical address.
 	 */
+	Maxmem = 0;
 	for (i = 0; phys_avail[i + 2] != 0; i += 2)
-		;
-	Maxmem = powerpc_btop(phys_avail[i + 1]);
+		Maxmem = max(Maxmem, powerpc_btop(phys_avail[i + 1]));
 
 	/*
 	 * Initialize MMU and remap early physical mappings
@@ -956,7 +958,7 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 		pa += PAGE_SIZE;
 		va += PAGE_SIZE;
 	}
-	dpcpu_init(dpcpu, 0);
+	dpcpu_init(dpcpu, curcpu);
 
 	/*
 	 * Allocate some things for page zeroing. We put this directly
