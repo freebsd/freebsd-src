@@ -157,7 +157,7 @@ smp_intr_init(void *dummy __unused)
 
 	for (vector = 0; vector < nvectors; vector++) {
 		i = powerpc_intrs[vector];
-		if (i != NULL && i->pic == root_pic)
+		if (i != NULL && i->event != NULL && i->pic == root_pic)
 			PIC_BIND(i->pic, i->intline, i->cpu);
 	}
 }
@@ -319,7 +319,7 @@ powerpc_assign_intr_cpu(void *arg, int cpu)
 #endif
 }
 
-void
+u_int
 powerpc_register_pic(device_t dev, uint32_t node, u_int irqs, u_int ipis,
     u_int atpic)
 {
@@ -358,6 +358,8 @@ powerpc_register_pic(device_t dev, uint32_t node, u_int irqs, u_int ipis,
 	    ("Number of PICs exceeds maximum (%d)", MAX_PICS));
 
 	mtx_unlock(&intr_table_lock);
+
+	return (p->base);
 }
 
 u_int
@@ -387,7 +389,7 @@ powerpc_get_irq(uint32_t node, u_int pin)
 	piclist[idx].irqs = 124;
 	piclist[idx].ipis = 4;
 	piclist[idx].base = nirqs;
-	nirqs += 128;
+	nirqs += (1 << 25);
 	npics++;
 
 	KASSERT(npics < MAX_PICS,
