@@ -191,6 +191,10 @@ ofw_cpu_probe(device_t dev)
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return (ENXIO);
 
+	/* Skip SMT CPUs, which we can't reasonably represent with this code */
+	if (OF_hasprop(ofw_bus_get_node(dev), "ibm,ppc-interrupt-server#s"))
+		return (ENXIO);
+
 	device_set_desc(dev, "Open Firmware CPU");
 	return (0);
 }
