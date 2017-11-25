@@ -822,6 +822,8 @@ cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt)
 	CTR6(KTR_SPARE2, "new co at %d:    on %d at %d.%08x - %d.%08x",
 	    curcpu, cpu, (int)(bt_opt >> 32), (u_int)(bt_opt & 0xffffffff),
 	    (int)(bt >> 32), (u_int)(bt & 0xffffffff));
+
+	KASSERT(!CPU_ABSENT(cpu), ("Absent CPU %d", cpu));
 	state = DPCPU_ID_PTR(cpu, timerstate);
 	ET_HW_LOCK(state);
 
