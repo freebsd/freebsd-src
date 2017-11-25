@@ -281,13 +281,8 @@ cpudep_ap_setup()
 	vers = mfpvr() >> 16;
 
 	/* The following is needed for restoring from sleep. */
-#ifdef __powerpc64__
-	/* Writing to the time base register is hypervisor-privileged */
-	if (mfmsr() & PSL_HV)
-		mttb(0);
-#else
-	mttb(0);
-#endif
+	platform_smp_timebase_sync(0, 1);
+
 	switch(vers) {
 	case IBM970:
 	case IBM970FX:
