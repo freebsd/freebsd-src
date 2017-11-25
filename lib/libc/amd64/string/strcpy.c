@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2011 George V. Neville-Neil. All rights reserved.
  *
  * The compilation of software known as FreeBSD is distributed under the
