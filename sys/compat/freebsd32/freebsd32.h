@@ -145,22 +145,6 @@ struct statfs32 {
 	int32_t f_spare[2];
 };
 
-struct kevent32 {
-	uint32_t	ident;		/* identifier for this event */
-	short		filter;		/* filter for event */
-	u_short		flags;
-	u_int		fflags;
-#ifndef __amd64__
-	uint32_t	pad0;
-#endif
-	int32_t		data1, data2;
-	uint32_t	udata;		/* opaque user data identifier */
-#ifndef __amd64__
-	uint32_t	pad1;
-#endif
-	uint32_t	ext64[8];
-};
-
 struct iovec32 {
 	u_int32_t iov_base;
 	int	iov_len;

@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/acl.h>
 #include <sys/capsicum.h>
+#include <sys/event.h>
 #include <sys/extattr.h>
 #include <sys/linker.h>
 #include <sys/mman.h>
@@ -499,6 +500,116 @@ sysdecode_getrusage_who(int who)
 {
 
 	return (lookup_value(rusage, who));
+}
+
+static struct name_table kevent_user_ffctrl[] = {
+	X(NOTE_FFNOP) X(NOTE_FFAND) X(NOTE_FFOR) X(NOTE_FFCOPY)
+	XEND
+};
+
+static struct name_table kevent_rdwr_fflags[] = {
+	X(NOTE_LOWAT) X(NOTE_FILE_POLL) XEND
+};
+
+static struct name_table kevent_vnode_fflags[] = {
+	X(NOTE_DELETE) X(NOTE_WRITE) X(NOTE_EXTEND) X(NOTE_ATTRIB)
+	X(NOTE_LINK) X(NOTE_RENAME) X(NOTE_REVOKE) X(NOTE_OPEN) X(NOTE_CLOSE)
+	X(NOTE_CLOSE_WRITE) X(NOTE_READ) XEND
+};
+
+static struct name_table kevent_proc_fflags[] = {
+	X(NOTE_EXIT) X(NOTE_FORK) X(NOTE_EXEC) X(NOTE_TRACK) X(NOTE_TRACKERR)
+	X(NOTE_CHILD) XEND
+};
+
+static struct name_table kevent_timer_fflags[] = {
+	X(NOTE_SECONDS) X(NOTE_MSECONDS) X(NOTE_USECONDS) X(NOTE_NSECONDS)
+	X(NOTE_ABSTIME) XEND
+};
+
+void
+sysdecode_kevent_fflags(FILE *fp, short filter, int fflags, int base)
+{
+	int rem;
+
+	if (fflags == 0) {
+		fputs("0", fp);
+		return;
+	}
+
+	switch (filter) {
+	case EVFILT_READ:
+	case EVFILT_WRITE:
+		if (!print_mask_int(fp, kevent_rdwr_fflags, fflags, &rem))
+			fprintf(fp, "%#x", rem);
+		else if (rem != 0)
+			fprintf(fp, "|%#x", rem);
+		break;
+	case EVFILT_VNODE:
+		if (!print_mask_int(fp, kevent_vnode_fflags, fflags, &rem))
+			fprintf(fp, "%#x", rem);
+		else if (rem != 0)
+			fprintf(fp, "|%#x", rem);
+		break;
+	case EVFILT_PROC:
+	case EVFILT_PROCDESC:
+		if (!print_mask_int(fp, kevent_proc_fflags, fflags, &rem))
+			fprintf(fp, "%#x", rem);
+		else if (rem != 0)
+			fprintf(fp, "|%#x", rem);
+		break;
+	case EVFILT_TIMER:
+		if (!print_mask_int(fp, kevent_timer_fflags, fflags, &rem))
+			fprintf(fp, "%#x", rem);
+		else if (rem != 0)
+			fprintf(fp, "|%#x", rem);
+		break;
+	case EVFILT_USER: {
+		unsigned int ctrl, data;
+
+		ctrl = fflags & NOTE_FFCTRLMASK;
+		data = fflags & NOTE_FFLAGSMASK;
+
+		if (fflags & NOTE_TRIGGER) {
+			fputs("NOTE_TRIGGER", fp);
+			if (fflags == NOTE_TRIGGER)
+				return;
+			fputc('|', fp);
+		}
+
+		/*
+		 * An event with 'ctrl' == NOTE_FFNOP is either a reported
+		 * (output) event for which only 'data' should be output
+		 * or a pointless input event.  Assume that pointless
+		 * input events don't occur in practice.  An event with
+		 * NOTE_TRIGGER is always an input event.
+		 */
+		if (ctrl != NOTE_FFNOP || fflags & NOTE_TRIGGER) {
+			fprintf(fp, "%s|%#x",
+			    lookup_value(kevent_user_ffctrl, ctrl), data);
+		} else {
+			print_integer(fp, data, base);
+		}
+		break;
+	}
+	default:
+		print_integer(fp, fflags, base);
+		break;
+	}
+}
+
+bool
+sysdecode_kevent_flags(FILE *fp, int flags, int *rem)
+{
+
+	return (print_mask_int(fp, keventflags, flags, rem));
+}
+
+const char *
+sysdecode_kevent_filter(int filter)
+{
+
+	return (lookup_value(keventfilters, filter));
 }
 
 const char *

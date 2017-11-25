@@ -106,6 +106,7 @@ struct ktr_request {
 		struct	ktr_csw ktr_csw;
 		struct	ktr_fault ktr_fault;
 		struct	ktr_faultend ktr_faultend;
+		struct  ktr_struct_array ktr_struct_array;
 	} ktr_data;
 	STAILQ_ENTRY(ktr_request) ktr_list;
 };
@@ -125,6 +126,7 @@ static int data_lengths[] = {
 	[KTR_CAPFAIL] = sizeof(struct ktr_cap_fail),
 	[KTR_FAULT] = sizeof(struct ktr_fault),
 	[KTR_FAULTEND] = sizeof(struct ktr_faultend),
+	[KTR_STRUCT_ARRAY] = sizeof(struct ktr_struct_array),
 };
 
 static STAILQ_HEAD(, ktr_request) ktr_free;
@@ -742,7 +744,7 @@ ktrcsw(int out, int user, const char *wmesg)
 }
 
 void
-ktrstruct(const char *name, void *data, size_t datalen)
+ktrstruct(const char *name, const void *data, size_t datalen)
 {
 	struct ktr_request *req;
 	char *buf;
@@ -759,6 +761,52 @@ ktrstruct(const char *name, void *data, size_t datalen)
 		free(buf, M_KTRACE);
 		return;
 	}
+	req->ktr_buffer = buf;
+	req->ktr_header.ktr_len = buflen;
+	ktr_submitrequest(curthread, req);
+}
+
+void
+ktrstructarray(const char *name, enum uio_seg seg, const void *data,
+    int num_items, size_t struct_size)
+{
+	struct ktr_request *req;
+	struct ktr_struct_array *ksa;
+	char *buf;
+	size_t buflen, datalen, namelen;
+	int max_items;
+
+	/* Trim array length to genio size. */
+	max_items = ktr_geniosize / struct_size;
+	if (num_items > max_items) {
+		if (max_items == 0)
+			num_items = 1;
+		else
+			num_items = max_items;
+	}
+	datalen = num_items * struct_size;
+
+	if (data == NULL)
+		datalen = 0;
+
+	namelen = strlen(name) + 1;
+	buflen = namelen + datalen;
+	buf = malloc(buflen, M_KTRACE, M_WAITOK);
+	strcpy(buf, name);
+	if (seg == UIO_SYSSPACE)
+		bcopy(data, buf + namelen, datalen);
+	else {
+		if (copyin(data, buf + namelen, datalen) != 0) {
+			free(buf, M_KTRACE);
+			return;
+		}
+	}
+	if ((req = ktr_getrequest(KTR_STRUCT_ARRAY)) == NULL) {
+		free(buf, M_KTRACE);
+		return;
+	}
+	ksa = &req->ktr_data.ktr_struct_array;
+	ksa->struct_size = struct_size;
 	req->ktr_buffer = buf;
 	req->ktr_header.ktr_len = buflen;
 	ktr_submitrequest(curthread, req);
