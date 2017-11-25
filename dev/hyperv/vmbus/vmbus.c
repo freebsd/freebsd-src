@@ -128,6 +128,13 @@ static void			vmbus_event_proc_dummy(struct vmbus_softc *,
 
 static struct vmbus_softc	*vmbus_sc;
 
+SYSCTL_NODE(_hw, OID_AUTO, vmbus, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+    "Hyper-V vmbus");
+
+static int			vmbus_pin_evttask = 1;
+SYSCTL_INT(_hw_vmbus, OID_AUTO, pin_evttask, CTLFLAG_RDTUN,
+    &vmbus_pin_evttask, 0, "Pin event tasks to their respective CPU");
+
 extern inthand_t IDTVEC(vmbus_isr);
 
 static const uint32_t		vmbus_version[] = {
@@ -905,10 +912,16 @@ vmbus_intr_setup(struct vmbus_softc *sc)
 		VMBUS_PCPU_GET(sc, event_tq, cpu) = taskqueue_create_fast(
 		    "hyperv event", M_WAITOK, taskqueue_thread_enqueue,
 		    VMBUS_PCPU_PTR(sc, event_tq, cpu));
-		CPU_SETOF(cpu, &cpu_mask);
-		taskqueue_start_threads_cpuset(
-		    VMBUS_PCPU_PTR(sc, event_tq, cpu), 1, PI_NET, &cpu_mask,
-		    "hvevent%d", cpu);
+		if (vmbus_pin_evttask) {
+			CPU_SETOF(cpu, &cpu_mask);
+			taskqueue_start_threads_cpuset(
+			    VMBUS_PCPU_PTR(sc, event_tq, cpu), 1, PI_NET,
+			    &cpu_mask, "hvevent%d", cpu);
+		} else {
+			taskqueue_start_threads(
+			    VMBUS_PCPU_PTR(sc, event_tq, cpu), 1, PI_NET,
+			    "hvevent%d", cpu);
+		}
 
 		/*
 		 * Setup tasks and taskqueues to handle messages.

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003-2009 RMI Corporation
  * All rights reserved.
  *
@@ -26,6 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  * RMI_BSD */
 #ifndef _MIPS_FLS64_H_
 #define _MIPS_FLS64_H_

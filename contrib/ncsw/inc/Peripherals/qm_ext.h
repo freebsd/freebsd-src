@@ -627,7 +627,7 @@ typedef struct {
     uintptr_t                       ciBaseAddress;          /**< Cache-inhibited base address (virtual) */
     t_Handle                        h_Qm;                   /**< Qm Handle */
     e_DpaaSwPortal                  swPortalId;             /**< Portal id */
-    int                             irq;                    /**< portal interrupt line; used only if useIrq set to TRUE */
+    uintptr_t                       irq;                    /**< portal interrupt line; used only if useIrq set to TRUE */
     uint16_t                        fdLiodnOffset;                /**< liodn to be used for all frames enqueued via this software portal */
     t_QmReceivedFrameCallback       *f_DfltFrame;           /**< this callback will be called unless specific callback assigned to the FQ*/
     t_QmRejectedFrameCallback       *f_RejectedFrame;       /**< this callback will be called for rejected frames. */

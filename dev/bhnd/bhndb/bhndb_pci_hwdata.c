@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+#include <dev/bhnd/cores/pci/bhnd_pcireg.h>
+#include <dev/bhnd/cores/pcie2/bhnd_pcie2_reg.h>
+
 #include "bhndbvar.h"
 #include "bhndb_pcireg.h"
 
@@ -100,6 +103,9 @@ const struct bhndb_hwcfg bhndb_pci_siba_generic_hwcfg = {
 		},
 		BHNDB_REGWIN_TABLE_END
 	},
+
+	/* DMA unsupported under generic configuration */
+	.dma_translations = NULL,
 };
 
 
@@ -147,6 +153,9 @@ const struct bhndb_hwcfg bhndb_pci_bcma_generic_hwcfg = {
 
 		BHNDB_REGWIN_TABLE_END
 	},
+
+	/* DMA unsupported under generic configuration */
+	.dma_translations = NULL,
 };
 
 /**
@@ -319,6 +328,15 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v0 = {
 		},
 		BHNDB_REGWIN_TABLE_END
 	},
+
+	.dma_translations = (const struct bhnd_dma_translation[]) {
+		{
+			.base_addr	= BHND_PCI_DMA32_TRANSLATION,
+			.addr_mask	= ~BHND_PCI_DMA32_MASK,
+			.addrext_mask	= BHND_PCI_DMA32_MASK
+		},
+		BHND_DMA_TRANSLATION_TABLE_END
+	}
 };
 
 /**
@@ -385,6 +403,15 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v1_pci = {
 
 		BHNDB_REGWIN_TABLE_END
 	},
+
+	.dma_translations = (const struct bhnd_dma_translation[]) {
+		{
+			.base_addr	= BHND_PCI_DMA32_TRANSLATION,
+			.addr_mask	= ~BHND_PCI_DMA32_MASK,
+			.addrext_mask	= BHND_PCI_DMA32_MASK
+		},
+		BHND_DMA_TRANSLATION_TABLE_END
+	}
 };
 
 /**
@@ -451,6 +478,20 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v1_pcie = {
 
 		BHNDB_REGWIN_TABLE_END
 	},
+
+	.dma_translations = (const struct bhnd_dma_translation[]) {
+		{
+			.base_addr	= BHND_PCIE_DMA32_TRANSLATION,
+			.addr_mask	= ~BHND_PCIE_DMA32_MASK,
+			.addrext_mask	= BHND_PCIE_DMA32_MASK
+		},
+		{
+			.base_addr	= BHND_PCIE_DMA64_TRANSLATION,
+			.addr_mask	= ~BHND_PCIE_DMA64_MASK,
+			.addrext_mask	= 0
+		},
+		BHND_DMA_TRANSLATION_TABLE_END
+	}
 };
 
 /**
@@ -520,6 +561,20 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v2 = {
 
 		BHNDB_REGWIN_TABLE_END
 	},
+
+	.dma_translations = (const struct bhnd_dma_translation[]) {
+		{
+			.base_addr	= BHND_PCIE_DMA32_TRANSLATION,
+			.addr_mask	= ~BHND_PCIE_DMA32_MASK,
+			.addrext_mask	= BHND_PCIE_DMA32_MASK
+		},
+		{
+			.base_addr	= BHND_PCIE_DMA64_TRANSLATION,
+			.addr_mask	= ~BHND_PCIE_DMA64_MASK,
+			.addrext_mask	= 0
+		},
+		BHND_DMA_TRANSLATION_TABLE_END
+	}
 };
 
 /**
@@ -589,4 +644,13 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v3 = {
 
 		BHNDB_REGWIN_TABLE_END
 	},
+
+	.dma_translations = (const struct bhnd_dma_translation[]) {
+		{
+			.base_addr	= BHND_PCIE2_DMA64_TRANSLATION,
+			.addr_mask	= ~BHND_PCIE2_DMA64_MASK,
+			.addrext_mask	= 0
+		},
+		BHND_DMA_TRANSLATION_TABLE_END
+	}
 };

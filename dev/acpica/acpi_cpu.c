@@ -1197,7 +1197,7 @@ acpi_cpu_idle(sbintime_t sbt)
     AcpiGetTimer(&end_time);
     if (cx_next->type == ACPI_STATE_C3) {
 	AcpiGetTimer(&end_time);
-	end_time = acpi_TimerDelta(end_time, start_time);
+	AcpiGetTimerDuration(start_time, end_time, &end_time);
     } else
 	end_time = ((cpu_ticks() - cputicks) << 20) / cpu_tickrate();
 

@@ -42,6 +42,13 @@
 #define	NVME_BIO_TEST			_IOWR('n', 101, struct nvme_io_test)
 
 /*
+ * Macros to deal with NVME revisions, as defined VS register
+ */
+#define NVME_REV(x, y)			(((x) << 16) | ((y) << 8))
+#define NVME_MAJOR(r)			(((r) >> 16) & 0xffff)
+#define NVME_MINOR(r)			(((r) >> 8) & 0xff)
+
+/*
  * Use to mark a command to apply to all namespaces, or to retrieve global
  *  log pages.
  */
@@ -1068,7 +1075,12 @@ uint32_t	nvme_ns_get_stripesize(struct nvme_namespace *ns);
 int	nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 			    nvme_cb_fn_t cb_fn);
 
-/* Command building helper functions -- shared with CAM */
+/*
+ * Command building helper functions -- shared with CAM
+ * These functions assume allocator zeros out cmd structure
+ * CAM's xpt_get_ccb and the request allocator for nvme both
+ * do zero'd allocations.
+ */
 static inline
 void	nvme_ns_flush_cmd(struct nvme_command *cmd, uint32_t nsid)
 {
@@ -1086,9 +1098,6 @@ void	nvme_ns_rw_cmd(struct nvme_command *cmd, uint32_t rwcmd, uint32_t nsid,
 	cmd->cdw10 = lba & 0xffffffffu;
 	cmd->cdw11 = lba >> 32;
 	cmd->cdw12 = count-1;
-	cmd->cdw13 = 0;
-	cmd->cdw14 = 0;
-	cmd->cdw15 = 0;
 }
 
 static inline

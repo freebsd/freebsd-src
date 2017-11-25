@@ -227,9 +227,6 @@ extern const char                       *AcpiGbl_PtypDecode[];
 #ifndef ACPI_MSG_ERROR
 #define ACPI_MSG_ERROR          "ACPI Error: "
 #endif
-#ifndef ACPI_MSG_EXCEPTION
-#define ACPI_MSG_EXCEPTION      "ACPI Exception: "
-#endif
 #ifndef ACPI_MSG_WARNING
 #define ACPI_MSG_WARNING        "ACPI Warning: "
 #endif
@@ -238,10 +235,10 @@ extern const char                       *AcpiGbl_PtypDecode[];
 #endif
 
 #ifndef ACPI_MSG_BIOS_ERROR
-#define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Error (bug): "
+#define ACPI_MSG_BIOS_ERROR     "Firmware Error (ACPI): "
 #endif
 #ifndef ACPI_MSG_BIOS_WARNING
-#define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Warning (bug): "
+#define ACPI_MSG_BIOS_WARNING   "Firmware Warning (ACPI): "
 #endif
 
 /*
@@ -394,11 +391,11 @@ ACPI_STATUS
 AcpiUtInitGlobals (
     void);
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
-
 const char *
 AcpiUtGetMutexName (
     UINT32                  MutexId);
+
+#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
 const char *
 AcpiUtGetNotifyName (
@@ -1215,9 +1212,10 @@ AcpiUtPredefinedBiosError (
     ...);
 
 void
-AcpiUtNamespaceError (
+AcpiUtPrefixedNamespaceError (
     const char              *ModuleName,
     UINT32                  LineNumber,
+    ACPI_GENERIC_STATE      *PrefixScope,
     const char              *InternalName,
     ACPI_STATUS             LookupStatus);
 

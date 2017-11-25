@@ -37,6 +37,11 @@
 #ifndef _GEOM_GEOM_DISK_H_
 #define _GEOM_GEOM_DISK_H_
 
+#define	DISK_RR_UNKNOWN		0
+#define	DISK_RR_NON_ROTATING	1
+#define	DISK_RR_MIN		0x0401
+#define	DISK_RR_MAX		0xfffe
+
 #ifdef _KERNEL 
 
 #include <sys/queue.h>
@@ -126,11 +131,6 @@ struct disk {
 #define	DISKFLAG_UNMAPPED_BIO	0x10
 #define	DISKFLAG_DIRECT_COMPLETION	0x20
 #define	DISKFLAG_CANZONE	0x80
-
-#define	DISK_RR_UNKNOWN		0
-#define	DISK_RR_NON_ROTATING	1
-#define	DISK_RR_MIN		0x0401
-#define	DISK_RR_MAX		0xfffe
 
 struct disk *disk_alloc(void);
 void disk_create(struct disk *disk, int version);

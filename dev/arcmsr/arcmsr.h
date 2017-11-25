@@ -125,8 +125,10 @@
 #define ARECA_SUB_DEV_ID_1884	0x1884 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1212	0x1212 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1213	0x1213 /* Subsystem Device ID	*/
+#define ARECA_SUB_DEV_ID_1216	0x1216 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1222	0x1222 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1223	0x1223 /* Subsystem Device ID	*/
+#define ARECA_SUB_DEV_ID_1226	0x1226 /* Subsystem Device ID	*/
 
 #define PCIDevVenIDARC1110              0x111017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1120              0x112017D3 /* Vendor Device ID	*/
@@ -1326,7 +1328,7 @@ struct AdapterControlBlock {
 	u_int32_t		completionQ_entry;
 	pCompletion_Q		pCompletionQ;
 	int			msix_vectors;
-	int			rid;
+	int			rid[2];
 };/* HW_DEVICE_EXTENSION */
 /* acb_flags */
 #define ACB_F_SCSISTOPADAPTER           0x0001

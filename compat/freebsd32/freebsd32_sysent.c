@@ -602,11 +602,11 @@ struct sysent freebsd32_sysent[] = {
 	{ AS(rctl_add_rule_args), (sy_call_t *)sys_rctl_add_rule, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 528 = rctl_add_rule */
 	{ AS(rctl_remove_rule_args), (sy_call_t *)sys_rctl_remove_rule, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 529 = rctl_remove_rule */
 #ifdef PAD64_REQUIRED
-	{ AS(freebsd32_posix_fallocate_args), (sy_call_t *)freebsd32_posix_fallocate, AUE_POSIX_FALLOCATE, NULL, 0, 0, 0, SY_THR_STATIC },	/* 530 = freebsd32_posix_fallocate */
+	{ AS(freebsd32_posix_fallocate_args), (sy_call_t *)freebsd32_posix_fallocate, AUE_POSIX_FALLOCATE, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 530 = freebsd32_posix_fallocate */
 	{ AS(freebsd32_posix_fadvise_args), (sy_call_t *)freebsd32_posix_fadvise, AUE_POSIX_FADVISE, NULL, 0, 0, 0, SY_THR_STATIC },	/* 531 = freebsd32_posix_fadvise */
 	{ AS(freebsd32_wait6_args), (sy_call_t *)freebsd32_wait6, AUE_WAIT6, NULL, 0, 0, 0, SY_THR_STATIC },	/* 532 = freebsd32_wait6 */
 #else
-	{ AS(freebsd32_posix_fallocate_args), (sy_call_t *)freebsd32_posix_fallocate, AUE_POSIX_FALLOCATE, NULL, 0, 0, 0, SY_THR_STATIC },	/* 530 = freebsd32_posix_fallocate */
+	{ AS(freebsd32_posix_fallocate_args), (sy_call_t *)freebsd32_posix_fallocate, AUE_POSIX_FALLOCATE, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 530 = freebsd32_posix_fallocate */
 	{ AS(freebsd32_posix_fadvise_args), (sy_call_t *)freebsd32_posix_fadvise, AUE_POSIX_FADVISE, NULL, 0, 0, 0, SY_THR_STATIC },	/* 531 = freebsd32_posix_fadvise */
 	{ AS(freebsd32_wait6_args), (sy_call_t *)freebsd32_wait6, AUE_WAIT6, NULL, 0, 0, 0, SY_THR_STATIC },	/* 532 = freebsd32_wait6 */
 #endif

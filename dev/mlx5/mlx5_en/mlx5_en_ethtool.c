@@ -377,6 +377,32 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 			mlx5e_open_locked(priv->ifp);
 		break;
 
+	case MLX5_PARAM_OFFSET(modify_tx_dma):
+		/* check if network interface is opened */
+		if (was_opened) {
+			priv->params_ethtool.modify_tx_dma =
+			    priv->params_ethtool.modify_tx_dma ? 1 : 0;
+			/* modify tx according to value */
+			mlx5e_modify_tx_dma(priv, value != 0);
+		} else {
+			/* if closed force enable tx */
+			priv->params_ethtool.modify_tx_dma = 0;
+		}
+		break;
+
+	case MLX5_PARAM_OFFSET(modify_rx_dma):
+		/* check if network interface is opened */
+		if (was_opened) {
+			priv->params_ethtool.modify_rx_dma =
+			    priv->params_ethtool.modify_rx_dma ? 1 : 0;
+			/* modify rx according to value */
+			mlx5e_modify_rx_dma(priv, value != 0);
+		} else {
+			/* if closed force enable rx */
+			priv->params_ethtool.modify_rx_dma = 0;
+		}
+		break;
+
 	case MLX5_PARAM_OFFSET(diag_pci_enable):
 		priv->params_ethtool.diag_pci_enable =
 		    priv->params_ethtool.diag_pci_enable ? 1 : 0;
@@ -393,6 +419,30 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		error = -mlx5_core_set_diagnostics_full(priv->mdev,
 		    priv->params_ethtool.diag_pci_enable,
 		    priv->params_ethtool.diag_general_enable);
+		break;
+
+	case MLX5_PARAM_OFFSET(mc_local_lb):
+		priv->params_ethtool.mc_local_lb =
+		    priv->params_ethtool.mc_local_lb ? 1 : 0;
+
+		if (MLX5_CAP_GEN(priv->mdev, disable_local_lb)) {
+			error = mlx5_nic_vport_modify_local_lb(priv->mdev,
+			    MLX5_LOCAL_MC_LB, priv->params_ethtool.mc_local_lb);
+		} else {
+			error = EOPNOTSUPP;
+		}
+		break;
+
+	case MLX5_PARAM_OFFSET(uc_local_lb):
+		priv->params_ethtool.uc_local_lb =
+		    priv->params_ethtool.uc_local_lb ? 1 : 0;
+
+		if (MLX5_CAP_GEN(priv->mdev, disable_local_lb)) {
+			error = mlx5_nic_vport_modify_local_lb(priv->mdev,
+			    MLX5_LOCAL_UC_LB, priv->params_ethtool.uc_local_lb);
+		} else {
+			error = EOPNOTSUPP;
+		}
 		break;
 
 	default:
@@ -706,6 +756,20 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 	priv->params_ethtool.cqe_zipping = priv->params.cqe_zipping_en;
 	mlx5e_ethtool_sync_tx_completion_fact(priv);
 
+	/* get default values for local loopback, if any */
+	if (MLX5_CAP_GEN(priv->mdev, disable_local_lb)) {
+		int err;
+		u8 val;
+
+		err = mlx5_nic_vport_query_local_lb(priv->mdev, MLX5_LOCAL_MC_LB, &val);
+		if (err == 0)
+			priv->params_ethtool.mc_local_lb = val;
+
+		err = mlx5_nic_vport_query_local_lb(priv->mdev, MLX5_LOCAL_UC_LB, &val);
+		if (err == 0)
+			priv->params_ethtool.uc_local_lb = val;
+	}
+
 	/* create root node */
 	node = SYSCTL_ADD_NODE(&priv->sysctl_ctx,
 	    SYSCTL_CHILDREN(priv->sysctl_ifnet), OID_AUTO,
@@ -714,7 +778,8 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 		return;
 	for (x = 0; x != MLX5E_PARAMS_NUM; x++) {
 		/* check for read-only parameter */
-		if (strstr(mlx5e_params_desc[2 * x], "_max") != NULL) {
+		if (strstr(mlx5e_params_desc[2 * x], "_max") != NULL ||
+		    strstr(mlx5e_params_desc[2 * x], "_mtu") != NULL) {
 			SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(node), OID_AUTO,
 			    mlx5e_params_desc[2 * x], CTLTYPE_U64 | CTLFLAG_RD |
 			    CTLFLAG_MPSAFE, priv, x, &mlx5e_ethtool_handler, "QU",

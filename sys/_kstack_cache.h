@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009 Konstantin Belousov <kib@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +39,10 @@ struct kstack_cache_entry {
 };
 
 extern struct kstack_cache_entry *kstack_cache;
+
+#ifndef KSTACK_MAX_PAGES
+#define KSTACK_MAX_PAGES 32
+#endif
 
 #endif
 

@@ -70,12 +70,13 @@ static int ou_refcnt = 0;
  | function for freeing external storage for mbuf
  */
 static void
-ext_free(struct mbuf *m, void *a, void *b)
+ext_free(struct mbuf *m)
 {
-     pduq_t *pq = b;
+     pduq_t *pq = m->m_ext.ext_arg1;
 
      if(pq->buf != NULL) {
-	  debug(3, "ou_refcnt=%d a=%p b=%p", ou_refcnt, a, pq->buf);
+	  debug(3, "ou_refcnt=%d a=%p b=%p",
+	       ou_refcnt, m->m_ext.ext_buf, pq->buf);
 	  free(pq->buf, M_ISCSIBUF);
 	  pq->buf = NULL;
      }
@@ -137,11 +138,8 @@ isc_sendPDU(isc_session_t *sp, pduq_t *pq)
 	       md->m_ext.ext_cnt = &ou_refcnt;
 	       l = min(MCLBYTES, len);
 	       debug(4, "setting ext_free(arg=%p len/l=%d/%d)", pq->buf, len, l);
-	       MEXTADD(md, pp->ds_addr + off, l, ext_free, 
-#if __FreeBSD_version >= 800000
-		       pp->ds_addr + off,
-#endif
-		       pq, 0, EXT_EXTREF);
+	       m_extadd(md, pp->ds_addr + off, l, ext_free, pq, NULL, 0,
+		    EXT_EXTREF);
 	       md->m_len = l;
 	       md->m_next = NULL;
 	       mh->m_pkthdr.len += l;

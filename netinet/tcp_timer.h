@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -197,6 +199,13 @@ extern int tcp_syn_backoff[];
 
 extern int tcp_finwait2_timeout;
 extern int tcp_fast_finwait2_recycle;
+
+VNET_DECLARE(int, tcp_pmtud_blackhole_detect);
+#define V_tcp_pmtud_blackhole_detect	VNET(tcp_pmtud_blackhole_detect)
+VNET_DECLARE(int, tcp_pmtud_blackhole_mss);
+#define	V_tcp_pmtud_blackhole_mss	VNET(tcp_pmtud_blackhole_mss)
+VNET_DECLARE(int, tcp_v6pmtud_blackhole_mss);
+#define V_tcp_v6pmtud_blackhole_mss	VNET(tcp_v6pmtud_blackhole_mss)
 
 int tcp_inpinfo_lock_add(struct inpcb *inp);
 void tcp_inpinfo_lock_del(struct inpcb *inp, struct tcpcb *tp);

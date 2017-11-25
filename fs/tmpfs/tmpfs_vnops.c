@@ -1310,7 +1310,7 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 	return 0;
 }
 
-static int
+int
 tmpfs_print(struct vop_print_args *v)
 {
 	struct vnode *vp = v->a_vp;
@@ -1353,7 +1353,7 @@ tmpfs_pathconf(struct vop_pathconf_args *v)
 		break;
 
 	case _PC_FILESIZEBITS:
-		*retval = 0; /* XXX Don't know which value should I return. */
+		*retval = 64;
 		break;
 
 	default:

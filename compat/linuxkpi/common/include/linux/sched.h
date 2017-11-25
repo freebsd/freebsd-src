@@ -67,7 +67,7 @@ struct task_struct {
 	void   *task_data;
 	int	task_ret;
 	atomic_t usage;
-	int	state;
+	atomic_t state;
 	atomic_t kthread_flags;
 	pid_t	pid;	/* BSD thread ID */
 	const char    *comm;
@@ -92,9 +92,8 @@ struct task_struct {
 #define	put_pid(x)		do { } while (0)
 #define	current_euid()	(curthread->td_ucred->cr_uid)
 
-#define	set_task_state(task, x)		\
-	atomic_store_rel_int((volatile int *)&task->state, (x))
-#define	__set_task_state(task, x)	(task->state = (x))
+#define	set_task_state(task, x)		atomic_set(&(task)->state, (x))
+#define	__set_task_state(task, x)	((task)->state.counter = (x))
 #define	set_current_state(x)		set_task_state(current, x)
 #define	__set_current_state(x)		__set_task_state(current, x)
 

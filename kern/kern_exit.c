@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -98,6 +100,8 @@ SDT_PROBE_DEFINE1(proc, , , exit, "int");
 
 /* Hook for NFS teardown procedure. */
 void (*nlminfo_release_p)(struct proc *p);
+
+EVENTHANDLER_LIST_DECLARE(process_exit);
 
 struct proc *
 proc_realparent(struct proc *child)
@@ -329,7 +333,7 @@ exit1(struct thread *td, int rval, int signo)
 	 * Event handler could change exit status.
 	 * XXX what if one of these generates an error?
 	 */
-	EVENTHANDLER_INVOKE(process_exit, p);
+	EVENTHANDLER_DIRECT_INVOKE(process_exit, p);
 
 	/*
 	 * If parent is waiting for us to exit or exec,

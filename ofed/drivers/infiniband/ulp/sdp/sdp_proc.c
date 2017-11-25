@@ -31,7 +31,6 @@
  */
 
 #include <linux/proc_fs.h>
-#include <rdma/sdp_socket.h>
 #include "sdp.h"
 
 #ifdef CONFIG_PROC_FS

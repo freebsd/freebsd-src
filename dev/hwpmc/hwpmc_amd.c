@@ -108,7 +108,7 @@ static  struct amd_descr amd_pmcdesc[AMD_NPMCS] =
 
 struct amd_event_code_map {
 	enum pmc_event	pe_ev;	 /* enum value */
-	uint8_t		pe_code; /* encoded event mask */
+	uint16_t	pe_code; /* encoded event mask */
 	uint8_t		pe_mask; /* bits allowed in unit mask */
 };
 

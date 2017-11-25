@@ -173,6 +173,11 @@ typedef struct pci_vendor_info {
 #define PVID_OEM(vendor, devid, svid, sdevid, revid, name) {vendor, devid, svid, sdevid, revid, 0, name}
 #define PVID_END {0, 0, 0, 0, 0, 0, NULL}
 
+#define IFLIB_PNP_DESCR "U32:vendor;U32:device;U32:subvendor;U32:subdevice;" \
+    "U32:revision;U32:class;D:human"
+#define IFLIB_PNP_INFO(b, u, t) \
+    MODULE_PNP_INFO(IFLIB_PNP_DESCR, b, u, t, sizeof(t[0]), nitems(t))
+
 typedef struct if_txrx {
 	int (*ift_txd_encap) (void *, if_pkt_info_t);
 	void (*ift_txd_flush) (void *, uint16_t, qidx_t pidx);
@@ -305,6 +310,10 @@ typedef enum {
  * Interface doesn't align IP header
  */
 #define IFLIB_DO_RX_FIXUP	0x40
+/*
+ * Driver needs csum zeroed for offloading
+ */
+#define IFLIB_NEED_ZERO_CSUM	0x80
 
 
 
@@ -352,7 +361,7 @@ int iflib_irq_alloc(if_ctx_t, if_irq_t, int, driver_filter_t, void *filter_arg, 
 int iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 							iflib_intr_type_t type, driver_filter_t *filter,
 							void *filter_arg, int qid, char *name);
-void iflib_softirq_alloc_generic(if_ctx_t ctx, int rid, iflib_intr_type_t type,  void *arg, int qid, char *name);
+void iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type,  void *arg, int qid, char *name);
 
 void iflib_irq_free(if_ctx_t ctx, if_irq_t irq);
 

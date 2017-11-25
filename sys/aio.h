@@ -252,7 +252,7 @@ int	aio_suspend(const struct aiocb * const[], int, const struct timespec *);
  */
 int	aio_mlock(struct aiocb *);
 
-#ifdef __BSD_VISIBLE
+#if __BSD_VISIBLE
 ssize_t	aio_waitcomplete(struct aiocb **, struct timespec *);
 #endif
 

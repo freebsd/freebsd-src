@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,9 +32,8 @@
 #ifndef _ASM_ATOMIC_H_
 #define	_ASM_ATOMIC_H_
 
-#include <sys/cdefs.h>
+#include <linux/compiler.h>
 #include <sys/types.h>
-
 #include <machine/atomic.h>
 
 #define	ATOMIC_INIT(x)	{ .counter = (x) }
@@ -73,7 +72,7 @@ atomic_sub_return(int i, atomic_t *v)
 static inline void
 atomic_set(atomic_t *v, int i)
 {
-	atomic_store_rel_int(&v->counter, i);
+	WRITE_ONCE(v->counter, i);
 }
 
 static inline void
@@ -91,7 +90,7 @@ atomic_set_mask(unsigned int mask, atomic_t *v)
 static inline int
 atomic_read(const atomic_t *v)
 {
-	return atomic_load_acq_int(&__DECONST(atomic_t *, v)->counter);
+	return READ_ONCE(v->counter);
 }
 
 static inline int
@@ -137,7 +136,7 @@ atomic_xchg(atomic_t *v, int i)
 #else
 	int ret;
 	for (;;) {
-		ret = atomic_load_acq_int(&v->counter);
+		ret = READ_ONCE(v->counter);
 		if (atomic_cmpset_int(&v->counter, ret, i))
 			break;
 	}
@@ -153,7 +152,7 @@ atomic_cmpxchg(atomic_t *v, int old, int new)
 	for (;;) {
 		if (atomic_cmpset_int(&v->counter, old, new))
 			break;
-		ret = atomic_load_acq_int(&v->counter);
+		ret = READ_ONCE(v->counter);
 		if (ret != old)
 			break;
 	}

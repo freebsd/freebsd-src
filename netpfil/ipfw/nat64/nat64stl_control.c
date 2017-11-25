@@ -220,10 +220,7 @@ nat64stl_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	error = nat64stl_create_internal(ch, cfg, uc);
 	if (error == 0) {
 		/* Okay, let's link data */
-		IPFW_WLOCK(ch);
 		SRV_OBJECT(ch, cfg->no.kidx) = cfg;
-		IPFW_WUNLOCK(ch);
-
 		IPFW_UH_WUNLOCK(ch);
 		return (0);
 	}
@@ -342,10 +339,7 @@ nat64stl_destroy(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 		return (EBUSY);
 	}
 
-	IPFW_WLOCK(ch);
 	SRV_OBJECT(ch, cfg->no.kidx) = NULL;
-	IPFW_WUNLOCK(ch);
-
 	nat64stl_detach_config(ch, cfg);
 	IPFW_UH_WUNLOCK(ch);
 

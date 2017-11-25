@@ -96,7 +96,7 @@ static __inline__ void *ptr_ADD(void *a, uintptr_t b)
 /* Bitwise-OR two pointers */
 static __inline__ void *ptr_OR(void *a, uintptr_t b)
 {
-    return (void *)((uintptr_t)a + b);
+    return (void *)((uintptr_t)a | b);
 }
 
 /* Cache-inhibited register access */
@@ -323,7 +323,7 @@ static __inline__ void qmPortalEqcrPciCommit(struct qm_portal *portal, uint8_t m
     EQCR_INC(eqcr);
     eqcr->available--;
     dcbf_64(eqcr->cursor);
-    hwsync();
+    mb();
     qm_out(EQCR_PI_CINH, EQCR_PTR2IDX(eqcr->cursor));
 #ifdef QM_CHECKING
     eqcr->busy = 0;
@@ -351,7 +351,7 @@ static __inline__ void qmPortalEqcrPceCommit(struct qm_portal *portal, uint8_t m
     EQCR_INC(eqcr);
     eqcr->available--;
     dcbf_64(eqcr->cursor);
-    lwsync();
+    wmb();
     qm_cl_out(EQCR_PI, EQCR_PTR2IDX(eqcr->cursor));
 #ifdef QM_CHECKING
     eqcr->busy = 0;
@@ -366,7 +366,7 @@ static __inline__ void qmPortalEqcrPvbCommit(struct qm_portal *portal, uint8_t m
     EQCR_COMMIT_CHECKS(eqcr);
     ASSERT_COND(eqcr->pmode == e_QmPortalPVB);
 #endif /* QM_CHECKING */
-    lwsync();
+    rmb();
     eqcursor = eqcr->cursor;
     eqcursor->__dont_write_directly__verb = (uint8_t)(myverb | eqcr->vbit);
     dcbf_64(eqcursor);
@@ -1086,7 +1086,7 @@ static __inline__ void qm_mc_commit(struct qm_portal *portal, uint8_t myverb)
 #ifdef QM_CHECKING
     ASSERT_COND(mc->state == mc_user);
 #endif /* QM_CHECKING */
-    lwsync();
+    rmb();
     mc->cr->__dont_write_directly__verb = (uint8_t)(myverb | mc->vbit);
     dcbf_64(mc->cr);
     dcbit_ro(mc->rr + mc->rridx);

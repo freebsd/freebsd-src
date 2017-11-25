@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -67,6 +71,7 @@ typedef u_int		bcma_rmid_t;
 
 struct bcma_devinfo;
 struct bcma_corecfg;
+struct bcma_intr;
 struct bcma_map;
 struct bcma_mport;
 struct bcma_sport;
@@ -74,8 +79,8 @@ struct bcma_sport;
 int			 bcma_probe(device_t dev);
 int			 bcma_attach(device_t dev);
 int			 bcma_detach(device_t dev);
-int			 bcma_get_intr_count(device_t dev, device_t child);
-int			 bcma_get_core_ivec(device_t dev, device_t child,
+u_int			 bcma_get_intr_count(device_t dev, device_t child);
+int			 bcma_get_intr_ivec(device_t dev, device_t child,
 			     u_int intr, uint32_t *ivec);
 
 int			 bcma_add_children(device_t bus);
@@ -84,17 +89,19 @@ struct bcma_sport_list	*bcma_corecfg_get_port_list(struct bcma_corecfg *cfg,
 			     bhnd_port_type type);
 
 struct bcma_devinfo	*bcma_alloc_dinfo(device_t bus);
-int			 bcma_init_dinfo(device_t bus,
+int			 bcma_init_dinfo(device_t bus, device_t child,
 			     struct bcma_devinfo *dinfo,
 			     struct bcma_corecfg *corecfg);
-int			 bcma_dinfo_alloc_agent(device_t bus, device_t child,
-			     struct bcma_devinfo *dinfo);
-void			 bcma_free_dinfo(device_t bus,
+void			 bcma_free_dinfo(device_t bus, device_t child,
 			     struct bcma_devinfo *dinfo);
 
 struct bcma_corecfg	*bcma_alloc_corecfg(u_int core_index, int core_unit,
 			     uint16_t vendor, uint16_t device, uint8_t hwrev);
 void			 bcma_free_corecfg(struct bcma_corecfg *corecfg);
+
+struct bcma_intr	*bcma_alloc_intr(uint8_t bank, uint8_t sel,
+			     uint8_t line);
+void			 bcma_free_intr(struct bcma_intr *intr);
 
 struct bcma_sport	*bcma_alloc_sport(bcma_pid_t port_num, bhnd_port_type port_type);
 void			 bcma_free_sport(struct bcma_sport *sport);
@@ -121,6 +128,18 @@ struct bcma_map {
 	STAILQ_ENTRY(bcma_map) m_link;
 };
 
+/** BCMA interrupt descriptor */
+struct bcma_intr {
+	uint8_t		i_bank;		/**< OOB bank (see BCMA_OOB_BANK[A-D]) */
+	uint8_t		i_sel;		/**< OOB selector (0-7) */
+	uint8_t		i_busline;	/**< OOB bus line assigned to this selector */
+	bool		i_mapped;	/**< if an irq has been mapped for this selector */
+	int		i_rid;		/**< bus resource id, or -1 */
+	rman_res_t	i_irq;		/**< the mapped bus irq, if any */
+
+	STAILQ_ENTRY(bcma_intr) i_link;
+};
+
 /** BCMA slave port descriptor */
 struct bcma_sport {
 	bcma_pid_t	sp_num;		/**< slave port number (core-unique) */
@@ -131,8 +150,9 @@ struct bcma_sport {
 	STAILQ_ENTRY(bcma_sport) sp_link;
 };
 
-STAILQ_HEAD(bcma_mport_list, bcma_mport);
-STAILQ_HEAD(bcma_sport_list, bcma_sport);
+STAILQ_HEAD(bcma_mport_list,	bcma_mport);
+STAILQ_HEAD(bcma_intr_list,	bcma_intr);
+STAILQ_HEAD(bcma_sport_list,	bcma_sport);
 
 /** BCMA IP core/block configuration */
 struct bcma_corecfg {
@@ -155,14 +175,17 @@ struct bcma_corecfg {
  * BCMA per-device info
  */
 struct bcma_devinfo {
-	struct resource_list		 resources;	/**< Slave port memory regions. */
-	struct bcma_corecfg		*corecfg;	/**< IP core/block config */
+	struct resource_list	 resources;	/**< Slave port memory regions. */
+	struct bcma_corecfg	*corecfg;	/**< IP core/block config */
 
-	struct bhnd_resource		*res_agent;	/**< Agent (wrapper) resource, or NULL. Not
-							  *  all bcma(4) cores have or require an agent. */
-	int				 rid_agent;	/**< Agent resource ID, or -1 */
+	struct bhnd_resource	*res_agent;	/**< Agent (wrapper) resource, or NULL. Not
+						  *  all bcma(4) cores have or require an agent. */
+	int			 rid_agent;	/**< Agent resource ID, or -1 */
 
-	struct bhnd_core_pmu_info	*pmu_info;	/**< Bus-managed PMU state, or NULL */
+	u_int			 num_intrs;	/**< number of interrupt descriptors. */
+	struct bcma_intr_list	 intrs;		/**< interrupt descriptors */
+
+	void			*pmu_info;	/**< Bus-managed PMU state, or NULL */
 };
 
 

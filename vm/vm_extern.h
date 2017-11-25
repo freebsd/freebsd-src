@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -71,7 +73,6 @@ void kmem_init(vm_offset_t, vm_offset_t);
 void kmem_init_zero_region(void);
 void kmeminit(void);
 
-void swapout_procs(int);
 int kernacc(void *, int, int);
 int useracc(void *, int, int);
 int vm_fault(vm_map_t, vm_offset_t, vm_prot_t, int);

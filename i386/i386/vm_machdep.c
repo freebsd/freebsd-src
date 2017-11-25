@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1982, 1986 The Regents of the University of California.
  * Copyright (c) 1989, 1990 William Jolitz
  * Copyright (c) 1994 John Dyson
@@ -47,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_npx.h"
 #include "opt_reset.h"
 #include "opt_cpu.h"
-#include "opt_xbox.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -90,10 +91,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 
 #include <isa/isareg.h>
-
-#ifdef XBOX
-#include <machine/xbox.h>
-#endif
 
 #ifndef NSFBUFS
 #define	NSFBUFS		(512 + maxusers * 16)
@@ -524,6 +521,9 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	    (((int)stack->ss_sp + stack->ss_size - 4) & ~0x0f) - 4;
 	td->td_frame->tf_eip = (int)entry;
 
+	/* Return address sentinel value to stop stack unwinding. */
+	suword((void *)td->td_frame->tf_esp, 0);
+
 	/* Pass the argument to the entry point. */
 	suword((void *)(td->td_frame->tf_esp + sizeof(void *)),
 	    (int)arg);
@@ -597,14 +597,6 @@ cpu_reset_proxy()
 void
 cpu_reset()
 {
-#ifdef XBOX
-	if (arch_i386_is_xbox) {
-		/* Kick the PIC16L, it can reboot the box */
-		pic16l_reboot();
-		for (;;);
-	}
-#endif
-
 #ifdef SMP
 	cpuset_t map;
 	u_int cnt;

@@ -159,7 +159,7 @@ typedef __size_t        size_t;
 #endif
 
 __BEGIN_DECLS
-#ifdef __BSD_VISIBLE
+#if __BSD_VISIBLE
 int shmsys(int, ...);
 #endif
 void *shmat(int, const void *, int);

@@ -6,6 +6,7 @@ SUBDIR = \
 	ds1307 \
 	ds13rtc \
 	ds3231 \
+	icee \
 	if_ic \
 	iic \
 	iicbb \

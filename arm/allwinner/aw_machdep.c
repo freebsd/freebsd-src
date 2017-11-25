@@ -164,6 +164,30 @@ allwinner_cpu_reset(platform_t plat)
 	while (1);
 }
 
+/*
+ * To use early printf on Allwinner SoC, add to kernel config
+ * options SOCDEV_PA=0x01C00000
+ * options SOCDEV_VA=0x10000000
+ * options EARLY_PRINTF
+ * And remove the if 0
+*/
+#if 0
+#ifdef EARLY_PRINTF
+static void
+allwinner_early_putc(int c)
+{
+	volatile uint32_t * UART_STAT_REG = (uint32_t *)0x1002807C;
+	volatile uint32_t * UART_TX_REG   = (uint32_t *)0x10028000;
+	const uint32_t      UART_TXRDY    = (1 << 2);
+
+	while ((*UART_STAT_REG & UART_TXRDY) == 0)
+		continue;
+	*UART_TX_REG = c;
+}
+early_putc_t *early_putc = allwinner_early_putc;
+#endif /* EARLY_PRINTF */
+#endif
+
 #if defined(SOC_ALLWINNER_A10)
 static platform_method_t a10_methods[] = {
 	PLATFORMMETHOD(platform_attach,         a10_attach),

@@ -501,9 +501,11 @@ bnxt_pkt_get_l2(struct bnxt_softc *softc, if_rxd_info_t ri,
 		if (!(errors & RX_PKT_CMPL_ERRORS_IP_CS_ERROR))
 			ri->iri_csum_flags |= CSUM_IP_VALID;
 	}
-	if (flags2 & RX_PKT_CMPL_FLAGS2_L4_CS_CALC) {
+	if (flags2 & (RX_PKT_CMPL_FLAGS2_L4_CS_CALC |
+		      RX_PKT_CMPL_FLAGS2_T_L4_CS_CALC)) {
 		ri->iri_csum_flags |= CSUM_L4_CALC;
-		if (!(errors & RX_PKT_CMPL_ERRORS_L4_CS_ERROR)) {
+		if (!(errors & (RX_PKT_CMPL_ERRORS_L4_CS_ERROR |
+				RX_PKT_CMPL_ERRORS_T_L4_CS_ERROR))) {
 			ri->iri_csum_flags |= CSUM_L4_VALID;
 			ri->iri_csum_data = 0xffff;
 		}

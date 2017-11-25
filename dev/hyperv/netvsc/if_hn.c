@@ -61,7 +61,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_rss.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/counter.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
@@ -76,7 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <sys/taskqueue.h>
 #include <sys/buf_ring.h>
 #include <sys/eventhandler.h>
@@ -284,6 +285,8 @@ static void			hn_xpnt_vf_init_taskfunc(void *, int);
 static void			hn_xpnt_vf_init(struct hn_softc *);
 static void			hn_xpnt_vf_setenable(struct hn_softc *);
 static void			hn_xpnt_vf_setdisable(struct hn_softc *, bool);
+static void			hn_vf_rss_fixup(struct hn_softc *, bool);
+static void			hn_vf_rss_restore(struct hn_softc *);
 
 static int			hn_rndis_rxinfo(const void *, int,
 				    struct hn_rxinfo *);
@@ -327,6 +330,8 @@ static int			hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS);
 #endif
 static int			hn_rss_hash_sysctl(SYSCTL_HANDLER_ARGS);
+static int			hn_rss_hcap_sysctl(SYSCTL_HANDLER_ARGS);
+static int			hn_rss_mbuf_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_txagg_size_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_txagg_pkts_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_txagg_pktmax_sysctl(SYSCTL_HANDLER_ARGS);
@@ -380,19 +385,22 @@ static void			hn_link_status(struct hn_softc *);
 static int			hn_create_rx_data(struct hn_softc *, int);
 static void			hn_destroy_rx_data(struct hn_softc *);
 static int			hn_check_iplen(const struct mbuf *, int);
+static void			hn_rxpkt_proto(const struct mbuf *, int *, int *);
 static int			hn_set_rxfilter(struct hn_softc *, uint32_t);
 static int			hn_rxfilter_config(struct hn_softc *);
-#ifndef RSS
 static int			hn_rss_reconfig(struct hn_softc *);
-#endif
 static void			hn_rss_ind_fixup(struct hn_softc *);
+static void			hn_rss_mbuf_hash(struct hn_softc *, uint32_t);
 static int			hn_rxpkt(struct hn_rx_ring *, const void *,
 				    int, const struct hn_rxinfo *);
+static uint32_t			hn_rss_type_fromndis(uint32_t);
+static uint32_t			hn_rss_type_tondis(uint32_t);
 
 static int			hn_tx_ring_create(struct hn_softc *, int);
 static void			hn_tx_ring_destroy(struct hn_tx_ring *);
 static int			hn_create_tx_data(struct hn_softc *, int);
 static void			hn_fixup_tx_data(struct hn_softc *);
+static void			hn_fixup_rx_data(struct hn_softc *);
 static void			hn_destroy_tx_data(struct hn_softc *);
 static void			hn_txdesc_dmamap_destroy(struct hn_txdesc *);
 static void			hn_txdesc_gc(struct hn_tx_ring *,
@@ -452,6 +460,35 @@ SYSCTL_INT(_hw_hn, OID_AUTO, trust_hostip, CTLFLAG_RDTUN,
     &hn_trust_hostip, 0,
     "Trust ip packet verification on host side, "
     "when csum info is missing (global setting)");
+
+/*
+ * Offload UDP/IPv4 checksum.
+ */
+static int			hn_enable_udp4cs = 1;
+SYSCTL_INT(_hw_hn, OID_AUTO, enable_udp4cs, CTLFLAG_RDTUN,
+    &hn_enable_udp4cs, 0, "Offload UDP/IPv4 checksum");
+
+/*
+ * Offload UDP/IPv6 checksum.
+ */
+static int			hn_enable_udp6cs = 1;
+SYSCTL_INT(_hw_hn, OID_AUTO, enable_udp6cs, CTLFLAG_RDTUN,
+    &hn_enable_udp6cs, 0, "Offload UDP/IPv6 checksum");
+
+/* Stats. */
+static counter_u64_t		hn_udpcs_fixup;
+SYSCTL_COUNTER_U64(_hw_hn, OID_AUTO, udpcs_fixup, CTLFLAG_RW,
+    &hn_udpcs_fixup, "# of UDP checksum fixup");
+
+/*
+ * See hn_set_hlen().
+ *
+ * This value is for Azure.  For Hyper-V, set this above
+ * 65536 to disable UDP datagram checksum fixup.
+ */
+static int			hn_udpcs_fixup_mtu = 1420;
+SYSCTL_INT(_hw_hn, OID_AUTO, udpcs_fixup_mtu, CTLFLAG_RWTUN,
+    &hn_udpcs_fixup_mtu, 0, "UDP checksum fixup MTU threshold");
 
 /* Limit TSO burst size */
 static int			hn_tso_maxlen = IP_MAXPACKET;
@@ -547,7 +584,7 @@ SYSCTL_PROC(_hw_hn, OID_AUTO, vfmap, CTLFLAG_RD | CTLTYPE_STRING,
     0, 0, hn_vfmap_sysctl, "A", "VF mapping");
 
 /* Transparent VF */
-static int			hn_xpnt_vf = 0;
+static int			hn_xpnt_vf = 1;
 SYSCTL_INT(_hw_hn, OID_AUTO, vf_transparent, CTLFLAG_RDTUN,
     &hn_xpnt_vf, 0, "Transparent VF mod");
 
@@ -720,6 +757,7 @@ hn_tso_fixup(struct mbuf *m_head)
 		ehlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
 	else
 		ehlen = ETHER_HDR_LEN;
+	m_head->m_pkthdr.l2hlen = ehlen;
 
 #ifdef INET
 	if (m_head->m_pkthdr.csum_flags & CSUM_IP_TSO) {
@@ -729,6 +767,7 @@ hn_tso_fixup(struct mbuf *m_head)
 		PULLUP_HDR(m_head, ehlen + sizeof(*ip));
 		ip = mtodo(m_head, ehlen);
 		iphlen = ip->ip_hl << 2;
+		m_head->m_pkthdr.l3hlen = iphlen;
 
 		PULLUP_HDR(m_head, ehlen + iphlen + sizeof(*th));
 		th = mtodo(m_head, ehlen + iphlen);
@@ -752,6 +791,7 @@ hn_tso_fixup(struct mbuf *m_head)
 			m_freem(m_head);
 			return (NULL);
 		}
+		m_head->m_pkthdr.l3hlen = sizeof(*ip6);
 
 		PULLUP_HDR(m_head, ehlen + sizeof(*ip6) + sizeof(*th));
 		th = mtodo(m_head, ehlen + sizeof(*ip6));
@@ -761,20 +801,16 @@ hn_tso_fixup(struct mbuf *m_head)
 	}
 #endif
 	return (m_head);
-
 }
 
 /*
  * NOTE: If this function failed, the m_head would be freed.
  */
 static __inline struct mbuf *
-hn_check_tcpsyn(struct mbuf *m_head, int *tcpsyn)
+hn_set_hlen(struct mbuf *m_head)
 {
 	const struct ether_vlan_header *evl;
-	const struct tcphdr *th;
 	int ehlen;
-
-	*tcpsyn = 0;
 
 	PULLUP_HDR(m_head, sizeof(*evl));
 	evl = mtod(m_head, const struct ether_vlan_header *);
@@ -782,20 +818,38 @@ hn_check_tcpsyn(struct mbuf *m_head, int *tcpsyn)
 		ehlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
 	else
 		ehlen = ETHER_HDR_LEN;
+	m_head->m_pkthdr.l2hlen = ehlen;
 
 #ifdef INET
-	if (m_head->m_pkthdr.csum_flags & CSUM_IP_TCP) {
+	if (m_head->m_pkthdr.csum_flags & (CSUM_IP_TCP | CSUM_IP_UDP)) {
 		const struct ip *ip;
 		int iphlen;
 
 		PULLUP_HDR(m_head, ehlen + sizeof(*ip));
 		ip = mtodo(m_head, ehlen);
 		iphlen = ip->ip_hl << 2;
+		m_head->m_pkthdr.l3hlen = iphlen;
 
-		PULLUP_HDR(m_head, ehlen + iphlen + sizeof(*th));
-		th = mtodo(m_head, ehlen + iphlen);
-		if (th->th_flags & TH_SYN)
-			*tcpsyn = 1;
+		/*
+		 * UDP checksum offload does not work in Azure, if the
+		 * following conditions meet:
+		 * - sizeof(IP hdr + UDP hdr + payload) > 1420.
+		 * - IP_DF is not set in the IP hdr.
+		 *
+		 * Fallback to software checksum for these UDP datagrams.
+		 */
+		if ((m_head->m_pkthdr.csum_flags & CSUM_IP_UDP) &&
+		    m_head->m_pkthdr.len > hn_udpcs_fixup_mtu + ehlen &&
+		    (ntohs(ip->ip_off) & IP_DF) == 0) {
+			uint16_t off = ehlen + iphlen;
+
+			counter_u64_add(hn_udpcs_fixup, 1);
+			PULLUP_HDR(m_head, off + sizeof(struct udphdr));
+			*(uint16_t *)(m_head->m_data + off +
+                            m_head->m_pkthdr.csum_data) = in_cksum_skip(
+			    m_head, m_head->m_pkthdr.len, off);
+			m_head->m_pkthdr.csum_flags &= ~CSUM_IP_UDP;
+		}
 	}
 #endif
 #if defined(INET6) && defined(INET)
@@ -807,15 +861,33 @@ hn_check_tcpsyn(struct mbuf *m_head, int *tcpsyn)
 
 		PULLUP_HDR(m_head, ehlen + sizeof(*ip6));
 		ip6 = mtodo(m_head, ehlen);
-		if (ip6->ip6_nxt != IPPROTO_TCP)
-			return (m_head);
-
-		PULLUP_HDR(m_head, ehlen + sizeof(*ip6) + sizeof(*th));
-		th = mtodo(m_head, ehlen + sizeof(*ip6));
-		if (th->th_flags & TH_SYN)
-			*tcpsyn = 1;
+		if (ip6->ip6_nxt != IPPROTO_TCP) {
+			m_freem(m_head);
+			return (NULL);
+		}
+		m_head->m_pkthdr.l3hlen = sizeof(*ip6);
 	}
 #endif
+	return (m_head);
+}
+
+/*
+ * NOTE: If this function failed, the m_head would be freed.
+ */
+static __inline struct mbuf *
+hn_check_tcpsyn(struct mbuf *m_head, int *tcpsyn)
+{
+	const struct tcphdr *th;
+	int ehlen, iphlen;
+
+	*tcpsyn = 0;
+	ehlen = m_head->m_pkthdr.l2hlen;
+	iphlen = m_head->m_pkthdr.l3hlen;
+
+	PULLUP_HDR(m_head, ehlen + iphlen + sizeof(*th));
+	th = mtodo(m_head, ehlen + iphlen);
+	if (th->th_flags & TH_SYN)
+		*tcpsyn = 1;
 	return (m_head);
 }
 
@@ -953,7 +1025,6 @@ hn_get_txswq_depth(const struct hn_tx_ring *txr)
 	return hn_tx_swq_depth;
 }
 
-#ifndef RSS
 static int
 hn_rss_reconfig(struct hn_softc *sc)
 {
@@ -992,7 +1063,6 @@ hn_rss_reconfig(struct hn_softc *sc)
 	}
 	return (0);
 }
-#endif	/* !RSS */
 
 static void
 hn_rss_ind_fixup(struct hn_softc *sc)
@@ -1134,11 +1204,13 @@ hn_rxvf_change(struct hn_softc *sc, struct ifnet *ifp, bool rxvf)
 	hn_rxvf_set(sc, rxvf ? ifp : NULL);
 
 	if (rxvf) {
+		hn_vf_rss_fixup(sc, true);
 		hn_suspend_mgmt(sc);
 		sc->hn_link_flags &=
 		    ~(HN_LINK_FLAG_LINKUP | HN_LINK_FLAG_NETCHG);
 		if_link_state_change(hn_ifp, LINK_STATE_DOWN);
 	} else {
+		hn_vf_rss_restore(sc);
 		hn_resume_mgmt(sc);
 	}
 
@@ -1335,6 +1407,258 @@ hn_mtu_change_fixup(struct hn_softc *sc)
 #endif
 }
 
+static uint32_t
+hn_rss_type_fromndis(uint32_t rss_hash)
+{
+	uint32_t types = 0;
+
+	if (rss_hash & NDIS_HASH_IPV4)
+		types |= RSS_TYPE_IPV4;
+	if (rss_hash & NDIS_HASH_TCP_IPV4)
+		types |= RSS_TYPE_TCP_IPV4;
+	if (rss_hash & NDIS_HASH_IPV6)
+		types |= RSS_TYPE_IPV6;
+	if (rss_hash & NDIS_HASH_IPV6_EX)
+		types |= RSS_TYPE_IPV6_EX;
+	if (rss_hash & NDIS_HASH_TCP_IPV6)
+		types |= RSS_TYPE_TCP_IPV6;
+	if (rss_hash & NDIS_HASH_TCP_IPV6_EX)
+		types |= RSS_TYPE_TCP_IPV6_EX;
+	if (rss_hash & NDIS_HASH_UDP_IPV4_X)
+		types |= RSS_TYPE_UDP_IPV4;
+	return (types);
+}
+
+static uint32_t
+hn_rss_type_tondis(uint32_t types)
+{
+	uint32_t rss_hash = 0;
+
+	KASSERT((types & (RSS_TYPE_UDP_IPV6 | RSS_TYPE_UDP_IPV6_EX)) == 0,
+	    ("UDP6 and UDP6EX are not supported"));
+
+	if (types & RSS_TYPE_IPV4)
+		rss_hash |= NDIS_HASH_IPV4;
+	if (types & RSS_TYPE_TCP_IPV4)
+		rss_hash |= NDIS_HASH_TCP_IPV4;
+	if (types & RSS_TYPE_IPV6)
+		rss_hash |= NDIS_HASH_IPV6;
+	if (types & RSS_TYPE_IPV6_EX)
+		rss_hash |= NDIS_HASH_IPV6_EX;
+	if (types & RSS_TYPE_TCP_IPV6)
+		rss_hash |= NDIS_HASH_TCP_IPV6;
+	if (types & RSS_TYPE_TCP_IPV6_EX)
+		rss_hash |= NDIS_HASH_TCP_IPV6_EX;
+	if (types & RSS_TYPE_UDP_IPV4)
+		rss_hash |= NDIS_HASH_UDP_IPV4_X;
+	return (rss_hash);
+}
+
+static void
+hn_rss_mbuf_hash(struct hn_softc *sc, uint32_t mbuf_hash)
+{
+	int i;
+
+	HN_LOCK_ASSERT(sc);
+
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+		sc->hn_rx_ring[i].hn_mbuf_hash = mbuf_hash;
+}
+
+static void
+hn_vf_rss_fixup(struct hn_softc *sc, bool reconf)
+{
+	struct ifnet *ifp, *vf_ifp;
+	struct ifrsshash ifrh;
+	struct ifrsskey ifrk;
+	int error;
+	uint32_t my_types, diff_types, mbuf_types = 0;
+
+	HN_LOCK_ASSERT(sc);
+	KASSERT(sc->hn_flags & HN_FLAG_SYNTH_ATTACHED,
+	    ("%s: synthetic parts are not attached", sc->hn_ifp->if_xname));
+
+	if (sc->hn_rx_ring_inuse == 1) {
+		/* No RSS on synthetic parts; done. */
+		return;
+	}
+	if ((sc->hn_rss_hcap & NDIS_HASH_FUNCTION_TOEPLITZ) == 0) {
+		/* Synthetic parts do not support Toeplitz; done. */
+		return;
+	}
+
+	ifp = sc->hn_ifp;
+	vf_ifp = sc->hn_vf_ifp;
+
+	/*
+	 * Extract VF's RSS key.  Only 40 bytes key for Toeplitz is
+	 * supported.
+	 */
+	memset(&ifrk, 0, sizeof(ifrk));
+	strlcpy(ifrk.ifrk_name, vf_ifp->if_xname, sizeof(ifrk.ifrk_name));
+	error = vf_ifp->if_ioctl(vf_ifp, SIOCGIFRSSKEY, (caddr_t)&ifrk);
+	if (error) {
+		if_printf(ifp, "%s SIOCGRSSKEY failed: %d\n",
+		    vf_ifp->if_xname, error);
+		goto done;
+	}
+	if (ifrk.ifrk_func != RSS_FUNC_TOEPLITZ) {
+		if_printf(ifp, "%s RSS function %u is not Toeplitz\n",
+		    vf_ifp->if_xname, ifrk.ifrk_func);
+		goto done;
+	}
+	if (ifrk.ifrk_keylen != NDIS_HASH_KEYSIZE_TOEPLITZ) {
+		if_printf(ifp, "%s invalid RSS Toeplitz key length %d\n",
+		    vf_ifp->if_xname, ifrk.ifrk_keylen);
+		goto done;
+	}
+
+	/*
+	 * Extract VF's RSS hash.  Only Toeplitz is supported.
+	 */
+	memset(&ifrh, 0, sizeof(ifrh));
+	strlcpy(ifrh.ifrh_name, vf_ifp->if_xname, sizeof(ifrh.ifrh_name));
+	error = vf_ifp->if_ioctl(vf_ifp, SIOCGIFRSSHASH, (caddr_t)&ifrh);
+	if (error) {
+		if_printf(ifp, "%s SIOCGRSSHASH failed: %d\n",
+		    vf_ifp->if_xname, error);
+		goto done;
+	}
+	if (ifrh.ifrh_func != RSS_FUNC_TOEPLITZ) {
+		if_printf(ifp, "%s RSS function %u is not Toeplitz\n",
+		    vf_ifp->if_xname, ifrh.ifrh_func);
+		goto done;
+	}
+
+	my_types = hn_rss_type_fromndis(sc->hn_rss_hcap);
+	if ((ifrh.ifrh_types & my_types) == 0) {
+		/* This disables RSS; ignore it then */
+		if_printf(ifp, "%s intersection of RSS types failed.  "
+		    "VF %#x, mine %#x\n", vf_ifp->if_xname,
+		    ifrh.ifrh_types, my_types);
+		goto done;
+	}
+
+	diff_types = my_types ^ ifrh.ifrh_types;
+	my_types &= ifrh.ifrh_types;
+	mbuf_types = my_types;
+
+	/*
+	 * Detect RSS hash value/type confliction.
+	 *
+	 * NOTE:
+	 * We don't disable the hash type, but stop delivery the hash
+	 * value/type through mbufs on RX path.
+	 *
+	 * XXX If HN_CAP_UDPHASH is set in hn_caps, then UDP 4-tuple
+	 * hash is delivered with type of TCP_IPV4.  This means if
+	 * UDP_IPV4 is enabled, then TCP_IPV4 should be forced, at
+	 * least to hn_mbuf_hash.  However, given that _all_ of the
+	 * NICs implement TCP_IPV4, this will _not_ impose any issues
+	 * here.
+	 */
+	if ((my_types & RSS_TYPE_IPV4) &&
+	    (diff_types & ifrh.ifrh_types &
+	     (RSS_TYPE_TCP_IPV4 | RSS_TYPE_UDP_IPV4))) {
+		/* Conflict; disable IPV4 hash type/value delivery. */
+		if_printf(ifp, "disable IPV4 mbuf hash delivery\n");
+		mbuf_types &= ~RSS_TYPE_IPV4;
+	}
+	if ((my_types & RSS_TYPE_IPV6) &&
+	    (diff_types & ifrh.ifrh_types &
+	     (RSS_TYPE_TCP_IPV6 | RSS_TYPE_UDP_IPV6 |
+	      RSS_TYPE_TCP_IPV6_EX | RSS_TYPE_UDP_IPV6_EX |
+	      RSS_TYPE_IPV6_EX))) {
+		/* Conflict; disable IPV6 hash type/value delivery. */
+		if_printf(ifp, "disable IPV6 mbuf hash delivery\n");
+		mbuf_types &= ~RSS_TYPE_IPV6;
+	}
+	if ((my_types & RSS_TYPE_IPV6_EX) &&
+	    (diff_types & ifrh.ifrh_types &
+	     (RSS_TYPE_TCP_IPV6 | RSS_TYPE_UDP_IPV6 |
+	      RSS_TYPE_TCP_IPV6_EX | RSS_TYPE_UDP_IPV6_EX |
+	      RSS_TYPE_IPV6))) {
+		/* Conflict; disable IPV6_EX hash type/value delivery. */
+		if_printf(ifp, "disable IPV6_EX mbuf hash delivery\n");
+		mbuf_types &= ~RSS_TYPE_IPV6_EX;
+	}
+	if ((my_types & RSS_TYPE_TCP_IPV6) &&
+	    (diff_types & ifrh.ifrh_types & RSS_TYPE_TCP_IPV6_EX)) {
+		/* Conflict; disable TCP_IPV6 hash type/value delivery. */
+		if_printf(ifp, "disable TCP_IPV6 mbuf hash delivery\n");
+		mbuf_types &= ~RSS_TYPE_TCP_IPV6;
+	}
+	if ((my_types & RSS_TYPE_TCP_IPV6_EX) &&
+	    (diff_types & ifrh.ifrh_types & RSS_TYPE_TCP_IPV6)) {
+		/* Conflict; disable TCP_IPV6_EX hash type/value delivery. */
+		if_printf(ifp, "disable TCP_IPV6_EX mbuf hash delivery\n");
+		mbuf_types &= ~RSS_TYPE_TCP_IPV6_EX;
+	}
+	if ((my_types & RSS_TYPE_UDP_IPV6) &&
+	    (diff_types & ifrh.ifrh_types & RSS_TYPE_UDP_IPV6_EX)) {
+		/* Conflict; disable UDP_IPV6 hash type/value delivery. */
+		if_printf(ifp, "disable UDP_IPV6 mbuf hash delivery\n");
+		mbuf_types &= ~RSS_TYPE_UDP_IPV6;
+	}
+	if ((my_types & RSS_TYPE_UDP_IPV6_EX) &&
+	    (diff_types & ifrh.ifrh_types & RSS_TYPE_UDP_IPV6)) {
+		/* Conflict; disable UDP_IPV6_EX hash type/value delivery. */
+		if_printf(ifp, "disable UDP_IPV6_EX mbuf hash delivery\n");
+		mbuf_types &= ~RSS_TYPE_UDP_IPV6_EX;
+	}
+
+	/*
+	 * Indirect table does not matter.
+	 */
+
+	sc->hn_rss_hash = (sc->hn_rss_hcap & NDIS_HASH_FUNCTION_MASK) |
+	    hn_rss_type_tondis(my_types);
+	memcpy(sc->hn_rss.rss_key, ifrk.ifrk_key, sizeof(sc->hn_rss.rss_key));
+	sc->hn_flags |= HN_FLAG_HAS_RSSKEY;
+
+	if (reconf) {
+		error = hn_rss_reconfig(sc);
+		if (error) {
+			/* XXX roll-back? */
+			if_printf(ifp, "hn_rss_reconfig failed: %d\n", error);
+			/* XXX keep going. */
+		}
+	}
+done:
+	/* Hash deliverability for mbufs. */
+	hn_rss_mbuf_hash(sc, hn_rss_type_tondis(mbuf_types));
+}
+
+static void
+hn_vf_rss_restore(struct hn_softc *sc)
+{
+
+	HN_LOCK_ASSERT(sc);
+	KASSERT(sc->hn_flags & HN_FLAG_SYNTH_ATTACHED,
+	    ("%s: synthetic parts are not attached", sc->hn_ifp->if_xname));
+
+	if (sc->hn_rx_ring_inuse == 1)
+		goto done;
+
+	/*
+	 * Restore hash types.  Key does _not_ matter.
+	 */
+	if (sc->hn_rss_hash != sc->hn_rss_hcap) {
+		int error;
+
+		sc->hn_rss_hash = sc->hn_rss_hcap;
+		error = hn_rss_reconfig(sc);
+		if (error) {
+			if_printf(sc->hn_ifp, "hn_rss_reconfig failed: %d\n",
+			    error);
+			/* XXX keep going. */
+		}
+	}
+done:
+	/* Hash deliverability for mbufs. */
+	hn_rss_mbuf_hash(sc, NDIS_HASH_ALL);
+}
+
 static void
 hn_xpnt_vf_setready(struct hn_softc *sc)
 {
@@ -1501,6 +1825,13 @@ hn_xpnt_vf_init(struct hn_softc *sc)
 	 */
 	hn_nvs_set_datapath(sc, HN_NVS_DATAPATH_VF);
 
+	/*
+	 * NOTE:
+	 * Fixup RSS related bits _after_ the VF is brought up, since
+	 * many VFs generate RSS key during it's initialization.
+	 */
+	hn_vf_rss_fixup(sc, true);
+
 	/* Mark transparent mode VF as enabled. */
 	hn_xpnt_vf_setenable(sc);
 }
@@ -1659,7 +1990,8 @@ hn_ifnet_detevent(void *xsc, struct ifnet *ifp)
 		ifp->if_input = sc->hn_vf_input;
 		sc->hn_vf_input = NULL;
 
-		if (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)
+		if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) &&
+		    (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED))
 			hn_nvs_set_datapath(sc, HN_NVS_DATAPATH_SYNTH);
 
 		if (sc->hn_vf_rdytick == 0) {
@@ -1681,11 +2013,18 @@ hn_ifnet_detevent(void *xsc, struct ifnet *ifp)
 			sc->hn_ifp->if_hw_tsomaxsegsize = sc->hn_saved_tsosegsz;
 		}
 
-		/*
-		 * Resume link status management, which was suspended
-		 * by hn_ifnet_attevent().
-		 */
-		hn_resume_mgmt(sc);
+		if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) {
+			/*
+			 * Restore RSS settings.
+			 */
+			hn_vf_rss_restore(sc);
+
+			/*
+			 * Resume link status management, which was suspended
+			 * by hn_ifnet_attevent().
+			 */
+			hn_resume_mgmt(sc);
+		}
 	}
 
 	/* Mark transparent mode VF as disabled. */
@@ -1737,6 +2076,7 @@ hn_attach(device_t dev)
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	struct ifnet *ifp = NULL;
 	int error, ring_cnt, tx_ring_cnt;
+	uint32_t mtu;
 
 	sc->hn_dev = dev;
 	sc->hn_prichan = vmbus_get_channel(dev);
@@ -1893,6 +2233,12 @@ hn_attach(device_t dev)
 	if (error)
 		goto failed;
 
+	error = hn_rndis_get_mtu(sc, &mtu);
+	if (error)
+		mtu = ETHERMTU;
+	else if (bootverbose)
+		device_printf(dev, "RNDIS mtu %u\n", mtu);
+
 #if __FreeBSD_version >= 1100099
 	if (sc->hn_rx_ring_inuse > 1) {
 		/*
@@ -1904,9 +2250,10 @@ hn_attach(device_t dev)
 #endif
 
 	/*
-	 * Fixup TX stuffs after synthetic parts are attached.
+	 * Fixup TX/RX stuffs after synthetic parts are attached.
 	 */
 	hn_fixup_tx_data(sc);
+	hn_fixup_rx_data(sc);
 
 	ctx = device_get_sysctl_ctx(dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
@@ -1935,6 +2282,12 @@ hn_attach(device_t dev)
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rss_hash",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    hn_rss_hash_sysctl, "A", "RSS hash");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rss_hashcap",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    hn_rss_hcap_sysctl, "A", "RSS hash capabilities");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "mbuf_hash",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    hn_rss_mbuf_sysctl, "A", "RSS hash for mbufs");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "rss_ind_size",
 	    CTLFLAG_RD, &sc->hn_rss_ind_size, 0, "RSS indirect entry count");
 #ifndef RSS
@@ -2070,6 +2423,10 @@ hn_attach(device_t dev)
 	if ((ifp->if_capabilities & (IFCAP_TSO6 | IFCAP_TSO4)) && bootverbose) {
 		if_printf(ifp, "TSO segcnt %u segsz %u\n",
 		    ifp->if_hw_tsomaxsegcount, ifp->if_hw_tsomaxsegsize);
+	}
+	if (mtu < ETHERMTU) {
+		if_printf(ifp, "fixup mtu %u -> %u\n", ifp->if_mtu, mtu);
+		ifp->if_mtu = mtu;
 	}
 
 	/* Inform the upper layer about the long frame support. */
@@ -2727,7 +3084,8 @@ hn_encap(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd,
 		    NDIS_LSO2_INFO_SIZE, NDIS_PKTINFO_TYPE_LSO);
 #ifdef INET
 		if (m_head->m_pkthdr.csum_flags & CSUM_IP_TSO) {
-			*pi_data = NDIS_LSO2_INFO_MAKEIPV4(0,
+			*pi_data = NDIS_LSO2_INFO_MAKEIPV4(
+			    m_head->m_pkthdr.l2hlen + m_head->m_pkthdr.l3hlen,
 			    m_head->m_pkthdr.tso_segsz);
 		}
 #endif
@@ -2736,7 +3094,8 @@ hn_encap(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd,
 #endif
 #ifdef INET6
 		{
-			*pi_data = NDIS_LSO2_INFO_MAKEIPV6(0,
+			*pi_data = NDIS_LSO2_INFO_MAKEIPV6(
+			    m_head->m_pkthdr.l2hlen + m_head->m_pkthdr.l3hlen,
 			    m_head->m_pkthdr.tso_segsz);
 		}
 #endif
@@ -2753,11 +3112,15 @@ hn_encap(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd,
 				*pi_data |= NDIS_TXCSUM_INFO_IPCS;
 		}
 
-		if (m_head->m_pkthdr.csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP))
-			*pi_data |= NDIS_TXCSUM_INFO_TCPCS;
-		else if (m_head->m_pkthdr.csum_flags &
-		    (CSUM_IP_UDP | CSUM_IP6_UDP))
-			*pi_data |= NDIS_TXCSUM_INFO_UDPCS;
+		if (m_head->m_pkthdr.csum_flags &
+		    (CSUM_IP_TCP | CSUM_IP6_TCP)) {
+			*pi_data |= NDIS_TXCSUM_INFO_MKTCPCS(
+			    m_head->m_pkthdr.l2hlen + m_head->m_pkthdr.l3hlen);
+		} else if (m_head->m_pkthdr.csum_flags &
+		    (CSUM_IP_UDP | CSUM_IP6_UDP)) {
+			*pi_data |= NDIS_TXCSUM_INFO_MKUDPCS(
+			    m_head->m_pkthdr.l2hlen + m_head->m_pkthdr.l3hlen);
+		}
 	}
 
 	pkt_hlen = pkt->rm_pktinfooffset + pkt->rm_pktinfolen;
@@ -3026,14 +3389,22 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 {
 	struct ifnet *ifp, *hn_ifp = rxr->hn_ifp;
 	struct mbuf *m_new;
-	int size, do_lro = 0, do_csum = 1;
-	int hash_type;
+	int size, do_lro = 0, do_csum = 1, is_vf = 0;
+	int hash_type = M_HASHTYPE_NONE;
+	int l3proto = ETHERTYPE_MAX, l4proto = IPPROTO_DONE;
 
-	/*
-	 * If the non-transparent mode VF is active, inject this packet
-	 * into the VF.
-	 */
-	ifp = rxr->hn_rxvf_ifp ? rxr->hn_rxvf_ifp : hn_ifp;
+	ifp = hn_ifp;
+	if (rxr->hn_rxvf_ifp != NULL) {
+		/*
+		 * Non-transparent mode VF; pretend this packet is from
+		 * the VF.
+		 */
+		ifp = rxr->hn_rxvf_ifp;
+		is_vf = 1;
+	} else if (rxr->hn_rx_flags & HN_RX_FLAG_XPNT_VF) {
+		/* Transparent mode VF. */
+		is_vf = 1;
+	}
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		/*
@@ -3120,31 +3491,9 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 		    (NDIS_RXCSUM_INFO_TCPCS_OK | NDIS_RXCSUM_INFO_IPCS_OK))
 			do_lro = 1;
 	} else {
-		const struct ether_header *eh;
-		uint16_t etype;
-		int hoff;
-
-		hoff = sizeof(*eh);
-		/* Checked at the beginning of this function. */
-		KASSERT(m_new->m_len >= hoff, ("not ethernet frame"));
-
-		eh = mtod(m_new, struct ether_header *);
-		etype = ntohs(eh->ether_type);
-		if (etype == ETHERTYPE_VLAN) {
-			const struct ether_vlan_header *evl;
-
-			hoff = sizeof(*evl);
-			if (m_new->m_len < hoff)
-				goto skip;
-			evl = mtod(m_new, struct ether_vlan_header *);
-			etype = ntohs(evl->evl_proto);
-		}
-
-		if (etype == ETHERTYPE_IP) {
-			int pr;
-
-			pr = hn_check_iplen(m_new, hoff);
-			if (pr == IPPROTO_TCP) {
+		hn_rxpkt_proto(m_new, &l3proto, &l4proto);
+		if (l3proto == ETHERTYPE_IP) {
+			if (l4proto == IPPROTO_TCP) {
 				if (do_csum &&
 				    (rxr->hn_trust_hcsum &
 				     HN_TRUST_HCSUM_TCP)) {
@@ -3155,7 +3504,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 					m_new->m_pkthdr.csum_data = 0xffff;
 				}
 				do_lro = 1;
-			} else if (pr == IPPROTO_UDP) {
+			} else if (l4proto == IPPROTO_UDP) {
 				if (do_csum &&
 				    (rxr->hn_trust_hcsum &
 				     HN_TRUST_HCSUM_UDP)) {
@@ -3165,7 +3514,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 					m_new->m_pkthdr.csum_data = 0xffff;
 				}
-			} else if (pr != IPPROTO_DONE && do_csum &&
+			} else if (l4proto != IPPROTO_DONE && do_csum &&
 			    (rxr->hn_trust_hcsum & HN_TRUST_HCSUM_IP)) {
 				rxr->hn_csum_trusted++;
 				m_new->m_pkthdr.csum_flags |=
@@ -3173,7 +3522,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 			}
 		}
 	}
-skip:
+
 	if (info->vlan_info != HN_NDIS_VLAN_INFO_INVALID) {
 		m_new->m_pkthdr.ether_vtag = EVL_MAKETAG(
 		    NDIS_VLAN_INFO_ID(info->vlan_info),
@@ -3186,16 +3535,6 @@ skip:
 	 * If VF is activated (tranparent/non-transparent mode does not
 	 * matter here).
 	 *
-	 * - Don't setup mbuf hash, if 'options RSS' is set.
-	 *
-	 *   In Azure, when VF is activated, TCP SYN and SYN|ACK go
-	 *   through hn(4) while the rest of segments and ACKs belonging
-	 *   to the same TCP 4-tuple go through the VF.  So don't setup
-	 *   mbuf hash, if a VF is activated and 'options RSS' is not
-	 *   enabled.  hn(4) and the VF may use neither the same RSS
-	 *   hash key nor the same RSS hash function, so the hash value
-	 *   for packets belonging to the same flow could be different!
-	 *
 	 * - Disable LRO
 	 *
 	 *   hn(4) will only receive broadcast packets, multicast packets,
@@ -3206,20 +3545,23 @@ skip:
 	 *   all, since the LRO flush will use hn(4) as the receiving
 	 *   interface; i.e. hn_ifp->if_input(hn_ifp, m).
 	 */
-	if (hn_ifp != ifp || (rxr->hn_rx_flags & HN_RX_FLAG_XPNT_VF)) {
-		do_lro = 0;	/* disable LRO. */
-#ifndef RSS
-		goto skip_hash;	/* skip mbuf hash setup */
-#endif
-	}
+	if (is_vf)
+		do_lro = 0;
 
+	/*
+	 * If VF is activated (tranparent/non-transparent mode does not
+	 * matter here), do _not_ mess with unsupported hash types or
+	 * functions.
+	 */
 	if (info->hash_info != HN_NDIS_HASH_INFO_INVALID) {
 		rxr->hn_rss_pkts++;
 		m_new->m_pkthdr.flowid = info->hash_value;
-		hash_type = M_HASHTYPE_OPAQUE_HASH;
+		if (!is_vf)
+			hash_type = M_HASHTYPE_OPAQUE_HASH;
 		if ((info->hash_info & NDIS_HASH_FUNCTION_MASK) ==
 		    NDIS_HASH_FUNCTION_TOEPLITZ) {
-			uint32_t type = (info->hash_info & NDIS_HASH_TYPE_MASK);
+			uint32_t type = (info->hash_info & NDIS_HASH_TYPE_MASK &
+			    rxr->hn_mbuf_hash);
 
 			/*
 			 * NOTE:
@@ -3235,6 +3577,37 @@ skip:
 
 			case NDIS_HASH_TCP_IPV4:
 				hash_type = M_HASHTYPE_RSS_TCP_IPV4;
+				if (rxr->hn_rx_flags & HN_RX_FLAG_UDP_HASH) {
+					int def_htype = M_HASHTYPE_OPAQUE_HASH;
+
+					if (is_vf)
+						def_htype = M_HASHTYPE_NONE;
+
+					/*
+					 * UDP 4-tuple hash is delivered as
+					 * TCP 4-tuple hash.
+					 */
+					if (l3proto == ETHERTYPE_MAX) {
+						hn_rxpkt_proto(m_new,
+						    &l3proto, &l4proto);
+					}
+					if (l3proto == ETHERTYPE_IP) {
+						if (l4proto == IPPROTO_UDP &&
+						    (rxr->hn_mbuf_hash &
+						     NDIS_HASH_UDP_IPV4_X)) {
+							hash_type =
+							M_HASHTYPE_RSS_UDP_IPV4;
+							do_lro = 0;
+						} else if (l4proto !=
+						    IPPROTO_TCP) {
+							hash_type = def_htype;
+							do_lro = 0;
+						}
+					} else {
+						hash_type = def_htype;
+						do_lro = 0;
+					}
+				}
 				break;
 
 			case NDIS_HASH_IPV6:
@@ -3256,15 +3629,12 @@ skip:
 				break;
 			}
 		}
-	} else {
+	} else if (!is_vf) {
 		m_new->m_pkthdr.flowid = rxr->hn_rx_idx;
 		hash_type = M_HASHTYPE_OPAQUE;
 	}
 	M_HASHTYPE_SET(m_new, hash_type);
 
-#ifndef RSS
-skip_hash:
-#endif
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	if (hn_ifp != ifp) {
 		const struct ether_header *eh;
@@ -3318,6 +3688,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int mask, error = 0;
 	struct ifrsskey *ifrk;
 	struct ifrsshash *ifrh;
+	uint32_t mtu;
 
 	switch (cmd) {
 	case SIOCSIFMTU:
@@ -3381,11 +3752,23 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
+		error = hn_rndis_get_mtu(sc, &mtu);
+		if (error)
+			mtu = ifr->ifr_mtu;
+		else if (bootverbose)
+			if_printf(ifp, "RNDIS mtu %u\n", mtu);
+
 		/*
 		 * Commit the requested MTU, after the synthetic parts
 		 * have been successfully attached.
 		 */
-		ifp->if_mtu = ifr->ifr_mtu;
+		if (mtu >= ifr->ifr_mtu) {
+			mtu = ifr->ifr_mtu;
+		} else {
+			if_printf(ifp, "fixup mtu %d -> %u\n",
+			    ifr->ifr_mtu, mtu);
+		}
+		ifp->if_mtu = mtu;
 
 		/*
 		 * Synthetic parts' reattach may change the chimney
@@ -3589,20 +3972,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifrh->ifrh_func = RSS_FUNC_TOEPLITZ;
 		else
 			ifrh->ifrh_func = RSS_FUNC_PRIVATE;
-
-		ifrh->ifrh_types = 0;
-		if (sc->hn_rss_hash & NDIS_HASH_IPV4)
-			ifrh->ifrh_types |= RSS_TYPE_IPV4;
-		if (sc->hn_rss_hash & NDIS_HASH_TCP_IPV4)
-			ifrh->ifrh_types |= RSS_TYPE_TCP_IPV4;
-		if (sc->hn_rss_hash & NDIS_HASH_IPV6)
-			ifrh->ifrh_types |= RSS_TYPE_IPV6;
-		if (sc->hn_rss_hash & NDIS_HASH_IPV6_EX)
-			ifrh->ifrh_types |= RSS_TYPE_IPV6_EX;
-		if (sc->hn_rss_hash & NDIS_HASH_TCP_IPV6)
-			ifrh->ifrh_types |= RSS_TYPE_TCP_IPV6;
-		if (sc->hn_rss_hash & NDIS_HASH_TCP_IPV6_EX)
-			ifrh->ifrh_types |= RSS_TYPE_TCP_IPV6_EX;
+		ifrh->ifrh_types = hn_rss_type_fromndis(sc->hn_rss_hash);
 		HN_UNLOCK(sc);
 		break;
 
@@ -4154,6 +4524,16 @@ hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error || req->newptr == NULL)
 		goto back;
 
+	if ((sc->hn_flags & HN_FLAG_RXVF) ||
+	    (hn_xpnt_vf && sc->hn_vf_ifp != NULL)) {
+		/*
+		 * RSS key is synchronized w/ VF's, don't allow users
+		 * to change it.
+		 */
+		error = EBUSY;
+		goto back;
+	}
+
 	error = SYSCTL_IN(req, sc->hn_rss.rss_key, sizeof(sc->hn_rss.rss_key));
 	if (error)
 		goto back;
@@ -4214,6 +4594,34 @@ hn_rss_hash_sysctl(SYSCTL_HANDLER_ARGS)
 
 	HN_LOCK(sc);
 	hash = sc->hn_rss_hash;
+	HN_UNLOCK(sc);
+	snprintf(hash_str, sizeof(hash_str), "%b", hash, NDIS_HASH_BITS);
+	return sysctl_handle_string(oidp, hash_str, sizeof(hash_str), req);
+}
+
+static int
+hn_rss_hcap_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	char hash_str[128];
+	uint32_t hash;
+
+	HN_LOCK(sc);
+	hash = sc->hn_rss_hcap;
+	HN_UNLOCK(sc);
+	snprintf(hash_str, sizeof(hash_str), "%b", hash, NDIS_HASH_BITS);
+	return sysctl_handle_string(oidp, hash_str, sizeof(hash_str), req);
+}
+
+static int
+hn_rss_mbuf_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	char hash_str[128];
+	uint32_t hash;
+
+	HN_LOCK(sc);
+	hash = sc->hn_rx_ring[0].hn_mbuf_hash;
 	HN_UNLOCK(sc);
 	snprintf(hash_str, sizeof(hash_str), "%b", hash, NDIS_HASH_BITS);
 	return sysctl_handle_string(oidp, hash_str, sizeof(hash_str), req);
@@ -4450,6 +4858,36 @@ hn_check_iplen(const struct mbuf *m, int hoff)
 	return ip->ip_p;
 }
 
+static void
+hn_rxpkt_proto(const struct mbuf *m_new, int *l3proto, int *l4proto)
+{
+	const struct ether_header *eh;
+	uint16_t etype;
+	int hoff;
+
+	hoff = sizeof(*eh);
+	/* Checked at the beginning of this function. */
+	KASSERT(m_new->m_len >= hoff, ("not ethernet frame"));
+
+	eh = mtod(m_new, const struct ether_header *);
+	etype = ntohs(eh->ether_type);
+	if (etype == ETHERTYPE_VLAN) {
+		const struct ether_vlan_header *evl;
+
+		hoff = sizeof(*evl);
+		if (m_new->m_len < hoff)
+			return;
+		evl = mtod(m_new, const struct ether_vlan_header *);
+		etype = ntohs(evl->evl_proto);
+	}
+	*l3proto = etype;
+
+	if (etype == ETHERTYPE_IP)
+		*l4proto = hn_check_iplen(m_new, hoff);
+	else
+		*l4proto = IPPROTO_DONE;
+}
+
 static int
 hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 {
@@ -4519,6 +4957,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 			rxr->hn_trust_hcsum |= HN_TRUST_HCSUM_UDP;
 		if (hn_trust_hostip)
 			rxr->hn_trust_hcsum |= HN_TRUST_HCSUM_IP;
+		rxr->hn_mbuf_hash = NDIS_HASH_ALL;
 		rxr->hn_ifp = sc->hn_ifp;
 		if (i < sc->hn_tx_ring_cnt)
 			rxr->hn_txr = &sc->hn_tx_ring[i];
@@ -5140,11 +5579,11 @@ hn_fixup_tx_data(struct hn_softc *sc)
 		csum_assist |= CSUM_IP;
 	if (sc->hn_caps & HN_CAP_TCP4CS)
 		csum_assist |= CSUM_IP_TCP;
-	if (sc->hn_caps & HN_CAP_UDP4CS)
+	if ((sc->hn_caps & HN_CAP_UDP4CS) && hn_enable_udp4cs)
 		csum_assist |= CSUM_IP_UDP;
 	if (sc->hn_caps & HN_CAP_TCP6CS)
 		csum_assist |= CSUM_IP6_TCP;
-	if (sc->hn_caps & HN_CAP_UDP6CS)
+	if ((sc->hn_caps & HN_CAP_UDP6CS) && hn_enable_udp6cs)
 		csum_assist |= CSUM_IP6_UDP;
 	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
 		sc->hn_tx_ring[i].hn_csum_assist = csum_assist;
@@ -5157,6 +5596,18 @@ hn_fixup_tx_data(struct hn_softc *sc)
 			if_printf(sc->hn_ifp, "support HASHVAL pktinfo\n");
 		for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
 			sc->hn_tx_ring[i].hn_tx_flags |= HN_TX_FLAG_HASHVAL;
+	}
+}
+
+static void
+hn_fixup_rx_data(struct hn_softc *sc)
+{
+
+	if (sc->hn_caps & HN_CAP_UDPHASH) {
+		int i;
+
+		for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+			sc->hn_rx_ring[i].hn_rx_flags |= HN_RX_FLAG_UDP_HASH;
 	}
 }
 
@@ -5243,6 +5694,13 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
 #if defined(INET6) || defined(INET)
 		if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
 			m_head = hn_tso_fixup(m_head);
+			if (__predict_false(m_head == NULL)) {
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+				continue;
+			}
+		} else if (m_head->m_pkthdr.csum_flags &
+		    (CSUM_IP_UDP | CSUM_IP_TCP | CSUM_IP6_UDP | CSUM_IP6_TCP)) {
+			m_head = hn_set_hlen(m_head);
 			if (__predict_false(m_head == NULL)) {
 				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 				continue;
@@ -5527,11 +5985,18 @@ hn_transmit(struct ifnet *ifp, struct mbuf *m)
 
 #if defined(INET6) || defined(INET)
 	/*
-	 * Perform TSO packet header fixup now, since the TSO
-	 * packet header should be cache-hot.
+	 * Perform TSO packet header fixup or get l2/l3 header length now,
+	 * since packet headers should be cache-hot.
 	 */
 	if (m->m_pkthdr.csum_flags & CSUM_TSO) {
 		m = hn_tso_fixup(m);
+		if (__predict_false(m == NULL)) {
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			return EIO;
+		}
+	} else if (m->m_pkthdr.csum_flags &
+	    (CSUM_IP_UDP | CSUM_IP_TCP | CSUM_IP6_UDP | CSUM_IP6_TCP)) {
+		m = hn_set_hlen(m);
 		if (__predict_false(m == NULL)) {
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return EIO;
@@ -5980,6 +6445,7 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	/* Clear RSS stuffs. */
 	sc->hn_rss_ind_size = 0;
 	sc->hn_rss_hash = 0;
+	sc->hn_rss_hcap = 0;
 
 	/*
 	 * Attach the primary channel _before_ attaching NVS and RNDIS.
@@ -6098,6 +6564,12 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 		hn_rss_ind_fixup(sc);
 	}
 
+	sc->hn_rss_hash = sc->hn_rss_hcap;
+	if ((sc->hn_flags & HN_FLAG_RXVF) ||
+	    (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)) {
+		/* NOTE: Don't reconfigure RSS; will do immediately. */
+		hn_vf_rss_fixup(sc, false);
+	}
 	error = hn_rndis_conf_rss(sc, NDIS_RSS_FLAG_NONE);
 	if (error)
 		goto failed;
@@ -6976,6 +7448,8 @@ hn_sysinit(void *arg __unused)
 {
 	int i;
 
+	hn_udpcs_fixup = counter_u64_alloc(M_WAITOK);
+
 #ifdef HN_IFSTART_SUPPORT
 	/*
 	 * Don't use ifnet.if_start if transparent VF mode is requested;
@@ -7055,5 +7529,7 @@ hn_sysuninit(void *arg __unused)
 	if (hn_vfmap != NULL)
 		free(hn_vfmap, M_DEVBUF);
 	rm_destroy(&hn_vfmap_lock);
+
+	counter_u64_free(hn_udpcs_fixup);
 }
 SYSUNINIT(hn_sysuninit, SI_SUB_DRIVERS, SI_ORDER_SECOND, hn_sysuninit, NULL);

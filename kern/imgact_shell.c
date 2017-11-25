@@ -97,8 +97,7 @@ CTASSERT(MAXSHELLCMDLEN >= MAXINTERP + 3);
  * 6.x branch on May 28, 2005 (matching __FreeBSD_version 600029).
  */
 int
-exec_shell_imgact(imgp)
-	struct image_params *imgp;
+exec_shell_imgact(struct image_params *imgp)
 {
 	const char *image_header = imgp->image_header;
 	const char *ihp, *interpb, *interpe, *maxp, *optb, *opte, *fname;
@@ -125,7 +124,7 @@ exec_shell_imgact(imgp)
 	 * However, we don't know how far into the page the contents are
 	 * valid -- the actual file might be much shorter than the page.
 	 * So find out the file size.
- 	 */
+	 */
 	error = VOP_GETATTR(imgp->vp, &vattr, imgp->proc->p_ucred);
 	if (error)
 		return (error);

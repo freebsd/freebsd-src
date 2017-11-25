@@ -61,7 +61,7 @@ cloudabi64_proc_setregs(struct thread *td, struct image_params *imgp,
 	 * tpidr_el0 to the TCB.
 	 */
 	regs = td->td_frame;
-	regs->tf_x[0] = td->td_retval[0] =
+	regs->tf_x[0] =
 	    stack + roundup(sizeof(cloudabi64_tcb_t), sizeof(register_t));
 	(void)cpu_set_user_tls(td, (void *)stack);
 }

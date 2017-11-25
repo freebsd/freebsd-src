@@ -459,6 +459,46 @@ int mlx5_set_wol(struct mlx5_core_dev *dev, u8 wol_mode)
 }
 EXPORT_SYMBOL_GPL(mlx5_set_wol);
 
+int mlx5_query_dropless_mode(struct mlx5_core_dev *dev, u16 *timeout)
+{
+	u32 in[MLX5_ST_SZ_DW(query_delay_drop_params_in)];
+	u32 out[MLX5_ST_SZ_DW(query_delay_drop_params_out)];
+	int err = 0;
+
+	memset(in, 0, sizeof(in));
+	memset(out, 0, sizeof(out));
+
+	MLX5_SET(query_delay_drop_params_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_DELAY_DROP_PARAMS);
+
+	err = mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
+	if (err)
+		return err;
+
+	*timeout = MLX5_GET(query_delay_drop_params_out, out,
+			    delay_drop_timeout);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_dropless_mode);
+
+int mlx5_set_dropless_mode(struct mlx5_core_dev *dev, u16 timeout)
+{
+	u32 in[MLX5_ST_SZ_DW(set_delay_drop_params_in)];
+	u32 out[MLX5_ST_SZ_DW(set_delay_drop_params_out)];
+
+	memset(in, 0, sizeof(in));
+	memset(out, 0, sizeof(out));
+
+	MLX5_SET(set_delay_drop_params_in, in, opcode,
+		 MLX5_CMD_OP_SET_DELAY_DROP_PARAMS);
+	MLX5_SET(set_delay_drop_params_in, in, delay_drop_timeout, timeout);
+
+	return mlx5_cmd_exec_check_status(dev, in, sizeof(in),
+					   out, sizeof(out));
+}
+EXPORT_SYMBOL_GPL(mlx5_set_dropless_mode);
+
 int mlx5_core_access_pvlc(struct mlx5_core_dev *dev,
 			  struct mlx5_pvlc_reg *pvlc, int write)
 {

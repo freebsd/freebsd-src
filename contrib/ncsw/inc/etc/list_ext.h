@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
+/* Copyright (c) 2008-2012 Freescale Semiconductor, Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 
 /**************************************************************************//**
 
@@ -71,16 +72,16 @@ typedef struct List
 
 
 /**************************************************************************//**
- @Function      NCSW_LIST_FIRST/LIST_LAST/NCSW_LIST_NEXT/NCSW_LIST_PREV
+ @Function      NCSW_LIST_FIRST/NCSW_LIST_LAST/NCSW_LIST_NEXT/NCSW_LIST_PREV
 
  @Description   Macro to get first/last/next/previous entry in a list.
 
  @Param[in]     p_List - A pointer to a list.
 *//***************************************************************************/
 #define NCSW_LIST_FIRST(p_List) (p_List)->p_Next
-#define LIST_LAST(p_List)  (p_List)->p_Prev
+#define NCSW_LIST_LAST(p_List)  (p_List)->p_Prev
 #define NCSW_LIST_NEXT          NCSW_LIST_FIRST
-#define NCSW_LIST_PREV          LIST_LAST
+#define NCSW_LIST_PREV          NCSW_LIST_LAST
 
 
 /**************************************************************************//**
@@ -94,13 +95,13 @@ typedef struct List
 
 
 /**************************************************************************//**
- @Function      LIST
+ @Function      NCSW_LIST
 
  @Description   Macro to declare of a list.
 
  @Param[in]     listName - The list object name.
 *//***************************************************************************/
-#define LIST(listName) t_List listName = NCSW_LIST_INIT(listName)
+#define NCSW_LIST(listName) t_List listName = NCSW_LIST_INIT(listName)
 
 
 /**************************************************************************//**
@@ -110,11 +111,11 @@ typedef struct List
 
  @Param[in]     p_List - The list pointer.
 *//***************************************************************************/
-#define INIT_LIST(p_List)   NCSW_LIST_FIRST(p_List) = LIST_LAST(p_List) = (p_List)
+#define INIT_LIST(p_List)   NCSW_LIST_FIRST(p_List) = NCSW_LIST_LAST(p_List) = (p_List)
 
 
 /**************************************************************************//**
- @Function      LIST_OBJECT
+ @Function      NCSW_LIST_OBJECT
 
  @Description   Macro to get the struct (object) for this entry.
 
@@ -124,12 +125,12 @@ typedef struct List
  @Return        The structure pointer for this entry.
 *//***************************************************************************/
 #define MEMBER_OFFSET(type, member) (PTR_TO_UINT(&((type *)0)->member))
-#define LIST_OBJECT(p_List, type, member) \
+#define NCSW_LIST_OBJECT(p_List, type, member) \
     ((type *)((char *)(p_List)-MEMBER_OFFSET(type, member)))
 
 
 /**************************************************************************//**
- @Function      LIST_FOR_EACH
+ @Function      NCSW_LIST_FOR_EACH
 
  @Description   Macro to iterate over a list.
 
@@ -137,14 +138,14 @@ typedef struct List
  @Param[in]     p_Head - A pointer to the head for your list pointer.
 
  @Cautions      You can't delete items with this routine.
-                For deletion use LIST_FOR_EACH_SAFE().
+                For deletion use NCSW_LIST_FOR_EACH_SAFE().
 *//***************************************************************************/
-#define LIST_FOR_EACH(p_Pos, p_Head) \
+#define NCSW_LIST_FOR_EACH(p_Pos, p_Head) \
     for (p_Pos = NCSW_LIST_FIRST(p_Head); p_Pos != (p_Head); p_Pos = NCSW_LIST_NEXT(p_Pos))
 
 
 /**************************************************************************//**
- @Function      LIST_FOR_EACH_SAFE
+ @Function      NCSW_LIST_FOR_EACH_SAFE
 
  @Description   Macro to iterate over a list safe against removal of list entry.
 
@@ -152,14 +153,14 @@ typedef struct List
  @Param[in]     p_Tmp  - Another pointer to a list to use as temporary storage.
  @Param[in]     p_Head - A pointer to the head for your list pointer.
 *//***************************************************************************/
-#define LIST_FOR_EACH_SAFE(p_Pos, p_Tmp, p_Head)                \
+#define NCSW_LIST_FOR_EACH_SAFE(p_Pos, p_Tmp, p_Head)                \
     for (p_Pos = NCSW_LIST_FIRST(p_Head), p_Tmp = NCSW_LIST_FIRST(p_Pos); \
          p_Pos != (p_Head);                                     \
          p_Pos = p_Tmp, p_Tmp = NCSW_LIST_NEXT(p_Pos))
 
 
 /**************************************************************************//**
- @Function      LIST_FOR_EACH_OBJECT_SAFE
+ @Function      NCSW_LIST_FOR_EACH_OBJECT_SAFE
 
  @Description   Macro to iterate over list of given type safely.
 
@@ -170,17 +171,17 @@ typedef struct List
  @Param[in]     member - The name of the list_struct within the struct.
 
  @Cautions      You can't delete items with this routine.
-                For deletion use LIST_FOR_EACH_SAFE().
+                For deletion use NCSW_LIST_FOR_EACH_SAFE().
 *//***************************************************************************/
-#define LIST_FOR_EACH_OBJECT_SAFE(p_Pos, p_Tmp, p_Head, type, member)      \
-    for (p_Pos = LIST_OBJECT(NCSW_LIST_FIRST(p_Head), type, member),            \
-         p_Tmp = LIST_OBJECT(NCSW_LIST_FIRST(&p_Pos->member), type, member);    \
+#define NCSW_LIST_FOR_EACH_OBJECT_SAFE(p_Pos, p_Tmp, p_Head, type, member)      \
+    for (p_Pos = NCSW_LIST_OBJECT(NCSW_LIST_FIRST(p_Head), type, member),            \
+         p_Tmp = NCSW_LIST_OBJECT(NCSW_LIST_FIRST(&p_Pos->member), type, member);    \
          &p_Pos->member != (p_Head);                                       \
          p_Pos = p_Tmp,                                                    \
-         p_Tmp = LIST_OBJECT(NCSW_LIST_FIRST(&p_Pos->member), type, member))
+         p_Tmp = NCSW_LIST_OBJECT(NCSW_LIST_FIRST(&p_Pos->member), type, member))
 
 /**************************************************************************//**
- @Function      LIST_FOR_EACH_OBJECT
+ @Function      NCSW_LIST_FOR_EACH_OBJECT
 
  @Description   Macro to iterate over list of given type.
 
@@ -190,16 +191,16 @@ typedef struct List
  @Param[in]     member - The name of the list_struct within the struct.
 
  @Cautions      You can't delete items with this routine.
-                For deletion use LIST_FOR_EACH_SAFE().
+                For deletion use NCSW_LIST_FOR_EACH_SAFE().
 *//***************************************************************************/
-#define LIST_FOR_EACH_OBJECT(p_Pos, type, p_Head, member)                  \
-    for (p_Pos = LIST_OBJECT(NCSW_LIST_FIRST(p_Head), type, member);            \
+#define NCSW_LIST_FOR_EACH_OBJECT(p_Pos, type, p_Head, member)                  \
+    for (p_Pos = NCSW_LIST_OBJECT(NCSW_LIST_FIRST(p_Head), type, member);            \
          &p_Pos->member != (p_Head);                                       \
-         p_Pos = LIST_OBJECT(NCSW_LIST_FIRST(&(p_Pos->member)), type, member))
+         p_Pos = NCSW_LIST_OBJECT(NCSW_LIST_FIRST(&(p_Pos->member)), type, member))
 
 
 /**************************************************************************//**
- @Function      LIST_Add
+ @Function      NCSW_LIST_Add
 
  @Description   Add a new entry to a list.
 
@@ -211,7 +212,7 @@ typedef struct List
 
  @Return        none.
 *//***************************************************************************/
-static __inline__ void LIST_Add(t_List *p_New, t_List *p_Head)
+static __inline__ void NCSW_LIST_Add(t_List *p_New, t_List *p_Head)
 {
     NCSW_LIST_PREV(NCSW_LIST_NEXT(p_Head)) = p_New;
     NCSW_LIST_NEXT(p_New)             = NCSW_LIST_NEXT(p_Head);
@@ -221,7 +222,7 @@ static __inline__ void LIST_Add(t_List *p_New, t_List *p_Head)
 
 
 /**************************************************************************//**
- @Function      LIST_AddToTail
+ @Function      NCSW_LIST_AddToTail
 
  @Description   Add a new entry to a list.
 
@@ -229,11 +230,11 @@ static __inline__ void LIST_Add(t_List *p_New, t_List *p_Head)
                 This is useful for implementing queues.
 
  @Param[in]     p_New  - A pointer to a new list entry to be added.
- @Param[in]     p_Head - A pointer to a list head to add it after.
+ @Param[in]     p_Head - A pointer to a list head to add it before.
 
  @Return        none.
 *//***************************************************************************/
-static __inline__ void LIST_AddToTail(t_List *p_New, t_List *p_Head)
+static __inline__ void NCSW_LIST_AddToTail(t_List *p_New, t_List *p_Head)
 {
     NCSW_LIST_NEXT(NCSW_LIST_PREV(p_Head)) = p_New;
     NCSW_LIST_PREV(p_New)             = NCSW_LIST_PREV(p_Head);
@@ -243,7 +244,7 @@ static __inline__ void LIST_AddToTail(t_List *p_New, t_List *p_Head)
 
 
 /**************************************************************************//**
- @Function      LIST_Del
+ @Function      NCSW_LIST_Del
 
  @Description   Deletes entry from a list.
 
@@ -251,10 +252,10 @@ static __inline__ void LIST_AddToTail(t_List *p_New, t_List *p_Head)
 
  @Return        none.
 
- @Cautions      LIST_IsEmpty() on entry does not return true after this,
+ @Cautions      NCSW_LIST_IsEmpty() on entry does not return true after this,
                 the entry is in an undefined state.
 *//***************************************************************************/
-static __inline__ void LIST_Del(t_List *p_Entry)
+static __inline__ void NCSW_LIST_Del(t_List *p_Entry)
 {
     NCSW_LIST_PREV(NCSW_LIST_NEXT(p_Entry)) = NCSW_LIST_PREV(p_Entry);
     NCSW_LIST_NEXT(NCSW_LIST_PREV(p_Entry)) = NCSW_LIST_NEXT(p_Entry);
@@ -262,7 +263,7 @@ static __inline__ void LIST_Del(t_List *p_Entry)
 
 
 /**************************************************************************//**
- @Function      LIST_DelAndInit
+ @Function      NCSW_LIST_DelAndInit
 
  @Description   Deletes entry from list and reinitialize it.
 
@@ -270,15 +271,15 @@ static __inline__ void LIST_Del(t_List *p_Entry)
 
  @Return        none.
 *//***************************************************************************/
-static __inline__ void LIST_DelAndInit(t_List *p_Entry)
+static __inline__ void NCSW_LIST_DelAndInit(t_List *p_Entry)
 {
-    LIST_Del(p_Entry);
+    NCSW_LIST_Del(p_Entry);
     INIT_LIST(p_Entry);
 }
 
 
 /**************************************************************************//**
- @Function      LIST_Move
+ @Function      NCSW_LIST_Move
 
  @Description   Delete from one list and add as another's head.
 
@@ -287,15 +288,15 @@ static __inline__ void LIST_DelAndInit(t_List *p_Entry)
 
  @Return        none.
 *//***************************************************************************/
-static __inline__ void LIST_Move(t_List *p_Entry, t_List *p_Head)
+static __inline__ void NCSW_LIST_Move(t_List *p_Entry, t_List *p_Head)
 {
-    LIST_Del(p_Entry);
-    LIST_Add(p_Entry, p_Head);
+    NCSW_LIST_Del(p_Entry);
+    NCSW_LIST_Add(p_Entry, p_Head);
 }
 
 
 /**************************************************************************//**
- @Function      LIST_MoveToTail
+ @Function      NCSW_LIST_MoveToTail
 
  @Description   Delete from one list and add as another's tail.
 
@@ -304,15 +305,15 @@ static __inline__ void LIST_Move(t_List *p_Entry, t_List *p_Head)
 
  @Return        none.
 *//***************************************************************************/
-static __inline__ void LIST_MoveToTail(t_List *p_Entry, t_List *p_Head)
+static __inline__ void NCSW_LIST_MoveToTail(t_List *p_Entry, t_List *p_Head)
 {
-    LIST_Del(p_Entry);
-    LIST_AddToTail(p_Entry, p_Head);
+    NCSW_LIST_Del(p_Entry);
+    NCSW_LIST_AddToTail(p_Entry, p_Head);
 }
 
 
 /**************************************************************************//**
- @Function      LIST_IsEmpty
+ @Function      NCSW_LIST_IsEmpty
 
  @Description   Tests whether a list is empty.
 
@@ -320,14 +321,14 @@ static __inline__ void LIST_MoveToTail(t_List *p_Entry, t_List *p_Head)
 
  @Return        1 if the list is empty, 0 otherwise.
 *//***************************************************************************/
-static __inline__ int LIST_IsEmpty(t_List *p_List)
+static __inline__ int NCSW_LIST_IsEmpty(t_List *p_List)
 {
     return (NCSW_LIST_FIRST(p_List) == p_List);
 }
 
 
 /**************************************************************************//**
- @Function      LIST_Append
+ @Function      NCSW_LIST_Append
 
  @Description   Join two lists.
 
@@ -336,11 +337,11 @@ static __inline__ int LIST_IsEmpty(t_List *p_List)
 
  @Return        none.
 *//***************************************************************************/
-void LIST_Append(t_List *p_NewList, t_List *p_Head);
+void NCSW_LIST_Append(t_List *p_NewList, t_List *p_Head);
 
 
 /**************************************************************************//**
- @Function      LIST_NumOfObjs
+ @Function      NCSW_LIST_NumOfObjs
 
  @Description   Counts number of objects in the list
 
@@ -348,7 +349,7 @@ void LIST_Append(t_List *p_NewList, t_List *p_Head);
 
  @Return        Number of objects in the list.
 *//***************************************************************************/
-int LIST_NumOfObjs(t_List *p_List);
+int NCSW_LIST_NumOfObjs(t_List *p_List);
 
 /** @} */ /* end of list_id group */
 /** @} */ /* end of etc_id group */

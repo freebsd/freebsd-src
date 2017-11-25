@@ -1426,8 +1426,9 @@ native_lapic_enable_mca_elvt(void)
 
 	value = lapic_read32(LAPIC_EXT_LVT0 + APIC_ELVT_MCA);
 	if ((value & APIC_LVT_M) == 0) {
-		printf("AMD MCE Thresholding Extended LVT is already active\n");
-		return (-1);
+		if (bootverbose)
+			printf("AMD MCE Thresholding Extended LVT is already active\n");
+		return (APIC_ELVT_MCA);
 	}
 	lapics[apic_id].la_elvts[APIC_ELVT_MCA].lvt_masked = 0;
 	lapics[apic_id].la_elvts[APIC_ELVT_MCA].lvt_active = 1;

@@ -81,7 +81,6 @@ typedef enum {
  */
 struct pfs_info;
 struct pfs_node;
-struct pfs_bitmap;
 
 /*
  * Init / uninit callback
@@ -120,8 +119,6 @@ struct vattr;
 #define PFS_ATTR_PROTO(name) \
 	int name(PFS_ATTR_ARGS);
 typedef int (*pfs_attr_t)(PFS_ATTR_ARGS);
-
-struct pfs_bitmap;		/* opaque */
 
 /*
  * Visibility callback

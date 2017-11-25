@@ -77,10 +77,17 @@ static void read_sge_ctxt(struct cudbg_init *pdbg_init, u32 cid,
 	struct adapter *padap = pdbg_init->adap;
 	int rc = -1;
 
-	if (is_fw_attached(pdbg_init))
+	if (is_fw_attached(pdbg_init)) {
+		rc = begin_synchronized_op(padap, NULL, SLEEP_OK | INTR_OK,
+		    "t4cudf");
+		if (rc != 0)
+			goto out;
 		rc = t4_sge_ctxt_rd(padap, padap->mbox, cid, ctype,
 				    data);
+		end_synchronized_op(padap, 0);
+	}
 
+out:
 	if (rc)
 		t4_sge_ctxt_rd_bd(padap, cid, ctype, data);
 }
@@ -2720,7 +2727,12 @@ static void cudbg_t4_fwcache(struct cudbg_init *pdbg_init,
 	if (is_fw_attached(pdbg_init)) {
 
 		/* Flush uP dcache before reading edcX/mcX  */
-		rc = t4_fwcache(padap, FW_PARAM_DEV_FWCACHE_FLUSH);
+		rc = begin_synchronized_op(padap, NULL, SLEEP_OK | INTR_OK,
+		    "t4cudl");
+		if (rc == 0) {
+			rc = t4_fwcache(padap, FW_PARAM_DEV_FWCACHE_FLUSH);
+			end_synchronized_op(padap, 0);
+		}
 
 		if (rc) {
 			if (pdbg_init->verbose)
@@ -3331,6 +3343,9 @@ static int collect_tid(struct cudbg_init *pdbg_init,
 	para[5] = FW_PARAM_PFVF_A(SERVER_START);
 	para[6] = FW_PARAM_PFVF_A(SERVER_END);
 
+	rc = begin_synchronized_op(padap, NULL, SLEEP_OK | INTR_OK, "t4cudq");
+	if (rc)
+		goto err;
 	mbox = padap->mbox;
 	pf = padap->pf;
 	rc = t4_query_params(padap, mbox, pf, 0, 7, para, val);
@@ -3417,6 +3432,7 @@ static int collect_tid(struct cudbg_init *pdbg_init,
 	rc = compress_buff(&scratch_buff, dbg_buff);
 
 err1:
+	end_synchronized_op(padap, 0);
 	release_scratch_buff(&scratch_buff, dbg_buff);
 err:
 	return rc;
@@ -3602,8 +3618,13 @@ static int collect_mps_tcam(struct cudbg_init *pdbg_init,
 				htons(V_FW_LDST_CMD_FID(FW_LDST_MPS_RPLC) |
 				      V_FW_LDST_CMD_IDX(i));
 
-			rc = t4_wr_mbox(padap, padap->mbox, &ldst_cmd,
-					sizeof(ldst_cmd), &ldst_cmd);
+			rc = begin_synchronized_op(padap, NULL,
+			    SLEEP_OK | INTR_OK, "t4cudm");
+			if (rc == 0) {
+				rc = t4_wr_mbox(padap, padap->mbox, &ldst_cmd,
+						sizeof(ldst_cmd), &ldst_cmd);
+				end_synchronized_op(padap, 0);
+			}
 
 			if (rc)
 				mps_rpl_backdoor(padap, &mps_rplc);

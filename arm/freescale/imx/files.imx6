@@ -22,7 +22,7 @@ arm/freescale/imx/imx_machdep.c		standard
 arm/freescale/imx/imx_gpt.c		optional imx_gpt
 arm/freescale/imx/imx_gpio.c		optional gpio
 arm/freescale/imx/imx_i2c.c		optional fsliic
-arm/freescale/imx/imx6_sdma.c		optional sdma
+arm/freescale/imx/imx6_sdma.c		optional fslsdma
 arm/freescale/imx/imx6_audmux.c		optional sound
 arm/freescale/imx/imx6_ssi.c		optional sound
 arm/freescale/imx/imx6_ahci.c		optional ahci

@@ -804,11 +804,8 @@ exec_linux_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
 
-	mtx_lock(&dt_lock);
 	if (td->td_proc->p_md.md_ldt != NULL)
 		user_ldt_free(td);
-	else
-		mtx_unlock(&dt_lock);
 
 	critical_enter();
 	wrmsr(MSR_FSBASE, 0);
@@ -835,7 +832,6 @@ exec_linux_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 	/* Do full restore on return so that we can change to a different %cs */
 	set_pcb_flags(pcb, PCB_32BIT | PCB_FULL_IRET);
-	td->td_retval[1] = 0;
 }
 
 /*

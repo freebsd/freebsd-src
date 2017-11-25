@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
+#include <contrib/ncsw/inc/integrations/dpaa_integration_ext.h>
 #include <contrib/ncsw/inc/Peripherals/fm_mac_ext.h>
 #include <contrib/ncsw/inc/Peripherals/fm_port_ext.h>
 #include <contrib/ncsw/inc/xx_ext.h>
@@ -66,6 +67,10 @@ __FBSDID("$FreeBSD$");
 #include "if_dtsec_im.h"
 #include "if_dtsec_rm.h"
 
+#define	DTSEC_MIN_FRAME_SIZE	64
+#define	DTSEC_MAX_FRAME_SIZE	9600
+
+#define	DTSEC_REG_MAXFRM	0x110
 
 /**
  * @group dTSEC private defines.
@@ -187,7 +192,7 @@ dtsec_fm_mac_init(struct dtsec_softc *sc, uint8_t *mac)
 	memset(&params, 0, sizeof(params));
 	memcpy(&params.addr, mac, sizeof(params.addr));
 
-	params.baseAddr = sc->sc_fm_base + sc->sc_mac_mem_offset;
+	params.baseAddr = rman_get_bushandle(sc->sc_mem);
 	params.enetMode = sc->sc_mac_enet_mode;
 	params.macId = sc->sc_eth_id;
 	params.mdioIrq = sc->sc_mac_mdio_irq;
@@ -320,6 +325,22 @@ dtsec_fm_port_free_both(struct dtsec_softc *sc)
  * @{
  */
 static int
+dtsec_set_mtu(struct dtsec_softc *sc, unsigned int mtu)
+{
+
+	mtu += ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + ETHER_CRC_LEN;
+
+	DTSEC_LOCK_ASSERT(sc);
+
+	if (mtu >= DTSEC_MIN_FRAME_SIZE && mtu <= DTSEC_MAX_FRAME_SIZE) {
+		bus_write_4(sc->sc_mem, DTSEC_REG_MAXFRM, mtu);
+		return (mtu);
+	}
+
+	return (0);
+}
+
+static int
 dtsec_if_enable_locked(struct dtsec_softc *sc)
 {
 	int error;
@@ -383,6 +404,14 @@ dtsec_if_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	/* Basic functionality to achieve media status reports */
 	switch (command) {
+	case SIOCSIFMTU:
+		DTSEC_LOCK(sc);
+		if (dtsec_set_mtu(sc, ifr->ifr_mtu))
+			ifp->if_mtu = ifr->ifr_mtu;
+		else
+			error = EINVAL;
+		DTSEC_UNLOCK(sc);
+		break;
 	case SIOCSIFFLAGS:
 		DTSEC_LOCK(sc);
 
@@ -568,15 +597,15 @@ int
 dtsec_attach(device_t dev)
 {
 	struct dtsec_softc *sc;
+	device_t parent;
 	int error;
 	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
 
+	parent = device_get_parent(dev);
 	sc->sc_dev = dev;
 	sc->sc_mac_mdio_irq = NO_IRQ;
-	sc->sc_eth_id = device_get_unit(dev);
-
 
 	/* Check if MallocSmart allocator is ready */
 	if (XX_MallocSmartInit() != E_OK)
@@ -593,13 +622,13 @@ dtsec_attach(device_t dev)
 	callout_init(&sc->sc_tick_callout, CALLOUT_MPSAFE);
 
 	/* Read configuraton */
-	if ((error = fman_get_handle(&sc->sc_fmh)) != 0)
+	if ((error = fman_get_handle(parent, &sc->sc_fmh)) != 0)
 		return (error);
 
-	if ((error = fman_get_muram_handle(&sc->sc_muramh)) != 0)
+	if ((error = fman_get_muram_handle(parent, &sc->sc_muramh)) != 0)
 		return (error);
 
-	if ((error = fman_get_bushandle(&sc->sc_fm_base)) != 0)
+	if ((error = fman_get_bushandle(parent, &sc->sc_fm_base)) != 0)
 		return (error);
 
 	/* Configure working mode */
@@ -677,7 +706,7 @@ dtsec_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = TSEC_TX_NUM_DESC - 1;
 	IFQ_SET_READY(&ifp->if_snd);
 #endif
-	ifp->if_capabilities = 0; /* TODO: Check */
+	ifp->if_capabilities = IFCAP_JUMBO_MTU; /* TODO: HWCSUM */
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Attach PHY(s) */

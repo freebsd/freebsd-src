@@ -1,4 +1,157 @@
 ----------------------------------------
+10 November 2017. Summary of changes for version 20171110:
+
+
+1) ACPICA kernel-resident subsystem:
+
+This release implements full support for ACPI 6.2A:
+    NFIT - Added a new subtable, "Platform Capabilities Structure"
+No other changes to ACPICA were required, since ACPI 6.2A is primarily an 
+errata release of the specification.
+
+Other ACPI table changes:
+    IORT: Added the SMMUv3 Device ID mapping index. Hanjun Guo
+    PPTT: Added cache attribute flag definitions to actbl1.h. Jeremy 
+Linton
+
+Utilities: Modified the string/integer conversion functions to use 
+internal 64-bit divide support instead of a native divide. On 32-bit 
+platforms, a 64-bit divide typically requires a library function which 
+may not be present in the build (kernel or otherwise).
+
+Implemented a targeted error message for timeouts returned from the 
+Embedded Controller device driver. This is seen frequently enough to 
+special-case an AE_TIME returned from an EC operation region access:
+    "Timeout from EC hardware or EC device driver"
+
+Changed the "ACPI Exception" message prefix to "ACPI Error" so that all 
+runtime error messages have the identical prefix.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+AcpiXtract: Fixed a problem with table header detection within the 
+acpidump file. Processing a table could be ended early if a 0x40 (@) 
+appears in the original binary table, resulting in the @ symbol appearing 
+in the decoded ASCII field at the end of the acpidump text line. The 
+symbol caused acpixtract to incorrectly think it had reached the end of 
+the current table and the beginning of a new table.
+
+AcpiXtract: Added an option (-f) to ignore some errors during table 
+extraction. This initial implementation ignores non-ASCII and non-
+printable characters found in the acpidump text file.
+
+TestSuite(ASLTS)/AcpiExec: Fixed and restored the memory usage statistics 
+for ASLTS. This feature is used to track memory allocations from 
+different memory caches within the ACPICA code. At the end of an ASLTS 
+run, these memory statistics are recorded and stored in a log file.
+
+Debugger (user-space version): Implemented a simple "Background" command. 
+Creates a new thread to execute a control method in the background, while 
+control returns to the debugger prompt to allow additional commands.
+    Syntax: Background <Namepath> [Arguments]
+
+----------------------------------------
+29 September 2017. Summary of changes for version 20170929:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Redesigned and implemented an improved ASL While() loop timeout 
+mechanism. This mechanism is used to prevent infinite loops in the kernel 
+AML interpreter caused by either non-responsive hardware or incorrect AML 
+code. The new implementation uses AcpiOsGetTimer instead of a simple 
+maximum loop count, and is thus more accurate and constant across 
+different machines. The default timeout is currently 30 seconds, but this 
+may be adjusted later.
+
+Renamed the ACPI_AML_INFINITE_LOOP exception to AE_AML_LOOP_TIMEOUT to 
+better reflect the new implementation of the loop timeout mechanism.
+
+Updated the AcpiGetTimerDuration interface to cleanup the 64-bit support 
+and to fix an off-by-one error. Jung-uk Kim.
+
+Fixed an EFI build problem by updating the makefiles to for a new file 
+that was added, utstrsuppt.c
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Implemented full support for the PDTT, SDEV, and TPM2 ACPI tables. This 
+includes support in the table disassembler, compiler, and template 
+generator.
+
+iASL: Added an exception for an illegal type of recursive method 
+invocation. If a method creates named objects, the first recursive call 
+will fail at runtime. This change adds an error detection at compile time 
+to catch the problem up front. Note: Marking such a method as 
+"serialized" will not help with this problem, because the same thread can 
+acquire the method mutex more than once. Example compiler and runtime 
+output:
+
+    Method (MTH1)
+    {
+        Name (INT1, 1)
+        MTH1 ()
+    }
+
+    dsdt.asl     22: MTH1 ()
+    Error    6152 -  ^ Illegal recursive call to method
+                       that creates named objects (MTH1)
+
+Previous runtime exception:
+    ACPI Error: [INT1] Namespace lookup failure,
+    AE_ALREADY_EXISTS (20170831/dswload2-465)
+
+iASL: Updated support for External() opcodes to improve namespace 
+management and error detection. These changes are related to issues seen 
+with multiple-segment namespace pathnames within External declarations, 
+such as below:
+
+    External(\_SB.PCI0.GFX0, DeviceObj)
+    External(\_SB.PCI0.GFX0.ALSI)
+
+iASL: Implemented support for multi-line error/warning messages. This 
+enables more detailed and helpful error messages as below, from the 
+initial deployment for the duplicate names error:
+
+    DSDT.iiii   1692:       Device(PEG2) {
+    Error    6074 -                  ^ Name already exists in scope 
+(PEG2)
+
+        Original name creation/declaration below:
+        DSDT.iiii     93:   External(\_SB.PCI0.PEG2, DeviceObj)
+
+AcpiXtract: Added additional flexibility to support differing input hex 
+dump formats. Specifically, hex dumps that contain partial disassembly 
+and/or comments within the ACPI table data definition. There exist some 
+dump utilities seen in the field that create this type of hex dump (such 
+as Simics). For example:
+
+    DSDT @ 0xdfffd0c0 (10999 bytes)
+        Signature DSDT
+        Length 10999
+        Revision 1
+        Checksum 0xf3 (Ok)
+        OEM_ID BXPC
+        OEM_table_id BXDSDT
+        OEM_revision 1
+        Creator_id 1280593481
+        Creator_revision 537399345
+      0000: 44 53 44 54 f7 2a 00 00 01 f3 42 58 50 43 00 00
+      ...
+      2af0: 5f 4c 30 46 00 a4 01
+
+Test suite: Miscellaneous changes/fixes:
+    More cleanup and simplification of makefiles
+    Continue compilation of test cases after a compile failure
+    Do not perform binary compare unless both files actually exist
+
+iASL: Performed some code/module restructuring. Moved all memory 
+allocation functions to new modules. Two new files, aslallocate.c and 
+aslcache.c
+
+----------------------------------------
 31 August 2017. Summary of changes for version 20170831:
 
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -86,7 +88,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *, struct sctp_tcb *,
     struct sockaddr *, struct sockaddr *,
     struct sctphdr *, struct sctp_init_chunk *,
     uint8_t, uint32_t,
-    uint32_t, uint16_t, int);
+    uint32_t, uint16_t);
 
 struct mbuf *
 sctp_arethere_unrecognized_parameters(struct mbuf *, int, int *,

@@ -193,9 +193,9 @@ ah_init0(struct secasvar *sav, struct xformsw *xsp, struct cryptoini *cria)
 		return EINVAL;
 	}
 	keylen = _KEYLEN(sav->key_auth);
-	if (keylen != thash->keysize && thash->keysize != 0) {
+	if (keylen > thash->keysize && thash->keysize != 0) {
 		DPRINTF(("%s: invalid keylength %d, algorithm %s requires "
-			"keysize %d\n", __func__,
+			"keysize less than %d\n", __func__,
 			 keylen, thash->name, thash->keysize));
 		return EINVAL;
 	}
@@ -657,6 +657,8 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	/* Crypto operation descriptor. */
 	crp->crp_ilen = m->m_pkthdr.len; /* Total input length. */
 	crp->crp_flags = CRYPTO_F_IMBUF | CRYPTO_F_CBIFSYNC;
+	if (V_async_crypto)
+		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
 	crp->crp_buf = (caddr_t) m;
 	crp->crp_callback = ah_input_cb;
 	crp->crp_sid = cryptoid;
@@ -1033,6 +1035,8 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	/* Crypto operation descriptor. */
 	crp->crp_ilen = m->m_pkthdr.len; /* Total input length. */
 	crp->crp_flags = CRYPTO_F_IMBUF | CRYPTO_F_CBIFSYNC;
+	if (V_async_crypto)
+		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
 	crp->crp_buf = (caddr_t) m;
 	crp->crp_callback = ah_output_cb;
 	crp->crp_sid = cryptoid;

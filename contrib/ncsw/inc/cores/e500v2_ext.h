@@ -1,5 +1,5 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
- * All rights reserved.
+/*
+ * Copyright 2008-2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,6 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 /**************************************************************************//**
  @File          e500v2_ext.h
 
@@ -58,6 +59,8 @@ void        L1DCache_Disable(void);
 void        L1ICache_Disable(void);
 void        L1DCache_Flush(void);
 void        L1ICache_Flush(void);
+uint32_t    L1ICache_IsEnabled(void);
+uint32_t    L1DCache_IsEnabled(void);
 /*
  *
  */
@@ -193,6 +196,7 @@ typedef enum e_E500mcL2CacheMode
     e_L2_CACHE_MODE_DATA_AND_INST  = 0x00000003    /**< Cache data and instructions */
 } e_E500mcL2CacheMode;
 
+#if defined(CORE_E500MC) || defined(CORE_E5500)
 /**************************************************************************//**
  @Function      E500_L2CacheEnable
 
@@ -237,6 +241,65 @@ void E500_L2CacheFlush(void);
  @Return        None.
 *//***************************************************************************/
 void E500_L2SetStashId(uint8_t stashId);
+#endif /* defined(CORE_E500MC) || defined(CORE_E5500) */
+
+#ifdef CORE_E6500
+/**************************************************************************//**
+ @Function      E6500_L2CacheEnable
+
+ @Description   Enables the cache for memory pages that are not cache inhibited.
+
+ @param[in]     mode - L2 cache mode: support data & instruction only.
+
+ @Return        None.
+
+ @Cautions      This routine must be call only ONCE for both caches. I.e. it is
+                not possible to call this routine for i-cache and than to call
+                again for d-cache; The second call will override the first one.
+*//***************************************************************************/
+void E6500_L2CacheEnable(uintptr_t clusterBase);
+
+/**************************************************************************//**
+ @Function      E6500_L2CacheDisable
+
+ @Description   Disables the cache (data instruction or both).
+
+ @Return        None.
+
+*//***************************************************************************/
+void E6500_L2CacheDisable(uintptr_t clusterBase);
+
+/**************************************************************************//**
+ @Function      E6500_L2CacheFlush
+
+ @Description   Flushes the cache.
+
+ @Return        None.
+*//***************************************************************************/
+void E6500_L2CacheFlush(uintptr_t clusterBase);
+
+/**************************************************************************//**
+ @Function      E6500_L2SetStashId
+
+ @Description   Set Stash Id
+
+ @Param[in]     stashId     the stash id to be set.
+
+ @Return        None.
+*//***************************************************************************/
+void E6500_L2SetStashId(uintptr_t clusterBase, uint8_t stashId);
+
+/**************************************************************************//**
+ @Function      E6500_GetCcsrBase
+
+ @Description   Obtain SoC CCSR base address
+
+ @Param[in]     None.
+
+ @Return        Physical CCSR base address.
+*//***************************************************************************/
+physAddress_t E6500_GetCcsrBase(void);
+#endif /* CORE_E6500 */
 
 /**************************************************************************//**
  @Function      E500_AddressBusStreamingEnable
@@ -374,9 +437,9 @@ int E500_TestAndSet(volatile int *p);
 *//***************************************************************************/
 static __inline__ void E500_MemoryBarrier(void)
 {
-#ifdef CORE_E500MC
+#ifndef CORE_E500V2
     __asm__ ("mbar 1");
-#else
+#else  /* CORE_E500V2 */
     /**** ERRATA WORK AROUND START ****/
     /* ERRATA num:  CPU1 */
     /* Description: "mbar MO = 1" instruction fails to order caching-inhibited
@@ -387,7 +450,7 @@ static __inline__ void E500_MemoryBarrier(void)
     __asm__ ("msync");
 
     /**** ERRATA WORK AROUND END ****/
-#endif
+#endif /* CORE_E500V2 */
 }
 
 /**************************************************************************//**

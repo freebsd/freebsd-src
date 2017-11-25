@@ -1412,6 +1412,8 @@ semexit_myhook(void *arg, struct proc *p)
 	 * Go through the chain of undo vectors looking for one
 	 * associated with this process.
 	 */
+	if (LIST_EMPTY(&semu_list))
+		return;
 	SEMUNDO_LOCK();
 	LIST_FOREACH(suptr, &semu_list, un_next) {
 		if (suptr->un_proc == p)

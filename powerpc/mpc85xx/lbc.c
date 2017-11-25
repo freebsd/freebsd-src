@@ -651,8 +651,8 @@ lbc_attach(device_t dev)
 			free(di, M_LBC);
 			continue;
 		}
-		debugf("added child name='%s', node=%p\n", di->di_ofw.obd_name,
-		    (void *)child);
+		debugf("added child name='%s', node=%x\n", di->di_ofw.obd_name,
+		    child);
 		device_set_ivars(cdev, di);
 	}
 

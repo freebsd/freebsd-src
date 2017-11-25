@@ -607,24 +607,6 @@ linux_cdev_handle_free(struct vm_area_struct *vmap)
 	kfree(vmap);
 }
 
-static struct vm_area_struct *
-linux_cdev_handle_insert(void *handle, struct vm_area_struct *vmap)
-{
-	struct vm_area_struct *ptr;
-
-	rw_wlock(&linux_vma_lock);
-	TAILQ_FOREACH(ptr, &linux_vma_head, vm_entry) {
-		if (ptr->vm_private_data == handle) {
-			rw_wunlock(&linux_vma_lock);
-			linux_cdev_handle_free(vmap);
-			return (NULL);
-		}
-	}
-	TAILQ_INSERT_TAIL(&linux_vma_head, vmap, vm_entry);
-	rw_wunlock(&linux_vma_lock);
-	return (vmap);
-}
-
 static void
 linux_cdev_handle_remove(struct vm_area_struct *vmap)
 {
@@ -745,8 +727,6 @@ linux_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	int error;
 
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (0);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -879,8 +859,6 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	int error;
 
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -906,7 +884,20 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		/* fetch user-space pointer */
 		data = *(void **)data;
 	}
-	if (filp->f_op->unlocked_ioctl)
+#if defined(__amd64__)
+	if (td->td_proc->p_elf_machine == EM_386) {
+		/* try the compat IOCTL handler first */
+		if (filp->f_op->compat_ioctl != NULL)
+			error = -filp->f_op->compat_ioctl(filp, cmd, (u_long)data);
+		else
+			error = ENOTTY;
+
+		/* fallback to the regular IOCTL handler, if any */
+		if (error == ENOTTY && filp->f_op->unlocked_ioctl != NULL)
+			error = -filp->f_op->unlocked_ioctl(filp, cmd, (u_long)data);
+	} else
+#endif
+	if (filp->f_op->unlocked_ioctl != NULL)
 		error = -filp->f_op->unlocked_ioctl(filp, cmd, (u_long)data);
 	else
 		error = ENOTTY;
@@ -935,8 +926,6 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 
 	td = curthread;
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -977,8 +966,6 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 	td = curthread;
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -1008,6 +995,8 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	return (error);
 }
 
+#define	LINUX_POLL_TABLE_NORMAL ((poll_table *)1)
+
 static int
 linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 {
@@ -1015,8 +1004,6 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	struct file *file;
 	int revents;
 
-	if (dev->si_drv1 == NULL)
-		goto error;
 	if (devfs_get_cdevpriv((void **)&filp) != 0)
 		goto error;
 
@@ -1024,7 +1011,7 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	filp->f_flags = file->f_flag;
 	linux_set_current(td);
 	if (filp->f_op->poll != NULL)
-		revents = filp->f_op->poll(filp, NULL) & events;
+		revents = filp->f_op->poll(filp, LINUX_POLL_TABLE_NORMAL) & events;
 	else
 		revents = 0;
 
@@ -1081,7 +1068,9 @@ linux_poll_wait(struct linux_file *filp, wait_queue_head_t *wqh, poll_table *p)
 		[LINUX_FWQ_STATE_READY] = LINUX_FWQ_STATE_QUEUED,
 	};
 
-	selrecord(curthread, &filp->f_selinfo);
+	/* check if we are called inside the select system call */
+	if (p == LINUX_POLL_TABLE_NORMAL)
+		selrecord(curthread, &filp->f_selinfo);
 
 	switch (linux_poll_wakeup_state(&filp->f_wait_queue.state, state)) {
 	case LINUX_FWQ_STATE_INIT:
@@ -1216,8 +1205,6 @@ linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
 
 	td = curthread;
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -1268,8 +1255,6 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 
 	td = curthread;
 	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENODEV);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -1315,20 +1300,55 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	attr = pgprot2cachemode(vmap->vm_page_prot);
 
 	if (vmap->vm_ops != NULL) {
+		struct vm_area_struct *ptr;
 		void *vm_private_data;
+		bool vm_no_fault;
 
 		if (vmap->vm_ops->open == NULL ||
 		    vmap->vm_ops->close == NULL ||
 		    vmap->vm_private_data == NULL) {
+			/* free allocated VM area struct */
 			linux_cdev_handle_free(vmap);
 			return (EINVAL);
 		}
 
 		vm_private_data = vmap->vm_private_data;
 
-		vmap = linux_cdev_handle_insert(vm_private_data, vmap);
+		rw_wlock(&linux_vma_lock);
+		TAILQ_FOREACH(ptr, &linux_vma_head, vm_entry) {
+			if (ptr->vm_private_data == vm_private_data)
+				break;
+		}
+		/* check if there is an existing VM area struct */
+		if (ptr != NULL) {
+			/* check if the VM area structure is invalid */
+			if (ptr->vm_ops == NULL ||
+			    ptr->vm_ops->open == NULL ||
+			    ptr->vm_ops->close == NULL) {
+				error = ESTALE;
+				vm_no_fault = 1;
+			} else {
+				error = EEXIST;
+				vm_no_fault = (ptr->vm_ops->fault == NULL);
+			}
+		} else {
+			/* insert VM area structure into list */
+			TAILQ_INSERT_TAIL(&linux_vma_head, vmap, vm_entry);
+			error = 0;
+			vm_no_fault = (vmap->vm_ops->fault == NULL);
+		}
+		rw_wunlock(&linux_vma_lock);
 
-		if (vmap->vm_ops->fault == NULL) {
+		if (error != 0) {
+			/* free allocated VM area struct */
+			linux_cdev_handle_free(vmap);
+			/* check for stale VM area struct */
+			if (error != EEXIST)
+				return (error);
+		}
+
+		/* check if there is no fault handler */
+		if (vm_no_fault) {
 			*object = cdev_pager_allocate(vm_private_data, OBJT_DEVICE,
 			    &linux_cdev_pager_ops[1], size, nprot, *offset,
 			    curthread->td_ucred);
@@ -1338,9 +1358,14 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 			    curthread->td_ucred);
 		}
 
+		/* check if allocating the VM object failed */
 		if (*object == NULL) {
-			linux_cdev_handle_remove(vmap);
-			linux_cdev_handle_free(vmap);
+			if (error == 0) {
+				/* remove VM area struct from list */
+				linux_cdev_handle_remove(vmap);
+				/* free allocated VM area struct */
+				linux_cdev_handle_free(vmap);
+			}
 			return (EINVAL);
 		}
 	} else {
@@ -1425,10 +1450,9 @@ linux_file_poll(struct file *file, int events, struct ucred *active_cred,
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
 	linux_set_current(td);
-	if (filp->f_op->poll != NULL) {
-		selrecord(td, &filp->f_selinfo);
-		revents = filp->f_op->poll(filp, NULL) & events;
-	} else
+	if (filp->f_op->poll != NULL)
+		revents = filp->f_op->poll(filp, LINUX_POLL_TABLE_NORMAL) & events;
+	else
 		revents = 0;
 
 	return (revents);

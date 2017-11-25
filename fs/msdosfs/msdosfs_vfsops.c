@@ -75,6 +75,10 @@
 #include <fs/msdosfs/fat.h>
 #include <fs/msdosfs/msdosfsmount.h>
 
+#ifdef MSDOSFS_DEBUG
+#include <sys/rwlock.h>
+#endif
+
 static const char msdosfs_lock_msg[] = "fatlk";
 
 /* Mount options that we support. */

@@ -410,7 +410,7 @@ AslDoDisassembly (
 
     Gbl_Files[ASL_FILE_INPUT].Filename = NULL;
 
-    CmDeleteCaches ();
+    UtDeleteLocalCaches ();
     return (AE_OK);
 }
 
@@ -453,7 +453,7 @@ AslDoOneFile (
     /* Take a copy of the input filename, convert any backslashes */
 
     Gbl_Files[ASL_FILE_INPUT].Filename =
-        UtStringCacheCalloc (strlen (Filename) + 1);
+        UtLocalCacheCalloc (strlen (Filename) + 1);
 
     strcpy (Gbl_Files[ASL_FILE_INPUT].Filename, Filename);
     UtConvertBackslashes (Gbl_Files[ASL_FILE_INPUT].Filename);

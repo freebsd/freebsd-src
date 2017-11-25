@@ -54,8 +54,11 @@ static device_method_t fman_methods[] = {
 
 	DEVMETHOD(device_shutdown,	fman_shutdown),
 	DEVMETHOD(device_suspend,	fman_suspend),
-	DEVMETHOD(device_resume,	fman_resume),
+	DEVMETHOD(device_resume,	fman_resume_dev),
 
+	DEVMETHOD(bus_alloc_resource,	fman_alloc_resource),
+	DEVMETHOD(bus_activate_resource,	fman_activate_resource),
+	DEVMETHOD(bus_release_resource,	fman_release_resource),
 	{ 0, 0 }
 };
 

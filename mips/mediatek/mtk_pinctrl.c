@@ -169,6 +169,9 @@ mtk_pinctrl_configure(device_t dev, phandle_t cfgxref)
 	socid = mtk_soc_get_socid();
 
 	switch (socid) {
+	case MTK_SOC_RT2880:
+		pintable = rt2880_pintable;
+		break;
 	case MTK_SOC_RT3050: /* fallthrough */
 	case MTK_SOC_RT3052:
 	case MTK_SOC_RT3350:

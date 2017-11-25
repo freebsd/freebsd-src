@@ -172,7 +172,7 @@ sw1:
 	 * to load up the rest of the next context.
 	 */
 
-	/* Skip loading user fsbase/gsbase for kthreads */
+	/* Skip loading LDT and user fsbase/gsbase for kthreads */
 	testl	$TDP_KTHREAD,TD_PFLAGS(%r12)
 	jnz	do_kthread
 

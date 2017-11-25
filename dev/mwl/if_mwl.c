@@ -2522,12 +2522,12 @@ mwl_rxbuf_init(struct mwl_softc *sc, struct mwl_rxbuf *bf)
 }
 
 static void
-mwl_ext_free(struct mbuf *m, void *data, void *arg)
+mwl_ext_free(struct mbuf *m)
 {
-	struct mwl_softc *sc = arg;
+	struct mwl_softc *sc = m->m_ext.ext_arg1;
 
 	/* XXX bounds check data */
-	mwl_putrxdma(sc, data);
+	mwl_putrxdma(sc, m->m_ext.ext_buf);
 	/*
 	 * If we were previously blocked by a lack of rx dma buffers
 	 * check if we now have enough to restart rx interrupt handling.
@@ -2746,8 +2746,8 @@ mwl_rx_proc(void *arg, int npending)
 		 * descriptor using the replacement dma
 		 * buffer we just installed above.
 		 */
-		MEXTADD(m, data, MWL_AGGR_SIZE, mwl_ext_free,
-		    data, sc, 0, EXT_NET_DRV);
+		m_extadd(m, data, MWL_AGGR_SIZE, mwl_ext_free, sc, NULL, 0,
+		    EXT_NET_DRV);
 		m->m_data += off - hdrlen;
 		m->m_pkthdr.len = m->m_len = pktlen;
 		/* NB: dma buffer assumed read-only */

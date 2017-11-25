@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1998 Matthew Dillon.  All Rights Reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -82,7 +84,7 @@ typedef struct blist {
 	daddr_t		bl_blocks;	/* area of coverage		*/
 	u_daddr_t	bl_radix;	/* coverage radix		*/
 	daddr_t		bl_cursor;	/* next-fit search starts at	*/
-	blmeta_t	*bl_root;	/* root of radix tree		*/
+	blmeta_t	bl_root[1];	/* root of radix tree		*/
 } *blist_t;
 
 #define BLIST_META_RADIX	16

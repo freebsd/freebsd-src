@@ -56,7 +56,6 @@ uint64_t *vm_page_dump;
 int vm_page_dump_size;
 
 static struct kerneldumpheader kdh;
-static off_t dumplo;
 
 /* Handle chunked writes. */
 static size_t fragsz;
@@ -93,8 +92,7 @@ blk_flush(struct dumperinfo *di)
 	if (fragsz == 0)
 		return (0);
 
-	error = dump_write(di, dump_va, 0, dumplo, fragsz);
-	dumplo += fragsz;
+	error = dump_append(di, dump_va, 0, fragsz);
 	fragsz = 0;
 	return (error);
 }
@@ -177,10 +175,9 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		wdog_kern_pat(WD_LASTVAL);
 
 		if (ptr) {
-			error = dump_write(di, ptr, 0, dumplo, len);
+			error = dump_append(di, ptr, 0, len);
 			if (error)
 				return (error);
-			dumplo += len;
 			ptr += len;
 			sz -= len;
 		} else {
@@ -333,7 +330,7 @@ minidumpsys(struct dumperinfo *di)
 	printf("Dumping %llu out of %ju MB:", (long long)dumpsize >> 20,
 	    ptoa((uintmax_t)physmem) / 1048576);
 
-	error = dump_start(di, &kdh, &dumplo);
+	error = dump_start(di, &kdh);
 	if (error != 0)
 		goto fail;
 
@@ -419,7 +416,7 @@ minidumpsys(struct dumperinfo *di)
 	if (error)
 		goto fail;
 
-	error = dump_finish(di, &kdh, dumplo);
+	error = dump_finish(di, &kdh);
 	if (error != 0)
 		goto fail;
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -42,9 +44,7 @@ typedef const unsigned long	*culp;
  * bcmp -- vax cmpc3 instruction
  */
 int
-bcmp(b1, b2, length)
-	const void *b1, *b2;
-	size_t length;
+bcmp(const void *b1, const void *b2, size_t length)
 {
 #if BYTE_ORDER == LITTLE_ENDIAN
 	/*

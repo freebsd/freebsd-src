@@ -124,7 +124,7 @@ static struct mtx mca_lock;
 
 #ifdef DEV_APIC
 static struct cmc_state **cmc_state;		/* Indexed by cpuid, bank. */
-static struct amd_et_state *amd_et_state;	/* Indexed by cpuid. */
+static struct amd_et_state **amd_et_state;	/* Indexed by cpuid, bank. */
 static int cmc_throttle = 60;	/* Time in seconds to throttle CMCI. */
 
 static int amd_elvt = -1;
@@ -645,9 +645,7 @@ amd_thresholding_update(enum scan_mode mode, int bank, int valid)
 	int new_threshold;
 	int count;
 
-	KASSERT(bank == MC_AMDNB_BANK,
-	    ("%s: unexpected bank %d", __func__, bank));
-	cc = &amd_et_state[PCPU_GET(cpuid)];
+	cc = &amd_et_state[PCPU_GET(cpuid)][bank];
 	misc = rdmsr(MSR_MC_MISC(bank));
 	count = (misc & MC_MISC_AMD_CNT_MASK) >> MC_MISC_AMD_CNT_SHIFT;
 	count = count - (MC_MISC_AMD_CNT_MAX - cc->cur_threshold);
@@ -841,9 +839,13 @@ cmci_setup(void)
 static void
 amd_thresholding_setup(void)
 {
+	int i;
 
-	amd_et_state = malloc((mp_maxid + 1) * sizeof(struct amd_et_state),
-	    M_MCA, M_WAITOK | M_ZERO);
+	amd_et_state = malloc((mp_maxid + 1) * sizeof(struct amd_et_state *),
+	    M_MCA, M_WAITOK);
+	for (i = 0; i <= mp_maxid; i++)
+		amd_et_state[i] = malloc(sizeof(struct amd_et_state) *
+		    mca_banks, M_MCA, M_WAITOK | M_ZERO);
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "cmc_throttle", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    &cmc_throttle, 0, sysctl_positive_int, "I",
@@ -964,44 +966,59 @@ cmci_resume(int i)
 	wrmsr(MSR_MC_CTL2(i), ctl);
 }
 
+/*
+ * Apply an AMD ET configuration to the corresponding MSR.
+ */
 static void
-amd_thresholding_start(struct amd_et_state *cc)
+amd_thresholding_start(struct amd_et_state *cc, int bank)
 {
 	uint64_t misc;
 
 	KASSERT(amd_elvt >= 0, ("ELVT offset is not set"));
-	misc = rdmsr(MSR_MC_MISC(MC_AMDNB_BANK));
+
+	misc = rdmsr(MSR_MC_MISC(bank));
+
 	misc &= ~MC_MISC_AMD_INT_MASK;
 	misc |= MC_MISC_AMD_INT_LVT;
+
 	misc &= ~MC_MISC_AMD_LVT_MASK;
 	misc |= (uint64_t)amd_elvt << MC_MISC_AMD_LVT_SHIFT;
+
 	misc &= ~MC_MISC_AMD_CNT_MASK;
 	misc |= (uint64_t)(MC_MISC_AMD_CNT_MAX - cc->cur_threshold)
 	    << MC_MISC_AMD_CNT_SHIFT;
+
 	misc &= ~MC_MISC_AMD_OVERFLOW;
 	misc |= MC_MISC_AMD_CNTEN;
 
-	wrmsr(MSR_MC_MISC(MC_AMDNB_BANK), misc);
+	wrmsr(MSR_MC_MISC(bank), misc);
 }
 
 static void
-amd_thresholding_init(void)
+amd_thresholding_monitor(int i)
 {
 	struct amd_et_state *cc;
 	uint64_t misc;
 
-	/* The counter must be valid and present. */
-	misc = rdmsr(MSR_MC_MISC(MC_AMDNB_BANK));
-	if ((misc & (MC_MISC_AMD_VAL | MC_MISC_AMD_CNTP)) !=
-	    (MC_MISC_AMD_VAL | MC_MISC_AMD_CNTP)) {
-		printf("%s: 0x%jx: !valid | !present\n", __func__,
-		    (uintmax_t)misc);
+	/*
+	 * Kludge: On 10h, banks after 4 are not thresholding but also may have
+	 * bogus Valid bits.  Skip them.  This is definitely fixed in 15h, but
+	 * I have not investigated whether it is fixed in earlier models.
+	 */
+	if (CPUID_TO_FAMILY(cpu_id) < 0x15 && i >= 5)
 		return;
-	}
+
+	/* The counter must be valid and present. */
+	misc = rdmsr(MSR_MC_MISC(i));
+	if ((misc & (MC_MISC_AMD_VAL | MC_MISC_AMD_CNTP)) !=
+	    (MC_MISC_AMD_VAL | MC_MISC_AMD_CNTP))
+		return;
 
 	/* The register should not be locked. */
 	if ((misc & MC_MISC_AMD_LOCK) != 0) {
-		printf("%s: 0x%jx: locked\n", __func__, (uintmax_t)misc);
+		if (bootverbose)
+			printf("%s: 0x%jx: Bank %d: locked\n", __func__,
+			    (uintmax_t)misc, i);
 		return;
 	}
 
@@ -1010,8 +1027,9 @@ amd_thresholding_init(void)
 	 * has already claimed it.
 	 */
 	if ((misc & MC_MISC_AMD_CNTEN) != 0) {
-		printf("%s: 0x%jx: count already enabled\n", __func__,
-		    (uintmax_t)misc);
+		if (bootverbose)
+			printf("%s: 0x%jx: Bank %d: already enabled\n",
+			    __func__, (uintmax_t)misc, i);
 		return;
 	}
 
@@ -1022,35 +1040,39 @@ amd_thresholding_init(void)
 	 */
 	amd_elvt = lapic_enable_mca_elvt();
 	if (amd_elvt < 0) {
-		printf("%s: lapic enable mca elvt failed: %d\n", __func__, amd_elvt);
+		printf("%s: Bank %d: lapic enable mca elvt failed: %d\n",
+		    __func__, i, amd_elvt);
 		return;
 	}
 
 	/* Re-use Intel CMC support infrastructure. */
 	if (bootverbose)
-		printf("%s: Starting AMD thresholding\n", __func__);
+		printf("%s: Starting AMD thresholding on bank %d\n", __func__,
+		    i);
 
-	cc = &amd_et_state[PCPU_GET(cpuid)];
+	cc = &amd_et_state[PCPU_GET(cpuid)][i];
 	cc->cur_threshold = 1;
-	amd_thresholding_start(cc);
+	amd_thresholding_start(cc, i);
 
-	/* Mark the NB bank as monitored. */
-	PCPU_SET(cmci_mask, PCPU_GET(cmci_mask) | 1 << MC_AMDNB_BANK);
+	/* Mark this bank as monitored. */
+	PCPU_SET(cmci_mask, PCPU_GET(cmci_mask) | 1 << i);
 }
 
 static void
-amd_thresholding_resume(void)
+amd_thresholding_resume(int i)
 {
 	struct amd_et_state *cc;
 
-	/* Nothing to do if this CPU doesn't monitor the NB bank. */
-	if ((PCPU_GET(cmci_mask) & 1 << MC_AMDNB_BANK) == 0)
+	KASSERT(i < mca_banks, ("CPU %d has more MC banks", PCPU_GET(cpuid)));
+
+	/* Ignore banks not monitored by this CPU. */
+	if (!(PCPU_GET(cmci_mask) & 1 << i))
 		return;
 
-	cc = &amd_et_state[PCPU_GET(cpuid)];
+	cc = &amd_et_state[PCPU_GET(cpuid)][i];
 	cc->last_intr = 0;
 	cc->cur_threshold = 1;
-	amd_thresholding_start(cc);
+	amd_thresholding_start(cc, i);
 }
 #endif
 
@@ -1063,7 +1085,9 @@ _mca_init(int boot)
 {
 	uint64_t mcg_cap;
 	uint64_t ctl, mask;
-	int i, skip;
+	int i, skip, family;
+
+	family = CPUID_TO_FAMILY(cpu_id);
 
 	/* MCE is required. */
 	if (!mca_enabled || !(cpu_feature & CPUID_MCE))
@@ -1087,8 +1111,8 @@ _mca_init(int boot)
 		 * is no performance penalty to this workaround.  However,
 		 * L1TP errors will go unreported.
 		 */
-		if (cpu_vendor_id == CPU_VENDOR_AMD &&
-		    CPUID_TO_FAMILY(cpu_id) == 0x10 && !amd10h_L1TP) {
+		if (cpu_vendor_id == CPU_VENDOR_AMD && family == 0x10 &&
+		    !amd10h_L1TP) {
 			mask = rdmsr(MSR_MC0_CTL_MASK);
 			if ((mask & (1UL << 5)) == 0)
 				wrmsr(MSR_MC0_CTL_MASK, mask | (1UL << 5));
@@ -1103,12 +1127,12 @@ _mca_init(int boot)
 				 * For P6 models before Nehalem MC0_CTL is
 				 * always enabled and reserved.
 				 */
-				if (i == 0 && CPUID_TO_FAMILY(cpu_id) == 0x6
+				if (i == 0 && family == 0x6
 				    && CPUID_TO_MODEL(cpu_id) < 0x1a)
 					skip = 1;
 			} else if (cpu_vendor_id == CPU_VENDOR_AMD) {
 				/* BKDG for Family 10h: unset GartTblWkEn. */
-				if (i == 4 && CPUID_TO_FAMILY(cpu_id) >= 0xf)
+				if (i == MC_AMDNB_BANK && family >= 0xf)
 					ctl &= ~(1UL << 10);
 			}
 
@@ -1121,6 +1145,11 @@ _mca_init(int boot)
 					cmci_monitor(i);
 				else
 					cmci_resume(i);
+			} else if (amd_thresholding_supported()) {
+				if (boot)
+					amd_thresholding_monitor(i);
+				else
+					amd_thresholding_resume(i);
 			}
 #endif
 
@@ -1129,26 +1158,9 @@ _mca_init(int boot)
 		}
 
 #ifdef DEV_APIC
-		/*
-		 * AMD Processors from families 10h - 16h provide support
-		 * for Machine Check Error Thresholding.
-		 * The processors support counters of MC errors and they
-		 * can be configured to generate an interrupt when a counter
-		 * overflows.
-		 * The counters are all associated with Bank 4 and each
-		 * of them covers a group of errors reported via that bank.
-		 * At the moment only the DRAM Error Threshold Group is
-		 * supported.
-		 */
-		if (amd_thresholding_supported() &&
-		    (mcg_cap & MCG_CAP_COUNT) >= 4) {
-			if (boot)
-				amd_thresholding_init();
-			else
-				amd_thresholding_resume();
-		} else if (PCPU_GET(cmci_mask) != 0 && boot) {
+		if (!amd_thresholding_supported() &&
+		    PCPU_GET(cmci_mask) != 0 && boot)
 			lapic_enable_cmc();
-		}
 #endif
 	}
 

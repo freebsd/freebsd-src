@@ -131,5 +131,6 @@ extern const struct iwm_cfg iwm3165_cfg;
 extern const struct iwm_cfg iwm7265_cfg;
 extern const struct iwm_cfg iwm7265d_cfg;
 extern const struct iwm_cfg iwm8260_cfg;
+extern const struct iwm_cfg iwm8265_cfg;
 
 #endif /* __IWM_CONFIG_H__ */

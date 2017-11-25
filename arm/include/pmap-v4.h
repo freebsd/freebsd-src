@@ -356,6 +356,7 @@ extern int pmap_needs_pte_sync;
 #endif /* ARM_NMMUS > 1 */
 
 #if defined(CPU_XSCALE_81342)
+#define CPU_XSCALE_CORE3
 #define PMAP_NEEDS_PTE_SYNC	1
 #define PMAP_INCLUDE_PTE_SYNC
 #else

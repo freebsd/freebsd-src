@@ -46,6 +46,7 @@ extern	u_int	amd_feature;
 extern	u_int	amd_feature2;
 extern	u_int	amd_rascap;
 extern	u_int	amd_pminfo;
+extern	u_int	amd_extended_feature_extensions;
 extern	u_int	via_feature_rng;
 extern	u_int	via_feature_xcrypt;
 extern	u_int	cpu_clflush_line_size;

@@ -1,5 +1,5 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
- * All rights reserved.
+/*
+ * Copyright 2008-2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,6 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 /****************************************************************
  *
  * File:  mm.h
@@ -55,7 +56,7 @@
     (((uint64_t)(addr) + ((align) - 1)) & (~(((uint64_t)align) - 1)))
 
 
-/* t_MemBlock data stucutre defines parameters of the Memory Block */
+/* t_MemBlock data structure defines parameters of the Memory Block */
 typedef struct t_MemBlock
 {
     struct t_MemBlock *p_Next;      /* Pointer to the next memory block */
@@ -65,7 +66,7 @@ typedef struct t_MemBlock
 } t_MemBlock;
 
 
-/* t_FreeBlock data stucutre defines parameters of the Free Block */
+/* t_FreeBlock data structure defines parameters of the Free Block */
 typedef struct t_FreeBlock
 {
     struct t_FreeBlock *p_Next;     /* Pointer to the next free block */
@@ -75,7 +76,7 @@ typedef struct t_FreeBlock
 } t_FreeBlock;
 
 
-/* t_BusyBlock data stucutre defines parameters of the Busy Block  */
+/* t_BusyBlock data structure defines parameters of the Busy Block  */
 typedef struct t_BusyBlock
 {
     struct t_BusyBlock *p_Next;         /* Pointer to the next free block */
@@ -90,11 +91,14 @@ typedef struct t_BusyBlock
 /* t_MM data structure defines parameters of the MM object */
 typedef struct t_MM
 {
+    t_Handle        h_Spinlock;
+
     t_MemBlock      *memBlocks;     /* List of memory blocks (Memory list) */
     t_BusyBlock     *busyBlocks;    /* List of busy blocks (Busy list) */
     t_FreeBlock     *freeBlocks[MM_MAX_ALIGNMENT + 1];
                                     /* Alignment lists of free blocks (Free lists) */
-    t_Handle        h_Spinlock;
+
+    uint64_t        freeMemSize;    /* Total size of free memory (in bytes) */
 } t_MM;
 
 

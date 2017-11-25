@@ -130,7 +130,7 @@ pqmdio_fdt_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	fman_get_bushandle(&sc->sc_handle);
+	fman_get_bushandle(device_get_parent(dev), &sc->sc_handle);
 	bus_get_resource(dev, SYS_RES_MEMORY, 0, &start, &count);
 	sc->sc_offset = start;
 

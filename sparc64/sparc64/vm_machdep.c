@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986 The Regents of the University of California.
  * Copyright (c) 1989, 1990 William Jolitz
  * Copyright (c) 1994 John Dyson
@@ -394,24 +396,16 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, u_int8_t *flags, int wait)
 {
 	vm_paddr_t pa;
 	vm_page_t m;
-	int pflags;
 	void *va;
 
 	PMAP_STATS_INC(uma_nsmall_alloc);
 
 	*flags = UMA_SLAB_PRIV;
-	pflags = malloc2vm_flags(wait) | VM_ALLOC_WIRED;
 
-	for (;;) {
-		m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
-		if (m == NULL) {
-			if (wait & M_NOWAIT)
-				return (NULL);
-			else
-				VM_WAIT;
-		} else
-			break;
-	}
+	m = vm_page_alloc(NULL, 0, 
+	    malloc2vm_flags(wait) | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ);
+	if (m == NULL)
+		return (NULL);
 
 	pa = VM_PAGE_TO_PHYS(m);
 	if (dcache_color_ignore == 0 && m->md.color != DCACHE_COLOR(pa)) {

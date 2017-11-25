@@ -1308,18 +1308,17 @@ cfiscsi_session_delete(struct cfiscsi_session *cs)
 	KASSERT(TAILQ_EMPTY(&cs->cs_waiting_for_data_out),
 	    ("destroying session with non-empty queue"));
 
+	mtx_lock(&softc->lock);
+	TAILQ_REMOVE(&softc->sessions, cs, cs_next);
+	mtx_unlock(&softc->lock);
+
 	cfiscsi_session_unregister_initiator(cs);
 	if (cs->cs_target != NULL)
 		cfiscsi_target_release(cs->cs_target);
 	icl_conn_close(cs->cs_conn);
 	icl_conn_free(cs->cs_conn);
-
-	mtx_lock(&softc->lock);
-	TAILQ_REMOVE(&softc->sessions, cs, cs_next);
-	cv_signal(&softc->sessions_cv);
-	mtx_unlock(&softc->lock);
-
 	free(cs, M_CFISCSI);
+	cv_signal(&softc->sessions_cv);
 }
 
 static int

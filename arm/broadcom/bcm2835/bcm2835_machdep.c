@@ -133,7 +133,8 @@ static platform_method_t bcm2835_methods[] = {
 
 	PLATFORMMETHOD_END,
 };
-FDT_PLATFORM_DEF(bcm2835, "bcm2835", 0, "raspberrypi,model-b", 100);
+FDT_PLATFORM_DEF2(bcm2835, bcm2835_legacy, "bcm2835 (legacy)", 0, "raspberrypi,model-b", 100);
+FDT_PLATFORM_DEF2(bcm2835, bcm2835, "bcm2835", 0, "brcm,bcm2835", 100);
 #endif
 
 #ifdef SOC_BCM2836
@@ -149,5 +150,6 @@ static platform_method_t bcm2836_methods[] = {
 
 	PLATFORMMETHOD_END,
 };
-FDT_PLATFORM_DEF(bcm2836, "bcm2836", 0, "brcm,bcm2709", 100);
+FDT_PLATFORM_DEF2(bcm2836, bcm2836_legacy, "bcm2836 (legacy)", 0, "brcm,bcm2709", 100);
+FDT_PLATFORM_DEF2(bcm2836, bcm2836, "bcm2836", 0, "brcm,bcm2836", 100);
 #endif

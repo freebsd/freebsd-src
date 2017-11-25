@@ -5,6 +5,8 @@
  *  University of Utah, Department of Computer Science
  */
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -992,6 +994,7 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	}
 #ifdef EXT2FS_DEBUG
 	ext2_print_inode(ip);
+	ext4_ext_print_extent_tree_status(ip);
 #endif
 	bqrelse(bp);
 

@@ -35,13 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
-#include <sys/timeet.h>
-#include <sys/timetc.h>
-#include <sys/watchdog.h>
 #include <sys/fbio.h>
 #include <sys/consio.h>
-#include <sys/eventhandler.h>
-#include <sys/gpio.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -58,8 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/vt/colors/vt_termcolors.h>
 
 #include <powerpc/mpc85xx/mpc85xx.h>
-
-#include "gpio_if.h"
 
 #include <machine/bus.h>
 #include <machine/cpu.h>

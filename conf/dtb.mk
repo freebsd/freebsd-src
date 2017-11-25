@@ -47,7 +47,7 @@ SYSDIR=	${_dir:tA}
 
 .SUFFIXES: .dtb .dts
 
-.PATH: ${SYSDIR}/gnu/dts/${MACHINE} ${SYSDIR}/boot/fdt/dts/${MACHINE}
+.PATH: ${SYSDIR}/gnu/dts/${MACHINE} ${SYSDIR}/dts/${MACHINE}
 
 DTB=${DTS:R:S/$/.dtb/}
 

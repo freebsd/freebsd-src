@@ -93,6 +93,72 @@ struct qla_rd_fw_dump {
 };
 typedef struct qla_rd_fw_dump qla_rd_fw_dump_t;
 
+struct qla_drvr_state_tx {
+	uint64_t	base_p_addr;
+	uint64_t	cons_p_addr;
+	uint32_t	tx_prod_reg;
+	uint32_t	tx_cntxt_id;
+	uint32_t	txr_free;
+	uint32_t	txr_next;
+	uint32_t	txr_comp;
+};
+typedef struct qla_drvr_state_tx qla_drvr_state_tx_t;
+
+struct qla_drvr_state_sds {
+	uint32_t        sdsr_next; /* next entry in SDS ring to process */
+	uint32_t        sds_consumer;
+};
+typedef struct qla_drvr_state_sds qla_drvr_state_sds_t;
+
+struct qla_drvr_state_rx {
+	uint32_t	prod_std;
+	uint32_t	rx_next; /* next standard rcv ring to arm fw */;
+};
+typedef struct qla_drvr_state_rx qla_drvr_state_rx_t;
+
+struct qla_drvr_state_hdr {
+	uint32_t	drvr_version_major;
+	uint32_t	drvr_version_minor;
+	uint32_t	drvr_version_build;
+
+	uint8_t         mac_addr[ETHER_ADDR_LEN];
+        uint16_t        link_speed;
+        uint16_t        cable_length;
+        uint32_t        cable_oui;
+        uint8_t         link_up;
+        uint8_t         module_type;
+        uint8_t         link_faults;
+        uint32_t        rcv_intr_coalesce;
+        uint32_t        xmt_intr_coalesce;
+
+	uint32_t	tx_state_offset;/* size = sizeof (qla_drvr_state_tx_t) * num_tx_rings */
+	uint32_t	rx_state_offset;/* size = sizeof (qla_drvr_state_rx_t) * num_rx_rings */
+	uint32_t	sds_state_offset;/* size = sizeof (qla_drvr_state_sds_t) * num_sds_rings */
+
+	uint32_t	num_tx_rings; /* number of tx rings */
+	uint32_t	txr_size; /* size of each tx ring in bytes */
+	uint32_t	txr_entries; /* number of descriptors in each tx ring */
+	uint32_t	txr_offset; /* start of tx ring [0 - #rings] content */
+
+	uint32_t	num_rx_rings; /* number of rx rings */
+	uint32_t	rxr_size; /* size of each rx ring in bytes */
+	uint32_t	rxr_entries; /* number of descriptors in each rx ring */
+	uint32_t	rxr_offset; /* start of rx ring [0 - #rings] content */
+
+	uint32_t	num_sds_rings; /* number of sds rings */
+	uint32_t	sds_ring_size; /* size of each sds ring in bytes */
+	uint32_t	sds_entries; /* number of descriptors in each sds ring */
+	uint32_t	sds_offset; /* start of sds ring [0 - #rings] content */
+};
+
+typedef struct qla_drvr_state_hdr qla_drvr_state_hdr_t;
+
+struct qla_driver_state {
+	uint32_t	size;
+	void		*buffer;
+};
+typedef struct qla_driver_state qla_driver_state_t;
+
 /*
  * Read/Write Register
  */
@@ -132,5 +198,11 @@ typedef struct qla_rd_fw_dump qla_rd_fw_dump_t;
  * Read Minidump Template
  */
 #define QLA_RD_FW_DUMP		_IOWR('q', 8, qla_rd_fw_dump_t)
+
+/*
+ * Read Driver State
+ */
+#define QLA_RD_DRVR_STATE	_IOWR('q', 9, qla_driver_state_t)
+
 
 #endif /* #ifndef _QL_IOCTL_H_ */

@@ -813,7 +813,7 @@ NamePathTail                [.]{NameSeg}
 
 {NameSeg}                   { char *s;
                                 count (0);
-                                s=UtStringCacheCalloc (ACPI_NAME_SIZE + 1);
+                                s=UtLocalCacheCalloc (ACPI_NAME_SIZE + 1);
                                 if (strcmp (AslCompilertext, "\\"))
                                 {
                                     strcpy (s, "____");
@@ -826,7 +826,7 @@ NamePathTail                [.]{NameSeg}
 
 {NameString}                { char *s;
                                 count (0);
-                                s=UtStringCacheCalloc (strlen (AslCompilertext)+1);
+                                s=UtLocalCacheCalloc (strlen (AslCompilertext)+1);
                                 AcpiUtStrupr (AslCompilertext);
                                 strcpy (s, AslCompilertext);
                                 AslCompilerlval.s = s;

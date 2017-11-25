@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
+/* Copyright (c) 2008-2012 Freescale Semiconductor, Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
- /**************************************************************************//**
+
+/**************************************************************************//**
  @File          ncsw_ext.h
 
  @Description   General NetCommSw Standard Definitions
@@ -39,11 +40,11 @@
 #ifndef __NCSW_EXT_H
 #define __NCSW_EXT_H
 
+
 #include "memcpy_ext.h"
 
-
-#define WRITE_BLOCK                 IOMemSet32
-#define COPY_BLOCK                  Mem2IOCpy32
+#define WRITE_BLOCK                 IOMemSet32   /* include memcpy_ext.h */
+#define COPY_BLOCK                  Mem2IOCpy32  /* include memcpy_ext.h */
 
 #define PTR_TO_UINT(_ptr)           ((uintptr_t)(_ptr))
 #define UINT_TO_PTR(_val)           ((void*)(uintptr_t)(_val))
@@ -51,8 +52,10 @@
 #define PTR_MOVE(_ptr, _offset)     (void*)((uint8_t*)(_ptr) + (_offset))
 
 
-#define WRITE_UINT8_UINT24(arg, data08, data24) WRITE_UINT32(arg,((uint32_t)(data08)<<24)|((uint32_t)(data24)&0x00FFFFFF))
-#define WRITE_UINT24_UINT8(arg, data24, data08) WRITE_UINT32(arg,((uint32_t)(data24)<< 8)|((uint32_t)(data08)&0x000000FF))
+#define WRITE_UINT8_UINT24(arg, data08, data24) \
+    WRITE_UINT32(arg,((uint32_t)(data08)<<24)|((uint32_t)(data24)&0x00FFFFFF))
+#define WRITE_UINT24_UINT8(arg, data24, data08) \
+    WRITE_UINT32(arg,((uint32_t)(data24)<< 8)|((uint32_t)(data08)&0x000000FF))
 
 /* Little-Endian access macros */
 
@@ -93,14 +96,16 @@
 /* Miscellaneous macros */
 /*----------------------*/
 
-#define UNUSED(X) (X=X)
+#define UNUSED(_x)		((void)(_x))
 
 #define KILOBYTE            0x400UL                 /* 1024 */
 #define MEGABYTE            (KILOBYTE * KILOBYTE)   /* 1024*1024 */
-#define GIGABYTE            (KILOBYTE * MEGABYTE)   /* 1024*1024*1024 */
+#define GIGABYTE            ((uint64_t)(KILOBYTE * MEGABYTE))   /* 1024*1024*1024 */
+#define TERABYTE            ((uint64_t)(KILOBYTE * GIGABYTE))   /* 1024*1024*1024*1024 */
 
-#undef  NO_IRQ
-#define NO_IRQ              (-1)
+#ifndef NO_IRQ
+#define NO_IRQ		(0)
+#endif
 #define NCSW_MASTER_ID      (0)
 
 /* Macro for checking if a number is a power of 2 */
@@ -137,7 +142,7 @@ do                                      \
 } while (0)
 
 /* Ceiling division - not the fastest way, but safer in terms of overflow */
-#define DIV_CEIL(x,y)   (((x)/(y)) + ((((((x)/(y)))*(y)) == (x)) ? 0 : 1))
+#define DIV_CEIL(x,y) (((x)/(y)) + (((((x)/(y))*(y)) == (x)) ? 0 : 1))
 
 /* Round up a number to be a multiple of a second number */
 #define ROUND_UP(x,y)   ((((x) + (y) - 1) / (y)) * (y))
@@ -157,8 +162,6 @@ do                                      \
 #define CYCLES_TO_PSEC(cycles,clk)  (((cycles) * 1000000) / (clk))
 
 /* Min, Max macros */
-#define NCSW_MIN(a,b)    ((a) < (b) ? (a) : (b))
-#define NCSW_MAX(a,b)    ((a) > (b) ? (a) : (b))
 #define IN_RANGE(min,val,max) ((min)<=(val) && (val)<=(max))
 
 #define ABS(a)  ((a<0)?(a*-1):a)

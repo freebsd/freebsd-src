@@ -64,7 +64,6 @@ static int qla_link_event_req(qla_host_t *ha, uint16_t cntxt_id);
 static int qla_tx_tso(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd,
 		uint8_t *hdr);
 static int qla_hw_add_all_mcast(qla_host_t *ha);
-static int qla_hw_del_all_mcast(qla_host_t *ha);
 static int qla_add_rcv_rings(qla_host_t *ha, uint32_t sds_idx, uint32_t nsds);
 
 static int qla_init_nic_func(qla_host_t *ha);
@@ -2324,7 +2323,7 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 	if (total_length > QLA_MAX_TSO_FRAME_SIZE) {
 		device_printf(dev, "%s: total length exceeds maxlen(%d)\n",
 			__func__, total_length);
-		return (-1);
+		return (EINVAL);
 	}
 	eh = mtod(mp, struct ether_vlan_header *);
 
@@ -2372,6 +2371,20 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 				"(num_tx_cmds + QLA_TX_MIN_FREE))\n",
 				__func__));
 			return (-1);
+		}
+	}
+
+	for (i = 0; i < num_tx_cmds; i++) {
+		int j;
+
+		j = (tx_idx+i) & (NUM_TX_DESCRIPTORS - 1);
+
+		if (NULL != ha->tx_ring[txr_idx].tx_buf[j].m_head) {
+			QL_ASSERT(ha, 0, \
+				("%s [%d]: txr_idx = %d tx_idx = %d mbuf = %p\n",\
+				__func__, __LINE__, txr_idx, j,\
+				ha->tx_ring[txr_idx].tx_buf[j].m_head));
+			return (EINVAL);
 		}
 	}
 
@@ -3249,6 +3262,7 @@ qla_init_xmt_cntxt_i(qla_host_t *ha, uint32_t txr_idx)
 
 	hw_tx_cntxt->txr_free = NUM_TX_DESCRIPTORS;
 	hw_tx_cntxt->txr_next = hw_tx_cntxt->txr_comp = 0;
+	*(hw_tx_cntxt->tx_cons) = 0;
 
         if (qla_mbx_cmd(ha, (uint32_t *)tcntxt,
 		(sizeof (q80_rq_tx_cntxt_t) >> 2),
@@ -3413,7 +3427,7 @@ qla_hw_add_all_mcast(qla_host_t *ha)
 	return (ret);
 }
 
-static int
+int
 qla_hw_del_all_mcast(qla_host_t *ha)
 {
 	int ret;

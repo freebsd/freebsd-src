@@ -37,7 +37,7 @@ typedef struct dpaa_portal {
 	vm_paddr_t	dp_ci_pa;		/* portal's CI area PA */
 	uint32_t	dp_ce_size;		/* portal's CE area size */
 	uint32_t	dp_ci_size;		/* portal's CI area size */
-	uint32_t	dp_intr_num;		/* portal's intr. number */
+	uintptr_t	dp_intr_num;		/* portal's intr. number */
 } dpaa_portal_t;
 
 struct dpaa_portals_softc {

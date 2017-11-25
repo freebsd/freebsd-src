@@ -186,4 +186,6 @@ struct ufs1_dinode {
 	u_int64_t	di_modrev;	/* 120: i_modrev for NFSv4 */
 };
 
+#define	UFS_LINK_MAX	32767
+
 #endif /* _UFS_UFS_DINODE_H_ */

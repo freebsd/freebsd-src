@@ -260,6 +260,23 @@ done:
 	WQ_EXEC_UNLOCK(wq);
 }
 
+void
+linux_delayed_work_fn(void *context, int pending)
+{
+	struct delayed_work *dwork = context;
+
+	/*
+	 * Make sure the timer belonging to the delayed work gets
+	 * drained before invoking the work function. Else the timer
+	 * mutex may still be in use which can lead to use-after-free
+	 * situations, because the work function might free the work
+	 * structure before returning.
+	 */
+	callout_drain(&dwork->timer.callout);
+
+	linux_work_fn(&dwork->work, pending);
+}
+
 static void
 linux_delayed_work_timer_fn(void *arg)
 {
@@ -550,7 +567,8 @@ void
 linux_init_delayed_work(struct delayed_work *dwork, work_func_t func)
 {
 	memset(dwork, 0, sizeof(*dwork));
-	INIT_WORK(&dwork->work, func);
+	dwork->work.func = func;
+	TASK_INIT(&dwork->work.work_task, 0, linux_delayed_work_fn, dwork);
 	mtx_init(&dwork->timer.mtx, spin_lock_name("lkpi-dwork"), NULL,
 	    MTX_DEF | MTX_NOWITNESS);
 	callout_init_mtx(&dwork->timer.callout, &dwork->timer.mtx, 0);

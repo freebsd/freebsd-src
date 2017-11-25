@@ -36,8 +36,7 @@
 #define HN_RXBUF_SIZE			(16 * 1024 * 1024)
 #define HN_RXBUF_SIZE_COMPAT		(15 * 1024 * 1024)
 
-/* Claimed to be 12232B */
-#define HN_MTU_MAX			(9 * 1024)
+#define HN_MTU_MAX			(65535 - ETHER_ADDR_LEN)
 
 #define HN_TXBR_SIZE			(128 * PAGE_SIZE)
 #define HN_RXBR_SIZE			(128 * PAGE_SIZE)
@@ -64,6 +63,7 @@ struct hn_rx_ring {
 	void		*hn_pktbuf;
 	int		hn_pktbuf_len;
 	int		hn_rx_flags;	/* HN_RX_FLAG_ */
+	uint32_t	hn_mbuf_hash;	/* NDIS_HASH_ */
 	uint8_t		*hn_rxbuf;	/* shadow sc->hn_rxbuf */
 	int		hn_rx_idx;
 
@@ -97,6 +97,7 @@ struct hn_rx_ring {
 #define HN_RX_FLAG_ATTACHED	0x0001
 #define HN_RX_FLAG_BR_REF	0x0002
 #define HN_RX_FLAG_XPNT_VF	0x0004
+#define HN_RX_FLAG_UDP_HASH	0x0008
 
 struct hn_tx_ring {
 #ifndef HN_USE_TXDESC_BUFRING
@@ -238,7 +239,8 @@ struct hn_softc {
 	uint32_t		hn_rndis_agg_align;
 
 	int			hn_rss_ind_size;
-	uint32_t		hn_rss_hash;	/* NDIS_HASH_ */
+	uint32_t		hn_rss_hash;	/* setting, NDIS_HASH_ */
+	uint32_t		hn_rss_hcap;	/* caps, NDIS_HASH_ */
 	struct ndis_rssprm_toeplitz hn_rss;
 
 	eventhandler_tag	hn_ifaddr_evthand;
@@ -303,11 +305,12 @@ do {						\
 #define HN_CAP_TSO4			0x0080
 #define HN_CAP_TSO6			0x0100
 #define HN_CAP_HASHVAL			0x0200
+#define HN_CAP_UDPHASH			0x0400
 
 /* Capability description for use with printf(9) %b identifier. */
 #define HN_CAP_BITS				\
 	"\020\1VLAN\2MTU\3IPCS\4TCP4CS\5TCP6CS"	\
-	"\6UDP4CS\7UDP6CS\10TSO4\11TSO6\12HASHVAL"
+	"\6UDP4CS\7UDP6CS\10TSO4\11TSO6\12HASHVAL\13UDPHASH"
 
 #define HN_LINK_FLAG_LINKUP		0x0001
 #define HN_LINK_FLAG_NETCHG		0x0002

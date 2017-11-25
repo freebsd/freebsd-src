@@ -93,5 +93,5 @@ void
 stack_save(struct stack *st)
 {
 
-	stack_capture(st, (struct frame *)__builtin_frame_address(1));
+	stack_capture(st, (struct frame *)__builtin_frame_address(0));
 }

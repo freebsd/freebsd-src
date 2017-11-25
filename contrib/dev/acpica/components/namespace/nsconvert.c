@@ -644,7 +644,8 @@ AcpiNsConvertToReference (
     {
         /* Check if we are resolving a named reference within a package */
 
-        ACPI_ERROR_NAMESPACE (OriginalObject->String.Pointer, Status);
+        ACPI_ERROR_NAMESPACE (&ScopeInfo,
+            OriginalObject->String.Pointer, Status);
         goto ErrorExit;
     }
 

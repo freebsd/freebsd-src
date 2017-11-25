@@ -39,7 +39,6 @@ CPU_PROAPTIV	opt_global.h
 CPU_MIPS32	opt_global.h
 CPU_MIPS64	opt_global.h
 CPU_SENTRY5	opt_global.h
-CPU_HAVEFPU	opt_global.h
 CPU_SB1 	opt_global.h
 CPU_CNMIPS	opt_global.h
 CPU_RMI		opt_global.h

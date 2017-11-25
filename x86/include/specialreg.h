@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991 The Regents of the University of California.
  * All rights reserved.
  *
@@ -188,6 +190,35 @@
 #define	CPUTPM1_ARAT	0x00000004
 #define	CPUTPM2_EFFREQ	0x00000001
 
+/* Intel Processor Trace CPUID. */
+
+/* Leaf 0 ebx. */
+#define	CPUPT_CR3		(1 << 0)	/* CR3 Filtering Support */
+#define	CPUPT_PSB		(1 << 1)	/* Configurable PSB and Cycle-Accurate Mode Supported */
+#define	CPUPT_IPF		(1 << 2)	/* IP Filtering and TraceStop supported */
+#define	CPUPT_MTC		(1 << 3)	/* MTC Supported */
+#define	CPUPT_PRW		(1 << 4)	/* PTWRITE Supported */
+#define	CPUPT_PWR		(1 << 5)	/* Power Event Trace Supported */
+
+/* Leaf 0 ecx. */
+#define	CPUPT_TOPA		(1 << 0)	/* ToPA Output Supported */
+#define	CPUPT_TOPA_MULTI	(1 << 1)	/* ToPA Tables Allow Multiple Output Entries */
+#define	CPUPT_SINGLE		(1 << 2)	/* Single-Range Output Supported */
+#define	CPUPT_TT_OUT		(1 << 3)	/* Output to Trace Transport Subsystem Supported */
+#define	CPUPT_LINEAR_IP		(1 << 31)	/* IP Payloads are Linear IP, otherwise IP is effective */
+
+/* Leaf 1 eax. */
+#define	CPUPT_NADDR_S		0	/* Number of Address Ranges */
+#define	CPUPT_NADDR_M		(0x7 << CPUPT_NADDR_S)
+#define	CPUPT_MTC_BITMAP_S	16	/* Bitmap of supported MTC Period Encodings */
+#define	CPUPT_MTC_BITMAP_M	(0xffff << CPUPT_MTC_BITMAP_S)
+
+/* Leaf 1 ebx. */
+#define	CPUPT_CT_BITMAP_S	0	/* Bitmap of supported Cycle Threshold values */
+#define	CPUPT_CT_BITMAP_M	(0xffff << CPUPT_CT_BITMAP_S)
+#define	CPUPT_PFE_BITMAP_S	16	/* Bitmap of supported Configurable PSB Frequency encoding */
+#define	CPUPT_PFE_BITMAP_M	(0xffff << CPUPT_PFE_BITMAP_S)
+
 /*
  * Important bits in the AMD extended cpuid flags
  */
@@ -329,6 +360,13 @@
 #define	AMDPM_HW_PSTATE		0x00000080
 #define	AMDPM_TSC_INVARIANT	0x00000100
 #define	AMDPM_CPB		0x00000200
+
+/*
+ * AMD extended function 8000_0008h ebx info (amd_extended_feature_extensions)
+ */
+#define	AMDFEID_CLZERO		0x00000001
+#define	AMDFEID_IRPERF		0x00000002
+#define	AMDFEID_XSAVEERPTR	0x00000004
 
 /*
  * AMD extended function 8000_0008h ecx info
@@ -538,6 +576,85 @@
 #define	MSR_APIC_SELF_IPI	0x83f
 
 #define	MSR_IA32_XSS		0xda0
+
+/*
+ * Intel Processor Trace (PT) MSRs.
+ */
+#define	MSR_IA32_RTIT_OUTPUT_BASE	0x560	/* Trace Output Base Register (R/W) */
+#define	MSR_IA32_RTIT_OUTPUT_MASK_PTRS	0x561	/* Trace Output Mask Pointers Register (R/W) */
+#define	MSR_IA32_RTIT_CTL		0x570	/* Trace Control Register (R/W) */
+#define	 RTIT_CTL_TRACEEN	(1 << 0)
+#define	 RTIT_CTL_CYCEN		(1 << 1)
+#define	 RTIT_CTL_OS		(1 << 2)
+#define	 RTIT_CTL_USER		(1 << 3)
+#define	 RTIT_CTL_PWREVTEN	(1 << 4)
+#define	 RTIT_CTL_FUPONPTW	(1 << 5)
+#define	 RTIT_CTL_FABRICEN	(1 << 6)
+#define	 RTIT_CTL_CR3FILTER	(1 << 7)
+#define	 RTIT_CTL_TOPA		(1 << 8)
+#define	 RTIT_CTL_MTCEN		(1 << 9)
+#define	 RTIT_CTL_TSCEN		(1 << 10)
+#define	 RTIT_CTL_DISRETC	(1 << 11)
+#define	 RTIT_CTL_PTWEN		(1 << 12)
+#define	 RTIT_CTL_BRANCHEN	(1 << 13)
+#define	 RTIT_CTL_MTC_FREQ_S	14
+#define	 RTIT_CTL_MTC_FREQ(n)	((n) << RTIT_CTL_MTC_FREQ_S)
+#define	 RTIT_CTL_MTC_FREQ_M	(0xf << RTIT_CTL_MTC_FREQ_S)
+#define	 RTIT_CTL_CYC_THRESH_S	19
+#define	 RTIT_CTL_CYC_THRESH_M	(0xf << RTIT_CTL_CYC_THRESH_S)
+#define	 RTIT_CTL_PSB_FREQ_S	24
+#define	 RTIT_CTL_PSB_FREQ_M	(0xf << RTIT_CTL_PSB_FREQ_S)
+#define	 RTIT_CTL_ADDR_CFG_S(n) (32 + (n) * 4)
+#define	 RTIT_CTL_ADDR0_CFG_S	32
+#define	 RTIT_CTL_ADDR0_CFG_M	(0xfULL << RTIT_CTL_ADDR0_CFG_S)
+#define	 RTIT_CTL_ADDR1_CFG_S	36
+#define	 RTIT_CTL_ADDR1_CFG_M	(0xfULL << RTIT_CTL_ADDR1_CFG_S)
+#define	 RTIT_CTL_ADDR2_CFG_S	40
+#define	 RTIT_CTL_ADDR2_CFG_M	(0xfULL << RTIT_CTL_ADDR2_CFG_S)
+#define	 RTIT_CTL_ADDR3_CFG_S	44
+#define	 RTIT_CTL_ADDR3_CFG_M	(0xfULL << RTIT_CTL_ADDR3_CFG_S)
+#define	MSR_IA32_RTIT_STATUS		0x571	/* Tracing Status Register (R/W) */
+#define	 RTIT_STATUS_FILTEREN	(1 << 0)
+#define	 RTIT_STATUS_CONTEXTEN	(1 << 1)
+#define	 RTIT_STATUS_TRIGGEREN	(1 << 2)
+#define	 RTIT_STATUS_ERROR	(1 << 4)
+#define	 RTIT_STATUS_STOPPED	(1 << 5)
+#define	 RTIT_STATUS_PACKETBYTECNT_S	32
+#define	 RTIT_STATUS_PACKETBYTECNT_M	(0x1ffffULL << RTIT_STATUS_PACKETBYTECNT_S)
+#define	MSR_IA32_RTIT_CR3_MATCH		0x572	/* Trace Filter CR3 Match Register (R/W) */
+#define	MSR_IA32_RTIT_ADDR_A(n)		(0x580 + (n) * 2)
+#define	MSR_IA32_RTIT_ADDR_B(n)		(0x581 + (n) * 2)
+#define	MSR_IA32_RTIT_ADDR0_A		0x580	/* Region 0 Start Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR0_B		0x581	/* Region 0 End Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR1_A		0x582	/* Region 1 Start Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR1_B		0x583	/* Region 1 End Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR2_A		0x584	/* Region 2 Start Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR2_B		0x585	/* Region 2 End Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR3_A		0x586	/* Region 3 Start Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR3_B		0x587	/* Region 3 End Address (R/W) */
+
+/* Intel Processor Trace Table of Physical Addresses (ToPA). */
+#define	TOPA_SIZE_S	6
+#define	TOPA_SIZE_M	(0xf << TOPA_SIZE_S)
+#define	TOPA_SIZE_4K	(0 << TOPA_SIZE_S)
+#define	TOPA_SIZE_8K	(1 << TOPA_SIZE_S)
+#define	TOPA_SIZE_16K	(2 << TOPA_SIZE_S)
+#define	TOPA_SIZE_32K	(3 << TOPA_SIZE_S)
+#define	TOPA_SIZE_64K	(4 << TOPA_SIZE_S)
+#define	TOPA_SIZE_128K	(5 << TOPA_SIZE_S)
+#define	TOPA_SIZE_256K	(6 << TOPA_SIZE_S)
+#define	TOPA_SIZE_512K	(7 << TOPA_SIZE_S)
+#define	TOPA_SIZE_1M	(8 << TOPA_SIZE_S)
+#define	TOPA_SIZE_2M	(9 << TOPA_SIZE_S)
+#define	TOPA_SIZE_4M	(10 << TOPA_SIZE_S)
+#define	TOPA_SIZE_8M	(11 << TOPA_SIZE_S)
+#define	TOPA_SIZE_16M	(12 << TOPA_SIZE_S)
+#define	TOPA_SIZE_32M	(13 << TOPA_SIZE_S)
+#define	TOPA_SIZE_64M	(14 << TOPA_SIZE_S)
+#define	TOPA_SIZE_128M	(15 << TOPA_SIZE_S)
+#define	TOPA_STOP	(1 << 4)
+#define	TOPA_INT	(1 << 2)
+#define	TOPA_END	(1 << 0)
 
 /*
  * Constants related to MSR's.

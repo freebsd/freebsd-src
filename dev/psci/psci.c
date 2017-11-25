@@ -97,6 +97,7 @@ struct psci_softc *psci_softc = NULL;
 
 #ifdef FDT
 static struct ofw_compat_data compat_data[] = {
+	{"arm,psci-1.0",        (uintptr_t)psci_v0_2_init},
 	{"arm,psci-0.2",        (uintptr_t)psci_v0_2_init},
 	{"arm,psci",            (uintptr_t)psci_v0_1_init},
 	{NULL,                  0}
@@ -332,9 +333,11 @@ psci_fdt_callfn(psci_callfn_t *callfn)
 	phandle_t node;
 
 	node = ofw_bus_find_compatible(OF_peer(0), "arm,psci-0.2");
-	if (node == 0)
-		/* TODO: Handle psci 0.1 */
-		return (PSCI_MISSING);
+	if (node == 0) {
+		node = ofw_bus_find_compatible(OF_peer(0), "arm,psci-1.0");
+		if (node == 0)
+			return (PSCI_MISSING);
+	}
 
 	*callfn = psci_fdt_get_callfn(node);
 	return (0);
@@ -490,9 +493,9 @@ psci_v0_2_init(device_t dev)
 		return (1);
 
 	if ((PSCI_VER_MAJOR(version) == 0 && PSCI_VER_MINOR(version) == 2) ||
-	    (PSCI_VER_MAJOR(version) == 1 && PSCI_VER_MINOR(version) == 0)) {
+	    PSCI_VER_MAJOR(version) == 1) {
 		if (bootverbose)
-			device_printf(dev, "PSCI version 0.2 available\n");
+			device_printf(dev, "PSCI version 0.2 compatible\n");
 
 		/*
 		 * We only register this for v0.2 since v0.1 doesn't support

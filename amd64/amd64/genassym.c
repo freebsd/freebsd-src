@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -81,7 +83,6 @@ ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PFLAGS, offsetof(struct thread, td_pflags));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
-ASSYM(TD_TID, offsetof(struct thread, td_tid));
 ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);

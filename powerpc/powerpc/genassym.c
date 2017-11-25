@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -225,6 +227,7 @@ ASSYM(MAXCOMLEN, MAXCOMLEN);
 #ifdef __powerpc64__
 ASSYM(PSL_CM, PSL_CM);
 #endif
+ASSYM(PSL_GS, PSL_GS);
 ASSYM(PSL_DE, PSL_DE);
 ASSYM(PSL_DS, PSL_DS);
 ASSYM(PSL_IS, PSL_IS);

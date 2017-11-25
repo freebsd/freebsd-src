@@ -120,21 +120,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-VNET_DECLARE(int, tcp_autorcvbuf_inc);
-#define	V_tcp_autorcvbuf_inc	VNET(tcp_autorcvbuf_inc)
-VNET_DECLARE(int, tcp_autorcvbuf_max);
-#define	V_tcp_autorcvbuf_max	VNET(tcp_autorcvbuf_max)
-VNET_DECLARE(int, tcp_do_rfc3042);
-#define	V_tcp_do_rfc3042	VNET(tcp_do_rfc3042)
-VNET_DECLARE(int, tcp_do_autorcvbuf);
-#define	V_tcp_do_autorcvbuf	VNET(tcp_do_autorcvbuf)
-VNET_DECLARE(int, tcp_insecure_rst);
-#define	V_tcp_insecure_rst	VNET(tcp_insecure_rst)
-VNET_DECLARE(int, tcp_insecure_syn);
-#define	V_tcp_insecure_syn	VNET(tcp_insecure_syn)
-VNET_DECLARE(int, drop_synfin);
-#define	V_drop_synfin	VNET(drop_synfin)
-
 static void	 tcp_do_segment_fastslow(struct mbuf *, struct tcphdr *,
 			struct socket *, struct tcpcb *, int, int, uint8_t,
 			int);

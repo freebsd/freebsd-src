@@ -97,7 +97,7 @@ lio_init_instr_queue(struct octeon_device *oct, union octeon_txpciq txpciq,
 		return (1);
 	}
 
-	iq->base_addr = lio_dma_alloc(q_size, &iq->base_addr_dma);
+	iq->base_addr = lio_dma_alloc(q_size, (vm_paddr_t *)&iq->base_addr_dma);
 	if (!iq->base_addr) {
 		lio_dev_err(oct, "Cannot allocate memory for instr queue %d\n",
 			    iq_no);
@@ -118,8 +118,9 @@ lio_init_instr_queue(struct octeon_device *oct, union octeon_txpciq txpciq,
 		return (1);
 	}
 
-	lio_dev_dbg(oct, "IQ[%d]: base: %p basedma: %lx count: %d\n",
-		    iq_no, iq->base_addr, iq->base_addr_dma, iq->max_count);
+	lio_dev_dbg(oct, "IQ[%d]: base: %p basedma: %llx count: %d\n",
+		    iq_no, iq->base_addr, LIO_CAST64(iq->base_addr_dma),
+		    iq->max_count);
 
 	/* Create the descriptor buffer dma maps */
 	request_buf = iq->request_list;
@@ -736,7 +737,7 @@ lio_setup_sc_buffer_pool(struct octeon_device *oct)
 
 	for (i = 0; i < LIO_MAX_SOFT_COMMAND_BUFFERS; i++) {
 		sc = (struct lio_soft_command *)
-			lio_dma_alloc(LIO_SOFT_COMMAND_BUFFER_SIZE, &dma_addr);
+			lio_dma_alloc(LIO_SOFT_COMMAND_BUFFER_SIZE, (vm_paddr_t *)&dma_addr);
 		if (sc == NULL) {
 			lio_free_sc_buffer_pool(oct);
 			return (1);

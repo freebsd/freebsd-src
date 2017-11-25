@@ -60,7 +60,6 @@ struct gzio_stream *
 gzio_init(gzio_cb cb, enum gzio_mode mode, size_t bufsz, int level, void *arg)
 {
 	struct gzio_stream *s;
-	uint8_t *hdr;
 	int error;
 
 	if (bufsz < KERN_GZ_HDRLEN)
@@ -72,7 +71,6 @@ gzio_init(gzio_cb cb, enum gzio_mode mode, size_t bufsz, int level, void *arg)
 	s->gz_bufsz = bufsz;
 	s->gz_buffer = gz_alloc(NULL, 1, s->gz_bufsz);
 	s->gz_mode = mode;
-	s->gz_crc = ~0U;
 	s->gz_cb = cb;
 	s->gz_arg = arg;
 
@@ -87,6 +85,26 @@ gzio_init(gzio_cb cb, enum gzio_mode mode, size_t bufsz, int level, void *arg)
 	if (error != 0)
 		goto fail;
 
+	gzio_reset(s);
+
+	return (s);
+
+fail:
+	gz_free(NULL, s->gz_buffer);
+	gz_free(NULL, s);
+	return (NULL);
+}
+
+void
+gzio_reset(struct gzio_stream *s)
+{
+	uint8_t *hdr;
+
+	(void)deflateReset(&s->gz_stream);
+
+	s->gz_off = 0;
+	s->gz_crc = ~0U;
+
 	s->gz_stream.avail_out = s->gz_bufsz;
 	s->gz_stream.next_out = s->gz_buffer;
 
@@ -99,13 +117,6 @@ gzio_init(gzio_cb cb, enum gzio_mode mode, size_t bufsz, int level, void *arg)
 	hdr[9] = OS_CODE;
 	s->gz_stream.next_out += KERN_GZ_HDRLEN;
 	s->gz_stream.avail_out -= KERN_GZ_HDRLEN;
-
-	return (s);
-
-fail:
-	gz_free(NULL, s->gz_buffer);
-	gz_free(NULL, s);
-	return (NULL);
 }
 
 int

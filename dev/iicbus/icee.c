@@ -206,9 +206,23 @@ icee_attach(device_t dev)
 	return (0);
 }
 
+static int
+icee_detach(device_t dev)
+{
+	struct icee_softc *sc = device_get_softc(dev);
+
+	destroy_dev(sc->cdev);
+	return (0);
+}
+
 static int 
 icee_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
+	struct icee_softc *sc;
+
+	sc = CDEV2SOFTC(dev);
+	if (device_get_state(sc->dev) < DS_BUSY)
+		device_busy(sc->dev);
 
 	return (0);
 }
@@ -216,7 +230,10 @@ icee_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 static int
 icee_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
+	struct icee_softc *sc;
 
+	sc = CDEV2SOFTC(dev);
+	device_unbusy(sc->dev);
 	return (0);
 }
 
@@ -345,6 +362,7 @@ icee_write(struct cdev *dev, struct uio *uio, int ioflag)
 static device_method_t icee_methods[] = {
 	DEVMETHOD(device_probe,		icee_probe),
 	DEVMETHOD(device_attach,	icee_attach),
+	DEVMETHOD(device_detach,	icee_detach),
 
 	DEVMETHOD_END
 };

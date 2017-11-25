@@ -186,14 +186,6 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 	i = 0;
 	j = 0;
 	while (i < sz/sizeof(cell_t)) {
-	      #if !defined(__powerpc64__) && !defined(BOOKE)
-		/* On 32-bit PPC (OEA), ignore regions starting above 4 GB */
-		if (address_cells > 1 && OFmem[i] > 0) {
-			i += address_cells + size_cells;
-			continue;
-		}
-	      #endif
-
 		output[j].mr_start = OFmem[i++];
 		if (address_cells == 2) {
 			output[j].mr_start <<= 32;
@@ -206,19 +198,20 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 			output[j].mr_size += OFmem[i++];
 		}
 
-	      #if !defined(__powerpc64__) && !defined(BOOKE)
-		/* Book-E can support 36-bit addresses. */
+		if (output[j].mr_start > BUS_SPACE_MAXADDR)
+			continue;
+
 		/*
-		 * Check for memory regions extending above 32-bit
-		 * memory space, and restrict them to stay there.
+		 * Constrain memory to that which we can access.
+		 * 32-bit AIM can only reference 32 bits of address currently,
+		 * but Book-E can access 36 bits.
 		 */
 		if (((uint64_t)output[j].mr_start +
-		    (uint64_t)output[j].mr_size) >
-		    BUS_SPACE_MAXADDR_32BIT) {
-			output[j].mr_size = BUS_SPACE_MAXADDR_32BIT -
-			    output[j].mr_start;
+		    (uint64_t)output[j].mr_size - 1) >
+		    BUS_SPACE_MAXADDR) {
+			output[j].mr_size = BUS_SPACE_MAXADDR -
+			    output[j].mr_start + 1;
 		}
-	      #endif
 
 		j++;
 	}
@@ -472,7 +465,7 @@ openfirmware_core(void *args)
 	/* Restore initially saved trap vectors */
 	ofw_restore_trap_vec(save_trap_init);
 
-#if defined(AIM) && !defined(__powerpc64__)
+#ifndef __powerpc64__
 	/*
 	 * Clear battable[] translations
 	 */

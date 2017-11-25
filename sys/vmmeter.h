@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -41,20 +43,23 @@
 
 /* Systemwide totals computed every five seconds. */
 struct vmtotal {
-	int16_t	t_rq;		/* length of the run queue */
-	int16_t	t_dw;		/* jobs in ``disk wait'' (neg priority) */
-	int16_t	t_pw;		/* jobs in page wait */
-	int16_t	t_sl;		/* jobs sleeping in core */
-	int16_t	t_sw;		/* swapped out runnable/short block jobs */
-	int32_t	t_vm;		/* total virtual memory */
-	int32_t	t_avm;		/* active virtual memory */
-	int32_t	t_rm;		/* total real memory in use */
-	int32_t	t_arm;		/* active real memory */
-	int32_t	t_vmshr;	/* shared virtual memory */
-	int32_t	t_avmshr;	/* active shared virtual memory */
-	int32_t	t_rmshr;	/* shared real memory */
-	int32_t	t_armshr;	/* active shared real memory */
-	int32_t	t_free;		/* free memory pages */
+	uint64_t	t_vm;		/* total virtual memory */
+	uint64_t	t_avm;		/* active virtual memory */
+	uint64_t	t_rm;		/* total real memory in use */
+	uint64_t	t_arm;		/* active real memory */
+	uint64_t	t_vmshr;	/* shared virtual memory */
+	uint64_t	t_avmshr;	/* active shared virtual memory */
+	uint64_t	t_rmshr;	/* shared real memory */
+	uint64_t	t_armshr;	/* active shared real memory */
+	uint64_t	t_free;		/* free memory pages */
+	int16_t		t_rq;		/* length of the run queue */
+	int16_t		t_dw;		/* jobs in ``disk wait'' (neg
+					   priority) */
+	int16_t		t_pw;		/* jobs in page wait */
+	int16_t		t_sl;		/* jobs sleeping in core */
+	int16_t		t_sw;		/* swapped out runnable/short
+					   block jobs */
+	uint16_t	t_pad[3];
 };
 
 #if defined(_KERNEL) || defined(_WANT_VMMETER)
@@ -131,7 +136,6 @@ struct vmmeter {
 	u_int v_free_reserved;	/* (c) pages reserved for deadlock */
 	u_int v_free_target;	/* (c) pages desired free */
 	u_int v_free_min;	/* (c) pages desired free */
-	u_int v_free_count;	/* (f) pages free */
 	u_int v_inactive_target; /* (c) pages desired inactive */
 	u_int v_pageout_free_min;   /* (c) min pages reserved for kernel */
 	u_int v_interrupt_free_min; /* (c) reserved pages for int code */
@@ -141,6 +145,7 @@ struct vmmeter {
 	u_int v_inactive_count VMMETER_ALIGNED;	/* (a) pages inactive */
 	u_int v_laundry_count VMMETER_ALIGNED; /* (a) pages eligible for
 						  laundering */
+	u_int v_free_count VMMETER_ALIGNED; /* (f) pages free */
 };
 #endif /* _KERNEL || _WANT_VMMETER */
 
@@ -208,10 +213,10 @@ vm_paging_target(void)
  * Returns TRUE if the pagedaemon needs to be woken up.
  */
 static inline int
-vm_paging_needed(void)
+vm_paging_needed(u_int free_count)
 {
 
-	return (vm_cnt.v_free_count < vm_pageout_wakeup_thresh);
+	return (free_count < vm_pageout_wakeup_thresh);
 }
 
 /*

@@ -32,6 +32,11 @@ __FBSDID("$FreeBSD$");
 #ifndef _BNXT_HWRM_H
 #define _BNXT_HWRM_H
 
+#define BNXT_PAUSE_TX 	 (HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX)
+#define BNXT_PAUSE_RX 	 (HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX)
+#define BNXT_AUTO_PAUSE_AUTONEG_PAUSE  				\
+        (HWRM_PORT_PHY_QCFG_OUTPUT_AUTO_PAUSE_AUTONEG_PAUSE)
+
 /* HWRM Function Prototypes */
 int bnxt_alloc_hwrm_dma_mem(struct bnxt_softc *softc);
 void bnxt_free_hwrm_dma_mem(struct bnxt_softc *softc);
@@ -45,8 +50,8 @@ int bnxt_hwrm_func_drv_unrgtr(struct bnxt_softc *softc, bool shutdown);
 int bnxt_hwrm_func_qcaps(struct bnxt_softc *softc);
 int bnxt_hwrm_func_qcfg(struct bnxt_softc *softc);
 int bnxt_hwrm_func_reset(struct bnxt_softc *softc);
-int bnxt_hwrm_set_link_setting(struct bnxt_softc *, bool set_pause,
-    bool set_eee);
+int bnxt_hwrm_set_link_setting(struct bnxt_softc *softc, bool set_pause,
+    bool set_eee, bool set_link); 
 int bnxt_hwrm_set_pause(struct bnxt_softc *softc);
 int bnxt_hwrm_vnic_ctx_alloc(struct bnxt_softc *softc, uint16_t *ctx_id);
 int bnxt_hwrm_vnic_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic);
@@ -61,9 +66,9 @@ int bnxt_hwrm_cfa_l2_set_rx_mask(struct bnxt_softc *softc,
 int bnxt_hwrm_set_filter(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic);
 int bnxt_hwrm_rss_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic,
     uint32_t hash_type);
-int bnxt_hwrm_func_cfg(struct bnxt_softc *softc);
-int bnxt_hwrm_vnic_tpa_cfg(struct bnxt_softc *softc,
-    struct bnxt_vnic_info *vnic, uint32_t flags);
+int bnxt_cfg_async_cr(struct bnxt_softc *softc);
+int bnxt_hwrm_vnic_tpa_cfg(struct bnxt_softc *softc);
+void bnxt_validate_hw_lro_settings(struct bnxt_softc *softc);
 int bnxt_hwrm_nvm_find_dir_entry(struct bnxt_softc *softc, uint16_t type,
     uint16_t *ordinal, uint16_t ext, uint16_t *index, bool use_index,
     uint8_t search_opt, uint32_t *data_length, uint32_t *item_length,

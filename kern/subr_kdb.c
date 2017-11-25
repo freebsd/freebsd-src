@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 
-int kdb_active = 0;
+u_char __read_frequently kdb_active = 0;
 static void *kdb_jmpbufp = NULL;
 struct kdb_dbbe *kdb_dbbe = NULL;
 static struct pcb kdb_pcb;
@@ -513,12 +513,12 @@ kdb_reenter(void)
 
 struct pcb *
 kdb_thr_ctx(struct thread *thr)
-{  
+{
 #if defined(SMP) && defined(KDB_STOPPEDPCB)
 	struct pcpu *pc;
 #endif
- 
-	if (thr == curthread) 
+
+	if (thr == curthread)
 		return (&kdb_pcb);
 
 #if defined(SMP) && defined(KDB_STOPPEDPCB)

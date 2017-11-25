@@ -287,6 +287,8 @@ msdosfs_getattr(struct vop_getattr_args *ap)
 	vap->va_fileid = fileid;
 
 	mode = S_IRWXU|S_IRWXG|S_IRWXO;
+	if (dep->de_Attributes & ATTR_READONLY)
+		mode &= ~(S_IWUSR|S_IWGRP|S_IWOTH);
 	vap->va_mode = mode & 
 	    (ap->a_vp->v_type == VDIR ? pmp->pm_dirmask : pmp->pm_mask);
 	vap->va_uid = pmp->pm_uid;
@@ -348,10 +350,13 @@ msdosfs_setattr(struct vop_setattr_args *ap)
 	    (vap->va_bytes != VNOVAL) || (vap->va_gen != VNOVAL)) {
 #ifdef MSDOSFS_DEBUG
 		printf("msdosfs_setattr(): returning EINVAL\n");
-		printf("    va_type %d, va_nlink %x, va_fsid %lx, va_fileid %lx\n",
-		    vap->va_type, vap->va_nlink, vap->va_fsid, vap->va_fileid);
-		printf("    va_blocksize %lx, va_rdev %x, va_bytes %qx, va_gen %lx\n",
-		    vap->va_blocksize, vap->va_rdev, vap->va_bytes, vap->va_gen);
+		printf("    va_type %d, va_nlink %llx, va_fsid %llx, va_fileid %llx\n",
+		    vap->va_type, (unsigned long long)vap->va_nlink,
+		    (unsigned long long)vap->va_fsid,
+		    (unsigned long long)vap->va_fileid);
+		printf("    va_blocksize %lx, va_rdev %llx, va_bytes %llx, va_gen %lx\n",
+		    vap->va_blocksize, (unsigned long long)vap->va_rdev,
+		    (unsigned long long)vap->va_bytes, vap->va_gen);
 		printf("    va_uid %x, va_gid %x\n",
 		    vap->va_uid, vap->va_gid);
 #endif
@@ -499,7 +504,7 @@ msdosfs_setattr(struct vop_setattr_args *ap)
 		}
 		if (vp->v_type != VDIR) {
 			/* We ignore the read and execute bits. */
-			if (vap->va_mode & VWRITE)
+			if (vap->va_mode & S_IWUSR)
 				dep->de_Attributes &= ~ATTR_READONLY;
 			else
 				dep->de_Attributes |= ATTR_READONLY;

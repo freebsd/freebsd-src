@@ -46,21 +46,11 @@
 #endif
 
 #ifdef _KERNEL
-struct uuid;
-struct efi_tm;
+#include <isa/rtc.h>
 
-int efi_rt_ok(void);
-int efi_get_table(struct uuid *uuid, void **ptr);
-int efi_get_time(struct efi_tm *tm);
-int efi_get_time_locked(struct efi_tm *tm);
-int efi_reset_system(void);
-int efi_set_time(struct efi_tm *tm);
-int efi_set_time_locked(struct efi_tm *tm);
-int efi_var_get(uint16_t *name, struct uuid *vendor, uint32_t *attrib,
-    size_t *datasize, void *data);
-int efi_var_nextname(size_t *namesize, uint16_t *name, struct uuid *vendor);
-int efi_var_set(uint16_t *name, struct uuid *vendor, uint32_t attrib,
-    size_t datasize, void *data);
+#define	EFI_TIME_LOCK()		mtx_lock(&atrtc_time_lock);
+#define	EFI_TIME_UNLOCK()	mtx_unlock(&atrtc_time_lock);
+#define	EFI_TIME_OWNED()	mtx_assert(&atrtc_time_lock, MA_OWNED);
 #endif
 
 #endif /* __AMD64_INCLUDE_EFI_H_ */

@@ -134,6 +134,7 @@ struct diocgattr_arg {
 		char str[DISK_IDENT_SIZE];
 		off_t off;
 		int i;
+		uint16_t u16;
 	} value;
 };
 #define	DIOCGATTR _IOWR('d', 142, struct diocgattr_arg)
@@ -142,6 +143,7 @@ struct diocgattr_arg {
 
 struct diocskerneldump_arg {
 	uint8_t		 kda_enable;
+	uint8_t		 kda_compression;
 	uint8_t		 kda_encryption;
 	uint8_t		 kda_key[KERNELDUMP_KEY_MAX_SIZE];
 	uint32_t	 kda_encryptedkeysize;

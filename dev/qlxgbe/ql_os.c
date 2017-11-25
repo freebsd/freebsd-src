@@ -185,6 +185,13 @@ qla_add_sysctls(qla_host_t *ha)
                 OID_AUTO, "debug", CTLFLAG_RW,
                 &ha->dbg_level, ha->dbg_level, "Debug Level");
 
+	ha->enable_minidump = 1;
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		OID_AUTO, "enable_minidump", CTLFLAG_RW,
+		&ha->enable_minidump, ha->enable_minidump,
+		"Minidump retrival is enabled only when this is set");
+
 	ha->std_replenish = QL_STD_REPLENISH_THRES;
         SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
                 SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -485,6 +492,7 @@ qla_pci_attach(device_t dev)
 		device_printf(dev, "%s: ql_minidump_init failed\n", __func__);
 		goto qla_pci_attach_err;
 	}
+	ql_alloc_drvr_state_buffer(ha);
 	/* create the o.s ethernet interface */
 	qla_init_ifnet(dev, ha);
 
@@ -638,6 +646,7 @@ qla_release(qla_host_t *ha)
 	if (ha->ifp != NULL)
 		ether_ifdetach(ha->ifp);
 
+	ql_free_drvr_state_buffer(ha);
 	ql_free_dma(ha); 
 	qla_free_parent_dma_tag(ha);
 
@@ -968,7 +977,19 @@ qla_set_multi(qla_host_t *ha, uint32_t add_multi)
 		return (-1);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		ret = ql_hw_set_multi(ha, mta, mcnt, add_multi);
+
+		if (!add_multi) {
+			ret = qla_hw_del_all_mcast(ha);
+
+			if (ret)
+				device_printf(ha->pci_dev,
+					"%s: qla_hw_del_all_mcast() failed\n",
+				__func__);
+		}
+
+		if (!ret)
+			ret = ql_hw_set_multi(ha, mta, mcnt, 1);
+
 	}
 
 	QLA_UNLOCK(ha, __func__);
@@ -1213,6 +1234,17 @@ qla_send(qla_host_t *ha, struct mbuf **m_headp, uint32_t txr_idx,
 	QL_DPRINT8(ha, (ha->pci_dev, "%s: enter\n", __func__));
 
 	tx_idx = ha->hw.tx_cntxt[txr_idx].txr_next;
+
+	if (NULL != ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head) {
+		QL_ASSERT(ha, 0, ("%s [%d]: txr_idx = %d tx_idx = %d "\
+			"mbuf = %p\n", __func__, __LINE__, txr_idx, tx_idx,\
+			ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head));
+		if (m_head)
+			m_freem(m_head);
+		*m_headp = NULL;
+		return (ret);
+	}
+
 	map = ha->tx_ring[txr_idx].tx_buf[tx_idx].map;
 
 	ret = bus_dmamap_load_mbuf_sg(ha->tx_tag, map, m_head, segs, &nsegs,
@@ -1280,6 +1312,7 @@ qla_send(qla_host_t *ha, struct mbuf **m_headp, uint32_t txr_idx,
 			ha->tx_ring[txr_idx].iscsi_pkt_count++;
 		ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head = m_head;
 	} else {
+		bus_dmamap_unload(ha->tx_tag, map); 
 		if (ret == EINVAL) {
 			if (m_head)
 				m_freem(m_head);
@@ -1365,7 +1398,8 @@ qla_fp_taskqueue(void *context, int pending)
                 goto qla_fp_taskqueue_exit;
         }
 
-	while (rx_pkts_left && !ha->stop_rcv) {
+	while (rx_pkts_left && !ha->stop_rcv &&
+		(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		rx_pkts_left = ql_rcv_isr(ha, fp->txr_idx, 64);
 
 #ifdef QL_ENABLE_ISCSI_TLV
@@ -1407,6 +1441,11 @@ qla_fp_taskqueue(void *context, int pending)
 			} else {
 				drbr_advance(ifp, fp->tx_br);
 			}
+
+			/* Send a copy of the frame to the BPF listener */
+			ETHER_BPF_MTAP(ifp, mp);
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+				break;
 
 			mp = drbr_peek(ifp, fp->tx_br);
 		}
@@ -1670,16 +1709,24 @@ qla_clear_tx_buf(qla_host_t *ha, qla_tx_buf_t *txb)
 {
 	QL_DPRINT2(ha, (ha->pci_dev, "%s: enter\n", __func__));
 
-	if (txb->m_head && txb->map) {
+	if (txb->m_head) {
+		bus_dmamap_sync(ha->tx_tag, txb->map,
+			BUS_DMASYNC_POSTWRITE);
 
 		bus_dmamap_unload(ha->tx_tag, txb->map);
 
 		m_freem(txb->m_head);
 		txb->m_head = NULL;
+
+		bus_dmamap_destroy(ha->tx_tag, txb->map);
+		txb->map = NULL;
 	}
 
-	if (txb->map)
+	if (txb->map) {
+		bus_dmamap_unload(ha->tx_tag, txb->map);
 		bus_dmamap_destroy(ha->tx_tag, txb->map);
+		txb->map = NULL;
+	}
 
 	QL_DPRINT2(ha, (ha->pci_dev, "%s: exit\n", __func__));
 }
@@ -2025,7 +2072,8 @@ device_printf(ha->pci_dev, "%s: enter\n", __func__);
 
 		ha->msg_from_peer = 0;
 
-		ql_minidump(ha);
+		if (ha->enable_minidump)
+			ql_minidump(ha);
 
 		(void) ql_init_hw(ha);
 

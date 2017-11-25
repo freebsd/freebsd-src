@@ -39,7 +39,11 @@ __FBSDID("$FreeBSD$");
 #include "ql_inline.h"
 #include "ql_glbl.h"
 #include "ql_ioctl.h"
+#include "ql_ver.h"
+#include "ql_dbg.h"
 
+static int ql_drvr_state(qla_host_t *ha, qla_driver_state_t *drvr_state);
+static uint32_t ql_drvr_state_size(qla_host_t *ha);
 static int ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		struct thread *td);
 
@@ -279,6 +283,10 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			rval = ENXIO;
 		break;
 
+	case QLA_RD_DRVR_STATE:
+		rval = ql_drvr_state(ha, (qla_driver_state_t *)data);
+		break;
+
 	case QLA_RD_PCI_IDS:
 		pci_ids = (qla_rd_pci_ids_t *)data;
 		pci_ids->ven_id = pci_get_vendor(pci_dev);
@@ -293,5 +301,225 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
         }
 
         return rval;
+}
+
+
+static int
+ql_drvr_state(qla_host_t *ha, qla_driver_state_t *state)
+{
+	int rval = 0;
+	uint32_t drvr_state_size;
+	qla_drvr_state_hdr_t *hdr;
+
+	drvr_state_size = ql_drvr_state_size(ha);
+
+	if (state->buffer == NULL) {
+		state->size = drvr_state_size;
+		return (0);
+	}
+		
+	if (state->size < drvr_state_size)
+		return (ENXIO);
+
+	if (ha->hw.drvr_state == NULL)
+		return (ENOMEM);
+
+	hdr = ha->hw.drvr_state;
+
+	if (!hdr->drvr_version_major)
+		ql_capture_drvr_state(ha);
+
+	rval = copyout(ha->hw.drvr_state, state->buffer, drvr_state_size);
+
+	bzero(ha->hw.drvr_state, drvr_state_size);
+
+	return (rval);
+}
+
+static uint32_t
+ql_drvr_state_size(qla_host_t *ha)
+{
+	uint32_t drvr_state_size;
+	uint32_t size;
+
+	size = sizeof (qla_drvr_state_hdr_t);
+	drvr_state_size = QL_ALIGN(size, 64);
+
+	size =  ha->hw.num_tx_rings * (sizeof (qla_drvr_state_tx_t));
+	drvr_state_size += QL_ALIGN(size, 64);
+
+	size =  ha->hw.num_rds_rings * (sizeof (qla_drvr_state_rx_t));
+	drvr_state_size += QL_ALIGN(size, 64);
+
+	size =  ha->hw.num_sds_rings * (sizeof (qla_drvr_state_sds_t));
+	drvr_state_size += QL_ALIGN(size, 64);
+
+	size = sizeof(q80_tx_cmd_t) * NUM_TX_DESCRIPTORS * ha->hw.num_tx_rings;
+	drvr_state_size += QL_ALIGN(size, 64);
+
+	size = sizeof(q80_recv_desc_t) * NUM_RX_DESCRIPTORS * ha->hw.num_rds_rings;
+	drvr_state_size += QL_ALIGN(size, 64);
+
+	size = sizeof(q80_stat_desc_t) * NUM_STATUS_DESCRIPTORS *
+			ha->hw.num_sds_rings;
+	drvr_state_size += QL_ALIGN(size, 64);
+
+	return (drvr_state_size);
+}
+
+static void
+ql_get_tx_state(qla_host_t *ha, qla_drvr_state_tx_t *tx_state)
+{
+	int i;
+
+	for (i = 0; i < ha->hw.num_tx_rings; i++) {
+		tx_state->base_p_addr = ha->hw.tx_cntxt[i].tx_ring_paddr;
+		tx_state->cons_p_addr = ha->hw.tx_cntxt[i].tx_cons_paddr;
+		tx_state->tx_prod_reg = ha->hw.tx_cntxt[i].tx_prod_reg;
+		tx_state->tx_cntxt_id = ha->hw.tx_cntxt[i].tx_cntxt_id;
+		tx_state->txr_free = ha->hw.tx_cntxt[i].txr_free;
+		tx_state->txr_next = ha->hw.tx_cntxt[i].txr_next;
+		tx_state->txr_comp = ha->hw.tx_cntxt[i].txr_comp;
+		tx_state++;
+	}
+	return;
+}
+
+static void
+ql_get_rx_state(qla_host_t *ha, qla_drvr_state_rx_t *rx_state)
+{
+	int i;
+
+	for (i = 0; i < ha->hw.num_rds_rings; i++) {
+		rx_state->prod_std = ha->hw.rds[i].prod_std;
+		rx_state->rx_next = ha->hw.rds[i].rx_next;
+		rx_state++;
+	}
+	return;
+}
+
+static void
+ql_get_sds_state(qla_host_t *ha, qla_drvr_state_sds_t *sds_state)
+{
+	int i;
+
+	for (i = 0; i < ha->hw.num_sds_rings; i++) {
+		sds_state->sdsr_next = ha->hw.sds[i].sdsr_next;
+		sds_state->sds_consumer = ha->hw.sds[i].sds_consumer;
+		sds_state++;
+	}
+	return;
+}
+
+void
+ql_capture_drvr_state(qla_host_t *ha)
+{
+	uint8_t *state_buffer;
+	uint8_t *ptr;
+	uint32_t drvr_state_size;
+	qla_drvr_state_hdr_t *hdr;
+	uint32_t size;
+	int i;
+
+	drvr_state_size = ql_drvr_state_size(ha);
+
+	state_buffer =  ha->hw.drvr_state;
+
+	if (state_buffer == NULL)
+		return;
+	
+	bzero(state_buffer, drvr_state_size);
+
+	hdr = (qla_drvr_state_hdr_t *)state_buffer;
+
+	hdr->drvr_version_major = QLA_VERSION_MAJOR;
+	hdr->drvr_version_minor = QLA_VERSION_MINOR;
+	hdr->drvr_version_build = QLA_VERSION_BUILD;
+
+	bcopy(ha->hw.mac_addr, hdr->mac_addr, ETHER_ADDR_LEN);
+
+	hdr->link_speed = ha->hw.link_speed;
+	hdr->cable_length = ha->hw.cable_length;
+	hdr->cable_oui = ha->hw.cable_oui;
+	hdr->link_up = ha->hw.link_up;
+	hdr->module_type = ha->hw.module_type;
+	hdr->link_faults = ha->hw.link_faults;
+	hdr->rcv_intr_coalesce = ha->hw.rcv_intr_coalesce;
+	hdr->xmt_intr_coalesce = ha->hw.xmt_intr_coalesce;
+
+	size = sizeof (qla_drvr_state_hdr_t);
+	hdr->tx_state_offset = QL_ALIGN(size, 64);
+
+	ptr = state_buffer + hdr->tx_state_offset;
+
+	ql_get_tx_state(ha, (qla_drvr_state_tx_t *)ptr);
+
+	size =  ha->hw.num_tx_rings * (sizeof (qla_drvr_state_tx_t));
+	hdr->rx_state_offset = hdr->tx_state_offset + QL_ALIGN(size, 64);
+	ptr = state_buffer + hdr->rx_state_offset;
+
+	ql_get_rx_state(ha, (qla_drvr_state_rx_t *)ptr);
+
+	size =  ha->hw.num_rds_rings * (sizeof (qla_drvr_state_rx_t));
+	hdr->sds_state_offset = hdr->rx_state_offset + QL_ALIGN(size, 64);
+	ptr = state_buffer + hdr->sds_state_offset;
+
+	ql_get_sds_state(ha, (qla_drvr_state_sds_t *)ptr);
+
+	size =  ha->hw.num_sds_rings * (sizeof (qla_drvr_state_sds_t));
+	hdr->txr_offset = hdr->sds_state_offset + QL_ALIGN(size, 64);
+	ptr = state_buffer + hdr->txr_offset;
+
+	hdr->num_tx_rings = ha->hw.num_tx_rings;
+	hdr->txr_size = sizeof(q80_tx_cmd_t) * NUM_TX_DESCRIPTORS;
+	hdr->txr_entries = NUM_TX_DESCRIPTORS;
+
+	size = hdr->num_tx_rings * hdr->txr_size;
+	bcopy(ha->hw.dma_buf.tx_ring.dma_b, ptr, size);
+
+	hdr->rxr_offset = hdr->txr_offset + QL_ALIGN(size, 64);
+	ptr = state_buffer + hdr->rxr_offset;
+
+	hdr->rxr_size = sizeof(q80_recv_desc_t) * NUM_RX_DESCRIPTORS;
+	hdr->rxr_entries = NUM_RX_DESCRIPTORS;
+	hdr->num_rx_rings = ha->hw.num_rds_rings;
+
+	for (i = 0; i < ha->hw.num_rds_rings; i++) {
+		bcopy(ha->hw.dma_buf.rds_ring[i].dma_b, ptr, hdr->rxr_size);
+		ptr += hdr->rxr_size;
+	}
+
+	size = hdr->rxr_size * hdr->num_rx_rings;
+	hdr->sds_offset = hdr->rxr_offset + QL_ALIGN(size, 64);
+	hdr->sds_ring_size = sizeof(q80_stat_desc_t) * NUM_STATUS_DESCRIPTORS;
+	hdr->sds_entries = NUM_STATUS_DESCRIPTORS;
+	hdr->num_sds_rings = ha->hw.num_sds_rings;
+
+	ptr = state_buffer + hdr->sds_offset;
+	for (i = 0; i < ha->hw.num_sds_rings; i++) {
+		bcopy(ha->hw.dma_buf.sds_ring[i].dma_b, ptr, hdr->sds_ring_size);
+		ptr += hdr->sds_ring_size;
+	}
+	return;
+}
+
+void
+ql_alloc_drvr_state_buffer(qla_host_t *ha)
+{
+	uint32_t drvr_state_size;
+
+	drvr_state_size = ql_drvr_state_size(ha);
+
+	ha->hw.drvr_state =  malloc(drvr_state_size, M_QLA83XXBUF, M_NOWAIT);	
+
+	return;
+}
+
+void
+ql_free_drvr_state_buffer(qla_host_t *ha)
+{
+	if (ha->hw.drvr_state != NULL)
+		free(ha->hw.drvr_state, M_QLA83XXBUF);
+	return;
 }
 

@@ -202,7 +202,7 @@ static const struct usb_temp_interface_desc eth_control_interface = {
 	.ppRawDesc = eth_control_if_desc,
 	.bInterfaceClass = UICLASS_CDC,
 	.bInterfaceSubClass = UISUBCLASS_ETHERNET_NETWORKING_CONTROL_MODEL,
-	.bInterfaceProtocol = 0,
+	.bInterfaceProtocol = UIPROTO_CDC_NONE,
 	.iInterface = STRING_ETH_CONTROL_INDEX,
 };
 
@@ -215,7 +215,7 @@ static const struct usb_temp_endpoint_desc *eth_data_endpoints[] = {
 static const struct usb_temp_interface_desc eth_data_null_interface = {
 	.ppEndpoints = NULL,		/* no endpoints */
 	.bInterfaceClass = UICLASS_CDC_DATA,
-	.bInterfaceSubClass = 0,
+	.bInterfaceSubClass = UISUBCLASS_DATA,
 	.bInterfaceProtocol = 0,
 	.iInterface = STRING_ETH_DATA_INDEX,
 };
@@ -304,16 +304,16 @@ static const void *modem_iface_0_desc[] = {
 static const struct usb_temp_interface_desc modem_iface_0 = {
 	.ppRawDesc = modem_iface_0_desc,
 	.ppEndpoints = modem_iface_0_ep,
-	.bInterfaceClass = 2,
-	.bInterfaceSubClass = 2,
-	.bInterfaceProtocol = 1,
+	.bInterfaceClass = UICLASS_CDC,
+	.bInterfaceSubClass = UISUBCLASS_ABSTRACT_CONTROL_MODEL,
+	.bInterfaceProtocol = UIPROTO_CDC_AT,
 	.iInterface = STRING_MODEM_INDEX,
 };
 
 static const struct usb_temp_interface_desc modem_iface_1 = {
 	.ppEndpoints = modem_iface_1_ep,
-	.bInterfaceClass = 10,
-	.bInterfaceSubClass = 0,
+	.bInterfaceClass = UICLASS_CDC_DATA,
+	.bInterfaceSubClass = UISUBCLASS_DATA,
 	.bInterfaceProtocol = 0,
 	.iInterface = STRING_MODEM_INDEX,
 };

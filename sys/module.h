@@ -183,7 +183,7 @@ struct mod_pnp_match_info
 	    &_module_pnp_##b##_##unique, #b);
 /**
  * descr is a string that describes each entry in the table. The general
- * form is (TYPE:pnp_name[/pnp_name];)*
+ * form is the grammar (TYPE:pnp_name[/pnp_name];)*
  * where TYPE is one of the following:
  *	U8	uint8_t element
  *	V8	like U8 and 0xff means match any
@@ -196,12 +196,14 @@ struct mod_pnp_match_info
  *	V32	like U32 and 0xffffffff means match any
  *	W32	Two 16-bit values with first pnp_name in LSW and second in MSW.
  *	Z	pointer to a string to match exactly
- *	D	like Z, but is the string passed to device_set_descr()
+ *	D	pointer to a string to human readable description for device
  *	P	A pointer that should be ignored
  *	E	EISA PNP Identifier (in binary, but bus publishes string)
  *	K	Key for whole table. pnp_name=value. must be last, if present.
  *
  * The pnp_name "#" is reserved for other fields that should be ignored.
+ * Otherwise pnp_name must match the name from the parent device's pnpinfo
+ * output. The second pnp_name is used for the W32 type.
  */
 
 extern struct sx modules_sx;

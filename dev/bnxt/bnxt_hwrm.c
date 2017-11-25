@@ -503,33 +503,28 @@ static void
 bnxt_hwrm_set_pause_common(struct bnxt_softc *softc,
     struct hwrm_port_phy_cfg_input *req)
 {
-	if (softc->link_info.autoneg & BNXT_AUTONEG_FLOW_CTRL) {
+	struct bnxt_link_info *link_info = &softc->link_info;
+
+	if (link_info->flow_ctrl.autoneg) {
 		req->auto_pause =
 		    HWRM_PORT_PHY_CFG_INPUT_AUTO_PAUSE_AUTONEG_PAUSE;
-		if (softc->link_info.req_flow_ctrl &
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX)
+		if (link_info->flow_ctrl.rx)
 			req->auto_pause |=
 			    HWRM_PORT_PHY_CFG_INPUT_AUTO_PAUSE_RX;
-		if (softc->link_info.req_flow_ctrl &
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX)
+		if (link_info->flow_ctrl.tx)
 			req->auto_pause |=
-			    HWRM_PORT_PHY_CFG_INPUT_AUTO_PAUSE_RX;
+			    HWRM_PORT_PHY_CFG_INPUT_AUTO_PAUSE_TX;
 		req->enables |=
 		    htole32(HWRM_PORT_PHY_CFG_INPUT_ENABLES_AUTO_PAUSE);
 	} else {
-		if (softc->link_info.req_flow_ctrl &
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX)
+		if (link_info->flow_ctrl.rx)
 			req->force_pause |=
 			    HWRM_PORT_PHY_CFG_INPUT_FORCE_PAUSE_RX;
-		if (softc->link_info.req_flow_ctrl &
-		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX)
+		if (link_info->flow_ctrl.tx)
 			req->force_pause |=
 			    HWRM_PORT_PHY_CFG_INPUT_FORCE_PAUSE_TX;
 		req->enables |=
 			htole32(HWRM_PORT_PHY_CFG_INPUT_ENABLES_FORCE_PAUSE);
-		req->auto_pause = req->force_pause;
-		req->enables |= htole32(
-		    HWRM_PORT_PHY_CFG_INPUT_ENABLES_AUTO_PAUSE);
 	}
 }
 
@@ -563,26 +558,7 @@ bnxt_hwrm_set_eee(struct bnxt_softc *softc, struct hwrm_port_phy_cfg_input *req)
 
 int
 bnxt_hwrm_set_link_setting(struct bnxt_softc *softc, bool set_pause,
-    bool set_eee)
-{
-	struct hwrm_port_phy_cfg_input req = {0};
-
-	if (softc->flags & BNXT_FLAG_NPAR)
-		return ENOTSUP;
-
-	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_PORT_PHY_CFG);
-	if (set_pause)
-		bnxt_hwrm_set_pause_common(softc, &req);
-
-	bnxt_hwrm_set_link_common(softc, &req);
-	if (set_eee)
-		bnxt_hwrm_set_eee(softc, &req);
-	return hwrm_send_message(softc, &req, sizeof(req));
-}
-
-
-int
-bnxt_hwrm_set_pause(struct bnxt_softc *softc)
+    bool set_eee, bool set_link)
 {
 	struct hwrm_port_phy_cfg_input req = {0};
 	int rc;
@@ -591,21 +567,32 @@ bnxt_hwrm_set_pause(struct bnxt_softc *softc)
 		return ENOTSUP;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_PORT_PHY_CFG);
-	bnxt_hwrm_set_pause_common(softc, &req);
+	
+	if (set_pause) {
+		bnxt_hwrm_set_pause_common(softc, &req);
 
-	if (softc->link_info.autoneg & BNXT_AUTONEG_FLOW_CTRL)
+		if (softc->link_info.flow_ctrl.autoneg)
+			set_link = true;
+	}
+
+	if (set_link)
 		bnxt_hwrm_set_link_common(softc, &req);
-
+	
+	if (set_eee)
+		bnxt_hwrm_set_eee(softc, &req);
+	
 	BNXT_HWRM_LOCK(softc);
 	rc = _hwrm_send_message(softc, &req, sizeof(req));
-	if (!rc && !(softc->link_info.autoneg & BNXT_AUTONEG_FLOW_CTRL)) {
-		/* since changing of pause setting doesn't trigger any link
-		 * change event, the driver needs to update the current pause
-		 * result upon successfully return of the phy_cfg command */
-		softc->link_info.pause =
-		softc->link_info.force_pause = softc->link_info.req_flow_ctrl;
-		softc->link_info.auto_pause = 0;
-		bnxt_report_link(softc);
+
+	if (!rc) {
+		if (set_pause) {
+			/* since changing of 'force pause' setting doesn't 
+			 * trigger any link change event, the driver needs to
+			 * update the current pause result upon successfully i
+			 * return of the phy_cfg command */
+			if (!softc->link_info.flow_ctrl.autoneg) 
+				bnxt_report_link(softc);
+		}
 	}
 	BNXT_HWRM_UNLOCK(softc);
 	return rc;
@@ -949,43 +936,81 @@ bnxt_hwrm_rss_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic,
 }
 
 int
-bnxt_hwrm_func_cfg(struct bnxt_softc *softc)
+bnxt_cfg_async_cr(struct bnxt_softc *softc)
 {
-	struct hwrm_func_cfg_input req = {0};
+	int rc = 0;
+	
+	if (BNXT_PF(softc)) {
+		struct hwrm_func_cfg_input req = {0};
 
-	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_CFG);
+		bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_CFG);
 
-	req.fid = 0xffff;
-	req.enables = htole32(HWRM_FUNC_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
+		req.fid = 0xffff;
+		req.enables = htole32(HWRM_FUNC_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
+		req.async_event_cr = softc->def_cp_ring.ring.phys_id;
 
-	req.async_event_cr = softc->def_cp_ring.ring.phys_id;
+		rc = hwrm_send_message(softc, &req, sizeof(req));
+	}
+	else {
+		struct hwrm_func_vf_cfg_input req = {0};
 
-	return hwrm_send_message(softc, &req, sizeof(req));
+		bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_VF_CFG);
+
+		req.enables = htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
+		req.async_event_cr = softc->def_cp_ring.ring.phys_id;
+
+		rc = hwrm_send_message(softc, &req, sizeof(req));
+	}
+	return rc;
+}
+
+void
+bnxt_validate_hw_lro_settings(struct bnxt_softc *softc)
+{
+	softc->hw_lro.enable = min(softc->hw_lro.enable, 1);
+
+        softc->hw_lro.is_mode_gro = min(softc->hw_lro.is_mode_gro, 1);
+
+	softc->hw_lro.max_agg_segs = min(softc->hw_lro.max_agg_segs,
+		HWRM_VNIC_TPA_CFG_INPUT_MAX_AGG_SEGS_MAX);
+
+	softc->hw_lro.max_aggs = min(softc->hw_lro.max_aggs,
+		HWRM_VNIC_TPA_CFG_INPUT_MAX_AGGS_MAX);
+
+	softc->hw_lro.min_agg_len = min(softc->hw_lro.min_agg_len, BNXT_MAX_MTU);
 }
 
 int
-bnxt_hwrm_vnic_tpa_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic,
-    uint32_t flags)
+bnxt_hwrm_vnic_tpa_cfg(struct bnxt_softc *softc)
 {
 	struct hwrm_vnic_tpa_cfg_input req = {0};
+	uint32_t flags;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_VNIC_TPA_CFG);
 
-	req.flags = htole32(flags);
-	req.vnic_id = htole16(vnic->id);
-	req.enables = htole32(HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MAX_AGG_SEGS |
-	    HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MAX_AGGS |
-	    /* HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MAX_AGG_TIMER | */
-	    HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MIN_AGG_LEN);
-	/* TODO: Calculate this based on ring size? */
-	req.max_agg_segs = htole16(3);
-	/* Base this in the allocated TPA start size... */
-	req.max_aggs = htole16(7);
-	/*
-	 * TODO: max_agg_timer?
-	 * req.mag_agg_timer = htole32(XXX);
-	 */
-	req.min_agg_len = htole32(0);
+	if (softc->hw_lro.enable) {
+		flags = HWRM_VNIC_TPA_CFG_INPUT_FLAGS_TPA |
+			HWRM_VNIC_TPA_CFG_INPUT_FLAGS_ENCAP_TPA |
+			HWRM_VNIC_TPA_CFG_INPUT_FLAGS_AGG_WITH_ECN |
+			HWRM_VNIC_TPA_CFG_INPUT_FLAGS_AGG_WITH_SAME_GRE_SEQ;
+		
+        	if (softc->hw_lro.is_mode_gro)
+			flags |= HWRM_VNIC_TPA_CFG_INPUT_FLAGS_GRO;
+		else
+			flags |= HWRM_VNIC_TPA_CFG_INPUT_FLAGS_RSC_WND_UPDATE;
+			
+		req.flags = htole32(flags);
+
+		req.enables = htole32(HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MAX_AGG_SEGS |
+				HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MAX_AGGS |
+				HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MIN_AGG_LEN);
+
+		req.max_agg_segs = htole16(softc->hw_lro.max_agg_segs);
+		req.max_aggs = htole16(softc->hw_lro.max_aggs);
+		req.min_agg_len = htole32(softc->hw_lro.min_agg_len);
+	}
+
+	req.vnic_id = htole16(softc->vnic_info.id);
 
 	return hwrm_send_message(softc, &req, sizeof(req));
 }
@@ -1498,10 +1523,43 @@ bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc)
 
 	link_info->phy_link_status = resp->link;
 	link_info->duplex =  resp->duplex_cfg;
-	link_info->pause = resp->pause;
 	link_info->auto_mode = resp->auto_mode;
-	link_info->auto_pause = resp->auto_pause;
-	link_info->force_pause = resp->force_pause;
+
+        /*
+         * When AUTO_PAUSE_AUTONEG_PAUSE bit is set to 1, 
+         * the advertisement of pause is enabled.
+         * 1. When the auto_mode is not set to none and this flag is set to 1,
+         *    then the auto_pause bits on this port are being advertised and
+         *    autoneg pause results are being interpreted.
+         * 2. When the auto_mode is not set to none and this flag is set to 0,
+         *    the pause is forced as indicated in force_pause, and also 
+	 *    advertised as auto_pause bits, but the autoneg results are not 
+	 *    interpreted since the pause configuration is being forced.
+         * 3. When the auto_mode is set to none and this flag is set to 1,
+         *    auto_pause bits should be ignored and should be set to 0.
+         */
+	
+	link_info->flow_ctrl.autoneg = false;
+	link_info->flow_ctrl.tx = false;
+	link_info->flow_ctrl.rx = false;
+
+	if ((resp->auto_mode) && 
+            (resp->auto_pause & BNXT_AUTO_PAUSE_AUTONEG_PAUSE)) {
+			link_info->flow_ctrl.autoneg = true;
+	}
+
+	if (link_info->flow_ctrl.autoneg) {
+		if (resp->auto_pause & BNXT_PAUSE_TX)
+			link_info->flow_ctrl.tx = true;
+		if (resp->auto_pause & BNXT_PAUSE_RX)
+			link_info->flow_ctrl.rx = true;
+	} else {
+		if (resp->force_pause & BNXT_PAUSE_TX)
+			link_info->flow_ctrl.tx = true;
+		if (resp->force_pause & BNXT_PAUSE_RX)
+			link_info->flow_ctrl.rx = true;
+	}
+
 	link_info->duplex_setting = resp->duplex_cfg;
 	if (link_info->phy_link_status == HWRM_PORT_PHY_QCFG_OUTPUT_LINK_LINK)
 		link_info->link_speed = le16toh(resp->link_speed);
@@ -1719,4 +1777,3 @@ int bnxt_hwrm_func_rgtr_async_events(struct bnxt_softc *softc, unsigned long *bm
 
 	return hwrm_send_message(softc, &req, sizeof(req));
 }
-

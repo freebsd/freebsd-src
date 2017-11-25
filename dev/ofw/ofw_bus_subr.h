@@ -63,7 +63,7 @@ struct intr_map_data_fdt {
 };
 #endif
 
-#define SIMPLEBUS_PNP_DESCR "Z:compat;P:private;"
+#define SIMPLEBUS_PNP_DESCR "Z:compat;P:#;"
 #define SIMPLEBUS_PNP_INFO(t) \
 	MODULE_PNP_INFO(SIMPLEBUS_PNP_DESCR, simplebus, t, t, sizeof(t[0]), sizeof(t) / sizeof(t[0]));
 

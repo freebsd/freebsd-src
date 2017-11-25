@@ -80,6 +80,7 @@ struct ntb_plx_softc {
 	u_int			 ntx;		/* NTx number within chip. */
 	u_int			 link;		/* Link v/s Virtual side. */
 	u_int			 port;		/* Port number within chip. */
+	u_int			 alut;		/* A-LUT is enabled for NTx */
 
 	int			 int_rid;
 	struct resource		*int_res;
@@ -196,6 +197,10 @@ ntb_plx_init(device_t dev)
 				NTX_WRITE(sc, 0xc3c + (mw->mw_bar - 2) * 4, val);
 			}
 		}
+
+		/* Make sure Virtual to Link A-LUT is disabled. */
+		if (sc->alut)
+			PNTX_WRITE(sc, 0xc94, 0);
 
 		/* Enable Link Interface LUT entries 0/1 for peer 0/1. */
 		PNTX_WRITE(sc, 0xdb4, 0x00090001);
@@ -328,6 +333,12 @@ ntb_plx_attach(device_t dev)
 	/* Identify chip port we are connected to. */
 	val = bus_read_4(sc->conf_res, 0x360);
 	sc->port = (val >> ((sc->ntx == 0) ? 8 : 16)) & 0x1f;
+
+	/* Detect A-LUT enable and size. */
+	val >>= 30;
+	sc->alut = (val == 0x3) ? 1 : ((val & (1 << sc->ntx)) ? 2 : 0);
+	if (sc->alut)
+		device_printf(dev, "%u A-LUT entries\n", 128 * sc->alut);
 
 	/* Find configured memory windows at BAR2-5. */
 	sc->mw_count = 0;
@@ -561,22 +572,31 @@ ntb_plx_mw_get_range(device_t dev, unsigned mw_idx, vm_paddr_t *base,
 
 	/*
 	 * Remote to local memory window translation address alignment.
-	 * XXX: In B2B mode we can change window size (and so alignmet)
-	 * live, but there is no way to report it, so report safe value.
+	 * Translation address has to be aligned to the BAR size, but A-LUT
+	 * entries re-map addresses can be aligned to 1/128 or 1/256 of it.
+	 * XXX: In B2B mode we can change BAR size (and so alignmet) live,
+	 * but there is no way to report it here, so report safe value.
 	 */
-	if (align != NULL)
-		*align = mw->mw_size - off;
+	if (align != NULL) {
+		if (sc->alut && mw->mw_bar == 2)
+			*align = (mw->mw_size - off) / 128 / sc->alut;
+		else
+			*align = mw->mw_size - off;
+	}
 
 	/*
 	 * Remote to local memory window size alignment.
-	 * XXX: The chip has no limit registers.  In B2B case size must be
-	 * power of 2 (since we can reprogram BAR size), but there is no way
-	 * to report it, so report 1MB -- minimal BAR size.  In non-B2B case
-	 * there is no control at all, so report the precofigured BAR size.
+	 * The chip has no limit registers, but A-LUT, when available, allows
+	 * access control with granularity of 1/128 or 1/256 of the BAR size.
+	 * XXX: In B2B case we can change BAR size live, but there is no way
+	 * to report it, so report half of the BAR size, that should be safe.
+	 * In non-B2B case there is no control at all, so report the BAR size.
 	 */
 	if (align_size != NULL) {
-		if (sc->b2b_mw >= 0)
-			*align_size = 1024 * 1024;
+		if (sc->alut && mw->mw_bar == 2)
+			*align_size = (mw->mw_size - off) / 128 / sc->alut;
+		else if (sc->b2b_mw >= 0)
+			*align_size = (mw->mw_size - off) / 2;
 		else
 			*align_size = mw->mw_size - off;
 	}
@@ -593,8 +613,9 @@ ntb_plx_mw_set_trans_internal(device_t dev, unsigned mw_idx)
 {
 	struct ntb_plx_softc *sc = device_get_softc(dev);
 	struct ntb_plx_mw_info *mw;
-	uint64_t addr, off, size, val64;
+	uint64_t addr, eaddr, off, size, bsize, esize, val64;
 	uint32_t val;
+	int i;
 
 	mw = &sc->mw_info[mw_idx];
 	addr = mw->mw_xlat_addr;
@@ -615,22 +636,29 @@ ntb_plx_mw_set_trans_internal(device_t dev, unsigned mw_idx)
 
 	if (size > 0) {
 		/* Round BAR size to next power of 2 or at least 1MB. */
-		if (!powerof2(size))
-			size = 1LL << flsll(size);
-		if (size < 1024 * 1024)
-			size = 1024 * 1024;
+		bsize = size;
+		if (!powerof2(bsize))
+			bsize = 1LL << flsll(bsize);
+		if (bsize < 1024 * 1024)
+			bsize = 1024 * 1024;
 
-		/* Hardware requires addr aligned to BAR size. */
-		if ((addr & (size - 1)) != 0)
+		/* A-LUT has 128 or 256 times better granularity. */
+		esize = bsize;
+		if (sc->alut && mw->mw_bar == 2)
+			esize /= 128 * sc->alut;
+
+		/* addr should be aligned to BAR or A-LUT element size. */
+		if ((addr & (esize - 1)) != 0)
 			return (EINVAL);
-	}
+	} else
+		esize = bsize = 0;
 
 	if (mw->mw_64bit) {
 		if (sc->b2b_mw >= 0) {
 			/* Set Link Interface BAR size and enable/disable it. */
 			val64 = 0;
-			if (size > 0)
-				val64 = (~(size - 1) & ~0xfffff);
+			if (bsize > 0)
+				val64 = (~(bsize - 1) & ~0xfffff);
 			val64 |= 0xc;
 			PNTX_WRITE(sc, 0xe8 + (mw->mw_bar - 2) * 4, val64);
 			PNTX_WRITE(sc, 0xe8 + (mw->mw_bar - 2) * 4 + 4, val64 >> 32);
@@ -648,14 +676,14 @@ ntb_plx_mw_set_trans_internal(device_t dev, unsigned mw_idx)
 		/* Make sure we fit into 32-bit address space. */
 		if ((addr & UINT32_MAX) != addr)
 			return (ERANGE);
-		if (((addr + size) & UINT32_MAX) != (addr + size))
+		if (((addr + bsize) & UINT32_MAX) != (addr + bsize))
 			return (ERANGE);
 
 		if (sc->b2b_mw >= 0) {
 			/* Set Link Interface BAR size and enable/disable it. */
 			val = 0;
-			if (size > 0)
-				val = (~(size - 1) & ~0xfffff);
+			if (bsize > 0)
+				val = (~(bsize - 1) & ~0xfffff);
 			PNTX_WRITE(sc, 0xe8 + (mw->mw_bar - 2) * 4, val);
 
 			/* Set Link Interface BAR address. */
@@ -666,6 +694,27 @@ ntb_plx_mw_set_trans_internal(device_t dev, unsigned mw_idx)
 		/* Set Virtual Interface BARs address translation */
 		PNTX_WRITE(sc, 0xc3c + (mw->mw_bar - 2) * 4, addr);
 	}
+
+	/* Configure and enable Link to Virtual A-LUT if we need it. */
+	if (sc->alut && mw->mw_bar == 2 &&
+	    ((addr & (bsize - 1)) != 0 || size != bsize)) {
+		eaddr = addr;
+		for (i = 0; i < 128 * sc->alut; i++) {
+			val = sc->link ? 0 : 1;
+			if (sc->alut == 1)
+				val += 2 * sc->ntx;
+			val *= 0x1000 * sc->alut;
+			val += 0x38000 + i * 4 + (i >= 128 ? 0x0e00 : 0);
+			bus_write_4(sc->conf_res, val, eaddr);
+			bus_write_4(sc->conf_res, val + 0x400, eaddr >> 32);
+			bus_write_4(sc->conf_res, val + 0x800,
+			    (eaddr < addr + size) ? 0x3 : 0);
+			eaddr += esize;
+		}
+		NTX_WRITE(sc, 0xc94, 0x10000000);
+	} else if (sc->alut && mw->mw_bar == 2)
+		NTX_WRITE(sc, 0xc94, 0);
+
 	return (0);
 }
 

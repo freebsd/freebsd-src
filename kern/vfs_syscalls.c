@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -1248,9 +1250,6 @@ kern_mknodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		if (error == 0 && dev == VNOVAL)
 			error = EINVAL;
 		break;
-	case S_IFMT:
-		error = priv_check(td, PRIV_VFS_MKNOD_BAD);
-		break;
 	case S_IFWHT:
 		error = priv_check(td, PRIV_VFS_MKNOD_WHT);
 		break;
@@ -1288,9 +1287,6 @@ restart:
 		whiteout = 0;
 
 		switch (mode & S_IFMT) {
-		case S_IFMT:	/* used by badsect to flag bad sectors */
-			vattr.va_type = VBAD;
-			break;
 		case S_IFCHR:
 			vattr.va_type = VCHR;
 			break;
@@ -4400,7 +4396,7 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 	if (offset > OFF_MAX - len)
 		return (EFBIG);
 	AUDIT_ARG_FD(fd);
-	error = fget(td, fd, cap_rights_init(&rights, CAP_WRITE), &fp);
+	error = fget(td, fd, cap_rights_init(&rights, CAP_PWRITE), &fp);
 	if (error != 0)
 		return (error);
 	AUDIT_ARG_FILE(td->td_proc, fp);

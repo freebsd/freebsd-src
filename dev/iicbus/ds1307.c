@@ -272,6 +272,7 @@ ds1307_start(void *xdev)
 	struct sysctl_oid *tree_node;
 	struct sysctl_oid_list *tree;
 	uint8_t secs;
+	uint8_t osc_en;
 
 	dev = (device_t)xdev;
 	sc = device_get_softc(dev);
@@ -286,7 +287,12 @@ ds1307_start(void *xdev)
 		device_printf(sc->sc_dev, "cannot read from RTC.\n");
 		return;
 	}
-	if ((secs & DS1307_SECS_CH) != 0) {
+	if (sc->sc_mcp7941x)
+		osc_en = 0x80;
+	else
+		osc_en = 0x00;
+
+	if (((secs & DS1307_SECS_CH) ^ osc_en) != 0) {
 		device_printf(sc->sc_dev,
 		    "WARNING: RTC clock stopped, check the battery.\n");
 	}
@@ -318,7 +324,7 @@ ds1307_gettime(device_t dev, struct timespec *ts)
 	int error;
 	struct clocktime ct;
 	struct ds1307_softc *sc;
-	uint8_t data[7], hourmask;
+	uint8_t data[7], hourmask, st_mask;
 
 	sc = device_get_softc(dev);
 	error = iicdev_readfrom(sc->sc_dev, DS1307_SECS, data, sizeof(data),
@@ -329,7 +335,12 @@ ds1307_gettime(device_t dev, struct timespec *ts)
 	}
 
 	/* If the clock halted, we don't have good data. */
-	if (data[DS1307_SECS] & DS1307_SECS_CH)
+	if (sc->sc_mcp7941x)
+		st_mask = 0x80;
+	else
+		st_mask = 0x00;
+
+	if (((data[DS1307_SECS] & DS1307_SECS_CH) ^ st_mask) != 0)
 		return (EINVAL);
 
 	/* If chip is in AM/PM mode remember that. */
@@ -394,6 +405,13 @@ ds1307_settime(device_t dev, struct timespec *ts)
 	data[DS1307_WEEKDAY] = ct.dow;
 	data[DS1307_MONTH]   = TOBCD(ct.mon);
 	data[DS1307_YEAR]    = TOBCD(ct.year % 100);
+	if (sc->sc_mcp7941x) {
+		data[DS1307_SECS] |= MCP7941X_SECS_ST;
+		data[DS1307_WEEKDAY] |= MCP7941X_WEEKDAY_VBATEN;
+		if ((ct.year % 4 == 0 && ct.year % 100 != 0) ||
+		    ct.year % 400 == 0)
+			data[DS1307_MONTH] |= MCP7941X_MONTH_LPYR;
+	}
 	/* Write the time back to RTC. */
 	error = iicdev_writeto(sc->sc_dev, DS1307_SECS, data, sizeof(data),
 	    IIC_INTRWAIT);

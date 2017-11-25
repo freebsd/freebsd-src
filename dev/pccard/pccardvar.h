@@ -91,7 +91,7 @@ struct pccard_product {
  * are informative, according to the standard, but I have a dim memory of using these
  * strings to match things, though I can't find the example right now.
  */
-#define PCCARD_PNP_DESCR "D:human;V32:manufacturer;V32:product;Z:cisvendor;Z:cisproduct;"
+#define PCCARD_PNP_DESCR "D:#;V32:manufacturer;V32:product;Z:cisvendor;Z:cisproduct;"
 #define PCCARD_PNP_INFO(t) \
 	MODULE_PNP_INFO(PCCARD_PNP_DESCR, pccard, t, t, sizeof(t[0]), sizeof(t) / sizeof(t[0])); \
 

@@ -59,24 +59,9 @@
 #define	CTL_MAX_TARGID		15
 
 /*
- * Maximum number of LUNs we support at the moment.  MUST be a power of 2.
- */
-#define	CTL_MAX_LUNS		1024
-
-/*
  * Maximum number of initiators per port.
  */
 #define	CTL_MAX_INIT_PER_PORT	2048
-
-/*
- * Maximum number of ports registered at one time.
- */
-#define	CTL_MAX_PORTS		256
-
-/*
- * Maximum number of initiators we support.
- */
-#define	CTL_MAX_INITIATORS	(CTL_MAX_INIT_PER_PORT * CTL_MAX_PORTS)
 
 /* Hopefully this won't conflict with new misc devices that pop up */
 #define	CTL_MINOR	225
@@ -150,7 +135,7 @@ struct ctl_lun_io_stats {
 	uint64_t			lun_number;
 	uint32_t			blocksize;
 	ctl_lun_stats_flags		flags;
-	struct ctl_lun_io_port_stats	ports[CTL_MAX_PORTS];
+	struct ctl_lun_io_port_stats	*ports;
 };
 
 struct ctl_stats {

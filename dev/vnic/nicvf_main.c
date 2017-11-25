@@ -350,7 +350,7 @@ nicvf_setup_ifnet(struct nicvf *nic)
 
 	if_setsoftc(ifp, nic);
 	if_initname(ifp, device_get_name(nic->dev), device_get_unit(nic->dev));
-	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 
 	if_settransmitfn(ifp, nicvf_if_transmit);
 	if_setqflushfn(ifp, nicvf_if_qflush);

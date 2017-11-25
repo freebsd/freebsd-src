@@ -60,16 +60,16 @@ static dtrace_pattr_t dtmalloc_attr = {
 };
 
 static dtrace_pops_t dtmalloc_pops = {
-	dtmalloc_provide,
-	NULL,
-	dtmalloc_enable,
-	dtmalloc_disable,
-	NULL,
-	NULL,
-	dtmalloc_getargdesc,
-	NULL,
-	NULL,
-	dtmalloc_destroy
+	.dtps_provide =		dtmalloc_provide,
+	.dtps_provide_module =	NULL,
+	.dtps_enable =		dtmalloc_enable,
+	.dtps_disable =		dtmalloc_disable,
+	.dtps_suspend =		NULL,
+	.dtps_resume =		NULL,
+	.dtps_getargdesc =	dtmalloc_getargdesc,
+	.dtps_getargval =	NULL,
+	.dtps_usermode =	NULL,
+	.dtps_destroy =		dtmalloc_destroy
 };
 
 static struct cdev		*dtmalloc_cdev;

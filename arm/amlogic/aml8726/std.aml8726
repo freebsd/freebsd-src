@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 cpu		CPU_CORTEXA
-machine		arm armv6
+machine		arm armv7
 makeoptions	CONF_CFLAGS="-march=armv7a"
 
 # Physical memory starts at 0x80000000.  We assume the kernel is loaded
