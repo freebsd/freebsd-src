@@ -78,7 +78,8 @@ machdep_ap_bootstrap(void)
 	__asm __volatile("msync; isync");
 
 	while (ap_letgo == 0)
-		;
+		__asm __volatile("or 27,27,27");
+	__asm __volatile("or 6,6,6");
 
 	/* Initialize DEC and TB, sync with the BSP values */
 	platform_smp_timebase_sync(ap_timebase, 1);
@@ -176,6 +177,9 @@ cpu_mp_announce(void)
 {
 	struct pcpu *pc;
 	int i;
+
+	if (!bootverbose)
+		return;
 
 	CPU_FOREACH(i) {
 		pc = pcpu_find(i);
