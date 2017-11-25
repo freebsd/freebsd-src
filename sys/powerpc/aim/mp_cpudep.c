@@ -374,6 +374,13 @@ cpudep_ap_setup()
 		reg = mpc74xx_l1i_enable();
 
 		break;
+	case IBMPOWER7:
+	case IBMPOWER7PLUS:
+	case IBMPOWER8:
+	case IBMPOWER8E:
+		if (mfmsr() & PSL_HV)
+			mtspr(SPR_LPCR, mfspr(SPR_LPCR) | LPCR_LPES);
+		break;
 	default:
 #ifdef __powerpc64__
 		if (!(mfmsr() & PSL_HV)) /* Rely on HV to have set things up */
