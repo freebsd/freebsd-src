@@ -665,6 +665,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 
 		sleepq_lock(&sx->lock_object);
 		x = SX_READ_VALUE(sx);
+retry_sleepq:
 
 		/*
 		 * If the lock was released while spinning on the
@@ -704,17 +705,13 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 		 * fail, restart the loop.
 		 */
 		if (x == (SX_LOCK_UNLOCKED | SX_LOCK_EXCLUSIVE_WAITERS)) {
-			if (atomic_cmpset_acq_ptr(&sx->sx_lock,
-			    SX_LOCK_UNLOCKED | SX_LOCK_EXCLUSIVE_WAITERS,
-			    tid | SX_LOCK_EXCLUSIVE_WAITERS)) {
-				sleepq_release(&sx->lock_object);
-				CTR2(KTR_LOCK, "%s: %p claimed by new writer",
-				    __func__, sx);
-				break;
-			}
+			if (!atomic_fcmpset_acq_ptr(&sx->sx_lock, &x,
+			    tid | SX_LOCK_EXCLUSIVE_WAITERS))
+				goto retry_sleepq;
 			sleepq_release(&sx->lock_object);
-			x = SX_READ_VALUE(sx);
-			continue;
+			CTR2(KTR_LOCK, "%s: %p claimed by new writer",
+			    __func__, sx);
+			break;
 		}
 
 		/*
@@ -722,11 +719,9 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 		 * than loop back and retry.
 		 */
 		if (!(x & SX_LOCK_EXCLUSIVE_WAITERS)) {
-			if (!atomic_cmpset_ptr(&sx->sx_lock, x,
+			if (!atomic_fcmpset_ptr(&sx->sx_lock, &x,
 			    x | SX_LOCK_EXCLUSIVE_WAITERS)) {
-				sleepq_release(&sx->lock_object);
-				x = SX_READ_VALUE(sx);
-				continue;
+				goto retry_sleepq;
 			}
 			if (LOCK_LOG_TEST(&sx->lock_object, 0))
 				CTR2(KTR_LOCK, "%s: %p set excl waiters flag",
@@ -986,7 +981,7 @@ _sx_slock_hard(struct sx *sx, int opts, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 		 */
 		sleepq_lock(&sx->lock_object);
 		x = SX_READ_VALUE(sx);
-
+retry_sleepq:
 		/*
 		 * The lock could have been released while we spun.
 		 * In this case loop back and retry.
@@ -1019,12 +1014,9 @@ _sx_slock_hard(struct sx *sx, int opts, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 		 * back.
 		 */
 		if (!(x & SX_LOCK_SHARED_WAITERS)) {
-			if (!atomic_cmpset_ptr(&sx->sx_lock, x,
-			    x | SX_LOCK_SHARED_WAITERS)) {
-				sleepq_release(&sx->lock_object);
-				x = SX_READ_VALUE(sx);
-				continue;
-			}
+			if (!atomic_fcmpset_ptr(&sx->sx_lock, &x,
+			    x | SX_LOCK_SHARED_WAITERS))
+				goto retry_sleepq;
 			if (LOCK_LOG_TEST(&sx->lock_object, 0))
 				CTR2(KTR_LOCK, "%s: %p set shared waiters flag",
 				    __func__, sx);
