@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/capsicum.h>
 #include <sys/types.h>
+#define	_WANT_FREEBSD11_KEVENT
 #include <sys/event.h>
 #include <sys/ioccom.h>
 #include <sys/mount.h>
@@ -152,6 +153,9 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "compat11.fstatat", .ret_type = 1, .nargs = 4,
 	  .args = { { Atfd, 0 }, { Name | IN, 1 }, { Stat11 | OUT, 2 },
 		    { Atflags, 3 } } },
+	{ .name = "compat11.kevent", .ret_type = 1, .nargs = 6,
+	  .args = { { Int, 0 }, { Kevent11, 1 }, { Int, 2 },
+		    { Kevent11 | OUT, 3 }, { Int, 4 }, { Timespec, 5 } } },
 	{ .name = "compat11.lstat", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Stat11 | OUT, 1 } } },
 	{ .name = "compat11.stat", .ret_type = 1, .nargs = 2,
@@ -650,43 +654,6 @@ struct xlat {
 #define	X(a)	{ a, #a },
 #define	XEND	{ 0, NULL }
 
-static struct xlat kevent_filters[] = {
-	X(EVFILT_READ) X(EVFILT_WRITE) X(EVFILT_AIO) X(EVFILT_VNODE)
-	X(EVFILT_PROC) X(EVFILT_SIGNAL) X(EVFILT_TIMER)
-	X(EVFILT_PROCDESC) X(EVFILT_FS) X(EVFILT_LIO) X(EVFILT_USER)
-	X(EVFILT_SENDFILE) XEND
-};
-
-static struct xlat kevent_flags[] = {
-	X(EV_ADD) X(EV_DELETE) X(EV_ENABLE) X(EV_DISABLE) X(EV_ONESHOT)
-	X(EV_CLEAR) X(EV_RECEIPT) X(EV_DISPATCH) X(EV_FORCEONESHOT)
-	X(EV_DROP) X(EV_FLAG1) X(EV_ERROR) X(EV_EOF) XEND
-};
-
-static struct xlat kevent_user_ffctrl[] = {
-	X(NOTE_FFNOP) X(NOTE_FFAND) X(NOTE_FFOR) X(NOTE_FFCOPY)
-	XEND
-};
-
-static struct xlat kevent_rdwr_fflags[] = {
-	X(NOTE_LOWAT) X(NOTE_FILE_POLL) XEND
-};
-
-static struct xlat kevent_vnode_fflags[] = {
-	X(NOTE_DELETE) X(NOTE_WRITE) X(NOTE_EXTEND) X(NOTE_ATTRIB)
-	X(NOTE_LINK) X(NOTE_RENAME) X(NOTE_REVOKE) XEND
-};
-
-static struct xlat kevent_proc_fflags[] = {
-	X(NOTE_EXIT) X(NOTE_FORK) X(NOTE_EXEC) X(NOTE_TRACK) X(NOTE_TRACKERR)
-	X(NOTE_CHILD) XEND
-};
-
-static struct xlat kevent_timer_fflags[] = {
-	X(NOTE_SECONDS) X(NOTE_MSECONDS) X(NOTE_USECONDS) X(NOTE_NSECONDS)
-	XEND
-};
-
 static struct xlat poll_flags[] = {
 	X(POLLSTANDARD) X(POLLIN) X(POLLPRI) X(POLLOUT) X(POLLERR)
 	X(POLLHUP) X(POLLNVAL) X(POLLRDNORM) X(POLLRDBAND)
@@ -1137,7 +1104,7 @@ strsig2(int sig)
 }
 
 static void
-print_kevent(FILE *fp, struct kevent *ke, int input)
+print_kevent(FILE *fp, struct kevent *ke)
 {
 
 	switch (ke->filter) {
@@ -1147,6 +1114,7 @@ print_kevent(FILE *fp, struct kevent *ke, int input)
 	case EVFILT_PROC:
 	case EVFILT_TIMER:
 	case EVFILT_PROCDESC:
+	case EVFILT_EMPTY:
 		fprintf(fp, "%ju", (uintmax_t)ke->ident);
 		break;
 	case EVFILT_SIGNAL:
@@ -1155,42 +1123,12 @@ print_kevent(FILE *fp, struct kevent *ke, int input)
 	default:
 		fprintf(fp, "%p", (void *)ke->ident);
 	}
-	fprintf(fp, ",%s,%s,", xlookup(kevent_filters, ke->filter),
-	    xlookup_bits(kevent_flags, ke->flags));
-	switch (ke->filter) {
-	case EVFILT_READ:
-	case EVFILT_WRITE:
-		fputs(xlookup_bits(kevent_rdwr_fflags, ke->fflags), fp);
-		break;
-	case EVFILT_VNODE:
-		fputs(xlookup_bits(kevent_vnode_fflags, ke->fflags), fp);
-		break;
-	case EVFILT_PROC:
-	case EVFILT_PROCDESC:
-		fputs(xlookup_bits(kevent_proc_fflags, ke->fflags), fp);
-		break;
-	case EVFILT_TIMER:
-		fputs(xlookup_bits(kevent_timer_fflags, ke->fflags), fp);
-		break;
-	case EVFILT_USER: {
-		int ctrl, data;
-
-		ctrl = ke->fflags & NOTE_FFCTRLMASK;
-		data = ke->fflags & NOTE_FFLAGSMASK;
-		if (input) {
-			fputs(xlookup(kevent_user_ffctrl, ctrl), fp);
-			if (ke->fflags & NOTE_TRIGGER)
-				fputs("|NOTE_TRIGGER", fp);
-			if (data != 0)
-				fprintf(fp, "|%#x", data);
-		} else {
-			fprintf(fp, "%#x", data);
-		}
-		break;
-	}
-	default:
-		fprintf(fp, "%#x", ke->fflags);
-	}
+	fprintf(fp, ",");
+	print_integer_arg(sysdecode_kevent_filter, fp, ke->filter);
+	fprintf(fp, ",");
+	print_mask_arg(sysdecode_kevent_flags, fp, ke->flags);
+	fprintf(fp, ",");
+	sysdecode_kevent_fflags(fp, ke->filter, ke->fflags, 16);
 	fprintf(fp, ",%#jx,%p", (uintmax_t)ke->data, ke->udata);
 }
 
@@ -1795,13 +1733,54 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			fputc('{', fp);
 			for (i = 0; i < numevents; i++) {
 				fputc(' ', fp);
-				print_kevent(fp, &ke[i], sc->offset == 1);
+				print_kevent(fp, &ke[i]);
 			}
 			fputs(" }", fp);
 		} else {
 			fprintf(fp, "0x%lx", args[sc->offset]);
 		}
 		free(ke);
+		break;
+	}
+	case Kevent11: {
+		struct kevent_freebsd11 *ke11;
+		struct kevent ke;
+		int numevents = -1;
+		size_t bytes;
+		int i;
+
+		if (sc->offset == 1)
+			numevents = args[sc->offset+1];
+		else if (sc->offset == 3 && retval[0] != -1)
+			numevents = retval[0];
+
+		if (numevents >= 0) {
+			bytes = sizeof(struct kevent_freebsd11) * numevents;
+			if ((ke11 = malloc(bytes)) == NULL)
+				err(1,
+				    "Cannot malloc %zu bytes for kevent array",
+				    bytes);
+		} else
+			ke11 = NULL;
+		memset(&ke, 0, sizeof(ke));
+		if (numevents >= 0 && get_struct(pid, (void *)args[sc->offset],
+		    ke11, bytes) != -1) {
+			fputc('{', fp);
+			for (i = 0; i < numevents; i++) {
+				fputc(' ', fp);
+				ke.ident = ke11[i].ident;
+				ke.filter = ke11[i].filter;
+				ke.flags = ke11[i].flags;
+				ke.fflags = ke11[i].fflags;
+				ke.data = ke11[i].data;
+				ke.udata = ke11[i].udata;
+				print_kevent(fp, &ke);
+			}
+			fputs(" }", fp);
+		} else {
+			fprintf(fp, "0x%lx", args[sc->offset]);
+		}
+		free(ke11);
 		break;
 	}
 	case Stat: {

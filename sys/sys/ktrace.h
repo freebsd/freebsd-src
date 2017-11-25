@@ -221,6 +221,18 @@ struct ktr_faultend {
 };
 
 /*
+ * KTR_STRUCT_ARRAY - array of misc. structs
+ */
+#define	KTR_STRUCT_ARRAY 15
+struct ktr_struct_array {
+	size_t struct_size;
+	/*
+	 * Followed by null-terminated structure name and then payload
+	 * contents.
+	 */
+};
+
+/*
  * KTR_DROP - If this bit is set in ktr_type, then at least one event
  * between the previous record and this record was dropped.
  */
@@ -244,6 +256,7 @@ struct ktr_faultend {
 #define KTRFAC_CAPFAIL	(1<<KTR_CAPFAIL)
 #define KTRFAC_FAULT	(1<<KTR_FAULT)
 #define KTRFAC_FAULTEND	(1<<KTR_FAULTEND)
+#define	KTRFAC_STRUCT_ARRAY (1<<KTR_STRUCT_ARRAY)
 
 /*
  * trace flags (also in p_traceflags)
@@ -267,7 +280,8 @@ void	ktrprocexec(struct proc *, struct ucred **, struct vnode **);
 void	ktrprocexit(struct thread *);
 void	ktrprocfork(struct proc *, struct proc *);
 void	ktruserret(struct thread *);
-void	ktrstruct(const char *, void *, size_t);
+void	ktrstruct(const char *, const void *, size_t);
+void	ktrstructarray(const char *, enum uio_seg, const void *, int, size_t);
 void	ktrcapfail(enum ktr_cap_fail_type, const cap_rights_t *,
 	    const cap_rights_t *);
 #define ktrcaprights(s) \
