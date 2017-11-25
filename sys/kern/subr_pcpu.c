@@ -279,6 +279,8 @@ pcpu_destroy(struct pcpu *pcpu)
 struct pcpu *
 pcpu_find(u_int cpuid)
 {
+	KASSERT(cpuid_to_pcpu[cpuid] != NULL,
+	    ("Getting uninitialized PCPU %d", cpuid));
 
 	return (cpuid_to_pcpu[cpuid]);
 }
@@ -409,7 +411,7 @@ DB_SHOW_ALL_COMMAND(pcpu, db_show_cpu_all)
 	int id;
 
 	db_printf("Current CPU: %d\n\n", PCPU_GET(cpuid));
-	for (id = 0; id <= mp_maxid; id++) {
+	CPU_FOREACH(id) {
 		pc = pcpu_find(id);
 		if (pc != NULL) {
 			show_pcpu(pc);

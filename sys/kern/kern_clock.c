@@ -573,7 +573,9 @@ hardclock_cnt(int cnt, int usermode)
 void
 hardclock_sync(int cpu)
 {
-	int	*t = DPCPU_ID_PTR(cpu, pcputicks);
+	int *t;
+	KASSERT(!CPU_ABSENT(cpu), ("Absent CPU %d", cpu));
+	t = DPCPU_ID_PTR(cpu, pcputicks);
 
 	*t = ticks;
 }

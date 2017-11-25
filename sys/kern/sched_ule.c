@@ -1224,6 +1224,8 @@ sched_pickcpu(struct thread *td, int flags)
 
 	self = PCPU_GET(cpuid);
 	ts = td_get_sched(td);
+	KASSERT(!CPU_ABSENT(ts->ts_cpu), ("sched_pickcpu: Start scheduler on "
+	    "absent CPU %d for thread %s.", ts->ts_cpu, td->td_name));
 	if (smp_started == 0)
 		return (self);
 	/*
@@ -1294,6 +1296,7 @@ sched_pickcpu(struct thread *td, int flags)
 	if (cpu == -1)
 		cpu = sched_lowest(cpu_top, mask, -1, INT_MAX, ts->ts_cpu);
 	KASSERT(cpu != -1, ("sched_pickcpu: Failed to find a cpu."));
+	KASSERT(!CPU_ABSENT(cpu), ("sched_pickcpu: Picked absent CPU %d.", cpu));
 	/*
 	 * Compare the lowest loaded cpu to current cpu.
 	 */
@@ -1400,6 +1403,7 @@ sched_setup(void *dummy)
 
 	/* Add thread0's load since it's running. */
 	TDQ_LOCK(tdq);
+	td_get_sched(&thread0)->ts_cpu = curcpu; /* Something valid to start */
 	thread0.td_lock = TDQ_LOCKPTR(TDQ_SELF());
 	tdq_load_add(tdq, &thread0);
 	tdq->tdq_lowpri = thread0.td_priority;
@@ -1837,6 +1841,9 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 {
 	struct tdq *tdn;
 
+	KASSERT(!CPU_ABSENT(td_get_sched(td)->ts_cpu), ("sched_switch_migrate: "
+	    "thread %s queued on absent CPU %d.", td->td_name,
+	    td_get_sched(td)->ts_cpu));
 	tdn = TDQ_CPU(td_get_sched(td)->ts_cpu);
 #ifdef SMP
 	tdq_load_rem(tdq, td);
@@ -2444,6 +2451,7 @@ sched_add(struct thread *td, int flags)
 	 * Pick the destination cpu and if it isn't ours transfer to the
 	 * target cpu.
 	 */
+	td_get_sched(td)->ts_cpu = curcpu; /* Pick something valid to start */
 	cpu = sched_pickcpu(td, flags);
 	tdq = sched_setcpu(td, cpu, flags);
 	tdq_add(tdq, td, flags);

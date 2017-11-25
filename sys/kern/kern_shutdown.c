@@ -373,15 +373,16 @@ kern_reboot(int howto)
 
 #if defined(SMP)
 	/*
-	 * Bind us to CPU 0 so that all shutdown code runs there.  Some
+	 * Bind us to the first CPU so that all shutdown code runs there.  Some
 	 * systems don't shutdown properly (i.e., ACPI power off) if we
 	 * run on another processor.
 	 */
 	if (!SCHEDULER_STOPPED()) {
 		thread_lock(curthread);
-		sched_bind(curthread, 0);
+		sched_bind(curthread, CPU_FIRST());
 		thread_unlock(curthread);
-		KASSERT(PCPU_GET(cpuid) == 0, ("boot: not running on cpu 0"));
+		KASSERT(PCPU_GET(cpuid) == CPU_FIRST(),
+		    ("boot: not running on cpu 0"));
 	}
 #endif
 	/* We're in the process of rebooting. */
