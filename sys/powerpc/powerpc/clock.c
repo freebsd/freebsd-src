@@ -141,6 +141,9 @@ decr_intr(struct trapframe *frame)
 	} else if (s->mode == 2) {
 		nticks = 1;
 		decr_et_stop(NULL);
+	} else if (s->mode == 0) {
+		/* Potemkin timer ran out without an event. Just reset it. */
+		decr_et_stop(NULL);
 	}
 
 	while (nticks-- > 0) {
