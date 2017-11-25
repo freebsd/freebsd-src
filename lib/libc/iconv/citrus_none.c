@@ -2,6 +2,8 @@
 /* $NetBSD: citrus_none.c,v 1.18 2008/06/14 16:01:07 tnozaki Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2002 Citrus Project,
  * Copyright (c) 2010 Gabor Kovesdan <gabor@FreeBSD.org>,
  * All rights reserved.
