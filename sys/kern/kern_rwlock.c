@@ -284,9 +284,8 @@ _rw_wlock_cookie(volatile uintptr_t *c, const char *file, int line)
 }
 
 int
-__rw_try_wlock(volatile uintptr_t *c, const char *file, int line)
+__rw_try_wlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 {
-	struct rwlock *rw;
 	struct thread *td;
 	uintptr_t tid, v;
 	int rval;
@@ -296,8 +295,6 @@ __rw_try_wlock(volatile uintptr_t *c, const char *file, int line)
 	tid = (uintptr_t)td;
 	if (SCHEDULER_STOPPED_TD(td))
 		return (1);
-
-	rw = rwlock2rw(c);
 
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(td),
 	    ("rw_try_wlock() by idle thread %p on rwlock %s @ %s:%d",
@@ -332,6 +329,15 @@ __rw_try_wlock(volatile uintptr_t *c, const char *file, int line)
 		TD_LOCKS_INC(curthread);
 	}
 	return (rval);
+}
+
+int
+__rw_try_wlock(volatile uintptr_t *c, const char *file, int line)
+{
+	struct rwlock *rw;
+
+	rw = rwlock2rw(c);
+	return (__rw_try_wlock_int(rw, LOCK_FILE_LINE_ARG));
 }
 
 void
@@ -656,15 +662,12 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 }
 
 int
-__rw_try_rlock(volatile uintptr_t *c, const char *file, int line)
+__rw_try_rlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 {
-	struct rwlock *rw;
 	uintptr_t x;
 
 	if (SCHEDULER_STOPPED())
 		return (1);
-
-	rw = rwlock2rw(c);
 
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
 	    ("rw_try_rlock() by idle thread %p on rwlock %s @ %s:%d",
@@ -690,6 +693,15 @@ __rw_try_rlock(volatile uintptr_t *c, const char *file, int line)
 
 	LOCK_LOG_TRY("RLOCK", &rw->lock_object, 0, 0, file, line);
 	return (0);
+}
+
+int
+__rw_try_rlock(volatile uintptr_t *c, const char *file, int line)
+{
+	struct rwlock *rw;
+
+	rw = rwlock2rw(c);
+	return (__rw_try_rlock_int(rw, LOCK_FILE_LINE_ARG));
 }
 
 static bool __always_inline
