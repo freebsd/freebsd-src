@@ -337,7 +337,7 @@ __rw_try_wlock(volatile uintptr_t *c, const char *file, int line)
 	struct rwlock *rw;
 
 	rw = rwlock2rw(c);
-	return (__rw_try_wlock_int(rw, LOCK_FILE_LINE_ARG));
+	return (__rw_try_wlock_int(rw LOCK_FILE_LINE_ARG));
 }
 
 void
@@ -701,7 +701,7 @@ __rw_try_rlock(volatile uintptr_t *c, const char *file, int line)
 	struct rwlock *rw;
 
 	rw = rwlock2rw(c);
-	return (__rw_try_rlock_int(rw, LOCK_FILE_LINE_ARG));
+	return (__rw_try_rlock_int(rw LOCK_FILE_LINE_ARG));
 }
 
 static bool __always_inline
