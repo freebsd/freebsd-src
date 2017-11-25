@@ -2,6 +2,8 @@
 /*	$NetBSD: citrus_lookup.c,v 1.7 2012/05/04 16:45:05 joerg Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
  *

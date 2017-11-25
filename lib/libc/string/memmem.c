@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: MIT
+ *
  * Copyright (c) 2005-2014 Rich Felker, et al.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
