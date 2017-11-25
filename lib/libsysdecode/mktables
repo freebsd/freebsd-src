@@ -107,6 +107,8 @@ gen_table "mmapprot"        "PROT_[A-Z]+[[:space:]]+0x[0-9A-Fa-f]+"        "sys/
 gen_table "ngbtsolevel"     "SOL_[A-Z0-9]+[[:space:]]+0x[0-9A-Fa-f]+"      "netgraph/bluetooth/include/ng_btsocket.h"
 gen_table "fileflags"       "[SU]F_[A-Z]+[[:space:]]+0x[0-9A-Fa-f]+"       "sys/stat.h"		"UF_COMPRESSED|UF_TRACKED|UF_SETTABLE|SF_SETTABLE"
 gen_table "filemode"        "S_[A-Z]+[[:space:]]+[0-6]{7}"                 "sys/stat.h"
+gen_table "keventflags"     "EV_[A-Z]+[[:space:]]+0x[0-9]+"                "sys/event.h"        "EV_SYSFLAGS|EV_DROP|EV_FLAG[12]"
+gen_table "keventfilters"   "EVFILT_[A-Z]+[[:space:]]+\(-[0-9]+\)"         "sys/event.h"
 gen_table "mountflags"      "MNT_[A-Z]+[[:space:]]+0x[0-9]+"               "sys/mount.h"
 gen_table "msyncflags"      "MS_[A-Z]+[[:space:]]+0x[0-9]+"                "sys/mman.h"
 gen_table "nfssvcflags"     "NFSSVC_[A-Z0-9]+[[:space:]]+0x[0-9]+"         "nfs/nfssvc.h"
