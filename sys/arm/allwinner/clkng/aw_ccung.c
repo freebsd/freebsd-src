@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 
 #if defined(SOC_ALLWINNER_A83T)
 #include <arm/allwinner/clkng/ccu_a83t.h>
+#include <arm/allwinner/clkng/ccu_sun8i_r.h>
 #endif
 
 #include "clkdev_if.h"
@@ -87,28 +88,6 @@ static struct resource_spec aw_ccung_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ -1, 0 }
 };
-
-#if defined(SOC_ALLWINNER_H3) || defined(SOC_ALLWINNER_H5)
-#define	H3_CCU		1
-#define	H3_R_CCU	2
-#endif
-
-#if defined(SOC_ALLWINNER_A31)
-#define	A31_CCU		3
-#endif
-
-#if defined(SOC_ALLWINNER_A64)
-#define	A64_CCU		4
-#define	A64_R_CCU	5
-#endif
-
-#if defined(SOC_ALLWINNER_A13)
-#define	A13_CCU		6
-#endif
-
-#if defined(SOC_ALLWINNER_A83T)
-#define	A83T_CCU	7
-#endif
 
 static struct ofw_compat_data compat_data[] = {
 #if defined(SOC_ALLWINNER_A31)
@@ -127,6 +106,7 @@ static struct ofw_compat_data compat_data[] = {
 #endif
 #if defined(SOC_ALLWINNER_A83T)
 	{ "allwinner,sun8i-a83t-ccu", A83T_CCU },
+	{ "allwinner,sun8i-a83t-r-ccu", A83T_R_CCU },
 #endif
 	{NULL, 0 }
 };
@@ -373,6 +353,9 @@ aw_ccung_attach(device_t dev)
 #if defined(SOC_ALLWINNER_A83T)
 	case A83T_CCU:
 		ccu_a83t_register_clocks(sc);
+		break;
+	case A83T_R_CCU:
+		ccu_sun8i_r_register_clocks(sc);
 		break;
 #endif
 	}
