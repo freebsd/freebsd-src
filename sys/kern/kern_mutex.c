@@ -834,6 +834,8 @@ _thread_lock(struct thread *td)
 
 	tid = (uintptr_t)curthread;
 
+	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(spin__acquire)))
+		goto slowpath_noirq;
 	spinlock_enter();
 	m = td->td_lock;
 	thread_lock_validate(m, 0, file, line);
@@ -855,7 +857,12 @@ _thread_lock(struct thread *td)
 		_mtx_release_lock_quick(m);
 slowpath_unlocked:
 	spinlock_exit();
+slowpath_noirq:
+#if LOCK_DEBUG > 0
+	thread_lock_flags_(td, opts, file, line);
+#else
 	thread_lock_flags_(td, 0, 0, 0);
+#endif
 }
 #endif
 
