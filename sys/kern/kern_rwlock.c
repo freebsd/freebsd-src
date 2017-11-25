@@ -411,8 +411,8 @@ __rw_rlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
     LOCK_FILE_LINE_ARG_DEF)
 {
 	struct turnstile *ts;
+	struct thread *owner;
 #ifdef ADAPTIVE_RWLOCKS
-	volatile struct thread *owner;
 	int spintries = 0;
 	int i, n;
 #endif
@@ -531,6 +531,8 @@ __rw_rlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
 			continue;
 		}
 
+		owner = lv_rw_wowner(v);
+
 #ifdef ADAPTIVE_RWLOCKS
 		/*
 		 * The current lock owner might have started executing
@@ -539,8 +541,7 @@ __rw_rlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
 		 * chain lock.  If so, drop the turnstile lock and try
 		 * again.
 		 */
-		if ((v & RW_LOCK_READ) == 0) {
-			owner = (struct thread *)RW_OWNER(v);
+		if (owner != NULL) {
 			if (TD_IS_RUNNING(owner)) {
 				turnstile_cancel(ts);
 				continue;
@@ -581,7 +582,8 @@ __rw_rlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
 #ifdef KDTRACE_HOOKS
 		sleep_time -= lockstat_nsecs(&rw->lock_object);
 #endif
-		turnstile_wait(ts, rw_owner(rw), TS_SHARED_QUEUE);
+		MPASS(owner == rw_owner(rw));
+		turnstile_wait(ts, owner, TS_SHARED_QUEUE);
 #ifdef KDTRACE_HOOKS
 		sleep_time += lockstat_nsecs(&rw->lock_object);
 		sleep_cnt++;
@@ -850,8 +852,8 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 	uintptr_t tid;
 	struct rwlock *rw;
 	struct turnstile *ts;
+	struct thread *owner;
 #ifdef ADAPTIVE_RWLOCKS
-	volatile struct thread *owner;
 	int spintries = 0;
 	int i, n;
 #endif
@@ -981,6 +983,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 #endif
 		ts = turnstile_trywait(&rw->lock_object);
 		v = RW_READ_VALUE(rw);
+		owner = lv_rw_wowner(v);
 
 #ifdef ADAPTIVE_RWLOCKS
 		/*
@@ -990,8 +993,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 		 * chain lock.  If so, drop the turnstile lock and try
 		 * again.
 		 */
-		if (!(v & RW_LOCK_READ)) {
-			owner = (struct thread *)RW_OWNER(v);
+		if (owner != NULL) {
 			if (TD_IS_RUNNING(owner)) {
 				turnstile_cancel(ts);
 				continue;
@@ -1045,7 +1047,8 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 #ifdef KDTRACE_HOOKS
 		sleep_time -= lockstat_nsecs(&rw->lock_object);
 #endif
-		turnstile_wait(ts, rw_owner(rw), TS_EXCLUSIVE_QUEUE);
+		MPASS(owner == rw_owner(rw));
+		turnstile_wait(ts, owner, TS_EXCLUSIVE_QUEUE);
 #ifdef KDTRACE_HOOKS
 		sleep_time += lockstat_nsecs(&rw->lock_object);
 		sleep_cnt++;
