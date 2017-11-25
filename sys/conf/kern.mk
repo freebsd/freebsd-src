@@ -172,10 +172,16 @@ CFLAGS.gcc+=	-mno-spe
 .endif
 
 #
-# Use dot symbols on powerpc64 to make ddb happy
+# Use dot symbols (or, better, the V2 ELF ABI) on powerpc64 to make
+# DDB happy. ELFv2, if available, has some other efficiency benefits.
 #
 .if ${MACHINE_ARCH} == "powerpc64"
+.if ${COMPILER_VERSION} >= 40900
+CFLAGS.gcc+=	-mabi=elfv2
+.else
 CFLAGS.gcc+=	-mcall-aixdesc
+.endif
+CFLAGS.clang+=	-mabi=elfv2
 .endif
 
 #
