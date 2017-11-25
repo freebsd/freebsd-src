@@ -266,6 +266,12 @@ platform_cpu_idle(int cpu)
 	PLATFORM_IDLE(plat_obj, cpu);
 }
 
+void platform_smp_timebase_sync(u_long tb, int ap)
+{
+
+	PLATFORM_SMP_TIMEBASE_SYNC(plat_obj, tb, ap);
+}
+
 /*
  * Platform install routines. Highest priority wins, using the same
  * algorithm as bus attachment.

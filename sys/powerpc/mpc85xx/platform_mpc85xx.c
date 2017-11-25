@@ -92,6 +92,7 @@ static int mpc85xx_smp_first_cpu(platform_t, struct cpuref *cpuref);
 static int mpc85xx_smp_next_cpu(platform_t, struct cpuref *cpuref);
 static int mpc85xx_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static int mpc85xx_smp_start_cpu(platform_t, struct pcpu *cpu);
+static void mpc85xx_smp_timebase_sync(platform_t, u_long tb, int ap);
 static void mpc85xx_idle(platform_t, int cpu);
 static int mpc85xx_idle_wakeup(platform_t plat, int cpu);
 
@@ -107,6 +108,7 @@ static platform_method_t mpc85xx_methods[] = {
 	PLATFORMMETHOD(platform_smp_next_cpu,	mpc85xx_smp_next_cpu),
 	PLATFORMMETHOD(platform_smp_get_bsp,	mpc85xx_smp_get_bsp),
 	PLATFORMMETHOD(platform_smp_start_cpu,	mpc85xx_smp_start_cpu),
+	PLATFORMMETHOD(platform_smp_timebase_sync, mpc85xx_smp_timebase_sync),
 
 	PLATFORMMETHOD(platform_reset,		mpc85xx_reset),
 	PLATFORMMETHOD(platform_idle,		mpc85xx_idle),
@@ -526,6 +528,13 @@ mpc85xx_reset(platform_t plat)
 	printf("Reset failed...\n");
 	while (1)
 		;
+}
+
+static void
+mpc85xx_smp_timebase_sync(platform_t plat, u_long tb, int ap)
+{
+
+	mttb(tb);
 }
 
 static void
