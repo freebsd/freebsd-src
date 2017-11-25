@@ -1168,45 +1168,46 @@ static void __noinline
 _sx_sunlock_hard(struct sx *sx, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 {
 	int wakeup_swapper;
+	uintptr_t setx;
 
 	if (SCHEDULER_STOPPED())
 		return;
 
+	if (_sx_sunlock_try(sx, &x))
+		goto out_lockstat;
+
+	/*
+	 * At this point, there should just be one sharer with
+	 * exclusive waiters.
+	 */
+	MPASS(x == (SX_SHARERS_LOCK(1) | SX_LOCK_EXCLUSIVE_WAITERS));
+
+	sleepq_lock(&sx->lock_object);
+	x = SX_READ_VALUE(sx);
 	for (;;) {
-		if (_sx_sunlock_try(sx, &x))
-			break;
-
-		/*
-		 * At this point, there should just be one sharer with
-		 * exclusive waiters.
-		 */
-		MPASS(x == (SX_SHARERS_LOCK(1) | SX_LOCK_EXCLUSIVE_WAITERS));
-
-		sleepq_lock(&sx->lock_object);
-
+		MPASS(x & SX_LOCK_EXCLUSIVE_WAITERS);
+		MPASS(!(x & SX_LOCK_SHARED_WAITERS));
 		/*
 		 * Wake up semantic here is quite simple:
 		 * Just wake up all the exclusive waiters.
 		 * Note that the state of the lock could have changed,
 		 * so if it fails loop back and retry.
 		 */
-		if (!atomic_cmpset_rel_ptr(&sx->sx_lock,
-		    SX_SHARERS_LOCK(1) | SX_LOCK_EXCLUSIVE_WAITERS,
-		    SX_LOCK_UNLOCKED)) {
-			sleepq_release(&sx->lock_object);
-			x = SX_READ_VALUE(sx);
+		setx = x - SX_ONE_SHARER;
+		setx &= ~SX_LOCK_EXCLUSIVE_WAITERS;
+		if (!atomic_fcmpset_rel_ptr(&sx->sx_lock, &x, setx))
 			continue;
-		}
 		if (LOCK_LOG_TEST(&sx->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p waking up all thread on"
 			    "exclusive queue", __func__, sx);
 		wakeup_swapper = sleepq_broadcast(&sx->lock_object, SLEEPQ_SX,
 		    0, SQ_EXCLUSIVE_QUEUE);
-		sleepq_release(&sx->lock_object);
-		if (wakeup_swapper)
-			kick_proc0();
 		break;
 	}
+	sleepq_release(&sx->lock_object);
+	if (wakeup_swapper)
+		kick_proc0();
+out_lockstat:
 	LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx, LOCKSTAT_READER);
 }
 
