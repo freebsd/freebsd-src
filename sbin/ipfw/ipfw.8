@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2017
+.Dd November 26, 2017
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1173,6 +1173,14 @@ ipfw add reass all from any to any in
 .Ed
 .Pp
 is all you need at the beginning of your ruleset.
+.It Cm abort
+Discard packets that match this rule, and if the packet is an SCTP packet,
+try to send an SCTP packet containing an ABORT chunk.
+The search terminates.
+.It Cm abort6
+Discard packets that match this rule, and if the packet is an SCTP packet,
+try to send an SCTP packet containing an ABORT chunk.
+The search terminates.
 .El
 .Ss RULE BODY
 The body of a rule contains zero or more patterns (such as
