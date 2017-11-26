@@ -381,7 +381,8 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 		panic("VFP exception in userland");
 #endif
 		break;
-	case EXCP_SVC:
+	case EXCP_SVC32:
+	case EXCP_SVC64:
 		svc_handler(td, frame);
 		break;
 	case EXCP_INSN_ABORT_L:

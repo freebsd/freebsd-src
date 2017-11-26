@@ -123,7 +123,8 @@
 #define	 EXCP_UNKNOWN		0x00	/* Unkwn exception */
 #define	 EXCP_FP_SIMD		0x07	/* VFP/SIMD trap */
 #define	 EXCP_ILL_STATE		0x0e	/* Illegal execution state */
-#define	 EXCP_SVC		0x15	/* SVC trap */
+#define	 EXCP_SVC32		0x11	/* SVC trap for AArch32 */
+#define	 EXCP_SVC64		0x15	/* SVC trap for AArch64 */
 #define	 EXCP_MSR		0x18	/* MSR/MRS trap */
 #define	 EXCP_INSN_ABORT_L	0x20	/* Instruction abort, from lower EL */
 #define	 EXCP_INSN_ABORT	0x21	/* Instruction abort, from same EL */ 
