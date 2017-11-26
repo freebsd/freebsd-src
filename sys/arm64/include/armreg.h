@@ -549,7 +549,6 @@
 /* SPSR_EL1 */
 /*
  * When the exception is taken in AArch64:
- * M[4]   is 0 for AArch64 mode
  * M[3:2] is the exception level
  * M[1]   is unused
  * M[0]   is the SP select:
@@ -561,8 +560,9 @@
 #define	PSR_M_EL1h	0x00000005
 #define	PSR_M_EL2t	0x00000008
 #define	PSR_M_EL2h	0x00000009
-#define	PSR_M_MASK	0x0000001f
+#define	PSR_M_MASK	0x0000000f
 
+#define	PSR_AARCH32	0x00000010
 #define	PSR_F		0x00000040
 #define	PSR_I		0x00000080
 #define	PSR_A		0x00000100
