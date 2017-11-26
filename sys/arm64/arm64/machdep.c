@@ -405,7 +405,7 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 
 	spsr = mcp->mc_gpregs.gp_spsr;
 	if ((spsr & PSR_M_MASK) != PSR_M_EL0t ||
-	    (spsr & (PSR_F | PSR_I | PSR_A | PSR_D)) != 0)
+	    (spsr & (PSR_AARCH32 | PSR_F | PSR_I | PSR_A | PSR_D)) != 0)
 		return (EINVAL); 
 
 	memcpy(tf->tf_x, mcp->mc_gpregs.gp_x, sizeof(tf->tf_x));
