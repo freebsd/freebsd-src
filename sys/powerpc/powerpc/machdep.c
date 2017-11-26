@@ -154,7 +154,8 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 	   CTLFLAG_RD, &cacheline_size, 0, "");
 
-uintptr_t	powerpc_init(vm_offset_t, vm_offset_t, vm_offset_t, void *);
+uintptr_t	powerpc_init(vm_offset_t, vm_offset_t, vm_offset_t, void *,
+		    vm_offset_t);
 
 long		Maxmem = 0;
 long		realmem = 0;
@@ -232,7 +233,8 @@ void aim_cpu_init(vm_offset_t toc);
 void booke_cpu_init(void);
 
 uintptr_t
-powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
+powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
+    vm_offset_t mdp_cookie)
 {
 	struct		pcpu *pc;
 	struct cpuref	bsp;
@@ -251,8 +253,11 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	startkernel = __startkernel;
 	endkernel = __endkernel;
 
-	/* Check for ePAPR loader, which puts a magic value into r6 */
-	if (mdp == (void *)0x65504150)
+	/*
+	 * If the metadata pointer cookie is not set to the magic value,
+	 * the number in mdp should be treated as nonsense.
+	 */
+	if (mdp_cookie != 0xfb5d104d)
 		mdp = NULL;
 
 #ifdef AIM
@@ -352,7 +357,8 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	platform_probe_and_attach();
 
 	/*
-	 * Set up real per-cpu data.
+	 * Set up per-cpu data for the BSP now that the platform can tell
+	 * us which that is.
 	 */
 	if (platform_smp_get_bsp(&bsp) != 0)
 		bsp.cr_cpuid = 0;
