@@ -59,7 +59,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	root partition at the kernel mountroot prompt to continue booting.
 	Newer versions of loader can boot old kernels without issue.
 
-201711xx:
+20171110:
 	The LOADER_FIREWIRE_SUPPORT build variable as been renamed to
 	WITH/OUT_LOADER_FIREWIRE. LOADER_{NO_,}GELI_SUPPORT has been renamed
 	to WITH/OUT_LOADER_GELI.
