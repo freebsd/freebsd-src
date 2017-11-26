@@ -742,7 +742,7 @@ vm_phys_init_page(vm_paddr_t pa)
 	m->wire_count = 0;
 	m->busy_lock = VPB_UNBUSIED;
 	m->hold_count = 0;
-	m->flags = m->aflags = m->oflags = 0;
+	m->flags = 0;
 	m->phys_addr = pa;
 	m->queue = PQ_NONE;
 	m->psind = 0;
