@@ -38,4 +38,9 @@ ZSTDDIR=	${SRCTOP}/sys/contrib/zstd
 	${ZSTDDIR}/lib/decompress ${ZSTDDIR}/lib/deprecated \
 	${ZSTDDIR}/lib/dictBuilder ${ZSTDDIR}/lib
 
+# Work around for LLVM bug 35023, https://bugs.llvm.org/show_bug.cgi?id=35023
+.if ${MACHINE_ARCH:Marm*} != ""
+CFLAGS.zstd_compress.c+= -O0
+.endif
+
 .include <bsd.lib.mk>
