@@ -608,33 +608,33 @@ S_timeval(size_t l2, void *p)
 static int
 S_vmtotal(size_t l2, void *p)
 {
-	struct vmtotal *v = (struct vmtotal *)p;
-	int pageKilo = getpagesize() / 1024;
+	struct vmtotal *v;
+	int pageKilo;
 
 	if (l2 != sizeof(*v)) {
 		warnx("S_vmtotal %zu != %zu", l2, sizeof(*v));
 		return (1);
 	}
 
-	printf(
-	    "\nSystem wide totals computed every five seconds:"
+	v = p;
+	pageKilo = getpagesize() / 1024;
+
+#define	pg2k(a)	((uintmax_t)(a) * pageKilo)
+	printf("\nSystem wide totals computed every five seconds:"
 	    " (values in kilobytes)\n");
 	printf("===============================================\n");
-	printf(
-	    "Processes:\t\t(RUNQ: %hd Disk Wait: %hd Page Wait: "
-	    "%hd Sleep: %hd)\n",
+	printf("Processes:\t\t(RUNQ: %d Disk Wait: %d Page Wait: "
+	    "%d Sleep: %d)\n",
 	    v->t_rq, v->t_dw, v->t_pw, v->t_sl);
-	printf(
-	    "Virtual Memory:\t\t(Total: %jdK Active: %jdK)\n",
-	    (intmax_t)v->t_vm * pageKilo, (intmax_t)v->t_avm * pageKilo);
-	printf("Real Memory:\t\t(Total: %jdK Active: %jdK)\n",
-	    (intmax_t)v->t_rm * pageKilo, (intmax_t)v->t_arm * pageKilo);
-	printf("Shared Virtual Memory:\t(Total: %jdK Active: %jdK)\n",
-	    (intmax_t)v->t_vmshr * pageKilo, (intmax_t)v->t_avmshr * pageKilo);
-	printf("Shared Real Memory:\t(Total: %jdK Active: %jdK)\n",
-	    (intmax_t)v->t_rmshr * pageKilo, (intmax_t)v->t_armshr * pageKilo);
-	printf("Free Memory:\t%jdK", (intmax_t)v->t_free * pageKilo);
-
+	printf("Virtual Memory:\t\t(Total: %juK Active: %juK)\n",
+	    pg2k(v->t_vm), pg2k(v->t_avm));
+	printf("Real Memory:\t\t(Total: %juK Active: %juK)\n",
+	    pg2k(v->t_rm), pg2k(v->t_arm));
+	printf("Shared Virtual Memory:\t(Total: %juK Active: %juK)\n",
+	    pg2k(v->t_vmshr), pg2k(v->t_avmshr));
+	printf("Shared Real Memory:\t(Total: %juK Active: %juK)\n",
+	    pg2k(v->t_rmshr), pg2k(v->t_armshr));
+	printf("Free Memory:\t%juK", pg2k(v->t_free));
 	return (0);
 }
 
@@ -695,8 +695,9 @@ S_efi_map(size_t l2, void *p)
 			type = types[map->md_type];
 		else
 			type = "<INVALID>";
-		printf("\n%23s %012lx %12p %08lx ", type, map->md_phys,
-		    map->md_virt, map->md_pages);
+		printf("\n%23s %012jx %12p %08jx ", type,
+		    (uintmax_t)map->md_phys, map->md_virt,
+		    (uintmax_t)map->md_pages);
 		if (map->md_attr & EFI_MD_ATTR_UC)
 			printf("UC ");
 		if (map->md_attr & EFI_MD_ATTR_WC)
