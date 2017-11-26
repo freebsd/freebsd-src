@@ -3872,31 +3872,27 @@ tlb1_read_entry(tlb_entry_t *entry, unsigned int slot)
 	    tsize2size((entry->mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT);
 }
 
-/*
- * Write given entry to TLB1 hardware.
- */
+struct tlbwrite_args {
+	tlb_entry_t *e;
+	unsigned int idx;
+};
+
 static void
-tlb1_write_entry(tlb_entry_t *e, unsigned int idx)
+tlb1_write_entry_int(void *arg)
 {
-	register_t msr;
+	struct tlbwrite_args *args = arg;
 	uint32_t mas0;
 
-	//debugf("tlb1_write_entry: s\n");
-
 	/* Select entry */
-	mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(idx);
-	//debugf("tlb1_write_entry: mas0 = 0x%08x\n", mas0);
-
-	msr = mfmsr();
-	__asm __volatile("wrteei 0");
+	mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(args->idx);
 
 	mtspr(SPR_MAS0, mas0);
 	__asm __volatile("isync");
-	mtspr(SPR_MAS1, e->mas1);
+	mtspr(SPR_MAS1, args->e->mas1);
 	__asm __volatile("isync");
-	mtspr(SPR_MAS2, e->mas2);
+	mtspr(SPR_MAS2, args->e->mas2);
 	__asm __volatile("isync");
-	mtspr(SPR_MAS3, e->mas3);
+	mtspr(SPR_MAS3, args->e->mas3);
 	__asm __volatile("isync");
 	switch ((mfpvr() >> 16) & 0xFFFF) {
 	case FSL_E500mc:
@@ -3906,7 +3902,7 @@ tlb1_write_entry(tlb_entry_t *e, unsigned int idx)
 		__asm __volatile("isync");
 		/* FALLTHROUGH */
 	case FSL_E500v2:
-		mtspr(SPR_MAS7, e->mas7);
+		mtspr(SPR_MAS7, args->e->mas7);
 		__asm __volatile("isync");
 		break;
 	default:
@@ -3914,9 +3910,42 @@ tlb1_write_entry(tlb_entry_t *e, unsigned int idx)
 	}
 
 	__asm __volatile("tlbwe; isync; msync");
-	mtmsr(msr);
 
-	//debugf("tlb1_write_entry: e\n");
+}
+
+static void
+tlb1_write_entry_sync(void *arg)
+{
+	/* Empty synchronization point for smp_rendezvous(). */
+}
+
+/*
+ * Write given entry to TLB1 hardware.
+ */
+static void
+tlb1_write_entry(tlb_entry_t *e, unsigned int idx)
+{
+	struct tlbwrite_args args;
+
+	args.e = e;
+	args.idx = idx;
+
+#ifdef SMP
+	if ((e->mas2 & _TLB_ENTRY_SHARED) && smp_started) {
+		mb();
+		smp_rendezvous(tlb1_write_entry_sync,
+		    tlb1_write_entry_int,
+		    tlb1_write_entry_sync, &args);
+	} else
+#endif
+	{
+		register_t msr;
+
+		msr = mfmsr();
+		__asm __volatile("wrteei 0");
+		tlb1_write_entry_int(&args);
+		mtmsr(msr);
+	}
 }
 
 /*
