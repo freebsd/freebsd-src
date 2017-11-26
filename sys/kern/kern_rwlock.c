@@ -769,6 +769,11 @@ __rw_runlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
 		turnstile_chain_lock(&rw->lock_object);
 		v = RW_READ_VALUE(rw);
 retry_ts:
+		if (__predict_false(RW_READERS(v) > 1)) {
+			turnstile_chain_unlock(&rw->lock_object);
+			continue;
+		}
+
 		v &= (RW_LOCK_WAITERS | RW_LOCK_WRITE_SPINNER);
 		MPASS(v & RW_LOCK_WAITERS);
 
