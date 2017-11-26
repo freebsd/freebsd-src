@@ -423,6 +423,31 @@ vm_page_domain_init(struct vm_domain *vmd)
 }
 
 /*
+ * Initialize a physical page in preparation for adding it to the free
+ * lists.
+ */
+static void
+vm_page_init_page(vm_paddr_t pa)
+{
+	vm_page_t m;
+
+	m = vm_phys_paddr_to_vm_page(pa);
+	m->object = NULL;
+	m->wire_count = 0;
+	m->busy_lock = VPB_UNBUSIED;
+	m->hold_count = 0;
+	m->flags = 0;
+	m->phys_addr = pa;
+	m->queue = PQ_NONE;
+	m->psind = 0;
+	m->segind = vm_phys_paddr_to_segind(pa);
+	m->order = VM_NFREEORDER;
+	m->pool = VM_FREEPOOL_DEFAULT;
+	m->valid = m->dirty = 0;
+	pmap_page_init(m);
+}
+
+/*
  *	vm_page_startup:
  *
  *	Initializes the resident memory module.  Allocates physical memory for
@@ -670,7 +695,7 @@ vm_page_startup(vm_offset_t vaddr)
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
 		for (pa = seg->start; pa < seg->end; pa += PAGE_SIZE)
-			vm_phys_init_page(pa);
+			vm_page_init_page(pa);
 
 		/*
 		 * Add the segment to the free lists only if it is covered by
