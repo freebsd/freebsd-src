@@ -200,7 +200,8 @@ extern void *int_performance_counter;
 	    ("Handler " #handler " too far from interrupt vector base")); \
 	mtspr(ivor, (uintptr_t)(&handler) & 0xffffUL);
 
-uintptr_t powerpc_init(vm_offset_t fdt, vm_offset_t, vm_offset_t, void *mdp);
+uintptr_t powerpc_init(vm_offset_t fdt, vm_offset_t, vm_offset_t, void *mdp,
+    vm_offset_t mdp_cookie);
 void booke_cpu_init(void);
 
 void
@@ -346,7 +347,11 @@ booke_init(u_long arg1, u_long arg2)
 		break;
 	}
 
-	ret = powerpc_init(dtbp, 0, 0, mdp);
+	/*
+	 * Last element is a magic cookie that indicates that the metadata
+	 * pointer is meaningful.
+	 */
+	ret = powerpc_init(dtbp, 0, 0, mdp, (mdp == NULL) ? 0 : 0xfb5d104d);
 
 	/* Enable caches */
 	booke_enable_l1_cache();
