@@ -86,7 +86,7 @@ cloudabi32_proc_setregs(struct thread *td, struct image_params *imgp,
 {
 
 	ia32_setregs(td, imgp, stack);
-	(void)cpu_set_user_tls(td, (void *)stack);
+	(void)cpu_set_user_tls(td, TO_PTR(stack));
 }
 
 static int
