@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20171118: Remove old etc capser failes
+# 20171118: Remove old etc capser files
 OLD_FILES+=etc/casper/system.dns
 OLD_FILES+=etc/casper/system.grp
 OLD_FILES+=etc/casper/system.pwd
