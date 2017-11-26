@@ -280,7 +280,7 @@ struct pcpu *
 pcpu_find(u_int cpuid)
 {
 	KASSERT(cpuid_to_pcpu[cpuid] != NULL,
-	    ("Getting unitialized PCPU %d", cpuid));
+	    ("Getting uninitialized PCPU %d", cpuid));
 
 	return (cpuid_to_pcpu[cpuid]);
 }

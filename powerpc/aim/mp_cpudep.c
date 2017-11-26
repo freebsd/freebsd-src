@@ -378,8 +378,10 @@ cpudep_ap_setup()
 	case IBMPOWER7PLUS:
 	case IBMPOWER8:
 	case IBMPOWER8E:
+#ifdef __powerpc64__
 		if (mfmsr() & PSL_HV)
 			mtspr(SPR_LPCR, mfspr(SPR_LPCR) | LPCR_LPES);
+#endif
 		break;
 	default:
 #ifdef __powerpc64__

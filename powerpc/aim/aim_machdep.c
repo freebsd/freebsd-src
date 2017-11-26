@@ -130,7 +130,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #ifdef __powerpc64__
-extern int n_slbs;
+#include "mmu_oea64.h"
 #endif
 
 #ifndef __powerpc64__

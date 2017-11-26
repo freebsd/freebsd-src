@@ -243,7 +243,7 @@ excise_fdt_reserved(struct mem_region *avail, int asz)
 	    ("Exceeded number of FDT reservations"));
 	/* Add a virtual entry for the FDT itself */
 	if (fdt != NULL) {
-		fdtmap[j].address = (uint64_t)fdt & ~PAGE_MASK;
+		fdtmap[j].address = (vm_offset_t)fdt & ~PAGE_MASK;
 		fdtmap[j].size = round_page(fdt_totalsize(fdt));
 		fdtmapsize += sizeof(fdtmap[0]);
 	}
@@ -530,11 +530,16 @@ openfirmware(void *args)
 		return (-1);
 
 	#ifdef SMP
-	rv_args.args = args;
-	rv_args.in_progress = 1;
-	smp_rendezvous(smp_no_rendezvous_barrier, ofw_rendezvous_dispatch,
-	    smp_no_rendezvous_barrier, &rv_args);
-	result = rv_args.retval;
+	if (cold) {
+		result = openfirmware_core(args);
+	} else {
+		rv_args.args = args;
+		rv_args.in_progress = 1;
+		smp_rendezvous(smp_no_rendezvous_barrier,
+		    ofw_rendezvous_dispatch, smp_no_rendezvous_barrier,
+		    &rv_args);
+		result = rv_args.retval;
+	}
 	#else
 	result = openfirmware_core(args);
 	#endif

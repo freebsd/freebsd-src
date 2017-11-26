@@ -181,6 +181,7 @@ CFLAGS.gcc+=	-mabi=elfv2
 .else
 CFLAGS.gcc+=	-mcall-aixdesc
 .endif
+CFLAGS.clang+=	-mabi=elfv2
 .endif
 
 #
