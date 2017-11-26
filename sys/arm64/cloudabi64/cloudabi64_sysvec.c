@@ -157,7 +157,7 @@ cloudabi64_thread_setregs(struct thread *td,
 	frame->tf_x[1] = attr->argument;
 
 	/* Set up TLS. */
-	return (cpu_set_user_tls(td, (void *)tcb));
+	return (cpu_set_user_tls(td, TO_PTR(tcb)));
 }
 
 static struct sysentvec cloudabi64_elf_sysvec = {
