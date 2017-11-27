@@ -12,6 +12,8 @@ MAN=	accept_filter.9 \
 	alq.9 \
 	altq.9 \
 	atomic.9 \
+	bhnd.9 \
+	bhnd_erom.9 \
 	bios.9 \
 	bitset.9 \
 	boot.9 \
@@ -444,6 +446,124 @@ MLINKS+=atomic.9 atomic_add.9 \
 	atomic.9 atomic_subtract.9 \
 	atomic.9 atomic_swap.9 \
 	atomic.9 atomic_testandset.9
+MLINKS+=bhnd.9 BHND_MATCH_BOARD_TYPE.9 \
+	bhnd.9 BHND_MATCH_BOARD_VENDOR.9 \
+	bhnd.9 BHND_MATCH_CHIP_ID.9 \
+	bhnd.9 BHND_MATCH_CHIP_PKG.9 \
+	bhnd.9 BHND_MATCH_CHIP_REV.9 \
+	bhnd.9 BHND_MATCH_CORE_ID.9 \
+	bhnd.9 BHND_MATCH_CORE_VENDOR.9 \
+	bhnd.9 bhnd_activate_resource.9 \
+	bhnd.9 bhnd_alloc_pmu.9 \
+	bhnd.9 bhnd_alloc_resource.9 \
+	bhnd.9 bhnd_alloc_resource_any.9 \
+	bhnd.9 bhnd_alloc_resources.9 \
+	bhnd.9 bhnd_board_matches.9 \
+	bhnd.9 bhnd_bus_match_child.9 \
+	bhnd.9 bhnd_bus_read_1.9 \
+	bhnd.9 bhnd_bus_read_2.9 \
+	bhnd.9 bhnd_bus_read_4.9 \
+	bhnd.9 bhnd_bus_read_stream_1.9 \
+	bhnd.9 bhnd_bus_read_stream_2.9 \
+	bhnd.9 bhnd_bus_read_stream_4.9 \
+	bhnd.9 bhnd_bus_write_1.9 \
+	bhnd.9 bhnd_bus_write_2.9 \
+	bhnd.9 bhnd_bus_write_4.9 \
+	bhnd.9 bhnd_bus_write_stream_1.9 \
+	bhnd.9 bhnd_bus_write_stream_2.9 \
+	bhnd.9 bhnd_bus_write_stream_4.9 \
+	bhnd.9 bhnd_chip_matches.9 \
+	bhnd.9 bhnd_core_class.9 \
+	bhnd.9 bhnd_core_get_match_desc.9 \
+	bhnd.9 bhnd_core_matches.9 \
+	bhnd.9 bhnd_core_name.9 \
+	bhnd.9 bhnd_cores_equal.9 \
+	bhnd.9 bhnd_deactivate_resource.9 \
+	bhnd.9 bhnd_decode_port_rid.9 \
+	bhnd.9 bhnd_deregister_provider.9 \
+	bhnd.9 bhnd_device_lookup.9 \
+	bhnd.9 bhnd_device_matches.9 \
+	bhnd.9 bhnd_device_quirks.9 \
+	bhnd.9 bhnd_driver_get_erom_class.9 \
+	bhnd.9 bhnd_enable_clocks.9 \
+	bhnd.9 bhnd_find_core_class.9 \
+	bhnd.9 bhnd_find_core_name.9 \
+	bhnd.9 bhnd_format_chip_id.9 \
+	bhnd.9 bhnd_get_attach_type.9 \
+	bhnd.9 bhnd_get_chipid.9 \
+	bhnd.9 bhnd_get_class.9 \
+	bhnd.9 bhnd_get_clock_freq.9 \
+	bhnd.9 bhnd_get_clock_latency.9 \
+	bhnd.9 bhnd_get_core_index.9 \
+	bhnd.9 bhnd_get_core_info.9 \
+	bhnd.9 bhnd_get_core_unit.9 \
+	bhnd.9 bhnd_get_device.9 \
+	bhnd.9 bhnd_get_device_name.9 \
+	bhnd.9 bhnd_get_dma_translation.9 \
+	bhnd.9 bhnd_get_hwrev.9 \
+	bhnd.9 bhnd_get_intr_count.9 \
+	bhnd.9 bhnd_get_intr_ivec.9 \
+	bhnd.9 bhnd_get_port_count.9 \
+	bhnd.9 bhnd_get_port_rid.9 \
+	bhnd.9 bhnd_get_region_addr.9 \
+	bhnd.9 bhnd_get_region_count.9 \
+	bhnd.9 bhnd_get_vendor.9 \
+	bhnd.9 bhnd_get_vendor_name.9 \
+	bhnd.9 bhnd_hwrev_matches.9 \
+	bhnd.9 bhnd_is_hw_suspended.9 \
+	bhnd.9 bhnd_is_region_valid.9 \
+	bhnd.9 bhnd_map_intr.9 \
+	bhnd.9 bhnd_match_core.9 \
+	bhnd.9 bhnd_nvram_getvar.9 \
+	bhnd.9 bhnd_nvram_getvar_array.9 \
+	bhnd.9 bhnd_nvram_getvar_int.9 \
+	bhnd.9 bhnd_nvram_getvar_int16.9 \
+	bhnd.9 bhnd_nvram_getvar_int32.9 \
+	bhnd.9 bhnd_nvram_getvar_int8.9 \
+	bhnd.9 bhnd_nvram_getvar_str.9 \
+	bhnd.9 bhnd_nvram_getvar_uint.9 \
+	bhnd.9 bhnd_nvram_getvar_uint16.9 \
+	bhnd.9 bhnd_nvram_getvar_uint32.9 \
+	bhnd.9 bhnd_nvram_getvar_uint8.9 \
+	bhnd.9 bhnd_nvram_string_array_next.9 \
+	bhnd.9 bhnd_read_board_info.9 \
+	bhnd.9 bhnd_read_config.9 \
+	bhnd.9 bhnd_read_ioctl.9 \
+	bhnd.9 bhnd_read_iost.9 \
+	bhnd.9 bhnd_register_provider.9 \
+	bhnd.9 bhnd_release_ext_rsrc.9 \
+	bhnd.9 bhnd_release_pmu.9 \
+	bhnd.9 bhnd_release_provider.9 \
+	bhnd.9 bhnd_release_resource.9 \
+	bhnd.9 bhnd_release_resources.9 \
+	bhnd.9 bhnd_request_clock.9 \
+	bhnd.9 bhnd_request_ext_rsrc.9 \
+	bhnd.9 bhnd_reset_hw.9 \
+	bhnd.9 bhnd_retain_provider.9 \
+	bhnd.9 bhnd_set_custom_core_desc.9 \
+	bhnd.9 bhnd_set_default_core_desc.9 \
+	bhnd.9 bhnd_suspend_hw.9 \
+	bhnd.9 bhnd_unmap_intr.9 \
+	bhnd.9 bhnd_vendor_name.9 \
+	bhnd.9 bhnd_write_config.9 \
+	bhnd.9 bhnd_write_ioctl.9
+MLINKS+=bhnd_erom.9 bhnd_erom_alloc.9 \
+	bhnd_erom.9 bhnd_erom_dump.9 \
+	bhnd_erom.9 bhnd_erom_fini_static.9 \
+	bhnd_erom.9 bhnd_erom_free.9 \
+	bhnd_erom.9 bhnd_erom_free_core_table.9 \
+	bhnd_erom.9 bhnd_erom_get_core_table.9 \
+	bhnd_erom.9 bhnd_erom_init_static.9 \
+	bhnd_erom.9 bhnd_erom_io.9 \
+	bhnd_erom.9 bhnd_erom_io_fini.9 \
+	bhnd_erom.9 bhnd_erom_io_map.9 \
+	bhnd_erom.9 bhnd_erom_io_read.9 \
+	bhnd_erom.9 bhnd_erom_iobus_init.9 \
+	bhnd_erom.9 bhnd_erom_iores_new.9 \
+	bhnd_erom.9 bhnd_erom_lookup_core.9 \
+	bhnd_erom.9 bhnd_erom_lookup_core_addr.9 \
+	bhnd_erom.9 bhnd_erom_probe.9 \
+	bhnd_erom.9 bhnd_erom_probe_driver_classes.9
 MLINKS+=bitset.9 BITSET_DEFINE.9 \
 	bitset.9 BITSET_T_INITIALIZER.9 \
 	bitset.9 BITSET_FSET.9 \

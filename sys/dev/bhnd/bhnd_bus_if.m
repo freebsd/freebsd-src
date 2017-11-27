@@ -652,7 +652,7 @@ METHOD int reset_hw {
  *
  * The hardware may be brought out of reset via bhnd_reset_hw().
  *
- * @param dev The bhnd bus parent of @P child.
+ * @param dev The bhnd bus parent of @p child.
  * @param dev The device to be suspended.
  *
  * @retval 0 success
@@ -973,7 +973,7 @@ METHOD int deactivate_resource {
  *
  * @param dev The device whose child is being examined.
  * @param child The child device.
- * @parem self If true, return @p child's interrupt domain, rather than the
+ * @param self If true, return @p child's interrupt domain, rather than the
  * domain in which @p child resides.
  *
  * On Non-OFW targets, this should either return:

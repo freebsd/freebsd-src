@@ -270,7 +270,7 @@ struct bhnd_dma_translation {
 	bhnd_addr_t	addrext_mask;
 
 	/**
-	 * Translation flags (see bhnd_dma_translation_flags)
+	 * Translation flags (see bhnd_dma_translation_flags).
 	 */
 	uint32_t	flags;
 };
@@ -909,8 +909,7 @@ bhnd_get_dma_translation(device_t dev, u_int width, uint32_t flags,
  * This relies on NVRAM access, and will fail if a valid NVRAM device cannot
  * be found, or is not yet attached.
  *
- * @param dev The parent of @p child.
- * @param child The bhnd device requesting board info.
+ * @param dev The bhnd device requesting board info.
  * @param[out] info On success, will be populated with the bhnd(4) device's
  * board information.
  *
@@ -986,8 +985,7 @@ bhnd_map_intr(device_t dev, u_int intr, rman_res_t *irq)
  * Unmap an bus interrupt previously mapped via bhnd_map_intr().
  * 
  * @param dev The requesting device.
- * @param intr The interrupt number being unmapped. This is equivalent to the
- * bus resource ID for the interrupt.
+ * @param irq The interrupt value being unmapped.
  */
 static inline void
 bhnd_unmap_intr(device_t dev, rman_res_t irq)
@@ -1374,15 +1372,15 @@ bhnd_release_resource(device_t dev, int type, int rid,
  *
  * @param dev A bhnd bus child device.
  * @param type The port type being queried.
- * @param port_num The port number being queried.
- * @param region_num The region number being queried.
+ * @param port The port number being queried.
+ * @param region The region number being queried.
  */
 static inline bool
-bhnd_is_region_valid(device_t dev, bhnd_port_type type, u_int port_num,
-    u_int region_num)
+bhnd_is_region_valid(device_t dev, bhnd_port_type type, u_int port,
+    u_int region)
 {
 	return (BHND_BUS_IS_REGION_VALID(device_get_parent(dev), dev, type,
-	    port_num, region_num));
+	    port, region));
 }
 
 /**
