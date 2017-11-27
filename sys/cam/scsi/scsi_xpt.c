@@ -1,6 +1,8 @@
 /*-
  * Implementation of the SCSI Transport
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998, 1999 Justin T. Gibbs.
  * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.

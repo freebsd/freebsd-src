@@ -1,6 +1,8 @@
 /*-
  * Data structures and definitions for CAM Control Blocks (CCBs).
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998 Justin T. Gibbs.
  * All rights reserved.
  *
