@@ -818,23 +818,27 @@ bhnd_is_hw_suspended(device_t dev)
 }
 
 /**
- * Place the bhnd(4) device's hardware into a reset state, and then bring the
- * hardware out of reset with BHND_IOCTL_CLK_EN and @p ioctl flags set.
+ * Place the bhnd(4) device's hardware into a low-power RESET state with
+ * the @p reset_ioctl I/O control flags set, and then bring the hardware out of
+ * RESET with the @p ioctl I/O control flags set.
  * 
- * Any clock or resource PMU requests previously made by @p dev will be
+ * Any clock or resource PMU requests previously made by @p child will be
  * invalidated.
  *
  * @param dev The device to be reset.
- * @param ioctl Device-specific core ioctl flags to be supplied on reset
- * (see BHND_IOCTL_*).
+ * @param ioctl Device-specific I/O control flags to be set when bringing
+ * the core out of its RESET state (see BHND_IOCTL_*).
+ * @param reset_ioctl Device-specific I/O control flags to be set when placing
+ * the core into its RESET state.
  *
  * @retval 0 success
  * @retval non-zero error
  */
 static inline int
-bhnd_reset_hw(device_t dev, uint16_t ioctl)
+bhnd_reset_hw(device_t dev, uint16_t ioctl, uint16_t reset_ioctl)
 {
-	return (BHND_BUS_RESET_HW(device_get_parent(dev), dev, ioctl));
+	return (BHND_BUS_RESET_HW(device_get_parent(dev), dev, ioctl,
+	    reset_ioctl));
 }
 
 /**
@@ -851,9 +855,9 @@ bhnd_reset_hw(device_t dev, uint16_t ioctl)
  * @retval non-zero error
  */
 static inline int
-bhnd_suspend_hw(device_t dev)
+bhnd_suspend_hw(device_t dev, uint16_t ioctl)
 {
-	return (BHND_BUS_SUSPEND_HW(device_get_parent(dev), dev));
+	return (BHND_BUS_SUSPEND_HW(device_get_parent(dev), dev, ioctl));
 }
 
 /**

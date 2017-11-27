@@ -594,8 +594,15 @@ bcma_dmp_wait_reset(device_t child, struct bcma_devinfo *dinfo)
 int
 bcma_dmp_write_reset(device_t child, struct bcma_devinfo *dinfo, uint32_t value)
 {
+	uint32_t rst;
+
 	if (dinfo->res_agent == NULL)
 		return (ENODEV);
+
+	/* Already in requested reset state? */
+	rst = bhnd_bus_read_4(dinfo->res_agent, BCMA_DMP_RESETCTRL);
+	if (rst == value)
+		return (0);
 
 	bhnd_bus_write_4(dinfo->res_agent, BCMA_DMP_RESETCTRL, value);
 	bhnd_bus_read_4(dinfo->res_agent, BCMA_DMP_RESETCTRL); /* read-back */
