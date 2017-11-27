@@ -427,11 +427,9 @@ vm_page_domain_init(struct vm_domain *vmd)
  * lists.
  */
 static void
-vm_page_init_page(vm_paddr_t pa)
+vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind)
 {
-	vm_page_t m;
 
-	m = vm_phys_paddr_to_vm_page(pa);
 	m->object = NULL;
 	m->wire_count = 0;
 	m->busy_lock = VPB_UNBUSIED;
@@ -440,7 +438,7 @@ vm_page_init_page(vm_paddr_t pa)
 	m->phys_addr = pa;
 	m->queue = PQ_NONE;
 	m->psind = 0;
-	m->segind = vm_phys_paddr_to_segind(pa);
+	m->segind = segind;
 	m->order = VM_NFREEORDER;
 	m->pool = VM_FREEPOOL_DEFAULT;
 	m->valid = m->dirty = 0;
@@ -694,8 +692,9 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_cnt.v_free_count = 0;
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
-		for (pa = seg->start; pa < seg->end; pa += PAGE_SIZE)
-			vm_page_init_page(pa);
+		for (m = seg->first_page, pa = seg->start; pa < seg->end;
+		    m++, pa += PAGE_SIZE)
+			vm_page_init_page(m, pa, segind);
 
 		/*
 		 * Add the segment to the free lists only if it is covered by

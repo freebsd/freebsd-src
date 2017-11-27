@@ -1038,24 +1038,6 @@ vm_phys_fictitious_unreg_range(vm_paddr_t start, vm_paddr_t end)
 }
 
 /*
- * Find the segment containing the given physical address.
- */
-int
-vm_phys_paddr_to_segind(vm_paddr_t pa)
-{
-	struct vm_phys_seg *seg;
-	int segind;
-
-	for (segind = 0; segind < vm_phys_nsegs; segind++) {
-		seg = &vm_phys_segs[segind];
-		if (pa >= seg->start && pa < seg->end)
-			return (segind);
-	}
-	panic("vm_phys_paddr_to_segind: paddr %#jx is not in any segment" ,
-	    (uintmax_t)pa);
-}
-
-/*
  * Free a contiguous, power of two-sized set of physical pages.
  *
  * The free page queues must be locked.
