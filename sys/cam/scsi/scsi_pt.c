@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Implementation of SCSI Processor Target Peripheral driver for CAM.
  *
  * Copyright (c) 1998 Justin T. Gibbs.
