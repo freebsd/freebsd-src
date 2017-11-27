@@ -1,10 +1,12 @@
-/*
+/*-
  * Generic register and struct definitions for the Adaptech 154x
  * SCSI host adapters. Product specific probe and attach routines can
  * be found in:
  *      aha 1542A/1542B/1542C/1542CF/1542CP	aha_isa.c
  */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 M. Warner Losh.
  * All Rights Reserved.
  *

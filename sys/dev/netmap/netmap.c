@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2011-2014 Matteo Landi
  * Copyright (C) 2011-2016 Luigi Rizzo
  * Copyright (C) 2011-2016 Giuseppe Lettieri

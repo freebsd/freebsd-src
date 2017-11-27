@@ -1,6 +1,8 @@
 /* from: Broadcom Id: cfe_api.h,v 1.31 2006/08/24 02:13:56 binh Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2000, 2001, 2002
  * Broadcom Corporation. All rights reserved.
  *
