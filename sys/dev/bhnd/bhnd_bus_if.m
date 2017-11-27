@@ -96,7 +96,8 @@ CODE {
 	}
 
 	static int
-	bhnd_bus_null_reset_hw(device_t dev, device_t child, uint16_t ioctl)
+	bhnd_bus_null_reset_hw(device_t dev, device_t child, uint16_t ioctl,
+	    uint16_t reset_ioctl)
 	{
 		panic("bhnd_bus_reset_hw unimplemented");
 	}
@@ -624,16 +625,19 @@ METHOD bool is_hw_suspended {
 } DEFAULT bhnd_bus_null_is_hw_suspended;
 
 /**
- * Place the bhnd(4) device's hardware into a reset state, and then bring the
- * hardware out of reset with BHND_IOCTL_CLK_EN and @p ioctl flags set.
+ * Place the bhnd(4) device's hardware into a low-power RESET state with
+ * the @p reset_ioctl I/O control flags set, and then bring the hardware out of
+ * RESET with the @p ioctl I/O control flags set.
  * 
  * Any clock or resource PMU requests previously made by @p child will be
  * invalidated.
  *
  * @param dev The bhnd bus parent of @p child.
  * @param child The device to be reset.
- * @param ioctl Device-specific core ioctl flags to be supplied on reset
- * (see BHND_IOCTL_*).
+ * @param ioctl Device-specific I/O control flags to be set when bringing
+ * the core out of its RESET state (see BHND_IOCTL_*).
+ * @param reset_ioctl Device-specific I/O control flags to be set when placing
+ * the core into its RESET state.
  *
  * @retval 0 success
  * @retval non-zero error
@@ -642,18 +646,21 @@ METHOD int reset_hw {
 	device_t dev;
 	device_t child;
 	uint16_t ioctl;
+	uint16_t reset_ioctl;
 } DEFAULT bhnd_bus_null_reset_hw;
 
 /**
- * Suspend @p child's hardware in a low-power reset state.
+ * Suspend @p child's hardware in a low-power RESET state.
  *
  * Any clock or resource PMU requests previously made by @p dev will be
  * invalidated.
  *
- * The hardware may be brought out of reset via bhnd_reset_hw().
+ * The hardware may be brought out of RESET via bhnd_reset_hw().
  *
  * @param dev The bhnd bus parent of @p child.
  * @param dev The device to be suspended.
+ * @param ioctl Device-specific I/O control flags to be set when placing
+ * the core into its RESET state (see BHND_IOCTL_*).
  *
  * @retval 0 success
  * @retval non-zero error
@@ -661,6 +668,7 @@ METHOD int reset_hw {
 METHOD int suspend_hw {
 	device_t dev;
 	device_t child;
+	uint16_t ioctl;
 } DEFAULT bhnd_bus_null_suspend_hw;
 
 /**
