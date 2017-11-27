@@ -1,8 +1,10 @@
 /* 08 Nov 1998*/
-/*
+/*-
  * cdevmod.c - a sample kld module implementing a character device driver.
  *
  * 08 Nov 1998  Rajesh Vaidheeswarran
+ *
+ * SPDX-License-Identifier: BSD-4-Clause
  *
  * Copyright (c) 1998 Rajesh Vaidheeswarran
  * All rights reserved.
