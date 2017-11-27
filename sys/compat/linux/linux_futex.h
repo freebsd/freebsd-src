@@ -1,6 +1,8 @@
 /*	$NetBSD: linux_futex.h,v 1.2 2005/12/11 12:20:19 christos Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2005 Emmanuel Dreyfus, all rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
