@@ -1,5 +1,7 @@
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1994 Adam Glass and Charles Hannum.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

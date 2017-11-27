@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2017 Dell EMC
  * Copyright (c) 2000 David O'Brien
  * Copyright (c) 1995-1996 Søren Schmidt
