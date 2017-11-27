@@ -296,22 +296,22 @@ bcma_is_hw_suspended(device_t dev, device_t child)
 }
 
 static int
-bcma_reset_hw(device_t dev, device_t child, uint16_t ioctl)
+bcma_reset_hw(device_t dev, device_t child, uint16_t ioctl,
+    uint16_t reset_ioctl)
 {
-	struct bcma_devinfo		*dinfo;
-	struct bhnd_core_pmu_info	*pm;
-	struct bhnd_resource		*r;
-	int				 error;
+	struct bcma_devinfo	*dinfo;
+	struct bhnd_resource	*r;
+	uint16_t		 clkflags;
+	int			 error;
 
 	if (device_get_parent(child) != dev)
 		return (EINVAL);
 
 	dinfo = device_get_ivars(child);
-	pm = dinfo->pmu_info;
 
-	/* We require exclusive control over BHND_IOCTL_CLK_EN and
-	 * BHND_IOCTL_CLK_FORCE. */
-	if (ioctl & (BHND_IOCTL_CLK_EN | BHND_IOCTL_CLK_FORCE))
+	/* We require exclusive control over BHND_IOCTL_CLK_(EN|FORCE) */
+	clkflags = BHND_IOCTL_CLK_EN | BHND_IOCTL_CLK_FORCE;
+	if (ioctl & clkflags)
 		return (EINVAL);
 
 	/* Can't suspend the core without access to the agent registers */
@@ -319,7 +319,7 @@ bcma_reset_hw(device_t dev, device_t child, uint16_t ioctl)
 		return (ENODEV);
 
 	/* Place core into known RESET state */
-	if ((error = BHND_BUS_SUSPEND_HW(dev, child)))
+	if ((error = bhnd_suspend_hw(child, reset_ioctl)))
 		return (error);
 
 	/*
@@ -329,9 +329,7 @@ bcma_reset_hw(device_t dev, device_t child, uint16_t ioctl)
 	 * - Force clock distribution to ensure propagation throughout the
 	 *   core.
 	 */
-	error = bhnd_write_ioctl(child, 
-	    ioctl | BHND_IOCTL_CLK_EN | BHND_IOCTL_CLK_FORCE, UINT16_MAX);
-	if (error)
+	if ((error = bhnd_write_ioctl(child, ioctl | clkflags, UINT16_MAX)))
 		return (error);
 
 	/* Bring the core out of reset */
@@ -347,17 +345,22 @@ bcma_reset_hw(device_t dev, device_t child, uint16_t ioctl)
 }
 
 static int
-bcma_suspend_hw(device_t dev, device_t child)
+bcma_suspend_hw(device_t dev, device_t child, uint16_t ioctl)
 {
 	struct bcma_devinfo	*dinfo;
 	struct bhnd_resource	*r;
-	uint32_t		 rst;
+	uint16_t		 clkflags;
 	int			 error;
 
 	if (device_get_parent(child) != dev)
 		return (EINVAL);
 
 	dinfo = device_get_ivars(child);
+
+	/* We require exclusive control over BHND_IOCTL_CLK_(EN|FORCE) */
+	clkflags = BHND_IOCTL_CLK_EN | BHND_IOCTL_CLK_FORCE;
+	if (ioctl & clkflags)
+		return (EINVAL);
 
 	/* Can't suspend the core without access to the agent registers */
 	if ((r = dinfo->res_agent) == NULL)
@@ -367,17 +370,12 @@ bcma_suspend_hw(device_t dev, device_t child)
 	if ((error = bcma_dmp_wait_reset(child, dinfo)))
 		return (error);
 
-	/* Already in reset? */
-	rst = bhnd_bus_read_4(r, BCMA_DMP_RESETCTRL);
-	if (rst & BCMA_DMP_RC_RESET)
-		return (0);
-
-	/* Put core into reset */
+	/* Put core into reset (if not already in reset) */
 	if ((error = bcma_dmp_write_reset(child, dinfo, BCMA_DMP_RC_RESET)))
 		return (error);
 
-	/* Clear core flags */
-	if ((error = bhnd_write_ioctl(child, 0x0, UINT16_MAX)))
+	/* Write core flags (and clear CLK_EN/CLK_FORCE) */
+	if ((error = bhnd_write_ioctl(child, ioctl, ~clkflags)))
 		return (error);
 
 	return (0);

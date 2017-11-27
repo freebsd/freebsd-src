@@ -117,11 +117,12 @@ u_int			 siba_admatch_offset(uint8_t addrspace);
 int			 siba_parse_admatch(uint32_t am, uint32_t *addr,
 			     uint32_t *size);
 
-int			 siba_write_target_state(device_t dev,
+void			 siba_write_target_state(device_t dev,
 			     struct siba_devinfo *dinfo, bus_size_t reg,
 			     uint32_t value, uint32_t mask);
-int			 siba_wait_target_busy(device_t child,
-			     struct siba_devinfo *dinfo, int usec);
+int			 siba_wait_target_state(device_t dev,
+			     struct siba_devinfo *dinfo, bus_size_t reg,
+			     uint32_t value, uint32_t mask, u_int usec);
 
 							     
 /* Sonics configuration register blocks */
