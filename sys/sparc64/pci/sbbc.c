@@ -1,5 +1,7 @@
 /*	$OpenBSD: sbbc.c,v 1.7 2009/11/09 17:53:39 nicm Exp $	*/
 /*-
+ * SPDX-License-Identifier: MIT AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Mark Kettenis
  *
  * Permission to use, copy, modify, and distribute this software for any
