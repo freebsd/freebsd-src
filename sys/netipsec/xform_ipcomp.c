@@ -2,6 +2,8 @@
 /* $OpenBSD: ip_ipcomp.c,v 1.1 2001/07/05 12:08:52 jjbg Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001 Jean-Jacques Bernard-Gundol (jj@wabbitt.org)
  *
  * Redistribution and use in source and binary forms, with or without

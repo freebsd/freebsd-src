@@ -1,6 +1,8 @@
 /*-
  * ng_tcpmss.h
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004, Alexey Popov <lollypop@flexuser.ru>
  * All rights reserved.
  *

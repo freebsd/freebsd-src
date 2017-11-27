@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008
  * 	Swinburne University of Technology, Melbourne, Australia.
  *
