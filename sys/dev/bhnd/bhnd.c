@@ -892,8 +892,8 @@ bhnd_generic_probe_nomatch(device_t dev, device_t child)
 		return;
 
 	/* Print the non-matched device info */
-	device_printf(dev, "<%s %s>", bhnd_get_vendor_name(child),
-		bhnd_get_device_name(child));
+	device_printf(dev, "<%s %s, rev %hhu>", bhnd_get_vendor_name(child),
+		bhnd_get_device_name(child), bhnd_get_hwrev(child));
 
 	rl = BUS_GET_RESOURCE_LIST(dev, child);
 	if (rl != NULL) {
