@@ -27,30 +27,33 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 16, 1997
+.Dd November 27, 2017
 .Dt INTRO 6
 .Os
 .Sh NAME
 .Nm intro
 .Nd "introduction to games"
 .Sh DESCRIPTION
-This section contains information about games.
+This section contains information about the traditional BSD games.
 The games
 are located in
 .Pa /usr/bin
 if installed.
-You can get a short overview about all the games with the
-command:
-.Bd -literal -offset indent
-$ apropos '\\(6\\)'
-.Ed
 .Sh FILES
 .Bl -tag -width /usr/bin -compact
 .It Pa /usr/bin
 location of games
 .El
 .Sh SEE ALSO
-.Xr intro 1
+.Xr intro 1 ,
+.Xr banner 6 ,
+.Xr caesar 6 ,
+.Xr fortune 6 ,
+.Xr grdc 6 ,
+.Xr morse 6 ,
+.Xr number 6 ,
+.Xr pom 6 ,
+.Xr random 6
 .Sh HISTORY
 In earlier versions of
 .Fx ,
@@ -61,3 +64,5 @@ The
 .Nm
 section manual page appeared in
 .Fx 2.2 .
+Most of the games were moved into the bsdgames port in
+.Fx 5.0 .
