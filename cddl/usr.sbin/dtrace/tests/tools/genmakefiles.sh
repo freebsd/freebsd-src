@@ -53,8 +53,6 @@ TEST_METADATA.t_dtrace_contrib+=	required_memory=\"4g\"
     uctf)
         special="
 WITH_CTF=YES
-
-CFLAGS.tst.chasestrings.exe+= -m32
 "
         ;;
     esac
