@@ -1,6 +1,8 @@
 /*	$OpenBSD: pf_print_state.c,v 1.52 2008/08/12 16:40:18 david Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2001 Daniel Hartmeier
  * All rights reserved.
  *

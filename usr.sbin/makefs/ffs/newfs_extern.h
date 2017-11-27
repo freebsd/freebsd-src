@@ -1,7 +1,9 @@
 /*	$NetBSD: newfs_extern.h,v 1.4 2015/12/21 00:58:08 christos Exp $	*/
 /* From: NetBSD: extern.h,v 1.3 2000/12/01 12:03:27 simonb Exp $ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1997 Christos Zoulas.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

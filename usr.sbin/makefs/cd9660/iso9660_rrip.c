@@ -1,6 +1,8 @@
 /*	$NetBSD: iso9660_rrip.c,v 1.14 2014/05/30 13:14:47 martin Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2005 Daniel Watt, Walter Deignan, Ryan Gabrys, Alan
  * Perez-Rathke and Ram Vedam.  All rights reserved.
  *

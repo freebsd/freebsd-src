@@ -1,7 +1,9 @@
 /*	$OpenBSD: yppoll.c,v 1.15 2015/01/16 06:40:22 deraadt Exp $ */
 /*	$NetBSD: yppoll.c,v 1.5 1996/05/13 02:46:36 thorpej Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993 Theo de Raadt <deraadt@openbsd.org>
  * Copyright (c) 1992, 1993 John Brezak
  * All rights reserved.

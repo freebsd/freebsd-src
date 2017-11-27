@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2006, 2007, 2008, 2009, 2010 Marc Balmer <marc@msys.ch>
  * Copyright (C) 2000 Eugene M. Kim.  All rights reserved.
  *
