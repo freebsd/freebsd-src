@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * ISP Firmware Modules for FreeBSD
  *
  * Copyright (c) 2000, 2001, 2006 by Matthew Jacob

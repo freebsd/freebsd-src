@@ -1,6 +1,8 @@
 /*	$OpenBSD: sab82532reg.h,v 1.2 2002/04/08 17:49:42 jason Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 Jason L. Wright (jason@thought.net)
  * All rights reserved.
  *
