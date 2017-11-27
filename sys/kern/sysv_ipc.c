@@ -1,5 +1,7 @@
 /*	$NetBSD: sysv_ipc.c,v 1.7 1994/06/29 06:33:11 cgd Exp $	*/
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994 Herb Peyerl <hpeyerl@novatel.ca>
  * Copyright (c) 2006 nCircle Network Security, Inc.
  * All rights reserved.
