@@ -255,7 +255,7 @@ parse_args(int argc, char **argv)
 {
 	int ch, i;
 
-	while ((ch = getopt_long(argc, argv, "aAbdDf:gHlLNn:OpRt:w",
+	while ((ch = getopt_long(argc, argv, "aAbdDf:gHlLNn:OpRt:uw",
 		    longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'a':
