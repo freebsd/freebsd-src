@@ -65,6 +65,8 @@
         sbin
         ..
         usr.bin
+            ctfconvert
+            ..
         ..
         usr.sbin
             dtrace
@@ -654,6 +656,8 @@
         ..
         file2c
         ..
+        fold
+        ..
         getconf
         ..
         grep
@@ -689,6 +693,8 @@
         printf
         ..
         procstat
+        ..
+        rs
         ..
         sdiff
         ..
