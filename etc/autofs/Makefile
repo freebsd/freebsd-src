@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 FILES=		include_ldap \
+		include_nis \
 		include_nis_nullfs \
 		special_hosts \
 		special_media \
