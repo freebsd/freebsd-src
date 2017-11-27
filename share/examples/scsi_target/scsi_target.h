@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * SCSI Target Emulator
  *
  * Copyright (c) 2002 Nate Lawson.
