@@ -77,7 +77,7 @@ static struct bhnd_device_quirk pci_bridge_quirks[] = {
 /* Bus-level quirks when bridged via a PCIe host bridge core */
 static struct bhnd_device_quirk pcie_bridge_quirks[] = {
 	BHND_CHIP_QUIRK (4311, HWREV_EQ(2),	SIBA_QUIRK_PCIE_D11_SB_TIMEOUT),
-	BHND_CHIP_QUIRK (4312, HWREV_EQ(0),	SIBA_QUIRK_PCIE_D11_SB_TIMEOUT),
+	BHND_CHIP_QUIRK (4312, HWREV_ANY,	SIBA_QUIRK_PCIE_D11_SB_TIMEOUT),
 	BHND_DEVICE_QUIRK_END
 };
 
@@ -250,7 +250,7 @@ siba_bhndb_wars_pcie_clear_d11_timeout(struct siba_bhndb_softc *sc)
 	KASSERT(dinfo->cfg_res[0] != NULL, ("missing core config mapping"));
 
 	imcfg = bhnd_bus_read_4(dinfo->cfg_res[0], SIBA_CFG0_IMCONFIGLOW);
-	imcfg &= ~SIBA_IMCL_RTO_MASK;
+	imcfg &= ~(SIBA_IMCL_RTO_MASK|SIBA_IMCL_STO_MASK);
 
 	bhnd_bus_write_4(dinfo->cfg_res[0], SIBA_CFG0_IMCONFIGLOW, imcfg);
 
