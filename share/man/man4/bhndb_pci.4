@@ -1,5 +1,9 @@
-.\" Copyright (c) 2010 Weongyo Jeong
+.\" Copyright (c) 2015 Landon Fuller <landonf@FreeBSD.org>
+.\" Copyright (c) 2017 The FreeBSD Foundation
 .\" All rights reserved.
+.\"
+.\" Portions of this documentation were written by Landon Fuller
+.\" under sponsorship from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,70 +28,48 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2017
-.Dt SIBA 4
+.Dd October 16, 2017
+.Dt BHNDB_PCI 4
 .Os
 .Sh NAME
-.Nm siba
-.Nd Sonic Inc. Silicon Backplane driver
+.Nm bhndb_pci
+.Nd Broadcom Home Networking Division PCI host bridge driver
 .Sh SYNOPSIS
 To compile this driver into the kernel, add the following lines to the
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device bhnd"
-.Cd "device siba"
+.Cd "device bhndb"
+.Cd "device bhndb_pci"
+.Cd "device pci"
 .Ed
 .Pp
 To load the driver as a module at boot, add this line to
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-siba_load="YES"
+bhndb_pci_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
 driver provides
-.Xr bhnd 4
-support for devices based on the Sonic Inc. Silicon Backplane, an
-interblock communications architecture found in earlier Broadcom Home
-Networking Division wireless chipsets and embedded systems.
-.Pp
-A common interconnect connects all of the Silicon Backplane's functional
-blocks.
-These functional blocks, known as cores, use the Open Core Protocol
-(OCP) interface to communicate with agents attached to the Silicon
-Backplane.
-.Pp
-Each core can have an initiator agent that passes read and write
-requests onto the system backplane and a target agent that returns
-responses to those requests.
-Not all cores contain both an initiator and a target agent.
-Initiator agents are present in cores that contain
-host interfaces (PCI, PCMCIA), embedded processors (MIPS),
-or DMA processors associated with communications cores.
+.Xr bhndb 4
+support for the PCI and PCIe host bridge cores found in Broadcom Home Networking
+Division's wireless chipsets and network adapters.
 .Sh SEE ALSO
-.Xr bcma 4 ,
 .Xr bhnd 4 ,
-.Xr intro 4
+.Xr bhndb 4 ,
+.Xr bwn 4 ,
+.Xr intro 4 ,
+.Xr pci 4
 .Sh HISTORY
 The
 .Nm
 device driver first appeared in
-.Fx 8.0 .
-The driver was rewritten for
-.Fx 11.0
-to support the common Broadcom
-.Xr bhnd 4
-bus interface.
+.Fx 11.0 .
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
-driver was originally written by
-.An Bruce M. Simpson Aq Mt bms@FreeBSD.org
-and
-.An Weongyo Jeong Aq Mt weongyo@FreeBSD.org .
-The driver was rewritten for
-.Fx 11.0
-by
+driver was written by
 .An Landon Fuller Aq Mt landonf@FreeBSD.org .
