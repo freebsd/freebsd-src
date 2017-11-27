@@ -398,7 +398,7 @@ TS(u_int size, int count)
 
 	dt = delta_t();
 	printf("%8.1f usec/IO = %8.1f Mbytes/s\n",
-	    dt * 1000000.0 / count, size * count / dt / (1024 * 1024));
+	    dt * 1000000.0 / count, (double)size * count / dt / (1024 * 1024));
 }
 
 static void
