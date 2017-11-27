@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994 David Greenman
  * Copyright (c) 1994 Henrik Vestergaard Draboel (hvd@terry.ping.dk)
  * All rights reserved.

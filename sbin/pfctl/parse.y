@@ -1,6 +1,8 @@
 /*	$OpenBSD: parse.y,v 1.554 2008/10/17 12:59:53 henning Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2001 Daniel Hartmeier.  All rights reserved.
  * Copyright (c) 2001 Theo de Raadt.  All rights reserved.

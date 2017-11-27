@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Ruslan Ermilov and Brian Somers <brian@Awfulhak.org>
  * All rights reserved.
  *

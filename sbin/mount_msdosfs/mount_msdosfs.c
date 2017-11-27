@@ -1,6 +1,8 @@
 /*	$NetBSD: mount_msdos.c,v 1.18 1997/09/16 12:24:18 lukem Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994 Christopher G. Demetriou
  * All rights reserved.
  *
