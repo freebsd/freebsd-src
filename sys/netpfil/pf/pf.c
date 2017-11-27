@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2001 Daniel Hartmeier
  * Copyright (c) 2002 - 2008 Henning Brauer
  * Copyright (c) 2012 Gleb Smirnoff <glebius@FreeBSD.org>

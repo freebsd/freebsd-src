@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 McAfee, Inc.
  * Copyright (c) 2006,2013 Andre Oppermann, Internet Business Solutions AG
  * All rights reserved.

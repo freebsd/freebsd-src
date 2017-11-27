@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996-2000 Whistle Communications, Inc.
  * All rights reserved.
  *

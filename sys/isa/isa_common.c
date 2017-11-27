@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND MIT
+ *
  * Copyright (c) 1999 Doug Rabson
  * All rights reserved.
  *

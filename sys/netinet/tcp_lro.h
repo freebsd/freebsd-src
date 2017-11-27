@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006, Myricom Inc.
  * Copyright (c) 2008, Intel Corporation.
  * Copyright (c) 2016 Mellanox Technologies.

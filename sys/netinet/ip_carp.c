@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Michael Shalayeff.
  * Copyright (c) 2003 Ryan McBride.
  * Copyright (c) 2011 Gleb Smirnoff <glebius@FreeBSD.org>
