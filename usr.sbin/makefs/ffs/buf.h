@@ -1,6 +1,8 @@
 /*	$NetBSD: buf.h,v 1.3 2001/11/02 03:12:49 lukem Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 Wasabi Systems, Inc.
  * All rights reserved.
  *

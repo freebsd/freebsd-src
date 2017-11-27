@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 Poul-Henning Kamp
  * Copyright (c) 2015 Spectra Logic Corporation
  * Copyright (c) 2017 Alexander Motin <mav@FreeBSD.org>

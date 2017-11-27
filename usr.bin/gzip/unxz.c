@@ -1,6 +1,8 @@
 /*	$NetBSD: unxz.c,v 1.7 2017/08/04 07:27:08 mrg Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

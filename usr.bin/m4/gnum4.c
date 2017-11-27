@@ -1,6 +1,8 @@
 /* $OpenBSD: gnum4.c,v 1.50 2015/04/29 00:13:26 millert Exp $ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 1999 Marc Espie
  *
  * Redistribution and use in source and binary forms, with or without

@@ -2,6 +2,8 @@
 #
 # unifdefall: remove all the #if's from a source file
 #
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
 # Copyright (c) 2002 - 2013 Tony Finch <dot@dotat.at>
 # Copyright (c) 2009 - 2010 Jonathan Nieder <jrnieder@gmail.com>
 #

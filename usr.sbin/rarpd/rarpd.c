@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: 0BSD
+ *
  * Copyright (c) 1990, 1991, 1992, 1993, 1996
  *	The Regents of the University of California.  All rights reserved.
  *

@@ -1,6 +1,8 @@
 /*	$NetBSD: pathnames.h,v 1.1 1995/08/17 16:37:20 thorpej Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995 Jason R. Thorpe.
  * All rights reserved.
  *
