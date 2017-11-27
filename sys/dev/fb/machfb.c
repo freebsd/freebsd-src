@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Bang Jun-Young
  * Copyright (c) 2005 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.

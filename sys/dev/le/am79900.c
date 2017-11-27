@@ -1,6 +1,8 @@
 /*	$NetBSD: am79900.c,v 1.17 2005/12/24 20:27:29 perry Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-3-Clause
+ *
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

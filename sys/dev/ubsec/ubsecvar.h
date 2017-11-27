@@ -2,6 +2,8 @@
 /*	$OpenBSD: ubsecvar.h,v 1.35 2002/09/24 18:33:26 jason Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2000 Theo de Raadt
  * Copyright (c) 2001 Patrik Lindergren (patrik@ipunplugged.com)
  *

@@ -2,6 +2,8 @@
  * Generic driver definitions and exported functions for the Advanced
  * Systems Inc. SCSI controllers
  * 
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1996-1997 Justin Gibbs.
  * All rights reserved.
  *
