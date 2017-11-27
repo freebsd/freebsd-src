@@ -1,6 +1,8 @@
 /*	$NetBSD: cache.h,v 1.6 2003/02/17 11:35:01 simonb Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 2001 Wasabi Systems, Inc.
  * All rights reserved.
  *
