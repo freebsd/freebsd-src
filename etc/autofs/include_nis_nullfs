@@ -28,14 +28,14 @@
 #
 
 #
-# /etc/autofs/include_nis
+# /etc/autofs/include_nis_nullfs
 #
 # automountd Directory Services script for NIS
 #
 # SYNOPSIS
-#       include_nis <mapname>
+#       include_nis_nullfs <mapname>
 #
-#       include_nis <mapname> <key>
+#       include_nis_nullfs <mapname> <key>
 #
 # DESCRIPTION
 #
