@@ -1858,7 +1858,7 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
-	if (req->newlen + sizeof(struct pargs) > ps_arg_cache_limit)
+	if (req->newlen > ps_arg_cache_limit - sizeof(struct pargs))
 		return (ENOMEM);
 	newpa = pargs_alloc(req->newlen);
 	error = SYSCTL_IN(req, newpa->ar_args, req->newlen);
