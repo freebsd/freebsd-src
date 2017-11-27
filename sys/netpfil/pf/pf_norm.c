@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
  * Copyright 2011 Alexander Bluhm <bluhm@openbsd.org>
  * All rights reserved.
