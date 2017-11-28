@@ -76,7 +76,9 @@ void
 VdevIterator::Reset()
 {
 	nvlist_t  *rootVdev;
+	nvlist	  **cache_child;
 	int	   result;
+	uint_t   cache_children;
 
 	result = nvlist_lookup_nvlist(m_poolConfig,
 				      ZPOOL_CONFIG_VDEV_TREE,
@@ -85,6 +87,13 @@ VdevIterator::Reset()
 		throw ZfsdException(m_poolConfig, "Unable to extract "
 				    "ZPOOL_CONFIG_VDEV_TREE from pool.");
 	m_vdevQueue.assign(1, rootVdev);
+	result = nvlist_lookup_nvlist_array(rootVdev,
+				      	    ZPOOL_CONFIG_L2CACHE,
+				      	    &cache_child,
+					    &cache_children);
+	if (result == 0)
+		for (uint_t c = 0; c < cache_children; c++)
+			m_vdevQueue.push_back(cache_child[c]);
 }
 
 nvlist_t *
