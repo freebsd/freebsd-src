@@ -312,7 +312,13 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v0 = {
 			.res		= { SYS_RES_MEMORY, PCIR_BAR(0) }
 		},
 		
-		/* bar0+0x1800: pci core registers */
+		/*
+		 * bar0+0x1800: pci core registers.
+		 * 
+		 * Does not include the SSB CFG registers found at the end of
+		 * the 4K core register block; these are mapped non-contigiously
+		 * by the next entry.
+		 */
 		{
 			.win_type	= BHNDB_REGWIN_T_CORE,
 			.win_offset	= BHNDB_PCI_V0_BAR0_PCIREG_OFFSET,
@@ -322,10 +328,27 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v0 = {
 				.unit	= 0,
 				.port	= 0,
 				.region	= 0,
+				.port_type = BHND_PORT_DEVICE,
+			},
+			.res		= { SYS_RES_MEMORY, PCIR_BAR(0) }
+		},
+
+		/* bar0+0x1E00: pci core (SSB CFG registers) */
+		{
+			.win_type	= BHNDB_REGWIN_T_CORE,
+			.win_offset	= BHNDB_PCI_V0_BAR0_PCISB_OFFSET	,
+			.win_size	= BHNDB_PCI_V0_BAR0_PCISB_SIZE,
+			.d.core = {
+				.class	= BHND_DEVCLASS_PCI,
+				.unit	= 0,
+				.port	= 0,
+				.region	= 0,
+				.offset	= BHNDB_PCI_V0_BAR0_PCISB_COREOFF,
 				.port_type = BHND_PORT_DEVICE
 			},
 			.res		= { SYS_RES_MEMORY, PCIR_BAR(0) }
 		},
+		
 		BHNDB_REGWIN_TABLE_END
 	},
 
