@@ -1119,3 +1119,4 @@
 				    struct kevent32 *eventlist, \
 				    int nevents, \
 				    const struct timespec32 *timeout); }
+; vim: syntax=off
