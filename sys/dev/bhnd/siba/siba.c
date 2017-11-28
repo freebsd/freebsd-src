@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include <dev/bhnd/cores/chipc/chipc.h>
 #include <dev/bhnd/cores/chipc/pwrctl/bhnd_pwrctl.h>
 
 #include "sibareg.h"
@@ -168,8 +169,9 @@ siba_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 			return (0);
 
 		case SIBA_PMU_PWRCTL:
-			panic("bhnd_get_pmu_info() called with "
-			    "SIBA_PMU_PWRCTL");
+		case SIBA_PMU_FIXED:
+			panic("bhnd_get_pmu_info() called with siba PMU state "
+			    "%d", dinfo->pmu_state);
 			return (ENXIO);
 		}
 
@@ -211,8 +213,9 @@ siba_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 			return (0);
 
 		case SIBA_PMU_PWRCTL:
-			panic("bhnd_set_pmu_info() called with "
-			    "SIBA_PMU_PWRCTL");
+		case SIBA_PMU_FIXED:
+			panic("bhnd_set_pmu_info() called with siba PMU state "
+			    "%d", dinfo->pmu_state);
 			return (ENXIO);
 		}
 
@@ -237,7 +240,10 @@ siba_alloc_pmu(device_t dev, device_t child)
 {
 	struct siba_softc	*sc;
 	struct siba_devinfo	*dinfo;
+	device_t		 chipc;
 	device_t		 pwrctl;
+	struct chipc_caps	 ccaps;
+	siba_pmu_state		 pmu_state;
 	int			 error;
 
 	if (device_get_parent(child) != dev)
@@ -245,11 +251,20 @@ siba_alloc_pmu(device_t dev, device_t child)
 
 	sc = device_get_softc(dev);
 	dinfo = device_get_ivars(child);
-	pwrctl = bhnd_retain_provider(child, BHND_SERVICE_PWRCTL);
+	pwrctl = NULL;
 
-	/* Unless this is a legacy PWRCTL chipset, defer to bhnd(4)'s PMU
-	 * implementation */
-	if (pwrctl == NULL) {
+	/* Fetch ChipCommon capability flags */
+	chipc = bhnd_retain_provider(child, BHND_SERVICE_CHIPC);
+	if (chipc != NULL) {
+		ccaps = *BHND_CHIPC_GET_CAPS(chipc);
+		bhnd_release_provider(child, chipc, BHND_SERVICE_CHIPC);
+	} else {
+		memset(&ccaps, 0, sizeof(ccaps));
+	}
+
+	/* Defer to bhnd(4)'s PMU implementation if ChipCommon exists and
+	 * advertises PMU support */
+	if (ccaps.pmu) {
 		if ((error = bhnd_generic_alloc_pmu(dev, child)))
 			return (error);
 
@@ -259,8 +274,24 @@ siba_alloc_pmu(device_t dev, device_t child)
 		return (0);
 	}
 
-	/* This is a legacy PWRCTL chipset; we need to map all bhnd(4) bus PMU
-	 * to PWRCTL operations ourselves.*/
+	/*
+	 * This is either a legacy PWRCTL chipset, or the device does not
+	 * support dynamic clock control.
+	 * 
+	 * We need to map all bhnd(4) bus PMU to PWRCTL or no-op operations.
+	 */
+	if (ccaps.pwr_ctrl) {
+		pmu_state = SIBA_PMU_PWRCTL;
+		pwrctl = bhnd_retain_provider(child, BHND_SERVICE_PWRCTL);
+		if (pwrctl == NULL) {
+			device_printf(dev, "PWRCTL not found\n");
+			return (ENODEV);
+		}
+	} else {
+		pmu_state = SIBA_PMU_FIXED;
+		pwrctl = NULL;
+	}
+
 	SIBA_LOCK(sc);
 
 	/* Per-core PMU state already allocated? */
@@ -270,8 +301,8 @@ siba_alloc_pmu(device_t dev, device_t child)
 	}
 
 	/* Update the child's PMU allocation state, and transfer ownership of
-	 * the PWRCTL provider reference */
-	dinfo->pmu_state = SIBA_PMU_PWRCTL;
+	 * the PWRCTL provider reference (if any) */
+	dinfo->pmu_state = pmu_state;
 	dinfo->pmu.pwrctl = pwrctl;
 
 	SIBA_UNLOCK(sc);
@@ -324,6 +355,15 @@ siba_release_pmu(device_t dev, device_t child)
 		/* Release the provider reference */
 		bhnd_release_provider(child, pwrctl, BHND_SERVICE_PWRCTL);
 		return (0);
+
+	case SIBA_PMU_FIXED:
+		/* Clean up the child's PMU state */
+		KASSERT(dinfo->pmu.pwrctl == NULL,
+		    ("PWRCTL reference with FIXED state"));
+
+		dinfo->pmu_state = SIBA_PMU_NONE;
+		dinfo->pmu.pwrctl = NULL;
+		SIBA_UNLOCK(sc);
 	}
 
 	panic("invalid PMU state: %d", dinfo->pmu_state);
@@ -363,6 +403,22 @@ siba_get_clock_latency(device_t dev, device_t child, bhnd_clock clock,
 		 SIBA_UNLOCK(sc);
 
 		 return (error);
+
+	case SIBA_PMU_FIXED:
+		SIBA_UNLOCK(sc);
+
+		/* HT clock is always available, and incurs no transition
+		 * delay. */
+		switch (clock) {
+		case BHND_CLOCK_HT:
+			*latency = 0;
+			return (0);
+
+		default:
+			return (ENODEV);
+		}
+
+		return (ENODEV);
 	}
 
 	panic("invalid PMU state: %d", dinfo->pmu_state);
@@ -401,6 +457,11 @@ siba_get_clock_freq(device_t dev, device_t child, bhnd_clock clock,
 		SIBA_UNLOCK(sc);
 
 		return (error);
+
+	case SIBA_PMU_FIXED:
+		SIBA_UNLOCK(sc);
+
+		return (ENODEV);
 	}
 
 	panic("invalid PMU state: %d", dinfo->pmu_state);
@@ -432,6 +493,7 @@ siba_request_ext_rsrc(device_t dev, device_t child, u_int rsrc)
 		return (bhnd_generic_request_ext_rsrc(dev, child, rsrc));
 
 	case SIBA_PMU_PWRCTL:
+	case SIBA_PMU_FIXED:
 		/* HW does not support per-core external resources */
 		SIBA_UNLOCK(sc);
 		return (ENODEV);
@@ -466,6 +528,7 @@ siba_release_ext_rsrc(device_t dev, device_t child, u_int rsrc)
 		return (bhnd_generic_release_ext_rsrc(dev, child, rsrc));
 
 	case SIBA_PMU_PWRCTL:
+	case SIBA_PMU_FIXED:
 		/* HW does not support per-core external resources */
 		SIBA_UNLOCK(sc);
 		return (ENODEV);
@@ -506,6 +569,22 @@ siba_request_clock(device_t dev, device_t child, bhnd_clock clock)
 		SIBA_UNLOCK(sc);
 
 		return (error);
+
+	case SIBA_PMU_FIXED:
+		SIBA_UNLOCK(sc);
+
+		/* HT clock is always available, and fulfills any of the
+		 * following clock requests */
+		switch (clock) {
+		case BHND_CLOCK_DYN:
+		case BHND_CLOCK_ILP:
+		case BHND_CLOCK_ALP:
+		case BHND_CLOCK_HT:
+			return (0);
+
+		default:
+			return (ENODEV);
+		}
 	}
 
 	panic("invalid PMU state: %d", dinfo->pmu_state);
@@ -537,6 +616,7 @@ siba_enable_clocks(device_t dev, device_t child, uint32_t clocks)
 		return (bhnd_generic_enable_clocks(dev, child, clocks));
 
 	case SIBA_PMU_PWRCTL:
+	case SIBA_PMU_FIXED:
 		SIBA_UNLOCK(sc);
 
 		/* All (supported) clocks are already enabled by default */
