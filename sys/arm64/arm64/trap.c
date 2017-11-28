@@ -325,7 +325,7 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 #endif
 		kdb_trap(exception, 0,
 		    (td->td_frame != NULL) ? td->td_frame : frame);
-		frame->tf_elr -= 4;
+		frame->tf_elr += 4;
 		break;
 	case EXCP_WATCHPT_EL1:
 	case EXCP_SOFTSTP_EL1:
