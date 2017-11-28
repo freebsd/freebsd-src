@@ -509,6 +509,17 @@ kdb_reenter(void)
 	/* NOTREACHED */
 }
 
+void
+kdb_reenter_silent(void)
+{
+
+	if (!kdb_active || kdb_jmpbufp == NULL)
+		return;
+
+	longjmp(kdb_jmpbufp, 1);
+	/* NOTREACHED */
+}
+
 /*
  * Thread related support functions.
  */
