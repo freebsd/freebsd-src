@@ -507,6 +507,16 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	mcontext_vfp_t mc_vfp, *vfp;
 	struct trapframe *tf = td->td_frame;
 	const __greg_t *gr = mcp->__gregs;
+	int spsr;
+
+	/*
+	 * Make sure the processor mode has not been tampered with and
+	 * interrupts have not been disabled.
+	 */
+	spsr = gr[_REG_CPSR];
+	if ((spsr & PSR_MODE) != PSR_USR32_MODE ||
+	    (spsr & (PSR_I | PSR_F)) != 0)
+		return (EINVAL);
 
 #ifdef WITNESS
 	if (mcp->mc_vfp_size != 0 && mcp->mc_vfp_size != sizeof(mc_vfp)) {
@@ -666,22 +676,16 @@ sys_sigreturn(td, uap)
 	} */ *uap;
 {
 	ucontext_t uc;
-	int spsr;
+	int error;
 
 	if (uap == NULL)
 		return (EFAULT);
 	if (copyin(uap->sigcntxp, &uc, sizeof(uc)))
 		return (EFAULT);
-	/*
-	 * Make sure the processor mode has not been tampered with and
-	 * interrupts have not been disabled.
-	 */
-	spsr = uc.uc_mcontext.__gregs[_REG_CPSR];
-	if ((spsr & PSR_MODE) != PSR_USR32_MODE ||
-	    (spsr & (PSR_I | PSR_F)) != 0)
-		return (EINVAL);
 	/* Restore register context. */
-	set_mcontext(td, &uc.uc_mcontext);
+	error = set_mcontext(td, &uc.uc_mcontext);
+	if (error != 0)
+		return (error);
 
 	/* Restore signal mask. */
 	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
