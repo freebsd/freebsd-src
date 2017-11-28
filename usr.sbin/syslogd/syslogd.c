@@ -1035,7 +1035,7 @@ static void
 logmsg(int pri, const char *msg, const char *from, int flags)
 {
 	struct filed *f;
-	int i, j, fac, msglen, prilev;
+	int i, fac, msglen, prilev;
 	const char *timestamp;
  	char prog[NAME_MAX+1];
 	char buf[MAXLINE+1];
@@ -1077,19 +1077,6 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 		return;
 
 	prilev = LOG_PRI(pri);
-
-	/* skip hostname, see RFC 3164 */
-	for (i = 0, j = 0; i < NAME_MAX; i++) {
-		if (isspace(msg[i])) {
-			j = i + 1;
-		}
-		if (msg[i] == ':')
-			break;
-	}
-	if (j <= msglen) {
-		msg += j;
-		msglen -= j;
-	}
 
 	/* extract program name */
 	for (i = 0; i < NAME_MAX; i++) {
