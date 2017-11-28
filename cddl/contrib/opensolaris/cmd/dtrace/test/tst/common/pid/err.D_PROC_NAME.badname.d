@@ -33,6 +33,6 @@
  *
  */
 
-pid$1:a.out:main:beginning
+pid$1:a.out::beginning
 {
 }
