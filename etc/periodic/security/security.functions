@@ -48,6 +48,7 @@ rc=0
 #   LABEL is the base name of the ${LOG}/${label}.{today,yesterday} files.
 
 check_diff() {
+  unset IFS
   rc=0
   if [ "$1" = "new_only" ]; then
     shift
