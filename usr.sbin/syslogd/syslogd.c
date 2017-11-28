@@ -792,14 +792,13 @@ socklist_recv_sock(struct socklist *sl)
 	} else {
 		hname = cvthname(sa);
 		unmapped(sa);
-		if (validate(sa, hname) == 0)
-			hname = NULL;
+		if (validate(sa, hname) == 0) {
+			dprintf("Message from %s was ignored.", hname);
+			return (-1);
+		}
 		date = RemoteAddDate ? ADDDATE : 0;
 	}
-	if (hname != NULL)
-		printline(hname, line, date);
-	else
-		dprintf("Invalid msg from %s was ignored.", hname);
+	printline(hname, line, date);
 
 	return (0);
 }
