@@ -193,7 +193,7 @@ vdev_geom_orphan(struct g_consumer *cp)
 }
 
 static struct g_consumer *
-vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
+vdev_geom_attach(struct g_provider *pp, vdev_t *vd, boolean_t sanity)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -203,14 +203,18 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
 
 	ZFS_LOG(1, "Attaching to %s.", pp->name);
 
-	if (pp->sectorsize > VDEV_PAD_SIZE || !ISP2(pp->sectorsize)) {
-		ZFS_LOG(1, "Failing attach of %s. Incompatible sectorsize %d\n",
-		    pp->name, pp->sectorsize);
-		return (NULL);
-	} else if (pp->mediasize < SPA_MINDEVSIZE) {
-		ZFS_LOG(1, "Failing attach of %s. Incompatible mediasize %ju\n",
-		    pp->name, pp->mediasize);
-		return (NULL);
+	if (sanity) {
+		if (pp->sectorsize > VDEV_PAD_SIZE || !ISP2(pp->sectorsize)) {
+			ZFS_LOG(1, "Failing attach of %s. "
+				   "Incompatible sectorsize %d\n",
+			    pp->name, pp->sectorsize);
+			return (NULL);
+		} else if (pp->mediasize < SPA_MINDEVSIZE) {
+			ZFS_LOG(1, "Failing attach of %s. "
+				   "Incompatible mediasize %ju\n",
+			    pp->name, pp->mediasize);
+			return (NULL);
+		}
 	}
 
 	/* Do we have geom already? No? Create one. */
@@ -587,7 +591,7 @@ vdev_geom_read_pool_label(const char *name,
 			LIST_FOREACH(pp, &gp->provider, provider) {
 				if (pp->flags & G_PF_WITHER)
 					continue;
-				zcp = vdev_geom_attach(pp, NULL);
+				zcp = vdev_geom_attach(pp, NULL, B_TRUE);
 				if (zcp == NULL)
 					continue;
 				g_topology_unlock();
@@ -627,7 +631,7 @@ vdev_attach_ok(vdev_t *vd, struct g_provider *pp)
 	struct g_consumer *cp;
 	int nlabels;
 
-	cp = vdev_geom_attach(pp, NULL);
+	cp = vdev_geom_attach(pp, NULL, B_TRUE);
 	if (cp == NULL) {
 		ZFS_LOG(1, "Unable to attach tasting instance to %s.",
 		    pp->name);
@@ -635,14 +639,12 @@ vdev_attach_ok(vdev_t *vd, struct g_provider *pp)
 	}
 	g_topology_unlock();
 	nlabels = vdev_geom_read_config(cp, &config);
+	g_topology_lock();
+	vdev_geom_detach(cp, B_TRUE);
 	if (nlabels == 0) {
-		g_topology_lock();
-		vdev_geom_detach(cp, B_TRUE);
 		ZFS_LOG(1, "Unable to read config from %s.", pp->name);
 		return (NO_MATCH);
 	}
-	g_topology_lock();
-	vdev_geom_detach(cp, B_TRUE);
 
 	pool_guid = 0;
 	(void) nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_GUID, &pool_guid);
@@ -714,7 +716,7 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 
 out:
 	if (best_pp) {
-		cp = vdev_geom_attach(best_pp, vd);
+		cp = vdev_geom_attach(best_pp, vd, B_TRUE);
 		if (cp == NULL) {
 			printf("ZFS WARNING: Unable to attach to %s.\n",
 			    best_pp->name);
@@ -768,7 +770,7 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 	if (pp != NULL) {
 		ZFS_LOG(1, "Found provider by name %s.", vd->vdev_path);
 		if (!check_guid || vdev_attach_ok(vd, pp) == FULL_MATCH)
-			cp = vdev_geom_attach(pp, vd);
+			cp = vdev_geom_attach(pp, vd, B_FALSE);
 	}
 
 	return (cp);
