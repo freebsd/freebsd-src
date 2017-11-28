@@ -151,23 +151,6 @@ SYSCTL_OID(_vm, OID_AUTO, phys_locality, CTLTYPE_STRING | CTLFLAG_RD,
 SYSCTL_INT(_vm, OID_AUTO, ndomains, CTLFLAG_RD,
     &vm_ndomains, 0, "Number of physical memory domains available.");
 
-/*
- * Default to first-touch + round-robin.
- */
-static struct mtx vm_default_policy_mtx;
-MTX_SYSINIT(vm_default_policy, &vm_default_policy_mtx, "default policy mutex",
-    MTX_DEF);
-#ifdef VM_NUMA_ALLOC
-static struct vm_domain_policy vm_default_policy =
-    VM_DOMAIN_POLICY_STATIC_INITIALISER(VM_POLICY_FIRST_TOUCH_ROUND_ROBIN, 0);
-#else
-/* Use round-robin so the domain policy code will only try once per allocation */
-static struct vm_domain_policy vm_default_policy =
-    VM_DOMAIN_POLICY_STATIC_INITIALISER(VM_POLICY_ROUND_ROBIN, 0);
-#endif
-
-static vm_page_t vm_phys_alloc_domain_pages(int domain, int flind, int pool,
-    int order);
 static vm_page_t vm_phys_alloc_seg_contig(struct vm_phys_seg *seg,
     u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
     vm_paddr_t boundary);
@@ -175,60 +158,6 @@ static void _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int domain);
 static void vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end);
 static void vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl,
     int order);
-
-static int
-sysctl_vm_default_policy(SYSCTL_HANDLER_ARGS)
-{
-	char policy_name[32];
-	int error;
-
-	mtx_lock(&vm_default_policy_mtx);
-
-	/* Map policy to output string */
-	switch (vm_default_policy.p.policy) {
-	case VM_POLICY_FIRST_TOUCH:
-		strcpy(policy_name, "first-touch");
-		break;
-	case VM_POLICY_FIRST_TOUCH_ROUND_ROBIN:
-		strcpy(policy_name, "first-touch-rr");
-		break;
-	case VM_POLICY_ROUND_ROBIN:
-	default:
-		strcpy(policy_name, "rr");
-		break;
-	}
-	mtx_unlock(&vm_default_policy_mtx);
-
-	error = sysctl_handle_string(oidp, &policy_name[0],
-	    sizeof(policy_name), req);
-	if (error != 0 || req->newptr == NULL)
-		return (error);
-
-	mtx_lock(&vm_default_policy_mtx);
-	/* Set: match on the subset of policies that make sense as a default */
-	if (strcmp("first-touch-rr", policy_name) == 0) {
-		vm_domain_policy_set(&vm_default_policy,
-		    VM_POLICY_FIRST_TOUCH_ROUND_ROBIN, 0);
-	} else if (strcmp("first-touch", policy_name) == 0) {
-		vm_domain_policy_set(&vm_default_policy,
-		    VM_POLICY_FIRST_TOUCH, 0);
-	} else if (strcmp("rr", policy_name) == 0) {
-		vm_domain_policy_set(&vm_default_policy,
-		    VM_POLICY_ROUND_ROBIN, 0);
-	} else {
-		error = EINVAL;
-		goto finish;
-	}
-
-	error = 0;
-finish:
-	mtx_unlock(&vm_default_policy_mtx);
-	return (error);
-}
-
-SYSCTL_PROC(_vm, OID_AUTO, default_policy, CTLTYPE_STRING | CTLFLAG_RW,
-    0, 0, sysctl_vm_default_policy, "A",
-    "Default policy (rr, first-touch, first-touch-rr");
 
 /*
  * Red-black tree helpers for vm fictitious range management.
@@ -269,71 +198,6 @@ vm_phys_fictitious_cmp(struct vm_phys_fictitious_seg *p1,
 	panic("Trying to add overlapping vm fictitious ranges:\n"
 	    "[%#jx:%#jx] and [%#jx:%#jx]", (uintmax_t)p1->start,
 	    (uintmax_t)p1->end, (uintmax_t)p2->start, (uintmax_t)p2->end);
-}
-
-#ifdef notyet
-static __inline int
-vm_rr_selectdomain(void)
-{
-#ifdef VM_NUMA_ALLOC
-	struct thread *td;
-
-	td = curthread;
-
-	td->td_dom_rr_idx++;
-	td->td_dom_rr_idx %= vm_ndomains;
-	return (td->td_dom_rr_idx);
-#else
-	return (0);
-#endif
-}
-#endif /* notyet */
-
-/*
- * Initialise a VM domain iterator.
- *
- * Check the thread policy, then the proc policy,
- * then default to the system policy.
- *
- * Later on the various layers will have this logic
- * plumbed into them and the phys code will be explicitly
- * handed a VM domain policy to use.
- */
-static void
-vm_policy_iterator_init(struct vm_domain_iterator *vi)
-{
-#ifdef VM_NUMA_ALLOC
-	struct vm_domain_policy lcl;
-#endif
-
-	vm_domain_iterator_init(vi);
-
-#ifdef VM_NUMA_ALLOC
-	/* Copy out the thread policy */
-	vm_domain_policy_localcopy(&lcl, &curthread->td_vm_dom_policy);
-	if (lcl.p.policy != VM_POLICY_NONE) {
-		/* Thread policy is present; use it */
-		vm_domain_iterator_set_policy(vi, &lcl);
-		return;
-	}
-
-	vm_domain_policy_localcopy(&lcl,
-	    &curthread->td_proc->p_vm_dom_policy);
-	if (lcl.p.policy != VM_POLICY_NONE) {
-		/* Process policy is present; use it */
-		vm_domain_iterator_set_policy(vi, &lcl);
-		return;
-	}
-#endif
-	/* Use system default policy */
-	vm_domain_iterator_set_policy(vi, &vm_default_policy);
-}
-
-static void
-vm_policy_iterator_finish(struct vm_domain_iterator *vi)
-{
-
-	vm_domain_iterator_cleanup(vi);
 }
 
 boolean_t
@@ -504,7 +368,7 @@ _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int domain)
 
 	KASSERT(vm_phys_nsegs < VM_PHYSSEG_MAX,
 	    ("vm_phys_create_seg: increase VM_PHYSSEG_MAX"));
-	KASSERT(domain < vm_ndomains,
+	KASSERT(domain >= 0 && domain < vm_ndomains,
 	    ("vm_phys_create_seg: invalid domain provided"));
 	seg = &vm_phys_segs[vm_phys_nsegs++];
 	while (seg > vm_phys_segs && (seg - 1)->start >= end) {
@@ -736,29 +600,16 @@ vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl, int order)
  * The free page queues must be locked.
  */
 vm_page_t
-vm_phys_alloc_pages(int pool, int order)
+vm_phys_alloc_pages(int domain, int pool, int order)
 {
 	vm_page_t m;
-	int domain, flind;
-	struct vm_domain_iterator vi;
+	int flind;
 
-	KASSERT(pool < VM_NFREEPOOL,
-	    ("vm_phys_alloc_pages: pool %d is out of range", pool));
-	KASSERT(order < VM_NFREEORDER,
-	    ("vm_phys_alloc_pages: order %d is out of range", order));
-
-	vm_policy_iterator_init(&vi);
-
-	while ((vm_domain_iterator_run(&vi, &domain)) == 0) {
-		for (flind = 0; flind < vm_nfreelists; flind++) {
-			m = vm_phys_alloc_domain_pages(domain, flind, pool,
-			    order);
-			if (m != NULL)
-				return (m);
-		}
+	for (flind = 0; flind < vm_nfreelists; flind++) {
+		m = vm_phys_alloc_freelist_pages(domain, flind, pool, order);
+		if (m != NULL)
+			return (m);
 	}
-
-	vm_policy_iterator_finish(&vi);
 	return (NULL);
 }
 
@@ -770,40 +621,22 @@ vm_phys_alloc_pages(int pool, int order)
  * The free page queues must be locked.
  */
 vm_page_t
-vm_phys_alloc_freelist_pages(int freelist, int pool, int order)
+vm_phys_alloc_freelist_pages(int domain, int flind, int pool, int order)
 {
+	struct vm_freelist *alt, *fl;
 	vm_page_t m;
-	struct vm_domain_iterator vi;
-	int domain;
+	int oind, pind;
 
-	KASSERT(freelist < VM_NFREELIST,
+	KASSERT(domain >= 0 && domain < vm_ndomains,
+	    ("vm_phys_alloc_freelist_pages: domain %d is out of range",
+	    domain));
+	KASSERT(flind < VM_NFREELIST,
 	    ("vm_phys_alloc_freelist_pages: freelist %d is out of range",
-	    freelist));
+	    flind));
 	KASSERT(pool < VM_NFREEPOOL,
 	    ("vm_phys_alloc_freelist_pages: pool %d is out of range", pool));
 	KASSERT(order < VM_NFREEORDER,
 	    ("vm_phys_alloc_freelist_pages: order %d is out of range", order));
-
-	vm_policy_iterator_init(&vi);
-
-	while ((vm_domain_iterator_run(&vi, &domain)) == 0) {
-		m = vm_phys_alloc_domain_pages(domain,
-		    vm_freelist_to_flind[freelist], pool, order);
-		if (m != NULL)
-			return (m);
-	}
-
-	vm_policy_iterator_finish(&vi);
-	return (NULL);
-}
-
-static vm_page_t
-vm_phys_alloc_domain_pages(int domain, int flind, int pool, int order)
-{	
-	struct vm_freelist *fl;
-	struct vm_freelist *alt;
-	int oind, pind;
-	vm_page_t m;
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	fl = &vm_phys_free_queues[domain][flind][pool][0];
@@ -1261,14 +1094,13 @@ vm_phys_unfree_page(vm_page_t m)
  * "alignment" and "boundary" must be a power of two.
  */
 vm_page_t
-vm_phys_alloc_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
+vm_phys_alloc_contig(int domain, u_long npages, vm_paddr_t low, vm_paddr_t high,
     u_long alignment, vm_paddr_t boundary)
 {
 	vm_paddr_t pa_end, pa_start;
 	vm_page_t m_run;
-	struct vm_domain_iterator vi;
 	struct vm_phys_seg *seg;
-	int domain, segind;
+	int segind;
 
 	KASSERT(npages > 0, ("npages is 0"));
 	KASSERT(powerof2(alignment), ("alignment is not a power of 2"));
@@ -1276,12 +1108,6 @@ vm_phys_alloc_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	if (low >= high)
 		return (NULL);
-	vm_policy_iterator_init(&vi);
-restartdom:
-	if (vm_domain_iterator_run(&vi, &domain) != 0) {
-		vm_policy_iterator_finish(&vi);
-		return (NULL);
-	}
 	m_run = NULL;
 	for (segind = vm_phys_nsegs - 1; segind >= 0; segind--) {
 		seg = &vm_phys_segs[segind];
@@ -1304,9 +1130,6 @@ restartdom:
 		if (m_run != NULL)
 			break;
 	}
-	if (m_run == NULL && !vm_domain_iterator_isdone(&vi))
-		goto restartdom;
-	vm_policy_iterator_finish(&vi);
 	return (m_run);
 }
 
