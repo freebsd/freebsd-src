@@ -1,5 +1,5 @@
 /*
-** $Id: lua.c,v 1.222 2014/11/11 19:41:27 roberto Exp $
+** $Id: lua.c,v 1.230 2017/01/12 17:14:26 roberto Exp $
 ** Lua stand-alone interpreter
 ** See Copyright Notice in lua.h
 */
@@ -20,6 +20,7 @@
 #include "lualib.h"
 
 
+
 #if !defined(LUA_PROMPT)
 #define LUA_PROMPT		"> "
 #define LUA_PROMPT2		">> "
@@ -37,8 +38,7 @@
 #define LUA_INIT_VAR		"LUA_INIT"
 #endif
 
-#define LUA_INITVARVERSION  \
-	LUA_INIT_VAR "_" LUA_VERSION_MAJOR "_" LUA_VERSION_MINOR
+#define LUA_INITVARVERSION	LUA_INIT_VAR LUA_VERSUFFIX
 
 
 /*
@@ -55,6 +55,8 @@
 #elif defined(LUA_USE_WINDOWS)	/* }{ */
 
 #include <io.h>
+#include <windows.h>
+
 #define lua_stdin_is_tty()	_isatty(_fileno(stdin))
 
 #else				/* }{ */
@@ -80,9 +82,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #define lua_readline(L,b,p)	((void)L, ((b)=readline(p)) != NULL)
-#define lua_saveline(L,idx) \
-        if (lua_rawlen(L,idx) > 0)  /* non-empty line? */ \
-          add_history(lua_tostring(L, idx));  /* add it to history */
+#define lua_saveline(L,line)	((void)L, add_history(line))
 #define lua_freeline(L,b)	((void)L, free(b))
 
 #else				/* }{ */
@@ -90,7 +90,7 @@
 #define lua_readline(L,b,p) \
         ((void)L, fputs(p, stdout), fflush(stdout),  /* show prompt */ \
         fgets(b, LUA_MAXINPUT, stdin) != NULL)  /* get line */
-#define lua_saveline(L,idx)	{ (void)L; (void)idx; }
+#define lua_saveline(L,line)	{ (void)L; (void)line; }
 #define lua_freeline(L,b)	{ (void)L; (void)b; }
 
 #endif				/* } */
@@ -315,31 +315,31 @@ static int pushline (lua_State *L, int firstline) {
   lua_pop(L, 1);  /* remove prompt */
   l = strlen(b);
   if (l > 0 && b[l-1] == '\n')  /* line ends with newline? */
-    b[l-1] = '\0';  /* remove it */
+    b[--l] = '\0';  /* remove it */
   if (firstline && b[0] == '=')  /* for compatibility with 5.2, ... */
     lua_pushfstring(L, "return %s", b + 1);  /* change '=' to 'return' */
   else
-    lua_pushstring(L, b);
+    lua_pushlstring(L, b, l);
   lua_freeline(L, b);
   return 1;
 }
 
 
 /*
-** Try to compile line on the stack as 'return <line>'; on return, stack
+** Try to compile line on the stack as 'return <line>;'; on return, stack
 ** has either compiled chunk or original line (if compilation failed).
 */
 static int addreturn (lua_State *L) {
-  int status;
-  size_t len; const char *line;
-  lua_pushliteral(L, "return ");
-  lua_pushvalue(L, -2);  /* duplicate line */
-  lua_concat(L, 2);  /* new line is "return ..." */
-  line = lua_tolstring(L, -1, &len);
-  if ((status = luaL_loadbuffer(L, line, len, "=stdin")) == LUA_OK)
-    lua_remove(L, -3);  /* remove original line */
+  const char *line = lua_tostring(L, -1);  /* original line */
+  const char *retline = lua_pushfstring(L, "return %s;", line);
+  int status = luaL_loadbuffer(L, retline, strlen(retline), "=stdin");
+  if (status == LUA_OK) {
+    lua_remove(L, -2);  /* remove modified line */
+    if (line[0] != '\0')  /* non empty? */
+      lua_saveline(L, line);  /* keep history */
+  }
   else
-    lua_pop(L, 2);  /* remove result from 'luaL_loadbuffer' and new line */
+    lua_pop(L, 2);  /* pop result from 'luaL_loadbuffer' and modified line */
   return status;
 }
 
@@ -352,8 +352,10 @@ static int multiline (lua_State *L) {
     size_t len;
     const char *line = lua_tolstring(L, 1, &len);  /* get what it has */
     int status = luaL_loadbuffer(L, line, len, "=stdin");  /* try it */
-    if (!incomplete(L, status) || !pushline(L, 0))
+    if (!incomplete(L, status) || !pushline(L, 0)) {
+      lua_saveline(L, line);  /* keep history */
       return status;  /* cannot or should not try to add continuation line */
+    }
     lua_pushliteral(L, "\n");  /* add newline... */
     lua_insert(L, -2);  /* ...between the two lines */
     lua_concat(L, 3);  /* join them */
@@ -374,7 +376,6 @@ static int loadline (lua_State *L) {
     return -1;  /* no input */
   if ((status = addreturn(L)) != LUA_OK)  /* 'return ...' did not work? */
     status = multiline(L);  /* try as command, maybe with continuation lines */
-  lua_saveline(L, 1);  /* keep history */
   lua_remove(L, 1);  /* remove line from the stack */
   lua_assert(lua_gettop(L) == 1);
   return status;
@@ -458,7 +459,7 @@ static int handle_script (lua_State *L, char **argv) {
 /*
 ** Traverses all arguments from 'argv', returning a mask with those
 ** needed before running any Lua code (or an error code if it finds
-** any invalid argument). 'first' returns the first not-handled argument 
+** any invalid argument). 'first' returns the first not-handled argument
 ** (either the script name or a bad argument in case of error).
 */
 static int collectargs (char **argv, int *first) {
@@ -482,14 +483,14 @@ static int collectargs (char **argv, int *first) {
         args |= has_E;
         break;
       case 'i':
-        args |= has_i;  /* goes through  (-i implies -v) */
+        args |= has_i;  /* (-i implies -v) *//* FALLTHROUGH */
       case 'v':
         if (argv[i][2] != '\0')  /* extra characters after 1st? */
           return has_error;  /* invalid option */
         args |= has_v;
         break;
       case 'e':
-        args |= has_e;  /* go through */
+        args |= has_e;  /* FALLTHROUGH */
       case 'l':  /* both options need an argument */
         if (argv[i][2] == '\0') {  /* no concatenated argument? */
           i++;  /* try next 'argv' */
@@ -513,22 +514,22 @@ static int collectargs (char **argv, int *first) {
 static int runargs (lua_State *L, char **argv, int n) {
   int i;
   for (i = 1; i < n; i++) {
-    int status;
     int option = argv[i][1];
     lua_assert(argv[i][0] == '-');  /* already checked */
     if (option == 'e' || option == 'l') {
+      int status;
       const char *extra = argv[i] + 2;  /* both options need an argument */
       if (*extra == '\0') extra = argv[++i];
       lua_assert(extra != NULL);
-      if (option == 'e')
-        status = dostring(L, extra, "=(command line)");
-      else
-        status = dolibrary(L, extra);
+      status = (option == 'e')
+               ? dostring(L, extra, "=(command line)")
+               : dolibrary(L, extra);
       if (status != LUA_OK) return 0;
     }
   }
   return 1;
 }
+
 
 
 static int handle_luainit (lua_State *L) {
