@@ -43,7 +43,13 @@ if check_yesno_period security_status_neggrpperm_enable
 then
 	echo ""
 	echo 'Checking negative group permissions:'
-	MP=`mount -t ufs,zfs | awk '$0 !~ /no(suid|exec)/ { print $3 }'`
+	IFS=$'\n'	# Don't split mount points with spaces or tabs
+	MP=`mount -t ufs,zfs | awk '
+		$0 !~ /no(suid|exec)/ {
+			sub(/^.* on \//, "/");
+			sub(/ \(.*\)/, "");
+			print $0
+		}'`
 	n=$(find -sx $MP /dev/null \( ! -fstype local \) -prune -o -type f \
 	    \( \( ! -perm +010 -and -perm +001 \) -or \
 	    \( ! -perm +020 -and -perm +002 \) -or \
