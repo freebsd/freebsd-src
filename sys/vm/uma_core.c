@@ -147,6 +147,10 @@ static struct mtx uma_boot_pages_mtx;
 
 static struct sx uma_drain_lock;
 
+/* kmem soft limit. */
+static unsigned long uma_kmem_limit;
+static volatile unsigned long uma_kmem_total;
+
 /* Is the VM done starting up? */
 static int booted = 0;
 #define	UMA_STARTUP	1
@@ -284,6 +288,22 @@ SYSCTL_PROC(_vm, OID_AUTO, zone_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
 static int zone_warnings = 1;
 SYSCTL_INT(_vm, OID_AUTO, zone_warnings, CTLFLAG_RWTUN, &zone_warnings, 0,
     "Warn when UMA zones becomes full");
+
+/* Adjust bytes under management by UMA. */
+static inline void
+uma_total_dec(unsigned long size)
+{
+
+	atomic_subtract_long(&uma_kmem_total, size);
+}
+
+static inline void
+uma_total_inc(unsigned long size)
+{
+
+	if (atomic_fetchadd_long(&uma_kmem_total, size) > uma_kmem_limit)
+		uma_reclaim_wakeup();
+}
 
 /*
  * This routine checks to see whether or not it's safe to enable buckets.
@@ -831,6 +851,7 @@ keg_free_slab(uma_keg_t keg, uma_slab_t slab, int start)
 	if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 		zone_free_item(keg->uk_slabzone, slab, NULL, SKIP_NONE);
 	keg->uk_freef(mem, PAGE_SIZE * keg->uk_ppera, flags);
+	uma_total_dec(PAGE_SIZE * keg->uk_ppera);
 }
 
 /*
@@ -935,6 +956,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int wait)
 {
 	uma_alloc allocf;
 	uma_slab_t slab;
+	unsigned long size;
 	uint8_t *mem;
 	uint8_t flags;
 	int i;
@@ -945,6 +967,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int wait)
 
 	allocf = keg->uk_allocf;
 	KEG_UNLOCK(keg);
+	size = keg->uk_ppera * PAGE_SIZE;
 
 	if (keg->uk_flags & UMA_ZONE_OFFPAGE) {
 		slab = zone_alloc_item(keg->uk_slabzone, NULL, wait);
@@ -968,13 +991,14 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int wait)
 		wait |= M_NODUMP;
 
 	/* zone is passed for legacy reasons. */
-	mem = allocf(zone, keg->uk_ppera * PAGE_SIZE, &flags, wait);
+	mem = allocf(zone, size, &flags, wait);
 	if (mem == NULL) {
 		if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 			zone_free_item(keg->uk_slabzone, slab, NULL, SKIP_NONE);
 		slab = NULL;
 		goto out;
 	}
+	uma_total_inc(size);
 
 	/* Point the slab into the allocated memory */
 	if (!(keg->uk_flags & UMA_ZONE_OFFPAGE))
@@ -1079,8 +1103,8 @@ page_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *pflag, int wait)
 {
 	void *p;	/* Returned page */
 
-	*pflag = UMA_SLAB_KMEM;
-	p = (void *) kmem_malloc(kmem_arena, bytes, wait);
+	*pflag = UMA_SLAB_KERNEL;
+	p = (void *) kmem_malloc(kernel_arena, bytes, wait);
 
 	return (p);
 }
@@ -1161,9 +1185,7 @@ page_free(void *mem, vm_size_t size, uint8_t flags)
 {
 	struct vmem *vmem;
 
-	if (flags & UMA_SLAB_KMEM)
-		vmem = kmem_arena;
-	else if (flags & UMA_SLAB_KERNEL)
+	if (flags & UMA_SLAB_KERNEL)
 		vmem = kernel_arena;
 	else
 		panic("UMA: page_free used with invalid flags %x", flags);
@@ -3132,31 +3154,33 @@ uma_reclaim(void)
 	sx_xunlock(&uma_drain_lock);
 }
 
-static int uma_reclaim_needed;
+static volatile int uma_reclaim_needed;
 
 void
 uma_reclaim_wakeup(void)
 {
 
-	uma_reclaim_needed = 1;
-	wakeup(&uma_reclaim_needed);
+	if (atomic_fetchadd_int(&uma_reclaim_needed, 1) == 0)
+		wakeup(uma_reclaim);
 }
 
 void
 uma_reclaim_worker(void *arg __unused)
 {
 
-	sx_xlock(&uma_drain_lock);
 	for (;;) {
-		sx_sleep(&uma_reclaim_needed, &uma_drain_lock, PVM,
-		    "umarcl", 0);
-		if (uma_reclaim_needed) {
-			uma_reclaim_needed = 0;
-			sx_xunlock(&uma_drain_lock);
-			EVENTHANDLER_INVOKE(vm_lowmem, VM_LOW_KMEM);
-			sx_xlock(&uma_drain_lock);
-			uma_reclaim_locked(true);
-		}
+		sx_xlock(&uma_drain_lock);
+		while (uma_reclaim_needed == 0)
+			sx_sleep(uma_reclaim, &uma_drain_lock, PVM, "umarcl",
+			    hz);
+		sx_xunlock(&uma_drain_lock);
+		EVENTHANDLER_INVOKE(vm_lowmem, VM_LOW_KMEM);
+		sx_xlock(&uma_drain_lock);
+		uma_reclaim_locked(true);
+		atomic_set_int(&uma_reclaim_needed, 0);
+		sx_xunlock(&uma_drain_lock);
+		/* Don't fire more than once per-second. */
+		pause("umarclslp", hz);
 	}
 }
 
@@ -3194,6 +3218,7 @@ uma_large_malloc(vm_size_t size, int wait)
 		slab->us_data = mem;
 		slab->us_flags = flags | UMA_SLAB_MALLOC;
 		slab->us_size = size;
+		uma_total_inc(size);
 	} else {
 		zone_free_item(slabzone, slab, NULL, SKIP_NONE);
 	}
@@ -3206,6 +3231,7 @@ uma_large_free(uma_slab_t slab)
 {
 
 	page_free(slab->us_data, slab->us_size, slab->us_flags);
+	uma_total_dec(slab->us_size);
 	zone_free_item(slabzone, slab, NULL, SKIP_NONE);
 }
 
@@ -3219,6 +3245,27 @@ uma_zero_item(void *item, uma_zone_t zone)
 			bzero(zpcpu_get_cpu(item, i), zone->uz_size);
 	} else
 		bzero(item, zone->uz_size);
+}
+
+unsigned long
+uma_limit(void)
+{
+
+	return (uma_kmem_limit);
+}
+
+void
+uma_set_limit(unsigned long limit)
+{
+
+	uma_kmem_limit = limit;
+}
+
+unsigned long
+uma_size(void)
+{
+
+	return uma_kmem_total;
 }
 
 void

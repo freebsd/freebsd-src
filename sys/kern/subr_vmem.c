@@ -137,6 +137,7 @@ struct vmem {
 	int			vm_nbusytag;
 	vmem_size_t		vm_inuse;
 	vmem_size_t		vm_size;
+	vmem_size_t		vm_limit;
 
 	/* Used on import. */
 	vmem_import_t		*vm_importfn;
@@ -228,11 +229,11 @@ static uma_zone_t vmem_bt_zone;
 
 /* boot time arena storage. */
 static struct vmem kernel_arena_storage;
-static struct vmem kmem_arena_storage;
 static struct vmem buffer_arena_storage;
 static struct vmem transient_arena_storage;
+/* kernel and kmem arenas are aliased for backwards KPI compat. */
 vmem_t *kernel_arena = &kernel_arena_storage;
-vmem_t *kmem_arena = &kmem_arena_storage;
+vmem_t *kmem_arena = &kernel_arena_storage;
 vmem_t *buffer_arena = &buffer_arena_storage;
 vmem_t *transient_arena = &transient_arena_storage;
 
@@ -254,11 +255,11 @@ bt_fill(vmem_t *vm, int flags)
 	VMEM_ASSERT_LOCKED(vm);
 
 	/*
-	 * Only allow the kmem arena to dip into reserve tags.  It is the
+	 * Only allow the kernel arena to dip into reserve tags.  It is the
 	 * vmem where new tags come from.
 	 */
 	flags &= BT_FLAGS;
-	if (vm != kmem_arena)
+	if (vm != kernel_arena)
 		flags &= ~M_USE_RESERVE;
 
 	/*
@@ -615,22 +616,22 @@ vmem_bt_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *pflag, int wait)
 {
 	vmem_addr_t addr;
 
-	*pflag = UMA_SLAB_KMEM;
+	*pflag = UMA_SLAB_KERNEL;
 
 	/*
 	 * Single thread boundary tag allocation so that the address space
 	 * and memory are added in one atomic operation.
 	 */
 	mtx_lock(&vmem_bt_lock);
-	if (vmem_xalloc(kmem_arena, bytes, 0, 0, 0, VMEM_ADDR_MIN,
+	if (vmem_xalloc(kernel_arena, bytes, 0, 0, 0, VMEM_ADDR_MIN,
 	    VMEM_ADDR_MAX, M_NOWAIT | M_NOVM | M_USE_RESERVE | M_BESTFIT,
 	    &addr) == 0) {
-		if (kmem_back(kmem_object, addr, bytes,
+		if (kmem_back(kernel_object, addr, bytes,
 		    M_NOWAIT | M_USE_RESERVE) == 0) {
 			mtx_unlock(&vmem_bt_lock);
 			return ((void *)addr);
 		}
-		vmem_xfree(kmem_arena, addr, bytes);
+		vmem_xfree(kernel_arena, addr, bytes);
 		mtx_unlock(&vmem_bt_lock);
 		/*
 		 * Out of memory, not address space.  This may not even be
@@ -835,7 +836,7 @@ vmem_import(vmem_t *vm, vmem_size_t size, vmem_size_t align, int flags)
 	int error;
 
 	if (vm->vm_importfn == NULL)
-		return EINVAL;
+		return (EINVAL);
 
 	/*
 	 * To make sure we get a span that meets the alignment we double it
@@ -844,6 +845,9 @@ vmem_import(vmem_t *vm, vmem_size_t size, vmem_size_t align, int flags)
 	if (align != vm->vm_quantum_mask + 1)
 		size = (align * 2) + size;
 	size = roundup(size, vm->vm_import_quantum);
+
+	if (vm->vm_limit != 0 && vm->vm_limit < vm->vm_size + size)
+		return (ENOMEM);
 
 	/*
 	 * Hide MAXALLOC tags so we're guaranteed to be able to add this
@@ -856,7 +860,7 @@ vmem_import(vmem_t *vm, vmem_size_t size, vmem_size_t align, int flags)
 	VMEM_LOCK(vm);
 	vm->vm_nfreetags += BT_MAXALLOC;
 	if (error)
-		return ENOMEM;
+		return (ENOMEM);
 
 	vmem_add1(vm, addr, size, BT_TYPE_SPAN);
 
@@ -978,6 +982,15 @@ vmem_set_import(vmem_t *vm, vmem_import_t *importfn,
 }
 
 void
+vmem_set_limit(vmem_t *vm, vmem_size_t limit)
+{
+
+	VMEM_LOCK(vm);
+	vm->vm_limit = limit;
+	VMEM_UNLOCK(vm);
+}
+
+void
 vmem_set_reclaim(vmem_t *vm, vmem_reclaim_t *reclaimfn)
 {
 
@@ -1009,6 +1022,7 @@ vmem_init(vmem_t *vm, const char *name, vmem_addr_t base, vmem_size_t size,
 	vm->vm_quantum_shift = flsl(quantum) - 1;
 	vm->vm_nbusytag = 0;
 	vm->vm_size = 0;
+	vm->vm_limit = 0;
 	vm->vm_inuse = 0;
 	qc_init(vm, qcache_max);
 
