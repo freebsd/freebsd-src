@@ -8,6 +8,8 @@
     bin
         cat
         ..
+        chflags
+        ..
         chmod
         ..
         date
@@ -22,11 +24,17 @@
         ..
         ls
         ..
+        mkdir
+        ..
         mv
         ..
         pax
         ..
         pkill
+        ..
+        rcp
+        ..
+        rmdir
         ..
         sh
             builtins
