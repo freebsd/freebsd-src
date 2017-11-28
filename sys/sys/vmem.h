@@ -76,6 +76,12 @@ void vmem_set_import(vmem_t *vm, vmem_import_t *importfn,
     vmem_release_t *releasefn, void *arg, vmem_size_t import_quantum);
 
 /*
+ * Set a limit on the total size of a vmem.
+ */
+
+void vmem_set_limit(vmem_t *vm, vmem_size_t limit);
+
+/*
  * Set a callback for reclaiming memory when space is exhausted:
  */
 void vmem_set_reclaim(vmem_t *vm, vmem_reclaim_t *reclaimfn);
