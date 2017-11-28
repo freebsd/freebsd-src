@@ -291,7 +291,10 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 	r->min_prio = BHNDB_PRIORITY_NONE;
 	STAILQ_INIT(&r->bus_regions);
 	STAILQ_INIT(&r->bus_intrs);
-	
+
+	mtx_init(&r->dw_steal_mtx, device_get_nameunit(dev),
+	    "bhndb dwa_steal lock", MTX_SPIN);
+
 	/* Initialize host address space resource manager. */
 	r->ht_mem_rman.rm_start = 0;
 	r->ht_mem_rman.rm_end = ~0;
@@ -492,6 +495,8 @@ failed:
 	if (r->res != NULL)
 		bhndb_release_host_resources(r->res);
 
+	mtx_destroy(&r->dw_steal_mtx);
+
 	free(r, M_BHND);
 
 	return (NULL);
@@ -626,6 +631,10 @@ bhndb_free_resources(struct bhndb_resources *br)
 
 	free(br->dw_alloc, M_BHND);
 	free(br->dwa_freelist, M_BHND);
+
+	mtx_destroy(&br->dw_steal_mtx);
+
+	free(br, M_BHND);
 }
 
 /**
@@ -1054,6 +1063,7 @@ bhndb_find_resource_limits(struct bhndb_resources *br, int type,
  * @param size The size of this region.
  * @param priority The resource priority to be assigned to allocations
  * made within this bus region.
+ * @param alloc_flags resource allocation flags (@see bhndb_alloc_flags)
  * @param static_regwin If available, a static register window mapping this
  * bus region entry. If not available, NULL.
  * 
@@ -1062,7 +1072,7 @@ bhndb_find_resource_limits(struct bhndb_resources *br, int type,
  */
 int
 bhndb_add_resource_region(struct bhndb_resources *br, bhnd_addr_t addr,
-    bhnd_size_t size, bhndb_priority_t priority,
+    bhnd_size_t size, bhndb_priority_t priority, uint32_t alloc_flags,
     const struct bhndb_regwin *static_regwin)
 {
 	struct bhndb_region	*reg;
@@ -1076,6 +1086,7 @@ bhndb_add_resource_region(struct bhndb_resources *br, bhnd_addr_t addr,
 		.addr = addr,
 		.size = size,
 		.priority = priority,
+		.alloc_flags = alloc_flags,
 		.static_regwin = static_regwin
 	};
 
@@ -1084,6 +1095,39 @@ bhndb_add_resource_region(struct bhndb_resources *br, bhnd_addr_t addr,
 	return (0);
 }
 
+/**
+ * Return true if a mapping of @p size bytes at @p addr is provided by either
+ * one contiguous bus region, or by multiple discontiguous regions.
+ *
+ * @param br The resource state to query.
+ * @param addr The requested starting address.
+ * @param size The requested size.
+ */
+bool
+bhndb_has_static_region_mapping(struct bhndb_resources *br,
+    bhnd_addr_t addr, bhnd_size_t size)
+{
+	struct bhndb_region	*region;
+	bhnd_addr_t		 r_addr;
+
+	r_addr = addr;
+	while ((region = bhndb_find_resource_region(br, r_addr, 1)) != NULL) {
+		/* Must be backed by a static register window */
+		if (region->static_regwin == NULL)
+			return (false);
+
+		/* Adjust the search offset */
+		r_addr += region->size;
+
+		/* Have we traversed a complete (if discontiguous) mapping? */
+		if (r_addr == addr + size)
+			return (true);
+
+	}
+
+	/* No complete mapping found */
+	return (false);
+}
 
 /**
  * Find the bus region that maps @p size bytes at @p addr.
@@ -1302,7 +1346,7 @@ bhndb_dw_set_addr(device_t dev, struct bhndb_resources *br,
 
 	rw = dwa->win;
 
-	KASSERT(bhndb_dw_is_free(br, dwa),
+	KASSERT(bhndb_dw_is_free(br, dwa) || mtx_owned(&br->dw_steal_mtx),
 	    ("attempting to set the target address on an in-use window"));
 
 	/* Page-align the target address */
@@ -1321,6 +1365,74 @@ bhndb_dw_set_addr(device_t dev, struct bhndb_resources *br,
 	}
 
 	return (0);
+}
+
+/**
+ * Steal an in-use allocation record from @p br, returning the record's current
+ * target in @p saved on success.
+ * 
+ * This function acquires a mutex and disables interrupts; callers should
+ * avoid holding a stolen window longer than required to issue an I/O
+ * request.
+ * 
+ * A successful call to bhndb_dw_steal() must be balanced with a call to
+ * bhndb_dw_return_stolen().
+ * 
+ * @param br The resource state from which a window should be stolen.
+ * @param saved The stolen window's saved target address.
+ * 
+ * @retval non-NULL success
+ * @retval NULL no dynamic window regions are defined.
+ */
+struct bhndb_dw_alloc *
+bhndb_dw_steal(struct bhndb_resources *br, bus_addr_t *saved)
+{
+	struct bhndb_dw_alloc *dw_stolen;
+
+	KASSERT(bhndb_dw_next_free(br) == NULL,
+	    ("attempting to steal an in-use window while free windows remain"));
+
+	/* Nothing to steal from? */
+	if (br->dwa_count == 0)
+		return (NULL);
+
+	/*
+	 * Acquire our steal spinlock; this will be released in
+	 * bhndb_dw_return_stolen().
+	 * 
+	 * Acquiring also disables interrupts, which is required when one is
+	 * stealing an in-use existing register window.
+	 */
+	mtx_lock_spin(&br->dw_steal_mtx);
+
+	dw_stolen = &br->dw_alloc[0];
+	*saved = dw_stolen->target;
+	return (dw_stolen);
+}
+
+/**
+ * Return an allocation record previously stolen using bhndb_dw_steal().
+ *
+ * @param dev The device on which to issue a BHNDB_SET_WINDOW_ADDR() request.
+ * @param br The resource state owning @p dwa.
+ * @param dwa The allocation record to be returned.
+ * @param saved The original target address provided by bhndb_dw_steal().
+ */
+void
+bhndb_dw_return_stolen(device_t dev, struct bhndb_resources *br,
+    struct bhndb_dw_alloc *dwa, bus_addr_t saved)
+{
+	int error;
+
+	mtx_assert(&br->dw_steal_mtx, MA_OWNED);
+
+	error = bhndb_dw_set_addr(dev, br, dwa, saved, 0);
+	if (error) {
+		panic("failed to restore register window target %#jx: %d\n",
+		    (uintmax_t)saved, error);
+	}
+
+	mtx_unlock_spin(&br->dw_steal_mtx);
 }
 
 /**
@@ -1380,18 +1492,24 @@ bhndb_regwin_find_type(const struct bhndb_regwin *table,
  * @param port_type The required port type.
  * @param port The required port.
  * @param region The required region.
+ * @param offset The required readable core register block offset.
+ * @param min_size The required minimum readable size at @p offset.
  *
  * @retval bhndb_regwin The first matching window.
  * @retval NULL If no matching window was found. 
  */
 const struct bhndb_regwin *
 bhndb_regwin_find_core(const struct bhndb_regwin *table, bhnd_devclass_t class,
-    int unit, bhnd_port_type port_type, u_int port, u_int region)
+    int unit, bhnd_port_type port_type, u_int port, u_int region,
+    bus_size_t offset, bus_size_t min_size)
 {
 	const struct bhndb_regwin *rw;
-	
+
 	for (rw = table; rw->win_type != BHNDB_REGWIN_T_INVALID; rw++)
 	{
+		bus_size_t rw_offset;
+
+		/* Match on core, port, and region attributes */
 		if (rw->win_type != BHNDB_REGWIN_T_CORE)
 			continue;
 
@@ -1408,6 +1526,19 @@ bhndb_regwin_find_core(const struct bhndb_regwin *table, bhnd_devclass_t class,
 			continue;
 		
 		if (rw->d.core.region != region)
+			continue;
+
+		/* Verify that the requested range is mapped within
+		 * this register window */
+		if (rw->d.core.offset > offset)
+			continue;
+
+		rw_offset = offset - rw->d.core.offset;
+
+		if (rw->win_size < rw_offset)
+			continue;
+
+		if (rw->win_size - rw_offset < min_size)
 			continue;
 
 		return (rw);
@@ -1429,7 +1560,8 @@ bhndb_regwin_find_core(const struct bhndb_regwin *table, bhnd_devclass_t class,
  * @param port_type The required port type.
  * @param port The required port.
  * @param region The required region.
- * @param min_size The minimum window size.
+ * @param offset The required readable core register block offset.
+ * @param min_size The required minimum readable size at @p offset.
  *
  * @retval bhndb_regwin The first matching window.
  * @retval NULL If no matching window was found. 
@@ -1437,13 +1569,13 @@ bhndb_regwin_find_core(const struct bhndb_regwin *table, bhnd_devclass_t class,
 const struct bhndb_regwin *
 bhndb_regwin_find_best(const struct bhndb_regwin *table,
     bhnd_devclass_t class, int unit, bhnd_port_type port_type, u_int port,
-    u_int region, bus_size_t min_size)
+    u_int region, bus_size_t offset, bus_size_t min_size)
 {
 	const struct bhndb_regwin *rw;
 
 	/* Prefer a fixed core mapping */
 	rw = bhndb_regwin_find_core(table, class, unit, port_type,
-	    port, region);
+	    port, region, offset, min_size);
 	if (rw != NULL)
 		return (rw);
 
@@ -1494,6 +1626,45 @@ bhndb_hw_priority_find_core(const struct bhndb_hw_priority *table,
 	for (hp = table; hp->ports != NULL; hp++) {
 		if (bhnd_core_matches(core, &hp->match))
 			return (hp);
+	}
+
+	/* not found */
+	return (NULL);
+}
+
+
+/**
+ * Search for a port resource priority descriptor in @p table.
+ * 
+ * @param table The table to search.
+ * @param core The core to match against @p table.
+ * @param port_type The required port type.
+ * @param port The required port.
+ * @param region The required region.
+ */
+const struct bhndb_port_priority *
+bhndb_hw_priorty_find_port(const struct bhndb_hw_priority *table,
+    struct bhnd_core_info *core, bhnd_port_type port_type, u_int port,
+    u_int region)
+{
+	const struct bhndb_hw_priority		*hp;
+
+	if ((hp = bhndb_hw_priority_find_core(table, core)) == NULL)
+		return (NULL);
+
+	for (u_int i = 0; i < hp->num_ports; i++) {
+		const struct bhndb_port_priority *pp = &hp->ports[i];
+
+		if (pp->type != port_type)
+			continue;
+
+		if (pp->port != port)
+			continue;
+
+		if (pp->region != region)
+			continue;
+
+		return (pp);
 	}
 
 	/* not found */
