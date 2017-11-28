@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 
 static SYSCTL_NODE(_vm, OID_AUTO, memguard, CTLFLAG_RW, NULL, "MemGuard data");
 /*
- * The vm_memguard_divisor variable controls how much of kmem_map should be
+ * The vm_memguard_divisor variable controls how much of kernel_arena should be
  * reserved for MemGuard.
  */
 static u_int vm_memguard_divisor;
@@ -157,7 +157,7 @@ SYSCTL_ULONG(_vm_memguard, OID_AUTO, frequency_hits, CTLFLAG_RD,
 
 /*
  * Return a fudged value to be used for vm_kmem_size for allocating
- * the kmem_map.  The memguard memory will be a submap.
+ * the kernel_arena.  The memguard memory will be a submap.
  */
 unsigned long
 memguard_fudge(unsigned long km_size, const struct vm_map *parent_map)
@@ -348,7 +348,7 @@ memguard_alloc(unsigned long req_size, int flags)
 	addr = origaddr;
 	if (do_guard)
 		addr += PAGE_SIZE;
-	rv = kmem_back(kmem_object, addr, size_p, flags);
+	rv = kmem_back(kernel_object, addr, size_p, flags);
 	if (rv != KERN_SUCCESS) {
 		vmem_xfree(memguard_arena, origaddr, size_v);
 		memguard_fail_pgs++;
@@ -418,7 +418,7 @@ memguard_free(void *ptr)
 	 * vm_map lock to serialize updates to memguard_wasted, since
 	 * we had the lock at increment.
 	 */
-	kmem_unback(kmem_object, addr, size);
+	kmem_unback(kernel_object, addr, size);
 	if (sizev > size)
 		addr -= PAGE_SIZE;
 	vmem_xfree(memguard_arena, addr, sizev);
