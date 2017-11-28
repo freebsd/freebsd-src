@@ -194,6 +194,7 @@ typedef enum {
 	SIBA_PMU_NONE,		/**< If the core has not yet allocated PMU state */
 	SIBA_PMU_BHND,		/**< If standard bhnd(4) PMU support should be used */
 	SIBA_PMU_PWRCTL,	/**< If legacy PWRCTL PMU support should be used */
+	SIBA_PMU_FIXED,		/**< If legacy fixed (no-op) PMU support should be used */
 } siba_pmu_state;
 
 /**
