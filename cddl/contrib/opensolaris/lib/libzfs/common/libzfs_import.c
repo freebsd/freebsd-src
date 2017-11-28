@@ -42,6 +42,7 @@
  * using our derived config, and record the results.
  */
 
+#include <aio.h>
 #include <ctype.h>
 #include <devid.h>
 #include <dirent.h>
@@ -913,6 +914,90 @@ zpool_read_label(int fd, nvlist_t **config)
 	free(label);
 	*config = NULL;
 	return (-1);
+}
+
+/*
+ * Given a file descriptor, read the label information and return an nvlist
+ * describing the configuration, if there is one.
+ * returns the number of valid labels found
+ * If a label is found, returns it via config.  The caller is responsible for
+ * freeing it.
+ */
+int
+zpool_read_all_labels(int fd, nvlist_t **config)
+{
+	struct stat64 statbuf;
+	struct aiocb aiocbs[VDEV_LABELS];
+	struct aiocb *aiocbps[VDEV_LABELS];
+	int l;
+	vdev_phys_t *labels;
+	uint64_t state, txg, size;
+	int nlabels = 0;
+
+	*config = NULL;
+
+	if (fstat64(fd, &statbuf) == -1)
+		return (0);
+	size = P2ALIGN_TYPED(statbuf.st_size, sizeof (vdev_label_t), uint64_t);
+
+	if ((labels = calloc(VDEV_LABELS, sizeof (vdev_phys_t))) == NULL)
+		return (0);
+
+	memset(aiocbs, 0, sizeof(aiocbs));
+	for (l = 0; l < VDEV_LABELS; l++) {
+		aiocbs[l].aio_fildes = fd;
+		aiocbs[l].aio_offset = label_offset(size, l) + VDEV_SKIP_SIZE;
+		aiocbs[l].aio_buf = &labels[l];
+		aiocbs[l].aio_nbytes = sizeof(vdev_phys_t);
+		aiocbs[l].aio_lio_opcode = LIO_READ;
+		aiocbps[l] = &aiocbs[l];
+	}
+
+	if (lio_listio(LIO_WAIT, aiocbps, VDEV_LABELS, NULL) != 0) {
+		if (errno == EAGAIN || errno == EINTR || errno == EIO) {
+			for (l = 0; l < VDEV_LABELS; l++) {
+				errno = 0;
+				int r = aio_error(&aiocbs[l]);
+				if (r != EINVAL)
+					(void)aio_return(&aiocbs[l]);
+			}
+		}
+		free(labels);
+		return (0);
+	}
+
+	for (l = 0; l < VDEV_LABELS; l++) {
+		nvlist_t *temp = NULL;
+
+		if (aio_return(&aiocbs[l]) != sizeof(vdev_phys_t))
+			continue;
+
+		if (nvlist_unpack(labels[l].vp_nvlist,
+		    sizeof (labels[l].vp_nvlist), &temp, 0) != 0)
+			continue;
+
+		if (nvlist_lookup_uint64(temp, ZPOOL_CONFIG_POOL_STATE,
+		    &state) != 0 || state > POOL_STATE_L2CACHE) {
+			nvlist_free(temp);
+			temp = NULL;
+			continue;
+		}
+
+		if (state != POOL_STATE_SPARE && state != POOL_STATE_L2CACHE &&
+		    (nvlist_lookup_uint64(temp, ZPOOL_CONFIG_POOL_TXG,
+		    &txg) != 0 || txg == 0)) {
+			nvlist_free(temp);
+			temp = NULL;
+			continue;
+		}
+		if (temp)
+			*config = temp;
+
+		nlabels++;
+	}
+
+	free(labels);
+	return (nlabels);
 }
 
 typedef struct rdsk_node {
