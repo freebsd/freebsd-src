@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 double
 fabs(double x)
 {
-	if (x < 0)
-		x = -x;
-	return(x);
+
+	return (__builtin_fabs(x));
 }
