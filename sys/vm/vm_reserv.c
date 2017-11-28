@@ -170,6 +170,7 @@ struct vm_reserv {
 	vm_object_t	object;			/* containing object */
 	vm_pindex_t	pindex;			/* offset within object */
 	vm_page_t	pages;			/* first page of a superpage */
+	int		domain;			/* NUMA domain */
 	int		popcnt;			/* # of pages in use */
 	char		inpartpopq;
 	popmap_t	popmap[NPOPMAP];	/* bit vector of used pages */
@@ -207,8 +208,7 @@ static vm_reserv_t vm_reserv_array;
  *
  * Access to this queue is synchronized by the free page queue lock.
  */
-static TAILQ_HEAD(, vm_reserv) vm_rvq_partpop =
-			    TAILQ_HEAD_INITIALIZER(vm_rvq_partpop);
+static TAILQ_HEAD(, vm_reserv) vm_rvq_partpop[MAXMEMDOM];
 
 static SYSCTL_NODE(_vm, OID_AUTO, reserv, CTLFLAG_RD, 0, "Reservation Info");
 
@@ -277,24 +277,27 @@ sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sbuf;
 	vm_reserv_t rv;
-	int counter, error, level, unused_pages;
+	int counter, error, domain, level, unused_pages;
 
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error != 0)
 		return (error);
 	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
-	sbuf_printf(&sbuf, "\nLEVEL     SIZE  NUMBER\n\n");
-	for (level = -1; level <= VM_NRESERVLEVEL - 2; level++) {
-		counter = 0;
-		unused_pages = 0;
-		mtx_lock(&vm_page_queue_free_mtx);
-		TAILQ_FOREACH(rv, &vm_rvq_partpop/*[level]*/, partpopq) {
-			counter++;
-			unused_pages += VM_LEVEL_0_NPAGES - rv->popcnt;
+	sbuf_printf(&sbuf, "\nDOMAIN    LEVEL     SIZE  NUMBER\n\n");
+	for (domain = 0; domain < vm_ndomains; domain++) {
+		for (level = -1; level <= VM_NRESERVLEVEL - 2; level++) {
+			counter = 0;
+			unused_pages = 0;
+			mtx_lock(&vm_page_queue_free_mtx);
+			TAILQ_FOREACH(rv, &vm_rvq_partpop[domain], partpopq) {
+				counter++;
+				unused_pages += VM_LEVEL_0_NPAGES - rv->popcnt;
+			}
+			mtx_unlock(&vm_page_queue_free_mtx);
+			sbuf_printf(&sbuf, "%6d, %7d, %6dK, %6d\n",
+			    domain, level,
+			    unused_pages * ((int)PAGE_SIZE / 1024), counter);
 		}
-		mtx_unlock(&vm_page_queue_free_mtx);
-		sbuf_printf(&sbuf, "%5d: %6dK, %6d\n", level,
-		    unused_pages * ((int)PAGE_SIZE / 1024), counter);
 	}
 	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
@@ -321,8 +324,11 @@ vm_reserv_depopulate(vm_reserv_t rv, int index)
 	    index));
 	KASSERT(rv->popcnt > 0,
 	    ("vm_reserv_depopulate: reserv %p's popcnt is corrupted", rv));
+	KASSERT(rv->domain >= 0 && rv->domain < vm_ndomains,
+	    ("vm_reserv_depopulate: reserv %p's domain is corrupted %d",
+	    rv, rv->domain));
 	if (rv->inpartpopq) {
-		TAILQ_REMOVE(&vm_rvq_partpop, rv, partpopq);
+		TAILQ_REMOVE(&vm_rvq_partpop[rv->domain], rv, partpopq);
 		rv->inpartpopq = FALSE;
 	} else {
 		KASSERT(rv->pages->psind == 1,
@@ -335,11 +341,12 @@ vm_reserv_depopulate(vm_reserv_t rv, int index)
 	if (rv->popcnt == 0) {
 		LIST_REMOVE(rv, objq);
 		rv->object = NULL;
+		rv->domain = -1;
 		vm_phys_free_pages(rv->pages, VM_LEVEL_0_ORDER);
 		vm_reserv_freed++;
 	} else {
 		rv->inpartpopq = TRUE;
-		TAILQ_INSERT_TAIL(&vm_rvq_partpop, rv, partpopq);
+		TAILQ_INSERT_TAIL(&vm_rvq_partpop[rv->domain], rv, partpopq);
 	}
 }
 
@@ -384,15 +391,18 @@ vm_reserv_populate(vm_reserv_t rv, int index)
 	    ("vm_reserv_populate: reserv %p is already full", rv));
 	KASSERT(rv->pages->psind == 0,
 	    ("vm_reserv_populate: reserv %p is already promoted", rv));
+	KASSERT(rv->domain >= 0 && rv->domain < vm_ndomains,
+	    ("vm_reserv_populate: reserv %p's domain is corrupted %d",
+	    rv, rv->domain));
 	if (rv->inpartpopq) {
-		TAILQ_REMOVE(&vm_rvq_partpop, rv, partpopq);
+		TAILQ_REMOVE(&vm_rvq_partpop[rv->domain], rv, partpopq);
 		rv->inpartpopq = FALSE;
 	}
 	popmap_set(rv->popmap, index);
 	rv->popcnt++;
 	if (rv->popcnt < VM_LEVEL_0_NPAGES) {
 		rv->inpartpopq = TRUE;
-		TAILQ_INSERT_TAIL(&vm_rvq_partpop, rv, partpopq);
+		TAILQ_INSERT_TAIL(&vm_rvq_partpop[rv->domain], rv, partpopq);
 	} else
 		rv->pages->psind = 1;
 }
@@ -413,9 +423,9 @@ vm_reserv_populate(vm_reserv_t rv, int index)
  * The object and free page queue must be locked.
  */
 vm_page_t
-vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
-    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
-    vm_page_t mpred)
+vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
+    u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
+    vm_paddr_t boundary, vm_page_t mpred)
 {
 	vm_paddr_t pa, size;
 	vm_page_t m, m_ret, msucc;
@@ -535,7 +545,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 	 * specified index may not be the first page within the first new
 	 * reservation.
 	 */
-	m = vm_phys_alloc_contig(allocpages, low, high, ulmax(alignment,
+	m = vm_phys_alloc_contig(domain, allocpages, low, high, ulmax(alignment,
 	    VM_LEVEL_0_SIZE), boundary > VM_LEVEL_0_SIZE ? boundary : 0);
 	if (m == NULL)
 		return (NULL);
@@ -558,6 +568,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 		LIST_INSERT_HEAD(&object->rvq, rv, objq);
 		rv->object = object;
 		rv->pindex = first;
+		rv->domain = vm_phys_domidx(m);
 		KASSERT(rv->popcnt == 0,
 		    ("vm_reserv_alloc_contig: reserv %p's popcnt is corrupted",
 		    rv));
@@ -613,7 +624,8 @@ found:
  * The object and free page queue must be locked.
  */
 vm_page_t
-vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, vm_page_t mpred)
+vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, int domain,
+    vm_page_t mpred)
 {
 	vm_page_t m, msucc;
 	vm_pindex_t first, leftcap, rightcap;
@@ -692,7 +704,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, vm_page_t mpred)
 	/*
 	 * Allocate and populate the new reservation.
 	 */
-	m = vm_phys_alloc_pages(VM_FREEPOOL_DEFAULT, VM_LEVEL_0_ORDER);
+	m = vm_phys_alloc_pages(domain, VM_FREEPOOL_DEFAULT, VM_LEVEL_0_ORDER);
 	if (m == NULL)
 		return (NULL);
 	rv = vm_reserv_from_page(m);
@@ -703,6 +715,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, vm_page_t mpred)
 	LIST_INSERT_HEAD(&object->rvq, rv, objq);
 	rv->object = object;
 	rv->pindex = first;
+	rv->domain = vm_phys_domidx(m);
 	KASSERT(rv->popcnt == 0,
 	    ("vm_reserv_alloc_page: reserv %p's popcnt is corrupted", rv));
 	KASSERT(!rv->inpartpopq,
@@ -749,6 +762,7 @@ vm_reserv_break(vm_reserv_t rv, vm_page_t m)
 	    ("vm_reserv_break: reserv %p's inpartpopq is TRUE", rv));
 	LIST_REMOVE(rv, objq);
 	rv->object = NULL;
+	rv->domain = -1;
 	if (m != NULL) {
 		/*
 		 * Since the reservation is being broken, there is no harm in
@@ -818,7 +832,7 @@ vm_reserv_break_all(vm_object_t object)
 		KASSERT(rv->object == object,
 		    ("vm_reserv_break_all: reserv %p is corrupted", rv));
 		if (rv->inpartpopq) {
-			TAILQ_REMOVE(&vm_rvq_partpop, rv, partpopq);
+			TAILQ_REMOVE(&vm_rvq_partpop[rv->domain], rv, partpopq);
 			rv->inpartpopq = FALSE;
 		}
 		vm_reserv_break(rv, NULL);
@@ -856,7 +870,7 @@ vm_reserv_init(void)
 {
 	vm_paddr_t paddr;
 	struct vm_phys_seg *seg;
-	int segind;
+	int i, segind;
 
 	/*
 	 * Initialize the reservation array.  Specifically, initialize the
@@ -871,6 +885,8 @@ vm_reserv_init(void)
 			paddr += VM_LEVEL_0_SIZE;
 		}
 	}
+	for (i = 0; i < MAXMEMDOM; i++)
+		TAILQ_INIT(&vm_rvq_partpop[i]);
 }
 
 /*
@@ -928,7 +944,10 @@ vm_reserv_reclaim(vm_reserv_t rv)
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	KASSERT(rv->inpartpopq,
 	    ("vm_reserv_reclaim: reserv %p's inpartpopq is FALSE", rv));
-	TAILQ_REMOVE(&vm_rvq_partpop, rv, partpopq);
+	KASSERT(rv->domain >= 0 && rv->domain < vm_ndomains,
+	    ("vm_reserv_reclaim: reserv %p's domain is corrupted %d",
+	    rv, rv->domain));
+	TAILQ_REMOVE(&vm_rvq_partpop[rv->domain], rv, partpopq);
 	rv->inpartpopq = FALSE;
 	vm_reserv_break(rv, NULL);
 	vm_reserv_reclaimed++;
@@ -942,12 +961,12 @@ vm_reserv_reclaim(vm_reserv_t rv)
  * The free page queue lock must be held.
  */
 boolean_t
-vm_reserv_reclaim_inactive(void)
+vm_reserv_reclaim_inactive(int domain)
 {
 	vm_reserv_t rv;
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	if ((rv = TAILQ_FIRST(&vm_rvq_partpop)) != NULL) {
+	if ((rv = TAILQ_FIRST(&vm_rvq_partpop[domain])) != NULL) {
 		vm_reserv_reclaim(rv);
 		return (TRUE);
 	}
@@ -963,8 +982,8 @@ vm_reserv_reclaim_inactive(void)
  * The free page queue lock must be held.
  */
 boolean_t
-vm_reserv_reclaim_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
-    u_long alignment, vm_paddr_t boundary)
+vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
 {
 	vm_paddr_t pa, size;
 	vm_reserv_t rv;
@@ -974,7 +993,7 @@ vm_reserv_reclaim_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
 	if (npages > VM_LEVEL_0_NPAGES - 1)
 		return (FALSE);
 	size = npages << PAGE_SHIFT;
-	TAILQ_FOREACH(rv, &vm_rvq_partpop, partpopq) {
+	TAILQ_FOREACH(rv, &vm_rvq_partpop[domain], partpopq) {
 		pa = VM_PAGE_TO_PHYS(&rv->pages[VM_LEVEL_0_NPAGES - 1]);
 		if (pa + PAGE_SIZE - size < low) {
 			/* This entire reservation is too low; go to next. */

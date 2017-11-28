@@ -61,6 +61,118 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm_domain.h>
 
+/*
+ * Default to first-touch + round-robin.
+ */
+static struct mtx vm_default_policy_mtx;
+MTX_SYSINIT(vm_default_policy, &vm_default_policy_mtx, "default policy mutex",
+    MTX_DEF);
+#ifdef VM_NUMA_ALLOC
+static struct vm_domain_policy vm_default_policy =
+    VM_DOMAIN_POLICY_STATIC_INITIALISER(VM_POLICY_FIRST_TOUCH_ROUND_ROBIN, 0);
+#else
+/* Use round-robin so the domain policy code will only try once per allocation */
+static struct vm_domain_policy vm_default_policy =
+    VM_DOMAIN_POLICY_STATIC_INITIALISER(VM_POLICY_ROUND_ROBIN, 0);
+#endif
+
+static int
+sysctl_vm_default_policy(SYSCTL_HANDLER_ARGS)
+{
+	char policy_name[32];
+	int error;
+
+	mtx_lock(&vm_default_policy_mtx);
+
+	/* Map policy to output string */
+	switch (vm_default_policy.p.policy) {
+	case VM_POLICY_FIRST_TOUCH:
+		strcpy(policy_name, "first-touch");
+		break;
+	case VM_POLICY_FIRST_TOUCH_ROUND_ROBIN:
+		strcpy(policy_name, "first-touch-rr");
+		break;
+	case VM_POLICY_ROUND_ROBIN:
+	default:
+		strcpy(policy_name, "rr");
+		break;
+	}
+	mtx_unlock(&vm_default_policy_mtx);
+
+	error = sysctl_handle_string(oidp, &policy_name[0],
+	    sizeof(policy_name), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	mtx_lock(&vm_default_policy_mtx);
+	/* Set: match on the subset of policies that make sense as a default */
+	if (strcmp("first-touch-rr", policy_name) == 0) {
+		vm_domain_policy_set(&vm_default_policy,
+		    VM_POLICY_FIRST_TOUCH_ROUND_ROBIN, 0);
+	} else if (strcmp("first-touch", policy_name) == 0) {
+		vm_domain_policy_set(&vm_default_policy,
+		    VM_POLICY_FIRST_TOUCH, 0);
+	} else if (strcmp("rr", policy_name) == 0) {
+		vm_domain_policy_set(&vm_default_policy,
+		    VM_POLICY_ROUND_ROBIN, 0);
+	} else {
+		error = EINVAL;
+		goto finish;
+	}
+
+	error = 0;
+finish:
+	mtx_unlock(&vm_default_policy_mtx);
+	return (error);
+}
+
+SYSCTL_PROC(_vm, OID_AUTO, default_policy, CTLTYPE_STRING | CTLFLAG_RW,
+    0, 0, sysctl_vm_default_policy, "A",
+    "Default policy (rr, first-touch, first-touch-rr");
+
+/*
+ * Initialise a VM domain iterator.
+ *
+ * Check the thread policy, then the proc policy,
+ * then default to the system policy.
+ */
+void
+vm_policy_iterator_init(struct vm_domain_iterator *vi)
+{
+#ifdef VM_NUMA_ALLOC
+	struct vm_domain_policy lcl;
+#endif
+
+	vm_domain_iterator_init(vi);
+
+#ifdef VM_NUMA_ALLOC
+	/* Copy out the thread policy */
+	vm_domain_policy_localcopy(&lcl, &curthread->td_vm_dom_policy);
+	if (lcl.p.policy != VM_POLICY_NONE) {
+		/* Thread policy is present; use it */
+		vm_domain_iterator_set_policy(vi, &lcl);
+		return;
+	}
+
+	vm_domain_policy_localcopy(&lcl,
+	    &curthread->td_proc->p_vm_dom_policy);
+	if (lcl.p.policy != VM_POLICY_NONE) {
+		/* Process policy is present; use it */
+		vm_domain_iterator_set_policy(vi, &lcl);
+		return;
+	}
+#endif
+	/* Use system default policy */
+	vm_domain_iterator_set_policy(vi, &vm_default_policy);
+}
+
+void
+vm_policy_iterator_finish(struct vm_domain_iterator *vi)
+{
+
+	vm_domain_iterator_cleanup(vi);
+}
+
 #ifdef VM_NUMA_ALLOC
 static __inline int
 vm_domain_rr_selectdomain(int skip_domain)
