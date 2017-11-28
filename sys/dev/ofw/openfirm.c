@@ -201,6 +201,12 @@ OF_install(char *name, int prio)
 	ofw_def_t *ofwp, **ofwpp;
 	static int curr_prio = 0;
 
+	/* Allow OF layer to be uninstalled */
+	if (name == NULL) {
+		ofw_def_impl = NULL;
+		return (FALSE);
+	}
+
 	/*
 	 * Try and locate the OFW kobj corresponding to the name.
 	 */
