@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 static pml4_entry_t *efi_pml4;
 static vm_object_t obj_1t1_pt;
 static vm_page_t efi_pml4_page;
+static vm_pindex_t efi_1t1_idx;
 
 void
 efi_destroy_1t1_map(void)
@@ -85,10 +86,10 @@ efi_destroy_1t1_map(void)
 }
 
 static vm_page_t
-efi_1t1_page(vm_pindex_t idx)
+efi_1t1_page(void)
 {
 
-	return (vm_page_grab(obj_1t1_pt, idx, VM_ALLOC_NOBUSY |
+	return (vm_page_grab(obj_1t1_pt, efi_1t1_idx++, VM_ALLOC_NOBUSY |
 	    VM_ALLOC_WIRED | VM_ALLOC_ZERO));
 }
 
@@ -106,7 +107,7 @@ efi_1t1_pte(vm_offset_t va)
 	pml4_idx = pmap_pml4e_index(va);
 	pml4e = &efi_pml4[pml4_idx];
 	if (*pml4e == 0) {
-		m = efi_1t1_page(1 + pml4_idx);
+		m = efi_1t1_page();
 		mphys =  VM_PAGE_TO_PHYS(m);
 		*pml4e = mphys | X86_PG_RW | X86_PG_V;
 	} else {
@@ -117,7 +118,7 @@ efi_1t1_pte(vm_offset_t va)
 	pdp_idx = pmap_pdpe_index(va);
 	pdpe += pdp_idx;
 	if (*pdpe == 0) {
-		m = efi_1t1_page(1 + NPML4EPG + (pml4_idx + 1) * (pdp_idx + 1));
+		m = efi_1t1_page();
 		mphys =  VM_PAGE_TO_PHYS(m);
 		*pdpe = mphys | X86_PG_RW | X86_PG_V;
 	} else {
@@ -128,8 +129,7 @@ efi_1t1_pte(vm_offset_t va)
 	pd_idx = pmap_pde_index(va);
 	pde += pd_idx;
 	if (*pde == 0) {
-		m = efi_1t1_page(1 + NPML4EPG + NPML4EPG * NPDPEPG +
-		    (pml4_idx + 1) * (pdp_idx + 1) * (pd_idx + 1));
+		m = efi_1t1_page();
 		mphys = VM_PAGE_TO_PHYS(m);
 		*pde = mphys | X86_PG_RW | X86_PG_V;
 	} else {
@@ -155,8 +155,9 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	obj_1t1_pt = vm_pager_allocate(OBJT_PHYS, NULL, ptoa(1 +
 	    NPML4EPG + NPML4EPG * NPDPEPG + NPML4EPG * NPDPEPG * NPDEPG),
 	    VM_PROT_ALL, 0, NULL);
+	efi_1t1_idx = 0;
 	VM_OBJECT_WLOCK(obj_1t1_pt);
-	efi_pml4_page = efi_1t1_page(0);
+	efi_pml4_page = efi_1t1_page();
 	VM_OBJECT_WUNLOCK(obj_1t1_pt);
 	efi_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(efi_pml4_page));
 	pmap_pinit_pml4(efi_pml4_page);
