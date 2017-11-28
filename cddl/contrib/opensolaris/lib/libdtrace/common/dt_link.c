@@ -844,7 +844,7 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 {
 	printf("%s:%s(%d): aarch64 not implemented\n", __FUNCTION__, __FILE__,
 	    __LINE__);
-	return (0);
+	return (-1);
 }
 #elif defined(__arm__)
 /* XXX */
@@ -854,7 +854,7 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 {
 	printf("%s:%s(%d): arm not implemented\n", __FUNCTION__, __FILE__,
 	    __LINE__);
-	return (0);
+	return (-1);
 }
 #elif defined(__mips__)
 /* XXX */
@@ -864,7 +864,7 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 {
 	printf("%s:%s(%d): MIPS not implemented\n", __FUNCTION__, __FILE__,
 	    __LINE__);
-	return (0);
+	return (-1);
 }
 #elif defined(__powerpc__)
 /* The sentinel is 'xor r3,r3,r3'. */
@@ -955,7 +955,7 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 {
 	printf("%s:%s(%d): RISC-V implementation required\n", __FUNCTION__,
 	    __FILE__, __LINE__);
-	return (0);
+	return (-1);
 }
 #elif defined(__sparc)
 
