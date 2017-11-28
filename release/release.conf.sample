@@ -70,9 +70,9 @@ PORTBRANCH="ports/head@rHEAD"
 ## build.
 #EMBEDDED_TARGET=
 
-## Set to the hardware platform of the target userland.  This value
-## is passed to make(1) to set the TARGET_ARCH (value of uname -p) to
-## cross build.
+## Set to the machine processor architecture of the target userland.
+## This value is passed to make(1) to set the TARGET_ARCH (value of uname -p)
+## to cross build.
 #EMBEDDED_TARGET_ARCH=
 
 ## Set to skip the chroot environment buildworld/installworld/distribution
