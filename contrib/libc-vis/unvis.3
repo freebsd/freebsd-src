@@ -1,4 +1,4 @@
-.\"	$NetBSD: unvis.3,v 1.27 2012/12/15 07:34:36 wiz Exp $
+.\"	$NetBSD: unvis.3,v 1.29 2017/10/24 19:14:55 abhinav Exp $
 .\"	$FreeBSD$
 .\"
 .\" Copyright (c) 1989, 1991, 1993
@@ -35,7 +35,10 @@
 .Os
 .Sh NAME
 .Nm unvis ,
-.Nm strunvis
+.Nm strunvis ,
+.Nm strnunvis ,
+.Nm strunvisx ,
+.Nm strnunvisx
 .Nd decode a visual representation of characters
 .Sh LIBRARY
 .Lb libc
@@ -184,7 +187,7 @@ char out;
 
 while ((ch = getchar()) != EOF) {
 again:
-	switch(unvis(\*[Am]out, ch, \*[Am]state, 0)) {
+	switch(unvis(&out, ch, &state, 0)) {
 	case 0:
 	case UNVIS_NOCHAR:
 		break;
@@ -198,7 +201,7 @@ again:
 		errx(EXIT_FAILURE, "Bad character sequence!");
 	}
 }
-if (unvis(\*[Am]out, '\e0', \*[Am]state, UNVIS_END) == UNVIS_VALID)
+if (unvis(&out, '\e0', &state, UNVIS_END) == UNVIS_VALID)
 	(void)putchar(out);
 .Ed
 .Sh ERRORS
