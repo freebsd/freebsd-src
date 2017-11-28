@@ -229,10 +229,12 @@ prepare_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf32_t *dep)
 		for (j = 0; j < nrel; j++) {
 #if defined(__aarch64__)
 /* XXX */
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+			printf("%s:%s(%d): aarch64 not implemented\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 #elif defined(__arm__)
 /* XXX */
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+			printf("%s:%s(%d): arm not implemented\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 #elif defined(__i386) || defined(__amd64)
 			rel->r_offset = s->dofs_offset +
 			    dofr[j].dofr_offset;
@@ -240,7 +242,8 @@ printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 			    R_386_32);
 #elif defined(__mips__)
 /* XXX */
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+			printf("%s:%s(%d): MIPS not implemented\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 #elif defined(__powerpc__)
 			/*
 			 * Add 4 bytes to hit the low half of this 64-bit
@@ -252,7 +255,8 @@ printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 			    R_PPC_REL32);
 #elif defined(__riscv__)
 /* XXX */
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+			printf("%s:%s(%d): RISC-V not implemented\n",
+			    __FUNCTION__, __FILE__, __LINE__);
 #elif defined(__sparc)
 			/*
 			 * Add 4 bytes to hit the low half of this 64-bit
@@ -838,7 +842,8 @@ static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
     uint32_t *off)
 {
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+	printf("%s:%s(%d): aarch64 not implemented\n", __FUNCTION__, __FILE__,
+	    __LINE__);
 	return (0);
 }
 #elif defined(__arm__)
@@ -847,7 +852,8 @@ static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
     uint32_t *off)
 {
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+	printf("%s:%s(%d): arm not implemented\n", __FUNCTION__, __FILE__,
+	    __LINE__);
 	return (0);
 }
 #elif defined(__mips__)
@@ -856,7 +862,8 @@ static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
     uint32_t *off)
 {
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+	printf("%s:%s(%d): MIPS not implemented\n", __FUNCTION__, __FILE__,
+	    __LINE__);
 	return (0);
 }
 #elif defined(__powerpc__)
@@ -946,7 +953,8 @@ static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
     uint32_t *off)
 {
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+	printf("%s:%s(%d): RISC-V implementation required\n", __FUNCTION__,
+	    __FILE__, __LINE__);
 	return (0);
 }
 #elif defined(__sparc)

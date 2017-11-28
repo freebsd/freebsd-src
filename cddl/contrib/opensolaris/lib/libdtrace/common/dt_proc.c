@@ -426,7 +426,8 @@ dt_proc_attach(dt_proc_t *dpr, int exec)
 static void
 dt_proc_waitrun(dt_proc_t *dpr)
 {
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+	printf("%s:%s(%d): not implemented\n", __FUNCTION__, __FILE__,
+	    __LINE__);
 #ifdef DOODAD
 	struct ps_prochandle *P = dpr->dpr_proc;
 	const lwpstatus_t *psp = &Pstatus(P)->pr_lwp;
