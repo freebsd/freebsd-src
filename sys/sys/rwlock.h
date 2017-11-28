@@ -220,35 +220,21 @@ void	__rw_assert(const volatile uintptr_t *c, int what, const char *file,
 struct rw_args {
 	void		*ra_rw;
 	const char 	*ra_desc;
-};
-
-struct rw_args_flags {
-	void		*ra_rw;
-	const char 	*ra_desc;
 	int		ra_flags;
 };
 
-#define	RW_SYSINIT(name, rw, desc)					\
+#define	RW_SYSINIT_FLAGS(name, rw, desc, flags)				\
 	static struct rw_args name##_args = {				\
 		(rw),							\
 		(desc),							\
+		(flags),						\
 	};								\
 	SYSINIT(name##_rw_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    rw_sysinit, &name##_args);					\
 	SYSUNINIT(name##_rw_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    _rw_destroy, __DEVOLATILE(void *, &(rw)->rw_lock))
 
-
-#define	RW_SYSINIT_FLAGS(name, rw, desc, flags)				\
-	static struct rw_args_flags name##_args = {			\
-		(rw),							\
-		(desc),							\
-		(flags),						\
-	};								\
-	SYSINIT(name##_rw_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
-	    rw_sysinit_flags, &name##_args);				\
-	SYSUNINIT(name##_rw_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
-	    _rw_destroy, __DEVOLATILE(void *, &(rw)->rw_lock))
+#define	RW_SYSINIT(name, rw, desc)	RW_SYSINIT_FLAGS(name, rw, desc, 0)
 
 /*
  * Options passed to rw_init_flags().
