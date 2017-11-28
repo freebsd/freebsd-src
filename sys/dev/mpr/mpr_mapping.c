@@ -2210,7 +2210,7 @@ mpr_mapping_free_memory(struct mpr_softc *sc)
 	free(sc->dpm_pg0, M_MPR);
 }
 
-static void
+static bool
 _mapping_process_dpm_pg0(struct mpr_softc *sc)
 {
 	u8 missing_cnt, enc_idx;
@@ -2339,7 +2339,7 @@ _mapping_process_dpm_pg0(struct mpr_softc *sc)
 					    "%s: Conflict in mapping table for "
 					    " enclosure %d\n", __func__,
 					    enc_idx);
-					break;
+					goto fail;
 				}
 				physical_id =
 				    dpm_entry->PhysicalIdentifier.High;
@@ -2366,7 +2366,7 @@ _mapping_process_dpm_pg0(struct mpr_softc *sc)
 				mpr_dprint(sc, MPR_ERROR | MPR_MAPPING, "%s: "
 				    "Conflict in mapping table for device %d\n",
 				    __func__, map_idx);
-				break;
+				goto fail;
 			}
 			physical_id = dpm_entry->PhysicalIdentifier.High;
 			mt_entry->physical_id = (physical_id << 32) |
@@ -2378,6 +2378,18 @@ _mapping_process_dpm_pg0(struct mpr_softc *sc)
 			mt_entry->device_info = MPR_DEV_RESERVED;
 		}
 	} /*close the loop for DPM table */
+	return (true);
+
+fail:
+	for (entry_num = 0; entry_num < sc->max_dpm_entries; entry_num++) {
+		sc->dpm_entry_used[entry_num] = 0;
+		/*
+		 * for IR firmware, it may be necessary to wipe out
+		 * sc->mapping_table volumes tooi
+		 */
+	}
+	sc->num_enc_table_entries = 0;
+	return (false);
 }
 
 /*
@@ -2617,9 +2629,11 @@ retry_read_dpm:
 		}
 	}
 
-	if (sc->is_dpm_enable)
-		_mapping_process_dpm_pg0(sc);
-	else {
+	if (sc->is_dpm_enable) {
+		if (!_mapping_process_dpm_pg0(sc))
+			sc->is_dpm_enable = 0;
+	}
+	if (! sc->is_dpm_enable) {
 		mpr_dprint(sc, MPR_MAPPING, "%s: DPM processing is disabled. "
 		    "Device mappings will not persist across reboots or "
 		    "resets.\n", __func__);
