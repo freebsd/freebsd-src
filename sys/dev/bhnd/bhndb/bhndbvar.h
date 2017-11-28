@@ -118,13 +118,15 @@ const struct bhndb_regwin	*bhndb_regwin_find_core(
 				     const struct bhndb_regwin *table,
 				     bhnd_devclass_t class, int unit,
 				     bhnd_port_type port_type, u_int port,
-				     u_int region);
+				     u_int region, bus_size_t offset,
+				     bus_size_t min_size);
 
 const struct bhndb_regwin	*bhndb_regwin_find_best(
 				     const struct bhndb_regwin *table,
 				     bhnd_devclass_t class, int unit,
 				     bhnd_port_type port_type, u_int port,
-				     u_int region, bus_size_t min_size);
+				     u_int region, bus_size_t offset,
+				     bus_size_t min_size);
 
 bool				 bhndb_regwin_match_core(
 				     const struct bhndb_regwin *regw,
