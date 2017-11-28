@@ -476,16 +476,24 @@ void vm_page_free_zero(vm_page_t m);
 void vm_page_activate (vm_page_t);
 void vm_page_advise(vm_page_t m, int advice);
 vm_page_t vm_page_alloc(vm_object_t, vm_pindex_t, int);
+vm_page_t vm_page_alloc_domain(vm_object_t, vm_pindex_t, int, int);
 vm_page_t vm_page_alloc_after(vm_object_t, vm_pindex_t, int, vm_page_t);
+vm_page_t vm_page_alloc_domain_after(vm_object_t, vm_pindex_t, int, int,
+    vm_page_t);
 vm_page_t vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
     u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
     vm_paddr_t boundary, vm_memattr_t memattr);
+vm_page_t vm_page_alloc_contig_domain(vm_object_t object,
+    vm_pindex_t pindex, int domain, int req, u_long npages, vm_paddr_t low,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
+    vm_memattr_t memattr);
 vm_page_t vm_page_alloc_freelist(int, int);
+vm_page_t vm_page_alloc_freelist_domain(int, int, int);
 void vm_page_change_lock(vm_page_t m, struct mtx **mtx);
 vm_page_t vm_page_grab (vm_object_t, vm_pindex_t, int);
 int vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
     vm_page_t *ma, int count);
-void vm_page_deactivate (vm_page_t);
+void vm_page_deactivate(vm_page_t);
 void vm_page_deactivate_noreuse(vm_page_t);
 void vm_page_dequeue(vm_page_t m);
 void vm_page_dequeue_locked(vm_page_t m);
@@ -506,6 +514,8 @@ void vm_page_putfake(vm_page_t m);
 void vm_page_readahead_finish(vm_page_t m);
 bool vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low,
     vm_paddr_t high, u_long alignment, vm_paddr_t boundary);
+bool vm_page_reclaim_contig_domain(int req, u_long npages, int domain,
+    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary);
 void vm_page_reference(vm_page_t m);
 void vm_page_remove (vm_page_t);
 int vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
