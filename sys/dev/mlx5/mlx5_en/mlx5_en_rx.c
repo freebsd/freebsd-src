@@ -179,13 +179,43 @@ mlx5e_lro_update_hdr(struct mbuf *mb, struct mlx5_cqe64 *cqe)
 	/* TODO: handle tcp checksum */
 }
 
+static uint64_t
+mlx5e_mbuf_tstmp(struct mlx5e_priv *priv, uint64_t hw_tstmp)
+{
+	struct mlx5e_clbr_point *cp;
+	uint64_t a1, a2, res;
+	u_int gen;
+
+	do {
+		cp = &priv->clbr_points[priv->clbr_curr];
+		gen = atomic_load_acq_int(&cp->clbr_gen);
+		a1 = (hw_tstmp - cp->clbr_hw_prev) >> MLX5E_TSTMP_PREC;
+		a2 = (cp->base_curr - cp->base_prev) >> MLX5E_TSTMP_PREC;
+		res = (a1 * a2) << MLX5E_TSTMP_PREC;
+
+		/*
+		 * Divisor cannot be zero because calibration callback
+		 * checks for the condition and disables timestamping
+		 * if clock halted.
+		 */
+		res /= (cp->clbr_hw_curr - cp->clbr_hw_prev) >>
+		    MLX5E_TSTMP_PREC;
+
+		res += cp->base_prev;
+		atomic_thread_fence_acq();
+	} while (gen == 0 || gen != cp->clbr_gen);
+	return (res);
+}
+
 static inline void
 mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
     struct mlx5e_rq *rq, struct mbuf *mb,
     u32 cqe_bcnt)
 {
 	struct ifnet *ifp = rq->ifp;
+	struct mlx5e_channel *c;
 	int lro_num_seg;	/* HW LRO session aggregated packets counter */
+	uint64_t tstmp;
 
 	lro_num_seg = be32_to_cpu(cqe->srqn) >> 24;
 	if (lro_num_seg > 1) {
@@ -249,6 +279,21 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
 	if (cqe_has_vlan(cqe)) {
 		mb->m_pkthdr.ether_vtag = be16_to_cpu(cqe->vlan_info);
 		mb->m_flags |= M_VLANTAG;
+	}
+
+	c = container_of(rq, struct mlx5e_channel, rq);
+	if (c->priv->clbr_done >= 2) {
+		tstmp = mlx5e_mbuf_tstmp(c->priv, be64_to_cpu(cqe->timestamp));
+		if ((tstmp & MLX5_CQE_TSTMP_PTP) != 0) {
+			/*
+			 * Timestamp was taken on the packet entrance,
+			 * instead of the cqe generation.
+			 */
+			tstmp &= ~MLX5_CQE_TSTMP_PTP;
+			mb->m_flags |= M_TSTMP_HPREC;
+		}
+		mb->m_pkthdr.rcv_tstmp = tstmp;
+		mb->m_flags |= M_TSTMP;
 	}
 }
 

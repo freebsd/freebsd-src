@@ -619,6 +619,8 @@ struct mlx5_cqe64 {
 	u8		op_own;
 };
 
+#define	MLX5_CQE_TSTMP_PTP	(1ULL << 63)
+
 static inline bool get_cqe_lro_timestamp_valid(struct mlx5_cqe64 *cqe)
 {
 	return (cqe->lro_tcppsh_abort_dupack >> 7) & 1;
