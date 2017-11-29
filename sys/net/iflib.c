@@ -4260,7 +4260,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	/* XXX format name */
 	taskqgroup_attach(qgroup_if_config_tqg, &ctx->ifc_admin_task, ctx, -1, "admin");
 
-	/* Set up cpu set.  If it fails, zero out the set. */
+	/* Set up cpu set.  If it fails, use the set of all CPUs. */
 	if (bus_get_cpus(dev, INTR_CPUS, sizeof(ctx->ifc_cpus), &ctx->ifc_cpus) != 0) {
 		device_printf(dev, "Unable to fetch CPU list\n");
 		CPU_COPY(&all_cpus, &ctx->ifc_cpus);
