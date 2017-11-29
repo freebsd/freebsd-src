@@ -90,10 +90,10 @@ __FBSDID("$FreeBSD$");
 #define	AMD_17H_CUR_FID(msr)			((msr) & 0xFF)
 
 #define	HWPSTATE_DEBUG(dev, msg...)			\
-	do{						\
-		if(hwpstate_verbose)			\
+	do {						\
+		if (hwpstate_verbose)			\
 			device_printf(dev, msg);	\
-	}while(0)
+	} while (0)
 
 struct hwpstate_setting {
 	int	freq;		/* CPU clock in Mhz or 100ths of a percent. */
@@ -125,7 +125,7 @@ static int	hwpstate_goto_pstate(device_t dev, int pstate_id);
 
 static int	hwpstate_verbose = 0;
 SYSCTL_INT(_debug, OID_AUTO, hwpstate_verbose, CTLFLAG_RWTUN,
-       &hwpstate_verbose, 0, "Debug hwpstate");
+    &hwpstate_verbose, 0, "Debug hwpstate");
 
 static device_method_t hwpstate_methods[] = {
 	/* Device interface */
@@ -169,7 +169,7 @@ hwpstate_goto_pstate(device_t dev, int pstate)
 	int limit;
 	int id = pstate;
 	int error;
-	
+
 	/* get the current pstate limit */
 	msr = rdmsr(MSR_AMD_10H_11H_LIMIT);
 	limit = AMD_10H_11H_GET_PSTATE_LIMIT(msr);
@@ -197,7 +197,7 @@ hwpstate_goto_pstate(device_t dev, int pstate)
 		sched_bind(curthread, i);
 		thread_unlock(curthread);
 		/* wait loop (100*100 usec is enough ?) */
-		for (j = 0; j < 100; j++){
+		for (j = 0; j < 100; j++) {
 			/* get the result. not assure msr=id */
 			msr = rdmsr(MSR_AMD_10H_11H_STATUS);
 			if (msr == id)
@@ -250,7 +250,7 @@ hwpstate_get(device_t dev, struct cf_setting *cf)
 	if (cf == NULL)
 		return (EINVAL);
 	msr = rdmsr(MSR_AMD_10H_11H_STATUS);
-	if(msr >= sc->cfnum)
+	if (msr >= sc->cfnum)
 		return (EINVAL);
 	set = sc->hwpstate_settings[msr];
 
@@ -425,7 +425,7 @@ hwpstate_get_info_from_msr(device_t dev)
 		fid = AMD_10H_11H_CUR_FID(msr);
 
 		/* Convert fid/did to frequency. */
-		switch(family) {
+		switch (family) {
 		case 0x11:
 			hwpstate_set[i].freq = (100 * (fid + 0x08)) >> did;
 			break;
