@@ -19,9 +19,27 @@
 
     <tbody>
       <row>
-	<entry>No notices</entry>
-	<entry>&nbsp;</entry>
-	<entry>&nbsp;</entry>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-17:07.vnet.asc">FreeBSD-EN-17:07.vnet</link></entry>
+	<entry>10&nbsp;August&nbsp;2017</entry>
+	<entry><para>VNET kernel panic with asynchronous
+	    I/O</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-17:08.pf.asc">FreeBSD-EN-17:08.pf</link></entry>
+	<entry>10&nbsp;August&nbsp;2017</entry>
+	<entry><para>&man.pf.4; housekeeping thread causes kernel
+	    panic</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-17:10.tzdata.asc">FreeBSD-EN-17:10.tzdata</link></entry>
+	<entry>2&nbsp;November&nbsp;2017</entry>
+	<entry><para>Timezone database information
+	    update</para></entry>
       </row>
     </tbody>
   </tgroup>
