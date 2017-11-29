@@ -9,7 +9,7 @@ KMOD=	ahc
 SUBDIR+= ahc_isa ahc_pci
 
 GENSRCS= aic7xxx_seq.h aic7xxx_reg.h
-AHC_REG_PRETTY_PRINT=1
+# AHC_REG_PRETTY_PRINT=1
 REG_PRINT_OPT=
 .ifdef AHC_REG_PRETTY_PRINT
 GENSRCS+= aic7xxx_reg_print.c
