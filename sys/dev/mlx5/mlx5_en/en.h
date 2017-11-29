@@ -650,6 +650,16 @@ struct mlx5e_flow_tables {
 	struct mlx5e_flow_table inner_rss;
 };
 
+#define	MLX5E_TSTMP_PREC 10
+
+struct mlx5e_clbr_point {
+	uint64_t base_curr;
+	uint64_t base_prev;
+	uint64_t clbr_hw_prev;
+	uint64_t clbr_hw_curr;
+	u_int clbr_gen;
+};
+
 struct mlx5e_priv {
 	/* priv data path fields - start */
 	int	order_base_2_num_channels;
@@ -704,6 +714,12 @@ struct mlx5e_priv {
 	int	media_active_last;
 
 	struct callout watchdog;
+
+	struct callout tstmp_clbr;
+	int	clbr_done;
+	int	clbr_curr;
+	struct mlx5e_clbr_point clbr_points[2];
+	u_int	clbr_gen;
 };
 
 #define	MLX5E_NET_IP_ALIGN 2
