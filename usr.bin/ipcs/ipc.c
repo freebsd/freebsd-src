@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <kvm.h>
 #include <nlist.h>
 #include <stddef.h>
-#include <stdio.h>
 
 #include "ipc.h"
 
