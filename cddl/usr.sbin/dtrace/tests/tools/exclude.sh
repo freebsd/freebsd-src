@@ -148,6 +148,11 @@ exclude EXFAIL common/pid/tst.provregex4.ksh
 exclude EXFAIL common/pid/tst.weak1.d
 exclude EXFAIL common/pid/tst.weak2.d
 
+# This test appears to be invalid. dtrace is supposed to press on if a
+# depends_on pragma cannot be satisfied, per the comment above
+# dt_load_libs_dir() in libdtrace.
+exclude EXFAIL common/pragma/err.invalidlibdep.ksh
+
 # This test checks for a leading tab on a line before #define. That is illegal
 # on Solaris, but the clang pre-processor on FreeBSD is happy with code like
 # that.
