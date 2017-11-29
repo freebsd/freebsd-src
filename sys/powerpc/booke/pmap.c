@@ -2091,10 +2091,11 @@ static vm_paddr_t
 mmu_booke_kextract(mmu_t mmu, vm_offset_t va)
 {
 	tlb_entry_t e;
-	vm_paddr_t p;
+	vm_paddr_t p = 0;
 	int i;
 
-	p = pte_vatopa(mmu, kernel_pmap, va);
+	if (va >= VM_MIN_KERNEL_ADDRESS && va <= VM_MAX_KERNEL_ADDRESS)
+		p = pte_vatopa(mmu, kernel_pmap, va);
 	
 	if (p == 0) {
 		/* Check TLB1 mappings */
