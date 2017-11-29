@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2008 Mellanox Technologies Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -31,7 +33,6 @@
  */
 
 #include <linux/proc_fs.h>
-#include <rdma/sdp_socket.h>
 #include "sdp.h"
 
 #ifdef CONFIG_PROC_FS

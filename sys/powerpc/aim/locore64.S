@@ -73,6 +73,7 @@ btext:
  * r4: ignored
  * r5: OF client interface pointer (or zero)
  * r6: Loader metadata pointer (or zero)
+ * r7: Magic cookie (0xfb5d104d) to indicate that r6 has loader metadata
  */
 	.text
 ASENTRY_NOPROF(__start)
@@ -108,6 +109,8 @@ ASENTRY_NOPROF(__start)
 	std	%r4,56(%r1)
 	std	%r5,64(%r1)
 	std	%r6,72(%r1)
+	std	%r7,80(%r1)
+
 	bl	1f
 	.llong _DYNAMIC-.
 1:	mflr	%r3
@@ -120,6 +123,7 @@ ASENTRY_NOPROF(__start)
 	ld	%r4,56(%r1)
 	ld	%r5,64(%r1)
 	ld	%r6,72(%r1)
+	ld	%r7,80(%r1)
 
 	/* Begin CPU init */
 	mr	%r4,%r2 /* Replace ignored r4 with tocbase for trap handlers */

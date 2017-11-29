@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007, 2011 Robert N. M. Watson
  * Copyright (c) 2015 Allan Jude <allanjude@freebsd.org>
  * Copyright (c) 2017 Dell EMC
@@ -296,7 +298,7 @@ main(int argc, char *argv[])
 			cmd = getcmd("tsignals");
 			break;
 		case 'k':
-			if (cmd->cmd == procstat_kstack) {
+			if (cmd != NULL && cmd->cmd == procstat_kstack) {
 				if ((procstat_opts & PS_OPT_VERBOSE) != 0)
 					usage();
 				procstat_opts |= PS_OPT_VERBOSE;

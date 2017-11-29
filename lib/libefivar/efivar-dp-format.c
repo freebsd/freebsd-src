@@ -2272,7 +2272,6 @@ static const DEVICE_PATH_TO_TEXT_TABLE mUefiDevicePathLibToTextTable[] = {
   {0, 0, NULL}
 };
 
-#ifndef __FreeBSD__
 /**
   Converts a device node to its string representation.
 
@@ -2288,7 +2287,7 @@ static const DEVICE_PATH_TO_TEXT_TABLE mUefiDevicePathLibToTextTable[] = {
           is NULL or there was insufficient memory.
 
 **/
-CHAR16 *
+static char *
 EFIAPI
 UefiDevicePathLibConvertDeviceNodeToText (
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *DeviceNode,
@@ -2299,6 +2298,7 @@ UefiDevicePathLibConvertDeviceNodeToText (
   POOL_PRINT          Str;
   UINTN               Index;
   DEVICE_PATH_TO_TEXT ToText;
+  EFI_DEVICE_PATH_PROTOCOL *Node;
 
   if (DeviceNode == NULL) {
     return NULL;
@@ -2310,6 +2310,7 @@ UefiDevicePathLibConvertDeviceNodeToText (
   // Process the device path node
   // If not found, use a generic function
   //
+  Node = __DECONST(EFI_DEVICE_PATH_PROTOCOL *, DeviceNode);
   ToText = DevPathToTextNodeGeneric;
   for (Index = 0; mUefiDevicePathLibToTextTable[Index].Function != NULL; Index++) {
     if (DevicePathType (DeviceNode) == mUefiDevicePathLibToTextTable[Index].Type &&
@@ -2323,12 +2324,11 @@ UefiDevicePathLibConvertDeviceNodeToText (
   //
   // Print this node
   //
-  ToText (&Str, (VOID *) DeviceNode, DisplayOnly, AllowShortcuts);
+  ToText (&Str, (VOID *) Node, DisplayOnly, AllowShortcuts);
 
   ASSERT (Str.Str != NULL);
   return Str.Str;
 }
-#endif
 
 /**
   Converts a device path to its text representation.
@@ -2431,8 +2431,26 @@ efidp_format_device_path(char *buf, size_t len, const_efidp dp, ssize_t max)
 	return retval;
 }
 
+ssize_t
+efidp_format_device_path_node(char *buf, size_t len, const_efidp dp, ssize_t max)
+{
+	char *str;
+	ssize_t retval;
+
+	str = UefiDevicePathLibConvertDeviceNodeToText (
+		__DECONST(EFI_DEVICE_PATH_PROTOCOL *, dp), FALSE, TRUE);
+	if (str == NULL)
+		return -1;
+	strlcpy(buf, str, len);
+	retval = strlen(str);
+	free(str);
+
+	return retval;
+}
+
 size_t
 efidp_size(const_efidp dp)
 {
+
 	return GetDevicePathSize(__DECONST(EFI_DEVICE_PATH_PROTOCOL *, dp));
 }

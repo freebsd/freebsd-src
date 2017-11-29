@@ -61,6 +61,20 @@ PORTBRANCH="ports/head@rHEAD"
 ## Set when building embedded images.
 #EMBEDDEDBUILD=
 
+## Set to a list of ports required to build embedded system-on-chip
+## images, such as sysutils/u-boot-rpi.
+#EMBEDDEDPORTS=
+
+## Set to the hardware platform of the target userland.  This value
+## is passed to make(1) to set the TARGET (value of uname -m) to cross
+## build.
+#EMBEDDED_TARGET=
+
+## Set to the machine processor architecture of the target userland.
+## This value is passed to make(1) to set the TARGET_ARCH (value of uname -p)
+## to cross build.
+#EMBEDDED_TARGET_ARCH=
+
 ## Set to skip the chroot environment buildworld/installworld/distribution
 ## step if it is expected the build environment will exist via alternate
 ## means.

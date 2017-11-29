@@ -1,6 +1,8 @@
 /*	$NetBSD: cd9660_eltorito.c,v 1.17 2011/06/23 02:35:56 enami Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2005 Daniel Watt, Walter Deignan, Ryan Gabrys, Alan
  * Perez-Rathke and Ram Vedam.  All rights reserved.
  *

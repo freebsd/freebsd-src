@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2013
+.Dd November 14, 2017
 .Dt FREEBSD-VERSION 1
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Nd print the version and patch level of the installed system
 .Sh SYNOPSIS
 .Nm
-.Op Fl ku
+.Op Fl kru
 .Sh DESCRIPTION
 The
 .Nm
@@ -50,6 +50,11 @@ if a new kernel has been installed but the system has not yet
 rebooted,
 .Nm
 will print the version and patch level of the new kernel.
+.It Fl r
+Print the version and patch level of the running kernel.
+Unlike
+.Xr uname 1 ,
+this is unaffected by environment variables.
 .It Fl u
 Print the version and patch level of the installed userland.
 These are hardcoded into
@@ -57,14 +62,10 @@ These are hardcoded into
 during the build.
 .El
 .Pp
-If both
-.Fl k
-and
-.Fl u
-are specified,
+If several of the above options are specified,
 .Nm
-will print the kernel version first, then the userland version, on
-separate lines.
+will print the installed kernel version first, then the running kernel
+version, and finally the userland version, on separate lines.
 If neither is specified, it will print the userland version only.
 .Sh IMPLEMENTATION NOTES
 The

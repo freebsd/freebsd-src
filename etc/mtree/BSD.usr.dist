@@ -56,8 +56,6 @@
         ..
         ldscripts
         ..
-        lint
-        ..
         pkgconfig
         ..
     ..

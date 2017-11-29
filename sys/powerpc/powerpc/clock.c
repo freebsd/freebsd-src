@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -140,6 +142,9 @@ decr_intr(struct trapframe *frame)
 		mtdec(val);
 	} else if (s->mode == 2) {
 		nticks = 1;
+		decr_et_stop(NULL);
+	} else if (s->mode == 0) {
+		/* Potemkin timer ran out without an event. Just reset it. */
 		decr_et_stop(NULL);
 	}
 

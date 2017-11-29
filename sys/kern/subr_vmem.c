@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c)2006,2007,2008,2009 YAMAMOTO Takashi,
  * Copyright (c) 2013 EMC Corp.
  * All rights reserved.
@@ -839,7 +841,7 @@ vmem_import(vmem_t *vm, vmem_size_t size, vmem_size_t align, int flags)
 	int error;
 
 	if (vm->vm_importfn == NULL)
-		return EINVAL;
+		return (EINVAL);
 
 	/*
 	 * To make sure we get a span that meets the alignment we double it
@@ -850,7 +852,7 @@ vmem_import(vmem_t *vm, vmem_size_t size, vmem_size_t align, int flags)
 	size = roundup(size, vm->vm_import_quantum);
 
 	if (vm->vm_limit != 0 && vm->vm_limit < vm->vm_size + size)
-		return ENOMEM;
+		return (ENOMEM);
 
 	/*
 	 * Hide MAXALLOC tags so we're guaranteed to be able to add this
@@ -863,7 +865,7 @@ vmem_import(vmem_t *vm, vmem_size_t size, vmem_size_t align, int flags)
 	VMEM_LOCK(vm);
 	vm->vm_nfreetags += BT_MAXALLOC;
 	if (error)
-		return ENOMEM;
+		return (ENOMEM);
 
 	vmem_add1(vm, addr, size, BT_TYPE_SPAN);
 

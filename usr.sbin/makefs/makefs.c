@@ -1,6 +1,8 @@
 /*	$NetBSD: makefs.c,v 1.26 2006/10/22 21:11:56 christos Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001-2003 Wasabi Systems, Inc.
  * All rights reserved.
  *

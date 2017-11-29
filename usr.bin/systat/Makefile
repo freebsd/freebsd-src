@@ -16,6 +16,6 @@ CFLAGS+= -DINET6
 
 WARNS?=	1
 
-LIBADD=	ncursesw m devstat kvm
+LIBADD=	ncursesw m devstat kvm util
 
 .include <bsd.prog.mk>

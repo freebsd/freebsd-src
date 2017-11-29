@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1983, 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -166,10 +168,8 @@ chargen_stream(int s, struct servtab *sep)
 
 	inetd_setproctitle(sep->se_service, s);
 
-	if (!endring) {
+	if (!endring)
 		initring();
-		rs = ring;
-	}
 
 	text[LINESIZ] = '\r';
 	text[LINESIZ + 1] = '\n';

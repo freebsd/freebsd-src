@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -169,15 +171,19 @@ get_orig_iface_name(char *oid, size_t oid_size, char *name)
 	char *orig_name;
 
 	h = ifconfig_open();
-	if (ifconfig_get_orig_name(h, name, &orig_name) < 0)
-		errc(1, ifconfig_err_errno(h), "cannot get interface name");
+	if (ifconfig_get_orig_name(h, name, &orig_name) < 0) {
+		/* check for original interface name. */
+		orig_name = name;
+	}
 
-	if (strlen(orig_name) < strlen("wlan") + 1)
+	if (strlen(orig_name) < strlen("wlan") + 1 ||
+	    strncmp(orig_name, "wlan", 4) != 0)
 		errx(1, "expecting a wlan interface name");
 
 	ifconfig_close(h);
 	setoid(oid, oid_size, orig_name);
-	free(orig_name);
+	if (orig_name != name)
+		free(orig_name);
 }
 
 int

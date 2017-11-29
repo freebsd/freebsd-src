@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -152,14 +154,43 @@ is_object_active(vm_object_t obj)
 	return (obj->ref_count > obj->shadow_count);
 }
 
+#if defined(COMPAT_FREEBSD11)
+struct vmtotal11 {
+	int16_t	t_rq;
+	int16_t	t_dw;
+	int16_t	t_pw;
+	int16_t	t_sl;
+	int16_t	t_sw;
+	int32_t	t_vm;
+	int32_t	t_avm;
+	int32_t	t_rm;
+	int32_t	t_arm;
+	int32_t	t_vmshr;
+	int32_t	t_avmshr;
+	int32_t	t_rmshr;
+	int32_t	t_armshr;
+	int32_t	t_free;
+};
+#endif
+
 static int
 vmtotal(SYSCTL_HANDLER_ARGS)
 {
 	struct vmtotal total;
+#if defined(COMPAT_FREEBSD11)
+	struct vmtotal11 total11;
+#endif
 	vm_object_t object;
 	struct proc *p;
 	struct thread *td;
 
+	if (req->oldptr == NULL) {
+#if defined(COMPAT_FREEBSD11)
+		if (curproc->p_osrel < P_OSREL_VMTOTAL64)
+			return (SYSCTL_OUT(req, NULL, sizeof(total11)));
+#endif
+		return (SYSCTL_OUT(req, NULL, sizeof(total)));
+	}
 	bzero(&total, sizeof(total));
 
 	/*
@@ -253,11 +284,33 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	}
 	mtx_unlock(&vm_object_list_mtx);
 	total.t_free = vm_cnt.v_free_count;
-	return (sysctl_handle_opaque(oidp, &total, sizeof(total), req));
+#if defined(COMPAT_FREEBSD11)
+	/* sysctl(8) allocates twice as much memory as reported by sysctl(3) */
+	if (curproc->p_osrel < P_OSREL_VMTOTAL64 && (req->oldlen ==
+	    sizeof(total11) || req->oldlen == 2 * sizeof(total11))) {
+		bzero(&total11, sizeof(total11));
+		total11.t_rq = total.t_rq;
+		total11.t_dw = total.t_dw;
+		total11.t_pw = total.t_pw;
+		total11.t_sl = total.t_sl;
+		total11.t_sw = total.t_sw;
+		total11.t_vm = total.t_vm;	/* truncate */
+		total11.t_avm = total.t_avm;	/* truncate */
+		total11.t_rm = total.t_rm;	/* truncate */
+		total11.t_arm = total.t_arm;	/* truncate */
+		total11.t_vmshr = total.t_vmshr;	/* truncate */
+		total11.t_avmshr = total.t_avmshr;	/* truncate */
+		total11.t_rmshr = total.t_rmshr;	/* truncate */
+		total11.t_armshr = total.t_armshr;	/* truncate */
+		total11.t_free = total.t_free;		/* truncate */
+		return (SYSCTL_OUT(req, &total11, sizeof(total11)));
+	}
+#endif
+	return (SYSCTL_OUT(req, &total, sizeof(total)));
 }
 
-SYSCTL_PROC(_vm, VM_TOTAL, vmtotal, CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_MPSAFE,
-    0, sizeof(struct vmtotal), vmtotal, "S,vmtotal", 
+SYSCTL_PROC(_vm, VM_TOTAL, vmtotal, CTLTYPE_OPAQUE | CTLFLAG_RD |
+    CTLFLAG_MPSAFE, NULL, 0, vmtotal, "S,vmtotal",
     "System virtual memory statistics");
 SYSCTL_NODE(_vm, OID_AUTO, stats, CTLFLAG_RW, 0, "VM meter stats");
 static SYSCTL_NODE(_vm_stats, OID_AUTO, sys, CTLFLAG_RW, 0,

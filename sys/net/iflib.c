@@ -2025,7 +2025,7 @@ iflib_fl_setup(iflib_fl_t fl)
 	if_ctx_t ctx = rxq->ifr_ctx;
 	if_softc_ctx_t sctx = &ctx->ifc_softc_ctx;
 
-	bit_nclear(fl->ifl_rx_bitmap, 0, fl->ifl_size);
+	bit_nclear(fl->ifl_rx_bitmap, 0, fl->ifl_size - 1);
 	/*
 	** Free current RX buffer structs and their mbufs
 	*/
@@ -5312,11 +5312,11 @@ iflib_msix_init(if_ctx_t ctx)
 	int iflib_num_tx_queues, iflib_num_rx_queues;
 	int err, admincnt, bar;
 
-	iflib_num_tx_queues = scctx->isc_ntxqsets;
-	iflib_num_rx_queues = scctx->isc_nrxqsets;
+	iflib_num_tx_queues = ctx->ifc_sysctl_ntxqs;
+	iflib_num_rx_queues = ctx->ifc_sysctl_nrxqs;
 
-	device_printf(dev, "msix_init qsets capped at %d\n", iflib_num_tx_queues);
-	
+	device_printf(dev, "msix_init qsets capped at %d\n", imax(scctx->isc_ntxqsets, scctx->isc_nrxqsets));
+
 	bar = ctx->ifc_softc_ctx.isc_msix_bar;
 	admincnt = sctx->isc_admin_intrcnt;
 	/* Override by global tuneable */
@@ -5414,6 +5414,10 @@ iflib_msix_init(if_ctx_t ctx)
 		rx_queues = iflib_num_rx_queues;
 	else
 		rx_queues = queues;
+
+	if (rx_queues > scctx->isc_nrxqsets)
+		rx_queues = scctx->isc_nrxqsets;
+
 	/*
 	 * We want this to be all logical CPUs by default
 	 */
@@ -5421,6 +5425,9 @@ iflib_msix_init(if_ctx_t ctx)
 		tx_queues = iflib_num_tx_queues;
 	else
 		tx_queues = mp_ncpus;
+
+	if (tx_queues > scctx->isc_ntxqsets)
+		tx_queues = scctx->isc_ntxqsets;
 
 	if (ctx->ifc_sysctl_qs_eq_override == 0) {
 #ifdef INVARIANTS

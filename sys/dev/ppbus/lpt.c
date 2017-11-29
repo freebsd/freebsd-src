@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1990 William F. Jolitz, TeleMuse
  * All rights reserved.
  *

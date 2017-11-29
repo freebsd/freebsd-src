@@ -334,7 +334,8 @@ siba_erom_lookup_core_addr(bhnd_erom_t *erom, const struct bhnd_core_match *desc
 	struct siba_core_id	 sid;
 	uint32_t		 am, am_addr, am_size;
 	u_int			 am_offset;
-	u_int			 addrspace;
+	u_int			 addrspace, cfg;
+	
 	int			 error;
 
 	sc = (struct siba_erom *)erom;
@@ -347,16 +348,64 @@ siba_erom_lookup_core_addr(bhnd_erom_t *erom, const struct bhnd_core_match *desc
 	sid = siba_eio_read_core_id(&sc->io, core.core_idx, core.unit);
 
 	/* Is port valid? */
-	if (!siba_is_port_valid(sid.num_addrspace, type, port))
+	if (!siba_is_port_valid(&sid, type, port))
 		return (ENOENT);
 
 	/* Is region valid? */
-	if (region >= siba_addrspace_region_count(sid.num_addrspace, port))
+	if (region >= siba_port_region_count(&sid, type, port))
 		return (ENOENT);
 
-	/* Map the bhnd port values to a siba addrspace index */
-	error = siba_addrspace_index(sid.num_addrspace, type, port, region,
-	   &addrspace);
+	/* Is this a siba configuration region? If so, this is mapped to an
+	 * offset within the device0.0 port */
+	error = siba_cfg_index(&sid, type, port, region, &cfg);
+	if (!error) {
+		bhnd_addr_t	region_addr;
+		bhnd_addr_t	region_size;
+		bhnd_size_t	cfg_offset, cfg_size;
+
+		cfg_offset = SIBA_CFG_OFFSET(cfg);
+		cfg_size = SIBA_CFG_SIZE;
+
+		/* Fetch the device0.0 addr/size */
+		error = siba_erom_lookup_core_addr(erom, desc, BHND_PORT_DEVICE,
+		    0, 0, NULL, &region_addr, &region_size);
+		if (error)
+			return (error);
+
+		/* Verify that our offset fits within the region */
+		if (region_size < cfg_size) {
+			printf("%s%u.%u offset %ju exceeds %s0.0 size %ju\n",
+			    bhnd_port_type_name(type), port, region, cfg_offset,
+			    bhnd_port_type_name(BHND_PORT_DEVICE), region_size);
+
+			return (ENXIO);
+		}
+
+		if (BHND_ADDR_MAX - region_addr < cfg_offset) {
+			printf("%s%u.%u offset %ju would overflow %s0.0 addr "
+			    "%ju\n", bhnd_port_type_name(type), port, region,
+			    cfg_offset, bhnd_port_type_name(BHND_PORT_DEVICE),
+			    region_addr);
+
+			return (ENXIO);
+		}
+
+		if (info != NULL)
+			*info = core;
+
+		*addr = region_addr + cfg_offset;
+		*size = cfg_size;
+		return (0);
+	}
+
+	/* 
+	 * Otherwise, must be a device port.
+	 * 
+	 * Map the bhnd device port to a siba addrspace index. Unlike siba(4)
+	 * bus drivers, we do not exclude the siba(4) configuration blocks from
+	 * the first device port.
+	 */
+	error = siba_addrspace_index(&sid, type, port, region, &addrspace);
 	if (error)
 		return (error);
 

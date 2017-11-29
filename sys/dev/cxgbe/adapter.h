@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Chelsio Communications, Inc.
  * All rights reserved.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
@@ -424,7 +426,7 @@ struct sge_eq {
 	struct mtx eq_lock;
 
 	struct tx_desc *desc;	/* KVA of descriptor ring */
-	uint16_t doorbells;
+	uint8_t doorbells;
 	volatile uint32_t *udb;	/* KVA of doorbell (lies within BAR2) */
 	u_int udb_qid;		/* relative qid within the doorbell page */
 	uint16_t sidx;		/* index of the entry with the status page */
@@ -695,7 +697,7 @@ struct sge_nm_txq {
 	uint16_t equiqidx;	/* EQUIQ last requested at this pidx */
 	uint16_t equeqidx;	/* EQUEQ last requested at this pidx */
 	uint16_t dbidx;		/* pidx of the most recent doorbell */
-	uint16_t doorbells;
+	uint8_t doorbells;
 	volatile uint32_t *udb;
 	u_int udb_qid;
 	u_int cntxt_id;
@@ -801,13 +803,14 @@ struct adapter {
 
 	void *tom_softc;	/* (struct tom_data *) */
 	struct tom_tunables tt;
+	struct iw_tunables iwt;
 	void *iwarp_softc;	/* (struct c4iw_dev *) */
 	void *iscsi_ulp_softc;	/* (struct cxgbei_data *) */
 	void *ccr_softc;	/* (struct ccr_softc *) */
 	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;
 
-	uint16_t doorbells;
+	uint8_t doorbells;
 	int offload_map;	/* ports with IFCAP_TOE enabled */
 	int active_ulds;	/* ULDs activated on this adapter */
 	int flags;
@@ -1114,15 +1117,11 @@ t4_use_ldst(struct adapter *sc)
 }
 
 /* t4_main.c */
-extern int t4_ntxq10g;
-extern int t4_nrxq10g;
-extern int t4_ntxq1g;
-extern int t4_nrxq1g;
+extern int t4_ntxq;
+extern int t4_nrxq;
 extern int t4_intr_types;
-extern int t4_tmr_idx_10g;
-extern int t4_pktc_idx_10g;
-extern int t4_tmr_idx_1g;
-extern int t4_pktc_idx_1g;
+extern int t4_tmr_idx;
+extern int t4_pktc_idx;
 extern unsigned int t4_qsize_rxq;
 extern unsigned int t4_qsize_txq;
 extern device_method_t cxgbe_methods[];

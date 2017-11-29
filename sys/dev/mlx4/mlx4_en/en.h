@@ -75,6 +75,7 @@
 #define MIN_RX_RINGS		4
 #define TXBB_SIZE		64
 #define HEADROOM		(2048 / TXBB_SIZE + 1)
+#define INIT_OWNER_BIT		0xffffffff
 #define STAMP_STRIDE		64
 #define STAMP_DWORDS		(STAMP_STRIDE / 4)
 #define STAMP_SHIFT		31
@@ -131,11 +132,13 @@ enum mlx4_en_alloc_type {
 #define MAX_TX_RINGS			(MLX4_EN_MAX_TX_RING_P_UP * \
 					MLX4_EN_NUM_UP)
 
+#define MLX4_EN_NO_VLAN			0xffff
+
 #define MLX4_EN_DEF_TX_RING_SIZE	1024
 #define MLX4_EN_DEF_RX_RING_SIZE  	1024
 
 /* Target number of bytes to coalesce with interrupt moderation */
-#define MLX4_EN_RX_COAL_TARGET	0x20000
+#define MLX4_EN_RX_COAL_TARGET	44
 #define MLX4_EN_RX_COAL_TIME	0x10
 
 #define MLX4_EN_TX_COAL_PKTS	64
@@ -191,6 +194,13 @@ enum mlx4_en_alloc_type {
 #define GET_PERF_COUNTER(cnt)		(0)
 #define GET_AVG_PERF_COUNTER(cnt)	(0)
 #endif /* MLX4_EN_PERF_STAT */
+
+/* Constants for TX flow */
+enum {
+	MAX_INLINE = 104, /* 128 - 16 - 4 - 4 */
+	MAX_BF = 256,
+	MIN_PKT_LEN = 17,
+};
 
 /*
  * Configurables
@@ -264,7 +274,6 @@ struct mlx4_en_tx_ring {
 	int blocked;
 	struct mlx4_en_tx_info *tx_info;
 	u8 queue_index;
-	cpuset_t affinity_mask;
 	struct buf_ring *br;
 	u32 last_nr_txbb;
 	struct mlx4_qp qp;
@@ -272,14 +281,14 @@ struct mlx4_en_tx_ring {
 	int qpn;
 	enum mlx4_qp_state qp_state;
 	struct mlx4_srq dummy;
-	unsigned long bytes;
-	unsigned long packets;
-	unsigned long tx_csum;
-	unsigned long queue_stopped;
-	unsigned long oversized_packets;
-	unsigned long wake_queue;
-	unsigned long tso_packets;
-	unsigned long defrag_attempts;
+	u64 bytes;
+	u64 packets;
+	u64 tx_csum;
+	u64 queue_stopped;
+	u64 oversized_packets;
+	u64 wake_queue;
+	u64 tso_packets;
+	u64 defrag_attempts;
 	struct mlx4_bf bf;
 	bool bf_enabled;
 	int hwtstamp_tx_type;
@@ -322,16 +331,16 @@ struct mlx4_en_rx_ring {
 	int qpn;
 	u8 *buf;
 	struct mlx4_en_rx_mbuf *mbuf;
-	unsigned long errors;
-	unsigned long bytes;
-	unsigned long packets;
+	u64 errors;
+	u64 bytes;
+	u64 packets;
 #ifdef LL_EXTENDED_STATS
-	unsigned long yields;
-	unsigned long misses;
-	unsigned long cleaned;
+	u64 yields;
+	u64 misses;
+	u64 cleaned;
 #endif
-	unsigned long csum_ok;
-	unsigned long csum_none;
+	u64 csum_ok;
+	u64 csum_none;
 	int hwtstamp_rx_filter;
 	int numa_node;
 	struct lro_ctrl lro;
@@ -385,14 +394,14 @@ struct mlx4_en_cq {
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int state;
-#define MLX4_EN_CQ_STATEIDLE        0
-#define MLX4_EN_CQ_STATENAPI     1    /* NAPI owns this CQ */
-#define MLX4_EN_CQ_STATEPOLL     2    /* poll owns this CQ */
-#define MLX4_CQ_LOCKED (MLX4_EN_CQ_STATENAPI | MLX4_EN_CQ_STATEPOLL)
-#define MLX4_EN_CQ_STATENAPI_YIELD  4    /* NAPI yielded this CQ */
-#define MLX4_EN_CQ_STATEPOLL_YIELD  8    /* poll yielded this CQ */
-#define CQ_YIELD (MLX4_EN_CQ_STATENAPI_YIELD | MLX4_EN_CQ_STATEPOLL_YIELD)
-#define CQ_USER_PEND (MLX4_EN_CQ_STATEPOLL | MLX4_EN_CQ_STATEPOLL_YIELD)
+#define MLX4_EN_CQ_STATE_IDLE        0
+#define MLX4_EN_CQ_STATE_NAPI     1    /* NAPI owns this CQ */
+#define MLX4_EN_CQ_STATE_POLL     2    /* poll owns this CQ */
+#define MLX4_CQ_LOCKED (MLX4_EN_CQ_STATE_NAPI | MLX4_EN_CQ_STATE_POLL)
+#define MLX4_EN_CQ_STATE_NAPI_YIELD  4    /* NAPI yielded this CQ */
+#define MLX4_EN_CQ_STATE_POLL_YIELD  8    /* poll yielded this CQ */
+#define CQ_YIELD (MLX4_EN_CQ_STATE_NAPI_YIELD | MLX4_EN_CQ_STATE_POLL_YIELD)
+#define CQ_USER_PEND (MLX4_EN_CQ_STATE_POLL | MLX4_EN_CQ_STATE_POLL_YIELD)
 	spinlock_t poll_lock; /* protects from LLS/napi conflicts */
 #endif  /* CONFIG_NET_RX_BUSY_POLL */
 };
@@ -408,6 +417,7 @@ struct mlx4_en_port_profile {
 	u8 tx_pause;
 	u8 tx_ppp;
 	int rss_rings;
+	int inline_thold;
 };
 
 struct mlx4_en_profile {
@@ -451,24 +461,30 @@ struct mlx4_en_rss_map {
 	enum mlx4_qp_state indir_state;
 };
 
+enum mlx4_en_port_flag {
+	MLX4_EN_PORT_ANC = 1<<0, /* Auto-negotiation complete */
+	MLX4_EN_PORT_ANE = 1<<1, /* Auto-negotiation enabled */
+};
+
 struct mlx4_en_port_state {
 	int link_state;
 	int link_speed;
-	int transciver;
-	int autoneg;
+	int transceiver;
+	u32 flags;
 };
 
-enum mlx4_en_mclist_act {
-	MCLIST_NONE,
-	MCLIST_REM,
-	MCLIST_ADD,
+enum mlx4_en_addr_list_act {
+	MLX4_ADDR_LIST_NONE,
+	MLX4_ADDR_LIST_REM,
+	MLX4_ADDR_LIST_ADD,
 };
 
-struct mlx4_en_mc_list {
+struct mlx4_en_addr_list {
 	struct list_head	list;
-	enum mlx4_en_mclist_act	action;
+	enum mlx4_en_addr_list_act	action;
 	u8			addr[ETH_ALEN];
 	u64			reg_id;
+	u64			tunnel_reg_id;
 };
 
 #ifdef CONFIG_MLX4_EN_DCB
@@ -476,6 +492,7 @@ struct mlx4_en_mc_list {
 #define MLX4_EN_BW_MIN 1
 #define MLX4_EN_BW_MAX 100 /* Utilize 100% of the line */
 
+#define MLX4_EN_TC_VENDOR 0
 #define MLX4_EN_TC_ETS 7
 
 #endif
@@ -541,6 +558,7 @@ struct mlx4_en_priv {
 	bool port_up;
 	int port;
 	int registered;
+	int gone;
 	int allocated;
 	int stride;
 	unsigned char current_mac[ETH_ALEN + 2];
@@ -570,12 +588,17 @@ struct mlx4_en_priv {
 	struct mlx4_en_perf_stats pstats;
 	struct mlx4_en_pkt_stats pkstats;
 	struct mlx4_en_pkt_stats pkstats_last;
-	struct mlx4_en_flow_stats flowstats[MLX4_NUM_PRIORITIES];
+	struct mlx4_en_flow_stats_rx rx_priority_flowstats[MLX4_NUM_PRIORITIES];
+	struct mlx4_en_flow_stats_tx tx_priority_flowstats[MLX4_NUM_PRIORITIES];
+	struct mlx4_en_flow_stats_rx rx_flowstats;
+	struct mlx4_en_flow_stats_tx tx_flowstats;
 	struct mlx4_en_port_stats port_stats;
 	struct mlx4_en_vport_stats vport_stats;
 	struct mlx4_en_vf_stats vf_stats;
 	struct list_head mc_list;
-	struct list_head curr_list;
+	struct list_head uc_list;
+	struct list_head curr_mc_list;
+	struct list_head curr_uc_list;
 	u64 broadcast_id;
 	struct mlx4_en_stat_out_mbox hw_stats;
 	int vids[128];
@@ -592,8 +615,6 @@ struct mlx4_en_priv {
 	struct sysctl_oid *stat_sysctl;
 	struct sysctl_ctx_list conf_ctx;
 	struct sysctl_ctx_list stat_ctx;
-#define MLX4_EN_MAC_HASH_IDX 5
-	struct hlist_head mac_hash[MLX4_EN_MAC_HASH_SIZE];
 
 #ifdef CONFIG_MLX4_EN_DCB
 	struct ieee_ets ets;
@@ -606,6 +627,7 @@ struct mlx4_en_priv {
 	struct list_head filters;
 	struct hlist_head filter_hash[1 << MLX4_EN_FILTER_HASH_SHIFT];
 #endif
+	u64 tunnel_reg_id;
 	struct en_port *vf_ports[MLX4_MAX_NUM_VF];
 	unsigned long last_ifq_jiffies;
 	u64 if_counters_rx_errors;
@@ -623,11 +645,16 @@ struct mlx4_mac_entry {
 	u64 reg_id;
 };
 
+static inline struct mlx4_cqe *mlx4_en_get_cqe(u8 *buf, int idx, int cqe_sz)
+{
+	return (struct mlx4_cqe *)(buf + idx * cqe_sz);
+}
+
 #ifdef CONFIG_NET_RX_BUSY_POLL
 static inline void mlx4_en_cq_init_lock(struct mlx4_en_cq *cq)
 {
 	spin_lock_init(&cq->poll_lock);
-	cq->state = MLX4_EN_CQ_STATEIDLE;
+	cq->state = MLX4_EN_CQ_STATE_IDLE;
 }
 
 /* called from the device poll rutine to get ownership of a cq */
@@ -636,12 +663,12 @@ static inline bool mlx4_en_cq_lock_napi(struct mlx4_en_cq *cq)
 	int rc = true;
 	spin_lock(&cq->poll_lock);
 	if (cq->state & MLX4_CQ_LOCKED) {
-		WARN_ON(cq->state & MLX4_EN_CQ_STATENAPI);
-		cq->state |= MLX4_EN_CQ_STATENAPI_YIELD;
+		WARN_ON(cq->state & MLX4_EN_CQ_STATE_NAPI);
+		cq->state |= MLX4_EN_CQ_STATE_NAPI_YIELD;
 		rc = false;
 	} else
 		/* we don't care if someone yielded */
-		cq->state = MLX4_EN_CQ_STATENAPI;
+		cq->state = MLX4_EN_CQ_STATE_NAPI;
 	spin_unlock(&cq->poll_lock);
 	return rc;
 }
@@ -651,12 +678,12 @@ static inline bool mlx4_en_cq_unlock_napi(struct mlx4_en_cq *cq)
 {
 	int rc = false;
 	spin_lock(&cq->poll_lock);
-	WARN_ON(cq->state & (MLX4_EN_CQ_STATEPOLL |
-			     MLX4_EN_CQ_STATENAPI_YIELD));
+	WARN_ON(cq->state & (MLX4_EN_CQ_STATE_POLL |
+			       MLX4_EN_CQ_STATE_NAPI_YIELD));
 
-	if (cq->state & MLX4_EN_CQ_STATEPOLL_YIELD)
+	if (cq->state & MLX4_EN_CQ_STATE_POLL_YIELD)
 		rc = true;
-	cq->state = MLX4_EN_CQ_STATEIDLE;
+	cq->state = MLX4_EN_CQ_STATE_IDLE;
 	spin_unlock(&cq->poll_lock);
 	return rc;
 }
@@ -671,14 +698,14 @@ static inline bool mlx4_en_cq_lock_poll(struct mlx4_en_cq *cq)
 		struct mlx4_en_priv *priv = netdev_priv(dev);
 		struct mlx4_en_rx_ring *rx_ring = priv->rx_ring[cq->ring];
 
-		cq->state |= MLX4_EN_CQ_STATEPOLL_YIELD;
+		cq->state |= MLX4_EN_CQ_STATE_POLL_YIELD;
 		rc = false;
 #ifdef LL_EXTENDED_STATS
 		rx_ring->yields++;
 #endif
 	} else
 		/* preserve yield marks */
-		cq->state |= MLX4_EN_CQ_STATEPOLL;
+		cq->state |= MLX4_EN_CQ_STATE_POLL;
 	spin_unlock_bh(&cq->poll_lock);
 	return rc;
 }
@@ -688,17 +715,17 @@ static inline bool mlx4_en_cq_unlock_poll(struct mlx4_en_cq *cq)
 {
 	int rc = false;
 	spin_lock_bh(&cq->poll_lock);
-	WARN_ON(cq->state & (MLX4_EN_CQ_STATENAPI));
+	WARN_ON(cq->state & (MLX4_EN_CQ_STATE_NAPI));
 
-	if (cq->state & MLX4_EN_CQ_STATEPOLL_YIELD)
+	if (cq->state & MLX4_EN_CQ_STATE_POLL_YIELD)
 		rc = true;
-	cq->state = MLX4_EN_CQ_STATEIDLE;
+	cq->state = MLX4_EN_CQ_STATE_IDLE;
 	spin_unlock_bh(&cq->poll_lock);
 	return rc;
 }
 
 /* true if a socket is polling, even if it did not get the lock */
-static inline bool mlx4_en_cq_ll_polling(struct mlx4_en_cq *cq)
+static inline bool mlx4_en_cq_busy_polling(struct mlx4_en_cq *cq)
 {
 	WARN_ON(!(cq->state & MLX4_CQ_LOCKED));
 	return cq->state & CQ_USER_PEND;
@@ -728,7 +755,7 @@ static inline bool mlx4_en_cq_unlock_poll(struct mlx4_en_cq *cq)
 	return false;
 }
 
-static inline bool mlx4_en_cq_ll_polling(struct mlx4_en_cq *cq)
+static inline bool mlx4_en_cq_busy_polling(struct mlx4_en_cq *cq)
 {
 	return false;
 }
@@ -770,6 +797,7 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 			     int cq, int user_prio);
 void mlx4_en_deactivate_tx_ring(struct mlx4_en_priv *priv,
 				struct mlx4_en_tx_ring *ring);
+void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev);
 void mlx4_en_qflush(struct ifnet *dev);
 
 int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
@@ -883,10 +911,10 @@ enum {
         {                                                       \
         if ((priv)->registered)                                 \
                 printk(level "%s: %s: " format, DRV_NAME,       \
-                        (priv->dev)->if_xname, ## arg); \
+                        (priv)->dev->if_xname, ## arg); \
         else                                                    \
                 printk(level "%s: %s: Port %d: " format,        \
-                        DRV_NAME, dev_name(&priv->mdev->pdev->dev), \
+                        DRV_NAME, dev_name(&(priv)->mdev->pdev->dev), \
                         (priv)->port, ## arg);                  \
         }
 
@@ -905,12 +933,12 @@ do {								\
 
 #define mlx4_err(mdev, format, arg...)			\
 	pr_err("%s %s: " format, DRV_NAME,		\
-	       dev_name(&mdev->pdev->dev), ##arg)
+	       dev_name(&(mdev)->pdev->dev), ##arg)
 #define mlx4_info(mdev, format, arg...)			\
 	pr_info("%s %s: " format, DRV_NAME,		\
-		dev_name(&mdev->pdev->dev), ##arg)
+		dev_name(&(mdev)->pdev->dev), ##arg)
 #define mlx4_warn(mdev, format, arg...)			\
 	pr_warning("%s %s: " format, DRV_NAME,		\
-		   dev_name(&mdev->pdev->dev), ##arg)
+		   dev_name(&(mdev)->pdev->dev), ##arg)
 
 #endif

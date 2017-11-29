@@ -26,6 +26,7 @@
  */
 
 #include "opt_acpi.h"
+#include "opt_compat.h"
 #include "opt_platform.h"
 #include "opt_ddb.h"
 
@@ -211,7 +212,8 @@ set_regs(struct thread *td, struct reg *regs)
 	frame->tf_sp = regs->sp;
 	frame->tf_lr = regs->lr;
 	frame->tf_elr = regs->elr;
-	frame->tf_spsr = regs->spsr;
+	frame->tf_spsr &= ~PSR_FLAGS;
+	frame->tf_spsr |= regs->spsr & PSR_FLAGS;
 
 	memcpy(frame->tf_x, regs->x, sizeof(frame->tf_x));
 
@@ -277,6 +279,56 @@ set_dbregs(struct thread *td, struct dbreg *regs)
 	return (EDOOFUS);
 }
 
+#ifdef COMPAT_FREEBSD32
+int
+fill_regs32(struct thread *td, struct reg32 *regs)
+{
+
+	printf("ARM64TODO: fill_regs32");
+	return (EDOOFUS);
+}
+
+int
+set_regs32(struct thread *td, struct reg32 *regs)
+{
+
+	printf("ARM64TODO: set_regs32");
+	return (EDOOFUS);
+}
+
+int
+fill_fpregs32(struct thread *td, struct fpreg32 *regs)
+{
+
+	printf("ARM64TODO: fill_fpregs32");
+	return (EDOOFUS);
+}
+
+int
+set_fpregs32(struct thread *td, struct fpreg32 *regs)
+{
+
+	printf("ARM64TODO: set_fpregs32");
+	return (EDOOFUS);
+}
+
+int
+fill_dbregs32(struct thread *td, struct dbreg32 *regs)
+{
+
+	printf("ARM64TODO: fill_dbregs32");
+	return (EDOOFUS);
+}
+
+int
+set_dbregs32(struct thread *td, struct dbreg32 *regs)
+{
+
+	printf("ARM64TODO: set_dbregs32");
+	return (EDOOFUS);
+}
+#endif
+
 int
 ptrace_set_pc(struct thread *td, u_long addr)
 {
@@ -310,12 +362,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 	memset(tf, 0, sizeof(struct trapframe));
 
-	/*
-	 * We need to set x0 for init as it doesn't call
-	 * cpu_set_syscall_retval to copy the value. We also
-	 * need to set td_retval for the cases where we do.
-	 */
-	tf->tf_x[0] = td->td_retval[0] = stack;
+	tf->tf_x[0] = stack;
 	tf->tf_sp = STACKALIGN(stack);
 	tf->tf_lr = imgp->entry_addr;
 	tf->tf_elr = imgp->entry_addr;
@@ -354,6 +401,12 @@ int
 set_mcontext(struct thread *td, mcontext_t *mcp)
 {
 	struct trapframe *tf = td->td_frame;
+	uint32_t spsr;
+
+	spsr = mcp->mc_gpregs.gp_spsr;
+	if ((spsr & PSR_M_MASK) != PSR_M_EL0t ||
+	    (spsr & (PSR_AARCH32 | PSR_F | PSR_I | PSR_A | PSR_D)) != 0)
+		return (EINVAL); 
 
 	memcpy(tf->tf_x, mcp->mc_gpregs.gp_x, sizeof(tf->tf_x));
 
@@ -530,19 +583,16 @@ int
 sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
 	ucontext_t uc;
-	uint32_t spsr;
+	int error;
 
 	if (uap == NULL)
 		return (EFAULT);
 	if (copyin(uap->sigcntxp, &uc, sizeof(uc)))
 		return (EFAULT);
 
-	spsr = uc.uc_mcontext.mc_gpregs.gp_spsr;
-	if ((spsr & PSR_M_MASK) != PSR_M_EL0t ||
-	    (spsr & (PSR_F | PSR_I | PSR_A | PSR_D)) != 0)
-		return (EINVAL); 
-
-	set_mcontext(td, &uc.uc_mcontext);
+	error = set_mcontext(td, &uc.uc_mcontext);
+	if (error != 0)
+		return (error);
 	set_fpcontext(td, &uc.uc_mcontext);
 
 	/* Restore signal mask. */
@@ -967,6 +1017,7 @@ initarm(struct arm64_bootparams *abp)
 {
 	struct efi_map_header *efihdr;
 	struct pcpu *pcpup;
+	char *env;
 #ifdef FDT
 	struct mem_region mem_regions[FDT_MEM_REGIONS];
 	int mem_regions_sz;
@@ -1066,6 +1117,10 @@ initarm(struct arm64_bootparams *abp)
 	dbg_init();
 	kdb_init();
 	pan_enable();
+
+	env = kern_getenv("kernelname");
+	if (env != NULL)
+		strlcpy(kernelname, env, sizeof(kernelname));
 
 	early_boot = 0;
 }

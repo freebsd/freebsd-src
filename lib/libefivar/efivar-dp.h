@@ -60,6 +60,8 @@ typedef const efidp_data *const_efidp;
  */
 ssize_t efidp_format_device_path(char *buf, size_t len, const_efidp dp,
     ssize_t max);
+ssize_t efidp_format_device_path_node(char *buf, size_t len, const_efidp dp,
+    ssize_t max);
 ssize_t efidp_parse_device_path(char *path, efidp out, size_t max);
 
 size_t efidp_size(const_efidp);

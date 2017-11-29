@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996-2008, 4Front Technologies
  * Copyright (C) 1992-2000  Don Kim (don.kim@esstech.com)
  * All rights reserved.

@@ -31,15 +31,14 @@
 .Nm siba
 .Nd Sonic Inc. Silicon Backplane driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your kernel configuration file:
+To compile this driver into the kernel, add the following lines to the
+kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device bhnd"
 .Cd "device siba"
 .Ed
 .Pp
-Alternatively, to load the driver as a module at boot time,
-place the following line in
+To load the driver as a module at boot, add this line to
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 siba_load="YES"
@@ -68,7 +67,8 @@ host interfaces (PCI, PCMCIA), embedded processors (MIPS),
 or DMA processors associated with communications cores.
 .Sh SEE ALSO
 .Xr bcma 4 ,
-.Xr bhnd 4
+.Xr bhnd 4 ,
+.Xr intro 4
 .Sh HISTORY
 The
 .Nm

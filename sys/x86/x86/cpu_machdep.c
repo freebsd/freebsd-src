@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_platform.h"
 #ifdef __i386__
 #include "opt_apic.h"
-#include "opt_xbox.h"
 #endif
 
 #include <sys/param.h>

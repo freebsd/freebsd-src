@@ -152,8 +152,6 @@ BIN1+= regdomain.xml
 # -rwxr-xr-x root:wheel, for the new cron root:wheel
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
-PPPCNF=	ppp.conf
-
 .if ${MK_SENDMAIL} == "no"
 ETCMAIL=mailer.conf aliases
 .else
@@ -229,9 +227,6 @@ distribution:
 .endif
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
-.endif
-.if ${MK_CASPER} != "no"
-	${_+_}cd ${.CURDIR}/casper; ${MAKE} install
 .endif
 	${_+_}cd ${.CURDIR}/cron.d; ${MAKE} install
 	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install

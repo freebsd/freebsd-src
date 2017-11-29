@@ -1,6 +1,12 @@
 # $FreeBSD$
 
-FILES=		include_ldap include_nis special_hosts special_media special_noauto special_null
+FILES=		include_ldap \
+		include_nis \
+		include_nis_nullfs \
+		special_hosts \
+		special_media \
+		special_noauto \
+		special_null
 
 NO_OBJ=
 FILESDIR=	/etc/autofs

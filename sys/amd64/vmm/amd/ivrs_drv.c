@@ -88,7 +88,7 @@ ivrs_hdr_iterate_tbl(ivhd_iter_t iter, void *arg)
 			if (!iter(ivrs_hdr, arg))
 				return;
 			break;
-		
+
 		case ACPI_IVRS_TYPE_MEMORY1:
 		case ACPI_IVRS_TYPE_MEMORY2:
 		case ACPI_IVRS_TYPE_MEMORY3:
@@ -96,7 +96,7 @@ ivrs_hdr_iterate_tbl(ivhd_iter_t iter, void *arg)
 				return;
 
 			break;
-		
+
 		default:
 			printf("AMD-Vi:Not IVHD/IVMD type(%d)", ivrs_hdr->Type);
 
@@ -186,7 +186,8 @@ ivhd_dev_add_entry(struct amdvi_softc *softc, uint32_t start_id,
 static int
 ivhd_dev_parse(ACPI_IVRS_HARDWARE * ivhd, struct amdvi_softc *softc)
 {
-	ACPI_IVRS_DE_HEADER *de, *end;
+	ACPI_IVRS_DE_HEADER *de;
+	uint8_t *p, *end;
 	int range_start_id = 0, range_end_id = 0;
 	uint32_t *extended;
 	uint8_t all_data = 0, range_data = 0;
@@ -195,12 +196,15 @@ ivhd_dev_parse(ACPI_IVRS_HARDWARE * ivhd, struct amdvi_softc *softc)
 	softc->start_dev_rid = ~0;
 	softc->end_dev_rid = 0;
 
-	de = (ACPI_IVRS_DE_HEADER *) ((uint8_t *)ivhd +
-	    sizeof(ACPI_IVRS_HARDWARE));
-	end = (ACPI_IVRS_DE_HEADER *) ((uint8_t *)ivhd +
-	    ivhd->Header.Length);
+	/*
+	 * XXX The following actually depends on Header.Type and
+	 * is only true for 0x10.
+	 */
+	p = (uint8_t *)ivhd + sizeof(ACPI_IVRS_HARDWARE);
+	end = (uint8_t *)ivhd + ivhd->Header.Length;
 
-	while (de < (ACPI_IVRS_DE_HEADER *) end) {
+	while (p < end) {
+		de = (ACPI_IVRS_DE_HEADER *)p;
 		softc->start_dev_rid = MIN(softc->start_dev_rid, de->Id);
 		softc->end_dev_rid = MAX(softc->end_dev_rid, de->Id);
 		switch (de->Type) {
@@ -263,7 +267,15 @@ ivhd_dev_parse(ACPI_IVRS_HARDWARE * ivhd, struct amdvi_softc *softc)
 			    "WARN Too many device entries.\n");
 			return (EINVAL);
 		}
-		de++;
+		if (de->Type < 0x40)
+			p += sizeof(ACPI_IVRS_DEVICE4);
+		else if (de->Type < 0x80)
+			p += sizeof(ACPI_IVRS_DEVICE8A);
+		else {
+			printf("Variable size IVHD type 0x%x not supported\n",
+			    de->Type);
+			break;
+		}
 	}
 
 	KASSERT((softc->end_dev_rid >= softc->start_dev_rid),

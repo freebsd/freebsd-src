@@ -2553,10 +2553,6 @@ static void iterate_rules_in_ft(struct mlx5_flow_table *ft,
 	mutex_unlock(&ft->base.lock);
 }
 
-static void iterate_rules_in_ns(struct mlx5_flow_namespace *ns,
-				rule_event_fn add_rule_cb,
-				void *context);
-
 static void iterate_rules_in_prio(struct fs_prio *prio,
 				  rule_event_fn add_rule_cb,
 				  void *context)

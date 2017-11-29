@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Luigi Rizzo, Universita` di Pisa
  *
  * Redistribution and use in source and binary forms, with or without
@@ -165,6 +167,8 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 		case O_REJECT:
 			if (cmd->arg1==ICMP_REJECT_RST)
 				action = "Reset";
+			else if (cmd->arg1==ICMP_REJECT_ABORT)
+				action = "Abort";
 			else if (cmd->arg1==ICMP_UNREACH_HOST)
 				action = "Reject";
 			else
@@ -175,6 +179,8 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 		case O_UNREACH6:
 			if (cmd->arg1==ICMP6_UNREACH_RST)
 				action = "Reset";
+			else if (cmd->arg1==ICMP6_UNREACH_ABORT)
+				action = "Abort";
 			else
 				snprintf(SNPARGS(action2, 0), "Unreach %d",
 					cmd->arg1);

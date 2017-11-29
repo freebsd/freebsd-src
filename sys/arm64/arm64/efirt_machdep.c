@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 static vm_object_t obj_1t1_pt;
 static vm_page_t efi_l0_page;
 static pd_entry_t *efi_l0;
+static vm_pindex_t efi_1t1_idx;
 
 void
 efi_destroy_1t1_map(void)
@@ -86,10 +87,10 @@ efi_destroy_1t1_map(void)
 }
 
 static vm_page_t
-efi_1t1_page(vm_pindex_t idx)
+efi_1t1_page(void)
 {
 
-	return (vm_page_grab(obj_1t1_pt, idx, VM_ALLOC_NOBUSY |
+	return (vm_page_grab(obj_1t1_pt, efi_1t1_idx++, VM_ALLOC_NOBUSY |
 	    VM_ALLOC_WIRED | VM_ALLOC_ZERO));
 }
 
@@ -105,7 +106,7 @@ efi_1t1_l3(vm_offset_t va)
 	l0_idx = pmap_l0_index(va);
 	l0 = &efi_l0[l0_idx];
 	if (*l0 == 0) {
-		m = efi_1t1_page(1 + l0_idx);
+		m = efi_1t1_page();
 		mphys = VM_PAGE_TO_PHYS(m);
 		*l0 = mphys | L0_TABLE;
 	} else {
@@ -116,7 +117,7 @@ efi_1t1_l3(vm_offset_t va)
 	l1_idx = pmap_l1_index(va);
 	l1 += l1_idx;
 	if (*l1 == 0) {
-		m = efi_1t1_page(1 + L0_ENTRIES + (l0_idx + 1) * (l1_idx + 1));
+		m = efi_1t1_page();
 		mphys = VM_PAGE_TO_PHYS(m);
 		*l1 = mphys | L1_TABLE;
 	} else {
@@ -127,8 +128,7 @@ efi_1t1_l3(vm_offset_t va)
 	l2_idx = pmap_l2_index(va);
 	l2 += l2_idx;
 	if (*l2 == 0) {
-		m = efi_1t1_page(1 + L0_ENTRIES + L0_ENTRIES * Ln_ENTRIES +
-		    (l0_idx + 1) * (l1_idx + 1) * (l2_idx + 1));
+		m = efi_1t1_page();
 		mphys = VM_PAGE_TO_PHYS(m);
 		*l2 = mphys | L2_TABLE;
 	} else {
@@ -160,7 +160,8 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	    L0_ENTRIES * Ln_ENTRIES * Ln_ENTRIES * Ln_ENTRIES,
 	    VM_PROT_ALL, 0, NULL);
 	VM_OBJECT_WLOCK(obj_1t1_pt);
-	efi_l0_page = efi_1t1_page(0);
+	efi_1t1_idx = 0;
+	efi_l0_page = efi_1t1_page();
 	VM_OBJECT_WUNLOCK(obj_1t1_pt);
 	efi_l0 = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(efi_l0_page));
 	bzero(efi_l0, L0_ENTRIES * sizeof(*efi_l0));

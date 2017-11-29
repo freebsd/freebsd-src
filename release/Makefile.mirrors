@@ -57,7 +57,7 @@ TLD?=			${FTPDIR}/releases
 .endif
 
 .if defined(EMBEDDED) && !empty(EMBEDDED)
-. if ${TARGET:Marm*} != "" && (${TARGET_ARCH:Marmv[67]} != "" || ${TARGET_ARCH} == "aarch64")
+. if ${TARGET:Marm*} != "" && (${TARGET_ARCH:Marm*} != "" || ${TARGET_ARCH} == "aarch64")
 .  if !defined(BOARDNAME) && empty(BOARDNAME)
 BOARDNAME:=		${KERNCONF}
 .  else

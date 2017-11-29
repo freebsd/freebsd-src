@@ -196,7 +196,7 @@ DIRDEPS+= \
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
     ${MACHINE_CPUARCH} == "powerpc"
-DIRDEPS+= sys/boot/libsa32
+DIRDEPS+= stand/libsa32
 .endif
 
 .if defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mfilter}
@@ -251,7 +251,6 @@ DIRDEPS+= \
 	contrib/ofed/usr.lib/libibumad \
 	contrib/ofed/usr.lib/libibverbs \
 	contrib/ofed/usr.lib/libmlx4 \
-	contrib/ofed/usr.lib/libmthca \
 	contrib/ofed/usr.lib/libopensm \
 	contrib/ofed/usr.lib/libosmcomp \
 	contrib/ofed/usr.lib/libosmvendor \

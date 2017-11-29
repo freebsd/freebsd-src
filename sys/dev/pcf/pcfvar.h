@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 Nicolas Souchu, Marc Bouget
  * Copyright (c) 2004 Joerg Wunsch
  * All rights reserved.

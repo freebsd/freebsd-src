@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Marcel Moolenaar
  * All rights reserved.
  *
@@ -78,16 +80,11 @@ machdep_ap_bootstrap(void)
 	__asm __volatile("msync; isync");
 
 	while (ap_letgo == 0)
-		;
+		__asm __volatile("or 27,27,27");
+	__asm __volatile("or 6,6,6");
 
 	/* Initialize DEC and TB, sync with the BSP values */
-#ifdef __powerpc64__
-	/* Writing to the time base register is hypervisor-privileged */
-	if (mfmsr() & PSL_HV)
-		mttb(ap_timebase);
-#else
-	mttb(ap_timebase);
-#endif
+	platform_smp_timebase_sync(ap_timebase, 1);
 	decr_ap_init();
 
 	/* Give platform code a chance to do anything necessary */
@@ -144,7 +141,6 @@ cpu_mp_start(void)
 
 	error = platform_smp_get_bsp(&bsp);
 	KASSERT(error == 0, ("Don't know BSP"));
-	KASSERT(bsp.cr_cpuid == 0, ("%s: cpuid != 0", __func__));
 
 	error = platform_smp_first_cpu(&cpu);
 	while (!error) {
@@ -184,7 +180,10 @@ cpu_mp_announce(void)
 	struct pcpu *pc;
 	int i;
 
-	for (i = 0; i <= mp_maxid; i++) {
+	if (!bootverbose)
+		return;
+
+	CPU_FOREACH(i) {
 		pc = pcpu_find(i);
 		if (pc == NULL)
 			continue;
@@ -246,13 +245,7 @@ cpu_mp_unleash(void *dummy)
 	/* Let APs continue */
 	atomic_store_rel_int(&ap_letgo, 1);
 
-#ifdef __powerpc64__
-	/* Writing to the time base register is hypervisor-privileged */
-	if (mfmsr() & PSL_HV)
-		mttb(ap_timebase);
-#else
-	mttb(ap_timebase);
-#endif
+	platform_smp_timebase_sync(ap_timebase, 0);
 
 	while (ap_awake < smp_cpus)
 		;

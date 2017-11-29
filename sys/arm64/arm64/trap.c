@@ -323,7 +323,10 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 			break;
 		}
 #endif
-		/* FALLTHROUGH */
+		kdb_trap(exception, 0,
+		    (td->td_frame != NULL) ? td->td_frame : frame);
+		frame->tf_elr += 4;
+		break;
 	case EXCP_WATCHPT_EL1:
 	case EXCP_SOFTSTP_EL1:
 #ifdef KDB
@@ -381,7 +384,8 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 		panic("VFP exception in userland");
 #endif
 		break;
-	case EXCP_SVC:
+	case EXCP_SVC32:
+	case EXCP_SVC64:
 		svc_handler(td, frame);
 		break;
 	case EXCP_INSN_ABORT_L:

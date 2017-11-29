@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001 Wind River Systems, Inc.
  * All rights reserved.
  * Written by: John Baldwin <jhb@FreeBSD.org>
@@ -407,7 +409,7 @@ DB_SHOW_ALL_COMMAND(pcpu, db_show_cpu_all)
 	int id;
 
 	db_printf("Current CPU: %d\n\n", PCPU_GET(cpuid));
-	for (id = 0; id <= mp_maxid; id++) {
+	CPU_FOREACH(id) {
 		pc = pcpu_find(id);
 		if (pc != NULL) {
 			show_pcpu(pc);

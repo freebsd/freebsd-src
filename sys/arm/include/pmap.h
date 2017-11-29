@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2016 Svatopluk Kraus
  * Copyright (c) 2016 Michal Meloun
  * All rights reserved.

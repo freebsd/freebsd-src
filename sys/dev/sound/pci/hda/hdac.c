@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Stephane E. Potvin <sepotvin@videotron.ca>
  * Copyright (c) 2006 Ariff Abdullah <ariff@FreeBSD.org>
  * Copyright (c) 2008-2012 Alexander Motin <mav@FreeBSD.org>
@@ -1801,7 +1803,7 @@ hdac_find_stream(struct hdac_softc *sc, int dir, int stream)
 	int i, ss;
 
 	ss = -1;
-	/* Allocate ISS/BSS first. */
+	/* Allocate ISS/OSS first. */
 	if (dir == 0) {
 		for (i = 0; i < sc->num_iss; i++) {
 			if (sc->streams[i].stream == stream) {
@@ -1869,7 +1871,7 @@ hdac_stream_alloc(device_t dev, device_t child, int dir, int format, int stripe,
 
 	/* Allocate stream number */
 	if (ss >= sc->num_iss + sc->num_oss)
-		stream = 15 - (ss - sc->num_iss + sc->num_oss);
+		stream = 15 - (ss - sc->num_iss - sc->num_oss);
 	else if (ss >= sc->num_iss)
 		stream = ss - sc->num_iss + 1;
 	else

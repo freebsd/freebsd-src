@@ -252,6 +252,26 @@ static void mlx4_en_free_rx_buf(struct mlx4_en_priv *priv,
 	}
 }
 
+void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev)
+{
+	int i;
+	int num_of_eqs;
+	int num_rx_rings;
+	struct mlx4_dev *dev = mdev->dev;
+
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
+		num_of_eqs = max_t(int, MIN_RX_RINGS,
+				   min_t(int,
+					 mlx4_get_eqs_per_port(mdev->dev, i),
+					 DEF_RX_RINGS));
+
+		num_rx_rings = mlx4_low_memory_profile() ? MIN_RX_RINGS :
+							   num_of_eqs;
+		mdev->profile.prof[i].rx_ring_num =
+			rounddown_pow_of_two(num_rx_rings);
+	}
+}
+
 void mlx4_en_calc_rx_buf(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -259,7 +279,7 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 	    MLX4_NET_IP_ALIGN;
 
 	if (eff_mtu > MJUM16BYTES) {
-		en_err(priv, "MTU(%d) is too big\n", dev->if_mtu);
+		en_err(priv, "MTU(%u) is too big\n", (unsigned)dev->if_mtu);
                 eff_mtu = MJUM16BYTES;
         } else if (eff_mtu > MJUM9BYTES) {
                 eff_mtu = MJUM16BYTES;
@@ -399,7 +419,7 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 			__be32 *ptr = (__be32 *)ring->buf;
 			__be32 stamp = cpu_to_be32(1 << STAMP_SHIFT);
 			*ptr = stamp;
-			/* Move pointer to start of rx section */	
+			/* Move pointer to start of rx section */
 			ring->buf += TXBB_SIZE;
 		}
 
@@ -607,7 +627,7 @@ mlx4_en_rss_hash(__be16 status, int udp_rss)
  * was added in the beginning of each cqe (the real data is in the corresponding 32B).
  * The following calc ensures that when factor==1, it means we are aligned to 64B
  * and we get the real cqe data*/
-#define CQE_FACTOR_INDEX(index, factor) ((index << factor) + factor)
+#define CQE_FACTOR_INDEX(index, factor) (((index) << (factor)) + (factor))
 int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int budget)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -676,7 +696,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		M_HASHTYPE_SET(mb, mlx4_en_rss_hash(cqe->status, udp_rss));
 		mb->m_pkthdr.rcvif = dev;
 		if (be32_to_cpu(cqe->vlan_my_qpn) &
-		    MLX4_CQE_VLAN_PRESENT_MASK) {
+		    MLX4_CQE_CVLAN_PRESENT_MASK) {
 			mb->m_pkthdr.ether_vtag = be16_to_cpu(cqe->sl_vid);
 			mb->m_flags |= M_VLANTAG;
 		}
@@ -802,7 +822,7 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv, int qpn,
 		return -ENOMEM;
 	}
 
-	err = mlx4_qp_alloc(mdev->dev, qpn, qp);
+	err = mlx4_qp_alloc(mdev->dev, qpn, qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed to allocate qp #%x\n", qpn);
 		goto out;
@@ -842,7 +862,7 @@ int mlx4_en_create_drop_qp(struct mlx4_en_priv *priv)
 		en_err(priv, "Failed reserving drop qpn\n");
 		return err;
 	}
-	err = mlx4_qp_alloc(priv->mdev->dev, qpn, &priv->drop_qp);
+	err = mlx4_qp_alloc(priv->mdev->dev, qpn, &priv->drop_qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed allocating drop qp\n");
 		mlx4_qp_release_range(priv->mdev->dev, qpn, 1);
@@ -930,7 +950,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	}
 
 	/* Configure RSS indirection qp */
-	err = mlx4_qp_alloc(mdev->dev, priv->base_qpn, &rss_map->indir_qp);
+	err = mlx4_qp_alloc(mdev->dev, priv->base_qpn, &rss_map->indir_qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed to allocate RSS indirection QP\n");
 		goto rss_err;

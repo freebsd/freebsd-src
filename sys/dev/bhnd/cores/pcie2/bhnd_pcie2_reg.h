@@ -24,6 +24,17 @@
 #ifndef _BHND_CORES_PCIE2_BHND_PCIE2_REG_H_
 #define _BHND_CORES_PCIE2_BHND_PCIE2_REG_H_
 
+/*
+ * PCIe-Gen2 DMA Constants
+ */
+
+#define	BHND_PCIE2_DMA64_TRANSLATION	0x8000000000000000	/**< PCIe-Gen2 DMA64 address translation */
+#define	BHND_PCIE2_DMA64_MASK		0xc000000000000000	/**< PCIe-Gen2 DMA64 translation mask */
+
+/*
+ * PCIe-Gen2 Core Registers
+ */
+
 #define	BHND_PCIE2_CLK_CONTROL		0x000
 
 #define	BHND_PCIE2_RC_PM_CONTROL	0x004

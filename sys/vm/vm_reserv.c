@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2006 Rice University
  * Copyright (c) 2007-2011 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.

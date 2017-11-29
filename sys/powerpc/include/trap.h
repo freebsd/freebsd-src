@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -75,6 +77,7 @@
 #define	EXC_DSMISS	0x1200		/* Data store translation miss */
 
 /* Power ISA 2.06+: */
+#define	EXC_HEA		0x0e40		/* Hypervisor Emulation Assistance */
 #define	EXC_VSX		0x0f40		/* VSX Unavailable */
 
 /* The following are available on 4xx and 85xx */

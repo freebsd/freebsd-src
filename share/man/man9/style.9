@@ -26,7 +26,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2016
+.Dd November 16, 2017
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -867,14 +867,11 @@ KNF
 compliant in the repository must not diverge from compliance.
 .Pp
 Whenever possible, code should be run through a code checker
-(e.g.,
-.Xr lint 1
-or
+(e.g., various static analyzers or
 .Nm cc Fl Wall )
 and produce minimal warnings.
 .Sh SEE ALSO
 .Xr indent 1 ,
-.Xr lint 1 ,
 .Xr err 3 ,
 .Xr warn 3 ,
 .Xr style.Makefile 5

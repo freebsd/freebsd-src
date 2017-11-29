@@ -1,6 +1,8 @@
 /*-
  * Generic utility routines for the Common Access Method layer.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Justin T. Gibbs.
  * All rights reserved.
  *
@@ -235,29 +237,35 @@ cam_strmatch(const u_int8_t *str, const u_int8_t *pattern, int str_len)
 			return (1);
 		} else if (*pattern == '[') {
 			int negate_range, ok;
-			uint8_t pc, sc;
+			uint8_t pc = UCHAR_MAX;
+			uint8_t sc;
 
 			ok = 0;
 			sc = *str++;
 			str_len--;
+			pattern++;
 			if ((negate_range = (*pattern == '^')) != 0)
 				pattern++;
-			while (((pc = *pattern) != ']') && *pattern != '\0') {
-				pattern++;
+			while ((*pattern != ']') && *pattern != '\0') {
 				if (*pattern == '-') {
 					if (pattern[1] == '\0') /* Bad pattern */
 						return (1);
 					if (sc >= pc && sc <= pattern[1])
 						ok = 1;
-					pattern += 2;
-				} else if (pc == sc)
+					pattern++;
+				} else if (*pattern == sc)
 					ok = 1;
+				pc = *pattern;
+				pattern++;
 			}
 			if (ok == negate_range)
 				return (1);
+			pattern++;
 		} else if (*pattern == '?') {
-			/* NB: || *str == ' ' of the old code is a bug and was removed */
-			/* if you add it back, keep this the last if before the naked else */
+			/*
+			 * NB: || *str == ' ' of the old code is a bug and was
+			 * removed.  If you add it back, keep this the last if
+			 * before the naked else */
 			pattern++;
 			str++;
 			str_len--;
@@ -269,6 +277,17 @@ cam_strmatch(const u_int8_t *str, const u_int8_t *pattern, int str_len)
 			str_len--;
 		}
 	}
+
+	/* '*' is allowed to match nothing, so gobble it */
+	while (*pattern == '*')
+		pattern++;
+
+	if ( *pattern != '\0') {
+		/* Pattern not fully consumed.  Not a match */
+		return (1);
+	}
+
+	/* Eat trailing spaces, which get added by SAT */
 	while (str_len > 0 && *str == ' ') {
 		str++;
 		str_len--;

@@ -1,4 +1,6 @@
 /*********************************************************************
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  *
  * Copyright 2003-2006 Raza Microelectronics, Inc. (RMI). All rights
  * reserved.

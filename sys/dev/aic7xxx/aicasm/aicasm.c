@@ -1,6 +1,8 @@
 /*-
  * Aic7xxx SCSI host adapter firmware asssembler
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1997, 1998, 2000, 2001 Justin T. Gibbs.
  * Copyright (c) 2001, 2002 Adaptec Inc.
  * All rights reserved.

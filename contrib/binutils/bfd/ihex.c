@@ -320,7 +320,7 @@ ihex_scan (bfd *abfd)
 	    {
 	      if (! ISHEX (buf[i]))
 		{
-		  ihex_bad_byte (abfd, lineno, hdr[i], error);
+		  ihex_bad_byte (abfd, lineno, buf[i], error);
 		  goto error_return;
 		}
 	    }

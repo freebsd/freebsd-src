@@ -31,12 +31,13 @@
  *
  */
 
+#include <linux/rcupdate.h>
+
 #include <dev/mlx4/cq.h>
 #include <dev/mlx4/qp.h>
 #include <dev/mlx4/cmd.h>
 
 #include "en.h"
-
 
 static void mlx4_en_cq_event(struct mlx4_cq *cq, enum mlx4_event event)
 {
@@ -53,11 +54,11 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	struct mlx4_en_cq *cq;
 	int err;
 
-	cq = kzalloc_node(sizeof(struct mlx4_en_cq), GFP_KERNEL, node);
+	cq = kzalloc_node(sizeof(*cq), GFP_KERNEL, node);
 	if (!cq) {
-		cq = kzalloc(sizeof(struct mlx4_en_cq), GFP_KERNEL);
+		cq = kzalloc(sizeof(*cq), GFP_KERNEL);
 		if (!cq) {
-			en_err(priv, "Failed to allocate CW struture\n");
+			en_err(priv, "Failed to allocate CQ structure\n");
 			return -ENOMEM;
 		}
 	}
@@ -80,6 +81,7 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 
 	cq->ring = ring;
 	cq->is_tx = mode;
+	cq->vector = mdev->dev->caps.num_comp_vectors;
 	spin_lock_init(&cq->lock);
 
 	err = mlx4_alloc_hwq_res(mdev->dev, &cq->wqres,
@@ -91,7 +93,7 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	if (err)
 		goto err_res;
 
-	cq->buf = (struct mlx4_cqe *) cq->wqres.buf.direct.buf;
+	cq->buf = (struct mlx4_cqe *)cq->wqres.buf.direct.buf;
 	*pcq = cq;
 
 	return 0;
@@ -100,17 +102,17 @@ err_res:
 	mlx4_free_hwq_res(mdev->dev, &cq->wqres, cq->buf_size);
 err_cq:
 	kfree(cq);
+	*pcq = NULL;
 	return err;
 }
-
 
 int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 			int cq_idx)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err = 0;
-	char name[25];
 	int timestamp_en = 0;
+	bool assigned_eq = false;
 
 	cq->dev = mdev->pndev[priv->port];
 	cq->mcq.set_ci_db  = cq->wqres.db.db;
@@ -120,22 +122,19 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 	memset(cq->buf, 0, cq->buf_size);
 
 	if (cq->is_tx == RX) {
-		if (mdev->dev->caps.comp_pool) {
-			if (!cq->vector) {
-				sprintf(name, "%s-%d", if_name(priv->dev),
-					cq->ring);
-				/* Set IRQ for specific name (per ring) */
-				if (mlx4_assign_eq(mdev->dev, name, &cq->vector)) {
-					cq->vector = (cq->ring + 1 + priv->port)
-					    % mdev->dev->caps.num_comp_vectors;
-					mlx4_warn(mdev, "Failed Assigning an EQ to "
-						  "%s ,Falling back to legacy EQ's\n",
-						  name);
-				}
+		if (!mlx4_is_eq_vector_valid(mdev->dev, priv->port,
+					     cq->vector)) {
+			cq->vector = cq_idx % mdev->dev->caps.num_comp_vectors;
+
+			err = mlx4_assign_eq(mdev->dev, priv->port,
+					     &cq->vector);
+			if (err) {
+				mlx4_err(mdev, "Failed assigning an EQ to CQ vector %d\n",
+					 cq->vector);
+				goto free_eq;
 			}
-		} else {
-			cq->vector = (cq->ring + 1 + priv->port) %
-				mdev->dev->caps.num_comp_vectors;
+
+			assigned_eq = true;
 		}
 	} else {
 		struct mlx4_en_cq *rx_cq;
@@ -150,11 +149,12 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 
 	if (!cq->is_tx)
 		cq->size = priv->rx_ring[cq->ring]->actual_size;
+
 	err = mlx4_cq_alloc(mdev->dev, cq->size, &cq->wqres.mtt,
 			    &mdev->priv_uar, cq->wqres.db.dma, &cq->mcq,
 			    cq->vector, 0, timestamp_en);
 	if (err)
-		return err;
+		goto free_eq;
 
 	cq->mcq.comp  = cq->is_tx ? mlx4_en_tx_irq : mlx4_en_rx_irq;
 	cq->mcq.event = mlx4_en_cq_event;
@@ -167,6 +167,12 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 
 
 	return 0;
+
+free_eq:
+	if (assigned_eq)
+		mlx4_release_eq(mdev->dev, cq->vector);
+	cq->vector = mdev->dev->caps.num_comp_vectors;
+	return err;
 }
 
 void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq **pcq)
@@ -178,23 +184,27 @@ void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq **pcq)
 	taskqueue_free(cq->tq);
 	mlx4_en_unmap_buffer(&cq->wqres.buf);
 	mlx4_free_hwq_res(mdev->dev, &cq->wqres, cq->buf_size);
-	if (priv->mdev->dev->caps.comp_pool && cq->vector)
+	if (mlx4_is_eq_vector_valid(mdev->dev, priv->port, cq->vector) &&
+	    cq->is_tx == RX)
 		mlx4_release_eq(priv->mdev->dev, cq->vector);
+	cq->vector = 0;
+	cq->buf_size = 0;
+	cq->buf = NULL;
 	kfree(cq);
 	*pcq = NULL;
 }
 
 void mlx4_en_deactivate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 {
-        struct mlx4_en_dev *mdev = priv->mdev;
+	taskqueue_drain(cq->tq, &cq->cq_task);
+	if (!cq->is_tx) {
+		synchronize_rcu();
+	} else {
+		del_timer_sync(&cq->timer);
+	}
 
-        taskqueue_drain(cq->tq, &cq->cq_task);
-        if (cq->is_tx)
-                del_timer_sync(&cq->timer);
-
-        mlx4_cq_free(mdev->dev, &cq->mcq);
+	mlx4_cq_free(priv->mdev->dev, &cq->mcq);
 }
-
 
 /* Set rx cq moderation parameters */
 int mlx4_en_set_cq_moder(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)

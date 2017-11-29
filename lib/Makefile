@@ -44,6 +44,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	${_libdl} \
 	libdwarf \
 	libedit \
+	libelftc \
 	libevent \
 	libexecinfo \
 	libexpat \
@@ -136,7 +137,7 @@ SUBDIR.${MK_CLANG}+=	clang
 
 SUBDIR.${MK_CUSE}+= 	libcuse
 SUBDIR.${MK_CXX}+=	libdevdctl
-SUBDIR.${MK_TOOLCHAIN}+=libelftc libpe
+SUBDIR.${MK_TOOLCHAIN}+=libpe
 SUBDIR.${MK_DIALOG}+=	libdpv
 SUBDIR.${MK_FILE}+=	libmagic
 SUBDIR.${MK_GPIO}+=	libgpio

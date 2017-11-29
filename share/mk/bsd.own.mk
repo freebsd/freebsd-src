@@ -32,8 +32,6 @@
 #
 # LIBEXECDIR	Base path for system daemons and utilities. [/usr/libexec]
 #
-# LINTLIBDIR	Base path for lint libraries. [/usr/libdata/lint]
-#
 # SHLIBDIR	Base path for shared libraries. [${LIBDIR}]
 #
 # LIBOWN	Library owner. [${BINOWN}]
@@ -162,7 +160,6 @@ LIBDIR?=	${LIBDIR_BASE}
 LIBCOMPATDIR?=	/usr/lib/compat
 LIBDATADIR?=	/usr/libdata
 LIBEXECDIR?=	/usr/libexec
-LINTLIBDIR?=	/usr/libdata/lint
 SHLIBDIR?=	${LIBDIR}
 LIBOWN?=	${BINOWN}
 LIBGRP?=	${BINGRP}

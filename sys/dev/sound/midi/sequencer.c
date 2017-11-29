@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Mathew Kanner
  * Copyright (c) 1993 Hannu Savolainen
  * All rights reserved.

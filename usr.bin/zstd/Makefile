@@ -7,11 +7,11 @@ SRCS=	bench.c \
 	fileio.c \
 	zstdcli.c
 
-CFLAGS+=	-I${SRCTOP}/contrib/zstd/programs \
-		-I${SRCTOP}/contrib/zstd/lib/common \
-		-I${SRCTOP}/contrib/zstd/lib/compress \
-		-I${SRCTOP}/contrib/zstd/lib/dictBuilder \
-		-I${SRCTOP}/contrib/zstd/lib \
+CFLAGS+=	-I${SRCTOP}/sys/contrib/zstd/programs \
+		-I${SRCTOP}/sys/contrib/zstd/lib/common \
+		-I${SRCTOP}/sys/contrib/zstd/lib/compress \
+		-I${SRCTOP}/sys/contrib/zstd/lib/dictBuilder \
+		-I${SRCTOP}/sys/contrib/zstd/lib \
 		-DXXH_NAMESPACE=ZSTD_ \
 		-DHAVE_THREAD=1 \
 		-DZSTD_MULTITHREAD=1
@@ -25,6 +25,6 @@ MLINKS=	zstd.1 unzstd.1 \
 
 WARNS=	2
 LIBADD=	zstd
-.PATH: ${SRCTOP}/contrib/zstd/programs
+.PATH: ${SRCTOP}/sys/contrib/zstd/programs
 
 .include <bsd.prog.mk>

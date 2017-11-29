@@ -1,7 +1,9 @@
 /*	$OpenBSD: partab.c,v 1.5 2003/06/03 02:56:18 millert Exp $	*/
 /*	$NetBSD: partab.c,v 1.4 1996/12/29 10:38:21 cgd Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

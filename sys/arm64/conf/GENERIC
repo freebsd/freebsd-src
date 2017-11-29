@@ -26,7 +26,7 @@ makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
-options 	VIMAGE			# Subsystem virtualization, e.g. VNET
+#options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	IPSEC			# IP (v4/v6) security
@@ -226,6 +226,7 @@ device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		firmware	# firmware assist module
 device		psci		# Support for ARM PSCI
+options 	EFIRT		# EFI Runtime Services
 
 # EXT_RESOURCES pseudo devices
 options 	EXT_RESOURCES

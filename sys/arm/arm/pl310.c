@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2012 Olivier Houchard <cognet@FreeBSD.org>
  * Copyright (c) 2011
  *	Ben Gray <ben.r.gray@gmail.com>.

@@ -1,6 +1,8 @@
 /*	$KAME: ipsec.c,v 1.33 2003/07/25 09:54:32 itojun Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2005 NTT Multimedia Communications Laboratories, Inc.
  * All rights reserved.
  *

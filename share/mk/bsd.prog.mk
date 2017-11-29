@@ -294,13 +294,6 @@ realinstall: maninstall
 
 .endif	# !target(install)
 
-.if !target(lint)
-lint: ${SRCS:M*.c}
-.if defined(PROG)
-	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
-.endif
-.endif
-
 .if ${MK_MAN} != "no"
 .include <bsd.man.mk>
 .endif

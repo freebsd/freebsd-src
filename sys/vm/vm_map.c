@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -1511,18 +1513,18 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	} else
 		alignment = 0;
 	initial_addr = *addr;
+	vm_map_lock(map);
 again:
 	start = initial_addr;
-	vm_map_lock(map);
 	do {
 		if (find_space != VMFS_NO_SPACE) {
 			if (vm_map_findspace(map, start, length, addr) ||
 			    (max_addr != 0 && *addr + length > max_addr)) {
-				vm_map_unlock(map);
 				if (find_space == VMFS_OPTIMAL_SPACE) {
 					find_space = VMFS_ANY_SPACE;
 					goto again;
 				}
+				vm_map_unlock(map);
 				return (KERN_NO_SPACE);
 			}
 			switch (find_space) {
@@ -3610,12 +3612,13 @@ vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	KASSERT(orient != (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP),
 	    ("bi-dir stack"));
 
-	sgp = (vm_size_t)stack_guard_page * PAGE_SIZE;
 	if (addrbos < vm_map_min(map) ||
-	    addrbos > vm_map_max(map) ||
-	    addrbos + max_ssize < addrbos ||
-	    sgp >= max_ssize)
-		return (KERN_NO_SPACE);
+	    addrbos + max_ssize > vm_map_max(map) ||
+	    addrbos + max_ssize <= addrbos)
+		return (KERN_INVALID_ADDRESS);
+	sgp = (vm_size_t)stack_guard_page * PAGE_SIZE;
+	if (sgp >= max_ssize)
+		return (KERN_INVALID_ARGUMENT);
 
 	init_ssize = growsize;
 	if (max_ssize < init_ssize + sgp)

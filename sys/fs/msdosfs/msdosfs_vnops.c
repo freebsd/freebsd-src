@@ -2,6 +2,8 @@
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1994, 1995, 1997 Wolfgang Solfrank.
  * Copyright (C) 1994, 1995, 1997 TooLs GmbH.
  * All rights reserved.
@@ -287,6 +289,8 @@ msdosfs_getattr(struct vop_getattr_args *ap)
 	vap->va_fileid = fileid;
 
 	mode = S_IRWXU|S_IRWXG|S_IRWXO;
+	if (dep->de_Attributes & ATTR_READONLY)
+		mode &= ~(S_IWUSR|S_IWGRP|S_IWOTH);
 	vap->va_mode = mode & 
 	    (ap->a_vp->v_type == VDIR ? pmp->pm_dirmask : pmp->pm_mask);
 	vap->va_uid = pmp->pm_uid;
@@ -502,7 +506,7 @@ msdosfs_setattr(struct vop_setattr_args *ap)
 		}
 		if (vp->v_type != VDIR) {
 			/* We ignore the read and execute bits. */
-			if (vap->va_mode & VWRITE)
+			if (vap->va_mode & S_IWUSR)
 				dep->de_Attributes &= ~ATTR_READONLY;
 			else
 				dep->de_Attributes |= ATTR_READONLY;

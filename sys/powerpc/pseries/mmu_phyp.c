@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2010 Andreas Tobler
  * All rights reserved.
  *
@@ -56,8 +58,6 @@ __FBSDID("$FreeBSD$");
 #include "moea64_if.h"
 
 #include "phyp-hvcall.h"
-
-extern int n_slbs;
 
 static struct rmlock mphyp_eviction_lock;
 

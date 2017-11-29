@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2005, 2009, 2013 Jeffrey Roberson <jeff@FreeBSD.org>
  * Copyright (c) 2004, 2005 Bosko Milekic <bmilekic@FreeBSD.org>
  * Copyright (c) 2004-2006 Robert N. M. Watson
@@ -3357,7 +3359,7 @@ uma_large_malloc(vm_size_t size, int wait)
 		slab->us_size = size;
 		slab->us_domain = vm_phys_domidx(PHYS_TO_VM_PAGE(
 		    pmap_kextract(addr)));
-		uma_total_inc(slab->us_size);
+		uma_total_inc(size);
 	} else {
 		zone_free_item(slabzone, slab, NULL, SKIP_NONE);
 	}
@@ -3372,6 +3374,7 @@ uma_large_free(uma_slab_t slab)
 	KASSERT((slab->us_flags & UMA_SLAB_KERNEL) != 0,
 	    ("uma_large_free:  Memory not allocated with uma_large_malloc."));
 	kmem_free(kernel_arena, (vm_offset_t)slab->us_data, slab->us_size);
+	uma_total_dec(slab->us_size);
 	uma_total_dec(slab->us_size);
 	zone_free_item(slabzone, slab, NULL, SKIP_NONE);
 }
@@ -3392,15 +3395,15 @@ unsigned long
 uma_limit(void)
 {
 
-	return uma_kmem_limit;
+	return (uma_kmem_limit);
 }
 
 void
 uma_set_limit(unsigned long limit)
 {
+
 	uma_kmem_limit = limit;
 }
-
 
 unsigned long
 uma_size(void)

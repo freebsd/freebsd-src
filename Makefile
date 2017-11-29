@@ -129,7 +129,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	everything hier hierarchy install installcheck installkernel \
 	installkernel.debug packagekernel packageworld \
 	reinstallkernel reinstallkernel.debug \
-	installworld kernel-toolchain libraries lint maninstall \
+	installworld kernel-toolchain libraries maninstall \
 	obj objlink showconfig tags toolchain update \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _build-metadata _cross-tools _includes _libraries \
@@ -166,18 +166,6 @@ META_TGT_WHITELIST+= \
 	kernels libraries native-xtools showconfig test-system-compiler \
 	tinderbox toolchain \
 	toolchains universe world worlds xdev xdev-build
-
-# Likewise for AUTO_OBJ.  Many targets do not need object directories created
-# for each visited directory.  Only when things are being built are they
-# needed.  Having AUTO_OBJ disabled in a build target is fine as it should
-# fallback to running 'make obj' as needed.  If a target is not in this list
-# then it is ran with MK_AUTO_OBJ=no in environment.
-# 'showconfig' is in the list to avoid forcing MK_AUTO_OBJ=no for it.
-AUTO_OBJ_TGT_WHITELIST+= \
-	_* all all-man build* depend everything *toolchain* includes \
-	libraries obj objlink showconfig tags xdev xdev-build native-xtools \
-	stage* create-packages* real-packages sign-packages package-pkg \
-	tinderbox universe* kernel kernels world worlds bmake
 
 .ORDER: buildworld installworld
 .ORDER: buildworld distrib-dirs
@@ -245,7 +233,7 @@ SUB_MAKE= ${MAKE} -m ${.CURDIR}/share/mk
 .endif
 
 _MAKE=	PATH=${PATH} MAKE_CMD="${MAKE}" ${SUB_MAKE} -f Makefile.inc1 \
-	TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
+	TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH} ${_MAKEARGS}
 
 .if defined(MK_META_MODE) && ${MK_META_MODE} == "yes"
 # Only allow meta mode for the whitelisted targets.  See META_TGT_WHITELIST
@@ -276,28 +264,13 @@ MK_META_MODE= no
 .endif	# ${MK_META_MODE} == yes
 .endif	# defined(MK_META_MODE) && ${MK_META_MODE} == yes
 
-# Only allow AUTO_OBJ for the whitelisted targets.  See AUTO_OBJ_TGT_WHITELIST
-# above.  MK_AUTO_OBJ not checked here for "yes" as it may not yet be enabled
-# since it is opportunistic.
-.if empty(.MAKEOVERRIDES:MMK_AUTO_OBJ)
-.for _tgt in ${AUTO_OBJ_TGT_WHITELIST}
-.if make(${_tgt})
-_CAN_USE_AUTO_OBJ?= yes
-.endif
-.endfor
-.if !defined(_CAN_USE_AUTO_OBJ)
-_MAKE+=	MK_AUTO_OBJ=no
-MK_AUTO_OBJ= no
-.endif
-.endif	# empty(.MAKEOVERRIDES:MMK_AUTO_OBJ)
-
 # Guess target architecture from target type, and vice versa, based on
 # historic FreeBSD practice of tending to have TARGET == TARGET_ARCH
 # expanding to TARGET == TARGET_CPUARCH in recent times, with known
 # exceptions.
 .if !defined(TARGET_ARCH) && defined(TARGET)
 # T->TA mapping is usually TARGET with arm64 the odd man out
-_TARGET_ARCH=	${TARGET:S/arm64/aarch64/}
+_TARGET_ARCH=	${TARGET:S/arm64/aarch64/:S/riscv/riscv64/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
 # TA->T mapping is accidentally CPUARCH with aarch64 the odd man out
@@ -598,7 +571,7 @@ universe_${target}_kernels: universe_${target}_worlds .PHONY
 universe_${target}_kernels: universe_${target}_prologue .MAKE .PHONY
 .if exists(${KERNSRCDIR}/${target}/conf/NOTES)
 	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
-	    ${SUB_MAKE} -DNO_OBJ LINT \
+	    ${SUB_MAKE} LINT \
 	    > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
 	    (echo "${target} 'make LINT' failed," \
 	    "check _.${target}.makeLINT for details"| ${MAKEFAIL}))

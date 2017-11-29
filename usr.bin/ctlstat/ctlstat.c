@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004, 2008, 2009 Silicon Graphics International Corp.
  * Copyright (c) 2017 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
@@ -320,11 +322,12 @@ static const char *iotypes[] = {"NO IO", "READ", "WRITE"};
 static void
 ctlstat_dump(struct ctlstat_context *ctx)
 {
-	int iotype, i;
+	int iotype, i, n;
 	struct ctl_io_stats *stats = ctx->cur_stats;
 
-	for (i = 0; i < ctx->cur_items;i++) {
-		if (F_MASK(ctx) && bit_test(ctx->item_mask, i) == 0)
+	for (i = n = 0; i < ctx->cur_items;i++) {
+		if (F_MASK(ctx) && bit_test(ctx->item_mask,
+		    (int)stats[i].item) == 0)
 			continue;
 		printf("%s %d\n", F_PORTS(ctx) ? "port" : "lun", stats[i].item);
 		for (iotype = 0; iotype < CTL_STATS_NUM_TYPES; iotype++) {
@@ -341,17 +344,20 @@ ctlstat_dump(struct ctlstat_context *ctx)
 			PRINT_BINTIME(stats[i].dma_time[iotype]);
 			printf("\n");
 		}
+		if (++n >= ctx->numdevs)
+			break;
 	}
 }
 
 static void
 ctlstat_json(struct ctlstat_context *ctx) {
-	int iotype, i;
+	int iotype, i, n;
 	struct ctl_io_stats *stats = ctx->cur_stats;
 
 	printf("{\"%s\":[", F_PORTS(ctx) ? "ports" : "luns");
-	for (i = 0; i < ctx->cur_items; i++) {
-		if (F_MASK(ctx) && bit_test(ctx->item_mask, i) == 0)
+	for (i = n = 0; i < ctx->cur_items; i++) {
+		if (F_MASK(ctx) && bit_test(ctx->item_mask,
+		    (int)stats[i].item) == 0)
 			continue;
 		printf("{\"num\":%d,\"io\":[",
 		    stats[i].item);
@@ -372,6 +378,8 @@ ctlstat_json(struct ctlstat_context *ctx) {
 				printf(","); /* continue io array */
 		}
 		printf("]}");
+		if (++n >= ctx->numdevs)
+			break;
 		if (i < (ctx->cur_items - 1))
 			printf(","); /* continue lun array */
 	}
@@ -383,7 +391,7 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 	long double etime;
 	uint64_t delta_jiffies, delta_idle;
 	long double cpu_percentage;
-	int i, j;
+	int i, j, n;
 
 	cpu_percentage = 0;
 
@@ -413,10 +421,6 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 	if (F_HDR(ctx)) {
 		ctx->header_interval--;
 		if (ctx->header_interval <= 0) {
-			int hdr_devs;
-
-			hdr_devs = 0;
-
 			if (F_CPU(ctx))
 				fprintf(stdout, " CPU");
 			if (F_TOTALS(ctx)) {
@@ -425,9 +429,9 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 					(F_TIMEVAL(ctx) != 0) ? "      " : "",
 					(F_TIMEVAL(ctx) != 0) ? "      " : "",
 					(F_TIMEVAL(ctx) != 0) ? "      " : "");
-				hdr_devs = 3;
+				n = 3;
 			} else {
-				for (i = 0; i < min(CTL_STAT_BITS,
+				for (i = n = 0; i < min(CTL_STAT_BITS,
 				     ctx->cur_items); i++) {
 					int item;
 
@@ -444,13 +448,14 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 					fprintf(stdout, "%15.6s%d %s",
 					    F_PORTS(ctx) ? "port" : "lun", item,
 					    (F_TIMEVAL(ctx) != 0) ? "     " : "");
-					hdr_devs++;
+					if (++n >= ctx->numdevs)
+						break;
 				}
 				fprintf(stdout, "\n");
 			}
 			if (F_CPU(ctx))
 				fprintf(stdout, "    ");
-			for (i = 0; i < hdr_devs; i++)
+			for (i = 0; i < n; i++)
 				fprintf(stdout, "%s KB/t   %s MB/s",
 					(F_TIMEVAL(ctx) != 0) ? "    ms" : "",
 					(F_DMA(ctx) == 0) ? "tps" : "dps");
@@ -534,7 +539,7 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 				dmas_per_sec[i], mbsec[i]);
 		}
 	} else {
-		for (i = 0; i < min(CTL_STAT_BITS, ctx->cur_items); i++) {
+		for (i = n = 0; i < min(CTL_STAT_BITS, ctx->cur_items); i++) {
 			long double mbsec, kb_per_transfer;
 			long double transfers_per_sec;
 			long double ms_per_transfer;
@@ -565,6 +570,8 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 			fprintf(stdout, " %4.0Lf %5.0Lf %4.0Lf",
 				kb_per_transfer, (F_DMA(ctx) == 0) ?
 				transfers_per_sec : dmas_per_sec, mbsec);
+			if (++n >= ctx->numdevs)
+				break;
 		}
 	}
 }
@@ -668,18 +675,6 @@ main(int argc, char **argv)
 			ctx.flags |= CTLSTAT_FLAG_PORTS;
 		else
 			ctx.flags |= CTLSTAT_FLAG_LUNS;
-	}
-
-	if (!F_TOTALS(&ctx) && !F_MASK(&ctx)) {
-		/*
-		 * Note that this just selects the first N LUNs to display,
-		 * but at this point we have no knoweledge of which LUN
-		 * numbers actually exist.  So we may select LUNs that
-		 * aren't there.
-		 */
-		bit_nset(ctx.item_mask, 0, min(ctx.numdevs - 1,
-			 CTL_STAT_BITS - 1));
-		ctx.flags |= CTLSTAT_FLAG_MASK;
 	}
 
 	if ((fd = open(CTL_DEFAULT_DEV, O_RDWR)) == -1)

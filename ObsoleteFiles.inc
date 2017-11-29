@@ -38,6 +38,37 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171118: Remove old etc casper files
+OLD_FILES+=etc/casper/system.dns
+OLD_FILES+=etc/casper/system.grp
+OLD_FILES+=etc/casper/system.pwd
+OLD_FILES+=etc/casper/system.random
+OLD_FILES+=etc/casper/system.sysctl
+OLD_DIRS+=etc/casper
+# 20171116: lint(1) removal
+OLD_FILES+=usr/bin/lint
+OLD_FILES+=usr/libexec/lint1
+OLD_FILES+=usr/libexec/lint2
+OLD_FILES+=usr/libdata/lint/llib-lposix.ln
+OLD_FILES+=usr/libdata/lint/llib-lstdc.ln
+OLD_FILES+=usr/share/man/man1/lint.1.gz
+OLD_FILES+=usr/share/man/man7/lint.7.gz
+OLD_DIRS+=usr/libdata/lint
+# 20171114: Removal of all fortune datfiles other than freebsd-tips
+OLD_FILES+=usr/share/games/fortune/fortunes
+OLD_FILES+=usr/share/games/fortune/fortunes.dat
+OLD_FILES+=usr/share/games/fortune/gerrold.limerick
+OLD_FILES+=usr/share/games/fortune/gerrold.limerick.dat
+OLD_FILES+=usr/share/games/fortune/limerick
+OLD_FILES+=usr/share/games/fortune/limerick.dat
+OLD_FILES+=usr/share/games/fortune/murphy
+OLD_FILES+=usr/share/games/fortune/murphy-o
+OLD_FILES+=usr/share/games/fortune/murphy-o.dat
+OLD_FILES+=usr/share/games/fortune/murphy.dat
+OLD_FILES+=usr/share/games/fortune/startrek
+OLD_FILES+=usr/share/games/fortune/startrek.dat
+OLD_FILES+=usr/share/games/fortune/zippy
+OLD_FILES+=usr/share/games/fortune/zippy.dat
 # 20171112: Removal of eqnchar definition
 OLD_FILES+=usr/share/misc/eqnchar
 # 20171110: Removal of mailaddr man page

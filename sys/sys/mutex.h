@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1997 Berkeley Software Design, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,17 +93,18 @@ void	_mtx_init(volatile uintptr_t *c, const char *name, const char *type,
 	    int opts);
 void	_mtx_destroy(volatile uintptr_t *c);
 void	mtx_sysinit(void *arg);
+int	_mtx_trylock_flags_int(struct mtx *m, int opts LOCK_FILE_LINE_ARG_DEF);
 int	_mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file,
 	    int line);
 void	mutex_init(void);
 #if LOCK_DEBUG > 0
 void	__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, int opts,
 	    const char *file, int line);
-void	__mtx_unlock_sleep(volatile uintptr_t *c, int opts, const char *file,
-	    int line);
+void	__mtx_unlock_sleep(volatile uintptr_t *c, uintptr_t v, int opts,
+	    const char *file, int line);
 #else
 void	__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v);
-void	__mtx_unlock_sleep(volatile uintptr_t *c);
+void	__mtx_unlock_sleep(volatile uintptr_t *c, uintptr_t v);
 #endif
 
 #ifdef SMP
@@ -144,8 +147,14 @@ void	_thread_lock(struct thread *);
 	_thread_lock((tdp))
 #endif
 
+#if LOCK_DEBUG > 0
 #define	thread_lock_flags(tdp, opt)					\
 	thread_lock_flags_((tdp), (opt), __FILE__, __LINE__)
+#else
+#define	thread_lock_flags(tdp, opt)					\
+	_thread_lock(tdp)
+#endif
+
 #define	thread_unlock(tdp)						\
        mtx_unlock_spin((tdp)->td_lock)
 
@@ -163,13 +172,13 @@ void	_thread_lock(struct thread *);
 #if LOCK_DEBUG > 0
 #define	_mtx_lock_sleep(m, v, o, f, l)					\
 	__mtx_lock_sleep(&(m)->mtx_lock, v, o, f, l)
-#define	_mtx_unlock_sleep(m, o, f, l)					\
-	__mtx_unlock_sleep(&(m)->mtx_lock, o, f, l)
+#define	_mtx_unlock_sleep(m, v, o, f, l)				\
+	__mtx_unlock_sleep(&(m)->mtx_lock, v, o, f, l)
 #else
 #define	_mtx_lock_sleep(m, v, o, f, l)					\
 	__mtx_lock_sleep(&(m)->mtx_lock, v)
-#define	_mtx_unlock_sleep(m, o, f, l)					\
-	__mtx_unlock_sleep(&(m)->mtx_lock)
+#define	_mtx_unlock_sleep(m, v, o, f, l)				\
+	__mtx_unlock_sleep(&(m)->mtx_lock, v)
 #endif
 #ifdef SMP
 #if LOCK_DEBUG > 0
@@ -213,6 +222,9 @@ void	_thread_lock(struct thread *);
 /* Release mtx_lock quickly, assuming we own it. */
 #define _mtx_release_lock_quick(mp)					\
 	atomic_store_rel_ptr(&(mp)->mtx_lock, MTX_UNOWNED)
+
+#define	_mtx_release_lock_fetch(mp, vp)					\
+	atomic_fcmpset_rel_ptr(&(mp)->mtx_lock, (vp), MTX_UNOWNED)
 
 /*
  * Full lock operations that are suitable to be inlined in non-debug
@@ -291,11 +303,11 @@ void	_thread_lock(struct thread *);
 
 /* Unlock a normal mutex. */
 #define __mtx_unlock(mp, tid, opts, file, line) do {			\
-	uintptr_t _tid = (uintptr_t)(tid);				\
+	uintptr_t _v = (uintptr_t)(tid);				\
 									\
 	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(adaptive__release) ||\
-	    !_mtx_release_lock((mp), _tid)))				\
-		_mtx_unlock_sleep((mp), (opts), (file), (line));	\
+	    !_mtx_release_lock_fetch((mp), &_v)))			\
+		_mtx_unlock_sleep((mp), _v, (opts), (file), (line));	\
 } while (0)
 
 /*

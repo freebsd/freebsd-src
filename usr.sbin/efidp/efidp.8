@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2017
+.Dd November 21, 2017
 .Dt EFIDP 8
 .Os
 .Sh NAME
@@ -36,16 +36,35 @@
 .Op Fl -parse
 .Op Fl -format
 .Sh DESCRIPTION
-This program manages
+This program converts
 .Dq Unified Extensible Firmware Interface
 .Pq UEFI
-Device Paths, as defined in the UEFI standard.
+Device Paths, as defined in the UEFI standard, to and from binary form.
+Binary and textual forms are defined in Chapter 9 of the UEFI
+Specification.
+.Pp
+.Bl -tag -width 20m
+.It Fl f Fl -format
+Formats a binary UEFI Device Path into its canonical UTF-8 textual form.
+A binary Device Path can be no longer than 8192 bytes.
+The textual form must fit into 4096 bytes.
+.It Fl p Fl -parse
+Parses a UEFI Device Path UTF-8 specification and outputs the binary
+Device Path form.
+Only one device path is parsed, even if there are multiple present in
+the input.
+Leading white space is ignored.
+The resulting binary Device Path can be no longer than 8192 bytes.
+.El
 .Sh SEE ALSO
 Appendix A of the UEFI specification has the format for GUIDs.
 All GUIDs
 .Dq Globally Unique Identifiers
 have the format described in RFC 4122.
-.El
+.Pp
+The Unified Extensible Firmware Interface Specification is available
+from
+.Pa www.uefi.org .
 .Sh HISTORY
 The
 .Nm

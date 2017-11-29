@@ -22,6 +22,13 @@
 
 #include "charset.h"
 
+#if MSDOS_COMPILER==WIN32C
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
+extern int bs_mode;
+
 public int utf_mode = 0;
 
 /*
@@ -215,7 +222,13 @@ icharset(name, no_error)
 		{
 			ichardef(p->desc);
 			if (p->p_flag != NULL)
+			{
+#if MSDOS_COMPILER==WIN32C
+				*(p->p_flag) = 1 + (GetConsoleOutputCP() != CP_UTF8);
+#else
 				*(p->p_flag) = 1;
+#endif
+			}
 			return (1);
 		}
 	}
@@ -251,16 +264,17 @@ ilocale()
 /*
  * Define the printing format for control (or binary utf) chars.
  */
-   	static void
-setbinfmt(s, fmtvarptr, default_fmt)
+	public void
+setfmt(s, fmtvarptr, attrptr, default_fmt)
 	char *s;
 	char **fmtvarptr;
+	int *attrptr;
 	char *default_fmt;
 {
 	if (s && utf_mode)
 	{
 		/* It would be too hard to account for width otherwise.  */
-		char *t = s;
+		char constant *t = s;
 		while (*t)
 		{
 			if (*t < ' ' || *t > '~')
@@ -282,15 +296,15 @@ setbinfmt(s, fmtvarptr, default_fmt)
 	 * Select the attributes if it starts with "*".
 	 */
  attr:
-	if (*s == '*')
+	if (*s == '*' && s[1] != '\0')
 	{
 		switch (s[1])
 		{
-		case 'd':  binattr = AT_BOLD;      break;
-		case 'k':  binattr = AT_BLINK;     break;
-		case 's':  binattr = AT_STANDOUT;  break;
-		case 'u':  binattr = AT_UNDERLINE; break;
-		default:   binattr = AT_NORMAL;    break;
+		case 'd':  *attrptr = AT_BOLD;      break;
+		case 'k':  *attrptr = AT_BLINK;     break;
+		case 's':  *attrptr = AT_STANDOUT;  break;
+		case 'u':  *attrptr = AT_UNDERLINE; break;
+		default:   *attrptr = AT_NORMAL;    break;
 		}
 		s += 2;
 	}
@@ -305,6 +319,14 @@ set_charset()
 {
 	char *s;
 
+#if MSDOS_COMPILER==WIN32C
+	/*
+	 * If the Windows console is using UTF-8, we'll use it too.
+	 */
+	if (GetConsoleOutputCP() == CP_UTF8)
+		if (icharset("utf-8", 1))
+			return;
+#endif
 	/*
 	 * See if environment variable LESSCHARSET is defined.
 	 */
@@ -354,6 +376,7 @@ set_charset()
 	 * rather than from predefined charset entry.
 	 */
 	ilocale();
+#else
 #if MSDOS_COMPILER
 	/*
 	 * Default to "dos".
@@ -383,10 +406,10 @@ init_charset()
 	set_charset();
 
 	s = lgetenv("LESSBINFMT");
-	setbinfmt(s, &binfmt, "*s<%02X>");
+	setfmt(s, &binfmt, &binattr, "*s<%02X>");
 	
 	s = lgetenv("LESSUTFBINFMT");
-	setbinfmt(s, &utfbinfmt, "<U+%04lX>");
+	setfmt(s, &utfbinfmt, &binattr, "<U+%04lX>");
 }
 
 /*
@@ -543,33 +566,18 @@ is_utf8_well_formed(ss, slen)
 }
 
 /*
- * Return number of invalid UTF-8 sequences found in a buffer.
+ * Skip bytes until a UTF-8 lead byte (11xxxxxx) or ASCII byte (0xxxxxxx) is found.
  */
-	public int
-utf_bin_count(data, len)
-	char *data;
-	int len;
+	public void
+utf_skip_to_lead(pp, limit)
+	char **pp;
+	char *limit;
 {
-	int bin_count = 0;
-	while (len > 0)
-	{
-		if (is_utf8_well_formed(data, len))
-		{
-			int clen = utf_len(*data & 0377);
-			data += clen;
-			len -= clen;
-		} else
-		{
-			/* Skip to next lead byte. */
-			bin_count++;
-			do {
-				++data;
-				--len;
-			} while (len > 0 && !IS_UTF8_LEAD(*data & 0377));
-		}
-	}
-	return (bin_count);
+	do {
+		++(*pp);
+	} while (*pp < limit && !IS_UTF8_LEAD((*pp)[0] & 0377) && !IS_ASCII_OCTET((*pp)[0]));
 }
+
 
 /*
  * Get the value of a UTF-8 character.
@@ -690,9 +698,9 @@ step_char(pp, dir, limit)
 	{
 		/* It's easy if chars are one byte. */
 		if (dir > 0)
-			ch = (LWCHAR) ((p < limit) ? *p++ : 0);
+			ch = (LWCHAR) (unsigned char) ((p < limit) ? *p++ : 0);
 		else
-			ch = (LWCHAR) ((p > limit) ? *--p : 0);
+			ch = (LWCHAR) (unsigned char) ((p > limit) ? *--p : 0);
 	} else if (dir > 0)
 	{
 		len = utf_len(*p);
@@ -740,6 +748,10 @@ DECLARE_RANGE_TABLE_START(wide)
 #include "wide.uni"
 DECLARE_RANGE_TABLE_END(wide)
 
+DECLARE_RANGE_TABLE_START(fmt)
+#include "fmt.uni"
+DECLARE_RANGE_TABLE_END(fmt)
+
 /* comb_table is special pairs, not ranges. */
 static struct wchar_range comb_table[] = {
 	{0x0644,0x0622}, {0x0644,0x0623}, {0x0644,0x0625}, {0x0644,0x0627},
@@ -780,7 +792,8 @@ is_in_table(ch, table)
 is_composing_char(ch)
 	LWCHAR ch;
 {
-	return is_in_table(ch, &compose_table);
+	return is_in_table(ch, &compose_table) ||
+	       (bs_mode != BS_CONTROL && is_in_table(ch, &fmt_table));
 }
 
 /*
@@ -790,7 +803,21 @@ is_composing_char(ch)
 is_ubin_char(ch)
 	LWCHAR ch;
 {
-	return is_in_table(ch, &ubin_table);
+	int ubin = is_in_table(ch, &ubin_table) ||
+	           (bs_mode == BS_CONTROL && is_in_table(ch, &fmt_table));
+#if MSDOS_COMPILER==WIN32C
+	if (!ubin && utf_mode == 2 && ch < 0x10000)
+	{
+		/*
+		 * Consider it binary if it can't be converted.
+		 */
+		BOOL used_default = TRUE;
+		WideCharToMultiByte(GetConsoleOutputCP(), WC_NO_BEST_FIT_CHARS, (LPCWSTR) &ch, 1, NULL, 0, NULL, &used_default);
+		if (used_default)
+			ubin = 1;
+	}
+#endif
+	return ubin;
 }
 
 /*

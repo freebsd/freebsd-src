@@ -10,7 +10,7 @@ SECTIONS
 {
   /* Read-only sections, merged into text segment: */
 
-  . = kernbase + SIZEOF_HEADERS;
+  . = kernbase;
   PROVIDE (begin = . - SIZEOF_HEADERS);
 
   .text      :
@@ -24,7 +24,10 @@ SECTIONS
   _etext = .;
   PROVIDE (etext = .);
 
-  .interp     : { *(.interp) 	}
+  /* Do not emit PT_INTERP section, which confuses some loaders (kexec-lite) */
+  .interpX    : { *(.interp) 	} : NONE
+  /DISCARD/   : { *(.interp)	} 
+
   .hash          : { *(.hash)		}
   .dynsym        : { *(.dynsym)		}
   .dynstr        : { *(.dynstr)		}

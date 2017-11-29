@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Kelly Yancey <kbyanc@posi.net>
  * Derived from work done by Julian Elischer <julian@tfs.com,
  * julian@dialix.oz.au>, 1993, and Peter Dufault <dufault@hda.com>, 1994.

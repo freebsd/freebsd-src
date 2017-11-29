@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1986, 1988, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -133,6 +135,14 @@ SYSCTL_INT(_debug, OID_AUTO, trace_on_panic,
 static int sync_on_panic = 0;
 SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RWTUN,
 	&sync_on_panic, 0, "Do a sync before rebooting from a panic");
+
+static bool poweroff_on_panic = 0;
+SYSCTL_BOOL(_kern, OID_AUTO, poweroff_on_panic, CTLFLAG_RWTUN,
+	&poweroff_on_panic, 0, "Do a power off instead of a reboot on a panic");
+
+static bool powercycle_on_panic = 0;
+SYSCTL_BOOL(_kern, OID_AUTO, powercycle_on_panic, CTLFLAG_RWTUN,
+	&powercycle_on_panic, 0, "Do a power cycle instead of a reboot on a panic");
 
 static SYSCTL_NODE(_kern, OID_AUTO, shutdown, CTLFLAG_RW, 0,
     "Shutdown environment");
@@ -363,15 +373,16 @@ kern_reboot(int howto)
 
 #if defined(SMP)
 	/*
-	 * Bind us to CPU 0 so that all shutdown code runs there.  Some
+	 * Bind us to the first CPU so that all shutdown code runs there.  Some
 	 * systems don't shutdown properly (i.e., ACPI power off) if we
 	 * run on another processor.
 	 */
 	if (!SCHEDULER_STOPPED()) {
 		thread_lock(curthread);
-		sched_bind(curthread, 0);
+		sched_bind(curthread, CPU_FIRST());
 		thread_unlock(curthread);
-		KASSERT(PCPU_GET(cpuid) == 0, ("boot: not running on cpu 0"));
+		KASSERT(PCPU_GET(cpuid) == CPU_FIRST(),
+		    ("boot: not running on cpu 0"));
 	}
 #endif
 	/* We're in the process of rebooting. */
@@ -797,6 +808,10 @@ vpanic(const char *fmt, va_list ap)
 	/* thread_unlock(td); */
 	if (!sync_on_panic)
 		bootopt |= RB_NOSYNC;
+	if (poweroff_on_panic)
+		bootopt |= RB_POWEROFF;
+	if (powercycle_on_panic)
+		bootopt |= RB_POWERCYCLE;
 	kern_reboot(bootopt);
 }
 

@@ -148,7 +148,7 @@ env_check() {
 		WITH_COMPRESSED_IMAGES=
 		NODOC=yes
 		case ${EMBEDDED_TARGET}:${EMBEDDED_TARGET_ARCH} in
-			arm:armv6|arm:armv7|arm64:aarch64)
+			arm:arm*|arm64:aarch64)
 				chroot_build_release_cmd="chroot_arm_build_release"
 				;;
 			*)
@@ -252,8 +252,8 @@ chroot_setup() {
 extra_chroot_setup() {
 	mkdir -p ${CHROOTDIR}/dev
 	mount -t devfs devfs ${CHROOTDIR}/dev
-	[ -e /etc/resolv.conf ] && cp /etc/resolv.conf \
-		${CHROOTDIR}/etc/resolv.conf
+	[ -e /etc/resolv.conf -a ! -e ${CHROOTDIR}/etc/resolv.conf ] && \
+		cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
 	# Run ldconfig(8) in the chroot directory so /var/run/ld-elf*.so.hints
 	# is created.  This is needed by ports-mgmt/pkg.
 	eval chroot ${CHROOTDIR} /etc/rc.d/ldconfig forcerestart
@@ -280,6 +280,8 @@ extra_chroot_setup() {
 			PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
 			PBUILD_FLAGS="${PBUILD_FLAGS} UNAME_r=${UNAME_r}"
 			PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
+			PBUILD_FLAGS="${PBUILD_FLAGS} WRKDIRPREFIX=/tmp/ports"
+			PBUILD_FLAGS="${PBUILD_FLAGS} DISTDIR=/tmp/distfiles"
 			chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
 				${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" \
 				FORCE_PKG_REGISTER=1 \

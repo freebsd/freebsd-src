@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
  * All rights reserved.
  *
@@ -59,12 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/syscons/syscons.h>
 
 #include <isa/isavar.h>
-
-#include "opt_xbox.h"
-
-#ifdef XBOX
-#include <machine/xbox.h>
-#endif
 
 static devclass_t	sc_devclass;
 
@@ -157,19 +153,6 @@ sc_get_cons_priority(int *unit, int *flags)
 {
 	const char *at;
 	int f, u;
-
-#ifdef XBOX
-	/*
-	 * The XBox Loader does not support hints, which makes our initial
-	 * console probe fail. Therefore, if an XBox is found, we hardcode the
-	 * existence of the console, as it is always there anyway.
-	 */
-	if (arch_i386_is_xbox) {
-		*unit = 0;
-		*flags = SC_KERNEL_CONSOLE;
-		return (CN_INTERNAL);
-	}
-#endif
 
 	*unit = -1;
 	for (u = 0; u < 16; u++) {

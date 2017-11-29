@@ -90,6 +90,7 @@ struct bhndb_regwin {
 			bhnd_port_type	port_type;	/**< mapped port type */
 			u_int		port;		/**< mapped port number */
 			u_int		region;		/**< mapped region number */
+			bhnd_size_t	offset;		/**< mapped offset within the region */
 		} core;
 
 		/** SPROM register window (BHNDB_REGWIN_T_SPROM). */
@@ -107,12 +108,13 @@ struct bhndb_regwin {
 /**
  * Bridge hardware configuration.
  * 
- * Provides the bridge's register/address mappings, and the resources
- * via which those mappings may be accessed.
+ * Provides the bridge's DMA address translation descriptions, register/address
+ * mappings, and the resources via which those mappings may be accessed.
  */
 struct bhndb_hwcfg {
-	const struct resource_spec	*resource_specs;
-	const struct bhndb_regwin	*register_windows;
+	const struct resource_spec		*resource_specs;	/**< resources required by our register windows */
+	const struct bhndb_regwin		*register_windows;	/**< register window table */
+	const struct bhnd_dma_translation	*dma_translations;	/**< DMA address translation table, or NULL if DMA is not supported */
 };
 
 /**
@@ -149,6 +151,26 @@ typedef enum {
 } bhndb_priority_t;
 
 /**
+ * bhndb resource allocation flags.
+ */
+enum bhndb_alloc_flags {
+	/**
+	 * If resource overcommit prevents fulfilling a request for this
+	 * resource, an in-use resource should be be borrowed to fulfill the
+	 * request.
+	 * 
+	 * The only known use case is to support accessing the ChipCommon core
+	 * during Wi-Fi driver operation on early PCI Wi-Fi devices
+	 * (PCI_V0, SSB) that do not provide a dedicated ChipCommon register
+	 * window mapping; on such devices, device and firmware semantics
+	 * guarantee the safety of -- after disabling interrupts -- borrowing
+	 * the single dynamic register window that's been assigned to the D11
+	 * core to perform the few ChipCommon operations required by the driver.
+	 */
+	BHNDB_ALLOC_FULFILL_ON_OVERCOMMIT	= (1<<0),
+};
+
+/**
  * Port resource priority descriptor.
  */
 struct bhndb_port_priority {
@@ -156,6 +178,7 @@ struct bhndb_port_priority {
 	u_int			port;		/**< port */
 	u_int			region;		/**< region */
 	bhndb_priority_t	priority;	/**< port priority */
+	uint32_t		alloc_flags;	/**< port allocation flags (@see bhndb_alloc_flags) */
 };
 
 /**

@@ -40,7 +40,8 @@
  *	[offset+  size]	type	description
  * 	[0x0000+0x1000]	dynamic mapped backplane address space (window 0).
  * 	[0x1000+0x0800]	fixed	SPROM shadow
- * 	[0x1800+0x0800]	fixed	pci core registers
+ * 	[0x1800+0x0E00]	fixed	pci core device registers
+ *	[0x1E00+0x0200]	fixed	pci core siba config registers
  * 
  * == PCI_V1 ==
  * Applies to:
@@ -133,8 +134,11 @@
 #define	BHNDB_PCI_V0_BAR0_WIN0_SIZE	0x1000
 #define	BHNDB_PCI_V0_BAR0_SPROM_OFFSET	0x1000	/* bar0 + 4K accesses sprom shadow (in pci core) */
 #define BHNDB_PCI_V0_BAR0_SPROM_SIZE	0x0800
-#define	BHNDB_PCI_V0_BAR0_PCIREG_OFFSET	0x1800	/* bar0 + 6K accesses pci core registers */
-#define	BHNDB_PCI_V0_BAR0_PCIREG_SIZE	0x0800
+#define	BHNDB_PCI_V0_BAR0_PCIREG_OFFSET	0x1800	/* bar0 + 6K accesses pci core registers (not including SSB CFG registers) */
+#define	BHNDB_PCI_V0_BAR0_PCIREG_SIZE	0x0E00
+#define	BHNDB_PCI_V0_BAR0_PCISB_OFFSET	0x1E00	/* bar0 + 7.5K accesses pci core's SSB CFG register blocks */
+#define	BHNDB_PCI_V0_BAR0_PCISB_SIZE	0x0200
+#define	BHNDB_PCI_V0_BAR0_PCISB_COREOFF	0xE00	/* mapped offset relative to the core base address */
 
 /* PCI_V1 */
 #define	BHNDB_PCI_V1_BAR0_WIN0_CONTROL	0x80	/* backplane address space accessed by BAR0/WIN0 */
@@ -184,6 +188,7 @@
 
 /* BHNDB_PCI_INT_MASK */
 #define	BHNDB_PCI_SBIM_SHIFT		8	/* backplane core interrupt mask bits offset */
+#define	BHNDB_PCI_SBIM_COREIDX_MAX	15	/**< maximum representible core index (in 16 bit field) */
 #define	BHNDB_PCI_SBIM_MASK		0xff00	/* backplane core interrupt mask */
 #define	BHNDB_PCI_SBIM_MASK_SERR	0x4	/* backplane SBErr interrupt mask */
 

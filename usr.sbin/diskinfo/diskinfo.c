@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 Poul-Henning Kamp
  * Copyright (c) 2015 Spectra Logic Corporation
  * Copyright (c) 2017 Alexander Motin <mav@FreeBSD.org>
@@ -396,7 +398,7 @@ TS(u_int size, int count)
 
 	dt = delta_t();
 	printf("%8.1f usec/IO = %8.1f Mbytes/s\n",
-	    dt * 1000000.0 / count, size * count / dt / (1024 * 1024));
+	    dt * 1000000.0 / count, (double)size * count / dt / (1024 * 1024));
 }
 
 static void
@@ -644,22 +646,22 @@ parwrite(int fd, size_t size, off_t off)
 {
 	struct aiocb aios[MAXIOS];
 	off_t o;
-	size_t s;
 	int n, error;
 	struct aiocb *aiop;
 
-	for (n = 0, o = 0; size > MAXIO; n++, size -= s, o += s) {
-		s = (size >= MAXIO) ? MAXIO : size;
+	// if size > MAXIO, use AIO to write n - 1 pieces in parallel
+	for (n = 0, o = 0; size > MAXIO; n++, size -= MAXIO, o += MAXIO) {
 		aiop = &aios[n];
 		bzero(aiop, sizeof(*aiop));
 		aiop->aio_buf = &buf[o];
 		aiop->aio_fildes = fd;
 		aiop->aio_offset = off + o;
-		aiop->aio_nbytes = s;
+		aiop->aio_nbytes = MAXIO;
 		error = aio_write(aiop);
 		if (error != 0)
 			err(EX_IOERR, "AIO write submit error");
 	}
+	// Use synchronous writes for the runt of size <= MAXIO
 	error = pwrite(fd, &buf[o], size, off + o);
 	if (error < 0)
 		err(EX_IOERR, "Sync write error");

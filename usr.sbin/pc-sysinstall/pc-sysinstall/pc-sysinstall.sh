@@ -6,6 +6,8 @@
 #  system installations, as well as calls which a front-end can use
 #  to retrive information about the system
 #####################################################################
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
 # Copyright 2010 iXsystems
 # All rights reserved
 #

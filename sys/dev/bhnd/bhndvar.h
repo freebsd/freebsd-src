@@ -38,10 +38,7 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/queue.h>
-#include <sys/sx.h>
 
 #include "bhnd.h"
 
@@ -51,6 +48,17 @@
 
 MALLOC_DECLARE(M_BHND);
 DECLARE_CLASS(bhnd_driver);
+
+struct bhnd_core_clkctl;
+
+struct bhnd_core_clkctl		*bhnd_alloc_core_clkctl(device_t dev,
+				     device_t pmu_dev, struct bhnd_resource *r,
+				     bus_size_t offset, u_int max_latency);
+void				 bhnd_free_core_clkctl(
+				     struct bhnd_core_clkctl *clkctl);
+int				 bhnd_core_clkctl_wait(
+				     struct bhnd_core_clkctl *clkctl,
+				     uint32_t value, uint32_t mask);
 
 int				 bhnd_generic_attach(device_t dev);
 int				 bhnd_generic_detach(device_t dev);
@@ -65,6 +73,12 @@ int				 bhnd_generic_alloc_pmu(device_t dev,
 				     device_t child);
 int				 bhnd_generic_release_pmu(device_t dev,
 				     device_t child);
+int				 bhnd_generic_get_clock_latency(device_t dev,
+				     device_t child, bhnd_clock clock,
+				     u_int *latency);
+int				 bhnd_generic_get_clock_freq(device_t dev,
+				     device_t child, bhnd_clock clock,
+				     u_int *freq);
 int				 bhnd_generic_request_clock(device_t dev,
 				     device_t child, bhnd_clock clock);
 int				 bhnd_generic_enable_clocks(device_t dev,
@@ -85,6 +99,12 @@ int				 bhnd_generic_suspend_child(device_t dev,
 				     device_t child);
 int				 bhnd_generic_resume_child(device_t dev,
 				     device_t child);
+
+int				 bhnd_generic_setup_intr(device_t dev,
+				     device_t child, struct resource *irq,
+				     int flags, driver_filter_t *filter,
+				     driver_intr_t *intr, void *arg,
+				     void **cookiep);
 
 int				 bhnd_generic_get_nvram_var(device_t dev,
 				     device_t child, const char *name,

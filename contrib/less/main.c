@@ -115,8 +115,9 @@ main(argc, argv)
 	 * Command line arguments override environment arguments.
 	 */
 	is_tty = isatty(1);
-	get_term();
 	init_cmds();
+	get_term();
+	expand_cmd_tables();
 	init_charset();
 	init_line();
 	init_cmdhist();
@@ -191,7 +192,6 @@ main(argc, argv)
 		ifile = get_ifile(FAKE_HELPFILE, ifile);
 	while (argc-- > 0)
 	{
-		char *filename;
 #if (MSDOS_COMPILER && MSDOS_COMPILER != DJGPPC)
 		/*
 		 * Because the "shell" doesn't expand filename patterns,
@@ -200,25 +200,24 @@ main(argc, argv)
 		 * Expand the pattern and iterate over the expanded list.
 		 */
 		struct textlist tlist;
+		char *filename;
 		char *gfilename;
+		char *qfilename;
 		
 		gfilename = lglob(*argv++);
 		init_textlist(&tlist, gfilename);
 		filename = NULL;
 		while ((filename = forw_textlist(&tlist, filename)) != NULL)
 		{
-			(void) get_ifile(filename, ifile);
+			qfilename = shell_unquote(filename);
+			(void) get_ifile(qfilename, ifile);
+			free(qfilename);
 			ifile = prev_ifile(NULL_IFILE);
 		}
 		free(gfilename);
 #else
-		filename = shell_quote(*argv);
-		if (filename == NULL)
-			filename = *argv;
-		argv++;
-		(void) get_ifile(filename, ifile);
+		(void) get_ifile(*argv++, ifile);
 		ifile = prev_ifile(NULL_IFILE);
-		free(filename);
 #endif
 	}
 	/*
@@ -291,17 +290,11 @@ main(argc, argv)
 	{
 		if (edit_first())  /* Edit first valid file in cmd line */
 			quit(QUIT_ERROR);
-		/*
-		 * In case that we have only one file and -F, have to get a line
-		 * count fot init(). If the line count is less then a height of a term,
-		 * the content of the file is printed out and then less quits. Otherwise
-		 * -F can not be used
-		 */
 		if (quit_if_one_screen)
 		{
 			if (nifile() == 1)
 				line_count = get_line_count();
-			else /* In case more than one file, -F can not be used */
+			else /* If more than one file, -F can not be used */
 				quit_if_one_screen = FALSE;
 		}
 	}

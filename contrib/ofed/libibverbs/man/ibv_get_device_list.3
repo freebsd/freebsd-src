@@ -1,4 +1,5 @@
 .\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
 .\"
 .TH IBV_GET_DEVICE_LIST 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
 .SH "NAME"
@@ -50,6 +51,12 @@ Client code should open all the devices it intends to use with
 Once it frees the array with
 .B ibv_free_device_list()\fR,
 it will be able to use only the open devices; pointers to unopened devices will no longer be valid.
+.P
+Setting the environment variable
+.BR IBV_SHOW_WARNINGS
+will cause warnings to be emitted to stderr if a kernel verbs device
+is discovered, but no corresponding userspace driver can be found for
+it.
 .SH "SEE ALSO"
 .BR ibv_fork_init (3),
 .BR ibv_get_device_name (3),
@@ -57,4 +64,4 @@ it will be able to use only the open devices; pointers to unopened devices will 
 .BR ibv_open_device (3)
 .SH "AUTHORS"
 .TP
-Dotan Barak <dotanb@mellanox.co.il>
+Dotan Barak <dotanba@gmail.com>

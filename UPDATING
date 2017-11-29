@@ -51,7 +51,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
-201711xx:
+20171125:
+	PowerPC users must update loader(8) by rebuilding world before
+	installing a new kernel, as the protocol connecting them has
+	changed. Without the update, loader metadata will not be passed
+	successfully to the kernel and users will have to enter their
+	root partition at the kernel mountroot prompt to continue booting.
+	Newer versions of loader can boot old kernels without issue.
+
+20171110:
 	The LOADER_FIREWIRE_SUPPORT build variable as been renamed to
 	WITH/OUT_LOADER_FIREWIRE. LOADER_{NO_,}GELI_SUPPORT has been renamed
 	to WITH/OUT_LOADER_GELI.
@@ -66,7 +74,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 20171102:
 	Building in a FreeBSD src checkout will automatically create object
 	directories now rather than store files in the current directory if
-	'make obj' was not ran.  Calling 'make obj' is no longer necesarry.
+	'make obj' was not ran.  Calling 'make obj' is no longer necessary.
 	This feature can be disabled by setting WITHOUT_AUTO_OBJ=yes in
 	/etc/src-env.conf (not /etc/src.conf), or passing the option in the
 	environment.

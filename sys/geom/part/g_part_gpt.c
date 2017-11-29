@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002, 2005-2007, 2011 Marcel Moolenaar
  * All rights reserved.
  *
@@ -699,11 +701,11 @@ g_part_gpt_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 }
 
 static void
-g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry, 
+g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
     struct sbuf *sb, const char *indent)
 {
 	struct g_part_gpt_entry *entry;
- 
+
 	entry = (struct g_part_gpt_entry *)baseentry;
 	if (indent == NULL) {
 		/* conftxt: libdisk compatibility */
@@ -743,7 +745,7 @@ g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 }
 
 static int
-g_part_gpt_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)  
+g_part_gpt_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 {
 	struct g_part_gpt_entry *entry;
 
@@ -866,7 +868,7 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 	    &error);
 	if (buf == NULL)
 		return (error);
-	res = memcmp(buf, GPT_HDR_SIG, 8); 
+	res = memcmp(buf, GPT_HDR_SIG, 8);
 	g_free(buf);
 	return ((res == 0) ? pri : ENXIO);
 }
@@ -1108,13 +1110,13 @@ g_part_gpt_setunset(struct g_part_table *basetable,
 }
 
 static const char *
-g_part_gpt_type(struct g_part_table *basetable, struct g_part_entry *baseentry, 
+g_part_gpt_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {
 	struct g_part_gpt_entry *entry;
 	struct uuid *type;
 	struct g_part_uuid_alias *uap;
- 
+
 	entry = (struct g_part_gpt_entry *)baseentry;
 	type = &entry->ent.ent_type;
 	for (uap = &gpt_uuid_alias_match[0]; uap->uuid; uap++)

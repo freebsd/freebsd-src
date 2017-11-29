@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
  * Copyright (c) 1998 Matthew Dillon.  All Rights Reserved.
@@ -422,6 +424,29 @@ vm_page_domain_init(struct vm_domain *vmd)
 }
 
 /*
+ * Initialize a physical page in preparation for adding it to the free
+ * lists.
+ */
+static void
+vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind)
+{
+
+	m->object = NULL;
+	m->wire_count = 0;
+	m->busy_lock = VPB_UNBUSIED;
+	m->hold_count = 0;
+	m->flags = 0;
+	m->phys_addr = pa;
+	m->queue = PQ_NONE;
+	m->psind = 0;
+	m->segind = segind;
+	m->order = VM_NFREEORDER;
+	m->pool = VM_FREEPOOL_DEFAULT;
+	m->valid = m->dirty = 0;
+	pmap_page_init(m);
+}
+
+/*
  *	vm_page_startup:
  *
  *	Initializes the resident memory module.  Allocates physical memory for
@@ -668,8 +693,9 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_cnt.v_free_count = 0;
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
-		for (pa = seg->start; pa < seg->end; pa += PAGE_SIZE)
-			vm_phys_init_page(pa);
+		for (m = seg->first_page, pa = seg->start; pa < seg->end;
+		    m++, pa += PAGE_SIZE)
+			vm_page_init_page(m, pa, segind);
 
 		/*
 		 * Add the segment to the free lists only if it is covered by
@@ -1606,7 +1632,7 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex,
 	vm_policy_iterator_init(&vi);
 	wait = req & (VM_ALLOC_WAITFAIL | VM_ALLOC_WAITOK);
 	req &= ~wait;
-	while ((vm_domain_iterator_run(&vi, &domain)) == 0) {
+	while (vm_domain_iterator_run(&vi, &domain) == 0) {
 		if (vm_domain_iterator_isdone(&vi))
 			req |= wait;
 		m = vm_page_alloc_domain_after(object, pindex, domain, req,
@@ -1821,7 +1847,7 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 	vm_policy_iterator_init(&vi);
 	wait = req & (VM_ALLOC_WAITFAIL | VM_ALLOC_WAITOK);
 	req &= ~wait;
-	while ((vm_domain_iterator_run(&vi, &domain)) == 0) {
+	while (vm_domain_iterator_run(&vi, &domain) == 0) {
 		if (vm_domain_iterator_isdone(&vi))
 			req |= wait;
 		m = vm_page_alloc_contig_domain(object, pindex, domain, req,
@@ -2033,7 +2059,7 @@ vm_page_alloc_freelist(int flind, int req)
 	vm_policy_iterator_init(&vi);
 	wait = req & (VM_ALLOC_WAITFAIL | VM_ALLOC_WAITOK);
 	req &= ~wait;
-	while ((vm_domain_iterator_run(&vi, &domain)) == 0) {
+	while (vm_domain_iterator_run(&vi, &domain) == 0) {
 		if (vm_domain_iterator_isdone(&vi))
 			req |= wait;
 		m = vm_page_alloc_freelist_domain(domain, flind, req);
@@ -2146,8 +2172,10 @@ vm_page_scan_contig(u_long npages, vm_page_t m_start, vm_page_t m_end,
 	run_len = 0;
 	m_mtx = NULL;
 	for (m = m_start; m < m_end && run_len < npages; m += m_inc) {
-		KASSERT((m->flags & (PG_FICTITIOUS | PG_MARKER)) == 0,
-		    ("page %p is PG_FICTITIOUS or PG_MARKER", m));
+		KASSERT((m->flags & PG_MARKER) == 0,
+		    ("page %p is PG_MARKER", m));
+		KASSERT((m->flags & PG_FICTITIOUS) == 0 || m->wire_count == 1,
+		    ("fictitious page %p has invalid wire count", m));
 
 		/*
 		 * If the current page would be the start of a run, check its

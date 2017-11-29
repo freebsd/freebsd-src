@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/intr.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/rman.h>
@@ -54,7 +55,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/bhnd/bhndvar.h>
 #include <dev/bhnd/bhnd_ids.h>
 
+#include <dev/bhnd/cores/chipc/chipcreg.h>
+
 #include "bcm_machdep.h"
+#include "bcm_mipsvar.h"
 
 #include "bhnd_nexusvar.h"
 
@@ -149,28 +153,85 @@ bhnd_nexus_get_chipid(device_t dev, device_t child)
 }
 
 /**
- * Default bhnd_nexus implementation of BHND_BUS_GET_INTR_COUNT().
+ * Default bhnd_nexus implementation of BHND_BUS_MAP_INTR().
  */
 static int
-bhnd_nexus_get_intr_count(device_t dev, device_t child)
+bhnd_nexus_map_intr(device_t dev, device_t child, u_int intr, rman_res_t *irq)
 {
-	// TODO: arch-specific interrupt handling.
+	struct bcm_mips_intr_map_data	*imd;
+	u_int				 ivec;
+	uintptr_t			 xref;
+	int				 error;
+
+	/* Fetch the backplane interrupt vector */
+	if ((error = bhnd_get_intr_ivec(child, intr, &ivec))) {
+		device_printf(dev, "error fetching ivec for intr %u: %d\n",
+		    intr, error);
+		return (error);
+	}
+
+	/* Determine our interrupt domain */
+	xref = BHND_BUS_GET_INTR_DOMAIN(dev, child, false);
+	KASSERT(xref != 0, ("missing interrupt domain"));
+
+	/* Allocate our map data */
+	imd = (struct bcm_mips_intr_map_data *)intr_alloc_map_data(
+	    INTR_MAP_DATA_BCM_MIPS, sizeof(*imd), M_WAITOK | M_ZERO);
+	imd->ivec = ivec;
+
+	/* Map the IRQ */
+	*irq = intr_map_irq(NULL, xref, &imd->mdata);
 	return (0);
 }
 
 /**
- * Default bhnd_nexus implementation of BHND_BUS_ASSIGN_INTR().
+ * Default bhnd_nexus implementation of BHND_BUS_UNMAP_INTR().
+ */
+static void
+bhnd_nexus_unmap_intr(device_t dev, device_t child, rman_res_t irq)
+{
+	if (irq > UINT_MAX)
+		panic("invalid irq: %ju", (uintmax_t)irq);
+
+	intr_unmap_irq(irq);
+}
+
+/**
+ * Default bhnd_nexus implementation of BHND_BUS_GET_DMA_TRANSLATION().
  */
 static int
-bhnd_nexus_assign_intr(device_t dev, device_t child, int rid)
+bhnd_nexus_get_dma_translation(device_t dev, device_t child,
+    u_int width, uint32_t flags, bus_dma_tag_t *dmat,
+    struct bhnd_dma_translation *translation)
 {
-	uint32_t	ivec;
-	int		error;
+	struct bcm_platform *bp = bcm_get_platform();
 
-	if ((error = bhnd_get_core_ivec(child, rid, &ivec)))
-		return (error);
+	/* We don't (currently) support any flags */
+	if (flags != 0x0)
+		return (ENOENT);
 
-	return (bus_set_resource(child, SYS_RES_IRQ, rid, ivec, 1));
+	KASSERT(width > 0 && width <= BHND_DMA_ADDR_64BIT,
+	    ("invalid width %u", width));
+
+	if (width > BHND_DMA_ADDR_32BIT) {
+		/* Backplane must support 64-bit addressing */
+		if (!(bp->cc_caps & CHIPC_CAP_BKPLN64))
+			return (ENOENT);
+	}
+
+	/* No DMA address translation required */
+	if (dmat != NULL)
+		*dmat = bus_get_dma_tag(dev);
+
+	if (translation != NULL) {
+		*translation = (struct bhnd_dma_translation) {
+			.base_addr	= 0x0,
+			.addr_mask	= BHND_DMA_ADDR_BITMASK(width),
+			.addrext_mask	= 0
+		};
+	}
+
+	return (0);
 }
 
 static device_method_t bhnd_nexus_methods[] = {
@@ -185,8 +246,10 @@ static device_method_t bhnd_nexus_methods[] = {
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_nexus_is_hw_disabled),
 	DEVMETHOD(bhnd_bus_get_attach_type,	bhnd_nexus_get_attach_type),
 	DEVMETHOD(bhnd_bus_get_chipid,		bhnd_nexus_get_chipid),
-	DEVMETHOD(bhnd_bus_get_intr_count,	bhnd_nexus_get_intr_count),
-	DEVMETHOD(bhnd_bus_assign_intr,		bhnd_nexus_assign_intr),
+	DEVMETHOD(bhnd_bus_get_dma_translation,	bhnd_nexus_get_dma_translation),
+	DEVMETHOD(bhnd_bus_get_intr_domain,	bhnd_bus_generic_get_intr_domain),
+	DEVMETHOD(bhnd_bus_map_intr,		bhnd_nexus_map_intr),
+	DEVMETHOD(bhnd_bus_unmap_intr,		bhnd_nexus_unmap_intr),
 
 	DEVMETHOD_END
 };

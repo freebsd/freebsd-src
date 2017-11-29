@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 The FreeBSD Project
  * All rights reserved.
  *
@@ -503,6 +505,17 @@ kdb_reenter(void)
 
 	printf("KDB: reentering\n");
 	kdb_backtrace();
+	longjmp(kdb_jmpbufp, 1);
+	/* NOTREACHED */
+}
+
+void
+kdb_reenter_silent(void)
+{
+
+	if (!kdb_active || kdb_jmpbufp == NULL)
+		return;
+
 	longjmp(kdb_jmpbufp, 1);
 	/* NOTREACHED */
 }

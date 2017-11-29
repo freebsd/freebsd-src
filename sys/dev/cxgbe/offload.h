@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Chelsio Communications, Inc.
  * All rights reserved.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
@@ -151,7 +153,10 @@ struct tom_tunables {
 	int tx_align;
 	int tx_zcopy;
 };
-
+/* iWARP driver tunables */
+struct iw_tunables {
+	int wc_en;
+};
 #ifdef TCP_OFFLOAD
 int t4_register_uld(struct uld_info *);
 int t4_unregister_uld(struct uld_info *);

@@ -811,6 +811,47 @@ v489  3/30/17   Make -F not do init/deinit if file fits on one screen
                 (thanks to Jindrich Novy).
 v490  4/5/17    Switch to ANSI prototypes in funcs.h; remove "register".
 v491  4/7/17    Fix signed char bug.
+v492  4/21/17   Handle SIGTERM.
+v493  6/22/17   Fix bug initializing charset in MSDOS build.
+v494  6/26/17   Update Unicode tables; make Cf chars composing not binary.
+v495  7/3/17    Improve binary file detection (thanks to Bela Lubkin);
+                do -R filter when matching tags (thanks to Matthew Malcomson).
+v496  7/5/17    Add LESSRSCROLL marker.
+v497  7/5/17    Sync.
+v498  7/7/17    Fix early truncation of text if last char is double-width.
+v499  7/10/17   Misc fixes.
+v500  7/11/17   Fix bug where certain env variables couldn't be set in lesskey.
+v501  7/12/17   Make sure rscroll char is standout by default.
+v502  7/13/17   Control rscroll char via command line option not env variable.
+v503  7/13/17   Switch to git.
+v504  7/13/17   Call opt_rscroll at startup; change mkhelp.c to mkhelp.pl.
+v505  7/17/17   Add M and ESC-M commands; 
+                fix buffer handling with stdin and LESSOPEN.
+v506  7/17/17   On Windows, convert UTF-8 to multibyte if console is not UTF-8;
+                handle extended chars on input (thanks to Jason Hood).
+v507  7/18/17   Fix some bugs handling filenames containing shell metachars.
+v508  7/19/17   Fix bugs when using LESSOPEN to read stdin.
+v509  7/19/17   Fix another stdin bug.
+v510  7/20/17   Fix bug in determining when to reopen a file.
+v511  7/25/17   Fix bugs in recent MSDOS changes (thanks to Jason Hood).
+v512  7/26/17   Fix MSDOS build.
+v513  7/26/17   Fix switch to normal attr at end of line with -R and rscroll.
+v514  7/27/17   Fix bug in fcomplete when pattern does not match a file.
+v515  7/28/17   Allow 'u' in -D option on Windows.
+v516  7/29/17   Fix bug using LESSOPEN with filename containing metachars.
+v517  7/30/17   Status column shows matches even if hiliting is disabled via -G.
+v518  8/1/17    Use underline in sgr mode in MSDOS (thanks to Jason Hood).
+v519  8/10/17   Fix rscroll bug when last char of line starts coloration.
+v520  9/3/17    Fix compiler warning.
+v521  10/20/17  Fix binary file warning in UTF-8 files with SGI sequences.
+v522  10/20/17  Handle keypad ENTER key properly.
+v523  10/23/17  Cleanup.
+v524  10/24/17  Fix getcc bug.
+v525  10/24/17  Change M command to mark last displayed line.
+v526  10/25/17  Fix search hilite bug introduced in v517.
+v527  10/30/17  Fix search hilite bug on last page with -a.
+v528  11/3/17   Make second ESC-u clear status column.
+v529  11/12/17  Display Unicode formatting chars in hex if -U is set.
 */
 
-char version[] = "491";
+char version[] = "529";

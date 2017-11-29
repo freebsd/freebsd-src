@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2008 Isilon Systems, Inc.
  * Copyright (c) 2008 Ilya Maykov <ivmaykov@gmail.com>
  * Copyright (c) 1998 Berkeley Software Design, Inc.

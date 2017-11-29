@@ -808,7 +808,7 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 {
 	printf("%s:%s(%d): aarch64 not implemented\n", __FUNCTION__, __FILE__,
 	    __LINE__);
-	return (0);
+	return (-1);
 }
 #elif defined(__arm__)
 /* XXX */
@@ -818,7 +818,7 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 {
 	printf("%s:%s(%d): arm not implemented\n", __FUNCTION__, __FILE__,
 	    __LINE__);
-	return (0);
+	return (-1);
 }
 #elif defined(__mips__)
 /* XXX */
@@ -828,7 +828,7 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 {
 	printf("%s:%s(%d): MIPS not implemented\n", __FUNCTION__, __FILE__,
 	    __LINE__);
-	return (0);
+	return (-1);
 }
 #elif defined(__powerpc__)
 /* The sentinel is 'xor r3,r3,r3'. */
@@ -919,7 +919,7 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 {
 	printf("%s:%s(%d): RISC-V implementation required\n", __FUNCTION__,
 	    __FILE__, __LINE__);
-	return (0);
+	return (-1);
 }
 #elif defined(__sparc)
 
@@ -1416,8 +1416,15 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 				    "expected %s to be of type function", s));
 			}
 
-			len = snprintf(NULL, 0, dt_symfmt, dt_symprefix,
-			    objkey, s) + 1;
+			/*
+			 * Aliases of weak symbols don't get a uniquifier.
+			 */
+			if (GELF_ST_BIND(fsym.st_info) == STB_WEAK)
+				len = snprintf(NULL, 0, dt_weaksymfmt,
+				    dt_symprefix, s) + 1;
+			else
+				len = snprintf(NULL, 0, dt_symfmt, dt_symprefix,
+				    objkey, s) + 1;
 			if ((p = dt_alloc(dtp, len)) == NULL) {
 				dt_strtab_destroy(strtab);
 				goto err;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007 Stephan Uphoff <ups@FreeBSD.org>
  * All rights reserved.
  *
@@ -336,17 +338,10 @@ rm_wowned(const struct rmlock *rm)
 void
 rm_sysinit(void *arg)
 {
-	struct rm_args *args = arg;
+	struct rm_args *args;
 
-	rm_init(args->ra_rm, args->ra_desc);
-}
-
-void
-rm_sysinit_flags(void *arg)
-{
-	struct rm_args_flags *args = arg;
-
-	rm_init_flags(args->ra_rm, args->ra_desc, args->ra_opts);
+	args = arg;
+	rm_init_flags(args->ra_rm, args->ra_desc, args->ra_flags);
 }
 
 static int

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -571,7 +573,9 @@ hardclock_cnt(int cnt, int usermode)
 void
 hardclock_sync(int cpu)
 {
-	int	*t = DPCPU_ID_PTR(cpu, pcputicks);
+	int *t;
+	KASSERT(!CPU_ABSENT(cpu), ("Absent CPU %d", cpu));
+	t = DPCPU_ID_PTR(cpu, pcputicks);
 
 	*t = ticks;
 }

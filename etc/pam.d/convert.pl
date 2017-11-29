@@ -1,5 +1,7 @@
 #!/usr/bin/perl -w
 #-
+# SPDX-License-Identifier: BSD-3-Clause
+#
 # Copyright (c) 2001,2002 Networks Associates Technologies, Inc.
 # All rights reserved.
 #

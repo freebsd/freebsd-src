@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause AND BSD-2-Clause-NetBSDE
+ *
  * Copyright (c) KATO Takenori, 1999.
  *
  * All rights reserved.  Unpublished rights reserved under the copyright
@@ -101,9 +103,7 @@
 #include <machine/cpufunc.h>
 
 #ifndef __GNUCLIKE_ASM
-# ifndef lint
-#  error "no assembler code for your compiler"
-# endif
+#error "no assembler code for your compiler"
 #endif
 
 /*

@@ -1,6 +1,8 @@
 /*	$NetBSD: tmpfs_fifoops.c,v 1.5 2005/12/11 12:24:29 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2005 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -37,7 +39,6 @@
  __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/filedesc.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 

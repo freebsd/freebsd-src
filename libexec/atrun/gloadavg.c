@@ -1,6 +1,8 @@
-/* 
+/*-
  *  gloadavg.c - get load average for Linux
  *  Copyright (C) 1993  Thomas Koenig
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

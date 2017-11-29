@@ -582,7 +582,7 @@ amdvi_decode_evt_flag(uint16_t flag)
 {
 
 	flag &= AMDVI_EVENT_FLAG_MASK;
-	printf("0x%b]\n", flag,
+	printf(" 0x%b]\n", flag,
 		"\020"
 		"\001GN"
 		"\002NX"
@@ -692,7 +692,7 @@ amdvi_decode_evt(struct amdvi_event *evt)
 	case AMDVI_EVENT_ILLEGAL_CMD:
 		/* FALL THROUGH */
 	case AMDVI_EVENT_CMD_HW_ERROR:
-		printf("\t[%s EVT]", (evt->opcode == AMDVI_EVENT_ILLEGAL_CMD) ?
+		printf("\t[%s EVT]\n", (evt->opcode == AMDVI_EVENT_ILLEGAL_CMD) ?
 		    "ILLEGAL CMD" : "CMD HW ERR");
 		cmd = (struct amdvi_cmd *)PHYS_TO_DMAP(evt->addr);
 		printf("\tCMD opcode= 0x%x 0x%x 0x%x 0x%lx\n",
@@ -700,13 +700,14 @@ amdvi_decode_evt(struct amdvi_event *evt)
 		break;
 
 	case AMDVI_EVENT_IOTLB_TIMEOUT:
-		printf("\t[IOTLB_INV_TIMEOUT devid:0x%x addr:0x%lx",
+		printf("\t[IOTLB_INV_TIMEOUT devid:0x%x addr:0x%lx]\n",
 		    evt->devid, evt->addr);
 		break;
 
 	case AMDVI_EVENT_INVALID_DTE_REQ:
-		printf("\t[INV_DTE devid:0x%x addr:0x%lx",
-		    evt->devid, evt->addr);
+		printf("\t[INV_DTE devid:0x%x addr:0x%lx type:0x%x tr:%d]\n",
+		    evt->devid, evt->addr, evt->flag >> 9,
+		    (evt->flag >> 8) & 1);
 		break;
 
 	case AMDVI_EVENT_INVALID_PPR_REQ:
@@ -715,7 +716,7 @@ amdvi_decode_evt(struct amdvi_event *evt)
 		break;
 
 	default:
-		printf("Unsupported AMD-Vi event:%d", evt->opcode);
+		printf("Unsupported AMD-Vi event:%d\n", evt->opcode);
 	}
 }
 
@@ -988,15 +989,12 @@ amdvi_add_sysctl(struct amdvi_softc *softc)
 	    &softc->event_intr_cnt, "Event interrupt count");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "command_count", CTLFLAG_RD,
 	    &softc->total_cmd, "Command submitted count");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "pci_rid", CTLFLAG_RD,
-	    (int *)&softc->pci_rid, 0,
-	    "IOMMU RID");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "start_dev_rid", CTLFLAG_RD,
-	    (int *)&softc->start_dev_rid, 0,
-	    "Start of device under this IOMMU");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "end_dev_rid", CTLFLAG_RD,
-	    (int *)&softc->end_dev_rid, 0,
-	    "End of device under this IOMMU");
+	SYSCTL_ADD_U16(ctx, child, OID_AUTO, "pci_rid", CTLFLAG_RD,
+	    &softc->pci_rid, 0, "IOMMU RID");
+	SYSCTL_ADD_U16(ctx, child, OID_AUTO, "start_dev_rid", CTLFLAG_RD,
+	    &softc->start_dev_rid, 0, "Start of device under this IOMMU");
+	SYSCTL_ADD_U16(ctx, child, OID_AUTO, "end_dev_rid", CTLFLAG_RD,
+	    &softc->end_dev_rid, 0, "End of device under this IOMMU");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "command_head",
 	    CTLTYPE_UINT | CTLFLAG_RD, softc, 0,
 	    amdvi_handle_sysctl, "IU", "Command head");

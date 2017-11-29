@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Marcel Moolenaar
  * All rights reserved.
  *
@@ -281,13 +283,8 @@ cpudep_ap_setup()
 	vers = mfpvr() >> 16;
 
 	/* The following is needed for restoring from sleep. */
-#ifdef __powerpc64__
-	/* Writing to the time base register is hypervisor-privileged */
-	if (mfmsr() & PSL_HV)
-		mttb(0);
-#else
-	mttb(0);
-#endif
+	platform_smp_timebase_sync(0, 1);
+
 	switch(vers) {
 	case IBM970:
 	case IBM970FX:
@@ -378,6 +375,15 @@ cpudep_ap_setup()
 		reg = mpc74xx_l1d_enable();
 		reg = mpc74xx_l1i_enable();
 
+		break;
+	case IBMPOWER7:
+	case IBMPOWER7PLUS:
+	case IBMPOWER8:
+	case IBMPOWER8E:
+#ifdef __powerpc64__
+		if (mfmsr() & PSL_HV)
+			mtspr(SPR_LPCR, mfspr(SPR_LPCR) | LPCR_LPES);
+#endif
 		break;
 	default:
 #ifdef __powerpc64__

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001 Jake Burkholder.
  * Copyright (c) 1992 Terrence R. Lambert.
  * Copyright (c) 1982, 1987, 1990 The Regents of the University of California.
@@ -1007,9 +1009,6 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	 * header, it turns out that just always using TSO performs best.
 	 */
 	tf->tf_tstate = TSTATE_IE | TSTATE_PEF | TSTATE_MM_TSO;
-
-	td->td_retval[0] = tf->tf_out[0];
-	td->td_retval[1] = tf->tf_out[1];
 }
 
 int

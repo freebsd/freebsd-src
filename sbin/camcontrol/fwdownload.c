@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Sandvine Incorporated. All rights reserved.
  * Copyright (c) 2002-2011 Andre Albsmeier <andre@albsmeier.net>
  * All rights reserved.

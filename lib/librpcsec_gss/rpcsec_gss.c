@@ -26,6 +26,8 @@
  *	$FreeBSD$
  */
 /*
+  SPDX-License-Identifier: BSD-3-Clause
+
   auth_gss.c
 
   RPCSEC_GSS client routines.
