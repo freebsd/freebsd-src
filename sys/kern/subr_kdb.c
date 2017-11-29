@@ -250,7 +250,6 @@ kdb_reboot(void)
  * its arguments.  Its up to the caller to ensure that the state variable is
  * consistent.
  */
-
 #define	KEY_CR		13	/* CR '\r' */
 #define	KEY_TILDE	126	/* ~ */
 #define	KEY_CRTLB	2	/* ^B */
@@ -362,7 +361,6 @@ kdb_alt_break_gdb(int key, int *state)
  * is selected or the current debugger does not support backtraces, this
  * function silently returns.
  */
-
 void
 kdb_backtrace(void)
 {
@@ -410,7 +408,6 @@ kdb_backtrace_thread(struct thread *td)
 /*
  * Set/change the current backend.
  */
-
 int
 kdb_dbbe_select(const char *name)
 {
@@ -450,7 +447,6 @@ kdb_enter(const char *why, const char *msg)
 /*
  * Initialize the kernel debugger interface.
  */
-
 void
 kdb_init(void)
 {
@@ -485,7 +481,6 @@ kdb_init(void)
 /*
  * Handle contexts.
  */
-
 void *
 kdb_jmpbuf(jmp_buf new)
 {
@@ -521,9 +516,8 @@ kdb_reenter_silent(void)
 }
 
 /*
- * Thread related support functions.
+ * Thread-related support functions.
  */
-
 struct pcb *
 kdb_thr_ctx(struct thread *thr)
 {
@@ -617,7 +611,6 @@ kdb_thr_select(struct thread *thr)
 /*
  * Enter the debugger due to a trap.
  */
-
 int
 kdb_trap(int type, int code, struct trapframe *tf)
 {
