@@ -1047,7 +1047,7 @@ fetch_make_patchlist () {
 				continue
 			fi
 			echo "${X}|${Y}"
-		done | uniq
+		done | sort -u
 }
 
 # Print user-friendly progress statistics
