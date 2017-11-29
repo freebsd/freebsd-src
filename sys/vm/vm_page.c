@@ -1593,8 +1593,6 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
  *	VM_ALLOC_SBUSY		shared busy the allocated page
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
- *
- *	This routine may not sleep.
  */
 vm_page_t
 vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
@@ -1831,8 +1829,6 @@ again:
  *	VM_ALLOC_SBUSY		shared busy the allocated page
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
- *
- *	This routine may not sleep.
  */
 vm_page_t
 vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
@@ -2045,8 +2041,6 @@ vm_page_alloc_check(vm_page_t m)
  *				intends to allocate
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
- *
- *	This routine may not sleep.
  */
 vm_page_t
 vm_page_alloc_freelist(int flind, int req)
