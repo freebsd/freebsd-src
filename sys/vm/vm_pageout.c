@@ -647,7 +647,17 @@ vm_pageout_clean(vm_page_t m, int *numpagedout)
 			goto unlock_mp;
 		}
 		VM_OBJECT_WLOCK(object);
+
+		/*
+		 * Ensure that the object and vnode were not disassociated
+		 * while locks were dropped.
+		 */
+		if (vp->v_object != object) {
+			error = ENOENT;
+			goto unlock_all;
+		}
 		vm_page_lock(m);
+
 		/*
 		 * While the object and page were unlocked, the page
 		 * may have been:
