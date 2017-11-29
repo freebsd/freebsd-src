@@ -232,7 +232,7 @@ kmem_alloc_attr(vmem_t *vmem, vm_size_t size, int flags, vm_paddr_t low,
 	wait = flags & M_WAITOK;
 	flags &= ~M_WAITOK;
 	flags |= M_NOWAIT;
-	while ((vm_domain_iterator_run(&vi, &domain)) == 0) {
+	while (vm_domain_iterator_run(&vi, &domain) == 0) {
 		if (vm_domain_iterator_isdone(&vi) && wait) {
 			flags |= wait;
 			flags &= ~M_NOWAIT;
@@ -328,7 +328,7 @@ kmem_alloc_contig(struct vmem *vmem, vm_size_t size, int flags, vm_paddr_t low,
 	wait = flags & M_WAITOK;
 	flags &= ~M_WAITOK;
 	flags |= M_NOWAIT;
-	while ((vm_domain_iterator_run(&vi, &domain)) == 0) {
+	while (vm_domain_iterator_run(&vi, &domain) == 0) {
 		if (vm_domain_iterator_isdone(&vi) && wait) {
 			flags |= wait;
 			flags &= ~M_NOWAIT;
@@ -419,7 +419,7 @@ kmem_malloc(struct vmem *vmem, vm_size_t size, int flags)
 	wait = flags & M_WAITOK;
 	flags &= ~M_WAITOK;
 	flags |= M_NOWAIT;
-	while ((vm_domain_iterator_run(&vi, &domain)) == 0) {
+	while (vm_domain_iterator_run(&vi, &domain) == 0) {
 		if (vm_domain_iterator_isdone(&vi) && wait) {
 			flags |= wait;
 			flags &= ~M_NOWAIT;
@@ -504,7 +504,7 @@ kmem_back(vm_object_t object, vm_offset_t addr, vm_size_t size, int flags)
 	wait = flags & M_WAITOK;
 	flags &= ~M_WAITOK;
 	flags |= M_NOWAIT;
-	while ((vm_domain_iterator_run(&vi, &domain)) == 0) {
+	while (vm_domain_iterator_run(&vi, &domain) == 0) {
 		if (vm_domain_iterator_isdone(&vi) && wait) {
 			flags |= wait;
 			flags &= ~M_NOWAIT;
@@ -515,7 +515,7 @@ kmem_back(vm_object_t object, vm_offset_t addr, vm_size_t size, int flags)
 	}
 	vm_policy_iterator_finish(&vi);
 
-	return (addr);
+	return (ret);
 }
 
 /*
