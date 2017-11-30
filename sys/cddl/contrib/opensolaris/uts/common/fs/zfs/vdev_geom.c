@@ -851,35 +851,10 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	if (cp == NULL) {
 		ZFS_LOG(1, "Vdev %s not found.", vd->vdev_path);
 		error = ENOENT;
-	} else if (cp->provider->sectorsize > VDEV_PAD_SIZE ||
-	    !ISP2(cp->provider->sectorsize)) {
-		ZFS_LOG(1, "Provider %s has unsupported sectorsize.",
-		    cp->provider->name);
-
-		vdev_geom_close_locked(vd);
-		error = EINVAL;
-		cp = NULL;
-	} else if (cp->acw == 0 && (spa_mode(vd->vdev_spa) & FWRITE) != 0) {
-		int i;
-
-		for (i = 0; i < 5; i++) {
-			error = g_access(cp, 0, 1, 0);
-			if (error == 0)
-				break;
-			g_topology_unlock();
-			tsleep(vd, 0, "vdev", hz / 2);
-			g_topology_lock();
-		}
-		if (error != 0) {
-			printf("ZFS WARNING: Unable to open %s for writing (error=%d).\n",
-			    cp->provider->name, error);
-			vdev_geom_close_locked(vd);
-			cp = NULL;
-		}
-	}
-	if (cp != NULL) {
+	} else {
 		struct consumer_priv_t *priv;
 		struct consumer_vdev_elem *elem;
+		int spamode;
 
 		priv = (struct consumer_priv_t*)&cp->private;
 		if (cp->private == NULL)
@@ -887,6 +862,34 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 		elem = g_malloc(sizeof(*elem), M_WAITOK|M_ZERO);
 		elem->vd = vd;
 		SLIST_INSERT_HEAD(priv, elem, elems);
+
+		spamode = spa_mode(vd->vdev_spa);
+		if (cp->provider->sectorsize > VDEV_PAD_SIZE ||
+		    !ISP2(cp->provider->sectorsize)) {
+			ZFS_LOG(1, "Provider %s has unsupported sectorsize.",
+			    cp->provider->name);
+
+			vdev_geom_close_locked(vd);
+			error = EINVAL;
+			cp = NULL;
+		} else if (cp->acw == 0 && (spamode & FWRITE) != 0) {
+			int i;
+
+			for (i = 0; i < 5; i++) {
+				error = g_access(cp, 0, 1, 0);
+				if (error == 0)
+					break;
+				g_topology_unlock();
+				tsleep(vd, 0, "vdev", hz / 2);
+				g_topology_lock();
+			}
+			if (error != 0) {
+				printf("ZFS WARNING: Unable to open %s for writing (error=%d).\n",
+				    cp->provider->name, error);
+				vdev_geom_close_locked(vd);
+				cp = NULL;
+			}
+		}
 	}
 
 	/* Fetch initial physical path information for this device. */
