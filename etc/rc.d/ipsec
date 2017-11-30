@@ -6,7 +6,7 @@
 # PROVIDE: ipsec
 # REQUIRE: FILESYSTEMS
 # BEFORE:  DAEMON mountcritremote
-# KEYWORD: nojail
+# KEYWORD: nojailvnet
 
 . /etc/rc.subr
 
