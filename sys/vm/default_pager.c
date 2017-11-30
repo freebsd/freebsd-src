@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-4-Clause
  *
  * Copyright (c) 1995, David Greenman
  * All rights reserved.
