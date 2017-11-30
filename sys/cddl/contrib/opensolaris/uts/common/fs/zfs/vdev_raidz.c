@@ -2398,7 +2398,7 @@ vdev_raidz_io_done(zio_t *zio)
 				 */
 				if (parity_errors + parity_untried <
 				    rm->rm_firstdatacol ||
-				    (zio->io_flags & ZIO_FLAG_RESILVER)) {
+				    (zio->io_flags & (ZIO_FLAG_RESILVER | ZIO_FLAG_SCRUB))) {
 					n = raidz_parity_verify(zio, rm);
 					unexpected_errors += n;
 					ASSERT(parity_errors + n <=
@@ -2450,7 +2450,7 @@ vdev_raidz_io_done(zio_t *zio)
 				 * out to failed devices later.
 				 */
 				if (parity_errors < rm->rm_firstdatacol - n ||
-				    (zio->io_flags & ZIO_FLAG_RESILVER)) {
+				    (zio->io_flags & (ZIO_FLAG_RESILVER | ZIO_FLAG_SCRUB))) {
 					n = raidz_parity_verify(zio, rm);
 					unexpected_errors += n;
 					ASSERT(parity_errors + n <=
@@ -2552,7 +2552,8 @@ done:
 	zio_checksum_verified(zio);
 
 	if (zio->io_error == 0 && spa_writeable(zio->io_spa) &&
-	    (unexpected_errors || (zio->io_flags & ZIO_FLAG_RESILVER))) {
+	    (unexpected_errors ||
+	        (zio->io_flags & (ZIO_FLAG_RESILVER | ZIO_FLAG_SCRUB)))) {
 		/*
 		 * Use the good data we have in hand to repair damaged children.
 		 */
