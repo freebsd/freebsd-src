@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: Beerware
+ *
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <koshy@india.hp.com> wrote this file.  As long as you retain this notice you
