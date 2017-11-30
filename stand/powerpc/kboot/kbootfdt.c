@@ -119,7 +119,7 @@ fdt_linux_fixups(void *fdtp)
 
 	offset = fdt_path_offset(fdtp, "/ibm,opal");
 	if (offset > 0) {
-		uint64_t *base, *size;
+		const uint64_t *base, *size;
 		base = fdt_getprop(fdtp, offset, "opal-base-address",
 		    &len);
 		size = fdt_getprop(fdtp, offset, "opal-runtime-size",
@@ -130,7 +130,7 @@ fdt_linux_fixups(void *fdtp)
 	}
 	offset = fdt_path_offset(fdtp, "/rtas");
 	if (offset > 0) {
-		uint32_t *base, *size;
+		const uint32_t *base, *size;
 		base = fdt_getprop(fdtp, offset, "linux,rtas-base", &len);
 		size = fdt_getprop(fdtp, offset, "rtas-size", &len);
 		if (base != NULL && size != NULL)
