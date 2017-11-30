@@ -448,6 +448,17 @@ _bfd_XXi_swap_aouthdr_in (bfd * abfd,
   {
     int idx;
 
+    /* PR 17512: Corrupt PE binaries can cause seg-faults.  */
+    if (a->NumberOfRvaAndSizes > 16)
+      {
+       (*_bfd_error_handler)
+	  (_("%B: aout header specifies an invalid number of data-directory entries: %d"),
+	   abfd, a->NumberOfRvaAndSizes);
+	/* Paranoia: If the number is corrupt, then assume that the
+	   actual entries themselves might be corrupt as well.  */
+	a->NumberOfRvaAndSizes = 0;
+      }
+
     for (idx = 0; idx < 16; idx++)
       {
         /* If data directory is empty, rva also should be 0.  */
@@ -1426,6 +1437,15 @@ pe_print_edata (bfd * abfd, void * vfile)
 		   section->name);
 	  return TRUE;
 	}
+    }
+
+  /* PR 17512: Handle corrupt PE binaries.  */
+  if (datasize < 36)
+    {
+      fprintf (file,
+	       _("\nThere is an export table in %s, but it is too small (%d)\n"),
+	       section->name, (int) datasize);
+      return TRUE;
     }
 
   fprintf (file, _("\nThere is an export table in %s at 0x%lx\n"),
