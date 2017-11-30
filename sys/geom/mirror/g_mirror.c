@@ -71,6 +71,10 @@ SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, disconnect_on_failure, CTLFLAG_RWTUN,
 static u_int g_mirror_syncreqs = 2;
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_requests, CTLFLAG_RDTUN,
     &g_mirror_syncreqs, 0, "Parallel synchronization I/O requests.");
+static u_int g_mirror_sync_period = 5;
+SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_update_period, CTLFLAG_RWTUN,
+    &g_mirror_sync_period, 0,
+    "Metadata update period during synchroniztion, in seconds");
 
 #define	MSLEEP(ident, mtx, priority, wmesg, timeout)	do {		\
 	G_MIRROR_DEBUG(4, "%s: Sleeping %p.", __func__, (ident));	\
@@ -465,6 +469,7 @@ g_mirror_init_disk(struct g_mirror_softc *sc, struct g_provider *pp,
 	disk->d_sync.ds_consumer = NULL;
 	disk->d_sync.ds_offset = md->md_sync_offset;
 	disk->d_sync.ds_offset_done = md->md_sync_offset;
+	disk->d_sync.ds_update_ts = time_uptime;
 	disk->d_genid = md->md_genid;
 	disk->d_sync.ds_syncid = md->md_syncid;
 	if (errorp != NULL)
@@ -1459,10 +1464,11 @@ g_mirror_sync_request(struct bio *bp)
 			if (bp != NULL && bp->bio_offset < offset)
 				offset = bp->bio_offset;
 		}
-		if (sync->ds_offset_done + (MAXPHYS * 100) < offset) {
-			/* Update offset_done on every 100 blocks. */
+		if (g_mirror_sync_period > 0 &&
+		    time_uptime - sync->ds_update_ts > g_mirror_sync_period) {
 			sync->ds_offset_done = offset;
 			g_mirror_update_metadata(disk);
+			sync->ds_update_ts = time_uptime;
 		}
 		return;
 	    }
