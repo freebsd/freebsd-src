@@ -123,9 +123,13 @@ static int	hwpstate_get_info_from_acpi_perf(device_t dev, device_t perf_dev);
 static int	hwpstate_get_info_from_msr(device_t dev);
 static int	hwpstate_goto_pstate(device_t dev, int pstate_id);
 
-static int	hwpstate_verbose = 0;
+static int	hwpstate_verbose;
 SYSCTL_INT(_debug, OID_AUTO, hwpstate_verbose, CTLFLAG_RWTUN,
     &hwpstate_verbose, 0, "Debug hwpstate");
+
+static int	hwpstate_verify;
+SYSCTL_INT(_debug, OID_AUTO, hwpstate_verify, CTLFLAG_RWTUN,
+    &hwpstate_verify, 0, "Verify P-state after setting");
 
 static device_method_t hwpstate_methods[] = {
 	/* Device interface */
@@ -160,15 +164,13 @@ DRIVER_MODULE(hwpstate, cpu, hwpstate_driver, hwpstate_devclass, 0, 0);
  * Go to Px-state on all cpus considering the limit.
  */
 static int
-hwpstate_goto_pstate(device_t dev, int pstate)
+hwpstate_goto_pstate(device_t dev, int id)
 {
 	sbintime_t sbt;
 	int i;
 	uint64_t msr;
 	int j;
 	int limit;
-	int id = pstate;
-	int error;
 
 	/* get the current pstate limit */
 	msr = rdmsr(MSR_AMD_10H_11H_LIMIT);
@@ -176,47 +178,57 @@ hwpstate_goto_pstate(device_t dev, int pstate)
 	if (limit > id)
 		id = limit;
 
+	HWPSTATE_DEBUG(dev, "setting P%d-state on cpu%d\n", id,
+	    PCPU_GET(cpuid));
+	/* Go To Px-state */
+	wrmsr(MSR_AMD_10H_11H_CONTROL, id);
+
 	/*
 	 * We are going to the same Px-state on all cpus.
 	 * Probably should take _PSD into account.
 	 */
-	error = 0;
 	CPU_FOREACH(i) {
+		if (i == PCPU_GET(cpuid))
+			continue;
+
 		/* Bind to each cpu. */
 		thread_lock(curthread);
 		sched_bind(curthread, i);
 		thread_unlock(curthread);
-		HWPSTATE_DEBUG(dev, "setting P%d-state on cpu%d\n",
-		    id, PCPU_GET(cpuid));
+		HWPSTATE_DEBUG(dev, "setting P%d-state on cpu%d\n", id, i);
 		/* Go To Px-state */
 		wrmsr(MSR_AMD_10H_11H_CONTROL, id);
 	}
-	CPU_FOREACH(i) {
-		/* Bind to each cpu. */
-		thread_lock(curthread);
-		sched_bind(curthread, i);
-		thread_unlock(curthread);
-		/* wait loop (100*100 usec is enough ?) */
-		for (j = 0; j < 100; j++) {
-			/* get the result. not assure msr=id */
-			msr = rdmsr(MSR_AMD_10H_11H_STATUS);
-			if (msr == id)
-				break;
-			sbt = SBT_1MS / 10;
-			tsleep_sbt(dev, PZERO, "pstate_goto", sbt,
-			    sbt >> tc_precexp, 0);
-		}
-		HWPSTATE_DEBUG(dev, "result: P%d-state on cpu%d\n",
-		    (int)msr, PCPU_GET(cpuid));
-		if (msr != id) {
-			HWPSTATE_DEBUG(dev, "error: loop is not enough.\n");
-			error = ENXIO;
+
+	/*
+	 * Verify whether each core is in the requested P-state.
+	 */
+	if (hwpstate_verify) {
+		CPU_FOREACH(i) {
+			thread_lock(curthread);
+			sched_bind(curthread, i);
+			thread_unlock(curthread);
+			/* wait loop (100*100 usec is enough ?) */
+			for (j = 0; j < 100; j++) {
+				/* get the result. not assure msr=id */
+				msr = rdmsr(MSR_AMD_10H_11H_STATUS);
+				if (msr == id)
+					break;
+				sbt = SBT_1MS / 10;
+				tsleep_sbt(dev, PZERO, "pstate_goto", sbt,
+				    sbt >> tc_precexp, 0);
+			}
+			HWPSTATE_DEBUG(dev, "result: P%d-state on cpu%d\n",
+			    (int)msr, i);
+			if (msr != id) {
+				HWPSTATE_DEBUG(dev,
+				    "error: loop is not enough.\n");
+				return (ENXIO);
+			}
 		}
 	}
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
-	return (error);
+
+	return (0);
 }
 
 static int
