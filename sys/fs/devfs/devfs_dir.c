@@ -98,18 +98,19 @@ devfs_dir_ref(const char *dir)
 	if (*dir == '\0')
 		return;
 
+	dle_new = malloc(sizeof(*dle), M_DEVFS4, M_WAITOK);
+	dle_new->dir = strdup(dir, M_DEVFS4);
+	dle_new->refcnt = 1;
+
 	mtx_lock(&dirlist_mtx);
 	dle = devfs_dir_findent_locked(dir);
 	if (dle != NULL) {
 		dle->refcnt++;
 		mtx_unlock(&dirlist_mtx);
+		free(dle_new->dir, M_DEVFS4);
+		free(dle_new, M_DEVFS4);
 		return;
 	}
-
-	dle_new = malloc(sizeof(*dle), M_DEVFS4, M_WAITOK);
-	dle_new->dir = strdup(dir, M_DEVFS4);
-	dle_new->refcnt = 1;
-
 	LIST_INSERT_HEAD(&devfs_dirlist, dle_new, link);
 	mtx_unlock(&dirlist_mtx);
 }
