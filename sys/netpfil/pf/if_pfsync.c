@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND MIT
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND ISC)
  *
  * Copyright (c) 2002 Michael Shalayeff
  * Copyright (c) 2012 Gleb Smirnoff <glebius@FreeBSD.org>

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: 0BSD
  *
  * Copyright (c) 1995 Ugen J.S.Antsilevich
  *
