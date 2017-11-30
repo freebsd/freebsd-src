@@ -77,6 +77,7 @@ struct procctl_reaper_pidinfo {
 
 #define	REAPER_PIDINFO_VALID	0x00000001
 #define	REAPER_PIDINFO_CHILD	0x00000002
+#define	REAPER_PIDINFO_REAPER	0x00000004
 
 struct procctl_reaper_pids {
 	u_int	rp_count;

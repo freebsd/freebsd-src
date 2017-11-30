@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2015
+.Dd November 21, 2017
 .Dt PROCCTL 2
 .Os
 .Sh NAME
@@ -211,7 +211,7 @@ of the process.
 The
 .Fa pi_flags
 field returns the following flags, further describing the descendant:
-.Bl -tag -width "Dv REAPER_PIDINFO_VALID"
+.Bl -tag -width "Dv REAPER_PIDINFO_REAPER"
 .It Dv REAPER_PIDINFO_VALID
 Set to indicate that the
 .Vt procctl_reaper_pidinfo
@@ -226,6 +226,9 @@ of the returned array.
 The
 .Fa pi_pid
 field identifies the direct child of the reaper.
+.It Dv REAPER_PIDINFO_REAPER
+The reported process is itself a reaper.
+The descendants of the subordinate reaper are not reported.
 .El
 .It Dv PROC_REAP_KILL
 Request to deliver a signal to some subset of the descendants of the reaper.
