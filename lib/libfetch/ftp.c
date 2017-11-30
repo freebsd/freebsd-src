@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
+ * SPDX-License-Identifier: (BSD-3-Clause AND Beerware)
  *
  * Copyright (c) 1998-2011 Dag-Erling Smørgrav
  * All rights reserved.
