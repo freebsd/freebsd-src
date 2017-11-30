@@ -4,7 +4,7 @@
 /*-
  * SVID compatible msg.h file
  *
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: 0BSD
  *
  * Author:  Daniel Boulet
  *
