@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
+ * SPDX-License-Identifier: (BSD-4-Clause AND MIT-CMU)
  *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.

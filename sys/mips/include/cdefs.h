@@ -1,6 +1,8 @@
 /*	$NetBSD: cdefs.h,v 1.12 2006/08/27 19:04:30 matt Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: MIT-CMU
+ *
  * Copyright (c) 1995 Carnegie-Mellon University.
  * All rights reserved.
  *
