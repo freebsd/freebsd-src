@@ -167,10 +167,8 @@ static int
 hwpstate_goto_pstate(device_t dev, int id)
 {
 	sbintime_t sbt;
-	int i;
 	uint64_t msr;
-	int j;
-	int limit;
+	int cpu, i, j, limit;
 
 	/* get the current pstate limit */
 	msr = rdmsr(MSR_AMD_10H_11H_LIMIT);
@@ -178,8 +176,8 @@ hwpstate_goto_pstate(device_t dev, int id)
 	if (limit > id)
 		id = limit;
 
-	HWPSTATE_DEBUG(dev, "setting P%d-state on cpu%d\n", id,
-	    PCPU_GET(cpuid));
+	cpu = curcpu;
+	HWPSTATE_DEBUG(dev, "setting P%d-state on cpu%d\n", id, cpu);
 	/* Go To Px-state */
 	wrmsr(MSR_AMD_10H_11H_CONTROL, id);
 
@@ -188,7 +186,7 @@ hwpstate_goto_pstate(device_t dev, int id)
 	 * Probably should take _PSD into account.
 	 */
 	CPU_FOREACH(i) {
-		if (i == PCPU_GET(cpuid))
+		if (i == cpu)
 			continue;
 
 		/* Bind to each cpu. */
