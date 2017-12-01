@@ -105,7 +105,7 @@ static void
 verify_bkpt(struct proc_handle *phdl, GElf_Sym *sym, const char *symname,
     const char *mapname)
 {
-	char mapbname[MAXPATHLEN], *name;
+	char *name, *mapname_copy, *mapbname;
 	GElf_Sym tsym;
 	prmap_t *map;
 	size_t namesz;
@@ -147,9 +147,11 @@ verify_bkpt(struct proc_handle *phdl, GElf_Sym *sym, const char *symname,
 	map = proc_addr2map(phdl, addr);
 	ATF_REQUIRE_MSG(map != NULL, "failed to look up map for address 0x%lx",
 	    addr);
-	basename_r(map->pr_mapname, mapbname);
+	mapname_copy = strdup(map->pr_mapname);
+	mapbname = basename(mapname_copy);
 	ATF_REQUIRE_EQ_MSG(strcmp(mapname, mapbname), 0,
 	    "expected map name '%s' doesn't match '%s'", mapname, mapbname);
+	free(mapname_copy);
 }
 
 ATF_TC(map_alias_name2map);
