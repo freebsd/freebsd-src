@@ -3912,6 +3912,7 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		CTX_UNLOCK(ctx);
 		/* falls thru */
 	case SIOCGIFMEDIA:
+	case SIOCGIFXMEDIA:
 		err = ifmedia_ioctl(ifp, ifr, &ctx->ifc_media, command);
 		break;
 	case SIOCGI2C:
