@@ -28,7 +28,7 @@
 .\"     @(#)kill.2	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd March 15, 2012
+.Dd December 1, 2017
 .Dt KILL 2
 .Os
 .Sh NAME
@@ -150,7 +150,11 @@ The
 system call is expected to conform to
 .St -p1003.1-90 .
 .Sh HISTORY
-The
+A version of the
 .Fn kill
 function appeared in
-.At v7 .
+.At v3 .
+The signal number was added to the
+.Fn kill
+function in
+.At v4 .
