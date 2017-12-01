@@ -3375,7 +3375,6 @@ uma_large_free(uma_slab_t slab)
 	    ("uma_large_free:  Memory not allocated with uma_large_malloc."));
 	kmem_free(kernel_arena, (vm_offset_t)slab->us_data, slab->us_size);
 	uma_total_dec(slab->us_size);
-	uma_total_dec(slab->us_size);
 	zone_free_item(slabzone, slab, NULL, SKIP_NONE);
 }
 
