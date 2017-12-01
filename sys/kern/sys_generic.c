@@ -1884,6 +1884,8 @@ seltdfini(struct thread *td)
 	if (stp->st_free2)
 		uma_zfree(selfd_zone, stp->st_free2);
 	td->td_sel = NULL;
+	cv_destroy(&stp->st_wait);
+	mtx_destroy(&stp->st_mtx);
 	free(stp, M_SELECT);
 }
 
