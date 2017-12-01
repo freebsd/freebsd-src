@@ -2568,7 +2568,7 @@ CTASSERT(powerof2(NRUNS));
  *	must be a power of two.
  */
 bool
-vm_page_reclaim_contig_domain(int req, u_long npages, int domain,
+vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
     vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
 {
 	vm_paddr_t curr_low;
@@ -2662,7 +2662,7 @@ vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
 	ret = false;
 	vm_policy_iterator_init(&vi);
 	while ((vm_domain_iterator_run(&vi, &domain)) == 0) {
-		ret = vm_page_reclaim_contig_domain(req, npages, domain, low,
+		ret = vm_page_reclaim_contig_domain(domain, req, npages, low,
 		    high, alignment, boundary);
 		if (ret)
 			break;

@@ -192,8 +192,8 @@ retry:
 		if (m == NULL) {
 			VM_OBJECT_WUNLOCK(object);
 			if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-				if (!vm_page_reclaim_contig_domain(pflags, 1,
-				    domain, low, high, PAGE_SIZE, 0) &&
+				if (!vm_page_reclaim_contig_domain(domain,
+				    pflags, 1, low, high, PAGE_SIZE, 0) &&
 				    (flags & M_WAITOK) != 0)
 					VM_WAIT;
 				VM_OBJECT_WLOCK(object);
@@ -284,8 +284,8 @@ retry:
 	if (m == NULL) {
 		VM_OBJECT_WUNLOCK(object);
 		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-			if (!vm_page_reclaim_contig_domain(pflags, npages,
-			    domain, low, high, alignment, boundary) &&
+			if (!vm_page_reclaim_contig_domain(domain, pflags,
+			    npages, low, high, alignment, boundary) &&
 			    (flags & M_WAITOK) != 0)
 				VM_WAIT;
 			VM_OBJECT_WLOCK(object);
@@ -538,7 +538,7 @@ _kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	    ("kmem_unback: only supports kernel object."));
 
 	if (size == 0)
-		return 0;
+		return (0);
 	pmap_remove(kernel_pmap, addr, addr + size);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	end = offset + size;
@@ -552,7 +552,7 @@ _kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	}
 	VM_OBJECT_WUNLOCK(object);
 
-	return domain;
+	return (domain);
 }
 
 void

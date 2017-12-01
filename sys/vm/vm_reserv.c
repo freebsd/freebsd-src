@@ -549,6 +549,8 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
 	    VM_LEVEL_0_SIZE), boundary > VM_LEVEL_0_SIZE ? boundary : 0);
 	if (m == NULL)
 		return (NULL);
+	KASSERT(vm_phys_domidx(m) == domain,
+	    ("vm_reserv_alloc_contig: Page domain does not match requested."));
 
 	/*
 	 * The allocated physical pages always begin at a reservation
@@ -568,7 +570,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
 		LIST_INSERT_HEAD(&object->rvq, rv, objq);
 		rv->object = object;
 		rv->pindex = first;
-		rv->domain = vm_phys_domidx(m);
+		rv->domain = domain;
 		KASSERT(rv->popcnt == 0,
 		    ("vm_reserv_alloc_contig: reserv %p's popcnt is corrupted",
 		    rv));
