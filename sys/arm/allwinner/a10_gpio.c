@@ -203,6 +203,11 @@ struct a10_gpio_softc {
 #define	A10_GPIO_GP_INT_STA		0x214
 #define	A10_GPIO_GP_INT_DEB		0x218
 
+static char *a10_gpio_parse_function(phandle_t node);
+static const char **a10_gpio_parse_pins(phandle_t node, int *pins_nb);
+static uint32_t a10_gpio_parse_bias(phandle_t node);
+static int a10_gpio_parse_drive_strength(phandle_t node, uint32_t *drive);
+
 static int a10_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *value);
 static int a10_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value);
 static int a10_gpio_pin_get_locked(struct a10_gpio_softc *sc, uint32_t pin, unsigned int *value);
@@ -278,6 +283,9 @@ a10_gpio_set_pud(struct a10_gpio_softc *sc, uint32_t pin, uint32_t state)
 {
 	uint32_t bank, offset, val;
 
+	if (a10_gpio_get_pud(sc, pin) == state)
+		return;
+
 	/* Must be called with lock held. */
 	A10_GPIO_LOCK_ASSERT(sc);
 
@@ -312,6 +320,9 @@ static void
 a10_gpio_set_drv(struct a10_gpio_softc *sc, uint32_t pin, uint32_t drive)
 {
 	uint32_t bank, offset, val;
+
+	if (a10_gpio_get_drv(sc, pin) == drive)
+		return;
 
 	/* Must be called with lock held. */
 	A10_GPIO_LOCK_ASSERT(sc);
@@ -541,6 +552,75 @@ a10_gpio_pin_get_locked(struct a10_gpio_softc *sc,uint32_t pin,
 	return (0);
 }
 
+static char *
+a10_gpio_parse_function(phandle_t node)
+{
+	char *function;
+
+	if (OF_getprop_alloc(node, "function", sizeof(*function),
+	    (void **)&function) != -1)
+		return (function);
+	if (OF_getprop_alloc(node, "allwinner,function", sizeof(*function),
+	    (void **)&function) != -1)
+		return (function);
+
+	return (NULL);
+}
+
+static const char **
+a10_gpio_parse_pins(phandle_t node, int *pins_nb)
+{
+	const char **pinlist;
+
+	*pins_nb = ofw_bus_string_list_to_array(node, "pins", &pinlist);
+	if (*pins_nb > 0)
+		return (pinlist);
+
+	*pins_nb = ofw_bus_string_list_to_array(node, "allwinner,pins",
+	    &pinlist);
+	if (*pins_nb > 0)
+		return (pinlist);
+
+	return (NULL);
+}
+
+static uint32_t
+a10_gpio_parse_bias(phandle_t node)
+{
+	uint32_t bias;
+
+	if (OF_getencprop(node, "pull", &bias, sizeof(bias)) != -1)
+		return (bias);
+	if (OF_getencprop(node, "allwinner,pull", &bias, sizeof(bias)) != -1)
+		return (bias);
+	if (OF_hasprop(node, "bias-disable"))
+		return (A10_GPIO_NONE);
+	if (OF_hasprop(node, "bias-pull-up"))
+		return (A10_GPIO_PULLUP);
+	if (OF_hasprop(node, "bias-pull-down"))
+		return (A10_GPIO_PULLDOWN);
+
+	return (A10_GPIO_NONE);
+}
+
+static int
+a10_gpio_parse_drive_strength(phandle_t node, uint32_t *drive)
+{
+	uint32_t drive_str;
+
+	if (OF_getencprop(node, "drive", drive, sizeof(*drive)) != -1)
+		return (0);
+	if (OF_getencprop(node, "allwinner,drive", drive, sizeof(*drive)) != -1)
+		return (0);
+	if (OF_getencprop(node, "drive-strength", &drive_str,
+	    sizeof(drive_str)) != -1) {
+		*drive = (drive_str / 10) - 1;
+		return (0);
+	}
+
+	return (1);
+}
+
 static int
 a10_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 {
@@ -682,45 +762,28 @@ aw_fdt_configure_pins(device_t dev, phandle_t cfgxref)
 	char *pin_function = NULL;
 	uint32_t pin_drive, pin_pull;
 	int pins_nb, pin_num, pin_func, i, ret;
+	bool set_drive;
 
 	sc = device_get_softc(dev);
 	node = OF_node_from_xref(cfgxref);
 	ret = 0;
+	set_drive = false;
 
 	/* Getting all prop for configuring pins */
-	pins_nb = ofw_bus_string_list_to_array(node, "pins", &pinlist);
-	if (pins_nb <= 0) {
-		pins_nb = ofw_bus_string_list_to_array(node, "allwinner,pins",
-		    &pinlist);
-		if (pins_nb <= 0)
-			return (ENOENT);
+	pinlist = a10_gpio_parse_pins(node, &pins_nb);
+	if (pinlist == NULL)
+		return (ENOENT);
+
+	pin_function = a10_gpio_parse_function(node);
+	if (pin_function == NULL) {
+		ret = ENOENT;
+		goto out;
 	}
-	if (OF_getprop_alloc(node, "function",
-			     sizeof(*pin_function),
-			     (void **)&pin_function) == -1) {
-		if (OF_getprop_alloc(node, "allwinner,function",
-		    sizeof(*pin_function),
-		    (void **)&pin_function) == -1) {
-			ret = ENOENT;
-			goto out;
-		}
-	}
-	if (OF_getencprop(node, "drive",
-			  &pin_drive, sizeof(pin_drive)) == -1) {
-		if (OF_getencprop(node, "allwinner,drive",
-		    &pin_drive, sizeof(pin_drive)) == -1) {
-			ret = ENOENT;
-			goto out;
-		}
-	}
-	if (OF_getencprop(node, "pull",
-			  &pin_pull, sizeof(pin_pull)) == -1) {
-		if (OF_getencprop(node, "allwinner,pull",
-		    &pin_pull, sizeof(pin_pull)) == -1) {
-			ret = ENOENT;
-			goto out;
-		}
-	}
+
+	if (a10_gpio_parse_drive_strength(node, &pin_drive) == 0)
+		set_drive = true;
+
+	pin_pull = a10_gpio_parse_bias(node);
 
 	/* Configure each pin to the correct function, drive and pull */
 	for (i = 0; i < pins_nb; i++) {
@@ -739,12 +802,11 @@ aw_fdt_configure_pins(device_t dev, phandle_t cfgxref)
 
 		if (a10_gpio_get_function(sc, pin_num) != pin_func)
 			a10_gpio_set_function(sc, pin_num, pin_func);
-		if (a10_gpio_get_drv(sc, pin_num) != pin_drive)
+		if (set_drive)
 			a10_gpio_set_drv(sc, pin_num, pin_drive);
-		if (a10_gpio_get_pud(sc, pin_num) != pin_pull &&
-			(pin_pull == A10_GPIO_PULLUP ||
-			    pin_pull == A10_GPIO_PULLDOWN))
+		if (pin_pull != A10_GPIO_NONE)
 			a10_gpio_set_pud(sc, pin_num, pin_pull);
+
 		A10_GPIO_UNLOCK(sc);
 	}
 
