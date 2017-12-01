@@ -50,6 +50,8 @@ SRCS+=  bcache.c
 .if defined(MD_IMAGE_SIZE)
 CFLAGS+= -DMD_IMAGE_SIZE=${MD_IMAGE_SIZE}
 SRCS+=	md.c
+.else
+CLEANFILES+=	md.o
 .endif
 
 # Machine-independant ISA PnP
