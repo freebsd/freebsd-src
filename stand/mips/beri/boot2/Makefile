@@ -47,9 +47,7 @@ MAN=
 
 AFLAGS=		-G0
 
-CFLAGS+=	-I${.CURDIR}			\
-		-I${LDRSRC}			\
-		-D_KERNEL			\
+CFLAGS+=	-I${LDRSRC}			\
 		-Wall				\
 		-G0 				\
 		-fno-pic -mno-abicalls		\
