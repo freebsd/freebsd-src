@@ -3,9 +3,10 @@
 .PATH: ${SRCTOP}/sys/dev/bwn
 
 KMOD=	if_bwn_pci
-SRCS=	if_bwn_pci.c bwn_mac.c
+SRCS=	if_bwn_pci.c
+
 SRCS+=	bhnd_bus_if.h bhndb_bus_if.h \
-	bhndb_if.h bhnd_nvram_map.h
+	bhndb_if.h
 SRCS+=	device_if.h bus_if.h pci_if.h \
 	opt_bwn.h opt_wlan.h opt_global.h
 

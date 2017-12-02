@@ -34,9 +34,15 @@
 #ifndef _IF_BWNVAR_H
 #define	_IF_BWNVAR_H
 
-struct siba_dev_softc;
+#include "if_bwn_siba.h"
+
 struct bwn_softc;
 struct bwn_mac;
+
+extern driver_t bwn_driver;
+
+int	bwn_attach(device_t dev);
+int	bwn_detach(device_t dev);
 
 #define	N(a)			(sizeof(a) / sizeof(a[0]))
 #define	BWN_ALIGN			0x1000
@@ -1005,6 +1011,12 @@ struct bwn_vap {
 
 struct bwn_softc {
 	device_t			sc_dev;
+	const struct bwn_bus_ops	*sc_bus_ops;
+#if !BWN_USE_SIBA
+	void				*sc_bus_ctx;
+	struct bhnd_resource		*sc_mem_res;
+	int				 sc_mem_rid;
+#endif /* !BWN_USE_SIBA */
 	struct mtx			sc_mtx;
 	struct ieee80211com		sc_ic;
 	struct mbufq			sc_snd;
@@ -1152,14 +1164,4 @@ bwn_get_chan_power(struct bwn_mac *mac, struct ieee80211_channel *c)
 	return c->ic_maxpower / 2;
 }
 
-/*
- * For now there's no bhnd bus support.  Places where it matters
- * should call this routine so we can start logging things.
- */
-static inline int
-bwn_is_bus_siba(struct bwn_mac *mac)
-{
-
-	return 1;
-}
 #endif	/* !_IF_BWNVAR_H */
