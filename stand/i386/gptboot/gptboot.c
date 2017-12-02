@@ -32,6 +32,10 @@ __FBSDID("$FreeBSD$");
 
 #include <btxv86.h>
 
+/* Forward declared to avoid warnings -- these shouldn't be needed */
+int strcasecmp(const char *s1, const char *s2);
+void explicit_bzero(void *b, size_t len);
+
 #include "bootargs.h"
 #include "lib.h"
 #include "rbx.h"
@@ -254,7 +258,7 @@ gptinit(void)
 #ifdef LOADER_GELI_SUPPORT
 	if (geli_taste(vdev_read, &dsk, (gpttable[curent].ent_lba_end -
 	    gpttable[curent].ent_lba_start)) == 0) {
-		if (geli_havekey(&dsk) != 0 && geli_passphrase(&gelipw,
+		if (geli_havekey(&dsk) != 0 && geli_passphrase(gelipw,
 		    dsk.unit, 'p', curent + 1, &dsk) != 0) {
 			printf("%s: unable to decrypt GELI key\n", BOOTPROG);
 			return (-1);
@@ -265,6 +269,8 @@ gptinit(void)
 	dsk_meta = 0;
 	return (0);
 }
+
+int main(void);
 
 int
 main(void)
