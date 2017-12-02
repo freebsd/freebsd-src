@@ -3,12 +3,13 @@
 .include <bsd.compiler.mk>
 
 # armv[67] is a bit special since we allow a soft-floating version via
-# CPUTYPE matching *soft*. This variant is may not actually work though.
+# CPUTYPE matching *soft*. This variant may not actually work though.
 .if ${MACHINE_ARCH:Marmv[67]*} != "" && \
     (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
-CRTARCH=	armhf
-.endif
+CRTARCH?=	armhf
+.else
 CRTARCH?=	${MACHINE_CPUARCH:C/amd64/x86_64/}
+.endif
 CRTSRC=		${SRCTOP}/contrib/compiler-rt
 
 .PATH:		${CRTSRC}/lib
