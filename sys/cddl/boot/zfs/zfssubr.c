@@ -250,7 +250,7 @@ zio_checksum_template_init(enum zio_checksum checksum, spa_t *spa)
  * all of the checksum context templates and deallocates any that were
  * initialized using the algorithm-specific template init function.
  */
-void
+static void
 zio_checksum_templates_free(spa_t *spa)
 {
 	for (enum zio_checksum checksum = 0;

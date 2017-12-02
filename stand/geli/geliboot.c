@@ -222,7 +222,7 @@ geli_taste(int read_func(void *vdev, void *priv, off_t off, void *buf,
  */
 static int
 geli_attach(struct geli_entry *ge, struct dsk *dskp, const char *passphrase,
-    const u_char *mkeyp)
+    u_char *mkeyp)
 {
 	u_char key[G_ELI_USERKEYLEN], mkey[G_ELI_DATAIVKEYLEN], *mkp;
 	u_int keynum;
@@ -248,7 +248,7 @@ geli_attach(struct geli_entry *ge, struct dsk *dskp, const char *passphrase,
 	} else if (geli_e->md.md_iterations == 0) {
 		g_eli_crypto_hmac_update(&ctx, geli_e->md.md_salt,
 		    sizeof(geli_e->md.md_salt));
-		g_eli_crypto_hmac_update(&ctx, passphrase,
+		g_eli_crypto_hmac_update(&ctx, (const uint8_t *)passphrase,
 		    strlen(passphrase));
 	} else if (geli_e->md.md_iterations > 0) {
 		printf("Calculating GELI Decryption Key disk%dp%d @ %d"
@@ -294,7 +294,7 @@ found_key:
 		/*
 		 * The encryption key is: ekey = HMAC_SHA512(Data-Key, 0x10)
 		 */
-		g_eli_crypto_hmac(mkp, G_ELI_MAXKEYLEN, "\x10", 1,
+		g_eli_crypto_hmac(mkp, G_ELI_MAXKEYLEN, (const uint8_t *)"\x10", 1,
 		    geli_e->sc.sc_ekey, 0);
 	}
 	explicit_bzero(mkey, sizeof(mkey));

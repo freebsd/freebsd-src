@@ -12,8 +12,6 @@ INTERNALLIB=
 MK_PROFILE=	no
 NO_PIC=
 
-WARNS?=		0
-
 # Our password input method
 SRCS+=  pwgets.c
 
