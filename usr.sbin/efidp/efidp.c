@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#define MAXSIZE 65536	/* Everyting will be smaller than this, most 1000x smaller */
+
 /* options descriptor */
 static struct option longopts[] = {
 	{ "format",		no_argument,		NULL,	'f' },
@@ -63,18 +65,16 @@ read_file(int fd, void **rv)
 	off_t off;
 	ssize_t red;
 
-	len = 4096;
+	len = MAXSIZE;
 	off = 0;
 	retval = malloc(len);
 	do {
 		red = read(fd, retval + off, len - off);
-		off += red;
-		if (red < (ssize_t)(len - off))
+		if (red == 0)
 			break;
-		len *= 2;
-		retval = reallocf(retval, len);
-		if (retval == NULL)
-			return -1;
+		off += red;
+		if (off == (off_t)len)
+			break;
 	} while (1);
 	*rv = retval;
 
@@ -112,44 +112,62 @@ parse_args(int argc, char **argv)
 	}
 }
 
+static char *
+trim(char *s)
+{
+	char *t;
+
+	while (isspace(*s))
+		s++;
+	t = s + strlen(s) - 1;
+	while (t > s && isspace(*t))
+		*t-- = '\0';
+	return s;
+}
+
 int
 main(int argc, char **argv)
 {
-	void *data;
-	ssize_t len;
+	char buffer[MAXSIZE];
 
 	parse_args(argc, argv);
-	len = read_file(STDIN_FILENO, &data);
-	if (len == -1)
-		err(1, "read");
 	if (flag_format) {
-		char buffer[4096];
 		ssize_t fmtlen;
+		ssize_t len;
+		void *data;
+		size_t dplen;
+		const_efidp dp;
 
-		fmtlen = efidp_format_device_path(buffer, sizeof(buffer),
-		    (const_efidp)data, len);
-		if (fmtlen > 0)
-			printf("%s\n", buffer);
+		len = read_file(STDIN_FILENO, &data);
+		if (len == -1)
+			err(1, "read");
+		dp = (const_efidp)data;
+		while (len > 0) {
+			dplen = efidp_size(dp);
+			fmtlen = efidp_format_device_path(buffer, sizeof(buffer),
+			    dp, dplen);
+			if (fmtlen > 0)
+				printf("%s\n", buffer);
+			len -= dplen;
+			dp = (const_efidp)((const char *)dp + dplen);
+		}
 		free(data);
 	} else if (flag_parse) {
 		efidp dp;
 		ssize_t dplen;
-		char *str, *walker;
+		char *walker;
 
-		dplen = 8192;
+		dplen = MAXSIZE;
 		dp = malloc(dplen);
-		str = realloc(data, len + 1);
-		if (str == NULL || dp == NULL)
+		if (dp == NULL)
 			errx(1, "Can't allocate memory.");
-		str[len] = '\0';
-		walker = str;
-		while (isspace(*walker))
-			walker++;
-		dplen = efidp_parse_device_path(walker, dp, dplen);
-		if (dplen == -1)
-			errx(1, "Can't parse %s", walker);
-		write(STDOUT_FILENO, dp, dplen);
+		while (fgets(buffer, sizeof(buffer), stdin)) {
+			walker= trim(buffer);
+			dplen = efidp_parse_device_path(walker, dp, dplen);
+			if (dplen == -1)
+				errx(1, "Can't parse %s", walker);
+			write(STDOUT_FILENO, dp, dplen);
+		}
 		free(dp);
-		free(str);
 	}
 }
