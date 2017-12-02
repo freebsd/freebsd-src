@@ -39,7 +39,7 @@ LIBSA32=	${BOOTOBJ}/libsa32/libsa32.a
 .endif
 
 # Standard options:
-CFLAGS+=	-I${SASRC}
+CFLAGS+=	-I${SASRC} -D_STANDALONE
 CFLAGS+=	-I${SYSDIR}
 
 # Filesystem support
