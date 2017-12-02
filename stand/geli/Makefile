@@ -2,6 +2,7 @@
 # libgeliboot
 
 MAN=
+DO32=1
 
 .include <bsd.init.mk>
 MK_SSP=		no
@@ -11,18 +12,7 @@ INTERNALLIB=
 MK_PROFILE=	no
 NO_PIC=
 
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+=        -march=i386
-.endif
-.if ${MACHINE_ARCH} == "amd64"
-CFLAGS+=        -m32
-.endif
-
 WARNS?=		0
-
-# string functions from libc
-.PATH: ${SRCTOP}/lib/libc/string
-SRCS+=  bcmp.c bcopy.c bzero.c
 
 # Our password input method
 SRCS+=  pwgets.c
