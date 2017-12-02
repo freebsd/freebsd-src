@@ -957,7 +957,7 @@ void
 bhndb_deregister_intr_handler(struct bhndb_resources *br,
     struct bhndb_intr_handler *ih)
 {
-	KASSERT(!ih->ih_active, ("duplicate deregistration of interrupt "
+	KASSERT(ih->ih_active, ("duplicate deregistration of interrupt "
 	    "handler %p", ih->ih_cookiep));
 
 	KASSERT(bhndb_find_intr_handler(br, ih) == ih,
