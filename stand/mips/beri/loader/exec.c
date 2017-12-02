@@ -119,7 +119,7 @@ beri_elf64_exec(struct preloaded_file *fp)
 	 * least bootinfop.
 	 */
 	(*entry)(boot2_argc, (register_t)boot2_argv, (register_t)boot2_envv,
-	    &bootinfo);
+	    (register_t)&bootinfo);
 
 	panic("exec returned");
 }

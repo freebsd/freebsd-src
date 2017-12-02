@@ -131,13 +131,6 @@ uart_control_write(uint32_t v)
 }
 
 static int
-uart_writable(void)
-{
-
-	return ((uart_control_read() & ALTERA_JTAG_UART_CONTROL_WSPACE) != 0);
-}
-
-static int
 uart_readable(void)
 {
 	uint32_t v;
