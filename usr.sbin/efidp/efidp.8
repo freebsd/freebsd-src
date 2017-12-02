@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 21, 2017
+.Dd December 1, 2017
 .Dt EFIDP 8
 .Os
 .Sh NAME
@@ -46,15 +46,24 @@ Specification.
 .Bl -tag -width 20m
 .It Fl f Fl -format
 Formats a binary UEFI Device Path into its canonical UTF-8 textual form.
-A binary Device Path can be no longer than 8192 bytes.
-The textual form must fit into 4096 bytes.
+A binary Device Path can be no longer than 65536 bytes.
+The textual form must fit into 65536 bytes.
+Multiple binary device paths may be specified.
 .It Fl p Fl -parse
 Parses a UEFI Device Path UTF-8 specification and outputs the binary
 Device Path form.
 Only one device path is parsed, even if there are multiple present in
 the input.
 Leading white space is ignored.
-The resulting binary Device Path can be no longer than 8192 bytes.
+The resulting binary Device Path can be no longer than 65536 bytes.
+Multiple lines may be specified.
+Each one will be translated.
+.It Fl e Fl --to-efi
+Translate a Unix file path to an EFI Device Path.
+The output is the textual representation of the EFI Device Path.
+.It Fl u Fl --to-unix
+Translate an EFI device path to a Unix file path.
+The input is the textual representation of the EFI Device Path.
 .El
 .Sh SEE ALSO
 Appendix A of the UEFI specification has the format for GUIDs.
