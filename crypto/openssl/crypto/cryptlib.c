@@ -117,10 +117,6 @@
 #include "cryptlib.h"
 #include <openssl/safestack.h>
 
-#if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_WIN16)
-static double SSLeay_MSVC5_hack = 0.0; /* and for VC1.5 */
-#endif
-
 DECLARE_STACK_OF(CRYPTO_dynlock)
 
 /* real #defines in crypto.h, keep these upto date */
@@ -206,15 +202,6 @@ int CRYPTO_get_new_lockid(char *name)
 {
     char *str;
     int i;
-
-#if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_WIN16)
-    /*
-     * A hack to make Visual C++ 5.0 work correctly when linking as a DLL
-     * using /MT. Without this, the application cannot use any floating point
-     * printf's. It also seems to be needed for Visual C 1.5 (win16)
-     */
-    SSLeay_MSVC5_hack = (double)name[0] * (double)name[1];
-#endif
 
     if ((app_locks == NULL)
         && ((app_locks = sk_OPENSSL_STRING_new_null()) == NULL)) {
