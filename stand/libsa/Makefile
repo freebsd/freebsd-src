@@ -17,7 +17,6 @@ LIBC_SRC=	${SRCTOP}/lib/libc
 
 LIB?=		sa
 NO_PIC=
-WARNS?=		0
 
 # standalone components and stuff we have modified locally
 SRCS+=	gzguts.h zutil.h __main.c assert.c bcd.c environment.c getopt.c gets.c \

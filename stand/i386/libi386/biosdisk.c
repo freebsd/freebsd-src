@@ -146,8 +146,7 @@ enum isgeli {
 };
 static enum isgeli geli_status[MAXBDDEV][MAXTBLENTS];
 
-int bios_read(void *vdev __unused, struct dsk *priv, off_t off, char *buf,
-    size_t bytes);
+int bios_read(void *, void *, off_t off, void *buf, size_t bytes);
 #endif /* LOADER_GELI_SUPPORT */
 
 struct devsw biosdisk = {
@@ -482,10 +481,10 @@ bd_open(struct open_file *f, ...)
 				/* Use the cached passphrase */
 				bcopy(passphrase, &gelipw, GELI_PW_MAXLEN);
 			}
-			if (geli_passphrase(&gelipw, dskp.unit, 'p',
+			if (geli_passphrase(gelipw, dskp.unit, 'p',
 				    (dskp.slice > 0 ? dskp.slice : dskp.part),
 				    &dskp) == 0) {
-				setenv("kern.geom.eli.passphrase", &gelipw, 1);
+				setenv("kern.geom.eli.passphrase", gelipw, 1);
 				bzero(gelipw, sizeof(gelipw));
 				geli_status[dev->d_unit][dskp.slice] = ISGELI_YES;
 				geli_part++;
@@ -882,7 +881,7 @@ bd_read(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest)
 		/* GELI needs the offset relative to the partition start */
 		p_off = alignlba - dskp.start;
 
-		err = geli_read(&dskp, p_off * BD(dev).bd_sectorsize, tmpbuf,
+		err = geli_read(&dskp, p_off * BD(dev).bd_sectorsize, (u_char *)tmpbuf,
 		    alignblks * BD(dev).bd_sectorsize);
 		if (err)
 			return (err);
@@ -992,9 +991,10 @@ bd_getdev(struct i386_devdesc *d)
 
 #ifdef LOADER_GELI_SUPPORT
 int
-bios_read(void *vdev __unused, struct dsk *priv, off_t off, char *buf, size_t bytes)
+bios_read(void *vdev __unused, void *xpriv, off_t off, void *buf, size_t bytes)
 {
 	struct disk_devdesc dev;
+	struct dsk *priv = xpriv;
 
 	dev.d_dev = &biosdisk;
 	dev.d_type = priv->type;
