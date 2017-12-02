@@ -34,7 +34,5 @@ boot1.hfs: boot1.elf bootinfo.txt
 
 CLEANFILES+= boot1.hfs
 
-boot1.o: ${SASRC}/ufsread.c
-
 .include <bsd.prog.mk>
 
