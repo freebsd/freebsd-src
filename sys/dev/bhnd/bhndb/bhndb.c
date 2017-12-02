@@ -639,6 +639,10 @@ bhndb_generic_detach(device_t dev)
 	if ((error = bus_generic_detach(dev)))
 		return (error);
 
+	/* Delete children */
+	if ((error = device_delete_children(dev)))
+		return (error);
+
 	/* Clean up our service registry */
 	if ((error = bhnd_service_registry_fini(&sc->services)))
 		return (error);

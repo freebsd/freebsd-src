@@ -303,8 +303,10 @@ bhndb_pci_alloc_msi(struct bhndb_pci_softc *sc, int *msi_count)
 		return (error);
 	}
 
-	if (count < BHNDB_PCI_MSI_COUNT)
+	if (count < BHNDB_PCI_MSI_COUNT) {
+		pci_release_msi(sc->parent);
 		return (ENXIO);
+	}
 
 	*msi_count = count;
 	return (0);
@@ -412,7 +414,7 @@ cleanup:
 		bhndb_free_intr_isrc(sc->isrc);
 
 	if (sc->msi_count > 0)
-		pci_release_msi(dev);
+		pci_release_msi(sc->parent);
 
 	if (cores != NULL)
 		free(cores, M_BHND);
@@ -449,7 +451,7 @@ bhndb_pci_detach(device_t dev)
 
 	/* Release MSI interrupts */
 	if (sc->msi_count > 0)
-		pci_release_msi(dev);
+		pci_release_msi(sc->parent);
 
 	/* Disable PCI bus mastering */
 	pci_disable_busmaster(sc->parent);
