@@ -245,10 +245,10 @@ chipc_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if ((error = bhnd_deregister_provider(dev, BHND_SERVICE_ANY)))
+	if ((error = bus_generic_detach(dev)))
 		return (error);
 
-	if ((error = bus_generic_detach(dev)))
+	if ((error = bhnd_deregister_provider(dev, BHND_SERVICE_ANY)))
 		return (error);
 
 	chipc_release_region(sc, sc->core_region, RF_ALLOCATED|RF_ACTIVE);
