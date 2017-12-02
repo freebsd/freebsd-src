@@ -133,30 +133,11 @@ bhnd_pmu_attach(device_t dev, struct bhnd_resource *res)
 		return (ENXIO);
 	}
 
-	/* Allocate our own core clkctl state directly; we use this to wait on
-	 * PMU state transitions, avoiding a cyclic dependency between bhnd(4)'s
-	 * clkctl handling and registration of this device as a PMU */
-	sc->clkctl = bhnd_alloc_core_clkctl(core, dev, sc->res, BHND_CLK_CTL_ST,
-	    BHND_PMU_MAX_TRANSITION_DLY);
-	if (sc->clkctl == NULL) {
-		device_printf(sc->dev, "failed to allocate clkctl for %s\n",
-		    device_get_nameunit(core));
-		return (ENOMEM);
-	}
-
 	/* Fetch chip and board info */
 	sc->cid = *bhnd_get_chipid(core);
-
 	if ((error = bhnd_read_board_info(core, &sc->board))) {
 		device_printf(sc->dev, "error fetching board info: %d\n",
 		    error);
-		return (ENXIO);
-	}
-
-	/* Locate ChipCommon device */
-	sc->chipc_dev = bhnd_retain_provider(dev, BHND_SERVICE_CHIPC);
-	if (sc->chipc_dev == NULL) {
-		device_printf(sc->dev, "chipcommon device not found\n");
 		return (ENXIO);
 	}
 
@@ -169,6 +150,26 @@ bhnd_pmu_attach(device_t dev, struct bhnd_resource *res)
 	sc->io_ctx = sc->query.io_ctx;
 
 	BPMU_LOCK_INIT(sc);
+
+	/* Allocate our own core clkctl state directly; we use this to wait on
+	 * PMU state transitions, avoiding a cyclic dependency between bhnd(4)'s
+	 * clkctl handling and registration of this device as a PMU */
+	sc->clkctl = bhnd_alloc_core_clkctl(core, dev, sc->res, BHND_CLK_CTL_ST,
+	    BHND_PMU_MAX_TRANSITION_DLY);
+	if (sc->clkctl == NULL) {
+		device_printf(sc->dev, "failed to allocate clkctl for %s\n",
+		    device_get_nameunit(core));
+		error = ENOMEM;
+		goto failed;
+	}
+
+	/* Locate ChipCommon device */
+	sc->chipc_dev = bhnd_retain_provider(dev, BHND_SERVICE_CHIPC);
+	if (sc->chipc_dev == NULL) {
+		device_printf(sc->dev, "chipcommon device not found\n");
+		error = ENXIO;
+		goto failed;
+	}
 
 	/* Initialize PMU */
 	if ((error = bhnd_pmu_init(sc))) {
@@ -204,8 +205,14 @@ bhnd_pmu_attach(device_t dev, struct bhnd_resource *res)
 failed:
 	BPMU_LOCK_DESTROY(sc);
 	bhnd_pmu_query_fini(&sc->query);
-	bhnd_free_core_clkctl(sc->clkctl);
-	bhnd_release_provider(sc->dev, sc->chipc_dev, BHND_SERVICE_CHIPC);
+
+	if (sc->clkctl != NULL)
+		bhnd_free_core_clkctl(sc->clkctl);
+
+	if (sc->chipc_dev != NULL) {
+		bhnd_release_provider(sc->dev, sc->chipc_dev,
+		    BHND_SERVICE_CHIPC);
+	}
 
 	return (error);
 }
