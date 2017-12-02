@@ -2432,7 +2432,7 @@ efidp_format_device_path(char *buf, size_t len, const_efidp dp, ssize_t max)
 }
 
 ssize_t
-efidp_format_device_path_node(char *buf, size_t len, const_efidp dp, ssize_t max)
+efidp_format_device_path_node(char *buf, size_t len, const_efidp dp)
 {
 	char *str;
 	ssize_t retval;
@@ -2453,4 +2453,15 @@ efidp_size(const_efidp dp)
 {
 
 	return GetDevicePathSize(__DECONST(EFI_DEVICE_PATH_PROTOCOL *, dp));
+}
+
+char *
+efidp_extract_file_path(const_efidp dp)
+{
+	const FILEPATH_DEVICE_PATH  *fp;
+	char *name = NULL;
+
+	fp = (const void *)dp;
+	ucs2_to_utf8(fp->PathName, &name);
+	return name;
 }
