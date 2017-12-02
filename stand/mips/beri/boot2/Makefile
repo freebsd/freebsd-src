@@ -48,7 +48,6 @@ MAN=
 AFLAGS=		-G0
 
 CFLAGS+=	-I${.CURDIR}			\
-		-I${SASRC}			\
 		-I${LDRSRC}			\
 		-D_KERNEL			\
 		-Wall				\
