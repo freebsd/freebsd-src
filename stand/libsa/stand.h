@@ -281,7 +281,7 @@ extern ssize_t	read(int, void *, size_t);
 extern ssize_t	write(int, void *, size_t);
 extern struct	dirent *readdirfd(int);
 
-extern void	srandom(u_long seed);
+extern void	srandom(unsigned int);
 extern u_long	random(void);
     
 /* imports from stdlib, locally modified */
