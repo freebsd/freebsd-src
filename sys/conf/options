@@ -850,6 +850,7 @@ BWI_DEBUG_VERBOSE	opt_bwi.h
 # options for the Brodacom BCM43xx driver (bwn)
 BWN_DEBUG		opt_bwn.h
 BWN_GPL_PHY		opt_bwn.h
+BWN_USE_SIBA		opt_bwn.h
 
 # Options for the SIBA driver
 SIBA_DEBUG		opt_siba.h

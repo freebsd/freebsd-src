@@ -67,15 +67,14 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#include <dev/siba/siba_ids.h>
-#include <dev/siba/sibareg.h>
-#include <dev/siba/sibavar.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_phy.h>
 #include <net80211/ieee80211_ratectl.h>
+
+#include <dev/bwn/if_bwn_siba.h>
 
 #include <dev/bwn/if_bwnreg.h>
 #include <dev/bwn/if_bwnvar.h>
@@ -498,10 +497,30 @@ static const struct siba_devid bwn_devs[] = {
 	SIBA_DEV(BROADCOM, 80211, 16, "Revision 16")
 };
 
+static const struct bwn_bus_ops *
+bwn_get_bus_ops(device_t dev)
+{
+#if BWN_USE_SIBA
+	return (NULL);
+#else
+	devclass_t	bus_cls;
+
+	bus_cls = device_get_devclass(device_get_parent(dev));
+	if (bus_cls == devclass_find("bhnd"))
+		return (&bwn_bhnd_bus_ops);
+	else
+		return (&bwn_siba_bus_ops);
+#endif
+}
+
 static int
 bwn_probe(device_t dev)
 {
-	int i;
+	struct bwn_softc	*sc;
+	int			 i;
+
+	sc = device_get_softc(dev);
+	sc->sc_bus_ops = bwn_get_bus_ops(dev);
 
 	for (i = 0; i < nitems(bwn_devs); i++) {
 		if (siba_get_vendor(dev) == bwn_devs[i].sd_vendor &&
@@ -513,7 +532,7 @@ bwn_probe(device_t dev)
 	return (ENXIO);
 }
 
-static int
+int
 bwn_attach(device_t dev)
 {
 	struct bwn_mac *mac;
@@ -524,6 +543,13 @@ bwn_attach(device_t dev)
 #ifdef BWN_DEBUG
 	sc->sc_debug = bwn_debug;
 #endif
+
+	sc->sc_bus_ops = bwn_get_bus_ops(dev);
+	if ((error = BWN_BUS_OPS_ATTACH(dev))) {
+		device_printf(sc->sc_dev,
+		    "bus-specific initialization failed (%d)\n", error);
+		return (error);
+	}
 
 	if ((sc->sc_flags & BWN_FLAG_ATTACHED) == 0) {
 		bwn_attach_pre(sc);
@@ -631,6 +657,7 @@ fail1:
 	if (msic == BWN_MSI_MESSAGES && bwn_msi_disable == 0)
 		pci_release_msi(dev);
 fail0:
+	BWN_BUS_OPS_DETACH(dev);
 	free(mac, M_DEVBUF);
 	return (error);
 }
@@ -716,7 +743,7 @@ bwn_phy_detach(struct bwn_mac *mac)
 		mac->mac_phy.detach(mac);
 }
 
-static int
+int
 bwn_detach(device_t dev)
 {
 	struct bwn_softc *sc = device_get_softc(dev);
@@ -756,6 +783,7 @@ bwn_detach(device_t dev)
 	mbufq_drain(&sc->sc_snd);
 	bwn_release_firmware(mac);
 	BWN_LOCK_DESTROY(sc);
+	BWN_BUS_OPS_DETACH(dev);
 	return (0);
 }
 
@@ -1153,36 +1181,30 @@ bwn_attach_core(struct bwn_mac *mac)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 	int error, have_bg = 0, have_a = 0;
+	uint32_t high;
 
 	KASSERT(siba_get_revid(sc->sc_dev) >= 5,
 	    ("unsupported revision %d", siba_get_revid(sc->sc_dev)));
 
-	if (bwn_is_bus_siba(mac)) {
-		uint32_t high;
-
-		siba_powerup(sc->sc_dev, 0);
-		high = siba_read_4(sc->sc_dev, SIBA_TGSHIGH);
-		have_a = (high & BWN_TGSHIGH_HAVE_5GHZ) ? 1 : 0;
-		have_bg = (high & BWN_TGSHIGH_HAVE_2GHZ) ? 1 : 0;
-		if (high & BWN_TGSHIGH_DUALPHY) {
-			have_bg = 1;
-			have_a = 1;
-		}
-#if 0
-		device_printf(sc->sc_dev, "%s: high=0x%08x, have_a=%d, have_bg=%d,"
-		    " deviceid=0x%04x, siba_deviceid=0x%04x\n",
-		    __func__,
-		    high,
-		    have_a,
-		    have_bg,
-		    siba_get_pci_device(sc->sc_dev),
-		    siba_get_chipid(sc->sc_dev));
-#endif
-	} else {
-		device_printf(sc->sc_dev, "%s: not siba; bailing\n", __func__);
-		error = ENXIO;
-		goto fail;
+	siba_powerup(sc->sc_dev, 0);
+	high = siba_read_4(sc->sc_dev, SIBA_TGSHIGH);
+	have_a = (high & BWN_TGSHIGH_HAVE_5GHZ) ? 1 : 0;
+	have_bg = (high & BWN_TGSHIGH_HAVE_2GHZ) ? 1 : 0;
+	if (high & BWN_TGSHIGH_DUALPHY) {
+		have_bg = 1;
+		have_a = 1;
 	}
+
+#if 0
+	device_printf(sc->sc_dev, "%s: high=0x%08x, have_a=%d, have_bg=%d,"
+	    " deviceid=0x%04x, siba_deviceid=0x%04x\n",
+	    __func__,
+	    high,
+	    have_a,
+	    have_bg,
+	    siba_get_pci_device(sc->sc_dev),
+	    siba_get_chipid(sc->sc_dev));
+#endif
 
 	/*
 	 * Guess at whether it has A-PHY or G-PHY.
@@ -1339,8 +1361,6 @@ fail:
 
 /*
  * Reset - SIBA.
- *
- * XXX TODO: implement BCMA version!
  */
 void
 bwn_reset_core(struct bwn_mac *mac, int g_mode)
@@ -2267,7 +2287,6 @@ bwn_chip_init(struct bwn_mac *mac)
 	bwn_mac_phy_clock_set(mac, true);
 
 	/* SIBA powerup */
-	/* XXX TODO: BCMA powerup */
 	BWN_WRITE_2(mac, BWN_POWERUP_DELAY, siba_get_cc_powerdelay(sc->sc_dev));
 	return (error);
 }
@@ -4717,10 +4736,10 @@ bwn_rf_turnoff(struct bwn_mac *mac)
 }
 
 /*
- * SSB PHY reset.
+ * PHY reset.
  */
 static void
-bwn_phy_reset_siba(struct bwn_mac *mac)
+bwn_phy_reset(struct bwn_mac *mac)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 
@@ -4731,17 +4750,6 @@ bwn_phy_reset_siba(struct bwn_mac *mac)
 	siba_write_4(sc->sc_dev, SIBA_TGSLOW,
 	    (siba_read_4(sc->sc_dev, SIBA_TGSLOW) & ~SIBA_TGSLOW_FGC));
 	DELAY(1000);
-}
-
-static void
-bwn_phy_reset(struct bwn_mac *mac)
-{
-
-	if (bwn_is_bus_siba(mac)) {
-		bwn_phy_reset_siba(mac);
-	} else {
-		BWN_ERRPRINTF(mac->mac_sc, "%s: unknown bus!\n", __func__);
-	}
 }
 
 static int
@@ -7471,7 +7479,7 @@ static device_method_t bwn_methods[] = {
 	DEVMETHOD(device_resume,	bwn_resume),
 	DEVMETHOD_END
 };
-static driver_t bwn_driver = {
+driver_t bwn_driver = {
 	"bwn",
 	bwn_methods,
 	sizeof(struct bwn_softc)
@@ -7479,6 +7487,7 @@ static driver_t bwn_driver = {
 static devclass_t bwn_devclass;
 DRIVER_MODULE(bwn, siba_bwn, bwn_driver, bwn_devclass, 0, 0);
 MODULE_DEPEND(bwn, siba_bwn, 1, 1, 1);
+MODULE_DEPEND(bwn, gpiobus, 1, 1, 1);
 MODULE_DEPEND(bwn, wlan, 1, 1, 1);		/* 802.11 media layer */
 MODULE_DEPEND(bwn, firmware, 1, 1, 1);		/* firmware support */
 MODULE_DEPEND(bwn, wlan_amrr, 1, 1, 1);

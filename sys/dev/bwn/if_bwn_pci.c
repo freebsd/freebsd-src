@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015-2016 Landon Fuller <landonf@FreeBSD.org>
  * All rights reserved.
  *
@@ -6,25 +8,22 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
- *    redistribution must be conditioned upon including a substantially
- *    similar Disclaimer requirement for further binary redistribution.
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF NONINFRINGEMENT, MERCHANTIBILITY
- * AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
- * THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY,
- * OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGES.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
@@ -61,17 +60,8 @@ TUNABLE_INT("hw.bwn_pci.preferred", &prefer_new_driver);
 
 /* SIBA Devices */
 static const struct bwn_pci_device siba_devices[] = {
-	BWN_BCM_DEV(BCM4301,		"BCM4301 802.11b",
-	    BWN_QUIRK_ENET_HW_UNPOPULATED),
-
-	BWN_BCM_DEV(BCM4306,		"BCM4306 802.11b/g",		0),
-	BWN_BCM_DEV(BCM4306_D11G,	"BCM4306 802.11g",		0),
 	BWN_BCM_DEV(BCM4306_D11A,	"BCM4306 802.11a",
 	    BWN_QUIRK_WLAN_DUALCORE),
-	BWN_BCM_DEV(BCM4306_D11DUAL,	"BCM4306 802.11a/b",
-	    BWN_QUIRK_WLAN_DUALCORE),
-	BWN_BCM_DEV(BCM4306_D11G_ID2,	"BCM4306 802.11g",		0),
-
 	BWN_BCM_DEV(BCM4307,		"BCM4307 802.11b",		0),
 
 	BWN_BCM_DEV(BCM4311_D11G,	"BCM4311 802.11b/g",		0),
@@ -88,7 +78,7 @@ static const struct bwn_pci_device siba_devices[] = {
 	    BWN_QUIRK_USBH_UNPOPULATED),
 	BWN_BCM_DEV(BCM4321_D11N2G,	"BCM4321 802.11n 2GHz",
 	    BWN_QUIRK_USBH_UNPOPULATED),
-	BWN_BCM_DEV(BCM4321_D11N2G,	"BCM4321 802.11n 5GHz",
+	BWN_BCM_DEV(BCM4321_D11N5G,	"BCM4321 802.11n 5GHz",
 	    BWN_QUIRK_UNTESTED|BWN_QUIRK_USBH_UNPOPULATED),
 
 	BWN_BCM_DEV(BCM4322_D11N,	"BCM4322 802.11n Dual-Band",	0),
@@ -107,6 +97,7 @@ static const struct bwn_pci_device bcma_devices[] = {
 	BWN_BCM_DEV(BCM4331_D11N,	"BCM4331 802.11n Dual-Band",	0),
 	BWN_BCM_DEV(BCM4331_D11N2G,	"BCM4331 802.11n 2GHz",		0),
 	BWN_BCM_DEV(BCM4331_D11N5G,	"BCM4331 802.11n 5GHz",		0),
+	BWN_BCM_DEV(BCM43224_D11N,	"BCM43224 802.11n Dual-Band",	0),
 	BWN_BCM_DEV(BCM43225_D11N2G,	"BCM43225 802.11n 2GHz",	0),
 
 	{ 0, 0, NULL, 0}
@@ -210,7 +201,12 @@ bwn_pci_attach(device_t dev)
 static int
 bwn_pci_detach(device_t dev)
 {
-	return (bus_generic_detach(dev));
+	int error;
+
+	if ((error = bus_generic_detach(dev)))
+		return (error);
+
+	return (device_delete_children(dev));
 }
 
 static void
@@ -297,11 +293,14 @@ static device_method_t bwn_pci_methods[] = {
 
 static devclass_t bwn_pci_devclass;
 
-DEFINE_CLASS_0(bwn_pci, bwn_pci_driver, bwn_pci_methods, sizeof(struct bwn_pci_softc));
-DRIVER_MODULE(bwn_pci, pci, bwn_pci_driver, bwn_pci_devclass, NULL, NULL);
+DEFINE_CLASS_0(bwn_pci, bwn_pci_driver, bwn_pci_methods,
+    sizeof(struct bwn_pci_softc));
+DRIVER_MODULE_ORDERED(bwn_pci, pci, bwn_pci_driver, bwn_pci_devclass, NULL,
+    NULL, SI_ORDER_ANY);
 DRIVER_MODULE(bhndb, bwn_pci, bhndb_pci_driver, bhndb_devclass, NULL, NULL);
 
 MODULE_DEPEND(bwn_pci, bwn, 1, 1, 1);
+MODULE_DEPEND(bwn_pci, bhnd, 1, 1, 1);
 MODULE_DEPEND(bwn_pci, bhndb, 1, 1, 1);
 MODULE_DEPEND(bwn_pci, bhndb_pci, 1, 1, 1);
 MODULE_DEPEND(bwn_pci, bcma_bhndb, 1, 1, 1);

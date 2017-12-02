@@ -1312,15 +1312,17 @@ dev/bwi/if_bwi_pci.c		optional bwi pci
 # XXX Work around clang warnings, until maintainer approves fix.
 dev/bwn/if_bwn.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
-dev/bwn/if_bwn_pci.c		optional bwn pci bhnd
+dev/bwn/if_bwn_bhnd.c		optional bwn bhnd
+dev/bwn/if_bwn_pci.c		optional bwn pci bhnd bhndb
 dev/bwn/if_bwn_phy_common.c	optional bwn siba_bwn
 dev/bwn/if_bwn_phy_g.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED} ${NO_WCONSTANT_CONVERSION}"
 dev/bwn/if_bwn_phy_lp.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
 dev/bwn/if_bwn_phy_n.c		optional bwn siba_bwn
+dev/bwn/if_bwn_siba.c		optional bwn siba_bwn
+dev/bwn/if_bwn_siba_compat.c	optional bwn bhnd !bwn_use_siba
 dev/bwn/if_bwn_util.c		optional bwn siba_bwn
-dev/bwn/bwn_mac.c		optional bwn bhnd
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
