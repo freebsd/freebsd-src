@@ -242,7 +242,7 @@ OF_instance_to_package(ihandle_t instance)
 
 /* Get the length of a property of a package. */
 int
-OF_getproplen(phandle_t package, char *propname)
+OF_getproplen(phandle_t package, const char *propname)
 {
 	static struct {
 		cell_t name;
@@ -266,7 +266,7 @@ OF_getproplen(phandle_t package, char *propname)
 
 /* Get the value of a property of a package. */
 int
-OF_getprop(phandle_t package, char *propname, void *buf, int buflen)
+OF_getprop(phandle_t package, const char *propname, void *buf, int buflen)
 {
 	static struct {
 		cell_t name;
@@ -294,7 +294,7 @@ OF_getprop(phandle_t package, char *propname, void *buf, int buflen)
 
 /* Get the next property of a package. */
 int
-OF_nextprop(phandle_t package, char *previous, char *buf)
+OF_nextprop(phandle_t package, const char *previous, char *buf)
 {
 	static struct {
 		cell_t name;
@@ -321,7 +321,7 @@ OF_nextprop(phandle_t package, char *previous, char *buf)
 /* Set the value of a property of a package. */
 /* XXX Has a bug on FirePower */
 int
-OF_setprop(phandle_t package, char *propname, void *buf, int len)
+OF_setprop(phandle_t package, const char *propname, void *buf, int len)
 {
 	static struct {
 		cell_t name;
