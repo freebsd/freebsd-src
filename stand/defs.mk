@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-WARNS?=0
+WARNS?=1
 
 .if !defined(__BOOT_DEFS_MK__)
 __BOOT_DEFS_MK__=${MFILE}
