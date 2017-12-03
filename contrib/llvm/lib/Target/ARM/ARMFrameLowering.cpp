@@ -479,7 +479,7 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   if (DPRCSSize > 0) {
     // Since vpush register list cannot have gaps, there may be multiple vpush
     // instructions in the prologue.
-    while (MBBI->getOpcode() == ARM::VSTMDDB_UPD) {
+    while (MBBI != MBB.end() && MBBI->getOpcode() == ARM::VSTMDDB_UPD) {
       DefCFAOffsetCandidates.addInst(MBBI, sizeOfSPAdjustment(*MBBI));
       LastPush = MBBI++;
     }
@@ -2397,9 +2397,8 @@ void ARMFrameLowering::adjustForSegmentedStacks(
   BuildMI(AllocMBB, DL, TII.get(TargetOpcode::CFI_INSTRUCTION))
       .addCFIIndex(CFIIndex);
 
-  // bx lr - Return from this function.
-  Opcode = Thumb ? ARM::tBX_RET : ARM::BX_RET;
-  BuildMI(AllocMBB, DL, TII.get(Opcode)).add(predOps(ARMCC::AL));
+  // Return from this function.
+  BuildMI(AllocMBB, DL, TII.get(ST->getReturnOpcode())).add(predOps(ARMCC::AL));
 
   // Restore SR0 and SR1 in case of __morestack() was not called.
   // pop {SR0, SR1}
