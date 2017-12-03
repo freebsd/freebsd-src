@@ -478,6 +478,10 @@
         ..
         netinet
         ..
+        netipsec
+            tunnel
+            ..
+        ..
         netpfil
             pf
             ..
