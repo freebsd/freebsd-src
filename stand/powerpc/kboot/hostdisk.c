@@ -94,7 +94,7 @@ hostdisk_open(struct open_file *f, ...)
 
 	if (desc->d_unit <= 0) {
 		printf("hostdisk_open: couldn't open %s: %d\n",
-		    desc->d_opendata, desc->d_unit);
+		    (char *)desc->d_opendata, desc->d_unit);
 		return (ENOENT);
 	}
 
