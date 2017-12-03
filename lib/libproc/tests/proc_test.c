@@ -65,7 +65,7 @@ start_prog(const struct atf_tc *tc, bool sig)
 		argv[1] = NULL;
 	}
 
-	error = proc_create(argv[0], argv, NULL, NULL, &phdl);
+	error = proc_create(argv[0], argv, NULL, NULL, NULL, &phdl);
 	ATF_REQUIRE_EQ_MSG(error, 0, "failed to run '%s'", target_prog_file);
 	ATF_REQUIRE(phdl != NULL);
 

@@ -967,7 +967,7 @@ dt_proc_create(dtrace_hdl_t *dtp, const char *file, char *const *argv,
 #ifdef illumos
 	if ((dpr->dpr_proc = Pcreate(file, argv, &err, NULL, 0)) == NULL) {
 #else
-	if ((err = proc_create(file, argv, pcf, child_arg,
+	if ((err = proc_create(file, argv, NULL, pcf, child_arg,
 	    &dpr->dpr_proc)) != 0) {
 #endif
 		return (dt_proc_error(dtp, dpr,
