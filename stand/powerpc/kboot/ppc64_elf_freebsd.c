@@ -46,6 +46,8 @@ extern size_t		szkerneltramp;
 extern int		nkexec_segments;
 extern void *		loaded_segments;
 
+vm_offset_t md_load64(char *args, vm_offset_t *modulep, vm_offset_t *dtb);
+
 int
 ppc64_elf_loadfile(char *filename, u_int64_t dest,
     struct preloaded_file **result)
