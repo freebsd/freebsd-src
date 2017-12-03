@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/metadata.h>
 #include <machine/elf.h>
+#include <machine/md_var.h>
 
 #include <stand.h>
 
