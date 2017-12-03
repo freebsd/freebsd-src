@@ -32,6 +32,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/metadata.h>
 #include <machine/elf.h>
+#if defined(__powerpc__)
+#include <machine/md_var.h>
+#endif
 
 #include <stand.h>
 
