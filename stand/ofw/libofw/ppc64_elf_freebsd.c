@@ -95,7 +95,7 @@ ppc64_ofw_elf_exec(struct preloaded_file *fp)
 	if (dtbp != 0) {
 		OF_quiesce();
 		((int (*)(u_long, u_long, u_long, void *, u_long))entry)(dtbp,
-		    0, 0, mdp, 0xfb5d104d);
+		    0, 0, (void *)mdp, 0xfb5d104d);
 	} else {
 		OF_chain((void *)reloc, end - (char *)reloc, (void *)entry,
 		    (void *)mdp, 0xfb5d104d);
