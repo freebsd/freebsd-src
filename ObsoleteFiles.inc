@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171203: libproc version bump
+OLD_LIBS+=usr/lib/libproc.so.4
+OLD_LIBS+=usr/lib32/libproc.so.4
 # 20171203: new clang import which bumps version from 5.0.0 to 5.0.1.
 OLD_FILES+=usr/lib/clang/5.0.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/5.0.0/include/sanitizer/asan_interface.h
