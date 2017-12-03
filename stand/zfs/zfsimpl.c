@@ -43,7 +43,7 @@ struct zfsmount {
 	objset_phys_t	objset;
 	uint64_t	rootobj;
 };
-static struct zfsmount zfsmount;
+static struct zfsmount zfsmount __unused;
 
 /*
  * List of all vdevs, chained through v_alllink.
