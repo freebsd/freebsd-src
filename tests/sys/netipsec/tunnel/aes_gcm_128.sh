@@ -7,12 +7,13 @@ v4_head()
 {
 	atf_set descr 'IPSec inet4 tunnel using aes-gcm-128'
 	atf_set require.user root
-	# Unload AESNI module if loaded
-	kldstat -q -n aesni && kldunload aesni
 }
 
 v4_body()
 {
+	# Unload AESNI module if loaded
+	kldstat -q -n aesni && kldunload aesni
+
 	ist_test 4 aes-gcm-16 "12345678901234567890"
 }
 
@@ -26,12 +27,13 @@ v6_head()
 {
 	atf_set descr 'IPSec inet6 tunnel using aes-gcm-128'
 	atf_set require.user root
-	# Unload AESNI module if loaded
-	kldstat -q -n aesni && kldunload aesni
 }
 
 v6_body()
 {
+	# Unload AESNI module if loaded
+	kldstat -q -n aesni && kldunload aesni
+
 	ist_test 6 aes-gcm-16 "12345678901234567890"
 }
 

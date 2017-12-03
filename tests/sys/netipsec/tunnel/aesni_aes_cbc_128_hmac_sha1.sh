@@ -7,12 +7,13 @@ v4_head()
 {
 	atf_set descr 'IPSec inet4 tunnel using aes-cbc-128-hmac-sha1 and AESNI'
 	atf_set require.user root
-	# load AESNI module if not already
-	kldstat -q -n aesni || kldload aesni
 }
 
 v4_body()
 {
+	# load AESNI module if not already
+	kldstat -q -n aesni || kldload aesni
+
 	ist_test 4 rijndael-cbc "1234567890123456" hmac-sha1 "12345678901234567890"
 }
 
@@ -26,12 +27,13 @@ v6_head()
 {
 	atf_set descr 'IPSec inet6 tunnel using aes-cbc-128-hmac-sha1 and AESNI'
 	atf_set require.user root
-	# load AESNI module if not already
-	kldstat -q -n aesni || kldload aesni
 }
 
 v6_body()
 {
+	# load AESNI module if not already
+	kldstat -q -n aesni || kldload aesni
+
 	ist_test 6 rijndael-cbc "1234567890123456" hmac-sha1 "12345678901234567890"
 }
 

@@ -7,12 +7,13 @@ v4_head()
 {
 	atf_set descr 'IPSec inet4 tunnel using aes-gcm-256 and AESNI'
 	atf_set require.user root
-	# load AESNI module if not already
-	kldstat -q -n aesni || kldload aesni
 }
 
 v4_body()
 {
+	# load AESNI module if not already
+	kldstat -q -n aesni || kldload aesni
+
 	ist_test 4 aes-gcm-16 "123456789012345678901234567890123456"
 }
 
@@ -26,12 +27,13 @@ v6_head()
 {
 	atf_set descr 'IPSec inet6 tunnel using aes-gcm-256 and AESNI'
 	atf_set require.user root
-	# load AESNI module if not already
-	kldstat -q -n aesni || kldload aesni
 }
 
 v6_body()
 {
+	# load AESNI module if not already
+	kldstat -q -n aesni || kldload aesni
+
 	atf_expect_fail "PR 201447"
 	ist_test 6 aes-gcm-16 "123456789012345678901234567890123456"
 }
