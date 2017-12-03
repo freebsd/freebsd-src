@@ -101,7 +101,6 @@ static inline u_long itlb_get_data_sun4u(u_int, u_int);
 static int itlb_enter_sun4u(u_int, u_long data, vm_offset_t);
 static vm_offset_t itlb_va_to_pa_sun4u(vm_offset_t);
 static void itlb_relocate_locked0_sun4u(void);
-extern vm_offset_t md_load(char *, vm_offset_t *, vm_offset_t *);
 static int sparc64_autoload(void);
 static ssize_t sparc64_readin(const int, vm_offset_t, const size_t);
 static ssize_t sparc64_copyin(const void *, vm_offset_t, size_t);
