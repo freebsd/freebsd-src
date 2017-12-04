@@ -54,8 +54,8 @@ static MALLOC_DEFINE(M_MIRROR, "mirror_data", "GEOM_MIRROR Data");
 SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, mirror, CTLFLAG_RW, 0,
     "GEOM_MIRROR stuff");
-u_int g_mirror_debug = 0;
-SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, debug, CTLFLAG_RWTUN, &g_mirror_debug, 0,
+int g_mirror_debug = 0;
+SYSCTL_INT(_kern_geom_mirror, OID_AUTO, debug, CTLFLAG_RWTUN, &g_mirror_debug, 0,
     "Debug level");
 static u_int g_mirror_timeout = 4;
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, timeout, CTLFLAG_RWTUN, &g_mirror_timeout,
