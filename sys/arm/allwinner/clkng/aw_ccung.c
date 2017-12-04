@@ -95,6 +95,7 @@ static struct ofw_compat_data compat_data[] = {
 #endif
 #if defined(SOC_ALLWINNER_H3) || defined(SOC_ALLWINNER_H5)
 	{ "allwinner,sun8i-h3-ccu", H3_CCU },
+	{ "allwinner,sun50i-h5-ccu", H3_CCU },
 	{ "allwinner,sun8i-h3-r-ccu", H3_R_CCU },
 #endif
 #if defined(SOC_ALLWINNER_A31)
