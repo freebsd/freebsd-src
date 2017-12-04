@@ -2043,7 +2043,7 @@ vm_page_alloc_check(vm_page_t m)
  *	VM_ALLOC_ZERO		prefer a zeroed page
  */
 vm_page_t
-vm_page_alloc_freelist(int flind, int req)
+vm_page_alloc_freelist(int freelist, int req)
 {
 	struct vm_domain_iterator vi;
 	vm_page_t m;
@@ -2056,7 +2056,7 @@ vm_page_alloc_freelist(int flind, int req)
 	while (vm_domain_iterator_run(&vi, &domain) == 0) {
 		if (vm_domain_iterator_isdone(&vi))
 			req |= wait;
-		m = vm_page_alloc_freelist_domain(domain, flind, req);
+		m = vm_page_alloc_freelist_domain(domain, freelist, req);
 		if (m != NULL)
 			break;
 	}
@@ -2066,7 +2066,7 @@ vm_page_alloc_freelist(int flind, int req)
 }
 
 vm_page_t
-vm_page_alloc_freelist_domain(int domain, int flind, int req)
+vm_page_alloc_freelist_domain(int domain, int freelist, int req)
 {
 	vm_page_t m;
 	u_int flags, free_count;
@@ -2090,7 +2090,7 @@ again:
 	    vm_cnt.v_free_count > vm_cnt.v_interrupt_free_min) ||
 	    (req_class == VM_ALLOC_INTERRUPT &&
 	    vm_cnt.v_free_count > 0))
-		m = vm_phys_alloc_freelist_pages(domain, flind,
+		m = vm_phys_alloc_freelist_pages(domain, freelist,
 		    VM_FREEPOOL_DIRECT, 0);
 	if (m == NULL) {
 		if (vm_page_alloc_fail(NULL, req))
