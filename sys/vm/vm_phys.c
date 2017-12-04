@@ -175,7 +175,6 @@ static vm_page_t vm_phys_alloc_seg_contig(struct vm_phys_seg *seg,
     vm_paddr_t boundary);
 static void _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int domain);
 static void vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end);
-static int vm_phys_paddr_to_segind(vm_paddr_t pa);
 static void vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl,
     int order);
 
@@ -731,31 +730,6 @@ vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl, int order)
 }
 
 /*
- * Initialize a physical page in preparation for adding it to the free
- * lists.
- */
-void
-vm_phys_init_page(vm_paddr_t pa)
-{
-	vm_page_t m;
-
-	m = vm_phys_paddr_to_vm_page(pa);
-	m->object = NULL;
-	m->wire_count = 0;
-	m->busy_lock = VPB_UNBUSIED;
-	m->hold_count = 0;
-	m->flags = m->aflags = m->oflags = 0;
-	m->phys_addr = pa;
-	m->queue = PQ_NONE;
-	m->psind = 0;
-	m->segind = vm_phys_paddr_to_segind(pa);
-	m->order = VM_NFREEORDER;
-	m->pool = VM_FREEPOOL_DEFAULT;
-	m->valid = m->dirty = 0;
-	pmap_page_init(m);
-}
-
-/*
  * Allocate a contiguous, power of two-sized set of physical pages
  * from the free lists.
  *
@@ -1061,24 +1035,6 @@ vm_phys_fictitious_unreg_range(vm_paddr_t start, vm_paddr_t end)
 	rw_wunlock(&vm_phys_fictitious_reg_lock);
 	free(seg->first_page, M_FICT_PAGES);
 	free(seg, M_FICT_PAGES);
-}
-
-/*
- * Find the segment containing the given physical address.
- */
-static int
-vm_phys_paddr_to_segind(vm_paddr_t pa)
-{
-	struct vm_phys_seg *seg;
-	int segind;
-
-	for (segind = 0; segind < vm_phys_nsegs; segind++) {
-		seg = &vm_phys_segs[segind];
-		if (pa >= seg->start && pa < seg->end)
-			return (segind);
-	}
-	panic("vm_phys_paddr_to_segind: paddr %#jx is not in any segment" ,
-	    (uintmax_t)pa);
 }
 
 /*
