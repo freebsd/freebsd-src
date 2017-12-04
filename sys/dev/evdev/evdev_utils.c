@@ -32,7 +32,9 @@
 #include <sys/conf.h>
 #include <sys/kbio.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 
 #include <dev/evdev/evdev.h>
@@ -314,19 +316,26 @@ evdev_ev_kbd_event(struct evdev_dev *evdev, void *softc, uint16_t type,
 					leds |= 1 << i;
 				else
 					leds &= ~(1 << i);
-				if (leds != oleds)
+				if (leds != oleds) {
+					mtx_lock(&Giant);
 					kbdd_ioctl(kbd, KDSETLED,
 					    (caddr_t)&leds);
+					mtx_unlock(&Giant);
+				}
 				break;
 			}
 		}
 	} else if (type == EV_REP && code == REP_DELAY) {
 		delay[0] = value;
 		delay[1] = kbd->kb_delay2;
+		mtx_lock(&Giant);
 		kbdd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
+		mtx_unlock(&Giant);
 	} else if (type == EV_REP && code == REP_PERIOD) {
 		delay[0] = kbd->kb_delay1;
 		delay[1] = value;
+		mtx_lock(&Giant);
 		kbdd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
+		mtx_unlock(&Giant);
 	}
 }
