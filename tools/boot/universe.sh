@@ -26,6 +26,8 @@ dobuild()
     local opt=$3
 
     echo -n "Building $ta ${opt} ... "
+    objdir=$(make buildenv TARGET_ARCH=$ta BUILDENV_SHELL="make -V .OBJDIR")
+    rm -rf ${objdir}
     if ! make buildenv TARGET_ARCH=$ta BUILDENV_SHELL="make clean cleandepend cleandir obj depend"  \
 	 > $lf 2>&1; then
 	echo "Fail (cleanup)"
@@ -41,6 +43,16 @@ dobuild()
 
 top=$(make -V SRCTOP)
 cd $top/stand
+
+
+# Build without GELI
+for i in \
+	amd64/amd64 \
+	i386/i386 \
+	; do
+    ta=${i##*/}
+    dobuild $ta _.boot.${ta}.no_geli.log "WITHOUT_LOADER_GEIL=yes"
+done
 
 # Default build for a goodly selection of architectures
 for i in \
@@ -73,13 +85,4 @@ for i in \
 	; do
     ta=${i##*/}
     dobuild $ta _.boot.${ta}.firewire.log "MK_LOADER_FIREWIRE=yes"
-done
-
-# Build without GELI
-for i in \
-	amd64/amd64 \
-	i386/i386 \
-	; do
-    ta=${i##*/}
-    dobuild $ta _.boot.${ta}.no_geli.log "MK_LOADER_GELI=no"
 done
