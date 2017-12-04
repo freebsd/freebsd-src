@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2015
+.Dd November 28, 2017
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -314,7 +314,6 @@ variables are relevant only to release builds for embedded systems:
 .It Va EMBEDDEDBUILD
 Set to a non-null value to enable functionality for embedded device
 release builds.
-.Pq This option is considered highly experimental.
 .Pp
 When set,
 .Va WITH_DVD
@@ -322,15 +321,15 @@ is unset, and
 .Va NODOC
 is defined.
 Additionally,
-.Va XDEV
+.Va EMBEDDED_TARGET
 and
-.Va XDEV_ARCH
+.Va EMBEDDED_TARGET_ARCH
 must also be defined.
 When the build environment is created,
 .Fa release.sh
 runs a separate build script located in an architecture-specific
 directory in
-.Pa src/release/${XDEV}/ .
+.Pa src/release/${EMBEDDED_TARGET}/ .
 .It Va EMBEDDEDPORTS
 Set to the list of any ports that are required for the target device
 in the format of
@@ -338,27 +337,20 @@ in the format of
 The
 .Fa devel/subversion
 port is built by default.
-.It Va CROCHETSRC
-Set to the source URL for the Crochet build tool.
-.It Va CROCHETBRANCH
-Set to the subversion branch from
-.Va ${CROCHETSRC}
-to use.
-Defaults to
-.Pa trunk .
-.It Va UBOOTSRC
-Set to the source URL of u-boot, if required.
-.It Va UBOOTBRANCH
-Set to the subversion branch from
-.Va ${UBOOTSRC}
-to use.
-Defaults to
-.Pa trunk .
-.It Va UBOOTDIR
-Set to the target directory within
-.Va ${CHROOTDIR}
-to check out
-.Va ${UBOOTSRC}/${UBOOTBRANCH} .
+.It Va EMBEDDED_TARGET
+When set, its value is passed to
+.Xr make 1
+to set the
+.Va TARGET
+.Pq value of Cm uname Fl m
+to cross build the target userland.
+.It Va EMBEDDED_TARGET_ARCH
+When set, its value is passed to
+.Xr make 1
+to set the
+.Va TARGET_ARCH
+.Pq value of Cm uname Fl p
+to cross build the target userland.
 .El
 .Sh VIRTUAL MACHINE DISK IMAGES
 The following
