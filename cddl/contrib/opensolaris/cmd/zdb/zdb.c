@@ -3724,7 +3724,7 @@ zdb_embedded_block(char *thing)
 {
 	blkptr_t bp = { 0 };
 	unsigned long long *words = (void *)&bp;
-	char buf[SPA_MAXBLOCKSIZE];
+	char *buf;
 	int err;
 
 	err = sscanf(thing, "%llx:%llx:%llx:%llx:%llx:%llx:%llx:%llx:"
@@ -3738,12 +3738,20 @@ zdb_embedded_block(char *thing)
 		exit(1);
 	}
 	ASSERT3U(BPE_GET_LSIZE(&bp), <=, SPA_MAXBLOCKSIZE);
+	buf = malloc(SPA_MAXBLOCKSIZE);
+	if (buf == NULL) {
+		(void) fprintf(stderr, "%s: failed to allocate %llu bytes\n",
+		    __func__, SPA_MAXBLOCKSIZE);
+		exit(1);
+	}
 	err = decode_embedded_bp(&bp, buf, BPE_GET_LSIZE(&bp));
 	if (err != 0) {
 		(void) printf("decode failed: %u\n", err);
+		free(buf);
 		exit(1);
 	}
 	zdb_dump_block_raw(buf, BPE_GET_LSIZE(&bp), 0);
+	free(buf);
 }
 
 static boolean_t
