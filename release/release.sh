@@ -274,8 +274,11 @@ extra_chroot_setup() {
 			PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
 			PBUILD_FLAGS="${PBUILD_FLAGS} UNAME_r=${UNAME_r}"
 			PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
-			chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
-				${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" \
+			PBUILD_FLAGS="${PBUILD_FLAGS} WRKDIRPREFIX=/tmp/ports"
+			PBUILD_FLAGS="${PBUILD_FLAGS} DISTDIR=/tmp/distfiles"
+			chroot ${CHROOTDIR} env ${PBUILD_FLAGS} make -C \
+				/usr/ports/textproc/docproj \
+				OPTIONS_UNSET="FOP IGOR" \
 				FORCE_PKG_REGISTER=1 \
 				install clean distclean
 		fi
@@ -288,9 +291,12 @@ extra_chroot_setup() {
 		PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
 		PBUILD_FLAGS="${PBUILD_FLAGS} UNAME_r=${UNAME_r}"
 		PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
+		PBUILD_FLAGS="${PBUILD_FLAGS} WRKDIRPREFIX=/tmp/ports"
+		PBUILD_FLAGS="${PBUILD_FLAGS} DISTDIR=/tmp/distfiles"
 		for _PORT in ${EMBEDDEDPORTS}; do
-			eval chroot ${CHROOTDIR} make -C /usr/ports/${_PORT} \
-				FORCE_PKG_REGISTER=1 ${PBUILD_FLAGS} install clean distclean
+			eval chroot ${CHROOTDIR} env ${PBUILD_FLAGS} make -C \
+				/usr/ports/${_PORT} \
+				FORCE_PKG_REGISTER=1 install clean distclean
 		done
 	fi
 
