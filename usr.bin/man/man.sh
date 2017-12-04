@@ -201,7 +201,7 @@ find_file() {
 		catroot="$catroot/$3"
 	fi
 
-	if [ ! -d "$manroot" ]; then
+	if [ ! -d "$manroot" -a ! -d "$catroot" ]; then
 		return 1
 	fi
 	decho "  Searching directory $manroot" 2
