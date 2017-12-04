@@ -456,10 +456,8 @@ sx_downgrade_(struct sx *sx, const char *file, int line)
 	x = sx->sx_lock;
 	if (!(x & SX_LOCK_SHARED_WAITERS) &&
 	    atomic_cmpset_rel_ptr(&sx->sx_lock, x, SX_SHARERS_LOCK(1) |
-	    (x & SX_LOCK_EXCLUSIVE_WAITERS))) {
-		LOCK_LOG_LOCK("XDOWNGRADE", &sx->lock_object, 0, 0, file, line);
-		return;
-	}
+	    (x & SX_LOCK_EXCLUSIVE_WAITERS)))
+		goto out;
 
 	/*
 	 * Lock the sleep queue so we can read the waiters bits
@@ -480,11 +478,12 @@ sx_downgrade_(struct sx *sx, const char *file, int line)
 		    0, SQ_SHARED_QUEUE);
 	sleepq_release(&sx->lock_object);
 
-	LOCK_LOG_LOCK("XDOWNGRADE", &sx->lock_object, 0, 0, file, line);
-	LOCKSTAT_RECORD0(sx__downgrade, sx);
-
 	if (wakeup_swapper)
 		kick_proc0();
+
+out:
+	LOCK_LOG_LOCK("XDOWNGRADE", &sx->lock_object, 0, 0, file, line);
+	LOCKSTAT_RECORD0(sx__downgrade, sx);
 }
 
 /*
@@ -1108,8 +1107,6 @@ _sx_sunlock_hard(struct sx *sx, uintptr_t x, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return;
 
-	LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx, LOCKSTAT_READER);
-
 	for (;;) {
 		if (_sx_sunlock_try(sx, &x))
 			break;
@@ -1145,6 +1142,7 @@ _sx_sunlock_hard(struct sx *sx, uintptr_t x, const char *file, int line)
 			kick_proc0();
 		break;
 	}
+	LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx, LOCKSTAT_READER);
 }
 
 void
