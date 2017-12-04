@@ -50,6 +50,9 @@
 
 #ifdef FEATURE
 FEATURE(evdev, "Input event devices support");
+#ifdef EVDEV_SUPPORT
+FEATURE(evdev_support, "Evdev support in hybrid drivers");
+#endif
 #endif
 
 enum evdev_sparse_result
@@ -64,12 +67,14 @@ MALLOC_DEFINE(M_EVDEV, "evdev", "evdev memory");
 int evdev_rcpt_mask = EVDEV_RCPT_SYSMOUSE | EVDEV_RCPT_KBDMUX;
 int evdev_sysmouse_t_axis = 0;
 
+#ifdef EVDEV_SUPPORT
 SYSCTL_NODE(_kern, OID_AUTO, evdev, CTLFLAG_RW, 0, "Evdev args");
 SYSCTL_INT(_kern_evdev, OID_AUTO, rcpt_mask, CTLFLAG_RW, &evdev_rcpt_mask, 0,
     "Who is receiving events: bit0 - sysmouse, bit1 - kbdmux, "
     "bit2 - mouse hardware, bit3 - keyboard hardware");
 SYSCTL_INT(_kern_evdev, OID_AUTO, sysmouse_t_axis, CTLFLAG_RW,
     &evdev_sysmouse_t_axis, 0, "Extract T-axis from 0-none, 1-ums, 2-psm");
+#endif
 
 static void evdev_start_repeat(struct evdev_dev *, uint16_t);
 static void evdev_stop_repeat(struct evdev_dev *);
