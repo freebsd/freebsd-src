@@ -815,6 +815,7 @@ amdvi_event_intr(void *arg)
 	    softc->total_cmd, ctrl->cmd_tail, ctrl->cmd_head);
 
 	amdvi_print_events(softc);
+	ctrl->status &= AMDVI_STATUS_EV_OF | AMDVI_STATUS_EV_INTR;
 }
 
 static void
@@ -839,6 +840,7 @@ amdvi_free_evt_intr_res(device_t dev)
 static	bool
 amdvi_alloc_intr_resources(struct amdvi_softc *softc)
 {
+	struct amdvi_ctrl *ctrl;
 	device_t dev, pcib;
 	uint64_t msi_addr;
 	uint32_t msi_data, temp;
@@ -902,6 +904,10 @@ amdvi_alloc_intr_resources(struct amdvi_softc *softc)
 		amdvi_free_evt_intr_res(softc->dev);
 		return (err);
 	}
+
+	/* Clear interrupt status bits. */
+	ctrl = softc->ctrl;
+	ctrl->status &= AMDVI_STATUS_EV_OF | AMDVI_STATUS_EV_INTR;
 
 	/* Configure MSI */
 	amdvi_pci_write(softc, msi_off + PCIR_MSI_ADDR, msi_addr);
