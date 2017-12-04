@@ -603,10 +603,10 @@ vm_page_t
 vm_phys_alloc_pages(int domain, int pool, int order)
 {
 	vm_page_t m;
-	int flind;
+	int freelist;
 
-	for (flind = 0; flind < vm_nfreelists; flind++) {
-		m = vm_phys_alloc_freelist_pages(domain, flind, pool, order);
+	for (freelist = 0; freelist < VM_NFREELIST; freelist++) {
+		m = vm_phys_alloc_freelist_pages(domain, freelist, pool, order);
 		if (m != NULL)
 			return (m);
 	}
@@ -621,22 +621,27 @@ vm_phys_alloc_pages(int domain, int pool, int order)
  * The free page queues must be locked.
  */
 vm_page_t
-vm_phys_alloc_freelist_pages(int domain, int flind, int pool, int order)
+vm_phys_alloc_freelist_pages(int domain, int freelist, int pool, int order)
 {
 	struct vm_freelist *alt, *fl;
 	vm_page_t m;
-	int oind, pind;
+	int oind, pind, flind;
 
 	KASSERT(domain >= 0 && domain < vm_ndomains,
 	    ("vm_phys_alloc_freelist_pages: domain %d is out of range",
 	    domain));
-	KASSERT(flind < VM_NFREELIST,
+	KASSERT(freelist < VM_NFREELIST,
 	    ("vm_phys_alloc_freelist_pages: freelist %d is out of range",
 	    flind));
 	KASSERT(pool < VM_NFREEPOOL,
 	    ("vm_phys_alloc_freelist_pages: pool %d is out of range", pool));
 	KASSERT(order < VM_NFREEORDER,
 	    ("vm_phys_alloc_freelist_pages: order %d is out of range", order));
+
+	flind = vm_freelist_to_flind[freelist];
+	/* Check if freelist is present */
+	if (flind < 0)
+		return (NULL);
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	fl = &vm_phys_free_queues[domain][flind][pool][0];
