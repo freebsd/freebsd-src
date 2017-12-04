@@ -632,7 +632,7 @@ vm_phys_alloc_freelist_pages(int domain, int freelist, int pool, int order)
 	    domain));
 	KASSERT(freelist < VM_NFREELIST,
 	    ("vm_phys_alloc_freelist_pages: freelist %d is out of range",
-	    flind));
+	    freelist));
 	KASSERT(pool < VM_NFREEPOOL,
 	    ("vm_phys_alloc_freelist_pages: pool %d is out of range", pool));
 	KASSERT(order < VM_NFREEORDER,
