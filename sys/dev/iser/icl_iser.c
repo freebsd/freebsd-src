@@ -257,9 +257,9 @@ iser_new_conn(const char *name, struct mtx *lock)
 
 	cv_init(&iser_conn->up_cv, "iser_cv");
 	sx_init(&iser_conn->state_mutex, "iser_conn_state_mutex");
-	mtx_init(&iser_conn->ib_conn.beacon.flush_lock, "flush_lock", NULL, MTX_DEF);
+	mtx_init(&iser_conn->ib_conn.beacon.flush_lock, "iser_flush_lock", NULL, MTX_DEF);
 	cv_init(&iser_conn->ib_conn.beacon.flush_cv, "flush_cv");
-	mtx_init(&iser_conn->ib_conn.lock, "lock", NULL, MTX_DEF);
+	mtx_init(&iser_conn->ib_conn.lock, "iser_lock", NULL, MTX_DEF);
 
 	ic = &iser_conn->icl_conn;
 	ic->ic_lock = lock;
@@ -277,6 +277,7 @@ iser_conn_free(struct icl_conn *ic)
 	struct iser_conn *iser_conn = icl_to_iser_conn(ic);
 
 	iser_conn_release(ic);
+	mtx_destroy(&iser_conn->ib_conn.lock);
 	cv_destroy(&iser_conn->ib_conn.beacon.flush_cv);
 	mtx_destroy(&iser_conn->ib_conn.beacon.flush_lock);
 	sx_destroy(&iser_conn->state_mutex);
@@ -512,7 +513,7 @@ icl_iser_load(void)
 	/* device init is called only after the first addr resolution */
 	sx_init(&ig.device_list_mutex,  "global_device_lock");
 	INIT_LIST_HEAD(&ig.device_list);
-	mtx_init(&ig.connlist_mutex, "global_conn_lock", NULL, MTX_DEF);
+	mtx_init(&ig.connlist_mutex, "iser_global_conn_lock", NULL, MTX_DEF);
 	INIT_LIST_HEAD(&ig.connlist);
 	sx_init(&ig.close_conns_mutex,  "global_close_conns_lock");
 
