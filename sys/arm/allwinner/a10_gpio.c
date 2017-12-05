@@ -353,7 +353,8 @@ a10_gpio_pin_configure(struct a10_gpio_softc *sc, uint32_t pin, uint32_t flags)
 	/* Manage input/output. */
 	if (flags & GPIO_PIN_INPUT) {
 		err = a10_gpio_set_function(sc, pin, A10_GPIO_INPUT);
-	} else if (flags & GPIO_PIN_OUTPUT) {
+	} else if ((flags & GPIO_PIN_OUTPUT) &&
+	    a10_gpio_get_function(sc, pin) != A10_GPIO_OUTPUT) {
 		if (flags & GPIO_PIN_PRESET_LOW) {
 			a10_gpio_pin_set_locked(sc, pin, 0);
 		} else if (flags & GPIO_PIN_PRESET_HIGH) {
