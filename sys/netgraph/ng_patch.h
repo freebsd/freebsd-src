@@ -86,7 +86,7 @@ struct ng_patch_config {
 
 #define	NG_PATCH_CONFIG_TYPE_INFO {					\
 	{ "count",		&ng_parse_uint32_type		},	\
-	{ "csum_flags",		&ng_parse_uint64_type		},	\
+	{ "csum_flags",		&ng_parse_uint32_type		},	\
 	{ "ops",		&ng_patch_ops_array_type		},	\
 	{ NULL }							\
 }
