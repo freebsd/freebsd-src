@@ -33,7 +33,7 @@ simple_body() {
   printf 'a\nd\ne\n' >| y
   sort x | sponge x
 
-  atf_check -s exit:0 -o empty -e empty 'sort x | sponge x'
+  atf_check -s exit:0 -o empty -e empty -x 'sort x | sponge x'
 
   if ! cmp -s x y; then
     echo "x and y differ, but they should be equal"
