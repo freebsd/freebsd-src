@@ -148,7 +148,6 @@ SUBDIR=	alias \
 	soelim \
 	sort \
 	split \
-	sponge \
 	stat \
 	stdbuf \
 	strings \
