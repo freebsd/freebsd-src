@@ -217,6 +217,8 @@ typedef struct if_softc_ctx {
 
 	iflib_intr_mode_t isc_intr;
 	uint16_t isc_max_frame_size; /* set at init time by driver */
+	uint16_t isc_min_frame_size; /* set at init time by driver, only used if
+					IFLIB_NEED_ETHER_PAD is set. */
 	uint32_t isc_pause_frames;   /* set by driver for iflib_timer to detect */
 	pci_vendor_info_t isc_vendor_info;	/* set by iflib prior to attach_pre */
 	int isc_disable_msix;
@@ -314,6 +316,10 @@ typedef enum {
  * Driver needs csum zeroed for offloading
  */
 #define IFLIB_NEED_ZERO_CSUM	0x80
+/*
+ * Driver needs frames padded to some minimum length
+ */
+#define IFLIB_NEED_ETHER_PAD	0x100
 
 
 

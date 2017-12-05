@@ -627,11 +627,14 @@ SYSCTL_INT(_net_iflib, OID_AUTO, txq_drain_encapfail, CTLFLAG_RD,
 
 
 static int iflib_encap_load_mbuf_fail;
+static int iflib_encap_pad_mbuf_fail;
 static int iflib_encap_txq_avail_fail;
 static int iflib_encap_txd_encap_fail;
 
 SYSCTL_INT(_net_iflib, OID_AUTO, encap_load_mbuf_fail, CTLFLAG_RD,
 		   &iflib_encap_load_mbuf_fail, 0, "# busdma load failures");
+SYSCTL_INT(_net_iflib, OID_AUTO, encap_pad_mbuf_fail, CTLFLAG_RD,
+		   &iflib_encap_pad_mbuf_fail, 0, "# runt frame pad failures");
 SYSCTL_INT(_net_iflib, OID_AUTO, encap_txq_avail_fail, CTLFLAG_RD,
 		   &iflib_encap_txq_avail_fail, 0, "# txq avail failures");
 SYSCTL_INT(_net_iflib, OID_AUTO, encap_txd_encap_fail, CTLFLAG_RD,
@@ -684,9 +687,10 @@ iflib_debug_reset(void)
 		iflib_fl_refills = iflib_fl_refills_large = iflib_tx_frees =
 		iflib_txq_drain_flushing = iflib_txq_drain_oactive =
 		iflib_txq_drain_notready = iflib_txq_drain_encapfail =
-		iflib_encap_load_mbuf_fail = iflib_encap_txq_avail_fail =
-		iflib_encap_txd_encap_fail = iflib_task_fn_rxs = iflib_rx_intr_enables =
-		iflib_fast_intrs = iflib_intr_link = iflib_intr_msix = iflib_rx_unavail =
+		iflib_encap_load_mbuf_fail = iflib_encap_pad_mbuf_fail =
+		iflib_encap_txq_avail_fail = iflib_encap_txd_encap_fail =
+		iflib_task_fn_rxs = iflib_rx_intr_enables = iflib_fast_intrs =
+		iflib_intr_link = iflib_intr_msix = iflib_rx_unavail =
 		iflib_rx_ctx_inactive = iflib_rx_zero_len = iflib_rx_if_input =
 		iflib_rx_mbuf_null = iflib_rxd_flush = 0;
 }
@@ -3103,6 +3107,35 @@ calc_next_txd(iflib_txq_t txq, int cidx, uint8_t qid)
 	return (next < end ? next : start);
 }
 
+/*
+ * Pad an mbuf to ensure a minimum ethernet frame size.
+ * min_frame_size is the frame size (less CRC) to pad the mbuf to
+ */
+static __noinline int
+iflib_ether_pad(device_t dev, struct mbuf *m_head, uint16_t min_frame_size)
+{
+	/*
+	 * 18 is enough bytes to pad an ARP packet to 46 bytes, and
+	 * and ARP message is the smallest common payload I can think of
+	 */
+	static char pad[18];	/* just zeros */
+	int n;
+
+	for (n = min_frame_size - m_head->m_pkthdr.len;
+	     n > 0; n -= sizeof(pad))
+		if (!m_append(m_head, min(n, sizeof(pad)), pad))
+			break;
+
+	if (n > 0) {
+		m_freem(m_head);
+		device_printf(dev, "cannot pad short frame\n");
+		DBG_COUNTER_INC(encap_pad_mbuf_fail);
+		return (ENOBUFS);
+	}
+
+	return 0;
+}
+
 static int
 iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
 {
@@ -3157,6 +3190,12 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
 		max_segs = scctx->isc_tx_nsegments;
 	}
 	m_head = *m_headp;
+	if ((sctx->isc_flags & IFLIB_NEED_ETHER_PAD) &&
+	    __predict_false(m_head->m_pkthdr.len < scctx->isc_min_frame_size)) {
+		err = iflib_ether_pad(ctx->ifc_dev, m_head, scctx->isc_min_frame_size);
+		if (err)
+			return err;
+	}
 
 	pkt_info_zero(&pi);
 	pi.ipi_mflags = (m_head->m_flags & (M_VLANTAG|M_BCAST|M_MCAST));
