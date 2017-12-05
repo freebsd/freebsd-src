@@ -2261,7 +2261,7 @@ NXBMAKE+=	SUBDIR_OVERRIDE='$${NXBDIRS:M*}'
 # even if the TARGET being built for wants GCC.
 NXBMAKE+=	WANT_COMPILER_TYPE='$${X_COMPILER_TYPE}'
 native-xtools: .PHONY
-	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _cleanobj
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _cleanobj MK_GCC=yes
 	# Build the bootstrap/host/cross tools that produce native binaries
 	# Pass along MK_GCC=yes to ensure GCC-needed build tools are built.
 	# We don't quite know what the NXB_TARGET wants so just build it.
