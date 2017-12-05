@@ -30,6 +30,7 @@ CFLAGS+=-DBOOTPROG=\"gptzfsboot\" \
 	-I${LDRSRC} \
 	-I${BOOTSRC}/i386/common \
 	-I${ZFSSRC} \
+	-I${SYSDIR}/crypto/skein \
 	-I${SYSDIR}/cddl/boot/zfs \
 	-I${BOOTSRC}/i386/btx/lib \
 	-I${BOOTSRC}/i386/boot2 \
