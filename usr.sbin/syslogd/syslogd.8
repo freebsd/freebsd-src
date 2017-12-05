@@ -28,7 +28,7 @@
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2017
+.Dd November 28, 2017
 .Dt SYSLOGD 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl 468ACcdFkNnosTuv
+.Op Fl 468ACcdFHkNnosTuv
 .Op Fl a Ar allowed_peer
 .Op Fl b Ar bind_address
 .Op Fl f Ar config_file
@@ -229,6 +229,9 @@ and
 to run
 .Nm ,
 and wants to monitor when and how it exits.
+.It Fl H
+When logging remote messages use hostname from the message (if supplied)
+instead of using address from which the message was received.
 .It Fl k
 Disable the translation of
 messages received with facility
