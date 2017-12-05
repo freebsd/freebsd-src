@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)logger.c	8.1 (Berkeley) 6/6/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #define	SYSLOG_NAMES
@@ -71,8 +72,8 @@ static int	decode(char *, const CODE *);
 static int	pencode(char *);
 static ssize_t	socksetup(const char *, const char *, const char *,
 		    struct socks **);
-static void	logmessage(int, const char *, struct socks *, ssize_t,
-			   const char *);
+static void	logmessage(int, const char *, const char *, const char *,
+		    struct socks *, ssize_t, const char *);
 static void	usage(void);
 
 #ifdef INET6
@@ -93,19 +94,22 @@ main(int argc, char *argv[])
 {
 	struct socks *socks;
 	ssize_t nsock;
+	time_t now;
 	int ch, logflags, pri;
-	char *tag, *host, buf[1024];
+	char *tag, *host, buf[1024], *timestamp, tbuf[26],
+	    *hostname, hbuf[MAXHOSTNAMELEN];
 	const char *svcname, *src;
 
 	tag = NULL;
 	host = NULL;
+	hostname = NULL;
 	svcname = "syslog";
 	src = NULL;
 	socks = NULL;
 	pri = LOG_USER | LOG_NOTICE;
 	logflags = 0;
 	unsetenv("TZ");
-	while ((ch = getopt(argc, argv, "46Af:h:iP:p:S:st:")) != -1)
+	while ((ch = getopt(argc, argv, "46Af:H:h:iP:p:S:st:")) != -1)
 		switch((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -122,6 +126,9 @@ main(int argc, char *argv[])
 			if (freopen(optarg, "r", stdin) == NULL)
 				err(1, "%s", optarg);
 			setvbuf(stdin, 0, _IONBF, 0);
+			break;
+		case 'H':		/* hostname to set in message header */
+			hostname = optarg;
 			break;
 		case 'h':		/* hostname to deliver to */
 			host = optarg;
@@ -168,6 +175,17 @@ main(int argc, char *argv[])
 		openlog(tag, logflags, 0);
 	(void) fclose(stdout);
 
+	(void )time(&now);
+	(void )ctime_r(&now, tbuf);
+	tbuf[19] = '\0';
+	timestamp = tbuf + 4;
+
+	if (hostname == NULL) {
+		hostname = hbuf;
+		(void )gethostname(hbuf, MAXHOSTNAMELEN);
+		*strchr(hostname, '.') = '\0';
+	}
+
 	/* log input line if appropriate */
 	if (argc > 0) {
 		char *p, *endp;
@@ -176,11 +194,13 @@ main(int argc, char *argv[])
 		for (p = buf, endp = buf + sizeof(buf) - 2; *argv;) {
 			len = strlen(*argv);
 			if (p + len > endp && p > buf) {
-				logmessage(pri, tag, socks, nsock, buf);
+				logmessage(pri, timestamp, hostname, tag,
+				    socks, nsock, buf);
 				p = buf;
 			}
 			if (len > sizeof(buf) - 1)
-				logmessage(pri, tag, socks, nsock, *argv++);
+				logmessage(pri, timestamp, hostname, tag,
+				    socks, nsock, *argv++);
 			else {
 				if (p != buf)
 					*p++ = ' ';
@@ -189,10 +209,12 @@ main(int argc, char *argv[])
 			}
 		}
 		if (p != buf)
-			logmessage(pri, tag, socks, nsock, buf);
+			logmessage(pri, timestamp, hostname, tag, socks, nsock,
+			    buf);
 	} else
 		while (fgets(buf, sizeof(buf), stdin) != NULL)
-			logmessage(pri, tag, socks, nsock, buf);
+			logmessage(pri, timestamp, hostname, tag, socks, nsock,
+			    buf);
 	exit(0);
 }
 
@@ -320,8 +342,8 @@ socksetup(const char *src, const char *dst, const char *svcname,
  *  Send the message to syslog, either on the local host, or on a remote host
  */
 static void
-logmessage(int pri, const char *tag, struct socks *sk, ssize_t nsock,
-	const char *buf)
+logmessage(int pri, const char *timestamp, const char *hostname,
+    const char *tag, struct socks *sk, ssize_t nsock, const char *buf)
 {
 	char *line;
 	int len, i, lsent;
@@ -330,7 +352,8 @@ logmessage(int pri, const char *tag, struct socks *sk, ssize_t nsock,
 		syslog(pri, "%s", buf);
 		return;
 	}
-	if ((len = asprintf(&line, "<%d>%s: %s", pri, tag, buf)) == -1)
+	if ((len = asprintf(&line, "<%d>%s %s %s: %s", pri, timestamp,
+	    hostname, tag, buf)) == -1)
 		errx(1, "asprintf");
 
 	lsent = -1;
