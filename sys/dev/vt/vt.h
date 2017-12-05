@@ -196,8 +196,8 @@ struct vt_buf {
 #define	VBF_SCROLL	0x8	/* scroll locked mode. */
 #define	VBF_HISTORY_FULL 0x10	/* All rows filled. */
 	unsigned int		 vb_history_size;
-	int			 vb_roffset;	/* (b) History rows offset. */
-	int			 vb_curroffset;	/* (b) Saved rows offset. */
+	unsigned int		 vb_roffset;	/* (b) History rows offset. */
+	unsigned int		 vb_curroffset;	/* (b) Saved rows offset. */
 	term_pos_t		 vb_cursor;	/* (u) Cursor position. */
 	term_pos_t		 vb_mark_start;	/* (b) Copy region start. */
 	term_pos_t		 vb_mark_end;	/* (b) Copy region end. */
@@ -223,7 +223,7 @@ void vtbuf_cursor_position(struct vt_buf *, const term_pos_t *);
 void vtbuf_scroll_mode(struct vt_buf *vb, int yes);
 void vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area);
 void vtbuf_undirty(struct vt_buf *, term_rect_t *);
-void vtbuf_sethistory_size(struct vt_buf *, int);
+void vtbuf_sethistory_size(struct vt_buf *, unsigned int);
 int vtbuf_iscursor(const struct vt_buf *vb, int row, int col);
 void vtbuf_cursor_visibility(struct vt_buf *, int);
 #ifndef SC_NO_CUTPASTE
