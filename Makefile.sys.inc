@@ -38,6 +38,10 @@ MK_AUTO_OBJ=		no
 # just want to read any existing OBJDIR but we don't care if we can create
 # or write to them.
 .MAKEOVERRIDES+=	MK_AUTO_OBJ
+.else
+# For top-level we always assume the MAKEOBJDIRPREFIX is writable rather than
+# falling back to .CURDIR.
+__objdir_writable= yes
 .endif
 .endif	# empty(.MAKEOVERRIDES:MMK_AUTO_OBJ)
 
