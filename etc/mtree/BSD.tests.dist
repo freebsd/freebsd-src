@@ -654,6 +654,8 @@
         ..
         cut
         ..
+        dc
+        ..
         diff
         ..
         dirname
