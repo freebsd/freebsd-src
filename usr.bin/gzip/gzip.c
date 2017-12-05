@@ -1,7 +1,8 @@
-/*	$NetBSD: gzip.c,v 1.109 2015/10/27 07:36:18 mrg Exp $	*/
+/*	$NetBSD: gzip.c,v 1.112 2017/08/23 13:04:17 christos Exp $	*/
 
 /*-
- * Copyright (c) 1997, 1998, 2003, 2004, 2006 Matthew R. Green
+ * Copyright (c) 1997, 1998, 2003, 2004, 2006, 2008, 2009, 2010, 2011, 2015, 2017
+ *    Matthew R. Green
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,8 +30,8 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__COPYRIGHT("@(#) Copyright (c) 1997, 1998, 2003, 2004, 2006\
- Matthew R. Green.  All rights reserved.");
+__COPYRIGHT("@(#) Copyright (c) 1997, 1998, 2003, 2004, 2006, 2008,\
+ 2009, 2010, 2011, 2015, 2017 Matthew R. Green.  All rights reserved.");
 __FBSDID("$FreeBSD$");
 #endif /* not lint */
 
@@ -158,7 +159,7 @@ static suffixes_t suffixes[] = {
 #define NUM_SUFFIXES (nitems(suffixes))
 #define SUFFIX_MAXLEN	30
 
-static	const char	gzip_version[] = "FreeBSD gzip 20150413";
+static	const char	gzip_version[] = "FreeBSD gzip 20171121";
 
 #ifndef SMALL
 static	const char	gzip_copyright[] = \
@@ -192,8 +193,10 @@ static	int	dflag;			/* decompress mode */
 static	int	lflag;			/* list mode */
 static	int	numflag = 6;		/* gzip -1..-9 value */
 
-#ifndef SMALL
+static	const char *remove_file = NULL;	/* file to be removed upon SIGINT */
+
 static	int	fflag;			/* force mode */
+#ifndef SMALL
 static	int	kflag;			/* don't delete input files */
 static	int	nflag;			/* don't save name/timestamp */
 static	int	Nflag;			/* don't restore name/timestamp */
@@ -201,7 +204,7 @@ static	int	qflag;			/* quiet mode */
 static	int	rflag;			/* recursive mode */
 static	int	tflag;			/* test */
 static	int	vflag;			/* verbose mode */
-static	const char *remove_file = NULL;	/* file to be removed upon SIGINT */
+static	sig_atomic_t print_info = 0;
 #else
 #define		qflag	0
 #define		tflag	0
@@ -209,7 +212,7 @@ static	const char *remove_file = NULL;	/* file to be removed upon SIGINT */
 
 static	int	exit_value = 0;		/* exit value */
 
-static	char	*infile;		/* name of file coming in */
+static	const char *infile;		/* name of file coming in */
 
 static	void	maybe_err(const char *fmt, ...) __printflike(1, 2) __dead2;
 #if !defined(NO_BZIP2_SUPPORT) || !defined(NO_PACK_SUPPORT) ||	\
@@ -236,14 +239,26 @@ static	void	usage(void) __dead2;
 static	void	display_version(void) __dead2;
 #ifndef SMALL
 static	void	display_license(void);
-static	void	sigint_handler(int);
 #endif
 static	const suffixes_t *check_suffix(char *, int);
 static	ssize_t	read_retry(int, void *, size_t);
+static	ssize_t	write_retry(int, const void *, size_t);
+
+#ifdef SMALL
+#define infile_set(f,t) infile_set(f)
+#endif
+static	void	infile_set(const char *newinfile, off_t total);
 
 #ifdef SMALL
 #define unlink_input(f, sb) unlink(f)
+#define check_siginfo() /* nothing */
+#define setup_signals() /* nothing */
+#define infile_newdata(t) /* nothing */
 #else
+static	off_t	infile_total;		/* total expected to read/write */
+static	off_t	infile_current;		/* current read/write */
+
+static	void	check_siginfo(void);
 static	off_t	cat_fd(unsigned char *, size_t, off_t *, int fd);
 static	void	prepend_gzip(char *, int *, char ***);
 static	void	handle_dir(char *);
@@ -251,6 +266,9 @@ static	void	print_verbage(const char *, const char *, off_t, off_t);
 static	void	print_test(const char *, int);
 static	void	copymodes(int fd, const struct stat *, const char *file);
 static	int	check_outfile(const char *outfile);
+static	void	setup_signals(void);
+static	void	infile_newdata(size_t newdata);
+static	void	infile_clear(void);
 #endif
 
 #ifndef NO_BZIP2_SUPPORT
@@ -308,10 +326,11 @@ main(int argc, char **argv)
 #endif
 	int ch;
 
+	setup_signals();
+
 #ifndef SMALL
 	if ((gzip = getenv("GZIP")) != NULL)
 		prepend_gzip(gzip, &argc, &argv);
-	signal(SIGINT, sigint_handler);
 #endif
 
 	/*
@@ -587,7 +606,7 @@ gz_compress(int in, int out, off_t *gsizep, const char *origname, uint32_t mtime
 		origname = "";
 	}
 
-	i = snprintf(outbufp, BUFLEN, "%c%c%c%c%c%c%c%c%c%c%s", 
+	i = snprintf(outbufp, BUFLEN, "%c%c%c%c%c%c%c%c%c%c%s",
 		     GZIP_MAGIC0, GZIP_MAGIC1, Z_DEFLATED,
 		     *origname ? ORIG_NAME : 0,
 		     mtime & 0xff,
@@ -596,7 +615,7 @@ gz_compress(int in, int out, off_t *gsizep, const char *origname, uint32_t mtime
 		     (mtime >> 24) & 0xff,
 		     numflag == 1 ? 4 : numflag == 9 ? 2 : 0,
 		     OS_CODE, origname);
-	if (i >= BUFLEN)     
+	if (i >= BUFLEN)
 		/* this need PATH_MAX > BUFLEN ... */
 		maybe_err("snprintf");
 	if (*origname)
@@ -617,7 +636,7 @@ gz_compress(int in, int out, off_t *gsizep, const char *origname, uint32_t mtime
 	crc = crc32(0L, Z_NULL, 0);
 	for (;;) {
 		if (z.avail_out == 0) {
-			if (write(out, outbufp, BUFLEN) != BUFLEN) {
+			if (write_retry(out, outbufp, BUFLEN) != BUFLEN) {
 				maybe_warn("write");
 				out_tot = -1;
 				goto out;
@@ -637,6 +656,7 @@ gz_compress(int in, int out, off_t *gsizep, const char *origname, uint32_t mtime
 			}
 			if (in_size == 0)
 				break;
+			infile_newdata(in_size);
 
 			crc = crc32(crc, (const Bytef *)inbufp, (unsigned)in_size);
 			in_tot += in_size;
@@ -666,7 +686,7 @@ gz_compress(int in, int out, off_t *gsizep, const char *origname, uint32_t mtime
 
 		len = (char *)z.next_out - outbufp;
 
-		w = write(out, outbufp, len);
+		w = write_retry(out, outbufp, len);
 		if (w == -1 || (size_t)w != len) {
 			maybe_warn("write");
 			out_tot = -1;
@@ -686,7 +706,7 @@ gz_compress(int in, int out, off_t *gsizep, const char *origname, uint32_t mtime
 		goto out;
 	}
 
-	i = snprintf(outbufp, BUFLEN, "%c%c%c%c%c%c%c%c", 
+	i = snprintf(outbufp, BUFLEN, "%c%c%c%c%c%c%c%c",
 		 (int)crc & 0xff,
 		 (int)(crc >> 8) & 0xff,
 		 (int)(crc >> 16) & 0xff,
@@ -697,7 +717,7 @@ gz_compress(int in, int out, off_t *gsizep, const char *origname, uint32_t mtime
 		 (int)(in_tot >> 24) & 0xff);
 	if (i != 8)
 		maybe_err("snprintf");
-	if (write(out, outbufp, i) != i) {
+	if (write_retry(out, outbufp, i) != i) {
 		maybe_warn("write");
 		in_tot = -1;
 	} else
@@ -774,6 +794,7 @@ gz_uncompress(int in, int out, char *pre, size_t prelen, off_t *gsizep,
 	out_tot = 0;
 
 	for (;;) {
+		check_siginfo();
 		if ((z.avail_in == 0 || needmore) && done_reading == 0) {
 			ssize_t in_size;
 
@@ -790,6 +811,7 @@ gz_uncompress(int in, int out, char *pre, size_t prelen, off_t *gsizep,
 			} else if (in_size == 0) {
 				done_reading = 1;
 			}
+			infile_newdata(in_size);
 
 			z.avail_in += in_size;
 			needmore = 0;
@@ -962,7 +984,7 @@ gz_uncompress(int in, int out, char *pre, size_t prelen, off_t *gsizep,
 				    /* don't write anything with -t */
 				    tflag == 0 &&
 #endif
-				    write(out, outbufp, wr) != wr) {
+				    write_retry(out, outbufp, wr) != wr) {
 					maybe_warn("error writing to output");
 					goto stop_and_fail;
 				}
@@ -1083,7 +1105,7 @@ copymodes(int fd, const struct stat *sbp, const char *file)
 
 		(void)fchmod(fd, DEFFILEMODE & ~mask);
 		(void)umask(mask);
-		return; 
+		return;
 	}
 	sb = *sbp;
 
@@ -1190,14 +1212,57 @@ unlink_input(const char *file, const struct stat *sb)
 }
 
 static void
-sigint_handler(int signo __unused)
+got_sigint(int signo __unused)
 {
 
 	if (remove_file != NULL)
 		unlink(remove_file);
 	_exit(2);
 }
+
+static void
+got_siginfo(int signo __unused)
+{
+
+	print_info = 1;
+}
+
+static void
+setup_signals(void)
+{
+
+	signal(SIGINFO, got_siginfo);
+	signal(SIGINT, got_sigint);
+}
+
+static	void
+infile_newdata(size_t newdata)
+{
+
+	infile_current += newdata;
+}
 #endif
+
+static	void
+infile_set(const char *newinfile, off_t total)
+{
+
+	if (newinfile)
+		infile = newinfile;
+#ifndef SMALL
+	infile_total = total;
+#endif
+}
+
+static	void
+infile_clear(void)
+{
+
+	infile = NULL;
+#ifndef SMALL
+	infile_total = infile_current = 0;
+#endif
+}
 
 static const suffixes_t *
 check_suffix(char *file, int xlate)
@@ -1229,7 +1294,7 @@ file_compress(char *file, char *outfile, size_t outsize)
 {
 	int in;
 	int out;
-	off_t size, insize;
+	off_t size, in_size;
 #ifndef SMALL
 	struct stat isb, osb;
 	const suffixes_t *suff;
@@ -1249,14 +1314,24 @@ file_compress(char *file, char *outfile, size_t outsize)
 	}
 #endif
 
+#ifndef SMALL
+	if (fstat(in, &isb) != 0) {
+		close(in);
+		maybe_warn("can't stat %s", file);
+		return -1;
+	}
+	infile_set(file, isb.st_size);
+#endif
+
 	if (cflag == 0) {
 #ifndef SMALL
 		if (isb.st_nlink > 1 && fflag == 0) {
-			maybe_warnx("%s has %ju other link%s -- skipping",
-			    file, (uintmax_t)isb.st_nlink - 1,
-			    (isb.st_nlink - 1) == 1 ? "" : "s");
+			maybe_warnx("%s has %ju other link%s -- "
+				    "skipping", file,
+				    (uintmax_t)isb.st_nlink - 1,
+				    isb.st_nlink == 1 ? "" : "s");
 			close(in);
-			return (-1);
+			return -1;
 		}
 
 		if (fflag == 0 && (suff = check_suffix(file, 0)) &&
@@ -1295,19 +1370,19 @@ file_compress(char *file, char *outfile, size_t outsize)
 	} else
 		out = STDOUT_FILENO;
 
-	insize = gz_compress(in, out, &size, basename(file), (uint32_t)isb.st_mtime);
+	in_size = gz_compress(in, out, &size, basename(file), (uint32_t)isb.st_mtime);
 
 	(void)close(in);
 
 	/*
-	 * If there was an error, insize will be -1.
+	 * If there was an error, in_size will be -1.
 	 * If we compressed to stdout, just return the size.
 	 * Otherwise stat the file and check it is the correct size.
 	 * We only blow away the file if we can stat the output and it
 	 * has the expected size.
 	 */
 	if (cflag != 0)
-		return (insize == -1 ? -1 : size);
+		return in_size == -1 ? -1 : size;
 
 #ifndef SMALL
 	if (fstat(out, &osb) != 0) {
@@ -1352,6 +1427,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 	unsigned char header1[4];
 	enum filetype method;
 	int fd, ofd, zfd = -1;
+	size_t in_size;
 #ifndef SMALL
 	ssize_t rv;
 	time_t timestamp = 0;
@@ -1365,6 +1441,16 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 		maybe_warn("can't open %s", file);
 		goto lose;
 	}
+	if (fstat(fd, &isb) != 0) {
+		close(fd);
+		maybe_warn("can't stat %s", file);
+		goto lose;
+	}
+	if (S_ISREG(isb.st_mode))
+		in_size = isb.st_size;
+	else
+		in_size = 0;
+	infile_set(file, in_size);
 
 	strlcpy(outfile, file, outsize);
 	if (check_suffix(outfile, 1) == NULL && !(cflag || lflag)) {
@@ -1385,6 +1471,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 			goto unexpected_EOF;
 		goto lose;
 	}
+	infile_newdata(rbytes);
 
 	method = file_gettype(header1);
 #ifndef SMALL
@@ -1407,6 +1494,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 				maybe_warn("can't read %s", file);
 			goto lose;
 		}
+		infile_newdata(rv);
 		timestamp = ts[3] << 24 | ts[2] << 16 | ts[1] << 8 | ts[0];
 
 		if (header1[3] & ORIG_NAME) {
@@ -1435,7 +1523,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 				else
 					dp++;
 				snprintf(outfile, outsize, "%.*s%.*s",
-						(int) (dp - file), 
+						(int) (dp - file),
 						file, (int) rbytes, nf);
 			}
 		}
@@ -1444,8 +1532,6 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 	lseek(fd, 0, SEEK_SET);
 
 	if (cflag == 0 || lflag) {
-		if (fstat(fd, &isb) != 0)
-			goto lose;
 #ifndef SMALL
 		if (isb.st_nlink > 1 && lflag == 0 && fflag == 0) {
 			maybe_warnx("%s has %ju other links -- skipping",
@@ -1459,7 +1545,11 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 #endif
 	}
 
-	if (cflag == 0 && lflag == 0) {
+	if (cflag)
+		zfd = STDOUT_FILENO;
+	else if (lflag)
+		zfd = -1;
+	else {
 		zfd = open(outfile, O_WRONLY|O_CREAT|O_EXCL, 0600);
 		if (zfd == STDOUT_FILENO) {
 			/* We won't close STDOUT_FILENO later... */
@@ -1470,11 +1560,8 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 			maybe_warn("can't open %s", outfile);
 			goto lose;
 		}
-#ifndef SMALL
 		remove_file = outfile;
-#endif
-	} else
-		zfd = STDOUT_FILENO;
+	}
 
 	switch (method) {
 #ifndef NO_BZIP2_SUPPORT
@@ -1560,7 +1647,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 #endif
 	default:
 		if (lflag) {
-			print_list(fd, isb.st_size, outfile, isb.st_mtime);
+			print_list(fd, in_size, outfile, isb.st_mtime);
 			close(fd);
 			return -1;	/* XXX */
 		}
@@ -1635,6 +1722,25 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 }
 
 #ifndef SMALL
+static void
+check_siginfo(void)
+{
+	if (print_info == 0)
+		return;
+	if (infile) {
+		if (infile_total) {
+			int pcent = (int)((100.0 * infile_current) / infile_total);
+
+			fprintf(stderr, "%s: done %llu/%llu bytes %d%%\n",
+				infile, (unsigned long long)infile_current,
+				(unsigned long long)infile_total, pcent);
+		} else
+			fprintf(stderr, "%s: done %llu bytes\n",
+				infile, (unsigned long long)infile_current);
+	}
+	print_info = 0;
+}
+
 static off_t
 cat_fd(unsigned char * prepend, size_t count, off_t *gsizep, int fd)
 {
@@ -1643,7 +1749,7 @@ cat_fd(unsigned char * prepend, size_t count, off_t *gsizep, int fd)
 	ssize_t w;
 
 	in_tot = count;
-	w = write(STDOUT_FILENO, prepend, count);
+	w = write_retry(STDOUT_FILENO, prepend, count);
 	if (w == -1 || (size_t)w != count) {
 		maybe_warn("write to stdout");
 		return -1;
@@ -1658,8 +1764,9 @@ cat_fd(unsigned char * prepend, size_t count, off_t *gsizep, int fd)
 			maybe_warn("read from fd %d", fd);
 			break;
 		}
+		infile_newdata(rv);
 
-		if (write(STDOUT_FILENO, buf, rv) != rv) {
+		if (write_retry(STDOUT_FILENO, buf, rv) != rv) {
 			maybe_warn("write to stdout");
 			break;
 		}
@@ -1675,7 +1782,9 @@ cat_fd(unsigned char * prepend, size_t count, off_t *gsizep, int fd)
 static void
 handle_stdin(void)
 {
+	struct stat isb;
 	unsigned char header1[4];
+	size_t in_size;
 	off_t usize, gsize;
 	enum filetype method;
 	ssize_t bytes_read;
@@ -1686,29 +1795,32 @@ handle_stdin(void)
 #ifndef SMALL
 	if (fflag == 0 && lflag == 0 && isatty(STDIN_FILENO)) {
 		maybe_warnx("standard input is a terminal -- ignoring");
-		return;
+		goto out;
 	}
 #endif
 
-	if (lflag) {
-		struct stat isb;
+	if (fstat(STDIN_FILENO, &isb) < 0) {
+		maybe_warn("fstat");
+		goto out;
+	}
+	if (S_ISREG(isb.st_mode))
+		in_size = isb.st_size;
+	else
+		in_size = 0;
+	infile_set("(stdin)", in_size);
 
-		/* XXX could read the whole file, etc. */
-		if (fstat(STDIN_FILENO, &isb) < 0) {
-			maybe_warn("fstat");
-			return;
-		}
-		print_list(STDIN_FILENO, isb.st_size, "stdout", isb.st_mtime);
-		return;
+	if (lflag) {
+		print_list(STDIN_FILENO, in_size, infile, isb.st_mtime);
+		goto out;
 	}
 
 	bytes_read = read_retry(STDIN_FILENO, header1, sizeof header1);
 	if (bytes_read == -1) {
 		maybe_warn("can't read stdin");
-		return;
+		goto out;
 	} else if (bytes_read != sizeof(header1)) {
 		maybe_warnx("(stdin): unexpected end of file");
-		return;
+		goto out;
 	}
 
 	method = file_gettype(header1);
@@ -1717,13 +1829,13 @@ handle_stdin(void)
 #ifndef SMALL
 		if (fflag == 0) {
 			maybe_warnx("unknown compression format");
-			return;
+			goto out;
 		}
 		usize = cat_fd(header1, sizeof header1, &gsize, STDIN_FILENO);
 		break;
 #endif
 	case FT_GZIP:
-		usize = gz_uncompress(STDIN_FILENO, STDOUT_FILENO, 
+		usize = gz_uncompress(STDIN_FILENO, STDOUT_FILENO,
 			      (char *)header1, sizeof header1, &gsize, "(stdin)");
 		break;
 #ifndef NO_BZIP2_SUPPORT
@@ -1736,7 +1848,7 @@ handle_stdin(void)
 	case FT_Z:
 		if ((in = zdopen(STDIN_FILENO)) == NULL) {
 			maybe_warnx("zopen of stdin");
-			return;
+			goto out;
 		}
 
 		usize = zuncompress(in, stdout, (char *)header1,
@@ -1763,53 +1875,58 @@ handle_stdin(void)
 		print_verbage(NULL, NULL, usize, gsize);
 	if (vflag && tflag)
 		print_test("(stdin)", usize != -1);
-#endif 
+#else
+	(void)&usize;
+#endif
 
+out:
+	infile_clear();
 }
 
 static void
 handle_stdout(void)
 {
-	off_t gsize, usize;
+	off_t gsize;
+#ifndef SMALL
+	off_t usize;
 	struct stat sb;
 	time_t systime;
 	uint32_t mtime;
 	int ret;
 
-#ifndef SMALL
+	infile_set("(stdout)", 0);
+
 	if (fflag == 0 && isatty(STDOUT_FILENO)) {
 		maybe_warnx("standard output is a terminal -- ignoring");
 		return;
 	}
-#endif
+
 	/* If stdin is a file use its mtime, otherwise use current time */
 	ret = fstat(STDIN_FILENO, &sb);
-
-#ifndef SMALL
 	if (ret < 0) {
 		maybe_warn("Can't stat stdin");
 		return;
 	}
-#endif
 
-	if (S_ISREG(sb.st_mode))
+	if (S_ISREG(sb.st_mode)) {
+		infile_set("(stdout)", sb.st_size);
 		mtime = (uint32_t)sb.st_mtime;
-	else {
+	} else {
 		systime = time(NULL);
-#ifndef SMALL
 		if (systime == -1) {
 			maybe_warn("time");
 			return;
-		} 
-#endif
+		}
 		mtime = (uint32_t)systime;
 	}
 	 		
-	usize = gz_compress(STDIN_FILENO, STDOUT_FILENO, &gsize, "", mtime);
+	usize =
+#endif
+		gz_compress(STDIN_FILENO, STDOUT_FILENO, &gsize, "", mtime);
 #ifndef SMALL
         if (vflag && !tflag && usize != -1 && gsize != -1)
 		print_verbage(NULL, NULL, usize, gsize);
-#endif 
+#endif
 }
 
 /* do what is asked for, for the path name */
@@ -1876,7 +1993,7 @@ handle_file(char *file, struct stat *sbp)
 	off_t usize, gsize;
 	char	outfile[PATH_MAX];
 
-	infile = file;
+	infile_set(file, sbp->st_size);
 	if (dflag) {
 		usize = file_uncompress(file, outfile, sizeof(outfile));
 #ifndef SMALL
@@ -1892,7 +2009,7 @@ handle_file(char *file, struct stat *sbp)
 			return;
 		usize = sbp->st_size;
 	}
-
+	infile_clear();
 
 #ifndef SMALL
 	if (vflag && !tflag)
@@ -1946,7 +2063,9 @@ print_ratio(off_t in, off_t out, FILE *where)
 	int len;
 
 	diff = in - out/2;
-	if (diff <= 0)
+	if (in == 0 && out == 0)
+		percent10 = 0;
+	else if (diff < 0)
 		/*
 		 * Output is more than double size of input! print -99.9%
 		 * Quite possibly we've failed to get the original size.
@@ -2165,6 +2284,28 @@ read_retry(int fd, void *buf, size_t sz)
 			return ret;
 		} else if (ret == 0) {
 			break; /* EOF */
+		}
+		cp += ret;
+		left -= ret;
+	}
+
+	return sz - left;
+}
+
+static ssize_t
+write_retry(int fd, const void *buf, size_t sz)
+{
+	const char *cp = buf;
+	size_t left = MIN(sz, (size_t) SSIZE_MAX);
+
+	while (left > 0) {
+		ssize_t ret;
+
+		ret = write(fd, cp, left);
+		if (ret == -1) {
+			return ret;
+		} else if (ret == 0) {
+			abort();	/* Can't happen */
 		}
 		cp += ret;
 		left -= ret;
