@@ -172,7 +172,8 @@ main(int argc, char* argv[])
 	bufremain = bufcnt;
 
 	while (bufremain > 0) {
-		whichbuf = (bufremain < maxiovec) ? bufremain : maxiovec;
+		whichbuf = bufremain < (unsigned long) maxiovec
+			? bufremain : maxiovec;
 		bufremain -= whichbuf;
 
 		i = writev(fd, iov, whichbuf);
