@@ -39,7 +39,7 @@
 # done
 
 # 20171204: Move fdformat man page from volume 1 to volume 8.
-OLD_FILES+=usr/share/man/man8/fdformat.1.gz
+OLD_FILES+=usr/share/man/man1/fdformat.1.gz
 # 20171203: libproc version bump
 OLD_LIBS+=usr/lib/libproc.so.4
 OLD_LIBS+=usr/lib32/libproc.so.4
