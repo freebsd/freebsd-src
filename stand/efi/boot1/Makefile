@@ -31,9 +31,10 @@ CWARNFLAGS.zfs_module.c += -Wno-unused-function
 SRCS=	boot1.c self_reloc.c start.S ufs_module.c
 .if ${MK_ZFS} != "no"
 SRCS+=		zfs_module.c
-CFLAGS+=	-I${ZFSSRC}
-CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
-CFLAGS+=	-DEFI_ZFS_BOOT
+CFLAGS.zfs_module.c+=	-I${ZFSSRC}
+CFLAGS.zfs_module.c+=	-I${SYSDIR}/cddl/boot/zfs
+CFLAGS.zfs_module.c+=	-I${SYSDIR}/crypto/skein
+CFLAGS.zfs_module.c+=	-DEFI_ZFS_BOOT
 LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 .endif
 
