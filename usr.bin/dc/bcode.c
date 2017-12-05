@@ -58,7 +58,6 @@ static __inline void	 unreadch(void);
 static __inline char	*readline(void);
 static __inline void	 src_free(void);
 
-static __inline u_int	 max(u_int, u_int);
 static u_long		 get_ulong(struct number *);
 
 static __inline void	 push_number(struct number *);
@@ -326,18 +325,12 @@ pbn(const char *str, const BIGNUM *n)
 
 #endif
 
-static __inline u_int
-max(u_int a, u_int b)
-{
-
-	return (a > b ? a : b);
-}
-
 static unsigned long factors[] = {
 	0, 10, 100, 1000, 10000, 100000, 1000000, 10000000,
 	100000000, 1000000000
 };
 
+/* Multiply n by 10^s */
 void
 scale_number(BIGNUM *n, int s)
 {
@@ -411,6 +404,7 @@ split_number(const struct number *n, BIGNUM *i, BIGNUM *f)
 	}
 }
 
+/* Change the scale of n to s.  Reducing scale may truncate the mantissa */
 void
 normalize(struct number *n, u_int s)
 {
@@ -1067,8 +1061,6 @@ static void
 bdiv(void)
 {
 	struct number *a, *b, *r;
-	BN_CTX *ctx;
-	u_int scale;
 
 	a = pop_number();
 	if (a == NULL)
@@ -1079,21 +1071,8 @@ bdiv(void)
 		return;
 	}
 
-	r = new_number();
-	r->scale = bmachine.scale;
-	scale = max(a->scale, b->scale);
+	r = div_number(b, a, bmachine.scale);
 
-	if (BN_is_zero(a->number))
-		warnx("divide by zero");
-	else {
-		normalize(a, scale);
-		normalize(b, scale + r->scale);
-
-		ctx = BN_CTX_new();
-		bn_checkp(ctx);
-		bn_check(BN_div(r->number, NULL, b->number, a->number, ctx));
-		BN_CTX_free(ctx);
-	}
 	push_number(r);
 	free_number(a);
 	free_number(b);
@@ -1681,7 +1660,7 @@ parse_number(void)
 
 	unreadch();
 	push_number(readnumber(&bmachine.readstack[bmachine.readsp],
-	    bmachine.ibase));
+	    bmachine.ibase, bmachine.scale));
 }
 
 static void
