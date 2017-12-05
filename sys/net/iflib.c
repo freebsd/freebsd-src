@@ -2467,13 +2467,26 @@ iflib_rxd_pkt_get(iflib_rxq_t rxq, if_rxd_info_t ri)
 }
 
 #if defined(INET6) || defined(INET)
+static void
+iflib_get_ip_forwarding(struct lro_ctrl *lc, bool *v4, bool *v6)
+{
+	CURVNET_SET(lc->ifp->if_vnet);
+#if defined(INET6)
+	*v6 = VNET(ip6_forwarding);
+#endif
+#if defined(INET)
+	*v4 = VNET(ipforwarding);
+#endif
+	CURVNET_RESTORE();
+}
+
 /*
  * Returns true if it's possible this packet could be LROed.
  * if it returns false, it is guaranteed that tcp_lro_rx()
  * would not return zero.
  */
 static bool
-iflib_check_lro_possible(struct lro_ctrl *lc, struct mbuf *m)
+iflib_check_lro_possible(struct mbuf *m, bool v4_forwarding, bool v6_forwarding)
 {
 	struct ether_header *eh;
 	uint16_t eh_type;
@@ -2483,31 +2496,20 @@ iflib_check_lro_possible(struct lro_ctrl *lc, struct mbuf *m)
 	switch (eh_type) {
 #if defined(INET6)
 		case ETHERTYPE_IPV6:
-		{
-			CURVNET_SET(lc->ifp->if_vnet);
-			if (VNET(ip6_forwarding) == 0) {
-				CURVNET_RESTORE();
-				return true;
-			}
-			CURVNET_RESTORE();
-			break;
-		}
+			return !v6_forwarding;
 #endif
 #if defined (INET)
 		case ETHERTYPE_IP:
-		{
-			CURVNET_SET(lc->ifp->if_vnet);
-			if (VNET(ipforwarding) == 0) {
-				CURVNET_RESTORE();
-				return true;
-			}
-			CURVNET_RESTORE();
-			break;
-		}
+			return !v4_forwarding;
 #endif
 	}
 
 	return false;
+}
+#else
+static void
+iflib_get_ip_forwarding(struct lro_ctrl *lc __unused, bool *v4 __unused, bool *v6 __unused)
+{
 }
 #endif
 
@@ -2525,6 +2527,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 	struct ifnet *ifp;
 	int lro_enabled;
 	bool lro_possible = false;
+	bool v4_forwarding, v6_forwarding;
 
 	/*
 	 * XXX early demux data packets so that if_input processing only handles
@@ -2601,6 +2604,8 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		__iflib_fl_refill_lt(ctx, fl, budget + 8);
 
 	lro_enabled = (if_getcapenable(ifp) & IFCAP_LRO);
+	if (lro_enabled)
+		iflib_get_ip_forwarding(&rxq->ifr_lc, &v4_forwarding, &v6_forwarding);
 	mt = mf = NULL;
 	while (mh != NULL) {
 		m = mh;
@@ -2615,7 +2620,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 #if defined(INET6) || defined(INET)
 		if (lro_enabled) {
 			if (!lro_possible) {
-				lro_possible = iflib_check_lro_possible(&rxq->ifr_lc, m);
+				lro_possible = iflib_check_lro_possible(m, v4_forwarding, v6_forwarding);
 				if (lro_possible && mf != NULL) {
 					ifp->if_input(ifp, mf);
 					DBG_COUNTER_INC(rx_if_input);
