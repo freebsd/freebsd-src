@@ -55,12 +55,12 @@
 #define UNUSED __attribute__((unused))
 #endif
 
-#if defined(__NetBSD__) && (defined(_KERNEL) || defined(_STANDALONE))
+#if (defined(_KERNEL) || defined(_STANDALONE))
 /*
  * Kernel and boot environment can't use normal headers,
  * so use the equivalent system headers.
  */
-#  include <machine/limits.h>
+#  include <sys/limits.h>
 #  include <sys/stdint.h>
 #  include <sys/types.h>
 #else
