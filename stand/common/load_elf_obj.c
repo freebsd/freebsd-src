@@ -33,12 +33,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/linker.h>
 #include <sys/module.h>
-#include <inttypes.h>
+#include <stdint.h>
 #include <string.h>
 #include <machine/elf.h>
 #include <stand.h>
 #define FREEBSD_ELF
-#include <link.h>
+#include <sys/link_elf.h>
 
 #include "bootstrap.h"
 
