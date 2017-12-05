@@ -641,9 +641,9 @@ XCXXFLAGS+=	-isystem ${WORLDTMP}/usr/include/c++/v1 -std=c++11 \
 .elif ${WANT_COMPILER_TYPE} == clang || \
     (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == clang)
 MACHINE_ABI?=	unknown
-MACHINE_TRIPLE?=${MACHINE_ARCH:C/amd64/x86_64/}-${MACHINE_ABI}-freebsd12.0
+MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${MACHINE_ABI}-freebsd12.0
 TARGET_ABI?=	unknown
-TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd12.0
+TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${TARGET_ABI}-freebsd12.0
 XCFLAGS+=	-target ${TARGET_TRIPLE}
 .endif
 XCFLAGS+=	--sysroot=${WORLDTMP}
