@@ -178,7 +178,7 @@ DEPEND_MP?=	-MP
 # Handle OBJS=../somefile.o hacks.  Just replace '/' rather than use :T to
 # avoid collisions.
 DEPEND_FILTER=	C,/,_,g
-DEPENDSRCS=	${SRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
+DEPENDSRCS+=	${SRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
 .if !empty(DEPENDSRCS)
 DEPENDOBJS+=	${DEPENDSRCS:${OBJS_SRCS_FILTER:ts:}:S,$,.o,}
 .endif
