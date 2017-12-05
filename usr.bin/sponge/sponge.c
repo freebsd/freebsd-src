@@ -25,6 +25,7 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
+ *
  */
 
 #include <err.h>
