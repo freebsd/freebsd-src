@@ -41,6 +41,12 @@ LIBSA32=	${BOOTOBJ}/libsa32/libsa32.a
 .endif
 
 # Standard options:
+CFLAGS+=	-nostdinc
+.if ${MACHINE_ARCH} == "amd64" && ${DO32:U0} == 1
+CFLAGS+=	-I${BOOTOBJ}/libsa32
+.else
+CFLAGS+=	-I${BOOTOBJ}/libsa
+.endif
 CFLAGS+=	-I${SASRC} -D_STANDALONE
 CFLAGS+=	-I${SYSDIR}
 
