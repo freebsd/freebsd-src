@@ -209,9 +209,8 @@ kernel-depend: .depend
 SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	${MFILES:T:S/.m$/.h/}
-DEPENDFILES=	.depend .depend.*
 DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o
-DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
+DEPENDFILES=	${DEPENDOBJS:O:u:C/^/.depend./}
 .if ${MAKE_VERSION} < 20160220
 DEPEND_MP?=	-MP
 .endif
@@ -222,7 +221,7 @@ ${DEPENDOBJS}:	.NOMETA
 # Unset these to avoid looping/statting on them later.
 .undef DEPENDSRCS
 .undef DEPENDOBJS
-.undef DEPENDFILES_OBJS
+.undef DEPENDFILES
 .endif	# defined(_SKIP_DEPEND)
 DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF.depend.${.TARGET}
 DEPEND_CFLAGS+=	-MT${.TARGET}
@@ -233,7 +232,7 @@ DEPEND_CFLAGS+=	-MT${.TARGET}
 DEPEND_CFLAGS_CONDITION= "${DEPENDOBJS:M${.TARGET}}" != ""
 CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
 .endif
-.for __depend_obj in ${DEPENDFILES_OBJS}
+.for __depend_obj in ${DEPENDFILES}
 .if ${MAKE_VERSION} < 20160220
 .sinclude "${.OBJDIR}/${__depend_obj}"
 .else
@@ -275,7 +274,7 @@ ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .endif	# !exists(${_depfile})
 .endfor
 
-.NOPATH: .depend ${DEPENDFILES_OBJS}
+.NOPATH: .depend ${DEPENDFILES}
 
 .depend: .PRECIOUS ${SRCS}
 
@@ -306,7 +305,7 @@ ${_ILINKS}:
 
 # .depend needs include links so we remove them only together.
 kernel-cleandepend: .PHONY
-	rm -f ${DEPENDFILES} ${_ILINKS}
+	rm -f .depend .depend.* ${_ILINKS}
 
 kernel-tags:
 	@[ -f .depend ] || { echo "you must make depend first"; exit 1; }
