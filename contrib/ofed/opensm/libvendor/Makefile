@@ -13,7 +13,7 @@ osm_vendor_ibumad_sa.c
 
 LIBADD=		ibumad pthread
 CFLAGS+=	-I${.CURDIR}/.. -DHAVE_CONFIG_H=1
-CFLAGS+=	-I${INCLUDEDIR}/infiniband
+CFLAGS+=	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/infiniband
 VERSION_MAP=	${.CURDIR}/libosmvendor.map
 
 .include <bsd.lib.mk>
