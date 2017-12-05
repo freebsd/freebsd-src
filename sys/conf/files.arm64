@@ -28,6 +28,8 @@ arm/allwinner/a10_gpio.c	optional	gpio aw_gpio fdt
 arm/allwinner/a10_mmc.c		optional	mmc aw_mmc fdt
 arm/allwinner/a64/a64_padconf.c	optional	soc_allwinner_a64 fdt
 arm/allwinner/a64/a64_r_padconf.c optional	soc_allwinner_a64 fdt
+arm/allwinner/h3/h3_padconf.c	optional	soc_allwinner_h5 fdt
+arm/allwinner/h3/h3_r_padconf.c optional	soc_allwinner_h5 fdt
 arm/allwinner/aw_ccu.c		optional	aw_ccu fdt
 arm/allwinner/aw_nmi.c		optional	aw_nmi fdt \
 	compile-with "${NORMAL_C} -I$S/gnu/dts/include"
