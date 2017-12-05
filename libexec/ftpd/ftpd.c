@@ -1077,7 +1077,7 @@ user(char *name)
 		}
 	}
 	if (logging)
-		strncpy(curname, name, sizeof(curname)-1);
+		strlcpy(curname, name, sizeof(curname));
 
 	pwok = 0;
 #ifdef USE_PAM
