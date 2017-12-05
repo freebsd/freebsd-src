@@ -137,7 +137,10 @@ __objdir:=	${MAKEOBJDIR}
 # If the last component is a symlink then recurse on the new path.
 CheckAutoObj= \
 DirIsCreatable() { \
-	[ -w "$${1}" ] && return 0; \
+	if [ -w "$${1}" ]; then \
+		[ -d "$${1}" ] || return 1; \
+		return 0; \
+	fi; \
 	d="$${1}"; \
 	IFS=/; \
 	set -- $${d}; \
@@ -154,13 +157,16 @@ DirIsCreatable() { \
 				ret=0; \
 				DirIsCreatable "$${dir%/}" || ret=$$?; \
 				return $${ret}; \
+			elif [ -e "/$${dir}$${d}" ]; then \
+				return 1; \
 			else \
 				break; \
 			fi; \
 		fi; \
 		dir="$${dir}$${d}/"; \
 	done; \
-	[ -w "$${dir}" ]; \
+	[ -w "$${dir}" ] && [ -d "$${dir}" ] && return 0; \
+	return 1; \
 }; \
 CheckAutoObj() { \
 	if DirIsCreatable "$${1}"; then \
