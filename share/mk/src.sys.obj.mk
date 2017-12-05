@@ -172,7 +172,7 @@ CheckAutoObj() { \
 .if !empty(__objdir)
 .if ${.CURDIR} == ${__objdir}
 __objdir_writable?= yes
-.else
+.elif empty(__objdir_writable)
 __objdir_writable!= \
 	${CheckAutoObj}; CheckAutoObj "${__objdir}" || echo no
 .endif
