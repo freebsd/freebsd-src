@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-PACKAGE=	${TESTBASE}/usr.bin/sponge
+PACKAGE=	tests
 
-TESTSDIR=	${TESTSBASE}/usr.bin/sponge/tests
+TESTSDIR=	${TESTSBASE}/usr.bin/sponge
 
-ATF_TESTS_SH=	cp_test
+ATF_TESTS_SH=	sponge_test
 
 .include <bsd.test.mk>
