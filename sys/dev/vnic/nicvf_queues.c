@@ -1802,6 +1802,8 @@ nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
 			if (mbuf == NULL)
 				return (ENOBUFS);
 		}
+		if (mbuf->m_pkthdr.csum_flags & CSUM_IP)
+			hdr->csum_l3 = 1; /* Enable IP csum calculation */
 
 		ip = (struct ip *)(mbuf->m_data + ehdrlen);
 		iphlen = ip->ip_hl << 2;
@@ -1809,13 +1811,10 @@ nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
 		proto = ip->ip_p;
 		break;
 #endif
-	default:
-		hdr->csum_l3 = 0;
 	}
 
 #if defined(INET6) || defined(INET)
 	if (poff > 0 && mbuf->m_pkthdr.csum_flags != 0) {
-		hdr->csum_l3 = 1; /* Enable IP csum calculation */
 		switch (proto) {
 		case IPPROTO_TCP:
 			if ((mbuf->m_pkthdr.csum_flags & CSUM_TCP) == 0)
