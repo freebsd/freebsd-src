@@ -27,7 +27,7 @@ ibnd_show_progress.3
 LIBADD=		osmcomp ibmad ibumad
 CFLAGS+=	-DHAVE_CONFIG_H=1
 CFLAGS+=	-I${.CURDIR}
-CFLAGS+=	-I${INCLUDEDIR}/infiniband
+CFLAGS+=	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/infiniband
 VERSION_MAP=	${.CURDIR}/libibnetdisc.map
 
 .include <bsd.lib.mk>
