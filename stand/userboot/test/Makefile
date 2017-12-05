@@ -9,6 +9,6 @@ MK_SSP=		no
 PROG=		test
 INTERNALPROG=
 
-CFLAGS+=	-I${BOOTSRC}/userboot -U_STANDALONE
+CFLAGS=	-I${BOOTSRC}/userboot
 
 .include <bsd.prog.mk>
