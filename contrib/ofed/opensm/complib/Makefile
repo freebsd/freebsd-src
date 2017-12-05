@@ -27,7 +27,7 @@ cl_vector.c \
 ib_statustext.c
 
 CFLAGS+=	-I${.CURDIR}/.. -DHAVE_CONFIG_H=1
-CFLAGS+=	-I${INCLUDEDIR}/infiniband
+CFLAGS+=	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/infiniband
 LIBADD=		pthread
 VERSION_MAP=	${.CURDIR}/libosmcomp.map
 
