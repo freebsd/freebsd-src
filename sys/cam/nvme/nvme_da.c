@@ -706,10 +706,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 
 	softc->quirks = NDA_Q_NONE;
 
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NONE);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 
 	TASK_INIT(&softc->sysctl_task, 0, ndasysctlinit, periph);
 

@@ -2364,10 +2364,7 @@ storvsc_ada_probe_veto(void *arg __unused, struct cam_path *path,
 	if (path->device->protocol == PROTO_ATA) {
 		struct ccb_pathinq cpi;
 
-		bzero(&cpi, sizeof(cpi));
-		xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
-		cpi.ccb_h.func_code = XPT_PATH_INQ;
-		xpt_action((union ccb *)&cpi);
+		xpt_path_inq(&cpi, path);
 		if (cpi.ccb_h.status == CAM_REQ_CMP &&
 		    cpi.hba_vendor == PCI_VENDOR_INTEL &&
 		    cpi.hba_device == PCI_PRODUCT_PIIX4) {
