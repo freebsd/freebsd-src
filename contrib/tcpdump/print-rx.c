@@ -75,12 +75,12 @@
 #define	PRSFS_ADMINISTER	64 /* Change ACL's */
 
 struct rx_header {
-	uint32_t epoch;
-	uint32_t cid;
-	uint32_t callNumber;
-	uint32_t seq;
-	uint32_t serial;
-	uint8_t type;
+	nd_uint32_t epoch;
+	nd_uint32_t cid;
+	nd_uint32_t callNumber;
+	nd_uint32_t seq;
+	nd_uint32_t serial;
+	nd_uint8_t type;
 #define RX_PACKET_TYPE_DATA		1
 #define RX_PACKET_TYPE_ACK		2
 #define RX_PACKET_TYPE_BUSY		3
@@ -91,7 +91,7 @@ struct rx_header {
 #define RX_PACKET_TYPE_DEBUG		8
 #define RX_PACKET_TYPE_PARAMS		9
 #define RX_PACKET_TYPE_VERSION		13
-	uint8_t flags;
+	nd_uint8_t flags;
 #define RX_CLIENT_INITIATED	1
 #define RX_REQUEST_ACK		2
 #define RX_LAST_PACKET		4
@@ -99,10 +99,10 @@ struct rx_header {
 #define RX_FREE_PACKET		16
 #define RX_SLOW_START_OK	32
 #define RX_JUMBO_PACKET		32
-	uint8_t userStatus;
-	uint8_t securityIndex;
-	uint16_t spare;		/* How clever: even though the AFS */
-	uint16_t serviceId;		/* header files indicate that the */
+	nd_uint8_t userStatus;
+	nd_uint8_t securityIndex;
+	nd_uint16_t spare;		/* How clever: even though the AFS */
+	nd_uint16_t serviceId;		/* header files indicate that the */
 };					/* serviceId is first, it's really */
 					/* encoded _after_ the spare field */
 					/* I wasted a day figuring that out! */
@@ -690,11 +690,11 @@ rx_cache_insert(netdissect_options *ndo,
 	if (++rx_cache_next >= RX_CACHE_SIZE)
 		rx_cache_next = 0;
 
-	rxent->callnum = rxh->callNumber;
+	rxent->callnum = EXTRACT_32BITS(&rxh->callNumber);
 	UNALIGNED_MEMCPY(&rxent->client, &ip->ip_src, sizeof(uint32_t));
 	UNALIGNED_MEMCPY(&rxent->server, &ip->ip_dst, sizeof(uint32_t));
 	rxent->dport = dport;
-	rxent->serviceId = rxh->serviceId;
+	rxent->serviceId = EXTRACT_32BITS(&rxh->serviceId);
 	rxent->opcode = EXTRACT_32BITS(bp + sizeof(struct rx_header));
 }
 
@@ -722,10 +722,10 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 	i = rx_cache_hint;
 	do {
 		rxent = &rx_cache[i];
-		if (rxent->callnum == rxh->callNumber &&
+		if (rxent->callnum == EXTRACT_32BITS(&rxh->callNumber) &&
 		    rxent->client.s_addr == clip &&
 		    rxent->server.s_addr == sip &&
-		    rxent->serviceId == rxh->serviceId &&
+		    rxent->serviceId == EXTRACT_32BITS(&rxh->serviceId) &&
 		    rxent->dport == sport) {
 
 			/* We got a match! */
@@ -1262,6 +1262,7 @@ cb_print(netdissect_options *ndo,
 			if (j == 0)
 				ND_PRINT((ndo, " <none!>"));
 
+			ND_TCHECK_32BITS(bp);
 			j = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 
@@ -2533,6 +2534,10 @@ ubik_print(netdissect_options *ndo,
 	 * gleaned from ubik/ubik_int.xg
 	 */
 
+	/* Every function that calls this function first makes a bounds check
+	 * for (sizeof(rx_header) + 4) bytes, so long as it remains this way
+	 * the line below will not over-read.
+	 */
 	ubik_op = EXTRACT_32BITS(bp + sizeof(struct rx_header));
 
 	ND_PRINT((ndo, " ubik call %s", tok2str(ubik_req, "op#%d", ubik_op)));
@@ -2577,6 +2582,7 @@ ubik_print(netdissect_options *ndo,
 			INTOUT();
 			ND_PRINT((ndo, " length"));
 			INTOUT();
+			ND_TCHECK_32BITS(bp);
 			temp = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 			tok2str(ubik_lock_types, "type %d", temp);
