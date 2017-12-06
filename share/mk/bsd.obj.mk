@@ -55,7 +55,8 @@ CANONICALOBJDIR= ${.OBJDIR}
 # Handle special case where SRCS is full-pathed and requires
 # nested objdirs.  This duplicates some auto.obj.mk logic.
 .if (!empty(SRCS:M*/*) || !empty(DPSRCS:M*/*)) && \
-    (${.TARGETS} == "" || ${.TARGETS:Nclean*:N*clean:Ndestroy*} != "")
+    (${.TARGETS} == "" || ${.TARGETS:Nclean*:N*clean:Ndestroy*} != "") && \
+    !make(print-dir) && empty(.MAKEFLAGS:M-[nN])
 _wantdirs=	${SRCS:M*/*:H} ${DPSRCS:M*/*:H}
 .if !empty(_wantdirs)
 _wantdirs:=	${_wantdirs:O:u}
