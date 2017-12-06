@@ -597,7 +597,7 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 	priority = done_ccb->ccb_h.pinfo.priority;
 
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		if (cam_periph_error(done_ccb, 0, 0, NULL) == ERESTART) {
+		if (cam_periph_error(done_ccb, 0, 0) == ERESTART) {
 			return;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			cam_release_devq(done_ccb->ccb_h.path,
