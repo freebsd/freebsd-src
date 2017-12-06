@@ -143,8 +143,11 @@ vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset, vm_paddr_t *paddr,
 			*paddr = vtophys((uint8_t *)info->fb_vbase + offset);
 		} else {
 			*paddr = info->fb_pbase + offset;
+			if (info->fb_flags & FB_FLAG_MEMATTR)
+				*memattr = info->fb_memattr;
 #ifdef VM_MEMATTR_WRITE_COMBINING
-			*memattr = VM_MEMATTR_WRITE_COMBINING;
+			else
+				*memattr = VM_MEMATTR_WRITE_COMBINING;
 #endif
 		}
 		return (0);
