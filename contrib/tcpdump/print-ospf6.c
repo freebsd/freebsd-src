@@ -648,6 +648,7 @@ ospf6_print_lsa(netdissect_options *ndo,
 		if (lsa_length < sizeof (llsap->llsa_lladdr) + sizeof (llsap->llsa_nprefix))
 			return (1);
 		lsa_length -= sizeof (llsap->llsa_lladdr) + sizeof (llsap->llsa_nprefix);
+                ND_TCHECK(llsap->llsa_nprefix);
                 prefixes = EXTRACT_32BITS(&llsap->llsa_nprefix);
 		ND_PRINT((ndo, "\n\t      Priority %d, Link-local address %s, Prefixes %d:",
                        llsap->llsa_priority,
@@ -735,6 +736,7 @@ ospf6_decode_v3(netdissect_options *ndo,
 	case OSPF_TYPE_HELLO: {
 		register const struct hello6 *hellop = (const struct hello6 *)((const uint8_t *)op + OSPF6HDR_LEN);
 
+		ND_TCHECK_32BITS(&hellop->hello_options);
 		ND_PRINT((ndo, "\n\tOptions [%s]",
 		          bittok2str(ospf6_option_values, "none",
 		          EXTRACT_32BITS(&hellop->hello_options))));
@@ -933,10 +935,12 @@ ospf6_decode_v3_trailer(netdissect_options *ndo,
 
 	if (op->ospf6_type == OSPF_TYPE_HELLO) {
 		const struct hello6 *hellop = (const struct hello6 *)((const uint8_t *)op + OSPF6HDR_LEN);
+		ND_TCHECK(hellop->hello_options);
 		if (EXTRACT_32BITS(&hellop->hello_options) & OSPF6_OPTION_L)
 			lls_hello = 1;
 	} else if (op->ospf6_type == OSPF_TYPE_DD) {
 		const struct dd6 *ddp = (const struct dd6 *)((const uint8_t *)op + OSPF6HDR_LEN);
+		ND_TCHECK(ddp->db_options);
 		if (EXTRACT_32BITS(&ddp->db_options) & OSPF6_OPTION_L)
 			lls_dd = 1;
 	}

@@ -67,7 +67,7 @@ static const struct tok MessageClasses[] = {
 	{ M3UA_MSGC_SSNM,     "SS7"                   },
 	{ M3UA_MSGC_ASPSM,    "ASP"                   },
 	{ M3UA_MSGC_ASPTM,    "ASP"                   },
-	{ M3UA_MSGC_RKM,      "Routing Key Managment" },
+	{ M3UA_MSGC_RKM,      "Routing Key Management"},
 	{ 0, NULL }
 };
 
