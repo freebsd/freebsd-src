@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 
 #include "_libproc.h"
 
+extern char * const *environ;
+
 static int	getelfclass(int);
 static int	proc_init(pid_t, int, int, struct proc_handle **);
 
@@ -179,7 +181,6 @@ int
 proc_create(const char *file, char * const *argv, char * const *envp,
     proc_child_func *pcf, void *child_arg, struct proc_handle **pphdl)
 {
-	extern char * const *environ;
 	struct proc_handle *phdl;
 	int error, status;
 	pid_t pid;
