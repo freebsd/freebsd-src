@@ -46,8 +46,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/dirent.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/jail.h>
@@ -56,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
