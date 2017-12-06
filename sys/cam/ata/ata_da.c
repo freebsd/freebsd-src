@@ -1088,13 +1088,8 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 			ata_28bit_cmd(&ccb.ataio, ATA_WRITE_DMA,
 			    0, lba, count);
 		}
-		xpt_polled_action(&ccb);
-
-		error = adaerror(&ccb,
-		    0, SF_NO_RECOVERY | SF_NO_RETRY);
-		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
-			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		error = cam_periph_runccb(&ccb, adaerror,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 		if (error != 0)
 			printf("Aborting dump due to I/O error.\n");
 
@@ -1124,13 +1119,8 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 			ata_48bit_cmd(&ccb.ataio, ATA_FLUSHCACHE48, 0, 0, 0);
 		else
 			ata_28bit_cmd(&ccb.ataio, ATA_FLUSHCACHE, 0, 0, 0);
-		xpt_polled_action(&ccb);
-
-		error = adaerror(&ccb,
-		    0, SF_NO_RECOVERY | SF_NO_RETRY);
-		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
-			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		error = cam_periph_runccb(&ccb, adaerror,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 		if (error != 0)
 			xpt_print(periph->path, "Synchronize cache failed\n");
 	}
@@ -3510,32 +3500,9 @@ adaspindown(uint8_t cmd, int flags)
 				    0,
 				    ada_default_timeout*1000);
 		ata_28bit_cmd(&local_ccb, cmd, 0, 0, 0);
-
-		if (!SCHEDULER_STOPPED()) {
-			/*
-			 * Not panicing, can just do the normal runccb
-			 * XXX should make cam_periph_runccb work while
-			 * XXX panicing... later
-			 */
-			error = cam_periph_runccb((union ccb *)&local_ccb, adaerror,
-			    /*cam_flags*/0, /*sense_flags*/ SF_NO_RECOVERY | SF_NO_RETRY,
-			    softc->disk->d_devstat);
-		} else {
-			/*
-			 * Panicing, so we have to do this by hand: do
-			 * xpt_polled_action to run the request through the SIM,
-			 * extract the error, and if the queue was frozen,
-			 * unfreeze it. cam_periph_runccb takes care of these
-			 * details, but xpt_polled_action doesn't.
-			 */
-			xpt_polled_action((union ccb *)&local_ccb);
-			error = adaerror((union ccb *)&local_ccb, 0,
-			    SF_NO_RECOVERY | SF_NO_RETRY);
-			if ((local_ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-				cam_release_devq(local_ccb.ccb_h.path,
-				    /*relsim_flags*/0, /*reduction*/0,
-				    /*timeout*/0, /*getcount_only*/0);
-		}
+		error = cam_periph_runccb((union ccb *)&local_ccb, adaerror,
+		    /*cam_flags*/0, /*sense_flags*/ SF_NO_RECOVERY | SF_NO_RETRY,
+		    softc->disk->d_devstat);
 		if (error != 0)
 			xpt_print(periph->path, "Spin-down disk failed\n");
 		cam_periph_unlock(periph);
