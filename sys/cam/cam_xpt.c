@@ -2620,9 +2620,7 @@ xptsetasyncbusfunc(struct cam_eb *bus, void *arg)
 			 CAM_TARGET_WILDCARD,
 			 CAM_LUN_WILDCARD);
 	xpt_path_lock(&path);
-	xpt_setup_ccb(&cpi.ccb_h, &path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, &path);
 	csa->callback(csa->callback_arg,
 			    AC_PATH_REGISTERED,
 			    &path, &cpi);
@@ -4087,9 +4085,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 		return (CAM_RESRC_UNAVAIL);
 	}
 
-	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, path);
 
 	if (cpi.ccb_h.status == CAM_REQ_CMP) {
 		struct xpt_xport **xpt;

@@ -743,9 +743,7 @@ camperiphfree(struct cam_periph *periph)
 			arg = &ccb;
 			break;
 		case AC_PATH_REGISTERED:
-			ccb.ccb_h.func_code = XPT_PATH_INQ;
-			xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-			xpt_action(&ccb);
+			xpt_path_inq(&ccb.cpi, periph->path);
 			arg = &ccb;
 			break;
 		default:
