@@ -410,8 +410,7 @@ fwip_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				return (error);
 			/* Disable interrupts */
 			fc->set_intr(fc, 0);
-			ifp->if_capenable |= IFCAP_POLLING |
-			    IFCAP_POLLING_NOCOUNT;
+			ifp->if_capenable |= IFCAP_POLLING;
 			return (error);
 		}
 		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
@@ -420,7 +419,6 @@ fwip_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			/* Enable interrupts. */
 			fc->set_intr(fc, 1);
 			ifp->if_capenable &= ~IFCAP_POLLING;
-			ifp->if_capenable &= ~IFCAP_POLLING_NOCOUNT;
 			return (error);
 		}
 	    }
