@@ -151,7 +151,7 @@ struct compress_types {
 	const char *flag;	/* Flag in configuration file */
 	const char *suffix;	/* Compression suffix */
 	const char *path;	/* Path to compression program */
-	char **args;	/* Comrpession arguments */
+	char **args;		/* Compession arguments */
 };
 
 static char f_arg[] = "-f";
