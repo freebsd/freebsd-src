@@ -18,6 +18,8 @@ extra_commands="fetch"
 fetch_cmd="ntpd_fetch_leapfile"
 start_precmd="ntpd_precmd"
 
+ntp_tmp_leapfile="/var/run/ntpd.leap-seconds.list"
+
 load_rc_config $name
 
 ntpd_precmd()
@@ -90,15 +92,13 @@ ntpd_init_leapfile() {
 }
 
 ntpd_fetch_leapfile() {
-	local ntp_tmp_leapfile rc verbose
+	local rc verbose
 	
 	if checkyesno ntp_leapfile_fetch_verbose; then
 		verbose=echo
 	else
 		verbose=:
 	fi
-
-	ntp_tmp_leapfile="/var/run/ntpd.leap-seconds.list"
 
 	ntp_ver_no_src=$(get_ntp_leapfile_ver $ntp_src_leapfile)
 	ntp_expiry_src=$(get_ntp_leapfile_expiry $ntp_src_leapfile)
