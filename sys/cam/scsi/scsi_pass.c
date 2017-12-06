@@ -588,10 +588,7 @@ passregister(struct cam_periph *periph, void *arg)
 	softc->io_zone_size = MAXPHYS;
 	knlist_init_mtx(&softc->read_select.si_note, cam_periph_mtx(periph));
 
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 
 	if (cpi.maxio == 0)
 		softc->maxio = DFLTPHYS;	/* traditional default */

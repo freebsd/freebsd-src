@@ -595,10 +595,7 @@ cdregister(struct cam_periph *periph, void *arg)
 		softc->quirks = CD_Q_NONE;
 
 	/* Check if the SIM does not want 6 byte commands */
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 	if (cpi.ccb_h.status == CAM_REQ_CMP && (cpi.hba_misc & PIM_NO_6_BYTE))
 		softc->quirks |= CD_Q_10_BYTE_ONLY;
 

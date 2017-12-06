@@ -709,9 +709,7 @@ probeschedule(struct cam_periph *periph)
 	softc = (probe_softc *)periph->softc;
 	ccb = (union ccb *)TAILQ_FIRST(&softc->request_ccbs);
 
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NONE);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 
 	/*
 	 * If a device has gone away and another device, or the same one,
