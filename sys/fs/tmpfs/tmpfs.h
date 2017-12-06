@@ -37,22 +37,13 @@
 #ifndef _FS_TMPFS_TMPFS_H_
 #define _FS_TMPFS_TMPFS_H_
 
-#include <sys/dirent.h>
-#include <sys/mount.h>
 #include <sys/queue.h>
-#include <sys/vnode.h>
-#include <sys/file.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-
-#include <sys/malloc.h>
-#include <sys/systm.h>
 #include <sys/tree.h>
-#include <sys/vmmeter.h>
-#include <vm/swap_pager.h>
 
+#ifdef	_SYS_MALLOC_H_
 MALLOC_DECLARE(M_TMPFSMNT);
 MALLOC_DECLARE(M_TMPFSNAME);
+#endif
 
 /*
  * Internal representation of a tmpfs directory entry.
