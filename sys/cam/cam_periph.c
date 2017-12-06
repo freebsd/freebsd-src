@@ -1160,7 +1160,11 @@ cam_periph_runccb(union ccb *ccb,
 	struct bintime *starttime;
 	struct bintime ltime;
 	int error;
- 
+	bool sched_stopped;
+	struct mtx *periph_mtx;
+	struct cam_periph *periph;
+	uint32_t timeout = 1;
+
 	starttime = NULL;
 	xpt_path_assert(ccb->ccb_h.path, MA_OWNED);
 	KASSERT((ccb->ccb_h.flags & CAM_UNLOCKED) == 0,
@@ -1180,21 +1184,47 @@ cam_periph_runccb(union ccb *ccb,
 		devstat_start_transaction(ds, starttime);
 	}
 
+	sched_stopped = SCHEDULER_STOPPED();
 	ccb->ccb_h.cbfcnp = cam_periph_done;
-	xpt_action(ccb);
- 
-	do {
-		cam_periph_ccbwait(ccb);
-		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
-			error = 0;
-		else if (error_routine != NULL) {
-			ccb->ccb_h.cbfcnp = cam_periph_done;
-			error = (*error_routine)(ccb, camflags, sense_flags);
-		} else
-			error = 0;
+	periph = xpt_path_periph(ccb->ccb_h.path);
+	periph_mtx = cam_periph_mtx(periph);
 
-	} while (error == ERESTART);
-          
+	/*
+	 * If we're polling, then we need to ensure that we have ample resources
+	 * in the periph. We also need to drop the periph lock while we're polling.
+	 * cam_periph_error can reschedule the ccb by calling xpt_action and returning
+	 * ERESTART, so we have to effect the polling in the do loop below.
+	 */
+	if (sched_stopped) {
+		mtx_unlock(periph_mtx);
+		timeout = xpt_poll_setup(ccb);
+	}
+
+	if (timeout == 0) {
+		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+		error = EBUSY;
+	} else {
+		xpt_action(ccb);
+		do {
+			if (!sched_stopped)
+				cam_periph_ccbwait(ccb);
+			else {
+				xpt_pollwait(ccb, timeout);
+				timeout = ccb->ccb_h.timeout * 10;
+			}
+			if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
+				error = 0;
+			else if (error_routine != NULL) {
+				ccb->ccb_h.cbfcnp = cam_periph_done;
+				error = (*error_routine)(ccb, camflags, sense_flags);
+			} else
+				error = 0;
+		} while (error == ERESTART);
+	}
+
+	if (sched_stopped)
+		mtx_lock(periph_mtx);
+
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 		cam_release_devq(ccb->ccb_h.path,
 				 /* relsim_flags */0,
