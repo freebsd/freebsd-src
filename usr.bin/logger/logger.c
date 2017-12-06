@@ -183,7 +183,7 @@ main(int argc, char *argv[])
 	if (hostname == NULL) {
 		hostname = hbuf;
 		(void )gethostname(hbuf, MAXHOSTNAMELEN);
-		*strchr(hostname, '.') = '\0';
+		*strchrnul(hostname, '.') = '\0';
 	}
 
 	/* log input line if appropriate */
