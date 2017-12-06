@@ -1676,7 +1676,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 		xpt_polled_action((union ccb *)&csio);
 
 		error = cam_periph_error((union ccb *)&csio,
-		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
+		    0, SF_NO_RECOVERY | SF_NO_RETRY);
 		if ((csio.ccb_h.status & CAM_DEV_QFRZN) != 0)
 			cam_release_devq(csio.ccb_h.path, /*relsim_flags*/0,
 			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
@@ -1704,7 +1704,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 		xpt_polled_action((union ccb *)&csio);
 
 		error = cam_periph_error((union ccb *)&csio,
-		    0, SF_NO_RECOVERY | SF_NO_RETRY | SF_QUIET_IR, NULL);
+		    0, SF_NO_RECOVERY | SF_NO_RETRY | SF_QUIET_IR);
 		if ((csio.ccb_h.status & CAM_DEV_QFRZN) != 0)
 			cam_release_devq(csio.ccb_h.path, /*relsim_flags*/0,
 			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
@@ -5450,8 +5450,7 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 
 	if (softc->quirks & DA_Q_RETRY_BUSY)
 		sense_flags |= SF_RETRY_BUSY;
-	return(cam_periph_error(ccb, cam_flags, sense_flags,
-				&softc->saved_ccb));
+	return(cam_periph_error(ccb, cam_flags, sense_flags));
 }
 
 static void

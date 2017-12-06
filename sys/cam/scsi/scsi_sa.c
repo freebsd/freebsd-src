@@ -3469,7 +3469,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 		/*
 		 * Otherwise, we let the common code handle this.
 		 */
-		return (cam_periph_error(ccb, cflgs, sflgs, &softc->saved_ccb));
+		return (cam_periph_error(ccb, cflgs, sflgs));
 
 	/*
 	 * XXX: To Be Fixed
@@ -3482,7 +3482,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 		}
 		/* FALLTHROUGH */
 	default:
-		return (cam_periph_error(ccb, cflgs, sflgs, &softc->saved_ccb));
+		return (cam_periph_error(ccb, cflgs, sflgs));
 	}
 
 	/*

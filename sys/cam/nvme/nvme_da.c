@@ -407,7 +407,7 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		xpt_polled_action((union ccb *)&nvmeio);
 
 		error = cam_periph_error((union ccb *)&nvmeio,
-		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
+		    0, SF_NO_RECOVERY | SF_NO_RETRY);
 		if ((nvmeio.ccb_h.status & CAM_DEV_QFRZN) != 0)
 			cam_release_devq(nvmeio.ccb_h.path, /*relsim_flags*/0,
 			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
@@ -426,7 +426,7 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	xpt_polled_action((union ccb *)&nvmeio);
 
 	error = cam_periph_error((union ccb *)&nvmeio,
-	    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
+	    0, SF_NO_RECOVERY | SF_NO_RETRY);
 	if ((nvmeio.ccb_h.status & CAM_DEV_QFRZN) != 0)
 		cam_release_devq(nvmeio.ccb_h.path, /*relsim_flags*/0,
 		    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
@@ -1087,7 +1087,7 @@ ndaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 		break;
 	}
 
-	return(cam_periph_error(ccb, cam_flags, sense_flags, NULL));
+	return(cam_periph_error(ccb, cam_flags, sense_flags));
 }
 
 /*
