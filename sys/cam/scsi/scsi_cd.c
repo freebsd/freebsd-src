@@ -2593,8 +2593,7 @@ cderror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 
 	if (softc->quirks & CD_Q_RETRY_BUSY)
 		sense_flags |= SF_RETRY_BUSY;
-	return (cam_periph_error(ccb, cam_flags, sense_flags, 
-				 &softc->saved_ccb));
+	return (cam_periph_error(ccb, cam_flags, sense_flags));
 }
 
 static void

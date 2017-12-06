@@ -943,8 +943,7 @@ sgerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct sg_softc *)periph->softc;
 
-	return (cam_periph_error(ccb, cam_flags, sense_flags,
-				 &softc->saved_ccb));
+	return (cam_periph_error(ccb, cam_flags, sense_flags));
 }
 
 static void

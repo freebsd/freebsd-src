@@ -1425,6 +1425,6 @@ sddadone(struct cam_periph *periph, union ccb *done_ccb)
 static int
 sddaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
-	return(cam_periph_error(ccb, cam_flags, sense_flags, NULL));
+	return(cam_periph_error(ccb, cam_flags, sense_flags));
 }
 #endif /* _KERNEL */

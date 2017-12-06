@@ -763,8 +763,8 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		if (cam_periph_error(done_ccb,
-		    0, softc->restart ? (SF_NO_RECOVERY | SF_NO_RETRY) : 0,
-		    NULL) == ERESTART) {
+			0, softc->restart ? (SF_NO_RECOVERY | SF_NO_RETRY) : 0
+		    ) == ERESTART) {
 out:
 			/* Drop freeze taken due to CAM_DEV_QFREEZE flag set. */
 			cam_release_devq(path, 0, 0, 0, FALSE);

@@ -3354,7 +3354,7 @@ adaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	}
 #endif
 
-	return(cam_periph_error(ccb, cam_flags, sense_flags, NULL));
+	return(cam_periph_error(ccb, cam_flags, sense_flags));
 }
 
 static void

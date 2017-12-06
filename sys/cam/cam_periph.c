@@ -1302,7 +1302,7 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 		if (cam_periph_error(done_ccb,
-		    0, SF_RETRY_UA | SF_NO_PRINT, NULL) == ERESTART)
+		    0, SF_RETRY_UA | SF_NO_PRINT) == ERESTART)
 			goto out;
 		if (done_ccb->ccb_h.status & CAM_DEV_QFRZN) {
 			cam_release_devq(done_ccb->ccb_h.path, 0, 0, 0, 0);
@@ -1716,7 +1716,7 @@ sense_error_done:
  */
 int
 cam_periph_error(union ccb *ccb, cam_flags camflags,
-		 u_int32_t sense_flags, union ccb *save_ccb)
+		 u_int32_t sense_flags)
 {
 	struct cam_path *newpath;
 	union ccb  *orig_ccb, *scan_ccb;
