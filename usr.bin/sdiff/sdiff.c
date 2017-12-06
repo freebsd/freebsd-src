@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-#define DIFF_PATH	"/usr/bin/diff"
+static char diff_path[] = "/usr/bin/diff";
 
 #define WIDTH 126
 /*
@@ -213,9 +213,11 @@ main(int argc, char **argv)
 	int ch, fd[2] = {-1}, status;
 	pid_t pid=0;
 	const char *outfile = NULL;
-	char **diffargv, *diffprog = DIFF_PATH, *filename1, *filename2,
+	char **diffargv, *diffprog = diff_path, *filename1, *filename2,
 	     *tmp1, *tmp2, *s1, *s2;
 	int i;
+	char I_arg[] = "-I";
+	char speed_lf[] = "--speed-large-files";
 
 	/*
 	 * Process diff flags.
@@ -269,14 +271,14 @@ main(int argc, char **argv)
 				sprintf(diffargv[1], "%s%c", diffargv[1], ch);
 			break;
 		case 'H':
-			diffargv[diffargc++] = "--speed-large-files";
+			diffargv[diffargc++] = speed_lf;
 			break;
 		case DIFFPROG_OPT:
 			diffargv[0] = diffprog = optarg;
 			break;
 		case 'I':
 			Iflag = 1;
-			diffargv[diffargc++] = "-I";
+			diffargv[diffargc++] = I_arg;
 			diffargv[diffargc++] = optarg;
 			break;
 		case 'l':
