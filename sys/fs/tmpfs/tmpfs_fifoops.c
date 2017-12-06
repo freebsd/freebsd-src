@@ -39,6 +39,7 @@
  __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 
