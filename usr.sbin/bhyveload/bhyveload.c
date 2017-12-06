@@ -513,14 +513,14 @@ cb_getmem(void *arg, uint64_t *ret_lowmem, uint64_t *ret_highmem)
 }
 
 struct env {
-	const char *str;	/* name=value */
+	char *str;	/* name=value */
 	SLIST_ENTRY(env) next;
 };
 
 static SLIST_HEAD(envhead, env) envhead;
 
 static void
-addenv(const char *str)
+addenv(char *str)
 {
 	struct env *env;
 
