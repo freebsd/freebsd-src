@@ -117,7 +117,7 @@ null_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, const u_char
 		break;
 
 	case BSD_AFNUM_ISO:
-		isoclns_print(ndo, p, length, caplen);
+		isoclns_print(ndo, p, length);
 		break;
 
 	case BSD_AFNUM_APPLETALK:
