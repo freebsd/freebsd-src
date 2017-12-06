@@ -494,7 +494,7 @@ literal:
 				goto input_failure;
 			if (wi != c) {
 				__ungetwc(wi, fp, locale);
-				goto input_failure;
+				goto match_failure;
 			}
 			nread++;
 			continue;
