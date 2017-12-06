@@ -83,13 +83,13 @@ __FBSDID("$FreeBSD$");
 #define	CPUCFG_DBGCTL0		0x1e0
 #define	CPUCFG_DBGCTL1		0x1e4
 
-#define	CPUS_CL_RST(cl)		(0x30 + (cluster) * 0x4)
-#define	CPUX_CL_CTRL0(cl)	(0x0 + (cluster) * 0x10)
-#define	CPUX_CL_CTRL1(cl)	(0x4 + (cluster) * 0x10)
-#define	CPUX_CL_CPU_STATUS(cl)	(0x30 + (cluster) * 0x4)
-#define	CPUX_CL_RST(cl)		(0x80 + (cluster) * 0x4)
-#define	PRCM_CL_PWROFF(cl)	(0x100 + (cluster) * 0x4)
-#define	PRCM_CL_PWR_CLAMP(cl, cpu)	(0x140 + (cluster) * 0x4 + (cpu) * 0x4)
+#define	CPUS_CL_RST(cl)		(0x30 + (cl) * 0x4)
+#define	CPUX_CL_CTRL0(cl)	(0x0 + (cl) * 0x10)
+#define	CPUX_CL_CTRL1(cl)	(0x4 + (cl) * 0x10)
+#define	CPUX_CL_CPU_STATUS(cl)	(0x30 + (cl) * 0x4)
+#define	CPUX_CL_RST(cl)		(0x80 + (cl) * 0x4)
+#define	PRCM_CL_PWROFF(cl)	(0x100 + (cl) * 0x4)
+#define	PRCM_CL_PWR_CLAMP(cl, cpu)	(0x140 + (cl) * 0x4 + (cpu) * 0x4)
 
 void
 aw_mp_setmaxid(platform_t plat)
