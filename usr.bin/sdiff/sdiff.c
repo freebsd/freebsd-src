@@ -618,7 +618,7 @@ QUIT:
  * Takes into account that tabs can take multiple columns.
  */
 static void
-println(const char *s1, const char div, const char *s2)
+println(const char *s1, const char divider, const char *s2)
 {
 	size_t col;
 
@@ -635,7 +635,7 @@ println(const char *s1, const char div, const char *s2)
 		putchar(' ');
 
 	/* Only print left column. */
-	if (div == ' ' && !s2) {
+	if (divider == ' ' && !s2) {
 		printf(" (\n");
 		return;
 	}
@@ -645,10 +645,10 @@ println(const char *s1, const char div, const char *s2)
 	 * need to add the space for padding.
 	 */
 	if (!s2) {
-		printf(" %c\n", div);
+		printf(" %c\n", divider);
 		return;
 	}
-	printf(" %c ", div);
+	printf(" %c ", divider);
 	col += 3;
 
 	/* Skip angle bracket and space. */
@@ -870,14 +870,14 @@ parsecmd(FILE *diffpipe, FILE *file1, FILE *file2)
  * Queues up a diff line.
  */
 static void
-enqueue(char *left, char div, char *right)
+enqueue(char *left, char divider, char *right)
 {
 	struct diffline *diffp;
 
 	if (!(diffp = malloc(sizeof(struct diffline))))
 		err(2, "enqueue");
 	diffp->left = left;
-	diffp->div = div;
+	diffp->div = divider;
 	diffp->right = right;
 	STAILQ_INSERT_TAIL(&diffhead, diffp, diffentries);
 }
