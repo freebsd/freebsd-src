@@ -404,17 +404,12 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		xpt_setup_ccb(&nvmeio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		nvmeio.ccb_h.ccb_state = NDA_CCB_DUMP;
 		nda_nvme_write(softc, &nvmeio, virtual, lba, length, count);
-		xpt_polled_action((union ccb *)&nvmeio);
-
-		error = cam_periph_error((union ccb *)&nvmeio,
-		    0, SF_NO_RECOVERY | SF_NO_RETRY);
-		if ((nvmeio.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(nvmeio.ccb_h.path, /*relsim_flags*/0,
-			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		error = cam_periph_runccb((union ccb *)&nvmeio, cam_periph_error,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 		if (error != 0)
-			printf("Aborting dump due to I/O error.\n");
-
+			printf("Aborting dump due to I/O error %d.\n", error);
 		cam_periph_unlock(periph);
+
 		return (error);
 	}
 	
@@ -423,13 +418,8 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 
 	nvmeio.ccb_h.ccb_state = NDA_CCB_DUMP;
 	nda_nvme_flush(softc, &nvmeio);
-	xpt_polled_action((union ccb *)&nvmeio);
-
-	error = cam_periph_error((union ccb *)&nvmeio,
-	    0, SF_NO_RECOVERY | SF_NO_RETRY);
-	if ((nvmeio.ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(nvmeio.ccb_h.path, /*relsim_flags*/0,
-		    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+	error = cam_periph_runccb((union ccb *)&nvmeio, cam_periph_error,
+	    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 	if (error != 0)
 		xpt_print(periph->path, "flush cmd failed\n");
 	cam_periph_unlock(periph);
