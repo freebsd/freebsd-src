@@ -1818,7 +1818,7 @@ vm_pageout_worker(void *arg)
 			 */
 			mtx_unlock(&vm_page_queue_free_mtx);
 			if (pass >= 1)
-				pause("psleep", hz / VM_INACT_SCAN_RATE);
+				pause("pwait", hz / VM_INACT_SCAN_RATE);
 			pass++;
 		} else {
 			/*
