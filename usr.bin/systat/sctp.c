@@ -180,7 +180,6 @@ domode(struct sctpstat *ret)
 	DO(sctps_recvauthfailed);
 	DO(sctps_recvexpress);
 	DO(sctps_recvexpressm);
-	DO(sctps_recvnocrc);
 	DO(sctps_recvswcrc);
 	DO(sctps_recvhwcrc);
 
@@ -194,7 +193,6 @@ domode(struct sctpstat *ret)
 	DO(sctps_sendecne);
 	DO(sctps_sendauth);
 	DO(sctps_senderrors);
-	DO(sctps_sendnocrc);
 	DO(sctps_sendswcrc);
 	DO(sctps_sendhwcrc);
 
