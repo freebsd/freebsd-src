@@ -341,7 +341,7 @@ g_raid_tr_iodone_concat(struct g_raid_tr_object *tr,
 	pbp->bio_inbed++;
 	if (pbp->bio_children == pbp->bio_inbed) {
 		pbp->bio_completed = pbp->bio_length;
-		g_raid_iodone(pbp, bp->bio_error);
+		g_raid_iodone(pbp, pbp->bio_error);
 	}
 }
 
