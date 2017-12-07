@@ -1096,13 +1096,13 @@ bmod(void)
 
 	r = new_number();
 	scale = max(a->scale, b->scale);
-	r->scale = max(b->scale, a->scale + bmachine.scale);
+	r->scale = scale;
 
 	if (BN_is_zero(a->number))
 		warnx("remainder by zero");
 	else {
 		normalize(a, scale);
-		normalize(b, scale + bmachine.scale);
+		normalize(b, scale);
 
 		ctx = BN_CTX_new();
 		bn_checkp(ctx);
@@ -1117,7 +1117,7 @@ bmod(void)
 static void
 bdivmod(void)
 {
-	struct number *a, *b, *rdiv, *rmod;
+	struct number *a, *b, *frac, *quotient, *rdiv, *remainder;
 	BN_CTX *ctx;
 	u_int scale;
 
@@ -1131,25 +1131,44 @@ bdivmod(void)
 	}
 
 	rdiv = new_number();
-	rmod = new_number();
-	rdiv->scale = bmachine.scale;
-	rmod->scale = max(b->scale, a->scale + bmachine.scale);
+	quotient = new_number();
+	remainder = new_number();
+	scale = max(a->scale, b->scale);
+	rdiv->scale = 0;
+	remainder->scale = scale;
+	quotient->scale = bmachine.scale;
 	scale = max(a->scale, b->scale);
 
 	if (BN_is_zero(a->number))
 		warnx("divide by zero");
 	else {
 		normalize(a, scale);
-		normalize(b, scale + bmachine.scale);
+		normalize(b, scale);
 
 		ctx = BN_CTX_new();
 		bn_checkp(ctx);
-		bn_check(BN_div(rdiv->number, rmod->number,
+		/*
+		 * Unlike other languages' divmod operations, dc is specified
+		 * to return the remainder and the full quotient, rather than
+		 * the remainder and the floored quotient.  bn(3) has no
+		 * function to calculate both.  So we'll use BN_div to get the
+		 * remainder and floored quotient, then calculate the full
+		 * quotient from those.
+		 *
+		 * quotient = rdiv + remainder / divisor
+		 */
+		bn_check(BN_div(rdiv->number, remainder->number,
 		    b->number, a->number, ctx));
+		frac = div_number(remainder, a, bmachine.scale);
+		normalize(rdiv, bmachine.scale);
+		normalize(remainder, scale);
+		bn_check(BN_add(quotient->number, rdiv->number, frac->number));
+		free_number(frac);
 		BN_CTX_free(ctx);
 	}
-	push_number(rdiv);
-	push_number(rmod);
+	push_number(quotient);
+	push_number(remainder);
+	free_number(rdiv);
 	free_number(a);
 	free_number(b);
 }
