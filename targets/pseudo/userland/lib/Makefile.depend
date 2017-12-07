@@ -242,22 +242,6 @@ DIRDEPS+= \
 	lib/libpmcstat
 .endif
 
-.if ${MK_OFED} != "no"
-DIRDEPS+= \
-	contrib/ofed/usr.lib/libcxgb4 \
-	contrib/ofed/usr.lib/libibcm \
-	contrib/ofed/usr.lib/libibcommon \
-	contrib/ofed/usr.lib/libibmad \
-	contrib/ofed/usr.lib/libibumad \
-	contrib/ofed/usr.lib/libibverbs \
-	contrib/ofed/usr.lib/libmlx4 \
-	contrib/ofed/usr.lib/libopensm \
-	contrib/ofed/usr.lib/libosmcomp \
-	contrib/ofed/usr.lib/libosmvendor \
-	contrib/ofed/usr.lib/librdmacm \
-	contrib/ofed/usr.lib/libsdp
-.endif
-
 .if ${MK_BLACKLIST_SUPPORT} != "no"
 DIRDEPS+=	lib/libblacklist
 .endif
