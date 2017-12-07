@@ -122,6 +122,7 @@ static void  snprintf_func(int ch, void *arg);
 
 static int msgbufmapped;		/* Set when safe to use msgbuf */
 int msgbuftrigger;
+struct msgbuf *msgbufp;
 
 static int log_console_output = 1;
 SYSCTL_INT(_kern, OID_AUTO, log_console_output, CTLFLAG_RWTUN,

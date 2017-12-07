@@ -184,8 +184,6 @@ struct init_ops init_ops = {
  */
 extern char kernphys[];
 
-struct msgbuf *msgbufp;
-
 /*
  * Physical address of the EFI System Table. Stashed from the metadata hints
  * passed into the kernel and used by the EFI code to call runtime services.
