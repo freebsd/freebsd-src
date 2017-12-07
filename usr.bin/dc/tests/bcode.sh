@@ -26,77 +26,119 @@
 #
 # $FreeBSD$
 
-atf_test_case base16_input
-base16_input_head()
+atf_test_case bmod
+bmod_head()
 {
-	atf_set "descr" "Input hexadecimal numbers"
+	atf_set "descr" "Tests the remainder % operator"
 }
-base16_input_body()
+bmod_body()
 {
 	cat > input.dc << EOF
-4k	# set scale to 4 decimal places
-16i	# switch to base 16
-0   p
-10  p
-1   p
-1.  p	# The '.' should have no effect
-1.0 p	# Unlike with decimal, should not change the result's scale
-.8  p	# Can input fractions
-# Check that we can input fractions that need more scale in base 10 than in 16
-# See PR 206230
-.1  p
-.10 p	# Result should be .0625, with scale=4
-.01 p	# Result should be truncated to scale=4
-8k	# Increase scale to 8 places
-.01 p	# Result should be exact again
-0.1 p	# Leading zeros are ignored
-00.1 p	# Leading zeros are ignored
+0 3 % p		# basic usage
+1 3 % p
+2 3 % p
+3 3 % p
+4 3 % p
+_1 3 % p	# negative dividends work like a remainder, not a modulo
+1 _3 % p	# negative divisors use the divisor's absolute value
+1k		# fractional remainders
+5 3 % p
+6 5 % p
+5.4 3 % p
+_.1 3 % p
+1.1 _3 % p
+1 .3 % p
 EOF
 	dc input.dc > output.txt
 	cat > expect.txt << EOF
 0
-16
 1
+2
+0
 1
+-1
 1
-.5
-.0625
-.0625
-.0039
-.00390625
-.0625
-.0625
+2
+1
+2.4
+-.1
+1.1
+.1
 EOF
 	atf_check cmp expect.txt output.txt
 }
 
-atf_test_case base3_input
-base3_input_head()
+atf_test_case bmod_by_zero
+bmod_by_zero_head()
 {
-	atf_set "descr" "Input ternary numbers"
+	atf_set "descr" "remaindering by zero should print a warning"
 }
-base3_input_body()
+bmod_by_zero_body()
+{
+	atf_check -e match:"remainder by zero" dc -e '1 0 %'
+}
+
+atf_test_case bdivmod
+bdivmod_head()
+{
+	atf_set "descr" "Tests the divide and modulo ~ operator"
+}
+bdivmod_body()
 {
 	cat > input.dc << EOF
-4k	# 4 digits of precision
-3i	# Base 3 input
-0 p
-1 p
-10 p
-.1 p	# Repeating fractions get truncated
+0 3 ~ n32Pp	# basic usage
+1 3 ~ n32Pp
+2 3 ~ n32Pp
+3 3 ~ n32Pp
+4 3 ~ n32Pp
+_1 3 ~ n32Pp	# negative dividends work like a remainder, not a modulo
+_4 3 ~ n32Pp	# sign of quotient and divisor must agree
+1 _3 ~ n32Pp	# negative divisors use the divisor's absolute value
+1k		# fractional remainders
+5 3 ~ n32Pp
+6 5 ~ n32Pp
+5.4 3 ~ n32Pp
+_.1 3 ~ n32Pp
+1.1 _3 ~ n32Pp
+1 .3 ~ n32Pp
+4k
+.01 .003 ~ n32Pp	# divmod quotient always has scale=0
 EOF
-dc input.dc > output.txt
-cat > expect.txt << EOF
-0
-1
-3
-.3333
+	dc input.dc > output.txt
+	cat > expect.txt << EOF
+0 0
+1 0
+2 0
+0 1
+1 1
+-1 0
+-1 -1
+1 0
+2 1.6
+1 1.2
+2.4 1.8
+-.1 0.0
+1.1 -.3
+.1 3.3
+.001 3.3333
 EOF
 	atf_check cmp expect.txt output.txt
+}
+
+atf_test_case bdivmod_by_zero
+bdivmod_by_zero_head()
+{
+	atf_set "descr" "divmodding by zero should print a warning"
+}
+bdivmod_by_zero_body()
+{
+	atf_check -e match:"divide by zero" dc -e '1 0 ~'
 }
 
 atf_init_test_cases()
 {
-	atf_add_test_case base16_input
-	atf_add_test_case base3_input
+	atf_add_test_case bmod
+	atf_add_test_case bmod_by_zero
+	atf_add_test_case bdivmod
+	atf_add_test_case bdivmod_by_zero
 }
