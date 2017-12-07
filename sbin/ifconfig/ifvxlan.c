@@ -594,6 +594,7 @@ setvxlan_flush(const char *val, int d, int s, const struct afswtch *afp)
 
 static struct cmd vxlan_cmds[] = {
 
+	DEF_CLONE_CMD_ARG("vni",                setvxlan_vni),
 	DEF_CLONE_CMD_ARG("vxlanid",		setvxlan_vni),
 	DEF_CLONE_CMD_ARG("vxlanlocal",		setvxlan_local),
 	DEF_CLONE_CMD_ARG("vxlanremote",	setvxlan_remote),
@@ -608,7 +609,8 @@ static struct cmd vxlan_cmds[] = {
 	DEF_CLONE_CMD("vxlanlearn", 1,		setvxlan_learn),
 	DEF_CLONE_CMD("-vxlanlearn", 0,		setvxlan_learn),
 
-	DEF_CMD_ARG("vxlanvni",			setvxlan_vni),
+	DEF_CMD_ARG("vni",			setvxlan_vni),
+	DEF_CMD_ARG("vxlanid",			setvxlan_vni),
 	DEF_CMD_ARG("vxlanlocal",		setvxlan_local),
 	DEF_CMD_ARG("vxlanremote",		setvxlan_remote),
 	DEF_CMD_ARG("vxlangroup",		setvxlan_group),
