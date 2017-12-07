@@ -529,7 +529,7 @@ build_dp(const char *efimedia, const char *relpath, efidp *dp)
 {
 	char *fp, *dptxt = NULL;
 	int rv = 0;
-	efidp out;
+	efidp out = NULL;
 	size_t len;
 
 	fp = path_to_file_dp(relpath);
