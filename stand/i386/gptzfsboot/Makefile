@@ -39,12 +39,9 @@ CFLAGS+=-DBOOTPROG=\"gptzfsboot\" \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline -Wno-pointer-sign
 
-NO_WCAST_ALIGN=
+CFLAGS.clang+=	-Wno-tentative-definition-incomplete-type
 
-.if ${COMPILER_TYPE} == "clang" || \
-    (${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201)
-CFLAGS+=	-Wno-tentative-definition-incomplete-type
-.endif
+NO_WCAST_ALIGN=
 
 .if ${MACHINE} == "amd64"
 LIBZFSBOOT=${BOOTOBJ}/zfs32/libzfsboot.a
