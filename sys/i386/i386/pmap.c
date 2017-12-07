@@ -255,7 +255,6 @@ pt_entry_t *CMAP3;
 static pd_entry_t *KPTD;
 caddr_t ptvmmap = 0;
 caddr_t CADDR3;
-struct msgbuf *msgbufp = NULL;
 
 /*
  * Crashdump maps.
