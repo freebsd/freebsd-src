@@ -782,8 +782,9 @@ The
 value is limited to 24 hours; longer timeouts will be silently
 reinterpreted as 24 hours.
 .Pp
-Previous versions of
+In versions older than 
+.Fx 12.0 ,
 .In sys/event.h
-fail to parse without including
+failed to parse without including
 .In sys/types.h
 manually.
