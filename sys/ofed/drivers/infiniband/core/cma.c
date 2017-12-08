@@ -2569,32 +2569,37 @@ static int cma_get_tcp_port(struct rdma_id_private *id_priv)
 	int ret;
 	int size;
 	struct socket *sock;
+	struct sockaddr *src_addr = (struct sockaddr *)&id_priv->id.route.addr.src_addr;
 
-	ret = sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
+	switch (src_addr->sa_family) {
+	case AF_INET:
+	case AF_INET6:
+		break;
+	default:
+		/* other address families are not handled by iWarp */
+		id_priv->unify_ps_tcp = 0;
+		return (0);
+	}
+
+	ret = sock_create_kern(src_addr->sa_family, SOCK_STREAM, IPPROTO_TCP, &sock);
 	if (ret)
 		return ret;
 #ifdef __linux__
-	ret = sock->ops->bind(sock,
-			(struct sockaddr *) &id_priv->id.route.addr.src_addr,
-			ip_addr_size((struct sockaddr *) &id_priv->id.route.addr.src_addr));
+	ret = sock->ops->bind(sock, src_addr, ip_addr_size(src_addr));
 #else
 	SOCK_LOCK(sock);
 	sock->so_options |= SO_REUSEADDR;
 	SOCK_UNLOCK(sock);
 
-	ret = -sobind(sock,
-			(struct sockaddr *)&id_priv->id.route.addr.src_addr,
-			curthread);
+	ret = -sobind(sock, src_addr, curthread);
 #endif
 	if (ret) {
 		sock_release(sock);
 		return ret;
 	}
 
-	size = ip_addr_size((struct sockaddr *) &id_priv->id.route.addr.src_addr);
-	ret = sock_getname(sock,
-			(struct sockaddr *) &id_priv->id.route.addr.src_addr,
-			&size, 0);
+	size = ip_addr_size(src_addr);
+	ret = sock_getname(sock, src_addr, &size, 0);
 	if (ret) {
 		sock_release(sock);
 		return ret;
