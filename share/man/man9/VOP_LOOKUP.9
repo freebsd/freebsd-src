@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2017
+.Dd November 17, 2017
 .Dt VOP_LOOKUP 9
 .Os
 .Sh NAME
@@ -121,19 +121,9 @@ If not at end, add name to cache; if at end and neither creating
 nor deleting, add name to cache.
 .Ed
 .Sh LOCKS
-The directory,
+The directory
 .Fa dvp
-should be locked on entry.
-If an error (note: the return value
-.Er EJUSTRETURN
-is not considered an error)
-is detected, it will be returned locked.
-Otherwise, it will be unlocked unless both
-.Dv LOCKPARENT
-and
-.Dv ISLASTCN
-are specified in
-.Fa cnp->cn_flags .
+should be locked on entry and exit, regardless of error condition.
 If an entry is found in the directory, it will be returned locked.
 .Sh RETURN VALUES
 Zero is returned with
