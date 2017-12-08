@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
+ * SPDX-License-Identifier: (BSD-3-Clause AND ISC)
  *
  * ++Copyright++ 1983, 1993
  * -

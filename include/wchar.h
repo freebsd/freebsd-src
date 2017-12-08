@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause
+ * SPDX-License-Identifier: (BSD-2-Clause AND BSD-2-Clause-NetBSD)
  *
  * Copyright (c)1999 Citrus Project,
  * All rights reserved.
