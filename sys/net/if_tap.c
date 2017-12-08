@@ -717,9 +717,10 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 	switch (cmd) {
 		case TAPSIFINFO:
 			tapp = (struct tapinfo *)data;
+			if (ifp->if_type != tapp->type)
+				return (EPROTOTYPE);
 			mtx_lock(&tp->tap_mtx);
 			ifp->if_mtu = tapp->mtu;
-			ifp->if_type = tapp->type;
 			ifp->if_baudrate = tapp->baudrate;
 			mtx_unlock(&tp->tap_mtx);
 			break;
