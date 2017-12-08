@@ -34,7 +34,7 @@ SRCS+=		zfs_module.c
 CFLAGS.zfs_module.c+=	-I${ZFSSRC}
 CFLAGS.zfs_module.c+=	-I${SYSDIR}/cddl/boot/zfs
 CFLAGS.zfs_module.c+=	-I${SYSDIR}/crypto/skein
-CFLAGS.zfs_module.c+=	-DEFI_ZFS_BOOT
+CFLAGS+=	-DEFI_ZFS_BOOT
 LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 .endif
 
