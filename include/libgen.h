@@ -37,7 +37,6 @@
 
 __BEGIN_DECLS
 char	*basename(char *);
-char	*basename_r(const char *, char *);
 char	*dirname(char *);
 __END_DECLS
 
