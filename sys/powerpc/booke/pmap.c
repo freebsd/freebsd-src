@@ -1291,6 +1291,10 @@ pte_remove(mmu_t mmu, pmap_t pmap, vm_offset_t va, u_int8_t flags)
 
 		/* Remove pv_entry from pv_list. */
 		pv_remove(pmap, va, m);
+	} else if (m->md.pv_tracked) {
+		pv_remove(pmap, va, m);
+		if (TAILQ_EMPTY(&m->md.pv_list))
+			m->md.pv_tracked = false;
 	}
 	mtx_lock_spin(&tlbivax_mutex);
 	tlb_miss_lock();
