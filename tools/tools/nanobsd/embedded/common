@@ -477,7 +477,7 @@ dos_boot_part ( ) (
 )
 
 if [ -n "$NANO_BOOT_PKG" ]; then
-	local d=/usr/local/share/u-boot/${NANO_BOOT_PKG}
+	d=/usr/local/share/u-boot/${NANO_BOOT_PKG}
 	if [ ! -d ${d} ]; then
 		echo ${NANO_BOOT_PKG} not installed. Sadly, it must be.
 		exit 1
