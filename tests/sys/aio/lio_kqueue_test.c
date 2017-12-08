@@ -27,14 +27,7 @@
 
 /*
  * Note: it is a good idea to run this against a physical drive to
- * exercise the physio fast path (ie. lio_kqueue /dev/<something safe>)
- * This will ensure op's counting is correct.  It is currently broken.
- *
- * Also note that LIO & kqueue is not implemented in FreeBSD yet, LIO
- * is also broken with respect to op's and some paths.
- *
- * A patch to make this work is at:
- * 	http://www.ambrisko.com/doug/listio_kqueue/listio_kqueue.patch
+ * exercise the physio fast path (ie. lio_kqueue_test /dev/<something safe>)
  */
 
 #include <sys/types.h>
@@ -55,8 +48,8 @@
 #define PATH_TEMPLATE   "aio.XXXXXXXXXX"
 
 #define LIO_MAX 5
-#define IOCBS_PER_LIO	16
-#define MAX_IOCBS (LIO_MAX * IOCBS_PER_LIO)
+#define MAX_IOCBS_PER_LIO	64
+#define MAX_IOCBS (LIO_MAX * MAX_IOCBS_PER_LIO)
 #define MAX_RUNS 300
 
 int
@@ -65,7 +58,9 @@ main(int argc, char *argv[])
 	int fd;
 	struct aiocb *iocb[MAX_IOCBS];
 	struct aiocb **lio[LIO_MAX], **kq_lio;
-	int i, result, run, error, j, k;
+	int i, result, run, error, j, k, max_queue_per_proc;
+	int max_iocbs, iocbs_per_lio;
+	size_t max_queue_per_proc_size;
 	char buffer[32768];
 	int kq;
 	struct kevent ke, kq_returned;
@@ -77,6 +72,13 @@ main(int argc, char *argv[])
 
 	PLAIN_REQUIRE_KERNEL_MODULE("aio", 0);
 	PLAIN_REQUIRE_UNSAFE_AIO(0);
+
+	max_queue_per_proc_size = sizeof(max_queue_per_proc);
+	if (sysctlbyname("vfs.aio.max_aio_queue_per_proc",
+	    &max_queue_per_proc, &max_queue_per_proc_size, NULL, 0) != 0)
+		err(1, "sysctlbyname");
+	iocbs_per_lio = max_queue_per_proc / LIO_MAX;
+	max_iocbs = LIO_MAX * iocbs_per_lio;
 
 	kq = kqueue();
 	if (kq < 0)
@@ -104,9 +106,9 @@ main(int argc, char *argv[])
 #endif
 		for (j = 0; j < LIO_MAX; j++) {
 			lio[j] =
-			    malloc(sizeof(struct aiocb *) * IOCBS_PER_LIO);
-			for (i = 0; i < IOCBS_PER_LIO; i++) {
-				k = (IOCBS_PER_LIO * j) + i;
+			    malloc(sizeof(struct aiocb *) * iocbs_per_lio);
+			for (i = 0; i < iocbs_per_lio; i++) {
+				k = (iocbs_per_lio * j) + i;
 				lio[j][i] = iocb[k] =
 				    calloc(1, sizeof(struct aiocb));
 				iocb[k]->aio_nbytes = sizeof(buffer);
@@ -116,8 +118,8 @@ main(int argc, char *argv[])
 				    = iocb[k]->aio_nbytes * k * (run + 1);
 
 #ifdef DEBUG
-				printf("hello iocb[k] %ld\n",
-				       iocb[k]->aio_offset);
+				printf("hello iocb[k] %jd\n",
+				       (intmax_t)iocb[k]->aio_offset);
 #endif
 				iocb[k]->aio_lio_opcode = LIO_WRITE;
 			}
@@ -126,12 +128,13 @@ main(int argc, char *argv[])
 			sig.sigev_notify = SIGEV_KEVENT;
 			time(&time1);
 			result = lio_listio(LIO_NOWAIT, lio[j],
-					    IOCBS_PER_LIO, &sig);
+					    iocbs_per_lio, &sig);
 			error = errno;
 			time(&time2);
 #ifdef DEBUG
-			printf("Time %ld %ld %ld result -> %d\n",
-			    time1, time2, time2-time1, result);
+			printf("Time %jd %jd %jd result -> %d\n",
+			    (intmax_t)time1, (intmax_t)time2,
+			    (intmax_t)time2-time1, result);
 #endif
 			if (result != 0) {
 			        errno = error;
@@ -202,10 +205,10 @@ main(int argc, char *argv[])
 				failed++;
 			} else
 				printf("PASS: run %d, operation %d result %d \n", run, LIO_MAX - i -1, result);
-			for (k = 0; k < MAX_IOCBS / LIO_MAX; k++) {
+			for (k = 0; k < max_iocbs / LIO_MAX; k++) {
 				result = aio_return(kq_lio[k]);
 #ifdef DEBUG
-				printf("Return Resulto for %d %d is %d\n", j, k, result);
+				printf("Return Result for %d %d is %d\n", j, k, result);
 #endif
 				if (result != sizeof(buffer)) {
 					printf("FAIL: run %d, operation %d sub-opt %d  result %d (errno=%d) should be %zu\n",
@@ -219,7 +222,7 @@ main(int argc, char *argv[])
 			printf("\n");
 #endif
 
-			for (k = 0; k < MAX_IOCBS / LIO_MAX; k++)
+			for (k = 0; k < max_iocbs / LIO_MAX; k++)
 				free(lio[j][k]);
 			free(lio[j]);
 			lio[j] = NULL;
