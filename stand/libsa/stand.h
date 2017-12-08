@@ -88,6 +88,9 @@
 #define	EOFFSET	(ELAST+8)	/* relative seek not supported */
 #define	ESALAST	(ELAST+8)	/* */
 
+/* Partial signal emulation for sig_atomic_t */
+#include <machine/signal.h>
+
 struct open_file;
 
 /*
