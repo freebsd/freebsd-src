@@ -3112,7 +3112,7 @@ calc_next_txd(iflib_txq_t txq, int cidx, uint8_t qid)
  * min_frame_size is the frame size (less CRC) to pad the mbuf to
  */
 static __noinline int
-iflib_ether_pad(device_t dev, struct mbuf *m_head, uint16_t min_frame_size)
+iflib_ether_pad(device_t dev, struct mbuf **m_head, uint16_t min_frame_size)
 {
 	/*
 	 * 18 is enough bytes to pad an ARP packet to 46 bytes, and
@@ -3120,14 +3120,25 @@ iflib_ether_pad(device_t dev, struct mbuf *m_head, uint16_t min_frame_size)
 	 */
 	static char pad[18];	/* just zeros */
 	int n;
+	struct mbuf *new_head;
 
-	for (n = min_frame_size - m_head->m_pkthdr.len;
+	if (!M_WRITABLE(*m_head)) {
+		new_head = m_dup(*m_head, M_NOWAIT);
+		if (new_head == NULL) {
+			device_printf(dev, "cannot pad short frame, m_dup() failed");
+			return ENOMEM;
+		}
+		m_freem(*m_head);
+		*m_head = new_head;
+	}
+
+	for (n = min_frame_size - (*m_head)->m_pkthdr.len;
 	     n > 0; n -= sizeof(pad))
-		if (!m_append(m_head, min(n, sizeof(pad)), pad))
+		if (!m_append(*m_head, min(n, sizeof(pad)), pad))
 			break;
 
 	if (n > 0) {
-		m_freem(m_head);
+		m_freem(*m_head);
 		device_printf(dev, "cannot pad short frame\n");
 		DBG_COUNTER_INC(encap_pad_mbuf_fail);
 		return (ENOBUFS);
@@ -3189,13 +3200,13 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
 		desc_tag = txq->ift_desc_tag;
 		max_segs = scctx->isc_tx_nsegments;
 	}
-	m_head = *m_headp;
 	if ((sctx->isc_flags & IFLIB_NEED_ETHER_PAD) &&
 	    __predict_false(m_head->m_pkthdr.len < scctx->isc_min_frame_size)) {
-		err = iflib_ether_pad(ctx->ifc_dev, m_head, scctx->isc_min_frame_size);
+		err = iflib_ether_pad(ctx->ifc_dev, m_headp, scctx->isc_min_frame_size);
 		if (err)
 			return err;
 	}
+	m_head = *m_headp;
 
 	pkt_info_zero(&pi);
 	pi.ipi_mflags = (m_head->m_flags & (M_VLANTAG|M_BCAST|M_MCAST));
