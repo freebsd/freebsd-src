@@ -77,7 +77,7 @@ bootpart_size(const char *scheme)
 }
 
 const char *
-bootpart_type(const char *scheme)
+bootpart_type(const char *scheme, const char **mountpoint)
 {
 
 	/* Only EFI is supported as boot partition */

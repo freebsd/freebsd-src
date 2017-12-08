@@ -92,7 +92,7 @@ bootpart_size(const char *part_type) {
 }
 
 const char *
-bootpart_type(const char *scheme) {
+bootpart_type(const char *scheme, const char **mountpoint) {
 	size_t platlen = sizeof(platform);
 	if (strlen(platform) == 0)
 		sysctlbyname("hw.platform", platform, &platlen, NULL, -1);
