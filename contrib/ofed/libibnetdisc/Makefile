@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 .PATH: ${.CURDIR} ${.CURDIR}/man
 
 SHLIBDIR?=	/usr/lib
@@ -28,6 +30,9 @@ LIBADD=		osmcomp ibmad ibumad
 CFLAGS+=	-DHAVE_CONFIG_H=1
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/infiniband
+.if ${COMPILER_FEATURES:Mc++11}
+CXXFLAGS+=	-std=c++11
+.endif
 VERSION_MAP=	${.CURDIR}/libibnetdisc.map
 
 .include <bsd.lib.mk>
