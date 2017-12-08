@@ -617,6 +617,7 @@ parsetime(int argc, char **argv)
 	    }
 	    /* now is optional prefix for PLUS tree */
 	    expect(PLUS);
+	    /* FALLTHROUGH */
     case PLUS:
 	    plus(&runtime);
 	    break;
@@ -641,8 +642,10 @@ parsetime(int argc, char **argv)
 	     */
     case TEATIME:
 	    hr += 4;
+	    /* FALLTHROUGH */
     case NOON:
 	    hr += 12;
+	    /* FALLTHROUGH */
     case MIDNIGHT:
 	    if (runtime.tm_hour >= hr) {
 		runtime.tm_mday++;
