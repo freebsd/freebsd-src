@@ -236,9 +236,7 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 		    "DTRACEIOC_AGGSNAP":"DTRACEIOC_BUFSNAP",
 		    curcpu, desc.dtbd_cpu);
 
-		if (desc.dtbd_cpu >= NCPU)
-			return (ENOENT);
-		if (pcpu_find(desc.dtbd_cpu) == NULL)
+		if (desc.dtbd_cpu >= MAXCPU || CPU_ABSENT(desc.dtbd_cpu))
 			return (ENOENT);
 
 		mutex_enter(&dtrace_lock);
@@ -801,11 +799,7 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 		nerrs = state->dts_errors;
 		dstate = &state->dts_vstate.dtvs_dynvars;
 
-		for (i = 0; i < NCPU; i++) {
-#ifndef illumos
-			if (pcpu_find(i) == NULL)
-				continue;
-#endif
+		CPU_FOREACH(i) {
 			dtrace_dstate_percpu_t *dcpu = &dstate->dtds_percpu[i];
 
 			stat->dtst_dyndrops += dcpu->dtdsc_drops;
