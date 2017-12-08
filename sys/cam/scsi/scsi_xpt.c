@@ -2506,8 +2506,8 @@ scsi_dev_advinfo(union ccb *start_ccb)
 			if (device->physpath != NULL) {
 				free(device->physpath, M_CAMXPT);
 				device->physpath = NULL;
+				device->physpath_len = 0;
 			}
-			device->physpath_len = cdai->bufsiz;
 			/* Clear existing buffer if zero length */
 			if (cdai->bufsiz == 0)
 				break;
@@ -2516,6 +2516,7 @@ scsi_dev_advinfo(union ccb *start_ccb)
 				start_ccb->ccb_h.status = CAM_REQ_ABORTED;
 				return;
 			}
+			device->physpath_len = cdai->bufsiz;
 			memcpy(device->physpath, cdai->buf, cdai->bufsiz);
 		} else {
 			cdai->provsiz = device->physpath_len;
