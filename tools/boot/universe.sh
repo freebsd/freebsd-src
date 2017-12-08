@@ -44,6 +44,14 @@ dobuild()
 top=$(make -V SRCTOP)
 cd $top/stand
 
+# Build without forth
+for i in \
+	amd64/amd64 \
+	i386/i386 \
+	; do
+    ta=${i##*/}
+    dobuild $ta _.boot.${ta}.no_forth.log "WITHOUT_FORTH=yes"
+done
 
 # Build without GELI
 for i in \
