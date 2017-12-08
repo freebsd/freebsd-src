@@ -235,6 +235,22 @@ static __inline int isalnum(int c)
     return isalpha(c) || isdigit(c);
 }
 
+static __inline int iscntrl(int c)
+{
+	return (c >= 0 && c < ' ') || c == 127;
+}
+
+static __inline int isgraph(int c)
+{
+	return c >= '!' && c <= '~';
+}
+
+static __inline int ispunct(int c)
+{
+	return (c >= '!' && c <= '/') || (c >= ':' && c <= '@') ||
+	    (c >= '[' && c <= '`') || (c >= '{' && c <= '~');
+}
+
 static __inline int toupper(int c)
 {
     return islower(c) ? c - 'a' + 'A' : c;
