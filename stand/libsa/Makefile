@@ -111,7 +111,7 @@ beforedepend:
 	for i in _time.h _strings.h _string.h; do \
 		[ -f xlocale/$$i ] || cp /dev/null xlocale/$$i; \
 	done; \
-	for i in ctype.h fcntl.h stdio.h stdlib.h; do \
+	for i in ctype.h fcntl.h signal.h stdio.h stdlib.h; do \
 		ln -sf ${SASRC}/stand.h $$i; \
 	done
 
