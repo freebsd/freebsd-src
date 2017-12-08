@@ -4,6 +4,8 @@
 .include <bsd.init.mk>
 .include "${BOOTSRC}/ficl.mk"
 
+.PATH: ${FICLSRC} ${FICLSRC}/${FICL_CPUARCH}
+
 BASE_SRCS=	dict.c ficl.c fileaccess.c float.c loader.c math64.c \
 		prefix.c search.c stack.c tools.c vm.c words.c
 
