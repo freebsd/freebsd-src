@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2008 MARVELL INTERNATIONAL LTD.
  * Copyright (c) 2010, Aleksandr Rybalko <ray@ddteam.net>
  * All rights reserved.
