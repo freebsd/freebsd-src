@@ -31,17 +31,17 @@
  *
  */
 
-#if defined(__clang__)
+#if __cplusplus >= 201103L
 #include <unordered_map>
-#define	HASH_TABLE_UNORDERED_MAP std::unordered_map
+#define	UM_NAMESPACE std
 #else
 #include <tr1/unordered_map>
-#define	HASH_TABLE_UNORDERED_MAP std::tr1::unordered_map
+#define	UM_NAMESPACE std::tr1
 #endif
 
 class HashTable {
 public:
-	HASH_TABLE_UNORDERED_MAP<void *, void *> map;
+	UM_NAMESPACE::unordered_map<void *, void *> map;
 	HashTable() { };
 	~HashTable() { };
 };
