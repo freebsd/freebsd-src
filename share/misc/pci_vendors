@@ -3,8 +3,8 @@
 #
 #	List of PCI ID's
 #
-#	Version: 2017.10.21
-#	Date:    2017-10-21 03:15:01
+#	Version: 2017.12.06
+#	Date:    2017-12-06 03:15:02
 #
 #	Maintained by Albert Pool, Martin Mares, and other volunteers from
 #	the PCI ID Project at http://pci-ids.ucw.cz/.
@@ -751,6 +751,7 @@
 	131b  Kaveri [Radeon R4 Graphics]
 	131c  Kaveri [Radeon R7 Graphics]
 	131d  Kaveri [Radeon R6 Graphics]
+	15dd  Radeon Vega 8 Mobile
 	1714  BeaverCreek HDMI Audio [Radeon HD 6500D and 6400G-6600G series]
 		103c 168b  ProBook 4535s
 	3150  RV380/M24 [Mobility Radeon X600]
@@ -1629,6 +1630,7 @@
 	6623  Mars
 	6631  Oland
 	6640  Saturn XT [FirePro M6100]
+		106b 014b  Tropo XT [Radeon R9 M380 Mac Edition]
 	6641  Saturn PRO [Radeon HD 8930M]
 	6646  Bonaire XT [Radeon R9 M280X]
 	6647  Bonaire PRO [Radeon R9 M270X]
@@ -2370,7 +2372,8 @@
 	6828  Cape Verde PRO [FirePro W600]
 	6829  Cape Verde
 	682a  Venus PRO
-	682b  Venus LE [Radeon HD 8830M]
+	682b  Venus LE / Tropo PRO-L [Radeon HD 8830M / R7 M465X]
+		0128 079c  Radeon R7 465X
 	682c  Cape Verde GL [FirePro W4100]
 	682d  Chelsea XT GL [FirePro M4000]
 	682f  Chelsea LP [Radeon HD 7730M]
@@ -2504,6 +2507,7 @@
 		144d c0c7  Radeon HD 7550M
 	6842  Thames LE [Radeon HD 7000M Series]
 	6843  Thames [Radeon HD 7670M]
+	6861  Vega 10 XT [Radeon PRO WX 9100]
 	6863  Vega 10 XTX [Radeon Vega Frontier Edition]
 	687f  Vega 10 XT [Radeon RX Vega 64]
 	6888  Cypress XT [FirePro V8800]
@@ -4037,6 +4041,7 @@
 	141f  Family 15h (Models 30h-3fh) Processor Function 5
 	1422  Family 15h (Models 30h-3fh) Processor Root Complex
 	1423  Family 15h (Models 30h-3fh) I/O Memory Management Unit
+	1424  Family 15h (Models 30h-3fh) Processor Root Port
 	1426  Family 15h (Models 30h-3fh) Processor Root Port
 	1436  Liverpool Processor Root Complex
 	1437  Liverpool I/O Memory Management Unit
@@ -4045,6 +4050,7 @@
 	1450  Family 17h (Models 00h-0fh) Root Complex
 	1451  Family 17h (Models 00h-0fh) I/O Memory Management Unit
 	1452  Family 17h (Models 00h-0fh) PCIe Dummy Host Bridge
+	1453  Family 17h (Models 00h-0fh) PCIe GPP Bridge
 	1454  Family 17h (Models 00h-0fh) Internal PCIe GPP Bridge 0 to Bus B
 	1456  Family 17h (Models 00h-0fh) Platform Security Processor
 	1457  Family 17h (Models 00h-0fh) HD Audio Controller
@@ -5217,6 +5223,7 @@
 	3020  Samurai_IDE
 1043  ASUSTeK Computer Inc.
 	0464  Radeon R9 270x GPU
+	0521  RX580 [RX 580 Dual O8G]
 	0675  ISDNLink P-IN100-ST-D
 		0675 1704  ISDN Adapter (PCI Bus, D, C)
 		0675 1707  ISDN Adapter (PCI Bus, DV, W)
@@ -6176,6 +6183,7 @@
 		103c 12dd  4Gb Fibre Channel [AB429A]
 	2432  ISP2432-based 4Gb Fibre Channel to PCI Express HBA
 		103c 7040  FC1142SR 4Gb 1-port PCIe Fibre Channel Host Bus Adapter [HPAE311A]
+		1077 0137  QLE2460 4 GB PCI-X Host-Bus-Adapter
 	2532  ISP2532-based 8Gb Fibre Channel to PCI Express HBA
 		1014 041e  FC EN0Y/EN12 PCIe2 LP 8 Gb 4-port Fibre Channel Adapter for POWER
 		103c 3262  StorageWorks 81Q
@@ -6227,6 +6235,10 @@
 		1077 000b  25GE 2P QL41262HxCU-DE Adapter
 		1077 0011  FastLinQ QL41212H 25GbE Adapter
 		1077 0012  FastLinQ QL41112H 10GbE Adapter
+		1590 021d  10/25GbE 2P QL41222HLCU-HP Adapter
+		1590 021e  10/25GbE 2P QL41162HMRJ-HP Adapter
+		1590 021f  10/25GbE 2P QL41262HMCU-HP Adapter
+		1590 0220  10/25GbE 2P QL41122HLRJ-HP Adapter
 	8080  FastLinQ QL41000 Series 10/25/40/50GbE Controller (FCoE)
 		1077 0001  10GE 2P QL41162HxRJ-DE Adapter
 		1077 0002  10GE 2P QL41112HxCU-DE Adapter
@@ -6247,6 +6259,8 @@
 		1077 000e  FastLinQ QL41162H 10GbE iSCSI Adapter (SR-IOV VF)
 		1077 0011  FastLinQ QL41212H 25GbE Adapter (SR-IOV VF)
 		1077 0012  FastLinQ QL41112H 10GbE Adapter (SR-IOV VF)
+		1590 021e  10/25GbE 2P QL41162HMRJ-HP Adapter
+		1590 021f  10/25GbE 2P QL41262HMCU-HP Adapter
 	8430  ISP8324 1/10GbE Converged Network Controller (NIC VF)
 	8431  8300 Series 10GbE Converged Network Adapter (FCoE VF)
 	8432  ISP2432M-based 10GbE Converged Network Adapter (CNA)
@@ -10853,6 +10867,8 @@
 	1725  GP100
 	172e  GP100
 	172f  GP100
+	174d  GM108M [GeForce MX130]
+	174e  GM108M [GeForce MX110]
 	17c2  GM200 [GeForce GTX TITAN X]
 	17c8  GM200 [GeForce GTX 980 Ti]
 	17f0  GM200GL [Quadro M6000]
@@ -10868,7 +10884,7 @@
 	1b78  GP102GL
 	1b80  GP104 [GeForce GTX 1080]
 	1b81  GP104 [GeForce GTX 1070]
-	1b82  GP104
+	1b82  GP104 [GeForce GTX 1070 Ti]
 	1b83  GP104
 	1b84  GP104 [GeForce GTX 1060 3GB]
 	1b87  GP104 [P104-100]
@@ -10882,7 +10898,7 @@
 	1bb0  GP104GL [Quadro P5000]
 	1bb1  GP104GL [Quadro P4000]
 	1bb3  GP104GL [Tesla P4]
-	1bb4  GP104GL
+	1bb4  GP104GL [Tesla P6]
 	1bb5  GP104GLM [Quadro P5200 Mobile]
 	1bb6  GP104GLM [Quadro P5000 Mobile]
 	1bb7  GP104GLM [Quadro P4000 Mobile]
@@ -10933,6 +10949,7 @@
 		103c 21d4  StoreFabric CN1200E 10Gb Converged Network Adapter
 		103c 220a  FlexFabric 10Gb 2-port 556FLR-SFP+ Adapter
 		103c 803f  Ethernet 10Gb 2-port 557SFP+ Adapter
+		103c 8144  FlexFabric 10GB 2-port 556FLR-T Adapter
 		17aa 1056  ThinkServer OCm14102-UX-L AnyFabric
 		17aa 1057  ThinkServer OCm14104-UX-L AnyFabric
 		17aa 1059  ThinkServer OCm14104-UT-L AnyFabric
@@ -11263,6 +11280,7 @@
 	8821  RTL8821AE 802.11ac PCIe Wireless Network Adapter
 	b723  RTL8723BE PCIe Wireless Network Adapter
 		10ec 8739  Dell Wireless 1801
+	c821  RTL8821CE 802.11ac PCIe Wireless Network Adapter
 10ed  Ascii Corporation
 	7310  V7310
 10ee  Xilinx Corporation
@@ -12565,6 +12583,8 @@
 		1131 4f61  Activy DVB-S Budget Rev GR
 		1131 5f61  Activy DVB-T Budget
 		114b 2003  DVRaptor Video Edit/Capture Card
+		1159 0040  MuTech M-Vision 500 (MV-500 rev. E)
+		1159 0050  MuTech M-Vision 500 (MV-500 rev. F)
 		11bd 0006  DV500 Overlay
 		11bd 000a  DV500 Overlay
 		11bd 000f  DV500 Overlay
@@ -13021,7 +13041,7 @@
 	3011  Tokenet/vg 1001/10m anylan
 	9050  Lanfleet/Truevalue
 	9051  Lanfleet/Truevalue
-1159  Mutech Corp
+1159  MuTech Corporation
 	0001  MV-1000
 	0002  MV-1500
 115a  Harlequin Ltd
@@ -15480,9 +15500,9 @@
 1392  Medialight Inc
 1393  Moxa Technologies Co Ltd
 	0001  UC7000 Serial
-	1020  CP102 (2-port RS-232 PCI)
-	1021  CP102UL (2-port RS-232 Universal PCI)
-	1022  CP102U (2-port RS-232 Universal PCI)
+	1020  CP-102 (2-port RS-232 PCI)
+	1021  CP-102UL (2-port RS-232 Universal PCI)
+	1022  CP-102U (2-port RS-232 Universal PCI)
 	1023  CP-102UF
 	1024  CP-102E (2-port RS-232 Smart PCI Express Serial Board)
 	1025  CP-102EL (2-port RS-232 Smart PCI Express Serial Board)
@@ -15509,7 +15529,7 @@
 	1380  CP138U (8-port RS-232/422/485 Smart Universal PCI)
 	1680  Smartio C168H/PCI
 	1681  CP-168U V2 Smart Serial Board (8-port RS-232)
-	1682  CP168EL (8-port RS-232 Smart PCI Express)
+	1682  CP-168EL (8-port RS-232 Smart PCI Express)
 	1683  CP-168EL-A (8-port RS-232 PCI Express Serial Board)
 	2040  Intellio CP-204J
 	2180  Intellio C218 Turbo PCI
@@ -16588,6 +16608,7 @@
 	6083  T62100-6083 Unified Wire Ethernet Controller
 	6084  T64100-6084 Unified Wire Ethernet Controller
 	6085  T6240-6085 Unified Wire Ethernet Controller
+	6086  T6225-6086 Unified Wire Ethernet Controller
 	6401  T6225-CR Unified Wire Ethernet Controller
 	6402  T6225-SO-CR Unified Wire Ethernet Controller
 	6403  T6425-CR Unified Wire Ethernet Controller
@@ -16607,6 +16628,7 @@
 	6483  T62100-6083 Unified Wire Ethernet Controller
 	6484  T64100-6084 Unified Wire Ethernet Controller
 	6485  T6240-6085 Unified Wire Ethernet Controller
+	6486  T6225-6086 Unified Wire Ethernet Controller
 	6501  T6225-CR Unified Wire Storage Controller
 	6502  T6225-SO-CR Unified Wire Storage Controller
 	6503  T6425-CR Unified Wire Storage Controller
@@ -16626,6 +16648,7 @@
 	6583  T62100-6083 Unified Wire Storage Controller
 	6584  T64100-6084 Unified Wire Storage Controller
 	6585  T6240-6085 Unified Wire Storage Controller
+	6586  T6225-6086 Unified Wire Storage Controller
 	6601  T6225-CR Unified Wire Storage Controller
 	6602  T6225-SO-CR Unified Wire Storage Controller
 	6603  T6425-CR Unified Wire Storage Controller
@@ -16645,6 +16668,7 @@
 	6683  T62100-6083 Unified Wire Storage Controller
 	6684  T64100-6084 Unified Wire Storage Controller
 	6685  T6240-6085 Unified Wire Storage Controller
+	6686  T6225-6086 Unified Wire Storage Controller
 	6801  T6225-CR Unified Wire Ethernet Controller [VF]
 	6802  T6225-SO-CR Unified Wire Ethernet Controller [VF]
 	6803  T6425-CR Unified Wire Ethernet Controller [VF]
@@ -16664,6 +16688,7 @@
 	6883  T62100-6083 Unified Wire Ethernet Controller [VF]
 	6884  T64100-6084 Unified Wire Ethernet Controller [VF]
 	6885  T6240-6085 Unified Wire Ethernet Controller [VF]
+	6886  T6225-6086 Unified Wire Ethernet Controller [VF]
 	a000  PE10K Unified Wire Ethernet Controller
 1426  Storage Technology Corp.
 1427  Better On-Line Solutions
@@ -17303,6 +17328,7 @@
 	169d  NetLink BCM5789 Gigabit Ethernet PCI Express
 	16a0  NetLink BCM5785 Fast Ethernet
 	16a1  BCM57840 NetXtreme II 10 Gigabit Ethernet
+		1043 866e  PEB-10G/57840-2T 10GBase-T Network Adapter
 	16a2  BCM57840 NetXtreme II 10/20-Gigabit Ethernet
 		103c 1916  FlexFabric 20Gb 2-port 630FLB Adapter
 		103c 1917  FlexFabric 20Gb 2-port 630M Adapter
@@ -17427,7 +17453,8 @@
 		14e4 1404  BCM957414M4142 OCP 2x25G Type1 wRoCE
 		1590 020e  Ethernet 25Gb 2-port 631SFP28 Adapter
 		1590 0211  Ethernet 25Gb 2-port 631FLR-SFP28 Adapter
-	16d8  BCM57416 NetXtreme-E 10GBase-T RDMA Ethernet Controller
+	16d8  BCM57416 NetXtreme-E Dual-Media 10G RDMA Ethernet Controller
+		1028 1feb  NetXtreme-E 10Gb SFP+ Adapter
 		1590 020c  Ethernet 10Gb 2-port 535T Adapter
 		1590 0212  Ethernet 10Gb 2-port 535FLR-T Adapter
 	16d9  BCM57417 NetXtreme-E 10GBASE-T RDMA Ethernet Controller
@@ -21984,6 +22011,7 @@
 	0897  Centrino Wireless-N 130
 		8086 5015  Centrino Wireless-N 130 BGN
 		8086 5017  Centrino Wireless-N 130 BG
+	08a7  Quark SoC X1000 SDIO / eMMC Controller
 	08ae  Centrino Wireless-N 100
 		8086 1005  Centrino Wireless-N 100 BGN
 		8086 1007  Centrino Wireless-N 100 BG
@@ -22182,6 +22210,12 @@
 		8086 8370  Dual Band Wireless AC 3160
 # PowerVR SGX 545
 	08cf  Atom Processor Z2760 Integrated Graphics Controller
+	0934  Quark SoC X1000 I2C Controller and GPIO Controller
+	0935  Quark SoC X1000 SPI Controller
+	0936  Quark SoC X1000 HS-UART
+	0937  Quark SoC X1000 10/100 Ethernet MAC
+	0939  Quark SoC X1000 USB EHCI Host Controller / USB 2.0 Device
+	093a  Quark SoC X1000 USB OHCI Host Controller
 	0953  PCIe Data Center SSD
 		8086 3702  DC P3700 SSD
 		8086 3703  DC P3700 SSD [2.5" SFF]
@@ -22191,6 +22225,7 @@
 		8086 370a  DC P3600 SSD [2.5" SFF]
 		8086 370d  SSD 750 Series [Add-in Card]
 		8086 370e  SSD 750 Series [2.5" SFF]
+	0958  Quark SoC X1000 Host Bridge
 	095a  Wireless 7265
 # Stone Peak 2 AC
 		8086 1010  Dual Band Wireless-AC 7265
@@ -22277,6 +22312,7 @@
 		8086 5310  Dual Band Wireless-AC 7265
 # Stone Peak 2 AGN
 		8086 9200  Dual Band Wireless-AC 7265
+	095e  Quark SoC X1000 Legacy Bridge
 	0960  80960RP (i960RP) Microprocessor/Bridge
 	0962  80960RM (i960RM) Bridge
 	0964  80960RP (i960RP) Microprocessor/Bridge
@@ -23077,6 +23113,8 @@
 	11a1  Merrifield Power Management Unit
 	11a2  Merrifield Serial IO DMA Controller
 	11a5  Merrifield Serial IO PWM Controller
+	11c3  Quark SoC X1000 PCIe Root Port 0
+	11c4  Quark SoC X1000 PCIe Root Port 1
 	1200  IXP1200 Network Processor
 		172a 0000  AEP SSL Accelerator
 	1209  8255xER/82551IT Fast Ethernet Controller
@@ -23392,6 +23430,7 @@
 		108e 7b14  Sun Dual Port 10 GbE PCIe 2.0 ExpressModule, Base-T
 		108e 7b15  Sun Dual Port 10 GbE PCIe 2.0 Low Profile Adapter, Base-T
 		1137 00bf  Ethernet Converged Network Adapter X540-T2
+		1170 0052  Ethernet Controller 10-Gigabit X540-AT2
 		17aa 1073  ThinkServer X540-T2 AnyFabric
 		17aa 4006  Ethernet Controller 10-Gigabit X540-AT2
 		1bd4 001a  10G base-T DP ER102Ti3 Rack Adapter
@@ -23512,6 +23551,7 @@
 		8086 000b  Ethernet Server Adapter X710-DA2 for OCP
 		8086 000d  Ethernet Controller X710 for 10GbE SFP+
 		8086 000e  Ethernet Server Adapter OCP X710-2
+		8086 000f  Ethernet Server Adapter OCP X710-2
 		8086 0010  Ethernet Converged Network Adapter X710
 		8086 4005  Ethernet Controller X710 for 10GbE SFP+
 		8086 4006  Ethernet Controller X710 for 10GbE SFP+
@@ -23622,6 +23662,7 @@
 	15c8  Ethernet Connection X553/X557-AT 10GBASE-T
 	15ce  Ethernet Connection X553 10 GbE SFP+
 	15d0  Ethernet SDI Adapter FM10420-100GbE-QDA2
+		8086 0001  Ethernet SDI Adapter FM10420-100GbE-QDA2
 	15d1  Ethernet Controller 10G X550T
 		8086 0002  Ethernet Converged Network Adapter X550-T1
 		8086 001b  Ethernet Server Adapter X550-T1 for OCP
