@@ -314,7 +314,7 @@ read_vars(void)
 	LIST_INIT(&efivars);
 	while ((ret = efi_get_next_variable_name(&guid, &next_name)) > 0) {
 		/*
-		 * Only pay attention to the EFI:BootXXXX variables to get the list.
+		 * Only pay attention to EFI:BootXXXX variables to get the list.
 		 */
 		if (efi_guid_cmp(guid, &EFI_GLOBAL_GUID) != 0 ||
 		    strlen(next_name) != 8 ||
