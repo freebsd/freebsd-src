@@ -200,18 +200,18 @@ passwd_val(char const * str, int dflt)
 
 		for (i = 0; booltrue[i]; i++)
 			if (strcmp(str, booltrue[i]) == 0)
-				return 1;
+				return P_YES;
 		for (i = 0; boolfalse[i]; i++)
 			if (strcmp(str, boolfalse[i]) == 0)
-				return 0;
+				return P_NO;
 
 		/*
 		 * Special cases for defaultpassword
 		 */
 		if (strcmp(str, "random") == 0)
-			return -1;
+			return P_RANDOM;
 		if (strcmp(str, "none") == 0)
-			return -2;
+			return P_NONE;
 
 		errx(1, "Invalid value for default password");
 	}

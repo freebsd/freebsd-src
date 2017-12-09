@@ -40,7 +40,7 @@ static const char rcsid[] =
 #include "psdate.h"
 
 
-static int
+int
 numerics(char const * str)
 {
 
