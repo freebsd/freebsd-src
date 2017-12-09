@@ -704,6 +704,7 @@ print_loadopt_str(uint8_t *data, size_t datalen)
 	int len;
 	int optlen;
 	int rv;
+	int indent;
 
 	if (datalen < sizeof(attr) + sizeof(fplen) + sizeof(efi_char))
 		return;
@@ -729,13 +730,15 @@ print_loadopt_str(uint8_t *data, size_t datalen)
 	opt = walker;
 	optlen = ep - walker;
 
+	indent = 1;
 	while (dp < edp) {
 		efidp_format_device_path(buf, sizeof(buf), dp,
 		    (intptr_t)(void *)edp - (intptr_t)(void *)dp);
-		printf(" %s\n", buf);
+		printf("%*s%s\n", indent, "", buf);
+		indent = 10 + len + 1;
 		rv = efivar_device_path_to_unix_path(dp, &dev, &relpath, &abspath);
 		if (rv == 0) {
-			printf("      %s:%s %s\n", dev, relpath, abspath);
+			printf("%*s%s:%s %s\n", indent + 4, "", dev, relpath, abspath);
 			free(dev);
 			free(relpath);
 			free(abspath);
