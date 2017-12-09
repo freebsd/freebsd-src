@@ -408,7 +408,7 @@ Fifth   Edition         1974-06-xx [QCU]
 				above 50 installations
 Sixth   Edition         1975-05-xx [QCU]
 				port to DEC Vax
-Seventh Edition         1979-01-xx [QCU]
+Seventh Edition         1979-01-xx [QCU] 1979-01-10 [TUHS]
 				first portable UNIX
 Eighth  Edition         1985-02-xx [QCU]
 				VAX 11/750, VAX 11/780 [dmr]
@@ -440,7 +440,7 @@ Tenth   Edition         1989-10-xx [QCU]
 2.11BSD			1992-02-xx [SMS]
 2.11BSD rev #430	1999-12-13 [SMS]
 
-32V			1978-1[01]-xx [QCU]
+32V			1978-1[01]-xx [QCU] 1979-03-26 [TUHS]
 3BSD                    late 1979 [QCU] March 1980 [TUHS]
 				virtual memory, page replacement,
                         	demand paging
