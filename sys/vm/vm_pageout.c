@@ -1393,7 +1393,7 @@ drop_page:
 	inactq_shortage = vm_cnt.v_inactive_target - (vm_cnt.v_inactive_count +
 	    vm_cnt.v_laundry_count / act_scan_laundry_weight) +
 	    vm_paging_target() + deficit + addl_page_shortage;
-	page_shortage *= act_scan_laundry_weight;
+	inactq_shortage *= act_scan_laundry_weight;
 
 	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
 	vm_pagequeue_lock(pq);
