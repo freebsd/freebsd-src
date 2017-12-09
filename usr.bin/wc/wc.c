@@ -206,30 +206,30 @@ cnt(const char *file)
 	linect = wordct = charct = llct = tmpll = 0;
 	if (file == NULL)
 		fd = STDIN_FILENO;
-	else {
-		if ((fd = open(file, O_RDONLY, 0)) < 0) {
-			xo_warn("%s: open", file);
-			return (1);
-		}
-		if (doword || (domulti && MB_CUR_MAX != 1))
-			goto word;
-		/*
-		 * Line counting is split out because it's a lot faster to get
-		 * lines than to get words, since the word count requires some
-		 * logic.
-		 */
-		if (doline) {
-			while ((len = read(fd, buf, MAXBSIZE))) {
-				if (len == -1) {
-					xo_warn("%s: read", file);
-					(void)close(fd);
-					return (1);
-				}
-				if (siginfo) {
-					show_cnt(file, linect, wordct, charct,
-					    llct);
-				}
-				charct += len;
+	else if ((fd = open(file, O_RDONLY, 0)) < 0) {
+		xo_warn("%s: open", file);
+		return (1);
+	}
+	if (doword || (domulti && MB_CUR_MAX != 1))
+		goto word;
+	/*
+	 * Line counting is split out because it's a lot faster to get
+	 * lines than to get words, since the word count requires some
+	 * logic.
+	 */
+	if (doline || dochar) {
+		while ((len = read(fd, buf, MAXBSIZE))) {
+			if (len == -1) {
+				xo_warn("%s: read", file);
+				(void)close(fd);
+				return (1);
+			}
+			if (siginfo) {
+				show_cnt(file, linect, wordct, charct,
+				    llct);
+			}
+			charct += len;
+			if (doline) {
 				for (p = buf; len--; ++p)
 					if (*p == '\n') {
 						if (tmpll > llct)
@@ -239,36 +239,37 @@ cnt(const char *file)
 					} else
 						tmpll++;
 			}
-			reset_siginfo();
+		}
+		reset_siginfo();
+		if (doline)
 			tlinect += linect;
-			if (dochar)
-				tcharct += charct;
-			if (dolongline) {
-				if (llct > tlongline)
-					tlongline = llct;
-			}
+		if (dochar)
+			tcharct += charct;
+		if (dolongline) {
+			if (llct > tlongline)
+				tlongline = llct;
+		}
+		show_cnt(file, linect, wordct, charct, llct);
+		(void)close(fd);
+		return (0);
+	}
+	/*
+	 * If all we need is the number of characters and it's a
+	 * regular file, just stat the puppy.
+	 */
+	if (dochar || domulti) {
+		if (fstat(fd, &sb)) {
+			xo_warn("%s: fstat", file);
+			(void)close(fd);
+			return (1);
+		}
+		if (S_ISREG(sb.st_mode)) {
+			reset_siginfo();
+			charct = sb.st_size;
 			show_cnt(file, linect, wordct, charct, llct);
+			tcharct += charct;
 			(void)close(fd);
 			return (0);
-		}
-		/*
-		 * If all we need is the number of characters and it's a
-		 * regular file, just stat the puppy.
-		 */
-		if (dochar || domulti) {
-			if (fstat(fd, &sb)) {
-				xo_warn("%s: fstat", file);
-				(void)close(fd);
-				return (1);
-			}
-			if (S_ISREG(sb.st_mode)) {
-				reset_siginfo();
-				charct = sb.st_size;
-				show_cnt(file, linect, wordct, charct, llct);
-				tcharct += charct;
-				(void)close(fd);
-				return (0);
-			}
 		}
 	}
 
