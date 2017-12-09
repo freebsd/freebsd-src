@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #define BAD_LENGTH	((size_t)-1)
 	
 typedef struct _bmgr_opts {
-	char	*dev;
 	char	*env;
 	char	*loader;
 	char	*label;
@@ -84,7 +83,6 @@ typedef struct _bmgr_opts {
 	bool    del_timeout;
 	bool    dry_run;
 	bool    once;
-	int     part;
 	int	cp_src;
 	bool    set_active;
 	bool    set_bootnext;
@@ -194,7 +192,7 @@ parse_args(int argc, char *argv[])
 {
 	int ch;
 
-	while ((ch = getopt_long(argc, argv, "A:a:B:C:cDd:e:hk:L:l:Nn:Oo:p:Tt:v",
+	while ((ch = getopt_long(argc, argv, "A:a:B:C:cDe:hk:L:l:Nn:Oo:Tt:v",
 		    lopts, NULL)) != -1) {
 		switch (ch) {
 		case 'A':
@@ -217,9 +215,6 @@ parse_args(int argc, char *argv[])
 			break;
 		case 'D': /* should be remove dups XXX */
 			opts.dry_run = true;
-			break;
-		case 'd':
-			opts.dev = optarg;
 			break;
 		case 'e':
 			opts.env = strdup(optarg);
@@ -251,9 +246,6 @@ parse_args(int argc, char *argv[])
 		case 'o':
 			opts.order = strdup(optarg);
 			break;
-		case 'p':
-			opts.part = strtoul(optarg, NULL, 10);
-			break;
 		case 'T':
 			opts.del_timeout = true;
 			break;
@@ -267,7 +259,7 @@ parse_args(int argc, char *argv[])
 		}
 	}
 	if (opts.create) {
-		if (!(opts.loader && opts.dev && opts.part))
+		if (!opts.loader)
 			errx(1, "%s",CREATE_USAGE);
 		return;
 	}
@@ -598,7 +590,12 @@ create_loadopt(uint8_t *buf, size_t bufmax, uint32_t attributes, efidp dp, size_
 	/*
 	 * Compute the length to make sure the passed in buffer is long enough.
 	 */
-	utf8_to_ucs2(description, &bbuf, &desc_len);
+	if (description)
+		utf8_to_ucs2(description, &bbuf, &desc_len);
+	else {
+		desc_len = 0;
+		bbuf = NULL;
+	}
 	len = sizeof(uint32_t) + sizeof(uint16_t) + desc_len + dp_size + optional_data_size;
 	if (len > bufmax) {
 		free(bbuf);
@@ -665,7 +662,7 @@ make_boot_var(const char *label, const char *loader, const char *kernel, const c
 		err(1, "malloc");
 
 	lopt_size = create_loadopt(load_opt_buf, MAX_LOADOPT_LEN, load_attrs,
-	    dp, llen + klen, label, env, strlen(env) + 1);
+	    dp, llen + klen, label, env, env ? strlen(env) + 1 : 0);
 	if (lopt_size == BAD_LENGTH)
 		errx(1, "Can't crate loadopt");
 
