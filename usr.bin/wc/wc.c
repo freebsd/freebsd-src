@@ -213,51 +213,10 @@ cnt(const char *file)
 	if (doword || (domulti && MB_CUR_MAX != 1))
 		goto word;
 	/*
-	 * Line counting is split out because it's a lot faster to get
-	 * lines than to get words, since the word count requires some
-	 * logic.
+	 * If all we need is the number of characters and it's a regular file,
+	 * just stat it.
 	 */
-	if (doline || dochar) {
-		while ((len = read(fd, buf, MAXBSIZE))) {
-			if (len == -1) {
-				xo_warn("%s: read", file);
-				(void)close(fd);
-				return (1);
-			}
-			if (siginfo) {
-				show_cnt(file, linect, wordct, charct,
-				    llct);
-			}
-			charct += len;
-			if (doline) {
-				for (p = buf; len--; ++p)
-					if (*p == '\n') {
-						if (tmpll > llct)
-							llct = tmpll;
-						tmpll = 0;
-						++linect;
-					} else
-						tmpll++;
-			}
-		}
-		reset_siginfo();
-		if (doline)
-			tlinect += linect;
-		if (dochar)
-			tcharct += charct;
-		if (dolongline) {
-			if (llct > tlongline)
-				tlongline = llct;
-		}
-		show_cnt(file, linect, wordct, charct, llct);
-		(void)close(fd);
-		return (0);
-	}
-	/*
-	 * If all we need is the number of characters and it's a
-	 * regular file, just stat the puppy.
-	 */
-	if (dochar || domulti) {
+	if (doline == 0) {
 		if (fstat(fd, &sb)) {
 			xo_warn("%s: fstat", file);
 			(void)close(fd);
@@ -272,6 +231,44 @@ cnt(const char *file)
 			return (0);
 		}
 	}
+	/*
+	 * For files we can't stat, or if we need line counting, slurp the
+	 * file.  Line counting is split out because it's a lot faster to get
+	 * lines than to get words, since the word count requires locale
+	 * handling.
+	 */
+	while ((len = read(fd, buf, MAXBSIZE))) {
+		if (len == -1) {
+			xo_warn("%s: read", file);
+			(void)close(fd);
+			return (1);
+		}
+		if (siginfo)
+			show_cnt(file, linect, wordct, charct, llct);
+		charct += len;
+		if (doline) {
+			for (p = buf; len--; ++p)
+				if (*p == '\n') {
+					if (tmpll > llct)
+						llct = tmpll;
+					tmpll = 0;
+					++linect;
+				} else
+					tmpll++;
+		}
+	}
+	reset_siginfo();
+	if (doline)
+		tlinect += linect;
+	if (dochar)
+		tcharct += charct;
+	if (dolongline) {
+		if (llct > tlongline)
+			tlongline = llct;
+	}
+	show_cnt(file, linect, wordct, charct, llct);
+	(void)close(fd);
+	return (0);
 
 	/* Do it the hard way... */
 word:	gotsp = 1;
