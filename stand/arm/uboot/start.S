@@ -46,11 +46,8 @@ _start:
 	mcr     p15, 0, ip, c1, c0, 0
 #endif
 
-	/*
-	 * Save r0 and r1 (argc and argv passed from u-boot), and lr (trashed
-	 * by the call to self_reloc below) until we're ready to call main().
-	 */
-	push	{r0, r1, lr}
+	/* Save the arguments and return register before calling self_reloc */
+	push	{r0, r1, r9, lr}
 
 	/* 
 	 * Do self-relocation when the weak external symbol _DYNAMIC is non-NULL.
@@ -68,22 +65,31 @@ _start:
 	addne	r1, r1, r0		/* r1 = dynamic section physaddr. */
 	blne	_C_LABEL(self_reloc)	/* Do reloc if _DYNAMIC is non-NULL. */
 
+	/* Restore saved arguments */
+	pop	{r0, r1, r9, lr}
+
 	/* Hint where to look for the API signature */
 	ldr	ip, =uboot_address
 	str	sp, [ip]
 
-	/* Save U-Boot's r8 and r9 */
+	/* Save U-Boot's r8 and r9 for syscall trampoline */
 	ldr	ip, =saved_regs
-	str	r8, [ip, #0]
-	str	r9, [ip, #4]
+	str	r8, [ip, #0]		/* old gd pointer (use to hold lr) */
+	str	r9, [ip, #4]		/* new gd pointer */
 
 	/* 
-	 * First restore argc, argv, and the u-boot return address, then
-	 * Start loader.  This is basically a tail-recursion call; if main()
-	 * returns, it returns to u-boot (which reports the value returned r0).
+	 * Start loader.  Save return address first (r8 is available from
+	 * trampoline save).
 	 */
-	pop	{r0, r1, lr}
-	b	main
+	mov	r8, lr
+	bl	main
+	mov	lr, r8
+
+	/* Restore U-Boot environment */
+	ldr	ip, =saved_regs
+	ldr	r8, [ip, #0]
+	ldr	r9, [ip, #4]
+	mov	pc, lr
 
 	/* 
 	 * Data for self-relocation, in the text segment for pc-rel access.
