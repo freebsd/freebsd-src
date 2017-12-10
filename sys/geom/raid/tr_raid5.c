@@ -371,15 +371,15 @@ g_raid_tr_iodone_raid5(struct g_raid_tr_object *tr,
     struct g_raid_subdisk *sd, struct bio *bp)
 {
 	struct bio *pbp;
-	int error;
 
 	pbp = bp->bio_parent;
+	if (pbp->bio_error == 0)
+		pbp->bio_error = bp->bio_error;
 	pbp->bio_inbed++;
-	error = bp->bio_error;
 	g_destroy_bio(bp);
 	if (pbp->bio_children == pbp->bio_inbed) {
 		pbp->bio_completed = pbp->bio_length;
-		g_raid_iodone(pbp, error);
+		g_raid_iodone(pbp, pbp->bio_error);
 	}
 }
 
