@@ -4224,10 +4224,10 @@ pmap_track_page(pmap_t pmap, vm_offset_t va)
 
 	va = trunc_page(va);
 	pa = pmap_kextract(va);
+	page = PHYS_TO_VM_PAGE(pa);
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
-	page = PHYS_TO_VM_PAGE(pa);
 
 	TAILQ_FOREACH(pve, &page->md.pv_list, pv_link) {
 		if ((pmap == pve->pv_pmap) && (va == pve->pv_va)) {
