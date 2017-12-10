@@ -63,7 +63,7 @@ cloudabi32_proc_setregs(struct thread *td, struct image_params *imgp,
 	regs = td->td_frame;
 	regs->tf_r0 = td->td_retval[0] =
 	    stack + roundup(sizeof(cloudabi32_tcb_t), sizeof(register_t));
-	(void)cpu_set_user_tls(td, (void *)stack);
+	(void)cpu_set_user_tls(td, TO_PTR(stack));
 }
 
 static int
@@ -165,7 +165,7 @@ cloudabi32_thread_setregs(struct thread *td,
 	frame->tf_r1 = attr->argument;
 
 	/* Set up TLS. */
-	return (cpu_set_user_tls(td, (void *)tcb));
+	return (cpu_set_user_tls(td, TO_PTR(tcb)));
 }
 
 static struct sysentvec cloudabi32_elf_sysvec = {
