@@ -3485,14 +3485,15 @@ vmxnet3_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc = ifp->if_softc;
 
-	ifmr->ifm_active = IFM_ETHER | IFM_AUTO;
 	ifmr->ifm_status = IFM_AVALID;
+	ifmr->ifm_active = IFM_ETHER;
 
 	VMXNET3_CORE_LOCK(sc);
-	if (vmxnet3_link_is_up(sc) != 0)
+	if (vmxnet3_link_is_up(sc) != 0) {
 		ifmr->ifm_status |= IFM_ACTIVE;
-	else
-		ifmr->ifm_status |= IFM_NONE;
+		ifmr->ifm_active |= IFM_AUTO;
+	} else
+		ifmr->ifm_active |= IFM_NONE;
 	VMXNET3_CORE_UNLOCK(sc);
 }
 
