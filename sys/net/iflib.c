@@ -3127,6 +3127,7 @@ iflib_ether_pad(device_t dev, struct mbuf **m_head, uint16_t min_frame_size)
 		if (new_head == NULL) {
 			m_freem(*m_head);
 			device_printf(dev, "cannot pad short frame, m_dup() failed");
+			DBG_COUNTER_INC(encap_pad_mbuf_fail);
 			return ENOMEM;
 		}
 		m_freem(*m_head);
