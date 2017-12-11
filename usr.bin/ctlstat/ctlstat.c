@@ -74,12 +74,7 @@ __FBSDID("$FreeBSD$");
  */
 #define	CTL_STAT_NUM_ITEMS	256
 
-/*
- * The default number of LUN selection bits we allocate.  This is large
- * because we don't currently increase it if the user specifies a LUN
- * number of 1024 or larger.
- */
-#define	CTL_STAT_BITS		1024L
+static int ctl_stat_bits;
 
 static const char *ctlstat_opts = "Cc:Ddhjl:n:p:tw:";
 static const char *ctlstat_usage = "Usage:  ctlstat [-CDdjht] [-l lunnum]"
@@ -127,7 +122,7 @@ struct ctlstat_context {
 	struct ctl_cpu_stats cur_cpu, prev_cpu;
 	uint64_t cur_total_jiffies, prev_total_jiffies;
 	uint64_t cur_idle, prev_idle;
-	bitstr_t bit_decl(item_mask, CTL_STAT_BITS);
+	bitstr_t *item_mask;
 	int cur_items, prev_items;
 	int cur_alloc, prev_alloc;
 	int numdevs;
@@ -431,7 +426,7 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 					(F_TIMEVAL(ctx) != 0) ? "      " : "");
 				n = 3;
 			} else {
-				for (i = n = 0; i < min(CTL_STAT_BITS,
+				for (i = n = 0; i < min(ctl_stat_bits,
 				     ctx->cur_items); i++) {
 					int item;
 
@@ -539,7 +534,7 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 				dmas_per_sec[i], mbsec[i]);
 		}
 	} else {
-		for (i = n = 0; i < min(CTL_STAT_BITS, ctx->cur_items); i++) {
+		for (i = n = 0; i < min(ctl_stat_bits, ctx->cur_items); i++) {
 			long double mbsec, kb_per_transfer;
 			long double transfers_per_sec;
 			long double ms_per_transfer;
@@ -582,6 +577,7 @@ main(int argc, char **argv)
 	int c;
 	int count, waittime;
 	int fd, retval;
+	size_t size;
 	struct ctlstat_context ctx;
 	struct ctl_io_stats *tmp_stats;
 
@@ -595,6 +591,16 @@ main(int argc, char **argv)
 	ctx.flags |= CTLSTAT_FLAG_CPU;
 	ctx.flags |= CTLSTAT_FLAG_FIRST_RUN;
 	ctx.flags |= CTLSTAT_FLAG_HEADER;
+
+	size = sizeof(ctl_stat_bits);
+	if (sysctlbyname("kern.cam.ctl.max_luns", &ctl_stat_bits, &size, NULL,
+	    0) == -1) {
+		/* Backward compatibility for where the sysctl wasn't exposed */
+		ctl_stat_bits = 1024;
+	}
+	ctx.item_mask = bit_alloc(ctl_stat_bits);
+	if (ctx.item_mask == NULL)
+		err(1, "bit_alloc() failed");
 
 	while ((c = getopt(argc, argv, ctlstat_opts)) != -1) {
 		switch (c) {
@@ -622,7 +628,7 @@ main(int argc, char **argv)
 			int cur_lun;
 
 			cur_lun = atoi(optarg);
-			if (cur_lun > CTL_STAT_BITS)
+			if (cur_lun > ctl_stat_bits)
 				errx(1, "Invalid LUN number %d", cur_lun);
 
 			if (!F_MASK(&ctx))
@@ -641,7 +647,7 @@ main(int argc, char **argv)
 			int cur_port;
 
 			cur_port = atoi(optarg);
-			if (cur_port > CTL_STAT_BITS)
+			if (cur_port > ctl_stat_bits)
 				errx(1, "Invalid port number %d", cur_port);
 
 			if (!F_MASK(&ctx))
