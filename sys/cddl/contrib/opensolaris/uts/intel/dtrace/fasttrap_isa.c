@@ -961,14 +961,12 @@ fasttrap_do_seg(fasttrap_tracepoint_t *tp, struct reg *rp, uintptr_t *addr)
 }
 
 int
-fasttrap_pid_probe(struct reg *rp)
+fasttrap_pid_probe(struct trapframe *tf)
 {
-	proc_t *p = curproc;
-#ifndef illumos
+	struct reg reg, *rp;
+	proc_t *p = curproc, *pp;
 	struct rm_priotracker tracker;
-	proc_t *pp;
-#endif
-	uintptr_t pc = rp->r_rip - 1;
+	uintptr_t pc;
 	uintptr_t new_pc = 0;
 	fasttrap_bucket_t *bucket;
 #ifdef illumos
@@ -978,6 +976,11 @@ fasttrap_pid_probe(struct reg *rp)
 	pid_t pid;
 	dtrace_icookie_t cookie;
 	uint_t is_enabled = 0;
+
+	fill_frame_regs(tf, &reg);
+	rp = &reg;
+
+	pc = rp->r_rip - 1;
 
 	/*
 	 * It's possible that a user (in a veritable orgy of bad planning)
@@ -1783,11 +1786,15 @@ done:
 }
 
 int
-fasttrap_return_probe(struct reg *rp)
+fasttrap_return_probe(struct trapframe *tf)
 {
+	struct reg reg, *rp;
 	proc_t *p = curproc;
 	uintptr_t pc = curthread->t_dtrace_pc;
 	uintptr_t npc = curthread->t_dtrace_npc;
+
+	fill_frame_regs(tf, &reg);
+	rp = &reg;
 
 	curthread->t_dtrace_pc = 0;
 	curthread->t_dtrace_npc = 0;
@@ -1808,9 +1815,7 @@ fasttrap_return_probe(struct reg *rp)
 	/*
 	 * We set rp->r_rip to the address of the traced instruction so
 	 * that it appears to dtrace_probe() that we're on the original
-	 * instruction, and so that the user can't easily detect our
-	 * complex web of lies. dtrace_return_probe() (our caller)
-	 * will correctly set %pc after we return.
+	 * instruction.
 	 */
 	rp->r_rip = pc;
 
