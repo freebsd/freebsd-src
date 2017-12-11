@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+/* Tests functions in lib/libcam/camlib.c */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
