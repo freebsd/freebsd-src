@@ -1391,6 +1391,18 @@ atacapprint(struct ata_params *parm)
 			parm->media_rotation_rate);
 	}
 
+	printf("Zoned-Device Commands ");
+	switch (parm->support3 & ATA_SUPPORT_ZONE_MASK) {
+		case ATA_SUPPORT_ZONE_DEV_MANAGED:
+			printf("device managed\n");
+			break;
+		case ATA_SUPPORT_ZONE_HOST_AWARE:
+			printf("host aware\n");
+			break;
+		default:
+			printf("no\n");
+	}
+
 	printf("\nFeature                      "
 		"Support  Enabled   Value           Vendor\n");
 	printf("read ahead                     %s	%s\n",
