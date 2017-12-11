@@ -58,7 +58,7 @@ default_load_config(void *ctx)
  * Interactive mode
  */
 void
-interact(const char * rc)
+interact(void)
 {
 	static char	input[256];			/* big enough? */
 
@@ -124,6 +124,9 @@ command_include(int argc, char *argv[])
 	for (i = 0; i < argc; i++)
 		free(argvbuf[i]);
 	free(argvbuf);
+
+	if (res != CMD_OK)
+		printf("%s", command_errbuf);
 
 	return(res);
 }
