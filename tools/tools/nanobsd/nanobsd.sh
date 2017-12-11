@@ -44,12 +44,13 @@ do_installworld=true
 do_image=true
 do_copyout_partition=true
 do_native_xtools=false
+do_prep_image=true
 
 # Pull in legacy stuff for now automatically
 . "${topdir}/legacy.sh"
 
 set +e
-args=`getopt BKXWbc:fhiknqvw $*`
+args=`getopt BKXWbc:fhiIknqvw $*`
 if [ $? -ne 0 ] ; then
 	usage
 	exit 2
@@ -123,6 +124,15 @@ do
 		do_world=false
 		shift
 		;;
+	-I)
+		do_world=false
+		do_kernel=false
+		do_installworld=false
+		do_installkernel=false
+		do_prep_image=false
+		do_image=true
+		shift
+		;;
 	--)
 		shift
 		break
@@ -184,21 +194,27 @@ else
     pprint 2 "Skipping installworld (as instructed)"
 fi
 
-if $do_native_xtools ; then
+if ${do_native_xtools} ; then
 	native_xtools
 fi
-setup_nanobsd_etc
+if ${do_prep_image} ; then
+	setup_nanobsd_etc
+fi
 if $do_installkernel ; then
 	install_kernel
 else
 	pprint 2 "Skipping installkernel (as instructed)"
 fi
 
-run_customize
-setup_nanobsd
-prune_usr
-run_late_customize
-fixup_before_diskimage
+if $do_prep_image ; then
+	run_customize
+	setup_nanobsd
+	prune_usr
+	run_late_customize
+	fixup_before_diskimage
+else
+	pprint 2 "Skipping image prep (as instructed)"
+fi
 if $do_image ; then
 	create_diskimage
 else
