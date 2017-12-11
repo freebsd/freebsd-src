@@ -60,10 +60,6 @@ RDMACM_1.0 {
 		rsetsockopt;
 		rgetsockopt;
 		rfcntl;
-		rpoll;
-		rselect;
-		rdma_get_src_port;
-		rdma_get_dst_port;
 		riomap;
 		riounmap;
 		riowrite;
