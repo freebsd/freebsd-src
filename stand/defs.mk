@@ -96,7 +96,7 @@ CFLAGS+= -DLOADER_GPT_SUPPORT
 CFLAGS+= -DLOADER_MBR_SUPPORT
 .endif
 
-# GELI Support, with backward compat hooks
+# GELI Support, with backward compat hooks (mostly)
 .if defined(HAVE_GELI)
 .if defined(LOADER_NO_GELI_SUPPORT)
 MK_LOADER_GELI=no
