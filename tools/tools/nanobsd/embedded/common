@@ -76,7 +76,7 @@ fi
 NANO_SLICE_FAT_SIZE=32m
 NANO_SLICE_CFG_SIZE=32m
 
-NANO_BOOT2CFG="-P -S115200"
+NANO_BOOT2CFG="-h -S115200"
 
 NANO_RAM_ETCSIZE=8192
 NANO_RAM_TMPVARSIZE=8192
@@ -289,11 +289,13 @@ create_diskimage_mbr ( ) (
 			-o ${out}
 		;;
 	std-x86)
-		# s1 is cfg, s2 is /, not sure how to make that
-		# boot (marked as active) with mkimg yet
-		mkimg -a 2 ${fmtarg} ${bootmbr} -s mbr -p ${s1}:=${NANO_LOG}/_.s1 \
-			-p ${s2}:=${NANO_LOG}/_.s2 \
+		# s3 is cfg, s1 is /, s2 is other / (s2 is created in first boot script)
+		mkimg -a 1 ${fmtarg} ${bootmbr} -s mbr -p ${s1}:=${NANO_LOG}/_.s1 \
+			-p- \
+			-p ${s3}:=${NANO_LOG}/_.s3 \
 			-o ${out}
+
+
 		;;
 	std-uefi)
 		# s1 is boot, s2 is cfg, s3 is /, not sure how to make that
@@ -615,9 +617,9 @@ std-embedded)
 	NANO_ALTROOT=${NANO_SLICE_ALTROOT}a
 	;;
 std-x86)
-	NANO_SLICE_CFG=s1
-	NANO_SLICE_ROOT=s2
-	NANO_SLICE_ALTROOT=s3
+	NANO_SLICE_CFG=s3
+	NANO_SLICE_ROOT=s1
+	NANO_SLICE_ALTROOT=s2
 	NANO_ROOT=${NANO_SLICE_ROOT}a
 	NANO_ALTROOT=${NANO_SLICE_ALTROOT}a
 	;;
