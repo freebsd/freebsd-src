@@ -354,7 +354,7 @@ interp_forth_incl(void *ctx, const char *filename)
 		    "can't open %s\n", filename);
 		return (CMD_ERROR);
 	}
-	return (ficlExecFD(softc->bf_vm, fd) == 0 ? CMD_OK : CMD_ERROR);
+	return (ficlExecFD(softc->bf_vm, fd));
 }
 
 
