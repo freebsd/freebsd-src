@@ -167,10 +167,8 @@ chargen_stream(int s, struct servtab *sep)
 
 	inetd_setproctitle(sep->se_service, s);
 
-	if (!endring) {
+	if (!endring)
 		initring();
-		rs = ring;
-	}
 
 	text[LINESIZ] = '\r';
 	text[LINESIZ + 1] = '\n';
