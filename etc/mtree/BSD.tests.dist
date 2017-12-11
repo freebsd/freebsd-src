@@ -646,6 +646,8 @@
         ..
         gzip
         ..
+        head
+        ..
         ident
         ..
         join
