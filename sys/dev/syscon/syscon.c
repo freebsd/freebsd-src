@@ -104,7 +104,7 @@ syscon_modify_4(device_t dev,  device_t consumer, bus_size_t offset,
 	SYSCON_LOCK(sc);
 	val = bus_read_4(sc->mem_res, offset);
 	val &= ~clear_bits;
-	val |= ~set_bits;
+	val |= set_bits;
 	bus_write_4(sc->mem_res, offset, val);
 	SYSCON_UNLOCK(sc);
 }
