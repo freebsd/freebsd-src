@@ -142,7 +142,7 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 	if (setjmp(jb))
 		return;
 
-	interact(NULL);			/* doesn't return */
+	interact();			/* doesn't return */
 
 	exit(0);
 }

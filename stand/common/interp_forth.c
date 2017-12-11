@@ -294,21 +294,6 @@ interp_forth_init(void *ctx)
     /* Export some version numbers so that code can detect the loader/host version */
     ficlSetEnv(bf_sys, "FreeBSD_version", __FreeBSD_version);
     ficlSetEnv(bf_sys, "loader_version", bootprog_rev);
-
-#if 0 /* XXX lost functionality -- imp */
-    /* try to load and run init file if present */
-    if (rc == NULL)
-	rc = "/boot/boot.4th";
-    if (*rc != '\0') {
-        int fd;
-
-	fd = open(rc, O_RDONLY);
-	if (fd != -1) {
-	    (void)ficlExecFD(bf_vm, fd);
-	    close(fd);
-	}
-    }
-#endif
 }
 
 /*
@@ -364,10 +349,12 @@ interp_forth_incl(void *ctx, const char *filename)
 
 	fd = open(filename, O_RDONLY);
 	if (fd == -1) {
-		printf("can't open %s\n", filename);
+		/* Hihger layers print the error message */
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "can't open %s\n", filename);
 		return (CMD_ERROR);
 	}
-	return (ficlExecFD(softc->bf_vm, fd));
+	return (ficlExecFD(softc->bf_vm, fd) == 0 ? CMD_OK : CMD_ERROR);
 }
 
 
