@@ -275,7 +275,7 @@ parse_args(int argc, char *argv[])
 
 
 static void
-print_order()
+print_order(void)
 {
 	uint32_t attrs;
 	uint8_t *data;
@@ -531,7 +531,7 @@ compare(const void *a, const void *b)
 }
 
 static char *
-make_next_boot_var_name()
+make_next_boot_var_name(void)
 {
 	struct entry *v;
 	uint16_t *vals, next_free = 0;
@@ -823,7 +823,7 @@ print_boot_vars(bool verbose)
 }
 
 static void
-delete_timeout()
+delete_timeout(void)
 {
 
 	efi_del_variable(EFI_GLOBAL_GUID,"Timeout");
