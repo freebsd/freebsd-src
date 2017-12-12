@@ -1718,7 +1718,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 	if (fd != -1)
 		close(fd);
 	if (zfd != -1 && zfd != STDOUT_FILENO)
-		close(fd);
+		close(zfd);
 	return -1;
 }
 
