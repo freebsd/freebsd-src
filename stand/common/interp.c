@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 1998 Michael Smith <msmith@freebsd.org>
- * Copyright (c) 2011 Wojciech A. Koszek <wkoszek@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,6 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -36,60 +36,112 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <string.h>
 #include "bootstrap.h"
-#include "interp.h"
 
+#ifdef BOOT_FORTH
+#include "ficl.h"
+#define	RETURN(x)	stackPushINT(bf_vm->pStack,!x); return(x)
+
+extern FICL_VM *bf_vm;
+#else
+#define	RETURN(x)	return(x)
+#endif
 
 #define	MAXARGS	20			/* maximum number of arguments allowed */
 
-struct interp	*interp =
-#if defined(BOOT_FORTH)
-	&boot_interp_forth;
-#else
-	&boot_interp_simple;
-#endif
+static void	prompt(void);
 
+#ifndef BOOT_FORTH
+static int	perform(int argc, char *argv[]);
+
+/*
+ * Perform the command
+ */
 int
-default_load_config(void *ctx)
+perform(int argc, char *argv[])
 {
-	return INTERP_INCL(interp, "/boot/loader.rc");
+    int				result;
+    struct bootblk_command	**cmdp;
+    bootblk_cmd_t		*cmd;
+
+    if (argc < 1)
+	return(CMD_OK);
+
+    /* set return defaults; a successful command will override these */
+    command_errmsg = command_errbuf;
+    strcpy(command_errbuf, "no error message");
+    cmd = NULL;
+    result = CMD_ERROR;
+
+    /* search the command set for the command */
+    SET_FOREACH(cmdp, Xcommand_set) {
+	if (((*cmdp)->c_name != NULL) && !strcmp(argv[0], (*cmdp)->c_name))
+	    cmd = (*cmdp)->c_fn;
+    }
+    if (cmd != NULL) {
+	result = (cmd)(argc, argv);
+    } else {
+	command_errmsg = "unknown command";
+    }
+    RETURN(result);
 }
+#endif	/* ! BOOT_FORTH */
 
 /*
  * Interactive mode
  */
 void
-interact(void)
+interact(const char *rc)
 {
-	static char	input[256];			/* big enough? */
+    static char	input[256];			/* big enough? */
+#ifndef BOOT_FORTH
+    int		argc;
+    char	**argv;
+#endif
 
-	INTERP_INIT(interp);
+#ifdef BOOT_FORTH
+    bf_init((rc) ? "" : NULL);
+#endif
 
-	/*
-	 * Read our default configuration
-	 */
-	INTERP_LOAD_DEF_CONFIG(interp);
-	printf("\n");
-	/*
-	 * Before interacting, we might want to autoboot.
-	 */
-	autoboot_maybe();
+    if (rc == NULL) {
+	/* Read our default configuration. */
+	include("/boot/loader.rc");
+    } else if (*rc != '\0')
+	include(rc);
 
-	/*
-	 * Not autobooting, go manual
-	 */
-	printf("\nType '?' for a list of commands, 'help' for more detailed help.\n");
-	if (getenv("prompt") == NULL)
-		setenv("prompt", "${interpret}", 1);
-	if (getenv("interpret") == NULL)
-		setenv("interpret", "OK", 1);
+    printf("\n");
 
+    /*
+     * Before interacting, we might want to autoboot.
+     */
+    autoboot_maybe();
+    
+    /*
+     * Not autobooting, go manual
+     */
+    printf("\nType '?' for a list of commands, 'help' for more detailed help.\n");
+    if (getenv("prompt") == NULL)
+	setenv("prompt", "${interpret}", 1);
+    if (getenv("interpret") == NULL)
+        setenv("interpret", "OK", 1);
+    
 
-	for (;;) {
-		input[0] = '\0';
-		prompt();
-		ngets(input, sizeof(input));
-		INTERP_RUN(interp, input);
+    for (;;) {
+	input[0] = '\0';
+	prompt();
+	ngets(input, sizeof(input));
+#ifdef BOOT_FORTH
+	bf_vm->sourceID.i = 0;
+	bf_run(input);
+#else
+	if (!parse(&argc, &argv, input)) {
+	    if (perform(argc, argv))
+		printf("%s: %s\n", argv[0], command_errmsg);
+	    free(argv);
+	} else {
+	    printf("parse error\n");
 	}
+#endif
+    }
 }
 
 /*
@@ -106,90 +158,214 @@ COMMAND_SET(include, "include", "read commands from a file", command_include);
 static int
 command_include(int argc, char *argv[])
 {
-	int		i;
-	int		res;
-	char	**argvbuf;
+    int		i;
+    int		res;
+    char	**argvbuf;
 
-	/*
-	 * Since argv is static, we need to save it here.
-	 */
-	argvbuf = (char**) calloc((u_int)argc, sizeof(char*));
-	for (i = 0; i < argc; i++)
-		argvbuf[i] = strdup(argv[i]);
+    /* 
+     * Since argv is static, we need to save it here.
+     */
+    argvbuf = (char**) calloc((u_int)argc, sizeof(char*));
+    for (i = 0; i < argc; i++)
+	argvbuf[i] = strdup(argv[i]);
 
-	res=CMD_OK;
-	for (i = 1; (i < argc) && (res == CMD_OK); i++)
-		res = INTERP_INCL(interp, argvbuf[i]);
+    res=CMD_OK;
+    for (i = 1; (i < argc) && (res == CMD_OK); i++)
+	res = include(argvbuf[i]);
 
-	for (i = 0; i < argc; i++)
-		free(argvbuf[i]);
-	free(argvbuf);
+    for (i = 0; i < argc; i++)
+	free(argvbuf[i]);
+    free(argvbuf);
 
-	if (res != CMD_OK)
-		printf("%s", command_errbuf);
-
-	return(res);
+    return(res);
 }
 
 /*
- * Perform the command
+ * Header prepended to each line. The text immediately follows the header.
+ * We try to make this short in order to save memory -- the loader has
+ * limited memory available, and some of the forth files are very long.
  */
-int
-perform(int argc, char *argv[])
+struct includeline 
 {
-	int				result;
-	struct bootblk_command	**cmdp;
-	bootblk_cmd_t		*cmd;
+    struct includeline	*next;
+#ifndef BOOT_FORTH
+    int			flags;
+    int			line;
+#define SL_QUIET	(1<<0)
+#define SL_IGNOREERR	(1<<1)
+#endif
+    char		text[0];
+};
 
-	if (argc < 1)
-		return(CMD_OK);
+int
+include(const char *filename)
+{
+    struct includeline	*script, *se, *sp;
+    char		input[256];			/* big enough? */
+#ifdef BOOT_FORTH
+    int			res;
+    char		*cp;
+    int			prevsrcid, fd, line;
+#else
+    int			argc,res;
+    char		**argv, *cp;
+    int			fd, flags, line;
+#endif
 
-	/* set return defaults; a successful command will override these */
-	command_errmsg = command_errbuf;
-	strcpy(command_errbuf, "no error message");
-	cmd = NULL;
-	result = CMD_ERROR;
+    if (((fd = open(filename, O_RDONLY)) == -1)) {
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "can't open '%s': %s", filename, strerror(errno));
+	return(CMD_ERROR);
+    }
 
-	/* search the command set for the command */
-	SET_FOREACH(cmdp, Xcommand_set) {
-		if (((*cmdp)->c_name != NULL) && !strcmp(argv[0], (*cmdp)->c_name))
-			cmd = (*cmdp)->c_fn;
+    /*
+     * Read the script into memory.
+     */
+    script = se = NULL;
+    line = 0;
+	
+    while (fgetstr(input, sizeof(input), fd) >= 0) {
+	line++;
+#ifdef BOOT_FORTH
+	cp = input;
+#else
+	flags = 0;
+	/* Discard comments */
+	if (strncmp(input+strspn(input, " "), "\\ ", 2) == 0)
+	    continue;
+	cp = input;
+	/* Echo? */
+	if (input[0] == '@') {
+	    cp++;
+	    flags |= SL_QUIET;
 	}
-	if (cmd != NULL) {
-		result = (cmd)(argc, argv);
+	/* Error OK? */
+	if (input[0] == '-') {
+	    cp++;
+	    flags |= SL_IGNOREERR;
+	}
+#endif
+	/* Allocate script line structure and copy line, flags */
+	if (*cp == '\0')
+		continue;	/* ignore empty line, save memory */
+	sp = malloc(sizeof(struct includeline) + strlen(cp) + 1);
+	/* On malloc failure (it happens!), free as much as possible and exit */
+	if (sp == NULL) {
+		while (script != NULL) {
+			se = script;
+			script = script->next;
+			free(se);
+		}
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "file '%s' line %d: memory allocation failure - aborting",
+		    filename, line);
+		return (CMD_ERROR);
+	}
+	strcpy(sp->text, cp);
+#ifndef BOOT_FORTH
+	sp->flags = flags;
+	sp->line = line;
+#endif
+	sp->next = NULL;
+	    
+	if (script == NULL) {
+	    script = sp;
 	} else {
-		command_errmsg = "unknown command";
+	    se->next = sp;
 	}
-	return result;
+	se = sp;
+    }
+    close(fd);
+    
+    /*
+     * Execute the script
+     */
+#ifndef BOOT_FORTH
+    argv = NULL;
+#else
+    prevsrcid = bf_vm->sourceID.i;
+    bf_vm->sourceID.i = fd;
+#endif
+    res = CMD_OK;
+    for (sp = script; sp != NULL; sp = sp->next) {
+	
+#ifdef BOOT_FORTH
+	res = bf_run(sp->text);
+	if (res != VM_OUTOFTEXT) {
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "Error while including %s, in the line:\n%s",
+		    filename, sp->text);
+		res = CMD_ERROR;
+		break;
+	} else
+		res = CMD_OK;
+#else
+	/* print if not being quiet */
+	if (!(sp->flags & SL_QUIET)) {
+	    prompt();
+	    printf("%s\n", sp->text);
+	}
+
+	/* Parse the command */
+	if (!parse(&argc, &argv, sp->text)) {
+	    if ((argc > 0) && (perform(argc, argv) != 0)) {
+		/* normal command */
+		printf("%s: %s\n", argv[0], command_errmsg);
+		if (!(sp->flags & SL_IGNOREERR)) {
+		    res=CMD_ERROR;
+		    break;
+		}
+	    }
+	    free(argv);
+	    argv = NULL;
+	} else {
+	    printf("%s line %d: parse error\n", filename, sp->line);
+	    res=CMD_ERROR;
+	    break;
+	}
+#endif
+    }
+#ifndef BOOT_FORTH
+    if (argv != NULL)
+	free(argv);
+#else
+    bf_vm->sourceID.i = prevsrcid;
+#endif
+    while(script != NULL) {
+	se = script;
+	script = script->next;
+	free(se);
+    }
+    return(res);
 }
 
 /*
  * Emit the current prompt; use the same syntax as the parser
  * for embedding environment variables.
  */
-void
-prompt(void)
+static void
+prompt(void) 
 {
-	char	*pr, *p, *cp, *ev;
+    char	*pr, *p, *cp, *ev;
+    
+    if ((cp = getenv("prompt")) == NULL)
+	cp = ">";
+    pr = p = strdup(cp);
 
-	if ((cp = getenv("prompt")) == NULL)
-		cp = ">";
-	pr = p = strdup(cp);
-
-	while (*p != 0) {
-		if ((*p == '$') && (*(p+1) == '{')) {
-			for (cp = p + 2; (*cp != 0) && (*cp != '}'); cp++)
-				;
-			*cp = 0;
-			ev = getenv(p + 2);
-
-			if (ev != NULL)
-				printf("%s", ev);
-			p = cp + 1;
-			continue;
-		}
-		putchar(*p++);
+    while (*p != 0) {
+	if ((*p == '$') && (*(p+1) == '{')) {
+	    for (cp = p + 2; (*cp != 0) && (*cp != '}'); cp++)
+		;
+	    *cp = 0;
+	    ev = getenv(p + 2);
+	    
+	    if (ev != NULL)
+		printf("%s", ev);
+	    p = cp + 1;
+	    continue;
 	}
-	putchar(' ');
-	free(pr);
+	putchar(*p++);
+    }
+    putchar(' ');
+    free(pr);
 }

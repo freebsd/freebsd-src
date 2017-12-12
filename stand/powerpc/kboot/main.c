@@ -122,7 +122,7 @@ main(int argc, const char **argv)
 	setenv("loaddev", bootdev, 1);
 	setenv("LINES", "24", 1);
 
-	interact();			/* doesn't return */
+	interact(NULL);			/* doesn't return */
 
 	return (0);
 }
