@@ -361,6 +361,7 @@ set_boot_order(char *order)
 	free(cp);
 	if (set_bootvar("BootOrder", (uint8_t*)new_data, size) < 0)
 		err(1, "Unabke to set BootOrder to %s", order);
+	free(new_data);
 }
 
 static void
