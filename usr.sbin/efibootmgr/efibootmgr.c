@@ -684,8 +684,9 @@ make_boot_var(const char *label, const char *loader, const char *kernel, const c
 	new_ent->name = bootvar;
 	new_ent->guid = EFI_GLOBAL_GUID;
 	LIST_INSERT_HEAD(&efivars, new_ent, entries);
-
+	free(load_opt_buf);
 	free(dp);
+
 	return 0;
 }
 
