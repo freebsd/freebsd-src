@@ -835,7 +835,8 @@ handle_timeout(int to)
 	uint16_t timeout;
 
 	le16enc(&timeout, to);
-	set_bootvar("Timeout", (uint8_t *)&timeout, sizeof(timeout));
+	if (set_bootvar("Timeout", (uint8_t *)&timeout, sizeof(timeout)) < 0)
+		errx(1, "Can't set Timeout for booting.");
 }
 
 int
