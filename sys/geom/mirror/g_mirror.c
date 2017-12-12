@@ -937,7 +937,7 @@ g_mirror_regular_request(struct bio *bp)
 	pbp = bp->bio_parent;
 	sc = pbp->bio_to->private;
 	bp->bio_from->index--;
-	if (bp->bio_cmd == BIO_WRITE)
+	if (bp->bio_cmd == BIO_WRITE || bp->bio_cmd == BIO_DELETE)
 		sc->sc_writes--;
 	disk = bp->bio_from->private;
 	if (disk == NULL) {
