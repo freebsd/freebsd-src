@@ -650,8 +650,14 @@ make_boot_var(const char *label, const char *loader, const char *kernel, const c
 		kerneldp = NULL;
 	}
 	llen = efidp_size(loaderdp);
+	if (llen > MAX_DP_LEN)
+		errx(1, "Loader path too long.");
 	klen = efidp_size(kerneldp);
+	if (klen > MAX_DP_LEN)
+		errx(1, "Kernel path too long.");
 	dp = malloc(llen + klen);
+	if (dp == NULL)
+		errx(1, "Can't allocate memory for new device paths");
 	memcpy(dp, loaderdp, llen);
 	if (kerneldp != NULL)
 		memcpy((char *)dp + llen, kerneldp, klen);
