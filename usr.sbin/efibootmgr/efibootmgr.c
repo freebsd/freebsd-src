@@ -783,9 +783,10 @@ print_boot_vars(bool verbose)
 	 * as a command epilogue
 	 */
 	struct entry *v;
-	uint32_t attrs, load_attrs;
 	uint8_t *data;
+	char *d;
 	size_t size;
+	uint32_t attrs, load_attrs;
 	int ret;
 
 	ret = efi_get_variable(EFI_GLOBAL_GUID, "BootNext", &data, &size, &attrs);
@@ -812,9 +813,9 @@ print_boot_vars(bool verbose)
 		if (ret < 0)
 			continue; /* we must have deleted it */
 		load_attrs = le32dec(data);
+		d = get_descr(data);
 		printf("%s%c %s", v->name,
-		    ((load_attrs & LOAD_OPTION_ACTIVE) ? '*': ' '),
-		    get_descr(data));
+		    ((load_attrs & LOAD_OPTION_ACTIVE) ? '*': ' '), d);
 		if (verbose)
 			print_loadopt_str(data, size);
 		else
