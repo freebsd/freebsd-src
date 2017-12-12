@@ -146,6 +146,26 @@ static struct powerpc_exception powerpc_exceptions[] = {
 	{ EXC_LAST,	NULL }
 };
 
+#define ESR_BITMASK							\
+    "\20"								\
+    "\040b0\037b1\036b2\035b3\034PIL\033PRR\032PTR\031FP"		\
+    "\030ST\027b9\026DLK\025ILK\024b12\023b13\022BO\021PIE"		\
+    "\020b16\017b17\016b18\015b19\014b20\013b21\012b22\011b23"		\
+    "\010SPE\007EPID\006b26\005b27\004b28\003b29\002b30\001b31"
+#define	MCSR_BITMASK							\
+    "\20"								\
+    "\040MCP\037ICERR\036DCERR\035TLBPERR\034L2MMU_MHIT\033b5\032b6\031b7"	\
+    "\030b8\027b9\026b10\025NMI\024MAV\023MEA\022b14\021IF"		\
+    "\020LD\017ST\016LDG\015b19\014b20\013b21\012b22\011b23"		\
+    "\010b24\007b25\006b26\005b27\004b28\003b29\002TLBSYNC\001BSL2_ERR"
+#define	MSSSR_BITMASK							\
+    "\20"								\
+    "\040b0\037b1\036b2\035b3\034b4\033b5\032b6\031b7"			\
+    "\030b8\027b9\026b10\025b11\024b12\023L2TAG\022L2DAT\021L3TAG"	\
+    "\020L3DAT\017APE\016DPE\015TEA\014b20\013b21\012b22\011b23"	\
+    "\010b24\007b25\006b26\005b27\004b28\003b29\002b30\001b31"
+
+
 static const char *
 trapname(u_int vector)
 {
@@ -443,19 +463,20 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 		ver = mfpvr() >> 16;
 #if defined(AIM)
 		if (MPC745X_P(ver))
-			printf("    msssr0         = 0x%lx\n",
-			    (u_long)mfspr(SPR_MSSSR0));
+			printf("    msssr0         = 0x%b\n",
+			    (int)mfspr(SPR_MSSSR0), MSSSR_BITMASK);
 #elif defined(BOOKE)
 		pa = mfspr(SPR_MCARU);
 		pa = (pa << 32) | (u_register_t)mfspr(SPR_MCAR);
-		printf("   mcsr            = 0x%lx\n", (u_long)mfspr(SPR_MCSR));
+		printf("   mcsr            = 0x%b\n",
+		    (int)mfspr(SPR_MCSR), MCSR_BITMASK);
 		printf("   mcar            = 0x%jx\n", (uintmax_t)pa);
 #endif
 		break;
 	}
 #ifdef BOOKE
-	printf("   esr             = 0x%" PRIxPTR "\n",
-	    frame->cpu.booke.esr);
+	printf("   esr             = 0x%b\n",
+	    (int)frame->cpu.booke.esr, ESR_BITMASK);
 #endif
 	printf("   srr0            = 0x%" PRIxPTR "\n", frame->srr0);
 	printf("   srr1            = 0x%lx\n", (u_long)frame->srr1);
