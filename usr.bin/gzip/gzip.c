@@ -1444,7 +1444,6 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 		goto lose;
 	}
 	if (fstat(fd, &isb) != 0) {
-		close(fd);
 		maybe_warn("can't stat %s", file);
 		goto lose;
 	}
