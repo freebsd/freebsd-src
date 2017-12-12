@@ -333,7 +333,7 @@ fasttrap_pid_probe(struct trapframe *frame)
 	struct reg reg, *rp;
 	struct rm_priotracker tracker;
 	proc_t *p = curproc;
-	uintptr_t pc = rp->pc;
+	uintptr_t pc;
 	uintptr_t new_pc = 0;
 	fasttrap_bucket_t *bucket;
 	fasttrap_tracepoint_t *tp, tp_local;
@@ -343,6 +343,7 @@ fasttrap_pid_probe(struct trapframe *frame)
 
 	fill_regs(curthread, &reg);
 	rp = &reg;
+	pc = rp->pc;
 
 	/*
 	 * It's possible that a user (in a veritable orgy of bad planning)
