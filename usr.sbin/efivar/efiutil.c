@@ -125,7 +125,7 @@ efi_print_load_option(uint8_t *data, size_t datalen, int Aflag, int bflag, int u
 	uint16_t fplen;
 	efi_char *descr;
 	efidp dp, edp;
-	char *str;
+	char *str = NULL;
 	char buf[1024];
 	int len;
 	void *opt;
