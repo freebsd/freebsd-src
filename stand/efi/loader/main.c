@@ -501,7 +501,7 @@ main(int argc, CHAR16 *argv[])
 #endif
 	}
 
-	interact();			/* doesn't return */
+	interact(NULL);			/* doesn't return */
 
 	return (EFI_SUCCESS);		/* keep compiler happy */
 }
