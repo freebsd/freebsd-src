@@ -232,7 +232,7 @@ main(void)
     
     bios_getsmap();
 
-    interact();
+    interact(NULL);
 
     /* if we ever get here, it is an error */
     return (1);
