@@ -1945,16 +1945,9 @@ g_mirror_worker(void *arg)
 					continue;
 				}
 			}
+			if (g_mirror_event_first(sc) != NULL)
+				continue;
 			sx_xunlock(&sc->sc_lock);
-			/*
-			 * XXX: We can miss an event here, because an event
-			 *      can be added without sx-device-lock and without
-			 *      mtx-queue-lock. Maybe I should just stop using
-			 *      dedicated mutex for events synchronization and
-			 *      stick with the queue lock?
-			 *      The event will hang here until next I/O request
-			 *      or next event is received.
-			 */
 			MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "m:w1",
 			    timeout * hz);
 			sx_xlock(&sc->sc_lock);
