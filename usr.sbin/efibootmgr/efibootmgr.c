@@ -823,6 +823,7 @@ print_boot_vars(bool verbose)
 		d = get_descr(data);
 		printf("%s%c %s", v->name,
 		    ((load_attrs & LOAD_OPTION_ACTIVE) ? '*': ' '), d);
+		free(d);
 		if (verbose)
 			print_loadopt_str(data, size);
 		else
