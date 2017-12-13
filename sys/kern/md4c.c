@@ -2,6 +2,8 @@
  */
 
 /*-
+   SPDX-License-Identifier: RSA-MD
+
    Copyright (C) 1990-2, RSA Data Security, Inc. All rights reserved.
 
    License to copy and use this software is granted provided that it

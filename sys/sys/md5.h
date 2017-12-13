@@ -3,6 +3,8 @@
  */
 
 /*-
+ SPDX-License-Identifier: RSA-MD
+
  Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
 rights reserved.
 
