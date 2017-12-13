@@ -2,7 +2,10 @@
  * $FreeBSD$
  */
 
-/* Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
+/*-
+   SPDX-License-Identifier: RSA-MD
+
+   Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
    rights reserved.
 
    License to copy and use this software is granted provided that it
