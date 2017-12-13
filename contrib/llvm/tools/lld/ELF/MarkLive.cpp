@@ -73,12 +73,13 @@ static void resolveReloc(InputSectionBase &Sec, RelT &Rel,
                          std::function<void(ResolvedReloc)> Fn) {
   SymbolBody &B = Sec.getFile<ELFT>()->getRelocTargetSym(Rel);
   if (auto *D = dyn_cast<DefinedRegular>(&B)) {
-    if (!D->Section)
+    auto *RelSec = dyn_cast_or_null<InputSectionBase>(D->Section);
+    if (!RelSec)
       return;
     typename ELFT::uint Offset = D->Value;
     if (D->isSection())
       Offset += getAddend<ELFT>(Sec, Rel);
-    Fn({cast<InputSectionBase>(D->Section), Offset});
+    Fn({RelSec, Offset});
   } else if (auto *U = dyn_cast<Undefined>(&B)) {
     for (InputSectionBase *Sec : CNamedSections.lookup(U->getName()))
       Fn({Sec, 0});
@@ -220,7 +221,7 @@ template <class ELFT> void elf::markLive() {
 
   auto MarkSymbol = [&](const SymbolBody *Sym) {
     if (auto *D = dyn_cast_or_null<DefinedRegular>(Sym))
-      if (auto *IS = cast_or_null<InputSectionBase>(D->Section))
+      if (auto *IS = dyn_cast_or_null<InputSectionBase>(D->Section))
         Enqueue({IS, D->Value});
   };
 
