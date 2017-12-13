@@ -340,7 +340,7 @@ pmpsysctlinit(void *context, int pending)
 {
 	struct cam_periph *periph;
 	struct pmp_softc *softc;
-	char tmpstr[80], tmpstr2[80];
+	char tmpstr[32], tmpstr2[16];
 
 	periph = (struct cam_periph *)context;
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
