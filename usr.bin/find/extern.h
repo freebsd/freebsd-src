@@ -116,7 +116,7 @@ exec_f	f_sparse;
 exec_f	f_type;
 exec_f	f_user;
 
-extern int ftsoptions, ignore_readdir_race, isdeprecated, isdepth, isoutput;
+extern int ftsoptions, ignore_readdir_race, isdepth, isoutput;
 extern int issort, isxargs;
 extern int mindepth, maxdepth;
 extern int regexp_flags;
