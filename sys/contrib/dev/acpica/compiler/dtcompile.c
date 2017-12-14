@@ -559,9 +559,17 @@ DtCompileTable (
     ACPI_STATUS             Status = AE_OK;
 
 
-    if (!Field || !*Field)
+    if (!Field)
     {
         return (AE_BAD_PARAMETER);
+    }
+    if (!*Field)
+    {
+        /*
+         * The field list is empty, this means that we are out of fields to
+         * parse. In other words, we are at the end of the table.
+         */
+        return (AE_END_OF_TABLE);
     }
 
     /* Ignore optional subtable if name does not match */
