@@ -515,7 +515,9 @@ pw_password(struct userconf * cnf, char const * user, bool dryrun)
 	char            pwbuf[32];
 
 	switch (cnf->default_password) {
-	case -1:		/* Random password */
+	case P_NONE:		/* No password at all! */
+		return "";
+	case P_RANDOM:			/* Random password */
 		l = (arc4random() % 8 + 8);	/* 8 - 16 chars */
 		for (i = 0; i < l; i++)
 			pwbuf[i] = chars[arc4random_uniform(sizeof(chars)-1)];
@@ -531,17 +533,13 @@ pw_password(struct userconf * cnf, char const * user, bool dryrun)
 			fflush(stdout);
 		}
 		break;
-
-	case -2:		/* No password at all! */
-		return "";
-
-	case 0:		/* No login - default */
-	default:
-		return "*";
-
-	case 1:		/* user's name */
+	case P_YES:		/* user's name */
 		strlcpy(pwbuf, user, sizeof(pwbuf));
 		break;
+	case P_NO:		/* No login - default */
+				/* FALLTHROUGH */
+	default:
+		return "*";
 	}
 	return pw_pwcrypt(pwbuf);
 }
@@ -1122,11 +1120,20 @@ validate_mode(char *mode)
 	return (m);
 }
 
+static long
+validate_expire(char *str, int opt)
+{
+	if (!numerics(str))
+		errx(EX_DATAERR, "-%c argument must be numeric "
+		     "when setting defaults: %s", (char)opt, str);
+	return strtol(str, NULL, 0);
+}
+
 static void
 mix_config(struct userconf *cmdcnf, struct userconf *cfg)
 {
 
-	if (cmdcnf->default_password == 0)
+	if (cmdcnf->default_password < 0)
 		cmdcnf->default_password = cfg->default_password;
 	if (cmdcnf->reuse_uids == 0)
 		cmdcnf->reuse_uids = cfg->reuse_uids;
@@ -1164,9 +1171,9 @@ mix_config(struct userconf *cmdcnf, struct userconf *cfg)
 		cmdcnf->min_gid = cfg->min_gid;
 	if (cmdcnf->max_gid == 0)
 		cmdcnf->max_gid = cfg->max_gid;
-	if (cmdcnf->expire_days == 0)
+	if (cmdcnf->expire_days < 0)
 		cmdcnf->expire_days = cfg->expire_days;
-	if (cmdcnf->password_days == 0)
+	if (cmdcnf->password_days < 0)
 		cmdcnf->password_days = cfg->password_days;
 }
 
@@ -1198,6 +1205,9 @@ pw_user_add(int argc, char **argv, char *arg1)
 	if ((cmdcnf = calloc(1, sizeof(struct userconf))) == NULL)
 		err(EXIT_FAILURE, "calloc()");
 
+	cmdcnf->default_password = cmdcnf->expire_days = cmdcnf->password_days = -1; 
+	now = time(NULL);
+
 	if (arg1 != NULL) {
 		if (arg1[strspn(arg1, "0123456789")] == '\0')
 			id = pw_checkid(arg1, UID_MAX);
@@ -1226,12 +1236,16 @@ pw_user_add(int argc, char **argv, char *arg1)
 			homedir = optarg;
 			break;
 		case 'e':
-			now = time(NULL);
-			cmdcnf->expire_days = parse_date(now, optarg);
+			if (genconf)
+			    cmdcnf->expire_days = validate_expire(optarg, ch);
+			else
+			    cmdcnf->expire_days = parse_date(now, optarg);
 			break;
 		case 'p':
-			now = time(NULL);
-			cmdcnf->password_days = parse_date(now, optarg);
+			if (genconf)
+			    cmdcnf->password_days = validate_expire(optarg, ch);
+			else
+			    cmdcnf->password_days = parse_date(now, optarg);
 			break;
 		case 'g':
 			validate_grname(cmdcnf, optarg);
@@ -1369,8 +1383,12 @@ pw_user_add(int argc, char **argv, char *arg1)
 	pwd->pw_uid = pw_uidpolicy(cmdcnf, id);
 	pwd->pw_gid = pw_gidpolicy(cnf, grname, pwd->pw_name,
 	    (gid_t) pwd->pw_uid, dryrun);
-	pwd->pw_change = cmdcnf->password_days;
-	pwd->pw_expire = cmdcnf->expire_days;
+	
+	if (cmdcnf->password_days > 0)
+		pwd->pw_change = now + cmdcnf->password_days * 86400L;
+	if (cmdcnf->expire_days > 0)
+		pwd->pw_expire = now + cmdcnf->expire_days * 86400L;
+
 	pwd->pw_dir = pw_homepolicy(cmdcnf, homedir, pwd->pw_name);
 	pwd->pw_shell = pw_shellpolicy(cmdcnf);
 	lc = login_getpwclass(pwd);
@@ -1511,6 +1529,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 	class = nispasswd = NULL;
 	quiet = createhome = pretty = dryrun = nis = precrypted = false;
 	edited = false;
+	now = time(NULL);
 
 	if (arg1 != NULL) {
 		if (arg1[strspn(arg1, "0123456789")] == '\0')
@@ -1540,11 +1559,9 @@ pw_user_mod(int argc, char **argv, char *arg1)
 			homedir = optarg;
 			break;
 		case 'e':
-			now = time(NULL);
 			expire_days = parse_date(now, optarg);
 			break;
 		case 'p':
-			now = time(NULL);
 			password_days = parse_date(now, optarg);
 			break;
 		case 'g':
@@ -1679,13 +1696,14 @@ pw_user_mod(int argc, char **argv, char *arg1)
 		}
 	}
 
-	if (password_days >= 0 && pwd->pw_change != password_days) {
-		pwd->pw_change = password_days;
+
+	if (password_days >= 0) {
+		pwd->pw_change = now + password_days * 86400L;
 		edited = true;
 	}
 
-	if (expire_days >= 0 && pwd->pw_expire != expire_days) {
-		pwd->pw_expire = expire_days;
+	if (expire_days >= 0) {
+		pwd->pw_expire = now + expire_days * 86400L;
 		edited = true;
 	}
 

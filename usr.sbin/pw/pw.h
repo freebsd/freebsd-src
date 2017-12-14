@@ -47,6 +47,14 @@ enum _mode
         M_NUM
 };
 
+enum _passmode
+{
+	P_NO,
+	P_NONE,
+	P_RANDOM,
+	P_YES
+};
+
 enum _which
 {
         W_USER,
