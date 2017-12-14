@@ -43,13 +43,13 @@
 
 /* $FreeBSD$ */
 
-#include "ficl.h"
-
-#if FICL_WANT_FLOAT
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include "ficl.h"
+
+#if FICL_WANT_FLOAT
 #include <math.h>
 
 /*******************************************************************
