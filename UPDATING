@@ -51,6 +51,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20171214:
+	r362593 broke ZFS + GELI support for reasons unknown. However,
+	it also broke ZFS support generally, so GELI has been turned off
+	by default as the lessor evil in r326857. If you boot off ZFS and/or
+	GELI, it might not be a good time to update.
+
 20171125:
 	PowerPC users must update loader(8) by rebuilding world before
 	installing a new kernel, as the protocol connecting them has
