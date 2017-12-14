@@ -1002,13 +1002,16 @@ bhndb_pci_populate_board_info(device_t dev, device_t child,
 		}
 	}
 
-	/* If NVRAM did not supply vendor/type info, provide the PCI
-	 * subvendor/subdevice values. */
+	/* If NVRAM did not supply vendor/type/devid info, provide the PCI
+	 * subvendor/subdevice/device values. */
 	if (info->board_vendor == 0)
 		info->board_vendor = pci_get_subvendor(sc->parent);
 
 	if (info->board_type == 0)
 		info->board_type = pci_get_subdevice(sc->parent);
+
+	if (info->board_devid == 0)
+		info->board_devid = pci_get_device(sc->parent);
 
 	return (0);
 }

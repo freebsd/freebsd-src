@@ -153,6 +153,27 @@ bhnd_nexus_get_chipid(device_t dev, device_t child)
 }
 
 /**
+ * Default bhnd_nexus implementation of BHND_BUS_READ_BOARD_INFO().
+ */
+static int
+bhnd_nexus_read_board_info(device_t dev, device_t child,
+    struct bhnd_board_info *info)
+{
+	int error;
+
+	/* Initialize with NVRAM-derived values */
+	if ((error = bhnd_bus_generic_read_board_info(dev, child, info)))
+		return (error);
+
+	/* The board vendor should default to PCI_VENDOR_BROADCOM if not
+	 * otherwise specified */
+	if (info->board_vendor == 0)
+		info->board_vendor = PCI_VENDOR_BROADCOM;
+
+	return (0);
+}
+
+/**
  * Default bhnd_nexus implementation of BHND_BUS_MAP_INTR().
  */
 static int
@@ -249,6 +270,7 @@ static device_method_t bhnd_nexus_methods[] = {
 	DEVMETHOD(bhnd_bus_get_dma_translation,	bhnd_nexus_get_dma_translation),
 	DEVMETHOD(bhnd_bus_get_intr_domain,	bhnd_bus_generic_get_intr_domain),
 	DEVMETHOD(bhnd_bus_map_intr,		bhnd_nexus_map_intr),
+	DEVMETHOD(bhnd_bus_read_board_info,	bhnd_nexus_read_board_info),
 	DEVMETHOD(bhnd_bus_unmap_intr,		bhnd_nexus_unmap_intr),
 
 	DEVMETHOD_END

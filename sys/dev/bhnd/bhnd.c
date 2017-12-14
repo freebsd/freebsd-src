@@ -1140,7 +1140,6 @@ static device_method_t bhnd_methods[] = {
 	/* BHND interface */
 	DEVMETHOD(bhnd_bus_get_chipid,		bhnd_bus_generic_get_chipid),
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_bus_generic_is_hw_disabled),
-	DEVMETHOD(bhnd_bus_read_board_info,	bhnd_bus_generic_read_board_info),
 
 	DEVMETHOD(bhnd_bus_get_probe_order,	bhnd_generic_get_probe_order),
 

@@ -163,20 +163,41 @@ BHND_ACCESSOR(pmu_info,		PMU_INFO,	void *);
  * A bhnd(4) board descriptor.
  */
 struct bhnd_board_info {
-	uint16_t	board_vendor;	/**< PCI-SIG vendor ID (even on non-PCI
-					  *  devices).
+	uint16_t	board_vendor;	/**< Board vendor (PCI-SIG vendor ID).
 					  *
-					  *  On PCI devices, this will generally
-					  *  be the subsystem vendor ID, but the
-					  *  value may be overridden in device
-					  *  NVRAM.
+					  * On PCI devices, this will default to
+					  * the PCI subsystem vendor ID, but may
+					  * be overridden by the 'boardtype'
+					  * NVRAM variable.
+					  *
+					  * On SoCs, this will default to
+					  * PCI_VENDOR_BROADCOM, but may be
+					  * overridden by the 'boardvendor'
+					  * NVRAM variable.
 					  */
 	uint16_t	board_type;	/**< Board type (See BHND_BOARD_*)
 					  *
-					  *  On PCI devices, this will generally
-					  *  be the subsystem device ID, but the
-					  *  value may be overridden in device
-					  *  NVRAM.
+					  *  This value is usually a
+					  *  Broadcom-assigned reference board
+					  *  identifier (see BHND_BOARD_*), but
+					  *  may be set to an arbitrary value
+					  *  assigned by the board vendor.
+					  *
+					  *  On PCI devices, this will default
+					  *  to the PCI subsystem ID, but may be
+					  *  overridden by the 'boardtype'
+					  *  NVRAM variable.
+					  *
+					  *  On SoCs, this will always be
+					  *  populated with the value of the
+					  * 'boardtype' NVRAM variable.
+					  */
+	uint16_t	board_devid;	/**< Board device ID.
+					  *
+					  *  On PCI devices, this will default
+					  *  to the PCI device ID, but may
+					  *  be overridden by the 'devid'
+					  *  NVRAM variable.
 					  */
 	uint16_t	board_rev;	/**< Board revision. */
 	uint8_t		board_srom_rev;	/**< Board SROM format revision */
