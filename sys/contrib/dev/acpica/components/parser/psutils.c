@@ -213,7 +213,7 @@ AcpiPsInitOp (
     Op->Common.DescriptorType = ACPI_DESC_TYPE_PARSER;
     Op->Common.AmlOpcode = Opcode;
 
-    ACPI_DISASM_ONLY_MEMBERS (strncpy (Op->Common.AmlOpName,
+    ACPI_DISASM_ONLY_MEMBERS (AcpiUtSafeStrncpy (Op->Common.AmlOpName,
         (AcpiPsGetOpcodeInfo (Opcode))->Name,
         sizeof (Op->Common.AmlOpName)));
 }
@@ -293,7 +293,7 @@ AcpiPsAllocOp (
             AcpiGbl_CurrentScope = Op;
         }
 
-        if (Gbl_CaptureComments)
+        if (AcpiGbl_CaptureComments)
         {
             ASL_CV_TRANSFER_COMMENTS (Op);
         }

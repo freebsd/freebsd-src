@@ -527,7 +527,7 @@ AcpiDmDescendingOp (
 
     /* Determine which file this parse node is contained in. */
 
-    if (Gbl_CaptureComments)
+    if (AcpiGbl_CaptureComments)
     {
         ASL_CV_LABEL_FILENODE (Op);
 
@@ -1046,7 +1046,7 @@ AcpiDmAscendingOp (
 
     /* Point the Op's filename pointer to the proper file */
 
-    if (Gbl_CaptureComments)
+    if (AcpiGbl_CaptureComments)
     {
         ASL_CV_LABEL_FILENODE (Op);
 
@@ -1074,7 +1074,7 @@ AcpiDmAscendingOp (
 
         /* Print any comments that are at the end of the file here */
 
-        if (Gbl_CaptureComments && AcpiGbl_LastListHead)
+        if (AcpiGbl_CaptureComments && AcpiGbl_LastListHead)
         {
             AcpiOsPrintf ("\n");
             ASL_CV_PRINT_ONE_COMMENT_LIST (AcpiGbl_LastListHead, 0);
