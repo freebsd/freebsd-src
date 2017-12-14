@@ -217,14 +217,16 @@ struct bhnd_board_match {
 			uint8_t
 			    board_vendor:1,
 			    board_type:1,
+			    board_devid:1,
 			    board_rev:1,
 			    board_srom_rev:1,
-			    flags_unused:4;
+			    flags_unused:3;
 		} match;
 	} m;
 
 	uint16_t		board_vendor;	/**< required board vendor */
 	uint16_t		board_type;	/**< required board type */
+	uint16_t		board_devid;	/**< required board devid */
 	struct bhnd_hwrev_match	board_rev;	/**< matching board revisions */
 	struct bhnd_hwrev_match	board_srom_rev;	/**< matching board srom revisions */
 };
@@ -232,6 +234,7 @@ struct bhnd_board_match {
 #define	_BHND_BOARD_MATCH_COPY(_src)			\
 	_BHND_COPY_MATCH_FIELD(_src, board_vendor),	\
 	_BHND_COPY_MATCH_FIELD(_src, board_type),	\
+	_BHND_COPY_MATCH_FIELD(_src, board_devid),	\
 	_BHND_COPY_MATCH_FIELD(_src, board_rev),	\
 	_BHND_COPY_MATCH_FIELD(_src, board_srom_rev)
 
@@ -241,6 +244,11 @@ struct bhnd_board_match {
 /** Set the required board type within a bhnd match descriptor */
 #define	BHND_MATCH_BOARD_TYPE(_type)	_BHND_SET_MATCH_FIELD(board_type, \
 					    BHND_BOARD_ ## _type)
+
+/** Set the required board devid within a bhnd match descriptor */
+#define	BHND_MATCH_BOARD_DEVID(_devid)	_BHND_SET_MATCH_FIELD(board_devid, \
+					    (_devid))
+
 /** Set the required SROM revision range within a bhnd match descriptor */
 #define	BHND_MATCH_SROMREV(_rev)	_BHND_SET_MATCH_FIELD(board_srom_rev, \
 					    BHND_HWREV_ ## _rev)
@@ -278,9 +286,10 @@ struct bhnd_device_match {
 			chip_type:1,
 			board_vendor:1,
 			board_type:1,
+			board_devid:1,
 			board_rev:1,
 			board_srom_rev:1,
-			flags_unused:16;
+			flags_unused:15;
 		} match;
 	} m;
 	
@@ -298,6 +307,7 @@ struct bhnd_device_match {
 
 	uint16_t		board_vendor;	/**< required board vendor */
 	uint16_t		board_type;	/**< required board type */
+	uint16_t		board_devid;	/**< required board devid */
 	struct bhnd_hwrev_match	board_rev;	/**< matching board revisions */
 	struct bhnd_hwrev_match	board_srom_rev;	/**< matching board srom revisions */
 };
