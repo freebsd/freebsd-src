@@ -46,7 +46,7 @@
 		.set SIZ_PAG,0x1000		# Page size
 		.set SIZ_SEC,0x200		# Sector size
 		.set COPY_BLKS,0x8		# Number of blocks
-						# to copy for boot2
+						# to copy for boot2 (<= 15)
 		.set COPY_BLK_SZ,0x8000		# Copy in 32k blocks; must be
 						# a multiple of 16 bytes
 
@@ -72,7 +72,7 @@ start:		xor %cx,%cx			# Zero
  * its header to find boot2.  We need to copy boot2 to MEM_USR and BTX
  * to MEM_BTX.  Since those might overlap, we have to copy boot2
  * backwards first and then copy BTX.  We aren't sure exactly how long
- * boot2 is, but it's currently under 128kB so we'll copy 4 blocks of 32kB
+ * boot2 is, but it's currently under 256kB so we'll copy 8 blocks of 32kB
  * each; this can be adjusted via COPY_BLK and COPY_BLK_SZ above.
  */
 		mov $end,%bx			# BTX
