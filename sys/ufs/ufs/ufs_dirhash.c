@@ -189,9 +189,11 @@ ufsdirhash_create(struct inode *ip)
 	struct dirhash *ndh;
 	struct dirhash *dh;
 	struct vnode *vp;
+	bool excl;
 
 	ndh = dh = NULL;
 	vp = ip->i_vnode;
+	excl = false;
 	for (;;) {
 		/* Racy check for i_dirhash to prefetch a dirhash structure. */
 		if (ip->i_dirhash == NULL && ndh == NULL) {
@@ -228,8 +230,11 @@ ufsdirhash_create(struct inode *ip)
 		ufsdirhash_hold(dh);
 		VI_UNLOCK(vp);
 
-		/* Acquire a shared lock on existing hashes. */
-		sx_slock(&dh->dh_lock);
+		/* Acquire a lock on existing hashes. */
+		if (excl)
+			sx_xlock(&dh->dh_lock);
+		else
+			sx_slock(&dh->dh_lock);
 
 		/* The hash could've been recycled while we were waiting. */
 		VI_LOCK(vp);
@@ -250,9 +255,10 @@ ufsdirhash_create(struct inode *ip)
 		 * so we can recreate it.  If we fail the upgrade, drop our
 		 * lock and try again.
 		 */
-		if (sx_try_upgrade(&dh->dh_lock))
+		if (excl || sx_try_upgrade(&dh->dh_lock))
 			break;
 		sx_sunlock(&dh->dh_lock);
+		excl = true;
 	}
 	/* Free the preallocated structure if it was not necessary. */
 	if (ndh) {
