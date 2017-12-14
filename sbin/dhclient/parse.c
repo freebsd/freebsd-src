@@ -158,7 +158,8 @@ void
 parse_hardware_param(FILE *cfile, struct hardware *hardware)
 {
 	unsigned char *t;
-	int token, hlen;
+	int token;
+	size_t hlen;
 	char *val;
 
 	token = next_token(&val, cfile);
@@ -242,13 +243,13 @@ parse_lease_time(FILE *cfile, time_t *timep)
  * tokenized.
  */
 unsigned char *
-parse_numeric_aggregate(FILE *cfile, unsigned char *buf, int *max,
-    int separator, int base, int size)
+parse_numeric_aggregate(FILE *cfile, unsigned char *buf, size_t *max,
+    int separator, unsigned base, int size)
 {
 	unsigned char *bufp = buf, *s = NULL;
-	int token, count = 0;
+	int token;
 	char *val, *t;
-	size_t valsize;
+	size_t valsize, count = 0;
 	pair c = NULL;
 	unsigned char *lbufp = NULL;
 
@@ -329,14 +330,15 @@ parse_numeric_aggregate(FILE *cfile, unsigned char *buf, int *max,
 }
 
 void
-convert_num(unsigned char *buf, char *str, int base, int size)
+convert_num(unsigned char *buf, char *str, unsigned base, int size)
 {
-	int negative = 0, tval, max;
+	bool negative = false;
+	unsigned tval, max;
 	u_int32_t val = 0;
 	char *ptr = str;
 
 	if (*ptr == '-') {
-		negative = 1;
+		negative = true;
 		ptr++;
 	}
 
