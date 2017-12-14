@@ -20,6 +20,16 @@ attach_md()
 	echo $test_md
 }
 
+detach_md()
+{
+	local test_md unit
+
+	test_md=$1
+	unit=${test_md#md}
+	mdconfig -d -u $unit || exit
+	sed -i '' "/^${test_md}$/d" $TEST_MDS_FILE || exit
+}
+
 geom_test_cleanup()
 {
 	local test_md
@@ -38,6 +48,7 @@ if [ $(id -u) -ne 0 ]; then
 	echo '1..0 # SKIP tests must be run as root'
 	exit 0
 fi
+
 # If the geom class isn't already loaded, try loading it.
 if ! kldstat -q -m g_${class}; then
 	if ! geom ${class} load; then
