@@ -311,7 +311,7 @@ AhFindPredefinedNames (
     }
 
     Name[0] = '_';
-    strncpy (&Name[1], NamePrefix, 7);
+    AcpiUtSafeStrncpy (&Name[1], NamePrefix, 7);
 
     Length = strlen (Name);
     if (Length > ACPI_NAME_SIZE)

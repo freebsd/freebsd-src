@@ -192,7 +192,7 @@ CvDbgPrint (
     va_list                 Args;
 
 
-    if (!Gbl_CaptureComments || !AcpiGbl_DebugAslConversion)
+    if (!AcpiGbl_CaptureComments || !AcpiGbl_DebugAslConversion)
     {
         return;
     }

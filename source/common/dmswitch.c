@@ -543,6 +543,10 @@ AcpiDmIsSwitchBlock (
      * statement, so check for it.
      */
     CurrentOp = StoreOp->Common.Next->Common.Next;
+    if (!CurrentOp)
+    {
+        return (FALSE);
+    }
     if (CurrentOp->Common.AmlOpcode == AML_ELSE_OP)
     {
         CurrentOp = CurrentOp->Common.Next;

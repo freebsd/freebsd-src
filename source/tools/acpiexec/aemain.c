@@ -533,13 +533,12 @@ AeDoOptions (
         {
         case '^':  /* -v: (Version): signon already emitted, just exit */
 
-            (void) AcpiOsTerminate ();
-            return (1);
+            exit (0);
 
         case 'd':
 
             printf (ACPI_COMMON_BUILD_TIME);
-            return (1);
+            exit (0);
 
         case 'i':
 
