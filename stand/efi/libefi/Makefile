@@ -52,6 +52,4 @@ CFLAGS+= ${FORMAT_EXTENSIONS}
 CFLAGS+= -DTERM_EMU
 .endif
 
-CFLAGS+= -DLIBEFI
-
 .include <bsd.lib.mk>
