@@ -896,6 +896,7 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 	struct devfs_dirent *de, *dd;
 	struct devfs_dirent **dde;
 	struct devfs_mount *dmp;
+	struct mount *mp;
 	struct cdev *cdev;
 	int error, flags, nameiop, dvplocked;
 	char specname[SPECNAMELEN + 1], *pname;
@@ -907,7 +908,8 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 	td = cnp->cn_thread;
 	flags = cnp->cn_flags;
 	nameiop = cnp->cn_nameiop;
-	dmp = VFSTODEVFS(dvp->v_mount);
+	mp = dvp->v_mount;
+	dmp = VFSTODEVFS(mp);
 	dd = dvp->v_data;
 	*vpp = NULLVP;
 
@@ -940,8 +942,8 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 			return (ENOENT);
 		dvplocked = VOP_ISLOCKED(dvp);
 		VOP_UNLOCK(dvp, 0);
-		error = devfs_allocv(de, dvp->v_mount,
-		    cnp->cn_lkflags & LK_TYPE_MASK, vpp);
+		error = devfs_allocv(de, mp, cnp->cn_lkflags & LK_TYPE_MASK,
+		    vpp);
 		*dm_unlock = 0;
 		vn_lock(dvp, dvplocked | LK_RETRY);
 		return (error);
@@ -1026,8 +1028,7 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 			return (0);
 		}
 	}
-	error = devfs_allocv(de, dvp->v_mount, cnp->cn_lkflags & LK_TYPE_MASK,
-	    vpp);
+	error = devfs_allocv(de, mp, cnp->cn_lkflags & LK_TYPE_MASK, vpp);
 	*dm_unlock = 0;
 	return (error);
 }
