@@ -618,7 +618,7 @@ FlOpenAmlOutputFile (
     if (!Filename)
     {
         /* Create the output AML filename */
-        if (!Gbl_CaptureComments)
+        if (!AcpiGbl_CaptureComments)
         {
             Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_AML_CODE);
         }

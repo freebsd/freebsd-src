@@ -1654,7 +1654,6 @@ AcpiDmDumpTable (
             break;
 
 
-
         case ACPI_DMT_FADTPM:
 
             /* FADT Preferred PM Profile names */
