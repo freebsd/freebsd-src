@@ -340,7 +340,7 @@ bhndb_init_region_cfg(struct bhndb_softc *sc, bhnd_erom_t *erom,
 			 * always HIGH.
 			 */
 			error = bhndb_add_resource_region(br, addr, size,
-			    BHNDB_PRIORITY_HIGH, 0, regw);
+			    BHNDB_PRIORITY_HIGH, alloc_flags, regw);
 			if (error)
 				return (error);
 		}
@@ -1634,14 +1634,33 @@ bhndb_deactivate_bhnd_resource(device_t dev, device_t child,
 }
 
 /**
- * Slow path for bhndb_io_resource().
- *
- * Iterates over the existing allocated dynamic windows looking for a viable
- * in-use region; the first matching region is returned.
+ * Find the best available bridge resource allocation record capable of handling
+ * bus I/O requests of @p size at @p addr.
+ * 
+ * In order of preference, this function will either:
+ * 
+ * - Configure and return a free allocation record
+ * - Return an existing allocation record mapping the requested space, or
+ * - Steal, configure, and return an in-use allocation record.
+ * 
+ * Will panic if a usable record cannot be found.
+ * 
+ * @param sc Bridge driver state.
+ * @param addr The I/O target address.
+ * @param size The size of the I/O operation to be performed at @p addr. 
+ * @param[out] borrowed Set to true if the allocation record was borrowed to
+ * fulfill this request; the borrowed record maps the target address range,
+ * and must not be modified.
+ * @param[out] stolen Set to true if the allocation record was stolen to fulfill
+ * this request. If a stolen allocation record is returned,
+ * bhndb_io_resource_restore() must be called upon completion of the bus I/O
+ * request.
+ * @param[out] restore If the allocation record was stolen, this will be set
+ * to the target that must be restored.
  */
 static struct bhndb_dw_alloc *
-bhndb_io_resource_slow(struct bhndb_softc *sc, bus_addr_t addr, bus_size_t size,
-    bus_size_t *offset, bool *stolen, bus_addr_t *restore)
+bhndb_io_resource_get_window(struct bhndb_softc *sc, bus_addr_t addr,
+    bus_size_t size, bool *borrowed, bool *stolen, bus_addr_t *restore)
 {
 	struct bhndb_resources	*br;
 	struct bhndb_dw_alloc	*dwa;
@@ -1650,6 +1669,12 @@ bhndb_io_resource_slow(struct bhndb_softc *sc, bus_addr_t addr, bus_size_t size,
 	BHNDB_LOCK_ASSERT(sc, MA_OWNED);
 
 	br = sc->bus_res;
+	*borrowed = false;
+	*stolen = false;
+
+	/* Try to fetch a free window */
+	if ((dwa = bhndb_dw_next_free(br)) != NULL)
+		return (dwa);
 
 	/* Search for an existing dynamic mapping of this address range.
 	 * Static regions are not searched, as a statically mapped
@@ -1671,16 +1696,12 @@ bhndb_io_resource_slow(struct bhndb_softc *sc, bus_addr_t addr, bus_size_t size,
 			continue;
 
 		/* Found */
-		*offset = dwa->win->win_offset;
-		*offset += addr - dwa->target;
-
-		*stolen = false;
+		*borrowed = true;
 		return (dwa);
 	}
 
-	/* No existing dynamic mapping found. We'll need to check for a defined
-	 * region to determine whether we can fulfill this request by
-	 * stealing from an existing allocated register window */
+	/* Try to steal a window; this should only be required on very early
+	 * PCI_V0 (BCM4318, etc) Wi-Fi chipsets */
 	region = bhndb_find_resource_region(br, addr, size);
 	if (region == NULL)
 		return (NULL);
@@ -1688,12 +1709,16 @@ bhndb_io_resource_slow(struct bhndb_softc *sc, bus_addr_t addr, bus_size_t size,
 	if ((region->alloc_flags & BHNDB_ALLOC_FULFILL_ON_OVERCOMMIT) == 0)
 		return (NULL);
 
+	/* Steal a window. This acquires our backing spinlock, disabling
+	 * interrupts; the spinlock will be released by
+	 * bhndb_dw_return_stolen() */
 	if ((dwa = bhndb_dw_steal(br, restore)) != NULL) {
 		*stolen = true;
 		return (dwa);
 	}
 
-	return (NULL);
+	panic("register windows exhausted attempting to map 0x%llx-0x%llx\n", 
+	    (unsigned long long) addr, (unsigned long long) addr+size-1);
 }
 
 /**
@@ -1721,43 +1746,14 @@ static inline struct bhndb_dw_alloc *
 bhndb_io_resource(struct bhndb_softc *sc, bus_addr_t addr, bus_size_t size,
     bus_size_t *offset, bool *stolen, bus_addr_t *restore)
 {
-	struct bhndb_resources	*br;
 	struct bhndb_dw_alloc	*dwa;
+	bool			 borrowed;
 	int			 error;
 
 	BHNDB_LOCK_ASSERT(sc, MA_OWNED);
 
-	br = sc->bus_res;
-
-	/* Try to fetch a free window */
-	dwa = bhndb_dw_next_free(br);
-
-	/*
-	 * If no dynamic windows are available, look for an existing
-	 * region that maps the target range. 
-	 * 
-	 * If none are found, this is a child driver bug -- our window
-	 * over-commit should only fail in the case where a child driver leaks
-	 * resources, or perform operations out-of-order.
-	 * 
-	 * Broadcom HND chipsets are designed to not require register window
-	 * swapping during execution; as long as the child devices are
-	 * attached/detached correctly, using the hardware's required order
-	 * of operations, there should always be a window available for the
-	 * current operation.
-	 */
-	if (dwa == NULL) {
-		dwa = bhndb_io_resource_slow(sc, addr, size, offset, stolen,
-		    restore);
-		if (dwa == NULL) {
-			panic("register windows exhausted attempting to map "
-			    "0x%llx-0x%llx\n", 
-			    (unsigned long long) addr,
-			    (unsigned long long) addr+size-1);
-		}
-
-		return (dwa);
-	}
+	dwa = bhndb_io_resource_get_window(sc, addr, size, &borrowed, stolen,
+	    restore);
 
 	/* Adjust the window if the I/O request won't fit in the current
 	 * target range. */
@@ -1765,6 +1761,14 @@ bhndb_io_resource(struct bhndb_softc *sc, bus_addr_t addr, bus_size_t size,
 	    addr > dwa->target + dwa->win->win_size ||
 	    (dwa->target + dwa->win->win_size) - addr < size)
 	{
+		/* Cannot modify target of borrowed windows */
+		if (borrowed) {
+			panic("borrowed register window does not map expected "
+			    "range 0x%llx-0x%llx\n", 
+			    (unsigned long long) addr,
+			    (unsigned long long) addr+size-1);
+		}
+	
 		error = bhndb_dw_set_addr(sc->dev, sc->bus_res, dwa, addr,
 		    size);
 		if (error) {
@@ -1777,7 +1781,6 @@ bhndb_io_resource(struct bhndb_softc *sc, bus_addr_t addr, bus_size_t size,
 
 	/* Calculate the offset and return */
 	*offset = (addr - dwa->target) + dwa->win->win_offset;
-	*stolen = false;
 	return (dwa);
 }
 
