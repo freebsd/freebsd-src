@@ -195,7 +195,7 @@ get_ifa(char *cp, int n)
 	return (NULL);
 }
 
-struct iaddr defaddr = { 4 };
+struct iaddr defaddr = { .len = 4 };
 uint8_t curbssid[6];
 
 static void
@@ -237,7 +237,8 @@ routehandler(struct protocol *p)
 
 	n = read(routefd, &msg, sizeof(msg));
 	rtm = (struct rt_msghdr *)msg;
-	if (n < sizeof(rtm->rtm_msglen) || n < rtm->rtm_msglen ||
+	if (n < (ssize_t)sizeof(rtm->rtm_msglen) ||
+	    n < (ssize_t)rtm->rtm_msglen ||
 	    rtm->rtm_version != RTM_VERSION)
 		return;
 
@@ -2059,7 +2060,8 @@ priv_script_write_params(char *prefix, struct client_lease *lease)
 {
 	struct interface_info *ip = ifi;
 	u_int8_t dbuf[1500], *dp = NULL;
-	int i, len;
+	int i;
+	size_t len;
 	char tbuf[128];
 
 	script_set_env(ip->client, prefix, "ip_address",
@@ -2209,12 +2211,14 @@ script_write_params(char *prefix, struct client_lease *lease)
 		pr_len = strlen(prefix);
 
 	hdr.code = IMSG_SCRIPT_WRITE_PARAMS;
-	hdr.len = sizeof(hdr) + sizeof(struct client_lease) +
-	    sizeof(size_t) + fn_len + sizeof(size_t) + sn_len +
-	    sizeof(size_t) + pr_len;
+	hdr.len = sizeof(hdr) + sizeof(*lease) +
+	    sizeof(fn_len) + fn_len + sizeof(sn_len) + sn_len +
+	    sizeof(pr_len) + pr_len;
 
-	for (i = 0; i < 256; i++)
-		hdr.len += sizeof(int) + lease->options[i].len;
+	for (i = 0; i < 256; i++) {
+		hdr.len += sizeof(lease->options[i].len);
+		hdr.len += lease->options[i].len;
+	}
 
 	scripttime = time(NULL);
 
@@ -2223,7 +2227,7 @@ script_write_params(char *prefix, struct client_lease *lease)
 
 	errs = 0;
 	errs += buf_add(buf, &hdr, sizeof(hdr));
-	errs += buf_add(buf, lease, sizeof(struct client_lease));
+	errs += buf_add(buf, lease, sizeof(*lease));
 	errs += buf_add(buf, &fn_len, sizeof(fn_len));
 	errs += buf_add(buf, lease->filename, fn_len);
 	errs += buf_add(buf, &sn_len, sizeof(sn_len));
@@ -2328,7 +2332,8 @@ void
 script_set_env(struct client_state *client, const char *prefix,
     const char *name, const char *value)
 {
-	int i, j, namelen;
+	int i, namelen;
+	size_t j;
 
 	/* No `` or $() command substitution allowed in environment values! */
 	for (j=0; j < strlen(value); j++)
@@ -2396,7 +2401,7 @@ script_flush_env(struct client_state *client)
 int
 dhcp_option_ev_name(char *buf, size_t buflen, struct option *option)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; option->name[i]; i++) {
 		if (i + 1 == buflen)

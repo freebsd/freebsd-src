@@ -47,8 +47,6 @@ __FBSDID("$FreeBSD$");
 
 #include "dhcpd.h"
 
-extern int h_errno;
-
 pair
 cons(caddr_t car, pair cdr)
 {
