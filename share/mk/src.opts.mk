@@ -119,7 +119,6 @@ __DEFAULT_YES_OPTIONS = \
     LIB32 \
     LIBPTHREAD \
     LIBTHR \
-    LOADER_GELI \
     LOCALES \
     LOCATE \
     LPR \
@@ -183,6 +182,7 @@ __DEFAULT_NO_OPTIONS = \
     LIBSOFT \
     LOADER_FIREWIRE \
     LOADER_FORCE_LE \
+    LOADER_GELI \
     NAND \
     OFED \
     OPENLDAP \
