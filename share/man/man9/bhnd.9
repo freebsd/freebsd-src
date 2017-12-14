@@ -1309,8 +1309,9 @@ structure contains the following fields:
 .It Fa board_vendor
 Vendor ID of the board manufacturer (PCI-SIG assigned).
 .It Fa board_type
+Board ID.
+.It Fa board_devid
 Device ID.
-This is generally a Broadcom-assigned globally unique identifier.
 .It Fa board_rev
 Board revision.
 .It Fa board_srom_rev
@@ -1323,12 +1324,25 @@ Board flags (2)
 Board flags (3)
 .El
 .Pp
+The
+.Fa board_devid
+field is the Broadcom PCI device ID that most closely matches the
+capabilities of the BHND device (if any).
+.Pp
 On PCI devices, the
-.Fa board_vendor
+.Fa board_vendor ,
+.Fa board_type ,
 and
-.Fa board_type
-fields default to the PCI Subsystem Vendor ID and PCI Subsystem ID, unless
-overridden in device NVRAM.
+.Fa board_devid
+fields default to the PCI Subsystem Vendor ID, PCI Subsystem ID, and PCI
+device ID, unless overridden in device NVRAM.
+.Pp
+On other devices, including SoCs, the
+.Fa board_vendor ,
+.Fa board_type ,
+and
+.Fa board_devid
+fields will be populated from device NVRAM.
 .Pp
 Symbolic constants for common board flags are defined in
 .In dev/bhnd/bhnd_ids.h .
