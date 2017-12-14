@@ -1041,15 +1041,15 @@ dosum(void)
 	    sum.v_vnodepgsout);
 	xo_emit("{:page-daemon-wakeups/%9u} {N:page daemon wakeups}\n",
 	    sum.v_pdwakeups);
-	xo_emit("{:page-daemon-pages/%9u} {N:pages examined by the page"
+	xo_emit("{:page-daemon-pages/%9u} {N:pages examined by the page "
 	    "daemon}\n", sum.v_pdpages);
-	xo_emit("{:page-reclamation-shortfalls/%9u} {N:clean page reclamation"
+	xo_emit("{:page-reclamation-shortfalls/%9u} {N:clean page reclamation "
 	    "shortfalls}\n", sum.v_pdshortfalls);
 	xo_emit("{:reactivated/%9u} {N:pages reactivated by the page daemon}\n",
 	    sum.v_reactivated);
 	xo_emit("{:copy-on-write-faults/%9u} {N:copy-on-write faults}\n",
 	    sum.v_cow_faults);
-	xo_emit("{:copy-on-write-optimized-faults/%9u} {N:copy-on-write"
+	xo_emit("{:copy-on-write-optimized-faults/%9u} {N:copy-on-write "
 	    "optimized faults}\n", sum.v_cow_optim);
 	xo_emit("{:zero-fill-pages/%9u} {N:zero fill pages zeroed}\n",
 	    sum.v_zfod);
@@ -1061,7 +1061,7 @@ dosum(void)
 	    sum.v_vm_faults);
 	xo_emit("{:faults-requiring-io/%9u} {N:page faults requiring I\\/O}\n",
 	    sum.v_io_faults);
-	xo_emit("{:faults-from-thread-creation/%9u} {N:pages affected by"
+	xo_emit("{:faults-from-thread-creation/%9u} {N:pages affected by "
 	    "kernel thread creation}\n", sum.v_kthreadpages);
 	xo_emit("{:faults-from-fork/%9u} {N:pages affected by  fork}()\n",
 	    sum.v_forkpages);
