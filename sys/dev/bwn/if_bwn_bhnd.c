@@ -68,11 +68,14 @@ __FBSDID("$FreeBSD$");
 #include "if_bwnvar.h"
 
 /* Supported device identifiers */
+#define	BWN_DEV(_hwrev)	{{					\
+	BHND_MATCH_CORE(BHND_MFGID_BCM, BHND_COREID_D11),	\
+	BHND_MATCH_CORE_REV(_hwrev),				\
+}}
+
 static const struct bhnd_device bwn_devices[] = {
-	{{
-		BHND_MATCH_CORE		(BHND_MFGID_BCM, BHND_COREID_D11),
-		BHND_MATCH_CORE_REV	(HWREV_RANGE(5, 16))
-	}},
+	BWN_DEV(HWREV_RANGE(5, 16)),
+	BWN_DEV(HWREV_EQ(23)),
 
 	BHND_DEVICE_END
 };
