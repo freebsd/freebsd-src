@@ -29,6 +29,12 @@
 #ifndef _BOOT_EFI_EFICHAR_H_
 #define	_BOOT_EFI_EFICHAR_H_
 
+#ifdef _STANDALONE
+#include <efi.h>
+
+typedef CHAR16 efi_char;
+#endif
+
 int ucs2_to_utf8(const efi_char *, char **);
 int utf8_to_ucs2(const char *, efi_char **, size_t *);
 int ucs2len(const efi_char *);
