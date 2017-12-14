@@ -526,10 +526,12 @@ AeAttachedDataHandler (
 {
     ACPI_NAMESPACE_NODE     *Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Data);
 
+    ACPI_FUNCTION_NAME (AeAttachedDataHandler1);
 
-    AcpiOsPrintf (AE_PREFIX
-        "Received an attached data deletion (1) on %4.4s\n",
-        Node->Name.Ascii);
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+         "Received an attached data deletion at handler 1 on %4.4s\n",
+        Node->Name.Ascii));
 }
 
 
@@ -549,10 +551,12 @@ AeAttachedDataHandler2 (
 {
     ACPI_NAMESPACE_NODE     *Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Data);
 
+    ACPI_FUNCTION_NAME (AeAttachedDataHandler2);
 
-    AcpiOsPrintf (AE_PREFIX
-        "Received an attached data deletion (2) on %4.4s\n",
-        Node->Name.Ascii);
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+         "Received an attached data deletion at handler 2 on %4.4s\n",
+        Node->Name.Ascii));
 }
 
 

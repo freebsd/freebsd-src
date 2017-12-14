@@ -113,6 +113,7 @@ OBJECTS = \
 	$(OBJDIR)/utmath.o\
 	$(OBJDIR)/utmisc.o\
 	$(OBJDIR)/utmutex.o\
+	$(OBJDIR)/utnonansi.o\
 	$(OBJDIR)/utobject.o\
 	$(OBJDIR)/utosi.o\
 	$(OBJDIR)/utownerid.o\
