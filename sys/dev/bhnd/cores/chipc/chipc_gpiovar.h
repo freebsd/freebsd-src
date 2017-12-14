@@ -111,7 +111,7 @@ struct chipc_gpio_update {
 	if (_val)					\
 		(_upd)->_reg.value |= (1 << (_pin));	\
 	else						\
-		(_upd)->_reg.value &= (1 << (_pin));	\
+		(_upd)->_reg.value &= ~(1 << (_pin));	\
 } while(0)	
 
 /**
