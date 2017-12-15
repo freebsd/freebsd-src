@@ -1204,7 +1204,7 @@ g_mirror_start(struct bio *bp)
  * Return TRUE if the given request is colliding with a in-progress
  * synchronization request.
  */
-static int
+static bool
 g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 {
 	struct g_mirror_disk *disk;
@@ -1213,7 +1213,7 @@ g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 	u_int i;
 
 	if (sc->sc_sync.ds_ndisks == 0)
-		return (0);
+		return (false);
 	rstart = bp->bio_offset;
 	rend = bp->bio_offset + bp->bio_length;
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
@@ -1226,33 +1226,33 @@ g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 			sstart = sbp->bio_offset;
 			send = sbp->bio_offset + sbp->bio_length;
 			if (rend > sstart && rstart < send)
-				return (1);
+				return (true);
 		}
 	}
-	return (0);
+	return (false);
 }
 
 /*
  * Return TRUE if the given sync request is colliding with a in-progress regular
  * request.
  */
-static int
+static bool
 g_mirror_regular_collision(struct g_mirror_softc *sc, struct bio *sbp)
 {
 	off_t rstart, rend, sstart, send;
 	struct bio *bp;
 
 	if (sc->sc_sync.ds_ndisks == 0)
-		return (0);
+		return (false);
 	sstart = sbp->bio_offset;
 	send = sbp->bio_offset + sbp->bio_length;
 	TAILQ_FOREACH(bp, &sc->sc_inflight.queue, bio_queue) {
 		rstart = bp->bio_offset;
 		rend = bp->bio_offset + bp->bio_length;
 		if (rend > sstart && rstart < send)
-			return (1);
+			return (true);
 	}
-	return (0);
+	return (false);
 }
 
 /*
