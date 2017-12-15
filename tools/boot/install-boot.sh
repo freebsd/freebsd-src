@@ -59,8 +59,8 @@ boot_nogeli_mbr_zfs_legacy() {
     # Or just assume it is 'a' because it has to be since it fails otherwise
     dd if=${dst}/boot/zfsboot of=/tmp/zfsboot1 count=1
     gpart bootcode -b /tmp/zfsboo1 ${dev}s${s}	# Put boot1 into the start of part
-    sysctl kern.geom.debugflags=0x10
-    dd if=${dst}/boot/zfsboot iseek=1 seek=1024	# Put boot2 into ZFS boot slot
+    sysctl kern.geom.debugflags=0x10		# Put boot2 into ZFS boot slot
+    dd if=${dst}/boot/zfsboot of=/dev/${dev}s${s} iseek=1 seek=1024
     sysctl kern.geom.debugflags=0x0
 
     exit 0
