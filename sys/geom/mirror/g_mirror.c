@@ -74,7 +74,7 @@ SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_requests, CTLFLAG_RDTUN,
 static u_int g_mirror_sync_period = 5;
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_update_period, CTLFLAG_RWTUN,
     &g_mirror_sync_period, 0,
-    "Metadata update period during synchroniztion, in seconds");
+    "Metadata update period during synchronization, in seconds");
 
 #define	MSLEEP(ident, mtx, priority, wmesg, timeout)	do {		\
 	G_MIRROR_DEBUG(4, "%s: Sleeping %p.", __func__, (ident));	\
