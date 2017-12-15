@@ -265,12 +265,6 @@ static __inline int tolower(int c)
 extern void	setheap(void *base, void *top);
 extern char	*sbrk(int incr);
 
-/* Matt Dillon's zalloc/zmalloc */
-extern void	*malloc(size_t bytes);
-extern void	free(void *ptr);
-/*#define free(p)	{CHK("free %p", p); free(p);} */ /* use for catching guard violations */
-extern void	*calloc(size_t n1, size_t n2);
-extern void	*realloc(void *ptr, size_t size);
 extern void	*reallocf(void *ptr, size_t size);
 extern void	mallocstats(void);
 
@@ -427,7 +421,7 @@ void *Calloc(size_t, size_t, const char *, int);
 void *Realloc(void *, size_t, const char *, int);
 void Free(void *, const char *, int);
 
-#if 1
+#ifdef DEBUG_MALLOC
 #define malloc(x)	Malloc(x, __FILE__, __LINE__)
 #define calloc(x, y)	Calloc(x, y, __FILE__, __LINE__)
 #define free(x)		Free(x, __FILE__, __LINE__)
