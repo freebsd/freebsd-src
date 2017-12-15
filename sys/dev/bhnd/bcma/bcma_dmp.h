@@ -223,7 +223,7 @@
 /* OOBSEL(IN|OUT) */
 #define	BCMA_DMP_OOBSEL_MASK		0xFF		/**< OOB selector mask */
 #define	BCMA_DMP_OOBSEL_EN		(1<<7)		/**< OOB selector enable bit */
-#define	BCMA_DMP_OOBSEL_SHIFT(_sel)	((_sel % BCMA_OOB_NUM_SEL) * 8)
+#define	BCMA_DMP_OOBSEL_SHIFT(_sel)	((_sel % 4) * 8)
 #define	BCMA_DMP_OOBSEL_BUSLINE_MASK	0x7F		/**< OOB selector bus line mask */
 #define	BCMA_DMP_OOBSEL_BUSLINE_SHIFT	0
 

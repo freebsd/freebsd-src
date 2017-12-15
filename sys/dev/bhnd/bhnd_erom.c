@@ -145,6 +145,7 @@ bhnd_erom_probe_driver_classes(devclass_t bus_devclass,
 			break;
 	}
 
+	free(drivers, M_TEMP);
 	return (erom_cls);
 }
 

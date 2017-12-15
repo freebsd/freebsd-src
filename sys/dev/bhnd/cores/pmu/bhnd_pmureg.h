@@ -133,7 +133,7 @@
 #define	BHND_PMU_RES_TABLE_SEL		0x620
 #define	BHND_PMU_RES_DEP_MASK		0x624
 #define	BHND_PMU_RES_UPDN_TIMER		0x628
-#define	  BHND_PMU_RES_UPDN_UPTME_MASK	0xFF
+#define	  BHND_PMU_RES_UPDN_UPTME_MASK	0xFF00
 #define	  BHND_PMU_RES_UPDN_UPTME_SHIFT	8
 #define	BHND_PMU_RES_TIMER		0x62C
 #define	BHND_PMU_CLKSTRETCH		0x630
@@ -217,7 +217,7 @@
 
 /* Wildcard base, vco_calvar, vco_swc, vco_var_selref, vso_ical & vco_sel_avdd */
 #define	BHND_PMU0_PLL0_PLLCTL2		2
-#define	BHND_PMU0_PLL0_PC2_WILD_INT_MASK	0xf
+#define	BHND_PMU0_PLL0_PC2_WILD_INT_MASK	0xf0
 #define	BHND_PMU0_PLL0_PC2_WILD_INT_SHIFT	4
 
 /* pllcontrol registers */
