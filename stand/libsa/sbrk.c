@@ -52,6 +52,9 @@ sbrk(int incr)
 {
     char	*ret;
     
+    if (heapbase == 0)
+	    panic("No heap setup\n");
+
     if ((heapsize + incr) <= maxheap) {
 	ret = (char *)heapbase + heapsize;
 	bzero(ret, incr);
