@@ -124,6 +124,7 @@ __DEFAULT_YES_OPTIONS = \
     LPR \
     LS_COLORS \
     LZMA_SUPPORT \
+    LOADER_GELI \
     MAIL \
     MAILWRAPPER \
     MAKE \
@@ -182,7 +183,6 @@ __DEFAULT_NO_OPTIONS = \
     LIBSOFT \
     LOADER_FIREWIRE \
     LOADER_FORCE_LE \
-    LOADER_GELI \
     NAND \
     OFED \
     OPENLDAP \
