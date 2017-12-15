@@ -183,7 +183,7 @@ rm -rf ${DESTDIR}
 mkdir -p ${DESTDIR}/boot/defaults
 mkdir -p ${DESTDIR}/boot/kernel
 cp /boot/kernel/kernel ${DESTDIR}/boot/kernel
-echo -D -S115200 > ${DESTDIR}/boot.config
+echo -h -D -S115200 > ${DESTDIR}/boot.config
 # XXX
 cp /boot/device.hints ${DESTDIR}/boot/device.hints
 # Assume we're already built
