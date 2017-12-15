@@ -1023,6 +1023,14 @@
 				    struct kevent *changelist, int nchanges, \
 				    struct kevent *eventlist, int nevents, \
 				    const struct timespec *timeout); }
+561	AUE_NULL	STD	{ int cpuset_getdomain(cpulevel_t level, \
+				    cpuwhich_t which, id_t id, \
+				    size_t domainsetsize, domainset_t *mask, \
+				    int *policy); }
+562	AUE_NULL	STD	{ int cpuset_setdomain(cpulevel_t level, \
+				    cpuwhich_t which, id_t id, \
+				    size_t domainsetsize, domainset_t *mask, \
+				    int policy); }
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

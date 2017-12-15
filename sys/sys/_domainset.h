@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2015, Adrian Chadd <adrian@FreeBSD.org>
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2017,	Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,24 +25,36 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _SYS__DOMAINSET_H_
+#define	_SYS__DOMAINSET_H_
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/sysproto.h>
-#include <sys/kernel.h>
+#include <sys/_bitset.h>
 
-int
-sys_numa_setaffinity(struct thread *td, struct numa_setaffinity_args *uap)
-{
-	return (ENOSYS);
-}
+#ifdef _KERNEL
+#define	DOMAINSET_SETSIZE	MAXMEMDOM
+#endif
 
-int
-sys_numa_getaffinity(struct thread *td, struct numa_getaffinity_args *uap)
-{
-	return (ENOSYS);
-}
+#define	DOMAINSET_MAXSIZE	256
+
+#ifndef	DOMAINSET_SETSIZE
+#define	DOMAINSET_SETSIZE	DOMAINSET_MAXSIZE
+#endif
+
+BITSET_DEFINE(_domainset, DOMAINSET_SETSIZE);
+typedef struct _domainset domainset_t;
+
+/*
+ * This structure is intended to be embedded in objects which have policy
+ * attributes.  Each object keeps its own iterator so round-robin is
+ * synchronized and accurate.
+ */
+struct domainset;
+struct domainset_ref {
+	struct domainset * volatile	dr_policy;
+	int				dr_iterator;
+};
+
+#endif /* !_SYS__DOMAINSET_H_ */

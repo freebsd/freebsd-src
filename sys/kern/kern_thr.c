@@ -260,12 +260,6 @@ thread_create(struct thread *td, struct rtprio *rtp,
 	if (p->p_ptevents & PTRACE_LWP)
 		newtd->td_dbgflags |= TDB_BORN;
 
-	/*
-	 * Copy the existing thread VM policy into the new thread.
-	 */
-	vm_domain_policy_localcopy(&newtd->td_vm_dom_policy,
-	    &td->td_vm_dom_policy);
-
 	PROC_UNLOCK(p);
 
 	tidhash_add(newtd);

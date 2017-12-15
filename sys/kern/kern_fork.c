@@ -512,14 +512,6 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
 
-	/*
-	 * Whilst the proc lock is held, copy the VM domain data out
-	 * using the VM domain method.
-	 */
-	vm_domain_policy_init(&p2->p_vm_dom_policy);
-	vm_domain_policy_localcopy(&p2->p_vm_dom_policy,
-	    &p1->p_vm_dom_policy);
-
 	if (fr->fr_flags & RFSIGSHARE) {
 		p2->p_sigacts = sigacts_hold(p1->p_sigacts);
 	} else {

@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>		/* for ticks and hz */
+#include <sys/domainset.h>
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/proc.h>
@@ -82,8 +83,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_domain.h>
 #include <vm/vm_param.h>
+#include <vm/vm_domainset.h>
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
@@ -221,28 +222,20 @@ vm_offset_t
 kmem_alloc_attr(vmem_t *vmem, vm_size_t size, int flags, vm_paddr_t low,
     vm_paddr_t high, vm_memattr_t memattr)
 {
-	struct vm_domain_iterator vi;
+	struct vm_domainset_iter di;
 	vm_offset_t addr;
-	int domain, wait;
+	int domain;
 
 	KASSERT(vmem == kernel_arena,
 	    ("kmem_alloc_attr: Only kernel_arena is supported."));
-	addr = 0;
-	vm_policy_iterator_init(&vi);
-	wait = flags & M_WAITOK;
-	flags &= ~M_WAITOK;
-	flags |= M_NOWAIT;
-	while (vm_domain_iterator_run(&vi, &domain) == 0) {
-		if (vm_domain_iterator_isdone(&vi) && wait) {
-			flags |= wait;
-			flags &= ~M_NOWAIT;
-		}
+
+	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
+	do {
 		addr = kmem_alloc_attr_domain(domain, size, flags, low, high,
 		    memattr);
 		if (addr != 0)
 			break;
-	}
-	vm_policy_iterator_finish(&vi);
+	} while (vm_domainset_iter_malloc(&di, &domain, &flags) == 0);
 
 	return (addr);
 }
@@ -317,28 +310,20 @@ kmem_alloc_contig(struct vmem *vmem, vm_size_t size, int flags, vm_paddr_t low,
     vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     vm_memattr_t memattr)
 {
-	struct vm_domain_iterator vi;
+	struct vm_domainset_iter di;
 	vm_offset_t addr;
-	int domain, wait;
+	int domain;
 
 	KASSERT(vmem == kernel_arena,
 	    ("kmem_alloc_contig: Only kernel_arena is supported."));
-	addr = 0;
-	vm_policy_iterator_init(&vi);
-	wait = flags & M_WAITOK;
-	flags &= ~M_WAITOK;
-	flags |= M_NOWAIT;
-	while (vm_domain_iterator_run(&vi, &domain) == 0) {
-		if (vm_domain_iterator_isdone(&vi) && wait) {
-			flags |= wait;
-			flags &= ~M_NOWAIT;
-		}
+
+	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
+	do {
 		addr = kmem_alloc_contig_domain(domain, size, flags, low, high,
 		    alignment, boundary, memattr);
 		if (addr != 0)
 			break;
-	}
-	vm_policy_iterator_finish(&vi);
+	} while (vm_domainset_iter_malloc(&di, &domain, &flags) == 0);
 
 	return (addr);
 }
@@ -408,27 +393,19 @@ kmem_malloc_domain(int domain, vm_size_t size, int flags)
 vm_offset_t
 kmem_malloc(struct vmem *vmem, vm_size_t size, int flags)
 {
-	struct vm_domain_iterator vi;
+	struct vm_domainset_iter di;
 	vm_offset_t addr;
-	int domain, wait;
+	int domain;
 
 	KASSERT(vmem == kernel_arena,
 	    ("kmem_malloc: Only kernel_arena is supported."));
-	addr = 0;
-	vm_policy_iterator_init(&vi);
-	wait = flags & M_WAITOK;
-	flags &= ~M_WAITOK;
-	flags |= M_NOWAIT;
-	while (vm_domain_iterator_run(&vi, &domain) == 0) {
-		if (vm_domain_iterator_isdone(&vi) && wait) {
-			flags |= wait;
-			flags &= ~M_NOWAIT;
-		}
+
+	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
+	do {
 		addr = kmem_malloc_domain(domain, size, flags);
 		if (addr != 0)
 			break;
-	}
-	vm_policy_iterator_finish(&vi);
+	} while (vm_domainset_iter_malloc(&di, &domain, &flags) == 0);
 
 	return (addr);
 }
@@ -494,26 +471,19 @@ retry:
 int
 kmem_back(vm_object_t object, vm_offset_t addr, vm_size_t size, int flags)
 {
-	struct vm_domain_iterator vi;
-	int domain, wait, ret;
+	struct vm_domainset_iter di;
+	int domain;
+	int ret;
 
 	KASSERT(object == kernel_object,
 	    ("kmem_back: only supports kernel object."));
-	ret = 0;
-	vm_policy_iterator_init(&vi);
-	wait = flags & M_WAITOK;
-	flags &= ~M_WAITOK;
-	flags |= M_NOWAIT;
-	while (vm_domain_iterator_run(&vi, &domain) == 0) {
-		if (vm_domain_iterator_isdone(&vi) && wait) {
-			flags |= wait;
-			flags &= ~M_NOWAIT;
-		}
+
+	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
+	do {
 		ret = kmem_back_domain(domain, object, addr, size, flags);
 		if (ret == KERN_SUCCESS)
 			break;
-	}
-	vm_policy_iterator_finish(&vi);
+	} while (vm_domainset_iter_malloc(&di, &domain, &flags) == 0);
 
 	return (ret);
 }

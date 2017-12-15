@@ -11,6 +11,7 @@
 #include <sys/signal.h>
 #include <sys/acl.h>
 #include <sys/cpuset.h>
+#include <sys/domainset.h>
 #include <sys/_ffcounter.h>
 #include <sys/_semaphore.h>
 #include <sys/ucontext.h>
@@ -1761,6 +1762,22 @@ struct kevent_args {
 	char nevents_l_[PADL_(int)]; int nevents; char nevents_r_[PADR_(int)];
 	char timeout_l_[PADL_(const struct timespec *)]; const struct timespec * timeout; char timeout_r_[PADR_(const struct timespec *)];
 };
+struct cpuset_getdomain_args {
+	char level_l_[PADL_(cpulevel_t)]; cpulevel_t level; char level_r_[PADR_(cpulevel_t)];
+	char which_l_[PADL_(cpuwhich_t)]; cpuwhich_t which; char which_r_[PADR_(cpuwhich_t)];
+	char id_l_[PADL_(id_t)]; id_t id; char id_r_[PADR_(id_t)];
+	char domainsetsize_l_[PADL_(size_t)]; size_t domainsetsize; char domainsetsize_r_[PADR_(size_t)];
+	char mask_l_[PADL_(domainset_t *)]; domainset_t * mask; char mask_r_[PADR_(domainset_t *)];
+	char policy_l_[PADL_(int *)]; int * policy; char policy_r_[PADR_(int *)];
+};
+struct cpuset_setdomain_args {
+	char level_l_[PADL_(cpulevel_t)]; cpulevel_t level; char level_r_[PADR_(cpulevel_t)];
+	char which_l_[PADL_(cpuwhich_t)]; cpuwhich_t which; char which_r_[PADR_(cpuwhich_t)];
+	char id_l_[PADL_(id_t)]; id_t id; char id_r_[PADR_(id_t)];
+	char domainsetsize_l_[PADL_(size_t)]; size_t domainsetsize; char domainsetsize_r_[PADR_(size_t)];
+	char mask_l_[PADL_(domainset_t *)]; domainset_t * mask; char mask_r_[PADR_(domainset_t *)];
+	char policy_l_[PADL_(int)]; int policy; char policy_r_[PADR_(int)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_sys_exit(struct thread *, struct sys_exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
@@ -2141,6 +2158,8 @@ int	sys_getfsstat(struct thread *, struct getfsstat_args *);
 int	sys_fhstatfs(struct thread *, struct fhstatfs_args *);
 int	sys_mknodat(struct thread *, struct mknodat_args *);
 int	sys_kevent(struct thread *, struct kevent_args *);
+int	sys_cpuset_getdomain(struct thread *, struct cpuset_getdomain_args *);
+int	sys_cpuset_setdomain(struct thread *, struct cpuset_setdomain_args *);
 
 #ifdef COMPAT_43
 
@@ -3033,6 +3052,8 @@ int	freebsd11_mknodat(struct thread *, struct freebsd11_mknodat_args *);
 #define	SYS_AUE_fhstatfs	AUE_FHSTATFS
 #define	SYS_AUE_mknodat	AUE_MKNODAT
 #define	SYS_AUE_kevent	AUE_KEVENT
+#define	SYS_AUE_cpuset_getdomain	AUE_NULL
+#define	SYS_AUE_cpuset_setdomain	AUE_NULL
 
 #undef PAD_
 #undef PADL_

@@ -1119,4 +1119,13 @@
 				    struct kevent32 *eventlist, \
 				    int nevents, \
 				    const struct timespec32 *timeout); }
+561	AUE_NULL	STD	{ int cpuset_getdomain(cpulevel_t level, \
+				    cpuwhich_t which, id_t id, \
+				    size_t domainsetsize, domainset_t *mask, \
+				    int *policy); }
+562	AUE_NULL	STD	{ int cpuset_setdomain(cpulevel_t level, \
+				    cpuwhich_t which, id_t id, \
+				    size_t domainsetsize, domainset_t *mask, \
+				    int policy); }
+
 ; vim: syntax=off

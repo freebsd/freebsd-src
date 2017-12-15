@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2015, Adrian Chadd <adrian@FreeBSD.org>
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2017,	Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,24 +25,23 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
+#ifndef __VM_DOMAINSET_H__
+#define __VM_DOMAINSET_H__
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+struct vm_domainset_iter {
+	struct domainset	*di_domain;
+	int			*di_iter;
+	int			di_flags;
+	int			di_n;
+};
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/sysproto.h>
-#include <sys/kernel.h>
+int	vm_domainset_iter_page(struct vm_domainset_iter *, int *, int *);
+void	vm_domainset_iter_page_init(struct vm_domainset_iter *,
+	    struct vm_object *, int *, int *);
+int	vm_domainset_iter_malloc(struct vm_domainset_iter *, int *, int *);
+void	vm_domainset_iter_malloc_init(struct vm_domainset_iter *,
+	    struct vm_object *, int *, int *);
 
-int
-sys_numa_setaffinity(struct thread *td, struct numa_setaffinity_args *uap)
-{
-	return (ENOSYS);
-}
-
-int
-sys_numa_getaffinity(struct thread *td, struct numa_getaffinity_args *uap)
-{
-	return (ENOSYS);
-}
+#endif  /* __VM_DOMAINSET_H__ */

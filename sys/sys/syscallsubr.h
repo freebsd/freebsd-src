@@ -36,6 +36,7 @@
 #include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/_cpuset.h>
+#include <sys/_domainset.h>
 
 struct file;
 struct filecaps;
@@ -96,6 +97,12 @@ int	kern_cpuset_getaffinity(struct thread *td, cpulevel_t level,
 int	kern_cpuset_setaffinity(struct thread *td, cpulevel_t level,
 	    cpuwhich_t which, id_t id, size_t cpusetsize,
 	    const cpuset_t *maskp);
+int	kern_cpuset_getdomain(struct thread *td, cpulevel_t level,
+	    cpuwhich_t which, id_t id, size_t domainsetsize,
+	    domainset_t *maskp, int *policyp);
+int	kern_cpuset_setdomain(struct thread *td, cpulevel_t level,
+	    cpuwhich_t which, id_t id, size_t domainsetsize,
+	    const domainset_t *maskp, int policy);
 int	kern_cpuset_getid(struct thread *td, cpulevel_t level,
 	    cpuwhich_t which, id_t id, cpusetid_t *setid);
 int	kern_cpuset_setid(struct thread *td, cpuwhich_t which,
