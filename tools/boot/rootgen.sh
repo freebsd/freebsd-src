@@ -94,6 +94,7 @@ opensolaris_load=YES
 EOF
     cp /boot/kernel/zfs.ko ${mntpt}/boot/kernel/zfs.ko
     cp /boot/kernel/opensolaris.ko ${mntpt}/boot/kernel/opensolaris.ko
+    ls -las ${mntpt}/boot
     # end tweaks
     zfs umount -f ${pool}/ROOT
     zfs set mountpoint=none ${pool}/ROOT
