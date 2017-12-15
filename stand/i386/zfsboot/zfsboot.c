@@ -16,6 +16,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "stand.h"
+
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/diskmbr.h>
@@ -36,15 +38,10 @@ __FBSDID("$FreeBSD$");
 
 #include <btxv86.h>
 
-/* Forward declared to avoid warnings -- these shouldn't be needed */
-int strcasecmp(const char *s1, const char *s2);
-void explicit_bzero(void *b, size_t len);
-
 #include "lib.h"
 #include "rbx.h"
 #include "drv.h"
 #include "edd.h"
-#include "util.h"
 #include "cons.h"
 #include "bootargs.h"
 #include "paths.h"
@@ -127,39 +124,7 @@ void reboot(void);
 static void load(void);
 static int parse_cmd(void);
 static void bios_getmem(void);
-void *malloc(size_t n);
-void free(void *ptr);
 int main(void);
-
-void *
-malloc(size_t n)
-{
-	char *p = heap_next;
-	if (p + n > heap_end) {
-		printf("malloc failure\n");
-		for (;;)
-		    ;
-		/* NOTREACHED */
-		return (0);
-	}
-	heap_next += n;
-	return (p);
-}
-
-void
-free(void *ptr)
-{
-
-	return;
-}
-
-static char *
-strdup(const char *s)
-{
-	char *p = malloc(strlen(s) + 1);
-	strcpy(p, s);
-	return (p);
-}
 
 #ifdef LOADER_GELI_SUPPORT
 #include "geliboot.c"
@@ -503,7 +468,6 @@ drvsize_ext(struct dsk *dskp)
 	if (V86_CY(v86.efl) ||	/* carry set */
 	    (v86.edx & 0xff) <= (unsigned)(dskp->drive & 0x7f)) /* unit # bad */
 		return (0);
-
 	cyl = ((v86.ecx & 0xc0) << 2) + ((v86.ecx & 0xff00) >> 8) + 1;
 	/* Convert max head # -> # of heads */
 	hds = ((v86.edx & 0xff00) >> 8) + 1;
@@ -721,6 +685,7 @@ main(void)
 	heap_next = (char *)dmadat + sizeof(*dmadat);
 	heap_end = (char *)PTOV(bios_basemem);
     }
+    setheap(heap_next, heap_end);
 
     dsk = malloc(sizeof(struct dsk));
     dsk->drive = *(uint8_t *)PTOV(ARGS);

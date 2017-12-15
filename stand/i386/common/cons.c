@@ -22,9 +22,10 @@ __FBSDID("$FreeBSD$");
 
 #include <btxv86.h>
 
+#include "stand.h"
+
 #include "lib.h"
 #include "rbx.h"
-#include "util.h"
 #include "cons.h"
 
 #define SECOND		18	/* Circa that many ticks in a second. */

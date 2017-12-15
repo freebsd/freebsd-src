@@ -34,9 +34,9 @@ __FBSDID("$FreeBSD$");
 #error gpt.c works only for little endian architectures
 #endif
 
+#include "stand.h"
 #include "crc32.h"
 #include "drv.h"
-#include "util.h"
 #include "gpt.h"
 
 static struct gpt_hdr hdr_primary, hdr_backup, *gpthdr;
