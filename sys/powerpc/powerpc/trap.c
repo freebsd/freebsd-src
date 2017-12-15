@@ -135,6 +135,7 @@ static struct powerpc_exception powerpc_exceptions[] = {
 	{ EXC_PERF,	"performance monitoring" },
 	{ EXC_VEC,	"altivec unavailable" },
 	{ EXC_VSX,	"vsx unavailable" },
+	{ EXC_FAC,	"facility unavailable" },
 	{ EXC_ITMISS,	"instruction tlb miss" },
 	{ EXC_DLMISS,	"data load tlb miss" },
 	{ EXC_DSMISS,	"data store tlb miss" },
@@ -277,6 +278,11 @@ trap(struct trapframe *frame)
 				save_fpu(td);
 			td->td_pcb->pcb_flags |= PCB_VSX;
 			enable_fpu(td);
+			break;
+
+		case EXC_FAC:
+			sig = SIGILL;
+			ucode =	ILL_ILLOPC;
 			break;
 
 		case EXC_VECAST_E:
