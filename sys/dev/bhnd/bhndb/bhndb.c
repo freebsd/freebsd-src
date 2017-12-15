@@ -687,6 +687,7 @@ bhndb_generic_resume(device_t dev)
 	/* Guarantee that all in-use dynamic register windows are mapped to
 	 * their previously configured target address. */
 	BHNDB_LOCK(sc);
+	error = 0;
 	for (size_t i = 0; i < bus_res->dwa_count; i++) {
 		dwa = &bus_res->dw_alloc[i];
 	

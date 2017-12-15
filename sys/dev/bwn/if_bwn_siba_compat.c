@@ -1984,7 +1984,7 @@ bhnd_compat_cc_pmu_set_ldoparef(device_t dev, uint8_t on)
 		error = bhnd_pmu_enable_regulator(ctx->pmu_dev,
 		    BHND_REGULATOR_PAREF_LDO);
 	} else {
-		error = bhnd_pmu_enable_regulator(ctx->pmu_dev,
+		error = bhnd_pmu_disable_regulator(ctx->pmu_dev,
 		    BHND_REGULATOR_PAREF_LDO);
 	}
 

@@ -1297,7 +1297,7 @@ static int
 bhndb_pci_eio_init(struct bhndb_pci_eio *pio, device_t dev, device_t pci_dev,
     struct bhndb_host_resources *hr)
 {
-	memset(&pio->eio, sizeof(pio->eio), 0);
+	memset(&pio->eio, 0, sizeof(pio->eio));
 	pio->eio.map = bhndb_pci_eio_map;
 	pio->eio.read = bhndb_pci_eio_read;
 	pio->eio.fini = NULL;
