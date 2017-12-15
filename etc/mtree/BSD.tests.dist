@@ -101,6 +101,8 @@
                     ..
                     end
                     ..
+                    env
+                    ..
                     enum
                     ..
                     error
@@ -478,6 +480,10 @@
         ..
         netinet
         ..
+        netipsec
+            tunnel
+            ..
+        ..
         netpfil
             pf
             ..
@@ -647,6 +653,8 @@
         csplit
         ..
         cut
+        ..
+        dc
         ..
         diff
         ..

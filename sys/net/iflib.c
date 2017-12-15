@@ -627,11 +627,14 @@ SYSCTL_INT(_net_iflib, OID_AUTO, txq_drain_encapfail, CTLFLAG_RD,
 
 
 static int iflib_encap_load_mbuf_fail;
+static int iflib_encap_pad_mbuf_fail;
 static int iflib_encap_txq_avail_fail;
 static int iflib_encap_txd_encap_fail;
 
 SYSCTL_INT(_net_iflib, OID_AUTO, encap_load_mbuf_fail, CTLFLAG_RD,
 		   &iflib_encap_load_mbuf_fail, 0, "# busdma load failures");
+SYSCTL_INT(_net_iflib, OID_AUTO, encap_pad_mbuf_fail, CTLFLAG_RD,
+		   &iflib_encap_pad_mbuf_fail, 0, "# runt frame pad failures");
 SYSCTL_INT(_net_iflib, OID_AUTO, encap_txq_avail_fail, CTLFLAG_RD,
 		   &iflib_encap_txq_avail_fail, 0, "# txq avail failures");
 SYSCTL_INT(_net_iflib, OID_AUTO, encap_txd_encap_fail, CTLFLAG_RD,
@@ -684,9 +687,10 @@ iflib_debug_reset(void)
 		iflib_fl_refills = iflib_fl_refills_large = iflib_tx_frees =
 		iflib_txq_drain_flushing = iflib_txq_drain_oactive =
 		iflib_txq_drain_notready = iflib_txq_drain_encapfail =
-		iflib_encap_load_mbuf_fail = iflib_encap_txq_avail_fail =
-		iflib_encap_txd_encap_fail = iflib_task_fn_rxs = iflib_rx_intr_enables =
-		iflib_fast_intrs = iflib_intr_link = iflib_intr_msix = iflib_rx_unavail =
+		iflib_encap_load_mbuf_fail = iflib_encap_pad_mbuf_fail =
+		iflib_encap_txq_avail_fail = iflib_encap_txd_encap_fail =
+		iflib_task_fn_rxs = iflib_rx_intr_enables = iflib_fast_intrs =
+		iflib_intr_link = iflib_intr_msix = iflib_rx_unavail =
 		iflib_rx_ctx_inactive = iflib_rx_zero_len = iflib_rx_if_input =
 		iflib_rx_mbuf_null = iflib_rxd_flush = 0;
 }
@@ -2467,13 +2471,26 @@ iflib_rxd_pkt_get(iflib_rxq_t rxq, if_rxd_info_t ri)
 }
 
 #if defined(INET6) || defined(INET)
+static void
+iflib_get_ip_forwarding(struct lro_ctrl *lc, bool *v4, bool *v6)
+{
+	CURVNET_SET(lc->ifp->if_vnet);
+#if defined(INET6)
+	*v6 = VNET(ip6_forwarding);
+#endif
+#if defined(INET)
+	*v4 = VNET(ipforwarding);
+#endif
+	CURVNET_RESTORE();
+}
+
 /*
  * Returns true if it's possible this packet could be LROed.
  * if it returns false, it is guaranteed that tcp_lro_rx()
  * would not return zero.
  */
 static bool
-iflib_check_lro_possible(struct lro_ctrl *lc, struct mbuf *m)
+iflib_check_lro_possible(struct mbuf *m, bool v4_forwarding, bool v6_forwarding)
 {
 	struct ether_header *eh;
 	uint16_t eh_type;
@@ -2483,31 +2500,20 @@ iflib_check_lro_possible(struct lro_ctrl *lc, struct mbuf *m)
 	switch (eh_type) {
 #if defined(INET6)
 		case ETHERTYPE_IPV6:
-		{
-			CURVNET_SET(lc->ifp->if_vnet);
-			if (VNET(ip6_forwarding) == 0) {
-				CURVNET_RESTORE();
-				return true;
-			}
-			CURVNET_RESTORE();
-			break;
-		}
+			return !v6_forwarding;
 #endif
 #if defined (INET)
 		case ETHERTYPE_IP:
-		{
-			CURVNET_SET(lc->ifp->if_vnet);
-			if (VNET(ipforwarding) == 0) {
-				CURVNET_RESTORE();
-				return true;
-			}
-			CURVNET_RESTORE();
-			break;
-		}
+			return !v4_forwarding;
 #endif
 	}
 
 	return false;
+}
+#else
+static void
+iflib_get_ip_forwarding(struct lro_ctrl *lc __unused, bool *v4 __unused, bool *v6 __unused)
+{
 }
 #endif
 
@@ -2525,6 +2531,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 	struct ifnet *ifp;
 	int lro_enabled;
 	bool lro_possible = false;
+	bool v4_forwarding, v6_forwarding;
 
 	/*
 	 * XXX early demux data packets so that if_input processing only handles
@@ -2601,6 +2608,8 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		__iflib_fl_refill_lt(ctx, fl, budget + 8);
 
 	lro_enabled = (if_getcapenable(ifp) & IFCAP_LRO);
+	if (lro_enabled)
+		iflib_get_ip_forwarding(&rxq->ifr_lc, &v4_forwarding, &v6_forwarding);
 	mt = mf = NULL;
 	while (mh != NULL) {
 		m = mh;
@@ -2615,7 +2624,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 #if defined(INET6) || defined(INET)
 		if (lro_enabled) {
 			if (!lro_possible) {
-				lro_possible = iflib_check_lro_possible(&rxq->ifr_lc, m);
+				lro_possible = iflib_check_lro_possible(m, v4_forwarding, v6_forwarding);
 				if (lro_possible && mf != NULL) {
 					ifp->if_input(ifp, mf);
 					DBG_COUNTER_INC(rx_if_input);
@@ -3098,6 +3107,48 @@ calc_next_txd(iflib_txq_t txq, int cidx, uint8_t qid)
 	return (next < end ? next : start);
 }
 
+/*
+ * Pad an mbuf to ensure a minimum ethernet frame size.
+ * min_frame_size is the frame size (less CRC) to pad the mbuf to
+ */
+static __noinline int
+iflib_ether_pad(device_t dev, struct mbuf **m_head, uint16_t min_frame_size)
+{
+	/*
+	 * 18 is enough bytes to pad an ARP packet to 46 bytes, and
+	 * and ARP message is the smallest common payload I can think of
+	 */
+	static char pad[18];	/* just zeros */
+	int n;
+	struct mbuf *new_head;
+
+	if (!M_WRITABLE(*m_head)) {
+		new_head = m_dup(*m_head, M_NOWAIT);
+		if (new_head == NULL) {
+			m_freem(*m_head);
+			device_printf(dev, "cannot pad short frame, m_dup() failed");
+			DBG_COUNTER_INC(encap_pad_mbuf_fail);
+			return ENOMEM;
+		}
+		m_freem(*m_head);
+		*m_head = new_head;
+	}
+
+	for (n = min_frame_size - (*m_head)->m_pkthdr.len;
+	     n > 0; n -= sizeof(pad))
+		if (!m_append(*m_head, min(n, sizeof(pad)), pad))
+			break;
+
+	if (n > 0) {
+		m_freem(*m_head);
+		device_printf(dev, "cannot pad short frame\n");
+		DBG_COUNTER_INC(encap_pad_mbuf_fail);
+		return (ENOBUFS);
+	}
+
+	return 0;
+}
+
 static int
 iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
 {
@@ -3150,6 +3201,12 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
 	} else {
 		desc_tag = txq->ift_desc_tag;
 		max_segs = scctx->isc_tx_nsegments;
+	}
+	if ((sctx->isc_flags & IFLIB_NEED_ETHER_PAD) &&
+	    __predict_false(m_head->m_pkthdr.len < scctx->isc_min_frame_size)) {
+		err = iflib_ether_pad(ctx->ifc_dev, m_headp, scctx->isc_min_frame_size);
+		if (err)
+			return err;
 	}
 	m_head = *m_headp;
 
@@ -3912,6 +3969,7 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		CTX_UNLOCK(ctx);
 		/* falls thru */
 	case SIOCGIFMEDIA:
+	case SIOCGIFXMEDIA:
 		err = ifmedia_ioctl(ifp, ifr, &ctx->ifc_media, command);
 		break;
 	case SIOCGI2C:
@@ -4259,6 +4317,14 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	GROUPTASK_INIT(&ctx->ifc_admin_task, 0, _task_fn_admin, ctx);
 	/* XXX format name */
 	taskqgroup_attach(qgroup_if_config_tqg, &ctx->ifc_admin_task, ctx, -1, "admin");
+
+	/* Set up cpu set.  If it fails, use the set of all CPUs. */
+	if (bus_get_cpus(dev, INTR_CPUS, sizeof(ctx->ifc_cpus), &ctx->ifc_cpus) != 0) {
+		device_printf(dev, "Unable to fetch CPU list\n");
+		CPU_COPY(&all_cpus, &ctx->ifc_cpus);
+	}
+	MPASS(CPU_COUNT(&ctx->ifc_cpus) > 0);
+
 	/*
 	** Now setup MSI or MSI/X, should
 	** return us the number of supported
@@ -4984,7 +5050,7 @@ find_nth(if_ctx_t ctx, cpuset_t *cpus, int qid)
 	int i, cpuid, eqid, count;
 
 	CPU_COPY(&ctx->ifc_cpus, cpus);
-	count = CPU_COUNT(&ctx->ifc_cpus);
+	count = CPU_COUNT(cpus);
 	eqid = qid % count;
 	/* clear up to the qid'th bit */
 	for (i = 0; i < eqid; i++) {
@@ -5391,20 +5457,14 @@ iflib_msix_init(if_ctx_t ctx)
 #else
 	queuemsgs = msgs - admincnt;
 #endif
-	if (bus_get_cpus(dev, INTR_CPUS, sizeof(ctx->ifc_cpus), &ctx->ifc_cpus) == 0) {
 #ifdef RSS
-		queues = imin(queuemsgs, rss_getnumbuckets());
+	queues = imin(queuemsgs, rss_getnumbuckets());
 #else
-		queues = queuemsgs;
+	queues = queuemsgs;
 #endif
-		queues = imin(CPU_COUNT(&ctx->ifc_cpus), queues);
-		device_printf(dev, "pxm cpus: %d queue msgs: %d admincnt: %d\n",
-					  CPU_COUNT(&ctx->ifc_cpus), queuemsgs, admincnt);
-	} else {
-		device_printf(dev, "Unable to fetch CPU list\n");
-		/* Figure out a reasonable auto config value */
-		queues = min(queuemsgs, mp_ncpus);
-	}
+	queues = imin(CPU_COUNT(&ctx->ifc_cpus), queues);
+	device_printf(dev, "pxm cpus: %d queue msgs: %d admincnt: %d\n",
+				  CPU_COUNT(&ctx->ifc_cpus), queuemsgs, admincnt);
 #ifdef  RSS
 	/* If we're doing RSS, clamp at the number of RSS buckets */
 	if (queues > rss_getnumbuckets())

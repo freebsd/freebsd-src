@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
+ * SPDX-License-Identifier: (BSD-3-Clause AND MIT-CMU)
  *
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
@@ -1600,8 +1600,6 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
  *	VM_ALLOC_SBUSY		shared busy the allocated page
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
- *
- *	This routine may not sleep.
  */
 vm_page_t
 vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
@@ -1832,8 +1830,6 @@ again:
  *	VM_ALLOC_SBUSY		shared busy the allocated page
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
- *
- *	This routine may not sleep.
  */
 vm_page_t
 vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
@@ -2040,11 +2036,9 @@ vm_page_alloc_check(vm_page_t m)
  *				intends to allocate
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
- *
- *	This routine may not sleep.
  */
 vm_page_t
-vm_page_alloc_freelist(int flind, int req)
+vm_page_alloc_freelist(int freelist, int req)
 {
 	struct vm_domainset_iter di;
 	vm_page_t m;
@@ -2052,7 +2046,7 @@ vm_page_alloc_freelist(int flind, int req)
 
 	vm_domainset_iter_page_init(&di, kernel_object, &domain, &req);
 	do {
-		m = vm_page_alloc_freelist_domain(domain, flind, req);
+		m = vm_page_alloc_freelist_domain(domain, freelist, req);
 		if (m != NULL)
 			break;
 	} while (vm_domainset_iter_page(&di, &domain, &req) == 0);
@@ -2061,7 +2055,7 @@ vm_page_alloc_freelist(int flind, int req)
 }
 
 vm_page_t
-vm_page_alloc_freelist_domain(int domain, int flind, int req)
+vm_page_alloc_freelist_domain(int domain, int freelist, int req)
 {
 	vm_page_t m;
 	u_int flags, free_count;
@@ -2085,7 +2079,7 @@ again:
 	    vm_cnt.v_free_count > vm_cnt.v_interrupt_free_min) ||
 	    (req_class == VM_ALLOC_INTERRUPT &&
 	    vm_cnt.v_free_count > 0))
-		m = vm_phys_alloc_freelist_pages(domain, flind,
+		m = vm_phys_alloc_freelist_pages(domain, freelist,
 		    VM_FREEPOOL_DIRECT, 0);
 	if (m == NULL) {
 		if (vm_page_alloc_fail(NULL, req))

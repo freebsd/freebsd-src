@@ -58,7 +58,6 @@ static __inline void	 unreadch(void);
 static __inline char	*readline(void);
 static __inline void	 src_free(void);
 
-static __inline u_int	 max(u_int, u_int);
 static u_long		 get_ulong(struct number *);
 
 static __inline void	 push_number(struct number *);
@@ -326,18 +325,12 @@ pbn(const char *str, const BIGNUM *n)
 
 #endif
 
-static __inline u_int
-max(u_int a, u_int b)
-{
-
-	return (a > b ? a : b);
-}
-
 static unsigned long factors[] = {
 	0, 10, 100, 1000, 10000, 100000, 1000000, 10000000,
 	100000000, 1000000000
 };
 
+/* Multiply n by 10^s */
 void
 scale_number(BIGNUM *n, int s)
 {
@@ -411,6 +404,7 @@ split_number(const struct number *n, BIGNUM *i, BIGNUM *f)
 	}
 }
 
+/* Change the scale of n to s.  Reducing scale may truncate the mantissa */
 void
 normalize(struct number *n, u_int s)
 {
@@ -1067,8 +1061,6 @@ static void
 bdiv(void)
 {
 	struct number *a, *b, *r;
-	BN_CTX *ctx;
-	u_int scale;
 
 	a = pop_number();
 	if (a == NULL)
@@ -1079,21 +1071,8 @@ bdiv(void)
 		return;
 	}
 
-	r = new_number();
-	r->scale = bmachine.scale;
-	scale = max(a->scale, b->scale);
+	r = div_number(b, a, bmachine.scale);
 
-	if (BN_is_zero(a->number))
-		warnx("divide by zero");
-	else {
-		normalize(a, scale);
-		normalize(b, scale + r->scale);
-
-		ctx = BN_CTX_new();
-		bn_checkp(ctx);
-		bn_check(BN_div(r->number, NULL, b->number, a->number, ctx));
-		BN_CTX_free(ctx);
-	}
 	push_number(r);
 	free_number(a);
 	free_number(b);
@@ -1117,13 +1096,13 @@ bmod(void)
 
 	r = new_number();
 	scale = max(a->scale, b->scale);
-	r->scale = max(b->scale, a->scale + bmachine.scale);
+	r->scale = scale;
 
 	if (BN_is_zero(a->number))
 		warnx("remainder by zero");
 	else {
 		normalize(a, scale);
-		normalize(b, scale + bmachine.scale);
+		normalize(b, scale);
 
 		ctx = BN_CTX_new();
 		bn_checkp(ctx);
@@ -1138,7 +1117,7 @@ bmod(void)
 static void
 bdivmod(void)
 {
-	struct number *a, *b, *rdiv, *rmod;
+	struct number *a, *b, *frac, *quotient, *rdiv, *remainder;
 	BN_CTX *ctx;
 	u_int scale;
 
@@ -1152,25 +1131,44 @@ bdivmod(void)
 	}
 
 	rdiv = new_number();
-	rmod = new_number();
-	rdiv->scale = bmachine.scale;
-	rmod->scale = max(b->scale, a->scale + bmachine.scale);
+	quotient = new_number();
+	remainder = new_number();
+	scale = max(a->scale, b->scale);
+	rdiv->scale = 0;
+	remainder->scale = scale;
+	quotient->scale = bmachine.scale;
 	scale = max(a->scale, b->scale);
 
 	if (BN_is_zero(a->number))
 		warnx("divide by zero");
 	else {
 		normalize(a, scale);
-		normalize(b, scale + bmachine.scale);
+		normalize(b, scale);
 
 		ctx = BN_CTX_new();
 		bn_checkp(ctx);
-		bn_check(BN_div(rdiv->number, rmod->number,
+		/*
+		 * Unlike other languages' divmod operations, dc is specified
+		 * to return the remainder and the full quotient, rather than
+		 * the remainder and the floored quotient.  bn(3) has no
+		 * function to calculate both.  So we'll use BN_div to get the
+		 * remainder and floored quotient, then calculate the full
+		 * quotient from those.
+		 *
+		 * quotient = rdiv + remainder / divisor
+		 */
+		bn_check(BN_div(rdiv->number, remainder->number,
 		    b->number, a->number, ctx));
+		frac = div_number(remainder, a, bmachine.scale);
+		normalize(rdiv, bmachine.scale);
+		normalize(remainder, scale);
+		bn_check(BN_add(quotient->number, rdiv->number, frac->number));
+		free_number(frac);
 		BN_CTX_free(ctx);
 	}
-	push_number(rdiv);
-	push_number(rmod);
+	push_number(quotient);
+	push_number(remainder);
+	free_number(rdiv);
 	free_number(a);
 	free_number(b);
 }
@@ -1681,7 +1679,7 @@ parse_number(void)
 
 	unreadch();
 	push_number(readnumber(&bmachine.readstack[bmachine.readsp],
-	    bmachine.ibase));
+	    bmachine.ibase, bmachine.scale));
 }
 
 static void

@@ -294,8 +294,6 @@ vm_paddr_t first_managed_pa;
  */
 caddr_t _tmppt = 0;
 
-struct msgbuf *msgbufp = NULL; /* XXX move it to machdep.c */
-
 /*
  *  Crashdump maps.
  */

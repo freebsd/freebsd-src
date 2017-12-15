@@ -85,7 +85,7 @@
 #define	REMOTE_PORT	67
 
 struct option_data {
-	int		 len;
+	size_t		 len;
 	u_int8_t	*data;
 };
 
@@ -95,7 +95,7 @@ struct string_list {
 };
 
 struct iaddr {
-	int len;
+	size_t len;
 	unsigned char iabuf[16];
 };
 
@@ -288,9 +288,9 @@ char *parse_string(FILE *);
 int parse_ip_addr(FILE *, struct iaddr *);
 void parse_hardware_param(FILE *, struct hardware *);
 void parse_lease_time(FILE *, time_t *);
-unsigned char *parse_numeric_aggregate(FILE *, unsigned char *, int *,
-    int, int, int);
-void convert_num(unsigned char *, char *, int, int);
+unsigned char *parse_numeric_aggregate(FILE *, unsigned char *, size_t *,
+    int, unsigned, int);
+void convert_num(unsigned char *, char *, unsigned, int);
 time_t parse_date(FILE *);
 
 /* tree.c */
@@ -427,7 +427,7 @@ int read_client_conf(void);
 void read_client_leases(void);
 void parse_client_statement(FILE *, struct interface_info *,
     struct client_config *);
-int parse_X(FILE *, u_int8_t *, int);
+unsigned parse_X(FILE *, u_int8_t *, unsigned);
 int parse_option_list(FILE *, u_int8_t *);
 void parse_interface_declaration(FILE *, struct client_config *);
 struct interface_info *interface_or_dummy(char *);

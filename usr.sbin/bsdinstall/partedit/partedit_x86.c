@@ -111,7 +111,7 @@ bootpart_size(const char *scheme)
 }
 
 const char *
-bootpart_type(const char *scheme)
+bootpart_type(const char *scheme, const char **mountpoint)
 {
 
 	if (strcmp(x86_bootmethod(), "UEFI") == 0)

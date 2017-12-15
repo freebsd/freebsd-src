@@ -89,6 +89,12 @@ void __libc_free_tls(void *tls, size_t tcbsize, size_t tcbalign);
 #define TLS_VARIANT_II
 #endif
 
+#if defined(__mips__) || defined(__powerpc__) || defined(__riscv)
+#define DTV_OFFSET 0x8000
+#else
+#define DTV_OFFSET 0
+#endif
+
 #ifndef PIC
 
 static size_t tls_static_space;
@@ -149,13 +155,70 @@ free_aligned(void *ptr)
 
 #ifdef TLS_VARIANT_I
 
+/*
+ * There are two versions of variant I of TLS
+ *
+ * - ARM and aarch64 uses original variant I as is described in [1] and [2],
+ *   where TP points to start of TCB followed by aligned TLS segment.
+ *   Both TCB and TLS must be aligned to alignment of TLS section. The TCB[0]
+ *   points to DTV vector and DTV values are real addresses (without bias).
+ *   Note: for Local Exec TLS Model, the offsets from TP (TCB in this case) to
+ *   TLS variables are computed by linker, so we cannot overalign TLS section.
+ *
+ * - MIPS, PowerPC and RISC-V use modified version of variant I,
+ *   described in [3] where TP points (with bias) to TLS and TCB immediately
+ *   precedes TLS without any alignment gap[4]. Only TLS should be aligned.
+ *   The TCB[0] points to DTV vector and DTV values are biased by constant
+ *   value (0x8000) from real addresses[5].
+ *
+ * [1] Ulrich Drepper: ELF Handling for Thread-Local Storage
+ *     www.akkadia.org/drepper/tls.pdf
+ *
+ * [2] ARM IHI 0045E: Addenda to, and Errata in, the ABI for the ARM(r)
+ *     Architecture
+ *   infocenter.arm.com/help/topic/com.arm.doc.ihi0045e/IHI0045E_ABI_addenda.pdf
+ *
+ * [3] OpenPOWER: Power Architecture 64-Bit ELF V2 ABI Specification
+ *     https://members.openpowerfoundation.org/document/dl/576
+ *
+ * [4] Its unclear if "without any alignment gap" is hard ABI requirement,
+ *     but we must follow this rule due to suboptimal _set_tp()
+ *     (aka <ARCH>_SET_TP) implementation. This function doesn't expect TP but
+ *     TCB as argument.
+ *
+ * [5] I'm not able to validate "values are biased" assertions.
+ */
+
 #define	TLS_TCB_SIZE	(2 * sizeof(void *))
 
 /*
- * Free Static TLS using the Variant I method.
+ * Return pointer to allocated TLS block
+ */
+static void *
+get_tls_block_ptr(void *tcb, size_t tcbsize)
+{
+	size_t extra_size, post_size, pre_size, tls_block_size;
+
+	/* Compute fragments sizes. */
+	extra_size = tcbsize - TLS_TCB_SIZE;
+#if defined(__aarch64__) || defined(__arm__)
+	post_size =  roundup2(TLS_TCB_SIZE, tls_init_align) - TLS_TCB_SIZE;
+#else
+	post_size = 0;
+#endif
+	tls_block_size = tcbsize + post_size;
+	pre_size = roundup2(tls_block_size, tls_init_align) - tls_block_size;
+
+	return ((char *)tcb - pre_size - extra_size);
+}
+
+/*
+ * Free Static TLS using the Variant I method. The tcbsize
+ * and tcbalign parameters must be the same as those used to allocate
+ * the block.
  */
 void
-__libc_free_tls(void *tcb, size_t tcbsize __unused, size_t tcbalign __unused)
+__libc_free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
 {
 	Elf_Addr *dtv;
 	Elf_Addr **tls;
@@ -163,55 +226,88 @@ __libc_free_tls(void *tcb, size_t tcbsize __unused, size_t tcbalign __unused)
 	tls = (Elf_Addr **)tcb;
 	dtv = tls[0];
 	__je_bootstrap_free(dtv);
-	free_aligned(tls);
+	free_aligned(get_tls_block_ptr(tcb, tcbsize));
 }
 
 /*
  * Allocate Static TLS using the Variant I method.
+ *
+ * To handle all above requirements, we setup the following layout for 
+ * TLS block:
+ * (whole memory block is aligned with MAX(TLS_TCB_ALIGN, tls_init_align))
+ *
+ * +----------+--------------+--------------+-----------+------------------+
+ * | pre gap  | extended TCB |     TCB      | post gap  |    TLS segment   |
+ * | pre_size |  extra_size  | TLS_TCB_SIZE | post_size | tls_static_space |
+ * +----------+--------------+--------------+-----------+------------------+
+ *
+ * where:
+ *  extra_size is tcbsize - TLS_TCB_SIZE
+ *  post_size is used to adjust TCB to TLS aligment for first version of TLS
+ *            layout and is always 0 for second version.
+ *  pre_size  is used to adjust TCB aligment for first version and to adjust
+ *            TLS alignment for second version.
+ *
  */
 void *
 __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign)
 {
-	Elf_Addr *dtv;
-	Elf_Addr **tls;
+	Elf_Addr *dtv, **tcb;
+	char *tls_block, *tls;
+	size_t extra_size, maxalign, post_size, pre_size, tls_block_size;
 
 	if (oldtcb != NULL && tcbsize == TLS_TCB_SIZE)
 		return (oldtcb);
 
 	tls_assert(tcbalign >= TLS_TCB_ALIGN);
-	tls_assert(tcbsize == TLS_TCB_SIZE);
+	maxalign = MAX(tcbalign, tls_init_align);
 
-	tcbsize = roundup2(tcbsize, tcbalign);
-	tls = malloc_aligned(tcbsize + tls_static_space, tcbalign);
-	if (tls == NULL) {
+	/* Compute fragmets sizes. */
+	extra_size = tcbsize - TLS_TCB_SIZE;
+#if defined(__aarch64__) || defined(__arm__)
+	post_size = roundup2(TLS_TCB_SIZE, tls_init_align) - TLS_TCB_SIZE;
+#else
+	post_size = 0;
+#endif
+	tls_block_size = tcbsize + post_size;
+	pre_size = roundup2(tls_block_size, tls_init_align) - tls_block_size;
+	tls_block_size += pre_size + tls_static_space;
+
+	/* Allocate whole TLS block */
+	tls_block = malloc_aligned(tls_block_size, maxalign);
+	if (tls_block == NULL) {
 		tls_msg("__libc_allocate_tls: Out of memory.\n");
 		abort();
 	}
-	memset(tls, 0, tcbsize + tls_static_space);
+	memset(tls_block, 0, tls_block_size);
+	tcb = (Elf_Addr **)(tls_block + pre_size + extra_size);
+	tls = (char *)tcb + TLS_TCB_SIZE + post_size;
 
 	if (oldtcb != NULL) {
-		memcpy(tls, oldtcb, tcbsize + tls_static_space);
-		__je_bootstrap_free(oldtcb);
+		memcpy(tls_block, get_tls_block_ptr(oldtcb, tcbsize),
+		    tls_block_size);
+		free_aligned(oldtcb);
 
 		/* Adjust the DTV. */
-		dtv = tls[0];
-		dtv[2] = (Elf_Addr)tls + tcbsize;
+		dtv = tcb[0];
+		dtv[2] = (Elf_Addr)(tls + DTV_OFFSET);
 	} else {
 		dtv = __je_bootstrap_malloc(3 * sizeof(Elf_Addr));
 		if (dtv == NULL) {
 			tls_msg("__libc_allocate_tls: Out of memory.\n");
 			abort();
 		}
-		tls[0] = dtv;
+		/* Build the DTV. */
+		tcb[0] = dtv;
 		dtv[0] = 1;		/* Generation. */
 		dtv[1] = 1;		/* Segments count. */
-		dtv[2] = (Elf_Addr)tls + tcbsize;
+		dtv[2] = (Elf_Addr)(tls + DTV_OFFSET);
 
 		if (tls_init_size > 0)
-			memcpy((void*)dtv[2], tls_init, tls_init_size);
+			memcpy(tls, tls_init, tls_init_size);
 	}
 
-	return (tls);
+	return (tcb);
 }
 
 #endif
@@ -234,6 +330,7 @@ __libc_free_tls(void *tcb, size_t tcbsize __unused, size_t tcbalign)
 	 * Figure out the size of the initial TLS block so that we can
 	 * find stuff which ___tls_get_addr() allocated dynamically.
 	 */
+	tcbalign = MAX(tcbalign, tls_init_align);
 	size = roundup2(tls_static_space, tcbalign);
 
 	dtv = ((Elf_Addr**)tcb)[1];
@@ -254,6 +351,7 @@ __libc_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
 	Elf_Addr *dtv;
 	Elf_Addr segbase, oldsegbase;
 
+	tcbalign = MAX(tcbalign, tls_init_align);
 	size = roundup2(tls_static_space, tcbalign);
 
 	if (tcbsize < 2 * sizeof(Elf_Addr))
@@ -368,9 +466,7 @@ _init_tls(void)
 			break;
 		}
 	}
-
-	tls = _rtld_allocate_tls(NULL, TLS_TCB_SIZE,
-	    MAX(TLS_TCB_ALIGN, tls_init_align));
+	tls = _rtld_allocate_tls(NULL, TLS_TCB_SIZE, TLS_TCB_ALIGN);
 
 	_set_tp(tls);
 #endif

@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 10, 2015
+.Dd November 6, 2017
 .Dt CRYPTO 9
 .Os
 .Sh NAME
@@ -333,9 +333,10 @@ specified the
 flag).
 .It Dv CRYPTO_F_ASYNC
 Try to do the crypto operation in a pool of workers
-if the operation is synchronous (that the driver specified the
+if the operation is synchronous (that is, if the driver specified the
 .Dv CRYPTOCAP_F_SYNC
-flag). It aims to speed up processing by dispatching crypto operations
+flag).
+It aims to speed up processing by dispatching crypto operations
 on different processors.
 .It Dv CRYPTO_F_ASYNC_KEEPORDER
 Dispatch callbacks in the same order they are posted.

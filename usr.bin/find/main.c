@@ -67,7 +67,6 @@ time_t now;			/* time find was run */
 int dotfd;			/* starting directory */
 int ftsoptions;			/* options for the ftsopen(3) call */
 int ignore_readdir_race;	/* ignore readdir race */
-int isdeprecated;		/* using deprecated syntax */
 int isdepth;			/* do directories on post-order visit */
 int isoutput;			/* user specified output operator */
 int issort;         		/* do hierarchies in lexicographical order */

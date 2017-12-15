@@ -31,8 +31,9 @@ CWARNFLAGS.zfs_module.c += -Wno-unused-function
 SRCS=	boot1.c self_reloc.c start.S ufs_module.c
 .if ${MK_ZFS} != "no"
 SRCS+=		zfs_module.c
-CFLAGS+=	-I${ZFSSRC}
-CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
+CFLAGS.zfs_module.c+=	-I${ZFSSRC}
+CFLAGS.zfs_module.c+=	-I${SYSDIR}/cddl/boot/zfs
+CFLAGS.zfs_module.c+=	-I${SYSDIR}/crypto/skein
 CFLAGS+=	-DEFI_ZFS_BOOT
 LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 .endif
@@ -105,8 +106,6 @@ boot1.efi: ${PROG}
 		-j .dynamic -j .dynsym -j .rel.dyn \
 		-j .rela.dyn -j .reloc -j .eh_frame \
 		--output-target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
-
-boot1.o: ${SASRC}/ufsread.c
 
 # The following inserts our objects into a template FAT file system
 # created by generate-fat.sh

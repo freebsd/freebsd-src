@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -109,7 +111,7 @@ struct chipc_gpio_update {
 	if (_val)					\
 		(_upd)->_reg.value |= (1 << (_pin));	\
 	else						\
-		(_upd)->_reg.value &= (1 << (_pin));	\
+		(_upd)->_reg.value &= ~(1 << (_pin));	\
 } while(0)	
 
 /**

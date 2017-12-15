@@ -32,6 +32,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/metadata.h>
 #include <machine/elf.h>
+#if defined(__powerpc__)
+#include <machine/md_var.h>
+#endif
 
 #include <stand.h>
 
@@ -88,7 +91,7 @@ __elfN(ofw_exec)(struct preloaded_file *fp)
 	if (dtbp != 0) {
 		OF_quiesce();
 		((int (*)(u_long, u_long, u_long, void *, u_long))entry)(dtbp, 0, 0,
-		    mdp, sizeof(mdp));
+		    (void *)mdp, sizeof(mdp));
 	} else {
 		OF_chain((void *)reloc, end - (char *)reloc, (void *)entry,
 		    (void *)mdp, 0xfb5d104d);

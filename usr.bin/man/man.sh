@@ -201,7 +201,7 @@ find_file() {
 		catroot="$catroot/$3"
 	fi
 
-	if [ ! -d "$manroot" ]; then
+	if [ ! -d "$manroot" -a ! -d "$catroot" ]; then
 		return 1
 	fi
 	decho "  Searching directory $manroot" 2
@@ -276,6 +276,9 @@ man_check_for_so() {
 	local IFS line tstr
 
 	unset IFS
+	if [ -n "$catpage" ]; then
+		return 0
+	fi
 
 	# We need to loop to accommodate multiple .so directives.
 	while true

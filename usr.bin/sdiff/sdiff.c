@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-#define DIFF_PATH	"/usr/bin/diff"
+static char diff_path[] = "/usr/bin/diff";
 
 #define WIDTH 126
 /*
@@ -213,9 +213,11 @@ main(int argc, char **argv)
 	int ch, fd[2] = {-1}, status;
 	pid_t pid=0;
 	const char *outfile = NULL;
-	char **diffargv, *diffprog = DIFF_PATH, *filename1, *filename2,
+	char **diffargv, *diffprog = diff_path, *filename1, *filename2,
 	     *tmp1, *tmp2, *s1, *s2;
 	int i;
+	char I_arg[] = "-I";
+	char speed_lf[] = "--speed-large-files";
 
 	/*
 	 * Process diff flags.
@@ -269,14 +271,14 @@ main(int argc, char **argv)
 				sprintf(diffargv[1], "%s%c", diffargv[1], ch);
 			break;
 		case 'H':
-			diffargv[diffargc++] = "--speed-large-files";
+			diffargv[diffargc++] = speed_lf;
 			break;
 		case DIFFPROG_OPT:
 			diffargv[0] = diffprog = optarg;
 			break;
 		case 'I':
 			Iflag = 1;
-			diffargv[diffargc++] = "-I";
+			diffargv[diffargc++] = I_arg;
 			diffargv[diffargc++] = optarg;
 			break;
 		case 'l':
@@ -616,7 +618,7 @@ QUIT:
  * Takes into account that tabs can take multiple columns.
  */
 static void
-println(const char *s1, const char div, const char *s2)
+println(const char *s1, const char divider, const char *s2)
 {
 	size_t col;
 
@@ -633,7 +635,7 @@ println(const char *s1, const char div, const char *s2)
 		putchar(' ');
 
 	/* Only print left column. */
-	if (div == ' ' && !s2) {
+	if (divider == ' ' && !s2) {
 		printf(" (\n");
 		return;
 	}
@@ -643,10 +645,10 @@ println(const char *s1, const char div, const char *s2)
 	 * need to add the space for padding.
 	 */
 	if (!s2) {
-		printf(" %c\n", div);
+		printf(" %c\n", divider);
 		return;
 	}
-	printf(" %c ", div);
+	printf(" %c ", divider);
 	col += 3;
 
 	/* Skip angle bracket and space. */
@@ -868,14 +870,14 @@ parsecmd(FILE *diffpipe, FILE *file1, FILE *file2)
  * Queues up a diff line.
  */
 static void
-enqueue(char *left, char div, char *right)
+enqueue(char *left, char divider, char *right)
 {
 	struct diffline *diffp;
 
 	if (!(diffp = malloc(sizeof(struct diffline))))
 		err(2, "enqueue");
 	diffp->left = left;
-	diffp->div = div;
+	diffp->div = divider;
 	diffp->right = right;
 	STAILQ_INSERT_TAIL(&diffhead, diffp, diffentries);
 }

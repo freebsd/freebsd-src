@@ -32,11 +32,12 @@ __FBSDID("$FreeBSD$");
 
 #include <btxv86.h>
 
+#include "stand.h"
+
 #include "bootargs.h"
 #include "lib.h"
 #include "rbx.h"
 #include "drv.h"
-#include "util.h"
 #include "cons.h"
 #include "gpt.h"
 #include "paths.h"
@@ -105,34 +106,10 @@ void exit(int);
 static void load(void);
 static int parse_cmds(char *, int *);
 static int dskread(void *, daddr_t, unsigned);
-void *malloc(size_t n);
-void free(void *ptr);
 #ifdef LOADER_GELI_SUPPORT
 static int vdev_read(void *vdev __unused, void *priv, off_t off, void *buf,
 	size_t bytes);
 #endif
-
-void *
-malloc(size_t n)
-{
-	char *p = heap_next;
-	if (p + n > heap_end) {
-		printf("malloc failure\n");
-		for (;;)
-		    ;
-		/* NOTREACHED */
-		return (0);
-	}
-	heap_next += n;
-	return (p);
-}
-
-void
-free(void *ptr)
-{
-
-	return;
-}
 
 #include "ufsread.c"
 #include "gpt.c"
@@ -254,7 +231,7 @@ gptinit(void)
 #ifdef LOADER_GELI_SUPPORT
 	if (geli_taste(vdev_read, &dsk, (gpttable[curent].ent_lba_end -
 	    gpttable[curent].ent_lba_start)) == 0) {
-		if (geli_havekey(&dsk) != 0 && geli_passphrase(&gelipw,
+		if (geli_havekey(&dsk) != 0 && geli_passphrase(gelipw,
 		    dsk.unit, 'p', curent + 1, &dsk) != 0) {
 			printf("%s: unable to decrypt GELI key\n", BOOTPROG);
 			return (-1);
@@ -265,6 +242,8 @@ gptinit(void)
 	dsk_meta = 0;
 	return (0);
 }
+
+int main(void);
 
 int
 main(void)
@@ -285,6 +264,7 @@ main(void)
 		heap_next = (char *)dmadat + sizeof(*dmadat);
 		heap_end = (char *)PTOV(bios_basemem);
 	}
+	setheap(heap_next, heap_end);
 
 	v86.ctl = V86_FLAGS;
 	v86.efl = PSL_RESERVED_DEFAULT | PSL_I;

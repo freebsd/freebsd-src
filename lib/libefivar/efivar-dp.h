@@ -60,10 +60,13 @@ typedef const efidp_data *const_efidp;
  */
 ssize_t efidp_format_device_path(char *buf, size_t len, const_efidp dp,
     ssize_t max);
-ssize_t efidp_format_device_path_node(char *buf, size_t len, const_efidp dp,
-    ssize_t max);
+ssize_t efidp_format_device_path_node(char *buf, size_t len, const_efidp dp);
 ssize_t efidp_parse_device_path(char *path, efidp out, size_t max);
+char * efidp_extract_file_path(const_efidp dp);
 
 size_t efidp_size(const_efidp);
+
+int efivar_device_path_to_unix_path(const_efidp dp, char **dev, char **relpath, char **abspath);
+int efivar_unix_path_to_device_path(const char *path, efidp *dp);
 
 #endif /* _EFIVAR_DP_H_ */

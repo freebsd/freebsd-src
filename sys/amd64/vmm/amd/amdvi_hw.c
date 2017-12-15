@@ -119,15 +119,6 @@ CTASSERT(sizeof(amdvi_dte) == 0x200000);
 
 static SLIST_HEAD (, amdvi_domain) dom_head;
 
-static inline void
-amdvi_pci_write(struct amdvi_softc *softc, int off, uint32_t data)
-{
-
-	pci_cfgregwrite(PCI_RID2BUS(softc->pci_rid),
-	    PCI_RID2SLOT(softc->pci_rid), PCI_RID2FUNC(softc->pci_rid),
-	    off, data, 4);
-}
-
 static inline uint32_t
 amdvi_pci_read(struct amdvi_softc *softc, int off)
 {
@@ -135,32 +126,6 @@ amdvi_pci_read(struct amdvi_softc *softc, int off)
 	return (pci_cfgregread(PCI_RID2BUS(softc->pci_rid),
 	    PCI_RID2SLOT(softc->pci_rid), PCI_RID2FUNC(softc->pci_rid),
 	    off, 4));
-}
-
-static int
-amdvi_find_pci_cap(struct amdvi_softc *softc, uint8_t capability, int *off)
-{
-	uint32_t read;
-	uint8_t ptr;
-
-	read = amdvi_pci_read(softc, PCIR_COMMAND);
-	if (((read >> 16) & PCIM_STATUS_CAPPRESENT) == 0)
-		return (ENXIO);
-
-	/* Read the starting of capability pointer. */
-	read = amdvi_pci_read(softc, PCIR_CAP_PTR);
-	ptr = read & 0xFF;
-
-	while (ptr != 0) {
-		read = amdvi_pci_read(softc, ptr);
-		if ((read & 0xFF) == capability) {
-			*off = ptr;
-			return (0);
-		}
-		ptr = (read >> 8) & 0xFF;
-	}
-
-	return (ENOENT);
 }
 
 #ifdef AMDVI_ATS_ENABLE
@@ -815,6 +780,7 @@ amdvi_event_intr(void *arg)
 	    softc->total_cmd, ctrl->cmd_tail, ctrl->cmd_head);
 
 	amdvi_print_events(softc);
+	ctrl->status &= AMDVI_STATUS_EV_OF | AMDVI_STATUS_EV_INTR;
 }
 
 static void
@@ -836,35 +802,47 @@ amdvi_free_evt_intr_res(device_t dev)
 	    dev, 1, &softc->event_irq);
 }
 
-static	bool
+static bool
 amdvi_alloc_intr_resources(struct amdvi_softc *softc)
 {
+	struct amdvi_ctrl *ctrl;
 	device_t dev, pcib;
+	device_t mmio_dev;
 	uint64_t msi_addr;
-	uint32_t msi_data, temp;
-	int err, msi_off;
+	uint32_t msi_data;
+	int err;
 
 	dev = softc->dev;
 	pcib = device_get_parent(device_get_parent(dev));
+	mmio_dev = pci_find_bsf(PCI_RID2BUS(softc->pci_rid),
+            PCI_RID2SLOT(softc->pci_rid), PCI_RID2FUNC(softc->pci_rid));
+	if (device_is_attached(mmio_dev)) {
+		device_printf(dev,
+		    "warning: IOMMU device is claimed by another driver %s\n",
+		    device_get_driver(mmio_dev)->name);
+	}
+
 	softc->event_irq = -1;
 	softc->event_rid = 0;
+
 	/*
 	 * Section 3.7.1 of IOMMU rev 2.0. With MSI, there is only one
 	 * interrupt. XXX: Enable MSI/X support.
 	 */
-
 	err = PCIB_ALLOC_MSI(pcib, dev, 1, 1, &softc->event_irq);
 	if (err) {
 		device_printf(dev,
 		    "Couldn't find event MSI IRQ resource.\n");
 		return (ENOENT);
 	}
+
 	err = bus_set_resource(dev, SYS_RES_IRQ, softc->event_rid,
 	    softc->event_irq, 1);
 	if (err) {
 		device_printf(dev, "Couldn't set event MSI resource.\n");
 		return (ENXIO);
 	}
+
 	softc->event_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &softc->event_rid, RF_ACTIVE);
 	if (!softc->event_res) {
@@ -886,13 +864,6 @@ amdvi_alloc_intr_resources(struct amdvi_softc *softc)
 	bus_describe_intr(dev, softc->event_res, softc->event_tag,
 	    "fault");
 
-	err = amdvi_find_pci_cap(softc, PCIY_MSI, &msi_off);
-	if (err) {
-		device_printf(dev, "Couldn't find MSI capability, err = %d.\n",
-			      err);
-		return (err);
-	}
-
 	err = PCIB_MAP_MSI(pcib, dev, softc->event_irq, &msi_addr,
 	    &msi_data);
 	if (err) {
@@ -903,17 +874,12 @@ amdvi_alloc_intr_resources(struct amdvi_softc *softc)
 		return (err);
 	}
 
-	/* Configure MSI */
-	amdvi_pci_write(softc, msi_off + PCIR_MSI_ADDR, msi_addr);
-	amdvi_pci_write(softc, msi_off + PCIR_MSI_ADDR_HIGH,
-	    msi_addr >> 32);
-	amdvi_pci_write(softc, msi_off + PCIR_MSI_DATA_64BIT, msi_data);
+	/* Clear interrupt status bits. */
+	ctrl = softc->ctrl;
+	ctrl->status &= AMDVI_STATUS_EV_OF | AMDVI_STATUS_EV_INTR;
 
 	/* Now enable MSI interrupt. */
-	temp = amdvi_pci_read(softc, msi_off);
-	temp |= (PCIM_MSICTRL_MSI_ENABLE << 16);	/* MSI enable. */
-	amdvi_pci_write(softc, msi_off, temp);
-
+	pci_enable_msi(mmio_dev, msi_addr, msi_data);
 	return (0);
 }
 

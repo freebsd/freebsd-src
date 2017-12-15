@@ -865,8 +865,6 @@ siba_suspend_hw(device_t dev, device_t child, uint16_t ioctl)
 
 	siba_write_target_state(child, dinfo, SIBA_CFG0_TMSTATELOW, ts_low,
 	    ts_mask);
-	if (error)
-		return (error);
 
 	/* Give RESET ample time */
 	DELAY(10);

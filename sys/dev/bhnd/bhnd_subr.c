@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
  * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
@@ -803,6 +805,10 @@ bhnd_board_matches(const struct bhnd_board_info *board,
 		return (false);
 
 	if (desc->m.match.board_type && board->board_type != desc->board_type)
+		return (false);
+
+	if (desc->m.match.board_devid &&
+	    board->board_devid != desc->board_devid)
 		return (false);
 
 	if (desc->m.match.board_rev &&
@@ -2323,6 +2329,7 @@ bhnd_bus_generic_read_board_info(device_t dev, device_t child,
 
 	OPT_BHND_GV(info->board_vendor,	BOARDVENDOR,	0);
 	OPT_BHND_GV(info->board_type,	BOARDTYPE,	0);	/* srom >= 2 */
+	OPT_BHND_GV(info->board_devid,	DEVID,		0);	/* srom >= 8 */
 	REQ_BHND_GV(info->board_rev,	BOARDREV);
 	OPT_BHND_GV(info->board_srom_rev,SROMREV,	0);	/* missing in
 								   some SoC

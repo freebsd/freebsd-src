@@ -4,6 +4,7 @@
 
 KMOD=	if_bwn
 SRCS=	if_bwn.c if_bwnreg.h if_bwnvar.h
+SRCS+=	if_bwn_siba.c if_bwn_bhnd.c if_bwn_siba_compat.c
 SRCS+=	if_bwn_util.c
 
 # PHY
@@ -11,8 +12,15 @@ SRCS+=	if_bwn_phy_common.c
 SRCS+=	if_bwn_phy_g.c if_bwn_phy_lp.c
 SRCS+=	if_bwn_phy_n.c
 
+# BHND
+SRCS+=	bhnd_bus_if.h \
+	bhnd_chipc_if.h \
+	bhnd_pmu_if.h \
+	bhnd_pwrctl_if.h
+SRCS+=	bhnd_nvram_map.h
+
 # Other
-SRCS+=	device_if.h bus_if.h pci_if.h opt_bwn.h opt_wlan.h
+SRCS+=	device_if.h bus_if.h gpio_if.h pci_if.h opt_bwn.h opt_wlan.h
 
 # The following need the BWN_GPL_PHY kenrel option to opt-in
 # to the GPL'd 802.11n PHY support for this driver.

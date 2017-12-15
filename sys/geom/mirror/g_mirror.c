@@ -71,6 +71,10 @@ SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, disconnect_on_failure, CTLFLAG_RWTUN,
 static u_int g_mirror_syncreqs = 2;
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_requests, CTLFLAG_RDTUN,
     &g_mirror_syncreqs, 0, "Parallel synchronization I/O requests.");
+static u_int g_mirror_sync_period = 5;
+SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_update_period, CTLFLAG_RWTUN,
+    &g_mirror_sync_period, 0,
+    "Metadata update period during synchronization, in seconds");
 
 #define	MSLEEP(ident, mtx, priority, wmesg, timeout)	do {		\
 	G_MIRROR_DEBUG(4, "%s: Sleeping %p.", __func__, (ident));	\
@@ -215,7 +219,7 @@ g_mirror_event_send(void *arg, int state, int flags)
 }
 
 static struct g_mirror_event *
-g_mirror_event_get(struct g_mirror_softc *sc)
+g_mirror_event_first(struct g_mirror_softc *sc)
 {
 	struct g_mirror_event *ep;
 
@@ -465,6 +469,7 @@ g_mirror_init_disk(struct g_mirror_softc *sc, struct g_provider *pp,
 	disk->d_sync.ds_consumer = NULL;
 	disk->d_sync.ds_offset = md->md_sync_offset;
 	disk->d_sync.ds_offset_done = md->md_sync_offset;
+	disk->d_sync.ds_update_ts = time_uptime;
 	disk->d_genid = md->md_genid;
 	disk->d_sync.ds_syncid = md->md_syncid;
 	if (errorp != NULL)
@@ -550,7 +555,7 @@ g_mirror_destroy_device(struct g_mirror_softc *sc)
 		g_mirror_update_metadata(disk);
 		g_mirror_destroy_disk(disk);
 	}
-	while ((ep = g_mirror_event_get(sc)) != NULL) {
+	while ((ep = g_mirror_event_first(sc)) != NULL) {
 		g_mirror_event_remove(sc, ep);
 		if ((ep->e_flags & G_MIRROR_EVENT_DONTWAIT) != 0)
 			g_mirror_event_free(ep);
@@ -932,7 +937,7 @@ g_mirror_regular_request(struct bio *bp)
 	pbp = bp->bio_parent;
 	sc = pbp->bio_to->private;
 	bp->bio_from->index--;
-	if (bp->bio_cmd == BIO_WRITE)
+	if (bp->bio_cmd == BIO_WRITE || bp->bio_cmd == BIO_DELETE)
 		sc->sc_writes--;
 	disk = bp->bio_from->private;
 	if (disk == NULL) {
@@ -1199,7 +1204,7 @@ g_mirror_start(struct bio *bp)
  * Return TRUE if the given request is colliding with a in-progress
  * synchronization request.
  */
-static int
+static bool
 g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 {
 	struct g_mirror_disk *disk;
@@ -1208,7 +1213,7 @@ g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 	u_int i;
 
 	if (sc->sc_sync.ds_ndisks == 0)
-		return (0);
+		return (false);
 	rstart = bp->bio_offset;
 	rend = bp->bio_offset + bp->bio_length;
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
@@ -1221,33 +1226,33 @@ g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 			sstart = sbp->bio_offset;
 			send = sbp->bio_offset + sbp->bio_length;
 			if (rend > sstart && rstart < send)
-				return (1);
+				return (true);
 		}
 	}
-	return (0);
+	return (false);
 }
 
 /*
  * Return TRUE if the given sync request is colliding with a in-progress regular
  * request.
  */
-static int
+static bool
 g_mirror_regular_collision(struct g_mirror_softc *sc, struct bio *sbp)
 {
 	off_t rstart, rend, sstart, send;
 	struct bio *bp;
 
 	if (sc->sc_sync.ds_ndisks == 0)
-		return (0);
+		return (false);
 	sstart = sbp->bio_offset;
 	send = sbp->bio_offset + sbp->bio_length;
 	TAILQ_FOREACH(bp, &sc->sc_inflight.queue, bio_queue) {
 		rstart = bp->bio_offset;
 		rend = bp->bio_offset + bp->bio_length;
 		if (rend > sstart && rstart < send)
-			return (1);
+			return (true);
 	}
-	return (0);
+	return (false);
 }
 
 /*
@@ -1459,10 +1464,11 @@ g_mirror_sync_request(struct bio *bp)
 			if (bp != NULL && bp->bio_offset < offset)
 				offset = bp->bio_offset;
 		}
-		if (sync->ds_offset_done + (MAXPHYS * 100) < offset) {
-			/* Update offset_done on every 100 blocks. */
+		if (g_mirror_sync_period > 0 &&
+		    time_uptime - sync->ds_update_ts > g_mirror_sync_period) {
 			sync->ds_offset_done = offset;
 			g_mirror_update_metadata(disk);
+			sync->ds_update_ts = time_uptime;
 		}
 		return;
 	    }
@@ -1871,7 +1877,7 @@ g_mirror_worker(void *arg)
 		 * First take a look at events.
 		 * This is important to handle events before any I/O requests.
 		 */
-		ep = g_mirror_event_get(sc);
+		ep = g_mirror_event_first(sc);
 		if (ep != NULL) {
 			g_mirror_event_remove(sc, ep);
 			if ((ep->e_flags & G_MIRROR_EVENT_DEVICE) != 0) {
@@ -1939,16 +1945,9 @@ g_mirror_worker(void *arg)
 					continue;
 				}
 			}
+			if (g_mirror_event_first(sc) != NULL)
+				continue;
 			sx_xunlock(&sc->sc_lock);
-			/*
-			 * XXX: We can miss an event here, because an event
-			 *      can be added without sx-device-lock and without
-			 *      mtx-queue-lock. Maybe I should just stop using
-			 *      dedicated mutex for events synchronization and
-			 *      stick with the queue lock?
-			 *      The event will hang here until next I/O request
-			 *      or next event is received.
-			 */
 			MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "m:w1",
 			    timeout * hz);
 			sx_xlock(&sc->sc_lock);

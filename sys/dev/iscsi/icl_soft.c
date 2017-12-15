@@ -1170,6 +1170,11 @@ void
 icl_soft_conn_free(struct icl_conn *ic)
 {
 
+#ifdef DIAGNOSTIC
+	KASSERT(ic->ic_outstanding_pdus == 0,
+	    ("destroying session with %d outstanding PDUs",
+	     ic->ic_outstanding_pdus));
+#endif
 	cv_destroy(&ic->ic_send_cv);
 	cv_destroy(&ic->ic_receive_cv);
 	kobj_delete((struct kobj *)ic, M_ICL_SOFT);
@@ -1410,11 +1415,6 @@ icl_soft_conn_close(struct icl_conn *ic)
 
 	KASSERT(STAILQ_EMPTY(&ic->ic_to_send),
 	    ("destroying session with non-empty send queue"));
-#ifdef DIAGNOSTIC
-	KASSERT(ic->ic_outstanding_pdus == 0,
-	    ("destroying session with %d outstanding PDUs",
-	     ic->ic_outstanding_pdus));
-#endif
 	ICL_CONN_UNLOCK(ic);
 }
 

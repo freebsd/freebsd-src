@@ -1,5 +1,5 @@
-#!/bin/sh
-# Copyright (c) 1998 by Wolfram Schneider <wosch@FreeBSD.org>, Berlin.
+#-
+# Copyright (c) 2015 Michal Meloun
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -23,40 +23,33 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#
-# httpd-error - check for Web files which do not exist on your host
-#
 # $FreeBSD$
+#
 
-mode=${1}
+#include <machine/bus.h>
 
-case "$mode" in
-    -host)
-	grep 'File does not exist$' |
-	    awk '{print $11}' | 
-	    sort | uniq -c | sort -nr | perl -npe 's/,$//'
-	;;
-    -filehits)
-	grep 'File does not exist$' |
-	    awk '{print $8}' | 
-	    sort | uniq -c | sort -nr 
-	;;
-    -user)
-	grep 'File does not exist$' |
-	    awk '{print $8}' | 
-	    sort | uniq -c | sort -k 2
-	;;
-    -userhits)
-	grep 'File does not exist$' |
-		awk '{print $8}' | sort |
-		perl -npe 's#/home/([^/]+)/public_html.*#/~$1/#;
-	                   s#/usr/local/www/data/.*#/usr/local/www/data/#' |
-		uniq -c | sort -nr
-	;;
+INTERFACE syscon;
 
-    *) echo "usage $0 {-host|-filehits|-user|-userhits} < error.log" >&2
-       exit 1
-       ;;
-esac
+/**
+ * Accessor functions for syscon register space
+ */
+METHOD uint32_t read_4 {
+	device_t	dev;
+	device_t	consumer;
+	bus_size_t	offset;
+};
 
+METHOD void write_4 {
+	device_t	dev;
+	device_t	consumer;
+	bus_size_t	offset;
+	uint32_t	val;
+};
 
+METHOD void modify_4 {
+	device_t	dev;
+	device_t	consumer;
+	bus_size_t	offset;
+	uint32_t	clear_bits;
+	uint32_t	set_bits;
+};

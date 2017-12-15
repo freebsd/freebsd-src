@@ -95,7 +95,7 @@ st.c
 
 MAN=		opensm.8
 CFLAGS+=	-I${.CURDIR}/.. -DHAVE_CONFIG_H=1
-CFLAGS+=	-I${INCLUDEDIR}/infiniband
+CFLAGS+=	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/infiniband
 LIBADD=		opensm osmvendor osmcomp wrap pthread
 
 .include <bsd.prog.mk>

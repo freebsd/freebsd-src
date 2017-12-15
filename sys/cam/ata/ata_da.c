@@ -1048,7 +1048,7 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	struct	    cam_periph *periph;
 	struct	    ada_softc *softc;
 	u_int	    secsize;
-	union	    ccb ccb;
+	struct	    ccb_ataio ataio;
 	struct	    disk *dp;
 	uint64_t    lba;
 	uint16_t    count;
@@ -1067,11 +1067,11 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		return (ENXIO);
 	}
 
-	memset(&ccb, 0, sizeof(ccb));
+	memset(&ataio, 0, sizeof(ataio));
 	if (length > 0) {
-		xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-		ccb.ccb_h.ccb_state = ADA_CCB_DUMP;
-		cam_fill_ataio(&ccb.ataio,
+		xpt_setup_ccb(&ataio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+		ataio.ccb_h.ccb_state = ADA_CCB_DUMP;
+		cam_fill_ataio(&ataio,
 		    0,
 		    adadone,
 		    CAM_DIR_OUT,
@@ -1082,19 +1082,14 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		if ((softc->flags & ADA_FLAG_CAN_48BIT) &&
 		    (lba + count >= ATA_MAX_28BIT_LBA ||
 		    count >= 256)) {
-			ata_48bit_cmd(&ccb.ataio, ATA_WRITE_DMA48,
+			ata_48bit_cmd(&ataio, ATA_WRITE_DMA48,
 			    0, lba, count);
 		} else {
-			ata_28bit_cmd(&ccb.ataio, ATA_WRITE_DMA,
+			ata_28bit_cmd(&ataio, ATA_WRITE_DMA,
 			    0, lba, count);
 		}
-		xpt_polled_action(&ccb);
-
-		error = adaerror(&ccb,
-		    0, SF_NO_RECOVERY | SF_NO_RETRY);
-		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
-			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		error = cam_periph_runccb((union ccb *)&ataio, adaerror,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 		if (error != 0)
 			printf("Aborting dump due to I/O error.\n");
 
@@ -1103,15 +1098,15 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	}
 
 	if (softc->flags & ADA_FLAG_CAN_FLUSHCACHE) {
-		xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+		xpt_setup_ccb(&ataio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 
 		/*
 		 * Tell the drive to flush its internal cache. if we
 		 * can't flush in 5s we have big problems. No need to
 		 * wait the default 60s to detect problems.
 		 */
-		ccb.ccb_h.ccb_state = ADA_CCB_DUMP;
-		cam_fill_ataio(&ccb.ataio,
+		ataio.ccb_h.ccb_state = ADA_CCB_DUMP;
+		cam_fill_ataio(&ataio,
 				    0,
 				    adadone,
 				    CAM_DIR_NONE,
@@ -1121,16 +1116,11 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 				    5*1000);
 
 		if (softc->flags & ADA_FLAG_CAN_48BIT)
-			ata_48bit_cmd(&ccb.ataio, ATA_FLUSHCACHE48, 0, 0, 0);
+			ata_48bit_cmd(&ataio, ATA_FLUSHCACHE48, 0, 0, 0);
 		else
-			ata_28bit_cmd(&ccb.ataio, ATA_FLUSHCACHE, 0, 0, 0);
-		xpt_polled_action(&ccb);
-
-		error = adaerror(&ccb,
-		    0, SF_NO_RECOVERY | SF_NO_RETRY);
-		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
-			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+			ata_28bit_cmd(&ataio, ATA_FLUSHCACHE, 0, 0, 0);
+		error = cam_periph_runccb((union ccb *)&ataio, adaerror,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 		if (error != 0)
 			xpt_print(periph->path, "Synchronize cache failed\n");
 	}
@@ -1421,7 +1411,7 @@ adasysctlinit(void *context, int pending)
 {
 	struct cam_periph *periph;
 	struct ada_softc *softc;
-	char tmpstr[80], tmpstr2[80];
+	char tmpstr[32], tmpstr2[16];
 
 	periph = (struct cam_periph *)context;
 
@@ -1736,10 +1726,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	else
 		softc->quirks = ADA_Q_NONE;
 
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NONE);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 
 	TASK_INIT(&softc->sysctl_task, 0, adasysctlinit, periph);
 
@@ -3354,7 +3341,7 @@ adaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	}
 #endif
 
-	return(cam_periph_error(ccb, cam_flags, sense_flags, NULL));
+	return(cam_periph_error(ccb, cam_flags, sense_flags));
 }
 
 static void
@@ -3377,7 +3364,8 @@ adagetparams(struct cam_periph *periph, struct ccb_getdev *cgd)
 		dp->heads = cgd->ident_data.heads;
 		dp->secs_per_track = cgd->ident_data.sectors;
 		dp->cylinders = cgd->ident_data.cylinders;
-		dp->sectors = cgd->ident_data.cylinders * dp->heads * dp->secs_per_track;  
+		dp->sectors = cgd->ident_data.cylinders *
+			      (u_int32_t)(dp->heads * dp->secs_per_track);  
 	}
 	lbasize = (u_int32_t)cgd->ident_data.lba_size_1 |
 		  ((u_int32_t)cgd->ident_data.lba_size_2 << 16);
@@ -3509,32 +3497,9 @@ adaspindown(uint8_t cmd, int flags)
 				    0,
 				    ada_default_timeout*1000);
 		ata_28bit_cmd(&local_ccb, cmd, 0, 0, 0);
-
-		if (!SCHEDULER_STOPPED()) {
-			/*
-			 * Not panicing, can just do the normal runccb
-			 * XXX should make cam_periph_runccb work while
-			 * XXX panicing... later
-			 */
-			error = cam_periph_runccb((union ccb *)&local_ccb, adaerror,
-			    /*cam_flags*/0, /*sense_flags*/ SF_NO_RECOVERY | SF_NO_RETRY,
-			    softc->disk->d_devstat);
-		} else {
-			/*
-			 * Panicing, so we have to do this by hand: do
-			 * xpt_polled_action to run the request through the SIM,
-			 * extract the error, and if the queue was frozen,
-			 * unfreeze it. cam_periph_runccb takes care of these
-			 * details, but xpt_polled_action doesn't.
-			 */
-			xpt_polled_action((union ccb *)&local_ccb);
-			error = adaerror((union ccb *)&local_ccb, 0,
-			    SF_NO_RECOVERY | SF_NO_RETRY);
-			if ((local_ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-				cam_release_devq(local_ccb.ccb_h.path,
-				    /*relsim_flags*/0, /*reduction*/0,
-				    /*timeout*/0, /*getcount_only*/0);
-		}
+		error = cam_periph_runccb((union ccb *)&local_ccb, adaerror,
+		    /*cam_flags*/0, /*sense_flags*/ SF_NO_RECOVERY | SF_NO_RETRY,
+		    softc->disk->d_devstat);
 		if (error != 0)
 			xpt_print(periph->path, "Spin-down disk failed\n");
 		cam_periph_unlock(periph);

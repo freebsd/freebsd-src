@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/metadata.h>
 #include <machine/elf.h>
+#include <machine/md_var.h>
 
 #include <stand.h>
 
@@ -81,7 +82,7 @@ ppc64_ofw_elf_exec(struct preloaded_file *fp)
 	if ((e->e_flags & 3) == 2)
 		entry = e->e_entry;
 	else
-		entry = *(uint64_t *)e->e_entry;
+		entry = *(uint64_t *)(intptr_t)e->e_entry;
 
 	if ((error = md_load64(fp->f_args, &mdp, &dtbp)) != 0)
 		return (error);
@@ -94,7 +95,7 @@ ppc64_ofw_elf_exec(struct preloaded_file *fp)
 	if (dtbp != 0) {
 		OF_quiesce();
 		((int (*)(u_long, u_long, u_long, void *, u_long))entry)(dtbp,
-		    0, 0, mdp, 0xfb5d104d);
+		    0, 0, (void *)mdp, 0xfb5d104d);
 	} else {
 		OF_chain((void *)reloc, end - (char *)reloc, (void *)entry,
 		    (void *)mdp, 0xfb5d104d);

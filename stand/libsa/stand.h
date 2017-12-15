@@ -72,10 +72,7 @@
 #define CHK(fmt, args...)	printf("%s(%d): " fmt "\n", __func__, __LINE__ , ##args)
 #define PCHK(fmt, args...)	{printf("%s(%d): " fmt "\n", __func__, __LINE__ , ##args); getchar();}
 
-/* Avoid unwanted userlandish components */
-#define _KERNEL
 #include <sys/errno.h>
-#undef _KERNEL
 
 /* special stand error codes */
 #define	EADAPT	(ELAST+1)	/* bad adaptor */
@@ -87,6 +84,9 @@
 #define	EUNLAB	(ELAST+7)	/* unlabeled disk */
 #define	EOFFSET	(ELAST+8)	/* relative seek not supported */
 #define	ESALAST	(ELAST+8)	/* */
+
+/* Partial signal emulation for sig_atomic_t */
+#include <machine/signal.h>
 
 struct open_file;
 
@@ -235,6 +235,22 @@ static __inline int isalnum(int c)
     return isalpha(c) || isdigit(c);
 }
 
+static __inline int iscntrl(int c)
+{
+	return (c >= 0 && c < ' ') || c == 127;
+}
+
+static __inline int isgraph(int c)
+{
+	return c >= '!' && c <= '~';
+}
+
+static __inline int ispunct(int c)
+{
+	return (c >= '!' && c <= '/') || (c >= ':' && c <= '@') ||
+	    (c >= '[' && c <= '`') || (c >= '{' && c <= '~');
+}
+
 static __inline int toupper(int c)
 {
     return islower(c) ? c - 'a' + 'A' : c;
@@ -249,12 +265,6 @@ static __inline int tolower(int c)
 extern void	setheap(void *base, void *top);
 extern char	*sbrk(int incr);
 
-/* Matt Dillon's zalloc/zmalloc */
-extern void	*malloc(size_t bytes);
-extern void	free(void *ptr);
-/*#define free(p)	{CHK("free %p", p); free(p);} */ /* use for catching guard violations */
-extern void	*calloc(size_t n1, size_t n2);
-extern void	*realloc(void *ptr, size_t size);
 extern void	*reallocf(void *ptr, size_t size);
 extern void	mallocstats(void);
 
@@ -281,8 +291,8 @@ extern ssize_t	read(int, void *, size_t);
 extern ssize_t	write(int, void *, size_t);
 extern struct	dirent *readdirfd(int);
 
-extern void	srandom(u_long seed);
-extern u_long	random(void);
+extern void	srandom(unsigned int);
+extern long	random(void);
     
 /* imports from stdlib, locally modified */
 extern long	strtol(const char *, char **, int);
@@ -330,7 +340,7 @@ extern int		env_setenv(const char *name, int flags,
 extern char		*getenv(const char *name);
 extern int		setenv(const char *name, const char *value,
 			       int overwrite);
-extern int		putenv(const char *string);
+extern int		putenv(char *string);
 extern int		unsetenv(const char *name);
 
 extern ev_sethook_t	env_noset;		/* refuse set operation */
@@ -411,7 +421,7 @@ void *Calloc(size_t, size_t, const char *, int);
 void *Realloc(void *, size_t, const char *, int);
 void Free(void *, const char *, int);
 
-#if 1
+#ifdef DEBUG_MALLOC
 #define malloc(x)	Malloc(x, __FILE__, __LINE__)
 #define calloc(x, y)	Calloc(x, y, __FILE__, __LINE__)
 #define free(x)		Free(x, __FILE__, __LINE__)

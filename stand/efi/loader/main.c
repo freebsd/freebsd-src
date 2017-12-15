@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/boot.h>
-#include <inttypes.h>
+#include <stdint.h>
 #include <stand.h>
 #include <string.h>
 #include <setjmp.h>

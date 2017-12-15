@@ -119,12 +119,12 @@ __DEFAULT_YES_OPTIONS = \
     LIB32 \
     LIBPTHREAD \
     LIBTHR \
-    LOADER_GELI \
     LOCALES \
     LOCATE \
     LPR \
     LS_COLORS \
     LZMA_SUPPORT \
+    LOADER_GELI \
     MAIL \
     MAILWRAPPER \
     MAKE \

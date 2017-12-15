@@ -1444,7 +1444,6 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 		goto lose;
 	}
 	if (fstat(fd, &isb) != 0) {
-		close(fd);
 		maybe_warn("can't stat %s", file);
 		goto lose;
 	}
@@ -1719,7 +1718,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 	if (fd != -1)
 		close(fd);
 	if (zfd != -1 && zfd != STDOUT_FILENO)
-		close(fd);
+		close(zfd);
 	return -1;
 }
 

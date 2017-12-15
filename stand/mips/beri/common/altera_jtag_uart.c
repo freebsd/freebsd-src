@@ -30,7 +30,7 @@
  * $FreeBSD$
  */
 
-#include "util.h"
+#include "stand.h"
 #include "mips.h"
 
 /*-
@@ -128,13 +128,6 @@ uart_control_write(uint32_t v)
 
 	mips_iowrite_uint32le(mips_phys_to_uncached(CHERI_UART_BASE +
 	    ALTERA_JTAG_UART_DATA_OFF), v);
-}
-
-static int
-uart_writable(void)
-{
-
-	return ((uart_control_read() & ALTERA_JTAG_UART_CONTROL_WSPACE) != 0);
 }
 
 static int

@@ -986,7 +986,7 @@ struct sctpstat {
 	uint32_t sctps_recvexpress;	/* total fast path receives all one
 					 * chunk */
 	uint32_t sctps_recvexpressm;	/* total fast path multi-part data */
-	uint32_t sctps_recvnocrc;
+	uint32_t sctps_recv_spare;	/* formerly sctps_recvnocrc */
 	uint32_t sctps_recvswcrc;
 	uint32_t sctps_recvhwcrc;
 
@@ -1006,7 +1006,7 @@ struct sctpstat {
 	uint32_t sctps_sendecne;/* total output ECNE chunks    */
 	uint32_t sctps_sendauth;/* total output AUTH chunks FIXME   */
 	uint32_t sctps_senderrors;	/* ip_output error counter */
-	uint32_t sctps_sendnocrc;
+	uint32_t sctps_send_spare;	/* formerly sctps_sendnocrc */
 	uint32_t sctps_sendswcrc;
 	uint32_t sctps_sendhwcrc;
 	/* PCKDROPREP statistics: */

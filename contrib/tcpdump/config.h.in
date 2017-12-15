@@ -34,6 +34,9 @@
 /* Define to 1 if you have the `ether_ntohost' function. */
 #undef HAVE_ETHER_NTOHOST
 
+/* Define to 1 if you have the `EVP_CipherInit_ex' function. */
+#undef HAVE_EVP_CIPHERINIT_EX
+
 /* Define to 1 if you have the `EVP_CIPHER_CTX_new' function. */
 #undef HAVE_EVP_CIPHER_CTX_NEW
 

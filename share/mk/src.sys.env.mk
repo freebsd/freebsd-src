@@ -2,6 +2,14 @@
 
 # early setup only see also src.sys.mk
 
+# bmake-20170301 started taking '-C' "as is" for some cases, notably absolute
+# paths.  Some later comparisons will assume .CURDIR is resolved and matches
+# what we would get with 'cd'.  So just force resolve it now if it is an
+# absolute path.
+.if ${MAKE_VERSION} >= 20170301 && !empty(.CURDIR:M/*)
+.CURDIR:= ${.CURDIR:tA}
+.endif
+
 # make sure this is defined in a consistent manner
 SRCTOP:= ${.PARSEDIR:tA:H:H}
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
  * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
@@ -280,7 +282,7 @@ bcma_dinfo_init_intrs(device_t bus, device_t child,
 	/* Fetch width of the OOB interrupt bank */
 	oobw = bhnd_bus_read_4(dinfo->res_agent,
 	     BCMA_DMP_OOB_OUTWIDTH(BCMA_OOB_BANK_INTR));
-	if (oobw > BCMA_OOB_NUM_SEL) {
+	if (oobw >= BCMA_OOB_NUM_SEL) {
 		device_printf(bus, "ignoring invalid OOBOUTWIDTH for core %u: "
 		    "%#x\n", BCMA_DINFO_COREIDX(dinfo), oobw);
 		return (0);

@@ -36,7 +36,9 @@
 
 #ifdef _KERNEL
 #include <sys/cdefs.h>
+#include <cam/cam_ccb.h>
 #endif
+
 
 /* Forward Declarations */
 union ccb;
@@ -144,6 +146,22 @@ void			xpt_copy_path(struct cam_path *new_path,
 void			xpt_release_path(struct cam_path *path);
 
 const char *		xpt_action_name(uint32_t action);
+void			xpt_pollwait(union ccb *start_ccb, uint32_t timeout);
+uint32_t		xpt_poll_setup(union ccb *start_ccb);
+
+/*
+ * Perform a path inquiry at the request priority. The bzero may be
+ * unnecessary.
+ */
+static inline void
+xpt_path_inq(struct ccb_pathinq *cpi, struct cam_path *path)
+{
+
+	bzero(cpi, sizeof(*cpi));
+	xpt_setup_ccb(&cpi->ccb_h, path, CAM_PRIORITY_NORMAL);
+	cpi->ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)cpi);
+}
 
 #endif /* _KERNEL */
 

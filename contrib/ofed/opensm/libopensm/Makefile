@@ -14,7 +14,7 @@ osm_helper.c
 
 LIBADD=		pthread
 CFLAGS+=	-I${.CURDIR}/.. -DHAVE_CONFIG_H=1
-CFLAGS+=	-I${INCLUDEDIR}/infiniband
+CFLAGS+=	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/infiniband
 VERSION_MAP=	${.CURDIR}/../opensm/libopensm.map
 
 .include <bsd.lib.mk>

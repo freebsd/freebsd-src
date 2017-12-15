@@ -5,8 +5,6 @@
 .if ${MK_MAILWRAPPER} != "no"
 PROG=	mailwrapper
 MAN=	mailwrapper.8
-
-LIBADD=	util
 .endif
 
 .if ${MK_MAILWRAPPER} != "no" || ${MK_SENDMAIL} != "no"

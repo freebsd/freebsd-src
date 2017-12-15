@@ -134,11 +134,10 @@ vthistory_addlines(struct vt_buf *vb, int offset)
 #endif
 
 	vb->vb_curroffset += offset;
-	if (vb->vb_curroffset < 0)
-		vb->vb_curroffset = 0;
-	if (vb->vb_curroffset + vb->vb_scr_size.tp_row >= vb->vb_history_size)
+	if (vb->vb_curroffset + vb->vb_scr_size.tp_row >= vb->vb_history_size) {
 		vb->vb_flags |= VBF_HISTORY_FULL;
-	vb->vb_curroffset %= vb->vb_history_size;
+		vb->vb_curroffset %= vb->vb_history_size;
+	}
 	if ((vb->vb_flags & VBF_SCROLL) == 0) {
 		vb->vb_roffset = vb->vb_curroffset;
 	}
@@ -460,7 +459,7 @@ vtbuf_init(struct vt_buf *vb, const term_pos_t *p)
 }
 
 void
-vtbuf_sethistory_size(struct vt_buf *vb, int size)
+vtbuf_sethistory_size(struct vt_buf *vb, unsigned int size)
 {
 	term_pos_t p;
 
@@ -474,9 +473,9 @@ void
 vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 {
 	term_char_t *old, *new, **rows, **oldrows, **copyrows, *row, *oldrow;
-	int bufsize, rowssize, w, h, c, r, history_was_full;
-	unsigned int old_history_size;
-	term_rect_t rect;
+	unsigned int w, h, c, r, old_history_size;
+	size_t bufsize, rowssize;
+	int history_full;
 
 	history_size = MAX(history_size, p->tp_row);
 
@@ -495,7 +494,8 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 	w = vb->vb_scr_size.tp_col;
 	h = vb->vb_scr_size.tp_row;
 	old_history_size = vb->vb_history_size;
-	history_was_full = vb->vb_flags & VBF_HISTORY_FULL;
+	history_full = vb->vb_flags & VBF_HISTORY_FULL ||
+	    vb->vb_curroffset + h >= history_size;
 
 	vb->vb_history_size = history_size;
 	vb->vb_buffer = new;
@@ -504,20 +504,16 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 	vb->vb_scr_size = *p;
 	vtbuf_init_rows(vb);
 
-	/* Copy history and fill extra space if needed. */
+	/*
+	 * Copy rows to the new buffer. The first row in the history
+	 * is back to index 0, ie. the new buffer doesn't cycle.
+	 */
 	if (history_size > old_history_size) {
-		/*
-		 * Copy rows to the new buffer. The first row in the history
-		 * is back to index 0, ie. the new buffer doesn't cycle.
-		 *
-		 * The rest of the new buffer is initialized with blank
-		 * content.
-		 */
 		for (r = 0; r < old_history_size; r ++) {
 			row = rows[r];
 
 			/* Compute the corresponding row in the old buffer. */
-			if (history_was_full)
+			if (history_full)
 				/*
 				 * The buffer is full, the "top" row is
 				 * the one just after the viewable area
@@ -551,18 +547,29 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 		}
 
 		/* Fill remaining rows. */
-		rect.tr_begin.tp_col = 0;
-		rect.tr_begin.tp_row = old_history_size;
-		rect.tr_end.tp_col = p->tp_col;
-		rect.tr_end.tp_row = p->tp_row;
-		vtbuf_fill(vb, &rect, VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR));
+		for (r = old_history_size; r < history_size; r++) {
+			row = rows[r];
+			for (c = MIN(p->tp_col, w); c < p->tp_col; c++) {
+				row[c] = VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR);
+			}
+		}
 
 		vb->vb_flags &= ~VBF_HISTORY_FULL;
+
+		/*
+		 * If the screen is already filled (there are non-visible lines
+		 * above the current viewable area), adjust curroffset to the
+		 * new viewable area.
+		 *
+		 * If the old buffer was full, set curroffset to the
+		 * <h>th most recent line of history in the new, non-cycled
+		 * buffer. Otherwise, it didn't cycle, so the old curroffset
+		 * is the same in the new buffer.
+		 */
+		if (history_full)
+			vb->vb_curroffset = old_history_size - h;
 	} else {
 		/*
-		 * Copy rows to the new buffer. The first row in the history
-		 * is back to index 0, ie. the new buffer doesn't cycle.
-		 *
 		 * (old_history_size - history_size) lines of history are
 		 * dropped.
 		 */
@@ -575,15 +582,13 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 			 * See the equivalent if{} block above for an
 			 * explanation.
 			 */
-			if (history_was_full)
+			if (history_full)
 				oldrow = copyrows[
 				    (vb->vb_curroffset + h + r +
 				     (old_history_size - history_size)) %
 				    old_history_size];
 			else
-				oldrow = copyrows[
-				    (r + (old_history_size - history_size)) %
-				    old_history_size];
+				oldrow = copyrows[r];
 
 			memmove(row, oldrow,
 			    MIN(p->tp_col, w) * sizeof(term_char_t));
@@ -598,23 +603,13 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 			}
 		}
 
-		if (!history_was_full &&
-		    (vb->vb_curroffset + h) >= history_size)
+		if (history_full) {
+			vb->vb_curroffset = history_size - h;
 			vb->vb_flags |= VBF_HISTORY_FULL;
+		}
 	}
 
-	/*
-	 * If the screen is already filled (there are non-visible lines
-	 * above the current viewable area), adjust curroffset to the
-	 * new viewable area.
-	 */
-	if (!history_was_full && vb->vb_curroffset > 0) {
-		vb->vb_curroffset = vb->vb_curroffset + h - p->tp_row;
-		if (vb->vb_curroffset < 0)
-			vb->vb_curroffset += vb->vb_history_size;
-		vb->vb_curroffset %= vb->vb_history_size;
-		vb->vb_roffset = vb->vb_curroffset;
-	}
+	vb->vb_roffset = vb->vb_curroffset;
 
 	/* Adjust cursor position. */
 	if (vb->vb_cursor.tp_col > p->tp_col - 1)
@@ -628,7 +623,6 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 		/* Move cursor to the last line on the screen. */
 		vb->vb_cursor.tp_row = p->tp_row - 1;
 
-	vtbuf_make_undirty(vb);
 	VTBUF_UNLOCK(vb);
 
 	/* Deallocate old buffer. */

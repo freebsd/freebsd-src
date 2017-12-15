@@ -1308,6 +1308,12 @@ ieee80211_wme_updateparams(struct ieee80211vap *vap)
 	}
 }
 
+/*
+ * Fetch the WME parameters for the given VAP.
+ *
+ * When net80211 grows p2p, etc support, this may return different
+ * parameters for each VAP.
+ */
 void
 ieee80211_wme_vap_getparams(struct ieee80211vap *vap, struct chanAccParams *wp)
 {
@@ -1315,11 +1321,37 @@ ieee80211_wme_vap_getparams(struct ieee80211vap *vap, struct chanAccParams *wp)
 	memcpy(wp, &vap->iv_ic->ic_wme.wme_chanParams, sizeof(*wp));
 }
 
+/*
+ * For NICs which only support one set of WME paramaters (ie, softmac NICs)
+ * there may be different VAP WME parameters but only one is "active".
+ * This returns the "NIC" WME parameters for the currently active
+ * context.
+ */
 void
 ieee80211_wme_ic_getparams(struct ieee80211com *ic, struct chanAccParams *wp)
 {
 
 	memcpy(wp, &ic->ic_wme.wme_chanParams, sizeof(*wp));
+}
+
+/*
+ * Return whether to use QoS on a given WME queue.
+ *
+ * This is intended to be called from the transmit path of softmac drivers
+ * which are setting NoAck bits in transmit descriptors.
+ *
+ * Ideally this would be set in some transmit field before the packet is
+ * queued to the driver but net80211 isn't quite there yet.
+ */
+int
+ieee80211_wme_vap_ac_is_noack(struct ieee80211vap *vap, int ac)
+{
+	/* Bounds/sanity check */
+	if (ac < 0 || ac >= WME_NUM_AC)
+		return (0);
+
+	/* Again, there's only one global context for now */
+	return (!! vap->iv_ic->ic_wme.wme_chanParams.cap_wmeParams[ac].wmep_noackPolicy);
 }
 
 static void

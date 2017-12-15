@@ -577,7 +577,7 @@ universe_${target}_kernels: universe_${target}_prologue .MAKE .PHONY
 	    "check _.${target}.makeLINT for details"| ${MAKEFAIL}))
 .endif
 	@cd ${.CURDIR}; ${SUB_MAKE} ${.MAKEFLAGS} TARGET=${target} \
-	    universe_kernels MK_AUTO_OBJ=no
+	    universe_kernels
 .endif # !MAKE_JUST_WORLDS
 
 # Tell the user the worlds and kernels have completed
@@ -585,6 +585,7 @@ universe_${target}: universe_${target}_done
 universe_${target}_done:
 	@echo ">> ${target} completed on `LC_ALL=C date`"
 .endfor
+.if make(universe_kernconfs) || make(universe_kernels)
 universe_kernels: universe_kernconfs .PHONY
 .if !defined(TARGET)
 TARGET!=	uname -m
@@ -621,6 +622,7 @@ universe_kernconf_${TARGET}_${kernel}: .MAKE
 	    (echo "${TARGET} ${kernel} kernel failed," \
 	    "check _.${TARGET}.${kernel} for details"| ${MAKEFAIL}))
 .endfor
+.endif	# make(universe_kernels)
 universe: universe_epilogue
 universe_epilogue: .PHONY
 	@echo "--------------------------------------------------------------"

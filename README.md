@@ -68,6 +68,8 @@ secure			Cryptographic libraries and commands.
 
 share			Shared resources.
 
+stand			Boot loader sources.
+
 sys				Kernel sources.
 
 tests			Regression tests which can be run by Kyua.  See tests/README

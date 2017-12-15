@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd October 9, 2017
+.Dd December 1, 2017
 .Dt PS 1
 .Os
 .Sh NAME
@@ -710,6 +710,8 @@ process pointer
 user name (from UID)
 .It Cm usertime
 accumulated user CPU time
+.It Cm vmaddr
+vmspace pointer
 .It Cm vsz
 virtual size in Kbytes (alias
 .Cm vsize )

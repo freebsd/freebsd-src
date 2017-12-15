@@ -30,7 +30,7 @@
  * $FreeBSD$
  */
 
-#include "util.h"
+#include "stand.h"
 #include "mips.h"
 #include "cfi.h"
 

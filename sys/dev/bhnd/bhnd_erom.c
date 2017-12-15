@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2016 Landon Fuller <landonf@FreeBSD.org>
  * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
@@ -143,6 +145,7 @@ bhnd_erom_probe_driver_classes(devclass_t bus_devclass,
 			break;
 	}
 
+	free(drivers, M_TEMP);
 	return (erom_cls);
 }
 

@@ -173,7 +173,6 @@ static STAILQ_HEAD(, socklist) shead = STAILQ_HEAD_INITIALIZER(shead);
 
 #define	IGN_CONS	0x001	/* don't print on console */
 #define	SYNC_FILE	0x002	/* do fsync on file after printing */
-#define	ADDDATE		0x004	/* add a date to the message */
 #define	MARK		0x008	/* this message is a mark */
 #define	ISKERNEL	0x010	/* kernel generated message */
 
@@ -324,6 +323,7 @@ static int	logflags = O_WRONLY|O_APPEND; /* flags used to open log files */
 static char	bootfile[MAXLINE+1]; /* booted kernel file */
 
 static int	RemoteAddDate;	/* Always set the date on remote messages */
+static int	RemoteHostname;	/* Log remote hostname from the message */
 
 static int	UniquePriority;	/* Only log specified priority? */
 static int	LogFacPri;	/* Put facility and priority in log message: */
@@ -352,7 +352,7 @@ static void	domark(int);
 static void	fprintlog(struct filed *, int, const char *);
 static void	init(int);
 static void	logerror(const char *);
-static void	logmsg(int, const char *, const char *, int);
+static void	logmsg(int, const char *, const char *, const char *, int);
 static void	log_deadchild(pid_t, int, const char *);
 static void	markit(void);
 static int	socksetup(struct peer *);
@@ -361,7 +361,7 @@ static int	socklist_recv_sock(struct socklist *);
 static int	socklist_recv_signal(struct socklist *);
 static void	sighandler(int);
 static int	skip_message(const char *, const char *, int);
-static void	printline(const char *, char *, int);
+static void	parsemsg(const char *, char *);
 static void	printsys(char *);
 static int	p_open(const char *, pid_t *);
 static void	reapchild(int);
@@ -454,7 +454,7 @@ main(int argc, char *argv[])
 	if (madvise(NULL, 0, MADV_PROTECT) != 0)
 		dprintf("madvise() failed: %s\n", strerror(errno));
 
-	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:Fkl:m:nNop:P:sS:Tuv"))
+	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:FHkl:m:nNop:P:sS:Tuv"))
 	    != -1)
 		switch (ch) {
 #ifdef INET
@@ -517,6 +517,9 @@ main(int argc, char *argv[])
 			break;
 		case 'F':		/* run in foreground instead of daemon */
 			Foreground++;
+			break;
+		case 'H':
+			RemoteHostname = 1;
 			break;
 		case 'k':		/* keep remote kern fac */
 			KeepKernFac = 1;
@@ -772,7 +775,7 @@ socklist_recv_sock(struct socklist *sl)
 	socklen_t sslen;
 	const char *hname;
 	char line[MAXLINE + 1];
-	int date, len;
+	int len;
 
 	sslen = sizeof(ss);
 	len = recvfrom(sl->sl_socket, line, sizeof(line) - 1, 0, sa, &sslen);
@@ -786,19 +789,17 @@ socklist_recv_sock(struct socklist *sl)
 	}
 	/* Received valid data. */
 	line[len] = '\0';
-	if (sl->sl_ss.ss_family == AF_LOCAL) {
+	if (sl->sl_ss.ss_family == AF_LOCAL)
 		hname = LocalHostName;
-		date = 0;
-	} else {
+	else {
 		hname = cvthname(sa);
 		unmapped(sa);
 		if (validate(sa, hname) == 0) {
 			dprintf("Message from %s was ignored.", hname);
 			return (-1);
 		}
-		date = RemoteAddDate ? ADDDATE : 0;
 	}
-	printline(hname, line, date);
+	parsemsg(hname, line);
 
 	return (0);
 }
@@ -836,7 +837,7 @@ usage(void)
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
-		"usage: syslogd [-468ACcdFknosTuv] [-a allowed_peer]",
+		"usage: syslogd [-468ACcdFHknosTuv] [-a allowed_peer]",
 		"               [-b bind_address] [-f config_file]",
 		"               [-l [mode:]path] [-m mark_interval]",
 		"               [-P pid_file] [-p log_socket]",
@@ -845,28 +846,43 @@ usage(void)
 }
 
 /*
- * Take a raw input line, decode the message, and print the message
- * on the appropriate log files.
+ * Take a raw input line, extract PRI, TIMESTAMP and HOSTNAME from the message,
+ * and print the message on the appropriate log files.
  */
 static void
-printline(const char *hname, char *msg, int flags)
+parsemsg(const char *from, char *msg)
 {
-	char *p, *q;
+	const char *timestamp;
+	char *q;
 	long n;
-	int c, pri;
+	int i, c, pri, msglen;
 	char line[MAXLINE + 1];
 
-	/* test for special codes */
-	p = msg;
-	pri = DEFUPRI;
-	if (*p == '<') {
-		errno = 0;
-		n = strtol(p + 1, &q, 10);
-		if (*q == '>' && n >= 0 && n < INT_MAX && errno == 0) {
-			p = q + 1;
-			pri = n;
+	/* Parse PRI. */
+	if (msg[0] != '<' || !isdigit(msg[1])) {
+		dprintf("Invalid PRI from %s\n", from);
+		return;
+	}
+	for (i = 2; i <= 4; i++) {
+		if (msg[i] == '>')
+			break;
+		if (!isdigit(msg[i])) {
+			dprintf("Invalid PRI header from %s\n", from);
+			return;
 		}
 	}
+	if (msg[i] != '>') {
+		dprintf("Invalid PRI header from %s\n", from);
+		return;
+	}
+	errno = 0;
+	n = strtol(msg + 1, &q, 10);
+	if (errno != 0 || *q != msg[i] || n < 0 || n >= INT_MAX) {
+		dprintf("Invalid PRI %ld from %s: %s\n",
+		    n, from, strerror(errno));
+		return;
+	}
+	pri = n;
 	if (pri &~ (LOG_FACMASK|LOG_PRIMASK))
 		pri = DEFUPRI;
 
@@ -878,9 +894,53 @@ printline(const char *hname, char *msg, int flags)
 	if ((pri & LOG_FACMASK) == LOG_KERN && !KeepKernFac)
 		pri = LOG_MAKEPRI(LOG_USER, LOG_PRI(pri));
 
-	q = line;
+	/*
+	 * The TIMESTAMP field is the local time and is in the format of
+	 * "Mmm dd hh:mm:ss" (without the quote marks).
+   	 * A single space character MUST follow the TIMESTAMP field.
+	 *
+	 * XXXGL: the check can be improved.
+	 */
+	msg += i + 1;
+	msglen = strlen(msg);
+	if (msglen < MAXDATELEN || msg[3] != ' ' || msg[6] != ' ' ||
+	    msg[9] != ':' || msg[12] != ':' || msg[15] != ' ') {
+		dprintf("Invalid TIMESTAMP from %s: %s\n", from, msg);
+		return;
+	}
 
-	while ((c = (unsigned char)*p++) != '\0' &&
+	if (!RemoteAddDate)
+		timestamp = msg;
+	else
+		timestamp = NULL;
+	msg += MAXDATELEN;
+	msglen -= MAXDATELEN;
+
+	/*
+	 * A single space character MUST also follow the HOSTNAME field.
+	 */
+	for (i = 0; i < MIN(MAXHOSTNAMELEN, msglen); i++) {
+		if (msg[i] == ' ') {
+			if (RemoteHostname) {
+				msg[i] = '\0';
+				from = msg;
+			}
+			msg += i + 1;
+			break;
+		}
+		/*
+		 * Support non RFC compliant messages, without hostname.
+		 */
+		if (msg[i] == ':')
+			break;
+	}
+	if (i == MIN(MAXHOSTNAMELEN, msglen)) {
+		dprintf("Invalid HOSTNAME from %s: %s\n", from, msg);
+		return;
+	}
+
+	q = line;
+	while ((c = (unsigned char)*msg++) != '\0' &&
 	    q < &line[sizeof(line) - 4]) {
 		if (mask_C1 && (c & 0x80) && c < 0xA0) {
 			c &= 0x7F;
@@ -902,7 +962,7 @@ printline(const char *hname, char *msg, int flags)
 	}
 	*q = '\0';
 
-	logmsg(pri, line, hname, flags);
+	logmsg(pri, timestamp, line, from, 0);
 }
 
 /*
@@ -956,7 +1016,7 @@ printsys(char *msg)
 	long n;
 	int flags, isprintf, pri;
 
-	flags = ISKERNEL | SYNC_FILE | ADDDATE;	/* fsync after write */
+	flags = ISKERNEL | SYNC_FILE;	/* fsync after write */
 	p = msg;
 	pri = DEFSPRI;
 	isprintf = 1;
@@ -977,7 +1037,7 @@ printsys(char *msg)
 		flags |= IGN_CONS;
 	if (pri &~ (LOG_FACMASK|LOG_PRIMASK))
 		pri = DEFSPRI;
-	logmsg(pri, p, LocalHostName, flags);
+	logmsg(pri, NULL, p, LocalHostName, flags);
 }
 
 static time_t	now;
@@ -1032,39 +1092,20 @@ skip_message(const char *name, const char *spec, int checkcase)
  * the priority.
  */
 static void
-logmsg(int pri, const char *msg, const char *from, int flags)
+logmsg(int pri, const char *timestamp, const char *msg, const char *from,
+    int flags)
 {
 	struct filed *f;
 	int i, fac, msglen, prilev;
-	const char *timestamp;
  	char prog[NAME_MAX+1];
 	char buf[MAXLINE+1];
 
 	dprintf("logmsg: pri %o, flags %x, from %s, msg %s\n",
 	    pri, flags, from, msg);
 
-	/*
-	 * Check to see if msg looks non-standard.
-	 */
-	msglen = strlen(msg);
-	if (msglen < MAXDATELEN || msg[3] != ' ' || msg[6] != ' ' ||
-	    msg[9] != ':' || msg[12] != ':' || msg[15] != ' ')
-		flags |= ADDDATE;
-
 	(void)time(&now);
-	if (flags & ADDDATE) {
+	if (timestamp == NULL)
 		timestamp = ctime(&now) + 4;
-	} else {
-		timestamp = msg;
-		msg += MAXDATELEN;
-		msglen -= MAXDATELEN;
-	}
-
-	/* skip leading blanks */
-	while (isspace(*msg)) {
-		msg++;
-		msglen--;
-	}
 
 	/* extract facility and priority level */
 	if (flags & MARK)
@@ -1078,7 +1119,7 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 
 	prilev = LOG_PRI(pri);
 
-	/* extract program name */
+	/* Extract TAG part of the message (usually program name). */
 	for (i = 0; i < NAME_MAX; i++) {
 		if (!isprint(msg[i]) || msg[i] == ':' || msg[i] == '[' ||
 		    msg[i] == '/' || isspace(msg[i]))
@@ -1092,8 +1133,8 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 		snprintf(buf, sizeof(buf), "%s: %s",
 		    use_bootfile ? bootfile : "kernel", msg);
 		msg = buf;
-		msglen = strlen(buf);
 	}
+	msglen = strlen(msg);
 
 	/* log the message to the particular outputs */
 	if (!Initialized) {
@@ -1643,7 +1684,7 @@ logerror(const char *type)
 		(void)snprintf(buf, sizeof buf, "syslogd: %s", type);
 	errno = 0;
 	dprintf("%s\n", buf);
-	logmsg(LOG_SYSLOG|LOG_ERR, buf, LocalHostName, ADDDATE);
+	logmsg(LOG_SYSLOG|LOG_ERR, NULL, buf, LocalHostName, 0);
 	recursed--;
 }
 
@@ -1987,7 +2028,7 @@ init(int signo)
 		}
 	}
 
-	logmsg(LOG_SYSLOG|LOG_INFO, "syslogd: restart", LocalHostName, ADDDATE);
+	logmsg(LOG_SYSLOG|LOG_INFO, NULL, "syslogd: restart", LocalHostName, 0);
 	dprintf("syslogd: restarted\n");
 	/*
 	 * Log a change in hostname, but only on a restart.
@@ -1996,7 +2037,7 @@ init(int signo)
 		(void)snprintf(hostMsg, sizeof(hostMsg),
 		    "syslogd: hostname changed, \"%s\" to \"%s\"",
 		    oldLocalHostName, LocalHostName);
-		logmsg(LOG_SYSLOG|LOG_INFO, hostMsg, LocalHostName, ADDDATE);
+		logmsg(LOG_SYSLOG|LOG_INFO, NULL, hostMsg, LocalHostName, 0);
 		dprintf("%s\n", hostMsg);
 	}
 	/*
@@ -2006,7 +2047,7 @@ init(int signo)
 	if (signo == 0 && !use_bootfile) {
 		(void)snprintf(bootfileMsg, sizeof(bootfileMsg),
 		    "syslogd: kernel boot file is %s", bootfile);
-		logmsg(LOG_KERN|LOG_INFO, bootfileMsg, LocalHostName, ADDDATE);
+		logmsg(LOG_KERN|LOG_INFO, NULL, bootfileMsg, LocalHostName, 0);
 		dprintf("%s\n", bootfileMsg);
 	}
 }
@@ -2315,8 +2356,7 @@ markit(void)
 	now = time((time_t *)NULL);
 	MarkSeq += TIMERINTVL;
 	if (MarkSeq >= MarkInterval) {
-		logmsg(LOG_INFO, "-- MARK --",
-		    LocalHostName, ADDDATE|MARK);
+		logmsg(LOG_INFO, NULL, "-- MARK --", LocalHostName, MARK);
 		MarkSeq = 0;
 	}
 
