@@ -51,6 +51,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20171215:
+	r326887 fixes the issue described in the 20171214 UPDATING entry.
+	r326888 flips the switch back to building GELI support always.
+
 20171214:
 	r362593 broke ZFS + GELI support for reasons unknown. However,
 	it also broke ZFS support generally, so GELI has been turned off
