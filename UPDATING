@@ -58,7 +58,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 20171214:
 	r362593 broke ZFS + GELI support for reasons unknown. However,
 	it also broke ZFS support generally, so GELI has been turned off
-	by default as the lessor evil in r326857. If you boot off ZFS and/or
+	by default as the lesser evil in r326857. If you boot off ZFS and/or
 	GELI, it might not be a good time to update.
 
 20171125:
@@ -280,7 +280,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	full procedure documented below under the heading "To rebuild
 	everything and install it on the current system."  Specifically,
 	a reboot is required after installing the new kernel before
-	installing world.  
+	installing world.
 
 20170424:
 	The NATM framework including the en(4), fatm(4), hatm(4), and
