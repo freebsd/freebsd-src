@@ -22,6 +22,7 @@ ABIS+=		i386-linux
 ABIS+=		amd64-linux
 ABIS+=		amd64-linux32
 ABIS+=		freebsd32
+ABIS+=		cloudabi32
 ABIS+=		cloudabi64
 .endif
 .if ${MACHINE_ARCH} == "powerpc64"
