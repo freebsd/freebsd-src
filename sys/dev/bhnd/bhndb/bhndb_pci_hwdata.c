@@ -511,7 +511,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v1_pcie = {
 		{
 			.base_addr	= BHND_PCIE_DMA64_TRANSLATION,
 			.addr_mask	= ~BHND_PCIE_DMA64_MASK,
-			.addrext_mask	= 0
+			.addrext_mask	= BHND_PCIE_DMA64_MASK
 		},
 		BHND_DMA_TRANSLATION_TABLE_END
 	}
@@ -594,7 +594,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v2 = {
 		{
 			.base_addr	= BHND_PCIE_DMA64_TRANSLATION,
 			.addr_mask	= ~BHND_PCIE_DMA64_MASK,
-			.addrext_mask	= 0
+			.addrext_mask	= BHND_PCIE_DMA64_MASK
 		},
 		BHND_DMA_TRANSLATION_TABLE_END
 	}
@@ -672,7 +672,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v3 = {
 		{
 			.base_addr	= BHND_PCIE2_DMA64_TRANSLATION,
 			.addr_mask	= ~BHND_PCIE2_DMA64_MASK,
-			.addrext_mask	= 0
+			.addrext_mask	= BHND_PCIE_DMA64_MASK
 		},
 		BHND_DMA_TRANSLATION_TABLE_END
 	}

@@ -521,12 +521,12 @@ bhndb_dma_tag_create(device_t dev, bus_dma_tag_t parent_dmat,
 {
 	bus_dma_tag_t	translation_tag;
 	bhnd_addr_t	dt_mask;
-	bus_addr_t	boundary;
 	bus_addr_t	lowaddr, highaddr;
+	bus_size_t	maxsegsz;
 	int		error;
 
 	highaddr = BUS_SPACE_MAXADDR;
-	boundary = 0;
+	maxsegsz = BUS_SPACE_MAXSIZE;
 
 	/* Determine full addressable mask */
 	dt_mask = (translation->addr_mask | translation->addrext_mask);
@@ -536,19 +536,17 @@ bhndb_dma_tag_create(device_t dev, bus_dma_tag_t parent_dmat,
 	/* (addr_mask|addrext_mask) is our maximum supported address */
 	lowaddr = MIN(dt_mask, BUS_SPACE_MAXADDR);
 
-	/* Do we need to to avoid crossing a DMA translation window boundary? */
-	if (translation->addr_mask < BUS_SPACE_MAXADDR) {
-		/* round down to nearest power of two */
-		boundary = translation->addr_mask & (~1ULL);
-	}
+	/* Constrain to translation window size */
+	if (translation->addr_mask < maxsegsz)
+		maxsegsz = translation->addr_mask;
 
 	/* Create our DMA tag */
 	error = bus_dma_tag_create(parent_dmat,
-	    1,				/* alignment */
-	    boundary, lowaddr, highaddr,
+	    1, 0,			/* alignment, boundary */
+	    lowaddr, highaddr,
 	    NULL, NULL,			/* filter, filterarg */
 	    BUS_SPACE_MAXSIZE, 0,	/* maxsize, nsegments */
-	    BUS_SPACE_MAXSIZE, 0,	/* maxsegsize, flags */
+	    maxsegsz, 0,		/* maxsegsize, flags */
 	    NULL, NULL,			/* lockfunc, lockarg */
 	    &translation_tag);
 	if (error) {
