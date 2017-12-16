@@ -69,6 +69,7 @@ int nfsrv_lease = NFSRV_LEASE;
 int ncl_mbuf_mlen = MLEN;
 int nfsd_enable_stringtouid = 0;
 static int nfs_enable_uidtostring = 0;
+static int nfs_suppress_32bits_warning = 0;
 NFSNAMEIDMUTEX;
 NFSSOCKMUTEX;
 extern int nfsrv_lughashsize;
@@ -76,6 +77,8 @@ extern int nfsrv_lughashsize;
 SYSCTL_DECL(_vfs_nfs);
 SYSCTL_INT(_vfs_nfs, OID_AUTO, enable_uidtostring, CTLFLAG_RW,
     &nfs_enable_uidtostring, 0, "Make nfs always send numeric owner_names");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, suppress_32bits_warning, CTLFLAG_RW,
+    &nfs_suppress_32bits_warning, 0, "Suppress \"> 32 bits\" warnings");
 
 /*
  * This array of structures indicates, for V4:
@@ -836,7 +839,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 	static size_t count64fileid;
 	static struct timeval last64mountfileid;
 	static size_t count64mountfileid;
-	static struct timeval warninterval = { 60, 0 };
+	struct timeval warninterval =
+	    { nfs_suppress_32bits_warning ? 86400 : 60, 0 };
 
 	if (compare) {
 		retnotsup = 0;
