@@ -782,7 +782,7 @@ vxlan_ftable_entry_lookup(struct vxlan_softc *sc, const uint8_t *mac)
 	hash = VXLAN_SC_FTABLE_HASH(sc, mac);
 
 	LIST_FOREACH(fe, &sc->vxl_ftable[hash], vxlfe_hash) {
-		dir = vxlan_ftable_addr_cmp(fe->vxlfe_mac, mac);
+		dir = vxlan_ftable_addr_cmp(mac, fe->vxlfe_mac);
 		if (dir == 0)
 			return (fe);
 		if (dir > 0)
