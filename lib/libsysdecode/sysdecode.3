@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2017
+.Dd December 16, 2017
 .Dt SYSDECODE 3
 .Os
 .Sh NAME
@@ -61,9 +61,12 @@ Supported on amd64 and i386.
 .It Li SYSDECODE_ABI_LINUX32
 32-bit Linux binaries.
 Supported on amd64.
+.It Li SYSDECODE_ABI_CLOUDABI32
+32-bit CloudABI binaries.
+Supported on all platforms.
 .It Li SYSDECODE_ABI_CLOUDABI64
 64-bit CloudABI binaries.
-Supported on aarch64 and amd64.
+Supported on all platforms.
 .It Li SYSDECODE_ABI_UNKNOWN
 A placeholder for use when the ABI is not known.
 .El

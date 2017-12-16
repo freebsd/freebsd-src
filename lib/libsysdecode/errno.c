@@ -58,7 +58,6 @@ static int bsd_to_linux_errno[ELAST + 1] = {
 };
 #endif
 
-#if defined(__aarch64__) || defined(__amd64__)
 #include <contrib/cloudabi/cloudabi_types_common.h>
 
 static const int cloudabi_errno_table[] = {
@@ -139,7 +138,6 @@ static const int cloudabi_errno_table[] = {
 	[CLOUDABI_EXDEV]		= EXDEV,
 	[CLOUDABI_ENOTCAPABLE]		= ENOTCAPABLE,
 };
-#endif
 
 int
 sysdecode_abi_to_freebsd_errno(enum sysdecode_abi abi, int error)
@@ -165,13 +163,12 @@ sysdecode_abi_to_freebsd_errno(enum sysdecode_abi abi, int error)
 		break;
 	}
 #endif
-#if defined(__aarch64__) || defined(__amd64__)
+	case SYSDECODE_ABI_CLOUDABI32:
 	case SYSDECODE_ABI_CLOUDABI64:
 		if (error >= 0 &&
 		    (unsigned int)error < nitems(cloudabi_errno_table))
 			return (cloudabi_errno_table[error]);
 		break;
-#endif
 	default:
 		break;
 	}
@@ -193,7 +190,7 @@ sysdecode_freebsd_to_abi_errno(enum sysdecode_abi abi, int error)
 			return (bsd_to_linux_errno[error]);
 		break;
 #endif
-#if defined(__aarch64__) || defined(__amd64__)
+	case SYSDECODE_ABI_CLOUDABI32:
 	case SYSDECODE_ABI_CLOUDABI64: {
 		unsigned int i;
 
@@ -203,7 +200,6 @@ sysdecode_freebsd_to_abi_errno(enum sysdecode_abi abi, int error)
 		}
 		break;
 	}
-#endif
 	default:
 		break;
 	}
