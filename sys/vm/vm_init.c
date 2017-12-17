@@ -118,8 +118,8 @@ kva_import(void *unused, vmem_size_t size, int flags, vmem_addr_t *addrp)
 	int result;
 
 	KASSERT((size % KVA_QUANTUM) == 0,
-	    ("kva_import: Size %jd is not a multiple of %u",
-	    (intmax_t)size, KVA_QUANTUM));
+	    ("kva_import: Size %jd is not a multiple of %d",
+	    (intmax_t)size, (int)KVA_QUANTUM));
 	addr = vm_map_min(kernel_map);
 	result = vm_map_find(kernel_map, NULL, 0, &addr, size, 0,
 	    VMFS_SUPER_SPACE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
