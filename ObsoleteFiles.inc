@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171204: Move fdformat man page from volume 1 to volume 8.
+OLD_FILES+=usr/share/man/man1/fdformat.1.gz
 # 20170620: remove stale manpage
 OLD_FILES+=usr/share/man/man2/cap_rights_get.2.gz
 # 20170610: chown-f_test replaced by chown_test
