@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171204: Move fdformat man page from volume 1 to volume 8.
+OLD_FILES+=usr/share/man/man1/fdformat.1.gz
 # 20170926: new clang import which bumps version from 4.0.0 to 5.0.0.
 OLD_FILES+=usr/lib/clang/4.0.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/4.0.0/include/sanitizer/asan_interface.h
