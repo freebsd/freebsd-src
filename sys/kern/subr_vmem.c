@@ -625,15 +625,15 @@ vmem_bt_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 	 * and memory are added in one atomic operation.
 	 */
 	mtx_lock(&vmem_bt_lock);
-	if (vmem_xalloc(kernel_arena, bytes, 0, 0, 0, VMEM_ADDR_MIN,
-	    VMEM_ADDR_MAX, M_NOWAIT | M_NOVM | M_USE_RESERVE | M_BESTFIT,
-	    &addr) == 0) {
+	if (vmem_xalloc(vm_dom[domain].vmd_kernel_arena, bytes, 0, 0, 0,
+	    VMEM_ADDR_MIN, VMEM_ADDR_MAX,
+	    M_NOWAIT | M_NOVM | M_USE_RESERVE | M_BESTFIT, &addr) == 0) {
 		if (kmem_back_domain(domain, kernel_object, addr, bytes,
 		    M_NOWAIT | M_USE_RESERVE) == 0) {
 			mtx_unlock(&vmem_bt_lock);
 			return ((void *)addr);
 		}
-		vmem_xfree(kernel_arena, addr, bytes);
+		vmem_xfree(vm_dom[domain].vmd_kernel_arena, addr, bytes);
 		mtx_unlock(&vmem_bt_lock);
 		/*
 		 * Out of memory, not address space.  This may not even be
