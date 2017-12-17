@@ -1151,6 +1151,8 @@ retry_dotdot:
 				SDT_PROBE3(vfs, namecache, lookup, miss, dvp,
 				    "..", NULL);
 				mtx_unlock(dvlp);
+				if (dvlp2 != NULL)
+					mtx_unlock(dvlp2);
 				return (0);
 			}
 			if ((cnp->cn_flags & MAKEENTRY) == 0) {
