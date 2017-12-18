@@ -162,6 +162,7 @@ static char *gz_args[] ={ NULL, f_arg, NULL, NULL };
 #define xz_args gz_args
 static char *zstd_args[] = { NULL, q_arg, rm_arg, NULL, NULL };
 
+#define ARGS_NUM 4
 static const struct compress_types compress_type[COMPRESS_TYPES] = {
 	{ "", "", "", NULL},					/* none */
 	{ "Z", COMPRESS_SUFFIX_GZ, _PATH_GZIP, gz_args},	/* gzip */
@@ -2017,6 +2018,9 @@ do_zipwork(struct zipwork_entry *zwork)
 	assert(zwork != NULL);
 	pgm_path = NULL;
 	strlcpy(zresult, zwork->zw_fname, sizeof(zresult));
+	args = calloc(ARGS_NUM, sizeof(*args));
+	if (args == NULL)
+		err(1, "calloc()");
 	if (zwork->zw_conf != NULL &&
 	    zwork->zw_conf->compress > COMPRESS_NONE)
 		for (c = 1; c < COMPRESS_TYPES; c++) {
@@ -2024,7 +2028,12 @@ do_zipwork(struct zipwork_entry *zwork)
 				pgm_path = compress_type[c].path;
 				(void) strlcat(zresult,
 				    compress_type[c].suffix, sizeof(zresult));
-				args = compress_type[c].args;
+				/* the first argument is always NULL, skip it */
+				for (c = 1; c < ARGS_NUM; c++) {
+					if (compress_type[c].args[c] == NULL)
+						break;
+					args[c] = compress_type[c].args[c];
+				}
 				break;
 			}
 		}
@@ -2065,6 +2074,9 @@ do_zipwork(struct zipwork_entry *zwork)
 		return;
 	}
 
+	if (verbose) {
+		printf("Executing: %s\n", command);
+	}
 	fcount = 1;
 	pidzip = fork();
 	while (pidzip < 0) {
@@ -2094,14 +2106,20 @@ do_zipwork(struct zipwork_entry *zwork)
 	}
 	if (!WIFEXITED(zstatus)) {
 		warnx("`%s' did not terminate normally", command);
+		free(args[0]);
+		free(args);
 		return;
 	}
 	if (WEXITSTATUS(zstatus)) {
 		warnx("`%s' terminated with a non-zero status (%d)", command,
 		    WEXITSTATUS(zstatus));
+		free(args[0]);
+		free(args);
 		return;
 	}
 
+	free(args[0]);
+	free(args);
 	/* Compression was successful, set file attributes on the result. */
 	change_attrs(zresult, zwork->zw_conf);
 }
