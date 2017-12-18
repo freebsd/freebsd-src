@@ -11,6 +11,13 @@ include(LLDBStandalone)
 include(LLDBConfig)
 include(AddLLDB)
 
+# Define the LLDB_CONFIGURATION_xxx matching the build type
+if( uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG" )
+  add_definitions( -DLLDB_CONFIGURATION_DEBUG )
+else()
+  add_definitions( -DLLDB_CONFIGURATION_RELEASE )
+endif()
+
 if (CMAKE_SYSTEM_NAME MATCHES "Windows|Android")
   set(LLDB_DEFAULT_DISABLE_LIBEDIT 1)
 else()
@@ -24,6 +31,10 @@ if (LLDB_DISABLE_LIBEDIT)
   add_definitions( -DLLDB_DISABLE_LIBEDIT )
 endif()
 
+if(APPLE)
+  add_definitions(-DLLDB_USE_OS_LOG)
+endif()
+
 # add_subdirectory(include)
 add_subdirectory(docs)
 if (NOT LLDB_DISABLE_PYTHON)
@@ -32,22 +43,45 @@ if (NOT LLDB_DISABLE_PYTHON)
   endif()
 
   set(LLDB_PYTHON_TARGET_DIR ${LLDB_BINARY_DIR}/scripts)
+  set(LLDB_WRAP_PYTHON ${LLDB_BINARY_DIR}/scripts/LLDBWrapPython.cpp)
   if(LLDB_BUILD_FRAMEWORK)
     set(LLDB_PYTHON_TARGET_DIR
       ${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${LLDB_FRAMEWORK_INSTALL_DIR})
+    set(LLDB_WRAP_PYTHON ${LLDB_PYTHON_TARGET_DIR}/LLDBWrapPython.cpp)
   else()
     # Don't set -m when building the framework.
     set(FINISH_EXTRA_ARGS "-m")
   endif()
-  set(LLDB_WRAP_PYTHON ${LLDB_BINARY_DIR}/scripts/LLDBWrapPython.cpp)
+
 
   add_subdirectory(scripts)
 endif ()
 add_subdirectory(source)
-add_subdirectory(test)
 add_subdirectory(tools)
-add_subdirectory(unittests)
-add_subdirectory(lit)
+
+option(LLDB_INCLUDE_TESTS "Generate build targets for the LLDB unit tests."
+  ${LLVM_INCLUDE_TESTS})
+if(LLDB_INCLUDE_TESTS)
+  if (TARGET clang)
+    set(LLDB_DEFAULT_TEST_C_COMPILER "${LLVM_BINARY_DIR}/bin/clang${CMAKE_EXECUTABLE_SUFFIX}")
+    set(LLDB_DEFAULT_TEST_CXX_COMPILER "${LLVM_BINARY_DIR}/bin/clang++${CMAKE_EXECUTABLE_SUFFIX}")
+  else()
+    set(LLDB_DEFAULT_TEST_C_COMPILER "")
+    set(LLDB_DEFAULT_TEST_CXX_COMPILER "")
+  endif()
+
+  set(LLDB_TEST_C_COMPILER "${LLDB_DEFAULT_TEST_C_COMPILER}" CACHE PATH "C Compiler to use for building LLDB test inferiors")
+  set(LLDB_TEST_CXX_COMPILER "${LLDB_DEFAULT_TEST_CXX_COMPILER}" CACHE PATH "C++ Compiler to use for building LLDB test inferiors")
+
+  if (("${LLDB_TEST_C_COMPILER}" STREQUAL "") OR
+      ("${LLDB_TEST_CXX_COMPILER}" STREQUAL ""))
+    message(FATAL_ERROR "LLDB test compilers not specified.  Tests will not run")
+  endif()
+
+  add_subdirectory(test)
+  add_subdirectory(unittests)
+  add_subdirectory(lit)
+endif()
 
 if (NOT LLDB_DISABLE_PYTHON)
     # Add a Post-Build Event to copy over Python files and create the symlink

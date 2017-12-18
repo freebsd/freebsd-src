@@ -505,13 +505,6 @@ def skipIfRemote(func):
     return skipTestIfFn(is_remote)(func)
 
 
-def skipIfRemoteDueToDeadlock(func):
-    """Decorate the item to skip tests if testing remotely due to the test deadlocking."""
-    def is_remote():
-        return "skip on remote platform (deadlocks)" if lldb.remote_platform else None
-    return skipTestIfFn(is_remote)(func)
-
-
 def skipIfNoSBHeaders(func):
     """Decorate the item to mark tests that should be skipped when LLDB is built with no SB API headers."""
     def are_sb_headers_missing():
@@ -545,6 +538,23 @@ def skipIfiOSSimulator(func):
         return "skip on the iOS Simulator" if configuration.lldb_platform_name == 'ios-simulator' else None
     return skipTestIfFn(is_ios_simulator)(func)
 
+def skipIfiOS(func):
+    return skipIfPlatform(["ios"])(func)
+
+def skipIftvOS(func):
+    return skipIfPlatform(["tvos"])(func)
+
+def skipIfwatchOS(func):
+    return skipIfPlatform(["watchos"])(func)
+
+def skipIfbridgeOS(func):
+    return skipIfPlatform(["bridgeos"])(func)
+
+def skipIfDarwinEmbedded(func):
+    """Decorate the item to skip tests that should be skipped on Darwin armv7/arm64 targets."""
+    return skipIfPlatform(
+        lldbplatform.translate(
+            lldbplatform.darwin_embedded))(func)
 
 def skipIfFreeBSD(func):
     """Decorate the item to skip tests that should be skipped on FreeBSD."""

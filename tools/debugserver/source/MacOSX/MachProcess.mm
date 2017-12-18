@@ -112,7 +112,9 @@ static bool CallBoardSystemServiceOpenApplication(NSString *bundleIDNSStr,
   if (!cstr)
     cstr = "<Unknown Bundle ID>";
 
-  DNBLog("About to launch process for bundle ID: %s", cstr);
+  NSString *description = [options description];
+  DNBLog("About to launch process for bundle ID: %s - options:\n%s", cstr,
+    [description UTF8String]);
   [system_service
       openApplication:bundleIDNSStr
               options:options
@@ -188,6 +190,28 @@ static bool CallBoardSystemServiceOpenApplication(NSString *bundleIDNSStr,
 }
 #endif
 
+#if defined(WITH_BKS) || defined(WITH_FBS)
+static void SplitEventData(const char *data, std::vector<std::string> &elements)
+{
+  elements.clear();
+  if (!data)
+    return;
+
+  const char *start = data;
+
+  while (*start != '\0') {
+    const char *token = strchr(start, ':');
+    if (!token) {
+      elements.push_back(std::string(start));
+      return;
+    }
+    if (token != start)
+      elements.push_back(std::string(start, token - start));
+    start = ++token;
+  }
+}
+#endif
+
 #ifdef WITH_BKS
 #import <Foundation/Foundation.h>
 extern "C" {
@@ -222,21 +246,31 @@ static void SetBKSError(NSInteger error_code, DNBError &error) {
 static bool BKSAddEventDataToOptions(NSMutableDictionary *options,
                                      const char *event_data,
                                      DNBError &option_error) {
-  if (strcmp(event_data, "BackgroundContentFetching") == 0) {
-    DNBLog("Setting ActivateForEvent key in options dictionary.");
-    NSDictionary *event_details = [NSDictionary dictionary];
-    NSDictionary *event_dictionary = [NSDictionary
-        dictionaryWithObject:event_details
-                      forKey:
-                          BKSActivateForEventOptionTypeBackgroundContentFetching];
-    [options setObject:event_dictionary
-                forKey:BKSOpenApplicationOptionKeyActivateForEvent];
-    return true;
-  } else {
-    DNBLogError("Unrecognized event type: %s.  Ignoring.", event_data);
-    option_error.SetErrorString("Unrecognized event data.");
-    return false;
+  std::vector<std::string> values;
+  SplitEventData(event_data, values);
+  bool found_one = false;
+  for (std::string value : values)
+  {
+      if (value.compare("BackgroundContentFetching") == 0) {
+        DNBLog("Setting ActivateForEvent key in options dictionary.");
+        NSDictionary *event_details = [NSDictionary dictionary];
+        NSDictionary *event_dictionary = [NSDictionary
+            dictionaryWithObject:event_details
+                          forKey:
+                              BKSActivateForEventOptionTypeBackgroundContentFetching];
+        [options setObject:event_dictionary
+                    forKey:BKSOpenApplicationOptionKeyActivateForEvent];
+        found_one = true;
+      } else if (value.compare("ActivateSuspended") == 0) {
+        DNBLog("Setting ActivateSuspended key in options dictionary.");
+        [options setObject:@YES forKey: BKSOpenApplicationOptionKeyActivateSuspended];
+        found_one = true;
+      } else {
+        DNBLogError("Unrecognized event type: %s.  Ignoring.", value.c_str());
+        option_error.SetErrorString("Unrecognized event data");
+      }
   }
+  return found_one;
 }
 
 static NSMutableDictionary *BKSCreateOptionsDictionary(
@@ -322,21 +356,31 @@ static void SetFBSError(NSInteger error_code, DNBError &error) {
 static bool FBSAddEventDataToOptions(NSMutableDictionary *options,
                                      const char *event_data,
                                      DNBError &option_error) {
-  if (strcmp(event_data, "BackgroundContentFetching") == 0) {
-    DNBLog("Setting ActivateForEvent key in options dictionary.");
-    NSDictionary *event_details = [NSDictionary dictionary];
-    NSDictionary *event_dictionary = [NSDictionary
-        dictionaryWithObject:event_details
-                      forKey:
-                          FBSActivateForEventOptionTypeBackgroundContentFetching];
-    [options setObject:event_dictionary
-                forKey:FBSOpenApplicationOptionKeyActivateForEvent];
-    return true;
-  } else {
-    DNBLogError("Unrecognized event type: %s.  Ignoring.", event_data);
-    option_error.SetErrorString("Unrecognized event data.");
-    return false;
+  std::vector<std::string> values;
+  SplitEventData(event_data, values);
+  bool found_one = false;
+  for (std::string value : values)
+  {
+      if (value.compare("BackgroundContentFetching") == 0) {
+        DNBLog("Setting ActivateForEvent key in options dictionary.");
+        NSDictionary *event_details = [NSDictionary dictionary];
+        NSDictionary *event_dictionary = [NSDictionary
+            dictionaryWithObject:event_details
+                          forKey:
+                              FBSActivateForEventOptionTypeBackgroundContentFetching];
+        [options setObject:event_dictionary
+                    forKey:FBSOpenApplicationOptionKeyActivateForEvent];
+        found_one = true;
+      } else if (value.compare("ActivateSuspended") == 0) {
+        DNBLog("Setting ActivateSuspended key in options dictionary.");
+        [options setObject:@YES forKey: FBSOpenApplicationOptionKeyActivateSuspended];
+        found_one = true;
+      } else {
+        DNBLogError("Unrecognized event type: %s.  Ignoring.", value.c_str());
+        option_error.SetErrorString("Unrecognized event data.");
+      }
   }
+  return found_one;
 }
 
 static NSMutableDictionary *
@@ -3105,7 +3149,8 @@ pid_t MachProcess::PosixSpawnChildForPTraceDebugging(
       ::chdir(working_directory);
 
     err.SetError(::posix_spawnp(&pid, path, &file_actions, &attr,
-                                (char *const *)argv, (char *const *)envp),
+                                const_cast<char *const *>(argv),
+                                const_cast<char *const *>(envp)),
                  DNBError::POSIX);
     if (err.Fail() || DNBLogCheckLogBit(LOG_PROCESS))
       err.LogThreaded("::posix_spawnp ( pid => %i, path = '%s', file_actions = "
@@ -3117,8 +3162,9 @@ pid_t MachProcess::PosixSpawnChildForPTraceDebugging(
     if (working_directory)
       ::chdir(working_directory);
 
-    err.SetError(::posix_spawnp(&pid, path, NULL, &attr, (char *const *)argv,
-                                (char *const *)envp),
+    err.SetError(::posix_spawnp(&pid, path, NULL, &attr,
+                                const_cast<char *const *>(argv),
+                                const_cast<char *const *>(envp)),
                  DNBError::POSIX);
     if (err.Fail() || DNBLogCheckLogBit(LOG_PROCESS))
       err.LogThreaded("::posix_spawnp ( pid => %i, path = '%s', file_actions = "
@@ -3215,7 +3261,7 @@ pid_t MachProcess::ForkChildForPTraceDebugging(const char *path,
       ::sleep(1);
 
       // Turn this process into
-      ::execv(path, (char *const *)argv);
+      ::execv(path, const_cast<char *const *>(argv));
     }
     // Exit with error code. Child process should have taken
     // over in above exec call and if the exec fails it will

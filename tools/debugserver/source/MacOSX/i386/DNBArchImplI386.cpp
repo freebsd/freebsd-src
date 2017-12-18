@@ -1086,7 +1086,7 @@ const DNBRegisterInfo DNBArchImplI386::g_fpu_registers_no_avx[] = {
     {e_regSetFPU, fpu_fsw, "fstat", NULL, Uint, Hex, FPU_SIZE_UINT(fsw),
      FPU_OFFSET(fsw), INVALID_NUB_REGNUM, INVALID_NUB_REGNUM,
      INVALID_NUB_REGNUM, INVALID_NUB_REGNUM, NULL, NULL},
-    {e_regSetFPU, fpu_ftw, "ftag", NULL, Uint, Hex, FPU_SIZE_UINT(ftw),
+    {e_regSetFPU, fpu_ftw, "ftag", NULL, Uint, Hex, 2 /* sizeof __fpu_ftw + sizeof __fpu_rsrv1 */,
      FPU_OFFSET(ftw), INVALID_NUB_REGNUM, INVALID_NUB_REGNUM,
      INVALID_NUB_REGNUM, INVALID_NUB_REGNUM, NULL, NULL},
     {e_regSetFPU, fpu_fop, "fop", NULL, Uint, Hex, FPU_SIZE_UINT(fop),
@@ -1177,7 +1177,7 @@ const DNBRegisterInfo DNBArchImplI386::g_fpu_registers_avx[] = {
     {e_regSetFPU, fpu_fsw, "fstat", NULL, Uint, Hex, FPU_SIZE_UINT(fsw),
      AVX_OFFSET(fsw), INVALID_NUB_REGNUM, INVALID_NUB_REGNUM,
      INVALID_NUB_REGNUM, INVALID_NUB_REGNUM, NULL, NULL},
-    {e_regSetFPU, fpu_ftw, "ftag", NULL, Uint, Hex, FPU_SIZE_UINT(ftw),
+    {e_regSetFPU, fpu_ftw, "ftag", NULL, Uint, Hex, 2 /* sizeof __fpu_ftw + sizeof __fpu_rsrv1 */,
      AVX_OFFSET(ftw), INVALID_NUB_REGNUM, INVALID_NUB_REGNUM,
      INVALID_NUB_REGNUM, INVALID_NUB_REGNUM, NULL, NULL},
     {e_regSetFPU, fpu_fop, "fop", NULL, Uint, Hex, FPU_SIZE_UINT(fop),
@@ -1414,7 +1414,7 @@ bool DNBArchImplI386::GetRegisterValue(uint32_t set, uint32_t reg,
             *((uint16_t *)(&m_state.context.fpu.no_avx.__fpu_fsw));
         return true;
       case fpu_ftw:
-        value->value.uint8 = m_state.context.fpu.no_avx.__fpu_ftw;
+        memcpy (&value->value.uint16, &m_state.context.fpu.no_avx.__fpu_ftw, 2);
         return true;
       case fpu_fop:
         value->value.uint16 = m_state.context.fpu.no_avx.__fpu_fop;
@@ -1607,7 +1607,7 @@ bool DNBArchImplI386::SetRegisterValue(uint32_t set, uint32_t reg,
         success = true;
         break;
       case fpu_ftw:
-        m_state.context.fpu.no_avx.__fpu_ftw = value->value.uint8;
+        memcpy (&m_state.context.fpu.no_avx.__fpu_ftw, &value->value.uint16, 2);
         success = true;
         break;
       case fpu_fop:
@@ -1886,7 +1886,7 @@ nub_size_t DNBArchImplI386::SetRegisterContext(const void *buf,
     if (size > buf_len)
       size = buf_len;
 
-    uint8_t *p = (uint8_t *)buf;
+    const uint8_t *p = (const uint8_t *)buf;
     // Copy the GPR registers
     memcpy(&m_state.context.gpr, p, sizeof(GPR));
     p += sizeof(GPR);
@@ -1927,7 +1927,7 @@ nub_size_t DNBArchImplI386::SetRegisterContext(const void *buf,
     p += sizeof(EXC);
 
     // make sure we end up with exactly what we think we should have
-    size_t bytes_written = p - (uint8_t *)buf;
+    size_t bytes_written = p - (const uint8_t *)buf;
     UNUSED_IF_ASSERT_DISABLED(bytes_written);
     assert(bytes_written == size);
     kern_return_t kret;

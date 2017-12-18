@@ -1,13 +1,12 @@
-add_subdirectory(Helpers)
-
 add_lldb_unittest(UtilityTests
+  ArchSpecTest.cpp
   ConstStringTest.cpp
+  JSONTest.cpp
   LogTest.cpp
   NameMatchesTest.cpp
   StatusTest.cpp
   StringExtractorTest.cpp
   StructuredDataTest.cpp
-  TaskPoolTest.cpp
   TildeExpressionResolverTest.cpp
   TimeoutTest.cpp
   TimerTest.cpp
