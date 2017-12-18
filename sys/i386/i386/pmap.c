@@ -662,7 +662,7 @@ pmap_set_pg(void)
 	endva = KERNBASE + KERNend;
 
 	if (pseflag) {
-		va = KERNBASE + KERNLOAD;
+		va = KERNBASE + roundup2(KERNLOAD, NBPDR);
 		while (va  < endva) {
 			pdir_pde(PTD, va) |= pgeflag;
 			invltlb();	/* Flush non-PG_G entries. */
