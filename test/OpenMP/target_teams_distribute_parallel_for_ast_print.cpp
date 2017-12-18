@@ -24,8 +24,10 @@ protected:
 public:
   S7(typename T::type v) : a(v) {
 #pragma omp target teams distribute parallel for private(a) private(this->a) private(T::a)
-    for (int k = 0; k < a.a; ++k)
+    for (int k = 0; k < a.a; ++k) {
       ++this->a.a;
+#pragma omp cancel for
+    }
   }
   S7 &operator=(S7 &s) {
 #pragma omp target teams distribute parallel for private(a) private(this->a)
@@ -43,6 +45,7 @@ public:
   }
 };
 // CHECK: #pragma omp target teams distribute parallel for private(this->a) private(this->a) private(T::a)
+// CHECK: #pragma omp cancel for
 // CHECK: #pragma omp target teams distribute parallel for private(this->a) private(this->a)
 // CHECK: #pragma omp target teams distribute parallel for default(none) private(b) firstprivate(argv) shared(d) reduction(+: c) reduction(max: e) num_teams(f) thread_limit(d)
 
@@ -113,10 +116,10 @@ T tmain(T argc) {
 // CHECK: #pragma omp target teams distribute parallel for default(none) private(b) firstprivate(argc) shared(d) reduction(+: c) reduction(max: e) num_teams(f) thread_limit(d)
 // CHECK-NEXT: for (int k = 0; k < 10; ++k)
 // CHECK-NEXT: e += d + argc;
-#pragma omp target teams distribute parallel for linear(d)
+#pragma omp target teams distribute parallel for
   for (int k = 0; k < 10; ++k)
     e += d + argc;
-// CHECK: #pragma omp target teams distribute parallel for linear(d)
+// CHECK: #pragma omp target teams distribute parallel for
 // CHECK-NEXT: for (int k = 0; k < 10; ++k)
 // CHECK-NEXT: e += d + argc;
   return T();
@@ -158,10 +161,10 @@ int main (int argc, char **argv) {
 // CHECK: #pragma omp target teams distribute parallel for default(none) private(b) firstprivate(argc) shared(d) reduction(+: c) reduction(max: e) num_teams(f) thread_limit(d)
 // CHECK-NEXT: for (int k = 0; k < 10; ++k)
 // CHECK-NEXT: e += d + argc;
-#pragma omp target teams distribute parallel for linear(d)
+#pragma omp target teams distribute parallel for
   for (int k = 0; k < 10; ++k)
     e += d + argc;
-// CHECK: #pragma omp target teams distribute parallel for linear(d)
+// CHECK: #pragma omp target teams distribute parallel for
 // CHECK-NEXT: for (int k = 0; k < 10; ++k)
 // CHECK-NEXT: e += d + argc;
   return (0);

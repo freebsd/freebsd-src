@@ -272,7 +272,8 @@ public:
   /// SourceRangeSkipped - This hook is called when a source range is skipped.
   /// \param Range The SourceRange that was skipped. The range begins at the
   /// #if/#else directive and ends after the #endif/#else directive.
-  void SourceRangeSkipped(SourceRange Range) override {}
+  void SourceRangeSkipped(SourceRange Range, SourceLocation EndifLoc) override {
+  }
 };
 
 //===----------------------------------------------------------------------===//
@@ -879,11 +880,6 @@ int clang_indexSourceFileFullArgv(
         TU_options);
   };
 
-  if (getenv("LIBCLANG_NOTHREADS")) {
-    IndexSourceFileImpl();
-    return result;
-  }
-
   llvm::CrashRecoveryContext CRC;
 
   if (!RunSafely(CRC, IndexSourceFileImpl)) {
@@ -932,11 +928,6 @@ int clang_indexTranslationUnit(CXIndexAction idxAction,
         idxAction, client_data, index_callbacks, index_callbacks_size,
         index_options, TU);
   };
-
-  if (getenv("LIBCLANG_NOTHREADS")) {
-    IndexTranslationUnitImpl();
-    return result;
-  }
 
   llvm::CrashRecoveryContext CRC;
 

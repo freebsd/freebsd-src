@@ -32,6 +32,7 @@ static const DiagnosticRecord BuiltinDiagnosticsByID[] = {
              SFINAE,NOWERROR,SHOWINSYSHEADER,CATEGORY)            \
   { #ENUM, diag::ENUM, STR_SIZE(#ENUM, uint8_t) },
 #include "clang/Basic/DiagnosticCommonKinds.inc"
+#include "clang/Basic/DiagnosticCrossTUKinds.inc"
 #include "clang/Basic/DiagnosticDriverKinds.inc"
 #include "clang/Basic/DiagnosticFrontendKinds.inc"
 #include "clang/Basic/DiagnosticSerializationKinds.inc"
@@ -41,6 +42,7 @@ static const DiagnosticRecord BuiltinDiagnosticsByID[] = {
 #include "clang/Basic/DiagnosticCommentKinds.inc"
 #include "clang/Basic/DiagnosticSemaKinds.inc"
 #include "clang/Basic/DiagnosticAnalysisKinds.inc"
+#include "clang/Basic/DiagnosticRefactoringKinds.inc"
 #undef DIAG
 };
 
@@ -84,12 +86,22 @@ GroupRecord::subgroup_iterator GroupRecord::subgroup_end() const {
   return nullptr;
 }
 
+llvm::iterator_range<diagtool::GroupRecord::subgroup_iterator>
+GroupRecord::subgroups() const {
+  return llvm::make_range(subgroup_begin(), subgroup_end());
+}
+
 GroupRecord::diagnostics_iterator GroupRecord::diagnostics_begin() const {
   return DiagArrays + Members;
 }
 
 GroupRecord::diagnostics_iterator GroupRecord::diagnostics_end() const {
   return nullptr;
+}
+
+llvm::iterator_range<diagtool::GroupRecord::diagnostics_iterator>
+GroupRecord::diagnostics() const {
+  return llvm::make_range(diagnostics_begin(), diagnostics_end());
 }
 
 llvm::ArrayRef<GroupRecord> diagtool::getDiagnosticGroups() {

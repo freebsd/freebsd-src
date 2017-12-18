@@ -213,8 +213,14 @@ Command-line parameters
 ``-fno-implicit-modules``
   All modules used by the build must be specified with ``-fmodule-file``.
 
-``-fmodule-file=<file>``
-  Load the given precompiled module file.
+``-fmodule-file=[<name>=]<file>``
+  Specify the mapping of module names to precompiled module files. If the
+  name is omitted, then the module file is loaded whether actually required
+  or not. If the name is specified, then the mapping is treated as another
+  prebuilt module search mechanism (in addition to ``-fprebuilt-module-path``)
+  and the module is only loaded if required. Note that in this case the
+  specified file also overrides this module's paths that might be embedded
+  in other precompiled module files.
 
 ``-fprebuilt-module-path=<directory>``
   Specify the path to the prebuilt modules. If specified, we will look for modules in this directory for a given top-level module name. We don't need a module map for loading prebuilt modules in this directory and the compiler will not try to rebuild these modules. This can be specified multiple times.
@@ -317,11 +323,12 @@ Module map files use a simplified form of the C99 lexer, with the same rules for
 
 .. parsed-literal::
 
-  ``config_macros`` ``export``     ``private``
+  ``config_macros`` ``export_as``  ``private``
   ``conflict``      ``framework``  ``requires``
   ``exclude``       ``header``     ``textual``
   ``explicit``      ``link``       ``umbrella``
   ``extern``        ``module``     ``use``
+  ``export``
 
 Module map file
 ---------------
@@ -381,6 +388,7 @@ Modules can have a number of different kinds of members, each of which is descri
     *umbrella-dir-declaration*
     *submodule-declaration*
     *export-declaration*
+    *export-as-declaration*
     *use-declaration*
     *link-declaration*
     *config-macros-declaration*
@@ -659,6 +667,30 @@ Note that, if ``Derived.h`` includes ``Base.h``, one can simply use a wildcard e
   Therefore, liberal use of ``export *`` provides excellent backward
   compatibility for programs that rely on transitive inclusion (i.e.,
   all of them).
+
+Re-export Declaration
+~~~~~~~~~~~~~~~~~~~~~
+An *export-as-declaration* specifies that the current module will have
+its interface re-exported by the named module.
+
+.. parsed-literal::
+
+  *export-as-declaration*:
+    ``export_as`` *identifier*
+
+The *export-as-declaration* names the module that the current
+module will be re-exported through. Only top-level modules
+can be re-exported, and any given module may only be re-exported
+through a single module.
+
+**Example:** In the following example, the module ``MyFrameworkCore``
+will be re-exported via the module ``MyFramework``:
+
+.. parsed-literal::
+
+  module MyFrameworkCore {
+    export_as MyFramework
+  }
 
 Use declaration
 ~~~~~~~~~~~~~~~
@@ -945,4 +977,3 @@ PCHInternals_
 .. [#] The preprocessing context in which the modules are parsed is actually dependent on the command-line options provided to the compiler, including the language dialect and any ``-D`` options. However, the compiled modules for different command-line options are kept distinct, and any preprocessor directives that occur within the translation unit are ignored. See the section on the `Configuration macros declaration`_ for more information.
 
 .. _PCHInternals: PCHInternals.html
- 

@@ -11,8 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Basic/CharInfo.h"
 #include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/CharInfo.h"
+#include "clang/Basic/DiagnosticError.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/PartialDiagnostic.h"
@@ -363,7 +364,7 @@ void DiagnosticsEngine::setSeverityForAll(diag::Flavor Flavor,
                                           SourceLocation Loc) {
   // Get all the diagnostics.
   SmallVector<diag::kind, 64> AllDiags;
-  Diags->getAllDiagnostics(Flavor, AllDiags);
+  DiagnosticIDs::getAllDiagnostics(Flavor, AllDiags);
 
   // Set the mapping.
   for (diag::kind Diag : AllDiags)
@@ -1050,3 +1051,5 @@ PartialDiagnostic::StorageAllocator::~StorageAllocator() {
           llvm::CrashRecoveryContext::isRecoveringFromCrash()) &&
          "A partial is on the lam");
 }
+
+char DiagnosticError::ID;

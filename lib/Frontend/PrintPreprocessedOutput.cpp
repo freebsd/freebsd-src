@@ -143,6 +143,8 @@ public:
                      ArrayRef<int> Ids) override;
   void PragmaWarningPush(SourceLocation Loc, int Level) override;
   void PragmaWarningPop(SourceLocation Loc) override;
+  void PragmaAssumeNonNullBegin(SourceLocation Loc) override;
+  void PragmaAssumeNonNullEnd(SourceLocation Loc) override;
 
   bool HandleFirstTokOnLine(Token &Tok);
 
@@ -549,6 +551,22 @@ void PrintPPOutputPPCallbacks::PragmaWarningPop(SourceLocation Loc) {
   setEmittedDirectiveOnThisLine();
 }
 
+void PrintPPOutputPPCallbacks::
+PragmaAssumeNonNullBegin(SourceLocation Loc) {
+  startNewLineIfNeeded();
+  MoveToLine(Loc);
+  OS << "#pragma clang assume_nonnull begin";
+  setEmittedDirectiveOnThisLine();
+}
+
+void PrintPPOutputPPCallbacks::
+PragmaAssumeNonNullEnd(SourceLocation Loc) {
+  startNewLineIfNeeded();
+  MoveToLine(Loc);
+  OS << "#pragma clang assume_nonnull end";
+  setEmittedDirectiveOnThisLine();
+}
+
 /// HandleFirstTokOnLine - When emitting a preprocessed file in -E mode, this
 /// is called for the first token on each new line.  If this really is the start
 /// of a new logical line, handle it and return true, otherwise return false.
@@ -702,6 +720,12 @@ static void PrintPreprocessedTokens(Preprocessor &PP, Token &Tok,
       // -traditional-cpp the lexer keeps /all/ whitespace, including comments.
       SourceLocation StartLoc = Tok.getLocation();
       Callbacks->MoveToLine(StartLoc.getLocWithOffset(Tok.getLength()));
+    } else if (Tok.is(tok::eod)) {
+      // Don't print end of directive tokens, since they are typically newlines
+      // that mess up our line tracking. These come from unknown pre-processor
+      // directives or hash-prefixed comments in standalone assembly files.
+      PP.Lex(Tok);
+      continue;
     } else if (Tok.is(tok::annot_module_include)) {
       // PrintPPOutputPPCallbacks::InclusionDirective handles producing
       // appropriate output here. Ignore this token entirely.

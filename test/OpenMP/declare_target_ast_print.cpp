@@ -108,9 +108,7 @@ void f2() {
 // CHECK: #pragma omp end declare target
 
 int c1, c2, c3;
-void f3() {
-}
-#pragma omp declare target link(c1) link(c2), link(c3, f3)
+#pragma omp declare target link(c1) link(c2), link(c3)
 // CHECK: #pragma omp declare target link
 // CHECK: int c1;
 // CHECK: #pragma omp end declare target
@@ -120,9 +118,33 @@ void f3() {
 // CHECK: #pragma omp declare target link
 // CHECK: int c3;
 // CHECK: #pragma omp end declare target
-// CHECK: #pragma omp declare target link
-// CHECK: void f3()
+
+struct SSSt {
+#pragma omp declare target
+  static int a;
+  int b;
+#pragma omp end declare target
+};
+
+// CHECK: struct SSSt {
+// CHECK: #pragma omp declare target
+// CHECK: static int a;
 // CHECK: #pragma omp end declare target
+// CHECK: int b;
+
+template <class T>
+struct SSSTt {
+#pragma omp declare target
+  static T a;
+  int b;
+#pragma omp end declare target
+};
+
+// CHECK: template <class T> struct SSSTt {
+// CHECK: #pragma omp declare target
+// CHECK: static T a;
+// CHECK: #pragma omp end declare target
+// CHECK: int b;
 
 int main (int argc, char **argv) {
   foo();

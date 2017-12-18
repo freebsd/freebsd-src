@@ -74,6 +74,7 @@ int main() {
       // LAMBDA: {{.+}} = alloca i{{[0-9]+}},
       // LAMBDA: {{.+}} = alloca i{{[0-9]+}},
       // LAMBDA: {{.+}} = alloca i{{[0-9]+}},
+      // LAMBDA: {{.+}} = alloca i{{[0-9]+}},
       // LAMBDA: [[OMP_IS_LAST:%.+]] = alloca i{{[0-9]+}},
       // LAMBDA: [[G_PRIVATE:%.+]] = alloca double,
       // LAMBDA: [[G1_PRIVATE:%.+]] = alloca double,
@@ -141,6 +142,7 @@ int main() {
       // LAMBDA: {{.+}} = alloca i{{[0-9]+}},
       // LAMBDA: {{.+}} = alloca i{{[0-9]+}},
       // LAMBDA: {{.+}} = alloca i{{[0-9]+}},
+      // LAMBDA: {{.+}} = alloca i{{[0-9]+}},
 
       // private alloca's
       // LAMBDA: [[OMP_IS_LAST:%.+]] = alloca i{{[0-9]+}},
@@ -162,7 +164,7 @@ int main() {
       // LAMBDA: [[SFVAR_IN_REF:%.+]] = load float*, float** [[SFVAR_PRIVATE_ADDR]],
 
       // LAMBDA: [[G1_IN_REF:%.+]] = load double*, double** [[G1_PRIVATE_ADDR]],
-      // LAMBDA: store double* [[G1_PRIVATE]], double** [[TMP_G1]],
+      // LAMBDA: store double* [[G1_PRIVATE]], double** [[TMP_G1_PRIVATE]],
 
       // LAMBDA: call {{.*}}void @__kmpc_for_static_init_4(
 
@@ -273,6 +275,7 @@ int main() {
 // CHECK: {{.+}} = alloca i{{[0-9]+}},
 // CHECK: {{.+}} = alloca i{{[0-9]+}},
 // CHECK: {{.+}} = alloca i{{[0-9]+}},
+// CHECK: {{.+}} = alloca i{{[0-9]+}},
 // CHECK: [[OMP_IS_LAST:%.+]] = alloca i{{[0-9]+}},
 // CHECK: [[T_VAR_PRIV:%.+]] = alloca i{{[0-9]+}},
 // CHECK: [[VEC_PRIV:%.+]] = alloca [2 x i{{[0-9]+}}],
@@ -367,6 +370,7 @@ int main() {
 // CHECK: [[VAR_ADDR:%.+]] = alloca [[S_FLOAT_TY]]*,
 // CHECK: [[SVAR_ADDR:%.+]] = alloca i{{[0-9]+}}*,
 // skip loop variables
+// CHECK: {{.+}} = alloca i{{[0-9]+}},
 // CHECK: {{.+}} = alloca i{{[0-9]+}},
 // CHECK: {{.+}} = alloca i{{[0-9]+}},
 // CHECK: {{.+}} = alloca i{{[0-9]+}},
@@ -486,6 +490,7 @@ int main() {
 // CHECK: {{.+}} = alloca i{{[0-9]+}},
 // CHECK: {{.+}} = alloca i{{[0-9]+}},
 // CHECK: {{.+}} = alloca i{{[0-9]+}},
+// CHECK: {{.+}} = alloca i{{[0-9]+}},
 // CHECK: [[OMP_IS_LAST:%.+]] = alloca i{{[0-9]+}},
 // CHECK: [[T_VAR_PRIV:%.+]] = alloca i{{[0-9]+}},
 // CHECK: [[VEC_PRIV:%.+]] = alloca [2 x i{{[0-9]+}}],
@@ -562,6 +567,7 @@ int main() {
 // CHECK: [[S_ARR_ADDR:%.+]] = alloca [2 x [[S_INT_TY]]]*,
 // CHECK: [[VAR_ADDR:%.+]] = alloca [[S_INT_TY]]*,
 // skip loop variables
+// CHECK: {{.+}} = alloca i{{[0-9]+}},
 // CHECK: {{.+}} = alloca i{{[0-9]+}},
 // CHECK: {{.+}} = alloca i{{[0-9]+}},
 // CHECK: {{.+}} = alloca i{{[0-9]+}},
