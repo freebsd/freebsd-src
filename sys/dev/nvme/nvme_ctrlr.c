@@ -299,7 +299,7 @@ nvme_ctrlr_disable(struct nvme_controller *ctrlr)
 	 * disable, so delay for a bit after we write the bit to
 	 * cope with these issues.
 	 */
-	if (ctrlr->quirks)
+	if (ctrlr->quirks & QUIRK_DELAY_B4_CHK_RDY)
 		pause("nvmeR", B4_CHK_RDY_DELAY_MS * hz / 1000);
 	return (nvme_ctrlr_wait_for_ready(ctrlr, 0));
 }
