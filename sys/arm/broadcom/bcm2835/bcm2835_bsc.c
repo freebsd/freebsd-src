@@ -508,7 +508,7 @@ bcm_bsc_intr(void *arg)
 		 * transfer is complete; TXD will be asserted along with ERR or
 		 * DONE if there is room in the fifo.
 		 */
-		if (status & BCM_BSC_STATUS_TXD)
+		if ((status & BCM_BSC_STATUS_TXD) && sc->sc_totlen > 0)
 			bcm_bsc_fill_tx_fifo(sc);
 	}
 
