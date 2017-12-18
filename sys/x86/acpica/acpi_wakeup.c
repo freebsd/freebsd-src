@@ -179,6 +179,17 @@ acpi_wakeup_cpus(struct acpi_softc *sc)
 		}
 	}
 
+#ifdef __i386__
+	/*
+	 * Remove the identity mapping of low memory for all CPUs and sync
+	 * the TLB for the BSP.  The APs are now spinning in
+	 * cpususpend_handler() and we will release them soon.  Then each
+	 * will invalidate its TLB.
+	 */
+	kernel_pmap->pm_pdir[0] = 0;
+	invltlb_glob();
+#endif
+
 	/* restore the warmstart vector */
 	*(uint32_t *)WARMBOOT_OFF = mpbioswarmvec;
 
@@ -234,6 +245,19 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(wakeup_pcb, struct pcb *, pcb);
 		WAKECODE_FIXUP(wakeup_gdt, uint16_t, pcb->pcb_gdt.rd_limit);
 		WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t, pcb->pcb_gdt.rd_base);
+
+#ifdef __i386__
+		/*
+		 * Map some low memory with virt == phys for ACPI wakecode
+		 * to use to jump to high memory after enabling paging. This
+		 * is the same as for similar jump in locore, except the
+		 * jump is a single instruction, and we know its address
+		 * more precisely so only need a single PTD, and we have to
+		 * be careful to use the kernel map (PTD[0] is for curthread
+		 * which may be a user thread in deprecated APIs).
+		 */
+		kernel_pmap->pm_pdir[0] = PTD[KPTDI];
+#endif
 
 		/* Call ACPICA to enter the desired sleep state */
 		if (state == ACPI_STATE_S4 && sc->acpi_s4bios)
