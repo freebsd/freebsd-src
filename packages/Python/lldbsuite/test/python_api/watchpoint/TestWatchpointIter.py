@@ -19,6 +19,10 @@ class WatchpointIteratorTestCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
 
+    # hardware watchpoints are not reported with a hardware index # on armv7 on ios devices
+    def affected_by_radar_34564183(self):
+        return (self.getArchitecture() == 'armv7' or self.getArchitecture() == 'armv7k') and self.platformIsDarwin()
+
     def setUp(self):
         # Call super's setUp().
         TestBase.setUp(self)
@@ -29,8 +33,6 @@ class WatchpointIteratorTestCase(TestBase):
             self.source, '// Set break point at this line.')
 
     @add_test_categories(['pyapi'])
-    # Watchpoints not supported
-    @expectedFailureAndroid(archs=['arm', 'aarch64'])
     @expectedFailureAll(
         oslist=["windows"],
         bugnumber="llvm.org/pr24446: WINDOWS XFAIL TRIAGE - Watchpoints not supported on Windows")
@@ -99,7 +101,8 @@ class WatchpointIteratorTestCase(TestBase):
         # meaningful hardware index at this point.  Exercise the printed repr of
         # SBWatchpointLocation.
         print(watchpoint)
-        self.assertTrue(watchpoint.GetHardwareIndex() != -1)
+        if not self.affected_by_radar_34564183():
+            self.assertTrue(watchpoint.GetHardwareIndex() != -1)
 
         # SBWatchpoint.GetDescription() takes a description level arg.
         print(lldbutil.get_description(watchpoint, lldb.eDescriptionLevelFull))

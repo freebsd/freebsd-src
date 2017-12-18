@@ -78,6 +78,24 @@ ifneq "$(TRIPLE)" ""
 				endif
 			endif
 		endif
+		ifeq "$(TRIPLE_OS)" "watchos"
+		    ifeq "$(SDKROOT)" ""
+				# Set SDKROOT if it wasn't set
+				ifneq (,$(findstring arm,$(ARCH)))
+					SDKROOT = $(shell xcrun --sdk watchos --show-sdk-path)
+					ifeq "$(TRIPLE_VERSION)" ""
+						TRIPLE_VERSION =$(shell echo $(notdir $(SDKROOT)) | sed -e 's/.*\([0-9]\.[0-9]\).*/\1/')
+					endif
+					ARCH_CFLAGS :=-mwatchos-version-min=$(TRIPLE_VERSION) -isysroot "$(SDKROOT)"
+				else
+					SDKROOT = $(shell xcrun --sdk watchsimulator --show-sdk-path)
+					ifeq "$(TRIPLE_VERSION)" ""
+						TRIPLE_VERSION =$(shell echo $(notdir $(SDKROOT)) | sed -e 's/.*\([0-9]\.[0-9]\).*/\1/')
+					endif
+					ARCH_CFLAGS :=-mwatchos-simulator-version-min=$(TRIPLE_VERSION) -isysroot "$(SDKROOT)"
+				endif
+			endif
+		endif
 	endif
 endif
 ifeq "$(OS)" "Android"
@@ -163,6 +181,9 @@ else
 	ifeq "$(ARCH)" "powerpc64"
 		override ARCH := $(subst powerpc64,64,$(ARCH))
 	endif
+	ifeq "$(ARCH)" "powerpc64le"
+		override ARCH := $(subst powerpc64le,64,$(ARCH))
+	endif
 	ifeq "$(ARCH)" "aarch64"
 		override ARCH :=
 		override ARCHFLAG :=
@@ -197,18 +218,19 @@ DEBUG_INFO_FLAG ?= -g
 
 CFLAGS ?= $(DEBUG_INFO_FLAG) -O0 -fno-builtin
 ifeq "$(OS)" "Darwin"
-	CFLAGS += $(ARCHFLAG) $(ARCH) $(FRAMEWORK_INCLUDES) $(CFLAGS_EXTRAS) -I$(LLDB_BASE_DIR)include
+	CFLAGS += $(ARCHFLAG) $(ARCH) $(FRAMEWORK_INCLUDES) -I$(LLDB_BASE_DIR)include
 else
-	CFLAGS += $(ARCHFLAG)$(ARCH) $(FRAMEWORK_INCLUDES) $(CFLAGS_EXTRAS) -I$(LLDB_BASE_DIR)include
+	CFLAGS += $(ARCHFLAG)$(ARCH) $(FRAMEWORK_INCLUDES) -I$(LLDB_BASE_DIR)include
 endif
 
-CFLAGS += -include $(THIS_FILE_DIR)test_common.h -I$(THIS_FILE_DIR) $(ARCH_CFLAGS)
+CFLAGS += -include $(THIS_FILE_DIR)test_common.h -I$(THIS_FILE_DIR)
+CFLAGS += $(NO_LIMIT_DEBUG_INFO_FLAGS) $(ARCH_CFLAGS) $(CFLAGS_EXTRAS)
 
 # Use this one if you want to build one part of the result without debug information:
 ifeq "$(OS)" "Darwin"
-	CFLAGS_NO_DEBUG = -O0 $(ARCHFLAG) $(ARCH) $(FRAMEWORK_INCLUDES) $(CFLAGS_EXTRAS) $(ARCH_CFLAGS)
+	CFLAGS_NO_DEBUG = -O0 $(ARCHFLAG) $(ARCH) $(FRAMEWORK_INCLUDES) $(ARCH_CFLAGS) $(CFLAGS_EXTRAS)
 else
-	CFLAGS_NO_DEBUG = -O0 $(ARCHFLAG)$(ARCH) $(FRAMEWORK_INCLUDES) $(CFLAGS_EXTRAS) $(ARCH_CFLAGS)
+	CFLAGS_NO_DEBUG = -O0 $(ARCHFLAG)$(ARCH) $(FRAMEWORK_INCLUDES) $(ARCH_CFLAGS) $(CFLAGS_EXTRAS)
 endif
 
 ifeq "$(MAKE_DWO)" "YES"
@@ -225,7 +247,7 @@ CXXFLAGS += $(subst -fmodules,, $(CFLAGS))
 LD = $(CC)
 LDFLAGS ?= $(CFLAGS)
 LDFLAGS += $(LD_EXTRAS) $(ARCH_LDFLAGS)
-ifeq (,$(filter $(OS), Windows_NT Android))
+ifeq (,$(filter $(OS), Windows_NT Android Darwin))
 	ifneq (,$(filter YES,$(ENABLE_THREADS)))
 		LDFLAGS += -pthread
 	endif
