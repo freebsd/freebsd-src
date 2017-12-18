@@ -90,6 +90,7 @@ static struct _pcsid
 	int		match_subdevice;
 	uint16_t	subdevice;
 	const char	*desc;
+	uint32_t	quirks;
 } pci_ids[] = {
 	{ 0x01118086,		0, 0, "NVMe Controller"  },
 	{ IDT32_PCI_ID,		0, 0, "IDT NVMe Controller (32 channel)"  },
@@ -100,6 +101,11 @@ static struct _pcsid
 	{ 0x09538086,		1, 0x3705, "DC P3500 SSD [2.5\" SFF]" },
 	{ 0x09538086,		1, 0x3709, "DC P3600 SSD [Add-in Card]" },
 	{ 0x09538086,		1, 0x370a, "DC P3600 SSD [2.5\" SFF]" },
+	{ 0x00031c58,		0, 0, "HGST SN100",	QUIRK_DELAY_B4_CHK_RDY },
+	{ 0x00231c58,		0, 0, "WDC SN200",	QUIRK_DELAY_B4_CHK_RDY },
+	{ 0x05401c5f,		0, 0, "Memblaze Pblaze4", QUIRK_DELAY_B4_CHK_RDY },
+	{ 0xa821144d,		0, 0, "Samsung PM1725", QUIRK_DELAY_B4_CHK_RDY },
+	{ 0xa822144d,		0, 0, "Samsung PM1725a", QUIRK_DELAY_B4_CHK_RDY },
 	{ 0x00000000,		0, 0, NULL  }
 };
 
@@ -240,6 +246,19 @@ nvme_attach(device_t dev)
 {
 	struct nvme_controller	*ctrlr = DEVICE2SOFTC(dev);
 	int			status;
+	struct _pcsid		*ep;
+	uint32_t		devid;
+	uint16_t		subdevice;
+
+	devid = pci_get_devid(dev);
+	subdevice = pci_get_subdevice(dev);
+	ep = pci_ids;
+	while (ep->devid) {
+		if (nvme_match(devid, subdevice, ep))
+			break;
+		++ep;
+	}
+	ctrlr->quirks = ep->quirks;
 
 	status = nvme_ctrlr_construct(ctrlr, dev);
 
