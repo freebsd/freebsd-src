@@ -23,33 +23,33 @@
 
 ; ASM: f:                                      # @f
 ; ASM: .Lfunc_begin0:
-; ASM: # BB#0:                                 # %entry
+; ASM: # %bb.0:                                 # %entry
 ; ASM:         pushq   %rsi
 ; ASM:         subq    $32, %rsp
-; ASM:         #DEBUG_VALUE: f:p <- %ECX
+; ASM:         #DEBUG_VALUE: f:p <- %ecx
 ; ASM:         movl    %ecx, %esi
 ; ASM: [[p_ecx_esi:\.Ltmp.*]]:
-; ASM:         #DEBUG_VALUE: f:p <- %ESI
+; ASM:         #DEBUG_VALUE: f:p <- %esi
 ; ASM:         callq   getint
 ; ASM: [[after_getint:\.Ltmp.*]]:
-; ASM:         #DEBUG_VALUE: a <- %EAX
-; ASM:         #DEBUG_VALUE: inlineinc:a <- %EAX
-; ASM:         #DEBUG_VALUE: c <- %EAX
+; ASM:         #DEBUG_VALUE: a <- %eax
+; ASM:         #DEBUG_VALUE: inlineinc:a <- %eax
+; ASM:         #DEBUG_VALUE: c <- %eax
 ; ASM:         testl   %esi, %esi
 ; ASM:         je      .LBB0_2
 ; ASM: [[after_je:\.Ltmp.*]]:
-; ASM: # BB#1:                                 # %if.then
-; ASM-DAG:     #DEBUG_VALUE: inlineinc:a <- %EAX
-; ASM-DAG:     #DEBUG_VALUE: a <- %EAX
-; ASM-DAG:     #DEBUG_VALUE: f:p <- %ESI
-; ASM:         incl    %eax
+; ASM: # %bb.1:                                 # %if.then
+; ASM-DAG:     #DEBUG_VALUE: inlineinc:a <- %eax
+; ASM-DAG:     #DEBUG_VALUE: a <- %eax
+; ASM-DAG:     #DEBUG_VALUE: f:p <- %esi
+; ASM:         addl    $1, %eax
 ; ASM: [[after_inc_eax:\.Ltmp.*]]:
-; ASM:         #DEBUG_VALUE: inlineinc:b <- %EAX
-; ASM:         #DEBUG_VALUE: b <- %EAX
-; ASM:         incl    x(%rip)
+; ASM:         #DEBUG_VALUE: inlineinc:b <- %eax
+; ASM:         #DEBUG_VALUE: b <- %eax
+; ASM:         addl    $1, x(%rip)
 ; ASM: [[after_if:\.Ltmp.*]]:
 ; ASM: .LBB0_2:                                # %if.else
-; ASM:         #DEBUG_VALUE: f:p <- %ESI
+; ASM:         #DEBUG_VALUE: f:p <- %esi
 ; ASM:         movl    %eax, %ecx
 ; ASM:         addq    $32, %rsp
 ; ASM:         popq    %rsi
@@ -92,7 +92,7 @@
 ; OBJ:     VarName: p
 ; OBJ:   }
 ; OBJ:   DefRangeRegisterSym {
-; OBJ:     Register: 18
+; OBJ:     Register: ECX (0x12)
 ; OBJ:     LocalVariableAddrRange {
 ; OBJ:       OffsetStart: .text+0x0
 ; OBJ:       ISectStart: 0x0
@@ -100,11 +100,11 @@
 ; OBJ:     }
 ; OBJ:   }
 ; OBJ:   DefRangeRegisterSym {
-; OBJ:     Register: 23
+; OBJ:     Register: ESI (0x17)
 ; OBJ:     LocalVariableAddrRange {
 ; OBJ:       OffsetStart: .text+0x7
 ; OBJ:       ISectStart: 0x0
-; OBJ:       Range: 0x18
+; OBJ:       Range: 0x1A
 ; OBJ:     }
 ; OBJ:   }
 ; OBJ:   LocalSym {
@@ -114,11 +114,11 @@
 ; OBJ:     VarName: a
 ; OBJ:   }
 ; OBJ:   DefRangeRegisterSym {
-; OBJ:     Register: 17
+; OBJ:     Register: EAX (0x11)
 ; OBJ:     LocalVariableAddrRange {
 ; OBJ:       OffsetStart: .text+0xC
 ; OBJ:       ISectStart: 0x0
-; OBJ:       Range: 0x6
+; OBJ:       Range: 0x7
 ; OBJ:     }
 ; OBJ:   }
 ; OBJ:   LocalSym {
@@ -128,7 +128,7 @@
 ; OBJ:     VarName: c
 ; OBJ:   }
 ; OBJ:   DefRangeRegisterSym {
-; OBJ:     Register: 17
+; OBJ:     Register: EAX (0x11)
 ; OBJ:     LocalVariableAddrRange {
 ; OBJ:       OffsetStart: .text+0xC
 ; OBJ:       ISectStart: 0x0
@@ -142,11 +142,11 @@
 ; OBJ:     VarName: b
 ; OBJ:   }
 ; OBJ:   DefRangeRegisterSym {
-; OBJ:     Register: 17
+; OBJ:     Register: EAX (0x11)
 ; OBJ:     MayHaveNoName: 0
-; OBJ:       OffsetStart: .text+0x12
+; OBJ:       OffsetStart: .text+0x13
 ; OBJ:       ISectStart: 0x0
-; OBJ:       Range: 0x6
+; OBJ:       Range: 0x7
 ; OBJ:     }
 ; OBJ:   }
 ; OBJ:   InlineSiteSym {
@@ -162,11 +162,11 @@
 ; OBJ:     VarName: a
 ; OBJ:   }
 ; OBJ:   DefRangeRegisterSym {
-; OBJ:     Register: 17
+; OBJ:     Register: EAX (0x11)
 ; OBJ:     LocalVariableAddrRange {
 ; OBJ:       OffsetStart: .text+0xC
 ; OBJ:       ISectStart: 0x0
-; OBJ:       Range: 0x6
+; OBJ:       Range: 0x7
 ; OBJ:     }
 ; OBJ:   }
 ; OBJ:   LocalSym {
@@ -176,11 +176,11 @@
 ; OBJ:     VarName: b
 ; OBJ:   }
 ; OBJ:   DefRangeRegisterSym {
-; OBJ:     Register: 17
+; OBJ:     Register: EAX (0x11)
 ; OBJ:     LocalVariableAddrRange {
-; OBJ:       OffsetStart: .text+0x12
+; OBJ:       OffsetStart: .text+0x13
 ; OBJ:       ISectStart: 0x0
-; OBJ:       Range: 0x6
+; OBJ:       Range: 0x7
 ; OBJ:     }
 ; OBJ:   }
 ; OBJ:   InlineSiteEnd {
@@ -198,25 +198,25 @@ target triple = "x86_64-pc-windows-msvc18.0.0"
 ; Function Attrs: nounwind uwtable
 define void @f(i32 %p) #0 !dbg !12 {
 entry:
-  tail call void @llvm.dbg.value(metadata i32 %p, i64 0, metadata !16, metadata !23), !dbg !24
+  tail call void @llvm.dbg.value(metadata i32 %p, metadata !16, metadata !23), !dbg !24
   %tobool = icmp eq i32 %p, 0, !dbg !25
   %call2 = tail call i32 @getint() #3, !dbg !26
   br i1 %tobool, label %if.else, label %if.then, !dbg !27
 
 if.then:                                          ; preds = %entry
-  tail call void @llvm.dbg.value(metadata i32 %call2, i64 0, metadata !17, metadata !23), !dbg !28
-  tail call void @llvm.dbg.value(metadata i32 %call2, i64 0, metadata !29, metadata !23), !dbg !35
+  tail call void @llvm.dbg.value(metadata i32 %call2, metadata !17, metadata !23), !dbg !28
+  tail call void @llvm.dbg.value(metadata i32 %call2, metadata !29, metadata !23), !dbg !35
   %add.i = add nsw i32 %call2, 1, !dbg !37
-  tail call void @llvm.dbg.value(metadata i32 %add.i, i64 0, metadata !34, metadata !23), !dbg !38
+  tail call void @llvm.dbg.value(metadata i32 %add.i, metadata !34, metadata !23), !dbg !38
   %0 = load volatile i32, i32* @x, align 4, !dbg !39, !tbaa !40
   %inc.i = add nsw i32 %0, 1, !dbg !39
   store volatile i32 %inc.i, i32* @x, align 4, !dbg !39, !tbaa !40
-  tail call void @llvm.dbg.value(metadata i32 %add.i, i64 0, metadata !20, metadata !23), !dbg !44
+  tail call void @llvm.dbg.value(metadata i32 %add.i, metadata !20, metadata !23), !dbg !44
   tail call void @putint(i32 %add.i) #3, !dbg !45
   br label %if.end, !dbg !46
 
 if.else:                                          ; preds = %entry
-  tail call void @llvm.dbg.value(metadata i32 %call2, i64 0, metadata !21, metadata !23), !dbg !47
+  tail call void @llvm.dbg.value(metadata i32 %call2, metadata !21, metadata !23), !dbg !47
   tail call void @putint(i32 %call2) #3, !dbg !48
   br label %if.end
 
@@ -229,7 +229,7 @@ declare i32 @getint() #1
 declare void @putint(i32) #1
 
 ; Function Attrs: nounwind readnone
-declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #2
+declare void @llvm.dbg.value(metadata, metadata, metadata) #2
 
 attributes #0 = { nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
@@ -240,7 +240,7 @@ attributes #3 = { nounwind }
 !llvm.module.flags = !{!8, !9, !10}
 !llvm.ident = !{!11}
 
-!0 = !DIGlobalVariableExpression(var: !1)
+!0 = !DIGlobalVariableExpression(var: !1, expr: !DIExpression())
 !1 = !DIGlobalVariable(name: "x", scope: !2, file: !3, line: 1, type: !6, isLocal: false, isDefinition: true)
 !2 = distinct !DICompileUnit(language: DW_LANG_C99, file: !3, producer: "clang version 3.9.0 (trunk 260617) (llvm/trunk 260619)", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, enums: !4, globals: !5)
 !3 = !DIFile(filename: "t.cpp", directory: "D:\5Csrc\5Cllvm\5Cbuild")

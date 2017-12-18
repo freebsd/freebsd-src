@@ -1,5 +1,6 @@
-# RUN: llvm-mc -triple=x86_64-pc-win32 -filetype=obj -o %T/COFF_x86_64.o %s
-# RUN: llvm-rtdyld -triple=x86_64-pc-win32 -verify -check=%s %/T/COFF_x86_64.o
+# RUN: rm -rf %t && mkdir -p %t
+# RUN: llvm-mc -triple=x86_64-pc-win32 -filetype=obj -o %t/COFF_x86_64.o %s
+# RUN: llvm-rtdyld -triple=x86_64-pc-win32 -verify -check=%s %t/COFF_x86_64.o
         	.text
 	.def	 F;
 	.scl	2;
@@ -17,7 +18,7 @@ __real400921f9f01b866e:
 F:                                      # @F
 .Ltmp0:
 .seh_proc F
-# BB#0:                                 # %entry
+# %bb.0:                                # %entry
 .Ltmp1:
 	.seh_endprologue
 # rtdyld-check: decode_operand(inst1, 4) = __real400921f9f01b866e - next_pc(inst1)

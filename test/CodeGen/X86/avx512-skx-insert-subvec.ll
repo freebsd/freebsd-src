@@ -3,7 +3,7 @@
 
 define <8 x i1> @test(<2 x i1> %a) {
 ; CHECK-LABEL: test:
-; CHECK:       # BB#0:
+; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vpsllq $63, %xmm0, %xmm0
 ; CHECK-NEXT:    vptestmq %xmm0, %xmm0, %k0
 ; CHECK-NEXT:    kshiftlb $2, %k0, %k0
@@ -15,7 +15,7 @@ define <8 x i1> @test(<2 x i1> %a) {
 
 define <8 x i1> @test1(<2 x i1> %a) {
 ; CHECK-LABEL: test1:
-; CHECK:       # BB#0:
+; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vpsllq $63, %xmm0, %xmm0
 ; CHECK-NEXT:    vptestmq %xmm0, %xmm0, %k0
 ; CHECK-NEXT:    kshiftlb $4, %k0, %k0
@@ -27,11 +27,11 @@ define <8 x i1> @test1(<2 x i1> %a) {
 
 define <8 x i1> @test2(<2 x i1> %a) {
 ; CHECK-LABEL: test2:
-; CHECK:       # BB#0:
+; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vpsllq $63, %xmm0, %xmm0
 ; CHECK-NEXT:    vptestmq %xmm0, %xmm0, %k0
 ; CHECK-NEXT:    vpmovm2q %k0, %zmm0
-; CHECK-NEXT:    vpxord %zmm1, %zmm1, %zmm1
+; CHECK-NEXT:    vpxor %xmm1, %xmm1, %xmm1
 ; CHECK-NEXT:    vinserti64x4 $1, %ymm0, %zmm1, %zmm0
 ; CHECK-NEXT:    vpmovq2m %zmm0, %k0
 ; CHECK-NEXT:    vpmovm2w %k0, %xmm0
@@ -43,11 +43,9 @@ define <8 x i1> @test2(<2 x i1> %a) {
 
 define <8 x i1> @test3(<4 x i1> %a) {
 ; CHECK-LABEL: test3:
-; CHECK:       # BB#0:
+; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vpslld $31, %xmm0, %xmm0
 ; CHECK-NEXT:    vptestmd %xmm0, %xmm0, %k0
-; CHECK-NEXT:    kshiftlb $4, %k0, %k0
-; CHECK-NEXT:    kshiftrb $4, %k0, %k0
 ; CHECK-NEXT:    vpmovm2w %k0, %xmm0
 ; CHECK-NEXT:    retq
 
@@ -57,15 +55,13 @@ define <8 x i1> @test3(<4 x i1> %a) {
 
 define <8 x i1> @test4(<4 x i1> %a, <4 x i1>%b) {
 ; CHECK-LABEL: test4:
-; CHECK:       # BB#0:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    vpslld $31, %xmm1, %xmm1
+; CHECK-NEXT:    vptestmd %xmm1, %xmm1, %k0
 ; CHECK-NEXT:    vpslld $31, %xmm0, %xmm0
-; CHECK-NEXT:    vptestmd %xmm0, %xmm0, %k0
-; CHECK-NEXT:    vpslld $31, %xmm1, %xmm0
 ; CHECK-NEXT:    vptestmd %xmm0, %xmm0, %k1
-; CHECK-NEXT:    kshiftlb $4, %k1, %k1
 ; CHECK-NEXT:    kshiftlb $4, %k0, %k0
-; CHECK-NEXT:    kshiftrb $4, %k0, %k0
-; CHECK-NEXT:    korb %k1, %k0, %k0
+; CHECK-NEXT:    korb %k0, %k1, %k0
 ; CHECK-NEXT:    vpmovm2w %k0, %xmm0
 ; CHECK-NEXT:    retq
 
@@ -75,15 +71,13 @@ define <8 x i1> @test4(<4 x i1> %a, <4 x i1>%b) {
 
 define <4 x i1> @test5(<2 x i1> %a, <2 x i1>%b) {
 ; CHECK-LABEL: test5:
-; CHECK:       # BB#0:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    vpsllq $63, %xmm1, %xmm1
+; CHECK-NEXT:    vptestmq %xmm1, %xmm1, %k0
 ; CHECK-NEXT:    vpsllq $63, %xmm0, %xmm0
-; CHECK-NEXT:    vptestmq %xmm0, %xmm0, %k0
-; CHECK-NEXT:    vpsllq $63, %xmm1, %xmm0
 ; CHECK-NEXT:    vptestmq %xmm0, %xmm0, %k1
-; CHECK-NEXT:    kshiftlb $2, %k1, %k1
 ; CHECK-NEXT:    kshiftlb $2, %k0, %k0
-; CHECK-NEXT:    kshiftrb $2, %k0, %k0
-; CHECK-NEXT:    korb %k1, %k0, %k0
+; CHECK-NEXT:    korb %k0, %k1, %k0
 ; CHECK-NEXT:    vpmovm2d %k0, %xmm0
 ; CHECK-NEXT:    retq
 
@@ -93,16 +87,13 @@ define <4 x i1> @test5(<2 x i1> %a, <2 x i1>%b) {
 
 define <16 x i1> @test6(<2 x i1> %a, <2 x i1>%b) {
 ; CHECK-LABEL: test6:
-; CHECK:       # BB#0:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    vpsllq $63, %xmm1, %xmm1
+; CHECK-NEXT:    vptestmq %xmm1, %xmm1, %k0
 ; CHECK-NEXT:    vpsllq $63, %xmm0, %xmm0
-; CHECK-NEXT:    vptestmq %xmm0, %xmm0, %k0
-; CHECK-NEXT:    vpsllq $63, %xmm1, %xmm0
 ; CHECK-NEXT:    vptestmq %xmm0, %xmm0, %k1
-; CHECK-NEXT:    kshiftlb $2, %k1, %k1
 ; CHECK-NEXT:    kshiftlb $2, %k0, %k0
-; CHECK-NEXT:    kshiftrb $2, %k0, %k0
-; CHECK-NEXT:    korb %k1, %k0, %k0
-; CHECK-NEXT:    kunpckbw %k0, %k0, %k0
+; CHECK-NEXT:    korb %k0, %k1, %k0
 ; CHECK-NEXT:    vpmovm2b %k0, %xmm0
 ; CHECK-NEXT:    retq
 
@@ -112,17 +103,13 @@ define <16 x i1> @test6(<2 x i1> %a, <2 x i1>%b) {
 
 define <32 x i1> @test7(<4 x i1> %a, <4 x i1>%b) {
 ; CHECK-LABEL: test7:
-; CHECK:       # BB#0:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    vpslld $31, %xmm1, %xmm1
+; CHECK-NEXT:    vptestmd %xmm1, %xmm1, %k0
 ; CHECK-NEXT:    vpslld $31, %xmm0, %xmm0
-; CHECK-NEXT:    vptestmd %xmm0, %xmm0, %k0
-; CHECK-NEXT:    vpslld $31, %xmm1, %xmm0
 ; CHECK-NEXT:    vptestmd %xmm0, %xmm0, %k1
-; CHECK-NEXT:    kshiftlb $4, %k1, %k1
 ; CHECK-NEXT:    kshiftlb $4, %k0, %k0
-; CHECK-NEXT:    kshiftrb $4, %k0, %k0
-; CHECK-NEXT:    korb %k1, %k0, %k0
-; CHECK-NEXT:    kunpckbw %k0, %k0, %k0
-; CHECK-NEXT:    kunpckwd %k0, %k0, %k0
+; CHECK-NEXT:    korb %k0, %k1, %k0
 ; CHECK-NEXT:    vpmovm2b %k0, %ymm0
 ; CHECK-NEXT:    retq
 
@@ -132,7 +119,7 @@ define <32 x i1> @test7(<4 x i1> %a, <4 x i1>%b) {
 
 define <64 x i1> @test8(<8 x i1> %a, <8 x i1>%b) {
 ; CHECK-LABEL: test8:
-; CHECK:       # BB#0:
+; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vpsllw $15, %xmm1, %xmm1
 ; CHECK-NEXT:    vpmovw2m %xmm1, %k0
 ; CHECK-NEXT:    vpsllw $15, %xmm0, %xmm0
@@ -147,7 +134,7 @@ define <64 x i1> @test8(<8 x i1> %a, <8 x i1>%b) {
 
 define <4 x i1> @test9(<8 x i1> %a, <8 x i1> %b) {
 ; CHECK-LABEL: test9:
-; CHECK:       # BB#0:
+; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vpsllw $15, %xmm0, %xmm0
 ; CHECK-NEXT:    vpmovw2m %xmm0, %k0
 ; CHECK-NEXT:    kshiftrw $4, %k0, %k0
@@ -159,7 +146,7 @@ define <4 x i1> @test9(<8 x i1> %a, <8 x i1> %b) {
 
 define <2 x i1> @test10(<4 x i1> %a, <4 x i1> %b) {
 ; CHECK-LABEL: test10:
-; CHECK:       # BB#0:
+; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vpslld $31, %xmm0, %xmm0
 ; CHECK-NEXT:    vptestmd %xmm0, %xmm0, %k0
 ; CHECK-NEXT:    kshiftrw $2, %k0, %k0
@@ -171,7 +158,7 @@ define <2 x i1> @test10(<4 x i1> %a, <4 x i1> %b) {
 
 define <8 x i1> @test11(<4 x i1> %a, <4 x i1>%b) {
 ; CHECK-LABEL: test11:
-; CHECK:       # BB#0:
+; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vpslld $31, %xmm0, %xmm0
 ; CHECK-NEXT:    vptestmd %xmm0, %xmm0, %k0
 ; CHECK-NEXT:    kshiftlb $4, %k0, %k0

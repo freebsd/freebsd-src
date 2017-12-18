@@ -18,7 +18,6 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDisassembler/MCDisassembler.h"
 #include "llvm/MC/MCInst.h"
-#include "llvm/MC/MCInstPrinter.h"
 #include "llvm/MC/MCInstrAnalysis.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCObjectFileInfo.h"
@@ -27,7 +26,6 @@
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/Binary.h"
 #include "llvm/Object/COFF.h"
-#include "llvm/Object/ELFObjectFile.h"
 #include "llvm/Object/MachO.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/Casting.h"
@@ -35,7 +33,6 @@
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/LineIterator.h"
 #include "llvm/Support/MD5.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -48,15 +45,10 @@
 #include "llvm/Support/SpecialCaseList.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
-#include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/YAMLParser.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include <algorithm>
 #include <set>
-#include <stdio.h>
-#include <string>
-#include <utility>
 #include <vector>
 
 using namespace llvm;
@@ -584,13 +576,16 @@ public:
         UserBlacklist(createUserBlacklist()) {}
 
   bool isBlacklisted(const DILineInfo &I) {
-    if (DefaultBlacklist && DefaultBlacklist->inSection("fun", I.FunctionName))
+    if (DefaultBlacklist &&
+        DefaultBlacklist->inSection("sancov", "fun", I.FunctionName))
       return true;
-    if (DefaultBlacklist && DefaultBlacklist->inSection("src", I.FileName))
+    if (DefaultBlacklist &&
+        DefaultBlacklist->inSection("sancov", "src", I.FileName))
       return true;
-    if (UserBlacklist && UserBlacklist->inSection("fun", I.FunctionName))
+    if (UserBlacklist &&
+        UserBlacklist->inSection("sancov", "fun", I.FunctionName))
       return true;
-    if (UserBlacklist && UserBlacklist->inSection("src", I.FileName))
+    if (UserBlacklist && UserBlacklist->inSection("sancov", "src", I.FileName))
       return true;
     return false;
   }

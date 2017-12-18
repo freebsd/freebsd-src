@@ -1,4 +1,4 @@
-; RUN: llc -verify-machineinstrs -mcpu=pwr8 -mtriple=powerpc64le-unknown-unknown < %s | FileCheck %s
+; RUN: llc -verify-machineinstrs -mcpu=pwr8 -mtriple=powerpc64le-unknown-unknown -ppc-late-peephole=true < %s | FileCheck %s
 ; RUN: llc -verify-machineinstrs -mcpu=pwr8 -mtriple=powerpc64-unknown-unknown < %s | FileCheck %s \
 ; RUN:  --check-prefix=CHECK-BE
 ; RUN: llc -verify-machineinstrs -mcpu=pwr7 -mtriple=powerpc64-unknown-unknown < %s | FileCheck %s \
@@ -70,9 +70,9 @@ entry:
 ; CHECK-LABEL: @getf
 ; CHECK-P7-LABEL: @getf
 ; CHECK-BE-LABEL: @getf
-; CHECK: li [[IMMREG:[0-9]+]], 3
-; CHECK: xor [[TRUNCREG:[0-9]+]], [[IMMREG]], 5
-; CHECK: lvsl [[SHMSKREG:[0-9]+]], 0, [[TRUNCREG]]
+; CHECK: xori [[TRUNCREG:[0-9]+]], 5, 3
+; CHECK: sldi [[SHIFTREG:[0-9]+]], [[TRUNCREG]], 2
+; CHECK: lvsl [[SHMSKREG:[0-9]+]], 0, [[SHIFTREG]]
 ; CHECK: vperm {{[0-9]+}}, 2, 2, [[SHMSKREG]]
 ; CHECK: xscvspdpn 1,
 ; CHECK-P7-DAG: rlwinm [[ELEMOFFREG:[0-9]+]], 5, 2, 28, 29

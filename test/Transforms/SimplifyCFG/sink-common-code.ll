@@ -1,4 +1,4 @@
-; RUN: opt < %s -simplifycfg -S | FileCheck %s
+; RUN: opt < %s -simplifycfg -sink-common-insts -S | FileCheck -enable-var-scope %s
 
 define zeroext i1 @test1(i1 zeroext %flag, i32 %blksA, i32 %blksB, i32 %nblks) {
 entry:
@@ -340,7 +340,7 @@ if.end:
 ; CHECK-LABEL: test13
 ; CHECK-DAG: select
 ; CHECK-DAG: load volatile
-; CHECK: store volatile {{.*}}, !tbaa ![[TBAA:[0-9]]]
+; CHECK: store volatile {{.*}}, !tbaa ![[$TBAA:[0-9]]]
 ; CHECK-NOT: load
 ; CHECK-NOT: store
 
@@ -384,7 +384,7 @@ if.else:
   %gepb = getelementptr inbounds %struct.anon, %struct.anon* %s, i32 0, i32 1
   %sv2 = load i32, i32* %gepb
   %cmp2 = icmp eq i32 %sv2, 57
-  call void @llvm.dbg.value(metadata i32 0, i64 0, metadata !9, metadata !DIExpression()), !dbg !11
+  call void @llvm.dbg.value(metadata i32 0, metadata !9, metadata !DIExpression()), !dbg !11
   br label %if.end
 
 if.end:
@@ -392,7 +392,7 @@ if.end:
   ret i32 1
 }
 
-declare void @llvm.dbg.value(metadata, i64, metadata, metadata)
+declare void @llvm.dbg.value(metadata, metadata, metadata)
 !llvm.module.flags = !{!5, !6}
 !llvm.dbg.cu = !{!7}
 
@@ -842,6 +842,6 @@ if.end:
 ; CHECK: insertvalue
 ; CHECK-NOT: insertvalue
 
-; CHECK: ![[TBAA]] = !{![[TYPE:[0-9]]], ![[TYPE]], i64 0}
+; CHECK: ![[$TBAA]] = !{![[TYPE:[0-9]]], ![[TYPE]], i64 0}
 ; CHECK: ![[TYPE]] = !{!"float", ![[TEXT:[0-9]]]}
 ; CHECK: ![[TEXT]] = !{!"an example type tree"}

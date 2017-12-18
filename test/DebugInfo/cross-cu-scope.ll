@@ -1,5 +1,5 @@
 ; RUN: %llc_dwarf %s -filetype=obj -o %t
-; RUN: llvm-dwarfdump -debug-dump=info %t | FileCheck %s
+; RUN: llvm-dwarfdump -debug-info %t | FileCheck %s
 
 ; Reduced test case from PR35212. Two DISubprogram belong to a different CU but
 ; share a scope. Both are declarations and end up in the scope's CU. We want to
@@ -17,9 +17,9 @@
 ; CHECK-NOT: NULL
 ; CHECK: DW_TAG_formal_parameter
 ; CHECK-NOT: NULL
-; CHECK: DW_AT_type{{.*}}{[[USIZE_LABEL:0x[0-9a-f]+]]}
+; CHECK: DW_AT_type{{.*}}"usize"
 ; CHECK: NULL
-; CHECK: [[USIZE_LABEL]]: DW_TAG_base_type
+; CHECK: DW_TAG_base_type
 ; CHECK-NOT: NULL
 ; CHECK: DW_AT_name{{.*}}"usize"
 

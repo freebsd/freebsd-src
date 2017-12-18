@@ -37,25 +37,25 @@
 ; ASM-LABEL: loop_csr: # @loop_csr
 ; ASM:        #DEBUG_VALUE: loop_csr:o <- [DW_OP_LLVM_fragment 0 32] 0
 ; ASM:        #DEBUG_VALUE: loop_csr:o <- [DW_OP_LLVM_fragment 32 32] 0
-; ASM: # BB#2:                                 # %for.body.preheader
+; ASM: # %bb.2:                                 # %for.body.preheader
 ; ASM:         xorl    %edi, %edi
 ; ASM:         xorl    %esi, %esi
 ; ASM:         .p2align        4, 0x90
 ; ASM: .LBB0_3:                                # %for.body
 ; ASM: [[ox_start:\.Ltmp[0-9]+]]:
-; ASM:        #DEBUG_VALUE: loop_csr:o <- [DW_OP_LLVM_fragment 0 32] %EDI
+; ASM:        #DEBUG_VALUE: loop_csr:o <- [DW_OP_LLVM_fragment 0 32] %edi
 ; ASM:        .cv_loc 0 1 13 11               # t.c:13:11
 ; ASM:        movl    %edi, %ecx
 ; ASM:        callq   g
 ; ASM:        movl    %eax, %edi
 ; ASM: [[oy_start:\.Ltmp[0-9]+]]:
-; ASM:         #DEBUG_VALUE: loop_csr:o <- [DW_OP_LLVM_fragment 0 32] %EDI
-; ASM:         #DEBUG_VALUE: loop_csr:o <- [DW_OP_LLVM_fragment 32 32] %ESI
+; ASM:         #DEBUG_VALUE: loop_csr:o <- [DW_OP_LLVM_fragment 0 32] %edi
+; ASM:         #DEBUG_VALUE: loop_csr:o <- [DW_OP_LLVM_fragment 32 32] %esi
 ; ASM:         .cv_loc 0 1 14 11               # t.c:14:11
 ; ASM:         movl    %esi, %ecx
 ; ASM:         callq   g
 ; ASM:         movl    %eax, %esi
-; ASM:         #DEBUG_VALUE: loop_csr:o <- [DW_OP_LLVM_fragment 32 32] %ESI
+; ASM:         #DEBUG_VALUE: loop_csr:o <- [DW_OP_LLVM_fragment 32 32] %esi
 ; ASM:         cmpl    n(%rip), %eax
 ; ASM:         jl      .LBB0_3
 ; ASM: [[oy_end:\.Ltmp[0-9]+]]:
@@ -64,23 +64,23 @@
 
 
 ; ASM-LABEL: pad_right: # @pad_right
-; ASM:         #DEBUG_VALUE: pad_right:o <- [DW_OP_LLVM_fragment 32 32] %ECX
+; ASM:         #DEBUG_VALUE: pad_right:o <- [DW_OP_LLVM_fragment 32 32] %ecx
 ; ASM:         movl    %ecx, %eax
 ; ASM:         retq
 
 
 ; ASM-LABEL: pad_left: # @pad_left
-; ASM:         #DEBUG_VALUE: pad_left:o <- [DW_OP_LLVM_fragment 0 32] %ECX
+; ASM:         #DEBUG_VALUE: pad_left:o <- [DW_OP_LLVM_fragment 0 32] %ecx
 ; ASM:         .cv_loc 2 1 24 3                # t.c:24:3
 ; ASM:         movl    %ecx, %eax
 ; ASM:         retq
 
 
 ; ASM-LABEL: nested: # @nested
-; ASM:         #DEBUG_VALUE: nested:o <- [DW_OP_deref] [%RCX+0]
+; ASM:         #DEBUG_VALUE: nested:o <- [DW_OP_deref] [%rcx+0]
 ; ASM:         movl    12(%rcx), %eax
 ; ASM: [[p_start:\.Ltmp[0-9]+]]:
-; ASM:         #DEBUG_VALUE: nested:p <- [DW_OP_LLVM_fragment 32 32] %EAX
+; ASM:         #DEBUG_VALUE: nested:p <- [DW_OP_LLVM_fragment 32 32] %eax
 ; ASM:         retq
 
 ; ASM-LABEL: bitpiece_spill: # @bitpiece_spill
@@ -89,7 +89,7 @@
 ; ASM:         callq   g
 ; ASM:         movl    %eax, [[offset_o_x:[0-9]+]](%rsp)          # 4-byte Spill
 ; ASM: [[spill_o_x_start:\.Ltmp[0-9]+]]:
-; ASM:         #DEBUG_VALUE: bitpiece_spill:o <- [DW_OP_LLVM_fragment 32 32] [%RSP+[[offset_o_x]]]
+; ASM:         #DEBUG_VALUE: bitpiece_spill:o <- [DW_OP_plus_uconst [[offset_o_x]], DW_OP_LLVM_fragment 32 32] [%rsp+0]
 ; ASM:         #APP
 ; ASM:         #NO_APP
 ; ASM:         movl    [[offset_o_x]](%rsp), %eax          # 4-byte Reload
@@ -113,14 +113,14 @@
 ; OBJ:         VarName: o
 ; OBJ:       }
 ; OBJ:       DefRangeSubfieldRegisterSym {
-; OBJ:         Register: 24
+; OBJ:         Register: EDI (0x18)
 ; OBJ:         MayHaveNoName: 0
 ; OBJ:         OffsetInParent: 0
 ; OBJ:         LocalVariableAddrRange {
 ; OBJ:         }
 ; OBJ:       }
 ; OBJ:       DefRangeSubfieldRegisterSym {
-; OBJ:         Register: 23
+; OBJ:         Register: ESI (0x17)
 ; OBJ:         MayHaveNoName: 0
 ; OBJ:         OffsetInParent: 4
 ; OBJ:         LocalVariableAddrRange {
@@ -143,7 +143,7 @@
 ; OBJ:         VarName: o
 ; OBJ:       }
 ; OBJ:       DefRangeSubfieldRegisterSym {
-; OBJ:         Register: 18
+; OBJ:         Register: ECX (0x12)
 ; OBJ:         MayHaveNoName: 0
 ; OBJ:         OffsetInParent: 4
 ; OBJ:         LocalVariableAddrRange {
@@ -166,7 +166,7 @@
 ; OBJ:         VarName: o
 ; OBJ:       }
 ; OBJ:       DefRangeSubfieldRegisterSym {
-; OBJ:         Register: 18
+; OBJ:         Register: ECX (0x12)
 ; OBJ:         MayHaveNoName: 0
 ; OBJ:         OffsetInParent: 0
 ; OBJ:         LocalVariableAddrRange {
@@ -179,8 +179,7 @@
 ; ASM:        .asciz  "nested"                # Function name
 ; ASM:        .short  4414                    # Record kind: S_LOCAL
 ; ASM:        .asciz  "o"
-; FIXME: We should have a .cv_def_range for 'o', but we don't yet.
-; ASM-NOT:    .cv_def_range
+; ASM:        .cv_def_range    .Lfunc_begin3 .Lfunc_end3, "E\021J\001\000\000\000\000\000\000"
 ; ASM:        .short  4414                    # Record kind: S_LOCAL
 ; ASM:        .asciz  "p"
 ; ASM:        .cv_def_range    [[p_start]] .Lfunc_end3, "C\021\021\000\000\000\004\000\000\000"
@@ -190,13 +189,22 @@
 ; OBJ:         DisplayName: nested
 ; OBJ:       }
 ; OBJ:       LocalSym {
+; OBJ:         Type: Nested&
 ; OBJ:         VarName: o
+; OBJ:       }
+; OBJ:       DefRangeRegisterRelSym {
+; OBJ:         BaseRegister: RCX (0x14A)
+; OBJ:         HasSpilledUDTMember: No
+; OBJ:         OffsetInParent: 0
+; OBJ:         BasePointerOffset: 0
+; OBJ:         LocalVariableAddrRange {
+; OBJ:         }
 ; OBJ:       }
 ; OBJ:       LocalSym {
 ; OBJ:         VarName: p
 ; OBJ:       }
 ; OBJ:       DefRangeSubfieldRegisterSym {
-; OBJ:         Register: 17
+; OBJ:         Register: EAX (0x11)
 ; OBJ:         MayHaveNoName: 0
 ; OBJ:         OffsetInParent: 4
 ; OBJ:         LocalVariableAddrRange {
@@ -220,7 +228,7 @@
 ; OBJ:         VarName: o
 ; OBJ:       }
 ; OBJ:       DefRangeRegisterRelSym {
-; OBJ:         BaseRegister: 335
+; OBJ:         BaseRegister: RSP (0x14F)
 ; OBJ:         HasSpilledUDTMember: Yes
 ; OBJ:         OffsetInParent: 4
 ; OBJ:         BasePointerOffset: 36
@@ -249,10 +257,10 @@ target triple = "x86_64-pc-windows-msvc19.0.24210"
 define i32 @loop_csr() local_unnamed_addr #0 !dbg !7 {
 entry:
   tail call void @llvm.dbg.declare(metadata %struct.IntPair* undef, metadata !12, metadata !17), !dbg !18
-  tail call void @llvm.dbg.value(metadata i32 0, i64 0, metadata !12, metadata !19), !dbg !18
-  tail call void @llvm.dbg.value(metadata i32 0, i64 0, metadata !12, metadata !20), !dbg !18
-  tail call void @llvm.dbg.value(metadata i32 0, i64 0, metadata !12, metadata !19), !dbg !18
-  tail call void @llvm.dbg.value(metadata i32 0, i64 0, metadata !12, metadata !20), !dbg !18
+  tail call void @llvm.dbg.value(metadata i32 0, metadata !12, metadata !19), !dbg !18
+  tail call void @llvm.dbg.value(metadata i32 0, metadata !12, metadata !20), !dbg !18
+  tail call void @llvm.dbg.value(metadata i32 0, metadata !12, metadata !19), !dbg !18
+  tail call void @llvm.dbg.value(metadata i32 0, metadata !12, metadata !20), !dbg !18
   store i32 0, i32* @i, align 4, !dbg !21, !tbaa !24
   %0 = load i32, i32* @n, align 4, !dbg !28, !tbaa !24
   %cmp9 = icmp sgt i32 %0, 0, !dbg !29
@@ -261,12 +269,12 @@ entry:
 for.body:                                         ; preds = %entry, %for.body
   %o.sroa.0.011 = phi i32 [ %call, %for.body ], [ 0, %entry ]
   %o.sroa.5.010 = phi i32 [ %call2, %for.body ], [ 0, %entry ]
-  tail call void @llvm.dbg.value(metadata i32 %o.sroa.0.011, i64 0, metadata !12, metadata !19), !dbg !18
-  tail call void @llvm.dbg.value(metadata i32 %o.sroa.5.010, i64 0, metadata !12, metadata !20), !dbg !18
+  tail call void @llvm.dbg.value(metadata i32 %o.sroa.0.011, metadata !12, metadata !19), !dbg !18
+  tail call void @llvm.dbg.value(metadata i32 %o.sroa.5.010, metadata !12, metadata !20), !dbg !18
   %call = tail call i32 @g(i32 %o.sroa.0.011) #5, !dbg !31
-  tail call void @llvm.dbg.value(metadata i32 %call, i64 0, metadata !12, metadata !19), !dbg !18
+  tail call void @llvm.dbg.value(metadata i32 %call, metadata !12, metadata !19), !dbg !18
   %call2 = tail call i32 @g(i32 %o.sroa.5.010) #5, !dbg !33
-  tail call void @llvm.dbg.value(metadata i32 %call2, i64 0, metadata !12, metadata !20), !dbg !18
+  tail call void @llvm.dbg.value(metadata i32 %call2, metadata !12, metadata !20), !dbg !18
   %1 = load i32, i32* @i, align 4, !dbg !21, !tbaa !24
   %inc = add nsw i32 %1, 1, !dbg !21
   store i32 %inc, i32* @i, align 4, !dbg !21, !tbaa !24
@@ -291,7 +299,7 @@ define i32 @pad_right(i64 %o.coerce) local_unnamed_addr #3 !dbg !38 {
 entry:
   %o.sroa.1.0.extract.shift = lshr i64 %o.coerce, 32
   %o.sroa.1.0.extract.trunc = trunc i64 %o.sroa.1.0.extract.shift to i32
-  tail call void @llvm.dbg.value(metadata i32 %o.sroa.1.0.extract.trunc, i64 0, metadata !47, metadata !20), !dbg !48
+  tail call void @llvm.dbg.value(metadata i32 %o.sroa.1.0.extract.trunc, metadata !47, metadata !20), !dbg !48
   tail call void @llvm.dbg.declare(metadata %struct.PadRight* undef, metadata !47, metadata !17), !dbg !48
   ret i32 %o.sroa.1.0.extract.trunc, !dbg !49
 }
@@ -300,7 +308,7 @@ entry:
 define i32 @pad_left(i64 %o.coerce) local_unnamed_addr #3 !dbg !50 {
 entry:
   %o.sroa.0.0.extract.trunc = trunc i64 %o.coerce to i32
-  tail call void @llvm.dbg.value(metadata i32 %o.sroa.0.0.extract.trunc, i64 0, metadata !58, metadata !19), !dbg !59
+  tail call void @llvm.dbg.value(metadata i32 %o.sroa.0.0.extract.trunc, metadata !58, metadata !19), !dbg !59
   tail call void @llvm.dbg.declare(metadata %struct.PadLeft* undef, metadata !58, metadata !17), !dbg !59
   ret i32 %o.sroa.0.0.extract.trunc, !dbg !60
 }
@@ -312,7 +320,7 @@ entry:
   tail call void @llvm.dbg.declare(metadata %struct.PadLeft* undef, metadata !72, metadata !17), !dbg !75
   %p.sroa.3.0..sroa_idx2 = getelementptr inbounds %struct.Nested, %struct.Nested* %o, i64 0, i32 0, i64 1, i32 1, !dbg !76
   %p.sroa.3.0.copyload = load i32, i32* %p.sroa.3.0..sroa_idx2, align 4, !dbg !76
-  tail call void @llvm.dbg.value(metadata i32 %p.sroa.3.0.copyload, i64 0, metadata !72, metadata !20), !dbg !75
+  tail call void @llvm.dbg.value(metadata i32 %p.sroa.3.0.copyload, metadata !72, metadata !20), !dbg !75
   ret i32 %p.sroa.3.0.copyload, !dbg !77
 }
 
@@ -320,15 +328,15 @@ entry:
 define i32 @bitpiece_spill() local_unnamed_addr #0 !dbg !78 {
 entry:
   tail call void @llvm.dbg.declare(metadata %struct.IntPair* undef, metadata !80, metadata !17), !dbg !81
-  tail call void @llvm.dbg.value(metadata i32 0, i64 0, metadata !80, metadata !19), !dbg !81
+  tail call void @llvm.dbg.value(metadata i32 0, metadata !80, metadata !19), !dbg !81
   %call = tail call i32 @g(i32 0) #5, !dbg !82
-  tail call void @llvm.dbg.value(metadata i32 %call, i64 0, metadata !80, metadata !20), !dbg !81
+  tail call void @llvm.dbg.value(metadata i32 %call, metadata !80, metadata !20), !dbg !81
   tail call void asm sideeffect "", "~{rax},~{rbx},~{rcx},~{rdx},~{rsi},~{rdi},~{rbp},~{r8},~{r9},~{r10},~{r11},~{r12},~{r13},~{r14},~{r15},~{dirflag},~{fpsr},~{flags}"() #5, !dbg !83, !srcloc !84
   ret i32 %call, !dbg !85
 }
 
 ; Function Attrs: nounwind readnone
-declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
+declare void @llvm.dbg.value(metadata, metadata, metadata) #1
 
 attributes #0 = { nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }

@@ -163,7 +163,7 @@ public:
   };
 
   MemoryDepChecker(PredicatedScalarEvolution &PSE, const Loop *L)
-      : PSE(PSE), InnermostLoop(L), AccessIdx(0),
+      : PSE(PSE), InnermostLoop(L), AccessIdx(0), MaxSafeRegisterWidth(-1U),
         ShouldRetryWithRuntimeCheck(false), SafeForVectorization(true),
         RecordDependences(true) {}
 
@@ -198,6 +198,10 @@ public:
   /// \brief The maximum number of bytes of a vector register we can vectorize
   /// the accesses safely with.
   uint64_t getMaxSafeDepDistBytes() { return MaxSafeDepDistBytes; }
+
+  /// \brief Return the number of elements that are safe to operate on
+  /// simultaneously, multiplied by the size of the element in bits.
+  uint64_t getMaxSafeRegisterWidth() const { return MaxSafeRegisterWidth; }
 
   /// \brief In same cases when the dependency check fails we can still
   /// vectorize the loop with a dynamic array access check.
@@ -254,6 +258,12 @@ private:
 
   // We can access this many bytes in parallel safely.
   uint64_t MaxSafeDepDistBytes;
+
+  /// \brief Number of elements (from consecutive iterations) that are safe to
+  /// operate on simultaneously, multiplied by the size of the element in bits.
+  /// The size of the element is taken from the memory access that is most
+  /// restrictive.
+  uint64_t MaxSafeRegisterWidth;
 
   /// \brief If we see a non-constant dependence distance we can still try to
   /// vectorize this loop with runtime checks.
@@ -656,6 +666,21 @@ const SCEV *replaceSymbolicStrideSCEV(PredicatedScalarEvolution &PSE,
 int64_t getPtrStride(PredicatedScalarEvolution &PSE, Value *Ptr, const Loop *Lp,
                      const ValueToValueMap &StridesMap = ValueToValueMap(),
                      bool Assume = false, bool ShouldCheckWrap = true);
+
+/// \brief Attempt to sort the 'loads' in \p VL and return the sorted values in
+/// \p Sorted.
+///
+/// Returns 'false' if sorting is not legal or feasible, otherwise returns
+/// 'true'. If \p Mask is not null, it also returns the \p Mask which is the
+/// shuffle mask for actual memory access order.
+///
+/// For example, for a given VL of memory accesses in program order, a[i+2],
+/// a[i+0], a[i+1] and a[i+3], this function will sort the VL and save the
+/// sorted value in 'Sorted' as a[i+0], a[i+1], a[i+2], a[i+3] and saves the
+/// mask for actual memory accesses in program order in 'Mask' as <2,0,1,3>
+bool sortLoadAccesses(ArrayRef<Value *> VL, const DataLayout &DL,
+    ScalarEvolution &SE, SmallVectorImpl<Value *> &Sorted,
+    SmallVectorImpl<unsigned> *Mask = nullptr);
 
 /// \brief Returns true if the memory operations \p A and \p B are consecutive.
 /// This is a simple API that does not depend on the analysis pass. 

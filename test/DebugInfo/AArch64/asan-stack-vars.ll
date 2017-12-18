@@ -1,4 +1,4 @@
-; RUN: llc -O0 -filetype=obj -o - %s | llvm-dwarfdump - | FileCheck %s
+; RUN: llc -O0 -filetype=obj -o - %s | llvm-dwarfdump -v - | FileCheck %s
 ;
 ; Derived from (clang -O0 -g -fsanitize=address -fobjc-arc)
 ;   @protocol NSObject
@@ -27,13 +27,11 @@
 ; CHECK-NEXT:   DW_AT_high_pc [DW_FORM_addr]    ([[FN_END:.*]])
 ; CHECK: "_cmd"
 ; CHECK: DW_TAG_formal_parameter
-; CHECK-NEXT: DW_AT_location {{.*}} ([[OFS:.*]])
+; CHECK-NEXT: DW_AT_location
+; CHECK-NEXT:   0x{{0*}} - 0x{{.*}}:
+; CHECK-NOT:    DW_AT_
+; CHECK:        0x{{.*}} - [[FN_END]]:
 ; CHECK-NEXT: DW_AT_name {{.*}}"imageSize"
-;
-; CHECK: .debug_loc contents:
-; CHECK: [[OFS]]: Beginning address offset: 0x0000000000000000
-; CHECK_NOT: 0x{{.*}}: Beginning
-; CHECK:          Ending address offset: [[FN_END]]
 
 ; ModuleID = 'm.m'
 source_filename = "m.m"
@@ -210,7 +208,7 @@ entry:
   %72 = load i8*, i8** @OBJC_SELECTOR_REFERENCES_.4, align 8, !dbg !55, !invariant.load !2
   %73 = bitcast %0* %65 to i8*, !dbg !55
   %call2 = call i8* bitcast (i8* (i8*, i8*, ...)* @objc_msgSend to i8* (i8*, i8*)*)(i8* %73, i8* %72), !dbg !55
-  call void asm sideeffect "mov\09fp, fp\09\09# marker for objc_retainAutoreleaseReturnValue", ""(), !dbg !55
+  call void asm sideeffect "mov\09fp, fp\09\09; marker for objc_retainAutoreleaseReturnValue", ""(), !dbg !55
   %74 = call i8* @objc_retainAutoreleasedReturnValue(i8* %call2) #3, !dbg !55
   %75 = bitcast %0** %5 to i8**, !dbg !56
   call void @objc_storeStrong(i8** %75, i8* null) #3, !dbg !56

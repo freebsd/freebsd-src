@@ -18,8 +18,10 @@ add_llvm_unittest(OrcJITTests
   OrcCAPITest.cpp
   OrcTestCommon.cpp
   QueueChannel.cpp
+  RemoteObjectLayerTest.cpp
   RPCUtilsTest.cpp
   RTDyldObjectLinkingLayerTest.cpp
+  SymbolStringPoolTest.cpp
   )
 
-target_link_libraries(OrcJITTests ${LLVM_PTHREAD_LIB})
+target_link_libraries(OrcJITTests PRIVATE ${LLVM_PTHREAD_LIB})

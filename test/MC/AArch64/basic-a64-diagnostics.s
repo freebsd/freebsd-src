@@ -1814,7 +1814,7 @@
 
         ;; Not possible to fmov ZR to a whole vector
         fmov v0.4s, #0.0
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: expected compatible register or floating-point constant
 // CHECK-ERROR-NEXT:           fmov v0.4s, #0.0
 // CHECK-ERROR-NEXT:                       ^
 
@@ -1962,11 +1962,11 @@
 //------------------------------------------------------------------------------
         ldr x3, [x4, #25], #0
         ldr x4, [x9, #0], #4
-// CHECK-ERROR-AARCH64: error: {{expected symbolic reference or integer|index must be a multiple of 8}} in range [0, 32760]
+// CHECK-ERROR-AARCH64: error: invalid operand for instruction
 // CHECK-ERROR-ARM64: error: invalid operand for instruction
 // CHECK-ERROR-NEXT:         ldr x3, [x4, #25], #0
 // CHECK-ERROR-NEXT:                 ^
-// CHECK-ERROR-AARCH64-NEXT: error: invalid operand for instruction
+// CHECK-ERROR-AARCH64-NEXT: error: expected label or encodable integer pc offset
 // CHECK-ERROR-AARCH64-NEXT:         ldr x4, [x9, #0], #4
 // CHECK-ERROR-AARCH64-NEXT:                           ^
 
@@ -3106,10 +3106,10 @@
         movk w3, #:abs_g0:sym
         movz x3, #:abs_g0_nc:sym
         movn x4, #:abs_g0_nc:sym
-// CHECK-ERROR: error: {{expected relocated symbol or|immediate must be an}} integer in range [0, 65535]
+// CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR-NEXT:         movz x12, #:abs_g0:sym, lsl #16
 // CHECK-ERROR-NEXT:                                 ^
-// CHECK-ERROR-NEXT: error: {{expected relocated symbol or|immediate must be an}} integer in range [0, 65535]
+// CHECK-ERROR:  error: invalid operand for instruction
 // CHECK-ERROR-NEXT:         movz x12, #:abs_g0:sym, lsl #0
 // CHECK-ERROR-NEXT:                                 ^
 // CHECK-ERROR-AARCH64-NEXT: error: {{expected relocated symbol or|immediate must be an}} integer in range [0, 65535]

@@ -1,5 +1,5 @@
 // RUN: llvm-mc < %s -triple=armv7-linux-gnueabi -filetype=obj -o %t -g -fdebug-compilation-dir=/tmp
-// RUN: llvm-dwarfdump %t | FileCheck -check-prefix DWARF %s
+// RUN: llvm-dwarfdump -a %t | FileCheck -check-prefix DWARF %s
 // RUN: llvm-objdump -r %t | FileCheck -check-prefix RELOC %s
 
   .section .text, "ax"
@@ -19,13 +19,13 @@ a:
 // DWARF:         DW_AT_language  DW_FORM_data2
 
 // DWARF: .debug_info contents:
-// DWARF: 0x{{[0-9a-f]+}}: DW_TAG_compile_unit [1]
+// DWARF: DW_TAG_compile_unit
 // DWARF-NOT: DW_TAG_
-// DWARF:               DW_AT_low_pc [DW_FORM_addr]       (0x0000000000000000)
-// DWARF:               DW_AT_high_pc [DW_FORM_addr]      (0x0000000000000004)
+// DWARF:               DW_AT_low_pc (0x0000000000000000)
+// DWARF:               DW_AT_high_pc (0x0000000000000004)
 
-// DWARF: 0x{{[0-9a-f]+}}:   DW_TAG_label [2] *
-// DWARF-NEXT: DW_AT_name [DW_FORM_string]     ("a")
+// DWARF: DW_TAG_label
+// DWARF-NEXT: DW_AT_name ("a")
 
 
 // DWARF: .debug_aranges contents:
@@ -37,9 +37,8 @@ a:
 // DWARF-NEXT: 0x0000000000000004      7      0      1   0   0 is_stmt end_sequence
 
 
-// DWARF: .debug_ranges contents:
-// DWARF-NOT: {{0-9a-f}}
-// DWARF: .debug_pubnames contents:
+// DWARF-NOT: .debug_ranges contents:
+// DWARF-NOT: .debug_pubnames contents:
 
 
 // RELOC: RELOCATION RECORDS FOR [.rel.debug_info]:

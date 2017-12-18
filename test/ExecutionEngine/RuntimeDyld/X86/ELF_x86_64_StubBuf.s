@@ -1,5 +1,5 @@
-# RUN: llvm-mc -triple=x86_64-apple-macosx10.10.0 -filetype=obj -o %T/test_ELF_x86_64_StubBuf.o %s
-# RUN: llvm-rtdyld -print-alloc-requests -triple=x86_64-pc-linux -dummy-extern _g=196608 -verify %T/test_ELF_x86_64_StubBuf.o
+# RUN: llvm-mc -triple=x86_64-apple-macosx10.10.0 -filetype=obj -o %t %s
+# RUN: llvm-rtdyld -print-alloc-requests -triple=x86_64-pc-linux -dummy-extern _g=196608 -verify %t
 
 # Compiled from Inputs/ELF/ELF_x86_64_StubBuf.ll
 
@@ -11,7 +11,7 @@
 	.align	4, 0x90
 _f:                                     ## @f
 	.cfi_startproc
-## BB#0:                                ## %entry
+## %bb.0:                               ## %entry
 	pushq	%rax
 Ltmp0:
 	.cfi_def_cfa_offset 16

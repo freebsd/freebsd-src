@@ -1,4 +1,4 @@
-; RUN: llc -O1 -filetype=obj -o - %s | llvm-dwarfdump -debug-dump=all - | FileCheck %s
+; RUN: llc -O1 -filetype=obj -o - %s | llvm-dwarfdump -all - | FileCheck %s
 ; Generated with -O1 from:
 ; int f1();
 ; void f2(int*);
@@ -21,29 +21,14 @@
 ; CHECK: .debug_info contents:
 ; CHECK: DW_TAG_variable
 ; CHECK-NOT: DW_TAG
-; CHECK:     DW_AT_location [DW_FORM_data4]	([[LOC:.*]])
+; CHECK:     DW_AT_location {{.*}}({{.*}}
+; CHECK-NEXT:  0x{{0*.*}} - [[C1:0x.*]]: DW_OP_consts +3
+; CHECK-NEXT:      [[C1]] - [[C2:0x.*]]: DW_OP_consts +7
+; CHECK-NEXT:      [[C2]] - [[R1:0x.*]]: DW_OP_reg0 RAX
+; CHECK-NEXT:      [[R1]] - [[R2:0x.*]]: DW_OP_breg7 RSP+4, DW_OP_deref)
 ; CHECK-NOT: DW_TAG
 ; CHECK: DW_AT_name{{.*}}"i"
-; CHECK: .debug_loc contents:
-; CHECK: [[LOC]]:
-;        consts 0x00000003
-; CHECK: Beginning address offset: 0x0000000000000{{.*}}
-; CHECK:    Ending address offset: [[C1:.*]]
-; CHECK:     Location description: 11 03
-;        consts 0x00000007
-; CHECK: Beginning address offset: [[C1]]
-; CHECK:    Ending address offset: [[C2:.*]]
-; CHECK:     Location description: 11 07
-;        rax
-; CHECK: Beginning address offset: [[C2]]
-; CHECK:    Ending address offset: [[R1:.*]]
-; CHECK:     Location description: 50
-;         rdi+0
-; CHECK: Beginning address offset: [[R1]]
-; CHECK:    Ending address offset: [[R2:.*]]
-; CHECK:     Location description: 77 04
-;         rsp+4
-;
+
 target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.9.0"
 
@@ -51,13 +36,13 @@ target triple = "x86_64-apple-macosx10.9.0"
 define i32 @foo() #0 !dbg !4 {
 entry:
   %i = alloca i32, align 4
-  call void @llvm.dbg.value(metadata i32 3, i64 0, metadata !10, metadata !DIExpression()), !dbg !15
+  call void @llvm.dbg.value(metadata i32 3, metadata !10, metadata !DIExpression()), !dbg !15
   %call = call i32 @f3(i32 3) #3, !dbg !16
-  call void @llvm.dbg.value(metadata i32 7, i64 0, metadata !10, metadata !DIExpression()), !dbg !18
+  call void @llvm.dbg.value(metadata i32 7, metadata !10, metadata !DIExpression()), !dbg !18
   %call1 = call i32 (...) @f1() #3, !dbg !19
-  call void @llvm.dbg.value(metadata i32 %call1, i64 0, metadata !10, metadata !DIExpression()), !dbg !19
+  call void @llvm.dbg.value(metadata i32 %call1, metadata !10, metadata !DIExpression()), !dbg !19
   store i32 %call1, i32* %i, align 4, !dbg !19, !tbaa !20
-  call void @llvm.dbg.value(metadata i32* %i, i64 0, metadata !10, metadata !DIExpression(DW_OP_deref)), !dbg !24
+  call void @llvm.dbg.value(metadata i32* %i, metadata !10, metadata !DIExpression(DW_OP_deref)), !dbg !24
   call void @f2(i32* %i) #3, !dbg !24
   ret i32 0, !dbg !25
 }
@@ -69,7 +54,7 @@ declare i32 @f1(...)
 declare void @f2(i32*)
 
 ; Function Attrs: nounwind readnone
-declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #2
+declare void @llvm.dbg.value(metadata, metadata, metadata) #2
 
 attributes #0 = { nounwind ssp uwtable }
 attributes #2 = { nounwind readnone }

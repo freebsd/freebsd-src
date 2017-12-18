@@ -1,7 +1,6 @@
 ; RUN: llc < %s -verify-machineinstrs -mtriple=wasm32-unknown-unknown-wasm | FileCheck %s
 ; RUN: llc < %s -verify-machineinstrs -mtriple=wasm32-unknown-unknown-wasm -fast-isel | FileCheck --check-prefix=CHECK-FAST %s
-; CHECK: #DEBUG_VALUE: decode:i <- [%vreg
-; CHECK: #DEBUG_VALUE: decode:v <- [%vreg
+
 ; CHECK: DW_TAG_variable
 ; CHECK-FAST: DW_TAG_variable
 
@@ -46,7 +45,7 @@ attributes #0 = { nounwind readnone }
 !1 = !DIFile(filename: "crash.c", directory: "wasm/tests")
 !2 = !{}
 !3 = !{!4}
-!4 = distinct !DIGlobalVariableExpression(var: !5)
+!4 = distinct !DIGlobalVariableExpression(var: !5, expr: !DIExpression())
 !5 = !DIGlobalVariable(name: "key", scope: !0, file: !1, line: 7, type: !6, isLocal: false, isDefinition: true)
 !6 = !DICompositeType(tag: DW_TAG_array_type, baseType: !7, size: 120, align: 8, elements: !10)
 !7 = !DIDerivedType(tag: DW_TAG_typedef, name: "uint8_t", file: !8, line: 185, baseType: !9)

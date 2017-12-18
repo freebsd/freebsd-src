@@ -16,6 +16,7 @@
 #define LLVM_LIB_TARGET_AMDGPU_AMDGPUSUBTARGET_H
 
 #include "AMDGPU.h"
+#include "AMDGPUCallLowering.h"
 #include "R600FrameLowering.h"
 #include "R600ISelLowering.h"
 #include "R600InstrInfo.h"
@@ -25,7 +26,9 @@
 #include "SIMachineFunctionInfo.h"
 #include "Utils/AMDGPUBaseInfo.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/CodeGen/GlobalISel/GISelAccessor.h"
+#include "llvm/CodeGen/GlobalISel/InstructionSelector.h"
+#include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
+#include "llvm/CodeGen/GlobalISel/RegisterBankInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/SelectionDAGTargetInfo.h"
 #include "llvm/MC/MCInstrItineraries.h"
@@ -63,16 +66,14 @@ public:
     ISAVersion7_0_1,
     ISAVersion7_0_2,
     ISAVersion7_0_3,
+    ISAVersion7_0_4,
     ISAVersion8_0_0,
     ISAVersion8_0_1,
     ISAVersion8_0_2,
     ISAVersion8_0_3,
-    ISAVersion8_0_4,
     ISAVersion8_1_0,
     ISAVersion9_0_0,
-    ISAVersion9_0_1,
-    ISAVersion9_0_2,
-    ISAVersion9_0_3
+    ISAVersion9_0_2
   };
 
   enum TrapHandlerAbi {
@@ -116,6 +117,7 @@ protected:
   bool DX10Clamp;
   bool FlatForGlobal;
   bool AutoWaitcntBeforeBarrier;
+  bool CodeObjectV3;
   bool UnalignedScratchAccess;
   bool UnalignedBufferAccess;
   bool HasApertureRegs;
@@ -126,6 +128,7 @@ protected:
   bool DebuggerEmitPrologue;
 
   // Used as options.
+  bool EnableHugePrivateBuffer;
   bool EnableVGPRSpilling;
   bool EnablePromoteAlloca;
   bool EnableLoadStoreOpt;
@@ -135,15 +138,17 @@ protected:
 
   // Subtarget statically properties set by tablegen
   bool FP64;
+  bool FMA;
   bool IsGCN;
-  bool GCN1Encoding;
   bool GCN3Encoding;
   bool CIInsts;
   bool GFX9Insts;
   bool SGPRInitBug;
   bool HasSMemRealTime;
   bool Has16BitInsts;
+  bool HasIntClamp;
   bool HasVOP3PInsts;
+  bool HasMadMixInsts;
   bool HasMovrel;
   bool HasVGPRIndexMode;
   bool HasScalarStores;
@@ -159,6 +164,7 @@ protected:
   bool FlatInstOffsets;
   bool FlatGlobalInsts;
   bool FlatScratchInsts;
+  bool AddNoCarryInsts;
   bool R600ALUInst;
   bool CaymanISA;
   bool CFALUBug;
@@ -210,12 +216,20 @@ public:
            TargetTriple.getEnvironmentName() == "amdgizcl";
   }
 
+  bool isAmdPalOS() const {
+    return TargetTriple.getOS() == Triple::AMDPAL;
+  }
+
   Generation getGeneration() const {
     return Gen;
   }
 
   unsigned getWavefrontSize() const {
     return WavefrontSize;
+  }
+
+  unsigned getWavefrontSizeLog2() const {
+    return Log2_32(WavefrontSize);
   }
 
   int getLocalMemorySize() const {
@@ -238,11 +252,15 @@ public:
     return Has16BitInsts;
   }
 
+  bool hasIntClamp() const {
+    return HasIntClamp;
+  }
+
   bool hasVOP3PInsts() const {
     return HasVOP3PInsts;
   }
 
-  bool hasHWFP64() const {
+  bool hasFP64() const {
     return FP64;
   }
 
@@ -305,6 +323,18 @@ public:
     return getGeneration() >= GFX9;
   }
 
+  bool hasMadMixInsts() const {
+    return HasMadMixInsts;
+  }
+
+  bool hasSBufferLoadStoreAtomicDwordxN() const {
+    // Only use the "x1" variants on GFX9 or don't use the buffer variants.
+    // For x2 and higher variants, if the accessed region spans 2 VM pages and
+    // the second page is unmapped, the hw hangs.
+    // TODO: There is one future GFX9 chip that doesn't have this bug.
+    return getGeneration() != GFX9;
+  }
+
   bool hasCARRY() const {
     return (getGeneration() >= EVERGREEN);
   }
@@ -317,8 +347,16 @@ public:
     return CaymanISA;
   }
 
+  bool hasFMA() const {
+    return FMA;
+  }
+
   TrapHandlerAbi getTrapHandlerAbi() const {
     return isAmdHsaOS() ? TrapHandlerAbiHsa : TrapHandlerAbiNone;
+  }
+
+  bool enableHugePrivateBuffer() const {
+    return EnableHugePrivateBuffer;
   }
 
   bool isPromoteAllocaEnabled() const {
@@ -344,7 +382,7 @@ public:
 
   unsigned getOccupancyWithLocalMemSize(const MachineFunction &MF) const {
     const auto *MFI = MF.getInfo<SIMachineFunctionInfo>();
-    return getOccupancyWithLocalMemSize(MFI->getLDSSize(), *MF.getFunction());
+    return getOccupancyWithLocalMemSize(MFI->getLDSSize(), MF.getFunction());
   }
 
   bool hasFP16Denormals() const {
@@ -372,15 +410,25 @@ public:
   }
 
   bool enableIEEEBit(const MachineFunction &MF) const {
-    return AMDGPU::isCompute(MF.getFunction()->getCallingConv());
+    return AMDGPU::isCompute(MF.getFunction().getCallingConv());
   }
 
   bool useFlatForGlobal() const {
     return FlatForGlobal;
   }
 
+  /// \returns If MUBUF instructions always perform range checking, even for
+  /// buffer resources used for private memory access.
+  bool privateMemoryResourceIsRangeChecked() const {
+    return getGeneration() < AMDGPUSubtarget::GFX9;
+  }
+
   bool hasAutoWaitcntBeforeBarrier() const {
     return AutoWaitcntBeforeBarrier;
+  }
+
+  bool hasCodeObjectV3() const {
+    return CodeObjectV3;
   }
 
   bool hasUnalignedBufferAccess() const {
@@ -419,17 +467,35 @@ public:
     return FlatScratchInsts;
   }
 
+  bool hasD16LoadStore() const {
+    return getGeneration() >= GFX9;
+  }
+
+  /// Return if most LDS instructions have an m0 use that require m0 to be
+  /// iniitalized.
+  bool ldsRequiresM0Init() const {
+    return getGeneration() < GFX9;
+  }
+
+  bool hasAddNoCarry() const {
+    return AddNoCarryInsts;
+  }
+
   bool isMesaKernel(const MachineFunction &MF) const {
-    return isMesa3DOS() && !AMDGPU::isShader(MF.getFunction()->getCallingConv());
+    return isMesa3DOS() && !AMDGPU::isShader(MF.getFunction().getCallingConv());
   }
 
   // Covers VS/PS/CS graphics shaders
   bool isMesaGfxShader(const MachineFunction &MF) const {
-    return isMesa3DOS() && AMDGPU::isShader(MF.getFunction()->getCallingConv());
+    return isMesa3DOS() && AMDGPU::isShader(MF.getFunction().getCallingConv());
   }
 
   bool isAmdCodeObjectV2(const MachineFunction &MF) const {
     return isAmdHsaOS() || isMesaKernel(MF);
+  }
+
+  bool hasMad64_32() const {
+    return getGeneration() >= SEA_ISLANDS;
   }
 
   bool hasFminFmaxLegacy() const {
@@ -558,6 +624,9 @@ public:
                                                  FlatWorkGroupSize);
   }
 
+  /// \returns Default range flat work group size for a calling convention.
+  std::pair<unsigned, unsigned> getDefaultFlatWorkGroupSize(CallingConv::ID CC) const;
+
   /// \returns Subtarget's default pair of minimum/maximum flat work group sizes
   /// for function \p F, or minimum/maximum flat work group sizes explicitly
   /// requested using "amdgpu-flat-work-group-size" attribute attached to
@@ -626,7 +695,12 @@ private:
   SIInstrInfo InstrInfo;
   SIFrameLowering FrameLowering;
   SITargetLowering TLInfo;
-  std::unique_ptr<GISelAccessor> GISel;
+
+  /// GlobalISel related APIs.
+  std::unique_ptr<AMDGPUCallLowering> CallLoweringInfo;
+  std::unique_ptr<InstructionSelector> InstSelector;
+  std::unique_ptr<LegalizerInfo> Legalizer;
+  std::unique_ptr<RegisterBankInfo> RegBankInfo;
 
 public:
   SISubtarget(const Triple &TT, StringRef CPU, StringRef FS,
@@ -645,31 +719,23 @@ public:
   }
 
   const CallLowering *getCallLowering() const override {
-    assert(GISel && "Access to GlobalISel APIs not set");
-    return GISel->getCallLowering();
+    return CallLoweringInfo.get();
   }
 
   const InstructionSelector *getInstructionSelector() const override {
-    assert(GISel && "Access to GlobalISel APIs not set");
-    return GISel->getInstructionSelector();
+    return InstSelector.get();
   }
 
   const LegalizerInfo *getLegalizerInfo() const override {
-    assert(GISel && "Access to GlobalISel APIs not set");
-    return GISel->getLegalizerInfo();
+    return Legalizer.get();
   }
 
   const RegisterBankInfo *getRegBankInfo() const override {
-    assert(GISel && "Access to GlobalISel APIs not set");
-    return GISel->getRegBankInfo();
+    return RegBankInfo.get();
   }
 
   const SIRegisterInfo *getRegisterInfo() const override {
     return &InstrInfo.getRegisterInfo();
-  }
-
-  void setGISelAccessor(GISelAccessor &GISel) {
-    this->GISel.reset(&GISel);
   }
 
   // XXX - Why is this here if it isn't in the default pass set?
@@ -755,11 +821,16 @@ public:
     return getGeneration() >= AMDGPUSubtarget::GFX9;
   }
 
-  bool hasReadM0Hazard() const {
+  bool hasReadM0MovRelInterpHazard() const {
     return getGeneration() >= AMDGPUSubtarget::GFX9;
   }
 
-  unsigned getKernArgSegmentSize(const MachineFunction &MF, unsigned ExplictArgBytes) const;
+  bool hasReadM0SendMsgHazard() const {
+    return getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS;
+  }
+
+  unsigned getKernArgSegmentSize(const MachineFunction &MF,
+                                 unsigned ExplictArgBytes) const;
 
   /// Return the maximum number of waves per SIMD for kernels using \p SGPRs SGPRs
   unsigned getOccupancyWithNumSGPRs(unsigned SGPRs) const;
@@ -865,6 +936,10 @@ public:
   /// subtarget's specifications, or does not meet number of waves per execution
   /// unit requirement.
   unsigned getMaxNumVGPRs(const MachineFunction &MF) const;
+
+  void getPostRAMutations(
+      std::vector<std::unique_ptr<ScheduleDAGMutation>> &Mutations)
+      const override;
 };
 
 } // end namespace llvm
