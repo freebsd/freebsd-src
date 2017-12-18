@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2016
+.Dd December 17, 2017
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1778,21 +1778,40 @@ This variable is deprecated in favor of
 Set to the list of
 .Xr gif 4
 tunnel interfaces to configure on this host.
-A
-.Va gifconfig_ Ns Aq Ar interface
-variable is assumed to exist for each value of
-.Ar interface .
+For each
+.Xr gif
+tunnel interface, set a variable named
+.Va ifconfig_ Ns Aq Ar interface
+with the parameters for the
+.Xr ifconfig 8
+command to configure the link level for
+.Ar interface
+with the
+.Cm tunnel
+option.
 The value of this variable is used to configure the link layer of the
-tunnel according to the syntax of the
+tunnel using the
 .Cm tunnel
 option to
-.Xr ifconfig 8 .
+.Xr ifconfig .
+For example, configure two
+.Xr gif
+interfaces with:
+.Bd -literal -offset indent
+gif_interfaces="gif0 gif1"
+ifconfig_gif0="tunnel src_addr0 dst_addr0"
+ifconfig_gif1="tunnel src_addr1 dst_addr1"
+.Ed
+.Pp
 Additionally, this option ensures that each listed interface is created
 via the
 .Cm create
 option to
-.Xr ifconfig 8
-before attempting to configure it.
+.Xr ifconfig .
+This example also works with
+.Va cloned_interfaces
+instead of
+.Va gif_interfaces .
 .It Va sppp_interfaces
 .Pq Vt str
 Set to the list of
