@@ -241,22 +241,30 @@ NON_GPROF_ENTRY(btext)
 #if defined(PAE) || defined(PAE_TABLES)
 	movl	R(IdlePDPT), %eax
 	movl	%eax, %cr3
-	movl	%cr4, %eax
-	orl	$CR4_PAE, %eax
-	movl	%eax, %cr4
+	movl	%cr4, %edx
+	orl	$CR4_PAE, %edx
+	movl	%edx, %cr4
 #else
 	movl	R(IdlePTD), %eax
 	movl	%eax,%cr3		/* load ptd addr into mmu */
 #endif
-	movl	%cr0,%eax		/* get control word */
-	orl	$CR0_PE|CR0_PG,%eax	/* enable paging */
-	movl	%eax,%cr0		/* and let's page NOW! */
+	movl	%cr0,%edx		/* get control word */
+	orl	$CR0_PE|CR0_PG,%edx	/* enable paging */
+	movl	%edx,%cr0		/* and let's page NOW! */
 
 	pushl	$begin			/* jump to high virtualized address */
 	ret
 
-/* now running relocated at KERNBASE where the system is linked to run */
 begin:
+	/*
+	 * Now running relocated at KERNBASE where the system is linked to run.
+	 *
+	 * Remove the lowest part of the double mapping of low memory to get
+	 * some null pointer checks.
+	 */
+	movl	$0,PTD
+	movl	%eax,%cr3		/* invalidate TLB */
+
 	/* set up bootstrap stack */
 	movl	proc0kstack,%eax	/* location of in-kernel stack */
 
@@ -725,14 +733,15 @@ no_kernend:
 
 /*
  * Initialize page table pages mapping physical address zero through the
- * end of the kernel.  All of the page table entries allow read and write
- * access.  Write access to the first physical page is required by bios32
- * calls, and write access to the first 1 MB of physical memory is required
- * by ACPI for implementing suspend and resume.  We do this even
- * if we've enabled PSE above, we'll just switch the corresponding kernel
- * PDEs before we turn on paging.
+ * (physical) end of the kernel.  Many of these pages must be reserved,
+ * and we reserve them all and map them linearly for convenience.  We do
+ * this even if we've enabled PSE above; we'll just switch the corresponding
+ * kernel PDEs before we turn on paging.
  *
  * XXX: We waste some pages here in the PSE case!
+ *
+ * This and all other page table entries allow read and write access for
+ * various reasons.  Kernel mappings never have any access restrictions.
  */
 	xorl	%eax, %eax
 	movl	R(KERNend),%ecx
@@ -784,42 +793,21 @@ no_kernend:
 
 /*
  * Create an identity mapping for low physical memory, including the kernel.
- * The part of this mapping given by the first PDE (for the first 4 MB or 2
- * MB of physical memory)
- * becomes a permanent part of the kernel's address space.  The rest of this
- * mapping is destroyed in pmap_bootstrap().  Ordinarily, the same page table
- * pages are shared by the identity mapping and the kernel's native mapping.
- * However, the permanent identity mapping cannot contain PG_G mappings.
- * Thus, if the (physical) kernel overlaps the permanent identity mapping
- * (and PG_G is enabled), the
- * page table for the first PDE must be duplicated and not shared.  
+ * This is only used to map the 2 instructions for jumping to 'begin' in
+ * locore (we map everything to avoid having to determine where these
+ * instructions are).  ACPI resume will transiently restore the first PDE in
+ * this mapping (and depend on this PDE's page table created here not being
+ * destroyed).  See pmap_bootstrap() for more details.
  *
- * N.B. Due to errata concerning large pages and physical address zero,
- * a PG_PS mapping is not used.
+ * Note:  There are errata concerning large pages and physical address zero,
+ * so a PG_PS mapping should not be used for PDE 0.  Our double mapping
+ * avoids this automatically by not using PG_PS for PDE #KPDI so that PAT
+ * bits can be set at the page level for i/o pages below 1 MB.
  */
 	movl	R(KPTphys), %eax
 	xorl	%ebx, %ebx
 	movl	$NKPT, %ecx
 	fillkpt(R(IdlePTD), $PG_RW)
-#if KERNLOAD < (1 << PDRSHIFT)
-	testl	$PG_G, R(pgeflag)
-	jz	1f
-	ALLOCPAGES(1)
-	movl	%esi, %eax
-	movl	$1, %ecx
-	fillkptphys($PG_RW)		/* map the new page table in std map */
-	movl	%esi, %edi
-	movl	R(IdlePTD), %eax
-	movl	(%eax), %esi		/* top bits are 0 for PAE */
-	andl	$~PAGE_MASK, %esi
-	movl	%edi, (%eax)
-	orl	$PG_V | PG_RW, (%eax)	/* finish writing new PTD[0] */
-	movl	$PAGE_SIZE, %ecx
-	cld
-	rep
-	movsb
-1:	
-#endif
 
 /*
  * Install PDEs for PTs covering enough kva to bootstrap.  Then for the PSE
