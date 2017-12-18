@@ -668,7 +668,7 @@ over_symalloc:
 no_kernend:
 
 	addl	$PDRMASK,%esi		/* Play conservative for now, and */
-	andl	$~PDRMASK,%esi		/*   ... wrap to next 4M. */
+	andl	$~PDRMASK,%esi		/* ... round up to PDR boundary */
 	movl	%esi,R(KERNend)		/* save end of kernel */
 	movl	%esi,R(physfree)	/* next free page is at end of kernel */
 
@@ -784,7 +784,8 @@ no_kernend:
 
 /*
  * Create an identity mapping for low physical memory, including the kernel.
- * The part of this mapping that covers the first 1 MB of physical memory
+ * The part of this mapping given by the first PDE (for the first 4 MB or 2
+ * MB of physical memory)
  * becomes a permanent part of the kernel's address space.  The rest of this
  * mapping is destroyed in pmap_bootstrap().  Ordinarily, the same page table
  * pages are shared by the identity mapping and the kernel's native mapping.
@@ -815,10 +816,9 @@ no_kernend:
 #endif
 
 /*
- * For the non-PSE case, install PDEs for PTs covering the KVA.
- * For the PSE case, do the same, but clobber the ones corresponding
- * to the kernel (from btext to KERNend) with 4M (2M for PAE) ('PS')
- * PDEs immediately after.
+ * Install PDEs for PTs covering enough kva to bootstrap.  Then for the PSE
+ * case, replace the PDEs whose coverage is strictly within the kernel
+ * (between KERNLOAD (rounded up) and KERNend) by large-page PDEs.
  */
 	movl	R(KPTphys), %eax
 	movl	$KPTDI, %ebx
@@ -828,10 +828,10 @@ no_kernend:
 	je	done_pde
 
 	movl	R(KERNend), %ecx
-	movl	$KERNLOAD, %eax
+	movl	$(KERNLOAD + PDRMASK) & ~PDRMASK, %eax
 	subl	%eax, %ecx
 	shrl	$PDRSHIFT, %ecx
-	movl	$(KPTDI+(KERNLOAD/(1 << PDRSHIFT))), %ebx
+	movl	$KPTDI + ((KERNLOAD + PDRMASK) >> PDRSHIFT), %ebx
 	shll	$PDESHIFT, %ebx
 	addl	R(IdlePTD), %ebx
 	orl	$(PG_V|PG_RW|PG_PS), %eax
