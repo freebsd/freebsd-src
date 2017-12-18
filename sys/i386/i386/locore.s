@@ -790,8 +790,9 @@ no_kernend:
  * mapping is destroyed in pmap_bootstrap().  Ordinarily, the same page table
  * pages are shared by the identity mapping and the kernel's native mapping.
  * However, the permanent identity mapping cannot contain PG_G mappings.
- * Thus, if the kernel is loaded within the permanent identity mapping, that
- * page table page must be duplicated and not shared.
+ * Thus, if the (physical) kernel overlaps the permanent identity mapping
+ * (and PG_G is enabled), the
+ * page table for the first PDE must be duplicated and not shared.  
  *
  * N.B. Due to errata concerning large pages and physical address zero,
  * a PG_PS mapping is not used.
@@ -804,10 +805,15 @@ no_kernend:
 	testl	$PG_G, R(pgeflag)
 	jz	1f
 	ALLOCPAGES(1)
+	movl	%esi, %eax
+	movl	$1, %ecx
+	fillkptphys($PG_RW)		/* map the new page table in std map */
 	movl	%esi, %edi
 	movl	R(IdlePTD), %eax
-	movl	(%eax), %esi
+	movl	(%eax), %esi		/* top bits are 0 for PAE */
+	andl	$~PAGE_MASK, %esi
 	movl	%edi, (%eax)
+	orl	$PG_V | PG_RW, (%eax)	/* finish writing new PTD[0] */
 	movl	$PAGE_SIZE, %ecx
 	cld
 	rep
