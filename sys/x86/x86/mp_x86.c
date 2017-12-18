@@ -1398,6 +1398,11 @@ cpususpend_handler(void)
 	while (!CPU_ISSET(cpu, &started_cpus))
 		ia32_pause();
 
+#ifdef __i386__
+	/* Finish removing the identity mapping of low memory for this AP. */
+	invltlb_glob();
+#endif
+
 	if (cpu_ops.cpu_resume)
 		cpu_ops.cpu_resume();
 #ifdef __amd64__
