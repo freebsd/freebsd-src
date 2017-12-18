@@ -45,9 +45,16 @@ struct uboot_devdesc
 #define d_disk d_kind.disk
 
 /*
- * Default network packet alignment in memory
+ * Default network packet alignment in memory.  On arm arches packets must be
+ * aligned to cacheline boundaries.
  */
+#if defined(__aarch64__)
+#define	PKTALIGN	128
+#elif defined(__arm__)
+#define	PKTALIGN	64
+#else
 #define	PKTALIGN	32
+#endif
 
 int uboot_getdev(void **vdev, const char *devspec, const char **path);
 char *uboot_fmtdev(void *vdev);
