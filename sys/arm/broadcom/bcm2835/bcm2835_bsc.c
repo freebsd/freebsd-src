@@ -610,7 +610,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		 */
 		if (sc->sc_replen == 0) {
 			DEVICE_DEBUGF(sc, 1, "%-6s 0x%02x len %d: ", 
-			    (curisread) ? "readctl" : "write", curslave,
+			    (curisread) ? "read" : "write", curslave,
 			    sc->sc_totlen);
 			curlen = sc->sc_totlen;
 			if (curisread) {
@@ -622,7 +622,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			}
 		} else {
 			DEVICE_DEBUGF(sc, 1, "%-6s 0x%02x len %d: ", 
-			    (curisread) ? "readctl" : "write", curslave,
+			    (curisread) ? "read" : "write", curslave,
 			    sc->sc_replen);
 
 			/*
