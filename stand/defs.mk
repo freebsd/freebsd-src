@@ -170,8 +170,4 @@ ${_ILINKS}:
 	${ECHO} ${.TARGET:T} "->" $$path ; \
 	ln -fhs $$path ${.TARGET:T}
 
-# For loader implementations, we generate a loader.help file. This can be suppressed by
-# setting HELP_FILES to nothing.
-HELP_FILES=	${LDRSRC}/help.common
-
 .endif # __BOOT_DEFS_MK__

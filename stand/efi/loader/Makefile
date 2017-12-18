@@ -83,7 +83,6 @@ CFLAGS+=	-DEFI_STAGING_SIZE=${EFI_STAGING_SIZE}
 .endif
 
 # Always add MI sources
-HELP_FILES=
 .include	"${BOOTSRC}/loader.mk"
 
 FILES+=	loader.efi
