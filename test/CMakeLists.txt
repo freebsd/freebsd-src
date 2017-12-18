@@ -1,7 +1,7 @@
-# Needed for lit support
+# Needed for lit support in standalone builds.
 include(AddLLVM)
 
-configure_lit_site_cfg(
+configure_compiler_rt_lit_site_cfg(
   ${CMAKE_CURRENT_SOURCE_DIR}/lit.common.configured.in
   ${CMAKE_CURRENT_BINARY_DIR}/lit.common.configured)
 
@@ -9,6 +9,11 @@ configure_lit_site_cfg(
 # add_subdirectory(BlocksRuntime)
 
 set(SANITIZER_COMMON_LIT_TEST_DEPS)
+
+if(COMPILER_RT_BUILD_PROFILE AND COMPILER_RT_HAS_PROFILE)
+  list(APPEND SANITIZER_COMMON_LIT_TEST_DEPS profile)
+endif()
+
 if(COMPILER_RT_STANDALONE_BUILD)
   add_executable(FileCheck IMPORTED GLOBAL)
   set_property(TARGET FileCheck PROPERTY IMPORTED_LOCATION ${LLVM_TOOLS_BINARY_DIR}/FileCheck)
@@ -23,9 +28,6 @@ if(NOT ANDROID)
     list(APPEND SANITIZER_COMMON_LIT_TEST_DEPS
       clang clang-headers FileCheck count not llvm-config llvm-nm llvm-objdump
       llvm-readobj llvm-symbolizer compiler-rt-headers sancov)
-    if (COMPILER_RT_HAS_PROFILE)
-      list(APPEND SANITIZER_COMMON_LIT_TEST_DEPS profile)
-    endif()
     if (WIN32)
       list(APPEND SANITIZER_COMMON_LIT_TEST_DEPS KillTheDoctor)
     endif()
@@ -59,13 +61,18 @@ if(COMPILER_RT_CAN_EXECUTE_TESTS)
     compiler_rt_test_runtime(ubsan cfi)
     compiler_rt_test_runtime(sanitizer_common)
 
+    if(COMPILER_RT_BUILD_LIBFUZZER)
+      compiler_rt_test_runtime(fuzzer)
+    endif()
+
     foreach(sanitizer ${COMPILER_RT_SANITIZERS_TO_BUILD})
       # cfi testing is gated on ubsan
       if(NOT ${sanitizer} STREQUAL cfi)
         compiler_rt_test_runtime(${sanitizer})
       endif()
     endforeach()
-
+  endif()
+  if(COMPILER_RT_BUILD_PROFILE AND COMPILER_RT_HAS_PROFILE)
     compiler_rt_test_runtime(profile)
   endif()
   if(COMPILER_RT_BUILD_XRAY)

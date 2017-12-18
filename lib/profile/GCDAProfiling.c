@@ -20,9 +20,6 @@
 |*
 \*===----------------------------------------------------------------------===*/
 
-#include "InstrProfilingPort.h"
-#include "InstrProfilingUtil.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -34,9 +31,6 @@
 #else
 #include <sys/mman.h>
 #include <sys/file.h>
-#ifndef MAP_FILE
-#define MAP_FILE 0
-#endif
 #endif
 
 #if defined(__FreeBSD__) && defined(__i386__)
@@ -61,6 +55,9 @@ typedef unsigned char uint8_t;
 typedef unsigned int uint32_t;
 typedef unsigned long long uint64_t;
 #endif
+
+#include "InstrProfiling.h"
+#include "InstrProfilingUtil.h"
 
 /* #define DEBUG_GCDAPROFILING */
 
@@ -238,17 +235,17 @@ void llvm_gcda_start_file(const char *orig_filename, const char version[4],
 
   /* Try just opening the file. */
   new_file = 0;
-  fd = open(filename, O_RDWR);
+  fd = open(filename, O_RDWR | O_BINARY);
 
   if (fd == -1) {
     /* Try opening the file, creating it if necessary. */
     new_file = 1;
     mode = "w+b";
-    fd = open(filename, O_RDWR | O_CREAT, 0644);
+    fd = open(filename, O_RDWR | O_CREAT | O_BINARY, 0644);
     if (fd == -1) {
       /* Try creating the directories first then opening the file. */
       __llvm_profile_recursive_mkdir(filename);
-      fd = open(filename, O_RDWR | O_CREAT, 0644);
+      fd = open(filename, O_RDWR | O_CREAT | O_BINARY, 0644);
       if (fd == -1) {
         /* Bah! It's hopeless. */
         int errnum = errno;
@@ -263,7 +260,7 @@ void llvm_gcda_start_file(const char *orig_filename, const char version[4],
    * same GCDA. This can fail if the filesystem doesn't support it, but in that
    * case we'll just carry on with the old racy behaviour and hope for the best.
    */
-  flock(fd, LOCK_EX);
+  lprofLockFd(fd);
   output_file = fdopen(fd, mode);
 
   /* Initialize the write buffer. */
@@ -462,7 +459,7 @@ void llvm_gcda_end_file() {
       unmap_file();
     }
 
-    flock(fd, LOCK_UN);
+    lprofUnlockFd(fd);
     fclose(output_file);
     output_file = NULL;
     write_buffer = NULL;
