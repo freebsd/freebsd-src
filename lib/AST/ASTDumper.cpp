@@ -537,6 +537,7 @@ namespace  {
     void VisitCXXBoolLiteralExpr(const CXXBoolLiteralExpr *Node);
     void VisitCXXThisExpr(const CXXThisExpr *Node);
     void VisitCXXFunctionalCastExpr(const CXXFunctionalCastExpr *Node);
+    void VisitCXXUnresolvedConstructExpr(const CXXUnresolvedConstructExpr *Node);
     void VisitCXXConstructExpr(const CXXConstructExpr *Node);
     void VisitCXXBindTemporaryExpr(const CXXBindTemporaryExpr *Node);
     void VisitCXXNewExpr(const CXXNewExpr *Node);
@@ -1184,7 +1185,7 @@ void ASTDumper::VisitFunctionDecl(const FunctionDecl *D) {
          I != E; ++I)
       dumpCXXCtorInitializer(*I);
 
-  if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(D))
+  if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(D)) {
     if (MD->size_overridden_methods() != 0) {
       auto dumpOverride =
         [=](const CXXMethodDecl *D) {
@@ -1194,16 +1195,18 @@ void ASTDumper::VisitFunctionDecl(const FunctionDecl *D) {
         };
 
       dumpChild([=] {
-        auto FirstOverrideItr = MD->begin_overridden_methods();
+        auto Overrides = MD->overridden_methods();
         OS << "Overrides: [ ";
-        dumpOverride(*FirstOverrideItr);
+        dumpOverride(*Overrides.begin());
         for (const auto *Override :
-               llvm::make_range(FirstOverrideItr + 1,
-                                MD->end_overridden_methods()))
+             llvm::make_range(Overrides.begin() + 1, Overrides.end())) {
+          OS << ", ";
           dumpOverride(Override);
+        }
         OS << " ]";
       });
     }
+  }
 
   if (D->doesThisDeclarationHaveABody())
     dumpStmt(D->getBody());
@@ -1313,6 +1316,16 @@ void ASTDumper::VisitOMPDeclareReductionDecl(const OMPDeclareReductionDecl *D) {
   dumpStmt(D->getCombiner());
   if (auto *Initializer = D->getInitializer()) {
     OS << " initializer";
+    switch (D->getInitializerKind()) {
+    case OMPDeclareReductionDecl::DirectInit:
+      OS << " omp_priv = ";
+      break;
+    case OMPDeclareReductionDecl::CopyInit:
+      OS << " omp_priv ()";
+      break;
+    case OMPDeclareReductionDecl::CallInit:
+      break;
+    }
     dumpStmt(Initializer);
   }
 }
@@ -1361,6 +1374,128 @@ void ASTDumper::VisitCXXRecordDecl(const CXXRecordDecl *D) {
   VisitRecordDecl(D);
   if (!D->isCompleteDefinition())
     return;
+
+  dumpChild([=] {
+    {
+      ColorScope Color(*this, DeclKindNameColor);
+      OS << "DefinitionData";
+    }
+#define FLAG(fn, name) if (D->fn()) OS << " " #name;
+    FLAG(isParsingBaseSpecifiers, parsing_base_specifiers);
+
+    FLAG(isGenericLambda, generic);
+    FLAG(isLambda, lambda);
+
+    FLAG(canPassInRegisters, pass_in_registers);
+    FLAG(isEmpty, empty);
+    FLAG(isAggregate, aggregate);
+    FLAG(isStandardLayout, standard_layout);
+    FLAG(isTriviallyCopyable, trivially_copyable);
+    FLAG(isPOD, pod);
+    FLAG(isTrivial, trivial);
+    FLAG(isPolymorphic, polymorphic);
+    FLAG(isAbstract, abstract);
+    FLAG(isLiteral, literal);
+
+    FLAG(hasUserDeclaredConstructor, has_user_declared_ctor);
+    FLAG(hasConstexprNonCopyMoveConstructor, has_constexpr_non_copy_move_ctor);
+    FLAG(hasMutableFields, has_mutable_fields);
+    FLAG(hasVariantMembers, has_variant_members);
+    FLAG(allowConstDefaultInit, can_const_default_init);
+
+    dumpChild([=] {
+      {
+        ColorScope Color(*this, DeclKindNameColor);
+        OS << "DefaultConstructor";
+      }
+      FLAG(hasDefaultConstructor, exists);
+      FLAG(hasTrivialDefaultConstructor, trivial);
+      FLAG(hasNonTrivialDefaultConstructor, non_trivial);
+      FLAG(hasUserProvidedDefaultConstructor, user_provided);
+      FLAG(hasConstexprDefaultConstructor, constexpr);
+      FLAG(needsImplicitDefaultConstructor, needs_implicit);
+      FLAG(defaultedDefaultConstructorIsConstexpr, defaulted_is_constexpr);
+    });
+
+    dumpChild([=] {
+      {
+        ColorScope Color(*this, DeclKindNameColor);
+        OS << "CopyConstructor";
+      }
+      FLAG(hasSimpleCopyConstructor, simple);
+      FLAG(hasTrivialCopyConstructor, trivial);
+      FLAG(hasNonTrivialCopyConstructor, non_trivial);
+      FLAG(hasUserDeclaredCopyConstructor, user_declared);
+      FLAG(hasCopyConstructorWithConstParam, has_const_param);
+      FLAG(needsImplicitCopyConstructor, needs_implicit);
+      FLAG(needsOverloadResolutionForCopyConstructor,
+           needs_overload_resolution);
+      if (!D->needsOverloadResolutionForCopyConstructor())
+        FLAG(defaultedCopyConstructorIsDeleted, defaulted_is_deleted);
+      FLAG(implicitCopyConstructorHasConstParam, implicit_has_const_param);
+    });
+
+    dumpChild([=] {
+      {
+        ColorScope Color(*this, DeclKindNameColor);
+        OS << "MoveConstructor";
+      }
+      FLAG(hasMoveConstructor, exists);
+      FLAG(hasSimpleMoveConstructor, simple);
+      FLAG(hasTrivialMoveConstructor, trivial);
+      FLAG(hasNonTrivialMoveConstructor, non_trivial);
+      FLAG(hasUserDeclaredMoveConstructor, user_declared);
+      FLAG(needsImplicitMoveConstructor, needs_implicit);
+      FLAG(needsOverloadResolutionForMoveConstructor,
+           needs_overload_resolution);
+      if (!D->needsOverloadResolutionForMoveConstructor())
+        FLAG(defaultedMoveConstructorIsDeleted, defaulted_is_deleted);
+    });
+
+    dumpChild([=] {
+      {
+        ColorScope Color(*this, DeclKindNameColor);
+        OS << "CopyAssignment";
+      }
+      FLAG(hasTrivialCopyAssignment, trivial);
+      FLAG(hasNonTrivialCopyAssignment, non_trivial);
+      FLAG(hasCopyAssignmentWithConstParam, has_const_param);
+      FLAG(hasUserDeclaredCopyAssignment, user_declared);
+      FLAG(needsImplicitCopyAssignment, needs_implicit);
+      FLAG(needsOverloadResolutionForCopyAssignment, needs_overload_resolution);
+      FLAG(implicitCopyAssignmentHasConstParam, implicit_has_const_param);
+    });
+
+    dumpChild([=] {
+      {
+        ColorScope Color(*this, DeclKindNameColor);
+        OS << "MoveAssignment";
+      }
+      FLAG(hasMoveAssignment, exists);
+      FLAG(hasSimpleMoveAssignment, simple);
+      FLAG(hasTrivialMoveAssignment, trivial);
+      FLAG(hasNonTrivialMoveAssignment, non_trivial);
+      FLAG(hasUserDeclaredMoveAssignment, user_declared);
+      FLAG(needsImplicitMoveAssignment, needs_implicit);
+      FLAG(needsOverloadResolutionForMoveAssignment, needs_overload_resolution);
+    });
+
+    dumpChild([=] {
+      {
+        ColorScope Color(*this, DeclKindNameColor);
+        OS << "Destructor";
+      }
+      FLAG(hasSimpleDestructor, simple);
+      FLAG(hasIrrelevantDestructor, irrelevant);
+      FLAG(hasTrivialDestructor, trivial);
+      FLAG(hasNonTrivialDestructor, non_trivial);
+      FLAG(hasUserDeclaredDestructor, user_declared);
+      FLAG(needsImplicitDestructor, needs_implicit);
+      FLAG(needsOverloadResolutionForDestructor, needs_overload_resolution);
+      if (!D->needsOverloadResolutionForDestructor())
+        FLAG(defaultedDestructorIsDeleted, defaulted_is_deleted);
+    });
+  });
 
   for (const auto &I : D->bases()) {
     dumpChild([=] {
@@ -2166,12 +2301,24 @@ void ASTDumper::VisitCXXFunctionalCastExpr(const CXXFunctionalCastExpr *Node) {
      << " <" << Node->getCastKindName() << ">";
 }
 
+void ASTDumper::VisitCXXUnresolvedConstructExpr(
+    const CXXUnresolvedConstructExpr *Node) {
+  VisitExpr(Node);
+  dumpType(Node->getTypeAsWritten());
+  if (Node->isListInitialization())
+    OS << " list";
+}
+
 void ASTDumper::VisitCXXConstructExpr(const CXXConstructExpr *Node) {
   VisitExpr(Node);
   CXXConstructorDecl *Ctor = Node->getConstructor();
   dumpType(Ctor->getType());
   if (Node->isElidable())
     OS << " elidable";
+  if (Node->isListInitialization())
+    OS << " list";
+  if (Node->isStdInitListInitialization())
+    OS << " std::initializer_list";
   if (Node->requiresZeroInitialization())
     OS << " zeroing";
 }

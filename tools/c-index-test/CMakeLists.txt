@@ -16,12 +16,14 @@ endif()
 
 if (LLVM_BUILD_STATIC)
   target_link_libraries(c-index-test
+    PRIVATE
     libclang_static
     clangCodeGen
     clangIndex
   )
 else()
   target_link_libraries(c-index-test
+    PRIVATE
     libclang
     clangAST
     clangBasic
@@ -39,7 +41,7 @@ set_target_properties(c-index-test
 # If libxml2 is available, make it available for c-index-test.
 if (CLANG_HAVE_LIBXML)
   include_directories(SYSTEM ${LIBXML2_INCLUDE_DIR})
-  target_link_libraries(c-index-test ${LIBXML2_LIBRARIES})
+  target_link_libraries(c-index-test PRIVATE ${LIBXML2_LIBRARIES})
 endif()
 
 if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
@@ -56,10 +58,8 @@ if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
     COMPONENT c-index-test)
 
   if (NOT CMAKE_CONFIGURATION_TYPES) # don't add this for IDE's.
-    add_custom_target(install-c-index-test
-      DEPENDS c-index-test
-      COMMAND "${CMAKE_COMMAND}"
-              -DCMAKE_INSTALL_COMPONENT=c-index-test
-              -P "${CMAKE_BINARY_DIR}/cmake_install.cmake")
+    add_llvm_install_targets(install-c-index-test
+                             DEPENDS c-index-test
+                             COMPONENT c-index-test)
   endif()
 endif()

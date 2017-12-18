@@ -215,6 +215,23 @@ shared library boundaries are handled as if the callee was not compiled with
 
 This scheme is currently only supported on the x86 and x86_64 architectures.
 
+``-fsanitize-cfi-icall-generalize-pointers``
+--------------------------------------------
+
+Mismatched pointer types are a common cause of cfi-icall check failures.
+Translation units compiled with the ``-fsanitize-cfi-icall-generalize-pointers``
+flag relax pointer type checking for call sites in that translation unit,
+applied across all functions compiled with ``-fsanitize=cfi-icall``.
+
+Specifically, pointers in return and argument types are treated as equivalent as
+long as the qualifiers for the type they point to match. For example, ``char*``
+``char**`, and ``int*`` are considered equivalent types. However, ``char*`` and
+``const char*`` are considered separate types.
+
+``-fsanitize-cfi-icall-generalize-pointers`` is not compatible with
+``-fsanitize-cfi-cross-dso``.
+
+
 ``-fsanitize=cfi-icall`` and ``-fsanitize=function``
 ----------------------------------------------------
 
@@ -243,17 +260,25 @@ Blacklist
 
 A :doc:`SanitizerSpecialCaseList` can be used to relax CFI checks for certain
 source files, functions and types using the ``src``, ``fun`` and ``type``
-entity types.
+entity types. Specific CFI modes can be be specified using ``[section]``
+headers.
 
 .. code-block:: bash
 
-    # Suppress checking for code in a file.
+    # Suppress all CFI checking for code in a file.
     src:bad_file.cpp
     src:bad_header.h
     # Ignore all functions with names containing MyFooBar.
     fun:*MyFooBar*
     # Ignore all types in the standard library.
     type:std::*
+    # Disable only unrelated cast checks for this function
+    [cfi-unrelated-cast]
+    fun:*UnrelatedCast*
+    # Disable CFI call checks for this function without affecting cast checks
+    [cfi-vcall|cfi-nvcall|cfi-icall]
+    fun:*BadCall*
+
 
 .. _cfi-cross-dso:
 

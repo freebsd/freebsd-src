@@ -107,7 +107,7 @@ Options to Control Error and Warning Messages
 
 .. option:: -Wno-error=foo
 
-  Turn warning "foo" into an warning even if :option:`-Werror` is specified.
+  Turn warning "foo" into a warning even if :option:`-Werror` is specified.
 
 .. option:: -Wfoo
 
@@ -677,7 +677,7 @@ Current limitations
 
 Other Options
 -------------
-Clang options that that don't fit neatly into other categories.
+Clang options that don't fit neatly into other categories.
 
 .. option:: -MV
 
@@ -1147,6 +1147,11 @@ are listed below.
    the behavior of sanitizers in the ``cfi`` group to allow checking
    of cross-DSO virtual and indirect calls.
 
+.. option:: -fsanitize-cfi-icall-generalize-pointers
+
+   Generalize pointers in return and argument types in function type signatures
+   checked by Control Flow Integrity indirect call checking. See
+   :doc:`ControlFlowIntegrity` for more details.
 
 .. option:: -fstrict-vtable-pointers
 
@@ -1438,7 +1443,7 @@ Sample Profile Text Format
 
 This section describes the ASCII text format for sampling profiles. It is,
 arguably, the easiest one to generate. If you are interested in generating any
-of the other two, consult the ``ProfileData`` library in in LLVM's source tree
+of the other two, consult the ``ProfileData`` library in LLVM's source tree
 (specifically, ``include/llvm/ProfileData/SampleProfReader.h``).
 
 .. code-block:: console
@@ -1454,7 +1459,7 @@ of the other two, consult the ``ProfileData`` library in in LLVM's source tree
       offsetB[.discriminator]: fnB:num_of_total_samples
        offsetB1[.discriminator]: number_of_samples [fn11:num fn12:num ... ]
 
-This is a nested tree in which the identation represents the nesting level
+This is a nested tree in which the indentation represents the nesting level
 of the inline stack. There are no blank lines in the file. And the spacing
 within a single line is fixed. Additional spaces will result in an error
 while reading the file.

@@ -77,6 +77,7 @@ if(LLVM_BUILD_EXTERNAL_COMPILER_RT AND EXISTS ${COMPILER_RT_SRC_ROOT}/)
                -DCOMPILER_RT_INCLUDE_TESTS=${LLVM_INCLUDE_TESTS}
                -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
                -DLLVM_LIBDIR_SUFFIX=${LLVM_LIBDIR_SUFFIX}
+               -DLLVM_RUNTIME_OUTPUT_INTDIR=${LLVM_RUNTIME_OUTPUT_INTDIR}
                -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
                -DCMAKE_OSX_SYSROOT:PATH=${CMAKE_OSX_SYSROOT}
                ${COMPILER_RT_PASSTHROUGH_VARIABLES}
@@ -100,15 +101,12 @@ if(LLVM_BUILD_EXTERNAL_COMPILER_RT AND EXISTS ${COMPILER_RT_SRC_ROOT}/)
   install(CODE "execute_process\(COMMAND \${CMAKE_COMMAND} -DCMAKE_INSTALL_PREFIX=\${CMAKE_INSTALL_PREFIX} -P ${BINARY_DIR}/cmake_install.cmake \)"
     COMPONENT compiler-rt)
 
-  add_custom_target(install-compiler-rt
-                    DEPENDS compiler-rt
-                    COMMAND "${CMAKE_COMMAND}"
-                             -DCMAKE_INSTALL_COMPONENT=compiler-rt
-                             -P "${CMAKE_BINARY_DIR}/cmake_install.cmake"
-                    USES_TERMINAL)
+  add_llvm_install_targets(install-compiler-rt
+                           DEPENDS compiler-rt
+                           COMPONENT compiler-rt)
 
   # Add top-level targets that build specific compiler-rt runtimes.
-  set(COMPILER_RT_RUNTIMES asan builtins dfsan lsan msan profile tsan ubsan)
+  set(COMPILER_RT_RUNTIMES fuzzer asan builtins dfsan lsan msan profile tsan ubsan ubsan-minimal)
   foreach(runtime ${COMPILER_RT_RUNTIMES})
     get_ext_project_build_command(build_runtime_cmd ${runtime})
     add_custom_target(${runtime}
@@ -124,8 +122,8 @@ if(LLVM_BUILD_EXTERNAL_COMPILER_RT AND EXISTS ${COMPILER_RT_SRC_ROOT}/)
       FileCheck count not llvm-nm llvm-objdump llvm-symbolizer)
 
     # Add top-level targets for various compiler-rt test suites.
-    set(COMPILER_RT_TEST_SUITES check-asan check-asan-dynamic check-dfsan
-      check-lsan check-msan check-sanitizer check-tsan check-ubsan
+    set(COMPILER_RT_TEST_SUITES check-fuzzer check-asan check-asan-dynamic check-dfsan
+      check-lsan check-msan check-sanitizer check-tsan check-ubsan check-ubsan-minimal
       check-profile check-cfi check-cfi-and-supported check-safestack)
     foreach(test_suite ${COMPILER_RT_TEST_SUITES})
       get_ext_project_build_command(run_test_suite ${test_suite})

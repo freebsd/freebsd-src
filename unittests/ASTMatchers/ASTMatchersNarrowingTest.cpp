@@ -1315,6 +1315,14 @@ TEST(Matcher, IsDefinition) {
     cxxMethodDecl(hasName("a"), isDefinition());
   EXPECT_TRUE(matches("class A { void a() {} };", DefinitionOfMethodA));
   EXPECT_TRUE(notMatches("class A { void a(); };", DefinitionOfMethodA));
+
+  DeclarationMatcher DefinitionOfObjCMethodA =
+    objcMethodDecl(hasName("a"), isDefinition());
+  EXPECT_TRUE(matchesObjC("@interface A @end "
+                          "@implementation A; -(void)a {} @end",
+                          DefinitionOfObjCMethodA));
+  EXPECT_TRUE(notMatchesObjC("@interface A; - (void)a; @end",
+                             DefinitionOfObjCMethodA));
 }
 
 TEST(Matcher, HandlesNullQualTypes) {
@@ -1981,6 +1989,44 @@ TEST(HasExternalFormalLinkage, Basic) {
   // translation units.
   EXPECT_TRUE(matches("namespace { int a = 0; }",
                       namedDecl(hasExternalFormalLinkage())));
+}
+
+TEST(HasDefaultArgument, Basic) {
+  EXPECT_TRUE(matches("void x(int val = 0) {}", 
+                      parmVarDecl(hasDefaultArgument())));
+  EXPECT_TRUE(notMatches("void x(int val) {}",
+                      parmVarDecl(hasDefaultArgument())));
+}
+
+TEST(IsArray, Basic) {
+  EXPECT_TRUE(matches("struct MyClass {}; MyClass *p1 = new MyClass[10];",
+                      cxxNewExpr(isArray())));
+}
+
+TEST(HasArraySize, Basic) {
+  EXPECT_TRUE(matches("struct MyClass {}; MyClass *p1 = new MyClass[10];",
+                      cxxNewExpr(hasArraySize(integerLiteral(equals(10))))));
+}
+
+TEST(HasDefinition, MatchesStructDefinition) {
+  EXPECT_TRUE(matches("struct x {};",
+                      cxxRecordDecl(hasDefinition())));
+  EXPECT_TRUE(notMatches("struct x;",
+                      cxxRecordDecl(hasDefinition())));
+}
+
+TEST(HasDefinition, MatchesClassDefinition) {
+  EXPECT_TRUE(matches("class x {};",
+                      cxxRecordDecl(hasDefinition())));
+  EXPECT_TRUE(notMatches("class x;",
+                      cxxRecordDecl(hasDefinition())));
+}
+
+TEST(HasDefinition, MatchesUnionDefinition) {
+  EXPECT_TRUE(matches("union x {};",
+                      cxxRecordDecl(hasDefinition())));
+  EXPECT_TRUE(notMatches("union x;",
+                      cxxRecordDecl(hasDefinition())));
 }
 
 } // namespace ast_matchers

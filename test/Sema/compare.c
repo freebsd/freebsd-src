@@ -77,7 +77,7 @@ int ints(long a, unsigned long b) {
          ((int) a == (unsigned int) B) +
          ((short) a == (unsigned short) B) +
          ((signed char) a == (unsigned char) B) +
-         (a < (unsigned long) B) +  // expected-warning {{comparison of integers of different signs}}
+         (a < (unsigned long) B) +  // expected-warning {{comparison of unsigned expression < 0 is always false}}
          (a < (unsigned int) B) +
          (a < (unsigned short) B) +
          (a < (unsigned char) B) +
@@ -85,8 +85,8 @@ int ints(long a, unsigned long b) {
          ((int) a < B) +
          ((short) a < B) +
          ((signed char) a < B) +
-         ((long) a < (unsigned long) B) +  // expected-warning {{comparison of integers of different signs}}
-         ((int) a < (unsigned int) B) +  // expected-warning {{comparison of integers of different signs}}
+         ((long) a < (unsigned long) B) +  // expected-warning {{comparison of unsigned expression < 0 is always false}}
+         ((int) a < (unsigned int) B) +  // expected-warning {{comparison of unsigned expression < 0 is always false}}
          ((short) a < (unsigned short) B) +
          ((signed char) a < (unsigned char) B) +
 
@@ -308,8 +308,59 @@ int rdar8414119_bar(unsigned x) {
 int rdar8511238() {
   enum A { A_foo, A_bar };
   enum A a;
+
+  if (a == 0)
+      return 0;
+  if (a != 0)
+      return 0;
   if (a < 0) // expected-warning {{comparison of unsigned enum expression < 0 is always false}}
-    return 0;
+      return 0;
+  if (a <= 0)
+      return 0;
+  if (a > 0)
+      return 0;
+  if (a >= 0) // expected-warning {{comparison of unsigned enum expression >= 0 is always true}}
+      return 0;
+
+  if (0 == a)
+      return 0;
+  if (0 != a)
+      return 0;
+  if (0 < a)
+      return 0;
+  if (0 <= a) // expected-warning {{comparison of 0 <= unsigned enum expression is always true}}
+      return 0;
+  if (0 > a) // expected-warning {{comparison of 0 > unsigned enum expression is always false}}
+      return 0;
+  if (0 >= a)
+      return 0;
+
+  if (a == 0U)
+      return 0;
+  if (a != 0U)
+      return 0;
+  if (a < 0U) // expected-warning {{comparison of unsigned enum expression < 0 is always false}}
+      return 0;
+  if (a <= 0U)
+      return 0;
+  if (a > 0U)
+      return 0;
+  if (a >= 0U) // expected-warning {{comparison of unsigned enum expression >= 0 is always true}}
+      return 0;
+
+  if (0U == a)
+      return 0;
+  if (0U != a)
+      return 0;
+  if (0U < a)
+      return 0;
+  if (0U <= a) // expected-warning {{comparison of 0 <= unsigned enum expression is always true}}
+      return 0;
+  if (0U > a) // expected-warning {{comparison of 0 > unsigned enum expression is always false}}
+      return 0;
+  if (0U >= a)
+      return 0;
+
   return 20;
 }
 

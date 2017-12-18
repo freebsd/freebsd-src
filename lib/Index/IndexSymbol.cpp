@@ -201,25 +201,22 @@ SymbolInfo index::getSymbolInfo(const Decl *D) {
         Info.Properties |= (unsigned)SymbolProperty::UnitTest;
       break;
     }
-    case Decl::ObjCMethod:
-      if (cast<ObjCMethodDecl>(D)->isInstanceMethod()) {
-        const ObjCMethodDecl *MD = cast<ObjCMethodDecl>(D);
-        Info.Kind = SymbolKind::InstanceMethod;
-        if (MD->isPropertyAccessor()) {
-          if (MD->param_size())
-            Info.SubKind = SymbolSubKind::AccessorSetter;
-          else
-            Info.SubKind = SymbolSubKind::AccessorGetter;
-        }
-      } else {
-        Info.Kind = SymbolKind::ClassMethod;
+    case Decl::ObjCMethod: {
+      const ObjCMethodDecl *MD = cast<ObjCMethodDecl>(D);
+      Info.Kind = MD->isInstanceMethod() ? SymbolKind::InstanceMethod : SymbolKind::ClassMethod;
+      if (MD->isPropertyAccessor()) {
+        if (MD->param_size())
+          Info.SubKind = SymbolSubKind::AccessorSetter;
+        else
+          Info.SubKind = SymbolSubKind::AccessorGetter;
       }
       Info.Lang = SymbolLanguage::ObjC;
-      if (isUnitTest(cast<ObjCMethodDecl>(D)))
+      if (isUnitTest(MD))
         Info.Properties |= (unsigned)SymbolProperty::UnitTest;
       if (D->hasAttr<IBActionAttr>())
         Info.Properties |= (unsigned)SymbolProperty::IBAnnotated;
       break;
+    }
     case Decl::ObjCProperty:
       Info.Kind = SymbolKind::InstanceProperty;
       Info.Lang = SymbolLanguage::ObjC;
@@ -302,6 +299,18 @@ SymbolInfo index::getSymbolInfo(const Decl *D) {
     case Decl::TypeAlias:
       Info.Kind = SymbolKind::TypeAlias;
       Info.Lang = SymbolLanguage::CXX;
+      break;
+    case Decl::UnresolvedUsingTypename:
+      Info.Kind = SymbolKind::Using;
+      Info.SubKind = SymbolSubKind::UsingTypename;
+      Info.Lang = SymbolLanguage::CXX;
+      Info.Properties |= (unsigned)SymbolProperty::Generic;
+      break;
+    case Decl::UnresolvedUsingValue:
+      Info.Kind = SymbolKind::Using;
+      Info.SubKind = SymbolSubKind::UsingValue;
+      Info.Lang = SymbolLanguage::CXX;
+      Info.Properties |= (unsigned)SymbolProperty::Generic;
       break;
     case Decl::Binding:
       Info.Kind = SymbolKind::Variable;
@@ -451,6 +460,7 @@ StringRef index::getSymbolKindString(SymbolKind K) {
   case SymbolKind::Destructor: return "destructor";
   case SymbolKind::ConversionFunction: return "coversion-func";
   case SymbolKind::Parameter: return "param";
+  case SymbolKind::Using: return "using";
   }
   llvm_unreachable("invalid symbol kind");
 }
@@ -462,6 +472,8 @@ StringRef index::getSymbolSubKindString(SymbolSubKind K) {
   case SymbolSubKind::CXXMoveConstructor: return "cxx-move-ctor";
   case SymbolSubKind::AccessorGetter: return "acc-get";
   case SymbolSubKind::AccessorSetter: return "acc-set";
+  case SymbolSubKind::UsingTypename: return "using-typename";
+  case SymbolSubKind::UsingValue: return "using-value";
   }
   llvm_unreachable("invalid symbol subkind");
 }

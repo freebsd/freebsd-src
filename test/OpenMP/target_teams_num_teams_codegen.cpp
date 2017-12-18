@@ -147,10 +147,8 @@ int bar(int n){
 // CHECK:       [[ARG:%.+]] = load i[[SZ]], i[[SZ]]* [[CAPEC_ADDR]], align
 // CHECK:       [[TEAMS:%.+]] = load i32, i32* [[CAPE_ADDR]], align
 //
-// CHECK-DAG:   [[RET:%.+]] = call i32 @__tgt_target_teams(i32 -1, i8* @{{[^,]+}}, i32 3, {{.*}}, i32 [[TEAMS]], i32 0)
-// CHECK:       store i32 [[RET]], i32* [[RHV:%.+]], align
-// CHECK:       [[RET2:%.+]] = load i32, i32* [[RHV]], align
-// CHECK:       [[ERROR:%.+]] = icmp ne i32 [[RET2]], 0
+// CHECK-DAG:   [[RET:%.+]] = call i32 @__tgt_target_teams(i64 -1, i8* @{{[^,]+}}, i32 3, {{.*}}, i32 [[TEAMS]], i32 0)
+// CHECK:       [[ERROR:%.+]] = icmp ne i32 [[RET]], 0
 // CHECK:       br i1 [[ERROR]], label %[[FAIL:.+]], label %[[END:[^,]+]]
 //
 // CHECK:       [[FAIL]]
@@ -160,10 +158,8 @@ int bar(int n){
 //
 //
 //
-// CHECK-DAG:   [[RET:%.+]] = call i32 @__tgt_target_teams(i32 -1, i8* @{{[^,]+}}, i32 1, {{.+}}, i32 1024, i32 0)
-// CHECK:       store i32 [[RET]], i32* [[RHV:%.+]], align
-// CHECK:       [[RET2:%.+]] = load i32, i32* [[RHV]], align
-// CHECK:       [[ERROR:%.+]] = icmp ne i32 [[RET2]], 0
+// CHECK-DAG:   [[RET:%.+]] = call i32 @__tgt_target_teams(i64 -1, i8* @{{[^,]+}}, i32 1, {{.+}}, i32 1024, i32 0)
+// CHECK:       [[ERROR:%.+]] = icmp ne i32 [[RET]], 0
 // CHECK:       br i1 [[ERROR]], label %[[FAIL:.+]], label %[[END:[^,]+]]
 //
 // CHECK:       [[FAIL]]
@@ -190,10 +186,8 @@ int bar(int n){
 // CHECK:       [[ARG:%.+]] = load i[[SZ]], i[[SZ]]* [[CAPEC_ADDR]], align
 // CHECK:       [[TEAMS:%.+]] = load i32, i32* [[CAPE_ADDR]], align
 //
-// CHECK-DAG:   [[RET:%.+]] = call i32 @__tgt_target_teams(i32 -1, i8* @{{[^,]+}}, i32 1, {{.*}}, i32 [[TEAMS]], i32 0)
-// CHECK:       store i32 [[RET]], i32* [[RHV:%.+]], align
-// CHECK:       [[RET2:%.+]] = load i32, i32* [[RHV]], align
-// CHECK:       [[ERROR:%.+]] = icmp ne i32 [[RET2]], 0
+// CHECK-DAG:   [[RET:%.+]] = call i32 @__tgt_target_teams(i64 -1, i8* @{{[^,]+}}, i32 1, {{.*}}, i32 [[TEAMS]], i32 0)
+// CHECK:       [[ERROR:%.+]] = icmp ne i32 [[RET]], 0
 // CHECK:       br i1 [[ERROR]], label %[[FAIL:.+]], label %[[END:[^,]+]]
 //
 // CHECK:       [[FAIL]]
@@ -213,10 +207,8 @@ int bar(int n){
 // CHECK:       [[ARG:%.+]] = load i[[SZ]], i[[SZ]]* [[CAPEC_ADDR]], align
 // CHECK:       [[TEAMS:%.+]] = load i32, i32* [[CAPE_ADDR]], align
 //
-// CHECK-DAG:   [[RET:%.+]] = call i32 @__tgt_target_teams(i32 -1, i8* @{{[^,]+}}, i32 1, {{.*}}, i32 [[TEAMS]], i32 0)
-// CHECK:       store i32 [[RET]], i32* [[RHV:%.+]], align
-// CHECK:       [[RET2:%.+]] = load i32, i32* [[RHV]], align
-// CHECK:       [[ERROR:%.+]] = icmp ne i32 [[RET2]], 0
+// CHECK-DAG:   [[RET:%.+]] = call i32 @__tgt_target_teams(i64 -1, i8* @{{[^,]+}}, i32 1, {{.*}}, i32 [[TEAMS]], i32 0)
+// CHECK:       [[ERROR:%.+]] = icmp ne i32 [[RET]], 0
 // CHECK:       br i1 [[ERROR]], label %[[FAIL:.+]], label %[[END:[^,]+]]
 //
 // CHECK:       [[FAIL]]
@@ -233,10 +225,8 @@ int bar(int n){
 //
 // CHECK: define {{.*}}[[FTEMPLATE]]
 //
-// CHECK-DAG:   [[RET:%.+]] = call i32 @__tgt_target_teams(i32 -1, i8* @{{[^,]+}}, i32 0, {{.*}}, i32 20, i32 0)
-// CHECK-NEXT:  store i32 [[RET]], i32* [[RHV:%.+]], align
-// CHECK-NEXT:  [[RET2:%.+]] = load i32, i32* [[RHV]], align
-// CHECK-NEXT:  [[ERROR:%.+]] = icmp ne i32 [[RET2]], 0
+// CHECK-DAG:   [[RET:%.+]] = call i32 @__tgt_target_teams(i64 -1, i8* @{{[^,]+}}, i32 0, {{.*}}, i32 20, i32 0)
+// CHECK-NEXT:  [[ERROR:%.+]] = icmp ne i32 [[RET]], 0
 // CHECK-NEXT:  br i1 [[ERROR]], label %[[FAIL:.+]], label %[[END:[^,]+]]
 //
 // CHECK:       [[FAIL]]
@@ -257,10 +247,8 @@ int bar(int n){
 // CHECK:       [[T:%.+]] = load i16, i16* [[CAPE_ADDR]], align
 // CHECK:       [[TEAMS:%.+]] = sext i16 [[T]] to i32
 //
-// CHECK-DAG:   [[RET:%.+]] = call i32 @__tgt_target_teams(i32 -1, i8* @{{[^,]+}}, i32 3, {{.*}}, i32 [[TEAMS]], i32 0)
-// CHECK:       store i32 [[RET]], i32* [[RHV:%.+]], align
-// CHECK:       [[RET2:%.+]] = load i32, i32* [[RHV]], align
-// CHECK:       [[ERROR:%.+]] = icmp ne i32 [[RET2]], 0
+// CHECK-DAG:   [[RET:%.+]] = call i32 @__tgt_target_teams(i64 -1, i8* @{{[^,]+}}, i32 3, {{.*}}, i32 [[TEAMS]], i32 0)
+// CHECK:       [[ERROR:%.+]] = icmp ne i32 [[RET]], 0
 // CHECK:       br i1 [[ERROR]], label %[[FAIL:.+]], label %[[END:[^,]+]]
 //
 // CHECK:       [[FAIL]]
