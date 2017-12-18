@@ -139,6 +139,8 @@ vers.c: ${LDRSRC}/newvers.sh ${VERSION_FILE}
 	    ${NEWVERSWHAT}
 
 .if !empty(HELP_FILES)
+HELP_FILES+=	${LDRSRC}/help.common
+
 CLEANFILES+=	loader.help
 FILES+=		loader.help
 

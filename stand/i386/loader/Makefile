@@ -41,9 +41,7 @@ LIBFIREWIRE=	${BOOTOBJ}/i386/libfirewire/libfirewire.a
 .endif
 
 .if exists(${.CURDIR}/help.i386)
-HELP_FILES+=	help.i386
-.else
-HELP_FILES=
+HELP_FILES=	${.CURDIR}/help.i386
 .endif
 
 # Always add MI sources

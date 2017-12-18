@@ -67,7 +67,7 @@ SRCS+=		altera_jtag_uart.c				\
 # Since we don't have a backward compatibility issue, default to this on BERI.
 CFLAGS+=	-DBOOT_PROMPT_123
 
-HELP_FILES+=	${.CURDIR}/help.mips
+HELP_FILES=	${.CURDIR}/help.mips
 
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
