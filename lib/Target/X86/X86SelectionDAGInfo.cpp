@@ -17,8 +17,8 @@
 #include "X86RegisterInfo.h"
 #include "X86Subtarget.h"
 #include "llvm/CodeGen/SelectionDAG.h"
+#include "llvm/CodeGen/TargetLowering.h"
 #include "llvm/IR/DerivedTypes.h"
-#include "llvm/Target/TargetLowering.h"
 
 using namespace llvm;
 
@@ -247,7 +247,7 @@ SDValue X86SelectionDAGInfo::EmitTargetCodeForMemcpy(
       Repeats.AVT = Subtarget.is64Bit() ? MVT::i64 : MVT::i32;
 
     if (Repeats.BytesLeft() > 0 &&
-        DAG.getMachineFunction().getFunction()->optForMinSize()) {
+        DAG.getMachineFunction().getFunction().optForMinSize()) {
       // When agressively optimizing for size, avoid generating the code to
       // handle BytesLeft.
       Repeats.AVT = MVT::i8;

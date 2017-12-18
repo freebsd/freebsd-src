@@ -272,6 +272,12 @@ TEST(TripleTest, ParsedIDs) {
   EXPECT_EQ(Triple::AMDHSA, T.getOS());
   EXPECT_EQ(Triple::OpenCL, T.getEnvironment());
 
+  T = Triple("amdgcn-amd-amdpal");
+  EXPECT_EQ(Triple::amdgcn, T.getArch());
+  EXPECT_EQ(Triple::AMD, T.getVendor());
+  EXPECT_EQ(Triple::AMDPAL, T.getOS());
+  EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
+
   T = Triple("riscv32-unknown-unknown");
   EXPECT_EQ(Triple::riscv32, T.getArch());
   EXPECT_EQ(Triple::UnknownVendor, T.getVendor());
@@ -295,6 +301,54 @@ TEST(TripleTest, ParsedIDs) {
   EXPECT_EQ(Triple::SUSE, T.getVendor());
   EXPECT_EQ(Triple::Linux, T.getOS());
   EXPECT_EQ(Triple::GNUEABI, T.getEnvironment());
+
+  T = Triple("i586-pc-haiku");
+  EXPECT_EQ(Triple::x86, T.getArch());
+  EXPECT_EQ(Triple::PC, T.getVendor());
+  EXPECT_EQ(Triple::Haiku, T.getOS());
+  EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
+
+  T = Triple("x86_64-unknown-haiku");
+  EXPECT_EQ(Triple::x86_64, T.getArch());
+  EXPECT_EQ(Triple::UnknownVendor, T.getVendor());
+  EXPECT_EQ(Triple::Haiku, T.getOS());
+  EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
+
+  T = Triple("mips-mti-linux-gnu");
+  EXPECT_EQ(Triple::mips, T.getArch());
+  EXPECT_EQ(Triple::MipsTechnologies, T.getVendor());
+  EXPECT_EQ(Triple::Linux, T.getOS());
+  EXPECT_EQ(Triple::GNU, T.getEnvironment());
+
+  T = Triple("mipsel-img-linux-gnu");
+  EXPECT_EQ(Triple::mipsel, T.getArch());
+  EXPECT_EQ(Triple::ImaginationTechnologies, T.getVendor());
+  EXPECT_EQ(Triple::Linux, T.getOS());
+  EXPECT_EQ(Triple::GNU, T.getEnvironment());
+
+  T = Triple("mips64-mti-linux-gnu");
+  EXPECT_EQ(Triple::mips64, T.getArch());
+  EXPECT_EQ(Triple::MipsTechnologies, T.getVendor());
+  EXPECT_EQ(Triple::Linux, T.getOS());
+  EXPECT_EQ(Triple::GNU, T.getEnvironment());
+
+  T = Triple("mips64el-img-linux-gnu");
+  EXPECT_EQ(Triple::mips64el, T.getArch());
+  EXPECT_EQ(Triple::ImaginationTechnologies, T.getVendor());
+  EXPECT_EQ(Triple::Linux, T.getOS());
+  EXPECT_EQ(Triple::GNU, T.getEnvironment());
+
+  T = Triple("mips64el-img-linux-gnuabin32");
+  EXPECT_EQ(Triple::mips64el, T.getArch());
+  EXPECT_EQ(Triple::ImaginationTechnologies, T.getVendor());
+  EXPECT_EQ(Triple::Linux, T.getOS());
+  EXPECT_EQ(Triple::GNUABIN32, T.getEnvironment());
+
+  T = Triple("mips64el-unknown-linux-gnuabi64");
+  EXPECT_EQ(Triple::mips64el, T.getArch());
+  EXPECT_EQ(Triple::UnknownVendor, T.getVendor());
+  EXPECT_EQ(Triple::Linux, T.getOS());
+  EXPECT_EQ(Triple::GNUABI64, T.getEnvironment());
 
   T = Triple("huh");
   EXPECT_EQ(Triple::UnknownArch, T.getArch());
@@ -946,6 +1000,15 @@ TEST(TripleTest, getOSVersion) {
   EXPECT_EQ((unsigned)7, Major);
   EXPECT_EQ((unsigned)0, Minor);
   EXPECT_EQ((unsigned)0, Micro);
+  EXPECT_FALSE(T.isSimulatorEnvironment());
+
+  T = Triple("x86_64-apple-ios10.3-simulator");
+  EXPECT_TRUE(T.isiOS());
+  T.getiOSVersion(Major, Minor, Micro);
+  EXPECT_EQ((unsigned)10, Major);
+  EXPECT_EQ((unsigned)3, Minor);
+  EXPECT_EQ((unsigned)0, Micro);
+  EXPECT_TRUE(T.isSimulatorEnvironment());
 }
 
 TEST(TripleTest, FileFormat) {

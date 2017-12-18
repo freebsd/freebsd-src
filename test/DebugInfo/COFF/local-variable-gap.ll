@@ -2,7 +2,7 @@
 ; RUN: llc -mtriple=x86_64-windows-msvc < %s -filetype=obj | llvm-readobj -codeview - | FileCheck %s --check-prefix=OBJ
 
 ; This test attempts to exercise gaps in local variables. The local variable 'p'
-; will end up in some CSR (ESI), which will be used in both the BB scheduled
+; will end up in some CSR (esi), which will be used in both the BB scheduled
 ; discontiguously out of line and the normal return BB. The best way to encode
 ; this is to use a LocalVariableAddrGap. If the gap is too large, multiple
 ; ranges should be emitted.
@@ -33,13 +33,13 @@
 ; ASM:         callq   vardef
 ; ASM:         movl    %eax, %esi
 ; ASM: [[p_b1:\.Ltmp[0-9]+]]:
-; ASM:         #DEBUG_VALUE: p <- %ESI
+; ASM:         #DEBUG_VALUE: p <- %esi
 ; ASM:         callq   barrier
 ; ASM:         movl    %esi, %ecx
 ; ASM:         testl   %eax, %eax
 ; ASM:         jne     .LBB0_5
-; ASM: # BB#2:                                 # %if.end
-; ASM:         #DEBUG_VALUE: p <- %ESI
+; ASM: # %bb.2:                                 # %if.end
+; ASM:         #DEBUG_VALUE: p <- %esi
 ; ASM:         callq   use
 ; ASM:         jmp     .LBB0_4
 ; ASM: [[p_e1:\.Ltmp[0-9]+]]:
@@ -52,7 +52,7 @@
 ; ASM:         retq
 ; ASM: .LBB0_5:                                # %if.then4
 ; ASM: [[p_b2:\.Ltmp[0-9]+]]:
-; ASM:         #DEBUG_VALUE: p <- %ESI
+; ASM:         #DEBUG_VALUE: p <- %esi
 ; ASM:         callq   call_noreturn
 ; ASM:         ud2
 ; ASM: .Lfunc_end0:
@@ -73,7 +73,7 @@
 ; OBJ-NOT:     LocalSym {
 ; OBJ:         DefRangeRegisterSym {
 ; OBJ-NEXT:      Kind:
-; OBJ-NEXT:      Register: 23
+; OBJ-NEXT:      Register: ESI (0x17)
 ; OBJ-NEXT:      MayHaveNoName: 0
 ; OBJ-NEXT:      LocalVariableAddrRange {
 ; OBJ-NEXT:        OffsetStart: .text+0x{{.*}}
@@ -100,7 +100,7 @@ entry:
 
 if.then:                                          ; preds = %entry
   %call1 = tail call i32 bitcast (i32 (...)* @vardef to i32 ()*)() #4, !dbg !17
-  tail call void @llvm.dbg.value(metadata i32 %call1, i64 0, metadata !12, metadata !18), !dbg !19
+  tail call void @llvm.dbg.value(metadata i32 %call1, metadata !12, metadata !18), !dbg !19
   %call2 = tail call i32 bitcast (i32 (...)* @barrier to i32 ()*)() #4, !dbg !20
   %tobool3 = icmp eq i32 %call2, 0, !dbg !20
   br i1 %tobool3, label %if.end, label %if.then4, !dbg !22
@@ -131,7 +131,7 @@ declare void @call_noreturn(i32) local_unnamed_addr #2
 declare void @use(i32) local_unnamed_addr #1
 
 ; Function Attrs: nounwind readnone
-declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #3
+declare void @llvm.dbg.value(metadata, metadata, metadata) #3
 
 attributes #0 = { nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }

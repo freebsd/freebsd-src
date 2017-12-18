@@ -17,6 +17,7 @@
 #include "llvm/Config/config.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/Support/DataTypes.h"
+#include <memory>
 
 namespace llvm {
 class MCAsmBackend;
@@ -43,8 +44,8 @@ MCAsmBackend *createRISCVAsmBackend(const Target &T, const MCRegisterInfo &MRI,
                                     const Triple &TT, StringRef CPU,
                                     const MCTargetOptions &Options);
 
-MCObjectWriter *createRISCVELFObjectWriter(raw_pwrite_stream &OS, uint8_t OSABI,
-                                           bool Is64Bit);
+std::unique_ptr<MCObjectWriter>
+createRISCVELFObjectWriter(raw_pwrite_stream &OS, uint8_t OSABI, bool Is64Bit);
 }
 
 // Defines symbolic names for RISC-V registers.
@@ -54,5 +55,8 @@ MCObjectWriter *createRISCVELFObjectWriter(raw_pwrite_stream &OS, uint8_t OSABI,
 // Defines symbolic names for RISC-V instructions.
 #define GET_INSTRINFO_ENUM
 #include "RISCVGenInstrInfo.inc"
+
+#define GET_SUBTARGETINFO_ENUM
+#include "RISCVGenSubtargetInfo.inc"
 
 #endif

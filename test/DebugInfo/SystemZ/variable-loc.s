@@ -1,4 +1,4 @@
-# RUN: llvm-mc < %s -triple=s390x-linux-gnu -filetype=obj | llvm-dwarfdump - | FileCheck %s
+# RUN: llvm-mc < %s -triple=s390x-linux-gnu -filetype=obj | llvm-dwarfdump -v - | FileCheck %s
 #
 # We use both R_390_32 and R_390_64 to encode the dwarf information.
 # Test that they are used correctly.  This uses the assembly output
@@ -45,7 +45,7 @@ main:                                   # @main
 	.cfi_startproc
 .Lfunc_begin0:
 	.loc	2 18 0                  # :18:0
-# BB#0:                                 # %entry
+# %bb.0:                                # %entry
 	stmg	%r12, %r15, 96(%r15)
 .Ltmp2:
 	.cfi_offset %r12, -64

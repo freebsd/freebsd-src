@@ -1,10 +1,10 @@
-; RUN: llc -mtriple i686-pc-cygwin < %s -filetype=obj | llvm-dwarfdump - | FileCheck %s
-; RUN: llc -mtriple i686-pc-cygwin -split-dwarf-file=foo.dwo < %s -filetype=obj | llvm-dwarfdump - | FileCheck --check-prefix=FISSION %s
+; RUN: llc -mtriple i686-pc-cygwin < %s -filetype=obj | llvm-dwarfdump -v - | FileCheck %s
+; RUN: llc -mtriple i686-pc-cygwin -split-dwarf-file=foo.dwo < %s -filetype=obj | llvm-dwarfdump -v - | FileCheck --check-prefix=FISSION %s
 
 ; Expect no line table entry since there are no functions and file references in this compile unit
 ; CHECK: .debug_line contents:
 ; CHECK: Line table prologue:
-; CHECK: total_length: 0x00000019
+; CHECK: total_length: 0x0000001a
 ; CHECK-NOT: file_names[
 
 ; CHECK: .debug_pubnames contents:

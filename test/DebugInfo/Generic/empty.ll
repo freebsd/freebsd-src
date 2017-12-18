@@ -1,7 +1,7 @@
 ; REQUIRES: object-emission
 
-; RUN: %llc_dwarf < %s -filetype=obj | llvm-dwarfdump - | FileCheck %s
-; RUN: %llc_dwarf -split-dwarf-file=foo.dwo < %s -filetype=obj | llvm-dwarfdump - | FileCheck --check-prefix=FISSION %s
+; RUN: %llc_dwarf < %s -filetype=obj | llvm-dwarfdump -v - | FileCheck %s
+; RUN: %llc_dwarf -split-dwarf-file=foo.dwo < %s -filetype=obj | llvm-dwarfdump -v - | FileCheck --check-prefix=FISSION %s
 
 ; darwin has a workaround for a linker bug so it always emits one line table entry
 ; XFAIL: darwin
@@ -9,12 +9,10 @@
 ; Expect no line table entry since there are no functions and file references in this compile unit
 ; CHECK: .debug_line contents:
 ; CHECK: Line table prologue:
-; CHECK: total_length: 0x00000019
+; CHECK: total_length: 0x0000001a
 ; CHECK-NOT: file_names[
 
-; CHECK: .debug_pubnames contents:
-; CHECK-NOT: {{^}}0x
-
+; CHECK-NOT: .debug_pubnames contents:
 ; CHECK: contents:
 
 ; Don't emit DW_AT_addr_base when there are no addresses.

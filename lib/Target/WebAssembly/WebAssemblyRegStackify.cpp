@@ -26,7 +26,7 @@
 #include "WebAssemblySubtarget.h"
 #include "WebAssemblyUtilities.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/CodeGen/LiveIntervalAnalysis.h"
+#include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -107,12 +107,12 @@ static void ConvertImplicitDefToConstZero(MachineInstr *MI,
   } else if (RegClass == &WebAssembly::F32RegClass) {
     MI->setDesc(TII->get(WebAssembly::CONST_F32));
     ConstantFP *Val = cast<ConstantFP>(Constant::getNullValue(
-        Type::getFloatTy(MF.getFunction()->getContext())));
+        Type::getFloatTy(MF.getFunction().getContext())));
     MI->addOperand(MachineOperand::CreateFPImm(Val));
   } else if (RegClass == &WebAssembly::F64RegClass) {
     MI->setDesc(TII->get(WebAssembly::CONST_F64));
     ConstantFP *Val = cast<ConstantFP>(Constant::getNullValue(
-        Type::getDoubleTy(MF.getFunction()->getContext())));
+        Type::getDoubleTy(MF.getFunction().getContext())));
     MI->addOperand(MachineOperand::CreateFPImm(Val));
   } else {
     llvm_unreachable("Unexpected reg class");

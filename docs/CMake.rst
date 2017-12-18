@@ -224,6 +224,10 @@ LLVM-specific variables
   Generate build targets for the LLVM tools. Defaults to ON. You can use this
   option to disable the generation of build targets for the LLVM tools.
 
+**LLVM_INSTALL_BINUTILS_SYMLINKS**:BOOL
+  Install symlinks from the binutils tool names to the corresponding LLVM tools.
+  For example, ar will be symlinked to llvm-ar.
+
 **LLVM_BUILD_EXAMPLES**:BOOL
   Build LLVM examples. Defaults to OFF. Targets for building each example are
   generated in any case. See documentation for *LLVM_BUILD_TOOLS* above for more
@@ -541,6 +545,11 @@ LLVM-specific variables
   If enabled, all supported unordered llvm containers would be iterated in
   reverse order. This is useful for uncovering non-determinism caused by
   iteration of unordered containers.
+
+**LLVM_BUILD_INSTRUMENTED_COVERAGE**:BOOL
+  If enabled, `source-based code coverage
+  <http://clang.llvm.org/docs/SourceBasedCodeCoverage.html>`_ instrumentation
+  is enabled while building llvm.
 
 CMake Caches
 ============

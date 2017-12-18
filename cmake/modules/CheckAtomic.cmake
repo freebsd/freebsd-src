@@ -1,6 +1,7 @@
 # atomic builtins are required for threading support.
 
 INCLUDE(CheckCXXSourceCompiles)
+INCLUDE(CheckLibraryExists)
 
 # Sometimes linking against libatomic is required for atomic ops, if
 # the platform doesn't support lock-free atomics.
@@ -80,7 +81,6 @@ endif()
 ## assumes C++11 <atomic> works.
 CHECK_CXX_SOURCE_COMPILES("
 #ifdef _MSC_VER
-#include <Intrin.h> /* Workaround for PR19898. */
 #include <windows.h>
 #endif
 int main() {

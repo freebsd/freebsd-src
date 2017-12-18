@@ -19,7 +19,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm-c/Support.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -45,17 +44,6 @@ using namespace llvm;
 using namespace cl;
 
 #define DEBUG_TYPE "commandline"
-
-#if LLVM_ENABLE_ABI_BREAKING_CHECKS
-namespace llvm {
-// If LLVM_ENABLE_ABI_BREAKING_CHECKS is set the flag -mllvm -reverse-iterate
-// can be used to toggle forward/reverse iteration of unordered containers.
-// This will help uncover differences in codegen caused due to undefined
-// iteration order.
-static cl::opt<bool, true> ReverseIteration("reverse-iterate",
-  cl::location(ReverseIterate<bool>::value));
-}
-#endif
 
 //===----------------------------------------------------------------------===//
 // Template instantiations and anchors.
@@ -1769,7 +1757,13 @@ public:
   void operator=(bool Value) {
     if (!Value)
       return;
+    printHelp();
 
+    // Halt the program since help information was printed
+    exit(0);
+  }
+
+  void printHelp() {
     SubCommand *Sub = GlobalParser->getActiveSubCommand();
     auto &OptionsMap = Sub->OptionsMap;
     auto &PositionalOpts = Sub->PositionalOpts;
@@ -1837,9 +1831,6 @@ public:
     for (auto I : GlobalParser->MoreHelp)
       outs() << I;
     GlobalParser->MoreHelp.clear();
-
-    // Halt the program since help information was printed
-    exit(0);
   }
 };
 
@@ -2039,9 +2030,9 @@ void CommandLineParser::printOptionValues() {
     Opts[i].second->printOptionValue(MaxArgLen, PrintAllOptions);
 }
 
-static void (*OverrideVersionPrinter)() = nullptr;
+static VersionPrinterTy OverrideVersionPrinter = nullptr;
 
-static std::vector<void (*)()> *ExtraVersionPrinters = nullptr;
+static std::vector<VersionPrinterTy> *ExtraVersionPrinters = nullptr;
 
 namespace {
 class VersionPrinter {
@@ -2081,7 +2072,7 @@ public:
       return;
 
     if (OverrideVersionPrinter != nullptr) {
-      (*OverrideVersionPrinter)();
+      OverrideVersionPrinter(outs());
       exit(0);
     }
     print();
@@ -2090,10 +2081,8 @@ public:
     // information.
     if (ExtraVersionPrinters != nullptr) {
       outs() << '\n';
-      for (std::vector<void (*)()>::iterator I = ExtraVersionPrinters->begin(),
-                                             E = ExtraVersionPrinters->end();
-           I != E; ++I)
-        (*I)();
+      for (auto I : *ExtraVersionPrinters)
+        I(outs());
     }
 
     exit(0);
@@ -2111,31 +2100,24 @@ static cl::opt<VersionPrinter, true, parser<bool>>
 
 // Utility function for printing the help message.
 void cl::PrintHelpMessage(bool Hidden, bool Categorized) {
-  // This looks weird, but it actually prints the help message. The Printers are
-  // types of HelpPrinter and the help gets printed when its operator= is
-  // invoked. That's because the "normal" usages of the help printer is to be
-  // assigned true/false depending on whether -help or -help-hidden was given or
-  // not.  Since we're circumventing that we have to make it look like -help or
-  // -help-hidden were given, so we assign true.
-
   if (!Hidden && !Categorized)
-    UncategorizedNormalPrinter = true;
+    UncategorizedNormalPrinter.printHelp();
   else if (!Hidden && Categorized)
-    CategorizedNormalPrinter = true;
+    CategorizedNormalPrinter.printHelp();
   else if (Hidden && !Categorized)
-    UncategorizedHiddenPrinter = true;
+    UncategorizedHiddenPrinter.printHelp();
   else
-    CategorizedHiddenPrinter = true;
+    CategorizedHiddenPrinter.printHelp();
 }
 
 /// Utility function for printing version number.
 void cl::PrintVersionMessage() { VersionPrinterInstance.print(); }
 
-void cl::SetVersionPrinter(void (*func)()) { OverrideVersionPrinter = func; }
+void cl::SetVersionPrinter(VersionPrinterTy func) { OverrideVersionPrinter = func; }
 
-void cl::AddExtraVersionPrinter(void (*func)()) {
+void cl::AddExtraVersionPrinter(VersionPrinterTy func) {
   if (!ExtraVersionPrinters)
-    ExtraVersionPrinters = new std::vector<void (*)()>;
+    ExtraVersionPrinters = new std::vector<VersionPrinterTy>;
 
   ExtraVersionPrinters->push_back(func);
 }

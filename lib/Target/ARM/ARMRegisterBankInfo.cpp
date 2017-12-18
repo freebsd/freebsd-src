@@ -17,16 +17,12 @@
 #include "llvm/CodeGen/GlobalISel/RegisterBank.h"
 #include "llvm/CodeGen/GlobalISel/RegisterBankInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 
 #define GET_TARGET_REGBANK_IMPL
 #include "ARMGenRegisterBank.inc"
 
 using namespace llvm;
-
-#ifndef LLVM_BUILD_GLOBAL_ISEL
-#error "You shouldn't build this"
-#endif
 
 // FIXME: TableGen this.
 // If it grows too much and TableGen still isn't ready to do the job, extract it
@@ -202,7 +198,7 @@ ARMRegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
 
   // Try the default logic for non-generic instructions that are either copies
   // or already have some operands assigned to banks.
-  if (!isPreISelGenericOpcode(Opc)) {
+  if (!isPreISelGenericOpcode(Opc) || Opc == TargetOpcode::G_PHI) {
     const InstructionMapping &Mapping = getInstrMappingImpl(MI);
     if (Mapping.isValid())
       return Mapping;
@@ -222,6 +218,9 @@ ARMRegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
   case G_AND:
   case G_OR:
   case G_XOR:
+  case G_LSHR:
+  case G_ASHR:
+  case G_SHL:
   case G_SDIV:
   case G_UDIV:
   case G_SEXT:
@@ -243,17 +242,19 @@ ARMRegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
             : &ARM::ValueMappings[ARM::GPR3OpsIdx];
     break;
   }
-  case G_FADD: {
+  case G_FADD:
+  case G_FSUB:
+  case G_FMUL:
+  case G_FDIV: {
     LLT Ty = MRI.getType(MI.getOperand(0).getReg());
-    assert((Ty.getSizeInBits() == 32 || Ty.getSizeInBits() == 64) &&
-           "Unsupported size for G_FADD");
-    OperandsMapping = Ty.getSizeInBits() == 64
+    OperandsMapping =Ty.getSizeInBits() == 64
                           ? &ARM::ValueMappings[ARM::DPR3OpsIdx]
                           : &ARM::ValueMappings[ARM::SPR3OpsIdx];
     break;
   }
   case G_CONSTANT:
   case G_FRAME_INDEX:
+  case G_GLOBAL_VALUE:
     OperandsMapping =
         getOperandsMapping({&ARM::ValueMappings[ARM::GPR3OpsIdx], nullptr});
     break;

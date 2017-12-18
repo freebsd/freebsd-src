@@ -1,4 +1,7 @@
 set(system_libs)
+if ( LLVM_ENABLE_ZLIB AND HAVE_LIBZ )
+  set(system_libs ${system_libs} ${ZLIB_LIBRARIES})
+endif()
 if( MSVC OR MINGW )
   # libuuid required for FOLDERID_Profile usage in lib/Support/Windows/Path.inc.
   set(system_libs ${system_libs} psapi shell32 ole32 uuid)
@@ -21,16 +24,13 @@ elseif( CMAKE_HOST_UNIX )
     set(system_libs ${system_libs} atomic)
   endif()
   set(system_libs ${system_libs} ${LLVM_PTHREAD_LIB})
-  if ( LLVM_ENABLE_ZLIB AND HAVE_LIBZ )
-    set(system_libs ${system_libs} z)
-  endif()
   if( UNIX AND NOT (BEOS OR HAIKU) )
     set(system_libs ${system_libs} m)
   endif()
 endif( MSVC OR MINGW )
 
 add_llvm_library(LLVMSupport
-  AMDGPUCodeObjectMetadata.cpp
+  AMDGPUMetadata.cpp
   APFloat.cpp
   APInt.cpp
   APSInt.cpp
@@ -48,6 +48,7 @@ add_llvm_library(LLVMSupport
   circular_raw_ostream.cpp
   Chrono.cpp
   COM.cpp
+  CodeGenCoverage.cpp
   CommandLine.cpp
   Compression.cpp
   ConvertUTF.cpp
@@ -71,6 +72,7 @@ add_llvm_library(LLVMSupport
   IntEqClasses.cpp
   IntervalMap.cpp
   JamCRC.cpp
+  KnownBits.cpp
   LEB128.cpp
   LineIterator.cpp
   Locale.cpp

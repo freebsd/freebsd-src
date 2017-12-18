@@ -19,7 +19,7 @@
 #include "LanaiInstrInfo.h"
 #include "LanaiSelectionDAGInfo.h"
 #include "LanaiSubtarget.h"
-#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
@@ -34,7 +34,8 @@ public:
                      StringRef Cpu, StringRef FeatureString,
                      const TargetOptions &Options,
                      Optional<Reloc::Model> RelocationModel,
-                     CodeModel::Model CodeModel, CodeGenOpt::Level OptLevel);
+                     Optional<CodeModel::Model> CodeModel,
+                     CodeGenOpt::Level OptLevel, bool JIT);
 
   const LanaiSubtarget *
   getSubtargetImpl(const llvm::Function & /*Fn*/) const override {

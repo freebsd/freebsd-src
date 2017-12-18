@@ -139,6 +139,16 @@ raw_ostream &raw_ostream::write_hex(unsigned long long N) {
   return *this;
 }
 
+raw_ostream &raw_ostream::write_uuid(const uuid_t UUID) {
+  for (int Idx = 0; Idx < 16; ++Idx) {
+    *this << format("%02" PRIX32, UUID[Idx]);
+    if (Idx == 3 || Idx == 5 || Idx == 7 || Idx == 9)
+      *this << "-";
+  }
+  return *this;
+}
+
+
 raw_ostream &raw_ostream::write_escaped(StringRef Str,
                                         bool UseHexEscapes) {
   for (unsigned char c : Str) {
@@ -507,17 +517,18 @@ raw_fd_ostream::raw_fd_ostream(StringRef Filename, std::error_code &EC,
 /// FD is the file descriptor that this writes to.  If ShouldClose is true, this
 /// closes the file when the stream is destroyed.
 raw_fd_ostream::raw_fd_ostream(int fd, bool shouldClose, bool unbuffered)
-    : raw_pwrite_stream(unbuffered), FD(fd), ShouldClose(shouldClose),
-      Error(false) {
+    : raw_pwrite_stream(unbuffered), FD(fd), ShouldClose(shouldClose) {
   if (FD < 0 ) {
     ShouldClose = false;
     return;
   }
-  // We do not want to close STDOUT as there may have been several uses of it
-  // such as the case: llc %s -o=- -pass-remarks-output=- -filetype=asm
-  // which cause multiple closes of STDOUT_FILENO and/or use-after-close of it.
-  // Using dup() in getFD doesn't work as we end up with original STDOUT_FILENO
-  // open anyhow.
+
+  // Do not attempt to close stdout or stderr. We used to try to maintain the
+  // property that tools that support writing file to stdout should not also
+  // write informational output to stdout, but in practice we were never able to
+  // maintain this invariant. Many features have been added to LLVM and clang
+  // (-fdump-record-layouts, optimization remarks, etc) that print to stdout, so
+  // users must simply be aware that mixed output and remarks is a possibility.
   if (FD <= STDERR_FILENO)
     ShouldClose = false;
 
@@ -540,8 +551,10 @@ raw_fd_ostream::raw_fd_ostream(int fd, bool shouldClose, bool unbuffered)
 raw_fd_ostream::~raw_fd_ostream() {
   if (FD >= 0) {
     flush();
-    if (ShouldClose && sys::Process::SafelyCloseFileDescriptor(FD))
-      error_detected();
+    if (ShouldClose) {
+      if (auto EC = sys::Process::SafelyCloseFileDescriptor(FD))
+        error_detected(EC);
+    }
   }
 
 #ifdef __MINGW32__
@@ -557,31 +570,33 @@ raw_fd_ostream::~raw_fd_ostream() {
   // has_error() and clear the error flag with clear_error() before
   // destructing raw_ostream objects which may have errors.
   if (has_error())
-    report_fatal_error("IO failure on output stream.", /*GenCrashDiag=*/false);
+    report_fatal_error("IO failure on output stream: " + error().message(),
+                       /*GenCrashDiag=*/false);
 }
 
 void raw_fd_ostream::write_impl(const char *Ptr, size_t Size) {
   assert(FD >= 0 && "File already closed.");
   pos += Size;
 
-#ifndef LLVM_ON_WIN32
+  // The maximum write size is limited to SSIZE_MAX because a write
+  // greater than SSIZE_MAX is implementation-defined in POSIX.
+  // Since SSIZE_MAX is not portable, we use SIZE_MAX >> 1 instead.
+  size_t MaxWriteSize = SIZE_MAX >> 1;
+
 #if defined(__linux__)
-  bool ShouldWriteInChunks = true;
-#else
-  bool ShouldWriteInChunks = false;
-#endif
-#else
+  // It is observed that Linux returns EINVAL for a very large write (>2G).
+  // Make it a reasonably small value.
+  MaxWriteSize = 1024 * 1024 * 1024;
+#elif defined(LLVM_ON_WIN32)
   // Writing a large size of output to Windows console returns ENOMEM. It seems
   // that, prior to Windows 8, WriteFile() is redirecting to WriteConsole(), and
   // the latter has a size limit (66000 bytes or less, depending on heap usage).
-  bool ShouldWriteInChunks = !!::_isatty(FD) && !RunningWindows8OrGreater();
+  if (::_isatty(FD) && !RunningWindows8OrGreater())
+    MaxWriteSize = 32767;
 #endif
 
   do {
-    size_t ChunkSize = Size;
-    if (ChunkSize > 32767 && ShouldWriteInChunks)
-        ChunkSize = 32767;
-
+    size_t ChunkSize = std::min(Size, MaxWriteSize);
     ssize_t ret = ::write(FD, Ptr, ChunkSize);
 
     if (ret < 0) {
@@ -601,7 +616,7 @@ void raw_fd_ostream::write_impl(const char *Ptr, size_t Size) {
         continue;
 
       // Otherwise it's a non-recoverable error. Note it and quit.
-      error_detected();
+      error_detected(std::error_code(errno, std::generic_category()));
       break;
     }
 
@@ -617,8 +632,8 @@ void raw_fd_ostream::close() {
   assert(ShouldClose);
   ShouldClose = false;
   flush();
-  if (sys::Process::SafelyCloseFileDescriptor(FD))
-    error_detected();
+  if (auto EC = sys::Process::SafelyCloseFileDescriptor(FD))
+    error_detected(EC);
   FD = -1;
 }
 
@@ -633,7 +648,7 @@ uint64_t raw_fd_ostream::seek(uint64_t off) {
   pos = ::lseek(FD, off, SEEK_SET);
 #endif
   if (pos == (uint64_t)-1)
-    error_detected();
+    error_detected(std::error_code(errno, std::generic_category()));
   return pos;
 }
 
@@ -722,10 +737,7 @@ bool raw_fd_ostream::has_colors() const {
 /// outs() - This returns a reference to a raw_ostream for standard output.
 /// Use it like: outs() << "foo" << "bar";
 raw_ostream &llvm::outs() {
-  // Set buffer settings to model stdout behavior.  Delete the file descriptor
-  // when the program exits, forcing error detection.  This means that if you
-  // ever call outs(), you can't open another raw_fd_ostream on stdout, as we'll
-  // close stdout twice and print an error the second time.
+  // Set buffer settings to model stdout behavior.
   std::error_code EC;
   static raw_fd_ostream S("-", EC, sys::fs::F_None);
   assert(!EC);
