@@ -93,6 +93,7 @@ static time_t nfsrvboottime;
 static int nfsrv_returnoldstateid = 0, nfsrv_clients = 0;
 static int nfsrv_clienthighwater = NFSRV_CLIENTHIGHWATER;
 static int nfsrv_nogsscallback = 0;
+static volatile int nfsrv_writedelegcnt = 0;
 
 /* local functions */
 static void nfsrv_dumpaclient(struct nfsclient *clp,
@@ -1261,6 +1262,8 @@ nfsrv_freedeleg(struct nfsstate *stp)
 	LIST_REMOVE(stp, ls_hash);
 	LIST_REMOVE(stp, ls_list);
 	LIST_REMOVE(stp, ls_file);
+	if ((stp->ls_flags & NFSLCK_DELEGWRITE) != 0)
+		nfsrv_writedelegcnt--;
 	lfp = stp->ls_lfp;
 	if (LIST_EMPTY(&lfp->lf_open) &&
 	    LIST_EMPTY(&lfp->lf_lock) && LIST_EMPTY(&lfp->lf_deleg) &&
@@ -2905,6 +2908,7 @@ tryagain:
 		    new_deleg->ls_flags = (NFSLCK_DELEGWRITE |
 			NFSLCK_READACCESS | NFSLCK_WRITEACCESS);
 		    *rflagsp |= NFSV4OPEN_WRITEDELEGATE;
+		    nfsrv_writedelegcnt++;
 		} else {
 		    new_deleg->ls_flags = (NFSLCK_DELEGREAD |
 			NFSLCK_READACCESS);
@@ -3035,6 +3039,7 @@ tryagain:
 			new_deleg->ls_clp = clp;
 			new_deleg->ls_filerev = filerev;
 			new_deleg->ls_compref = nd->nd_compref;
+			nfsrv_writedelegcnt++;
 			LIST_INSERT_HEAD(&lfp->lf_deleg, new_deleg, ls_file);
 			LIST_INSERT_HEAD(NFSSTATEHASH(clp,
 			    new_deleg->ls_stateid), new_deleg, ls_hash);
@@ -3092,6 +3097,7 @@ tryagain:
 			    new_deleg->ls_flags = (NFSLCK_DELEGWRITE |
 				NFSLCK_READACCESS | NFSLCK_WRITEACCESS);
 			    *rflagsp |= NFSV4OPEN_WRITEDELEGATE;
+			    nfsrv_writedelegcnt++;
 			} else {
 			    new_deleg->ls_flags = (NFSLCK_DELEGREAD |
 				NFSLCK_READACCESS);
@@ -3168,6 +3174,7 @@ tryagain:
 					     NFSLCK_READACCESS |
 					     NFSLCK_WRITEACCESS);
 					*rflagsp |= NFSV4OPEN_WRITEDELEGATE;
+					nfsrv_writedelegcnt++;
 				} else {
 					new_deleg->ls_flags =
 					    (NFSLCK_DELEGREAD |
@@ -5297,6 +5304,8 @@ nfsrv_checkgetattr(struct nfsrv_descript *nd, vnode_t vp,
 
 	NFSCBGETATTR_ATTRBIT(attrbitp, &cbbits);
 	if (!NFSNONZERO_ATTRBIT(&cbbits))
+		goto out;
+	if (nfsrv_writedelegcnt == 0)
 		goto out;
 
 	/*
