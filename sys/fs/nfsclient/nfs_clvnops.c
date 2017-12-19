@@ -3450,7 +3450,7 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 		 * For NFSv2 (or NFSv3 when not one of the above 4 a_names),
 		 * just fake them.
 		 */
-		pc.pc_linkmax = LINK_MAX;
+		pc.pc_linkmax = NFS_LINK_MAX;
 		pc.pc_namemax = NFS_MAXNAMLEN;
 		pc.pc_notrunc = 1;
 		pc.pc_chownrestricted = 1;
@@ -3460,7 +3460,7 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 	}
 	switch (ap->a_name) {
 	case _PC_LINK_MAX:
-		*ap->a_retval = pc.pc_linkmax;
+		*ap->a_retval = MIN(LONG_MAX, pc.pc_linkmax);
 		break;
 	case _PC_NAME_MAX:
 		*ap->a_retval = pc.pc_namemax;
