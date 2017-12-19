@@ -33,28 +33,41 @@ mk_nogeli_gpt_ufs_legacy() {
     src=$1
     img=$2
 
-    rm -f ${img} ${img}.p2
+    cat > ${src}/etc/fstab <<EOF
+/dev/ada0p2	/		ufs	rw	1	1
+EOF
     makefs -t ffs -B little -s 200m ${img}.p2 ${src}
     mkimg -s gpt -b ${src}/boot/pmbr \
 	  -p freebsd-boot:=${src}/boot/gptboot \
 	  -p freebsd-ufs:=${img}.p2 -o ${img}
+    rm -f ${src}/etc/fstab
 }
 
 mk_nogeli_gpt_ufs_uefi() {
     src=$1
     img=$2
 
-    rm -f ${img} ${img}.p2
+    cat > ${src}/etc/fstab <<EOF
+/dev/ada0p2	/		ufs	rw	1	1
+EOF
+# XXX need to make msdos part for this to work XXXX
+    cp ${src}/boot/boot.efifat ${img}.p1
     makefs -t ffs -B little -s 200m ${img}.p2 ${src}
     mkimg -s gpt -b ${src}/boot/pmbr \
-	  -p freebsd-boot:=${src}/boot/gptboot \
+	  -p efi:=${img}.p1 \
 	  -p freebsd-ufs:=${img}.p2 -o ${img}
+    rm -f ${src}/etc/fstab
 }
 
 mk_nogeli_gpt_ufs_both() {
     src=$1
     img=$2
 
+    cat > ${src}/etc/fstab <<EOF
+/dev/ada0p3	/		ufs	rw	1	1
+EOF
+    # XXX need to make msdos part for this to work XXXX
+    cp ${src}/boot/boot.efifat ${img}.p1
     makefs -t ffs -B little -s 200m ${img}.p3 ${src}
     # p1 is boot for uefi, p2 is boot for gpt, p3 is /
     mkimg -b ${src}/boot/pmbr -s gpt \
@@ -62,6 +75,7 @@ mk_nogeli_gpt_ufs_both() {
 	  -p freebsd-boot:=${src}/boot/gptboot \
 	  -p freebsd-ufs:=${img}.p3 \
 	  -o ${img}
+    rm -f ${src}/etc/fstab
 }
 
 mk_nogeli_gpt_zfs_legacy() {
@@ -74,7 +88,6 @@ mk_nogeli_gpt_zfs_legacy() {
     bios=$7
     pool=nogeli-gpt-zfs-legacy
 
-    rm -f ${img}
     dd if=/dev/zero of=${img} count=1 seek=$((200 * 1024 * 1024 / 512))
     md=$(mdconfig -f ${img})
     gpart create -s gpt ${md}
@@ -112,6 +125,16 @@ mk_nogeli_gpt_zfs_both() {
 }
 
 mk_nogeli_mbr_ufs_legacy() {
+    src=$1
+    img=$2
+
+    cat > ${src}/etc/fstab <<EOF
+/dev/ada0s1a	/		ufs	rw	1	1
+EOF
+    makefs -t ffs -B little -s 200m ${img}.s1a ${src}
+    mkimg -s bsd -b ${src}/boot/boot -p freebsd-ufs:=${img}.s1a -o ${img}.s1
+    mkimg -a 1 ${bootmbr} -s mbr -b ${src}/boot/boot0sio -p freebsd:=${img}.s1 -o ${img}
+    rm -f ${src}/etc/fstab
 }
 
 mk_nogeli_mbr_ufs_uefi() {
@@ -168,6 +191,94 @@ mk_geli_mbr_zfs_both() {
 # iso
 # pxeldr
 # u-boot
+# powerpc
+
+qser="-serial telnet::4444,server -nographic"
+
+# https://wiki.freebsd.org/QemuRecipes
+# aarch64
+qemu_aarch64_uefi()
+{
+    img=$1
+    sh=$2
+
+    echo "qemu-system-aarch64 -m 4096M -cpu cortex-a57 -M virt  \
+        -bios QEMU_EFI.fd ${qser} \
+        -drive if=none,file=${img},id=hd0 \
+        -device virtio-blk-device,drive=hd0" > $sh
+# https://wiki.freebsd.org/arm64/QEMU also has
+#       -device virtio-net-device,netdev=net0
+#       -netdev user,id=net0
+}
+
+# Amd64 qemu
+qemu_amd64_legacy()
+{
+    img=$1
+    sh=$2
+
+    echo "qemu-system-x86_64 --drive file=${img},format=raw ${qser}" > $sh
+}
+
+qemu_amd64_uefi()
+{
+    img=$1
+    sh=$2
+
+    echo "qemu-system-x86_64 -bios ~/bios/OVMF-X64.fd --drive file=${img},format=raw ${qser}" > $sh
+}
+
+qemu_amd64_both()
+{
+    img=$1
+    sh=$2
+
+    echo "qemu-system-x86_64 --drive file=${img},format=raw ${qser}" > $sh
+    echo "qemu-system-x86_64 -bios ~/bios/OVMF-X64.fd --drive file=${img},format=raw ${qser}" > $sh
+}
+
+# arm
+# nothing listed?
+
+# i386
+qemu_i386_legacy()
+{
+    img=$1
+    sh=$2
+
+    echo "qemu-system-i386 --drive file=${img},format=raw ${qser}" > $sh
+}
+
+# Not yet supported
+qemu_i386_uefi()
+{
+    img=$1
+    sh=$2
+
+    echo "qemu-system-i386 -bios ~/bios/OVMF-X32.fd --drive file=${img},format=raw ${qser}" > $sh
+}
+
+# Needs UEFI to be supported
+qemu_i386_both()
+{
+    img=$1
+    sh=$2
+
+    echo "qemu-system-i386 --drive file=${img},format=raw ${qser}" > $sh
+    echo "qemu-system-i386 -bios ~/bios/OVMF-X32.fd --drive file=${img},format=raw ${qser}" > $sh
+}
+
+# mips
+# qemu-system-mips -kernel /path/to/rootfs/boot/kernel/kernel -nographic -hda /path/to/disk.img -m 2048
+
+# Powerpc -- doesn't work but maybe it would enough for testing -- needs details
+# powerpc64
+# qemu-system-ppc64 -drive file=/path/to/disk.img,format=raw
+
+# sparc64
+# 10.3 works, 12-current (which one?) hangs
+# qemu-system-sparc64 -drive file=/path/to/disk.img,format=raw
+
 
 # Misc variables
 SRCTOP=$(make -v SRCTOP)
@@ -188,27 +299,115 @@ echo -h -D -S115200 > ${DESTDIR}/boot.config
 cp /boot/device.hints ${DESTDIR}/boot/device.hints
 # Assume we're already built
 make install DESTDIR=${DESTDIR} MK_MAN=no MK_INSTALL_AS_USER=yes
-# Copy init, /bin/sh and minimal libraries
-mkdir -p ${DESTDIR}/sbin ${DESTDIR}/bin ${DESTDIR}/lib ${DESTDIR}/libexec
-for f in /sbin/init /bin/sh $(ldd /bin/sh | awk 'NF == 4 { print $3; }') /libexec/ld-elf.so.1; do
+# Copy init, /bin/sh, minimal libraries and testing /etc/rc
+mkdir -p ${DESTDIR}/sbin ${DESTDIR}/bin \
+      ${DESTDIR}/lib ${DESTDIR}/libexec \
+      ${DESTDIR}/etc ${DESTDIR}/dev
+for f in /sbin/halt /sbin/init /bin/sh $(ldd /bin/sh | awk 'NF == 4 { print $3; }') /libexec/ld-elf.so.1; do
     cp $f ${DESTDIR}/$f
 done
-mkdir ${DESTDIR}/dev
+cat > ${DESTDIR}/etc/rc <<EOF
+#!/bin/sh
+
+echo "RC COMMAND RUNNING -- SUCCESS!!!!!"
+halt -p
+EOF
 
 # OK. Let the games begin
 
-for geli in nogeli geli; do
-    for scheme in gpt mbr; do
-	for fs in ufs zfs; do
-	    for bios in legacy uefi both; do
-		# Create sparse file and mount newly created filesystem(s) on it
-		img=${IMGDIR}/${geli}-${scheme}-${fs}-${bios}.img
-		echo "vvvvvvvvvvvvvvvvvvvvvv   Creating $img  vvvvvvvvvvvvvvvvvvvvvvv"
-		eval mk_${geli}_${scheme}_${fs}_${bios} ${DESTDIR} ${img} ${MNTPT} ${geli} ${scheme} ${fs} ${bios}
-		echo "^^^^^^^^^^^^^^^^^^^^^^   Creating $img  ^^^^^^^^^^^^^^^^^^^^^^^"
+for arch in amd64; do
+    for geli in nogeli geli; do
+	for scheme in gpt mbr; do
+	    for fs in ufs zfs; do
+		for bios in legacy uefi both; do
+		    # Create sparse file and mount newly created filesystem(s) on it
+		    img=${IMGDIR}/${arch}-${geli}-${scheme}-${fs}-${bios}.img
+		    sh=${IMGDIR}/${arch}-${geli}-${scheme}-${fs}-${bios}.sh
+		    echo "vvvvvvvvvvvvvvvvvvvvvv   Creating $img  vvvvvvvvvvvvvvvvvvvvvvv"
+		    rm -f ${img}*
+		    eval mk_${geli}_${scheme}_${fs}_${bios} ${DESTDIR} ${img} ${MNTPT} ${geli} ${scheme} ${fs} ${bios}
+		    eval qemu_${arch}_${bios} ${img} ${sh}
+		    [ -n "${SUDO_USER}" ] && chown ${SUDO_USER} ${img}*
+		    echo "^^^^^^^^^^^^^^^^^^^^^^   Creating $img  ^^^^^^^^^^^^^^^^^^^^^^^"
+		done
 	    done
 	done
     done
 done
 
 rmdir ${MNTPT}
+
+exit 0
+
+# Notes for the future
+
+for arch in i386; do
+    for geli in nogeli geli; do
+	for scheme in gpt mbr; do
+	    for fs in ufs zfs; do
+		for bios in legacy; do
+		    # Create sparse file and mount newly created filesystem(s) on it
+		    img=${IMGDIR}/${arch}-${geli}-${scheme}-${fs}-${bios}.img
+		    sh=${IMGDIR}/${arch}-${geli}-${scheme}-${fs}-${bios}.sh
+		    echo "vvvvvvvvvvvvvvvvvvvvvv   Creating $img  vvvvvvvvvvvvvvvvvvvvvvv"
+		    rm -f ${img}*
+		    eval mk_${geli}_${scheme}_${fs}_${bios} ${DESTDIR} ${img} ${MNTPT} ${geli} ${scheme} ${fs} ${bios}
+		    eval qemu_${arch}_${bios} ${img} ${sh}
+		    [ -n "${SUDO_USER}" ] && chown ${SUDO_USER} ${img}*
+		    echo "^^^^^^^^^^^^^^^^^^^^^^   Creating $img  ^^^^^^^^^^^^^^^^^^^^^^^"
+		done
+	    done
+	done
+    done
+done
+
+for arch in arm aarch64; do
+    for scheme in gpt mbr; do
+	fs=ufs
+	for bios in uboot efi; do
+	    # Create sparse file and mount newly created filesystem(s) on it
+	    img=${IMGDIR}/${arch}-${geli}-${scheme}-${fs}-${bios}.img
+	    sh=${IMGDIR}/${arch}-${geli}-${scheme}-${fs}-${bios}.sh
+	    echo "vvvvvvvvvvvvvvvvvvvvvv   Creating $img  vvvvvvvvvvvvvvvvvvvvvvv"
+	    rm -f ${img}*
+	    eval mk_${geli}_${scheme}_${fs}_${bios} ${DESTDIR} ${img} ${MNTPT} ${geli} ${scheme} ${fs} ${bios}
+	    eval qemu_${arch}_${bios} ${img} ${sh}
+	    [ -n "${SUDO_USER}" ] && chown ${SUDO_USER} ${img}*
+	    echo "^^^^^^^^^^^^^^^^^^^^^^   Creating $img  ^^^^^^^^^^^^^^^^^^^^^^^"
+	done
+    done
+done
+
+for arch in powerpc powerpc64; do
+    for scheme in ppc-wtf; do
+	fs=ufs
+	for bios in ofw uboot chrp; do
+	    # Create sparse file and mount newly created filesystem(s) on it
+	    img=${IMGDIR}/${arch}-${geli}-${scheme}-${fs}-${bios}.img
+	    sh=${IMGDIR}/${arch}-${geli}-${scheme}-${fs}-${bios}.sh
+	    echo "vvvvvvvvvvvvvvvvvvvvvv   Creating $img  vvvvvvvvvvvvvvvvvvvvvvv"
+	    rm -f ${img}*
+	    eval mk_${geli}_${scheme}_${fs}_${bios} ${DESTDIR} ${img} ${MNTPT} ${geli} ${scheme} ${fs} ${bios}
+	    eval qemu_${arch}_${bios} ${img} ${sh}
+	    [ -n "${SUDO_USER}" ] && chown ${SUDO_USER} ${img}*
+	    echo "^^^^^^^^^^^^^^^^^^^^^^   Creating $img  ^^^^^^^^^^^^^^^^^^^^^^^"
+	done
+    done
+done
+
+for arch in sparc64; do
+    for scheme in sun; do
+	fs=ufs
+	for bios in ofw; do
+	    # Create sparse file and mount newly created filesystem(s) on it
+	    img=${IMGDIR}/${arch}-${geli}-${scheme}-${fs}-${bios}.img
+	    sh=${IMGDIR}/${arch}-${geli}-${scheme}-${fs}-${bios}.sh
+	    echo "vvvvvvvvvvvvvvvvvvvvvv   Creating $img  vvvvvvvvvvvvvvvvvvvvvvv"
+	    rm -f ${img}*
+	    eval mk_${geli}_${scheme}_${fs}_${bios} ${DESTDIR} ${img} ${MNTPT} ${geli} ${scheme} ${fs} ${bios}
+	    eval qemu_${arch}_${bios} ${img} ${sh}
+	    [ -n "${SUDO_USER}" ] && chown ${SUDO_USER} ${img}*
+	    echo "^^^^^^^^^^^^^^^^^^^^^^   Creating $img  ^^^^^^^^^^^^^^^^^^^^^^^"
+	done
+    done
+done
