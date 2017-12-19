@@ -529,10 +529,8 @@ zfs_link_create(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
 	ASSERT_VOP_ELOCKED(ZTOV(zp), __func__);
 #ifdef __FreeBSD__
 	if (zp_is_dir) {
-		error = 0;
 		if (dzp->z_links >= ZFS_LINK_MAX)
-			error = SET_ERROR(EMLINK);
-		return (error);
+			return (SET_ERROR(EMLINK));
 	}
 #endif
 	if (!(flag & ZRENAMING)) {
