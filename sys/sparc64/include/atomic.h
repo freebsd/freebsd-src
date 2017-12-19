@@ -39,6 +39,8 @@
 #define	wmb()	mb()
 #define	rmb()	mb()
 
+#include <sys/atomic_common.h>
+
 /* Userland needs different ASI's. */
 #ifdef _KERNEL
 #define	__ASI_ATOMIC	ASI_N
