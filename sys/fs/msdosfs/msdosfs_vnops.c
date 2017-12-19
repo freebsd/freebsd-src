@@ -1876,6 +1876,9 @@ msdosfs_pathconf(struct vop_pathconf_args *ap)
 	struct msdosfsmount *pmp = VTODE(ap->a_vp)->de_pmp;
 
 	switch (ap->a_name) {
+	case _PC_FILESIZEBITS:
+		*ap->a_retval = 32;
+		return (0);
 	case _PC_LINK_MAX:
 		*ap->a_retval = 1;
 		return (0);
