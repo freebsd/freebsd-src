@@ -5403,11 +5403,20 @@ zfs_freebsd_pathconf(ap)
 	int error;
 
 	error = zfs_pathconf(ap->a_vp, ap->a_name, &val, curthread->td_ucred, NULL);
-	if (error == 0)
+	if (error == 0) {
 		*ap->a_retval = val;
-	else if (error == EOPNOTSUPP)
-		error = vop_stdpathconf(ap);
-	return (error);
+		return (error);
+	}
+	if (error != EOPNOTSUPP)
+		return (error);
+
+	switch (ap->a_name) {
+	case _PC_NAME_MAX:
+		*ap->a_retval = NAME_MAX;
+		return (0);
+	default:
+		return (vop_stdpathconf(ap));
+	}
 }
 
 static int

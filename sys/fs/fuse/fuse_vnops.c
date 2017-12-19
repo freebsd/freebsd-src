@@ -1184,6 +1184,12 @@ fuse_vnop_pathconf(struct vop_pathconf_args *ap)
 	case _PC_FILESIZEBITS:
 		*ap->a_retval = 64;
 		return (0);
+	case _PC_NAME_MAX:
+		*ap->a_retval = NAME_MAX;
+		return (0);
+	case _PC_LINK_MAX:
+		*ap->a_retval = LINK_MAX;
+		return (0);
 	case _PC_SYMLINK_MAX:
 		*ap->a_retval = MAXPATHLEN;
 		return (0);
