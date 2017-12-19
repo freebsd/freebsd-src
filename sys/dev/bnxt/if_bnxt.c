@@ -2224,6 +2224,10 @@ bnxt_report_link(struct bnxt_softc *softc)
 	link_info->last_flow_ctrl.tx = link_info->flow_ctrl.tx;
 	link_info->last_flow_ctrl.rx = link_info->flow_ctrl.rx;
 	link_info->last_flow_ctrl.autoneg = link_info->flow_ctrl.autoneg;
+	/* update media types */
+	ifmedia_removeall(softc->media);
+	bnxt_add_media_types(softc);
+	ifmedia_set(softc->media, IFM_ETHER | IFM_AUTO);
 }
 
 static int
