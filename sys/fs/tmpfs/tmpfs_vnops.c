@@ -1348,6 +1348,18 @@ tmpfs_pathconf(struct vop_pathconf_args *v)
 	error = 0;
 
 	switch (name) {
+	case _PC_LINK_MAX:
+		*retval = LINK_MAX;
+		break;
+
+	case _PC_NAME_MAX:
+		*retval = NAME_MAX;
+		break;
+
+	case _PC_CHOWN_RESTRICTED:
+		*retval = 1;
+		break;
+
 	case _PC_NO_TRUNC:
 		*retval = 1;
 		break;

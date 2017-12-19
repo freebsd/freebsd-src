@@ -2238,6 +2238,15 @@ nandfs_pathconf(struct vop_pathconf_args *ap)
 
 	error = 0;
 	switch (ap->a_name) {
+	case _PC_LINK_MAX:
+		*ap->a_retval = LINK_MAX;
+		break;
+	case _PC_NAME_MAX:
+		*ap->a_retval = NANDFS_NAME_LEN;
+		break;
+	case _PC_CHOWN_RESTRICTED:
+		*ap->a_retval = 1;
+		break;
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 1;
 		break;
