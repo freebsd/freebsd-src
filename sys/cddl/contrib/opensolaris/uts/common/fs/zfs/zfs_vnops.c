@@ -2643,7 +2643,6 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 	int	error = 0;
 	uint32_t blksize;
 	u_longlong_t nblocks;
-	uint64_t links;
 	uint64_t mtime[2], ctime[2], crtime[2], rdev;
 	xvattr_t *xvap = (xvattr_t *)vap;	/* vap may be an xvattr_t * */
 	xoptattr_t *xoap = NULL;
@@ -2695,11 +2694,10 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 	vn_fsid(vp, vap);
 #endif
 	vap->va_nodeid = zp->z_id;
-	if ((vp->v_flag & VROOT) && zfs_show_ctldir(zp))
-		links = zp->z_links + 1;
-	else
-		links = zp->z_links;
-	vap->va_nlink = MIN(links, LINK_MAX);	/* nlink_t limit! */
+	vap->va_nlink = zp->z_links;
+	if ((vp->v_flag & VROOT) && zfs_show_ctldir(zp) &&
+	    zp->z_links < ZFS_LINK_MAX)
+		vap->va_nlink++;
 	vap->va_size = zp->z_size;
 #ifdef illumos
 	vap->va_rdev = vp->v_rdev;
@@ -4404,7 +4402,7 @@ zfs_pathconf(vnode_t *vp, int cmd, ulong_t *valp, cred_t *cr,
 
 	switch (cmd) {
 	case _PC_LINK_MAX:
-		*valp = INT_MAX;
+		*valp = MIN(LONG_MAX, ZFS_LINK_MAX);
 		return (0);
 
 	case _PC_FILESIZEBITS:

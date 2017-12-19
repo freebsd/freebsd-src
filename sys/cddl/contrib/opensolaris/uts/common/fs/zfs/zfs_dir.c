@@ -527,10 +527,10 @@ zfs_link_create(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
 
 	ASSERT_VOP_ELOCKED(ZTOV(dzp), __func__);
 	ASSERT_VOP_ELOCKED(ZTOV(zp), __func__);
-#if 0
+#ifdef __FreeBSD__
 	if (zp_is_dir) {
 		error = 0;
-		if (dzp->z_links >= LINK_MAX)
+		if (dzp->z_links >= ZFS_LINK_MAX)
 			error = SET_ERROR(EMLINK);
 		return (error);
 	}
@@ -540,8 +540,8 @@ zfs_link_create(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
 			ASSERT(!(flag & (ZNEW | ZEXISTS)));
 			return (SET_ERROR(ENOENT));
 		}
-#if 0
-		if (zp->z_links >= LINK_MAX) {
+#ifdef __FreeBSD__
+		if (zp->z_links >= ZFS_LINK_MAX - zp_is_dir) {
 			return (SET_ERROR(EMLINK));
 		}
 #endif
