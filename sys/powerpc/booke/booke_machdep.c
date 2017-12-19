@@ -201,7 +201,7 @@ extern void *int_performance_counter;
 	mtspr(ivor, (uintptr_t)(&handler) & 0xffffUL);
 
 uintptr_t powerpc_init(vm_offset_t fdt, vm_offset_t, vm_offset_t, void *mdp,
-    vm_offset_t mdp_cookie);
+    uint32_t mdp_cookie);
 void booke_cpu_init(void);
 
 void
