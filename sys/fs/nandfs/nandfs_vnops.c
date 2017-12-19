@@ -2244,6 +2244,12 @@ nandfs_pathconf(struct vop_pathconf_args *ap)
 	case _PC_NAME_MAX:
 		*ap->a_retval = NANDFS_NAME_LEN;
 		break;
+	case _PC_PIPE_BUF:
+		if (ap->a_vp->v_type == VDIR || ap->a_vp->v_type == VFIFO)
+			*ap->a_retval = PIPE_BUF;
+		else
+			error = EINVAL;
+		break;
 	case _PC_CHOWN_RESTRICTED:
 		*ap->a_retval = 1;
 		break;
@@ -2414,6 +2420,7 @@ struct vop_vector nandfs_fifoops = {
 	.vop_close =		nandfsfifo_close,
 	.vop_getattr =		nandfs_getattr,
 	.vop_inactive =		nandfs_inactive,
+	.vop_pathconf =		nandfs_pathconf,
 	.vop_print =		nandfs_print,
 	.vop_read =		VOP_PANIC,
 	.vop_reclaim =		nandfs_reclaim,
