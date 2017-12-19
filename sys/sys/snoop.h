@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-1-Clause
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1995 Ugen J.S.Antsilevich
  *
