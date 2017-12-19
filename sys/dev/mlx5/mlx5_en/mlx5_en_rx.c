@@ -90,7 +90,7 @@ mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 	}
 
 	/* ensure wqes are visible to device before updating doorbell record */
-	wmb();
+	atomic_thread_fence_rel();
 
 	mlx5_wq_ll_update_db_record(&rq->wq);
 }
@@ -436,7 +436,7 @@ wq_ll_pop:
 	mlx5_cqwq_update_db_record(&rq->cq.wq);
 
 	/* ensure cq space is freed before enabling more cqes */
-	wmb();
+	atomic_thread_fence_rel();
 	return (i);
 }
 
