@@ -1188,7 +1188,7 @@ devfs_pathconf(struct vop_pathconf_args *ap)
 		*ap->a_retval = NAME_MAX;
 		return (0);
 	case _PC_LINK_MAX:
-		*ap->a_retval = LINK_MAX;
+		*ap->a_retval = INT_MAX;
 		return (0);
 	case _PC_SYMLINK_MAX:
 		*ap->a_retval = MAXPATHLEN;
