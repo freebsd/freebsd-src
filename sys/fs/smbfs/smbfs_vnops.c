@@ -901,12 +901,21 @@ smbfs_pathconf (ap)
 	switch (ap->a_name) {
 	    case _PC_LINK_MAX:
 		*retval = 0;
+	    case _PC_FILESIZEBITS:
+		if (vcp->vc_sopt.sv_caps & (SMB_CAP_LARGE_READX |
+		    SMB_CAP_LARGE_WRITEX))
+		    *retval = 64;
+		else
+		    *retval = 32;
 		break;
 	    case _PC_NAME_MAX:
 		*retval = (vcp->vc_hflags2 & SMB_FLAGS2_KNOWS_LONG_NAMES) ? 255 : 12;
 		break;
 	    case _PC_PATH_MAX:
 		*retval = 800;	/* XXX: a correct one ? */
+		break;
+	    case _PC_NO_TRUNC:
+		*retval = 1;
 		break;
 	    default:
 		error = vop_stdpathconf(ap);
