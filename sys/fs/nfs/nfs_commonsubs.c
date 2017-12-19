@@ -2301,7 +2301,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			break;
 		case NFSATTRBIT_MAXLINK:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = txdr_unsigned(LINK_MAX);
+			*tl = txdr_unsigned(NFS_LINK_MAX);
 			retnum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_MAXNAME:
