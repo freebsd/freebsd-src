@@ -55,6 +55,8 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
+#include <sys/syscallsubr.h>
+#include <sys/unistd.h>
 #include <sys/vnode.h>
 
 #include <fs/fdescfs/fdesc.h>
@@ -70,6 +72,7 @@ struct mtx fdesc_hashmtx;
 static vop_getattr_t	fdesc_getattr;
 static vop_lookup_t	fdesc_lookup;
 static vop_open_t	fdesc_open;
+static vop_pathconf_t	fdesc_pathconf;
 static vop_readdir_t	fdesc_readdir;
 static vop_readlink_t	fdesc_readlink;
 static vop_reclaim_t	fdesc_reclaim;
@@ -82,7 +85,7 @@ static struct vop_vector fdesc_vnodeops = {
 	.vop_getattr =		fdesc_getattr,
 	.vop_lookup =		fdesc_lookup,
 	.vop_open =		fdesc_open,
-	.vop_pathconf =		vop_stdpathconf,
+	.vop_pathconf =		fdesc_pathconf,
 	.vop_readdir =		fdesc_readdir,
 	.vop_readlink =		fdesc_readlink,
 	.vop_reclaim =		fdesc_reclaim,
@@ -393,6 +396,33 @@ fdesc_open(struct vop_open_args *ap)
 	 */
 	ap->a_td->td_dupfd = VTOFDESC(vp)->fd_fd;	/* XXX */
 	return (ENODEV);
+}
+
+static int
+fdesc_pathconf(struct vop_pathconf_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	int error;
+
+	switch (ap->a_name) {
+	case _PC_NAME_MAX:
+		*ap->a_retval = NAME_MAX;
+		return (0);
+	case _PC_LINK_MAX:
+		if (VTOFDESC(vp)->fd_type == Froot)
+			*ap->a_retval = 2;
+		else
+			*ap->a_retval = 1;
+		return (0);
+	default:
+		vref(vp);
+		VOP_UNLOCK(vp, 0);
+		error = kern_fpathconf(curthread, VTOFDESC(vp)->fd_fd,
+		    ap->a_name);
+		vn_lock(vp, LK_SHARED | LK_RETRY);
+		vunref(vp);
+		return (error);
+	}
 }
 
 static int
