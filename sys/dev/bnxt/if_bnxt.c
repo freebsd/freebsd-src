@@ -715,18 +715,21 @@ bnxt_attach_pre(if_ctx_t ctx)
 	}
 
 	/* Get NVRAM info */
-	softc->nvm_info = malloc(sizeof(struct bnxt_nvram_info),
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (softc->nvm_info == NULL) {
-		rc = ENOMEM;
-		device_printf(softc->dev,
-		    "Unable to allocate space for NVRAM info\n");
-		goto nvm_alloc_fail;
+	if (BNXT_PF(softc)) {
+		softc->nvm_info = malloc(sizeof(struct bnxt_nvram_info),
+		    M_DEVBUF, M_NOWAIT | M_ZERO);
+		if (softc->nvm_info == NULL) {
+			rc = ENOMEM;
+			device_printf(softc->dev,
+			    "Unable to allocate space for NVRAM info\n");
+			goto nvm_alloc_fail;
+		}
+
+		rc = bnxt_hwrm_nvm_get_dev_info(softc, &softc->nvm_info->mfg_id,
+		    &softc->nvm_info->device_id, &softc->nvm_info->sector_size,
+		    &softc->nvm_info->size, &softc->nvm_info->reserved_size,
+		    &softc->nvm_info->available_size);
 	}
-	rc = bnxt_hwrm_nvm_get_dev_info(softc, &softc->nvm_info->mfg_id,
-	    &softc->nvm_info->device_id, &softc->nvm_info->sector_size,
-	    &softc->nvm_info->size, &softc->nvm_info->reserved_size,
-	    &softc->nvm_info->available_size);
 
 	/* Register the driver with the FW */
 	rc = bnxt_hwrm_func_drv_rgtr(softc);
@@ -859,9 +862,11 @@ bnxt_attach_pre(if_ctx_t ctx)
 	rc = bnxt_init_sysctl_ctx(softc);
 	if (rc)
 		goto init_sysctl_failed;
-	rc = bnxt_create_nvram_sysctls(softc->nvm_info);
-	if (rc)
-		goto failed;
+	if (BNXT_PF(softc)) {
+		rc = bnxt_create_nvram_sysctls(softc->nvm_info);
+		if (rc)
+			goto failed;
+	}
 
 	arc4rand(softc->vnic_info.rss_hash_key, HW_HASH_KEY_SIZE, 0);
 	softc->vnic_info.rss_hash_type =
@@ -894,7 +899,8 @@ failed:
 init_sysctl_failed:
 	bnxt_hwrm_func_drv_unrgtr(softc, false);
 drv_rgtr_fail:
-	free(softc->nvm_info, M_DEVBUF);
+	if (BNXT_PF(softc))
+		free(softc->nvm_info, M_DEVBUF);
 nvm_alloc_fail:
 ver_fail:
 	free(softc->ver_info, M_DEVBUF);
@@ -963,7 +969,8 @@ bnxt_detach(if_ctx_t ctx)
 	for (i = 0; i < softc->nrxqsets; i++)
 		free(softc->rx_rings[i].tpa_start, M_DEVBUF);
 	free(softc->ver_info, M_DEVBUF);
-	free(softc->nvm_info, M_DEVBUF);
+	if (BNXT_PF(softc))
+		free(softc->nvm_info, M_DEVBUF);
 
 	bnxt_hwrm_func_drv_unrgtr(softc, false);
 	bnxt_free_hwrm_dma_mem(softc);
