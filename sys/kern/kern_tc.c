@@ -1601,10 +1601,10 @@ pps_fetch(struct pps_fetch_args *fapi, struct pps_state *pps)
 			tv.tv_usec = fapi->timeout.tv_nsec / 1000;
 			timo = tvtohz(&tv);
 		}
-		aseq = pps->ppsinfo.assert_sequence;
-		cseq = pps->ppsinfo.clear_sequence;
-		while (aseq == pps->ppsinfo.assert_sequence &&
-		    cseq == pps->ppsinfo.clear_sequence) {
+		aseq = atomic_load_int(&pps->ppsinfo.assert_sequence);
+		cseq = atomic_load_int(&pps->ppsinfo.clear_sequence);
+		while (aseq == atomic_load_int(&pps->ppsinfo.assert_sequence) &&
+		    cseq == atomic_load_int(&pps->ppsinfo.clear_sequence)) {
 			if (abi_aware(pps, 1) && pps->driver_mtx != NULL) {
 				if (pps->flags & PPSFLAG_MTX_SPIN) {
 					err = msleep_spin(pps, pps->driver_mtx,
