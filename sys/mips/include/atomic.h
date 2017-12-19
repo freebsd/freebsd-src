@@ -36,6 +36,8 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+#include <sys/atomic_common.h>
+
 /*
  * Note: All the 64-bit atomic operations are only atomic when running
  * in 64-bit mode.  It is assumed that code compiled for n32 and n64
