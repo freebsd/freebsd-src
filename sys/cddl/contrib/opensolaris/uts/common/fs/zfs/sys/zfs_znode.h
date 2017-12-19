@@ -201,6 +201,7 @@ typedef struct znode {
 	boolean_t	z_is_sa;	/* are we native sa? */
 } znode_t;
 
+#define	ZFS_LINK_MAX	UINT64_MAX
 
 /*
  * Range locking rules
