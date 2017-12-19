@@ -643,6 +643,23 @@ cp_alloc_fail:
 	return rc;
 }
 
+static void bnxt_free_hwrm_short_cmd_req(struct bnxt_softc *softc)
+{
+	if (softc->hwrm_short_cmd_req_addr.idi_vaddr)
+		iflib_dma_free(&softc->hwrm_short_cmd_req_addr);
+	softc->hwrm_short_cmd_req_addr.idi_vaddr = NULL;
+}
+
+static int bnxt_alloc_hwrm_short_cmd_req(struct bnxt_softc *softc)
+{
+	int rc;
+
+	rc = iflib_dma_alloc(softc->ctx, softc->hwrm_max_req_len,
+	    &softc->hwrm_short_cmd_req_addr, BUS_DMA_NOWAIT);
+
+	return rc;
+}
+
 /* Device setup and teardown */
 static int
 bnxt_attach_pre(if_ctx_t ctx)
@@ -712,6 +729,12 @@ bnxt_attach_pre(if_ctx_t ctx)
 	if (rc) {
 		device_printf(softc->dev, "attach: hwrm ver get failed\n");
 		goto ver_fail;
+	}
+
+	if (softc->flags & BNXT_FLAG_SHORT_CMD) {
+		rc = bnxt_alloc_hwrm_short_cmd_req(softc);
+		if (rc)
+			goto hwrm_short_cmd_alloc_fail;
 	}
 
 	/* Get NVRAM info */
@@ -902,6 +925,8 @@ drv_rgtr_fail:
 	if (BNXT_PF(softc))
 		free(softc->nvm_info, M_DEVBUF);
 nvm_alloc_fail:
+	bnxt_free_hwrm_short_cmd_req(softc);
+hwrm_short_cmd_alloc_fail:
 ver_fail:
 	free(softc->ver_info, M_DEVBUF);
 ver_alloc_fail:
@@ -974,6 +999,7 @@ bnxt_detach(if_ctx_t ctx)
 
 	bnxt_hwrm_func_drv_unrgtr(softc, false);
 	bnxt_free_hwrm_dma_mem(softc);
+	bnxt_free_hwrm_short_cmd_req(softc);
 	BNXT_HWRM_LOCK_DESTROY(softc);
 
 	pci_disable_busmaster(softc->dev);
