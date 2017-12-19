@@ -482,9 +482,6 @@ vop_stdpathconf(ap)
 		case _PC_PATH_MAX:
 			*ap->a_retval = PATH_MAX;
 			return (0);
-		case _PC_PIPE_BUF:
-			*ap->a_retval = PIPE_BUF;
-			return (0);
 		default:
 			return (EINVAL);
 	}

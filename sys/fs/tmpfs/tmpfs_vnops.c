@@ -1338,9 +1338,10 @@ tmpfs_print(struct vop_print_args *v)
 	return 0;
 }
 
-static int
+int
 tmpfs_pathconf(struct vop_pathconf_args *v)
 {
+	struct vnode *vp = v->a_vp;
 	int name = v->a_name;
 	register_t *retval = v->a_retval;
 
@@ -1355,6 +1356,13 @@ tmpfs_pathconf(struct vop_pathconf_args *v)
 
 	case _PC_NAME_MAX:
 		*retval = NAME_MAX;
+		break;
+
+	case _PC_PIPE_BUF:
+		if (vp->v_type == VDIR || vp->v_type == VFIFO)
+			*retval = PIPE_BUF;
+		else
+			error = EINVAL;
 		break;
 
 	case _PC_CHOWN_RESTRICTED:
