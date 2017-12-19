@@ -11,7 +11,7 @@ SECTIONS
   /* Read-only sections, merged into text segment: */
 
   . = kernbase;
-  PROVIDE (begin = . - SIZEOF_HEADERS);
+  PROVIDE (begin = .);
 
   .text      :
   {
