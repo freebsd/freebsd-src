@@ -213,7 +213,7 @@ g_mirror_event_send(void *arg, int state, int flags)
 }
 
 static struct g_mirror_event *
-g_mirror_event_get(struct g_mirror_softc *sc)
+g_mirror_event_first(struct g_mirror_softc *sc)
 {
 	struct g_mirror_event *ep;
 
@@ -548,7 +548,7 @@ g_mirror_destroy_device(struct g_mirror_softc *sc)
 		g_mirror_update_metadata(disk);
 		g_mirror_destroy_disk(disk);
 	}
-	while ((ep = g_mirror_event_get(sc)) != NULL) {
+	while ((ep = g_mirror_event_first(sc)) != NULL) {
 		g_mirror_event_remove(sc, ep);
 		if ((ep->e_flags & G_MIRROR_EVENT_DONTWAIT) != 0)
 			g_mirror_event_free(ep);
@@ -930,7 +930,7 @@ g_mirror_regular_request(struct bio *bp)
 	pbp = bp->bio_parent;
 	sc = pbp->bio_to->private;
 	bp->bio_from->index--;
-	if (bp->bio_cmd == BIO_WRITE)
+	if (bp->bio_cmd == BIO_WRITE || bp->bio_cmd == BIO_DELETE)
 		sc->sc_writes--;
 	disk = bp->bio_from->private;
 	if (disk == NULL) {
@@ -1869,7 +1869,7 @@ g_mirror_worker(void *arg)
 		 * First take a look at events.
 		 * This is important to handle events before any I/O requests.
 		 */
-		ep = g_mirror_event_get(sc);
+		ep = g_mirror_event_first(sc);
 		if (ep != NULL) {
 			g_mirror_event_remove(sc, ep);
 			if ((ep->e_flags & G_MIRROR_EVENT_DEVICE) != 0) {
@@ -1937,16 +1937,9 @@ g_mirror_worker(void *arg)
 					continue;
 				}
 			}
+			if (g_mirror_event_first(sc) != NULL)
+				continue;
 			sx_xunlock(&sc->sc_lock);
-			/*
-			 * XXX: We can miss an event here, because an event
-			 *      can be added without sx-device-lock and without
-			 *      mtx-queue-lock. Maybe I should just stop using
-			 *      dedicated mutex for events synchronization and
-			 *      stick with the queue lock?
-			 *      The event will hang here until next I/O request
-			 *      or next event is received.
-			 */
 			MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "m:w1",
 			    timeout * hz);
 			sx_xlock(&sc->sc_lock);
