@@ -3170,14 +3170,14 @@ uma_reclaim_worker(void *arg __unused)
 
 	for (;;) {
 		sx_xlock(&uma_drain_lock);
-		while (uma_reclaim_needed == 0)
+		while (atomic_load_int(&uma_reclaim_needed) == 0)
 			sx_sleep(uma_reclaim, &uma_drain_lock, PVM, "umarcl",
 			    hz);
 		sx_xunlock(&uma_drain_lock);
 		EVENTHANDLER_INVOKE(vm_lowmem, VM_LOW_KMEM);
 		sx_xlock(&uma_drain_lock);
 		uma_reclaim_locked(true);
-		uma_reclaim_needed = 0;
+		atomic_store_int(&uma_reclaim_needed, 0);
 		sx_xunlock(&uma_drain_lock);
 		/* Don't fire more than once per-second. */
 		pause("umarclslp", hz);
