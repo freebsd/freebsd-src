@@ -193,17 +193,14 @@ struct g_mirror_softc {
 	uint32_t	sc_id;		/* Mirror unique ID. */
 
 	struct sx	 sc_lock;
-	struct bio_queue_head sc_queue;
+	struct bio_queue sc_queue;
 	struct mtx	 sc_queue_mtx;
 	struct proc	*sc_worker;
-	struct bio_queue_head sc_regular_delayed; /* Delayed I/O requests due
-						     collision with sync
-						     requests. */
-	struct bio_queue_head sc_inflight; /* In-flight regular write
-					      requests. */
-	struct bio_queue_head sc_sync_delayed; /* Delayed sync requests due
-						  collision with regular
-						  requests. */
+	struct bio_queue sc_inflight; /* In-flight regular write requests. */
+	struct bio_queue sc_regular_delayed; /* Delayed I/O requests due to
+						collision with sync requests. */
+	struct bio_queue sc_sync_delayed; /* Delayed sync requests due to
+					     collision with regular requests. */
 
 	LIST_HEAD(, g_mirror_disk) sc_disks;
 	u_int		sc_ndisks;	/* Number of disks. */
