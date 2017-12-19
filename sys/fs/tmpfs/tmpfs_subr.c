@@ -739,8 +739,8 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 	if (vap->va_type == VDIR) {
 		/* Ensure that we do not overflow the maximum number of links
 		 * imposed by the system. */
-		MPASS(dnode->tn_links <= LINK_MAX);
-		if (dnode->tn_links == LINK_MAX) {
+		MPASS(dnode->tn_links <= TMPFS_LINK_MAX);
+		if (dnode->tn_links == TMPFS_LINK_MAX) {
 			return (EMLINK);
 		}
 
