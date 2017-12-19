@@ -945,9 +945,9 @@ bnxt_cfg_async_cr(struct bnxt_softc *softc)
 
 		bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_CFG);
 
-		req.fid = 0xffff;
+		req.fid = htole16(0xffff);
 		req.enables = htole32(HWRM_FUNC_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
-		req.async_event_cr = softc->def_cp_ring.ring.phys_id;
+		req.async_event_cr = htole16(softc->def_cp_ring.ring.phys_id);
 
 		rc = hwrm_send_message(softc, &req, sizeof(req));
 	}
@@ -957,7 +957,7 @@ bnxt_cfg_async_cr(struct bnxt_softc *softc)
 		bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_VF_CFG);
 
 		req.enables = htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
-		req.async_event_cr = softc->def_cp_ring.ring.phys_id;
+		req.async_event_cr = htole16(softc->def_cp_ring.ring.phys_id);
 
 		rc = hwrm_send_message(softc, &req, sizeof(req));
 	}
