@@ -500,7 +500,7 @@ main(int argc, char **argv)
 	archsw.arch_readin = uboot_readin;
 	archsw.arch_autoload = uboot_autoload;
 
-	interact(NULL);				/* doesn't return */
+	interact();				/* doesn't return */
 
 	return (0);
 }

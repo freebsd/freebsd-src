@@ -84,7 +84,7 @@ perform(int argc, char *argv[])
  * Interactive mode
  */
 void
-interact(const char *rc)
+interact(void)
 {
     static char	input[256];			/* big enough? */
 #ifndef BOOT_FORTH
@@ -93,14 +93,11 @@ interact(const char *rc)
 #endif
 
 #ifdef BOOT_FORTH
-    bf_init((rc) ? "" : NULL);
+    bf_init();
 #endif
 
-    if (rc == NULL) {
-	/* Read our default configuration. */
-	include("/boot/loader.rc");
-    } else if (*rc != '\0')
-	include(rc);
+    /* Read our default configuration. */
+    include("/boot/loader.rc");
 
     printf("\n");
 
