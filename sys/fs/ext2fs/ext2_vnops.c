@@ -1633,6 +1633,12 @@ ext2_pathconf(struct vop_pathconf_args *ap)
 		else
 			*ap->a_retval = ext2_max_nlink(VTOI(ap->a_vp));
 		break;
+	case _PC_NAME_MAX:
+		*ap->a_retval = NAME_MAX;
+		break;
+	case _PC_CHOWN_RESTRICTED:
+		*ap->a_retval = 1;
+		break;
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 1;
 		break;

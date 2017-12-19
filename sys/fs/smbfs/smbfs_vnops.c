@@ -899,8 +899,6 @@ smbfs_pathconf (ap)
 	int error = 0;
 	
 	switch (ap->a_name) {
-	    case _PC_LINK_MAX:
-		*retval = 0;
 	    case _PC_FILESIZEBITS:
 		if (vcp->vc_sopt.sv_caps & (SMB_CAP_LARGE_READX |
 		    SMB_CAP_LARGE_WRITEX))
