@@ -248,12 +248,12 @@ printaffinity(void)
 		err(EXIT_FAILURE, "getaffinity");
 	printf("%s %jd%s mask: ", whichnames[which], (intmax_t)id,
 	    levelnames[level]);
+	printset((struct bitset *)&mask, CPU_SETSIZE);
 	if (dflag)
 		goto out;
 	if (cpuset_getdomain(level, which, id, sizeof(domain), &domain,
 	    &policy) != 0)
 		err(EXIT_FAILURE, "getdomain");
-	printset((struct bitset *)&mask, CPU_SETSIZE);
 	printf("%s %jd%s domain policy: %s mask: ", whichnames[which],
 	    (intmax_t)id, levelnames[level], policynames[policy]);
 	printset((struct bitset *)&domain, DOMAINSET_SETSIZE);
