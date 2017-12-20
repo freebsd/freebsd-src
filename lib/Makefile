@@ -49,7 +49,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libdwarf \
 	libedit \
 	${_libefivar} \
-	${_libelftc} \
+	libelftc \
 	libevent \
 	libexecinfo \
 	libexpat \
@@ -188,7 +188,6 @@ _cuse=		libcuse
 .endif
 
 .if ${MK_TOOLCHAIN} != "no"
-_libelftc=	libelftc
 _libpe=		libpe
 .endif
 
