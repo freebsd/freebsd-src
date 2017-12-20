@@ -5124,7 +5124,7 @@ find_thread(int cpu, int thread_num)
 static int
 find_thread(int cpu, int thread_num __unused)
 {
-	return cpu_id
+	return cpu_id;
 }
 #endif
 
