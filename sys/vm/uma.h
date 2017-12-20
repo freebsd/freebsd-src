@@ -332,6 +332,19 @@ void uma_zdestroy(uma_zone_t zone);
 void *uma_zalloc_arg(uma_zone_t zone, void *arg, int flags);
 
 /*
+ * Allocate an item from a specific NUMA domain.  This uses a slow path in
+ * the allocator but is guaranteed to allocate memory from the requested
+ * domain if M_WAITOK is set.
+ *
+ * Arguments:
+ *	zone  The zone we are allocating from
+ *	arg   This data is passed to the ctor function
+ *	domain The domain to allocate from.
+ *	flags See sys/malloc.h for available flags.
+ */
+void *uma_zalloc_domain(uma_zone_t zone, void *arg, int domain, int flags);
+
+/*
  * Allocates an item out of a zone without supplying an argument
  *
  * This is just a wrapper for uma_zalloc_arg for convenience.
@@ -358,6 +371,16 @@ uma_zalloc(uma_zone_t zone, int flags)
  */
 
 void uma_zfree_arg(uma_zone_t zone, void *item, void *arg);
+
+/*
+ * Frees an item back to the specified zone's domain specific pool.
+ *
+ * Arguments:
+ *	zone  The zone the item was originally allocated out of.
+ *	item  The memory to be freed.
+ *	arg   Argument passed to the destructor
+ */
+void uma_zfree_domain(uma_zone_t zone, void *item, void *arg);
 
 /*
  * Frees an item back to a zone without supplying an argument
