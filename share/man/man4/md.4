@@ -7,7 +7,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2017
+.Dd December 7, 2017
 .Dt MD 4
 .Os
 .Sh NAME
@@ -79,7 +79,8 @@ To create a kernel with a ramdisk or MD file system, your kernel config
 needs the following options:
 .Bd -literal -offset indent
 options 	MD_ROOT			# MD is a potential root device
-options		MD_ROOT_SIZE=8192	# 8MB ram disk
+options 	MD_ROOT_READONLY	# disallow mounting root writeable
+options 	MD_ROOT_SIZE=8192	# 8MB ram disk
 makeoptions	MFS_IMAGE=/h/foo/ARM-MD
 options 	ROOTDEVNAME=\\"ufs:md0\\"
 .Ed
