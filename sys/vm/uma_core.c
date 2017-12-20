@@ -221,6 +221,8 @@ struct uma_bucket_zone bucket_zones[] = {
  */
 enum zfreeskip { SKIP_NONE = 0, SKIP_DTOR, SKIP_FINI };
 
+#define	UMA_ANYDOMAIN	-1	/* Special value for domain search. */
+
 /* Prototypes.. */
 
 static void *noobj_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
@@ -564,8 +566,8 @@ hash_alloc(struct uma_hash *hash)
 		    M_UMAHASH, M_NOWAIT);
 	} else {
 		alloc = sizeof(hash->uh_slab_hash[0]) * UMA_HASH_SIZE_INIT;
-		hash->uh_slab_hash = zone_alloc_item(hashzone, NULL, 0,
-		    M_WAITOK);
+		hash->uh_slab_hash = zone_alloc_item(hashzone, NULL,
+		    UMA_ANYDOMAIN, M_WAITOK);
 		hash->uh_hashsize = UMA_HASH_SIZE_INIT;
 	}
 	if (hash->uh_slab_hash) {
@@ -1878,7 +1880,7 @@ uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit, uma_fini fini,
 	args.align = (align == UMA_ALIGN_CACHE) ? uma_align_cache : align;
 	args.flags = flags;
 	args.zone = zone;
-	return (zone_alloc_item(kegs, &args, 0, M_WAITOK));
+	return (zone_alloc_item(kegs, &args, UMA_ANYDOMAIN, M_WAITOK));
 }
 
 /* See uma.h */
@@ -1935,7 +1937,7 @@ uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 		sx_slock(&uma_drain_lock);
 		locked = true;
 	}
-	res = zone_alloc_item(zones, &args, 0, M_WAITOK);
+	res = zone_alloc_item(zones, &args, UMA_ANYDOMAIN, M_WAITOK);
 	if (locked)
 		sx_sunlock(&uma_drain_lock);
 	return (res);
@@ -1970,7 +1972,7 @@ uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
 		locked = true;
 	}
 	/* XXX Attaches only one keg of potentially many. */
-	res = zone_alloc_item(zones, &args, 0, M_WAITOK);
+	res = zone_alloc_item(zones, &args, UMA_ANYDOMAIN, M_WAITOK);
 	if (locked)
 		sx_sunlock(&uma_drain_lock);
 	return (res);
@@ -1997,7 +1999,7 @@ uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
 	args.align = 0;
 	args.flags = flags;
 
-	return (zone_alloc_item(zones, &args, 0, M_WAITOK));
+	return (zone_alloc_item(zones, &args, UMA_ANYDOMAIN, M_WAITOK));
 }
 
 static void
@@ -2206,7 +2208,7 @@ zalloc_start:
 	if (zone->uz_flags & UMA_ZONE_NUMA)
 		domain = PCPU_GET(domain);
 	else
-		domain = 0;
+		domain = UMA_ANYDOMAIN;
 
 	/* Short-circuit for zones without buckets and low memory. */
 	if (zone->uz_count == 0 || bucketdisable)
@@ -2248,7 +2250,10 @@ zalloc_start:
 	/*
 	 * Check the zone's cache of buckets.
 	 */
-	zdom = &zone->uz_domain[domain];
+	if (domain == UMA_ANYDOMAIN)
+		zdom = &zone->uz_domain[0];
+	else
+		zdom = &zone->uz_domain[domain];
 	if ((bucket = LIST_FIRST(&zdom->uzd_buckets)) != NULL) {
 		KASSERT(bucket->ub_cnt != 0,
 		    ("uma_zalloc_arg: Returning an empty bucket."));
@@ -2306,6 +2311,28 @@ zalloc_item:
 	return (item);
 }
 
+void *
+uma_zalloc_domain(uma_zone_t zone, void *udata, int domain, int flags)
+{
+
+	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
+	random_harvest_fast_uma(&zone, sizeof(zone), 1, RANDOM_UMA);
+
+	/* This is the fast path allocation */
+	CTR5(KTR_UMA,
+	    "uma_zalloc_domain thread %x zone %s(%p) domain %d flags %d",
+	    curthread, zone->uz_name, zone, domain, flags);
+
+	if (flags & M_WAITOK) {
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "uma_zalloc_domain: zone \"%s\"", zone->uz_name);
+	}
+	KASSERT(curthread->td_critnest == 0 || SCHEDULER_STOPPED(),
+	    ("uma_zalloc_domain: called with spinlock or critical section held"));
+
+	return (zone_alloc_item(zone, udata, domain, flags));
+}
+
 /*
  * Find a slab with some space.  Prefer slabs that are partially used over those
  * that are totally full.  This helps to reduce fragmentation.
@@ -2360,7 +2387,9 @@ keg_fetch_slab(uma_keg_t keg, uma_zone_t zone, int rdomain, int flags)
 	 * Round-robin for non first-touch zones when there is more than one
 	 * domain.
 	 */
-	rr = (zone->uz_flags & UMA_ZONE_NUMA) == 0 && vm_ndomains != 1;
+	if (vm_ndomains == 1)
+		rdomain = 0;
+	rr = rdomain == UMA_ANYDOMAIN;
 	if (rr) {
 		keg->uk_cursor = (keg->uk_cursor + 1) % vm_ndomains;
 		domain = start = keg->uk_cursor;
@@ -2665,6 +2694,7 @@ zone_alloc_bucket(uma_zone_t zone, void *udata, int domain, int flags)
  * Arguments
  *	zone   The zone to alloc for.
  *	udata  The data to be passed to the constructor.
+ *	domain The domain to allocate from or UMA_ANYDOMAIN.
  *	flags  M_WAITOK, M_NOWAIT, M_ZERO.
  *
  * Returns
@@ -2894,6 +2924,25 @@ zfree_item:
 	zone_free_item(zone, item, udata, SKIP_DTOR);
 
 	return;
+}
+
+void
+uma_zfree_domain(uma_zone_t zone, void *item, void *udata)
+{
+
+	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
+	random_harvest_fast_uma(&zone, sizeof(zone), 1, RANDOM_UMA);
+
+	CTR2(KTR_UMA, "uma_zfree_domain thread %x zone %s", curthread,
+	    zone->uz_name);
+
+	KASSERT(curthread->td_critnest == 0 || SCHEDULER_STOPPED(),
+	    ("uma_zfree_domain: called with spinlock or critical section held"));
+
+        /* uma_zfree(..., NULL) does nothing, to match free(9). */
+        if (item == NULL)
+                return;
+	zone_free_item(zone, item, udata, SKIP_NONE);
 }
 
 static void
@@ -3342,15 +3391,18 @@ uma_zone_exhausted_nolock(uma_zone_t zone)
 }
 
 void *
-uma_large_malloc(vm_size_t size, int wait)
+uma_large_malloc_domain(vm_size_t size, int domain, int wait)
 {
 	vm_offset_t addr;
 	uma_slab_t slab;
 
-	slab = zone_alloc_item(slabzone, NULL, 0, wait);
+	slab = zone_alloc_item(slabzone, NULL, domain, wait);
 	if (slab == NULL)
 		return (NULL);
-	addr = kmem_malloc(kernel_arena, size, wait);
+	if (domain == UMA_ANYDOMAIN)
+		addr = kmem_malloc(kernel_arena, size, wait);
+	else
+		addr = kmem_malloc_domain(domain, size, wait);
 	if (addr != 0) {
 		vsetslab(addr, slab);
 		slab->us_data = (void *)addr;
@@ -3364,6 +3416,13 @@ uma_large_malloc(vm_size_t size, int wait)
 	}
 
 	return ((void *)addr);
+}
+
+void *
+uma_large_malloc(vm_size_t size, int wait)
+{
+
+	return uma_large_malloc_domain(size, UMA_ANYDOMAIN, wait);
 }
 
 void

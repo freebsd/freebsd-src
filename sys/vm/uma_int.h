@@ -386,6 +386,7 @@ zone_first_keg(uma_zone_t zone)
 /* Internal prototypes */
 static __inline uma_slab_t hash_sfind(struct uma_hash *hash, uint8_t *data);
 void *uma_large_malloc(vm_size_t size, int wait);
+void *uma_large_malloc_domain(vm_size_t size, int domain, int wait);
 void uma_large_free(uma_slab_t slab);
 
 /* Lock Macros */
