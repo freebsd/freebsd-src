@@ -110,6 +110,9 @@
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/DataLayout.h"
@@ -121,11 +124,8 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -155,8 +155,8 @@ static unsigned estimateRSStackSizeLimit(MachineFunction &MF) {
           MI.getOpcode() == AArch64::ADDSXri)
         continue;
 
-      for (unsigned i = 0, e = MI.getNumOperands(); i != e; ++i) {
-        if (!MI.getOperand(i).isFI())
+      for (const MachineOperand &MO : MI.operands()) {
+        if (!MO.isFI())
           continue;
 
         int Offset = 0;
@@ -174,7 +174,7 @@ bool AArch64FrameLowering::canUseRedZone(const MachineFunction &MF) const {
     return false;
   // Don't use the red zone if the function explicitly asks us not to.
   // This is typically used for kernel code.
-  if (MF.getFunction()->hasFnAttribute(Attribute::NoRedZone))
+  if (MF.getFunction().hasFnAttribute(Attribute::NoRedZone))
     return false;
 
   const MachineFrameInfo &MFI = MF.getFrameInfo();
@@ -459,13 +459,13 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF,
                                         MachineBasicBlock &MBB) const {
   MachineBasicBlock::iterator MBBI = MBB.begin();
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  const Function *Fn = MF.getFunction();
+  const Function &F = MF.getFunction();
   const AArch64Subtarget &Subtarget = MF.getSubtarget<AArch64Subtarget>();
   const AArch64RegisterInfo *RegInfo = Subtarget.getRegisterInfo();
   const TargetInstrInfo *TII = Subtarget.getInstrInfo();
   MachineModuleInfo &MMI = MF.getMMI();
   AArch64FunctionInfo *AFI = MF.getInfo<AArch64FunctionInfo>();
-  bool needsFrameMoves = MMI.hasDebugInfo() || Fn->needsUnwindTableEntry();
+  bool needsFrameMoves = MMI.hasDebugInfo() || F.needsUnwindTableEntry();
   bool HasFP = hasFP(MF);
 
   // Debug location must be unknown since the first debug location is used
@@ -474,7 +474,7 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF,
 
   // All calls are tail calls in GHC calling conv, and functions have no
   // prologue/epilogue.
-  if (MF.getFunction()->getCallingConv() == CallingConv::GHC)
+  if (MF.getFunction().getCallingConv() == CallingConv::GHC)
     return;
 
   int NumBytes = (int)MFI.getStackSize();
@@ -507,7 +507,7 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF,
   }
 
   bool IsWin64 =
-      Subtarget.isCallingConvWin64(MF.getFunction()->getCallingConv());
+      Subtarget.isCallingConvWin64(MF.getFunction().getCallingConv());
   unsigned FixedObject = IsWin64 ? alignTo(AFI->getVarArgsGPRSize(), 16) : 0;
 
   auto PrologueSaveSize = AFI->getCalleeSavedStackSize() + FixedObject;
@@ -716,7 +716,7 @@ void AArch64FrameLowering::emitEpilogue(MachineFunction &MF,
 
   // All calls are tail calls in GHC calling conv, and functions have no
   // prologue/epilogue.
-  if (MF.getFunction()->getCallingConv() == CallingConv::GHC)
+  if (MF.getFunction().getCallingConv() == CallingConv::GHC)
     return;
 
   // Initial and residual are named for consistency with the prologue. Note that
@@ -765,7 +765,7 @@ void AArch64FrameLowering::emitEpilogue(MachineFunction &MF,
   // it as the 2nd argument of AArch64ISD::TC_RETURN.
 
   bool IsWin64 =
-      Subtarget.isCallingConvWin64(MF.getFunction()->getCallingConv());
+      Subtarget.isCallingConvWin64(MF.getFunction().getCallingConv());
   unsigned FixedObject = IsWin64 ? alignTo(AFI->getVarArgsGPRSize(), 16) : 0;
 
   auto PrologueSaveSize = AFI->getCalleeSavedStackSize() + FixedObject;
@@ -857,7 +857,7 @@ int AArch64FrameLowering::resolveFrameIndexReference(const MachineFunction &MF,
   const AArch64FunctionInfo *AFI = MF.getInfo<AArch64FunctionInfo>();
   const AArch64Subtarget &Subtarget = MF.getSubtarget<AArch64Subtarget>();
   bool IsWin64 =
-      Subtarget.isCallingConvWin64(MF.getFunction()->getCallingConv());
+      Subtarget.isCallingConvWin64(MF.getFunction().getCallingConv());
   unsigned FixedObject = IsWin64 ? alignTo(AFI->getVarArgsGPRSize(), 16) : 0;
   int FPOffset = MFI.getObjectOffset(FI) + FixedObject + 16;
   int Offset = MFI.getObjectOffset(FI) + MFI.getStackSize();
@@ -928,7 +928,7 @@ static unsigned getPrologueDeath(MachineFunction &MF, unsigned Reg) {
 
 static bool produceCompactUnwindFrame(MachineFunction &MF) {
   const AArch64Subtarget &Subtarget = MF.getSubtarget<AArch64Subtarget>();
-  AttributeList Attrs = MF.getFunction()->getAttributes();
+  AttributeList Attrs = MF.getFunction().getAttributes();
   return Subtarget.isTargetMachO() &&
          !(Subtarget.getTargetLowering()->supportSwiftError() &&
            Attrs.hasAttrSomewhere(Attribute::SwiftError));
@@ -959,7 +959,7 @@ static void computeCalleeSaveRegisterPairs(
 
   AArch64FunctionInfo *AFI = MF.getInfo<AArch64FunctionInfo>();
   MachineFrameInfo &MFI = MF.getFrameInfo();
-  CallingConv::ID CC = MF.getFunction()->getCallingConv();
+  CallingConv::ID CC = MF.getFunction().getCallingConv();
   unsigned Count = CSI.size();
   (void)CC;
   // MachO's compact unwind format relies on all registers being stored in
@@ -1060,9 +1060,9 @@ bool AArch64FrameLowering::spillCalleeSavedRegisters(
       StrOpc = RPI.isPaired() ? AArch64::STPXi : AArch64::STRXui;
     else
       StrOpc = RPI.isPaired() ? AArch64::STPDi : AArch64::STRDui;
-    DEBUG(dbgs() << "CSR spill: (" << TRI->getName(Reg1);
+    DEBUG(dbgs() << "CSR spill: (" << printReg(Reg1, TRI);
           if (RPI.isPaired())
-            dbgs() << ", " << TRI->getName(Reg2);
+            dbgs() << ", " << printReg(Reg2, TRI);
           dbgs() << ") -> fi#(" << RPI.FrameIdx;
           if (RPI.isPaired())
             dbgs() << ", " << RPI.FrameIdx+1;
@@ -1092,7 +1092,7 @@ bool AArch64FrameLowering::spillCalleeSavedRegisters(
 
 bool AArch64FrameLowering::restoreCalleeSavedRegisters(
     MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
-    const std::vector<CalleeSavedInfo> &CSI,
+    std::vector<CalleeSavedInfo> &CSI,
     const TargetRegisterInfo *TRI) const {
   MachineFunction &MF = *MBB.getParent();
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
@@ -1123,9 +1123,9 @@ bool AArch64FrameLowering::restoreCalleeSavedRegisters(
       LdrOpc = RPI.isPaired() ? AArch64::LDPXi : AArch64::LDRXui;
     else
       LdrOpc = RPI.isPaired() ? AArch64::LDPDi : AArch64::LDRDui;
-    DEBUG(dbgs() << "CSR restore: (" << TRI->getName(Reg1);
+    DEBUG(dbgs() << "CSR restore: (" << printReg(Reg1, TRI);
           if (RPI.isPaired())
-            dbgs() << ", " << TRI->getName(Reg2);
+            dbgs() << ", " << printReg(Reg2, TRI);
           dbgs() << ") -> fi#(" << RPI.FrameIdx;
           if (RPI.isPaired())
             dbgs() << ", " << RPI.FrameIdx+1;
@@ -1154,7 +1154,7 @@ void AArch64FrameLowering::determineCalleeSaves(MachineFunction &MF,
                                                 RegScavenger *RS) const {
   // All calls are tail calls in GHC calling conv, and functions have no
   // prologue/epilogue.
-  if (MF.getFunction()->getCallingConv() == CallingConv::GHC)
+  if (MF.getFunction().getCallingConv() == CallingConv::GHC)
     return;
 
   TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
@@ -1208,7 +1208,7 @@ void AArch64FrameLowering::determineCalleeSaves(MachineFunction &MF,
 
   DEBUG(dbgs() << "*** determineCalleeSaves\nUsed CSRs:";
         for (unsigned Reg : SavedRegs.set_bits())
-          dbgs() << ' ' << PrintReg(Reg, RegInfo);
+          dbgs() << ' ' << printReg(Reg, RegInfo);
         dbgs() << "\n";);
 
   // If any callee-saved registers are used, the frame cannot be eliminated.
@@ -1233,8 +1233,8 @@ void AArch64FrameLowering::determineCalleeSaves(MachineFunction &MF,
   // here.
   if (BigStack) {
     if (!ExtraCSSpill && UnspilledCSGPR != AArch64::NoRegister) {
-      DEBUG(dbgs() << "Spilling " << PrintReg(UnspilledCSGPR, RegInfo)
-            << " to get a scratch register.\n");
+      DEBUG(dbgs() << "Spilling " << printReg(UnspilledCSGPR, RegInfo)
+                   << " to get a scratch register.\n");
       SavedRegs.set(UnspilledCSGPR);
       // MachO's compact unwind format relies on all registers being stored in
       // pairs, so if we need to spill one extra for BigStack, then we need to
