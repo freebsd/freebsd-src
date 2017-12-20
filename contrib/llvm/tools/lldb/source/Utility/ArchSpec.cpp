@@ -7,21 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/Core/ArchSpec.h"
+#include "lldb/Utility/ArchSpec.h"
 
-#include "lldb/Host/HostInfo.h"
-#include "lldb/Target/Platform.h"
-#include "lldb/Target/RegisterContext.h"
-#include "lldb/Target/Thread.h"
 #include "lldb/Utility/NameMatches.h"
 #include "lldb/Utility/Stream.h" // for Stream
 #include "lldb/Utility/StringList.h"
 #include "lldb/lldb-defines.h" // for LLDB_INVALID_C...
-#include "lldb/lldb-forward.h" // for RegisterContextSP
-
-#include "Plugins/Process/Utility/ARMDefines.h"
-#include "Plugins/Process/Utility/InstructionUtils.h"
-
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Twine.h" // for Twine
 #include "llvm/BinaryFormat/COFF.h"
@@ -29,10 +20,6 @@
 #include "llvm/BinaryFormat/MachO.h" // for CPUType::CPU_T...
 #include "llvm/Support/Compiler.h"   // for LLVM_FALLTHROUGH
 #include "llvm/Support/Host.h"
-
-#include <memory> // for shared_ptr
-#include <string>
-#include <tuple> // for tie, tuple
 
 using namespace lldb;
 using namespace lldb_private;
@@ -188,6 +175,8 @@ static const CoreDefinition g_core_definitions[] = {
     {eByteOrderBig, 4, 4, 4, llvm::Triple::ppc, ArchSpec::eCore_ppc_ppc970,
      "ppc970"},
 
+    {eByteOrderLittle, 8, 4, 4, llvm::Triple::ppc64le,
+     ArchSpec::eCore_ppc64le_generic, "powerpc64le"},
     {eByteOrderBig, 8, 4, 4, llvm::Triple::ppc64, ArchSpec::eCore_ppc64_generic,
      "powerpc64"},
     {eByteOrderBig, 8, 4, 4, llvm::Triple::ppc64,
@@ -372,6 +361,8 @@ static const ArchDefinitionEntry g_macho_arch_entries[] = {
      SUBTYPE_MASK},
     {ArchSpec::eCore_ppc64_generic, llvm::MachO::CPU_TYPE_POWERPC64, 0,
      UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc64le_generic, llvm::MachO::CPU_TYPE_POWERPC64, CPU_ANY,
+     UINT32_MAX, SUBTYPE_MASK},
     {ArchSpec::eCore_ppc64_ppc970_64, llvm::MachO::CPU_TYPE_POWERPC64, 100,
      UINT32_MAX, SUBTYPE_MASK},
     {ArchSpec::eCore_x86_32_i386, llvm::MachO::CPU_TYPE_I386, 3, UINT32_MAX,
@@ -414,6 +405,8 @@ static const ArchDefinitionEntry g_elf_arch_entries[] = {
      0xFFFFFFFFu, 0xFFFFFFFFu}, // Intel MCU // FIXME: is this correct?
     {ArchSpec::eCore_ppc_generic, llvm::ELF::EM_PPC, LLDB_INVALID_CPUTYPE,
      0xFFFFFFFFu, 0xFFFFFFFFu}, // PowerPC
+    {ArchSpec::eCore_ppc64le_generic, llvm::ELF::EM_PPC64, LLDB_INVALID_CPUTYPE,
+     0xFFFFFFFFu, 0xFFFFFFFFu}, // PowerPC64le
     {ArchSpec::eCore_ppc64_generic, llvm::ELF::EM_PPC64, LLDB_INVALID_CPUTYPE,
      0xFFFFFFFFu, 0xFFFFFFFFu}, // PowerPC64
     {ArchSpec::eCore_arm_generic, llvm::ELF::EM_ARM, LLDB_INVALID_CPUTYPE,
@@ -461,7 +454,9 @@ static const ArchDefinitionEntry g_elf_arch_entries[] = {
 };
 
 static const ArchDefinition g_elf_arch_def = {
-    eArchTypeELF, llvm::array_lengthof(g_elf_arch_entries), g_elf_arch_entries,
+    eArchTypeELF,
+    llvm::array_lengthof(g_elf_arch_entries),
+    g_elf_arch_entries,
     "elf",
 };
 
@@ -483,8 +478,10 @@ static const ArchDefinitionEntry g_coff_arch_entries[] = {
 };
 
 static const ArchDefinition g_coff_arch_def = {
-    eArchTypeCOFF, llvm::array_lengthof(g_coff_arch_entries),
-    g_coff_arch_entries, "pe-coff",
+    eArchTypeCOFF,
+    llvm::array_lengthof(g_coff_arch_entries),
+    g_coff_arch_entries,
+    "pe-coff",
 };
 
 //===----------------------------------------------------------------------===//
@@ -518,7 +515,7 @@ static const CoreDefinition *FindCoreDefinition(llvm::StringRef name) {
 }
 
 static inline const CoreDefinition *FindCoreDefinition(ArchSpec::Core core) {
-  if (core >= 0 && core < llvm::array_lengthof(g_core_definitions))
+  if (core < llvm::array_lengthof(g_core_definitions))
     return &g_core_definitions[core];
   return nullptr;
 }
@@ -555,15 +552,6 @@ FindArchDefinitionEntry(const ArchDefinition *def, ArchSpec::Core core) {
 // Constructors and destructors.
 
 ArchSpec::ArchSpec() {}
-
-ArchSpec::ArchSpec(const char *triple_cstr, Platform *platform) {
-  if (triple_cstr)
-    SetTriple(triple_cstr, platform);
-}
-
-ArchSpec::ArchSpec(llvm::StringRef triple_str, Platform *platform) {
-  SetTriple(triple_str, platform);
-}
 
 ArchSpec::ArchSpec(const char *triple_cstr) {
   if (triple_cstr)
@@ -874,16 +862,6 @@ bool lldb_private::ParseMachCPUDashSubtypeTriple(llvm::StringRef triple_str,
   return true;
 }
 
-bool ArchSpec::SetTriple(const char *triple_cstr) {
-  llvm::StringRef str(triple_cstr ? triple_cstr : "");
-  return SetTriple(str);
-}
-
-bool ArchSpec::SetTriple(const char *triple_cstr, Platform *platform) {
-  llvm::StringRef str(triple_cstr ? triple_cstr : "");
-  return SetTriple(str, platform);
-}
-
 bool ArchSpec::SetTriple(llvm::StringRef triple) {
   if (triple.empty()) {
     Clear();
@@ -893,87 +871,15 @@ bool ArchSpec::SetTriple(llvm::StringRef triple) {
   if (ParseMachCPUDashSubtypeTriple(triple, *this))
     return true;
 
-  if (triple.startswith(LLDB_ARCH_DEFAULT)) {
-    // Special case for the current host default architectures...
-    if (triple.equals(LLDB_ARCH_DEFAULT_32BIT))
-      *this = HostInfo::GetArchitecture(HostInfo::eArchKind32);
-    else if (triple.equals(LLDB_ARCH_DEFAULT_64BIT))
-      *this = HostInfo::GetArchitecture(HostInfo::eArchKind64);
-    else if (triple.equals(LLDB_ARCH_DEFAULT))
-      *this = HostInfo::GetArchitecture(HostInfo::eArchKindDefault);
-  } else {
-    SetTriple(llvm::Triple(llvm::Triple::normalize(triple)));
-  }
+  SetTriple(llvm::Triple(llvm::Triple::normalize(triple)));
   return IsValid();
 }
 
-bool ArchSpec::SetTriple(llvm::StringRef triple, Platform *platform) {
-  if (triple.empty()) {
-    Clear();
-    return false;
-  }
-  if (ParseMachCPUDashSubtypeTriple(triple, *this))
-    return true;
-
-  if (triple.startswith(LLDB_ARCH_DEFAULT)) {
-    // Special case for the current host default architectures...
-    if (triple.equals(LLDB_ARCH_DEFAULT_32BIT))
-      *this = HostInfo::GetArchitecture(HostInfo::eArchKind32);
-    else if (triple.equals(LLDB_ARCH_DEFAULT_64BIT))
-      *this = HostInfo::GetArchitecture(HostInfo::eArchKind64);
-    else if (triple.equals(LLDB_ARCH_DEFAULT))
-      *this = HostInfo::GetArchitecture(HostInfo::eArchKindDefault);
-    return IsValid();
-  }
-
-  ArchSpec raw_arch(triple);
-
-  llvm::Triple normalized_triple(llvm::Triple::normalize(triple));
-
-  const bool os_specified = !normalized_triple.getOSName().empty();
-  const bool vendor_specified = !normalized_triple.getVendorName().empty();
-  const bool env_specified = !normalized_triple.getEnvironmentName().empty();
-
-  if (os_specified || vendor_specified || env_specified) {
-    SetTriple(normalized_triple);
-    return IsValid();
-  }
-
-  // We got an arch only.  If there is no platform, fallback to the host system
-  // for defaults.
-  if (!platform) {
-    llvm::Triple host_triple(llvm::sys::getDefaultTargetTriple());
-    if (!vendor_specified)
-      normalized_triple.setVendor(host_triple.getVendor());
-    if (!vendor_specified)
-      normalized_triple.setOS(host_triple.getOS());
-    if (!env_specified && host_triple.getEnvironmentName().size())
-      normalized_triple.setEnvironment(host_triple.getEnvironment());
-    SetTriple(normalized_triple);
-    return IsValid();
-  }
-
-  // If we were given a platform, use the platform's system architecture. If
-  // this is not available (might not be connected) use the first supported
-  // architecture.
-  ArchSpec compatible_arch;
-  if (!platform->IsCompatibleArchitecture(raw_arch, false, &compatible_arch)) {
-    *this = raw_arch;
-    return IsValid();
-  }
-
-  if (compatible_arch.IsValid()) {
-    const llvm::Triple &compatible_triple = compatible_arch.GetTriple();
-    if (!vendor_specified)
-      normalized_triple.setVendor(compatible_triple.getVendor());
-    if (!os_specified)
-      normalized_triple.setOS(compatible_triple.getOS());
-    if (!env_specified && compatible_triple.hasEnvironment())
-      normalized_triple.setEnvironment(compatible_triple.getEnvironment());
-  }
-
-  SetTriple(normalized_triple);
-  return IsValid();
+bool ArchSpec::ContainsOnlyArch(const llvm::Triple &normalized_triple) {
+  return !normalized_triple.getArchName().empty() &&
+         normalized_triple.getOSName().empty() &&
+         normalized_triple.getVendorName().empty() &&
+         normalized_triple.getEnvironmentName().empty();
 }
 
 void ArchSpec::MergeFrom(const ArchSpec &other) {
@@ -1001,6 +907,9 @@ void ArchSpec::MergeFrom(const ArchSpec &other) {
       other.GetCore() != ArchSpec::eCore_arm_generic) {
     m_core = other.GetCore();
     CoreUpdated(true);
+  }
+  if (GetFlags() == 0) {
+    SetFlags(other.GetFlags());
   }
 }
 
@@ -1502,102 +1411,6 @@ bool lldb_private::operator<(const ArchSpec &lhs, const ArchSpec &rhs) {
   return lhs_core < rhs_core;
 }
 
-static void StopInfoOverrideCallbackTypeARM(lldb_private::Thread &thread) {
-  // We need to check if we are stopped in Thumb mode in a IT instruction
-  // and detect if the condition doesn't pass. If this is the case it means
-  // we won't actually execute this instruction. If this happens we need to
-  // clear the stop reason to no thread plans think we are stopped for a
-  // reason and the plans should keep going.
-  //
-  // We do this because when single stepping many ARM processes, debuggers
-  // often use the BVR/BCR registers that says "stop when the PC is not
-  // equal to its current value". This method of stepping means we can end
-  // up stopping on instructions inside an if/then block that wouldn't get
-  // executed. By fixing this we can stop the debugger from seeming like
-  // you stepped through both the "if" _and_ the "else" clause when source
-  // level stepping because the debugger stops regardless due to the BVR/BCR
-  // triggering a stop.
-  //
-  // It also means we can set breakpoints on instructions inside an an
-  // if/then block and correctly skip them if we use the BKPT instruction.
-  // The ARM and Thumb BKPT instructions are unconditional even when executed
-  // in a Thumb IT block.
-  //
-  // If your debugger inserts software traps in ARM/Thumb code, it will
-  // need to use 16 and 32 bit instruction for 16 and 32 bit thumb
-  // instructions respectively. If your debugger inserts a 16 bit thumb
-  // trap on top of a 32 bit thumb instruction for an opcode that is inside
-  // an if/then, it will change the it/then to conditionally execute your
-  // 16 bit trap and then cause your program to crash if it executes the
-  // trailing 16 bits (the second half of the 32 bit thumb instruction you
-  // partially overwrote).
-
-  RegisterContextSP reg_ctx_sp(thread.GetRegisterContext());
-  if (reg_ctx_sp) {
-    const uint32_t cpsr = reg_ctx_sp->GetFlags(0);
-    if (cpsr != 0) {
-      // Read the J and T bits to get the ISETSTATE
-      const uint32_t J = Bit32(cpsr, 24);
-      const uint32_t T = Bit32(cpsr, 5);
-      const uint32_t ISETSTATE = J << 1 | T;
-      if (ISETSTATE == 0) {
-// NOTE: I am pretty sure we want to enable the code below
-// that detects when we stop on an instruction in ARM mode
-// that is conditional and the condition doesn't pass. This
-// can happen if you set a breakpoint on an instruction that
-// is conditional. We currently will _always_ stop on the
-// instruction which is bad. You can also run into this while
-// single stepping and you could appear to run code in the "if"
-// and in the "else" clause because it would stop at all of the
-// conditional instructions in both.
-// In such cases, we really don't want to stop at this location.
-// I will check with the lldb-dev list first before I enable this.
-#if 0
-                // ARM mode: check for condition on intsruction
-                const addr_t pc = reg_ctx_sp->GetPC();
-                Status error;
-                // If we fail to read the opcode we will get UINT64_MAX as the
-                // result in "opcode" which we can use to detect if we read a
-                // valid opcode.
-                const uint64_t opcode = thread.GetProcess()->ReadUnsignedIntegerFromMemory(pc, 4, UINT64_MAX, error);
-                if (opcode <= UINT32_MAX)
-                {
-                    const uint32_t condition = Bits32((uint32_t)opcode, 31, 28);
-                    if (!ARMConditionPassed(condition, cpsr))
-                    {
-                        // We ARE stopped on an ARM instruction whose condition doesn't
-                        // pass so this instruction won't get executed.
-                        // Regardless of why it stopped, we need to clear the stop info
-                        thread.SetStopInfo (StopInfoSP());
-                    }
-                }
-#endif
-      } else if (ISETSTATE == 1) {
-        // Thumb mode
-        const uint32_t ITSTATE =
-            Bits32(cpsr, 15, 10) << 2 | Bits32(cpsr, 26, 25);
-        if (ITSTATE != 0) {
-          const uint32_t condition = Bits32(ITSTATE, 7, 4);
-          if (!ARMConditionPassed(condition, cpsr)) {
-            // We ARE stopped in a Thumb IT instruction on an instruction whose
-            // condition doesn't pass so this instruction won't get executed.
-            // Regardless of why it stopped, we need to clear the stop info
-            thread.SetStopInfo(StopInfoSP());
-          }
-        }
-      }
-    }
-  }
-}
-
-ArchSpec::StopInfoOverrideCallbackType
-ArchSpec::GetStopInfoOverrideCallback() const {
-  const llvm::Triple::ArchType machine = GetMachine();
-  if (machine == llvm::Triple::arm)
-    return StopInfoOverrideCallbackTypeARM;
-  return nullptr;
-}
-
 bool ArchSpec::IsFullySpecifiedTriple() const {
   const auto &user_specified_triple = GetTriple();
 
@@ -1619,7 +1432,7 @@ bool ArchSpec::IsFullySpecifiedTriple() const {
 
 void ArchSpec::PiecewiseTripleCompare(
     const ArchSpec &other, bool &arch_different, bool &vendor_different,
-    bool &os_different, bool &os_version_different, bool &env_different) {
+    bool &os_different, bool &os_version_different, bool &env_different) const {
   const llvm::Triple &me(GetTriple());
   const llvm::Triple &them(other.GetTriple());
 
