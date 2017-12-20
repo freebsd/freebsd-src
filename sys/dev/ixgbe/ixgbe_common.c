@@ -223,6 +223,7 @@ bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 		ERROR_REPORT2(IXGBE_ERROR_UNSUPPORTED,
 			      "Device %x does not support flow control autoneg",
 			      hw->device_id);
+
 	return supported;
 }
 
@@ -2001,7 +2002,7 @@ static s32 ixgbe_ready_eeprom(struct ixgbe_hw *hw)
 
 		usec_delay(5);
 		ixgbe_standby_eeprom(hw);
-	};
+	}
 
 	/*
 	 * On some parts, SPI write time could vary from 0-20mSec on 3.3V
@@ -2087,7 +2088,7 @@ static void ixgbe_shift_out_eeprom_bits(struct ixgbe_hw *hw, u16 data,
 		 * EEPROM
 		 */
 		mask = mask >> 1;
-	};
+	}
 
 	/* We leave the "DI" bit set to "0" when we leave this routine. */
 	eec &= ~IXGBE_EEC_DI;
@@ -3518,7 +3519,6 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index)
 	if (index > 3)
 		return IXGBE_ERR_PARAM;
 
-
 	ret_val = hw->mac.ops.prot_autoc_read(hw, &locked, &autoc_reg);
 	if (ret_val != IXGBE_SUCCESS)
 		goto out;
@@ -3715,7 +3715,7 @@ u16 ixgbe_get_pcie_msix_count_generic(struct ixgbe_hw *hw)
  *  @vmdq: VMDq pool to assign
  *
  *  Puts an ethernet address into a receive address register, or
- *  finds the rar that it is aleady in; adds to the pool list
+ *  finds the rar that it is already in; adds to the pool list
  **/
 s32 ixgbe_insert_mac_addr_generic(struct ixgbe_hw *hw, u8 *addr, u32 vmdq)
 {
@@ -4126,7 +4126,7 @@ s32 ixgbe_clear_vfta_generic(struct ixgbe_hw *hw)
 	for (offset = 0; offset < IXGBE_VLVF_ENTRIES; offset++) {
 		IXGBE_WRITE_REG(hw, IXGBE_VLVF(offset), 0);
 		IXGBE_WRITE_REG(hw, IXGBE_VLVFB(offset * 2), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_VLVFB(offset * 2 + 1), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_VLVFB((offset * 2) + 1), 0);
 	}
 
 	return IXGBE_SUCCESS;
