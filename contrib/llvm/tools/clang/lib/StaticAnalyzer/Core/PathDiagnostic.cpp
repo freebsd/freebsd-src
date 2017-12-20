@@ -578,8 +578,10 @@ getLocationForCaller(const StackFrameContext *SFC,
   }
   case CFGElement::TemporaryDtor:
   case CFGElement::NewAllocator:
-  case CFGElement::LifetimeEnds:
     llvm_unreachable("not yet implemented!");
+  case CFGElement::LifetimeEnds:
+  case CFGElement::LoopExit:
+    llvm_unreachable("CFGElement kind should not be on callsite!");
   }
 
   llvm_unreachable("Unknown CFGElement kind");
@@ -688,6 +690,15 @@ PathDiagnosticLocation::create(const ProgramPoint& P,
     return getLocationForCaller(CEE->getCalleeContext(),
                                 CEE->getLocationContext(),
                                 SMng);
+  } else if (Optional<BlockEntrance> BE = P.getAs<BlockEntrance>()) {
+    CFGElement BlockFront = BE->getBlock()->front();
+    if (auto StmtElt = BlockFront.getAs<CFGStmt>()) {
+      return PathDiagnosticLocation(StmtElt->getStmt()->getLocStart(), SMng);
+    } else if (auto NewAllocElt = BlockFront.getAs<CFGNewAllocator>()) {
+      return PathDiagnosticLocation(
+          NewAllocElt->getAllocatorExpr()->getLocStart(), SMng);
+    }
+    llvm_unreachable("Unexpected CFG element at front of block");
   } else {
     llvm_unreachable("Unexpected ProgramPoint");
   }

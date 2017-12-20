@@ -15,6 +15,7 @@
 #include "CGCXXABI.h"
 #include "CGCleanup.h"
 #include "CGObjCRuntime.h"
+#include "ConstantEmitter.h"
 #include "TargetInfo.h"
 #include "clang/AST/Mangle.h"
 #include "clang/AST/StmtCXX.h"
@@ -111,17 +112,11 @@ EHPersonality::MSVC_C_specific_handler = { "__C_specific_handler", nullptr };
 const EHPersonality
 EHPersonality::MSVC_CxxFrameHandler3 = { "__CxxFrameHandler3", nullptr };
 
-/// On Win64, use libgcc's SEH personality function. We fall back to dwarf on
-/// other platforms, unless the user asked for SjLj exceptions.
-static bool useLibGCCSEHPersonality(const llvm::Triple &T) {
-  return T.isOSWindows() && T.getArch() == llvm::Triple::x86_64;
-}
-
 static const EHPersonality &getCPersonality(const llvm::Triple &T,
                                             const LangOptions &L) {
   if (L.SjLjExceptions)
     return EHPersonality::GNU_C_SJLJ;
-  else if (useLibGCCSEHPersonality(T))
+  if (L.SEHExceptions)
     return EHPersonality::GNU_C_SEH;
   return EHPersonality::GNU_C;
 }
@@ -143,7 +138,7 @@ static const EHPersonality &getObjCPersonality(const llvm::Triple &T,
   case ObjCRuntime::ObjFW:
     if (L.SjLjExceptions)
       return EHPersonality::GNU_ObjC_SJLJ;
-    else if (useLibGCCSEHPersonality(T))
+    if (L.SEHExceptions)
       return EHPersonality::GNU_ObjC_SEH;
     return EHPersonality::GNU_ObjC;
   }
@@ -154,7 +149,7 @@ static const EHPersonality &getCXXPersonality(const llvm::Triple &T,
                                               const LangOptions &L) {
   if (L.SjLjExceptions)
     return EHPersonality::GNU_CPlusPlus_SJLJ;
-  else if (useLibGCCSEHPersonality(T))
+  if (L.SEHExceptions)
     return EHPersonality::GNU_CPlusPlus_SEH;
   return EHPersonality::GNU_CPlusPlus;
 }
@@ -164,26 +159,27 @@ static const EHPersonality &getCXXPersonality(const llvm::Triple &T,
 static const EHPersonality &getObjCXXPersonality(const llvm::Triple &T,
                                                  const LangOptions &L) {
   switch (L.ObjCRuntime.getKind()) {
+  // In the fragile ABI, just use C++ exception handling and hope
+  // they're not doing crazy exception mixing.
+  case ObjCRuntime::FragileMacOSX:
+    return getCXXPersonality(T, L);
+
   // The ObjC personality defers to the C++ personality for non-ObjC
   // handlers.  Unlike the C++ case, we use the same personality
   // function on targets using (backend-driven) SJLJ EH.
   case ObjCRuntime::MacOSX:
   case ObjCRuntime::iOS:
   case ObjCRuntime::WatchOS:
-    return EHPersonality::NeXT_ObjC;
+    return getObjCPersonality(T, L);
 
-  // In the fragile ABI, just use C++ exception handling and hope
-  // they're not doing crazy exception mixing.
-  case ObjCRuntime::FragileMacOSX:
-    return getCXXPersonality(T, L);
+  case ObjCRuntime::GNUstep:
+    return EHPersonality::GNU_ObjCXX;
 
   // The GCC runtime's personality function inherently doesn't support
-  // mixed EH.  Use the C++ personality just to avoid returning null.
+  // mixed EH.  Use the ObjC personality just to avoid returning null.
   case ObjCRuntime::GCC:
   case ObjCRuntime::ObjFW:
     return getObjCPersonality(T, L);
-  case ObjCRuntime::GNUstep:
-    return EHPersonality::GNU_ObjCXX;
   }
   llvm_unreachable("bad runtime kind");
 }
@@ -209,8 +205,9 @@ const EHPersonality &EHPersonality::get(CodeGenModule &CGM,
   if (T.isWindowsMSVCEnvironment() && !L.ObjC1) {
     if (L.SjLjExceptions)
       return EHPersonality::GNU_CPlusPlus_SJLJ;
-    else
-      return EHPersonality::MSVC_CxxFrameHandler3;
+    if (L.DWARFExceptions)
+      return EHPersonality::GNU_CPlusPlus;
+    return EHPersonality::MSVC_CxxFrameHandler3;
   }
 
   if (L.CPlusPlus && L.ObjC1)
@@ -224,7 +221,12 @@ const EHPersonality &EHPersonality::get(CodeGenModule &CGM,
 }
 
 const EHPersonality &EHPersonality::get(CodeGenFunction &CGF) {
-  return get(CGF.CGM, dyn_cast_or_null<FunctionDecl>(CGF.CurCodeDecl));
+  const auto *FD = CGF.CurCodeDecl;
+  // For outlined finallys and filters, use the SEH personality in case they
+  // contain more SEH. This mostly only affects finallys. Filters could
+  // hypothetically use gnu statement expressions to sneak in nested SEH.
+  FD = FD ? FD : CGF.CurSEHParent;
+  return get(CGF.CGM, dyn_cast_or_null<FunctionDecl>(FD));
 }
 
 static llvm::Constant *getPersonalityFn(CodeGenModule &CGM,
@@ -1800,7 +1802,8 @@ void CodeGenFunction::EnterSEHTryStmt(const SEHTryStmt &S) {
   // "catch i8* null". We can't do this on x86 because the filter has to save
   // the exception code.
   llvm::Constant *C =
-      CGM.EmitConstantExpr(Except->getFilterExpr(), getContext().IntTy, this);
+    ConstantEmitter(*this).tryEmitAbstract(Except->getFilterExpr(),
+                                           getContext().IntTy);
   if (CGM.getTarget().getTriple().getArch() != llvm::Triple::x86 && C &&
       C->isOneValue()) {
     CatchScope->setCatchAllHandler(0, createBasicBlock("__except"));
