@@ -144,7 +144,10 @@ After changing vfs.root.mountfrom with
 can be used to change the root filesystem while preserving kernel state.
 This requires the
 .Xr tmpfs 5
-kernel module to be loaded.
+kernel module to be loaded because
+.Xr init 8
+needs a place to store itself after the old root is unmounted, but
+before the new root is in place.
 .El
 .Pp
 The
