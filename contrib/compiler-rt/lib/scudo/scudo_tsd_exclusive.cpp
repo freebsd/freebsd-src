@@ -1,4 +1,4 @@
-//===-- scudo_tls_linux.cpp -------------------------------------*- C++ -*-===//
+//===-- scudo_tsd_exclusive.cpp ---------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,18 +7,13 @@
 //
 //===----------------------------------------------------------------------===//
 ///
-/// Scudo thread local structure implementation for platforms supporting
-/// thread_local.
+/// Scudo exclusive TSD implementation.
 ///
 //===----------------------------------------------------------------------===//
 
-#include "sanitizer_common/sanitizer_platform.h"
+#include "scudo_tsd.h"
 
-#if SANITIZER_LINUX && !SANITIZER_ANDROID
-
-#include "scudo_tls.h"
-
-#include <pthread.h>
+#if SCUDO_TSD_EXCLUSIVE
 
 namespace __scudo {
 
@@ -28,7 +23,11 @@ static pthread_key_t PThreadKey;
 __attribute__((tls_model("initial-exec")))
 THREADLOCAL ThreadState ScudoThreadState = ThreadNotInitialized;
 __attribute__((tls_model("initial-exec")))
-THREADLOCAL ScudoThreadContext ThreadLocalContext;
+THREADLOCAL ScudoTSD TSD;
+
+// Fallback TSD for when the thread isn't initialized yet or is torn down. It
+// can be shared between multiple threads and as such must be locked.
+ScudoTSD FallbackTSD;
 
 static void teardownThread(void *Ptr) {
   uptr I = reinterpret_cast<uptr>(Ptr);
@@ -43,7 +42,7 @@ static void teardownThread(void *Ptr) {
                                    reinterpret_cast<void *>(I - 1)) == 0))
       return;
   }
-  ThreadLocalContext.commitBack();
+  TSD.commitBack();
   ScudoThreadState = ThreadTornDown;
 }
 
@@ -51,16 +50,19 @@ static void teardownThread(void *Ptr) {
 static void initOnce() {
   CHECK_EQ(pthread_key_create(&PThreadKey, teardownThread), 0);
   initScudo();
+  FallbackTSD.init(/*Shared=*/true);
 }
 
-void initThread() {
+void initThread(bool MinimalInit) {
   CHECK_EQ(pthread_once(&GlobalInitialized, initOnce), 0);
+  if (UNLIKELY(MinimalInit))
+    return;
   CHECK_EQ(pthread_setspecific(PThreadKey, reinterpret_cast<void *>(
       GetPthreadDestructorIterations())), 0);
-  ThreadLocalContext.init();
+  TSD.init(/*Shared=*/false);
   ScudoThreadState = ThreadInitialized;
 }
 
 }  // namespace __scudo
 
-#endif  // SANITIZER_LINUX && !SANITIZER_ANDROID
+#endif  // SCUDO_TSD_EXCLUSIVE
