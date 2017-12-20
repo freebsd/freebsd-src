@@ -16,19 +16,13 @@
 
 	.syntax unified
 	.text
-#if defined(USE_THUMB_PROLOGUE)
-	.thumb
-#endif
+	DEFINE_CODE_STATE
 
 @ unsigned int __umodsi3(unsigned int divident, unsigned int divisor)
 @   Calculate and return the remainder of the (unsigned) division.
 
 	.p2align 2
-#if defined(USE_THUMB_PROLOGUE)
-DEFINE_COMPILERRT_THUMB_FUNCTION(__umodsi3)
-#else
 DEFINE_COMPILERRT_FUNCTION(__umodsi3)
-#endif
 #if __ARM_ARCH_EXT_IDIV__
 	tst     r1, r1
 	beq     LOCAL_LABEL(divby0)
