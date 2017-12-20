@@ -4,7 +4,7 @@
 
 .PATH:		${CLANG_SRCS}/lib/Headers
 
-INCSDIR=	${LIBDIR}/clang/5.0.1/include
+INCSDIR=	${LIBDIR}/clang/6.0.0/include
 
 GENINCS+=	arm_neon.h
 
@@ -20,6 +20,7 @@ INCS+=		__wmmintrin_pclmul.h
 INCS+=		adxintrin.h
 INCS+=		altivec.h
 INCS+=		ammintrin.h
+INCS+=		arm64intr.h
 INCS+=		arm_acle.h
 INCS+=		armintr.h
 INCS+=		avx2intrin.h
@@ -38,10 +39,13 @@ INCS+=		avx512vlcdintrin.h
 INCS+=		avx512vldqintrin.h
 INCS+=		avx512vlintrin.h
 INCS+=		avx512vpopcntdqintrin.h
+INCS+=		avx512vpopcntdqvlintrin.h
 INCS+=		avxintrin.h
 INCS+=		bmi2intrin.h
 INCS+=		bmiintrin.h
+INCS+=		cetintrin.h
 INCS+=		clflushoptintrin.h
+INCS+=		clwbintrin.h
 INCS+=		clzerointrin.h
 INCS+=		cpuid.h
 INCS+=		emmintrin.h
