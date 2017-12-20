@@ -1791,9 +1791,15 @@ md_preloaded(u_char *image, size_t length, const char *name)
 	sc->start = mdstart_preload;
 	if (name != NULL)
 		strlcpy(sc->file, name, sizeof(sc->file));
-#if defined(MD_ROOT) && !defined(ROOTDEVNAME)
-	if (sc->unit == 0)
+#ifdef MD_ROOT
+	if (sc->unit == 0) {
+#ifndef ROOTDEVNAME
 		rootdevnames[0] = MD_ROOT_FSTYPE ":/dev/md0";
+#endif
+#ifdef MD_ROOT_READONLY
+		sc->flags |= MD_READONLY;
+#endif
+	}
 #endif
 	mdinit(sc);
 	if (name != NULL) {
