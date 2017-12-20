@@ -28,7 +28,7 @@
 .\"	@(#)reboot.8	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2017
+.Dd December 20, 2017
 .Dt REBOOT 8
 .Os
 .Sh NAME
@@ -142,6 +142,9 @@ After changing vfs.root.mountfrom with
 .Xr kenv 1 ,
 .Nm Fl r
 can be used to change the root filesystem while preserving kernel state.
+This requires the
+.Xr tmpfs 5
+kernel module to be loaded.
 .El
 .Pp
 The
