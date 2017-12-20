@@ -222,6 +222,7 @@ bool TypePrinter::canPrefixQualifiers(const Type *T,
     case Type::LValueReference:
     case Type::RValueReference:
     case Type::MemberPointer:
+    case Type::DependentAddressSpace:
     case Type::DependentSizedExtVector:
     case Type::Vector:
     case Type::ExtVector:
@@ -527,6 +528,19 @@ void TypePrinter::printDependentSizedArrayAfter(
   printAfter(T->getElementType(), OS);
 }
 
+void TypePrinter::printDependentAddressSpaceBefore(
+    const DependentAddressSpaceType *T, raw_ostream &OS) {
+  printBefore(T->getPointeeType(), OS);
+}
+void TypePrinter::printDependentAddressSpaceAfter(
+    const DependentAddressSpaceType *T, raw_ostream &OS) {
+  OS << " __attribute__((address_space(";
+  if (T->getAddrSpaceExpr())
+    T->getAddrSpaceExpr()->printPretty(OS, nullptr, Policy);
+  OS << ")))";
+  printAfter(T->getPointeeType(), OS);
+}
+
 void TypePrinter::printDependentSizedExtVectorBefore(
                                           const DependentSizedExtVectorType *T, 
                                           raw_ostream &OS) { 
@@ -665,6 +679,8 @@ void TypePrinter::printFunctionProtoAfter(const FunctionProtoType *T,
 
       auto EPI = T->getExtParameterInfo(i);
       if (EPI.isConsumed()) OS << "__attribute__((ns_consumed)) ";
+      if (EPI.isNoEscape())
+        OS << "__attribute__((noescape)) ";
       auto ABI = EPI.getABI();
       if (ABI != ParameterABI::Ordinary)
         OS << "__attribute__((" << getParameterABISpelling(ABI) << ")) ";
@@ -966,8 +982,7 @@ void TypePrinter::AppendScope(DeclContext *DC, raw_ostream &OS) {
     IncludeStrongLifetimeRAII Strong(Policy);
     OS << Spec->getIdentifier()->getName();
     const TemplateArgumentList &TemplateArgs = Spec->getTemplateArgs();
-    TemplateSpecializationType::PrintTemplateArgumentList(
-        OS, TemplateArgs.asArray(), Policy);
+    printTemplateArgumentList(OS, TemplateArgs.asArray(), Policy);
     OS << "::";
   } else if (TagDecl *Tag = dyn_cast<TagDecl>(DC)) {
     if (TypedefNameDecl *Typedef = Tag->getTypedefNameForAnonDecl())
@@ -1054,7 +1069,7 @@ void TypePrinter::printTag(TagDecl *D, raw_ostream &OS) {
       Args = TemplateArgs.asArray();
     }
     IncludeStrongLifetimeRAII Strong(Policy);
-    TemplateSpecializationType::PrintTemplateArgumentList(OS, Args, Policy);
+    printTemplateArgumentList(OS, Args, Policy);
   }
 
   spaceBeforePlaceHolder(OS);
@@ -1113,8 +1128,7 @@ void TypePrinter::printTemplateSpecializationBefore(
   IncludeStrongLifetimeRAII Strong(Policy);
   T->getTemplateName().print(OS, Policy);
 
-  TemplateSpecializationType::PrintTemplateArgumentList(
-      OS, T->template_arguments(), Policy);
+  printTemplateArgumentList(OS, T->template_arguments(), Policy);
   spaceBeforePlaceHolder(OS);
 }
 void TypePrinter::printTemplateSpecializationAfter(
@@ -1182,19 +1196,18 @@ void TypePrinter::printDependentNameAfter(const DependentNameType *T,
 void TypePrinter::printDependentTemplateSpecializationBefore(
         const DependentTemplateSpecializationType *T, raw_ostream &OS) { 
   IncludeStrongLifetimeRAII Strong(Policy);
-  
+
   OS << TypeWithKeyword::getKeywordName(T->getKeyword());
   if (T->getKeyword() != ETK_None)
     OS << " ";
-  
+
   if (T->getQualifier())
-    T->getQualifier()->print(OS, Policy);    
+    T->getQualifier()->print(OS, Policy);
   OS << T->getIdentifier()->getName();
-  TemplateSpecializationType::PrintTemplateArgumentList(OS,
-                                                        T->template_arguments(),
-                                                        Policy);
+  printTemplateArgumentList(OS, T->template_arguments(), Policy);
   spaceBeforePlaceHolder(OS);
 }
+
 void TypePrinter::printDependentTemplateSpecializationAfter(
         const DependentTemplateSpecializationType *T, raw_ostream &OS) { } 
 
@@ -1304,7 +1317,9 @@ void TypePrinter::printAttributedAfter(const AttributedType *T,
   default: llvm_unreachable("This attribute should have been handled already");
   case AttributedType::attr_address_space:
     OS << "address_space(";
-    OS << T->getEquivalentType().getAddressSpace();
+    // FIXME: printing the raw LangAS value is wrong. This should probably
+    // use the same code as Qualifiers::print()
+    OS << (unsigned)T->getEquivalentType().getAddressSpace();
     OS << ')';
     break;
 
@@ -1503,41 +1518,39 @@ void TypePrinter::printObjCObjectPointerBefore(const ObjCObjectPointerType *T,
     OS << '*';
   }
 }
+
 void TypePrinter::printObjCObjectPointerAfter(const ObjCObjectPointerType *T, 
                                               raw_ostream &OS) { }
 
-void TemplateSpecializationType::
-  PrintTemplateArgumentList(raw_ostream &OS,
-                            const TemplateArgumentListInfo &Args,
-                            const PrintingPolicy &Policy) {
-  return PrintTemplateArgumentList(OS,
-                                   Args.arguments(),
-                                   Policy);
+static
+const TemplateArgument &getArgument(const TemplateArgument &A) { return A; }
+
+static const TemplateArgument &getArgument(const TemplateArgumentLoc &A) {
+  return A.getArgument();
 }
 
-void TemplateSpecializationType::PrintTemplateArgumentList(
-    raw_ostream &OS, ArrayRef<TemplateArgument> Args,
-    const PrintingPolicy &Policy, bool SkipBrackets) {
+template<typename TA>
+static void printTo(raw_ostream &OS, ArrayRef<TA> Args,
+                    const PrintingPolicy &Policy, bool SkipBrackets) {
   const char *Comma = Policy.MSVCFormatting ? "," : ", ";
   if (!SkipBrackets)
     OS << '<';
 
-  bool needSpace = false;
+  bool NeedSpace = false;
   bool FirstArg = true;
-  for (const TemplateArgument &Arg : Args) {
+  for (const auto &Arg : Args) {
     // Print the argument into a string.
     SmallString<128> Buf;
     llvm::raw_svector_ostream ArgOS(Buf);
-    if (Arg.getKind() == TemplateArgument::Pack) {
-      if (Arg.pack_size() && !FirstArg)
+    const TemplateArgument &Argument = getArgument(Arg);
+    if (Argument.getKind() == TemplateArgument::Pack) {
+      if (Argument.pack_size() && !FirstArg)
         OS << Comma;
-      PrintTemplateArgumentList(ArgOS,
-                                Arg.getPackAsArray(),
-                                Policy, true);
+      printTo(ArgOS, Argument.getPackAsArray(), Policy, true);
     } else {
       if (!FirstArg)
         OS << Comma;
-      Arg.print(Policy, ArgOS);
+      Argument.print(Policy, ArgOS);
     }
     StringRef ArgString = ArgOS.str();
 
@@ -1549,65 +1562,36 @@ void TemplateSpecializationType::PrintTemplateArgumentList(
 
     OS << ArgString;
 
-    needSpace = (!ArgString.empty() && ArgString.back() == '>');
+    NeedSpace = (!ArgString.empty() && ArgString.back() == '>');
     FirstArg = false;
   }
 
   // If the last character of our string is '>', add another space to
   // keep the two '>''s separate tokens. We don't *have* to do this in
   // C++0x, but it's still good hygiene.
-  if (needSpace)
+  if (NeedSpace)
     OS << ' ';
 
   if (!SkipBrackets)
     OS << '>';
 }
 
-// Sadly, repeat all that with TemplateArgLoc.
-void TemplateSpecializationType::
-PrintTemplateArgumentList(raw_ostream &OS,
-                          ArrayRef<TemplateArgumentLoc> Args,
-                          const PrintingPolicy &Policy) {
-  OS << '<';
-  const char *Comma = Policy.MSVCFormatting ? "," : ", ";
+void clang::printTemplateArgumentList(raw_ostream &OS,
+                                      const TemplateArgumentListInfo &Args,
+                                      const PrintingPolicy &Policy) {
+  return printTo(OS, Args.arguments(), Policy, false);
+}
 
-  bool needSpace = false;
-  bool FirstArg = true;
-  for (const TemplateArgumentLoc &Arg : Args) {
-    if (!FirstArg)
-      OS << Comma;
+void clang::printTemplateArgumentList(raw_ostream &OS,
+                                      ArrayRef<TemplateArgument> Args,
+                                      const PrintingPolicy &Policy) {
+  printTo(OS, Args, Policy, false);
+}
 
-    // Print the argument into a string.
-    SmallString<128> Buf;
-    llvm::raw_svector_ostream ArgOS(Buf);
-    if (Arg.getArgument().getKind() == TemplateArgument::Pack) {
-      PrintTemplateArgumentList(ArgOS,
-                                Arg.getArgument().getPackAsArray(),
-                                Policy, true);
-    } else {
-      Arg.getArgument().print(Policy, ArgOS);
-    }
-    StringRef ArgString = ArgOS.str();
-
-    // If this is the first argument and its string representation
-    // begins with the global scope specifier ('::foo'), add a space
-    // to avoid printing the diagraph '<:'.
-    if (FirstArg && !ArgString.empty() && ArgString[0] == ':')
-      OS << ' ';
-
-    OS << ArgString;
-
-    needSpace = (!ArgString.empty() && ArgString.back() == '>');
-    FirstArg = false;
-  }
-
-  // If the last character of our string is '>', add another space to
-  // keep the two '>''s separate tokens. We don't *have* to do this in
-  // C++0x, but it's still good hygiene.
-  if (needSpace)
-    OS << ' ';
-
-  OS << '>';
+void clang::printTemplateArgumentList(raw_ostream &OS,
+                                      ArrayRef<TemplateArgumentLoc> Args,
+                                      const PrintingPolicy &Policy) {
+  printTo(OS, Args, Policy, false);
 }
 
 std::string Qualifiers::getAsString() const {
@@ -1629,7 +1613,7 @@ bool Qualifiers::isEmptyWhenPrinted(const PrintingPolicy &Policy) const {
   if (getCVRQualifiers())
     return false;
 
-  if (getAddressSpace())
+  if (getAddressSpace() != LangAS::Default)
     return false;
 
   if (getObjCGCAttr())
@@ -1660,16 +1644,20 @@ void Qualifiers::print(raw_ostream &OS, const PrintingPolicy& Policy,
     OS << "__unaligned";
     addSpace = true;
   }
-  if (unsigned addrspace = getAddressSpace()) {
-    if (addSpace)
-      OS << ' ';
-    addSpace = true;
-    switch (addrspace) {
+  LangAS addrspace = getAddressSpace();
+  if (addrspace != LangAS::Default) {
+    if (addrspace != LangAS::opencl_private) {
+      if (addSpace)
+        OS << ' ';
+      addSpace = true;
+      switch (addrspace) {
       case LangAS::opencl_global:
         OS << "__global";
         break;
       case LangAS::opencl_local:
         OS << "__local";
+        break;
+      case LangAS::opencl_private:
         break;
       case LangAS::opencl_constant:
       case LangAS::cuda_constant:
@@ -1685,10 +1673,10 @@ void Qualifiers::print(raw_ostream &OS, const PrintingPolicy& Policy,
         OS << "__shared";
         break;
       default:
-        assert(addrspace >= LangAS::FirstTargetAddressSpace);
         OS << "__attribute__((address_space(";
-        OS << addrspace - LangAS::FirstTargetAddressSpace;
+        OS << toTargetAddressSpace(addrspace);
         OS << ")))";
+      }
     }
   }
   if (Qualifiers::GC gc = getObjCGCAttr()) {
