@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lld/Core/Reproduce.h"
+#include "lld/Common/Reproduce.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
@@ -44,9 +44,9 @@ std::string lld::relativeToRoot(StringRef Path) {
 
 // Quote a given string if it contains a space character.
 std::string lld::quote(StringRef S) {
-  if (S.find(' ') == StringRef::npos)
-    return S;
-  return ("\"" + S + "\"").str();
+  if (S.contains(' '))
+    return ("\"" + S + "\"").str();
+  return S;
 }
 
 std::string lld::rewritePath(StringRef S) {
@@ -55,12 +55,12 @@ std::string lld::rewritePath(StringRef S) {
   return S;
 }
 
-std::string lld::toString(opt::Arg *Arg) {
-  std::string K = Arg->getSpelling();
-  if (Arg->getNumValues() == 0)
+std::string lld::toString(const opt::Arg &Arg) {
+  std::string K = Arg.getSpelling();
+  if (Arg.getNumValues() == 0)
     return K;
-  std::string V = quote(Arg->getValue());
-  if (Arg->getOption().getRenderStyle() == opt::Option::RenderJoinedStyle)
+  std::string V = quote(Arg.getValue());
+  if (Arg.getOption().getRenderStyle() == opt::Option::RenderJoinedStyle)
     return K + V;
   return K + " " + V;
 }

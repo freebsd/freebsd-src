@@ -17,23 +17,22 @@
 // Arena allocators are efficient and easy to understand.
 // Most objects are allocated using the arena allocators defined by this file.
 //
-// If you edit this file, please edit COFF/Memory.h too.
-//
 //===----------------------------------------------------------------------===//
 
-#ifndef LLD_ELF_MEMORY_H
-#define LLD_ELF_MEMORY_H
+#ifndef LLD_COMMON_MEMORY_H
+#define LLD_COMMON_MEMORY_H
 
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/StringSaver.h"
 #include <vector>
 
 namespace lld {
-namespace elf {
 
 // Use this arena if your object doesn't have a destructor.
 extern llvm::BumpPtrAllocator BAlloc;
 extern llvm::StringSaver Saver;
+
+void freeArena();
 
 // These two classes are hack to keep track of all
 // SpecificBumpPtrAllocator instances.
@@ -56,12 +55,6 @@ template <typename T, typename... U> T *make(U &&... Args) {
   return new (Alloc.Alloc.Allocate()) T(std::forward<U>(Args)...);
 }
 
-inline void freeArena() {
-  for (SpecificAllocBase *Alloc : SpecificAllocBase::Instances)
-    Alloc->reset();
-  BAlloc.Reset();
-}
-} // namespace elf
 } // namespace lld
 
 #endif

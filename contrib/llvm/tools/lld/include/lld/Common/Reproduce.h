@@ -7,10 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLD_CORE_REPRODUCE_H
-#define LLD_CORE_REPRODUCE_H
+#ifndef LLD_COMMON_REPRODUCE_H
+#define LLD_COMMON_REPRODUCE_H
 
-#include "lld/Core/LLVM.h"
+#include "lld/Common/LLVM.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 
@@ -33,7 +33,7 @@ std::string quote(StringRef S);
 std::string rewritePath(StringRef S);
 
 // Returns the string form of the given argument.
-std::string toString(llvm::opt::Arg *Arg);
+std::string toString(const llvm::opt::Arg &Arg);
 }
 
 #endif
