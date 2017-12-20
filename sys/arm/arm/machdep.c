@@ -1129,6 +1129,19 @@ initarm(struct arm_boot_params *abp)
 	pmap_bootstrap_prepare(lastaddr);
 
 	/*
+	 * If EARLY_PRINTF support is enabled, we need to re-establish the
+	 * mapping after pmap_bootstrap_prepare() switches to new page tables.
+	 * Note that we can only do the remapping if the VA is outside the
+	 * kernel, now that we have real virtual (not VA=PA) mappings in effect.
+	 * Early printf does not work between the time pmap_set_tex() does
+	 * cp15_prrr_set() and this code remaps the VA.
+	 */
+#if defined(EARLY_PRINTF) && defined(SOCDEV_PA) && defined(SOCDEV_VA) && SOCDEV_VA < KERNBASE
+	pmap_preboot_map_attr(SOCDEV_PA, SOCDEV_VA, 1024 * 1024, 
+	    VM_PROT_READ | VM_PROT_WRITE, VM_MEMATTR_DEVICE);
+#endif
+
+	/*
 	 * Now that proper page tables are installed, call cpu_setup() to enable
 	 * instruction and data caches and other chip-specific features.
 	 */
