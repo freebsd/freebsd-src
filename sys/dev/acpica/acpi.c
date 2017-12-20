@@ -1014,10 +1014,7 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
      * name to see if one's resources are a subset of this device.
      */
     line = 0;
-    for (;;) {
-	if (resource_find_dev(&line, name, &unit, "at", NULL) != 0)
-	    break;
-
+    while (resource_find_dev(&line, name, &unit, "at", NULL) == 0) {
 	/* Must have an "at" for acpi or isa. */
 	resource_string_value(name, unit, "at", &s);
 	if (!(strcmp(s, "acpi0") == 0 || strcmp(s, "acpi") == 0 ||
