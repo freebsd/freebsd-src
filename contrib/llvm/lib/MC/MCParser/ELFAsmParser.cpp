@@ -247,7 +247,7 @@ bool ELFAsmParser::ParseSectionName(StringRef &SectionName) {
     return false;
   }
 
-  while (true) {
+  while (!getParser().hasPendingError()) {
     SMLoc PrevLoc = getLexer().getLoc();
     if (getLexer().is(AsmToken::Comma) ||
       getLexer().is(AsmToken::EndOfStatement))
@@ -488,7 +488,6 @@ bool ELFAsmParser::ParseSectionArguments(bool IsPush, SMLoc loc) {
   unsigned Flags = 0;
   const MCExpr *Subsection = nullptr;
   bool UseLastGroup = false;
-  StringRef UniqueStr;
   MCSymbolELF *Associated = nullptr;
   int64_t UniqueID = ~0;
 

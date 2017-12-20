@@ -294,7 +294,7 @@ class AMDGPUAtomicIncIntrin : Intrinsic<[llvm_anyint_ty],
 def int_amdgcn_atomic_inc : AMDGPUAtomicIncIntrin;
 def int_amdgcn_atomic_dec : AMDGPUAtomicIncIntrin;
 
-class AMDGPUImageLoad : Intrinsic <
+class AMDGPUImageLoad<bit NoMem = 0> : Intrinsic <
   [llvm_anyfloat_ty], // vdata(VGPR)
   [llvm_anyint_ty,    // vaddr(VGPR)
    llvm_anyint_ty,    // rsrc(SGPR)
@@ -303,11 +303,11 @@ class AMDGPUImageLoad : Intrinsic <
    llvm_i1_ty,        // slc(imm)
    llvm_i1_ty,        // lwe(imm)
    llvm_i1_ty],       // da(imm)
-  [IntrReadMem]>;
+  !if(NoMem, [IntrNoMem], [IntrReadMem])>;
 
 def int_amdgcn_image_load : AMDGPUImageLoad;
 def int_amdgcn_image_load_mip : AMDGPUImageLoad;
-def int_amdgcn_image_getresinfo : AMDGPUImageLoad;
+def int_amdgcn_image_getresinfo : AMDGPUImageLoad<1>;
 
 class AMDGPUImageStore : Intrinsic <
   [],
@@ -324,7 +324,7 @@ class AMDGPUImageStore : Intrinsic <
 def int_amdgcn_image_store : AMDGPUImageStore;
 def int_amdgcn_image_store_mip : AMDGPUImageStore;
 
-class AMDGPUImageSample : Intrinsic <
+class AMDGPUImageSample<bit NoMem = 0> : Intrinsic <
     [llvm_anyfloat_ty], // vdata(VGPR)
     [llvm_anyfloat_ty,  // vaddr(VGPR)
      llvm_anyint_ty,    // rsrc(SGPR)
@@ -335,7 +335,7 @@ class AMDGPUImageSample : Intrinsic <
      llvm_i1_ty,        // slc(imm)
      llvm_i1_ty,        // lwe(imm)
      llvm_i1_ty],       // da(imm)
-     [IntrReadMem]>;
+     !if(NoMem, [IntrNoMem], [IntrReadMem])>;
 
 // Basic sample
 def int_amdgcn_image_sample : AMDGPUImageSample;
@@ -417,7 +417,7 @@ def int_amdgcn_image_gather4_c_b_o : AMDGPUImageSample;
 def int_amdgcn_image_gather4_c_b_cl_o : AMDGPUImageSample;
 def int_amdgcn_image_gather4_c_lz_o : AMDGPUImageSample;
 
-def int_amdgcn_image_getlod : AMDGPUImageSample;
+def int_amdgcn_image_getlod : AMDGPUImageSample<1>;
 
 class AMDGPUImageAtomic : Intrinsic <
   [llvm_i32_ty],
@@ -570,7 +570,7 @@ def int_amdgcn_s_dcache_inv :
 
 def int_amdgcn_s_memtime :
   GCCBuiltin<"__builtin_amdgcn_s_memtime">,
-  Intrinsic<[llvm_i64_ty], [], []>;
+  Intrinsic<[llvm_i64_ty], [], [IntrReadMem]>;
 
 def int_amdgcn_s_sleep :
   GCCBuiltin<"__builtin_amdgcn_s_sleep">,
@@ -740,6 +740,41 @@ def int_amdgcn_alignbyte : Intrinsic<[llvm_i32_ty],
   [IntrNoMem, IntrSpeculatable]
 >;
 
+
+// Copies the source value to the destination value, with the guarantee that
+// the source value is computed as if the entire program were executed in WQM.
+def int_amdgcn_wqm : Intrinsic<[llvm_any_ty],
+  [LLVMMatchType<0>], [IntrNoMem, IntrSpeculatable]
+>;
+
+// Return true if at least one thread within the pixel quad passes true into
+// the function.
+def int_amdgcn_wqm_vote : Intrinsic<[llvm_i1_ty],
+  [llvm_i1_ty], [IntrNoMem, IntrConvergent]
+>;
+
+// If false, set EXEC=0 for the current thread until the end of program.
+def int_amdgcn_kill : Intrinsic<[], [llvm_i1_ty], []>;
+
+// Copies the active channels of the source value to the destination value,
+// with the guarantee that the source value is computed as if the entire
+// program were executed in Whole Wavefront Mode, i.e. with all channels
+// enabled, with a few exceptions: - Phi nodes with require WWM return an
+// undefined value.
+def int_amdgcn_wwm : Intrinsic<[llvm_any_ty],
+  [LLVMMatchType<0>], [IntrNoMem, IntrSpeculatable]
+>;
+
+// Given a value, copies it while setting all the inactive lanes to a given
+// value. Note that OpenGL helper lanes are considered active, so if the
+// program ever uses WQM, then the instruction and the first source will be
+// computed in WQM.
+def int_amdgcn_set_inactive :
+  Intrinsic<[llvm_anyint_ty],
+            [LLVMMatchType<0>, // value to be copied
+             LLVMMatchType<0>], // value for the inactive lanes to take
+            [IntrNoMem, IntrConvergent]>;
+
 //===----------------------------------------------------------------------===//
 // CI+ Intrinsics
 //===----------------------------------------------------------------------===//
@@ -762,6 +797,15 @@ def int_amdgcn_mov_dpp :
             [LLVMMatchType<0>, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
              llvm_i1_ty], [IntrNoMem, IntrConvergent]>;
 
+// llvm.amdgcn.update.dpp.i32 <old> <src> <dpp_ctrl> <row_mask> <bank_mask> <bound_ctrl>
+// Should be equivalent to:
+// v_mov_b32 <dest> <old>
+// v_mov_b32 <dest> <src> <dpp_ctrl> <row_mask> <bank_mask> <bound_ctrl>
+def int_amdgcn_update_dpp :
+  Intrinsic<[llvm_anyint_ty],
+            [LLVMMatchType<0>, LLVMMatchType<0>, llvm_i32_ty, llvm_i32_ty,
+             llvm_i32_ty, llvm_i1_ty], [IntrNoMem, IntrConvergent]>;
+
 def int_amdgcn_s_dcache_wb :
   GCCBuiltin<"__builtin_amdgcn_s_dcache_wb">,
   Intrinsic<[], [], []>;
@@ -772,7 +816,7 @@ def int_amdgcn_s_dcache_wb_vol :
 
 def int_amdgcn_s_memrealtime :
   GCCBuiltin<"__builtin_amdgcn_s_memrealtime">,
-  Intrinsic<[llvm_i64_ty], [], []>;
+  Intrinsic<[llvm_i64_ty], [], [IntrReadMem]>;
 
 // llvm.amdgcn.ds.permute <index> <src>
 def int_amdgcn_ds_permute :

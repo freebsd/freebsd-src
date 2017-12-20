@@ -878,7 +878,7 @@ bool SCEVExpander::isNormalAddRecExprPHI(PHINode *PN, Instruction *IncV,
   if (IncV->mayHaveSideEffects())
     return false;
 
-  if (IncV != PN)
+  if (IncV == PN)
     return true;
 
   return isNormalAddRecExprPHI(PN, IncV, L);
@@ -1143,7 +1143,11 @@ SCEVExpander::getAddRecExprPHILiterally(const SCEVAddRecExpr *Normalized,
 
     for (auto &I : *L->getHeader()) {
       auto *PN = dyn_cast<PHINode>(&I);
-      if (!PN || !SE.isSCEVable(PN->getType()))
+      // Found first non-phi, the rest of instructions are also not Phis.
+      if (!PN)
+        break;
+
+      if (!SE.isSCEVable(PN->getType()))
         continue;
 
       const SCEVAddRecExpr *PhiSCEV = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(PN));
@@ -1728,10 +1732,28 @@ Value *SCEVExpander::expand(const SCEV *S) {
         InsertPt = &*L->getHeader()->getFirstInsertionPt();
       }
     } else {
+      // We can move insertion point only if there is no div or rem operations
+      // otherwise we are risky to move it over the check for zero denominator.
+      auto SafeToHoist = [](const SCEV *S) {
+        return !SCEVExprContains(S, [](const SCEV *S) {
+                  if (const auto *D = dyn_cast<SCEVUDivExpr>(S)) {
+                    if (const auto *SC = dyn_cast<SCEVConstant>(D->getRHS()))
+                      // Division by non-zero constants can be hoisted.
+                      return SC->getValue()->isZero();
+                    // All other divisions should not be moved as they may be
+                    // divisions by zero and should be kept within the
+                    // conditions of the surrounding loops that guard their
+                    // execution (see PR35406).
+                    return true;
+                  }
+                  return false;
+                });
+      };
       // If the SCEV is computable at this level, insert it into the header
       // after the PHIs (and after any other instructions that we've inserted
       // there) so that it is guaranteed to dominate any user inside the loop.
-      if (L && SE.hasComputableLoopEvolution(S, L) && !PostIncLoops.count(L))
+      if (L && SE.hasComputableLoopEvolution(S, L) && !PostIncLoops.count(L) &&
+          SafeToHoist(S))
         InsertPt = &*L->getHeader()->getFirstInsertionPt();
       while (InsertPt->getIterator() != Builder.GetInsertPoint() &&
              (isInsertedInstruction(InsertPt) ||
@@ -2292,5 +2314,10 @@ bool isSafeToExpand(const SCEV *S, ScalarEvolution &SE) {
   SCEVFindUnsafe Search(SE);
   visitAll(S, Search);
   return !Search.IsUnsafe;
+}
+
+bool isSafeToExpandAt(const SCEV *S, const Instruction *InsertionPoint,
+                      ScalarEvolution &SE) {
+  return isSafeToExpand(S, SE) && SE.dominates(S, InsertionPoint->getParent());
 }
 }
