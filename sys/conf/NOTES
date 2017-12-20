@@ -1101,6 +1101,9 @@ options 	MD_ROOT_SIZE=10
 # images of type mfs_root or md_root.
 options 	MD_ROOT
 
+# Write-protect the md root device so that it may not be mounted writeable.
+options 	MD_ROOT_READONLY
+
 # Disk quotas are supported when this option is enabled.
 options 	QUOTA			#enable disk quotas
 
