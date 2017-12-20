@@ -30,7 +30,7 @@
 //  - We have tens of millions of small strings when constructing a
 //    mergeable string section.
 //
-// For the cases such as the former, we can just use parallel_for_each
+// For the cases such as the former, we can just use parallelForEach
 // instead of std::for_each (or a plain for loop). Because tasks are
 // completely independent from each other, we can run them in parallel
 // without any coordination between them. That's very easy to understand
@@ -56,33 +56,31 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLD_ELF_THREADS_H
-#define LLD_ELF_THREADS_H
-
-#include "Config.h"
+#ifndef LLD_COMMON_THREADS_H
+#define LLD_COMMON_THREADS_H
 
 #include "llvm/Support/Parallel.h"
 #include <functional>
 
 namespace lld {
-namespace elf {
 
-template <class IterTy, class FuncTy>
-void parallelForEach(IterTy Begin, IterTy End, FuncTy Fn) {
-  if (Config->Threads)
-    for_each(llvm::parallel::par, Begin, End, Fn);
+extern bool ThreadsEnabled;
+
+template <typename R, class FuncTy> void parallelForEach(R &&Range, FuncTy Fn) {
+  if (ThreadsEnabled)
+    for_each(llvm::parallel::par, std::begin(Range), std::end(Range), Fn);
   else
-    for_each(llvm::parallel::seq, Begin, End, Fn);
+    for_each(llvm::parallel::seq, std::begin(Range), std::end(Range), Fn);
 }
 
 inline void parallelForEachN(size_t Begin, size_t End,
                              std::function<void(size_t)> Fn) {
-  if (Config->Threads)
+  if (ThreadsEnabled)
     for_each_n(llvm::parallel::par, Begin, End, Fn);
   else
     for_each_n(llvm::parallel::seq, Begin, End, Fn);
 }
-} // namespace elf
+
 } // namespace lld
 
 #endif

@@ -1,4 +1,4 @@
-//===- lld/Driver/Driver.h - Linker Driver Emulator -----------------------===//
+//===- lld/Common/Driver.h - Linker Driver Emulator -----------------------===//
 //
 //                             The LLVM Linker
 //
@@ -7,14 +7,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLD_DRIVER_DRIVER_H
-#define LLD_DRIVER_DRIVER_H
+#ifndef LLD_COMMON_DRIVER_H
+#define LLD_COMMON_DRIVER_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/raw_ostream.h"
 
 namespace lld {
 namespace coff {
+bool link(llvm::ArrayRef<const char *> Args, bool CanExitEarly,
+          llvm::raw_ostream &Diag = llvm::errs());
+}
+
+namespace mingw {
 bool link(llvm::ArrayRef<const char *> Args,
           llvm::raw_ostream &Diag = llvm::errs());
 }
@@ -26,6 +31,11 @@ bool link(llvm::ArrayRef<const char *> Args, bool CanExitEarly,
 
 namespace mach_o {
 bool link(llvm::ArrayRef<const char *> Args,
+          llvm::raw_ostream &Diag = llvm::errs());
+}
+
+namespace wasm {
+bool link(llvm::ArrayRef<const char *> Args, bool CanExitEarly,
           llvm::raw_ostream &Diag = llvm::errs());
 }
 }
