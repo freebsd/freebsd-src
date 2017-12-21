@@ -351,13 +351,18 @@ generic_restart_cpus(cpuset_t map, u_int type)
 
 #if X86
 	if (type == IPI_SUSPEND)
-		cpus = &suspended_cpus;
+		cpus = &resuming_cpus;
 	else
 #endif
 		cpus = &stopped_cpus;
 
 	/* signal other cpus to restart */
-	CPU_COPY_STORE_REL(&map, &started_cpus);
+#if X86
+	if (type == IPI_SUSPEND)
+		CPU_COPY_STORE_REL(&map, &toresume_cpus);
+	else
+#endif
+		CPU_COPY_STORE_REL(&map, &started_cpus);
 
 #if X86
 	if (!nmi_is_broadcast || nmi_kdb_lock == 0) {
