@@ -108,6 +108,7 @@ struct g_mirror_disk_sync {
 	off_t		  ds_offset;	/* Offset of next request to send. */
 	off_t		  ds_offset_done; /* Offset of already synchronized
 					   region. */
+	time_t		  ds_update_ts; /* Time of last metadata update. */
 	u_int		  ds_syncid;	/* Disk's synchronization ID. */
 	u_int		  ds_inflight;	/* Number of in-flight sync requests. */
 	struct bio	**ds_bios;	/* BIOs for synchronization I/O. */
