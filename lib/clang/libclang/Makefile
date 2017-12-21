@@ -7,6 +7,7 @@ LIB=		clang
 
 CFLAGS+=	-I${.OBJDIR}
 CFLAGS+=	-I${OBJTOP}/lib/clang/libllvm
+CFLAGS+=	-I${CLANG_SRCS}/lib/Basic
 CFLAGS+=	-I${CLANG_SRCS}/lib/Driver
 
 # Ensure FREEBSD_CC_VERSION is defined for Basic/Targets.cpp
@@ -82,6 +83,7 @@ SRCS_MIN+=	AST/NestedNameSpecifier.cpp
 SRCS_MIN+=	AST/ODRHash.cpp
 SRCS_MIN+=	AST/OpenMPClause.cpp
 SRCS_MIN+=	AST/ParentMap.cpp
+SRCS_MIN+=	AST/QualTypeNames.cpp
 SRCS_MIN+=	AST/RawCommentList.cpp
 SRCS_MIN+=	AST/RecordLayout.cpp
 SRCS_MIN+=	AST/RecordLayoutBuilder.cpp
@@ -150,11 +152,34 @@ SRCS_MIN+=	Basic/ObjCRuntime.cpp
 SRCS_MIN+=	Basic/OpenMPKinds.cpp
 SRCS_MIN+=	Basic/OperatorPrecedence.cpp
 SRCS_MIN+=	Basic/SanitizerBlacklist.cpp
+SRCS_MIN+=	Basic/SanitizerSpecialCaseList.cpp
 SRCS_MIN+=	Basic/Sanitizers.cpp
 SRCS_MIN+=	Basic/SourceLocation.cpp
 SRCS_MIN+=	Basic/SourceManager.cpp
 SRCS_MIN+=	Basic/TargetInfo.cpp
 SRCS_MIN+=	Basic/Targets.cpp
+SRCS_MIN+=	Basic/Targets/AArch64.cpp
+SRCS_MIN+=	Basic/Targets/AMDGPU.cpp
+SRCS_MIN+=	Basic/Targets/ARM.cpp
+SRCS_MIN+=	Basic/Targets/AVR.cpp
+SRCS_MIN+=	Basic/Targets/BPF.cpp
+SRCS_MIN+=	Basic/Targets/Hexagon.cpp
+SRCS_MIN+=	Basic/Targets/Lanai.cpp
+SRCS_MIN+=	Basic/Targets/Le64.cpp
+SRCS_MIN+=	Basic/Targets/MSP430.cpp
+SRCS_MIN+=	Basic/Targets/Mips.cpp
+SRCS_MIN+=	Basic/Targets/NVPTX.cpp
+SRCS_MIN+=	Basic/Targets/Nios2.cpp
+SRCS_MIN+=	Basic/Targets/OSTargets.cpp
+SRCS_MIN+=	Basic/Targets/PNaCl.cpp
+SRCS_MIN+=	Basic/Targets/PPC.cpp
+SRCS_MIN+=	Basic/Targets/SPIR.cpp
+SRCS_MIN+=	Basic/Targets/Sparc.cpp
+SRCS_MIN+=	Basic/Targets/SystemZ.cpp
+SRCS_MIN+=	Basic/Targets/TCE.cpp
+SRCS_MIN+=	Basic/Targets/WebAssembly.cpp
+SRCS_MIN+=	Basic/Targets/X86.cpp
+SRCS_MIN+=	Basic/Targets/XCore.cpp
 SRCS_MIN+=	Basic/TokenKinds.cpp
 SRCS_MIN+=	Basic/Version.cpp
 SRCS_MIN+=	Basic/VersionTuple.cpp
@@ -237,7 +262,6 @@ SRCS_MIN+=	Driver/ToolChains/Arch/Sparc.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/SystemZ.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/X86.cpp
 SRCS_MIN+=	Driver/ToolChains/BareMetal.cpp
-SRCS_MIN+=	Driver/ToolChains/Bitrig.cpp
 SRCS_MIN+=	Driver/ToolChains/Clang.cpp
 SRCS_MIN+=	Driver/ToolChains/CloudABI.cpp
 SRCS_MIN+=	Driver/ToolChains/CommonArgs.cpp
@@ -576,7 +600,6 @@ SRCS_MIN+=	Tooling/ArgumentsAdjusters.cpp
 SRCS_MIN+=	Tooling/CommonOptionsParser.cpp
 SRCS_MIN+=	Tooling/CompilationDatabase.cpp
 SRCS_MIN+=	Tooling/Core/Lookup.cpp
-SRCS_EXT+=	Tooling/Core/QualTypeNames.cpp
 SRCS_EXT+=	Tooling/Core/Replacement.cpp
 SRCS_MIN+=	Tooling/FileMatchTrie.cpp
 SRCS_MIN+=	Tooling/FixIt.cpp
@@ -665,6 +688,12 @@ clang/AST/DeclNodes.inc: ${CLANG_SRCS}/include/clang/Basic/DeclNodes.td
 	    ${CLANG_SRCS}/include/clang/Basic/DeclNodes.td
 TGHDRS+=	clang/AST/DeclNodes.inc
 
+clang/AST/StmtDataCollectors.inc: ${CLANG_SRCS}/include/clang/AST/StmtDataCollectors.td
+	${CLANG_TBLGEN} -gen-clang-data-collectors \
+	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/AST/StmtDataCollectors.td
+TGHDRS+=	clang/AST/StmtDataCollectors.inc
+
 clang/AST/StmtNodes.inc: ${CLANG_SRCS}/include/clang/Basic/StmtNodes.td
 	${CLANG_TBLGEN} -gen-clang-stmt-nodes \
 	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
@@ -690,7 +719,8 @@ clang/Basic/AttrSubMatchRulesList.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Basic/AttrSubMatchRulesList.inc
 
 .for hdr in \
-	AST Analysis Comment Common Driver Frontend Lex Parse Sema Serialization
+	AST Analysis Comment Common CrossTU Driver Frontend Lex Parse \
+	Refactoring Sema Serialization SemaSerialization
 clang/Basic/Diagnostic${hdr}Kinds.inc: \
 	${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 	${CLANG_TBLGEN} -gen-clang-diags-defs -clang-component=${hdr} \
