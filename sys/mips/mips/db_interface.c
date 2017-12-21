@@ -164,9 +164,9 @@ db_read_bytes(vm_offset_t addr, size_t size, char *data)
 				*(uint32_t *)data = *(uint32_t *)addr;
 				break;
 			case 8:
-				atomic_load_64((volatile u_int64_t *)addr,
-				    (u_int64_t *)data);
-			break;
+				*(uint64_t *)data = atomic_load_64(
+				    (void *)addr);
+				break;
 			}
 		} else {
 			char *src;
@@ -207,9 +207,9 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 				*(uint32_t *)addr = *(uint32_t *)data;
 				break;
 			case 8:
-				atomic_store_64((volatile u_int64_t *)addr,
-				    (u_int64_t *)data);
-			break;
+				atomic_store_64((uint64_t *)addr,
+				    *(uint64_t *)data);
+				break;
 			}
 		} else {
 			char *dst;
