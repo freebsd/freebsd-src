@@ -204,7 +204,7 @@ devinfo_init_devices(int generation)
 	 * Stop after a fairly insane number to avoid death in the case
 	 * of kernel corruption.
 	 */
-	for (dev_idx = 0; dev_idx < 1000; dev_idx++) {
+	for (dev_idx = 0; dev_idx < 10000; dev_idx++) {
 
 		/*
 		 * Get the device information.
