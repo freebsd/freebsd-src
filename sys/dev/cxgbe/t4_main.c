@@ -836,7 +836,7 @@ t4_attach(device_t dev)
 	struct make_dev_args mda;
 	struct intrs_and_queues iaq;
 	struct sge *s;
-	uint8_t *buf;
+	uint32_t *buf;
 #ifdef TCP_OFFLOAD
 	int ofld_rqidx, ofld_tqidx;
 #endif
@@ -5126,6 +5126,9 @@ t4_sysctls(struct adapter *sc)
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "ec",
 	    CTLFLAG_RD, sc->params.vpd.ec, 0, "engineering change");
+
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "md_version",
+	    CTLFLAG_RD, sc->params.vpd.md, 0, "manufacturing diags version");
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "na",
 	    CTLFLAG_RD, sc->params.vpd.na, 0, "network address");
