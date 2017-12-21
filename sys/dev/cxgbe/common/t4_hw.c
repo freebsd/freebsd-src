@@ -2664,13 +2664,16 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 }
 
 /*
- * Partial EEPROM Vital Product Data structure.  Includes only the ID and
- * VPD-R sections.
+ * Partial EEPROM Vital Product Data structure.  The VPD starts with one ID
+ * header followed by one or more VPD-R sections, each with its own header.
  */
 struct t4_vpd_hdr {
 	u8  id_tag;
 	u8  id_len[2];
 	u8  id_data[ID_LEN];
+};
+
+struct t4_vpdr_hdr {
 	u8  vpdr_tag;
 	u8  vpdr_len[2];
 };
@@ -2905,32 +2908,43 @@ int t4_seeprom_wp(struct adapter *adapter, int enable)
 
 /**
  *	get_vpd_keyword_val - Locates an information field keyword in the VPD
- *	@v: Pointer to buffered vpd data structure
+ *	@vpd: Pointer to buffered vpd data structure
  *	@kw: The keyword to search for
+ *	@region: VPD region to search (starting from 0)
  *
  *	Returns the value of the information field keyword or
  *	-ENOENT otherwise.
  */
-static int get_vpd_keyword_val(const struct t4_vpd_hdr *v, const char *kw)
+static int get_vpd_keyword_val(const u8 *vpd, const char *kw, int region)
 {
-	int i;
-	unsigned int offset , len;
-	const u8 *buf = (const u8 *)v;
-	const u8 *vpdr_len = &v->vpdr_len[0];
-	offset = sizeof(struct t4_vpd_hdr);
-	len =  (u16)vpdr_len[0] + ((u16)vpdr_len[1] << 8);
+	int i, tag;
+	unsigned int offset, len;
+	const struct t4_vpdr_hdr *vpdr;
 
-	if (len + sizeof(struct t4_vpd_hdr) > VPD_LEN) {
+	offset = sizeof(struct t4_vpd_hdr);
+	vpdr = (const void *)(vpd + offset);
+	tag = vpdr->vpdr_tag;
+	len = (u16)vpdr->vpdr_len[0] + ((u16)vpdr->vpdr_len[1] << 8);
+	while (region--) {
+		offset += sizeof(struct t4_vpdr_hdr) + len;
+		vpdr = (const void *)(vpd + offset);
+		if (++tag != vpdr->vpdr_tag)
+			return -ENOENT;
+		len = (u16)vpdr->vpdr_len[0] + ((u16)vpdr->vpdr_len[1] << 8);
+	}
+	offset += sizeof(struct t4_vpdr_hdr);
+
+	if (offset + len > VPD_LEN) {
 		return -ENOENT;
 	}
 
 	for (i = offset; i + VPD_INFO_FLD_HDR_SIZE <= offset + len;) {
-		if(memcmp(buf + i , kw , 2) == 0){
+		if (memcmp(vpd + i , kw , 2) == 0){
 			i += VPD_INFO_FLD_HDR_SIZE;
 			return i;
 		}
 
-		i += VPD_INFO_FLD_HDR_SIZE + buf[i+2];
+		i += VPD_INFO_FLD_HDR_SIZE + vpd[i+2];
 	}
 
 	return -ENOENT;
@@ -2946,18 +2960,18 @@ static int get_vpd_keyword_val(const struct t4_vpd_hdr *v, const char *kw)
  *	Reads card parameters stored in VPD EEPROM.
  */
 static int get_vpd_params(struct adapter *adapter, struct vpd_params *p,
-    u8 *vpd)
+    u32 *buf)
 {
 	int i, ret, addr;
-	int ec, sn, pn, na;
+	int ec, sn, pn, na, md;
 	u8 csum;
-	const struct t4_vpd_hdr *v;
+	const u8 *vpd = (const u8 *)buf;
 
 	/*
 	 * Card information normally starts at VPD_BASE but early cards had
 	 * it at 0.
 	 */
-	ret = t4_seeprom_read(adapter, VPD_BASE, (u32 *)(vpd));
+	ret = t4_seeprom_read(adapter, VPD_BASE, buf);
 	if (ret)
 		return (ret);
 
@@ -2971,14 +2985,13 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p,
 	addr = *vpd == CHELSIO_VPD_UNIQUE_ID ? VPD_BASE : VPD_BASE_OLD;
 
 	for (i = 0; i < VPD_LEN; i += 4) {
-		ret = t4_seeprom_read(adapter, addr + i, (u32 *)(vpd + i));
+		ret = t4_seeprom_read(adapter, addr + i, buf++);
 		if (ret)
 			return ret;
 	}
- 	v = (const struct t4_vpd_hdr *)vpd;
 
 #define FIND_VPD_KW(var,name) do { \
-	var = get_vpd_keyword_val(v , name); \
+	var = get_vpd_keyword_val(vpd, name, 0); \
 	if (var < 0) { \
 		CH_ERR(adapter, "missing VPD keyword " name "\n"); \
 		return -EINVAL; \
@@ -3001,7 +3014,7 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p,
 	FIND_VPD_KW(na, "NA");
 #undef FIND_VPD_KW
 
-	memcpy(p->id, v->id_data, ID_LEN);
+	memcpy(p->id, vpd + offsetof(struct t4_vpd_hdr, id_data), ID_LEN);
 	strstrip(p->id);
 	memcpy(p->ec, vpd + ec, EC_LEN);
 	strstrip(p->ec);
@@ -3014,6 +3027,14 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p,
 	i = vpd[na - VPD_INFO_FLD_HDR_SIZE + 2];
 	memcpy(p->na, vpd + na, min(i, MACADDR_LEN));
 	strstrip((char *)p->na);
+
+	md = get_vpd_keyword_val(vpd, "VF", 1);
+	if (md < 0) {
+		snprintf(p->md, sizeof(p->md), "unknown");
+	} else {
+		i = vpd[md - VPD_INFO_FLD_HDR_SIZE + 2];
+		memcpy(p->md, vpd + md, min(i, MD_LEN));
+	}
 
 	return 0;
 }
@@ -7997,7 +8018,7 @@ const struct chip_params *t4_get_chip_params(int chipid)
  *	values for some adapter tunables, take PHYs out of reset, and
  *	initialize the MDIO interface.
  */
-int t4_prep_adapter(struct adapter *adapter, u8 *buf)
+int t4_prep_adapter(struct adapter *adapter, u32 *buf)
 {
 	int ret;
 	uint16_t device_id;
