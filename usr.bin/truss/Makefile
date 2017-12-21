@@ -18,6 +18,7 @@ ABIS+=		cloudabi64
 .endif
 .if ${MACHINE_CPUARCH} == "i386"
 ABIS+=		i386-linux
+ABIS+=		cloudabi32
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
 ABIS+=		amd64-linux
