@@ -1791,7 +1791,7 @@ ixv_add_stats_sysctls(struct adapter *adapter)
 		    CTLFLAG_RD, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
-		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "tso_tx",
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tso_tx",
 		    CTLFLAG_RD, &(txr->tso_tx), "TSO Packets");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_packets",
 		    CTLFLAG_RD, &(txr->total_packets), "TX Packets");
