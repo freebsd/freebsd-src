@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include "devinfo.h"
 
@@ -196,15 +197,47 @@ print_rman(struct devinfo_rman *rman, void *arg __unused)
 	return(0);
 }
 
+static void __dead2
+usage(void)
+{
+	fprintf(stderr, "%s\n%s\n%s\n",
+	    "usage: devinfo [-rv]",
+	    "       devinfo -u",
+	    "       devifno -p dev");
+	exit(1);
+}
+
+
+static int
+print_path(struct devinfo_dev *dev, void *xname)
+{
+	const char *name = xname;
+	int rv;
+
+	if (strcmp(dev->dd_name, name) == 0) {
+		printf("%s", dev->dd_name);
+		return (1);
+	}
+
+	rv = devinfo_foreach_device_child(dev, print_path, xname);
+	if (rv == 1)
+		printf(" %s", dev->dd_name[0] ? dev->dd_name : "unknown");
+	return (rv);
+}
+
 int
 main(int argc, char *argv[]) 
 {
 	struct devinfo_dev	*root;
 	int			c, uflag;
+	char			*path;
 
 	uflag = 0;
-	while ((c = getopt(argc, argv, "ruv")) != -1) {
+	while ((c = getopt(argc, argv, "p:ruv")) != -1) {
 		switch(c) {
+		case 'p':
+			path = optarg;
+			break;
 		case 'r':
 			rflag++;
 			break;
@@ -215,12 +248,12 @@ main(int argc, char *argv[])
 			vflag++;
 			break;
 		default:
-			fprintf(stderr, "%s\n%s\n",
-			    "usage: devinfo [-rv]",
-			    "       devinfo -u");
-			exit(1);
+			usage();
 		}
 	}
+
+	if (path && (rflag || uflag))
+		usage();
 
 	if (devinfo_init())
 		err(1, "devinfo_init");
@@ -228,8 +261,12 @@ main(int argc, char *argv[])
 	if ((root = devinfo_handle_to_device(DEVINFO_ROOT_DEVICE)) == NULL)
 		errx(1, "can't find root device");
 
-	/* print resource usage? */
-	if (uflag) {
+	if (path) {
+		if (devinfo_foreach_device_child(root, print_path, (void *)path) == 0)
+			errx(1, "%s: Not found", path);
+		printf("\n");
+	} else if (uflag) {
+		/* print resource usage? */
 		devinfo_foreach_rman(print_rman, NULL);
 	} else {
 		/* print device hierarchy */
