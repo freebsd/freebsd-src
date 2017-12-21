@@ -3174,8 +3174,28 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 	pir_desc = vlapic_vtx->pir_desc;
 
 	pending = atomic_load_acq_long(&pir_desc->pending);
-	if (!pending)
-		return (0);	/* common case */
+	if (!pending) {
+		/*
+		 * While a virtual interrupt may have already been
+		 * processed the actual delivery maybe pending the
+		 * interruptibility of the guest.  Recognize a pending
+		 * interrupt by reevaluating virtual interrupts
+		 * following Section 29.2.1 in the Intel SDM Volume 3.
+		 */
+		uint64_t val;
+		uint8_t rvi, ppr;
+
+		vmx_getreg(vlapic_vtx->vmx, vlapic->vcpuid,
+		    VMCS_IDENT(VMCS_GUEST_INTR_STATUS), &val);
+		rvi = val & APIC_TPR_INT;
+		lapic = vlapic->apic_page;
+		ppr = lapic->ppr & APIC_TPR_INT;
+		if (rvi > ppr) {
+			return (1);
+		}
+
+		return (0);
+	}
 
 	/*
 	 * If there is an interrupt pending then it will be recognized only
@@ -3185,7 +3205,7 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 	 * interrupt will be recognized.
 	 */
 	lapic = vlapic->apic_page;
-	ppr = lapic->ppr & 0xf0;
+	ppr = lapic->ppr & APIC_TPR_INT;
 	if (ppr == 0)
 		return (1);
 
@@ -3195,7 +3215,7 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 	for (i = 3; i >= 0; i--) {
 		pirval = pir_desc->pir[i];
 		if (pirval != 0) {
-			vpr = (i * 64 + flsl(pirval) - 1) & 0xf0;
+			vpr = (i * 64 + flsl(pirval) - 1) & APIC_TPR_INT;
 			return (vpr > ppr);
 		}
 	}
