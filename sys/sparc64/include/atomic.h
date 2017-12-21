@@ -258,11 +258,6 @@ atomic_fcmpset_rel_ ## name(volatile ptype p, vtype *ep, vtype s)	\
 }									\
 									\
 static __inline vtype							\
-atomic_load_ ## name(volatile ptype p)					\
-{									\
-	return ((vtype)atomic_cas((p), 0, 0, sz));			\
-}									\
-static __inline vtype							\
 atomic_load_acq_ ## name(volatile ptype p)				\
 {									\
 	return ((vtype)atomic_cas_acq((p), 0, 0, sz));			\
