@@ -3461,7 +3461,11 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 	}
 	switch (ap->a_name) {
 	case _PC_LINK_MAX:
+#ifdef _LP64
+		*ap->a_retval = pc.pc_linkmax;
+#else
 		*ap->a_retval = MIN(LONG_MAX, pc.pc_linkmax);
+#endif
 		break;
 	case _PC_NAME_MAX:
 		*ap->a_retval = pc.pc_namemax;
