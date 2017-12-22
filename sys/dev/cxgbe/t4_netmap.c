@@ -108,16 +108,10 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 	    V_FW_IQ_CMD_VFN(0));
 	c.alloc_to_len16 = htobe32(F_FW_IQ_CMD_ALLOC | F_FW_IQ_CMD_IQSTART |
 	    FW_LEN16(c));
-	if (vi->flags & INTR_RXQ) {
-		KASSERT(nm_rxq->intr_idx < sc->intr_count,
-		    ("%s: invalid direct intr_idx %d", __func__,
-		    nm_rxq->intr_idx));
-		v = V_FW_IQ_CMD_IQANDSTINDEX(nm_rxq->intr_idx);
-	} else {
-		CXGBE_UNIMPLEMENTED(__func__);	/* XXXNM: needs review */
-		v = V_FW_IQ_CMD_IQANDSTINDEX(nm_rxq->intr_idx) |
-		    F_FW_IQ_CMD_IQANDST;
-	}
+	MPASS(!forwarding_intr_to_fwq(sc));
+	KASSERT(nm_rxq->intr_idx < sc->intr_count,
+	    ("%s: invalid direct intr_idx %d", __func__, nm_rxq->intr_idx));
+	v = V_FW_IQ_CMD_IQANDSTINDEX(nm_rxq->intr_idx);
 	c.type_to_iqandstindex = htobe32(v |
 	    V_FW_IQ_CMD_TYPE(FW_IQ_TYPE_FL_INT_CAP) |
 	    V_FW_IQ_CMD_VIID(vi->viid) |
