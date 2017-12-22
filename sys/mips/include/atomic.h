@@ -341,24 +341,6 @@ atomic_store_rel_##WIDTH(__volatile uint##WIDTH##_t *p, uint##WIDTH##_t v)\
 
 ATOMIC_STORE_LOAD(32)
 ATOMIC_STORE_LOAD(64)
-#if !defined(__mips_n64) && !defined(__mips_n32)
-void atomic_store_64(__volatile uint64_t *, uint64_t);
-uint64_t atomic_load_64(__volatile uint64_t *);
-#elif defined (__mips_n32)
-static __inline void
-atomic_store_64(__volatile uint64_t *p, uint64_t v)
-{
-	*p = v;
-}
-
-static __inline uint64_t
-atomic_load_64(__volatile uint64_t *p)
-{
-	return (*p);
-}
-/* #else atomic_common.h definitions of atomic_load/store_64 are used */
-#endif
-
 #undef ATOMIC_STORE_LOAD
 
 /*
