@@ -72,6 +72,7 @@ SRCS_MIN+=	AST/ExprCXX.cpp
 SRCS_MIN+=	AST/ExprClassification.cpp
 SRCS_MIN+=	AST/ExprConstant.cpp
 SRCS_MIN+=	AST/ExprObjC.cpp
+SRCS_LDB+=	AST/ExternalASTMerger.cpp
 SRCS_MIN+=	AST/ExternalASTSource.cpp
 SRCS_MIN+=	AST/InheritViz.cpp
 SRCS_MIN+=	AST/ItaniumCXXABI.cpp
@@ -618,6 +619,9 @@ SRCS_ALL+=	${SRCS_EXT}
 .endif
 .if ${MK_CLANG_FULL} != "no"
 SRCS_ALL+=	${SRCS_FUL}
+.endif
+.if ${MK_LLDB} != "no"
+SRCS_ALL+=	${SRCS_LDB}
 .endif
 SRCS+=		${SRCS_ALL:O}
 
