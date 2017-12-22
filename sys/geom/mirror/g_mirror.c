@@ -72,7 +72,7 @@ SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_requests, CTLFLAG_RDTUN,
 static u_int g_mirror_sync_period = 5;
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_update_period, CTLFLAG_RWTUN,
     &g_mirror_sync_period, 0,
-    "Metadata update period during synchroniztion, in seconds");
+    "Metadata update period during synchronization, in seconds");
 
 #define	MSLEEP(ident, mtx, priority, wmesg, timeout)	do {		\
 	G_MIRROR_DEBUG(4, "%s: Sleeping %p.", __func__, (ident));	\
@@ -1202,7 +1202,7 @@ g_mirror_start(struct bio *bp)
  * Return TRUE if the given request is colliding with a in-progress
  * synchronization request.
  */
-static int
+static bool
 g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 {
 	struct g_mirror_disk *disk;
@@ -1211,7 +1211,7 @@ g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 	u_int i;
 
 	if (sc->sc_sync.ds_ndisks == 0)
-		return (0);
+		return (false);
 	rstart = bp->bio_offset;
 	rend = bp->bio_offset + bp->bio_length;
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
@@ -1224,33 +1224,33 @@ g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 			sstart = sbp->bio_offset;
 			send = sbp->bio_offset + sbp->bio_length;
 			if (rend > sstart && rstart < send)
-				return (1);
+				return (true);
 		}
 	}
-	return (0);
+	return (false);
 }
 
 /*
  * Return TRUE if the given sync request is colliding with a in-progress regular
  * request.
  */
-static int
+static bool
 g_mirror_regular_collision(struct g_mirror_softc *sc, struct bio *sbp)
 {
 	off_t rstart, rend, sstart, send;
 	struct bio *bp;
 
 	if (sc->sc_sync.ds_ndisks == 0)
-		return (0);
+		return (false);
 	sstart = sbp->bio_offset;
 	send = sbp->bio_offset + sbp->bio_length;
 	TAILQ_FOREACH(bp, &sc->sc_inflight.queue, bio_queue) {
 		rstart = bp->bio_offset;
 		rend = bp->bio_offset + bp->bio_length;
 		if (rend > sstart && rstart < send)
-			return (1);
+			return (true);
 	}
-	return (0);
+	return (false);
 }
 
 /*
