@@ -97,6 +97,10 @@ xhci_pci_match(device_t self)
 	uint32_t device_id = pci_get_devid(self);
 
 	switch (device_id) {
+	case 0x145c1022:
+		return ("AMD KERNCZ USB 3.0 controller");
+	case 0x43bb1022:
+		return ("AMD 300 Series USB 3.0 controller");
 	case 0x78141022:
 		return ("AMD FCH USB 3.0 controller");
 
