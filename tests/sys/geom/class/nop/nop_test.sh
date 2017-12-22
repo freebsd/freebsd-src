@@ -36,6 +36,7 @@ diskinfo_head()
 }
 diskinfo_body()
 {
+	load_gnop
 	us=$(alloc_md)
 	atf_check gnop create /dev/${us}
 	md_secsize=$(diskinfo ${us} | cut -wf 2)
@@ -62,6 +63,7 @@ io_head()
 }
 io_body()
 {
+	load_gnop
 	us=$(alloc_md)
 	atf_check gnop create /dev/${us}
 
@@ -87,6 +89,7 @@ size_head()
 }
 size_body()
 {
+	load_gnop
 	us=$(alloc_md)
 	for mediasize in 65536 524288 1048576; do
 		atf_check gnop create -s ${mediasize} /dev/${us}
@@ -111,6 +114,7 @@ stripesize_head()
 }
 stripesize_body()
 {
+	load_gnop
 	us=$(alloc_md)
 	for ss in 512 1024 2048 4096 8192; do
 		for sofs in `seq 0 512 ${ss}`; do
@@ -163,4 +167,11 @@ common_cleanup()
 		rm ${PLAINFILES}
 	fi
 	true
+}
+
+load_gnop()
+{
+	if ! kldstat -q -m g_nop; then
+		geom nop load || atf_skip "could not load module for geom nop"
+	fi
 }
