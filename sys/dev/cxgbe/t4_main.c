@@ -470,7 +470,6 @@ struct intrs_and_queues {
 	uint16_t intr_type;	/* INTx, MSI, or MSI-X */
 	uint16_t num_vis;	/* number of VIs for each port */
 	uint16_t nirq;		/* Total # of vectors */
-	uint16_t intr_flags;	/* Interrupt flags for each port */
 	uint16_t ntxq;		/* # of NIC txq's for each port */
 	uint16_t nrxq;		/* # of NIC rxq's for each port */
 	uint16_t nofldtxq;	/* # of TOE txq's for each port */
@@ -1118,7 +1117,6 @@ t4_attach(device_t dev)
 			vi->first_txq = tqidx;
 			vi->tmr_idx = t4_tmr_idx;
 			vi->pktc_idx = t4_pktc_idx;
-			vi->flags |= iaq.intr_flags & INTR_RXQ;
 			vi->nrxq = j == 0 ? iaq.nrxq : iaq.nrxq_vi;
 			vi->ntxq = j == 0 ? iaq.ntxq : iaq.ntxq_vi;
 
@@ -1135,7 +1133,6 @@ t4_attach(device_t dev)
 			vi->ofld_pktc_idx = t4_pktc_idx_ofld;
 			vi->first_ofld_rxq = ofld_rqidx;
 			vi->first_ofld_txq = ofld_tqidx;
-			vi->flags |= iaq.intr_flags & INTR_OFLD_RXQ;
 			vi->nofldrxq = j == 0 ? iaq.nofldrxq : iaq.nofldrxq_vi;
 			vi->nofldtxq = j == 0 ? iaq.nofldtxq : iaq.nofldtxq_vi;
 
@@ -2648,26 +2645,43 @@ fixup_devlog_params(struct adapter *sc)
 	return (rc);
 }
 
-static int
-cfg_itype_and_nqueues(struct adapter *sc, struct intrs_and_queues *iaq)
+static void
+update_nirq(struct intrs_and_queues *iaq, int nports)
 {
-	int rc, itype, navail, nrxq, nports, n;
-	int nofldrxq = 0;
+	int extra = T4_EXTRA_INTR;
 
-	nports = sc->params.nports;
+	iaq->nirq = extra;
+	iaq->nirq += nports * (iaq->nrxq + iaq->nofldrxq);
+	iaq->nirq += nports * (iaq->num_vis - 1) *
+	    max(iaq->nrxq_vi, iaq->nnmrxq_vi);
+	iaq->nirq += nports * (iaq->num_vis - 1) * iaq->nofldrxq_vi;
+}
+
+/*
+ * Adjust requirements to fit the number of interrupts available.
+ */
+static void
+calculate_iaq(struct adapter *sc, struct intrs_and_queues *iaq, int itype,
+    int navail)
+{
+	int old_nirq;
+	const int nports = sc->params.nports;
+
 	MPASS(nports > 0);
+	MPASS(navail > 0);
 
 	bzero(iaq, sizeof(*iaq));
+	iaq->intr_type = itype;
 	iaq->num_vis = t4_num_vis;
 	iaq->ntxq = t4_ntxq;
 	iaq->ntxq_vi = t4_ntxq_vi;
-	iaq->nrxq = nrxq = t4_nrxq;
+	iaq->nrxq = t4_nrxq;
 	iaq->nrxq_vi = t4_nrxq_vi;
 #ifdef TCP_OFFLOAD
 	if (is_offload(sc)) {
 		iaq->nofldtxq = t4_nofldtxq;
 		iaq->nofldtxq_vi = t4_nofldtxq_vi;
-		iaq->nofldrxq = nofldrxq = t4_nofldrxq;
+		iaq->nofldrxq = t4_nofldrxq;
 		iaq->nofldrxq_vi = t4_nofldrxq_vi;
 	}
 #endif
@@ -2675,6 +2689,105 @@ cfg_itype_and_nqueues(struct adapter *sc, struct intrs_and_queues *iaq)
 	iaq->nnmtxq_vi = t4_nnmtxq_vi;
 	iaq->nnmrxq_vi = t4_nnmrxq_vi;
 #endif
+
+	update_nirq(iaq, nports);
+	if (iaq->nirq <= navail &&
+	    (itype != INTR_MSI || powerof2(iaq->nirq))) {
+		/*
+		 * This is the normal case -- there are enough interrupts for
+		 * everything.
+		 */
+		goto done;
+	}
+
+	/*
+	 * If extra VIs have been configured try reducing their count and see if
+	 * that works.
+	 */
+	while (iaq->num_vis > 1) {
+		iaq->num_vis--;
+		update_nirq(iaq, nports);
+		if (iaq->nirq <= navail &&
+		    (itype != INTR_MSI || powerof2(iaq->nirq))) {
+			device_printf(sc->dev, "virtual interfaces per port "
+			    "reduced to %d from %d.  nrxq=%u, nofldrxq=%u, "
+			    "nrxq_vi=%u nofldrxq_vi=%u, nnmrxq_vi=%u.  "
+			    "itype %d, navail %u, nirq %d.\n",
+			    iaq->num_vis, t4_num_vis, iaq->nrxq, iaq->nofldrxq,
+			    iaq->nrxq_vi, iaq->nofldrxq_vi, iaq->nnmrxq_vi,
+			    itype, navail, iaq->nirq);
+			goto done;
+		}
+	}
+
+	/*
+	 * Extra VIs will not be created.  Log a message if they were requested.
+	 */
+	MPASS(iaq->num_vis == 1);
+	iaq->ntxq_vi = iaq->nrxq_vi = 0;
+	iaq->nofldtxq_vi = iaq->nofldrxq_vi = 0;
+	iaq->nnmtxq_vi = iaq->nnmrxq_vi = 0;
+	if (iaq->num_vis != t4_num_vis) {
+		device_printf(sc->dev, "extra virtual interfaces disabled.  "
+		    "nrxq=%u, nofldrxq=%u, nrxq_vi=%u nofldrxq_vi=%u, "
+		    "nnmrxq_vi=%u.  itype %d, navail %u, nirq %d.\n",
+		    iaq->nrxq, iaq->nofldrxq, iaq->nrxq_vi, iaq->nofldrxq_vi,
+		    iaq->nnmrxq_vi, itype, navail, iaq->nirq);
+	}
+
+	/*
+	 * Keep reducing the number of NIC rx queues to the next lower power of
+	 * 2 (for even RSS distribution) and halving the TOE rx queues and see
+	 * if that works.
+	 */
+	do {
+		if (iaq->nrxq > 1) {
+			do {
+				iaq->nrxq--;
+			} while (!powerof2(iaq->nrxq));
+		}
+		if (iaq->nofldrxq > 1)
+			iaq->nofldrxq >>= 1;
+
+		old_nirq = iaq->nirq;
+		update_nirq(iaq, nports);
+		if (iaq->nirq <= navail &&
+		    (itype != INTR_MSI || powerof2(iaq->nirq))) {
+			device_printf(sc->dev, "running with reduced number of "
+			    "rx queues because of shortage of interrupts.  "
+			    "nrxq=%u, nofldrxq=%u.  "
+			    "itype %d, navail %u, nirq %d.\n", iaq->nrxq,
+			    iaq->nofldrxq, itype, navail, iaq->nirq);
+			goto done;
+		}
+	} while (old_nirq != iaq->nirq);
+
+	/* One interrupt for everything.  Ugh. */
+	device_printf(sc->dev, "running with minimal number of queues.  "
+	    "itype %d, navail %u.\n", itype, navail);
+	iaq->nirq = 1;
+	MPASS(iaq->nrxq == 1);
+	iaq->ntxq = 1;
+	if (iaq->nofldrxq > 1)
+		iaq->nofldtxq = 1;
+done:
+	MPASS(iaq->num_vis > 0);
+	if (iaq->num_vis > 1) {
+		MPASS(iaq->nrxq_vi > 0);
+		MPASS(iaq->ntxq_vi > 0);
+	}
+	MPASS(iaq->nirq > 0);
+	MPASS(iaq->nrxq > 0);
+	MPASS(iaq->ntxq > 0);
+	if (itype == INTR_MSI) {
+		MPASS(powerof2(iaq->nirq));
+	}
+}
+
+static int
+cfg_itype_and_nqueues(struct adapter *sc, struct intrs_and_queues *iaq)
+{
+	int rc, itype, navail, nalloc;
 
 	for (itype = INTR_MSIX; itype; itype >>= 1) {
 
@@ -2691,126 +2804,33 @@ restart:
 		if (navail == 0)
 			continue;
 
-		iaq->intr_type = itype;
-		iaq->intr_flags = 0;
-
-		/*
-		 * Best option: an interrupt vector for errors, one for the
-		 * firmware event queue, and one for every rxq (NIC and TOE) of
-		 * every VI.  The VIs that support netmap use the same
-		 * interrupts for the NIC rx queues and the netmap rx queues
-		 * because only one set of queues is active at a time.
-		 */
-		iaq->nirq = T4_EXTRA_INTR;
-		iaq->nirq += nports * (nrxq + nofldrxq);
-		iaq->nirq += nports * (iaq->num_vis - 1) *
-		    max(iaq->nrxq_vi, iaq->nnmrxq_vi);	/* See comment above. */
-		iaq->nirq += nports * (iaq->num_vis - 1) * iaq->nofldrxq_vi;
-		if (iaq->nirq <= navail &&
-		    (itype != INTR_MSI || powerof2(iaq->nirq))) {
-			iaq->intr_flags = INTR_ALL;
-			goto allocate;
-		}
-
-		/* Disable the VIs (and netmap) if there aren't enough intrs */
-		if (iaq->num_vis > 1) {
-			device_printf(sc->dev, "virtual interfaces disabled "
-			    "because num_vis=%u with current settings "
-			    "(nrxq=%u, nofldrxq=%u, nrxq_vi=%u nofldrxq_vi=%u, "
-			    "nnmrxq_vi=%u) would need %u interrupts but "
-			    "only %u are available.\n", iaq->num_vis, nrxq,
-			    nofldrxq, iaq->nrxq_vi, iaq->nofldrxq_vi,
-			    iaq->nnmrxq_vi, iaq->nirq, navail);
-			iaq->num_vis = 1;
-			iaq->ntxq_vi = iaq->nrxq_vi = 0;
-			iaq->nofldtxq_vi = iaq->nofldrxq_vi = 0;
-			iaq->nnmtxq_vi = iaq->nnmrxq_vi = 0;
-			goto restart;
-		}
-
-		/*
-		 * Second best option: a vector for errors, one for the firmware
-		 * event queue, and vectors for either all the NIC rx queues or
-		 * all the TOE rx queues.  The queues that don't get vectors
-		 * will forward their interrupts to those that do.
-		 */
-		iaq->nirq = T4_EXTRA_INTR;
-		if (nrxq >= nofldrxq) {
-			iaq->intr_flags = INTR_RXQ;
-			iaq->nirq += nports * nrxq;
-		} else {
-			iaq->intr_flags = INTR_OFLD_RXQ;
-			iaq->nirq += nports * nofldrxq;
-		}
-		if (iaq->nirq <= navail &&
-		    (itype != INTR_MSI || powerof2(iaq->nirq)))
-			goto allocate;
-
-		/*
-		 * Next best option: an interrupt vector for errors, one for the
-		 * firmware event queue, and at least one per main-VI.  At this
-		 * point we know we'll have to downsize nrxq and/or nofldrxq to
-		 * fit what's available to us.
-		 */
-		iaq->nirq = T4_EXTRA_INTR;
-		iaq->nirq += nports;
-		if (iaq->nirq <= navail) {
-			int leftover = navail - iaq->nirq;
-			int target = max(nrxq, nofldrxq);
-
-			iaq->intr_flags = nrxq >= nofldrxq ?
-			    INTR_RXQ : INTR_OFLD_RXQ;
-
-			n = 1;
-			while (n < target && leftover >= nports) {
-				leftover -= nports;
-				iaq->nirq += nports;
-				n++;
-			}
-			iaq->nrxq = min(n, nrxq);
-#ifdef TCP_OFFLOAD
-			iaq->nofldrxq = min(n, nofldrxq);
-#endif
-
-			if (itype != INTR_MSI || powerof2(iaq->nirq))
-				goto allocate;
-		}
-
-		/*
-		 * Least desirable option: one interrupt vector for everything.
-		 */
-		iaq->nirq = iaq->nrxq = 1;
-		iaq->intr_flags = 0;
-#ifdef TCP_OFFLOAD
-		if (is_offload(sc))
-			iaq->nofldrxq = 1;
-#endif
-allocate:
-		navail = iaq->nirq;
+		calculate_iaq(sc, iaq, itype, navail);
+		nalloc = iaq->nirq;
 		rc = 0;
 		if (itype == INTR_MSIX)
-			rc = pci_alloc_msix(sc->dev, &navail);
+			rc = pci_alloc_msix(sc->dev, &nalloc);
 		else if (itype == INTR_MSI)
-			rc = pci_alloc_msi(sc->dev, &navail);
+			rc = pci_alloc_msi(sc->dev, &nalloc);
 
-		if (rc == 0) {
-			if (navail == iaq->nirq)
+		if (rc == 0 && nalloc > 0) {
+			if (nalloc == iaq->nirq)
 				return (0);
 
 			/*
 			 * Didn't get the number requested.  Use whatever number
-			 * the kernel is willing to allocate (it's in navail).
+			 * the kernel is willing to allocate.
 			 */
 			device_printf(sc->dev, "fewer vectors than requested, "
 			    "type=%d, req=%d, rcvd=%d; will downshift req.\n",
-			    itype, iaq->nirq, navail);
+			    itype, iaq->nirq, nalloc);
 			pci_release_msi(sc->dev);
+			navail = nalloc;
 			goto restart;
 		}
 
 		device_printf(sc->dev,
 		    "failed to allocate vectors:%d, type=%d, req=%d, rcvd=%d\n",
-		    itype, rc, iaq->nirq, navail);
+		    itype, rc, iaq->nirq, nalloc);
 	}
 
 	device_printf(sc->dev,
@@ -4352,7 +4372,7 @@ t4_setup_intr_handlers(struct adapter *sc)
 	 */
 	irq = &sc->irq[0];
 	rid = sc->intr_type == INTR_INTX ? 0 : 1;
-	if (sc->intr_count == 1)
+	if (forwarding_intr_to_fwq(sc))
 		return (t4_alloc_irq(sc, irq, rid, t4_intr_all, sc, "all"));
 
 	/* Multiple interrupts. */
@@ -4387,8 +4407,6 @@ t4_setup_intr_handlers(struct adapter *sc)
 			if (vi->nnmrxq > 0) {
 				int n = max(vi->nrxq, vi->nnmrxq);
 
-				MPASS(vi->flags & INTR_RXQ);
-
 				rxq = &sge->rxq[vi->first_rxq];
 #ifdef DEV_NETMAP
 				nm_rxq = &sge->nm_rxq[vi->first_nm_rxq];
@@ -4406,11 +4424,17 @@ t4_setup_intr_handlers(struct adapter *sc)
 					    t4_vi_intr, irq, s);
 					if (rc != 0)
 						return (rc);
+#ifdef RSS
+					if (q < vi->nrxq) {
+						bus_bind_intr(sc->dev, irq->res,
+						    rss_getcpu(q % nbuckets));
+					}
+#endif
 					irq++;
 					rid++;
 					vi->nintr++;
 				}
-			} else if (vi->flags & INTR_RXQ) {
+			} else {
 				for_each_rxq(vi, q, rxq) {
 					snprintf(s, sizeof(s), "%x%c%x", p,
 					    'a' + v, q);
@@ -4428,18 +4452,15 @@ t4_setup_intr_handlers(struct adapter *sc)
 				}
 			}
 #ifdef TCP_OFFLOAD
-			if (vi->flags & INTR_OFLD_RXQ) {
-				for_each_ofld_rxq(vi, q, ofld_rxq) {
-					snprintf(s, sizeof(s), "%x%c%x", p,
-					    'A' + v, q);
-					rc = t4_alloc_irq(sc, irq, rid,
-					    t4_intr, ofld_rxq, s);
-					if (rc != 0)
-						return (rc);
-					irq++;
-					rid++;
-					vi->nintr++;
-				}
+			for_each_ofld_rxq(vi, q, ofld_rxq) {
+				snprintf(s, sizeof(s), "%x%c%x", p, 'A' + v, q);
+				rc = t4_alloc_irq(sc, irq, rid, t4_intr,
+				    ofld_rxq, s);
+				if (rc != 0)
+					return (rc);
+				irq++;
+				rid++;
+				vi->nintr++;
 			}
 #endif
 		}

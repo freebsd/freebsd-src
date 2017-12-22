@@ -169,9 +169,6 @@ enum {
 	DOOMED		= (1 << 0),
 	VI_INIT_DONE	= (1 << 1),
 	VI_SYSCTL_CTX	= (1 << 2),
-	INTR_RXQ	= (1 << 4),	/* All NIC rxq's take interrupts */
-	INTR_OFLD_RXQ	= (1 << 5),	/* All TOE rxq's take interrupts */
-	INTR_ALL	= (INTR_RXQ | INTR_OFLD_RXQ),
 
 	/* adapter debug_flags */
 	DF_DUMP_MBOX		= (1 << 0),	/* Log all mbox cmd/rpl. */
@@ -349,7 +346,7 @@ enum {
 	/* iq flags */
 	IQ_ALLOCATED	= (1 << 0),	/* firmware resources allocated */
 	IQ_HAS_FL	= (1 << 1),	/* iq associated with a freelist */
-	IQ_INTR		= (1 << 2),	/* iq takes direct interrupt */
+					/* 1 << 2 Used to be IQ_INTR */
 	IQ_LRO_ENABLED	= (1 << 3),	/* iq is an eth rxq with LRO enabled */
 	IQ_ADJ_CREDIT	= (1 << 4),	/* hw is off by 1 credit for this iq */
 
@@ -955,6 +952,13 @@ struct adapter {
 
 /* One for firmware events */
 #define T4VF_EXTRA_INTR 1
+
+static inline int
+forwarding_intr_to_fwq(struct adapter *sc)
+{
+
+	return (sc->intr_count == 1);
+}
 
 static inline uint32_t
 t4_read_reg(struct adapter *sc, uint32_t reg)
