@@ -384,6 +384,7 @@ SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugMacro.cpp
 SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugPubTable.cpp
 SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugRangeList.cpp
 SRCS_MIW+=	DebugInfo/DWARF/DWARFDie.cpp
+SRCS_MIW+=	DebugInfo/DWARF/DWARFExpression.cpp
 SRCS_MIW+=	DebugInfo/DWARF/DWARFFormValue.cpp
 SRCS_MIW+=	DebugInfo/DWARF/DWARFGdbIndex.cpp
 SRCS_MIW+=	DebugInfo/DWARF/DWARFTypeUnit.cpp
