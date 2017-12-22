@@ -1383,11 +1383,12 @@ pw_user_add(int argc, char **argv, char *arg1)
 	pwd->pw_uid = pw_uidpolicy(cmdcnf, id);
 	pwd->pw_gid = pw_gidpolicy(cnf, grname, pwd->pw_name,
 	    (gid_t) pwd->pw_uid, dryrun);
-	
+
+	/* cmdcnf->password_days and cmdcnf->expire_days hold unixtime here */
 	if (cmdcnf->password_days > 0)
-		pwd->pw_change = now + cmdcnf->password_days * 86400L;
+		pwd->pw_change = cmdcnf->password_days;
 	if (cmdcnf->expire_days > 0)
-		pwd->pw_expire = now + cmdcnf->expire_days * 86400L;
+		pwd->pw_expire = cmdcnf->expire_days;
 
 	pwd->pw_dir = pw_homepolicy(cmdcnf, homedir, pwd->pw_name);
 	pwd->pw_shell = pw_shellpolicy(cmdcnf);
@@ -1521,9 +1522,9 @@ pw_user_mod(int argc, char **argv, char *arg1)
 	bool quiet, createhome, pretty, dryrun, nis, edited;
 	bool precrypted;
 	mode_t homemode = 0;
-	time_t expire_days, password_days, now;
+	time_t expire_time, password_time, now;
 
-	expire_days = password_days = -1;
+	expire_time = password_time = -1;
 	gecos = homedir = grname = name = newname = skel = shell =NULL;
 	passwd = NULL;
 	class = nispasswd = NULL;
@@ -1559,10 +1560,10 @@ pw_user_mod(int argc, char **argv, char *arg1)
 			homedir = optarg;
 			break;
 		case 'e':
-			expire_days = parse_date(now, optarg);
+			expire_time = parse_date(now, optarg);
 			break;
 		case 'p':
-			password_days = parse_date(now, optarg);
+			password_time = parse_date(now, optarg);
 			break;
 		case 'g':
 			group_from_name_or_id(optarg);
@@ -1697,13 +1698,13 @@ pw_user_mod(int argc, char **argv, char *arg1)
 	}
 
 
-	if (password_days >= 0) {
-		pwd->pw_change = now + password_days * 86400L;
+	if (password_time >= 0 && pwd->pw_change != password_time) {
+		pwd->pw_change = password_time;
 		edited = true;
 	}
 
-	if (expire_days >= 0) {
-		pwd->pw_expire = now + expire_days * 86400L;
+	if (expire_time >= 0 && pwd->pw_expire != expire_time) {
+		pwd->pw_expire = expire_time;
 		edited = true;
 	}
 
