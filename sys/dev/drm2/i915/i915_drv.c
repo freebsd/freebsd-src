@@ -1236,7 +1236,7 @@ MODULE_DEPEND(i915kms, agp, 1, 1, 1);
 MODULE_DEPEND(i915kms, iicbus, 1, 1, 1);
 MODULE_DEPEND(i915kms, iic, 1, 1, 1);
 MODULE_DEPEND(i915kms, iicbb, 1, 1, 1);
-MODULE_PNP_INFO("U32:vendor;U32:device;P:#;D:human", vgapci, i915, pciidlist,
+MODULE_PNP_INFO("U32:vendor;U32:device;P:#;D:#", vgapci, i915, pciidlist,
     sizeof(pciidlist[0]), nitems(pciidlist));
 
 /* We give fast paths for the really cool registers */
