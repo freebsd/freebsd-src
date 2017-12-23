@@ -140,6 +140,10 @@ enum isa_device_ivars {
 #define ISACFGATTR_DYNAMIC	(1 << 1)	/* dynamic configuration */
 #define ISACFGATTR_HINTS	(1 << 3)	/* source of config is hints */
 
+#define	ISA_PNP_DESCR "E:pnpid;D:#"
+#define ISA_PNP_INFO(t) \
+	MODULE_PNP_INFO(ISA_PNP_DESCR, pccard, t, t, sizeof(t[0]), nitems(t) - 1); \
+
 /*
  * Simplified accessors for isa devices
  */
