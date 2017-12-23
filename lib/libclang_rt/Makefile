@@ -4,11 +4,14 @@
 SUBDIR+=	include
 SUBDIR+=	asan
 SUBDIR+=	asan-preinit
-SUBDIR+=	asan_dynamic
 SUBDIR+=	asan_cxx
+SUBDIR+=	asan_dynamic
 SUBDIR+=	safestack
 SUBDIR+=	stats
 SUBDIR+=	stats_client
+SUBDIR+=	tsan
+SUBDIR+=	tsan_cxx
+SUBDIR+=	ubsan_minimal
 SUBDIR+=	ubsan_standalone
 SUBDIR+=	ubsan_standalone_cxx
 .endif
