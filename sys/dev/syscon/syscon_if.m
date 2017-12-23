@@ -30,25 +30,34 @@
 
 INTERFACE syscon;
 
+HEADER {
+	struct syscon;
+}
+
+METHOD int init {
+	struct syscon	*syscon;
+};
+
+METHOD int uninit {
+	struct syscon	*syscon;
+};
+
 /**
  * Accessor functions for syscon register space
  */
 METHOD uint32_t read_4 {
-	device_t	dev;
-	device_t	consumer;
+	struct syscon	*syscon;
 	bus_size_t	offset;
 };
 
-METHOD void write_4 {
-	device_t	dev;
-	device_t	consumer;
+METHOD int write_4 {
+	struct syscon	*syscon;
 	bus_size_t	offset;
 	uint32_t	val;
 };
 
-METHOD void modify_4 {
-	device_t	dev;
-	device_t	consumer;
+METHOD int modify_4 {
+	struct syscon	*syscon;
 	bus_size_t	offset;
 	uint32_t	clear_bits;
 	uint32_t	set_bits;
