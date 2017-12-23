@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <stringlist.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "pathnames.h"
