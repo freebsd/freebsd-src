@@ -175,6 +175,7 @@ isavga_probe(device_t dev)
 				 adp.va_io_base, adp.va_io_size);
 		bus_set_resource(dev, SYS_RES_MEMORY, 0,
 				 adp.va_mem_base, adp.va_mem_size);
+		isa_set_vendorid(dev, PNP_EISAID("PNP0900"));
 #if 0
 		isa_set_port(dev, adp.va_io_base);
 		isa_set_portsize(dev, adp.va_io_size);
