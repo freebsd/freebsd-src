@@ -1307,7 +1307,8 @@ nd6_dad_stop(struct ifaddr *ifa)
 	 * we were waiting for it to stop, so re-do the lookup.
 	 */
 	nd6_dad_rele(dp);
-	if (nd6_dad_find(ifa, NULL) == NULL)
+	dp = nd6_dad_find(ifa, NULL);
+	if (dp == NULL)
 		return;
 
 	nd6_dad_del(dp);
