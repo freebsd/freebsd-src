@@ -508,7 +508,7 @@ if_clone_list(struct if_clonereq *ifcr)
 
 done:
 	IF_CLONERS_UNLOCK();
-	if (err == 0)
+	if (err == 0 && dst != NULL)
 		err = copyout(outbuf, dst, buf_count*IFNAMSIZ);
 	if (outbuf != NULL)
 		free(outbuf, M_CLONE);
