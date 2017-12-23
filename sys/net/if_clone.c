@@ -387,10 +387,8 @@ if_clone_advanced(const char *name, u_int maxunit, ifc_match_t match,
 	ifc->ifc_create = create;
 	ifc->ifc_destroy = destroy;
 
-	if (if_clone_attach(ifc) != 0) {
-		if_clone_free(ifc);
+	if (if_clone_attach(ifc) != 0)
 		return (NULL);
-	}
 
 	EVENTHANDLER_INVOKE(if_clone_event, ifc);
 
@@ -410,10 +408,8 @@ if_clone_simple(const char *name, ifcs_create_t create, ifcs_destroy_t destroy,
 	ifc->ifcs_destroy = destroy;
 	ifc->ifcs_minifs = minifs;
 
-	if (if_clone_attach(ifc) != 0) {
-		if_clone_free(ifc);
+	if (if_clone_attach(ifc) != 0)
 		return (NULL);
-	}
 
 	for (unit = 0; unit < minifs; unit++) {
 		char name[IFNAMSIZ];
