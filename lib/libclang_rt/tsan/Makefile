@@ -2,8 +2,10 @@
 
 .include <bsd.init.mk>
 
-LIB=		clang_rt.stats-${CRTARCH}
+LIB=		clang_rt.tsan-${CRTARCH}
 
+SRCS+=		interception/interception_linux.cc
+SRCS+=		interception/interception_type_test.cc
 SRCS+=		sanitizer_common/sancov_flags.cc
 SRCS+=		sanitizer_common/sanitizer_allocator.cc
 SRCS+=		sanitizer_common/sanitizer_allocator_checks.cc
@@ -41,6 +43,40 @@ SRCS+=		sanitizer_common/sanitizer_termination.cc
 SRCS+=		sanitizer_common/sanitizer_thread_registry.cc
 SRCS+=		sanitizer_common/sanitizer_tls_get_addr.cc
 SRCS+=		sanitizer_common/sanitizer_unwind_linux_libcdep.cc
-SRCS+=		stats/stats.cc
+SRCS+=		tsan/rtl/tsan_clock.cc
+SRCS+=		tsan/rtl/tsan_debugging.cc
+SRCS+=		tsan/rtl/tsan_external.cc
+SRCS+=		tsan/rtl/tsan_fd.cc
+SRCS+=		tsan/rtl/tsan_flags.cc
+SRCS+=		tsan/rtl/tsan_ignoreset.cc
+SRCS+=		tsan/rtl/tsan_interceptors.cc
+SRCS+=		tsan/rtl/tsan_interface.cc
+SRCS+=		tsan/rtl/tsan_interface_ann.cc
+SRCS+=		tsan/rtl/tsan_interface_atomic.cc
+SRCS+=		tsan/rtl/tsan_interface_java.cc
+SRCS+=		tsan/rtl/tsan_md5.cc
+SRCS+=		tsan/rtl/tsan_mman.cc
+SRCS+=		tsan/rtl/tsan_mutex.cc
+SRCS+=		tsan/rtl/tsan_mutexset.cc
+SRCS+=		tsan/rtl/tsan_platform_linux.cc
+SRCS+=		tsan/rtl/tsan_platform_posix.cc
+SRCS+=		tsan/rtl/tsan_preinit.cc
+SRCS+=		tsan/rtl/tsan_report.cc
+SRCS+=		tsan/rtl/tsan_rtl.cc
+SRCS+=		tsan/rtl/tsan_rtl_amd64.S
+SRCS+=		tsan/rtl/tsan_rtl_mutex.cc
+SRCS+=		tsan/rtl/tsan_rtl_proc.cc
+SRCS+=		tsan/rtl/tsan_rtl_report.cc
+SRCS+=		tsan/rtl/tsan_rtl_thread.cc
+SRCS+=		tsan/rtl/tsan_stack_trace.cc
+SRCS+=		tsan/rtl/tsan_stat.cc
+SRCS+=		tsan/rtl/tsan_suppressions.cc
+SRCS+=		tsan/rtl/tsan_symbolize.cc
+SRCS+=		tsan/rtl/tsan_sync.cc
+SRCS+=		ubsan/ubsan_diag.cc
+SRCS+=		ubsan/ubsan_flags.cc
+SRCS+=		ubsan/ubsan_handlers.cc
+SRCS+=		ubsan/ubsan_init.cc
+SRCS+=		ubsan/ubsan_value.cc
 
 .include <bsd.lib.mk>
