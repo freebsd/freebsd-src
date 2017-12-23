@@ -1,8 +1,9 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1990, 1993 The Regents of the University of California.
+ * Copyright (c) 2017 Mariusz Zaborski <oshogbo@FreeBSD.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,10 +47,9 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 int
-daemon(int nochdir, int noclose)
+daemonfd(int chdirfd, int nullfd)
 {
 	struct sigaction osa, sa;
-	int fd;
 	pid_t newgrp;
 	int oerrno;
 	int osa_ok;
@@ -83,15 +83,39 @@ daemon(int nochdir, int noclose)
 		return (-1);
 	}
 
-	if (!nochdir)
-		(void)chdir("/");
+	if (chdirfd != -1)
+		(void)fchdir(chdirfd);
 
-	if (!noclose && (fd = _open(_PATH_DEVNULL, O_RDWR, 0)) != -1) {
-		(void)_dup2(fd, STDIN_FILENO);
-		(void)_dup2(fd, STDOUT_FILENO);
-		(void)_dup2(fd, STDERR_FILENO);
-		if (fd > 2)
-			(void)_close(fd);
+	if (nullfd != -1) {
+		(void)_dup2(nullfd, STDIN_FILENO);
+		(void)_dup2(nullfd, STDOUT_FILENO);
+		(void)_dup2(nullfd, STDERR_FILENO);
 	}
 	return (0);
+}
+
+int
+daemon(int nochdir, int noclose)
+{
+	int chdirfd, nullfd, ret;
+
+	if (!noclose)
+		nullfd = _open(_PATH_DEVNULL, O_RDWR, 0);
+	else
+		nullfd = -1;
+
+	if (!nochdir)
+		chdirfd = _open("/", O_EXEC);
+	else
+		chdirfd = -1;
+
+	ret = daemonfd(chdirfd, nullfd);
+
+	if (chdirfd != -1)
+		_close(chdirfd);
+
+	if (nullfd > 2)
+		_close(nullfd);
+
+	return (ret);
 }
