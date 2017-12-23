@@ -355,7 +355,7 @@ if_clone_alloc(const char *name, int maxunit)
 
 	return (ifc);
 }
-	
+
 static int
 if_clone_attach(struct if_clone *ifc)
 {
@@ -446,7 +446,7 @@ if_clone_detach(struct if_clone *ifc)
 	/* destroy all interfaces for this cloner */
 	while (!LIST_EMPTY(&ifc->ifc_iflist))
 		if_clone_destroyif(ifc, LIST_FIRST(&ifc->ifc_iflist));
-	
+
 	IF_CLONE_REMREF(ifc);
 }
 
