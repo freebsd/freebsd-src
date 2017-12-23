@@ -1723,6 +1723,9 @@ dev/extres/regulator/regnode_if.m	optional ext_resources regulator fdt
 dev/extres/regulator/regulator.c	optional ext_resources regulator fdt
 dev/extres/regulator/regulator_bus.c	optional ext_resources regulator fdt
 dev/extres/regulator/regulator_fixed.c	optional ext_resources regulator fdt
+dev/extres/syscon/syscon.c		optional ext_resources syscon
+dev/extres/syscon/syscon_generic.c	optional ext_resources syscon fdt
+dev/extres/syscon/syscon_if.m		optional ext_resources syscon
 dev/fb/fbd.c			optional fbd | vt
 dev/fb/fb_if.m			standard
 dev/fb/splash.c			optional sc splash
@@ -3107,9 +3110,6 @@ dev/stg/tmc18c30_subr.c		optional stg
 dev/stge/if_stge.c		optional stge
 dev/sym/sym_hipd.c		optional sym				\
 	dependency	"$S/dev/sym/sym_{conf,defs}.h"
-dev/syscon/syscon.c		optional syscon
-dev/syscon/syscon_generic.c	optional fdt syscon
-dev/syscon/syscon_if.m		optional syscon
 dev/syscons/blank/blank_saver.c	optional blank_saver
 dev/syscons/daemon/daemon_saver.c optional daemon_saver
 dev/syscons/dragon/dragon_saver.c optional dragon_saver
