@@ -224,3 +224,4 @@ static driver_t fdc_driver = {
 };
 
 DRIVER_MODULE(fdc, isa, fdc_driver, fdc_devclass, 0, 0);
+ISA_PNP_INFO(fdc_ids);

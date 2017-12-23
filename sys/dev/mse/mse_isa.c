@@ -107,8 +107,6 @@ static	driver_t	mse_driver = {
 	sizeof(mse_softc_t),
 };
 
-DRIVER_MODULE(mse, isa, mse_driver, mse_devclass, 0, 0);
-
 static struct isa_pnp_id mse_ids[] = {
 	{ 0x000fd041, "Bus mouse" },			/* PNP0F00 */
 	{ 0x020fd041, "InPort mouse" },			/* PNP0F02 */
@@ -390,3 +388,6 @@ mse_getati(struct resource *port, int *dx, int *dy, int *but)
 	bus_write_1(port, MSE_PORTA, MSE_INPORT_MODE);
 	bus_write_1(port, MSE_PORTB, MSE_INPORT_INTREN);
 }
+
+DRIVER_MODULE(mse, isa, mse_driver, mse_devclass, 0, 0);
+ISA_PNP_INFO(mse_ids);
