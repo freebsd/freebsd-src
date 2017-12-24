@@ -8,6 +8,4 @@ SRCS+=		DiffLog.cpp
 SRCS+=		DifferenceEngine.cpp
 SRCS+=		llvm-diff.cpp
 
-LIBADD+=	z
-
 .include "../llvm.prog.mk"
