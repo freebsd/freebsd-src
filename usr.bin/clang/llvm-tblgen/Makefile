@@ -35,6 +35,7 @@ SRCS+=		OptParserEmitter.cpp
 SRCS+=		PseudoLoweringEmitter.cpp
 SRCS+=		RegisterBankEmitter.cpp
 SRCS+=		RegisterInfoEmitter.cpp
+SRCS+=		SDNodeProperties.cpp
 SRCS+=		SearchableTableEmitter.cpp
 SRCS+=		SubtargetEmitter.cpp
 SRCS+=		SubtargetFeatureInfo.cpp
