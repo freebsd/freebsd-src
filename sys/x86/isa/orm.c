@@ -156,7 +156,7 @@ orm_identify(driver_t* driver, device_t parent)
 		device_set_desc(child, "ISA Option ROM");
 	else
 		device_set_desc(child, "ISA Option ROMs");
-	isa_set_vendorid(child, PNP_EISAID("PNP0C80"));
+//	isa_set_vendorid(child, PNP_EISAID("PNP0C80"));
 }
 
 static int
