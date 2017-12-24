@@ -310,7 +310,7 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 
 #ifdef SMP
 		if (!CPU_EMPTY(&suspcpus))
-			restart_cpus(suspcpus);
+			resume_cpus(suspcpus);
 #endif
 		mca_resume();
 #ifdef __amd64__

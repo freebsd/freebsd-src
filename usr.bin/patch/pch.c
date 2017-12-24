@@ -311,14 +311,16 @@ intuit_diff_type(void)
 			    &names[OLD_FILE].exists, strippath);
 		else if (strnEQ(s, "--- ", 4)) {
 			size_t off = 4;
-			if (piece_of_git && strippath == 957)
+			if (piece_of_git && strippath == 957 &&
+			    strnEQ(s, "--- a/", 6))
 				off = 6;
 			names[NEW_FILE].path = fetchname(s + off,
 			    &names[NEW_FILE].exists, strippath);
 		} else if (strnEQ(s, "+++ ", 4)) {
 			/* pretend it is the old name */
 			size_t off = 4;
-			if (piece_of_git && strippath == 957)
+			if (piece_of_git && strippath == 957 &&
+			    strnEQ(s, "+++ b/", 6))
 				off = 6;
 			names[OLD_FILE].path = fetchname(s + off,
 			    &names[OLD_FILE].exists, strippath);

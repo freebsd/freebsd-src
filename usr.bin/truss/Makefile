@@ -13,10 +13,12 @@ ABIS+=		freebsd
 # Each ABI is expected to have an ABI.c, MACHINE_ARCH-ABI.c or
 # MACHINE_CPUARCH-ABI.c file that will be used to map the syscall arguments.
 .if ${MACHINE_ARCH} == "aarch64"
+ABIS+=		cloudabi32
 ABIS+=		cloudabi64
 .endif
 .if ${MACHINE_CPUARCH} == "i386"
 ABIS+=		i386-linux
+ABIS+=		cloudabi32
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
 ABIS+=		amd64-linux

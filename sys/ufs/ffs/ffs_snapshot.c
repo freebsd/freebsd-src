@@ -2502,7 +2502,7 @@ readblock(vp, bp, lbn)
 	struct buf *bp;
 	ufs2_daddr_t lbn;
 {
-	struct inode *ip = VTOI(vp);
+	struct inode *ip;
 	struct bio *bip;
 	struct fs *fs;
 

@@ -48,7 +48,11 @@
 #endif
 
 #ifndef	MAXDSIZ
+#ifdef __powerpc64__
+#define	MAXDSIZ		(32UL*1024*1024*1024)	/* max data size */
+#else
 #define	MAXDSIZ		(1*1024*1024*1024)	/* max data size */
+#endif
 #endif
 
 #ifndef	DFLSSIZ

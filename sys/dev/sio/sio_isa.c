@@ -175,3 +175,4 @@ DRIVER_MODULE(sio, isa, sio_isa_driver, sio_devclass, 0, 0);
 #ifndef COM_NO_ACPI
 DRIVER_MODULE(sio, acpi, sio_isa_driver, sio_devclass, 0, 0);
 #endif
+ISA_PNP_INFO(sio_ids);

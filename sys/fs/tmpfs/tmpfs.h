@@ -188,8 +188,8 @@ struct tmpfs_node {
 	uid_t			tn_uid;		/* (v) */
 	gid_t			tn_gid;		/* (v) */
 	mode_t			tn_mode;	/* (v) */
+	int			tn_links;	/* (v) */
 	u_long			tn_flags;	/* (v) */
-	nlink_t			tn_links;	/* (v) */
 	struct timespec		tn_atime;	/* (vi) */
 	struct timespec		tn_mtime;	/* (vi) */
 	struct timespec		tn_ctime;	/* (vi) */
@@ -296,6 +296,8 @@ LIST_HEAD(tmpfs_node_list, tmpfs_node);
 #define tn_link tn_spec.tn_link
 #define tn_reg tn_spec.tn_reg
 #define tn_fifo tn_spec.tn_fifo
+
+#define	TMPFS_LINK_MAX INT_MAX
 
 #define TMPFS_NODE_LOCK(node) mtx_lock(&(node)->tn_interlock)
 #define TMPFS_NODE_UNLOCK(node) mtx_unlock(&(node)->tn_interlock)

@@ -1418,26 +1418,33 @@ struct fpathconf_args {
 int
 sys_fpathconf(struct thread *td, struct fpathconf_args *uap)
 {
+
+	return (kern_fpathconf(td, uap->fd, uap->name));
+}
+
+int
+kern_fpathconf(struct thread *td, int fd, int name)
+{
 	struct file *fp;
 	struct vnode *vp;
 	cap_rights_t rights;
 	int error;
 
-	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_FPATHCONF), &fp);
+	error = fget(td, fd, cap_rights_init(&rights, CAP_FPATHCONF), &fp);
 	if (error != 0)
 		return (error);
 
-	if (uap->name == _PC_ASYNC_IO) {
+	if (name == _PC_ASYNC_IO) {
 		td->td_retval[0] = _POSIX_ASYNCHRONOUS_IO;
 		goto out;
 	}
 	vp = fp->f_vnode;
 	if (vp != NULL) {
 		vn_lock(vp, LK_SHARED | LK_RETRY);
-		error = VOP_PATHCONF(vp, uap->name, td->td_retval);
+		error = VOP_PATHCONF(vp, name, td->td_retval);
 		VOP_UNLOCK(vp, 0);
 	} else if (fp->f_type == DTYPE_PIPE || fp->f_type == DTYPE_SOCKET) {
-		if (uap->name != _PC_PIPE_BUF) {
+		if (name != _PC_PIPE_BUF) {
 			error = EINVAL;
 		} else {
 			td->td_retval[0] = PIPE_BUF;

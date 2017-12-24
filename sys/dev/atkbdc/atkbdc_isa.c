@@ -322,3 +322,4 @@ atkbdc_isa_release_resource(device_t dev, device_t child, int type, int rid,
 
 DRIVER_MODULE(atkbdc, isa, atkbdc_isa_driver, atkbdc_devclass, 0, 0);
 DRIVER_MODULE(atkbdc, acpi, atkbdc_isa_driver, atkbdc_devclass, 0, 0);
+ISA_PNP_INFO(atkbdc_ids);

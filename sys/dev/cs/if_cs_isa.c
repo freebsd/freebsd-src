@@ -120,3 +120,4 @@ extern devclass_t cs_devclass;
 DRIVER_MODULE(cs, isa, cs_isa_driver, cs_devclass, 0, 0);
 MODULE_DEPEND(cs, isa, 1, 1, 1);
 MODULE_DEPEND(cs, ether, 1, 1, 1);
+ISA_PNP_INFO(cs_ids);

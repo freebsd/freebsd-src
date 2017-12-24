@@ -88,14 +88,22 @@ struct pccard_product {
 };
 
 /**
- * Note: There's no cis3 or cis4 reported for NOMATCH / pnpinfo events for pccard
- * It's unclear if we actually need that for automatic loading or not. These stirngs
- * are informative, according to the standard, but I have a dim memory of using these
- * strings to match things, though I can't find the example right now.
+ * Note: There's no cis3 or cis4 reported for NOMATCH / pnpinfo events for
+ * pccard It's unclear if we actually need that for automatic loading or
+ * not. These stirngs are informative, according to the standard. Some Linux
+ * drivers match on them, for example. However, FreeBSD's hardware probing is a
+ * little different than Linux so it turns out we don't need them. Some cards
+ * use CIS3 or CIS4 for a textual representation of the MAC address. In short,
+ * they aren't needed even though our friends in Linux have them. It is my
+ * belief that all the entries in Linux don't actually need to be separate there
+ * either, but it's hard to eliminate them and retest on old, possibly rare,
+ * hardware so they persist. Despite years of collecting ~300 different PC Cards
+ * off E-Bay, I've not been able to find any that need CIS3/CIS4 to select which
+ * device attaches.
  */
 #define PCCARD_PNP_DESCR "D:#;V32:manufacturer;V32:product;Z:cisvendor;Z:cisproduct;"
 #define PCCARD_PNP_INFO(t) \
-	MODULE_PNP_INFO(PCCARD_PNP_DESCR, pccard, t, t, sizeof(t[0]), sizeof(t) / sizeof(t[0])); \
+	MODULE_PNP_INFO(PCCARD_PNP_DESCR, pccard, t, t, sizeof(t[0]), nitems(t) - 1); \
 
 typedef int (*pccard_product_match_fn) (device_t dev,
     const struct pccard_product *ent, int vpfmatch);

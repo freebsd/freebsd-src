@@ -122,11 +122,36 @@ _hwrm_send_message(struct bnxt_softc *softc, void *msg, uint32_t msg_len)
 	uint16_t cp_ring_id;
 	uint8_t *valid;
 	uint16_t err;
+	uint16_t max_req_len = HWRM_MAX_REQ_LEN;
+	struct hwrm_short_input short_input = {0};
 
 	/* TODO: DMASYNC in here. */
 	req->seq_id = htole16(softc->hwrm_cmd_seq++);
 	memset(resp, 0, PAGE_SIZE);
 	cp_ring_id = le16toh(req->cmpl_ring);
+
+	if (softc->flags & BNXT_FLAG_SHORT_CMD) {
+		void *short_cmd_req = softc->hwrm_short_cmd_req_addr.idi_vaddr;
+
+		memcpy(short_cmd_req, req, msg_len);
+		memset((uint8_t *) short_cmd_req + msg_len, 0, softc->hwrm_max_req_len-
+		    msg_len);
+
+		short_input.req_type = req->req_type;
+		short_input.signature =
+		    htole16(HWRM_SHORT_INPUT_SIGNATURE_SHORT_CMD);
+		short_input.size = htole16(msg_len);
+		short_input.req_addr =
+		    htole64(softc->hwrm_short_cmd_req_addr.idi_paddr);
+
+		data = (uint32_t *)&short_input;
+		msg_len = sizeof(short_input);
+
+		/* Sync memory write before updating doorbell */
+		wmb();
+
+		max_req_len = BNXT_HWRM_SHORT_REQ_LEN;
+	}
 
 	/* Write request msg to hwrm channel */
 	for (i = 0; i < msg_len; i += 4) {
@@ -137,7 +162,7 @@ _hwrm_send_message(struct bnxt_softc *softc, void *msg, uint32_t msg_len)
 	}
 
 	/* Clear to the end of the request buffer */
-	for (i = msg_len; i < HWRM_MAX_REQ_LEN; i += 4)
+	for (i = msg_len; i < max_req_len; i += 4)
 		bus_space_write_4(softc->hwrm_bar.tag, softc->hwrm_bar.handle,
 		    i, 0);
 
@@ -248,6 +273,7 @@ bnxt_hwrm_ver_get(struct bnxt_softc *softc)
 	int				rc;
 	const char nastr[] = "<not installed>";
 	const char naver[] = "<N/A>";
+	uint32_t dev_caps_cfg;
 
 	softc->hwrm_max_req_len = HWRM_MAX_REQ_LEN;
 	softc->hwrm_cmd_timeo = 1000;
@@ -322,6 +348,11 @@ bnxt_hwrm_ver_get(struct bnxt_softc *softc)
 		softc->hwrm_max_req_len = le16toh(resp->max_req_win_len);
 	if (resp->def_req_timeout)
 		softc->hwrm_cmd_timeo = le16toh(resp->def_req_timeout);
+
+	dev_caps_cfg = le32toh(resp->dev_caps_cfg);
+	if ((dev_caps_cfg & HWRM_VER_GET_OUTPUT_DEV_CAPS_CFG_SHORT_CMD_SUPPORTED) &&
+	    (dev_caps_cfg & HWRM_VER_GET_OUTPUT_DEV_CAPS_CFG_SHORT_CMD_REQUIRED))
+		softc->flags |= BNXT_FLAG_SHORT_CMD;
 
 fail:
 	BNXT_HWRM_UNLOCK(softc);
@@ -945,9 +976,9 @@ bnxt_cfg_async_cr(struct bnxt_softc *softc)
 
 		bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_CFG);
 
-		req.fid = 0xffff;
+		req.fid = htole16(0xffff);
 		req.enables = htole32(HWRM_FUNC_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
-		req.async_event_cr = softc->def_cp_ring.ring.phys_id;
+		req.async_event_cr = htole16(softc->def_cp_ring.ring.phys_id);
 
 		rc = hwrm_send_message(softc, &req, sizeof(req));
 	}
@@ -957,7 +988,7 @@ bnxt_cfg_async_cr(struct bnxt_softc *softc)
 		bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_VF_CFG);
 
 		req.enables = htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
-		req.async_event_cr = softc->def_cp_ring.ring.phys_id;
+		req.async_event_cr = htole16(softc->def_cp_ring.ring.phys_id);
 
 		rc = hwrm_send_message(softc, &req, sizeof(req));
 	}

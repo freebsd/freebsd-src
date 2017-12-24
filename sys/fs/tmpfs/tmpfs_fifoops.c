@@ -71,5 +71,6 @@ struct vop_vector tmpfs_fifoop_entries = {
 	.vop_access =			tmpfs_access,
 	.vop_getattr =			tmpfs_getattr,
 	.vop_setattr =			tmpfs_setattr,
+	.vop_pathconf =                 tmpfs_pathconf,
 	.vop_print =			tmpfs_print,
 };

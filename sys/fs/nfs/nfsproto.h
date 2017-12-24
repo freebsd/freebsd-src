@@ -785,6 +785,8 @@ struct nfs_fattr {
 #define	fa3_mtime		fa_un.fa_nfsv3.nfsv3fa_mtime
 #define	fa3_ctime		fa_un.fa_nfsv3.nfsv3fa_ctime
 
+#define	NFS_LINK_MAX	UINT32_MAX
+
 struct nfsv2_sattr {
 	u_int32_t sa_mode;
 	u_int32_t sa_uid;
