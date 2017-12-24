@@ -56,9 +56,6 @@ LDFLAGS+=	-static -Ttext 0x0
 LIBI386=	${BOOTOBJ}/i386/libi386/libi386.a
 CFLAGS+=	-I${BOOTSRC}/i386
 
-# BTX components
-CFLAGS+=	-I${BTXLIB}
-
 # Debug me!
 #CFLAGS+=	-g
 #LDFLAGS+=	-g

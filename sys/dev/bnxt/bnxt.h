@@ -561,6 +561,7 @@ struct bnxt_softc {
 #define BNXT_FLAG_VF		0x0001
 #define BNXT_FLAG_NPAR		0x0002
 #define BNXT_FLAG_WOL_CAP	0x0004
+#define BNXT_FLAG_SHORT_CMD	0x0008 
 	uint32_t		flags;
 	uint32_t		total_msix;
 
@@ -572,6 +573,7 @@ struct bnxt_softc {
 	uint16_t		hwrm_cmd_seq;
 	uint32_t		hwrm_cmd_timeo;	/* milliseconds */
 	struct iflib_dma_info	hwrm_cmd_resp;
+	struct iflib_dma_info	hwrm_short_cmd_req_addr;
 	/* Interrupt info for HWRM */
 	struct if_irq		irq;
 	struct mtx		hwrm_lock;

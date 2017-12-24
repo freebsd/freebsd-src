@@ -41,6 +41,8 @@
 #ifndef	_MACHINE_ATOMIC_H_
 #define	_MACHINE_ATOMIC_H_
 
+#include <sys/atomic_common.h>
+
 #include <machine/armreg.h>
 
 #ifndef _KERNEL
@@ -52,32 +54,6 @@
 #else /* < armv6 */
 #include <machine/atomic-v4.h>
 #endif /* Arch >= v6 */
-
-static __inline int
-atomic_load_32(volatile uint32_t *v)
-{
-
-	return (*v);
-}
-
-static __inline void
-atomic_store_32(volatile uint32_t *dst, uint32_t src)
-{
-	*dst = src;
-}
-
-static __inline int
-atomic_load_long(volatile u_long *v)
-{
-
-	return (*v);
-}
-
-static __inline void
-atomic_store_long(volatile u_long *dst, u_long src)
-{
-	*dst = src;
-}
 
 #define atomic_clear_ptr		atomic_clear_32
 #define atomic_clear_acq_ptr		atomic_clear_acq_32
@@ -92,7 +68,6 @@ atomic_store_long(volatile u_long *dst, u_long src)
 #define atomic_cmpset_acq_ptr		atomic_cmpset_acq_32
 #define atomic_cmpset_rel_ptr		atomic_cmpset_rel_32
 #define atomic_load_acq_ptr		atomic_load_acq_32
-#define atomic_store_ptr		atomic_store_32
 #define atomic_store_rel_ptr		atomic_store_rel_32
 #define atomic_swap_ptr			atomic_swap_32
 #define atomic_readandclear_ptr		atomic_readandclear_32

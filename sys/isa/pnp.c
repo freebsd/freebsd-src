@@ -103,26 +103,6 @@ static void   pnp_send_initiation_key(void);
 static int    pnp_get_serial(pnp_id *p);
 static int    pnp_isolation_protocol(device_t parent);
 
-char *
-pnp_eisaformat(uint32_t id)
-{
-	uint8_t *data;
-	static char idbuf[8];
-	const char  hextoascii[] = "0123456789abcdef";
-
-	id = htole32(id);
-	data = (uint8_t *)&id;
-	idbuf[0] = '@' + ((data[0] & 0x7c) >> 2);
-	idbuf[1] = '@' + (((data[0] & 0x3) << 3) + ((data[1] & 0xe0) >> 5));
-	idbuf[2] = '@' + (data[1] & 0x1f);
-	idbuf[3] = hextoascii[(data[2] >> 4)];
-	idbuf[4] = hextoascii[(data[2] & 0xf)];
-	idbuf[5] = hextoascii[(data[3] >> 4)];
-	idbuf[6] = hextoascii[(data[3] & 0xf)];
-	idbuf[7] = 0;
-	return(idbuf);
-}
-
 static void
 pnp_write(int d, u_char r)
 {

@@ -963,6 +963,7 @@ printcpuinfo(void)
 				       "\035AVX512CD"
 				       "\036SHA"
 				       "\037AVX512BW"
+				       "\040AVX512VL"
 				       );
 			}
 

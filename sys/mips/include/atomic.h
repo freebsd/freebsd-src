@@ -36,6 +36,8 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+#include <sys/atomic_common.h>
+
 /*
  * Note: All the 64-bit atomic operations are only atomic when running
  * in 64-bit mode.  It is assumed that code compiled for n32 and n64
@@ -339,23 +341,6 @@ atomic_store_rel_##WIDTH(__volatile uint##WIDTH##_t *p, uint##WIDTH##_t v)\
 
 ATOMIC_STORE_LOAD(32)
 ATOMIC_STORE_LOAD(64)
-#if !defined(__mips_n64) && !defined(__mips_n32)
-void atomic_store_64(__volatile uint64_t *, uint64_t *);
-void atomic_load_64(__volatile uint64_t *, uint64_t *);
-#else
-static __inline void
-atomic_store_64(__volatile uint64_t *p, uint64_t *v)
-{
-	*p = *v;
-}
-
-static __inline void
-atomic_load_64(__volatile uint64_t *p, uint64_t *v)
-{
-	*v = *p;
-}
-#endif
-
 #undef ATOMIC_STORE_LOAD
 
 /*

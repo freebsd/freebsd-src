@@ -82,8 +82,6 @@ static driver_t ex_isa_driver = {
 	sizeof(struct ex_softc),
 };
 
-DRIVER_MODULE(ex, isa, ex_isa_driver, ex_devclass, 0, 0);
-
 static struct isa_pnp_id ex_ids[] = {
 	{ 0x3110d425,	NULL },	/* INT1031 */
 	{ 0x3010d425,	NULL },	/* INT1030 */
@@ -337,3 +335,6 @@ ex_look_for_card(struct ex_softc *sc)
 
 	return((count2 & Counter_bits) == ((count1 + 0xc0) & Counter_bits));
 }
+
+DRIVER_MODULE(ex, isa, ex_isa_driver, ex_devclass, 0, 0);
+ISA_PNP_INFO(ex_ids);

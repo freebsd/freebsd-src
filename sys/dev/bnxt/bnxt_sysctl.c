@@ -74,14 +74,16 @@ bnxt_init_sysctl_ctx(struct bnxt_softc *softc)
 		return ENOMEM;
 	}
 
-	sysctl_ctx_init(&softc->nvm_info->nvm_ctx);
-	ctx = device_get_sysctl_ctx(softc->dev);
-	softc->nvm_info->nvm_oid = SYSCTL_ADD_NODE(ctx,
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
-	    "nvram", CTLFLAG_RD, 0, "nvram information");
-	if (!softc->nvm_info->nvm_oid) {
-		sysctl_ctx_free(&softc->nvm_info->nvm_ctx);
-		return ENOMEM;
+	if (BNXT_PF(softc)) {
+		sysctl_ctx_init(&softc->nvm_info->nvm_ctx);
+		ctx = device_get_sysctl_ctx(softc->dev);
+		softc->nvm_info->nvm_oid = SYSCTL_ADD_NODE(ctx,
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
+		    "nvram", CTLFLAG_RD, 0, "nvram information");
+		if (!softc->nvm_info->nvm_oid) {
+			sysctl_ctx_free(&softc->nvm_info->nvm_ctx);
+			return ENOMEM;
+		}
 	}
 
 	sysctl_ctx_init(&softc->hw_lro_ctx);
@@ -127,7 +129,7 @@ bnxt_free_sysctl_ctx(struct bnxt_softc *softc)
 		else
 			softc->ver_info->ver_oid = NULL;
 	}
-	if (softc->nvm_info->nvm_oid != NULL) {
+	if (BNXT_PF(softc) && softc->nvm_info->nvm_oid != NULL) {
 		orc = sysctl_ctx_free(&softc->nvm_info->nvm_ctx);
 		if (orc)
 			rc = orc;

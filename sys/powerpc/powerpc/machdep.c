@@ -155,7 +155,7 @@ SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 	   CTLFLAG_RD, &cacheline_size, 0, "");
 
 uintptr_t	powerpc_init(vm_offset_t, vm_offset_t, vm_offset_t, void *,
-		    vm_offset_t);
+		    uint32_t);
 
 long		Maxmem = 0;
 long		realmem = 0;
@@ -234,7 +234,7 @@ void booke_cpu_init(void);
 
 uintptr_t
 powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
-    vm_offset_t mdp_cookie)
+    uint32_t mdp_cookie)
 {
 	struct		pcpu *pc;
 	struct cpuref	bsp;

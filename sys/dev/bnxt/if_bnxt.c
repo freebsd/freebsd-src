@@ -643,6 +643,23 @@ cp_alloc_fail:
 	return rc;
 }
 
+static void bnxt_free_hwrm_short_cmd_req(struct bnxt_softc *softc)
+{
+	if (softc->hwrm_short_cmd_req_addr.idi_vaddr)
+		iflib_dma_free(&softc->hwrm_short_cmd_req_addr);
+	softc->hwrm_short_cmd_req_addr.idi_vaddr = NULL;
+}
+
+static int bnxt_alloc_hwrm_short_cmd_req(struct bnxt_softc *softc)
+{
+	int rc;
+
+	rc = iflib_dma_alloc(softc->ctx, softc->hwrm_max_req_len,
+	    &softc->hwrm_short_cmd_req_addr, BUS_DMA_NOWAIT);
+
+	return rc;
+}
+
 /* Device setup and teardown */
 static int
 bnxt_attach_pre(if_ctx_t ctx)
@@ -714,19 +731,28 @@ bnxt_attach_pre(if_ctx_t ctx)
 		goto ver_fail;
 	}
 
-	/* Get NVRAM info */
-	softc->nvm_info = malloc(sizeof(struct bnxt_nvram_info),
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (softc->nvm_info == NULL) {
-		rc = ENOMEM;
-		device_printf(softc->dev,
-		    "Unable to allocate space for NVRAM info\n");
-		goto nvm_alloc_fail;
+	if (softc->flags & BNXT_FLAG_SHORT_CMD) {
+		rc = bnxt_alloc_hwrm_short_cmd_req(softc);
+		if (rc)
+			goto hwrm_short_cmd_alloc_fail;
 	}
-	rc = bnxt_hwrm_nvm_get_dev_info(softc, &softc->nvm_info->mfg_id,
-	    &softc->nvm_info->device_id, &softc->nvm_info->sector_size,
-	    &softc->nvm_info->size, &softc->nvm_info->reserved_size,
-	    &softc->nvm_info->available_size);
+
+	/* Get NVRAM info */
+	if (BNXT_PF(softc)) {
+		softc->nvm_info = malloc(sizeof(struct bnxt_nvram_info),
+		    M_DEVBUF, M_NOWAIT | M_ZERO);
+		if (softc->nvm_info == NULL) {
+			rc = ENOMEM;
+			device_printf(softc->dev,
+			    "Unable to allocate space for NVRAM info\n");
+			goto nvm_alloc_fail;
+		}
+
+		rc = bnxt_hwrm_nvm_get_dev_info(softc, &softc->nvm_info->mfg_id,
+		    &softc->nvm_info->device_id, &softc->nvm_info->sector_size,
+		    &softc->nvm_info->size, &softc->nvm_info->reserved_size,
+		    &softc->nvm_info->available_size);
+	}
 
 	/* Register the driver with the FW */
 	rc = bnxt_hwrm_func_drv_rgtr(softc);
@@ -859,9 +885,11 @@ bnxt_attach_pre(if_ctx_t ctx)
 	rc = bnxt_init_sysctl_ctx(softc);
 	if (rc)
 		goto init_sysctl_failed;
-	rc = bnxt_create_nvram_sysctls(softc->nvm_info);
-	if (rc)
-		goto failed;
+	if (BNXT_PF(softc)) {
+		rc = bnxt_create_nvram_sysctls(softc->nvm_info);
+		if (rc)
+			goto failed;
+	}
 
 	arc4rand(softc->vnic_info.rss_hash_key, HW_HASH_KEY_SIZE, 0);
 	softc->vnic_info.rss_hash_type =
@@ -894,8 +922,11 @@ failed:
 init_sysctl_failed:
 	bnxt_hwrm_func_drv_unrgtr(softc, false);
 drv_rgtr_fail:
-	free(softc->nvm_info, M_DEVBUF);
+	if (BNXT_PF(softc))
+		free(softc->nvm_info, M_DEVBUF);
 nvm_alloc_fail:
+	bnxt_free_hwrm_short_cmd_req(softc);
+hwrm_short_cmd_alloc_fail:
 ver_fail:
 	free(softc->ver_info, M_DEVBUF);
 ver_alloc_fail:
@@ -963,10 +994,12 @@ bnxt_detach(if_ctx_t ctx)
 	for (i = 0; i < softc->nrxqsets; i++)
 		free(softc->rx_rings[i].tpa_start, M_DEVBUF);
 	free(softc->ver_info, M_DEVBUF);
-	free(softc->nvm_info, M_DEVBUF);
+	if (BNXT_PF(softc))
+		free(softc->nvm_info, M_DEVBUF);
 
 	bnxt_hwrm_func_drv_unrgtr(softc, false);
 	bnxt_free_hwrm_dma_mem(softc);
+	bnxt_free_hwrm_short_cmd_req(softc);
 	BNXT_HWRM_LOCK_DESTROY(softc);
 
 	pci_disable_busmaster(softc->dev);
@@ -2052,8 +2085,13 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 		break;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_UNKNOWN:
-        default:
 		/* Only Autoneg is supported for TYPE_UNKNOWN */
+		device_printf(softc->dev, "Unknown phy type\n");
+		break;
+
+        default:
+		/* Only Autoneg is supported for new phy type values */
+		device_printf(softc->dev, "phy type %d not supported by driver\n", phy_type);
 		break;
 	}
 
@@ -2191,6 +2229,10 @@ bnxt_report_link(struct bnxt_softc *softc)
 	link_info->last_flow_ctrl.tx = link_info->flow_ctrl.tx;
 	link_info->last_flow_ctrl.rx = link_info->flow_ctrl.rx;
 	link_info->last_flow_ctrl.autoneg = link_info->flow_ctrl.autoneg;
+	/* update media types */
+	ifmedia_removeall(softc->media);
+	bnxt_add_media_types(softc);
+	ifmedia_set(softc->media, IFM_ETHER | IFM_AUTO);
 }
 
 static int

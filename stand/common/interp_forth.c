@@ -250,7 +250,7 @@ bf_command(FICL_VM *vm)
  * Initialise the Forth interpreter, create all our commands as words.
  */
 void
-bf_init(const char *rc)
+bf_init(void)
 {
     struct bootblk_command	**cmdp;
     char create_buf[41];	/* 31 characters-long builtins */
@@ -280,14 +280,9 @@ bf_init(const char *rc)
     ficlSetEnv(bf_sys, "loader_version", bootprog_rev);
 
     /* try to load and run init file if present */
-    if (rc == NULL)
-	rc = "/boot/boot.4th";
-    if (*rc != '\0') {
-	fd = open(rc, O_RDONLY);
-	if (fd != -1) {
-	    (void)ficlExecFD(bf_vm, fd);
-	    close(fd);
-	}
+    if ((fd = open("/boot/boot.4th", O_RDONLY)) != -1) {
+	(void)ficlExecFD(bf_vm, fd);
+	close(fd);
     }
 }
 

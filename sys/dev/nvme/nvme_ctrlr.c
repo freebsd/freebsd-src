@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 
 #include "nvme_private.h"
 
+#define B4_CHK_RDY_DELAY_MS	2300		/* work arond controller bug */
+
 static void nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 						struct nvme_async_event_request *aer);
 static void nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr);
@@ -241,49 +243,65 @@ static int
 nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr, int desired_val)
 {
 	int ms_waited;
-	union cc_register cc;
 	union csts_register csts;
 
-	cc.raw = nvme_mmio_read_4(ctrlr, cc);
 	csts.raw = nvme_mmio_read_4(ctrlr, csts);
 
-	if (cc.bits.en != desired_val) {
-		nvme_printf(ctrlr, "%s called with desired_val = %d "
-		    "but cc.en = %d\n", __func__, desired_val, cc.bits.en);
-		return (ENXIO);
-	}
-
 	ms_waited = 0;
-
 	while (csts.bits.rdy != desired_val) {
-		DELAY(1000);
 		if (ms_waited++ > ctrlr->ready_timeout_in_ms) {
 			nvme_printf(ctrlr, "controller ready did not become %d "
 			    "within %d ms\n", desired_val, ctrlr->ready_timeout_in_ms);
 			return (ENXIO);
 		}
+		DELAY(1000);
 		csts.raw = nvme_mmio_read_4(ctrlr, csts);
 	}
 
 	return (0);
 }
 
-static void
+static int
 nvme_ctrlr_disable(struct nvme_controller *ctrlr)
 {
 	union cc_register cc;
 	union csts_register csts;
+	int err;
 
 	cc.raw = nvme_mmio_read_4(ctrlr, cc);
 	csts.raw = nvme_mmio_read_4(ctrlr, csts);
 
-	if (cc.bits.en == 1 && csts.bits.rdy == 0)
-		nvme_ctrlr_wait_for_ready(ctrlr, 1);
+	/*
+	 * Per 3.1.5 in NVME 1.3 spec, transitioning CC.EN from 0 to 1
+	 * when CSTS.RDY is 1 or transitioning CC.EN from 1 to 0 when
+	 * CSTS.RDY is 0 "has undefined results" So make sure that CSTS.RDY
+	 * isn't the desired value. Short circuit if we're already disabled.
+	 */
+	if (cc.bits.en == 1) {
+		if (csts.bits.rdy == 0) {
+			/* EN == 1, wait for  RDY == 1 or fail */
+			err = nvme_ctrlr_wait_for_ready(ctrlr, 1);
+			if (err != 0)
+				return (err);
+		}
+	} else {
+		/* EN == 0 already wait for RDY == 0 */
+		if (csts.bits.rdy == 0)
+			return (0);
+		else
+			return (nvme_ctrlr_wait_for_ready(ctrlr, 0));
+	}
 
 	cc.bits.en = 0;
 	nvme_mmio_write_4(ctrlr, cc, cc.raw);
-	DELAY(5000);
-	nvme_ctrlr_wait_for_ready(ctrlr, 0);
+	/*
+	 * Some drives have issues with accessing the mmio after we
+	 * disable, so delay for a bit after we write the bit to
+	 * cope with these issues.
+	 */
+	if (ctrlr->quirks & QUIRK_DELAY_B4_CHK_RDY)
+		pause("nvmeR", B4_CHK_RDY_DELAY_MS * hz / 1000);
+	return (nvme_ctrlr_wait_for_ready(ctrlr, 0));
 }
 
 static int
@@ -292,15 +310,24 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	union cc_register	cc;
 	union csts_register	csts;
 	union aqa_register	aqa;
+	int			err;
 
 	cc.raw = nvme_mmio_read_4(ctrlr, cc);
 	csts.raw = nvme_mmio_read_4(ctrlr, csts);
 
+	/*
+	 * See note in nvme_ctrlr_disable. Short circuit if we're already enabled.
+	 */
 	if (cc.bits.en == 1) {
 		if (csts.bits.rdy == 1)
 			return (0);
 		else
 			return (nvme_ctrlr_wait_for_ready(ctrlr, 1));
+	} else {
+		/* EN == 0 already wait for RDY == 0 or fail */
+		err = nvme_ctrlr_wait_for_ready(ctrlr, 0);
+		if (err != 0)
+			return (err);
 	}
 
 	nvme_mmio_write_8(ctrlr, asq, ctrlr->adminq.cmd_bus_addr);
@@ -326,7 +353,6 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	cc.bits.mps = (PAGE_SIZE >> 13);
 
 	nvme_mmio_write_4(ctrlr, cc, cc.raw);
-	DELAY(5000);
 
 	return (nvme_ctrlr_wait_for_ready(ctrlr, 1));
 }
@@ -334,7 +360,7 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 int
 nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 {
-	int i;
+	int i, err;
 
 	nvme_admin_qpair_disable(&ctrlr->adminq);
 	/*
@@ -349,7 +375,9 @@ nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 
 	DELAY(100*1000);
 
-	nvme_ctrlr_disable(ctrlr);
+	err = nvme_ctrlr_disable(ctrlr);
+	if (err != 0)
+		return err;
 	return (nvme_ctrlr_enable(ctrlr));
 }
 

@@ -85,3 +85,4 @@ static driver_t joy_isa_driver = {
 
 DRIVER_MODULE(joy, isa, joy_isa_driver, joy_devclass, 0, 0);
 DRIVER_MODULE(joy, acpi, joy_isa_driver, joy_devclass, 0, 0);
+ISA_PNP_INFO(joy_ids);

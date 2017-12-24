@@ -102,6 +102,7 @@ struct vop_vector udf_fifoops = {
 	.vop_default =		&fifo_specops,
 	.vop_access =		udf_access,
 	.vop_getattr =		udf_getattr,
+	.vop_pathconf =		udf_pathconf,
 	.vop_print =		udf_print,
 	.vop_reclaim =		udf_reclaim,
 	.vop_setattr =		udf_setattr,
@@ -400,6 +401,12 @@ udf_pathconf(struct vop_pathconf_args *a)
 	case _PC_NO_TRUNC:
 		*a->a_retval = 1;
 		return (0);
+	case _PC_PIPE_BUF:
+		if (a->a_vp->v_type == VDIR || a->a_vp->v_type == VFIFO) {
+			*a->a_retval = PIPE_BUF;
+			return (0);
+		}
+		return (EINVAL);
 	default:
 		return (vop_stdpathconf(a));
 	}

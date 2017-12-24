@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2010 Isilon Systems, Inc.
- * Copyright (c) 2016 Matt Macy (mmacy@nextbsd.org)
+ * Copyright (c) 2016 Matthew Macy (mmacy@mattmacy.io)
  * Copyright (c) 2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *

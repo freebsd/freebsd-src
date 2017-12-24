@@ -12,7 +12,6 @@ SRCS+=		dcons.c fwcrom.c
 CFLAGS+=	-D_BOOT
 
 CFLAGS+=	-I${LDRSRC}
-CFLAGS+=	-I${BTXLIB}
 CFLAGS+=	-I${BOOTSRC}/i386/libi386
 
 CFLAGS+=	-Wformat -Wall

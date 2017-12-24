@@ -362,3 +362,4 @@ static devclass_t aha_devclass;
 
 DRIVER_MODULE(aha, isa, aha_isa_driver, aha_devclass, 0, 0);
 MODULE_DEPEND(aha, isa, 1, 1, 1);
+ISA_PNP_INFO(aha_ids);

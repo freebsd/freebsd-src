@@ -172,3 +172,4 @@ uart_isa_probe(device_t dev)
 }
 
 DRIVER_MODULE(uart, isa, uart_isa_driver, uart_devclass, 0, 0);
+ISA_PNP_INFO(isa_ns8250_ids);

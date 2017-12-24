@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/bio.h>
+#include <sys/conf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/buf.h>
@@ -1158,7 +1159,7 @@ cam_periph_runccb(union ccb *ccb,
 	struct bintime *starttime;
 	struct bintime ltime;
 	int error;
-	bool sched_stopped;
+	bool must_poll;
 	struct mtx *periph_mtx;
 	struct cam_periph *periph;
 	uint32_t timeout = 1;
@@ -1182,7 +1183,13 @@ cam_periph_runccb(union ccb *ccb,
 		devstat_start_transaction(ds, starttime);
 	}
 
-	sched_stopped = SCHEDULER_STOPPED();
+	/*
+	 * We must poll the I/O while we're dumping. The scheduler is normally
+	 * stopped for dumping, except when we call doadump from ddb. While the
+	 * scheduler is running in this case, we still need to poll the I/O to
+	 * avoid sleeping waiting for the ccb to complete.
+	 */
+	must_poll = dumping;
 	ccb->ccb_h.cbfcnp = cam_periph_done;
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	periph_mtx = cam_periph_mtx(periph);
@@ -1193,7 +1200,7 @@ cam_periph_runccb(union ccb *ccb,
 	 * cam_periph_error can reschedule the ccb by calling xpt_action and returning
 	 * ERESTART, so we have to effect the polling in the do loop below.
 	 */
-	if (sched_stopped) {
+	if (must_poll) {
 		mtx_unlock(periph_mtx);
 		timeout = xpt_poll_setup(ccb);
 	}
@@ -1204,11 +1211,11 @@ cam_periph_runccb(union ccb *ccb,
 	} else {
 		xpt_action(ccb);
 		do {
-			if (!sched_stopped)
-				cam_periph_ccbwait(ccb);
-			else {
+			if (must_poll) {
 				xpt_pollwait(ccb, timeout);
 				timeout = ccb->ccb_h.timeout * 10;
+			} else {
+				cam_periph_ccbwait(ccb);
 			}
 			if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
 				error = 0;
@@ -1220,7 +1227,7 @@ cam_periph_runccb(union ccb *ccb,
 		} while (error == ERESTART);
 	}
 
-	if (sched_stopped)
+	if (must_poll)
 		mtx_lock(periph_mtx);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
