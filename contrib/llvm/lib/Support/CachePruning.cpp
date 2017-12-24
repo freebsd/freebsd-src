@@ -165,12 +165,14 @@ bool llvm::pruneCache(StringRef Path, CachePruningPolicy Policy) {
       return false;
     }
   } else {
+    if (!Policy.Interval)
+      return false;
     if (Policy.Interval != seconds(0)) {
       // Check whether the time stamp is older than our pruning interval.
       // If not, do nothing.
       const auto TimeStampModTime = FileStatus.getLastModificationTime();
       auto TimeStampAge = CurrentTime - TimeStampModTime;
-      if (TimeStampAge <= Policy.Interval) {
+      if (TimeStampAge <= *Policy.Interval) {
         DEBUG(dbgs() << "Timestamp file too recent ("
                      << duration_cast<seconds>(TimeStampAge).count()
                      << "s old), do not prune.\n");

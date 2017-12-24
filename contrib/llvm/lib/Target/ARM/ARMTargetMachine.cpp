@@ -92,6 +92,7 @@ extern "C" void LLVMInitializeARMTarget() {
   initializeARMConstantIslandsPass(Registry);
   initializeARMExecutionDepsFixPass(Registry);
   initializeARMExpandPseudoPass(Registry);
+  initializeThumb2SizeReducePass(Registry);
 }
 
 static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
@@ -282,10 +283,9 @@ ARMBaseTargetMachine::getSubtargetImpl(const Function &F) const {
   return I.get();
 }
 
-TargetIRAnalysis ARMBaseTargetMachine::getTargetIRAnalysis() {
-  return TargetIRAnalysis([this](const Function &F) {
-    return TargetTransformInfo(ARMTTIImpl(this, F));
-  });
+TargetTransformInfo
+ARMBaseTargetMachine::getTargetTransformInfo(const Function &F) {
+  return TargetTransformInfo(ARMTTIImpl(this, F));
 }
 
 ARMLETargetMachine::ARMLETargetMachine(const Target &T, const Triple &TT,
