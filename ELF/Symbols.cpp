@@ -116,12 +116,6 @@ static uint64_t getSymVA(const Symbol &Sym, int64_t &Addend) {
   llvm_unreachable("invalid symbol kind");
 }
 
-// Returns true if this is a weak undefined symbol.
-bool Symbol::isUndefWeak() const {
-  // See comment on Lazy in Symbols.h for the details.
-  return isWeak() && (isUndefined() || isLazy());
-}
-
 uint64_t Symbol::getVA(int64_t Addend) const {
   uint64_t OutVA = getSymVA(*this, Addend);
   return OutVA + Addend;
@@ -224,21 +218,21 @@ InputFile *Lazy::fetch() {
   return cast<LazyObject>(this)->fetch();
 }
 
-ArchiveFile *LazyArchive::getFile() { return cast<ArchiveFile>(File); }
+ArchiveFile &LazyArchive::getFile() { return *cast<ArchiveFile>(File); }
 
 InputFile *LazyArchive::fetch() {
-  std::pair<MemoryBufferRef, uint64_t> MBInfo = getFile()->getMember(&Sym);
+  std::pair<MemoryBufferRef, uint64_t> MBInfo = getFile().getMember(&Sym);
 
   // getMember returns an empty buffer if the member was already
   // read from the library.
   if (MBInfo.first.getBuffer().empty())
     return nullptr;
-  return createObjectFile(MBInfo.first, getFile()->getName(), MBInfo.second);
+  return createObjectFile(MBInfo.first, getFile().getName(), MBInfo.second);
 }
 
-LazyObjFile *LazyObject::getFile() { return cast<LazyObjFile>(File); }
+LazyObjFile &LazyObject::getFile() { return *cast<LazyObjFile>(File); }
 
-InputFile *LazyObject::fetch() { return getFile()->fetch(); }
+InputFile *LazyObject::fetch() { return getFile().fetch(); }
 
 uint8_t Symbol::computeBinding() const {
   if (Config->Relocatable)
