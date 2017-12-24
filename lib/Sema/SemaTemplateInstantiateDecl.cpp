@@ -1587,9 +1587,10 @@ static QualType adjustFunctionTypeForInstantiation(ASTContext &Context,
 }
 
 /// Normal class members are of more specific types and therefore
-/// don't make it here.  This function serves two purposes:
+/// don't make it here.  This function serves three purposes:
 ///   1) instantiating function templates
 ///   2) substituting friend declarations
+///   3) substituting deduction guide declarations for nested class templates
 Decl *TemplateDeclInstantiator::VisitFunctionDecl(FunctionDecl *D,
                                        TemplateParameterList *TemplateParams) {
   // Check whether there is already a function template specialization for
@@ -1650,16 +1651,19 @@ Decl *TemplateDeclInstantiator::VisitFunctionDecl(FunctionDecl *D,
                                          TemplateArgs);
   }
 
+  DeclarationNameInfo NameInfo
+    = SemaRef.SubstDeclarationNameInfo(D->getNameInfo(), TemplateArgs);
+
   FunctionDecl *Function;
   if (auto *DGuide = dyn_cast<CXXDeductionGuideDecl>(D)) {
     Function = CXXDeductionGuideDecl::Create(
       SemaRef.Context, DC, D->getInnerLocStart(), DGuide->isExplicit(),
-      D->getNameInfo(), T, TInfo, D->getSourceRange().getEnd());
+      NameInfo, T, TInfo, D->getSourceRange().getEnd());
     if (DGuide->isCopyDeductionCandidate())
       cast<CXXDeductionGuideDecl>(Function)->setIsCopyDeductionCandidate();
   } else {
     Function = FunctionDecl::Create(
-        SemaRef.Context, DC, D->getInnerLocStart(), D->getNameInfo(), T, TInfo,
+        SemaRef.Context, DC, D->getInnerLocStart(), NameInfo, T, TInfo,
         D->getCanonicalDecl()->getStorageClass(), D->isInlineSpecified(),
         D->hasWrittenPrototype(), D->isConstexpr());
     Function->setRangeEnd(D->getSourceRange().getEnd());
@@ -3855,7 +3859,8 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
   }
 
   // Note, we should never try to instantiate a deleted function template.
-  assert((Pattern || PatternDecl->isDefaulted()) &&
+  assert((Pattern || PatternDecl->isDefaulted() ||
+          PatternDecl->hasSkippedBody()) &&
          "unexpected kind of function template definition");
 
   // C++1y [temp.explicit]p10:
@@ -3940,16 +3945,20 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
       }
     }
 
-    // Instantiate the function body.
-    StmtResult Body = SubstStmt(Pattern, TemplateArgs);
+    if (PatternDecl->hasSkippedBody()) {
+      ActOnSkippedFunctionBody(Function);
+    } else {
+      // Instantiate the function body.
+      StmtResult Body = SubstStmt(Pattern, TemplateArgs);
 
-    if (Body.isInvalid())
-      Function->setInvalidDecl();
+      if (Body.isInvalid())
+        Function->setInvalidDecl();
 
-    // FIXME: finishing the function body while in an expression evaluation
-    // context seems wrong. Investigate more.
-    ActOnFinishFunctionBody(Function, Body.get(),
-                            /*IsInstantiation=*/true);
+      // FIXME: finishing the function body while in an expression evaluation
+      // context seems wrong. Investigate more.
+      ActOnFinishFunctionBody(Function, Body.get(),
+                              /*IsInstantiation=*/true);
+    }
 
     PerformDependentDiagnostics(PatternDecl, TemplateArgs);
 
@@ -5195,7 +5204,9 @@ void Sema::PerformPendingInstantiations(bool LocalOnly) {
     case TSK_ExplicitInstantiationDefinition:
       // We only need an instantiation if the pending instantiation *is* the
       // explicit instantiation.
-      if (Var != Var->getMostRecentDecl()) continue;
+      if (Var != Var->getMostRecentDecl())
+        continue;
+      break;
     case TSK_ImplicitInstantiation:
       break;
     }
