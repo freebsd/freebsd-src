@@ -2256,12 +2256,13 @@ do_range_cmd(int cmd, ipfw_range_tlv *rt)
 void
 ipfw_sets_handler(char *av[])
 {
-	uint32_t masks[2];
-	int i;
-	uint8_t cmd, rulenum;
 	ipfw_range_tlv rt;
 	char *msg;
 	size_t size;
+	uint32_t masks[2];
+	int i;
+	uint16_t rulenum;
+	uint8_t cmd;
 
 	av++;
 	memset(&rt, 0, sizeof(rt));
