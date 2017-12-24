@@ -707,10 +707,8 @@ print_loadopt_str(uint8_t *data, size_t datalen)
 	uint8_t *ep = data + datalen;
 	uint8_t *walker = data;
 	efidp dp, edp;
-	void *opt;
 	char buf[1024];
 	int len;
-	int optlen;
 	int rv;
 	int indent;
 
@@ -734,10 +732,11 @@ print_loadopt_str(uint8_t *data, size_t datalen)
 	if (walker > ep)
 		return;
 	edp = (efidp)walker;
-	// Everything left is the binary option args
-	opt = walker;
-	optlen = ep - walker;
-
+	/*
+	 * Everything left is the binary option args
+	 * opt = walker;
+	 * optlen = ep - walker;
+	 */
 	indent = 1;
 	while (dp < edp) {
 		efidp_format_device_path(buf, sizeof(buf), dp,
@@ -753,8 +752,6 @@ print_loadopt_str(uint8_t *data, size_t datalen)
 		}
 		dp = (efidp)((char *)dp + efidp_size(dp));
 	}
-	if (optlen == 0)
-		return;
 }
 
 static char *
