@@ -30,7 +30,7 @@
 #include "llvm/Support/Mutex.h"
 #include "llvm/Support/MutexGuard.h"
 #include "llvm/Support/Process.h"
-
+#include <limits>
 #include <utility>
 
 using namespace clang;
@@ -333,6 +333,7 @@ llvm::ErrorOr<PrecompiledPreamble> PrecompiledPreamble::Build(
   std::unique_ptr<PrecompilePreambleAction> Act;
   Act.reset(new PrecompilePreambleAction(
       StoreInMemory ? &Storage.asMemory().Data : nullptr, Callbacks));
+  Callbacks.BeforeExecute(*Clang);
   if (!Act->BeginSourceFile(*Clang.get(), Clang->getFrontendOpts().Inputs[0]))
     return BuildPreambleError::BeginSourceFileFailed;
 
@@ -378,6 +379,27 @@ llvm::ErrorOr<PrecompiledPreamble> PrecompiledPreamble::Build(
 
 PreambleBounds PrecompiledPreamble::getBounds() const {
   return PreambleBounds(PreambleBytes.size(), PreambleEndsAtStartOfLine);
+}
+
+std::size_t PrecompiledPreamble::getSize() const {
+  switch (Storage.getKind()) {
+  case PCHStorage::Kind::Empty:
+    assert(false && "Calling getSize() on invalid PrecompiledPreamble. "
+                    "Was it std::moved?");
+    return 0;
+  case PCHStorage::Kind::InMemory:
+    return Storage.asMemory().Data.size();
+  case PCHStorage::Kind::TempFile: {
+    uint64_t Result;
+    if (llvm::sys::fs::file_size(Storage.asFile().getFilePath(), Result))
+      return 0;
+
+    assert(Result <= std::numeric_limits<std::size_t>::max() &&
+           "file size did not fit into size_t");
+    return Result;
+  }
+  }
+  llvm_unreachable("Unhandled storage kind");
 }
 
 bool PrecompiledPreamble::CanReuse(const CompilerInvocation &Invocation,
@@ -505,8 +527,8 @@ PrecompiledPreamble::TempPCHFile::createInSystemTempDir(const Twine &Prefix,
                                                         StringRef Suffix) {
   llvm::SmallString<64> File;
   // Using a version of createTemporaryFile with a file descriptor guarantees
-  // that we would never get a race condition in a multi-threaded setting (i.e.,
-  // multiple threads getting the same temporary path).
+  // that we would never get a race condition in a multi-threaded setting
+  // (i.e., multiple threads getting the same temporary path).
   int FD;
   auto EC = llvm::sys::fs::createTemporaryFile(Prefix, Suffix, FD, File);
   if (EC)
@@ -694,6 +716,7 @@ void PrecompiledPreamble::setupPreambleStorage(
   }
 }
 
+void PreambleCallbacks::BeforeExecute(CompilerInstance &CI) {}
 void PreambleCallbacks::AfterExecute(CompilerInstance &CI) {}
 void PreambleCallbacks::AfterPCHEmitted(ASTWriter &Writer) {}
 void PreambleCallbacks::HandleTopLevelDecl(DeclGroupRef DG) {}

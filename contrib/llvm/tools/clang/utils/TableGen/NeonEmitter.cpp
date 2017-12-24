@@ -773,19 +773,19 @@ void Type::applyTypespec(bool &Quad) {
       break;
     case 'h':
       Float = true;
-    // Fall through
+      LLVM_FALLTHROUGH;
     case 's':
       ElementBitwidth = 16;
       break;
     case 'f':
       Float = true;
-    // Fall through
+      LLVM_FALLTHROUGH;
     case 'i':
       ElementBitwidth = 32;
       break;
     case 'd':
       Float = true;
-    // Fall through
+      LLVM_FALLTHROUGH;
     case 'l':
       ElementBitwidth = 64;
       break;
@@ -859,6 +859,10 @@ void Type::applyModifier(char Mod) {
   case 'F':
     Float = true;
     ElementBitwidth = 64;
+    break;
+  case 'H':
+    Float = true;
+    ElementBitwidth = 16;
     break;
   case 'g':
     if (AppliedQuad)
@@ -1006,7 +1010,7 @@ std::string Intrinsic::getInstTypeCode(Type T, ClassKind CK) const {
 }
 
 static bool isFloatingPointProtoModifier(char Mod) {
-  return Mod == 'F' || Mod == 'f';
+  return Mod == 'F' || Mod == 'f' || Mod == 'H';
 }
 
 std::string Intrinsic::getBuiltinTypeStr() {
