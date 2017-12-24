@@ -38,7 +38,9 @@
 #include "lldb/lldb-enumerations.h"
 
 class DWARFASTParserClang;
-//class PDBASTParser;
+#ifdef LLDB_ENABLE_ALL
+class PDBASTParser;
+#endif // LLDB_ENABLE_ALL
 
 namespace lldb_private {
 
@@ -425,7 +427,9 @@ public:
   // TypeSystem methods
   //------------------------------------------------------------------
   DWARFASTParser *GetDWARFParser() override;
-  //PDBASTParser *GetPDBParser();
+#ifdef LLDB_ENABLE_ALL
+  PDBASTParser *GetPDBParser();
+#endif // LLDB_ENABLE_ALL
 
   //------------------------------------------------------------------
   // ClangASTContext callbacks for external source lookups.
@@ -997,7 +1001,9 @@ protected:
     std::unique_ptr<clang::SelectorTable>           m_selector_table_ap;
     std::unique_ptr<clang::Builtin::Context>        m_builtins_ap;
     std::unique_ptr<DWARFASTParserClang>            m_dwarf_ast_parser_ap;
-//  std::unique_ptr<PDBASTParser>                   m_pdb_ast_parser_ap;
+#ifdef LLDB_ENABLE_ALL
+    std::unique_ptr<PDBASTParser>                   m_pdb_ast_parser_ap;
+#endif // LLDB_ENABLE_ALL
     std::unique_ptr<ClangASTSource>                 m_scratch_ast_source_ap;
     std::unique_ptr<clang::MangleContext>           m_mangle_ctx_ap;
     CompleteTagDeclCallback                         m_callback_tag_decl;

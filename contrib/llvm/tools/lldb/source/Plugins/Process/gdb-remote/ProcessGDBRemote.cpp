@@ -70,7 +70,9 @@
 
 // Project includes
 #include "GDBRemoteRegisterContext.h"
-//#include "Plugins/Platform/MacOSX/PlatformRemoteiOS.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/Platform/MacOSX/PlatformRemoteiOS.h"
+#endif // LLDB_ENABLE_ALL
 #include "Plugins/Process/Utility/GDBRemoteSignals.h"
 #include "Plugins/Process/Utility/InferiorCallPOSIX.h"
 #include "Plugins/Process/Utility/StopInfoMachException.h"
@@ -2474,7 +2476,7 @@ Status ProcessGDBRemote::DoDestroy() {
   if (log)
     log->Printf("ProcessGDBRemote::DoDestroy()");
 
-#if 0 // XXX Currently no iOS target support on FreeBSD
+#ifdef LLDB_ENABLE_ALL // XXX Currently no iOS target support on FreeBSD
   // There is a bug in older iOS debugservers where they don't shut down the
   // process
   // they are debugging properly.  If the process is sitting at a breakpoint or
@@ -2587,7 +2589,7 @@ Status ProcessGDBRemote::DoDestroy() {
       }
     }
   }
-#endif
+#endif // LLDB_ENABLE_ALL
 
   // Interrupt if our inferior is running...
   int exit_status = SIGABRT;
