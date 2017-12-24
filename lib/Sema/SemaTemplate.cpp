@@ -792,7 +792,7 @@ static void maybeDiagnoseTemplateParameterShadow(Sema &SemaRef, Scope *S,
 /// ParamNameLoc is the location of the parameter name (if any).
 /// If the type parameter has a default argument, it will be added
 /// later via ActOnTypeParameterDefault.
-Decl *Sema::ActOnTypeParameter(Scope *S, bool Typename,
+NamedDecl *Sema::ActOnTypeParameter(Scope *S, bool Typename,
                                SourceLocation EllipsisLoc,
                                SourceLocation KeyLoc,
                                IdentifierInfo *ParamName,
@@ -922,13 +922,67 @@ QualType Sema::CheckNonTypeTemplateParameterType(QualType T,
   return QualType();
 }
 
-Decl *Sema::ActOnNonTypeTemplateParameter(Scope *S, Declarator &D,
+NamedDecl *Sema::ActOnNonTypeTemplateParameter(Scope *S, Declarator &D,
                                           unsigned Depth,
                                           unsigned Position,
                                           SourceLocation EqualLoc,
                                           Expr *Default) {
   TypeSourceInfo *TInfo = GetTypeForDeclarator(D, S);
 
+  // Check that we have valid decl-specifiers specified.
+  auto CheckValidDeclSpecifiers = [this, &D] {
+    // C++ [temp.param]
+    // p1 
+    //   template-parameter:
+    //     ...
+    //     parameter-declaration
+    // p2 
+    //   ... A storage class shall not be specified in a template-parameter
+    //   declaration.
+    // [dcl.typedef]p1: 
+    //   The typedef specifier [...] shall not be used in the decl-specifier-seq
+    //   of a parameter-declaration
+    const DeclSpec &DS = D.getDeclSpec();
+    auto EmitDiag = [this](SourceLocation Loc) {
+      Diag(Loc, diag::err_invalid_decl_specifier_in_nontype_parm)
+          << FixItHint::CreateRemoval(Loc);
+    };
+    if (DS.getStorageClassSpec() != DeclSpec::SCS_unspecified)
+      EmitDiag(DS.getStorageClassSpecLoc());
+    
+    if (DS.getThreadStorageClassSpec() != TSCS_unspecified)
+      EmitDiag(DS.getThreadStorageClassSpecLoc());
+    
+    // [dcl.inline]p1: 
+    //   The inline specifier can be applied only to the declaration or 
+    //   definition of a variable or function.
+    
+    if (DS.isInlineSpecified())
+      EmitDiag(DS.getInlineSpecLoc());
+    
+    // [dcl.constexpr]p1:
+    //   The constexpr specifier shall be applied only to the definition of a 
+    //   variable or variable template or the declaration of a function or 
+    //   function template.
+    
+    if (DS.isConstexprSpecified())
+      EmitDiag(DS.getConstexprSpecLoc());
+
+    // [dcl.fct.spec]p1:
+    //   Function-specifiers can be used only in function declarations.
+
+    if (DS.isVirtualSpecified())
+      EmitDiag(DS.getVirtualSpecLoc());
+
+    if (DS.isExplicitSpecified())
+      EmitDiag(DS.getExplicitSpecLoc());
+
+    if (DS.isNoreturnSpecified())
+      EmitDiag(DS.getNoreturnSpecLoc());
+  };
+
+  CheckValidDeclSpecifiers();
+  
   if (TInfo->getType()->isUndeducedType()) {
     Diag(D.getIdentifierLoc(),
          diag::warn_cxx14_compat_template_nontype_parm_auto_type)
@@ -999,7 +1053,7 @@ Decl *Sema::ActOnNonTypeTemplateParameter(Scope *S, Declarator &D,
 /// ActOnTemplateTemplateParameter - Called when a C++ template template
 /// parameter (e.g. T in template <template \<typename> class T> class array)
 /// has been parsed. S is the current scope.
-Decl *Sema::ActOnTemplateTemplateParameter(Scope* S,
+NamedDecl *Sema::ActOnTemplateTemplateParameter(Scope* S,
                                            SourceLocation TmpLoc,
                                            TemplateParameterList *Params,
                                            SourceLocation EllipsisLoc,

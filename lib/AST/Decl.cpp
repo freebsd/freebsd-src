@@ -26,6 +26,7 @@
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExternalASTSource.h"
+#include "clang/AST/ODRHash.h"
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/AST/Redeclarable.h"
 #include "clang/AST/Stmt.h"
@@ -1548,7 +1549,10 @@ void NamedDecl::printQualifiedName(raw_ostream &OS,
       // enumerator is declared in the scope that immediately contains
       // the enum-specifier. Each scoped enumerator is declared in the
       // scope of the enumeration.
-      if (ED->isScoped() || ED->getIdentifier())
+      // For the case of unscoped enumerator, do not include in the qualified
+      // name any information about its enum enclosing scope, as is visibility
+      // is global.
+      if (ED->isScoped())
         OS << *ED;
       else
         continue;
@@ -3599,6 +3603,25 @@ unsigned FunctionDecl::getMemoryFunctionKind() const {
     break;
   }
   return 0;
+}
+
+unsigned FunctionDecl::getODRHash() {
+  if (HasODRHash)
+    return ODRHash;
+
+  if (FunctionDecl *Definition = getDefinition()) {
+    if (Definition != this) {
+      HasODRHash = true;
+      ODRHash = Definition->getODRHash();
+      return ODRHash;
+    }
+  }
+
+  class ODRHash Hash;
+  Hash.AddFunctionDecl(this);
+  HasODRHash = true;
+  ODRHash = Hash.CalculateHash();
+  return ODRHash;
 }
 
 //===----------------------------------------------------------------------===//
