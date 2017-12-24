@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG_CXX=	llvm-pdbutil
-MAN=
 
 SRCDIR=		tools/llvm-pdbutil
 SRCS+=		Analyze.cpp
