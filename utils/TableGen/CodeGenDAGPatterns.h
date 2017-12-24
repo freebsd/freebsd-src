@@ -18,6 +18,7 @@
 #include "CodeGenHwModes.h"
 #include "CodeGenIntrinsics.h"
 #include "CodeGenTarget.h"
+#include "SDNodeProperties.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSet.h"
@@ -234,7 +235,7 @@ struct TypeSetByHwMode : public InfoByHwMode<MachineValueTypeSet> {
   bool operator!=(const TypeSetByHwMode &VTS) const { return !(*this == VTS); }
 
   void dump() const;
-  void validate() const;
+  bool validate() const;
 
 private:
   /// Intersect two sets. Return true if anything has changed.
@@ -319,8 +320,13 @@ struct TypeInfer {
                        const TypeSetByHwMode::SetType &Legal);
 
   struct ValidateOnExit {
-    ValidateOnExit(TypeSetByHwMode &T) : VTS(T) {}
-    ~ValidateOnExit() { VTS.validate(); }
+    ValidateOnExit(TypeSetByHwMode &T, TypeInfer &TI) : Infer(TI), VTS(T) {}
+  #ifndef NDEBUG
+    ~ValidateOnExit();
+  #else
+    ~ValidateOnExit() {}  // Empty destructor with NDEBUG.
+  #endif
+    TypeInfer &Infer;
     TypeSetByHwMode &VTS;
   };
 
@@ -1204,6 +1210,7 @@ inline bool SDNodeInfo::ApplyTypeConstraints(TreePatternNode *N,
       MadeChange |= TypeConstraints[i].ApplyTypeConstraint(N, *this, TP);
     return MadeChange;
   }
+
 } // end namespace llvm
 
 #endif

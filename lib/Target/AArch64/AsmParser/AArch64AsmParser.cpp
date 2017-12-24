@@ -1975,10 +1975,6 @@ static bool isValidSVEKind(StringRef Name) {
       .Default(false);
 }
 
-static bool isSVERegister(StringRef Name) {
-  return Name[0] == 'z' || Name[0] == 'p';
-}
-
 static void parseValidVectorKind(StringRef Name, unsigned &NumElements,
                                  char &ElementKind) {
   assert(isValidVectorKind(Name));
@@ -2008,21 +2004,19 @@ bool AArch64AsmParser::ParseRegister(unsigned &RegNo, SMLoc &StartLoc,
 // Matches a register name or register alias previously defined by '.req'
 unsigned AArch64AsmParser::matchRegisterNameAlias(StringRef Name,
                                                   RegKind Kind) {
-  unsigned RegNum;
-  switch (Kind) {
-  case RegKind::Scalar:
-    RegNum = MatchRegisterName(Name);
-    break;
-  case RegKind::NeonVector:
-    RegNum = MatchNeonVectorRegName(Name);
-    break;
-  case RegKind::SVEDataVector:
-    RegNum = matchSVEDataVectorRegName(Name);
-    break;
-  case RegKind::SVEPredicateVector:
-    RegNum = matchSVEPredicateVectorRegName(Name);
-    break;
-  }
+  unsigned RegNum = 0;
+  if ((RegNum = matchSVEDataVectorRegName(Name)))
+    return Kind == RegKind::SVEDataVector ? RegNum : 0;
+
+  if ((RegNum = matchSVEPredicateVectorRegName(Name)))
+    return Kind == RegKind::SVEPredicateVector ? RegNum : 0;
+
+  if ((RegNum = MatchNeonVectorRegName(Name)))
+    return Kind == RegKind::NeonVector ? RegNum : 0;
+
+  // The parsed register must be of RegKind Scalar
+  if ((RegNum = MatchRegisterName(Name)))
+    return Kind == RegKind::Scalar ? RegNum : 0;
 
   if (!RegNum) {
     // Check for aliases registered via .req. Canonicalize to lower case.
@@ -2049,10 +2043,8 @@ int AArch64AsmParser::tryParseRegister() {
     return -1;
 
   std::string lowerCase = Tok.getString().lower();
-  if (isSVERegister(lowerCase))
-    return -1;
-
   unsigned RegNum = matchRegisterNameAlias(lowerCase, RegKind::Scalar);
+
   // Also handle a few aliases of registers.
   if (RegNum == 0)
     RegNum = StringSwitch<unsigned>(lowerCase)

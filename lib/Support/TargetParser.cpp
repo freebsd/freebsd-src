@@ -537,7 +537,7 @@ StringRef llvm::AArch64::getDefaultCPU(StringRef Arch) {
 }
 
 unsigned llvm::AArch64::checkArchVersion(StringRef Arch) {
-  if (Arch[0] == 'v' && std::isdigit(Arch[1]))
+  if (Arch.size() >= 2 && Arch[0] == 'v' && std::isdigit(Arch[1]))
     return (Arch[1] - 48);
   return 0;
 }
@@ -633,7 +633,7 @@ StringRef llvm::ARM::getCanonicalArchName(StringRef Arch) {
   // Only match non-marketing names
   if (offset != StringRef::npos) {
     // Must start with 'vN'.
-    if (A[0] != 'v' || !std::isdigit(A[1]))
+    if (A.size() >= 2 && (A[0] != 'v' || !std::isdigit(A[1])))
       return Error;
     // Can't have an extra 'eb'.
     if (A.find("eb") != StringRef::npos)
@@ -739,7 +739,6 @@ ARM::ProfileKind ARM::parseArchProfile(StringRef Arch) {
   case ARM::ArchKind::ARMV8_2A:
   case ARM::ArchKind::ARMV8_3A:
     return ARM::ProfileKind::A;
-    LLVM_FALLTHROUGH;
   case ARM::ArchKind::ARMV2:
   case ARM::ArchKind::ARMV2A:
   case ARM::ArchKind::ARMV3:

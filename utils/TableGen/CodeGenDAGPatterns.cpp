@@ -309,23 +309,23 @@ bool TypeSetByHwMode::intersect(SetType &Out, const SetType &In) {
   return Changed;
 }
 
-void TypeSetByHwMode::validate() const {
+bool TypeSetByHwMode::validate() const {
 #ifndef NDEBUG
   if (empty())
-    return;
+    return true;
   bool AllEmpty = true;
   for (const auto &I : *this)
     AllEmpty &= I.second.empty();
-  assert(!AllEmpty &&
-          "type set is empty for each HW mode: type contradiction?");
+  return !AllEmpty;
 #endif
+  return true;
 }
 
 // --- TypeInfer
 
 bool TypeInfer::MergeInTypeInfo(TypeSetByHwMode &Out,
                                 const TypeSetByHwMode &In) {
-  ValidateOnExit _1(Out);
+  ValidateOnExit _1(Out, *this);
   In.validate();
   if (In.empty() || Out == In || TP.hasError())
     return false;
@@ -342,7 +342,7 @@ bool TypeInfer::MergeInTypeInfo(TypeSetByHwMode &Out,
 }
 
 bool TypeInfer::forceArbitrary(TypeSetByHwMode &Out) {
-  ValidateOnExit _1(Out);
+  ValidateOnExit _1(Out, *this);
   if (TP.hasError())
     return false;
   assert(!Out.empty() && "cannot pick from an empty set");
@@ -361,7 +361,7 @@ bool TypeInfer::forceArbitrary(TypeSetByHwMode &Out) {
 }
 
 bool TypeInfer::EnforceInteger(TypeSetByHwMode &Out) {
-  ValidateOnExit _1(Out);
+  ValidateOnExit _1(Out, *this);
   if (TP.hasError())
     return false;
   if (!Out.empty())
@@ -371,7 +371,7 @@ bool TypeInfer::EnforceInteger(TypeSetByHwMode &Out) {
 }
 
 bool TypeInfer::EnforceFloatingPoint(TypeSetByHwMode &Out) {
-  ValidateOnExit _1(Out);
+  ValidateOnExit _1(Out, *this);
   if (TP.hasError())
     return false;
   if (!Out.empty())
@@ -381,7 +381,7 @@ bool TypeInfer::EnforceFloatingPoint(TypeSetByHwMode &Out) {
 }
 
 bool TypeInfer::EnforceScalar(TypeSetByHwMode &Out) {
-  ValidateOnExit _1(Out);
+  ValidateOnExit _1(Out, *this);
   if (TP.hasError())
     return false;
   if (!Out.empty())
@@ -391,7 +391,7 @@ bool TypeInfer::EnforceScalar(TypeSetByHwMode &Out) {
 }
 
 bool TypeInfer::EnforceVector(TypeSetByHwMode &Out) {
-  ValidateOnExit _1(Out);
+  ValidateOnExit _1(Out, *this);
   if (TP.hasError())
     return false;
   if (!Out.empty())
@@ -401,7 +401,7 @@ bool TypeInfer::EnforceVector(TypeSetByHwMode &Out) {
 }
 
 bool TypeInfer::EnforceAny(TypeSetByHwMode &Out) {
-  ValidateOnExit _1(Out);
+  ValidateOnExit _1(Out, *this);
   if (TP.hasError() || !Out.empty())
     return false;
 
@@ -440,7 +440,7 @@ static Iter max_if(Iter B, Iter E, Pred P, Less L) {
 /// Make sure that for each type in Small, there exists a larger type in Big.
 bool TypeInfer::EnforceSmallerThan(TypeSetByHwMode &Small,
                                    TypeSetByHwMode &Big) {
-  ValidateOnExit _1(Small), _2(Big);
+  ValidateOnExit _1(Small, *this), _2(Big, *this);
   if (TP.hasError())
     return false;
   bool Changed = false;
@@ -545,7 +545,7 @@ bool TypeInfer::EnforceSmallerThan(TypeSetByHwMode &Small,
 ///    type T in Vec, such that U is the element type of T.
 bool TypeInfer::EnforceVectorEltTypeIs(TypeSetByHwMode &Vec,
                                        TypeSetByHwMode &Elem) {
-  ValidateOnExit _1(Vec), _2(Elem);
+  ValidateOnExit _1(Vec, *this), _2(Elem, *this);
   if (TP.hasError())
     return false;
   bool Changed = false;
@@ -586,7 +586,7 @@ bool TypeInfer::EnforceVectorEltTypeIs(TypeSetByHwMode &Vec,
 bool TypeInfer::EnforceVectorEltTypeIs(TypeSetByHwMode &Vec,
                                        const ValueTypeByHwMode &VVT) {
   TypeSetByHwMode Tmp(VVT);
-  ValidateOnExit _1(Vec), _2(Tmp);
+  ValidateOnExit _1(Vec, *this), _2(Tmp, *this);
   return EnforceVectorEltTypeIs(Vec, Tmp);
 }
 
@@ -595,7 +595,7 @@ bool TypeInfer::EnforceVectorEltTypeIs(TypeSetByHwMode &Vec,
 /// element type as T and at least as many elements as T.
 bool TypeInfer::EnforceVectorSubVectorTypeIs(TypeSetByHwMode &Vec,
                                              TypeSetByHwMode &Sub) {
-  ValidateOnExit _1(Vec), _2(Sub);
+  ValidateOnExit _1(Vec, *this), _2(Sub, *this);
   if (TP.hasError())
     return false;
 
@@ -661,7 +661,7 @@ bool TypeInfer::EnforceVectorSubVectorTypeIs(TypeSetByHwMode &Vec,
 ///    type T in V, such that T and U have the same number of elements
 ///    (reverse of 2).
 bool TypeInfer::EnforceSameNumElts(TypeSetByHwMode &V, TypeSetByHwMode &W) {
-  ValidateOnExit _1(V), _2(W);
+  ValidateOnExit _1(V, *this), _2(W, *this);
   if (TP.hasError())
     return false;
 
@@ -699,7 +699,7 @@ bool TypeInfer::EnforceSameNumElts(TypeSetByHwMode &V, TypeSetByHwMode &W) {
 /// 2. Ensure that for each type U in B, there exists a type T in A
 ///    such that T and U have equal size in bits (reverse of 1).
 bool TypeInfer::EnforceSameSize(TypeSetByHwMode &A, TypeSetByHwMode &B) {
-  ValidateOnExit _1(A), _2(B);
+  ValidateOnExit _1(A, *this), _2(B, *this);
   if (TP.hasError())
     return false;
   bool Changed = false;
@@ -730,7 +730,7 @@ bool TypeInfer::EnforceSameSize(TypeSetByHwMode &A, TypeSetByHwMode &B) {
 }
 
 void TypeInfer::expandOverloads(TypeSetByHwMode &VTS) {
-  ValidateOnExit _1(VTS);
+  ValidateOnExit _1(VTS, *this);
   TypeSetByHwMode Legal = getLegalTypes();
   bool HaveLegalDef = Legal.hasDefault();
 
@@ -805,6 +805,19 @@ TypeSetByHwMode TypeInfer::getLegalTypes() {
   VTS.getOrCreate(DefaultMode) = LegalCache;
   return VTS;
 }
+
+#ifndef NDEBUG
+TypeInfer::ValidateOnExit::~ValidateOnExit() {
+  if (!VTS.validate()) {
+    dbgs() << "Type set is empty for each HW mode:\n"
+              "possible type contradiction in the pattern below "
+              "(use -print-records with llvm-tblgen to see all "
+              "expanded records).\n";
+    Infer.TP.dump();
+    llvm_unreachable(nullptr);
+  }
+}
+#endif
 
 //===----------------------------------------------------------------------===//
 // TreePredicateFn Implementation
@@ -1591,37 +1604,7 @@ SDNodeInfo::SDNodeInfo(Record *R, const CodeGenHwModes &CGH) : Def(R) {
   NumOperands = TypeProfile->getValueAsInt("NumOperands");
 
   // Parse the properties.
-  Properties = 0;
-  for (Record *Property : R->getValueAsListOfDefs("Properties")) {
-    if (Property->getName() == "SDNPCommutative") {
-      Properties |= 1 << SDNPCommutative;
-    } else if (Property->getName() == "SDNPAssociative") {
-      Properties |= 1 << SDNPAssociative;
-    } else if (Property->getName() == "SDNPHasChain") {
-      Properties |= 1 << SDNPHasChain;
-    } else if (Property->getName() == "SDNPOutGlue") {
-      Properties |= 1 << SDNPOutGlue;
-    } else if (Property->getName() == "SDNPInGlue") {
-      Properties |= 1 << SDNPInGlue;
-    } else if (Property->getName() == "SDNPOptInGlue") {
-      Properties |= 1 << SDNPOptInGlue;
-    } else if (Property->getName() == "SDNPMayStore") {
-      Properties |= 1 << SDNPMayStore;
-    } else if (Property->getName() == "SDNPMayLoad") {
-      Properties |= 1 << SDNPMayLoad;
-    } else if (Property->getName() == "SDNPSideEffect") {
-      Properties |= 1 << SDNPSideEffect;
-    } else if (Property->getName() == "SDNPMemOperand") {
-      Properties |= 1 << SDNPMemOperand;
-    } else if (Property->getName() == "SDNPVariadic") {
-      Properties |= 1 << SDNPVariadic;
-    } else {
-      PrintFatalError("Unknown SD Node property '" +
-                      Property->getName() + "' on node '" +
-                      R->getName() + "'!");
-    }
-  }
-
+  Properties = parseSDPatternOperatorProperties(R);
 
   // Parse the type constraints.
   std::vector<Record*> ConstraintList =
@@ -2100,11 +2083,20 @@ bool TreePatternNode::NodeHasProperty(SDNP Property,
   if (isLeaf()) {
     if (const ComplexPattern *CP = getComplexPatternInfo(CGP))
       return CP->hasProperty(Property);
+
     return false;
   }
 
-  Record *Operator = getOperator();
-  if (!Operator->isSubClassOf("SDNode")) return false;
+  if (Property != SDNPHasChain) {
+    // The chain proprety is already present on the different intrinsic node
+    // types (intrinsic_w_chain, intrinsic_void), and is not explicitly listed
+    // on the intrinsic. Anything else is specific to the individual intrinsic.
+    if (const CodeGenIntrinsic *Int = getIntrinsicInfo(CGP))
+      return Int->hasProperty(Property);
+  }
+
+  if (!Operator->isSubClassOf("SDPatternOperator"))
+    return false;
 
   return CGP.getSDNodeInfo(Operator).hasProperty(Property);
 }
