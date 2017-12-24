@@ -99,7 +99,9 @@
 #include "lldb/Utility/RegularExpression.h"
 
 #include "Plugins/SymbolFile/DWARF/DWARFASTParserClang.h"
-//#include "Plugins/SymbolFile/PDB/PDBASTParser.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/SymbolFile/PDB/PDBASTParser.h"
+#endif // LLDB_ENABLE_ALL
 
 #include <stdio.h>
 
@@ -9603,13 +9605,13 @@ DWARFASTParser *ClangASTContext::GetDWARFParser() {
   return m_dwarf_ast_parser_ap.get();
 }
 
-#if 0
+#ifdef LLDB_ENABLE_ALL
 PDBASTParser *ClangASTContext::GetPDBParser() {
   if (!m_pdb_ast_parser_ap)
     m_pdb_ast_parser_ap.reset(new PDBASTParser(*this));
   return m_pdb_ast_parser_ap.get();
 }
-#endif
+#endif // LLDB_ENABLE_ALL
 
 bool ClangASTContext::LayoutRecordType(
     void *baton, const clang::RecordDecl *record_decl, uint64_t &bit_size,
