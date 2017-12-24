@@ -93,7 +93,7 @@ protected:
 class InputSectionBase : public SectionBase {
 public:
   template <class ELFT>
-  InputSectionBase(ObjFile<ELFT> *File, const typename ELFT::Shdr *Header,
+  InputSectionBase(ObjFile<ELFT> &File, const typename ELFT::Shdr &Header,
                    StringRef Name, Kind SectionKind);
 
   InputSectionBase(InputFile *File, uint64_t Flags, uint32_t Type,
@@ -168,7 +168,6 @@ public:
 
   // Returns a source location string. Used to construct an error message.
   template <class ELFT> std::string getLocation(uint64_t Offset);
-  template <class ELFT>
   std::string getSrcMsg(const Symbol &Sym, uint64_t Offset);
   std::string getObjMsg(uint64_t Offset);
 
@@ -216,8 +215,11 @@ static_assert(sizeof(SectionPiece) == 16, "SectionPiece is too big");
 class MergeInputSection : public InputSectionBase {
 public:
   template <class ELFT>
-  MergeInputSection(ObjFile<ELFT> *F, const typename ELFT::Shdr *Header,
+  MergeInputSection(ObjFile<ELFT> &F, const typename ELFT::Shdr &Header,
                     StringRef Name);
+  MergeInputSection(uint64_t Flags, uint32_t Type, uint64_t Entsize,
+                    ArrayRef<uint8_t> Data, StringRef Name);
+
   static bool classof(const SectionBase *S) { return S->kind() == Merge; }
   void splitIntoPieces();
 
@@ -279,7 +281,7 @@ struct EhSectionPiece {
 class EhInputSection : public InputSectionBase {
 public:
   template <class ELFT>
-  EhInputSection(ObjFile<ELFT> *F, const typename ELFT::Shdr *Header,
+  EhInputSection(ObjFile<ELFT> &F, const typename ELFT::Shdr &Header,
                  StringRef Name);
   static bool classof(const SectionBase *S) { return S->kind() == EHFrame; }
   template <class ELFT> void split();
@@ -298,10 +300,10 @@ public:
 // .eh_frame. It also includes the synthetic sections themselves.
 class InputSection : public InputSectionBase {
 public:
-  InputSection(uint64_t Flags, uint32_t Type, uint32_t Alignment,
+  InputSection(InputFile *F, uint64_t Flags, uint32_t Type, uint32_t Alignment,
                ArrayRef<uint8_t> Data, StringRef Name, Kind K = Regular);
   template <class ELFT>
-  InputSection(ObjFile<ELFT> *F, const typename ELFT::Shdr *Header,
+  InputSection(ObjFile<ELFT> &F, const typename ELFT::Shdr &Header,
                StringRef Name);
 
   // Write this section to a mmap'ed file, assuming Buf is pointing to
