@@ -201,7 +201,7 @@ protected:
   bool HasCLZERO;
 
   /// Processor has Prefetch with intent to Write instruction
-  bool HasPFPREFETCHWT1;
+  bool HasPREFETCHWT1;
 
   /// True if SHLD instructions are slow.
   bool IsSHLDSlow;
@@ -227,6 +227,10 @@ protected:
   /// True if the LEA instruction should be used for adjusting
   /// the stack pointer. This is an optimization for Intel Atom processors.
   bool UseLeaForSP;
+
+  /// True if its preferable to combine to a single shuffle using a variable
+  /// mask over multiple fixed shuffles.
+  bool HasFastVariableShuffle;
 
   /// True if there is no performance penalty to writing only the lower parts
   /// of a YMM or ZMM register without clearing the upper part.
@@ -513,7 +517,14 @@ public:
   bool hasRTM() const { return HasRTM; }
   bool hasADX() const { return HasADX; }
   bool hasSHA() const { return HasSHA; }
-  bool hasPRFCHW() const { return HasPRFCHW; }
+  bool hasPRFCHW() const { return HasPRFCHW || HasPREFETCHWT1; }
+  bool hasPREFETCHWT1() const { return HasPREFETCHWT1; }
+  bool hasSSEPrefetch() const {
+    // We implicitly enable these when we have a write prefix supporting cache
+    // level OR if we have prfchw, but don't already have a read prefetch from
+    // 3dnow.
+    return hasSSE1() || (hasPRFCHW() && !has3DNow()) || hasPREFETCHWT1();
+  }
   bool hasRDSEED() const { return HasRDSEED; }
   bool hasLAHFSAHF() const { return HasLAHFSAHF; }
   bool hasMWAITX() const { return HasMWAITX; }
@@ -527,6 +538,9 @@ public:
   bool hasSSEUnalignedMem() const { return HasSSEUnalignedMem; }
   bool hasCmpxchg16b() const { return HasCmpxchg16b; }
   bool useLeaForSP() const { return UseLeaForSP; }
+  bool hasFastVariableShuffle() const {
+    return HasFastVariableShuffle;
+  }
   bool hasFastPartialYMMorZMMWrite() const {
     return HasFastPartialYMMorZMMWrite;
   }
@@ -681,17 +695,6 @@ public:
 
   /// Return true if the subtarget allows calls to immediate address.
   bool isLegalToCallImmediateAddr() const;
-
-  /// This function returns the name of a function which has an interface
-  /// like the non-standard bzero function, if such a function exists on
-  /// the current subtarget and it is considered prefereable over
-  /// memset with zero passed as the second argument. Otherwise it
-  /// returns null.
-  const char *getBZeroEntry() const;
-
-  /// This function returns true if the target has sincos() routine in its
-  /// compiler runtime or math libraries.
-  bool hasSinCos() const;
 
   /// Enable the MachineScheduler pass for all X86 subtargets.
   bool enableMachineScheduler() const override { return true; }

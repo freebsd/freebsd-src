@@ -669,13 +669,22 @@ bool ARMInstructionSelector::select(MachineInstr &I,
     return true;
   }
 
+  using namespace TargetOpcode;
+  if (I.getOpcode() == G_CONSTANT) {
+    // Pointer constants should be treated the same as 32-bit integer constants.
+    // Change the type and let TableGen handle it.
+    unsigned ResultReg = I.getOperand(0).getReg();
+    LLT Ty = MRI.getType(ResultReg);
+    if (Ty.isPointer())
+      MRI.setType(ResultReg, LLT::scalar(32));
+  }
+
   if (selectImpl(I, CoverageInfo))
     return true;
 
   MachineInstrBuilder MIB{MF, I};
   bool isSExt = false;
 
-  using namespace TargetOpcode;
   switch (I.getOpcode()) {
   case G_SEXT:
     isSExt = true;
@@ -741,6 +750,31 @@ bool ARMInstructionSelector::select(MachineInstr &I,
     const auto &SrcRegBank = *RBI.getRegBank(SrcReg, MRI, TRI);
     const auto &DstRegBank = *RBI.getRegBank(DstReg, MRI, TRI);
 
+    if (SrcRegBank.getID() == ARM::FPRRegBankID) {
+      // This should only happen in the obscure case where we have put a 64-bit
+      // integer into a D register. Get it out of there and keep only the
+      // interesting part.
+      assert(I.getOpcode() == G_TRUNC && "Unsupported operand for G_ANYEXT");
+      assert(DstRegBank.getID() == ARM::GPRRegBankID &&
+             "Unsupported combination of register banks");
+      assert(MRI.getType(SrcReg).getSizeInBits() == 64 && "Unsupported size");
+      assert(MRI.getType(DstReg).getSizeInBits() <= 32 && "Unsupported size");
+
+      unsigned IgnoredBits = MRI.createVirtualRegister(&ARM::GPRRegClass);
+      auto InsertBefore = std::next(I.getIterator());
+      auto MovI =
+          BuildMI(MBB, InsertBefore, I.getDebugLoc(), TII.get(ARM::VMOVRRD))
+              .addDef(DstReg)
+              .addDef(IgnoredBits)
+              .addUse(SrcReg)
+              .add(predOps(ARMCC::AL));
+      if (!constrainSelectedInstRegOperands(*MovI, TII, TRI, RBI))
+        return false;
+
+      MIB->eraseFromParent();
+      return true;
+    }
+
     if (SrcRegBank.getID() != DstRegBank.getID()) {
       DEBUG(dbgs() << "G_TRUNC/G_ANYEXT operands on different register banks\n");
       return false;
@@ -748,6 +782,28 @@ bool ARMInstructionSelector::select(MachineInstr &I,
 
     if (SrcRegBank.getID() != ARM::GPRRegBankID) {
       DEBUG(dbgs() << "G_TRUNC/G_ANYEXT on non-GPR not supported yet\n");
+      return false;
+    }
+
+    I.setDesc(TII.get(COPY));
+    return selectCopy(I, TII, MRI, TRI, RBI);
+  }
+  case G_INTTOPTR:
+  case G_PTRTOINT: {
+    auto SrcReg = I.getOperand(1).getReg();
+    auto DstReg = I.getOperand(0).getReg();
+
+    const auto &SrcRegBank = *RBI.getRegBank(SrcReg, MRI, TRI);
+    const auto &DstRegBank = *RBI.getRegBank(DstReg, MRI, TRI);
+
+    if (SrcRegBank.getID() != DstRegBank.getID()) {
+      DEBUG(dbgs()
+            << "G_INTTOPTR/G_PTRTOINT operands on different register banks\n");
+      return false;
+    }
+
+    if (SrcRegBank.getID() != ARM::GPRRegBankID) {
+      DEBUG(dbgs() << "G_INTTOPTR/G_PTRTOINT on non-GPR not supported yet\n");
       return false;
     }
 
