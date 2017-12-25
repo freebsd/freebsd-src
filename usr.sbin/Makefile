@@ -21,7 +21,7 @@ SUBDIR=	adduser \
 	dconschat \
 	devctl \
 	devinfo \
-	devmath \
+	devmatch \
 	digictl \
 	diskinfo \
 	dumpcis \
