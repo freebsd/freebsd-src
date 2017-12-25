@@ -757,10 +757,8 @@ ddf_meta_create(struct g_raid_disk *disk, struct ddf_meta *sample)
 static void
 ddf_meta_copy(struct ddf_meta *dst, struct ddf_meta *src)
 {
-	struct ddf_header *hdr;
 	u_int ss;
 
-	hdr = src->hdr;
 	dst->bigendian = src->bigendian;
 	ss = dst->sectorsize = src->sectorsize;
 	dst->hdr = malloc(ss, M_MD_DDF, M_WAITOK);
@@ -845,10 +843,8 @@ ddf_vol_meta_create(struct ddf_vol_meta *meta, struct ddf_meta *sample)
 {
 	struct timespec ts;
 	struct clocktime ct;
-	struct ddf_header *hdr;
 	u_int ss, size;
 
-	hdr = sample->hdr;
 	meta->bigendian = sample->bigendian;
 	ss = meta->sectorsize = sample->sectorsize;
 	meta->hdr = malloc(ss, M_MD_DDF, M_WAITOK);
@@ -874,13 +870,11 @@ static void
 ddf_vol_meta_update(struct ddf_vol_meta *dst, struct ddf_meta *src,
     uint8_t *GUID, int started)
 {
-	struct ddf_header *hdr;
 	struct ddf_vd_entry *vde;
 	struct ddf_vdc_record *vdc;
 	int vnew, bvnew, bvd, size;
 	u_int ss;
 
-	hdr = src->hdr;
 	vde = &src->vdr->entry[ddf_meta_find_vd(src, GUID)];
 	vdc = ddf_meta_find_vdc(src, GUID);
 	if (GET8D(src, vdc->Secondary_Element_Count) == 1)
@@ -1427,12 +1421,10 @@ static int
 g_raid_md_ddf_purge_volumes(struct g_raid_softc *sc)
 {
 	struct g_raid_volume	*vol, *tvol;
-	struct g_raid_md_ddf_pervolume *pv;
 	int i, res;
 
 	res = 0;
 	TAILQ_FOREACH_SAFE(vol, &sc->sc_volumes, v_next, tvol) {
-		pv = vol->v_md_data;
 		if (vol->v_stopping)
 			continue;
 		for (i = 0; i < vol->v_disks_count; i++) {
@@ -1866,7 +1858,6 @@ g_raid_md_ddf_start(struct g_raid_volume *vol)
 	struct g_raid_md_ddf_pervolume *pv;
 	struct g_raid_md_ddf_object *mdi;
 	struct ddf_vol_meta *vmeta;
-	struct ddf_vdc_record *vdc;
 	uint64_t *val2;
 	int i, j, bvd;
 
@@ -1875,7 +1866,6 @@ g_raid_md_ddf_start(struct g_raid_volume *vol)
 	mdi = (struct g_raid_md_ddf_object *)md;
 	pv = vol->v_md_data;
 	vmeta = &pv->pv_meta;
-	vdc = vmeta->vdc;
 
 	vol->v_raid_level = GET8(vmeta, vdc->Primary_RAID_Level);
 	vol->v_raid_level_qualifier = GET8(vmeta, vdc->RLQ);

@@ -386,9 +386,8 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 	uint8_t *mptr;
 	pcell_t paddrsz;
 	pcell_t pintrsz;
-	int i, rsz, tsz;
+	int i, tsz;
 
-	rsz = -1;
 	if (imapmsk != NULL) {
 		for (i = 0; i < physsz; i++)
 			ref[i] = uiregs[i] & uiimapmsk[i];
@@ -445,7 +444,7 @@ ofw_bus_msimap(phandle_t node, uint16_t pci_rid, phandle_t *msi_parent,
 {
 	pcell_t *map, mask, msi_base, rid_base, rid_length;
 	ssize_t len;
-	uint32_t masked_rid, rid;
+	uint32_t masked_rid;
 	int err, i;
 
 	/* TODO: This should be OF_searchprop_alloc if we had it */
@@ -462,7 +461,6 @@ ofw_bus_msimap(phandle_t node, uint16_t pci_rid, phandle_t *msi_parent,
 	}
 
 	err = ENOENT;
-	rid = 0;
 	mask = 0xffffffff;
 	OF_getencprop(node, "msi-map-mask", &mask, sizeof(mask));
 

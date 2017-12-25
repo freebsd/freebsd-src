@@ -347,7 +347,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 	struct iovec aiov;
 	struct uio auio;
 	int lockleaf = (cnp->cn_flags & LOCKLEAF) != 0, linklen;
-	int error = 0, crossmnt;
+	int error = 0;
 	char *cp;
 
 	*retdirp = NULL;
@@ -372,7 +372,6 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 	if (NFSVNO_EXRDONLY(exp))
 		cnp->cn_flags |= RDONLY;
 	ndp->ni_segflg = UIO_SYSSPACE;
-	crossmnt = 1;
 
 	if (nd->nd_flag & ND_PUBLOOKUP) {
 		ndp->ni_loopcnt = 0;
@@ -400,7 +399,6 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 		 * the mount point, unless nfsrv_enable_crossmntpt is set.
 		 */
 		cnp->cn_flags |= NOCROSSMOUNT;
-		crossmnt = 0;
 	}
 
 	/*

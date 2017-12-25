@@ -2631,10 +2631,8 @@ adaprobedone(struct cam_periph *periph, union ccb *ccb)
 static void
 adazonedone(struct cam_periph *periph, union ccb *ccb)
 {
-	struct ada_softc *softc;
 	struct bio *bp;
 
-	softc = periph->softc;
 	bp = (struct bio *)ccb->ccb_h.ccb_bp;
 
 	switch (bp->bio_zone.zone_cmd) {
@@ -2649,7 +2647,7 @@ adazonedone(struct cam_periph *periph, union ccb *ccb)
 		struct scsi_report_zones_hdr *hdr;
 		struct scsi_report_zones_desc *desc;
 		struct disk_zone_rep_entry *entry;
-		uint32_t num_alloced, hdr_len, num_avail;
+		uint32_t hdr_len, num_avail;
 		uint32_t num_to_fill, i;
 
 		rep = &bp->bio_zone.zone_params.report;
@@ -2664,7 +2662,6 @@ adazonedone(struct cam_periph *periph, union ccb *ccb)
 		 * be different than the amount of data transferred to
 		 * the user.
 		 */
-		num_alloced = rep->entries_allocated;
 		hdr = (struct scsi_report_zones_hdr *)ccb->ataio.data_ptr;
 		if (avail_len < sizeof(*hdr)) {
 			/*

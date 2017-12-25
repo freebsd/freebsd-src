@@ -986,7 +986,6 @@ swcr_freesession_locked(device_t dev, u_int64_t tid)
 	struct swcr_data *swd;
 	struct enc_xform *txf;
 	struct auth_hash *axf;
-	struct comp_algo *cxf;
 	u_int32_t sid = CRYPTO_SESID2LID(tid);
 
 	if (sid > swcr_sesnum || swcr_sessions == NULL ||
@@ -1061,7 +1060,7 @@ swcr_freesession_locked(device_t dev, u_int64_t tid)
 			break;
 
 		case CRYPTO_DEFLATE_COMP:
-			cxf = swd->sw_cxf;
+			/* Nothing to do */
 			break;
 		}
 

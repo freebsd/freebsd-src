@@ -955,7 +955,6 @@ g_raid_dirty(struct g_raid_volume *vol)
 void
 g_raid_tr_flush_common(struct g_raid_tr_object *tr, struct bio *bp)
 {
-	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
 	struct bio_queue_head queue;
@@ -963,7 +962,6 @@ g_raid_tr_flush_common(struct g_raid_tr_object *tr, struct bio *bp)
 	int i;
 
 	vol = tr->tro_volume;
-	sc = vol->v_softc;
 
 	/*
 	 * Allocate all bios before sending any request, so we can return

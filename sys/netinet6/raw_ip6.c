@@ -339,9 +339,6 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 void
 rip6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 {
-	struct ip6_hdr *ip6;
-	struct mbuf *m;
-	int off = 0;
 	struct ip6ctlparam *ip6cp = NULL;
 	const struct sockaddr_in6 *sa6_src = NULL;
 	void *cmdarg;
@@ -365,14 +362,9 @@ rip6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 	 */
 	if (d != NULL) {
 		ip6cp = (struct ip6ctlparam *)d;
-		m = ip6cp->ip6c_m;
-		ip6 = ip6cp->ip6c_ip6;
-		off = ip6cp->ip6c_off;
 		cmdarg = ip6cp->ip6c_cmdarg;
 		sa6_src = ip6cp->ip6c_src;
 	} else {
-		m = NULL;
-		ip6 = NULL;
 		cmdarg = NULL;
 		sa6_src = &sa6_any;
 	}
@@ -391,7 +383,6 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 	struct mbuf *control;
 	struct m_tag *mtag;
 	struct sockaddr_in6 *dstsock;
-	struct in6_addr *dst;
 	struct ip6_hdr *ip6;
 	struct inpcb *in6p;
 	u_int	plen = m->m_pkthdr.len;
@@ -413,7 +404,6 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 	in6p = sotoinpcb(so);
 	INP_WLOCK(in6p);
 
-	dst = &dstsock->sin6_addr;
 	if (control != NULL) {
 		if ((error = ip6_setpktopts(control, &opt,
 		    in6p->in6p_outputopts, so->so_cred,

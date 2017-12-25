@@ -225,11 +225,9 @@ fha_hash_entry_remove(struct fha_hash_entry *e)
 static struct fha_hash_entry *
 fha_hash_entry_lookup(struct fha_params *softc, u_int64_t fh)
 {
-	SVCPOOL *pool;
 	struct fha_hash_slot *fhs;
 	struct fha_hash_entry *fhe, *new_fhe;
 
-	pool = *softc->pool;
 	fhs = &softc->fha_hash[fh % FHA_HASH_SIZE];
 	new_fhe = fha_hash_entry_new(fh);
 	new_fhe->mtx = &fhs->mtx;
@@ -289,11 +287,8 @@ fha_hash_entry_choose_thread(struct fha_params *softc,
     struct fha_hash_entry *fhe, struct fha_info *i, SVCTHREAD *this_thread)
 {
 	SVCTHREAD *thread, *min_thread = NULL;
-	SVCPOOL *pool;
 	int req_count, min_count = 0;
 	off_t offset1, offset2;
-
-	pool = *softc->pool;
 
 	LIST_FOREACH(thread, &fhe->threads, st_alink) {
 		req_count = thread->st_p2;
@@ -475,17 +470,13 @@ fhe_stats_sysctl(SYSCTL_HANDLER_ARGS, struct fha_params *softc)
 	struct fha_hash_entry *fhe;
 	bool_t first, hfirst;
 	SVCTHREAD *thread;
-	SVCPOOL *pool;
 
 	sbuf_new(&sb, NULL, 65536, SBUF_FIXEDLEN);
-
-	pool = NULL;
 
 	if (!*softc->pool) {
 		sbuf_printf(&sb, "NFSD not running\n");
 		goto out;
 	}
-	pool = *softc->pool;
 
 	for (i = 0; i < FHA_HASH_SIZE; i++)
 		if (!LIST_EMPTY(&softc->fha_hash[i].list))

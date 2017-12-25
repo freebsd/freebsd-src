@@ -1369,7 +1369,6 @@ vop_deleteextattr {
 */
 {
 	struct inode *ip;
-	struct fs *fs;
 	struct extattr *eap;
 	uint32_t ul;
 	int olen, error, i, easize;
@@ -1377,7 +1376,6 @@ vop_deleteextattr {
 	void *tmp;
 
 	ip = VTOI(ap->a_vp);
-	fs = ITOFS(ip);
 
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
