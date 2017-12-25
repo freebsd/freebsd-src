@@ -6,7 +6,7 @@ arm/allwinner/a10_codec.c		optional	sound
 arm/allwinner/a10_dmac.c		standard
 arm/allwinner/a31_dmac.c		standard
 arm/allwinner/a10_ehci.c		optional	ehci
-arm/allwinner/aw_usbphy.c		optional	ehci
+arm/allwinner/aw_usbphy.c		optional	ehci | ohci
 arm/allwinner/a10_gpio.c		optional	gpio
 arm/allwinner/a10_mmc.c			optional	mmc
 arm/allwinner/a10_sramc.c		standard
