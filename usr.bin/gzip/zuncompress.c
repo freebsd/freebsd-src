@@ -279,7 +279,7 @@ zread(void *cookie, char *rbp, int num)
 			if (zs->u.r.zs_code > zs->zs_free_ent ||
 			    zs->u.r.zs_oldcode == -1) {
 				/* Bad stream. */
-				errno = EINVAL;
+				errno = EFTYPE;
 				return (-1);
 			}
 			*zs->u.r.zs_stackp++ = zs->u.r.zs_finchar;
