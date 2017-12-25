@@ -1806,7 +1806,6 @@ static struct witness *
 enroll(const char *description, struct lock_class *lock_class)
 {
 	struct witness *w;
-	struct witness_list *typelist;
 
 	MPASS(description != NULL);
 
@@ -1815,11 +1814,7 @@ enroll(const char *description, struct lock_class *lock_class)
 	if ((lock_class->lc_flags & LC_SPINLOCK)) {
 		if (witness_skipspin)
 			return (NULL);
-		else
-			typelist = &w_spin;
-	} else if ((lock_class->lc_flags & LC_SLEEPLOCK)) {
-		typelist = &w_sleep;
-	} else {
+	} else if ((lock_class->lc_flags & LC_SLEEPLOCK) == 0) {
 		kassert_panic("lock class %s is not sleep or spin",
 		    lock_class->lc_name);
 		return (NULL);
@@ -1865,14 +1860,11 @@ found:
 static void
 depart(struct witness *w)
 {
-	struct witness_list *list;
 
 	MPASS(w->w_refcount == 0);
 	if (w->w_class->lc_flags & LC_SLEEPLOCK) {
-		list = &w_sleep;
 		w_sleep_cnt--;
 	} else {
-		list = &w_spin;
 		w_spin_cnt--;
 	}
 	/*
@@ -2546,7 +2538,6 @@ sbuf_print_witness_badstacks(struct sbuf *sb, size_t *oldidx)
 {
 	struct witness_lock_order_data *data1, *data2, *tmp_data1, *tmp_data2;
 	struct witness *tmp_w1, *tmp_w2, *w1, *w2;
-	u_int w_rmatrix1, w_rmatrix2;
 	int generation, i, j;
 
 	tmp_data1 = NULL;
@@ -2616,8 +2607,6 @@ restart:
 			 * spin lock.
 			 */
 			*tmp_w2 = *w2;
-			w_rmatrix1 = (unsigned int)w_rmatrix[i][j];
-			w_rmatrix2 = (unsigned int)w_rmatrix[j][i];
 
 			if (data1) {
 				stack_zero(&tmp_data1->wlod_stack);

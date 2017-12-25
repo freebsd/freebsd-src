@@ -751,12 +751,10 @@ static int
 dma_prepare(struct dwmmc_softc *sc, struct mmc_command *cmd)
 {
 	struct mmc_data *data;
-	int len;
 	int err;
 	int reg;
 
 	data = cmd->data;
-	len = data->len;
 
 	reg = READ4(sc, SDMMC_INTMASK);
 	reg &= ~(SDMMC_INTMASK_TXDR | SDMMC_INTMASK_RXDR);

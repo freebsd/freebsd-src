@@ -1017,7 +1017,7 @@ bcm_gpio_pic_map_fdt(struct bcm_gpio_softc *sc, struct intr_map_data_fdt *daf,
     u_int *irqp, uint32_t *modep)
 {
 	u_int irq;
-	uint32_t mode, bank;
+	uint32_t mode;
 
 	/*
 	 * The first cell is the interrupt number.
@@ -1036,7 +1036,6 @@ bcm_gpio_pic_map_fdt(struct bcm_gpio_softc *sc, struct intr_map_data_fdt *daf,
 		return (EINVAL);
 
 	/* Only reasonable modes are supported. */
-	bank = BCM_GPIO_BANK(irq);
 	if (daf->cells[1] == 1)
 		mode = GPIO_INTR_EDGE_RISING;
 	else if (daf->cells[1] == 2)

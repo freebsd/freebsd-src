@@ -115,9 +115,6 @@ static void aw_wdog_shutdown_fn(void *, int);
 static int
 aw_wdog_probe(device_t dev)
 {
-	struct aw_wdog_softc *sc;
-
-	sc = device_get_softc(dev);
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);

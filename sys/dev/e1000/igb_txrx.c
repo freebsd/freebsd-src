@@ -237,7 +237,7 @@ igb_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	int nsegs = pi->ipi_nsegs;
 	bus_dma_segment_t *segs = pi->ipi_segs;
 	union e1000_adv_tx_desc *txd = NULL;
-	int i, j, first, pidx_last;
+	int i, j, pidx_last;
 	u32 olinfo_status, cmd_type_len, txd_flags;
 	qidx_t ntxd;
 
@@ -249,7 +249,7 @@ igb_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	if (pi->ipi_mflags & M_VLANTAG)
 		cmd_type_len |= E1000_ADVTXD_DCMD_VLE;
 
-	first = i = pi->ipi_pidx;
+	i = pi->ipi_pidx;
 	ntxd = scctx->isc_ntxd[0];
 	txd_flags = pi->ipi_flags & IPI_TX_INTR ? E1000_ADVTXD_DCMD_RS : 0;
 	/* Consume the first descriptor */

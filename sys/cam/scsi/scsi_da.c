@@ -1525,7 +1525,6 @@ daclose(struct disk *dp)
 	struct	cam_periph *periph;
 	struct	da_softc *softc;
 	union	ccb *ccb;
-	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
 	softc = (struct da_softc *)periph->softc;
@@ -1544,7 +1543,7 @@ daclose(struct disk *dp)
 			    /*cbfcnp*/dadone, MSG_SIMPLE_Q_TAG,
 			    /*begin_lba*/0, /*lb_count*/0, SSD_FULL_SIZE,
 			    5 * 60 * 1000);
-			error = cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
+			cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
 			    /*sense_flags*/SF_RETRY_UA | SF_QUIET_IR,
 			    softc->disk->d_devstat);
 			softc->flags &= ~DA_FLAG_DIRTY;
@@ -2311,7 +2310,7 @@ dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 	char buf[16];
 	const char *p;
 	struct da_softc *softc;
-	int i, error, methods, value;
+	int i, error, value;
 
 	softc = (struct da_softc *)arg1;
 
@@ -2324,7 +2323,6 @@ dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	methods = softc->delete_available | (1 << DA_DELETE_DISABLE);
 	for (i = 0; i <= DA_DELETE_MAX; i++) {
 		if (strcmp(buf, da_delete_method_names[i]) == 0)
 			break;
@@ -3970,7 +3968,7 @@ dazonedone(struct cam_periph *periph, union ccb *ccb)
 		struct scsi_report_zones_hdr *hdr;
 		struct scsi_report_zones_desc *desc;
 		struct disk_zone_rep_entry *entry;
-		uint32_t num_alloced, hdr_len, num_avail;
+		uint32_t hdr_len, num_avail;
 		uint32_t num_to_fill, i;
 		int ata;
 
@@ -3987,7 +3985,6 @@ dazonedone(struct cam_periph *periph, union ccb *ccb)
 		 * the user.
 		 */
 		bp->bio_resid = ccb->csio.resid;
-		num_alloced = rep->entries_allocated;
 		hdr = (struct scsi_report_zones_hdr *)ccb->csio.data_ptr;
 		if (avail_len < sizeof(*hdr)) {
 			/*

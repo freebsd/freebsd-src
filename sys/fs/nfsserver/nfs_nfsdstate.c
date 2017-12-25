@@ -3267,7 +3267,7 @@ APPLESTATIC int
 nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
     nfsv4stateid_t *stateidp, struct nfsrv_descript *nd, NFSPROC_T *p)
 {
-	struct nfsstate *stp, *ownerstp;
+	struct nfsstate *stp;
 	struct nfsclient *clp;
 	struct nfslockfile *lfp;
 	u_int32_t bits;
@@ -3366,7 +3366,6 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 		}
 		NFSUNLOCKSTATE();
 	} else if (new_stp->ls_flags & NFSLCK_CLOSE) {
-		ownerstp = stp->ls_openowner;
 		lfp = stp->ls_lfp;
 		if (nfsrv_dolocallocks != 0 && !LIST_EMPTY(&stp->ls_open)) {
 			/* Get the lf lock */

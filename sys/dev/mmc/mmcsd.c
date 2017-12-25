@@ -755,11 +755,9 @@ mmcsd_close(struct disk *dp __unused)
 static void
 mmcsd_strategy(struct bio *bp)
 {
-	struct mmcsd_softc *sc;
 	struct mmcsd_part *part;
 
 	part = bp->bio_disk->d_drv1;
-	sc = part->sc;
 	MMCSD_DISK_LOCK(part);
 	if (part->running > 0 || part->suspend > 0) {
 		bioq_disksort(&part->bio_queue, bp);

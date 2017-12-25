@@ -685,9 +685,7 @@ ah_input_cb(struct cryptop *crp)
 {
 	IPSEC_DEBUG_DECLARE(char buf[IPSEC_ADDRSTRLEN]);
 	unsigned char calc[AH_ALEN_MAX];
-	const struct auth_hash *ahx;
 	struct mbuf *m;
-	struct cryptodesc *crd;
 	struct xform_data *xd;
 	struct secasvar *sav;
 	struct secasindex *saidx;
@@ -696,7 +694,6 @@ ah_input_cb(struct cryptop *crp)
 	int authsize, rplen, error, skip, protoff;
 	uint8_t nxt;
 
-	crd = crp->crp_desc;
 	m = (struct mbuf *) crp->crp_buf;
 	xd = (struct xform_data *) crp->crp_opaque;
 	sav = xd->sav;
@@ -708,8 +705,6 @@ ah_input_cb(struct cryptop *crp)
 	IPSEC_ASSERT(saidx->dst.sa.sa_family == AF_INET ||
 		saidx->dst.sa.sa_family == AF_INET6,
 		("unexpected protocol family %u", saidx->dst.sa.sa_family));
-
-	ahx = sav->tdb_authalgxform;
 
 	/* Check for crypto errors. */
 	if (crp->crp_etype) {

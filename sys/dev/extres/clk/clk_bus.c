@@ -60,11 +60,9 @@ ofw_clkbus_probe(device_t dev)
 static int
 ofw_clkbus_attach(device_t dev)
 {
-	struct ofw_clkbus_softc *sc;
 	phandle_t node, child;
 	device_t cdev;
 
-	sc = device_get_softc(dev);
 	node  = ofw_bus_get_node(dev);
 	simplebus_init(dev, node);
 

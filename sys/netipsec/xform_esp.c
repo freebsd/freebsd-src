@@ -441,7 +441,6 @@ esp_input_cb(struct cryptop *crp)
 	IPSEC_DEBUG_DECLARE(char buf[128]);
 	u_int8_t lastthree[3], aalg[AH_HMAC_MAXHASHLEN];
 	const struct auth_hash *esph;
-	const struct enc_xform *espx;
 	struct mbuf *m;
 	struct cryptodesc *crd;
 	struct xform_data *xd;
@@ -462,7 +461,6 @@ esp_input_cb(struct cryptop *crp)
 	cryptoid = xd->cryptoid;
 	saidx = &sav->sah->saidx;
 	esph = sav->tdb_authalgxform;
-	espx = sav->tdb_encalgxform;
 
 	/* Check for crypto errors */
 	if (crp->crp_etype) {
