@@ -1133,7 +1133,7 @@ static void
 vnlru_proc(void)
 {
 	struct mount *mp, *nmp;
-	unsigned long ofreevnodes, onumvnodes;
+	unsigned long onumvnodes;
 	int done, force, reclaim_nc_src, trigger, usevnodes;
 
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, vnlruproc,
@@ -1170,7 +1170,6 @@ vnlru_proc(void)
 		}
 		mtx_unlock(&vnode_free_list_mtx);
 		done = 0;
-		ofreevnodes = freevnodes;
 		onumvnodes = numvnodes;
 		/*
 		 * Calculate parameters for recycling.  These are the same

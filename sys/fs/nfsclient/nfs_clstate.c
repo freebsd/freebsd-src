@@ -4116,7 +4116,6 @@ nfscl_relock(vnode_t vp, struct nfsclclient *clp, struct nfsmount *nmp,
 	struct nfscllockowner *nlp;
 	struct nfsfh *nfhp;
 	u_int64_t off, len;
-	u_int32_t clidrev = 0;
 	int error, newone, donelocally;
 
 	off = lop->nfslo_first;
@@ -4126,10 +4125,6 @@ nfscl_relock(vnode_t vp, struct nfsclclient *clp, struct nfsmount *nmp,
 	    lp->nfsl_openowner, &nlp, &newone, &donelocally);
 	if (error || donelocally)
 		return (error);
-	if (nmp->nm_clp != NULL)
-		clidrev = nmp->nm_clp->nfsc_clientidrev;
-	else
-		clidrev = 0;
 	nfhp = VTONFS(vp)->n_fhp;
 	error = nfscl_trylock(nmp, vp, nfhp->nfh_fh,
 	    nfhp->nfh_len, nlp, newone, 0, off,

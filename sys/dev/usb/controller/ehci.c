@@ -1194,9 +1194,7 @@ ehci_non_isoc_done_sub(struct usb_xfer *xfer)
 static void
 ehci_non_isoc_done(struct usb_xfer *xfer)
 {
-	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
 	ehci_qh_t *qh;
-	uint32_t status;
 	usb_error_t err = 0;
 
 	DPRINTFN(13, "xfer=%p endpoint=%p transfer done\n",
@@ -1215,8 +1213,6 @@ ehci_non_isoc_done(struct usb_xfer *xfer)
 	qh = xfer->qh_start[xfer->flags_int.curr_dma_set];
 
 	usb_pc_cpu_invalidate(qh->page_cache);
-
-	status = hc32toh(sc, qh->qh_qtd.qtd_status);
 
 	/* reset scanner */
 

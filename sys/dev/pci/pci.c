@@ -3980,7 +3980,6 @@ pci_rescan_method(device_t dev)
 {
 #define	REG(n, w)	PCIB_READ_CONFIG(pcib, busno, s, f, n, w)
 	device_t pcib = device_get_parent(dev);
-	struct pci_softc *sc;
 	device_t child, *devlist, *unchanged;
 	int devcount, error, i, j, maxslots, oldcount;
 	int busno, domain, s, f, pcifunchigh;
@@ -4000,7 +3999,6 @@ pci_rescan_method(device_t dev)
 	} else
 		unchanged = NULL;
 
-	sc = device_get_softc(dev);
 	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
 	maxslots = PCIB_MAXSLOTS(pcib);
@@ -4077,11 +4075,9 @@ device_t
 pci_add_iov_child(device_t bus, device_t pf, uint16_t rid, uint16_t vid,
     uint16_t did)
 {
-	struct pci_devinfo *pf_dinfo, *vf_dinfo;
+	struct pci_devinfo *vf_dinfo;
 	device_t pcib;
 	int busno, slot, func;
-
-	pf_dinfo = device_get_ivars(pf);
 
 	pcib = device_get_parent(bus);
 
