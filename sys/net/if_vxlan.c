@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_dl.h>
+#include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_vxlan.h>
 #include <net/netisr.h>
@@ -177,6 +178,7 @@ struct vxlan_softc {
 	uint8_t				 vxl_hwaddr[ETHER_ADDR_LEN];
 	int				 vxl_mc_ifindex;
 	struct ifnet			*vxl_mc_ifp;
+	struct ifmedia 			 vxl_media;
 	char				 vxl_mc_ifname[IFNAMSIZ];
 	LIST_ENTRY(vxlan_softc)		 vxl_entry;
 	LIST_ENTRY(vxlan_softc)		 vxl_ifdetach_list;
@@ -342,6 +344,8 @@ static void	vxlan_clone_destroy(struct ifnet *);
 
 static uint32_t vxlan_mac_hash(struct vxlan_softc *, const uint8_t *);
 static void	vxlan_fakeaddr(struct vxlan_softc *);
+static int	vxlan_media_change(struct ifnet *);
+static void	vxlan_media_status(struct ifnet *, struct ifmediareq *);
 
 static int	vxlan_sockaddr_cmp(const union vxlan_sockaddr *,
 		    const struct sockaddr *);
@@ -1655,6 +1659,7 @@ vxlan_init(void *xsc)
 	    vxlan_timer, sc);
 	VXLAN_WUNLOCK(sc);
 
+	if_link_state_change(ifp, LINK_STATE_UP);
 out:
 	vxlan_init_complete(sc);
 }
@@ -1710,6 +1715,7 @@ vxlan_teardown_locked(struct vxlan_softc *sc)
 	sc->vxl_sock = NULL;
 
 	VXLAN_WUNLOCK(sc);
+	if_link_state_change(ifp, LINK_STATE_DOWN);
 
 	if (vso != NULL) {
 		vxlan_socket_remove_softc(vso, sc);
@@ -2219,6 +2225,12 @@ vxlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFFLAGS:
 		error = vxlan_ioctl_ifflags(sc);
 		break;
+
+	case SIOCSIFMEDIA:
+	case SIOCGIFMEDIA:
+		error = ifmedia_ioctl(ifp, ifr, &sc->vxl_media, cmd);
+		break;
+
 	default:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
@@ -2685,6 +2697,10 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_transmit = vxlan_transmit;
 	ifp->if_qflush = vxlan_qflush;
 
+	ifmedia_init(&sc->vxl_media, 0, vxlan_media_change, vxlan_media_status);
+	ifmedia_add(&sc->vxl_media, IFM_ETHER | IFM_AUTO, 0, NULL);
+	ifmedia_set(&sc->vxl_media, IFM_ETHER | IFM_AUTO);
+
 	vxlan_fakeaddr(sc);
 	ether_ifattach(ifp, sc->vxl_hwaddr);
 
@@ -2711,6 +2727,7 @@ vxlan_clone_destroy(struct ifnet *ifp)
 
 	ether_ifdetach(ifp);
 	if_free(ifp);
+	ifmedia_removeall(&sc->vxl_media);
 
 	vxlan_ftable_fini(sc);
 
@@ -2768,6 +2785,22 @@ vxlan_fakeaddr(struct vxlan_softc *sc)
 	arc4rand(sc->vxl_hwaddr, ETHER_ADDR_LEN, 1);
 	sc->vxl_hwaddr[0] &= ~1;
 	sc->vxl_hwaddr[0] |= 2;
+}
+
+static int
+vxlan_media_change(struct ifnet *ifp)
+{
+
+	/* Ignore. */
+	return (0);
+}
+
+static void
+vxlan_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
+{
+
+	ifmr->ifm_status = IFM_ACTIVE | IFM_AVALID;
+	ifmr->ifm_active = IFM_ETHER | IFM_FDX;
 }
 
 static int
