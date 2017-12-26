@@ -1737,27 +1737,28 @@ ProcessSctpMsg(struct libalias *la, int direction, struct sctp_nat_msg *sm, stru
 static int
 ID_process(struct libalias *la, int direction, struct sctp_nat_assoc *assoc, struct sctp_nat_msg *sm)
 {
-	switch(sm->msg) {
+	switch (sm->msg) {
 	case SN_SCTP_ASCONF:           /* a packet containing an ASCONF chunk with ADDIP */
 		if (!sysctl_accept_global_ootb_addip && (direction == SN_TO_LOCAL))
-			return(SN_DROP_PKT);
+			return (SN_DROP_PKT);
 		/* if this Asconf packet does not contain the Vtag parameters it is of no use in Idle state */
 		if (!GetAsconfVtags(la, sm, &(assoc->l_vtag), &(assoc->g_vtag), direction))
-			return(SN_DROP_PKT);
+			return (SN_DROP_PKT);
+		/* FALLTHROUGH */
 	case SN_SCTP_INIT:            /* a packet containing an INIT chunk or an ASCONF AddIP */
 		if (sysctl_track_global_addresses)
 			AddGlobalIPAddresses(sm, assoc, direction);
-		switch(direction){
+		switch (direction) {
 		case SN_TO_GLOBAL:
 			assoc->l_addr = sm->ip_hdr->ip_src;
 			assoc->a_addr = FindAliasAddress(la, assoc->l_addr);
 			assoc->l_port = sm->sctp_hdr->src_port;
 			assoc->g_port = sm->sctp_hdr->dest_port;
-			if(sm->msg == SN_SCTP_INIT)
+			if (sm->msg == SN_SCTP_INIT)
 				assoc->g_vtag = sm->sctpchnk.Init->initiate_tag;
 			if (AddSctpAssocGlobal(la, assoc)) /* DB clash *///**** need to add dst address
 				return((sm->msg == SN_SCTP_INIT) ? SN_REPLY_ABORT : SN_REPLY_ERROR);
-			if(sm->msg == SN_SCTP_ASCONF) {
+			if (sm->msg == SN_SCTP_ASCONF) {
 				if (AddSctpAssocLocal(la, assoc, sm->ip_hdr->ip_dst)) /* DB clash */
 					return(SN_REPLY_ERROR);
 				assoc->TableRegister |= SN_WAIT_TOLOCAL; /* wait for tolocal ack */
@@ -1768,25 +1769,25 @@ ID_process(struct libalias *la, int direction, struct sctp_nat_assoc *assoc, str
 			assoc->a_addr = sm->ip_hdr->ip_dst; 
 			assoc->l_port = sm->sctp_hdr->dest_port;
 			assoc->g_port = sm->sctp_hdr->src_port;
-			if(sm->msg == SN_SCTP_INIT)
+			if (sm->msg == SN_SCTP_INIT)
 				assoc->l_vtag = sm->sctpchnk.Init->initiate_tag;
 			if (AddSctpAssocLocal(la, assoc, sm->ip_hdr->ip_src)) /* DB clash */
 				return((sm->msg == SN_SCTP_INIT) ? SN_REPLY_ABORT : SN_REPLY_ERROR);
-			if(sm->msg == SN_SCTP_ASCONF) {
+			if (sm->msg == SN_SCTP_ASCONF) {
 				if (AddSctpAssocGlobal(la, assoc)) /* DB clash */ //**** need to add src address
 					return(SN_REPLY_ERROR);
 				assoc->TableRegister |= SN_WAIT_TOGLOBAL; /* wait for toglobal ack */
 					}
 			break;
 		}
-	assoc->state = (sm->msg == SN_SCTP_INIT) ? SN_INi : SN_INa;
-	assoc->exp = SN_I_T(la);
-	sctp_AddTimeOut(la,assoc);
-	return(SN_NAT_PKT);
+		assoc->state = (sm->msg == SN_SCTP_INIT) ? SN_INi : SN_INa;
+		assoc->exp = SN_I_T(la);
+		sctp_AddTimeOut(la,assoc);
+		return (SN_NAT_PKT);
 	default: /* Any other type of SCTP message is not valid in Idle */
-		return(SN_DROP_PKT);
+		return (SN_DROP_PKT);
 	}
-return(SN_DROP_PKT);/* shouldn't get here very bad: log, drop and hope for the best */
+	return (SN_DROP_PKT);/* shouldn't get here very bad: log, drop and hope for the best */
 }
 
 /** @ingroup state_machine
