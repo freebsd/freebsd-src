@@ -70,6 +70,7 @@ MAN=	aac.4 \
 	audit.4 \
 	auditpipe.4 \
 	aue.4 \
+	aw_mmc.4 \
 	aw_rtc.4 \
 	axe.4 \
 	axge.4 \
