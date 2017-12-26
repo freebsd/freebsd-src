@@ -4255,7 +4255,7 @@ netinet/sctp_asconf.c		optional inet sctp | inet6 sctp
 netinet/sctp_auth.c		optional inet sctp | inet6 sctp
 netinet/sctp_bsd_addr.c		optional inet sctp | inet6 sctp
 netinet/sctp_cc_functions.c	optional inet sctp | inet6 sctp
-netinet/sctp_crc32.c		optional inet sctp | inet6 sctp
+netinet/sctp_crc32.c		optional inet | inet6
 netinet/sctp_indata.c		optional inet sctp | inet6 sctp
 netinet/sctp_input.c		optional inet sctp | inet6 sctp
 netinet/sctp_output.c		optional inet sctp | inet6 sctp
