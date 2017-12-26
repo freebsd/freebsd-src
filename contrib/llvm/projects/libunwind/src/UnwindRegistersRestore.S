@@ -484,4 +484,5 @@ DEFINE_LIBUNWIND_PRIVATE_FUNCTION(_ZN9libunwind14Registers_or1k6jumptoEv)
 
 #endif
 
-  .section .note.GNU-stack,"",@progbits
+NO_EXEC_STACK_DIRECTIVE
+
