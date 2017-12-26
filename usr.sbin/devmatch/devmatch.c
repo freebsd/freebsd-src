@@ -321,7 +321,7 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 				else if (!notme) {
 					if (!unbound_flag) {
 						if (all_flag)
-							printf("%s: ", *dev ? dev : "unattahed" );
+							printf("%s: ", *dev ? dev : "unattached" );
 						printf("%s\n", lastmod);
 					}
 					found++;
@@ -338,7 +338,7 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 	if (unbound_flag && found == 0 && *pnpinfo) {
 		if (verbose_flag)
 			printf("------------------------- ");
-		printf("%s on %s pnpinfo %s", *dev ? dev : "unattahed", bus, pnpinfo);
+		printf("%s on %s pnpinfo %s", *dev ? dev : "unattached", bus, pnpinfo);
 		if (verbose_flag)
 			printf(" -------------------------");
 		printf("\n");
