@@ -2118,31 +2118,31 @@ FindSctpGlobal(struct libalias *la, struct in_addr g_addr, uint32_t g_vtag, uint
  * @return pointer to association or NULL
  */
 static struct sctp_nat_assoc*
-FindSctpLocalT(struct libalias *la,  struct in_addr g_addr, uint32_t l_vtag, uint16_t g_port, uint16_t l_port)
+FindSctpLocalT(struct libalias *la, struct in_addr g_addr, uint32_t l_vtag, uint16_t g_port, uint16_t l_port)
 {
 	u_int i;
 	struct sctp_nat_assoc *assoc = NULL, *lastmatch = NULL;
 	struct sctp_GlobalAddress *G_Addr = NULL;
 	int cnt = 0;
-  
+
 	if (l_vtag != 0) { /* an init packet, vtag==0 */
 		i = SN_TABLE_HASH(l_vtag, g_port, la->sctpNatTableSize);
 		LIST_FOREACH(assoc, &la->sctpTableGlobal[i], list_G) {
 			if ((assoc->g_vtag == l_vtag) && (assoc->g_port == g_port) && (assoc->l_port == l_port)) {
 				if (assoc->num_Gaddr) {
 					LIST_FOREACH(G_Addr, &(assoc->Gaddr), list_Gaddr) {
-						if(G_Addr->g_addr.s_addr == G_Addr->g_addr.s_addr)
-							return(assoc); /* full match */
+						if (G_Addr->g_addr.s_addr == g_addr.s_addr)
+							return (assoc); /* full match */
 					}
 				} else {
-					if (++cnt > 1) return(NULL);
+					if (++cnt > 1) return (NULL);
 					lastmatch = assoc;
 				}
 			}
 		}
 	}
 	/* If there is more than one match we do not know which local address to send to */
-	return( cnt ? lastmatch : NULL );
+	return (cnt ? lastmatch : NULL);
 }
 
 /** @ingroup Hash
