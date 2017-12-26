@@ -157,13 +157,11 @@ i2c {
 .Ed
 .Pp
 Where:
-.Bl -tag -width ".Va i2c-address"
+.Bl -tag -width ".Va compatible"
 .It Va compatible
 Should always be set to "national,lm75".
-.It Va i2c-address
-The
-.Va i2c-address
-property indicates which i2c address the
+.It Va reg
+Indicates which 7-bit i2c address the
 .Nm
 is wired at.
 .Nm
