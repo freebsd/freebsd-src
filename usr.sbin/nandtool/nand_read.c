@@ -52,7 +52,7 @@ int nand_read(struct cmd_param *params)
 	}
 
 	if ((out = param_get_string(params, "out"))) {
-		out_fd = open(out, O_WRONLY|O_CREAT);
+		out_fd = open(out, O_WRONLY|O_CREAT, 0666);
 		if (out_fd == -1) {
 			perrorf("Cannot open %s for writing", out);
 			return (1);
