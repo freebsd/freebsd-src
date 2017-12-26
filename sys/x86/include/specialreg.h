@@ -362,6 +362,7 @@
 #define	CPUID_STDEXT_AVX512CD	0x10000000
 #define	CPUID_STDEXT_SHA	0x20000000
 #define	CPUID_STDEXT_AVX512BW	0x40000000
+#define	CPUID_STDEXT_AVX512VL	0x80000000
 
 /*
  * CPUID instruction 7 Structured Extended Features, leaf 0 ecx info
