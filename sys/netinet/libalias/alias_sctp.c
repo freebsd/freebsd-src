@@ -1376,6 +1376,7 @@ AddGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int 
 		case SCTP_ADD_IP_ADDRESS:
 			/* skip to address parameter - leave param_size so bytes left will be calculated properly*/
 			param = (struct sctp_paramhdr *) &((struct sctp_asconf_addrv4_param *) param)->addrp;
+			/* FALLTHROUGH */
 		case SCTP_IPV4_ADDRESS:
 			ipv4_param = (struct sctp_ipv4addr_param *) param;
 			/* add addresses to association */
