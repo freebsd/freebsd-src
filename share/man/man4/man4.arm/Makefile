@@ -2,7 +2,10 @@
 
 PACKAGE=runtime-manuals
 
-MAN=	cgem.4 \
+MAN=	aw_gpio.4 \
+	aw_mmc.4 \
+	aw_rtc.4 \
+	cgem.4 \
 	devcfg.4 \
 	mge.4 \
 	npe.4 \
