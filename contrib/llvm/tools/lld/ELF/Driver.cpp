@@ -1010,6 +1010,15 @@ template <class ELFT> void LinkerDriver::link(opt::InputArgList &Args) {
   if (Args.hasArg(OPT_exclude_libs))
     excludeLibs(Args, Files);
 
+  // Create ElfHeader early. We need a dummy section in
+  // addReservedSymbols to mark the created symbols as not absolute.
+  Out::ElfHeader = make<OutputSection>("", 0, SHF_ALLOC);
+  Out::ElfHeader->Size = sizeof(typename ELFT::Ehdr);
+
+  // We need to create some reserved symbols such as _end. Create them.
+  if (!Config->Relocatable)
+    addReservedSymbols<ELFT>();
+
   // Apply version scripts.
   Symtab.scanVersionScript();
 
