@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 19, 2017
+.Dd December 22, 2017
 .Dt ATOMIC 9
 .Os
 .Sh NAME
@@ -175,8 +175,11 @@ and
 semantics.
 .Pp
 Atomic operations on memory have up to three variants.
-The first variant performs the operation without imposing any ordering
-constraints on memory accesses to other locations.
+The first, or
+.Em relaxed
+variant, performs the operation without imposing any ordering constraints on
+accesses to other memory locations.
+This variant is the default.
 The second variant has acquire semantics, and the third variant has release
 semantics.
 .Pp
@@ -546,43 +549,54 @@ The
 .Fn atomic_set ,
 and
 .Fn atomic_subtract
-operations were first introduced in
+operations were introduced in
 .Fx 3.0 .
-This first set only supported the types
+Initially, these operations were defined on the types
 .Dq Li char ,
 .Dq Li short ,
 .Dq Li int ,
 and
 .Dq Li long .
+.Pp
 The
 .Fn atomic_cmpset ,
-.Fn atomic_load ,
+.Fn atomic_load_acq ,
 .Fn atomic_readandclear ,
 and
-.Fn atomic_store
+.Fn atomic_store_rel
 operations were added in
 .Fx 5.0 .
-The types
+Simultaneously, the acquire and release variants were introduced, and
+support was added for operation on the types
 .Dq Li 8 ,
 .Dq Li 16 ,
 .Dq Li 32 ,
 .Dq Li 64 ,
 and
-.Dq Li ptr
-and all of the acquire and release variants
-were added in
-.Fx 5.0
-as well.
+.Dq Li ptr .
+.Pp
 The
 .Fn atomic_fetchadd
-operations were added in
+operation was added in
 .Fx 6.0 .
+.Pp
 The
 .Fn atomic_swap
 and
 .Fn atomic_testandset
 operations were added in
 .Fx 10.0 .
+.Pp
+The
 .Fn atomic_testandclear
-operation was added in
+and
+.Fn atomic_thread_fence
+operations were added in
 .Fx 11.0 .
+.Pp
+The relaxed variants of
+.Fn atomic_load
+and
+.Fn atomic_store
+were added in
+.Fx 12.0 .
