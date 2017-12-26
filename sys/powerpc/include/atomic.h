@@ -36,6 +36,8 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+#include <sys/atomic_common.h>
+
 /*
  * The __ATOMIC_REL/ACQ() macros provide memory barriers only in conjunction
  * with the atomic lXarx/stXcx. sequences below. They are not exposed outside

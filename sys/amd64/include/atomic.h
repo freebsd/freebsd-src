@@ -55,6 +55,8 @@
 #define	wmb()	__asm __volatile("sfence;" : : : "memory")
 #define	rmb()	__asm __volatile("lfence;" : : : "memory")
 
+#include <sys/atomic_common.h>
+
 /*
  * Various simple operations on memory, each of which is atomic in the
  * presence of interrupts and multiple processors.
