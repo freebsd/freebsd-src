@@ -1177,7 +1177,7 @@ awg_setup_phy(device_t dev)
 	if (sc->res[_RES_SYSCON] != NULL) {
 		reg = bus_read_4(sc->res[_RES_SYSCON], 0);
 		reg &= ~(EMAC_CLK_PIT | EMAC_CLK_SRC | EMAC_CLK_RMII_EN);
-		if (strcmp(phy_type, "rgmii") == 0)
+		if (strncmp(phy_type, "rgmii", 5) == 0)
 			reg |= EMAC_CLK_PIT_RGMII | EMAC_CLK_SRC_RGMII;
 		else if (strcmp(phy_type, "rmii") == 0)
 			reg |= EMAC_CLK_RMII_EN;
@@ -1217,7 +1217,7 @@ awg_setup_phy(device_t dev)
 			device_printf(dev, "EMAC clock: 0x%08x\n", reg);
 		bus_write_4(sc->res[_RES_SYSCON], 0, reg);
 	} else {
-		if (strcmp(phy_type, "rgmii") == 0)
+		if (strncmp(phy_type, "rgmii", 5) == 0)
 			tx_parent_name = "emac_int_tx";
 		else
 			tx_parent_name = "mii_phy_tx";
