@@ -5174,7 +5174,6 @@ iflib_irq_set_affinity(if_ctx_t ctx, int irq, iflib_intr_type_t type, int qid,
 	if (cpuid > ctx->ifc_cpuid_highest)
 		ctx->ifc_cpuid_highest = cpuid;
 #endif
-	MPASS(gtask->gt_taskqueue != NULL);
 	return 0;
 }
 
