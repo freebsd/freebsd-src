@@ -13352,8 +13352,8 @@ ctl_work_thread(void *arg)
 		 * We handle the queues in this order:
 		 * - ISC
 		 * - done queue (to free up resources, unblock other commands)
-		 * - RtR queue
 		 * - incoming queue
+		 * - RtR queue
 		 *
 		 * If those queues are empty, we break out of the loop and
 		 * go to sleep.
