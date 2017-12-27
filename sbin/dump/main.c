@@ -439,8 +439,8 @@ main(int argc, char *argv[])
 	sync();
 	sblock = (struct fs *)sblock_buf;
 	for (i = 0; sblock_try[i] != -1; i++) {
-		sblock->fs_fsize = SBLOCKSIZE; /* needed in bread */
-		bread(sblock_try[i] >> dev_bshift, (char *) sblock, SBLOCKSIZE);
+		sblock->fs_fsize = SBLOCKSIZE; /* needed in blkread */
+		blkread(sblock_try[i]>>dev_bshift, (char *) sblock, SBLOCKSIZE);
 		if ((sblock->fs_magic == FS_UFS1_MAGIC ||
 		     (sblock->fs_magic == FS_UFS2_MAGIC &&
 		      sblock->fs_sblockloc == sblock_try[i])) &&
@@ -556,7 +556,7 @@ main(int argc, char *argv[])
 		/*
 		 * Skip directory inodes deleted and maybe reallocated
 		 */
-		dp = getino(ino, &mode);
+		dp = getinode(ino, &mode);
 		if (mode != IFDIR)
 			continue;
 		(void)dumpino(dp, ino);
@@ -575,7 +575,7 @@ main(int argc, char *argv[])
 		/*
 		 * Skip inodes deleted and reallocated as directories.
 		 */
-		dp = getino(ino, &mode);
+		dp = getinode(ino, &mode);
 		if (mode == IFDIR)
 			continue;
 		(void)dumpino(dp, ino);
