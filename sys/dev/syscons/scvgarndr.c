@@ -682,7 +682,7 @@ draw_txtmouse(scr_stat *scp, int x, int y)
     } else
 #endif /* SC_ALT_MOUSE_IMAGE */
     {
-	/* Red, magenta and brown are mapped to green to to keep it readable */
+	/* Red, magenta and brown are mapped to green to keep it readable */
 	static const int col_conv[16] = {
 		6, 6, 6, 6, 2, 2, 2, 6, 14, 14, 14, 14, 10, 10, 10, 14
 	};

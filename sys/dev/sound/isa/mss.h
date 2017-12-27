@@ -183,7 +183,7 @@ typedef struct mixer_def mixer_tab[32][2];
  * The AD1848 codec has generic input lines called Line, Aux1 and Aux2.
  * Soundcard manufacturers have connected actual inputs (CD, synth, line,
  * etc) to these inputs in different order. Therefore it's difficult
- * to assign mixer channels to to these inputs correctly. The following
+ * to assign mixer channels to these inputs correctly. The following
  * contains two alternative mappings. The first one is for GUS MAX and
  * the second is just a generic one (line1, line2 and line3).
  * (Actually this is not a mapping but rather some kind of interleaving
