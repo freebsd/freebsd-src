@@ -195,12 +195,12 @@ pnpval_as_str(const char *val, const char *pnpinfo)
 	cp = strchr(val, ';');
 	key[0] = ' ';
 	if (cp == NULL)
-		strcpy(key + 1, val);
+		strlcpy(key + 1, val, sizeof(key) - 1);
 	else {
 		memcpy(key + 1, val, cp - val);
 		key[cp - val + 1] = '\0';
 	}
-	strcat(key, "=");
+	strlcat(key, "=", sizeof(key));
 	if (strncmp(key + 1, pnpinfo, strlen(key + 1)) == 0)
 		quoted_strcpy(retval, pnpinfo + strlen(key + 1));
 	else {
