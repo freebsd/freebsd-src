@@ -1243,7 +1243,8 @@ explore_numeric(const struct addrinfo *pai, const char *hostname,
 		 * does not accept.  So we need to separate the case for
 		 * AF_INET.
 		 */
-		if (inet_aton(hostname, (struct in_addr *)pton) != 1)
+		if (inet_aton(hostname, (struct in_addr *)pton) != 1 ||
+		    hostname[strspn(hostname, "0123456789.xabcdefXABCDEF")] != '\0')
 			return 0;
 		break;
 	default:
