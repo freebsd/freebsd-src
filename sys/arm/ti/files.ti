@@ -1,7 +1,5 @@
 #$FreeBSD$
 
-kern/kern_clocksource.c				standard
-
 arm/ti/ti_cpuid.c				standard
 arm/ti/ti_hwmods.c				standard
 arm/ti/ti_machdep.c				standard
