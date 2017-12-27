@@ -134,7 +134,7 @@ GetDevicePathSize (
   @param  MaxSize     The maximum size of the device path data structure.
 
   @retval TRUE        DevicePath is valid.
-  @retval FALSE       The length of any node node in the DevicePath is less
+  @retval FALSE       The length of any node in the DevicePath is less
                       than sizeof (EFI_DEVICE_PATH_PROTOCOL).
   @retval FALSE       If MaxSize is not zero, the size of the DevicePath
                       exceeds MaxSize.
