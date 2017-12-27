@@ -442,6 +442,7 @@ telnet_parse(netdissect_options *ndo, const u_char *sp, u_int length, int print)
 				break;
 			p++;
 		}
+		ND_TCHECK(*p);
 		if (*p != IAC)
 			goto pktend;
 

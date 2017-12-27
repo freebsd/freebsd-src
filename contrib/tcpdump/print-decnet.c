@@ -542,6 +542,7 @@ decnet_print(netdissect_options *ndo,
 	    length -= padlen;
 	    caplen -= padlen;
 	    rhp = (const union routehdr *)&(ap[sizeof(short)]);
+	    ND_TCHECK(rhp->rh_short.sh_flags);
 	    mflags = EXTRACT_LE_8BITS(rhp->rh_short.sh_flags);
 	}
 
@@ -613,6 +614,7 @@ print_decnet_ctlmsg(netdissect_options *ndo,
                     register const union routehdr *rhp, u_int length,
                     u_int caplen)
 {
+	/* Our caller has already checked for mflags */
 	int mflags = EXTRACT_LE_8BITS(rhp->rh_short.sh_flags);
 	register const union controlmsg *cmp = (const union controlmsg *)rhp;
 	int src, dst, info, blksize, eco, ueco, hello, other, vers;

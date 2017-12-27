@@ -262,7 +262,7 @@ atm_if_print(netdissect_options *ndo,
         if (*p == LLC_UI) {
             if (ndo->ndo_eflag)
                 ND_PRINT((ndo, "CNLPID "));
-            isoclns_print(ndo, p + 1, length - 1, caplen - 1);
+            isoclns_print(ndo, p + 1, length - 1);
             return hdrlen;
         }
 

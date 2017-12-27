@@ -178,14 +178,13 @@ struct ip6_rthdr {
 /* Type 0 Routing header */
 /* Also used for Type 2 */
 struct ip6_rthdr0 {
-	uint8_t  ip6r0_nxt;		/* next header */
-	uint8_t  ip6r0_len;		/* length in units of 8 octets */
-	uint8_t  ip6r0_type;		/* always zero */
-	uint8_t  ip6r0_segleft;	/* segments left */
-	uint8_t  ip6r0_reserved;	/* reserved field */
-	uint8_t  ip6r0_slmap[3];	/* strict/loose bit map */
+	nd_uint8_t  ip6r0_nxt;		/* next header */
+	nd_uint8_t  ip6r0_len;		/* length in units of 8 octets */
+	nd_uint8_t  ip6r0_type;		/* always zero */
+	nd_uint8_t  ip6r0_segleft;	/* segments left */
+	nd_uint32_t ip6r0_reserved;	/* reserved field */
 	struct in6_addr ip6r0_addr[1];	/* up to 23 addresses */
-} UNALIGNED;
+};
 
 /* Fragment header */
 struct ip6_frag {
