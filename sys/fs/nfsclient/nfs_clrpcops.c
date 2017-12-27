@@ -5815,7 +5815,7 @@ nfsm_copym(struct mbuf *m, int off, int xfer)
 
 /*
  * Find a file layout that will handle the first bytes of the requested
- * range and return the information from it needed to to the I/O operation.
+ * range and return the information from it needed to the I/O operation.
  */
 int
 nfscl_findlayoutforio(struct nfscllayout *lyp, uint64_t off, uint32_t rwaccess,

@@ -114,7 +114,7 @@ __start:
  *  - Switch to temp mapping
  *  - Map 64MB of RAM in TLB1[1]
  *  - Use AS=1, set EPN to KERNBASE and RPN to kernel load address
- *  - Switch to to TLB1[1] mapping
+ *  - Switch to TLB1[1] mapping
  *  - Invalidate temp mapping
  *
  * locore registers use:

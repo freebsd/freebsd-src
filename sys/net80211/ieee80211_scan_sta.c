@@ -119,7 +119,7 @@ static void sta_flush_table(struct sta_table *);
 /*
  * match_bss returns a bitmask describing if an entry is suitable
  * for use.  If non-zero the entry was deemed not suitable and it's
- * contents explains why.  The following flags are or'd to to this
+ * contents explains why.  The following flags are or'd to this
  * mask and can be used to figure out why the entry was rejected.
  */
 #define	MATCH_CHANNEL		0x00001	/* channel mismatch */

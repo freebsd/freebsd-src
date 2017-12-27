@@ -192,7 +192,7 @@ struct hfsc_class_stats {
  *	representation.
  *	the slope values are scaled to avoid overflow.
  *	the inverse slope values as well as the y-projection of the 1st
- *	segment are kept in order to to avoid 64-bit divide operations
+ *	segment are kept in order to avoid 64-bit divide operations
  *	that are expensive on 32-bit architectures.
  *
  *  note: Intel Pentium TSC never wraps around in several thousands of years.
