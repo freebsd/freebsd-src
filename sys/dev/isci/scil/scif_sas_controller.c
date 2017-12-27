@@ -913,7 +913,7 @@ void scif_sas_controller_free_internal_request(
       fw_controller, fw_internal_request_buffer
    ));
 
-   //return the memory to to pool.
+   //return the memory to the pool.
    if( !sci_pool_full(fw_controller->internal_request_memory_pool) )
    {
       sci_pool_put(
