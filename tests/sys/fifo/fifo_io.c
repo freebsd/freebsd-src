@@ -1178,7 +1178,7 @@ test_events_write_read_byte(void)
 	}
 
 	/*
-	 * Read the byte from the reader_fd, and now confirm that that fifo
+	 * Read the byte from the reader_fd, and now confirm that the fifo
 	 * becomes unreadable.
 	 */
 	len = read(reader_fd, &ch, sizeof(ch));

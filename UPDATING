@@ -821,7 +821,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20150623:
 	An additional fix for the issue described in the 20150614 sendmail
-	entry below has been been committed in revision 284717.
+	entry below has been committed in revision 284717.
 
 20150616:
 	FreeBSD's old make (fmake) has been removed from the system. It is
@@ -829,7 +829,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20150615:
 	The fix for the issue described in the 20150614 sendmail entry
-	below has been been committed in revision 284436.  The work
+	below has been committed in revision 284436.  The work
 	around described in that entry is no longer needed unless the
 	default setting is overridden by a confDH_PARAMETERS configuration
 	setting of '5' or pointing to a 512 bit DH parameter file.
