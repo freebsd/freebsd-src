@@ -761,10 +761,10 @@ main(int argc, char **argv)
 
 	setproctitle("master");
 	/*
-	 * We always want a master to have a clean way to to shut nfsd down
+	 * We always want a master to have a clean way to shut nfsd down
 	 * (with unregistration): if the master is killed, it unregisters and
 	 * kills all children. If we run for UDP only (and so do not have to
-	 * loop waiting waiting for accept), we instead make the parent
+	 * loop waiting for accept), we instead make the parent
 	 * a "server" too. start_server will not return.
 	 */
 	if (!tcpflag)
