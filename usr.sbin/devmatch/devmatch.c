@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <devinfo.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -78,14 +79,17 @@ read_linker_hints(void)
 	p = modpath;
 	while ((q = strsep(&p, ";")) != NULL) {
 		snprintf(fn, sizeof(fn), "%s/linker.hints", q);
-		if (stat(fn, &sb) != 0)
-			continue;
+		fd = open(fn, O_RDONLY);
+		if (fd < 0) {
+			if (errno == ENOENT)
+				continue;
+			err(1, "Can't open %s for reading", fn);
+		}
+		if (fstat(fd, &sb) != 0)
+			err(1, "Can't fstat %s\n", fn);
 		hints = malloc(sb.st_size);
 		if (hints == NULL)
 			err(1, "not enough space to read hints file of %ju bytes", (uintmax_t)sb.st_size);
-		fd = open(fn, O_RDONLY);
-		if (fd < 0)
-			err(1, "Can't open %s for reading", fn);
 		if (read(fd, hints, sb.st_size) != sb.st_size)
 			err(1, "Can't read in %ju bytes from %s", (uintmax_t)sb.st_size, fn);
 		close(fd);
@@ -95,6 +99,7 @@ read_linker_hints(void)
 		warnx("Can't read linker hints file.");
 		free(hints);
 		hints = NULL;
+		return;
 	}
 	if (*(int *)(intptr_t)hints != LINKER_HINTS_VERSION) {
 		warnx("Linker hints version %d doesn't match expected %d.",
@@ -144,12 +149,12 @@ pnpval_as_int(const char *val, const char *pnpinfo)
 	cp = strchr(val, ';');
 	key[0] = ' ';
 	if (cp == NULL)
-		strcpy(key + 1, val);
+		strlcpy(key + 1, val, sizeof(key) - 1);
 	else {
 		memcpy(key + 1, val, cp - val);
 		key[cp - val + 1] = '\0';
 	}
-	strcat(key, "=");
+	strlcat(key, "=", sizeof(key));
 	if (strncmp(key + 1, pnpinfo, strlen(key + 1)) == 0)
 		rv = strtol(pnpinfo + strlen(key + 1), NULL, 0);
 	else {
@@ -241,7 +246,7 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 				printf("Module %s in %s\n", val1, val2);
 			break;
 		case MDT_PNP_INFO:
-			if (!dump_flag && !unbound_flag && strcmp(lastmod, "kernel") == 0)
+			if (!dump_flag && !unbound_flag && lastmod && strcmp(lastmod, "kernel") == 0)
 				break;
 			getstr(&ptr, val1);
 			getstr(&ptr, val2);
@@ -343,6 +348,7 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 			printf(" -------------------------");
 		printf("\n");
 	}
+	free(lastmod);
 }
 
 static int
