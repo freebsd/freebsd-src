@@ -1919,7 +1919,7 @@ dasysctlinit(void *context, int pending)
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;
-	char tmpstr[80], tmpstr2[80];
+	char tmpstr[32], tmpstr2[16];
 	struct ccb_trans_settings cts;
 
 	periph = (struct cam_periph *)context;
