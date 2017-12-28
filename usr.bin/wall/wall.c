@@ -290,5 +290,5 @@ makemsg(char *fname)
 		err(1, "out of memory");
 	if ((int)fread(mbuf, sizeof(*mbuf), mbufsize, fp) != mbufsize)
 		err(1, "can't read temporary file");
-	(void)close(fd);
+	fclose(fp);
 }
