@@ -281,13 +281,11 @@ fdt_load_dtb_file(const char * filename)
 static int
 fdt_load_dtb_overlay(const char * filename)
 {
-	struct preloaded_file *bfp, *oldbfp;
+	struct preloaded_file *bfp;
 	struct fdt_header header;
 	int err;
 
 	debugf("fdt_load_dtb_overlay(%s)\n", filename);
-
-	oldbfp = file_findfile(filename, "dtbo");
 
 	/* Attempt to load and validate a new dtb from a file. */
 	if ((bfp = file_loadraw(filename, "dtbo", 1)) == NULL) {
@@ -309,10 +307,6 @@ fdt_load_dtb_overlay(const char * filename)
 			    fdt_strerror(err));
 		return (1);
 	}
-
-	/* A new dtb was validated, discard any previous file. */
-	if (oldbfp)
-		file_discard(oldbfp);
 
 	return (0);
 }
