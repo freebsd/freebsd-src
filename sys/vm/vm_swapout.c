@@ -715,8 +715,7 @@ loop:
 	}
 
 	/*
-	 * We would like to bring someone in. (only if there is space).
-	 * [What checks the space? ]
+	 * We would like to bring someone in.
 	 */
 	faultin(p);
 	PROC_UNLOCK(p);
