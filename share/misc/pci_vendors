@@ -3,8 +3,8 @@
 #
 #	List of PCI ID's
 #
-#	Version: 2017.12.06
-#	Date:    2017-12-06 03:15:02
+#	Version: 2017.12.20
+#	Date:    2017-12-20 03:15:01
 #
 #	Maintained by Albert Pool, Martin Mares, and other volunteers from
 #	the PCI ID Project at http://pci-ids.ucw.cz/.
@@ -586,6 +586,7 @@
 	0096  SAS3004 PCI-Express Fusion-MPT SAS-3
 	0097  SAS3008 PCI-Express Fusion-MPT SAS-3
 		1000 3090  SAS9311-8i
+		1000 30a0  SAS9300-8e
 		1000 30e0  SAS9300-8i
 		1000 3130  SAS 9300-16i
 		1028 1f45  HBA330 Adapter
@@ -2508,6 +2509,7 @@
 	6842  Thames LE [Radeon HD 7000M Series]
 	6843  Thames [Radeon HD 7670M]
 	6861  Vega 10 XT [Radeon PRO WX 9100]
+	6862  Vega 10 XT [Radeon PRO SSG]
 	6863  Vega 10 XTX [Radeon Vega Frontier Edition]
 	687f  Vega 10 XT [Radeon RX Vega 64]
 	6888  Cypress XT [FirePro V8800]
@@ -4043,6 +4045,11 @@
 	1423  Family 15h (Models 30h-3fh) I/O Memory Management Unit
 	1424  Family 15h (Models 30h-3fh) Processor Root Port
 	1426  Family 15h (Models 30h-3fh) Processor Root Port
+	142e  Liverpool Processor Function 0
+	142f  Liverpool Processor Function 1
+	1430  Liverpool Processor Function 2
+	1431  Liverpool Processor Function 3
+	1432  Liverpool Processor Function 4
 	1436  Liverpool Processor Root Complex
 	1437  Liverpool I/O Memory Management Unit
 	1438  Liverpool Processor Root Port
@@ -5652,6 +5659,22 @@
 	90a3  Aeolia Memory (DDR3/SPM)
 	90a4  Aeolia USB 3.0 xHCI Host Controller
 	90bc  SxS Pro+ memory card
+	90c8  Belize ACPI
+	90c9  Belize Ethernet Controller
+	90ca  Belize SATA AHCI Controller
+	90cb  Belize SD/MMC Host Controller
+	90cc  Belize PCI Express Glue and Miscellaneous Devices
+	90cd  Belize DMA Controller
+	90ce  Belize Memory (DDR3/SPM)
+	90cf  Belize USB 3.0 xHCI Host Controller
+	90d7  Baikal ACPI
+	90d8  Baikal Ethernet Controller
+	90d9  Baikal SATA AHCI Controller
+	90da  Baikal SD/MMC Host Controller
+	90db  Baikal PCI Express Glue and Miscellaneous Devices
+	90dc  Baikal DMA Controller
+	90dd  Baikal Memory (DDR3/SPM)
+	90de  Baikal USB 3.0 xHCI Host Controller
 104e  Oak Technology, Inc
 	0017  OTI-64017
 	0107  OTI-107 [Spitfire]
@@ -10836,11 +10859,12 @@
 	13d8  GM204M [GeForce GTX 970M]
 	13d9  GM204M [GeForce GTX 965M]
 	13da  GM204M [GeForce GTX 980 Mobile]
-	13e7  GM204 [GeForce GTX 980 Engineering Sample]
+	13e7  GM204GL [GeForce GTX 980 Engineering Sample]
 	13f0  GM204GL [Quadro M5000]
 	13f1  GM204GL [Quadro M4000]
 	13f2  GM204GL [Tesla M60]
 	13f3  GM204GL [Tesla M6]
+		10de 1184  GRID M6-8Q
 	13f8  GM204GLM [Quadro M5000M / M5000 SE]
 	13f9  GM204GLM [Quadro M4000M]
 	13fa  GM204GLM [Quadro M3000M]
@@ -10939,7 +10963,7 @@
 	1cb3  GP107GL [Quadro P400]
 	1d01  GP108 [GeForce GT 1030]
 	1d10  GP108M [GeForce MX150]
-	1d81  GV100
+	1d81  GV100 [TITAN V]
 	1db1  GV100 [Tesla V100 SXM2]
 	1db4  GV100 [Tesla V100 PCIe]
 10df  Emulex Corporation
@@ -15644,6 +15668,7 @@
 	0252  XR17V252 Dual UART PCI controller
 	0254  XR17V254 Quad UART PCI controller
 	0258  XR17V258 Octal UART PCI controller
+	0352  XR17V3521 Dual PCIe UART
 13a9  Siemens Medical Systems, Ultrasound Group
 13aa  Broadband Networks Inc
 13ab  Arcom Control Systems Ltd
@@ -18255,6 +18280,8 @@
 1556  PLDA
 	1100  PCI Express Core Reference Design
 	110f  PCI Express Core Reference Design Virtual Function
+	1110  XpressRich Reference Design
+	1113  XpressSwitch
 1557  MEDIASTAR Co Ltd
 1558  CLEVO/KAPOK Computer
 1559  SI LOGIC Ltd
@@ -18410,6 +18437,7 @@
 	020b  MT27710 Family [ConnectX-4 Lx Flash Recovery]
 	020d  MT28800 Family [ConnectX-5 Flash Recovery]
 	020f  MT28908A0 Family [ConnectX-6 Flash Recovery]
+	0210  MT28908A0 Family [ConnectX-6 Secure Flash Recovery]
 	0211  MT416842 Family [BlueField SoC Flash Recovery]
 # reserved for RM#105916
 	024e  MT53100 [Spectrum-2, Flash recovery mode]
@@ -18474,6 +18502,7 @@
 		15b3 0050  ConnectX-4 100 GbE Dual Port QSFP28 Adapter
 	1014  MT27700 Family [ConnectX-4 Virtual Function]
 	1015  MT27710 Family [ConnectX-4 Lx]
+		15b3 0004  ConnectX-4 Lx Stand-up dual-port 10GbE MCX4121A-XCAT
 		15b3 0005  Mellanox Technologies ConnectX-4 Lx Stand-up single-port 40GbE MCX4131A-BCAT
 		15b3 0016  ConnectX-4 Lx 25 GbE Dual Port SFP28 Adapter
 		15b3 0020  MCX4411A-ACQN, ConnectX-4 Lx EN OCP, 1x25Gb
@@ -18531,6 +18560,7 @@
 	7121  NPS-600 configuration and management interface
 	7122  NPS-600 network interface PF
 	7123  NPS-600 network interface VF
+	8200  Innova-2 FPGA
 	a2d0  MT416842 BlueField SoC Crypto enabled
 	a2d1  MT416842 BlueField SoC Crypto disabled
 	a2d2  MT416842 BlueField integrated ConnectX-5 network controller
@@ -18567,6 +18597,7 @@
 	0015  ZBox
 15b7  Sandisk Corp
 	2001  Skyhawk Series NVME SSD
+	5001  WD Black NVMe SSD
 15b8  ADDI-DATA GmbH
 	1001  APCI1516 SP controller (16 digi outputs)
 	1003  APCI1032 SP controller (32 digi inputs w/ opto coupler)
@@ -18715,6 +18746,11 @@
 	1006  Format synchronizer, model 10500
 	1007  Format synchronizer, model 21000
 	2002  Fast Universal Data Output
+	3100  IO31000 Frame Synchronizer and I/O
+	3200  IO32000 Frame Synchronizer and I/O
+	4002  High Rate Demodulator
+	5001  High Rate FEC
+	6001  High Rate Demodulator and FEC
 1631  Packard Bell B.V.
 1638  Standard Microsystems Corp [SMC]
 	1100  SMC2602W EZConnect / Addtron AWA-100 / Eumitcom PCI WL11000
@@ -20072,11 +20108,15 @@
 		1924 8019  SFN8542-R2 8000 Series 10/40G Adapter
 		1924 801a  SFN8722-R1 8000 Series OCP 10G Adapter
 		1924 801b  SFN8522-R3 8000 Series 10G Adapter
+	0b03  SFC9250 10/25/40/50/100G Ethernet Controller
+		1924 801d  x2522-R1 2000 Series 10/25G Adapter
+		1924 801e  x2542-R1 2000 Series 40/100G Adapter
 	1803  SFC9020 10G Ethernet Controller (Virtual Function)
 	1813  SFL9021 10GBASE-T Ethernet Controller (Virtual Function)
 	1903  SFC9120 10G Ethernet Controller (Virtual Function)
 	1923  SFC9140 10/40G Ethernet Controller (Virtual Function)
 	1a03  SFC9220 10/40G Ethernet Controller (Virtual Function)
+	1b03  SFC9250 10/25/40/50/100G Ethernet Controller (Virtual Function)
 	6703  SFC4000 rev A iSCSI/Onload [Solarstorm]
 		10b8 0102  SMC10GPCIe-10BT (A2) [TigerCard]
 		10b8 0103  SMC10GPCIe-10BT (A3) [TigerCard]
@@ -20945,6 +20985,7 @@
 1d7c  Aerotech, Inc.
 1d87  Fuzhou Rockchip Electronics Co., Ltd
 1d8f  Enyx
+1d94  Chengdu Higon IC Design Co.Ltd
 1d95  Graphcore Ltd
 1da1  Teko Telecom S.r.l.
 1da2  Sapphire Technology Limited
@@ -23661,8 +23702,9 @@
 	15c7  Ethernet Connection X553 1GbE
 	15c8  Ethernet Connection X553/X557-AT 10GBASE-T
 	15ce  Ethernet Connection X553 10 GbE SFP+
-	15d0  Ethernet SDI Adapter FM10420-100GbE-QDA2
+	15d0  Ethernet SDI Adapter
 		8086 0001  Ethernet SDI Adapter FM10420-100GbE-QDA2
+		8086 0002  Ethernet SDI Adapter FM10840-MTP2
 	15d1  Ethernet Controller 10G X550T
 		8086 0002  Ethernet Converged Network Adapter X550-T1
 		8086 001b  Ethernet Server Adapter X550-T1 for OCP
@@ -23687,6 +23729,14 @@
 	15e3  Ethernet Connection (5) I219-LM
 	15e4  Ethernet Connection X553 1GbE
 	15e5  Ethernet Connection X553 1GbE
+	15e7  JHL7540 Thunderbolt 3 Bridge [Titan Ridge 2C 2018]
+	15e8  JHL7540 Thunderbolt 3 NHI [Titan Ridge 2C 2018]
+	15e9  JHL7540 Thunderbolt 3 USB Controller [Titan Ridge 2C 2018]
+	15ea  JHL7540 Thunderbolt 3 Bridge [Titan Ridge 4C 2018]
+	15eb  JHL7540 Thunderbolt 3 NHI [Titan Ridge 4C 2018]
+	15ec  JHL7540 Thunderbolt 3 USB Controller [Titan Ridge 4C 2018]
+	15ef  JHL7540 Thunderbolt 3 Bridge [Titan Ridge DD 2018]
+	15f0  JHL7540 Thunderbolt 3 USB Controller [Titan Ridge DD 2018]
 	1600  Broadwell-U Host Bridge -OPI
 	1601  Broadwell-U PCI Express x16 Controller
 	1602  Broadwell-U Integrated Graphics
@@ -24113,6 +24163,7 @@
 		144d c652  NP300E5C series laptop
 		1849 1e2d  Motherboard
 	1e31  7 Series/C210 Series Chipset Family USB xHCI Host Controller
+		103c 179b  Elitebook 8470p
 		103c 17ab  ProBook 6570b
 		1043 108d  VivoBook X202EV
 		1043 1477  N56VZ
@@ -25486,6 +25537,12 @@
 		103c 31fe  ProLiant DL140 G3
 		15d9 8680  X7DVL-E-O motherboard
 		15d9 9680  X7DBN Motherboard
+	2700  Optane SSD 900P Series
+		8086 3900  900P Series [Add-in Card]
+		8086 3901  900P Series [2.5" SFF]
+	2701  Optane DC P4800X Series SSD
+		8086 3904  DC P4800X Series [Add-in Card]
+		8086 3905  DC P4800X Series [2.5" SFF]
 	2770  82945G/GZ/P/PL Memory Controller Hub
 		1028 01ad  OptiPlex GX620
 		103c 2a3b  Pavilion A1512X
@@ -29020,6 +29077,11 @@
 		103c 0701  Smart Array P204i-b SR Gen10
 		103c 1100  Smart Array P816i-a SR Gen10
 		103c 1101  Smart Array P416ie-m SR G10
+		152d 8a22  QS-8204-8i
+		152d 8a23  QS-8238-16i
+		152d 8a24  QS-8236-16i
+		152d 8a36  QS-8240-24i
+		152d 8a37  QS-8242-24i
 		9005 0800  SmartRAID 3154-8i
 		9005 0801  SmartRAID 3152-8i
 		9005 0802  SmartRAID 3151-4i
