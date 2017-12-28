@@ -263,6 +263,7 @@ r2:		if (inn != outn) {
 		if (!inn) {
 			if (eot++) {
 				fprintf(msg, "tcopy: tapes are identical.\n");
+				free(inb);
 				return;
 			}
 		} else {
