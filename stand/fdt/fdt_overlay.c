@@ -324,10 +324,16 @@ fdt_overlay_do_fixups(void *main_fdtp, void *overlay_fdtp)
 	main_symbols_o = fdt_path_offset(main_fdtp, "/__symbols__");
 	overlay_fixups_o = fdt_path_offset(overlay_fdtp, "/__fixups__");
 
-	if (main_symbols_o < 0)
+	if (main_symbols_o < 0) {
+		if (main_symbols_o == -FDT_ERR_NOTFOUND)
+			return (0);
 		return (-1);
-	if (overlay_fixups_o < 0)
+	}
+	if (overlay_fixups_o < 0) {
+		if (overlay_fixups_o == -FDT_ERR_NOTFOUND)
+			return (0);
 		return (-1);
+	}
 
 	for (fixup_prop_o = fdt_first_property_offset(overlay_fdtp, overlay_fixups_o);
 	    fixup_prop_o >= 0;
