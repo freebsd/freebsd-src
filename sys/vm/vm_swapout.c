@@ -263,7 +263,7 @@ vm_swapout_map_deactivate_pages(vm_map_t map, long desired)
 	vm_object_t obj, bigobj;
 	int nothingwired;
 
-	if (!vm_map_trylock(map))
+	if (!vm_map_trylock_read(map))
 		return;
 
 	bigobj = NULL;
@@ -327,7 +327,7 @@ vm_swapout_map_deactivate_pages(vm_map_t map, long desired)
 		    vm_map_max(map));
 	}
 
-	vm_map_unlock(map);
+	vm_map_unlock_read(map);
 }
 
 /*
