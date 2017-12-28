@@ -88,7 +88,7 @@ intel_update(const char *dev, const char *path)
 	intel_fw_header_t *fw_header;
 	intel_cpu_signature_t *ext_table;
 	intel_ext_header_t *ext_header;
-	uint32_t signature, flags;
+	uint32_t sig, signature, flags;
 	int32_t revision;
 	ssize_t ext_size;
 	size_t ext_table_size;
@@ -231,7 +231,8 @@ intel_update(const char *dev, const char *path)
 		for (i = 0; i < (ext_table_size / sizeof(uint32_t)); i++)
 			sum += *((uint32_t *)ext_header + i);
 		if (sum != 0) {
-			WARNX(2, "%s: extended signature table checksum invalid",
+			WARNX(2,
+			    "%s: extended signature table checksum invalid",
 			    path);
 			goto no_table;
 		}
@@ -246,10 +247,10 @@ no_table:
 	 */
 	if (signature == fw_header->cpu_signature &&
 	    (flags & fw_header->cpu_flags) != 0)
-			goto matched;
+		goto matched;
 	else if (have_ext_table != 0) {
 		for (i = 0; i < ext_header->sig_count; i++) {
-			uint32_t sig = ext_table[i].cpu_signature;
+			sig = ext_table[i].cpu_signature;
 			if (signature == sig &&
 			    (flags & ext_table[i].cpu_flags) != 0)
 				goto matched;
@@ -264,14 +265,14 @@ matched:
 		goto fail;
 	}
 	fprintf(stderr, "%s: updating cpu %s from rev %#x to rev %#x... ",
-			path, dev, revision, fw_header->revision);
+	    path, dev, revision, fw_header->revision);
 	args.data = fw_data;
 	args.size = data_size;
 	error = ioctl(devfd, CPUCTL_UPDATE, &args);
 	if (error < 0) {
-               error = errno;
+		error = errno;
 		fprintf(stderr, "failed.\n");
-               errno = error;
+		errno = error;
 		WARN(0, "ioctl()");
 		goto fail;
 	}
@@ -285,5 +286,4 @@ fail:
 		close(devfd);
 	if (fd >= 0)
 		close(fd);
-	return;
 }
