@@ -942,7 +942,9 @@ add_boot_partition(struct ggeom *geom, struct gprovider *pp,
 		choice = 0;
 
 	if (choice == 0) { /* yes */
+		struct partition_metadata *md;
 		const char *bootmount = NULL;
+		char *bootpartname = NULL;
 		char sizestr[7];
 
 		humanize_number(sizestr, 7,
@@ -950,7 +952,21 @@ add_boot_partition(struct ggeom *geom, struct gprovider *pp,
 		    HN_NOSPACE | HN_DECIMAL);
 
 		gpart_create(pp, bootpart_type(scheme, &bootmount),
-		    sizestr, bootmount, NULL, 0);
+		    sizestr, bootmount, &bootpartname, 0);
+
+		if (bootpartname == NULL) /* Error reported to user already */
+			return 0;
+
+		/* If the part is not mountable, make sure newfs isn't set */
+		if (bootmount == NULL) {
+			md = get_part_metadata(bootpartname, 0);
+			if (md != NULL && md->newfs != NULL) {
+				free(md->newfs);
+				md->newfs = NULL;
+			}
+		}
+
+		free(bootpartname);
 
 		return (bootpart_size(scheme));
 	}
