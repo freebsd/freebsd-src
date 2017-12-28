@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
  * The transaction id is determined by:
  * id[n] = seed xor (g^X[n] mod n)
  *
- * Effectivly the id is restricted to the lower (bits - 1) bits, thus
+ * Effectively the id is restricted to the lower (bits - 1) bits, thus
  * yielding two different cycles by toggling the msb on and off.
  * This avoids reuse issues caused by reseeding.
  */
@@ -172,7 +172,7 @@ pmod(u_int32_t gen, u_int32_t expo, u_int32_t mod)
 }
 
 /*
- * Initalizes the seed and chooses a suitable generator. Also toggles
+ * Initializes the seed and chooses a suitable generator. Also toggles
  * the msb flag. The msb flag is used to generate two distinct
  * cycles of random numbers and thus avoiding reuse of ids.
  *
