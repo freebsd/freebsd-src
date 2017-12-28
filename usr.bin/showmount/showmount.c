@@ -279,11 +279,15 @@ xdr_mntdump(XDR *xdrsp, struct mountlist **mlp)
 			return (0);
 		mp->ml_left = mp->ml_right = (struct mountlist *)0;
 		strp = mp->ml_host;
-		if (!xdr_string(xdrsp, &strp, MNTNAMLEN))
+		if (!xdr_string(xdrsp, &strp, MNTNAMLEN)) {
+			free(mp);
 			return (0);
+		}
 		strp = mp->ml_dirp;
-		if (!xdr_string(xdrsp, &strp, MNTPATHLEN))
+		if (!xdr_string(xdrsp, &strp, MNTPATHLEN)) {
+			free(mp);
 			return (0);
+		}
 
 		/*
 		 * Build a binary tree on sorted order of either host or dirp.
