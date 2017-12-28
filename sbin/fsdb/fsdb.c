@@ -565,6 +565,8 @@ CMDFUNCSTART(findblk)
 end:
     curinum = ocurrent;
     curinode = ginode(curinum);
+    free(wantedblk32);
+    free(wantedblk64);
     return 0;
 }
 
