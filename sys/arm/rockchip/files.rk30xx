@@ -1,4 +1,5 @@
 # $FreeBSD$
+kern/kern_clocksource.c			standard
 
 arm/rockchip/rk30xx_machdep.c		standard
 arm/rockchip/rk30xx_pmu.c		standard

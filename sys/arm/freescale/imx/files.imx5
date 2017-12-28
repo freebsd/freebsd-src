@@ -1,4 +1,5 @@
 # $FreeBSD$
+kern/kern_clocksource.c			standard
 
 # Init
 arm/freescale/imx/imx_common.c		standard
