@@ -198,6 +198,8 @@ static int free_ring(struct adapter *, bus_dma_tag_t, bus_dmamap_t, bus_addr_t,
 static int alloc_iq_fl(struct vi_info *, struct sge_iq *, struct sge_fl *,
     int, int);
 static int free_iq_fl(struct vi_info *, struct sge_iq *, struct sge_fl *);
+static void add_iq_sysctls(struct sysctl_ctx_list *, struct sysctl_oid *,
+    struct sge_iq *);
 static void add_fl_sysctls(struct adapter *, struct sysctl_ctx_list *,
     struct sysctl_oid *, struct sge_fl *);
 static int alloc_fwq(struct adapter *);
@@ -2824,6 +2826,27 @@ free_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl)
 }
 
 static void
+add_iq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
+    struct sge_iq *iq)
+{
+	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_UAUTO(ctx, children, OID_AUTO, "ba", CTLFLAG_RD, &iq->ba,
+	    "bus address of descriptor ring");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
+	    iq->qsize * IQ_ESIZE, "descriptor ring size in bytes");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "abs_id",
+	    CTLTYPE_INT | CTLFLAG_RD, &iq->abs_id, 0, sysctl_uint16, "I",
+	    "absolute id of the queue");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
+	    CTLTYPE_INT | CTLFLAG_RD, &iq->cntxt_id, 0, sysctl_uint16, "I",
+	    "SGE context id of the queue");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cidx",
+	    CTLTYPE_INT | CTLFLAG_RD, &iq->cidx, 0, sysctl_uint16, "I",
+	    "consumer index");
+}
+
+static void
 add_fl_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
     struct sysctl_oid *oid, struct sge_fl *fl)
 {
@@ -2890,21 +2913,7 @@ alloc_fwq(struct adapter *sc)
 
 	oid = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO, "fwq", CTLFLAG_RD,
 	    NULL, "firmware event queue");
-	children = SYSCTL_CHILDREN(oid);
-
-	SYSCTL_ADD_UAUTO(&sc->ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
-	    &fwq->ba, "bus address of descriptor ring");
-	SYSCTL_ADD_INT(&sc->ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
-	    fwq->qsize * IQ_ESIZE, "descriptor ring size in bytes");
-	SYSCTL_ADD_PROC(&sc->ctx, children, OID_AUTO, "abs_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &fwq->abs_id, 0, sysctl_uint16, "I",
-	    "absolute id of the queue");
-	SYSCTL_ADD_PROC(&sc->ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &fwq->cntxt_id, 0, sysctl_uint16, "I",
-	    "SGE context id of the queue");
-	SYSCTL_ADD_PROC(&sc->ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD, &fwq->cidx, 0, sysctl_uint16, "I",
-	    "consumer index");
+	add_iq_sysctls(&sc->ctx, oid, fwq);
 
 	return (0);
 }
@@ -3007,19 +3016,7 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
 	    NULL, "rx queue");
 	children = SYSCTL_CHILDREN(oid);
 
-	SYSCTL_ADD_UAUTO(&vi->ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
-	    &rxq->iq.ba, "bus address of descriptor ring");
-	SYSCTL_ADD_INT(&vi->ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
-	    rxq->iq.qsize * IQ_ESIZE, "descriptor ring size in bytes");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "abs_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &rxq->iq.abs_id, 0, sysctl_uint16, "I",
-	    "absolute id of the queue");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &rxq->iq.cntxt_id, 0, sysctl_uint16, "I",
-	    "SGE context id of the queue");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD, &rxq->iq.cidx, 0, sysctl_uint16, "I",
-	    "consumer index");
+	add_iq_sysctls(&vi->ctx, oid, &rxq->iq);
 #if defined(INET) || defined(INET6)
 	SYSCTL_ADD_U64(&vi->ctx, children, OID_AUTO, "lro_queued", CTLFLAG_RD,
 	    &rxq->lro.lro_queued, 0, NULL);
@@ -3075,22 +3072,7 @@ alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq,
 	snprintf(name, sizeof(name), "%d", idx);
 	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name, CTLFLAG_RD,
 	    NULL, "rx queue");
-	children = SYSCTL_CHILDREN(oid);
-
-	SYSCTL_ADD_UAUTO(&vi->ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
-	    &ofld_rxq->iq.ba, "bus address of descriptor ring");
-	SYSCTL_ADD_INT(&vi->ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
-	    ofld_rxq->iq.qsize * IQ_ESIZE, "descriptor ring size in bytes");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "abs_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &ofld_rxq->iq.abs_id, 0, sysctl_uint16,
-	    "I", "absolute id of the queue");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &ofld_rxq->iq.cntxt_id, 0, sysctl_uint16,
-	    "I", "SGE context id of the queue");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD, &ofld_rxq->iq.cidx, 0, sysctl_uint16, "I",
-	    "consumer index");
-
+	add_iq_sysctls(&vi->ctx, oid, &ofld_rxq->iq);
 	add_fl_sysctls(pi->adapter, &vi->ctx, oid, &ofld_rxq->fl);
 
 	return (rc);
