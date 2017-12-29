@@ -15,7 +15,6 @@ do_test() {
 	keylen=${cipher##*:}
 
 	rnd=`mktemp $base.XXXXXX` || exit 1
-	md=$(attach_md -t malloc -s `expr $secsize \* $sectors`b)
 
 	geli onetime -e $ealgo -l $keylen -s $secsize ${md} 2>/dev/null
 
@@ -41,9 +40,7 @@ do_test() {
 	fi
 	i=$((i+1))
 
-	geli detach ${md}
 	rm -f $rnd
-	mdconfig -d -u ${md}
 }
 
 i=1

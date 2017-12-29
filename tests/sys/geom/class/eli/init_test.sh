@@ -16,8 +16,6 @@ do_test() {
 	ealgo=${cipher%%:*}
 	keylen=${cipher##*:}
 
-	md=$(attach_md -t malloc -s `expr $secsize \* $sectors + 512`b)
-
 	geli init -B none -e $ealgo -l $keylen -P -K $keyfile -s $secsize ${md} 2>/dev/null
 	geli attach -p -k $keyfile ${md}
 
@@ -42,9 +40,6 @@ do_test() {
 		echo "not ok $i - ealgo=${ealgo} keylen=${keylen} sec=${secsize}"
 	fi
 	i=$((i+1))
-
-	geli detach ${md}
-	mdconfig -d -u ${md}
 }
 
 i=1
