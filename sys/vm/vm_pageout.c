@@ -150,7 +150,7 @@ SDT_PROBE_DEFINE(vm, , , vm__lowmem_scan);
 int vm_pageout_deficit;		/* Estimated number of pages deficit */
 u_int vm_pageout_wakeup_thresh;
 static int vm_pageout_oom_seq = 12;
-bool vm_pageout_wanted;		/* Event on which pageout daemon sleeps */
+static bool vm_pageout_wanted;	/* Event on which pageout daemon sleeps */
 bool vm_pages_needed;		/* Are threads waiting for free pages? */
 
 /* Pending request for dirty page laundering. */
