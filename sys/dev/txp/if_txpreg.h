@@ -1,4 +1,4 @@
-/*	$OpenBSD: if_txpreg.h,v 1.30 2001/06/23 04:18:02 jason Exp $ */
+/*	$OpenBSD: if_txpreg.h,v 1.34 2001/11/05 17:25:58 art Exp $ */
 /*	$FreeBSD$ */
 
 /*-
@@ -166,7 +166,7 @@
 #define	TXP_CMD_FILTER_TABLE_MODE_WRITE		0x3d
 #define	TXP_CMD_FILTER_TCL_WRITE		0x3e
 #define	TXP_CMD_FILTER_TBL_READ			0x3f
-#define	TXP_CMD_READ_VERSION			0x43
+#define	TXP_CMD_VERSIONS_READ			0x43
 #define	TXP_CMD_FILTER_DEFINE			0x45
 #define	TXP_CMD_ADD_WAKEUP_PKT			0x46
 #define	TXP_CMD_ADD_SLEEP_PKT			0x47
@@ -384,6 +384,7 @@ struct txp_frag_desc {
 #define	FRAG_FLAGS_TYPE_OPT	0x03		/* type: options */
 #define	FRAG_FLAGS_TYPE_RX	0x04		/* type: command */
 #define	FRAG_FLAGS_TYPE_RESP	0x05		/* type: response */
+#define	FRAG_FLAGS_VALID	0x80		/* valid descriptor */
 
 struct txp_opt_desc {
 	uint8_t			opt_desctype:3,
