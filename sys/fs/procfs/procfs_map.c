@@ -84,12 +84,17 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	vm_map_t map;
 	vm_map_entry_t entry, tmp_entry;
 	struct vnode *vp;
-	char *fullpath, *freepath;
+	char *fullpath, *freepath, *type;
 	struct ucred *cred;
-	int error;
+	vm_object_t obj, tobj, lobj;
+	int error, privateresident, ref_count, resident, shadow_count, flags;
+	vm_offset_t e_start, e_end;
+	vm_eflags_t e_eflags;
+	vm_prot_t e_prot;
 	unsigned int last_timestamp;
+	bool super;
 #ifdef COMPAT_FREEBSD32
-	int wrap32 = 0;
+	bool wrap32;
 #endif
 
 	PROC_LOCK(p);
@@ -102,11 +107,12 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		return (EOPNOTSUPP);
 
 #ifdef COMPAT_FREEBSD32
-        if (SV_CURPROC_FLAG(SV_ILP32)) {
-                if (!(SV_PROC_FLAG(p, SV_ILP32)))
-                        return (EOPNOTSUPP);
-                wrap32 = 1;
-        }
+	wrap32 = false;
+	if (SV_CURPROC_FLAG(SV_ILP32)) {
+		if (!(SV_PROC_FLAG(p, SV_ILP32)))
+			return (EOPNOTSUPP);
+		wrap32 = true;
+	}
 #endif
 
 	vm = vmspace_acquire_ref(p);
@@ -116,14 +122,6 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
 	     entry = entry->next) {
-		vm_object_t obj, tobj, lobj;
-		int ref_count, shadow_count, flags;
-		vm_offset_t e_start, e_end, addr;
-		int resident, privateresident;
-		char *type;
-		vm_eflags_t e_eflags;
-		vm_prot_t e_prot;
-
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
 
@@ -132,6 +130,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		e_start = entry->start;
 		e_end = entry->end;
 		privateresident = 0;
+		resident = 0;
 		obj = entry->object.vm_object;
 		if (obj != NULL) {
 			VM_OBJECT_RLOCK(obj);
@@ -140,20 +139,17 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		}
 		cred = (entry->cred) ? entry->cred : (obj ? obj->cred : NULL);
 
-		resident = 0;
-		addr = entry->start;
-		while (addr < entry->end) {
-			if (pmap_extract(map->pmap, addr))
-				resident++;
-			addr += PAGE_SIZE;
-		}
-
-		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
+		for (lobj = tobj = obj; tobj != NULL;
+		    tobj = tobj->backing_object) {
 			if (tobj != obj)
 				VM_OBJECT_RLOCK(tobj);
-			if (lobj != obj)
-				VM_OBJECT_RUNLOCK(lobj);
 			lobj = tobj;
+		}
+		if (obj != NULL)
+			kern_proc_vmmap_resident(map, entry, &resident, &super);
+		for (tobj = obj; tobj != NULL; tobj = tobj->backing_object) {
+			if (tobj != obj && tobj != lobj)
+				VM_OBJECT_RUNLOCK(tobj);
 		}
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);

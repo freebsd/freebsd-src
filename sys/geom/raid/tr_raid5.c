@@ -344,10 +344,8 @@ static void
 g_raid_tr_iostart_raid5(struct g_raid_tr_object *tr, struct bio *bp)
 {
 	struct g_raid_volume *vol;
-	struct g_raid_tr_raid5_object *trs;
 
 	vol = tr->tro_volume;
-	trs = (struct g_raid_tr_raid5_object *)tr;
 	if (vol->v_state < G_RAID_VOLUME_S_SUBOPTIMAL) {
 		g_raid_iodone(bp, EIO);
 		return;

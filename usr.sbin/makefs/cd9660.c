@@ -2121,7 +2121,7 @@ cd9660_add_generic_bootimage(iso9660_disk *diskStructure, const char *bootimage)
 	}
 
 	if (diskStructure->verbose_level > 0) {
-		printf("Generic boot image image has size %lld\n",
+		printf("Generic boot image has size %lld\n",
 		    (long long)stbuf.st_size);
 	}
 

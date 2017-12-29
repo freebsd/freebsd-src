@@ -70,6 +70,9 @@ MAN=	aac.4 \
 	audit.4 \
 	auditpipe.4 \
 	aue.4 \
+	${_aw_gpio.4} \
+	${_aw_mmc.4} \
+	${_aw_rtc.4} \
 	axe.4 \
 	axge.4 \
 	bce.4 \
@@ -754,6 +757,12 @@ MLINKS+=xl.4 if_xl.4
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 _armv8crypto.4=	armv8crypto.4
+.endif
+
+.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64"
+_aw_gpio.4=	aw_gpio.4
+_aw_mmc.4=	aw_mmc.4
+_aw_rtc.4=	aw_rtc.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"

@@ -1836,6 +1836,8 @@ vm_pageout_worker(void *arg)
 			 */
 			if (vm_pages_needed) {
 				mtx_unlock(&vm_page_queue_free_mtx);
+				if (pass == 0)
+					pass++;
 			} else if (mtx_sleep(&vm_pageout_wanted,
 			    &vm_page_queue_free_mtx, PDROP | PVM, "psleep",
 			    hz) == 0) {

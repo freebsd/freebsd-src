@@ -272,7 +272,6 @@ al_probe(device_t dev)
 static int
 al_attach(device_t dev)
 {
-	struct al_eth_lm_context *lm_context;
 	struct al_eth_adapter *adapter;
 	struct sysctl_oid_list *child;
 	struct sysctl_ctx_list *ctx;
@@ -304,8 +303,6 @@ al_attach(device_t dev)
 	AL_RX_LOCK_INIT(adapter);
 
 	g_adapters[g_adapters_count] = adapter;
-
-	lm_context = &adapter->lm_context;
 
 	bar_udma = PCIR_BAR(AL_ETH_UDMA_BAR);
 	adapter->udma_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,

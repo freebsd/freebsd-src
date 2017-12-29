@@ -3714,13 +3714,11 @@ xhci_xfer_setup(struct usb_setup_params *parm)
 {
 	struct usb_page_search page_info;
 	struct usb_page_cache *pc;
-	struct xhci_softc *sc;
 	struct usb_xfer *xfer;
 	void *last_obj;
 	uint32_t ntd;
 	uint32_t n;
 
-	sc = XHCI_BUS2SC(parm->udev->bus);
 	xfer = parm->curr_xfer;
 
 	/*

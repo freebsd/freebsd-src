@@ -185,11 +185,9 @@ static void
 rdcphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii;
-	struct ifmedia_entry *ife;
 	int bmsr, bmcr, physts;
 
 	mii = sc->mii_pdata;
-	ife = mii->mii_media.ifm_cur;
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;

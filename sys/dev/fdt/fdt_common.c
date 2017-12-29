@@ -155,7 +155,7 @@ fdt_get_range(phandle_t node, int range_id, u_long *base, u_long *size)
 	pcell_t ranges[FDT_RANGES_SIZE], *rangesptr;
 	pcell_t addr_cells, size_cells, par_addr_cells;
 	u_long par_bus_addr, pbase, psize;
-	int err, len, tuple_size, tuples;
+	int err, len;
 
 	if ((fdt_addrsize_cells(node, &addr_cells, &size_cells)) != 0)
 		return (ENXIO);
@@ -180,10 +180,6 @@ fdt_get_range(phandle_t node, int range_id, u_long *base, u_long *size)
 
 	if (OF_getprop(node, "ranges", ranges, sizeof(ranges)) <= 0)
 		return (EINVAL);
-
-	tuple_size = sizeof(pcell_t) * (addr_cells + par_addr_cells +
-	    size_cells);
-	tuples = len / tuple_size;
 
 	if (par_addr_cells > 2 || addr_cells > 2 || size_cells > 2)
 		return (ERANGE);
@@ -600,11 +596,9 @@ fdt_get_reserved_regions(struct mem_region *mr, int *mrcnt)
 	pcell_t reserve[FDT_REG_CELLS * FDT_MEM_REGIONS];
 	pcell_t *reservep;
 	phandle_t memory, root;
-	uint32_t memory_size;
 	int addr_cells, size_cells;
-	int i, max_size, res_len, rv, tuple_size, tuples;
+	int i, res_len, rv, tuple_size, tuples;
 
-	max_size = sizeof(reserve);
 	root = OF_finddevice("/");
 	memory = OF_finddevice("/memory");
 	if (memory == -1) {
@@ -634,7 +628,6 @@ fdt_get_reserved_regions(struct mem_region *mr, int *mrcnt)
 		goto out;
 	}
 
-	memory_size = 0;
 	tuples = res_len / tuple_size;
 	reservep = (pcell_t *)&reserve;
 	for (i = 0; i < tuples; i++) {
@@ -662,9 +655,8 @@ fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint64_t *memsize)
 	phandle_t memory;
 	uint64_t memory_size;
 	int addr_cells, size_cells;
-	int i, max_size, reg_len, rv, tuple_size, tuples;
+	int i, reg_len, rv, tuple_size, tuples;
 
-	max_size = sizeof(reg);
 	memory = OF_finddevice("/memory");
 	if (memory == -1) {
 		rv = ENXIO;

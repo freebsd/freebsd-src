@@ -230,7 +230,6 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	struct pipe *pipe;
 	struct socket *so;
 	cap_rights_t rights;
-	short label_type;
 	int error;
 
 	error = copyin(uap->mac_p, &mac, sizeof(mac));
@@ -253,7 +252,6 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	if (error)
 		goto out;
 
-	label_type = fp->f_type;
 	switch (fp->f_type) {
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:

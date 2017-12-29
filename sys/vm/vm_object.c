@@ -148,13 +148,24 @@ struct vm_object kernel_object_store;
 static SYSCTL_NODE(_vm_stats, OID_AUTO, object, CTLFLAG_RD, 0,
     "VM object stats");
 
-static long object_collapses;
-SYSCTL_LONG(_vm_stats_object, OID_AUTO, collapses, CTLFLAG_RD,
-    &object_collapses, 0, "VM object collapses");
+static counter_u64_t object_collapses = EARLY_COUNTER;
+SYSCTL_COUNTER_U64(_vm_stats_object, OID_AUTO, collapses, CTLFLAG_RD,
+    &object_collapses,
+    "VM object collapses");
 
-static long object_bypasses;
-SYSCTL_LONG(_vm_stats_object, OID_AUTO, bypasses, CTLFLAG_RD,
-    &object_bypasses, 0, "VM object bypasses");
+static counter_u64_t object_bypasses = EARLY_COUNTER;
+SYSCTL_COUNTER_U64(_vm_stats_object, OID_AUTO, bypasses, CTLFLAG_RD,
+    &object_bypasses,
+    "VM object bypasses");
+
+static void
+counter_startup(void)
+{
+
+	object_collapses = counter_u64_alloc(M_WAITOK);
+	object_bypasses = counter_u64_alloc(M_WAITOK);
+}
+SYSINIT(object_counters, SI_SUB_CPU, SI_ORDER_ANY, counter_startup, NULL);
 
 static uma_zone_t obj_zone;
 
@@ -1875,7 +1886,7 @@ vm_object_collapse(vm_object_t object)
 			vm_object_destroy(backing_object);
 
 			vm_object_pip_wakeup(object);
-			object_collapses++;
+			counter_u64_add(object_collapses, 1);
 		} else {
 			/*
 			 * If we do not entirely shadow the backing object,
@@ -1916,7 +1927,7 @@ vm_object_collapse(vm_object_t object)
 			 */
 			backing_object->ref_count--;
 			VM_OBJECT_WUNLOCK(backing_object);
-			object_bypasses++;
+			counter_u64_add(object_bypasses, 1);
 		}
 
 		/*

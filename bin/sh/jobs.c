@@ -1016,7 +1016,7 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
  */
 
 int
-waitforjob(struct job *jp, int *origstatus)
+waitforjob(struct job *jp, int *signaled)
 {
 #if JOBS
 	int propagate_int = jp->jobctl && jp->foreground;
@@ -1039,8 +1039,8 @@ waitforjob(struct job *jp, int *origstatus)
 		setcurjob(jp);
 #endif
 	status = jp->ps[jp->nprocs - 1].status;
-	if (origstatus != NULL)
-		*origstatus = status;
+	if (signaled != NULL)
+		*signaled = WIFSIGNALED(status);
 	/* convert to 8 bits */
 	if (WIFEXITED(status))
 		st = WEXITSTATUS(status);

@@ -89,15 +89,14 @@ struct pccard_product {
 
 /**
  * Note: There's no cis3 or cis4 reported for NOMATCH / pnpinfo events for
- * pccard It's unclear if we actually need that for automatic loading or
- * not. These stirngs are informative, according to the standard. Some Linux
- * drivers match on them, for example. However, FreeBSD's hardware probing is a
- * little different than Linux so it turns out we don't need them. Some cards
- * use CIS3 or CIS4 for a textual representation of the MAC address. In short,
- * they aren't needed even though our friends in Linux have them. It is my
+ * pccard.  It's unclear if we actually need that for automatic loading or
+ * not.  These strings are informative, according to the standard.  Some Linux
+ * drivers match on them, for example.  However, FreeBSD's hardware probing is a
+ * little different than Linux, so it turns out we don't need them.  Some cards
+ * use CIS3 or CIS4 for a textual representation of the MAC address.  In short,
  * belief that all the entries in Linux don't actually need to be separate there
- * either, but it's hard to eliminate them and retest on old, possibly rare,
- * hardware so they persist. Despite years of collecting ~300 different PC Cards
+ * either, but they persist since it's hard to eliminate them and retest on old,
+ * possibly rare, hardware.  Despite years of collecting ~300 different PC Cards
  * off E-Bay, I've not been able to find any that need CIS3/CIS4 to select which
  * device attaches.
  */
@@ -111,7 +110,7 @@ typedef int (*pccard_product_match_fn) (device_t dev,
 #include "card_if.h"
 
 /*
- * make this inline so that we don't have to worry about dangling references
+ * Make this inline so that we don't have to worry about dangling references
  * to it in the modules or the code.
  */
 static inline const struct pccard_product *

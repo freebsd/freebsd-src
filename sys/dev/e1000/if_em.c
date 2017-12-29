@@ -166,6 +166,14 @@ static pci_vendor_info_t em_vendor_info_array[] =
 	PVID(0x8086, E1000_DEV_ID_PCH_SPT_I219_V4, "Intel(R) PRO/1000 Network Connection"),
 	PVID(0x8086, E1000_DEV_ID_PCH_SPT_I219_LM5, "Intel(R) PRO/1000 Network Connection"),
 	PVID(0x8086, E1000_DEV_ID_PCH_SPT_I219_V5, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_CNP_I219_LM6, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_CNP_I219_V6, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_CNP_I219_LM7, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_CNP_I219_V7, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_ICP_I219_LM8, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_ICP_I219_V8, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_ICP_I219_LM9, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_ICP_I219_V9, "Intel(R) PRO/1000 Network Connection"),
 	/* required last entry */
 	PVID_END
 };
@@ -862,7 +870,7 @@ em_if_attach_pre(if_ctx_t ctx)
 	** so use the same tag and an offset handle for the
 	** FLASH read/write macros in the shared code.
 	*/
-	else if (hw->mac.type == e1000_pch_spt) {
+	else if (hw->mac.type >= e1000_pch_spt) {
 		adapter->osdep.flash_bus_space_tag =
 		    adapter->osdep.mem_bus_space_tag;
 		adapter->osdep.flash_bus_space_handle =
@@ -1132,6 +1140,7 @@ em_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
+	case e1000_pch_cnp:
 	case e1000_82574:
 	case e1000_82583:
 	case e1000_80003es2lan:
@@ -2416,6 +2425,7 @@ em_reset(if_ctx_t ctx)
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
+	case e1000_pch_cnp:
 		pba = E1000_PBA_26K;
 		break;
 	case e1000_82575:
@@ -2524,6 +2534,7 @@ em_reset(if_ctx_t ctx)
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
+	case e1000_pch_cnp:
 		hw->fc.high_water = 0x5C20;
 		hw->fc.low_water = 0x5048;
 		hw->fc.pause_time = 0x0650;
@@ -3054,13 +3065,16 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 	/* This write will effectively turn on the transmit unit. */
 	E1000_WRITE_REG(&adapter->hw, E1000_TCTL, tctl);
 
+	/* SPT and KBL errata workarounds */
 	if (hw->mac.type == e1000_pch_spt) {
 		u32 reg;
 		reg = E1000_READ_REG(hw, E1000_IOSFPC);
 		reg |= E1000_RCTL_RDMTS_HEX;
 		E1000_WRITE_REG(hw, E1000_IOSFPC, reg);
+		/* i218-i219 Specification Update 1.5.4.4 */
 		reg = E1000_READ_REG(hw, E1000_TARC(0));
-		reg |= E1000_TARC0_CB_MULTIQ_3_REQ;
+		reg &= E1000_TARC0_CB_MULTIQ_3_REQ;
+		reg |= E1000_TARC0_CB_MULTIQ_2_REQ;
 		E1000_WRITE_REG(hw, E1000_TARC(0), reg);
 	}
 }

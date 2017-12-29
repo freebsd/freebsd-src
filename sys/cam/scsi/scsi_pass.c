@@ -1699,13 +1699,11 @@ static int
 passmemdone(struct cam_periph *periph, struct pass_io_req *io_req)
 {
 	struct pass_softc *softc;
-	union ccb *ccb;
 	int error;
 	int i;
 
 	error = 0;
 	softc = (struct pass_softc *)periph->softc;
-	ccb = &io_req->ccb;
 
 	switch (io_req->data_flags) {
 	case CAM_DATA_VADDR:

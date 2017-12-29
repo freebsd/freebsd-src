@@ -485,7 +485,7 @@ wr_rdbuf(char *out, int outcnt)
 	int cnt;
 
 	/*
-	 * while there is data to copy copy into the write buffer. when the
+	 * while there is data to copy into the write buffer. when the
 	 * write buffer fills, flush it to the archive and continue
 	 */
 	while (outcnt > 0) {
