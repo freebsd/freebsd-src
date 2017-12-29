@@ -8,8 +8,7 @@ echo 1..27
 BLK=512
 BLKS_PER_MB=2048
 
-md=$(mdconfig -s40m) || exit 1
-unit=${md#md}
+md=$(attach_md -t malloc -s40m)
 i=1
 
 fsck_md()
