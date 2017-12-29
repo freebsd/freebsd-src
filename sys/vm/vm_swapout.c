@@ -729,7 +729,6 @@ swapout_procs(int action)
 {
 	struct proc *p;
 	struct thread *td;
-	struct vmspace *vm;
 	int minslptime, slptime;
 	bool didswap;
 
@@ -762,24 +761,6 @@ retry:
 		_PHOLD_LITE(p);
 		PROC_UNLOCK(p);
 		sx_sunlock(&allproc_lock);
-
-		/*
-		 * Do not swapout a process that
-		 * is waiting for VM data
-		 * structures as there is a possible
-		 * deadlock.  Test this first as
-		 * this may block.
-		 *
-		 * Lock the map until swapout
-		 * finishes, or a thread of this
-		 * process may attempt to alter
-		 * the map.
-		 */
-		vm = vmspace_acquire_ref(p);
-		if (vm == NULL)
-			goto nextproc2;
-		if (!vm_map_trylock(&vm->vm_map))
-			goto nextproc1;
 
 		PROC_LOCK(p);
 		if (p->p_lock != 1 || (p->p_flag & (P_STOPPED_SINGLE |
@@ -867,17 +848,11 @@ retry:
 				if (swapout(p) == 0)
 					didswap = true;
 				PROC_UNLOCK(p);
-				vm_map_unlock(&vm->vm_map);
-				vmspace_free(vm);
 				goto retry;
 			}
 		}
 nextproc:
 		PROC_UNLOCK(p);
-		vm_map_unlock(&vm->vm_map);
-nextproc1:
-		vmspace_free(vm);
-nextproc2:
 		sx_slock(&allproc_lock);
 		PRELE(p);
 	}
