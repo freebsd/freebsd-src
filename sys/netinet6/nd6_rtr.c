@@ -137,6 +137,10 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 	if (!V_ip6_forwarding || ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV)
 		goto freeit;
 
+	/* RFC 6980: Nodes MUST silently ignore fragments */   
+	if(m->m_flags & M_FRAGMENTED)
+		goto freeit;
+
 	/* Sanity checks */
 	if (ip6->ip6_hlim != 255) {
 		nd6log((LOG_ERR,
@@ -225,6 +229,10 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	 * ND6_IFF_ACCEPT_RTADV is on the receiving interface.
 	 */
 	if (!(ndi->flags & ND6_IFF_ACCEPT_RTADV))
+		goto freeit;
+
+	/* RFC 6980: Nodes MUST silently ignore fragments */
+	if(m->m_flags & M_FRAGMENTED)
 		goto freeit;
 
 	if (ip6->ip6_hlim != 255) {
