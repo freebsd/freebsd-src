@@ -1,8 +1,8 @@
-/*	$OpenBSD: if_txpreg.h,v 1.34 2001/11/05 17:25:58 art Exp $ */
+/*	$OpenBSD: if_txpreg.h,v 1.35 2003/06/04 19:36:33 deraadt Exp $ */
 /*	$FreeBSD$ */
 
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2001 Aaron Campbell <aaron@monkey.org>.
  * All rights reserved.
@@ -15,11 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Aaron Campbell.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
