@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2006 Rice University
  * Copyright (c) 2007 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.
@@ -70,10 +72,11 @@ extern int vm_phys_nsegs;
  * The following functions are only to be used by the virtual memory system.
  */
 void vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end);
-vm_page_t vm_phys_alloc_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
-    u_long alignment, vm_paddr_t boundary);
-vm_page_t vm_phys_alloc_freelist_pages(int freelist, int pool, int order);
-vm_page_t vm_phys_alloc_pages(int pool, int order);
+vm_page_t vm_phys_alloc_contig(int domain, u_long npages, vm_paddr_t low,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary);
+vm_page_t vm_phys_alloc_freelist_pages(int domain, int freelist, int pool,
+    int order);
+vm_page_t vm_phys_alloc_pages(int domain, int pool, int order);
 boolean_t vm_phys_domain_intersects(long mask, vm_paddr_t low, vm_paddr_t high);
 int vm_phys_fictitious_reg_range(vm_paddr_t start, vm_paddr_t end,
     vm_memattr_t memattr);
@@ -82,7 +85,6 @@ vm_page_t vm_phys_fictitious_to_vm_page(vm_paddr_t pa);
 void vm_phys_free_contig(vm_page_t m, u_long npages);
 void vm_phys_free_pages(vm_page_t m, int order);
 void vm_phys_init(void);
-void vm_phys_init_page(vm_paddr_t pa);
 vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
 vm_page_t vm_phys_scan_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
     u_long alignment, vm_paddr_t boundary, int options);
@@ -91,12 +93,13 @@ boolean_t vm_phys_unfree_page(vm_page_t m);
 int vm_phys_mem_affinity(int f, int t);
 
 /*
- *	vm_phys_domain:
  *
- * 	Return the memory domain the page belongs to.
+ *	vm_phys_domidx:
+ *
+ *	Return the index of the domain the page belongs to.
  */
-static inline struct vm_domain *
-vm_phys_domain(vm_page_t m)
+static inline int
+vm_phys_domidx(vm_page_t m)
 {
 #ifdef VM_NUMA_ALLOC
 	int domn, segind;
@@ -106,10 +109,22 @@ vm_phys_domain(vm_page_t m)
 	KASSERT(segind < vm_phys_nsegs, ("segind %d m %p", segind, m));
 	domn = vm_phys_segs[segind].domain;
 	KASSERT(domn < vm_ndomains, ("domain %d m %p", domn, m));
-	return (&vm_dom[domn]);
+	return (domn);
 #else
-	return (&vm_dom[0]);
+	return (0);
 #endif
+}
+
+/*
+ *	vm_phys_domain:
+ *
+ * 	Return the memory domain the page belongs to.
+ */
+static inline struct vm_domain *
+vm_phys_domain(vm_page_t m)
+{
+
+	return (&vm_dom[vm_phys_domidx(m)]);
 }
 
 static inline u_int

@@ -1,6 +1,8 @@
 /*	$NetBSD: tmpfs.h,v 1.26 2007/02/22 06:37:00 thorpej Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2005, 2006 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -35,22 +37,13 @@
 #ifndef _FS_TMPFS_TMPFS_H_
 #define _FS_TMPFS_TMPFS_H_
 
-#include <sys/dirent.h>
-#include <sys/mount.h>
 #include <sys/queue.h>
-#include <sys/vnode.h>
-#include <sys/file.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-
-#include <sys/malloc.h>
-#include <sys/systm.h>
 #include <sys/tree.h>
-#include <sys/vmmeter.h>
-#include <vm/swap_pager.h>
 
+#ifdef	_SYS_MALLOC_H_
 MALLOC_DECLARE(M_TMPFSMNT);
 MALLOC_DECLARE(M_TMPFSNAME);
+#endif
 
 /*
  * Internal representation of a tmpfs directory entry.
@@ -195,8 +188,8 @@ struct tmpfs_node {
 	uid_t			tn_uid;		/* (v) */
 	gid_t			tn_gid;		/* (v) */
 	mode_t			tn_mode;	/* (v) */
+	int			tn_links;	/* (v) */
 	u_long			tn_flags;	/* (v) */
-	nlink_t			tn_links;	/* (v) */
 	struct timespec		tn_atime;	/* (vi) */
 	struct timespec		tn_mtime;	/* (vi) */
 	struct timespec		tn_ctime;	/* (vi) */
@@ -303,6 +296,8 @@ LIST_HEAD(tmpfs_node_list, tmpfs_node);
 #define tn_link tn_spec.tn_link
 #define tn_reg tn_spec.tn_reg
 #define tn_fifo tn_spec.tn_fifo
+
+#define	TMPFS_LINK_MAX INT_MAX
 
 #define TMPFS_NODE_LOCK(node) mtx_lock(&(node)->tn_interlock)
 #define TMPFS_NODE_UNLOCK(node) mtx_unlock(&(node)->tn_interlock)

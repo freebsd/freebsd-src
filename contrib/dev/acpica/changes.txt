@@ -1,4 +1,44 @@
 ----------------------------------------
+14 December 2017. Summary of changes for version 20171214:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Fixed a regression in the external (public) AcpiEvaluateObjectTyped 
+interface where the optional "pathname" argument had inadvertently become 
+a required argument returning an error if omitted (NULL pointer 
+argument).
+
+Fixed two possible memory leaks related to the recently developed "late 
+resolution" of reference objects within ASL Package Object definitions.
+
+Added two recently defined _OSI strings: "Windows 2016" and "Windows 
+2017". Mario Limonciello.
+
+Implemented and deployed a safer version of the C library function 
+strncpy:  AcpiUtSafeStrncpy. The intent is to at least prevent the 
+creation of unterminated strings as a possible result of a standard 
+strncpy.
+
+Cleaned up and restructured the global variable file (acglobal.h). There 
+are many changes, but no functional changes.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL Table Compiler: Fixed a problem with the DBG2 ACPI table where the 
+optional OemData field at the end of the table was incorrectly required 
+for proper compilation. It is now correctly an optional field.
+
+ASLTS: The entire suite was converted from standard ASL to the ASL+ 
+language, using the ASL-to-ASL+ converter which is integrated into the 
+iASL compiler. A binary compare of all output files has verified the 
+correctness of the conversion.
+
+iASL: Fixed the source code build for platforms where "char" is unsigned. 
+This affected the iASL lexer only. Jung-uk Kim.
+
+----------------------------------------
 10 November 2017. Summary of changes for version 20171110:
 
 

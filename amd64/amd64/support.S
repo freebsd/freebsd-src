@@ -596,7 +596,7 @@ END(subyte)
  * copyinstr(from, to, maxlen, int *lencopied) - MP SAFE
  *           %rdi, %rsi, %rdx, %rcx
  *
- *	copy a string from from to to, stop when a 0 character is reached.
+ *	copy a string from 'from' to 'to', stop when a 0 character is reached.
  *	return ENAMETOOLONG if string is longer than maxlen, and
  *	EFAULT on protection violations. If lencopied is non-zero,
  *	return the actual length in *lencopied.

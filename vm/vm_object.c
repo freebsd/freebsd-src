@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
+ * SPDX-License-Identifier: (BSD-3-Clause AND MIT-CMU)
  *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -144,18 +144,28 @@ struct object_q vm_object_list;
 struct mtx vm_object_list_mtx;	/* lock for object list and count */
 
 struct vm_object kernel_object_store;
-struct vm_object kmem_object_store;
 
 static SYSCTL_NODE(_vm_stats, OID_AUTO, object, CTLFLAG_RD, 0,
     "VM object stats");
 
-static long object_collapses;
-SYSCTL_LONG(_vm_stats_object, OID_AUTO, collapses, CTLFLAG_RD,
-    &object_collapses, 0, "VM object collapses");
+static counter_u64_t object_collapses = EARLY_COUNTER;
+SYSCTL_COUNTER_U64(_vm_stats_object, OID_AUTO, collapses, CTLFLAG_RD,
+    &object_collapses,
+    "VM object collapses");
 
-static long object_bypasses;
-SYSCTL_LONG(_vm_stats_object, OID_AUTO, bypasses, CTLFLAG_RD,
-    &object_bypasses, 0, "VM object bypasses");
+static counter_u64_t object_bypasses = EARLY_COUNTER;
+SYSCTL_COUNTER_U64(_vm_stats_object, OID_AUTO, bypasses, CTLFLAG_RD,
+    &object_bypasses,
+    "VM object bypasses");
+
+static void
+counter_startup(void)
+{
+
+	object_collapses = counter_u64_alloc(M_WAITOK);
+	object_bypasses = counter_u64_alloc(M_WAITOK);
+}
+SYSINIT(object_counters, SI_SUB_CPU, SI_ORDER_ANY, counter_startup, NULL);
 
 static uma_zone_t obj_zone;
 
@@ -292,14 +302,6 @@ vm_object_init(void)
 #if VM_NRESERVLEVEL > 0
 	kernel_object->flags |= OBJ_COLORED;
 	kernel_object->pg_color = (u_short)atop(VM_MIN_KERNEL_ADDRESS);
-#endif
-
-	rw_init(&kmem_object->lock, "kmem vm object");
-	_vm_object_allocate(OBJT_PHYS, atop(VM_MAX_KERNEL_ADDRESS -
-	    VM_MIN_KERNEL_ADDRESS), kmem_object);
-#if VM_NRESERVLEVEL > 0
-	kmem_object->flags |= OBJ_COLORED;
-	kmem_object->pg_color = (u_short)atop(VM_MIN_KERNEL_ADDRESS);
 #endif
 
 	/*
@@ -1884,7 +1886,7 @@ vm_object_collapse(vm_object_t object)
 			vm_object_destroy(backing_object);
 
 			vm_object_pip_wakeup(object);
-			object_collapses++;
+			counter_u64_add(object_collapses, 1);
 		} else {
 			/*
 			 * If we do not entirely shadow the backing object,
@@ -1925,7 +1927,7 @@ vm_object_collapse(vm_object_t object)
 			 */
 			backing_object->ref_count--;
 			VM_OBJECT_WUNLOCK(backing_object);
-			object_bypasses++;
+			counter_u64_add(object_bypasses, 1);
 		}
 
 		/*

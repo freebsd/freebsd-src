@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: MIT-CMU
+ *
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
@@ -556,7 +558,7 @@ db_error(const char *s)
 	if (s)
 	    db_printf("%s", s);
 	db_flush_lex();
-	kdb_reenter();
+	kdb_reenter_silent();
 }
 
 static void

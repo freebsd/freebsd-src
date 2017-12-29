@@ -165,6 +165,7 @@ MAC_STUB	opt_dontuse.h
 MAC_TEST	opt_dontuse.h
 MD_ROOT		opt_md.h
 MD_ROOT_FSTYPE	opt_md.h
+MD_ROOT_READONLY	opt_md.h
 MD_ROOT_SIZE	opt_md.h
 MFI_DEBUG	opt_mfi.h
 MFI_DECODE_LOG	opt_mfi.h
@@ -458,7 +459,6 @@ XBONEHACK
 #
 SCTP			opt_sctp.h
 SCTP_DEBUG		opt_sctp.h # Enable debug printfs
-SCTP_WITH_NO_CSUM	opt_sctp.h # Use this at your peril
 SCTP_LOCK_LOGGING	opt_sctp.h # Log to KTR lock activity
 SCTP_MBUF_LOGGING	opt_sctp.h # Log to KTR general mbuf aloc/free
 SCTP_MBCNT_LOGGING	opt_sctp.h # Log to KTR mbcnt activity
@@ -850,6 +850,7 @@ BWI_DEBUG_VERBOSE	opt_bwi.h
 # options for the Brodacom BCM43xx driver (bwn)
 BWN_DEBUG		opt_bwn.h
 BWN_GPL_PHY		opt_bwn.h
+BWN_USE_SIBA		opt_bwn.h
 
 # Options for the SIBA driver
 SIBA_DEBUG		opt_siba.h

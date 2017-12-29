@@ -37,6 +37,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/clk/clk_fixed.h>
 #include <dev/extres/clk/clk_mux.h>
 
+#if defined(__aarch64__)
+#include "opt_soc.h"
+#endif
+
 #include <arm/allwinner/clkng/aw_ccung.h>
 #include <arm/allwinner/clkng/aw_clk.h>
 #include <arm/allwinner/clkng/aw_clk_nm.h>

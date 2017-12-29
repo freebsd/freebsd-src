@@ -1,6 +1,8 @@
 /*-
  * Implementation of SCSI Direct Access Peripheral driver for CAM.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Justin T. Gibbs.
  * All rights reserved.
  *
@@ -1523,7 +1525,6 @@ daclose(struct disk *dp)
 	struct	cam_periph *periph;
 	struct	da_softc *softc;
 	union	ccb *ccb;
-	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
 	softc = (struct da_softc *)periph->softc;
@@ -1542,7 +1543,7 @@ daclose(struct disk *dp)
 			    /*cbfcnp*/dadone, MSG_SIMPLE_Q_TAG,
 			    /*begin_lba*/0, /*lb_count*/0, SSD_FULL_SIZE,
 			    5 * 60 * 1000);
-			error = cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
+			cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
 			    /*sense_flags*/SF_RETRY_UA | SF_QUIET_IR,
 			    softc->disk->d_devstat);
 			softc->flags &= ~DA_FLAG_DIRTY;
@@ -1671,13 +1672,8 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 				/*dxfer_len*/length,
 				/*sense_len*/SSD_FULL_SIZE,
 				da_default_timeout * 1000);
-		xpt_polled_action((union ccb *)&csio);
-
-		error = cam_periph_error((union ccb *)&csio,
+		error = cam_periph_runccb((union ccb *)&csio, cam_periph_error,
 		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
-		if ((csio.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(csio.ccb_h.path, /*relsim_flags*/0,
-			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
 		if (error != 0)
 			printf("Aborting dump due to I/O error.\n");
 		cam_periph_unlock(periph);
@@ -1699,13 +1695,8 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 				       /*lb_count*/0,
 				       SSD_FULL_SIZE,
 				       5 * 1000);
-		xpt_polled_action((union ccb *)&csio);
-
-		error = cam_periph_error((union ccb *)&csio,
-		    0, SF_NO_RECOVERY | SF_NO_RETRY | SF_QUIET_IR, NULL);
-		if ((csio.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(csio.ccb_h.path, /*relsim_flags*/0,
-			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		error = cam_periph_runccb((union ccb *)&csio, cam_periph_error,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 		if (error != 0)
 			xpt_print(periph->path, "Synchronize cache failed\n");
 	}
@@ -1917,7 +1908,6 @@ daasync(void *callback_arg, u_int32_t code,
 				dareprobe(periph);
 			}
 		}
-		cam_periph_async(periph, code, path, arg);
 		break;
 	}
 	case AC_SCSI_AEN:
@@ -1960,7 +1950,7 @@ dasysctlinit(void *context, int pending)
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;
-	char tmpstr[80], tmpstr2[80];
+	char tmpstr[32], tmpstr2[16];
 	struct ccb_trans_settings cts;
 
 	periph = (struct cam_periph *)context;
@@ -2320,7 +2310,7 @@ dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 	char buf[16];
 	const char *p;
 	struct da_softc *softc;
-	int i, error, methods, value;
+	int i, error, value;
 
 	softc = (struct da_softc *)arg1;
 
@@ -2333,7 +2323,6 @@ dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	methods = softc->delete_available | (1 << DA_DELETE_DISABLE);
 	for (i = 0; i <= DA_DELETE_MAX; i++) {
 		if (strcmp(buf, da_delete_method_names[i]) == 0)
 			break;
@@ -2471,10 +2460,7 @@ daregister(struct cam_periph *periph, void *arg)
 		softc->quirks = DA_Q_NONE;
 
 	/* Check if the SIM does not want 6 byte commands */
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 	if (cpi.ccb_h.status == CAM_REQ_CMP && (cpi.hba_misc & PIM_NO_6_BYTE))
 		softc->quirks |= DA_Q_NO_6_BYTE;
 
@@ -3982,7 +3968,7 @@ dazonedone(struct cam_periph *periph, union ccb *ccb)
 		struct scsi_report_zones_hdr *hdr;
 		struct scsi_report_zones_desc *desc;
 		struct disk_zone_rep_entry *entry;
-		uint32_t num_alloced, hdr_len, num_avail;
+		uint32_t hdr_len, num_avail;
 		uint32_t num_to_fill, i;
 		int ata;
 
@@ -3999,7 +3985,6 @@ dazonedone(struct cam_periph *periph, union ccb *ccb)
 		 * the user.
 		 */
 		bp->bio_resid = ccb->csio.resid;
-		num_alloced = rep->entries_allocated;
 		hdr = (struct scsi_report_zones_hdr *)ccb->csio.data_ptr;
 		if (avail_len < sizeof(*hdr)) {
 			/*
@@ -5449,8 +5434,7 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 
 	if (softc->quirks & DA_Q_RETRY_BUSY)
 		sense_flags |= SF_RETRY_BUSY;
-	return(cam_periph_error(ccb, cam_flags, sense_flags,
-				&softc->saved_ccb));
+	return(cam_periph_error(ccb, cam_flags, sense_flags));
 }
 
 static void

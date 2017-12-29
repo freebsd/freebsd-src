@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2005, 2009, 2013 Jeffrey Roberson <jeff@FreeBSD.org>
  * Copyright (c) 2004, 2005 Bosko Milekic <bmilekic@FreeBSD.org>
  * All rights reserved.
@@ -423,6 +425,13 @@ vsetslab(vm_offset_t va, uma_slab_t slab)
 void *uma_small_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *pflag,
     int wait);
 void uma_small_free(void *mem, vm_size_t size, uint8_t flags);
+
+/* Set a global soft limit on UMA managed memory. */
+void uma_set_limit(unsigned long limit);
+unsigned long uma_limit(void);
+
+/* Return the amount of memory managed by UMA. */
+unsigned long uma_size(void);
 #endif /* _KERNEL */
 
 #endif /* VM_UMA_INT_H */

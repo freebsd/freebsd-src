@@ -1714,13 +1714,12 @@ nicvf_sq_disable(struct nicvf *nic, int qidx)
 static void
 nicvf_sq_free_used_descs(struct nicvf *nic, struct snd_queue *sq, int qidx)
 {
-	uint64_t head, tail;
+	uint64_t head;
 	struct snd_buff *snd_buff;
 	struct sq_hdr_subdesc *hdr;
 
 	NICVF_TX_LOCK(sq);
 	head = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_HEAD, qidx) >> 4;
-	tail = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_TAIL, qidx) >> 4;
 	while (sq->head != head) {
 		hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, sq->head);
 		if (hdr->subdesc_type != SQ_DESC_TYPE_HEADER) {
@@ -1802,6 +1801,8 @@ nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
 			if (mbuf == NULL)
 				return (ENOBUFS);
 		}
+		if (mbuf->m_pkthdr.csum_flags & CSUM_IP)
+			hdr->csum_l3 = 1; /* Enable IP csum calculation */
 
 		ip = (struct ip *)(mbuf->m_data + ehdrlen);
 		iphlen = ip->ip_hl << 2;
@@ -1809,13 +1810,10 @@ nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
 		proto = ip->ip_p;
 		break;
 #endif
-	default:
-		hdr->csum_l3 = 0;
 	}
 
 #if defined(INET6) || defined(INET)
 	if (poff > 0 && mbuf->m_pkthdr.csum_flags != 0) {
-		hdr->csum_l3 = 1; /* Enable IP csum calculation */
 		switch (proto) {
 		case IPPROTO_TCP:
 			if ((mbuf->m_pkthdr.csum_flags & CSUM_TCP) == 0)

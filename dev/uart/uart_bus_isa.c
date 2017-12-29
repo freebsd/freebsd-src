@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 TAKAHASHI Yoshihiro
  * Copyright (c) 2008 Marcel Moolenaar
  * Copyright (c) 2001 M. Warner Losh
@@ -170,3 +172,4 @@ uart_isa_probe(device_t dev)
 }
 
 DRIVER_MODULE(uart, isa, uart_isa_driver, uart_devclass, 0, 0);
+ISA_PNP_INFO(isa_ns8250_ids);

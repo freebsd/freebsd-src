@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
  * Copyright (c) 2016 Michael Zhilin <mizhka@gmail.com>
  * Copyright (c) 2017 The FreeBSD Foundation
@@ -245,10 +247,10 @@ chipc_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if ((error = bhnd_deregister_provider(dev, BHND_SERVICE_ANY)))
+	if ((error = bus_generic_detach(dev)))
 		return (error);
 
-	if ((error = bus_generic_detach(dev)))
+	if ((error = bhnd_deregister_provider(dev, BHND_SERVICE_ANY)))
 		return (error);
 
 	chipc_release_region(sc, sc->core_region, RF_ALLOCATED|RF_ACTIVE);

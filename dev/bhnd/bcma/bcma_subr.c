@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
  * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
@@ -280,7 +282,7 @@ bcma_dinfo_init_intrs(device_t bus, device_t child,
 	/* Fetch width of the OOB interrupt bank */
 	oobw = bhnd_bus_read_4(dinfo->res_agent,
 	     BCMA_DMP_OOB_OUTWIDTH(BCMA_OOB_BANK_INTR));
-	if (oobw > BCMA_OOB_NUM_SEL) {
+	if (oobw >= BCMA_OOB_NUM_SEL) {
 		device_printf(bus, "ignoring invalid OOBOUTWIDTH for core %u: "
 		    "%#x\n", BCMA_DINFO_COREIDX(dinfo), oobw);
 		return (0);
@@ -594,8 +596,15 @@ bcma_dmp_wait_reset(device_t child, struct bcma_devinfo *dinfo)
 int
 bcma_dmp_write_reset(device_t child, struct bcma_devinfo *dinfo, uint32_t value)
 {
+	uint32_t rst;
+
 	if (dinfo->res_agent == NULL)
 		return (ENODEV);
+
+	/* Already in requested reset state? */
+	rst = bhnd_bus_read_4(dinfo->res_agent, BCMA_DMP_RESETCTRL);
+	if (rst == value)
+		return (0);
 
 	bhnd_bus_write_4(dinfo->res_agent, BCMA_DMP_RESETCTRL, value);
 	bhnd_bus_read_4(dinfo->res_agent, BCMA_DMP_RESETCTRL); /* read-back */

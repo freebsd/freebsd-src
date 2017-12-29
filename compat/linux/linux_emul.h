@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2006 Roman Divacky
  * Copyright (c) 2013 Dmitry Chagin
  * All rights reserved.

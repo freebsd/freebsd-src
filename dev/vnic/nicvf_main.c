@@ -425,7 +425,6 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct nicvf *nic;
 	struct rcv_queue *rq;
 	struct ifreq *ifr;
-	uint32_t flags;
 	int mask, err;
 	int rq_idx;
 #if defined(INET) || defined(INET6)
@@ -482,7 +481,6 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		NICVF_CORE_LOCK(nic);
 		if (if_getflags(ifp) & IFF_UP) {
 			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-				flags = if_getflags(ifp) ^ nic->if_flags;
 				if ((nic->if_flags & if_getflags(ifp)) &
 				    IFF_PROMISC) {
 					/* Change promiscous mode */

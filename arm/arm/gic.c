@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2011 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -1382,11 +1384,9 @@ int
 arm_gicv2m_attach(device_t dev)
 {
 	struct arm_gicv2m_softc *sc;
-	struct arm_gic_softc *psc;
 	uint32_t typer;
 	int rid;
 
-	psc = device_get_softc(device_get_parent(dev));
 	sc = device_get_softc(dev);
 
 	rid = 0;

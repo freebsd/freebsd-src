@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1991 Regents of the University of California.
  * Copyright (c) 1994 John S. Dyson
  * Copyright (c) 1994 David Greenman
@@ -291,8 +293,6 @@ vm_paddr_t first_managed_pa;
  *  All those kernel PT submaps that BSD is so fond of
  */
 caddr_t _tmppt = 0;
-
-struct msgbuf *msgbufp = NULL; /* XXX move it to machdep.c */
 
 /*
  *  Crashdump maps.
@@ -1310,10 +1310,16 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 PMAP_INLINE void
 pmap_kremove(vm_offset_t va)
 {
+	pt1_entry_t *pte1p;
 	pt2_entry_t *pte2p;
 
-	pte2p = pt2map_entry(va);
-	pte2_clear(pte2p);
+	pte1p = kern_pte1(va);
+	if (pte1_is_section(pte1_load(pte1p))) {
+		pte1_clear(pte1p);
+	} else {
+		pte2p = pt2map_entry(va);
+		pte2_clear(pte2p);
+	}
 }
 
 /*

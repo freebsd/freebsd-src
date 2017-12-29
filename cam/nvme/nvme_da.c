@@ -404,17 +404,12 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		xpt_setup_ccb(&nvmeio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		nvmeio.ccb_h.ccb_state = NDA_CCB_DUMP;
 		nda_nvme_write(softc, &nvmeio, virtual, lba, length, count);
-		xpt_polled_action((union ccb *)&nvmeio);
-
-		error = cam_periph_error((union ccb *)&nvmeio,
+		error = cam_periph_runccb((union ccb *)&nvmeio, cam_periph_error,
 		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
-		if ((nvmeio.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(nvmeio.ccb_h.path, /*relsim_flags*/0,
-			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
 		if (error != 0)
-			printf("Aborting dump due to I/O error.\n");
-
+			printf("Aborting dump due to I/O error %d.\n", error);
 		cam_periph_unlock(periph);
+
 		return (error);
 	}
 	
@@ -423,13 +418,8 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 
 	nvmeio.ccb_h.ccb_state = NDA_CCB_DUMP;
 	nda_nvme_flush(softc, &nvmeio);
-	xpt_polled_action((union ccb *)&nvmeio);
-
-	error = cam_periph_error((union ccb *)&nvmeio,
+	error = cam_periph_runccb((union ccb *)&nvmeio, cam_periph_error,
 	    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
-	if ((nvmeio.ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(nvmeio.ccb_h.path, /*relsim_flags*/0,
-		    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
 	if (error != 0)
 		xpt_print(periph->path, "flush cmd failed\n");
 	cam_periph_unlock(periph);
@@ -594,7 +584,7 @@ ndasysctlinit(void *context, int pending)
 {
 	struct cam_periph *periph;
 	struct nda_softc *softc;
-	char tmpstr[80], tmpstr2[80];
+	char tmpstr[32], tmpstr2[16];
 
 	periph = (struct cam_periph *)context;
 
@@ -716,10 +706,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 
 	softc->quirks = NDA_Q_NONE;
 
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NONE);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 
 	TASK_INIT(&softc->sysctl_task, 0, ndasysctlinit, periph);
 
@@ -1087,7 +1074,7 @@ ndaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 		break;
 	}
 
-	return(cam_periph_error(ccb, cam_flags, sense_flags, NULL));
+	return(cam_periph_error(ccb, cam_flags, sense_flags));
 }
 
 /*

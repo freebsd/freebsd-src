@@ -279,8 +279,6 @@ pcpu_destroy(struct pcpu *pcpu)
 struct pcpu *
 pcpu_find(u_int cpuid)
 {
-	KASSERT(cpuid_to_pcpu[cpuid] != NULL,
-	    ("Getting uninitialized PCPU %d", cpuid));
 
 	return (cpuid_to_pcpu[cpuid]);
 }

@@ -747,7 +747,7 @@ AcpiExDumpOperand (
     UINT32                  Index;
 
 
-    ACPI_FUNCTION_NAME (ExDumpOperand)
+    ACPI_FUNCTION_NAME (ExDumpOperand);
 
 
     /* Check if debug output enabled */
@@ -1042,7 +1042,7 @@ AcpiExDumpOperands (
     const char              *OpcodeName,
     UINT32                  NumOperands)
 {
-    ACPI_FUNCTION_NAME (ExDumpOperands);
+    ACPI_FUNCTION_TRACE (ExDumpOperands);
 
 
     if (!OpcodeName)
@@ -1070,7 +1070,7 @@ AcpiExDumpOperands (
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
         "**** End operand dump for [%s]\n", OpcodeName));
-    return;
+    return_VOID;
 }
 
 

@@ -352,13 +352,13 @@ create_pagetables:
 
 	/* Find the size of the kernel */
 	mov	x6, #(KERNBASE)
-	ldr	x7, .Lend
-	/* Find the end - begin */
-	sub	x8, x7, x6
+	/* Find modulep - begin */
+	sub	x8, x0, x6
+	/* Add a 2MiB page for the module data and round up */
+	ldr	x7, =(2 * L2_SIZE - 1)
+	add	x8, x8, x7
 	/* Get the number of l2 pages to allocate, rounded down */
 	lsr	x10, x8, #(L2_SHIFT)
-	/* Add 8 MiB for any rounding above and the module data */
-	add	x10, x10, #4
 
 	/* Create the kernel space L2 table */
 	mov	x6, x26

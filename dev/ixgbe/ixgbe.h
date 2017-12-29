@@ -58,20 +58,13 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#include <net/bpf.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
+#include <net/iflib.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
-#include <netinet/ip.h>
-#include <netinet/ip6.h>
-#include <netinet/tcp.h>
-#include <netinet/tcp_lro.h>
-#include <netinet/udp.h>
-
-#include <machine/in_cksum.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -85,7 +78,7 @@
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
-#include <sys/taskqueue.h>
+#include <sys/gtaskqueue.h>
 #include <sys/pcpu.h>
 #include <sys/smp.h>
 #include <machine/smp.h>
@@ -106,7 +99,7 @@
  * bytes. Performance tests have show the 2K value to be optimal for top
  * performance.
  */
-#define DEFAULT_TXD     1024
+#define DEFAULT_TXD     2048
 #define PERFORM_TXD     2048
 #define MAX_TXD         4096
 #define MIN_TXD         64
@@ -121,7 +114,7 @@
  *       against the system mbuf pool limit, you can tune nmbclusters
  *       to adjust for this.
  */
-#define DEFAULT_RXD     1024
+#define DEFAULT_RXD     2048
 #define PERFORM_RXD     2048
 #define MAX_RXD         4096
 #define MIN_RXD         64
@@ -219,6 +212,11 @@
 #define CSUM_OFFLOAD  (CSUM_IP|CSUM_TCP|CSUM_UDP)
 #endif
 
+#define IXGBE_CAPS (IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 | IFCAP_TSO | \
+		IFCAP_LRO | IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWTSO | \
+		IFCAP_VLAN_HWCSUM | IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU | \
+		IFCAP_HWSTATS | IFCAP_VLAN_HWFILTER | IFCAP_WOL)
+
 /* Backward compatibility items for very old versions */
 #ifndef pci_find_cap
 #define pci_find_cap pci_find_extcap
@@ -241,7 +239,6 @@
                                 IXGBE_EITR_ITR_INT_MASK)
 
 
-
 /************************************************************************
  * vendor_info_array
  *
@@ -262,23 +259,8 @@ struct ixgbe_bp_data {
 	u32 log;
 };
 
-struct ixgbe_tx_buf {
-	union ixgbe_adv_tx_desc *eop;
-	struct mbuf             *m_head;
-	bus_dmamap_t            map;
-};
-
-struct ixgbe_rx_buf {
-	struct mbuf    *buf;
-	struct mbuf    *fmp;
-	bus_dmamap_t   pmap;
-	u_int          flags;
-#define IXGBE_RX_COPY  0x01
-	uint64_t       addr;
-};
 
 /*
- * Bus dma allocation structure used by ixgbe_dma_malloc and ixgbe_dma_free
  */
 struct ixgbe_dma_alloc {
 	bus_addr_t        dma_paddr;
@@ -296,46 +278,18 @@ struct ixgbe_mc_addr {
 };
 
 /*
- * Driver queue struct: this is the interrupt container
- *                      for the associated tx and rx ring.
- */
-struct ix_queue {
-	struct adapter   *adapter;
-	u32              msix;           /* This queue's MSI-X vector */
-	u32              eims;           /* This queue's EIMS bit */
-	u32              eitr_setting;
-	u32              me;
-	struct resource  *res;
-	void             *tag;
-	int              busy;
-	struct tx_ring   *txr;
-	struct rx_ring   *rxr;
-	struct task      que_task;
-	struct taskqueue *tq;
-	u64              irqs;
-};
-
-/*
  * The transmit ring, one per queue
  */
 struct tx_ring {
 	struct adapter          *adapter;
-	struct mtx              tx_mtx;
-	u32                     me;
-	u32                     tail;
-	int                     busy;
 	union ixgbe_adv_tx_desc *tx_base;
-	struct ixgbe_tx_buf     *tx_buffers;
-	struct ixgbe_dma_alloc  txdma;
-	volatile u16            tx_avail;
-	u16                     next_avail_desc;
-	u16                     next_to_clean;
-	u16                     num_desc;
-	u32                     txd_cmd;
-	bus_dma_tag_t           txtag;
-	char                    mtx_name[16];
-	struct buf_ring         *br;
-	struct task             txq_task;
+	uint64_t                tx_paddr;
+	u32                     tail;
+	qidx_t                  *tx_rsq;
+	qidx_t                  tx_rs_cidx;
+	qidx_t                  tx_rs_pidx;
+	qidx_t                  tx_cidx_processed;
+	uint8_t                 me;
 
 	/* Flow Director */
 	u16                     atr_sample;
@@ -345,9 +299,6 @@ struct tx_ring {
 	u32                     packets;
 	/* Soft Stats */
 	u64                     tso_tx;
-	u64                     no_tx_map_avail;
-	u64                     no_tx_dma_setup;
-	u64                     no_desc_avail;
 	u64                     total_packets;
 };
 
@@ -356,22 +307,14 @@ struct tx_ring {
  * The Receive ring, one per rx queue
  */
 struct rx_ring {
+	struct ix_rx_queue      *que;
 	struct adapter          *adapter;
-	struct mtx              rx_mtx;
 	u32                     me;
 	u32                     tail;
 	union ixgbe_adv_rx_desc *rx_base;
-	struct ixgbe_dma_alloc  rxdma;
-	struct lro_ctrl         lro;
-	bool                    lro_enabled;
 	bool                    hw_rsc;
 	bool                    vtag_strip;
-	u16                     next_to_refresh;
-	u16                     next_to_check;
-	u16                     num_desc;
-	u16                     mbuf_sz;
-	char                    mtx_name[16];
-	struct ixgbe_rx_buf     *rx_buffers;
+	uint64_t rx_paddr;
 	bus_dma_tag_t           ptag;
 
 	u32                     bytes; /* Used for AIM calc */
@@ -389,12 +332,35 @@ struct rx_ring {
 	u64                     flm;
 };
 
+/*
+ * Driver queue struct: this is the interrupt container
+ *  for the associated tx and rx ring.
+ */
+struct ix_rx_queue {
+	struct adapter		*adapter;
+	u32			msix;           /* This queue's MSIX vector */
+	u32			eims;           /* This queue's EIMS bit */
+	u32			eitr_setting;
+	struct resource		*res;
+	void			*tag;
+	int			busy;
+	struct rx_ring		rxr;
+	struct if_irq           que_irq;
+	u64			irqs;
+};
+
+struct ix_tx_queue {
+	struct adapter		*adapter;
+	u32			msix;           /* This queue's MSIX vector */
+	struct tx_ring		txr;
+};
+
 #define IXGBE_MAX_VF_MC 30  /* Max number of multicast entries */
 
 struct ixgbe_vf {
 	u_int    pool;
 	u_int    rar_index;
-	u_int    max_frame_size;
+	u_int    maximum_frame_size;
 	uint32_t flags;
 	uint8_t  ether_addr[ETHER_ADDR_LEN];
 	uint16_t mc_hash[IXGBE_MAX_VF_MC];
@@ -408,33 +374,32 @@ struct ixgbe_vf {
 struct adapter {
 	struct ixgbe_hw         hw;
 	struct ixgbe_osdep      osdep;
+	if_ctx_t                ctx;
+	if_softc_ctx_t          shared;
+#define num_tx_queues shared->isc_ntxqsets
+#define num_rx_queues shared->isc_nrxqsets
+#define max_frame_size shared->isc_max_frame_size
+#define intr_type shared->isc_intr
 
 	device_t                dev;
 	struct ifnet            *ifp;
 
 	struct resource         *pci_mem;
-	struct resource         *msix_mem;
 
 	/*
 	 * Interrupt resources: this set is
 	 * either used for legacy, or for Link
 	 * when doing MSI-X
 	 */
+	struct if_irq           irq;
 	void                    *tag;
 	struct resource         *res;
 
-	struct ifmedia          media;
-	struct callout          timer;
-	int                     link_rid;
+	struct ifmedia          *media;
 	int                     if_flags;
-
-	struct mtx              core_mtx;
-
-	eventhandler_tag        vlan_attach;
-	eventhandler_tag        vlan_detach;
+	int                     msix;
 
 	u16                     num_vlans;
-	u16                     num_queues;
 
 	/*
 	 * Shadow VFTA table, this is needed because
@@ -446,9 +411,7 @@ struct adapter {
 
 	/* Info about the interface */
 	int                     advertise;  /* link speeds */
-	int                     enable_aim; /* adaptive interrupt moderation */
 	bool                    link_active;
-	u16                     max_frame_size;
 	u16                     num_segs;
 	u32                     link_speed;
 	bool                    link_up;
@@ -465,17 +428,16 @@ struct adapter {
 
 	/* Support for pluggable optics */
 	bool                    sfp_probe;
-	struct task             link_task;  /* Link tasklet */
-	struct task             mod_task;   /* SFP tasklet */
-	struct task             msf_task;   /* Multispeed Fiber */
-	struct task             mbx_task;   /* VF -> PF mailbox interrupt */
+	struct grouptask        mod_task;   /* SFP tasklet */
+	struct grouptask        msf_task;   /* Multispeed Fiber */
+	struct grouptask        mbx_task;   /* VF -> PF mailbox interrupt */
+	int                     sfp_reinit;
 
 	/* Flow Director */
 	int                     fdir_reinit;
-	struct task             fdir_task;
+	struct grouptask        fdir_task;
 
-	struct task             phy_task;   /* PHY intr tasklet */
-	struct taskqueue        *tq;
+	struct grouptask        phy_task;   /* PHY intr tasklet */
 
 	/*
 	 * Queues:
@@ -483,24 +445,9 @@ struct adapter {
 	 *   and RX/TX pair or rings associated
 	 *   with it.
 	 */
-	struct ix_queue         *queues;
-
-	/*
-	 * Transmit rings
-	 *      Allocated at run time, an array of rings
-	 */
-	struct tx_ring          *tx_rings;
-	u32                     num_tx_desc;
-	u32                     tx_process_limit;
-
-	/*
-	 * Receive rings
-	 *      Allocated at run time, an array of rings
-	 */
-	struct rx_ring          *rx_rings;
-	u64                     active_queues;
-	u32                     num_rx_desc;
-	u32                     rx_process_limit;
+	struct ix_tx_queue	*tx_queues;
+	struct ix_rx_queue	*rx_queues;
+	u64			active_queues;
 
 	/* Multicast array memory */
 	struct ixgbe_mc_addr    *mta;
@@ -514,13 +461,8 @@ struct adapter {
 	/* Bypass */
 	struct ixgbe_bp_data    bypass;
 
-	/* Netmap */
-	void                    (*init_locked)(struct adapter *);
-	void                    (*stop_locked)(void *);
-
 	/* Misc stats maintained by the driver */
 	unsigned long           dropped_pkts;
-	unsigned long           mbuf_defrag_failed;
 	unsigned long           mbuf_header_failed;
 	unsigned long           mbuf_packet_failed;
 	unsigned long           watchdog_events;
@@ -547,28 +489,11 @@ struct adapter {
 	u32                     feat_en;
 };
 
-
 /* Precision Time Sync (IEEE 1588) defines */
 #define ETHERTYPE_IEEE1588      0x88F7
 #define PICOSECS_PER_TICK       20833
 #define TSYNC_UDP_PORT          319 /* UDP port for the protocol */
 #define IXGBE_ADVTXD_TSTAMP     0x00080000
-
-
-#define IXGBE_CORE_LOCK_INIT(_sc, _name) \
-        mtx_init(&(_sc)->core_mtx, _name, "IXGBE Core Lock", MTX_DEF)
-#define IXGBE_CORE_LOCK_DESTROY(_sc)      mtx_destroy(&(_sc)->core_mtx)
-#define IXGBE_TX_LOCK_DESTROY(_sc)        mtx_destroy(&(_sc)->tx_mtx)
-#define IXGBE_RX_LOCK_DESTROY(_sc)        mtx_destroy(&(_sc)->rx_mtx)
-#define IXGBE_CORE_LOCK(_sc)              mtx_lock(&(_sc)->core_mtx)
-#define IXGBE_TX_LOCK(_sc)                mtx_lock(&(_sc)->tx_mtx)
-#define IXGBE_TX_TRYLOCK(_sc)             mtx_trylock(&(_sc)->tx_mtx)
-#define IXGBE_RX_LOCK(_sc)                mtx_lock(&(_sc)->rx_mtx)
-#define IXGBE_CORE_UNLOCK(_sc)            mtx_unlock(&(_sc)->core_mtx)
-#define IXGBE_TX_UNLOCK(_sc)              mtx_unlock(&(_sc)->tx_mtx)
-#define IXGBE_RX_UNLOCK(_sc)              mtx_unlock(&(_sc)->rx_mtx)
-#define IXGBE_CORE_LOCK_ASSERT(_sc)       mtx_assert(&(_sc)->core_mtx, MA_OWNED)
-#define IXGBE_TX_LOCK_ASSERT(_sc)         mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
 
 /* For backward compatibility */
 #if !defined(PCIER_LINK_STA)
@@ -626,33 +551,12 @@ static __inline int
 drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
 {
 #ifdef ALTQ
-        if (ALTQ_IS_ENABLED(&ifp->if_snd))
-                return (1);
+	if (ALTQ_IS_ENABLED(&ifp->if_snd))
+		return (1);
 #endif
-        return (!buf_ring_empty(br));
+	return (!buf_ring_empty(br));
 }
 #endif
-
-/*
- * Find the number of unrefreshed RX descriptors
- */
-static inline u16
-ixgbe_rx_unrefreshed(struct rx_ring *rxr)
-{
-	if (rxr->next_to_check > rxr->next_to_refresh)
-		return (rxr->next_to_check - rxr->next_to_refresh - 1);
-	else
-		return ((rxr->num_desc + rxr->next_to_check) -
-		    rxr->next_to_refresh - 1);
-}
-
-static inline int
-ixgbe_legacy_ring_empty(struct ifnet *ifp, struct buf_ring *dummy)
-{
-	UNREFERENCED_1PARAMETER(dummy);
-
-	return IFQ_DRV_IS_EMPTY(&ifp->if_snd);
-}
 
 /*
  * This checks for a zero mac addr, something that will be likely
@@ -671,25 +575,16 @@ ixv_check_ether_addr(u8 *addr)
 }
 
 /* Shared Prototypes */
-void ixgbe_legacy_start(struct ifnet *);
-int  ixgbe_legacy_start_locked(struct ifnet *, struct tx_ring *);
-int  ixgbe_mq_start(struct ifnet *, struct mbuf *);
-int  ixgbe_mq_start_locked(struct ifnet *, struct tx_ring *);
-void ixgbe_qflush(struct ifnet *);
-void ixgbe_deferred_mq_start(void *, int);
 
 int  ixgbe_allocate_queues(struct adapter *);
 int  ixgbe_setup_transmit_structures(struct adapter *);
 void ixgbe_free_transmit_structures(struct adapter *);
 int  ixgbe_setup_receive_structures(struct adapter *);
 void ixgbe_free_receive_structures(struct adapter *);
-void ixgbe_txeof(struct tx_ring *);
-bool ixgbe_rxeof(struct ix_queue *);
+int  ixgbe_get_regs(SYSCTL_HANDLER_ARGS);
 
 #include "ixgbe_bypass.h"
-#include "ixgbe_sriov.h"
 #include "ixgbe_fdir.h"
 #include "ixgbe_rss.h"
-#include "ixgbe_netmap.h"
 
 #endif /* _IXGBE_H_ */

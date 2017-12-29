@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2006 Mellanox Technologies Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two

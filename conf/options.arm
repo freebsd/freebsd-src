@@ -35,6 +35,7 @@ KERNBASE		opt_global.h
 KERNVIRTADDR		opt_global.h
 LINUX_BOOT_ABI		opt_global.h
 LOADERRAMADDR		opt_global.h
+LOCORE_MAP_MB		opt_locore.h
 NKPT2PG			opt_pmap.h
 PHYSADDR		opt_global.h
 PLATFORM		opt_global.h

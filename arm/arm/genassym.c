@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Olivier Houchard
  * All rights reserved.
  *
@@ -159,3 +161,12 @@ ASSYM(DCACHE_LINE_SIZE, offsetof(struct cpuinfo, dcache_line_size));
 ASSYM(DCACHE_LINE_MASK, offsetof(struct cpuinfo, dcache_line_mask));
 ASSYM(ICACHE_LINE_SIZE, offsetof(struct cpuinfo, icache_line_size));
 ASSYM(ICACHE_LINE_MASK, offsetof(struct cpuinfo, icache_line_mask));
+
+/*
+ * Emit the LOCORE_MAP_MB option as a #define only if the option was set.
+ */
+#include "opt_locore.h"
+
+#ifdef LOCORE_MAP_MB
+ASSYM(LOCORE_MAP_MB, LOCORE_MAP_MB);
+#endif

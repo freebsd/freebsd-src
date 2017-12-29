@@ -17,6 +17,8 @@ __FBSDID("$FreeBSD$");
 #define	SCSI_LOW_FLAGS_QUIRKS_OK
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * [NetBSD for NEC PC-98 series]
  *  Copyright (c) 1995, 1996, 1997, 1998, 1999, 2000, 2001
  *	NetBSD/pc98 porting staff. All rights reserved.

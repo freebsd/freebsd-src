@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -874,7 +876,7 @@ int
 g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 {
 	struct g_provider *pp;
-	int pr,pw,pe;
+	int pw, pe;
 	int error;
 
 	g_topology_assert();
@@ -905,7 +907,6 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	 * Figure out what counts the provider would have had, if this
 	 * consumer had (r0w0e0) at this time.
 	 */
-	pr = pp->acr - cp->acr;
 	pw = pp->acw - cp->acw;
 	pe = pp->ace - cp->ace;
 

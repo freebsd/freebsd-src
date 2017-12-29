@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2007-2008 Marvell Semiconductor, Inc.
  * All rights reserved.
@@ -1237,7 +1239,7 @@ mwl_reset_vap(struct ieee80211vap *vap, int state)
 
 /*
  * Reset the hardware w/o losing operational state.
- * Used to to reset or reload hardware state for a vap.
+ * Used to reset or reload hardware state for a vap.
  */
 static int
 mwl_reset(struct ieee80211vap *vap, u_long cmd)

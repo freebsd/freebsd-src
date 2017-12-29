@@ -1,6 +1,8 @@
 /*	$OpenBSD: db_machdep.c,v 1.2 1998/09/15 10:50:13 pefo Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1998 Per Fogelstrom, Opsycon AB
  *
  * Redistribution and use in source and binary forms, with or without
@@ -150,6 +152,7 @@ db_read_bytes(vm_offset_t addr, size_t size, char *data)
 		/*
 		 * 'addr' could be a memory-mapped I/O address.  Try to
 		 * do atomic load/store in unit of size requested.
+		 * size == 8 is only atomic on 64bit or n32 kernel.
 		 */
 		if ((size == 2 || size == 4 || size == 8) &&
 		    ((addr & (size -1)) == 0) &&
@@ -162,9 +165,8 @@ db_read_bytes(vm_offset_t addr, size_t size, char *data)
 				*(uint32_t *)data = *(uint32_t *)addr;
 				break;
 			case 8:
-				atomic_load_64((volatile u_int64_t *)addr,
-				    (u_int64_t *)data);
-			break;
+				*(uint64_t *)data = *(uint64_t *)addr;
+				break;
 			}
 		} else {
 			char *src;
@@ -193,6 +195,7 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 		/*
 		 * 'addr' could be a memory-mapped I/O address.  Try to
 		 * do atomic load/store in unit of size requested.
+		 * size == 8 is only atomic on 64bit or n32 kernel.
 		 */
 		if ((size == 2 || size == 4 || size == 8) &&
 		    ((addr & (size -1)) == 0) &&
@@ -205,9 +208,8 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 				*(uint32_t *)addr = *(uint32_t *)data;
 				break;
 			case 8:
-				atomic_store_64((volatile u_int64_t *)addr,
-				    (u_int64_t *)data);
-			break;
+				*(uint64_t *)addr = *(uint64_t *)data;
+				break;
 			}
 		} else {
 			char *dst;

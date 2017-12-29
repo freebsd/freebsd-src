@@ -219,8 +219,8 @@ exception_vectors:
 	vempty			/* FIQ 64-bit EL0 */
 	vector el0_error	/* Error 64-bit EL0 */
 
-	vempty			/* Synchronous 32-bit EL0 */
-	vempty			/* IRQ 32-bit EL0 */
+	vector el0_sync		/* Synchronous 32-bit EL0 */
+	vector el0_irq		/* IRQ 32-bit EL0 */
 	vempty			/* FIQ 32-bit EL0 */
-	vempty			/* Error 32-bit EL0 */
+	vector el0_error	/* Error 32-bit EL0 */
 

@@ -1386,9 +1386,6 @@ bcm2835_cpufreq_attach(device_t dev)
 static int
 bcm2835_cpufreq_detach(device_t dev)
 {
-	struct bcm2835_cpufreq_softc *sc;
-
-	sc = device_get_softc(dev);
 
 	sema_destroy(&vc_sema);
 
@@ -1400,7 +1397,10 @@ bcm2835_cpufreq_set(device_t dev, const struct cf_setting *cf)
 {
 	struct bcm2835_cpufreq_softc *sc;
 	uint32_t rate_hz, rem;
-	int cur_freq, resp_freq, arm_freq, min_freq, core_freq;
+	int resp_freq, arm_freq, min_freq, core_freq;
+#ifdef DEBUG
+	int cur_freq;
+#endif
 
 	if (cf == NULL || cf->freq < 0)
 		return (EINVAL);
@@ -1425,8 +1425,10 @@ bcm2835_cpufreq_set(device_t dev, const struct cf_setting *cf)
 
 	/* set new value and verify it */
 	VC_LOCK(sc);
+#ifdef DEBUG
 	cur_freq = bcm2835_cpufreq_get_clock_rate(sc,
 	    BCM2835_MBOX_CLOCK_ID_ARM);
+#endif
 	resp_freq = bcm2835_cpufreq_set_clock_rate(sc,
 	    BCM2835_MBOX_CLOCK_ID_ARM, rate_hz);
 	DELAY(TRANSITION_LATENCY);

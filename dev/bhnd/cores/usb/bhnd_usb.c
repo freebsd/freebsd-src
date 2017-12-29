@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010, Aleksandr Rybalko <ray@ddteam.net>
  * All rights reserved.
  *
@@ -98,7 +100,7 @@ bhnd_usb_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	bhnd_reset_hw(dev, 0);
+	bhnd_reset_hw(dev, 0, 0);
 
 	/*
 	 * Allocate the resources which the parent bus has already

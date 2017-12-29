@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Luoqi Chen.
  * All rights reserved.
  *
@@ -240,3 +242,4 @@ extern devclass_t aic_devclass;
 
 MODULE_DEPEND(aic, cam, 1,1,1);
 DRIVER_MODULE(aic, isa, aic_isa_driver, aic_devclass, 0, 0);
+ISA_PNP_INFO(aic_ids);

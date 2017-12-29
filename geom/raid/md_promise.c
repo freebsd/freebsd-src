@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Alexander Motin <mav@FreeBSD.org>
  * Copyright (c) 2000 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
@@ -1098,7 +1100,7 @@ g_raid_md_taste_promise(struct g_raid_md_object *md, struct g_class *mp,
 	struct g_provider *pp;
 	struct g_raid_softc *sc;
 	struct g_raid_disk *disk;
-	struct promise_raid_conf *meta, *metaarr[4];
+	struct promise_raid_conf *metaarr[4];
 	struct g_raid_md_promise_perdisk *pd;
 	struct g_geom *geom;
 	int i, j, result, len, subdisks;
@@ -1109,7 +1111,6 @@ g_raid_md_taste_promise(struct g_raid_md_object *md, struct g_class *mp,
 	pp = cp->provider;
 
 	/* Read metadata from device. */
-	meta = NULL;
 	g_topology_unlock();
 	vendor = 0xffff;
 	len = sizeof(vendor);

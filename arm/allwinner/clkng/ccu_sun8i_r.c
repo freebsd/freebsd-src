@@ -33,6 +33,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 
+#if defined(__aarch64__)
+#include "opt_soc.h"
+#endif
+
 #include <dev/extres/clk/clk_div.h>
 #include <dev/extres/clk/clk_fixed.h>
 #include <dev/extres/clk/clk_mux.h>

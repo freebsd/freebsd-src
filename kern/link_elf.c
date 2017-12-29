@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998-2000 Doug Rabson
  * All rights reserved.
  *
@@ -765,10 +767,8 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	Elf_Phdr *segs[MAXSEGS];
 	int nsegs;
 	Elf_Phdr *phdyn;
-	Elf_Phdr *phphdr;
 	caddr_t mapbase;
 	size_t mapsize;
-	Elf_Off base_offset;
 	Elf_Addr base_vaddr;
 	Elf_Addr base_vlimit;
 	int error = 0;
@@ -867,7 +867,6 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	phlimit = phdr + hdr->e_phnum;
 	nsegs = 0;
 	phdyn = NULL;
-	phphdr = NULL;
 	while (phdr < phlimit) {
 		switch (phdr->p_type) {
 		case PT_LOAD:
@@ -881,10 +880,6 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 			 */
 			segs[nsegs] = phdr;
 			++nsegs;
-			break;
-
-		case PT_PHDR:
-			phphdr = phdr;
 			break;
 
 		case PT_DYNAMIC:
@@ -914,7 +909,6 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	 * out our contiguous region, and to establish the base
 	 * address for relocation.
 	 */
-	base_offset = trunc_page(segs[0]->p_offset);
 	base_vaddr = trunc_page(segs[0]->p_vaddr);
 	base_vlimit = round_page(segs[nsegs - 1]->p_vaddr +
 	    segs[nsegs - 1]->p_memsz);

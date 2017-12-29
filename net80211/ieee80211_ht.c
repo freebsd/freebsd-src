@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -3352,7 +3354,7 @@ ieee80211_add_htinfo_body(uint8_t *frm, struct ieee80211_node *ni)
 }
 
 /*
- * Add 802.11n HT information information element.
+ * Add 802.11n HT information element.
  */
 uint8_t *
 ieee80211_add_htinfo(uint8_t *frm, struct ieee80211_node *ni)

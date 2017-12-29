@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  * Copyright (c) 1998 The NetBSD Foundation, Inc. All rights reserved.
  * Copyright (c) 1998 Lennart Augustsson. All rights reserved.
@@ -2383,7 +2385,6 @@ ohci_xfer_setup(struct usb_setup_params *parm)
 {
 	struct usb_page_search page_info;
 	struct usb_page_cache *pc;
-	ohci_softc_t *sc;
 	struct usb_xfer *xfer;
 	void *last_obj;
 	uint32_t ntd;
@@ -2391,7 +2392,6 @@ ohci_xfer_setup(struct usb_setup_params *parm)
 	uint32_t nqh;
 	uint32_t n;
 
-	sc = OHCI_BUS2SC(parm->udev->bus);
 	xfer = parm->curr_xfer;
 
 	parm->hc_max_packet_size = 0x500;

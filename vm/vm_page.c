@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
+ * SPDX-License-Identifier: (BSD-3-Clause AND MIT-CMU)
  *
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
@@ -109,6 +109,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
+#include <vm/vm_domain.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -423,6 +424,29 @@ vm_page_domain_init(struct vm_domain *vmd)
 }
 
 /*
+ * Initialize a physical page in preparation for adding it to the free
+ * lists.
+ */
+static void
+vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind)
+{
+
+	m->object = NULL;
+	m->wire_count = 0;
+	m->busy_lock = VPB_UNBUSIED;
+	m->hold_count = 0;
+	m->flags = 0;
+	m->phys_addr = pa;
+	m->queue = PQ_NONE;
+	m->psind = 0;
+	m->segind = segind;
+	m->order = VM_NFREEORDER;
+	m->pool = VM_FREEPOOL_DEFAULT;
+	m->valid = m->dirty = 0;
+	pmap_page_init(m);
+}
+
+/*
  *	vm_page_startup:
  *
  *	Initializes the resident memory module.  Allocates physical memory for
@@ -669,8 +693,9 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_cnt.v_free_count = 0;
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
-		for (pa = seg->start; pa < seg->end; pa += PAGE_SIZE)
-			vm_phys_init_page(pa);
+		for (m = seg->first_page, pa = seg->start; pa < seg->end;
+		    m++, pa += PAGE_SIZE)
+			vm_page_init_page(m, pa, segind);
 
 		/*
 		 * Add the segment to the free lists only if it is covered by
@@ -1568,8 +1593,6 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
  *	VM_ALLOC_SBUSY		shared busy the allocated page
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
- *
- *	This routine may not sleep.
  */
 vm_page_t
 vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
@@ -1579,6 +1602,16 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	    vm_radix_lookup_le(&object->rtree, pindex) : NULL));
 }
 
+vm_page_t
+vm_page_alloc_domain(vm_object_t object, vm_pindex_t pindex, int domain,
+    int req)
+{
+
+	return (vm_page_alloc_domain_after(object, pindex, domain, req,
+	    object != NULL ? vm_radix_lookup_le(&object->rtree, pindex) :
+	    NULL));
+}
+
 /*
  * Allocate a page in the specified object with the given page index.  To
  * optimize insertion of the page into the object, the caller must also specifiy
@@ -1586,8 +1619,33 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
  * page index, or NULL if no such page exists.
  */
 vm_page_t
-vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex, int req,
-    vm_page_t mpred)
+vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex,
+    int req, vm_page_t mpred)
+{
+	struct vm_domain_iterator vi;
+	vm_page_t m;
+	int domain, wait;
+
+	m = NULL;
+	vm_policy_iterator_init(&vi);
+	wait = req & (VM_ALLOC_WAITFAIL | VM_ALLOC_WAITOK);
+	req &= ~wait;
+	while (vm_domain_iterator_run(&vi, &domain) == 0) {
+		if (vm_domain_iterator_isdone(&vi))
+			req |= wait;
+		m = vm_page_alloc_domain_after(object, pindex, domain, req,
+		    mpred);
+		if (m != NULL)
+			break;
+	}
+	vm_policy_iterator_finish(&vi);
+
+	return (m);
+}
+
+vm_page_t
+vm_page_alloc_domain_after(vm_object_t object, vm_pindex_t pindex, int domain,
+    int req, vm_page_t mpred)
 {
 	vm_page_t m;
 	int flags, req_class;
@@ -1619,6 +1677,7 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex, int req,
 	 * for the request class.
 	 */
 again:
+	m = NULL;
 	mtx_lock(&vm_page_queue_free_mtx);
 	if (vm_cnt.v_free_count > vm_cnt.v_free_reserved ||
 	    (req_class == VM_ALLOC_SYSTEM &&
@@ -1631,23 +1690,26 @@ again:
 #if VM_NRESERVLEVEL > 0
 		if (object == NULL || (object->flags & (OBJ_COLORED |
 		    OBJ_FICTITIOUS)) != OBJ_COLORED || (m =
-		    vm_reserv_alloc_page(object, pindex, mpred)) == NULL)
+		    vm_reserv_alloc_page(object, pindex, domain,
+		    mpred)) == NULL)
 #endif
 		{
 			/*
 			 * If not, allocate it from the free page queues.
 			 */
-			m = vm_phys_alloc_pages(object != NULL ?
+			m = vm_phys_alloc_pages(domain, object != NULL ?
 			    VM_FREEPOOL_DEFAULT : VM_FREEPOOL_DIRECT, 0);
 #if VM_NRESERVLEVEL > 0
-			if (m == NULL && vm_reserv_reclaim_inactive()) {
-				m = vm_phys_alloc_pages(object != NULL ?
+			if (m == NULL && vm_reserv_reclaim_inactive(domain)) {
+				m = vm_phys_alloc_pages(domain,
+				    object != NULL ?
 				    VM_FREEPOOL_DEFAULT : VM_FREEPOOL_DIRECT,
 				    0);
 			}
 #endif
 		}
-	} else {
+	}
+	if (m == NULL) {
 		/*
 		 * Not allocatable, give up.
 		 */
@@ -1767,12 +1829,36 @@ again:
  *	VM_ALLOC_SBUSY		shared busy the allocated page
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
- *
- *	This routine may not sleep.
  */
 vm_page_t
 vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
     u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
+    vm_paddr_t boundary, vm_memattr_t memattr)
+{
+	struct vm_domain_iterator vi;
+	vm_page_t m;
+	int domain, wait;
+
+	m = NULL;
+	vm_policy_iterator_init(&vi);
+	wait = req & (VM_ALLOC_WAITFAIL | VM_ALLOC_WAITOK);
+	req &= ~wait;
+	while (vm_domain_iterator_run(&vi, &domain) == 0) {
+		if (vm_domain_iterator_isdone(&vi))
+			req |= wait;
+		m = vm_page_alloc_contig_domain(object, pindex, domain, req,
+		    npages, low, high, alignment, boundary, memattr);
+		if (m != NULL)
+			break;
+	}
+	vm_policy_iterator_finish(&vi);
+
+	return (m);
+}
+
+vm_page_t
+vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
+    int req, u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
     vm_paddr_t boundary, vm_memattr_t memattr)
 {
 	vm_page_t m, m_ret, mpred;
@@ -1814,6 +1900,7 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 	 * below the lower bound for the allocation class?
 	 */
 again:
+	m_ret = NULL;
 	mtx_lock(&vm_page_queue_free_mtx);
 	if (vm_cnt.v_free_count >= npages + vm_cnt.v_free_reserved ||
 	    (req_class == VM_ALLOC_SYSTEM &&
@@ -1826,31 +1913,27 @@ again:
 #if VM_NRESERVLEVEL > 0
 retry:
 		if (object == NULL || (object->flags & OBJ_COLORED) == 0 ||
-		    (m_ret = vm_reserv_alloc_contig(object, pindex, npages,
-		    low, high, alignment, boundary, mpred)) == NULL)
+		    (m_ret = vm_reserv_alloc_contig(object, pindex, domain,
+		    npages, low, high, alignment, boundary, mpred)) == NULL)
 #endif
 			/*
 			 * If not, allocate them from the free page queues.
 			 */
-			m_ret = vm_phys_alloc_contig(npages, low, high,
+			m_ret = vm_phys_alloc_contig(domain, npages, low, high,
 			    alignment, boundary);
-	} else {
+#if VM_NRESERVLEVEL > 0
+		if (m_ret == NULL && vm_reserv_reclaim_contig(
+		    domain, npages, low, high, alignment, boundary))
+			goto retry;
+#endif
+	}
+	if (m_ret == NULL) {
 		if (vm_page_alloc_fail(object, req))
 			goto again;
 		return (NULL);
 	}
-	if (m_ret != NULL)
-		vm_phys_freecnt_adj(m_ret, -npages);
-	else {
-#if VM_NRESERVLEVEL > 0
-		if (vm_reserv_reclaim_contig(npages, low, high, alignment,
-		    boundary))
-			goto retry;
-#endif
-	}
+	vm_phys_freecnt_adj(m_ret, -npages);
 	mtx_unlock(&vm_page_queue_free_mtx);
-	if (m_ret == NULL)
-		return (NULL);
 	for (m = m_ret; m < &m_ret[npages]; m++)
 		vm_page_alloc_check(m);
 
@@ -1958,11 +2041,32 @@ vm_page_alloc_check(vm_page_t m)
  *				intends to allocate
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
- *
- *	This routine may not sleep.
  */
 vm_page_t
-vm_page_alloc_freelist(int flind, int req)
+vm_page_alloc_freelist(int freelist, int req)
+{
+	struct vm_domain_iterator vi;
+	vm_page_t m;
+	int domain, wait;
+
+	m = NULL;
+	vm_policy_iterator_init(&vi);
+	wait = req & (VM_ALLOC_WAITFAIL | VM_ALLOC_WAITOK);
+	req &= ~wait;
+	while (vm_domain_iterator_run(&vi, &domain) == 0) {
+		if (vm_domain_iterator_isdone(&vi))
+			req |= wait;
+		m = vm_page_alloc_freelist_domain(domain, freelist, req);
+		if (m != NULL)
+			break;
+	}
+	vm_policy_iterator_finish(&vi);
+
+	return (m);
+}
+
+vm_page_t
+vm_page_alloc_freelist_domain(int domain, int freelist, int req)
 {
 	vm_page_t m;
 	u_int flags, free_count;
@@ -1985,15 +2089,12 @@ again:
 	    (req_class == VM_ALLOC_SYSTEM &&
 	    vm_cnt.v_free_count > vm_cnt.v_interrupt_free_min) ||
 	    (req_class == VM_ALLOC_INTERRUPT &&
-	    vm_cnt.v_free_count > 0)) {
-		m = vm_phys_alloc_freelist_pages(flind, VM_FREEPOOL_DIRECT, 0);
-	} else {
+	    vm_cnt.v_free_count > 0))
+		m = vm_phys_alloc_freelist_pages(domain, freelist,
+		    VM_FREEPOOL_DIRECT, 0);
+	if (m == NULL) {
 		if (vm_page_alloc_fail(NULL, req))
 			goto again;
-		return (NULL);
-	}
-	if (m == NULL) {
-		mtx_unlock(&vm_page_queue_free_mtx);
 		return (NULL);
 	}
 	free_count = vm_phys_freecnt_adj(m, -1);
@@ -2560,15 +2661,9 @@ _vm_wait(void)
 		msleep(&vm_pageout_pages_needed, &vm_page_queue_free_mtx,
 		    PDROP | PSWP, "VMWait", 0);
 	} else {
-		if (__predict_false(pageproc == NULL))
+		if (pageproc == NULL)
 			panic("vm_wait in early boot");
-		if (!vm_pageout_wanted) {
-			vm_pageout_wanted = true;
-			wakeup(&vm_pageout_wanted);
-		}
-		vm_pages_needed = true;
-		msleep(&vm_cnt.v_free_count, &vm_page_queue_free_mtx, PDROP | PVM,
-		    "vmwait", 0);
+		pagedaemon_wait(PVM, "vmwait");
 	}
 }
 
@@ -2598,7 +2693,6 @@ vm_page_alloc_fail(vm_object_t object, int req)
 
 	atomic_add_int(&vm_pageout_deficit,
 	    max((u_int)req >> VM_ALLOC_COUNT_SHIFT, 1));
-	pagedaemon_wakeup();
 	if (req & (VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL)) {
 		if (object != NULL) 
 			VM_OBJECT_WUNLOCK(object);
@@ -2607,8 +2701,10 @@ vm_page_alloc_fail(vm_object_t object, int req)
 			VM_OBJECT_WLOCK(object);
 		if (req & VM_ALLOC_WAITOK)
 			return (EAGAIN);
-	} else
+	} else {
 		mtx_unlock(&vm_page_queue_free_mtx);
+		pagedaemon_wakeup();
+	}
 	return (0);
 }
 
@@ -2627,13 +2723,7 @@ vm_waitpfault(void)
 {
 
 	mtx_lock(&vm_page_queue_free_mtx);
-	if (!vm_pageout_wanted) {
-		vm_pageout_wanted = true;
-		wakeup(&vm_pageout_wanted);
-	}
-	vm_pages_needed = true;
-	msleep(&vm_cnt.v_free_count, &vm_page_queue_free_mtx, PDROP | PUSER,
-	    "pfault", 0);
+	pagedaemon_wait(PUSER, "pfault");
 }
 
 struct vm_pagequeue *

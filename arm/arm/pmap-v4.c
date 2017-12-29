@@ -265,8 +265,6 @@ void		(*pmap_copy_page_offs_func)(vm_paddr_t a_phys,
 		    int cnt);
 void		(*pmap_zero_page_func)(vm_paddr_t, int, int);
 
-struct msgbuf *msgbufp = NULL;
-
 /*
  * Crashdump maps.
  */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2012-2014 Intel Corporation
  * All rights reserved.
  *
@@ -244,6 +246,8 @@ struct nvme_controller {
 	struct mtx		lock;
 
 	uint32_t		ready_timeout_in_ms;
+	uint32_t		quirks;
+#define QUIRK_DELAY_B4_CHK_RDY 1		/* Can't touch MMIO on disable */
 
 	bus_space_tag_t		bus_tag;
 	bus_space_handle_t	bus_handle;

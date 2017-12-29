@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Matthew Jacob
  * All rights reserved.
  *
@@ -333,7 +335,7 @@ enc_error(union ccb *ccb, uint32_t cflags, uint32_t sflags)
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct enc_softc *)periph->softc;
 
-	return (cam_periph_error(ccb, cflags, sflags, &softc->saved_ccb));
+	return (cam_periph_error(ccb, cflags, sflags));
 }
 
 static int

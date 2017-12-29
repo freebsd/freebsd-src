@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -69,6 +71,10 @@ SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, disconnect_on_failure, CTLFLAG_RWTUN,
 static u_int g_mirror_syncreqs = 2;
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_requests, CTLFLAG_RDTUN,
     &g_mirror_syncreqs, 0, "Parallel synchronization I/O requests.");
+static u_int g_mirror_sync_period = 5;
+SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_update_period, CTLFLAG_RWTUN,
+    &g_mirror_sync_period, 0,
+    "Metadata update period during synchronization, in seconds");
 
 #define	MSLEEP(ident, mtx, priority, wmesg, timeout)	do {		\
 	G_MIRROR_DEBUG(4, "%s: Sleeping %p.", __func__, (ident));	\
@@ -213,7 +219,7 @@ g_mirror_event_send(void *arg, int state, int flags)
 }
 
 static struct g_mirror_event *
-g_mirror_event_get(struct g_mirror_softc *sc)
+g_mirror_event_first(struct g_mirror_softc *sc)
 {
 	struct g_mirror_event *ep;
 
@@ -301,7 +307,7 @@ g_mirror_nrequests(struct g_mirror_softc *sc, struct g_consumer *cp)
 	u_int nreqs = 0;
 
 	mtx_lock(&sc->sc_queue_mtx);
-	TAILQ_FOREACH(bp, &sc->sc_queue.queue, bio_queue) {
+	TAILQ_FOREACH(bp, &sc->sc_queue, bio_queue) {
 		if (bp->bio_from == cp)
 			nreqs++;
 	}
@@ -463,6 +469,7 @@ g_mirror_init_disk(struct g_mirror_softc *sc, struct g_provider *pp,
 	disk->d_sync.ds_consumer = NULL;
 	disk->d_sync.ds_offset = md->md_sync_offset;
 	disk->d_sync.ds_offset_done = md->md_sync_offset;
+	disk->d_sync.ds_update_ts = time_uptime;
 	disk->d_genid = md->md_genid;
 	disk->d_sync.ds_syncid = md->md_syncid;
 	if (errorp != NULL)
@@ -548,7 +555,7 @@ g_mirror_destroy_device(struct g_mirror_softc *sc)
 		g_mirror_update_metadata(disk);
 		g_mirror_destroy_disk(disk);
 	}
-	while ((ep = g_mirror_event_get(sc)) != NULL) {
+	while ((ep = g_mirror_event_first(sc)) != NULL) {
 		g_mirror_event_remove(sc, ep);
 		if ((ep->e_flags & G_MIRROR_EVENT_DONTWAIT) != 0)
 			g_mirror_event_free(ep);
@@ -913,7 +920,7 @@ g_mirror_done(struct bio *bp)
 	sc = bp->bio_from->geom->softc;
 	bp->bio_cflags = G_MIRROR_BIO_FLAG_REGULAR;
 	mtx_lock(&sc->sc_queue_mtx);
-	bioq_insert_tail(&sc->sc_queue, bp);
+	TAILQ_INSERT_TAIL(&sc->sc_queue, bp, bio_queue);
 	mtx_unlock(&sc->sc_queue_mtx);
 	wakeup(sc);
 }
@@ -930,7 +937,7 @@ g_mirror_regular_request(struct bio *bp)
 	pbp = bp->bio_parent;
 	sc = pbp->bio_to->private;
 	bp->bio_from->index--;
-	if (bp->bio_cmd == BIO_WRITE)
+	if (bp->bio_cmd == BIO_WRITE || bp->bio_cmd == BIO_DELETE)
 		sc->sc_writes--;
 	disk = bp->bio_from->private;
 	if (disk == NULL) {
@@ -958,7 +965,7 @@ g_mirror_regular_request(struct bio *bp)
 			pbp->bio_completed = pbp->bio_length;
 			if (pbp->bio_cmd == BIO_WRITE ||
 			    pbp->bio_cmd == BIO_DELETE) {
-				bioq_remove(&sc->sc_inflight, pbp);
+				TAILQ_REMOVE(&sc->sc_inflight, pbp, bio_queue);
 				/* Release delayed sync requests if possible. */
 				g_mirror_sync_release(sc);
 			}
@@ -1013,7 +1020,7 @@ g_mirror_regular_request(struct bio *bp)
 		else {
 			pbp->bio_error = 0;
 			mtx_lock(&sc->sc_queue_mtx);
-			bioq_insert_tail(&sc->sc_queue, pbp);
+			TAILQ_INSERT_TAIL(&sc->sc_queue, pbp, bio_queue);
 			mtx_unlock(&sc->sc_queue_mtx);
 			G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__, sc);
 			wakeup(sc);
@@ -1033,7 +1040,7 @@ g_mirror_regular_request(struct bio *bp)
 			pbp->bio_error = 0;
 			pbp->bio_completed = pbp->bio_length;
 		}
-		bioq_remove(&sc->sc_inflight, pbp);
+		TAILQ_REMOVE(&sc->sc_inflight, pbp, bio_queue);
 		/* Release delayed sync requests if possible. */
 		g_mirror_sync_release(sc);
 		g_io_deliver(pbp, pbp->bio_error);
@@ -1053,7 +1060,7 @@ g_mirror_sync_done(struct bio *bp)
 	sc = bp->bio_from->geom->softc;
 	bp->bio_cflags = G_MIRROR_BIO_FLAG_SYNC;
 	mtx_lock(&sc->sc_queue_mtx);
-	bioq_insert_tail(&sc->sc_queue, bp);
+	TAILQ_INSERT_TAIL(&sc->sc_queue, bp, bio_queue);
 	mtx_unlock(&sc->sc_queue_mtx);
 	wakeup(sc);
 }
@@ -1110,30 +1117,33 @@ g_mirror_kernel_dump(struct bio *bp)
 static void
 g_mirror_flush(struct g_mirror_softc *sc, struct bio *bp)
 {
-	struct bio_queue_head queue;
+	struct bio_queue queue;
 	struct g_mirror_disk *disk;
 	struct g_consumer *cp;
 	struct bio *cbp;
 
-	bioq_init(&queue);
+	TAILQ_INIT(&queue);
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
 			continue;
 		cbp = g_clone_bio(bp);
 		if (cbp == NULL) {
-			while ((cbp = bioq_takefirst(&queue)) != NULL)
+			while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
+				TAILQ_REMOVE(&queue, cbp, bio_queue);
 				g_destroy_bio(cbp);
+			}
 			if (bp->bio_error == 0)
 				bp->bio_error = ENOMEM;
 			g_io_deliver(bp, bp->bio_error);
 			return;
 		}
-		bioq_insert_tail(&queue, cbp);
+		TAILQ_INSERT_TAIL(&queue, cbp, bio_queue);
 		cbp->bio_done = g_mirror_flush_done;
 		cbp->bio_caller1 = disk;
 		cbp->bio_to = disk->d_consumer->provider;
 	}
-	while ((cbp = bioq_takefirst(&queue)) != NULL) {
+	while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
+		TAILQ_REMOVE(&queue, cbp, bio_queue);
 		G_MIRROR_LOGREQ(3, cbp, "Sending request.");
 		disk = cbp->bio_caller1;
 		cbp->bio_caller1 = NULL;
@@ -1187,7 +1197,7 @@ g_mirror_start(struct bio *bp)
 		g_io_deliver(bp, bp->bio_to->error);
 		return;
 	}
-	bioq_insert_tail(&sc->sc_queue, bp);
+	TAILQ_INSERT_TAIL(&sc->sc_queue, bp, bio_queue);
 	mtx_unlock(&sc->sc_queue_mtx);
 	G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__, sc);
 	wakeup(sc);
@@ -1197,7 +1207,7 @@ g_mirror_start(struct bio *bp)
  * Return TRUE if the given request is colliding with a in-progress
  * synchronization request.
  */
-static int
+static bool
 g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 {
 	struct g_mirror_disk *disk;
@@ -1206,7 +1216,7 @@ g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 	u_int i;
 
 	if (sc->sc_sync.ds_ndisks == 0)
-		return (0);
+		return (false);
 	rstart = bp->bio_offset;
 	rend = bp->bio_offset + bp->bio_length;
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
@@ -1219,33 +1229,33 @@ g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 			sstart = sbp->bio_offset;
 			send = sbp->bio_offset + sbp->bio_length;
 			if (rend > sstart && rstart < send)
-				return (1);
+				return (true);
 		}
 	}
-	return (0);
+	return (false);
 }
 
 /*
  * Return TRUE if the given sync request is colliding with a in-progress regular
  * request.
  */
-static int
+static bool
 g_mirror_regular_collision(struct g_mirror_softc *sc, struct bio *sbp)
 {
 	off_t rstart, rend, sstart, send;
 	struct bio *bp;
 
 	if (sc->sc_sync.ds_ndisks == 0)
-		return (0);
+		return (false);
 	sstart = sbp->bio_offset;
 	send = sbp->bio_offset + sbp->bio_length;
-	TAILQ_FOREACH(bp, &sc->sc_inflight.queue, bio_queue) {
+	TAILQ_FOREACH(bp, &sc->sc_inflight, bio_queue) {
 		rstart = bp->bio_offset;
 		rend = bp->bio_offset + bp->bio_length;
 		if (rend > sstart && rstart < send)
-			return (1);
+			return (true);
 	}
-	return (0);
+	return (false);
 }
 
 /*
@@ -1256,7 +1266,7 @@ g_mirror_regular_delay(struct g_mirror_softc *sc, struct bio *bp)
 {
 
 	G_MIRROR_LOGREQ(2, bp, "Delaying request.");
-	bioq_insert_head(&sc->sc_regular_delayed, bp);
+	TAILQ_INSERT_HEAD(&sc->sc_regular_delayed, bp, bio_queue);
 }
 
 /*
@@ -1267,7 +1277,7 @@ g_mirror_sync_delay(struct g_mirror_softc *sc, struct bio *bp)
 {
 
 	G_MIRROR_LOGREQ(2, bp, "Delaying synchronization request.");
-	bioq_insert_tail(&sc->sc_sync_delayed, bp);
+	TAILQ_INSERT_TAIL(&sc->sc_sync_delayed, bp, bio_queue);
 }
 
 /*
@@ -1279,13 +1289,13 @@ g_mirror_regular_release(struct g_mirror_softc *sc)
 {
 	struct bio *bp, *bp2;
 
-	TAILQ_FOREACH_SAFE(bp, &sc->sc_regular_delayed.queue, bio_queue, bp2) {
+	TAILQ_FOREACH_SAFE(bp, &sc->sc_regular_delayed, bio_queue, bp2) {
 		if (g_mirror_sync_collision(sc, bp))
 			continue;
-		bioq_remove(&sc->sc_regular_delayed, bp);
+		TAILQ_REMOVE(&sc->sc_regular_delayed, bp, bio_queue);
 		G_MIRROR_LOGREQ(2, bp, "Releasing delayed request (%p).", bp);
 		mtx_lock(&sc->sc_queue_mtx);
-		bioq_insert_head(&sc->sc_queue, bp);
+		TAILQ_INSERT_HEAD(&sc->sc_queue, bp, bio_queue);
 		mtx_unlock(&sc->sc_queue_mtx);
 	}
 }
@@ -1299,10 +1309,10 @@ g_mirror_sync_release(struct g_mirror_softc *sc)
 {
 	struct bio *bp, *bp2;
 
-	TAILQ_FOREACH_SAFE(bp, &sc->sc_sync_delayed.queue, bio_queue, bp2) {
+	TAILQ_FOREACH_SAFE(bp, &sc->sc_sync_delayed, bio_queue, bp2) {
 		if (g_mirror_regular_collision(sc, bp))
 			continue;
-		bioq_remove(&sc->sc_sync_delayed, bp);
+		TAILQ_REMOVE(&sc->sc_sync_delayed, bp, bio_queue);
 		G_MIRROR_LOGREQ(2, bp,
 		    "Releasing delayed synchronization request.");
 		g_io_request(bp, bp->bio_from);
@@ -1457,10 +1467,11 @@ g_mirror_sync_request(struct bio *bp)
 			if (bp != NULL && bp->bio_offset < offset)
 				offset = bp->bio_offset;
 		}
-		if (sync->ds_offset_done + (MAXPHYS * 100) < offset) {
-			/* Update offset_done on every 100 blocks. */
+		if (g_mirror_sync_period > 0 &&
+		    time_uptime - sync->ds_update_ts > g_mirror_sync_period) {
 			sync->ds_offset_done = offset;
 			g_mirror_update_metadata(disk);
+			sync->ds_update_ts = time_uptime;
 		}
 		return;
 	    }
@@ -1607,7 +1618,7 @@ g_mirror_request_load(struct g_mirror_softc *sc, struct bio *bp)
 static void
 g_mirror_request_split(struct g_mirror_softc *sc, struct bio *bp)
 {
-	struct bio_queue_head queue;
+	struct bio_queue queue;
 	struct g_mirror_disk *disk;
 	struct g_consumer *cp;
 	struct bio *cbp;
@@ -1631,20 +1642,22 @@ g_mirror_request_split(struct g_mirror_softc *sc, struct bio *bp)
 	left = bp->bio_length;
 	offset = bp->bio_offset;
 	data = bp->bio_data;
-	bioq_init(&queue);
+	TAILQ_INIT(&queue);
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
 			continue;
 		cbp = g_clone_bio(bp);
 		if (cbp == NULL) {
-			while ((cbp = bioq_takefirst(&queue)) != NULL)
+			while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
+				TAILQ_REMOVE(&queue, cbp, bio_queue);
 				g_destroy_bio(cbp);
+			}
 			if (bp->bio_error == 0)
 				bp->bio_error = ENOMEM;
 			g_io_deliver(bp, bp->bio_error);
 			return;
 		}
-		bioq_insert_tail(&queue, cbp);
+		TAILQ_INSERT_TAIL(&queue, cbp, bio_queue);
 		cbp->bio_done = g_mirror_done;
 		cbp->bio_caller1 = disk;
 		cbp->bio_to = disk->d_consumer->provider;
@@ -1657,7 +1670,8 @@ g_mirror_request_split(struct g_mirror_softc *sc, struct bio *bp)
 		offset += cbp->bio_length;
 		data += cbp->bio_length;
 	}
-	while ((cbp = bioq_takefirst(&queue)) != NULL) {
+	while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
+		TAILQ_REMOVE(&queue, cbp, bio_queue);
 		G_MIRROR_LOGREQ(3, cbp, "Sending request.");
 		disk = cbp->bio_caller1;
 		cbp->bio_caller1 = NULL;
@@ -1696,9 +1710,9 @@ g_mirror_register_request(struct bio *bp)
 	case BIO_WRITE:
 	case BIO_DELETE:
 	    {
+		struct bio_queue queue;
 		struct g_mirror_disk *disk;
 		struct g_mirror_disk_sync *sync;
-		struct bio_queue_head queue;
 		struct g_consumer *cp;
 		struct bio *cbp;
 
@@ -1728,7 +1742,7 @@ g_mirror_register_request(struct bio *bp)
 		 * Allocate all bios before sending any request, so we can
 		 * return ENOMEM in nice and clean way.
 		 */
-		bioq_init(&queue);
+		TAILQ_INIT(&queue);
 		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 			sync = &disk->d_sync;
 			switch (disk->d_state) {
@@ -1746,14 +1760,16 @@ g_mirror_register_request(struct bio *bp)
 				continue;
 			cbp = g_clone_bio(bp);
 			if (cbp == NULL) {
-				while ((cbp = bioq_takefirst(&queue)) != NULL)
+				while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
+					TAILQ_REMOVE(&queue, cbp, bio_queue);
 					g_destroy_bio(cbp);
+				}
 				if (bp->bio_error == 0)
 					bp->bio_error = ENOMEM;
 				g_io_deliver(bp, bp->bio_error);
 				return;
 			}
-			bioq_insert_tail(&queue, cbp);
+			TAILQ_INSERT_TAIL(&queue, cbp, bio_queue);
 			cbp->bio_done = g_mirror_done;
 			cp = disk->d_consumer;
 			cbp->bio_caller1 = cp;
@@ -1762,12 +1778,13 @@ g_mirror_register_request(struct bio *bp)
 			    ("Consumer %s not opened (r%dw%de%d).",
 			    cp->provider->name, cp->acr, cp->acw, cp->ace));
 		}
-		if (bioq_first(&queue) == NULL) {
+		if (TAILQ_EMPTY(&queue)) {
 			g_io_deliver(bp, EOPNOTSUPP);
 			return;
 		}
-		while ((cbp = bioq_takefirst(&queue)) != NULL) {
+		while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
 			G_MIRROR_LOGREQ(3, cbp, "Sending request.");
+			TAILQ_REMOVE(&queue, cbp, bio_queue);
 			cp = cbp->bio_caller1;
 			cbp->bio_caller1 = NULL;
 			cp->index++;
@@ -1778,7 +1795,7 @@ g_mirror_register_request(struct bio *bp)
 		 * Put request onto inflight queue, so we can check if new
 		 * synchronization requests don't collide with it.
 		 */
-		bioq_insert_tail(&sc->sc_inflight, bp);
+		TAILQ_INSERT_TAIL(&sc->sc_inflight, bp, bio_queue);
 		return;
 	    }
 	default:
@@ -1869,7 +1886,7 @@ g_mirror_worker(void *arg)
 		 * First take a look at events.
 		 * This is important to handle events before any I/O requests.
 		 */
-		ep = g_mirror_event_get(sc);
+		ep = g_mirror_event_first(sc);
 		if (ep != NULL) {
 			g_mirror_event_remove(sc, ep);
 			if ((ep->e_flags & G_MIRROR_EVENT_DEVICE) != 0) {
@@ -1921,8 +1938,10 @@ g_mirror_worker(void *arg)
 		 */
 		/* Get first request from the queue. */
 		mtx_lock(&sc->sc_queue_mtx);
-		bp = bioq_takefirst(&sc->sc_queue);
-		if (bp == NULL) {
+		bp = TAILQ_FIRST(&sc->sc_queue);
+		if (bp != NULL)
+			TAILQ_REMOVE(&sc->sc_queue, bp, bio_queue);
+		else {
 			if ((sc->sc_flags &
 			    G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
 				mtx_unlock(&sc->sc_queue_mtx);
@@ -1932,21 +1951,14 @@ g_mirror_worker(void *arg)
 					kproc_exit(0);
 				}
 				mtx_lock(&sc->sc_queue_mtx);
-				if (bioq_first(&sc->sc_queue) != NULL) {
+				if (!TAILQ_EMPTY(&sc->sc_queue)) {
 					mtx_unlock(&sc->sc_queue_mtx);
 					continue;
 				}
 			}
+			if (g_mirror_event_first(sc) != NULL)
+				continue;
 			sx_xunlock(&sc->sc_lock);
-			/*
-			 * XXX: We can miss an event here, because an event
-			 *      can be added without sx-device-lock and without
-			 *      mtx-queue-lock. Maybe I should just stop using
-			 *      dedicated mutex for events synchronization and
-			 *      stick with the queue lock?
-			 *      The event will hang here until next I/O request
-			 *      or next event is received.
-			 */
 			MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "m:w1",
 			    timeout * hz);
 			sx_xlock(&sc->sc_lock);
@@ -2189,7 +2201,8 @@ g_mirror_destroy_provider(struct g_mirror_softc *sc)
 	g_topology_lock();
 	g_error_provider(sc->sc_provider, ENXIO);
 	mtx_lock(&sc->sc_queue_mtx);
-	while ((bp = bioq_takefirst(&sc->sc_queue)) != NULL) {
+	while ((bp = TAILQ_FIRST(&sc->sc_queue)) != NULL) {
+		TAILQ_REMOVE(&sc->sc_queue, bp, bio_queue);
 		/*
 		 * Abort any pending I/O that wasn't generated by us.
 		 * Synchronization requests and requests destined for individual
@@ -3008,11 +3021,11 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md,
 	sc->sc_writes = 0;
 	sc->sc_refcnt = 1;
 	sx_init(&sc->sc_lock, "gmirror:lock");
-	bioq_init(&sc->sc_queue);
+	TAILQ_INIT(&sc->sc_queue);
 	mtx_init(&sc->sc_queue_mtx, "gmirror:queue", NULL, MTX_DEF);
-	bioq_init(&sc->sc_regular_delayed);
-	bioq_init(&sc->sc_inflight);
-	bioq_init(&sc->sc_sync_delayed);
+	TAILQ_INIT(&sc->sc_regular_delayed);
+	TAILQ_INIT(&sc->sc_inflight);
+	TAILQ_INIT(&sc->sc_sync_delayed);
 	LIST_INIT(&sc->sc_disks);
 	TAILQ_INIT(&sc->sc_events);
 	mtx_init(&sc->sc_events_mtx, "gmirror:events", NULL, MTX_DEF);

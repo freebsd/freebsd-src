@@ -100,11 +100,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/ver.h>
 
 /*
- * Virtual address of message buffer
- */
-struct msgbuf *msgbufp;
-
-/*
  * Map of physical memory reagions
  */
 vm_paddr_t phys_avail[128];

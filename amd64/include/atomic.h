@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 Doug Rabson
  * All rights reserved.
  *
@@ -54,6 +56,8 @@
 #define	mb()	__asm __volatile("mfence;" : : : "memory")
 #define	wmb()	__asm __volatile("sfence;" : : : "memory")
 #define	rmb()	__asm __volatile("lfence;" : : : "memory")
+
+#include <sys/atomic_common.h>
 
 /*
  * Various simple operations on memory, each of which is atomic in the

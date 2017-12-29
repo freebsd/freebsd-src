@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Isilon Inc http://www.isilon.com/
  * Authors: Doug Rabson <dfr@rabson.org>
  * Developed with Red Inc: Alfred Perlstein <alfred@freebsd.org>
@@ -346,7 +348,6 @@ static CLIENT *
 nlm_get_rpc(struct sockaddr *sa, rpcprog_t prog, rpcvers_t vers)
 {
 	char *wchan = "nlmrcv";
-	const char* protofmly;
 	struct sockaddr_storage ss;
 	struct socket *so;
 	CLIENT *rpcb;
@@ -368,14 +369,11 @@ nlm_get_rpc(struct sockaddr *sa, rpcprog_t prog, rpcvers_t vers)
 	switch (ss.ss_family) {
 	case AF_INET:
 		((struct sockaddr_in *)&ss)->sin_port = htons(111);
-		protofmly = "inet";
 		so = nlm_socket;
 		break;
-		
 #ifdef INET6
 	case AF_INET6:
 		((struct sockaddr_in6 *)&ss)->sin6_port = htons(111);
-		protofmly = "inet6";
 		so = nlm_socket6;
 		break;
 #endif

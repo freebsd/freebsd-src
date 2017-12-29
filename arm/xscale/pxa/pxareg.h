@@ -1,6 +1,8 @@
 /* $NetBSD: pxa2x0reg.h,v 1.9 2006/04/10 04:13:58 simonb Exp $ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2002  Genetec Corporation.  All rights reserved.
  * Written by Hiroyuki Bessho for Genetec Corporation.
  *

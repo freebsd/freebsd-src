@@ -523,8 +523,8 @@ bhnd_nvram_type_host_align(bhnd_nvram_type type)
 }
 
 /**
- * Iterate over all strings in the @p inp string array (@see
- * BHNF_NVRAM_TYPE_STRING_ARRAY).
+ * Iterate over all strings in the @p inp string array (see
+ * BHND_NVRAM_TYPE_STRING_ARRAY).
  *
  * @param		inp	The string array to be iterated. This must be a
  *				buffer of one or more NUL-terminated strings.
@@ -540,6 +540,8 @@ bhnd_nvram_type_host_align(bhnd_nvram_type type)
  *
  * @retval non-NULL	A reference to the next NUL-terminated string
  * @retval NULL		If the end of the string array is reached.
+ *
+ * @see BHND_NVRAM_TYPE_STRING_ARRAY
  */
 const char *
 bhnd_nvram_string_array_next(const char *inp, size_t ilen, const char *prev,

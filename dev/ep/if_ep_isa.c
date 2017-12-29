@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994 Herb Peyerl <hpeyerl@novatel.ca>
  * All rights reserved.
  *
@@ -393,3 +395,4 @@ DRIVER_MODULE(ep, isa, ep_isa_driver, ep_devclass, 0, 0);
 #ifdef __i386__
 MODULE_DEPEND(ep, elink, 1, 1, 1);
 #endif
+ISA_PNP_INFO(ep_ids);

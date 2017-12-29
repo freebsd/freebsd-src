@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Chelsio Communications, Inc.
  * All rights reserved.
  *
@@ -42,6 +44,7 @@ enum {
 	EC_LEN         = 16,    /* E/C length */
 	ID_LEN         = 16,    /* ID length */
 	PN_LEN         = 16,    /* Part Number length */
+	MD_LEN         = 16,    /* MFG diags version length */
 	MACADDR_LEN    = 12,    /* MAC Address length */
 };
 
@@ -256,6 +259,7 @@ struct vpd_params {
 	u8 id[ID_LEN + 1];
 	u8 pn[PN_LEN + 1];
 	u8 na[MACADDR_LEN + 1];
+	u8 md[MD_LEN + 1];
 };
 
 struct pci_params {
@@ -588,7 +592,7 @@ int t4_get_vpd_version(struct adapter *adapter, u32 *vers);
 int t4_get_version_info(struct adapter *adapter);
 int t4_init_hw(struct adapter *adapter, u32 fw_params);
 const struct chip_params *t4_get_chip_params(int chipid);
-int t4_prep_adapter(struct adapter *adapter, u8 *buf);
+int t4_prep_adapter(struct adapter *adapter, u32 *buf);
 int t4_shutdown_adapter(struct adapter *adapter);
 int t4_init_devlog_params(struct adapter *adapter, int fw_attach);
 int t4_init_sge_params(struct adapter *adapter);

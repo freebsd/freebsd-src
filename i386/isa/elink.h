@@ -1,4 +1,8 @@
+/*	$NetBSD: elink.h,v 1.3 1994/10/27 04:17:11 cgd Exp $	*/
+
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994 Charles Hannum.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

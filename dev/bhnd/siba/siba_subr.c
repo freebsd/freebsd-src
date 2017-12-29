@@ -624,83 +624,73 @@ siba_parse_admatch(uint32_t am, uint32_t *addr, uint32_t *size)
 }
 
 /**
- * Write @p value to @p dev's CFG0 target/initiator state register and
- * wait for completion.
+ * Write @p value to @p dev's CFG0 target/initiator state register, performing
+ * required read-back and waiting for completion.
  * 
  * @param dev The siba(4) child device.
- * @param reg The state register to write (e.g. SIBA_CFG0_TMSTATELOW,
- *    SIBA_CFG0_IMSTATE)
+ * @param reg The CFG0 state register to write (e.g. SIBA_CFG0_TMSTATELOW,
+ * SIBA_CFG0_IMSTATE)
  * @param value The value to write to @p reg.
  * @param mask The mask of bits to be included from @p value.
- * 
- * @retval 0 success.
- * @retval ENODEV if SIBA_CFG0 is not mapped by @p dinfo.
- * @retval ETIMEDOUT if a timeout occurs prior to SIBA_TMH_BUSY clearing.
  */
-int
+void
 siba_write_target_state(device_t dev, struct siba_devinfo *dinfo,
     bus_size_t reg, uint32_t value, uint32_t mask)
 {
 	struct bhnd_resource	*r;
 	uint32_t		 rval;
 
-	/* Must have a CFG0 block */
-	if ((r = dinfo->cfg_res[0]) == NULL)
-		return (ENODEV);
+	r = dinfo->cfg_res[0];
 
-	/* Verify the register offset falls within CFG register block */
-	if (reg > SIBA_CFG_SIZE-4)
-		return (EFAULT);
+	KASSERT(r != NULL, ("%s missing CFG0 mapping",
+	    device_get_nameunit(dev)));
+	KASSERT(reg <= SIBA_CFG_SIZE-4, ("%s invalid CFG0 register offset %#jx",
+	    device_get_nameunit(dev), (uintmax_t)reg));
 
-	for (int i = 0; i < 300; i += 10) {
-		rval = bhnd_bus_read_4(r, reg);
-		rval &= ~mask;
-		rval |= (value & mask);
+	rval = bhnd_bus_read_4(r, reg);
+	rval &= ~mask;
+	rval |= (value & mask);
 
-		bhnd_bus_write_4(r, reg, rval);
-		bhnd_bus_read_4(r, reg); /* read-back */
-		DELAY(1);
-
-		/* If the write has completed, wait for target busy state
-		 * to clear */
-		rval = bhnd_bus_read_4(r, reg);
-		if ((rval & mask) == (value & mask))
-			return (siba_wait_target_busy(dev, dinfo, 100000));
-
-		DELAY(10);
-	}
-
-	return (ETIMEDOUT);
+	bhnd_bus_write_4(r, reg, rval);
+	bhnd_bus_read_4(r, reg); /* read-back */
+	DELAY(1);
 }
 
 /**
- * Spin for up to @p usec waiting for SIBA_TMH_BUSY to clear in
- * @p dev's SIBA_CFG0_TMSTATEHIGH register.
+ * Spin for up to @p usec waiting for @p dev's CFG0 target/initiator state
+ * register value to be equal to @p value after applying @p mask bits to both
+ * values.
  * 
  * @param dev The siba(4) child device to wait on.
  * @param dinfo The @p dev's device info
+ * @param reg The state register to read (e.g. SIBA_CFG0_TMSTATEHIGH,
+ * SIBA_CFG0_IMSTATE)
+ * @param value The value against which @p reg will be compared.
+ * @param mask The mask to be applied when comparing @p value with @p reg.
+ * @param usec The maximum number of microseconds to wait for completion.
  * 
  * @retval 0 if SIBA_TMH_BUSY is cleared prior to the @p usec timeout.
  * @retval ENODEV if SIBA_CFG0 is not mapped by @p dinfo.
- * @retval ETIMEDOUT if a timeout occurs prior to SIBA_TMH_BUSY clearing.
+ * @retval ETIMEDOUT if a timeout occurs.
  */
 int
-siba_wait_target_busy(device_t dev, struct siba_devinfo *dinfo, int usec)
+siba_wait_target_state(device_t dev, struct siba_devinfo *dinfo, bus_size_t reg,
+    uint32_t value, uint32_t mask, u_int usec)
 {
 	struct bhnd_resource	*r;
-	uint32_t		 ts_high;
+	uint32_t		 rval;
 
 	if ((r = dinfo->cfg_res[0]) == NULL)
 		return (ENODEV);
 
+	value &= mask;
 	for (int i = 0; i < usec; i += 10) {
-		ts_high = bhnd_bus_read_4(r, SIBA_CFG0_TMSTATEHIGH);
-		if (!(ts_high & SIBA_TMH_BUSY))
+		rval = bhnd_bus_read_4(r, reg);
+		if ((rval & mask) == value)
 			return (0);
 
 		DELAY(10);
 	}
 
-	device_printf(dev, "SIBA_TMH_BUSY wait timeout\n");
 	return (ETIMEDOUT);
 }

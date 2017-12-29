@@ -324,7 +324,13 @@ ivhd_identify(driver_t *driver, device_t parent)
 			continue;
 		}
 
-		ivhd_devs[i] = BUS_ADD_CHILD(parent, 1, "ivhd", i);
+		/*
+		 * Use a high order to ensure that this driver is probed after
+		 * the Host-PCI bridge and the root PCI bus.
+		 */
+		ivhd_devs[i] = BUS_ADD_CHILD(parent,
+		    ACPI_DEV_BASE_ORDER + 10 * 10, "ivhd", i);
+
 		/*
 		 * XXX: In case device was not destroyed before, add will fail.
 		 * locate the old device instance.

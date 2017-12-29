@@ -123,7 +123,8 @@
 #define	 EXCP_UNKNOWN		0x00	/* Unkwn exception */
 #define	 EXCP_FP_SIMD		0x07	/* VFP/SIMD trap */
 #define	 EXCP_ILL_STATE		0x0e	/* Illegal execution state */
-#define	 EXCP_SVC		0x15	/* SVC trap */
+#define	 EXCP_SVC32		0x11	/* SVC trap for AArch32 */
+#define	 EXCP_SVC64		0x15	/* SVC trap for AArch64 */
 #define	 EXCP_MSR		0x18	/* MSR/MRS trap */
 #define	 EXCP_INSN_ABORT_L	0x20	/* Instruction abort, from lower EL */
 #define	 EXCP_INSN_ABORT	0x21	/* Instruction abort, from same EL */ 
@@ -548,7 +549,6 @@
 /* SPSR_EL1 */
 /*
  * When the exception is taken in AArch64:
- * M[4]   is 0 for AArch64 mode
  * M[3:2] is the exception level
  * M[1]   is unused
  * M[0]   is the SP select:
@@ -560,8 +560,9 @@
 #define	PSR_M_EL1h	0x00000005
 #define	PSR_M_EL2t	0x00000008
 #define	PSR_M_EL2h	0x00000009
-#define	PSR_M_MASK	0x0000001f
+#define	PSR_M_MASK	0x0000000f
 
+#define	PSR_AARCH32	0x00000010
 #define	PSR_F		0x00000040
 #define	PSR_I		0x00000080
 #define	PSR_A		0x00000100
