@@ -4,6 +4,7 @@
 . $(dirname $0)/conf.sh
 
 base=`basename $0`
+sectors=2
 keyfile=`mktemp $base.XXXXXX` || exit 1
 sector=`mktemp $base.XXXXXX` || exit 1
 
@@ -16,7 +17,6 @@ do_test() {
 	ealgo=${cipher%%:*}
 	keylen=${cipher##*:}
 
-	md=$(attach_md -t malloc -s `expr $secsize \* 2 + 512`b)
 	geli init -B none -a $aalgo -e $ealgo -l $keylen -P -K $keyfile -s $secsize ${md} 2>/dev/null
 
 	# Corrupt 8 bytes of data.
@@ -32,9 +32,6 @@ do_test() {
 		echo "not ok $i - aalgo=${aalgo} ealgo=${ealgo} keylen=${keylen} sec=${secsize}"
 	fi
 	i=$((i+1))
-
-	geli detach ${md}
-	mdconfig -d -u ${md}
 }
 
 i=1

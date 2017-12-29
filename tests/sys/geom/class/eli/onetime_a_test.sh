@@ -16,7 +16,6 @@ do_test() {
 	ealgo=${cipher%%:*}
 	keylen=${cipher##*:}
 
-	md=$(attach_md -t malloc -s `expr $secsize \* $sectors + 512`b)
 	geli onetime -a $aalgo -e $ealgo -l $keylen -s $secsize ${md} 2>/dev/null
 
 	secs=`diskinfo /dev/${md}.eli | awk '{print $4}'`
@@ -32,9 +31,6 @@ do_test() {
 		echo "not ok $i - aalgo=${aalgo} ealgo=${ealgo} keylen=${keylen} sec=${secsize}"
 	fi
 	i=$((i+1))
-
-	geli detach ${md}
-	mdconfig -d -u ${md}
 }
 
 i=1

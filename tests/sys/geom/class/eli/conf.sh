@@ -23,7 +23,11 @@ for_each_geli_config() {
 		for aalgo in hmac/md5 hmac/sha1 hmac/ripemd160 hmac/sha256 \
 		    hmac/sha384 hmac/sha512; do
 			for secsize in 512 1024 2048 4096 8192; do
+				bytes=`expr $secsize \* $sectors + 512`b
+				md=$(attach_md -t malloc -s $bytes)
 				${func} $cipher $aalgo $secsize
+				geli detach ${md} 2>/dev/null
+				mdconfig -d -u ${md} 2>/dev/null
 			done
 		done
 	done
@@ -46,7 +50,11 @@ for_each_geli_config_nointegrity() {
 		ealgo=${cipher%%:*}
 		keylen=${cipher##*:}
 		for secsize in 512 1024 2048 4096 8192; do
+			bytes=`expr $secsize \* $sectors + 512`b
+			md=$(attach_md -t malloc -s $bytes)
 			${func} $cipher $aalgo $secsize
+			geli detach ${md} 2>/dev/null
+			mdconfig -d -u ${md} 2>/dev/null
 		done
 	done
 }
