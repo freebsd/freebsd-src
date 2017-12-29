@@ -4,6 +4,7 @@
 . $(dirname $0)/conf.sh
 
 base=`basename $0`
+sectors=2
 keyfile=`mktemp $base.XXXXXX` || exit 1
 sector=`mktemp $base.XXXXXX` || exit 1
 
@@ -16,7 +17,6 @@ do_test() {
 	ealgo=${cipher%%:*}
 	keylen=${cipher##*:}
 
-	md=$(attach_md -t malloc -s `expr $secsize \* 2 + 512`b)
 	geli init -B none -a $aalgo -e $ealgo -l $keylen -P -K $keyfile -s $secsize ${md} 2>/dev/null
 	geli attach -p -k $keyfile ${md}
 
@@ -65,18 +65,13 @@ do_test() {
 	# This should be detected as corruption.
 	dd if=/dev/${md} of=${sector} bs=${usecsize} count=1 >/dev/null 2>&1
 	dd if=${sector} of=/dev/${md} bs=${usecsize} count=1 seek=1 >/dev/null 2>&1
-	geli attach -p -k $keyfile ${md}
-
-	dd if=/dev/${md}.eli of=/dev/null bs=${secsize} count=2 >/dev/null 2>&1
+	geli attach -p -k $keyfile ${md} 2>/dev/null
 	if [ $? -ne 0 ]; then
 		echo "ok $i - big 2 aalgo=${aalgo} ealgo=${ealgo} keylen=${keylen} sec=${secsize}"
 	else
 		echo "not ok $i - big 2 aalgo=${aalgo} ealgo=${ealgo} keylen=${keylen} sec=${secsize}"
 	fi
 	i=$((i+1))
-
-	geli detach ${md}
-	mdconfig -d -u ${md}
 }
 
 
