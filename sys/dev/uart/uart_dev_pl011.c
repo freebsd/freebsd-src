@@ -381,10 +381,8 @@ uart_pl011_bus_getsig(struct uart_softc *sc)
 static int
 uart_pl011_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 {
-	struct uart_bas *bas;
 	int error;
 
-	bas = &sc->sc_bas;
 	error = 0;
 	uart_lock(sc->sc_hwmtx);
 	switch (request) {

@@ -1510,6 +1510,7 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 		if (pfctl_trans(dev, t, DIOCXCOMMIT, osize))
 			ERR("DIOCXCOMMIT");
 	}
+	free(path);
 	return (0);
 
 _error:
@@ -1519,6 +1520,7 @@ _error:
 				err(1, "DIOCXROLLBACK");
 		exit(1);
 	} else {		/* sub ruleset */
+		free(path);
 		return (-1);
 	}
 

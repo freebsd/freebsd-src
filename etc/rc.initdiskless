@@ -67,7 +67,7 @@
 # /conf/T/M/remount
 #		The contents of the file is a mount command. E.g. if
 # 		/conf/1.2.3.4/foo/remount contains "mount -o ro /dev/ad0s3",
-#		then /dev/ad0s3 will be be mounted on /conf/1.2.3.4/foo/
+#		then /dev/ad0s3 will be mounted on /conf/1.2.3.4/foo/
 #
 # /conf/T/M/remount_optional
 #		If this file exists, then failure to execute the mount

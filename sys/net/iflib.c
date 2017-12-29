@@ -2635,7 +2635,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 			if ((m->m_pkthdr.csum_flags & (CSUM_L4_CALC|CSUM_L4_VALID)) ==
 			    (CSUM_L4_CALC|CSUM_L4_VALID)) {
 				if (lro_possible && tcp_lro_rx(&rxq->ifr_lc, m, 0) == 0)
-				continue;
+					continue;
 			}
 		}
 #endif
@@ -5174,7 +5174,6 @@ iflib_irq_set_affinity(if_ctx_t ctx, int irq, iflib_intr_type_t type, int qid,
 	if (cpuid > ctx->ifc_cpuid_highest)
 		ctx->ifc_cpuid_highest = cpuid;
 #endif
-	MPASS(gtask->gt_taskqueue != NULL);
 	return 0;
 }
 
@@ -5348,10 +5347,10 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	if ((err = _iflib_irq_alloc(ctx, irq, tqrid, iflib_fast_intr_ctx, NULL, info, name)) != 0)
 		return (err);
 	GROUPTASK_INIT(gtask, 0, fn, q);
-	taskqgroup_attach(tqg, gtask, q, tqrid, name);
+	taskqgroup_attach(tqg, gtask, q, rman_get_start(irq->ii_res), name);
 
 	GROUPTASK_INIT(&txq->ift_task, 0, _task_fn_tx, txq);
-	taskqgroup_attach(qgroup_if_io_tqg, &txq->ift_task, txq, tqrid, "tx");
+	taskqgroup_attach(qgroup_if_io_tqg, &txq->ift_task, txq, rman_get_start(irq->ii_res), "tx");
 	return (0);
 }
 

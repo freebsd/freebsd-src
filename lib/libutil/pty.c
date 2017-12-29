@@ -101,12 +101,13 @@ forkpty(int *amaster, char *name, struct termios *termp, struct winsize *winp)
 		return (-1);
 	switch (pid = fork()) {
 	case -1:
+		(void)close(slave);
 		return (-1);
 	case 0:
 		/*
 		 * child
 		 */
-		(void) close(master);
+		(void)close(master);
 		login_tty(slave);
 		return (0);
 	}

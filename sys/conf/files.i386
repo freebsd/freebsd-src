@@ -518,7 +518,7 @@ i386/ibcs2/ibcs2_util.c		optional ibcs2
 i386/ibcs2/ibcs2_xenix.c	optional ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional ibcs2
 i386/ibcs2/imgact_coff.c	optional ibcs2
-i386/isa/elink.c		optional ep | ie
+i386/isa/elink.c		optional ep
 i386/isa/npx.c			standard
 i386/isa/pmtimer.c		optional pmtimer
 i386/isa/prof_machdep.c		optional profiling-routine

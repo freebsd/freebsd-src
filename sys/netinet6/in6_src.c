@@ -160,7 +160,6 @@ static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
  */
 #define REPLACE(r) do {\
 	IP6STAT_INC(ip6s_sources_rule[(r)]); \
-	rule = (r);	\
 	/* { \
 	char ip6buf[INET6_ADDRSTRLEN], ip6b[INET6_ADDRSTRLEN]; \
 	printf("in6_selectsrc: replace %s with %s by %d\n", ia_best ? ip6_sprintf(ip6buf, &ia_best->ia_addr.sin6_addr) : "none", ip6_sprintf(ip6b, &ia->ia_addr.sin6_addr), (r)); \
@@ -176,7 +175,6 @@ static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 } while(0)
 #define BREAK(r) do { \
 	IP6STAT_INC(ip6s_sources_rule[(r)]); \
-	rule = (r);	\
 	goto out;		/* XXX: we can't use 'break' here */ \
 } while(0)
 
@@ -194,7 +192,7 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 	struct in6_addrpolicy *dst_policy = NULL, *best_policy = NULL;
 	u_int32_t odstzone;
 	int prefer_tempaddr;
-	int error, rule;
+	int error;
 	struct ip6_moptions *mopts;
 
 	KASSERT(srcp != NULL, ("%s: srcp is NULL", __func__));
@@ -310,7 +308,6 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 	if (error)
 		return (error);
 
-	rule = 0;
 	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
 	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		int new_scope = -1, new_matchlen = -1;

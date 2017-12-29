@@ -108,7 +108,7 @@ int	mapfiles(ino_t maxino, long *tapesize);
 int	mapdirs(ino_t maxino, long *tapesize);
 
 /* file dumping routines */
-void	bread(ufs2_daddr_t blkno, char *buf, int size);
+void	blkread(ufs2_daddr_t blkno, char *buf, int size);
 ssize_t cread(int fd, void *buf, size_t nbytes, off_t offset);
 void	dumpino(union dinode *dp, ino_t ino);
 void	dumpmap(char *map, int type, ino_t ino);
@@ -127,7 +127,7 @@ void	dumpabort(int signo) __dead2;
 void	dump_getfstab(void);
 
 char	*rawname(char *cp);
-union	dinode *getino(ino_t inum, int *mode);
+union	dinode *getinode(ino_t inum, int *mode);
 
 /* rdump routines */
 #ifdef RDUMP

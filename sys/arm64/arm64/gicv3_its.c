@@ -1105,12 +1105,10 @@ static int
 gicv3_its_release_msi(device_t dev, device_t child, int count,
     struct intr_irqsrc **isrc)
 {
-	struct gicv3_its_softc *sc;
 	struct gicv3_its_irqsrc *girq;
 	struct its_dev *its_dev;
 	int i;
 
-	sc = device_get_softc(dev);
 	its_dev = its_device_find(dev, child);
 
 	KASSERT(its_dev != NULL,
@@ -1165,11 +1163,9 @@ gicv3_its_alloc_msix(device_t dev, device_t child, device_t *pic,
 static int
 gicv3_its_release_msix(device_t dev, device_t child, struct intr_irqsrc *isrc)
 {
-	struct gicv3_its_softc *sc;
 	struct gicv3_its_irqsrc *girq;
 	struct its_dev *its_dev;
 
-	sc = device_get_softc(dev);
 	its_dev = its_device_find(dev, child);
 
 	KASSERT(its_dev != NULL,
@@ -1405,9 +1401,7 @@ its_cmd_prepare(struct its_cmd *cmd, struct its_cmd_desc *desc)
 	uint64_t target;
 	uint8_t cmd_type;
 	u_int size;
-	boolean_t error;
 
-	error = FALSE;
 	cmd_type = desc->cmd_type;
 	target = ITS_TARGET_NONE;
 
