@@ -2249,6 +2249,10 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	if (!V_icmp6_rediraccept)
 		goto freeit;
 
+	/* RFC 6980: Nodes MUST silently ignore fragments */
+	if(m->m_flags & M_FRAGMENTED)
+		goto freeit;
+
 #ifndef PULLDOWN_TEST
 	IP6_EXTHDR_CHECK(m, off, icmp6len,);
 	nd_rd = (struct nd_redirect *)((caddr_t)ip6 + off);

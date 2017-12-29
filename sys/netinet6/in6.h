@@ -653,6 +653,7 @@ struct ip6_mtuinfo {
 #define	M_LOOP			M_PROTO6
 #define	M_AUTHIPDGM		M_PROTO7
 #define	M_RTALERT_MLD		M_PROTO8
+#define	M_FRAGMENTED		M_PROTO9	/* contained fragment header */
 
 #ifdef _KERNEL
 struct cmsghdr;
