@@ -100,11 +100,17 @@ mps3_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 
 	moea64_early_bootstrap(mmup, kernelstart, kernelend);
 
+	/* In case we had a page table already */
+	lv1_destruct_virtual_address_space(0);
+
+	/* Allocate new hardware page table */
 	lv1_construct_virtual_address_space(
 	    20 /* log_2(moea64_pteg_count) */, 2 /* n page sizes */,
 	    (24UL << 56) | (16UL << 48) /* page sizes 16 MB + 64 KB */,
 	    &mps3_vas_id, &final_pteg_count
 	);
+
+	lv1_select_virtual_address_space(mps3_vas_id);
 
 	moea64_pteg_count = final_pteg_count / sizeof(struct lpteg);
 
@@ -122,14 +128,9 @@ mps3_cpu_bootstrap(mmu_t mmup, int ap)
 	mtmsr(mfmsr() & ~PSL_DR & ~PSL_IR);
 
 	/*
-	 * Destroy the loader's address space if we are coming up for
-	 * the first time, and redo the FB mapping so we can continue
-	 * having a console.
+	 * Select the page table we configured above and set up the FB mapping
+	 * so we can have a console.
 	 */
-
-	if (!ap)
-		lv1_destruct_virtual_address_space(0);
-
 	lv1_select_virtual_address_space(mps3_vas_id);
 
 	if (!ap)
