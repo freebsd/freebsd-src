@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpufunc.h>
 
-#include <i386/isa/elink.h>
+#include <dev/ep/elink.h>
 
 /*
  * Issue a `global reset' to all cards, and reset the ID state machines.  We
