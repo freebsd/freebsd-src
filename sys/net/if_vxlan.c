@@ -2743,6 +2743,8 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_ioctl = vxlan_ioctl;
 	ifp->if_transmit = vxlan_transmit;
 	ifp->if_qflush = vxlan_qflush;
+	ifp->if_capabilities |= IFCAP_LINKSTATE;
+	ifp->if_capenable |= IFCAP_LINKSTATE;
 
 	ifmedia_init(&sc->vxl_media, 0, vxlan_media_change, vxlan_media_status);
 	ifmedia_add(&sc->vxl_media, IFM_ETHER | IFM_AUTO, 0, NULL);
