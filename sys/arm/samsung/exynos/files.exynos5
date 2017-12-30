@@ -22,3 +22,4 @@ arm/samsung/exynos/chrome_ec_spi.c		optional	chrome_ec_spi
 arm/samsung/exynos/chrome_kb.c			optional	chrome_kb
 
 dev/mmc/host/dwmmc.c				optional	dwmmc
+dev/mmc/host/dwmmc_samsung.c			optional	dwmmc
