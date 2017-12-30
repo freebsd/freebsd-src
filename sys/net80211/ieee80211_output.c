@@ -551,6 +551,59 @@ ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	return (error);
 }
 
+static int
+ieee80211_validate_frame(struct mbuf *m,
+    const struct ieee80211_bpf_params *params)
+{
+	struct ieee80211_frame *wh;
+	int type;
+
+	if (m->m_pkthdr.len < sizeof(struct ieee80211_frame_ack))
+		return (EINVAL);
+
+	wh = mtod(m, struct ieee80211_frame *);
+	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
+	    IEEE80211_FC0_VERSION_0)
+		return (EINVAL);
+
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	if (type != IEEE80211_FC0_TYPE_DATA) {
+		if ((wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) !=
+		    IEEE80211_FC1_DIR_NODS)
+			return (EINVAL);
+
+		if (type != IEEE80211_FC0_TYPE_MGT &&
+		    (wh->i_fc[1] & IEEE80211_FC1_MORE_FRAG) != 0)
+			return (EINVAL);
+
+		/* XXX skip other field checks? */
+	}
+
+	if ((params && (params->ibp_flags & IEEE80211_BPF_CRYPTO) != 0) ||
+	    (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) != 0) {
+		int subtype;
+
+		subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
+
+		/*
+		 * See IEEE Std 802.11-2012,
+		 * 8.2.4.1.9 'Protected Frame field'
+		 */
+		/* XXX no support for robust management frames yet. */
+		if (!(type == IEEE80211_FC0_TYPE_DATA ||
+		    (type == IEEE80211_FC0_TYPE_MGT &&
+		     subtype == IEEE80211_FC0_SUBTYPE_AUTH)))
+			return (EINVAL);
+
+		wh->i_fc[1] |= IEEE80211_FC1_PROTECTED;
+	}
+
+	if (m->m_pkthdr.len < ieee80211_anyhdrsize(wh))
+		return (EINVAL);
+
+	return (0);
+}
+
 /*
  * 802.11 output routine. This is (currently) used only to
  * connect bpf write calls to the 802.11 layer for injecting
@@ -561,6 +614,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	const struct sockaddr *dst, struct route *ro)
 {
 #define senderr(e) do { error = (e); goto bad;} while (0)
+	const struct ieee80211_bpf_params *params = NULL;
 	struct ieee80211_node *ni = NULL;
 	struct ieee80211vap *vap;
 	struct ieee80211_frame *wh;
@@ -606,14 +660,20 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 		senderr(EIO);
 	/* XXX bypass bridge, pfil, carp, etc. */
 
-	if (m->m_pkthdr.len < sizeof(struct ieee80211_frame_ack))
-		senderr(EIO);	/* XXX */
+	/*
+	 * NB: DLT_IEEE802_11_RADIO identifies the parameters are
+	 * present by setting the sa_len field of the sockaddr (yes,
+	 * this is a hack).
+	 * NB: we assume sa_data is suitably aligned to cast.
+	 */
+	if (dst->sa_len != 0)
+		params = (const struct ieee80211_bpf_params *)dst->sa_data;
+
+	error = ieee80211_validate_frame(m, params);
+	if (error != 0)
+		senderr(error);
+
 	wh = mtod(m, struct ieee80211_frame *);
-	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
-	    IEEE80211_FC0_VERSION_0)
-		senderr(EIO);	/* XXX */
-	if (m->m_pkthdr.len < ieee80211_anyhdrsize(wh))
-		senderr(EIO);	/* XXX */
 
 	/* locate destination node */
 	switch (wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) {
@@ -626,7 +686,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 		ni = ieee80211_find_txnode(vap, wh->i_addr3);
 		break;
 	default:
-		senderr(EIO);	/* XXX */
+		senderr(EDOOFUS);
 	}
 	if (ni == NULL) {
 		/*
@@ -645,11 +705,18 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	 *     it marks EAPOL in frames with M_EAPOL.
 	 */
 	m->m_flags &= ~M_80211_TX;
+	m->m_flags |= M_ENCAP;		/* mark encapsulated */
 
-	/* calculate priority so drivers can find the tx queue */
-	/* XXX assumes an 802.3 frame */
-	if (ieee80211_classify(ni, m))
-		senderr(EIO);		/* XXX */
+	if (IEEE80211_IS_DATA(wh)) {
+		/* calculate priority so drivers can find the tx queue */
+		if (ieee80211_classify(ni, m))
+			senderr(EIO);		/* XXX */
+
+		/* NB: ieee80211_encap does not include 802.11 header */
+		IEEE80211_NODE_STAT_ADD(ni, tx_bytes,
+		    m->m_pkthdr.len - ieee80211_hdrsize(wh));
+	} else
+		M_WME_SETAC(m, WME_AC_BE);
 
 	IEEE80211_NODE_STAT(ni, tx_data);
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
@@ -657,20 +724,9 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 		m->m_flags |= M_MCAST;
 	} else
 		IEEE80211_NODE_STAT(ni, tx_ucast);
-	/* NB: ieee80211_encap does not include 802.11 header */
-	IEEE80211_NODE_STAT_ADD(ni, tx_bytes, m->m_pkthdr.len);
 
 	IEEE80211_TX_LOCK(ic);
-
-	/*
-	 * NB: DLT_IEEE802_11_RADIO identifies the parameters are
-	 * present by setting the sa_len field of the sockaddr (yes,
-	 * this is a hack).
-	 * NB: we assume sa_data is suitably aligned to cast.
-	 */
-	ret = ieee80211_raw_output(vap, ni, m,
-	    (const struct ieee80211_bpf_params *)(dst->sa_len ?
-		dst->sa_data : NULL));
+	ret = ieee80211_raw_output(vap, ni, m, params);
 	IEEE80211_TX_UNLOCK(ic);
 	return (ret);
 bad:
@@ -1006,13 +1062,44 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 int
 ieee80211_classify(struct ieee80211_node *ni, struct mbuf *m)
 {
-	const struct ether_header *eh = mtod(m, struct ether_header *);
+	const struct ether_header *eh = NULL;
+	uint16_t ether_type;
 	int v_wme_ac, d_wme_ac, ac;
+
+	if (__predict_false(m->m_flags & M_ENCAP)) {
+		struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
+		struct llc *llc;
+		int hdrlen, subtype;
+
+		subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
+		if (subtype & IEEE80211_FC0_SUBTYPE_NODATA) {
+			ac = WME_AC_BE;
+			goto done;
+		}
+
+		hdrlen = ieee80211_hdrsize(wh);
+		if (m->m_pkthdr.len < hdrlen + sizeof(*llc))
+			return 1;
+
+		llc = (struct llc *)mtodo(m, hdrlen);
+		if (llc->llc_dsap != LLC_SNAP_LSAP ||
+		    llc->llc_ssap != LLC_SNAP_LSAP ||
+		    llc->llc_control != LLC_UI ||
+		    llc->llc_snap.org_code[0] != 0 ||
+		    llc->llc_snap.org_code[1] != 0 ||
+		    llc->llc_snap.org_code[2] != 0)
+			return 1;
+
+		ether_type = llc->llc_snap.ether_type;
+	} else {
+		eh = mtod(m, struct ether_header *);
+		ether_type = eh->ether_type;
+	}
 
 	/*
 	 * Always promote PAE/EAPOL frames to high priority.
 	 */
-	if (eh->ether_type == htons(ETHERTYPE_PAE)) {
+	if (ether_type == htons(ETHERTYPE_PAE)) {
 		/* NB: mark so others don't need to check header */
 		m->m_flags |= M_EAPOL;
 		ac = WME_AC_VO;
@@ -1047,7 +1134,7 @@ ieee80211_classify(struct ieee80211_node *ni, struct mbuf *m)
 
 	/* XXX m_copydata may be too slow for fast path */
 #ifdef INET
-	if (eh->ether_type == htons(ETHERTYPE_IP)) {
+	if (eh && eh->ether_type == htons(ETHERTYPE_IP)) {
 		uint8_t tos;
 		/*
 		 * IP frame, map the DSCP bits from the TOS field.
@@ -1060,7 +1147,7 @@ ieee80211_classify(struct ieee80211_node *ni, struct mbuf *m)
 	} else {
 #endif /* INET */
 #ifdef INET6
-	if (eh->ether_type == htons(ETHERTYPE_IPV6)) {
+	if (eh && eh->ether_type == htons(ETHERTYPE_IPV6)) {
 		uint32_t flow;
 		uint8_t tos;
 		/*
