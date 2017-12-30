@@ -1,7 +1,5 @@
-/*	$NetBSD: ccdconfig.c,v 1.6 1996/05/16 07:11:18 thorpej Exp $	*/
-
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2003 Poul-Henning Kamp
  * Copyright (c) 1996 The NetBSD Foundation, Inc.
@@ -30,6 +28,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * NetBSD: ccdconfig.c,v 1.6 1996/05/16 07:11:18 thorpej Exp $
  */
 
 #include <sys/cdefs.h>
