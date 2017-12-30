@@ -68,9 +68,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/ip_var.h>
-#include <netinet6/ip6_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+
+#include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 
 struct vxlan_softc;
 LIST_HEAD(vxlan_softc_head, vxlan_softc);
@@ -215,9 +217,9 @@ static void	vxlan_ftable_fini(struct vxlan_softc *);
 static void	vxlan_ftable_flush(struct vxlan_softc *, int);
 static void	vxlan_ftable_expire(struct vxlan_softc *);
 static int	vxlan_ftable_update_locked(struct vxlan_softc *,
-		    const struct sockaddr *, const uint8_t *,
+		    const union vxlan_sockaddr *, const uint8_t *,
 		    struct rm_priotracker *);
-static int	vxlan_ftable_update(struct vxlan_softc *,
+static int	vxlan_ftable_learn(struct vxlan_softc *,
 		    const struct sockaddr *, const uint8_t *);
 static int	vxlan_ftable_sysctl_dump(SYSCTL_HANDLER_ARGS);
 
@@ -358,6 +360,7 @@ static void	vxlan_sockaddr_in_copy(union vxlan_sockaddr *,
 static int	vxlan_sockaddr_supported(const union vxlan_sockaddr *, int);
 static int	vxlan_sockaddr_in_any(const union vxlan_sockaddr *);
 static int	vxlan_sockaddr_in_multicast(const union vxlan_sockaddr *);
+static int	vxlan_sockaddr_in6_embedscope(union vxlan_sockaddr *);
 
 static int	vxlan_can_change_config(struct vxlan_softc *);
 static int	vxlan_check_vni(uint32_t);
@@ -576,10 +579,10 @@ vxlan_ftable_expire(struct vxlan_softc *sc)
 }
 
 static int
-vxlan_ftable_update_locked(struct vxlan_softc *sc, const struct sockaddr *sa,
-    const uint8_t *mac, struct rm_priotracker *tracker)
+vxlan_ftable_update_locked(struct vxlan_softc *sc,
+    const union vxlan_sockaddr *vxlsa, const uint8_t *mac,
+    struct rm_priotracker *tracker)
 {
-	union vxlan_sockaddr vxlsa;
 	struct vxlan_ftable_entry *fe;
 	int error;
 
@@ -596,7 +599,7 @@ again:
 		fe->vxlfe_expire = time_uptime + sc->vxl_ftable_timeout;
 
 		if (!VXLAN_FE_IS_DYNAMIC(fe) ||
-		    vxlan_sockaddr_in_equal(&fe->vxlfe_raddr, sa))
+		    vxlan_sockaddr_in_equal(&fe->vxlfe_raddr, &vxlsa->sa))
 			return (0);
 		if (!VXLAN_LOCK_WOWNED(sc)) {
 			VXLAN_RUNLOCK(sc, tracker);
@@ -604,7 +607,7 @@ again:
 			sc->vxl_stats.ftable_lock_upgrade_failed++;
 			goto again;
 		}
-		vxlan_sockaddr_in_copy(&fe->vxlfe_raddr, sa);
+		vxlan_sockaddr_in_copy(&fe->vxlfe_raddr, &vxlsa->sa);
 		return (0);
 	}
 
@@ -624,15 +627,7 @@ again:
 	if (fe == NULL)
 		return (ENOMEM);
 
-	/*
-	 * The source port may be randomly select by the remove host, so
-	 * use the port of the default destination address.
-	 */
-	vxlan_sockaddr_copy(&vxlsa, sa);
-	vxlsa.in4.sin_port = sc->vxl_dst_addr.in4.sin_port;
-
-	vxlan_ftable_entry_init(sc, fe, mac, &vxlsa.sa,
-	    VXLAN_FE_FLAG_DYNAMIC);
+	vxlan_ftable_entry_init(sc, fe, mac, &vxlsa->sa, VXLAN_FE_FLAG_DYNAMIC);
 
 	/* The prior lookup failed, so the insert should not. */
 	error = vxlan_ftable_entry_insert(sc, fe);
@@ -642,14 +637,28 @@ again:
 }
 
 static int
-vxlan_ftable_update(struct vxlan_softc *sc, const struct sockaddr *sa,
+vxlan_ftable_learn(struct vxlan_softc *sc, const struct sockaddr *sa,
     const uint8_t *mac)
 {
 	struct rm_priotracker tracker;
+	union vxlan_sockaddr vxlsa;
 	int error;
 
+	/*
+	 * The source port may be randomly selected by the remote host, so
+	 * use the port of the default destination address.
+	 */
+	vxlan_sockaddr_copy(&vxlsa, sa);
+	vxlsa.in4.sin_port = sc->vxl_dst_addr.in4.sin_port;
+
+	if (VXLAN_SOCKADDR_IS_IPV6(&vxlsa)) {
+		error = vxlan_sockaddr_in6_embedscope(&vxlsa);
+		if (error)
+			return (error);
+	}
+
 	VXLAN_RLOCK(sc, &tracker);
-	error = vxlan_ftable_update_locked(sc, sa, mac, &tracker);
+	error = vxlan_ftable_update_locked(sc, &vxlsa, mac, &tracker);
 	VXLAN_UNLOCK(sc, &tracker);
 
 	return (error);
@@ -1051,8 +1060,8 @@ vxlan_socket_ifdetach(struct vxlan_socket *vso, struct ifnet *ifp,
 static struct vxlan_socket *
 vxlan_socket_mc_lookup(const union vxlan_sockaddr *vxlsa)
 {
-	struct vxlan_socket *vso;
 	union vxlan_sockaddr laddr;
+	struct vxlan_socket *vso;
 
 	laddr = *vxlsa;
 
@@ -1406,7 +1415,7 @@ vxlan_setup_multicast_interface(struct vxlan_softc *sc)
 
 	ifp = ifunit_ref(sc->vxl_mc_ifname);
 	if (ifp == NULL) {
-		if_printf(sc->vxl_ifp, "multicast interfaces %s does "
+		if_printf(sc->vxl_ifp, "multicast interface %s does "
 		    "not exist\n", sc->vxl_mc_ifname);
 		return (ENOENT);
 	}
@@ -1830,6 +1839,13 @@ vxlan_ctrl_get_config(struct vxlan_softc *sc, void *arg)
 	cfg->vxlc_ttl = sc->vxl_ttl;
 	VXLAN_RUNLOCK(sc, &tracker);
 
+#ifdef INET6
+	if (VXLAN_SOCKADDR_IS_IPV6(&cfg->vxlc_local_sa))
+		sa6_recoverscope(&cfg->vxlc_local_sa.in6);
+	if (VXLAN_SOCKADDR_IS_IPV6(&cfg->vxlc_remote_sa))
+		sa6_recoverscope(&cfg->vxlc_remote_sa.in6);
+#endif
+
 	return (0);
 }
 
@@ -1869,6 +1885,11 @@ vxlan_ctrl_set_local_addr(struct vxlan_softc *sc, void *arg)
 		return (EINVAL);
 	if (vxlan_sockaddr_in_multicast(vxlsa) != 0)
 		return (EINVAL);
+	if (VXLAN_SOCKADDR_IS_IPV6(vxlsa)) {
+		error = vxlan_sockaddr_in6_embedscope(vxlsa);
+		if (error)
+			return (error);
+	}
 
 	VXLAN_WLOCK(sc);
 	if (vxlan_can_change_config(sc)) {
@@ -1893,6 +1914,11 @@ vxlan_ctrl_set_remote_addr(struct vxlan_softc *sc, void *arg)
 
 	if (!VXLAN_SOCKADDR_IS_IPV46(vxlsa))
 		return (EINVAL);
+	if (VXLAN_SOCKADDR_IS_IPV6(vxlsa)) {
+		error = vxlan_sockaddr_in6_embedscope(vxlsa);
+		if (error)
+			return (error);
+	}
 
 	VXLAN_WLOCK(sc);
 	if (vxlan_can_change_config(sc)) {
@@ -2093,6 +2119,12 @@ vxlan_ctrl_ftable_entry_add(struct vxlan_softc *sc, void *arg)
 	if (vxlsa.sa.sa_family != sc->vxl_dst_addr.sa.sa_family)
 		return (EAFNOSUPPORT);
 
+	if (VXLAN_SOCKADDR_IS_IPV6(&vxlsa)) {
+		error = vxlan_sockaddr_in6_embedscope(&vxlsa);
+		if (error)
+			return (error);
+	}
+
 	fe = vxlan_ftable_entry_alloc();
 	if (fe == NULL)
 		return (ENOMEM);
@@ -2248,7 +2280,6 @@ vxlan_pick_source_port(struct vxlan_softc *sc, struct mbuf *m)
 
 	range = sc->vxl_max_port - sc->vxl_min_port + 1;
 
-	/* check if flowid is set and not opaque */
 	if (M_HASHTYPE_ISHASH(m))
 		hash = m->m_pkthdr.flowid;
 	else
@@ -2536,7 +2567,7 @@ vxlan_input(struct vxlan_socket *vso, uint32_t vni, struct mbuf **m0,
 	}
 
 	if (sc->vxl_flags & VXLAN_FLAG_LEARN)
-		vxlan_ftable_update(sc, sa, eh->ether_shost);
+		vxlan_ftable_learn(sc, sa, eh->ether_shost);
 
 	m_clrprotoflags(m);
 	m->m_pkthdr.rcvif = ifp;
@@ -2588,6 +2619,18 @@ vxlan_set_user_config(struct vxlan_softc *sc, struct ifvxlanparam *vxlp)
 	if (vxlp->vxlp_with & (VXLAN_PARAM_WITH_LOCAL_ADDR6 |
 	    VXLAN_PARAM_WITH_REMOTE_ADDR6))
 		return (EAFNOSUPPORT);
+#else
+	if (vxlp->vxlp_with & VXLAN_PARAM_WITH_LOCAL_ADDR6) {
+		int error = vxlan_sockaddr_in6_embedscope(&vxlp->vxlp_local_sa);
+		if (error)
+			return (error);
+	}
+	if (vxlp->vxlp_with & VXLAN_PARAM_WITH_REMOTE_ADDR6) {
+		int error = vxlan_sockaddr_in6_embedscope(
+		   &vxlp->vxlp_remote_sa);
+		if (error)
+			return (error);
+	}
 #endif
 
 	if (vxlp->vxlp_with & VXLAN_PARAM_WITH_VNI) {
@@ -2598,21 +2641,25 @@ vxlan_set_user_config(struct vxlan_softc *sc, struct ifvxlanparam *vxlp)
 	if (vxlp->vxlp_with & VXLAN_PARAM_WITH_LOCAL_ADDR4) {
 		sc->vxl_src_addr.in4.sin_len = sizeof(struct sockaddr_in);
 		sc->vxl_src_addr.in4.sin_family = AF_INET;
-		sc->vxl_src_addr.in4.sin_addr = vxlp->vxlp_local_in4;
+		sc->vxl_src_addr.in4.sin_addr =
+		    vxlp->vxlp_local_sa.in4.sin_addr;
 	} else if (vxlp->vxlp_with & VXLAN_PARAM_WITH_LOCAL_ADDR6) {
 		sc->vxl_src_addr.in6.sin6_len = sizeof(struct sockaddr_in6);
 		sc->vxl_src_addr.in6.sin6_family = AF_INET6;
-		sc->vxl_src_addr.in6.sin6_addr = vxlp->vxlp_local_in6;
+		sc->vxl_src_addr.in6.sin6_addr =
+		    vxlp->vxlp_local_sa.in6.sin6_addr;
 	}
 
 	if (vxlp->vxlp_with & VXLAN_PARAM_WITH_REMOTE_ADDR4) {
 		sc->vxl_dst_addr.in4.sin_len = sizeof(struct sockaddr_in);
 		sc->vxl_dst_addr.in4.sin_family = AF_INET;
-		sc->vxl_dst_addr.in4.sin_addr = vxlp->vxlp_remote_in4;
+		sc->vxl_dst_addr.in4.sin_addr =
+		    vxlp->vxlp_remote_sa.in4.sin_addr;
 	} else if (vxlp->vxlp_with & VXLAN_PARAM_WITH_REMOTE_ADDR6) {
 		sc->vxl_dst_addr.in6.sin6_len = sizeof(struct sockaddr_in6);
 		sc->vxl_dst_addr.in6.sin6_family = AF_INET6;
-		sc->vxl_dst_addr.in6.sin6_addr = vxlp->vxlp_remote_in6;
+		sc->vxl_dst_addr.in6.sin6_addr =
+		    vxlp->vxlp_remote_sa.in6.sin6_addr;
 	}
 
 	if (vxlp->vxlp_with & VXLAN_PARAM_WITH_LOCAL_PORT)
@@ -2928,6 +2975,21 @@ vxlan_sockaddr_in_multicast(const union vxlan_sockaddr *vxladdr)
 		mc = -1;
 
 	return (mc);
+}
+
+static int
+vxlan_sockaddr_in6_embedscope(union vxlan_sockaddr *vxladdr)
+{
+	int error;
+
+	MPASS(VXLAN_SOCKADDR_IS_IPV6(vxladdr));
+#ifdef INET6
+	error = sa6_embedscope(&vxladdr->in6, V_ip6_use_defzone);
+#else
+	error = EAFNOSUPPORT;
+#endif
+
+	return (error);
 }
 
 static int
