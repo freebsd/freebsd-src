@@ -31,8 +31,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
-#include <fdt.h>
 #include <libfdt.h>
+#include <fdt.h>
 #include <sys/param.h>
 #include <sys/linker.h>
 #include <machine/elf.h>
