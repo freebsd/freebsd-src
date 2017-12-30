@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
-/* $NetBSD: elink.c,v 1.6 1995/01/07 21:37:54 mycroft Exp $
+ * $NetBSD: elink.c,v 1.6 1995/01/07 21:37:54 mycroft Exp $
  */
 
 #include <sys/cdefs.h>
