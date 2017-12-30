@@ -94,8 +94,13 @@ ofwfb_probe(struct vt_device *vd)
 	char type[64];
 
 	chosen = OF_finddevice("/chosen");
-	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
-	node = OF_instance_to_package(stdout);
+	if (chosen == -1)
+		return (CN_DEAD);
+
+	node = -1;
+	if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) ==
+	    sizeof(stdout))
+		node = OF_instance_to_package(stdout);
 	if (node == -1) {
 		/*
 		 * The "/chosen/stdout" does not exist try
