@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Andrew Turner.
+ * Copyright 2017 Emmanuel Vadot <manu@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,62 +41,55 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mmc/host/dwmmc_var.h>
 
-static device_probe_t hisi_dwmmc_probe;
-static device_attach_t hisi_dwmmc_attach;
+static struct ofw_compat_data compat_data[] = {
+	{"altr,socfpga-dw-mshc",	1},
+	{NULL,				0},
+};
 
 static int
-hisi_dwmmc_probe(device_t dev)
+altera_dwmmc_probe(device_t dev)
 {
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "hisilicon,hi6220-dw-mshc"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Synopsys DesignWare Mobile "
-	    "Storage Host Controller (HiSilicon)");
+	    "Storage Host Controller (Altera)");
 
 	return (BUS_PROBE_VENDOR);
 }
 
 static int
-hisi_dwmmc_attach(device_t dev)
+altera_dwmmc_attach(device_t dev)
 {
 	struct dwmmc_softc *sc;
 
 	sc = device_get_softc(dev);
-	sc->hwtype = HWTYPE_HISILICON;
-	/* TODO: Calculate this from a clock driver */
-	sc->bus_hz = 24000000; /* 24MHz */
-
-	/*
-	 * ARM64TODO: This is likely because we lack support for
-	 * DMA when the controller is not cache-coherent on arm64.
-	 */
-	sc->use_pio = 1;
-	sc->desc_count = 1;
+	sc->hwtype = HWTYPE_ALTERA;
 
 	return (dwmmc_attach(dev));
 }
 
-static device_method_t hisi_dwmmc_methods[] = {
+static device_method_t altera_dwmmc_methods[] = {
 	/* bus interface */
-	DEVMETHOD(device_probe, hisi_dwmmc_probe),
-	DEVMETHOD(device_attach, hisi_dwmmc_attach),
+	DEVMETHOD(device_probe, altera_dwmmc_probe),
+	DEVMETHOD(device_attach, altera_dwmmc_attach),
 
 	DEVMETHOD_END
 };
 
-static devclass_t hisi_dwmmc_devclass;
+static devclass_t altera_dwmmc_devclass;
 
-DEFINE_CLASS_1(hisi_dwmmc, hisi_dwmmc_driver, hisi_dwmmc_methods,
+DEFINE_CLASS_1(altera_dwmmc, altera_dwmmc_driver, altera_dwmmc_methods,
     sizeof(struct dwmmc_softc), dwmmc_driver);
 
-DRIVER_MODULE(hisi_dwmmc, simplebus, hisi_dwmmc_driver,
-    hisi_dwmmc_devclass, 0, 0);
-DRIVER_MODULE(hisi_dwmmc, ofwbus, hisi_dwmmc_driver, hisi_dwmmc_devclass
+DRIVER_MODULE(altera_dwmmc, simplebus, altera_dwmmc_driver,
+    altera_dwmmc_devclass, 0, 0);
+DRIVER_MODULE(altera_dwmmc, ofwbus, altera_dwmmc_driver, altera_dwmmc_devclass
     , NULL, NULL);
 #ifndef MMCCAM
-MMC_DECLARE_BRIDGE(hisi_dwmmc);
+MMC_DECLARE_BRIDGE(altera_dwmmc);
 #endif

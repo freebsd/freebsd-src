@@ -10,6 +10,7 @@ arm/altera/socfpga/socfpga_mp.c			optional smp
 arm/altera/socfpga/socfpga_gpio.c		optional gpio
 
 dev/mmc/host/dwmmc.c				optional dwmmc
+dev/mmc/host/dwmmc_altera.c			optional dwmmc
 
 # Arria 10
 arm/altera/socfpga/socfpga_a10_manager.c	standard
