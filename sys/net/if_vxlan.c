@@ -381,7 +381,11 @@ static const char vxlan_name[] = "vxlan";
 static MALLOC_DEFINE(M_VXLAN, vxlan_name,
     "Virtual eXtensible LAN Interface");
 static struct if_clone *vxlan_cloner;
+
 static struct mtx vxlan_list_mtx;
+#define VXLAN_LIST_LOCK()	mtx_lock(&vxlan_list_mtx)
+#define VXLAN_LIST_UNLOCK()	mtx_unlock(&vxlan_list_mtx)
+
 static LIST_HEAD(, vxlan_socket) vxlan_socket_list;
 
 static eventhandler_tag vxlan_ifdetach_event_tag;
@@ -890,11 +894,11 @@ vxlan_socket_release(struct vxlan_socket *vso)
 {
 	int destroy;
 
-	mtx_lock(&vxlan_list_mtx);
+	VXLAN_LIST_LOCK();
 	destroy = VXLAN_SO_RELEASE(vso);
 	if (destroy != 0)
 		LIST_REMOVE(vso, vxlso_entry);
-	mtx_unlock(&vxlan_list_mtx);
+	VXLAN_LIST_UNLOCK();
 
 	if (destroy != 0)
 		vxlan_socket_destroy(vso);
@@ -905,14 +909,14 @@ vxlan_socket_lookup(union vxlan_sockaddr *vxlsa)
 {
 	struct vxlan_socket *vso;
 
-	mtx_lock(&vxlan_list_mtx);
+	VXLAN_LIST_LOCK();
 	LIST_FOREACH(vso, &vxlan_socket_list, vxlso_entry) {
 		if (vxlan_sockaddr_cmp(&vso->vxlso_laddr, &vxlsa->sa) == 0) {
 			VXLAN_SO_ACQUIRE(vso);
 			break;
 		}
 	}
-	mtx_unlock(&vxlan_list_mtx);
+	VXLAN_LIST_UNLOCK();
 
 	return (vso);
 }
@@ -921,10 +925,10 @@ static void
 vxlan_socket_insert(struct vxlan_socket *vso)
 {
 
-	mtx_lock(&vxlan_list_mtx);
+	VXLAN_LIST_LOCK();
 	VXLAN_SO_ACQUIRE(vso);
 	LIST_INSERT_HEAD(&vxlan_socket_list, vso, vxlso_entry);
-	mtx_unlock(&vxlan_list_mtx);
+	VXLAN_LIST_UNLOCK();
 }
 
 static int
@@ -3116,10 +3120,10 @@ vxlan_ifdetach_event(void *arg __unused, struct ifnet *ifp)
 	if ((ifp->if_flags & IFF_MULTICAST) == 0)
 		return;
 
-	mtx_lock(&vxlan_list_mtx);
+	VXLAN_LIST_LOCK();
 	LIST_FOREACH(vso, &vxlan_socket_list, vxlso_entry)
 		vxlan_socket_ifdetach(vso, ifp, &list);
-	mtx_unlock(&vxlan_list_mtx);
+	VXLAN_LIST_UNLOCK();
 
 	LIST_FOREACH_SAFE(sc, &list, vxl_ifdetach_list, tsc) {
 		LIST_REMOVE(sc, vxl_ifdetach_list);
