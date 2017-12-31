@@ -146,6 +146,10 @@ SECTIONS
   . = DATA_SEGMENT_RELRO_END (24, .);
   .got.plt        : { *(.got.plt) }
   . = ALIGN(64);
+  .data.read_frequently :
+  {
+    *(.data.read_frequently)
+  }
   .data.read_mostly :
   {
     *(.data.read_mostly)

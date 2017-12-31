@@ -62,7 +62,7 @@ SDT_PROBE_DEFINE1(lockstat, , , sx__downgrade, "struct sx *");
 
 SDT_PROBE_DEFINE2(lockstat, , , thread__spin, "struct mtx *", "uint64_t");
 
-volatile int __read_mostly lockstat_enabled;
+volatile int __read_frequently lockstat_enabled;
 
 uint64_t 
 lockstat_nsecs(struct lock_object *lo)
