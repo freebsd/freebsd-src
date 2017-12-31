@@ -526,6 +526,7 @@ DELAY(int usec)
 {
 	int32_t counts;
 
+	TSENTER();
 	/*
 	 * Check the timers are setup, if not just
 	 * use a for loop for the meantime
@@ -540,6 +541,7 @@ DELAY(int usec)
 				cpufunc_nullop();
 	} else
 		arm_tmr_do_delay(usec, arm_tmr_sc);
+	TSEXIT();
 }
 #endif
 

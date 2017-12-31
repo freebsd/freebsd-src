@@ -305,9 +305,11 @@ DELAY(int n)
 {
 	u_quad_t	tb, ttb;
 
+	TSENTER();
 	tb = mftb();
 	ttb = tb + howmany(n * 1000, ns_per_tick);
 	while (tb < ttb)
 		tb = mftb();
+	TSEXIT();
 }
 

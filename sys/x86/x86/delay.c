@@ -101,8 +101,12 @@ void
 DELAY(int n)
 {
 
-	if (delay_tc(n))
+	TSENTER();
+	if (delay_tc(n)) {
+		TSEXIT();
 		return;
+	}
 
 	init_ops.early_delay(n);
+	TSEXIT();
 }

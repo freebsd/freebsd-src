@@ -292,6 +292,7 @@ DELAY(int usec)
 				;
 		return;
 	}
+	TSENTER();
 
 	first = lpc_get_timecount(&lpc_timecounter);
 	while (val > 0) {
@@ -304,4 +305,5 @@ DELAY(int usec)
 		val -= (last - first);
 		first = last;
 	}
+	TSEXIT();
 }
