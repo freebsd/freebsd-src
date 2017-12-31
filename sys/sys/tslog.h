@@ -29,8 +29,10 @@
 #ifndef _TSLOG_H_
 #define	_TSLOG_H_
 
+#ifdef TSLOG
 #include <sys/_types.h>
 #include <sys/pcpu.h>
+#endif
 
 #define TS_ENTER	0
 #define TS_EXIT		1
