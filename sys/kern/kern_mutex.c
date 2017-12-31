@@ -170,6 +170,8 @@ LOCK_DELAY_SYSINIT_DEFAULT(mtx_spin_delay);
 struct mtx blocked_lock;
 struct mtx __exclusive_cache_line Giant;
 
+static void _mtx_lock_indefinite_check(struct mtx *, struct lock_delay_arg *);
+
 void
 assert_mtx(const struct lock_object *lock, int what)
 {
@@ -674,25 +676,6 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 #endif
 }
 
-static void
-_mtx_lock_spin_failed(struct mtx *m)
-{
-	struct thread *td;
-
-	td = mtx_owner(m);
-
-	/* If the mutex is unlocked, try again. */
-	if (td == NULL)
-		return;
-
-	printf( "spin lock %p (%s) held by %p (tid %d) too long\n",
-	    m, m->lock_object.lo_name, td, td->td_tid);
-#ifdef WITNESS
-	witness_display_spinlock(&m->lock_object, td, printf);
-#endif
-	panic("spin lock held too long");
-}
-
 #ifdef SMP
 /*
  * _mtx_lock_spin_cookie: the tougher part of acquiring an MTX_SPIN lock.
@@ -764,16 +747,10 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v)
 		/* Give interrupts a chance while we spin. */
 		spinlock_exit();
 		do {
-			if (lda.spin_cnt < 10000000) {
+			if (__predict_true(lda.spin_cnt < 10000000)) {
 				lock_delay(&lda);
 			} else {
-				lda.spin_cnt++;
-				if (lda.spin_cnt < 60000000 || kdb_active ||
-				    panicstr != NULL)
-					DELAY(1);
-				else
-					_mtx_lock_spin_failed(m);
-				cpu_spinwait();
+				_mtx_lock_indefinite_check(m, &lda);
 			}
 			v = MTX_READ_VALUE(m);
 		} while (v != MTX_UNOWNED);
@@ -931,16 +908,10 @@ retry:
 			/* Give interrupts a chance while we spin. */
 			spinlock_exit();
 			do {
-				if (lda.spin_cnt < 10000000) {
+				if (__predict_true(lda.spin_cnt < 10000000)) {
 					lock_delay(&lda);
 				} else {
-					lda.spin_cnt++;
-					if (lda.spin_cnt < 60000000 ||
-					    kdb_active || panicstr != NULL)
-						DELAY(1);
-					else
-						_mtx_lock_spin_failed(m);
-					cpu_spinwait();
+					_mtx_lock_indefinite_check(m, &lda);
 				}
 				if (m != td->td_lock)
 					goto retry;
@@ -1229,6 +1200,31 @@ mutex_init(void)
 	mtx_init(&proc0.p_profmtx, "pprofl", NULL, MTX_SPIN);
 	mtx_init(&devmtx, "cdev", NULL, MTX_DEF);
 	mtx_lock(&Giant);
+}
+
+static void __noinline
+_mtx_lock_indefinite_check(struct mtx *m, struct lock_delay_arg *ldap)
+{
+	struct thread *td;
+
+	ldap->spin_cnt++;
+	if (ldap->spin_cnt < 60000000 || kdb_active || panicstr != NULL)
+		DELAY(1);
+	else {
+		td = mtx_owner(m);
+
+		/* If the mutex is unlocked, try again. */
+		if (td == NULL)
+			return;
+
+		printf( "spin lock %p (%s) held by %p (tid %d) too long\n",
+		    m, m->lock_object.lo_name, td, td->td_tid);
+#ifdef WITNESS
+		witness_display_spinlock(&m->lock_object, td, printf);
+#endif
+		panic("spin lock held too long");
+	}
+	cpu_spinwait();
 }
 
 #ifdef DDB
