@@ -534,6 +534,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 	volatile struct thread *owner;
 	u_int i, n, spintries = 0;
 	bool adaptive;
+	int sleep_reason = 0;
 #endif
 #ifdef LOCK_PROFILING
 	uint64_t waittime = 0;
@@ -647,6 +648,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 				    sched_tdname(curthread), "running");
 				continue;
 			}
+			sleep_reason = 1;
 		} else if (SX_SHARERS(x) && spintries < asx_retries) {
 			KTR_STATE1(KTR_SCHED, "thread",
 			    sched_tdname(curthread), "spinning",
@@ -671,6 +673,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 			    sched_tdname(curthread), "running");
 			if (i != asx_loops)
 				continue;
+			sleep_reason = 2;
 		}
 #endif
 sleepq:
@@ -695,9 +698,14 @@ retry_sleepq:
 		 * chain lock.  If so, drop the sleep queue lock and try
 		 * again.
 		 */
-		if (!(x & SX_LOCK_SHARED) && adaptive) {
-			owner = (struct thread *)SX_OWNER(x);
-			if (TD_IS_RUNNING(owner)) {
+		if (adaptive) {
+			if (!(x & SX_LOCK_SHARED)) {
+				owner = (struct thread *)SX_OWNER(x);
+				if (TD_IS_RUNNING(owner)) {
+					sleepq_release(&sx->lock_object);
+					continue;
+				}
+			} else if (SX_SHARERS(x) > 0 && sleep_reason == 1) {
 				sleepq_release(&sx->lock_object);
 				continue;
 			}
