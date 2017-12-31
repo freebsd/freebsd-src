@@ -675,8 +675,8 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 				continue;
 			sleep_reason = 2;
 		}
-#endif
 sleepq:
+#endif
 		sleepq_lock(&sx->lock_object);
 		x = SX_READ_VALUE(sx);
 retry_sleepq:
@@ -1000,9 +1000,9 @@ _sx_slock_hard(struct sx *sx, int opts, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 			    sched_tdname(curthread), "running");
 			continue;
 		}
+sleepq:
 #endif
 
-sleepq:
 		/*
 		 * Some other thread already has an exclusive lock, so
 		 * start the process of blocking.
