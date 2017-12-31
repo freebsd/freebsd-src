@@ -74,8 +74,6 @@ void
 machdep_ap_bootstrap(void)
 {
 
-	/* Set PIR */
-	PCPU_SET(pir, mfspr(SPR_PIR));
 	PCPU_SET(awake, 1);
 	__asm __volatile("msync; isync");
 
@@ -224,13 +222,13 @@ cpu_mp_unleash(void *dummy)
 				DELAY(1000);
 
 		} else {
-			PCPU_SET(pir, mfspr(SPR_PIR));
 			pc->pc_awake = 1;
 		}
 		if (pc->pc_awake) {
 			if (bootverbose)
-				printf("Adding CPU %d, pir=%x, awake=%x\n",
-				    pc->pc_cpuid, pc->pc_pir, pc->pc_awake);
+				printf("Adding CPU %d, hwref=%jx, awake=%x\n",
+				    pc->pc_cpuid, (uintmax_t)pc->pc_hwref,
+				    pc->pc_awake);
 			smp_cpus++;
 		} else
 			CPU_SET(pc->pc_cpuid, &stopped_cpus);
