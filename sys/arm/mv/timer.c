@@ -272,6 +272,7 @@ DELAY(int usec)
 				__asm __volatile("nop" ::: "memory");
 		return;
 	}
+	TSENTER();
 
 	val = mv_get_timer(1);
 	nticks = ((MV_CLOCK_SRC / 1000000 + 1) * usec);
@@ -285,6 +286,7 @@ DELAY(int usec)
 
 		val = val_temp;
 	}
+	TSEXIT();
 }
 
 static uint32_t
