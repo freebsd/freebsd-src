@@ -165,7 +165,7 @@ struct pagerops *pagertab[] = {
  * cleaning requests (NPENDINGIO == 64) * the maximum swap cluster size
  * (MAXPHYS == 64k) if you want to get the most efficiency.
  */
-struct mtx_padalign pbuf_mtx;
+struct mtx_padalign __exclusive_cache_line pbuf_mtx;
 static TAILQ_HEAD(swqueue, buf) bswlist;
 static int bswneeded;
 vm_offset_t swapbkva;		/* swap buffers kva */
