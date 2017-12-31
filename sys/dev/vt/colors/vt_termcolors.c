@@ -155,7 +155,7 @@ vt_palette_init()
 		snprintf(tunable, sizeof(tunable),
 		    "kern.vt.color.%d.rgb", i);
 		if (TUNABLE_STR_FETCH(tunable, rgb, sizeof(rgb))) {
-			if (vt_parse_rgb_triplet(rgb, strlen(rgb), &r, &g, &b) == 0) {
+			if (vt_parse_rgb_triplet(rgb, &r, &g, &b) == 0) {
 				/* convert to percentages */
 				color_def[i].r = r*100/255;
 				color_def[i].g = g*100/255;
