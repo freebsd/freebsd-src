@@ -872,6 +872,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 #ifdef ADAPTIVE_RWLOCKS
 	int spintries = 0;
 	int i, n;
+	int sleep_reason = 0;
 #endif
 	uintptr_t x;
 #ifdef LOCK_PROFILING
@@ -952,6 +953,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 		 * running on another CPU, spin until the owner stops
 		 * running or the state of the lock changes.
 		 */
+		sleep_reason = 1;
 		owner = lv_rw_wowner(v);
 		if (!(v & RW_LOCK_READ) && TD_IS_RUNNING(owner)) {
 			if (LOCK_LOG_TEST(&rw->lock_object, 0))
@@ -995,6 +997,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 #endif
 			if (i != rowner_loops)
 				continue;
+			sleep_reason = 2;
 		}
 #endif
 		ts = turnstile_trywait(&rw->lock_object);
@@ -1015,6 +1018,9 @@ retry_ts:
 				turnstile_cancel(ts);
 				continue;
 			}
+		} else if (RW_READERS(v) > 0 && sleep_reason == 1) {
+			turnstile_cancel(ts);
+			continue;
 		}
 #endif
 		/*
