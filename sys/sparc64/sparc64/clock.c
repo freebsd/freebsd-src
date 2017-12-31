@@ -45,6 +45,7 @@ DELAY(int usec)
 
 	if (usec < 0)
 		return;
+	TSENTER();
 
 	/*
 	 * We avoid being migrated to another CPU with a possibly
@@ -57,5 +58,6 @@ DELAY(int usec)
 		cpu_spinwait();
 
 	sched_unpin();
+	TSEXIT();
 }
 
