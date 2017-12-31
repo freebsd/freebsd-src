@@ -144,7 +144,7 @@ vt_parse_rgb_triplet(const char *rgb, unsigned char *r,
 }
 
 static void
-vt_palette_init()
+vt_palette_init(void)
 {
 	int i;
 	char rgb[32];
