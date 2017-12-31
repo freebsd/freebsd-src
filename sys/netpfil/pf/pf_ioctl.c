@@ -3833,12 +3833,6 @@ pf_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		error = pf_load();
 		break;
-	case MOD_QUIESCE:
-		/*
-		 * Module should not be unloaded due to race conditions.
-		 */
-		error = EBUSY;
-		break;
 	case MOD_UNLOAD:
 		/* Handled in SYSUNINIT(pf_unload) to ensure it's done after
 		 * the vnet_pf_uninit()s */
