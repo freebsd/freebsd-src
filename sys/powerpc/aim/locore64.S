@@ -85,8 +85,9 @@ ap_kexec_start:		/* At 0x60 past start, copied to 0x60 by kexec */
 	sync
 	icbi	0,%r0
 	isync
-	ba	0x78			/* Absolute branch to next inst */
+	ba	0x80			/* Absolute branch to next inst */
 
+. = kbootentry + 0x80			/* Aligned to cache line */
 1:	or	31,31,31		/* yield */
 	sync
 	lwz	%r1,0x40(0)		/* Spin on ap_kexec_spin_sem */
