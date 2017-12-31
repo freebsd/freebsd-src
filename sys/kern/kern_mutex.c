@@ -899,6 +899,10 @@ thread_lock_flags_(struct thread *td, int opts, const char *file, int line)
 
 	lock_delay_arg_init(&lda, &mtx_spin_delay);
 
+#ifdef HWPMC_HOOKS
+	PMC_SOFT_CALL( , , lock, failed);
+#endif
+
 #ifdef LOCK_PROFILING
 	doing_lockprof = 1;
 #elif defined(KDTRACE_HOOKS)
@@ -908,22 +912,20 @@ thread_lock_flags_(struct thread *td, int opts, const char *file, int line)
 #endif
 	for (;;) {
 retry:
-		v = MTX_UNOWNED;
 		spinlock_enter();
 		m = td->td_lock;
 		thread_lock_validate(m, opts, file, line);
+		v = MTX_READ_VALUE(m);
 		for (;;) {
-			if (_mtx_obtain_lock_fetch(m, &v, tid))
-				break;
-			if (v == MTX_UNOWNED)
+			if (v == MTX_UNOWNED) {
+				if (_mtx_obtain_lock_fetch(m, &v, tid))
+					break;
 				continue;
+			}
 			if (v == tid) {
 				m->mtx_recurse++;
 				break;
 			}
-#ifdef HWPMC_HOOKS
-			PMC_SOFT_CALL( , , lock, failed);
-#endif
 			lock_profile_obtain_lock_failed(&m->lock_object,
 			    &contested, &waittime);
 			/* Give interrupts a chance while we spin. */
