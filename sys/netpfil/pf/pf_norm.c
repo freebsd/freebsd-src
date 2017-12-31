@@ -219,9 +219,16 @@ pf_frag_compare(struct pf_fragment *a, struct pf_fragment *b)
 void
 pf_purge_expired_fragments(void)
 {
+	u_int32_t	expire = time_uptime -
+			    V_pf_default_rule.timeout[PFTM_FRAG];
+
+	pf_purge_fragments(expire);
+}
+
+void
+pf_purge_fragments(uint32_t expire)
+{
 	struct pf_fragment	*frag;
-	u_int32_t		 expire = time_uptime -
-				    V_pf_default_rule.timeout[PFTM_FRAG];
 
 	PF_FRAG_LOCK();
 	while ((frag = TAILQ_LAST(&V_pf_fragqueue, pf_fragqueue)) != NULL) {
