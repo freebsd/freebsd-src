@@ -516,7 +516,7 @@ __rw_rlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
 #endif
 			KTR_STATE0(KTR_SCHED, "thread", sched_tdname(curthread),
 			    "running");
-			if (i != rowner_loops)
+			if (i < rowner_loops)
 				continue;
 		}
 #endif
@@ -995,7 +995,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 #ifdef KDTRACE_HOOKS
 			lda.spin_cnt += rowner_loops - i;
 #endif
-			if (i != rowner_loops)
+			if (i < rowner_loops)
 				continue;
 			sleep_reason = 2;
 		}
