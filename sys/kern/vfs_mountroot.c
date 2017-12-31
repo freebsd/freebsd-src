@@ -938,6 +938,8 @@ vfs_mountroot_wait(void)
 	struct timeval lastfail;
 	int curfail;
 
+	TSENTER();
+
 	curfail = 0;
 	while (1) {
 		DROP_GIANT();
@@ -957,6 +959,8 @@ vfs_mountroot_wait(void)
 		msleep(&root_holds, &root_holds_mtx, PZERO | PDROP, "roothold",
 		    hz);
 	}
+
+	TSEXIT();
 }
 
 static int
@@ -1013,6 +1017,8 @@ vfs_mountroot(void)
 	struct thread *td;
 	time_t timebase;
 	int error;
+	
+	TSENTER();
 
 	td = curthread;
 
@@ -1062,6 +1068,8 @@ vfs_mountroot(void)
 	mtx_unlock(&root_holds_mtx);
 
 	EVENTHANDLER_INVOKE(mountroot);
+
+	TSEXIT();
 }
 
 static struct mntarg *
