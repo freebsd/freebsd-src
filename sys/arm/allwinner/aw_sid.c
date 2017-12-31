@@ -67,6 +67,11 @@ static const struct aw_sid_conf a20_conf = {
 	.rootkey_offset = 0,
 };
 
+static const struct aw_sid_conf a64_conf = {
+	.rootkey_offset = SID_SRAM,
+	.has_thermal = true,
+};
+
 static const struct aw_sid_conf a83t_conf = {
 	.rootkey_offset = SID_SRAM,
 	.has_thermal = true,
@@ -75,6 +80,7 @@ static const struct aw_sid_conf a83t_conf = {
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-sid",		(uintptr_t)&a10_conf},
 	{ "allwinner,sun7i-a20-sid",		(uintptr_t)&a20_conf},
+	{ "allwinner,sun50i-a64-sid",		(uintptr_t)&a64_conf},
 	{ "allwinner,sun8i-a83t-sid",		(uintptr_t)&a83t_conf},
 	{ NULL,					0 }
 };
