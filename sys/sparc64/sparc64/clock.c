@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
+#include <sys/tslog.h>
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
