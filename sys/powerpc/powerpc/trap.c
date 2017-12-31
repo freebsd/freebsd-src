@@ -97,6 +97,8 @@ static int	handle_user_slb_spill(pmap_t pm, vm_offset_t addr);
 extern int	n_slbs;
 #endif
 
+extern vm_offset_t __startkernel;
+
 #ifdef KDB
 int db_trap_glue(struct trapframe *);		/* Called from trap_subr.S */
 #endif
@@ -123,6 +125,7 @@ static struct powerpc_exception powerpc_exceptions[] = {
 	{ EXC_EXI,	"external interrupt" },
 	{ EXC_ALI,	"alignment" },
 	{ EXC_PGM,	"program" },
+	{ EXC_HEA,	"hypervisor emulation assistance" },
 	{ EXC_FPU,	"floating-point unavailable" },
 	{ EXC_APU,	"auxiliary proc unavailable" },
 	{ EXC_DECR,	"decrementer" },
@@ -484,9 +487,11 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	printf("   esr             = 0x%b\n",
 	    (int)frame->cpu.booke.esr, ESR_BITMASK);
 #endif
-	printf("   srr0            = 0x%" PRIxPTR "\n", frame->srr0);
+	printf("   srr0            = 0x%" PRIxPTR " (0x%" PRIxPTR ")\n",
+	    frame->srr0, frame->srr0 - (__startkernel - KERNBASE));
 	printf("   srr1            = 0x%lx\n", (u_long)frame->srr1);
-	printf("   lr              = 0x%" PRIxPTR "\n", frame->lr);
+	printf("   lr              = 0x%" PRIxPTR " (0x%" PRIxPTR ")\n",
+	    frame->lr, frame->lr - (__startkernel - KERNBASE));
 	printf("   curthread       = %p\n", curthread);
 	if (curthread != NULL)
 		printf("          pid = %d, comm = %s\n",
