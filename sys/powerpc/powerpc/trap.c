@@ -488,10 +488,10 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	    (int)frame->cpu.booke.esr, ESR_BITMASK);
 #endif
 	printf("   srr0            = 0x%" PRIxPTR " (0x%" PRIxPTR ")\n",
-	    frame->srr0, frame->srr0 - (__startkernel - KERNBASE));
+	    frame->srr0, frame->srr0 - (register_t)(__startkernel - KERNBASE));
 	printf("   srr1            = 0x%lx\n", (u_long)frame->srr1);
 	printf("   lr              = 0x%" PRIxPTR " (0x%" PRIxPTR ")\n",
-	    frame->lr, frame->lr - (__startkernel - KERNBASE));
+	    frame->lr, frame->lr - (register_t)(__startkernel - KERNBASE));
 	printf("   curthread       = %p\n", curthread);
 	if (curthread != NULL)
 		printf("          pid = %d, comm = %s\n",
