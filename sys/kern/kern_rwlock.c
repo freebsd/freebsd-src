@@ -755,7 +755,7 @@ __rw_runlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
     LOCK_FILE_LINE_ARG_DEF)
 {
 	struct turnstile *ts;
-	uintptr_t x, queue;
+	uintptr_t setv, queue;
 
 	if (SCHEDULER_STOPPED())
 		return;
@@ -795,14 +795,14 @@ retry_ts:
 		 * acquired a read lock, so drop the turnstile lock and
 		 * restart.
 		 */
-		x = RW_UNLOCKED;
+		setv = RW_UNLOCKED;
+		queue = TS_SHARED_QUEUE;
 		if (v & RW_LOCK_WRITE_WAITERS) {
 			queue = TS_EXCLUSIVE_QUEUE;
-			x |= (v & RW_LOCK_READ_WAITERS);
-		} else
-			queue = TS_SHARED_QUEUE;
+			setv |= (v & RW_LOCK_READ_WAITERS);
+		}
 		v |= RW_READERS_LOCK(1);
-		if (!atomic_fcmpset_rel_ptr(&rw->rw_lock, &v, x))
+		if (!atomic_fcmpset_rel_ptr(&rw->rw_lock, &v, setv))
 			goto retry_ts;
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p last succeeded with waiters",
