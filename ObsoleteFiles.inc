@@ -39,7 +39,7 @@
 # done
 
 # 20171230: Remove /etc/skel from mtree
-OLD_DIRS=/etc/skel
+OLD_DIRS+=/etc/skel
 # 20171208: Remove basename_r(3)
 OLD_FILES+=usr/share/man/man3/basename_r.3.gz
 # 20171204: Move fdformat man page from volume 1 to volume 8.
