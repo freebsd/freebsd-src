@@ -729,10 +729,9 @@ swapout_procs(int action)
 {
 	struct proc *p;
 	struct thread *td;
-	int minslptime, slptime;
+	int slptime;
 	bool didswap;
 
-	minslptime = 100000;
 	didswap = false;
 retry:
 	sx_slock(&allproc_lock);
@@ -831,8 +830,6 @@ retry:
 					goto nextproc;
 				}
 
-				if (minslptime > slptime)
-					minslptime = slptime;
 				thread_unlock(td);
 			}
 
@@ -841,15 +838,11 @@ retry:
 			 * or if this process is idle and the system is
 			 * configured to swap proactively, swap it out.
 			 */
-			if ((action & VM_SWAP_NORMAL) != 0 ||
-			    ((action & VM_SWAP_IDLE) != 0 &&
-			    minslptime > swap_idle_threshold2)) {
-				_PRELE(p);
-				if (swapout(p) == 0)
-					didswap = true;
-				PROC_UNLOCK(p);
-				goto retry;
-			}
+			_PRELE(p);
+			if (swapout(p) == 0)
+				didswap = true;
+			PROC_UNLOCK(p);
+			goto retry;
 		}
 nextproc:
 		PROC_UNLOCK(p);
