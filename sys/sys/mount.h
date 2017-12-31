@@ -40,6 +40,7 @@
 #ifdef _KERNEL
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
+#include <sys/tslog.h>
 #include <sys/_mutex.h>
 #include <sys/_sx.h>
 #endif
@@ -708,9 +709,11 @@ vfs_statfs_t	__vfs_statfs;
 #define	VFS_MOUNT(MP) ({						\
 	int _rc;							\
 									\
+	TSRAW(curthread, TS_ENTER, "VFS_MOUNT", (MP)->mnt_vfc->vfc_name);\
 	VFS_PROLOGUE(MP);						\
 	_rc = (*(MP)->mnt_op->vfs_mount)(MP);				\
 	VFS_EPILOGUE(MP);						\
+	TSRAW(curthread, TS_EXIT, "VFS_MOUNT", (MP)->mnt_vfc->vfc_name);\
 	_rc; })
 
 #define	VFS_UNMOUNT(MP, FORCE) ({					\
