@@ -326,11 +326,19 @@ function handle_method (static, doc)
 	}
 	printh("{");
 	printh("\tkobjop_t _m;");
+	if (ret != "void")
+		printh("\t" ret " rc;");
 	if (!static)
 		firstvar = "((kobj_t)" firstvar ")";
+	if (prolog != "")
+		printh(prolog);
 	printh("\tKOBJOPLOOKUP(" firstvar "->ops," mname ");");
-	retrn =  (ret != "void") ? "return " : "";
-	printh("\t" retrn "((" mname "_t *) _m)(" varname_list ");");
+	rceq = (ret != "void") ? "rc = " : "";
+	printh("\t" rceq "((" mname "_t *) _m)(" varname_list ");");
+	if (epilog != "")
+		printh(epilog);
+	if (ret != "void")
+		printh("\treturn (rc);");
 	printh("}\n");
 }
 
@@ -440,6 +448,8 @@ for (file_i = 0; file_i < num_files; file_i++) {
 	lineno = 0;
 	error = 0;		# to signal clean up and gerror setting
 	lastdoc = "";
+	prolog = "";
+	epilog = "";
 
 	while (!error && (getline < src) > 0) {
 		lineno++;
@@ -473,10 +483,18 @@ for (file_i = 0; file_i < num_files; file_i++) {
 		else if (/^METHOD/) {
 			handle_method(0, lastdoc);
 			lastdoc = "";
+			prolog = "";
+			epilog = "";
 		} else if (/^STATICMETHOD/) {
 			handle_method(1, lastdoc);
 			lastdoc = "";
-		} else {
+			prolog = "";
+			epilog = "";
+		} else if (/^PROLOG[ 	]*{$/)
+			prolog = handle_code();
+		else if (/^EPILOG[ 	]*{$/)
+			epilog = handle_code();
+		else {
 			debug($0);
 			warnsrc("Invalid line encountered");
 			error = 1;
