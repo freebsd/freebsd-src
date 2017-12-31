@@ -29,6 +29,6 @@
 #ifndef FDT_OVERLAY_H
 #define FDT_OVERLAY_H
 
-int fdt_overlay_apply(void *main_fdtp, void *overlay_fdtp, size_t overlay_length);
+int fdt_overlay_apply(void *main_fdtp, void *overlay_fdtp);
 
 #endif /* FDT_OVERLAY_H */
