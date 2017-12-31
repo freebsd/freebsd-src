@@ -127,9 +127,9 @@ __FBSDID("$FreeBSD$");
  */
 
 struct vm_domain vm_dom[MAXMEMDOM];
-struct mtx_padalign vm_page_queue_free_mtx;
+struct mtx_padalign __exclusive_cache_line vm_page_queue_free_mtx;
 
-struct mtx_padalign pa_lock[PA_LOCK_COUNT];
+struct mtx_padalign __exclusive_cache_line pa_lock[PA_LOCK_COUNT];
 
 vm_page_t vm_page_array;
 long vm_page_array_size;

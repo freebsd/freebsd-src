@@ -253,23 +253,23 @@ SYSCTL_INT(_vfs, OID_AUTO, maxbcachebuf, CTLFLAG_RDTUN, &maxbcachebuf, 0,
 /*
  * This lock synchronizes access to bd_request.
  */
-static struct mtx_padalign bdlock;
+static struct mtx_padalign __exclusive_cache_line bdlock;
 
 /*
  * This lock protects the runningbufreq and synchronizes runningbufwakeup and
  * waitrunningbufspace().
  */
-static struct mtx_padalign rbreqlock;
+static struct mtx_padalign __exclusive_cache_line rbreqlock;
 
 /*
  * Lock that protects needsbuffer and the sleeps/wakeups surrounding it.
  */
-static struct rwlock_padalign nblock;
+static struct rwlock_padalign __exclusive_cache_line nblock;
 
 /*
  * Lock that protects bdirtywait.
  */
-static struct mtx_padalign bdirtylock;
+static struct mtx_padalign __exclusive_cache_line bdirtylock;
 
 /*
  * Wakeup point for bufdaemon, as well as indicator of whether it is already
@@ -348,7 +348,7 @@ static int bq_len[BUFFER_QUEUES];
 /*
  * Lock for each bufqueue
  */
-static struct mtx_padalign bqlocks[BUFFER_QUEUES];
+static struct mtx_padalign __exclusive_cache_line bqlocks[BUFFER_QUEUES];
 
 /*
  * per-cpu empty buffer cache.
