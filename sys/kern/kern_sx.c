@@ -671,7 +671,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 #endif
 			KTR_STATE0(KTR_SCHED, "thread",
 			    sched_tdname(curthread), "running");
-			if (i != asx_loops)
+			if (i < asx_loops)
 				continue;
 			sleep_reason = 2;
 		}
