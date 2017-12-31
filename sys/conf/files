@@ -3802,6 +3802,7 @@ kern/kern_thr.c			standard
 kern/kern_thread.c		standard
 kern/kern_time.c		standard
 kern/kern_timeout.c		standard
+kern/kern_tslog.c		optional tslog
 kern/kern_umtx.c		standard
 kern/kern_uuid.c		standard
 kern/kern_xxx.c			standard
