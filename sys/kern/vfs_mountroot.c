@@ -176,6 +176,7 @@ root_mount_hold(const char *identifier)
 	h = malloc(sizeof *h, M_DEVBUF, M_ZERO | M_WAITOK);
 	h->who = identifier;
 	mtx_lock(&root_holds_mtx);
+	TSHOLD("root mount");
 	LIST_INSERT_HEAD(&root_holds, h, list);
 	mtx_unlock(&root_holds_mtx);
 	return (h);
@@ -190,6 +191,7 @@ root_mount_rel(struct root_hold_token *h)
 
 	mtx_lock(&root_holds_mtx);
 	LIST_REMOVE(h, list);
+	TSRELEASE("root mount");
 	wakeup(&root_holds);
 	mtx_unlock(&root_holds_mtx);
 	free(h, M_DEVBUF);
@@ -956,8 +958,10 @@ vfs_mountroot_wait(void)
 				printf(" %s", h->who);
 			printf("\n");
 		}
+		TSWAIT("root mount");
 		msleep(&root_holds, &root_holds_mtx, PZERO | PDROP, "roothold",
 		    hz);
+		TSUNWAIT("root mount");
 	}
 
 	TSEXIT();
