@@ -368,7 +368,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	thread0.td_oncpu = bsp.cr_cpuid;
 	pc->pc_cpuid = bsp.cr_cpuid;
 	pc->pc_hwref = bsp.cr_hwref;
-	pc->pc_pir = mfspr(SPR_PIR);
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 
 	/*
