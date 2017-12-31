@@ -70,8 +70,6 @@
         ..
         security
         ..
-        skel
-        ..
         ssh
         ..
         ssl
