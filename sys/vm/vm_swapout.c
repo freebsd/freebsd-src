@@ -203,6 +203,8 @@ vm_swapout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 		TAILQ_FOREACH(p, &object->memq, listq) {
 			if (pmap_resident_count(pmap) <= desired)
 				goto unlock_return;
+			if (should_yield())
+				goto unlock_return;
 			if (vm_page_busied(p))
 				continue;
 			VM_CNT_INC(v_pdpages);
@@ -516,8 +518,10 @@ again:
 			PRELE(p);
 		}
 		sx_sunlock(&allproc_lock);
-		if (tryagain != 0 && attempts <= 10)
+		if (tryagain != 0 && attempts <= 10) {
+			maybe_yield();
 			goto again;
+		}
 	}
 }
 
