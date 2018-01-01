@@ -40,40 +40,7 @@
 
 #include <signal.h>		/* for sig_atomic_t */
 
-/*
- * A job structure contains information about a job.  A job is either a
- * single process or a set of processes contained in a pipeline.  In the
- * latter case, pidlist will be non-NULL, and will point to a -1 terminated
- * array of pids.
- */
-
-struct procstat {
-	pid_t pid;		/* process id */
-	int status;		/* status flags (defined above) */
-	char *cmd;		/* text of command being run */
-};
-
-
-/* states */
-#define JOBSTOPPED 1		/* all procs are stopped */
-#define JOBDONE 2		/* all procs are completed */
-
-
-struct job {
-	struct procstat ps0;	/* status of process */
-	struct procstat *ps;	/* status or processes when more than one */
-	short nprocs;		/* number of processes */
-	pid_t pgrp;		/* process group of this job */
-	char state;		/* true if job is finished */
-	char used;		/* true if this entry is in used */
-	char changed;		/* true if status has changed */
-	char foreground;	/* true if running in the foreground */
-	char remembered;	/* true if $! referenced */
-#if JOBS
-	char jobctl;		/* job running under job control */
-	struct job *next;	/* job used after this one */
-#endif
-};
+struct job;
 
 enum {
 	SHOWJOBS_DEFAULT,	/* job number, status, command */
