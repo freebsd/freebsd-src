@@ -1920,11 +1920,9 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	 * is nobody to modify pargs, thus we can just read.
 	 */
 	p = curproc;
-	if (pid == p->p_pid && p->p_numthreads == 1 && req->newptr == NULL) {
-		if ((pa = p->p_args) != NULL)
-			error = SYSCTL_OUT(req, pa->ar_args, pa->ar_length);
-		return (error);
-	}
+	if (pid == p->p_pid && p->p_numthreads == 1 && req->newptr == NULL &&
+	    (pa = p->p_args) != NULL)
+		return (SYSCTL_OUT(req, pa->ar_args, pa->ar_length));
 
 	flags = PGET_CANSEE;
 	if (req->newptr != NULL)
