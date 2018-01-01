@@ -40,7 +40,6 @@
  * Copyright (c) 1990 by Sun Microsystems, Inc.
  */
 
-#include <stdio.h>
 #include <netconfig.h>
 #include <rpc/rpc.h>
 #include <rpc/rpcb_prot.h>

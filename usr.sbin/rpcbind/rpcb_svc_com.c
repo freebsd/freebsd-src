@@ -53,7 +53,6 @@
 #include <netconfig.h>
 #include <errno.h>
 #include <syslog.h>
-#include <unistd.h>
 #include <stdio.h>
 #ifdef PORTMAP
 #include <netinet/in.h>
