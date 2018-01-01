@@ -71,7 +71,6 @@ static	char sccsid[] = "@(#)rpcbind.c 1.35 89/04/21 Copyr 1984 Sun Micro";
 #include <unistd.h>
 #include <syslog.h>
 #include <err.h>
-#include <libutil.h>
 #include <pwd.h>
 #include <string.h>
 #include <errno.h>
