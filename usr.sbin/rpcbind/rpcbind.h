@@ -44,6 +44,8 @@
 #ifndef rpcbind_h
 #define	rpcbind_h
 
+#include <signal.h>
+
 #ifdef PORTMAP
 #include <rpc/pmap_prot.h>
 #endif
@@ -68,6 +70,7 @@ struct r_rmtcall_args {
 
 extern int debugging;
 extern int doabort;
+extern volatile sig_atomic_t doterminate;
 #ifdef LIBWRAP
 extern int libwrap;
 #endif
@@ -75,6 +78,7 @@ extern int verboselog;
 extern int insecure;
 extern int oldstyle_local;
 extern rpcblist_ptr list_rbl;	/* A list of version 3 & 4 rpcbind services */
+extern int rpcbindlockfd;
 
 #ifdef PORTMAP
 extern struct pmaplist *list_pml; /* A list of version 2 rpcbind services */
