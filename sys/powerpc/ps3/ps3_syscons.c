@@ -229,7 +229,7 @@ ps3fb_init(struct vt_device *vd)
 
 	/* 32-bit VGA palette */
 	vt_generate_cons_palette(sc->fb_info.fb_cmap, COLOR_FORMAT_RGB,
-	    255, 0, 255, 8, 255, 16);
+	    255, 16, 255, 8, 255, 0);
 
 	/* Set correct graphics context */
 	lv1_gpu_context_attribute(sc->sc_fbcontext,
