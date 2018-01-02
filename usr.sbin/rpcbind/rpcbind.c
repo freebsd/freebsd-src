@@ -79,7 +79,9 @@ static	char sccsid[] = "@(#)rpcbind.c 1.35 89/04/21 Copyr 1984 Sun Micro";
 /* Global variables */
 int debugging = 0;	/* Tell me what's going on */
 int doabort = 0;	/* When debugging, do an abort on errors */
+volatile sig_atomic_t doterminate = 0;	/* Terminal signal received */
 rpcblist_ptr list_rbl;	/* A list of version 3/4 rpcbind services */
+int rpcbindlockfd;
 
 /* who to suid to if -s is given */
 #define RUN_AS  "daemon"
@@ -99,7 +101,6 @@ static struct sockaddr **bound_sa;
 static int ipv6_only = 0;
 static int nhosts = 0;
 static int on = 1;
-static int rpcbindlockfd;
 
 #ifdef WARMSTART
 /* Local Variable */
@@ -758,16 +759,10 @@ rbllist_add(rpcprog_t prog, rpcvers_t vers, struct netconfig *nconf,
  * Catch the signal and die
  */
 static void
-terminate(int signum __unused)
+terminate(int signum)
 {
-	close(rpcbindlockfd);
-#ifdef WARMSTART
-	syslog(LOG_ERR,
-	    "rpcbind terminating on signal %d. Restart with \"rpcbind -w\"",
-	    signum);
-	write_warmstart();	/* Dump yourself */
-#endif
-	exit(2);
+
+	doterminate = signum;
 }
 
 void
