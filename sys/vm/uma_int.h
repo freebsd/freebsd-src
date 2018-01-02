@@ -428,10 +428,6 @@ void uma_small_free(void *mem, vm_size_t size, uint8_t flags);
 
 /* Set a global soft limit on UMA managed memory. */
 void uma_set_limit(unsigned long limit);
-unsigned long uma_limit(void);
-
-/* Return the amount of memory managed by UMA. */
-unsigned long uma_size(void);
 #endif /* _KERNEL */
 
 #endif /* VM_UMA_INT_H */

@@ -698,4 +698,12 @@ struct uma_percpu_stat {
 void uma_reclaim_wakeup(void);
 void uma_reclaim_worker(void *);
 
+unsigned long uma_limit(void);
+
+/* Return the amount of memory managed by UMA. */
+unsigned long uma_size(void);
+
+/* Return the amount of memory remaining.  May be negative. */
+long uma_avail(void);
+
 #endif	/* _VM_UMA_H_ */
