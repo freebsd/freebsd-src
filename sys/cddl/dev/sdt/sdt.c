@@ -76,6 +76,8 @@ static void	sdt_kld_unload_try(void *, struct linker_file *, int *);
 
 static MALLOC_DEFINE(M_SDT, "SDT", "DTrace SDT providers");
 
+static int sdt_probes_enabled_count;
+
 static dtrace_pattr_t sdt_attr = {
 { DTRACE_STABILITY_EVOLVING, DTRACE_STABILITY_EVOLVING, DTRACE_CLASS_COMMON },
 { DTRACE_STABILITY_PRIVATE, DTRACE_STABILITY_PRIVATE, DTRACE_CLASS_UNKNOWN },
@@ -208,6 +210,9 @@ sdt_enable(void *arg __unused, dtrace_id_t id, void *parg)
 	probe->sdtp_lf->nenabled++;
 	if (strcmp(probe->prov->name, "lockstat") == 0)
 		lockstat_enabled++;
+	sdt_probes_enabled_count++;
+	if (sdt_probes_enabled_count == 1)
+		sdt_probes_enabled = true;
 }
 
 static void
@@ -217,6 +222,9 @@ sdt_disable(void *arg __unused, dtrace_id_t id, void *parg)
 
 	KASSERT(probe->sdtp_lf->nenabled > 0, ("no probes enabled"));
 
+	sdt_probes_enabled_count--;
+	if (sdt_probes_enabled_count == 0)
+		sdt_probes_enabled = false;
 	if (strcmp(probe->prov->name, "lockstat") == 0)
 		lockstat_enabled--;
 	probe->id = 0;
