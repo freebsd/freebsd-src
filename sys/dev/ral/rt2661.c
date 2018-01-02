@@ -1437,7 +1437,6 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 	struct ieee80211_frame *wh;
 	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211_key *k;
-	const struct chanAccParams *cap;
 	struct mbuf *mnew;
 	bus_dma_segment_t segs[RT2661_MAX_SCATTER];
 	uint16_t dur;
@@ -1458,10 +1457,8 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 	}
 	rate &= IEEE80211_RATE_VAL;
 
-	if (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS) {
-		cap = &ic->ic_wme.wme_chanParams;
-		noack = cap->cap_wmeParams[ac].wmep_noackPolicy;
-	}
+	if (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS)
+		noack = !! ieee80211_wme_vap_ac_is_noack(vap, ac);
 
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
@@ -2045,9 +2042,12 @@ static int
 rt2661_wme_update(struct ieee80211com *ic)
 {
 	struct rt2661_softc *sc = ic->ic_softc;
+	struct chanAccParams chp;
 	const struct wmeParams *wmep;
 
-	wmep = ic->ic_wme.wme_chanParams.cap_wmeParams;
+	ieee80211_wme_ic_getparams(ic, &chp);
+
+	wmep = chp.cap_wmeParams;
 
 	/* XXX: not sure about shifts. */
 	/* XXX: the reference driver plays with AC_VI settings too. */

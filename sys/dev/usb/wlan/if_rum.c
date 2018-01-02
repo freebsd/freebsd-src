@@ -2301,10 +2301,13 @@ rum_update_slot(struct ieee80211com *ic)
 static int
 rum_wme_update(struct ieee80211com *ic)
 {
-	const struct wmeParams *chanp =
-	    ic->ic_wme.wme_chanParams.cap_wmeParams;
+	struct chanAccParams chp;
+	const struct wmeParams *chanp;
 	struct rum_softc *sc = ic->ic_softc;
 	int error = 0;
+
+	ieee80211_wme_ic_getparams(ic, &chp);
+	chanp = chp.cap_wmeParams;
 
 	RUM_LOCK(sc);
 	error = rum_write(sc, RT2573_AIFSN_CSR,

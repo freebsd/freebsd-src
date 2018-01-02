@@ -1050,12 +1050,15 @@ static int
 iwi_wme_setparams(struct iwi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
+	struct chanAccParams chp;
 	const struct wmeParams *wmep;
 	int ac;
 
+	ieee80211_wme_ic_getparams(ic, &chp);
+
 	for (ac = 0; ac < WME_NUM_AC; ac++) {
 		/* set WME values for current operating mode */
-		wmep = &ic->ic_wme.wme_chanParams.cap_wmeParams[ac];
+		wmep = &chp.cap_wmeParams[ac];
 		sc->wme[0].aifsn[ac] = wmep->wmep_aifsn;
 		sc->wme[0].cwmin[ac] = IWI_EXP2(wmep->wmep_logcwmin);
 		sc->wme[0].cwmax[ac] = IWI_EXP2(wmep->wmep_logcwmax);
@@ -1771,11 +1774,9 @@ iwi_tx_start(struct iwi_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
     int ac)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211com *ic = ni->ni_ic;
 	struct iwi_node *in = (struct iwi_node *)ni;
 	const struct ieee80211_frame *wh;
 	struct ieee80211_key *k;
-	const struct chanAccParams *cap;
 	struct iwi_tx_ring *txq = &sc->txq[ac];
 	struct iwi_tx_data *data;
 	struct iwi_tx_desc *desc;
@@ -1797,8 +1798,7 @@ iwi_tx_start(struct iwi_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 		flags |= IWI_DATA_FLAG_SHPREAMBLE;
 	if (IEEE80211_QOS_HAS_SEQ(wh)) {
 		xflags |= IWI_DATA_XFLAG_QOS;
-		cap = &ic->ic_wme.wme_chanParams;
-		if (!cap->cap_wmeParams[ac].wmep_noackPolicy)
+		if (ieee80211_wme_vap_ac_is_noack(vap, ac))
 			flags &= ~IWI_DATA_FLAG_NEED_ACK;
 	}
 
