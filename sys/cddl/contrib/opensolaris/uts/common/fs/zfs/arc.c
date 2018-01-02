@@ -6619,6 +6619,11 @@ arc_init(void)
 void
 arc_fini(void)
 {
+#ifdef _KERNEL
+	if (arc_event_lowmem != NULL)
+		EVENTHANDLER_DEREGISTER(vm_lowmem, arc_event_lowmem);
+#endif
+
 	mutex_enter(&arc_reclaim_lock);
 	arc_reclaim_thread_exit = B_TRUE;
 	/*
@@ -6664,11 +6669,6 @@ arc_fini(void)
 	buf_fini();
 
 	ASSERT0(arc_loaned_bytes);
-
-#ifdef _KERNEL
-	if (arc_event_lowmem != NULL)
-		EVENTHANDLER_DEREGISTER(vm_lowmem, arc_event_lowmem);
-#endif
 }
 
 /*
