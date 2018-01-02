@@ -230,6 +230,13 @@ lock_delay_arg_init(struct lock_delay_arg *la, struct lock_delay_config *lc)
 	la->spin_cnt = 0;
 }
 
+#define lock_delay_spin(n)	do {	\
+	u_int _i;			\
+					\
+	for (_i = (n); _i > 0; _i--)	\
+		cpu_spinwait();		\
+} while (0)
+
 #define	LOCK_DELAY_SYSINIT(func) \
 	SYSINIT(func##_ld, SI_SUB_LOCK, SI_ORDER_ANY, func, NULL)
 
