@@ -537,14 +537,12 @@ pmap_delayed_invl_genp(vm_page_t m)
 static void
 pmap_delayed_invl_wait(vm_page_t m)
 {
-	struct thread *td;
 	struct turnstile *ts;
 	u_long *m_gen;
 #ifdef PV_STATS
 	bool accounted = false;
 #endif
 
-	td = curthread;
 	m_gen = pmap_delayed_invl_genp(m);
 	while (*m_gen > pmap_invl_gen) {
 #ifdef PV_STATS
