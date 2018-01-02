@@ -431,7 +431,7 @@ getoffset(char *timearg)
 	struct tm *lt;
 	char *p;
 	time_t now;
-	int this_year, maybe_today;
+	int maybe_today, this_year;
 	char *timeunit;
 
 	(void)time(&now);
@@ -482,6 +482,7 @@ getoffset(char *timearg)
 
 	unsetenv("TZ");					/* OUR timezone */
 	lt = localtime(&now);				/* current time val */
+	maybe_today = 1;
 
 	switch(strlen(timearg)) {
 	case 10:
