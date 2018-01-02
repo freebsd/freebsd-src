@@ -79,6 +79,7 @@ static	char sccsid[] = "@(#)rpcbind.c 1.35 89/04/21 Copyr 1984 Sun Micro";
 /* Global variables */
 int debugging = 0;	/* Tell me what's going on */
 int doabort = 0;	/* When debugging, do an abort on errors */
+int terminate_rfd;	/* Pipefd to wake on signal */
 volatile sig_atomic_t doterminate = 0;	/* Terminal signal received */
 rpcblist_ptr list_rbl;	/* A list of version 3/4 rpcbind services */
 int rpcbindlockfd;
@@ -101,6 +102,7 @@ static struct sockaddr **bound_sa;
 static int ipv6_only = 0;
 static int nhosts = 0;
 static int on = 1;
+static int terminate_wfd;
 
 #ifdef WARMSTART
 /* Local Variable */
@@ -133,6 +135,7 @@ main(int argc, char *argv[])
 	void *nc_handle;	/* Net config handle */
 	struct rlimit rl;
 	int maxrec = RPC_MAXDATASIZE;
+	int error, fds[2];
 
 	parseargs(argc, argv);
 
@@ -191,6 +194,16 @@ main(int argc, char *argv[])
 	    }
 	}
 	endnetconfig(nc_handle);
+
+	/*
+	 * Allocate pipe fd to wake main thread from signal handler in non-racy
+	 * way.
+	 */
+	error = pipe(fds);
+	if (error != 0)
+		err(1, "pipe failed");
+	terminate_rfd = fds[0];
+	terminate_wfd = fds[1];
 
 	/* catch the usual termination signals for graceful exit */
 	(void) signal(SIGCHLD, reap);
@@ -761,8 +774,13 @@ rbllist_add(rpcprog_t prog, rpcvers_t vers, struct netconfig *nconf,
 static void
 terminate(int signum)
 {
+	char c = '\0';
+	ssize_t wr;
 
 	doterminate = signum;
+	wr = write(terminate_wfd, &c, 1);
+	if (wr < 1)
+		_exit(2);
 }
 
 void
