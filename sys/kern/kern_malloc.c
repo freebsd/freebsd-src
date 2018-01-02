@@ -525,7 +525,7 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 	struct malloc_type_internal *mtip;
 	caddr_t va;
 	uma_zone_t zone;
-#if defined(DIAGNOSTIC) || defined(DEBUG_REDZONE)
+#if defined(DEBUG_REDZONE)
 	unsigned long osize = size;
 #endif
 
@@ -575,7 +575,7 @@ malloc_domain(unsigned long size, struct malloc_type *mtp, int domain,
 	struct malloc_type_internal *mtip;
 	caddr_t va;
 	uma_zone_t zone;
-#if defined(DIAGNOSTIC) || defined(DEBUG_REDZONE)
+#if defined(DEBUG_REDZONE)
 	unsigned long osize = size;
 #endif
 
