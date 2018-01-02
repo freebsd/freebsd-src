@@ -475,7 +475,7 @@ ef_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
 
 	if (ofs == 0) {
 		if (ef->ef_verbose)
-			warnx("ef_seg_read(%s): zero offset (%lx:%ld)",
+			warnx("ef_seg_read_rel(%s): zero offset (%lx:%ld)",
 			    ef->ef_name, (long)offset, ofs);
 		return EFAULT;
 	}
