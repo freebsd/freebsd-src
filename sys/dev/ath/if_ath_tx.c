@@ -1554,7 +1554,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = &sc->sc_ic;
-	const struct chanAccParams *cap = &ic->ic_wme.wme_chanParams;
 	int error, iswep, ismcast, isfrag, ismrr;
 	int keyix, hdrlen, pktlen, try0 = 0;
 	u_int8_t rix = 0, txrate = 0;
@@ -1697,7 +1696,11 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 			ismrr = 1;
 			bf->bf_state.bfs_doratelookup = 1;
 		}
-		if (cap->cap_wmeParams[pri].wmep_noackPolicy)
+
+		/*
+		 * Check whether to set NOACK for this WME category or not.
+		 */
+		if (ieee80211_wme_vap_ac_is_noack(vap, pri))
 			flags |= HAL_TXDESC_NOACK;
 		break;
 	default:

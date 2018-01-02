@@ -2392,12 +2392,15 @@ otus_updateedca_locked(struct otus_softc *sc)
 {
 #define EXP2(val)	((1 << (val)) - 1)
 #define AIFS(val)	((val) * 9 + 10)
+	struct chanAccParams chp;
 	struct ieee80211com *ic = &sc->sc_ic;
 	const struct wmeParams *edca;
 
+	ieee80211_wme_ic_getparams(ic, &chp);
+
 	OTUS_LOCK_ASSERT(sc);
 
-	edca = ic->ic_wme.wme_chanParams.cap_wmeParams;
+	edca = chp.cap_wmeParams;
 
 	/* Set CWmin/CWmax values. */
 	otus_write(sc, AR_MAC_REG_AC0_CW,
