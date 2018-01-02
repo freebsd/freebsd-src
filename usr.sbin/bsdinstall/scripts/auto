@@ -377,6 +377,10 @@ fi
 
 bsdinstall checksum || error "Distribution checksum failed"
 bsdinstall distextract || error "Distribution extract failed"
+
+# Set up boot loader
+bsdinstall bootconfig || error "Failed to configure bootloader"
+
 bsdinstall rootpass || error "Could not set root password"
 
 trap true SIGINT	# This section is optional
