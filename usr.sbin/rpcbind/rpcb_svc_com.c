@@ -54,13 +54,14 @@
 #include <errno.h>
 #include <syslog.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
 #ifdef PORTMAP
 #include <netinet/in.h>
 #include <rpc/rpc_com.h>
 #include <rpc/pmap_prot.h>
 #endif /* PORTMAP */
-#include <string.h>
-#include <stdlib.h>
 
 #include "rpcbind.h"
 
