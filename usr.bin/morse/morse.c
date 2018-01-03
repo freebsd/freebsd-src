@@ -32,21 +32,18 @@
  * <lyndon@orthanc.ca>
  */
 
-#ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
 
-#ifndef lint
 #if 0
 static char sccsid[] = "@(#)morse.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/time.h>
+#include <sys/ioctl.h>
 
 #include <ctype.h>
 #include <fcntl.h>
@@ -132,6 +129,8 @@ static const struct morsetab mtab[] = {
 	{'$', "...-..-"},
 	{'+', ".-.-."},		/* AR */
 	{'@', ".--.-."},	/* AC */
+	{'_', "..--.-"},
+	{'\'', ".----."},
 
 	/* prosigns without already assigned values */
 
@@ -156,6 +155,7 @@ static const struct morsetab iso8859_1tab[] = {
 	{'\350', "..-.."},	/* è */
 	{'\351', "..-.."},	/* é */
 	{'\352', "-..-."},	/* ê */
+	{'\361', "--.--"},	/* n */
 	{'\366', "---."},	/* ö */
 	{'\374', "..--"},	/* ü */
 
