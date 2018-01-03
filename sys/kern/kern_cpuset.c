@@ -127,6 +127,8 @@ SYSCTL_INT(_kern_sched, OID_AUTO, cpusetsize, CTLFLAG_RD | CTLFLAG_CAPRD,
 cpuset_t *cpuset_root;
 cpuset_t cpuset_domain[MAXMEMDOM];
 
+static int domainset_valid(const struct domainset *, const struct domainset *);
+
 /*
  * Find the first non-anonymous set starting from 'set'.
  */
@@ -289,7 +291,7 @@ _cpuset_create(struct cpuset *set, struct cpuset *parent,
 	if (!CPU_OVERLAP(&parent->cs_mask, mask))
 		return (EDEADLK);
 	/* The domain must be prepared ahead of time. */
-	if (!DOMAINSET_SUBSET(&parent->cs_domain->ds_mask, &domain->ds_mask))
+	if (!domainset_valid(parent->cs_domain, domain))
 		return (EDEADLK);
 	CPU_COPY(mask, &set->cs_mask);
 	LIST_INIT(&set->cs_children);
@@ -402,6 +404,7 @@ domainset_copy(const struct domainset *from, struct domainset *to)
 
 	DOMAINSET_COPY(&from->ds_mask, &to->ds_mask);
 	to->ds_policy = from->ds_policy;
+	to->ds_prefer = from->ds_prefer;
 }
 
 /* Return 1 if mask and policy are equal, otherwise 0. */
@@ -410,7 +413,17 @@ domainset_equal(const struct domainset *one, const struct domainset *two)
 {
 
 	return (DOMAINSET_CMP(&one->ds_mask, &two->ds_mask) == 0 &&
-	    one->ds_policy == two->ds_policy);
+	    one->ds_policy == two->ds_policy &&
+	    one->ds_prefer == two->ds_prefer);
+}
+
+/* Return 1 if child is a valid subset of parent. */
+static int
+domainset_valid(const struct domainset *parent, const struct domainset *child)
+{
+	if (child->ds_policy != DOMAINSET_POLICY_PREFER)
+		return (DOMAINSET_SUBSET(&parent->ds_mask, &child->ds_mask));
+	return (DOMAINSET_ISSET(child->ds_prefer, &parent->ds_mask));
 }
 
 /*
@@ -705,11 +718,16 @@ cpuset_modify_domain(struct cpuset *set, struct domainset *domain)
 		/*
 		 * Verify that we have access to this set of domains.
 		 */
-		if (root &&
-		    !DOMAINSET_SUBSET(&dset->ds_mask, &domain->ds_mask)) {
+		if (root && !domainset_valid(dset, domain)) {
 			error = EINVAL;
 			goto out;
 		}
+		/*
+		 * If applying prefer we keep the current set as the fallback.
+		 */
+		if (domain->ds_policy == DOMAINSET_POLICY_PREFER)
+			DOMAINSET_COPY(&set->cs_domain->ds_mask,
+			    &domain->ds_mask);
 		/*
 		 * Determine whether we can apply this set of domains and
 		 * how many new domain structures it will require.
@@ -842,8 +860,7 @@ cpuset_testshadow(struct cpuset *set, const cpuset_t *mask,
 	 * parent or invalid domains have been specified.
 	 */
 	dset = parent->cs_domain;
-	if (domain != NULL &&
-	    !DOMAINSET_SUBSET(&dset->ds_mask, &domain->ds_mask))
+	if (domain != NULL && !domainset_valid(dset, domain))
 		return (EINVAL);
 
 	return (0);
@@ -1315,6 +1332,7 @@ domainset_zero(void)
 	for (i = 0; i < vm_ndomains; i++)
 		DOMAINSET_SET(i, &dset->ds_mask);
 	dset->ds_policy = DOMAINSET_POLICY_ROUNDROBIN;
+	dset->ds_prefer = -1;
 	curthread->td_domain.dr_policy = _domainset_create(dset, NULL);
 	kernel_object->domain.dr_policy = curthread->td_domain.dr_policy;
 }
@@ -1841,13 +1859,13 @@ int
 kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
     id_t id, size_t domainsetsize, domainset_t *maskp, int *policyp)
 {
+	struct domainset outset;
 	struct thread *ttd;
 	struct cpuset *nset;
 	struct cpuset *set;
 	struct domainset *dset;
 	struct proc *p;
 	domainset_t *mask;
-	int policy;
 	int error;
 	size_t size;
 
@@ -1863,9 +1881,9 @@ kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	    if (id != -1)
 		return (ECAPMODE);
 	}
-	policy = 0;
 	size = domainsetsize;
 	mask = malloc(size, M_TEMP, M_WAITOK | M_ZERO);
+	bzero(&outset, sizeof(outset));
 	error = cpuset_which(which, id, &p, &ttd, &set);
 	if (error)
 		goto out;
@@ -1894,9 +1912,7 @@ kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		else
 			nset = cpuset_refbase(set);
 		/* Fetch once for a coherent result. */
-		dset = nset->cs_domain;
-		DOMAINSET_COPY(&dset->ds_mask, mask);
-		policy = dset->ds_policy;
+		domainset_copy(nset->cs_domain, &outset);
 		cpuset_rel(nset);
 		break;
 	case CPU_LEVEL_WHICH:
@@ -1904,9 +1920,7 @@ kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		case CPU_WHICH_TID:
 			thread_lock(ttd);
 			/* Fetch once for a coherent result. */
-			dset = ttd->td_cpuset->cs_domain;
-			DOMAINSET_COPY(&dset->ds_mask, mask);
-			policy = dset->ds_policy;
+			domainset_copy(ttd->td_cpuset->cs_domain, &outset);
 			thread_unlock(ttd);
 			break;
 		case CPU_WHICH_PID:
@@ -1914,17 +1928,16 @@ kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 				thread_lock(ttd);
 				dset = ttd->td_cpuset->cs_domain;
 				/* Show all domains in the proc. */
-				DOMAINSET_OR(mask, &dset->ds_mask);
+				DOMAINSET_OR(&outset.ds_mask, &dset->ds_mask);
 				/* Last policy wins. */
-				policy = dset->ds_policy;
+				outset.ds_policy = dset->ds_policy;
+				outset.ds_prefer = dset->ds_prefer;
 				thread_unlock(ttd);
 			}
 			break;
 		case CPU_WHICH_CPUSET:
 		case CPU_WHICH_JAIL:
-			dset = set->cs_domain;
-			policy = dset->ds_policy;
-			DOMAINSET_OR(mask, &dset->ds_mask);
+			domainset_copy(set->cs_domain, &outset);
 			break;
 		case CPU_WHICH_IRQ:
 		case CPU_WHICH_INTRHANDLER:
@@ -1942,10 +1955,19 @@ kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		cpuset_rel(set);
 	if (p)
 		PROC_UNLOCK(p);
+	/*
+	 * Translate prefer into a set containing only the preferred domain,
+	 * not the entire fallback set.
+	 */
+	if (outset.ds_policy == DOMAINSET_POLICY_PREFER) {
+		DOMAINSET_ZERO(&outset.ds_mask);
+		DOMAINSET_SET(outset.ds_prefer, &outset.ds_mask);
+	}
+	DOMAINSET_COPY(&outset.ds_mask, mask);
 	if (error == 0)
 		error = copyout(mask, maskp, size);
 	if (error == 0)
-		error = copyout(&policy, policyp, sizeof(*policyp));
+		error = copyout(&outset.ds_policy, policyp, sizeof(*policyp));
 out:
 	free(mask, M_TEMP);
 	return (error);
@@ -2021,6 +2043,16 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	if (policy <= DOMAINSET_POLICY_INVALID ||
 	    policy > DOMAINSET_POLICY_MAX)
 		return (EINVAL);
+
+	/* Translate preferred policy into a mask and fallback. */
+	if (policy == DOMAINSET_POLICY_PREFER) {
+		/* Only support a single preferred domain. */
+		if (DOMAINSET_COUNT(&domain.ds_mask) != 1)
+			return (EINVAL);
+		domain.ds_prefer = DOMAINSET_FFS(&domain.ds_mask) - 1;
+		/* This will be constrained by domainset_shadow(). */
+		DOMAINSET_FILL(&domain.ds_mask);
+	}
 
 	switch (level) {
 	case CPU_LEVEL_ROOT:
@@ -2130,8 +2162,8 @@ DB_SHOW_COMMAND(cpusets, db_show_cpusets)
 		db_printf("  cpu mask=");
 		ddb_display_cpuset(&set->cs_mask);
 		db_printf("\n");
-		db_printf("  domain policy %d mask=",
-		    set->cs_domain->ds_policy);
+		db_printf("  domain policy %d prefer %d mask=",
+		    set->cs_domain->ds_policy, set->cs_domain->ds_prefer);
 		ddb_display_domainset(&set->cs_domain->ds_mask);
 		db_printf("\n");
 		if (db_pager_quit)
@@ -2144,8 +2176,9 @@ DB_SHOW_COMMAND(domainsets, db_show_domainsets)
 	struct domainset *set;
 
 	LIST_FOREACH(set, &cpuset_domains, ds_link) {
-		db_printf("set=%p policy %d cnt %d max %d\n",
-		    set, set->ds_policy, set->ds_cnt, set->ds_max);
+		db_printf("set=%p policy %d prefer %d cnt %d max %d\n",
+		    set, set->ds_policy, set->ds_prefer, set->ds_cnt,
+		    set->ds_max);
 		db_printf("  mask =");
 		ddb_display_domainset(&set->ds_mask);
 		db_printf("\n");

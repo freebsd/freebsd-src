@@ -72,7 +72,8 @@
 #define	DOMAINSET_POLICY_INVALID	0
 #define	DOMAINSET_POLICY_ROUNDROBIN	1
 #define	DOMAINSET_POLICY_FIRSTTOUCH	2
-#define	DOMAINSET_POLICY_MAX		DOMAINSET_POLICY_FIRSTTOUCH
+#define	DOMAINSET_POLICY_PREFER		3
+#define	DOMAINSET_POLICY_MAX		DOMAINSET_POLICY_PREFER
 
 #ifdef _KERNEL
 #include <sys/queue.h>
@@ -81,9 +82,10 @@ LIST_HEAD(domainlist, domainset);
 struct domainset {
 	LIST_ENTRY(domainset)	ds_link;
 	domainset_t	ds_mask;	/* allowed domains. */
+	uint16_t	ds_policy;	/* Policy type. */
+	int16_t		ds_prefer;	/* Preferred domain or -1. */
 	uint16_t	ds_cnt;		/* popcnt from above. */
 	uint16_t	ds_max;		/* Maximum domain in set. */
-	uint16_t	ds_policy;	/* Policy type. */
 };
 
 void domainset_zero(void);

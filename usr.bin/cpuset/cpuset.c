@@ -78,6 +78,7 @@ static struct numa_policy policies[] = {
 	{ "rr", DOMAINSET_POLICY_ROUNDROBIN },
 	{ "first-touch", DOMAINSET_POLICY_FIRSTTOUCH },
 	{ "ft", DOMAINSET_POLICY_FIRSTTOUCH },
+	{ "prefer", DOMAINSET_POLICY_PREFER },
 	{ NULL, DOMAINSET_POLICY_INVALID }
 };
 
@@ -235,7 +236,8 @@ printset(struct bitset *mask, int size)
 static const char *whichnames[] = { NULL, "tid", "pid", "cpuset", "irq", "jail",
 				    "domain" };
 static const char *levelnames[] = { NULL, " root", " cpuset", "" };
-static const char *policynames[] = { "invalid", "round-robin", "first-touch" };
+static const char *policynames[] = { "invalid", "round-robin", "first-touch",
+				    "prefer" };
 
 static void
 printaffinity(void)

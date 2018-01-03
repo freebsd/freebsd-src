@@ -90,6 +90,19 @@ vm_domainset_iter_rr(struct vm_domainset_iter *di, int *domain)
 }
 
 static void
+vm_domainset_iter_prefer(struct vm_domainset_iter *di, int *domain)
+{
+	int d;
+
+	d = *di->di_iter;
+	do {
+		d = (d + 1) % di->di_domain->ds_max;
+	} while (!DOMAINSET_ISSET(d, &di->di_domain->ds_mask) || 
+	    d == di->di_domain->ds_prefer);
+	*di->di_iter = *domain = d;
+}
+
+static void
 vm_domainset_iter_next(struct vm_domainset_iter *di, int *domain)
 {
 
@@ -102,6 +115,9 @@ vm_domainset_iter_next(struct vm_domainset_iter *di, int *domain)
 		/* FALLTHROUGH */
 	case DOMAINSET_POLICY_ROUNDROBIN:
 		vm_domainset_iter_rr(di, domain);
+		break;
+	case DOMAINSET_POLICY_PREFER:
+		vm_domainset_iter_prefer(di, domain);
 		break;
 	default:
 		panic("vm_domainset_iter_first: Unknown policy %d",
@@ -130,6 +146,10 @@ vm_domainset_iter_first(struct vm_domainset_iter *di, int *domain)
 	case DOMAINSET_POLICY_ROUNDROBIN:
 		di->di_n = di->di_domain->ds_cnt;
 		vm_domainset_iter_rr(di, domain);
+		break;
+	case DOMAINSET_POLICY_PREFER:
+		*domain = di->di_domain->ds_prefer;
+		di->di_n = di->di_domain->ds_cnt;
 		break;
 	default:
 		panic("vm_domainset_iter_first: Unknown policy %d",
