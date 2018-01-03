@@ -1574,17 +1574,19 @@ rtwn_set_channel(struct ieee80211com *ic)
 static int
 rtwn_wme_update(struct ieee80211com *ic)
 {
+	struct chanAccParams chp;
 	struct ieee80211_channel *c = ic->ic_curchan;
 	struct rtwn_softc *sc = ic->ic_softc;
 	struct wmeParams *wmep = sc->cap_wmeParams;
 	uint8_t aifs, acm, slottime;
 	int ac;
 
+	ieee80211_wme_ic_getparams(ic, &chp);
+
 	/* Prevent possible races. */
 	IEEE80211_LOCK(ic);	/* XXX */
 	RTWN_LOCK(sc);
-	memcpy(wmep, ic->ic_wme.wme_chanParams.cap_wmeParams,
-	    sizeof(sc->cap_wmeParams));
+	memcpy(wmep, chp.cap_wmeParams, sizeof(sc->cap_wmeParams));
 	RTWN_UNLOCK(sc);
 	IEEE80211_UNLOCK(ic);
 

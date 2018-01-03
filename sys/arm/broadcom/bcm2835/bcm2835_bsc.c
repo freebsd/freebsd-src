@@ -508,7 +508,7 @@ bcm_bsc_intr(void *arg)
 		 * transfer is complete; TXD will be asserted along with ERR or
 		 * DONE if there is room in the fifo.
 		 */
-		if (status & BCM_BSC_STATUS_TXD)
+		if ((status & BCM_BSC_STATUS_TXD) && sc->sc_totlen > 0)
 			bcm_bsc_fill_tx_fifo(sc);
 	}
 
@@ -610,7 +610,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		 */
 		if (sc->sc_replen == 0) {
 			DEVICE_DEBUGF(sc, 1, "%-6s 0x%02x len %d: ", 
-			    (curisread) ? "readctl" : "write", curslave,
+			    (curisread) ? "read" : "write", curslave,
 			    sc->sc_totlen);
 			curlen = sc->sc_totlen;
 			if (curisread) {
@@ -622,7 +622,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			}
 		} else {
 			DEVICE_DEBUGF(sc, 1, "%-6s 0x%02x len %d: ", 
-			    (curisread) ? "readctl" : "write", curslave,
+			    (curisread) ? "read" : "write", curslave,
 			    sc->sc_replen);
 
 			/*

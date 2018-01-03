@@ -324,10 +324,16 @@ fdt_overlay_do_fixups(void *main_fdtp, void *overlay_fdtp)
 	main_symbols_o = fdt_path_offset(main_fdtp, "/__symbols__");
 	overlay_fixups_o = fdt_path_offset(overlay_fdtp, "/__fixups__");
 
-	if (main_symbols_o < 0)
+	if (main_symbols_o < 0) {
+		if (main_symbols_o == -FDT_ERR_NOTFOUND)
+			return (0);
 		return (-1);
-	if (overlay_fixups_o < 0)
+	}
+	if (overlay_fixups_o < 0) {
+		if (overlay_fixups_o == -FDT_ERR_NOTFOUND)
+			return (0);
 		return (-1);
+	}
 
 	for (fixup_prop_o = fdt_first_property_offset(overlay_fdtp, overlay_fixups_o);
 	    fixup_prop_o >= 0;
@@ -403,41 +409,23 @@ fdt_overlay_apply_fragments(void *main_fdtp, void *overlay_fdtp)
 }
 
 int
-fdt_overlay_apply(void *main_fdtp, void *overlay_fdtp, size_t overlay_length)
+fdt_overlay_apply(void *main_fdtp, void *overlay_fdtp)
 {
-	void *overlay_copy;
-	int rv;
 
-	rv = 0;
-
-	/* We modify overlay in-place, so we need writable copy */
-	overlay_copy = malloc(overlay_length);
-	if (overlay_copy == NULL) {
-		printf("failed to allocate memory for overlay copy\n");
+	if (fdt_overlay_do_fixups(main_fdtp, overlay_fdtp) < 0) {
+		printf("failed to perform fixups in overlay\n");
 		return (-1);
 	}
 
-	memcpy(overlay_copy, overlay_fdtp, overlay_length);
-
-	if (fdt_overlay_do_fixups(main_fdtp, overlay_copy) < 0) {
-		printf("failed to perform fixups in overlay\n");
-		rv = -1;
-		goto out;
-	}
-
-	if (fdt_overlay_do_local_fixups(main_fdtp, overlay_copy) < 0) {
+	if (fdt_overlay_do_local_fixups(main_fdtp, overlay_fdtp) < 0) {
 		printf("failed to perform local fixups in overlay\n");
-		rv = -1;
-		goto out;
+		return (-1);
 	}
 
-	if (fdt_overlay_apply_fragments(main_fdtp, overlay_copy) < 0) {
+	if (fdt_overlay_apply_fragments(main_fdtp, overlay_fdtp) < 0) {
 		printf("failed to apply fragments\n");
-		rv = -1;
+		return (-1);
 	}
 
-out:
-	free(overlay_copy);
-
-	return (rv);
+	return (0);
 }

@@ -1177,7 +1177,7 @@ awg_setup_phy(device_t dev)
 	if (sc->res[_RES_SYSCON] != NULL) {
 		reg = bus_read_4(sc->res[_RES_SYSCON], 0);
 		reg &= ~(EMAC_CLK_PIT | EMAC_CLK_SRC | EMAC_CLK_RMII_EN);
-		if (strcmp(phy_type, "rgmii") == 0)
+		if (strncmp(phy_type, "rgmii", 5) == 0)
 			reg |= EMAC_CLK_PIT_RGMII | EMAC_CLK_SRC_RGMII;
 		else if (strcmp(phy_type, "rmii") == 0)
 			reg |= EMAC_CLK_RMII_EN;
@@ -1217,7 +1217,7 @@ awg_setup_phy(device_t dev)
 			device_printf(dev, "EMAC clock: 0x%08x\n", reg);
 		bus_write_4(sc->res[_RES_SYSCON], 0, reg);
 	} else {
-		if (strcmp(phy_type, "rgmii") == 0)
+		if (strncmp(phy_type, "rgmii", 5) == 0)
 			tx_parent_name = "emac_int_tx";
 		else
 			tx_parent_name = "mii_phy_tx";
@@ -1266,12 +1266,10 @@ awg_setup_extres(device_t dev)
 	hwreset_t rst_ahb, rst_ephy;
 	clk_t clk_ahb, clk_ephy;
 	regulator_t reg;
-	phandle_t node;
 	uint64_t freq;
 	int error, div;
 
 	sc = device_get_softc(dev);
-	node = ofw_bus_get_node(dev);
 	rst_ahb = rst_ephy = NULL;
 	clk_ahb = clk_ephy = NULL;
 	reg = NULL;
@@ -1713,13 +1711,11 @@ awg_attach(device_t dev)
 {
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	struct awg_softc *sc;
-	phandle_t node;
 	int error;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
-	node = ofw_bus_get_node(dev);
 
 	if (bus_alloc_resources(dev, awg_spec, sc->res) != 0) {
 		device_printf(dev, "cannot allocate resources for device\n");

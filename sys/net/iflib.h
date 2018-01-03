@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014-2017, Matthew Macy (mmacy@nextbsd.org)
+ * Copyright (c) 2014-2017, Matthew Macy (mmacy@mattmacy.io)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -174,9 +174,9 @@ typedef struct pci_vendor_info {
 #define PVID_END {0, 0, 0, 0, 0, 0, NULL}
 
 #define IFLIB_PNP_DESCR "U32:vendor;U32:device;U32:subvendor;U32:subdevice;" \
-    "U32:revision;U32:class;D:human"
+    "U32:revision;U32:class;D:#"
 #define IFLIB_PNP_INFO(b, u, t) \
-    MODULE_PNP_INFO(IFLIB_PNP_DESCR, b, u, t, sizeof(t[0]), nitems(t))
+    MODULE_PNP_INFO(IFLIB_PNP_DESCR, b, u, t, sizeof(t[0]), nitems(t) - 1)
 
 typedef struct if_txrx {
 	int (*ift_txd_encap) (void *, if_pkt_info_t);

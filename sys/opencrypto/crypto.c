@@ -994,7 +994,7 @@ kdriver_suitable(const struct cryptocap *cap, const struct cryptkop *krp)
 static struct cryptocap *
 crypto_select_kdriver(const struct cryptkop *krp, int flags)
 {
-	struct cryptocap *cap, *best, *blocked;
+	struct cryptocap *cap, *best;
 	int match, hid;
 
 	CRYPTO_DRIVER_ASSERT();
@@ -1007,7 +1007,6 @@ crypto_select_kdriver(const struct cryptkop *krp, int flags)
 	else
 		match = CRYPTOCAP_F_SOFTWARE;
 	best = NULL;
-	blocked = NULL;
 again:
 	for (hid = 0; hid < crypto_drivers_num; hid++) {
 		cap = &crypto_drivers[hid];

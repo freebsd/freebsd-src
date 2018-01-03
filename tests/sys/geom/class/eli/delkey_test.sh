@@ -9,7 +9,7 @@ keyfile1=`mktemp $base.XXXXXX` || exit 1
 keyfile2=`mktemp $base.XXXXXX` || exit 1
 keyfile3=`mktemp $base.XXXXXX` || exit 1
 keyfile4=`mktemp $base.XXXXXX` || exit 1
-mdconfig -a -t malloc -s `expr $sectors + 1` -u $no || exit 1
+md=$(attach_md -t malloc -s `expr $sectors + 1`)
 
 echo "1..14"
 
@@ -18,21 +18,21 @@ dd if=/dev/random of=${keyfile2} bs=512 count=16 >/dev/null 2>&1
 dd if=/dev/random of=${keyfile3} bs=512 count=16 >/dev/null 2>&1
 dd if=/dev/random of=${keyfile4} bs=512 count=16 >/dev/null 2>&1
 
-geli init -B none -P -K $keyfile1 md${no}
-geli attach -p -k $keyfile1 md${no}
-geli setkey -n 1 -P -K $keyfile2 md${no}
+geli init -B none -P -K $keyfile1 ${md}
+geli attach -p -k $keyfile1 ${md}
+geli setkey -n 1 -P -K $keyfile2 ${md}
 
 # Remove key 0 for attached provider.
-geli delkey -n 0 md${no}
+geli delkey -n 0 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 1"
 else
 	echo "not ok 1"
 fi
-geli detach md${no}
+geli detach ${md}
 
 # We cannot use keyfile1 anymore.
-geli attach -p -k $keyfile1 md${no} 2>/dev/null
+geli attach -p -k $keyfile1 ${md} 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "ok 2"
 else
@@ -40,7 +40,7 @@ else
 fi
 
 # Attach with key 1.
-geli attach -p -k $keyfile2 md${no}
+geli attach -p -k $keyfile2 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 3"
 else
@@ -48,7 +48,7 @@ else
 fi
 
 # We cannot remove last key without -f option (for attached provider).
-geli delkey -n 1 md${no} 2>/dev/null
+geli delkey -n 1 ${md} 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "ok 4"
 else
@@ -56,7 +56,7 @@ else
 fi
 
 # Remove last key for attached provider.
-geli delkey -f -n 1 md${no}
+geli delkey -f -n 1 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 5"
 else
@@ -64,16 +64,16 @@ else
 fi
 
 # If there are no valid keys, but provider is attached, we can save situation.
-geli setkey -n 0 -P -K $keyfile3 md${no}
+geli setkey -n 0 -P -K $keyfile3 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 6"
 else
 	echo "not ok 6"
 fi
-geli detach md${no}
+geli detach ${md}
 
 # We cannot use keyfile2 anymore.
-geli attach -p -k $keyfile2 md${no} 2>/dev/null
+geli attach -p -k $keyfile2 ${md} 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "ok 7"
 else
@@ -81,7 +81,7 @@ else
 fi
 
 # Attach with key 0.
-geli attach -p -k $keyfile3 md${no}
+geli attach -p -k $keyfile3 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 8"
 else
@@ -89,16 +89,16 @@ else
 fi
 
 # Setup key 1.
-geli setkey -n 1 -P -K $keyfile4 md${no}
+geli setkey -n 1 -P -K $keyfile4 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 9"
 else
 	echo "not ok 9"
 fi
-geli detach md${no}
+geli detach ${md}
 
 # Remove key 1 for detached provider.
-geli delkey -n 1 md${no}
+geli delkey -n 1 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 10"
 else
@@ -106,7 +106,7 @@ else
 fi
 
 # We cannot use keyfile4 anymore.
-geli attach -p -k $keyfile4 md${no} 2>/dev/null
+geli attach -p -k $keyfile4 ${md} 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "ok 11"
 else
@@ -114,7 +114,7 @@ else
 fi
 
 # We cannot remove last key without -f option (for detached provider).
-geli delkey -n 0 md${no} 2>/dev/null
+geli delkey -n 0 ${md} 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "ok 12"
 else
@@ -122,7 +122,7 @@ else
 fi
 
 # Remove last key for detached provider.
-geli delkey -f -n 0 md${no}
+geli delkey -f -n 0 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 13"
 else
@@ -130,7 +130,7 @@ else
 fi
 
 # We cannot use keyfile3 anymore.
-geli attach -p -k $keyfile3 md${no} 2>/dev/null
+geli attach -p -k $keyfile3 ${md} 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "ok 14"
 else

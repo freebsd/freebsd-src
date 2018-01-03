@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/types.h>
+#include <sys/limits.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/ktr.h>
@@ -144,7 +145,7 @@ static struct mtx uma_boot_pages_mtx;
 static struct sx uma_drain_lock;
 
 /* kmem soft limit. */
-static unsigned long uma_kmem_limit;
+static unsigned long uma_kmem_limit = LONG_MAX;
 static volatile unsigned long uma_kmem_total;
 
 /* Is the VM done starting up? */
@@ -3358,14 +3359,14 @@ uma_reclaim_worker(void *arg __unused)
 
 	for (;;) {
 		sx_xlock(&uma_drain_lock);
-		while (uma_reclaim_needed == 0)
+		while (atomic_load_int(&uma_reclaim_needed) == 0)
 			sx_sleep(uma_reclaim, &uma_drain_lock, PVM, "umarcl",
 			    hz);
 		sx_xunlock(&uma_drain_lock);
 		EVENTHANDLER_INVOKE(vm_lowmem, VM_LOW_KMEM);
 		sx_xlock(&uma_drain_lock);
 		uma_reclaim_locked(true);
-		uma_reclaim_needed = 0;
+		atomic_store_int(&uma_reclaim_needed, 0);
 		sx_xunlock(&uma_drain_lock);
 		/* Don't fire more than once per-second. */
 		pause("umarclslp", hz);
@@ -3466,7 +3467,14 @@ unsigned long
 uma_size(void)
 {
 
-	return uma_kmem_total;
+	return (uma_kmem_total);
+}
+
+long
+uma_avail(void)
+{
+
+	return (uma_kmem_limit - uma_kmem_total);
 }
 
 void

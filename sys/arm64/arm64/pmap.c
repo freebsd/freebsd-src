@@ -621,7 +621,7 @@ pmap_bootstrap_l2(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l2_start)
 static vm_offset_t
 pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
 {
-	vm_offset_t l2pt, l3pt;
+	vm_offset_t l3pt;
 	vm_paddr_t pa;
 	pd_entry_t *l2;
 	u_int l2_slot;
@@ -630,7 +630,6 @@ pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
 
 	l2 = pmap_l2(kernel_pmap, va);
 	l2 = (pd_entry_t *)rounddown2((uintptr_t)l2, PAGE_SIZE);
-	l2pt = (vm_offset_t)l2;
 	l2_slot = pmap_l2_index(va);
 	l3pt = l3_start;
 

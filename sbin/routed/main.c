@@ -667,6 +667,7 @@ get_rip_sock(naddr addr,
 	if (bind(s, (struct sockaddr *)&rsin, sizeof(rsin)) < 0) {
 		if (serious)
 			BADERR(errno != EADDRINUSE, "bind(rip_sock)");
+		close(s);
 		return -1;
 	}
 	fix_sock(s,"rip_sock");

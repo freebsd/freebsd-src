@@ -87,9 +87,11 @@ g_waitidle(void)
 	g_topology_assert_not();
 
 	mtx_lock(&g_eventlock);
+	TSWAIT("GEOM events");
 	while (!TAILQ_EMPTY(&g_events))
 		msleep(&g_pending_events, &g_eventlock, PPAUSE,
 		    "g_waitidle", hz/5);
+	TSUNWAIT("GEOM events");
 	mtx_unlock(&g_eventlock);
 	curthread->td_pflags &= ~TDP_GEOM;
 }
@@ -266,6 +268,7 @@ one_event(void)
 	ep->func(ep->arg, 0);
 	g_topology_assert();
 	mtx_lock(&g_eventlock);
+	TSRELEASE("GEOM events");
 	TAILQ_REMOVE(&g_events, ep, events);
 	ep->flag &= ~EV_INPROGRESS;
 	if (ep->flag & EV_WAKEUP) {
@@ -324,6 +327,7 @@ g_cancel_event(void *ref)
 				break;
 			if (ep->ref[n] != ref)
 				continue;
+			TSRELEASE("GEOM events");
 			TAILQ_REMOVE(&g_events, ep, events);
 			ep->func(ep->arg, EV_CANCEL);
 			mtx_assert(&g_eventlock, MA_OWNED);
@@ -367,6 +371,7 @@ g_post_event_x(g_event_t *func, void *arg, int flag, int wuflag, struct g_event 
 	ep->func = func;
 	ep->arg = arg;
 	mtx_lock(&g_eventlock);
+	TSHOLD("GEOM events");
 	TAILQ_INSERT_TAIL(&g_events, ep, events);
 	mtx_unlock(&g_eventlock);
 	wakeup(&g_wait_event);

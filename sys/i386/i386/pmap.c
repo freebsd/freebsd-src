@@ -493,9 +493,13 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	virtual_avail = va;
 
 	/*
-	 * Leave in place an identity mapping (virt == phys) for the low 1 MB
-	 * physical memory region that is used by the ACPI wakeup code.  This
-	 * mapping must not have PG_G set. 
+	 * Finish removing the identity mapping (virt == phys) of low memory.
+	 * It was only used for 2 instructions in locore.  locore then
+	 * unmapped the first PTD to get some null pointer checks.  ACPI
+	 * wakeup will map the first PTD transiently to use it for 1
+	 * instruction.  The double mapping for low memory is not usable in
+	 * normal operation since it breaks trapping of null pointers and
+	 * causes inconsistencies in page tables when combined with PG_G.
 	 */
 	for (i = 1; i < NKPT; i++)
 		PTD[i] = 0;
@@ -662,7 +666,7 @@ pmap_set_pg(void)
 	endva = KERNBASE + KERNend;
 
 	if (pseflag) {
-		va = KERNBASE + KERNLOAD;
+		va = KERNBASE + roundup2(KERNLOAD, NBPDR);
 		while (va  < endva) {
 			pdir_pde(PTD, va) |= pgeflag;
 			invltlb();	/* Flush non-PG_G entries. */

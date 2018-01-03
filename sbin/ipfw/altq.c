@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002-2003 Luigi Rizzo
  * Copyright (c) 1996 Alex Nash, Paul Traina, Poul-Henning Kamp
  * Copyright (c) 1994 Ugen J.S.Antsilevich

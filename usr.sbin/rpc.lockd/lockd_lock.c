@@ -883,7 +883,7 @@ test_nfslock(const struct file_lock *fl, struct file_lock **conflicting_fl)
  *       While this seems to be intuitively wrong, it is required for proper
  *       Posix semantics during unlock.  It is absolutely imperative to not
  *       unlock the main lock before the two child locks are established. Thus,
- *       one has be be able to create duplicate locks over an existing lock
+ *       one has to be able to create duplicate locks over an existing lock
  *    2) It currently accepts duplicate locks from the same id,pid
  */
 

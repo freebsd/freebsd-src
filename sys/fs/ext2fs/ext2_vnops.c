@@ -180,6 +180,7 @@ struct vop_vector ext2_fifoops = {
 	.vop_getattr =		ext2_getattr,
 	.vop_inactive =		ext2_inactive,
 	.vop_kqfilter =		ext2fifo_kqfilter,
+	.vop_pathconf =		ext2_pathconf,
 	.vop_print =		ext2_print,
 	.vop_read =		VOP_PANIC,
 	.vop_reclaim =		ext2_reclaim,
@@ -1632,6 +1633,18 @@ ext2_pathconf(struct vop_pathconf_args *ap)
 			*ap->a_retval = INT_MAX;
 		else
 			*ap->a_retval = ext2_max_nlink(VTOI(ap->a_vp));
+		break;
+	case _PC_NAME_MAX:
+		*ap->a_retval = NAME_MAX;
+		break;
+	case _PC_PIPE_BUF:
+		if (ap->a_vp->v_type == VDIR || ap->a_vp->v_type == VFIFO)
+			*ap->a_retval = PIPE_BUF;
+		else
+			error = EINVAL;
+		break;
+	case _PC_CHOWN_RESTRICTED:
+		*ap->a_retval = 1;
 		break;
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 1;

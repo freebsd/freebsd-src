@@ -92,5 +92,11 @@ static devclass_t hisi_dwmmc_devclass;
 
 DEFINE_CLASS_1(hisi_dwmmc, hisi_dwmmc_driver, hisi_dwmmc_methods,
     sizeof(struct dwmmc_softc), dwmmc_driver);
+
 DRIVER_MODULE(hisi_dwmmc, simplebus, hisi_dwmmc_driver,
     hisi_dwmmc_devclass, 0, 0);
+DRIVER_MODULE(hisi_dwmmc, ofwbus, hisi_dwmmc_driver, hisi_dwmmc_devclass
+    , NULL, NULL);
+#ifndef MMCCAM
+MMC_DECLARE_BRIDGE(hisi_dwmmc);
+#endif

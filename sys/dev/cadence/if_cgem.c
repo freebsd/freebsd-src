@@ -811,7 +811,7 @@ cgem_start_locked(if_t ifp)
 		WR4(sc, CGEM_NET_CTRL, sc->net_ctl_shadow |
 		    CGEM_NET_CTRL_START_TX);
 
-		/* If there is a BPF listener, bounce a copy to to him. */
+		/* If there is a BPF listener, bounce a copy to him. */
 		ETHER_BPF_MTAP(ifp, m);
 	}
 }

@@ -270,7 +270,12 @@ maketbl(void)
 			(void)wprintf(L"%ls%*ls", t->list[coloff],
 			    lens[coloff] - t->len[coloff] + 2, L" ");
 		(void)wprintf(L"%ls\n", t->list[coloff]);
+		free(t->list);
+		free(t->len);
 	}
+	free(lens);
+	free(cols);
+	free(tbl);
 }
 
 #define	DEFNUM		1000

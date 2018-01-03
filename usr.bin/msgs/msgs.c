@@ -804,6 +804,7 @@ ask(const char *prompt)
 			mailing = NO;
 			fseeko(newmsg, oldpos, SEEK_SET);
 			ask(prompt);
+			fclose(cpfrom);
 			return;
 		}
 

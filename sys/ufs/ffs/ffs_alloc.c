@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND BSD-3-Clause)
  *
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -2414,13 +2414,11 @@ ffs_vfree(pvp, ino, mode)
 	int mode;
 {
 	struct ufsmount *ump;
-	struct inode *ip;
 
 	if (DOINGSOFTDEP(pvp)) {
 		softdep_freefile(pvp, ino, mode);
 		return (0);
 	}
-	ip = VTOI(pvp);
 	ump = VFSTOUFS(pvp->v_mount);
 	return (ffs_freefile(ump, ump->um_fs, ump->um_devvp, ino, mode, NULL));
 }

@@ -744,7 +744,6 @@ trap_pfault(struct trapframe *frame, int usermode, vm_offset_t eva)
 
 	td = curthread;
 	p = td->td_proc;
-	rv = 0;
 
 	if (__predict_false((td->td_pflags & TDP_NOFAULTING) != 0)) {
 		/*
@@ -805,7 +804,7 @@ trap_pfault(struct trapframe *frame, int usermode, vm_offset_t eva)
 			return (-2);
 #endif
 		if (usermode)
-			goto nogo;
+			return (SIGSEGV);
 
 		map = kernel_map;
 	} else {
@@ -862,7 +861,6 @@ trap_pfault(struct trapframe *frame, int usermode, vm_offset_t eva)
 #endif
 		return (0);
 	}
-nogo:
 	if (!usermode) {
 		if (td->td_intr_nesting_level == 0 &&
 		    curpcb->pcb_onfault != NULL) {

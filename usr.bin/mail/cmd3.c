@@ -261,7 +261,7 @@ dorespond(int *msgvec)
 }
 
 /*
- * Modify the subject we are replying to to begin with Re: if
+ * Modify the message subject to begin with "Re:" if
  * it does not already.
  */
 char *

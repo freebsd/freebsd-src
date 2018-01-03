@@ -28,7 +28,7 @@
 .\"     @(#)shutdown.8	8.2 (Berkeley) 4/27/95
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2017
+.Dd January 1, 2018
 .Dt SHUTDOWN 8
 .Os
 .Sh NAME
@@ -138,6 +138,14 @@ suffix:
 .Dq Li min .
 .Dq Li h ,
 .Dq Li hour .
+.Pp
+If an absolute time is specified, but not a date,
+and that time today has already passed,
+.Nm
+will assume that the same time tomorrow was meant.
+(If a complete date is specified which has already passed,
+.Nm
+will print an error and exit without shutting the system down.)
 .It Ar warning-message
 Any other arguments comprise the warning message that is broadcast
 to users currently logged into the system.

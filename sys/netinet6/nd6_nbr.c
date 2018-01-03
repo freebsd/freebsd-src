@@ -894,7 +894,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		LLE_WUNLOCK(ln);
 
 	if (chain != NULL)
-		nd6_flush_holdchain(ifp, ifp, chain, &sin6);
+		nd6_flush_holdchain(ifp, chain, &sin6);
 
 	if (checklink)
 		pfxlist_onlink_check();
@@ -1307,7 +1307,8 @@ nd6_dad_stop(struct ifaddr *ifa)
 	 * we were waiting for it to stop, so re-do the lookup.
 	 */
 	nd6_dad_rele(dp);
-	if (nd6_dad_find(ifa, NULL) == NULL)
+	dp = nd6_dad_find(ifa, NULL);
+	if (dp == NULL)
 		return;
 
 	nd6_dad_del(dp);
@@ -1514,17 +1515,11 @@ nd6_dad_ns_output(struct dadq *dp)
 static void
 nd6_dad_ns_input(struct ifaddr *ifa, struct nd_opt_nonce *ndopt_nonce)
 {
-	struct in6_ifaddr *ia;
-	struct ifnet *ifp;
-	const struct in6_addr *taddr6;
 	struct dadq *dp;
 
 	if (ifa == NULL)
 		panic("ifa == NULL in nd6_dad_ns_input");
 
-	ia = (struct in6_ifaddr *)ifa;
-	ifp = ifa->ifa_ifp;
-	taddr6 = &ia->ia_addr.sin6_addr;
 	/* Ignore Nonce option when Enhanced DAD is disabled. */
 	if (V_dad_enhanced == 0)
 		ndopt_nonce = NULL;

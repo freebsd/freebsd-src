@@ -110,9 +110,7 @@ UART_FDT_CLASS(compat_data);
 static int
 snps_get_clocks(device_t dev, clk_t *baudclk, clk_t *apb_pclk)
 {
-	struct snps_softc *sc;
 
-	sc = device_get_softc(dev);
 	*baudclk = NULL;
 	*apb_pclk = NULL;
 

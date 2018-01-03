@@ -1239,7 +1239,7 @@ mwl_reset_vap(struct ieee80211vap *vap, int state)
 
 /*
  * Reset the hardware w/o losing operational state.
- * Used to to reset or reload hardware state for a vap.
+ * Used to reset or reload hardware state for a vap.
  */
 static int
 mwl_reset(struct ieee80211vap *vap, u_long cmd)
@@ -2893,10 +2893,14 @@ mwl_txq_update(struct mwl_softc *sc, int ac)
 {
 #define	MWL_EXPONENT_TO_VALUE(v)	((1<<v)-1)
 	struct ieee80211com *ic = &sc->sc_ic;
+	struct chanAccParams chp;
 	struct mwl_txq *txq = sc->sc_ac2q[ac];
-	struct wmeParams *wmep = &ic->ic_wme.wme_chanParams.cap_wmeParams[ac];
+	struct wmeParams *wmep;
 	struct mwl_hal *mh = sc->sc_mh;
 	int aifs, cwmin, cwmax, txoplim;
+
+	ieee80211_wme_ic_getparams(ic, &chp);
+	wmep = &chp.cap_wmeParams[ac];
 
 	aifs = wmep->wmep_aifsn;
 	/* XXX in sta mode need to pass log values for cwmin/max */

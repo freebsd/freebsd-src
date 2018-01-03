@@ -283,7 +283,6 @@ device		ed			# NE[12]000, SMC Ultra, 3c503, DS8390 cards
 device		ex			# Intel EtherExpress Pro/10 and Pro/10+
 device		ep			# Etherlink III based cards
 device		fe			# Fujitsu MB8696x based cards
-device		ie			# EtherExpress 8/16, 3C507, StarLAN 10 etc.
 device		sn			# SMC's 9000 series of Ethernet chips
 device		xe			# Xircom pccard Ethernet
 
@@ -313,7 +312,6 @@ device		malo			# Marvell Libertas wireless NICs.
 device		mwl			# Marvell 88W8363 802.11n wireless NICs.
 device		ral			# Ralink Technology RT2500 wireless NICs.
 device		wi			# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
-#device		wl			# Older non 802.11 Wavelan wireless NIC.
 device		wpi			# Intel 3945ABG wireless NICs.
 
 # Pseudo devices.

@@ -2670,15 +2670,9 @@ _vm_wait(void)
 		msleep(&vm_pageout_pages_needed, &vm_page_queue_free_mtx,
 		    PDROP | PSWP, "VMWait", 0);
 	} else {
-		if (__predict_false(pageproc == NULL))
+		if (pageproc == NULL)
 			panic("vm_wait in early boot");
-		if (!vm_pageout_wanted) {
-			vm_pageout_wanted = true;
-			wakeup(&vm_pageout_wanted);
-		}
-		vm_pages_needed = true;
-		msleep(&vm_cnt.v_free_count, &vm_page_queue_free_mtx, PDROP | PVM,
-		    "vmwait", 0);
+		pagedaemon_wait(PVM, "vmwait");
 	}
 }
 
@@ -2708,7 +2702,6 @@ vm_page_alloc_fail(vm_object_t object, int req)
 
 	atomic_add_int(&vm_pageout_deficit,
 	    max((u_int)req >> VM_ALLOC_COUNT_SHIFT, 1));
-	pagedaemon_wakeup();
 	if (req & (VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL)) {
 		if (object != NULL) 
 			VM_OBJECT_WUNLOCK(object);
@@ -2717,8 +2710,10 @@ vm_page_alloc_fail(vm_object_t object, int req)
 			VM_OBJECT_WLOCK(object);
 		if (req & VM_ALLOC_WAITOK)
 			return (EAGAIN);
-	} else
+	} else {
 		mtx_unlock(&vm_page_queue_free_mtx);
+		pagedaemon_wakeup();
+	}
 	return (0);
 }
 
@@ -2737,13 +2732,7 @@ vm_waitpfault(void)
 {
 
 	mtx_lock(&vm_page_queue_free_mtx);
-	if (!vm_pageout_wanted) {
-		vm_pageout_wanted = true;
-		wakeup(&vm_pageout_wanted);
-	}
-	vm_pages_needed = true;
-	msleep(&vm_cnt.v_free_count, &vm_page_queue_free_mtx, PDROP | PUSER,
-	    "pfault", 0);
+	pagedaemon_wait(PUSER, "pfault");
 }
 
 struct vm_pagequeue *

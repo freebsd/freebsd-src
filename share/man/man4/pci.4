@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 8, 2016
+.Dd December 20, 2017
 .Dt PCI 4
 .Os
 .Sh NAME
@@ -492,6 +492,59 @@ The value of the tunable is the raw IRQ value to use for the INTx interrupt
 pin identified by the tunable name.
 Mapping of IRQ values to platform interrupt sources is machine dependent.
 .El
+.Sh DEVICE WIRING
+You can wire the device unit at a given location with device.hints.
+Entries of the form
+.Va hints.<name>.<unit>.at="pci<B>:<S>:<F>"
+or
+.Va hints.<name>.<unit>.at="pci<D>:<B>:<S>:<F>"
+will force the driver
+.Va name
+to probe and attach at unit
+.Va unit
+for any PCI device found to match the specification, where:
+.Bl -tag -width -indent
+.It <D>
+The domain
+.Pq or segment
+of the PCI device in decimal.
+Defaults to 0 if unspecified
+.It <B>
+The bus address of the PCI device in decimal.
+.It <S>
+The slot of the PCI device in decimal.
+.It <F>
+The function of the PCI device in decimal.
+.El
+.Pp
+The code to do the matching requires an exact string match.
+Do not specify the angle brackets
+.Pq < >
+in the hints file.
+Wiring multiple devices to the same
+.Va name
+and
+.Va unit
+produces undefined results.
+.Ss Examples
+Given the following lines in
+.Pa /boot/device.hints :
+.Cd hint.nvme.3.at="pci6:0:0"
+.Cd hint.igb.8.at="pci14:0:0"
+If there is a device that supports
+.Xr igb 4
+at PCI bus 14 slot 0 function 0,
+then it will be assigned igb8 for probe and attach.
+Likewise, if there is an
+.Xr nvme 4
+card at PCI bus 6 slot 0 function 0,
+then it will be assigned nvme3 for probe and attach.
+If another type of card is in either of these locations, the name and
+unit of that card will be the default names and will be unaffected by
+these hints.
+If other igb or nvme cards are located elsewhere, they will be
+assigned their unit numbers sequentially, skipping the unit numbers
+that have 'at' hints.
 .Sh FILES
 .Bl -tag -width /dev/pci -compact
 .It Pa /dev/pci

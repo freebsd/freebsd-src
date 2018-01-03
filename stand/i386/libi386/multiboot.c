@@ -49,8 +49,8 @@ __FBSDID("$FreeBSD$");
 
 #include "bootstrap.h"
 #include "multiboot.h"
-#include "../i386/libi386/libi386.h"
-#include "../i386/btx/lib/btxv86.h"
+#include "libi386.h"
+#include <btxv86.h>
 
 #define MULTIBOOT_SUPPORTED_FLAGS \
 				(MULTIBOOT_PAGE_ALIGN|MULTIBOOT_MEMORY_INFO)

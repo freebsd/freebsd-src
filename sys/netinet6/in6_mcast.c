@@ -1238,10 +1238,7 @@ out_in6m_release:
 int
 in6_mc_leave(struct in6_multi *inm, /*const*/ struct in6_mfilter *imf)
 {
-	struct ifnet *ifp;
 	int error;
-
-	ifp = inm->in6m_ifp;
 
 	IN6_MULTI_LOCK();
 	error = in6_mc_leave_locked(inm, imf);

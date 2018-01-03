@@ -213,6 +213,7 @@ bincvt(char *sysfile, char *outfile, void *img, int fsize)
 	    tname, sysfile, tname, tname, sysfile, outfile, outfile);
 	printf("%s", sysbuf);
 	system(sysbuf);
+	free(outfile);
 
 	return;
 }

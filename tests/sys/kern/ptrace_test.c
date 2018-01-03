@@ -104,6 +104,10 @@ wait_for_zombie(pid_t pid)
 	/*
 	 * Wait for a process to exit.  This is kind of gross, but
 	 * there is not a better way.
+	 *
+	 * Prior to r325719, the kern.proc.pid.<pid> sysctl failed
+	 * with ESRCH.  After that change, a valid struct kinfo_proc
+	 * is returned for zombies with ki_stat set to SZOMB.
 	 */
 	for (;;) {
 		struct kinfo_proc kp;
@@ -116,10 +120,11 @@ wait_for_zombie(pid_t pid)
 		mib[3] = pid;
 		len = sizeof(kp);
 		if (sysctl(mib, nitems(mib), &kp, &len, NULL, 0) == -1) {
-			/* The KERN_PROC_PID sysctl fails for zombies. */
 			ATF_REQUIRE(errno == ESRCH);
 			break;
 		}
+		if (kp.ki_stat == SZOMB)
+			break;
 		usleep(5000);
 	}
 }
@@ -2953,7 +2958,7 @@ ATF_TC_BODY(ptrace__PT_CONTINUE_with_sigmask, tc)
 /*
  * Verify that if ptrace stops due to a signal but continues with
  * a different signal that the new signal is routed to a thread
- * that can accept it, and that that thread is awakened by the signal
+ * that can accept it, and that the thread is awakened by the signal
  * in a timely manner.
  */
 ATF_TC_WITHOUT_HEAD(ptrace__PT_CONTINUE_with_signal_thread_sigmask);

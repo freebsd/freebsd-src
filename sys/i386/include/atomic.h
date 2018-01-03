@@ -34,6 +34,8 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+#include <sys/atomic_common.h>
+
 #ifdef _KERNEL
 #include <machine/md_var.h>
 #include <machine/specialreg.h>

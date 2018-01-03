@@ -1089,7 +1089,6 @@ static void
 umass_init_shuttle(struct umass_softc *sc)
 {
 	struct usb_device_request req;
-	usb_error_t err;
 	uint8_t status[2] = {0, 0};
 
 	/*
@@ -1102,7 +1101,7 @@ umass_init_shuttle(struct umass_softc *sc)
 	req.wIndex[0] = sc->sc_iface_no;
 	req.wIndex[1] = 0;
 	USETW(req.wLength, sizeof(status));
-	err = usbd_do_request(sc->sc_udev, NULL, &req, &status);
+	usbd_do_request(sc->sc_udev, NULL, &req, &status);
 
 	DPRINTF(sc, UDMASS_GEN, "Shuttle init returned 0x%02x%02x\n",
 	    status[0], status[1]);

@@ -664,6 +664,8 @@
         ..
         file2c
         ..
+        find
+        ..
         fold
         ..
         getconf

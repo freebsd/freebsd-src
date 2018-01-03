@@ -58,7 +58,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 20171214:
 	r362593 broke ZFS + GELI support for reasons unknown. However,
 	it also broke ZFS support generally, so GELI has been turned off
-	by default as the lessor evil in r326857. If you boot off ZFS and/or
+	by default as the lesser evil in r326857. If you boot off ZFS and/or
 	GELI, it might not be a good time to update.
 
 20171125:
@@ -280,7 +280,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	full procedure documented below under the heading "To rebuild
 	everything and install it on the current system."  Specifically,
 	a reboot is required after installing the new kernel before
-	installing world.  
+	installing world.
 
 20170424:
 	The NATM framework including the en(4), fatm(4), hatm(4), and
@@ -821,7 +821,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20150623:
 	An additional fix for the issue described in the 20150614 sendmail
-	entry below has been been committed in revision 284717.
+	entry below has been committed in revision 284717.
 
 20150616:
 	FreeBSD's old make (fmake) has been removed from the system. It is
@@ -829,7 +829,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20150615:
 	The fix for the issue described in the 20150614 sendmail entry
-	below has been been committed in revision 284436.  The work
+	below has been committed in revision 284436.  The work
 	around described in that entry is no longer needed unless the
 	default setting is overridden by a confDH_PARAMETERS configuration
 	setting of '5' or pointing to a 512 bit DH parameter file.

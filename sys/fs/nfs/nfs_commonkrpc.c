@@ -493,7 +493,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	uint32_t retseq, retval, slotseq, *tl;
 	time_t waituntil;
 	int i = 0, j = 0, opcnt, set_sigset = 0, slot;
-	int trycnt, error = 0, usegssname = 0, secflavour = AUTH_SYS;
+	int error = 0, usegssname = 0, secflavour = AUTH_SYS;
 	int freeslot, maxslot, reterr, slotpos, timeo;
 	u_int16_t procnum;
 	u_int trylater_delay = 1;
@@ -702,7 +702,6 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		}
 #endif
 	}
-	trycnt = 0;
 	freeslot = -1;		/* Set to slot that needs to be free'd */
 tryagain:
 	slot = -1;		/* Slot that needs a sequence# increment. */
@@ -1229,8 +1228,7 @@ newnfs_msleep(struct thread *td, void *ident, struct mtx *mtx, int priority, cha
 {
 	sigset_t oldset;
 	int error;
-	struct proc *p;
-	
+
 	if ((priority & PCATCH) == 0)
 		return msleep(ident, mtx, priority, wmesg, timo);
 	if (td == NULL)
@@ -1238,7 +1236,6 @@ newnfs_msleep(struct thread *td, void *ident, struct mtx *mtx, int priority, cha
 	newnfs_set_sigmask(td, &oldset);
 	error = msleep(ident, mtx, priority, wmesg, timo);
 	newnfs_restore_sigmask(td, &oldset);
-	p = td->td_proc;
 	return (error);
 }
 

@@ -1354,7 +1354,7 @@ nandfs_link(struct vop_link_args *ap)
 	struct nandfs_inode *inode = &node->nn_inode;
 	int error;
 
-	if (inode->i_links_count >= LINK_MAX)
+	if (inode->i_links_count >= NANDFS_LINK_MAX)
 		return (EMLINK);
 
 	if (inode->i_flags & (IMMUTABLE | APPEND))
@@ -1576,7 +1576,7 @@ abortit:
 	fdnode = VTON(fdvp);
 	fnode = VTON(fvp);
 
-	if (fnode->nn_inode.i_links_count >= LINK_MAX) {
+	if (fnode->nn_inode.i_links_count >= NANDFS_LINK_MAX) {
 		VOP_UNLOCK(fvp, 0);
 		error = EMLINK;
 		goto abortit;
@@ -1839,7 +1839,7 @@ nandfs_mkdir(struct vop_mkdir_args *ap)
 	if (nandfs_fs_full(dir_node->nn_nandfsdev))
 		return (ENOSPC);
 
-	if (dir_inode->i_links_count >= LINK_MAX)
+	if (dir_inode->i_links_count >= NANDFS_LINK_MAX)
 		return (EMLINK);
 
 	error = nandfs_node_create(nmp, &node, mode);
@@ -2238,6 +2238,21 @@ nandfs_pathconf(struct vop_pathconf_args *ap)
 
 	error = 0;
 	switch (ap->a_name) {
+	case _PC_LINK_MAX:
+		*ap->a_retval = NANDFS_LINK_MAX;
+		break;
+	case _PC_NAME_MAX:
+		*ap->a_retval = NANDFS_NAME_LEN;
+		break;
+	case _PC_PIPE_BUF:
+		if (ap->a_vp->v_type == VDIR || ap->a_vp->v_type == VFIFO)
+			*ap->a_retval = PIPE_BUF;
+		else
+			error = EINVAL;
+		break;
+	case _PC_CHOWN_RESTRICTED:
+		*ap->a_retval = 1;
+		break;
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 1;
 		break;
@@ -2405,6 +2420,7 @@ struct vop_vector nandfs_fifoops = {
 	.vop_close =		nandfsfifo_close,
 	.vop_getattr =		nandfs_getattr,
 	.vop_inactive =		nandfs_inactive,
+	.vop_pathconf =		nandfs_pathconf,
 	.vop_print =		nandfs_print,
 	.vop_read =		VOP_PANIC,
 	.vop_reclaim =		nandfs_reclaim,

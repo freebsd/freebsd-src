@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuinfo.h>
 #include <machine/intr.h>
 #include <machine/sysarch.h>
+#include <machine/vmparam.h>	/* For KERNVIRTADDR */
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 
 ASSYM(KERNBASE, KERNBASE);
+ASSYM(KERNVIRTADDR, KERNVIRTADDR);
 #if __ARM_ARCH >= 6
 ASSYM(CPU_ASID_KERNEL,CPU_ASID_KERNEL);
 #endif
@@ -161,3 +163,12 @@ ASSYM(DCACHE_LINE_SIZE, offsetof(struct cpuinfo, dcache_line_size));
 ASSYM(DCACHE_LINE_MASK, offsetof(struct cpuinfo, dcache_line_mask));
 ASSYM(ICACHE_LINE_SIZE, offsetof(struct cpuinfo, icache_line_size));
 ASSYM(ICACHE_LINE_MASK, offsetof(struct cpuinfo, icache_line_mask));
+
+/*
+ * Emit the LOCORE_MAP_MB option as a #define only if the option was set.
+ */
+#include "opt_locore.h"
+
+#ifdef LOCORE_MAP_MB
+ASSYM(LOCORE_MAP_MB, LOCORE_MAP_MB);
+#endif

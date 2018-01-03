@@ -786,7 +786,7 @@ doslave(int cmd, int slave_number)
 		for (trecno = 0; trecno < ntrec;
 		     trecno += p->count, p += p->count) {
 			if (p->dblk) {
-				bread(p->dblk, slp->tblock[trecno],
+				blkread(p->dblk, slp->tblock[trecno],
 					p->count * TP_BSIZE);
 			} else {
 				if (p->count != 1 || atomic(read, cmd,

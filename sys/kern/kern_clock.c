@@ -335,14 +335,18 @@ read_cpu_time(long *cp_time)
 	}
 }
 
-#ifdef SW_WATCHDOG
 #include <sys/watchdog.h>
 
 static int watchdog_ticks;
 static int watchdog_enabled;
 static void watchdog_fire(void);
 static void watchdog_config(void *, u_int, int *);
-#endif /* SW_WATCHDOG */
+
+static void
+watchdog_attach(void)
+{
+	EVENTHANDLER_REGISTER(watchdog_list, watchdog_config, NULL, 0);
+}
 
 /*
  * Clock handling routines.
@@ -410,8 +414,14 @@ initclocks(void *dummy)
 	if (profhz == 0)
 		profhz = i;
 	psratio = profhz / i;
+
 #ifdef SW_WATCHDOG
-	EVENTHANDLER_REGISTER(watchdog_list, watchdog_config, NULL, 0);
+	/* Enable hardclock watchdog now, even if a hardware watchdog exists. */
+	watchdog_attach();
+#else
+	/* Volunteer to run a software watchdog. */
+	if (wdog_software_attach == NULL)
+		wdog_software_attach = watchdog_attach;
 #endif
 }
 
@@ -482,10 +492,8 @@ hardclock(int usermode, uintfptr_t pc)
 #ifdef DEVICE_POLLING
 	hardclock_device_poll();	/* this is very short and quick */
 #endif /* DEVICE_POLLING */
-#ifdef SW_WATCHDOG
 	if (watchdog_enabled > 0 && --watchdog_ticks <= 0)
 		watchdog_fire();
-#endif /* SW_WATCHDOG */
 }
 
 void
@@ -496,9 +504,7 @@ hardclock_cnt(int cnt, int usermode)
 	struct proc *p = td->td_proc;
 	int *t = DPCPU_PTR(pcputicks);
 	int flags, global, newticks;
-#ifdef SW_WATCHDOG
 	int i;
-#endif /* SW_WATCHDOG */
 
 	/*
 	 * Update per-CPU and possibly global ticks values.
@@ -558,13 +564,11 @@ hardclock_cnt(int cnt, int usermode)
 			atomic_store_rel_int(&devpoll_run, 0);
 		}
 #endif /* DEVICE_POLLING */
-#ifdef SW_WATCHDOG
 		if (watchdog_enabled > 0) {
 			i = atomic_fetchadd_int(&watchdog_ticks, -newticks);
 			if (i > 0 && i <= newticks)
 				watchdog_fire();
 		}
-#endif /* SW_WATCHDOG */
 	}
 	if (curcpu == CPU_FIRST())
 		cpu_tick_calibration();
@@ -841,8 +845,6 @@ SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate,
 	0, 0, sysctl_kern_clockrate, "S,clockinfo",
 	"Rate and period of various kernel clocks");
 
-#ifdef SW_WATCHDOG
-
 static void
 watchdog_config(void *unused __unused, u_int cmd, int *error)
 {
@@ -891,5 +893,3 @@ watchdog_fire(void)
 	panic("watchdog timeout");
 #endif
 }
-
-#endif /* SW_WATCHDOG */

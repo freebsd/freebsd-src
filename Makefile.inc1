@@ -262,10 +262,11 @@ SUBDIR+=	tests
 SUBDIR+=contrib/ofed
 .endif
 
-# Local directories are last, since it is nice to at least get the base
-# system rebuilt before you do them.
+# Local directories are built in parallel with the base system directories.
+# Users may insert a .WAIT directive at the beginning or elsewhere within
+# the LOCAL_DIRS and LOCAL_LIB_DIRS lists as needed.
 .for _DIR in ${LOCAL_DIRS}
-.if exists(${.CURDIR}/${_DIR}/Makefile)
+.if ${_DIR} == ".WAIT" || exists(${.CURDIR}/${_DIR}/Makefile)
 SUBDIR+=	${_DIR}
 .endif
 .endfor
@@ -276,7 +277,7 @@ SUBDIR+=	${_DIR}
 _REDUNDANT_LIB_DIRS+=    ${LOCAL_LIB_DIRS:M${_DIR}*}
 .endfor
 .for _DIR in ${LOCAL_LIB_DIRS}
-.if empty(_REDUNDANT_LIB_DIRS:M${_DIR}) && exists(${.CURDIR}/${_DIR}/Makefile)
+.if ${_DIR} == ".WAIT" || (empty(_REDUNDANT_LIB_DIRS:M${_DIR}) && exists(${.CURDIR}/${_DIR}/Makefile))
 SUBDIR+=	${_DIR}
 .endif
 .endfor
@@ -2445,7 +2446,7 @@ _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin
 _generic_libs+=	sbin/ipf/libipf
 .endif
 .for _DIR in ${LOCAL_LIB_DIRS}
-.if exists(${.CURDIR}/${_DIR}/Makefile) && empty(_generic_libs:M${_DIR})
+.if ${_DIR} == ".WAIT"  || (empty(_generic_libs:M${_DIR}) && exists(${.CURDIR}/${_DIR}/Makefile))
 _generic_libs+= ${_DIR}
 .endif
 .endfor

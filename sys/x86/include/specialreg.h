@@ -76,6 +76,7 @@
 #define	CR4_PCIDE 0x00020000	/* Enable Context ID */
 #define	CR4_XSAVE 0x00040000	/* XSETBV/XGETBV */
 #define	CR4_SMEP 0x00100000	/* Supervisor-Mode Execution Prevention */
+#define	CR4_SMAP 0x00200000	/* Supervisor-Mode Access Prevention */
 
 /*
  * Bits in AMD64 special registers.  EFER is 64 bits wide.
@@ -409,6 +410,7 @@
 #define	CPUID_STDEXT_AVX512CD	0x10000000
 #define	CPUID_STDEXT_SHA	0x20000000
 #define	CPUID_STDEXT_AVX512BW	0x40000000
+#define	CPUID_STDEXT_AVX512VL	0x80000000
 
 /*
  * CPUID instruction 7 Structured Extended Features, leaf 0 ecx info

@@ -24,8 +24,8 @@ cloudabi64_vdso_blob.o		optional	compat_cloudabi64	\
 	clean		"cloudabi64_vdso_blob.o"
 #
 arm/allwinner/a10_ehci.c	optional	ehci aw_ehci fdt
-arm/allwinner/a10_gpio.c	optional	gpio aw_gpio fdt
-arm/allwinner/a10_mmc.c		optional	mmc aw_mmc fdt
+arm/allwinner/aw_gpio.c		optional	gpio aw_gpio fdt
+arm/allwinner/aw_mmc.c		optional	mmc aw_mmc fdt
 arm/allwinner/a64/a64_padconf.c	optional	soc_allwinner_a64 fdt
 arm/allwinner/a64/a64_r_padconf.c optional	soc_allwinner_a64 fdt
 arm/allwinner/h3/h3_padconf.c	optional	soc_allwinner_h5 fdt

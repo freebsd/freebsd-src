@@ -67,6 +67,8 @@ EARLY_PRINTF	opt_global.h
 TEXTDUMP_PREFERRED	opt_ddb.h
 TEXTDUMP_VERBOSE	opt_ddb.h
 NUM_CORE_FILES	opt_global.h
+TSLOG	opt_global.h
+TSLOGSIZE	opt_global.h
 
 # Miscellaneous options.
 ALQ
@@ -165,6 +167,7 @@ MAC_STUB	opt_dontuse.h
 MAC_TEST	opt_dontuse.h
 MD_ROOT		opt_md.h
 MD_ROOT_FSTYPE	opt_md.h
+MD_ROOT_READONLY	opt_md.h
 MD_ROOT_SIZE	opt_md.h
 MFI_DEBUG	opt_mfi.h
 MFI_DECODE_LOG	opt_mfi.h

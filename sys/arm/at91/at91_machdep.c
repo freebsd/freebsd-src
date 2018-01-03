@@ -672,8 +672,10 @@ void
 DELAY(int n)
 {
 
+	TSENTER();
 	if (soc_info.soc_data)
 		soc_info.soc_data->soc_delay(n);
+	TSEXIT();
 }
 
 void

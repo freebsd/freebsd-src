@@ -167,7 +167,8 @@ newfs_command(const char *fstype, char *command, int use_default)
 			else if (strcmp(items[i].name, "atime") == 0)
 				strcat(command, "-O atime=off ");
 		}
-	} else if (strcmp(fstype, "fat32") == 0 || strcmp(fstype, "efi") == 0) {
+	} else if (strcmp(fstype, "fat32") == 0 || strcmp(fstype, "efi") == 0 ||
+	     strcmp(fstype, "ms-basic-data") == 0) {
 		int i;
 		DIALOG_LISTITEM items[] = {
 			{"FAT32", "FAT Type 32",
@@ -747,7 +748,8 @@ set_default_part_metadata(const char *name, const char *scheme,
 		/* Get VFS from text after freebsd-, if possible */
 		if (strncmp("freebsd-", type, 8) == 0)
 			md->fstab->fs_vfstype = strdup(&type[8]);
-		else if (strcmp("fat32", type) == 0 || strcmp("efi", type) == 0)
+		else if (strcmp("fat32", type) == 0 || strcmp("efi", type) == 0
+	     	    || strcmp("ms-basic-data", type) == 0)
 			md->fstab->fs_vfstype = strdup("msdosfs");
 		else
 			md->fstab->fs_vfstype = strdup(type); /* Guess */
@@ -942,7 +944,9 @@ add_boot_partition(struct ggeom *geom, struct gprovider *pp,
 		choice = 0;
 
 	if (choice == 0) { /* yes */
+		struct partition_metadata *md;
 		const char *bootmount = NULL;
+		char *bootpartname = NULL;
 		char sizestr[7];
 
 		humanize_number(sizestr, 7,
@@ -950,7 +954,21 @@ add_boot_partition(struct ggeom *geom, struct gprovider *pp,
 		    HN_NOSPACE | HN_DECIMAL);
 
 		gpart_create(pp, bootpart_type(scheme, &bootmount),
-		    sizestr, bootmount, NULL, 0);
+		    sizestr, bootmount, &bootpartname, 0);
+
+		if (bootpartname == NULL) /* Error reported to user already */
+			return 0;
+
+		/* If the part is not mountable, make sure newfs isn't set */
+		if (bootmount == NULL) {
+			md = get_part_metadata(bootpartname, 0);
+			if (md != NULL && md->newfs != NULL) {
+				free(md->newfs);
+				md->newfs = NULL;
+			}
+		}
+
+		free(bootpartname);
 
 		return (bootpart_size(scheme));
 	}

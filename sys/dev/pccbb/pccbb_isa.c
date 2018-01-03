@@ -106,7 +106,6 @@ SYSCTL_INT(_hw_pcic, OID_AUTO, pd6722_vsense, CTLFLAG_RDTUN,
 #define	DPRINTF(x) do { if (cbb_debug) printf x; } while (0)
 #define	DEVPRINTF(x) do { if (cbb_debug) device_printf x; } while (0)
 
-/* XXX Not sure that PNP0E03 should be claimed, except maybe on pc98 */
 static struct isa_pnp_id pcic_ids[] = {
 	{EXCA_PNP_ACTIONTEC,		NULL},		/* AEI0218 */
 	{EXCA_PNP_IBM3765,		NULL},		/* IBM3765 */
@@ -255,3 +254,4 @@ static driver_t cbb_isa_driver = {
 
 DRIVER_MODULE(cbb, isa, cbb_isa_driver, cbb_devclass, 0, 0);
 MODULE_DEPEND(cbb, exca, 1, 1, 1);
+ISA_PNP_INFO(pcic_ids);

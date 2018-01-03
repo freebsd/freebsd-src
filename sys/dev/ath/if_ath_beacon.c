@@ -150,8 +150,12 @@ ath_beaconq_config(struct ath_softc *sc)
 		qi.tqi_cwmin = ATH_BEACON_CWMIN_DEFAULT;
 		qi.tqi_cwmax = ATH_BEACON_CWMAX_DEFAULT;
 	} else {
-		struct wmeParams *wmep =
-			&ic->ic_wme.wme_chanParams.cap_wmeParams[WME_AC_BE];
+		struct chanAccParams chp;
+		struct wmeParams *wmep;
+
+		ieee80211_wme_ic_getparams(ic, &chp);
+		wmep = &chp.cap_wmeParams[WME_AC_BE];
+
 		/*
 		 * Adhoc mode; important thing is to use 2x cwmin.
 		 */

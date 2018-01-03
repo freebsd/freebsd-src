@@ -1,7 +1,7 @@
-/*	$NetBSD: ixp425_timer.c,v 1.11 2006/04/10 03:36:03 simonb Exp $ */
+/*	$NetBSD: ixp425_timer.c,v 1.15 2009/10/21 14:15:51 rmind Exp $ */
 
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
  *
  * Copyright (c) 2003
  *	Ichiro FUKUHARA <ichiro@ichiro.org>.
@@ -15,12 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Ichiro FUKUHARA.
- * 4. The name of the company nor the name of the author may be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY ICHIRO FUKUHARA ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -219,6 +213,7 @@ DELAY(int n)
 
 	if (n == 0)
 		return;
+	TSENTER();
 
 	/*
 	 * Clamp the timeout at a maximum value (about 32 seconds with
@@ -239,6 +234,7 @@ DELAY(int n)
 		usecs -= (int)(last - first);
 		first = last;
 	}
+	TSEXIT();
 }
 
 /*

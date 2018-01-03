@@ -39,11 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef BOOT_FORTH
 #include "ficl.h"
-#define	RETURN(x)	stackPushINT(bf_vm->pStack,!x); return(x)
-
 extern FICL_VM *bf_vm;
-#else
-#define	RETURN(x)	return(x)
 #endif
 
 #define	MAXARGS	20			/* maximum number of arguments allowed */
@@ -51,12 +47,10 @@ extern FICL_VM *bf_vm;
 static void	prompt(void);
 
 #ifndef BOOT_FORTH
-static int	perform(int argc, char *argv[]);
-
 /*
  * Perform the command
  */
-int
+static int
 perform(int argc, char *argv[])
 {
     int				result;
@@ -82,7 +76,7 @@ perform(int argc, char *argv[])
     } else {
 	command_errmsg = "unknown command";
     }
-    RETURN(result);
+    return(result);
 }
 #endif	/* ! BOOT_FORTH */
 
@@ -90,7 +84,7 @@ perform(int argc, char *argv[])
  * Interactive mode
  */
 void
-interact(const char *rc)
+interact(void)
 {
     static char	input[256];			/* big enough? */
 #ifndef BOOT_FORTH
@@ -99,14 +93,11 @@ interact(const char *rc)
 #endif
 
 #ifdef BOOT_FORTH
-    bf_init((rc) ? "" : NULL);
+    bf_init();
 #endif
 
-    if (rc == NULL) {
-	/* Read our default configuration. */
-	include("/boot/loader.rc");
-    } else if (*rc != '\0')
-	include(rc);
+    /* Read our default configuration. */
+    include("/boot/loader.rc");
 
     printf("\n");
 
