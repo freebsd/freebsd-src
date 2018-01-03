@@ -201,6 +201,7 @@ vm_phys_fictitious_cmp(struct vm_phys_fictitious_seg *p1,
 int
 vm_phys_domain_match(int prefer, vm_paddr_t low, vm_paddr_t high)
 {
+#ifdef VM_NUMA_ALLOC
 	domainset_t mask;
 	int i;
 
@@ -220,6 +221,9 @@ vm_phys_domain_match(int prefer, vm_paddr_t low, vm_paddr_t high)
 	if (DOMAINSET_EMPTY(&mask))
 		panic("vm_phys_domain_match:  Impossible constraint");
 	return (DOMAINSET_FFS(&mask) - 1);
+#else
+	return (0);
+#endif
 }
 
 /*
