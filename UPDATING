@@ -51,6 +51,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180102:
+	The SW_WATCHDOG option is no longer necessary to enable the
+	hardclock-based software watchdog if no hardware watchdog is
+	configured. As before, SW_WATCHDOG will cause the software
+	watchdog to be enabled even if a hardware watchdog is configured.
+
 20171215:
 	r326887 fixes the issue described in the 20171214 UPDATING entry.
 	r326888 flips the switch back to building GELI support always.
