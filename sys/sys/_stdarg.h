@@ -61,7 +61,7 @@
   #if __ISO_C_VISIBLE >= 1999
     #define va_copy(dst, src) ((dst) = (src))
   #endif
-  #define va_arg(ap, type) (*(((type)*)(((ap) += sizeof(type)) - sizeof(type))))
+  #define va_arg(ap, type) (*((type*)(((ap) += sizeof(type)) - sizeof(type))))
   #define va_end(ap) ((void)0)
 #endif
 
