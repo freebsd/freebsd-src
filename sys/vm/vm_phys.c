@@ -216,7 +216,7 @@ vm_phys_domain_match(int prefer, vm_paddr_t low, vm_paddr_t high)
 		return (prefer);
 	if (DOMAINSET_EMPTY(&mask))
 		panic("vm_phys_domain_match:  Impossible constraint");
-	return (DOMAINSET_FFS(&mask));
+	return (DOMAINSET_FFS(&mask) - 1);
 }
 
 /*
