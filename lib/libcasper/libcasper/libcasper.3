@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 29, 2017
+.Dd January 2, 2018
 .Dt LIBCASPER 3
 .Os
 .Sh NAME
@@ -190,6 +190,29 @@ obtained via the
 .Fn cap_init
 function.
 The function returns capability that provides access to opened service.
+Casper supports the following services in the base system:
+.Bl -tag -width "system.random" -compact -offset indent
+.Pp
+.It system.dns
+provides DNS libc compatible API
+.It system.grp
+provides
+.Xr getgrent 3
+compatible API
+.It system.pwd
+provides
+.Xr getpwent 3
+compatible API
+.It system.random
+allows to obtain entropy from /dev/random
+.It system.sysctl
+provides
+.Xr sysctlbyname 3
+compatible API
+.It system.syslog
+provides
+.Xr syslog 3
+compatible API
 .Sh RETURN VALUES
 The
 .Fn cap_clone ,
