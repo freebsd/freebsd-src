@@ -204,6 +204,9 @@ vm_phys_domain_match(int prefer, vm_paddr_t low, vm_paddr_t high)
 	domainset_t mask;
 	int i;
 
+	if (vm_ndomains == 1 || mem_affinity == NULL)
+		return (0);
+
 	DOMAINSET_ZERO(&mask);
 	/*
 	 * Check for any memory that overlaps low, high.
