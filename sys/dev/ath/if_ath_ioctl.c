@@ -197,7 +197,7 @@ ath_ioctl_diag(struct ath_softc *sc, struct ath_diag *ad)
 		 * pointer for us to use below in reclaiming the buffer;
 		 * may want to be more defensive.
 		 */
-		outdata = malloc(outsize, M_TEMP, M_NOWAIT | M_ZERO);
+		outdata = malloc(outsize, M_TEMP, M_NOWAIT);
 		if (outdata == NULL) {
 			error = ENOMEM;
 			goto bad;
