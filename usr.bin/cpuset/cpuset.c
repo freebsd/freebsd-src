@@ -292,6 +292,7 @@ main(int argc, char *argv[])
 
 	CPU_ZERO(&mask);
 	DOMAINSET_ZERO(&domains);
+	policy = DOMAINSET_POLICY_INVALID;
 	level = CPU_LEVEL_WHICH;
 	which = CPU_WHICH_PID;
 	id = pid = tid = setid = -1;
