@@ -78,6 +78,9 @@ SYSCTL_UINT(_hw_watchdog, OID_AUTO, wd_last_u_secs, CTLFLAG_RD,
 static int wd_lastpat_valid = 0;
 static time_t wd_lastpat = 0;	/* when the watchdog was last patted */
 
+/* Hook for external software watchdog to register for use if needed */
+void (*wdog_software_attach)(void);
+
 static void
 pow2ns_to_ts(int pow2ns, struct timespec *ts)
 {
@@ -120,6 +123,7 @@ int
 wdog_kern_pat(u_int utim)
 {
 	int error;
+	static int first = 1;
 
 	if ((utim & WD_LASTVAL) != 0 && (utim & WD_INTERVAL) > 0)
 		return (EINVAL);
@@ -161,6 +165,17 @@ wdog_kern_pat(u_int utim)
 	} else {
 		EVENTHANDLER_INVOKE(watchdog_list, utim, &error);
 	}
+	/*
+	 * If we no hardware watchdog responded, we have not tried to
+	 * attach an external software watchdog, and one is available,
+	 * attach it now and retry.
+	 */
+	if (error == EOPNOTSUPP && first && *wdog_software_attach != NULL) {
+		(*wdog_software_attach)();
+		EVENTHANDLER_INVOKE(watchdog_list, utim, &error);
+	}
+	first = 0;
+
 	wd_set_pretimeout(wd_pretimeout, true);
 	/*
 	 * If we were able to arm/strobe the watchdog, then
