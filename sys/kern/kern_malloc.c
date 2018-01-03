@@ -492,12 +492,10 @@ malloc_dbg(caddr_t *vap, unsigned long *sizep, struct malloc_type *mtp,
 	    ("malloc: called with spinlock or critical section held"));
 
 #ifdef DEBUG_MEMGUARD
-	if (memguard_cmp_mtp(mtp, size)) {
-		va = memguard_alloc(size, flags);
-		if (va != NULL) {
-			*vap = va;
+	if (memguard_cmp_mtp(mtp, *sizep)) {
+		*vap = memguard_alloc(*sizep, flags);
+		if (*vap != NULL)
 			return (EJUSTRETURN);
-		}
 		/* This is unfortunate but should not be fatal. */
 	}
 #endif
