@@ -78,8 +78,8 @@ struct console *consoles[] = {
 	NULL
 };
 
-extern void	__bss_start, __bss_end;
-extern void	__heap_start, __heap_end;
+extern uint8_t	__bss_start, __bss_end;
+extern uint8_t	__heap_start, __heap_end;
 
 static int
 __elfN(exec)(struct preloaded_file *fp)
@@ -108,14 +108,14 @@ main(int argc, char *argv[], char *envv[], struct bootinfo *bootinfop)
 	struct devsw **dp;
 
 	/* NB: Must be sure to bzero() before using any globals. */
-	bzero(&__bss_start, (uintptr_t)&__bss_end - (uintptr_t)&__bss_start);
+	bzero(&__bss_start, &__bss_end - &__bss_start);
 
 	boot2_argc = argc;
 	boot2_argv = argv;
 	boot2_envv = envv;
 	boot2_bootinfo = *bootinfop;	/* Copy rather than by reference. */
 
-	setheap((void *)&__heap_start, (void *)&__heap_end);
+	setheap(&__heap_start, &__heap_end);
 
 	/*
 	 * Pick up console settings from boot2; probe console.
