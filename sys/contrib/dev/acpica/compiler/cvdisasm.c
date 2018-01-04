@@ -352,7 +352,7 @@ CvCloseBraceWriteComment(
     UINT32                  Level)
 {
 
-    if (!Gbl_CaptureComments)
+    if (!AcpiGbl_CaptureComments)
     {
         AcpiOsPrintf ("}");
         return;
@@ -385,7 +385,7 @@ CvCloseParenWriteComment(
     UINT32                  Level)
 {
 
-    if (!Gbl_CaptureComments)
+    if (!AcpiGbl_CaptureComments)
     {
         AcpiOsPrintf (")");
         return;

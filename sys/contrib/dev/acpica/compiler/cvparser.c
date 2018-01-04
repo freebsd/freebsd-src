@@ -254,7 +254,7 @@ CvInitFileTree (
     char                    *ChildFilename = NULL;
 
 
-    if (!Gbl_CaptureComments)
+    if (!AcpiGbl_CaptureComments)
     {
         return;
     }
@@ -714,13 +714,13 @@ CvCaptureCommentsOnly (
     UINT8                   *Aml = ParserState->Aml;
     UINT16                  Opcode = (UINT16) ACPI_GET8 (Aml);
     UINT32                  Length = 0;
-    UINT8                   CommentOption = (UINT16) ACPI_GET8 (Aml+1);
+    UINT8                   CommentOption;
     BOOLEAN                 StdDefBlockFlag = FALSE;
     ACPI_COMMENT_NODE       *CommentNode;
     ACPI_FILE_NODE          *FileNode;
 
 
-    if (!Gbl_CaptureComments ||
+    if (!AcpiGbl_CaptureComments ||
         Opcode != AML_COMMENT_OP)
     {
        return;
@@ -973,7 +973,7 @@ CvCaptureComments (
     const ACPI_OPCODE_INFO  *OpInfo;
 
 
-    if (!Gbl_CaptureComments)
+    if (!AcpiGbl_CaptureComments)
     {
         return;
     }

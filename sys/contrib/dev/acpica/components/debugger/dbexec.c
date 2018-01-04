@@ -187,6 +187,10 @@ AcpiDbExecutionWalk (
     void                    *Context,
     void                    **ReturnValue);
 
+static void ACPI_SYSTEM_XFACE
+AcpiDbSingleExecutionThread (
+    void                    *Context);
+
 
 /*******************************************************************************
  *
@@ -366,7 +370,7 @@ AcpiDbExecuteSetup (
     ACPI_FUNCTION_NAME (DbExecuteSetup);
 
 
-    /* Catenate the current scope to the supplied name */
+    /* Concatenate the current scope to the supplied name */
 
     Info->Pathname[0] = 0;
     if ((Info->Name[0] != '\\') &&
@@ -786,6 +790,124 @@ AcpiDbMethodThread (
                 AcpiFormatException (Status));
         }
     }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbSingleExecutionThread
+ *
+ * PARAMETERS:  Context                 - Method info struct
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Create one thread and execute a method
+ *
+ ******************************************************************************/
+
+static void ACPI_SYSTEM_XFACE
+AcpiDbSingleExecutionThread (
+    void                    *Context)
+{
+    ACPI_DB_METHOD_INFO     *Info = Context;
+    ACPI_STATUS             Status;
+    ACPI_BUFFER             ReturnObj;
+
+
+    AcpiOsPrintf ("\n");
+
+    Status = AcpiDbExecuteMethod (Info, &ReturnObj);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiOsPrintf ("%s During evaluation of %s\n",
+            AcpiFormatException (Status), Info->Pathname);
+        return;
+    }
+
+    /* Display a return object, if any */
+
+    if (ReturnObj.Length)
+    {
+        AcpiOsPrintf ("Evaluation of %s returned object %p, "
+            "external buffer length %X\n",
+            AcpiGbl_DbMethodInfo.Pathname, ReturnObj.Pointer,
+            (UINT32) ReturnObj.Length);
+
+        AcpiDbDumpExternalObject (ReturnObj.Pointer, 1);
+    }
+
+    AcpiOsPrintf ("\nBackground thread completed\n%c ",
+        ACPI_DEBUGGER_COMMAND_PROMPT);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbCreateExecutionThread
+ *
+ * PARAMETERS:  MethodNameArg           - Control method to execute
+ *              Arguments               - Array of arguments to the method
+ *              Types                   - Corresponding array of object types
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Create a single thread to evaluate a namespace object. Handles
+ *              arguments passed on command line for control methods.
+ *
+ ******************************************************************************/
+
+void
+AcpiDbCreateExecutionThread (
+    char                    *MethodNameArg,
+    char                    **Arguments,
+    ACPI_OBJECT_TYPE        *Types)
+{
+    ACPI_STATUS             Status;
+    UINT32                  i;
+
+
+    memset (&AcpiGbl_DbMethodInfo, 0, sizeof (ACPI_DB_METHOD_INFO));
+    AcpiGbl_DbMethodInfo.Name = MethodNameArg;
+    AcpiGbl_DbMethodInfo.InitArgs = 1;
+    AcpiGbl_DbMethodInfo.Args = AcpiGbl_DbMethodInfo.Arguments;
+    AcpiGbl_DbMethodInfo.Types = AcpiGbl_DbMethodInfo.ArgTypes;
+
+    /* Setup method arguments, up to 7 (0-6) */
+
+    for (i = 0; (i < ACPI_METHOD_NUM_ARGS) && *Arguments; i++)
+    {
+        AcpiGbl_DbMethodInfo.Arguments[i] = *Arguments;
+        Arguments++;
+
+        AcpiGbl_DbMethodInfo.ArgTypes[i] = *Types;
+        Types++;
+    }
+
+    Status = AcpiDbExecuteSetup (&AcpiGbl_DbMethodInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* Get the NS node, determines existence also */
+
+    Status = AcpiGetHandle (NULL, AcpiGbl_DbMethodInfo.Pathname,
+        &AcpiGbl_DbMethodInfo.Method);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiOsPrintf ("%s Could not get handle for %s\n",
+            AcpiFormatException (Status), AcpiGbl_DbMethodInfo.Pathname);
+        return;
+    }
+
+    Status = AcpiOsExecute (OSL_DEBUGGER_EXEC_THREAD,
+        AcpiDbSingleExecutionThread, &AcpiGbl_DbMethodInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    AcpiOsPrintf ("\nBackground thread started\n");
 }
 
 

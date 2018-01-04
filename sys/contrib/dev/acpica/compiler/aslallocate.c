@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: hwtimer.c - ACPI Power Management Timer Interface
+ * Module Name: aslallocate -- Local memory allocation
  *
  *****************************************************************************/
 
@@ -149,200 +149,155 @@
  *
  *****************************************************************************/
 
-#define EXPORT_ACPI_INTERFACES
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/include/accommon.h>
+/*
+ * Local heap allocation wrappers. See aslcache.c for allocation from local
+ * cache alloctions
+ */
 
-#define _COMPONENT          ACPI_HARDWARE
-        ACPI_MODULE_NAME    ("hwtimer")
 
-
-#if (!ACPI_REDUCED_HARDWARE) /* Entire module */
-/******************************************************************************
+/*******************************************************************************
  *
- * FUNCTION:    AcpiGetTimerResolution
+ * FUNCTION:    UtLocalCalloc
  *
- * PARAMETERS:  Resolution          - Where the resolution is returned
+ * PARAMETERS:  Size                - Bytes to be allocated
  *
- * RETURN:      Status and timer resolution
+ * RETURN:      Pointer to the allocated memory. If this function returns
+ *              (the compiler is not aborted), the pointer is guaranteed to
+ *              be valid.
  *
- * DESCRIPTION: Obtains resolution of the ACPI PM Timer (24 or 32 bits).
+ * DESCRIPTION: Allocate zero-initialized memory. The point of this function
+ *              is to abort the compile on an allocation failure, on the
+ *              assumption that nothing more can be accomplished.
  *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiGetTimerResolution (
-    UINT32                  *Resolution)
-{
-    ACPI_FUNCTION_TRACE (AcpiGetTimerResolution);
-
-
-    if (!Resolution)
-    {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
-    }
-
-    if ((AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) == 0)
-    {
-        *Resolution = 24;
-    }
-    else
-    {
-        *Resolution = 32;
-    }
-
-    return_ACPI_STATUS (AE_OK);
-}
-
-ACPI_EXPORT_SYMBOL (AcpiGetTimerResolution)
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiGetTimer
- *
- * PARAMETERS:  Ticks               - Where the timer value is returned
- *
- * RETURN:      Status and current timer value (ticks)
- *
- * DESCRIPTION: Obtains current value of ACPI PM Timer (in ticks).
+ * NOTE:        For allocation from the local caches, see aslcache.c
  *
  ******************************************************************************/
 
-ACPI_STATUS
-AcpiGetTimer (
-    UINT32                  *Ticks)
+void *
+UtLocalCalloc (
+    UINT32                  Size)
 {
-    ACPI_STATUS             Status;
-    UINT64                  TimerValue;
+    void                    *Allocated;
 
 
-    ACPI_FUNCTION_TRACE (AcpiGetTimer);
-
-
-    if (!Ticks)
+    Allocated = ACPI_ALLOCATE_ZEROED (Size);
+    if (!Allocated)
     {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
+        AslCommonError (ASL_ERROR, ASL_MSG_MEMORY_ALLOCATION,
+            Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
+            Gbl_InputByteCount, Gbl_CurrentColumn,
+            Gbl_Files[ASL_FILE_INPUT].Filename, NULL);
+
+        CmCleanupAndExit ();
+        exit (1);
     }
 
-    /* ACPI 5.0A: PM Timer is optional */
-
-    if (!AcpiGbl_FADT.XPmTimerBlock.Address)
-    {
-        return_ACPI_STATUS (AE_SUPPORT);
-    }
-
-    Status = AcpiHwRead (&TimerValue, &AcpiGbl_FADT.XPmTimerBlock);
-    if (ACPI_SUCCESS (Status))
-    {
-        /* ACPI PM Timer is defined to be 32 bits (PM_TMR_LEN) */
-
-        *Ticks = (UINT32) TimerValue;
-    }
-
-    return_ACPI_STATUS (Status);
+    TotalAllocations++;
+    TotalAllocated += Size;
+    return (Allocated);
 }
-
-ACPI_EXPORT_SYMBOL (AcpiGetTimer)
 
 
 /******************************************************************************
  *
- * FUNCTION:    AcpiGetTimerDuration
+ * FUNCTION:    UtExpandLineBuffers
  *
- * PARAMETERS:  StartTicks          - Starting timestamp
- *              EndTicks            - End timestamp
- *              TimeElapsed         - Where the elapsed time is returned
+ * PARAMETERS:  None. Updates global line buffer pointers.
  *
- * RETURN:      Status and TimeElapsed
+ * RETURN:      None. Reallocates the global line buffers
  *
- * DESCRIPTION: Computes the time elapsed (in microseconds) between two
- *              PM Timer time stamps, taking into account the possibility of
- *              rollovers, the timer resolution, and timer frequency.
+ * DESCRIPTION: Called if the current line buffer becomes filled. Reallocates
+ *              all global line buffers and updates Gbl_LineBufferSize. NOTE:
+ *              Also used for the initial allocation of the buffers, when
+ *              all of the buffer pointers are NULL. Initial allocations are
+ *              of size ASL_DEFAULT_LINE_BUFFER_SIZE
  *
- *              The PM Timer's clock ticks at roughly 3.6 times per
- *              _microsecond_, and its clock continues through Cx state
- *              transitions (unlike many CPU timestamp counters) -- making it
- *              a versatile and accurate timer.
- *
- *              Note that this function accommodates only a single timer
- *              rollover. Thus for 24-bit timers, this function should only
- *              be used for calculating durations less than ~4.6 seconds
- *              (~20 minutes for 32-bit timers) -- calculations below:
- *
- *              2**24 Ticks / 3,600,000 Ticks/Sec = 4.66 sec
- *              2**32 Ticks / 3,600,000 Ticks/Sec = 1193 sec or 19.88 minutes
- *
- ******************************************************************************/
+ *****************************************************************************/
 
-ACPI_STATUS
-AcpiGetTimerDuration (
-    UINT32                  StartTicks,
-    UINT32                  EndTicks,
-    UINT32                  *TimeElapsed)
+void
+UtExpandLineBuffers (
+    void)
 {
-    ACPI_STATUS             Status;
-    UINT64                  DeltaTicks;
-    UINT64                  Quotient;
+    UINT32                  NewSize;
 
 
-    ACPI_FUNCTION_TRACE (AcpiGetTimerDuration);
+    /* Attempt to double the size of all line buffers */
 
-
-    if (!TimeElapsed)
+    NewSize = Gbl_LineBufferSize * 2;
+    if (Gbl_CurrentLineBuffer)
     {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
+        DbgPrint (ASL_DEBUG_OUTPUT,
+            "Increasing line buffer size from %u to %u\n",
+            Gbl_LineBufferSize, NewSize);
     }
 
-    /* ACPI 5.0A: PM Timer is optional */
+    UtReallocLineBuffers (&Gbl_CurrentLineBuffer, Gbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&Gbl_MainTokenBuffer, Gbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&Gbl_MacroTokenBuffer, Gbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&Gbl_ExpressionTokenBuffer, Gbl_LineBufferSize, NewSize);
 
-    if (!AcpiGbl_FADT.XPmTimerBlock.Address)
-    {
-        return_ACPI_STATUS (AE_SUPPORT);
-    }
-
-    if (StartTicks == EndTicks)
-    {
-        *TimeElapsed = 0;
-        return_ACPI_STATUS (AE_OK);
-    }
-
-    /*
-     * Compute Tick Delta:
-     * Handle (max one) timer rollovers on 24-bit versus 32-bit timers.
-     */
-    DeltaTicks = EndTicks;
-    if (StartTicks > EndTicks)
-    {
-        if ((AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) == 0)
-        {
-            /* 24-bit Timer */
-
-            DeltaTicks |= (UINT64) 1 << 24;
-        }
-        else
-        {
-            /* 32-bit Timer */
-
-            DeltaTicks |= (UINT64) 1 << 32;
-        }
-    }
-    DeltaTicks -= StartTicks;
-
-    /*
-     * Compute Duration (Requires a 64-bit multiply and divide):
-     *
-     * TimeElapsed (microseconds) =
-     *  (DeltaTicks * ACPI_USEC_PER_SEC) / ACPI_PM_TIMER_FREQUENCY;
-     */
-    Status = AcpiUtShortDivide (DeltaTicks * ACPI_USEC_PER_SEC,
-                ACPI_PM_TIMER_FREQUENCY, &Quotient, NULL);
-
-    *TimeElapsed = (UINT32) Quotient;
-    return_ACPI_STATUS (Status);
+    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
+    Gbl_LineBufferSize = NewSize;
 }
 
-ACPI_EXPORT_SYMBOL (AcpiGetTimerDuration)
 
-#endif /* !ACPI_REDUCED_HARDWARE */
+/******************************************************************************
+ *
+ * FUNCTION:    UtReallocLineBuffers
+ *
+ * PARAMETERS:  Buffer              - Buffer to realloc
+ *              OldSize             - Old size of Buffer
+ *              NewSize             - New size of Buffer
+ *
+ * RETURN:      none
+ *
+ * DESCRIPTION: Reallocate and initialize Buffer
+ *
+ *****************************************************************************/
+
+void
+UtReallocLineBuffers (
+    char                    **Buffer,
+    UINT32                  OldSize,
+    UINT32                  NewSize)
+{
+
+    *Buffer = realloc (*Buffer, NewSize);
+    if (*Buffer)
+    {
+        memset (*Buffer + OldSize, 0, NewSize - OldSize);
+        return;
+    }
+
+    printf ("Could not increase line buffer size from %u to %u\n",
+        OldSize, NewSize);
+
+    AslError (ASL_ERROR, ASL_MSG_BUFFER_ALLOCATION, NULL, NULL);
+    AslAbort ();
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    UtFreeLineBuffers
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Free all line buffers
+ *
+ *****************************************************************************/
+
+void
+UtFreeLineBuffers (
+    void)
+{
+
+    free (Gbl_CurrentLineBuffer);
+    free (Gbl_MainTokenBuffer);
+    free (Gbl_MacroTokenBuffer);
+    free (Gbl_ExpressionTokenBuffer);
+}

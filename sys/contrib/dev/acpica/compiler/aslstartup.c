@@ -233,11 +233,11 @@ AslInitializeGlobals (
         Gbl_Files[i].Filename = NULL;
     }
 
-    if (Gbl_CaptureComments)
+    if (AcpiGbl_CaptureComments)
     {
         Gbl_CommentState.SpacesBefore          = 0;
         Gbl_CommentState.CommentType           = 1;
-        Gbl_CommentState.LatestParseOp          = NULL;
+        Gbl_CommentState.LatestParseOp         = NULL;
         Gbl_CommentState.ParsingParenBraceNode = NULL;
         Gbl_CommentState.CaptureComments       = TRUE;
     }
@@ -410,7 +410,7 @@ AslDoDisassembly (
 
     Gbl_Files[ASL_FILE_INPUT].Filename = NULL;
 
-    CmDeleteCaches ();
+    UtDeleteLocalCaches ();
     return (AE_OK);
 }
 
@@ -453,7 +453,7 @@ AslDoOneFile (
     /* Take a copy of the input filename, convert any backslashes */
 
     Gbl_Files[ASL_FILE_INPUT].Filename =
-        UtStringCacheCalloc (strlen (Filename) + 1);
+        UtLocalCacheCalloc (strlen (Filename) + 1);
 
     strcpy (Gbl_Files[ASL_FILE_INPUT].Filename, Filename);
     UtConvertBackslashes (Gbl_Files[ASL_FILE_INPUT].Filename);

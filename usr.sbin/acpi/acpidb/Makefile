@@ -66,8 +66,9 @@ SRCS+=	utaddress.c utalloc.c utascii.c utbuffer.c utcache.c	\
 	uteval.c utexcep.c utglobal.c uthex.c utids.c utinit.c	\
 	utlock.c utmath.c utmisc.c utmutex.c utnonansi.c	\
 	utobject.c utosi.c utownerid.c utpredef.c utresdecode.c	\
-	utresrc.c utstate.c utstring.c utstrtoul64.c uttrack.c	\
-	utuuid.c utxface.c utxferror.c utxfinit.c
+	utresrc.c utstate.c utstring.c utstrsuppt.c		\
+	utstrtoul64.c uttrack.c utuuid.c utxface.c utxferror.c	\
+	utxfinit.c
 
 # os_specific/service_layers
 SRCS+=	osgendbg.c osunixxf.c

@@ -150,7 +150,6 @@
  *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/compiler/dtcompiler.h>
 #include <contrib/dev/acpica/include/acapps.h>
 
 #define _COMPONENT          DT_COMPILER
@@ -239,7 +238,7 @@ DtTrim (
 
     if (!strcmp (String, " "))
     {
-        ReturnString = UtStringCacheCalloc (1);
+        ReturnString = UtLocalCacheCalloc (1);
         return (ReturnString);
     }
 
@@ -287,7 +286,7 @@ DtTrim (
     /* Create the trimmed return string */
 
     Length = ACPI_PTR_DIFF (End, Start) + 1;
-    ReturnString = UtStringCacheCalloc (Length + 1);
+    ReturnString = UtLocalCacheCalloc (Length + 1);
     if (strlen (Start))
     {
         strncpy (ReturnString, Start, Length);

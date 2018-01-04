@@ -181,6 +181,7 @@
 #include <contrib/dev/acpica/compiler/aslmessages.h>
 #include <contrib/dev/acpica/compiler/aslglobal.h>
 #include <contrib/dev/acpica/compiler/preprocess.h>
+#include <contrib/dev/acpica/compiler/dtcompiler.h>
 
 
 /*******************************************************************************
@@ -265,8 +266,50 @@ void
 CmCleanupAndExit (
     void);
 
+
+/*
+ * aslallocate - memory allocation
+ */
+void *
+UtLocalCalloc (
+    UINT32                  Size);
+
 void
-CmDeleteCaches (
+UtExpandLineBuffers (
+    void);
+
+void
+UtReallocLineBuffers (
+    char                    **Buffer,
+    UINT32                  OldSize,
+    UINT32                  NewSize);
+
+void
+UtFreeLineBuffers (
+    void);
+
+
+/*
+ * aslcache - local cache support
+ */
+char *
+UtLocalCacheCalloc (
+    UINT32                  Length);
+
+ACPI_PARSE_OBJECT *
+UtParseOpCacheCalloc (
+    void);
+
+DT_SUBTABLE *
+UtSubtableCacheCalloc (
+    void);
+
+DT_FIELD *
+UtFieldCacheCalloc (
+    void);
+
+void
+UtDeleteLocalCaches (
     void);
 
 
@@ -405,6 +448,16 @@ ApFindNameInDeviceTree (
 void
 AslAbort (
     void);
+
+void
+AslDualParseOpError (
+    UINT8                   Level,
+    UINT16                  MainMessageId,
+    ACPI_PARSE_OBJECT       *MainOp,
+    char                    *MainMessage,
+    UINT16                  SecondMessageId,
+    ACPI_PARSE_OBJECT       *SecondOp,
+    char                    *SecondaryMessage);
 
 void
 AslError (
@@ -890,6 +943,11 @@ void
 TrSetOpCurrentFilename (
     ACPI_PARSE_OBJECT       *Op);
 
+void
+TrSetOpIntegerWidth (
+    ACPI_PARSE_OBJECT       *TableSignature,
+    ACPI_PARSE_OBJECT       *Revision);
+
 ACPI_PARSE_OBJECT *
 TrLinkOpChildren (
     ACPI_PARSE_OBJECT       *Op,
@@ -1145,10 +1203,6 @@ void
 UtEndEvent (
     UINT8                   Event);
 
-void *
-UtLocalCalloc (
-    UINT32                  Size);
-
 void
 UtDisplaySummary (
     UINT32                  FileId);
@@ -1170,18 +1224,6 @@ UtGetOpName (
 void
 UtSetParseOpName (
     ACPI_PARSE_OBJECT       *Op);
-
-char *
-UtStringCacheCalloc (
-    UINT32                  Length);
-
-void
-UtExpandLineBuffers (
-    void);
-
-void
-UtFreeLineBuffers (
-    void);
 
 ACPI_STATUS
 UtInternalizeName (

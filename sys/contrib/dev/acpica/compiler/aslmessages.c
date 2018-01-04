@@ -238,7 +238,7 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_HID_SUFFIX */                 "_HID suffix must be all hex digits",
 /*    ASL_MSG_INCLUDE_FILE_OPEN */          "Could not open include file",
 /*    ASL_MSG_INPUT_FILE_OPEN */            "Could not open input file",
-/*    ASL_MSG_INTEGER_LENGTH */             "64-bit integer in 32-bit table, truncating (DSDT or SSDT version < 2)",
+/*    ASL_MSG_INTEGER_LENGTH */             "Truncating 64-bit constant found in 32-bit table",
 /*    ASL_MSG_INTEGER_OPTIMIZATION */       "Integer optimized to single-byte AML opcode",
 /*    ASL_MSG_INTERRUPT_LIST */             "Too many interrupts (16 max)",
 /*    ASL_MSG_INTERRUPT_NUMBER */           "Invalid interrupt number (must be 0-15)",
@@ -349,7 +349,10 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_ARG_NOT_USED */               "Method Argument is never used",
 /*    ASL_MSG_CONSTANT_REQUIRED */          "Non-reducible expression",
 /*    ASL_MSG_CROSS_TABLE_SCOPE */          "Illegal open scope on external object from within DSDT",
-/*    ASL_MSG_EXCEPTION_NOT_RECEIVED */     "Expected remark, warning, or error did not occur. Message ID:"
+/*    ASL_MSG_EXCEPTION_NOT_RECEIVED */     "Expected remark, warning, or error did not occur. Message ID:",
+/*    ASL_MSG_NULL_RESOURCE_TEMPLATE */     "Empty Resource Template (END_TAG only)",
+/*    ASL_MSG_FOUND_HERE */                 "Original name creation/declaration below: ",
+/*    ASL_MSG_ILLEGAL_RECURSION */          "Illegal recursive call to method that creates named objects"
 };
 
 /* Table compiler */

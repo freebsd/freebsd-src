@@ -253,7 +253,7 @@ TrSetOpIntegerValue (
 
     /* Converter: if this is a method invocation, turn off capture comments */
 
-    if (Gbl_CaptureComments &&
+    if (AcpiGbl_CaptureComments &&
         (ParseOpcode == PARSEOP_METHODCALL))
     {
         Gbl_CommentState.CaptureComments = FALSE;
@@ -378,6 +378,39 @@ TrSetOpCurrentFilename (
 
 /*******************************************************************************
  *
+ * FUNCTION:    TrSetOpIntegerWidth
+ *
+ * PARAMETERS:  Op                  - An existing parse op
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION:
+ *
+ ******************************************************************************/
+
+void
+TrSetOpIntegerWidth (
+    ACPI_PARSE_OBJECT       *TableSignatureOp,
+    ACPI_PARSE_OBJECT       *RevisionOp)
+{
+
+    /* TBD: Check table sig? (DSDT vs. SSDT) */
+
+    /* Handle command-line version override */
+
+    if (Gbl_RevisionOverride)
+    {
+        AcpiUtSetIntegerWidth (Gbl_RevisionOverride);
+    }
+    else
+    {
+        AcpiUtSetIntegerWidth ((UINT8) RevisionOp->Asl.Value.Integer);
+    }
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    TrSetOpEndLineNumber
  *
  * PARAMETERS:  Op                - An existing parse op
@@ -476,7 +509,7 @@ TrLinkOpChildren (
 
     /* The following is for capturing comments */
 
-    if(Gbl_CaptureComments)
+    if (AcpiGbl_CaptureComments)
     {
         /*
          * If there are "regular comments" detected at this point,
@@ -557,7 +590,7 @@ TrLinkOpChildren (
     va_end(ap);
     DbgPrint (ASL_PARSE_OUTPUT, "\n\n");
 
-    if(Gbl_CaptureComments)
+    if (AcpiGbl_CaptureComments)
     {
         Gbl_CommentState.LatestParseOp = Op;
         CvDbgPrint ("TrLinkOpChildren=====Set latest parse op to this op.\n");
@@ -735,7 +768,7 @@ TrLinkChildOp (
      * turn on capture comments as it signifies that we are done parsing
      * a method call.
      */
-    if (Gbl_CaptureComments && Op1)
+    if (AcpiGbl_CaptureComments && Op1)
     {
         if (Op1->Asl.ParseOpcode == PARSEOP_METHODCALL)
         {
