@@ -59,7 +59,7 @@ arm/allwinner/clkng/ccu_a64.c	optional	aw_ccu fdt
 arm/allwinner/clkng/ccu_h3.c	optional	aw_ccu fdt
 arm/allwinner/clkng/ccu_sun8i_r.c	optional	aw_ccu fdt
 
-arm/allwinner/if_awg.c		optional	awg fdt
+arm/allwinner/if_awg.c		optional	awg ext_resources syscon fdt
 arm/annapurna/alpine/alpine_ccu.c		optional	al_ccu fdt
 arm/annapurna/alpine/alpine_nb_service.c	optional	al_nb_service fdt
 arm/annapurna/alpine/alpine_pci.c		optional	al_pci fdt

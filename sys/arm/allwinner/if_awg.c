@@ -69,7 +69,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/regulator/regulator.h>
+#include <dev/extres/syscon/syscon.h>
 
+#include "syscon_if.h"
 #include "miibus_if.h"
 #include "gpio_if.h"
 
@@ -105,6 +107,7 @@ __FBSDID("$FreeBSD$");
 #define	RX_BATCH_DEFAULT	64
 
 /* syscon EMAC clock register */
+#define	EMAC_CLK_REG		0x30
 #define	EMAC_CLK_EPHY_ADDR	(0x1f << 20)	/* H3 */
 #define	EMAC_CLK_EPHY_ADDR_SHIFT 20
 #define	EMAC_CLK_EPHY_LED_POL	(1 << 17)	/* H3 */
@@ -203,6 +206,7 @@ struct awg_softc {
 	int			link;
 	int			if_flags;
 	enum awg_type		type;
+	struct syscon		*syscon;
 
 	struct awg_txring	tx;
 	struct awg_rxring	rx;
@@ -216,6 +220,9 @@ static struct resource_spec awg_spec[] = {
 };
 
 static void awg_txeof(struct awg_softc *sc);
+
+static uint32_t syscon_read_emac_clk_reg(device_t dev);
+static void syscon_write_emac_clk_reg(device_t dev, uint32_t val);
 
 static int
 awg_miibus_readreg(device_t dev, int phy, int reg)
@@ -1153,6 +1160,32 @@ awg_ioctl(if_t ifp, u_long cmd, caddr_t data)
 	return (error);
 }
 
+static uint32_t
+syscon_read_emac_clk_reg(device_t dev)
+{
+	struct awg_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->syscon != NULL)
+		return (SYSCON_READ_4(sc->syscon, EMAC_CLK_REG));
+	else if (sc->res[_RES_SYSCON] != NULL)
+		return (bus_read_4(sc->res[_RES_SYSCON], 0));
+
+	return (0);
+}
+
+static void
+syscon_write_emac_clk_reg(device_t dev, uint32_t val)
+{
+	struct awg_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->syscon != NULL)
+		SYSCON_WRITE_4(sc->syscon, EMAC_CLK_REG, val);
+	else if (sc->res[_RES_SYSCON] != NULL)
+		bus_write_4(sc->res[_RES_SYSCON], 0, val);
+}
+
 static int
 awg_setup_phy(device_t dev)
 {
@@ -1163,19 +1196,31 @@ awg_setup_phy(device_t dev)
 	phandle_t node;
 	uint32_t reg, tx_delay, rx_delay;
 	int error;
+	bool use_syscon;
 
 	sc = device_get_softc(dev);
 	node = ofw_bus_get_node(dev);
+	use_syscon = false;
 
 	if (OF_getprop_alloc(node, "phy-mode", 1, (void **)&phy_type) == 0)
 		return (0);
 
+	if (sc->syscon != NULL || sc->res[_RES_SYSCON] != NULL)
+		use_syscon = true;
+
 	if (bootverbose)
 		device_printf(dev, "PHY type: %s, conf mode: %s\n", phy_type,
-		    sc->res[_RES_SYSCON] != NULL ? "reg" : "clk");
+		    use_syscon ? "reg" : "clk");
 
-	if (sc->res[_RES_SYSCON] != NULL) {
-		reg = bus_read_4(sc->res[_RES_SYSCON], 0);
+	if (use_syscon) {
+		/*
+		 * Abstract away writing to syscon for devices like the pine64.
+		 * For the pine64, we get dtb from U-Boot and it still uses the
+		 * legacy setup of specifying syscon register in emac node
+		 * rather than as its own node and using an xref in emac.
+		 * These abstractions can go away once U-Boot dts is up-to-date.
+		 */
+		reg = syscon_read_emac_clk_reg(dev);
 		reg &= ~(EMAC_CLK_PIT | EMAC_CLK_SRC | EMAC_CLK_RMII_EN);
 		if (strncmp(phy_type, "rgmii", 5) == 0)
 			reg |= EMAC_CLK_PIT_RGMII | EMAC_CLK_SRC_RGMII;
@@ -1215,7 +1260,7 @@ awg_setup_phy(device_t dev)
 
 		if (bootverbose)
 			device_printf(dev, "EMAC clock: 0x%08x\n", reg);
-		bus_write_4(sc->res[_RES_SYSCON], 0, reg);
+		syscon_write_emac_clk_reg(dev, reg);
 	} else {
 		if (strncmp(phy_type, "rgmii", 5) == 0)
 			tx_parent_name = "emac_int_tx";
@@ -1263,6 +1308,7 @@ static int
 awg_setup_extres(device_t dev)
 {
 	struct awg_softc *sc;
+	phandle_t node;
 	hwreset_t rst_ahb, rst_ephy;
 	clk_t clk_ahb, clk_ephy;
 	regulator_t reg;
@@ -1273,6 +1319,7 @@ awg_setup_extres(device_t dev)
 	rst_ahb = rst_ephy = NULL;
 	clk_ahb = clk_ephy = NULL;
 	reg = NULL;
+	node = ofw_bus_get_node(dev);
 
 	/* Get AHB clock and reset resources */
 	error = hwreset_get_by_ofw_name(dev, 0, "ahb", &rst_ahb);
@@ -1289,7 +1336,13 @@ awg_setup_extres(device_t dev)
 	}
 	if (clk_get_by_ofw_name(dev, 0, "ephy", &clk_ephy) != 0)
 		clk_ephy = NULL;
-	
+
+	if (OF_hasprop(node, "syscon") && syscon_get_by_ofw_property(dev, node,
+	    "syscon", &sc->syscon) != 0) {
+		device_printf(dev, "cannot get syscon driver handle\n");
+		goto fail;
+	}
+
 	/* Configure PHY for MII or RGMII mode */
 	if (awg_setup_phy(dev) != 0)
 		goto fail;
