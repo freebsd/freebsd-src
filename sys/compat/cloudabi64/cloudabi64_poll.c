@@ -243,7 +243,7 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 			        sub.condvar.condvar_scope,
 			        TO_PTR(sub.condvar.lock),
 			        sub.condvar.lock_scope,
-			        CLOUDABI_CLOCK_MONOTONIC, UINT64_MAX, 0));
+			        CLOUDABI_CLOCK_MONOTONIC, UINT64_MAX, 0, true));
 			td->td_retval[0] = 1;
 			return (copyout(&ev, uap->out, sizeof(ev)));
 		} else if (sub.type == CLOUDABI_EVENTTYPE_LOCK_RDLOCK) {
@@ -252,7 +252,7 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 			    cloudabi_futex_lock_rdlock(
 			        td, TO_PTR(sub.lock.lock),
 			        sub.lock.lock_scope, CLOUDABI_CLOCK_MONOTONIC,
-			        UINT64_MAX, 0));
+			        UINT64_MAX, 0, true));
 			td->td_retval[0] = 1;
 			return (copyout(&ev, uap->out, sizeof(ev)));
 		} else if (sub.type == CLOUDABI_EVENTTYPE_LOCK_WRLOCK) {
@@ -261,7 +261,7 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 			    cloudabi_futex_lock_wrlock(
 			        td, TO_PTR(sub.lock.lock),
 			        sub.lock.lock_scope, CLOUDABI_CLOCK_MONOTONIC,
-			        UINT64_MAX, 0));
+			        UINT64_MAX, 0, true));
 			td->td_retval[0] = 1;
 			return (copyout(&ev, uap->out, sizeof(ev)));
 		}
@@ -278,15 +278,16 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 		ev[1].userdata = sub[1].userdata;
 		ev[1].type = sub[1].type;
 		if (sub[0].type == CLOUDABI_EVENTTYPE_CONDVAR &&
-		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK &&
-		    sub[1].clock.flags == CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) {
+		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK) {
 			/* Wait for a condition variable with timeout. */
 			error = cloudabi_futex_condvar_wait(
 			    td, TO_PTR(sub[0].condvar.condvar),
 			    sub[0].condvar.condvar_scope,
 			    TO_PTR(sub[0].condvar.lock),
 			    sub[0].condvar.lock_scope, sub[1].clock.clock_id,
-			    sub[1].clock.timeout, sub[1].clock.precision);
+			    sub[1].clock.timeout, sub[1].clock.precision,
+			    (sub[1].clock.flags &
+			    CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) != 0);
 			if (error == ETIMEDOUT) {
 				td->td_retval[0] = 1;
 				return (copyout(&ev[1], uap->out,
@@ -297,13 +298,14 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 			td->td_retval[0] = 1;
 			return (copyout(&ev[0], uap->out, sizeof(ev[0])));
 		} else if (sub[0].type == CLOUDABI_EVENTTYPE_LOCK_RDLOCK &&
-		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK &&
-		    sub[1].clock.flags == CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) {
+		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK) {
 			/* Acquire a read lock with a timeout. */
 			error = cloudabi_futex_lock_rdlock(
 			    td, TO_PTR(sub[0].lock.lock),
 			    sub[0].lock.lock_scope, sub[1].clock.clock_id,
-			    sub[1].clock.timeout, sub[1].clock.precision);
+			    sub[1].clock.timeout, sub[1].clock.precision,
+			    (sub[1].clock.flags &
+			    CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) != 0);
 			if (error == ETIMEDOUT) {
 				td->td_retval[0] = 1;
 				return (copyout(&ev[1], uap->out,
@@ -314,13 +316,14 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 			td->td_retval[0] = 1;
 			return (copyout(&ev[0], uap->out, sizeof(ev[0])));
 		} else if (sub[0].type == CLOUDABI_EVENTTYPE_LOCK_WRLOCK &&
-		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK &&
-		    sub[1].clock.flags == CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) {
+		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK) {
 			/* Acquire a write lock with a timeout. */
 			error = cloudabi_futex_lock_wrlock(
 			    td, TO_PTR(sub[0].lock.lock),
 			    sub[0].lock.lock_scope, sub[1].clock.clock_id,
-			    sub[1].clock.timeout, sub[1].clock.precision);
+			    sub[1].clock.timeout, sub[1].clock.precision,
+			    (sub[1].clock.flags &
+			    CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) != 0);
 			if (error == ETIMEDOUT) {
 				td->td_retval[0] = 1;
 				return (copyout(&ev[1], uap->out,
