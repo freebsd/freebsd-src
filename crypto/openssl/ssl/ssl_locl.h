@@ -247,6 +247,8 @@
 # define DEC32(a)        ((a)=((a)-1)&0xffffffffL)
 # define MAX_MAC_SIZE    20     /* up from 16 for SSLv3 */
 
+# define MAX_WARN_ALERT_COUNT    5
+
 /*
  * Define the Bitmasks for SSL_CIPHER.algorithms.
  * This bits are used packed as dense as possible. If new methods/ciphers
@@ -910,7 +912,8 @@ int dtls1_retransmit_message(SSL *s, unsigned short seq,
                              unsigned long frag_off, int *found);
 int dtls1_get_queue_priority(unsigned short seq, int is_ccs);
 int dtls1_retransmit_buffered_messages(SSL *s);
-void dtls1_clear_record_buffer(SSL *s);
+void dtls1_clear_received_buffer(SSL *s);
+void dtls1_clear_sent_buffer(SSL *s);
 void dtls1_get_message_header(unsigned char *data,
                               struct hm_header_st *msg_hdr);
 void dtls1_get_ccs_header(unsigned char *data, struct ccs_header_st *ccs_hdr);
@@ -1022,7 +1025,7 @@ unsigned char *ssl_add_clienthello_tlsext(SSL *s, unsigned char *p,
 unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *p,
                                           unsigned char *limit);
 int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **data,
-                                 unsigned char *d, int n, int *al);
+                                 unsigned char *limit, int *al);
 int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **data,
                                  unsigned char *d, int n, int *al);
 int ssl_prepare_clienthello_tlsext(SSL *s);
