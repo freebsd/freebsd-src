@@ -62,12 +62,17 @@
 #include <sys/time.h>			/* For structs itimerval, timeval. */
 #else
 #include <sys/pcpu.h>
+#include <sys/systm.h>
 #endif
 #include <sys/ucontext.h>
 #include <sys/ucred.h>
-#include <sys/_vm_domain.h>
+#include <sys/types.h>
 #include <sys/domainset.h>
+
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
+#ifdef _KERNEL
+#include <machine/cpu.h>
+#endif
 
 
 /*
@@ -181,6 +186,7 @@ struct procdesc;
 struct racct;
 struct sbuf;
 struct sleepqueue;
+struct socket;
 struct syscall_args;
 struct td_sched;
 struct thread;

@@ -44,6 +44,7 @@
 #include <netinet/ip_fw.h>	/* flow_id */
 #include <netinet/ip_dummynet.h>
 
+#include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 
