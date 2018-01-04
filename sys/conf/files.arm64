@@ -125,6 +125,21 @@ arm/mv/mv_cp110_icu.c				optional mv_cp110_icu fdt
 arm/mv/mv_cp110_icu_bus.c			optional mv_cp110_icu fdt
 arm/mv/mv_thermal.c				optional SOC_MARVELL_8K mv_thermal fdt
 arm/mv/armada38x/armada38x_rtc.c		optional mv_rtc fdt
+arm/nvidia/tegra_abpmisc.c			optional fdt soc_nvidia_tegra210
+arm/nvidia/tegra_ahci.c				optional fdt soc_nvidia_tegra210
+arm/nvidia/tegra_efuse.c			optional fdt soc_nvidia_tegra210
+arm/nvidia/tegra_ehci.c				optional fdt soc_nvidia_tegra210
+arm/nvidia/tegra_gpio.c				optional fdt soc_nvidia_tegra210
+arm/nvidia/tegra_i2c.c				optional fdt soc_nvidia_tegra210
+arm/nvidia/tegra_lic.c				optional fdt soc_nvidia_tegra210
+arm/nvidia/tegra_mc.c				optional fdt soc_nvidia_tegra210
+arm/nvidia/tegra_pcie.c				optional fdt soc_nvidia_tegra210
+arm/nvidia/tegra_sdhci.c			optional fdt soc_nvidia_tegra210
+arm/nvidia/tegra_soctherm_if.m			optional fdt soc_nvidia_tegra210
+arm/nvidia/tegra_soctherm.c			optional fdt soc_nvidia_tegra210
+arm/nvidia/tegra_uart.c				optional fdt soc_nvidia_tegra210
+arm/nvidia/tegra_usbphy.c			optional fdt soc_nvidia_tegra210
+arm/nvidia/tegra_xhci.c				optional fdt soc_nvidia_tegra210
 arm/xilinx/uart_dev_cdnc.c			optional uart soc_xilinx_zynq
 arm64/acpica/acpi_iort.c	optional	acpi
 arm64/acpica/acpi_machdep.c	optional	acpi
@@ -216,6 +231,19 @@ arm64/iommu/iommu_if.m				optional iommu
 arm64/iommu/smmu.c				optional iommu
 arm64/iommu/smmu_acpi.c				optional acpi iommu
 arm64/iommu/smmu_quirks.c			optional iommu
+arm64/nvidia/tegra210/max77620.c		optional fdt soc_nvidia_tegra210
+arm64/nvidia/tegra210/max77620_gpio.c		optional fdt soc_nvidia_tegra210
+arm64/nvidia/tegra210/max77620_regulators.c	optional fdt soc_nvidia_tegra210
+arm64/nvidia/tegra210/max77620_rtc.c		optional fdt soc_nvidia_tegra210
+arm64/nvidia/tegra210/tegra210_car.c		optional fdt soc_nvidia_tegra210
+arm64/nvidia/tegra210/tegra210_clk_per.c	optional fdt soc_nvidia_tegra210
+arm64/nvidia/tegra210/tegra210_clk_pll.c	optional fdt soc_nvidia_tegra210
+arm64/nvidia/tegra210/tegra210_clk_super.c	optional fdt soc_nvidia_tegra210
+arm64/nvidia/tegra210/tegra210_coretemp.c	optional fdt soc_nvidia_tegra210
+arm64/nvidia/tegra210/tegra210_cpufreq.c	optional fdt soc_nvidia_tegra210
+arm64/nvidia/tegra210/tegra210_pinmux.c		optional fdt soc_nvidia_tegra210
+arm64/nvidia/tegra210/tegra210_pmc.c		optional fdt soc_nvidia_tegra210
+arm64/nvidia/tegra210/tegra210_xusbpadctl.c	optional fdt soc_nvidia_tegra210
 arm64/qoriq/ls1046_gpio.c			optional ls1046_gpio gpio fdt SOC_NXP_LS
 arm64/qoriq/qoriq_dw_pci.c			optional pci fdt SOC_NXP_LS
 arm64/qoriq/qoriq_therm.c			optional pci fdt SOC_NXP_LS
@@ -426,6 +454,7 @@ arm64/rockchip/clk/rk3328_cru.c		optional fdt soc_rockchip_rk3328
 arm64/rockchip/clk/rk3399_cru.c		optional fdt soc_rockchip_rk3399
 arm64/rockchip/clk/rk3399_pmucru.c	optional fdt soc_rockchip_rk3399
 
+
 # i.MX8 Clock support
 arm64/freescale/imx/imx8mq_ccm.c	optional fdt soc_freescale_imx8
 arm64/freescale/imx/clk/imx_clk_gate.c	optional fdt soc_freescale_imx8
@@ -440,3 +469,22 @@ arm/freescale/imx/imx_i2c.c		optional fsliic
 arm/freescale/imx/imx_machdep.c		optional fdt soc_freescale_imx8
 arm64/freescale/imx/imx7gpc.c		optional fdt soc_freescale_imx8
 dev/ffec/if_ffec.c			optional ffec
+
+# Nvidia firmware for Tegra
+tegra210_xusb_fw.c	optional	tegra210_xusb_fw		\
+	dependency	"$S/conf/files.arm64"				\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk tegra210_xusb.fw:tegra210_xusb_fw -mtegra210_xusb_fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"tegra210_xusb_fw.c"
+
+tegra210_xusb.fwo	optional	tegra210_xusb_fw		\
+	dependency	"tegra210_xusb.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"tegra210_xusb.fwo"
+
+tegra210_xusb.fw	optional	tegra210_xusb_fw		\
+	dependency	"$S/contrib/dev/nvidia/tegra210_xusb.bin.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"tegra210_xusb.fw"
