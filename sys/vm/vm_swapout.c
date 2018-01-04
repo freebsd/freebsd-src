@@ -734,126 +734,73 @@ swapout_procs(int action)
 	struct proc *p;
 	struct thread *td;
 	int slptime;
-	bool didswap;
+	bool didswap, doswap;
+
+	MPASS((action & (VM_SWAP_NORMAL | VM_SWAP_IDLE)) != 0);
 
 	didswap = false;
-retry:
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
+		/*
+		 * Filter out not yet fully constructed processes.  Do
+		 * not swap out held processes.  Avoid processes which
+		 * are system, exiting, execing, traced, already swapped
+		 * out or are in the process of being swapped in or out.
+		 */
 		PROC_LOCK(p);
-		/*
-		 * Watch out for a process in
-		 * creation.  It may have no
-		 * address space or lock yet.
-		 */
-		if (p->p_state == PRS_NEW) {
+		if (p->p_state != PRS_NORMAL || p->p_lock != 0 || (p->p_flag &
+		    (P_SYSTEM | P_WEXIT | P_INEXEC | P_STOPPED_SINGLE |
+		    P_TRACED | P_SWAPPINGOUT | P_SWAPPINGIN | P_INMEM)) !=
+		    P_INMEM) {
 			PROC_UNLOCK(p);
 			continue;
 		}
+
 		/*
-		 * An aio daemon switches its
-		 * address space while running.
-		 * Perform a quick check whether
-		 * a process has P_SYSTEM.
-		 * Filter out exiting processes.
+		 * Further consideration of this process for swap out
+		 * requires iterating over its threads.  We release
+		 * allproc_lock here so that process creation and
+		 * destruction are not blocked while we iterate.
+		 *
+		 * To later reacquire allproc_lock and resume
+		 * iteration over the allproc list, we will first have
+		 * to release the lock on the process.  We place a
+		 * hold on the process so that it remains in the
+		 * allproc list while it is unlocked.
 		 */
-		if ((p->p_flag & (P_SYSTEM | P_WEXIT)) != 0) {
-			PROC_UNLOCK(p);
-			continue;
-		}
 		_PHOLD_LITE(p);
-		PROC_UNLOCK(p);
 		sx_sunlock(&allproc_lock);
 
-		PROC_LOCK(p);
-		if (p->p_lock != 1 || (p->p_flag & (P_STOPPED_SINGLE |
-		    P_TRACED | P_SYSTEM)) != 0)
-			goto nextproc;
-
 		/*
-		 * Only aiod changes vmspace.  However, it will be
-		 * skipped because of the if statement above checking 
-		 * for P_SYSTEM.
+		 * Do not swapout a realtime process.
+		 * Guarantee swap_idle_threshold1 time in memory.
+		 * If the system is under memory stress, or if we are
+		 * swapping idle processes >= swap_idle_threshold2,
+		 * then swap the process out.
 		 */
-		if ((p->p_flag & (P_INMEM | P_SWAPPINGOUT | P_SWAPPINGIN)) !=
-		    P_INMEM)
-			goto nextproc;
-
-		switch (p->p_state) {
-		default:
-			/*
-			 * Don't swap out processes in any sort
-			 * of 'special' state.
-			 */
-			break;
-
-		case PRS_NORMAL:
-			/*
-			 * do not swapout a realtime process
-			 * Check all the thread groups..
-			 */
-			FOREACH_THREAD_IN_PROC(p, td) {
-				thread_lock(td);
-				if (PRI_IS_REALTIME(td->td_pri_class)) {
-					thread_unlock(td);
-					goto nextproc;
-				}
-				slptime = (ticks - td->td_slptick) / hz;
-				/*
-				 * Guarantee swap_idle_threshold1
-				 * time in memory.
-				 */
-				if (slptime < swap_idle_threshold1) {
-					thread_unlock(td);
-					goto nextproc;
-				}
-
-				/*
-				 * Do not swapout a process if it is
-				 * waiting on a critical event of some
-				 * kind or there is a thread whose
-				 * pageable memory may be accessed.
-				 *
-				 * This could be refined to support
-				 * swapping out a thread.
-				 */
-				if (!thread_safetoswapout(td)) {
-					thread_unlock(td);
-					goto nextproc;
-				}
-				/*
-				 * If the system is under memory stress,
-				 * or if we are swapping
-				 * idle processes >= swap_idle_threshold2,
-				 * then swap the process out.
-				 */
-				if ((action & VM_SWAP_NORMAL) == 0 &&
-				    ((action & VM_SWAP_IDLE) == 0 ||
-				    slptime < swap_idle_threshold2)) {
-					thread_unlock(td);
-					goto nextproc;
-				}
-
-				thread_unlock(td);
-			}
-
-			/*
-			 * If the pageout daemon didn't free enough pages,
-			 * or if this process is idle and the system is
-			 * configured to swap proactively, swap it out.
-			 */
-			_PRELE(p);
-			if (swapout(p) == 0)
-				didswap = true;
-			PROC_UNLOCK(p);
-			goto retry;
+		doswap = true;
+		FOREACH_THREAD_IN_PROC(p, td) {
+			thread_lock(td);
+			slptime = (ticks - td->td_slptick) / hz;
+			if (PRI_IS_REALTIME(td->td_pri_class) ||
+			    slptime < swap_idle_threshold1 ||
+			    !thread_safetoswapout(td) ||
+			    ((action & VM_SWAP_NORMAL) == 0 &&
+			    slptime < swap_idle_threshold2))
+				doswap = false;
+			thread_unlock(td);
+			if (!doswap)
+				break;
 		}
-nextproc:
+		if (doswap && swapout(p) == 0)
+			didswap = true;
+
 		PROC_UNLOCK(p);
 		sx_slock(&allproc_lock);
 		PRELE(p);
 	}
 	sx_sunlock(&allproc_lock);
+
 	/*
 	 * If we swapped something out, and another process needed memory,
 	 * then wakeup the sched process.
