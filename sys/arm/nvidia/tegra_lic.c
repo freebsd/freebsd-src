@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/rman.h>
 
-#include <machine/fdt.h>
+#include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/resource.h>
 
@@ -78,6 +78,7 @@ static struct resource_spec lic_spec[] = {
 
 static struct ofw_compat_data compat_data[] = {
 	{"nvidia,tegra124-ictlr", 	1},
+	{"nvidia,tegra210-ictlr", 	1},
 	{NULL,				0}
 };
 

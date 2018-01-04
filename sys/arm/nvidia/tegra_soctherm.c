@@ -86,19 +86,17 @@ __FBSDID("$FreeBSD$");
 #define	 TSENSOR_STATUS2_TEMP_MAX(x)			(((x) >> 16) & 0xffff)
 #define	 TSENSOR_STATUS2_TEMP_MIN(x)			(((x) >>  0) & 0xffff)
 
-/* Global registers */
-#define	TSENSOR_PDIV				0x1c0
-#define	 TSENSOR_PDIV_T124				0x8888
-#define	TSENSOR_HOTSPOT_OFF			0x1c4
-#define	 TSENSOR_HOTSPOT_OFF_T124			0x00060600
-#define	TSENSOR_TEMP1				0x1c8
-#define	TSENSOR_TEMP2				0x1cc
 
 /* Readbacks */
-#define	READBACK_VALUE_MASK				0xff00
-#define	READBACK_VALUE_SHIFT				8
+#define	READBACK_VALUE(x)				(((x) >> 8) & 0xff)
 #define	READBACK_ADD_HALF				(1 << 7)
 #define	READBACK_NEGATE					(1 << 0)
+
+/* Global registers */
+#define	TSENSOR_PDIV				0x1c0
+#define	TSENSOR_HOTSPOT_OFF			0x1c4
+#define	TSENSOR_TEMP1				0x1c8
+#define	TSENSOR_TEMP2				0x1cc
 
 /* Fuses */
 #define	 FUSE_TSENSOR_CALIB_CP_TS_BASE_SHIFT		0
@@ -106,32 +104,37 @@ __FBSDID("$FreeBSD$");
 #define	 FUSE_TSENSOR_CALIB_FT_TS_BASE_SHIFT		13
 #define	 FUSE_TSENSOR_CALIB_FT_TS_BASE_BITS		13
 
-#define	FUSE_TSENSOR8_CALIB			0x180
-#define	 FUSE_TSENSOR8_CALIB_CP_TS_BASE(x)		(((x) >>  0) & 0x3ff)
-#define	 FUSE_TSENSOR8_CALIB_FT_TS_BASE(x)		(((x) >> 10) & 0x7ff)
+/* Layout is different for Tegra124 and Tegra210 */
+#define	FUSE_TSENSOR_COMMON			0x180
+#define	 TEGRA124_FUSE_COMMON_CP_TS_BASE(x)		(((x) >>  0) & 0x3ff)
+#define	 TEGRA124_FUSE_COMMON_FT_TS_BASE(x)		(((x) >> 10) & 0x7ff)
+#define	 TEGRA124_FUSE_COMMON_SHIFT_FT_SHIFT		21
+#define	 TEGRA124_FUSE_COMMON_SHIFT_FT_BITS 		5
 
+#define	 TEGRA210_FUSE_COMMON_CP_TS_BASE(x)		(((x) >>  11) & 0x3ff)
+#define	 TEGRA210_FUSE_COMMON_FT_TS_BASE(x)		(((x) >> 21) & 0x7ff)
+#define	 TEGRA210_FUSE_COMMON_SHIFT_CP_SHIFT		0
+#define	 TEGRA210_FUSE_COMMON_SHIFT_CP_BITS		6
+#define	 TEGRA210_FUSE_COMMON_SHIFT_FT_SHIFT		6
+#define	 TEGRA210_FUSE_COMMON_SHIFT_FT_BITS 		5
+
+
+/* Only for Tegra124 */
 #define	FUSE_SPARE_REALIGNMENT_REG		0x1fc
 #define	 FUSE_SPARE_REALIGNMENT_REG_SHIFT_CP_SHIFT 	0
 #define	 FUSE_SPARE_REALIGNMENT_REG_SHIFT_CP_BITS 	6
-#define	 FUSE_SPARE_REALIGNMENT_REG_SHIFT_FT_SHIFT 	21
-#define	 FUSE_SPARE_REALIGNMENT_REG_SHIFT_FT_BITS 	5
-#define	 FUSE_SPARE_REALIGNMENT_REG_SHIFT_CP(x) 	(((x) >>  0) & 0x3f)
-#define	 FUSE_SPARE_REALIGNMENT_REG_SHIFT_FT(x) 	(((x) >> 21) & 0x1f)
 
-#define	NOMINAL_CALIB_FT_T124	105
-#define	NOMINAL_CALIB_CP_T124	25
+#define	TEGRA124_NOMINAL_CALIB_FT	105
+#define	TEGRA124_NOMINAL_CALIB_CP	25
+
+#define	TEGRA210_NOMINAL_CALIB_FT	105
+#define	TEGRA210_NOMINAL_CALIB_CP	25
 
 #define	WR4(_sc, _r, _v)	bus_write_4((_sc)->mem_res, (_r), (_v))
 #define	RD4(_sc, _r)		bus_read_4((_sc)->mem_res, (_r))
 
 static struct sysctl_ctx_list soctherm_sysctl_ctx;
 
-struct soctherm_shared_cal {
-	uint32_t		base_cp;
-	uint32_t		base_ft;
-	int32_t			actual_temp_cp;
-	int32_t			actual_temp_ft;
-};
 struct tsensor_cfg {
 	uint32_t		tall;
 	uint32_t		tsample;
@@ -142,10 +145,16 @@ struct tsensor_cfg {
 	uint32_t		pdiv_ate;
 };
 
+struct soctherm_shared_cal {
+	uint32_t		base_cp;
+	uint32_t		base_ft;
+	int32_t			actual_temp_cp;
+	int32_t			actual_temp_ft;
+};
+
 struct tsensor {
 	char 			*name;
 	int			id;
-	struct tsensor_cfg 	*cfg;
 	bus_addr_t		sensor_base;
 	bus_addr_t		calib_fuse;
 	int 			fuse_corr_alpha;
@@ -155,6 +164,7 @@ struct tsensor {
 	int16_t			therm_b;
 };
 
+struct soctherm_soc;
 struct soctherm_softc {
 	device_t		dev;
 	struct resource		*mem_res;
@@ -163,16 +173,22 @@ struct soctherm_softc {
 
 	clk_t			tsensor_clk;
 	clk_t			soctherm_clk;
-	hwreset_t			reset;
+	hwreset_t		reset;
 
-	int			ntsensors;
+	struct soctherm_soc	*soc;
+	struct soctherm_shared_cal shared_cal;
+};
+
+struct soctherm_soc {
+	void			(*shared_cal)(struct soctherm_softc *sc);
+	uint32_t		tsensor_pdiv;
+	uint32_t		tsensor_hotspot_off;
+	struct tsensor_cfg	*tsensor_cfg;
 	struct tsensor		*tsensors;
+	int			ntsensors;
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{"nvidia,tegra124-soctherm",	1},
-	{NULL,				0},
-};
+/* Tegra124 config */
 
 static struct tsensor_cfg t124_tsensor_config = {
 	.tall = 16300,
@@ -188,7 +204,6 @@ static struct tsensor t124_tsensors[] = {
 	{
 		.name = "cpu0",
 		.id = TEGRA124_SOCTHERM_SENSOR_CPU,
-		.cfg = &t124_tsensor_config,
 		.sensor_base = 0x0c0,
 		.calib_fuse = 0x098,
 		.fuse_corr_alpha = 1135400,
@@ -197,7 +212,6 @@ static struct tsensor t124_tsensors[] = {
 	{
 		.name = "cpu1",
 		.id = -1,
-		.cfg = &t124_tsensor_config,
 		.sensor_base = 0x0e0,
 		.calib_fuse = 0x084,
 		.fuse_corr_alpha = 1122220,
@@ -206,7 +220,6 @@ static struct tsensor t124_tsensors[] = {
 	{
 		.name = "cpu2",
 		.id = -1,
-		.cfg = &t124_tsensor_config,
 		.sensor_base = 0x100,
 		.calib_fuse = 0x088,
 		.fuse_corr_alpha = 1127000,
@@ -215,7 +228,6 @@ static struct tsensor t124_tsensors[] = {
 	{
 		.name = "cpu3",
 		.id = -1,
-		.cfg = &t124_tsensor_config,
 		.sensor_base = 0x120,
 		.calib_fuse = 0x12c,
 		.fuse_corr_alpha = 1110900,
@@ -224,7 +236,6 @@ static struct tsensor t124_tsensors[] = {
 	{
 		.name = "mem0",
 		.id = TEGRA124_SOCTHERM_SENSOR_MEM,
-		.cfg = &t124_tsensor_config,
 		.sensor_base = 0x140,
 		.calib_fuse = 0x158,
 		.fuse_corr_alpha = 1122300,
@@ -233,7 +244,6 @@ static struct tsensor t124_tsensors[] = {
 	{
 		.name = "mem1",
 		.id = -1,
-		.cfg = &t124_tsensor_config,
 		.sensor_base = 0x160,
 		.calib_fuse = 0x15c,
 		.fuse_corr_alpha = 1145700,
@@ -242,7 +252,6 @@ static struct tsensor t124_tsensors[] = {
 	{
 		.name = "gpu",
 		.id = TEGRA124_SOCTHERM_SENSOR_GPU,
-		.cfg = &t124_tsensor_config,
 		.sensor_base = 0x180,
 		.calib_fuse = 0x154,
 		.fuse_corr_alpha = 1120100,
@@ -251,12 +260,117 @@ static struct tsensor t124_tsensors[] = {
 	{
 		.name = "pllX",
 		.id = TEGRA124_SOCTHERM_SENSOR_PLLX,
-		.cfg = &t124_tsensor_config,
 		.sensor_base = 0x1a0,
 		.calib_fuse = 0x160,
 		.fuse_corr_alpha = 1106500,
 		.fuse_corr_beta = -6729300,
 	},
+};
+
+static void tegra124_shared_cal(struct soctherm_softc *sc);
+
+static struct soctherm_soc tegra124_soc = {
+	.shared_cal = tegra124_shared_cal,
+	.tsensor_pdiv = 0x8888,
+	.tsensor_hotspot_off = 0x00060600 ,
+	.tsensor_cfg = &t124_tsensor_config,
+	.tsensors = t124_tsensors,
+	.ntsensors = nitems(t124_tsensors),
+};
+
+/* Tegra210 config */
+static struct tsensor_cfg t210_tsensor_config = {
+	.tall = 16300,
+	.tsample = 120,
+	.tiddq_en = 1,
+	.ten_count = 1,
+	.pdiv = 8,
+	.tsample_ate = 480,
+	.pdiv_ate = 8
+};
+
+static struct tsensor t210_tsensors[] = {
+	{
+		.name = "cpu0",
+		.id = TEGRA124_SOCTHERM_SENSOR_CPU,
+		.sensor_base = 0x0c0,
+		.calib_fuse = 0x098,
+		.fuse_corr_alpha = 1085000,
+		.fuse_corr_beta = 3244200,
+	},
+	{
+		.name = "cpu1",
+		.id = -1,
+		.sensor_base = 0x0e0,
+		.calib_fuse = 0x084,
+		.fuse_corr_alpha = 1126200,
+		.fuse_corr_beta = -67500,
+	},
+	{
+		.name = "cpu2",
+		.id = -1,
+		.sensor_base = 0x100,
+		.calib_fuse = 0x088,
+		.fuse_corr_alpha = 1098400,
+		.fuse_corr_beta = 2251100,
+	},
+	{
+		.name = "cpu3",
+		.id = -1,
+		.sensor_base = 0x120,
+		.calib_fuse = 0x12c,
+		.fuse_corr_alpha = 1108000,
+		.fuse_corr_beta = 602700,
+	},
+	{
+		.name = "mem0",
+		.id = TEGRA124_SOCTHERM_SENSOR_MEM,
+		.sensor_base = 0x140,
+		.calib_fuse = 0x158,
+		.fuse_corr_alpha = 1069200,
+		.fuse_corr_beta = 3549900,
+	},
+	{
+		.name = "mem1",
+		.id = -1,
+		.sensor_base = 0x160,
+		.calib_fuse = 0x15c,
+		.fuse_corr_alpha = 1173700,
+		.fuse_corr_beta = -6263600,
+	},
+	{
+		.name = "gpu",
+		.id = TEGRA124_SOCTHERM_SENSOR_GPU,
+		.sensor_base = 0x180,
+		.calib_fuse = 0x154,
+		.fuse_corr_alpha = 1074300,
+		.fuse_corr_beta = 2734900,
+	},
+	{
+		.name = "pllX",
+		.id = TEGRA124_SOCTHERM_SENSOR_PLLX,
+		.sensor_base = 0x1a0,
+		.calib_fuse = 0x160,
+		.fuse_corr_alpha = 1039700,
+		.fuse_corr_beta = 6829100,
+	},
+};
+
+static void tegra210_shared_cal(struct soctherm_softc *sc);
+
+static struct soctherm_soc tegra210_soc = {
+	.shared_cal = tegra210_shared_cal,
+	.tsensor_pdiv = 0x8888,
+	.tsensor_hotspot_off = 0x000A0500 ,
+	.tsensor_cfg = &t210_tsensor_config,
+	.tsensors = t210_tsensors,
+	.ntsensors = nitems(t210_tsensors),
+};
+
+static struct ofw_compat_data compat_data[] = {
+	{"nvidia,tegra124-soctherm", (uintptr_t)&tegra124_soc},
+	{"nvidia,tegra210-soctherm", (uintptr_t)&tegra210_soc},
+	{NULL,				0},
 };
 
 /* Extract signed integer bitfield from register */
@@ -272,35 +386,39 @@ extract_signed(uint32_t reg, int shift, int bits)
 	return ((int32_t)val);
 }
 
-static inline int64_t div64_s64_precise(int64_t a, int64_t b)
+static inline
+int64_t div64_s64_precise(int64_t a, int64_t b)
 {
 	int64_t r, al;
 
 	al = a << 16;
 	r = (al * 2 + 1) / (2 * b);
-	return r >> 16;
+	return (r >> 16);
 }
 
 static void
-get_shared_cal(struct soctherm_softc *sc, struct soctherm_shared_cal *cal)
+tegra124_shared_cal(struct soctherm_softc *sc)
 {
 	uint32_t val;
 	int calib_cp, calib_ft;
+	struct soctherm_shared_cal *cal;
 
-	val = tegra_fuse_read_4(FUSE_TSENSOR8_CALIB);
-	cal->base_cp = FUSE_TSENSOR8_CALIB_CP_TS_BASE(val);
-	cal->base_ft = FUSE_TSENSOR8_CALIB_FT_TS_BASE(val);
+	cal = &sc->shared_cal;
+	val = tegra_fuse_read_4(FUSE_TSENSOR_COMMON);
+	cal->base_cp = TEGRA124_FUSE_COMMON_CP_TS_BASE(val);
+	cal->base_ft = TEGRA124_FUSE_COMMON_FT_TS_BASE(val);
+
+	calib_ft = extract_signed(val,
+	    TEGRA124_FUSE_COMMON_SHIFT_FT_SHIFT,
+	    TEGRA124_FUSE_COMMON_SHIFT_FT_BITS);
 
 	val = tegra_fuse_read_4(FUSE_SPARE_REALIGNMENT_REG);
-	calib_ft = extract_signed(val,
-	    FUSE_SPARE_REALIGNMENT_REG_SHIFT_FT_SHIFT,
-	    FUSE_SPARE_REALIGNMENT_REG_SHIFT_FT_BITS);
 	calib_cp = extract_signed(val,
 	    FUSE_SPARE_REALIGNMENT_REG_SHIFT_CP_SHIFT,
 	    FUSE_SPARE_REALIGNMENT_REG_SHIFT_CP_BITS);
 
-	cal->actual_temp_cp = 2 * NOMINAL_CALIB_CP_T124 + calib_cp;
-	cal->actual_temp_ft = 2 * NOMINAL_CALIB_FT_T124 + calib_ft;
+	cal->actual_temp_cp = 2 * TEGRA124_NOMINAL_CALIB_CP + calib_cp;
+	cal->actual_temp_ft = 2 * TEGRA124_NOMINAL_CALIB_FT + calib_ft;
 #ifdef DEBUG
 	printf("%s: base_cp: %u, base_ft: %d,"
 	    " actual_temp_cp: %d, actual_temp_ft: %d\n",
@@ -310,35 +428,70 @@ get_shared_cal(struct soctherm_softc *sc, struct soctherm_shared_cal *cal)
 }
 
 static void
-tsensor_calibration(struct tsensor *sensor, struct soctherm_shared_cal *shared)
+tegra210_shared_cal(struct soctherm_softc *sc)
+{
+	uint32_t val;
+	int calib_cp, calib_ft;
+	struct soctherm_shared_cal *cal;
+
+	cal = &sc->shared_cal;
+
+	val = tegra_fuse_read_4(FUSE_TSENSOR_COMMON);
+	cal->base_cp = TEGRA210_FUSE_COMMON_CP_TS_BASE(val);
+	cal->base_ft = TEGRA210_FUSE_COMMON_FT_TS_BASE(val);
+
+	calib_ft = extract_signed(val,
+	    TEGRA210_FUSE_COMMON_SHIFT_FT_SHIFT,
+	    TEGRA210_FUSE_COMMON_SHIFT_FT_BITS);
+	calib_cp = extract_signed(val,
+	    TEGRA210_FUSE_COMMON_SHIFT_CP_SHIFT,
+	    TEGRA210_FUSE_COMMON_SHIFT_CP_BITS);
+
+	cal->actual_temp_cp = 2 * TEGRA210_NOMINAL_CALIB_CP + calib_cp;
+	cal->actual_temp_ft = 2 * TEGRA210_NOMINAL_CALIB_FT + calib_ft;
+#ifdef DEBUG
+	printf("%s: base_cp: %u, base_ft: %d,"
+	    " actual_temp_cp: %d, actual_temp_ft: %d\n",
+	    __func__, cal->base_cp, cal->base_ft,
+	    cal->actual_temp_cp, cal->actual_temp_ft);
+#endif
+}
+
+static void
+tsensor_calibration(struct soctherm_softc *sc, struct tsensor *sensor)
 {
 	uint32_t val;
 	int mult, div, calib_cp, calib_ft;
 	int actual_tsensor_ft, actual_tsensor_cp, delta_sens, delta_temp;
 	int temp_a, temp_b;
+	struct tsensor_cfg *cfg;
+	struct soctherm_shared_cal *cal;
 	int64_t tmp;
+
+	cfg = sc->soc->tsensor_cfg;
+	cal = &sc->shared_cal;
 
 	val =  tegra_fuse_read_4(sensor->calib_fuse);
 	calib_cp = extract_signed(val,
 	    FUSE_TSENSOR_CALIB_CP_TS_BASE_SHIFT,
 	    FUSE_TSENSOR_CALIB_CP_TS_BASE_BITS);
-	actual_tsensor_cp = shared->base_cp * 64 + calib_cp;
+	actual_tsensor_cp = cal->base_cp * 64 + calib_cp;
 
 	calib_ft = extract_signed(val,
 	    FUSE_TSENSOR_CALIB_FT_TS_BASE_SHIFT,
 	    FUSE_TSENSOR_CALIB_FT_TS_BASE_BITS);
-	actual_tsensor_ft = shared->base_ft * 32 + calib_ft;
+	actual_tsensor_ft = cal->base_ft * 32 + calib_ft;
 
 	delta_sens = actual_tsensor_ft - actual_tsensor_cp;
-	delta_temp = shared->actual_temp_ft - shared->actual_temp_cp;
-	mult = sensor->cfg->pdiv * sensor->cfg->tsample_ate;
-	div = sensor->cfg->tsample * sensor->cfg->pdiv_ate;
+	delta_temp = cal->actual_temp_ft - cal->actual_temp_cp;
+	mult = cfg->pdiv * cfg->tsample_ate;
+	div = cfg->tsample * cfg->pdiv_ate;
 
 	temp_a = div64_s64_precise((int64_t) delta_temp * (1LL << 13) * mult,
 				   (int64_t) delta_sens * div);
 
-	tmp = (int64_t)actual_tsensor_ft * shared->actual_temp_cp -
-	      (int64_t)actual_tsensor_cp * shared->actual_temp_ft;
+	tmp = (int64_t)actual_tsensor_ft * cal->actual_temp_cp -
+	      (int64_t)actual_tsensor_cp * cal->actual_temp_ft;
 	temp_b = div64_s64_precise(tmp, (int64_t)delta_sens);
 
 	temp_a = div64_s64_precise((int64_t)temp_a * sensor->fuse_corr_alpha,
@@ -353,31 +506,32 @@ tsensor_calibration(struct tsensor *sensor, struct soctherm_shared_cal *shared)
 	    __func__, sensor->name, val, val & 0x1FFF, (val >> 13) & 0x1FFF,
 	    calib_cp, calib_cp, calib_ft, calib_ft);
 	printf("therma: 0x%04X(%d), thermb: 0x%04X(%d)\n",
-	    (uint16_t)sensor->therm_a, temp_a,
+	    (uint16_t)sensor->therm_a, sensor->therm_a,
 	    (uint16_t)sensor->therm_b, sensor->therm_b);
 #endif
 }
 
 static void
-soctherm_init_tsensor(struct soctherm_softc *sc, struct tsensor *sensor,
-    struct soctherm_shared_cal *shared_cal)
+soctherm_init_tsensor(struct soctherm_softc *sc, struct tsensor *sensor)
 {
+	struct tsensor_cfg *cfg;
 	uint32_t val;
 
-	tsensor_calibration(sensor, shared_cal);
+	cfg = sc->soc->tsensor_cfg;
+	tsensor_calibration(sc, sensor);
 
 	val = RD4(sc, sensor->sensor_base + TSENSOR_CONFIG0);
 	val |= TSENSOR_CONFIG0_STOP;
 	val |= TSENSOR_CONFIG0_STATUS_CLR;
 	WR4(sc, sensor->sensor_base + TSENSOR_CONFIG0, val);
 
-	val = TSENSOR_CONFIG0_TALL(sensor->cfg->tall);
+	val = TSENSOR_CONFIG0_TALL(cfg->tall);
 	val |= TSENSOR_CONFIG0_STOP;
 	WR4(sc, sensor->sensor_base + TSENSOR_CONFIG0, val);
 
-	val = TSENSOR_CONFIG1_TSAMPLE(sensor->cfg->tsample - 1);
-	val |= TSENSOR_CONFIG1_TIDDQ_EN(sensor->cfg->tiddq_en);
-	val |= TSENSOR_CONFIG1_TEN_COUNT(sensor->cfg->ten_count);
+	val = TSENSOR_CONFIG1_TSAMPLE(cfg->tsample - 1);
+	val |= TSENSOR_CONFIG1_TIDDQ_EN(cfg->tiddq_en);
+	val |= TSENSOR_CONFIG1_TEN_COUNT(cfg->ten_count);
 	val |= TSENSOR_CONFIG1_TEMP_ENABLE;
 	WR4(sc, sensor->sensor_base + TSENSOR_CONFIG1, val);
 
@@ -406,13 +560,13 @@ soctherm_convert_raw(uint32_t val)
 {
 	int32_t t;
 
-	t = ((val & READBACK_VALUE_MASK) >> READBACK_VALUE_SHIFT) * 1000;
+	t = READBACK_VALUE(val) * 1000;
 	if (val & READBACK_ADD_HALF)
 		t += 500;
 	if (val & READBACK_NEGATE)
 		t *= -1;
 
-	return t;
+	return (t);
 }
 
 static int
@@ -422,7 +576,7 @@ soctherm_read_temp(struct soctherm_softc *sc, struct tsensor *sensor, int *temp)
 	uint32_t val;
 
 	/* wait for valid sample */
-	for (timeout = 1000; timeout > 0; timeout--) {
+	for (timeout = 100; timeout > 0; timeout--) {
 		val = RD4(sc, sensor->sensor_base + TSENSOR_STATUS1);
 		if ((val & TSENSOR_STATUS1_TEMP_VALID) != 0)
 			break;
@@ -443,7 +597,7 @@ soctherm_read_temp(struct soctherm_softc *sc, struct tsensor *sensor, int *temp)
 	    RD4(sc, sensor->sensor_base + TSENSOR_STATUS2)
 	    );
 #endif
-	return 0;
+	return (0);
 }
 
 static int
@@ -456,14 +610,16 @@ soctherm_get_temp(device_t dev, device_t cdev, uintptr_t id, int *val)
 	/* The direct sensor map starts at 0x100 */
 	if (id >= 0x100) {
 		id -= 0x100;
-		if (id >= sc->ntsensors)
+		if (id >= sc->soc->ntsensors)
 			return (ERANGE);
-		return(soctherm_read_temp(sc, sc->tsensors + id, val));
+		return(soctherm_read_temp(sc, sc->soc->tsensors + id, val));
 	}
 	/* Linux (DT) compatible thermal zones */
-	for (i = 0; i < sc->ntsensors; i++) {
-		if (sc->tsensors->id == id)
-			return(soctherm_read_temp(sc, sc->tsensors + id, val));
+	for (i = 0; i < sc->soc->ntsensors; i++) {
+		if (sc->soc->tsensors->id == id) {
+			return(soctherm_read_temp(sc, sc->soc->tsensors + id,
+			    val));
+		}
 	}
 	return (ERANGE);
 }
@@ -483,9 +639,9 @@ soctherm_sysctl_temperature(SYSCTL_HANDLER_ARGS)
 	sc = arg1;
 	id = arg2;
 
-	if (id >= sc->ntsensors)
+	if (id >= sc->soc->ntsensors)
 		return (ERANGE);
-	rv =  soctherm_read_temp(sc, sc->tsensors + id, &val);
+	rv =  soctherm_read_temp(sc, sc->soc->tsensors + id, &val);
 	if (rv != 0)
 		return (rv);
 
@@ -510,9 +666,9 @@ soctherm_init_sysctl(struct soctherm_softc *sc)
 		return (ENXIO);
 
 	/* Add sensors */
-	for (i = sc->ntsensors  - 1; i >= 0; i--) {
+	for (i = sc->soc->ntsensors  - 1; i >= 0; i--) {
 		tmp = SYSCTL_ADD_PROC(&soctherm_sysctl_ctx,
-		    SYSCTL_CHILDREN(oid), OID_AUTO, sc->tsensors[i].name,
+		    SYSCTL_CHILDREN(oid), OID_AUTO, sc->soc->tsensors[i].name,
 		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, i,
 		    soctherm_sysctl_temperature, "IK", "SoC Temperature");
 		if (tmp == NULL)
@@ -542,10 +698,11 @@ soctherm_attach(device_t dev)
 	struct soctherm_softc *sc;
 	phandle_t node;
 	int i, rid, rv;
-	struct soctherm_shared_cal shared_calib;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	sc->soc = (struct soctherm_soc *)ofw_bus_search_compatible(dev,
+	   compat_data)->ocd_data;
 	node = ofw_bus_get_node(sc->dev);
 
 	rid = 0;
@@ -610,16 +767,13 @@ soctherm_attach(device_t dev)
 		goto fail;
 	}
 
-	/* Tegra 124 */
-	sc->tsensors = t124_tsensors;
-	sc->ntsensors = nitems(t124_tsensors);
-	get_shared_cal(sc, &shared_calib);
+	sc->soc->shared_cal(sc);
 
-	WR4(sc, TSENSOR_PDIV, TSENSOR_PDIV_T124);
-	WR4(sc, TSENSOR_HOTSPOT_OFF, TSENSOR_HOTSPOT_OFF_T124);
+	WR4(sc, TSENSOR_PDIV, sc->soc->tsensor_pdiv);
+	WR4(sc, TSENSOR_HOTSPOT_OFF, sc->soc->tsensor_hotspot_off);
 
-	for (i = 0; i < sc->ntsensors; i++)
-		soctherm_init_tsensor(sc, sc->tsensors + i, &shared_calib);
+	for (i = 0; i < sc->soc->ntsensors; i++)
+		soctherm_init_tsensor(sc, sc->soc->tsensors + i);
 
 	rv = soctherm_init_sysctl(sc);
 	if (rv != 0) {
