@@ -145,7 +145,7 @@ intel_update(const char *dev, const char *path)
 	fd = open(path, O_RDONLY, 0);
 	if (fd < 0) {
 		WARN(0, "open(%s)", path);
-		return;
+		goto fail;
 	}
 	error = fstat(fd, &st);
 	if (error != 0) {
@@ -259,7 +259,7 @@ matched:
 	if (revision >= fw_header->revision) {
 		WARNX(1, "skipping %s of rev %#x: up to date",
 		    path, fw_header->revision);
-		return;
+		goto fail;
 	}
 	fprintf(stderr, "%s: updating cpu %s from rev %#x to rev %#x... ",
 			path, dev, revision, fw_header->revision);
