@@ -212,7 +212,7 @@ vm_phys_domain_match(int prefer, vm_paddr_t low, vm_paddr_t high)
 	/*
 	 * Check for any memory that overlaps low, high.
 	 */
-	for (i = 0; i < vm_ndomains; i++)
+	for (i = 0; mem_affinity[i].end != 0; i++)
 		if (mem_affinity[i].start <= high &&
 		    mem_affinity[i].end >= low)
 			DOMAINSET_SET(mem_affinity[i].domain, &mask);
