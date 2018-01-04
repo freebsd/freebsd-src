@@ -174,12 +174,6 @@ UtAttachNameseg (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Name);
 
-static void
-UtReallocLineBuffers (
-    char                    **Buffer,
-    UINT32                  OldSize,
-    UINT32                  NewSize);
-
 
 /*******************************************************************************
  *
@@ -311,45 +305,6 @@ UtDisplayConstantOpcodes (
 
 /*******************************************************************************
  *
- * FUNCTION:    UtLocalCalloc
- *
- * PARAMETERS:  Size                - Bytes to be allocated
- *
- * RETURN:      Pointer to the allocated memory. Guaranteed to be valid.
- *
- * DESCRIPTION: Allocate zero-initialized memory. Aborts the compile on an
- *              allocation failure, on the assumption that nothing more can be
- *              accomplished.
- *
- ******************************************************************************/
-
-void *
-UtLocalCalloc (
-    UINT32                  Size)
-{
-    void                    *Allocated;
-
-
-    Allocated = ACPI_ALLOCATE_ZEROED (Size);
-    if (!Allocated)
-    {
-        AslCommonError (ASL_ERROR, ASL_MSG_MEMORY_ALLOCATION,
-            Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
-            Gbl_InputByteCount, Gbl_CurrentColumn,
-            Gbl_Files[ASL_FILE_INPUT].Filename, NULL);
-
-        CmCleanupAndExit ();
-        exit (1);
-    }
-
-    TotalAllocations++;
-    TotalAllocated += Size;
-    return (Allocated);
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    UtBeginEvent
  *
  * PARAMETERS:  Name                - Ascii name of this event
@@ -467,7 +422,7 @@ UtSetParseOpName (
     ACPI_PARSE_OBJECT       *Op)
 {
 
-    strncpy (Op->Asl.ParseOpName, UtGetOpName (Op->Asl.ParseOpcode),
+    AcpiUtSafeStrncpy (Op->Asl.ParseOpName, UtGetOpName (Op->Asl.ParseOpcode),
         ACPI_MAX_PARSEOP_NAME);
 }
 
@@ -637,180 +592,6 @@ UtCheckIntegerRange (
 
 /*******************************************************************************
  *
- * FUNCTION:    UtStringCacheCalloc
- *
- * PARAMETERS:  Length              - Size of buffer requested
- *
- * RETURN:      Pointer to the buffer. Aborts compiler on allocation failure
- *
- * DESCRIPTION: Allocate a string buffer. Bypass the local
- *              dynamic memory manager for performance reasons (This has a
- *              major impact on the speed of the compiler.)
- *
- ******************************************************************************/
-
-char *
-UtStringCacheCalloc (
-    UINT32                  Length)
-{
-    char                    *Buffer;
-    ASL_CACHE_INFO          *Cache;
-    UINT32                  CacheSize = ASL_STRING_CACHE_SIZE;
-
-
-    if (Length > CacheSize)
-    {
-        CacheSize = Length;
-
-        if (Gbl_StringCacheList)
-        {
-            Cache = UtLocalCalloc (sizeof (Cache->Next) + CacheSize);
-
-            /* Link new cache buffer just following head of list */
-
-            Cache->Next = Gbl_StringCacheList->Next;
-            Gbl_StringCacheList->Next = Cache;
-
-            /* Leave cache management pointers alone as they pertain to head */
-
-            Gbl_StringCount++;
-            Gbl_StringSize += Length;
-
-            return (Cache->Buffer);
-        }
-    }
-
-    if ((Gbl_StringCacheNext + Length) >= Gbl_StringCacheLast)
-    {
-        /* Allocate a new buffer */
-
-        Cache = UtLocalCalloc (sizeof (Cache->Next) + CacheSize);
-
-        /* Link new cache buffer to head of list */
-
-        Cache->Next = Gbl_StringCacheList;
-        Gbl_StringCacheList = Cache;
-
-        /* Setup cache management pointers */
-
-        Gbl_StringCacheNext = Cache->Buffer;
-        Gbl_StringCacheLast = Gbl_StringCacheNext + CacheSize;
-    }
-
-    Gbl_StringCount++;
-    Gbl_StringSize += Length;
-
-    Buffer = Gbl_StringCacheNext;
-    Gbl_StringCacheNext += Length;
-    return (Buffer);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    UtExpandLineBuffers
- *
- * PARAMETERS:  None. Updates global line buffer pointers.
- *
- * RETURN:      None. Reallocates the global line buffers
- *
- * DESCRIPTION: Called if the current line buffer becomes filled. Reallocates
- *              all global line buffers and updates Gbl_LineBufferSize. NOTE:
- *              Also used for the initial allocation of the buffers, when
- *              all of the buffer pointers are NULL. Initial allocations are
- *              of size ASL_DEFAULT_LINE_BUFFER_SIZE
- *
- *****************************************************************************/
-
-void
-UtExpandLineBuffers (
-    void)
-{
-    UINT32                  NewSize;
-
-
-    /* Attempt to double the size of all line buffers */
-
-    NewSize = Gbl_LineBufferSize * 2;
-    if (Gbl_CurrentLineBuffer)
-    {
-        DbgPrint (ASL_DEBUG_OUTPUT,
-            "Increasing line buffer size from %u to %u\n",
-            Gbl_LineBufferSize, NewSize);
-    }
-
-    UtReallocLineBuffers (&Gbl_CurrentLineBuffer, Gbl_LineBufferSize, NewSize);
-    UtReallocLineBuffers (&Gbl_MainTokenBuffer, Gbl_LineBufferSize, NewSize);
-    UtReallocLineBuffers (&Gbl_MacroTokenBuffer, Gbl_LineBufferSize, NewSize);
-    UtReallocLineBuffers (&Gbl_ExpressionTokenBuffer, Gbl_LineBufferSize, NewSize);
-
-    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
-    Gbl_LineBufferSize = NewSize;
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    UtReallocLineBuffers
- *
- * PARAMETERS:  Buffer              - Buffer to realloc
- *              OldSize             - Old size of Buffer
- *              NewSize             - New size of Buffer
- *
- * RETURN:      none
- *
- * DESCRIPTION: Reallocate and initialize Buffer
- *
- *****************************************************************************/
-
-static void
-UtReallocLineBuffers (
-    char                    **Buffer,
-    UINT32                  OldSize,
-    UINT32                  NewSize)
-{
-
-    *Buffer = realloc (*Buffer, NewSize);
-    if (*Buffer)
-    {
-        memset (*Buffer + OldSize, 0, NewSize - OldSize);
-        return;
-    }
-
-    printf ("Could not increase line buffer size from %u to %u\n",
-        OldSize, NewSize);
-
-    AslError (ASL_ERROR, ASL_MSG_BUFFER_ALLOCATION, NULL, NULL);
-    AslAbort ();
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    UtFreeLineBuffers
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Free all line buffers
- *
- *****************************************************************************/
-
-void
-UtFreeLineBuffers (
-    void)
-{
-
-    free (Gbl_CurrentLineBuffer);
-    free (Gbl_MainTokenBuffer);
-    free (Gbl_MacroTokenBuffer);
-    free (Gbl_ExpressionTokenBuffer);
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    UtInternalizeName
  *
  * PARAMETERS:  ExternalName        - Name to convert
@@ -843,7 +624,7 @@ UtInternalizeName (
 
     /* We need a segment to store the internal name */
 
-    Info.InternalName = UtStringCacheCalloc (Info.Length);
+    Info.InternalName = UtLocalCacheCalloc (Info.Length);
 
     /* Build the name */
 
@@ -1004,11 +785,11 @@ UtAttachNamepathToOwner (
  *
  * FUNCTION:    UtDoConstant
  *
- * PARAMETERS:  String              - Hexadecimal or decimal string
+ * PARAMETERS:  String              - Hex/Decimal/Octal
  *
  * RETURN:      Converted Integer
  *
- * DESCRIPTION: Convert a string to an integer, with error checking.
+ * DESCRIPTION: Convert a string to an integer, with overflow/error checking.
  *
  ******************************************************************************/
 
@@ -1017,17 +798,20 @@ UtDoConstant (
     char                    *String)
 {
     ACPI_STATUS             Status;
-    UINT64                  Converted;
+    UINT64                  ConvertedInteger;
     char                    ErrBuf[64];
 
 
-    Status = AcpiUtStrtoul64 (String, ACPI_STRTOUL_64BIT, &Converted);
+    Status = AcpiUtStrtoul64 (String, &ConvertedInteger);
     if (ACPI_FAILURE (Status))
     {
-        sprintf (ErrBuf, "%s %s\n", "Conversion error:",
+        sprintf (ErrBuf, "While creating 64-bit constant: %s\n",
             AcpiFormatException (Status));
-        AslCompilererror (ErrBuf);
+
+        AslCommonError (ASL_ERROR, ASL_MSG_SYNTAX, Gbl_CurrentLineNumber,
+            Gbl_LogicalLineNumber, Gbl_CurrentLineOffset,
+            Gbl_CurrentColumn, Gbl_Files[ASL_FILE_INPUT].Filename, ErrBuf);
     }
 
-    return (Converted);
+    return (ConvertedInteger);
 }

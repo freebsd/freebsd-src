@@ -1174,7 +1174,7 @@ acpi_cpu_idle(sbintime_t sbt)
      * is the only reliable time source.
      */
     if (cx_next->type == ACPI_STATE_C3) {
-	AcpiHwRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
+	AcpiGetTimer(&start_time);
 	cputicks = 0;
     } else {
 	start_time = 0;
@@ -1191,10 +1191,10 @@ acpi_cpu_idle(sbintime_t sbt)
      * the processor has stopped.  Doing it again provides enough
      * margin that we are certain to have a correct value.
      */
-    AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
+    AcpiGetTimer(&end_time);
     if (cx_next->type == ACPI_STATE_C3) {
-	AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
-	end_time = acpi_TimerDelta(end_time, start_time);
+	AcpiGetTimer(&end_time);
+	AcpiGetTimerDuration(start_time, end_time, &end_time);
     } else
 	end_time = ((cpu_ticks() - cputicks) << 20) / cpu_tickrate();
 

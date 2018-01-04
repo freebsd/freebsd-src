@@ -340,7 +340,8 @@ AcpiDsCreateBufferField (
             ACPI_IMODE_LOAD_PASS1, Flags, WalkState, &Node);
         if (ACPI_FAILURE (Status))
         {
-            ACPI_ERROR_NAMESPACE (Arg->Common.Value.String, Status);
+            ACPI_ERROR_NAMESPACE (WalkState->ScopeInfo,
+                Arg->Common.Value.String, Status);
             return_ACPI_STATUS (Status);
         }
     }
@@ -524,7 +525,8 @@ AcpiDsGetFieldNames (
                     WalkState, &Info->ConnectionNode);
                 if (ACPI_FAILURE (Status))
                 {
-                    ACPI_ERROR_NAMESPACE (Child->Common.Value.Name, Status);
+                    ACPI_ERROR_NAMESPACE (WalkState->ScopeInfo,
+                        Child->Common.Value.Name, Status);
                     return_ACPI_STATUS (Status);
                 }
             }
@@ -540,7 +542,8 @@ AcpiDsGetFieldNames (
                 WalkState, &Info->FieldNode);
             if (ACPI_FAILURE (Status))
             {
-                ACPI_ERROR_NAMESPACE ((char *) &Arg->Named.Name, Status);
+                ACPI_ERROR_NAMESPACE (WalkState->ScopeInfo,
+                    (char *) &Arg->Named.Name, Status);
                 return_ACPI_STATUS (Status);
             }
             else
@@ -639,7 +642,8 @@ AcpiDsCreateField (
 #endif
         if (ACPI_FAILURE (Status))
         {
-            ACPI_ERROR_NAMESPACE (Arg->Common.Value.Name, Status);
+            ACPI_ERROR_NAMESPACE (WalkState->ScopeInfo,
+                Arg->Common.Value.Name, Status);
             return_ACPI_STATUS (Status);
         }
     }
@@ -769,7 +773,8 @@ AcpiDsInitFieldObjects (
                 Flags, WalkState, &Node);
             if (ACPI_FAILURE (Status))
             {
-                ACPI_ERROR_NAMESPACE ((char *) &Arg->Named.Name, Status);
+                ACPI_ERROR_NAMESPACE (WalkState->ScopeInfo,
+                    (char *) &Arg->Named.Name, Status);
                 if (Status != AE_ALREADY_EXISTS)
                 {
                     return_ACPI_STATUS (Status);
@@ -834,7 +839,8 @@ AcpiDsCreateBankField (
 #endif
         if (ACPI_FAILURE (Status))
         {
-            ACPI_ERROR_NAMESPACE (Arg->Common.Value.Name, Status);
+            ACPI_ERROR_NAMESPACE (WalkState->ScopeInfo,
+                Arg->Common.Value.Name, Status);
             return_ACPI_STATUS (Status);
         }
     }
@@ -847,7 +853,8 @@ AcpiDsCreateBankField (
         ACPI_NS_SEARCH_PARENT, WalkState, &Info.RegisterNode);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_ERROR_NAMESPACE (Arg->Common.Value.String, Status);
+        ACPI_ERROR_NAMESPACE (WalkState->ScopeInfo,
+            Arg->Common.Value.String, Status);
         return_ACPI_STATUS (Status);
     }
 
@@ -920,7 +927,8 @@ AcpiDsCreateIndexField (
         ACPI_NS_SEARCH_PARENT, WalkState, &Info.RegisterNode);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_ERROR_NAMESPACE (Arg->Common.Value.String, Status);
+        ACPI_ERROR_NAMESPACE (WalkState->ScopeInfo,
+            Arg->Common.Value.String, Status);
         return_ACPI_STATUS (Status);
     }
 
@@ -932,7 +940,8 @@ AcpiDsCreateIndexField (
         ACPI_NS_SEARCH_PARENT, WalkState, &Info.DataRegisterNode);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_ERROR_NAMESPACE (Arg->Common.Value.String, Status);
+        ACPI_ERROR_NAMESPACE (WalkState->ScopeInfo,
+            Arg->Common.Value.String, Status);
         return_ACPI_STATUS (Status);
     }
 

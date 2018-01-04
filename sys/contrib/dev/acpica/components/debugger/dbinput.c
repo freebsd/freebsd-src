@@ -258,6 +258,7 @@ enum AcpiExDebuggerCommands
     CMD_UNLOAD,
 
     CMD_TERMINATE,
+    CMD_BACKGROUND,
     CMD_THREADS,
 
     CMD_TEST,
@@ -336,6 +337,7 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"UNLOAD",       1},
 
     {"TERMINATE",    0},
+    {"BACKGROUND",   1},
     {"THREADS",      3},
 
     {"TEST",         1},
@@ -346,102 +348,113 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
 /*
  * Help for all debugger commands. First argument is the number of lines
  * of help to output for the command.
+ *
+ * Note: Some commands are not supported by the kernel-level version of
+ * the debugger.
  */
 static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
 {
-    {0, "\nGeneral-Purpose Commands:",         "\n"},
-    {1, "  Allocations",                       "Display list of current memory allocations\n"},
-    {2, "  Dump <Address>|<Namepath>",         "\n"},
-    {0, "       [Byte|Word|Dword|Qword]",      "Display ACPI objects or memory\n"},
-    {1, "  Handlers",                          "Info about global handlers\n"},
-    {1, "  Help [Command]",                    "This help screen or individual command\n"},
-    {1, "  History",                           "Display command history buffer\n"},
-    {1, "  Level <DebugLevel>] [console]",     "Get/Set debug level for file or console\n"},
-    {1, "  Locks",                             "Current status of internal mutexes\n"},
-    {1, "  Osi [Install|Remove <name>]",       "Display or modify global _OSI list\n"},
-    {1, "  Quit or Exit",                      "Exit this command\n"},
-    {8, "  Stats <SubCommand>",                "Display namespace and memory statistics\n"},
-    {1, "     Allocations",                    "Display list of current memory allocations\n"},
-    {1, "     Memory",                         "Dump internal memory lists\n"},
-    {1, "     Misc",                           "Namespace search and mutex stats\n"},
-    {1, "     Objects",                        "Summary of namespace objects\n"},
-    {1, "     Sizes",                          "Sizes for each of the internal objects\n"},
-    {1, "     Stack",                          "Display CPU stack usage\n"},
-    {1, "     Tables",                         "Info about current ACPI table(s)\n"},
-    {1, "  Tables",                            "Display info about loaded ACPI tables\n"},
-    {1, "  ! <CommandNumber>",                 "Execute command from history buffer\n"},
-    {1, "  !!",                                "Execute last command again\n"},
+    {0, "\nNamespace Access:",                  "\n"},
+    {1, "  Businfo",                            "Display system bus info\n"},
+    {1, "  Disassemble <Method>",               "Disassemble a control method\n"},
+    {1, "  Find <AcpiName> (? is wildcard)",    "Find ACPI name(s) with wildcards\n"},
+    {1, "  Integrity",                          "Validate namespace integrity\n"},
+    {1, "  Methods",                            "Display list of loaded control methods\n"},
+    {1, "  Namespace [Object] [Depth]",         "Display loaded namespace tree/subtree\n"},
+    {1, "  Notify <Object> <Value>",            "Send a notification on Object\n"},
+    {1, "  Objects [ObjectType]",               "Display summary of all objects or just given type\n"},
+    {1, "  Owner <OwnerId> [Depth]",            "Display loaded namespace by object owner\n"},
+    {1, "  Paths",                              "Display full pathnames of namespace objects\n"},
+    {1, "  Predefined",                         "Check all predefined names\n"},
+    {1, "  Prefix [<Namepath>]",                "Set or Get current execution prefix\n"},
+    {1, "  References <Addr>",                  "Find all references to object at addr\n"},
+    {1, "  Resources [DeviceName]",             "Display Device resources (no arg = all devices)\n"},
+    {1, "  Set N <NamedObject> <Value>",        "Set value for named integer\n"},
+    {1, "  Template <Object>",                  "Format/dump a Buffer/ResourceTemplate\n"},
+    {1, "  Type <Object>",                      "Display object type\n"},
 
-    {0, "\nNamespace Access Commands:",        "\n"},
-    {1, "  Businfo",                           "Display system bus info\n"},
-    {1, "  Disassemble <Method>",              "Disassemble a control method\n"},
-    {1, "  Find <AcpiName> (? is wildcard)",   "Find ACPI name(s) with wildcards\n"},
-    {1, "  Integrity",                         "Validate namespace integrity\n"},
-    {1, "  Methods",                           "Display list of loaded control methods\n"},
-    {1, "  Namespace [Object] [Depth]",        "Display loaded namespace tree/subtree\n"},
-    {1, "  Notify <Object> <Value>",           "Send a notification on Object\n"},
-    {1, "  Objects [ObjectType]",              "Display summary of all objects or just given type\n"},
-    {1, "  Owner <OwnerId> [Depth]",           "Display loaded namespace by object owner\n"},
-    {1, "  Paths",                             "Display full pathnames of namespace objects\n"},
-    {1, "  Predefined",                        "Check all predefined names\n"},
-    {1, "  Prefix [<Namepath>]",               "Set or Get current execution prefix\n"},
-    {1, "  References <Addr>",                 "Find all references to object at addr\n"},
-    {1, "  Resources [DeviceName]",            "Display Device resources (no arg = all devices)\n"},
-    {1, "  Set N <NamedObject> <Value>",       "Set value for named integer\n"},
-    {1, "  Template <Object>",                 "Format/dump a Buffer/ResourceTemplate\n"},
-    {1, "  Type <Object>",                     "Display object type\n"},
+    {0, "\nControl Method Execution:",          "\n"},
+    {1, "  Evaluate <Namepath> [Arguments]",    "Evaluate object or control method\n"},
+    {1, "  Execute <Namepath> [Arguments]",     "Synonym for Evaluate\n"},
+#ifdef ACPI_APPLICATION
+    {1, "  Background <Namepath> [Arguments]",  "Evaluate object/method in a separate thread\n"},
+    {1, "  Thread <Threads><Loops><NamePath>",  "Spawn threads to execute method(s)\n"},
+#endif
+    {1, "  Debug <Namepath> [Arguments]",       "Single-Step a control method\n"},
+    {7, "  [Arguments] formats:",               "Control method argument formats\n"},
+    {1, "     Hex Integer",                     "Integer\n"},
+    {1, "     \"Ascii String\"",                "String\n"},
+    {1, "     (Hex Byte List)",                 "Buffer\n"},
+    {1, "         (01 42 7A BF)",               "Buffer example (4 bytes)\n"},
+    {1, "     [Package Element List]",          "Package\n"},
+    {1, "         [0x01 0x1234 \"string\"]",    "Package example (3 elements)\n"},
 
-    {0, "\nControl Method Execution Commands:","\n"},
-    {1, "  Arguments (or Args)",               "Display method arguments\n"},
-    {1, "  Breakpoint <AmlOffset>",            "Set an AML execution breakpoint\n"},
-    {1, "  Call",                              "Run to next control method invocation\n"},
-    {1, "  Debug <Namepath> [Arguments]",      "Single Step a control method\n"},
-    {6, "  Evaluate",                          "Synonym for Execute\n"},
-    {5, "  Execute <Namepath> [Arguments]",    "Execute control method\n"},
-    {1, "     Hex Integer",                    "Integer method argument\n"},
-    {1, "     \"Ascii String\"",               "String method argument\n"},
-    {1, "     (Hex Byte List)",                "Buffer method argument\n"},
-    {1, "     [Package Element List]",         "Package method argument\n"},
-    {5, "  Execute predefined",                "Execute all predefined (public) methods\n"},
-    {1, "  Go",                                "Allow method to run to completion\n"},
-    {1, "  Information",                       "Display info about the current method\n"},
-    {1, "  Into",                              "Step into (not over) a method call\n"},
-    {1, "  List [# of Aml Opcodes]",           "Display method ASL statements\n"},
-    {1, "  Locals",                            "Display method local variables\n"},
-    {1, "  Results",                           "Display method result stack\n"},
-    {1, "  Set <A|L> <#> <Value>",             "Set method data (Arguments/Locals)\n"},
-    {1, "  Stop",                              "Terminate control method\n"},
-    {5, "  Trace <State> [<Namepath>] [Once]", "Trace control method execution\n"},
-    {1, "     Enable",                         "Enable all messages\n"},
-    {1, "     Disable",                        "Disable tracing\n"},
-    {1, "     Method",                         "Enable method execution messages\n"},
-    {1, "     Opcode",                         "Enable opcode execution messages\n"},
-    {1, "  Tree",                              "Display control method calling tree\n"},
-    {1, "  <Enter>",                           "Single step next AML opcode (over calls)\n"},
+    {0, "\nMiscellaneous:",                     "\n"},
+    {1, "  Allocations",                        "Display list of current memory allocations\n"},
+    {2, "  Dump <Address>|<Namepath>",          "\n"},
+    {0, "       [Byte|Word|Dword|Qword]",       "Display ACPI objects or memory\n"},
+    {1, "  Handlers",                           "Info about global handlers\n"},
+    {1, "  Help [Command]",                     "This help screen or individual command\n"},
+    {1, "  History",                            "Display command history buffer\n"},
+    {1, "  Level <DebugLevel>] [console]",      "Get/Set debug level for file or console\n"},
+    {1, "  Locks",                              "Current status of internal mutexes\n"},
+    {1, "  Osi [Install|Remove <name>]",        "Display or modify global _OSI list\n"},
+    {1, "  Quit or Exit",                       "Exit this command\n"},
+    {8, "  Stats <SubCommand>",                 "Display namespace and memory statistics\n"},
+    {1, "     Allocations",                     "Display list of current memory allocations\n"},
+    {1, "     Memory",                          "Dump internal memory lists\n"},
+    {1, "     Misc",                            "Namespace search and mutex stats\n"},
+    {1, "     Objects",                         "Summary of namespace objects\n"},
+    {1, "     Sizes",                           "Sizes for each of the internal objects\n"},
+    {1, "     Stack",                           "Display CPU stack usage\n"},
+    {1, "     Tables",                          "Info about current ACPI table(s)\n"},
+    {1, "  Tables",                             "Display info about loaded ACPI tables\n"},
+#ifdef ACPI_APPLICATION
+    {1, "  Terminate",                          "Delete namespace and all internal objects\n"},
+#endif
+    {1, "  ! <CommandNumber>",                  "Execute command from history buffer\n"},
+    {1, "  !!",                                 "Execute last command again\n"},
+
+    {0, "\nMethod and Namespace Debugging:",    "\n"},
+    {5, "  Trace <State> [<Namepath>] [Once]",  "Trace control method execution\n"},
+    {1, "     Enable",                          "Enable all messages\n"},
+    {1, "     Disable",                         "Disable tracing\n"},
+    {1, "     Method",                          "Enable method execution messages\n"},
+    {1, "     Opcode",                          "Enable opcode execution messages\n"},
+    {3, "  Test <TestName>",                    "Invoke a debug test\n"},
+    {1, "     Objects",                         "Read/write/compare all namespace data objects\n"},
+    {1, "     Predefined",                      "Validate all ACPI predefined names (_STA, etc.)\n"},
+    {1, "  Execute predefined",                 "Execute all predefined (public) methods\n"},
+
+    {0, "\nControl Method Single-Step Execution:","\n"},
+    {1, "  Arguments (or Args)",                "Display method arguments\n"},
+    {1, "  Breakpoint <AmlOffset>",             "Set an AML execution breakpoint\n"},
+    {1, "  Call",                               "Run to next control method invocation\n"},
+    {1, "  Go",                                 "Allow method to run to completion\n"},
+    {1, "  Information",                        "Display info about the current method\n"},
+    {1, "  Into",                               "Step into (not over) a method call\n"},
+    {1, "  List [# of Aml Opcodes]",            "Display method ASL statements\n"},
+    {1, "  Locals",                             "Display method local variables\n"},
+    {1, "  Results",                            "Display method result stack\n"},
+    {1, "  Set <A|L> <#> <Value>",              "Set method data (Arguments/Locals)\n"},
+    {1, "  Stop",                               "Terminate control method\n"},
+    {1, "  Tree",                               "Display control method calling tree\n"},
+    {1, "  <Enter>",                            "Single step next AML opcode (over calls)\n"},
 
 #ifdef ACPI_APPLICATION
-    {0, "\nHardware Simulation Commands:",         "\n"},
-    {1, "  EnableAcpi",                        "Enable ACPI (hardware) mode\n"},
-    {1, "  Event <F|G> <Value>",               "Generate AcpiEvent (Fixed/GPE)\n"},
-    {1, "  Gpe <GpeNum> [GpeBlockDevice]",     "Simulate a GPE\n"},
-    {1, "  Gpes",                              "Display info on all GPE devices\n"},
-    {1, "  Sci",                               "Generate an SCI\n"},
-    {1, "  Sleep [SleepState]",                "Simulate sleep/wake sequence(s) (0-5)\n"},
+    {0, "\nFile Operations:",                   "\n"},
+    {1, "  Close",                              "Close debug output file\n"},
+    {1, "  Load <Input Filename>",              "Load ACPI table from a file\n"},
+    {1, "  Open <Output Filename>",             "Open a file for debug output\n"},
+    {1, "  Unload <Namepath>",                  "Unload an ACPI table via namespace object\n"},
 
-    {0, "\nFile I/O Commands:",                "\n"},
-    {1, "  Close",                             "Close debug output file\n"},
-    {1, "  Load <Input Filename>",             "Load ACPI table from a file\n"},
-    {1, "  Open <Output Filename>",            "Open a file for debug output\n"},
-    {1, "  Unload <Namepath>",                 "Unload an ACPI table via namespace object\n"},
-
-    {0, "\nUser Space Commands:",              "\n"},
-    {1, "  Terminate",                         "Delete namespace and all internal objects\n"},
-    {1, "  Thread <Threads><Loops><NamePath>", "Spawn threads to execute method(s)\n"},
-
-    {0, "\nDebug Test Commands:",              "\n"},
-    {3, "  Test <TestName>",                   "Invoke a debug test\n"},
-    {1, "     Objects",                        "Read/write/compare all namespace data objects\n"},
-    {1, "     Predefined",                     "Execute all ACPI predefined names (_STA, etc.)\n"},
+    {0, "\nHardware Simulation:",               "\n"},
+    {1, "  EnableAcpi",                         "Enable ACPI (hardware) mode\n"},
+    {1, "  Event <F|G> <Value>",                "Generate AcpiEvent (Fixed/GPE)\n"},
+    {1, "  Gpe <GpeNum> [GpeBlockDevice]",      "Simulate a GPE\n"},
+    {1, "  Gpes",                               "Display info on all GPE devices\n"},
+    {1, "  Sci",                                "Generate an SCI\n"},
+    {1, "  Sleep [SleepState]",                 "Simulate sleep/wake sequence(s) (0-5)\n"},
 #endif
     {0, NULL, NULL}
 };
@@ -571,11 +584,15 @@ AcpiDbDisplayHelp (
     {
         /* No argument to help, display help for all commands */
 
+        AcpiOsPrintf ("\nSummary of AML Debugger Commands\n\n");
+
         while (Next->Invocation)
         {
             AcpiOsPrintf ("%-38s%s", Next->Invocation, Next->Description);
             Next++;
         }
+        AcpiOsPrintf ("\n");
+
     }
     else
     {
@@ -1256,6 +1273,12 @@ AcpiDbCommandDispatch (
 
         AcpiGbl_DbTerminateLoop = TRUE;
         /*  AcpiInitialize (NULL);  */
+        break;
+
+    case CMD_BACKGROUND:
+
+        AcpiDbCreateExecutionThread (AcpiGbl_DbArgs[1], &AcpiGbl_DbArgs[2],
+            &AcpiGbl_DbArgTypes[2]);
         break;
 
     case CMD_THREADS:

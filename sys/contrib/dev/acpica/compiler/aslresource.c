@@ -1148,6 +1148,14 @@ RsDoResourceTemplate (
 
     DescriptorTypeOp = ASL_GET_PEER_NODE (BufferOp);
 
+    /* DEFAULT_ARG indicates null template - ResourceTemplate(){} */
+
+    if (DescriptorTypeOp->Asl.ParseOpcode == PARSEOP_DEFAULT_ARG)
+    {
+        AslError (ASL_WARNING, ASL_MSG_NULL_RESOURCE_TEMPLATE,
+            DescriptorTypeOp, DescriptorTypeOp->Asl.Value.String);
+    }
+
     /*
      * Process all resource descriptors in the list
      * Note: It is assumed that the EndTag node has been automatically

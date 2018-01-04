@@ -195,6 +195,7 @@ count (int type);
 
 LeadNameChar                [A-Za-z_]
 DigitChar                   [0-9]
+OctalChar                   [0-7]
 HexDigitChar                [A-Fa-f0-9]
 RootChar                    [\\]
 Nothing                     []
@@ -278,8 +279,7 @@ NamePathTail                [.]{NameSeg}
     /*
      * Begin standard ASL grammar
      */
-0[xX]{HexDigitChar}+ |
-{DigitChar}+                { AslCompilerlval.i = UtDoConstant ((char *) AslCompilertext);
+[0-9][a-zA-Z0-9]*            { AslCompilerlval.i = UtDoConstant ((char *) AslCompilertext);
                                 count (1); return (PARSEOP_INTEGER); }
 
 "Include"                   { count (1); return (PARSEOP_INCLUDE); }
@@ -813,7 +813,7 @@ NamePathTail                [.]{NameSeg}
 
 {NameSeg}                   { char *s;
                                 count (0);
-                                s=UtStringCacheCalloc (ACPI_NAME_SIZE + 1);
+                                s=UtLocalCacheCalloc (ACPI_NAME_SIZE + 1);
                                 if (strcmp (AslCompilertext, "\\"))
                                 {
                                     strcpy (s, "____");
@@ -826,7 +826,7 @@ NamePathTail                [.]{NameSeg}
 
 {NameString}                { char *s;
                                 count (0);
-                                s=UtStringCacheCalloc (strlen (AslCompilertext)+1);
+                                s=UtLocalCacheCalloc (strlen (AslCompilertext)+1);
                                 AcpiUtStrupr (AslCompilertext);
                                 strcpy (s, AslCompilertext);
                                 AslCompilerlval.s = s;

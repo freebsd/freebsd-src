@@ -152,7 +152,6 @@
 /* Compile all complex data tables, signatures starting with A-I */
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/compiler/dtcompiler.h>
 
 #define _COMPONENT          DT_COMPILER
         ACPI_MODULE_NAME    ("dttable1")
@@ -597,7 +596,13 @@ DtCompileDbg2 (
 
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoDbg2OemData,
             &Subtable, TRUE);
-        if (ACPI_FAILURE (Status))
+        if (Status == AE_END_OF_TABLE)
+        {
+            /* optional field was not found and we're at the end of the file */
+
+            goto subtableDone;
+        }
+        else if (ACPI_FAILURE (Status))
         {
             return (Status);
         }
@@ -616,7 +621,7 @@ DtCompileDbg2 (
 
             DtInsertSubtable (ParentTable, Subtable);
         }
-
+subtableDone:
         SubtableCount--;
         DtPopSubtable (); /* Get next Device Information subtable */
     }

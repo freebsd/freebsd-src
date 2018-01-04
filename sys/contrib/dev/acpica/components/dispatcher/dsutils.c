@@ -732,7 +732,8 @@ AcpiDsCreateOperand (
 
             if (ACPI_FAILURE (Status))
             {
-                ACPI_ERROR_NAMESPACE (NameString, Status);
+                ACPI_ERROR_NAMESPACE (WalkState->ScopeInfo,
+                    NameString, Status);
             }
         }
 

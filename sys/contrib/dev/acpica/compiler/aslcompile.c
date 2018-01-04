@@ -150,7 +150,6 @@
  *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/compiler/dtcompiler.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
 
 #include <stdio.h>
@@ -470,7 +469,7 @@ CmDoCompile (
      * node during compilation. We take the very last comment and save it in a
      * global for it to be used by the disassembler.
      */
-    if (Gbl_CaptureComments)
+    if (AcpiGbl_CaptureComments)
     {
         AcpiGbl_LastListHead = Gbl_ParseTreeRoot->Asl.CommentList;
         Gbl_ParseTreeRoot->Asl.CommentList = NULL;
@@ -932,70 +931,7 @@ CmCleanupAndExit (
 
     if (!Gbl_DoAslConversion)
     {
-        CmDeleteCaches ();
+        UtDeleteLocalCaches ();
     }
 
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    CmDeleteCaches
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Delete all local cache buffer blocks
- *
- ******************************************************************************/
-
-void
-CmDeleteCaches (
-    void)
-{
-    UINT32                  BufferCount;
-    ASL_CACHE_INFO          *Next;
-
-
-    /* Parse Op cache */
-
-    BufferCount = 0;
-    while (Gbl_ParseOpCacheList)
-    {
-        Next = Gbl_ParseOpCacheList->Next;
-        ACPI_FREE (Gbl_ParseOpCacheList);
-        Gbl_ParseOpCacheList = Next;
-        BufferCount++;
-    }
-
-    DbgPrint (ASL_DEBUG_OUTPUT,
-        "%u ParseOps, Buffer size: %u ops (%u bytes), %u Buffers\n",
-        Gbl_ParseOpCount, ASL_PARSEOP_CACHE_SIZE,
-        (sizeof (ACPI_PARSE_OBJECT) * ASL_PARSEOP_CACHE_SIZE), BufferCount);
-
-    Gbl_ParseOpCount = 0;
-    Gbl_ParseOpCacheNext = NULL;
-    Gbl_ParseOpCacheLast = NULL;
-    Gbl_ParseTreeRoot = NULL;
-
-    /* Generic string cache */
-
-    BufferCount = 0;
-    while (Gbl_StringCacheList)
-    {
-        Next = Gbl_StringCacheList->Next;
-        ACPI_FREE (Gbl_StringCacheList);
-        Gbl_StringCacheList = Next;
-        BufferCount++;
-    }
-
-    DbgPrint (ASL_DEBUG_OUTPUT,
-        "%u Strings (%u bytes), Buffer size: %u bytes, %u Buffers\n",
-        Gbl_StringCount, Gbl_StringSize, ASL_STRING_CACHE_SIZE, BufferCount);
-
-    Gbl_StringSize = 0;
-    Gbl_StringCount = 0;
-    Gbl_StringCacheNext = NULL;
-    Gbl_StringCacheLast = NULL;
 }
