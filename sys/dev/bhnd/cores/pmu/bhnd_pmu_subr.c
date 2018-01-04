@@ -2394,6 +2394,7 @@ bhnd_pmu_si_clock(struct bhnd_pmu_query *sc)
 		clock = bhnd_pmu1_cpuclk0(sc);
 		break;
 
+	case BHND_CHIPID_BCM4312:
 	case BHND_CHIPID_BCM4313:
 		/* 80MHz backplane clock */
 		clock = 80000 * 1000;
