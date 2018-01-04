@@ -299,9 +299,7 @@ trap(struct trapframe *frame)
 				inst = fuword32((const void *)frame->srr0);
 				if (inst == 0x0FFFDDDD &&
 				    dtrace_pid_probe_ptr != NULL) {
-					struct reg regs;
-					fill_regs(td, &regs);
-					(*dtrace_pid_probe_ptr)(&regs);
+					(*dtrace_pid_probe_ptr)(frame);
 					break;
 				}
 #endif
