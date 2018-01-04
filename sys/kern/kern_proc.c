@@ -2256,15 +2256,20 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 CTASSERT(sizeof(struct kinfo_vmentry) == KINFO_VMENTRY_SIZE);
 #endif
 
-static void
+void
 kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
-    struct kinfo_vmentry *kve)
+    int *resident_count, bool *super)
 {
 	vm_object_t obj, tobj;
 	vm_page_t m, m_adv;
 	vm_offset_t addr;
 	vm_paddr_t locked_pa;
 	vm_pindex_t pi, pi_adv, pindex;
+
+	*super = false;
+	*resident_count = 0;
+	if (vmmap_skip_res_cnt)
+		return;
 
 	locked_pa = 0;
 	obj = entry->object.vm_object;
@@ -2298,7 +2303,7 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 		    (addr & (pagesizes[1] - 1)) == 0 &&
 		    (pmap_mincore(map->pmap, addr, &locked_pa) &
 		    MINCORE_SUPER) != 0) {
-			kve->kve_flags |= KVME_FLAG_SUPER;
+			*super = true;
 			pi_adv = atop(pagesizes[1]);
 		} else {
 			/*
@@ -2310,7 +2315,7 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 			 */
 			pi_adv = 1;
 		}
-		kve->kve_resident += pi_adv;
+		*resident_count += pi_adv;
 next:;
 	}
 	PA_UNLOCK_COND(locked_pa);
@@ -2334,6 +2339,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 	vm_offset_t addr;
 	unsigned int last_timestamp;
 	int error;
+	bool super;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
@@ -2366,8 +2372,10 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 			if (obj->backing_object == NULL)
 				kve->kve_private_resident =
 				    obj->resident_page_count;
-			if (!vmmap_skip_res_cnt)
-				kern_proc_vmmap_resident(map, entry, kve);
+			kern_proc_vmmap_resident(map, entry,
+			    &kve->kve_resident, &super);
+			if (super)
+				kve->kve_flags |= KVME_FLAG_SUPER;
 			for (tobj = obj; tobj != NULL;
 			    tobj = tobj->backing_object) {
 				if (tobj != obj && tobj != lobj)
@@ -3077,6 +3085,7 @@ resume_all_proc(void)
 
 	cp = curproc;
 	sx_xlock(&allproc_lock);
+again:
 	LIST_REMOVE(cp, p_list);
 	LIST_INSERT_HEAD(&allproc, cp, p_list);
 	for (;;) {
@@ -3096,6 +3105,12 @@ resume_all_proc(void)
 		} else {
 			PROC_UNLOCK(p);
 		}
+	}
+	/*  Did the loop above missed any stopped process ? */
+	LIST_FOREACH(p, &allproc, p_list) {
+		/* No need for proc lock. */
+		if ((p->p_flag & P_TOTAL_STOP) != 0)
+			goto again;
 	}
 	sx_xunlock(&allproc_lock);
 }
