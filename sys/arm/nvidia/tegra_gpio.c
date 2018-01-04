@@ -137,6 +137,7 @@ struct tegra_gpio_softc {
 
 static struct ofw_compat_data compat_data[] = {
 	{"nvidia,tegra124-gpio", 1},
+	{"nvidia,tegra210-gpio", 1},
 	{NULL,			0}
 };
 

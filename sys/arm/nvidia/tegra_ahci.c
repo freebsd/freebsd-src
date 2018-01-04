@@ -57,54 +57,14 @@ __FBSDID("$FreeBSD$");
 #include <arm/nvidia/tegra_efuse.h>
 #include <arm/nvidia/tegra_pmc.h>
 
-#define	AHCI_WR4(_sc, _r, _v)	bus_write_4((_sc)->ctlr.r_mem, (_r), (_v))
-#define	AHCI_RD4(_sc, _r)	bus_read_4((_sc)->ctlr.r_mem, (_r))
-#define	SATA_WR4(_sc, _r, _v)	bus_write_4((_sc)->sata_mem, (_r), (_v))
-#define	SATA_RD4(_sc, _r)	bus_read_4((_sc)->sata_mem, (_r))
-
-static struct ofw_compat_data compat_data[] = {
-	{"nvidia,tegra124-ahci", 	1},
-	{NULL,			0}
-};
-
-struct tegra_ahci_sc {
-	struct ahci_controller	ctlr;	/* Must be first */
-	device_t		dev;
-	struct resource		*sata_mem;
-	clk_t			clk_sata;
-	clk_t			clk_sata_oob;
-	clk_t			clk_pll_e;
-	clk_t			clk_cml;
-	hwreset_t		hwreset_sata;
-	hwreset_t		hwreset_sata_oob;
-	hwreset_t		hwreset_sata_cold;
-	regulator_t		supply_hvdd;
-	regulator_t		supply_vddio;
-	regulator_t		supply_avdd;
-	regulator_t		supply_target_5v;
-	regulator_t		supply_target_12v;
-	phy_t			phy;
-};
-
-struct sata_pad_calibration {
-	uint32_t gen1_tx_amp;
-	uint32_t gen1_tx_peak;
-	uint32_t gen2_tx_amp;
-	uint32_t gen2_tx_peak;
-};
-
-static const struct sata_pad_calibration tegra124_pad_calibration[] = {
-	{0x18, 0x04, 0x18, 0x0a},
-	{0x0e, 0x04, 0x14, 0x0a},
-	{0x0e, 0x07, 0x1a, 0x0e},
-	{0x14, 0x0e, 0x1a, 0x0e},
-};
 
 #define	SATA_CONFIGURATION			0x180
-#define	 SATA_CONFIGURATION_EN_FPCI			(1 << 0)
+#define  SATA_CONFIGURATION_CLK_OVERRIDE		(1U << 31)
+#define	 SATA_CONFIGURATION_EN_FPCI			(1  <<  0)
 
 #define	SATA_FPCI_BAR5				0x94
-#define	 SATA_FPCI_BAR5_START_SHIFT			4
+#define	 SATA_FPCI_BAR_START(x)				(((x) & 0xFFFFFFF) << 4)
+#define	 SATA_FPCI_BAR_ACCESS_TYPE			(1 << 0)
 
 #define	SATA_INTR_MASK				0x188
 #define	SATA_INTR_MASK_IP_INT_MASK			(1 << 16)
@@ -120,8 +80,46 @@ static const struct sata_pad_calibration tegra124_pad_calibration[] = {
 #define	T_SATA0_CFG_9				0x24
 #define	 T_SATA0_CFG_9_BASE_ADDRESS_SHIFT		13
 
+#define	T_SATA0_CFG_35				0x94
+#define	 T_SATA0_CFG_35_IDP_INDEX_MASK			(0x7ff << 2)
+#define	 T_SATA0_CFG_35_IDP_INDEX			(0x2a << 2)
+
+#define	T_SATA0_AHCI_IDP1			0x98
+#define	 T_SATA0_AHCI_IDP1_DATA				0x400040
+
+#define	T_SATA0_CFG_PHY_1			0x12c
+#define	 T_SATA0_CFG_PHY_1_PADS_IDDQ_EN			(1 << 23)
+#define	 T_SATA0_CFG_PHY_1_PAD_PLL_IDDQ_EN		(1 << 22)
+
+#define	T_SATA0_NVOOB				0x114
+#define	 T_SATA0_NVOOB_SQUELCH_FILTER_LENGTH_MASK	(0x3 << 26)
+#define	 T_SATA0_NVOOB_SQUELCH_FILTER_LENGTH		(0x3 << 26)
+#define	 T_SATA0_NVOOB_SQUELCH_FILTER_MODE_MASK		(0x3 << 24)
+#define	 T_SATA0_NVOOB_SQUELCH_FILTER_MODE		(0x1 << 24)
+#define	 T_SATA0_NVOOB_COMMA_CNT_MASK			(0xff << 16)
+#define	 T_SATA0_NVOOB_COMMA_CNT			(0x07 << 16)
+
+#define	T_SATA0_CFG_PHY				0x120
+#define	 T_SATA0_CFG_PHY_MASK_SQUELCH			(1 << 24)
+#define	 T_SATA0_CFG_PHY_USE_7BIT_ALIGN_DET_FOR_SPD	(1 << 11)
+
+#define	T_SATA0_CFG2NVOOB_2			0x134
+#define	 T_SATA0_CFG2NVOOB_2_COMWAKE_IDLE_CNT_LOW_MASK	(0x1ff << 18)
+#define	 T_SATA0_CFG2NVOOB_2_COMWAKE_IDLE_CNT_LOW	(0xc << 18)
+
 #define	T_SATA0_AHCI_HBA_CAP_BKDR		0x300
+#define	 T_SATA0_AHCI_HBA_CAP_BKDR_SNCQ			(1 << 30)
+#define	 T_SATA0_AHCI_HBA_CAP_BKDR_SUPP_PM		(1 << 17)
+#define	 T_SATA0_AHCI_HBA_CAP_BKDR_SALP			(1 << 26)
+#define	 T_SATA0_AHCI_HBA_CAP_BKDR_SLUMBER_ST_CAP	(1 << 14)
+#define	 T_SATA0_AHCI_HBA_CAP_BKDR_PARTIAL_ST_CAP	(1 << 13)
+
 #define	T_SATA0_BKDOOR_CC			0x4a4
+#define	 T_SATA0_BKDOOR_CC_CLASS_CODE_MASK		(0xffff << 16)
+#define	 T_SATA0_BKDOOR_CC_CLASS_CODE			(0x0106 << 16)
+#define	 T_SATA0_BKDOOR_CC_PROG_IF_MASK			(0xff << 8)
+#define	 T_SATA0_BKDOOR_CC_PROG_IF			(0x01 << 8)
+
 #define	T_SATA0_CFG_SATA			0x54c
 #define	 T_SATA0_CFG_SATA_BACKDOOR_PROG_IF_EN		(1 << 12)
 
@@ -145,6 +143,11 @@ static const struct sata_pad_calibration tegra124_pad_calibration[] = {
 
 #define	T_SATA0_CHX_PHY_CTRL11			0x6d0
 #define	 T_SATA0_CHX_PHY_CTRL11_GEN2_RX_EQ		(0x2800 << 16)
+
+#define T_SATA0_CHX_PHY_CTRL17			0x6e8
+#define T_SATA0_CHX_PHY_CTRL18			0x6ec
+#define T_SATA0_CHX_PHY_CTRL20			0x6f4
+#define T_SATA0_CHX_PHY_CTRL21			0x6f8
 
 #define	FUSE_SATA_CALIB				0x124
 #define	FUSE_SATA_CALIB_MASK			0x3
@@ -197,42 +200,109 @@ static const struct sata_pad_calibration tegra124_pad_calibration[] = {
 #define	 T_AHCI_PORT_BKDR_COLD_PRSN_DET			(1 <<  1)
 #define	 T_AHCI_PORT_BKDR_EXT_SATA_SUPP			(1 <<  0)
 
+/* AUX registers */
+#define	SATA_AUX_MISC_CNTL_1			0x008
+#define	 SATA_AUX_MISC_CNTL_1_DEVSLP_OVERRIDE		(1 << 17)
+#define	 SATA_AUX_MISC_CNTL_1_SDS_SUPPORT		(1 << 13)
+#define	 SATA_AUX_MISC_CNTL_1_DESO_SUPPORT		(1 << 15)
+
+#define	AHCI_WR4(_sc, _r, _v)	bus_write_4((_sc)->ctlr.r_mem, (_r), (_v))
+#define	AHCI_RD4(_sc, _r)	bus_read_4((_sc)->ctlr.r_mem, (_r))
+#define	SATA_WR4(_sc, _r, _v)	bus_write_4((_sc)->sata_mem, (_r), (_v))
+#define	SATA_RD4(_sc, _r)	bus_read_4((_sc)->sata_mem, (_r))
+
+struct sata_pad_calibration {
+	uint32_t gen1_tx_amp;
+	uint32_t gen1_tx_peak;
+	uint32_t gen2_tx_amp;
+	uint32_t gen2_tx_peak;
+};
+
+static const struct sata_pad_calibration tegra124_pad_calibration[] = {
+	{0x18, 0x04, 0x18, 0x0a},
+	{0x0e, 0x04, 0x14, 0x0a},
+	{0x0e, 0x07, 0x1a, 0x0e},
+	{0x14, 0x0e, 0x1a, 0x0e},
+};
+
+struct ahci_soc;
+struct tegra_ahci_sc {
+	struct ahci_controller	ctlr;	/* Must be first */
+	device_t		dev;
+	struct ahci_soc		*soc;
+	struct resource		*sata_mem;
+	struct resource		*aux_mem;
+	clk_t			clk_sata;
+	clk_t			clk_sata_oob;
+	clk_t			clk_pll_e;
+	clk_t			clk_cml;
+	hwreset_t		hwreset_sata;
+	hwreset_t		hwreset_sata_oob;
+	hwreset_t		hwreset_sata_cold;
+	regulator_t		regulators[16];		/* Safe maximum */
+	phy_t			phy;
+};
+
+struct ahci_soc {
+	char 	**regulator_names;
+	int	(*init)(struct tegra_ahci_sc *sc);
+};
+
+/* Tegra 124 config. */
+static char *tegra124_reg_names[] = {
+	"hvdd-supply",
+	"vddio-supply",
+	"avdd-supply",
+	"target-5v-supply",
+	"target-12v-supply",
+	NULL
+};
+
+static int tegra124_ahci_init(struct tegra_ahci_sc *sc);
+static struct ahci_soc tegra124_soc = {
+	.regulator_names = tegra124_reg_names,
+	.init = tegra124_ahci_init,
+};
+
+/* Tegra 210 config. */
+static char *tegra210_reg_names[] = {
+	NULL
+};
+
+static struct ahci_soc tegra210_soc = {
+	.regulator_names = tegra210_reg_names,
+};
+
+
+static struct ofw_compat_data compat_data[] = {
+	{"nvidia,tegra124-ahci", (uintptr_t)&tegra124_soc},
+	{"nvidia,tegra210-ahci", (uintptr_t)&tegra210_soc},
+	{NULL,			0}
+};
+
 static int
 get_fdt_resources(struct tegra_ahci_sc *sc, phandle_t node)
 {
-	int rv;
+	int i, rv;
 
-	rv = regulator_get_by_ofw_property(sc->dev, 0, "hvdd-supply",
-	    &sc->supply_hvdd );
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot get 'hvdd' regulator\n");
-		return (ENXIO);
-	}
-	rv = regulator_get_by_ofw_property(sc->dev, 0, "vddio-supply",
-	    &sc->supply_vddio);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot get 'vddio' regulator\n");
-		return (ENXIO);
-	}
-	rv = regulator_get_by_ofw_property(sc->dev, 0, "avdd-supply",
-	    &sc->supply_avdd);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot get 'avdd' regulator\n");
-		return (ENXIO);
-	}
-	rv = regulator_get_by_ofw_property(sc->dev, 0, "target-5v-supply",
-	    &sc->supply_target_5v);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot get 'target-5v' regulator\n");
-		return (ENXIO);
-	}
-	rv = regulator_get_by_ofw_property(sc->dev, 0, "target-12v-supply",
-	    &sc->supply_target_12v);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot get 'target-12v' regulator\n");
-		return (ENXIO);
+	/* Regulators. */
+	for (i = 0; sc->soc->regulator_names[i] != NULL; i++) {
+		if (i >= nitems(sc->regulators)) {
+			device_printf(sc->dev,
+			    "Too many regulators present in DT.\n");
+			return (EOVERFLOW);
+		}
+		rv = regulator_get_by_ofw_property(sc->dev, 0,
+		    sc->soc->regulator_names[i], sc->regulators + i);
+		if (rv != 0) {
+			device_printf(sc->dev,
+			    "Cannot get '%s' regulator\n",
+			    sc->soc->regulator_names[i]);
+			return (ENXIO);
+		}
 	}
 
+	/* Resets. */
 	rv = hwreset_get_by_ofw_name(sc->dev, 0, "sata", &sc->hwreset_sata );
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'sata' reset\n");
@@ -251,12 +321,17 @@ get_fdt_resources(struct tegra_ahci_sc *sc, phandle_t node)
 		return (ENXIO);
 	}
 
+	/* Phy */
 	rv = phy_get_by_ofw_name(sc->dev, 0, "sata-0", &sc->phy);
 	if (rv != 0) {
-		device_printf(sc->dev, "Cannot get 'sata' phy\n");
-		return (ENXIO);
+		rv = phy_get_by_ofw_idx(sc->dev, 0, 0, &sc->phy);
+		if (rv != 0) {
+			device_printf(sc->dev, "Cannot get 'sata' phy\n");
+			return (ENXIO);
+		}
 	}
 
+	/* Clocks. */
 	rv = clk_get_by_ofw_name(sc->dev, 0, "sata", &sc->clk_sata);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'sata' clock\n");
@@ -267,50 +342,33 @@ get_fdt_resources(struct tegra_ahci_sc *sc, phandle_t node)
 		device_printf(sc->dev, "Cannot get 'sata oob' clock\n");
 		return (ENXIO);
 	}
+	/* These are optional */
 	rv = clk_get_by_ofw_name(sc->dev, 0, "cml1", &sc->clk_cml);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot get 'cml1' clock\n");
-		return (ENXIO);
-	}
+	if (rv != 0)
+		sc->clk_cml = NULL;
+
 	rv = clk_get_by_ofw_name(sc->dev, 0, "pll_e", &sc->clk_pll_e);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot get 'pll_e' clock\n");
-		return (ENXIO);
-	}
+	if (rv != 0)
+		sc->clk_pll_e = NULL;
 	return (0);
 }
 
 static int
 enable_fdt_resources(struct tegra_ahci_sc *sc)
 {
-	int rv;
+	int i, rv;
 
-	rv = regulator_enable(sc->supply_hvdd);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot enable  'hvdd' regulator\n");
-		return (rv);
-	}
-	rv = regulator_enable(sc->supply_vddio);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot enable  'vddio' regulator\n");
-		return (rv);
-	}
-	rv = regulator_enable(sc->supply_avdd);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot enable  'avdd' regulator\n");
-		return (rv);
-	}
-	rv = regulator_enable(sc->supply_target_5v);
-	if (rv != 0) {
-		device_printf(sc->dev,
-		    "Cannot enable  'target-5v' regulator\n");
-		return (rv);
-	}
-	rv = regulator_enable(sc->supply_target_12v);
-	if (rv != 0) {
-		device_printf(sc->dev,
-		    "Cannot enable  'sc->target-12v' regulator\n");
-		return (rv);
+	/* Enable regulators. */
+	for (i = 0; i < nitems(sc->regulators); i++) {
+		if (sc->regulators[i] == NULL)
+			continue;
+		rv = regulator_enable(sc->regulators[i]);
+		if (rv != 0) {
+			device_printf(sc->dev,
+			    "Cannot enable '%s' regulator\n",
+			    sc->soc->regulator_names[i]);
+			return (rv);
+		}
 	}
 
 	/* Stop clocks */
@@ -346,15 +404,19 @@ enable_fdt_resources(struct tegra_ahci_sc *sc)
 		device_printf(sc->dev, "Cannot enable 'sata oob' clock\n");
 		return (rv);
 	}
-	rv = clk_enable(sc->clk_cml);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot enable 'cml' clock\n");
-		return (rv);
+	if (sc->clk_cml != NULL) {
+		rv = clk_enable(sc->clk_cml);
+		if (rv != 0) {
+			device_printf(sc->dev, "Cannot enable 'cml' clock\n");
+			return (rv);
+		}
 	}
-	rv = clk_enable(sc->clk_pll_e);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot enable 'pll e' clock\n");
-		return (rv);
+	if (sc->clk_pll_e != NULL) {
+		rv = clk_enable(sc->clk_pll_e);
+		if (rv != 0) {
+			device_printf(sc->dev, "Cannot enable 'pll e' clock\n");
+			return (rv);
+		}
 	}
 
 	rv = hwreset_deassert(sc->hwreset_sata_cold);
@@ -378,14 +440,10 @@ enable_fdt_resources(struct tegra_ahci_sc *sc)
 }
 
 static int
-tegra_ahci_ctrl_init(struct tegra_ahci_sc *sc)
+tegra124_ahci_init(struct tegra_ahci_sc *sc)
 {
 	uint32_t val;
 	const struct sata_pad_calibration *calib;
-
-	val = SATA_RD4(sc, SATA_CONFIGURATION);
-	val |= SATA_CONFIGURATION_EN_FPCI;
-	SATA_WR4(sc, SATA_CONFIGURATION, val);
 
 	/* Pad calibration. */
 	val = tegra_fuse_read_4(FUSE_SATA_CALIB);
@@ -418,16 +476,117 @@ tegra_ahci_ctrl_init(struct tegra_ahci_sc *sc)
 
 	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_INDEX, 0);
 
-	/* Set device ID. */
+	return (0);
+}
+
+static int
+tegra_ahci_ctrl_init(struct tegra_ahci_sc *sc)
+{
+	uint32_t val;
+	int rv;
+
+	/* Enable SATA MMIO. */
+	val = SATA_RD4(sc, SATA_FPCI_BAR5);
+	val &= ~SATA_FPCI_BAR_START(~0);
+	val |= SATA_FPCI_BAR_START(0x10000);
+	val |= SATA_FPCI_BAR_ACCESS_TYPE;
+	SATA_WR4(sc, SATA_FPCI_BAR5, val);
+
+	/* Enable FPCI access */
+	val = SATA_RD4(sc, SATA_CONFIGURATION);
+	val |= SATA_CONFIGURATION_EN_FPCI;
+	SATA_WR4(sc, SATA_CONFIGURATION, val);
+
+	/* Recommended electrical settings for phy */
+	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_CHX_PHY_CTRL17, 0x55010000);
+	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_CHX_PHY_CTRL18, 0x55010000);
+	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_CHX_PHY_CTRL20, 0x1);
+	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_CHX_PHY_CTRL21, 0x1);
+
+	/* SQUELCH and Gen3 */
+	val = SATA_RD4(sc, SCFG_OFFSET + T_SATA0_CFG_PHY);
+	val |= T_SATA0_CFG_PHY_MASK_SQUELCH;
+	val &= ~T_SATA0_CFG_PHY_USE_7BIT_ALIGN_DET_FOR_SPD;
+	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_CFG_PHY, val);
+
+	val = SATA_RD4(sc, SCFG_OFFSET + T_SATA0_NVOOB);
+	val &= ~T_SATA0_NVOOB_COMMA_CNT_MASK;
+	val &= ~T_SATA0_NVOOB_SQUELCH_FILTER_LENGTH_MASK;
+	val &= ~T_SATA0_NVOOB_SQUELCH_FILTER_MODE_MASK;
+	val |= T_SATA0_NVOOB_COMMA_CNT;
+	val |= T_SATA0_NVOOB_SQUELCH_FILTER_LENGTH;
+	val |= T_SATA0_NVOOB_SQUELCH_FILTER_MODE;
+	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_NVOOB, val);
+
+	 /* Setup COMWAKE_IDLE_CNT */
+	val = SATA_RD4(sc, SCFG_OFFSET + T_SATA0_CFG2NVOOB_2);
+	val &= ~T_SATA0_CFG2NVOOB_2_COMWAKE_IDLE_CNT_LOW_MASK;
+	val |= T_SATA0_CFG2NVOOB_2_COMWAKE_IDLE_CNT_LOW;
+	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_CFG2NVOOB_2, val);
+
+	if (sc->soc->init != NULL) {
+		rv = sc->soc->init(sc);
+		if (rv != 0) {
+			device_printf(sc->dev,
+			    "SOC specific intialization failed: %d\n", rv);
+			return (rv);
+		}
+	}
+
+	/* Enable backdoor programming. */
 	val = SATA_RD4(sc, SCFG_OFFSET + T_SATA0_CFG_SATA);
 	val |= T_SATA0_CFG_SATA_BACKDOOR_PROG_IF_EN;
 	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_CFG_SATA, val);
 
-	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_BKDOOR_CC, 0x01060100);
+	/* Set device class and interface */
+	val = SATA_RD4(sc, SCFG_OFFSET + T_SATA0_BKDOOR_CC);
+	val &= ~T_SATA0_BKDOOR_CC_CLASS_CODE_MASK;
+	val &= ~T_SATA0_BKDOOR_CC_PROG_IF_MASK;
+	val |= T_SATA0_BKDOOR_CC_CLASS_CODE;
+	val |= T_SATA0_BKDOOR_CC_PROG_IF;
+	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_BKDOOR_CC, val);
 
+	/* Enable LPM capabilities  */
+	val = SATA_RD4(sc, SCFG_OFFSET +  T_SATA0_AHCI_HBA_CAP_BKDR);
+	val |= T_SATA0_AHCI_HBA_CAP_BKDR_PARTIAL_ST_CAP;
+	val |= T_SATA0_AHCI_HBA_CAP_BKDR_SLUMBER_ST_CAP;
+	val |= T_SATA0_AHCI_HBA_CAP_BKDR_SALP;
+	val |= T_SATA0_AHCI_HBA_CAP_BKDR_SUPP_PM;
+	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_AHCI_HBA_CAP_BKDR, val);
+
+	/* Disable backdoor programming. */
 	val = SATA_RD4(sc, SCFG_OFFSET + T_SATA0_CFG_SATA);
 	val &= ~T_SATA0_CFG_SATA_BACKDOOR_PROG_IF_EN;
 	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_CFG_SATA, val);
+
+	/* SATA Second Level Clock Gating */
+	val = SATA_RD4(sc, SCFG_OFFSET + T_SATA0_CFG_35);
+	val &= ~T_SATA0_CFG_35_IDP_INDEX_MASK;
+	val |= T_SATA0_CFG_35_IDP_INDEX;
+	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_CFG_35, val);
+
+	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_AHCI_IDP1, 0x400040);
+
+	val = SATA_RD4(sc, SCFG_OFFSET + T_SATA0_CFG_PHY_1);
+	val |= T_SATA0_CFG_PHY_1_PADS_IDDQ_EN;
+	val |= T_SATA0_CFG_PHY_1_PAD_PLL_IDDQ_EN;
+	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_CFG_PHY_1, val);
+
+	/*
+	 * Indicate Sata only has the capability to enter DevSleep
+	 * from slumber link.
+	 */
+	if (sc->aux_mem != NULL) {
+		val = bus_read_4(sc->aux_mem, SATA_AUX_MISC_CNTL_1);
+		val |= SATA_AUX_MISC_CNTL_1_DESO_SUPPORT;
+		bus_write_4(sc->aux_mem, SATA_AUX_MISC_CNTL_1, val);
+	}
+
+	/* Enable IPFS Clock Gating */
+	val = SATA_RD4(sc, SCFG_OFFSET + SATA_CONFIGURATION);
+	val &= ~SATA_CONFIGURATION_CLK_OVERRIDE;
+	SATA_WR4(sc, SCFG_OFFSET + SATA_CONFIGURATION, val);
+
 
 	/* Enable IO & memory access, bus master mode */
 	val = SATA_RD4(sc, SCFG_OFFSET + T_SATA0_CFG_1);
@@ -437,10 +596,8 @@ tegra_ahci_ctrl_init(struct tegra_ahci_sc *sc)
 	val |= T_SATA0_CFG_1_SERR;
 	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_CFG_1, val);
 
-	/* SATA MMIO. */
-	SATA_WR4(sc, SATA_FPCI_BAR5, 0x10000 << SATA_FPCI_BAR5_START_SHIFT);
 	/* AHCI bar */
-	SATA_WR4(sc,  SCFG_OFFSET + T_SATA0_CFG_9,
+	SATA_WR4(sc, SCFG_OFFSET + T_SATA0_CFG_9,
 	    0x08000 << T_SATA0_CFG_9_BASE_ADDRESS_SHIFT);
 
 	/* Unmask  interrupts. */
@@ -513,6 +670,8 @@ tegra_ahci_attach(device_t dev)
 	sc->dev = dev;
 	ctlr = &sc->ctlr;
 	node = ofw_bus_get_node(dev);
+	sc->soc = (struct ahci_soc *)ofw_bus_search_compatible(dev,
+	    compat_data)->ocd_data;
 
 	ctlr->r_rid = 0;
 	ctlr->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -527,6 +686,12 @@ tegra_ahci_attach(device_t dev)
 		rv = ENXIO;
 		goto fail;
 	}
+
+	/* Aux is optionall */
+	rid = 2;
+	sc->aux_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &rid, RF_ACTIVE);
+
 	rv = get_fdt_resources(sc, node);
 	if (rv != 0) {
 		device_printf(sc->dev, "Failed to allocate FDT resource(s)\n");
