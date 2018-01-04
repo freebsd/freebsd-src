@@ -51,6 +51,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180104:
+	The use of RSS hash from the network card aka flowid has been
+	disabled by default for lagg(4) as it's currently incompatible with
+	the lacp and loadbalance protocols.
+
+	This can be re-enabled by setting the following in loader.conf:
+	net.link.lagg.default_use_flowid="1"
+
 20180102:
 	The SW_WATCHDOG option is no longer necessary to enable the
 	hardclock-based software watchdog if no hardware watchdog is
