@@ -131,7 +131,8 @@ clknode_div_init(struct clknode *clk, device_t dev)
 		return (rv);
 
 	i_div = (reg >> sc->i_shift) & sc->i_mask;
-	if (!(sc->div_flags & CLK_DIV_ZERO_BASED))
+	if (!(sc->div_flags & CLK_DIV_WITH_TABLE) &&
+	    !(sc->div_flags & CLK_DIV_ZERO_BASED))
 		i_div++;
 	f_div = (reg >> sc->f_shift) & sc->f_mask;
 	sc->divider = i_div << sc->f_width | f_div;
@@ -166,7 +167,7 @@ clknode_div_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 {
 	struct clknode_div_sc *sc;
 	uint64_t divider, _fin, _fout;
-	uint32_t div_value, reg, i_div, f_div, hw_i_div;
+	uint32_t reg, i_div, f_div, hw_i_div;
 	int rv;
 
 	sc = clknode_get_softc(clk);
@@ -192,23 +193,27 @@ clknode_div_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 		return(EINVAL);
 	}
 
-	hw_i_div = i_div;
-	if (!(sc->div_flags & CLK_DIV_ZERO_BASED))
-		hw_i_div--;
-
 	*stop = 1;
-	if (hw_i_div > sc->i_mask &&
-	    ((sc->div_flags & CLK_DIV_WITH_TABLE) == 0)) {
-		/* XXX Or only return error? */
-		printf("%s: %s integer divider is too big: %u\n",
-		    clknode_get_name(clk), __func__, hw_i_div);
-		hw_i_div = sc->i_mask;
-		*stop = 0;
+	hw_i_div = i_div;
+	if (sc->div_flags & CLK_DIV_WITH_TABLE) {
+		if (clknode_div_table_get_value(sc, &hw_i_div) != 0)
+				return (ERANGE);
+	} else {
+		if (!(sc->div_flags & CLK_DIV_ZERO_BASED))
+			hw_i_div--;
+
+		if (i_div > sc->i_mask) {
+			/* XXX Pass to parent or return error? */
+			printf("%s: %s integer divider is too big: %u\n",
+			    clknode_get_name(clk), __func__, i_div);
+			hw_i_div = sc->i_mask;
+			*stop = 0;
+		}
+		i_div = hw_i_div;
+		if (!(sc->div_flags & CLK_DIV_ZERO_BASED))
+			i_div++;
 	}
 
-	i_div = hw_i_div;
-	if (!(sc->div_flags & CLK_DIV_ZERO_BASED))
-		i_div++;
 	divider = i_div << sc->f_width | f_div;
 
 	if ((flags & CLK_SET_DRYRUN) == 0) {
@@ -217,16 +222,10 @@ clknode_div_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 		    (*fout != (_fin / divider)))
 			return (ERANGE);
 
-		div_value = divider;
-		if (clknode_div_table_get_value(sc, &div_value) != 0)
-			return (ERANGE);
-		if (div_value != divider)
-			i_div = div_value;
-
 		DEVICE_LOCK(clk);
 		rv = MD4(clk, sc->offset,
 		    (sc->i_mask << sc->i_shift) | (sc->f_mask << sc->f_shift),
-		    (i_div << sc->i_shift) | (f_div << sc->f_shift));
+		    (hw_i_div << sc->i_shift) | (f_div << sc->f_shift));
 		if (rv != 0) {
 			DEVICE_UNLOCK(clk);
 			return (rv);
