@@ -326,12 +326,20 @@ static int
 compute_sb_data(struct vnode *devvp, struct ext2fs *es,
     struct m_ext2fs *fs)
 {
-	int db_count, error;
-	int i;
+	int g_count = 0, error;
+	int i, j;
 	int logic_sb_block = 1;	/* XXX for now */
 	struct buf *bp;
-	uint32_t e2fs_descpb;
+	uint32_t e2fs_descpb, e2fs_gdbcount_alloc;
 
+	fs->e2fs_bcount = es->e2fs_bcount;
+	fs->e2fs_rbcount = es->e2fs_rbcount;
+	fs->e2fs_fbcount = es->e2fs_fbcount;
+	if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_64BIT)) {
+		fs->e2fs_bcount |= (uint64_t)(es->e4fs_bcount_hi) << 32;
+		fs->e2fs_rbcount |= (uint64_t)(es->e4fs_rbcount_hi) << 32;
+		fs->e2fs_fbcount |= (uint64_t)(es->e4fs_fbcount_hi) << 32;
+	}
 	fs->e2fs_bshift = EXT2_MIN_BLOCK_LOG_SIZE + es->e2fs_log_bsize;
 	fs->e2fs_bsize = 1U << fs->e2fs_bshift;
 	fs->e2fs_fsbtodb = es->e2fs_log_bsize + 1;
@@ -375,13 +383,19 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	fs->e2fs_ipb = fs->e2fs_bsize / EXT2_INODE_SIZE(fs);
 	fs->e2fs_itpg = fs->e2fs_ipg / fs->e2fs_ipb;
 	/* s_resuid / s_resgid ? */
-	fs->e2fs_gcount = howmany(es->e2fs_bcount - es->e2fs_first_dblock,
+	fs->e2fs_gcount = howmany(fs->e2fs_bcount - es->e2fs_first_dblock,
 	    EXT2_BLOCKS_PER_GROUP(fs));
-	e2fs_descpb = fs->e2fs_bsize / sizeof(struct ext2_gd);
-	db_count = howmany(fs->e2fs_gcount, e2fs_descpb);
-	fs->e2fs_gdbcount = db_count;
-	fs->e2fs_gd = malloc(db_count * fs->e2fs_bsize,
-	    M_EXT2MNT, M_WAITOK);
+	if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_64BIT)) {
+		e2fs_descpb = fs->e2fs_bsize / sizeof(struct ext2_gd);
+		e2fs_gdbcount_alloc = howmany(fs->e2fs_gcount, e2fs_descpb);
+	} else {
+		e2fs_descpb = fs->e2fs_bsize / E2FS_REV0_GD_SIZE;
+		e2fs_gdbcount_alloc = howmany(fs->e2fs_gcount,
+		    fs->e2fs_bsize / sizeof(struct ext2_gd));
+	}
+	fs->e2fs_gdbcount = howmany(fs->e2fs_gcount, e2fs_descpb);
+	fs->e2fs_gd = malloc(e2fs_gdbcount_alloc * fs->e2fs_bsize,
+	    M_EXT2MNT, M_WAITOK | M_ZERO);
 	fs->e2fs_contigdirs = malloc(fs->e2fs_gcount *
 	    sizeof(*fs->e2fs_contigdirs), M_EXT2MNT, M_WAITOK | M_ZERO);
 
@@ -392,7 +406,7 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	 */
 	if (fs->e2fs_bsize > SBSIZE)
 		logic_sb_block = 0;
-	for (i = 0; i < db_count; i++) {
+	for (i = 0; i < fs->e2fs_gdbcount; i++) {
 		error = bread(devvp,
 		    fsbtodb(fs, logic_sb_block + i + 1),
 		    fs->e2fs_bsize, NOCRED, &bp);
@@ -402,10 +416,17 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 			brelse(bp);
 			return (error);
 		}
-		e2fs_cgload((struct ext2_gd *)bp->b_data,
-		    &fs->e2fs_gd[
-		    i * fs->e2fs_bsize / sizeof(struct ext2_gd)],
-		    fs->e2fs_bsize);
+		if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_64BIT)) {
+			memcpy(&fs->e2fs_gd[
+			    i * fs->e2fs_bsize / sizeof(struct ext2_gd)],
+			    bp->b_data, fs->e2fs_bsize);
+		} else {
+			for (j = 0; j < e2fs_descpb &&
+			    g_count < fs->e2fs_gcount; j++, g_count++)
+				memcpy(&fs->e2fs_gd[g_count],
+				    bp->b_data + j * E2FS_REV0_GD_SIZE,
+				    E2FS_REV0_GD_SIZE);
+		}
 		brelse(bp);
 		bp = NULL;
 	}
@@ -823,9 +844,9 @@ ext2_statfs(struct mount *mp, struct statfs *sbp)
 
 	sbp->f_bsize = EXT2_FRAG_SIZE(fs);
 	sbp->f_iosize = EXT2_BLOCK_SIZE(fs);
-	sbp->f_blocks = fs->e2fs->e2fs_bcount - overhead;
-	sbp->f_bfree = fs->e2fs->e2fs_fbcount;
-	sbp->f_bavail = sbp->f_bfree - fs->e2fs->e2fs_rbcount;
+	sbp->f_blocks = fs->e2fs_bcount - overhead;
+	sbp->f_bfree = fs->e2fs_fbcount;
+	sbp->f_bavail = sbp->f_bfree - fs->e2fs_rbcount;
 	sbp->f_files = fs->e2fs->e2fs_icount;
 	sbp->f_ffree = fs->e2fs->e2fs_ficount;
 	return (0);
@@ -1069,6 +1090,15 @@ ext2_sbupdate(struct ext2mount *mp, int waitfor)
 	struct buf *bp;
 	int error = 0;
 
+	es->e2fs_bcount = fs->e2fs_bcount & 0xffffffff;
+	es->e2fs_rbcount = fs->e2fs_rbcount & 0xffffffff;
+	es->e2fs_fbcount = fs->e2fs_fbcount & 0xffffffff;
+	if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_64BIT)) {
+		es->e4fs_bcount_hi = fs->e2fs_bcount >> 32;
+		es->e4fs_rbcount_hi = fs->e2fs_rbcount >> 32;
+		es->e4fs_fbcount_hi = fs->e2fs_fbcount >> 32;
+	}
+
 	bp = getblk(mp->um_devvp, SBLOCK, SBSIZE, 0, 0, 0);
 	bcopy((caddr_t)es, bp->b_data, (u_int)sizeof(struct ext2fs));
 	if (waitfor == MNT_WAIT)
@@ -1088,7 +1118,7 @@ ext2_cgupdate(struct ext2mount *mp, int waitfor)
 {
 	struct m_ext2fs *fs = mp->um_e2fs;
 	struct buf *bp;
-	int i, error = 0, allerror = 0;
+	int i, j, g_count = 0, error = 0, allerror = 0;
 
 	allerror = ext2_sbupdate(mp, waitfor);
 
@@ -1100,9 +1130,16 @@ ext2_cgupdate(struct ext2mount *mp, int waitfor)
 		bp = getblk(mp->um_devvp, fsbtodb(fs,
 		    fs->e2fs->e2fs_first_dblock +
 		    1 /* superblock */ + i), fs->e2fs_bsize, 0, 0, 0);
-		e2fs_cgsave(&fs->e2fs_gd[
-		    i * fs->e2fs_bsize / sizeof(struct ext2_gd)],
-		    (struct ext2_gd *)bp->b_data, fs->e2fs_bsize);
+		if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_64BIT)) {
+			memcpy(bp->b_data, &fs->e2fs_gd[
+			    i * fs->e2fs_bsize / sizeof(struct ext2_gd)],
+			    fs->e2fs_bsize);
+		} else {
+			for (j = 0; j < fs->e2fs_bsize / E2FS_REV0_GD_SIZE &&
+			    g_count < fs->e2fs_gcount; j++, g_count++)
+				memcpy(bp->b_data + j * E2FS_REV0_GD_SIZE,
+				    &fs->e2fs_gd[g_count], E2FS_REV0_GD_SIZE);
+		}
 		if (waitfor == MNT_WAIT)
 			error = bwrite(bp);
 		else
