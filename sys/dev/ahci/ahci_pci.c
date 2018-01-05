@@ -68,6 +68,7 @@ static const struct {
 	    AHCI_Q_ATI_PMP_BUG | AHCI_Q_1MSI},
 	/* Not sure SB8x0/SB9x0 needs this quirk. Be conservative though */
 	{0x43951002, 0x00, "AMD SB8x0/SB9x0",	AHCI_Q_ATI_PMP_BUG},
+	{0x43b71022, 0x00, "AMD 300 Series",	0},
 	{0x78001022, 0x00, "AMD Hudson-2",	0},
 	{0x78011022, 0x00, "AMD Hudson-2",	0},
 	{0x78021022, 0x00, "AMD Hudson-2",	0},
