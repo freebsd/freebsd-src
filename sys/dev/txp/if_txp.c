@@ -369,7 +369,7 @@ txp_attach(device_t dev)
 	 * diagnose sleep image specific issues.
 	 */
 	rsp = NULL;
-	if (txp_ext_command(sc, TXP_CMD_READ_VERSION, 0, 0, 0, NULL, 0,
+	if (txp_ext_command(sc, TXP_CMD_VERSIONS_READ, 0, 0, 0, NULL, 0,
 	    &rsp, TXP_CMD_WAIT)) {
 		device_printf(dev, "can not read sleep image version\n");
 		error = ENXIO;
