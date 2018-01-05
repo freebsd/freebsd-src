@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <assert.h>
 #include <stdio.h>
 
 /*
@@ -43,7 +44,8 @@ printb(const char *s, unsigned int v, const char *bits)
 	int i, any = 0;
 	char c;
 
-	if (bits && *bits == 8)
+	assert(bits != NULL);
+	if (*bits == 8)
 		printf("%s=%o", s, v);
 	else
 		printf("%s=%x", s, v);
