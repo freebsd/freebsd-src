@@ -31,7 +31,7 @@
 struct tuple {
 	struct tuple *next;
 	unsigned char code;
-	int     length;
+	unsigned char length;
 	unsigned char *data;
 };
 
