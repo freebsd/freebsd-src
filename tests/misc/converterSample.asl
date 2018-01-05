@@ -6,7 +6,7 @@ DefinitionBlock(
     "converterSample.aml", /* These comments          */
     "DSDT",               /* within the              */
     0x02,                 /* definition block header */
-    "Intel",              /* are not retained.       */
+    "Intel",              /* are not retained.      */
     "Many",               /* They will be            */
     0x00000001            /* Discarded               */)
 {
@@ -81,4 +81,3 @@ DefinitionBlock(
 } //c39
 /*ending
   comment*/
-

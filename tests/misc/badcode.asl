@@ -404,4 +404,3 @@ DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
         Store (40, Local0)
     }
 }
-

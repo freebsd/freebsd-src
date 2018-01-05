@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -533,12 +533,12 @@ AeDoOptions (
         {
         case '^':  /* -v: (Version): signon already emitted, just exit */
 
-            exit (0);
+            return (1);
 
         case 'd':
 
             printf (ACPI_COMMON_BUILD_TIME);
-            exit (0);
+            return (1);
 
         case 'i':
 
