@@ -591,12 +591,7 @@ create_loadopt(uint8_t *buf, size_t bufmax, uint32_t attributes, efidp dp, size_
 	/*
 	 * Compute the length to make sure the passed in buffer is long enough.
 	 */
-	if (description)
-		utf8_to_ucs2(description, &bbuf, &desc_len);
-	else {
-		desc_len = 0;
-		bbuf = NULL;
-	}
+	utf8_to_ucs2(description, &bbuf, &desc_len);
 	len = sizeof(uint32_t) + sizeof(uint16_t) + desc_len + dp_size + optional_data_size;
 	if (len > bufmax) {
 		free(bbuf);
@@ -635,6 +630,8 @@ make_boot_var(const char *label, const char *loader, const char *kernel, const c
 	efidp dp, loaderdp, kerneldp;
 	char *bootvar = NULL;
 	int ret;
+
+	assert(label != NULL);
 
 	bootvar = make_next_boot_var_name();
 	if (bootvar == NULL)
@@ -755,7 +752,7 @@ print_loadopt_str(uint8_t *data, size_t datalen)
 }
 
 static char *
-get_descr(uint8_t* data)
+get_descr(uint8_t *data)
 {
 	uint8_t *pos = data;
 	efi_char *desc;
@@ -861,8 +858,8 @@ main(int argc, char *argv[])
 		/*
 		 * side effect, adds to boot order, but not yet active.
 		 */
-		make_boot_var(opts.label, opts.loader, opts.kernel, opts.env,
-		    opts.dry_run);
+		make_boot_var(opts.label ? opts.label : "",
+		    opts.loader, opts.kernel, opts.env, opts.dry_run);
 	else if (opts.set_active || opts.set_inactive )
 		handle_activity(opts.bootnum, opts.set_active);
 	else if (opts.order != NULL)
