@@ -217,6 +217,7 @@ parse_args(int argc, char *argv[])
 			opts.dry_run = true;
 			break;
 		case 'e':
+			free(opts.env);
 			opts.env = strdup(optarg);
 			break;
 		case 'h':
@@ -224,12 +225,15 @@ parse_args(int argc, char *argv[])
 			errx(1, "%s", USAGE);
 			break;
 		case 'k':
+			free(opts.kernel);
 			opts.kernel = strdup(optarg);
 			break;
 		case 'L':
+			free(opts.label);
 			opts.label = strdup(optarg);
 			break;
 		case 'l':
+			free(opts.loader);
 			opts.loader = strdup(optarg);
 			opts.loader = mangle_loader(opts.loader);
 			break;
@@ -244,6 +248,7 @@ parse_args(int argc, char *argv[])
 			opts.once = true;
 			break;
 		case 'o':
+			free(opts.order);
 			opts.order = strdup(optarg);
 			break;
 		case 'T':
