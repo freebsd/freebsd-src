@@ -663,6 +663,7 @@ errout:
 	free(rp);
 	if (rv != 0) {
 		free(*dp);
+		*dp = NULL;
 	}
 	return (rv);
 }

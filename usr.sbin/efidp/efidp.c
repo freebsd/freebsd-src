@@ -143,10 +143,13 @@ unix_to_efi(void)
 	char *walker;
 	int rv;
 
+	dp = NULL;
 	while (fgets(buffer, sizeof(buffer), stdin)) {
 		walker= trim(buffer);
+		free(dp);
+		dp = NULL;
 		rv = efivar_unix_path_to_device_path(walker, &dp);
-		if (rv != 0) {
+		if (rv != 0 || dp == NULL) {
 			errno = rv;
 			warn("Can't convert '%s' to efi", walker);
 			continue;
@@ -158,6 +161,7 @@ unix_to_efi(void)
 		}
 		printf("%s\n", efi);
 	}
+	free(dp);
 }
 
 static void
