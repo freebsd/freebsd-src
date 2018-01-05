@@ -26,10 +26,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* 
  * Code cleanup, bug-fix and extension
@@ -183,8 +181,7 @@ static void
 dump_config_map(struct tuple *tp)
 {
 	u_char *p = tp->data, x;
-	int     rlen, mlen = 0;
-	int     i;
+	unsigned int rlen, mlen = 0, i;
 
 	rlen = (p[0] & 3) + 1;
 	if (tp->code == CIS_CONF_MAP)
