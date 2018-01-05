@@ -717,8 +717,10 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
     rv = 0;
 done:
     free(img);
-    close(fd);
-    close(fd1);
+    if (fd != -1)
+	    close(fd);
+    if (fd1 != -1)
+	    close(fd1);
 
     return rv;
 }
