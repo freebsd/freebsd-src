@@ -336,9 +336,9 @@ ck_linktarget(int fd, off_t offs, int flag)
 {
 	char    blk[5];
 
-	if (ioctl(fd, PIOCRWFLAG, &flags) < 0)
+	if (ioctl(fd, PIOCRWFLAG, &flag) < 0)
 		err(1, "Setting flag to rad %s memory failed",
-		    flags ? "attribute" : "common");
+		    flag ? "attribute" : "common");
 	if (lseek(fd, offs, SEEK_SET) < 0)
 		err(1, "Unable to seek to memory offset %ju",
 		    (uintmax_t)offs);
