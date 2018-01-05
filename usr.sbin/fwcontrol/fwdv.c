@@ -409,7 +409,6 @@ again:
 			err(1, "write failed");
 		}
 	}
-	close(fd);
 	fprintf(stderr, "\n");
 send_end:
 	gettimeofday(&end, NULL);
