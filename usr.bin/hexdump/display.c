@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#include <sys/conf.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 
 #include <capsicum_helpers.h>
@@ -57,6 +59,7 @@ static off_t address;			/* address/offset in stream */
 static off_t eaddress;			/* end address */
 
 static void print(PR *, u_char *);
+static void noseek(void);
 
 void
 display(void)
@@ -386,7 +389,7 @@ next(char **argv)
 void
 doskip(const char *fname, int statok)
 {
-	int cnt;
+	int type;
 	struct stat sb;
 
 	if (statok) {
@@ -398,16 +401,37 @@ doskip(const char *fname, int statok)
 			return;
 		}
 	}
-	if (statok && S_ISREG(sb.st_mode)) {
-		if (fseeko(stdin, skip, SEEK_SET))
-			err(1, "%s", fname);
-		address += skip;
-		skip = 0;
-	} else {
-		for (cnt = 0; cnt < skip; ++cnt)
-			if (getchar() == EOF)
-				break;
-		address += cnt;
-		skip -= cnt;
+	if (!statok || S_ISFIFO(sb.st_mode) || S_ISSOCK(sb.st_mode)) {
+		noseek();
+		return;
 	}
+	if (S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode)) {
+		if (ioctl(fileno(stdin), FIODTYPE, &type))
+			err(1, "%s", fname);
+		/*
+		 * Most tape drives don't support seeking,
+		 * yet fseek() would succeed.
+		 */
+		if (type & D_TAPE) {
+			noseek();
+			return;
+		}
+	}
+	if (fseeko(stdin, skip, SEEK_SET)) {
+		noseek();
+		return;
+	}
+	address += skip;
+	skip = 0;
+}
+
+static void
+noseek(void)
+{
+	int count;
+	for (count = 0; count < skip; ++count)
+		if (getchar() == EOF)
+			break;
+	address += count;
+	skip -= count;
 }
