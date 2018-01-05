@@ -156,6 +156,9 @@ struct m_ext2fs {
 	char     e2fs_fsmnt[MAXMNTLEN];/* name mounted on */
 	char     e2fs_ronly;	  /* mounted read-only flag */
 	char     e2fs_fmod;	  /* super block modified flag */
+	uint64_t e2fs_bcount;	  /* blocks count */
+	uint64_t e2fs_rbcount;	  /* reserved blocks count */
+	uint64_t e2fs_fbcount;	  /* free blocks count */
 	uint32_t e2fs_bsize;	  /* Block size */
 	uint32_t e2fs_bshift;	  /* calc of logical block no */
 	uint32_t e2fs_bpg;	  /* Number of blocks per group */
@@ -323,7 +326,8 @@ static const struct ext2_feature incompat[] = {
 					 EXT2F_ROCOMPAT_DIR_NLINK | \
 					 EXT2F_ROCOMPAT_HUGE_FILE | \
 					 EXT2F_ROCOMPAT_EXTRA_ISIZE)
-#define	EXT2F_INCOMPAT_SUPP		EXT2F_INCOMPAT_FTYPE
+#define	EXT2F_INCOMPAT_SUPP		(EXT2F_INCOMPAT_FTYPE | \
+					 EXT2F_INCOMPAT_64BIT)
 #define	EXT4F_RO_INCOMPAT_SUPP		(EXT2F_INCOMPAT_EXTENTS | \
 					 EXT2F_INCOMPAT_RECOVER | \
 					 EXT2F_INCOMPAT_FLEX_BG | \
@@ -375,14 +379,20 @@ struct ext2_gd {
 	uint16_t ext4bgd_i_bmap_csum;	/* inode bitmap checksum */
 	uint16_t ext4bgd_i_unused;	/* unused inode count */
 	uint16_t ext4bgd_csum;		/* group descriptor checksum */
+	uint32_t ext4bgd_b_bitmap_hi;	/* high bits of blocks bitmap block */
+	uint32_t ext4bgd_i_bitmap_hi;	/* high bits of inodes bitmap block */
+	uint32_t ext4bgd_i_tables_hi;	/* high bits of inodes table block */
+	uint16_t ext4bgd_nbfree_hi;	/* high bits of number of free blocks */
+	uint16_t ext4bgd_nifree_hi;	/* high bits of number of free inodes */
+	uint16_t ext4bgd_ndirs_hi;	/* high bits of number of directories */
+	uint16_t ext4bgd_i_unused_hi;	/* high bits of unused inode count */
+	uint32_t ext4bgd_x_bitmap_hi;   /* high bits of snapshot exclusion */
+	uint16_t ext4bgd_b_bmap_csum_hi;/* high bits of block bitmap checksum */
+	uint16_t ext4bgd_i_bmap_csum_hi;/* high bits of inode bitmap checksum */
+	uint32_t ext4bgd_reserved;
 };
 
-/* EXT2FS metadata is stored in little-endian byte order. These macros
- * help reading it.
- */
-
-#define	e2fs_cgload(old, new, size) memcpy((new), (old), (size));
-#define	e2fs_cgsave(old, new, size) memcpy((new), (old), (size));
+#define	E2FS_REV0_GD_SIZE (sizeof(struct ext2_gd) / 2)
 
 /*
  * Macro-instructions used to manage several block sizes
