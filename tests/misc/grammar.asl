@@ -1,5 +1,5 @@
 /*
- * Some or all of this work - Copyright (c) 2006 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 2006 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -4475,7 +4475,7 @@ DefinitionBlock (
 //  Result  //Nothing | SuperName
 //) => Integer
 //Source and ShiftCount are evaluated as integer data types. Source is shifted right with the most significant bit
-//zeroed ShiftCount times.  The result is optionally stored into Result.
+//zeroed ShiftCount times. The result is optionally stored into Result.
 
 //ShiftLeft(
 //  Source, //TermArg=>Integer
@@ -5806,10 +5806,10 @@ DefinitionBlock (
 //  Test for SizeOf (Lvalue)
 //
 //  This next section will contain the packages that the SizeOfOp will be
-//  exercised on.  The first one, PKG0, is a regular package of 3 elements.
+//  exercised on. The first one, PKG0, is a regular package of 3 elements.
 //  The 2nd one, PKG1, is a nested package with 3 packages inside it, each
-//  with 3 elements.  It is expected that SizeOf operator will return the
-//  same value for these two packages since they both have 3 elements.  The
+//  with 3 elements. It is expected that SizeOf operator will return the
+//  same value for these two packages since they both have 3 elements. The
 //  final package, PKG2, has 4 elements and the SizeOf operator is expected
 //  to return different results for this package.
 
@@ -5840,7 +5840,7 @@ DefinitionBlock (
 //  End Packages    **********************************************************
 
 //  The following section will declare the data strings that will be used to
-//  exercise the SizeOf operator.  STR0 and STR1 are expected to be equal,
+//  exercise the SizeOf operator. STR0 and STR1 are expected to be equal,
 //  STR2 is expected to have a different SizeOf value than STR0 and STR1.
 
     Name (STR0, "ACPI permits very flexible methods of expressing a system")
@@ -5869,7 +5869,7 @@ DefinitionBlock (
 
         Method (CMPR, 2)
         {
-            //  CMPR is passed two arguments.  If unequal, return 1 to indicate
+            //  CMPR is passed two arguments. If unequal, return 1 to indicate
             //  that, otherwise return 0 to indicate SizeOf each is equal.
 
             Store (0x01, Local0)
@@ -5899,7 +5899,7 @@ DefinitionBlock (
 
             //  TBD:    SLOC [SizeOf (Local0)] -- dup SARG
 
-            //  Compare the elements that we expect to be the same.  Exit out with an error
+            //  Compare the elements that we expect to be the same. Exit out with an error
             //  code on the first failure.
             if (LNotEqual (0x00, CMPR (STR0, STR1)))
             {
@@ -5935,7 +5935,7 @@ DefinitionBlock (
                 Return (0x05)
             }
 
-            //  Finally, check for the return of SizeOf for a known Buffer.  Just
+            //  Finally, check for the return of SizeOf for a known Buffer. Just
             //  in case we magically pass above cases due to all Buffers being Zero
             //  bytes in size, or Infinity, etc.
             if (LNotEqual (0x05, SizeOf (BUF3)))
@@ -6293,7 +6293,7 @@ DefinitionBlock (
             Store (0, B1HI)
 
             //  We'll multiply 25 * 3 to get 75, add 99 to it then divide
-            //  by 100.  We expect to get 74 for the remainder and 1 for
+            //  by 100. We expect to get 74 for the remainder and 1 for
             //  the quotient.
             Divide(
                 Add (Multiply (3, MKW_ (B1LO, B1HI)), 0x63),
@@ -6661,8 +6661,8 @@ DefinitionBlock (
 //
 //  BitIndex test
 //  This is a test case for accessing fields defined as single bits in
-//  memory.  This is done by creating two index fields that overlay the
-//  same DWORD in memory.  One field accesses the DWORD as a DWORD, the
+//  memory. This is done by creating two index fields that overlay the
+//  same DWORD in memory. One field accesses the DWORD as a DWORD, the
 //  other accesses individual bits of the same DWORD field in memory.
 //
     Scope (\_SB)    //  System Bus
@@ -6748,8 +6748,8 @@ DefinitionBlock (
                         Or (Local0, 0x08, Local0)
                     }
 
-                    //  Now check the upper nibble.  Only the "even" bits should
-                    //  be set.  BIT4, BIT6.  BIT5 and BIT7 should be clear.
+                    //  Now check the upper nibble. Only the "even" bits should
+                    //  be set. BIT4, BIT6. BIT5 and BIT7 should be clear.
                     If (LNot (BIT4))
                     {
                         Or (Local0, 0x10, Local0)
@@ -8340,7 +8340,7 @@ DefinitionBlock (
                 //
                 // The following sections have been rewritten because storing into
                 // an Indexed buffer only changes one byte - the FIRST byte of the
-                // buffer is written to the source index.  This is the ONLY byte
+                // buffer is written to the source index. This is the ONLY byte
                 // written -- as per ACPI 2.0
                 //
                 // Overwrite DEST contents, at buffer position 2 [only]
@@ -8573,7 +8573,7 @@ DefinitionBlock (
 
                 //
                 // This section was modified from the original iPCO code because
-                //  it attempted to compare two buffers.  This is not allowed until
+                //  it attempted to compare two buffers. This is not allowed until
                 //  ACPI v2.0, so the test has been modified to just check the
                 //  changed \_SB.MEM.SMD0
                 //
@@ -10280,4 +10280,3 @@ DefinitionBlock (
     })  // END MBUF
 
 } //end DefinitionBlock
-
