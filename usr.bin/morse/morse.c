@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -57,8 +57,10 @@ static const char rcsid[] =
 #include <termios.h>
 #include <unistd.h>
 
+#ifdef __FreeBSD__
 /* Always use the speaker, let the open fail if -p is selected */
 #define SPEAKER "/dev/speaker"
+#endif
 
 #define WHITESPACE " \t\n"
 #define DELIMITERS " \t"
@@ -307,7 +309,7 @@ static tone_t	sound;
 static const struct morsetab *hightab;
 
 int
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
 	int    ch, lflags;
 	char  *p, *codeset;
