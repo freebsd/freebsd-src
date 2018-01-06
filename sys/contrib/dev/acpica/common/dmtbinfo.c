@@ -152,7 +152,7 @@
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
-#include "actbinfo.h"
+#include <contrib/dev/acpica/include/actbinfo.h>
 
 /* This module used for application-level code only */
 
