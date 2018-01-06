@@ -491,6 +491,7 @@ struct resource_spec {
 	int	rid;
 	int	flags;
 };
+#define	RESOURCE_SPEC_END	{-1, 0, 0}
 
 int	bus_alloc_resources(device_t dev, struct resource_spec *rs,
 			    struct resource **res);
