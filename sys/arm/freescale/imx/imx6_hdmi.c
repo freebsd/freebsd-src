@@ -63,11 +63,11 @@ struct imx_hdmi_softc {
 	device_t		sc_dev;
 	struct resource		*sc_mem_res;
 	int			sc_mem_rid;
-	struct intr_config_hook	sc_mode_hook;
 	struct videomode	sc_mode;
 	uint8_t			*sc_edid;
 	uint8_t			sc_edid_len;
 	phandle_t		sc_i2c_xref;
+	eventhandler_tag	eh_tag;
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -626,15 +626,51 @@ hdmi_edid_read(struct imx_hdmi_softc *sc, uint8_t **edid, uint32_t *edid_len)
 	return (result);
 }
 
+/*
+ * Deferred HDMI init.  dwc_hdmi_init() does i2c transfers for DDC/EDID. The imx
+ * i2c devices also use a config_intrhook function to finish their init, because
+ * they require interrupts to perform transfers.  There is no way to control
+ * whether the i2c or our hdmi intrhook function runs first.  If we go first we
+ * have to continue waiting until after the i2c driver is ready to do transfers
+ * and has registered its phandle.
+ *
+ * This function is used as both a config_intrhook function and after that as an
+ * eventhandler callback function (if necessary), to see if our i2c device is
+ * ready yet.  When it is, continue with hdmi init.  When first called as an
+ * intrhook function the i2c devices might be ready, in which case we never
+ * register as an eventhandler at all.  Otherwise we register to see newbus
+ * attach events, and as each device attaches we check to see whether it was the
+ * i2c device we care about.  Once we have our i2c device we unregister from
+ * seeing further attach events.
+ */
 static void
-imx_hdmi_detect_cable(void *arg)
+imx_hdmi_init(void *dev)
 {
 	struct imx_hdmi_softc *sc;
 
-	sc = arg;
-	EVENTHANDLER_INVOKE(hdmi_event, sc->sc_dev, HDMI_EVENT_CONNECTED);
-	/* Finished with the interrupt hook */
-	config_intrhook_disestablish(&sc->sc_mode_hook);
+	sc = device_get_softc((device_t)dev);
+
+	if (OF_device_from_xref(sc->sc_i2c_xref) != NULL) {
+		if (sc->eh_tag != NULL) {
+			EVENTHANDLER_DEREGISTER_NOWAIT(device_attach,
+			    sc->eh_tag);
+		}
+		WR1(sc, HDMI_PHY_POL0, HDMI_PHY_HPD);
+		WR1(sc, HDMI_IH_PHY_STAT0, HDMI_IH_PHY_STAT0_HPD);
+		if ((RD1(sc, HDMI_IH_PHY_STAT0) & HDMI_IH_PHY_STAT0_HPD) != 0) {
+			EVENTHANDLER_INVOKE(hdmi_event, sc->sc_dev,
+			    HDMI_EVENT_CONNECTED);
+		}
+		return;
+	}
+
+	if (bootverbose)
+		device_printf((device_t)dev, "Waiting for DDC i2c device\n");
+
+	if (sc->eh_tag == NULL) {
+		sc->eh_tag = EVENTHANDLER_REGISTER(device_attach, 
+		    imx_hdmi_init, dev, EVENTHANDLER_PRI_ANY);
+	}
 }
 
 static int
@@ -673,14 +709,6 @@ imx_hdmi_attach(device_t dev)
 		goto out;
 	}
 
-	sc->sc_mode_hook.ich_func = imx_hdmi_detect_cable;
-	sc->sc_mode_hook.ich_arg = sc;
-
-	if (config_intrhook_establish(&sc->sc_mode_hook) != 0) {
-		err = ENOMEM;
-		goto out;
-	}
-
 	node = ofw_bus_get_node(dev);
 	if (OF_getencprop(node, "ddc-i2c-bus", &i2c_xref, sizeof(i2c_xref)) == -1)
 		sc->sc_i2c_xref = 0;
@@ -702,8 +730,8 @@ imx_hdmi_attach(device_t dev)
 	gpr3 |= IOMUXC_GPR3_HDMI_IPU1_DI0;
 	imx_iomux_gpr_set(IOMUXC_GPR3, gpr3);
 
-	WR1(sc, HDMI_PHY_POL0, HDMI_PHY_HPD);
-	WR1(sc, HDMI_IH_PHY_STAT0, HDMI_IH_PHY_STAT0_HPD);
+	/* Further HDMI init requires interrupts for i2c transfers. */
+	config_intrhook_oneshot(imx_hdmi_init, dev);
 
 out:
 
