@@ -605,7 +605,7 @@ fdecode(FILE *stream)
 	char buf[BUFSIZ];
 
 	s = buf;
-	while (fgets(s, BUFSIZ - (s - buf), stdin)) {
+	while (fgets(s, BUFSIZ - (s - buf), stream)) {
 		p = buf;
 
 		while (*p && isblank(*p)) {
