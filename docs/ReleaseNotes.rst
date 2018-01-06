@@ -168,8 +168,8 @@ Attribute Changes in Clang
 Windows Support
 ---------------
 
-Clang's support for building native Windows programs ...
-
+- Clang now has initial, preliminary support for targeting Windows on
+  ARM64.
 
 C Language Changes in Clang
 ---------------------------
@@ -209,7 +209,18 @@ OpenCL C Language Changes in Clang
 OpenMP Support in Clang
 ----------------------------------
 
-...
+- Added options `-f[no]-openmp-simd` that support code emission only foe OpenMP
+  SIMD-based directives, like `#pragma omp simd`, `#pragma omp parallel for simd`
+  etc. The code is emitted only for simd-based part of the combined directives
+  and clauses.
+
+- Added support for almost all target-based directives except for
+  `#pragma omp target teams distribute parallel for [simd]`. Although, please
+  note that `depend` clauses on target-based directives are not supported yet.
+  Clang supports offloading to X86_64, AArch64 and PPC64[LE] devices.
+
+- Added support for `reduction`-based clauses on `task`-based directives from
+  upcoming OpenMP 5.0.
 
 Internal API Changes
 --------------------

@@ -1589,11 +1589,19 @@ def err_non_virtual_pure : Error<
 def ext_pure_function_definition : ExtWarn<
   "function definition with pure-specifier is a Microsoft extension">,
   InGroup<MicrosoftPureDefinition>;
-def err_implicit_object_parameter_init : Error<
-  "cannot initialize object parameter of type %0 with an expression "
-  "of type %1">;
 def err_qualified_member_of_unrelated : Error<
   "%q0 is not a member of class %1">;
+
+def err_member_function_call_bad_cvr : Error<
+  "'this' argument to member function %0 has type %1, but function is not marked "
+  "%select{const|restrict|const or restrict|volatile|const or volatile|"
+  "volatile or restrict|const, volatile, or restrict}2">;
+def err_member_function_call_bad_ref : Error<
+  "'this' argument to member function %0 is an %select{lvalue|rvalue}1, "
+  "but function has %select{non-const lvalue|rvalue}2 ref-qualifier">;
+def err_member_function_call_bad_type : Error<
+  "cannot initialize object parameter of type %0 with an expression "
+  "of type %1">;
 
 def warn_call_to_pure_virtual_member_function_from_ctor_dtor : Warning<
   "call to pure virtual member function %0 has undefined behavior; "
@@ -1815,10 +1823,6 @@ def warn_temporary_array_to_pointer_decay : Warning<
 def err_init_list_bad_dest_type : Error<
   "%select{|non-aggregate }0type %1 cannot be initialized with an initializer "
   "list">;
-def err_member_function_call_bad_cvr : Error<"member function %0 not viable: "
-    "'this' argument has type %1, but function is not marked "
-    "%select{const|restrict|const or restrict|volatile|const or volatile|"
-    "volatile or restrict|const, volatile, or restrict}2">;
 
 def err_reference_bind_to_bitfield : Error<
   "%select{non-const|volatile}0 reference cannot bind to "
@@ -5942,15 +5946,15 @@ def note_typecheck_assign_const : Note<
 def warn_unsigned_always_true_comparison : Warning<
   "result of comparison of %select{%3|unsigned expression}0 %2 "
   "%select{unsigned expression|%3}0 is always %4">,
-  InGroup<TautologicalUnsignedZeroCompare>;
+  InGroup<TautologicalUnsignedZeroCompare>, DefaultIgnore;
 def warn_unsigned_enum_always_true_comparison : Warning<
   "result of comparison of %select{%3|unsigned enum expression}0 %2 "
   "%select{unsigned enum expression|%3}0 is always %4">,
-  InGroup<TautologicalUnsignedEnumZeroCompare>;
+  InGroup<TautologicalUnsignedEnumZeroCompare>, DefaultIgnore;
 def warn_tautological_constant_compare : Warning<
   "result of comparison %select{%3|%1}0 %2 "
   "%select{%1|%3}0 is always %4">,
-  InGroup<TautologicalConstantCompare>;
+  InGroup<TautologicalTypeLimitCompare>, DefaultIgnore;
 
 def warn_mixed_sign_comparison : Warning<
   "comparison of integers of different signs: %0 and %1">,
