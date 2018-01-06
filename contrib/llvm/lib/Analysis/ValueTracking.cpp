@@ -2264,9 +2264,9 @@ static unsigned ComputeNumSignBitsImpl(const Value *V, unsigned Depth,
     // ashr X, C   -> adds C sign bits.  Vectors too.
     const APInt *ShAmt;
     if (match(U->getOperand(1), m_APInt(ShAmt))) {
-      unsigned ShAmtLimited = ShAmt->getZExtValue();
-      if (ShAmtLimited >= TyBits)
+      if (ShAmt->uge(TyBits))
         break;  // Bad shift.
+      unsigned ShAmtLimited = ShAmt->getZExtValue();
       Tmp += ShAmtLimited;
       if (Tmp > TyBits) Tmp = TyBits;
     }
@@ -2277,9 +2277,9 @@ static unsigned ComputeNumSignBitsImpl(const Value *V, unsigned Depth,
     if (match(U->getOperand(1), m_APInt(ShAmt))) {
       // shl destroys sign bits.
       Tmp = ComputeNumSignBits(U->getOperand(0), Depth + 1, Q);
+      if (ShAmt->uge(TyBits) ||      // Bad shift.
+          ShAmt->uge(Tmp)) break;    // Shifted all sign bits out.
       Tmp2 = ShAmt->getZExtValue();
-      if (Tmp2 >= TyBits ||      // Bad shift.
-          Tmp2 >= Tmp) break;    // Shifted all sign bits out.
       return Tmp - Tmp2;
     }
     break;
@@ -4161,6 +4161,81 @@ static SelectPatternResult matchClamp(CmpInst::Predicate Pred,
   return {SPF_UNKNOWN, SPNB_NA, false};
 }
 
+/// Recognize variations of:
+///   a < c ? min(a,b) : min(b,c) ==> min(min(a,b),min(b,c))
+static SelectPatternResult matchMinMaxOfMinMax(CmpInst::Predicate Pred,
+                                               Value *CmpLHS, Value *CmpRHS,
+                                               Value *TrueVal, Value *FalseVal) {
+  // TODO: Allow FP min/max with nnan/nsz.
+  assert(CmpInst::isIntPredicate(Pred) && "Expected integer comparison");
+
+  Value *A, *B;
+  SelectPatternResult L = matchSelectPattern(TrueVal, A, B);
+  if (!SelectPatternResult::isMinOrMax(L.Flavor))
+    return {SPF_UNKNOWN, SPNB_NA, false};
+
+  Value *C, *D;
+  SelectPatternResult R = matchSelectPattern(FalseVal, C, D);
+  if (L.Flavor != R.Flavor)
+    return {SPF_UNKNOWN, SPNB_NA, false};
+
+  // Match the compare to the min/max operations of the select operands.
+  switch (L.Flavor) {
+  case SPF_SMIN:
+    if (Pred == ICmpInst::ICMP_SGT || Pred == ICmpInst::ICMP_SGE) {
+      Pred = ICmpInst::getSwappedPredicate(Pred);
+      std::swap(CmpLHS, CmpRHS);
+    }
+    if (Pred == ICmpInst::ICMP_SLT || Pred == ICmpInst::ICMP_SLE)
+      break;
+    return {SPF_UNKNOWN, SPNB_NA, false};
+  case SPF_SMAX:
+    if (Pred == ICmpInst::ICMP_SLT || Pred == ICmpInst::ICMP_SLE) {
+      Pred = ICmpInst::getSwappedPredicate(Pred);
+      std::swap(CmpLHS, CmpRHS);
+    }
+    if (Pred == ICmpInst::ICMP_SGT || Pred == ICmpInst::ICMP_SGE)
+      break;
+    return {SPF_UNKNOWN, SPNB_NA, false};
+  case SPF_UMIN:
+    if (Pred == ICmpInst::ICMP_UGT || Pred == ICmpInst::ICMP_UGE) {
+      Pred = ICmpInst::getSwappedPredicate(Pred);
+      std::swap(CmpLHS, CmpRHS);
+    }
+    if (Pred == ICmpInst::ICMP_ULT || Pred == ICmpInst::ICMP_ULE)
+      break;
+    return {SPF_UNKNOWN, SPNB_NA, false};
+  case SPF_UMAX:
+    if (Pred == ICmpInst::ICMP_ULT || Pred == ICmpInst::ICMP_ULE) {
+      Pred = ICmpInst::getSwappedPredicate(Pred);
+      std::swap(CmpLHS, CmpRHS);
+    }
+    if (Pred == ICmpInst::ICMP_UGT || Pred == ICmpInst::ICMP_UGE)
+      break;
+    return {SPF_UNKNOWN, SPNB_NA, false};
+  default:
+    llvm_unreachable("Bad flavor while matching min/max");
+  }
+
+  // a pred c ? m(a, b) : m(c, b) --> m(m(a, b), m(c, b))
+  if (CmpLHS == A && CmpRHS == C && D == B)
+    return {L.Flavor, SPNB_NA, false};
+
+  // a pred d ? m(a, b) : m(b, d) --> m(m(a, b), m(b, d))
+  if (CmpLHS == A && CmpRHS == D && C == B)
+    return {L.Flavor, SPNB_NA, false};
+
+  // b pred c ? m(a, b) : m(c, a) --> m(m(a, b), m(c, a))
+  if (CmpLHS == B && CmpRHS == C && D == A)
+    return {L.Flavor, SPNB_NA, false};
+
+  // b pred d ? m(a, b) : m(a, d) --> m(m(a, b), m(a, d))
+  if (CmpLHS == B && CmpRHS == D && C == A)
+    return {L.Flavor, SPNB_NA, false};
+
+  return {SPF_UNKNOWN, SPNB_NA, false};
+}
+
 /// Match non-obvious integer minimum and maximum sequences.
 static SelectPatternResult matchMinMax(CmpInst::Predicate Pred,
                                        Value *CmpLHS, Value *CmpRHS,
@@ -4174,6 +4249,10 @@ static SelectPatternResult matchMinMax(CmpInst::Predicate Pred,
   if (SPR.Flavor != SelectPatternFlavor::SPF_UNKNOWN)
     return SPR;
 
+  SPR = matchMinMaxOfMinMax(Pred, CmpLHS, CmpRHS, TrueVal, FalseVal);
+  if (SPR.Flavor != SelectPatternFlavor::SPF_UNKNOWN)
+    return SPR;
+  
   if (Pred != CmpInst::ICMP_SGT && Pred != CmpInst::ICMP_SLT)
     return {SPF_UNKNOWN, SPNB_NA, false};
 
