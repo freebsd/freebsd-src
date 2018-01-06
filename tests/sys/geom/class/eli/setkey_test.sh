@@ -11,7 +11,7 @@ keyfile2=`mktemp $base.XXXXXX` || exit 1
 keyfile3=`mktemp $base.XXXXXX` || exit 1
 keyfile4=`mktemp $base.XXXXXX` || exit 1
 keyfile5=`mktemp $base.XXXXXX` || exit 1
-mdconfig -a -t malloc -s `expr $sectors + 1` -u $no || exit 1
+md=$(attach_md -t malloc -s `expr $sectors + 1`)
 
 echo "1..16"
 
@@ -23,24 +23,24 @@ dd if=/dev/random of=${keyfile3} bs=512 count=16 >/dev/null 2>&1
 dd if=/dev/random of=${keyfile4} bs=512 count=16 >/dev/null 2>&1
 dd if=/dev/random of=${keyfile5} bs=512 count=16 >/dev/null 2>&1
 
-geli init -B none -P -K $keyfile1 md${no}
-geli attach -p -k $keyfile1 md${no}
+geli init -B none -P -K $keyfile1 ${md}
+geli attach -p -k $keyfile1 ${md}
 
-dd if=${rnd} of=/dev/md${no}.eli bs=512 count=${sectors} 2>/dev/null
+dd if=${rnd} of=/dev/${md}.eli bs=512 count=${sectors} 2>/dev/null
 rm -f $rnd
-hash2=`dd if=/dev/md${no}.eli bs=512 count=${sectors} 2>/dev/null | md5`
+hash2=`dd if=/dev/${md}.eli bs=512 count=${sectors} 2>/dev/null | md5`
 
 # Change current key (0) for attached provider.
-geli setkey -P -K $keyfile2 md${no}
+geli setkey -P -K $keyfile2 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 1"
 else
 	echo "not ok 1"
 fi
-geli detach md${no}
+geli detach ${md}
 
 # We cannot use keyfile1 anymore.
-geli attach -p -k $keyfile1 md${no} 2>/dev/null
+geli attach -p -k $keyfile1 ${md} 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "ok 2"
 else
@@ -48,35 +48,35 @@ else
 fi
 
 # Attach with new key.
-geli attach -p -k $keyfile2 md${no}
+geli attach -p -k $keyfile2 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 3"
 else
 	echo "not ok 3"
 fi
-hash3=`dd if=/dev/md${no}.eli bs=512 count=${sectors} 2>/dev/null | md5`
+hash3=`dd if=/dev/${md}.eli bs=512 count=${sectors} 2>/dev/null | md5`
 
 # Change key 1 for attached provider.
-geli setkey -n 1 -P -K $keyfile3 md${no}
+geli setkey -n 1 -P -K $keyfile3 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 4"
 else
 	echo "not ok 4"
 fi
-geli detach md${no}
+geli detach ${md}
 
 # Attach with key 1.
-geli attach -p -k $keyfile3 md${no}
+geli attach -p -k $keyfile3 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 5"
 else
 	echo "not ok 5"
 fi
-hash4=`dd if=/dev/md${no}.eli bs=512 count=${sectors} 2>/dev/null | md5`
-geli detach md${no}
+hash4=`dd if=/dev/${md}.eli bs=512 count=${sectors} 2>/dev/null | md5`
+geli detach ${md}
 
 # Change current (1) key for detached provider.
-geli setkey -p -k $keyfile3 -P -K $keyfile4 md${no}
+geli setkey -p -k $keyfile3 -P -K $keyfile4 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 6"
 else
@@ -84,7 +84,7 @@ else
 fi
 
 # We cannot use keyfile3 anymore.
-geli attach -p -k $keyfile3 md${no} 2>/dev/null
+geli attach -p -k $keyfile3 ${md} 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "ok 7"
 else
@@ -92,17 +92,17 @@ else
 fi
 
 # Attach with key 1.
-geli attach -p -k $keyfile4 md${no}
+geli attach -p -k $keyfile4 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 8"
 else
 	echo "not ok 8"
 fi
-hash5=`dd if=/dev/md${no}.eli bs=512 count=${sectors} 2>/dev/null | md5`
-geli detach md${no}
+hash5=`dd if=/dev/${md}.eli bs=512 count=${sectors} 2>/dev/null | md5`
+geli detach ${md}
 
 # Change key 0 for detached provider.
-geli setkey -n 0 -p -k $keyfile4 -P -K $keyfile5 md${no}
+geli setkey -n 0 -p -k $keyfile4 -P -K $keyfile5 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 9"
 else
@@ -110,7 +110,7 @@ else
 fi
 
 # We cannot use keyfile2 anymore.
-geli attach -p -k $keyfile2 md${no} 2>/dev/null
+geli attach -p -k $keyfile2 ${md} 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "ok 10"
 else
@@ -118,14 +118,14 @@ else
 fi
 
 # Attach with key 0.
-geli attach -p -k $keyfile5 md${no}
+geli attach -p -k $keyfile5 ${md}
 if [ $? -eq 0 ]; then
 	echo "ok 11"
 else
 	echo "not ok 11"
 fi
-hash6=`dd if=/dev/md${no}.eli bs=512 count=${sectors} 2>/dev/null | md5`
-geli detach md${no}
+hash6=`dd if=/dev/${md}.eli bs=512 count=${sectors} 2>/dev/null | md5`
+geli detach ${md}
 
 if [ ${hash1} = ${hash2} ]; then
 	echo "ok 12"

@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/types.h>
+#include <sys/limits.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/ktr.h>
@@ -148,7 +149,7 @@ static struct mtx uma_boot_pages_mtx;
 static struct sx uma_drain_lock;
 
 /* kmem soft limit. */
-static unsigned long uma_kmem_limit;
+static unsigned long uma_kmem_limit = LONG_MAX;
 static volatile unsigned long uma_kmem_total;
 
 /* Is the VM done starting up? */
@@ -3265,7 +3266,14 @@ unsigned long
 uma_size(void)
 {
 
-	return uma_kmem_total;
+	return (uma_kmem_total);
+}
+
+long
+uma_avail(void)
+{
+
+	return (uma_kmem_limit - uma_kmem_total);
 }
 
 void

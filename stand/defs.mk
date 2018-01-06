@@ -58,6 +58,13 @@ LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
 .endif # MK_LOADER_GELI
 .endif # HAVE_GELI
 
+# These should be confined to loader.mk, but can't because uboot/lib
+# also uses it. It's part of loader, but isn't a loader so we can't
+# just include loader.mk
+.if ${LOADER_DISK_SUPPORT:Uyes} == "yes"
+CFLAGS+= -DLOADER_DISK_SUPPORT
+.endif
+
 # Machine specific flags for all builds here
 
 # All PowerPC builds are 32 bit. We have no 64-bit loaders on powerpc

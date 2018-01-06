@@ -276,6 +276,7 @@ _vprintf(int level, int flags, const char *fmt, va_list ap)
 	char bufr[PRINTF_BUFR_SIZE];
 #endif
 
+	TSENTER();
 	pca.tty = NULL;
 	pca.pri = level;
 	pca.flags = flags;
@@ -303,6 +304,7 @@ _vprintf(int level, int flags, const char *fmt, va_list ap)
 	}
 #endif
 
+	TSEXIT();
 	return (retval);
 }
 

@@ -1188,7 +1188,7 @@ ext4_new_blocks(struct inode *ip, daddr_t lbn, e4fs_daddr_t pref,
 int
 ext4_ext_get_blocks(struct inode *ip, e4fs_daddr_t iblk,
     unsigned long max_blocks, struct ucred *cred, struct buf **bpp,
-    int *pallocated, uint32_t *nb)
+    int *pallocated, daddr_t *nb)
 {
 	struct m_ext2fs *fs;
 	struct buf *bp = NULL;

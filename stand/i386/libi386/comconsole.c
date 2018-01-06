@@ -263,8 +263,18 @@ comc_pcidev_handle(uint32_t locator)
 	uint32_t port;
 
 	if (biospci_read_config(locator & 0xffff,
-				(locator & 0xff0000) >> 16, 2, &port) == -1) {
+	    (locator & 0xff0000) >> 16, BIOSPCI_32BITS, &port) == -1) {
 		printf("Cannot read bar at 0x%x\n", locator);
+		return (CMD_ERROR);
+	}
+
+	/* 
+	 * biospci_read_config() sets port == 0xffffffff if the pcidev
+	 * isn't found on the bus.  Check for 0xffffffff and return to not
+	 * panic in BTX.
+	 */
+	if (port == 0xffffffff) {
+		printf("Cannot find specified pcidev\n");
 		return (CMD_ERROR);
 	}
 	if (!PCI_BAR_IO(port)) {

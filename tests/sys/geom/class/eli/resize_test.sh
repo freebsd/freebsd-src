@@ -8,8 +8,7 @@ echo 1..27
 BLK=512
 BLKS_PER_MB=2048
 
-md=$(mdconfig -s40m) || exit 1
-unit=${md#md}
+md=$(attach_md -t malloc -s40m)
 i=1
 
 fsck_md()
@@ -26,17 +25,16 @@ fsck_md()
 }
 
 setsize() {
-    partszMB=$1 unitszMB=$2
+    partszMB=$1
 
-    {
-	echo a: $(($partszMB * $BLKS_PER_MB)) 0 4.2BSD 1024 8192
-	echo c: $(($unitszMB * $BLKS_PER_MB)) 0 unused 0 0
-    } | bsdlabel -R $md /dev/stdin
+    gpart resize -i 1 -s ${partszMB}m ${md}
 }
 
 # Initialise
 
-setsize 10 40 || echo -n "not "
+gpart create -s BSD ${md}
+gpart add -t freebsd-ufs -s 10m ${md}
+setsize 10 || echo -n "not "
 echo ok $i - "Sized ${md}a to 10m"
 i=$((i + 1))
 
@@ -64,7 +62,7 @@ geli detach ${md}a.eli || echo -n "not "
 echo ok $i - "Detached ${md}a.eli"
 i=$((i + 1))
 
-setsize 20 40 || echo -n "not "
+setsize 20 || echo -n "not "
 echo ok $i - "Sized ${md}a to 20m"
 i=$((i + 1))
 geli attach -pktmp.key ${md}a && echo -n "not "
@@ -94,7 +92,7 @@ geli detach ${md}a.eli || echo -n "not "
 echo ok $i - "Detached ${md}a.eli"
 i=$((i + 1))
 
-setsize 30 40 || echo -n "not "
+setsize 30 || echo -n "not "
 echo ok $i - "Sized ${md}a to 30m"
 i=$((i + 1))
 

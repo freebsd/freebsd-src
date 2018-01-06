@@ -1,4 +1,37 @@
 ----------------------------------------
+05 January 2018. Summary of changes for version 20180105:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Updated all copyrights to 2018. This affects all source code modules.
+
+Fixed a possible build error caused by an unresolved reference to the 
+AcpiUtSafeStrncpy function.
+
+Removed NULL pointer arithmetic in the various pointer manipulation 
+macros. All "(void *) NULL" constructs are converted to "(void *) 0". 
+This eliminates warnings/errors in newer C compilers. Jung-uk Kim.
+
+Added support for A32 ABI compilation, which uses the ILP32 model. Anuj 
+Mittal.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+ASLTS: Updated all copyrights to 2018.
+
+Tools: Updated all signon copyrights to 2018.
+
+AcpiXtract: Fixed a regression related to ACPI table signatures where the 
+signature was truncated to 3 characters (instead of 4).
+
+AcpiExec: Restore the original terminal mode after the use of the -v and 
+-vd options.
+
+ASLTS: Deployed the iASL __METHOD__ macro across the test suite.
+
+----------------------------------------
 14 December 2017. Summary of changes for version 20171214:
 
 

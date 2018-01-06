@@ -140,6 +140,10 @@ struct nuvoton_vendor_device_id {
 		.chip_id	= 0xc452,
 		.descr		= "Nuvoton NCT5104D (PC-Engines APU)",
 	},
+	{
+		.chip_id	= 0xc453,
+		.descr		= "Nuvoton NCT5104D (PC-Engines APU3)",
+	},
 };
 
 static void

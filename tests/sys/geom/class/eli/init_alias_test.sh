@@ -15,10 +15,10 @@ do_test() {
 	expected_ealgo=$3
 	expected_keylen=$4
 
-	geli init -B none -e $ealgo -l $keylen -P -K $keyfile md${no} 2>/dev/null
-	geli attach -p -k $keyfile md${no}
-	real_ealgo=`geli list md${no}.eli | awk '/EncryptionAlgorithm/ {print $2}'`
-	real_keylen=`geli list md${no}.eli | awk '/KeyLength/ {print $2}'`
+	geli init -B none -e $ealgo -l $keylen -P -K $keyfile ${md} 2>/dev/null
+	geli attach -p -k $keyfile ${md}
+	real_ealgo=`geli list ${md}.eli | awk '/EncryptionAlgorithm/ {print $2}'`
+	real_keylen=`geli list ${md}.eli | awk '/KeyLength/ {print $2}'`
 
 	if [ ${real_ealgo} = ${expected_ealgo} ]; then
 		echo "ok $i - ${ealgo} aliased to ${real_ealgo}"
@@ -34,12 +34,12 @@ do_test() {
 	fi
 	i=$((i+1))
 
-	geli detach md${no}
+	geli detach ${md}
 }
 
 echo "1..38"
 i=1
-mdconfig -a -t malloc -s 1024k -u $no || exit 1
+md=$(attach_md -t malloc -s 1024k)
 dd if=/dev/random of=${keyfile} bs=512 count=16 >/dev/null 2>&1
 
 for spec in aes:0:AES-XTS:128 aes:128:AES-XTS:128 aes:256:AES-XTS:256 \

@@ -85,8 +85,7 @@ CFLAGS+=	-G0					\
 		-mno-abicalls				\
 		-g
 
-LDFLAGS=	-nostdlib				\
-		-static					\
+LDFLAGS+=	-static					\
 		-T ${.CURDIR}/loader.ldscript		\
 		-L${.CURDIR}				\
 		-e __start

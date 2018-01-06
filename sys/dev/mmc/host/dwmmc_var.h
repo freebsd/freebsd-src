@@ -74,7 +74,7 @@ struct dwmmc_softc {
 	uint32_t		ddr_timing;
 };
 
-extern driver_t dwmmc_driver;
+DECLARE_CLASS(dwmmc_driver);
 
 int dwmmc_attach(device_t);
 

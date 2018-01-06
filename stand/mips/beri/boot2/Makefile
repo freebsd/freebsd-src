@@ -53,8 +53,7 @@ CFLAGS+=	-I${LDRSRC}			\
 		-fno-pic -mno-abicalls		\
 		-g
 
-LDFLAGS=	-nostdlib			\
-		-static				\
+LDFLAGS+=	-static				\
 		-Wl,-N				\
 		-G0				\
 		-L${.CURDIR}

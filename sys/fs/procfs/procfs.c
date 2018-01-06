@@ -64,7 +64,7 @@
 #include <fs/procfs/procfs.h>
 
 /*
- * Filler function for proc/pid/self
+ * Filler function for proc/pid/file
  */
 int
 procfs_doprocfile(PFS_FILL_ARGS)

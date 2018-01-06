@@ -53,7 +53,6 @@ static	char sccsid[] = "@(#)check_bound.c 1.11 89/04/21 Copyr 1989 Sun Micro";
 #include <sys/socket.h>
 #include <rpc/rpc.h>
 #include <rpc/svc_dg.h>
-#include <stdio.h>
 #include <netconfig.h>
 #include <syslog.h>
 #include <string.h>

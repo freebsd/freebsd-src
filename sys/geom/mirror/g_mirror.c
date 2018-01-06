@@ -111,7 +111,8 @@ static void g_mirror_update_device(struct g_mirror_softc *sc, bool force);
 static void g_mirror_dumpconf(struct sbuf *sb, const char *indent,
     struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp);
 static void g_mirror_sync_stop(struct g_mirror_disk *disk, int type);
-static void g_mirror_register_request(struct bio *bp);
+static void g_mirror_register_request(struct g_mirror_softc *sc,
+    struct bio *bp);
 static void g_mirror_sync_release(struct g_mirror_softc *sc);
 
 
@@ -892,27 +893,6 @@ g_mirror_unidle(struct g_mirror_softc *sc)
 }
 
 static void
-g_mirror_flush_done(struct bio *bp)
-{
-	struct g_mirror_softc *sc;
-	struct bio *pbp;
-
-	pbp = bp->bio_parent;
-	sc = pbp->bio_to->private;
-	mtx_lock(&sc->sc_done_mtx);
-	if (pbp->bio_error == 0)
-		pbp->bio_error = bp->bio_error;
-	pbp->bio_completed += bp->bio_completed;
-	pbp->bio_inbed++;
-	if (pbp->bio_children == pbp->bio_inbed) {
-		mtx_unlock(&sc->sc_done_mtx);
-		g_io_deliver(pbp, pbp->bio_error);
-	} else
-		mtx_unlock(&sc->sc_done_mtx);
-	g_destroy_bio(bp);
-}
-
-static void
 g_mirror_done(struct bio *bp)
 {
 	struct g_mirror_softc *sc;
@@ -926,32 +906,76 @@ g_mirror_done(struct bio *bp)
 }
 
 static void
-g_mirror_regular_request(struct bio *bp)
+g_mirror_regular_request_error(struct g_mirror_softc *sc, struct bio *bp)
 {
-	struct g_mirror_softc *sc;
 	struct g_mirror_disk *disk;
+
+	disk = bp->bio_from->private;
+
+	if (bp->bio_cmd == BIO_FLUSH && bp->bio_error == EOPNOTSUPP)
+		return;
+	if (disk == NULL)
+		return;
+
+	if ((disk->d_flags & G_MIRROR_DISK_FLAG_BROKEN) == 0) {
+		disk->d_flags |= G_MIRROR_DISK_FLAG_BROKEN;
+		G_MIRROR_LOGREQ(0, bp, "Request failed (error=%d).",
+		    bp->bio_error);
+	} else {
+		G_MIRROR_LOGREQ(1, bp, "Request failed (error=%d).",
+		    bp->bio_error);
+	}
+	if (g_mirror_disconnect_on_failure &&
+	    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) > 1) {
+		if (bp->bio_error == ENXIO &&
+		    bp->bio_cmd == BIO_READ)
+			sc->sc_bump_id |= G_MIRROR_BUMP_SYNCID;
+		else if (bp->bio_error == ENXIO)
+			sc->sc_bump_id |= G_MIRROR_BUMP_SYNCID_NOW;
+		else
+			sc->sc_bump_id |= G_MIRROR_BUMP_GENID;
+		g_mirror_event_send(disk, G_MIRROR_DISK_STATE_DISCONNECTED,
+		    G_MIRROR_EVENT_DONTWAIT);
+	}
+}
+
+static void
+g_mirror_regular_request(struct g_mirror_softc *sc, struct bio *bp)
+{
 	struct bio *pbp;
 
 	g_topology_assert_not();
+	KASSERT(sc->sc_provider == bp->bio_parent->bio_to,
+	    ("regular request %p with unexpected origin", bp));
 
 	pbp = bp->bio_parent;
-	sc = pbp->bio_to->private;
 	bp->bio_from->index--;
 	if (bp->bio_cmd == BIO_WRITE || bp->bio_cmd == BIO_DELETE)
 		sc->sc_writes--;
-	disk = bp->bio_from->private;
-	if (disk == NULL) {
+	if (bp->bio_from->private == NULL) {
 		g_topology_lock();
 		g_mirror_kill_consumer(sc, bp->bio_from);
 		g_topology_unlock();
 	}
 
-	if (bp->bio_cmd == BIO_READ)
+	switch (bp->bio_cmd) {
+	case BIO_READ:
 		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_regular_request_read,
 		    bp->bio_error);
-	else if (bp->bio_cmd == BIO_WRITE)
+		break;
+	case BIO_WRITE:
 		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_regular_request_write,
 		    bp->bio_error);
+		break;
+	case BIO_DELETE:
+		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_regular_request_delete,
+		    bp->bio_error);
+		break;
+	case BIO_FLUSH:
+		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_regular_request_flush,
+		    bp->bio_error);
+		break;
+	}
 
 	pbp->bio_inbed++;
 	KASSERT(pbp->bio_inbed <= pbp->bio_children,
@@ -975,35 +999,11 @@ g_mirror_regular_request(struct bio *bp)
 	} else if (bp->bio_error != 0) {
 		if (pbp->bio_error == 0)
 			pbp->bio_error = bp->bio_error;
-		if (disk != NULL) {
-			if ((disk->d_flags & G_MIRROR_DISK_FLAG_BROKEN) == 0) {
-				disk->d_flags |= G_MIRROR_DISK_FLAG_BROKEN;
-				G_MIRROR_LOGREQ(0, bp,
-				    "Request failed (error=%d).",
-				    bp->bio_error);
-			} else {
-				G_MIRROR_LOGREQ(1, bp,
-				    "Request failed (error=%d).",
-				    bp->bio_error);
-			}
-			if (g_mirror_disconnect_on_failure &&
-			    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) > 1)
-			{
-				if (bp->bio_error == ENXIO &&
-				    bp->bio_cmd == BIO_READ)
-					sc->sc_bump_id |= G_MIRROR_BUMP_SYNCID;
-				else if (bp->bio_error == ENXIO)
-					sc->sc_bump_id |= G_MIRROR_BUMP_SYNCID_NOW;
-				else
-					sc->sc_bump_id |= G_MIRROR_BUMP_GENID;
-				g_mirror_event_send(disk,
-				    G_MIRROR_DISK_STATE_DISCONNECTED,
-				    G_MIRROR_EVENT_DONTWAIT);
-			}
-		}
+		g_mirror_regular_request_error(sc, bp);
 		switch (pbp->bio_cmd) {
 		case BIO_DELETE:
 		case BIO_WRITE:
+		case BIO_FLUSH:
 			pbp->bio_inbed--;
 			pbp->bio_children--;
 			break;
@@ -1028,6 +1028,7 @@ g_mirror_regular_request(struct bio *bp)
 		break;
 	case BIO_DELETE:
 	case BIO_WRITE:
+	case BIO_FLUSH:
 		if (pbp->bio_children == 0) {
 			/*
 			 * All requests failed.
@@ -1040,9 +1041,11 @@ g_mirror_regular_request(struct bio *bp)
 			pbp->bio_error = 0;
 			pbp->bio_completed = pbp->bio_length;
 		}
-		TAILQ_REMOVE(&sc->sc_inflight, pbp, bio_queue);
-		/* Release delayed sync requests if possible. */
-		g_mirror_sync_release(sc);
+		if (pbp->bio_cmd == BIO_WRITE || pbp->bio_cmd == BIO_DELETE) {
+			TAILQ_REMOVE(&sc->sc_inflight, pbp, bio_queue);
+			/* Release delayed sync requests if possible. */
+			g_mirror_sync_release(sc);
+		}
 		g_io_deliver(pbp, pbp->bio_error);
 		break;
 	default:
@@ -1115,47 +1118,6 @@ g_mirror_kernel_dump(struct bio *bp)
 }
 
 static void
-g_mirror_flush(struct g_mirror_softc *sc, struct bio *bp)
-{
-	struct bio_queue queue;
-	struct g_mirror_disk *disk;
-	struct g_consumer *cp;
-	struct bio *cbp;
-
-	TAILQ_INIT(&queue);
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
-		if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
-			continue;
-		cbp = g_clone_bio(bp);
-		if (cbp == NULL) {
-			while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
-				TAILQ_REMOVE(&queue, cbp, bio_queue);
-				g_destroy_bio(cbp);
-			}
-			if (bp->bio_error == 0)
-				bp->bio_error = ENOMEM;
-			g_io_deliver(bp, bp->bio_error);
-			return;
-		}
-		TAILQ_INSERT_TAIL(&queue, cbp, bio_queue);
-		cbp->bio_done = g_mirror_flush_done;
-		cbp->bio_caller1 = disk;
-		cbp->bio_to = disk->d_consumer->provider;
-	}
-	while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
-		TAILQ_REMOVE(&queue, cbp, bio_queue);
-		G_MIRROR_LOGREQ(3, cbp, "Sending request.");
-		disk = cbp->bio_caller1;
-		cbp->bio_caller1 = NULL;
-		cp = disk->d_consumer;
-		KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
-		    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
-		    cp->acr, cp->acw, cp->ace));
-		g_io_request(cbp, disk->d_consumer);
-	}
-}
-
-static void
 g_mirror_start(struct bio *bp)
 {
 	struct g_mirror_softc *sc;
@@ -1174,10 +1136,8 @@ g_mirror_start(struct bio *bp)
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
-		break;
 	case BIO_FLUSH:
-		g_mirror_flush(sc, bp);
-		return;
+		break;
 	case BIO_GETATTR:
 		if (!strcmp(bp->bio_attribute, "GEOM::candelete")) {
 			g_mirror_candelete(bp);
@@ -1259,14 +1219,14 @@ g_mirror_regular_collision(struct g_mirror_softc *sc, struct bio *sbp)
 }
 
 /*
- * Puts request onto delayed queue.
+ * Puts regular request onto delayed queue.
  */
 static void
 g_mirror_regular_delay(struct g_mirror_softc *sc, struct bio *bp)
 {
 
 	G_MIRROR_LOGREQ(2, bp, "Delaying request.");
-	TAILQ_INSERT_HEAD(&sc->sc_regular_delayed, bp, bio_queue);
+	TAILQ_INSERT_TAIL(&sc->sc_regular_delayed, bp, bio_queue);
 }
 
 /*
@@ -1281,23 +1241,23 @@ g_mirror_sync_delay(struct g_mirror_softc *sc, struct bio *bp)
 }
 
 /*
- * Releases delayed regular requests which don't collide anymore with sync
- * requests.
+ * Requeue delayed regular requests.
  */
 static void
 g_mirror_regular_release(struct g_mirror_softc *sc)
 {
-	struct bio *bp, *bp2;
+	struct bio *bp;
 
-	TAILQ_FOREACH_SAFE(bp, &sc->sc_regular_delayed, bio_queue, bp2) {
-		if (g_mirror_sync_collision(sc, bp))
-			continue;
-		TAILQ_REMOVE(&sc->sc_regular_delayed, bp, bio_queue);
-		G_MIRROR_LOGREQ(2, bp, "Releasing delayed request (%p).", bp);
-		mtx_lock(&sc->sc_queue_mtx);
-		TAILQ_INSERT_HEAD(&sc->sc_queue, bp, bio_queue);
-		mtx_unlock(&sc->sc_queue_mtx);
-	}
+	if ((bp = TAILQ_FIRST(&sc->sc_regular_delayed)) == NULL)
+		return;
+	if (g_mirror_sync_collision(sc, bp))
+		return;
+
+	G_MIRROR_DEBUG(2, "Requeuing regular requests after collision.");
+	mtx_lock(&sc->sc_queue_mtx);
+	TAILQ_CONCAT(&sc->sc_regular_delayed, &sc->sc_queue, bio_queue);
+	TAILQ_SWAP(&sc->sc_regular_delayed, &sc->sc_queue, bio, bio_queue);
+	mtx_unlock(&sc->sc_queue_mtx);
 }
 
 /*
@@ -1345,14 +1305,17 @@ g_mirror_sync_request_free(struct g_mirror_disk *disk, struct bio *bp)
  * send.
  */
 static void
-g_mirror_sync_request(struct bio *bp)
+g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
 {
-	struct g_mirror_softc *sc;
 	struct g_mirror_disk *disk;
 	struct g_mirror_disk_sync *sync;
 
+	KASSERT((bp->bio_cmd == BIO_READ &&
+	    bp->bio_from->geom == sc->sc_sync.ds_geom) ||
+	    (bp->bio_cmd == BIO_WRITE && bp->bio_from->geom == sc->sc_geom),
+	    ("Sync BIO %p with unexpected origin", bp));
+
 	bp->bio_from->index--;
-	sc = bp->bio_from->geom->softc;
 	disk = bp->bio_from->private;
 	if (disk == NULL) {
 		sx_xunlock(&sc->sc_lock); /* Avoid recursion on sc_lock. */
@@ -1457,7 +1420,7 @@ g_mirror_sync_request(struct bio *bp)
 		else
 			g_io_request(bp, sync->ds_consumer);
 
-		/* Release delayed requests if possible. */
+		/* Requeue delayed requests if possible. */
 		g_mirror_regular_release(sc);
 
 		/* Find the smallest offset */
@@ -1685,11 +1648,26 @@ g_mirror_request_split(struct g_mirror_softc *sc, struct bio *bp)
 }
 
 static void
-g_mirror_register_request(struct bio *bp)
+g_mirror_register_request(struct g_mirror_softc *sc, struct bio *bp)
 {
-	struct g_mirror_softc *sc;
+	struct bio_queue queue;
+	struct bio *cbp;
+	struct g_consumer *cp;
+	struct g_mirror_disk *disk;
 
-	sc = bp->bio_to->private;
+	sx_assert(&sc->sc_lock, SA_XLOCKED);
+
+	/*
+	 * To avoid ordering issues, if a write is deferred because of a
+	 * collision with a sync request, all I/O is deferred until that
+	 * write is initiated.
+	 */
+	if (bp->bio_from->geom != sc->sc_sync.ds_geom &&
+	    !TAILQ_EMPTY(&sc->sc_regular_delayed)) {
+		g_mirror_regular_delay(sc, bp);
+		return;
+	}
+
 	switch (bp->bio_cmd) {
 	case BIO_READ:
 		switch (sc->sc_balance) {
@@ -1709,13 +1687,6 @@ g_mirror_register_request(struct bio *bp)
 		return;
 	case BIO_WRITE:
 	case BIO_DELETE:
-	    {
-		struct bio_queue queue;
-		struct g_mirror_disk *disk;
-		struct g_mirror_disk_sync *sync;
-		struct g_consumer *cp;
-		struct bio *cbp;
-
 		/*
 		 * Delay the request if it is colliding with a synchronization
 		 * request.
@@ -1744,12 +1715,11 @@ g_mirror_register_request(struct bio *bp)
 		 */
 		TAILQ_INIT(&queue);
 		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
-			sync = &disk->d_sync;
 			switch (disk->d_state) {
 			case G_MIRROR_DISK_STATE_ACTIVE:
 				break;
 			case G_MIRROR_DISK_STATE_SYNCHRONIZING:
-				if (bp->bio_offset >= sync->ds_offset)
+				if (bp->bio_offset >= disk->d_sync.ds_offset)
 					continue;
 				break;
 			default:
@@ -1779,6 +1749,8 @@ g_mirror_register_request(struct bio *bp)
 			    cp->provider->name, cp->acr, cp->acw, cp->ace));
 		}
 		if (TAILQ_EMPTY(&queue)) {
+			KASSERT(bp->bio_cmd == BIO_DELETE,
+			    ("No consumers for regular request %p", bp));
 			g_io_deliver(bp, EOPNOTSUPP);
 			return;
 		}
@@ -1797,7 +1769,42 @@ g_mirror_register_request(struct bio *bp)
 		 */
 		TAILQ_INSERT_TAIL(&sc->sc_inflight, bp, bio_queue);
 		return;
-	    }
+	case BIO_FLUSH:
+		TAILQ_INIT(&queue);
+		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+			if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
+				continue;
+			cbp = g_clone_bio(bp);
+			if (cbp == NULL) {
+				while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
+					TAILQ_REMOVE(&queue, cbp, bio_queue);
+					g_destroy_bio(cbp);
+				}
+				if (bp->bio_error == 0)
+					bp->bio_error = ENOMEM;
+				g_io_deliver(bp, bp->bio_error);
+				return;
+			}
+			TAILQ_INSERT_TAIL(&queue, cbp, bio_queue);
+			cbp->bio_done = g_mirror_done;
+			cbp->bio_caller1 = disk;
+			cbp->bio_to = disk->d_consumer->provider;
+		}
+		KASSERT(!TAILQ_EMPTY(&queue),
+		    ("No consumers for regular request %p", bp));
+		while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
+			G_MIRROR_LOGREQ(3, cbp, "Sending request.");
+			TAILQ_REMOVE(&queue, cbp, bio_queue);
+			disk = cbp->bio_caller1;
+			cbp->bio_caller1 = NULL;
+			cp = disk->d_consumer;
+			KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
+			    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
+			    cp->acr, cp->acw, cp->ace));
+			cp->index++;
+			g_io_request(cbp, cp);
+		}
+		break;
 	default:
 		KASSERT(1 == 0, ("Invalid command here: %u (device=%s)",
 		    bp->bio_cmd, sc->sc_name));
@@ -1928,15 +1935,16 @@ g_mirror_worker(void *arg)
 			G_MIRROR_DEBUG(5, "%s: I'm here 1.", __func__);
 			continue;
 		}
+
 		/*
 		 * Check if we can mark array as CLEAN and if we can't take
 		 * how much seconds should we wait.
 		 */
 		timeout = g_mirror_idle(sc, -1);
+
 		/*
-		 * Now I/O requests.
+		 * Handle I/O requests.
 		 */
-		/* Get first request from the queue. */
 		mtx_lock(&sc->sc_queue_mtx);
 		bp = TAILQ_FIRST(&sc->sc_queue);
 		if (bp != NULL)
@@ -1969,19 +1977,33 @@ g_mirror_worker(void *arg)
 
 		if (bp->bio_from->geom == sc->sc_sync.ds_geom &&
 		    (bp->bio_cflags & G_MIRROR_BIO_FLAG_SYNC) != 0) {
-			g_mirror_sync_request(bp);	/* READ */
+			/*
+			 * Handle completion of the first half (the read) of a
+			 * block synchronization operation.
+			 */
+			g_mirror_sync_request(sc, bp);
 		} else if (bp->bio_to != sc->sc_provider) {
 			if ((bp->bio_cflags & G_MIRROR_BIO_FLAG_REGULAR) != 0)
-				g_mirror_regular_request(bp);
+				/*
+				 * Handle completion of a regular I/O request.
+				 */
+				g_mirror_regular_request(sc, bp);
 			else if ((bp->bio_cflags & G_MIRROR_BIO_FLAG_SYNC) != 0)
-				g_mirror_sync_request(bp);	/* WRITE */
+				/*
+				 * Handle completion of the second half (the
+				 * write) of a block synchronization operation.
+				 */
+				g_mirror_sync_request(sc, bp);
 			else {
 				KASSERT(0,
 				    ("Invalid request cflags=0x%hx to=%s.",
 				    bp->bio_cflags, bp->bio_to->name));
 			}
 		} else {
-			g_mirror_register_request(bp);
+			/*
+			 * Initiate an I/O request.
+			 */
+			g_mirror_register_request(sc, bp);
 		}
 		G_MIRROR_DEBUG(5, "%s: I'm here 9.", __func__);
 	}

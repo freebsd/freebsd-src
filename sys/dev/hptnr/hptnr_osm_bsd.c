@@ -1586,7 +1586,7 @@ static int hpt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, stru
 {
 	PHPT_IOCTL_PARAM piop=(PHPT_IOCTL_PARAM)data;
 	IOCTL_ARG ioctl_args;
-	HPT_U32 bytesReturned;
+	HPT_U32 bytesReturned = 0;
 
 	switch (cmd){
 	case HPT_DO_IOCONTROL:
@@ -1616,7 +1616,7 @@ static int hpt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, stru
 		}
 	
 		if (ioctl_args.nOutBufferSize) {
-			ioctl_args.lpOutBuffer = malloc(ioctl_args.nOutBufferSize, M_DEVBUF, M_WAITOK);
+			ioctl_args.lpOutBuffer = malloc(ioctl_args.nOutBufferSize, M_DEVBUF, M_WAITOK | M_ZERO);
 			if (!ioctl_args.lpOutBuffer)
 				goto invalid;
 		}

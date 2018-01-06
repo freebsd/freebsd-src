@@ -227,7 +227,7 @@ ef_obj_seg_read(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 
 	if (offset + len > ef->size) {
 		if (ef->ef_verbose)
-			warnx("ef_seg_read_rel(%s): bad offset/len (%lx:%ld)",
+			warnx("ef_obj_seg_read(%s): bad offset/len (%lx:%ld)",
 			    ef->ef_name, (long)offset, (long)len);
 		return (EFAULT);
 	}
@@ -246,7 +246,7 @@ ef_obj_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 
 	if (offset + len > ef->size) {
 		if (ef->ef_verbose)
-			warnx("ef_seg_read_rel(%s): bad offset/len (%lx:%ld)",
+			warnx("ef_obj_seg_read_rel(%s): bad offset/len (%lx:%ld)",
 			    ef->ef_name, (long)offset, (long)len);
 		return (EFAULT);
 	}

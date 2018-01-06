@@ -102,6 +102,8 @@ int	ext2_htree_lookup(struct inode *, const char *, int, struct buf **,
 	    int *, doff_t *, doff_t *, doff_t *, struct ext2fs_searchslot *);
 int	ext2_search_dirblock(struct inode *, void *, int *, const char *, int,
 	    int *, doff_t *, doff_t *, doff_t *, struct ext2fs_searchslot *);
+uint32_t	e2fs_gd_get_ndirs(struct ext2_gd *gd);
+uint64_t	e2fs_gd_get_i_tables(struct ext2_gd *gd);
 int	ext2_gd_csum_verify(struct m_ext2fs *fs, struct cdev *dev);
 void	ext2_gd_csum_set(struct m_ext2fs *fs);
 

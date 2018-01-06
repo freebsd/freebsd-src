@@ -280,5 +280,5 @@ ENTRY_NOPROF(fork_trampoline)
 					   trapframe to simulate FRAME_SETUP
 					   does when allocating space for
 					   a frame pointer/saved LR */
-	b	trapexit
+	bl	trapexit
 	nop

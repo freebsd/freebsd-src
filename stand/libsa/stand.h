@@ -354,6 +354,7 @@ extern char const	hex2ascii_data[];
 #define	bcd2bin(bcd)	(bcd2bin_data[bcd])
 #define	bin2bcd(bin)	(bin2bcd_data[bin])
 #define	hex2ascii(hex)	(hex2ascii_data[hex])
+#define	validbcd(bcd)	(bcd == 0 || (bcd > 0 && bcd <= 0x99 && bcd2bin_data[bcd] != 0))
 
 /* min/max (undocumented) */
 static __inline int imax(int a, int b) { return (a > b ? a : b); }

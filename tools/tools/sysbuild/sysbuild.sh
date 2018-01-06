@@ -196,13 +196,20 @@ ports_recurse() (
 	echo "$t" >> /tmp/_.plist.tdone
 	for d
 	do
+		fl=""
 		if [ ! -d $d ] ; then
-			echo "Missing port $d ($t)" 1>&2
-			continue
+			fl=FLAVOR=`expr $d : '.*@\(.*\)'`
+			bd=`expr $d : '\(.*\)@.*'`
+			if [ ! -d $bd ] ; then
+				echo "Missing port $d ($t) (fl $fl) (bd $bd)" 1>&2
+				continue
+			fi
+			echo "Flavored port $d ($t) (fl $fl) (bd $bd)" 1>&2
+			d=$bd
 		fi
 		d=`cd /usr/ports && cd $d && /bin/pwd`
 		if [ ! -f $d/Makefile ] ; then
-			echo "Missing port $d" 1>&2
+			echo "Missing port (Makefile) $d" 1>&2
 			continue
 		fi
 		if [ "x$t" != "x." ] ; then
@@ -216,7 +223,7 @@ ports_recurse() (
 			(
 			cd $d
 			l=""
-			for a in `ports_make -V _UNIFIED_DEPENDS`
+			for a in `ports_make -V _UNIFIED_DEPENDS $fl`
 			do
 				x=`expr "$a" : '.*:\(.*\)'`
 				l="${l} ${x}"

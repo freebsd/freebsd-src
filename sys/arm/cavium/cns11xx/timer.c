@@ -122,6 +122,7 @@ DELAY(int usec)
 				;
 		return;
 	}
+	TSENTER();
 
 	val = read_timer_counter_noint();
 	nticks = (((APB_clock / 1000) * usec) / 1000) + 100;
@@ -135,7 +136,7 @@ DELAY(int usec)
 
 		val = val_temp;
 	}
-
+	TSEXIT();
 }
 
 /*

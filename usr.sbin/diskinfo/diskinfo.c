@@ -407,9 +407,14 @@ speeddisk(int fd, off_t mediasize, u_int sectorsize)
 	int bulk, i;
 	off_t b0, b1, sectorcount, step;
 
+	/*
+	 * Drives smaller than 1MB produce negative sector numbers,
+	 * as do 2048 or fewer sectors.
+	 */
 	sectorcount = mediasize / sectorsize;
-	if (sectorcount <= 0)
-		return;		/* Can't test devices with no sectors */
+	if (mediasize < 1024 * 1024 || sectorcount < 2048)
+		return;
+
 
 	step = 1ULL << (flsll(sectorcount / (4 * 200)) - 1);
 	if (step > 16384)

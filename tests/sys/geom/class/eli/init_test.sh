@@ -16,19 +16,17 @@ do_test() {
 	ealgo=${cipher%%:*}
 	keylen=${cipher##*:}
 
-	mdconfig -a -t malloc -s `expr $secsize \* $sectors + 512`b -u $no || exit 1
+	geli init -B none -e $ealgo -l $keylen -P -K $keyfile -s $secsize ${md} 2>/dev/null
+	geli attach -p -k $keyfile ${md}
 
-	geli init -B none -e $ealgo -l $keylen -P -K $keyfile -s $secsize md${no} 2>/dev/null
-	geli attach -p -k $keyfile md${no}
-
-	secs=`diskinfo /dev/md${no}.eli | awk '{print $4}'`
+	secs=`diskinfo /dev/${md}.eli | awk '{print $4}'`
 
 	dd if=/dev/random of=${rnd} bs=${secsize} count=${secs} >/dev/null 2>&1
-	dd if=${rnd} of=/dev/md${no}.eli bs=${secsize} count=${secs} 2>/dev/null
+	dd if=${rnd} of=/dev/${md}.eli bs=${secsize} count=${secs} 2>/dev/null
 
 	md_rnd=`dd if=${rnd} bs=${secsize} count=${secs} 2>/dev/null | md5`
-	md_ddev=`dd if=/dev/md${no}.eli bs=${secsize} count=${secs} 2>/dev/null | md5`
-	md_edev=`dd if=/dev/md${no} bs=${secsize} count=${secs} 2>/dev/null | md5`
+	md_ddev=`dd if=/dev/${md}.eli bs=${secsize} count=${secs} 2>/dev/null | md5`
+	md_edev=`dd if=/dev/${md} bs=${secsize} count=${secs} 2>/dev/null | md5`
 
 	if [ ${md_rnd} = ${md_ddev} ]; then
 		echo "ok $i - ealgo=${ealgo} keylen=${keylen} sec=${secsize}"
@@ -42,9 +40,6 @@ do_test() {
 		echo "not ok $i - ealgo=${ealgo} keylen=${keylen} sec=${secsize}"
 	fi
 	i=$((i+1))
-
-	geli detach md${no}
-	mdconfig -d -u $no
 }
 
 i=1

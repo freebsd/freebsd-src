@@ -363,7 +363,12 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/* WDC Caviar Black Advanced Format (4k) drives */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD??????EX*", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD????AZEX*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Caviar Black Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD????FZEX*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{

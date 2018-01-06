@@ -6041,6 +6041,7 @@ iwm_wme_update(struct ieee80211com *ic)
 {
 #define IWM_EXP2(x)	((1 << (x)) - 1)	/* CWmin = 2^ECWmin - 1 */
 	struct iwm_softc *sc = ic->ic_softc;
+	struct chanAccParams chp;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct iwm_vap *ivp = IWM_VAP(vap);
 	struct iwm_node *in;
@@ -6050,9 +6051,11 @@ iwm_wme_update(struct ieee80211com *ic)
 	if (vap == NULL)
 		return (0);
 
+	ieee80211_wme_ic_getparams(ic, &chp);
+
 	IEEE80211_LOCK(ic);
 	for (aci = 0; aci < WME_NUM_AC; aci++)
-		tmp[aci] = ic->ic_wme.wme_chanParams.cap_wmeParams[aci];
+		tmp[aci] = chp.cap_wmeParams[aci];
 	IEEE80211_UNLOCK(ic);
 
 	IWM_LOCK(sc);

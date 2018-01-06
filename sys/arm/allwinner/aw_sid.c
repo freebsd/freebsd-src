@@ -52,28 +52,42 @@ __FBSDID("$FreeBSD$");
 #define	SID_THERMAL_CALIB0	(SID_SRAM + 0x34)
 #define	SID_THERMAL_CALIB1	(SID_SRAM + 0x38)
 
-#define	A10_ROOT_KEY_OFF	0x0
-#define	A83T_ROOT_KEY_OFF	SID_SRAM
-
 #define	ROOT_KEY_SIZE		4
 
-enum sid_type {
-	A10_SID = 1,
-	A20_SID,
-	A83T_SID,
+struct aw_sid_conf {
+	bus_size_t	rootkey_offset;
+	bool		has_thermal;
+};
+
+static const struct aw_sid_conf a10_conf = {
+	.rootkey_offset = 0,
+};
+
+static const struct aw_sid_conf a20_conf = {
+	.rootkey_offset = 0,
+};
+
+static const struct aw_sid_conf a64_conf = {
+	.rootkey_offset = SID_SRAM,
+	.has_thermal = true,
+};
+
+static const struct aw_sid_conf a83t_conf = {
+	.rootkey_offset = SID_SRAM,
+	.has_thermal = true,
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun4i-a10-sid",		A10_SID},
-	{ "allwinner,sun7i-a20-sid",		A20_SID},
-	{ "allwinner,sun8i-a83t-sid",		A83T_SID},
+	{ "allwinner,sun4i-a10-sid",		(uintptr_t)&a10_conf},
+	{ "allwinner,sun7i-a20-sid",		(uintptr_t)&a20_conf},
+	{ "allwinner,sun50i-a64-sid",		(uintptr_t)&a64_conf},
+	{ "allwinner,sun8i-a83t-sid",		(uintptr_t)&a83t_conf},
 	{ NULL,					0 }
 };
 
 struct aw_sid_softc {
 	struct resource		*res;
-	int			type;
-	bus_size_t		root_key_off;
+	struct aw_sid_conf	*sid_conf;
 };
 
 static struct aw_sid_softc *aw_sid_sc;
@@ -118,16 +132,7 @@ aw_sid_attach(device_t dev)
 	}
 
 	aw_sid_sc = sc;
-
-	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
-	switch (sc->type) {
-	case A83T_SID:
-		sc->root_key_off = A83T_ROOT_KEY_OFF;
-		break;
-	default:
-		sc->root_key_off = A10_ROOT_KEY_OFF;
-		break;
-	}
+	sc->sid_conf = (struct aw_sid_conf *)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -146,7 +151,7 @@ aw_sid_read_tscalib(uint32_t *calib0, uint32_t *calib1)
 	sc = aw_sid_sc;
 	if (sc == NULL)
 		return (ENXIO);
-	if (sc->type != A83T_SID)
+	if (!sc->sid_conf->has_thermal)
 		return (ENXIO);
 
 	*calib0 = RD4(sc, SID_THERMAL_CALIB0);
@@ -160,14 +165,15 @@ aw_sid_get_rootkey(u_char *out)
 {
 	struct aw_sid_softc *sc;
 	int i;
+	bus_size_t root_key_off;
 	u_int tmp;
 
 	sc = aw_sid_sc;
 	if (sc == NULL)
 		return (ENXIO);
-
+	root_key_off = aw_sid_sc->sid_conf->rootkey_offset;
 	for (i = 0; i < ROOT_KEY_SIZE ; i++) {
-		tmp = RD4(aw_sid_sc, aw_sid_sc->root_key_off + (i * 4));
+		tmp = RD4(aw_sid_sc, root_key_off + (i * 4));
 		be32enc(&out[i * 4], tmp);
 	}
 

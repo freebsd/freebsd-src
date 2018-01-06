@@ -122,7 +122,15 @@ cap_wrap(int sock)
 #ifdef WITH_CASPER
 int	cap_unwrap(cap_channel_t *chan);
 #else
-#define	cap_unwrap(chan)	(chan->cch_fd)
+static inline int
+cap_unwrap(cap_channel_t *chan)
+{
+	int fd;
+
+	fd = chan->cch_fd;
+	free(chan);
+	return (fd);
+}
 #endif
 
 /*

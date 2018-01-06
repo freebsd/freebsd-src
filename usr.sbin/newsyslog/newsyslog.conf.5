@@ -21,7 +21,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd May 19, 2017
+.Dd Dec 31, 2017
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -312,6 +312,8 @@ log file using
 .It Cm N
 indicates that there is no process which needs to be signaled
 when this log file is rotated.
+.It Cm p
+indicates that the zero-th rotated file should not be compressed.
 .It Cm R
 if this flag is set the
 .Xr newsyslog 8
