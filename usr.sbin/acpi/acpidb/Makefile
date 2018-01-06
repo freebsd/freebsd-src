@@ -80,3 +80,7 @@ CFLAGS+= -DACPI_EXEC_APP -fno-strict-aliasing
 LIBADD=	pthread
 
 .include <bsd.prog.mk>
+
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 60000
+CWARNFLAGS+=	-Wno-null-pointer-arithmetic
+.endif
