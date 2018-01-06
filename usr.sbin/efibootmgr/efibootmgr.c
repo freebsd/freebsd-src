@@ -164,7 +164,6 @@ static int
 set_bootvar(const char *name, uint8_t *data, size_t size)
 {
 
-	efi_del_variable(EFI_GLOBAL_GUID, name);
 	return efi_set_variable(EFI_GLOBAL_GUID, name, data, size,
 	    COMMON_ATTRS);
 }
