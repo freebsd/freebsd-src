@@ -23,17 +23,13 @@ cloudabi64_vdso_blob.o		optional	compat_cloudabi64	\
 	no-implicit-rule						\
 	clean		"cloudabi64_vdso_blob.o"
 #
+
+# Allwinner common files
 arm/allwinner/a10_ehci.c	optional	ehci aw_ehci fdt
 arm/allwinner/aw_gpio.c		optional	gpio aw_gpio fdt
 arm/allwinner/aw_mmc.c		optional	mmc aw_mmc fdt
-arm/allwinner/a64/a64_padconf.c	optional	soc_allwinner_a64 fdt
-arm/allwinner/a64/a64_r_padconf.c optional	soc_allwinner_a64 fdt
-arm/allwinner/h3/h3_padconf.c	optional	soc_allwinner_h5 fdt
-arm/allwinner/h3/h3_r_padconf.c optional	soc_allwinner_h5 fdt
-arm/allwinner/aw_ccu.c		optional	aw_ccu fdt
 arm/allwinner/aw_nmi.c		optional	aw_nmi fdt \
 	compile-with "${NORMAL_C} -I$S/gnu/dts/include"
-arm/allwinner/aw_reset.c	optional	aw_ccu fdt
 arm/allwinner/aw_rsb.c		optional	aw_rsb fdt
 arm/allwinner/aw_rtc.c		optional	aw_rtc fdt
 arm/allwinner/aw_sid.c		optional	aw_sid fdt
@@ -41,25 +37,23 @@ arm/allwinner/aw_thermal.c	optional	aw_thermal fdt
 arm/allwinner/aw_usbphy.c	optional	ehci aw_usbphy fdt
 arm/allwinner/aw_wdog.c		optional	aw_wdog fdt
 arm/allwinner/axp81x.c		optional	axp81x fdt
-arm/allwinner/clk/aw_ahbclk.c	optional	aw_ccu fdt
-arm/allwinner/clk/aw_apbclk.c	optional	aw_ccu fdt
-arm/allwinner/clk/aw_axiclk.c	optional	aw_ccu fdt
-arm/allwinner/clk/aw_cpuclk.c	optional	aw_ccu fdt
-arm/allwinner/clk/aw_gate.c	optional	aw_ccu fdt
-arm/allwinner/clk/aw_modclk.c	optional	aw_ccu fdt
-arm/allwinner/clk/aw_pll.c	optional	aw_ccu fdt \
-	compile-with "${NORMAL_C} -I$S/gnu/dts/include"
-arm/allwinner/clk/aw_thsclk.c	optional	aw_ccu fdt
-arm/allwinner/clk/aw_usbclk.c	optional	aw_ccu fdt
-arm/allwinner/clkng/aw_ccung.c	optional	aw_ccu fdt
+arm/allwinner/if_awg.c		optional	awg ext_resources syscon fdt
+
+# Allwinner clock driver
+arm/allwinner/clkng/aw_ccung.c		optional	aw_ccu fdt
 arm/allwinner/clkng/aw_clk_nkmp.c	optional	aw_ccu fdt
-arm/allwinner/clkng/aw_clk_nm.c	optional	aw_ccu fdt
+arm/allwinner/clkng/aw_clk_nm.c		optional	aw_ccu fdt
 arm/allwinner/clkng/aw_clk_prediv_mux.c	optional	aw_ccu fdt
-arm/allwinner/clkng/ccu_a64.c	optional	aw_ccu fdt
-arm/allwinner/clkng/ccu_h3.c	optional	aw_ccu fdt
+arm/allwinner/clkng/ccu_a64.c		optional	soc_allwinner_a64 aw_ccu fdt
+arm/allwinner/clkng/ccu_h3.c		optional	soc_allwinner_h5 aw_ccu fdt
 arm/allwinner/clkng/ccu_sun8i_r.c	optional	aw_ccu fdt
 
-arm/allwinner/if_awg.c		optional	awg ext_resources syscon fdt
+# Allwinner padconf files
+arm/allwinner/a64/a64_padconf.c	optional	soc_allwinner_a64 fdt
+arm/allwinner/a64/a64_r_padconf.c optional	soc_allwinner_a64 fdt
+arm/allwinner/h3/h3_padconf.c	optional	soc_allwinner_h5 fdt
+arm/allwinner/h3/h3_r_padconf.c optional	soc_allwinner_h5 fdt
+
 arm/annapurna/alpine/alpine_ccu.c		optional	al_ccu fdt
 arm/annapurna/alpine/alpine_nb_service.c	optional	al_nb_service fdt
 arm/annapurna/alpine/alpine_pci.c		optional	al_pci fdt
