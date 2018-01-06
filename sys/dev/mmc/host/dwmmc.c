@@ -131,13 +131,6 @@ static struct resource_spec dwmmc_spec[] = {
 #define	HWTYPE_MASK		(0x0000ffff)
 #define	HWFLAG_MASK		(0xffff << 16)
 
-static struct ofw_compat_data compat_data[] = {
-	{"altr,socfpga-dw-mshc",	HWTYPE_ALTERA},
-	{"samsung,exynos5420-dw-mshc",	HWTYPE_EXYNOS},
-	{"rockchip,rk2928-dw-mshc",	HWTYPE_ROCKCHIP},
-	{NULL,				HWTYPE_NONE},
-};
-
 static void
 dwmmc_get1paddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
@@ -448,50 +441,7 @@ parse_fdt(struct dwmmc_softc *sc)
 		sc->bus_hz = dts_value[0];
 	}
 
-	/*
-	 * Platform-specific stuff
-	 * XXX: Move to separate file
-	 */
-
-	if ((sc->hwtype & HWTYPE_MASK) != HWTYPE_EXYNOS)
-		return (0);
-
-	if ((len = OF_getproplen(node, "samsung,dw-mshc-ciu-div")) <= 0)
-		return (ENXIO);
-	OF_getencprop(node, "samsung,dw-mshc-ciu-div", dts_value, len);
-	sc->sdr_timing = (dts_value[0] << SDMMC_CLKSEL_DIVIDER_SHIFT);
-	sc->ddr_timing = (dts_value[0] << SDMMC_CLKSEL_DIVIDER_SHIFT);
-
-	if ((len = OF_getproplen(node, "samsung,dw-mshc-sdr-timing")) <= 0)
-		return (ENXIO);
-	OF_getencprop(node, "samsung,dw-mshc-sdr-timing", dts_value, len);
-	sc->sdr_timing |= ((dts_value[0] << SDMMC_CLKSEL_SAMPLE_SHIFT) |
-			  (dts_value[1] << SDMMC_CLKSEL_DRIVE_SHIFT));
-
-	if ((len = OF_getproplen(node, "samsung,dw-mshc-ddr-timing")) <= 0)
-		return (ENXIO);
-	OF_getencprop(node, "samsung,dw-mshc-ddr-timing", dts_value, len);
-	sc->ddr_timing |= ((dts_value[0] << SDMMC_CLKSEL_SAMPLE_SHIFT) |
-			  (dts_value[1] << SDMMC_CLKSEL_DRIVE_SHIFT));
-
 	return (0);
-}
-
-static int
-dwmmc_probe(device_t dev)
-{
-	uintptr_t hwtype;
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	hwtype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
-	if (hwtype == HWTYPE_NONE)
-		return (ENXIO);
-
-	device_set_desc(dev, "Synopsys DesignWare Mobile "
-				"Storage Host Controller");
-	return (BUS_PROBE_DEFAULT);
 }
 
 int
@@ -504,10 +454,6 @@ dwmmc_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	sc->dev = dev;
-	if (sc->hwtype == HWTYPE_NONE) {
-		sc->hwtype =
-		    ofw_bus_search_compatible(dev, compat_data)->ocd_data;
-	}
 
 	/* Why not to use Auto Stop? It save a hundred of irq per second */
 	sc->use_auto_stop = 1;
@@ -538,19 +484,6 @@ dwmmc_attach(device_t dev)
 
 	if (sc->desc_count == 0)
 		sc->desc_count = DESC_MAX;
-
-	if ((sc->hwtype & HWTYPE_MASK) == HWTYPE_ROCKCHIP) {
-		sc->use_pio = 1;
-		sc->pwren_inverted = 1;
-	} else if ((sc->hwtype & HWTYPE_MASK) == HWTYPE_EXYNOS) {
-		WRITE4(sc, EMMCP_MPSBEGIN0, 0);
-		WRITE4(sc, EMMCP_SEND0, 0);
-		WRITE4(sc, EMMCP_CTRL0, (MPSCTRL_SECURE_READ_BIT |
-					 MPSCTRL_SECURE_WRITE_BIT |
-					 MPSCTRL_NON_SECURE_READ_BIT |
-					 MPSCTRL_NON_SECURE_WRITE_BIT |
-					 MPSCTRL_VALID));
-	}
 
 	/* XXX: we support operation for slot index 0 only */
 	slot = 0;
@@ -1154,9 +1087,6 @@ dwmmc_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 }
 
 static device_method_t dwmmc_methods[] = {
-	DEVMETHOD(device_probe,		dwmmc_probe),
-	DEVMETHOD(device_attach,	dwmmc_attach),
-
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	dwmmc_read_ivar),
 	DEVMETHOD(bus_write_ivar,	dwmmc_write_ivar),
@@ -1171,16 +1101,5 @@ static device_method_t dwmmc_methods[] = {
 	DEVMETHOD_END
 };
 
-driver_t dwmmc_driver = {
-	"dwmmc",
-	dwmmc_methods,
-	sizeof(struct dwmmc_softc),
-};
-
-static devclass_t dwmmc_devclass;
-
-DRIVER_MODULE(dwmmc, simplebus, dwmmc_driver, dwmmc_devclass, NULL, NULL);
-DRIVER_MODULE(dwmmc, ofwbus, dwmmc_driver, dwmmc_devclass, NULL, NULL);
-#ifndef MMCCAM
-MMC_DECLARE_BRIDGE(dwmmc);
-#endif
+DEFINE_CLASS_0(dwmmc, dwmmc_driver, dwmmc_methods,
+    sizeof(struct dwmmc_softc));

@@ -44,19 +44,27 @@ int
 fdt_platform_load_dtb(void)
 {
 	struct fdt_header *hdr;
+	const char *s;
 
 	hdr = efi_get_table(&fdtdtb);
-	if (hdr != NULL) {
-		if (fdt_load_dtb_addr(hdr) == 0) {
-			printf("Using DTB provided by EFI at %p.\n", hdr);
-			return (0);
-		}
+	if (hdr == NULL)
+		return (1);
+	if (fdt_load_dtb_addr(hdr) != 0)
+		return (1);
+	printf("Using DTB provided by EFI at %p.\n", hdr);
+
+	s = getenv("fdt_overlays");
+	if (s != NULL && *s != '\0') {
+		printf("Loading DTB overlays: '%s'\n", s);
+		fdt_load_dtb_overlays(s);
 	}
 
-	return (1);
+	return (0);
 }
 
 void
 fdt_platform_fixups(void)
 {
+
+	fdt_apply_overlays();
 }

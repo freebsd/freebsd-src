@@ -213,6 +213,7 @@ DELAY(int n)
 
 	if (n == 0)
 		return;
+	TSENTER();
 
 	/*
 	 * Clamp the timeout at a maximum value (about 32 seconds with
@@ -233,6 +234,7 @@ DELAY(int n)
 		usecs -= (int)(last - first);
 		first = last;
 	}
+	TSEXIT();
 }
 
 /*

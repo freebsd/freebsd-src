@@ -25,9 +25,6 @@ options 	SMP_ON_UP
 machine 	arm armv7
 makeoptions	CONF_CFLAGS="-march=armv7a"
 
-makeoptions	KERNVIRTADDR=0xc0000000
-options 	KERNVIRTADDR=0xc0000000
-
 include 	"std.armv7"
 files		"../allwinner/files.allwinner"
 files		"../allwinner/files.allwinner_up"
@@ -72,6 +69,7 @@ device		clk
 device		phy
 device		hwreset
 device		regulator
+device		syscon
 
 # CPU frequency control
 device		cpufreq

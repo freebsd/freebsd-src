@@ -54,6 +54,9 @@
 /* for intrhook below */
 #include <sys/queue.h>
 
+/* for timestamping SYSINITs; other files may assume this is included here */
+#include <sys/tslog.h>
+
 /* Global variables for the kernel. */
 
 /* 1.1 */
@@ -229,6 +232,35 @@ struct sysinit {
  * correct warnings when -Wcast-qual is used.
  *
  */
+#ifdef TSLOG
+struct sysinit_tslog {
+	sysinit_cfunc_t func;
+	const void * data;
+	const char * name;
+};
+static inline void
+sysinit_tslog_shim(const void * data)
+{
+	const struct sysinit_tslog * x = data;
+
+	TSRAW(curthread, TS_ENTER, "SYSINIT", x->name);
+	(x->func)(x->data);
+	TSRAW(curthread, TS_EXIT, "SYSINIT", x->name);
+}
+#define	C_SYSINIT(uniquifier, subsystem, order, func, ident)	\
+	static struct sysinit_tslog uniquifier ## _sys_init_tslog = {	\
+		func,						\
+		(ident),					\
+		#uniquifier					\
+	};							\
+	static struct sysinit uniquifier ## _sys_init = {	\
+		subsystem,					\
+		order,						\
+		sysinit_tslog_shim,				\
+		&uniquifier ## _sys_init_tslog			\
+	};							\
+	DATA_SET(sysinit_set,uniquifier ## _sys_init)
+#else
 #define	C_SYSINIT(uniquifier, subsystem, order, func, ident)	\
 	static struct sysinit uniquifier ## _sys_init = {	\
 		subsystem,					\
@@ -237,6 +269,7 @@ struct sysinit {
 		(ident)						\
 	};							\
 	DATA_SET(sysinit_set,uniquifier ## _sys_init)
+#endif
 
 #define	SYSINIT(uniquifier, subsystem, order, func, ident)	\
 	C_SYSINIT(uniquifier, subsystem, order,			\

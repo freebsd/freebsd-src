@@ -355,28 +355,22 @@ FreeBSD 5.2           |      |                 |                       |
  |   11.0     |     10.12   | | NetBSD 7.0.2   |                       |
  |     |      |       |     | |                |                       |
  |     |      |       |     | *- NetBSD 7.1    |                       |
- |     |      |     macOS   |                  |               DragonFly 4.8.0
- |     |      |     10.13   |             OpenBSD 6.1                  |
- |  FreeBSD   |       |     |                  |               DragonFly 5.0.0
- |   11.1  FreeBSD    |     |                  |                       |
- |     |    10.4      |     |             OpenBSD 6.2          DragonFly 5.0.1
- |     |      |       v     |                  |                       |
- |     |      |             |                  |               DragonFly 5.0.2
- |     |      |             |                  |                       |
- |     |   FreeBSD          |                  |                       |
- |     |   10-stable        |                  |                       |
- |  FreeBSD    \            |                  |                       |
- |  11-stable   \           |                  |                       |
- |    /          `|         |                  |                       |
- | HardenedBSD    |         |                  |                       |
- |  11-stable  HardenedBSD  |                  |                       |
- |              10-stable   |                  |                       |
- |                          |                  |                       |
- |                          |                  |                       |
- |                          |                  |                       |
-FreeBSD 12 -current   NetBSD -current   OpenBSD -current    DragonFly -current
- |                          |                  |                       |
- v                          v                  v                       v
+ |     |      |       |     |      |           |                       |
+ |     |      |       |     |      |           |                       |
+ |     |      |     macOS   |      |           |               DragonFly 4.8.0
+ |     |      |     10.13   |      |      OpenBSD 6.1                  |
+ |  FreeBSD   |       |     |      |           |               DragonFly 5.0.0
+ |   11.1  FreeBSD    |     |      |           |                       |
+ |     |    10.4      |     |      |      OpenBSD 6.2          DragonFly 5.0.1
+ |     |              |     |      |           |                       |
+ |     |              |     |  NetBSD 7.1.1    |               DragonFly 5.0.2
+ |     |              |     |      |           |                       |
+ |     |              |     |      v           |                       |
+ |     v              |     |                  |                       |
+ |                    |     |                  |                       |
+FreeBSD 12 -current   | NetBSD -current   OpenBSD -current    DragonFly -current
+ |                    |     |                  |                       |
+ v                    v     v                  v                       v
 
 Time
 ----------------
@@ -698,15 +692,15 @@ NetBSD 6.0.4		2014-01-25 [NBD]
 NetBSD 6.1.3		2014-01-25 [NBD]
 DragonFly 3.6.1 	2014-02-22 [DFB]
 DragonFly 3.6.2		2014-04-10 [DFB]
-NetBSD 6.0.5		2014-04-12 [NDB]
-NetBSD 6.1.4		2014-04-12 [NDB]
+NetBSD 6.0.5		2014-04-12 [NBD]
+NetBSD 6.1.4		2014-04-12 [NBD]
 OpenBSD 5.5		2014-05-01 [OBD]
 DragonFly 3.8.0		2014-06-04 [DFB]
 DragonFly 3.8.1		2014-06-16 [DFB]
 DragonFly 3.6.3		2014-06-17 [DFB]
 FreeBSD 9.3		2014-07-05 [FBD]
 DragonFly 3.8.2		2014-08-08 [DFB]
-NetBSD 6.0.6		2014-09-22 [NDB]
+NetBSD 6.0.6		2014-09-22 [NBD]
 NetBSD 6.1.5		2014-09-22 [NBD]
 Mac OS X 10.10		2014-10-16 [APL]
 OpenBSD 5.6		2014-11-01 [OBD]
@@ -729,8 +723,8 @@ NetBSD 7.0.1		2016-05-22 [NBD]
 DragonFly 4.6.0		2016-08-02 [DFB]
 OpenBSD 6.0		2016-09-01 [OBD]
 macOS 10.12		2016-09-20 [APL]
-NetBSD 7.0.2		2016-10-21 [NBD]
 FreeBSD 11.0		2016-10-10 [FBD]
+NetBSD 7.0.2		2016-10-21 [NBD]
 NetBSD 7.1		2017-03-11 [NBD]
 DragonFly 4.8.0		2017-03-27 [DFB]
 OpenBSD 6.1		2017-04-11 [OBD]
@@ -741,6 +735,7 @@ OpenBSD 6.2		2017-10-09 [OBD]
 DragonFly 5.0.0		2017-10-16 [DFB]
 DragonFly 5.0.1		2017-11-06 [DFB]
 DragonFly 5.0.2		2017-12-04 [DFB]
+NetBSD 7.1.1		2017-12-22 [NBD]
 
 Bibliography
 ------------------------

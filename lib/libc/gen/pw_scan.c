@@ -44,9 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <pwd.h>
-#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>

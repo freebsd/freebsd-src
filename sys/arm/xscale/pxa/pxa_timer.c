@@ -214,10 +214,12 @@ DELAY(int usec)
 				;
 		return;
 	}
+	TSENTER();
 
 	val = pxa_timer_get_oscr();
 	val += (PXA_TIMER_FREQUENCY * usec) / 1000000;
 	while (pxa_timer_get_oscr() <= val);
+	TSEXIT();
 }
 
 uint32_t

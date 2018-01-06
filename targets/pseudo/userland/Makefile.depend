@@ -528,7 +528,6 @@ DIRDEPS+= \
 	usr.sbin/bsnmpd/modules/snmp_wlan \
 	usr.sbin/bsnmpd/tools/bsnmptools \
 	usr.sbin/bsnmpd/tools/libbsnmptools \
-	usr.sbin/burncd \
 	usr.sbin/cdcontrol \
 	usr.sbin/chkgrp \
 	usr.sbin/chown \

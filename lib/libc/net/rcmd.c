@@ -457,8 +457,8 @@ again:
 		first = 0;
 		if ((pwd = getpwnam(luser)) == NULL)
 			return (-1);
-		(void)strcpy(pbuf, pwd->pw_dir);
-		(void)strcat(pbuf, "/.rhosts");
+		(void)strlcpy(pbuf, pwd->pw_dir, sizeof(pbuf));
+		(void)strlcat(pbuf, "/.rhosts", sizeof(pbuf));
 
 		/*
 		 * Change effective uid while opening .rhosts.  If root and

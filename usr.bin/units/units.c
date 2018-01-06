@@ -763,7 +763,7 @@ main(int argc, char **argv)
 	history_file = NULL;
 	outputformat = numfmt;
 	quit = false;
-	while ((optchar = getopt_long(argc, argv, "+ehf:oqtvHUV", longopts, NULL)) != -1) {
+	while ((optchar = getopt_long(argc, argv, "+ehf:o:qtvH:UV", longopts, NULL)) != -1) {
 		switch (optchar) {
 		case 'e':
 			outputformat = "%6e";

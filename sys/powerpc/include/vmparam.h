@@ -60,7 +60,11 @@
 #endif
 
 #ifndef	MAXSSIZ
+#ifdef __powerpc64__
+#define	MAXSSIZ		(512*1024*1024)		/* max stack size */
+#else
 #define	MAXSSIZ		(64*1024*1024)		/* max stack size */
+#endif
 #endif
 
 #ifdef AIM
@@ -108,7 +112,7 @@
 #endif
 
 #ifdef AIM
-#define	KERNBASE		0x00100000UL	/* start of kernel virtual */
+#define	KERNBASE		0x00100100UL	/* start of kernel virtual */
 
 #ifndef __powerpc64__
 #define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)KERNEL_SR << ADDR_SR_SHFT)

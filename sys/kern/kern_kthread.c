@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/wait.h>
 #include <sys/sched.h>
+#include <sys/tslog.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
@@ -124,6 +125,7 @@ kproc_create(void (*func)(void *), void *arg,
 #ifdef KTR
 	sched_clear_tdname(td);
 #endif
+	TSTHREAD(td, td->td_name);
 
 	/* call the processes' main()... */
 	cpu_fork_kthread_handler(td, func, arg);
@@ -282,6 +284,8 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	va_start(ap, fmt);
 	vsnprintf(newtd->td_name, sizeof(newtd->td_name), fmt, ap);
 	va_end(ap);
+
+	TSTHREAD(newtd, newtd->td_name);
 
 	newtd->td_proc = p;  /* needed for cpu_copy_thread */
 	/* might be further optimized for kthread */

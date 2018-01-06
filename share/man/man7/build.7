@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 3, 2017
+.Dd December 24, 2017
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -509,6 +509,15 @@ If set, this variable supplies a list of additional directories relative to
 the root of the source tree to build as part of the
 .Cm everything
 target.
+The directories are built in parallel with each other,
+and with the base system directories.
+Insert a
+.Va .WAIT
+directive at the beginning of the
+.Va LOCAL_DIRS
+list to ensure all base system directories are built first.
+.Va .WAIT
+may also be used as needed elsewhere within the list.
 .It Va LOCAL_ITOOLS
 If set, this variable supplies a list of additional tools that are used by the
 .Cm installworld
@@ -520,6 +529,15 @@ If set, this variable supplies a list of additional directories relative to
 the root of the source tree to build as part of the
 .Cm libraries
 target.
+The directories are built in parallel with each other,
+and with the base system libraries.
+Insert a
+.Va .WAIT
+directive at the beginning of the
+.Va LOCAL_DIRS
+list to ensure all base system libraries are built first.
+.Va .WAIT
+may also be used as needed elsewhere within the list.
 .It Va LOCAL_MTREE
 If set, this variable supplies a list of additional mtrees relative to the
 root of the source tree to use as part of the

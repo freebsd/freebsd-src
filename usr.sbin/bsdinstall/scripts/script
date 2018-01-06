@@ -116,8 +116,15 @@ fi
 bsdinstall checksum
 for set in $DISTRIBUTIONS; do
 	f_dprintf "Extracting $BSDINSTALL_DISTDIR/$set"
+	# XXX: this will fail if any mountpoints are FAT, due to inability to
+	# set ctime/mtime on the root of FAT partitions. tar has no option to
+	# ignore this. We probably need to switch back to distextract here
+	# to properly support EFI.
 	tar -xf "$BSDINSTALL_DISTDIR/$set" -C $BSDINSTALL_CHROOT
 done
+
+# Configure bootloader if needed
+bsdinstall bootconfig
 
 # Finalize install
 bsdinstall config

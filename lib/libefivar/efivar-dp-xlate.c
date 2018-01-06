@@ -527,12 +527,17 @@ find_geom_efimedia(struct gmesh *mesh, const char *dev)
 static int
 build_dp(const char *efimedia, const char *relpath, efidp *dp)
 {
-	char *fp, *dptxt = NULL;
+	char *fp, *dptxt = NULL, *cp, *rp;
 	int rv = 0;
 	efidp out = NULL;
 	size_t len;
 
-	fp = path_to_file_dp(relpath);
+	rp = strdup(relpath);
+	for (cp = rp; *cp; cp++)
+		if (*cp == '/')
+			*cp = '\\';
+	fp = path_to_file_dp(rp);
+	free(rp);
 	if (fp == NULL) {
 		rv = ENOMEM;
 		goto errout;
@@ -663,6 +668,7 @@ errout:
 	free(rp);
 	if (rv != 0) {
 		free(*dp);
+		*dp = NULL;
 	}
 	return (rv);
 }

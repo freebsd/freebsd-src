@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ep/if_epvar.h>
 
 #ifdef __i386__
-#include <i386/isa/elink.h>
+#include <dev/ep/elink.h>
 #endif
 
 #ifdef __i386__

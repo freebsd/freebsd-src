@@ -219,7 +219,7 @@ ath_ioctl_spectral(struct ath_softc *sc, struct ath_diag *ad)
 		 * pointer for us to use below in reclaiming the buffer;
 		 * may want to be more defensive.
 		 */
-		outdata = malloc(outsize, M_TEMP, M_NOWAIT);
+		outdata = malloc(outsize, M_TEMP, M_NOWAIT | M_ZERO);
 		if (outdata == NULL) {
 			error = ENOMEM;
 			goto bad;
@@ -282,6 +282,7 @@ ath_ioctl_spectral(struct ath_softc *sc, struct ath_diag *ad)
 		break;
 		default:
 			error = EINVAL;
+			goto bad;
 	}
 	if (outsize < ad->ad_out_size)
 		ad->ad_out_size = outsize;

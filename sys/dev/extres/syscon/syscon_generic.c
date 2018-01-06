@@ -207,5 +207,5 @@ DEFINE_CLASS_0(syscon_generic, syscon_generic_driver, syscon_generic_dmethods,
     sizeof(struct syscon_generic_softc));
 static devclass_t syscon_generic_devclass;
 EARLY_DRIVER_MODULE(syscon_generic, simplebus, syscon_generic_driver,
-    syscon_generic_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_LATE);
+    syscon_generic_devclass, 0, 0, BUS_PASS_DEFAULT + BUS_PASS_ORDER_FIRST);
 MODULE_VERSION(syscon_generic, 1);

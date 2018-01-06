@@ -607,9 +607,7 @@ swcr_authenc(struct cryptop *crp)
 					bzero(blk, blksz);
 				crypto_copydata(crp->crp_flags, buf,
 				    crde->crd_skip + i, len, blk);
-				if (!(crde->crd_flags & CRD_F_ENCRYPT)) {
-					exf->decrypt(swe->sw_kschedule, blk);
-				}
+				exf->decrypt(swe->sw_kschedule, blk);
 				crypto_copyback(crp->crp_flags, buf,
 				    crde->crd_skip + i, len, blk);
 			}

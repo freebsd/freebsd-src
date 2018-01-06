@@ -431,7 +431,7 @@ getoffset(char *timearg)
 	struct tm *lt;
 	char *p;
 	time_t now;
-	int this_year;
+	int maybe_today, this_year;
 	char *timeunit;
 
 	(void)time(&now);
@@ -482,6 +482,7 @@ getoffset(char *timearg)
 
 	unsetenv("TZ");					/* OUR timezone */
 	lt = localtime(&now);				/* current time val */
+	maybe_today = 1;
 
 	switch(strlen(timearg)) {
 	case 10:
@@ -503,6 +504,7 @@ getoffset(char *timearg)
 			badtime();
 		/* FALLTHROUGH */
 	case 6:
+		maybe_today = 0;
 		lt->tm_mday = ATOI2(timearg);
 		if (lt->tm_mday < 1 || lt->tm_mday > 31)
 			badtime();
@@ -517,8 +519,23 @@ getoffset(char *timearg)
 		lt->tm_sec = 0;
 		if ((shuttime = mktime(lt)) == -1)
 			badtime();
-		if ((offset = shuttime - now) < 0)
-			errx(1, "that time is already past.");
+
+		if ((offset = shuttime - now) < 0) {
+			if (!maybe_today)
+				errx(1, "that time is already past.");
+
+			/*
+			 * If the user only gave a time, assume that
+			 * any time earlier than the current time
+			 * was intended to be that time tomorrow.
+			 */
+			lt->tm_mday++;
+			if ((shuttime = mktime(lt)) == -1)
+				badtime();
+			if ((offset = shuttime - now) < 0) {
+				errx(1, "tomorrow is before today?");
+			}
+		}
 		break;
 	default:
 		badtime();

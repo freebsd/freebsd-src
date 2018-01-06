@@ -347,7 +347,9 @@ void
 DELAY(int usec)
 {
 
+	TSENTER();
 	delay_impl(usec, delay_arg);
+	TSEXIT();
 }
 #endif
 

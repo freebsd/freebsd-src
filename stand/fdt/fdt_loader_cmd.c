@@ -31,8 +31,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
-#include <fdt.h>
 #include <libfdt.h>
+#include <fdt.h>
 #include <sys/param.h>
 #include <sys/linker.h>
 #include <machine/elf.h>
@@ -386,7 +386,8 @@ fdt_apply_overlays()
 	for (fp = file_findfile(NULL, "dtbo"); fp != NULL; fp = fp->f_next) {
 		printf("applying DTB overlay '%s'\n", fp->f_name);
 		COPYOUT(fp->f_addr, overlay, fp->f_size);
-		fdt_overlay_apply(new_fdtp, overlay, fp->f_size);
+		/* Both overlay and new_fdtp may be modified in place */
+		fdt_overlay_apply(new_fdtp, overlay);
 	}
 
 	free(fdtp);

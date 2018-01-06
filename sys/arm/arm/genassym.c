@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuinfo.h>
 #include <machine/intr.h>
 #include <machine/sysarch.h>
+#include <machine/vmparam.h>	/* For KERNVIRTADDR */
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 
 ASSYM(KERNBASE, KERNBASE);
+ASSYM(KERNVIRTADDR, KERNVIRTADDR);
 #if __ARM_ARCH >= 6
 ASSYM(CPU_ASID_KERNEL,CPU_ASID_KERNEL);
 #endif

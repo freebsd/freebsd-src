@@ -47,8 +47,6 @@
 #include <rpc/rpc.h>
 #include <rpc/rpcb_prot.h>
 #include <netconfig.h>
-#include <syslog.h>
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 

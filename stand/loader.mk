@@ -105,15 +105,12 @@ CFLAGS+=	-DLOADER_NFS_SUPPORT
 CFLAGS+=	-DLOADER_TFTP_SUPPORT
 .endif
 
-# Disk and partition support
-.if ${LOADER_DISK_SUPPORT:Uyes} == "yes"
-CFLAGS+= -DLOADER_DISK_SUPPORT
+# Partition support
 .if ${LOADER_GPT_SUPPORT:Uyes} == "yes"
 CFLAGS+= -DLOADER_GPT_SUPPORT
 .endif
 .if ${LOADER_MBR_SUPPORT:Uyes} == "yes"
 CFLAGS+= -DLOADER_MBR_SUPPORT
-.endif
 .endif
 
 .if defined(HAVE_ZFS)

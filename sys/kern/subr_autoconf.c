@@ -155,6 +155,7 @@ boot_run_interrupt_driven_config_hooks(void *dummy)
 	run_interrupt_driven_config_hooks();
 
 	/* Block boot processing until all hooks are disestablished. */
+	TSWAIT("config hooks");
 	mtx_lock(&intr_config_hook_lock);
 	warned = 0;
 	while (!TAILQ_EMPTY(&intr_config_hook_list)) {
@@ -168,6 +169,7 @@ boot_run_interrupt_driven_config_hooks(void *dummy)
 		}
 	}
 	mtx_unlock(&intr_config_hook_lock);
+	TSUNWAIT("config hooks");
 }
 
 SYSINIT(intr_config_hooks, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_FIRST,
@@ -183,6 +185,7 @@ config_intrhook_establish(struct intr_config_hook *hook)
 {
 	struct intr_config_hook *hook_entry;
 
+	TSHOLD("config hooks");
 	mtx_lock(&intr_config_hook_lock);
 	TAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links)
 		if (hook_entry == hook)
@@ -239,6 +242,7 @@ config_intrhook_disestablish(struct intr_config_hook *hook)
 	if (next_to_notify == hook)
 		next_to_notify = TAILQ_NEXT(hook, ich_links);
 	TAILQ_REMOVE(&intr_config_hook_list, hook, ich_links);
+	TSRELEASE("config hooks");
 
 	/* Wakeup anyone watching the list */
 	wakeup(&intr_config_hook_list);

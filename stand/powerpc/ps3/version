@@ -1,8 +1,0 @@
-$FreeBSD$
-
-NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
-file is important.  Make sure the current version number is on line 6.
-
-0.3:	Added GPT support to disk.
-0.2:	Added disk support.
-0.1:	Initial PS3/PowerPC version.
