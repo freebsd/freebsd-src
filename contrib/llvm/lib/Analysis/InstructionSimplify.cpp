@@ -826,7 +826,7 @@ static Value *SimplifyMulInst(Value *Op0, Value *Op1, const SimplifyQuery &Q,
                                           MaxRecurse))
     return V;
 
-  // Mul distributes over Add.  Try some generic simplifications based on this.
+  // Mul distributes over Add. Try some generic simplifications based on this.
   if (Value *V = ExpandBinOp(Instruction::Mul, Op0, Op1, Instruction::Add,
                              Q, MaxRecurse))
     return V;
@@ -3838,12 +3838,13 @@ Value *llvm::SimplifyInsertElementInst(Value *Vec, Value *Val, Value *Idx,
   // Fold into undef if index is out of bounds.
   if (auto *CI = dyn_cast<ConstantInt>(Idx)) {
     uint64_t NumElements = cast<VectorType>(Vec->getType())->getNumElements();
-
     if (CI->uge(NumElements))
       return UndefValue::get(Vec->getType());
   }
 
-  // TODO: We should also fold if index is iteslf an undef.
+  // If index is undef, it might be out of bounds (see above case)
+  if (isa<UndefValue>(Idx))
+    return UndefValue::get(Vec->getType());
 
   return nullptr;
 }
@@ -3896,10 +3897,13 @@ static Value *SimplifyExtractElementInst(Value *Vec, Value *Idx, const SimplifyQ
 
   // If extracting a specified index from the vector, see if we can recursively
   // find a previously computed scalar that was inserted into the vector.
-  if (auto *IdxC = dyn_cast<ConstantInt>(Idx))
-    if (IdxC->getValue().ule(Vec->getType()->getVectorNumElements()))
-      if (Value *Elt = findScalarElement(Vec, IdxC->getZExtValue()))
-        return Elt;
+  if (auto *IdxC = dyn_cast<ConstantInt>(Idx)) {
+    if (IdxC->getValue().uge(Vec->getType()->getVectorNumElements()))
+      // definitely out of bounds, thus undefined result
+      return UndefValue::get(Vec->getType()->getVectorElementType());
+    if (Value *Elt = findScalarElement(Vec, IdxC->getZExtValue()))
+      return Elt;
+  }
 
   // An undef extract index can be arbitrarily chosen to be an out-of-range
   // index value, which would result in the instruction being undef.
@@ -4489,26 +4493,53 @@ static Value *SimplifyIntrinsic(Function *F, IterTy ArgBegin, IterTy ArgEnd,
       }
     }
 
+    Value *IIOperand = *ArgBegin;
+    Value *X;
     switch (IID) {
     case Intrinsic::fabs: {
-      if (SignBitMustBeZero(*ArgBegin, Q.TLI))
-        return *ArgBegin;
+      if (SignBitMustBeZero(IIOperand, Q.TLI))
+        return IIOperand;
       return nullptr;
     }
     case Intrinsic::bswap: {
-      Value *IIOperand = *ArgBegin;
-      Value *X = nullptr;
       // bswap(bswap(x)) -> x
       if (match(IIOperand, m_BSwap(m_Value(X))))
         return X;
       return nullptr;
     }
     case Intrinsic::bitreverse: {
-      Value *IIOperand = *ArgBegin;
-      Value *X = nullptr;
       // bitreverse(bitreverse(x)) -> x
       if (match(IIOperand, m_BitReverse(m_Value(X))))
         return X;
+      return nullptr;
+    }
+    case Intrinsic::exp: {
+      // exp(log(x)) -> x
+      if (Q.CxtI->isFast() &&
+          match(IIOperand, m_Intrinsic<Intrinsic::log>(m_Value(X))))
+        return X;
+      return nullptr;
+    }
+    case Intrinsic::exp2: {
+      // exp2(log2(x)) -> x
+      if (Q.CxtI->isFast() &&
+          match(IIOperand, m_Intrinsic<Intrinsic::log2>(m_Value(X))))
+        return X;
+      return nullptr;
+    }
+    case Intrinsic::log: {
+      // log(exp(x)) -> x
+      if (Q.CxtI->isFast() &&
+          match(IIOperand, m_Intrinsic<Intrinsic::exp>(m_Value(X))))
+        return X;
+      return nullptr;
+    }
+    case Intrinsic::log2: {
+      // log2(exp2(x)) -> x
+      if (Q.CxtI->isFast() &&
+          match(IIOperand, m_Intrinsic<Intrinsic::exp2>(m_Value(X)))) {
+        return X;
+      }
       return nullptr;
     }
     default:

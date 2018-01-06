@@ -36,6 +36,10 @@
 /* Directories clang will search for headers */
 #define C_INCLUDE_DIRS ""
 
+/* Directories clang will search for configuration files */
+/* #undef CLANG_CONFIG_FILE_SYSTEM_DIR */
+/* #undef CLANG_CONFIG_FILE_USER_DIR */
+
 /* Default <path> to all compiler invocations for --sysroot=<path>. */
 /* #undef DEFAULT_SYSROOT */
 
@@ -52,7 +56,7 @@
 #define CLANG_HAVE_RLIMITS 1
 
 /* The LLVM product name and version */
-#define BACKEND_PACKAGE_STRING "LLVM 6.0.0svn"
+#define BACKEND_PACKAGE_STRING "LLVM 6.0.0"
 
 /* Linker version detected at compile time. */
 /* #undef HOST_LINK_VERSION */

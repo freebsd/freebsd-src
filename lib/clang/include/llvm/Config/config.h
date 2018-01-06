@@ -401,7 +401,7 @@
 #define LLVM_VERSION_PATCH 0
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "6.0.0svn"
+#define LLVM_VERSION_STRING "6.0.0"
 
 /* Define if libxml2 is supported on this platform. */
 /* #undef LLVM_LIBXML2_ENABLED */
@@ -416,13 +416,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 6.0.0svn"
+#define PACKAGE_STRING "LLVM 6.0.0"
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "6.0.0svn"
+#define PACKAGE_VERSION "6.0.0"
 
 /* Define to the vendor of this package. */
 /* #undef PACKAGE_VENDOR */
