@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_VHPET, "vhpet", "bhyve virtual hpet");
 
-#define	HPET_FREQ	10000000		/* 10.0 Mhz */
+#define	HPET_FREQ	16777216		/* 16.7 (2^24) Mhz */
 #define	FS_PER_S	1000000000000000ul
 
 /* Timer N Configuration and Capabilities Register */
