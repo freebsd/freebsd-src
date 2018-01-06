@@ -171,11 +171,11 @@ set_bootvar(const char *name, uint8_t *data, size_t size)
 
 
 #define USAGE \
-	"   [-aAnNB Bootvar] [-t timeout] [-T] [-o bootorder] [-O] [--verbose] [--help] \n \
-  [-c -d device -p partition -l loader [-L label] [--dry-run]]"
+	"   [-aAnNB Bootvar] [-t timeout] [-T] [-o bootorder] [-O] [--verbose] [--help] \n\
+  [-c -l loader [-k kernel ] [-L label] [--dry-run]]"
 
 #define CREATE_USAGE \
-	"       efibootmgr -c -d device -p partition -loader loader [-L label ] [--dry-run]"
+	"       efibootmgr -c -l loader [-k kernel] [-L label] [--dry-run]"
 #define ORDER_USAGE \
 	"       efibootmgr -o bootvarnum1,bootvarnum2,..."
 #define TIMEOUT_USAGE \
