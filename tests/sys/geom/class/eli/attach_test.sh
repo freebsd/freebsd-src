@@ -39,7 +39,62 @@ attach_d_cleanup()
 	geli_test_cleanup
 }
 
+atf_test_case attach_r cleanup
+attach_r_head()
+{
+	atf_set "descr" "geli attach -r will create a readonly provider"
+	atf_set "require.user" "root"
+}
+attach_r_body()
+{
+	. $(atf_get_srcdir)/conf.sh
+
+	sectors=100
+	md=$(attach_md -t malloc -s `expr $sectors + 1`)
+	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
+
+	atf_check geli init -B none -P -K keyfile ${md}
+	atf_check geli attach -r -p -k keyfile ${md}
+
+	atf_check -o match:"^Flags: .*READ-ONLY" geli list ${md}.eli
+
+	# Verify that writes are verbotten
+	atf_check -s not-exit:0 -e match:"Read-only" \
+		dd if=/dev/zero of=/dev/${md}.eli count=1
+}
+attach_r_cleanup()
+{
+	. $(atf_get_srcdir)/conf.sh
+	geli_test_cleanup
+}
+
+atf_test_case nokey cleanup
+nokey_head()
+{
+	atf_set "descr" "geli attach fails if called with no key component"
+	atf_set "require.user" "root"
+}
+nokey_body()
+{
+	. $(atf_get_srcdir)/conf.sh
+
+	sectors=100
+	md=$(attach_md -t malloc -s `expr $sectors + 1`)
+	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
+
+	atf_check geli init -B none -P -K keyfile ${md}
+	atf_check -s not-exit:0 -e match:"No key components given" \
+		geli attach -p ${md} 2>/dev/null
+}
+nokey_cleanup()
+{
+	. $(atf_get_srcdir)/conf.sh
+	geli_test_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case attach_d
+	atf_add_test_case attach_r
+	atf_add_test_case nokey
 }
