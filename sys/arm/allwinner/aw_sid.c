@@ -67,29 +67,43 @@ __FBSDID("$FreeBSD$");
 #define	ROOT_KEY_SIZE		4
 
 struct aw_sid_conf {
+	bus_size_t	efuse_size;
 	bus_size_t	rootkey_offset;
 	bool		has_prctl;
 	bool		has_thermal;
+	bool		requires_prctl_read;
 };
 
 static const struct aw_sid_conf a10_conf = {
+	.efuse_size = 0x10,
 	.rootkey_offset = 0,
 };
 
 static const struct aw_sid_conf a20_conf = {
+	.efuse_size = 0x10,
 	.rootkey_offset = 0,
 };
 
 static const struct aw_sid_conf a64_conf = {
+	.efuse_size = 0x100,
 	.rootkey_offset = SID_SRAM,
 	.has_prctl = true,
 	.has_thermal = true,
 };
 
 static const struct aw_sid_conf a83t_conf = {
+	.efuse_size = 0x100,
 	.rootkey_offset = SID_SRAM,
 	.has_prctl = true,
 	.has_thermal = true,
+};
+
+static const struct aw_sid_conf h3_conf = {
+	.efuse_size = 0x100,
+	.rootkey_offset = SID_SRAM,
+	.has_prctl = true,
+	.has_thermal = true,
+	.requires_prctl_read = true,
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -97,6 +111,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun7i-a20-sid",		(uintptr_t)&a20_conf},
 	{ "allwinner,sun50i-a64-sid",		(uintptr_t)&a64_conf},
 	{ "allwinner,sun8i-a83t-sid",		(uintptr_t)&a83t_conf},
+	{ "allwinner,sun8i-h3-sid",		(uintptr_t)&h3_conf},
 	{ NULL,					0 }
 };
 
@@ -168,6 +183,8 @@ static int
 aw_sid_attach(device_t dev)
 {
 	struct aw_sid_softc *sc;
+	bus_size_t i;
+	uint32_t val;
 
 	sc = device_get_softc(dev);
 
@@ -179,6 +196,19 @@ aw_sid_attach(device_t dev)
 	mtx_init(&sc->prctl_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 	sc->sid_conf = (struct aw_sid_conf *)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	aw_sid_sc = sc;
+
+	/*
+	 * This set of reads is solely for working around a silicon bug on some
+	 * SoC that require a prctl read in order for direct register access to
+	 * return a non-garbled value. Hence, the values we read are simply
+	 * ignored.
+	 */
+	if (sc->sid_conf->requires_prctl_read)
+		for (i = 0; i < sc->sid_conf->efuse_size; i += 4)
+			if (aw_sid_prctl_read(dev, i, &val) != 0) {
+				device_printf(dev, "failed prctl read\n");
+				return (ENXIO);
+			}
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
