@@ -9,7 +9,7 @@ init_test()
 	keylen=${cipher##*:}
 
 	atf_check -s exit:0 -e ignore \
-		geli init -B none -e $ealgo -l $keylen -P -K keyfile 
+		geli init -B none -e $ealgo -l $keylen -P -K keyfile \
 		-s $secsize ${md}
 	atf_check geli attach -p -k keyfile ${md}
 
