@@ -206,6 +206,11 @@ static device_method_t syscon_generic_dmethods[] = {
 DEFINE_CLASS_0(syscon_generic, syscon_generic_driver, syscon_generic_dmethods,
     sizeof(struct syscon_generic_softc));
 static devclass_t syscon_generic_devclass;
+/*
+ * syscon_generic needs to attach before other devices that may require it, such
+ * as if_awg, but later than others to give way for more specialized syscon
+ * implementations.
+ */
 EARLY_DRIVER_MODULE(syscon_generic, simplebus, syscon_generic_driver,
-    syscon_generic_devclass, 0, 0, BUS_PASS_DEFAULT + BUS_PASS_ORDER_FIRST);
+    syscon_generic_devclass, 0, 0, BUS_PASS_DEFAULT - 1000);
 MODULE_VERSION(syscon_generic, 1);
