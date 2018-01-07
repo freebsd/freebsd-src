@@ -358,6 +358,28 @@ init_i_P_cleanup()
 	geli_test_cleanup
 }
 
+atf_test_case nokey cleanup
+nokey_head()
+{
+	atf_set "descr" "geli init fails if called with no key component"
+	atf_set "require.user" "root"
+}
+nokey_body()
+{
+	. $(atf_get_srcdir)/conf.sh
+
+	sectors=100
+	md=$(attach_md -t malloc -s `expr $sectors + 1`)
+
+	atf_check -s not-exit:0 -e match:"No key components given" \
+		geli init -B none -P ${md}
+}
+nokey_cleanup()
+{
+	. $(atf_get_srcdir)/conf.sh
+	geli_test_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case init
@@ -366,4 +388,5 @@ atf_init_test_cases()
 	atf_add_test_case init_a
 	atf_add_test_case init_alias
 	atf_add_test_case init_i_P
+	atf_add_test_case nokey
 }
