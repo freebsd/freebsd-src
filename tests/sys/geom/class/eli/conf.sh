@@ -3,7 +3,6 @@
 
 class="eli"
 base=$(atf_get ident)
-[ -z "$base" ] && base=`basename $0` # for TAP compatibility
 MAX_SECSIZE=8192
 TEST_MDS_FILE=md.devs
 
@@ -85,7 +84,5 @@ geli_test_cleanup()
 	fi
 	true
 }
-# TODO: remove the trap statement once all TAP tests are converted
-trap geli_test_cleanup ABRT EXIT INT TERM
 
 . `dirname $0`/../geom_subr.sh

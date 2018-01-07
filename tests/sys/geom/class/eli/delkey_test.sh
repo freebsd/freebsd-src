@@ -80,7 +80,35 @@ delkey_cleanup()
 	geli_test_cleanup
 }
 
+atf_test_case delkey_readonly cleanup
+delkey_readonly_head()
+{
+	atf_set "descr" "geli delkey cannot work on a read-only provider"
+	atf_set "require.user" "root"
+}
+delkey_readonly_body()
+{
+	. $(atf_get_srcdir)/conf.sh
+
+	sectors=100
+	md=$(attach_md -t malloc -s `expr $sectors + 1`)
+	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
+
+	atf_check geli init -B none -P -K keyfile ${md}
+	atf_check geli attach -r -p -k keyfile ${md}
+
+	atf_check -s not-exit:0 -e match:"read-only" geli delkey -n 0 ${md}
+	# Even with -f (force) it should still fail
+	atf_check -s not-exit:0 -e match:"read-only" geli delkey -f -n 0 ${md}
+}
+delkey_readonly_cleanup()
+{
+	. $(atf_get_srcdir)/conf.sh
+	geli_test_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case delkey
+	atf_add_test_case delkey_readonly
 }

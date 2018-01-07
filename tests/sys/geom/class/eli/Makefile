@@ -18,10 +18,6 @@ ATF_TESTS_SH+=	onetime_test
 ATF_TESTS_SH+=	resize_test
 ATF_TESTS_SH+=	setkey_test
 
-TAP_TESTS_SH+= nokey_test
-TAP_TESTS_SH+= readonly_test
-
-
 ${PACKAGE}FILES+=		conf.sh
 
 .for t in ${TAP_TESTS_SH}
