@@ -53,6 +53,11 @@ CFLAGS += -mllvm -arm-enable-ehabi
 .endif
 .endif
 
+# "makeoptions KERNVIRTADDR=" is now optional, supply the default value.
+.if empty(KERNVIRTADDR)
+KERNVIRTADDR= 0xc0000000
+.endif
+
 # hack because genassym.c includes sys/bus.h which includes these.
 genassym.o: bus_if.h device_if.h
 
