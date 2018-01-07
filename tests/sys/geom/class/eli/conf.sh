@@ -4,6 +4,7 @@
 class="eli"
 base=$(atf_get ident)
 [ -z "$base" ] && base=`basename $0` # for TAP compatibility
+MAX_SECSIZE=8192
 TEST_MDS_FILE=md.devs
 
 attach_md()
@@ -21,6 +22,11 @@ attach_md()
 for_each_geli_config() {
 	func=$1
 
+	# Double the sector size to allow for the HMACs' storage space.
+	osecsize=$(( $MAX_SECSIZE * 2 ))
+	# geli needs 512B for the label.
+	bytes=`expr $osecsize \* $sectors + 512`b
+	md=$(attach_md -t malloc -s $bytes)
 	for cipher in aes-xts:128 aes-xts:256 \
 	    aes-cbc:128 aes-cbc:192 aes-cbc:256 \
 	    3des-cbc:192 \
@@ -33,16 +39,9 @@ for_each_geli_config() {
 		keylen=${cipher##*:}
 		for aalgo in hmac/md5 hmac/sha1 hmac/ripemd160 hmac/sha256 \
 		    hmac/sha384 hmac/sha512; do
-			for secsize in 512 1024 2048 4096 8192; do
-				# Double the requested sector size to allow
-				# for the HMACs' storage space.
-				osecsize=$(( $secsize * 2 ))
-				# geli needs 512B for the label.
-				bytes=`expr $osecsize \* $sectors + 512`b
-				md=$(attach_md -t malloc -s $bytes)
+			for secsize in 512 1024 2048 4096 $MAX_SECSIZE; do
 				${func} $cipher $aalgo $secsize
 				geli detach ${md} 2>/dev/null
-				mdconfig -d -u ${md} 2>/dev/null
 			done
 		done
 	done
@@ -54,6 +53,9 @@ for_each_geli_config() {
 for_each_geli_config_nointegrity() {
 	func=$1
 
+	# geli needs 512B for the label.
+	bytes=`expr $MAX_SECSIZE \* $sectors + 512`b
+	md=$(attach_md -t malloc -s $bytes)
 	for cipher in aes-xts:128 aes-xts:256 \
 	    aes-cbc:128 aes-cbc:192 aes-cbc:256 \
 	    3des-cbc:192 \
@@ -64,13 +66,9 @@ for_each_geli_config_nointegrity() {
 	    camellia-cbc:128 camellia-cbc:192 camellia-cbc:256; do
 		ealgo=${cipher%%:*}
 		keylen=${cipher##*:}
-		for secsize in 512 1024 2048 4096 8192; do
-			# geli needs 512B for the label.
-			bytes=`expr $secsize \* $sectors + 512`b
-			md=$(attach_md -t malloc -s $bytes)
+		for secsize in 512 1024 2048 4096 $MAX_SECSIZE; do
 			${func} $cipher $secsize
 			geli detach ${md} 2>/dev/null
-			mdconfig -d -u ${md} 2>/dev/null
 		done
 	done
 }
