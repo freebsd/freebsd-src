@@ -10,16 +10,14 @@ onetime_test()
 	atf_check -s exit:0 -o ignore -e ignore \
 		geli onetime -e $ealgo -l $keylen -s $secsize ${md}
 
-	secs=`diskinfo /dev/${md}.eli | awk '{print $4}'`
+	atf_check dd if=/dev/random of=rnd bs=${secsize} count=${sectors} status=none
+	atf_check dd if=rnd of=/dev/${md}.eli bs=${secsize} count=${sectors} status=none
 
-	atf_check dd if=/dev/random of=rnd bs=${secsize} count=${secs} status=none
-	atf_check dd if=rnd of=/dev/${md}.eli bs=${secsize} count=${secs} status=none
-
-	md_rnd=`dd if=rnd bs=${secsize} count=${secs} status=none | md5`
+	md_rnd=`dd if=rnd bs=${secsize} count=${sectors} status=none | md5`
 	atf_check_equal 0 $?
-	md_ddev=`dd if=/dev/${md}.eli bs=${secsize} count=${secs} status=none | md5`
+	md_ddev=`dd if=/dev/${md}.eli bs=${secsize} count=${sectors} status=none | md5`
 	atf_check_equal 0 $?
-	md_edev=`dd if=/dev/${md} bs=${secsize} count=${secs} status=none | md5`
+	md_edev=`dd if=/dev/${md} bs=${secsize} count=${sectors} status=none | md5`
 	atf_check_equal 0 $?
 
 	if [ ${md_rnd} != ${md_ddev} ]; then
@@ -41,6 +39,7 @@ onetime_body()
 	. $(atf_get_srcdir)/conf.sh
 	sectors=100
 
+	dd if=/dev/random of=rnd bs=${MAX_SECSIZE} count=${sectors} status=none
 	for_each_geli_config_nointegrity onetime_test
 }
 onetime_cleanup()
@@ -60,13 +59,11 @@ onetime_a_test()
 	atf_check -s exit:0 -o ignore -e ignore \
 		geli onetime -a $aalgo -e $ealgo -l $keylen -s $secsize ${md}
 
-	secs=`diskinfo /dev/${md}.eli | awk '{print $4}'`
+	atf_check dd if=rnd of=/dev/${md}.eli bs=${secsize} count=${sectors} status=none
 
-	atf_check dd if=rnd of=/dev/${md}.eli bs=${secsize} count=${secs} status=none
-
-	md_rnd=`dd if=rnd bs=${secsize} count=${secs} status=none | md5`
+	md_rnd=`dd if=rnd bs=${secsize} count=${sectors} status=none | md5`
 	atf_check_equal 0 $?
-	md_ddev=`dd if=/dev/${md}.eli bs=${secsize} count=${secs} status=none | md5`
+	md_ddev=`dd if=/dev/${md}.eli bs=${secsize} count=${sectors} status=none | md5`
 	atf_check_equal 0 $?
 
 	if [ ${md_rnd} != ${md_ddev} ]; then

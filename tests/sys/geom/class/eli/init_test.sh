@@ -9,19 +9,18 @@ init_test()
 	keylen=${cipher##*:}
 
 	atf_check -s exit:0 -e ignore \
-		geli init -B none -e $ealgo -l $keylen -P -K keyfile -s $secsize ${md}
+		geli init -B none -e $ealgo -l $keylen -P -K keyfile 
+		-s $secsize ${md}
 	atf_check geli attach -p -k keyfile ${md}
 
-	secs=`diskinfo /dev/${md}.eli | awk '{print $4}'`
+	atf_check dd if=rnd of=/dev/${md}.eli bs=${secsize} count=${sectors} \
+		status=none
 
-	atf_check dd if=/dev/random of=rnd bs=${secsize} count=${secs} status=none
-	atf_check dd if=rnd of=/dev/${md}.eli bs=${secsize} count=${secs} status=none
-
-	md_rnd=`dd if=rnd bs=${secsize} count=${secs} status=none | md5`
+	md_rnd=`dd if=rnd bs=${secsize} count=${sectors} status=none | md5`
 	atf_check_equal 0 $?
-	md_ddev=`dd if=/dev/${md}.eli bs=${secsize} count=${secs} 2>/dev/null | md5`
+	md_ddev=`dd if=/dev/${md}.eli bs=${secsize} count=${sectors} status=none | md5`
 	atf_check_equal 0 $?
-	md_edev=`dd if=/dev/${md} bs=${secsize} count=${secs} status=none | md5`
+	md_edev=`dd if=/dev/${md} bs=${secsize} count=${sectors} status=none | md5`
 	atf_check_equal 0 $?
 
 	if [ ${md_rnd} != ${md_ddev} ]; then
@@ -45,7 +44,8 @@ init_body()
 	sectors=32
 
 	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
-	atf_check dd if=/dev/random of=rnd bs=8192 count=${sectors} status=none
+	atf_check dd if=/dev/random of=rnd bs=$MAX_SECSIZE count=${sectors} \
+		status=none
 	for_each_geli_config_nointegrity init_test
 }
 init_cleanup()
@@ -235,16 +235,16 @@ init_a_test()
 	ealgo=${cipher%%:*}
 	keylen=${cipher##*:}
 
-	atf_check -s exit:0 -e ignore geli init -B none -a $aalgo -e $ealgo -l $keylen -P -K keyfile -s $secsize ${md}
+	atf_check -s exit:0 -e ignore \
+		geli init -B none -a $aalgo -e $ealgo -l $keylen -P -K keyfile \
+		-s $secsize ${md}
 	atf_check geli attach -p -k keyfile ${md}
 
-	secs=`diskinfo /dev/${md}.eli | awk '{print $4}'`
+	atf_check dd if=rnd of=/dev/${md}.eli bs=${secsize} count=${sectors} status=none
 
-	atf_check dd if=rnd of=/dev/${md}.eli bs=${secsize} count=${secs} status=none
-
-	md_rnd=`dd if=rnd bs=${secsize} count=${secs} status=none | md5`
+	md_rnd=`dd if=rnd bs=${secsize} count=${sectors} status=none | md5`
 	atf_check_equal 0 $?
-	md_ddev=`dd if=/dev/${md}.eli bs=${secsize} count=${secs} status=none | md5`
+	md_ddev=`dd if=/dev/${md}.eli bs=${secsize} count=${sectors} status=none | md5`
 	atf_check_equal 0 $?
 
 	if [ ${md_rnd} != ${md_ddev} ]; then
@@ -265,7 +265,8 @@ init_a_body()
 	sectors=100
 
 	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
-	atf_check dd if=/dev/random of=rnd bs=8192 count=${sectors} status=none
+	atf_check dd if=/dev/random of=rnd bs=$MAX_SECSIZE count=${sectors} \
+		status=none
 	for_each_geli_config init_a_test
 	true
 }
@@ -348,7 +349,7 @@ init_i_P_body()
 
 	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
 
-	atf_check -s exit:1 -e "match:Options -i and -P are mutually exclusive"\
+	atf_check -s not-exit:0 -e "match:Options -i and -P are mutually exclusive"\
 		geli init -B none -i 64 -P -K keyfile $md
 }
 init_i_P_cleanup()
