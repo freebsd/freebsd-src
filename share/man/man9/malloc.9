@@ -45,6 +45,8 @@
 .In sys/malloc.h
 .Ft void *
 .Fn malloc "unsigned long size" "struct malloc_type *type" "int flags"
+.Ft void *
+.Fn mallocarray "size_t nmemb" "size_t size" "struct malloc_type *type" "int flags"
 .Ft void
 .Fn free "void *addr" "struct malloc_type *type"
 .Ft void *
@@ -61,6 +63,14 @@ The
 .Fn malloc
 function allocates uninitialized memory in kernel address space for an
 object whose size is specified by
+.Fa size .
+.Pp
+The
+.Fn mallocarray
+function allocates uninitialized memory in kernel address space for an
+array of
+.Fa nmemb
+entries whose size is specified by
 .Fa size .
 .Pp
 The
@@ -152,6 +162,15 @@ functions cannot return
 if
 .Dv M_WAITOK
 is specified.
+The
+.Fn mallocarray
+function can return
+.Dv NULL
+if the multiplication of
+.Fa nmemb
+and
+.Fa size
+would cause an integer overflow.
 .It Dv M_USE_RESERVE
 Indicates that the system can use its reserve of memory to satisfy the
 request.
