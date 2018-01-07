@@ -2,7 +2,18 @@
 # $FreeBSD$
 
 class="eli"
-base=`basename $0`
+base=$(atf_get ident)
+[ -z "$base" ] && base=`basename $0` # for TAP compatibility
+TEST_MDS_FILE=md.devs
+
+attach_md()
+{
+	local test_md
+
+	test_md=$(mdconfig -a "$@") || atf_fail "failed to allocate md(4)"
+	echo $test_md >> $TEST_MDS_FILE || exit
+	echo $test_md
+}
 
 # Execute `func` for each combination of cipher, sectorsize, and hmac algo
 # `func` usage should be:
@@ -23,7 +34,11 @@ for_each_geli_config() {
 		for aalgo in hmac/md5 hmac/sha1 hmac/ripemd160 hmac/sha256 \
 		    hmac/sha384 hmac/sha512; do
 			for secsize in 512 1024 2048 4096 8192; do
-				bytes=`expr $secsize \* $sectors + 512`b
+				# Double the requested sector size to allow
+				# for the HMACs' storage space.
+				osecsize=$(( $secsize * 2 ))
+				# geli needs 512B for the label.
+				bytes=`expr $osecsize \* $sectors + 512`b
 				md=$(attach_md -t malloc -s $bytes)
 				${func} $cipher $aalgo $secsize
 				geli detach ${md} 2>/dev/null
@@ -50,6 +65,7 @@ for_each_geli_config_nointegrity() {
 		ealgo=${cipher%%:*}
 		keylen=${cipher##*:}
 		for secsize in 512 1024 2048 4096 8192; do
+			# geli needs 512B for the label.
 			bytes=`expr $secsize \* $sectors + 512`b
 			md=$(attach_md -t malloc -s $bytes)
 			${func} $cipher $secsize
@@ -69,8 +85,9 @@ geli_test_cleanup()
 			mdconfig -d -u $md 2>/dev/null
 		done < $TEST_MDS_FILE
 	fi
-	rm -f "$TEST_MDS_FILE"
+	true
 }
+# TODO: remove the trap statement once all TAP tests are converted
 trap geli_test_cleanup ABRT EXIT INT TERM
 
 . `dirname $0`/../geom_subr.sh
