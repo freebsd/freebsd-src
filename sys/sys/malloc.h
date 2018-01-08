@@ -176,7 +176,7 @@ void	*contigmalloc(unsigned long size, struct malloc_type *type, int flags,
 	    __alloc_size(1) __alloc_align(6);
 void	free(void *addr, struct malloc_type *type);
 void	*malloc(unsigned long size, struct malloc_type *type, int flags)
-	    __malloc_like __alloc_size(1);
+	    __malloc_like __result_use_check __alloc_size(1);
 void	*mallocarray(size_t nmemb, size_t size, struct malloc_type *type,
 	    int flags) __malloc_like __result_use_check
 	    __alloc_size(1) __alloc_size(2);
@@ -187,9 +187,9 @@ void	malloc_type_freed(struct malloc_type *type, unsigned long size);
 void	malloc_type_list(malloc_type_list_func_t *, void *);
 void	malloc_uninit(void *);
 void	*realloc(void *addr, unsigned long size, struct malloc_type *type,
-	    int flags) __alloc_size(2);
+	    int flags) __result_use_check __alloc_size(2);
 void	*reallocf(void *addr, unsigned long size, struct malloc_type *type,
-	    int flags) __alloc_size(2);
+	    int flags) __result_use_check __alloc_size(2);
 
 struct malloc_type *malloc_desc2type(const char *desc);
 #endif /* _KERNEL */
