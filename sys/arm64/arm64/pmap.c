@@ -4677,17 +4677,20 @@ pmap_switch(struct thread *old, struct thread *new)
 	 * to a user process.
 	 */
 
-	__asm __volatile(
-	    /* Switch to the new pmap */
-	    "msr	ttbr0_el1, %0	\n"
-	    "isb			\n"
+	if (old == NULL ||
+	    old->td_proc->p_md.md_l0addr != new->td_proc->p_md.md_l0addr) {
+		__asm __volatile(
+		    /* Switch to the new pmap */
+		    "msr	ttbr0_el1, %0	\n"
+		    "isb			\n"
 
-	    /* Invalidate the TLB */
-	    "dsb	ishst		\n"
-	    "tlbi	vmalle1is	\n"
-	    "dsb	ish		\n"
-	    "isb			\n"
-	    : : "r"(new->td_proc->p_md.md_l0addr));
+		    /* Invalidate the TLB */
+		    "dsb	ishst		\n"
+		    "tlbi	vmalle1is	\n"
+		    "dsb	ish		\n"
+		    "isb			\n"
+		    : : "r"(new->td_proc->p_md.md_l0addr));
+	}
 
 	return (pcb);
 }
