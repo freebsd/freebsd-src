@@ -28,7 +28,7 @@
 .\"     @(#)core.5	8.3 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2015
+.Dd January 8, 2018
 .Dt CORE 5
 .Os
 .Sh NAME
@@ -67,8 +67,8 @@ generating it).
 .Pp
 The following format specifiers may be used in the
 .Va kern.corefile
-sysctl to insert additional information into the resulting core file
-name:
+sysctl to insert additional information into the resulting core
+filename:
 .Bl -tag -width "1234567890" -compact -offset "12345"
 .It Em \&%H
 Machine hostname.
@@ -108,17 +108,17 @@ is included in the kernel configuration file:
 GZIO
 .El
 .Pp
-When the GZIO option is included, the following sysctls control whether core
-files will be compressed:
-.Bl -tag -width "kern.compress_user_cores_gzlevel" -compact -offset "12345"
-.It Em kern.compress_user_cores_gzlevel
-Gzip compression level.
-Defaults to 6.
+The following sysctl control core file compression:
+.Bl -tag -width "kern.compress_user_cores_level" -compact -offset "12345"
 .It Em kern.compress_user_cores
-Actually compress user cores.
-Compressed core files will have a suffix of
+Enable compression of user cores.
+A value of 1 configures gzip compression.
+gzip-compressed core files will have a suffix of
 .Ql .gz
-appended to them.
+appended to their filenames.
+.It Em kern.compress_user_cores_level
+Compression level.
+Defaults to 6.
 .El
 .Sh NOTES
 Corefiles are written with open file descriptor information as an ELF note.
@@ -153,6 +153,7 @@ command can be used:
 .Dl sysctl kern.corefile=/var/coredumps/\&%U/\&%N.core
 .Sh SEE ALSO
 .Xr gdb 1 ,
+.Xr gzip 1 ,
 .Xr kgdb 1 ,
 .Xr setrlimit 2 ,
 .Xr sigaction 2 ,
