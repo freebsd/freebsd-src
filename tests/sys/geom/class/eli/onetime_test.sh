@@ -10,7 +10,6 @@ onetime_test()
 	atf_check -s exit:0 -o ignore -e ignore \
 		geli onetime -e $ealgo -l $keylen -s $secsize ${md}
 
-	atf_check dd if=/dev/random of=rnd bs=${secsize} count=${sectors} status=none
 	atf_check dd if=rnd of=/dev/${md}.eli bs=${secsize} count=${sectors} status=none
 
 	md_rnd=`dd if=rnd bs=${secsize} count=${sectors} status=none | md5`
@@ -82,7 +81,8 @@ onetime_a_body()
 	. $(atf_get_srcdir)/conf.sh
 	sectors=8
 
-	atf_check dd if=/dev/random of=rnd bs=1024 count=1024 status=none
+	atf_check dd if=/dev/random of=rnd bs=$MAX_SECSIZE count=$sectors \
+		status=none
 	for_each_geli_config onetime_a_test
 }
 onetime_a_cleanup()

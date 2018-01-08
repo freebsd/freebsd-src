@@ -12,31 +12,32 @@ copy_test() {
 		-K keyfile -s $secsize ${md}
 	atf_check geli attach -p -k keyfile ${md}
 
-	atf_check dd if=/dev/random of=/dev/${md}.eli bs=${secsize} count=1 status=none
+	atf_check dd if=rnd of=/dev/${md}.eli bs=${secsize} count=1 status=none
 
-	atf_check geli detach ${md}
 	# Copy first small sector to the second small sector.
 	# This should be detected as corruption.
-	atf_check dd if=/dev/${md} of=sector bs=512 count=1 status=none
-	atf_check dd if=sector of=/dev/${md} bs=512 count=1 seek=1 status=none
-	atf_check geli attach -p -k keyfile ${md}
+	atf_check dd if=backing_file of=sector bs=512 count=1 \
+		conv=notrunc status=none
+	atf_check dd if=sector of=backing_file bs=512 count=1 seek=1 \
+		conv=notrunc status=none
 
 	atf_check -s not-exit:0 -e ignore \
 		dd if=/dev/${md}.eli of=/dev/null bs=${secsize} count=1
 
 	# Fix the corruption
-	atf_check dd if=/dev/random of=/dev/${md}.eli bs=${secsize} count=2 status=none
-	atf_check dd if=/dev/${md}.eli of=/dev/null bs=${secsize} count=2 status=none
+	atf_check dd if=rnd of=/dev/${md}.eli bs=${secsize} count=2 status=none
+	atf_check dd if=/dev/${md}.eli of=/dev/null bs=${secsize} count=2 \
+		status=none
 
 	# Copy first big sector to the second big sector.
 	# This should be detected as corruption.
 	ms=`diskinfo /dev/${md} | awk '{print $3 - 512}'`
 	ns=`diskinfo /dev/${md}.eli | awk '{print $4}'`
 	usecsize=`echo "($ms / $ns) - (($ms / $ns) % 512)" | bc`
-	atf_check geli detach ${md}
-	atf_check dd if=/dev/${md} bs=512 count=$(( ${usecsize} / 512 )) seek=$(( $secsize / 512 )) of=sector status=none
-	atf_check dd of=/dev/${md} bs=512 count=$(( ${usecsize} / 512 )) seek=$(( $secsize / 256 )) if=sector status=none
-	atf_check -s exit:0 -e ignore geli attach -p -k keyfile ${md}
+	atf_check dd if=backing_file bs=512 count=$(( ${usecsize} / 512 )) \
+		seek=$(( $secsize / 512 )) of=sector conv=notrunc status=none
+	atf_check dd of=backing_file bs=512 count=$(( ${usecsize} / 512 )) \
+		seek=$(( $secsize / 256 )) if=sector conv=notrunc status=none
 	atf_check -s not-exit:0 -e ignore \
 		dd if=/dev/${md}.eli of=/dev/null bs=${secsize} count=$ns
 }
@@ -55,7 +56,9 @@ copy_body()
 	sectors=2
 
 	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
-	for_each_geli_config copy_test
+	dd if=/dev/random of=rnd bs=${MAX_SECSIZE} count=${sectors} status=none
+	
+	for_each_geli_config copy_test backing_file
 }
 copy_cleanup()
 {
@@ -77,7 +80,7 @@ data_test() {
 
 	# Corrupt 8 bytes of data.
 	atf_check dd if=/dev/${md} of=sector bs=512 count=1 status=none
-	atf_check dd if=/dev/random of=sector bs=1 count=8 seek=64 conv=notrunc status=none
+	atf_check dd if=rnd of=sector bs=1 count=8 seek=64 conv=notrunc status=none
 	atf_check dd if=sector of=/dev/${md} bs=512 count=1 status=none
 	atf_check geli attach -p -k keyfile ${md}
 
@@ -100,6 +103,7 @@ data_body()
 	sectors=2
 
 	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
+	dd if=/dev/random of=rnd bs=${MAX_SECSIZE} count=${sectors} status=none
 	for_each_geli_config data_test
 }
 data_cleanup()
@@ -121,7 +125,7 @@ hmac_test() {
 
 	# Corrupt 8 bytes of HMAC.
 	atf_check dd if=/dev/${md} of=sector bs=512 count=1 status=none
-	atf_check dd if=/dev/random of=sector bs=1 count=16 conv=notrunc status=none
+	atf_check dd if=rnd of=sector bs=1 count=16 conv=notrunc status=none
 	atf_check dd if=sector of=/dev/${md} bs=512 count=1 status=none
 	atf_check geli attach -p -k keyfile ${md}
 
@@ -144,6 +148,7 @@ hmac_body()
 	sectors=2
 
 	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
+	dd if=/dev/random of=rnd bs=${MAX_SECSIZE} count=${sectors} status=none
 	for_each_geli_config hmac_test
 }
 hmac_cleanup()
