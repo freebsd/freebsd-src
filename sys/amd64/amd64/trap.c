@@ -606,7 +606,6 @@ trap_pfault(struct trapframe *frame, int usermode)
 	td = curthread;
 	p = td->td_proc;
 	eva = frame->tf_addr;
-	rv = 0;
 
 	if (__predict_false((td->td_pflags & TDP_NOFAULTING) != 0)) {
 		/*
@@ -658,7 +657,7 @@ trap_pfault(struct trapframe *frame, int usermode)
 		 * Don't allow user-mode faults in kernel address space.
 		 */
 		if (usermode)
-			goto nogo;
+			return (SIGSEGV);
 
 		map = kernel_map;
 	} else {
@@ -713,7 +712,6 @@ trap_pfault(struct trapframe *frame, int usermode)
 #endif
 		return (0);
 	}
-nogo:
 	if (!usermode) {
 		if (td->td_intr_nesting_level == 0 &&
 		    curpcb->pcb_onfault != NULL) {
