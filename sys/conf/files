@@ -3767,7 +3767,6 @@ kern/kern_exit.c		standard
 kern/kern_fail.c		standard
 kern/kern_ffclock.c		standard
 kern/kern_fork.c		standard
-kern/kern_gzio.c		optional gzio
 kern/kern_hhook.c		standard
 kern/kern_idle.c		standard
 kern/kern_intr.c		standard
@@ -3843,6 +3842,7 @@ kern/subr_bus_dma.c		standard
 kern/subr_bufring.c		standard
 kern/subr_capability.c		standard
 kern/subr_clock.c		standard
+kern/subr_compressor.c		standard
 kern/subr_counter.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
