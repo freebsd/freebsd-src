@@ -257,11 +257,11 @@ bt_fill(vmem_t *vm, int flags)
 	VMEM_ASSERT_LOCKED(vm);
 
 	/*
-	 * Only allow the kernel arena to dip into reserve tags.  It is the
-	 * vmem where new tags come from.
+	 * Only allow the kernel arena and arenas derived from kernel arena to
+	 * dip into reserve tags.  They are where new tags come from.
 	 */
 	flags &= BT_FLAGS;
-	if (vm != kernel_arena)
+	if (vm != kernel_arena && vm->vm_arg != kernel_arena)
 		flags &= ~M_USE_RESERVE;
 
 	/*
