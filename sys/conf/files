@@ -626,6 +626,23 @@ contrib/ngatm/netnatm/sig/sig_unimsgcpy.c optional ngatm_uni \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/sig/sig_verify.c optional ngatm_uni \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+# Zstd
+contrib/zstd/lib/freebsd/zstd_kmalloc.c		standard compile-with ${ZSTD_C}
+contrib/zstd/lib/common/zstd_common.c		standard compile-with ${ZSTD_C}
+contrib/zstd/lib/common/fse_decompress.c	standard compile-with ${ZSTD_C}
+contrib/zstd/lib/common/entropy_common.c	standard compile-with ${ZSTD_C}
+contrib/zstd/lib/common/error_private.c		standard compile-with ${ZSTD_C}
+contrib/zstd/lib/common/xxhash.c		standard compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/zstd_compress.c	standard compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/fse_compress.c	standard compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/huf_compress.c	standard compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/zstd_double_fast.c	standard compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/zstd_fast.c		standard compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/zstd_lazy.c		standard compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/zstd_ldm.c		standard compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/zstd_opt.c		standard compile-with ${ZSTD_C}
+contrib/zstd/lib/decompress/zstd_decompress.c	standard compile-with ${ZSTD_C}
+contrib/zstd/lib/decompress/huf_decompress.c	standard compile-with ${ZSTD_C}
 crypto/blowfish/bf_ecb.c	optional ipsec | ipsec_support
 crypto/blowfish/bf_skey.c	optional crypto | ipsec | ipsec_support
 crypto/camellia/camellia.c	optional crypto | ipsec | ipsec_support
