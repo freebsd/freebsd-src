@@ -4660,6 +4660,38 @@ pmap_activate(struct thread *td)
 	critical_exit();
 }
 
+struct pcb *
+pmap_switch(struct thread *old, struct thread *new)
+{
+	struct pcb *pcb;
+
+	/* Store the new curthread */
+	PCPU_SET(curthread, new);
+
+	/* And the new pcb */
+	pcb = new->td_pcb;
+	PCPU_SET(curpcb, pcb);
+
+	/*
+	 * TODO: We may need to flush the cache here if switching
+	 * to a user process.
+	 */
+
+	__asm __volatile(
+	    /* Switch to the new pmap */
+	    "msr	ttbr0_el1, %0	\n"
+	    "isb			\n"
+
+	    /* Invalidate the TLB */
+	    "dsb	ishst		\n"
+	    "tlbi	vmalle1is	\n"
+	    "dsb	ish		\n"
+	    "isb			\n"
+	    : : "r"(new->td_proc->p_md.md_l0addr));
+
+	return (pcb);
+}
+
 void
 pmap_sync_icache(pmap_t pmap, vm_offset_t va, vm_size_t sz)
 {
