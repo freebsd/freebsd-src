@@ -252,7 +252,8 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			    "enabled" : "disabled");
 		if (!(mem->Flags & ACPI_SRAT_MEM_ENABLED))
 			break;
-		if (!overlaps_phys_avail(mem->BaseAddress,
+		if (mem->BaseAddress >= cpu_getmaxphyaddr() || 
+		    !overlaps_phys_avail(mem->BaseAddress,
 		    mem->BaseAddress + mem->Length)) {
 			printf("SRAT: Ignoring memory at addr 0x%jx\n",
 			    (uintmax_t)mem->BaseAddress);
