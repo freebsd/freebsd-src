@@ -542,7 +542,7 @@ acpi_pcib_acpi_attach(device_t dev)
     acpi_pcib_fetch_prt(dev, &sc->ap_prt);
 
     error = bus_dma_tag_create(bus_get_dma_tag(dev), 1,
-	PCI_DMA_BOUNDARY, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+	0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	NULL, NULL, BUS_SPACE_MAXSIZE, BUS_SPACE_UNRESTRICTED,
 	BUS_SPACE_MAXSIZE, 0, NULL, NULL, &sc->ap_dma_tag);
     if (error != 0)
@@ -555,6 +555,8 @@ acpi_pcib_acpi_attach(device_t dev)
 
     bus_generic_probe(dev);
     if (device_add_child(dev, "pci", -1) == NULL) {
+	bus_dma_tag_destroy(sc->ap_dma_tag);
+	sc->ap_dma_tag = NULL;
 	error = ENXIO;
 	goto errout;
     }
