@@ -172,6 +172,7 @@ cpu_startup(void *dummy)
 
 	undef_init();
 	identify_cpu();
+	install_cpu_errata();
 
 	vm_ksubmap_init(&kmi);
 	bufinit();
