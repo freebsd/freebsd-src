@@ -10978,12 +10978,17 @@ softdep_disk_write_complete(bp)
 	struct freeblks *freeblks;
 	struct buf *sbp;
 
+	if ((wk = LIST_FIRST(&bp->b_dep)) == NULL)
+		return;
+	ump = VFSTOUFS(wk->wk_mp);
+
 	/*
 	 * If an error occurred while doing the write, then the data
 	 * has not hit the disk and the dependencies cannot be processed.
 	 * But we do have to go through and roll forward any dependencies
 	 * that were rolled back before the disk write.
 	 */
+	ACQUIRE_LOCK(ump);
 	if ((bp->b_ioflags & BIO_ERROR) != 0 && (bp->b_flags & B_INVAL) == 0) {
 		LIST_FOREACH(wk, &bp->b_dep, wk_list) {
 			switch (wk->wk_type) {
@@ -11011,18 +11016,15 @@ softdep_disk_write_complete(bp)
 				continue;
 			}
 		}
+		FREE_LOCK(ump);
 		return;
 	}
-	if ((wk = LIST_FIRST(&bp->b_dep)) == NULL)
-		return;
-	ump = VFSTOUFS(wk->wk_mp);
 	LIST_INIT(&reattach);
 	/*
 	 * This lock must not be released anywhere in this code segment.
 	 */
 	sbp = NULL;
 	owk = NULL;
-	ACQUIRE_LOCK(ump);
 	while ((wk = LIST_FIRST(&bp->b_dep)) != NULL) {
 		WORKLIST_REMOVE(wk);
 		atomic_add_long(&dep_write[wk->wk_type], 1);
