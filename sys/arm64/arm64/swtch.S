@@ -70,32 +70,15 @@ ENTRY(cpu_throw)
 
 #ifdef VFP
 	/* Backup the new thread pointer around a call to C code */
-	mov	x19, x1
+	mov	x19, x0
+	mov	x20, x1
 	bl	vfp_discard
-	mov	x1, x19
+	mov	x1, x20
+	mov	x0, x19
 #endif
 
-	/* Store the new curthread */
-	str	x1, [x18, #PC_CURTHREAD]
-	/* And the new pcb */
-	ldr	x4, [x1, #TD_PCB]
-	str	x4, [x18, #PC_CURPCB]
-
-	/*
-	 * TODO: We may need to flush the cache here.
-	 */
-
-	/* Switch to the new pmap */
-	ldr	x28, [x1, #TD_PROC]
-	ldr	x5, [x28, #(P_MD + MD_L0ADDR)]
-	msr	ttbr0_el1, x5
-	isb
-
-	/* Invalidate the TLB */
-	dsb	ishst
-	tlbi	vmalle1
-	dsb	ish
-	isb
+	bl	pmap_switch
+	mov	x4, x0
 
 	/* If we are single stepping, enable it */
 	ldr	w5, [x4, #PCB_FLAGS]
@@ -161,45 +144,25 @@ ENTRY(cpu_switch)
 	ldr	w5, [x4, #PCB_FLAGS]
 	clear_step_flag w5, x6
 
-#ifdef VFP
 	mov	x19, x0
 	mov	x20, x1
 	mov	x21, x2
+
+#ifdef VFP
 	/* Load the pcb address */
 	mov	x1, x4
 	bl	vfp_save_state
-	mov	x2, x21
 	mov	x1, x20
 	mov	x0, x19
 #endif
 
-	/* Store the new curthread */
-	str	x1, [x18, #PC_CURTHREAD]
+	bl	pmap_switch
+	/* Move the new pcb out of the way */
+	mov	x4, x0
 
-	/*
-	 * Restore the saved context and set it as curpcb.
-	 */
-	ldr	x4, [x1, #TD_PCB]
-	str	x4, [x18, #PC_CURPCB]
-
-	/*
-	 * TODO: We may need to flush the cache here if switching
-	 * to a user process.
-	 */
-
-	/* Load the new proc address */
-	ldr	x28, [x1, #TD_PROC]
-
-	/* Switch to the new pmap */
-	ldr	x5, [x28, #(P_MD + MD_L0ADDR)]
-	msr	ttbr0_el1, x5
-	isb
-
-	/* Invalidate the TLB */
-	dsb	ishst
-	tlbi	vmalle1
-	dsb	ish
-	isb
+	mov	x2, x21
+	mov	x1, x20
+	mov	x0, x19
 
 	/*
 	 * Release the old thread. This doesn't need to be a store-release

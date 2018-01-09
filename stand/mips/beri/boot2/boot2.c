@@ -118,8 +118,6 @@ static const unsigned char flags[NOPT] = {
 static const char *const dev_nm[] = {"dram", "cfi", "sdcard"};
 static const u_int dev_nm_count = nitems(dev_nm);
 
-static struct dmadat __dmadat;
-
 static struct dsk {
     unsigned type;		/* BOOTINFO_DEV_TYPE_x object type. */
     uintptr_t unitptr;		/* Unit number or pointer to object. */
@@ -149,9 +147,10 @@ static int dskread(void *, unsigned, unsigned);
 static int xputc(int);
 static int xgetc(int);
 
-
 #define	UFS_SMALL_CGBASE
 #include "ufsread.c"
+
+static struct dmadat __dmadat;
 
 static inline int
 xfsread(ufs_ino_t inode, void *buf, size_t nbyte)

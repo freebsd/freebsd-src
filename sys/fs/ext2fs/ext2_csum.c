@@ -110,7 +110,7 @@ ext2_gd_csum(struct m_ext2fs *fs, uint32_t block_group, struct ext2_gd *gd)
 		if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_64BIT) &&
 		    offset < fs->e2fs->e3fs_desc_size)
 			crc = ext2_crc16(crc, (uint8_t *)gd + offset,
-					 fs->e2fs->e3fs_desc_size - offset);
+			    fs->e2fs->e3fs_desc_size - offset);
 		return (crc);
 	}
 

@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <net/rss_config.h>
 #endif
 #if defined(__i386__) || defined(__amd64__)
+#include <machine/md_var.h>
+#include <machine/cputypes.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #endif
@@ -454,6 +456,16 @@ TUNABLE_INT("hw.cxl.write_combine", &t5_write_combine);
 
 static int t4_num_vis = 1;
 TUNABLE_INT("hw.cxgbe.num_vis", &t4_num_vis);
+/*
+ * PCIe Relaxed Ordering.
+ * -1: driver should figure out a good value.
+ * 0: disable RO.
+ * 1: enable RO.
+ * 2: leave RO alone.
+ */
+static int pcie_relaxed_ordering = -1;
+TUNABLE_INT("hw.cxgbe.pcie_relaxed_ordering", &pcie_relaxed_ordering);
+
 
 /* Functions used by VIs to obtain unique MAC addresses for each VI. */
 static int vi_mac_funcs[] = {
@@ -856,10 +868,16 @@ t4_attach(device_t dev)
 
 		pci_set_max_read_req(dev, 4096);
 		v = pci_read_config(dev, i + PCIER_DEVICE_CTL, 2);
-		v |= PCIEM_CTL_RELAXED_ORD_ENABLE;
-		pci_write_config(dev, i + PCIER_DEVICE_CTL, v, 2);
-
 		sc->params.pci.mps = 128 << ((v & PCIEM_CTL_MAX_PAYLOAD) >> 5);
+		if (pcie_relaxed_ordering == 0 &&
+		    (v | PCIEM_CTL_RELAXED_ORD_ENABLE) != 0) {
+			v &= ~PCIEM_CTL_RELAXED_ORD_ENABLE;
+			pci_write_config(dev, i + PCIER_DEVICE_CTL, v, 2);
+		} else if (pcie_relaxed_ordering == 1 &&
+		    (v & PCIEM_CTL_RELAXED_ORD_ENABLE) == 0) {
+			v |= PCIEM_CTL_RELAXED_ORD_ENABLE;
+			pci_write_config(dev, i + PCIER_DEVICE_CTL, v, 2);
+		}
 	}
 
 	sc->sge_gts_reg = MYPF_REG(A_SGE_PF_GTS);
@@ -9961,6 +9979,14 @@ tweak_tunables(void)
 	if (t4_num_vis > nitems(vi_mac_funcs)) {
 		t4_num_vis = nitems(vi_mac_funcs);
 		printf("cxgbe: number of VIs limited to %d\n", t4_num_vis);
+	}
+
+	if (pcie_relaxed_ordering < 0 || pcie_relaxed_ordering > 2) {
+		pcie_relaxed_ordering = 1;
+#if defined(__i386__) || defined(__amd64__)
+		if (cpu_vendor_id == CPU_VENDOR_INTEL)
+			pcie_relaxed_ordering = 0;
+#endif
 	}
 }
 

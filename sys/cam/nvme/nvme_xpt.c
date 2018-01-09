@@ -318,8 +318,7 @@ nvme_probe_start(struct cam_periph *periph, union ccb *start_ccb)
 		xpt_done(start_ccb);
 	}
 	cam_periph_invalidate(periph);
-	/* Can't release periph since we hit a (possibly bogus) assertion */
-//	cam_periph_release_locked(periph);
+	cam_periph_release_locked(periph);
 }
 
 static void

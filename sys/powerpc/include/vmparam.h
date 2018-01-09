@@ -60,7 +60,11 @@
 #endif
 
 #ifndef	MAXSSIZ
+#ifdef __powerpc64__
+#define	MAXSSIZ		(512*1024*1024)		/* max stack size */
+#else
 #define	MAXSSIZ		(64*1024*1024)		/* max stack size */
+#endif
 #endif
 
 #ifdef AIM

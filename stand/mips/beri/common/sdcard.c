@@ -33,8 +33,7 @@
 #include <sys/types.h>
 #include <sys/endian.h>
 
-#include <inttypes.h>
-#include <stdio.h>
+#include <stand.h>
 
 
 /*
@@ -109,10 +108,10 @@
     ALTERA_SDCARD_RR1_COMMANDCRCFAILED | ALTERA_SDCARD_RR1_ADDRESSMISALIGNED |\
     ALTERA_SDCARD_RR1_ADDRBLOCKRANGE)
 
-extern void __cheri_sdcard_vaddr__;
+extern uint8_t __cheri_sdcard_vaddr__[];
 
 #define	ALTERA_SDCARD_PTR(type, offset)					\
-	(volatile type *)((uint8_t *)&__cheri_sdcard_vaddr__ + (offset))
+	(volatile type *)(&__cheri_sdcard_vaddr__[(offset)])
 
 static __inline uint16_t
 altera_sdcard_read_uint16(u_int offset)

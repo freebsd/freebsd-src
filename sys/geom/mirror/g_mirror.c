@@ -31,22 +31,22 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
+#include <sys/eventhandler.h>
 #include <sys/fail.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
+#include <sys/kthread.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/bio.h>
-#include <sys/sbuf.h>
-#include <sys/sysctl.h>
 #include <sys/malloc.h>
-#include <sys/eventhandler.h>
-#include <vm/uma.h>
-#include <geom/geom.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/kthread.h>
+#include <sys/sbuf.h>
 #include <sys/sched.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
+
+#include <geom/geom.h>
 #include <geom/mirror/g_mirror.h>
 
 FEATURE(geom_mirror, "GEOM mirroring support");
@@ -1964,8 +1964,10 @@ g_mirror_worker(void *arg)
 					continue;
 				}
 			}
-			if (g_mirror_event_first(sc) != NULL)
+			if (g_mirror_event_first(sc) != NULL) {
+				mtx_unlock(&sc->sc_queue_mtx);
 				continue;
+			}
 			sx_xunlock(&sc->sc_lock);
 			MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "m:w1",
 			    timeout * hz);

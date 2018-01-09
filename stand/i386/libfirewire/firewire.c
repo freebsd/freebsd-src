@@ -108,11 +108,11 @@ fw_probe(int index, struct fwohci_softc *sc)
 	biospci_write_config(sc->locator,
 		0x4	/* command */,
 		0x6	/* enable bus master and memory mapped I/O */,
-		1	/* word */);
+		BIOSPCI_16BITS);
 
-	biospci_read_config(sc->locator, 0x00 /*devid*/, 2 /*dword*/,
+	biospci_read_config(sc->locator, 0x00 /*devid*/, BIOSPCI_32BITS,
 		&sc->devid);
-	biospci_read_config(sc->locator, 0x10 /*base_addr*/, 2 /*dword*/,
+	biospci_read_config(sc->locator, 0x10 /*base_addr*/, BIOSPCI_32BITS,
 		&sc->base_addr);
 
         sc->handle = (uint32_t)PTOV(sc->base_addr);

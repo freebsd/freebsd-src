@@ -164,18 +164,17 @@ static int
 set_bootvar(const char *name, uint8_t *data, size_t size)
 {
 
-	efi_del_variable(EFI_GLOBAL_GUID, name);
 	return efi_set_variable(EFI_GLOBAL_GUID, name, data, size,
 	    COMMON_ATTRS);
 }
 
 
 #define USAGE \
-	"   [-aAnNB Bootvar] [-t timeout] [-T] [-o bootorder] [-O] [--verbose] [--help] \n \
-  [-c -d device -p partition -l loader [-L label] [--dry-run]]"
+	"   [-aAnNB Bootvar] [-t timeout] [-T] [-o bootorder] [-O] [--verbose] [--help] \n\
+  [-c -l loader [-k kernel ] [-L label] [--dry-run]]"
 
 #define CREATE_USAGE \
-	"       efibootmgr -c -d device -p partition -loader loader [-L label ] [--dry-run]"
+	"       efibootmgr -c -l loader [-k kernel] [-L label] [--dry-run]"
 #define ORDER_USAGE \
 	"       efibootmgr -o bootvarnum1,bootvarnum2,..."
 #define TIMEOUT_USAGE \
@@ -217,6 +216,7 @@ parse_args(int argc, char *argv[])
 			opts.dry_run = true;
 			break;
 		case 'e':
+			free(opts.env);
 			opts.env = strdup(optarg);
 			break;
 		case 'h':
@@ -224,12 +224,15 @@ parse_args(int argc, char *argv[])
 			errx(1, "%s", USAGE);
 			break;
 		case 'k':
+			free(opts.kernel);
 			opts.kernel = strdup(optarg);
 			break;
 		case 'L':
+			free(opts.label);
 			opts.label = strdup(optarg);
 			break;
 		case 'l':
+			free(opts.loader);
 			opts.loader = strdup(optarg);
 			opts.loader = mangle_loader(opts.loader);
 			break;
@@ -244,6 +247,7 @@ parse_args(int argc, char *argv[])
 			opts.once = true;
 			break;
 		case 'o':
+			free(opts.order);
 			opts.order = strdup(optarg);
 			break;
 		case 'T':
@@ -591,12 +595,7 @@ create_loadopt(uint8_t *buf, size_t bufmax, uint32_t attributes, efidp dp, size_
 	/*
 	 * Compute the length to make sure the passed in buffer is long enough.
 	 */
-	if (description)
-		utf8_to_ucs2(description, &bbuf, &desc_len);
-	else {
-		desc_len = 0;
-		bbuf = NULL;
-	}
+	utf8_to_ucs2(description, &bbuf, &desc_len);
 	len = sizeof(uint32_t) + sizeof(uint16_t) + desc_len + dp_size + optional_data_size;
 	if (len > bufmax) {
 		free(bbuf);
@@ -635,6 +634,8 @@ make_boot_var(const char *label, const char *loader, const char *kernel, const c
 	efidp dp, loaderdp, kerneldp;
 	char *bootvar = NULL;
 	int ret;
+
+	assert(label != NULL);
 
 	bootvar = make_next_boot_var_name();
 	if (bootvar == NULL)
@@ -755,7 +756,7 @@ print_loadopt_str(uint8_t *data, size_t datalen)
 }
 
 static char *
-get_descr(uint8_t* data)
+get_descr(uint8_t *data)
 {
 	uint8_t *pos = data;
 	efi_char *desc;
@@ -861,8 +862,8 @@ main(int argc, char *argv[])
 		/*
 		 * side effect, adds to boot order, but not yet active.
 		 */
-		make_boot_var(opts.label, opts.loader, opts.kernel, opts.env,
-		    opts.dry_run);
+		make_boot_var(opts.label ? opts.label : "",
+		    opts.loader, opts.kernel, opts.env, opts.dry_run);
 	else if (opts.set_active || opts.set_inactive )
 		handle_activity(opts.bootnum, opts.set_active);
 	else if (opts.order != NULL)

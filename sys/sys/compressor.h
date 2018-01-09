@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2014 Mark Johnston <markj@FreeBSD.org>
+ * Copyright (c) 2014, 2017 Mark Johnston <markj@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -28,25 +28,26 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS__GZIO_H_
-#define _SYS__GZIO_H_
+#ifndef _SYS__COMPRESSOR_H_
+#define _SYS__COMPRESSOR_H_
 
 #ifdef _KERNEL
 
-enum gzio_mode {
-	GZIO_DEFLATE,
-};
+/* Supported formats. */
+#define	COMPRESS_GZIP	1
 
-typedef int (*gzio_cb)(void *, size_t, off_t, void *);
+typedef int (*compressor_cb_t)(void *, size_t, off_t, void *);
 
-struct gzio_stream;
+struct compressor;
 
-struct gzio_stream *gzio_init(gzio_cb cb, enum gzio_mode, size_t, int, void *);
-void		gzio_reset(struct gzio_stream *);
-int		gzio_write(struct gzio_stream *, void *, u_int);
-int		gzio_flush(struct gzio_stream *);
-void		gzio_fini(struct gzio_stream *);
+bool		compressor_avail(int format);
+struct compressor *compressor_init(compressor_cb_t cb, int format,
+		    size_t maxiosize, int level, void *arg);
+void		compressor_reset(struct compressor *stream);
+int		compressor_write(struct compressor *stream, void *data,
+		    size_t len);
+int		compressor_flush(struct compressor *stream);
+void		compressor_fini(struct compressor *stream);
 
 #endif /* _KERNEL */
-
-#endif /* _SYS__GZIO_H_ */
+#endif /* _SYS__COMPRESSOR_H_ */

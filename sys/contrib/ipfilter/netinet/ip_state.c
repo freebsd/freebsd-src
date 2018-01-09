@@ -301,6 +301,32 @@ ipf_state_soft_destroy(softc, arg)
 	KFREE(softs);
 }
 
+static void *
+ipf_state_seed_alloc(u_int state_size, u_int state_max)
+{
+	u_int i;
+	u_long *state_seed;
+	KMALLOCS(state_seed, u_long *, state_size * sizeof(*state_seed));
+	if (state_seed == NULL)
+		return NULL;
+
+	for (i = 0; i < state_size; i++) {
+		/*
+		 * XXX - ipf_state_seed[X] should be a random number of sorts.
+		 */
+#if  FREEBSD_GE_REV(400000)
+		state_seed[i] = arc4random();
+#else
+		state_seed[i] = ((u_long)state_seed + i) * state_size;
+		state_seed[i] ^= 0xa5a55a5a;
+		state_seed[i] *= (u_long)state_seed;
+		state_seed[i] ^= 0x5a5aa5a5;
+		state_seed[i] *= state_max;
+#endif
+	}
+	return state_seed;
+}
+
 
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_state_soft_init                                         */
@@ -333,26 +359,10 @@ ipf_state_soft_init(softc, arg)
 	bzero((char *)softs->ipf_state_table,
 	      softs->ipf_state_size * sizeof(ipstate_t *));
 
-	KMALLOCS(softs->ipf_state_seed, u_long *,
-		 softs->ipf_state_size * sizeof(*softs->ipf_state_seed));
+	softs->ipf_state_seed = ipf_state_seed_alloc(softs->ipf_state_size,
+	    softs->ipf_state_max);
 	if (softs->ipf_state_seed == NULL)
 		return -2;
-
-	for (i = 0; i < softs->ipf_state_size; i++) {
-		/*
-		 * XXX - ipf_state_seed[X] should be a random number of sorts.
-		 */
-#if  FREEBSD_GE_REV(400000)
-		softs->ipf_state_seed[i] = arc4random();
-#else
-		softs->ipf_state_seed[i] = ((u_long)softs->ipf_state_seed + i) *
-				    softs->ipf_state_size;
-		softs->ipf_state_seed[i] ^= 0xa5a55a5a;
-		softs->ipf_state_seed[i] *= (u_long)softs->ipf_state_seed;
-		softs->ipf_state_seed[i] ^= 0x5a5aa5a5;
-		softs->ipf_state_seed[i] *= softs->ipf_state_max;
-#endif
-	}
 
 	KMALLOCS(softs->ipf_state_stats.iss_bucketlen, u_int *,
 		 softs->ipf_state_size * sizeof(u_int));
@@ -483,7 +493,7 @@ ipf_state_soft_fini(softc, arg)
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    ipf_state_set_lock                                          */
+/* Function:    ipf_state_setlock                                           */
 /* Returns:     Nil                                                         */
 /* Parameters:  arg(I) - pointer to local context to use                    */
 /*              tmp(I) - new value for lock                                 */
@@ -5259,6 +5269,7 @@ ipf_state_rehash(softc, t, p)
 {
 	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	ipstate_t **newtab, *is;
+	u_long *newseed;
 	u_int *bucketlens;
 	u_int maxbucket;
 	u_int newsize;
@@ -5285,6 +5296,14 @@ ipf_state_rehash(softc, t, p)
 		return ENOMEM;
 	}
 
+	newseed = ipf_state_seed_alloc(newsize, softs->ipf_state_max);
+	if (newseed == NULL) {
+		KFREES(bucketlens, newsize * sizeof(*bucketlens));
+		KFREES(newtab, newsize * sizeof(*newtab));
+		IPFERROR(100037);
+		return ENOMEM;
+	}
+
 	for (maxbucket = 0, i = newsize; i > 0; i >>= 1)
 		maxbucket++;
 	maxbucket *= 2;
@@ -5299,6 +5318,12 @@ ipf_state_rehash(softc, t, p)
 		       softs->ipf_state_size * sizeof(*softs->ipf_state_table));
 	}
 	softs->ipf_state_table = newtab;
+
+	if (softs->ipf_state_seed != NULL) {
+		KFREES(softs->ipf_state_seed,
+		       softs->ipf_state_size * sizeof(*softs->ipf_state_seed));
+	}
+	softs->ipf_state_seed = newseed;
 
 	if (softs->ipf_state_stats.iss_bucketlen != NULL) {
 		KFREES(softs->ipf_state_stats.iss_bucketlen,

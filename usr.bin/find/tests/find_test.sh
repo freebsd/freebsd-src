@@ -36,10 +36,9 @@ find_newer_link_body()
 {
 	atf_check -s exit:0 mkdir test
 	atf_check -s exit:0 ln -s file1 test/link
-	atf_check -s exit:0 sleep 1.1
-	atf_check -s exit:0 touch test/file2
-	atf_check -s exit:0 sleep 1.1
-	atf_check -s exit:0 touch test/file1
+	atf_check -s exit:0 touch -d 2017-12-31T10:00:00Z -h test/link
+	atf_check -s exit:0 touch -d 2017-12-31T11:00:00Z test/file2
+	atf_check -s exit:0 touch -d 2017-12-31T12:00:00Z test/file1
 
 	# find(1) should evaluate 'link' as a symlink rather than its target
 	# (with -P / without -L flags).  Since link was created first, the

@@ -95,6 +95,9 @@ struct acpi_interface {
 	int		num;
 };
 
+static char *sysres_ids[] = { "PNP0C01", "PNP0C02", NULL };
+static char *pcilink_ids[] = { "PNP0C0F", NULL };
+
 /* Global mutex for locking access to the ACPI subsystem. */
 struct mtx	acpi_mutex;
 struct callout	acpi_sleep_timer;
@@ -1168,7 +1171,6 @@ acpi_sysres_alloc(device_t dev)
     struct resource_list *rl;
     struct resource_list_entry *rle;
     struct rman *rm;
-    char *sysres_ids[] = { "PNP0C01", "PNP0C02", NULL };
     device_t *children;
     int child_count, i;
 
@@ -1215,9 +1217,6 @@ acpi_sysres_alloc(device_t dev)
     }
     return (0);
 }
-
-static char *pcilink_ids[] = { "PNP0C0F", NULL };
-static char *sysres_ids[] = { "PNP0C01", "PNP0C02", NULL };
 
 /*
  * Reserve declared resources for devices found during attach once system

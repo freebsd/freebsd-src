@@ -42,6 +42,7 @@
 #include <sys/sysent.h>
 #include <sys/imgact_elf.h>
 #include <sys/syscall.h>
+#include <sys/sysctl.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/linker.h>
@@ -60,6 +61,18 @@
 #include <compat/freebsd32/freebsd32_util.h>
 
 extern const char *freebsd32_syscallnames[];
+static void ppc32_fixlimit(struct rlimit *rl, int which);
+
+static SYSCTL_NODE(_compat, OID_AUTO, ppc32, CTLFLAG_RW, 0, "32-bit mode");
+
+#define PPC32_MAXDSIZ (1024*1024*1024)
+static u_long ppc32_maxdsiz = PPC32_MAXDSIZ;
+SYSCTL_ULONG(_compat_ppc32, OID_AUTO, maxdsiz, CTLFLAG_RWTUN, &ppc32_maxdsiz,
+             0, "");
+#define PPC32_MAXSSIZ (64*1024*1024)
+u_long ppc32_maxssiz = PPC32_MAXSSIZ;
+SYSCTL_ULONG(_compat_ppc32, OID_AUTO, maxssiz, CTLFLAG_RWTUN, &ppc32_maxssiz,
+             0, "");
 #endif
 
 struct sysentvec elf32_freebsd_sysvec = {
@@ -91,6 +104,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_copyout_strings = freebsd32_copyout_strings,
 	.sv_setregs	= ppc32_setregs,
 	.sv_syscallnames = freebsd32_syscallnames,
+	.sv_fixlimit	= ppc32_fixlimit,
 #else
 	.sv_maxuser	= VM_MAXUSER_ADDRESS,
 	.sv_usrstack	= USRSTACK,
@@ -98,8 +112,8 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_copyout_strings = exec_copyout_strings,
 	.sv_setregs	= exec_setregs,
 	.sv_syscallnames = syscallnames,
-#endif
 	.sv_fixlimit	= NULL,
+#endif
 	.sv_maxssiz	= NULL,
 	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32 | SV_SHP,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
@@ -319,5 +333,30 @@ elf_cpu_unload_file(linker_file_t lf __unused)
 {
 
 	return (0);
+}
+#endif
+
+#ifdef __powerpc64__
+static void
+ppc32_fixlimit(struct rlimit *rl, int which)
+{
+	switch (which) {
+	case RLIMIT_DATA:
+		if (ppc32_maxdsiz != 0) {
+			if (rl->rlim_cur > ppc32_maxdsiz)
+				rl->rlim_cur = ppc32_maxdsiz;
+			if (rl->rlim_max > ppc32_maxdsiz)
+				rl->rlim_max = ppc32_maxdsiz;
+		}
+		break;
+	case RLIMIT_STACK:
+		if (ppc32_maxssiz != 0) {
+			if (rl->rlim_cur > ppc32_maxssiz)
+				rl->rlim_cur = ppc32_maxssiz;
+			if (rl->rlim_max > ppc32_maxssiz)
+				rl->rlim_max = ppc32_maxssiz;
+		}
+		break;
+	}
 }
 #endif

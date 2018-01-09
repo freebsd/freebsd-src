@@ -82,6 +82,7 @@ main(int argc, char **argv)
 
 		case 'a':
 			autofmt = 1;
+			/*FALLTHROUGH*/
 		case 'F':
 			showfmt = 1;
 			show = 0;

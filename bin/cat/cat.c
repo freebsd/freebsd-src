@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <locale.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -300,6 +299,7 @@ ilseq:
 static void
 raw_cat(int rfd)
 {
+	long pagesize;
 	int off, wfd;
 	ssize_t nr, nw;
 	static size_t bsize;
@@ -316,9 +316,12 @@ raw_cat(int rfd)
 				bsize = MIN(BUFSIZE_MAX, MAXPHYS * 8);
 			else
 				bsize = BUFSIZE_SMALL;
-		} else
-			bsize = MAX(sbuf.st_blksize,
-			    (blksize_t)sysconf(_SC_PAGESIZE));
+		} else {
+			bsize = sbuf.st_blksize;
+			pagesize = sysconf(_SC_PAGESIZE);
+			if (pagesize > 0)
+				bsize = MAX(bsize, (size_t)pagesize);
+		}
 		if ((buf = malloc(bsize)) == NULL)
 			err(1, "malloc() failure of IO buffer");
 	}

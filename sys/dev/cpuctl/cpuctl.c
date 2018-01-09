@@ -73,6 +73,7 @@ static int cpuctl_do_cpuid(int cpu, cpuctl_cpuid_args_t *data,
     struct thread *td);
 static int cpuctl_do_cpuid_count(int cpu, cpuctl_cpuid_count_args_t *data,
     struct thread *td);
+static int cpuctl_do_eval_cpu_features(int cpu, struct thread *td);
 static int cpuctl_do_update(int cpu, cpuctl_update_args_t *data,
     struct thread *td);
 static int update_intel(int cpu, cpuctl_update_args_t *args,
@@ -159,7 +160,8 @@ cpuctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	}
 	/* Require write flag for "write" requests. */
 	if ((cmd == CPUCTL_MSRCBIT || cmd == CPUCTL_MSRSBIT ||
-	    cmd == CPUCTL_UPDATE || cmd == CPUCTL_WRMSR) &&
+	    cmd == CPUCTL_UPDATE || cmd == CPUCTL_WRMSR ||
+	    cmd == CPUCTL_EVAL_CPU_FEATURES) &&
 	    (flags & FWRITE) == 0)
 		return (EPERM);
 	switch (cmd) {
@@ -186,6 +188,9 @@ cpuctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	case CPUCTL_CPUID_COUNT:
 		ret = cpuctl_do_cpuid_count(cpu,
 		    (cpuctl_cpuid_count_args_t *)data, td);
+		break;
+	case CPUCTL_EVAL_CPU_FEATURES:
+		ret = cpuctl_do_eval_cpu_features(cpu, td);
 		break;
 	default:
 		ret = EINVAL;
@@ -503,6 +508,29 @@ fail:
 	free(ptr, M_CPUCTL);
 	return (ret);
 }
+
+static int
+cpuctl_do_eval_cpu_features(int cpu, struct thread *td)
+{
+	int is_bound = 0;
+	int oldcpu;
+
+	KASSERT(cpu >= 0 && cpu <= mp_maxid,
+	    ("[cpuctl,%d]: bad cpu number %d", __LINE__, cpu));
+
+#ifdef __i386__
+	if (cpu_id == 0)
+		return (ENODEV);
+#endif
+	oldcpu = td->td_oncpu;
+	is_bound = cpu_sched_is_bound(td);
+	set_cpu(cpu, td);
+	identify_cpu1();
+	identify_cpu2();
+	restore_cpu(oldcpu, is_bound, td);
+	return (0);
+}
+
 
 int
 cpuctl_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)

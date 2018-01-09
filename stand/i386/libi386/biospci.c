@@ -285,7 +285,7 @@ biospci_enumerate(void)
 			break;
 
 		    /* Read the device identifier from the nominated device */
-		    err = biospci_read_config(locator, 0, 2, &devid);
+		    err = biospci_read_config(locator, 0, BIOSPCI_32BITS, &devid);
 		    if (err != 0)
 			break;
 		    

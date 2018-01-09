@@ -339,8 +339,8 @@ struct dumperinfo {
 	off_t	mediasize;	/* Space available in bytes. */
 	void	*blockbuf;	/* Buffer for padding shorter dump blocks */
 	off_t	dumpoff;	/* Offset of ongoing kernel dump. */
-	struct kerneldumpcrypto	*kdc; /* Kernel dump crypto. */
-	struct kerneldumpgz *kdgz; /* Kernel dump compression. */
+	struct kerneldumpcrypto	*kdcrypto; /* Kernel dump crypto. */
+	struct kerneldumpcomp *kdcomp; /* Kernel dump compression. */
 };
 
 extern int dumping;		/* system is dumping */
