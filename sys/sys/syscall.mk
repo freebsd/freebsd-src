@@ -393,8 +393,6 @@ MIASM =  \
 	ppoll.o \
 	futimens.o \
 	utimensat.o \
-	numa_getaffinity.o \
-	numa_setaffinity.o \
 	fdatasync.o \
 	fstat.o \
 	fstatat.o \

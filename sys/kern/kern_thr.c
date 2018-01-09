@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/umtx.h>
 #include <sys/limits.h>
 
-#include <vm/vm_domain.h>
-
 #include <machine/frame.h>
 
 #include <security/audit/audit.h>

@@ -3160,24 +3160,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
-	/* numa_getaffinity */
-	case 548: {
-		struct numa_getaffinity_args *p = params;
-		iarg[0] = p->which; /* cpuwhich_t */
-		iarg[1] = p->id; /* id_t */
-		uarg[2] = (intptr_t) p->policy; /* struct vm_domain_policy_entry * */
-		*n_args = 3;
-		break;
-	}
-	/* numa_setaffinity */
-	case 549: {
-		struct numa_setaffinity_args *p = params;
-		iarg[0] = p->which; /* cpuwhich_t */
-		iarg[1] = p->id; /* id_t */
-		uarg[2] = (intptr_t) p->policy; /* const struct vm_domain_policy_entry * */
-		*n_args = 3;
-		break;
-	}
 	/* fdatasync */
 	case 550: {
 		struct fdatasync_args *p = params;
@@ -8547,38 +8529,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* numa_getaffinity */
-	case 548:
-		switch(ndx) {
-		case 0:
-			p = "cpuwhich_t";
-			break;
-		case 1:
-			p = "id_t";
-			break;
-		case 2:
-			p = "userland struct vm_domain_policy_entry *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* numa_setaffinity */
-	case 549:
-		switch(ndx) {
-		case 0:
-			p = "cpuwhich_t";
-			break;
-		case 1:
-			p = "id_t";
-			break;
-		case 2:
-			p = "userland const struct vm_domain_policy_entry *";
-			break;
-		default:
-			break;
-		};
-		break;
 	/* fdatasync */
 	case 550:
 		switch(ndx) {
@@ -10620,16 +10570,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* utimensat */
 	case 547:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* numa_getaffinity */
-	case 548:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* numa_setaffinity */
-	case 549:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
