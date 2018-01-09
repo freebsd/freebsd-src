@@ -202,7 +202,10 @@ int		cam_periph_error(union ccb *ccb, cam_flags camflags,
 static __inline struct mtx *
 cam_periph_mtx(struct cam_periph *periph)
 {
-	return (xpt_path_mtx(periph->path));
+	if (periph != NULL)
+		return (xpt_path_mtx(periph->path));
+	else
+		return (NULL);
 }
 
 #define cam_periph_owned(periph)					\
