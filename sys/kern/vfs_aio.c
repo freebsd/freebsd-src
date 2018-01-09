@@ -150,6 +150,11 @@ static int num_buf_aio = 0;
 SYSCTL_INT(_vfs_aio, OID_AUTO, num_buf_aio, CTLFLAG_RD, &num_buf_aio, 0,
     "Number of aio requests presently handled by the buf subsystem");
 
+static int num_unmapped_aio = 0;
+SYSCTL_INT(_vfs_aio, OID_AUTO, num_unmapped_aio, CTLFLAG_RD, &num_unmapped_aio,
+    0,
+    "Number of aio requests presently handled by unmapped I/O buffers");
+
 /* Number of async I/O processes in the process of being started */
 /* XXX This should be local to aio_aqueue() */
 static int num_aio_resv_start = 0;
@@ -1305,6 +1310,7 @@ aio_qphysio(struct proc *p, struct kaiocb *job)
 		bp->bio_ma_offset = poff;
 		bp->bio_data = unmapped_buf;
 		bp->bio_flags |= BIO_UNMAPPED;
+		atomic_add_int(&num_unmapped_aio, 1);
 	}
 
 	/* Perform transfer. */
@@ -2365,7 +2371,8 @@ aio_physwakeup(struct bio *bp)
 		AIO_LOCK(ki);
 		ki->kaio_buffer_count--;
 		AIO_UNLOCK(ki);
-	}
+	} else
+		atomic_subtract_int(&num_unmapped_aio, 1);
 	vm_page_unhold_pages(job->pages, job->npages);
 
 	bp = job->bp;
