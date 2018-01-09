@@ -426,6 +426,15 @@ domainset_valid(const struct domainset *parent, const struct domainset *child)
 	return (DOMAINSET_ISSET(child->ds_prefer, &parent->ds_mask));
 }
 
+static int
+domainset_restrict(const struct domainset *parent,
+    const struct domainset *child)
+{
+	if (child->ds_policy != DOMAINSET_POLICY_PREFER)
+		return (DOMAINSET_OVERLAP(&parent->ds_mask, &child->ds_mask));
+	return (DOMAINSET_ISSET(child->ds_prefer, &parent->ds_mask));
+}
+
 /*
  * Lookup or create a domainset.  The key is provided in ds_mask and
  * ds_policy.  If the domainset does not yet exist the storage in
@@ -635,7 +644,7 @@ cpuset_testupdate_domain(struct cpuset *set, struct domainset *dset,
 	domain = set->cs_domain;
 	domainset_copy(domain, &newset);
 	if (!domainset_equal(domain, orig)) {
-		if (!DOMAINSET_OVERLAP(&domain->ds_mask, &dset->ds_mask))
+		if (!domainset_restrict(domain, dset))
 			return (EDEADLK);
 		DOMAINSET_AND(&newset.ds_mask, &dset->ds_mask);
 		/* Count the number of domains that are changing. */
@@ -1867,7 +1876,6 @@ kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	struct proc *p;
 	domainset_t *mask;
 	int error;
-	size_t size;
 
 	if (domainsetsize < sizeof(domainset_t) ||
 	    domainsetsize > DOMAINSET_MAXSIZE / NBBY)
@@ -1881,8 +1889,7 @@ kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	    if (id != -1)
 		return (ECAPMODE);
 	}
-	size = domainsetsize;
-	mask = malloc(size, M_TEMP, M_WAITOK | M_ZERO);
+	mask = malloc(domainsetsize, M_TEMP, M_WAITOK | M_ZERO);
 	bzero(&outset, sizeof(outset));
 	error = cpuset_which(which, id, &p, &ttd, &set);
 	if (error)
@@ -1911,7 +1918,6 @@ kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 			nset = cpuset_refroot(set);
 		else
 			nset = cpuset_refbase(set);
-		/* Fetch once for a coherent result. */
 		domainset_copy(nset->cs_domain, &outset);
 		cpuset_rel(nset);
 		break;
@@ -1919,7 +1925,6 @@ kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		switch (which) {
 		case CPU_WHICH_TID:
 			thread_lock(ttd);
-			/* Fetch once for a coherent result. */
 			domainset_copy(ttd->td_cpuset->cs_domain, &outset);
 			thread_unlock(ttd);
 			break;
@@ -1965,13 +1970,13 @@ kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	}
 	DOMAINSET_COPY(&outset.ds_mask, mask);
 	if (error == 0)
-		error = copyout(mask, maskp, size);
+		error = copyout(mask, maskp, domainsetsize);
 	if (error == 0)
-		error = copyout(&outset.ds_policy, policyp, sizeof(*policyp));
+		error = copyout(&outset.ds_policy, policyp,
+		    sizeof(outset.ds_policy));
 out:
 	free(mask, M_TEMP);
 	return (error);
-	return 0;
 }
 
 #ifndef _SYS_SYSPROTO_H_
