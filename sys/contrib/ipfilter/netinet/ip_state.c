@@ -483,7 +483,7 @@ ipf_state_soft_fini(softc, arg)
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    ipf_state_set_lock                                          */
+/* Function:    ipf_state_setlock                                           */
 /* Returns:     Nil                                                         */
 /* Parameters:  arg(I) - pointer to local context to use                    */
 /*              tmp(I) - new value for lock                                 */
