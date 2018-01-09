@@ -65,7 +65,7 @@ vm_domainset_iter_domain(struct vm_domainset_iter *di, struct vm_object *obj)
 
 	/*
 	 * object policy takes precedence over thread policy.  The policies
-	 * are immutable and unsychronized.  Updates can race but pointer
+	 * are immutable and unsynchronized.  Updates can race but pointer
 	 * loads are assumed to be atomic.
 	 */
 	if (obj != NULL && (domain = obj->domain.dr_policy) != NULL) {
@@ -106,6 +106,8 @@ static void
 vm_domainset_iter_next(struct vm_domainset_iter *di, int *domain)
 {
 
+	KASSERT(di->di_n > 0,
+	    ("vm_domainset_iter_first: Invalid n %d", di->di_n));
 	switch (di->di_domain->ds_policy) {
 	case DOMAINSET_POLICY_FIRSTTOUCH:
 		/*
@@ -155,6 +157,8 @@ vm_domainset_iter_first(struct vm_domainset_iter *di, int *domain)
 		panic("vm_domainset_iter_first: Unknown policy %d",
 		    di->di_domain->ds_policy);
 	}
+	KASSERT(di->di_n > 0,
+	    ("vm_domainset_iter_first: Invalid n %d", di->di_n));
 	KASSERT(*domain < vm_ndomains,
 	    ("vm_domainset_iter_first: Invalid domain %d", *domain));
 }
