@@ -289,7 +289,6 @@ main(int argc, char *argv[])
 	if (is_get) {
 		domainset_t mask;
 
-		printf("which %d, id %ld\n", which, id);
 		error = cpuset_getdomain(CPU_LEVEL_WHICH, which, id,
 		    sizeof(mask), &mask, &policy);
 		if (error != 0)
