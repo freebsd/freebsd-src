@@ -1160,8 +1160,6 @@ cam_periph_runccb(union ccb *ccb,
 	struct bintime ltime;
 	int error;
 	bool must_poll;
-	struct mtx *periph_mtx;
-	struct cam_periph *periph;
 	uint32_t timeout = 1;
 
 	starttime = NULL;
@@ -1188,20 +1186,20 @@ cam_periph_runccb(union ccb *ccb,
 	 * stopped for dumping, except when we call doadump from ddb. While the
 	 * scheduler is running in this case, we still need to poll the I/O to
 	 * avoid sleeping waiting for the ccb to complete.
+	 *
+	 * XXX To avoid locking problems, dumping/polling callers must call
+	 * without a periph lock held.
 	 */
 	must_poll = dumping;
 	ccb->ccb_h.cbfcnp = cam_periph_done;
-	periph = xpt_path_periph(ccb->ccb_h.path);
-	periph_mtx = cam_periph_mtx(periph);
 
 	/*
 	 * If we're polling, then we need to ensure that we have ample resources
-	 * in the periph. We also need to drop the periph lock while we're polling.
+	 * in the periph.  
 	 * cam_periph_error can reschedule the ccb by calling xpt_action and returning
 	 * ERESTART, so we have to effect the polling in the do loop below.
 	 */
 	if (must_poll) {
-		mtx_unlock(periph_mtx);
 		timeout = xpt_poll_setup(ccb);
 	}
 
@@ -1226,9 +1224,6 @@ cam_periph_runccb(union ccb *ccb,
 				error = 0;
 		} while (error == ERESTART);
 	}
-
-	if (must_poll)
-		mtx_lock(periph_mtx);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 		cam_release_devq(ccb->ccb_h.path,
