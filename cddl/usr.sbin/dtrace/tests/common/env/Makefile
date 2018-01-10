@@ -15,6 +15,8 @@ ${PACKAGE}FILES= \
      tst.setenv1.ksh.out  \
      tst.setenv2.ksh  \
      tst.setenv2.ksh.out  \
+     tst.setenv3.ksh  \
+     tst.setenv3.ksh.out  \
      tst.unsetenv1.ksh  \
      tst.unsetenv1.ksh.out  \
      tst.unsetenv2.ksh  \
