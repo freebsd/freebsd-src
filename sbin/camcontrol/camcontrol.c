@@ -275,6 +275,7 @@ camcontrol_optret getoption(struct camcontrol_opts *table, char *arg,
 static int getdevlist(struct cam_device *device);
 #endif /* MINIMALISTIC */
 static int getdevtree(int argc, char **argv, char *combinedopt);
+static int print_dev_nvme(struct device_match_result *dev_result, char *tmpstr);
 #ifndef MINIMALISTIC
 static int testunitready(struct cam_device *device, int task_attr,
 			 int retry_count, int timeout, int quiet);
@@ -623,6 +624,12 @@ getdevtree(int argc, char **argv, char *combinedopt)
 					    sizeof(fw));
 					sprintf(tmpstr, "<%s %s %s %s>",
 					    vendor, product, revision, fw);
+				} else if (dev_result->protocol == PROTO_NVME) {
+					if (print_dev_nvme(dev_result,
+					    &tmpstr[0]) != 0) {
+						skip_device = 1;
+						break;
+					}
 				} else {
 				    sprintf(tmpstr, "<>");
 				}
@@ -676,6 +683,58 @@ getdevtree(int argc, char **argv, char *combinedopt)
 	close(fd);
 
 	return (error);
+}
+
+static int
+print_dev_nvme(struct device_match_result *dev_result, char *tmpstr)
+{
+	union ccb *ccb;
+	struct ccb_dev_advinfo *advi;
+	struct cam_device *dev;
+	struct nvme_controller_data cdata;
+	char vendor[64], product[64];
+
+	dev = cam_open_btl(dev_result->path_id, dev_result->target_id,
+	    dev_result->target_lun, O_RDWR, NULL);
+	if (dev == NULL) {
+		warnx("%s", cam_errbuf);
+		return (1);
+	}
+	
+	ccb = cam_getccb(dev);
+	if (ccb == NULL) {
+		warnx("couldn't allocate CCB");
+		cam_close_device(dev);
+		return (1);
+	}
+
+	advi = &ccb->cdai;
+	advi->ccb_h.flags = CAM_DIR_IN;
+	advi->ccb_h.func_code = XPT_DEV_ADVINFO;
+	advi->flags = CDAI_FLAG_NONE;
+	advi->buftype = CDAI_TYPE_NVME_CNTRL;
+	advi->bufsiz = sizeof(struct nvme_controller_data);
+	advi->buf = (uint8_t *)&cdata;
+
+	if (cam_send_ccb(dev, ccb) < 0) {
+		warn("error sending CAMIOCOMMAND ioctl");
+		cam_freeccb(ccb);
+		cam_close_device(dev);
+		return(1);
+	}
+	if (advi->ccb_h.status != CAM_REQ_CMP) {
+		warnx("got CAM error %#x", advi->ccb_h.status);
+		cam_freeccb(ccb);
+		cam_close_device(dev);
+		return(1);
+	}
+	cam_strvis(vendor, cdata.mn, sizeof(cdata.mn), sizeof(vendor));
+	cam_strvis(product, cdata.fr, sizeof(cdata.fr), sizeof(product));
+	sprintf(tmpstr, "<%s %s>", vendor, product);
+
+	cam_freeccb(ccb);
+	cam_close_device(dev);
+	return (0);
 }
 
 #ifndef MINIMALISTIC
