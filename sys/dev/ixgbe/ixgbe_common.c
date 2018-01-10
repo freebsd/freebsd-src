@@ -3356,7 +3356,7 @@ void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u32 mask)
  **/
 s32 ixgbe_disable_sec_rx_path_generic(struct ixgbe_hw *hw)
 {
-#define IXGBE_MAX_SECRX_POLL 40
+#define IXGBE_MAX_SECRX_POLL 4000
 
 	int i;
 	int secrxreg;
@@ -3373,7 +3373,7 @@ s32 ixgbe_disable_sec_rx_path_generic(struct ixgbe_hw *hw)
 			break;
 		else
 			/* Use interrupt-safe sleep just in case */
-			usec_delay(1000);
+			usec_delay(10);
 	}
 
 	/* For informational purposes only */
