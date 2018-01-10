@@ -906,15 +906,11 @@ g_mirror_done(struct bio *bp)
 }
 
 static void
-g_mirror_regular_request_error(struct g_mirror_softc *sc, struct bio *bp)
+g_mirror_regular_request_error(struct g_mirror_softc *sc,
+    struct g_mirror_disk *disk, struct bio *bp)
 {
-	struct g_mirror_disk *disk;
-
-	disk = bp->bio_from->private;
 
 	if (bp->bio_cmd == BIO_FLUSH && bp->bio_error == EOPNOTSUPP)
-		return;
-	if (disk == NULL)
 		return;
 
 	if ((disk->d_flags & G_MIRROR_DISK_FLAG_BROKEN) == 0) {
@@ -942,6 +938,7 @@ g_mirror_regular_request_error(struct g_mirror_softc *sc, struct bio *bp)
 static void
 g_mirror_regular_request(struct g_mirror_softc *sc, struct bio *bp)
 {
+	struct g_mirror_disk *disk;
 	struct bio *pbp;
 
 	g_topology_assert_not();
@@ -952,7 +949,8 @@ g_mirror_regular_request(struct g_mirror_softc *sc, struct bio *bp)
 	bp->bio_from->index--;
 	if (bp->bio_cmd == BIO_WRITE || bp->bio_cmd == BIO_DELETE)
 		sc->sc_writes--;
-	if (bp->bio_from->private == NULL) {
+	disk = bp->bio_from->private;
+	if (disk == NULL) {
 		g_topology_lock();
 		g_mirror_kill_consumer(sc, bp->bio_from);
 		g_topology_unlock();
@@ -999,7 +997,8 @@ g_mirror_regular_request(struct g_mirror_softc *sc, struct bio *bp)
 	} else if (bp->bio_error != 0) {
 		if (pbp->bio_error == 0)
 			pbp->bio_error = bp->bio_error;
-		g_mirror_regular_request_error(sc, bp);
+		if (disk != NULL)
+			g_mirror_regular_request_error(sc, disk, bp);
 		switch (pbp->bio_cmd) {
 		case BIO_DELETE:
 		case BIO_WRITE:
