@@ -121,9 +121,7 @@ vmalloc_32(size_t size)
 static inline void *
 kmalloc_array(size_t n, size_t size, gfp_t flags)
 {
-	if (size != 0 && n > (SIZE_MAX / size))
-		return (NULL);
-	return (malloc(n * size, M_KMALLOC, linux_check_m_flags(flags)));
+	return (mallocarray(n, size, M_KMALLOC, linux_check_m_flags(flags)));
 }
 
 static inline void *
