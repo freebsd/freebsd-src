@@ -1736,7 +1736,13 @@ queueit:
 		return (EOPNOTSUPP);
 	}
 
-	if (opcode == LIO_SYNC) {
+	switch (job->uaiocb.aio_lio_opcode) {
+	case LIO_READ:
+	case LIO_WRITE:
+		aio_schedule(job, aio_process_rw);
+		error = 0;
+		break;
+	case LIO_SYNC:
 		AIO_LOCK(ki);
 		TAILQ_FOREACH(job2, &ki->kaio_jobqueue, plist) {
 			if (job2->fd_file == job->fd_file &&
@@ -1758,15 +1764,6 @@ queueit:
 			return (0);
 		}
 		AIO_UNLOCK(ki);
-	}
-
-	switch (opcode) {
-	case LIO_READ:
-	case LIO_WRITE:
-		aio_schedule(job, aio_process_rw);
-		error = 0;
-		break;
-	case LIO_SYNC:
 		aio_schedule(job, aio_process_sync);
 		error = 0;
 		break;
