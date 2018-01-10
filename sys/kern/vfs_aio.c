@@ -1228,6 +1228,9 @@ aio_qphysio(struct proc *p, struct kaiocb *job)
 	cb = &job->uaiocb;
 	fp = job->fd_file;
 
+	if (!(cb->aio_lio_opcode == LIO_WRITE ||
+	    cb->aio_lio_opcode == LIO_READ))
+		return (-1);
 	if (fp == NULL || fp->f_type != DTYPE_VNODE)
 		return (-1);
 
@@ -1268,7 +1271,7 @@ aio_qphysio(struct proc *p, struct kaiocb *job)
 			goto unref;
 		}
 		if (ki->kaio_buffer_count >= ki->kaio_ballowed_count) {
-			error = -1;
+			error = EAGAIN;
 			goto unref;
 		}
 
@@ -1700,27 +1703,13 @@ aio_queue_file(struct file *fp, struct kaiocb *job)
 	struct kaiocb *job2;
 	struct vnode *vp;
 	struct mount *mp;
-	int error, opcode;
+	int error;
 	bool safe;
 
 	ki = job->userproc->p_aioinfo;
-	opcode = job->uaiocb.aio_lio_opcode;
-	if (opcode == LIO_SYNC)
-		goto queueit;
-
-	if ((error = aio_qphysio(job->userproc, job)) == 0)
-		goto done;
-#if 0
-	/*
-	 * XXX: This means qphysio() failed with EFAULT.  The current
-	 * behavior is to retry the operation via fo_read/fo_write.
-	 * Wouldn't it be better to just complete the request with an
-	 * error here?
-	 */
-	if (error > 0)
-		goto done;
-#endif
-queueit:
+	error = aio_qphysio(job->userproc, job);
+	if (error >= 0)
+		return (error);
 	safe = false;
 	if (fp->f_type == DTYPE_VNODE) {
 		vp = fp->f_vnode;
@@ -1770,7 +1759,6 @@ queueit:
 	default:
 		error = EINVAL;
 	}
-done:
 	return (error);
 }
 
