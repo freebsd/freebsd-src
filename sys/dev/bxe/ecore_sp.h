@@ -159,7 +159,7 @@ typedef struct mtx ECORE_MUTEX_SPIN;
     malloc(_size, M_TEMP, (M_NOWAIT | M_ZERO))
 
 #define ECORE_CALLOC(_len, _size, _flags, _sc) \
-    malloc(_len * _size, M_TEMP, (M_NOWAIT | M_ZERO))
+    mallocarray(_len, _size, M_TEMP, (M_NOWAIT | M_ZERO))
 
 #define ECORE_FREE(_s, _buf, _size) free(_buf, M_TEMP)
 
