@@ -774,7 +774,6 @@ device 		hyperv		# HyperV drivers
 # smapi: System Management Application Program Interface driver
 # smbios: DMI/SMBIOS entry point
 # vpd: Vital Product Data kernel interface
-# pmtimer: Adjust system timer at wakeup time
 # pbio: Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
 # asmc: Apple System Management Controller
 # si: Specialix International SI/XIO or SX intelligent serial card driver
@@ -808,7 +807,6 @@ device		ipmi
 device		smapi
 device		smbios
 device		vpd
-device		pmtimer
 device		pbio
 hint.pbio.0.at="isa"
 hint.pbio.0.port="0x360"
