@@ -147,6 +147,8 @@ usage(const char* cmd)
 	printf("where algorithm is one of:\n");
 	printf("    null des 3des (default) blowfish cast skipjack rij\n");
 	printf("    aes aes192 aes256 md5 sha1 sha256 sha384 sha512\n");
+	printf(" or an encryption algorithm concatented with authentication\n");
+	printf(" algorithm with '+' in the middle, e.g., aes+sha1.\n");
 	printf("count is the number of encrypt/decrypt ops to do\n");
 	printf("size is the number of bytes of text to encrypt+decrypt\n");
 	printf("\n");
@@ -248,7 +250,7 @@ rdigit(void)
 }
 
 void
-runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
+runtest(struct alg *ealg, struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 {
 	int i, fd = crget();
 	struct timeval start, stop, dt;
@@ -256,18 +258,26 @@ runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 	struct session2_op sop;
 	struct crypt_op cop;
 	char iv[EALG_MAX_BLOCK_LEN];
+	char digest[512/8];
+
+	/* Canonicalize 'ealg' to crypt alg and 'alg' to authentication alg. */
+	if (ealg == NULL && !alg->ishash) {
+		ealg = alg;
+		alg = NULL;
+	}
 
 	bzero(&sop, sizeof(sop));
-	if (!alg->ishash) {
-		sop.keylen = (alg->minkeylen + alg->maxkeylen)/2;
+	if (ealg != NULL) {
+		sop.keylen = (ealg->minkeylen + ealg->maxkeylen)/2;
 		key = (char *) malloc(sop.keylen);
 		if (key == NULL)
 			err(1, "malloc (key)");
 		for (i = 0; i < sop.keylen; i++)
 			key[i] = rdigit();
 		sop.key = key;
-		sop.cipher = alg->code;
-	} else {
+		sop.cipher = ealg->code;
+	}
+	if (alg != NULL) {
 		sop.mackeylen = (alg->minkeylen + alg->maxkeylen)/2;
 		key = (char *) malloc(sop.mackeylen);
 		if (key == NULL)
@@ -277,12 +287,16 @@ runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 		sop.mackey = key;
 		sop.mac = alg->code;
 	}
+
 	sop.crid = crid;
 	if (ioctl(fd, cmd, &sop) < 0) {
 		if (cmd == CIOCGSESSION || cmd == CIOCGSESSION2) {
 			close(fd);
 			if (verbose) {
-				printf("cipher %s", alg->name);
+				printf("cipher %s%s%s", ealg? ealg->name : "",
+				    (ealg && alg) ? "+" : "",
+				    alg? alg->name : "");
+
 				if (alg->ishash)
 					printf(" mackeylen %u\n", sop.mackeylen);
 				else
@@ -292,8 +306,9 @@ runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 			/* hardware doesn't support algorithm; skip it */
 			return;
 		}
-		printf("cipher %s keylen %u mackeylen %u\n",
-			alg->name, sop.keylen, sop.mackeylen);
+		printf("cipher %s%s%s keylen %u mackeylen %u\n",
+		    ealg? ealg->name : "", (ealg && alg) ? "+" : "",
+		    alg? alg->name : "", sop.keylen, sop.mackeylen);
 		err(1, "CIOCGSESSION");
 	}
 
@@ -312,7 +327,7 @@ runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 		printf("session = 0x%x\n", sop.ses);
 		printf("device = %s\n", crfind(sop.crid));
 		printf("count = %d, size = %d\n", count, size);
-		if (!alg->ishash) {
+		if (ealg) {
 			printf("iv:");
 			hexdump(iv, sizeof iv);
 		}
@@ -321,15 +336,18 @@ runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 	}
 
 	gettimeofday(&start, NULL);
-	if (!alg->ishash) {
+	if (ealg) {
 		for (i = 0; i < count; i++) {
 			cop.ses = sop.ses;
 			cop.op = COP_ENCRYPT;
-			cop.flags = opflags;
+			cop.flags = opflags | COP_F_CIPHER_FIRST;
 			cop.len = size;
 			cop.src = cleartext;
 			cop.dst = ciphertext;
-			cop.mac = 0;
+			if (alg)
+				cop.mac = digest;
+			else
+				cop.mac = 0;
 			cop.iv = iv;
 
 			if (ioctl(fd, CIOCCRYPT, &cop) < 0)
@@ -347,7 +365,10 @@ runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 			cop.len = size;
 			cop.src = ciphertext;
 			cop.dst = cleartext;
-			cop.mac = 0;
+			if (alg)
+				cop.mac = digest;
+			else
+				cop.mac = 0;
 			cop.iv = iv;
 
 			if (ioctl(fd, CIOCCRYPT, &cop) < 0)
@@ -432,7 +453,7 @@ printt(const char* tag, struct cryptotstat *ts)
 #endif
 
 void
-runtests(struct alg *alg, int count, int size, u_long cmd, int threads, int profile)
+runtests(struct alg *ealg, struct alg *alg, int count, int size, u_long cmd, int threads, int profile)
 {
 	int i, status;
 	double t;
@@ -441,11 +462,13 @@ runtests(struct alg *alg, int count, int size, u_long cmd, int threads, int prof
 	struct timeval total;
 	int otiming;
 
-	if (size % alg->blocksize) {
+	if (size % alg->blocksize || (ealg && size % ealg->blocksize)) {
 		if (verbose)
 			printf("skipping blocksize %u 'cuz not a multiple of "
-				"%s blocksize %u\n",
-				size, alg->name, alg->blocksize);
+				"%s blocksize %u (or %s blocksize %u)\n",
+				size, alg->name, alg->blocksize,
+				ealg ?  ealg->name : "n/a",
+				ealg ? ealg->blocksize : 0);
 		return;
 	}
 
@@ -476,13 +499,13 @@ runtests(struct alg *alg, int count, int size, u_long cmd, int threads, int prof
 				CPU_SET(i, &mask);
 				cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
 				    -1, sizeof(mask), &mask);
-				runtest(alg, count, size, cmd, &tvp[i]);
+				runtest(ealg, alg, count, size, cmd, &tvp[i]);
 				exit(0);
 			}
 		while (waitpid(WAIT_MYPGRP, &status, 0) != -1)
 			;
 	} else
-		runtest(alg, count, size, cmd, tvp);
+		runtest(ealg, alg, count, size, cmd, tvp);
 
 	t = 0;
 	for (i = 0; i < threads; i++)
@@ -491,8 +514,9 @@ runtests(struct alg *alg, int count, int size, u_long cmd, int threads, int prof
 		int nops = alg->ishash ? count : 2*count;
 
 		nops *= threads;
-		printf("%8.3lf sec, %7d %6s crypts, %7d bytes, %8.0lf byte/sec, %7.1lf Mb/sec\n",
-		    t, nops, alg->name, size, (double)nops*size / t,
+		printf("%8.3lf sec, %7d %6s%s%6s crypts, %7d bytes, %8.0lf byte/sec, %7.1lf Mb/sec\n",
+		    t, nops, alg->name, ealg? "+" : "", ealg? ealg->name : "",
+		    size, (double)nops*size / t,
 		    (double)nops*size / t * 8 / 1024 / 1024);
 	}
 #ifdef __FreeBSD__
@@ -519,7 +543,8 @@ runtests(struct alg *alg, int count, int size, u_long cmd, int threads, int prof
 int
 main(int argc, char **argv)
 {
-	struct alg *alg = NULL;
+	struct alg *alg = NULL, *ealg = NULL;
+	char *tmp;
 	int count = 1;
 	int sizes[128], nsizes = 0;
 	u_long cmd = CIOCGSESSION2;
@@ -539,13 +564,23 @@ main(int argc, char **argv)
 			verbose++;
 			break;
 		case 'a':
+			tmp = strchr(optarg, '+');
+			if (tmp != NULL) {
+				*tmp = '\0';
+				ealg = getalgbyname(optarg);
+				if (ealg == NULL || ealg->ishash)
+					usage(argv[0]);
+				optarg = tmp + 1;
+			}
+
 			alg = getalgbyname(optarg);
 			if (alg == NULL) {
 				if (streq(optarg, "rijndael"))
 					alg = getalgbyname("aes");
 				else
 					usage(argv[0]);
-			}
+			} else if (ealg != NULL && !alg->ishash)
+				usage(argv[0]);
 			break;
 		case 'd':
 			crid = crlookup(optarg);
@@ -602,13 +637,13 @@ main(int argc, char **argv)
 			int j;
 			alg = &algorithms[i];
 			for (j = 0; j < nsizes; j++)
-				runtests(alg, count, sizes[j], cmd, maxthreads, profile);
+				runtests(ealg, alg, count, sizes[j], cmd, maxthreads, profile);
 		}
 	} else {
 		if (alg == NULL)
 			alg = getalgbycode(CRYPTO_3DES_CBC);
 		for (i = 0; i < nsizes; i++)
-			runtests(alg, count, sizes[i], cmd, maxthreads, profile);
+			runtests(ealg, alg, count, sizes[i], cmd, maxthreads, profile);
 	}
 
 	return (0);
