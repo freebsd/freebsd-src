@@ -415,7 +415,7 @@ ds13rtc_settime(device_t dev, struct timespec *ts)
 	struct time_regs tregs;
 	struct ds13rtc_softc *sc;
 	int err;
-	uint8_t cflag, statreg, pmflag;
+	uint8_t cflag, statreg, pmflags;
 
 	sc = device_get_softc(dev);
 
@@ -432,11 +432,12 @@ ds13rtc_settime(device_t dev, struct timespec *ts)
 	clock_ts_to_ct(ts, &ct);
 
 	/* If the chip is in AMPM mode deal with the PM flag. */
-	pmflag = 0;
+	pmflags = 0;
 	if (sc->flags & SC_F_AMPM) {
+		pmflags = DS13xx_B_HOUR_AMPM;
 		if (ct.hour >= 12) {
 			ct.hour -= 12;
-			pmflag = DS13xx_B_HOUR_PM;
+			pmflags |= DS13xx_B_HOUR_PM;
 		}
 		if (ct.hour == 0)
 			ct.hour = 12;
@@ -451,7 +452,7 @@ ds13rtc_settime(device_t dev, struct timespec *ts)
 
 	tregs.sec   = TOBCD(ct.sec);
 	tregs.min   = TOBCD(ct.min);
-	tregs.hour  = TOBCD(ct.hour) | pmflag;
+	tregs.hour  = TOBCD(ct.hour) | pmflags;
 	tregs.day   = TOBCD(ct.day);
 	tregs.month = TOBCD(ct.mon) | cflag;
 	tregs.year  = TOBCD(ct.year % 100);
