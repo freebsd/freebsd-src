@@ -1086,7 +1086,6 @@ apm_rtc_resume(void *arg __unused)
 {
 	u_int second, minute, hour;
 	struct timeval resume_time, tmp_time;
-	struct timespec ts;
 
 	/* modified for adjkerntz */
 	timer_restore();		/* restore the all timers */
@@ -1097,14 +1096,11 @@ apm_rtc_resume(void *arg __unused)
 	/* Calculate the delta time suspended */
 	timevalsub(&resume_time, &suspend_time);
 
-	second = ts.tv_sec = resume_time.tv_sec;
-	ts.tv_nsec = 0;
-	tc_setclock(&ts);
-
 #ifdef PMTIMER_FIXUP_CALLTODO
 	/* Fixup the calltodo list with the delta time. */
 	adjust_timeout_calltodo(&resume_time);
 #endif /* PMTIMER_FIXUP_CALLTODO */
+	second = resume_time.tv_sec;
 	hour = second / 3600;
 	second %= 3600;
 	minute = second / 60;
