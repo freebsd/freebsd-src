@@ -364,9 +364,8 @@ ds13rtc_gettime(device_t dev, struct timespec *ts)
 
 	/* If the chip counts time in binary, we just read and return it. */
 	if (sc->flags & SC_F_BINARY) {
-		if ((err = read_timeword(sc, &ts->tv_sec)) != 0)
-			return (err);
 		ts->tv_nsec = 0;
+		return (read_timeword(sc, &ts->tv_sec));
 	}
 
 	/*
