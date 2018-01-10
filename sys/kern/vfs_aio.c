@@ -166,16 +166,16 @@ SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_lifetime, CTLFLAG_RW, &aiod_lifetime, 0,
 static int max_aio_per_proc = MAX_AIO_PER_PROC;
 SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_per_proc, CTLFLAG_RW, &max_aio_per_proc,
     0,
-    "Maximum active aio requests per process (stored in the process)");
+    "Maximum active aio requests per process");
 
 static int max_aio_queue_per_proc = MAX_AIO_QUEUE_PER_PROC;
 SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_queue_per_proc, CTLFLAG_RW,
     &max_aio_queue_per_proc, 0,
-    "Maximum queued aio requests per process (stored in the process)");
+    "Maximum queued aio requests per process");
 
 static int max_buf_aio = MAX_BUF_AIO;
 SYSCTL_INT(_vfs_aio, OID_AUTO, max_buf_aio, CTLFLAG_RW, &max_buf_aio, 0,
-    "Maximum buf aio requests per process (stored in the process)");
+    "Maximum buf aio requests per process");
 
 /* 
  * Though redundant with vfs.aio.max_aio_queue_per_proc, POSIX requires
@@ -268,11 +268,8 @@ struct aioliojob {
 struct kaioinfo {
 	struct	mtx kaio_mtx;		/* the lock to protect this struct */
 	int	kaio_flags;		/* (a) per process kaio flags */
-	int	kaio_maxactive_count;	/* (*) maximum number of AIOs */
 	int	kaio_active_count;	/* (c) number of currently used AIOs */
-	int	kaio_qallowed_count;	/* (*) maxiumu size of AIO queue */
 	int	kaio_count;		/* (a) size of AIO queue */
-	int	kaio_ballowed_count;	/* (*) maximum number of buffers */
 	int	kaio_buffer_count;	/* (a) number of physio buffers */
 	TAILQ_HEAD(,kaiocb) kaio_all;	/* (a) all AIOs in a process */
 	TAILQ_HEAD(,kaiocb) kaio_done;	/* (a) done queue for process */
@@ -445,11 +442,8 @@ aio_init_aioinfo(struct proc *p)
 	ki = uma_zalloc(kaio_zone, M_WAITOK);
 	mtx_init(&ki->kaio_mtx, "aiomtx", NULL, MTX_DEF | MTX_NEW);
 	ki->kaio_flags = 0;
-	ki->kaio_maxactive_count = max_aio_per_proc;
 	ki->kaio_active_count = 0;
-	ki->kaio_qallowed_count = max_aio_queue_per_proc;
 	ki->kaio_count = 0;
-	ki->kaio_ballowed_count = max_buf_aio;
 	ki->kaio_buffer_count = 0;
 	TAILQ_INIT(&ki->kaio_all);
 	TAILQ_INIT(&ki->kaio_done);
@@ -708,7 +702,7 @@ restart:
 		userp = job->userproc;
 		ki = userp->p_aioinfo;
 
-		if (ki->kaio_active_count < ki->kaio_maxactive_count) {
+		if (ki->kaio_active_count < max_aio_per_proc) {
 			TAILQ_REMOVE(&aio_jobs, job, list);
 			if (!aio_clear_cancel_function(job))
 				goto restart;
@@ -1270,7 +1264,7 @@ aio_qphysio(struct proc *p, struct kaiocb *job)
 			error = -1;
 			goto unref;
 		}
-		if (ki->kaio_buffer_count >= ki->kaio_ballowed_count) {
+		if (ki->kaio_buffer_count >= max_buf_aio) {
 			error = EAGAIN;
 			goto unref;
 		}
@@ -1479,7 +1473,7 @@ aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
 	ops->store_kernelinfo(ujob, -1);
 
 	if (num_queue_count >= max_queue_count ||
-	    ki->kaio_count >= ki->kaio_qallowed_count) {
+	    ki->kaio_count >= max_aio_queue_per_proc) {
 		ops->store_error(ujob, EAGAIN);
 		return (EAGAIN);
 	}
@@ -1774,8 +1768,7 @@ aio_kick_nowait(struct proc *userp)
 		aiop->aioprocflags &= ~AIOP_FREE;
 		wakeup(aiop->aioproc);
 	} else if (num_aio_resv_start + num_aio_procs < max_aio_procs &&
-	    ki->kaio_active_count + num_aio_resv_start <
-	    ki->kaio_maxactive_count) {
+	    ki->kaio_active_count + num_aio_resv_start < max_aio_per_proc) {
 		taskqueue_enqueue(taskqueue_aiod_kick, &ki->kaio_task);
 	}
 }
@@ -1794,8 +1787,7 @@ retryproc:
 		aiop->aioprocflags &= ~AIOP_FREE;
 		wakeup(aiop->aioproc);
 	} else if (num_aio_resv_start + num_aio_procs < max_aio_procs &&
-	    ki->kaio_active_count + num_aio_resv_start <
-	    ki->kaio_maxactive_count) {
+	    ki->kaio_active_count + num_aio_resv_start < max_aio_per_proc) {
 		num_aio_resv_start++;
 		mtx_unlock(&aio_job_mtx);
 		error = aio_newproc(&num_aio_resv_start);
