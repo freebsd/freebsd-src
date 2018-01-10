@@ -36,6 +36,7 @@
 #ifdef _KERNEL
 
 int		vm_radix_insert(struct vm_radix *rtree, vm_page_t page);
+void		vm_radix_wait(void);
 boolean_t	vm_radix_is_singleton(struct vm_radix *rtree);
 vm_page_t	vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index);
 vm_page_t	vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index);

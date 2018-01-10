@@ -1461,7 +1461,7 @@ retry:
 		if (vm_page_rename(m, new_object, idx)) {
 			VM_OBJECT_WUNLOCK(new_object);
 			VM_OBJECT_WUNLOCK(orig_object);
-			VM_WAIT;
+			vm_radix_wait();
 			VM_OBJECT_WLOCK(orig_object);
 			VM_OBJECT_WLOCK(new_object);
 			goto retry;
@@ -1523,8 +1523,9 @@ vm_object_collapse_scan_wait(vm_object_t object, vm_page_t p, vm_page_t next,
 		vm_page_lock(p);
 	VM_OBJECT_WUNLOCK(object);
 	VM_OBJECT_WUNLOCK(backing_object);
+	/* The page is only NULL when rename fails. */
 	if (p == NULL)
-		VM_WAIT;
+		vm_radix_wait();
 	else
 		vm_page_busy_sleep(p, "vmocol", false);
 	VM_OBJECT_WLOCK(object);

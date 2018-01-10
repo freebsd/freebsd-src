@@ -1808,7 +1808,7 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 				vm_pageout_oom(VM_OOM_SWAPZ);
 				pause("swzonxb", 10);
 			} else
-				VM_WAIT;
+				uma_zwait(swblk_zone);
 			VM_OBJECT_WLOCK(object);
 			sb = SWAP_PCTRIE_LOOKUP(&object->un_pager.swp.swp_blks,
 			    rdpi);
@@ -1838,7 +1838,7 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 				vm_pageout_oom(VM_OOM_SWAPZ);
 				pause("swzonxp", 10);
 			} else
-				VM_WAIT;
+				uma_zwait(swpctrie_zone);
 			VM_OBJECT_WLOCK(object);
 			sb1 = SWAP_PCTRIE_LOOKUP(&object->un_pager.swp.swp_blks,
 			    rdpi);
