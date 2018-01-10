@@ -110,6 +110,8 @@ static int g_mirror_update_disk(struct g_mirror_disk *disk, u_int state);
 static void g_mirror_update_device(struct g_mirror_softc *sc, bool force);
 static void g_mirror_dumpconf(struct sbuf *sb, const char *indent,
     struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp);
+static void g_mirror_sync_reinit(const struct g_mirror_disk *disk,
+    struct bio *bp, off_t offset);
 static void g_mirror_sync_stop(struct g_mirror_disk *disk, int type);
 static void g_mirror_register_request(struct g_mirror_softc *sc,
     struct bio *bp);
@@ -1298,10 +1300,11 @@ g_mirror_sync_request_free(struct g_mirror_disk *disk, struct bio *bp)
 
 /*
  * Handle synchronization requests.
- * Every synchronization request is two-steps process: first, READ request is
- * send to active provider and then WRITE request (with read data) to the provider
- * being synchronized. When WRITE is finished, new synchronization request is
- * send.
+ * Every synchronization request is a two-step process: first, a read request is
+ * sent to the mirror provider via the sync consumer. If that request completes
+ * successfully, it is converted to a write and sent to the disk being
+ * synchronized. If the write also completes successfully, the synchronization
+ * offset is advanced and a new read request is submitted.
  */
 static void
 g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
@@ -1326,13 +1329,16 @@ g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
 		return;
 	}
 
+	sync = &disk->d_sync;
+
 	/*
 	 * Synchronization request.
 	 */
 	switch (bp->bio_cmd) {
-	case BIO_READ:
-	    {
+	case BIO_READ: {
+		struct g_mirror_disk *d;
 		struct g_consumer *cp;
+		int readable;
 
 		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_sync_request_read,
 		    bp->bio_error);
@@ -1341,7 +1347,33 @@ g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
 			G_MIRROR_LOGREQ(0, bp,
 			    "Synchronization request failed (error=%d).",
 			    bp->bio_error);
-			g_mirror_sync_request_free(disk, bp);
+
+			/*
+			 * If there's at least one other disk from which we can
+			 * read the block, retry the request.
+			 */
+			readable = 0;
+			LIST_FOREACH(d, &sc->sc_disks, d_next)
+				if (d->d_state == G_MIRROR_DISK_STATE_ACTIVE &&
+				    !(d->d_flags & G_MIRROR_DISK_FLAG_BROKEN))
+					readable++;
+
+			/*
+			 * The read error will trigger a syncid bump, so there's
+			 * no need to do that here.
+			 *
+			 * If we can retry the read from another disk, do so.
+			 * Otherwise, all we can do is kick out the new disk.
+			 */
+			if (readable == 0) {
+				g_mirror_sync_request_free(disk, bp);
+				g_mirror_event_send(disk,
+				    G_MIRROR_DISK_STATE_DISCONNECTED,
+				    G_MIRROR_EVENT_DONTWAIT);
+			} else {
+				g_mirror_sync_reinit(disk, bp, bp->bio_offset);
+				goto retry_read;
+			}
 			return;
 		}
 		G_MIRROR_LOGREQ(3, bp,
@@ -1355,12 +1387,10 @@ g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
 		cp->index++;
 		g_io_request(bp, cp);
 		return;
-	    }
-	case BIO_WRITE:
-	    {
+	}
+	case BIO_WRITE: {
 		off_t offset;
-		void *data;
-		int i, idx;
+		int i;
 
 		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_sync_request_write,
 		    bp->bio_error);
@@ -1377,7 +1407,6 @@ g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
 			return;
 		}
 		G_MIRROR_LOGREQ(3, bp, "Synchronization request finished.");
-		sync = &disk->d_sync;
 		if (sync->ds_offset >= sc->sc_mediasize ||
 		    sync->ds_consumer == NULL ||
 		    (sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
@@ -1397,20 +1426,13 @@ g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
 		}
 
 		/* Send next synchronization request. */
-		data = bp->bio_data;
-		idx = (int)(uintptr_t)bp->bio_caller1;
-		g_reset_bio(bp);
-		bp->bio_cmd = BIO_READ;
-		bp->bio_offset = sync->ds_offset;
-		bp->bio_length = MIN(MAXPHYS, sc->sc_mediasize - bp->bio_offset);
+		g_mirror_sync_reinit(disk, bp, sync->ds_offset);
 		sync->ds_offset += bp->bio_length;
-		bp->bio_done = g_mirror_sync_done;
-		bp->bio_data = data;
-		bp->bio_from = sync->ds_consumer;
-		bp->bio_to = sc->sc_provider;
-		bp->bio_caller1 = (void *)(uintptr_t)idx;
+
+retry_read:
 		G_MIRROR_LOGREQ(3, bp, "Sending synchronization request.");
 		sync->ds_consumer->index++;
+
 		/*
 		 * Delay the request if it is colliding with a regular request.
 		 */
@@ -1436,11 +1458,9 @@ g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
 			sync->ds_update_ts = time_uptime;
 		}
 		return;
-	    }
+	}
 	default:
-		KASSERT(1 == 0, ("Invalid command here: %u (device=%s)",
-		    bp->bio_cmd, sc->sc_name));
-		break;
+		panic("Invalid I/O request %p", bp);
 	}
 }
 
@@ -2031,15 +2051,39 @@ g_mirror_update_idle(struct g_mirror_softc *sc, struct g_mirror_disk *disk)
 }
 
 static void
+g_mirror_sync_reinit(const struct g_mirror_disk *disk, struct bio *bp,
+    off_t offset)
+{
+	void *data;
+	int idx;
+
+	data = bp->bio_data;
+	idx = (int)(uintptr_t)bp->bio_caller1;
+	g_reset_bio(bp);
+
+	bp->bio_cmd = BIO_READ;
+	bp->bio_data = data;
+	bp->bio_done = g_mirror_sync_done;
+	bp->bio_from = disk->d_sync.ds_consumer;
+	bp->bio_to = disk->d_softc->sc_provider;
+	bp->bio_caller1 = (void *)(uintptr_t)idx;
+	bp->bio_offset = offset;
+	bp->bio_length = MIN(MAXPHYS,
+	    disk->d_softc->sc_mediasize - bp->bio_offset);
+}
+
+static void
 g_mirror_sync_start(struct g_mirror_disk *disk)
 {
 	struct g_mirror_softc *sc;
+	struct g_mirror_disk_sync *sync;
 	struct g_consumer *cp;
 	struct bio *bp;
 	int error, i;
 
 	g_topology_assert_not();
 	sc = disk->d_softc;
+	sync = &disk->d_sync;
 	sx_assert(&sc->sc_lock, SX_LOCKED);
 
 	KASSERT(disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING,
@@ -2065,54 +2109,48 @@ g_mirror_sync_start(struct g_mirror_disk *disk)
 	    g_mirror_get_diskname(disk));
 	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_NOFAILSYNC) == 0)
 		disk->d_flags |= G_MIRROR_DISK_FLAG_DIRTY;
-	KASSERT(disk->d_sync.ds_consumer == NULL,
+	KASSERT(sync->ds_consumer == NULL,
 	    ("Sync consumer already exists (device=%s, disk=%s).",
 	    sc->sc_name, g_mirror_get_diskname(disk)));
 
-	disk->d_sync.ds_consumer = cp;
-	disk->d_sync.ds_consumer->private = disk;
-	disk->d_sync.ds_consumer->index = 0;
+	sync->ds_consumer = cp;
+	sync->ds_consumer->private = disk;
+	sync->ds_consumer->index = 0;
 
 	/*
 	 * Allocate memory for synchronization bios and initialize them.
 	 */
-	disk->d_sync.ds_bios = malloc(sizeof(struct bio *) * g_mirror_syncreqs,
+	sync->ds_bios = malloc(sizeof(struct bio *) * g_mirror_syncreqs,
 	    M_MIRROR, M_WAITOK);
 	for (i = 0; i < g_mirror_syncreqs; i++) {
 		bp = g_alloc_bio();
-		disk->d_sync.ds_bios[i] = bp;
-		bp->bio_parent = NULL;
-		bp->bio_cmd = BIO_READ;
+		sync->ds_bios[i] = bp;
+
 		bp->bio_data = malloc(MAXPHYS, M_MIRROR, M_WAITOK);
-		bp->bio_cflags = 0;
-		bp->bio_offset = disk->d_sync.ds_offset;
-		bp->bio_length = MIN(MAXPHYS, sc->sc_mediasize - bp->bio_offset);
-		disk->d_sync.ds_offset += bp->bio_length;
-		bp->bio_done = g_mirror_sync_done;
-		bp->bio_from = disk->d_sync.ds_consumer;
-		bp->bio_to = sc->sc_provider;
 		bp->bio_caller1 = (void *)(uintptr_t)i;
+		g_mirror_sync_reinit(disk, bp, sync->ds_offset);
+		sync->ds_offset += bp->bio_length;
 	}
 
 	/* Increase the number of disks in SYNCHRONIZING state. */
 	sc->sc_sync.ds_ndisks++;
 	/* Set the number of in-flight synchronization requests. */
-	disk->d_sync.ds_inflight = g_mirror_syncreqs;
+	sync->ds_inflight = g_mirror_syncreqs;
 
 	/*
 	 * Fire off first synchronization requests.
 	 */
 	for (i = 0; i < g_mirror_syncreqs; i++) {
-		bp = disk->d_sync.ds_bios[i];
+		bp = sync->ds_bios[i];
 		G_MIRROR_LOGREQ(3, bp, "Sending synchronization request.");
-		disk->d_sync.ds_consumer->index++;
+		sync->ds_consumer->index++;
 		/*
 		 * Delay the request if it is colliding with a regular request.
 		 */
 		if (g_mirror_regular_collision(sc, bp))
 			g_mirror_sync_delay(sc, bp);
 		else
-			g_io_request(bp, disk->d_sync.ds_consumer);
+			g_io_request(bp, sync->ds_consumer);
 	}
 }
 
