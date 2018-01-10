@@ -22,7 +22,6 @@ SUBDIR=	adduser \
 	devctl \
 	devinfo \
 	devmatch \
-	digictl \
 	diskinfo \
 	dumpcis \
 	etcupdate \
