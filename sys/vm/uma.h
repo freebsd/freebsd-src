@@ -366,6 +366,11 @@ uma_zfree(uma_zone_t zone, void *item)
 }
 
 /*
+ * Wait until the specified zone can allocate an item.
+ */
+void uma_zwait(uma_zone_t zone);
+
+/*
  * XXX The rest of the prototypes in this header are h0h0 magic for the VM.
  * If you think you need to use it for a normal zone you're probably incorrect.
  */

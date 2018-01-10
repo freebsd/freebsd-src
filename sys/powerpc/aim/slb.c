@@ -483,24 +483,16 @@ slb_uma_real_alloc(uma_zone_t zone, vm_size_t bytes, u_int8_t *flags, int wait)
 	static vm_offset_t realmax = 0;
 	void *va;
 	vm_page_t m;
-	int pflags;
 
 	if (realmax == 0)
 		realmax = platform_real_maxaddr();
 
 	*flags = UMA_SLAB_PRIV;
-	pflags = malloc2vm_flags(wait) | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
-
-	for (;;) {
-		m = vm_page_alloc_contig(NULL, 0, pflags, 1, 0, realmax,
-		    PAGE_SIZE, PAGE_SIZE, VM_MEMATTR_DEFAULT);
-		if (m == NULL) {
-			if (wait & M_NOWAIT)
-				return (NULL);
-			VM_WAIT;
-		} else
-                        break;
-        }
+	m = vm_page_alloc_contig(NULL, 0,
+	    malloc2vm_flags(wait) | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED,
+	    1, 0, realmax, PAGE_SIZE, PAGE_SIZE, VM_MEMATTR_DEFAULT);
+	if (m == NULL)
+		return (NULL);
 
 	va = (void *) VM_PAGE_TO_PHYS(m);
 
