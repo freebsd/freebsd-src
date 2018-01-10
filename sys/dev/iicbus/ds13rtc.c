@@ -162,15 +162,13 @@ struct time_regs {
 struct ds13rtc_softc {
 	device_t	dev;
 	device_t	busdev;
-	u_int		flags;		/* SC_F_* flags */
 	u_int		chiptype;	/* Type of DS13xx chip */
 	uint8_t		secaddr;	/* Address of seconds register */
 	uint8_t		osfaddr;	/* Address of register with OSF */
+	bool		use_ampm;	/* Use AM/PM mode. */
+	bool		use_century;	/* Use the Century bit. */
+	bool		is_binary_counter; /* Chip has 32-bit binary counter. */
 };
-
-#define	SC_F_BINARY	(1u << 0)	/* Time is 32-bit binary counter */
-#define	SC_F_AMPM	(1u << 1)	/* Use PM flag in hours reg */
-#define	SC_F_CENTURY	(1u << 2)	/* Use century bit */
 
 /*
  * We use the compat_data table to look up hint strings in the non-FDT case, so
@@ -326,14 +324,14 @@ ds13rtc_start(void *arg)
 	 * chips that do AM/PM mode, the flag bit is in the hours register,
 	 * which is secaddr+2.
 	 */
-	if ((sc->chiptype != TYPE_DS1340) && !(sc->flags & SC_F_BINARY)) {
+	if ((sc->chiptype != TYPE_DS1340) && !sc->is_binary_counter) {
 		if (read_reg(sc, sc->secaddr + 2, &statreg) != 0) {
 			device_printf(sc->dev,
 			    "cannot read RTC clock AM/PM bit\n");
 			return;
 		}
 		if (statreg & DS13xx_B_HOUR_AMPM)
-			sc->flags |= SC_F_AMPM;
+			sc->use_ampm = true;
 	}
 
 	/*
@@ -363,7 +361,7 @@ ds13rtc_gettime(device_t dev, struct timespec *ts)
 		return (EINVAL); /* hardware is good, time is not. */
 
 	/* If the chip counts time in binary, we just read and return it. */
-	if (sc->flags & SC_F_BINARY) {
+	if (sc->is_binary_counter) {
 		ts->tv_nsec = 0;
 		return (read_timeword(sc, &ts->tv_sec));
 	}
@@ -376,7 +374,7 @@ ds13rtc_gettime(device_t dev, struct timespec *ts)
 		return (err);
 	}
 
-	if (sc->flags & SC_F_AMPM)
+	if (sc->use_ampm)
 		hourmask = DS13xx_M_12HOUR;
 	else
 		hourmask = DS13xx_M_24HOUR;
@@ -389,7 +387,7 @@ ds13rtc_gettime(device_t dev, struct timespec *ts)
 	ct.year = FROMBCD(tregs.year  & DS13xx_M_YEAR);
 	ct.nsec = 0;
 
-	if (sc->flags & SC_F_AMPM) {
+	if (sc->use_ampm) {
 		if (ct.hour == 12)
 			ct.hour = 0;
 		if (tregs.hour & DS13xx_B_HOUR_PM)
@@ -400,7 +398,7 @@ ds13rtc_gettime(device_t dev, struct timespec *ts)
 	 * If this chip has a century bit, honor it.  Otherwise let
 	 * clock_ct_to_ts() infer the century from the 2-digit year.
 	 */
-	if (sc->flags & SC_F_CENTURY)
+	if (sc->use_century)
 		ct.year += (tregs.month & DS13xx_B_MONTH_CENTURY) ? 2000 : 1900;
 
 	err = clock_ct_to_ts(&ct, ts);
@@ -426,14 +424,14 @@ ds13rtc_settime(device_t dev, struct timespec *ts)
 	ts->tv_sec -= utc_offset();
 
 	/* If the chip counts time in binary, store tv_sec and we're done. */
-	if (sc->flags & SC_F_BINARY)
+	if (sc->is_binary_counter)
 		return (write_timeword(sc, ts->tv_sec));
 
 	clock_ts_to_ct(ts, &ct);
 
 	/* If the chip is in AMPM mode deal with the PM flag. */
 	pmflags = 0;
-	if (sc->flags & SC_F_AMPM) {
+	if (sc->use_ampm) {
 		pmflags = DS13xx_B_HOUR_AMPM;
 		if (ct.hour >= 12) {
 			ct.hour -= 12;
@@ -445,7 +443,7 @@ ds13rtc_settime(device_t dev, struct timespec *ts)
 
 	/* If the chip has a century bit, set it as needed. */
 	cflag = 0;
-	if (sc->flags & SC_F_CENTURY) {
+	if (sc->use_century) {
 		if (ct.year >= 2000)
 			cflag |= DS13xx_B_MONTH_CENTURY;
 	}
@@ -572,7 +570,7 @@ ds13rtc_attach(device_t dev)
 	case TYPE_DS1342:
 	case TYPE_DS1375:
 		sc->osfaddr = DS133x_R_STATUS;
-		sc->flags  |= SC_F_CENTURY;
+		sc->use_century = true;
 		break;
 	case TYPE_DS1340:
 		sc->osfaddr = DS1340_R_STATUS;
@@ -581,7 +579,7 @@ ds13rtc_attach(device_t dev)
 	case TYPE_DS1372:
 	case TYPE_DS1374:
 		sc->osfaddr = DS137x_R_STATUS;
-		sc->flags  |= SC_F_BINARY;
+		sc->is_binary_counter = true;
 		break;
 	case TYPE_DS1388:
 		sc->osfaddr = DS1388_R_STATUS;
