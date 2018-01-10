@@ -535,18 +535,12 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 	return ((void *) va);
 }
 
-/*
- * This is sqrt(SIZE_MAX+1), as s1*s2 <= SIZE_MAX
- * if both s1 < MUL_NO_OVERFLOW and s2 < MUL_NO_OVERFLOW
- */
-#define MUL_NO_OVERFLOW		(1UL << (sizeof(size_t) * 8 / 2))
 void *
 mallocarray(size_t nmemb, size_t size, struct malloc_type *type, int flags)
 {
 
-	if ((nmemb >= MUL_NO_OVERFLOW || size >= MUL_NO_OVERFLOW) &&
-	    nmemb > 0 && SIZE_MAX / nmemb < size)
-		return (NULL);
+	if (WOULD_OVERFLOW(nmemb, size))
+		panic("mallocarray: %zu * %zu overflowed", nmemb, size);
 
 	return (malloc(size * nmemb, type, flags));
 }
