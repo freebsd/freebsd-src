@@ -12018,7 +12018,8 @@ bxe_set_mc_list(struct bxe_softc *sc)
     }
     bzero(mta, (sizeof(unsigned char) * ETHER_ADDR_LEN * mc_count));
     
-    mc_mac = malloc(sizeof(*mc_mac) * mc_count, M_DEVBUF, (M_NOWAIT | M_ZERO));
+    mc_mac = mallocarray(mc_count, sizeof(*mc_mac), M_DEVBUF,
+        (M_NOWAIT | M_ZERO));
     mc_mac_start = mc_mac;
 
     if (!mc_mac) {
