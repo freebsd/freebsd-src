@@ -51,6 +51,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180110:
+	On i386, pmtimer has been removed. It's functionality has been folded
+	into apm. It was a nop on ACPI. Users may need to remove it from kernel
+	config files.
+
 20180104:
 	The use of RSS hash from the network card aka flowid has been
 	disabled by default for lagg(4) as it's currently incompatible with
