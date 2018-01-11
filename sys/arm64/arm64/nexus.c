@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_ACPI
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
+#include "acpi_bus_if.h"
 #endif
 
 extern struct bus_space memmap_bus;
@@ -460,10 +461,15 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 #endif
 
 #ifdef DEV_ACPI
+static int nexus_acpi_map_intr(device_t dev, device_t child, u_int irq, int trig, int pol);
+
 static device_method_t nexus_acpi_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_acpi_probe),
 	DEVMETHOD(device_attach,	nexus_acpi_attach),
+
+	/* ACPI interface */
+	DEVMETHOD(acpi_bus_map_intr,	nexus_acpi_map_intr),
 
 	DEVMETHOD_END,
 };
@@ -494,5 +500,31 @@ nexus_acpi_attach(device_t dev)
 
 	nexus_add_child(dev, 10, "acpi", 0);
 	return (nexus_attach(dev));
+}
+
+static int
+nexus_acpi_map_intr(device_t dev, device_t child, u_int irq, int trig, int pol)
+{
+	struct intr_map_data_acpi *acpi_data;
+	size_t len;
+
+	len = sizeof(*acpi_data);
+	acpi_data = (struct intr_map_data_acpi *)intr_alloc_map_data(
+	    INTR_MAP_DATA_ACPI, len, M_WAITOK | M_ZERO);
+	acpi_data->irq = irq;
+	acpi_data->pol = pol;
+	acpi_data->trig = trig;
+
+	/*
+	 * TODO: This will only handle a single interrupt controller.
+	 * ACPI will map multiple controllers into a single virtual IRQ
+	 * space. Each controller has a System Vector Base to hold the
+	 * first irq it handles in this space. As such the correct way
+	 * to handle interrupts with ACPI is to search through the
+	 * controllers for the largest base value that is no larger than
+	 * the IRQ value.
+	 */
+	irq = intr_map_irq(NULL, 0, (struct intr_map_data *)acpi_data);
+	return (irq);
 }
 #endif

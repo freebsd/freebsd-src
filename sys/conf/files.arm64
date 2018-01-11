@@ -167,6 +167,7 @@ armv8_crypto_wrap.o		optional	armv8crypto		\
 	clean		"armv8_crypto_wrap.o"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
 crypto/des/des_enc.c		optional	crypto | ipsec | ipsec_support | netsmb
+dev/acpica/acpi_bus_if.m	optional	acpi
 dev/acpica/acpi_if.m		optional	acpi
 dev/ahci/ahci_generic.c		optional	ahci
 dev/axgbe/if_axgbe.c		optional	axgbe
