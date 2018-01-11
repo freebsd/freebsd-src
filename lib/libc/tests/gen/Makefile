@@ -3,6 +3,8 @@
 .include <bsd.own.mk>
 
 ATF_TESTS_C+=		arc4random_test
+ATF_TESTS_C+=		dir2_test
+ATF_TESTS_C+=		dlopen_empty_test
 ATF_TESTS_C+=		fmtcheck2_test
 ATF_TESTS_C+=		fmtmsg_test
 ATF_TESTS_C+=		fnmatch2_test
@@ -10,9 +12,8 @@ ATF_TESTS_C+=		fpclassify2_test
 ATF_TESTS_C+=		ftw_test
 ATF_TESTS_C+=		popen_test
 ATF_TESTS_C+=		posix_spawn_test
-ATF_TESTS_C+=		wordexp_test
-ATF_TESTS_C+=		dlopen_empty_test
 ATF_TESTS_C+=		realpath2_test
+ATF_TESTS_C+=		wordexp_test
 
 # TODO: t_closefrom, t_cpuset, t_fmtcheck, t_randomid,
 # TODO: t_siginfo (fixes require further inspection)
