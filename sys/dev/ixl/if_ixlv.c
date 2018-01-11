@@ -1637,8 +1637,8 @@ ixlv_setup_queues(struct ixlv_sc *sc)
 
 	/* Get memory for the station queues */
 	if (!(vsi->queues =
-		(struct ixl_queue *) malloc(sizeof(struct ixl_queue) *
-		vsi->num_queues, M_DEVBUF, M_NOWAIT | M_ZERO))) {
+		(struct ixl_queue *) mallocarray(vsi->num_queues,
+		    sizeof(struct ixl_queue), M_DEVBUF, M_NOWAIT | M_ZERO))) {
 			device_printf(dev, "Unable to allocate queue memory\n");
 			error = ENOMEM;
 			goto early;
