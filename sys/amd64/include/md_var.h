@@ -42,6 +42,7 @@ extern int	hw_lower_amd64_sharedpage;
 struct	savefpu;
 struct	sysentvec;
 
+void	amd64_conf_fast_syscall(void);
 void	amd64_db_resume_dbreg(void);
 void	amd64_lower_shared_page(struct sysentvec *);
 void	amd64_syscall(struct thread *td, int traced);
