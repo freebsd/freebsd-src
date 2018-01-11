@@ -117,6 +117,7 @@ main(int argc, char **argv)
 	mdtype = MD_SWAP;
 	mdname = MD_NAME;
 	mdnamelen = strlen(mdname);
+	mdsize = 0;
 	/*
 	 * Can't set these to NULL.  They may be passed to the
 	 * respective programs without modification.  I.e., we may not
