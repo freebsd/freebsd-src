@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
+#include <sys/proc.h>
 #include <sys/tty.h>
 
 #include <vm/vm.h>
@@ -72,6 +73,7 @@ struct uart_opal_softc {
 };
 
 static struct uart_opal_softc	*console_sc = NULL;
+
 #if defined(KDB)
 static int			alt_break_state;
 #endif
@@ -126,6 +128,48 @@ static struct ttydevsw uart_opal_tty_class = {
 	.tsw_flags	= TF_INITLOCK|TF_CALLOUT,
 	.tsw_outwakeup	= uart_opal_ttyoutwakeup,
 };
+
+static struct {
+	char tmpbuf[16];
+	uint64_t size;
+	struct mtx mtx;
+} escapehatch;
+
+static void
+uart_opal_real_map_outbuffer(uint64_t *bufferp, uint64_t *lenp)
+{
+
+	if (!mtx_initialized(&escapehatch.mtx))
+		mtx_init(&escapehatch.mtx, "uart_opal", NULL, MTX_SPIN | MTX_QUIET |
+		    MTX_NOWITNESS);
+
+	if (!pmap_bootstrapped)
+		return;
+
+	if (TD_IS_IDLETHREAD(curthread)) {
+		escapehatch.size = *(uint64_t *)(*lenp) =
+		    min(sizeof(escapehatch.tmpbuf), *(uint64_t *)(*lenp));
+		mtx_lock_spin(&escapehatch.mtx);
+		memcpy(escapehatch.tmpbuf, (void *)(*bufferp), *(uint64_t *)(*lenp));
+		*bufferp = (uint64_t)escapehatch.tmpbuf;
+		*lenp = (uint64_t)&escapehatch.size;
+	}
+
+	*bufferp = vtophys(*bufferp);
+	*lenp = vtophys(*lenp);
+}
+	
+static void
+uart_opal_real_unmap_outbuffer(uint64_t lenp, uint64_t *origlen)
+{
+
+	if (!pmap_bootstrapped || !TD_IS_IDLETHREAD(curthread))
+		return;
+
+	mtx_assert(&escapehatch.mtx, MA_OWNED);
+	*origlen = escapehatch.size;
+	mtx_unlock_spin(&escapehatch.mtx);
+}
 
 static int
 uart_opal_probe_node(struct uart_opal_softc *sc)
@@ -231,6 +275,7 @@ uart_opal_attach(device_t dev)
 	    MTX_SPIN | MTX_QUIET | MTX_NOWITNESS);
 
 	if (console_sc != NULL && console_sc->vtermid == sc->vtermid) {
+		device_printf(dev, "console\n");
 		sc->outseqno = console_sc->outseqno;
 		console_sc = sc;
 		sprintf(uart_opal_consdev.cn_name, "ttyu%r", unit);
@@ -332,25 +377,20 @@ static int
 uart_opal_put(struct uart_opal_softc *sc, void *buffer, size_t bufsize)
 {
 	uint16_t seqno;
-	uint64_t len = bufsize;
+	uint64_t len;
 	char	cbuf[16];
 	int	err;
 	uint64_t olen = (uint64_t)&len;
 	uint64_t obuf = (uint64_t)cbuf;
 
-	if (pmap_bootstrapped)
-		olen = vtophys(&len);
-
 	if (sc->protocol == OPAL_RAW) {
-		if (pmap_bootstrapped)
-			obuf = vtophys(buffer);
-		else
-			obuf = (uint64_t)(buffer);
+		obuf = (uint64_t)buffer;
+		len = bufsize;
 
+		uart_opal_real_map_outbuffer(&obuf, &olen);
 		err = opal_call(OPAL_CONSOLE_WRITE, sc->vtermid, olen, obuf);
+		uart_opal_real_unmap_outbuffer(olen, &len);
 	} else {
-		if (pmap_bootstrapped)
-			obuf = vtophys(cbuf);
 		uart_lock(&sc->sc_mtx);
 		if (bufsize > 12)
 			bufsize = 12;
@@ -361,7 +401,11 @@ uart_opal_put(struct uart_opal_softc *sc, void *buffer, size_t bufsize)
 		cbuf[3] = seqno & 0xff;
 		memcpy(&cbuf[4], buffer, bufsize);
 		len = 4 + bufsize;
+
+		uart_opal_real_map_outbuffer(&obuf, &olen);
 		err = opal_call(OPAL_CONSOLE_WRITE, sc->vtermid, olen, obuf);
+		uart_opal_real_unmap_outbuffer(olen, &len);
+
 		uart_unlock(&sc->sc_mtx);
 
 		len -= 4;
