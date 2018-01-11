@@ -1954,8 +1954,10 @@ g_mirror_worker(void *arg)
 					continue;
 				}
 			}
-			if (g_mirror_event_first(sc) != NULL)
+			if (g_mirror_event_first(sc) != NULL) {
+				mtx_unlock(&sc->sc_queue_mtx);
 				continue;
+			}
 			sx_xunlock(&sc->sc_lock);
 			MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "m:w1",
 			    timeout * hz);
