@@ -3072,9 +3072,9 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 		reg = E1000_READ_REG(hw, E1000_IOSFPC);
 		reg |= E1000_RCTL_RDMTS_HEX;
 		E1000_WRITE_REG(hw, E1000_IOSFPC, reg);
-		/* i218-i219 Specification Update 1.5.4.4 */
+		/* i218-i219 Specification Update 1.5.4.5 */
 		reg = E1000_READ_REG(hw, E1000_TARC(0));
-		reg &= E1000_TARC0_CB_MULTIQ_3_REQ;
+		reg &= ~E1000_TARC0_CB_MULTIQ_3_REQ;
 		reg |= E1000_TARC0_CB_MULTIQ_2_REQ;
 		E1000_WRITE_REG(hw, E1000_TARC(0), reg);
 	}
