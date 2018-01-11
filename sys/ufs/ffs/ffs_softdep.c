@@ -13922,7 +13922,8 @@ retry:
 		VI_UNLOCK(vp);
 		if (mp == NULL)
 			goto retry;
-	} else if (vp->v_type == VREG || vp->v_type == VDIR) {
+	} else if (vp->v_type == VREG || vp->v_type == VDIR ||
+	    vp->v_type == VLNK) {
 		mp = vp->v_mount;
 	} else {
 		return (NULL);
