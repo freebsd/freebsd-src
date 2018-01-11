@@ -183,6 +183,10 @@ powerpc/powermac/smusat.c	optional	powermac smu
 powerpc/powermac/uninorth.c	optional	powermac
 powerpc/powermac/uninorthpci.c	optional	powermac pci
 powerpc/powermac/vcoregpio.c	optional	powermac 
+powerpc/powernv/opal.c		optional	powernv
+powerpc/powernv/opal_console.c	optional	powernv
+powerpc/powernv/opalcall.S	optional	powernv
+powerpc/powernv/platform_powernv.c optional	powernv
 powerpc/powerpc/altivec.c	optional	powerpc | powerpc64
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bcopy.c		standard
