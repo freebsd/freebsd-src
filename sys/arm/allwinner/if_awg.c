@@ -223,6 +223,8 @@ static void awg_txeof(struct awg_softc *sc);
 
 static uint32_t syscon_read_emac_clk_reg(device_t dev);
 static void syscon_write_emac_clk_reg(device_t dev, uint32_t val);
+static phandle_t awg_get_phy_node(device_t dev);
+static bool awg_has_internal_phy(device_t dev);
 
 static int
 awg_miibus_readreg(device_t dev, int phy, int reg)
@@ -1186,6 +1188,35 @@ syscon_write_emac_clk_reg(device_t dev, uint32_t val)
 		bus_write_4(sc->res[_RES_SYSCON], 0, val);
 }
 
+static phandle_t
+awg_get_phy_node(device_t dev)
+{
+	phandle_t node;
+	pcell_t phy_handle;
+
+	node = ofw_bus_get_node(dev);
+	if (OF_getencprop(node, "phy-handle", (void *)&phy_handle,
+	    sizeof(phy_handle)) <= 0)
+		return (0);
+
+	return (OF_node_from_xref(phy_handle));
+}
+
+static bool
+awg_has_internal_phy(device_t dev)
+{
+	phandle_t node, phy_node;
+
+	node = ofw_bus_get_node(dev);
+	/* Legacy binding */
+	if (OF_hasprop(node, "allwinner,use-internal-phy"))
+		return (true);
+
+	phy_node = awg_get_phy_node(dev);
+	return (phy_node != 0 && ofw_bus_node_is_compatible(OF_parent(phy_node),
+	    "allwinner,sun8i-h3-mdio-internal") != 0);
+}
+
 static int
 awg_setup_phy(device_t dev)
 {
@@ -1241,7 +1272,7 @@ awg_setup_phy(device_t dev)
 		}
 
 		if (sc->type == EMAC_H3) {
-			if (OF_hasprop(node, "allwinner,use-internal-phy")) {
+			if (awg_has_internal_phy(dev)) {
 				reg |= EMAC_CLK_EPHY_SELECT;
 				reg &= ~EMAC_CLK_EPHY_SHUTDOWN;
 				if (OF_hasprop(node,
@@ -1308,7 +1339,7 @@ static int
 awg_setup_extres(device_t dev)
 {
 	struct awg_softc *sc;
-	phandle_t node;
+	phandle_t node, phy_node;
 	hwreset_t rst_ahb, rst_ephy;
 	clk_t clk_ahb, clk_ephy;
 	regulator_t reg;
@@ -1320,22 +1351,37 @@ awg_setup_extres(device_t dev)
 	clk_ahb = clk_ephy = NULL;
 	reg = NULL;
 	node = ofw_bus_get_node(dev);
+	phy_node = awg_get_phy_node(dev);
+
+	if (phy_node == 0 && OF_hasprop(node, "phy-handle")) {
+		error = ENXIO;
+		device_printf(dev, "cannot get phy handle\n");
+		goto fail;
+	}
 
 	/* Get AHB clock and reset resources */
-	error = hwreset_get_by_ofw_name(dev, 0, "ahb", &rst_ahb);
+	error = hwreset_get_by_ofw_name(dev, 0, "stmmaceth", &rst_ahb);
+	if (error != 0)
+		error = hwreset_get_by_ofw_name(dev, 0, "ahb", &rst_ahb);
 	if (error != 0) {
 		device_printf(dev, "cannot get ahb reset\n");
 		goto fail;
 	}
 	if (hwreset_get_by_ofw_name(dev, 0, "ephy", &rst_ephy) != 0)
-		rst_ephy = NULL;
-	error = clk_get_by_ofw_name(dev, 0, "ahb", &clk_ahb);
+		if (phy_node == 0 || hwreset_get_by_ofw_idx(dev, phy_node, 0,
+		    &rst_ephy) != 0)
+			rst_ephy = NULL;
+	error = clk_get_by_ofw_name(dev, 0, "stmmaceth", &clk_ahb);
+	if (error != 0)
+		error = clk_get_by_ofw_name(dev, 0, "ahb", &clk_ahb);
 	if (error != 0) {
 		device_printf(dev, "cannot get ahb clock\n");
 		goto fail;
 	}
 	if (clk_get_by_ofw_name(dev, 0, "ephy", &clk_ephy) != 0)
-		clk_ephy = NULL;
+		if (phy_node == 0 || clk_get_by_ofw_index(dev, phy_node, 0,
+		    &clk_ephy) != 0)
+			clk_ephy = NULL;
 
 	if (OF_hasprop(node, "syscon") && syscon_get_by_ofw_property(dev, node,
 	    "syscon", &sc->syscon) != 0) {
