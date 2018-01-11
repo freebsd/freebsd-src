@@ -536,6 +536,8 @@
     usr.bin
         apply
         ..
+        awk
+        ..
         basename
         ..
         bmake
