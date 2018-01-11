@@ -16,6 +16,12 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20180108:
+	lint(1) binaries and library are no longer built by default.  To
+	enable building them, define WITH_LINT in src.conf.  If you are using
+	a FreeBSD 12 or later system to build 11-stable, you may need to
+	install a lint(1) binary to use WITH_LINT.
+
 20171003:
 	When building multiple kernels using KERNCONF, non-existent KERNCONF
 	files will produce an error and buildkernel will fail. Previously
