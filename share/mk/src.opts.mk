@@ -187,6 +187,7 @@ __DEFAULT_NO_OPTIONS = \
     EISA \
     HESIOD \
     LIBSOFT \
+    LINT \
     NAND \
     OFED \
     OPENLDAP \
