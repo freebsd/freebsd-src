@@ -3328,7 +3328,8 @@ adagetparams(struct cam_periph *periph, struct ccb_getdev *cgd)
 		dp->heads = cgd->ident_data.heads;
 		dp->secs_per_track = cgd->ident_data.sectors;
 		dp->cylinders = cgd->ident_data.cylinders;
-		dp->sectors = cgd->ident_data.cylinders * dp->heads * dp->secs_per_track;  
+		dp->sectors = cgd->ident_data.cylinders *
+			      (u_int32_t)(dp->heads * dp->secs_per_track);  
 	}
 	lbasize = (u_int32_t)cgd->ident_data.lba_size_1 |
 		  ((u_int32_t)cgd->ident_data.lba_size_2 << 16);
