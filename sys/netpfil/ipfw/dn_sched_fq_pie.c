@@ -1034,8 +1034,8 @@ fq_pie_new_sched(struct dn_sch_inst *_si)
 		return ENOMEM ; 
 	}
 	/* allocate memory for flows array */
-	si->si_extra->flows = malloc(schk->cfg.flows_cnt * sizeof(struct fq_pie_flow),
-		 M_DUMMYNET, M_NOWAIT | M_ZERO);
+	si->si_extra->flows = mallocarray(schk->cfg.flows_cnt,
+	    sizeof(struct fq_pie_flow), M_DUMMYNET, M_NOWAIT | M_ZERO);
 	flows = si->si_extra->flows;
 	if (flows == NULL) {
 		free(si->si_extra, M_DUMMYNET);
