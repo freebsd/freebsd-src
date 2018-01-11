@@ -453,8 +453,8 @@ fq_codel_new_sched(struct dn_sch_inst *_si)
 	q->fs = _si->sched->fs;
 
 	/* allocate memory for flows array */
-	si->flows = malloc(schk->cfg.flows_cnt * sizeof(struct fq_codel_flow),
-		 M_DUMMYNET, M_NOWAIT | M_ZERO);
+	si->flows = mallocarray(schk->cfg.flows_cnt,
+	    sizeof(struct fq_codel_flow), M_DUMMYNET, M_NOWAIT | M_ZERO);
 	if (si->flows == NULL) {
 		D("cannot allocate memory for fq_codel configuration parameters");
 		return ENOMEM ; 
