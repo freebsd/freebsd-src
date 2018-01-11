@@ -278,7 +278,6 @@ struct csession {
 
 	caddr_t		key;
 	int		keylen;
-	u_char		tmp_iv[EALG_MAX_BLOCK_LEN];
 
 	caddr_t		mackey;
 	int		mackeylen;
@@ -823,12 +822,11 @@ cryptodev_op(
 			error = EINVAL;
 			goto bail;
 		}
-		if ((error = copyin(cop->iv, cse->tmp_iv,
+		if ((error = copyin(cop->iv, crde->crd_iv,
 		    cse->txform->blocksize))) {
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 			goto bail;
 		}
-		bcopy(cse->tmp_iv, crde->crd_iv, cse->txform->blocksize);
 		crde->crd_flags |= CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
 		crde->crd_skip = 0;
 	} else if (cse->cipher == CRYPTO_ARC4) { /* XXX use flag? */
@@ -1005,17 +1003,16 @@ cryptodev_aead(
 	crp->crp_opaque = (void *)cse;
 
 	if (caead->iv) {
-		if (caead->ivlen > sizeof cse->tmp_iv) {
+		if (caead->ivlen > sizeof(crde->crd_iv)) {
 			error = EINVAL;
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 			goto bail;
 		}
 
-		if ((error = copyin(caead->iv, cse->tmp_iv, caead->ivlen))) {
+		if ((error = copyin(caead->iv, crde->crd_iv, caead->ivlen))) {
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 			goto bail;
 		}
-		bcopy(cse->tmp_iv, crde->crd_iv, caead->ivlen);
 		crde->crd_flags |= CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
 	} else {
 		crde->crd_flags |= CRD_F_IV_PRESENT;
