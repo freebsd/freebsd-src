@@ -199,6 +199,9 @@
 #define	  FSL_E300C3		  0x8085
 #define	  FSL_E300C4		  0x8086
 
+#define	SPR_LPCR		0x13e	/* Logical Partitioning Control */
+#define	  LPCR_LPES		0x008	/* Bit 60 */
+
 #define	SPR_EPCR		0x133
 #define	  EPCR_EXTGS		  0x80000000
 #define	  EPCR_DTLBGS		  0x40000000
