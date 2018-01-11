@@ -131,7 +131,6 @@ collect(struct header *hp, int printheaders)
 		escape = ESCAPE;
 	eofcount = 0;
 	hadintr = 0;
-	lastlong = 0;
 	longline = 0;
 
 	if (!setjmp(colljmp)) {
