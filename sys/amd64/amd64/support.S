@@ -249,12 +249,10 @@ ENTRY(copyout)
 	jz	done_copyout
 
 	/*
-	 * Check explicitly for non-user addresses.  If 486 write protection
-	 * is being used, this check is essential because we are in kernel
-	 * mode so the h/w does not provide any protection against writing
-	 * kernel addresses.
+	 * Check explicitly for non-user addresses.  This check is essential
+	 * because it prevents usermode from writing into kernel.  We do not
+	 * verify that user did not specified a rogue address anywhere else.
 	 */
-
 	/*
 	 * First, prevent address wrapping.
 	 */
