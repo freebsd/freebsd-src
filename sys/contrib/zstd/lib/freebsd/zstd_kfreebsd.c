@@ -27,6 +27,7 @@
  */
 
 #include "zstd_kfreebsd.h"
+#include <sys/endian.h>
 
 /*
  * The kernel as a standalone target does not link against libgcc or
@@ -43,6 +44,19 @@
  * A subsequent enhancement might create a mini compiler-rt library for kernel
  * use and move these over there instead.
  */
+
+/* Swap endianness */
+int
+__bswapsi2(int x)
+{
+	return (bswap32(x));
+}
+
+long long
+__bswapdi2(long long x)
+{
+	return (bswap64(x));
+}
 
 /* Count trailing zeros */
 int
