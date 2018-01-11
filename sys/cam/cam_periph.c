@@ -1187,10 +1187,16 @@ cam_periph_runccb(union ccb *ccb,
 	 * scheduler is running in this case, we still need to poll the I/O to
 	 * avoid sleeping waiting for the ccb to complete.
 	 *
-	 * XXX To avoid locking problems, dumping/polling callers must call
+	 * A panic triggered dump stops the scheduler, any callback from the
+	 * shutdown_post_sync event will run with the scheduler stopped, but
+	 * before we're officially dumping. To avoid hanging in adashutdown
+	 * initiated commands (or other similar situations), we have to test for
+	 * either SCHEDULER_STOPPED() here as well.
+	 *
+	 * To avoid locking problems, dumping/polling callers must call
 	 * without a periph lock held.
 	 */
-	must_poll = dumping;
+	must_poll = dumping || SCHEDULER_STOPPED();
 	ccb->ccb_h.cbfcnp = cam_periph_done;
 
 	/*
