@@ -30,6 +30,7 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_acpi.h"
 #include "opt_platform.h"
 
 #include <sys/cdefs.h>
@@ -61,6 +62,11 @@ __FBSDID("$FreeBSD$");
 #ifdef FDT
 #include <dev/fdt/fdt_intr.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#endif
+
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
 #endif
 
 #include "pic_if.h"
@@ -570,6 +576,9 @@ do_gic_v3_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 #ifdef FDT
 	struct intr_map_data_fdt *daf;
 #endif
+#ifdef DEV_ACPI
+	struct intr_map_data_acpi *daa;
+#endif
 	u_int irq;
 
 	sc = device_get_softc(dev);
@@ -581,6 +590,14 @@ do_gic_v3_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 		if (gic_map_fdt(dev, daf->ncells, daf->cells, &irq, &pol,
 		    &trig) != 0)
 			return (EINVAL);
+		break;
+#endif
+#ifdef DEV_ACPI
+	case INTR_MAP_DATA_ACPI:
+		daa = (struct intr_map_data_acpi *)data;
+		irq = daa->irq;
+		pol = daa->pol;
+		trig = daa->trig;
 		break;
 #endif
 	case INTR_MAP_DATA_MSI:
