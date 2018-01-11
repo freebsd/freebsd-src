@@ -736,6 +736,8 @@
         ..
         uniq
         ..
+        vmstat
+        ..
         xargs
         ..
         xinstall
