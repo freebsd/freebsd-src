@@ -439,3 +439,76 @@ uart_opal_intr(void *v)
 		callout_reset(&sc->callout, sc->polltime, uart_opal_intr, sc);
 }
 
+static int
+opalcons_probe(device_t dev)
+{
+	const char *name;
+
+	name = ofw_bus_get_name(dev);
+	if (name == NULL || strcmp(name, "consoles") != 0)
+		return (ENXIO);
+
+	device_set_desc(dev, "OPAL Consoles");
+	return (BUS_PROBE_SPECIFIC);
+}
+
+static int 
+opalcons_attach(device_t dev)
+{
+	phandle_t child;
+	device_t cdev;
+	struct ofw_bus_devinfo *dinfo;
+
+	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
+	    child = OF_peer(child)) {
+		dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
+		if (ofw_bus_gen_setup_devinfo(dinfo, child) != 0) {
+			free(dinfo, M_DEVBUF);
+			continue;
+		}
+		cdev = device_add_child(dev, NULL, -1);
+		if (cdev == NULL) {
+			device_printf(dev, "<%s>: device_add_child failed\n",
+			    dinfo->obd_name);
+			ofw_bus_gen_destroy_devinfo(dinfo);
+			free(dinfo, M_DEVBUF);
+			continue;
+		}
+		device_set_ivars(cdev, dinfo);
+	}
+
+	return (bus_generic_attach(dev));
+}
+
+static const struct ofw_bus_devinfo *
+opalcons_get_devinfo(device_t dev, device_t child)
+{
+        return (device_get_ivars(child));
+}
+
+static device_method_t opalcons_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		opalcons_probe),
+	DEVMETHOD(device_attach,	opalcons_attach),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_devinfo,	opalcons_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+
+	DEVMETHOD_END
+};
+
+static driver_t opalcons_driver = {
+        "opalcons",
+        opalcons_methods,
+        0
+};
+
+static devclass_t opalcons_devclass;
+
+DRIVER_MODULE(opalcons, opal, opalcons_driver, opalcons_devclass, 0, 0);
+
