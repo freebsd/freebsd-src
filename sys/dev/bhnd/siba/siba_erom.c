@@ -445,7 +445,7 @@ siba_erom_get_core_table(bhnd_erom_t *erom, struct bhnd_core_info **cores,
 	sc = (struct siba_erom *)erom;
 
 	/* Allocate our core array */
-	out = malloc(sizeof(*out) * sc->io.ncores, M_BHND, M_NOWAIT);
+	out = mallocarray(sc->io.ncores, sizeof(*out), M_BHND, M_NOWAIT);
 	if (out == NULL)
 		return (ENOMEM);
 
