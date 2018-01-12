@@ -997,12 +997,8 @@
 547	AUE_FUTIMESAT	STD	{ int utimensat(int fd, \
 				    char *path, \
 				    struct timespec *times, int flag); }
-548	AUE_NULL	STD	{ int numa_getaffinity(cpuwhich_t which, \
-				    id_t id, \
-				    struct vm_domain_policy_entry *policy); }
-549	AUE_NULL	STD	{ int numa_setaffinity(cpuwhich_t which, \
-				    id_t id, const struct \
-				    vm_domain_policy_entry *policy); }
+548	AUE_NULL	UNIMPL	numa_getaffinity
+549	AUE_NULL	UNIMPL	numa_setaffinity
 550	AUE_FSYNC	STD	{ int fdatasync(int fd); }
 551	AUE_FSTAT	STD	{ int fstat(int fd, struct stat *sb); }
 552	AUE_FSTATAT	STD	{ int fstatat(int fd, char *path, \
@@ -1023,6 +1019,14 @@
 				    struct kevent *changelist, int nchanges, \
 				    struct kevent *eventlist, int nevents, \
 				    const struct timespec *timeout); }
+561	AUE_NULL	STD	{ int cpuset_getdomain(cpulevel_t level, \
+				    cpuwhich_t which, id_t id, \
+				    size_t domainsetsize, domainset_t *mask, \
+				    int *policy); }
+562	AUE_NULL	STD	{ int cpuset_setdomain(cpulevel_t level, \
+				    cpuwhich_t which, id_t id, \
+				    size_t domainsetsize, domainset_t *mask, \
+				    int policy); }
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

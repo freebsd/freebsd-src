@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/cpuset.h>
 #include <sys/lock.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
@@ -1364,6 +1365,7 @@ vm_object_shadow(
 	result->backing_object_offset = *offset;
 	if (source != NULL) {
 		VM_OBJECT_WLOCK(source);
+		result->domain = source->domain;
 		LIST_INSERT_HEAD(&source->shadow_head, result, shadow_list);
 		source->shadow_count++;
 #if VM_NRESERVLEVEL > 0
@@ -1419,6 +1421,7 @@ vm_object_split(vm_map_entry_t entry)
 	 */
 	VM_OBJECT_WLOCK(new_object);
 	VM_OBJECT_WLOCK(orig_object);
+	new_object->domain = orig_object->domain;
 	source = orig_object->backing_object;
 	if (source != NULL) {
 		VM_OBJECT_WLOCK(source);
