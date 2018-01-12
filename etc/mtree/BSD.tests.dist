@@ -536,6 +536,8 @@
     usr.bin
         apply
         ..
+        awk
+        ..
         basename
         ..
         bmake
@@ -733,6 +735,8 @@
         uuencode
         ..
         uniq
+        ..
+        vmstat
         ..
         xargs
         ..

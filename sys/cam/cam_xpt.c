@@ -3383,6 +3383,7 @@ xpt_run_allocq(struct cam_periph *periph, int sleep)
 	cam_periph_assert(periph, MA_OWNED);
 	if (periph->periph_allocating)
 		return;
+	cam_periph_doacquire(periph);
 	periph->periph_allocating = 1;
 	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_run_allocq(%p)\n", periph));
 	device = periph->path->device;
@@ -3426,6 +3427,7 @@ restart:
 	if (ccb != NULL)
 		xpt_release_ccb(ccb);
 	periph->periph_allocating = 0;
+	cam_periph_release_locked(periph);
 }
 
 static void

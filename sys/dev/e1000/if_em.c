@@ -2835,9 +2835,9 @@ em_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int ntxqs
 
 	/* First allocate the top level queue structs */
 	if (!(adapter->tx_queues =
-	    (struct em_tx_queue *) malloc(sizeof(struct em_tx_queue) *
-	    adapter->tx_num_queues, M_DEVBUF, M_NOWAIT | M_ZERO))) {
-		device_printf(iflib_get_dev(ctx), "Unable to allocate queue memory\n");
+	    (struct em_tx_queue *) mallocarray(adapter->tx_num_queues,
+		sizeof(struct em_tx_queue), M_DEVBUF, M_NOWAIT | M_ZERO))) {
+		    device_printf(iflib_get_dev(ctx), "Unable to allocate queue memory\n");
 		return(ENOMEM);
 	}
 
@@ -2849,7 +2849,8 @@ em_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int ntxqs
 		que->me = txr->me =  i;
 
 		/* Allocate report status array */
-		if (!(txr->tx_rsq = (qidx_t *) malloc(sizeof(qidx_t) * scctx->isc_ntxd[0], M_DEVBUF, M_NOWAIT | M_ZERO))) {
+		if (!(txr->tx_rsq = (qidx_t *) mallocarray(scctx->isc_ntxd[0],
+		    sizeof(qidx_t), M_DEVBUF, M_NOWAIT | M_ZERO))) {
 			device_printf(iflib_get_dev(ctx), "failed to allocate rs_idxs memory\n");
 			error = ENOMEM;
 			goto fail;
@@ -2881,8 +2882,8 @@ em_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int nrxqs
 
 	/* First allocate the top level queue structs */
 	if (!(adapter->rx_queues =
-	    (struct em_rx_queue *) malloc(sizeof(struct em_rx_queue) *
-	    adapter->rx_num_queues, M_DEVBUF, M_NOWAIT | M_ZERO))) {
+	    (struct em_rx_queue *) mallocarray(adapter->rx_num_queues,
+	        sizeof(struct em_rx_queue), M_DEVBUF, M_NOWAIT | M_ZERO))) {
 		device_printf(iflib_get_dev(ctx), "Unable to allocate queue memory\n");
 		error = ENOMEM;
 		goto fail;
@@ -3071,9 +3072,9 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 		reg = E1000_READ_REG(hw, E1000_IOSFPC);
 		reg |= E1000_RCTL_RDMTS_HEX;
 		E1000_WRITE_REG(hw, E1000_IOSFPC, reg);
-		/* i218-i219 Specification Update 1.5.4.4 */
+		/* i218-i219 Specification Update 1.5.4.5 */
 		reg = E1000_READ_REG(hw, E1000_TARC(0));
-		reg &= E1000_TARC0_CB_MULTIQ_3_REQ;
+		reg &= ~E1000_TARC0_CB_MULTIQ_3_REQ;
 		reg |= E1000_TARC0_CB_MULTIQ_2_REQ;
 		E1000_WRITE_REG(hw, E1000_TARC(0), reg);
 	}

@@ -2431,8 +2431,8 @@ ixl_setup_stations(struct ixl_pf *pf)
 
 	/* Get memory for the station queues */
         if (!(vsi->queues =
-            (struct ixl_queue *) malloc(sizeof(struct ixl_queue) *
-            vsi->num_queues, M_DEVBUF, M_NOWAIT | M_ZERO))) {
+            (struct ixl_queue *) mallocarray(vsi->num_queues,
+	    sizeof(struct ixl_queue), M_DEVBUF, M_NOWAIT | M_ZERO))) {
                 device_printf(dev, "Unable to allocate queue memory\n");
                 error = ENOMEM;
                 return (error);
@@ -3317,7 +3317,7 @@ ixl_add_hw_filters(struct ixl_vsi *vsi, int flags, int cnt)
 	hw = &pf->hw;
 	IXL_PF_LOCK_ASSERT(pf);
 
-	a = malloc(sizeof(struct i40e_aqc_add_macvlan_element_data) * cnt,
+	a = mallocarray(cnt, sizeof(struct i40e_aqc_add_macvlan_element_data),
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (a == NULL) {
 		device_printf(dev, "add_hw_filters failed to get memory\n");
@@ -3380,7 +3380,8 @@ ixl_del_hw_filters(struct ixl_vsi *vsi, int cnt)
 	hw = &pf->hw;
 	dev = pf->dev;
 
-	d = malloc(sizeof(struct i40e_aqc_remove_macvlan_element_data) * cnt,
+	d = mallocarray(cnt,
+	    sizeof(struct i40e_aqc_remove_macvlan_element_data),
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (d == NULL) {
 		printf("del hw filter failed to get memory\n");

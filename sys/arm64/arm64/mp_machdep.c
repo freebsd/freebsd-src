@@ -282,6 +282,7 @@ init_secondary(uint64_t cpu)
 	 * runtime chip identification.
 	 */
 	identify_cpu();
+	install_cpu_errata();
 
 	intr_pic_init_secondary();
 

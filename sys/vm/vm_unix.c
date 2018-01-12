@@ -73,9 +73,7 @@ struct obreak_args {
  */
 /* ARGSUSED */
 int
-sys_obreak(td, uap)
-	struct thread *td;
-	struct obreak_args *uap;
+sys_obreak(struct thread *td, struct obreak_args *uap)
 {
 	struct vmspace *vm = td->td_proc->p_vmspace;
 	vm_map_t map = &vm->vm_map;
@@ -247,9 +245,7 @@ struct ovadvise_args {
  */
 /* ARGSUSED */
 int
-sys_ovadvise(td, uap)
-	struct thread *td;
-	struct ovadvise_args *uap;
+sys_ovadvise(struct thread *td, struct ovadvise_args *uap)
 {
 	/* START_GIANT_OPTIONAL */
 	/* END_GIANT_OPTIONAL */

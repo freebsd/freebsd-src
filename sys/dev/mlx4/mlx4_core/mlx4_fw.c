@@ -1944,7 +1944,7 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 #endif
 
 	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_RECOVERABLE_ERROR_EVENT)
-		*(inbox + INIT_HCA_RECOVERABLE_ERROR_EVENT_OFFSET / 4) |= cpu_to_be32(1 << 31);
+		*(inbox + INIT_HCA_RECOVERABLE_ERROR_EVENT_OFFSET / 4) |= cpu_to_be32(1U << 31);
 
 	/* QPC/EEC/CQC/EQC/RDMARC attributes */
 

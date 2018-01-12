@@ -263,7 +263,7 @@ static void post_nop_wqe(struct mlx4_ib_qp *qp, int n, int size)
 	/* Pad the remainder of the WQE with an inline data segment. */
 	if (size > s) {
 		inl = wqe + s;
-		inl->byte_count = cpu_to_be32(1 << 31 | (size - s - sizeof *inl));
+		inl->byte_count = cpu_to_be32(1U << 31 | (size - s - sizeof *inl));
 	}
 	ctrl->srcrb_flags = 0;
 	ctrl->fence_size = size / 16;
@@ -274,7 +274,7 @@ static void post_nop_wqe(struct mlx4_ib_qp *qp, int n, int size)
 	wmb();
 
 	ctrl->owner_opcode = cpu_to_be32(MLX4_OPCODE_NOP | MLX4_WQE_CTRL_NEC) |
-		(n & qp->sq.wqe_cnt ? cpu_to_be32(1 << 31) : 0);
+		(n & qp->sq.wqe_cnt ? cpu_to_be32(1U << 31) : 0);
 
 	stamp_send_wqe(qp, n + qp->sq_spare_wqes, size);
 }
@@ -1992,7 +1992,7 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 
 		for (i = 0; i < qp->sq.wqe_cnt; ++i) {
 			ctrl = get_send_wqe(qp, i);
-			ctrl->owner_opcode = cpu_to_be32(1 << 31);
+			ctrl->owner_opcode = cpu_to_be32(1U << 31);
 			if (qp->sq_max_wqes_per_wr == 1)
 				ctrl->fence_size =
 						1 << (qp->sq.wqe_shift - 4);
@@ -2653,11 +2653,11 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 	spc = MLX4_INLINE_ALIGN -
 		((unsigned long) (inl + 1) & (MLX4_INLINE_ALIGN - 1));
 	if (header_size <= spc) {
-		inl->byte_count = cpu_to_be32(1 << 31 | header_size);
+		inl->byte_count = cpu_to_be32(1U << 31 | header_size);
 		memcpy(inl + 1, sqp->header_buf, header_size);
 		i = 1;
 	} else {
-		inl->byte_count = cpu_to_be32(1 << 31 | spc);
+		inl->byte_count = cpu_to_be32(1U << 31 | spc);
 		memcpy(inl + 1, sqp->header_buf, spc);
 
 		inl = (void *) (inl + 1) + spc;
@@ -2676,7 +2676,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 		 * of 16 mod 64.
 		 */
 		wmb();
-		inl->byte_count = cpu_to_be32(1 << 31 | (header_size - spc));
+		inl->byte_count = cpu_to_be32(1U << 31 | (header_size - spc));
 		i = 2;
 	}
 
@@ -3213,7 +3213,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		}
 
 		ctrl->owner_opcode = mlx4_ib_opcode[wr->opcode] |
-			(ind & qp->sq.wqe_cnt ? cpu_to_be32(1 << 31) : 0) | blh;
+			(ind & qp->sq.wqe_cnt ? cpu_to_be32(1U << 31) : 0) | blh;
 
 		stamp = ind + qp->sq_spare_wqes;
 		ind += DIV_ROUND_UP(size * 16, 1U << qp->sq.wqe_shift);

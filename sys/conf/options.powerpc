@@ -23,6 +23,7 @@ MPC85XX			opt_platform.h
 POWERMAC		opt_platform.h
 PS3			opt_platform.h
 MAMBO
+POWERNV
 PSERIES
 PSIM
 

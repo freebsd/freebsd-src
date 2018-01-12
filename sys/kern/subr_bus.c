@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/eventhandler.h>
 #include <sys/filio.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
@@ -145,6 +146,10 @@ struct device {
 
 static MALLOC_DEFINE(M_BUS, "bus", "Bus data structures");
 static MALLOC_DEFINE(M_BUS_SC, "bus-sc", "Bus data structures, softc");
+
+EVENTHANDLER_LIST_DEFINE(device_attach);
+EVENTHANDLER_LIST_DEFINE(device_detach);
+EVENTHANDLER_LIST_DEFINE(dev_lookup);
 
 static void devctl2_init(void);
 
@@ -2938,7 +2943,7 @@ device_attach(device_t dev)
 	else
 		dev->state = DS_ATTACHED;
 	dev->flags &= ~DF_DONENOMATCH;
-	EVENTHANDLER_INVOKE(device_attach, dev);
+	EVENTHANDLER_DIRECT_INVOKE(device_attach, dev);
 	devadded(dev);
 	return (0);
 }
@@ -2972,12 +2977,14 @@ device_detach(device_t dev)
 	if (dev->state != DS_ATTACHED)
 		return (0);
 
-	EVENTHANDLER_INVOKE(device_detach, dev, EVHDEV_DETACH_BEGIN);
+	EVENTHANDLER_DIRECT_INVOKE(device_detach, dev, EVHDEV_DETACH_BEGIN);
 	if ((error = DEVICE_DETACH(dev)) != 0) {
-		EVENTHANDLER_INVOKE(device_detach, dev, EVHDEV_DETACH_FAILED);
+		EVENTHANDLER_DIRECT_INVOKE(device_detach, dev,
+		    EVHDEV_DETACH_FAILED);
 		return (error);
 	} else {
-		EVENTHANDLER_INVOKE(device_detach, dev, EVHDEV_DETACH_COMPLETE);
+		EVENTHANDLER_DIRECT_INVOKE(device_detach, dev,
+		    EVHDEV_DETACH_COMPLETE);
 	}
 	devremoved(dev);
 	if (!device_is_quiet(dev))
@@ -5330,7 +5337,7 @@ find_device(struct devreq *req, device_t *devp)
 
 	/* Finally, give device enumerators a chance. */
 	dev = NULL;
-	EVENTHANDLER_INVOKE(dev_lookup, req->dr_name, &dev);
+	EVENTHANDLER_DIRECT_INVOKE(dev_lookup, req->dr_name, &dev);
 	if (dev == NULL)
 		return (ENOENT);
 	*devp = dev;

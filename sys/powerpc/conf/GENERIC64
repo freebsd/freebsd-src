@@ -31,6 +31,7 @@ options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PS3			#Sony Playstation 3
 options 	MAMBO			#IBM Mambo Full System Simulator
 options 	PSERIES			#PAPR-compliant systems (e.g. IBM p)
+options		POWERNV			#Non-virtualized OpenPOWER systems
 
 options		FDT			#Flattened Device Tree
 options 	SCHED_ULE		#ULE scheduler
@@ -173,6 +174,7 @@ options 	USB_DEBUG	# enable debug msgs
 device		uhci		# UHCI PCI->USB interface
 device		ohci		# OHCI PCI->USB interface
 device		ehci		# EHCI PCI->USB interface
+device		xhci		# XHCI PCI->USB interface
 device		usb		# USB Bus (required)
 device		uhid		# "Human Interface Devices"
 device		ukbd		# Keyboard

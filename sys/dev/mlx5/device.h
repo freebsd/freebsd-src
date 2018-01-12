@@ -164,7 +164,7 @@ enum {
 };
 
 enum {
-	MLX5_MKEY_INBOX_PG_ACCESS = 1 << 31
+	MLX5_MKEY_INBOX_PG_ACCESS = 1U << 31
 };
 
 enum {
@@ -188,7 +188,7 @@ enum {
 	MLX5_MKEY_REMOTE_INVAL	= 1 << 24,
 	MLX5_MKEY_FLAG_SYNC_UMR = 1 << 29,
 	MLX5_MKEY_BSF_EN	= 1 << 30,
-	MLX5_MKEY_LEN64		= 1 << 31,
+	MLX5_MKEY_LEN64		= 1U << 31,
 };
 
 enum {

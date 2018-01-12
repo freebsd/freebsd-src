@@ -275,6 +275,12 @@ camcontrol_optret getoption(struct camcontrol_opts *table, char *arg,
 static int getdevlist(struct cam_device *device);
 #endif /* MINIMALISTIC */
 static int getdevtree(int argc, char **argv, char *combinedopt);
+static int print_dev_scsi(struct device_match_result *dev_result, char *tmpstr);
+static int print_dev_ata(struct device_match_result *dev_result, char *tmpstr);
+static int print_dev_semb(struct device_match_result *dev_result, char *tmpstr);
+static int print_dev_mmcsd(struct device_match_result *dev_result,
+    char *tmpstr);
+static int print_dev_nvme(struct device_match_result *dev_result, char *tmpstr);
 #ifndef MINIMALISTIC
 static int testunitready(struct cam_device *device, int task_attr,
 			 int retry_count, int timeout, int quiet);
@@ -554,8 +560,7 @@ getdevtree(int argc, char **argv, char *combinedopt)
 			}
 			case DEV_MATCH_DEVICE: {
 				struct device_match_result *dev_result;
-				char vendor[16], product[48], revision[16];
-				char fw[5], tmpstr[256];
+				char tmpstr[256];
 
 				if (busonly == 1)
 					break;
@@ -572,57 +577,36 @@ getdevtree(int argc, char **argv, char *combinedopt)
 					skip_device = 0;
 
 				if (dev_result->protocol == PROTO_SCSI) {
-				    cam_strvis(vendor, dev_result->inq_data.vendor,
-					   sizeof(dev_result->inq_data.vendor),
-					   sizeof(vendor));
-				    cam_strvis(product,
-					   dev_result->inq_data.product,
-					   sizeof(dev_result->inq_data.product),
-					   sizeof(product));
-				    cam_strvis(revision,
-					   dev_result->inq_data.revision,
-					  sizeof(dev_result->inq_data.revision),
-					   sizeof(revision));
-				    sprintf(tmpstr, "<%s %s %s>", vendor, product,
-					revision);
+					if (print_dev_scsi(dev_result,
+					    &tmpstr[0]) != 0) {
+						skip_device = 1;
+						break;
+					}
 				} else if (dev_result->protocol == PROTO_ATA ||
 				    dev_result->protocol == PROTO_SATAPM) {
-				    cam_strvis(product,
-					   dev_result->ident_data.model,
-					   sizeof(dev_result->ident_data.model),
-					   sizeof(product));
-				    cam_strvis(revision,
-					   dev_result->ident_data.revision,
-					  sizeof(dev_result->ident_data.revision),
-					   sizeof(revision));
-				    sprintf(tmpstr, "<%s %s>", product,
-					revision);
-				} else if (dev_result->protocol == PROTO_MMCSD) {
-					if (strlen(dev_result->mmc_ident_data.model) > 0) {
-						sprintf(tmpstr, "<%s>", dev_result->mmc_ident_data.model);
-					} else {
-						sprintf(tmpstr, "<%s card>",
-						    dev_result->mmc_ident_data.card_features & CARD_FEATURE_SDIO ? "SDIO" : "unknown");
+					if (print_dev_ata(dev_result,
+					    &tmpstr[0]) != 0) {
+						skip_device = 1;
+						break;
+					}
+				} else if (dev_result->protocol == PROTO_MMCSD){
+					if (print_dev_mmcsd(dev_result,
+					    &tmpstr[0]) != 0) {
+						skip_device = 1;
+						break;
 					}
 				} else if (dev_result->protocol == PROTO_SEMB) {
-					struct sep_identify_data *sid;
-
-					sid = (struct sep_identify_data *)
-					    &dev_result->ident_data;
-					cam_strvis(vendor, sid->vendor_id,
-					    sizeof(sid->vendor_id),
-					    sizeof(vendor));
-					cam_strvis(product, sid->product_id,
-					    sizeof(sid->product_id),
-					    sizeof(product));
-					cam_strvis(revision, sid->product_rev,
-					    sizeof(sid->product_rev),
-					    sizeof(revision));
-					cam_strvis(fw, sid->firmware_rev,
-					    sizeof(sid->firmware_rev),
-					    sizeof(fw));
-					sprintf(tmpstr, "<%s %s %s %s>",
-					    vendor, product, revision, fw);
+					if (print_dev_semb(dev_result,
+					    &tmpstr[0]) != 0) {
+						skip_device = 1;
+						break;
+					}
+				} else if (dev_result->protocol == PROTO_NVME) {
+					if (print_dev_nvme(dev_result,
+					    &tmpstr[0]) != 0) {
+						skip_device = 1;
+						break;
+					}
 				} else {
 				    sprintf(tmpstr, "<>");
 				}
@@ -676,6 +660,122 @@ getdevtree(int argc, char **argv, char *combinedopt)
 	close(fd);
 
 	return (error);
+}
+
+static int
+print_dev_scsi(struct device_match_result *dev_result, char *tmpstr)
+{
+	char vendor[16], product[48], revision[16];
+
+	cam_strvis(vendor, dev_result->inq_data.vendor,
+	    sizeof(dev_result->inq_data.vendor), sizeof(vendor));
+	cam_strvis(product, dev_result->inq_data.product,
+	    sizeof(dev_result->inq_data.product), sizeof(product));
+	cam_strvis(revision, dev_result->inq_data.revision,
+	    sizeof(dev_result->inq_data.revision), sizeof(revision));
+	sprintf(tmpstr, "<%s %s %s>", vendor, product, revision);
+
+	return (0);
+}
+
+static int
+print_dev_ata(struct device_match_result *dev_result, char *tmpstr)
+{
+	char product[48], revision[16];
+
+	cam_strvis(product, dev_result->ident_data.model,
+	    sizeof(dev_result->ident_data.model), sizeof(product));
+	cam_strvis(revision, dev_result->ident_data.revision,
+	    sizeof(dev_result->ident_data.revision), sizeof(revision));
+	sprintf(tmpstr, "<%s %s>", product, revision);
+
+	return (0);
+}
+
+static int
+print_dev_semb(struct device_match_result *dev_result, char *tmpstr)
+{
+	struct sep_identify_data *sid;
+	char vendor[16], product[48], revision[16], fw[5];
+
+	sid = (struct sep_identify_data *)&dev_result->ident_data;
+	cam_strvis(vendor, sid->vendor_id,
+	    sizeof(sid->vendor_id), sizeof(vendor));
+	cam_strvis(product, sid->product_id,
+	    sizeof(sid->product_id), sizeof(product));
+	cam_strvis(revision, sid->product_rev,
+	    sizeof(sid->product_rev), sizeof(revision));
+	cam_strvis(fw, sid->firmware_rev,
+	    sizeof(sid->firmware_rev), sizeof(fw));
+	sprintf(tmpstr, "<%s %s %s %s>", vendor, product, revision, fw);
+
+	return (0);
+}
+
+static int
+print_dev_mmcsd(struct device_match_result *dev_result, char *tmpstr)
+{
+
+	if (strlen(dev_result->mmc_ident_data.model) > 0) {
+		sprintf(tmpstr, "<%s>", dev_result->mmc_ident_data.model);
+	} else {
+		sprintf(tmpstr, "<%s card>",
+		    dev_result->mmc_ident_data.card_features &
+		    CARD_FEATURE_SDIO ? "SDIO" : "unknown");
+	}
+	return (0);
+}
+
+static int
+print_dev_nvme(struct device_match_result *dev_result, char *tmpstr)
+{
+	union ccb *ccb;
+	struct ccb_dev_advinfo *advi;
+	struct cam_device *dev;
+	struct nvme_controller_data cdata;
+	char vendor[64], product[64];
+
+	dev = cam_open_btl(dev_result->path_id, dev_result->target_id,
+	    dev_result->target_lun, O_RDWR, NULL);
+	if (dev == NULL) {
+		warnx("%s", cam_errbuf);
+		return (1);
+	}
+	
+	ccb = cam_getccb(dev);
+	if (ccb == NULL) {
+		warnx("couldn't allocate CCB");
+		cam_close_device(dev);
+		return (1);
+	}
+
+	advi = &ccb->cdai;
+	advi->ccb_h.flags = CAM_DIR_IN;
+	advi->ccb_h.func_code = XPT_DEV_ADVINFO;
+	advi->flags = CDAI_FLAG_NONE;
+	advi->buftype = CDAI_TYPE_NVME_CNTRL;
+	advi->bufsiz = sizeof(struct nvme_controller_data);
+	advi->buf = (uint8_t *)&cdata;
+
+	if (cam_send_ccb(dev, ccb) < 0) {
+		warn("error sending CAMIOCOMMAND ioctl");
+		cam_freeccb(ccb);
+		cam_close_device(dev);
+		return(1);
+	}
+	if (advi->ccb_h.status != CAM_REQ_CMP) {
+		warnx("got CAM error %#x", advi->ccb_h.status);
+		cam_freeccb(ccb);
+		cam_close_device(dev);
+		return(1);
+	}
+	cam_strvis(vendor, cdata.mn, sizeof(cdata.mn), sizeof(vendor));
+	cam_strvis(product, cdata.fr, sizeof(cdata.fr), sizeof(product));
+	sprintf(tmpstr, "<%s %s>", vendor, product);
+
+	cam_freeccb(ccb);
+	cam_close_device(dev);
+	return (0);
 }
 
 #ifndef MINIMALISTIC
