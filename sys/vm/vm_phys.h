@@ -101,7 +101,6 @@ int vm_phys_mem_affinity(int f, int t);
 static inline int
 vm_phys_domidx(vm_page_t m)
 {
-#ifdef VM_NUMA_ALLOC
 	int domn, segind;
 
 	/* XXXKIB try to assert that the page is managed */
@@ -110,9 +109,6 @@ vm_phys_domidx(vm_page_t m)
 	domn = vm_phys_segs[segind].domain;
 	KASSERT(domn < vm_ndomains, ("domain %d m %p", domn, m));
 	return (domn);
-#else
-	return (0);
-#endif
 }
 
 /*
