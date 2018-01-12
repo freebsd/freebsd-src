@@ -128,7 +128,8 @@ typedef void (*uma_fini)(void *mem, int size);
 /*
  * Import new memory into a cache zone.
  */
-typedef int (*uma_import)(void *arg, void **store, int count, int flags);
+typedef int (*uma_import)(void *arg, void **store, int count, int domain,
+    int flags);
 
 /*
  * Free memory from a cache zone.
@@ -281,6 +282,10 @@ uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
 					 * Allocates mp_maxid + 1 slabs sized to
 					 * sizeof(struct pcpu).
 					 */
+#define	UMA_ZONE_NUMA		0x10000	/*
+					 * NUMA aware Zone.  Implements a best
+					 * effort first-touch policy.
+					 */
 
 /*
  * These flags are shared between the keg and zone.  In zones wishing to add
@@ -326,6 +331,19 @@ void uma_zdestroy(uma_zone_t zone);
 void *uma_zalloc_arg(uma_zone_t zone, void *arg, int flags);
 
 /*
+ * Allocate an item from a specific NUMA domain.  This uses a slow path in
+ * the allocator but is guaranteed to allocate memory from the requested
+ * domain if M_WAITOK is set.
+ *
+ * Arguments:
+ *	zone  The zone we are allocating from
+ *	arg   This data is passed to the ctor function
+ *	domain The domain to allocate from.
+ *	flags See sys/malloc.h for available flags.
+ */
+void *uma_zalloc_domain(uma_zone_t zone, void *arg, int domain, int flags);
+
+/*
  * Allocates an item out of a zone without supplying an argument
  *
  * This is just a wrapper for uma_zalloc_arg for convenience.
@@ -354,6 +372,16 @@ uma_zalloc(uma_zone_t zone, int flags)
 void uma_zfree_arg(uma_zone_t zone, void *item, void *arg);
 
 /*
+ * Frees an item back to the specified zone's domain specific pool.
+ *
+ * Arguments:
+ *	zone  The zone the item was originally allocated out of.
+ *	item  The memory to be freed.
+ *	arg   Argument passed to the destructor
+ */
+void uma_zfree_domain(uma_zone_t zone, void *item, void *arg);
+
+/*
  * Frees an item back to a zone without supplying an argument
  *
  * This is just a wrapper for uma_zfree_arg for convenience.
@@ -373,25 +401,21 @@ uma_zfree(uma_zone_t zone, void *item)
 void uma_zwait(uma_zone_t zone);
 
 /*
- * XXX The rest of the prototypes in this header are h0h0 magic for the VM.
- * If you think you need to use it for a normal zone you're probably incorrect.
- */
-
-/*
  * Backend page supplier routines
  *
  * Arguments:
  *	zone  The zone that is requesting pages.
  *	size  The number of bytes being requested.
  *	pflag Flags for these memory pages, see below.
+ *	domain The NUMA domain that we prefer for this allocation.
  *	wait  Indicates our willingness to block.
  *
  * Returns:
  *	A pointer to the allocated memory or NULL on failure.
  */
 
-typedef void *(*uma_alloc)(uma_zone_t zone, vm_size_t size, uint8_t *pflag,
-    int wait);
+typedef void *(*uma_alloc)(uma_zone_t zone, vm_size_t size, int domain,
+    uint8_t *pflag, int wait);
 
 /*
  * Backend page free routines
@@ -405,8 +429,6 @@ typedef void *(*uma_alloc)(uma_zone_t zone, vm_size_t size, uint8_t *pflag,
  *	None
  */
 typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
-
-
 
 /*
  * Sets up the uma allocator. (Called by vm_mem_init)
