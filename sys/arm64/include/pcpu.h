@@ -35,11 +35,14 @@
 
 #define	ALT_STACK_SIZE	128
 
+typedef int (*pcpu_bp_harden)(void);
+
 #define	PCPU_MD_FIELDS							\
 	u_int	pc_acpi_id;	/* ACPI CPU id */		\
 	u_int	pc_midr;	/* stored MIDR value */	\
 	uint64_t pc_clock;						\
-	char __pad[241]
+	pcpu_bp_harden pc_bp_harden;					\
+	char __pad[233]
 
 #ifdef _KERNEL
 
