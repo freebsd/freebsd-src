@@ -96,6 +96,11 @@ __FBSDID("$FreeBSD$");
 dtrace_malloc_probe_func_t	dtrace_malloc_probe;
 #endif
 
+#if defined(INVARIANTS) || defined(MALLOC_MAKE_FAILURES) ||		\
+    defined(DEBUG_MEMGUARD) || defined(DEBUG_REDZONE)
+#define	MALLOC_DEBUG	1
+#endif
+
 /*
  * When realloc() is called, if the new size is sufficiently smaller than
  * the old size, realloc() will allocate a new, smaller block to avoid
@@ -417,6 +422,20 @@ contigmalloc(unsigned long size, struct malloc_type *type, int flags,
 	return (ret);
 }
 
+void *
+contigmalloc_domain(unsigned long size, struct malloc_type *type,
+    int domain, int flags, vm_paddr_t low, vm_paddr_t high,
+    unsigned long alignment, vm_paddr_t boundary)
+{
+	void *ret;
+
+	ret = (void *)kmem_alloc_contig_domain(domain, size, flags, low, high,
+	    alignment, boundary, VM_MEMATTR_DEFAULT);
+	if (ret != NULL)
+		malloc_type_allocated(type, round_page(size));
+	return (ret);
+}
+
 /*
  *	contigfree:
  *
@@ -432,26 +451,14 @@ contigfree(void *addr, unsigned long size, struct malloc_type *type)
 	malloc_type_freed(type, round_page(size));
 }
 
-/*
- *	malloc:
- *
- *	Allocate a block of memory.
- *
- *	If M_NOWAIT is set, this routine will not block and return NULL if
- *	the allocation fails.
- */
-void *
-malloc(unsigned long size, struct malloc_type *mtp, int flags)
+#ifdef MALLOC_DEBUG
+static int
+malloc_dbg(caddr_t *vap, unsigned long *sizep, struct malloc_type *mtp,
+    int flags)
 {
-	int indx;
-	struct malloc_type_internal *mtip;
-	caddr_t va;
-	uma_zone_t zone;
-#if defined(DIAGNOSTIC) || defined(DEBUG_REDZONE)
-	unsigned long osize = size;
-#endif
-
 #ifdef INVARIANTS
+	int indx;
+
 	KASSERT(mtp->ks_magic == M_MAGIC, ("malloc: bad malloc type magic"));
 	/*
 	 * Check that exactly one of M_WAITOK or M_NOWAIT is specified.
@@ -474,7 +481,8 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 		if ((malloc_nowait_count % malloc_failure_rate) == 0) {
 			atomic_add_int(&malloc_failure_count, 1);
 			t_malloc_fail = time_uptime;
-			return (NULL);
+			*vap = NULL;
+			return (EJUSTRETURN);
 		}
 	}
 #endif
@@ -485,16 +493,44 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 	    ("malloc: called with spinlock or critical section held"));
 
 #ifdef DEBUG_MEMGUARD
-	if (memguard_cmp_mtp(mtp, size)) {
-		va = memguard_alloc(size, flags);
-		if (va != NULL)
-			return (va);
+	if (memguard_cmp_mtp(mtp, *sizep)) {
+		*vap = memguard_alloc(*sizep, flags);
+		if (*vap != NULL)
+			return (EJUSTRETURN);
 		/* This is unfortunate but should not be fatal. */
 	}
 #endif
 
 #ifdef DEBUG_REDZONE
-	size = redzone_size_ntor(size);
+	*sizep = redzone_size_ntor(*sizep);
+#endif
+
+	return (0);
+}
+#endif
+
+/*
+ *	malloc:
+ *
+ *	Allocate a block of memory.
+ *
+ *	If M_NOWAIT is set, this routine will not block and return NULL if
+ *	the allocation fails.
+ */
+void *
+malloc(unsigned long size, struct malloc_type *mtp, int flags)
+{
+	int indx;
+	struct malloc_type_internal *mtip;
+	caddr_t va;
+	uma_zone_t zone;
+#if defined(DEBUG_REDZONE)
+	unsigned long osize = size;
+#endif
+
+#ifdef MALLOC_DEBUG
+	if (malloc_dbg(&va, &size, mtp, flags) != 0)
+		return (va);
 #endif
 
 	if (size <= kmem_zmax) {
@@ -523,11 +559,55 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 		KASSERT(va != NULL, ("malloc(M_WAITOK) returned NULL"));
 	else if (va == NULL)
 		t_malloc_fail = time_uptime;
-#ifdef DIAGNOSTIC
-	if (va != NULL && !(flags & M_ZERO)) {
-		memset(va, 0x70, osize);
-	}
+#ifdef DEBUG_REDZONE
+	if (va != NULL)
+		va = redzone_setup(va, osize);
 #endif
+	return ((void *) va);
+}
+
+void *
+malloc_domain(unsigned long size, struct malloc_type *mtp, int domain,
+    int flags)
+{
+	int indx;
+	struct malloc_type_internal *mtip;
+	caddr_t va;
+	uma_zone_t zone;
+#if defined(DEBUG_REDZONE)
+	unsigned long osize = size;
+#endif
+
+#ifdef MALLOC_DEBUG
+	if (malloc_dbg(&va, &size, mtp, flags) != 0)
+		return (va);
+#endif
+	if (size <= kmem_zmax) {
+		mtip = mtp->ks_handle;
+		if (size & KMEM_ZMASK)
+			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
+		indx = kmemsize[size >> KMEM_ZSHIFT];
+		KASSERT(mtip->mti_zone < numzones,
+		    ("mti_zone %u out of range %d",
+		    mtip->mti_zone, numzones));
+		zone = kmemzones[indx].kz_zone[mtip->mti_zone];
+#ifdef MALLOC_PROFILE
+		krequests[size >> KMEM_ZSHIFT]++;
+#endif
+		va = uma_zalloc_domain(zone, NULL, domain, flags);
+		if (va != NULL)
+			size = zone->uz_size;
+		malloc_type_zone_allocated(mtp, va == NULL ? 0 : size, indx);
+	} else {
+		size = roundup(size, PAGE_SIZE);
+		zone = NULL;
+		va = uma_large_malloc_domain(size, domain, flags);
+		malloc_type_allocated(mtp, va == NULL ? 0 : size);
+	}
+	if (flags & M_WAITOK)
+		KASSERT(va != NULL, ("malloc(M_WAITOK) returned NULL"));
+	else if (va == NULL)
+		t_malloc_fail = time_uptime;
 #ifdef DEBUG_REDZONE
 	if (va != NULL)
 		va = redzone_setup(va, osize);
@@ -545,6 +625,58 @@ mallocarray(size_t nmemb, size_t size, struct malloc_type *type, int flags)
 	return (malloc(size * nmemb, type, flags));
 }
 
+#ifdef INVARIANTS
+static void
+free_save_type(void *addr, struct malloc_type *mtp, u_long size)
+{
+	struct malloc_type **mtpp = addr;
+
+	/*
+	 * Cache a pointer to the malloc_type that most recently freed
+	 * this memory here.  This way we know who is most likely to
+	 * have stepped on it later.
+	 *
+	 * This code assumes that size is a multiple of 8 bytes for
+	 * 64 bit machines
+	 */
+	mtpp = (struct malloc_type **) ((unsigned long)mtpp & ~UMA_ALIGN_PTR);
+	mtpp += (size - sizeof(struct malloc_type *)) /
+	    sizeof(struct malloc_type *);
+	*mtpp = mtp;
+}
+#endif
+
+#ifdef MALLOC_DEBUG
+static int
+free_dbg(void **addrp, struct malloc_type *mtp)
+{
+	void *addr;
+
+	addr = *addrp;
+	KASSERT(mtp->ks_magic == M_MAGIC, ("free: bad malloc type magic"));
+	KASSERT(curthread->td_critnest == 0 || SCHEDULER_STOPPED(),
+	    ("free: called with spinlock or critical section held"));
+
+	/* free(NULL, ...) does nothing */
+	if (addr == NULL)
+		return (EJUSTRETURN);
+
+#ifdef DEBUG_MEMGUARD
+	if (is_memguard_addr(addr)) {
+		memguard_free(addr);
+		return (EJUSTRETURN);
+	}
+#endif
+
+#ifdef DEBUG_REDZONE
+	redzone_check(addr);
+	*addrp = redzone_addr_ntor(addr);
+#endif
+
+	return (0);
+}
+#endif
+
 /*
  *	free:
  *
@@ -558,53 +690,59 @@ free(void *addr, struct malloc_type *mtp)
 	uma_slab_t slab;
 	u_long size;
 
-	KASSERT(mtp->ks_magic == M_MAGIC, ("free: bad malloc type magic"));
-	KASSERT(curthread->td_critnest == 0 || SCHEDULER_STOPPED(),
-	    ("free: called with spinlock or critical section held"));
-
+#ifdef MALLOC_DEBUG
+	if (free_dbg(&addr, mtp) != 0)
+		return;
+#endif
 	/* free(NULL, ...) does nothing */
 	if (addr == NULL)
 		return;
 
-#ifdef DEBUG_MEMGUARD
-	if (is_memguard_addr(addr)) {
-		memguard_free(addr);
-		return;
-	}
-#endif
-
-#ifdef DEBUG_REDZONE
-	redzone_check(addr);
-	addr = redzone_addr_ntor(addr);
-#endif
-
 	slab = vtoslab((vm_offset_t)addr & (~UMA_SLAB_MASK));
-
 	if (slab == NULL)
 		panic("free: address %p(%p) has not been allocated.\n",
 		    addr, (void *)((u_long)addr & (~UMA_SLAB_MASK)));
 
 	if (!(slab->us_flags & UMA_SLAB_MALLOC)) {
-#ifdef INVARIANTS
-		struct malloc_type **mtpp = addr;
-#endif
 		size = slab->us_keg->uk_size;
 #ifdef INVARIANTS
-		/*
-		 * Cache a pointer to the malloc_type that most recently freed
-		 * this memory here.  This way we know who is most likely to
-		 * have stepped on it later.
-		 *
-		 * This code assumes that size is a multiple of 8 bytes for
-		 * 64 bit machines
-		 */
-		mtpp = (struct malloc_type **)
-		    ((unsigned long)mtpp & ~UMA_ALIGN_PTR);
-		mtpp += (size - sizeof(struct malloc_type *)) /
-		    sizeof(struct malloc_type *);
-		*mtpp = mtp;
+		free_save_type(addr, mtp, size);
 #endif
 		uma_zfree_arg(LIST_FIRST(&slab->us_keg->uk_zones), addr, slab);
+	} else {
+		size = slab->us_size;
+		uma_large_free(slab);
+	}
+	malloc_type_freed(mtp, size);
+}
+
+void
+free_domain(void *addr, struct malloc_type *mtp)
+{
+	uma_slab_t slab;
+	u_long size;
+
+#ifdef MALLOC_DEBUG
+	if (free_dbg(&addr, mtp) != 0)
+		return;
+#endif
+
+	/* free(NULL, ...) does nothing */
+	if (addr == NULL)
+		return;
+
+	slab = vtoslab((vm_offset_t)addr & (~UMA_SLAB_MASK));
+	if (slab == NULL)
+		panic("free_domain: address %p(%p) has not been allocated.\n",
+		    addr, (void *)((u_long)addr & (~UMA_SLAB_MASK)));
+
+	if (!(slab->us_flags & UMA_SLAB_MALLOC)) {
+		size = slab->us_keg->uk_size;
+#ifdef INVARIANTS
+		free_save_type(addr, mtp, size);
+#endif
+		uma_zfree_domain(LIST_FIRST(&slab->us_keg->uk_zones),
+		    addr, slab);
 	} else {
 		size = slab->us_size;
 		uma_large_free(slab);
