@@ -133,42 +133,39 @@ static struct {
 	char tmpbuf[16];
 	uint64_t size;
 	struct mtx mtx;
-} escapehatch;
+} opalcons_buffer;
 
 static void
 uart_opal_real_map_outbuffer(uint64_t *bufferp, uint64_t *lenp)
 {
 
-	if (!mtx_initialized(&escapehatch.mtx))
-		mtx_init(&escapehatch.mtx, "uart_opal", NULL, MTX_SPIN | MTX_QUIET |
-		    MTX_NOWITNESS);
+	if (!mtx_initialized(&opalcons_buffer.mtx))
+		mtx_init(&opalcons_buffer.mtx, "uart_opal", NULL,
+		    MTX_SPIN | MTX_QUIET | MTX_NOWITNESS);
 
 	if (!pmap_bootstrapped)
 		return;
 
-	if (TD_IS_IDLETHREAD(curthread)) {
-		escapehatch.size = *(uint64_t *)(*lenp) =
-		    min(sizeof(escapehatch.tmpbuf), *(uint64_t *)(*lenp));
-		mtx_lock_spin(&escapehatch.mtx);
-		memcpy(escapehatch.tmpbuf, (void *)(*bufferp), *(uint64_t *)(*lenp));
-		*bufferp = (uint64_t)escapehatch.tmpbuf;
-		*lenp = (uint64_t)&escapehatch.size;
-	}
+	mtx_lock_spin(&opalcons_buffer.mtx);
 
-	*bufferp = vtophys(*bufferp);
-	*lenp = vtophys(*lenp);
+	opalcons_buffer.size = *(uint64_t *)(*lenp) =
+	    min(sizeof(opalcons_buffer.tmpbuf), *(uint64_t *)(*lenp));
+	memcpy(opalcons_buffer.tmpbuf, (void *)(*bufferp),
+	    *(uint64_t *)(*lenp));
+	*bufferp = (uint64_t)opalcons_buffer.tmpbuf;
+	*lenp = (uint64_t)&opalcons_buffer.size;
 }
 	
 static void
-uart_opal_real_unmap_outbuffer(uint64_t lenp, uint64_t *origlen)
+uart_opal_real_unmap_outbuffer(uint64_t *len)
 {
 
-	if (!pmap_bootstrapped || !TD_IS_IDLETHREAD(curthread))
+	if (!pmap_bootstrapped)
 		return;
 
-	mtx_assert(&escapehatch.mtx, MA_OWNED);
-	*origlen = escapehatch.size;
-	mtx_unlock_spin(&escapehatch.mtx);
+	mtx_assert(&opalcons_buffer.mtx, MA_OWNED);
+	*len = opalcons_buffer.size;
+	mtx_unlock_spin(&opalcons_buffer.mtx);
 }
 
 static int
@@ -187,7 +184,7 @@ uart_opal_probe_node(struct uart_opal_softc *sc)
 		return (ENXIO);
 
 	reg = -1;
-	OF_getprop(node, "reg", &reg, sizeof(reg));
+	OF_getencprop(node, "reg", &reg, sizeof(reg));
 	if (reg == -1)
 		return (ENXIO);
 	sc->vtermid = reg;
@@ -389,7 +386,7 @@ uart_opal_put(struct uart_opal_softc *sc, void *buffer, size_t bufsize)
 
 		uart_opal_real_map_outbuffer(&obuf, &olen);
 		err = opal_call(OPAL_CONSOLE_WRITE, sc->vtermid, olen, obuf);
-		uart_opal_real_unmap_outbuffer(olen, &len);
+		uart_opal_real_unmap_outbuffer(&len);
 	} else {
 		uart_lock(&sc->sc_mtx);
 		if (bufsize > 12)
@@ -404,7 +401,7 @@ uart_opal_put(struct uart_opal_softc *sc, void *buffer, size_t bufsize)
 
 		uart_opal_real_map_outbuffer(&obuf, &olen);
 		err = opal_call(OPAL_CONSOLE_WRITE, sc->vtermid, olen, obuf);
-		uart_opal_real_unmap_outbuffer(olen, &len);
+		uart_opal_real_unmap_outbuffer(&len);
 
 		uart_unlock(&sc->sc_mtx);
 
@@ -438,7 +435,11 @@ uart_opal_cngetc(struct consdev *cp)
 static void
 uart_opal_cnputc(struct consdev *cp, int c)
 {
+	static uint64_t events;
 	unsigned char ch = c;
+
+	if (cold)
+		opal_call(OPAL_POLL_EVENTS, &events); /* Clear FIFO if needed */
 	uart_opal_put(console_sc, &ch, 1);
 }
 

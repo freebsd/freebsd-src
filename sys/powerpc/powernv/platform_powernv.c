@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/openfirm.h>
 #include <machine/ofw_machdep.h>
+#include <powerpc/aim/mmu_oea64.h>
 
 #include "platform_if.h"
 #include "opal.h"
@@ -101,6 +102,8 @@ static platform_def_t powernv_platform = {
 
 PLATFORM_DEF(powernv_platform);
 
+static int powernv_boot_pir;
+
 static int
 powernv_probe(platform_t plat)
 {
@@ -113,16 +116,97 @@ powernv_probe(platform_t plat)
 static int
 powernv_attach(platform_t plat)
 {
+	uint32_t nptlp, shift = 0, slb_encoding = 0;
+	int32_t lp_size, lp_encoding;
+	char buf[255];
+	pcell_t prop;
+	phandle_t cpu;
+	int res, len, node, idx;
+
 	/* Ping OPAL again just to make sure */
 	opal_check();
 
 	cpu_idle_hook = powernv_cpu_idle;
+	powernv_boot_pir = mfspr(SPR_PIR);
 
-	/* Direct interrupts to SRR instead of HSRR */
-	mtspr(SPR_LPCR, mfspr(SPR_LPCR) | LPCR_LPES);
+	/* Init CPU bits */
+	powernv_smp_ap_init(plat);
 
+	/* Set SLB count from device tree */
+	cpu = OF_peer(0);
+	cpu = OF_child(cpu);
+	while (cpu != 0) {
+		res = OF_getprop(cpu, "name", buf, sizeof(buf));
+		if (res > 0 && strcmp(buf, "cpus") == 0)
+			break;
+		cpu = OF_peer(cpu);
+	}
+	if (cpu == 0)
+		goto out;
+
+	cpu = OF_child(cpu);
+	while (cpu != 0) {
+		res = OF_getprop(cpu, "device_type", buf, sizeof(buf));
+		if (res > 0 && strcmp(buf, "cpu") == 0)
+			break;
+		cpu = OF_peer(cpu);
+	}
+	if (cpu == 0)
+		goto out;
+
+	res = OF_getencprop(cpu, "ibm,slb-size", &prop, sizeof(prop));
+	if (res > 0)
+		n_slbs = prop;
+
+	/*
+	 * Scan the large page size property for PAPR compatible machines.
+	 * See PAPR D.5 Changes to Section 5.1.4, 'CPU Node Properties'
+	 * for the encoding of the property.
+	 */
+
+	len = OF_getproplen(node, "ibm,segment-page-sizes");
+	if (len > 0) {
+		/*
+		 * We have to use a variable length array on the stack
+		 * since we have very limited stack space.
+		 */
+		pcell_t arr[len/sizeof(cell_t)];
+		res = OF_getencprop(cpu, "ibm,segment-page-sizes", arr,
+		    sizeof(arr));
+		len /= 4;
+		idx = 0;
+		while (len > 0) {
+			shift = arr[idx];
+			slb_encoding = arr[idx + 1];
+			nptlp = arr[idx + 2];
+			idx += 3;
+			len -= 3;
+			while (len > 0 && nptlp) {
+				lp_size = arr[idx];
+				lp_encoding = arr[idx+1];
+				if (slb_encoding == SLBV_L && lp_encoding == 0)
+					break;
+
+				idx += 2;
+				len -= 2;
+				nptlp--;
+			}
+			if (nptlp && slb_encoding == SLBV_L && lp_encoding == 0)
+				break;
+		}
+
+		if (len == 0)
+			panic("Standard large pages (SLB[L] = 1, PTE[LP] = 0) "
+			    "not supported by this system.");
+
+		moea64_large_page_shift = shift;
+		moea64_large_page_size = 1ULL << lp_size;
+	}
+
+out:
 	return (0);
 }
+
 
 void
 powernv_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
@@ -140,7 +224,7 @@ powernv_timebase_freq(platform_t plat, struct cpuref *cpuref)
 
 	phandle = cpuref->cr_hwref;
 
-	OF_getprop(phandle, "timebase-frequency", &ticks, sizeof(ticks));
+	OF_getencprop(phandle, "timebase-frequency", &ticks, sizeof(ticks));
 
 	if (ticks <= 0)
 		panic("Unable to determine timebase frequency!");
@@ -186,10 +270,10 @@ powernv_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
 		return (ENOENT);
 
 	cpuref->cr_hwref = cpu;
-	res = OF_getprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
+	res = OF_getencprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
 	    sizeof(cpuid));
 	if (res <= 0)
-		res = OF_getprop(cpu, "reg", &cpuid, sizeof(cpuid));
+		res = OF_getencprop(cpu, "reg", &cpuid, sizeof(cpuid));
 	if (res <= 0)
 		cpuid = 0;
 	cpuref->cr_cpuid = cpuid;
@@ -208,7 +292,7 @@ powernv_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
 	res = OF_getproplen(cpuref->cr_hwref, "ibm,ppc-interrupt-server#s");
 	if (res > 0) {
 		cell_t interrupt_servers[res/sizeof(cell_t)];
-		OF_getprop(cpuref->cr_hwref, "ibm,ppc-interrupt-server#s",
+		OF_getencprop(cpuref->cr_hwref, "ibm,ppc-interrupt-server#s",
 		    interrupt_servers, res);
 		for (i = 0; i < res/sizeof(cell_t) - 1; i++) {
 			if (interrupt_servers[i] == cpuref->cr_cpuid) {
@@ -230,10 +314,10 @@ powernv_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
 		return (ENOENT);
 
 	cpuref->cr_hwref = cpu;
-	res = OF_getprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
+	res = OF_getencprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
 	    sizeof(cpuid));
 	if (res <= 0)
-		res = OF_getprop(cpu, "reg", &cpuid, sizeof(cpuid));
+		res = OF_getencprop(cpu, "reg", &cpuid, sizeof(cpuid));
 	if (res <= 0)
 		cpuid = 0;
 	cpuref->cr_cpuid = cpuid;
@@ -255,6 +339,10 @@ powernv_smp_get_bsp(platform_t plat, struct cpuref *cpuref)
 	res = OF_getencprop(chosen, "fdtbootcpu", &cpuid, sizeof(cpuid));
 	if (res < 0)
 		return (ENOENT);
+
+	/* XXX: FDT from kexec lies sometimes. PIR seems not to. */
+	if (cpuid == 0)
+		cpuid = powernv_boot_pir;
 
 	cpuref->cr_cpuid = cpuid;
 
@@ -299,7 +387,7 @@ powernv_smp_topo(platform_t plat)
 
 	ncores = ncpus = 0;
 	last_pc = NULL;
-	for (i = 0; i <= mp_maxid; i++) {
+	CPU_FOREACH(i) {
 		pc = pcpu_find(i);
 		if (pc == NULL)
 			continue;
@@ -319,7 +407,11 @@ powernv_smp_topo(platform_t plat)
 	if (ncpus == ncores)
 		return (smp_topo_none());
 
+#ifdef NOTYET /* smp_topo_1level() fails with non-consecutive CPU IDs */
 	return (smp_topo_1level(CG_SHARE_L1, ncpus / ncores, CG_FLAG_SMT));
+#else
+	return (smp_topo_none());
+#endif
 }
 #endif
 
@@ -333,6 +425,9 @@ powernv_reset(platform_t platform)
 static void
 powernv_smp_ap_init(platform_t platform)
 {
+
+	/* Direct interrupts to SRR instead of HSRR and reset LPCR otherwise */
+	mtspr(SPR_LPCR, LPCR_LPES);
 }
 
 static void

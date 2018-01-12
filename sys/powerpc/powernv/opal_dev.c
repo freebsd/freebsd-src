@@ -37,6 +37,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
+#include <sys/endian.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -55,6 +59,7 @@ static const struct ofw_bus_devinfo *opaldev_get_devinfo(device_t dev,
     device_t child);
 
 static void	opal_shutdown(void *arg, int howto);
+static void	opal_intr(void *);
 
 static device_method_t  opaldev_methods[] = {
 	/* Device interface */
@@ -89,6 +94,9 @@ DRIVER_MODULE(opaldev, ofwbus, opaldev_driver, opaldev_devclass, 0, 0);
 static int
 opaldev_probe(device_t dev)
 {
+	phandle_t iparent;
+	pcell_t *irqs;
+	int i, n_irqs;
 
 	if (!ofw_bus_is_compatible(dev, "ibm,opal-v3"))
 		return (ENXIO);
@@ -96,6 +104,24 @@ opaldev_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "OPAL Abstraction Firmware");
+
+	/* Manually add IRQs before attaching */
+	if (OF_hasprop(ofw_bus_get_node(dev), "opal-interrupts")) {
+		iparent = OF_finddevice("/interrupt-controller@0");
+		iparent = OF_xref_from_node(iparent);
+
+		n_irqs = OF_getproplen(ofw_bus_get_node(dev),
+                    "opal-interrupts") / sizeof(*irqs);
+		irqs = malloc(n_irqs * sizeof(*irqs), M_DEVBUF, M_WAITOK);
+		OF_getencprop(ofw_bus_get_node(dev), "opal-interrupts", irqs,
+		    n_irqs * sizeof(*irqs));
+		for (i = 0; i < n_irqs; i++)
+			bus_set_resource(dev, SYS_RES_IRQ, i,
+			    ofw_bus_map_intr(dev, iparent, 1, &irqs[i]), 1);
+		free(irqs, M_DEVBUF);
+	}
+
+
 	return (BUS_PROBE_SPECIFIC);
 }
 
@@ -104,13 +130,31 @@ opaldev_attach(device_t dev)
 {
 	phandle_t child;
 	device_t cdev;
+	uint64_t junk;
+	int i, rv;
 	struct ofw_bus_devinfo *dinfo;
+	struct resource *irq;
 
-	if (0 /* XXX NOT YET TEST FOR RTC */)
+	/* Test for RTC support and register clock if it works */
+	rv = opal_call(OPAL_RTC_READ, vtophys(&junk), vtophys(&junk));
+	do {
+		rv = opal_call(OPAL_RTC_READ, vtophys(&junk), vtophys(&junk));
+		if (rv == OPAL_BUSY_EVENT)
+			rv = opal_call(OPAL_POLL_EVENTS, 0);
+	} while (rv == OPAL_BUSY_EVENT);
+
+	if (rv == OPAL_SUCCESS)
 		clock_register(dev, 2000);
 	
 	EVENTHANDLER_REGISTER(shutdown_final, opal_shutdown, NULL,
 	    SHUTDOWN_PRI_LAST);
+
+	/* Bind to interrupts */
+	for (i = 0; (irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i,
+	    RF_ACTIVE)) != NULL; i++)
+		bus_setup_intr(dev, irq, INTR_TYPE_TTY | INTR_MPSAFE |
+		    INTR_ENTROPY, NULL, opal_intr, (void *)rman_get_start(irq),
+		    NULL);
 
 	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
 	    child = OF_peer(child)) {
@@ -134,13 +178,56 @@ opaldev_attach(device_t dev)
 }
 
 static int
-opal_gettime(device_t dev, struct timespec *ts) {
-	return (ENXIO);
+bcd2bin32(int bcd)
+{
+	int out = 0;
+
+	out += bcd2bin(bcd & 0xff);
+	out += 100*bcd2bin((bcd & 0x0000ff00) >> 8);
+	out += 10000*bcd2bin((bcd & 0x00ff0000) >> 16);
+	out += 1000000*bcd2bin((bcd & 0xffff0000) >> 24);
+
+	return (out);
+}
+
+static int
+opal_gettime(device_t dev, struct timespec *ts)
+{
+	int rv;
+	struct clocktime ct;
+	uint32_t ymd;
+	uint64_t hmsm;
+
+	do {
+		rv = opal_call(OPAL_RTC_READ, vtophys(&ymd), vtophys(&hmsm));
+		if (rv == OPAL_BUSY_EVENT) {
+			rv = opal_call(OPAL_POLL_EVENTS, 0);
+			pause("opalrtc", 1);
+		}
+	} while (rv == OPAL_BUSY_EVENT);
+
+	if (rv != OPAL_SUCCESS)
+		return (ENXIO);
+
+	hmsm = be64toh(hmsm);
+	ymd = be32toh(ymd);
+
+	ct.nsec	= bcd2bin32((hmsm & 0x000000ffffff0000) >> 16) * 1000;
+	ct.sec	= bcd2bin((hmsm & 0x0000ff0000000000) >> 40);
+	ct.min	= bcd2bin((hmsm & 0x00ff000000000000) >> 48);
+	ct.hour	= bcd2bin((hmsm & 0xff00000000000000) >> 56);
+
+	ct.day	= bcd2bin((ymd & 0x000000ff) >> 0);
+	ct.mon	= bcd2bin((ymd & 0x0000ff00) >> 8);
+	ct.year	= bcd2bin32((ymd & 0xffff0000) >> 16);
+	
+	return (clock_ct_to_ts(&ct, ts));
 }
 
 static int
 opal_settime(device_t dev, struct timespec *ts)
 {
+
 	return (0);
 }
 
@@ -158,5 +245,18 @@ opal_shutdown(void *arg, int howto)
 		opal_call(OPAL_CEC_POWER_DOWN, 0 /* Normal power off */);
 	else
 		opal_call(OPAL_CEC_REBOOT);
+
+	opal_call(OPAL_RETURN_CPU);
+}
+
+static void
+opal_intr(void *xintr)
+{
+	uint64_t events = 0;
+
+	opal_call(OPAL_HANDLE_INTERRUPT, (uint32_t)(uint64_t)xintr,
+	    vtophys(&events));
+	/* XXX: do something useful with this information */
+
 }
 
