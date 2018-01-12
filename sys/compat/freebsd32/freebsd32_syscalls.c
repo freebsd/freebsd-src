@@ -580,8 +580,8 @@ const char *freebsd32_syscallnames[] = {
 	"freebsd32_ppoll",			/* 545 = freebsd32_ppoll */
 	"freebsd32_futimens",			/* 546 = freebsd32_futimens */
 	"freebsd32_utimensat",			/* 547 = freebsd32_utimensat */
-	"numa_getaffinity",			/* 548 = numa_getaffinity */
-	"numa_setaffinity",			/* 549 = numa_setaffinity */
+	"#548",			/* 548 = numa_getaffinity */
+	"#549",			/* 549 = numa_setaffinity */
 	"fdatasync",			/* 550 = fdatasync */
 	"freebsd32_fstat",			/* 551 = freebsd32_fstat */
 	"freebsd32_fstatat",			/* 552 = freebsd32_fstatat */
@@ -593,4 +593,6 @@ const char *freebsd32_syscallnames[] = {
 	"fhstatfs",			/* 558 = fhstatfs */
 	"mknodat",			/* 559 = mknodat */
 	"freebsd32_kevent",			/* 560 = freebsd32_kevent */
+	"freebsd32_cpuset_getdomain",			/* 561 = freebsd32_cpuset_getdomain */
+	"freebsd32_cpuset_setdomain",			/* 562 = freebsd32_cpuset_setdomain */
 };
