@@ -76,7 +76,8 @@ buf_close(int sock, struct buf *buf)
 ssize_t
 buf_read(int sock, void *buf, size_t nbytes)
 {
-	ssize_t	n, r = 0;
+	ssize_t	n;
+	size_t r = 0;
 	char *p = buf;
 
 	do {
@@ -84,7 +85,7 @@ buf_read(int sock, void *buf, size_t nbytes)
 		if (n == 0)
 			error("connection closed");
 		if (n != -1) {
-			r += n;
+			r += (size_t)n;
 			p += n;
 			nbytes -= n;
 		}
@@ -107,9 +108,9 @@ dispatch_imsg(struct interface_info *ifi, int fd)
 	char			*medium, *reason, *filename,
 				*servername, *prefix;
 	size_t			 medium_len, reason_len, filename_len,
-				 servername_len, prefix_len, totlen;
+				 servername_len, optlen, prefix_len, totlen;
 	struct client_lease	 lease;
-	int			 ret, i, optlen;
+	int			 ret, i;
 	struct buf		*buf;
 
 	buf_read(fd, &hdr, sizeof(hdr));

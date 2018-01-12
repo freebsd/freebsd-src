@@ -44,7 +44,7 @@ MAN=	dhclient.8 dhclient.conf.5 dhclient.leases.5 dhcp-options.5 \
 	dhclient-script.8
 LIBADD=	util
 
-WARNS?=	2
+WARNS?=	3
 
 .if ${MK_TESTS} != "no"
 SUBDIR+=    tests

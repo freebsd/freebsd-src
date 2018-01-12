@@ -58,7 +58,7 @@ u_int32_t	wrapsum(u_int32_t);
 u_int32_t
 checksum(unsigned char *buf, unsigned nbytes, u_int32_t sum)
 {
-	int i;
+	unsigned i;
 
 	/* Checksum all the pairs of bytes first... */
 	for (i = 0; i < (nbytes & ~1U); i += 2) {
