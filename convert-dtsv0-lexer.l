@@ -49,7 +49,7 @@ static int saw_hyphen; /* = 0 */
 static unsigned long long last_val;
 static char *last_name; /* = NULL */
 
-const struct {
+static const struct {
 	const char *pattern;
 	int obase, width;
 } guess_table[] = {

@@ -31,7 +31,7 @@
 int main(int argc, char *argv[])
 {
 	void *fdt;
-	uint32_t expected_cells[5];
+	fdt32_t expected_cells[5];
 
 	expected_cells[0] = cpu_to_fdt32((unsigned char)TEST_CHAR1);
 	expected_cells[1] = cpu_to_fdt32((unsigned char)TEST_CHAR2);

@@ -12,4 +12,17 @@
 		ref = &{/node1}; /* reference after target */
 		lref = &n1;
 	};
+	/* Check references to nested nodes with common prefix */
+	foobar {
+		n3: baz {
+			ref = &{/foo/baz};
+			lref = &n4;
+		};
+	};
+	foo {
+		n4: baz {
+			ref = &{/foobar/baz};
+			lref = &n3;
+		};
+	};
 };

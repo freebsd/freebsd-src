@@ -20,7 +20,7 @@
 
 #define ALIGN(x, a)	(((x) + ((a) - 1)) & ~((a) - 1))
 #define PALIGN(p, a)	((void *)(ALIGN((unsigned long)(p), (a))))
-#define GET_CELL(p)	(p += 4, *((const uint32_t *)(p-4)))
+#define GET_CELL(p)	(p += 4, *((const fdt32_t *)(p-4)))
 
 static const char *tagname(uint32_t tag)
 {
@@ -165,7 +165,7 @@ static bool valid_header(char *p, off_t len)
 	if (len < sizeof(struct fdt_header) ||
 	    fdt_magic(p) != FDT_MAGIC ||
 	    fdt_version(p) > MAX_VERSION ||
-	    fdt_last_comp_version(p) >= MAX_VERSION ||
+	    fdt_last_comp_version(p) > MAX_VERSION ||
 	    fdt_totalsize(p) >= len ||
 	    fdt_off_dt_struct(p) >= len ||
 	    fdt_off_dt_strings(p) >= len)
@@ -183,6 +183,11 @@ int main(int argc, char *argv[])
 	bool scan = false;
 	off_t len;
 
+	fprintf(stderr, "\n"
+"**** fdtdump is a low-level debugging tool, not meant for general use.\n"
+"**** If you want to decompile a dtb, you probably want\n"
+"****     dtc -I dtb -O dts <filename>\n\n"
+		);
 	while ((opt = util_getopt_long()) != EOF) {
 		switch (opt) {
 		case_USAGE_COMMON_FLAGS

@@ -67,7 +67,7 @@ static void report_error(const char *name, int namelen, int err)
  * @param arg		List of arguments from command line
  * @param arg_count	Number of arguments (may be 0)
  * @param valuep	Returns buffer containing value
- * @param *value_len	Returns length of value encoded
+ * @param value_len	Returns length of value encoded
  */
 static int encode_value(struct display_info *disp, char **arg, int arg_count,
 			char **valuep, int *value_len)
@@ -107,7 +107,7 @@ static int encode_value(struct display_info *disp, char **arg, int arg_count,
 			if (disp->verbose)
 				fprintf(stderr, "\tstring: '%s'\n", ptr);
 		} else {
-			int *iptr = (int *)ptr;
+			fdt32_t *iptr = (fdt32_t *)ptr;
 			sscanf(*arg, fmt, &ival);
 			if (len == 4)
 				*iptr = cpu_to_fdt32(ival);
@@ -130,7 +130,7 @@ static int encode_value(struct display_info *disp, char **arg, int arg_count,
 
 #define ALIGN(x)		(((x) + (FDT_TAGSIZE) - 1) & ~((FDT_TAGSIZE) - 1))
 
-static char *_realloc_fdt(char *fdt, int delta)
+static char *realloc_fdt(char *fdt, int delta)
 {
 	int new_sz = fdt_totalsize(fdt) + delta;
 	fdt = xrealloc(fdt, new_sz);
@@ -144,7 +144,7 @@ static char *realloc_node(char *fdt, const char *name)
 	/* FDT_BEGIN_NODE, node name in off_struct and FDT_END_NODE */
 	delta = sizeof(struct fdt_node_header) + ALIGN(strlen(name) + 1)
 			+ FDT_TAGSIZE;
-	return _realloc_fdt(fdt, delta);
+	return realloc_fdt(fdt, delta);
 }
 
 static char *realloc_property(char *fdt, int nodeoffset,
@@ -161,7 +161,7 @@ static char *realloc_property(char *fdt, int nodeoffset,
 		/* actual value in off_struct */
 		delta += ALIGN(newlen) - ALIGN(oldlen);
 
-	return _realloc_fdt(fdt, delta);
+	return realloc_fdt(fdt, delta);
 }
 
 static int store_key_value(char **blob, const char *node_name,

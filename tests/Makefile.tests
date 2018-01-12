@@ -72,13 +72,13 @@ tests_clean:
 	rm -f $(STD_CLEANFILES:%=$(TESTS_PREFIX)%)
 	rm -f $(TESTS_CLEANFILES)
 
-check:	tests ${TESTS_BIN}
+check:	tests ${TESTS_BIN} $(TESTS_PYLIBFDT)
 	cd $(TESTS_PREFIX); ./run_tests.sh
 
-checkm: tests ${TESTS_BIN}
+checkm: tests ${TESTS_BIN} $(TESTS_PYLIBFDT)
 	cd $(TESTS_PREFIX); ./run_tests.sh -m 2>&1 | tee vglog.$$$$
 
-checkv:	tests ${TESTS_BIN}
+checkv:	tests ${TESTS_BIN} $(TESTS_PYLIBFDT)
 	cd $(TESTS_PREFIX); ./run_tests.sh -v
 
 ifneq ($(DEPTARGETS),)

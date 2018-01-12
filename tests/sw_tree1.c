@@ -42,14 +42,14 @@ static void realloc_fdt(void **fdt, size_t *size, bool created)
 	switch (alloc_mode) {
 	case FIXED:
 		if (!(*fdt))
-			fdt = xmalloc(*size);
+			*fdt = xmalloc(*size);
 		else
 			FAIL("Ran out of space");
 		return;
 
 	case RESIZE:
 		if (!(*fdt)) {
-			fdt = xmalloc(SPACE);
+			*fdt = xmalloc(SPACE);
 		} else if (*size < SPACE) {
 			*size += 1;
 			fdt_resize(*fdt, *fdt, *size);
@@ -85,6 +85,9 @@ int main(int argc, char *argv[])
 	size_t size;
 	int err;
 	bool created = false;
+	void *place;
+	const char place_str[] = "this is a placeholder string\0string2";
+	int place_len = sizeof(place_str);
 
 	test_init(argc, argv);
 
@@ -108,6 +111,8 @@ int main(int argc, char *argv[])
 				CONFIG("Bad allocation mode \"%s\" specified",
 				       argv[1]);
 		}
+	} else {
+		CONFIG("sw_tree1 <dtb file> [<allocation mode>]");
 	}
 
 	fdt = xmalloc(size);
@@ -135,6 +140,8 @@ int main(int argc, char *argv[])
 	CHECK(fdt_begin_node(fdt, "subsubnode"));
 	CHECK(fdt_property(fdt, "compatible", "subsubnode1\0subsubnode",
 			   23));
+	CHECK(fdt_property_placeholder(fdt, "placeholder", place_len, &place));
+	memcpy(place, place_str, place_len);
 	CHECK(fdt_property_cell(fdt, "prop-int", TEST_VALUE_1));
 	CHECK(fdt_end_node(fdt));
 	CHECK(fdt_begin_node(fdt, "ss1"));

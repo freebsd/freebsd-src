@@ -69,7 +69,7 @@ static void check_search_str(void *fdt, const char *propname,
 
 #define check_search_cell(fdt, propname, propval, ...) \
 	{ \
-		uint32_t val = cpu_to_fdt32(propval); \
+		fdt32_t val = cpu_to_fdt32(propval); \
 		check_search((fdt), (propname), &val, sizeof(val), \
 			     ##__VA_ARGS__); \
 	}

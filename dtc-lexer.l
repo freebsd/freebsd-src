@@ -62,12 +62,7 @@ static int dts_version = 1;
 
 static void push_input_file(const char *filename);
 static bool pop_input_file(void);
-#ifdef __GNUC__
-static void lexical_error(const char *fmt, ...)
-	__attribute__((format (printf, 1, 2)));
-#else
-static void lexical_error(const char *fmt, ...);
-#endif
+static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
 
 %}
 

@@ -4,4 +4,11 @@
 	device_type = <0xdeadbeef>;
 	model = <0xdeadbeef>;
 	status = <0xdeadbeef>;
+	label = <0xdeadbeef>;
+
+	foobar-names = "foo", <1>;
+
+	node {
+		compatible = "good", <0xdeadbeef>;
+	};
 };

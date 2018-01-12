@@ -18,6 +18,7 @@
 
 		subsubnode {
 			compatible = "subsubnode1", "subsubnode";
+			placeholder = "this is a placeholder string", "string2";
 			prop-int = <0xdeadbeef>;
 		};
 

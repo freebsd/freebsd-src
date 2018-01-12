@@ -1,0 +1,10 @@
+/dts-v1/;
+
+/ {
+	node2 {
+		chosen {
+			bootargs = <0xdeadbeef>;
+			stdout-path = <1>;
+		};
+	};
+};

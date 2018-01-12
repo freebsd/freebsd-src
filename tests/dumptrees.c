@@ -29,11 +29,11 @@
 
 #include "testdata.h"
 
-struct {
+static struct {
 	void *blob;
 	const char *filename;
 } trees[] = {
-#define TREE(name)	{ &_##name, #name ".dtb" }
+#define TREE(name)	{ &name, #name ".dtb" }
 	TREE(test_tree1),
 	TREE(bad_node_char), TREE(bad_node_format), TREE(bad_prop_char),
 	TREE(ovf_size_strings),
