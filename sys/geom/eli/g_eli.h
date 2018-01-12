@@ -686,8 +686,8 @@ int g_eli_crypto_decrypt(u_int algo, u_char *data, size_t datasize,
     const u_char *key, size_t keysize);
 
 struct hmac_ctx {
-	SHA512_CTX	shactx;
-	u_char		k_opad[128];
+	SHA512_CTX	innerctx;
+	SHA512_CTX	outerctx;
 };
 
 void g_eli_crypto_hmac_init(struct hmac_ctx *ctx, const uint8_t *hkey,
