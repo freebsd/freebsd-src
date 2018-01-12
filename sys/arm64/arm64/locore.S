@@ -167,7 +167,7 @@ ENTRY(mpentry)
 	bl	drop_to_el1
 
 	/* Set the context id */
-	msr	contextidr_el1, x1
+	msr	contextidr_el1, xzr
 
 	/* Load the kernel page table */
 	adr	x24, pagetable_l0_ttbr1

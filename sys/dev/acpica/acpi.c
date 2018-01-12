@@ -95,6 +95,9 @@ struct acpi_interface {
 	int		num;
 };
 
+static char *sysres_ids[] = { "PNP0C01", "PNP0C02", NULL };
+static char *pcilink_ids[] = { "PNP0C0F", NULL };
+
 /* Global mutex for locking access to the ACPI subsystem. */
 struct mtx	acpi_mutex;
 struct callout	acpi_sleep_timer;
@@ -1168,7 +1171,6 @@ acpi_sysres_alloc(device_t dev)
     struct resource_list *rl;
     struct resource_list_entry *rle;
     struct rman *rm;
-    char *sysres_ids[] = { "PNP0C01", "PNP0C02", NULL };
     device_t *children;
     int child_count, i;
 
@@ -1215,9 +1217,6 @@ acpi_sysres_alloc(device_t dev)
     }
     return (0);
 }
-
-static char *pcilink_ids[] = { "PNP0C0F", NULL };
-static char *sysres_ids[] = { "PNP0C01", "PNP0C02", NULL };
 
 /*
  * Reserve declared resources for devices found during attach once system
@@ -1359,7 +1358,9 @@ static struct resource *
 acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
+#ifndef INTRNG
     ACPI_RESOURCE ares;
+#endif
     struct acpi_device *ad;
     struct resource_list_entry *rle;
     struct resource_list *rl;
@@ -1386,6 +1387,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		resource_list_add(rl, type, *rid, start, end, count);
 	res = resource_list_alloc(rl, bus, child, type, rid, start, end, count,
 	    flags);
+#ifndef INTRNG
 	if (res != NULL && type == SYS_RES_IRQ) {
 	    /*
 	     * Since bus_config_intr() takes immediate effect, we cannot
@@ -1398,6 +1400,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	    if (ACPI_SUCCESS(acpi_lookup_irq_resource(child, *rid, res, &ares)))
 		acpi_config_intr(child, &ares);
 	}
+#endif
 
 	/*
 	 * If this is an allocation of the "default" range for a given

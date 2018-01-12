@@ -1062,15 +1062,12 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	dp = arg;
 	periph = dp->d_drv1;
 	softc = (struct ada_softc *)periph->softc;
-	cam_periph_lock(periph);
 	secsize = softc->params.secsize;
 	lba = offset / secsize;
 	count = length / secsize;
 	
-	if ((periph->flags & CAM_PERIPH_INVALID) != 0) {
-		cam_periph_unlock(periph);
+	if ((periph->flags & CAM_PERIPH_INVALID) != 0)
 		return (ENXIO);
-	}
 
 	memset(&ataio, 0, sizeof(ataio));
 	if (length > 0) {
@@ -1098,7 +1095,6 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		if (error != 0)
 			printf("Aborting dump due to I/O error.\n");
 
-		cam_periph_unlock(periph);
 		return (error);
 	}
 
@@ -1129,7 +1125,6 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		if (error != 0)
 			xpt_print(periph->path, "Synchronize cache failed\n");
 	}
-	cam_periph_unlock(periph);
 	return (error);
 }
 

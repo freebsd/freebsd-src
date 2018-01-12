@@ -155,6 +155,27 @@ OLD_FILES+=usr/lib/clang/5.0.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/5.0.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/5.0.1/lib
 OLD_DIRS+=usr/lib/clang/5.0.1
+# 20180109: Remove vestiges of digi(4) driver
+OLD_FILES+=usr/include/sys/digiio.h
+OLD_FILES+=usr/sbin/digictl
+OLD_FILES+=usr/share/man/man8/digictl.8.gz
+# 20180107: Convert remaining geli(8) tests to ATF
+OLD_FILES+=tests/sys/geom/class/eli/nokey_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/readonly_test.sh
+# 20180106: Convert most geli(8) tests to ATF
+OLD_FILES+=tests/sys/geom/class/eli/attach_d_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/configure_b_B_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/detach_l_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/init_B_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/init_J_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/init_a_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/init_alias_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/init_i_P_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/integrity_copy_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/integrity_data_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/integrity_hmac_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/onetime_a_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/onetime_d_test.sh
 # 20171230: Remove /etc/skel from mtree
 OLD_DIRS+=/etc/skel
 # 20171208: Remove basename_r(3)

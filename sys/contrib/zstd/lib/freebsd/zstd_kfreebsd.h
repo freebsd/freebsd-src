@@ -1,10 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
- * Copyright (c) 2001 Brian Somers <brian@Awfulhak.org>
- *   based on work by Slawa Olhovchenkov
- *                    John Prince <johnp@knight-trosoft.com>
- *                    Eric Hernes
+ * Copyright (c) 2014-2015 Allan Jude <allanjude@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,38 +26,31 @@
  * $FreeBSD$
  */
 
-/*
- * A very small subset of cards.
- */
-enum digi_model {
-	PCXE,
-	PCXEVE,
-	PCXI,
-	PCXEM,
-	PCCX,
-	PCIEPCX,
-	PCIXR
-};
+#ifndef ZSTD_KFREEBSD_H
+#define ZSTD_KFREEBSD_H
 
-enum {
-	DIGIDB_INIT = (1<<0),
-	DIGIDB_OPEN = (1<<1),
-	DIGIDB_CLOSE = (1<<2),
-	DIGIDB_SET = (1<<3),
-	DIGIDB_INT = (1<<4),
-	DIGIDB_READ = (1<<5),
-	DIGIDB_WRITE = (1<<6),
-	DIGIDB_RX = (1<<7),
-	DIGIDB_TX = (1<<8),
-	DIGIDB_IRQ = (1<<9),
-	DIGIDB_MODEM = (1<<10),
-	DIGIDB_RI = (1<<11),
-};
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#define	DIGIIO_REINIT		_IO('e', 'A')
-#define	DIGIIO_DEBUG		_IOW('e', 'B', int)
-#define	DIGIIO_RING		_IOWINT('e', 'C')
-#define	DIGIIO_MODEL		_IOR('e', 'D', enum digi_model)
-#define	DIGIIO_IDENT		_IOW('e', 'E', char *)
-#define	DIGIIO_SETALTPIN	_IOW('e', 'F', int)
-#define	DIGIIO_GETALTPIN	_IOR('e', 'G', int)
+#ifdef _KERNEL
+#include <sys/param.h>	/* size_t */
+#include <sys/systm.h>	/* memcpy, memset */
+#ifndef BUILDING_ZFS
+#include <sys/stddef.h>	/* ptrdiff_t */
+#endif
+#include <sys/malloc.h>
+
+MALLOC_DECLARE(M_ZSTD);
+
+#define malloc(x)	(malloc)((x), M_ZSTD, M_WAITOK)
+#define free(x)		(free)((x), M_ZSTD)
+/* in zstd's use of calloc, a is always 1 */
+#define calloc(a,b)	(malloc)((a)*(b), M_ZSTD, M_WAITOK | M_ZERO)
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* ZSTD_KFREEBSD_H */

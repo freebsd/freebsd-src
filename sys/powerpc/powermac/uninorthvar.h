@@ -39,6 +39,8 @@ struct uninorth_softc {
 	vm_offset_t		sc_addr;
 	vm_offset_t		sc_data;
 	int			sc_ver;
+	int			sc_skipslot;
+	struct mtx		sc_cfg_mtx;
 };
 
 struct unin_chip_softc {

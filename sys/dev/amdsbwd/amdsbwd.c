@@ -210,21 +210,30 @@ static void
 amdsbwd_event(void *arg, unsigned int cmd, int *error)
 {
 	struct amdsbwd_softc *sc = arg;
-	unsigned int timeout;
+	uint64_t timeout;
 
-	/* convert from power-of-two-ns to WDT ticks */
-	cmd &= WD_INTERVAL;
-	if (cmd < WD_TO_1SEC)
-		cmd = 0;
-	if (cmd) {
-		timeout = ((uint64_t)1 << (cmd - WD_TO_1MS)) / sc->ms_per_tick;
-		if (timeout > sc->max_ticks)
-			timeout = sc->max_ticks;
-		if (timeout != sc->timeout) {
-			amdsbwd_tmr_set(sc, timeout);
-			if (!sc->active)
-				amdsbwd_tmr_enable(sc);
+	if (cmd != 0) {
+		timeout = 0;
+		cmd &= WD_INTERVAL;
+		if (cmd >= WD_TO_1MS) {
+			timeout = (uint64_t)1 << (cmd - WD_TO_1MS);
+			timeout = timeout / sc->ms_per_tick;
 		}
+		/* For a too short timeout use 1 tick. */
+		if (timeout == 0)
+			timeout = 1;
+		/* For a too long timeout stop the timer. */
+		if (timeout > sc->max_ticks)
+			timeout = 0;
+	} else {
+		timeout = 0;
+	}
+
+	if (timeout != 0) {
+		if (timeout != sc->timeout)
+			amdsbwd_tmr_set(sc, timeout);
+		if (!sc->active)
+			amdsbwd_tmr_enable(sc);
 		amdsbwd_tmr_reload(sc);
 		*error = 0;
 	} else {

@@ -79,7 +79,7 @@ def ping(send_if, dst_ip, args):
 	ether = sp.Ether()
 	ip = sp.IP(dst=dst_ip)
 	icmp = sp.ICMP(type='echo-request')
-	raw = sp.Raw(PAYLOAD_MAGIC)
+	raw = sp.Raw(str(PAYLOAD_MAGIC))
 
 	if args.send_tos:
 		ip.tos = int(args.send_tos[0])
