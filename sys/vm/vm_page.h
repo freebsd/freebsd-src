@@ -229,6 +229,7 @@ struct vm_pagequeue {
 
 struct vm_domain {
 	struct vm_pagequeue vmd_pagequeues[PQ_COUNT];
+	struct vmem *vmd_kernel_arena;
 	u_int vmd_page_count;
 	u_int vmd_free_count;
 	long vmd_segs;	/* bitmask of the segments */
@@ -514,7 +515,7 @@ void vm_page_putfake(vm_page_t m);
 void vm_page_readahead_finish(vm_page_t m);
 bool vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low,
     vm_paddr_t high, u_long alignment, vm_paddr_t boundary);
-bool vm_page_reclaim_contig_domain(int req, u_long npages, int domain,
+bool vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
     vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary);
 void vm_page_reference(vm_page_t m);
 void vm_page_remove (vm_page_t);
