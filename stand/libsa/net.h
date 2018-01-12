@@ -128,6 +128,4 @@ char	*inet_ntoa(struct in_addr);
 char	*intoa(n_long);		/* similar to inet_ntoa */
 n_long	inet_addr(char *);
 
-/* Machine-dependent functions: */
-time_t	getsecs(void);
 #endif /* ! _STAND_NET_H */
