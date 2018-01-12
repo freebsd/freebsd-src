@@ -195,7 +195,7 @@ enum mlx4_ib_qp_flags {
 	/* Mellanox specific flags start from IB_QP_CREATE_RESERVED_START */
 	MLX4_IB_ROCE_V2_GSI_QP = MLX4_IB_QP_CREATE_ROCE_V2_GSI,
 	MLX4_IB_SRIOV_TUNNEL_QP = 1 << 30,
-	MLX4_IB_SRIOV_SQP = 1 << 31,
+	MLX4_IB_SRIOV_SQP = 1U << 31,
 };
 
 struct mlx4_ib_gid_entry {

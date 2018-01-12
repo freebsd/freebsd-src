@@ -86,7 +86,7 @@ struct mlx4_ts_cqe {
 } __packed;
 
 enum {
-	MLX4_CQE_L2_TUNNEL_IPOK		= 1 << 31,
+	MLX4_CQE_L2_TUNNEL_IPOK		= 1U << 31,
 	MLX4_CQE_CVLAN_PRESENT_MASK	= 1 << 29,
 	MLX4_CQE_SVLAN_PRESENT_MASK	= 1 << 30,
 	MLX4_CQE_L2_TUNNEL		= 1 << 27,

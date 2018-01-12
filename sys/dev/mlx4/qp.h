@@ -283,7 +283,7 @@ enum { /* param3 */
 #define MLX4_FW_VER_WQE_CTRL_NEC mlx4_fw_ver(2, 2, 232)
 
 enum {
-	MLX4_WQE_CTRL_OWN		= 1 << 31,
+	MLX4_WQE_CTRL_OWN		= 1U << 31,
 	MLX4_WQE_CTRL_NEC		= 1 << 29,
 	MLX4_WQE_CTRL_RR		= 1 << 6,
 	MLX4_WQE_CTRL_IIP		= 1 << 28,
@@ -371,7 +371,7 @@ struct mlx4_wqe_lso_seg {
 
 enum mlx4_wqe_bind_seg_flags2 {
 	MLX4_WQE_BIND_ZERO_BASED = (1 << 30),
-	MLX4_WQE_BIND_TYPE_2     = (1 << 31),
+	MLX4_WQE_BIND_TYPE_2     = (1U << 31),
 };
 
 struct mlx4_wqe_bind_seg {
@@ -388,7 +388,7 @@ enum {
 	MLX4_WQE_FMR_PERM_LOCAL_WRITE	= 1 << 28,
 	MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_READ	= 1 << 29,
 	MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_WRITE	= 1 << 30,
-	MLX4_WQE_FMR_AND_BIND_PERM_ATOMIC	= 1 << 31
+	MLX4_WQE_FMR_AND_BIND_PERM_ATOMIC	= 1U << 31
 };
 
 struct mlx4_wqe_fmr_seg {
@@ -445,7 +445,7 @@ struct mlx4_wqe_data_seg {
 
 enum {
 	MLX4_INLINE_ALIGN	= 64,
-	MLX4_INLINE_SEG		= 1 << 31,
+	MLX4_INLINE_SEG		= 1U << 31,
 };
 
 struct mlx4_wqe_inline_seg {
