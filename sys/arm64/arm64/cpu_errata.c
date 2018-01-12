@@ -30,6 +30,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -38,6 +40,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 
 #include <machine/cpu.h>
+
+#ifdef DEV_PSCI
+#include <dev/psci/psci.h>
+#endif
 
 typedef void (cpu_quirk_install)(void);
 struct cpu_quirks {
@@ -49,7 +55,36 @@ struct cpu_quirks {
 static cpu_quirk_install install_psci_bp_hardening;
 
 static struct cpu_quirks cpu_quirks[] = {
+	{
+		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
+		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A57,0,0),
+		.quirk_install = install_psci_bp_hardening,
+	},
+	{
+		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
+		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A72,0,0),
+		.quirk_install = install_psci_bp_hardening,
+	},
+	{
+		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
+		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A73,0,0),
+		.quirk_install = install_psci_bp_hardening,
+	},
+	{
+		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
+		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A75,0,0),
+		.quirk_install = install_psci_bp_hardening,
+	},
 };
+
+static void
+install_psci_bp_hardening(void)
+{
+
+#ifdef DEV_PSCI
+	PCPU_SET(bp_harden, psci_get_version);
+#endif
+}
 
 void
 install_cpu_errata(void)

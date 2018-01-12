@@ -4663,6 +4663,7 @@ pmap_activate(struct thread *td)
 struct pcb *
 pmap_switch(struct thread *old, struct thread *new)
 {
+	pcpu_bp_harden bp_harden;
 	struct pcb *pcb;
 
 	/* Store the new curthread */
@@ -4690,6 +4691,15 @@ pmap_switch(struct thread *old, struct thread *new)
 		    "dsb	ish		\n"
 		    "isb			\n"
 		    : : "r"(new->td_proc->p_md.md_l0addr));
+
+		/*
+		 * Stop userspace from training the branch predictor against
+		 * other processes. This will call into a CPU specific
+		 * function that clears the branch predictor state.
+		 */
+		bp_harden = PCPU_GET(bp_harden);
+		if (bp_harden != NULL)
+			bp_harden();
 	}
 
 	return (pcb);
