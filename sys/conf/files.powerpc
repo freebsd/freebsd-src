@@ -185,6 +185,8 @@ powerpc/powermac/uninorthpci.c	optional	powermac pci
 powerpc/powermac/vcoregpio.c	optional	powermac 
 powerpc/powernv/opal.c		optional	powernv
 powerpc/powernv/opal_console.c	optional	powernv
+powerpc/powernv/opal_dev.c	optional	powernv
+powerpc/powernv/opal_pci.c	optional	powernv pci
 powerpc/powernv/opalcall.S	optional	powernv
 powerpc/powernv/platform_powernv.c optional	powernv
 powerpc/powerpc/altivec.c	optional	powerpc | powerpc64
