@@ -184,7 +184,7 @@ void	malloc_uninit(void *);
 void	*realloc(void *addr, unsigned long size, struct malloc_type *type,
 	    int flags) __result_use_check __alloc_size(2);
 void	*reallocf(void *addr, unsigned long size, struct malloc_type *type,
-	    int flags) __alloc_size(2);
+	    int flags) __result_use_check __alloc_size(2);
 
 struct malloc_type *malloc_desc2type(const char *desc);
 #endif /* _KERNEL */
