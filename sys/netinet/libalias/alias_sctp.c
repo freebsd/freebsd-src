@@ -187,7 +187,7 @@ static MALLOC_DEFINE(M_SCTPNAT, "sctpnat", "sctp nat dbs");
 /* Use kernel allocator. */
 #ifdef _SYS_MALLOC_H_
 #define	sn_malloc(x)	malloc(x, M_SCTPNAT, M_NOWAIT|M_ZERO)
-#define	sn_calloc(n,x)	sn_malloc((x) * (n))
+#define	sn_calloc(n,x)	mallocarray((n), (x), M_SCTPNAT, M_NOWAIT|M_ZERO)
 #define	sn_free(x)	free(x, M_SCTPNAT)
 #endif// #ifdef _SYS_MALLOC_H_
 
@@ -1104,7 +1104,7 @@ sctp_PktParser(struct libalias *la, int direction, struct ip *pip,
 					if (*passoc == NULL) {/* out of resources */
 						return (SN_PARSE_ERROR_AS_MALLOC);
 					}
-					/* Initialise association - malloc initialises memory to zeros */
+					/* Initialize association - sn_malloc initializes memory to zeros */
 					(*passoc)->state = SN_ID;
 					LIST_INIT(&((*passoc)->Gaddr)); /* always initialise to avoid memory problems */
 					(*passoc)->TableRegister = SN_NULL_TBL;
@@ -1168,7 +1168,7 @@ sctp_PktParser(struct libalias *la, int direction, struct ip *pip,
 					if (*passoc == NULL) {/* out of resources */
 						return (SN_PARSE_ERROR_AS_MALLOC);
 					}
-					/* Initialise association  - malloc initialises memory to zeros */
+					/* Initialize association  - sn_malloc initializes memory to zeros */
 					(*passoc)->state = SN_ID;
 					LIST_INIT(&((*passoc)->Gaddr)); /* always initialise to avoid memory problems */
 					(*passoc)->TableRegister = SN_NULL_TBL;
