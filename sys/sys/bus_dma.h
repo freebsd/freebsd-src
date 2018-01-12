@@ -176,6 +176,14 @@ int bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		       bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
 		       void *lockfuncarg, bus_dma_tag_t *dmat);
 
+/*
+ * Set the memory domain to be used for allocations.
+ * 
+ * Automatic for PCI devices.  Must be set prior to creating maps or
+ * allocating memory.
+ */
+int bus_dma_tag_set_domain(bus_dma_tag_t dmat, int domain);
+
 int bus_dma_tag_destroy(bus_dma_tag_t dmat);
 
 /*

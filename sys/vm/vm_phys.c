@@ -198,20 +198,32 @@ vm_phys_fictitious_cmp(struct vm_phys_fictitious_seg *p1,
 	    (uintmax_t)p1->end, (uintmax_t)p2->start, (uintmax_t)p2->end);
 }
 
-boolean_t
-vm_phys_domain_intersects(long mask, vm_paddr_t low, vm_paddr_t high)
+int
+vm_phys_domain_match(int prefer, vm_paddr_t low, vm_paddr_t high)
 {
-	struct vm_phys_seg *s;
-	int idx;
+#ifdef VM_NUMA_ALLOC
+	domainset_t mask;
+	int i;
 
-	while ((idx = ffsl(mask)) != 0) {
-		idx--;	/* ffsl counts from 1 */
-		mask &= ~(1UL << idx);
-		s = &vm_phys_segs[idx];
-		if (low < s->end && high > s->start)
-			return (TRUE);
-	}
-	return (FALSE);
+	if (vm_ndomains == 1 || mem_affinity == NULL)
+		return (0);
+
+	DOMAINSET_ZERO(&mask);
+	/*
+	 * Check for any memory that overlaps low, high.
+	 */
+	for (i = 0; mem_affinity[i].end != 0; i++)
+		if (mem_affinity[i].start <= high &&
+		    mem_affinity[i].end >= low)
+			DOMAINSET_SET(mem_affinity[i].domain, &mask);
+	if (prefer != -1 && DOMAINSET_ISSET(prefer, &mask))
+		return (prefer);
+	if (DOMAINSET_EMPTY(&mask))
+		panic("vm_phys_domain_match:  Impossible constraint");
+	return (DOMAINSET_FFS(&mask) - 1);
+#else
+	return (0);
+#endif
 }
 
 /*

@@ -563,6 +563,13 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 }
 
 int
+bus_dma_tag_set_domain(bus_dma_tag_t dmat, int domain)
+{
+
+	return (0);
+}
+
+int
 bus_dma_tag_destroy(bus_dma_tag_t dmat)
 {
 	bus_dma_tag_t dmat_copy;
