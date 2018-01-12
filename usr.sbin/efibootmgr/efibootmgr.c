@@ -563,7 +563,7 @@ make_next_boot_var_name(void)
 	} else {
 		/* now just run the list looking for the first hole */
 		for (i = 0; i < cnt - 1 && next_free == 0; i++)
-			if (vals[i] != vals[i + 1] + 1)
+			if (vals[i] + 1 != vals[i + 1])
 				next_free = vals[i] + 1;
 		if (next_free == 0)
 			next_free = vals[cnt - 1] + 1;
