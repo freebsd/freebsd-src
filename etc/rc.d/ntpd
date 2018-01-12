@@ -144,9 +144,9 @@ ntpd_fetch_leapfile() {
 		done
 		ntp_ver_no_tmp=$(get_ntp_leapfile_ver $ntp_tmp_leapfile)
 		ntp_expiry_tmp=$(get_ntp_leapfile_expiry $ntp_tmp_leapfile)
-		if [ "$ntp_ver_no_tmp" -gt "$ntp_ver_no_db" -o \
-		     "$ntp_ver_no_tmp" -eq "$ntp_ver_no_db" -a \
-		     "$ntp_expiry_tmp" -gt "$ntp_expiry_db" ]; then
+		if [ "$ntp_expiry_tmp" -gt "$ntp_expiry_db" -o \
+		     "$ntp_expiry_tmp" -eq "$ntp_expiry_db" -a \
+		     "$ntp_ver_no_tmp" -gt "$ntp_ver_no_db" ]; then
 			$verbose using $url as $ntp_db_leapfile
 			mv $ntp_tmp_leapfile $ntp_db_leapfile
 		else
