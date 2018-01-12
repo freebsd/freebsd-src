@@ -110,7 +110,7 @@ boot1.efi: ${PROG}
 # The following inserts our objects into a template FAT file system
 # created by generate-fat.sh
 
-.include "${.CURDIR}/Makefile.fat"
+.include "Makefile.fat"
 
 boot1.efifat: boot1.efi
 	@set -- `ls -l ${.ALLSRC}`; \
@@ -120,7 +120,7 @@ boot1.efifat: boot1.efi
 	    exit 1; \
 	fi
 	echo ${.OBJDIR}
-	xz -d -c ${.CURDIR}/fat-${MACHINE}.tmpl.xz > ${.TARGET}
+	xz -d -c ${BOOTSRC}/efi/boot1/fat-${MACHINE}.tmpl.xz > ${.TARGET}
 	${DD} if=${.ALLSRC} of=${.TARGET} seek=${BOOT1_OFFSET} conv=notrunc
 
 CLEANFILES+= boot1.efi boot1.efifat
