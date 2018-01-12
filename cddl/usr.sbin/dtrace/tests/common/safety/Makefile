@@ -19,6 +19,8 @@ ${PACKAGE}FILES= \
      tst.gid.d  \
      tst.hton.d  \
      tst.index.d  \
+     tst.jailname.d  \
+     tst.jid.d  \
      tst.msgdsize.d  \
      tst.msgsize.d  \
      tst.null.d  \
