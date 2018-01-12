@@ -22,3 +22,9 @@ FDTPUT_SRCS = \
 	util.c
 
 FDTPUT_OBJS = $(FDTPUT_SRCS:%.c=%.o)
+
+FDTOVERLAY_SRCS = \
+	fdtoverlay.c \
+	util.c
+
+FDTOVERLAY_OBJS = $(FDTOVERLAY_SRCS:%.c=%.o)

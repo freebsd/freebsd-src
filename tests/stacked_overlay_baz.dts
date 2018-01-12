@@ -1,0 +1,13 @@
+/dts-v1/;
+/plugin/;
+/ {
+	fragment@1 {
+		target = <&bar>;
+		__overlay__ {
+			overlay-2-property;
+			baz: baznode {
+				baz-property = "baz";
+			};
+		};
+	};
+};

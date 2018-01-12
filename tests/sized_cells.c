@@ -54,9 +54,9 @@ int main(int argc, char *argv[])
 				 TEST_CHAR4,
 				 TEST_CHAR5,
 				 TEST_VALUE_1 >> 24};
-	uint16_t expected_16[6];
-	uint32_t expected_32[6];
-	uint64_t expected_64[6];
+	fdt16_t expected_16[6];
+	fdt32_t expected_32[6];
+	fdt64_t expected_64[6];
 	int i;
 
 	for (i = 0; i < 5; ++i) {

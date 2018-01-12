@@ -33,7 +33,7 @@
 
 static void test_node(void *fdt, int parent_offset)
 {
-	fdt32_t properties;
+	uint32_t properties;
 	const fdt32_t *prop;
 	int offset, property;
 	int count;
@@ -48,7 +48,7 @@ static void test_node(void *fdt, int parent_offset)
 		FAIL("Missing/invalid test-properties property at '%s'",
 		     fdt_get_name(fdt, parent_offset, NULL));
 	}
-	properties = cpu_to_fdt32(*prop);
+	properties = fdt32_to_cpu(*prop);
 
 	count = 0;
 	offset = fdt_first_subnode(fdt, parent_offset);

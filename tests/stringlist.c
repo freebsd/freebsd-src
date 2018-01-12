@@ -60,10 +60,11 @@ static void check_expected_failure(const void *fdt, const char *path,
 		FAIL("empty string not found in #address-cells: %d\n", err);
 
 	/*
-	 * fdt_get_string() can successfully extract strings from non-string
-	 * properties. This is because it doesn't necessarily parse the whole
-	 * property value, which would be necessary for it to determine if a
-	 * valid string or string list is present.
+	 * fdt_getprop_string() can successfully extract strings from
+	 * non-string properties. This is because it doesn't
+	 * necessarily parse the whole property value, which would be
+	 * necessary for it to determine if a valid string or string
+	 * list is present.
 	 */
 }
 

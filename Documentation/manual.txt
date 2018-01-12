@@ -674,4 +674,22 @@ The fdtdump program prints a readable version of a flat device tree file.
 
 The syntax of the fdtdump command line is:
 
-    fdtdump <DTB-file-name>
+    fdtdump [options] <DTB-file-name>
+
+Where options are:
+    -d,--debug          Dump debug information while decoding the file
+    -s,--scan           Scan for an embedded fdt in given file
+
+3) fdtoverlay -- Flat Device Tree overlay applicator
+
+The fdtoverlay applies an arbitrary number of FDT overlays to a base FDT blob
+to a given output file.
+
+The syntax of the fdtoverlay command line is:
+
+    fdtoverlay -i <base-blob> -o <output-blob> <overlay-blob0> [<overlay-blob1> ...]
+
+Where options are:
+    -i, --input         Input base DT blob
+    -o, --output        Output DT blob
+    -v, --verbose       Verbose message output

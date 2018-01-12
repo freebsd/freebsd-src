@@ -29,7 +29,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-int notequal; /* = 0 */
+static int notequal; /* = 0 */
 
 #define MISMATCH(fmt, ...)			\
 	do { \
@@ -59,14 +59,14 @@ static int mem_rsv_cmp(const void *p1, const void *p2)
 	const struct fdt_reserve_entry *re1 = p1;
 	const struct fdt_reserve_entry *re2 = p2;
 
-	if (re1->address < re2->address)
+	if (fdt64_to_cpu(re1->address) < fdt64_to_cpu(re2->address))
 		return -1;
-	else if (re1->address > re2->address)
+	else if (fdt64_to_cpu(re1->address) > fdt64_to_cpu(re2->address))
 		return 1;
 
-	if (re1->size < re2->size)
+	if (fdt64_to_cpu(re1->size) < fdt64_to_cpu(re2->size))
 		return -1;
-	else if (re1->size > re2->size)
+	else if (fdt64_to_cpu(re1->size) > fdt64_to_cpu(re2->size))
 		return 1;
 
 	return 0;

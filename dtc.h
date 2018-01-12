@@ -1,5 +1,5 @@
-#ifndef _DTC_H
-#define _DTC_H
+#ifndef DTC_H
+#define DTC_H
 
 /*
  * (C) Copyright David Gibson <dwg@au1.ibm.com>, IBM Corporation.  2005.
@@ -31,6 +31,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include <libfdt_env.h>
 #include <fdt.h>
@@ -42,7 +43,6 @@
 #else
 #define debug(...)
 #endif
-
 
 #define DEFAULT_FDT_VERSION	17
 
@@ -67,7 +67,8 @@ typedef uint32_t cell_t;
 
 
 #define streq(a, b)	(strcmp((a), (b)) == 0)
-#define strneq(a, b, n)	(strncmp((a), (b), (n)) == 0)
+#define strstarts(s, prefix)	(strncmp((s), (prefix), strlen(prefix)) == 0)
+#define strprefixeq(a, n, b)	(strlen(b) == (n) && (memcmp(a, b, n) == 0))
 
 #define ALIGN(x, a)	(((x) + (a) - 1) & ~((a) - 1))
 
@@ -114,7 +115,7 @@ struct data data_insert_at_marker(struct data d, struct marker *m,
 struct data data_merge(struct data d1, struct data d2);
 struct data data_append_cell(struct data d, cell_t word);
 struct data data_append_integer(struct data d, uint64_t word, int bits);
-struct data data_append_re(struct data d, const struct fdt_reserve_entry *re);
+struct data data_append_re(struct data d, uint64_t address, uint64_t size);
 struct data data_append_addr(struct data d, uint64_t addr);
 struct data data_append_byte(struct data d, uint8_t byte);
 struct data data_append_zeroes(struct data d, int len);
@@ -134,6 +135,10 @@ struct label {
 	bool deleted;
 	char *label;
 	struct label *next;
+};
+
+struct bus_type {
+	const char *name;
 };
 
 struct property {
@@ -162,6 +167,7 @@ struct node {
 	int addr_cells, size_cells;
 
 	struct label *labels;
+	const struct bus_type *bus;
 };
 
 #define for_each_label_withdel(l0, l) \
@@ -198,6 +204,7 @@ struct node *build_node_delete(void);
 struct node *name_node(struct node *node, char *name);
 struct node *chain_node(struct node *first, struct node *list);
 struct node *merge_nodes(struct node *old_node, struct node *new_node);
+struct node *add_orphan_node(struct node *old_node, struct node *new_node, char *ref);
 
 void add_property(struct node *node, struct property *prop);
 void delete_property_by_name(struct node *node, char *name);
@@ -211,6 +218,7 @@ void append_to_property(struct node *node,
 const char *get_unitname(struct node *node);
 struct property *get_property(struct node *node, const char *propname);
 cell_t propval_cell(struct property *prop);
+cell_t propval_cell_n(struct property *prop, int n);
 struct property *get_property_by_label(struct node *tree, const char *label,
 				       struct node **node);
 struct marker *get_marker_label(struct node *tree, const char *label,
@@ -227,7 +235,7 @@ uint32_t guess_boot_cpuid(struct node *tree);
 /* Boot info (tree plus memreserve information */
 
 struct reserve_info {
-	struct fdt_reserve_entry re;
+	uint64_t address, size;
 
 	struct reserve_info *next;
 
@@ -282,4 +290,4 @@ struct dt_info *dt_from_source(const char *f);
 
 struct dt_info *dt_from_fs(const char *dirname);
 
-#endif /* _DTC_H */
+#endif /* DTC_H */

@@ -1,0 +1,13 @@
+/dts-v1/;
+/plugin/;
+/ {
+	fragment@1 {
+		target = <&foo>;
+		__overlay__ {
+			overlay-1-property;
+			bar: barnode {
+				bar-property = "bar";
+			};
+		};
+	};
+};

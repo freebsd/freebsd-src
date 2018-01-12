@@ -30,7 +30,7 @@
 
 int main(int argc, char *argv[])
 {
-	void *fdt = &_truncated_property;
+	void *fdt = &truncated_property;
 	const void *prop;
 	int len;
 

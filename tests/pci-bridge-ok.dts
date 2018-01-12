@@ -1,0 +1,25 @@
+/dts-v1/;
+
+/ {
+	compatible = "example,pci-bridge-ok";
+	#address-cells = < 2 >;
+	#size-cells = < 2 >;
+	pci@0 {
+		device_type = "pci";
+		compatible = "example,pci-bridge";
+		#address-cells = < 3 >;
+		#size-cells = < 2 >;
+		reg = <0 0 0 0x1000>;
+		bus-range = <0 0xff>;
+		ranges = <0 0 0 0 0 0 0x10000>;
+	};
+	pcie@10000000000 {
+		device_type = "pci";
+		compatible = "example,pcie-bridge";
+		#address-cells = < 3 >;
+		#size-cells = < 2 >;
+		reg = <0x10 0x00000000 0 0x1000>;
+		bus-range = <0 0xff>;
+		ranges = <0 0 0 0 0 0 0x10000>;
+	};
+};

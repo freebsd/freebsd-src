@@ -53,31 +53,27 @@ struct check {
 	struct check **prereq;
 };
 
-#define CHECK_ENTRY(_nm, _fn, _d, _w, _e, ...)	       \
-	static struct check *_nm##_prereqs[] = { __VA_ARGS__ }; \
-	static struct check _nm = { \
-		.name = #_nm, \
-		.fn = (_fn), \
-		.data = (_d), \
-		.warn = (_w), \
-		.error = (_e), \
+#define CHECK_ENTRY(nm_, fn_, d_, w_, e_, ...)	       \
+	static struct check *nm_##_prereqs[] = { __VA_ARGS__ }; \
+	static struct check nm_ = { \
+		.name = #nm_, \
+		.fn = (fn_), \
+		.data = (d_), \
+		.warn = (w_), \
+		.error = (e_), \
 		.status = UNCHECKED, \
-		.num_prereqs = ARRAY_SIZE(_nm##_prereqs), \
-		.prereq = _nm##_prereqs, \
+		.num_prereqs = ARRAY_SIZE(nm_##_prereqs), \
+		.prereq = nm_##_prereqs, \
 	};
-#define WARNING(_nm, _fn, _d, ...) \
-	CHECK_ENTRY(_nm, _fn, _d, true, false, __VA_ARGS__)
-#define ERROR(_nm, _fn, _d, ...) \
-	CHECK_ENTRY(_nm, _fn, _d, false, true, __VA_ARGS__)
-#define CHECK(_nm, _fn, _d, ...) \
-	CHECK_ENTRY(_nm, _fn, _d, false, false, __VA_ARGS__)
+#define WARNING(nm_, fn_, d_, ...) \
+	CHECK_ENTRY(nm_, fn_, d_, true, false, __VA_ARGS__)
+#define ERROR(nm_, fn_, d_, ...) \
+	CHECK_ENTRY(nm_, fn_, d_, false, true, __VA_ARGS__)
+#define CHECK(nm_, fn_, d_, ...) \
+	CHECK_ENTRY(nm_, fn_, d_, false, false, __VA_ARGS__)
 
-#ifdef __GNUC__
-static inline void check_msg(struct check *c, struct dt_info *dti,
-			     const char *fmt, ...) __attribute__((format (printf, 3, 4)));
-#endif
-static inline void check_msg(struct check *c, struct dt_info *dti,
-			     const char *fmt, ...)
+static inline void  PRINTF(3, 4) check_msg(struct check *c, struct dt_info *dti,
+					   const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -182,6 +178,36 @@ static void check_is_string(struct check *c, struct dt_info *dti,
 	WARNING(nm, check_is_string, (propname))
 #define ERROR_IF_NOT_STRING(nm, propname) \
 	ERROR(nm, check_is_string, (propname))
+
+static void check_is_string_list(struct check *c, struct dt_info *dti,
+				 struct node *node)
+{
+	int rem, l;
+	struct property *prop;
+	char *propname = c->data;
+	char *str;
+
+	prop = get_property(node, propname);
+	if (!prop)
+		return; /* Not present, assumed ok */
+
+	str = prop->val.val;
+	rem = prop->val.len;
+	while (rem > 0) {
+		l = strnlen(str, rem);
+		if (l == rem) {
+			FAIL(c, dti, "\"%s\" property in %s is not a string list",
+			     propname, node->fullpath);
+			break;
+		}
+		rem -= l + 1;
+		str += l + 1;
+	}
+}
+#define WARNING_IF_NOT_STRING_LIST(nm, propname) \
+	WARNING(nm, check_is_string_list, (propname))
+#define ERROR_IF_NOT_STRING_LIST(nm, propname) \
+	ERROR(nm, check_is_string_list, (propname))
 
 static void check_is_cell(struct check *c, struct dt_info *dti,
 			  struct node *node)
@@ -538,13 +564,13 @@ static void fixup_phandle_references(struct check *c, struct dt_info *dti,
 					FAIL(c, dti, "Reference to non-existent node or "
 							"label \"%s\"\n", m->ref);
 				else /* mark the entry as unresolved */
-					*((cell_t *)(prop->val.val + m->offset)) =
+					*((fdt32_t *)(prop->val.val + m->offset)) =
 						cpu_to_fdt32(0xffffffff);
 				continue;
 			}
 
 			phandle = get_node_phandle(dt, refnode);
-			*((cell_t *)(prop->val.val + m->offset)) = cpu_to_fdt32(phandle);
+			*((fdt32_t *)(prop->val.val + m->offset)) = cpu_to_fdt32(phandle);
 		}
 	}
 }
@@ -590,6 +616,47 @@ WARNING_IF_NOT_CELL(interrupt_cells_is_cell, "#interrupt-cells");
 WARNING_IF_NOT_STRING(device_type_is_string, "device_type");
 WARNING_IF_NOT_STRING(model_is_string, "model");
 WARNING_IF_NOT_STRING(status_is_string, "status");
+WARNING_IF_NOT_STRING(label_is_string, "label");
+
+WARNING_IF_NOT_STRING_LIST(compatible_is_string_list, "compatible");
+
+static void check_names_is_string_list(struct check *c, struct dt_info *dti,
+				       struct node *node)
+{
+	struct property *prop;
+
+	for_each_property(node, prop) {
+		const char *s = strrchr(prop->name, '-');
+		if (!s || !streq(s, "-names"))
+			continue;
+
+		c->data = prop->name;
+		check_is_string_list(c, dti, node);
+	}
+}
+WARNING(names_is_string_list, check_names_is_string_list, NULL);
+
+static void check_alias_paths(struct check *c, struct dt_info *dti,
+				    struct node *node)
+{
+	struct property *prop;
+
+	if (!streq(node->name, "aliases"))
+		return;
+
+	for_each_property(node, prop) {
+		if (!prop->val.val || !get_node_by_path(dti->dt, prop->val.val)) {
+			FAIL(c, dti, "aliases property '%s' is not a valid node (%s)",
+			     prop->name, prop->val.val);
+			continue;
+		}
+		if (strspn(prop->name, LOWERCASE DIGITS "-") != strlen(prop->name))
+			FAIL(c, dti, "aliases property name '%s' is not valid",
+			     prop->name);
+
+	}
+}
+WARNING(alias_paths, check_alias_paths, NULL);
 
 static void fixup_addr_size_cells(struct check *c, struct dt_info *dti,
 				  struct node *node)
@@ -685,6 +752,229 @@ static void check_ranges_format(struct check *c, struct dt_info *dti,
 }
 WARNING(ranges_format, check_ranges_format, NULL, &addr_size_cells);
 
+static const struct bus_type pci_bus = {
+	.name = "PCI",
+};
+
+static void check_pci_bridge(struct check *c, struct dt_info *dti, struct node *node)
+{
+	struct property *prop;
+	cell_t *cells;
+
+	prop = get_property(node, "device_type");
+	if (!prop || !streq(prop->val.val, "pci"))
+		return;
+
+	node->bus = &pci_bus;
+
+	if (!strprefixeq(node->name, node->basenamelen, "pci") &&
+	    !strprefixeq(node->name, node->basenamelen, "pcie"))
+		FAIL(c, dti, "Node %s node name is not \"pci\" or \"pcie\"",
+			     node->fullpath);
+
+	prop = get_property(node, "ranges");
+	if (!prop)
+		FAIL(c, dti, "Node %s missing ranges for PCI bridge (or not a bridge)",
+			     node->fullpath);
+
+	if (node_addr_cells(node) != 3)
+		FAIL(c, dti, "Node %s incorrect #address-cells for PCI bridge",
+			     node->fullpath);
+	if (node_size_cells(node) != 2)
+		FAIL(c, dti, "Node %s incorrect #size-cells for PCI bridge",
+			     node->fullpath);
+
+	prop = get_property(node, "bus-range");
+	if (!prop) {
+		FAIL(c, dti, "Node %s missing bus-range for PCI bridge",
+			     node->fullpath);
+		return;
+	}
+	if (prop->val.len != (sizeof(cell_t) * 2)) {
+		FAIL(c, dti, "Node %s bus-range must be 2 cells",
+			     node->fullpath);
+		return;
+	}
+	cells = (cell_t *)prop->val.val;
+	if (fdt32_to_cpu(cells[0]) > fdt32_to_cpu(cells[1]))
+		FAIL(c, dti, "Node %s bus-range 1st cell must be less than or equal to 2nd cell",
+			     node->fullpath);
+	if (fdt32_to_cpu(cells[1]) > 0xff)
+		FAIL(c, dti, "Node %s bus-range maximum bus number must be less than 256",
+			     node->fullpath);
+}
+WARNING(pci_bridge, check_pci_bridge, NULL,
+	&device_type_is_string, &addr_size_cells);
+
+static void check_pci_device_bus_num(struct check *c, struct dt_info *dti, struct node *node)
+{
+	struct property *prop;
+	unsigned int bus_num, min_bus, max_bus;
+	cell_t *cells;
+
+	if (!node->parent || (node->parent->bus != &pci_bus))
+		return;
+
+	prop = get_property(node, "reg");
+	if (!prop)
+		return;
+
+	cells = (cell_t *)prop->val.val;
+	bus_num = (fdt32_to_cpu(cells[0]) & 0x00ff0000) >> 16;
+
+	prop = get_property(node->parent, "bus-range");
+	if (!prop) {
+		min_bus = max_bus = 0;
+	} else {
+		cells = (cell_t *)prop->val.val;
+		min_bus = fdt32_to_cpu(cells[0]);
+		max_bus = fdt32_to_cpu(cells[0]);
+	}
+	if ((bus_num < min_bus) || (bus_num > max_bus))
+		FAIL(c, dti, "Node %s PCI bus number %d out of range, expected (%d - %d)",
+		     node->fullpath, bus_num, min_bus, max_bus);
+}
+WARNING(pci_device_bus_num, check_pci_device_bus_num, NULL, &reg_format, &pci_bridge);
+
+static void check_pci_device_reg(struct check *c, struct dt_info *dti, struct node *node)
+{
+	struct property *prop;
+	const char *unitname = get_unitname(node);
+	char unit_addr[5];
+	unsigned int dev, func, reg;
+	cell_t *cells;
+
+	if (!node->parent || (node->parent->bus != &pci_bus))
+		return;
+
+	prop = get_property(node, "reg");
+	if (!prop) {
+		FAIL(c, dti, "Node %s missing PCI reg property", node->fullpath);
+		return;
+	}
+
+	cells = (cell_t *)prop->val.val;
+	if (cells[1] || cells[2])
+		FAIL(c, dti, "Node %s PCI reg config space address cells 2 and 3 must be 0",
+			     node->fullpath);
+
+	reg = fdt32_to_cpu(cells[0]);
+	dev = (reg & 0xf800) >> 11;
+	func = (reg & 0x700) >> 8;
+
+	if (reg & 0xff000000)
+		FAIL(c, dti, "Node %s PCI reg address is not configuration space",
+			     node->fullpath);
+	if (reg & 0x000000ff)
+		FAIL(c, dti, "Node %s PCI reg config space address register number must be 0",
+			     node->fullpath);
+
+	if (func == 0) {
+		snprintf(unit_addr, sizeof(unit_addr), "%x", dev);
+		if (streq(unitname, unit_addr))
+			return;
+	}
+
+	snprintf(unit_addr, sizeof(unit_addr), "%x,%x", dev, func);
+	if (streq(unitname, unit_addr))
+		return;
+
+	FAIL(c, dti, "Node %s PCI unit address format error, expected \"%s\"",
+	     node->fullpath, unit_addr);
+}
+WARNING(pci_device_reg, check_pci_device_reg, NULL, &reg_format, &pci_bridge);
+
+static const struct bus_type simple_bus = {
+	.name = "simple-bus",
+};
+
+static bool node_is_compatible(struct node *node, const char *compat)
+{
+	struct property *prop;
+	const char *str, *end;
+
+	prop = get_property(node, "compatible");
+	if (!prop)
+		return false;
+
+	for (str = prop->val.val, end = str + prop->val.len; str < end;
+	     str += strnlen(str, end - str) + 1) {
+		if (strprefixeq(str, end - str, compat))
+			return true;
+	}
+	return false;
+}
+
+static void check_simple_bus_bridge(struct check *c, struct dt_info *dti, struct node *node)
+{
+	if (node_is_compatible(node, "simple-bus"))
+		node->bus = &simple_bus;
+}
+WARNING(simple_bus_bridge, check_simple_bus_bridge, NULL, &addr_size_cells);
+
+static void check_simple_bus_reg(struct check *c, struct dt_info *dti, struct node *node)
+{
+	struct property *prop;
+	const char *unitname = get_unitname(node);
+	char unit_addr[17];
+	unsigned int size;
+	uint64_t reg = 0;
+	cell_t *cells = NULL;
+
+	if (!node->parent || (node->parent->bus != &simple_bus))
+		return;
+
+	prop = get_property(node, "reg");
+	if (prop)
+		cells = (cell_t *)prop->val.val;
+	else {
+		prop = get_property(node, "ranges");
+		if (prop && prop->val.len)
+			/* skip of child address */
+			cells = ((cell_t *)prop->val.val) + node_addr_cells(node);
+	}
+
+	if (!cells) {
+		if (node->parent->parent && !(node->bus == &simple_bus))
+			FAIL(c, dti, "Node %s missing or empty reg/ranges property", node->fullpath);
+		return;
+	}
+
+	size = node_addr_cells(node->parent);
+	while (size--)
+		reg = (reg << 32) | fdt32_to_cpu(*(cells++));
+
+	snprintf(unit_addr, sizeof(unit_addr), "%"PRIx64, reg);
+	if (!streq(unitname, unit_addr))
+		FAIL(c, dti, "Node %s simple-bus unit address format error, expected \"%s\"",
+		     node->fullpath, unit_addr);
+}
+WARNING(simple_bus_reg, check_simple_bus_reg, NULL, &reg_format, &simple_bus_bridge);
+
+static void check_unit_address_format(struct check *c, struct dt_info *dti,
+				      struct node *node)
+{
+	const char *unitname = get_unitname(node);
+
+	if (node->parent && node->parent->bus)
+		return;
+
+	if (!unitname[0])
+		return;
+
+	if (!strncmp(unitname, "0x", 2)) {
+		FAIL(c, dti, "Node %s unit name should not have leading \"0x\"",
+		    node->fullpath);
+		/* skip over 0x for next test */
+		unitname += 2;
+	}
+	if (unitname[0] == '0' && isxdigit(unitname[1]))
+		FAIL(c, dti, "Node %s unit name should not have leading 0s",
+		    node->fullpath);
+}
+WARNING(unit_address_format, check_unit_address_format, NULL,
+	&node_name_format, &pci_bridge, &simple_bus_bridge);
+
 /*
  * Style checks
  */
@@ -713,6 +1003,31 @@ static void check_avoid_default_addr_size(struct check *c, struct dt_info *dti,
 WARNING(avoid_default_addr_size, check_avoid_default_addr_size, NULL,
 	&addr_size_cells);
 
+static void check_avoid_unnecessary_addr_size(struct check *c, struct dt_info *dti,
+					      struct node *node)
+{
+	struct property *prop;
+	struct node *child;
+	bool has_reg = false;
+
+	if (!node->parent || node->addr_cells < 0 || node->size_cells < 0)
+		return;
+
+	if (get_property(node, "ranges") || !node->children)
+		return;
+
+	for_each_child(node, child) {
+		prop = get_property(child, "reg");
+		if (prop)
+			has_reg = true;
+	}
+
+	if (!has_reg)
+		FAIL(c, dti, "unnecessary #address-cells/#size-cells without \"ranges\" or child \"reg\" property in %s",
+		     node->fullpath);
+}
+WARNING(avoid_unnecessary_addr_size, check_avoid_unnecessary_addr_size, NULL, &avoid_default_addr_size);
+
 static void check_obsolete_chosen_interrupt_controller(struct check *c,
 						       struct dt_info *dti,
 						       struct node *node)
@@ -737,6 +1052,324 @@ static void check_obsolete_chosen_interrupt_controller(struct check *c,
 WARNING(obsolete_chosen_interrupt_controller,
 	check_obsolete_chosen_interrupt_controller, NULL);
 
+static void check_chosen_node_is_root(struct check *c, struct dt_info *dti,
+				      struct node *node)
+{
+	if (!streq(node->name, "chosen"))
+		return;
+
+	if (node->parent != dti->dt)
+		FAIL(c, dti, "chosen node '%s' must be at root node",
+		     node->fullpath);
+}
+WARNING(chosen_node_is_root, check_chosen_node_is_root, NULL);
+
+static void check_chosen_node_bootargs(struct check *c, struct dt_info *dti,
+				       struct node *node)
+{
+	struct property *prop;
+
+	if (!streq(node->name, "chosen"))
+		return;
+
+	prop = get_property(node, "bootargs");
+	if (!prop)
+		return;
+
+	c->data = prop->name;
+	check_is_string(c, dti, node);
+}
+WARNING(chosen_node_bootargs, check_chosen_node_bootargs, NULL);
+
+static void check_chosen_node_stdout_path(struct check *c, struct dt_info *dti,
+					  struct node *node)
+{
+	struct property *prop;
+
+	if (!streq(node->name, "chosen"))
+		return;
+
+	prop = get_property(node, "stdout-path");
+	if (!prop) {
+		prop = get_property(node, "linux,stdout-path");
+		if (!prop)
+			return;
+		FAIL(c, dti, "Use 'stdout-path' instead of 'linux,stdout-path'");
+	}
+
+	c->data = prop->name;
+	check_is_string(c, dti, node);
+}
+WARNING(chosen_node_stdout_path, check_chosen_node_stdout_path, NULL);
+
+struct provider {
+	const char *prop_name;
+	const char *cell_name;
+	bool optional;
+};
+
+static void check_property_phandle_args(struct check *c,
+					  struct dt_info *dti,
+				          struct node *node,
+				          struct property *prop,
+				          const struct provider *provider)
+{
+	struct node *root = dti->dt;
+	int cell, cellsize = 0;
+
+	if (prop->val.len % sizeof(cell_t)) {
+		FAIL(c, dti, "property '%s' size (%d) is invalid, expected multiple of %zu in node %s",
+		     prop->name, prop->val.len, sizeof(cell_t), node->fullpath);
+		return;
+	}
+
+	for (cell = 0; cell < prop->val.len / sizeof(cell_t); cell += cellsize + 1) {
+		struct node *provider_node;
+		struct property *cellprop;
+		int phandle;
+
+		phandle = propval_cell_n(prop, cell);
+		/*
+		 * Some bindings use a cell value 0 or -1 to skip over optional
+		 * entries when each index position has a specific definition.
+		 */
+		if (phandle == 0 || phandle == -1) {
+			/* Give up if this is an overlay with external references */
+			if (dti->dtsflags & DTSF_PLUGIN)
+				break;
+
+			cellsize = 0;
+			continue;
+		}
+
+		/* If we have markers, verify the current cell is a phandle */
+		if (prop->val.markers) {
+			struct marker *m = prop->val.markers;
+			for_each_marker_of_type(m, REF_PHANDLE) {
+				if (m->offset == (cell * sizeof(cell_t)))
+					break;
+			}
+			if (!m)
+				FAIL(c, dti, "Property '%s', cell %d is not a phandle reference in %s",
+				     prop->name, cell, node->fullpath);
+		}
+
+		provider_node = get_node_by_phandle(root, phandle);
+		if (!provider_node) {
+			FAIL(c, dti, "Could not get phandle node for %s:%s(cell %d)",
+			     node->fullpath, prop->name, cell);
+			break;
+		}
+
+		cellprop = get_property(provider_node, provider->cell_name);
+		if (cellprop) {
+			cellsize = propval_cell(cellprop);
+		} else if (provider->optional) {
+			cellsize = 0;
+		} else {
+			FAIL(c, dti, "Missing property '%s' in node %s or bad phandle (referred from %s:%s[%d])",
+			     provider->cell_name,
+			     provider_node->fullpath,
+			     node->fullpath, prop->name, cell);
+			break;
+		}
+
+		if (prop->val.len < ((cell + cellsize + 1) * sizeof(cell_t))) {
+			FAIL(c, dti, "%s property size (%d) too small for cell size %d in %s",
+			     prop->name, prop->val.len, cellsize, node->fullpath);
+		}
+	}
+}
+
+static void check_provider_cells_property(struct check *c,
+					  struct dt_info *dti,
+				          struct node *node)
+{
+	struct provider *provider = c->data;
+	struct property *prop;
+
+	prop = get_property(node, provider->prop_name);
+	if (!prop)
+		return;
+
+	check_property_phandle_args(c, dti, node, prop, provider);
+}
+#define WARNING_PROPERTY_PHANDLE_CELLS(nm, propname, cells_name, ...) \
+	static struct provider nm##_provider = { (propname), (cells_name), __VA_ARGS__ }; \
+	WARNING(nm##_property, check_provider_cells_property, &nm##_provider, &phandle_references);
+
+WARNING_PROPERTY_PHANDLE_CELLS(clocks, "clocks", "#clock-cells");
+WARNING_PROPERTY_PHANDLE_CELLS(cooling_device, "cooling-device", "#cooling-cells");
+WARNING_PROPERTY_PHANDLE_CELLS(dmas, "dmas", "#dma-cells");
+WARNING_PROPERTY_PHANDLE_CELLS(hwlocks, "hwlocks", "#hwlock-cells");
+WARNING_PROPERTY_PHANDLE_CELLS(interrupts_extended, "interrupts-extended", "#interrupt-cells");
+WARNING_PROPERTY_PHANDLE_CELLS(io_channels, "io-channels", "#io-channel-cells");
+WARNING_PROPERTY_PHANDLE_CELLS(iommus, "iommus", "#iommu-cells");
+WARNING_PROPERTY_PHANDLE_CELLS(mboxes, "mboxes", "#mbox-cells");
+WARNING_PROPERTY_PHANDLE_CELLS(msi_parent, "msi-parent", "#msi-cells", true);
+WARNING_PROPERTY_PHANDLE_CELLS(mux_controls, "mux-controls", "#mux-control-cells");
+WARNING_PROPERTY_PHANDLE_CELLS(phys, "phys", "#phy-cells");
+WARNING_PROPERTY_PHANDLE_CELLS(power_domains, "power-domains", "#power-domain-cells");
+WARNING_PROPERTY_PHANDLE_CELLS(pwms, "pwms", "#pwm-cells");
+WARNING_PROPERTY_PHANDLE_CELLS(resets, "resets", "#reset-cells");
+WARNING_PROPERTY_PHANDLE_CELLS(sound_dai, "sound-dai", "#sound-dai-cells");
+WARNING_PROPERTY_PHANDLE_CELLS(thermal_sensors, "thermal-sensors", "#thermal-sensor-cells");
+
+static bool prop_is_gpio(struct property *prop)
+{
+	char *str;
+
+	/*
+	 * *-gpios and *-gpio can appear in property names,
+	 * so skip over any false matches (only one known ATM)
+	 */
+	if (strstr(prop->name, "nr-gpio"))
+		return false;
+
+	str = strrchr(prop->name, '-');
+	if (str)
+		str++;
+	else
+		str = prop->name;
+	if (!(streq(str, "gpios") || streq(str, "gpio")))
+		return false;
+
+	return true;
+}
+
+static void check_gpios_property(struct check *c,
+					  struct dt_info *dti,
+				          struct node *node)
+{
+	struct property *prop;
+
+	/* Skip GPIO hog nodes which have 'gpios' property */
+	if (get_property(node, "gpio-hog"))
+		return;
+
+	for_each_property(node, prop) {
+		struct provider provider;
+
+		if (!prop_is_gpio(prop))
+			continue;
+
+		provider.prop_name = prop->name;
+		provider.cell_name = "#gpio-cells";
+		provider.optional = false;
+		check_property_phandle_args(c, dti, node, prop, &provider);
+	}
+
+}
+WARNING(gpios_property, check_gpios_property, NULL, &phandle_references);
+
+static void check_deprecated_gpio_property(struct check *c,
+					   struct dt_info *dti,
+				           struct node *node)
+{
+	struct property *prop;
+
+	for_each_property(node, prop) {
+		char *str;
+
+		if (!prop_is_gpio(prop))
+			continue;
+
+		str = strstr(prop->name, "gpio");
+		if (!streq(str, "gpio"))
+			continue;
+
+		FAIL(c, dti, "'[*-]gpio' is deprecated, use '[*-]gpios' instead for %s:%s",
+		     node->fullpath, prop->name);
+	}
+
+}
+CHECK(deprecated_gpio_property, check_deprecated_gpio_property, NULL);
+
+static bool node_is_interrupt_provider(struct node *node)
+{
+	struct property *prop;
+
+	prop = get_property(node, "interrupt-controller");
+	if (prop)
+		return true;
+
+	prop = get_property(node, "interrupt-map");
+	if (prop)
+		return true;
+
+	return false;
+}
+static void check_interrupts_property(struct check *c,
+				      struct dt_info *dti,
+				      struct node *node)
+{
+	struct node *root = dti->dt;
+	struct node *irq_node = NULL, *parent = node;
+	struct property *irq_prop, *prop = NULL;
+	int irq_cells, phandle;
+
+	irq_prop = get_property(node, "interrupts");
+	if (!irq_prop)
+		return;
+
+	if (irq_prop->val.len % sizeof(cell_t))
+		FAIL(c, dti, "property '%s' size (%d) is invalid, expected multiple of %zu in node %s",
+		     irq_prop->name, irq_prop->val.len, sizeof(cell_t),
+		     node->fullpath);
+
+	while (parent && !prop) {
+		if (parent != node && node_is_interrupt_provider(parent)) {
+			irq_node = parent;
+			break;
+		}
+
+		prop = get_property(parent, "interrupt-parent");
+		if (prop) {
+			phandle = propval_cell(prop);
+			/* Give up if this is an overlay with external references */
+			if ((phandle == 0 || phandle == -1) &&
+			    (dti->dtsflags & DTSF_PLUGIN))
+					return;
+
+			irq_node = get_node_by_phandle(root, phandle);
+			if (!irq_node) {
+				FAIL(c, dti, "Bad interrupt-parent phandle for %s",
+				     node->fullpath);
+				return;
+			}
+			if (!node_is_interrupt_provider(irq_node))
+				FAIL(c, dti,
+				     "Missing interrupt-controller or interrupt-map property in %s",
+				     irq_node->fullpath);
+
+			break;
+		}
+
+		parent = parent->parent;
+	}
+
+	if (!irq_node) {
+		FAIL(c, dti, "Missing interrupt-parent for %s", node->fullpath);
+		return;
+	}
+
+	prop = get_property(irq_node, "#interrupt-cells");
+	if (!prop) {
+		FAIL(c, dti, "Missing #interrupt-cells in interrupt-parent %s",
+		     irq_node->fullpath);
+		return;
+	}
+
+	irq_cells = propval_cell(prop);
+	if (irq_prop->val.len % (irq_cells * sizeof(cell_t))) {
+		FAIL(c, dti,
+		     "interrupts size is (%d), expected multiple of %d in %s",
+		     irq_prop->val.len, (int)(irq_cells * sizeof(cell_t)),
+		     node->fullpath);
+	}
+}
+WARNING(interrupts_property, check_interrupts_property, &phandle_references);
+
 static struct check *check_table[] = {
 	&duplicate_node_names, &duplicate_property_names,
 	&node_name_chars, &node_name_format, &property_name_chars,
@@ -749,6 +1382,9 @@ static struct check *check_table[] = {
 
 	&address_cells_is_cell, &size_cells_is_cell, &interrupt_cells_is_cell,
 	&device_type_is_string, &model_is_string, &status_is_string,
+	&label_is_string,
+
+	&compatible_is_string_list, &names_is_string_list,
 
 	&property_name_chars_strict,
 	&node_name_chars_strict,
@@ -756,9 +1392,42 @@ static struct check *check_table[] = {
 	&addr_size_cells, &reg_format, &ranges_format,
 
 	&unit_address_vs_reg,
+	&unit_address_format,
+
+	&pci_bridge,
+	&pci_device_reg,
+	&pci_device_bus_num,
+
+	&simple_bus_bridge,
+	&simple_bus_reg,
 
 	&avoid_default_addr_size,
+	&avoid_unnecessary_addr_size,
 	&obsolete_chosen_interrupt_controller,
+	&chosen_node_is_root, &chosen_node_bootargs, &chosen_node_stdout_path,
+
+	&clocks_property,
+	&cooling_device_property,
+	&dmas_property,
+	&hwlocks_property,
+	&interrupts_extended_property,
+	&io_channels_property,
+	&iommus_property,
+	&mboxes_property,
+	&msi_parent_property,
+	&mux_controls_property,
+	&phys_property,
+	&power_domains_property,
+	&pwms_property,
+	&resets_property,
+	&sound_dai_property,
+	&thermal_sensors_property,
+
+	&deprecated_gpio_property,
+	&gpios_property,
+	&interrupts_property,
+
+	&alias_paths,
 
 	&always_fail,
 };
