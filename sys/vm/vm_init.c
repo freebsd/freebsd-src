@@ -81,16 +81,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/vmem.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_phys.h>
 #include <vm/vm_map.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
+
+#if VM_NRESERVLEVEL > 0
+#define	KVA_QUANTUM	(1 << (VM_LEVEL_0_ORDER + PAGE_SHIFT))
+#else
+	/* On non-superpage architectures want large import sizes. */
+#define	KVA_QUANTUM	(PAGE_SIZE * 1024)
+#endif
 long physmem;
 
 /*
@@ -107,7 +116,10 @@ kva_import(void *unused, vmem_size_t size, int flags, vmem_addr_t *addrp)
 {
 	vm_offset_t addr;
 	int result;
- 
+
+	KASSERT((size % KVA_QUANTUM) == 0,
+	    ("kva_import: Size %jd is not a multiple of %d",
+	    (intmax_t)size, (int)KVA_QUANTUM));
 	addr = vm_map_min(kernel_map);
 	result = vm_map_find(kernel_map, NULL, 0, &addr, size, 0,
 	    VMFS_SUPER_SPACE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
@@ -130,6 +142,7 @@ static void
 vm_mem_init(dummy)
 	void *dummy;
 {
+	int domain;
 
 	/*
 	 * Initializes resident memory structures. From here on, all physical
@@ -150,13 +163,15 @@ vm_mem_init(dummy)
 	 * Initialize the kernel_arena.  This can grow on demand.
 	 */
 	vmem_init(kernel_arena, "kernel arena", 0, 0, PAGE_SIZE, 0, 0);
-	vmem_set_import(kernel_arena, kva_import, NULL, NULL,
-#if VM_NRESERVLEVEL > 0
-	    1 << (VM_LEVEL_0_ORDER + PAGE_SHIFT));
-#else
-	    /* On non-superpage architectures want large import sizes. */
-	    PAGE_SIZE * 1024);
-#endif
+	vmem_set_import(kernel_arena, kva_import, NULL, NULL, KVA_QUANTUM);
+
+	for (domain = 0; domain < vm_ndomains; domain++) {
+		vm_dom[domain].vmd_kernel_arena = vmem_create(
+		    "kernel arena domain", 0, 0, PAGE_SIZE, 0, M_WAITOK);
+		vmem_set_import(vm_dom[domain].vmd_kernel_arena,
+		    (vmem_import_t *)vmem_alloc, NULL, kernel_arena,
+		    KVA_QUANTUM);
+	}
 
 	kmem_init_zero_region();
 	pmap_init();
