@@ -24,6 +24,10 @@ WARNS?=		0
 .PATH: ${.CURDIR}/../../../lib/libc/string
 SRCS+=  bcmp.c bcopy.c bzero.c
 
+# need explicit_bzero for crypto
+.PATH: ${.CURDIR}/../../../sys/libkern
+SRCS+=  explicit_bzero.c
+
 # Our password input method
 SRCS+=  pwgets.c
 
