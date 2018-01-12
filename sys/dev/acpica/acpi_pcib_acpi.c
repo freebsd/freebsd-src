@@ -60,6 +60,7 @@ ACPI_MODULE_NAME("PCI_ACPI")
 struct acpi_hpcib_softc {
     device_t		ap_dev;
     ACPI_HANDLE		ap_handle;
+    bus_dma_tag_t	ap_dma_tag;
     int			ap_flags;
     uint32_t		ap_osc_ctl;
 
@@ -108,6 +109,7 @@ static int		acpi_pcib_acpi_release_resource(device_t dev,
 #endif
 static int		acpi_pcib_request_feature(device_t pcib, device_t dev,
 			    enum pci_feature feature);
+static bus_dma_tag_t	acpi_pcib_get_dma_tag(device_t bus, device_t child);
 
 static device_method_t acpi_pcib_acpi_methods[] = {
     /* Device interface */
@@ -136,6 +138,7 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
     DEVMETHOD(bus_get_cpus,		acpi_pcib_get_cpus),
+    DEVMETHOD(bus_get_dma_tag,		acpi_pcib_get_dma_tag),
 
     /* pcib interface */
     DEVMETHOD(pcib_maxslots,		pcib_maxslots),
@@ -366,6 +369,7 @@ acpi_pcib_acpi_attach(device_t dev)
     rman_res_t start;
     int rid;
 #endif
+    int error, domain;
     uint8_t busno;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -537,15 +541,33 @@ acpi_pcib_acpi_attach(device_t dev)
 
     acpi_pcib_fetch_prt(dev, &sc->ap_prt);
 
+    error = bus_dma_tag_create(bus_get_dma_tag(dev), 1,
+	0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+	NULL, NULL, BUS_SPACE_MAXSIZE, BUS_SPACE_UNRESTRICTED,
+	BUS_SPACE_MAXSIZE, 0, NULL, NULL, &sc->ap_dma_tag);
+    if (error != 0)
+	goto errout;
+    error = bus_get_domain(dev, &domain);
+    if (error == 0)
+	error = bus_dma_tag_set_domain(sc->ap_dma_tag, domain);
+    /* Don't fail to attach if the domain can't be queried or set. */
+    error = 0;
+
     bus_generic_probe(dev);
     if (device_add_child(dev, "pci", -1) == NULL) {
-	device_printf(device_get_parent(dev), "couldn't attach pci bus\n");
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
-	pcib_host_res_free(dev, &sc->ap_host_res);
-#endif
-	return (ENXIO);
+	bus_dma_tag_destroy(sc->ap_dma_tag);
+	sc->ap_dma_tag = NULL;
+	error = ENXIO;
+	goto errout;
     }
     return (bus_generic_attach(dev));
+
+errout:
+    device_printf(device_get_parent(dev), "couldn't attach pci bus\n");
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+    pcib_host_res_free(dev, &sc->ap_host_res);
+#endif
+    return (error);
 }
 
 /*
@@ -752,4 +774,14 @@ acpi_pcib_request_feature(device_t pcib, device_t dev, enum pci_feature feature)
 	}
 
 	return (acpi_pcib_osc(sc, osc_ctl));
+}
+
+static bus_dma_tag_t
+acpi_pcib_get_dma_tag(device_t bus, device_t child)
+{
+	struct acpi_hpcib_softc *sc;
+
+	sc = device_get_softc(bus);
+
+	return (sc->ap_dma_tag);
 }
