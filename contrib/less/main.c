@@ -71,7 +71,6 @@ main(argc, argv)
 {
 	IFILE ifile;
 	char *s;
-	extern char *__progname;
 
 #ifdef __EMX__
 	_response(&argc, &argv);
