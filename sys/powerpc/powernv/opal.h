@@ -38,13 +38,40 @@ int opal_check(void);
 /* Call an OPAL method. Any pointers passed must be real-mode accessible! */
 int opal_call(uint64_t token, ...);
 
-#define OPAL_CONSOLE_WRITE	1
-#define OPAL_CONSOLE_READ	2
-#define	OPAL_CEC_POWER_DOWN	5
-#define	OPAL_CEC_REBOOT		6
-#define OPAL_START_CPU		41
+#define OPAL_CONSOLE_WRITE		1
+#define OPAL_CONSOLE_READ		2
+#define	OPAL_CEC_POWER_DOWN		5
+#define	OPAL_CEC_REBOOT			6
+#define	OPAL_HANDLE_INTERRUPT		9
+#define	OPAL_PCI_CONFIG_READ_BYTE	13
+#define	OPAL_PCI_CONFIG_READ_HALF_WORD	14
+#define	OPAL_PCI_CONFIG_READ_WORD	15
+#define	OPAL_PCI_CONFIG_WRITE_BYTE	16
+#define	OPAL_PCI_CONFIG_WRITE_HALF_WORD	17
+#define	OPAL_PCI_CONFIG_WRITE_WORD	18
+#define	OPAL_PCI_EEH_FREEZE_CLEAR	26
+#define	OPAL_PCI_PHB_MMIO_ENABLE	27
+#define	OPAL_PCI_SET_PHB_MEM_WINDOW	28
+#define	OPAL_PCI_MAP_PE_MMIO_WINDOW	29
+#define	OPAL_PCI_SET_XIVE_PE		37
+#define	OPAL_PCI_RESET			49
+#define	OPAL_PCI_POLL			62
+#define	OPAL_PCI_SET_PE			31
+#define OPAL_START_CPU			41
+#define	OPAL_GET_MSI_32			39
+#define	OPAL_GET_MSI_64			40
+#define	OPAL_PCI_MSI_EOI		63
+#define	OPAL_PCI_MAP_PE_DMA_WINDOW_REAL	45
+#define	OPAL_RETURN_CPU			69
+#define	OPAL_REINIT_CPUS		70
 
-#define OPAL_SUCCESS		0
-#define	OPAL_BUSY_EVENT		-12
+/* For OPAL_PCI_SET_PE */
+#define	OPAL_UNMAP_PE			0
+#define OPAL_MAP_PE			1
+
+#define OPAL_SUCCESS			0
+#define OPAL_PARAMETER			-1
+#define OPAL_CLOSED			-5
+#define	OPAL_BUSY_EVENT			-12
 
 #endif
