@@ -983,7 +983,7 @@ dofault:
 			addr = trapframe->pc;
 			MipsSwitchFPState(PCPU_GET(fpcurthread), td->td_frame);
 			PCPU_SET(fpcurthread, td);
-#if defined(__mips_n64)
+#if defined(__mips_n32) || defined(__mips_n64)
 			td->td_frame->sr |= MIPS_SR_COP_1_BIT | MIPS_SR_FR;
 #else
 			td->td_frame->sr |= MIPS_SR_COP_1_BIT;

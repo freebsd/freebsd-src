@@ -63,6 +63,7 @@ arm/annapurna/alpine/alpine_serdes.c		optional al_serdes fdt		\
 	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
 arm/arm/generic_timer.c		standard
 arm/arm/gic.c			standard
+arm/arm/gic_acpi.c		optional	acpi
 arm/arm/gic_fdt.c		optional	fdt
 arm/arm/pmu.c			standard
 arm/broadcom/bcm2835/bcm2835_audio.c		optional sound vchiq fdt \
@@ -111,6 +112,7 @@ arm64/arm64/exception.S		standard
 arm64/arm64/freebsd32_machdep.c	optional	compat_freebsd32
 arm64/arm64/gicv3_its.c		optional	intrng fdt
 arm64/arm64/gic_v3.c		standard
+arm64/arm64/gic_v3_acpi.c	optional	acpi
 arm64/arm64/gic_v3_fdt.c	optional	fdt
 arm64/arm64/identcpu.c		standard
 arm64/arm64/in_cksum.c		optional	inet | inet6
@@ -167,6 +169,7 @@ armv8_crypto_wrap.o		optional	armv8crypto		\
 	clean		"armv8_crypto_wrap.o"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
 crypto/des/des_enc.c		optional	crypto | ipsec | ipsec_support | netsmb
+dev/acpica/acpi_bus_if.m	optional	acpi
 dev/acpica/acpi_if.m		optional	acpi
 dev/ahci/ahci_generic.c		optional	ahci
 dev/axgbe/if_axgbe.c		optional	axgbe

@@ -724,6 +724,8 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 			return (EINVAL);
 	}
 
+	ctx = NULL;
+	ctxidx = 0;
 	error = 0;
 	kt = is_fpu_kern_thread(0);
 	if (!kt) {
@@ -775,6 +777,9 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptodesc *enccrd,
 
 	KASSERT(ses->algo != CRYPTO_AES_NIST_GCM_16 || authcrd != NULL,
 	    ("AES_NIST_GCM_16 must include MAC descriptor"));
+
+	ivlen = 0;
+	authbuf = NULL;
 
 	buf = aesni_cipher_alloc(enccrd, crp, &allocated);
 	if (buf == NULL)

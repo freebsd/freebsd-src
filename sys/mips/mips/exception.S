@@ -1110,7 +1110,7 @@ NESTED(MipsFPTrap, CALLFRAME_SIZ, ra)
 	REG_S	ra, CALLFRAME_RA(sp)
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 
-#if defined(__mips_n64)
+#if defined(__mips_n32) || defined(__mips_n64)
 	or	t1, t0, MIPS_SR_COP_1_BIT | MIPS_SR_FR
 #else
 	or	t1, t0, MIPS_SR_COP_1_BIT

@@ -29,7 +29,7 @@
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
-.Dd November 19, 2015
+.Dd January 10, 2018
 .Dt MALLOC 9
 .Os
 .Sh NAME
@@ -154,6 +154,7 @@ If the request cannot be immediately fulfilled, the current process is put
 to sleep to wait for resources to be released by other processes.
 The
 .Fn malloc ,
+.Fn mallocarray ,
 .Fn realloc ,
 and
 .Fn reallocf
@@ -162,15 +163,13 @@ functions cannot return
 if
 .Dv M_WAITOK
 is specified.
-The
-.Fn mallocarray
-function can return
-.Dv NULL
-if the multiplication of
+If the multiplication of
 .Fa nmemb
 and
 .Fa size
-would cause an integer overflow.
+would cause an integer overflow, the
+.Fn mallocarray
+function induces a panic.
 .It Dv M_USE_RESERVE
 Indicates that the system can use its reserve of memory to satisfy the
 request.

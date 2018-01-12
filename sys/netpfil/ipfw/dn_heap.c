@@ -94,7 +94,7 @@ heap_resize(struct dn_heap *h, unsigned int new_size)
 #else
 	new_size = (new_size + HEAP_INCREMENT ) & ~HEAP_INCREMENT;
 #endif
-	p = malloc(new_size * sizeof(*p), M_DN_HEAP, M_NOWAIT);
+	p = mallocarray(new_size, sizeof(*p), M_DN_HEAP, M_NOWAIT);
 	if (p == NULL) {
 		printf("--- %s, resize %d failed\n", __func__, new_size );
 		return 1; /* error */

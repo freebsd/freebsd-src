@@ -18,6 +18,7 @@ SRCS+=	chipc.c chipc_subr.c
 
 SRCS+=	chipc_gpio.c
 SRCS+=	gpio_if.h ofw_bus_if.h
+SRCS+=	opt_platform.h
 
 SRCS+=	bhnd_sprom_chipc.c \
 	bhnd_pmu_chipc.c

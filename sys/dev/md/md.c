@@ -1392,7 +1392,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	 * set the FWRITE mask before trying to open the backing store.
 	 */
 	flags = FREAD | ((mdio->md_options & MD_READONLY) ? 0 : FWRITE) \
-	    | ((mdio->md_options & MD_VERIFY) ? 0 : O_VERIFY);
+	    | ((mdio->md_options & MD_VERIFY) ? O_VERIFY : 0);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file, td);
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)

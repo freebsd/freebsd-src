@@ -213,8 +213,11 @@ plan_a(const char *filename)
 	/* now scan the buffer and build pointer array */
 	iline = 1;
 	i_ptr[iline] = i_womp;
-	/* test for NUL too, to maintain the behavior of the original code */
-	for (s = i_womp, i = 0; i < i_size && *s != '\0'; s++, i++) {
+	/*
+	 * Testing for NUL here actively breaks files that innocently use NUL
+	 * for other reasons. mmap(2) succeeded, just scan the whole buffer.
+	 */
+	for (s = i_womp, i = 0; i < i_size; s++, i++) {
 		if (*s == '\n') {
 			if (iline == lines_allocated) {
 				if (!reallocate_lines(&lines_allocated))

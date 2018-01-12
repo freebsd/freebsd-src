@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180109: Remove vestiges of digi(4) driver
+OLD_FILES+=usr/include/sys/digiio.h
+OLD_FILES+=usr/sbin/digictl
+OLD_FILES+=usr/share/man/man8/digictl.8.gz
 # 20180107: Convert remaining geli(8) tests to ATF
 OLD_FILES+=tests/sys/geom/class/eli/nokey_test.sh
 OLD_FILES+=tests/sys/geom/class/eli/readonly_test.sh
