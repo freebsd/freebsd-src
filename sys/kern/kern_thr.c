@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/umtx.h>
 #include <sys/limits.h>
 
-#include <vm/vm_domain.h>
-
 #include <machine/frame.h>
 
 #include <security/audit/audit.h>
@@ -259,12 +257,6 @@ thread_create(struct thread *td, struct rtprio *rtp,
 		newtd->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
 	if (p->p_ptevents & PTRACE_LWP)
 		newtd->td_dbgflags |= TDB_BORN;
-
-	/*
-	 * Copy the existing thread VM policy into the new thread.
-	 */
-	vm_domain_policy_localcopy(&newtd->td_vm_dom_policy,
-	    &td->td_vm_dom_policy);
 
 	PROC_UNLOCK(p);
 
