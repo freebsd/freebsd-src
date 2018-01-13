@@ -15,6 +15,7 @@ arm/allwinner/aw_mp.c			optional	smp
 arm/allwinner/aw_nmi.c			optional	intrng
 arm/allwinner/aw_rsb.c			optional	rsb | p2wi
 arm/allwinner/aw_rtc.c			standard
+arm/allwinner/aw_syscon.c		optional	ext_resources syscon
 arm/allwinner/aw_ts.c			standard
 arm/allwinner/aw_usbphy.c		optional	ehci | ohci
 arm/allwinner/aw_wdog.c			standard

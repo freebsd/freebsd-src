@@ -74,6 +74,7 @@ MAN=	aac.4 \
 	${_aw_mmc.4} \
 	${_aw_rtc.4} \
 	${_aw_sid.4} \
+	${_aw_syscon.4} \
 	axe.4 \
 	axge.4 \
 	bce.4 \
@@ -765,6 +766,7 @@ _aw_gpio.4=	aw_gpio.4
 _aw_mmc.4=	aw_mmc.4
 _aw_rtc.4=	aw_rtc.4
 _aw_sid.4=	aw_sid.4
+_aw_syscon.4=	aw_syscon.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
