@@ -901,9 +901,8 @@ ath_edma_setup_rxfifo(struct ath_softc *sc, HAL_RX_QUEUE qtype)
 		    re->m_fifolen);
 
 	/* Allocate ath_buf FIFO array, pre-zero'ed */
-	re->m_fifo = malloc(sizeof(struct ath_buf *) * re->m_fifolen,
-	    M_ATHDEV,
-	    M_NOWAIT | M_ZERO);
+	re->m_fifo = mallocarray(re->m_fifolen, sizeof(struct ath_buf *),
+	    M_ATHDEV, M_NOWAIT | M_ZERO);
 	if (re->m_fifo == NULL) {
 		device_printf(sc->sc_dev, "%s: malloc failed\n",
 		    __func__);

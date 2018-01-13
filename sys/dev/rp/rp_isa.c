@@ -178,8 +178,10 @@ rp_probe(device_t dev)
 
 	/* The IO ports of AIOPs for an ISA controller are discrete. */
 	ctlp->io_num = 1;
-	ctlp->io_rid = malloc(sizeof(*(ctlp->io_rid)) * MAX_AIOPS_PER_BOARD, M_DEVBUF, M_NOWAIT | M_ZERO);
-	ctlp->io = malloc(sizeof(*(ctlp->io)) * MAX_AIOPS_PER_BOARD, M_DEVBUF, M_NOWAIT | M_ZERO);
+	ctlp->io_rid = mallocarray(MAX_AIOPS_PER_BOARD, sizeof(*(ctlp->io_rid)),
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	ctlp->io = mallocarray(MAX_AIOPS_PER_BOARD, sizeof(*(ctlp->io)),
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (ctlp->io_rid == NULL || ctlp->io == NULL) {
 		device_printf(dev, "rp_attach: Out of memory.\n");
 		retval = ENOMEM;

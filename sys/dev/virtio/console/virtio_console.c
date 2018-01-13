@@ -474,11 +474,11 @@ static int
 vtcon_alloc_scports(struct vtcon_softc *sc)
 {
 	struct vtcon_softc_port *scport;
-	int max, i;
+	u_int max, i;
 
 	max = sc->vtcon_max_ports;
 
-	sc->vtcon_ports = malloc(sizeof(struct vtcon_softc_port) * max,
+	sc->vtcon_ports = mallocarray(max, sizeof(struct vtcon_softc_port),
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc->vtcon_ports == NULL)
 		return (ENOMEM);
@@ -497,7 +497,8 @@ vtcon_alloc_virtqueues(struct vtcon_softc *sc)
 	device_t dev;
 	struct vq_alloc_info *info;
 	struct vtcon_softc_port *scport;
-	int i, idx, portidx, nvqs, error;
+	u_int i, idx, portidx, nvqs;
+	int error;
 
 	dev = sc->vtcon_dev;
 
@@ -505,7 +506,8 @@ vtcon_alloc_virtqueues(struct vtcon_softc *sc)
 	if (sc->vtcon_flags & VTCON_FLAG_MULTIPORT)
 		nvqs += 2;
 
-	info = malloc(sizeof(struct vq_alloc_info) * nvqs, M_TEMP, M_NOWAIT);
+	info = mallocarray(nvqs, sizeof(struct vq_alloc_info), M_TEMP,
+	    M_NOWAIT);
 	if (info == NULL)
 		return (ENOMEM);
 

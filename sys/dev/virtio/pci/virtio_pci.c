@@ -491,7 +491,7 @@ vtpci_alloc_virtqueues(device_t dev, int flags, int nvqs,
 	if (nvqs <= 0)
 		return (EINVAL);
 
-	sc->vtpci_vqs = malloc(nvqs * sizeof(struct vtpci_virtqueue),
+	sc->vtpci_vqs = mallocarray(nvqs, sizeof(struct vtpci_virtqueue),
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc->vtpci_vqs == NULL)
 		return (ENOMEM);
@@ -927,7 +927,7 @@ vtpci_alloc_intr_resources(struct vtpci_softc *sc)
 	/* Subtract one for the configuration changed interrupt. */
 	nvq_intrs = sc->vtpci_nmsix_resources - 1;
 
-	intr = sc->vtpci_msix_vq_interrupts = malloc(nvq_intrs *
+	intr = sc->vtpci_msix_vq_interrupts = mallocarray(nvq_intrs,
 	    sizeof(struct vtpci_interrupt), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc->vtpci_msix_vq_interrupts == NULL)
 		return (ENOMEM);

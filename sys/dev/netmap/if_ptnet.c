@@ -351,7 +351,7 @@ ptnet_attach(device_t dev)
 	sc->num_tx_rings = num_tx_rings;
 
 	/* Allocate and initialize per-queue data structures. */
-	sc->queues = malloc(sizeof(struct ptnet_queue) * sc->num_rings,
+	sc->queues = mallocarray(sc->num_rings, sizeof(struct ptnet_queue),
 			    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc->queues == NULL) {
 		err = ENOMEM;
