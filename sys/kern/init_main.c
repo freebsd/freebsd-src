@@ -89,7 +89,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <vm/vm_domain.h>
 #include <sys/copyright.h>
 
 #include <ddb/ddb.h>
@@ -497,10 +496,7 @@ proc0_init(void *dummy __unused)
 	td->td_flags = TDF_INMEM;
 	td->td_pflags = TDP_KTHREAD;
 	td->td_cpuset = cpuset_thread0();
-	vm_domain_policy_init(&td->td_vm_dom_policy);
-	vm_domain_policy_set(&td->td_vm_dom_policy, VM_POLICY_NONE, -1);
-	vm_domain_policy_init(&p->p_vm_dom_policy);
-	vm_domain_policy_set(&p->p_vm_dom_policy, VM_POLICY_NONE, -1);
+	td->td_domain.dr_policy = td->td_cpuset->cs_domain;
 	prison0_init();
 	p->p_peers = 0;
 	p->p_leader = p;

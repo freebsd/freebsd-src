@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
@@ -84,6 +85,7 @@ static int kdb_sysctl_enter(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_panic(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_trap(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS);
+static int kdb_sysctl_stack_overflow(SYSCTL_HANDLER_ARGS);
 
 static SYSCTL_NODE(_debug, OID_AUTO, kdb, CTLFLAG_RW, NULL, "KDB nodes");
 
@@ -108,6 +110,10 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, trap,
 SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
     kdb_sysctl_trap_code, "I", "set to cause a page fault via code access");
+
+SYSCTL_PROC(_debug_kdb, OID_AUTO, stack_overflow,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
+    kdb_sysctl_stack_overflow, "I", "set to cause a stack overflow");
 
 SYSCTL_INT(_debug_kdb, OID_AUTO, break_to_debugger,
     CTLFLAG_RWTUN | CTLFLAG_SECURE,
@@ -223,6 +229,36 @@ kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS)
 	(*fp)(0x11111111, 0x22222222, 0x33333333);
 	return (0);
 }
+
+static void kdb_stack_overflow(volatile int *x)  __noinline;
+static void
+kdb_stack_overflow(volatile int *x)
+{
+
+	if (*x > 10000000)
+		return;
+	kdb_stack_overflow(x);
+	*x += PCPU_GET(cpuid) / 1000000;
+}
+
+static int
+kdb_sysctl_stack_overflow(SYSCTL_HANDLER_ARGS)
+{
+	int error, i;
+	volatile int x;
+
+	error = sysctl_wire_old_buffer(req, sizeof(int));
+	if (error == 0) {
+		i = 0;
+		error = sysctl_handle_int(oidp, &i, 0, req);
+	}
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	x = 0;
+	kdb_stack_overflow(&x);
+	return (0);
+}
+
 
 void
 kdb_panic(const char *msg)

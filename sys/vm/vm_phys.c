@@ -68,8 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
 
-#include <vm/vm_domain.h>
-
 _Static_assert(sizeof(long) * NBBY >= VM_PHYSSEG_MAX,
     "Too many physsegs.");
 
@@ -200,20 +198,32 @@ vm_phys_fictitious_cmp(struct vm_phys_fictitious_seg *p1,
 	    (uintmax_t)p1->end, (uintmax_t)p2->start, (uintmax_t)p2->end);
 }
 
-boolean_t
-vm_phys_domain_intersects(long mask, vm_paddr_t low, vm_paddr_t high)
+int
+vm_phys_domain_match(int prefer, vm_paddr_t low, vm_paddr_t high)
 {
-	struct vm_phys_seg *s;
-	int idx;
+#ifdef VM_NUMA_ALLOC
+	domainset_t mask;
+	int i;
 
-	while ((idx = ffsl(mask)) != 0) {
-		idx--;	/* ffsl counts from 1 */
-		mask &= ~(1UL << idx);
-		s = &vm_phys_segs[idx];
-		if (low < s->end && high > s->start)
-			return (TRUE);
-	}
-	return (FALSE);
+	if (vm_ndomains == 1 || mem_affinity == NULL)
+		return (0);
+
+	DOMAINSET_ZERO(&mask);
+	/*
+	 * Check for any memory that overlaps low, high.
+	 */
+	for (i = 0; mem_affinity[i].end != 0; i++)
+		if (mem_affinity[i].start <= high &&
+		    mem_affinity[i].end >= low)
+			DOMAINSET_SET(mem_affinity[i].domain, &mask);
+	if (prefer != -1 && DOMAINSET_ISSET(prefer, &mask))
+		return (prefer);
+	if (DOMAINSET_EMPTY(&mask))
+		panic("vm_phys_domain_match:  Impossible constraint");
+	return (DOMAINSET_FFS(&mask) - 1);
+#else
+	return (0);
+#endif
 }
 
 /*
@@ -973,7 +983,7 @@ vm_phys_free_contig(vm_page_t m, u_long npages)
  * be a power of two.
  */
 vm_page_t
-vm_phys_scan_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
+vm_phys_scan_contig(int domain, u_long npages, vm_paddr_t low, vm_paddr_t high,
     u_long alignment, vm_paddr_t boundary, int options)
 {
 	vm_paddr_t pa_end;
@@ -988,6 +998,8 @@ vm_phys_scan_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
 		return (NULL);
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
+		if (seg->domain != domain)
+			continue;
 		if (seg->start >= high)
 			break;
 		if (low >= seg->end)

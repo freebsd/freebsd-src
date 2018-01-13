@@ -67,9 +67,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_vm.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>		/* for ticks and hz */
+#include <sys/domainset.h>
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/proc.h>
@@ -77,15 +80,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/vmem.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/vm_domainset.h>
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_phys.h>
 #include <vm/vm_radix.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
@@ -161,17 +167,17 @@ kva_free(vm_offset_t addr, vm_size_t size)
  *	given flags, then the pages are zeroed before they are mapped.
  */
 vm_offset_t
-kmem_alloc_attr(vmem_t *vmem, vm_size_t size, int flags, vm_paddr_t low,
+kmem_alloc_attr_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
     vm_paddr_t high, vm_memattr_t memattr)
 {
+	vmem_t *vmem;
 	vm_object_t object = kernel_object;
 	vm_offset_t addr, i, offset;
 	vm_page_t m;
 	int pflags, tries;
 
-	KASSERT(vmem == kernel_arena,
-	    ("kmem_alloc_attr: Only kernel_arena is supported."));
 	size = round_page(size);
+	vmem = vm_dom[domain].vmd_kernel_arena;
 	if (vmem_alloc(vmem, size, M_BESTFIT | flags, &addr))
 		return (0);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
@@ -182,13 +188,13 @@ kmem_alloc_attr(vmem_t *vmem, vm_size_t size, int flags, vm_paddr_t low,
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		tries = 0;
 retry:
-		m = vm_page_alloc_contig(object, atop(offset + i),
-		    pflags, 1, low, high, PAGE_SIZE, 0, memattr);
+		m = vm_page_alloc_contig_domain(object, atop(offset + i),
+		    domain, pflags, 1, low, high, PAGE_SIZE, 0, memattr);
 		if (m == NULL) {
 			VM_OBJECT_WUNLOCK(object);
 			if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-				if (!vm_page_reclaim_contig(pflags, 1,
-				    low, high, PAGE_SIZE, 0) &&
+				if (!vm_page_reclaim_contig_domain(domain,
+				    pflags, 1, low, high, PAGE_SIZE, 0) &&
 				    (flags & M_WAITOK) != 0)
 					VM_WAIT;
 				VM_OBJECT_WLOCK(object);
@@ -199,6 +205,9 @@ retry:
 			vmem_free(vmem, addr, size);
 			return (0);
 		}
+		KASSERT(vm_phys_domidx(m) == domain,
+		    ("kmem_alloc_attr_domain: Domain mismatch %d != %d",
+		    vm_phys_domidx(m), domain));
 		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
 		m->valid = VM_PAGE_BITS_ALL;
@@ -206,6 +215,28 @@ retry:
 		    VM_PROT_ALL | PMAP_ENTER_WIRED, 0);
 	}
 	VM_OBJECT_WUNLOCK(object);
+	return (addr);
+}
+
+vm_offset_t
+kmem_alloc_attr(vmem_t *vmem, vm_size_t size, int flags, vm_paddr_t low,
+    vm_paddr_t high, vm_memattr_t memattr)
+{
+	struct vm_domainset_iter di;
+	vm_offset_t addr;
+	int domain;
+
+	KASSERT(vmem == kernel_arena,
+	    ("kmem_alloc_attr: Only kernel_arena is supported."));
+
+	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
+	do {
+		addr = kmem_alloc_attr_domain(domain, size, flags, low, high,
+		    memattr);
+		if (addr != 0)
+			break;
+	} while (vm_domainset_iter_malloc(&di, &domain, &flags) == 0);
+
 	return (addr);
 }
 
@@ -218,19 +249,19 @@ retry:
  *	mapped.
  */
 vm_offset_t
-kmem_alloc_contig(struct vmem *vmem, vm_size_t size, int flags, vm_paddr_t low,
+kmem_alloc_contig_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
     vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     vm_memattr_t memattr)
 {
+	vmem_t *vmem;
 	vm_object_t object = kernel_object;
 	vm_offset_t addr, offset, tmp;
 	vm_page_t end_m, m;
 	u_long npages;
 	int pflags, tries;
  
-	KASSERT(vmem == kernel_arena,
-	    ("kmem_alloc_contig: Only kernel_arena is supported."));
 	size = round_page(size);
+	vmem = vm_dom[domain].vmd_kernel_arena;
 	if (vmem_alloc(vmem, size, flags | M_BESTFIT, &addr))
 		return (0);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
@@ -241,13 +272,14 @@ kmem_alloc_contig(struct vmem *vmem, vm_size_t size, int flags, vm_paddr_t low,
 	VM_OBJECT_WLOCK(object);
 	tries = 0;
 retry:
-	m = vm_page_alloc_contig(object, atop(offset), pflags,
+	m = vm_page_alloc_contig_domain(object, atop(offset), domain, pflags,
 	    npages, low, high, alignment, boundary, memattr);
 	if (m == NULL) {
 		VM_OBJECT_WUNLOCK(object);
 		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-			if (!vm_page_reclaim_contig(pflags, npages, low, high,
-			    alignment, boundary) && (flags & M_WAITOK) != 0)
+			if (!vm_page_reclaim_contig_domain(domain, pflags,
+			    npages, low, high, alignment, boundary) &&
+			    (flags & M_WAITOK) != 0)
 				VM_WAIT;
 			VM_OBJECT_WLOCK(object);
 			tries++;
@@ -256,6 +288,9 @@ retry:
 		vmem_free(vmem, addr, size);
 		return (0);
 	}
+	KASSERT(vm_phys_domidx(m) == domain,
+	    ("kmem_alloc_contig_domain: Domain mismatch %d != %d",
+	    vm_phys_domidx(m), domain));
 	end_m = m + npages;
 	tmp = addr;
 	for (; m < end_m; m++) {
@@ -267,6 +302,29 @@ retry:
 		tmp += PAGE_SIZE;
 	}
 	VM_OBJECT_WUNLOCK(object);
+	return (addr);
+}
+
+vm_offset_t
+kmem_alloc_contig(struct vmem *vmem, vm_size_t size, int flags, vm_paddr_t low,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
+    vm_memattr_t memattr)
+{
+	struct vm_domainset_iter di;
+	vm_offset_t addr;
+	int domain;
+
+	KASSERT(vmem == kernel_arena,
+	    ("kmem_alloc_contig: Only kernel_arena is supported."));
+
+	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
+	do {
+		addr = kmem_alloc_contig_domain(domain, size, flags, low, high,
+		    alignment, boundary, memattr);
+		if (addr != 0)
+			break;
+	} while (vm_domainset_iter_malloc(&di, &domain, &flags) == 0);
+
 	return (addr);
 }
 
@@ -313,22 +371,42 @@ kmem_suballoc(vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
  *	Allocate wired-down pages in the kernel's address space.
  */
 vm_offset_t
-kmem_malloc(struct vmem *vmem, vm_size_t size, int flags)
+kmem_malloc_domain(int domain, vm_size_t size, int flags)
 {
+	vmem_t *vmem;
 	vm_offset_t addr;
 	int rv;
 
-	KASSERT(vmem == kernel_arena,
-	    ("kmem_malloc: Only kernel_arena is supported."));
+	vmem = vm_dom[domain].vmd_kernel_arena;
 	size = round_page(size);
 	if (vmem_alloc(vmem, size, flags | M_BESTFIT, &addr))
 		return (0);
 
-	rv = kmem_back(kernel_object, addr, size, flags);
+	rv = kmem_back_domain(domain, kernel_object, addr, size, flags);
 	if (rv != KERN_SUCCESS) {
 		vmem_free(vmem, addr, size);
 		return (0);
 	}
+	return (addr);
+}
+
+vm_offset_t
+kmem_malloc(struct vmem *vmem, vm_size_t size, int flags)
+{
+	struct vm_domainset_iter di;
+	vm_offset_t addr;
+	int domain;
+
+	KASSERT(vmem == kernel_arena,
+	    ("kmem_malloc: Only kernel_arena is supported."));
+
+	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
+	do {
+		addr = kmem_malloc_domain(domain, size, flags);
+		if (addr != 0)
+			break;
+	} while (vm_domainset_iter_malloc(&di, &domain, &flags) == 0);
+
 	return (addr);
 }
 
@@ -338,14 +416,15 @@ kmem_malloc(struct vmem *vmem, vm_size_t size, int flags)
  *	Allocate physical pages for the specified virtual address range.
  */
 int
-kmem_back(vm_object_t object, vm_offset_t addr, vm_size_t size, int flags)
+kmem_back_domain(int domain, vm_object_t object, vm_offset_t addr,
+    vm_size_t size, int flags)
 {
 	vm_offset_t offset, i;
 	vm_page_t m, mpred;
 	int pflags;
 
 	KASSERT(object == kernel_object,
-	    ("kmem_back: only supports kernel object."));
+	    ("kmem_back_domain: only supports kernel object."));
 
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	pflags = malloc2vm_flags(flags) | VM_ALLOC_NOBUSY | VM_ALLOC_WIRED;
@@ -358,8 +437,8 @@ kmem_back(vm_object_t object, vm_offset_t addr, vm_size_t size, int flags)
 retry:
 	mpred = vm_radix_lookup_le(&object->rtree, atop(offset + i));
 	for (; i < size; i += PAGE_SIZE, mpred = m) {
-		m = vm_page_alloc_after(object, atop(offset + i), pflags,
-		    mpred);
+		m = vm_page_alloc_domain_after(object, atop(offset + i),
+		    domain, pflags, mpred);
 
 		/*
 		 * Ran out of space, free everything up and return. Don't need
@@ -373,6 +452,9 @@ retry:
 			kmem_unback(object, addr, i);
 			return (KERN_NO_SPACE);
 		}
+		KASSERT(vm_phys_domidx(m) == domain,
+		    ("kmem_back_domain: Domain mismatch %d != %d",
+		    vm_phys_domidx(m), domain));
 		if (flags & M_ZERO && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
 		KASSERT((m->oflags & VPO_UNMANAGED) != 0,
@@ -386,6 +468,26 @@ retry:
 	return (KERN_SUCCESS);
 }
 
+int
+kmem_back(vm_object_t object, vm_offset_t addr, vm_size_t size, int flags)
+{
+	struct vm_domainset_iter di;
+	int domain;
+	int ret;
+
+	KASSERT(object == kernel_object,
+	    ("kmem_back: only supports kernel object."));
+
+	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
+	do {
+		ret = kmem_back_domain(domain, object, addr, size, flags);
+		if (ret == KERN_SUCCESS)
+			break;
+	} while (vm_domainset_iter_malloc(&di, &domain, &flags) == 0);
+
+	return (ret);
+}
+
 /*
  *	kmem_unback:
  *
@@ -395,26 +497,39 @@ retry:
  *	A physical page must exist within the specified object at each index
  *	that is being unmapped.
  */
-void
-kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
+static int
+_kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 {
 	vm_page_t m, next;
 	vm_offset_t end, offset;
+	int domain;
 
 	KASSERT(object == kernel_object,
 	    ("kmem_unback: only supports kernel object."));
 
+	if (size == 0)
+		return (0);
 	pmap_remove(kernel_pmap, addr, addr + size);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	end = offset + size;
 	VM_OBJECT_WLOCK(object);
-	for (m = vm_page_lookup(object, atop(offset)); offset < end;
-	    offset += PAGE_SIZE, m = next) {
+	m = vm_page_lookup(object, atop(offset)); 
+	domain = vm_phys_domidx(m);
+	for (; offset < end; offset += PAGE_SIZE, m = next) {
 		next = vm_page_next(m);
 		vm_page_unwire(m, PQ_NONE);
 		vm_page_free(m);
 	}
 	VM_OBJECT_WUNLOCK(object);
+
+	return (domain);
+}
+
+void
+kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
+{
+
+	_kmem_unback(object, addr, size);
 }
 
 /*
@@ -426,12 +541,13 @@ kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 void
 kmem_free(struct vmem *vmem, vm_offset_t addr, vm_size_t size)
 {
+	int domain;
 
 	KASSERT(vmem == kernel_arena,
 	    ("kmem_free: Only kernel_arena is supported."));
 	size = round_page(size);
-	kmem_unback(kernel_object, addr, size);
-	vmem_free(vmem, addr, size);
+	domain = _kmem_unback(kernel_object, addr, size);
+	vmem_free(vm_dom[domain].vmd_kernel_arena, addr, size);
 }
 
 /*

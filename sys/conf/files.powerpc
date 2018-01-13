@@ -31,7 +31,6 @@ dev/adb/adb_if.m		optional	adb
 dev/adb/adb_buttons.c		optional	adb
 dev/agp/agp_apple.c		optional	agp powermac
 dev/fb/fb.c			optional	sc
-dev/fdt/fdt_powerpc.c		optional	fdt
 # ofwbus depends on simplebus.
 dev/fdt/simplebus.c		optional	aim | fdt
 dev/hwpmc/hwpmc_e500.c		optional	hwpmc
@@ -146,6 +145,7 @@ powerpc/mpc85xx/i2c.c		optional	iicbus fdt
 powerpc/mpc85xx/isa.c		optional	mpc85xx isa
 powerpc/mpc85xx/lbc.c		optional	mpc85xx
 powerpc/mpc85xx/mpc85xx.c	optional	mpc85xx
+powerpc/mpc85xx/mpc85xx_cache.c	optional	mpc85xx
 powerpc/mpc85xx/mpc85xx_gpio.c	optional	mpc85xx gpio
 powerpc/mpc85xx/platform_mpc85xx.c	optional	mpc85xx
 powerpc/mpc85xx/pci_mpc85xx.c	optional	pci mpc85xx
