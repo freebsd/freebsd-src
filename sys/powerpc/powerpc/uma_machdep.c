@@ -71,10 +71,12 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
 	if ((vm_offset_t)pa != pa)
 		return (NULL);
 
-	va = (void *)(vm_offset_t)pa;
-
-	if (!hw_direct_map)
-		pmap_kenter((vm_offset_t)va, VM_PAGE_TO_PHYS(m));
+	if (!hw_direct_map) {
+		pmap_kenter(pa, pa);
+		va = (void *)(vm_offset_t)pa;
+	} else {
+		va = (void *)(vm_offset_t)PHYS_TO_DMAP(pa);
+	}
 
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 		bzero(va, PAGE_SIZE);
