@@ -826,6 +826,34 @@ int InitListChecker::numStructUnionElements(QualType DeclType) {
   return InitializableMembers - structDecl->hasFlexibleArrayMember();
 }
 
+/// Determine whether Entity is an entity for which it is idiomatic to elide
+/// the braces in aggregate initialization.
+static bool isIdiomaticBraceElisionEntity(const InitializedEntity &Entity) {
+  // Recursive initialization of the one and only field within an aggregate
+  // class is considered idiomatic. This case arises in particular for
+  // initialization of std::array, where the C++ standard suggests the idiom of
+  //
+  //   std::array<T, N> arr = {1, 2, 3};
+  //
+  // (where std::array is an aggregate struct containing a single array field.
+
+  // FIXME: Should aggregate initialization of a struct with a single
+  // base class and no members also suppress the warning?
+  if (Entity.getKind() != InitializedEntity::EK_Member || !Entity.getParent())
+    return false;
+
+  auto *ParentRD =
+      Entity.getParent()->getType()->castAs<RecordType>()->getDecl();
+  if (CXXRecordDecl *CXXRD = dyn_cast<CXXRecordDecl>(ParentRD))
+    if (CXXRD->getNumBases())
+      return false;
+
+  auto FieldIt = ParentRD->field_begin();
+  assert(FieldIt != ParentRD->field_end() &&
+         "no fields but have initializer for member?");
+  return ++FieldIt == ParentRD->field_end();
+}
+
 /// Check whether the range of the initializer \p ParentIList from element
 /// \p Index onwards can be used to initialize an object of type \p T. Update
 /// \p Index to indicate how many elements of the list were consumed.
@@ -886,7 +914,9 @@ void InitListChecker::CheckImplicitInitList(const InitializedEntity &Entity,
     }
 
     // Complain about missing braces.
-    if (T->isArrayType() || T->isRecordType()) {
+    if ((T->isArrayType() || T->isRecordType()) &&
+        !ParentIList->isIdiomaticZeroInitializer(SemaRef.getLangOpts()) &&
+        !isIdiomaticBraceElisionEntity(Entity)) {
       SemaRef.Diag(StructuredSubobjectInitList->getLocStart(),
                    diag::warn_missing_braces)
           << StructuredSubobjectInitList->getSourceRange()
@@ -1833,7 +1863,9 @@ void InitListChecker::CheckStructUnionTypes(
   // worthwhile to skip over the rest of the initializer, though.
   RecordDecl *RD = DeclType->getAs<RecordType>()->getDecl();
   RecordDecl::field_iterator FieldEnd = RD->field_end();
-  bool CheckForMissingFields = true;
+  bool CheckForMissingFields =
+    !IList->isIdiomaticZeroInitializer(SemaRef.getLangOpts());
+
   while (Index < IList->getNumInits()) {
     Expr *Init = IList->getInit(Index);
 

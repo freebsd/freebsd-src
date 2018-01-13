@@ -3986,6 +3986,10 @@ public:
   /// initializer)?
   bool isTransparent() const;
 
+  /// Is this the zero initializer {0} in a language which considers it
+  /// idiomatic?
+  bool isIdiomaticZeroInitializer(const LangOptions &LangOpts) const;
+
   SourceLocation getLBraceLoc() const { return LBraceLoc; }
   void setLBraceLoc(SourceLocation Loc) { LBraceLoc = Loc; }
   SourceLocation getRBraceLoc() const { return RBraceLoc; }
@@ -3994,6 +3998,9 @@ public:
   bool isSemanticForm() const { return AltForm.getInt(); }
   InitListExpr *getSemanticForm() const {
     return isSemanticForm() ? nullptr : AltForm.getPointer();
+  }
+  bool isSyntacticForm() const {
+    return !AltForm.getInt() || !AltForm.getPointer();
   }
   InitListExpr *getSyntacticForm() const {
     return isSemanticForm() ? AltForm.getPointer() : nullptr;
