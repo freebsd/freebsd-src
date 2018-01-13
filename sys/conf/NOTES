@@ -2656,7 +2656,9 @@ options 	BOOTP_WIRED_TO=fxp0 # Use interface fxp0 for BOOTP
 options 	BOOTP_BLOCKSIZE=8192 # Override NFS block size
 
 #
-# Add software watchdog routines.
+# Enable software watchdog routines, even if hardware watchdog is present.
+# By default, software watchdog timer is enabled only if no hardware watchdog
+# is present.
 #
 options 	SW_WATCHDOG
 
