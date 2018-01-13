@@ -899,8 +899,6 @@ typedef int (*c4iw_handler_func)(struct c4iw_dev *dev, struct mbuf *m);
 
 int c4iw_ep_redirect(void *ctx, struct dst_entry *old, struct dst_entry *new,
 		     struct l2t_entry *l2t);
-void c4iw_put_qpid(struct c4iw_rdev *rdev, u32 qpid,
-		   struct c4iw_dev_ucontext *uctx);
 u32 c4iw_get_resource(struct c4iw_id_table *id_table);
 void c4iw_put_resource(struct c4iw_id_table *id_table, u32 entry);
 int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt, u32 nr_pdid);
@@ -986,7 +984,6 @@ void __iomem *c4iw_bar2_addrs(struct c4iw_rdev *rdev, unsigned int qid,
 		unsigned int *pbar2_qid, u64 *pbar2_pa);
 extern struct cxgb4_client t4c_client;
 extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
-extern int c4iw_max_read_depth;
 
 #if defined(__i386__) || defined(__amd64__)
 #define L1_CACHE_BYTES 128
