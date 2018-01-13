@@ -420,8 +420,6 @@ OF_bootstrap()
 			return status;
 
 		err = OF_init(fdt);
-		if (err == 0)
-			OF_interpret("perform-fixup", 0);
 	} 
 
 	if (err != 0) {
