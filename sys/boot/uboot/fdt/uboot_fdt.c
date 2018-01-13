@@ -64,7 +64,8 @@ fdt_platform_load_dtb(void)
 			if (fdt_load_dtb_addr(hdr) == 0) {
 				printf("Using DTB provided by U-Boot at "
 				    "address %p.\n", hdr);
-				return (0);
+				rv = 0;
+				goto exit;
 			}
 		}
 	}
@@ -83,9 +84,11 @@ fdt_platform_load_dtb(void)
 		if (fdt_load_dtb_file(s) == 0) {
 			printf("Loaded DTB from file '%s'.\n", s);
 			rv = 0;
+			goto exit;
 		}
 	}
 
+exit:
 	if (rv == 0) {
 		s = getenv("fdt_overlays");
 		if (s == NULL)
