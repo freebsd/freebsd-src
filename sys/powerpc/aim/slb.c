@@ -497,7 +497,7 @@ slb_uma_real_alloc(uma_zone_t zone, vm_size_t bytes, int domain,
 	if (m == NULL)
 		return (NULL);
 
-	va = (void *) VM_PAGE_TO_PHYS(m);
+	va = (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 
 	if (!hw_direct_map)
 		pmap_kenter((vm_offset_t)va, VM_PAGE_TO_PHYS(m));

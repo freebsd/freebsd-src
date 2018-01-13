@@ -238,5 +238,15 @@ struct pmap_physseg {
 #define	SFBUF_NOMD
 #define	SFBUF_OPTIONAL_DIRECT_MAP	hw_direct_map
 #define	SFBUF_PHYS_DMAP(x)		(x)
+
+/*
+ * We (usually) have a direct map of all physical memory. All
+ * uses of this macro must be gated by a check on hw_direct_map!
+ * The location of the direct map may not be 1:1 in future, so use
+ * of the macro is recommended; it may also grow an assert that hw_direct_map
+ * is set.
+ */
+#define PHYS_TO_DMAP(x) x
+#define DMAP_TO_PHYS(x) x
  
 #endif /* _MACHINE_VMPARAM_H_ */
