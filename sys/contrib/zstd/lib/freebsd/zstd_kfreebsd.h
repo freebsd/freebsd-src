@@ -46,7 +46,7 @@ MALLOC_DECLARE(M_ZSTD);
 #define malloc(x)	(malloc)((x), M_ZSTD, M_WAITOK)
 #define free(x)		(free)((x), M_ZSTD)
 /* in zstd's use of calloc, a is always 1 */
-#define calloc(a,b)	(malloc)((a)*(b), M_ZSTD, M_WAITOK | M_ZERO)
+#define calloc(a,b)	(mallocarray)((a), (b), M_ZSTD, M_WAITOK | M_ZERO)
 #endif
 
 #ifdef __cplusplus
