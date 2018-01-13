@@ -2143,7 +2143,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			fprintf(fp, "0x%lx", args[sc->offset]);
 		break;
 	}
-#define IOV_LIMIT 26
+#define IOV_LIMIT 16
 	case Iovec: {
 		/*
 		 * Print argument as an array of struct iovec, where the next
