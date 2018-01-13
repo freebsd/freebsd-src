@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mmc/host/dwmmc_var.h>
 
+#include "opt_mmccam.h"
+
 static device_probe_t hisi_dwmmc_probe;
 static device_attach_t hisi_dwmmc_attach;
 
