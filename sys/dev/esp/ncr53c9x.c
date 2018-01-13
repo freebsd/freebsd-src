@@ -292,7 +292,7 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 	} else
 		sc->sc_imess_self = 0;
 
-	sc->sc_tinfo = malloc(sc->sc_ntarg * sizeof(sc->sc_tinfo[0]),
+	sc->sc_tinfo = mallocarray(sc->sc_ntarg, sizeof(sc->sc_tinfo[0]),
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc->sc_tinfo == NULL) {
 		device_printf(sc->sc_dev,

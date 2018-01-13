@@ -235,7 +235,7 @@ gpiobus_init_softc(device_t dev)
 	/* Pins = GPIO_PIN_MAX() + 1 */
 	sc->sc_npins++;
 
-	sc->sc_pins = malloc(sizeof(*sc->sc_pins) * sc->sc_npins, M_DEVBUF,
+	sc->sc_pins = mallocarray(sc->sc_npins, sizeof(*sc->sc_pins), M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
 	if (sc->sc_pins == NULL)
 		return (ENOMEM);
@@ -251,11 +251,11 @@ gpiobus_alloc_ivars(struct gpiobus_ivar *devi)
 {
 
 	/* Allocate pins and flags memory. */
-	devi->pins = malloc(sizeof(uint32_t) * devi->npins, M_DEVBUF,
+	devi->pins = mallocarray(devi->npins, sizeof(uint32_t), M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
 	if (devi->pins == NULL)
 		return (ENOMEM);
-	devi->flags = malloc(sizeof(uint32_t) * devi->npins, M_DEVBUF,
+	devi->flags = mallocarray(devi->npins, sizeof(uint32_t), M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
 	if (devi->flags == NULL) {
 		free(devi->pins, M_DEVBUF);

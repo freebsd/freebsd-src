@@ -2566,7 +2566,8 @@ mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
 	 * Allocate the dynamic array first and then allocate individual
 	 * commands.
 	 */
-	sc->mpt_cmd_list = malloc(sizeof(struct mrsas_mpt_cmd *) * max_cmd, M_MRSAS, M_NOWAIT);
+	sc->mpt_cmd_list = mallocarray(max_cmd, sizeof(struct mrsas_mpt_cmd *),
+	    M_MRSAS, M_NOWAIT);
 	if (!sc->mpt_cmd_list) {
 		device_printf(sc->mrsas_dev, "Cannot alloc memory for mpt_cmd_list.\n");
 		return (ENOMEM);

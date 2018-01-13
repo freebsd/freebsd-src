@@ -507,7 +507,7 @@ vtmmio_alloc_virtqueues(device_t dev, int flags, int nvqs,
 	if (nvqs <= 0)
 		return (EINVAL);
 
-	sc->vtmmio_vqs = malloc(nvqs * sizeof(struct vtmmio_virtqueue),
+	sc->vtmmio_vqs = mallocarray(nvqs, sizeof(struct vtmmio_virtqueue),
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc->vtmmio_vqs == NULL)
 		return (ENOMEM);

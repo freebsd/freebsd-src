@@ -1694,27 +1694,27 @@ mps_mapping_allocate_memory(struct mps_softc *sc)
 {
 	uint32_t dpm_pg0_sz;
 
-	sc->mapping_table = malloc((sizeof(struct dev_mapping_table) *
-	    sc->max_devices), M_MPT2, M_ZERO|M_NOWAIT);
+	sc->mapping_table = mallocarray(sc->max_devices,
+	    sizeof(struct dev_mapping_table), M_MPT2, M_ZERO|M_NOWAIT);
 	if (!sc->mapping_table)
 		goto free_resources;
 
-	sc->removal_table = malloc((sizeof(struct map_removal_table) *
-	    sc->max_devices), M_MPT2, M_ZERO|M_NOWAIT);
+	sc->removal_table = mallocarray(sc->max_devices,
+	    sizeof(struct map_removal_table), M_MPT2, M_ZERO|M_NOWAIT);
 	if (!sc->removal_table)
 		goto free_resources;
 
-	sc->enclosure_table = malloc((sizeof(struct enc_mapping_table) *
-	    sc->max_enclosures), M_MPT2, M_ZERO|M_NOWAIT);
+	sc->enclosure_table = mallocarray(sc->max_enclosures,
+	    sizeof(struct enc_mapping_table), M_MPT2, M_ZERO|M_NOWAIT);
 	if (!sc->enclosure_table)
 		goto free_resources;
 
-	sc->dpm_entry_used = malloc((sizeof(u8) * sc->max_dpm_entries),
+	sc->dpm_entry_used = mallocarray(sc->max_dpm_entries, sizeof(u8),
 	    M_MPT2, M_ZERO|M_NOWAIT);
 	if (!sc->dpm_entry_used)
 		goto free_resources;
 
-	sc->dpm_flush_entry = malloc((sizeof(u8) * sc->max_dpm_entries),
+	sc->dpm_flush_entry = mallocarray(sc->max_dpm_entries, sizeof(u8),
 	    M_MPT2, M_ZERO|M_NOWAIT);
 	if (!sc->dpm_flush_entry)
 		goto free_resources;
@@ -2451,7 +2451,7 @@ mps_mapping_topology_change_event(struct mps_softc *sc,
 
 	if (!num_entries)
 		goto out;
-	phy_change = malloc(sizeof(struct _map_phy_change) * num_entries,
+	phy_change = mallocarray(num_entries, sizeof(struct _map_phy_change),
 	    M_MPT2, M_NOWAIT|M_ZERO);
 	topo_change.phy_details = phy_change;
 	if (!phy_change)
@@ -2492,7 +2492,7 @@ mps_mapping_ir_config_change_event(struct mps_softc *sc,
 	struct dev_mapping_table *mt_entry;
 	u16 element_flags;
 
-	wwid_table = malloc(sizeof(u64) * event_data->NumElements, M_MPT2,
+	wwid_table = mallocarray(event_data->NumElements, sizeof(u64), M_MPT2,
 	    M_NOWAIT | M_ZERO);
 	if (!wwid_table)
 		goto out;

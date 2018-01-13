@@ -164,8 +164,10 @@ rp_pciattach(device_t dev)
 
 	/* The IO ports of AIOPs for a PCI controller are continuous. */
 	ctlp->io_num = 1;
-	ctlp->io_rid = malloc(sizeof(*(ctlp->io_rid)) * ctlp->io_num, M_DEVBUF, M_NOWAIT | M_ZERO);
-	ctlp->io = malloc(sizeof(*(ctlp->io)) * ctlp->io_num, M_DEVBUF, M_NOWAIT | M_ZERO);
+	ctlp->io_rid = mallocarray(ctlp->io_num, sizeof(*(ctlp->io_rid)),
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	ctlp->io = mallocarray(ctlp->io_num, sizeof(*(ctlp->io)), M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
 	if (ctlp->io_rid == NULL || ctlp->io == NULL) {
 		device_printf(dev, "rp_pciattach: Out of memory.\n");
 		retval = ENOMEM;
