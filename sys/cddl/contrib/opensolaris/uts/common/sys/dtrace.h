@@ -254,6 +254,8 @@ typedef enum dtrace_probespec {
 #define	DIF_VAR_GID		0x011f	/* process group ID */
 #define	DIF_VAR_ERRNO		0x0120	/* thread errno */
 #define	DIF_VAR_EXECARGS	0x0121	/* process arguments */
+#define	DIF_VAR_JID		0x0122	/* process jail id */
+#define	DIF_VAR_JAILNAME	0x0123	/* process jail name */
 
 #ifndef illumos
 #define	DIF_VAR_CPU		0x0200

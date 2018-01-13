@@ -133,7 +133,7 @@ static __inline void bd_wakeup(void);
 static int sysctl_runningspace(SYSCTL_HANDLER_ARGS);
 static void bufkva_reclaim(vmem_t *, int);
 static void bufkva_free(struct buf *);
-static int buf_import(void *, void **, int, int);
+static int buf_import(void *, void **, int, int, int);
 static void buf_release(void *, void **, int);
 static void maxbcachebuf_adjust(void);
 
@@ -1419,7 +1419,7 @@ buf_free(struct buf *bp)
  *	only as a per-cpu cache of bufs still maintained on a global list.
  */
 static int
-buf_import(void *arg, void **store, int cnt, int flags)
+buf_import(void *arg, void **store, int cnt, int domain, int flags)
 {
 	struct buf *bp;
 	int i;

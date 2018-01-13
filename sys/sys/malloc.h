@@ -175,8 +175,16 @@ void	*contigmalloc(unsigned long size, struct malloc_type *type, int flags,
 	    vm_paddr_t low, vm_paddr_t high, unsigned long alignment,
 	    vm_paddr_t boundary) __malloc_like __result_use_check
 	    __alloc_size(1) __alloc_align(6);
+void	*contigmalloc_domain(unsigned long size, struct malloc_type *type,
+	    int domain, int flags, vm_paddr_t low, vm_paddr_t high,
+	    unsigned long alignment, vm_paddr_t boundary)
+	    __malloc_like __result_use_check __alloc_size(1) __alloc_align(6);
 void	free(void *addr, struct malloc_type *type);
+void	free_domain(void *addr, struct malloc_type *type);
 void	*malloc(unsigned long size, struct malloc_type *type, int flags)
+	    __malloc_like __result_use_check __alloc_size(1);
+void	*malloc_domain(unsigned long size, struct malloc_type *type,
+	    int domain, int flags)
 	    __malloc_like __result_use_check __alloc_size(1);
 void	*mallocarray(size_t nmemb, size_t size, struct malloc_type *type,
 	    int flags) __malloc_like __result_use_check

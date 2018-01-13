@@ -1504,8 +1504,8 @@ retry:
 static mmu_t installed_mmu;
 
 static void *
-moea64_uma_page_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *flags,
-    int wait)
+moea64_uma_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain,
+    uint8_t *flags, int wait)
 {
 	struct pvo_entry *pvo;
         vm_offset_t va;
@@ -1522,7 +1522,7 @@ moea64_uma_page_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *flags,
 	*flags = UMA_SLAB_PRIV;
 	needed_lock = !PMAP_LOCKED(kernel_pmap);
 
-	m = vm_page_alloc(NULL, 0,
+	m = vm_page_alloc_domain(NULL, 0, domain,
 	    malloc2vm_flags(wait) | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ);
 	if (m == NULL)
 		return (NULL);

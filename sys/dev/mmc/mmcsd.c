@@ -920,7 +920,7 @@ mmcsd_ioctl_cmd(struct mmcsd_part *part, struct mmc_ioc_cmd *mic, int fflag)
 		 */
 		if (cmd.opcode == MMC_SWITCH_FUNC && dp != NULL &&
 		    (((uint8_t *)dp)[EXT_CSD_PART_CONFIG] &
-		    EXT_CSD_PART_CONFIG_ACC_MASK) != sc->part_curr) {
+		    EXT_CSD_PART_CONFIG_ACC_MASK) != part->type) {
 			err = EINVAL;
 			goto out;
 		}

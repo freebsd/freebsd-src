@@ -273,7 +273,7 @@ sdhci_tuning_intmask(struct sdhci_slot *slot)
 	uint32_t intmask;
 
 	intmask = 0;
-	if (slot->opt & SDHCI_TUNING_SUPPORTED) {
+	if (slot->opt & SDHCI_TUNING_ENABLED) {
 		intmask |= SDHCI_INT_TUNEERR;
 		if (slot->retune_mode == SDHCI_RETUNE_MODE_2 ||
 		    slot->retune_mode == SDHCI_RETUNE_MODE_3)
@@ -1439,9 +1439,17 @@ sdhci_exec_tuning(struct sdhci_slot *slot, bool reset)
 			DELAY(1000);
 	}
 
+	/*
+	 * Restore DMA usage and interrupts.
+	 * Note that the interrupt aggregation code might have cleared
+	 * SDHCI_INT_DMA_END and/or SDHCI_INT_RESPONSE in slot->intmask
+	 * and SDHCI_SIGNAL_ENABLE respectively so ensure SDHCI_INT_ENABLE
+	 * doesn't lose these.
+	 */
 	slot->opt = opt;
 	slot->intmask = intmask;
-	WR4(slot, SDHCI_INT_ENABLE, intmask);
+	WR4(slot, SDHCI_INT_ENABLE, intmask | SDHCI_INT_DMA_END |
+	    SDHCI_INT_RESPONSE);
 	WR4(slot, SDHCI_SIGNAL_ENABLE, intmask);
 
 	if ((hostctrl2 & (SDHCI_CTRL2_EXEC_TUNING |
