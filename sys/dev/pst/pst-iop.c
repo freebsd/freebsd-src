@@ -323,7 +323,7 @@ iop_get_lct(struct iop_softc *sc)
 	contigfree(reply, ALLOCSIZE, M_PSTIOP);
 	return 0;
     }
-    if (!(sc->lct = malloc(reply->table_size * sizeof(struct i2o_lct_entry),
+    if (!(sc->lct = mallocarray(reply->table_size, sizeof(struct i2o_lct_entry),
 			   M_PSTIOP, M_NOWAIT | M_ZERO))) {
 	contigfree(reply, ALLOCSIZE, M_PSTIOP);
 	return 0;

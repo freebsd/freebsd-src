@@ -637,8 +637,8 @@ mptsas_sas_io_unit_pg0(struct mpt_softc *mpt, struct mptsas_portinfo *portinfo)
 	}
 
 	portinfo->num_phys = buffer->NumPhys;
-	portinfo->phy_info = malloc(sizeof(*portinfo->phy_info) *
-	    portinfo->num_phys, M_DEVBUF, M_NOWAIT|M_ZERO);
+	portinfo->phy_info = mallocarray(portinfo->num_phys,
+	    sizeof(*portinfo->phy_info), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (portinfo->phy_info == NULL) {
 		free(buffer, M_DEVBUF);
 		error = ENOMEM;
@@ -4234,7 +4234,7 @@ mpt_add_target_commands(struct mpt_softc *mpt)
 		max = mpt->mpt_max_tgtcmds;
 	}
 	mpt->tgt_cmd_ptrs =
-	    malloc(max * sizeof (request_t *), M_DEVBUF, M_NOWAIT | M_ZERO);
+	    mallocarray(max, sizeof(request_t *), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (mpt->tgt_cmd_ptrs == NULL) {
 		mpt_prt(mpt,
 		    "mpt_add_target_commands: could not allocate cmd ptrs\n");

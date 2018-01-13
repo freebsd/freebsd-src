@@ -1127,7 +1127,7 @@ bwn_phy_lp_bugfix(struct bwn_mac *mac)
 	uint8_t mode;
 	int8_t txpwridx;
 
-	tabs = (uint32_t *)malloc(sizeof(uint32_t) * size, M_DEVBUF,
+	tabs = (uint32_t *)mallocarray(size, sizeof(uint32_t), M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
 	if (tabs == NULL) {
 		device_printf(sc->sc_dev, "failed to allocate buffer.\n");
