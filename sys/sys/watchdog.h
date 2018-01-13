@@ -110,6 +110,14 @@ EVENTHANDLER_DECLARE(watchdog_list, watchdog_fn);
 
 u_int	wdog_kern_last_timeout(void);
 int	wdog_kern_pat(u_int utim);
+
+/*
+ * The following function pointer is used to attach a software watchdog
+ * if no hardware watchdog has been attached, and if the software module
+ * has initialized the function pointer.
+ */
+
+extern void (*wdog_software_attach)(void);
 #endif
 
 #endif /* _SYS_WATCHDOG_H */

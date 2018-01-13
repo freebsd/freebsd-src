@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2009
+.Dd January 2, 2018
 .Dt WATCHDOG 4
 .Os
 .Sh NAME
@@ -40,8 +40,11 @@ facility is used for controlling hardware and software watchdogs.
 .Pp
 The device
 .Pa /dev/fido
-responds to a single
+supports several optional
 .Xr ioctl 2
+calls for configuration, and
+responds to a single operational
+.Xr ioctl
 call,
 .Dv WDIOCPATPAT .
 It takes a single argument which represents a timeout value specified as a
@@ -60,12 +63,16 @@ indicates that the
 will be kept from timing out from the kernel.
 .Pp
 The
+.Dv WDIOCPATPAT
 .Xr ioctl 2
 call will return success if just one of the available
 .Xr watchdog 9
 implementations supports setting the timeout to the specified timeout.
 This
 means that at least one watchdog is armed.
+By default, this will be a hardware watchdog if one is present, but if
+no hardware watchdog is able to process the request, a default software
+watchdog is enabled.
 If the call fails, for instance if
 none of
 .Xr watchdog 9
@@ -77,8 +84,53 @@ To disable the watchdogs pass
 If disarming the watchdog(s) failed an error is returned.
 The watchdog might
 still be armed!
+.Pp
+The optional configuration
+.Xr ioctl
+commands are listed here, along with the type of the parameter used.
+Examples of their use can be found in
+.Xr watchdogd 8 .
+.Bl -tag -width "WDIOC_SETSOFTTIMEOUTACT int  "
+.It Dv WDIOC_SETTIMEOUT Fa int
+set/reset the timer
+.It Dv WDIOC_GETTIMEOUT Fa int
+get total timeout
+.It Dv WDIOC_GETTIMELEFT Fa int
+get time left
+.It Dv WDIOC_GETPRETIMEOUT Fa int
+get the pre-timeout
+.It Dv WDIOC_SETPRETIMEOUT Fa int
+set the pre-timeout
+.It Dv WDIOC_SETPRETIMEOUTACT Fa int
+Set the action when a pre-timeout occurs (see
+.Li WD_SOFT_*
+below).
+.It Dv WDIOC_SETSOFT Fa int
+Use an internal software watchdog instead of hardware.
+There is also an external software watchdog, which is used by default
+if no hardware watchdog was attached.
+.It Dv WDIOC_SETSOFTTIMEOUTACT Fa int
+Set the action whan a soft timeout occurs.
+.El
+.Pp
+The actions that may be specified for the pre-timeout or the internal software
+watchdog are listed here.
+Multiple actions can be specified by ORing values together.
+.Bl -tag -width  WD_SOFT_PRINT
+.It Dv WD_SOFT_PANIC
+panic
+.It Dv WD_SOFT_DDB
+enter debugger
+.It Dv WD_SOFT_LOG
+log(9)
+.It Dv WD_SOFT_PRINT
+printf(9)
+.El
 .Sh RETURN VALUES
-The ioctl returns zero on success and non-zero on failure.
+The
+.Dv WDIOCPATPAT
+.Xr ioctl
+returns zero on success and non-zero on failure.
 .Bl -tag -width Er
 .It Bq Er EOPNOTSUPP
 No watchdog present in the kernel or
@@ -89,6 +141,10 @@ Watchdog could not be disabled (timeout value of 0).
 .It Bq Er EINVAL
 Invalid flag combination passed.
 .El
+.Pp
+The configuration
+.Xr ioctl
+operations return zero on success and non-zero on failure.
 .Sh EXAMPLES
 .Bd -literal -offset indent
 #include <paths.h>
@@ -122,8 +178,10 @@ Enables a watchdog to recover from a potentially freezing piece of code.
 .Pp
 .Dl "options SW_WATCHDOG"
 .Pp
-in your kernel config adds a software watchdog in the kernel, dropping to KDB
-or panic-ing when firing.
+in your kernel config forces a software watchdog in the kernel
+to be configured even if a hardware watchdog is configured,
+dropping to KDB or panicking when firing, depending
+on the KDB and KDB_UNATTENDED kernel configuration options.
 .Sh SEE ALSO
 .Xr watchdogd 8 ,
 .Xr watchdog 9
