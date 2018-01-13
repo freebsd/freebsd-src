@@ -430,7 +430,7 @@ ofw_fdt_package_to_path(ofw_t ofw, phandle_t package, char *buf, size_t len)
 	return (-1);
 }
 
-#if defined(FDT_MARVELL) || defined(__powerpc__)
+#if defined(FDT_MARVELL)
 static int
 ofw_fdt_fixup(ofw_t ofw)
 {
@@ -477,7 +477,7 @@ ofw_fdt_fixup(ofw_t ofw)
 static int
 ofw_fdt_interpret(ofw_t ofw, const char *cmd, int nret, cell_t *retvals)
 {
-#if defined(FDT_MARVELL) || defined(__powerpc__)
+#if defined(FDT_MARVELL)
 	int rv;
 
 	/*
