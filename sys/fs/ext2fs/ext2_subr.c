@@ -79,6 +79,11 @@ ext2_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
 		brelse(bp);
 		return (error);
 	}
+	error = ext2_dir_blk_csum_verify(ip, bp);
+	if (error != 0) {
+		brelse(bp);
+		return (error);
+	}
 	if (res)
 		*res = (char *)bp->b_data + blkoff(fs, offset);
 

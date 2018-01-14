@@ -63,6 +63,7 @@
 #include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_dir.h>
 #include <fs/ext2fs/ext2_extern.h>
+#include <fs/ext2fs/fs.h>
 
 #ifdef INVARIANTS
 static int dirchk = 1;
@@ -866,8 +867,7 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 {
 	struct inode *dp;
 	struct ext2fs_direct_2 newdir;
-	struct iovec aiov;
-	struct uio auio;
+	struct buf *bp;
 	int error, newentrysize;
 	int DIRBLKSIZ = ip->i_e2fs->e2fs_bsize;
 
@@ -917,26 +917,25 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 		 */
 		if (dp->i_offset & (DIRBLKSIZ - 1))
 			panic("ext2_direnter: newblk");
-		auio.uio_offset = dp->i_offset;
+
 		newdir.e2d_reclen = DIRBLKSIZ;
-		auio.uio_resid = newentrysize;
-		aiov.iov_len = newentrysize;
-		aiov.iov_base = (caddr_t)&newdir;
-		auio.uio_iov = &aiov;
-		auio.uio_iovcnt = 1;
-		auio.uio_rw = UIO_WRITE;
-		auio.uio_segflg = UIO_SYSSPACE;
-		auio.uio_td = (struct thread *)0;
-		error = VOP_WRITE(dvp, &auio, IO_SYNC, cnp->cn_cred);
-		if (DIRBLKSIZ >
-		    VFSTOEXT2(dvp->v_mount)->um_mountp->mnt_stat.f_bsize)
-			/* XXX should grow with balloc() */
-			panic("ext2_direnter: frag size");
-		else if (!error) {
-			dp->i_size = roundup2(dp->i_size, DIRBLKSIZ);
-			dp->i_flag |= IN_CHANGE;
-		}
-		return (error);
+
+		bp = getblk(ip->i_devvp, lblkno(dp->i_e2fs, dp->i_offset),
+		    DIRBLKSIZ, 0, 0, 0);
+		if (!bp)
+			return (EIO);
+
+		memcpy(bp->b_data, &newdir, sizeof(struct ext2fs_direct_2));
+
+		ext2_dir_blk_csum_set(dp, bp);
+		error = bwrite(bp);
+		if (error)
+			return (error);
+
+		dp->i_size = roundup2(dp->i_size, DIRBLKSIZ);
+		dp->i_flag |= IN_CHANGE;
+
+		return (0);
 	}
 
 	error = ext2_add_entry(dvp, &newdir);
@@ -1028,6 +1027,7 @@ ext2_add_entry(struct vnode *dvp, struct ext2fs_direct_2 *entry)
 		ep = (struct ext2fs_direct_2 *)((char *)ep + dsize);
 	}
 	bcopy((caddr_t)entry, (caddr_t)ep, (u_int)newentrysize);
+	ext2_dir_blk_csum_set(dp, bp);
 	if (DOINGASYNC(dvp)) {
 		bdwrite(bp);
 		error = 0;
@@ -1085,6 +1085,7 @@ ext2_dirremove(struct vnode *dvp, struct componentname *cnp)
 	else
 		rep = (struct ext2fs_direct_2 *)((char *)ep + ep->e2d_reclen);
 	ep->e2d_reclen += rep->e2d_reclen;
+	ext2_dir_blk_csum_set(dp, bp);
 	if (DOINGASYNC(dvp) && dp->i_count != 0)
 		bdwrite(bp);
 	else
@@ -1115,6 +1116,7 @@ ext2_dirrewrite(struct inode *dp, struct inode *ip, struct componentname *cnp)
 		ep->e2d_type = DTTOFT(IFTODT(ip->i_mode));
 	else
 		ep->e2d_type = EXT2_FT_UNKNOWN;
+	ext2_dir_blk_csum_set(dp, bp);
 	error = bwrite(bp);
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);

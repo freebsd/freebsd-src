@@ -60,6 +60,14 @@ struct ext2fs_htree_entry {
 	uint32_t h_blk;
 };
 
+/*
+ * This goes at the end of each htree block.
+ */
+struct ext2fs_htree_tail {
+	uint32_t ht_reserved;
+	uint32_t ht_checksum;	/* crc32c(uuid+inum+dirblock) */
+};
+
 struct ext2fs_htree_root_info {
 	uint32_t h_reserved1;
 	uint8_t	h_hash_version;

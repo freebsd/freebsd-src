@@ -425,9 +425,11 @@ ext4_ext_find_extent(struct inode *ip, daddr_t block,
 		bqrelse(bp);
 
 		eh = ext4_ext_block_header(path[ppos].ep_data);
-		error = ext4_ext_check_header(ip, eh);
-		if (error)
+		if (ext4_ext_check_header(ip, eh) ||
+		    ext2_extent_blk_csum_verify(ip, path[ppos].ep_data)) {
+			error = EIO;
 			goto error;
+		}
 
 		path[ppos].ep_header = eh;
 
@@ -622,6 +624,7 @@ ext4_ext_dirty(struct inode *ip, struct ext4_extent_path *path)
 		if (!bp)
 			return (EIO);
 		ext4_ext_fill_path_buf(path, bp);
+		ext2_extent_blk_csum_set(ip, bp->b_data);
 		error = bwrite(bp);
 	} else {
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -791,6 +794,7 @@ ext4_ext_split(struct inode *ip, struct ext4_extent_path *path,
 		neh->eh_ecount = neh->eh_ecount + m;
 	}
 
+	ext2_extent_blk_csum_set(ip, bp->b_data);
 	bwrite(bp);
 	bp = NULL;
 
@@ -838,6 +842,7 @@ ext4_ext_split(struct inode *ip, struct ext4_extent_path *path,
 			neh->eh_ecount = neh->eh_ecount + m;
 		}
 
+		ext2_extent_blk_csum_set(ip, bp->b_data);
 		bwrite(bp);
 		bp = NULL;
 
@@ -905,6 +910,7 @@ ext4_ext_grow_indepth(struct inode *ip, struct ext4_extent_path *path,
 	else
 		neh->eh_max = ext4_ext_space_block(ip);
 
+	ext2_extent_blk_csum_set(ip, bp->b_data);
 	error = bwrite(bp);
 	if (error)
 		goto out;
