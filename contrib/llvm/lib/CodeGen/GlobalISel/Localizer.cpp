@@ -101,7 +101,8 @@ bool Localizer::runOnMachineFunction(MachineFunction &MF) {
           // Don't try to be smart for the insertion point.
           // There is no guarantee that the first seen use is the first
           // use in the block.
-          InsertMBB->insert(InsertMBB->getFirstNonPHI(), LocalizedMI);
+          InsertMBB->insert(InsertMBB->SkipPHIsAndLabels(InsertMBB->begin()),
+                            LocalizedMI);
 
           // Set a new register for the definition.
           unsigned NewReg =
@@ -112,7 +113,7 @@ bool Localizer::runOnMachineFunction(MachineFunction &MF) {
               MBBWithLocalDef.insert(std::make_pair(MBBAndReg, NewReg)).first;
           DEBUG(dbgs() << "Inserted: " << *LocalizedMI);
         }
-        DEBUG(dbgs() << "Update use with: " << PrintReg(NewVRegIt->second)
+        DEBUG(dbgs() << "Update use with: " << printReg(NewVRegIt->second)
                      << '\n');
         // Update the user reg.
         MOUse.setReg(NewVRegIt->second);

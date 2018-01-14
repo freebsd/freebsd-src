@@ -356,6 +356,12 @@ PlatformSP Platform::Create(const ArchSpec &arch, ArchSpec *platform_arch_ptr,
   return platform_sp;
 }
 
+ArchSpec Platform::GetAugmentedArchSpec(Platform *platform, llvm::StringRef triple) {
+  if (platform)
+    return platform->GetAugmentedArchSpec(triple);
+  return HostInfo::GetAugmentedArchSpec(triple);
+}
+
 //------------------------------------------------------------------
 /// Default Constructor
 //------------------------------------------------------------------
@@ -963,6 +969,34 @@ const ArchSpec &Platform::GetSystemArchitecture() {
   return m_system_arch;
 }
 
+ArchSpec Platform::GetAugmentedArchSpec(llvm::StringRef triple) {
+  if (triple.empty())
+    return ArchSpec();
+  llvm::Triple normalized_triple(llvm::Triple::normalize(triple));
+  if (!ArchSpec::ContainsOnlyArch(normalized_triple))
+    return ArchSpec(triple);
+
+  if (auto kind = HostInfo::ParseArchitectureKind(triple))
+    return HostInfo::GetArchitecture(*kind);
+
+  ArchSpec compatible_arch;
+  ArchSpec raw_arch(triple);
+  if (!IsCompatibleArchitecture(raw_arch, false, &compatible_arch))
+    return raw_arch;
+
+  if (!compatible_arch.IsValid())
+    return ArchSpec(normalized_triple);
+
+  const llvm::Triple &compatible_triple = compatible_arch.GetTriple();
+  if (normalized_triple.getVendorName().empty())
+    normalized_triple.setVendor(compatible_triple.getVendor());
+  if (normalized_triple.getOSName().empty())
+    normalized_triple.setOS(compatible_triple.getOS());
+  if (normalized_triple.getEnvironmentName().empty())
+    normalized_triple.setEnvironment(compatible_triple.getEnvironment());
+  return ArchSpec(normalized_triple);
+}
+
 Status Platform::ConnectRemote(Args &args) {
   Status error;
   if (IsHost())
@@ -1162,7 +1196,7 @@ Platform::DebugProcess(ProcessLaunchInfo &launch_info, Debugger &debugger,
         // open for stdin/out/err after we have already opened the master
         // so we can read/write stdin/out/err.
         int pty_fd = launch_info.GetPTY().ReleaseMasterFileDescriptor();
-        if (pty_fd != lldb_utility::PseudoTerminal::invalid_fd) {
+        if (pty_fd != PseudoTerminal::invalid_fd) {
           process_sp->SetSTDIOFileDescriptor(pty_fd);
         }
       } else {
@@ -1876,6 +1910,12 @@ size_t Platform::GetSoftwareBreakpointTrapOpcode(Target &target,
     static const uint8_t g_ppc_opcode[] = {0x7f, 0xe0, 0x00, 0x08};
     trap_opcode = g_ppc_opcode;
     trap_opcode_size = sizeof(g_ppc_opcode);
+  } break;
+
+  case llvm::Triple::ppc64le: {
+    static const uint8_t g_ppc64le_opcode[] = {0x08, 0x00, 0xe0, 0x7f}; // trap
+    trap_opcode = g_ppc64le_opcode;
+    trap_opcode_size = sizeof(g_ppc64le_opcode);
   } break;
 
   case llvm::Triple::x86:

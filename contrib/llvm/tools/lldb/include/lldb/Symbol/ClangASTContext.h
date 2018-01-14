@@ -25,6 +25,7 @@
 
 // Other libraries and framework includes
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/ExternalASTMerger.h"
 #include "clang/AST/TemplateBase.h"
 #include "llvm/ADT/SmallVector.h"
 
@@ -37,7 +38,9 @@
 #include "lldb/lldb-enumerations.h"
 
 class DWARFASTParserClang;
-//class PDBASTParser;
+#ifdef LLDB_ENABLE_ALL
+class PDBASTParser;
+#endif // LLDB_ENABLE_ALL
 
 namespace lldb_private {
 
@@ -396,7 +399,8 @@ public:
   CompilerType CreateEnumerationType(const char *name,
                                      clang::DeclContext *decl_ctx,
                                      const Declaration &decl,
-                                     const CompilerType &integer_qual_type);
+                                     const CompilerType &integer_qual_type,
+                                     bool is_scoped);
 
   //------------------------------------------------------------------
   // Integer type functions
@@ -423,7 +427,9 @@ public:
   // TypeSystem methods
   //------------------------------------------------------------------
   DWARFASTParser *GetDWARFParser() override;
-  //PDBASTParser *GetPDBParser();
+#ifdef LLDB_ENABLE_ALL
+  PDBASTParser *GetPDBParser();
+#endif // LLDB_ENABLE_ALL
 
   //------------------------------------------------------------------
   // ClangASTContext callbacks for external source lookups.
@@ -780,9 +786,14 @@ public:
 
   size_t GetNumTemplateArguments(lldb::opaque_compiler_type_t type) override;
 
-  CompilerType GetTemplateArgument(lldb::opaque_compiler_type_t type,
-                                   size_t idx,
-                                   lldb::TemplateArgumentKind &kind) override;
+  lldb::TemplateArgumentKind
+  GetTemplateArgumentKind(lldb::opaque_compiler_type_t type,
+                          size_t idx) override;
+  CompilerType GetTypeTemplateArgument(lldb::opaque_compiler_type_t type,
+                                       size_t idx) override;
+  llvm::Optional<CompilerType::IntegralTemplateArgument>
+  GetIntegralTemplateArgument(lldb::opaque_compiler_type_t type,
+                              size_t idx) override;
 
   CompilerType GetTypeForFormatters(void *type) override;
 
@@ -964,8 +975,14 @@ public:
 
   clang::DeclarationName
   GetDeclarationName(const char *name, const CompilerType &function_clang_type);
-
+  
+  virtual const clang::ExternalASTMerger::OriginMap &GetOriginMap() {
+    return m_origins;
+  }
 protected:
+  const clang::ClassTemplateSpecializationDecl *
+  GetAsTemplateSpecialization(lldb::opaque_compiler_type_t type);
+
   //------------------------------------------------------------------
   // Classes that inherit from ClangASTContext can see and modify these
   //------------------------------------------------------------------
@@ -984,12 +1001,15 @@ protected:
     std::unique_ptr<clang::SelectorTable>           m_selector_table_ap;
     std::unique_ptr<clang::Builtin::Context>        m_builtins_ap;
     std::unique_ptr<DWARFASTParserClang>            m_dwarf_ast_parser_ap;
-//  std::unique_ptr<PDBASTParser>                   m_pdb_ast_parser_ap;
+#ifdef LLDB_ENABLE_ALL
+    std::unique_ptr<PDBASTParser>                   m_pdb_ast_parser_ap;
+#endif // LLDB_ENABLE_ALL
     std::unique_ptr<ClangASTSource>                 m_scratch_ast_source_ap;
     std::unique_ptr<clang::MangleContext>           m_mangle_ctx_ap;
     CompleteTagDeclCallback                         m_callback_tag_decl;
     CompleteObjCInterfaceDeclCallback               m_callback_objc_decl;
     void *                                          m_callback_baton;
+    clang::ExternalASTMerger::OriginMap             m_origins;
     uint32_t                                        m_pointer_byte_size;
     bool                                            m_ast_owned;
     bool                                            m_can_evaluate_expressions;
@@ -1023,7 +1043,12 @@ public:
                                       const char *name) override;
 
   PersistentExpressionState *GetPersistentExpressionState() override;
-
+  
+  clang::ExternalASTMerger &GetMergerUnchecked();
+  
+  const clang::ExternalASTMerger::OriginMap &GetOriginMap() override {
+    return GetMergerUnchecked().GetOrigins();
+  }
 private:
   lldb::TargetWP m_target_wp;
   lldb::ClangPersistentVariablesUP m_persistent_variables; ///< These are the

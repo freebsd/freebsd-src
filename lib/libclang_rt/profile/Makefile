@@ -4,6 +4,10 @@
 
 LIB=		clang_rt.profile-${CRTARCH}
 
+CFLAGS+=	-DCOMPILER_RT_HAS_ATOMICS=1
+CFLAGS+=	-DCOMPILER_RT_HAS_FCNTL_LCK=1
+CFLAGS+=	-DCOMPILER_RT_HAS_UNAME=1
+
 # This is needed for --coverage
 CXXFLAGS+=	-fvisibility=default
 

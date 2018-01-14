@@ -14,7 +14,7 @@ CRTSRC=		${SRCTOP}/contrib/compiler-rt
 
 .PATH:		${CRTSRC}/lib
 
-CLANGDIR=	/usr/lib/clang/5.0.1
+CLANGDIR=	/usr/lib/clang/6.0.0
 LIBDIR=		${CLANGDIR}/lib/freebsd
 
 NO_PIC=
@@ -24,6 +24,10 @@ WARNS?=		0
 
 SSP_CFLAGS=
 CFLAGS+=	-DNDEBUG
+CFLAGS+=	-DHAVE_RPC_XDR_H=0
+CFLAGS+=	-DHAVE_TIRPC_RPC_XDR_H=0
+CFLAGS+=	-DSANITIZER_SUPPORTS_WEAK_HOOKS=0
+CFLAGS+=	-DUBSAN_CAN_USE_CXXABI
 CFLAGS+=	${PICFLAG}
 CFLAGS+=	-fno-builtin
 CFLAGS+=	-fno-exceptions

@@ -786,7 +786,17 @@ TypeSP DWARFASTParserClang::ParseTypeFromDWARF(const SymbolContext &sc,
                   m_ast.ParseClassTemplateDecl(decl_ctx, accessibility,
                                                type_name_cstr, tag_decl_kind,
                                                template_param_infos);
-
+              if (!class_template_decl) {
+                if (log) {
+                  dwarf->GetObjectFile()->GetModule()->LogMessage(
+                    log, "SymbolFileDWARF(%p) - 0x%8.8x: %s type \"%s\" "
+                         "clang::ClassTemplateDecl failed to return a decl.",
+                    static_cast<void *>(this), die.GetOffset(),
+                    DW_TAG_value_to_name(tag), type_name_cstr);
+                }
+                return TypeSP();
+              }
+                
               clang::ClassTemplateSpecializationDecl
                   *class_specialization_decl =
                       m_ast.CreateClassTemplateSpecializationDecl(
@@ -927,6 +937,7 @@ TypeSP DWARFASTParserClang::ParseTypeFromDWARF(const SymbolContext &sc,
         // Set a bit that lets us know that we are currently parsing this
         dwarf->GetDIEToType()[die.GetDIE()] = DIE_IS_BEING_PARSED;
 
+        bool is_scoped = false;
         DWARFFormValue encoding_form;
 
         const size_t num_attributes = die.GetAttributes(attributes);
@@ -962,6 +973,9 @@ TypeSP DWARFASTParserClang::ParseTypeFromDWARF(const SymbolContext &sc,
                        // DW_ACCESS_to_AccessType(form_value.Unsigned()); break;
               case DW_AT_declaration:
                 is_forward_declaration = form_value.Boolean();
+                break;
+              case DW_AT_enum_class:
+                is_scoped = form_value.Boolean();
                 break;
               case DW_AT_allocated:
               case DW_AT_associated:
@@ -1052,7 +1066,7 @@ TypeSP DWARFASTParserClang::ParseTypeFromDWARF(const SymbolContext &sc,
 
             clang_type = m_ast.CreateEnumerationType(
                 type_name_cstr, GetClangDeclContextContainingDIE(die, nullptr),
-                decl, enumerator_clang_type);
+                decl, enumerator_clang_type, is_scoped);
           } else {
             enumerator_clang_type =
                 m_ast.GetEnumerationIntegerType(clang_type.GetOpaqueQualType());
@@ -1729,8 +1743,8 @@ TypeSP DWARFASTParserClang::ParseTypeFromDWARF(const SymbolContext &sc,
                       "DWARF DW_TAG_array_type DIE at 0x%8.8x has a "
                       "class/union/struct element type DIE 0x%8.8x that is a "
                       "forward declaration, not a complete definition.\nTry "
-                      "compiling the source file with -fno-limit-debug-info or "
-                      "disable -gmodule",
+                      "compiling the source file with -fstandalone-debug or "
+                      "disable -gmodules",
                       die.GetOffset(), type_die_ref.die_offset);
                 else
                   module_sp->ReportError(
@@ -2241,7 +2255,7 @@ bool DWARFASTParserClang::CompleteTypeFromDWARF(const DWARFDIE &die,
                 if (die.GetCU()->GetProducer() ==
                     DWARFCompileUnit::eProducerClang)
                   module->ReportError(":: Try compiling the source file with "
-                                      "-fno-limit-debug-info.");
+                                      "-fstandalone-debug.");
 
                 // We have no choice other than to pretend that the base class
                 // is complete. If we don't do this, clang will crash when we
@@ -2741,8 +2755,6 @@ bool DWARFASTParserClang::ParseChildMembers(
                     form_value.BlockData() - debug_info_data.GetDataStart();
                 if (DWARFExpression::Evaluate(
                         nullptr, // ExecutionContext *
-                        nullptr, // ClangExpressionVariableList *
-                        nullptr, // ClangExpressionDeclMap *
                         nullptr, // RegisterContext *
                         module_sp, debug_info_data, die.GetCU(), block_offset,
                         block_length, eRegisterKindDWARF, &initialValue,
@@ -3083,7 +3095,7 @@ bool DWARFASTParserClang::ParseChildMembers(
                       "DWARF DIE at 0x%8.8x (class %s) has a member variable "
                       "0x%8.8x (%s) whose type is a forward declaration, not a "
                       "complete definition.\nTry compiling the source file "
-                      "with -fno-limit-debug-info",
+                      "with -fstandalone-debug",
                       parent_die.GetOffset(), parent_die.GetName(),
                       die.GetOffset(), name);
                 else
@@ -3214,11 +3226,11 @@ bool DWARFASTParserClang::ParseChildMembers(
                 uint32_t block_length = form_value.Unsigned();
                 uint32_t block_offset =
                     form_value.BlockData() - debug_info_data.GetDataStart();
-                if (DWARFExpression::Evaluate(
-                        nullptr, nullptr, nullptr, nullptr, module_sp,
-                        debug_info_data, die.GetCU(), block_offset,
-                        block_length, eRegisterKindDWARF, &initialValue,
-                        nullptr, memberOffset, nullptr)) {
+                if (DWARFExpression::Evaluate(nullptr, nullptr, module_sp,
+                                              debug_info_data, die.GetCU(),
+                                              block_offset, block_length,
+                                              eRegisterKindDWARF, &initialValue,
+                                              nullptr, memberOffset, nullptr)) {
                   member_byte_offset = memberOffset.ResolveValue(NULL).UInt();
                 }
               } else {
