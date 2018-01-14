@@ -836,6 +836,20 @@ intr_restore(register_t rflags)
 	write_rflags(rflags);
 }
 
+static __inline void
+stac(void)
+{
+
+	__asm __volatile("stac" : : : "cc");
+}
+
+static __inline void
+clac(void)
+{
+
+	__asm __volatile("clac" : : : "cc");
+}
+
 enum {
 	SGX_ECREATE	= 0x0,
 	SGX_EADD	= 0x1,
