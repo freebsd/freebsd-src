@@ -3664,14 +3664,14 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 			return (0);
 
 		return (dtrace_dif_varstr(
-		    (uintptr_t)curthread->t_procp->p_ucred->cr_prison->pr_name,
+		    (uintptr_t)curthread->td_ucred->cr_prison->pr_name,
 		    state, mstate));
 
 	case DIF_VAR_JID:
 		if (!dtrace_priv_kernel(state))
 			return (0);
 
-		return ((uint64_t)curthread->t_procp->p_ucred->cr_prison->pr_id);
+		return ((uint64_t)curthread->td_ucred->cr_prison->pr_id);
 #else
 		return (0);
 #endif
