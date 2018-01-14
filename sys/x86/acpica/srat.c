@@ -153,7 +153,7 @@ parse_slit(void)
 	acpi_unmap_table(slit);
 	slit = NULL;
 
-#ifdef VM_NUMA_ALLOC
+#ifdef NUMA
 	/* Tell the VM about it! */
 	mem_locality = vm_locality_table;
 #endif
@@ -469,7 +469,7 @@ parse_srat(void)
 		return (-1);
 	}
 
-#ifdef VM_NUMA_ALLOC
+#ifdef NUMA
 	/* Point vm_phys at our memory affinity table. */
 	vm_ndomains = ndomain;
 	mem_affinity = mem_info;

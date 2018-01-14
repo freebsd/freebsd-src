@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
 
+#ifdef NUMA
 /*
  * Iterators are written such that the first nowait pass has as short a
  * codepath as possible to eliminate bloat from the allocator.  It is
@@ -241,3 +242,36 @@ vm_domainset_iter_malloc(struct vm_domainset_iter *di, int *domain, int *flags)
 
 	return (0);
 }
+
+#else /* !NUMA */
+int
+vm_domainset_iter_page(struct vm_domainset_iter *di, int *domain, int *flags)
+{
+
+	return (EJUSTRETURN);
+}
+
+void
+vm_domainset_iter_page_init(struct vm_domainset_iter *di,
+            struct vm_object *obj, int *domain, int *flags)
+{
+
+	*domain = 0;
+}
+
+int
+vm_domainset_iter_malloc(struct vm_domainset_iter *di, int *domain, int *flags)
+{
+
+	return (EJUSTRETURN);
+}
+
+void
+vm_domainset_iter_malloc_init(struct vm_domainset_iter *di,
+            struct vm_object *obj, int *domain, int *flags)
+{
+
+	*domain = 0;
+}
+
+#endif
