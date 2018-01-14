@@ -47,13 +47,22 @@
 #define	AW_MMC_STAR		0x3C	/* Status Register */
 #define	AW_MMC_FWLR		0x40	/* FIFO Threshold Watermark Register */
 #define	AW_MMC_FUNS		0x44	/* Function Select Register */
-#define	AW_MMC_HWRST		0x78	/* Hardware reset (not documented) */
+#define	AW_MMC_CSDC		0x54	/* CRC status detect controler register (A64 smhc2 only) */
+#define	AW_MMC_A12A		0x58	/* Auto command 12 argument register */
+#define	AW_MMC_NTSR		0x5C	/* SD new timing register (H3, A64 smhc0/1 only) */
+#define	AW_MMC_HWRST		0x78	/* Hardware reset */
 #define	AW_MMC_DMAC		0x80	/* IDMAC Control Register */
 #define	AW_MMC_DLBA		0x84	/* IDMAC Desc List Base Address Reg */
 #define	AW_MMC_IDST		0x88	/* IDMAC Status Register */
 #define	AW_MMC_IDIE		0x8C	/* IDMAC Interrupt Enable Register */
-#define	AW_MMC_FIFO		0x100   /* FIFO Access Address (A10/A20) */
-#define	A31_MMC_FIFO		0x200   /* FIFO Access Address (A31) */
+
+#define	AW_MMC_DDR_SBIT_DET	0x10C	/* eMMC4.5 DDR Start Bit Detection control register */
+#define	AW_MMC_DRV_DL		0x140	/* Drive Delay control register */
+#define	AW_MMC_SAMP_DL		0x144	/* Sample Delay controle register */
+#define	AW_MMC_DS_DL		0x148	/* Data strobe delay control register */
+
+#define	AW_MMC_FIFO		0x100	/* FIFO Access Address (A10/A20) */
+#define	A31_MMC_FIFO		0x200	/* FIFO Access Address (A31) */
 
 /* AW_MMC_GCTL */
 #define	AW_MMC_CTRL_SOFT_RST		(1U << 0)
@@ -70,6 +79,7 @@
 /* AW_MMC_CKCR */
 #define	AW_MMC_CKCR_CCLK_ENB		(1U << 16)
 #define	AW_MMC_CKCR_CCLK_CTRL		(1U << 17)
+#define	AW_MMC_CKCR_CCLK_MASK_DATA0	(1U << 31)
 #define	AW_MMC_CKCR_CCLK_DIV		0xff
 
 /* AW_MMC_TMOR */
@@ -153,6 +163,9 @@
 #define	AW_MMC_SEND_AUTOSTOP_CC_SD	(1U << 9)
 #define	AW_MMC_CE_ATA_DEV_INT_ENB	(1U << 10)
 
+/* AW_MMC_NTSR */
+#define	AW_MMC_NTSR_MODE_SELECT		(1U << 31)
+
 /* IDMA CONTROLLER BUS MOD BIT FIELD */
 #define	AW_MMC_DMAC_IDMAC_SOFT_RST	(1U << 0)
 #define	AW_MMC_DMAC_IDMAC_FIX_BURST	(1U << 1)
@@ -183,6 +196,12 @@
 	 AW_MMC_IDST_DES_UNAVL_INT | AW_MMC_IDST_ABN_INT_SUM)
 #define	AW_MMC_IDST_COMPLETE				\
 	(AW_MMC_IDST_TX_INT | AW_MMC_IDST_RX_INT)
+
+/* AW_MMC_DDR_SBIT_DET */
+#define	AW_MMC_DDR_SBIT_HS_MD_EN	(1U << 31)
+
+/* AW_MMC_SAMP */
+#define	AW_MMC_SAMP_DL_SW_EN		(1U << 7)
 
 /* The DMA descriptor table. */
 struct aw_mmc_dma_desc {

@@ -50,22 +50,50 @@ __FBSDID("$FreeBSD$");
 #include <arm/allwinner/aw_mmc.h>
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
+#include <dev/extres/regulator/regulator.h>
 
 #define	AW_MMC_MEMRES		0
 #define	AW_MMC_IRQRES		1
 #define	AW_MMC_RESSZ		2
 #define	AW_MMC_DMA_SEGS		((MAXPHYS / PAGE_SIZE) + 1)
-#define	AW_MMC_DMA_MAX_SIZE	0x2000
 #define	AW_MMC_DMA_FTRGLEVEL	0x20070008
 #define	AW_MMC_RESET_RETRY	1000
 
 #define	CARD_ID_FREQUENCY	400000
 
+struct aw_mmc_conf {
+	uint32_t	dma_xferlen;
+	bool		mask_data0;
+	bool		can_calibrate;
+	bool		new_timing;
+};
+
+static const struct aw_mmc_conf a10_mmc_conf = {
+	.dma_xferlen = 0x2000,
+};
+
+static const struct aw_mmc_conf a13_mmc_conf = {
+	.dma_xferlen = 0x10000,
+};
+
+static const struct aw_mmc_conf a64_mmc_conf = {
+	.dma_xferlen = 0x10000,
+	.mask_data0 = true,
+	.can_calibrate = true,
+	.new_timing = true,
+};
+
+static const struct aw_mmc_conf a64_emmc_conf = {
+	.dma_xferlen = 0x2000,
+	.can_calibrate = true,
+};
+
 static struct ofw_compat_data compat_data[] = {
-	{"allwinner,sun4i-a10-mmc", 1},
-	{"allwinner,sun5i-a13-mmc", 1},
-	{"allwinner,sun7i-a20-mmc", 1},
-	{"allwinner,sun50i-a64-mmc", 1},
+	{"allwinner,sun4i-a10-mmc", (uintptr_t)&a10_mmc_conf},
+	{"allwinner,sun5i-a13-mmc", (uintptr_t)&a13_mmc_conf},
+	{"allwinner,sun7i-a20-mmc", (uintptr_t)&a13_mmc_conf},
+	{"allwinner,sun50i-a64-mmc", (uintptr_t)&a64_mmc_conf},
+	{"allwinner,sun50i-a64-emmc", (uintptr_t)&a64_emmc_conf},
 	{NULL,             0}
 };
 
@@ -82,9 +110,13 @@ struct aw_mmc_softc {
 	struct mmc_request *	aw_req;
 	struct mtx		aw_mtx;
 	struct resource *	aw_res[AW_MMC_RESSZ];
+	struct aw_mmc_conf *	aw_mmc_conf;
 	uint32_t		aw_intr;
 	uint32_t		aw_intr_wait;
 	void *			aw_intrhand;
+	int32_t			aw_vdd;
+	regulator_t		aw_reg_vmmc;
+	regulator_t		aw_reg_vqmmc;
 
 	/* Fields required for DMA access. */
 	bus_addr_t	  	aw_dma_desc_phys;
@@ -151,6 +183,9 @@ aw_mmc_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 	sc->aw_dev = dev;
+
+	sc->aw_mmc_conf = (struct aw_mmc_conf *)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+
 	sc->aw_req = NULL;
 	if (bus_alloc_resources(dev, aw_mmc_res_spec, sc->aw_res) != 0) {
 		device_printf(dev, "cannot allocate device resources\n");
@@ -230,11 +265,22 @@ aw_mmc_attach(device_t dev)
 	if (OF_getencprop(node, "bus-width", &bus_width, sizeof(uint32_t)) <= 0)
 		bus_width = 4;
 
+	if (regulator_get_by_ofw_property(dev, 0, "vmmc-supply",
+	    &sc->aw_reg_vmmc) == 0 && bootverbose)
+		device_printf(dev, "vmmc-supply regulator found\n");
+	if (regulator_get_by_ofw_property(dev, 0, "vqmmc-supply",
+	    &sc->aw_reg_vqmmc) == 0 && bootverbose)
+		device_printf(dev, "vqmmc-supply regulator found\n");
+
 	sc->aw_host.f_min = 400000;
 	sc->aw_host.f_max = 52000000;
 	sc->aw_host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
-	sc->aw_host.mode = mode_sd;
-	sc->aw_host.caps = MMC_CAP_HSPEED;
+	sc->aw_host.caps = MMC_CAP_HSPEED | MMC_CAP_UHS_SDR12 |
+			   MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50 |
+			   MMC_CAP_UHS_DDR50 | MMC_CAP_MMC_DDR52;
+
+	sc->aw_host.caps |= MMC_CAP_SIGNALING_330 /* | MMC_CAP_SIGNALING_180 */;
+
 	if (bus_width >= 4)
 		sc->aw_host.caps |= MMC_CAP_4_BIT_DATA;
 	if (bus_width >= 8)
@@ -311,8 +357,8 @@ aw_mmc_setup_dma(struct aw_mmc_softc *sc)
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->aw_dev),
 	    AW_MMC_DMA_ALIGN, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    AW_MMC_DMA_MAX_SIZE * AW_MMC_DMA_SEGS, AW_MMC_DMA_SEGS,
-	    AW_MMC_DMA_MAX_SIZE, BUS_DMA_ALLOCNOW, NULL, NULL,
+	    sc->aw_mmc_conf->dma_xferlen * AW_MMC_DMA_SEGS, AW_MMC_DMA_SEGS,
+	    sc->aw_mmc_conf->dma_xferlen, BUS_DMA_ALLOCNOW, NULL, NULL,
 	    &sc->aw_dma_buf_tag);
 	if (error)
 		return (error);
@@ -366,7 +412,7 @@ aw_mmc_prepare_dma(struct aw_mmc_softc *sc)
 	uint32_t val;
 
 	cmd = sc->aw_req->cmd;
-	if (cmd->data->len > AW_MMC_DMA_MAX_SIZE * AW_MMC_DMA_SEGS)
+	if (cmd->data->len > (sc->aw_mmc_conf->dma_xferlen * AW_MMC_DMA_SEGS))
 		return (EFBIG);
 	error = bus_dmamap_load(sc->aw_dma_buf_tag, sc->aw_dma_buf_map,
 	    cmd->data->data, cmd->data->len, aw_dma_cb, sc, 0);
@@ -562,7 +608,8 @@ aw_mmc_intr(void *arg)
 		goto end;
 	}
 	if (rint & AW_MMC_INT_ERR_BIT) {
-		device_printf(sc->aw_dev, "error rint: 0x%08X\n", rint);
+		if (bootverbose)
+			device_printf(sc->aw_dev, "error rint: 0x%08X\n", rint);
 		if (rint & AW_MMC_INT_RESP_TIMEOUT)
 			sc->aw_req->cmd->error = MMC_ERR_TIMEOUT;
 		else
@@ -704,6 +751,9 @@ aw_mmc_read_ivar(device_t bus, device_t child, int which,
 	case MMCBR_IVAR_CAPS:
 		*(int *)result = sc->aw_host.caps;
 		break;
+	case MMCBR_IVAR_TIMING:
+		*(int *)result = sc->aw_host.ios.timing;
+		break;
 	case MMCBR_IVAR_MAX_DATA:
 		*(int *)result = 65535;
 		break;
@@ -746,6 +796,9 @@ aw_mmc_write_ivar(device_t bus, device_t child, int which,
 	case MMCBR_IVAR_VDD:
 		sc->aw_host.ios.vdd = value;
 		break;
+	case MMCBR_IVAR_TIMING:
+		sc->aw_host.ios.timing = value;
+		break;
 	/* These are read-only */
 	case MMCBR_IVAR_CAPS:
 	case MMCBR_IVAR_HOST_OCR:
@@ -761,33 +814,83 @@ aw_mmc_write_ivar(device_t bus, device_t child, int which,
 static int
 aw_mmc_update_clock(struct aw_mmc_softc *sc, uint32_t clkon)
 {
-	uint32_t cmdreg;
+	uint32_t reg;
 	int retry;
-	uint32_t ckcr;
 
-	ckcr = AW_MMC_READ_4(sc, AW_MMC_CKCR);
-	ckcr &= ~(AW_MMC_CKCR_CCLK_ENB | AW_MMC_CKCR_CCLK_CTRL);
+	reg = AW_MMC_READ_4(sc, AW_MMC_CKCR);
+	reg &= ~(AW_MMC_CKCR_CCLK_ENB | AW_MMC_CKCR_CCLK_CTRL |
+	    AW_MMC_CKCR_CCLK_MASK_DATA0);
 
 	if (clkon)
-		ckcr |= AW_MMC_CKCR_CCLK_ENB;
+		reg |= AW_MMC_CKCR_CCLK_ENB;
+	if (sc->aw_mmc_conf->mask_data0)
+		reg |= AW_MMC_CKCR_CCLK_MASK_DATA0;
 
-	AW_MMC_WRITE_4(sc, AW_MMC_CKCR, ckcr);
+	AW_MMC_WRITE_4(sc, AW_MMC_CKCR, reg);
 
-	cmdreg = AW_MMC_CMDR_LOAD | AW_MMC_CMDR_PRG_CLK |
+	reg = AW_MMC_CMDR_LOAD | AW_MMC_CMDR_PRG_CLK |
 	    AW_MMC_CMDR_WAIT_PRE_OVER;
-	AW_MMC_WRITE_4(sc, AW_MMC_CMDR, cmdreg);
+	AW_MMC_WRITE_4(sc, AW_MMC_CMDR, reg);
 	retry = 0xfffff;
-	while (--retry > 0) {
-		if ((AW_MMC_READ_4(sc, AW_MMC_CMDR) & AW_MMC_CMDR_LOAD) == 0) {
-			AW_MMC_WRITE_4(sc, AW_MMC_RISR, 0xffffffff);
-			return (0);
-		}
+
+	while (reg & AW_MMC_CMDR_LOAD && --retry > 0) {
+		reg = AW_MMC_READ_4(sc, AW_MMC_CMDR);
 		DELAY(10);
 	}
 	AW_MMC_WRITE_4(sc, AW_MMC_RISR, 0xffffffff);
-	device_printf(sc->aw_dev, "timeout updating clock\n");
 
-	return (ETIMEDOUT);
+	if (reg & AW_MMC_CMDR_LOAD) {
+		device_printf(sc->aw_dev, "timeout updating clock\n");
+		return (ETIMEDOUT);
+	}
+
+	if (sc->aw_mmc_conf->mask_data0) {
+		reg = AW_MMC_READ_4(sc, AW_MMC_CKCR);
+		reg &= ~AW_MMC_CKCR_CCLK_MASK_DATA0;
+		AW_MMC_WRITE_4(sc, AW_MMC_CKCR, reg);
+	}
+
+	return (0);
+}
+
+static void
+aw_mmc_set_power(struct aw_mmc_softc *sc, int32_t vdd)
+{
+	int min_uvolt, max_uvolt;
+
+	sc->aw_vdd = vdd;
+
+	if (sc->aw_reg_vmmc == NULL && sc->aw_reg_vqmmc == NULL)
+		return;
+
+	switch (1 << vdd) {
+	case MMC_OCR_LOW_VOLTAGE:
+		min_uvolt = max_uvolt = 1800000;
+		break;
+	case MMC_OCR_320_330:
+		min_uvolt = 3200000;
+		max_uvolt = 3300000;
+		break;
+	case MMC_OCR_330_340:
+		min_uvolt = 3300000;
+		max_uvolt = 3400000;
+		break;
+	}
+
+	if (sc->aw_reg_vmmc)
+		if (regulator_set_voltage(sc->aw_reg_vmmc,
+		    min_uvolt, max_uvolt) != 0)
+			device_printf(sc->aw_dev,
+			    "Cannot set vmmc to %d<->%d\n",
+			    min_uvolt,
+			    max_uvolt);
+	if (sc->aw_reg_vqmmc)
+		if (regulator_set_voltage(sc->aw_reg_vqmmc,
+		    min_uvolt, max_uvolt) != 0)
+			device_printf(sc->aw_dev,
+			    "Cannot set vqmmc to %d<->%d\n",
+			    min_uvolt,
+			    max_uvolt);
 }
 
 static int
@@ -796,7 +899,8 @@ aw_mmc_update_ios(device_t bus, device_t child)
 	int error;
 	struct aw_mmc_softc *sc;
 	struct mmc_ios *ios;
-	uint32_t ckcr;
+	unsigned int clock;
+	uint32_t reg, div = 1;
 
 	sc = device_get_softc(bus);
 
@@ -815,27 +919,66 @@ aw_mmc_update_ios(device_t bus, device_t child)
 		break;
 	}
 
+	/* Set the voltage */
+	if (ios->power_mode == power_off) {
+		if (bootverbose)
+			device_printf(sc->aw_dev, "Powering down sd/mmc\n");
+		if (sc->aw_reg_vmmc)
+			regulator_disable(sc->aw_reg_vmmc);
+		if (sc->aw_reg_vqmmc)
+			regulator_disable(sc->aw_reg_vqmmc);
+	} else if (sc->aw_vdd != ios->vdd)
+		aw_mmc_set_power(sc, ios->vdd);
+
+	/* Enable ddr mode if needed */
+	reg = AW_MMC_READ_4(sc, AW_MMC_GCTL);
+	if (ios->timing == bus_timing_uhs_ddr50 ||
+	  ios->timing == bus_timing_mmc_ddr52)
+		reg |= AW_MMC_CTRL_DDR_MOD_SEL;
+	else
+		reg &= ~AW_MMC_CTRL_DDR_MOD_SEL;
+	AW_MMC_WRITE_4(sc, AW_MMC_GCTL, reg);
+
 	if (ios->clock) {
+		clock = ios->clock;
 
 		/* Disable clock */
 		error = aw_mmc_update_clock(sc, 0);
 		if (error != 0)
 			return (error);
 
+		if (ios->timing == bus_timing_mmc_ddr52 &&
+		    (sc->aw_mmc_conf->new_timing ||
+		    ios->bus_width == bus_width_8)) {
+			div = 2;
+			clock <<= 1;
+		}
+
 		/* Reset the divider. */
-		ckcr = AW_MMC_READ_4(sc, AW_MMC_CKCR);
-		ckcr &= ~AW_MMC_CKCR_CCLK_DIV;
-		AW_MMC_WRITE_4(sc, AW_MMC_CKCR, ckcr);
+		reg = AW_MMC_READ_4(sc, AW_MMC_CKCR);
+		reg &= ~AW_MMC_CKCR_CCLK_DIV;
+		reg |= div - 1;
+		AW_MMC_WRITE_4(sc, AW_MMC_CKCR, reg);
+
+		/* New timing mode if needed */
+		if (sc->aw_mmc_conf->new_timing) {
+			reg = AW_MMC_READ_4(sc, AW_MMC_NTSR);
+			reg |= AW_MMC_NTSR_MODE_SELECT;
+			AW_MMC_WRITE_4(sc, AW_MMC_NTSR, reg);
+		}
 
 		/* Set the MMC clock. */
-		error = clk_set_freq(sc->aw_clk_mmc, ios->clock,
+		error = clk_set_freq(sc->aw_clk_mmc, clock,
 		    CLK_SET_ROUND_DOWN);
 		if (error != 0) {
 			device_printf(sc->aw_dev,
 			    "failed to set frequency to %u Hz: %d\n",
-			    ios->clock, error);
+			    clock, error);
 			return (error);
 		}
+
+		if (sc->aw_mmc_conf->can_calibrate)
+			AW_MMC_WRITE_4(sc, AW_MMC_SAMP_DL, AW_MMC_SAMP_DL_SW_EN);
 
 		/* Enable clock. */
 		error = aw_mmc_update_clock(sc, 1);
