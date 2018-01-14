@@ -425,6 +425,11 @@
 			interrupt-parent = <&intc>;
 		};
 
+		pwm0 {
+			compatible = "broadcom,bcm2835-pwm";
+			reg = <0x20c000 0x28>,<0x1010a0 8>;
+		};
+
 		dma: dma {
 			compatible = "broadcom,bcm2835-dma", 
 				     "broadcom,bcm2708-dma";
