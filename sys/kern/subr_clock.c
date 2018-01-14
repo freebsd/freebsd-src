@@ -199,6 +199,55 @@ clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 	return (0);
 }
 
+int
+clock_bcd_to_ts(struct bcd_clocktime *bct, struct timespec *ts, bool ampm)
+{
+	struct clocktime ct;
+	int bcent, byear;
+
+	/*
+	 * Year may come in as 2-digit or 4-digit BCD.  Split the value into
+	 * separate BCD century and year values for validation and conversion.
+	 */
+	bcent = bct->year >> 8;
+	byear = bct->year & 0xff;
+
+	/*
+	 * Ensure that all values are valid BCD numbers, to avoid assertions in
+	 * the BCD-to-binary conversion routines.  clock_ct_to_ts() will further
+	 * validate the field ranges (such as 0 <= min <= 59) during conversion.
+	 */
+	if (!validbcd(bcent) || !validbcd(byear) || !validbcd(bct->mon) ||
+	    !validbcd(bct->day) || !validbcd(bct->hour) ||
+	    !validbcd(bct->min) || !validbcd(bct->sec)) {
+		if (ct_debug)
+			printf("clock_bcd_to_ts: bad BCD: "
+			    "[%04x-%02x-%02x %02x:%02x:%02x]\n",
+			    bct->year, bct->mon, bct->day,
+			    bct->hour, bct->min, bct->sec);
+		return (EINVAL);
+	}
+
+	ct.year = FROMBCD(byear) + FROMBCD(bcent) * 100;
+	ct.mon  = FROMBCD(bct->mon);
+	ct.day  = FROMBCD(bct->day);
+	ct.hour = FROMBCD(bct->hour);
+	ct.min  = FROMBCD(bct->min);
+	ct.sec  = FROMBCD(bct->sec);
+	ct.dow  = bct->dow;
+	ct.nsec = bct->nsec;
+
+	/* If asked to handle am/pm, convert from 12hr+pmflag to 24hr. */
+	if (ampm) {
+		if (ct.hour == 12)
+			ct.hour = 0;
+		if (bct->ispm)
+			ct.hour += 12;
+	}
+
+	return (clock_ct_to_ts(&ct, ts));
+}
+
 void
 clock_ts_to_ct(struct timespec *ts, struct clocktime *ct)
 {
@@ -258,6 +307,34 @@ clock_ts_to_ct(struct timespec *ts, struct clocktime *ct)
 	/* Not sure if this interface needs to handle leapseconds or not. */
 	KASSERT(ct->sec >= 0 && ct->sec <= 60,
 	    ("seconds %d not in 0-60", ct->sec));
+}
+
+void
+clock_ts_to_bcd(struct timespec *ts, struct bcd_clocktime *bct, bool ampm)
+{
+	struct clocktime ct;
+
+	clock_ts_to_ct(ts, &ct);
+
+	/* If asked to handle am/pm, convert from 24hr to 12hr+pmflag. */
+	bct->ispm = false;
+	if (ampm) {
+		if (ct.hour >= 12) {
+			ct.hour -= 12;
+			bct->ispm = true;
+		}
+		if (ct.hour == 0)
+			ct.hour = 12;
+	}
+
+	bct->year = TOBCD(ct.year % 100) | (TOBCD(ct.year / 100) << 8);
+	bct->mon  = TOBCD(ct.mon);
+	bct->day  = TOBCD(ct.day);
+	bct->hour = TOBCD(ct.hour);
+	bct->min  = TOBCD(ct.min);
+	bct->sec  = TOBCD(ct.sec);
+	bct->dow  = ct.dow;
+	bct->nsec = ct.nsec;
 }
 
 int
