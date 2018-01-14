@@ -63,7 +63,7 @@ pass5(void)
 	int inomapsize, blkmapsize;
 	struct fs *fs = &sblock;
 	ufs2_daddr_t d, dbase, dmax, start;
-	int rewritecg = 0;
+	int rewritecg = 0, cgckadd = 0;
 	struct csum *cs;
 	struct csum_total cstotal;
 	struct inodesc idesc[3];
@@ -80,6 +80,7 @@ pass5(void)
 	    reply("ADD CYLINDER GROUP CHECKSUM PROTECTION") != 0) {
 		fs->fs_metackhash |= CK_CYLGRP;
 		rewritecg = 1;
+		cgckadd = 1;
 		sbdirty();
 	}
 	if (cvtlevel >= 3) {
@@ -177,6 +178,16 @@ pass5(void)
 		cg = cgbp->b_un.b_cg;
 		if (!cg_chkmagic(cg))
 			pfatal("CG %d: BAD MAGIC NUMBER\n", c);
+		if ((fs->fs_metackhash & CK_CYLGRP) != 0 && cgckadd == 0) {
+			uint32_t ckhash, thishash;
+
+			ckhash = cg->cg_ckhash;
+			cg->cg_ckhash = 0;
+			thishash = calculate_crc32c(~0L, cg, fs->fs_cgsize);
+			if (ckhash != thishash)
+				pwarn("CG %d: BAD CHECKSUM %#x vs %#x", c, ckhash, thishash);
+			cg->cg_ckhash = ckhash;
+		}
 		newcg->cg_time = cg->cg_time;
 		newcg->cg_old_time = cg->cg_old_time;
 		newcg->cg_unrefs = cg->cg_unrefs;
