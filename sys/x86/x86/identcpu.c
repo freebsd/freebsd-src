@@ -106,8 +106,10 @@ u_int	cpu_vendor_id;		/* CPU vendor ID */
 u_int	cpu_fxsr;		/* SSE enabled */
 u_int	cpu_mxcsr_mask;		/* Valid bits in mxcsr */
 u_int	cpu_clflush_line_size = 32;
-u_int	cpu_stdext_feature;
-u_int	cpu_stdext_feature2;
+u_int	cpu_stdext_feature;	/* %ebx */
+u_int	cpu_stdext_feature2;	/* %ecx */
+u_int	cpu_stdext_feature3;	/* %edx */
+uint64_t cpu_ia32_arch_caps;
 u_int	cpu_max_ext_state_size;
 u_int	cpu_mon_mwait_flags;	/* MONITOR/MWAIT flags (CPUID.05H.ECX) */
 u_int	cpu_mon_min_size;	/* MONITOR minimum range size, bytes */
@@ -981,6 +983,16 @@ printcpuinfo(void)
 				       );
 			}
 
+			if (cpu_stdext_feature3 != 0) {
+				printf("\n  Structured Extended Features3=0x%b",
+				    cpu_stdext_feature3,
+				       "\020"
+				       "\033IBPB"
+				       "\034STIBP"
+				       "\036ARCH_CAP"
+				       );
+			}
+
 			if ((cpu_feature2 & CPUID2_XSAVE) != 0) {
 				cpuid_count(0xd, 0x1, regs);
 				if (regs[0] != 0) {
@@ -992,6 +1004,15 @@ printcpuinfo(void)
 					    "\003XINUSE"
 					    "\004XSAVES");
 				}
+			}
+
+			if (cpu_ia32_arch_caps != 0) {
+				printf("\n  IA32_ARCH_CAPS=0x%b",
+				    (u_int)cpu_ia32_arch_caps,
+				       "\020"
+				       "\001RDCL_NO"
+				       "\002IBRS_ALL"
+				       );
 			}
 
 			if (amd_extended_feature_extensions != 0) {
@@ -1424,6 +1445,10 @@ identify_cpu2(void)
 		cpu_stdext_feature &= ~cpu_stdext_disable;
 
 		cpu_stdext_feature2 = regs[2];
+		cpu_stdext_feature3 = regs[3];
+
+		if ((cpu_stdext_feature3 & CPUID_STDEXT3_ARCH_CAP) != 0)
+			cpu_ia32_arch_caps = rdmsr(MSR_IA32_ARCH_CAP);
 	}
 }
 
