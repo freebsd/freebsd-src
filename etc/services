@@ -2291,6 +2291,7 @@ ipfix		4739/udp   #IP Flow Info Export
 ipfixs		4740/sctp  #ipfix protocol over DTLS
 ipfixs		4740/tcp   #ipfix protocol over TLS
 ipfixs		4740/udp   #ipfix protocol over DTLS
+vxlan		4789/udp   #Virtual eXtensible Local Area Network (VXLAN)
 commplex-main	5000/tcp
 commplex-main	5000/udp
 commplex-link	5001/tcp
