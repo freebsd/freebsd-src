@@ -215,7 +215,7 @@ done_tss:
 	movq	%r8,PCPU(RSP0)
 	movq	%r8,PCPU(CURPCB)
 	/* Update the TSS_RSP0 pointer for the next interrupt */
-	movq	%r8,COMMON_TSS_RSP0(%rdx)
+	movq	%r8,TSS_RSP0(%rdx)
 	movq	%r12,PCPU(CURTHREAD)		/* into next thread */
 
 	/* Test if debug registers should be restored. */
