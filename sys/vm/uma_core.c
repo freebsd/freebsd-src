@@ -2616,7 +2616,7 @@ zone_import(uma_zone_t zone, void **bucket, int max, int domain, int flags)
 			bucket[i++] = slab_alloc_item(keg, slab);
 			if (keg->uk_free <= keg->uk_reserve)
 				break;
-#if MAXMEMDOM > 1
+#ifdef NUMA
 			/*
 			 * If the zone is striped we pick a new slab for every
 			 * N allocations.  Eliminating this conditional will

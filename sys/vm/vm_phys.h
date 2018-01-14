@@ -48,6 +48,11 @@ struct mem_affinity {
 	vm_paddr_t end;
 	int domain;
 };
+#ifdef NUMA
+extern struct mem_affinity *mem_affinity;
+extern int *mem_locality;
+#endif
+extern int vm_ndomains;
 
 struct vm_freelist {
 	struct pglist pl;
@@ -62,9 +67,6 @@ struct vm_phys_seg {
 	struct vm_freelist (*free_queues)[VM_NFREEPOOL][VM_NFREEORDER];
 };
 
-extern struct mem_affinity *mem_affinity;
-extern int *mem_locality;
-extern int vm_ndomains;
 extern struct vm_phys_seg vm_phys_segs[];
 extern int vm_phys_nsegs;
 
@@ -101,6 +103,7 @@ int vm_phys_mem_affinity(int f, int t);
 static inline int
 vm_phys_domidx(vm_page_t m)
 {
+#ifdef NUMA
 	int domn, segind;
 
 	/* XXXKIB try to assert that the page is managed */
@@ -109,6 +112,9 @@ vm_phys_domidx(vm_page_t m)
 	domn = vm_phys_segs[segind].domain;
 	KASSERT(domn < vm_ndomains, ("domain %d m %p", domn, m));
 	return (domn);
+#else
+	return (0);
+#endif
 }
 
 /*

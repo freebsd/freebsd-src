@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 _Static_assert(sizeof(long) * NBBY >= VM_PHYSSEG_MAX,
     "Too many physsegs.");
 
-#ifdef VM_NUMA_ALLOC
+#ifdef NUMA
 struct mem_affinity *mem_affinity;
 int *mem_locality;
 #endif
@@ -140,7 +140,7 @@ static int sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_segs, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_vm_phys_segs, "A", "Phys Seg Info");
 
-#ifdef VM_NUMA_ALLOC
+#ifdef NUMA
 static int sysctl_vm_phys_locality(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_locality, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_vm_phys_locality, "A", "Phys Locality Info");
@@ -201,7 +201,7 @@ vm_phys_fictitious_cmp(struct vm_phys_fictitious_seg *p1,
 int
 vm_phys_domain_match(int prefer, vm_paddr_t low, vm_paddr_t high)
 {
-#ifdef VM_NUMA_ALLOC
+#ifdef NUMA
 	domainset_t mask;
 	int i;
 
@@ -306,7 +306,7 @@ int
 vm_phys_mem_affinity(int f, int t)
 {
 
-#ifdef VM_NUMA_ALLOC
+#ifdef NUMA
 	if (mem_locality == NULL)
 		return (-1);
 	if (f >= vm_ndomains || t >= vm_ndomains)
@@ -317,7 +317,7 @@ vm_phys_mem_affinity(int f, int t)
 #endif
 }
 
-#ifdef VM_NUMA_ALLOC
+#ifdef NUMA
 /*
  * Outputs the VM locality table.
  */
@@ -393,7 +393,7 @@ _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int domain)
 static void
 vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end)
 {
-#ifdef VM_NUMA_ALLOC
+#ifdef NUMA
 	int i;
 
 	if (mem_affinity == NULL) {
