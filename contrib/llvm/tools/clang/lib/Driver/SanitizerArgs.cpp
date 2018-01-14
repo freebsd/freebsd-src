@@ -29,10 +29,12 @@ enum : SanitizerMask {
   NeedsUbsanRt = Undefined | Integer | Nullability | CFI,
   NeedsUbsanCxxRt = Vptr | CFI,
   NotAllowedWithTrap = Vptr,
-  RequiresPIE = DataFlow,
-  NeedsUnwindTables = Address | Thread | Memory | DataFlow,
-  SupportsCoverage = Address | KernelAddress | Memory | Leak | Undefined |
-                     Integer | Nullability | DataFlow | Fuzzer,
+  NotAllowedWithMinimalRuntime = Vptr,
+  RequiresPIE = DataFlow | Scudo,
+  NeedsUnwindTables = Address | HWAddress | Thread | Memory | DataFlow,
+  SupportsCoverage = Address | HWAddress | KernelAddress | Memory | Leak |
+                     Undefined | Integer | Nullability | DataFlow | Fuzzer |
+                     FuzzerNoLink,
   RecoverableByDefault = Undefined | Integer | Nullability,
   Unrecoverable = Unreachable | Return,
   LegacyFsanitizeRecoverMask = Undefined | Integer,
@@ -41,6 +43,7 @@ enum : SanitizerMask {
                       Nullability | LocalBounds | CFI,
   TrappingDefault = CFI,
   CFIClasses = CFIVCall | CFINVCall | CFIDerivedCast | CFIUnrelatedCast,
+  CompatibleWithMinimalRuntime = TrappingSupported,
 };
 
 enum CoverageFeature {
@@ -55,8 +58,10 @@ enum CoverageFeature {
   Coverage8bitCounters = 1 << 8,  // Deprecated.
   CoverageTracePC = 1 << 9,
   CoverageTracePCGuard = 1 << 10,
-  CoverageInline8bitCounters = 1 << 12,
   CoverageNoPrune = 1 << 11,
+  CoverageInline8bitCounters = 1 << 12,
+  CoveragePCTable = 1 << 13,
+  CoverageStackDepth = 1 << 14,
 };
 
 /// Parse a -fsanitize= or -fno-sanitize= argument's values, diagnosing any
@@ -92,6 +97,8 @@ static bool getDefaultBlacklist(const Driver &D, SanitizerMask Kinds,
   const char *BlacklistFile = nullptr;
   if (Kinds & Address)
     BlacklistFile = "asan_blacklist.txt";
+  else if (Kinds & HWAddress)
+    BlacklistFile = "hwasan_blacklist.txt";
   else if (Kinds & Memory)
     BlacklistFile = "msan_blacklist.txt";
   else if (Kinds & Thread)
@@ -100,6 +107,8 @@ static bool getDefaultBlacklist(const Driver &D, SanitizerMask Kinds,
     BlacklistFile = "dfsan_abilist.txt";
   else if (Kinds & CFI)
     BlacklistFile = "cfi_blacklist.txt";
+  else if (Kinds & (Undefined | Integer | Nullability))
+    BlacklistFile = "ubsan_blacklist.txt";
 
   if (BlacklistFile) {
     clang::SmallString<64> Path(D.ResourceDir);
@@ -165,19 +174,23 @@ static SanitizerMask parseSanitizeTrapArgs(const Driver &D,
 }
 
 bool SanitizerArgs::needsUbsanRt() const {
-  return ((Sanitizers.Mask & NeedsUbsanRt & ~TrapSanitizers.Mask) ||
-          CoverageFeatures) &&
-         !Sanitizers.has(Address) && !Sanitizers.has(Memory) &&
-         !Sanitizers.has(Thread) && !Sanitizers.has(DataFlow) && 
-         !Sanitizers.has(Leak) && !CfiCrossDso;
+  // All of these include ubsan.
+  if (needsAsanRt() || needsMsanRt() || needsHwasanRt() || needsTsanRt() ||
+      needsDfsanRt() || needsLsanRt() || needsCfiDiagRt() || needsScudoRt())
+    return false;
+
+  return (Sanitizers.Mask & NeedsUbsanRt & ~TrapSanitizers.Mask) ||
+         CoverageFeatures;
 }
 
 bool SanitizerArgs::needsCfiRt() const {
-  return !(Sanitizers.Mask & CFI & ~TrapSanitizers.Mask) && CfiCrossDso;
+  return !(Sanitizers.Mask & CFI & ~TrapSanitizers.Mask) && CfiCrossDso &&
+         !ImplicitCfiRuntime;
 }
 
 bool SanitizerArgs::needsCfiDiagRt() const {
-  return (Sanitizers.Mask & CFI & ~TrapSanitizers.Mask) && CfiCrossDso;
+  return (Sanitizers.Mask & CFI & ~TrapSanitizers.Mask) && CfiCrossDso &&
+         !ImplicitCfiRuntime;
 }
 
 bool SanitizerArgs::requiresPIE() const {
@@ -207,6 +220,10 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
   const Driver &D = TC.getDriver();
   SanitizerMask TrappingKinds = parseSanitizeTrapArgs(D, Args);
   SanitizerMask InvalidTrappingKinds = TrappingKinds & NotAllowedWithTrap;
+
+  MinimalRuntime =
+      Args.hasFlag(options::OPT_fsanitize_minimal_runtime,
+                   options::OPT_fno_sanitize_minimal_runtime, MinimalRuntime);
 
   // The object size sanitizer should not be enabled at -O0.
   Arg *OptLevel = Args.getLastArg(options::OPT_O_Group);
@@ -245,6 +262,18 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
         DiagnosedKinds |= KindsToDiagnose;
       }
       Add &= ~InvalidTrappingKinds;
+
+      if (MinimalRuntime) {
+        if (SanitizerMask KindsToDiagnose =
+                Add & NotAllowedWithMinimalRuntime & ~DiagnosedKinds) {
+          std::string Desc = describeSanitizeArg(*I, KindsToDiagnose);
+          D.Diag(diag::err_drv_argument_not_allowed_with)
+              << Desc << "-fsanitize-minimal-runtime";
+          DiagnosedKinds |= KindsToDiagnose;
+        }
+        Add &= ~NotAllowedWithMinimalRuntime;
+      }
+
       if (SanitizerMask KindsToDiagnose = Add & ~Supported & ~DiagnosedKinds) {
         std::string Desc = describeSanitizeArg(*I, KindsToDiagnose);
         D.Diag(diag::err_drv_unsupported_opt_for_target)
@@ -281,11 +310,22 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
       // Silently discard any unsupported sanitizers implicitly enabled through
       // group expansion.
       Add &= ~InvalidTrappingKinds;
+      if (MinimalRuntime) {
+        Add &= ~NotAllowedWithMinimalRuntime;
+      }
       Add &= Supported;
 
-      // Enable coverage if the fuzzing flag is set.
       if (Add & Fuzzer)
-        CoverageFeatures |= CoverageTracePCGuard | CoverageIndirCall | CoverageTraceCmp;
+        Add |= FuzzerNoLink;
+
+      // Enable coverage if the fuzzing flag is set.
+      if (Add & FuzzerNoLink) {
+        CoverageFeatures |= CoverageInline8bitCounters | CoverageIndirCall |
+                            CoverageTraceCmp | CoveragePCTable;
+        // Due to TLS differences, stack depth tracking is only enabled on Linux
+        if (TC.getTriple().isOSLinux())
+          CoverageFeatures |= CoverageStackDepth;
+      }
 
       Kinds |= Add;
     } else if (Arg->getOption().matches(options::OPT_fno_sanitize_EQ)) {
@@ -333,17 +373,15 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
 
   // Warn about incompatible groups of sanitizers.
   std::pair<SanitizerMask, SanitizerMask> IncompatibleGroups[] = {
-      std::make_pair(Address, Thread), std::make_pair(Address, Memory),
-      std::make_pair(Thread, Memory), std::make_pair(Leak, Thread),
-      std::make_pair(Leak, Memory), std::make_pair(KernelAddress, Address),
-      std::make_pair(KernelAddress, Leak),
-      std::make_pair(KernelAddress, Thread),
-      std::make_pair(KernelAddress, Memory),
-      std::make_pair(Efficiency, Address),
-      std::make_pair(Efficiency, Leak),
-      std::make_pair(Efficiency, Thread),
-      std::make_pair(Efficiency, Memory),
-      std::make_pair(Efficiency, KernelAddress)};
+      std::make_pair(Address, Thread | Memory),
+      std::make_pair(Thread, Memory),
+      std::make_pair(Leak, Thread | Memory),
+      std::make_pair(KernelAddress, Address | Leak | Thread | Memory),
+      std::make_pair(HWAddress, Address | Thread | Memory | KernelAddress),
+      std::make_pair(Efficiency, Address | HWAddress | Leak | Thread | Memory |
+                                     KernelAddress),
+      std::make_pair(Scudo, Address | HWAddress | Leak | Thread | Memory |
+                                KernelAddress | Efficiency)};
   for (auto G : IncompatibleGroups) {
     SanitizerMask Group = G.first;
     if (Kinds & Group) {
@@ -402,6 +440,7 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
   RecoverableKinds &= ~Unrecoverable;
 
   TrappingKinds &= Kinds;
+  RecoverableKinds &= ~TrappingKinds;
 
   // Setup blacklist files.
   // Add default blacklist from resource directory.
@@ -456,9 +495,13 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
       }
     }
     MsanUseAfterDtor =
-        Args.hasArg(options::OPT_fsanitize_memory_use_after_dtor);
+        Args.hasFlag(options::OPT_fsanitize_memory_use_after_dtor,
+                     options::OPT_fno_sanitize_memory_use_after_dtor,
+                     MsanUseAfterDtor);
     NeedPIE |= !(TC.getTriple().isOSLinux() &&
                  TC.getTriple().getArch() == llvm::Triple::x86_64);
+  } else {
+    MsanUseAfterDtor = false;
   }
 
   if (AllAddedKinds & Thread) {
@@ -479,10 +522,32 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
     // Without PIE, external function address may resolve to a PLT record, which
     // can not be verified by the target module.
     NeedPIE |= CfiCrossDso;
+    CfiICallGeneralizePointers =
+        Args.hasArg(options::OPT_fsanitize_cfi_icall_generalize_pointers);
+
+    if (CfiCrossDso && CfiICallGeneralizePointers)
+      D.Diag(diag::err_drv_argument_not_allowed_with)
+          << "-fsanitize-cfi-cross-dso"
+          << "-fsanitize-cfi-icall-generalize-pointers";
   }
 
   Stats = Args.hasFlag(options::OPT_fsanitize_stats,
                        options::OPT_fno_sanitize_stats, false);
+
+  if (MinimalRuntime) {
+    SanitizerMask IncompatibleMask =
+        Kinds & ~setGroupBits(CompatibleWithMinimalRuntime);
+    if (IncompatibleMask)
+      D.Diag(clang::diag::err_drv_argument_not_allowed_with)
+          << "-fsanitize-minimal-runtime"
+          << lastArgumentForMask(D, Args, IncompatibleMask);
+
+    SanitizerMask NonTrappingCfi = Kinds & CFI & ~TrappingKinds;
+    if (NonTrappingCfi)
+      D.Diag(clang::diag::err_drv_argument_only_allowed_with)
+          << "fsanitize-minimal-runtime"
+          << "fsanitize-trap=cfi";
+  }
 
   // Parse -f(no-)?sanitize-coverage flags if coverage is supported by the
   // enabled sanitizers.
@@ -504,7 +569,7 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
 
       // Disable coverage and not claim the flags if there is at least one
       // non-supporting sanitizer.
-      if (!(AllAddedKinds & ~setGroupBits(SupportsCoverage))) {
+      if (!(AllAddedKinds & ~AllRemove & ~setGroupBits(SupportsCoverage))) {
         Arg->claim();
       } else {
         CoverageFeatures = 0;
@@ -539,23 +604,34 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
         << "-fsanitize-coverage=trace-pc-guard";
 
   int InsertionPointTypes = CoverageFunc | CoverageBB | CoverageEdge;
+  int InstrumentationTypes =
+      CoverageTracePC | CoverageTracePCGuard | CoverageInline8bitCounters;
   if ((CoverageFeatures & InsertionPointTypes) &&
-      !(CoverageFeatures &(CoverageTracePC | CoverageTracePCGuard))) {
+      !(CoverageFeatures & InstrumentationTypes)) {
     D.Diag(clang::diag::warn_drv_deprecated_arg)
         << "-fsanitize-coverage=[func|bb|edge]"
         << "-fsanitize-coverage=[func|bb|edge],[trace-pc-guard|trace-pc]";
   }
 
   // trace-pc w/o func/bb/edge implies edge.
-  if ((CoverageFeatures &
-       (CoverageTracePC | CoverageTracePCGuard | CoverageInline8bitCounters)) &&
-      !(CoverageFeatures & InsertionPointTypes))
-    CoverageFeatures |= CoverageEdge;
+  if (!(CoverageFeatures & InsertionPointTypes)) {
+    if (CoverageFeatures &
+        (CoverageTracePC | CoverageTracePCGuard | CoverageInline8bitCounters))
+      CoverageFeatures |= CoverageEdge;
+
+    if (CoverageFeatures & CoverageStackDepth)
+      CoverageFeatures |= CoverageFunc;
+  }
+
+  SharedRuntime =
+      Args.hasFlag(options::OPT_shared_libsan, options::OPT_static_libsan,
+                   TC.getTriple().isAndroid() || TC.getTriple().isOSFuchsia() ||
+                       TC.getTriple().isOSDarwin());
+
+  ImplicitCfiRuntime = TC.getTriple().isAndroid();
 
   if (AllAddedKinds & Address) {
-    AsanSharedRuntime =
-        Args.hasArg(options::OPT_shared_libasan) || TC.getTriple().isAndroid();
-    NeedPIE |= TC.getTriple().isAndroid();
+    NeedPIE |= TC.getTriple().isOSFuchsia();
     if (Arg *A =
             Args.getLastArg(options::OPT_fsanitize_address_field_padding)) {
         StringRef S = A->getValue();
@@ -589,10 +665,15 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
     // globals in ASan is disabled by default on ELF targets.
     // See https://sourceware.org/bugzilla/show_bug.cgi?id=19002
     AsanGlobalsDeadStripping =
-        !TC.getTriple().isOSBinFormatELF() ||
+        !TC.getTriple().isOSBinFormatELF() || TC.getTriple().isOSFuchsia() ||
         Args.hasArg(options::OPT_fsanitize_address_globals_dead_stripping);
   } else {
     AsanUseAfterScope = false;
+  }
+
+  if (AllAddedKinds & SafeStack) {
+    // SafeStack runtime is built into the system on Fuchsia.
+    SafeStackRuntime = !TC.getTriple().isOSFuchsia();
   }
 
   // Parse -link-cxx-sanitizer flag.
@@ -603,6 +684,8 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
   Sanitizers.Mask |= Kinds;
   RecoverableSanitizers.Mask |= RecoverableKinds;
   TrapSanitizers.Mask |= TrappingKinds;
+  assert(!(RecoverableKinds & TrappingKinds) &&
+         "Overlap between recoverable and trapping sanitizers");
 }
 
 static std::string toString(const clang::SanitizerSet &Sanitizers) {
@@ -656,7 +739,9 @@ void SanitizerArgs::addArgs(const ToolChain &TC, const llvm::opt::ArgList &Args,
     std::make_pair(CoverageTracePC, "-fsanitize-coverage-trace-pc"),
     std::make_pair(CoverageTracePCGuard, "-fsanitize-coverage-trace-pc-guard"),
     std::make_pair(CoverageInline8bitCounters, "-fsanitize-coverage-inline-8bit-counters"),
-    std::make_pair(CoverageNoPrune, "-fsanitize-coverage-no-prune")};
+    std::make_pair(CoveragePCTable, "-fsanitize-coverage-pc-table"),
+    std::make_pair(CoverageNoPrune, "-fsanitize-coverage-no-prune"),
+    std::make_pair(CoverageStackDepth, "-fsanitize-coverage-stack-depth")};
   for (auto F : CoverageFlags) {
     if (CoverageFeatures & F.first)
       CmdArgs.push_back(F.second);
@@ -709,7 +794,7 @@ void SanitizerArgs::addArgs(const ToolChain &TC, const llvm::opt::ArgList &Args,
 
   if (MsanTrackOrigins)
     CmdArgs.push_back(Args.MakeArgString("-fsanitize-memory-track-origins=" +
-                                         llvm::utostr(MsanTrackOrigins)));
+                                         Twine(MsanTrackOrigins)));
 
   if (MsanUseAfterDtor)
     CmdArgs.push_back("-fsanitize-memory-use-after-dtor");
@@ -733,12 +818,18 @@ void SanitizerArgs::addArgs(const ToolChain &TC, const llvm::opt::ArgList &Args,
   if (CfiCrossDso)
     CmdArgs.push_back("-fsanitize-cfi-cross-dso");
 
+  if (CfiICallGeneralizePointers)
+    CmdArgs.push_back("-fsanitize-cfi-icall-generalize-pointers");
+
   if (Stats)
     CmdArgs.push_back("-fsanitize-stats");
 
+  if (MinimalRuntime)
+    CmdArgs.push_back("-fsanitize-minimal-runtime");
+
   if (AsanFieldPadding)
     CmdArgs.push_back(Args.MakeArgString("-fsanitize-address-field-padding=" +
-                                         llvm::utostr(AsanFieldPadding)));
+                                         Twine(AsanFieldPadding)));
 
   if (AsanUseAfterScope)
     CmdArgs.push_back("-fsanitize-address-use-after-scope");
@@ -748,7 +839,7 @@ void SanitizerArgs::addArgs(const ToolChain &TC, const llvm::opt::ArgList &Args,
 
   // MSan: Workaround for PR16386.
   // ASan: This is mainly to help LSan with cases such as
-  // https://code.google.com/p/address-sanitizer/issues/detail?id=373
+  // https://github.com/google/sanitizers/issues/373
   // We can't make this conditional on -fsanitize=leak, as that flag shouldn't
   // affect compilation.
   if (Sanitizers.has(Memory) || Sanitizers.has(Address))
@@ -818,6 +909,8 @@ int parseCoverageFeatures(const Driver &D, const llvm::opt::Arg *A) {
         .Case("trace-pc-guard", CoverageTracePCGuard)
         .Case("no-prune", CoverageNoPrune)
         .Case("inline-8bit-counters", CoverageInline8bitCounters)
+        .Case("pc-table", CoveragePCTable)
+        .Case("stack-depth", CoverageStackDepth)
         .Default(0);
     if (F == 0)
       D.Diag(clang::diag::err_drv_unsupported_option_argument)
