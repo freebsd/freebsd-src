@@ -44,11 +44,16 @@ SANITIZER("address", Address)
 // Kernel AddressSanitizer (KASan)
 SANITIZER("kernel-address", KernelAddress)
 
+SANITIZER("hwaddress", HWAddress)
+
 // MemorySanitizer
 SANITIZER("memory", Memory)
 
 // libFuzzer
 SANITIZER("fuzzer", Fuzzer)
+
+// libFuzzer-required instrumentation, no linking.
+SANITIZER("fuzzer-no-link", FuzzerNoLink)
 
 // ThreadSanitizer
 SANITIZER("thread", Thread)
@@ -60,6 +65,7 @@ SANITIZER("leak", Leak)
 SANITIZER("alignment", Alignment)
 SANITIZER("array-bounds", ArrayBounds)
 SANITIZER("bool", Bool)
+SANITIZER("builtin", Builtin)
 SANITIZER("enum", Enum)
 SANITIZER("float-cast-overflow", FloatCastOverflow)
 SANITIZER("float-divide-by-zero", FloatDivideByZero)
@@ -107,11 +113,12 @@ SANITIZER("safe-stack", SafeStack)
 // -fsanitize=undefined includes all the sanitizers which have low overhead, no
 // ABI or address space layout implications, and only catch undefined behavior.
 SANITIZER_GROUP("undefined", Undefined,
-                Alignment | Bool | ArrayBounds | Enum | FloatCastOverflow |
-                    FloatDivideByZero | IntegerDivideByZero | NonnullAttribute |
-                    Null | ObjectSize | PointerOverflow | Return |
-                    ReturnsNonnullAttribute | Shift | SignedIntegerOverflow |
-                    Unreachable | VLABound | Function | Vptr)
+                Alignment | Bool | Builtin | ArrayBounds | Enum |
+                    FloatCastOverflow | FloatDivideByZero |
+                    IntegerDivideByZero | NonnullAttribute | Null | ObjectSize |
+                    PointerOverflow | Return | ReturnsNonnullAttribute | Shift |
+                    SignedIntegerOverflow | Unreachable | VLABound | Function |
+                    Vptr)
 
 // -fsanitize=undefined-trap is an alias for -fsanitize=undefined.
 SANITIZER_GROUP("undefined-trap", UndefinedTrap, Undefined)
@@ -129,6 +136,9 @@ SANITIZER("efficiency-working-set", EfficiencyWorkingSet)
 // Meta-group only used internally.
 SANITIZER_GROUP("efficiency-all", Efficiency,
                 EfficiencyCacheFrag | EfficiencyWorkingSet)
+
+// Scudo hardened allocator
+SANITIZER("scudo", Scudo)
 
 // Magic group, containing all sanitizers. For example, "-fno-sanitize=all"
 // can be used to disable all the sanitizers.

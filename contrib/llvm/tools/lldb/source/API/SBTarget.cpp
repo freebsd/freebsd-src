@@ -31,7 +31,6 @@
 #include "lldb/Core/Address.h"
 #include "lldb/Core/AddressResolver.h"
 #include "lldb/Core/AddressResolverName.h"
-#include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Disassembler.h"
 #include "lldb/Core/Module.h"
@@ -58,6 +57,7 @@
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/TargetList.h"
+#include "lldb/Utility/ArchSpec.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/RegularExpression.h"
@@ -413,16 +413,6 @@ lldb::SBProcess SBTarget::Attach(SBAttachInfo &sb_attach_info, SBError &error) {
 
   return sb_process;
 }
-
-#if defined(__APPLE__)
-
-lldb::SBProcess SBTarget::AttachToProcessWithID(SBListener &listener,
-                                                ::pid_t pid,
-                                                lldb::SBError &error) {
-  return AttachToProcessWithID(listener, (lldb::pid_t)pid, error);
-}
-
-#endif // #if defined(__APPLE__)
 
 lldb::SBProcess SBTarget::AttachToProcessWithID(
     SBListener &listener,
@@ -1097,11 +1087,35 @@ bool SBTarget::FindBreakpointsByName(const char *name,
   return true;
 }
 
+void SBTarget::GetBreakpointNames(SBStringList &names)
+{
+  names.Clear();
+
+  TargetSP target_sp(GetSP());
+  if (target_sp) {
+    std::lock_guard<std::recursive_mutex> guard(target_sp->GetAPIMutex());
+
+    std::vector<std::string> name_vec;
+    target_sp->GetBreakpointNames(name_vec);
+    for (auto name : name_vec)
+      names.AppendString(name.c_str());
+  }
+}
+
+void SBTarget::DeleteBreakpointName(const char *name)
+{
+  TargetSP target_sp(GetSP());
+  if (target_sp) {
+    std::lock_guard<std::recursive_mutex> guard(target_sp->GetAPIMutex());
+    target_sp->DeleteBreakpointName(ConstString(name));
+  }
+}
+
 bool SBTarget::EnableAllBreakpoints() {
   TargetSP target_sp(GetSP());
   if (target_sp) {
     std::lock_guard<std::recursive_mutex> guard(target_sp->GetAPIMutex());
-    target_sp->EnableAllBreakpoints();
+    target_sp->EnableAllowedBreakpoints();
     return true;
   }
   return false;
@@ -1111,7 +1125,7 @@ bool SBTarget::DisableAllBreakpoints() {
   TargetSP target_sp(GetSP());
   if (target_sp) {
     std::lock_guard<std::recursive_mutex> guard(target_sp->GetAPIMutex());
-    target_sp->DisableAllBreakpoints();
+    target_sp->DisableAllowedBreakpoints();
     return true;
   }
   return false;
@@ -1121,7 +1135,7 @@ bool SBTarget::DeleteAllBreakpoints() {
   TargetSP target_sp(GetSP());
   if (target_sp) {
     std::lock_guard<std::recursive_mutex> guard(target_sp->GetAPIMutex());
-    target_sp->RemoveAllBreakpoints();
+    target_sp->RemoveAllowedBreakpoints();
     return true;
   }
   return false;
@@ -1428,8 +1442,8 @@ lldb::SBModule SBTarget::AddModule(const char *path, const char *triple,
       module_spec.GetUUID().SetFromCString(uuid_cstr);
 
     if (triple)
-      module_spec.GetArchitecture().SetTriple(triple,
-                                              target_sp->GetPlatform().get());
+      module_spec.GetArchitecture() = Platform::GetAugmentedArchSpec(
+          target_sp->GetPlatform().get(), triple);
     else
       module_spec.GetArchitecture() = target_sp->GetArchitecture();
 

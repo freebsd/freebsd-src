@@ -185,6 +185,7 @@ void MCObjectFileInfo::initMachOMCObjectFileInfo(const Triple &T) {
 
   COFFDebugSymbolsSection = nullptr;
   COFFDebugTypesSection = nullptr;
+  COFFGlobalTypeHashesSection = nullptr;
 
   if (useCompactUnwind(T)) {
     CompactUnwindSection =
@@ -213,6 +214,10 @@ void MCObjectFileInfo::initMachOMCObjectFileInfo(const Triple &T) {
   DwarfAccelTypesSection =
       Ctx->getMachOSection("__DWARF", "__apple_types", MachO::S_ATTR_DEBUG,
                            SectionKind::getMetadata(), "types_begin");
+
+  DwarfSwiftASTSection =
+      Ctx->getMachOSection("__DWARF", "__swift_ast", MachO::S_ATTR_DEBUG,
+                           SectionKind::getMetadata());
 
   DwarfAbbrevSection =
       Ctx->getMachOSection("__DWARF", "__debug_abbrev", MachO::S_ATTR_DEBUG,
@@ -274,7 +279,7 @@ void MCObjectFileInfo::initMachOMCObjectFileInfo(const Triple &T) {
   TLSExtraDataSection = TLSTLVSection;
 }
 
-void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T) {
+void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T, bool Large) {
   switch (T.getArch()) {
   case Triple::mips:
   case Triple::mipsel:
@@ -286,8 +291,7 @@ void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T) {
     break;
   case Triple::x86_64:
     FDECFIEncoding = dwarf::DW_EH_PE_pcrel |
-                     ((CMModel == CodeModel::Large) ? dwarf::DW_EH_PE_sdata8
-                                                    : dwarf::DW_EH_PE_sdata4);
+                     (Large ? dwarf::DW_EH_PE_sdata8 : dwarf::DW_EH_PE_sdata4);
     break;
   case Triple::bpfel:
   case Triple::bpfeb:
@@ -324,23 +328,18 @@ void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T) {
     break;
   case Triple::x86_64:
     if (PositionIndependent) {
-      PersonalityEncoding = dwarf::DW_EH_PE_indirect | dwarf::DW_EH_PE_pcrel |
-        ((CMModel == CodeModel::Small || CMModel == CodeModel::Medium)
-         ? dwarf::DW_EH_PE_sdata4 : dwarf::DW_EH_PE_sdata8);
+      PersonalityEncoding =
+          dwarf::DW_EH_PE_indirect | dwarf::DW_EH_PE_pcrel |
+          (Large ? dwarf::DW_EH_PE_sdata8 : dwarf::DW_EH_PE_sdata4);
       LSDAEncoding = dwarf::DW_EH_PE_pcrel |
-        (CMModel == CodeModel::Small
-         ? dwarf::DW_EH_PE_sdata4 : dwarf::DW_EH_PE_sdata8);
+                     (Large ? dwarf::DW_EH_PE_sdata8 : dwarf::DW_EH_PE_sdata4);
       TTypeEncoding = dwarf::DW_EH_PE_indirect | dwarf::DW_EH_PE_pcrel |
-        ((CMModel == CodeModel::Small || CMModel == CodeModel::Medium)
-         ? dwarf::DW_EH_PE_sdata4 : dwarf::DW_EH_PE_sdata8);
+                      (Large ? dwarf::DW_EH_PE_sdata8 : dwarf::DW_EH_PE_sdata4);
     } else {
       PersonalityEncoding =
-        (CMModel == CodeModel::Small || CMModel == CodeModel::Medium)
-        ? dwarf::DW_EH_PE_udata4 : dwarf::DW_EH_PE_absptr;
-      LSDAEncoding = (CMModel == CodeModel::Small)
-        ? dwarf::DW_EH_PE_udata4 : dwarf::DW_EH_PE_absptr;
-      TTypeEncoding = (CMModel == CodeModel::Small)
-        ? dwarf::DW_EH_PE_udata4 : dwarf::DW_EH_PE_absptr;
+          Large ? dwarf::DW_EH_PE_absptr : dwarf::DW_EH_PE_udata4;
+      LSDAEncoding = Large ? dwarf::DW_EH_PE_absptr : dwarf::DW_EH_PE_udata4;
+      TTypeEncoding = Large ? dwarf::DW_EH_PE_absptr : dwarf::DW_EH_PE_udata4;
     }
     break;
   case Triple::hexagon:
@@ -596,6 +595,8 @@ void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T) {
 
   EHFrameSection =
       Ctx->getELFSection(".eh_frame", EHSectionType, EHSectionFlags);
+
+  StackSizesSection = Ctx->getELFSection(".stack_sizes", ELF::SHT_PROGBITS, 0);
 }
 
 void MCObjectFileInfo::initCOFFMCObjectFileInfo(const Triple &T) {
@@ -655,6 +656,11 @@ void MCObjectFileInfo::initCOFFMCObjectFileInfo(const Triple &T) {
                                        COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
                                        COFF::IMAGE_SCN_MEM_READ),
                           SectionKind::getMetadata());
+  COFFGlobalTypeHashesSection = Ctx->getCOFFSection(
+      ".debug$H",
+      (COFF::IMAGE_SCN_MEM_DISCARDABLE | COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
+       COFF::IMAGE_SCN_MEM_READ),
+      SectionKind::getMetadata());
 
   DwarfAbbrevSection = Ctx->getCOFFSection(
       ".debug_abbrev",
@@ -826,33 +832,32 @@ void MCObjectFileInfo::initCOFFMCObjectFileInfo(const Triple &T) {
 
 void MCObjectFileInfo::initWasmMCObjectFileInfo(const Triple &T) {
   // TODO: Set the section types and flags.
-  TextSection = Ctx->getWasmSection(".text", 0, 0);
-  DataSection = Ctx->getWasmSection(".data", 0, 0);
+  TextSection = Ctx->getWasmSection(".text", SectionKind::getText());
+  DataSection = Ctx->getWasmSection(".data", SectionKind::getData());
 
   // TODO: Set the section types and flags.
-  DwarfLineSection = Ctx->getWasmSection(".debug_line", 0, 0);
-  DwarfStrSection = Ctx->getWasmSection(".debug_str", 0, 0);
-  DwarfLocSection = Ctx->getWasmSection(".debug_loc", 0, 0);
-  DwarfAbbrevSection = Ctx->getWasmSection(".debug_abbrev", 0, 0, "section_abbrev");
-  DwarfARangesSection = Ctx->getWasmSection(".debug_aranges", 0, 0);
-  DwarfRangesSection = Ctx->getWasmSection(".debug_ranges", 0, 0, "debug_range");
-  DwarfMacinfoSection = Ctx->getWasmSection(".debug_macinfo", 0, 0, "debug_macinfo");
-  DwarfAddrSection = Ctx->getWasmSection(".debug_addr", 0, 0);
-  DwarfCUIndexSection = Ctx->getWasmSection(".debug_cu_index", 0, 0);
-  DwarfTUIndexSection = Ctx->getWasmSection(".debug_tu_index", 0, 0);
-  DwarfInfoSection = Ctx->getWasmSection(".debug_info", 0, 0, "section_info");
-  DwarfFrameSection = Ctx->getWasmSection(".debug_frame", 0, 0);
-  DwarfPubNamesSection = Ctx->getWasmSection(".debug_pubnames", 0, 0);
-  DwarfPubTypesSection = Ctx->getWasmSection(".debug_pubtypes", 0, 0);
+  DwarfLineSection = Ctx->getWasmSection(".debug_line", SectionKind::getMetadata());
+  DwarfStrSection = Ctx->getWasmSection(".debug_str", SectionKind::getMetadata());
+  DwarfLocSection = Ctx->getWasmSection(".debug_loc", SectionKind::getMetadata());
+  DwarfAbbrevSection = Ctx->getWasmSection(".debug_abbrev", SectionKind::getMetadata(), "section_abbrev");
+  DwarfARangesSection = Ctx->getWasmSection(".debug_aranges", SectionKind::getMetadata());
+  DwarfRangesSection = Ctx->getWasmSection(".debug_ranges", SectionKind::getMetadata(), "debug_range");
+  DwarfMacinfoSection = Ctx->getWasmSection(".debug_macinfo", SectionKind::getMetadata(), "debug_macinfo");
+  DwarfAddrSection = Ctx->getWasmSection(".debug_addr", SectionKind::getMetadata());
+  DwarfCUIndexSection = Ctx->getWasmSection(".debug_cu_index", SectionKind::getMetadata());
+  DwarfTUIndexSection = Ctx->getWasmSection(".debug_tu_index", SectionKind::getMetadata());
+  DwarfInfoSection = Ctx->getWasmSection(".debug_info", SectionKind::getMetadata(), "section_info");
+  DwarfFrameSection = Ctx->getWasmSection(".debug_frame", SectionKind::getMetadata());
+  DwarfPubNamesSection = Ctx->getWasmSection(".debug_pubnames", SectionKind::getMetadata());
+  DwarfPubTypesSection = Ctx->getWasmSection(".debug_pubtypes", SectionKind::getMetadata());
 
   // TODO: Define more sections.
 }
 
 void MCObjectFileInfo::InitMCObjectFileInfo(const Triple &TheTriple, bool PIC,
-                                            CodeModel::Model cm,
-                                            MCContext &ctx) {
+                                            MCContext &ctx,
+                                            bool LargeCodeModel) {
   PositionIndependent = PIC;
-  CMModel = cm;
   Ctx = &ctx;
 
   // Common.
@@ -890,7 +895,7 @@ void MCObjectFileInfo::InitMCObjectFileInfo(const Triple &TheTriple, bool PIC,
     break;
   case Triple::ELF:
     Env = IsELF;
-    initELFMCObjectFileInfo(TT);
+    initELFMCObjectFileInfo(TT, LargeCodeModel);
     break;
   case Triple::Wasm:
     Env = IsWasm;

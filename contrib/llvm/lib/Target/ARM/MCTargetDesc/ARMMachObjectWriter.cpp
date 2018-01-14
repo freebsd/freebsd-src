@@ -322,6 +322,14 @@ bool ARMMachObjectWriter::requiresExternRelocation(MachObjectWriter *Writer,
   default:
     return false;
   case MachO::ARM_RELOC_BR24:
+    // An ARM call might be to a Thumb function, in which case the offset may
+    // not be encodable in the instruction and we must use an external
+    // relocation that explicitly mentions the function. Not a problem if it's
+    // to a temporary "Lwhatever" symbol though, and in fact trying to use an
+    // external relocation there causes more issues.
+    if (!S.isTemporary())
+       return true;
+
     // PC pre-adjustment of 8 for these instructions.
     Value -= 8;
     // ARM BL/BLX has a 25-bit offset.
@@ -476,11 +484,10 @@ void ARMMachObjectWriter::recordRelocation(MachObjectWriter *Writer,
   Writer->addRelocation(RelSymbol, Fragment->getParent(), MRE);
 }
 
-MCObjectWriter *llvm::createARMMachObjectWriter(raw_pwrite_stream &OS,
-                                                bool Is64Bit, uint32_t CPUType,
-                                                uint32_t CPUSubtype) {
-  return createMachObjectWriter(new ARMMachObjectWriter(Is64Bit,
-                                                        CPUType,
-                                                        CPUSubtype),
-                                OS, /*IsLittleEndian=*/true);
+std::unique_ptr<MCObjectWriter>
+llvm::createARMMachObjectWriter(raw_pwrite_stream &OS, bool Is64Bit,
+                                uint32_t CPUType, uint32_t CPUSubtype) {
+  return createMachObjectWriter(
+      llvm::make_unique<ARMMachObjectWriter>(Is64Bit, CPUType, CPUSubtype), OS,
+      /*IsLittleEndian=*/true);
 }

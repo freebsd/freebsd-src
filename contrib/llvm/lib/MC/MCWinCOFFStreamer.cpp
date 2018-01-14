@@ -41,9 +41,12 @@ using namespace llvm;
 
 #define DEBUG_TYPE "WinCOFFStreamer"
 
-MCWinCOFFStreamer::MCWinCOFFStreamer(MCContext &Context, MCAsmBackend &MAB,
-                                     MCCodeEmitter &CE, raw_pwrite_stream &OS)
-    : MCObjectStreamer(Context, MAB, OS, &CE), CurSymbol(nullptr) {}
+MCWinCOFFStreamer::MCWinCOFFStreamer(MCContext &Context,
+                                     std::unique_ptr<MCAsmBackend> MAB,
+                                     std::unique_ptr<MCCodeEmitter> CE,
+                                     raw_pwrite_stream &OS)
+    : MCObjectStreamer(Context, std::move(MAB), OS, std::move(CE)),
+      CurSymbol(nullptr) {}
 
 void MCWinCOFFStreamer::EmitInstToData(const MCInst &Inst,
                                        const MCSubtargetInfo &STI) {
@@ -179,7 +182,7 @@ void MCWinCOFFStreamer::EmitCOFFSafeSEH(MCSymbol const *Symbol) {
   if (SXData->getAlignment() < 4)
     SXData->setAlignment(4);
 
-  new MCSafeSEHFragment(Symbol, SXData);
+  new MCSymbolIdFragment(Symbol, SXData);
 
   getAssembler().registerSymbol(*Symbol);
   CSymbol->setIsSafeSEH();
@@ -285,7 +288,7 @@ void MCWinCOFFStreamer::EmitIdent(StringRef IdentString) {
   llvm_unreachable("not implemented");
 }
 
-void MCWinCOFFStreamer::EmitWinEHHandlerData() {
+void MCWinCOFFStreamer::EmitWinEHHandlerData(SMLoc Loc) {
   llvm_unreachable("not implemented");
 }
 
