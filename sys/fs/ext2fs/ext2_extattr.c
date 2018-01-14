@@ -165,6 +165,22 @@ ext2_extattr_check(struct ext2fs_extattr_entry *entry, char *end)
 	return (0);
 }
 
+static int
+ext2_extattr_block_check(struct inode *ip, struct buf *bp)
+{
+	struct ext2fs_extattr_header *header;
+	int error;
+
+	header = (struct ext2fs_extattr_header *)bp->b_data;
+
+	error = ext2_extattr_check(EXT2_IFIRST(header),
+	    bp->b_data + bp->b_bufsize);
+	if (error)
+		return (error);
+
+	return (ext2_extattr_blk_csum_verify(ip, bp));
+}
+
 int
 ext2_extattr_inode_list(struct inode *ip, int attrnamespace,
     struct uio *uio, size_t *size)
@@ -267,7 +283,7 @@ ext2_extattr_block_list(struct inode *ip, int attrnamespace,
 		return (EINVAL);
 	}
 
-	error = ext2_extattr_check(EXT2_FIRST_ENTRY(bp), bp->b_data + bp->b_bufsize);
+	error = ext2_extattr_block_check(ip, bp);
 	if (error) {
 		brelse(bp);
 		return (error);
@@ -408,7 +424,7 @@ ext2_extattr_block_get(struct inode *ip, int attrnamespace,
 		return (EINVAL);
 	}
 
-	error = ext2_extattr_check(EXT2_FIRST_ENTRY(bp), bp->b_data + bp->b_bufsize);
+	error = ext2_extattr_block_check(ip, bp);
 	if (error) {
 		brelse(bp);
 		return (error);
@@ -668,7 +684,7 @@ ext2_extattr_block_delete(struct inode *ip, int attrnamespace, const char *name)
 		return (EINVAL);
 	}
 
-	error = ext2_extattr_check(EXT2_FIRST_ENTRY(bp), bp->b_data + bp->b_bufsize);
+	error = ext2_extattr_block_check(ip, bp);
 	if (error) {
 		brelse(bp);
 		return (error);
@@ -1061,8 +1077,7 @@ ext2_extattr_block_set(struct inode *ip, int attrnamespace,
 			return (EINVAL);
 		}
 
-		error = ext2_extattr_check(EXT2_FIRST_ENTRY(bp),
-		    bp->b_data + bp->b_bufsize);
+		error = ext2_extattr_block_check(ip, bp);
 		if (error) {
 			brelse(bp);
 			return (error);
@@ -1130,6 +1145,7 @@ ext2_extattr_block_set(struct inode *ip, int attrnamespace,
 		}
 
 		ext2_extattr_rehash(header, entry);
+		ext2_extattr_blk_csum_set(ip, bp);
 
 		return (bwrite(bp));
 	}
@@ -1177,6 +1193,7 @@ ext2_extattr_block_set(struct inode *ip, int attrnamespace,
 	}
 
 	ext2_extattr_rehash(header, entry);
+	ext2_extattr_blk_csum_set(ip, bp);
 
 	return (bwrite(bp));
 }
@@ -1207,7 +1224,8 @@ int ext2_extattr_free(struct inode *ip)
 		return (EINVAL);
 	}
 
-	error = ext2_extattr_check(EXT2_FIRST_ENTRY(bp), bp->b_data + bp->b_bufsize);
+	error = ext2_extattr_check(EXT2_FIRST_ENTRY(bp),
+	    bp->b_data + bp->b_bufsize);
 	if (error) {
 		brelse(bp);
 		return (error);

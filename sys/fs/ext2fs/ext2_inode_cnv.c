@@ -34,6 +34,7 @@
 #include <sys/stat.h>
 #include <sys/vnode.h>
 
+#include <fs/ext2fs/ext2fs.h>
 #include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2fs.h>
@@ -86,9 +87,11 @@ ext2_print_inode(struct inode *in)
 /*
  *	raw ext2 inode to inode
  */
-void
+int
 ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 {
+	const static struct ext2fs_dinode ei_zero;
+
 	ip->i_nlink = ei->e2di_nlink;
 	/*
 	 * Godmar thinks - if the link count is zero, then the inode is
@@ -131,6 +134,11 @@ ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 	ip->i_gid |= (uint32_t)ei->e2di_gid_high << 16;
 
 	memcpy(ip->i_data, ei->e2di_blocks, sizeof(ei->e2di_blocks));
+
+	if (memcmp(ei, &ei_zero, sizeof(struct ext2fs_dinode)))
+		return (ext2_ei_csum_verify(ip, ei));
+
+	return (0);
 }
 
 /*
@@ -190,6 +198,9 @@ ext2_i2ei(struct inode *ip, struct ext2fs_dinode *ei)
 	ei->e2di_gid_high = ip->i_gid >> 16 & 0xffff;
 
 	memcpy(ei->e2di_blocks, ip->i_data, sizeof(ei->e2di_blocks));
+
+	/* Set inode csum */
+	ext2_ei_csum_set(ip, ei);
 
 	return (0);
 }

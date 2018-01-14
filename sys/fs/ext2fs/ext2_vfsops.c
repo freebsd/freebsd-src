@@ -372,6 +372,12 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		printf("ext2fs: no space for extra inode timestamps\n");
 		return (EINVAL);
 	}
+	/* Check checksum features */
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM) &&
+	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM)) {
+		printf("ext2fs: incorrect checksum features combination\n");
+		return (EINVAL);
+	}
 	/* Check for group descriptor size */
 	if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_64BIT) &&
 	    (es->e3fs_desc_size != sizeof(struct ext2_gd))) {
@@ -430,8 +436,11 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		brelse(bp);
 		bp = NULL;
 	}
-	/* Verify cg csum */
-	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM)) {
+	/* Precompute checksum seed for all metadata */
+	ext2_sb_csum_set_seed(fs);
+	/* Verfy cg csum */
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM) ||
+	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM)) {
 		error = ext2_gd_csum_verify(fs, devvp->v_rdev);
 		if (error)
 			return (error);
@@ -439,7 +448,7 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	/* Initialization for the ext2 Orlov allocator variant. */
 	fs->e2fs_total_dir = 0;
 	for (i = 0; i < fs->e2fs_gcount; i++)
-		fs->e2fs_total_dir += fs->e2fs_gd[i].ext2bgd_ndirs;
+		fs->e2fs_total_dir += e2fs_gd_get_ndirs(&fs->e2fs_gd[i]);
 
 	if (es->e2fs_rev == E2FS_REV0 ||
 	    !EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_LARGEFILE))
@@ -459,8 +468,10 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		es->e4fs_flags |= E2FS_SIGNED_HASH;
 #endif
 	}
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM))
+		error = ext2_sb_csum_verify(fs);
 
-	return (0);
+	return (error);
 }
 
 /*
@@ -993,8 +1004,16 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		return (error);
 	}
 	/* convert ext2 inode to dinode */
-	ext2_ei2i((struct ext2fs_dinode *)((char *)bp->b_data + EXT2_INODE_SIZE(fs) *
-	    ino_to_fsbo(fs, ino)), ip);
+	error = ext2_ei2i((struct ext2fs_dinode *)((char *)bp->b_data +
+	    EXT2_INODE_SIZE(fs) * ino_to_fsbo(fs, ino)), ip);
+	if (error) {
+		printf("ext2fs: Bad inode %lu csum - run fsck\n",
+		    (unsigned long)ino);
+		brelse(bp);
+		vput(vp);
+		*vpp = NULL;
+		return (error);
+	}
 	ip->i_block_group = ino_to_cg(fs, ino);
 	ip->i_next_alloc_block = 0;
 	ip->i_next_alloc_goal = 0;
@@ -1099,6 +1118,9 @@ ext2_sbupdate(struct ext2mount *mp, int waitfor)
 		es->e4fs_fbcount_hi = fs->e2fs_fbcount >> 32;
 	}
 
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM))
+		ext2_sb_csum_set(fs);
+
 	bp = getblk(mp->um_devvp, SBLOCK, SBSIZE, 0, 0, 0);
 	bcopy((caddr_t)es, bp->b_data, (u_int)sizeof(struct ext2fs));
 	if (waitfor == MNT_WAIT)
@@ -1123,7 +1145,8 @@ ext2_cgupdate(struct ext2mount *mp, int waitfor)
 	allerror = ext2_sbupdate(mp, waitfor);
 
 	/* Update gd csums */
-	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM))
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM) ||
+	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM))
 		ext2_gd_csum_set(fs);
 
 	for (i = 0; i < fs->e2fs_gdbcount; i++) {
