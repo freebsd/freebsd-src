@@ -72,6 +72,20 @@ struct ext2fs_direct_2 {
 						 * length<=EXT2FS_MAXNAMLEN */
 };
 
+struct ext2fs_direct_tail {
+	uint32_t e2dt_reserved_zero1;	/* pretend to be unused */
+	uint16_t e2dt_rec_len;		/* 12 */
+	uint8_t	e2dt_reserved_zero2;	/* zero name length */
+	uint8_t	e2dt_reserved_ft;	/* 0xDE, fake file type */
+	uint32_t e2dt_checksum;		/* crc32c(uuid+inum+dirblock) */
+};
+
+#define EXT2_FT_DIR_CSUM	0xDE
+
+#define EXT2_DIRENT_TAIL(data, blocksize) \
+	((struct ext2fs_direct_tail *)(((char *)(data)) + \
+	(blocksize) - sizeof(struct ext2fs_direct_tail)))
+
 /*
  * Maximal count of links to a file
  */

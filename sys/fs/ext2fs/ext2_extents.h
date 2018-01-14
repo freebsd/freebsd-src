@@ -43,6 +43,13 @@
 #define	EXT4_EXT_CACHE_IN	2
 
 /*
+ * Ext4 extent tail with csum
+ */
+struct ext4_extent_tail {
+	uint32_t et_checksum;	/* crc32c(uuid+inum+extent_block) */
+};
+
+/*
  * Ext4 file system extent on disk.
  */
 struct ext4_extent {

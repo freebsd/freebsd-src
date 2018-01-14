@@ -182,6 +182,7 @@ struct m_ext2fs {
 	int32_t *e2fs_maxcluster;       /* max cluster in each cyl group */
 	struct   csum *e2fs_clustersum; /* cluster summary in each cyl group */
 	int32_t  e2fs_uhash;	  /* 3 if hash should be signed, 0 if not */
+	uint32_t e2fs_csum_seed;  /* sb checksum seed */
 };
 
 /* cluster summary information */
@@ -203,6 +204,11 @@ struct csum {
 #define	E2FS_REV1		1	/* V2 format w/ dynamic inode sizes */
 
 #define	E2FS_REV0_INODE_SIZE 128
+
+/*
+ * Metadata checksum algorithm codes
+ */
+#define EXT4_CRC32C_CHKSUM		1
 
 /*
  * compatible/incompatible features
@@ -323,13 +329,15 @@ static const struct ext2_feature incompat[] = {
 #define	EXT2F_ROCOMPAT_SUPP		(EXT2F_ROCOMPAT_SPARSESUPER | \
 					 EXT2F_ROCOMPAT_LARGEFILE | \
 					 EXT2F_ROCOMPAT_GDT_CSUM | \
+					 EXT2F_ROCOMPAT_METADATA_CKSUM | \
 					 EXT2F_ROCOMPAT_DIR_NLINK | \
 					 EXT2F_ROCOMPAT_HUGE_FILE | \
 					 EXT2F_ROCOMPAT_EXTRA_ISIZE)
 #define	EXT2F_INCOMPAT_SUPP		(EXT2F_INCOMPAT_FTYPE | \
-					 EXT2F_INCOMPAT_64BIT)
-#define	EXT4F_RO_INCOMPAT_SUPP		(EXT2F_INCOMPAT_EXTENTS | \
-					 EXT2F_INCOMPAT_RECOVER | \
+					 EXT2F_INCOMPAT_EXTENTS | \
+					 EXT2F_INCOMPAT_64BIT | \
+					 EXT2F_INCOMPAT_CSUM_SEED)
+#define	EXT4F_RO_INCOMPAT_SUPP		(EXT2F_INCOMPAT_RECOVER | \
 					 EXT2F_INCOMPAT_FLEX_BG | \
 					 EXT2F_INCOMPAT_META_BG )
 

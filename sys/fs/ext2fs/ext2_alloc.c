@@ -898,13 +898,21 @@ ext2_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
 		EXT2_LOCK(ump);
 		return (0);
 	}
-	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM)) {
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM) ||
+	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM)) {
 		error = ext2_cg_block_bitmap_init(fs, cg, bp);
 		if (error) {
 			brelse(bp);
 			EXT2_LOCK(ump);
 			return (0);
 		}
+		ext2_gd_b_bitmap_csum_set(fs, cg, bp);
+	}
+	error = ext2_gd_b_bitmap_csum_verify(fs, cg, bp);
+	if (error) {
+		brelse(bp);
+		EXT2_LOCK(ump);
+		return (0);
 	}
 	if (e2fs_gd_get_nbfree(&fs->e2fs_gd[cg]) == 0) {
 		/*
@@ -1008,6 +1016,7 @@ gotit:
 	    e2fs_gd_get_nbfree(&fs->e2fs_gd[cg]) - 1);
 	fs->e2fs_fmod = 1;
 	EXT2_UNLOCK(ump);
+	ext2_gd_b_bitmap_csum_set(fs, cg, bp);
 	bdwrite(bp);
 	return (((uint64_t)cg) * fs->e2fs->e2fs_fpg + fs->e2fs->e2fs_first_dblock + bno);
 }
@@ -1187,17 +1196,25 @@ ext2_nodealloccg(struct inode *ip, int cg, daddr_t ipref, int mode)
 		EXT2_LOCK(ump);
 		return (0);
 	}
-	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM)) {
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM) ||
+	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM)) {
 		if (fs->e2fs_gd[cg].ext4bgd_flags & EXT2_BG_INODE_UNINIT) {
 			memset(bp->b_data, 0, fs->e2fs_bsize);
 			fs->e2fs_gd[cg].ext4bgd_flags &= ~EXT2_BG_INODE_UNINIT;
 		}
+		ext2_gd_i_bitmap_csum_set(fs, cg, bp);
 		error = ext2_zero_inode_table(ip, cg);
 		if (error) {
 			brelse(bp);
 			EXT2_LOCK(ump);
 			return (0);
 		}
+	}
+	error = ext2_gd_i_bitmap_csum_verify(fs, cg, bp);
+	if (error) {
+		brelse(bp);
+		EXT2_LOCK(ump);
+		return (0);
 	}
 	if (e2fs_gd_get_nifree(&fs->e2fs_gd[cg]) == 0) {
 		/*
@@ -1234,7 +1251,8 @@ gotit:
 	EXT2_LOCK(ump);
 	e2fs_gd_set_nifree(&fs->e2fs_gd[cg],
 	    e2fs_gd_get_nifree(&fs->e2fs_gd[cg]) - 1);
-	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM))
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM) ||
+	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM))
 		e2fs_gd_set_i_unused(&fs->e2fs_gd[cg],
 		    e2fs_gd_get_i_unused(&fs->e2fs_gd[cg]) - 1);
 	fs->e2fs->e2fs_ficount--;
@@ -1245,6 +1263,7 @@ gotit:
 		fs->e2fs_total_dir++;
 	}
 	EXT2_UNLOCK(ump);
+	ext2_gd_i_bitmap_csum_set(fs, cg, bp);
 	bdwrite(bp);
 	return ((uint64_t)cg * fs->e2fs_ipg + ipref + 1);
 }
@@ -1293,6 +1312,7 @@ ext2_blkfree(struct inode *ip, e4fs_daddr_t bno, long size)
 	    e2fs_gd_get_nbfree(&fs->e2fs_gd[cg]) + 1);
 	fs->e2fs_fmod = 1;
 	EXT2_UNLOCK(ump);
+	ext2_gd_b_bitmap_csum_set(fs, cg, bp);
 	bdwrite(bp);
 }
 
@@ -1338,7 +1358,8 @@ ext2_vfree(struct vnode *pvp, ino_t ino, int mode)
 	fs->e2fs->e2fs_ficount++;
 	e2fs_gd_set_nifree(&fs->e2fs_gd[cg],
 	    e2fs_gd_get_nifree(&fs->e2fs_gd[cg]) + 1);
-	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM))
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM) ||
+	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM))
 		e2fs_gd_set_i_unused(&fs->e2fs_gd[cg],
 		    e2fs_gd_get_i_unused(&fs->e2fs_gd[cg]) + 1);
 	if ((mode & IFMT) == IFDIR) {
@@ -1348,6 +1369,7 @@ ext2_vfree(struct vnode *pvp, ino_t ino, int mode)
 	}
 	fs->e2fs_fmod = 1;
 	EXT2_UNLOCK(ump);
+	ext2_gd_i_bitmap_csum_set(fs, cg, bp);
 	bdwrite(bp);
 	return (0);
 }
