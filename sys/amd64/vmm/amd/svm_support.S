@@ -124,8 +124,20 @@ ENTRY(svm_launch)
 	pop %rdx
 	mov %edx, %eax
 	shr $32, %rdx
-	mov $MSR_GSBASE, %ecx
+	mov $MSR_GSBASE, %rcx
 	wrmsr
+
+	/*
+	 * Clobber the remaining registers with guest contents so they
+	 * can't be misused.
+	 */
+	xor %rbp, %rbp
+	xor %rdi, %rdi
+	xor %rsi, %rsi
+	xor %r8, %r8
+	xor %r9, %r9
+	xor %r10, %r10
+	xor %r11, %r11
 
 	VLEAVE
 	ret
