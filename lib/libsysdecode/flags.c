@@ -1158,3 +1158,38 @@ sysdecode_cap_rights(FILE *fp, cap_rights_t *rightsp)
 		}
 	}
 }
+
+const char *
+sysdecode_sctp_pr_policy(int policy)
+{
+
+	return (lookup_value(sctpprpolicy, policy));
+}
+
+static struct name_table sctpsinfoflags[] = {
+	X(SCTP_EOF) X(SCTP_ABORT) X(SCTP_UNORDERED) X(SCTP_ADDR_OVER)
+	X(SCTP_SENDALL) X(SCTP_EOR) X(SCTP_SACK_IMMEDIATELY) XEND
+};
+
+void
+sysdecode_sctp_sinfo_flags(FILE *fp, int sinfo_flags)
+{
+	const char *temp;
+	int rem;
+	bool printed;
+
+	printed = print_mask_0(fp, sctpsinfoflags, sinfo_flags, &rem);
+	if (rem & ~SCTP_PR_SCTP_ALL) {
+		fprintf(fp, "%s%#x", printed ? "|" : "", rem & ~SCTP_PR_SCTP_ALL);
+		printed = true;
+		rem &= ~SCTP_PR_SCTP_ALL;
+	}
+	if (rem != 0) {
+		temp = sysdecode_sctp_pr_policy(rem);
+		if (temp != NULL) {
+			fprintf(fp, "%s%s", printed ? "|" : "", temp);
+		} else {
+			fprintf(fp, "%s%#x", printed ? "|" : "", rem);
+		}
+	}
+}

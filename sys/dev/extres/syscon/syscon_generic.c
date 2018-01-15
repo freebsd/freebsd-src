@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015 Michal Meloun
  * All rights reserved.
  *
@@ -48,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include "syscon_if.h"
 #include "syscon.h"
+#include "syscon_generic.h"
 
 MALLOC_DECLARE(M_SYSCON);
 
@@ -60,22 +63,15 @@ static int syscon_generic_modify_4(struct syscon *syscon, bus_size_t offset,
 /*
  * Generic syscon driver (FDT)
  */
-struct syscon_generic_softc {
-	device_t		dev;
-	struct syscon		*syscon;
-	struct resource		*mem_res;
-	struct mtx		mtx;
-};
-
 static struct ofw_compat_data compat_data[] = {
 	{"syscon",	1},
 	{NULL,		0}
 };
 
-#define SYSCON_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
-#define	SYSCON_UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
+#define SYSCON_LOCK(_sc)		mtx_lock_spin(&(_sc)->mtx)
+#define	SYSCON_UNLOCK(_sc)		mtx_unlock_spin(&(_sc)->mtx)
 #define SYSCON_LOCK_INIT(_sc)		mtx_init(&(_sc)->mtx,		\
-	    device_get_nameunit((_sc)->dev), "syscon", MTX_DEF)
+	    device_get_nameunit((_sc)->dev), "syscon", MTX_SPIN)
 #define SYSCON_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->mtx);
 #define SYSCON_ASSERT_LOCKED(_sc)	mtx_assert(&(_sc)->mtx, MA_OWNED);
 #define SYSCON_ASSERT_UNLOCKED(_sc)	mtx_assert(&(_sc)->mtx, MA_NOTOWNED);
@@ -156,8 +152,8 @@ syscon_generic_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-
 	rid = 0;
+
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->mem_res == NULL) {
@@ -181,7 +177,6 @@ syscon_generic_detach(device_t dev)
 	struct syscon_generic_softc *sc;
 
 	sc = device_get_softc(dev);
-
 	if (sc->syscon != NULL) {
 		syscon_unregister(sc->syscon);
 		free(sc->syscon, M_SYSCON);
@@ -206,11 +201,7 @@ static device_method_t syscon_generic_dmethods[] = {
 DEFINE_CLASS_0(syscon_generic, syscon_generic_driver, syscon_generic_dmethods,
     sizeof(struct syscon_generic_softc));
 static devclass_t syscon_generic_devclass;
-/*
- * syscon_generic needs to attach before other devices that may require it, such
- * as if_awg, but later than others to give way for more specialized syscon
- * implementations.
- */
+
 EARLY_DRIVER_MODULE(syscon_generic, simplebus, syscon_generic_driver,
-    syscon_generic_devclass, 0, 0, BUS_PASS_DEFAULT - 1000);
+    syscon_generic_devclass, 0, 0, BUS_PASS_DEFAULT);
 MODULE_VERSION(syscon_generic, 1);

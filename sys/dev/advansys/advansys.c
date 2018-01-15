@@ -1255,7 +1255,7 @@ adv_attach(adv)
 	 * a transaction and use it for mapping the queue to the
 	 * upper level SCSI transaction it represents.
 	 */
-	adv->ccb_infos = malloc(sizeof(*adv->ccb_infos) * adv->max_openings,
+	adv->ccb_infos = mallocarray(adv->max_openings, sizeof(*adv->ccb_infos),
 				M_DEVBUF, M_NOWAIT);
 
 	if (adv->ccb_infos == NULL)

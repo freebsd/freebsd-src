@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 3, 2017
+.Dd January 14, 2018
 .Dt sysdecode_enum 3
 .Os
 .Sh NAME
@@ -53,6 +53,8 @@
 .Nm sysdecode_rlimit ,
 .Nm sysdecode_rtprio_function ,
 .Nm sysdecode_scheduler_policy ,
+.Nm sysdecode_sctp_pr_policy ,
+.Nm sysdecode_sctp_sinfo_flags ,
 .Nm sysdecode_semctl_cmd ,
 .Nm sysdecode_shmctl_cmd ,
 .Nm sysdecode_shutdown_how ,
@@ -125,6 +127,8 @@
 .Fn sysdecode_rtprio_function "int function"
 .Ft const char *
 .Fn sysdecode_scheduler_policy "int policy"
+.Ft const char *
+.Fn sysdecode_sctp_pr_policy "int policy"
 .Ft const char *
 .Fn sysdecode_semctl_cmd "int cmd"
 .Ft const char *
@@ -229,6 +233,8 @@ Other functions decode the values described below:
 .Bl -tag -width "Fn sysdecode_sockaddr_family"
 .It Fn sysdecode_ipproto
 An IP protocol.
+.It Fn sysdecode_sctp_pr_policy
+A PR-SCTP policy.
 .It Fn sysdecode_signal
 A process signal.
 .It Fn sysdecode_sockaddr_family

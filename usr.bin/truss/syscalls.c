@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
+#include <netinet/sctp.h>
 #include <arpa/inet.h>
 
 #include <assert.h>
@@ -386,6 +387,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Name, 0 }, { Quotactlcmd, 1 }, { Int, 2 }, { Ptr, 3 } } },
 	{ .name = "read", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { BinString | OUT, 1 }, { Sizet, 2 } } },
+	{ .name = "readv", .ret_type = 1, .nargs = 3,
+	  .args = { { Int, 0 }, { Iovec | OUT, 1 }, { Int, 2 } } },
 	{ .name = "readlink", .ret_type = 1, .nargs = 3,
 	  .args = { { Name, 0 }, { Readlinkres | OUT, 1 }, { Sizet, 2 } } },
 	{ .name = "readlinkat", .ret_type = 1, .nargs = 4,
@@ -426,13 +429,17 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "sched_setscheduler", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { Schedpolicy, 1 }, { Schedparam, 2 } } },
 	{ .name = "sctp_generic_recvmsg", .ret_type = 1, .nargs = 7,
-	  .args = { { Int, 0 }, { Ptr | IN, 1 }, { Int, 2 },
-	            { Sockaddr | OUT, 3 }, { Ptr | OUT, 4 }, { Ptr | OUT, 5 },
-	            { Ptr | OUT, 6 } } },
+	  .args = { { Int, 0 }, { Iovec | OUT, 1 }, { Int, 2 },
+	            { Sockaddr | OUT, 3 }, { Ptr | OUT, 4 },
+	            { Sctpsndrcvinfo | OUT, 5 }, { Ptr | OUT, 6 } } },
 	{ .name = "sctp_generic_sendmsg", .ret_type = 1, .nargs = 7,
 	  .args = { { Int, 0 }, { BinString | IN, 1 }, { Int, 2 },
-	            { Sockaddr | IN, 3 }, { Socklent, 4 }, { Ptr | IN, 5 },
-	            { Msgflags, 6 } } },
+	            { Sockaddr | IN, 3 }, { Socklent, 4 },
+	            { Sctpsndrcvinfo | IN, 5 }, { Msgflags, 6 } } },
+	{ .name = "sctp_generic_sendmsg_iov", .ret_type = 1, .nargs = 7,
+	  .args = { { Int, 0 }, { Iovec | IN, 1 }, { Int, 2 },
+	            { Sockaddr | IN, 3 }, { Socklent, 4 },
+	            { Sctpsndrcvinfo | IN, 5 }, { Msgflags, 6 } } },
 	{ .name = "select", .ret_type = 1, .nargs = 5,
 	  .args = { { Int, 0 }, { Fd_set, 1 }, { Fd_set, 2 }, { Fd_set, 3 },
 		    { Timeval, 4 } } },
@@ -520,6 +527,8 @@ static struct syscall decoded_syscalls[] = {
 		    { Siginfo | OUT, 5 } } },
 	{ .name = "write", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { BinString | IN, 1 }, { Sizet, 2 } } },
+	{ .name = "writev", .ret_type = 1, .nargs = 3,
+	  .args = { { Int, 0 }, { Iovec | IN, 1 }, { Int, 2 } } },
 
 	/* Linux ABI */
 	{ .name = "linux_access", .ret_type = 1, .nargs = 2,
@@ -2137,6 +2146,95 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			fprintf(fp, " }");
 		} else
 			fprintf(fp, "0x%lx", args[sc->offset]);
+		break;
+	}
+#define IOV_LIMIT 16
+	case Iovec: {
+		/*
+		 * Print argument as an array of struct iovec, where the next
+		 * syscall argument is the number of elements of the array.
+		 */
+		struct iovec iov[IOV_LIMIT];
+		size_t max_string = trussinfo->strsize;
+		char tmp2[max_string + 1], *tmp3;
+		size_t len;
+		int i, iovcnt;
+		bool buf_truncated, iov_truncated;
+
+		iovcnt = args[sc->offset + 1];
+		if (iovcnt <= 0) {
+			fprintf(fp, "0x%lx", args[sc->offset]);
+			break;
+		}
+		if (iovcnt > IOV_LIMIT) {
+			iovcnt = IOV_LIMIT;
+			iov_truncated = true;
+		} else {
+			iov_truncated = false;
+		}
+		if (get_struct(pid, (void *)args[sc->offset],
+		    &iov, iovcnt * sizeof(struct iovec)) == -1) {
+			fprintf(fp, "0x%lx", args[sc->offset]);
+			break;
+		}
+
+		fprintf(fp, "%s", "[");
+		for (i = 0; i < iovcnt; i++) {
+			len = iov[i].iov_len;
+			if (len > max_string) {
+				len = max_string;
+				buf_truncated = true;
+			} else {
+				buf_truncated = false;
+			}
+			fprintf(fp, "%s{", (i > 0) ? "," : "");
+			if (len && get_struct(pid, iov[i].iov_base, &tmp2, len)
+			    != -1) {
+				tmp3 = malloc(len * 4 + 1);
+				while (len) {
+					if (strvisx(tmp3, tmp2, len,
+					    VIS_CSTYLE|VIS_TAB|VIS_NL) <=
+					    (int)max_string)
+						break;
+					len--;
+					buf_truncated = true;
+				}
+				fprintf(fp, "\"%s\"%s", tmp3,
+				    buf_truncated ? "..." : "");
+				free(tmp3);
+			} else {
+				fprintf(fp, "0x%p", iov[i].iov_base);
+			}
+			fprintf(fp, ",%zu}", iov[i].iov_len);
+		}
+		fprintf(fp, "%s%s", iov_truncated ? ",..." : "", "]");
+		break;
+	}
+	case Sctpsndrcvinfo: {
+		struct sctp_sndrcvinfo info;
+
+		if (get_struct(pid, (void *)args[sc->offset],
+		    &info, sizeof(struct sctp_sndrcvinfo)) == -1) {
+			fprintf(fp, "0x%lx", args[sc->offset]);
+			break;
+		}
+		fprintf(fp, "{sid=%u,", info.sinfo_stream);
+		if (sc->type & OUT) {
+			fprintf(fp, "ssn=%u,", info.sinfo_ssn);
+		}
+		fputs("flgs=", fp);
+		sysdecode_sctp_sinfo_flags(fp, info.sinfo_flags);
+		fprintf(fp, ",ppid=%u,", ntohl(info.sinfo_ppid));
+		/* Can't use IN here, since IN is 0 */
+		if ((sc->type & OUT) == 0) {
+			fprintf(fp, "ctx=%u,", info.sinfo_context);
+			fprintf(fp, "ttl=%u,", info.sinfo_timetolive);
+		}
+		if (sc->type & OUT) {
+			fprintf(fp, "tsn=%u,", info.sinfo_tsn);
+			fprintf(fp, "cumtsn=%u,", info.sinfo_cumtsn);
+		}
+		fprintf(fp, "id=%u}", info.sinfo_assoc_id);
 		break;
 	}
 

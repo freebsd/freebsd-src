@@ -21,10 +21,10 @@
 
 // Other libraries and framework includes
 // Project includes
-#include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/PluginInterface.h"
 #include "lldb/Core/UserSettingsController.h"
 #include "lldb/Interpreter/Options.h"
+#include "lldb/Utility/ArchSpec.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/lldb-private-forward.h"
@@ -117,9 +117,12 @@ public:
   static lldb::PlatformSP Create(const ArchSpec &arch,
                                  ArchSpec *platform_arch_ptr, Status &error);
 
-  static uint32_t GetNumConnectedRemotePlatforms();
-
-  static lldb::PlatformSP GetConnectedRemotePlatformAtIndex(uint32_t idx);
+  //------------------------------------------------------------------------
+  /// Augments the triple either with information from platform or the host
+  /// system (if platform is null).
+  //------------------------------------------------------------------------
+  static ArchSpec GetAugmentedArchSpec(Platform *platform,
+                                       llvm::StringRef triple);
 
   //------------------------------------------------------------------
   /// Find a platform plugin for a given process.
@@ -512,6 +515,13 @@ public:
     if (IsHost())
       m_os_version_set_while_connected = m_system_arch.IsValid();
   }
+
+  //---------------------------------------------------------------------------
+  /// If the triple contains not specify the vendor, os, and environment parts,
+  /// we "augment" these using information from the platform and return the
+  /// resulting ArchSpec object.
+  //---------------------------------------------------------------------------
+  ArchSpec GetAugmentedArchSpec(llvm::StringRef triple);
 
   // Used for column widths
   size_t GetMaxUserIDNameLength() const { return m_max_uid_name_len; }

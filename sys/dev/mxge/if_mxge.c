@@ -688,7 +688,7 @@ z_alloc(void *nil, u_int items, u_int size)
 {
 	void *ptr;
 
-	ptr = malloc(items * size, M_TEMP, M_NOWAIT);
+	ptr = mallocarray(items, size, M_TEMP, M_NOWAIT);
 	return ptr;
 }
 
@@ -4390,8 +4390,8 @@ mxge_alloc_slices(mxge_softc_t *sc)
 	sc->rx_ring_size = cmd.data0;
 	max_intr_slots = 2 * (sc->rx_ring_size / sizeof (mcp_dma_addr_t));
 	
-	bytes = sizeof (*sc->ss) * sc->num_slices;
-	sc->ss = malloc(bytes, M_DEVBUF, M_NOWAIT | M_ZERO);
+	sc->ss = mallocarray(sc->num_slices, sizeof(*sc->ss), M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
 	if (sc->ss == NULL)
 		return (ENOMEM);
 	for (i = 0; i < sc->num_slices; i++) {
@@ -4535,7 +4535,6 @@ abort_with_fw:
 static int
 mxge_add_msix_irqs(mxge_softc_t *sc)
 {
-	size_t bytes;
 	int count, err, i, rid;
 
 	rid = PCIR_BAR(2);
@@ -4563,8 +4562,8 @@ mxge_add_msix_irqs(mxge_softc_t *sc)
 		err = ENOSPC;
 		goto abort_with_msix;
 	}
-	bytes = sizeof (*sc->msix_irq_res) * sc->num_slices;
-	sc->msix_irq_res = malloc(bytes, M_DEVBUF, M_NOWAIT|M_ZERO);
+	sc->msix_irq_res = mallocarray(sc->num_slices,
+	    sizeof(*sc->msix_irq_res), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (sc->msix_irq_res == NULL) {
 		err = ENOMEM;
 		goto abort_with_msix;
@@ -4583,8 +4582,8 @@ mxge_add_msix_irqs(mxge_softc_t *sc)
 		}
 	}
 
-	bytes = sizeof (*sc->msix_ih) * sc->num_slices;
-	sc->msix_ih =  malloc(bytes, M_DEVBUF, M_NOWAIT|M_ZERO);
+	sc->msix_ih =  mallocarray(sc->num_slices, sizeof(*sc->msix_ih),
+	    M_DEVBUF, M_NOWAIT|M_ZERO);
 
 	for (i = 0; i < sc->num_slices; i++) {
 		err = bus_setup_intr(sc->dev, sc->msix_irq_res[i],

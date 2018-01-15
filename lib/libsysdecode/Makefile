@@ -21,6 +21,7 @@ MAN=	sysdecode.3 \
 	sysdecode_ioctlname.3 \
 	sysdecode_mask.3 \
 	sysdecode_quotactl_cmd.3 \
+	sysdecode_sctp_sinfo_flags.3 \
 	sysdecode_sigcode.3 \
 	sysdecode_sockopt_name.3 \
 	sysdecode_socket_protocol.3 \
@@ -50,6 +51,7 @@ MLINKS+=sysdecode_enum.3 sysdecode_acltype.3 \
 	sysdecode_enum.3 sysdecode_rlimit.3 \
 	sysdecode_enum.3 sysdecode_rtprio_function.3 \
 	sysdecode_enum.3 sysdecode_scheduler_policy.3 \
+	sysdecode_enum.3 sysdecode_sctp_pr_policy.3 \
 	sysdecode_enum.3 sysdecode_semctl_cmd.3 \
 	sysdecode_enum.3 sysdecode_shmctl_cmd.3 \
 	sysdecode_enum.3 sysdecode_shutdown_how.3 \

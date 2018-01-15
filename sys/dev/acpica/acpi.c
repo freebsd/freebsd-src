@@ -31,7 +31,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
-#include "opt_device_numa.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -1089,7 +1088,7 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 static int
 acpi_parse_pxm(device_t dev)
 {
-#ifdef DEVICE_NUMA
+#ifdef NUMA
 	ACPI_HANDLE handle;
 	ACPI_STATUS status;
 	int pxm;

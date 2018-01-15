@@ -90,6 +90,8 @@ bool	sysdecode_rfork_flags(FILE *_fp, int _flags, int *_rem);
 const char *sysdecode_rlimit(int _resource);
 const char *sysdecode_rtprio_function(int _function);
 const char *sysdecode_scheduler_policy(int _policy);
+const char *sysdecode_sctp_pr_policy(int _policy);
+void	sysdecode_sctp_sinfo_flags(FILE *_fp, int _sinfo_flags);
 const char *sysdecode_semctl_cmd(int _cmd);
 bool	sysdecode_semget_flags(FILE *_fp, int _flag, int *_rem);
 bool	sysdecode_sendfile_flags(FILE *_fp, int _flags, int *_rem);

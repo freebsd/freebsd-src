@@ -540,7 +540,8 @@ moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
 		DISABLE_TRANS(msr);
 		for (off = 0; off < translations[i].om_len; off += PAGE_SIZE) {
 			/* If this address is direct-mapped, skip remapping */
-			if (hw_direct_map && translations[i].om_va == pa_base &&
+			if (hw_direct_map &&
+			    translations[i].om_va == PHYS_TO_DMAP(pa_base) &&
 			    moea64_calc_wimg(pa_base + off, VM_MEMATTR_DEFAULT) 			    == LPTE_M)
 				continue;
 
@@ -633,7 +634,7 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 
 			pvo = alloc_pvo_entry(1 /* bootstrap */);
 			pvo->pvo_vaddr |= PVO_WIRED | PVO_LARGE;
-			init_pvo_entry(pvo, kernel_pmap, pa);
+			init_pvo_entry(pvo, kernel_pmap, PHYS_TO_DMAP(pa));
 
 			/*
 			 * Set memory access as guarded if prefetch within
@@ -1111,7 +1112,8 @@ moea64_copy_page(mmu_t mmu, vm_page_t msrc, vm_page_t mdst)
 	src = VM_PAGE_TO_PHYS(msrc);
 
 	if (hw_direct_map) {
-		bcopy((void *)src, (void *)dst, PAGE_SIZE);
+		bcopy((void *)PHYS_TO_DMAP(src), (void *)PHYS_TO_DMAP(dst),
+		    PAGE_SIZE);
 	} else {
 		mtx_lock(&moea64_scratchpage_mtx);
 
@@ -1136,11 +1138,13 @@ moea64_copy_pages_dmap(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
 	while (xfersize > 0) {
 		a_pg_offset = a_offset & PAGE_MASK;
 		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
-		a_cp = (char *)VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT]) +
+		a_cp = (char *)PHYS_TO_DMAP(
+		    VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT])) +
 		    a_pg_offset;
 		b_pg_offset = b_offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-		b_cp = (char *)VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT]) +
+		b_cp = (char *)PHYS_TO_DMAP(
+		    VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT])) +
 		    b_pg_offset;
 		bcopy(a_cp, b_cp, cnt);
 		a_offset += cnt;
@@ -1200,7 +1204,7 @@ moea64_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 		panic("moea64_zero_page: size + off > PAGE_SIZE");
 
 	if (hw_direct_map) {
-		bzero((caddr_t)pa + off, size);
+		bzero((caddr_t)PHYS_TO_DMAP(pa) + off, size);
 	} else {
 		mtx_lock(&moea64_scratchpage_mtx);
 		moea64_set_scratchpage_pa(mmu, 0, pa);
@@ -1224,7 +1228,7 @@ moea64_zero_page(mmu_t mmu, vm_page_t m)
 		moea64_set_scratchpage_pa(mmu, 0, pa);
 		va = moea64_scratchpage_va[0];
 	} else {
-		va = pa;
+		va = PHYS_TO_DMAP(pa);
 	}
 
 	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
@@ -1241,7 +1245,7 @@ moea64_quick_enter_page(mmu_t mmu, vm_page_t m)
 	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
 
 	if (hw_direct_map)
-		return (pa);
+		return (PHYS_TO_DMAP(pa));
 
 	/*
  	 * MOEA64_PTE_REPLACE does some locking, so we can't just grab
@@ -1402,7 +1406,7 @@ moea64_syncicache(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	} else if (pmap == kernel_pmap) {
 		__syncicache((void *)va, sz);
 	} else if (hw_direct_map) {
-		__syncicache((void *)pa, sz);
+		__syncicache((void *)PHYS_TO_DMAP(pa), sz);
 	} else {
 		/* Use the scratch page to set up a temp mapping */
 
@@ -1565,7 +1569,7 @@ moea64_init(mmu_t mmu)
 
 	if (!hw_direct_map) {
 		installed_mmu = mmu;
-		uma_zone_set_allocf(moea64_pvo_zone,moea64_uma_page_alloc);
+		uma_zone_set_allocf(moea64_pvo_zone, moea64_uma_page_alloc);
 	}
 
 #ifdef COMPAT_FREEBSD32
@@ -1855,7 +1859,7 @@ moea64_map(mmu_t mmu, vm_offset_t *virt, vm_paddr_t pa_start,
 			if (moea64_calc_wimg(va, VM_MEMATTR_DEFAULT) != LPTE_M)
 				break;
 		if (va == pa_end)
-			return (pa_start);
+			return (PHYS_TO_DMAP(pa_start));
 	}
 	sva = *virt;
 	va = sva;

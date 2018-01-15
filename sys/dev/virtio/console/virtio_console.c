@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/ctype.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -58,13 +59,18 @@ __FBSDID("$FreeBSD$");
 
 #define VTCON_MAX_PORTS 32
 #define VTCON_TTY_PREFIX "V"
+#define VTCON_TTY_ALIAS_PREFIX "vtcon"
 #define VTCON_BULK_BUFSZ 128
+#define VTCON_CTRL_BUFSZ 128
 
 /*
- * The buffer cannot cross more than one page boundary due to the
+ * The buffers cannot cross more than one page boundary due to the
  * size of the sglist segment array used.
  */
 CTASSERT(VTCON_BULK_BUFSZ <= PAGE_SIZE);
+CTASSERT(VTCON_CTRL_BUFSZ <= PAGE_SIZE);
+
+CTASSERT(sizeof(struct virtio_console_config) <= VTCON_CTRL_BUFSZ);
 
 struct vtcon_softc;
 struct vtcon_softc_port;
@@ -80,6 +86,7 @@ struct vtcon_port {
 	int				 vtcport_flags;
 #define VTCON_PORT_FLAG_GONE	0x01
 #define VTCON_PORT_FLAG_CONSOLE	0x02
+#define VTCON_PORT_FLAG_ALIAS	0x04
 
 #if defined(KDB)
 	int				 vtcport_alt_break_state;
@@ -193,6 +200,8 @@ static void	 vtcon_port_requeue_buf(struct vtcon_port *, void *);
 static int	 vtcon_port_populate(struct vtcon_port *);
 static void	 vtcon_port_destroy(struct vtcon_port *);
 static int	 vtcon_port_create(struct vtcon_softc *, int);
+static void	 vtcon_port_dev_alias(struct vtcon_port *, const char *,
+		     size_t);
 static void	 vtcon_port_drain_bufs(struct virtqueue *);
 static void	 vtcon_port_drain(struct vtcon_port *);
 static void	 vtcon_port_teardown(struct vtcon_port *);
@@ -465,11 +474,11 @@ static int
 vtcon_alloc_scports(struct vtcon_softc *sc)
 {
 	struct vtcon_softc_port *scport;
-	int max, i;
+	u_int max, i;
 
 	max = sc->vtcon_max_ports;
 
-	sc->vtcon_ports = malloc(sizeof(struct vtcon_softc_port) * max,
+	sc->vtcon_ports = mallocarray(max, sizeof(struct vtcon_softc_port),
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc->vtcon_ports == NULL)
 		return (ENOMEM);
@@ -488,7 +497,8 @@ vtcon_alloc_virtqueues(struct vtcon_softc *sc)
 	device_t dev;
 	struct vq_alloc_info *info;
 	struct vtcon_softc_port *scport;
-	int i, idx, portidx, nvqs, error;
+	u_int i, idx, portidx, nvqs;
+	int error;
 
 	dev = sc->vtcon_dev;
 
@@ -496,7 +506,8 @@ vtcon_alloc_virtqueues(struct vtcon_softc *sc)
 	if (sc->vtcon_flags & VTCON_FLAG_MULTIPORT)
 		nvqs += 2;
 
-	info = malloc(sizeof(struct vq_alloc_info) * nvqs, M_TEMP, M_NOWAIT);
+	info = mallocarray(nvqs, sizeof(struct vq_alloc_info), M_TEMP,
+	    M_NOWAIT);
 	if (info == NULL)
 		return (ENOMEM);
 
@@ -599,8 +610,7 @@ vtcon_ctrl_event_enqueue(struct vtcon_softc *sc,
 	vq = sc->vtcon_ctrl_rxvq;
 
 	sglist_init(&sg, 2, segs);
-	error = sglist_append(&sg, control,
-	    sizeof(struct virtio_console_control) + VTCON_BULK_BUFSZ);
+	error = sglist_append(&sg, control, VTCON_CTRL_BUFSZ);
 	KASSERT(error == 0, ("%s: error %d adding control to sglist",
 	    __func__, error));
 
@@ -613,10 +623,7 @@ vtcon_ctrl_event_create(struct vtcon_softc *sc)
 	struct virtio_console_control *control;
 	int error;
 
-	control = malloc(
-	    sizeof(struct virtio_console_control) + VTCON_BULK_BUFSZ,
-	    M_DEVBUF, M_ZERO | M_NOWAIT);
-
+	control = malloc(VTCON_CTRL_BUFSZ, M_DEVBUF, M_ZERO | M_NOWAIT);
 	if (control == NULL)
 		return (ENOMEM);
 
@@ -633,8 +640,7 @@ vtcon_ctrl_event_requeue(struct vtcon_softc *sc,
 {
 	int error;
 
-	bzero(control, sizeof(struct virtio_console_control) +
-	    VTCON_BULK_BUFSZ);
+	bzero(control, VTCON_CTRL_BUFSZ);
 
 	error = vtcon_ctrl_event_enqueue(sc, control);
 	KASSERT(error == 0,
@@ -811,19 +817,36 @@ vtcon_ctrl_port_name_event(struct vtcon_softc *sc, int id, const char *name,
 	dev = sc->vtcon_dev;
 	scport = &sc->vtcon_ports[id];
 
+	/*
+	 * The VirtIO specification says the NUL terminator is not included in
+	 * the length, but QEMU includes it. Adjust the length if needed.
+	 */
+	if (name == NULL || len == 0)
+		return;
+	if (name[len - 1] == '\0') {
+		len--;
+		if (len == 0)
+			return;
+	}
+
+	VTCON_LOCK(sc);
 	port = scport->vcsp_port;
 	if (port == NULL) {
+		VTCON_UNLOCK(sc);
 		device_printf(dev, "%s: name port %d, but does not exist\n",
 		    __func__, id);
 		return;
 	}
 
-	tty_makealias(port->vtcport_tty, "vtcon/%*s", (int)len, name);
+	VTCON_PORT_LOCK(port);
+	VTCON_UNLOCK(sc);
+	vtcon_port_dev_alias(port, name, len);
+	VTCON_PORT_UNLOCK(port);
 }
 
 static void
 vtcon_ctrl_process_event(struct vtcon_softc *sc,
-    struct virtio_console_control *control, void *payload, size_t plen)
+    struct virtio_console_control *control, void *data, size_t data_len)
 {
 	device_t dev;
 	int id;
@@ -857,9 +880,7 @@ vtcon_ctrl_process_event(struct vtcon_softc *sc,
 		break;
 
 	case VIRTIO_CONSOLE_PORT_NAME:
-		if (payload != NULL && plen > 0)
-			vtcon_ctrl_port_name_event(sc, id,
-			    (const char *)payload, plen);
+		vtcon_ctrl_port_name_event(sc, id, (const char *)data, data_len);
 		break;
 	}
 }
@@ -870,10 +891,10 @@ vtcon_ctrl_task_cb(void *xsc, int pending)
 	struct vtcon_softc *sc;
 	struct virtqueue *vq;
 	struct virtio_console_control *control;
+	void *data;
+	size_t data_len;
 	int detached;
 	uint32_t len;
-	size_t plen;
-	void *payload;
 
 	sc = xsc;
 	vq = sc->vtcon_ctrl_rxvq;
@@ -882,19 +903,19 @@ vtcon_ctrl_task_cb(void *xsc, int pending)
 
 	while ((detached = (sc->vtcon_flags & VTCON_FLAG_DETACHED)) == 0) {
 		control = virtqueue_dequeue(vq, &len);
-		payload = NULL;
-		plen = 0;
-
 		if (control == NULL)
 			break;
 
-		if (len > sizeof(*control)) {
-			payload = (void *)(control + 1);
-			plen = len - sizeof(*control);
+		if (len > sizeof(struct virtio_console_control)) {
+			data = (void *) &control[1];
+			data_len = len - sizeof(struct virtio_console_control);
+		} else {
+			data = NULL;
+			data_len = 0;
 		}
 
 		VTCON_UNLOCK(sc);
-		vtcon_ctrl_process_event(sc, control, payload, plen);
+		vtcon_ctrl_process_event(sc, control, data, data_len);
 		VTCON_LOCK(sc);
 		vtcon_ctrl_event_requeue(sc, control);
 	}
@@ -1130,6 +1151,40 @@ vtcon_port_create(struct vtcon_softc *sc, int id)
 	    device_get_unit(dev), id);
 
 	return (0);
+}
+
+static void
+vtcon_port_dev_alias(struct vtcon_port *port, const char *name, size_t len)
+{
+	struct vtcon_softc *sc;
+	struct cdev *pdev;
+	struct tty *tp;
+	int i, error;
+
+	sc = port->vtcport_sc;
+	tp = port->vtcport_tty;
+
+	if (port->vtcport_flags & VTCON_PORT_FLAG_ALIAS)
+		return;
+
+	/* Port name is UTF-8, but we can only handle ASCII. */
+	for (i = 0; i < len; i++) {
+		if (!isascii(name[i]))
+			return;
+	}
+
+	/*
+	 * Port name may not conform to the devfs requirements so we cannot use
+	 * tty_makealias() because the MAKEDEV_CHECKNAME flag must be specified.
+	 */
+	error = make_dev_alias_p(MAKEDEV_NOWAIT | MAKEDEV_CHECKNAME, &pdev,
+	    tp->t_dev, "%s/%*s", VTCON_TTY_ALIAS_PREFIX, (int)len, name);
+	if (error) {
+		device_printf(sc->vtcon_dev,
+		    "%s: cannot make dev alias (%s/%*s) error %d\n", __func__,
+		    VTCON_TTY_ALIAS_PREFIX, (int)len, name, error);
+	} else
+		port->vtcport_flags |= VTCON_PORT_FLAG_ALIAS;
 }
 
 static void

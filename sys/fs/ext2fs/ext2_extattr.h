@@ -59,7 +59,9 @@ struct ext2fs_extattr_header {
 	int32_t	h_refcount;	/* reference count */
 	int32_t	h_blocks;	/* number of disk blocks used */
 	int32_t	h_hash;		/* hash value of all attributes */
-	uint32_t h_reserved[4];	/* zero right now */
+	int32_t	h_checksum;	/* crc32c(uuid+id+xattrblock) */
+				/* id = inum if refcount=1, blknum otherwise */
+	uint32_t h_reserved[3];	/* zero right now */
 };
 
 struct ext2fs_extattr_dinode_header {

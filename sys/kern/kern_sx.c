@@ -1193,7 +1193,7 @@ _sx_sunlock_try(struct sx *sx, uintptr_t *xp)
 static void __noinline
 _sx_sunlock_hard(struct sx *sx, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 {
-	int wakeup_swapper;
+	int wakeup_swapper = 0;
 	uintptr_t setx;
 
 	if (SCHEDULER_STOPPED())
@@ -1213,6 +1213,9 @@ _sx_sunlock_hard(struct sx *sx, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 	for (;;) {
 		MPASS(x & SX_LOCK_EXCLUSIVE_WAITERS);
 		MPASS(!(x & SX_LOCK_SHARED_WAITERS));
+		if (_sx_sunlock_try(sx, &x))
+			break;
+
 		/*
 		 * Wake up semantic here is quite simple:
 		 * Just wake up all the exclusive waiters.
