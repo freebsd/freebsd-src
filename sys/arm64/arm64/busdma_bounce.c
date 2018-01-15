@@ -302,8 +302,8 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	error = 0;
 
 	if (dmat->segments == NULL) {
-		dmat->segments = (bus_dma_segment_t *)malloc(
-		    sizeof(bus_dma_segment_t) * dmat->common.nsegments,
+		dmat->segments = (bus_dma_segment_t *)mallocarray(
+		    dmat->common.nsegments, sizeof(bus_dma_segment_t),
 		    M_DEVBUF, M_NOWAIT);
 		if (dmat->segments == NULL) {
 			CTR3(KTR_BUSDMA, "%s: tag %p error %d",
