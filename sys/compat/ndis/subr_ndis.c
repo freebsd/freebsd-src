@@ -1351,7 +1351,7 @@ NdisMAllocateMapRegisters(ndis_handle adapter, uint32_t dmachannel,
 	block = (ndis_miniport_block *)adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
-	sc->ndis_mmaps = malloc(sizeof(bus_dmamap_t) * physmapneeded,
+	sc->ndis_mmaps = mallocarray(physmapneeded, sizeof(bus_dmamap_t),
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
 
 	if (sc->ndis_mmaps == NULL)
