@@ -29,7 +29,7 @@
 .\"	@(#)fsck.8	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2017
+.Dd January 13, 2018
 .Dt FSCK_FFS 8
 .Os
 .Sh NAME
@@ -376,11 +376,43 @@ contains default list of file systems to check.
 .Sh EXIT STATUS
 .Ex -std
 .Pp
-If the option
+Specific non-zero exit status values used are:
+.Bl -tag -width indent
+.It 1
+Usage error (missing or invalid command arguments).
+.It 2
+The
+.Fl p
+option was used and a
+.Dv SIGQUIT
+was received, indicating that the system should be returned to single
+user mode after the file system check.
+.It 3
+The file system superblock cannot be read.
+This could indicate that the file system device does not exist or is not yet
+ready.
+.It 4
+A mounted file system was modified; the system should be rebooted.
+.It 5
+The
+.Fl B
+option was used and soft updates are not enabled on the file system.
+.It 6
+The
+.Fl B
+option was used and the kernel lacks needed support.
+.It 7
+The
 .Fl F
-is used,
+option was used and the file system is clean.
+.It 8
+General error exit.
+.It 16
+The file system could not be completely repaired.
+The file system may be able to be repaired by running
 .Nm
-exits 7 if the file system is clean.
+on the file system again.
+.El
 .Sh DIAGNOSTICS
 The diagnostics produced by
 .Nm
