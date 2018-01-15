@@ -34,12 +34,13 @@ load_rc_config 'XXX'
 usage () {
 	echo ''
 	echo 'Usage:'
-	echo "${0##*/} -e"
-	echo "${0##*/} -R"
-	echo "${0##*/} [-v] -l | -r"
-	echo "${0##*/} [-v] <rc.d script> start|stop|etc."
+	echo "${0##*/} [-j <jail name or id>] -e"
+	echo "${0##*/} [-j <jail name or id>] -R"
+	echo "${0##*/} [-j <jail name or id>] [-v] -l | -r"
+	echo "${0##*/} [-j <jail name or id>] [-v] <rc.d script> start|stop|etc."
 	echo "${0##*/} -h"
 	echo ''
+	echo "-j	Perform actions within the named jail"
 	echo '-e	Show services that are enabled'
 	echo "-R	Stop and start enabled $local_startup services"
 	echo "-l	List all scripts in /etc/rc.d and $local_startup"
@@ -48,7 +49,37 @@ usage () {
 	echo ''
 }
 
-while getopts 'ehlrRv' COMMAND_LINE_ARGUMENT ; do
+accepted_argstr='jehlrRv'
+
+# Only deal with the -j option here. If found, JAIL is set and the opt and
+# arg are shifted out. OPTIND is left untouched. We strip the -j option out
+# here because we'll be proxying this invocation through to the jail via
+# jls(8) instead of handling it ourselves.
+while getopts ${accepted_argstr} COMMAND_LINE_ARGUMENT ; do
+	case "${COMMAND_LINE_ARGUMENT}" in
+	j)	JAIL="$2" ; shift ; shift ;;
+	esac
+done
+
+# If -j was provided, then we pass everthing along to the jexec command
+# and execute `service` within the named JAIL. Provided that the jail
+# actually exists, as checked by `jls`.
+# We do this so that if the jail does exist, we can then return the exit
+# code of `jexec` and it should be the exit code of whatever ran in the jail.
+# There is a race condition here in that the jail might exist at `jls` time
+# and be gone by `jexec` time, but it shouldn't be a big deal.
+if [ -n "$JAIL" ]; then
+	/usr/sbin/jls -j "$JAIL" 2>/dev/null >/dev/null
+	if [ $? -ne 0 ]; then
+		echo "Jail '$JAIL' does not exist."
+		exit 1
+	fi
+
+	/usr/sbin/jexec -l "$JAIL" /usr/sbin/service $*
+	exit $?
+fi
+
+while getopts ${accepted_argstr} COMMAND_LINE_ARGUMENT ; do
 	case "${COMMAND_LINE_ARGUMENT}" in
 	e)	ENABLED=eopt ;;
 	h)	usage ; exit 0 ;;
