@@ -383,6 +383,7 @@ fdt_apply_overlays()
 		}
 		rv = fdt_open_into(current_fdtp, next_fdtp, next_fdtp_size);
 		if (rv != 0) {
+			free(next_fdtp);
 			printf("failed to open base dtb into overlay base\n");
 			continue;
 		}
