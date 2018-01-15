@@ -1206,6 +1206,40 @@ sysdecode_sctp_pr_policy(int policy)
 	return (lookup_value(sctpprpolicy, policy));
 }
 
+static struct name_table sctpsndflags[] = {
+	X(SCTP_EOF) X(SCTP_ABORT) X(SCTP_UNORDERED) X(SCTP_ADDR_OVER)
+	X(SCTP_SENDALL) X(SCTP_SACK_IMMEDIATELY) XEND
+};
+
+bool
+sysdecode_sctp_snd_flags(FILE *fp, int flags, int *rem)
+{
+
+	return (print_mask_int(fp, sctpsndflags, flags, rem));
+}
+
+static struct name_table sctprcvflags[] = {
+	X(SCTP_UNORDERED) XEND
+};
+
+bool
+sysdecode_sctp_rcv_flags(FILE *fp, int flags, int *rem)
+{
+
+	return (print_mask_int(fp, sctprcvflags, flags, rem));
+}
+
+static struct name_table sctpnxtflags[] = {
+	X(SCTP_UNORDERED) X(SCTP_COMPLETE) X(SCTP_NOTIFICATION) XEND
+};
+
+bool
+sysdecode_sctp_nxt_flags(FILE *fp, int flags, int *rem)
+{
+
+	return (print_mask_int(fp, sctpnxtflags, flags, rem));
+}
+
 static struct name_table sctpsinfoflags[] = {
 	X(SCTP_EOF) X(SCTP_ABORT) X(SCTP_UNORDERED) X(SCTP_ADDR_OVER)
 	X(SCTP_SENDALL) X(SCTP_EOR) X(SCTP_SACK_IMMEDIATELY) XEND
