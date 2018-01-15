@@ -248,6 +248,15 @@ extern struct vm_domain vm_dom[MAXMEMDOM];
 #define	vm_pagequeue_lockptr(pq)	(&(pq)->pq_mutex)
 #define	vm_pagequeue_unlock(pq)		mtx_unlock(&(pq)->pq_mutex)
 
+#define	vm_pagequeue_free_assert_locked(n)				\
+	    mtx_assert(vm_pagequeue_free_lockptr((n)), MA_OWNED)
+#define	vm_pagequeue_free_lock(n)					\
+	    mtx_lock(vm_pagequeue_free_lockptr((n)))
+#define	vm_pagequeue_free_lockptr(n)					\
+	    (&vm_page_queue_free_mtx)
+#define	vm_pagequeue_free_unlock(n)					\
+	    mtx_unlock(vm_pagequeue_free_lockptr((n)))
+
 #ifdef _KERNEL
 extern vm_page_t bogus_page;
 
@@ -476,6 +485,7 @@ void vm_page_free_zero(vm_page_t m);
 
 void vm_page_activate (vm_page_t);
 void vm_page_advise(vm_page_t m, int advice);
+int vm_page_available(int domain, int req, int npages);
 vm_page_t vm_page_alloc(vm_object_t, vm_pindex_t, int);
 vm_page_t vm_page_alloc_domain(vm_object_t, vm_pindex_t, int, int);
 vm_page_t vm_page_alloc_after(vm_object_t, vm_pindex_t, int, vm_page_t);

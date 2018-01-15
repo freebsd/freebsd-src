@@ -130,11 +130,11 @@ vm_phys_domain(vm_page_t m)
 }
 
 static inline u_int
-vm_phys_freecnt_adj(vm_page_t m, int adj)
+vm_phys_freecnt_adj(int domain, int adj)
 {
 
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	vm_phys_domain(m)->vmd_free_count += adj;
+	vm_pagequeue_free_assert_locked(domain);
+	vm_dom[domain].vmd_free_count += adj;
 	return (vm_cnt.v_free_count += adj);
 }
 

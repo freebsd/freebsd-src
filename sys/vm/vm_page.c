@@ -174,8 +174,8 @@ static int vm_page_insert_after(vm_page_t m, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mpred);
 static void vm_page_insert_radixdone(vm_page_t m, vm_object_t object,
     vm_page_t mpred);
-static int vm_page_reclaim_run(int req_class, u_long npages, vm_page_t m_run,
-    vm_paddr_t high);
+static int vm_page_reclaim_run(int req_class, int domain, u_long npages,
+    vm_page_t m_run, vm_paddr_t high);
 static int vm_page_alloc_fail(vm_object_t object, int req);
 
 SYSINIT(vm_page, SI_SUB_VM, SI_ORDER_SECOND, vm_page_init, NULL);
@@ -316,7 +316,7 @@ vm_page_blacklist_check(char *list, char *end)
 	vm_paddr_t pa;
 	vm_page_t m;
 	char *next;
-	int ret;
+	int ret, domain;
 
 	next = list;
 	while (next != NULL) {
@@ -325,9 +325,10 @@ vm_page_blacklist_check(char *list, char *end)
 		m = vm_phys_paddr_to_vm_page(pa);
 		if (m == NULL)
 			continue;
-		mtx_lock(&vm_page_queue_free_mtx);
+		domain = vm_phys_domidx(m);
+		vm_pagequeue_free_lock(domain);
 		ret = vm_phys_unfree_page(m);
-		mtx_unlock(&vm_page_queue_free_mtx);
+		vm_pagequeue_free_unlock(domain);
 		if (ret == TRUE) {
 			TAILQ_INSERT_TAIL(&blacklist_head, m, listq);
 			if (bootverbose)
@@ -713,10 +714,10 @@ vm_page_startup(vm_offset_t vaddr)
 			m = seg->first_page;
 			pagecount = (u_long)atop(seg->end - seg->start);
 
-			mtx_lock(&vm_page_queue_free_mtx);
+			vm_pagequeue_free_lock(seg->domain);
 			vm_phys_free_contig(m, pagecount);
-			vm_phys_freecnt_adj(m, (int)pagecount);
-			mtx_unlock(&vm_page_queue_free_mtx);
+			vm_phys_freecnt_adj(seg->domain, (int)pagecount);
+			vm_pagequeue_free_unlock(seg->domain);
 			vm_cnt.v_page_count += (u_int)pagecount;
 
 			vmd = &vm_dom[seg->domain];
@@ -1644,13 +1645,47 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex,
 	return (m);
 }
 
+/*
+ * Returns true if the number of free pages exceeds the minimum
+ * for the request class and false otherwise.
+ */
+int
+vm_page_available(int domain, int req, int npages)
+{
+
+	vm_pagequeue_free_assert_locked(domain);
+	req = req & VM_ALLOC_CLASS_MASK;
+
+	/*
+	 * The page daemon is allowed to dig deeper into the free page list.
+	 */
+	if (curproc == pageproc && req != VM_ALLOC_INTERRUPT)
+		req = VM_ALLOC_SYSTEM;
+
+	/* XXX Global counts. */
+	if (vm_cnt.v_free_count >= npages + vm_cnt.v_free_reserved ||
+	    (req == VM_ALLOC_SYSTEM &&
+	    vm_cnt.v_free_count >= npages + vm_cnt.v_interrupt_free_min) ||
+	    (req == VM_ALLOC_INTERRUPT &&
+	    vm_cnt.v_free_count >= npages))
+		return (1);
+
+	return (0);
+}
+
 vm_page_t
 vm_page_alloc_domain_after(vm_object_t object, vm_pindex_t pindex, int domain,
     int req, vm_page_t mpred)
 {
 	vm_page_t m;
-	int flags, req_class;
+	int flags;
 	u_int free_count;
+#if VM_NRESERVLEVEL > 0
+	int reserv;
+
+	reserv = object != NULL &&
+	    (object->flags & (OBJ_COLORED | OBJ_FICTITIOUS)) == OBJ_COLORED;
+#endif
 
 	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0) &&
 	    (object != NULL || (req & VM_ALLOC_SBUSY) == 0) &&
@@ -1665,34 +1700,19 @@ vm_page_alloc_domain_after(vm_object_t object, vm_pindex_t pindex, int domain,
 	if (object != NULL)
 		VM_OBJECT_ASSERT_WLOCKED(object);
 
-	req_class = req & VM_ALLOC_CLASS_MASK;
-
-	/*
-	 * The page daemon is allowed to dig deeper into the free page list.
-	 */
-	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
-		req_class = VM_ALLOC_SYSTEM;
-
-	/*
-	 * Allocate a page if the number of free pages exceeds the minimum
-	 * for the request class.
-	 */
 again:
 	m = NULL;
+	if (reserv &&
+	    (m = vm_reserv_extend(req, object, pindex, domain, mpred)) != NULL)
+		goto found;
 	mtx_lock(&vm_page_queue_free_mtx);
-	if (vm_cnt.v_free_count > vm_cnt.v_free_reserved ||
-	    (req_class == VM_ALLOC_SYSTEM &&
-	    vm_cnt.v_free_count > vm_cnt.v_interrupt_free_min) ||
-	    (req_class == VM_ALLOC_INTERRUPT &&
-	    vm_cnt.v_free_count > 0)) {
+	if (vm_page_available(domain, req, 1)) {
 		/*
 		 * Can we allocate the page from a reservation?
 		 */
 #if VM_NRESERVLEVEL > 0
-		if (object == NULL || (object->flags & (OBJ_COLORED |
-		    OBJ_FICTITIOUS)) != OBJ_COLORED || (m =
-		    vm_reserv_alloc_page(object, pindex, domain,
-		    mpred)) == NULL)
+		if (!reserv || (m = vm_reserv_alloc_page(object, pindex,
+		    domain, mpred)) == NULL)
 #endif
 		{
 			/*
@@ -1723,8 +1743,16 @@ again:
 	 *  At this point we had better have found a good page.
 	 */
 	KASSERT(m != NULL, ("missing page"));
-	free_count = vm_phys_freecnt_adj(m, -1);
+	free_count = vm_phys_freecnt_adj(domain, -1);
 	mtx_unlock(&vm_page_queue_free_mtx);
+
+	/*
+	 * Don't wakeup too often - wakeup the pageout daemon when
+	 * we would be nearly out of memory.
+	 */
+	if (vm_paging_needed(free_count))
+		pagedaemon_wakeup();
+found:
 	vm_page_alloc_check(m);
 
 	/*
@@ -1781,13 +1809,6 @@ again:
 			pmap_page_set_memattr(m, object->memattr);
 	} else
 		m->pindex = pindex;
-
-	/*
-	 * Don't wakeup too often - wakeup the pageout daemon when
-	 * we would be nearly out of memory.
-	 */
-	if (vm_paging_needed(free_count))
-		pagedaemon_wakeup();
 
 	return (m);
 }
@@ -1858,8 +1879,12 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 {
 	vm_page_t m, m_ret, mpred;
 	u_int busy_lock, flags, oflags;
-	int req_class;
+#if VM_NRESERVLEVEL > 0
+	int reserv;
 
+	reserv = object != NULL &&
+	    (object->flags & (OBJ_COLORED | OBJ_FICTITIOUS)) == OBJ_COLORED;
+#endif
 	mpred = NULL;	/* XXX: pacify gcc */
 	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0) &&
 	    (object != NULL || (req & VM_ALLOC_SBUSY) == 0) &&
@@ -1876,13 +1901,6 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 		    object));
 	}
 	KASSERT(npages > 0, ("vm_page_alloc_contig: npages is zero"));
-	req_class = req & VM_ALLOC_CLASS_MASK;
-
-	/*
-	 * The page daemon is allowed to dig deeper into the free page list.
-	 */
-	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
-		req_class = VM_ALLOC_SYSTEM;
 
 	if (object != NULL) {
 		mpred = vm_radix_lookup_le(&object->rtree, pindex);
@@ -1895,19 +1913,21 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 	 * below the lower bound for the allocation class?
 	 */
 again:
+#if VM_NRESERVLEVEL > 0
+	if (reserv &&
+	    (m_ret = vm_reserv_extend_contig(req, object, pindex, domain,
+	    npages, low, high, alignment, boundary, mpred)) != NULL)
+		goto found;
+#endif
 	m_ret = NULL;
 	mtx_lock(&vm_page_queue_free_mtx);
-	if (vm_cnt.v_free_count >= npages + vm_cnt.v_free_reserved ||
-	    (req_class == VM_ALLOC_SYSTEM &&
-	    vm_cnt.v_free_count >= npages + vm_cnt.v_interrupt_free_min) ||
-	    (req_class == VM_ALLOC_INTERRUPT &&
-	    vm_cnt.v_free_count >= npages)) {
+	if (vm_page_available(domain, req, npages)) {
 		/*
 		 * Can we allocate the pages from a reservation?
 		 */
 #if VM_NRESERVLEVEL > 0
 retry:
-		if (object == NULL || (object->flags & OBJ_COLORED) == 0 ||
+		if (!reserv ||
 		    (m_ret = vm_reserv_alloc_contig(object, pindex, domain,
 		    npages, low, high, alignment, boundary, mpred)) == NULL)
 #endif
@@ -1927,8 +1947,9 @@ retry:
 			goto again;
 		return (NULL);
 	}
-	vm_phys_freecnt_adj(m_ret, -npages);
+	vm_phys_freecnt_adj(domain, -npages);
 	mtx_unlock(&vm_page_queue_free_mtx);
+found:
 	for (m = m_ret; m < &m_ret[npages]; m++)
 		vm_page_alloc_check(m);
 
@@ -2059,26 +2080,13 @@ vm_page_alloc_freelist_domain(int domain, int freelist, int req)
 {
 	vm_page_t m;
 	u_int flags, free_count;
-	int req_class;
-
-	req_class = req & VM_ALLOC_CLASS_MASK;
-
-	/*
-	 * The page daemon is allowed to dig deeper into the free page list.
-	 */
-	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
-		req_class = VM_ALLOC_SYSTEM;
 
 	/*
 	 * Do not allocate reserved pages unless the req has asked for it.
 	 */
 again:
 	mtx_lock(&vm_page_queue_free_mtx);
-	if (vm_cnt.v_free_count > vm_cnt.v_free_reserved ||
-	    (req_class == VM_ALLOC_SYSTEM &&
-	    vm_cnt.v_free_count > vm_cnt.v_interrupt_free_min) ||
-	    (req_class == VM_ALLOC_INTERRUPT &&
-	    vm_cnt.v_free_count > 0))
+	if (vm_page_available(domain, req, 1))
 		m = vm_phys_alloc_freelist_pages(domain, freelist,
 		    VM_FREEPOOL_DIRECT, 0);
 	if (m == NULL) {
@@ -2086,7 +2094,7 @@ again:
 			goto again;
 		return (NULL);
 	}
-	free_count = vm_phys_freecnt_adj(m, -1);
+	free_count = vm_phys_freecnt_adj(domain, -1);
 	mtx_unlock(&vm_page_queue_free_mtx);
 	vm_page_alloc_check(m);
 
@@ -2331,7 +2339,7 @@ unlock:
  *	"req_class" must be an allocation class.
  */
 static int
-vm_page_reclaim_run(int req_class, u_long npages, vm_page_t m_run,
+vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
     vm_paddr_t high)
 {
 	struct mtx *m_mtx;
@@ -2483,7 +2491,8 @@ retry:
 unlock:
 			VM_OBJECT_WUNLOCK(object);
 		} else {
-			mtx_lock(&vm_page_queue_free_mtx);
+			MPASS(vm_phys_domidx(m) == domain);
+			vm_pagequeue_free_lock(domain);
 			order = m->order;
 			if (order < VM_NFREEORDER) {
 				/*
@@ -2500,7 +2509,7 @@ unlock:
 			else if (vm_reserv_is_page_free(m))
 				order = 0;
 #endif
-			mtx_unlock(&vm_page_queue_free_mtx);
+			vm_pagequeue_free_lock(domain);
 			if (order == VM_NFREEORDER)
 				error = EINVAL;
 		}
@@ -2508,13 +2517,14 @@ unlock:
 	if (m_mtx != NULL)
 		mtx_unlock(m_mtx);
 	if ((m = SLIST_FIRST(&free)) != NULL) {
-		mtx_lock(&vm_page_queue_free_mtx);
+		MPASS(vm_phys_domidx(m) == domain);
+		vm_pagequeue_free_lock(domain);
 		do {
 			SLIST_REMOVE_HEAD(&free, plinks.s.ss);
 			vm_page_free_phys(m);
 		} while ((m = SLIST_FIRST(&free)) != NULL);
 		vm_page_free_wakeup();
-		mtx_unlock(&vm_page_queue_free_mtx);
+		vm_pagequeue_free_unlock(domain);
 	}
 	return (error);
 }
@@ -2612,8 +2622,8 @@ vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
 		for (i = 0; count > 0 && i < NRUNS; i++) {
 			count--;
 			m_run = m_runs[RUN_INDEX(count)];
-			error = vm_page_reclaim_run(req_class, npages, m_run,
-			    high);
+			error = vm_page_reclaim_run(req_class, domain, npages,
+			    m_run, high);
 			if (error == 0) {
 				reclaimed += npages;
 				if (reclaimed >= MIN_RECLAIM)
@@ -3008,9 +3018,9 @@ static void
 vm_page_free_phys(vm_page_t m)
 {
 
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	vm_pagequeue_free_assert_locked(vm_phys_domidx(m));
 
-	vm_phys_freecnt_adj(m, 1);
+	vm_phys_freecnt_adj(vm_phys_domidx(m), 1);
 #if VM_NRESERVLEVEL > 0
 	if (!vm_reserv_free_page(m))
 #endif
