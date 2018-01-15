@@ -107,7 +107,7 @@ k6_mrinit(struct mem_range_softc *sc)
 
 	sc->mr_cap = 0;
 	sc->mr_ndesc = 2; /* XXX (BFF) For now, we only have one msr for this */
-	sc->mr_desc = malloc(sc->mr_ndesc * sizeof(struct mem_range_desc),
+	sc->mr_desc = mallocarray(sc->mr_ndesc, sizeof(struct mem_range_desc),
 	    M_MEMDESC, M_NOWAIT | M_ZERO);
 	if (sc->mr_desc == NULL)
 		panic("k6_mrinit: malloc returns NULL");
