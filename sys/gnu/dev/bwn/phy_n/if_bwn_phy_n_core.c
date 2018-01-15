@@ -1620,7 +1620,7 @@ static int bwn_nphy_load_samples(struct bwn_mac *mac,
 	uint16_t i;
 	uint32_t *data;
 
-	data = malloc(len * sizeof(uint32_t), M_DEVBUF, M_NOWAIT | M_ZERO);
+	data = mallocarray(len, sizeof(uint32_t), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!data) {
 		BWN_ERRPRINTF(mac->mac_sc, "allocation for samples loading failed\n");
 		return -ENOMEM;
@@ -1663,7 +1663,8 @@ static uint16_t bwn_nphy_gen_load_samples(struct bwn_mac *mac, uint32_t freq, ui
 		len = bw << 1;
 	}
 
-	samples = malloc(len * sizeof(struct bwn_c32), M_DEVBUF, M_NOWAIT | M_ZERO);
+	samples = mallocarray(len, sizeof(struct bwn_c32), M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
 	if (!samples) {
 		BWN_ERRPRINTF(mac->mac_sc, "allocation for samples generation failed\n");
 		return 0;
