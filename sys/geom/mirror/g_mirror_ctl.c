@@ -29,24 +29,17 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/bio.h>
-#include <sys/sbuf.h>
-#include <sys/sysctl.h>
 #include <sys/malloc.h>
-#include <sys/bitstring.h>
-#include <vm/uma.h>
-#include <machine/atomic.h>
+#include <sys/sbuf.h>
+#include <sys/sx.h>
+
 #include <geom/geom.h>
 #include <geom/geom_int.h>
-#include <sys/proc.h>
-#include <sys/kthread.h>
 #include <geom/mirror/g_mirror.h>
-
 
 static struct g_mirror_softc *
 g_mirror_find_device(struct g_class *mp, const char *name)
