@@ -651,8 +651,8 @@ _taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 	vsnprintf(ktname, sizeof(ktname), name, ap);
 	tq = *tqp;
 
-	tq->tq_threads = malloc(sizeof(struct thread *) * count, M_TASKQUEUE,
-	    M_NOWAIT | M_ZERO);
+	tq->tq_threads = mallocarray(count, sizeof(struct thread *),
+	    M_TASKQUEUE, M_NOWAIT | M_ZERO);
 	if (tq->tq_threads == NULL) {
 		printf("%s: no memory for %s threads\n", __func__, ktname);
 		return (ENOMEM);
