@@ -106,8 +106,7 @@ efi_setenv_freebsd_wcs(const char *varname, CHAR16 *valstr)
 	size_t len;
 	EFI_STATUS rv;
 
-	utf8_to_ucs2(varname, &var, &len);
-	if (var == NULL)
+	if (utf8_to_ucs2(varname, &var, &len) != 0)
 		return (EFI_OUT_OF_RESOURCES);
 	rv = RS->SetVariable(var, &FreeBSDBootVarGUID,
 	    EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
