@@ -140,6 +140,8 @@ struct ofw_map {
 extern unsigned char _etext[];
 extern unsigned char _end[];
 
+extern void *slbtrap, *slbtrapend;
+
 /*
  * Map of physical memory regions.
  */
@@ -712,6 +714,12 @@ moea64_early_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelen
 		hw_direct_map = 1;
 	else
 		hw_direct_map = 0;
+
+	/* Install trap handlers for SLBs */
+	bcopy(&slbtrap, (void *)EXC_DSE,(size_t)&slbtrapend - (size_t)&slbtrap);
+	bcopy(&slbtrap, (void *)EXC_ISE,(size_t)&slbtrapend - (size_t)&slbtrap);
+	__syncicache((void *)EXC_DSE, 0x80);
+	__syncicache((void *)EXC_ISE, 0x80);
 #endif
 
 	/* Get physical memory regions from firmware */
