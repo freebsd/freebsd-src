@@ -89,8 +89,8 @@ efi_getenv(EFI_GUID *g, const char *v, void *data, size_t *len)
 	UINTN dl;
 	EFI_STATUS rv;
 
-	utf8_to_ucs2(v, &uv, &ul);
-	if (uv == NULL)
+	uv = NULL;
+	if (utf8_to_ucs2(v, &uv, &ul) != 0)
 		return (EFI_OUT_OF_RESOURCES);
 	dl = *len;
 	rv = RS->GetVariable(uv, g, &attr, &dl, data);
