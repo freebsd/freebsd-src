@@ -83,8 +83,8 @@ db_var_db_cpu(struct db_variable *vp, db_expr_t *valuep, int op)
 		return (1);
 
 	case DB_VAR_SET:
-		if (*(int *)valuep < -1 && *(int *)valuep > mp_maxid) {
-			db_printf("Invalid value: %d", *(int*)valuep);
+		if (*(int *)valuep < -1 || *(int *)valuep > mp_maxid) {
+			db_printf("Invalid value: %d\n", *(int*)valuep);
 			return (0);
 		}
 		db_cpu = *(int *)valuep;
