@@ -346,7 +346,7 @@ xlp_rsa_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
 
 		if (ses == NULL) {
 			sesn = sc->sc_nsessions;
-			ses = malloc((sesn + 1) * sizeof(*ses),
+			ses = mallocarray(sesn + 1, sizeof(*ses),
 			    M_DEVBUF, M_NOWAIT);
 			if (ses == NULL)
 				return (ENOMEM);
@@ -528,8 +528,9 @@ xlp_rsa_kprocess(device_t dev, struct cryptkop *krp, int hint)
 		goto errout;
 	}
 	cmd->rsafn = 0; /* Mod Exp */
-	cmd->rsasrc = malloc(
-	    cmd->rsaopsize * (krp->krp_iparams + krp->krp_oparams),
+	cmd->rsasrc = mallocarray(
+	    krp->krp_iparams + krp->krp_oparams,
+	    cmd->rsaopsize,
 	    M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
 	if (cmd->rsasrc == NULL) {
