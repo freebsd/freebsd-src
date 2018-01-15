@@ -45,7 +45,7 @@ z_alloc(void *nil, u_int items, u_int size)
 {
 	void *ptr;
 
-	ptr = malloc(items * size, M_TEMP, M_NOWAIT);
+	ptr = mallocarray(items, size, M_TEMP, M_NOWAIT);
 	return ptr;
 }
 
