@@ -511,6 +511,15 @@ pmap_kremove(vm_offset_t va)
 	return (MMU_KREMOVE(mmu_obj, va));
 }
 
+int
+pmap_map_user_ptr(pmap_t pm, volatile const void *uaddr, void **kaddr,
+    size_t ulen, size_t *klen)
+{
+
+	CTR2(KTR_PMAP, "%s(%p)", __func__, uaddr);
+	return (MMU_MAP_USER_PTR(mmu_obj, pm, uaddr, kaddr, ulen, klen));
+}
+
 boolean_t
 pmap_dev_direct_mapped(vm_paddr_t pa, vm_size_t size)
 {

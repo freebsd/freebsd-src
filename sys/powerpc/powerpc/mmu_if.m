@@ -817,6 +817,27 @@ METHOD void unmapdev {
 	vm_size_t	_size;
 };
 
+/**
+ * @brief Provide a kernel-space pointer that can be used to access the
+ * given userland address. The kernel accessible length returned in klen
+ * may be less than the requested length of the userland buffer (ulen). If
+ * so, retry with a higher address to get access to the later parts of the
+ * buffer. Returns EFAULT if no mapping can be made, else zero.
+ *
+ * @param _pm		PMAP for the user pointer.
+ * @param _uaddr	Userland address to map.
+ * @param _kaddr	Corresponding kernel address.
+ * @param _ulen		Length of user buffer.
+ * @param _klen		Available subset of ulen with _kaddr.
+ */
+METHOD int map_user_ptr {
+	mmu_t		_mmu;
+	pmap_t		_pm;
+	volatile const void *_uaddr;
+	void		**_kaddr;
+	size_t		_ulen;
+	size_t		*_klen;
+};
 
 /**
  * @brief Reverse-map a kernel virtual address
