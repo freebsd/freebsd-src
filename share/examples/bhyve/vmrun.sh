@@ -46,13 +46,14 @@ errmsg() {
 usage() {
 	local msg=$1
 
-	echo "Usage: vmrun.sh [-ahi] [-c <CPUs>] [-C <console>] [-d <disk file>]"
+	echo "Usage: vmrun.sh [-aAhi] [-c <CPUs>] [-C <console>] [-d <disk file>]"
 	echo "                [-e <name=value>] [-g <gdbport> ] [-H <directory>]"
 	echo "                [-I <location of installation iso>] [-l <loader>]"
 	echo "                [-m <memsize>] [-t <tapdev>] <vmname>"
 	echo ""
 	echo "       -h: display this help message"
 	echo "       -a: force memory mapped local APIC access"
+	echo "       -A: use AHCI disk emulation instead of virtio"
 	echo "       -c: number of virtual cpus (default is ${DEFAULT_CPUS})"
 	echo "       -C: console device (default is ${DEFAULT_CONSOLE})"
 	echo "       -d: virtio diskdev file (default is ${DEFAULT_VIRTIO_DISK})"
@@ -90,6 +91,7 @@ console=${DEFAULT_CONSOLE}
 cpus=${DEFAULT_CPUS}
 tap_total=0
 disk_total=0
+disk_emulation="virtio-blk"
 gdbport=0
 loader_opt=""
 bhyverun_opt="-H -A -P"
@@ -99,6 +101,9 @@ while getopts ac:C:d:e:g:hH:iI:l:m:p:t:uw c ; do
 	case $c in
 	a)
 		bhyverun_opt="${bhyverun_opt} -a"
+		;;
+	A)
+		disk_emulation="ahci-hd"
 		;;
 	c)
 		cpus=${OPTARG}
@@ -268,7 +273,7 @@ while [ 1 ]; do
 	    eval "disk=\$disk_dev${i}"
 	    eval "opts=\$disk_opts${i}"
 	    make_and_check_diskdev "${disk}"
-	    devargs="$devargs -s $nextslot:0,virtio-blk,${disk}${opts} "
+	    devargs="$devargs -s $nextslot:0,$disk_emulation,${disk}${opts} "
 	    nextslot=$(($nextslot + 1))
 	    i=$(($i + 1))
 	done
