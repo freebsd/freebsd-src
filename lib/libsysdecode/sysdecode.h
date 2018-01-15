@@ -46,6 +46,7 @@ const char *sysdecode_atfd(int _fd);
 bool	sysdecode_atflags(FILE *_fp, int _flags, int *_rem);
 bool	sysdecode_cap_fcntlrights(FILE *_fp, uint32_t _rights, uint32_t *_rem);
 void	sysdecode_cap_rights(FILE *_fp, cap_rights_t *_rightsp);
+const char *sysdecode_cmsg_type(int _cmsg_level, int _cmsg_type);
 const char *sysdecode_extattrnamespace(int _namespace);
 const char *sysdecode_fadvice(int _advice);
 void	sysdecode_fcntl_arg(FILE *_fp, int _cmd, uintptr_t _arg, int _base);

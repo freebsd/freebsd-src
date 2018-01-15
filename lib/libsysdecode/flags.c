@@ -1159,6 +1159,46 @@ sysdecode_cap_rights(FILE *fp, cap_rights_t *rightsp)
 	}
 }
 
+static struct name_table cmsgtypeip[] = {
+	X(IP_RECVDSTADDR) X(IP_RECVTTL) X(IP_RECVOPTS) X(IP_RECVRETOPTS)
+	X(IP_RECVIF) X(IP_RECVTOS) X(IP_FLOWID) X(IP_FLOWTYPE)
+	X(IP_RSSBUCKETID) XEND
+};
+
+static struct name_table cmsgtypeipv6[] = {
+#if 0
+	/* The RFC 2292 defines are kernel space only. */
+	X(IPV6_2292PKTINFO) X(IPV6_2292HOPLIMIT) X(IPV6_2292HOPOPTS)
+	X(IPV6_2292DSTOPTS) X(IPV6_2292RTHDR) X(IPV6_2292NEXTHOP)
+#endif
+	X(IPV6_PKTINFO)  X(IPV6_HOPLIMIT) X(IPV6_HOPOPTS)
+	X(IPV6_DSTOPTS) X(IPV6_RTHDR) X(IPV6_NEXTHOP)
+	X(IPV6_TCLASS) X(IPV6_FLOWID) X(IPV6_FLOWTYPE) X(IPV6_RSSBUCKETID)
+	X(IPV6_PATHMTU) X(IPV6_RTHDRDSTOPTS) X(IPV6_USE_MIN_MTU)
+	X(IPV6_DONTFRAG) X(IPV6_PREFER_TEMPADDR) XEND
+};
+
+static struct name_table cmsgtypesctp[] = {
+	X(SCTP_INIT) X(SCTP_SNDRCV) X(SCTP_EXTRCV) X(SCTP_SNDINFO)
+	X(SCTP_RCVINFO) X(SCTP_NXTINFO) X(SCTP_PRINFO) X(SCTP_AUTHINFO)
+	X(SCTP_DSTADDRV4) X(SCTP_DSTADDRV6) XEND
+};
+
+const char *
+sysdecode_cmsg_type(int cmsg_level, int cmsg_type)
+{
+
+	if (cmsg_level == SOL_SOCKET)
+		return (lookup_value(cmsgtypesocket, cmsg_type));
+	if (cmsg_level == IPPROTO_IP)
+		return (lookup_value(cmsgtypeip, cmsg_type));
+	if (cmsg_level == IPPROTO_IPV6)
+		return (lookup_value(cmsgtypeipv6, cmsg_type));
+	if (cmsg_level == IPPROTO_SCTP)
+		return (lookup_value(cmsgtypesctp, cmsg_type));
+	return (NULL);
+}
+
 const char *
 sysdecode_sctp_pr_policy(int policy)
 {
