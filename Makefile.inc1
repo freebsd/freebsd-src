@@ -1976,7 +1976,7 @@ bootstrap-tools: ${_bt}-${_tool}
 #
 # build-tools: Build special purpose build tools
 #
-.if !defined(NO_SHARE)
+.if !defined(NO_SHARE) && ${MK_SYSCONS} != "no"
 _share=	share/syscons/scrnmaps
 .endif
 
