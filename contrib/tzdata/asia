@@ -50,7 +50,7 @@
 #	9:00 KST  KDT	Korea when at +09
 #	9:30 ACST	Australian Central Standard Time
 # Otherwise, these tables typically use numeric abbreviations like +03
-# and +0330 for integer hour and minute UTC offsets.  Although earlier
+# and +0330 for integer hour and minute UT offsets.  Although earlier
 # editions invented alphabetic time zone abbreviations for every
 # offset, this did not reflect common practice.
 #
@@ -647,17 +647,17 @@ Zone	Asia/Hong_Kong	7:36:42 -	LMT	1904 Oct 30
 # time", in which abolished the adoption of Western Standard Time in
 # western islands (listed above), which means the whole Japan
 # territory, including later occupations, adopt Japan Central Time
-# (UTC+9). The adoption began on Oct 1, 1937. The original text can
+# (UT+9). The adoption began on Oct 1, 1937. The original text can
 # be found on Wikisource:
 # https://ja.wikisource.org/wiki/明治二十八年勅令第百六十七號標準時ニ關スル件中改正ノ件
 #
-# That is, the time zone of Taipei switched to UTC+9 on Oct 1, 1937.
+# That is, the time zone of Taipei switched to UT+9 on Oct 1, 1937.
 
 # From Yu-Cheng Chuang (2014-07-02):
-# I've found more evidence about when the time zone was switched from UTC+9
-# back to UTC+8 after WW2.  I believe it was on Sep 21, 1945.  In a document
+# I've found more evidence about when the time zone was switched from UT+9
+# back to UT+8 after WW2.  I believe it was on Sep 21, 1945.  In a document
 # during Japanese era [1] in which the officer told the staff to change time
-# zone back to Western Standard Time (UTC+8) on Sep 21.  And in another
+# zone back to Western Standard Time (UT+8) on Sep 21.  And in another
 # history page of National Cheng Kung University [2], on Sep 21 there is a
 # note "from today, switch back to Western Standard Time".  From these two
 # materials, I believe that the time zone change happened on Sep 21.  And
@@ -1505,7 +1505,7 @@ Rule	Japan	1950	1951	-	May	Sun>=1	2:00	1:00	D
 #
 # ...the Showa Emperor announced Ordinance No. 529 of Showa Year 12 ... which
 # means the whole Japan territory, including later occupations, adopt Japan
-# Central Time (UTC+9). The adoption began on Oct 1, 1937.
+# Central Time (UT+9). The adoption began on Oct 1, 1937.
 # https://ja.wikisource.org/wiki/明治二十八年勅令第百六十七號標準時ニ關スル件中改正ノ件
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -2066,8 +2066,8 @@ Zone Asia/Kuching	7:21:20	-	LMT	1926 Mar
 
 # Maldives
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Indian/Maldives	4:54:00 -	LMT	1880 # Male
-			4:54:00	-	MMT	1960 # Male Mean Time
+Zone	Indian/Maldives	4:54:00 -	LMT	1880 # Malé
+			4:54:00	-	MMT	1960 # Malé Mean Time
 			5:00	-	+05
 
 # Mongolia
