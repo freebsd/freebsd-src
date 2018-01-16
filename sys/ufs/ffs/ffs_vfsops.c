@@ -2040,7 +2040,6 @@ ffs_backgroundwritedone(struct buf *bp)
 	/*
 	 * Process dependencies then return any unfinished ones.
 	 */
-	pbrelvp(bp);
 	if (!LIST_EMPTY(&bp->b_dep) && (bp->b_ioflags & BIO_ERROR) == 0)
 		buf_complete(bp);
 #ifdef SOFTUPDATES
@@ -2053,6 +2052,7 @@ ffs_backgroundwritedone(struct buf *bp)
 	 */
 	bp->b_flags |= B_NOCACHE;
 	bp->b_flags &= ~B_CACHE;
+	pbrelvp(bp);
 
 	/*
 	 * Prevent brelse() from trying to keep and re-dirtying bp on
