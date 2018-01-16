@@ -59,6 +59,8 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_PCI_SET_XIVE_PE		37
 #define	OPAL_PCI_RESET			49
 #define	OPAL_PCI_POLL			62
+#define	OPAL_SET_XIVE           	19
+#define	OPAL_GET_XIVE           	20
 #define	OPAL_PCI_SET_PE			31
 #define	OPAL_GET_MSI_32			39
 #define	OPAL_GET_MSI_64			40
