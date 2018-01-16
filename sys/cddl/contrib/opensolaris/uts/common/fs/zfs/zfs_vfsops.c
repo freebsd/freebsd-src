@@ -1629,13 +1629,21 @@ zfs_mount(vfs_t *vfsp)
 	 * can be interrogated.
 	 */
 	if ((uap->flags & MS_DATA) && uap->datalen > 0)
+		return (SET_ERROR(EINVAL));
+
+	/*
+	 * Get the objset name (the "special" mount argument).
+	 */
+	if (error = pn_get(uap->spec, fromspace, &spn))
+		return (error);
+
+	osname = spn.pn_path;
 #else	/* !illumos */
 	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_ZFS))
 		return (SET_ERROR(EPERM));
 
 	if (vfs_getopt(vfsp->mnt_optnew, "from", (void **)&osname, NULL))
 		return (SET_ERROR(EINVAL));
-#endif	/* illumos */
 
 	/*
 	 * If full-owner-access is enabled and delegated administration is
@@ -1645,6 +1653,7 @@ zfs_mount(vfs_t *vfsp)
 	    dsl_deleg_access(osname, ZFS_DELEG_PERM_MOUNT, cr) != ECANCELED) {
 		secpolicy_fs_mount_clearopts(cr, vfsp);
 	}
+#endif	/* illumos */
 
 	/*
 	 * Check for mount privilege?
