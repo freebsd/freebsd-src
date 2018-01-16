@@ -535,7 +535,8 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	int error = 0;
 
 	if (dmat->segments == NULL) {
-		dmat->segments = (bus_dma_segment_t *)malloc(dmat->nsegments,
+		dmat->segments =
+		    (bus_dma_segment_t *)mallocarray(dmat->nsegments,
 		    sizeof(bus_dma_segment_t), M_BUSDMA, M_NOWAIT);
 		if (dmat->segments == NULL) {
 			CTR3(KTR_BUSDMA, "%s: tag %p error %d",
@@ -647,7 +648,8 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddrp, int flags,
 	else
 		mflags = M_WAITOK;
 	if (dmat->segments == NULL) {
-		dmat->segments = (bus_dma_segment_t *)malloc(dmat->nsegments,
+		dmat->segments = 
+		   (bus_dma_segment_t *)mallocarray(dmat->nsegments,
 		    sizeof(bus_dma_segment_t), M_BUSDMA, mflags);
 		if (dmat->segments == NULL) {
 			CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
