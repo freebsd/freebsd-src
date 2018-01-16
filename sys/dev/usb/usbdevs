@@ -703,6 +703,7 @@ vendor WCH2		0x1a86	QinHeng Electronics
 vendor STELERA		0x1a8d	Stelera Wireless
 vendor SEL		0x1adb	Schweitzer Engineering Laboratories
 vendor CORSAIR		0x1b1c	Corsair
+vendor ASM		0x1b21	ASMedia Technology
 vendor MATRIXORBITAL	0x1b3d	Matrix Orbital
 vendor OVISLINK		0x1b75	OvisLink
 vendor TML		0x1b91	The Mobility Lab
