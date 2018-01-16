@@ -132,7 +132,7 @@ CA	+6043-13503	America/Whitehorse	Pacific - Yukon (south)
 CA	+6404-13925	America/Dawson	Pacific - Yukon (north)
 CC	-1210+09655	Indian/Cocos
 CH,DE,LI	+4723+00832	Europe/Zurich	Swiss time
-CI,BF,GM,GN,ML,MR,SH,SL,SN,ST,TG	+0519-00402	Africa/Abidjan
+CI,BF,GM,GN,ML,MR,SH,SL,SN,TG	+0519-00402	Africa/Abidjan
 CK	-2114-15946	Pacific/Rarotonga
 CL	-3327-07040	America/Santiago	Chile (most areas)
 CL	-5309-07055	America/Punta_Arenas	Region of Magallanes
@@ -321,6 +321,7 @@ SE	+5920+01803	Europe/Stockholm
 SG	+0117+10351	Asia/Singapore
 SR	+0550-05510	America/Paramaribo
 SS	+0451+03137	Africa/Juba
+ST	+0020+00644	Africa/Sao_Tome
 SV	+1342-08912	America/El_Salvador
 SY	+3330+03618	Asia/Damascus
 TC	+2128-07108	America/Grand_Turk
