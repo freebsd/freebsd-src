@@ -76,19 +76,40 @@ static	u_char	rtc_statusb = RTCSB_24HR;
  * RTC support routines
  */
 
-int
-rtcin(int reg)
+static inline u_char
+rtcin_locked(int reg)
 {
-	u_char val;
 
-	RTC_LOCK;
 	if (rtc_reg != reg) {
 		inb(0x84);
 		outb(IO_RTC, reg);
 		rtc_reg = reg;
 		inb(0x84);
 	}
-	val = inb(IO_RTC + 1);
+	return (inb(IO_RTC + 1));
+}
+
+static inline void
+rtcout_locked(int reg, u_char val)
+{
+
+	if (rtc_reg != reg) {
+		inb(0x84);
+		outb(IO_RTC, reg);
+		rtc_reg = reg;
+		inb(0x84);
+	}
+	outb(IO_RTC + 1, val);
+	inb(0x84);
+}
+
+int
+rtcin(int reg)
+{
+	u_char val;
+
+	RTC_LOCK;
+	val = rtcin_locked(reg);
 	RTC_UNLOCK;
 	return (val);
 }
@@ -98,14 +119,7 @@ writertc(int reg, u_char val)
 {
 
 	RTC_LOCK;
-	if (rtc_reg != reg) {
-		inb(0x84);
-		outb(IO_RTC, reg);
-		rtc_reg = reg;
-		inb(0x84);
-	}
-	outb(IO_RTC + 1, val);
-	inb(0x84);
+	rtcout_locked(reg, val);
 	RTC_UNLOCK;
 }
 
@@ -163,25 +177,28 @@ atrtc_set(struct timespec *ts)
 	clock_ts_to_bcd(ts, &ct, false);
 
 	mtx_lock(&atrtc_time_lock);
+	RTC_LOCK;
 
 	/* Disable RTC updates and interrupts. */
-	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
+	rtcout_locked(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
 
-	writertc(RTC_SEC,   ct.sec); 		/* Write back Seconds */
-	writertc(RTC_MIN,   ct.min); 		/* Write back Minutes */
-	writertc(RTC_HRS,   ct.hour);		/* Write back Hours   */
-	writertc(RTC_WDAY,  ct.dow + 1);	/* Write back Weekday */
-	writertc(RTC_DAY,   ct.day);		/* Write back Day */
-	writertc(RTC_MONTH, ct.mon);		/* Write back Month   */
-	writertc(RTC_YEAR,  ct.year & 0xff);	/* Write back Year    */
+	/* Write all the time registers. */
+	rtcout_locked(RTC_SEC,   ct.sec);
+	rtcout_locked(RTC_MIN,   ct.min);
+	rtcout_locked(RTC_HRS,   ct.hour);
+	rtcout_locked(RTC_WDAY,  ct.dow + 1);
+	rtcout_locked(RTC_DAY,   ct.day);
+	rtcout_locked(RTC_MONTH, ct.mon);
+	rtcout_locked(RTC_YEAR,  ct.year & 0xff);
 #ifdef USE_RTC_CENTURY
-	writertc(RTC_CENTURY, ct.year >> 8);	/* ... and Century    */
+	rtcout_locked(RTC_CENTURY, ct.year >> 8);
 #endif
 
 	/* Re-enable RTC updates and interrupts. */
-	writertc(RTC_STATUSB, rtc_statusb);
-	rtcin(RTC_INTR);
+	rtcout_locked(RTC_STATUSB, rtc_statusb);
+	rtcin_locked(RTC_INTR);
 
+	RTC_UNLOCK;
 	mtx_unlock(&atrtc_time_lock);
 }
 
@@ -358,15 +375,17 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	while (rtcin(RTC_STATUSA) & RTCSA_TUP)
 		continue;
 	critical_enter();
-	ct.sec  = rtcin(RTC_SEC);
-	ct.min  = rtcin(RTC_MIN);
-	ct.hour = rtcin(RTC_HRS);
-	ct.day  = rtcin(RTC_DAY);
-	ct.mon  = rtcin(RTC_MONTH);
-	ct.year = rtcin(RTC_YEAR);
+	RTC_LOCK;
+	ct.sec  = rtcin_locked(RTC_SEC);
+	ct.min  = rtcin_locked(RTC_MIN);
+	ct.hour = rtcin_locked(RTC_HRS);
+	ct.day  = rtcin_locked(RTC_DAY);
+	ct.mon  = rtcin_locked(RTC_MONTH);
+	ct.year = rtcin_locked(RTC_YEAR);
 #ifdef USE_RTC_CENTURY
-	ct.year |= rtcin(RTC_CENTURY) << 8;
+	ct.year |= rtcin_locked(RTC_CENTURY) << 8;
 #endif
+	RTC_UNLOCK;
 	critical_exit();
 	mtx_unlock(&atrtc_time_lock);
 	/* dow is unused in timespec conversion and we have no nsec info. */
