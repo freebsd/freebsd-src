@@ -79,6 +79,7 @@ if [ -n "$JAIL" ]; then
 	exit $?
 fi
 
+OPTIND=1
 while getopts ${accepted_argstr} COMMAND_LINE_ARGUMENT ; do
 	case "${COMMAND_LINE_ARGUMENT}" in
 	e)	ENABLED=eopt ;;
