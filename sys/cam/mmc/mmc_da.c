@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Bernd Walter <tisco@FreeBSD.org>
  * Copyright (c) 2006 M. Warner Losh <imp@FreeBSD.org>
  * Copyright (c) 2009 Alexander Motin <mav@FreeBSD.org>
