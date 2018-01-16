@@ -370,7 +370,6 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	mtx_lock(&atrtc_time_lock);
 	while (rtcin(RTC_STATUSA) & RTCSA_TUP)
 		continue;
-	critical_enter();
 	RTC_LOCK;
 	bct.sec  = rtcin_locked(RTC_SEC);
 	bct.min  = rtcin_locked(RTC_MIN);
@@ -382,7 +381,6 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	bct.year |= rtcin_locked(RTC_CENTURY) << 8;
 #endif
 	RTC_UNLOCK;
-	critical_exit();
 	mtx_unlock(&atrtc_time_lock);
 	/* dow is unused in timespec conversion and we have no nsec info. */
 	bct.dow  = 0;
