@@ -110,6 +110,8 @@ static int ef_obj_seg_read(elf_file_t ef, Elf_Off offset, size_t len,
     void *dest);
 static int ef_obj_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len,
     void *dest);
+static int ef_obj_seg_read_string(elf_file_t ef, Elf_Off offset, size_t len,
+    char *dest);
 static int ef_obj_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len,
     void **ptr);
 static int ef_obj_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len,
@@ -126,6 +128,7 @@ static struct elf_file_ops ef_obj_file_ops = {
 	ef_obj_read_entry,
 	ef_obj_seg_read,
 	ef_obj_seg_read_rel,
+	ef_obj_seg_read_string,
 	ef_obj_seg_read_entry,
 	ef_obj_seg_read_entry_rel,
 	ef_obj_symaddr,
@@ -295,6 +298,27 @@ ef_obj_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 				return (error);
 		}
 	}
+	return (0);
+}
+
+static int
+ef_obj_seg_read_string(elf_file_t ef, Elf_Off offset, size_t len, char *dest)
+{
+
+	if (offset >= ef->size) {
+		if (ef->ef_verbose)
+			warnx("ef_obj_seg_read_string(%s): bad offset (%lx)",
+			    ef->ef_name, (long)offset);
+		return (EFAULT);
+	}
+
+	if (ef->size - offset < len)
+		len = ef->size - offset;
+
+	if (strnlen(ef->address + offset, len) == len)
+		return (EFAULT);
+
+	memcpy(dest, ef->address + offset, len);
 	return (0);
 }
 
