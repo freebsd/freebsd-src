@@ -822,11 +822,15 @@ fsl_sata_intr_main(struct fsl_sata_channel *ch, uint32_t istatus)
 
 	/* Complete all successful commands. */
 	ok = ATA_INL(ch->r_mem, FSL_SATA_P_CCR);
-	if (ch->aslots == 0)
+	/* Mark all commands complete, to complete the interrupt. */
+	ATA_OUTL(ch->r_mem, FSL_SATA_P_CCR, ok);
+	if (ch->aslots == 0 && ok != 0) {
 		for (i = 0; i < FSL_SATA_MAX_SLOTS; i++) {
 			if (((ok >> i) & 1) && ch->slot[i].ccb != NULL)
-				fsl_sata_end_transaction(&ch->slot[i], FSL_SATA_ERR_NONE);
+				fsl_sata_end_transaction(&ch->slot[i],
+				    FSL_SATA_ERR_NONE);
 		}
+	}
 	/* Read command statuses. */
 	if (istatus & FSL_SATA_P_HSTS_SNTFU)
 		sntf = ATA_INL(ch->r_mem, FSL_SATA_P_SNTF);
@@ -882,8 +886,7 @@ fsl_sata_check_collision(struct fsl_sata_channel *ch, union ccb *ccb)
 	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
 	    (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA)) {
 		/* Tagged command while we have no supported tag free. */
-		if (((~ch->oslots) & (0xffffffff >> (32 -
-		    ch->curr[t].tags))) == 0)
+		if (((~ch->oslots) & (0xffff >> (16 - ch->curr[t].tags))) == 0)
 			return (1);
 		/* Tagged command while untagged are active. */
 		if (ch->numrslotspd[t] != 0 && ch->numtslotspd[t] == 0)
