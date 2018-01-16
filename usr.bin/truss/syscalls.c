@@ -1176,14 +1176,14 @@ print_sockaddr(FILE *fp, struct trussinfo *trussinfo, void *arg, socklen_t len)
 	}
 	/* If the length is too small, just bail. */
 	if (len < sizeof(*sa)) {
-		fprintf(fp, "0x%p", arg);
+		fprintf(fp, "%p", arg);
 		return;
 	}
 
 	sa = calloc(1, len);
 	if (get_struct(pid, arg, sa, len) == -1) {
 		free(sa);
-		fprintf(fp, "0x%p", arg);
+		fprintf(fp, "%p", arg);
 		return;
 	}
 
@@ -1240,7 +1240,7 @@ print_iovec(FILE *fp, struct trussinfo *trussinfo, void *arg, int iovcnt)
 	bool buf_truncated, iov_truncated;
 
 	if (iovcnt <= 0) {
-		fprintf(fp, "0x%p", arg);
+		fprintf(fp, "%p", arg);
 		return;
 	}
 	if (iovcnt > IOV_LIMIT) {
@@ -1250,7 +1250,7 @@ print_iovec(FILE *fp, struct trussinfo *trussinfo, void *arg, int iovcnt)
 		iov_truncated = false;
 	}
 	if (get_struct(pid, arg, &iov, iovcnt * sizeof(struct iovec)) == -1) {
-		fprintf(fp, "0x%p", arg);
+		fprintf(fp, "%p", arg);
 		return;
 	}
 
@@ -1278,7 +1278,7 @@ print_iovec(FILE *fp, struct trussinfo *trussinfo, void *arg, int iovcnt)
 			    buf_truncated ? "..." : "");
 			free(tmp3);
 		} else {
-			fprintf(fp, "0x%p", iov[i].iov_base);
+			fprintf(fp, "%p", iov[i].iov_base);
 		}
 		fprintf(fp, ",%zu}", iov[i].iov_len);
 	}
@@ -1495,7 +1495,7 @@ print_cmsgs(FILE *fp, pid_t pid, bool receive, struct msghdr *msghdr)
 	len = msghdr->msg_controllen;
 	cmsgbuf = calloc(1, len);
 	if (get_struct(pid, msghdr->msg_control, cmsgbuf, len) == -1) {
-		fprintf(fp, "0x%p", msghdr);
+		fprintf(fp, "%p", msghdr->msg_control);
 		free(cmsgbuf);
 	}
 	msghdr->msg_control = cmsgbuf;
