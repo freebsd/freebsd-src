@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-4-Clause
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND BSD-4-Clause)
  *
  * Copyright (c) 1997 Justin T. Gibbs.
  * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
@@ -27,12 +27,6 @@
  * SUCH DAMAGE.
  */
 
-/*
- * Derived from the NetBSD SCSI changer driver.
- *
- *	$NetBSD: ch.c,v 1.32 1998/01/12 09:49:12 thorpej Exp $
- *
- */
 /*-
  * Copyright (c) 1996, 1997 Jason R. Thorpe <thorpej@and.com>
  * All rights reserved.
@@ -67,6 +61,8 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $NetBSD: ch.c,v 1.34 1998/08/31 22:28:06 cgd Exp $
  */
 
 #include <sys/cdefs.h>
