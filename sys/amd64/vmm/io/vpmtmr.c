@@ -132,13 +132,6 @@ int
 vpmtmr_restore(struct vpmtmr *vpmtmr, void *buffer, size_t buf_size)
 {
 	printf("%s\n", __func__);
-/*
-struct vpmtmr {
-	sbintime_t	freq_sbt;
-	sbintime_t	baseuptime;
-	uint32_t	baseval;
-};
-*/
 	struct vpmtmr *old_vpmtmr;
 
 	if (buffer == NULL) {
