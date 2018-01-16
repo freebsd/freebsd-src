@@ -169,39 +169,6 @@ atrtc_restore(void)
 	rtcin(RTC_INTR);
 }
 
-static void
-atrtc_set(struct timespec *ts)
-{
-	struct bcd_clocktime ct;
-
-	clock_ts_to_bcd(ts, &ct, false);
-
-	mtx_lock(&atrtc_time_lock);
-	RTC_LOCK;
-
-	/* Disable RTC updates and interrupts. */
-	rtcout_locked(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
-
-	/* Write all the time registers. */
-	rtcout_locked(RTC_SEC,   ct.sec);
-	rtcout_locked(RTC_MIN,   ct.min);
-	rtcout_locked(RTC_HRS,   ct.hour);
-	rtcout_locked(RTC_WDAY,  ct.dow + 1);
-	rtcout_locked(RTC_DAY,   ct.day);
-	rtcout_locked(RTC_MONTH, ct.mon);
-	rtcout_locked(RTC_YEAR,  ct.year & 0xff);
-#ifdef USE_RTC_CENTURY
-	rtcout_locked(RTC_CENTURY, ct.year >> 8);
-#endif
-
-	/* Re-enable RTC updates and interrupts. */
-	rtcout_locked(RTC_STATUSB, rtc_statusb);
-	rtcin_locked(RTC_INTR);
-
-	RTC_UNLOCK;
-	mtx_unlock(&atrtc_time_lock);
-}
-
 /**********************************************************************
  * RTC driver for subr_rtc
  */
@@ -348,15 +315,44 @@ atrtc_resume(device_t dev)
 static int
 atrtc_settime(device_t dev __unused, struct timespec *ts)
 {
+	struct bcd_clocktime bct;
 
-	atrtc_set(ts);
+	clock_ts_to_bcd(ts, &bct, false);
+
+	mtx_lock(&atrtc_time_lock);
+	RTC_LOCK;
+
+	/* Disable RTC updates and interrupts.  */
+	rtcout_locked(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
+
+	/* Write all the time registers. */
+	rtcout_locked(RTC_SEC,   bct.sec);
+	rtcout_locked(RTC_MIN,   bct.min);
+	rtcout_locked(RTC_HRS,   bct.hour);
+	rtcout_locked(RTC_WDAY,  bct.dow + 1);
+	rtcout_locked(RTC_DAY,   bct.day);
+	rtcout_locked(RTC_MONTH, bct.mon);
+	rtcout_locked(RTC_YEAR,  bct.year & 0xff);
+#ifdef USE_RTC_CENTURY
+	rtcout_locked(RTC_CENTURY, bct.year >> 8);
+#endif
+
+	/*
+	 * Re-enable RTC updates and interrupts.
+	 */
+	rtcout_locked(RTC_STATUSB, rtc_statusb);
+	rtcin_locked(RTC_INTR);
+
+	RTC_UNLOCK;
+	mtx_unlock(&atrtc_time_lock);
+
 	return (0);
 }
 
 static int
 atrtc_gettime(device_t dev, struct timespec *ts)
 {
-	struct bcd_clocktime ct;
+	struct bcd_clocktime bct;
 
 	/* Look if we have a RTC present and the time is valid */
 	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR)) {
@@ -376,22 +372,22 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 		continue;
 	critical_enter();
 	RTC_LOCK;
-	ct.sec  = rtcin_locked(RTC_SEC);
-	ct.min  = rtcin_locked(RTC_MIN);
-	ct.hour = rtcin_locked(RTC_HRS);
-	ct.day  = rtcin_locked(RTC_DAY);
-	ct.mon  = rtcin_locked(RTC_MONTH);
-	ct.year = rtcin_locked(RTC_YEAR);
+	bct.sec  = rtcin_locked(RTC_SEC);
+	bct.min  = rtcin_locked(RTC_MIN);
+	bct.hour = rtcin_locked(RTC_HRS);
+	bct.day  = rtcin_locked(RTC_DAY);
+	bct.mon  = rtcin_locked(RTC_MONTH);
+	bct.year = rtcin_locked(RTC_YEAR);
 #ifdef USE_RTC_CENTURY
-	ct.year |= rtcin_locked(RTC_CENTURY) << 8;
+	bct.year |= rtcin_locked(RTC_CENTURY) << 8;
 #endif
 	RTC_UNLOCK;
 	critical_exit();
 	mtx_unlock(&atrtc_time_lock);
 	/* dow is unused in timespec conversion and we have no nsec info. */
-	ct.dow  = 0;
-	ct.nsec = 0;
-	return (clock_bcd_to_ts(&ct, ts, false));
+	bct.dow  = 0;
+	bct.nsec = 0;
+	return (clock_bcd_to_ts(&bct, ts, false));
 }
 
 static device_method_t atrtc_methods[] = {
