@@ -101,7 +101,7 @@ pmcstat_pmcid_add(pmc_id_t pmcid, pmcstat_interned_string ps,
 
 	pr->pr_pmcid = pmcid;
 	pr->pr_pmcname = ps;
-	pr->pr_pmcin = *pmcstat_npmcs++;
+	pr->pr_pmcin = (*pmcstat_npmcs)++;
 	pr->pr_samples = 0;
 	pr->pr_dubious_frames = 0;
 	pr->pr_merge = prm == NULL ? pr : prm;
