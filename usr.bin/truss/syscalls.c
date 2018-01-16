@@ -1493,10 +1493,15 @@ print_cmsgs(FILE *fp, pid_t pid, bool receive, struct msghdr *msghdr)
 	bool first;
 
 	len = msghdr->msg_controllen;
+	if (len == 0) {
+		fputs("{}", fp);
+		return;
+	}
 	cmsgbuf = calloc(1, len);
 	if (get_struct(pid, msghdr->msg_control, cmsgbuf, len) == -1) {
 		fprintf(fp, "%p", msghdr->msg_control);
 		free(cmsgbuf);
+		return;
 	}
 	msghdr->msg_control = cmsgbuf;
 	first = true;
