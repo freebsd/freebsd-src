@@ -139,6 +139,8 @@ utf8_to_ucs2(const char *name, efi_char **nmp, size_t *len)
 	sz = strlen(name) * 2 + 2;
 	if (*nmp == NULL)
 		*nmp = malloc(sz);
+	if (*nmp == NULL)
+		return (ENOMEM);
 	nm = *nmp;
 	*len = sz;
 
