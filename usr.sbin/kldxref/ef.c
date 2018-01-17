@@ -85,7 +85,7 @@ static int	ef_parse_dynamic(elf_file_t);
 
 static int	ef_get_type(elf_file_t ef);
 static int	ef_close(elf_file_t ef);
-static int	ef_read(elf_file_t ef, Elf_Off offset, size_t len, void* dest);
+static int	ef_read(elf_file_t ef, Elf_Off offset, size_t len, void *dest);
 static int	ef_read_entry(elf_file_t ef, Elf_Off offset, size_t len,
 		    void **ptr);
 
@@ -103,8 +103,8 @@ static int	ef_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len,
 static Elf_Addr	ef_symaddr(elf_file_t ef, Elf_Size symidx);
 static int	ef_lookup_set(elf_file_t ef, const char *name, long *startp,
 		    long *stopp, long *countp);
-static int	ef_lookup_symbol(elf_file_t ef, const char* name,
-		    Elf_Sym** sym);
+static int	ef_lookup_symbol(elf_file_t ef, const char *name,
+		    Elf_Sym **sym);
 
 static struct elf_file_ops ef_file_ops = {
 	.get_type		= ef_get_type,
@@ -178,7 +178,7 @@ elf_hash(const char *name)
 }
 
 static int
-ef_lookup_symbol(elf_file_t ef, const char* name, Elf_Sym** sym)
+ef_lookup_symbol(elf_file_t ef, const char *name, Elf_Sym **sym)
 {
 	unsigned long hash, symnum;
 	Elf_Sym *symp;
@@ -300,7 +300,7 @@ ef_parse_dynamic(elf_file_t ef)
 			ef->ef_nchains = hashhdr[1];
 			error = ef_read_entry(ef, -1, 
 			    (hashhdr[0] + hashhdr[1]) * sizeof(Elf_Hashelt),
-			    (void**)&ef->ef_hashtab);
+			    (void **)&ef->ef_hashtab);
 			if (error != 0) {
 				warnx("can't read hash table");
 				return (error);
@@ -363,14 +363,14 @@ ef_parse_dynamic(elf_file_t ef)
 	}
 	if (ef_read_entry(ef, ef_get_offset(ef, ef->ef_symoff),
 	    ef->ef_nchains * sizeof(Elf_Sym),
-		(void**)&ef->ef_symtab) != 0) {
+		(void **)&ef->ef_symtab) != 0) {
 		if (ef->ef_verbose)
 			warnx("%s: can't load .dynsym section (0x%lx)",
 			    ef->ef_name, (long)ef->ef_symoff);
 		return (EIO);
 	}
 	if (ef_read_entry(ef, ef_get_offset(ef, ef->ef_stroff), ef->ef_strsz,
-		(void**)&ef->ef_strtab) != 0) {
+		(void **)&ef->ef_strtab) != 0) {
 		warnx("can't load .dynstr section");
 		return (EIO);
 	}
@@ -428,7 +428,7 @@ ef_parse_dynamic(elf_file_t ef)
 }
 
 static int
-ef_read(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
+ef_read(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 {
 	ssize_t r;
 
@@ -445,7 +445,7 @@ ef_read(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
 }
 
 static int
-ef_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
+ef_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void **ptr)
 {
 	int error;
 
@@ -459,7 +459,7 @@ ef_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
 }
 
 static int
-ef_seg_read(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
+ef_seg_read(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 {
 	u_long ofs;
 
@@ -470,11 +470,11 @@ ef_seg_read(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
 			    ef->ef_name, (long)offset, ofs);
 		return (EFAULT);
 	}
-	return ef_read(ef, ofs, len, dest);
+	return (ef_read(ef, ofs, len, dest));
 }
 
 static int
-ef_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
+ef_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 {
 	u_long ofs;
 	const Elf_Rela *a;
@@ -530,7 +530,7 @@ ef_seg_read_string(elf_file_t ef, Elf_Off offset, size_t len, char *dest)
 }
 
 static int
-ef_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
+ef_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void **ptr)
 {
 	int error;
 
@@ -544,7 +544,7 @@ ef_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
 }
 
 static int
-ef_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
+ef_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len, void **ptr)
 {
 	int error;
 
@@ -604,7 +604,7 @@ ef_open(const char *filename, struct elf_file *efile, int verbose)
 			break;
 		phlen = hdr->e_phnum * sizeof(Elf_Phdr);
 		if (ef_read_entry(ef, hdr->e_phoff, phlen,
-		    (void**)&ef->ef_ph) != 0)
+		    (void **)&ef->ef_ph) != 0)
 			break;
 		phdr = ef->ef_ph;
 		phlimit = phdr + hdr->e_phnum;
@@ -639,7 +639,7 @@ ef_open(const char *filename, struct elf_file *efile, int verbose)
 		}
 		ef->ef_nsegs = nsegs;
 		if (ef_read_entry(ef, phdyn->p_offset,
-			phdyn->p_filesz, (void**)&ef->ef_dyn) != 0) {
+			phdyn->p_filesz, (void **)&ef->ef_dyn) != 0) {
 			printf("ef_read_entry failed\n");
 			break;
 		}
