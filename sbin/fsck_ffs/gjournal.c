@@ -134,9 +134,8 @@ getcg(int cg)
 		if (cgc == NULL)
 			err(1, "malloc(%zu)", sizeof(*cgc));
 	}
-	if (cgread1(disk, cg) == -1)
-		err(1, "cgread1(%d)", cg);
-	bcopy(&disk->d_cg, &cgc->cgc_cg, sizeof(cgc->cgc_union));
+	if (cgget(disk, cg, &cgc->cgc_cg) == -1)
+		err(1, "cgget(%d)", cg);
 	cgc->cgc_busy = 0;
 	cgc->cgc_dirty = 0;
 	LIST_INSERT_HEAD(&cglist, cgc, cgc_next);
@@ -191,10 +190,8 @@ putcgs(void)
 		LIST_REMOVE(cgc, cgc_next);
 		ncgs--;
 		if (cgc->cgc_dirty) {
-			bcopy(&cgc->cgc_cg, &disk->d_cg,
-			    sizeof(cgc->cgc_union));
-			if (cgwrite1(disk, cgc->cgc_cg.cg_cgx) == -1)
-				err(1, "cgwrite1(%d)", cgc->cgc_cg.cg_cgx);
+			if (cgput(disk, &cgc->cgc_cg) == -1)
+				err(1, "cgput(%d)", cgc->cgc_cg.cg_cgx);
 			//printf("%s: Wrote cg=%d\n", __func__,
 			//    cgc->cgc_cg.cg_cgx);
 		}
