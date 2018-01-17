@@ -7493,6 +7493,7 @@ driver_t bwn_driver = {
 };
 static devclass_t bwn_devclass;
 DRIVER_MODULE(bwn, siba_bwn, bwn_driver, bwn_devclass, 0, 0);
+MODULE_DEPEND(bwn, bwn_pci, 1, 1, 1);
 MODULE_DEPEND(bwn, siba_bwn, 1, 1, 1);
 MODULE_DEPEND(bwn, gpiobus, 1, 1, 1);
 MODULE_DEPEND(bwn, wlan, 1, 1, 1);		/* 802.11 media layer */
