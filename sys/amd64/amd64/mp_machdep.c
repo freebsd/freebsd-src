@@ -132,33 +132,40 @@ cpu_mp_start(void)
 	/* Install an inter-CPU IPI for TLB invalidation */
 	if (pmap_pcid_enabled) {
 		if (invpcid_works) {
-			setidt(IPI_INVLTLB, IDTVEC(invltlb_invpcid),
-			    SDT_SYSIGT, SEL_KPL, 0);
+			setidt(IPI_INVLTLB, pti ? IDTVEC(invltlb_invpcid_pti) :
+			    IDTVEC(invltlb_invpcid), SDT_SYSIGT, SEL_KPL, 0);
 		} else {
-			setidt(IPI_INVLTLB, IDTVEC(invltlb_pcid), SDT_SYSIGT,
-			    SEL_KPL, 0);
+			setidt(IPI_INVLTLB, pti ? IDTVEC(invltlb_pcid_pti) :
+			    IDTVEC(invltlb_pcid), SDT_SYSIGT, SEL_KPL, 0);
 		}
 	} else {
-		setidt(IPI_INVLTLB, IDTVEC(invltlb), SDT_SYSIGT, SEL_KPL, 0);
+		setidt(IPI_INVLTLB, pti ? IDTVEC(invltlb_pti) : IDTVEC(invltlb),
+		    SDT_SYSIGT, SEL_KPL, 0);
 	}
-	setidt(IPI_INVLPG, IDTVEC(invlpg), SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IPI_INVLRNG, IDTVEC(invlrng), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IPI_INVLPG, pti ? IDTVEC(invlpg_pti) : IDTVEC(invlpg),
+	    SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IPI_INVLRNG, pti ? IDTVEC(invlrng_pti) : IDTVEC(invlrng),
+	    SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Install an inter-CPU IPI for cache invalidation. */
-	setidt(IPI_INVLCACHE, IDTVEC(invlcache), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IPI_INVLCACHE, pti ? IDTVEC(invlcache_pti) : IDTVEC(invlcache),
+	    SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Install an inter-CPU IPI for all-CPU rendezvous */
-	setidt(IPI_RENDEZVOUS, IDTVEC(rendezvous), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IPI_RENDEZVOUS, pti ? IDTVEC(rendezvous_pti) :
+	    IDTVEC(rendezvous), SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Install generic inter-CPU IPI handler */
-	setidt(IPI_BITMAP_VECTOR, IDTVEC(ipi_intr_bitmap_handler),
-	       SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IPI_BITMAP_VECTOR, pti ? IDTVEC(ipi_intr_bitmap_handler_pti) :
+	    IDTVEC(ipi_intr_bitmap_handler), SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Install an inter-CPU IPI for CPU stop/restart */
-	setidt(IPI_STOP, IDTVEC(cpustop), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IPI_STOP, pti ? IDTVEC(cpustop_pti) : IDTVEC(cpustop),
+	    SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Install an inter-CPU IPI for CPU suspend/resume */
-	setidt(IPI_SUSPEND, IDTVEC(cpususpend), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IPI_SUSPEND, pti ? IDTVEC(cpususpend_pti) : IDTVEC(cpususpend),
+	    SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Set boot_cpu_id if needed. */
 	if (boot_cpu_id == -1) {
@@ -197,7 +204,6 @@ init_secondary(void)
 
 	/* Init tss */
 	common_tss[cpu] = common_tss[0];
-	common_tss[cpu].tss_rsp0 = 0;   /* not used until after switch */
 	common_tss[cpu].tss_iobase = sizeof(struct amd64tss) +
 	    IOPERM_BITMAP_SIZE;
 	common_tss[cpu].tss_ist1 = (long)&doublefault_stack[PAGE_SIZE];
@@ -240,6 +246,8 @@ init_secondary(void)
 	pc->pc_curpmap = kernel_pmap;
 	pc->pc_pcid_gen = 1;
 	pc->pc_pcid_next = PMAP_PCID_KERN + 1;
+	common_tss[cpu].tss_rsp0 = pti ? ((vm_offset_t)&pc->pc_pti_stack +
+	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful : 0;
 
 	/* Save the per-cpu pointer for use by the NMI handler. */
 	np->np_pcpu = (register_t) pc;

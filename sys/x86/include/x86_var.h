@@ -83,6 +83,7 @@ extern	int	_ugssel;
 extern	int	use_xsave;
 extern	uint64_t xsave_mask;
 extern	u_int	max_apic_id;
+extern int	pti;
 
 struct	pcb;
 struct	thread;
