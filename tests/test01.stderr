@@ -1,4 +1,0 @@
-DTC: dts->asm  on file "test.dts"
-Warning: "linux,boot-cpu" property is deprecated in blob version 2 or higher
-Warning: /chosen has no "linux,stdout-path" property
-Warning: /chosen has no "interrupt-controller" property

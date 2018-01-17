@@ -1,6 +1,0 @@
-/dts-v1/;
-
-/include/ "deps_inc1.dtsi"
-
-/ {
-};

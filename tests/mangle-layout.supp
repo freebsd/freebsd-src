@@ -1,7 +1,0 @@
-{
-   uninitialized alignment gaps can be dumped to output
-   Memcheck:Param
-   write(buf)
-   obj:/lib/ld-*.so
-   fun:main
-}

@@ -1,6 +1,0 @@
-/dts-v1/;
-
-/ {
-	incbin = /incbin/("incbin.bin");
-	incbin-partial = /incbin/("incbin.bin", 13, 17);
-};

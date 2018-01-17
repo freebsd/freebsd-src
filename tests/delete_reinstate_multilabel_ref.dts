@@ -1,9 +1,0 @@
-/dts-v1/;
-
-/ {
-	prop = "value";
-
-	node {
-		prop = "value";
-	};
-};

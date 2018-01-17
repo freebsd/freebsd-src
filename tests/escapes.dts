@@ -1,7 +1,0 @@
-/dts-v1/;
-
-/ {
-	compatible = "test_string_escapes";
-	escape-str = "nastystring: \a\b\t\n\v\f\r\\\"";
-	escape-str-2 = "\xde\xad\xbe\xef";
-};

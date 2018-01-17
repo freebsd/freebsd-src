@@ -1,7 +1,0 @@
-/dts-v1/;
-
-/ {
-	node@0 {
-		name = "badthing";
-	};
-};
