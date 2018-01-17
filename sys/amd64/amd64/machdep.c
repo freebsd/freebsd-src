@@ -813,13 +813,20 @@ extern inthand_t
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
 	IDTVEC(xmm), IDTVEC(dblfault),
+	IDTVEC(div_pti), IDTVEC(dbg_pti), IDTVEC(bpt_pti),
+	IDTVEC(ofl_pti), IDTVEC(bnd_pti), IDTVEC(ill_pti), IDTVEC(dna_pti),
+	IDTVEC(fpusegm_pti), IDTVEC(tss_pti), IDTVEC(missing_pti),
+	IDTVEC(stk_pti), IDTVEC(prot_pti), IDTVEC(page_pti), IDTVEC(mchk_pti),
+	IDTVEC(rsvd_pti), IDTVEC(fpu_pti), IDTVEC(align_pti),
+	IDTVEC(xmm_pti),
 #ifdef KDTRACE_HOOKS
-	IDTVEC(dtrace_ret),
+	IDTVEC(dtrace_ret), IDTVEC(dtrace_ret_pti),
 #endif
 #ifdef XENHVM
-	IDTVEC(xen_intr_upcall),
+	IDTVEC(xen_intr_upcall), IDTVEC(xen_intr_upcall_pti),
 #endif
-	IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
+	IDTVEC(fast_syscall), IDTVEC(fast_syscall32),
+	IDTVEC(fast_syscall_pti);
 
 #ifdef DDB
 /*
@@ -1520,7 +1527,8 @@ amd64_conf_fast_syscall(void)
 
 	msr = rdmsr(MSR_EFER) | EFER_SCE;
 	wrmsr(MSR_EFER, msr);
-	wrmsr(MSR_LSTAR, (u_int64_t)IDTVEC(fast_syscall));
+	wrmsr(MSR_LSTAR, pti ? (u_int64_t)IDTVEC(fast_syscall_pti) :
+	    (u_int64_t)IDTVEC(fast_syscall));
 	wrmsr(MSR_CSTAR, (u_int64_t)IDTVEC(fast_syscall32));
 	msr = ((u_int64_t)GSEL(GCODE_SEL, SEL_KPL) << 32) |
 	    ((u_int64_t)GSEL(GUCODE32_SEL, SEL_UPL) << 48);
@@ -1536,6 +1544,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	struct pcpu *pc;
 	struct nmi_pcpu *np;
 	struct xstate_hdr *xhdr;
+	u_int64_t rsp0;
 	char *env;
 	size_t kstack0_sz;
 	int late_console;
@@ -1609,34 +1618,54 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	mtx_init(&dt_lock, "descriptor tables", NULL, MTX_DEF);
 
 	/* exceptions */
+	TUNABLE_INT_FETCH("vm.pmap.pti", &pti);
+
 	for (x = 0; x < NIDT; x++)
-		setidt(x, &IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_DE, &IDTVEC(div),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_DB, &IDTVEC(dbg),  SDT_SYSIGT, SEL_KPL, 0);
+		setidt(x, pti ? &IDTVEC(rsvd_pti) : &IDTVEC(rsvd), SDT_SYSIGT,
+		    SEL_KPL, 0);
+	setidt(IDT_DE, pti ? &IDTVEC(div_pti) : &IDTVEC(div), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_DB, pti ? &IDTVEC(dbg_pti) : &IDTVEC(dbg), SDT_SYSIGT,
+	    SEL_KPL, 0);
 	setidt(IDT_NMI, &IDTVEC(nmi),  SDT_SYSIGT, SEL_KPL, 2);
- 	setidt(IDT_BP, &IDTVEC(bpt),  SDT_SYSIGT, SEL_UPL, 0);
-	setidt(IDT_OF, &IDTVEC(ofl),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_BR, &IDTVEC(bnd),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_UD, &IDTVEC(ill),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_NM, &IDTVEC(dna),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_BP, pti ? &IDTVEC(bpt_pti) : &IDTVEC(bpt), SDT_SYSIGT,
+	    SEL_UPL, 0);
+	setidt(IDT_OF, pti ? &IDTVEC(ofl_pti) : &IDTVEC(ofl), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_BR, pti ? &IDTVEC(bnd_pti) : &IDTVEC(bnd), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_UD, pti ? &IDTVEC(ill_pti) : &IDTVEC(ill), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_NM, pti ? &IDTVEC(dna_pti) : &IDTVEC(dna), SDT_SYSIGT,
+	    SEL_KPL, 0);
 	setidt(IDT_DF, &IDTVEC(dblfault), SDT_SYSIGT, SEL_KPL, 1);
-	setidt(IDT_FPUGP, &IDTVEC(fpusegm),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_TS, &IDTVEC(tss),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_NP, &IDTVEC(missing),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_SS, &IDTVEC(stk),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_GP, &IDTVEC(prot),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_PF, &IDTVEC(page),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_MF, &IDTVEC(fpu),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_AC, &IDTVEC(align), SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_MC, &IDTVEC(mchk),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_XF, &IDTVEC(xmm), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_FPUGP, pti ? &IDTVEC(fpusegm_pti) : &IDTVEC(fpusegm),
+	    SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_TS, pti ? &IDTVEC(tss_pti) : &IDTVEC(tss), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_NP, pti ? &IDTVEC(missing_pti) : &IDTVEC(missing),
+	    SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_SS, pti ? &IDTVEC(stk_pti) : &IDTVEC(stk), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_GP, pti ? &IDTVEC(prot_pti) : &IDTVEC(prot), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_PF, pti ? &IDTVEC(page_pti) : &IDTVEC(page), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_MF, pti ? &IDTVEC(fpu_pti) : &IDTVEC(fpu), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_AC, pti ? &IDTVEC(align_pti) : &IDTVEC(align), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_MC, pti ? &IDTVEC(mchk_pti) : &IDTVEC(mchk), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_XF, pti ? &IDTVEC(xmm_pti) : &IDTVEC(xmm), SDT_SYSIGT,
+	    SEL_KPL, 0);
 #ifdef KDTRACE_HOOKS
-	setidt(IDT_DTRACE_RET, &IDTVEC(dtrace_ret), SDT_SYSIGT, SEL_UPL, 0);
+	setidt(IDT_DTRACE_RET, pti ? &IDTVEC(dtrace_ret_pti) :
+	    &IDTVEC(dtrace_ret), SDT_SYSIGT, SEL_UPL, 0);
 #endif
 #ifdef XENHVM
 	setidt(IDT_EVTCHN, &IDTVEC(xen_intr_upcall), SDT_SYSIGT, SEL_UPL, 0);
 #endif
-
 	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (long) idt;
 	lidt(&r_idt);
@@ -1750,10 +1779,12 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		xhdr->xstate_bv = xsave_mask;
 	}
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
-	common_tss[0].tss_rsp0 = (vm_offset_t)thread0.td_pcb;
+	rsp0 = (vm_offset_t)thread0.td_pcb;
 	/* Ensure the stack is aligned to 16 bytes */
-	common_tss[0].tss_rsp0 &= ~0xFul;
-	PCPU_SET(rsp0, common_tss[0].tss_rsp0);
+	rsp0 &= ~0xFul;
+	common_tss[0].tss_rsp0 = pti ? ((vm_offset_t)PCPU_PTR(pti_stack) +
+	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful : rsp0;
+	PCPU_SET(rsp0, rsp0);
 	PCPU_SET(curpcb, thread0.td_pcb);
 
 	/* transfer to user mode */

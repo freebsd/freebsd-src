@@ -30,7 +30,18 @@ extern u_int32_t		mptramp_pagetables;
 inthand_t
 	IDTVEC(invltlb_pcid),	/* TLB shootdowns - global, pcid */
 	IDTVEC(invltlb_invpcid),/* TLB shootdowns - global, invpcid */
-	IDTVEC(justreturn);	/* interrupt CPU with minimum overhead */
+	IDTVEC(justreturn),	/* interrupt CPU with minimum overhead */
+	IDTVEC(invltlb_pcid_pti),
+	IDTVEC(invltlb_invpcid_pti),
+	IDTVEC(justreturn1_pti),
+	IDTVEC(invltlb_pti),
+	IDTVEC(invlpg_pti),
+	IDTVEC(invlrng_pti),
+	IDTVEC(invlcache_pti),
+	IDTVEC(ipi_intr_bitmap_handler_pti),
+	IDTVEC(cpustop_pti),
+	IDTVEC(cpususpend_pti),
+	IDTVEC(rendezvous_pti);
 
 void	invltlb_pcid_handler(void);
 void	invltlb_invpcid_handler(void);

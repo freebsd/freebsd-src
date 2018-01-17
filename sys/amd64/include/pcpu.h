@@ -35,6 +35,7 @@
 #error "sys/cdefs.h is a prerequisite for this file"
 #endif
 
+#define	PC_PTI_STACK_SZ	16
 /*
  * The SMP parts are setup in pmap.c and locore.s for the BSP, and
  * mp_machdep.c sets up the data for the AP's to "see" when they awake.
@@ -48,8 +49,11 @@
 	struct	pmap *pc_curpmap;					\
 	struct	amd64tss *pc_tssp;	/* TSS segment active on CPU */	\
 	struct	amd64tss *pc_commontssp;/* Common TSS for the CPU */	\
+	uint64_t pc_kcr3;						\
+	uint64_t pc_ucr3;						\
 	register_t pc_rsp0;						\
 	register_t pc_scratch_rsp;	/* User %rsp in syscall */	\
+	register_t pc_scratch_rax;					\
 	u_int	pc_apic_id;						\
 	u_int   pc_acpi_id;		/* ACPI CPU id */		\
 	/* Pointer to the CPU %fs descriptor */				\
@@ -63,12 +67,13 @@
 	uint64_t	pc_pm_save_cnt;					\
 	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
 	uint64_t pc_dbreg[16];		/* ddb debugging regs */	\
+	uint64_t pc_pti_stack[PC_PTI_STACK_SZ];					\
 	int pc_dbreg_cmd;		/* ddb debugging reg cmd */	\
 	u_int	pc_vcpu_id;		/* Xen vCPU ID */		\
 	uint32_t pc_pcid_next;						\
 	uint32_t pc_pcid_gen;						\
 	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
-	char	__pad[384]		/* be divisor of PAGE_SIZE	\
+	char	__pad[232]		/* be divisor of PAGE_SIZE	\
 					   after cache alignment */
 
 #define	PC_DBREG_CMD_NONE	0
