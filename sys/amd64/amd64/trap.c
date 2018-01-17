@@ -448,9 +448,28 @@ trap(struct trapframe *frame)
 			 * problem here and not have to check all the
 			 * selectors and pointers when the user changes
 			 * them.
+			 *
+			 * In case of PTI, the IRETQ faulted while the
+			 * kernel used the pti stack, and exception
+			 * frame records %rsp value pointing to that
+			 * stack.  If we return normally to
+			 * doreti_iret_fault, the trapframe is
+			 * reconstructed on pti stack, and calltrap()
+			 * called on it as well.  Due to the very
+			 * limited pti stack size, kernel does not
+			 * survive for too long.  Switch to the normal
+			 * thread stack for the trap handling.
+			 *
+			 * Magic '5' is the number of qwords occupied by
+			 * the hardware trap frame.
 			 */
 			if (frame->tf_rip == (long)doreti_iret) {
 				frame->tf_rip = (long)doreti_iret_fault;
+				if (pti && frame->tf_rsp == (uintptr_t)PCPU_PTR(
+				    pti_stack) + (PC_PTI_STACK_SZ - 5) *
+				    sizeof(register_t))
+					frame->tf_rsp = PCPU_GET(rsp0) - 5 *
+					    sizeof(register_t);
 				return;
 			}
 			if (frame->tf_rip == (long)ld_ds) {
