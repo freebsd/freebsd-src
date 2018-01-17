@@ -115,6 +115,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
+#include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <x86/mca.h>
 #include <machine/md_var.h>
@@ -146,6 +147,14 @@ __FBSDID("$FreeBSD$");
 
 /* Sanity check for __curthread() */
 CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
+
+/*
+ * The PTI trampoline stack needs enough space for a hardware trapframe and a
+ * couple of scratch registers, as well as the trapframe left behind after an
+ * iret fault.
+ */
+CTASSERT(PC_PTI_STACK_SZ * sizeof(register_t) >= 2 * sizeof(struct pti_frame) -
+    offsetof(struct pti_frame, pti_rip));
 
 extern u_int64_t hammer_time(u_int64_t, u_int64_t);
 

@@ -325,7 +325,7 @@ page_cr2:
 	movq	PCPU(KCR3),%rax
 	movq	%rax,%cr3
 	movq	PCPU(RSP0),%rax
-	subq	$2*PTI_SIZE-3*8,%rax
+	subq	$2*PTI_SIZE-3*8,%rax /* no err, %rax, %rdx in faulted frame */
 	MOVE_STACKS	(PTI_SIZE / 4 - 3)
 	movq	%rax,%rsp
 	popq	%rdx
