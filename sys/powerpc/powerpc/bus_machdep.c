@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <sys/endian.h>
 
 #include <machine/bus.h>
 #include <machine/pio.h>
@@ -333,6 +334,7 @@ bs_be_ws_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t val)
 	addr = __ppc_ba(bsh, ofs);
 	*addr = val;
 	powerpc_iomb();
+	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
 static void
@@ -532,7 +534,14 @@ bs_le_rs_4(bus_space_handle_t bsh, bus_size_t ofs)
 static uint64_t
 bs_le_rs_8(bus_space_handle_t bsh, bus_size_t ofs)
 {
-	TODO;
+	volatile uint64_t *addr;
+	uint64_t res;
+
+	addr = __ppc_ba(bsh, ofs);
+	res = le64toh(*addr);
+	powerpc_iomb();
+	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
+	return (res);
 }
 
 static void
@@ -631,7 +640,12 @@ bs_le_ws_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t val)
 static void
 bs_le_ws_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t val)
 {
-	TODO;
+	volatile uint64_t *addr;
+
+	addr = __ppc_ba(bsh, ofs);
+	*addr = htole64(val);
+	powerpc_iomb();
+	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
 static void
