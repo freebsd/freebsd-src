@@ -1343,7 +1343,7 @@ tmpfs_pathconf(struct vop_pathconf_args *v)
 {
 	struct vnode *vp = v->a_vp;
 	int name = v->a_name;
-	register_t *retval = v->a_retval;
+	long *retval = v->a_retval;
 
 	int error;
 

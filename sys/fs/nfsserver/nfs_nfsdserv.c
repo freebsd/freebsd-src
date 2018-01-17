@@ -2133,7 +2133,7 @@ nfsrvd_pathconf(struct nfsrv_descript *nd, __unused int isdgram,
 {
 	struct nfsv3_pathconf *pc;
 	int getret = 1;
-	register_t linkmax, namemax, chownres, notrunc;
+	long linkmax, namemax, chownres, notrunc;
 	struct nfsvattr at;
 
 	if (nd->nd_repstat) {

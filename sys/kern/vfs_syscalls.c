@@ -2384,8 +2384,14 @@ struct pathconf_args {
 int
 sys_pathconf(struct thread *td, struct pathconf_args *uap)
 {
+	long value;
+	int error;
 
-	return (kern_pathconf(td, uap->path, UIO_USERSPACE, uap->name, FOLLOW));
+	error = kern_pathconf(td, uap->path, UIO_USERSPACE, uap->name, FOLLOW,
+	    &value);
+	if (error == 0)
+		td->td_retval[0] = value;
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -2397,14 +2403,19 @@ struct lpathconf_args {
 int
 sys_lpathconf(struct thread *td, struct lpathconf_args *uap)
 {
+	long value;
+	int error;
 
-	return (kern_pathconf(td, uap->path, UIO_USERSPACE, uap->name,
-	    NOFOLLOW));
+	error = kern_pathconf(td, uap->path, UIO_USERSPACE, uap->name,
+	    NOFOLLOW, &value);
+	if (error == 0)
+		td->td_retval[0] = value;
+	return (error);
 }
 
 int
 kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg, int name,
-    u_long flags)
+    u_long flags, long *valuep)
 {
 	struct nameidata nd;
 	int error;
@@ -2415,7 +2426,7 @@ kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg, int name,
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	error = VOP_PATHCONF(nd.ni_vp, name, td->td_retval);
+	error = VOP_PATHCONF(nd.ni_vp, name, valuep);
 	vput(nd.ni_vp);
 	return (error);
 }

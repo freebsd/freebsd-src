@@ -895,7 +895,7 @@ smbfs_pathconf (ap)
 {
 	struct smbmount *smp = VFSTOSMBFS(VTOVFS(ap->a_vp));
 	struct smb_vc *vcp = SSTOVC(smp->sm_share);
-	register_t *retval = ap->a_retval;
+	long *retval = ap->a_retval;
 	int error = 0;
 	
 	switch (ap->a_name) {
