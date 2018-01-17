@@ -107,7 +107,7 @@ options 	PCI_HP			# PCI-Express native HotPlug
 device		agp
 
 # ATA controllers
-device		ahci		# AHCI-compatible SATA controllers
+#device		ahci		# AHCI-compatible SATA controllers
 device		ata		# Legacy ATA/SATA controllers
 device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
 device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
@@ -143,6 +143,7 @@ device		ix		# Intel PRO/10GbE PCIE PF Ethernet Family
 device		ixv		# Intel PRO/10GbE PCIE VF Ethernet Family
 device		glc		# Sony Playstation 3 Ethernet
 device		llan		# IBM pSeries Virtual Ethernet
+device		cxgbe		# Chelsio 10/25G NIC
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support
