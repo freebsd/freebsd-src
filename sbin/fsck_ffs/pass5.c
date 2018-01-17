@@ -174,7 +174,7 @@ pass5(void)
 			    c * 100 / sblock.fs_ncg);
 			got_sigalarm = 0;
 		}
-		cgbp = cgget(c);
+		cgbp = cglookup(c);
 		cg = cgbp->b_un.b_cg;
 		if (!cg_chkmagic(cg))
 			pfatal("CG %d: BAD MAGIC NUMBER\n", c);

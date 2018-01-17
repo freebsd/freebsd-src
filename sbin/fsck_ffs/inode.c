@@ -673,7 +673,7 @@ allocino(ino_t request, int type)
 	if (ino == maxino)
 		return (0);
 	cg = ino_to_cg(&sblock, ino);
-	cgbp = cgget(cg);
+	cgbp = cglookup(cg);
 	cgp = cgbp->b_un.b_cg;
 	if (!check_cgmagic(cg, cgbp))
 		return (0);
