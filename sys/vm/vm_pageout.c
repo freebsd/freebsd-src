@@ -150,14 +150,6 @@ SDT_PROBE_DEFINE(vm, , , vm__lowmem_scan);
 
 static int vm_pageout_oom_seq = 12;
 
-/* Pending request for dirty page laundering. */
-static enum {
-	VM_LAUNDRY_IDLE,
-	VM_LAUNDRY_BACKGROUND,
-	VM_LAUNDRY_SHORTFALL
-} vm_laundry_request = VM_LAUNDRY_IDLE;
-static int vm_inactq_scans;
-
 static int vm_pageout_update_period;
 static int disable_swap_pageouts;
 static int lowmem_period = 10;
@@ -958,10 +950,9 @@ vm_pageout_laundry_worker(void *arg)
 	u_int inactq_scans, last_launder;
 	int domain, last_target, launder, shortfall, shortfall_cycle, target;
 	bool in_shortfall;
-	int i;
 
 	domain = (uintptr_t)arg;
-	vmd = &vm_dom[domain];
+	vmd = VM_DOMAIN(domain);
 	pq = &vmd->vmd_pagequeues[PQ_LAUNDRY];
 	KASSERT(vmd->vmd_segs != 0, ("domain without segments"));
 	vm_pageout_init_marker(&vmd->vmd_laundry_marker, PQ_LAUNDRY);
@@ -1000,7 +991,7 @@ vm_pageout_laundry_worker(void *arg)
 			target = shortfall;
 		} else if (!in_shortfall)
 			goto trybackground;
-		else if (shortfall_cycle == 0 || vm_laundry_target() <= 0) {
+		else if (shortfall_cycle == 0 || vm_laundry_target(vmd) <= 0) {
 			/*
 			 * We recently entered shortfall and began laundering
 			 * pages.  If we have completed that laundering run
@@ -1034,12 +1025,9 @@ vm_pageout_laundry_worker(void *arg)
 		 * memory pressure required to trigger laundering decreases.
 		 */
 trybackground:
-		nclean = 0;
-		for (i = 0; i < vm_ndomains; i++) {
-			nclean += vm_dom[i].vmd_free_count;
-			nclean += vm_dom[i].vmd_pagequeues[PQ_INACTIVE].pq_cnt;
-		}
-		ndirty = vm_laundry_count();
+		nclean = vmd->vmd_free_count +
+		    vmd->vmd_pagequeues[PQ_INACTIVE].pq_cnt;
+		ndirty = vmd->vmd_pagequeues[PQ_LAUNDRY].pq_cnt;
 		if (target == 0 && inactq_scans != last_launder &&
 		    ndirty * isqrt(inactq_scans - last_launder) >= nclean) {
 			target = vm_background_launder_target;
@@ -1085,8 +1073,8 @@ dolaundry:
 		 * kicks us.
 		 */
 		vm_pagequeue_lock(pq);
-		if (target == 0 && vm_laundry_request == VM_LAUNDRY_IDLE)
-			(void)mtx_sleep(&vm_laundry_request,
+		if (target == 0 && vmd->vmd_laundry_request == VM_LAUNDRY_IDLE)
+			(void)mtx_sleep(&vmd->vmd_laundry_request,
 			    vm_pagequeue_lockptr(pq), PVM, "launds", 0);
 
 		/*
@@ -1094,17 +1082,17 @@ dolaundry:
 		 * a shortfall laundering unless we're already in the middle of
 		 * one.  This may preempt a background laundering.
 		 */
-		if (vm_laundry_request == VM_LAUNDRY_SHORTFALL &&
+		if (vmd->vmd_laundry_request == VM_LAUNDRY_SHORTFALL &&
 		    (!in_shortfall || shortfall_cycle == 0)) {
-			shortfall = vm_laundry_target() +
+			shortfall = vm_laundry_target(vmd) +
 			    vmd->vmd_pageout_deficit;
 			target = 0;
 		} else
 			shortfall = 0;
 
 		if (target == 0)
-			vm_laundry_request = VM_LAUNDRY_IDLE;
-		inactq_scans = vm_inactq_scans;
+			vmd->vmd_laundry_request = VM_LAUNDRY_IDLE;
+		inactq_scans = vmd->vmd_inactq_scans;
 		vm_pagequeue_unlock(pq);
 	}
 }
@@ -1133,7 +1121,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	 * If we need to reclaim memory ask kernel caches to return
 	 * some.  We rate limit to avoid thrashing.
 	 */
-	if (vmd == &vm_dom[0] && pass > 0 &&
+	if (vmd == VM_DOMAIN(0) && pass > 0 &&
 	    (time_uptime - lowmem_uptime) >= lowmem_period) {
 		/*
 		 * Decrease registered cache sizes.
@@ -1356,18 +1344,20 @@ drop_page:
 	 * keep count.
 	 */
 	if (starting_page_shortage > 0) {
-		pq = &vm_dom[0].vmd_pagequeues[PQ_LAUNDRY];
+		pq = &vmd->vmd_pagequeues[PQ_LAUNDRY];
 		vm_pagequeue_lock(pq);
-		if (vm_laundry_request == VM_LAUNDRY_IDLE &&
+		if (vmd->vmd_laundry_request == VM_LAUNDRY_IDLE &&
 		    (pq->pq_cnt > 0 || atomic_load_acq_int(&swapdev_enabled))) {
 			if (page_shortage > 0) {
-				vm_laundry_request = VM_LAUNDRY_SHORTFALL;
+				vmd->vmd_laundry_request = VM_LAUNDRY_SHORTFALL;
 				VM_CNT_INC(v_pdshortfalls);
-			} else if (vm_laundry_request != VM_LAUNDRY_SHORTFALL)
-				vm_laundry_request = VM_LAUNDRY_BACKGROUND;
-			wakeup(&vm_laundry_request);
+			} else if (vmd->vmd_laundry_request !=
+			    VM_LAUNDRY_SHORTFALL)
+				vmd->vmd_laundry_request =
+				    VM_LAUNDRY_BACKGROUND;
+			wakeup(&vmd->vmd_laundry_request);
 		}
-		vm_inactq_scans++;
+		vmd->vmd_inactq_scans++;
 		vm_pagequeue_unlock(pq);
 	}
 
@@ -1397,7 +1387,7 @@ drop_page:
 	 * ensuring that they can eventually be reused.
 	 */
 	inactq_shortage = vmd->vmd_inactive_target - (pq->pq_cnt +
-	    /* XXX */vm_laundry_count() / act_scan_laundry_weight) +
+	    vmd->vmd_pagequeues[PQ_LAUNDRY].pq_cnt / act_scan_laundry_weight) +
 	    vm_paging_target(vmd) + deficit + addl_page_shortage;
 	inactq_shortage *= act_scan_laundry_weight;
 
@@ -1751,7 +1741,7 @@ vm_pageout_oom(int shortage)
 		_PRELE(bigproc);
 		PROC_UNLOCK(bigproc);
 		for (i = 0; i < vm_ndomains; i++)
-			wakeup(&vm_dom[i].vmd_free_count);
+			wakeup(&VM_DOMAIN(i)->vmd_free_count);
 	}
 }
 
@@ -1763,7 +1753,7 @@ vm_pageout_worker(void *arg)
 	bool target_met;
 
 	domain = (uintptr_t)arg;
-	vmd = &vm_dom[domain];
+	vmd = VM_DOMAIN(domain);
 	pass = 0;
 	target_met = true;
 
@@ -1798,7 +1788,7 @@ vm_pageout_worker(void *arg)
 		 * thread will, nonetheless, wait until another page is freed
 		 * or this wakeup is performed.
 		 */
-		if (vmd->vmd_pages_needed && !vm_page_count_min() /* XXX */) {
+		if (vmd->vmd_pages_needed && !vm_paging_min(vmd)) {
 			vmd->vmd_pages_needed = false;
 			wakeup(&vmd->vmd_free_count);
 		}
@@ -1861,7 +1851,7 @@ vm_pageout_init_domain(int domain)
 {
 	struct vm_domain *vmd;
 
-	vmd = &vm_dom[domain];
+	vmd = VM_DOMAIN(domain);
 	vmd->vmd_interrupt_free_min = 2;
 
 	/*
@@ -1909,7 +1899,7 @@ vm_pageout_init(void)
 		struct vm_domain *vmd;
 
 		vm_pageout_init_domain(i);
-		vmd = &vm_dom[i];
+		vmd = VM_DOMAIN(i);
 		vm_cnt.v_free_reserved += vmd->vmd_free_reserved;
 		vm_cnt.v_free_target += vmd->vmd_free_target;
 		vm_cnt.v_free_min += vmd->vmd_free_min;
@@ -1961,6 +1951,12 @@ vm_pageout(void)
 			panic("starting pageout for domain %d, error %d\n",
 			    i, error);
 		}
+		error = kthread_add(vm_pageout_laundry_worker,
+		    (void *)(uintptr_t)i, curproc, NULL, 0, 0,
+		    "laundry: dom%d", i);
+		if (error != 0)
+			panic("starting laundry for domain %d, error %d",
+			    i, error);
 	}
 	error = kthread_add(uma_reclaim_worker, NULL, curproc, NULL,
 	    0, 0, "uma");
@@ -1978,7 +1974,7 @@ pagedaemon_wakeup(int domain)
 	struct vm_domain *vmd;
 
 	vm_pagequeue_free_assert_unlocked(domain);
-	vmd = &vm_dom[domain];
+	vmd = VM_DOMAIN(domain);
 
 	if (!vmd->vmd_pageout_wanted && curthread->td_proc != pageproc) {
 		vmd->vmd_pageout_wanted = true;
@@ -1997,7 +1993,7 @@ pagedaemon_wait(int domain, int pri, const char *wmesg)
 	struct vm_domain *vmd;
 
 	vm_pagequeue_free_assert_locked(domain);
-	vmd = &vm_dom[domain];
+	vmd = VM_DOMAIN(domain);
 
 	/*
 	 * vmd_pageout_wanted may have been set by an advisory wakeup, but if

@@ -470,7 +470,13 @@ vm_inactive_count(void)
 u_int
 vm_laundry_count(void)
 {
+	u_int v;
+	int i;
 
-	return (vm_dom[0].vmd_pagequeues[PQ_LAUNDRY].pq_cnt);
+	v = 0;
+	for (i = 0; i < vm_ndomains; i++)
+		v += vm_dom[i].vmd_pagequeues[PQ_LAUNDRY].pq_cnt;
+
+	return (v);
 }
 

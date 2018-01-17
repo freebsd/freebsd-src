@@ -92,8 +92,12 @@ struct vm_domain {
 	int vmd_pageout_deficit;	/* Estimated number of pages deficit */
 	bool vmd_pages_needed;	/* Are threads waiting for free pages? */
 	bool vmd_pageout_wanted;	/* pageout daemon wait channel */
-
-
+	int vmd_inactq_scans;
+	enum {
+		VM_LAUNDRY_IDLE = 0,
+		VM_LAUNDRY_BACKGROUND,
+		VM_LAUNDRY_SHORTFALL
+	} vmd_laundry_request;
 
 	u_int vmd_free_reserved;	/* (c) pages reserved for deadlock */
 	u_int vmd_free_target;		/* (c) pages desired free */
@@ -107,6 +111,8 @@ struct vm_domain {
 
 extern struct vm_domain vm_dom[MAXMEMDOM];
 
+#define	VM_DOMAIN(n)	(&vm_dom[(n)])
+
 #define	vm_pagequeue_assert_locked(pq)	mtx_assert(&(pq)->pq_mutex, MA_OWNED)
 #define	vm_pagequeue_lock(pq)		mtx_lock(&(pq)->pq_mutex)
 #define	vm_pagequeue_lockptr(pq)	(&(pq)->pq_mutex)
@@ -119,7 +125,7 @@ extern struct vm_domain vm_dom[MAXMEMDOM];
 #define	vm_pagequeue_free_lock(n)					\
 	    mtx_lock(vm_pagequeue_free_lockptr((n)))
 #define	vm_pagequeue_free_lockptr(n)					\
-	    (&vm_dom[(n)].vmd_pagequeue_free_mtx)
+	    (&VM_DOMAIN((n))->vmd_pagequeue_free_mtx)
 #define	vm_pagequeue_free_unlock(n)					\
 	    mtx_unlock(vm_pagequeue_free_lockptr((n)))
 
@@ -152,7 +158,7 @@ static inline struct vm_domain *
 vm_pagequeue_domain(vm_page_t m)
 {
 
-	return (&vm_dom[vm_phys_domain(m)]);
+	return (VM_DOMAIN(vm_phys_domain(m)));
 }
 
 /*
@@ -170,10 +176,17 @@ vm_paging_target(struct vm_domain *vmd)
  * Returns TRUE if the pagedaemon needs to be woken up.
  */
 static inline int
-vm_paging_needed(int domain, u_int free_count)
+vm_paging_needed(struct vm_domain *vmd, u_int free_count)
 {
 
-	return (free_count < vm_dom[domain].vmd_pageout_wakeup_thresh);
+	return (free_count < vmd->vmd_pageout_wakeup_thresh);
+}
+
+static inline int
+vm_paging_min(struct vm_domain *vmd)
+{
+
+        return (vmd->vmd_free_min > vmd->vmd_free_count);
 }
 
 /*
@@ -181,11 +194,10 @@ vm_paging_needed(int domain, u_int free_count)
  * A positive number indicates that we have a shortfall of clean pages.
  */
 static inline int
-vm_laundry_target(void)
+vm_laundry_target(struct vm_domain *vmd)
 {
 
-	return (0);
-	/* XXX return (vm_paging_target()); */
+	return (vm_paging_target(vmd));
 }
 
 #endif	/* _KERNEL */

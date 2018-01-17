@@ -484,7 +484,7 @@ vm_page_startup(vm_offset_t vaddr)
 	for (i = 0; i < PA_LOCK_COUNT; i++)
 		mtx_init(&pa_lock[i], "vm page", NULL, MTX_DEF);
 	for (i = 0; i < vm_ndomains; i++)
-		vm_page_domain_init(&vm_dom[i]);
+		vm_page_domain_init(VM_DOMAIN(i));
 
 	/*
 	 * Almost all of the pages needed for bootstrapping UMA are used
@@ -709,7 +709,7 @@ vm_page_startup(vm_offset_t vaddr)
 			vm_pagequeue_free_unlock(seg->domain);
 			vm_cnt.v_page_count += (u_int)pagecount;
 
-			vmd = &vm_dom[seg->domain];
+			vmd = VM_DOMAIN(seg->domain);;
 			vmd->vmd_page_count += (u_int)pagecount;
 			vmd->vmd_segs |= 1UL << m->segind;
 			break;
@@ -1644,7 +1644,7 @@ vm_page_available(int domain, int req, int npages)
 	struct vm_domain *vmd;
 
 	vm_pagequeue_free_assert_locked(domain);
-	vmd = &vm_dom[domain];
+	vmd = VM_DOMAIN(domain);
 	req = req & VM_ALLOC_CLASS_MASK;
 
 	/*
@@ -1745,7 +1745,7 @@ again:
 	 * Don't wakeup too often - wakeup the pageout daemon when
 	 * we would be nearly out of memory.
 	 */
-	if (vm_paging_needed(domain, free_count))
+	if (vm_paging_needed(VM_DOMAIN(domain), free_count))
 		pagedaemon_wakeup(domain);
 #if VM_NRESERVLEVEL > 0
 found:
@@ -1874,6 +1874,7 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
     int req, u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
     vm_paddr_t boundary, vm_memattr_t memattr)
 {
+	struct vm_domain *vmd;
 	vm_page_t m, m_ret, mpred;
 	u_int busy_lock, flags, oflags;
 #if VM_NRESERVLEVEL > 0
@@ -2016,7 +2017,8 @@ found:
 			pmap_page_set_memattr(m, memattr);
 		pindex++;
 	}
-	if (vm_paging_needed(domain, vm_dom[domain].vmd_free_count))
+	vmd = VM_DOMAIN(domain);
+	if (vm_paging_needed(vmd, vmd->vmd_free_count))
 		pagedaemon_wakeup(domain);
 	return (m_ret);
 }
@@ -2117,7 +2119,7 @@ again:
 	}
 	/* Unmanaged pages don't use "act_count". */
 	m->oflags = VPO_UNMANAGED;
-	if (vm_paging_needed(domain, free_count))
+	if (vm_paging_needed(VM_DOMAIN(domain), free_count))
 		pagedaemon_wakeup(domain);
 	return (m);
 }
@@ -2586,7 +2588,7 @@ vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
 	 * Return if the number of free pages cannot satisfy the requested
 	 * allocation.
 	 */
-	vmd = &vm_dom[domain];
+	vmd = VM_DOMAIN(domain);
 	count = vmd->vmd_free_count;
 	if (count < npages + vmd->vmd_free_reserved || (count < npages +
 	    vmd->vmd_interrupt_free_min && req_class == VM_ALLOC_SYSTEM) ||
@@ -2679,7 +2681,7 @@ vm_wait_domain(int domain)
 	struct vm_domain *vmd;
 
 	vm_pagequeue_free_assert_locked(domain);
-	vmd = &vm_dom[domain];
+	vmd = VM_DOMAIN(domain);
 
 	if (curproc == pageproc) {
 		vmd->vmd_pageout_pages_needed = 1;
@@ -2720,7 +2722,7 @@ vm_page_alloc_fail(vm_object_t object, int domain, int req)
 
 	vm_pagequeue_free_assert_locked(domain);
 
-	vmd = &vm_dom[domain];
+	vmd = VM_DOMAIN(domain);
 	atomic_add_int(&vmd->vmd_pageout_deficit,
 	    max((u_int)req >> VM_ALLOC_COUNT_SHIFT, 1));
 	if (req & (VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL)) {
@@ -2763,10 +2765,7 @@ struct vm_pagequeue *
 vm_page_pagequeue(vm_page_t m)
 {
 
-	if (vm_page_in_laundry(m))
-		return (&vm_dom[0].vmd_pagequeues[m->queue]);
-	else
-		return (&vm_pagequeue_domain(m)->vmd_pagequeues[m->queue]);
+	return (&vm_pagequeue_domain(m)->vmd_pagequeues[m->queue]);
 }
 
 /*
@@ -2828,10 +2827,7 @@ vm_page_enqueue(uint8_t queue, vm_page_t m)
 	KASSERT(queue < PQ_COUNT,
 	    ("vm_page_enqueue: invalid queue %u request for page %p",
 	    queue, m));
-	if (queue == PQ_LAUNDRY || queue == PQ_UNSWAPPABLE)
-		pq = &vm_dom[0].vmd_pagequeues[queue];
-	else
-		pq = &vm_pagequeue_domain(m)->vmd_pagequeues[queue];
+	pq = &vm_pagequeue_domain(m)->vmd_pagequeues[queue];
 	vm_pagequeue_lock(pq);
 	m->queue = queue;
 	TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
@@ -2926,7 +2922,7 @@ vm_page_free_wakeup(int domain)
 	struct vm_domain *vmd;
 
 	vm_pagequeue_free_assert_locked(domain);
-	vmd = &vm_dom[domain];
+	vmd = VM_DOMAIN(domain);
 
 	/*
 	 * if pageout daemon needs pages, then tell it that there are
@@ -2942,7 +2938,7 @@ vm_page_free_wakeup(int domain)
 	 * high water mark. And wakeup scheduler process if we have
 	 * lots of memory. this process will swapin processes.
 	 */
-	if (vmd->vmd_pages_needed && !vm_page_count_min()) {
+	if (vmd->vmd_pages_needed && !vm_paging_min(vmd)) {
 		vmd->vmd_pages_needed = false;
 		wakeup(&vmd->vmd_free_count);
 	}

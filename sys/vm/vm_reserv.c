@@ -166,19 +166,20 @@ popmap_is_set(popmap_t popmap[], int i)
  *
  * A partially populated reservation can be broken and reclaimed at any time.
  *
- * The reservation structure is synchronized by the per-domain pagequeue_free
- * lock.  The objq is synchronized by the vm_reserv_object lock.
+ * f - vm_pagequeue_free_lock
+ * o - vm_reserv_object_lock
+ * c - constant after boot
  */
 struct vm_reserv {
-	TAILQ_ENTRY(vm_reserv) partpopq;
-	LIST_ENTRY(vm_reserv) objq;
-	vm_object_t	object;			/* containing object */
-	vm_pindex_t	pindex;			/* offset within object */
-	vm_page_t	pages;			/* first page of a superpage */
-	int		domain;			/* NUMA domain, constant. */
-	int		popcnt;			/* # of pages in use */
-	char		inpartpopq;
-	popmap_t	popmap[NPOPMAP];	/* bit vector of used pages */
+	TAILQ_ENTRY(vm_reserv) partpopq;	/* (f) per-domain queue. */
+	LIST_ENTRY(vm_reserv) objq;		/* (o, f) object queue */
+	vm_object_t	object;			/* (o, f) containing object */
+	vm_pindex_t	pindex;			/* (o, f) offset in object */
+	vm_page_t	pages;			/* (c) first page  */
+	int		domain;			/* (c) NUMA domain. */
+	int		popcnt;			/* (f) # of pages in use */
+	char		inpartpopq;		/* (f) */
+	popmap_t	popmap[NPOPMAP];	/* (f) bit vector, used pages */
 };
 
 /*
@@ -239,7 +240,24 @@ static long vm_reserv_reclaimed;
 SYSCTL_LONG(_vm_reserv, OID_AUTO, reclaimed, CTLFLAG_RD,
     &vm_reserv_reclaimed, 0, "Cumulative number of reclaimed reservations");
 
-static struct mtx vm_reserv_object_mtx;
+/*
+ * The object lock pool is used to synchronize the rvq.  We can not use a
+ * pool mutex because it is required before malloc works.
+ *
+ * The "hash" function could be made faster without divide and modulo.
+ */
+#define	VM_RESERV_OBJ_LOCK_COUNT	MAXCPU
+
+struct mtx_padalign vm_reserv_object_mtx[VM_RESERV_OBJ_LOCK_COUNT];
+
+#define	vm_reserv_object_lock_idx(object)			\
+	    (((uintptr_t)object / sizeof(*object)) % VM_RESERV_OBJ_LOCK_COUNT)
+#define	vm_reserv_object_lock_ptr(object)			\
+	    &vm_reserv_object_mtx[vm_reserv_object_lock_idx((object))]
+#define	vm_reserv_object_lock(object)				\
+	    mtx_lock(vm_reserv_object_lock_ptr((object)))
+#define	vm_reserv_object_unlock(object)				\
+	    mtx_unlock(vm_reserv_object_lock_ptr((object)))
 
 static void		vm_reserv_break(vm_reserv_t rv, vm_page_t m);
 static void		vm_reserv_depopulate(vm_reserv_t rv, int index);
@@ -311,9 +329,6 @@ sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-#define	vm_reserv_object_lock(object)	mtx_lock(&vm_reserv_object_mtx)
-#define	vm_reserv_object_unlock(object)	mtx_unlock(&vm_reserv_object_mtx)
-
 /*
  * Remove a reservation from the object's objq.
  */
@@ -350,8 +365,8 @@ vm_reserv_insert(vm_reserv_t rv, vm_object_t object, vm_pindex_t pindex)
 	for (i = 0; i < NPOPMAP; i++)
 		KASSERT(rv->popmap[i] == 0,
 		    ("vm_reserv_insert: reserv %p's popmap is corrupted", rv));
-	rv->pindex = pindex;
 	vm_reserv_object_lock(object);
+	rv->pindex = pindex;
 	rv->object = object;
 	LIST_INSERT_HEAD(&object->rvq, rv, objq);
 	vm_reserv_object_unlock(object);
@@ -655,29 +670,36 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
 	 * Could at least one reservation fit between the first index to the
 	 * left that can be used ("leftcap") and the first index to the right
 	 * that cannot be used ("rightcap")?
+	 *
+	 * We must synchronize with the reserv object lock to protect the
+	 * pindex/object of the resulting reservations against rename while
+	 * we are inspecting.
 	 */
 	first = pindex - VM_RESERV_INDEX(object, pindex);
+	minpages = VM_RESERV_INDEX(object, pindex) + npages;
+	maxpages = roundup2(minpages, VM_LEVEL_0_NPAGES);
+	allocpages = maxpages;
+	vm_reserv_object_lock(object);
 	if (mpred != NULL) {
-		/* XXX unlocked rv access */
 		if ((rv = vm_reserv_from_page(mpred))->object != object)
 			leftcap = mpred->pindex + 1;
 		else
 			leftcap = rv->pindex + VM_LEVEL_0_NPAGES;
-		if (leftcap > first)
+		if (leftcap > first) {
+			vm_reserv_object_unlock(object);
 			return (NULL);
+		}
 	}
-	minpages = VM_RESERV_INDEX(object, pindex) + npages;
-	maxpages = roundup2(minpages, VM_LEVEL_0_NPAGES);
-	allocpages = maxpages;
 	if (msucc != NULL) {
-		/* XXX unlocked rv access */
 		if ((rv = vm_reserv_from_page(msucc))->object != object)
 			rightcap = msucc->pindex;
 		else
 			rightcap = rv->pindex;
 		if (first + maxpages > rightcap) {
-			if (maxpages == VM_LEVEL_0_NPAGES)
+			if (maxpages == VM_LEVEL_0_NPAGES) {
+				vm_reserv_object_unlock(object);
 				return (NULL);
+			}
 
 			/*
 			 * At least one reservation will fit between "leftcap"
@@ -688,6 +710,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
 			allocpages = minpages;
 		}
 	}
+	vm_reserv_object_unlock(object);
 
 	/*
 	 * Would the last new reservation extend past the end of the object?
@@ -800,7 +823,7 @@ vm_reserv_extend(int req, vm_object_t object, vm_pindex_t pindex, int domain,
 	free_count = vm_pagequeue_freecnt_adj(domain, -1);
 	vm_pagequeue_free_unlock(domain);
 
-	if (vm_paging_needed(domain, free_count))
+	if (vm_paging_needed(VM_DOMAIN(domain), free_count))
 		pagedaemon_wakeup(domain);
 
 	return (m);
@@ -845,26 +868,34 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, int domain,
 	/*
 	 * Could a reservation fit between the first index to the left that
 	 * can be used and the first index to the right that cannot be used?
+	 *
+	 * We must synchronize with the reserv object lock to protect the
+	 * pindex/object of the resulting reservations against rename while
+	 * we are inspecting.
 	 */
 	first = pindex - VM_RESERV_INDEX(object, pindex);
+	vm_reserv_object_lock(object);
 	if (mpred != NULL) {
-		/* XXX unlocked rv access */
 		if ((rv = vm_reserv_from_page(mpred))->object != object)
 			leftcap = mpred->pindex + 1;
 		else
 			leftcap = rv->pindex + VM_LEVEL_0_NPAGES;
-		if (leftcap > first)
+		if (leftcap > first) {
+			vm_reserv_object_unlock(object);
 			return (NULL);
+		}
 	}
 	if (msucc != NULL) {
-		/* XXX unlocked rv access */
 		if ((rv = vm_reserv_from_page(msucc))->object != object)
 			rightcap = msucc->pindex;
 		else
 			rightcap = rv->pindex;
-		if (first + VM_LEVEL_0_NPAGES > rightcap)
+		if (first + VM_LEVEL_0_NPAGES > rightcap) {
+			vm_reserv_object_unlock(object);
 			return (NULL);
+		}
 	}
+	vm_reserv_object_unlock(object);
 
 	/*
 	 * Would a new reservation extend past the end of the object? 
@@ -1250,18 +1281,15 @@ vm_reserv_rename(vm_page_t m, vm_object_t new_object, vm_object_t old_object,
 	if (rv->object == old_object) {
 		vm_pagequeue_free_lock(rv->domain);
 		if (rv->object == old_object) {
-			/*
-			 * XXX Do we need to synchronize them simultaneously?
-			 * or does the pagequeue_free lock protect enough?
-			 */
 			vm_reserv_object_lock(old_object);
+			rv->object = NULL;
 			LIST_REMOVE(rv, objq);
 			vm_reserv_object_unlock(old_object);
 			vm_reserv_object_lock(new_object);
 			rv->object = new_object;
+			rv->pindex -= old_object_offset;
 			LIST_INSERT_HEAD(&new_object->rvq, rv, objq);
 			vm_reserv_object_unlock(new_object);
-			rv->pindex -= old_object_offset;
 		}
 		vm_pagequeue_free_unlock(rv->domain);
 	}
@@ -1293,6 +1321,7 @@ vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end, vm_paddr_t high_water)
 {
 	vm_paddr_t new_end;
 	size_t size;
+	int i;
 
 	/*
 	 * Calculate the size (in bytes) of the reservation array.  Round up
@@ -1312,7 +1341,9 @@ vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end, vm_paddr_t high_water)
 	    VM_PROT_READ | VM_PROT_WRITE);
 	bzero(vm_reserv_array, size);
 
-	mtx_init(&vm_reserv_object_mtx, "resv obj lock", NULL, MTX_DEF);
+	for (i = 0; i < VM_RESERV_OBJ_LOCK_COUNT; i++)
+		mtx_init(&vm_reserv_object_mtx[i], "resv obj lock", NULL,
+		    MTX_DEF);
 
 	/*
 	 * Return the next available physical address.
