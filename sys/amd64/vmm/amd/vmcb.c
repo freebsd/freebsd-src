@@ -457,7 +457,6 @@ int
 vmcb_getany(struct svm_softc *sc, int vcpu, int ident, uint64_t *val)
 {
 	int error = 0;
-//	int state;
 
 	if (vcpu < 0 || vcpu >= VM_MAXCPU)
 		error = EINVAL;
@@ -465,17 +464,7 @@ vmcb_getany(struct svm_softc *sc, int vcpu, int ident, uint64_t *val)
 	if (ident >= VM_REG_LAST)
 		error = EINVAL;
 
-//	error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN, true);
-
 	error = vm_get_register(sc->vm, vcpu, ident, val);
-
-//	state = vcpu_get_state(sc->vm, vcpu, NULL);
-//	if (state != VCPU_FROZEN) {
-//		panic("vcpu %s(%d) has invalid state %d", vm_name(sc->vm),
-//							vcpu,
-//							state);
-//	}
-//	error = vcpu_set_state(sc->vm, vcpu, VCPU_IDLE, false);
 
 	return (error);
 }
@@ -484,7 +473,6 @@ int
 vmcb_setany(struct svm_softc *sc, int vcpu, int ident, uint64_t val)
 {
 	int error = 0;
-//	int state;
 
 	if (vcpu < 0 || vcpu >= VM_MAXCPU)
 		error = EINVAL;
@@ -492,17 +480,7 @@ vmcb_setany(struct svm_softc *sc, int vcpu, int ident, uint64_t val)
 	if (ident >= VM_REG_LAST)
 		error = EINVAL;
 
-//	error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN, true);
-
 	error = vm_set_register(sc->vm, vcpu, ident, val);
-
-//	state = vcpu_get_state(sc->vm, vcpu, NULL);
-//	if (state != VCPU_FROZEN) {
-//		panic("vcpu %s(%d) has invalid state %d", vm_name(sc->vm),
-//							vcpu,
-//							state);
-//	}
-//	error = vcpu_set_state(sc->vm, vcpu, VCPU_IDLE, false);
 
 	return (error);
 }
