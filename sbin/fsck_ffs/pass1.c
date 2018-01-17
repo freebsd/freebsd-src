@@ -98,7 +98,7 @@ pass1(void)
 	for (c = 0; c < sblock.fs_ncg; c++) {
 		inumber = c * sblock.fs_ipg;
 		setinodebuf(inumber);
-		cgbp = cgget(c);
+		cgbp = cglookup(c);
 		cgp = cgbp->b_un.b_cg;
 		rebuildcg = 0;
 		if (!check_cgmagic(c, cgbp))
