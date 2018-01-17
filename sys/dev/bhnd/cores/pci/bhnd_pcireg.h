@@ -129,12 +129,12 @@
 #define	BHND_PCI_SBTOPCI_RC_READLINE	0x10	/* memory read line */
 #define	BHND_PCI_SBTOPCI_RC_READMULTI	0x20	/* memory read multiple */
 
-/* PCI core index in SROM shadow area */
+/* PCI base address bits in SPROM shadow area */
 #define	BHND_PCI_SRSH_PI_OFFSET		0	/* first word */
 #define	BHND_PCI_SRSH_PI_MASK		0xf000	/* bit 15:12 */
 #define	BHND_PCI_SRSH_PI_SHIFT		12	/* bit 15:12 */
-
-
+#define	BHND_PCI_SRSH_PI_ADDR_MASK	0x0000F000
+#define	BHND_PCI_SRSH_PI_ADDR_SHIFT	12
 
 /*
  * PCIe-Gen1 Core Registers
@@ -397,9 +397,11 @@
 
 
 /* SPROM offsets */
-#define	BHND_PCIE_SRSH_PI_OFFSET		BHND_PCI_SRSH_PI_OFFSET	/**< PCI core index in SROM shadow area */
-#define	BHND_PCIE_SRSH_PI_MASK			BHND_PCI_SRSH_PI_MASK
+#define	BHND_PCIE_SRSH_PI_OFFSET		BHND_PCI_SRSH_PI_OFFSET	/**< PCI base address bits in SPROM shadow area */
+#define	BHND_PCIE_SRSH_PI_MASK			BHND_PCI_SRSH_PI_MASK	/**< bits 15:12 of the PCI core address */
 #define	BHND_PCIE_SRSH_PI_SHIFT			BHND_PCI_SRSH_PI_SHIFT
+#define	BHND_PCIE_SRSH_PI_ADDR_MASK		BHND_PCI_SRSH_PI_ADDR_MASK
+#define	BHND_PCIE_SRSH_PI_ADDR_SHIFT		BHND_PCI_SRSH_PI_ADDR_SHIFT
 
 #define	BHND_PCIE_SRSH_ASPM_OFFSET		8	/* word 4 */
 #define	BHND_PCIE_SRSH_ASPM_ENB			0x18	/* bit 3, 4 */
