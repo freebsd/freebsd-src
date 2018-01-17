@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <termcap.h>
 #include <signal.h>
 #endif
-#include <libxo/xo.h>
 
 #include "ls.h"
 #include "extern.h"
@@ -121,7 +120,7 @@ static int f_nofollow;		/* don't follow symbolic link arguments */
        int f_nonprint;		/* show unprintables as ? */
 static int f_nosort;		/* don't sort output */
        int f_notabs;		/* don't use tab-separated multi-col output */
-       int f_numericonly;	/* don't convert uid/gid to name */
+static int f_numericonly;	/* don't convert uid/gid to name */
        int f_octal;		/* show unprintables as \xxx */
        int f_octal_escape;	/* like f_octal but use C escapes if possible */
 static int f_recursive;		/* ls subdirectories also */
@@ -192,13 +191,6 @@ main(int argc, char *argv[])
 	fts_options = FTS_PHYSICAL;
 	if (getenv("LS_SAMESORT"))
 		f_samesort = 1;
-
-	argc = xo_parse_args(argc, argv);
-	if (argc < 0)
-		return (1);
-	xo_set_flags(NULL, XOF_COLUMNS);
-	xo_set_version(LS_XO_VERSION);
-
 	while ((ch = getopt(argc, argv,
 	    "1ABCD:FGHILPRSTUWXZabcdfghiklmnopqrstuwxy,")) != -1) {
 		switch (ch) {
@@ -395,7 +387,7 @@ main(int argc, char *argv[])
 				f_color = 1;
 		}
 #else
-		xo_warnx("color support not compiled in");
+		warnx("color support not compiled in");
 #endif /*COLORLS*/
 
 #ifdef COLORLS
@@ -493,13 +485,10 @@ main(int argc, char *argv[])
 	else
 		printfcn = printcol;
 
-	xo_open_container("file-information");
 	if (argc)
 		traverse(argc, argv, fts_options);
 	else
 		traverse(1, dotav, fts_options);
-	xo_close_container("file-information");
-	xo_finish();
 	exit(rval);
 }
 
@@ -517,11 +506,10 @@ traverse(int argc, char *argv[], int options)
 	FTS *ftsp;
 	FTSENT *p, *chp;
 	int ch_options;
-	int first = 1;
 
 	if ((ftsp =
 	    fts_open(argv, options, f_nosort ? NULL : mastercmp)) == NULL)
-		xo_err(1, "fts_open");
+		err(1, "fts_open");
 
 	/*
 	 * We ignore errors from fts_children here since they will be
@@ -543,11 +531,11 @@ traverse(int argc, char *argv[], int options)
 	while ((p = fts_read(ftsp)) != NULL)
 		switch (p->fts_info) {
 		case FTS_DC:
-			xo_warnx("%s: directory causes a cycle", p->fts_name);
+			warnx("%s: directory causes a cycle", p->fts_name);
 			break;
 		case FTS_DNR:
 		case FTS_ERR:
-			xo_warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
+			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
 			break;
 		case FTS_D:
@@ -555,40 +543,31 @@ traverse(int argc, char *argv[], int options)
 			    p->fts_name[0] == '.' && !f_listdot)
 				break;
 
-			if (first) {
-				first = 0;
-				xo_open_list("directory");
-			}
-			xo_open_instance("directory");
-
 			/*
 			 * If already output something, put out a newline as
 			 * a separator.  If multiple arguments, precede each
 			 * directory with its name.
 			 */
 			if (output) {
-				xo_emit("\n");
-				(void)printname("path", p->fts_path);
-				xo_emit(":\n");
+				putchar('\n');
+				(void)printname(p->fts_path);
+				puts(":");
 			} else if (argc > 1) {
-				(void)printname("path", p->fts_path);
-				xo_emit(":\n");
+				(void)printname(p->fts_path);
+				puts(":");
 				output = 1;
 			}
 			chp = fts_children(ftsp, ch_options);
 			display(p, chp, options);
 
-			xo_close_instance("directory");
 			if (!f_recursive && chp != NULL)
 				(void)fts_set(ftsp, p, FTS_SKIP);
 			break;
 		default:
 			break;
 		}
-	if (!first)
-		xo_close_list("directory");
 	if (errno)
-		xo_err(1, "fts_read");
+		err(1, "fts_read");
 }
 
 /*
@@ -635,7 +614,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 		/* Fill-in "::" as "0:0:0" for the sake of scanf. */
 		jinitmax = malloc(strlen(initmax) * 2 + 2);
 		if (jinitmax == NULL)
-			xo_err(1, "malloc");
+			err(1, "malloc");
 		initmax2 = jinitmax;
 		if (*initmax == ':')
 			strcpy(initmax2, "0:"), initmax2 += 2;
@@ -706,7 +685,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 	flags = NULL;
 	for (cur = list, entries = 0; cur; cur = cur->fts_link) {
 		if (cur->fts_info == FTS_ERR || cur->fts_info == FTS_NS) {
-			xo_warnx("%s: %s",
+			warnx("%s: %s",
 			    cur->fts_name, strerror(cur->fts_errno));
 			cur->fts_number = NO_PRINT;
 			rval = 1;
@@ -772,7 +751,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 						flags = strdup("-");
 					}
 					if (flags == NULL)
-						xo_err(1, "fflagstostr");
+						err(1, "fflagstostr");
 					flen = strlen(flags);
 					if (flen > (size_t)maxflags)
 						maxflags = flen;
@@ -786,7 +765,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 
 					error = mac_prepare_file_label(&label);
 					if (error == -1) {
-						xo_warn("MAC label for %s/%s",
+						warn("MAC label for %s/%s",
 						    cur->fts_parent->fts_path,
 						    cur->fts_name);
 						goto label_out;
@@ -807,7 +786,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 						error = mac_get_link(name,
 						    label);
 					if (error == -1) {
-						xo_warn("MAC label for %s/%s",
+						warn("MAC label for %s/%s",
 						    cur->fts_parent->fts_path,
 						    cur->fts_name);
 						mac_free(label);
@@ -817,7 +796,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 					error = mac_to_text(label,
 					    &labelstr);
 					if (error == -1) {
-						xo_warn("MAC label for %s/%s",
+						warn("MAC label for %s/%s",
 						    cur->fts_parent->fts_path,
 						    cur->fts_name);
 						mac_free(label);
@@ -835,7 +814,7 @@ label_out:
 
 				if ((np = malloc(sizeof(NAMES) + labelstrlen +
 				    ulen + glen + flen + 4)) == NULL)
-					xo_err(1, "malloc");
+					err(1, "malloc");
 
 				np->user = &np->data[0];
 				(void)strcpy(np->user, user);
