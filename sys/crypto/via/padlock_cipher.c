@@ -88,7 +88,7 @@ padlock_cbc(void *in, void *out, size_t count, void *key, union padlock_cw *cw,
 	__asm __volatile(
 		"pushf				\n\t"
 		"popf				\n\t"
-		".byte	0xf3			\n\t"
+		"rep				\n\t"
 		".byte	0x0f, 0xa7, 0xd0"
 			: "+a" (iv), "+c" (count), "+D" (out), "+S" (in)
 			: "b" (key), "d" (cw)
