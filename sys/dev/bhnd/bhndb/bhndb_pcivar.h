@@ -97,16 +97,14 @@ struct bhndb_pci_quirk {
 /** bhndb_pci core table entry */
 struct bhndb_pci_core {
 	struct bhnd_core_match	 match;		/**< core match descriptor */
-	bus_size_t		 srsh_offset;	/**< offset to SRSH_PI register, if any */
 	struct bhndb_pci_quirk	*quirks;	/**< quirk table */
 };
 
-#define	BHNDB_PCI_CORE(_device, _srsh, _quirks) {			\
+#define	BHNDB_PCI_CORE(_device, _quirks) {				\
 	{ BHND_MATCH_CORE(BHND_MFGID_BCM, BHND_COREID_ ## _device) },	\
-	_srsh,								\
 	_quirks								\
 }
-#define	BHNDB_PCI_CORE_END		{ { BHND_MATCH_ANY }, 0, NULL }
+#define	BHNDB_PCI_CORE_END		{ { BHND_MATCH_ANY }, NULL }
 #define	BHNDB_PCI_IS_CORE_END(_c)	BHND_MATCH_IS_ANY(&(_c)->match)
 
 struct bhndb_pci_softc {

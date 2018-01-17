@@ -75,13 +75,11 @@ __FBSDID("$FreeBSD$");
 #include "bhndb_private.h"
 
 struct bhndb_pci_eio;
+struct bhndb_pci_probe;
 
 static int		bhndb_pci_alloc_msi(struct bhndb_pci_softc *sc,
 			    int *msi_count);
-static int		bhndb_pci_read_core_table(device_t dev,
-			    struct bhnd_chipid *chipid,
-			    struct bhnd_core_info **cores, u_int *ncores,
-			    bhnd_erom_class_t **eromcls);
+
 static int		bhndb_pci_add_children(struct bhndb_pci_softc *sc);
 
 static bhnd_devclass_t	bhndb_expected_pci_devclass(device_t dev);
@@ -101,15 +99,30 @@ static void		bhndb_pci_write_core(struct bhndb_pci_softc *sc,
 static uint32_t		bhndb_pci_read_core(struct bhndb_pci_softc *sc,
 			    bus_size_t offset, u_int width);
 
-static void		bhndb_init_sromless_pci_config(
-			    struct bhndb_pci_softc *sc);
+static int		bhndb_pci_srsh_pi_war(struct bhndb_pci_softc *sc,
+			    struct bhndb_pci_probe *probe);
 
 static bus_addr_t	bhndb_pci_sprom_addr(struct bhndb_pci_softc *sc);
 static bus_size_t	bhndb_pci_sprom_size(struct bhndb_pci_softc *sc);
 
-static int		bhndb_pci_eio_init(struct bhndb_pci_eio *pio,
-			    device_t dev, device_t pci_dev,
-			    struct bhndb_host_resources *hr);
+static int		bhndb_pci_probe_alloc(struct bhndb_pci_probe **probe,
+			    device_t dev, bhnd_devclass_t pci_devclass);
+static void		bhndb_pci_probe_free(struct bhndb_pci_probe *probe);
+
+static int		bhndb_pci_probe_copy_core_table(
+			    struct bhndb_pci_probe *probe,
+			    struct bhnd_core_info **cores, u_int *ncores);
+static void		bhndb_pci_probe_free_core_table(
+			    struct bhnd_core_info *cores);
+
+static void		bhndb_pci_probe_write(struct bhndb_pci_probe *sc,
+			    bhnd_addr_t addr, bhnd_size_t offset,
+			    uint32_t value, u_int width);
+static uint32_t		bhndb_pci_probe_read(struct bhndb_pci_probe *sc,
+			    bhnd_addr_t addr, bhnd_size_t offset, u_int width);
+
+static void		bhndb_pci_eio_init(struct bhndb_pci_eio *eio,
+			    struct bhndb_pci_probe *probe);
 static int		bhndb_pci_eio_map(struct bhnd_erom_io *eio,
 			    bhnd_addr_t addr, bhnd_size_t size);
 static uint32_t		bhndb_pci_eio_read(struct bhnd_erom_io *eio,
@@ -122,25 +135,49 @@ static struct bhndb_pci_quirk	bhndb_pcie_quirks[];
 static struct bhndb_pci_quirk	bhndb_pcie2_quirks[];
 
 static struct bhndb_pci_core bhndb_pci_cores[] = {
-	BHNDB_PCI_CORE(PCI,	BHND_PCI_SRSH_PI_OFFSET,	bhndb_pci_quirks),
-	BHNDB_PCI_CORE(PCIE,	BHND_PCIE_SRSH_PI_OFFSET,	bhndb_pcie_quirks),
-	BHNDB_PCI_CORE(PCIE2,	BHND_PCIE_SRSH_PI_OFFSET,	bhndb_pcie2_quirks),
+	BHNDB_PCI_CORE(PCI,	bhndb_pci_quirks),
+	BHNDB_PCI_CORE(PCIE,	bhndb_pcie_quirks),
+	BHNDB_PCI_CORE(PCIE2,	bhndb_pcie2_quirks),
 	BHNDB_PCI_CORE_END
 };
 
 /* bhndb_pci erom I/O instance state */
 struct bhndb_pci_eio {
 	struct bhnd_erom_io		 eio;
-	device_t			 dev;		/**< bridge device */
-	device_t			 pci_dev;	/**< parent PCI device */
-	struct bhndb_host_resources	*hr;		/**< borrowed reference to host resources */
-	const struct bhndb_regwin	*win;		/**< mapped register window, or NULL */
-	struct resource			*res;		/**< resource containing the register window, or NULL if no window mapped */
-	bhnd_addr_t			 res_target;	/**< current target address (if mapped) */
-	bool				 mapped;	/**< true if a valid mapping exists, false otherwise */
 	bhnd_addr_t			 addr;		/**< mapped address */
 	bhnd_size_t			 size;		/**< mapped size */
+	struct bhndb_pci_probe		*probe;		/**< borrowed probe reference */
 };
+
+/**
+ * Provides early bus access to the bridged device's cores and core enumeration
+ * table.
+ *
+ * May be safely used during probe or early device attach, prior to calling
+ * bhndb_attach().
+ */
+struct bhndb_pci_probe {
+	device_t			 dev;		/**< bridge device */
+	device_t			 pci_dev;	/**< parent PCI device */
+	struct bhnd_chipid		 cid;		/**< chip identification */
+	struct bhnd_core_info		 hostb_core;	/**< PCI bridge core info */
+
+	struct bhndb_pci_eio		 erom_io;	/**< erom I/O instance */
+	bhnd_erom_class_t		*erom_class;	/**< probed erom class */
+	bhnd_erom_t			*erom;		/**< erom parser */
+	struct bhnd_core_info		*cores;		/**< erom-owned core table */
+	u_int				 ncores;	/**< number of cores */
+
+	const struct bhndb_regwin	*m_win;		/**< mapped register window, or NULL if no mapping */
+	struct resource			*m_res;		/**< resource containing the register window, or NULL if no window mapped */
+	bhnd_addr_t			 m_target;	/**< base address mapped by m_win */
+	bhnd_addr_t			 m_addr;	/**< mapped address */
+	bhnd_size_t			 m_size;	/**< mapped size */
+	bool				 m_valid;	/**< true if a valid mapping exists, false otherwise */
+
+	struct bhndb_host_resources	*hr;		/**< backing host resources */
+};
+
 
 static struct bhndb_pci_quirk bhndb_pci_quirks[] = {
 	/* Backplane interrupt flags must be routed via siba-specific
@@ -162,11 +199,8 @@ static struct bhndb_pci_quirk bhndb_pcie_quirks[] = {
 };
 
 static struct bhndb_pci_quirk bhndb_pcie2_quirks[] = {
-	/* All PCIe-G2 core revisions require the SRSH work-around */
-	BHNDB_PCI_QUIRK(HWREV_ANY,	BHNDB_PCI_QUIRK_SRSH_WAR),
 	BHNDB_PCI_QUIRK_END
 };
-
 
 /**
  * Return the device table entry for @p ci, or NULL if none.
@@ -227,16 +261,14 @@ bhndb_pci_get_core_quirks(struct bhnd_chipid *cid, struct bhnd_core_info *ci)
 static int
 bhndb_pci_probe(device_t dev)
 {
-	struct bhnd_chipid	 cid;
-	struct bhnd_core_info	*cores, hostb_core;
+	struct bhndb_pci_probe	*probe;
 	struct bhndb_pci_core	*entry;
 	bhnd_devclass_t		 hostb_devclass;
-	u_int			 ncores;
 	device_t		 parent;
 	devclass_t		 parent_bus, pci;
 	int			 error;
 
-	cores = NULL;
+	probe = NULL;
 
 	/* Our parent must be a PCI/PCIe device. */
 	pci = devclass_find("pci");
@@ -251,19 +283,12 @@ bhndb_pci_probe(device_t dev)
 		return (error);
 
 	/* Identify the chip and enumerate the bridged cores */
-	error = bhndb_pci_read_core_table(dev, &cid, &cores, &ncores, NULL);
-	if (error)
-		goto cleanup;
-
-	/* Search our core table for the host bridge core */
 	hostb_devclass = bhndb_expected_pci_devclass(dev);
-	error = bhndb_find_hostb_core(cores, ncores, hostb_devclass,
-	    &hostb_core);
-	if (error)
+	if ((error = bhndb_pci_probe_alloc(&probe, dev, hostb_devclass)))
 		goto cleanup;
 
 	/* Look for a matching core table entry */
-	if ((entry = bhndb_pci_find_core(&hostb_core)) == NULL) {
+	if ((entry = bhndb_pci_find_core(&probe->hostb_core)) == NULL) {
 		error = ENXIO;
 		goto cleanup;
 	}
@@ -274,9 +299,10 @@ bhndb_pci_probe(device_t dev)
 	error = BUS_PROBE_DEFAULT;
 
 cleanup:
+	if (probe != NULL)
+		bhndb_pci_probe_free(probe);
+
 	bhndb_disable_pci_clocks(dev);
-	if (cores != NULL)
-		free(cores, M_BHND);
 
 	return (error);
 }
@@ -319,6 +345,7 @@ bhndb_pci_attach(device_t dev)
 	struct bhnd_chipid	 cid;
 	struct bhnd_core_info	*cores, hostb_core;
 	bhnd_erom_class_t	*erom_class;
+	struct bhndb_pci_probe	*probe;
 	u_int			 ncores;
 	int			 irq_rid;
 	int			 error;
@@ -332,10 +359,39 @@ bhndb_pci_attach(device_t dev)
 
 	BHNDB_PCI_LOCK_INIT(sc);
 
+	probe = NULL;
 	cores = NULL;
 
 	/* Enable PCI bus mastering */
 	pci_enable_busmaster(sc->parent);
+
+	/* Enable clocks (if required by this hardware) */
+	if ((error = bhndb_enable_pci_clocks(sc->dev)))
+		goto cleanup;
+
+	/* Identify the chip and enumerate the bridged cores */
+	error = bhndb_pci_probe_alloc(&probe, dev, sc->pci_devclass);
+	if (error)
+		goto cleanup;
+
+	sc->pci_quirks = bhndb_pci_get_core_quirks(&probe->cid,
+	    &probe->hostb_core);
+
+	/* Select the appropriate register window handler */
+	if (probe->cid.chip_type == BHND_CHIPTYPE_SIBA) {
+		sc->set_regwin = bhndb_pci_compat_setregwin;
+	} else {
+		sc->set_regwin = bhndb_pci_fast_setregwin;
+	}
+
+	/*
+	 * Fix up our PCI base address in the SPROM shadow, if necessary.
+	 * 
+	 * This must be done prior to accessing any static register windows
+	 * that map the PCI core.
+	 */
+	if ((error = bhndb_pci_srsh_pi_war(sc, probe)))
+		goto cleanup;
 
 	/* Set up PCI interrupt handling */
 	if (bhndb_pci_alloc_msi(sc, &sc->msi_count) == 0) {
@@ -361,38 +417,30 @@ bhndb_pci_attach(device_t dev)
 		goto cleanup;
 	}
 
-	/* Enable clocks (if required by this hardware) */
-	if ((error = bhndb_enable_pci_clocks(sc->dev)))
-		goto cleanup;
+	/*
+	 * Copy out the probe results and then free our probe state, releasing
+	 * its exclusive ownership of host bridge resources.
+	 * 
+	 * This must be done prior to full configuration of the bridge via
+	 * bhndb_attach().
+	 */
+	cid = probe->cid;
+	erom_class = probe->erom_class;
+	hostb_core = probe->hostb_core;
 
-	/* Identify the chip and enumerate the bridged cores */
-	error = bhndb_pci_read_core_table(dev, &cid, &cores, &ncores,
-	    &erom_class);
-	if (error)
+	error = bhndb_pci_probe_copy_core_table(probe, &cores, &ncores);
+	if (error) {
+		cores = NULL;
 		goto cleanup;
-
-	/* Select the appropriate register window handler */
-	if (cid.chip_type == BHND_CHIPTYPE_SIBA) {
-		sc->set_regwin = bhndb_pci_compat_setregwin;
-	} else {
-		sc->set_regwin = bhndb_pci_fast_setregwin;
 	}
 
-	/* Determine our host bridge core and populate our quirk flags */
-	error = bhndb_find_hostb_core(cores, ncores, sc->pci_devclass,
-	    &hostb_core);
-	if (error)
-		goto cleanup;
-
-	sc->pci_quirks = bhndb_pci_get_core_quirks(&cid, &hostb_core);
+	bhndb_pci_probe_free(probe);
+	probe = NULL;
 
 	/* Perform bridge attach */
 	error = bhndb_attach(dev, &cid, cores, ncores, &hostb_core, erom_class);
 	if (error)
 		goto cleanup;
-
-	/* Fix-up power on defaults for SROM-less devices. */
-	bhndb_init_sromless_pci_config(sc);
 
 	/* Add any additional child devices */
 	if ((error = bhndb_pci_add_children(sc)))
@@ -402,13 +450,12 @@ bhndb_pci_attach(device_t dev)
 	if ((error = bus_generic_attach(dev)))
 		goto cleanup;
 
-	free(cores, M_BHND);
+	bhndb_pci_probe_free_core_table(cores);
 
 	return (0);
 
 cleanup:
 	device_delete_children(dev);
-	bhndb_disable_pci_clocks(sc->dev);
 
 	if (sc->isrc != NULL)
 		bhndb_free_intr_isrc(sc->isrc);
@@ -417,7 +464,12 @@ cleanup:
 		pci_release_msi(sc->parent);
 
 	if (cores != NULL)
-		free(cores, M_BHND);
+		bhndb_pci_probe_free_core_table(cores);
+
+	if (probe != NULL)
+		bhndb_pci_probe_free(probe);
+
+	bhndb_disable_pci_clocks(sc->dev);
 
 	pci_disable_busmaster(sc->parent);
 
@@ -459,124 +511,6 @@ bhndb_pci_detach(device_t dev)
 	BHNDB_PCI_LOCK_DESTROY(sc);
 
 	return (0);
-}
-
-/**
- * Use the generic PCI bridge hardware configuration to enumerate the bridged
- * bhnd(4) bus' core table.
- * 
- * @note This function may be safely called prior to device attach, (e.g.
- * from DEVICE_PROBE).
- * @note This function requires exclusive ownership over allocating and 
- * configuring host bridge resources, and should only be called prior to
- * completion of device attach and full configuration of the bridge.
- * 
- * @param	dev		The bhndb_pci bridge device.
- * @param[out]	chipid		On success, the parsed chip identification.
- * @param[out]	cores		On success, the enumerated core table. The
- *				caller is responsible for freeing this table via
- *				bhndb_pci_free_core_table().
- * @param[out]	ncores		On success, the number of cores found in
- *				@p cores.
- * @param[out]	eromcls		On success, a pointer to the erom class used to
- *				parse the device enumeration table. This
- *				argument may be NULL if the class is not
- *				desired.
- * 
- * @retval 0		success
- * @retval non-zero	if enumerating the bridged bhnd(4) bus fails, a regular
- * 			unix error code will be returned.
- */
-static int
-bhndb_pci_read_core_table(device_t dev, struct bhnd_chipid *chipid,
-    struct bhnd_core_info **cores, u_int *ncores,
-    bhnd_erom_class_t **eromcls)
-{
-	const struct bhndb_hwcfg	*cfg;
-	struct bhndb_host_resources	*hr;
-	struct bhndb_pci_eio		 pio;
-	struct bhnd_core_info		*erom_cores;
-	const struct bhnd_chipid	*hint;
-	struct bhnd_chipid		 cid;
-	bhnd_erom_class_t		*erom_class;
-	bhnd_erom_t			*erom;
-	device_t			 parent_dev;
-	u_int				 erom_ncores;
-	int				 error;
-
-	parent_dev = device_get_parent(dev);
-	erom = NULL;
-	erom_cores = NULL;
-
-	/* Fetch our chipid hint (if any) and generic hardware configuration */
-	cfg = BHNDB_BUS_GET_GENERIC_HWCFG(parent_dev, dev);
-	hint = BHNDB_BUS_GET_CHIPID(parent_dev, dev);
-
-	/* Allocate our host resources */
-	if ((error = bhndb_alloc_host_resources(&hr, dev, parent_dev, cfg)))
-		return (error);
-
-	/* Initialize our erom I/O state */
-	if ((error = bhndb_pci_eio_init(&pio, dev, parent_dev, hr)))
-		goto failed;
-
-	/* Map the first bus core from our bridged bhnd(4) bus */
-	error = bhndb_pci_eio_map(&pio.eio, BHND_DEFAULT_CHIPC_ADDR,
-	    BHND_DEFAULT_CORE_SIZE);
-	if (error)
-		goto failed;
-
-	/* Probe for a usable EROM class, and read the chip identifier */
-	erom_class = bhnd_erom_probe_driver_classes(device_get_devclass(dev),
-	    &pio.eio, hint, &cid);
-	if (erom_class == NULL) {
-		device_printf(dev, "device enumeration unsupported; no "
-		    "compatible driver found\n");
-
-		error = ENXIO;
-		goto failed;
-	}
-
-	/* Allocate EROM parser */
-	if ((erom = bhnd_erom_alloc(erom_class, &cid, &pio.eio)) == NULL) {
-		device_printf(dev, "failed to allocate device enumeration "
-		    "table parser\n");
-		error = ENXIO;
-		goto failed;
-	}
-
-	/* Read the full core table */
-	error = bhnd_erom_get_core_table(erom, &erom_cores, &erom_ncores);
-	if (error) {
-		device_printf(dev, "error fetching core table: %d\n", error);
-		goto failed;
-	}
-
-	/* Provide the results to our caller */
-	*cores = malloc(sizeof(erom_cores[0]) * erom_ncores, M_BHND, M_WAITOK);
-	memcpy(*cores, erom_cores, sizeof(erom_cores[0]) * erom_ncores);
-	*ncores = erom_ncores;
-
-	*chipid = cid;
-	if (eromcls != NULL)
-		*eromcls = erom_class;
-
-	/* Clean up */
-	bhnd_erom_free_core_table(erom, erom_cores);
-	bhnd_erom_free(erom);
-	bhndb_release_host_resources(hr);
-
-	return (0);
-
-failed:
-	if (erom_cores != NULL)
-		bhnd_erom_free_core_table(erom, erom_cores);
-
-	if (erom != NULL)
-		bhnd_erom_free(erom);
-
-	bhndb_release_host_resources(hr);
-	return (error);
 }
 
 static int
@@ -822,45 +756,82 @@ bhndb_pci_read_core(struct bhndb_pci_softc *sc, bus_size_t offset, u_int width)
 	}
 }
 
-/*
- * On devices without a SROM, the PCI(e) cores will be initialized with
- * their Power-on-Reset defaults; this can leave two of the BAR0 PCI windows
- * mapped to the wrong core.
+/**
+ * Fix-up power on defaults for SPROM-less devices.
+ *
+ * On SPROM-less devices, the PCI(e) cores will be initialized with their their
+ * Power-on-Reset defaults; this can leave the BHND_PCI_SRSH_PI value pointing
+ * to the wrong backplane address. This value is used by the PCI core when
+ * performing address translation between static register windows in BAR0 that
+ * map the PCI core's register block, and backplane address space.
+ *
+ * When translating accesses via these BAR0 regions, the PCI bridge determines
+ * the base address of the PCI core by concatenating:
+ *
+ *	[bits]	[source]
+ *	31:16	bits [31:16] of the enumeration space address (e.g. 0x18000000)
+ *	15:12	value of BHND_PCI_SRSH_PI from the PCI core's SPROM shadow
+ *	11:0	bits [11:0] of the PCI bus address
+ *
+ * For example, on a PCI_V0 device, the following PCI core register offsets are
+ * mapped into BAR0:
+ *
+ *	[BAR0 offset]		[description]		[PCI core offset]
+ *	0x1000-0x17FF		sprom shadow		0x800-0xFFF
+ *	0x1800-0x1DFF		device registers	0x000-0x5FF
+ *	0x1E00+0x1FFF		siba config registers	0xE00-0xFFF
+ *
+ * This function checks -- and if necessary, corrects -- the BHND_PCI_SRSH_PI
+ * value in the SPROM shadow. 
+ *
+ * This workaround must applied prior to accessing any static register windows
+ * that map the PCI core.
  * 
- * This function updates the SROM shadow to point the BAR0 windows at the
- * current PCI core.
- * 
- * Applies to all PCI/PCIe revisions.
+ * Applies to all PCI and PCIe-G1 core revisions.
  */
-static void
-bhndb_init_sromless_pci_config(struct bhndb_pci_softc *sc)
+static int
+bhndb_pci_srsh_pi_war(struct bhndb_pci_softc *sc,
+    struct bhndb_pci_probe *probe)
 {
-	const struct bhndb_pci_core	*pci_core;
-	bus_size_t			 srsh_offset;
-	u_int				 pci_cidx, sprom_cidx;
-	uint16_t			 val;
+	struct bhnd_core_match	md;
+	bhnd_addr_t		pci_addr;
+	bhnd_size_t		pci_size;
+	bus_size_t		srsh_offset;
+	uint16_t		srsh_val, pci_val;
+	uint16_t		val;
+	int			error;
 
 	if ((sc->pci_quirks & BHNDB_PCI_QUIRK_SRSH_WAR) == 0)
-		return;
+		return (0);
 
-	/* Determine the correct register offset for our PCI core */
-	pci_core = bhndb_pci_find_core(&sc->bhndb.bridge_core);
-	KASSERT(pci_core != NULL, ("missing core table entry"));
-
-	srsh_offset = pci_core->srsh_offset;
-
-	/* Fetch the SPROM's configured core index */
-	val = bhndb_pci_read_core(sc, srsh_offset, sizeof(val));
-	sprom_cidx = (val & BHND_PCI_SRSH_PI_MASK) >> BHND_PCI_SRSH_PI_SHIFT;
-
-	/* If it doesn't match host bridge's core index, update the index
-	 * value */
-	pci_cidx = sc->bhndb.bridge_core.core_idx;
-	if (sprom_cidx != pci_cidx) {
-		val &= ~BHND_PCI_SRSH_PI_MASK;
-		val |= (pci_cidx << BHND_PCI_SRSH_PI_SHIFT);
-		bhndb_pci_write_core(sc, srsh_offset, val, sizeof(val));
+	/* Use an equality match descriptor to look up our PCI core's base
+	 * address in the EROM */
+	md = bhnd_core_get_match_desc(&probe->hostb_core);
+	error = bhnd_erom_lookup_core_addr(probe->erom, &md, BHND_PORT_DEVICE,
+	    0, 0, NULL, &pci_addr, &pci_size);
+	if (error) {
+		device_printf(sc->dev, "no base address found for the PCI host "
+		    "bridge core: %d\n", error);
+		return (error);
 	}
+
+	/* Fetch the SPROM SRSH_PI value */
+	srsh_offset = BHND_PCI_SPROM_SHADOW + BHND_PCI_SRSH_PI_OFFSET;
+	val = bhndb_pci_probe_read(probe, pci_addr, srsh_offset, sizeof(val));
+	srsh_val = (val & BHND_PCI_SRSH_PI_MASK) >> BHND_PCI_SRSH_PI_SHIFT;
+
+	/* If it doesn't match PCI core's base address, update the SPROM
+	 * shadow */
+	pci_val = (pci_addr & BHND_PCI_SRSH_PI_ADDR_MASK) >>
+	    BHND_PCI_SRSH_PI_ADDR_SHIFT;
+	if (srsh_val != pci_val) {
+		val &= ~BHND_PCI_SRSH_PI_MASK;
+		val |= (pci_val << BHND_PCI_SRSH_PI_SHIFT);
+		bhndb_pci_probe_write(probe, pci_addr, srsh_offset, val,
+		    sizeof(val));
+	}
+
+	return (0);
 }
 
 static int
@@ -1283,88 +1254,416 @@ bhndb_pci_route_interrupts(device_t dev, device_t child)
 }
 
 /**
- * Initialize a new bhndb PCI bridge EROM I/O instance. This EROM I/O
- * implementation supports mapping of the device enumeration table via the
- * @p hr host resources.
+ * Using the generic PCI bridge hardware configuration, allocate, initialize
+ * and return a new bhndb_pci probe state instance.
  * 
- * @param pio		The instance to be initialized.
- * @param dev		The bridge device.
- * @param pci_dev	The bridge's parent PCI device.
- * @param hr		The host resources to be used to map the device
- *			enumeration table.
+ * On success, the caller assumes ownership of the returned probe instance, and
+ * is responsible for releasing this reference using bhndb_pci_probe_free().
+ * 
+ * @param[out]	probe		On success, the newly allocated probe instance.
+ * @param	dev		The bhndb_pci bridge device.
+ * @param	hostb_devclass	The expected device class of the bridge core.
+ *
+ * @retval 0		success
+ * @retval non-zero	if allocating the probe state fails, a regular
+ * 			unix error code will be returned.
+ * 
+ * @note This function requires exclusive ownership over allocating and 
+ * configuring host bridge resources, and should only be called prior to
+ * completion of device attach and full configuration of the bridge.
  */
 static int
-bhndb_pci_eio_init(struct bhndb_pci_eio *pio, device_t dev, device_t pci_dev,
-    struct bhndb_host_resources *hr)
+bhndb_pci_probe_alloc(struct bhndb_pci_probe **probe, device_t dev,
+    bhnd_devclass_t hostb_devclass)
 {
-	memset(&pio->eio, 0, sizeof(pio->eio));
-	pio->eio.map = bhndb_pci_eio_map;
-	pio->eio.read = bhndb_pci_eio_read;
-	pio->eio.fini = NULL;
+	struct bhndb_pci_probe		*p;
+	struct bhnd_erom_io		*eio;
+	const struct bhndb_hwcfg	*hwcfg;
+	const struct bhnd_chipid	*hint;
+	device_t			 parent_dev;
+	int				 error;
 
-	pio->dev = dev;
-	pio->pci_dev = pci_dev;
-	pio->hr = hr;
-	pio->win = NULL;
-	pio->res = NULL;
+	parent_dev = device_get_parent(dev);
+	eio = NULL;
+
+	p = malloc(sizeof(*p), M_BHND, M_ZERO|M_WAITOK);
+	p->dev = dev;
+	p->pci_dev = parent_dev;
+
+	/* Our register window mapping state must be initialized at this point,
+	 * as bhndb_pci_eio will begin making calls into
+	 * bhndb_pci_probe_(read|write|get_mapping) */
+	p->m_win = NULL;
+	p->m_res = NULL;
+	p->m_valid = false;
+
+	bhndb_pci_eio_init(&p->erom_io, p);
+	eio = &p->erom_io.eio;
+
+	/* Fetch our chipid hint (if any) and generic hardware configuration */
+	hwcfg = BHNDB_BUS_GET_GENERIC_HWCFG(parent_dev, dev);
+	hint = BHNDB_BUS_GET_CHIPID(parent_dev, dev);
+
+	/* Allocate our host resources */
+	error = bhndb_alloc_host_resources(&p->hr, dev, parent_dev, hwcfg);
+	if (error) {
+		p->hr = NULL;
+		goto failed;
+	}
+
+	/* Map the first bus core from our bridged bhnd(4) bus */
+	error = bhnd_erom_io_map(eio, BHND_DEFAULT_CHIPC_ADDR,
+	    BHND_DEFAULT_CORE_SIZE);
+	if (error)
+		goto failed;
+
+	/* Probe for a usable EROM class, and read the chip identifier */
+	p->erom_class = bhnd_erom_probe_driver_classes(
+	    device_get_devclass(dev), eio, hint, &p->cid);
+	if (p->erom_class == NULL) {
+		device_printf(dev, "device enumeration unsupported; no "
+		    "compatible driver found\n");
+
+		error = ENXIO;
+		goto failed;
+	}
+
+	/* Allocate EROM parser */
+	p->erom = bhnd_erom_alloc(p->erom_class, &p->cid, eio);
+	if (p->erom == NULL) {
+		device_printf(dev, "failed to allocate device enumeration "
+		    "table parser\n");
+		error = ENXIO;
+		goto failed;
+	}
+
+	/* The EROM I/O instance is now owned by our EROM parser */
+	eio = NULL;
+
+	/* Read the full core table */
+	error = bhnd_erom_get_core_table(p->erom, &p->cores, &p->ncores);
+	if (error) {
+		device_printf(p->dev, "error fetching core table: %d\n",
+		    error);
+
+		p->cores = NULL;
+		goto failed;
+	}
+
+	/* Identify the host bridge core */
+	error = bhndb_find_hostb_core(p->cores, p->ncores, hostb_devclass,
+	    &p->hostb_core);
+	if (error) {
+		device_printf(dev, "failed to identify the host bridge "
+		    "core: %d\n", error);
+
+		goto failed;
+	}
+
+	*probe = p;
+	return (0);
+
+failed:
+	if (eio != NULL) {
+		KASSERT(p->erom == NULL, ("I/O instance will be freed by "
+		    "its owning parser"));
+
+		bhnd_erom_io_fini(eio);
+	}
+
+	if (p->erom != NULL) {
+		if (p->cores != NULL)
+			bhnd_erom_free_core_table(p->erom, p->cores);
+
+		bhnd_erom_free(p->erom);
+	} else {
+		KASSERT(p->cores == NULL, ("cannot free erom-owned core table "
+		    "without erom reference"));
+	}
+
+	if (p->hr != NULL)
+		bhndb_release_host_resources(p->hr);
+
+	free(p, M_BHND);
+
+	return (error);
+}
+
+/**
+ * Free the given @p probe instance and any associated host bridge resources.
+ */
+static void
+bhndb_pci_probe_free(struct bhndb_pci_probe *probe)
+{
+	bhnd_erom_free_core_table(probe->erom, probe->cores);
+	bhnd_erom_free(probe->erom);
+	bhndb_release_host_resources(probe->hr);
+	free(probe, M_BHND);
+}
+
+/**
+ * Return a copy of probed core table from @p probe.
+ * 
+ * @param	probe		The probe instance.
+ * @param[out]	cores		On success, a copy of the probed core table. The
+ *				caller is responsible for freeing this table
+ *				bhndb_pci_probe_free_core_table().
+ * @param[out]	ncores		On success, the number of cores found in
+ *				@p cores.
+ * 
+ * @retval 0		success
+ * @retval non-zero	if enumerating the bridged bhnd(4) bus fails, a regular
+ * 			unix error code will be returned.
+ */
+static int
+bhndb_pci_probe_copy_core_table(struct bhndb_pci_probe *probe,
+    struct bhnd_core_info **cores, u_int *ncores)
+{
+	size_t len = sizeof(**cores) * probe->ncores;
+
+	*cores = malloc(len, M_BHND, M_WAITOK);
+	memcpy(*cores, probe->cores, len);
+
+	*ncores = probe->ncores;
 
 	return (0);
 }
 
 /**
- * Attempt to adjust the dynamic register window backing @p pio to permit
- * reading @p size bytes at @p addr.
+ * Free a core table previously returned by bhndb_pci_probe_copy_core_table().
  * 
- * If @p addr or @p size fall outside the existing mapped range, or if
- * @p pio is not backed by a dynamic register window, ENXIO will be returned.
- * 
- * @param pio	The bhndb PCI erom I/O state to be modified.
- * @param addr	The address to be include
+ * @param cores The core table to be freed.
  */
-static int
-bhndb_pci_eio_adjust_mapping(struct bhndb_pci_eio *pio, bhnd_addr_t addr,
+static void
+bhndb_pci_probe_free_core_table(struct bhnd_core_info *cores)
+{
+	free(cores, M_BHND);
+}
+
+/**
+ * Return true if @p addr and @p size are mapped by the dynamic register window
+ * backing @p probe. 
+ */
+static bool
+bhndb_pci_probe_has_mapping(struct bhndb_pci_probe *probe, bhnd_addr_t addr,
     bhnd_size_t size)
 {
-	bhnd_addr_t	 target;
-	bhnd_size_t	 offset;
-	int		 error;
+	if (!probe->m_valid)
+		return (false);
 
+	KASSERT(probe->m_win != NULL, ("missing register window"));
+	KASSERT(probe->m_res != NULL, ("missing regwin resource"));
+	KASSERT(probe->m_win->win_type == BHNDB_REGWIN_T_DYN,
+	    ("unexpected window type %d", probe->m_win->win_type));
 
-	KASSERT(pio->win != NULL, ("missing register window"));
-	KASSERT(pio->res != NULL, ("missing regwin resource"));
-	KASSERT(pio->win->win_type == BHNDB_REGWIN_T_DYN,
-	    ("unexpected window type %d", pio->win->win_type));
+	if (addr < probe->m_target)
+		return (false);
 
-	/* The requested subrange must fall within the total mapped range */
-	if (addr < pio->addr || (addr - pio->addr) > pio->size ||
-	    size > pio->size || (addr - pio->addr) - pio->size < size)
-	{
+	if (addr >= probe->m_target + probe->m_win->win_size)
+		return (false);
+
+	if ((probe->m_target + probe->m_win->win_size) - addr < size)
+		return (false);
+
+	return (true);
+}
+
+/**
+ * Attempt to adjust the dynamic register window backing @p probe to permit
+ * accessing @p size bytes at @p addr.
+ * 
+ * @param	probe		The bhndb_pci probe state to be modified.
+ * @param	addr		The address at which @p size bytes will mapped.
+ * @param	size		The number of bytes to be mapped.
+ * @param[out]	res		On success, will be set to the host resource
+ *				mapping @p size bytes at @p addr.
+ * @param[out]	res_offset	On success, will be set to the offset of @addr
+ *				within @p res.
+ * 
+ * @retval 0		success
+ * @retval non-zero	if an error occurs adjusting the backing dynamic
+ *			register window.
+ */
+static int
+bhndb_pci_probe_map(struct bhndb_pci_probe *probe, bhnd_addr_t addr,
+    bhnd_size_t offset, bhnd_size_t size, struct resource **res,
+    bus_size_t *res_offset)
+{
+	const struct bhndb_regwin	*regwin, *regwin_table;
+	struct resource			*regwin_res;
+	bhnd_addr_t			 target;
+	int				 error;
+
+	/* Determine the absolute address */
+	if (BHND_SIZE_MAX - offset < addr) {
+		device_printf(probe->dev, "invalid offset %#jx+%#jx\n", addr,
+		    offset);
 		return (ENXIO);
 	}
 
-	/* Do we already have a useable mapping? */
-	if (addr >= pio->res_target &&
-	    addr <= pio->res_target + pio->win->win_size &&
-	    (pio->res_target + pio->win->win_size) - addr >= size)
-	{
+	addr += offset;
+
+	/* Can we use the existing mapping? */
+	if (bhndb_pci_probe_has_mapping(probe, addr, size)) {
+		*res = probe->m_res;
+		*res_offset = (addr - probe->m_target) +
+		    probe->m_win->win_offset;
+
 		return (0);
 	}
 
+	/* Locate a useable dynamic register window */
+	regwin_table = probe->hr->cfg->register_windows;
+	regwin = bhndb_regwin_find_type(regwin_table,
+	    BHNDB_REGWIN_T_DYN, size);
+	if (regwin == NULL) {
+		device_printf(probe->dev, "unable to map %#jx+%#jx; no "
+		    "usable dynamic register window found\n", addr,
+		    size);
+		return (ENXIO);
+	}
+
+	/* Locate the host resource mapping our register window */
+	regwin_res = bhndb_host_resource_for_regwin(probe->hr, regwin);
+	if (regwin_res == NULL) {
+		device_printf(probe->dev, "unable to map %#jx+%#jx; no "
+		    "usable register resource found\n", addr, size);
+		return (ENXIO);
+	}
+
 	/* Page-align the target address */
-	offset = addr % pio->win->win_size;
-	target = addr - offset;
+	target = addr - (addr % regwin->win_size);
 
 	/* Configure the register window */
-	error = bhndb_pci_compat_setregwin(pio->dev, pio->pci_dev, pio->win,
-	    target);
+	error = bhndb_pci_compat_setregwin(probe->dev, probe->pci_dev,
+	    regwin, target);
 	if (error) {
-		device_printf(pio->dev, "failed to configure dynamic register "
-		    "window: %d\n", error);
+		device_printf(probe->dev, "failed to configure dynamic "
+		    "register window: %d\n", error);
 		return (error);
 	}
 
-	pio->res_target = target;
+	/* Update our mapping state */
+	probe->m_win = regwin;
+	probe->m_res = regwin_res;
+	probe->m_addr = addr;
+	probe->m_size = size;
+	probe->m_target = target;
+	probe->m_valid = true;
+
+	*res = regwin_res;
+	*res_offset = (addr - target) + regwin->win_offset;
+
 	return (0);
+}
+
+/**
+ * Write a data item to the bridged address space at the given @p offset from
+ * @p addr.
+ *
+ * A dynamic register window will be used to map @p addr.
+ * 
+ * @param probe		The bhndb_pci probe state to be used to perform the
+ *			write.
+ * @param addr		The base address.
+ * @param offset	The offset from @p addr at which @p value will be
+ *			written.
+ * @param value		The data item to be written.
+ * @param width		The data item width (1, 2, or 4 bytes).
+ */
+static void
+bhndb_pci_probe_write(struct bhndb_pci_probe *probe, bhnd_addr_t addr,
+    bhnd_size_t offset, uint32_t value, u_int width)
+{
+	struct resource	*r;
+	bus_size_t	 res_offset;
+	int		 error;
+
+	/* Map the target address */
+	error = bhndb_pci_probe_map(probe, addr, offset, width, &r,
+	    &res_offset);
+	if (error) {
+		device_printf(probe->dev, "error mapping %#jx+%#jx for "
+		    "writing: %d\n", addr, offset, error);
+		return;
+	}
+
+	/* Perform write */
+	switch (width) {
+	case 1:
+		return (bus_write_1(r, res_offset, value));
+	case 2:
+		return (bus_write_2(r, res_offset, value));
+	case 4:
+		return (bus_write_4(r, res_offset, value));
+	default:
+		panic("unsupported width: %u", width);
+	}
+}
+
+/**
+ * Read a data item from the bridged address space at the given @p offset
+ * from @p addr.
+ * 
+ * A dynamic register window will be used to map @p addr.
+ * 
+ * @param probe		The bhndb_pci probe state to be used to perform the
+ *			read.
+ * @param addr		The base address.
+ * @param offset	The offset from @p addr at which to read a data item of
+ *			@p width bytes.
+ * @param width		Item width (1, 2, or 4 bytes).
+ */
+static uint32_t
+bhndb_pci_probe_read(struct bhndb_pci_probe *probe, bhnd_addr_t addr,
+    bhnd_size_t offset, u_int width)
+{
+	struct resource	*r;
+	bus_size_t	 res_offset;
+	int		 error;
+
+	/* Map the target address */
+	error = bhndb_pci_probe_map(probe, addr, offset, width, &r,
+	    &res_offset);
+	if (error) {
+		device_printf(probe->dev, "error mapping %#jx+%#jx for "
+		    "reading: %d\n", addr, offset, error);
+		return (UINT32_MAX);
+	}
+
+	/* Perform read */
+	switch (width) {
+	case 1:
+		return (bus_read_1(r, res_offset));
+	case 2:
+		return (bus_read_2(r, res_offset));
+	case 4:
+		return (bus_read_4(r, res_offset));
+	default:
+		panic("unsupported width: %u", width);
+	}
+}
+
+/**
+ * Initialize a new bhndb PCI bridge EROM I/O instance. All I/O will be
+ * performed using @p probe.
+ * 
+ * @param pio		The instance to be initialized.
+ * @param probe		The bhndb_pci probe state to be used to perform all
+ *			I/O.
+ */
+static void
+bhndb_pci_eio_init(struct bhndb_pci_eio *pio, struct bhndb_pci_probe *probe)
+{
+	memset(pio, 0, sizeof(*pio));
+
+	pio->eio.map = bhndb_pci_eio_map;
+	pio->eio.read = bhndb_pci_eio_read;
+	pio->eio.fini = NULL;
+
+	pio->addr = 0;
+	pio->size = 0;
+	pio->probe = probe;
 }
 
 /* bhnd_erom_io_map() implementation */
@@ -1372,50 +1671,13 @@ static int
 bhndb_pci_eio_map(struct bhnd_erom_io *eio, bhnd_addr_t addr,
     bhnd_size_t size)
 {
-	struct bhndb_pci_eio		*pio;
-	const struct bhndb_regwin	*regwin;
-	struct resource			*r;
-	bhnd_addr_t			 target;
-	bhnd_size_t			 offset;
-	int				 error;
+	struct bhndb_pci_eio *pio = (struct bhndb_pci_eio *)eio;
 
-	pio = (struct bhndb_pci_eio *)eio;
+	if (BHND_ADDR_MAX - addr < size)
+		return (EINVAL); /* addr+size would overflow */
 
-	/* Locate a useable dynamic register window */
-	regwin = bhndb_regwin_find_type(pio->hr->cfg->register_windows,
-	    BHNDB_REGWIN_T_DYN, MIN(size, BHND_DEFAULT_CORE_SIZE));
-	if (regwin == NULL) {
-		device_printf(pio->dev, "unable to map %#jx+%#jx; no "
-		    "usable dynamic register window found\n", addr, size);
-		return (ENXIO);
-	}
-
-	/* Locate the host resource mapping our register window */
-	if ((r = bhndb_host_resource_for_regwin(pio->hr, regwin)) == NULL) {
-		device_printf(pio->dev, "unable to map %#jx+%#jx; no "
-		    "usable register resource found\n", addr, size);
-		return (ENXIO);
-	}
-
-	/* Page-align the target address */
-	offset = addr % regwin->win_size;
-	target = addr - offset;
-
-	/* Configure the register window */
-	error = bhndb_pci_compat_setregwin(pio->dev, pio->pci_dev, regwin,
-	    target);
-	if (error) {
-		device_printf(pio->dev, "failed to configure dynamic register "
-		    "window: %d\n", error);
-		return (error);
-	}
-
-	/* Update our mapping state */
-	pio->win = regwin;
-	pio->res = r;
 	pio->addr = addr;
 	pio->size = size;
-	pio->res_target = target;
 
 	return (0);
 }
@@ -1424,47 +1686,17 @@ bhndb_pci_eio_map(struct bhnd_erom_io *eio, bhnd_addr_t addr,
 static uint32_t
 bhndb_pci_eio_read(struct bhnd_erom_io *eio, bhnd_size_t offset, u_int width)
 {
-	struct bhndb_pci_eio		*pio;
-	bhnd_addr_t			 addr;
-	bus_size_t			 res_offset;
-	int				 error;
+	struct bhndb_pci_eio *pio = (struct bhndb_pci_eio *)eio;
 
-	pio = (struct bhndb_pci_eio *)eio;
-
-	/* Calculate absolute address */
-	if (BHND_SIZE_MAX - offset < pio->addr) {
-		device_printf(pio->dev, "invalid offset %#jx+%#jx\n", pio->addr,
-		    offset);
-		return (UINT32_MAX);
+	/* The requested subrange must fall within the existing mapped range */
+	if (offset > pio->size ||
+	    width > pio->size ||
+	    pio->size - offset < width)
+	{
+		return (ENXIO);
 	}
 
-	addr = pio->addr + offset;
-
-	/* Adjust the mapping for our read */
-	if ((error = bhndb_pci_eio_adjust_mapping(pio, addr, width))) {
-		device_printf(pio->dev, "failed to adjust register mapping: "
-		    "%d\n", error);
-		return (UINT32_MAX);
-	}
-
-	KASSERT(pio->res_target <= addr, ("invalid mapping (%#jx vs. %#jx)",
-	    pio->res_target, addr));
-
-	/* Determine the actual read offset within our register window
-	 * resource */
-	res_offset = (addr - pio->res_target) + pio->win->win_offset;
-
-	/* Perform our read */
-	switch (width) {
-	case 1:
-		return (bus_read_1(pio->res, res_offset));
-	case 2:
-		return (bus_read_2(pio->res, res_offset));
-	case 4:
-		return (bus_read_4(pio->res, res_offset));
-	default:
-		panic("unsupported width: %u", width);
-	}
+	return (bhndb_pci_probe_read(pio->probe, pio->addr, offset, width));
 }
 
 static device_method_t bhndb_pci_methods[] = {
