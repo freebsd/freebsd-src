@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_pagequeue.h>
 #include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
 
@@ -580,7 +581,7 @@ vm_reserv_extend_contig(int req, vm_object_t object, vm_pindex_t pindex,
 	}
 	for (i = 0; i < npages; i++)
 		vm_reserv_populate(rv, index + i);
-	vm_phys_freecnt_adj(domain, -npages);
+	vm_pagequeue_freecnt_adj(domain, -npages);
 out:
 	vm_pagequeue_free_unlock(domain);
 	return (m);
@@ -657,6 +658,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
 	 */
 	first = pindex - VM_RESERV_INDEX(object, pindex);
 	if (mpred != NULL) {
+		/* XXX unlocked rv access */
 		if ((rv = vm_reserv_from_page(mpred))->object != object)
 			leftcap = mpred->pindex + 1;
 		else
@@ -668,6 +670,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
 	maxpages = roundup2(minpages, VM_LEVEL_0_NPAGES);
 	allocpages = maxpages;
 	if (msucc != NULL) {
+		/* XXX unlocked rv access */
 		if ((rv = vm_reserv_from_page(msucc))->object != object)
 			rightcap = msucc->pindex;
 		else
@@ -715,7 +718,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
 	    VM_LEVEL_0_SIZE), boundary > VM_LEVEL_0_SIZE ? boundary : 0);
 	if (m == NULL)
 		return (NULL);
-	KASSERT(vm_phys_domidx(m) == domain,
+	KASSERT(vm_phys_domain(m) == domain,
 	    ("vm_reserv_alloc_contig: Page domain does not match requested."));
 
 	/*
@@ -794,11 +797,11 @@ vm_reserv_extend(int req, vm_object_t object, vm_pindex_t pindex, int domain,
 		m = NULL;
 	if (m != NULL)
 		vm_reserv_populate(rv, index);
-	free_count = vm_phys_freecnt_adj(domain, -1);
+	free_count = vm_pagequeue_freecnt_adj(domain, -1);
 	vm_pagequeue_free_unlock(domain);
 
-	if (vm_paging_needed(free_count))
-		pagedaemon_wakeup();
+	if (vm_paging_needed(domain, free_count))
+		pagedaemon_wakeup(domain);
 
 	return (m);
 }
@@ -845,6 +848,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, int domain,
 	 */
 	first = pindex - VM_RESERV_INDEX(object, pindex);
 	if (mpred != NULL) {
+		/* XXX unlocked rv access */
 		if ((rv = vm_reserv_from_page(mpred))->object != object)
 			leftcap = mpred->pindex + 1;
 		else
@@ -853,6 +857,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, int domain,
 			return (NULL);
 	}
 	if (msucc != NULL) {
+		/* XXX unlocked rv access */
 		if ((rv = vm_reserv_from_page(msucc))->object != object)
 			rightcap = msucc->pindex;
 		else

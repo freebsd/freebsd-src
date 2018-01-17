@@ -74,9 +74,7 @@
  */
 
 extern int vm_page_max_wired;
-extern int vm_pageout_deficit;
 extern int vm_pageout_page_count;
-extern bool vm_pages_needed;
 
 #define	VM_OOM_MEM	1
 #define	VM_OOM_SWAPZ	2
@@ -95,8 +93,8 @@ extern bool vm_pages_needed;
  *	Signal pageout-daemon and wait for it.
  */
 
-void pagedaemon_wait(int pri, const char *wmesg);
-void pagedaemon_wakeup(void);
+void pagedaemon_wait(int domain, int pri, const char *wmesg);
+void pagedaemon_wakeup(int domain);
 #define VM_WAIT vm_wait()
 #define VM_WAITPFAULT vm_waitpfault()
 void vm_wait(void);

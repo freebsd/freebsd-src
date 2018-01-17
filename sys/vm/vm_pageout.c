@@ -110,6 +110,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_pagequeue.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
@@ -147,11 +148,7 @@ SDT_PROBE_DEFINE(vm, , , vm__lowmem_scan);
 #define	VM_LAUNDER_RATE		10
 #define	VM_INACT_SCAN_RATE	2
 
-int vm_pageout_deficit;		/* Estimated number of pages deficit */
-u_int vm_pageout_wakeup_thresh;
 static int vm_pageout_oom_seq = 12;
-static bool vm_pageout_wanted;	/* Event on which pageout daemon sleeps */
-bool vm_pages_needed;		/* Are threads waiting for free pages? */
 
 /* Pending request for dirty page laundering. */
 static enum {
@@ -172,10 +169,6 @@ static int vm_panic_on_oom = 0;
 SYSCTL_INT(_vm, OID_AUTO, panic_on_oom,
 	CTLFLAG_RWTUN, &vm_panic_on_oom, 0,
 	"panic on out of memory instead of killing the largest process");
-
-SYSCTL_INT(_vm, OID_AUTO, pageout_wakeup_thresh,
-	CTLFLAG_RWTUN, &vm_pageout_wakeup_thresh, 0,
-	"free page threshold for waking up the pageout daemon");
 
 SYSCTL_INT(_vm, OID_AUTO, pageout_update_period,
 	CTLFLAG_RWTUN, &vm_pageout_update_period, 0,
@@ -959,18 +952,19 @@ isqrt(u_int num)
 static void
 vm_pageout_laundry_worker(void *arg)
 {
-	struct vm_domain *domain;
+	struct vm_domain *vmd;
 	struct vm_pagequeue *pq;
 	uint64_t nclean, ndirty;
 	u_int inactq_scans, last_launder;
-	int domidx, last_target, launder, shortfall, shortfall_cycle, target;
+	int domain, last_target, launder, shortfall, shortfall_cycle, target;
 	bool in_shortfall;
+	int i;
 
-	domidx = (uintptr_t)arg;
-	domain = &vm_dom[domidx];
-	pq = &domain->vmd_pagequeues[PQ_LAUNDRY];
-	KASSERT(domain->vmd_segs != 0, ("domain without segments"));
-	vm_pageout_init_marker(&domain->vmd_laundry_marker, PQ_LAUNDRY);
+	domain = (uintptr_t)arg;
+	vmd = &vm_dom[domain];
+	pq = &vmd->vmd_pagequeues[PQ_LAUNDRY];
+	KASSERT(vmd->vmd_segs != 0, ("domain without segments"));
+	vm_pageout_init_marker(&vmd->vmd_laundry_marker, PQ_LAUNDRY);
 
 	shortfall = 0;
 	in_shortfall = false;
@@ -982,9 +976,9 @@ vm_pageout_laundry_worker(void *arg)
 	/*
 	 * Calls to these handlers are serialized by the swap syscall lock.
 	 */
-	(void)EVENTHANDLER_REGISTER(swapon, vm_pageout_swapon, domain,
+	(void)EVENTHANDLER_REGISTER(swapon, vm_pageout_swapon, vmd,
 	    EVENTHANDLER_PRI_ANY);
-	(void)EVENTHANDLER_REGISTER(swapoff, vm_pageout_swapoff, domain,
+	(void)EVENTHANDLER_REGISTER(swapoff, vm_pageout_swapoff, vmd,
 	    EVENTHANDLER_PRI_ANY);
 
 	/*
@@ -1040,8 +1034,12 @@ vm_pageout_laundry_worker(void *arg)
 		 * memory pressure required to trigger laundering decreases.
 		 */
 trybackground:
-		nclean = vm_cnt.v_inactive_count + vm_cnt.v_free_count;
-		ndirty = vm_cnt.v_laundry_count;
+		nclean = 0;
+		for (i = 0; i < vm_ndomains; i++) {
+			nclean += vm_dom[i].vmd_free_count;
+			nclean += vm_dom[i].vmd_pagequeues[PQ_INACTIVE].pq_cnt;
+		}
+		ndirty = vm_laundry_count();
 		if (target == 0 && inactq_scans != last_launder &&
 		    ndirty * isqrt(inactq_scans - last_launder) >= nclean) {
 			target = vm_background_launder_target;
@@ -1076,7 +1074,7 @@ dolaundry:
 			 * pages could exceed "target" by the maximum size of
 			 * a cluster minus one. 
 			 */
-			target -= min(vm_pageout_launder(domain, launder,
+			target -= min(vm_pageout_launder(vmd, launder,
 			    in_shortfall), target);
 			pause("laundp", hz / VM_LAUNDER_RATE);
 		}
@@ -1098,7 +1096,8 @@ dolaundry:
 		 */
 		if (vm_laundry_request == VM_LAUNDRY_SHORTFALL &&
 		    (!in_shortfall || shortfall_cycle == 0)) {
-			shortfall = vm_laundry_target() + vm_pageout_deficit;
+			shortfall = vm_laundry_target() +
+			    vmd->vmd_pageout_deficit;
 			target = 0;
 		} else
 			shortfall = 0;
@@ -1163,8 +1162,8 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	 * the page daemon and this calculation.
 	 */
 	if (pass > 0) {
-		deficit = atomic_readandclear_int(&vm_pageout_deficit);
-		page_shortage = vm_paging_target() + deficit;
+		deficit = atomic_readandclear_int(&vmd->vmd_pageout_deficit);
+		page_shortage = vm_paging_target(vmd) + deficit;
 	} else
 		page_shortage = deficit = 0;
 	starting_page_shortage = page_shortage;
@@ -1397,9 +1396,9 @@ drop_page:
 	 * more aggressively, improving the effectiveness of clustering and
 	 * ensuring that they can eventually be reused.
 	 */
-	inactq_shortage = vm_cnt.v_inactive_target - (vm_cnt.v_inactive_count +
-	    vm_cnt.v_laundry_count / act_scan_laundry_weight) +
-	    vm_paging_target() + deficit + addl_page_shortage;
+	inactq_shortage = vmd->vmd_inactive_target - (pq->pq_cnt +
+	    /* XXX */vm_laundry_count() / act_scan_laundry_weight) +
+	    vm_paging_target(vmd) + deficit + addl_page_shortage;
 	inactq_shortage *= act_scan_laundry_weight;
 
 	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
@@ -1742,6 +1741,8 @@ vm_pageout_oom(int shortage)
 	}
 	sx_sunlock(&allproc_lock);
 	if (bigproc != NULL) {
+		int i;
+
 		if (vm_panic_on_oom != 0)
 			panic("out of swap space");
 		PROC_LOCK(bigproc);
@@ -1749,19 +1750,20 @@ vm_pageout_oom(int shortage)
 		sched_nice(bigproc, PRIO_MIN);
 		_PRELE(bigproc);
 		PROC_UNLOCK(bigproc);
-		wakeup(&vm_cnt.v_free_count);
+		for (i = 0; i < vm_ndomains; i++)
+			wakeup(&vm_dom[i].vmd_free_count);
 	}
 }
 
 static void
 vm_pageout_worker(void *arg)
 {
-	struct vm_domain *domain;
-	int domidx, pass;
+	struct vm_domain *vmd;
+	int domain, pass;
 	bool target_met;
 
-	domidx = (uintptr_t)arg;
-	domain = &vm_dom[domidx];
+	domain = (uintptr_t)arg;
+	vmd = &vm_dom[domain];
 	pass = 0;
 	target_met = true;
 
@@ -1771,18 +1773,18 @@ vm_pageout_worker(void *arg)
 	 * is allocated.
 	 */
 
-	KASSERT(domain->vmd_segs != 0, ("domain without segments"));
-	domain->vmd_last_active_scan = ticks;
-	vm_pageout_init_marker(&domain->vmd_marker, PQ_INACTIVE);
-	vm_pageout_init_marker(&domain->vmd_inacthead, PQ_INACTIVE);
-	TAILQ_INSERT_HEAD(&domain->vmd_pagequeues[PQ_INACTIVE].pq_pl,
-	    &domain->vmd_inacthead, plinks.q);
+	KASSERT(vmd->vmd_segs != 0, ("domain without segments"));
+	vmd->vmd_last_active_scan = ticks;
+	vm_pageout_init_marker(&vmd->vmd_marker, PQ_INACTIVE);
+	vm_pageout_init_marker(&vmd->vmd_inacthead, PQ_INACTIVE);
+	TAILQ_INSERT_HEAD(&vmd->vmd_pagequeues[PQ_INACTIVE].pq_pl,
+	    &vmd->vmd_inacthead, plinks.q);
 
 	/*
 	 * The pageout daemon worker is never done, so loop forever.
 	 */
 	while (TRUE) {
-		mtx_lock(&vm_page_queue_free_mtx);
+		mtx_lock(&vmd->vmd_pagequeue_free_mtx);
 
 		/*
 		 * Generally, after a level >= 1 scan, if there are enough
@@ -1796,34 +1798,34 @@ vm_pageout_worker(void *arg)
 		 * thread will, nonetheless, wait until another page is freed
 		 * or this wakeup is performed.
 		 */
-		if (vm_pages_needed && !vm_page_count_min()) {
-			vm_pages_needed = false;
-			wakeup(&vm_cnt.v_free_count);
+		if (vmd->vmd_pages_needed && !vm_page_count_min() /* XXX */) {
+			vmd->vmd_pages_needed = false;
+			wakeup(&vmd->vmd_free_count);
 		}
 
 		/*
-		 * Do not clear vm_pageout_wanted until we reach our free page
+		 * Do not clear vmd_pageout_wanted until we reach our free page
 		 * target.  Otherwise, we may be awakened over and over again,
 		 * wasting CPU time.
 		 */
-		if (vm_pageout_wanted && target_met)
-			vm_pageout_wanted = false;
+		if (vmd->vmd_pageout_wanted && target_met)
+			vmd->vmd_pageout_wanted = false;
 
 		/*
 		 * Might the page daemon receive a wakeup call?
 		 */
-		if (vm_pageout_wanted) {
+		if (vmd->vmd_pageout_wanted) {
 			/*
-			 * No.  Either vm_pageout_wanted was set by another
+			 * No.  Either vmd_pageout_wanted was set by another
 			 * thread during the previous scan, which must have
-			 * been a level 0 scan, or vm_pageout_wanted was
+			 * been a level 0 scan, or vmd_pageout_wanted was
 			 * already set and the scan failed to free enough
 			 * pages.  If we haven't yet performed a level >= 1
 			 * (page reclamation) scan, then increase the level
 			 * and scan again now.  Otherwise, sleep a bit and
 			 * try again later.
 			 */
-			mtx_unlock(&vm_page_queue_free_mtx);
+			mtx_unlock(&vmd->vmd_pagequeue_free_mtx);
 			if (pass >= 1)
 				pause("pwait", hz / VM_INACT_SCAN_RATE);
 			pass++;
@@ -1834,20 +1836,20 @@ vm_pageout_worker(void *arg)
 			 * sleep until the next wakeup or until pages need to
 			 * have their reference stats updated.
 			 */
-			if (vm_pages_needed) {
-				mtx_unlock(&vm_page_queue_free_mtx);
+			if (vmd->vmd_pages_needed) {
+				mtx_unlock(&vmd->vmd_pagequeue_free_mtx);
 				if (pass == 0)
 					pass++;
-			} else if (mtx_sleep(&vm_pageout_wanted,
-			    &vm_page_queue_free_mtx, PDROP | PVM, "psleep",
-			    hz) == 0) {
+			} else if (mtx_sleep(&vmd->vmd_pageout_wanted,
+			    &vmd->vmd_pagequeue_free_mtx, PDROP | PVM,
+			    "psleep", hz) == 0) {
 				VM_CNT_INC(v_pdwakeups);
 				pass = 1;
 			} else
 				pass = 0;
 		}
 
-		target_met = vm_pageout_scan(domain, pass);
+		target_met = vm_pageout_scan(vmd, pass);
 	}
 }
 
@@ -1855,41 +1857,68 @@ vm_pageout_worker(void *arg)
  *	vm_pageout_init initialises basic pageout daemon settings.
  */
 static void
-vm_pageout_init(void)
+vm_pageout_init_domain(int domain)
 {
-	/*
-	 * Initialize some paging parameters.
-	 */
-	vm_cnt.v_interrupt_free_min = 2;
-	if (vm_cnt.v_page_count < 2000)
-		vm_pageout_page_count = 8;
+	struct vm_domain *vmd;
+
+	vmd = &vm_dom[domain];
+	vmd->vmd_interrupt_free_min = 2;
 
 	/*
 	 * v_free_reserved needs to include enough for the largest
 	 * swap pager structures plus enough for any pv_entry structs
 	 * when paging. 
 	 */
-	if (vm_cnt.v_page_count > 1024)
-		vm_cnt.v_free_min = 4 + (vm_cnt.v_page_count - 1024) / 200;
+	if (vmd->vmd_page_count > 1024)
+		vmd->vmd_free_min = 4 + (vmd->vmd_page_count - 1024) / 200;
 	else
-		vm_cnt.v_free_min = 4;
-	vm_cnt.v_pageout_free_min = (2*MAXBSIZE)/PAGE_SIZE +
-	    vm_cnt.v_interrupt_free_min;
-	vm_cnt.v_free_reserved = vm_pageout_page_count +
-	    vm_cnt.v_pageout_free_min + (vm_cnt.v_page_count / 768);
-	vm_cnt.v_free_severe = vm_cnt.v_free_min / 2;
-	vm_cnt.v_free_target = 4 * vm_cnt.v_free_min + vm_cnt.v_free_reserved;
-	vm_cnt.v_free_min += vm_cnt.v_free_reserved;
-	vm_cnt.v_free_severe += vm_cnt.v_free_reserved;
-	vm_cnt.v_inactive_target = (3 * vm_cnt.v_free_target) / 2;
-	if (vm_cnt.v_inactive_target > vm_cnt.v_free_count / 3)
-		vm_cnt.v_inactive_target = vm_cnt.v_free_count / 3;
+		vmd->vmd_free_min = 4;
+	vmd->vmd_pageout_free_min = (2*MAXBSIZE)/PAGE_SIZE +
+	    vmd->vmd_interrupt_free_min;
+	vmd->vmd_free_reserved = vm_pageout_page_count +
+	    vmd->vmd_pageout_free_min + (vmd->vmd_page_count / 768);
+	vmd->vmd_free_severe = vmd->vmd_free_min / 2;
+	vmd->vmd_free_target = 4 * vmd->vmd_free_min + vmd->vmd_free_reserved;
+	vmd->vmd_free_min += vmd->vmd_free_reserved;
+	vmd->vmd_free_severe += vmd->vmd_free_reserved;
+	vmd->vmd_inactive_target = (3 * vmd->vmd_free_target) / 2;
+	if (vmd->vmd_inactive_target > vmd->vmd_free_count / 3)
+		vmd->vmd_inactive_target = vmd->vmd_free_count / 3;
 
 	/*
 	 * Set the default wakeup threshold to be 10% above the minimum
 	 * page limit.  This keeps the steady state out of shortfall.
 	 */
-	vm_pageout_wakeup_thresh = (vm_cnt.v_free_min / 10) * 11;
+	vmd->vmd_pageout_wakeup_thresh = (vmd->vmd_free_min / 10) * 11;
+}
+
+static void
+vm_pageout_init(void)
+{
+	u_int freecount;
+	int i;
+
+	/*
+	 * Initialize some paging parameters.
+	 */
+	if (vm_cnt.v_page_count < 2000)
+		vm_pageout_page_count = 8;
+
+	freecount = 0;
+	for (i = 0; i < vm_ndomains; i++) {
+		struct vm_domain *vmd;
+
+		vm_pageout_init_domain(i);
+		vmd = &vm_dom[i];
+		vm_cnt.v_free_reserved += vmd->vmd_free_reserved;
+		vm_cnt.v_free_target += vmd->vmd_free_target;
+		vm_cnt.v_free_min += vmd->vmd_free_min;
+		vm_cnt.v_inactive_target += vmd->vmd_inactive_target;
+		vm_cnt.v_pageout_free_min += vmd->vmd_pageout_free_min;
+		vm_cnt.v_interrupt_free_min += vmd->vmd_interrupt_free_min;
+		vm_cnt.v_free_severe += vmd->vmd_free_severe;
+		freecount += vmd->vmd_free_count;
+	}
 
 	/*
 	 * Set interval in seconds for active scan.  We want to visit each
@@ -1899,9 +1928,8 @@ vm_pageout_init(void)
 	if (vm_pageout_update_period == 0)
 		vm_pageout_update_period = 600;
 
-	/* XXX does not really belong here */
 	if (vm_page_max_wired == 0)
-		vm_page_max_wired = vm_cnt.v_free_count / 3;
+		vm_page_max_wired = freecount / 3;
 
 	/*
 	 * Target amount of memory to move out of the laundry queue during a
@@ -1945,14 +1973,16 @@ vm_pageout(void)
  * Perform an advisory wakeup of the page daemon.
  */
 void
-pagedaemon_wakeup(void)
+pagedaemon_wakeup(int domain)
 {
+	struct vm_domain *vmd;
 
-	mtx_assert(&vm_page_queue_free_mtx, MA_NOTOWNED);
+	vm_pagequeue_free_assert_unlocked(domain);
+	vmd = &vm_dom[domain];
 
-	if (!vm_pageout_wanted && curthread->td_proc != pageproc) {
-		vm_pageout_wanted = true;
-		wakeup(&vm_pageout_wanted);
+	if (!vmd->vmd_pageout_wanted && curthread->td_proc != pageproc) {
+		vmd->vmd_pageout_wanted = true;
+		wakeup(&vmd->vmd_pageout_wanted);
 	}
 }
 
@@ -1962,22 +1992,24 @@ pagedaemon_wakeup(void)
  * This function returns with the free queues mutex unlocked.
  */
 void
-pagedaemon_wait(int pri, const char *wmesg)
+pagedaemon_wait(int domain, int pri, const char *wmesg)
 {
+	struct vm_domain *vmd;
 
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	vm_pagequeue_free_assert_locked(domain);
+	vmd = &vm_dom[domain];
 
 	/*
-	 * vm_pageout_wanted may have been set by an advisory wakeup, but if the
-	 * page daemon is running on a CPU, the wakeup will have been lost.
+	 * vmd_pageout_wanted may have been set by an advisory wakeup, but if
+	 * the page daemon is running on a CPU, the wakeup will have been lost.
 	 * Thus, deliver a potentially spurious wakeup to ensure that the page
 	 * daemon has been notified of the shortage.
 	 */
-	if (!vm_pageout_wanted || !vm_pages_needed) {
-		vm_pageout_wanted = true;
-		wakeup(&vm_pageout_wanted);
+	if (!vmd->vmd_pageout_wanted || !vmd->vmd_pages_needed) {
+		vmd->vmd_pageout_wanted = true;
+		wakeup(&vmd->vmd_pageout_wanted);
 	}
-	vm_pages_needed = true;
-	msleep(&vm_cnt.v_free_count, &vm_page_queue_free_mtx, PDROP | pri,
+	vmd->vmd_pages_needed = true;
+	msleep(&vmd->vmd_free_count, &vmd->vmd_pagequeue_free_mtx, PDROP | pri,
 	    wmesg, 0);
 }

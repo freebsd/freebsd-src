@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_pagequeue.h>
 
 _Static_assert(sizeof(long) * NBBY >= VM_PHYSSEG_MAX,
     "Too many physsegs.");
@@ -945,7 +946,7 @@ vm_phys_free_contig(vm_page_t m, u_long npages)
 	 * Avoid unnecessary coalescing by freeing the pages in the largest
 	 * possible power-of-two-sized subsets.
 	 */
-	vm_pagequeue_free_assert_locked(vm_phys_domidx(m));
+	vm_pagequeue_free_assert_locked(vm_phys_domain(m));
 	for (;; npages -= n) {
 		/*
 		 * Unsigned "min" is used here so that "order" is assigned
