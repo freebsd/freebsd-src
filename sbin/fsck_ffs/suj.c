@@ -1892,8 +1892,7 @@ cg_write(struct suj_cg *sc)
 	 * before writing the block.
 	 */
 	fs->fs_cs(fs, sc->sc_cgx) = cgp->cg_cs;
-	if (bwrite(disk, fsbtodb(fs, cgtod(fs, sc->sc_cgx)), sc->sc_cgbuf,
-	    fs->fs_bsize) == -1)
+	if (cgput(disk, cgp) == -1)
 		err_suj("Unable to write cylinder group %d\n", sc->sc_cgx);
 }
 
