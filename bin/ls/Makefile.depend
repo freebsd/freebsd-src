@@ -9,7 +9,6 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libutil \
-	lib/libxo \
 	lib/ncurses/ncursesw \
 
 

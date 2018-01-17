@@ -47,17 +47,14 @@ int	 revsizecmp(const FTSENT *, const FTSENT *);
 
 void	 printcol(const DISPLAY *);
 void	 printlong(const DISPLAY *);
-int	 printname(const char *, const char *);
+int	 printname(const char *);
 void	 printscol(const DISPLAY *);
 void	 printstream(const DISPLAY *);
 void	 usage(void);
-int	 prn_normal(const char *, const char *);
-char *	 getname(const char *);
+int	 prn_normal(const char *);
 size_t	 len_octal(const char *, int);
-int	 prn_octal(const char *, const char *);
-char *	 get_octal(const char *);
-int	 prn_printable(const char *, const char *);
-char *	 get_printable(const char *);
+int	 prn_octal(const char *);
+int	 prn_printable(const char *);
 #ifdef COLORLS
 void	 parsecolors(const char *cs);
 void	 colorquit(int);
