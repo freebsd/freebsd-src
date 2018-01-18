@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/ufsmount.h>
 #endif
 #include <err.h>
+#include <getopt.h>
 #include <libutil.h>
 #include <locale.h>
 #ifdef MOUNT_CHAR_DEVS
@@ -107,6 +108,12 @@ static int	thousands;
 static struct	ufs_args mdev;
 #endif
 
+static const struct option long_options[] =
+{
+	{ "si", no_argument, NULL, 'H' },
+	{ NULL, no_argument, NULL, 0 },
+};
+
 int
 main(int argc, char *argv[])
 {
@@ -142,7 +149,8 @@ main(int argc, char *argv[])
 	if (argc < 0)
 		exit(1);
 
-	while ((ch = getopt(argc, argv, "abcgHhiklmnPt:T,")) != -1)
+	while ((ch = getopt_long(argc, argv, "+abcgHhiklmnPt:T,", long_options,
+	    NULL)) != -1)
 		switch (ch) {
 		case 'a':
 			aflag = 1;
