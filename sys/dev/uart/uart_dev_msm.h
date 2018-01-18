@@ -177,6 +177,11 @@ enum UART_DM_BITS_PER_CHAR {
 
 /* UART Data Mover Enable Register */
 #define	UART_DM_DMEN				0x3c
+/*
+ * Single-Character mode for RX channel (every character received
+ * is zero-padded into a word).
+ */
+#define	 UART_DM_DMEN_RX_SC_ENABLE		(1 << 5)
 
 /* Number of characters for Transmission */
 #define	UART_DM_NO_CHARS_FOR_TX			0x40
