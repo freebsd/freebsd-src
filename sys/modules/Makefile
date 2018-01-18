@@ -79,6 +79,7 @@ SUBDIR=	\
 	cas \
 	${_cbb} \
 	cc \
+	${_ccp} \
 	cd9660 \
 	cd9660_iconv \
 	${_ce} \
@@ -574,6 +575,7 @@ _bxe=		bxe
 .endif
 _cardbus=	cardbus
 _cbb=		cbb
+_ccp=		ccp
 _cpuctl=	cpuctl
 _cpufreq=	cpufreq
 _cs=		cs
