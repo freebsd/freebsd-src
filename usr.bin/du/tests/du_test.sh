@@ -141,6 +141,20 @@ m_flag_body()
 	atf_check -o inline:'1\tA\n1\tB\n1024\tC\n' du -Am A B C
 }
 
+atf_test_case si_flag
+si_flag_head()
+{
+	atf_set "descr" "Verify --si output"
+}
+si_flag_body()
+{
+	atf_check truncate -s 1500000 A
+	atf_check truncate -s 1572864 B
+
+	atf_check -o inline:'1.4M\tA\n1.5M\tB\n' du -Ah A B
+	atf_check -o inline:'1.5M\tA\n1.6M\tB\n' du -A --si A B
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case A_flag
@@ -150,4 +164,5 @@ atf_init_test_cases()
 	atf_add_test_case h_flag
 	atf_add_test_case k_flag
 	atf_add_test_case m_flag
+	atf_add_test_case si_flag
 }
