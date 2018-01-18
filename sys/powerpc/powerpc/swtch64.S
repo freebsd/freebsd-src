@@ -160,6 +160,7 @@ blocked_loop:
 	
 	ld	%r17,TD_PCB(%r13)	/* Get new PCB */
 	ld	%r1,PCB_SP(%r17)	/* Load the stack pointer */
+	addi	%r1,%r1,-48		/* Remember about cpu_switch stack frame */
 
 	/* Release old thread now that we have a stack pointer set up */
 	cmpdi	%r14,0
