@@ -571,11 +571,11 @@ nmi_fromuserspace:
 	cmpq	$~0,%rax
 	je	1f
 	movq	%rax,%cr3
-	movq	PCPU(CURPCB),%rdi
+1:	movq	PCPU(CURPCB),%rdi
 	testq	%rdi,%rdi
 	jz	3f
 	orl	$PCB_FULL_IRET,PCB_FLAGS(%rdi)
-1:	testb	$CPUID_STDEXT_FSGSBASE,cpu_stdext_feature(%rip)
+	testb	$CPUID_STDEXT_FSGSBASE,cpu_stdext_feature(%rip)
 	jz	3f
 	cmpw	$KUF32SEL,TF_FS(%rsp)
 	jne	2f
