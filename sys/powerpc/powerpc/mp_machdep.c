@@ -81,12 +81,12 @@ machdep_ap_bootstrap(void)
 		__asm __volatile("or 27,27,27");
 	__asm __volatile("or 6,6,6");
 
+	/* Give platform code a chance to do anything necessary */
+	platform_smp_ap_init();
+
 	/* Initialize DEC and TB, sync with the BSP values */
 	platform_smp_timebase_sync(ap_timebase, 1);
 	decr_ap_init();
-
-	/* Give platform code a chance to do anything necessary */
-	platform_smp_ap_init();
 
 	/* Serialize console output and AP count increment */
 	mtx_lock_spin(&ap_boot_mtx);
