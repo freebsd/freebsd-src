@@ -2512,7 +2512,7 @@ unlock:
 			else if (vm_reserv_is_page_free(m))
 				order = 0;
 #endif
-			vm_pagequeue_free_lock(domain);
+			vm_pagequeue_free_unlock(domain);
 			if (order == VM_NFREEORDER)
 				error = EINVAL;
 		}
