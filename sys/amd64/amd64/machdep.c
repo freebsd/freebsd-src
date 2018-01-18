@@ -188,12 +188,6 @@ struct init_ops init_ops = {
 };
 
 /*
- * The file "conf/ldscript.amd64" defines the symbol "kernphys".  Its value is
- * the physical address at which the kernel is loaded.
- */
-extern char kernphys[];
-
-/*
  * Physical address of the EFI System Table. Stashed from the metadata hints
  * passed into the kernel and used by the EFI code to call runtime services.
  */

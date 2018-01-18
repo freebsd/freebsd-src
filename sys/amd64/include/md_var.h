@@ -39,6 +39,12 @@
 extern uint64_t	*vm_page_dump;
 extern int	hw_lower_amd64_sharedpage;
 
+/*
+ * The file "conf/ldscript.amd64" defines the symbol "kernphys".  Its
+ * value is the physical address at which the kernel is loaded.
+ */
+extern char kernphys[];
+
 struct	savefpu;
 struct	sysentvec;
 
