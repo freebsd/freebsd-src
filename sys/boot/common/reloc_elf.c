@@ -115,6 +115,7 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 /* XXX, definitions not available on i386. */
 #define	R_X86_64_64		1
 #define	R_X86_64_RELATIVE	8
+#define	R_X86_64_IRELATIVE	37
 
 	switch (rtype) {
 	case R_X86_64_64:		/* S + A */
@@ -128,6 +129,9 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 		addr = (Elf_Addr)addend + relbase;
 		val = addr;
 		*where = val;
+		break;
+	case R_X86_64_IRELATIVE:
+		/* leave it to kernel */
 		break;
 	default:
 		printf("\nunhandled relocation type %u\n", (u_int)rtype);
@@ -173,6 +177,7 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 #define R_386_32	1	/* Add symbol value. */
 #define R_386_GLOB_DAT	6	/* Set GOT entry to data address. */
 #define R_386_RELATIVE	8	/* Add load address of shared object. */
+#define	R_386_IRELATIVE	42
 
 	switch (rtype) {
 	case R_386_RELATIVE:
@@ -185,6 +190,9 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 			return (ESRCH);
 		val = addr + addend;
 		*where = val;
+		break;
+	case R_386_IRELATIVE:
+		/* leave it to kernel */
 		break;
 	default:
 		printf("\nunhandled relocation type %u\n", (u_int)rtype);
