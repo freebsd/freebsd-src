@@ -7562,8 +7562,6 @@ pmap_pti_free_page(vm_page_t m)
 	return (true);
 }
 
-extern char kernphys[], etext[];
-
 static void
 pmap_pti_init(void)
 {
