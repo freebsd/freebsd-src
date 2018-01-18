@@ -67,7 +67,7 @@ ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
 		*where = relbase + addend;
 		break;
 	default:
-		warnx("unhandled relocation type %lu", rtype);
+		warnx("unhandled relocation type %u", rtype);
 	}
 	return (0);
 }
