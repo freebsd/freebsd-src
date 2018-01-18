@@ -191,7 +191,7 @@
 	movq	%rax,%cr3
 	movq	PCPU(RSP0),%rax
 	subq	$PTI_SIZE,%rax
-	MOVE_STACKS	(PTI_SIZE / 8) - 1 + \has_err
+	MOVE_STACKS	((PTI_SIZE / 8) - 1 + \has_err)
 	movq	%rax,%rsp
 	popq	%rdx
 	popq	%rax
