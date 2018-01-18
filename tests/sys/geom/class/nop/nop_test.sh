@@ -27,14 +27,14 @@
 MD_DEVS="md.devs"
 PLAINFILES=plainfiles
 
-atf_test_case diskinfo cleanup
-diskinfo_head()
+atf_test_case preserve_props cleanup
+preserve_props_head()
 {
-	atf_set "descr" "gnop should preserve diskinfo's basic properties"
+	atf_set "descr" "gnop should preserve basic GEOM properties"
 	atf_set "require.user" "root"
 	atf_set "timeout" 15
 }
-diskinfo_body()
+preserve_props_body()
 {
 	load_gnop
 	us=$(alloc_md)
@@ -49,8 +49,51 @@ diskinfo_body()
 	atf_check_equal "$md_mediasize" "$nop_mediasize"
 	atf_check_equal "$md_stripesize" "$nop_stripesize"
 }
-diskinfo_cleanup()
+preserve_props_cleanup()
 {
+	common_cleanup
+}
+
+atf_test_case preserve_disk_props cleanup
+preserve_disk_props_head()
+{
+	atf_set "descr" "gnop should preserve properties for disks"
+	atf_set "require.user" "root"
+	atf_set "require.config" "disks"
+	atf_set "timeout" 15
+}
+preserve_disk_props_body()
+{
+	load_gnop
+	disks=`atf_config_get disks`
+	disk=${disks%% *}
+	if [ -z "$disk" ]; then
+		atf_skip "Must define disks (see tests(7))"
+	fi
+	atf_check gnop create ${disk}
+
+	disk_ident=$(diskinfo -s ${disk})
+	disk_physpath=$(diskinfo -p ${disk})
+	disk_descr=$(diskinfo -v ${disk} | awk '/Disk descr/ {print $1}')
+	disk_trim=$(diskinfo -v ${disk} | awk '/TRIM.UNMAP/ {print $1}')
+	disk_rotrate=$(diskinfo -v ${disk} | awk '/Rotation rate/ {print $1}')
+	disk_zonemode=$(diskinfo -v ${disk} | awk '/Zone Mode/ {print $1}')
+	nop_ident=$(diskinfo -s ${disk}.nop)
+	nop_physpath=$(diskinfo -p ${disk}.nop)
+	nop_descr=$(diskinfo -v ${disk}.nop | awk '/Disk descr/ {print $1}')
+	nop_trim=$(diskinfo -v ${disk}.nop | awk '/TRIM.UNMAP/ {print $1}')
+	nop_rotrate=$(diskinfo -v ${disk}.nop | awk '/Rotation/ {print $1}')
+	nop_zonemode=$(diskinfo -v ${disk}.nop | awk '/Zone Mode/ {print $1}')
+	atf_check_equal "$disk_ident" "$nop_ident"
+	atf_check_equal "$disk_physpath" "$nop_physpath"
+	atf_check_equal "$disk_descr" "$nop_descr"
+	atf_check_equal "$disk_trim" "$nop_trim"
+	atf_check_equal "$disk_rotrate" "$nop_rotrate"
+	atf_check_equal "$disk_zonemode" "$nop_zonemode"
+}
+preserve_disk_props_cleanup()
+{
+	disk_cleanup
 	common_cleanup
 }
 
@@ -77,6 +120,54 @@ io_body()
 }
 io_cleanup()
 {
+	common_cleanup
+}
+
+atf_test_case physpath cleanup
+physpath_head()
+{
+	atf_set "descr" "Test gnop's -z option"
+	atf_set "require.user" "root"
+	atf_set "timeout" 15
+}
+physpath_body()
+{
+	load_gnop
+	us=$(alloc_md)
+	physpath="some/physical/path"
+	atf_check gnop create -z $physpath /dev/${us}
+	gnop_physpath=$(diskinfo -p ${us}.nop)
+	atf_check_equal "$physpath" "$gnop_physpath"
+}
+physpath_cleanup()
+{
+	common_cleanup
+}
+
+atf_test_case physpath_blank cleanup
+physpath_blank_head()
+{
+	atf_set "descr" "gnop can set physical path to the empty string"
+	atf_set "require.user" "root"
+	atf_set "require.config" "disks"
+	atf_set "timeout" 15
+}
+physpath_blank_body()
+{
+	load_gnop
+	disks=`atf_config_get disks`
+	disk=${disks%% *}
+	if [ -z "$disk" ]; then
+		atf_skip "Must define disks (see tests(7))"
+	fi
+
+	atf_check gnop create -z "" ${disk}
+	gnop_physpath=$(diskinfo -p ${disk}.nop)
+	atf_check_equal "" "$gnop_physpath"
+}
+physpath_blank_cleanup()
+{
+	disk_cleanup
 	common_cleanup
 }
 
@@ -136,7 +227,10 @@ stripesize_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case io
-	atf_add_test_case diskinfo
+	atf_add_test_case physpath
+	atf_add_test_case physpath_blank
+	atf_add_test_case preserve_props
+	atf_add_test_case preserve_disk_props
 	atf_add_test_case stripesize
 	atf_add_test_case size
 }
@@ -167,6 +261,15 @@ common_cleanup()
 		rm ${PLAINFILES}
 	fi
 	true
+}
+
+disk_cleanup()
+{
+	disks=`atf_config_get disks`
+	disk=${disks%% *}
+	if [ -n "$disk" ]; then
+		gnop destroy -f ${disk}.nop 2>/dev/null
+	fi
 }
 
 load_gnop()
