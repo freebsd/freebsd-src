@@ -59,10 +59,10 @@ ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
 	addend = rela->r_addend;
 	rtype = ELF_R_TYPE(rela->r_info);
 
-	 if ((char *)where < (char *)dest || (char *)where >= (char *)dest + len)
+	if ((char *)where < (char *)dest || (char *)where >= (char *)dest + len)
 		return (0);
 
-	switch(rtype) {
+	switch (rtype) {
 	case R_PPC_RELATIVE: /* word32 B + A */
 		*where = relbase + addend;
 		break;
