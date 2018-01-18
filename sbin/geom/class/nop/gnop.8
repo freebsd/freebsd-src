@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2015
+.Dd January 17, 2018
 .Dt GNOP 8
 .Os
 .Sh NAME
@@ -42,6 +42,7 @@
 .Op Fl s Ar size
 .Op Fl S Ar secsize
 .Op Fl w Ar wfailprob
+.Op Fl z Ar physpath
 .Ar dev ...
 .Nm
 .Cm configure
@@ -132,6 +133,8 @@ Sector size of the transparent provider.
 Specifies write failure probability in percent.
 .It Fl v
 Be more verbose.
+.It Fl z Ar physpath
+Physical path of the transparent provider.
 .El
 .Sh SYSCTL VARIABLES
 The following
