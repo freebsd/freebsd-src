@@ -410,7 +410,6 @@ IDTVEC(fast_syscall)
 	movq	%r14,TF_R14(%rsp)	/* C preserved */
 	movq	%r15,TF_R15(%rsp)	/* C preserved */
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
-	cld
 	FAKE_MCOUNT(TF_RIP(%rsp))
 	movq	PCPU(CURTHREAD),%rdi
 	movq	%rsp,TD_FRAME(%rdi)
