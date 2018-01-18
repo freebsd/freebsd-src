@@ -87,6 +87,7 @@ extern	struct pcpu __pcpu[];
 
 /* Temporary variables for init_secondary()  */
 char *doublefault_stack;
+char *mce_stack;
 char *nmi_stack;
 
 /*
@@ -212,6 +213,10 @@ init_secondary(void)
 	np = ((struct nmi_pcpu *) &nmi_stack[PAGE_SIZE]) - 1;
 	common_tss[cpu].tss_ist2 = (long) np;
 
+	/* The MC# stack runs on IST3. */
+	np = ((struct nmi_pcpu *) &mce_stack[PAGE_SIZE]) - 1;
+	common_tss[cpu].tss_ist3 = (long) np;
+
 	/* Prepare private GDT */
 	gdt_segs[GPROC0_SEL].ssd_base = (long) &common_tss[cpu];
 	for (x = 0; x < NGDT; x++) {
@@ -250,6 +255,11 @@ init_secondary(void)
 	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful : 0;
 
 	/* Save the per-cpu pointer for use by the NMI handler. */
+	np = ((struct nmi_pcpu *) &nmi_stack[PAGE_SIZE]) - 1;
+	np->np_pcpu = (register_t) pc;
+
+	/* Save the per-cpu pointer for use by the MC# handler. */
+	np = ((struct nmi_pcpu *) &mce_stack[PAGE_SIZE]) - 1;
 	np->np_pcpu = (register_t) pc;
 
 	wrmsr(MSR_FSBASE, 0);		/* User value */
@@ -346,6 +356,8 @@ native_start_all_aps(void)
 		    kstack_pages * PAGE_SIZE, M_WAITOK | M_ZERO);
 		doublefault_stack = (char *)kmem_malloc(kernel_arena,
 		    PAGE_SIZE, M_WAITOK | M_ZERO);
+		mce_stack = (char *)kmem_malloc(kernel_arena, PAGE_SIZE,
+		    M_WAITOK | M_ZERO);
 		nmi_stack = (char *)kmem_malloc(kernel_arena, PAGE_SIZE,
 		    M_WAITOK | M_ZERO);
 		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,

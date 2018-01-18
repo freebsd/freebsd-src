@@ -220,11 +220,6 @@ trap(struct trapframe *frame)
 #endif
 	}
 
-	if (type == T_MCHK) {
-		mca_intr();
-		return;
-	}
-
 	if ((frame->tf_rflags & PSL_I) == 0) {
 		/*
 		 * Buggy application or kernel code has disabled
