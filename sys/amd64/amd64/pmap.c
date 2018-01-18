@@ -7596,6 +7596,9 @@ pmap_pti_init(void)
 		/* NMI stack IST 2 */
 		va = common_tss[i].tss_ist2 + sizeof(struct nmi_pcpu);
 		pmap_pti_add_kva_locked(va - PAGE_SIZE, va, false);
+		/* MC# stack IST 3 */
+		va = common_tss[i].tss_ist3 + sizeof(struct nmi_pcpu);
+		pmap_pti_add_kva_locked(va - PAGE_SIZE, va, false);
 	}
 	pmap_pti_add_kva_locked((vm_offset_t)kernphys + KERNBASE,
 	    (vm_offset_t)etext, true);
