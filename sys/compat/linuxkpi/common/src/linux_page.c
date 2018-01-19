@@ -63,19 +63,14 @@ __FBSDID("$FreeBSD$");
 #include <linux/preempt.h>
 #include <linux/fs.h>
 
-#if defined(__amd64__) || defined(__aarch64__) || defined(__riscv)
-#define	LINUXKPI_HAVE_DMAP
-#else
-#undef	LINUXKPI_HAVE_DMAP
-#endif
-
 void *
 linux_page_address(struct page *page)
 {
 
 	if (page->object != kmem_object && page->object != kernel_object) {
-#ifdef LINUXKPI_HAVE_DMAP
-		return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page)));
+#ifdef PHYS_TO_DMAP
+		return (PMAP_HAS_DMAP ?
+		    ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page))) : NULL);
 #else
 		return (NULL);
 #endif
@@ -87,7 +82,8 @@ linux_page_address(struct page *page)
 vm_page_t
 linux_alloc_pages(gfp_t flags, unsigned int order)
 {
-#ifdef LINUXKPI_HAVE_DMAP
+#ifdef PHYS_TO_DMAP
+	KASSERT(PMAP_HAS_DMAP, ("Direct map unavailable"));
 	unsigned long npages = 1UL << order;
 	int req = (flags & M_ZERO) ? (VM_ALLOC_ZERO | VM_ALLOC_NOOBJ |
 	    VM_ALLOC_NORMAL) : (VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL);
@@ -145,23 +141,27 @@ retry:
 void
 linux_free_pages(vm_page_t page, unsigned int order)
 {
-#ifdef LINUXKPI_HAVE_DMAP
-	unsigned long npages = 1UL << order;
-	unsigned long x;
+#ifdef PHYS_TO_DMAP
+	if (PMAP_HAS_DMAP) {
+		unsigned long npages = 1UL << order;
+		unsigned long x;
 
-	for (x = 0; x != npages; x++) {
-		vm_page_t pgo = page + x;
+		for (x = 0; x != npages; x++) {
+			vm_page_t pgo = page + x;
 
-		vm_page_lock(pgo);
-		vm_page_free(pgo);
-		vm_page_unlock(pgo);
+			vm_page_lock(pgo);
+			vm_page_free(pgo);
+			vm_page_unlock(pgo);
+		}
+	} else {
+#endif
+		vm_offset_t vaddr;
+
+		vaddr = (vm_offset_t)page_address(page);
+
+		linux_free_kmem(vaddr, order);
+#ifdef PHYS_TO_DMAP
 	}
-#else
-	vm_offset_t vaddr;
-
-	vaddr = (vm_offset_t)page_address(page);
-
-	linux_free_kmem(vaddr, order);
 #endif
 }
 
