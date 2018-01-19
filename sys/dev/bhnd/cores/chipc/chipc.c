@@ -295,13 +295,13 @@ chipc_add_children(struct chipc_softc *sc)
 	 * attached directly to the bhnd(4) bus -- not chipc.
 	 */
 	if (sc->caps.pmu && !sc->caps.aob) {
-		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_pmu", 0);
+		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_pmu", -1);
 		if (child == NULL) {
 			device_printf(sc->dev, "failed to add pmu\n");
 			return (ENXIO);
 		}
 	} else if (sc->caps.pwr_ctrl) {
-		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_pwrctl", 0);
+		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_pwrctl", -1);
 		if (child == NULL) {
 			device_printf(sc->dev, "failed to add pwrctl\n");
 			return (ENXIO);
@@ -309,7 +309,7 @@ chipc_add_children(struct chipc_softc *sc)
 	}
 
 	/* GPIO */
-	child = BUS_ADD_CHILD(sc->dev, 0, "gpio", 0);
+	child = BUS_ADD_CHILD(sc->dev, 0, "gpio", -1);
 	if (child == NULL) {
 		device_printf(sc->dev, "failed to add gpio\n");
 		return (ENXIO);
