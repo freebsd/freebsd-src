@@ -497,6 +497,29 @@ property::property(text_input_buffer &input,
 				return;
 			case '/':
 			{
+				if (input.consume("/incbin/(\""))
+				{
+					auto loc = input.location();
+					std::string filename = input.parse_to('"');
+					if (!(valid = input.consume('"')))
+					{
+						loc.report_error("Syntax error, expected '\"' to terminate /incbin/(");
+						return;
+					}
+					property_value v;
+					if (!(valid = input.read_binary_file(filename, v.byte_data)))
+					{
+						input.parse_error("Cannot open binary include file");
+						return;
+					}
+					if (!(valid &= input.consume(')')))
+					{
+						input.parse_error("Syntax error, expected ')' to terminate /incbin/(");
+						return;
+					}
+					values.push_back(v);
+					break;
+				}
 				unsigned long long bits = 0;
 				valid = input.consume("/bits/");
 				input.next_token();
@@ -999,7 +1022,7 @@ node::get_property(const string &key)
 }
 
 void
-node::merge_node(node_ptr other)
+node::merge_node(node_ptr &other)
 {
 	for (auto &l : other->labels)
 	{
@@ -1034,7 +1057,7 @@ node::merge_node(node_ptr other)
 		{
 			if (i->name == c->name && i->unit_address == c->unit_address)
 			{
-				i->merge_node(std::move(c));
+				i->merge_node(c);
 				found = true;
 				break;
 			}
@@ -1207,8 +1230,67 @@ device_tree::collect_names()
 	collect_names_recursive(root, p);
 }
 
+property_ptr
+device_tree::assign_phandle(node *n, uint32_t &phandle)
+{
+	// If there is an existing phandle, use it
+	property_ptr p = n->get_property("phandle");
+	if (p == 0)
+	{
+		p = n->get_property("linux,phandle");
+	}
+	if (p == 0)
+	{
+		// Otherwise insert a new phandle node
+		property_value v;
+		while (used_phandles.find(phandle) != used_phandles.end())
+		{
+			// Note that we only don't need to
+			// store this phandle in the set,
+			// because we are monotonically
+			// increasing the value of phandle and
+			// so will only ever revisit this value
+			// if we have used 2^32 phandles, at
+			// which point our blob won't fit in
+			// any 32-bit system and we've done
+			// something badly wrong elsewhere
+			// already.
+			phandle++;
+		}
+		push_big_endian(v.byte_data, phandle++);
+		if (phandle_node_name == BOTH || phandle_node_name == LINUX)
+		{
+			p.reset(new property("linux,phandle"));
+			p->add_value(v);
+			n->add_property(p);
+		}
+		if (phandle_node_name == BOTH || phandle_node_name == EPAPR)
+		{
+			p.reset(new property("phandle"));
+			p->add_value(v);
+			n->add_property(p);
+		}
+	}
+
+	return (p);
+}
+
 void
-device_tree::resolve_cross_references()
+device_tree::assign_phandles(node_ptr &n, uint32_t &next)
+{
+	if (!n->labels.empty())
+	{
+		assign_phandle(n.get(), next);
+	}
+
+	for (auto &c : n->child_nodes())
+	{
+		assign_phandles(c, next);
+	}
+}
+
+void
+device_tree::resolve_cross_references(uint32_t &phandle)
 {
 	for (auto *pv : cross_references)
 	{
@@ -1252,7 +1334,6 @@ device_tree::resolve_cross_references()
 	});
 	assert(sorted_phandles.size() == fixups.size());
 
-	uint32_t phandle = 1;
 	for (auto &i : sorted_phandles)
 	{
 		string target_name = i.get().val.string_data;
@@ -1334,43 +1415,7 @@ device_tree::resolve_cross_references()
 			}
 		}
 		// If there is an existing phandle, use it
-		property_ptr p = target->get_property("phandle");
-		if (p == 0)
-		{
-			p = target->get_property("linux,phandle");
-		}
-		if (p == 0)
-		{
-			// Otherwise insert a new phandle node
-			property_value v;
-			while (used_phandles.find(phandle) != used_phandles.end())
-			{
-				// Note that we only don't need to
-				// store this phandle in the set,
-				// because we are monotonically
-				// increasing the value of phandle and
-				// so will only ever revisit this value
-				// if we have used 2^32 phandles, at
-				// which point our blob won't fit in
-				// any 32-bit system and we've done
-				// something badly wrong elsewhere
-				// already.
-				phandle++;
-			}
-			push_big_endian(v.byte_data, phandle++);
-			if (phandle_node_name == BOTH || phandle_node_name == LINUX)
-			{
-				p.reset(new property("linux,phandle"));
-				p->add_value(v);
-				target->add_property(p);
-			}
-			if (phandle_node_name == BOTH || phandle_node_name == EPAPR)
-			{
-				p.reset(new property("phandle"));
-				p->add_value(v);
-				target->add_property(p);
-			}
-		}
+		property_ptr p = assign_phandle(target, phandle);
 		p->begin()->push_to_buffer(i.get().val.byte_data);
 		assert(i.get().val.byte_data.size() == 4);
 	}
@@ -1644,6 +1689,72 @@ device_tree::node_path::to_string() const
 	return path;
 }
 
+node_ptr
+device_tree::create_fragment_wrapper(node_ptr &node, int &fragnum)
+{
+	// In a plugin, we can massage these non-/ root nodes into into a fragment
+	std::string fragment_address = "fragment@" + std::to_string(fragnum);
+	++fragnum;
+
+	std::vector<property_ptr> symbols;
+
+	// Intentionally left empty
+	node_ptr newroot = node::create_special_node("", symbols);
+	node_ptr wrapper = node::create_special_node("__overlay__", symbols);
+
+	// Generate the fragment with target = <&name>
+	property_value v;
+	v.string_data = node->name;
+	v.type = property_value::PHANDLE;
+	auto prop = std::make_shared<property>(std::string("target"));
+	prop->add_value(v);
+	symbols.push_back(prop);
+
+	node_ptr fragment = node::create_special_node(fragment_address, symbols);
+
+	wrapper->merge_node(node);
+	fragment->add_child(std::move(wrapper));
+	newroot->add_child(std::move(fragment));
+	return newroot;
+}
+
+node_ptr
+device_tree::generate_root(node_ptr &node, int &fragnum)
+{
+
+	string name = node->name;
+	if (name == string())
+	{
+		return std::move(node);
+	}
+	else if (!is_plugin)
+	{
+		return nullptr;
+	}
+
+	return create_fragment_wrapper(node, fragnum);
+}
+
+void
+device_tree::reassign_fragment_numbers(node_ptr &node, int &delta)
+{
+
+	for (auto &c : node->child_nodes())
+	{
+		if (c->name == std::string("fragment"))
+		{
+			int current_address = std::stoi(c->unit_address, nullptr, 16);
+			std::ostringstream new_address;
+			current_address += delta;
+			// It's possible that we hopped more than one somewhere, so just reset
+			// delta to the next in sequence.
+			delta = current_address + 1;
+			new_address << std::hex << current_address;
+			c->unit_address = new_address.str();
+		}
+	}
+}
+
 void
 device_tree::parse_dts(const string &fn, FILE *depfile)
 {
@@ -1665,6 +1776,7 @@ device_tree::parse_dts(const string &fn, FILE *depfile)
 	                        dirname(fn),
 	                        depfile);
 	bool read_header = false;
+	int fragnum = 0;
 	parse_file(input, roots, read_header);
 	switch (roots.size())
 	{
@@ -1673,18 +1785,36 @@ device_tree::parse_dts(const string &fn, FILE *depfile)
 			input.parse_error("Failed to find root node /.");
 			return;
 		case 1:
-			root = std::move(roots[0]);
+			root = generate_root(roots[0], fragnum);
+			if (!root)
+			{
+				valid = false;
+				input.parse_error("Failed to find root node /.");
+				return;
+			}
 			break;
 		default:
 		{
-			root = std::move(roots[0]);
+			root = generate_root(roots[0], fragnum);
+			if (!root)
+			{
+				valid = false;
+				input.parse_error("Failed to find root node /.");
+				return;
+			}
 			for (auto i=++(roots.begin()), e=roots.end() ; i!=e ; ++i)
 			{
 				auto &node = *i;
 				string name = node->name;
 				if (name == string())
 				{
-					root->merge_node(std::move(node));
+					if (is_plugin)
+					{
+						// Re-assign any fragment numbers based on a delta of
+						// fragnum before we merge it
+						reassign_fragment_numbers(node, fragnum);
+					}
+					root->merge_node(node);
 				}
 				else
 				{
@@ -1696,18 +1826,34 @@ device_tree::parse_dts(const string &fn, FILE *depfile)
 					}
 					if (existing == node_names.end())
 					{
-						fprintf(stderr, "Unable to merge node: %s\n", name.c_str());
+						if (is_plugin)
+						{
+							auto fragment = create_fragment_wrapper(node, fragnum);
+							root->merge_node(fragment);
+						}
+						else
+						{
+							fprintf(stderr, "Unable to merge node: %s\n", name.c_str());
+						}
 					}
 					else
 					{
-						existing->second->merge_node(std::move(node));
+						existing->second->merge_node(node);
 					}
 				}
 			}
 		}
 	}
 	collect_names();
-	resolve_cross_references();
+	uint32_t phandle = 1;
+	// If we're writing symbols, go ahead and assign phandles to the entire
+	// tree. We'll do this before we resolve cross references, just to keep
+	// order semi-predictable and stable.
+	if (write_symbols)
+	{
+		assign_phandles(root, phandle);
+	}
+	resolve_cross_references(phandle);
 	if (write_symbols)
 	{
 		std::vector<property_ptr> symbols;
@@ -1769,21 +1915,72 @@ device_tree::parse_dts(const string &fn, FILE *depfile)
 			}
 			symbols.clear();
 			// If we have any resolved phandle references in this plugin, then
-			// we must leave a property in the /__local_fixups__ node whose key
-			// is 'fixup' and whose value is as described above.
+			// we must create a child in the __local_fixups__ node whose path
+			// matches the node path from the root and whose value contains the
+			// location of the reference within a property.
+			
+			// Create a local_fixups node that is initially empty.
+			node_ptr local_fixups = node::create_special_node("__local_fixups__", symbols);
 			for (auto &i : fixups)
 			{
 				if (!i.val.is_phandle())
 				{
 					continue;
 				}
-				symbols.push_back(create_fixup_entry(i, "fixup"));
+				node *n = local_fixups.get();
+				for (auto &p : i.path)
+				{
+					// Skip the implicit root
+					if (p.first.empty())
+					{
+						continue;
+					}
+					bool found = false;
+					for (auto &c : n->child_nodes())
+					{
+						if (c->name == p.first)
+						{
+							n = c.get();
+							found = true;
+							break;
+						}
+					}
+					if (!found)
+					{
+						n->add_child(node::create_special_node(p.first, symbols));
+						n = (--n->child_end())->get();
+					}
+				}
+				assert(n);
+				property_value pv;
+				push_big_endian(pv.byte_data, static_cast<uint32_t>(i.prop->offset_of_value(i.val)));
+				pv.type = property_value::BINARY;
+				auto key = i.prop->get_key();
+				property_ptr prop = n->get_property(key);
+				// If we don't have an existing property then create one and
+				// use this property value
+				if (!prop)
+				{
+					prop = std::make_shared<property>(std::move(key));
+					n->add_property(prop);
+					prop->add_value(pv);
+				}
+				else
+				{
+					// If we do have an existing property value, try to append
+					// this value.
+					property_value &old_val = *(--prop->end());
+					if (!old_val.try_to_merge(pv))
+					{
+						prop->add_value(pv);
+					}
+				}
 			}
 			// We've iterated over all fixups, but only emit the
 			// __local_fixups__ if we found some that were resolved internally.
-			if (!symbols.empty())
+			if (local_fixups->child_begin() != local_fixups->child_end())
 			{
-				root->add_child(node::create_special_node("__local_fixups__", symbols));
+				root->add_child(std::move(local_fixups));
 			}
 		}
 	}

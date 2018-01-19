@@ -206,9 +206,9 @@ text_input_buffer::handle_include()
 	{
 		next_token();
 		string name = parse_property_name();
-		if (defines.count(name) > 0)
+		if (defines.count(name) == 0)
 		{
-			reallyInclude = true;
+			reallyInclude = false;
 		}
 		consume('/');
 	}
@@ -250,6 +250,48 @@ text_input_buffer::handle_include()
 		return;
 	}
 	input_stack.push(std::move(include_buffer));
+}
+
+bool text_input_buffer::read_binary_file(const std::string &filename, byte_buffer &b)
+{
+	bool try_include_paths = true;
+	string include_file;
+	if (filename[0] == '/')
+	{
+		include_file = filename;
+		// Don't try include paths if we're given an absolute path.
+		// Failing is better so that we don't accidentally do the wrong thing,
+		// but make it seem like everything is alright.
+		try_include_paths = false;
+	}
+	else
+	{
+		include_file = dir + '/' + filename;
+	}
+	auto include_buffer = input_buffer::buffer_for_file(include_file, false);
+	if (include_buffer == 0 && try_include_paths)
+	{
+		for (auto i : include_paths)
+		{
+			include_file = i + '/' + filename;
+			include_buffer = input_buffer::buffer_for_file(include_file, false);
+			if (include_buffer != 0)
+			{
+				break;
+			}
+		}
+	}
+	if (!include_buffer)
+	{
+		return false;
+	}
+	if (depfile)
+	{
+		putc(' ', depfile);
+		fputs(include_file.c_str(), depfile);
+	}
+	b.insert(b.begin(), include_buffer->begin(), include_buffer->end());
+	return true;
 }
 
 input_buffer
