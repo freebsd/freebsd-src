@@ -506,7 +506,6 @@ struct device_match_result {
 	struct scsi_inquiry_data	inq_data;
 	struct ata_params		ident_data;
 	dev_result_flags		flags;
-	struct mmc_params		mmc_ident_data;
 };
 
 struct bus_match_result {
@@ -1278,6 +1277,7 @@ struct ccb_dev_advinfo {
 #define	CDAI_TYPE_EXT_INQ	5
 #define	CDAI_TYPE_NVME_CNTRL	6	/* NVMe Identify Controller data */
 #define	CDAI_TYPE_NVME_NS	7	/* NVMe Identify Namespace data */
+#define	CDAI_TYPE_MMC_PARAMS	8	/* MMC/SD ident */
 	off_t bufsiz;			/* IN: Size of external buffer */
 #define	CAM_SCSI_DEVID_MAXLEN	65536	/* length in buffer is an uint16_t */
 	off_t provsiz;			/* OUT: Size required/used */
