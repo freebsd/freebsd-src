@@ -85,7 +85,7 @@ static const struct bhnd_core_desc {
 	BHND_CDESC(BCM, PCI,		PCI,		"PCI Bridge"),
 	BHND_CDESC(BCM, MIPS,		CPU,		"BMIPS CPU"),
 	BHND_CDESC(BCM, ENET,		ENET_MAC,	"Fast Ethernet MAC"),
-	BHND_CDESC(BCM, CODEC,		OTHER,		"V.90 Modem Codec"),
+	BHND_CDESC(BCM, V90_CODEC,	SOFTMODEM,	"V.90 SoftModem Codec"),
 	BHND_CDESC(BCM, USB,		USB_DUAL,	"USB 1.1 Device/Host Controller"),
 	BHND_CDESC(BCM, ADSL,		OTHER,		"ADSL Core"),
 	BHND_CDESC(BCM, ILINE100,	OTHER,		"iLine100 HPNA"),
