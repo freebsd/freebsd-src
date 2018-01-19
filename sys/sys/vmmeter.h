@@ -146,7 +146,11 @@ struct vmmeter {
 
 #ifdef _KERNEL
 
+#include <sys/domainset.h>
+
 extern struct vmmeter vm_cnt;
+extern domainset_t vm_min_domains;
+extern domainset_t vm_severe_domains;
 
 #define	VM_CNT_ADD(var, x)	counter_u64_add(vm_cnt.var, x)
 #define	VM_CNT_INC(var)		VM_CNT_ADD(var, 1)
@@ -164,8 +168,7 @@ static inline int
 vm_page_count_severe(void)
 {
 
-	/* XXX */
-	return (vm_cnt.v_free_severe > vm_free_count());
+	return (!DOMAINSET_EMPTY(&vm_severe_domains));
 }
 
 /*
@@ -181,8 +184,7 @@ static inline int
 vm_page_count_min(void)
 {
 
-	/* XXX */
-	return (vm_cnt.v_free_min > vm_free_count());
+	return (!DOMAINSET_EMPTY(&vm_min_domains));
 }
 
 #endif	/* _KERNEL */

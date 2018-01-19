@@ -134,6 +134,10 @@ __FBSDID("$FreeBSD$");
 struct vm_domain vm_dom[MAXMEMDOM];
 
 struct mtx_padalign __exclusive_cache_line pa_lock[PA_LOCK_COUNT];
+struct mtx_padalign __exclusive_cache_line vm_domainset_lock;
+domainset_t __exclusive_cache_line vm_min_domains;
+domainset_t __exclusive_cache_line vm_severe_domains;
+
 
 /*
  * bogus page -- for I/O to/from partially complete buffers,
@@ -481,6 +485,7 @@ vm_page_startup(vm_offset_t vaddr)
 	/*
 	 * Initialize the page and queue locks.
 	 */
+	mtx_init(&vm_domainset_lock, "vm domainset lock", NULL, MTX_DEF);
 	for (i = 0; i < PA_LOCK_COUNT; i++)
 		mtx_init(&pa_lock[i], "vm page", NULL, MTX_DEF);
 	for (i = 0; i < vm_ndomains; i++)
@@ -2668,14 +2673,85 @@ vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
 	return (ret);
 }
 
+/*
+ * Set the domain in the appropriate page level domainset.
+ */
+void
+vm_domain_set(int domain)
+{
+	struct vm_domain *vmd;
+
+	vmd = VM_DOMAIN(domain);
+	mtx_lock(&vm_domainset_lock);
+	if (!vmd->vmd_minset && vm_paging_min(vmd)) {
+		vmd->vmd_minset = 1;
+		DOMAINSET_SET(domain, &vm_min_domains);
+	}
+	if (!vmd->vmd_severeset && vm_paging_severe(vmd)) {
+		vmd->vmd_severeset = 1;
+		DOMAINSET_CLR(domain, &vm_severe_domains);
+	}
+	mtx_unlock(&vm_domainset_lock);
+}
 
 /*
- *	vm_wait:	(also see VM_WAIT macro)
- *
- *	Sleep until free pages are available for allocation.
- *	- Called in various places before memory allocations.
+ * Clear the domain from the appropriate page level domainset.
  */
 static void
+vm_domain_clear(int domain)
+{
+	struct vm_domain *vmd;
+
+	vmd = VM_DOMAIN(domain);
+	mtx_lock(&vm_domainset_lock);
+	if (vmd->vmd_minset && !vm_paging_min(vmd)) {
+		vmd->vmd_minset = 0;
+		DOMAINSET_CLR(domain, &vm_min_domains);
+		if (!vm_page_count_min())
+			wakeup(&vm_min_domains);
+	}
+	if (vmd->vmd_severeset && !vm_paging_severe(vmd)) {
+		vmd->vmd_severeset = 0;
+		DOMAINSET_CLR(domain, &vm_severe_domains);
+		if (!vm_page_count_severe())
+			wakeup(&vm_severe_domains);
+	}
+	mtx_unlock(&vm_domainset_lock);
+}
+
+/*
+ * Wait for free pages to exceed the min threshold globally.
+ */
+void
+vm_wait_min(void)
+{
+
+	mtx_lock(&vm_domainset_lock);
+	while (vm_page_count_min())
+		msleep(&vm_min_domains, &vm_domainset_lock, PVM, "vmwait", 0);
+	mtx_unlock(&vm_domainset_lock);
+}
+
+/*
+ * Wait for free pages to exceed the severe threshold globally.
+ */
+void
+vm_wait_severe(void)
+{
+
+	mtx_lock(&vm_domainset_lock);
+	while (vm_page_count_min())
+		msleep(&vm_min_domains, &vm_domainset_lock, PVM, "vmwait", 0);
+	mtx_unlock(&vm_domainset_lock);
+}
+
+/*
+ *	vm_wait_domain:
+ *
+ *	Sleep until free pages are available for allocation.
+ *	- Called in various places after failed memory allocations.
+ */
+void
 vm_wait_domain(int domain)
 {
 	struct vm_domain *vmd;
@@ -2694,6 +2770,12 @@ vm_wait_domain(int domain)
 	}
 }
 
+/*
+ *	vm_wait:	(also see VM_WAIT macro)
+ *
+ *	Sleep until free pages are available for allocation.
+ *	- Called in various places after failed memory allocations.
+ */
 void
 vm_wait(void)
 {
@@ -2942,6 +3024,9 @@ vm_page_free_wakeup(int domain)
 		vmd->vmd_pages_needed = false;
 		wakeup(&vmd->vmd_free_count);
 	}
+	if ((vmd->vmd_minset && !vm_paging_min(vmd)) ||
+	    (vmd->vmd_severeset && !vm_paging_severe(vmd)))
+		vm_domain_clear(domain);
 }
 
 /*

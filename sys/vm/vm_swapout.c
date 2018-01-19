@@ -650,7 +650,7 @@ swapper(void)
 
 loop:
 	if (vm_page_count_min()) {
-		VM_WAIT;
+		vm_wait_min();
 		goto loop;
 	}
 

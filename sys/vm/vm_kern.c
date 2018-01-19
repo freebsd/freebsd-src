@@ -197,7 +197,7 @@ retry:
 				if (!vm_page_reclaim_contig_domain(domain,
 				    pflags, 1, low, high, PAGE_SIZE, 0) &&
 				    (flags & M_WAITOK) != 0)
-					VM_WAIT;
+					vm_wait_domain(domain);
 				VM_OBJECT_WLOCK(object);
 				tries++;
 				goto retry;
@@ -281,7 +281,7 @@ retry:
 			if (!vm_page_reclaim_contig_domain(domain, pflags,
 			    npages, low, high, alignment, boundary) &&
 			    (flags & M_WAITOK) != 0)
-				VM_WAIT;
+				vm_wait_domain(domain);
 			VM_OBJECT_WLOCK(object);
 			tries++;
 			goto retry;

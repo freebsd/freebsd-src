@@ -644,7 +644,7 @@ vmem_bt_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 		 * possible due to M_USE_RESERVE page allocation.
 		 */
 		if (wait & M_WAITOK)
-			VM_WAIT;
+			vm_wait_domain(domain);
 		return (NULL);
 	}
 	mtx_unlock(&vmem_bt_lock);

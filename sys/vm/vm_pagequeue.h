@@ -92,6 +92,8 @@ struct vm_domain {
 	int vmd_pageout_deficit;	/* Estimated number of pages deficit */
 	bool vmd_pages_needed;	/* Are threads waiting for free pages? */
 	bool vmd_pageout_wanted;	/* pageout daemon wait channel */
+	bool vmd_minset;		/* Are we in vm_min_domains? */
+	bool vmd_severeset;		/* Are we in vm_severe_domains? */
 	int vmd_inactq_scans;
 	enum {
 		VM_LAUNDRY_IDLE = 0,
@@ -107,7 +109,7 @@ struct vm_domain {
 	u_int vmd_pageout_wakeup_thresh;/* (c) min pages to wake pagedaemon */
 	u_int vmd_interrupt_free_min;	/* (c) reserved pages for int code */
 	u_int vmd_free_severe;		/* (c) severe page depletion point */
-};
+} __aligned(CACHE_LINE_SIZE);
 
 extern struct vm_domain vm_dom[MAXMEMDOM];
 
@@ -141,13 +143,7 @@ vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
 #define	vm_pagequeue_cnt_inc(pq)	vm_pagequeue_cnt_add((pq), 1)
 #define	vm_pagequeue_cnt_dec(pq)	vm_pagequeue_cnt_add((pq), -1)
 
-static inline u_int
-vm_pagequeue_freecnt_adj(int domain, int adj)
-{ 
-
-	vm_pagequeue_free_assert_locked(domain);
-	return (vm_dom[domain].vmd_free_count += adj);
-}
+void vm_domain_set(int domain);
 
 /*
  *      vm_pagequeue_domain:
@@ -182,11 +178,24 @@ vm_paging_needed(struct vm_domain *vmd, u_int free_count)
 	return (free_count < vmd->vmd_pageout_wakeup_thresh);
 }
 
+/*
+ * Returns TRUE if the domain is below the min paging target.
+ */
 static inline int
 vm_paging_min(struct vm_domain *vmd)
 {
 
         return (vmd->vmd_free_min > vmd->vmd_free_count);
+}
+
+/*
+ * Returns TRUE if the domain is below the severe paging target.
+ */
+static inline int
+vm_paging_severe(struct vm_domain *vmd)
+{
+
+        return (vmd->vmd_free_severe > vmd->vmd_free_count);
 }
 
 /*
@@ -199,6 +208,23 @@ vm_laundry_target(struct vm_domain *vmd)
 
 	return (vm_paging_target(vmd));
 }
+
+static inline u_int
+vm_pagequeue_freecnt_adj(int domain, int adj)
+{
+	struct vm_domain *vmd;
+	u_int ret;
+
+	vm_pagequeue_free_assert_locked(domain);
+	vmd = VM_DOMAIN(domain);
+	ret = vmd->vmd_free_count += adj;
+        if ((!vmd->vmd_minset && vm_paging_min(vmd)) ||
+            (!vmd->vmd_severeset && vm_paging_severe(vmd)))
+                vm_domain_set(domain);
+
+	return (ret);
+}
+
 
 #endif	/* _KERNEL */
 #endif				/* !_VM_PAGEQUEUE_ */
