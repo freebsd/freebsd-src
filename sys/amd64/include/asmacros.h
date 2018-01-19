@@ -183,10 +183,7 @@
 	.endr
 	.endm
 
-	.macro	PTI_UENTRY has_err
-	swapgs
-	pushq	%rax
-	pushq	%rdx
+	.macro	PTI_UUENTRY has_err
 	movq	PCPU(KCR3),%rax
 	movq	%rax,%cr3
 	movq	PCPU(RSP0),%rax
@@ -195,6 +192,13 @@
 	movq	%rax,%rsp
 	popq	%rdx
 	popq	%rax
+	.endm
+
+	.macro	PTI_UENTRY has_err
+	swapgs
+	pushq	%rax
+	pushq	%rdx
+	PTI_UUENTRY \has_err
 	.endm
 
 	.macro	PTI_ENTRY name, cont, has_err=0

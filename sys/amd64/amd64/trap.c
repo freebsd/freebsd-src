@@ -702,6 +702,17 @@ trap_pfault(struct trapframe *frame, int usermode)
 	}
 
 	/*
+	 * If nx protection of the usermode portion of kernel page
+	 * tables caused trap, panic.
+	 */
+	if (pti && usermode && pg_nx != 0 && (frame->tf_err & (PGEX_P | PGEX_W |
+	    PGEX_U | PGEX_I)) == (PGEX_P | PGEX_U | PGEX_I) &&
+	    (curpcb->pcb_saved_ucr3 & ~(PMAP_PCID_OVERMAX - 1))==
+	    (PCPU_GET(curpmap)->pm_cr3 & ~(PMAP_PCID_OVERMAX - 1)))
+		panic("PTI: pid %d comm %s tf_err %#lx\n", p->p_pid,
+		    p->p_comm, frame->tf_err);
+
+	/*
 	 * PGEX_I is defined only if the execute disable bit capability is
 	 * supported and enabled.
 	 */
