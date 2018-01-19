@@ -189,6 +189,12 @@
 #ifndef __mips_n64
 #define	SFBUF
 #define	SFBUF_MAP
+#define	PMAP_HAS_DMAP	0
+#else
+#define	PMAP_HAS_DMAP	1
 #endif
+
+#define	PHYS_TO_DMAP(x)	MIPS_PHYS_TO_DIRECT(x)
+#define	DMAP_TO_PHYS(x)	MIPS_DIRECT_TO_PHYS(x)
 
 #endif /* !_MACHINE_VMPARAM_H_ */

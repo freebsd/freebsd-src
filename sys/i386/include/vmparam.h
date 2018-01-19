@@ -202,4 +202,6 @@
 #define	SFBUF_CPUSET
 #define	SFBUF_PROCESS_PAGE
 
+#define	PMAP_HAS_DMAP	0
+
 #endif /* _MACHINE_VMPARAM_H_ */
