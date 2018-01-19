@@ -58,6 +58,9 @@
 restore_usersrs:
 	GET_CPUINFO(%r28)
 	ld	%r28,PC_USERSLB(%r28)
+	cmpdi	%r28, 0			/* If user SLB pointer NULL, exit */
+	beqlr
+
 	li	%r29, 0			/* Set the counter to zero */
 
 	slbia
@@ -83,6 +86,12 @@ restore_usersrs:
 restore_kernsrs:
 	GET_CPUINFO(%r28)
 	addi	%r28,%r28,PC_KERNSLB
+	ld	%r29,16(%r28)		/* One past USER_SLB_SLOT */
+	cmpdi	%r28,0
+	beqlr				/* If first kernel entry is invalid,
+					 * SLBs not in use, so exit early */
+
+	/* Otherwise, set up SLBs */
 	li	%r29, 0			/* Set the counter to zero */
 
 	slbia
