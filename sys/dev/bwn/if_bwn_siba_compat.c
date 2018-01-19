@@ -1782,15 +1782,37 @@ bhnd_compat_dma_translation(device_t dev)
 	struct bhnd_dma_translation	 dt;
 	struct bwn_softc		*sc;
 	struct bwn_mac			*mac;
-	int				 bwn_dmatype, error;
+	u_int				 width;
+	int				 error;
 
 	sc = device_get_softc(dev);
 	mac = sc->sc_curmac;
 	KASSERT(mac != NULL, ("no MAC"));
 
+	/*
+	 * Use the DMA engine's maximum host address width to determine the
+	 * supported device address width.
+	 */
+	switch (mac->mac_method.dma.dmatype) {
+		case BWN_DMA_32BIT:
+		case BWN_DMA_30BIT:
+			/* The 32-bit engine is always capable of addressing
+			 * a full 32-bit device address */
+			width = BHND_DMA_ADDR_32BIT;
+			break;
+
+		case BWN_DMA_64BIT:
+			width = BHND_DMA_ADDR_64BIT;
+			break;
+
+		default:
+			panic("unknown dma type %d",
+			    mac->mac_method.dma.dmatype);
+	}
+
+
 	/* Fetch our DMA translation */
-	bwn_dmatype = mac->mac_method.dma.dmatype;
-	if ((error = bhnd_get_dma_translation(dev, bwn_dmatype, 0, NULL, &dt)))
+	if ((error = bhnd_get_dma_translation(dev, width, 0, NULL, &dt)))
 		panic("error requesting DMA translation: %d\n", error);
 
 	/*
@@ -1820,16 +1842,15 @@ bhnd_compat_dma_translation(device_t dev)
 	 * However, we will need to resolve these issues in bwn(4) if DMA is to
 	 * work on new hardware (e.g. WiSoCs).
 	 */
-	switch (bwn_dmatype) {
-	case BWN_DMA_32BIT:
-	case BWN_DMA_30BIT:
+	switch (width) {
+	case BHND_DMA_ADDR_32BIT:
 		KASSERT((~dt.addr_mask & BHND_DMA_ADDR_BITMASK(32)) ==
 		    SIBA_DMA_TRANSLATION_MASK, ("unexpected DMA mask: %#jx",
 		    (uintmax_t)dt.addr_mask));
 
 		return (dt.base_addr);
 
-	case BWN_DMA_64BIT:
+	case BHND_DMA_ADDR_64BIT:
 		/* bwn(4) will shift this left by 32+1 bits before applying it
 		 * to the top 32-bits of the DMA address */
 		KASSERT((~dt.addr_mask & BHND_DMA_ADDR_BITMASK(33)) == 0,
@@ -1839,7 +1860,7 @@ bhnd_compat_dma_translation(device_t dev)
 		return (dt.base_addr >> 33);
 
 	default:
-		panic("unknown dma type %d", bwn_dmatype);
+		panic("unsupported address width: %u", width);
 	}
 }
 
