@@ -137,6 +137,9 @@ struct mtx_padalign __exclusive_cache_line pa_lock[PA_LOCK_COUNT];
 struct mtx_padalign __exclusive_cache_line vm_domainset_lock;
 domainset_t __exclusive_cache_line vm_min_domains;
 domainset_t __exclusive_cache_line vm_severe_domains;
+static int vm_min_waiters;
+static int vm_severe_waiters;
+static int vm_pageproc_waiters;
 
 
 /*
@@ -2707,14 +2710,18 @@ vm_domain_clear(int domain)
 	if (vmd->vmd_minset && !vm_paging_min(vmd)) {
 		vmd->vmd_minset = 0;
 		DOMAINSET_CLR(domain, &vm_min_domains);
-		if (!vm_page_count_min())
+		if (!vm_page_count_min() && vm_min_waiters) {
+			vm_min_waiters = 0;
 			wakeup(&vm_min_domains);
+		}
 	}
 	if (vmd->vmd_severeset && !vm_paging_severe(vmd)) {
 		vmd->vmd_severeset = 0;
 		DOMAINSET_CLR(domain, &vm_severe_domains);
-		if (!vm_page_count_severe())
+		if (!vm_page_count_severe() && vm_severe_waiters) {
+			vm_severe_waiters = 0;
 			wakeup(&vm_severe_domains);
+		}
 	}
 	mtx_unlock(&vm_domainset_lock);
 }
@@ -2727,8 +2734,10 @@ vm_wait_min(void)
 {
 
 	mtx_lock(&vm_domainset_lock);
-	while (vm_page_count_min())
+	while (vm_page_count_min()) {
+		vm_min_waiters++;
 		msleep(&vm_min_domains, &vm_domainset_lock, PVM, "vmwait", 0);
+	}
 	mtx_unlock(&vm_domainset_lock);
 }
 
@@ -2740,8 +2749,10 @@ vm_wait_severe(void)
 {
 
 	mtx_lock(&vm_domainset_lock);
-	while (vm_page_count_min())
+	while (vm_page_count_min()) {
+		vm_severe_waiters++;
 		msleep(&vm_min_domains, &vm_domainset_lock, PVM, "vmwait", 0);
+	}
 	mtx_unlock(&vm_domainset_lock);
 }
 
@@ -2779,12 +2790,28 @@ vm_wait_domain(int domain)
 void
 vm_wait(void)
 {
-#if 0	/* XXX */
-	mtx_lock(&vm_page_queue_free_mtx);
-	_vm_wait();
-#else
-	pause("vmxxx", 1);
-#endif
+
+	/*
+	 * We use racey wakeup synchronization to avoid expensive global
+	 * locking for the pageproc when sleeping with a non-specific vm_wait.
+	 * To handle this, we only sleep for one tick in this instance.  It
+	 * is expected that most allocations for the pageproc will come from
+	 * kmem or vm_page_grab* which will use the more specific and
+	 * race-free vm_wait_domain().
+	 */
+	if (curproc == pageproc) {
+		mtx_lock(&vm_domainset_lock);
+		vm_pageproc_waiters++;
+		msleep(&vm_pageproc_waiters, &vm_domainset_lock, PVM,
+		    "pageprocwait", 1);
+		mtx_unlock(&vm_domainset_lock);
+	} else
+		/*
+		 * XXX Ideally we would wait only until the allocation could
+		 * be satisfied.  This condition can cause new allocators to
+		 * consume all freed pages while old allocators wait.
+		 */
+		vm_wait_min();
 }
 
 /*
@@ -2835,12 +2862,13 @@ vm_page_alloc_fail(vm_object_t object, int domain, int req)
 void
 vm_waitpfault(void)
 {
-#if 0	/* XXX */
-	mtx_lock(&vm_page_queue_free_mtx);
-	pagedaemon_wait(PUSER, "pfault");
-#else
-	pause("vmxxx", 1);
-#endif
+
+	mtx_lock(&vm_domainset_lock);
+	while (vm_page_count_min()) {
+		vm_min_waiters++;
+		msleep(&vm_min_domains, &vm_domainset_lock, PUSER, "pfault", 0);
+	}
+	mtx_unlock(&vm_domainset_lock);
 }
 
 struct vm_pagequeue *
@@ -3027,6 +3055,13 @@ vm_page_free_wakeup(int domain)
 	if ((vmd->vmd_minset && !vm_paging_min(vmd)) ||
 	    (vmd->vmd_severeset && !vm_paging_severe(vmd)))
 		vm_domain_clear(domain);
+
+	/* See comments in vm_wait(); */
+	if (vm_pageproc_waiters) {
+		vm_pageproc_waiters = 0;
+		wakeup(&vm_pageproc_waiters);
+	}
+
 }
 
 /*
