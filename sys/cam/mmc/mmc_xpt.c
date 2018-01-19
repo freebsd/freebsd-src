@@ -367,6 +367,13 @@ mmc_dev_advinfo(union ccb *start_ccb)
         case CDAI_TYPE_PHYS_PATH: /* pass(4) wants this */
                 cdai->provsiz = 0;
                 break;
+	case CDAI_TYPE_MMC_PARAMS:
+		cdai->provsiz = device->mmc_ident_data;
+		if (device->mmc_ident_data == NULL)
+			break;
+		amt = MIN(cdai->provsiz, cdai->bufsiz);
+		memcpy(cdai->buff, device->mmc_ident_data, amt);
+		break;
 	default:
                 panic("Unknown buftype");
 		return;
