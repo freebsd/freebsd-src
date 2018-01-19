@@ -419,9 +419,6 @@ aac_startup(void *arg)
 	sc = (struct aac_softc *)arg;
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	/* disconnect ourselves from the intrhook chain */
-	config_intrhook_disestablish(&sc->aac_ich);
-
 	mtx_lock(&sc->aac_io_lock);
 	aac_alloc_sync_fib(sc, &fib);
 
@@ -438,12 +435,15 @@ aac_startup(void *arg)
 	aac_release_sync_fib(sc);
 	mtx_unlock(&sc->aac_io_lock);
 
+	/* mark the controller up */
+	sc->aac_state &= ~AAC_STATE_SUSPEND;
+
 	/* poke the bus to actually attach the child devices */
 	if (bus_generic_attach(sc->aac_dev))
 		device_printf(sc->aac_dev, "bus_generic_attach failed\n");
 
-	/* mark the controller up */
-	sc->aac_state &= ~AAC_STATE_SUSPEND;
+	/* disconnect ourselves from the intrhook chain */
+	config_intrhook_disestablish(&sc->aac_ich);
 
 	/* enable interrupts now */
 	AAC_UNMASK_INTERRUPTS(sc);
