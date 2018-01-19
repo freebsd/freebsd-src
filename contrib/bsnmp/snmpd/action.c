@@ -751,8 +751,9 @@ int
 op_community(struct snmp_context *ctx, struct snmp_value *value,
     u_int sub, u_int iidx __unused, enum snmp_op op)
 {
-	asn_subid_t which = value->var.subs[sub - 1];
+	struct asn_oid index;
 	struct community *c;
+	asn_subid_t which = value->var.subs[sub - 1];
 
 	switch (op) {
 
@@ -770,12 +771,47 @@ op_community(struct snmp_context *ctx, struct snmp_value *value,
 		break;
 
 	  case SNMP_OP_SET:
-		if ((community != COMM_INITIALIZE && snmpd.comm_dis) ||
-		    (c = FIND_OBJECT_OID(&community_list, &value->var, sub)) == NULL)
-			return (SNMP_ERR_NO_CREATION);
-		if (which != LEAF_begemotSnmpdCommunityString)
+		if (community != COMM_INITIALIZE && snmpd.comm_dis)
 			return (SNMP_ERR_NOT_WRITEABLE);
-		return (string_save(value, ctx, -1, &c->string));
+		index.len = 2;
+		index.subs[0] = 0;
+		index.subs[1] = value->var.subs[value->var.len - 1];
+		switch (which) {
+		case LEAF_begemotSnmpdCommunityString:
+			/* check that given string is unique */
+			TAILQ_FOREACH(c, &community_list, link) {
+				if (!asn_compare_oid(&index, &c->index))
+					continue;
+				if (c->string != NULL && strcmp(c->string,
+				    value->v.octetstring.octets) == 0)
+					return (SNMP_ERR_WRONG_VALUE);
+			}
+		case LEAF_begemotSnmpdCommunityPermission:
+			break;
+		default:
+			return (SNMP_ERR_NOT_WRITEABLE);
+		}
+		if ((c = FIND_OBJECT_OID(&community_list, &value->var,
+		    sub)) == NULL) {
+			/* create new community and use user sepcified index */
+			c = comm_define_ordered(COMM_READ, "SNMP Custom Community",
+			    &index, NULL, NULL);
+			if (c == NULL)
+				return (SNMP_ERR_NO_CREATION);
+		}
+		switch (which) {
+		case LEAF_begemotSnmpdCommunityString:
+			return (string_save(value, ctx, -1, &c->string));
+		case LEAF_begemotSnmpdCommunityPermission:
+			if (value->v.integer != COMM_READ &&
+			    value->v.integer != COMM_WRITE)
+				return (SNMP_ERR_WRONG_VALUE);
+			c->private = value->v.integer;
+			break;
+		default:
+			return (SNMP_ERR_NOT_WRITEABLE);
+		}
+		return (SNMP_ERR_NOERROR);
 
 	  case SNMP_OP_ROLLBACK:
 		if (which == LEAF_begemotSnmpdCommunityString) {
@@ -786,6 +822,8 @@ op_community(struct snmp_context *ctx, struct snmp_value *value,
 				string_rollback(ctx, &c->string);
 			return (SNMP_ERR_NOERROR);
 		}
+		if (which == LEAF_begemotSnmpdCommunityPermission)
+			return (SNMP_ERR_NOERROR);
 		abort();
 
 	  case SNMP_OP_COMMIT:
@@ -797,6 +835,8 @@ op_community(struct snmp_context *ctx, struct snmp_value *value,
 				string_commit(ctx);
 			return (SNMP_ERR_NOERROR);
 		}
+		if (which == LEAF_begemotSnmpdCommunityPermission)
+			return (SNMP_ERR_NOERROR);
 		abort();
 
 	  default:
@@ -810,6 +850,12 @@ op_community(struct snmp_context *ctx, struct snmp_value *value,
 
 	  case LEAF_begemotSnmpdCommunityDescr:
 		return (string_get(value, c->descr, -1));
+
+	  case LEAF_begemotSnmpdCommunityPermission:
+		value->v.integer = c->private;
+		return (SNMP_ERR_NOERROR);
+	  default:
+		return (SNMP_ERR_NOT_WRITEABLE);
 	}
 	abort();
 }
