@@ -1621,6 +1621,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	mtx_init(&dt_lock, "descriptor tables", NULL, MTX_DEF);
 
 	/* exceptions */
+	pti = pti_get_default();
 	TUNABLE_INT_FETCH("vm.pmap.pti", &pti);
 
 	for (x = 0; x < NIDT; x++)
