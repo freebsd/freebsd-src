@@ -264,8 +264,8 @@ bhndb_pci_probe(device_t dev)
 	struct bhndb_pci_probe	*probe;
 	struct bhndb_pci_core	*entry;
 	bhnd_devclass_t		 hostb_devclass;
-	device_t		 parent;
-	devclass_t		 parent_bus, pci;
+	device_t		 parent, parent_bus;
+	devclass_t		 pci, bus_devclass;
 	int			 error;
 
 	probe = NULL;
@@ -273,9 +273,20 @@ bhndb_pci_probe(device_t dev)
 	/* Our parent must be a PCI/PCIe device. */
 	pci = devclass_find("pci");
 	parent = device_get_parent(dev);
-	parent_bus = device_get_devclass(device_get_parent(parent));
+	parent_bus = device_get_parent(parent);
+	if (parent_bus == NULL)
+		return (ENXIO);
 
-	if (parent_bus != pci)
+	/* The bus device class may inherit from 'pci' */
+	for (bus_devclass = device_get_devclass(parent_bus);
+	    bus_devclass != NULL;
+	    bus_devclass = devclass_get_parent(bus_devclass))
+	{
+		if (bus_devclass == pci)
+			break;
+	}
+
+	if (bus_devclass != pci)
 		return (ENXIO);
 
 	/* Enable clocks */
@@ -629,12 +640,10 @@ bhndb_pci_sprom_size(struct bhndb_pci_softc *sc)
 		return (0);
 	}
 
-	if (sprom_sz > sprom_win->win_size) {
-		device_printf(sc->dev,
-		    "PCI sprom size (0x%x) overruns defined register window\n",
-		    sctl);
-		return (0);
-	}
+	/* If the device has a larger SPROM than can be addressed via our SPROM
+	 * register window, the SPROM image data will still be located within
+	 * the window's addressable range */
+	sprom_sz = MIN(sprom_sz, sprom_win->win_size);
 
 	return (sprom_sz);
 }
