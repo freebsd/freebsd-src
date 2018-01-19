@@ -76,11 +76,14 @@ struct vm_pagequeue {
 
 struct vm_domain {
 	struct vm_pagequeue vmd_pagequeues[PQ_COUNT];
-	struct mtx_padalign vmd_pagequeue_free_mtx;
+	struct mtx_padalign vmd_free_mtx;
 	struct vmem *vmd_kernel_arena;
+	u_int vmd_domain;		/* Domain number. */
 	u_int vmd_page_count;
+	long vmd_segs;			/* bitmask of the segments */
+
+	/* Paging control variables, locked by domain_free_mtx. */
 	u_int vmd_free_count;
-	long vmd_segs;	/* bitmask of the segments */
 	boolean_t vmd_oom;
 	int vmd_oom_seq;
 	int vmd_last_active_scan;
@@ -101,6 +104,7 @@ struct vm_domain {
 		VM_LAUNDRY_SHORTFALL
 	} vmd_laundry_request;
 
+	/* Paging thresholds. */
 	u_int vmd_free_reserved;	/* (c) pages reserved for deadlock */
 	u_int vmd_free_target;		/* (c) pages desired free */
 	u_int vmd_free_min;		/* (c) pages desired free */
@@ -120,16 +124,16 @@ extern struct vm_domain vm_dom[MAXMEMDOM];
 #define	vm_pagequeue_lockptr(pq)	(&(pq)->pq_mutex)
 #define	vm_pagequeue_unlock(pq)		mtx_unlock(&(pq)->pq_mutex)
 
-#define	vm_pagequeue_free_assert_locked(n)				\
-	    mtx_assert(vm_pagequeue_free_lockptr((n)), MA_OWNED)
-#define	vm_pagequeue_free_assert_unlocked(n)				\
-	    mtx_assert(vm_pagequeue_free_lockptr((n)), MA_NOTOWNED)
-#define	vm_pagequeue_free_lock(n)					\
-	    mtx_lock(vm_pagequeue_free_lockptr((n)))
-#define	vm_pagequeue_free_lockptr(n)					\
-	    (&VM_DOMAIN((n))->vmd_pagequeue_free_mtx)
-#define	vm_pagequeue_free_unlock(n)					\
-	    mtx_unlock(vm_pagequeue_free_lockptr((n)))
+#define	vm_domain_free_assert_locked(n)					\
+	    mtx_assert(vm_domain_free_lockptr((n)), MA_OWNED)
+#define	vm_domain_free_assert_unlocked(n)				\
+	    mtx_assert(vm_domain_free_lockptr((n)), MA_NOTOWNED)
+#define	vm_domain_free_lock(d)						\
+	    mtx_lock(vm_domain_free_lockptr((d)))
+#define	vm_domain_free_lockptr(d)					\
+	    (&(d)->vmd_free_mtx)
+#define	vm_domain_free_unlock(d)					\
+	    mtx_unlock(vm_domain_free_lockptr((d)))
 
 static __inline void
 vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
@@ -143,7 +147,8 @@ vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
 #define	vm_pagequeue_cnt_inc(pq)	vm_pagequeue_cnt_add((pq), 1)
 #define	vm_pagequeue_cnt_dec(pq)	vm_pagequeue_cnt_add((pq), -1)
 
-void vm_domain_set(int domain);
+void vm_domain_set(struct vm_domain *vmd);
+int vm_domain_available(struct vm_domain *vmd, int req, int npages);
 
 /*
  *      vm_pagequeue_domain:
@@ -210,17 +215,15 @@ vm_laundry_target(struct vm_domain *vmd)
 }
 
 static inline u_int
-vm_pagequeue_freecnt_adj(int domain, int adj)
+vm_domain_freecnt_adj(struct vm_domain *vmd, int adj)
 {
-	struct vm_domain *vmd;
 	u_int ret;
 
-	vm_pagequeue_free_assert_locked(domain);
-	vmd = VM_DOMAIN(domain);
+	vm_domain_free_assert_locked(vmd);
 	ret = vmd->vmd_free_count += adj;
-        if ((!vmd->vmd_minset && vm_paging_min(vmd)) ||
-            (!vmd->vmd_severeset && vm_paging_severe(vmd)))
-                vm_domain_set(domain);
+	if ((!vmd->vmd_minset && vm_paging_min(vmd)) ||
+	    (!vmd->vmd_severeset && vm_paging_severe(vmd)))
+		vm_domain_set(vmd);
 
 	return (ret);
 }

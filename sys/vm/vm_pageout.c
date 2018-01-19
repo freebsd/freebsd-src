@@ -1774,7 +1774,7 @@ vm_pageout_worker(void *arg)
 	 * The pageout daemon worker is never done, so loop forever.
 	 */
 	while (TRUE) {
-		mtx_lock(&vmd->vmd_pagequeue_free_mtx);
+		vm_domain_free_lock(vmd);
 
 		/*
 		 * Generally, after a level >= 1 scan, if there are enough
@@ -1815,7 +1815,7 @@ vm_pageout_worker(void *arg)
 			 * and scan again now.  Otherwise, sleep a bit and
 			 * try again later.
 			 */
-			mtx_unlock(&vmd->vmd_pagequeue_free_mtx);
+			vm_domain_free_unlock(vmd);
 			if (pass >= 1)
 				pause("pwait", hz / VM_INACT_SCAN_RATE);
 			pass++;
@@ -1827,11 +1827,11 @@ vm_pageout_worker(void *arg)
 			 * have their reference stats updated.
 			 */
 			if (vmd->vmd_pages_needed) {
-				mtx_unlock(&vmd->vmd_pagequeue_free_mtx);
+				vm_domain_free_unlock(vmd);
 				if (pass == 0)
 					pass++;
 			} else if (mtx_sleep(&vmd->vmd_pageout_wanted,
-			    &vmd->vmd_pagequeue_free_mtx, PDROP | PVM,
+			    vm_domain_free_lockptr(vmd), PDROP | PVM,
 			    "psleep", hz) == 0) {
 				VM_CNT_INC(v_pdwakeups);
 				pass = 1;
@@ -1973,8 +1973,8 @@ pagedaemon_wakeup(int domain)
 {
 	struct vm_domain *vmd;
 
-	vm_pagequeue_free_assert_unlocked(domain);
 	vmd = VM_DOMAIN(domain);
+	vm_domain_free_assert_unlocked(vmd);
 
 	if (!vmd->vmd_pageout_wanted && curthread->td_proc != pageproc) {
 		vmd->vmd_pageout_wanted = true;
@@ -1992,8 +1992,8 @@ pagedaemon_wait(int domain, int pri, const char *wmesg)
 {
 	struct vm_domain *vmd;
 
-	vm_pagequeue_free_assert_locked(domain);
 	vmd = VM_DOMAIN(domain);
+	vm_domain_free_assert_locked(vmd);
 
 	/*
 	 * vmd_pageout_wanted may have been set by an advisory wakeup, but if
@@ -2006,6 +2006,6 @@ pagedaemon_wait(int domain, int pri, const char *wmesg)
 		wakeup(&vmd->vmd_pageout_wanted);
 	}
 	vmd->vmd_pages_needed = true;
-	msleep(&vmd->vmd_free_count, &vmd->vmd_pagequeue_free_mtx, PDROP | pri,
+	msleep(&vmd->vmd_free_count, vm_domain_free_lockptr(vmd), PDROP | pri,
 	    wmesg, 0);
 }
