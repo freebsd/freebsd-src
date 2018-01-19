@@ -1088,6 +1088,9 @@ check_uidgid(ipfw_insn_u32 *insn, struct ip_fw_args *args, int *ugid_lookupp,
 	} else if (id->proto == IPPROTO_UDP) {
 		lookupflags = INPLOOKUP_WILDCARD;
 		pi = &V_udbinfo;
+	} else if (id->proto == IPPROTO_UDPLITE) {
+		lookupflags = INPLOOKUP_WILDCARD;
+		pi = &V_ulitecbinfo;
 	} else
 		return 0;
 	lookupflags |= INPLOOKUP_RLOCKPCB;
@@ -1458,6 +1461,7 @@ do {								\
 				break;
 
 			case IPPROTO_UDP:
+			case IPPROTO_UDPLITE:
 				PULLUP_TO(hlen, ulp, struct udphdr);
 				dst_port = UDP(ulp)->uh_dport;
 				src_port = UDP(ulp)->uh_sport;
@@ -1646,6 +1650,7 @@ do {								\
 				break;
 
 			case IPPROTO_UDP:
+			case IPPROTO_UDPLITE:
 				PULLUP_TO(hlen, ulp, struct udphdr);
 				dst_port = UDP(ulp)->uh_dport;
 				src_port = UDP(ulp)->uh_sport;
@@ -1777,7 +1782,8 @@ do {								\
 				if (offset != 0)
 					break;
 				if (proto == IPPROTO_TCP ||
-				    proto == IPPROTO_UDP)
+				    proto == IPPROTO_UDP ||
+				    proto == IPPROTO_UDPLITE)
 					match = check_uidgid(
 						    (ipfw_insn_u32 *)cmd,
 						    args, &ucred_lookup,
@@ -1916,6 +1922,7 @@ do {								\
 						/* Skip proto without ports */
 						if (proto != IPPROTO_TCP &&
 						    proto != IPPROTO_UDP &&
+						    proto != IPPROTO_UDPLITE &&
 						    proto != IPPROTO_SCTP)
 							break;
 						if (vidx == 2 /* dst-port */)
@@ -2072,8 +2079,10 @@ do {								\
 				 * to guarantee that we have a
 				 * packet with port info.
 				 */
-				if ((proto==IPPROTO_UDP || proto==IPPROTO_TCP ||
-				    proto==IPPROTO_SCTP) && offset == 0) {
+				if ((proto == IPPROTO_UDP ||
+				    proto == IPPROTO_UDPLITE ||
+				    proto == IPPROTO_TCP ||
+				    proto == IPPROTO_SCTP) && offset == 0) {
 					u_int16_t x =
 					    (cmd->opcode == O_IP_SRCPORT) ?
 						src_port : dst_port ;
@@ -2460,6 +2469,8 @@ do {								\
 					pi = &V_tcbinfo;
 				else if (proto == IPPROTO_UDP)
 					pi = &V_udbinfo;
+				else if (proto == IPPROTO_UDPLITE)
+					pi = &V_ulitecbinfo;
 				else
 					break;
 
