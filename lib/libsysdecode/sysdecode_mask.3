@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2017
+.Dd January 16, 2018
 .Dt sysdecode_mask 3
 .Os
 .Sh NAME
@@ -50,6 +50,9 @@
 .Nm sysdecode_semget_flags ,
 .Nm sysdecode_sendfile_flags ,
 .Nm sysdecode_shmat_flags ,
+.Nm sysdecode_sctp_nxt_flags ,
+.Nm sysdecode_sctp_rcv_flags ,
+.Nm sysdecode_sctp_snd_flags ,
 .Nm sysdecode_socket_type ,
 .Nm sysdecode_thr_create_flags ,
 .Nm sysdecode_umtx_cvwait_flags ,
@@ -99,6 +102,12 @@
 .Fn sysdecode_reboot_howto "FILE *fp" "int howto" "int *rem"
 .Ft bool
 .Fn sysdecode_rfork_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_sctp_nxt_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_sctp_rcv_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_sctp_snd_flags "FILE *fp" "int flags" "int *rem"
 .Ft bool
 .Fn sysdecode_semget_flags "FILE *fp" "int flags" "int *rem"
 .Ft bool
@@ -185,6 +194,21 @@ and
 .Dv F_SETFL
 .Xr fcntl 2
 commands.
+.It Fn sysdecode_sctp_nxt_flags
+The 
+.Fa nxt_flags
+member of a
+.Vt struct sctp_nxtinfo .
+.It Fn sysdecode_sctp_rcv_flags
+The 
+.Fa rcv_flags
+member of a
+.Vt struct sctp_rcvinfo .
+.It Fn sysdecode_sctp_snd_flags
+The 
+.Fa snd_flags
+member of a
+.Vt struct sctp_sndinfo .
 .It Fn sysdecode_umtx_cvwait_flags
 The
 .Fa val

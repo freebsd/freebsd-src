@@ -45,9 +45,9 @@ def katg(base, glob):
 	assert os.path.exists(os.path.join(katdir, base)), "Please 'pkg install nist-kat'"
 	return iglob(os.path.join(katdir, base, glob))
 
-aesmodules = [ 'cryptosoft0', 'aesni0', 'ccr0' ]
+aesmodules = [ 'cryptosoft0', 'aesni0', 'ccr0', 'ccp0' ]
 desmodules = [ 'cryptosoft0', ]
-shamodules = [ 'cryptosoft0', 'aesni0', 'ccr0' ]
+shamodules = [ 'cryptosoft0', 'aesni0', 'ccr0', 'ccp0' ]
 
 def GenTestCase(cname):
 	try:
@@ -108,13 +108,25 @@ def GenTestCase(cname):
 						# XXX - isn't supported
 						continue
 
-					c = Crypto(cryptodev.CRYPTO_AES_NIST_GCM_16,
-					    cipherkey,
-					    mac=self._gmacsizes[len(cipherkey)],
-					    mackey=cipherkey, crid=crid)
+					try:
+						c = Crypto(cryptodev.CRYPTO_AES_NIST_GCM_16,
+						    cipherkey,
+						    mac=self._gmacsizes[len(cipherkey)],
+						    mackey=cipherkey, crid=crid)
+					except EnvironmentError, e:
+						# Can't test algorithms the driver does not support.
+						if e.errno != errno.EOPNOTSUPP:
+							raise
+						continue
 
 					if mode == 'ENCRYPT':
-						rct, rtag = c.encrypt(pt, iv, aad)
+						try:
+							rct, rtag = c.encrypt(pt, iv, aad)
+						except EnvironmentError, e:
+							# Can't test inputs the driver does not support.
+							if e.errno != errno.EINVAL:
+								raise
+							continue
 						rtag = rtag[:len(tag)]
 						data['rct'] = rct.encode('hex')
 						data['rtag'] = rtag.encode('hex')
@@ -128,7 +140,13 @@ def GenTestCase(cname):
 							self.assertRaises(IOError,
 								c.decrypt, *args)
 						else:
-							rpt, rtag = c.decrypt(*args)
+							try:
+								rpt, rtag = c.decrypt(*args)
+							except EnvironmentError, e:
+								# Can't test inputs the driver does not support.
+								if e.errno != errno.EINVAL:
+									raise
+								continue
 							data['rpt'] = rpt.encode('hex')
 							data['rtag'] = rtag.encode('hex')
 							self.assertEqual(rpt, pt,
@@ -189,8 +207,14 @@ def GenTestCase(cname):
 					if swapptct:
 						pt, ct = ct, pt
 					# run the fun
-					c = Crypto(meth, cipherkey, crid=crid)
-					r = curfun(c, pt, iv)
+					try:
+						c = Crypto(meth, cipherkey, crid=crid)
+						r = curfun(c, pt, iv)
+					except EnvironmentError, e:
+						# Can't test hashes the driver does not support.
+						if e.errno != errno.EOPNOTSUPP:
+							raise
+						continue
 					self.assertEqual(r, ct)
 
 		###############
@@ -309,6 +333,7 @@ def GenTestCase(cname):
 cryptosoft = GenTestCase('cryptosoft0')
 aesni = GenTestCase('aesni0')
 ccr = GenTestCase('ccr0')
+ccp = GenTestCase('ccp0')
 
 if __name__ == '__main__':
 	unittest.main()

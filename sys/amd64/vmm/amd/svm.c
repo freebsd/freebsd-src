@@ -87,6 +87,7 @@ SYSCTL_NODE(_hw_vmm, OID_AUTO, svm, CTLFLAG_RW, NULL, NULL);
 				VMCB_CACHE_TPR		|	\
 				VMCB_CACHE_CR2		|	\
 				VMCB_CACHE_CR		|	\
+				VMCB_CACHE_DR		|	\
 				VMCB_CACHE_DT		|	\
 				VMCB_CACHE_SEG		|	\
 				VMCB_CACHE_NP)
@@ -504,6 +505,10 @@ vmcb_init(struct svm_softc *sc, int vcpu, uint64_t iopm_base_pa,
 	    PAT_VALUE(5, PAT_WRITE_THROUGH)	|
 	    PAT_VALUE(6, PAT_UNCACHED)		|
 	    PAT_VALUE(7, PAT_UNCACHEABLE);
+
+	/* Set up DR6/7 to power-on state */
+	state->dr6 = 0xffff0ff0;
+	state->dr7 = 0x400;
 }
 
 /*
@@ -1911,6 +1916,60 @@ enable_gintr(void)
         __asm __volatile("stgi");
 }
 
+static __inline void
+svm_dr_enter_guest(struct svm_regctx *gctx)
+{
+
+	/* Save host control debug registers. */
+	gctx->host_dr7 = rdr7();
+	gctx->host_debugctl = rdmsr(MSR_DEBUGCTLMSR);
+
+	/*
+	 * Disable debugging in DR7 and DEBUGCTL to avoid triggering
+	 * exceptions in the host based on the guest DRx values.  The
+	 * guest DR6, DR7, and DEBUGCTL are saved/restored in the
+	 * VMCB.
+	 */
+	load_dr7(0);
+	wrmsr(MSR_DEBUGCTLMSR, 0);
+
+	/* Save host debug registers. */
+	gctx->host_dr0 = rdr0();
+	gctx->host_dr1 = rdr1();
+	gctx->host_dr2 = rdr2();
+	gctx->host_dr3 = rdr3();
+	gctx->host_dr6 = rdr6();
+
+	/* Restore guest debug registers. */
+	load_dr0(gctx->sctx_dr0);
+	load_dr1(gctx->sctx_dr1);
+	load_dr2(gctx->sctx_dr2);
+	load_dr3(gctx->sctx_dr3);
+}
+
+static __inline void
+svm_dr_leave_guest(struct svm_regctx *gctx)
+{
+
+	/* Save guest debug registers. */
+	gctx->sctx_dr0 = rdr0();
+	gctx->sctx_dr1 = rdr1();
+	gctx->sctx_dr2 = rdr2();
+	gctx->sctx_dr3 = rdr3();
+
+	/*
+	 * Restore host debug registers.  Restore DR7 and DEBUGCTL
+	 * last.
+	 */
+	load_dr0(gctx->host_dr0);
+	load_dr1(gctx->host_dr1);
+	load_dr2(gctx->host_dr2);
+	load_dr3(gctx->host_dr3);
+	load_dr6(gctx->host_dr6);
+	wrmsr(MSR_DEBUGCTLMSR, gctx->host_debugctl);
+	load_dr7(gctx->host_dr7);
+}
+
 /*
  * Start vcpu with specified RIP.
  */
@@ -2023,7 +2082,9 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		/* Launch Virtual Machine. */
 		VCPU_CTR1(vm, vcpu, "Resume execution at %#lx", state->rip);
+		svm_dr_enter_guest(gctx);
 		svm_launch(vmcb_pa, gctx, &__pcpu[curcpu]);
+		svm_dr_leave_guest(gctx);
 
 		CPU_CLR_ATOMIC(curcpu, &pmap->pm_active);
 
@@ -2092,6 +2153,14 @@ swctx_regptr(struct svm_regctx *regctx, int reg)
 		return (&regctx->sctx_r14);
 	case VM_REG_GUEST_R15:
 		return (&regctx->sctx_r15);
+	case VM_REG_GUEST_DR0:
+		return (&regctx->sctx_dr0);
+	case VM_REG_GUEST_DR1:
+		return (&regctx->sctx_dr1);
+	case VM_REG_GUEST_DR2:
+		return (&regctx->sctx_dr2);
+	case VM_REG_GUEST_DR3:
+		return (&regctx->sctx_dr3);
 	default:
 		return (NULL);
 	}

@@ -5799,10 +5799,8 @@ nfsrv_throwawayallstate(NFSPROC_T *p)
 	 * Also, free up any remaining lock file structures.
 	 */
 	for (i = 0; i < nfsrv_lockhashsize; i++) {
-		LIST_FOREACH_SAFE(lfp, &nfslockhash[i], lf_hash, nlfp) {
-			printf("nfsd unload: fnd a lock file struct\n");
+		LIST_FOREACH_SAFE(lfp, &nfslockhash[i], lf_hash, nlfp)
 			nfsrv_freenfslockfile(lfp);
-		}
 	}
 }
 

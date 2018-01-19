@@ -114,6 +114,11 @@ efi_init(void)
 			printf("EFI systbl not available\n");
 		return (0);
 	}
+	if (!PMAP_HAS_DMAP) {
+		if (bootverbose)
+			printf("EFI systbl requires direct map\n");
+		return (0);
+	}
 	efi_systbl = (struct efi_systbl *)PHYS_TO_DMAP(efi_systbl_phys);
 	if (efi_systbl->st_hdr.th_sig != EFI_SYSTBL_SIG) {
 		efi_systbl = NULL;

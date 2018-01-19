@@ -354,6 +354,7 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					num = atof(item);
 					if (!num) {
 						zeroerror();
+						free(savescr);
 						return 1;
 					}
 					if (doingtop ^ flip) {
@@ -366,6 +367,7 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					num = atof(divider + 1);
 					if (!num) {
 						zeroerror();
+						free(savescr);
 						return 1;
 					}
 					if (doingtop ^ flip) {
@@ -380,6 +382,7 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					num = atof(item);
 					if (!num) {
 						zeroerror();
+						free(savescr);
 						return 1;
 					}
 					if (doingtop ^ flip) {
@@ -401,9 +404,12 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					repeat = item[strlen(item) - 1] - '0';
 					item[strlen(item) - 1] = 0;
 				}
-				for (; repeat; repeat--)
-					if (addsubunit(doingtop ^ flip ? theunit->numerator : theunit->denominator, item))
+				for (; repeat; repeat--) {
+					if (addsubunit(doingtop ^ flip ? theunit->numerator : theunit->denominator, item)) {
+						free(savescr);
 						return 1;
+					}
+				}
 			}
 			item = strtok(NULL, " *\t/\n");
 		}

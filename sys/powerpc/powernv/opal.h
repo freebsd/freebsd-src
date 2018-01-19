@@ -59,14 +59,19 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_PCI_SET_XIVE_PE		37
 #define	OPAL_PCI_RESET			49
 #define	OPAL_PCI_POLL			62
+#define	OPAL_SET_XIVE           	19
+#define	OPAL_GET_XIVE           	20
 #define	OPAL_PCI_SET_PE			31
 #define	OPAL_GET_MSI_32			39
 #define	OPAL_GET_MSI_64			40
 #define	OPAL_PCI_MSI_EOI		63
+#define	OPAL_PCI_GET_PHB_DIAG_DATA2	64
 #define	OPAL_START_CPU			41
+#define	OPAL_PCI_MAP_PE_DMA_WINDOW	44
 #define	OPAL_PCI_MAP_PE_DMA_WINDOW_REAL	45
 #define	OPAL_RETURN_CPU			69
 #define	OPAL_REINIT_CPUS		70
+#define	OPAL_PCI_TCE_KILL		126
 
 /* For OPAL_PCI_SET_PE */
 #define	OPAL_UNMAP_PE			0

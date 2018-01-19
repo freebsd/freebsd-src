@@ -89,13 +89,14 @@ efi_getenv(EFI_GUID *g, const char *v, void *data, size_t *len)
 	UINTN dl;
 	EFI_STATUS rv;
 
-	utf8_to_ucs2(v, &uv, &ul);
-	if (uv == NULL)
+	uv = NULL;
+	if (utf8_to_ucs2(v, &uv, &ul) != 0)
 		return (EFI_OUT_OF_RESOURCES);
 	dl = *len;
 	rv = RS->GetVariable(uv, g, &attr, &dl, data);
 	if (rv == EFI_SUCCESS)
 		*len = dl;
+	free(uv);
 	return (rv);
 }
 
@@ -106,8 +107,7 @@ efi_setenv_freebsd_wcs(const char *varname, CHAR16 *valstr)
 	size_t len;
 	EFI_STATUS rv;
 
-	utf8_to_ucs2(varname, &var, &len);
-	if (var == NULL)
+	if (utf8_to_ucs2(varname, &var, &len) != 0)
 		return (EFI_OUT_OF_RESOURCES);
 	rv = RS->SetVariable(var, &FreeBSDBootVarGUID,
 	    EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,

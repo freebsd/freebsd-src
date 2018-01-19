@@ -82,6 +82,7 @@ main(int argc, char *argv[])
 	int ch;
 	struct rlimit rlimit;
 	struct itimerval itimerval;
+	int fsret;
 	int ret = 0;
 
 	sync();
@@ -196,8 +197,9 @@ main(int argc, char *argv[])
 		(void)setrlimit(RLIMIT_DATA, &rlimit);
 	}
 	while (argc > 0) {
-		if (checkfilesys(*argv) == ERESTART)
+		if ((fsret = checkfilesys(*argv)) == ERESTART)
 			continue;
+		ret |= fsret;
 		argc--;
 		argv++;
 	}
@@ -585,7 +587,7 @@ checkfilesys(char *filesys)
 		sync();
 		return (4);
 	}
-	return (0);
+	return (rerun ? ERERUN : 0);
 }
 
 static int

@@ -427,7 +427,7 @@ static void *
 z_alloc(void *notused, u_int items, u_int size)
 {
 
-	return (malloc(items * size, M_NETGRAPH_DEFLATE, M_NOWAIT));
+	return (mallocarray(items, size, M_NETGRAPH_DEFLATE, M_NOWAIT));
 }
 
 static void

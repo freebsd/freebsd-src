@@ -157,7 +157,8 @@ gen_table "sigcode"         "SI_[A-Z]+[[:space:]]+0(x[0-9abcdef]+)?"       "sys/
 gen_table "umtxcvwaitflags" "CVWAIT_[A-Z_]+[[:space:]]+0x[0-9]+"           "sys/umtx.h"
 gen_table "umtxrwlockflags" "URWLOCK_PREFER_READER[[:space:]]+0x[0-9]+"    "sys/umtx.h"
 gen_table "caprights"       "CAP_[A-Z_]+[[:space:]]+CAPRIGHT\([0-9],[[:space:]]+0x[0-9]{16}ULL\)"   "sys/capsicum.h"
-gen_table "sctpprpolicy"    "SCTP_PR_SCTP_[A-Z_]+"                         "netinet/sctp_uio.h" "SCTP_PR_SCTP_BUF|SCTP_PR_SCTP_MAX|SCTP_PR_SCTP_ALL"
+gen_table "sctpprpolicy"    "SCTP_PR_SCTP_[A-Z_]+[[:space:]]+0x[0-9]+"     "netinet/sctp_uio.h" "SCTP_PR_SCTP_ALL"
+gen_table "cmsgtypesocket"  "SCM_[A-Z_]+[[:space:]]+0x[0-9]+"              "sys/socket.h"
 if [ -e "${include_dir}/x86/sysarch.h" ]; then
 	gen_table "sysarchnum" "(AMD64|I386)_[A-Z86_]+[[:space:]]+[0-9]+"  "x86/sysarch.h"
 else

@@ -187,6 +187,10 @@ extern vm_offset_t vm_max_kernel_address;
 #define	SFBUF
 #define	SFBUF_MAP
 
+#define	PMAP_HAS_DMAP	0
+#define	PHYS_TO_DMAP(x)	({ panic("No direct map exists"); 0; })
+#define	DMAP_TO_PHYS(x)	({ panic("No direct map exists"); 0; })
+
 #define	DEVMAP_MAX_VADDR	ARM_VECTORS_HIGH
 
 #endif	/* _MACHINE_VMPARAM_H_ */

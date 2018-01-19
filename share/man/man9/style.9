@@ -26,7 +26,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2017
+.Dd January 18, 2018
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -365,7 +365,7 @@ struct foo {
 	struct foo	*next;		/* List of active foo. */
 	struct mumble	amumble;	/* Comment for mumble. */
 	int		bar;		/* Try to align the comments. */
-	struct verylongtypename *baz;	/* Won't fit in 2 tabs. */
+	struct verylongtypename *baz;	/* Does not fit in 2 tabs. */
 };
 struct foo *foohead;			/* Head of global foo list. */
 .Ed
@@ -382,7 +382,7 @@ struct foo {
 	LIST_ENTRY(foo)	link;		/* Use queue macros for foo lists. */
 	struct mumble	amumble;	/* Comment for mumble. */
 	int		bar;		/* Try to align the comments. */
-	struct verylongtypename *baz;	/* Won't fit in 2 tabs. */
+	struct verylongtypename *baz;	/* Does not fit in 2 tabs. */
 };
 LIST_HEAD(, foo) foohead;		/* Head of global foo list. */
 .Ed
@@ -431,7 +431,7 @@ alphabetical unless there is a compelling reason to use a different
 ordering.
 .Pp
 Functions that are used locally in more than one module go into a
-separate header file, e.g.\&
+separate header file, e.g.,
 .Qq Pa extern.h .
 .Pp
 Do not use the
@@ -512,7 +512,7 @@ Code which is unreachable for non-obvious reasons may be marked /*
 .Bd -literal
 	while ((ch = getopt(argc, argv, "abNn:")) != -1)
 		switch (ch) {		/* Indent the switch. */
-		case 'a':		/* Don't indent the case. */
+		case 'a':		/* Do not indent the case. */
 			aflag = 1;	/* Indent case body one tab. */
 			/* FALLTHROUGH */
 		case 'b':
@@ -726,7 +726,7 @@ not:
 .Pp
 Do not use
 .Ic \&!
-for tests unless it is a boolean, e.g.\& use:
+for tests unless it is a boolean, e.g., use:
 .Bd -literal
 if (*p == '\e0')
 .Ed
@@ -763,7 +763,7 @@ Old-style function declarations look like this:
 .Bd -literal
 static char *
 function(a1, a2, fl, a4)
-	int a1, a2;	/* Declare ints, too, don't default them. */
+	int a1, a2;	/* Declare ints, too, do not default them. */
 	float fl;	/* Beware double vs. float prototype differences. */
 	int a4;		/* List in order declared. */
 {

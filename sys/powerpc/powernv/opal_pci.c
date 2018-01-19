@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2015-2016 Nathan Whitehorn
+ * Copyright (c) 2017-2018 Semihalf
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,6 +58,12 @@ __FBSDID("$FreeBSD$");
 #include "pic_if.h"
 #include "iommu_if.h"
 #include "opal.h"
+
+#define	OPAL_PCI_TCE_MAX_ENTRIES	(1024*1024UL)
+#define	OPAL_PCI_TCE_SEG_SIZE		(16*1024*1024UL)
+#define	OPAL_PCI_TCE_R			(1UL << 0)
+#define	OPAL_PCI_TCE_W			(1UL << 1)
+#define	PHB3_TCE_KILL_INVAL_ALL		(1UL << 63)
 
 /*
  * Device interface.
@@ -148,6 +155,8 @@ struct opalpci_softc {
 	vmem_t *msi_vmem;
 	int msi_base;		/* Base XIVE number */
 	int base_msi_irq;	/* Base IRQ assigned by FreeBSD to this PIC */
+	uint64_t *tce;		/* TCE table for 1:1 mapping */
+	struct resource *r_reg;
 };
 
 static devclass_t	opalpci_devclass;
@@ -177,12 +186,24 @@ opalpci_probe(device_t dev)
 	return (BUS_PROBE_GENERIC);
 }
 
+static void
+pci_phb3_tce_invalidate_entire(struct opalpci_softc *sc)
+{
+
+	mb();
+	bus_write_8(sc->r_reg, 0x210, PHB3_TCE_KILL_INVAL_ALL);
+	mb();
+}
+
 static int
 opalpci_attach(device_t dev)
 {
 	struct opalpci_softc *sc;
 	cell_t id[2], m64window[6], npe;
 	int i, err;
+	uint64_t maxmem;
+	uint64_t entries;
+	int rid;
 
 	sc = device_get_softc(dev);
 
@@ -204,6 +225,15 @@ opalpci_attach(device_t dev)
 	if (bootverbose)
 		device_printf(dev, "OPAL ID %#lx\n", sc->phb_id);
 
+	rid = 0;
+	sc->r_reg = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &rid, RF_ACTIVE | RF_SHAREABLE);
+	if (sc->r_reg == NULL) {
+		device_printf(dev, "Failed to allocate PHB[%jd] registers\n",
+		    (uintmax_t)sc->phb_id);
+		return (ENXIO);
+	}
+
 	/*
 	 * Reset PCI IODA table
 	 */
@@ -214,45 +244,10 @@ opalpci_attach(device_t dev)
 		return (ENXIO);
 	}
 	while ((err = opal_call(OPAL_PCI_POLL, sc->phb_id)) > 0)
-		DELAY(1000*err); /* Returns expected delay in ms */
+		DELAY(1000*(err + 1)); /* Returns expected delay in ms */
 	if (err < 0) {
-		device_printf(dev, "PHB IODA reset poll failed: %d\n", err);
-		return (ENXIO);
+		device_printf(dev, "WARNING: PHB IODA reset poll failed: %d\n", err);
 	}
-
-	/*
-	 * Reset everything. Especially important if we have inherited the
-	 * system from Linux by kexec()
-	 */
-#ifdef NOTYET
-	if (bootverbose)
-		device_printf(dev, "Resetting PCI bus\n");
-	err = opal_call(OPAL_PCI_RESET, sc->phb_id, OPAL_RESET_PHB_COMPLETE, 1);
-	if (err < 0) {
-		device_printf(dev, "PHB reset failed: %d\n", err);
-		return (ENXIO);
-	}
-	while ((err = opal_call(OPAL_PCI_POLL, sc->phb_id)) > 0)
-		DELAY(1000*err); /* Returns expected delay in ms */
-	if (err < 0) {
-		device_printf(dev, "PHB reset poll failed: %d\n", err);
-		return (ENXIO);
-	}
-	DELAY(10000);
-	err = opal_call(OPAL_PCI_RESET, sc->phb_id, OPAL_RESET_PHB_COMPLETE, 0);
-	if (err < 0) {
-		device_printf(dev, "PHB reset completion failed: %d\n", err);
-		return (ENXIO);
-	}
-	while ((err = opal_call(OPAL_PCI_POLL, sc->phb_id)) > 0)
-		DELAY(1000*err); /* Returns expected delay in ms */
-	if (err < 0) {
-		device_printf(dev, "PHB reset completion  poll failed: %d\n",
-		    err);
-		return (ENXIO);
-	}
-	DELAY(10000);
-#endif
 
 	/*
 	 * Map all devices on the bus to partitionable endpoint one until
@@ -282,6 +277,8 @@ opalpci_attach(device_t dev)
 	/* XXX: multiple M64 windows? */
 	if (OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-m64-window",
 	    m64window, sizeof(m64window)) == sizeof(m64window)) {
+		opal_call(OPAL_PCI_PHB_MMIO_ENABLE, sc->phb_id,
+		    OPAL_M64_WINDOW_TYPE, 0, 0);
 		opal_call(OPAL_PCI_SET_PHB_MEM_WINDOW, sc->phb_id,
 		    OPAL_M64_WINDOW_TYPE, 0 /* index */, 
 		    ((uint64_t)m64window[2] << 32) | m64window[3], 0,
@@ -294,19 +291,52 @@ opalpci_attach(device_t dev)
 	}
 
 	/*
-	 * Also disable the IOMMU for the time being for PE 1 (everything)
+	 * Enable IOMMU for PE1 - map everything 1:1 using
+	 * segments of OPAL_PCI_TCE_SEG_SIZE size
 	 */
+	maxmem = roundup2(powerpc_ptob(Maxmem), OPAL_PCI_TCE_SEG_SIZE);
+	entries = maxmem / OPAL_PCI_TCE_SEG_SIZE;
+	if (entries > OPAL_PCI_TCE_MAX_ENTRIES)
+		panic("POWERNV supports only %jdGB of memory space\n",
+		    (uintmax_t)((OPAL_PCI_TCE_MAX_ENTRIES * OPAL_PCI_TCE_SEG_SIZE) >> 30));
 	if (bootverbose)
-		device_printf(dev, "Mapping 0-%#lx for DMA\n",
-		    roundup2(powerpc_ptob(Maxmem), 16*1024*1024));
-	err = opal_call(OPAL_PCI_MAP_PE_DMA_WINDOW_REAL, sc->phb_id,
-	    OPAL_PCI_DEFAULT_PE, OPAL_PCI_DEFAULT_PE << 1,
-	    0 /* start address */, roundup2(powerpc_ptob(Maxmem),
-	    16*1024*1024)/* all RAM */);
-	if (err != 0) {
-		device_printf(dev, "DMA mapping failed: %d\n", err);
-		return (ENXIO);
+		device_printf(dev, "Mapping 0-%#jx for DMA\n", (uintmax_t)maxmem);
+	sc->tce = contigmalloc(OPAL_PCI_TCE_MAX_ENTRIES * sizeof(uint64_t),
+	    M_DEVBUF, M_NOWAIT | M_ZERO, 0,
+	    BUS_SPACE_MAXADDR_32BIT, OPAL_PCI_TCE_SEG_SIZE, 0);
+	if (sc->tce == NULL)
+		panic("Failed to allocate TCE memory for PHB %jd\n",
+		    (uintmax_t)sc->phb_id);
+
+	for (i = 0; i < entries; i++)
+		sc->tce[i] = (i * OPAL_PCI_TCE_SEG_SIZE) | OPAL_PCI_TCE_R | OPAL_PCI_TCE_W;
+
+	/* Map TCE for every PE. It seems necessary for Power8 */
+	for (i = 0; i < npe; i++) {
+		err = opal_call(OPAL_PCI_MAP_PE_DMA_WINDOW, sc->phb_id,
+		    i, (i << 1),
+		    1, pmap_kextract((uint64_t)&sc->tce[0]),
+		    OPAL_PCI_TCE_MAX_ENTRIES * sizeof(uint64_t), OPAL_PCI_TCE_SEG_SIZE);
+		if (err != 0) {
+			device_printf(dev, "DMA IOMMU mapping failed: %d\n", err);
+			return (ENXIO);
+		}
+
+		err = opal_call(OPAL_PCI_MAP_PE_DMA_WINDOW_REAL, sc->phb_id,
+		    i, (i << 1) + 1,
+		    (1UL << 59), maxmem);
+		if (err != 0) {
+			device_printf(dev, "DMA 64b bypass mapping failed: %d\n", err);
+			return (ENXIO);
+		}
 	}
+
+	/*
+	 * Invalidate all previous TCE entries.
+	 *
+	 * TODO: add support for other PHBs than PHB3
+	 */
+	pci_phb3_tce_invalidate_entire(sc);
 
 	/*
 	 * Get MSI properties
@@ -457,6 +487,7 @@ opalpci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 static int
 opalpci_route_interrupt(device_t bus, device_t dev, int pin)
 {
+
 	return (pin);
 }
 

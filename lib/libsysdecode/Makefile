@@ -15,6 +15,7 @@ CFLAGS+= -I${SRCTOP}/libexec/rtld-elf
 MAN=	sysdecode.3 \
 	sysdecode_abi_to_freebsd_errno.3 \
 	sysdecode_cap_rights.3 \
+	sysdecode_cmsg_type.3 \
 	sysdecode_enum.3 \
 	sysdecode_fcntl_arg.3 \
 	sysdecode_kevent.3 \
@@ -95,6 +96,9 @@ MLINKS+=sysdecode_mask.3 sysdecode_accessmode.3 \
 	sysdecode_mask.3 sysdecode_semget_flags.3 \
 	sysdecode_mask.3 sysdecode_sendfile_flags.3 \
 	sysdecode_mask.3 sysdecode_shmat_flags.3 \
+	sysdecode_mask.3 sysdecode_sctp_nxt_flags.3 \
+	sysdecode_mask.3 sysdecode_sctp_rcv_flags.3 \
+	sysdecode_mask.3 sysdecode_sctp_snd_flags.3 \
 	sysdecode_mask.3 sysdecode_socket_type.3 \
 	sysdecode_mask.3 sysdecode_thr_create_flags.3 \
 	sysdecode_mask.3 sysdecode_umtx_cvwait_flags.3 \

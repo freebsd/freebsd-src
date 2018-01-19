@@ -418,7 +418,7 @@ fdesc_pathconf(struct vop_pathconf_args *ap)
 		vref(vp);
 		VOP_UNLOCK(vp, 0);
 		error = kern_fpathconf(curthread, VTOFDESC(vp)->fd_fd,
-		    ap->a_name);
+		    ap->a_name, ap->a_retval);
 		vn_lock(vp, LK_SHARED | LK_RETRY);
 		vunref(vp);
 		return (error);

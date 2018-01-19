@@ -83,6 +83,7 @@ extern	int	_ugssel;
 extern	int	use_xsave;
 extern	uint64_t xsave_mask;
 extern	u_int	max_apic_id;
+extern int	pti;
 
 struct	pcb;
 struct	thread;
@@ -135,6 +136,7 @@ void	nmi_call_kdb_smp(u_int type, struct trapframe *frame);
 void	nmi_handle_intr(u_int type, struct trapframe *frame);
 void	pagecopy(void *from, void *to);
 void	printcpuinfo(void);
+int	pti_get_default(void);
 int	user_dbreg_trap(void);
 int	minidumpsys(struct dumperinfo *);
 struct pcb *get_pcb_td(struct thread *td);

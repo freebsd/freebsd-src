@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/smp.h>
+#include <machine/md_var.h>
 #include <x86/psl.h>
 #include <x86/apicreg.h>
 
@@ -327,7 +328,8 @@ vmm_init(void)
 
 	vmm_host_state_init();
 
-	vmm_ipinum = lapic_ipi_alloc(&IDTVEC(justreturn));
+	vmm_ipinum = lapic_ipi_alloc(pti ? &IDTVEC(justreturn1_pti) :
+	    &IDTVEC(justreturn));
 	if (vmm_ipinum < 0)
 		vmm_ipinum = IPI_AST;
 

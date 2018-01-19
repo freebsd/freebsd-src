@@ -172,8 +172,8 @@ ctl_port_register(struct ctl_port *port)
 	 * Initialize the initiator and portname mappings
 	 */
 	port->max_initiators = CTL_MAX_INIT_PER_PORT;
-	port->wwpn_iid = malloc(sizeof(*port->wwpn_iid) * port->max_initiators,
-	    M_CTL, M_NOWAIT | M_ZERO);
+	port->wwpn_iid = mallocarray(port->max_initiators,
+	    sizeof(*port->wwpn_iid), M_CTL, M_NOWAIT | M_ZERO);
 	if (port->wwpn_iid == NULL) {
 		retval = ENOMEM;
 		goto error;

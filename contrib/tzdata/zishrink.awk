@@ -144,6 +144,7 @@ function output_saved_lines(i)
 }
 
 BEGIN {
+  print "# version", version
   print "# This zic input file is in the public domain."
 }
 

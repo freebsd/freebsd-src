@@ -555,8 +555,8 @@ MAN=	aac.4 \
 	${_virtio_scsi.4} \
 	vkbd.4 \
 	vlan.4 \
-	vmm.4 \
 	vxlan.4 \
+	${_vmm.4} \
 	${_vmx.4} \
 	vpo.4 \
 	vr.4 \
@@ -875,6 +875,7 @@ MLINKS+=sfxge.4 if_sfxge.4
 
 .if ${MK_BHYVE} != "no"
 _bhyve.4=	bhyve.4
+_vmm.4=		vmm.4
 .endif
 .endif
 

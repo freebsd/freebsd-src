@@ -260,6 +260,15 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	if (mdp_cookie != 0xfb5d104d)
 		mdp = NULL;
 
+#if !defined(BOOKE)
+	/*
+	 * On BOOKE the BSS is already cleared and some variables
+	 * initialized.  Do not wipe them out.
+	 */
+	bzero(__sbss_start, __sbss_end - __sbss_start);
+	bzero(__bss_start, _end - __bss_start);
+#endif
+
 #ifdef AIM
 	/*
 	 * If running from an FDT, make sure we are in real mode to avoid
@@ -293,14 +302,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 #endif
 		}
 	} else {
-#if !defined(BOOKE)
-		/*
-		 * On BOOKE the BSS is already cleared and some variables
-		 * initialized.  Do not wipe them out.
-		 */
-		bzero(__sbss_start, __sbss_end - __sbss_start);
-		bzero(__bss_start, _end - __bss_start);
-#endif
 		init_static_kenv(init_kenv, sizeof(init_kenv));
 		ofw_bootargs = true;
 	}

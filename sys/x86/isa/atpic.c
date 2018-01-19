@@ -80,6 +80,16 @@ inthand_t
 	IDTVEC(atpic_intr9), IDTVEC(atpic_intr10), IDTVEC(atpic_intr11),
 	IDTVEC(atpic_intr12), IDTVEC(atpic_intr13), IDTVEC(atpic_intr14),
 	IDTVEC(atpic_intr15);
+/* XXXKIB i386 uses stubs until pti comes */
+inthand_t
+	IDTVEC(atpic_intr0_pti), IDTVEC(atpic_intr1_pti),
+	IDTVEC(atpic_intr2_pti), IDTVEC(atpic_intr3_pti),
+	IDTVEC(atpic_intr4_pti), IDTVEC(atpic_intr5_pti),
+	IDTVEC(atpic_intr6_pti), IDTVEC(atpic_intr7_pti),
+	IDTVEC(atpic_intr8_pti), IDTVEC(atpic_intr9_pti),
+	IDTVEC(atpic_intr10_pti), IDTVEC(atpic_intr11_pti),
+	IDTVEC(atpic_intr12_pti), IDTVEC(atpic_intr13_pti),
+	IDTVEC(atpic_intr14_pti), IDTVEC(atpic_intr15_pti);
 
 #define	IRQ(ap, ai)	((ap)->at_irqbase + (ai)->at_irq)
 
@@ -92,7 +102,7 @@ inthand_t
 
 #define	INTSRC(irq)							\
 	{ { &atpics[(irq) / 8].at_pic }, IDTVEC(atpic_intr ## irq ),	\
-	    (irq) % 8 }
+	    IDTVEC(atpic_intr ## irq ## _pti), (irq) % 8 }
 
 struct atpic {
 	struct pic at_pic;
@@ -104,7 +114,7 @@ struct atpic {
 
 struct atpic_intsrc {
 	struct intsrc at_intsrc;
-	inthand_t *at_intr;
+	inthand_t *at_intr, *at_intr_pti;
 	int	at_irq;			/* Relative to PIC base. */
 	enum intr_trigger at_trigger;
 	u_long	at_count;
@@ -408,7 +418,8 @@ atpic_startup(void)
 		ai->at_intsrc.is_count = &ai->at_count;
 		ai->at_intsrc.is_straycount = &ai->at_straycount;
 		setidt(((struct atpic *)ai->at_intsrc.is_pic)->at_intbase +
-		    ai->at_irq, ai->at_intr, SDT_ATPIC, SEL_KPL, GSEL_ATPIC);
+		    ai->at_irq, pti ? ai->at_intr_pti : ai->at_intr, SDT_ATPIC,
+		    SEL_KPL, GSEL_ATPIC);
 	}
 
 	/*

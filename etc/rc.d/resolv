@@ -35,6 +35,7 @@
 
 name="resolv"
 desc="Create /etc/resolv.conf from kenv"
+start_cmd="${name}_start"
 stop_cmd=':'
 
 load_rc_config $name
@@ -42,17 +43,20 @@ load_rc_config $name
 # if the info is available via dhcp/kenv
 # build the resolv.conf
 #
-if [ -n "`/bin/kenv dhcp.domain-name-servers 2> /dev/null`" ]; then
-	interface="`/bin/kenv boot.netif.name`"
-	(
-	if [ -n "`/bin/kenv dhcp.domain-name 2> /dev/null`" ]; then
-		echo domain `/bin/kenv dhcp.domain-name`
+resolv_start()
+{
+	if [ -n "`/bin/kenv dhcp.domain-name-servers 2> /dev/null`" ]; then
+		interface="`/bin/kenv boot.netif.name`"
+		(
+		if [ -n "`/bin/kenv dhcp.domain-name 2> /dev/null`" ]; then
+			echo domain `/bin/kenv dhcp.domain-name`
+		fi
+	
+		set -- `/bin/kenv dhcp.domain-name-servers`
+		for ns in `IFS=','; echo $*`; do
+			echo nameserver $ns
+		done
+		) | /sbin/resolvconf -a ${interface}:dhcp4
 	fi
-
-	set -- `/bin/kenv dhcp.domain-name-servers`
-	for ns in `IFS=','; echo $*`; do
-		echo nameserver $ns
-	done
-	) | /sbin/resolvconf -a ${interface}:dhcp4
-fi
+}
 

@@ -72,6 +72,20 @@
 	movq	VMXCTX_GUEST_RDI(%rdi),%rdi; /* restore rdi the last */
 
 /*
+ * Clobber the remaining registers with guest contents so they can't
+ * be misused.
+ */
+#define	VMX_GUEST_CLOBBER						\
+	xor	%rax, %rax;						\
+	xor	%rcx, %rcx;						\
+	xor	%rdx, %rdx;						\
+	xor	%rsi, %rsi;						\
+	xor	%r8, %r8;						\
+	xor	%r9, %r9;						\
+	xor	%r10, %r10;						\
+	xor	%r11, %r11;
+
+/*
  * Save and restore the host context.
  *
  * Assumes that %rdi holds a pointer to the 'vmxctx'.
@@ -231,6 +245,8 @@ vmx_exit_guest:
 	LK btrl	%r10d, PM_ACTIVE(%r11)
 
 	VMX_HOST_RESTORE
+
+	VMX_GUEST_CLOBBER
 
 	/*
 	 * This will return to the caller of 'vmx_enter_guest()' with a return

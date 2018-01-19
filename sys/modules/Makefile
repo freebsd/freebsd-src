@@ -79,6 +79,7 @@ SUBDIR=	\
 	cas \
 	${_cbb} \
 	cc \
+	${_ccp} \
 	cd9660 \
 	cd9660_iconv \
 	${_ce} \
@@ -703,6 +704,7 @@ _x86bios=	x86bios
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
+_ccp=		ccp
 _efirt=		efirt
 _ioat=		ioat
 _ixl=		ixl

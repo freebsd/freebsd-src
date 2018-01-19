@@ -1608,6 +1608,16 @@ finishidentcpu(void)
 #endif
 }
 
+int
+pti_get_default(void)
+{
+
+	if (strcmp(cpu_vendor, AMD_VENDOR_ID) == 0)
+		return (0);
+
+	return (1);
+}
+
 static u_int
 find_cpu_vendor_id(void)
 {

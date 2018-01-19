@@ -55,13 +55,19 @@ static int attach_untested = 0;
 TUNABLE_INT("hw.bwn_pci.attach_untested", &attach_untested);
 
 /* If non-zero, probe at a higher priority than the stable if_bwn driver. */
-static int prefer_new_driver = 0; 
+static int prefer_new_driver = 1;
 TUNABLE_INT("hw.bwn_pci.preferred", &prefer_new_driver);
 
 /* SIBA Devices */
 static const struct bwn_pci_device siba_devices[] = {
 	BWN_BCM_DEV(BCM4306_D11A,	"BCM4306 802.11a",
-	    BWN_QUIRK_WLAN_DUALCORE),
+	    BWN_QUIRK_WLAN_DUALCORE|BWN_QUIRK_SOFTMODEM_UNPOPULATED),
+	BWN_BCM_DEV(BCM4306_D11G,	"BCM4306 802.11b/g",
+	    BWN_QUIRK_SOFTMODEM_UNPOPULATED),
+	BWN_BCM_DEV(BCM4306_D11G_ID2,	"BCM4306 802.11b/g",
+	    BWN_QUIRK_SOFTMODEM_UNPOPULATED),
+	BWN_BCM_DEV(BCM4306_D11DUAL,	"BCM4306 802.11a/b/g",
+	    BWN_QUIRK_SOFTMODEM_UNPOPULATED),
 	BWN_BCM_DEV(BCM4307,		"BCM4307 802.11b",		0),
 
 	BWN_BCM_DEV(BCM4311_D11G,	"BCM4311 802.11b/g",		0),
@@ -266,6 +272,9 @@ bwn_pci_is_core_disabled(device_t dev, device_t child,
 	case BHND_DEVCLASS_USB_HOST:
 		return ((sc->quirks & BWN_QUIRK_USBH_UNPOPULATED) != 0);
 
+	case BHND_DEVCLASS_SOFTMODEM:
+		return ((sc->quirks & BWN_QUIRK_SOFTMODEM_UNPOPULATED) != 0);
+
 	default:
 		return (false);
 	}
@@ -300,9 +309,9 @@ DRIVER_MODULE_ORDERED(bwn_pci, pci, bwn_pci_driver, bwn_pci_devclass, NULL,
     NULL, SI_ORDER_ANY);
 DRIVER_MODULE(bhndb, bwn_pci, bhndb_pci_driver, bhndb_devclass, NULL, NULL);
 
-MODULE_DEPEND(bwn_pci, bwn, 1, 1, 1);
 MODULE_DEPEND(bwn_pci, bhnd, 1, 1, 1);
 MODULE_DEPEND(bwn_pci, bhndb, 1, 1, 1);
 MODULE_DEPEND(bwn_pci, bhndb_pci, 1, 1, 1);
 MODULE_DEPEND(bwn_pci, bcma_bhndb, 1, 1, 1);
 MODULE_DEPEND(bwn_pci, siba_bhndb, 1, 1, 1);
+MODULE_VERSION(bwn_pci, 1);

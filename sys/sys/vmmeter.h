@@ -41,7 +41,6 @@
  */
 #define	MAXSLP			20
 
-/* Systemwide totals computed every five seconds. */
 struct vmtotal {
 	uint64_t	t_vm;		/* total virtual memory */
 	uint64_t	t_avm;		/* active virtual memory */
@@ -53,12 +52,12 @@ struct vmtotal {
 	uint64_t	t_armshr;	/* active shared real memory */
 	uint64_t	t_free;		/* free memory pages */
 	int16_t		t_rq;		/* length of the run queue */
-	int16_t		t_dw;		/* jobs in ``disk wait'' (neg
+	int16_t		t_dw;		/* threads in ``disk wait'' (neg
 					   priority) */
-	int16_t		t_pw;		/* jobs in page wait */
-	int16_t		t_sl;		/* jobs sleeping in core */
+	int16_t		t_pw;		/* threads in page wait */
+	int16_t		t_sl;		/* threads sleeping in core */
 	int16_t		t_sw;		/* swapped out runnable/short
-					   block jobs */
+					   block threads */
 	uint16_t	t_pad[3];
 };
 

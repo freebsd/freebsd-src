@@ -170,9 +170,9 @@ siba_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 
 		case SIBA_PMU_PWRCTL:
 		case SIBA_PMU_FIXED:
-			panic("bhnd_get_pmu_info() called with siba PMU state "
-			    "%d", dinfo->pmu_state);
-			return (ENXIO);
+			*result = (uintptr_t)NULL;
+			SIBA_UNLOCK(sc);
+			return (0);
 		}
 
 		panic("invalid PMU state: %d", dinfo->pmu_state);

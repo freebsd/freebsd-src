@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013,2014 Ilya Bakulin <ilya@bakulin.de>
  * All rights reserved.
  *
@@ -365,6 +367,11 @@ mmc_dev_advinfo(union ccb *start_ccb)
         case CDAI_TYPE_PHYS_PATH: /* pass(4) wants this */
                 cdai->provsiz = 0;
                 break;
+	case CDAI_TYPE_MMC_PARAMS:
+		cdai->provsiz = sizeof(struct mmc_params);
+		amt = MIN(cdai->provsiz, cdai->bufsiz);
+		memcpy(cdai->buf, &device->mmc_ident_data, amt);
+		break;
 	default:
                 panic("Unknown buftype");
 		return;

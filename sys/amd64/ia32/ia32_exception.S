@@ -40,17 +40,19 @@
  * that it originated in supervisor mode and skip the swapgs.
  */
 	SUPERALIGN_TEXT
+IDTVEC(int0x80_syscall_pti)
+	PTI_UENTRY has_err=0
+	jmp	int0x80_syscall_common
+	SUPERALIGN_TEXT
 IDTVEC(int0x80_syscall)
 	swapgs
+int0x80_syscall_common:
 	pushq	$2			/* sizeof "int 0x80" */
 	subq	$TF_ERR,%rsp		/* skip over tf_trapno */
 	movq	%rdi,TF_RDI(%rsp)
 	movq	PCPU(CURPCB),%rdi
 	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
-	movw	%fs,TF_FS(%rsp)
-	movw	%gs,TF_GS(%rsp)
-	movw	%es,TF_ES(%rsp)
-	movw	%ds,TF_DS(%rsp)
+	SAVE_SEGS
 	sti
 	movq	%rsi,TF_RSI(%rsp)
 	movq	%rdx,TF_RDX(%rsp)

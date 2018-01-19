@@ -715,14 +715,50 @@ print_dev_semb(struct device_match_result *dev_result, char *tmpstr)
 static int
 print_dev_mmcsd(struct device_match_result *dev_result, char *tmpstr)
 {
+	union ccb *ccb;
+	struct ccb_dev_advinfo *advi;
+	struct cam_device *dev;
+	struct mmc_params mmc_ident_data;
 
-	if (strlen(dev_result->mmc_ident_data.model) > 0) {
-		sprintf(tmpstr, "<%s>", dev_result->mmc_ident_data.model);
+	dev = cam_open_btl(dev_result->path_id, dev_result->target_id,
+	    dev_result->target_lun, O_RDWR, NULL);
+	if (dev == NULL) {
+		warnx("%s", cam_errbuf);
+		return (1);
+	}
+
+	ccb = cam_getccb(dev);
+	if (ccb == NULL) {
+		warnx("couldn't allocate CCB");
+		cam_close_device(dev);
+		return (1);
+	}
+
+	advi = &ccb->cdai;
+	advi->ccb_h.flags = CAM_DIR_IN;
+	advi->ccb_h.func_code = XPT_DEV_ADVINFO;
+	advi->flags = CDAI_FLAG_NONE;
+	advi->buftype = CDAI_TYPE_MMC_PARAMS;
+	advi->bufsiz = sizeof(struct mmc_params);
+	advi->buf = (uint8_t *)&mmc_ident_data;
+
+	if (cam_send_ccb(dev, ccb) < 0) {
+		warn("error sending CAMIOCOMMAND ioctl");
+		cam_freeccb(ccb);
+		cam_close_device(dev);
+		return (1);
+	}
+
+	if (strlen(mmc_ident_data.model) > 0) {
+		sprintf(tmpstr, "<%s>", mmc_ident_data.model);
 	} else {
 		sprintf(tmpstr, "<%s card>",
-		    dev_result->mmc_ident_data.card_features &
+		    mmc_ident_data.card_features &
 		    CARD_FEATURE_SDIO ? "SDIO" : "unknown");
 	}
+
+	cam_freeccb(ccb);
+	cam_close_device(dev);
 	return (0);
 }
 

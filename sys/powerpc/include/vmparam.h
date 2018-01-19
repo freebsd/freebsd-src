@@ -37,6 +37,10 @@
 #ifndef _MACHINE_VMPARAM_H_
 #define	_MACHINE_VMPARAM_H_
 
+#ifndef LOCORE
+#include <machine/md_var.h>
+#endif
+
 #define	USRSTACK	SHAREDPAGE
 
 #ifndef	MAXTSIZ
@@ -236,17 +240,25 @@ struct pmap_physseg {
  */
 #define	SFBUF
 #define	SFBUF_NOMD
-#define	SFBUF_OPTIONAL_DIRECT_MAP	hw_direct_map
-#define	SFBUF_PHYS_DMAP(x)		(x)
 
 /*
- * We (usually) have a direct map of all physical memory. All
- * uses of this macro must be gated by a check on hw_direct_map!
- * The location of the direct map may not be 1:1 in future, so use
- * of the macro is recommended; it may also grow an assert that hw_direct_map
- * is set.
+ * We (usually) have a direct map of all physical memory, so provide
+ * a macro to use to get the kernel VA address for a given PA. Returns
+ * 0 if the direct map is unavailable. The location of the direct map
+ * may not be 1:1 in future, so use of the macro is recommended.
  */
-#define PHYS_TO_DMAP(x) x
-#define DMAP_TO_PHYS(x) x
- 
+#ifdef __powerpc64__
+#define	DMAP_BASE_ADDRESS	0x0000000000000000UL
+#else
+#define	DMAP_BASE_ADDRESS	0x00000000UL
+#endif
+
+#define	PMAP_HAS_DMAP	(hw_direct_map)
+#define PHYS_TO_DMAP(x) ({						\
+	KASSERT(hw_direct_map, ("Direct map not provided by PMAP"));	\
+	(x) | DMAP_BASE_ADDRESS; })
+#define DMAP_TO_PHYS(x) ({						\
+	KASSERT(hw_direct_map, ("Direct map not provided by PMAP"));	\
+	(x) &~ DMAP_BASE_ADDRESS; })
+
 #endif /* _MACHINE_VMPARAM_H_ */

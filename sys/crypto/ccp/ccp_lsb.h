@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2015 Oleksandr Tymoshenko <gonzo@FreeBSD.org>
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2017 Conrad Meyer <cem@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,9 +28,18 @@
  * $FreeBSD$
  */
 
-#ifndef FDT_OVERLAY_H
-#define FDT_OVERLAY_H
+#pragma once
 
-int fdt_overlay_apply(void *main_fdtp, void *overlay_fdtp);
+#define LSB_ENTRY_SIZE		32	/* bytes, or 256 bits */
+#define LSB_REGION_LENGTH	16	/* entries */
 
-#endif /* FDT_OVERLAY_H */
+/* For now, just statically allocate some LSB entries for specific purposes. */
+#define LSB_ENTRY_KEY		0
+#define LSB_ENTRY_IV		2
+#define LSB_ENTRY_SHA		4
+#define LSB_ENTRY_GHASH		6
+#define LSB_ENTRY_GHASH_IN	7
+
+void ccp_queue_decode_lsb_regions(struct ccp_softc *sc, uint64_t lsbmask,
+    unsigned queue);
+void ccp_assign_lsb_regions(struct ccp_softc *sc, uint64_t lsbmask);

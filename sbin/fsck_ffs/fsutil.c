@@ -222,7 +222,7 @@ static struct bufarea *cgbufs;	/* header for cylinder group cache */
 static int flushtries;		/* number of tries to reclaim memory */
 
 struct bufarea *
-cgget(int cg)
+cglookup(int cg)
 {
 	struct bufarea *cgbp;
 	struct cg *cgp;
@@ -791,7 +791,7 @@ allocblk(long frags)
 				continue;
 			}
 			cg = dtog(&sblock, i + j);
-			cgbp = cgget(cg);
+			cgbp = cglookup(cg);
 			cgp = cgbp->b_un.b_cg;
 			if (!check_cgmagic(cg, cgbp))
 				return (0);
