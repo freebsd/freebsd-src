@@ -115,10 +115,8 @@ void sf_buf_ref(struct sf_buf *);
 static inline vm_offset_t
 sf_buf_kva(struct sf_buf *sf)
 {
-#ifdef PMAP_HAS_DMAP
 	if (PMAP_HAS_DMAP)
 		return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS((vm_page_t)sf)));
-#endif
 
         return (sf->kva);
 }
@@ -126,10 +124,8 @@ sf_buf_kva(struct sf_buf *sf)
 static inline vm_page_t
 sf_buf_page(struct sf_buf *sf)
 {
-#ifdef PMAP_HAS_DMAP
 	if (PMAP_HAS_DMAP)
 		return ((vm_page_t)sf);
-#endif
 
         return (sf->m);
 }
