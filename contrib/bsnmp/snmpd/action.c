@@ -751,7 +751,7 @@ int
 op_community(struct snmp_context *ctx, struct snmp_value *value,
     u_int sub, u_int iidx __unused, enum snmp_op op)
 {
-	struct asn_oid index;
+	struct asn_oid idx;
 	struct community *c;
 	asn_subid_t which = value->var.subs[sub - 1];
 
@@ -773,14 +773,14 @@ op_community(struct snmp_context *ctx, struct snmp_value *value,
 	  case SNMP_OP_SET:
 		if (community != COMM_INITIALIZE && snmpd.comm_dis)
 			return (SNMP_ERR_NOT_WRITEABLE);
-		index.len = 2;
-		index.subs[0] = 0;
-		index.subs[1] = value->var.subs[value->var.len - 1];
+		idx.len = 2;
+		idx.subs[0] = 0;
+		idx.subs[1] = value->var.subs[value->var.len - 1];
 		switch (which) {
 		case LEAF_begemotSnmpdCommunityString:
 			/* check that given string is unique */
 			TAILQ_FOREACH(c, &community_list, link) {
-				if (!asn_compare_oid(&index, &c->index))
+				if (!asn_compare_oid(&idx, &c->index))
 					continue;
 				if (c->string != NULL && strcmp(c->string,
 				    value->v.octetstring.octets) == 0)
@@ -795,7 +795,7 @@ op_community(struct snmp_context *ctx, struct snmp_value *value,
 		    sub)) == NULL) {
 			/* create new community and use user sepcified index */
 			c = comm_define_ordered(COMM_READ, "SNMP Custom Community",
-			    &index, NULL, NULL);
+			    &idx, NULL, NULL);
 			if (c == NULL)
 				return (SNMP_ERR_NO_CREATION);
 		}
