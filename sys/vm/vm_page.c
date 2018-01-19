@@ -2937,7 +2937,7 @@ vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
 {
 
 #if defined(DIAGNOSTIC) && defined(PHYS_TO_DMAP)
-	if ((m->flags & PG_ZERO) != 0) {
+	if (PMAP_HAS_DMAP && (m->flags & PG_ZERO) != 0) {
 		uint64_t *p;
 		int i;
 		p = (uint64_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
