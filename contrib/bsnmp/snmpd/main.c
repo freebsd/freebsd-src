@@ -1160,8 +1160,8 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	 */
 	if (pdu.version < SNMP_V3 &&
 	    ((pi->cred && !pi->priv && pdu.type == SNMP_PDU_SET) ||
-	    (community != COMM_WRITE &&
-            (pdu.type == SNMP_PDU_SET || community != COMM_READ)))) {
+	    (comm != NULL && comm->private != COMM_WRITE &&
+            (pdu.type == SNMP_PDU_SET || comm->private != COMM_READ)))) {
 		snmpd_stats.inBadCommunityUses++;
 		snmp_pdu_free(&pdu);
 		snmp_input_consume(pi);
@@ -1609,8 +1609,8 @@ main(int argc, char *argv[])
 	/*
 	 * Get standard communities
 	 */
-	(void)comm_define(1, "SNMP read", NULL, NULL);
-	(void)comm_define(2, "SNMP write", NULL, NULL);
+	comm_define(COMM_READ, "SNMP read", NULL, NULL);
+	comm_define(COMM_WRITE, "SNMP write", NULL, NULL);
 	community = COMM_INITIALIZE;
 
 	trap_reqid = reqid_allocate(512, NULL);
@@ -2027,11 +2027,58 @@ asn_error_func(const struct asn_buf *b, const char *err, ...)
 /*
  * Create a new community
  */
+struct community*
+comm_define_ordered(u_int priv, const char *descr, struct asn_oid *index,
+    struct lmodule *owner, const char *str)
+{
+	struct community *c, *p;
+	u_int ncomm;
+
+	ncomm = index->subs[index->len - 1];
+
+	/* check that community doesn't already exist */
+	TAILQ_FOREACH(c, &community_list, link)
+		if (c->value == ncomm)
+			return (c);
+
+	if ((c = malloc(sizeof(struct community))) == NULL) {
+		syslog(LOG_ERR, "%s: %m", __func__);
+		return (NULL);
+	}
+	c->owner = owner;
+	c->value = ncomm;
+	c->descr = descr;
+	c->string = NULL;
+	c->private = priv;
+
+	if (str != NULL) {
+		if((c->string = malloc(strlen(str)+1)) == NULL) {
+			free(c);
+			return (NULL);
+		}
+		strcpy(c->string, str);
+	}
+	/*
+	 * Insert ordered
+	 */
+	c->index = *index;
+	TAILQ_FOREACH(p, &community_list, link) {
+		if (asn_compare_oid(&p->index, &c->index) > 0) {
+			TAILQ_INSERT_BEFORE(p, c, link);
+			break;
+		}
+	}
+	if (p == NULL)
+		TAILQ_INSERT_TAIL(&community_list, c, link);
+	return (c);
+}
+
 u_int
 comm_define(u_int priv, const char *descr, struct lmodule *owner,
     const char *str)
 {
-	struct community *c, *p;
+	struct asn_oid index, *p;
+	struct community *c;
 	u_int ncomm;
 
 	/* generate an identifier */
@@ -2043,44 +2090,18 @@ comm_define(u_int priv, const char *descr, struct lmodule *owner,
 				break;
 	} while (c != NULL);
 
-	if ((c = malloc(sizeof(struct community))) == NULL) {
-		syslog(LOG_ERR, "comm_define: %m");
-		return (0);
-	}
-	c->owner = owner;
-	c->value = ncomm;
-	c->descr = descr;
-	c->string = NULL;
-	c->private = priv;
-
-	if (str != NULL) {
-		if((c->string = malloc(strlen(str)+1)) == NULL) {
-			free(c);
-			return (0);
-		}
-		strcpy(c->string, str);
-	}
-
 	/* make index */
-	if (c->owner == NULL) {
-		c->index.len = 1;
-		c->index.subs[0] = 0;
-	} else {
-		c->index = c->owner->index;
+	if (owner != NULL)
+		p = &owner->index;
+	else {
+		p = &index;
+		p->len = 1;
+		p->subs[0] = 0;
 	}
-	c->index.subs[c->index.len++] = c->private;
-
-	/*
-	 * Insert ordered
-	 */
-	TAILQ_FOREACH(p, &community_list, link) {
-		if (asn_compare_oid(&p->index, &c->index) > 0) {
-			TAILQ_INSERT_BEFORE(p, c, link);
-			break;
-		}
-	}
-	if (p == NULL)
-		TAILQ_INSERT_TAIL(&community_list, c, link);
+	p->subs[p->len++] = ncomm;
+	c = comm_define_ordered(priv, descr, p, owner, str);
+	if (c == NULL)
+		return (0);
 	return (c->value);
 }
 
