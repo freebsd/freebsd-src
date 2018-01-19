@@ -287,24 +287,42 @@ IDTVEC(dblfault)
 3:	hlt
 	jmp	3b
 
-	PTI_ENTRY	page, Xpage, has_err=1
+	ALIGN_TEXT
+IDTVEC(page_pti)
+	testb	$SEL_RPL_MASK,PTI_CS-2*8(%rsp)
+	jz	Xpage
+	swapgs
+	pushq	%rax
+	pushq	%rdx
+	movq	%cr3,%rax
+	movq	%rax,PCPU(SAVED_UCR3)
+	PTI_UUENTRY has_err=1
+	subq	$TF_ERR,%rsp
+	movq	%rdi,TF_RDI(%rsp)
+	movq	%rax,TF_RAX(%rsp)
+	movq	%rdx,TF_RDX(%rsp)
+	jmp	page_u
 IDTVEC(page)
 	subq	$TF_ERR,%rsp
-	movq	%rdi,TF_RDI(%rsp)	/* free up a GP register */
+	movq	%rdi,TF_RDI(%rsp)	/* free up GP registers */
+	movq	%rax,TF_RAX(%rsp)
+	movq	%rdx,TF_RDX(%rsp)
 	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
 	jz	page_cr2		/* already running with kernel GS.base */
 	swapgs
-	movq	PCPU(CURPCB),%rdi
+page_u:	movq	PCPU(CURPCB),%rdi
 	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
+	movq	PCPU(SAVED_UCR3),%rax
+	movq	%rax,PCB_SAVED_UCR3(%rdi)
 page_cr2:
 	movq	%cr2,%rdi		/* preserve %cr2 before ..  */
 	movq	%rdi,TF_ADDR(%rsp)	/* enabling interrupts. */
 	SAVE_SEGS
 	movl	$T_PAGEFLT,TF_TRAPNO(%rsp)
 	testl	$PSL_I,TF_RFLAGS(%rsp)
-	jz	alltraps_pushregs_no_rdi
+	jz	alltraps_pushregs_no_rax
 	sti
-	jmp	alltraps_pushregs_no_rdi
+	jmp	alltraps_pushregs_no_rax
 
 	/*
 	 * We have to special-case this one.  If we get a trap in doreti() at
