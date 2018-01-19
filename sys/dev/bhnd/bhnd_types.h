@@ -66,6 +66,7 @@ typedef enum {
 	BHND_DEVCLASS_USB_HOST,		/**< USB host controller */
 	BHND_DEVCLASS_USB_DEV,		/**< USB device controller */
 	BHND_DEVCLASS_USB_DUAL,		/**< USB host/device controller */
+	BHND_DEVCLASS_SOFTMODEM,	/**< analog/PSTN softmodem codec */
 
 	BHND_DEVCLASS_OTHER	= 1000,	/**< other / unknown */
 	BHND_DEVCLASS_INVALID		/**< no/invalid class */
