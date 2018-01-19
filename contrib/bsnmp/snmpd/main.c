@@ -2028,13 +2028,13 @@ asn_error_func(const struct asn_buf *b, const char *err, ...)
  * Create a new community
  */
 struct community*
-comm_define_ordered(u_int priv, const char *descr, struct asn_oid *index,
+comm_define_ordered(u_int priv, const char *descr, struct asn_oid *idx,
     struct lmodule *owner, const char *str)
 {
 	struct community *c, *p;
 	u_int ncomm;
 
-	ncomm = index->subs[index->len - 1];
+	ncomm = idx->subs[idx->len - 1];
 
 	/* check that community doesn't already exist */
 	TAILQ_FOREACH(c, &community_list, link)
@@ -2061,7 +2061,7 @@ comm_define_ordered(u_int priv, const char *descr, struct asn_oid *index,
 	/*
 	 * Insert ordered
 	 */
-	c->index = *index;
+	c->index = *idx;
 	TAILQ_FOREACH(p, &community_list, link) {
 		if (asn_compare_oid(&p->index, &c->index) > 0) {
 			TAILQ_INSERT_BEFORE(p, c, link);
@@ -2077,7 +2077,7 @@ u_int
 comm_define(u_int priv, const char *descr, struct lmodule *owner,
     const char *str)
 {
-	struct asn_oid index, *p;
+	struct asn_oid idx, *p;
 	struct community *c;
 	u_int ncomm;
 
@@ -2094,7 +2094,7 @@ comm_define(u_int priv, const char *descr, struct lmodule *owner,
 	if (owner != NULL)
 		p = &owner->index;
 	else {
-		p = &index;
+		p = &idx;
 		p->len = 1;
 		p->subs[0] = 0;
 	}
