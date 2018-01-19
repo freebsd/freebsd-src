@@ -74,6 +74,13 @@ enum {
 	 * unpopulated.
 	 */
 	BWN_QUIRK_USBH_UNPOPULATED	= 1<<3,
+
+	/**
+	 * Some early devices (including all BCM4306 chipsets) shipped with
+	 * floating analog softmodem codec cores; set this quirk to treat these
+	 * cores as unpopulated.
+	 */
+	BWN_QUIRK_SOFTMODEM_UNPOPULATED	= 1<<4,
 };
 
 /* PCI device descriptor */
