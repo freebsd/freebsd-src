@@ -2,6 +2,7 @@
  * Copyright (c) 1987, 1991, 1993
  *	The Regents of the University of California.
  * Copyright (c) 2005-2009 Robert N. M. Watson
+ * Copyright (c) 2008 Otto Moerbeek <otto@drijf.net> (mallocarray)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -524,6 +525,16 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 		va = redzone_setup(va, osize);
 #endif
 	return ((void *) va);
+}
+
+void *
+mallocarray(size_t nmemb, size_t size, struct malloc_type *type, int flags)
+{
+
+	if (WOULD_OVERFLOW(nmemb, size))
+		panic("mallocarray: %zu * %zu overflowed", nmemb, size);
+
+	return (malloc(size * nmemb, type, flags));
 }
 
 /*
