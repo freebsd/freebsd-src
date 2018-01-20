@@ -2829,7 +2829,7 @@ vm_wait(void)
  *
  *	Called when a page allocation function fails.  Informs the
  *	pagedaemon and performs the requested wait.  Requires the
- *	page_queue_free and object lock on entry.  Returns with the
+ *	domain_free and object lock on entry.  Returns with the
  *	object lock held and free lock released.  Returns an error when
  *	retry is necessary.
  *

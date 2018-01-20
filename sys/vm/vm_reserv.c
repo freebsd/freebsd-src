@@ -1014,7 +1014,7 @@ vm_reserv_break_all(vm_object_t object)
 
 	/*
 	 * This access of object->rvq is unsynchronized so that the
-	 * object rvq lock can nest after the pagequeue_free lock.  We
+	 * object rvq lock can nest after the domain_free lock.  We
 	 * must check for races in the results.  However, the object
 	 * lock prevents new additions, so we are guaranteed that when
 	 * it returns NULL the object is properly empty.
