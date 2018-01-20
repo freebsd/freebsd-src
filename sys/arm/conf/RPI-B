@@ -46,6 +46,9 @@ device		pty
 device		snp
 device		pl011
 
+# Device mode support
+device		usb_template    	# Control of the gadget
+
 # Comment following lines for boot console on serial port
 device		vt
 device		kbdmux
