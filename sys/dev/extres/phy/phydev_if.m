@@ -1,5 +1,5 @@
 #-
-# Copyright 2016 Michal Meloun <mmel@FreeBSD.org>
+# Copyright 2017 Michal Meloun <mmel@FreeBSD.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,18 @@
 #include <dev/ofw/ofw_bus.h>
 #endif
 
-INTERFACE phy;
+#include <machine/bus.h>
+
+INTERFACE phydev;
 
 #ifdef FDT
+
 HEADER {
-int phy_default_map(device_t , phandle_t, int, pcell_t *, intptr_t *);
+int phydev_default_ofw_map(device_t , phandle_t, int, pcell_t *, intptr_t *);
 }
 
 #
-# map fdt property cells to phy number
+# map fdt property cells to regulator number
 # Returns 0 on success or a standard errno value.
 #
 METHOD int map {
@@ -48,37 +51,6 @@ METHOD int map {
 	int		ncells;
 	pcell_t		*cells;
 	intptr_t	*id;
-} DEFAULT phy_default_map;
+} DEFAULT phydev_default_ofw_map;
+
 #endif
-
-#
-# Init/deinit phy
-# Returns 0 on success or a standard errno value.
-#
-METHOD int init {
-	device_t	provider_dev;
-	intptr_t	id;
-	bool		inti;
-};
-
-#
-# Enable/disable phy
-# Returns 0 on success or a standard errno value.
-#
-METHOD int enable {
-	device_t	provider_dev;
-	intptr_t	id;
-	bool		enable;
-};
-
-#
-# Get phy status
-# Returns 0 on success or a standard errno value.
-#
-METHOD int status {
-	device_t	provider_dev;
-	intptr_t	id;
-	int		*status;    /* PHY_STATUS_* */
-};
-
-
