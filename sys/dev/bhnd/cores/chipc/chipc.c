@@ -250,6 +250,9 @@ chipc_detach(device_t dev)
 	if ((error = bus_generic_detach(dev)))
 		return (error);
 
+	if ((error = device_delete_children(dev)))
+		return (error);
+
 	if ((error = bhnd_deregister_provider(dev, BHND_SERVICE_ANY)))
 		return (error);
 
