@@ -2,7 +2,7 @@
 
 PACKAGE=	tests
 
-ATF_TESTS_SH=	hexdump_test
+ATF_TESTS_SH=	hexdump_test od_test
 
 ${PACKAGE}FILES+=	d_hexdump_a.in
 ${PACKAGE}FILES+=	d_hexdump_b.in
@@ -27,5 +27,7 @@ ${PACKAGE}FILES+=	d_hexdump_UCflag_c.out
 ${PACKAGE}FILES+=	d_hexdump_xflag_a.out
 ${PACKAGE}FILES+=	d_hexdump_xflag_b.out
 ${PACKAGE}FILES+=	d_hexdump_xflag_c.out
+${PACKAGE}FILES+=	d_od_cflag_a.out
+${PACKAGE}FILES+=	d_od_cflag_b.out
 
 .include <bsd.test.mk>
