@@ -608,6 +608,7 @@ resource_num(int which, int ch, const char *str)
 		    break;
 		case 'w': case 'W':	/* weeks */
 		    tim *= (60L * 60L * 24L * 7L);
+		    break;
 		case 'y': case 'Y':	/* Years */
 		    tim *= (60L * 60L * 24L * 365L);
 		}
