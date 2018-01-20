@@ -543,8 +543,7 @@ kern_munmap(struct thread *td, uintptr_t addr0, size_t size)
 		 */
 		pkm.pm_address = (uintptr_t) NULL;
 		if (vm_map_lookup_entry(map, addr, &entry)) {
-			for (;
-			    entry != &map->header && entry->start < addr + size;
+			for (; entry->start < addr + size;
 			    entry = entry->next) {
 				if (vm_map_check_protection(map, entry->start,
 					entry->end, VM_PROT_EXECUTE) == TRUE) {
@@ -770,16 +769,12 @@ RestartScan:
 	 * up the pages elsewhere.
 	 */
 	lastvecindex = -1;
-	for (current = entry;
-	    (current != &map->header) && (current->start < end);
-	    current = current->next) {
+	for (current = entry; current->start < end; current = current->next) {
 
 		/*
 		 * check for contiguity
 		 */
-		if (current->end < end &&
-		    (entry->next == &map->header ||
-		     current->next->start > current->end)) {
+		if (current->end < end && current->next->start > current->end) {
 			vm_map_unlock_read(map);
 			return (ENOMEM);
 		}
