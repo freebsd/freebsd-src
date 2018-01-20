@@ -2978,7 +2978,7 @@ psmintr(void *arg)
 			sc->flags &= ~PSM_NEED_SYNCBITS;
 			VLOG(2, (LOG_DEBUG,
 			    "psmintr: Sync bytes now %04x,%04x\n",
-			    sc->mode.syncmask[0], sc->mode.syncmask[0]));
+			    sc->mode.syncmask[0], sc->mode.syncmask[1]));
 		} else if ((sc->config & PSM_CONFIG_NOCHECKSYNC) == 0 &&
 		    (c & sc->mode.syncmask[0]) != sc->mode.syncmask[1]) {
 			VLOG(3, (LOG_DEBUG, "psmintr: out of sync "
