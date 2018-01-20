@@ -58,6 +58,8 @@ conv_c(PR *pr, u_char *p, size_t bufsize)
 	u_char peekbuf[MB_LEN_MAX];
 	u_char *op;
 
+	op = NULL;
+
 	if (pr->mbleft > 0) {
 		str = "**";
 		pr->mbleft--;
