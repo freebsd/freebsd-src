@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2013
+.Dd January 13, 2018
 .Dt LIMITS 1
 .Os
 .Sh NAME
@@ -82,7 +82,7 @@ login capabilities database.
 .It Nm Fl e Op Ar limitflags
 This usage determines values of resource settings according to
 .Ar limitflags ,
-but does not set them itself.
+but does not set them.
 Like the previous usage, it outputs these values to standard
 output, except that it will emit them in
 .Ic eval
@@ -180,7 +180,7 @@ options.
 Select
 .Dq "eval mode"
 formatting for output.
-This is valid only on display mode and cannot be used when running a
+This is valid only in display mode and cannot be used when running a
 command.
 The exact syntax used for output depends upon the type of shell from
 which
