@@ -916,6 +916,14 @@ clknode_set_freq(struct clknode *clknode, uint64_t freq, int flags,
 		/* Success - invalidate frequency cache for all children. */
 		if ((flags & CLK_SET_DRYRUN) == 0) {
 			clknode->freq = freq;
+			/* Clock might have reparent during set_freq */
+			if (clknode->parent_cnt > 0) {
+				rv = clknode_get_freq(clknode->parent,
+				    &parent_freq);
+				if (rv != 0) {
+					return (rv);
+				}
+			}
 			clknode_refresh_cache(clknode, parent_freq);
 		}
 	} else if (clknode->parent != NULL) {
