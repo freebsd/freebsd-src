@@ -364,6 +364,7 @@ p_ere_exp(struct parse *p, struct branchc *bc)
 	sopno subno;
 	int wascaret = 0;
 
+	(void)bc;
 	assert(MORE());		/* caller should have ensured this */
 	c = GETNEXT();
 
@@ -534,6 +535,7 @@ p_branch_eat_delim(struct parse *p, struct branchc *bc)
 {
 	int nskip;
 
+	(void)bc;
 	nskip = 0;
 	while (EAT('|'))
 		++nskip;
@@ -587,6 +589,7 @@ static bool
 p_branch_empty(struct parse *p, struct branchc *bc)
 {
 
+	(void)bc;
 	SETERROR(REG_EMPTY);
 	return (false);
 }
@@ -1617,12 +1620,12 @@ findmust(struct parse *p, struct re_guts *g)
 				scan += OPND(s);
 				s = *scan;
 				/* assert() interferes w debug printouts */
-				if (OP(s) != O_QUEST && OP(s) != O_CH &&
-							OP(s) != OOR2) {
+				if (OP(s) != (sop)O_QUEST &&
+				    OP(s) != (sop)O_CH && OP(s) != (sop)OOR2) {
 					g->iflags |= BAD;
 					return;
 				}
-			} while (OP(s) != O_QUEST && OP(s) != O_CH);
+			} while (OP(s) != (sop)O_QUEST && OP(s) != (sop)O_CH);
 			/* FALLTHROUGH */
 		case OBOW:		/* things that break a sequence */
 		case OEOW:
@@ -1631,7 +1634,7 @@ findmust(struct parse *p, struct re_guts *g)
 		case O_QUEST:
 		case O_CH:
 		case OEND:
-			if (newlen > g->mlen) {		/* ends one */
+			if (newlen > (sopno)g->mlen) {		/* ends one */
 				start = newstart;
 				g->mlen = newlen;
 				if (offset > -1) {
@@ -1646,7 +1649,7 @@ findmust(struct parse *p, struct re_guts *g)
 			newlen = 0;
 			break;
 		case OANY:
-			if (newlen > g->mlen) {		/* ends one */
+			if (newlen > (sopno)g->mlen) {		/* ends one */
 				start = newstart;
 				g->mlen = newlen;
 				if (offset > -1) {
@@ -1664,7 +1667,7 @@ findmust(struct parse *p, struct re_guts *g)
 			break;
 		case OANYOF:		/* may or may not invalidate offset */
 			/* First, everything as OANY */
-			if (newlen > g->mlen) {		/* ends one */
+			if (newlen > (sopno)g->mlen) {		/* ends one */
 				start = newstart;
 				g->mlen = newlen;
 				if (offset > -1) {
@@ -1687,7 +1690,7 @@ findmust(struct parse *p, struct re_guts *g)
 			 * save the last known good offset, in case the
 			 * must sequence doesn't occur later.
 			 */
-			if (newlen > g->mlen) {		/* ends one */
+			if (newlen > (sopno)g->mlen) {		/* ends one */
 				start = newstart;
 				g->mlen = newlen;
 				if (offset > -1)
@@ -1748,7 +1751,7 @@ altoffset(sop *scan, int offset)
 	largest = 0;
 	try = 0;
 	s = *scan++;
-	while (OP(s) != O_QUEST && OP(s) != O_CH) {
+	while (OP(s) != (sop)O_QUEST && OP(s) != (sop)O_CH) {
 		switch (OP(s)) {
 		case OOR1:
 			if (try > largest)
@@ -1764,10 +1767,10 @@ altoffset(sop *scan, int offset)
 			do {
 				scan += OPND(s);
 				s = *scan;
-				if (OP(s) != O_QUEST && OP(s) != O_CH &&
-							OP(s) != OOR2)
+				if (OP(s) != (sop)O_QUEST &&
+				    OP(s) != (sop)O_CH && OP(s) != (sop)OOR2)
 					return -1;
-			} while (OP(s) != O_QUEST && OP(s) != O_CH);
+			} while (OP(s) != (sop)O_QUEST && OP(s) != (sop)O_CH);
 			/* We must skip to the next position, or we'll
 			 * leave altoffset() too early.
 			 */
