@@ -542,6 +542,7 @@ dsl_destroy_snapshots_nvl(nvlist_t *snaps, boolean_t defer,
 	nvlist_t *result = fnvlist_alloc();
 	int error = zcp_eval(nvpair_name(nvlist_next_nvpair(snaps, NULL)),
 	    program,
+	    B_TRUE,
 	    0,
 	    zfs_lua_max_memlimit,
 	    nvlist_next_nvpair(wrapper, NULL), result);
