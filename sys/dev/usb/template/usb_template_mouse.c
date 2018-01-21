@@ -70,15 +70,21 @@
 enum {
 	MOUSE_LANG_INDEX,
 	MOUSE_INTERFACE_INDEX,
+	MOUSE_MANUFACTURER_INDEX,
 	MOUSE_PRODUCT_INDEX,
+	MOUSE_SERIAL_NUMBER_INDEX,
 	MOUSE_MAX_INDEX,
 };
 
 #define	MOUSE_DEFAULT_INTERFACE		"Mouse interface"
+#define	MOUSE_DEFAULT_MANUFACTURER	"FreeBSD foundation"
 #define	MOUSE_DEFAULT_PRODUCT		"Mouse Test Interface"
+#define	MOUSE_DEFAULT_SERIAL_NUMBER	"March 2008"
 
 static struct usb_string_descriptor	mouse_interface;
+static struct usb_string_descriptor	mouse_manufacturer;
 static struct usb_string_descriptor	mouse_product;
+static struct usb_string_descriptor	mouse_serial_number;
 
 static struct sysctl_ctx_list		mouse_ctx_list;
 
@@ -170,9 +176,9 @@ struct usb_temp_device_desc usb_template_mouse = {
 	.bDeviceClass = UDCLASS_COMM,
 	.bDeviceSubClass = 0,
 	.bDeviceProtocol = 0,
-	.iManufacturer = 0,
+	.iManufacturer = MOUSE_MANUFACTURER_INDEX,
 	.iProduct = MOUSE_PRODUCT_INDEX,
-	.iSerialNumber = 0,
+	.iSerialNumber = MOUSE_SERIAL_NUMBER_INDEX,
 };
 
 /*------------------------------------------------------------------------*
@@ -208,7 +214,9 @@ mouse_get_string_desc(uint16_t lang_id, uint8_t string_index)
 	static const void *ptr[MOUSE_MAX_INDEX] = {
 		[MOUSE_LANG_INDEX] = &usb_string_lang_en,
 		[MOUSE_INTERFACE_INDEX] = &mouse_interface,
+		[MOUSE_MANUFACTURER_INDEX] = &mouse_manufacturer,
 		[MOUSE_PRODUCT_INDEX] = &mouse_product,
+		[MOUSE_SERIAL_NUMBER_INDEX] = &mouse_serial_number,
 	};
 
 	if (string_index == 0) {
@@ -231,8 +239,12 @@ mouse_init(void *arg __unused)
 
 	usb_make_str_desc(&mouse_interface, sizeof(mouse_interface),
 	    MOUSE_DEFAULT_INTERFACE);
+	usb_make_str_desc(&mouse_manufacturer, sizeof(mouse_manufacturer),
+	    MOUSE_DEFAULT_MANUFACTURER);
 	usb_make_str_desc(&mouse_product, sizeof(mouse_product),
 	    MOUSE_DEFAULT_PRODUCT);
+	usb_make_str_desc(&mouse_serial_number, sizeof(mouse_serial_number),
+	    MOUSE_DEFAULT_SERIAL_NUMBER);
 
 	snprintf(parent_name, sizeof(parent_name), "%d", USB_TEMP_MOUSE);
 	sysctl_ctx_init(&mouse_ctx_list);
@@ -254,9 +266,17 @@ mouse_init(void *arg __unused)
 	    "A", "Interface string");
 #endif
 	SYSCTL_ADD_PROC(&mouse_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "manufacturer", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &mouse_manufacturer, sizeof(mouse_manufacturer), usb_temp_sysctl,
+	    "A", "Manufacturer string");
+	SYSCTL_ADD_PROC(&mouse_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
 	    "product", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    &mouse_product, sizeof(mouse_product), usb_temp_sysctl,
 	    "A", "Product string");
+	SYSCTL_ADD_PROC(&mouse_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "serial_number", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &mouse_serial_number, sizeof(mouse_serial_number), usb_temp_sysctl,
+	    "A", "Serial number string");
 }
 
 static void
