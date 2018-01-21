@@ -72,19 +72,25 @@ enum {
 	AUDIO_MIXER_INDEX,
 	AUDIO_RECORD_INDEX,
 	AUDIO_PLAYBACK_INDEX,
+	AUDIO_MANUFACTURER_INDEX,
 	AUDIO_PRODUCT_INDEX,
+	AUDIO_SERIAL_NUMBER_INDEX,
 	AUDIO_MAX_INDEX,
 };
 
-#define	AUDIO_DEFAULT_PRODUCT		"Audio Test Device"
 #define	AUDIO_DEFAULT_MIXER		"Mixer interface"
 #define	AUDIO_DEFAULT_RECORD		"Record interface"
 #define	AUDIO_DEFAULT_PLAYBACK		"Playback interface"
+#define	AUDIO_DEFAULT_MANUFACTURER	"FreeBSD foundation"
+#define	AUDIO_DEFAULT_PRODUCT		"Audio Test Device"
+#define	AUDIO_DEFAULT_SERIAL_NUMBER	"March 2008"
 
 static struct usb_string_descriptor	audio_mixer;
 static struct usb_string_descriptor	audio_record;
 static struct usb_string_descriptor	audio_playback;
+static struct usb_string_descriptor	audio_manufacturer;
 static struct usb_string_descriptor	audio_product;
+static struct usb_string_descriptor	audio_serial_number;
 
 static struct sysctl_ctx_list		audio_ctx_list;
 
@@ -364,7 +370,9 @@ struct usb_temp_device_desc usb_template_audio = {
 	.bDeviceClass = UDCLASS_COMM,
 	.bDeviceSubClass = 0,
 	.bDeviceProtocol = 0,
+	.iManufacturer = AUDIO_MANUFACTURER_INDEX,
 	.iProduct = AUDIO_PRODUCT_INDEX,
+	.iSerialNumber = AUDIO_SERIAL_NUMBER_INDEX,
 };
 
 /*------------------------------------------------------------------------*
@@ -382,7 +390,9 @@ audio_get_string_desc(uint16_t lang_id, uint8_t string_index)
 		[AUDIO_MIXER_INDEX] = &audio_mixer,
 		[AUDIO_RECORD_INDEX] = &audio_record,
 		[AUDIO_PLAYBACK_INDEX] = &audio_playback,
+		[AUDIO_MANUFACTURER_INDEX] = &audio_manufacturer,
 		[AUDIO_PRODUCT_INDEX] = &audio_product,
+		[AUDIO_SERIAL_NUMBER_INDEX] = &audio_serial_number,
 	};
 
 	if (string_index == 0) {
@@ -409,8 +419,12 @@ audio_init(void *arg __unused)
 	    AUDIO_DEFAULT_RECORD);
 	usb_make_str_desc(&audio_playback, sizeof(audio_playback),
 	    AUDIO_DEFAULT_PLAYBACK);
+	usb_make_str_desc(&audio_manufacturer, sizeof(audio_manufacturer),
+	    AUDIO_DEFAULT_MANUFACTURER);
 	usb_make_str_desc(&audio_product, sizeof(audio_product),
 	    AUDIO_DEFAULT_PRODUCT);
+	usb_make_str_desc(&audio_serial_number, sizeof(audio_serial_number),
+	    AUDIO_DEFAULT_SERIAL_NUMBER);
 
 	snprintf(parent_name, sizeof(parent_name), "%d", USB_TEMP_AUDIO);
 	sysctl_ctx_init(&audio_ctx_list);
@@ -440,9 +454,17 @@ audio_init(void *arg __unused)
 	    "A", "Playback interface string");
 #endif
 	SYSCTL_ADD_PROC(&audio_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "manufacturer", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &audio_manufacturer, sizeof(audio_manufacturer), usb_temp_sysctl,
+	    "A", "Manufacturer string");
+	SYSCTL_ADD_PROC(&audio_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
 	    "product", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    &audio_product, sizeof(audio_product), usb_temp_sysctl,
 	    "A", "Product string");
+	SYSCTL_ADD_PROC(&audio_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "serial_number", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &audio_serial_number, sizeof(audio_serial_number), usb_temp_sysctl,
+	    "A", "Serial number string");
 }
 
 static void

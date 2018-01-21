@@ -69,15 +69,21 @@
 enum {
 	MIDI_LANG_INDEX,
 	MIDI_INTERFACE_INDEX,
+	MIDI_MANUFACTURER_INDEX,
 	MIDI_PRODUCT_INDEX,
+	MIDI_SERIAL_NUMBER_INDEX,
 	MIDI_MAX_INDEX,
 };
 
 #define	MIDI_DEFAULT_INTERFACE		"MIDI interface"
+#define	MIDI_DEFAULT_MANUFACTURER	"FreeBSD foundation"
 #define	MIDI_DEFAULT_PRODUCT		"MIDI Test Device"
+#define	MIDI_DEFAULT_SERIAL_NUMBER	"March 2008"
 
 static struct usb_string_descriptor	midi_interface;
+static struct usb_string_descriptor	midi_manufacturer;
 static struct usb_string_descriptor	midi_product;
+static struct usb_string_descriptor	midi_serial_number;
 
 static struct sysctl_ctx_list		midi_ctx_list;
 
@@ -212,9 +218,9 @@ struct usb_temp_device_desc usb_template_midi = {
 	.bDeviceClass = 0,
 	.bDeviceSubClass = 0,
 	.bDeviceProtocol = 0,
-	.iManufacturer = 0,
+	.iManufacturer = MIDI_MANUFACTURER_INDEX,
 	.iProduct = MIDI_PRODUCT_INDEX,
-	.iSerialNumber = 0,
+	.iSerialNumber = MIDI_SERIAL_NUMBER_INDEX,
 };
 
 /*------------------------------------------------------------------------*
@@ -230,7 +236,9 @@ midi_get_string_desc(uint16_t lang_id, uint8_t string_index)
 	static const void *ptr[MIDI_MAX_INDEX] = {
 		[MIDI_LANG_INDEX] = &usb_string_lang_en,
 		[MIDI_INTERFACE_INDEX] = &midi_interface,
+		[MIDI_MANUFACTURER_INDEX] = &midi_manufacturer,
 		[MIDI_PRODUCT_INDEX] = &midi_product,
+		[MIDI_SERIAL_NUMBER_INDEX] = &midi_serial_number,
 	};
 
 	if (string_index == 0) {
@@ -253,8 +261,12 @@ midi_init(void *arg __unused)
 
 	usb_make_str_desc(&midi_interface, sizeof(midi_interface),
 	    MIDI_DEFAULT_INTERFACE);
+	usb_make_str_desc(&midi_manufacturer, sizeof(midi_manufacturer),
+	    MIDI_DEFAULT_MANUFACTURER);
 	usb_make_str_desc(&midi_product, sizeof(midi_product),
 	    MIDI_DEFAULT_PRODUCT);
+	usb_make_str_desc(&midi_serial_number, sizeof(midi_serial_number),
+	    MIDI_DEFAULT_SERIAL_NUMBER);
 
 	snprintf(parent_name, sizeof(parent_name), "%d", USB_TEMP_MIDI);
 	sysctl_ctx_init(&midi_ctx_list);
@@ -276,9 +288,17 @@ midi_init(void *arg __unused)
 	    "A", "Interface string");
 #endif
 	SYSCTL_ADD_PROC(&midi_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "manufacturer", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &midi_manufacturer, sizeof(midi_manufacturer), usb_temp_sysctl,
+	    "A", "Manufacturer string");
+	SYSCTL_ADD_PROC(&midi_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
 	    "product", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    &midi_product, sizeof(midi_product), usb_temp_sysctl,
 	    "A", "Product string");
+	SYSCTL_ADD_PROC(&midi_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "serial_number", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &midi_serial_number, sizeof(midi_serial_number), usb_temp_sysctl,
+	    "A", "Serial number string");
 }
 
 static void
