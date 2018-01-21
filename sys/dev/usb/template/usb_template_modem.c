@@ -70,15 +70,21 @@
 enum {
 	MODEM_LANG_INDEX,
 	MODEM_INTERFACE_INDEX,
+	MODEM_MANUFACTURER_INDEX,
 	MODEM_PRODUCT_INDEX,
+	MODEM_SERIAL_NUMBER_INDEX,
 	MODEM_MAX_INDEX,
 };
 
 #define	MODEM_DEFAULT_INTERFACE		"Modem interface"
+#define	MODEM_DEFAULT_MANUFACTURER	"FreeBSD foundation"
 #define MODEM_DEFAULT_PRODUCT		"Modem Test Device"
+#define	MODEM_DEFAULT_SERIAL_NUMBER	"March 2008"
 
 static struct usb_string_descriptor	modem_interface;
+static struct usb_string_descriptor	modem_manufacturer;
 static struct usb_string_descriptor	modem_product;
+static struct usb_string_descriptor	modem_serial_number;
 
 static struct sysctl_ctx_list		modem_ctx_list;
 
@@ -207,9 +213,9 @@ struct usb_temp_device_desc usb_template_modem = {
 	.bDeviceClass = UDCLASS_COMM,
 	.bDeviceSubClass = 0,
 	.bDeviceProtocol = 0,
-	.iManufacturer = 0,
+	.iManufacturer = MODEM_MANUFACTURER_INDEX,
 	.iProduct = MODEM_PRODUCT_INDEX,
-	.iSerialNumber = 0,
+	.iSerialNumber = MODEM_SERIAL_NUMBER_INDEX,
 };
 
 /*------------------------------------------------------------------------*
@@ -238,7 +244,9 @@ modem_get_string_desc(uint16_t lang_id, uint8_t string_index)
 	static const void *ptr[MODEM_MAX_INDEX] = {
 		[MODEM_LANG_INDEX] = &usb_string_lang_en,
 		[MODEM_INTERFACE_INDEX] = &modem_interface,
+		[MODEM_MANUFACTURER_INDEX] = &modem_manufacturer,
 		[MODEM_PRODUCT_INDEX] = &modem_product,
+		[MODEM_SERIAL_NUMBER_INDEX] = &modem_serial_number,
 	};
 
 	if (string_index == 0) {
@@ -261,8 +269,12 @@ modem_init(void *arg __unused)
 
 	usb_make_str_desc(&modem_interface, sizeof(modem_interface),
 	    MODEM_DEFAULT_INTERFACE);
+	usb_make_str_desc(&modem_manufacturer, sizeof(modem_manufacturer),
+	    MODEM_DEFAULT_MANUFACTURER);
 	usb_make_str_desc(&modem_product, sizeof(modem_product),
 	    MODEM_DEFAULT_PRODUCT);
+	usb_make_str_desc(&modem_serial_number, sizeof(modem_serial_number),
+	    MODEM_DEFAULT_SERIAL_NUMBER);
 
 	snprintf(parent_name, sizeof(parent_name), "%d", USB_TEMP_MODEM);
 	sysctl_ctx_init(&modem_ctx_list);
@@ -284,9 +296,17 @@ modem_init(void *arg __unused)
 	    "A", "Interface string");
 #endif
 	SYSCTL_ADD_PROC(&modem_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "manufacturer", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &modem_manufacturer, sizeof(modem_manufacturer), usb_temp_sysctl,
+	    "A", "Manufacturer string");
+	SYSCTL_ADD_PROC(&modem_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
 	    "product", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    &modem_product, sizeof(modem_product), usb_temp_sysctl,
 	    "A", "Product string");
+	SYSCTL_ADD_PROC(&modem_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "serial_number", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &modem_serial_number, sizeof(modem_serial_number), usb_temp_sysctl,
+	    "A", "Serial number string");
 }
 
 static void

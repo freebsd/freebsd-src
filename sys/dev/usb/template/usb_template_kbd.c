@@ -70,15 +70,21 @@
 enum {
 	KBD_LANG_INDEX,
 	KBD_INTERFACE_INDEX,
+	KBD_MANUFACTURER_INDEX,
 	KBD_PRODUCT_INDEX,
+	KBD_SERIAL_NUMBER_INDEX,
 	KBD_MAX_INDEX,
 };
 
 #define	KBD_DEFAULT_INTERFACE		"Keyboard Interface"
+#define	KBD_DEFAULT_MANUFACTURER	"FreeBSD foundation"
 #define	KBD_DEFAULT_PRODUCT		"Keyboard Test Device"
+#define	KBD_DEFAULT_SERIAL_NUMBER	"March 2008"
 
 static struct usb_string_descriptor	kbd_interface;
+static struct usb_string_descriptor	kbd_manufacturer;
 static struct usb_string_descriptor	kbd_product;
+static struct usb_string_descriptor	kbd_serial_number;
 
 static struct sysctl_ctx_list		kbd_ctx_list;
 
@@ -172,9 +178,9 @@ struct usb_temp_device_desc usb_template_kbd = {
 	.bDeviceClass = UDCLASS_COMM,
 	.bDeviceSubClass = 0,
 	.bDeviceProtocol = 0,
-	.iManufacturer = 0,
+	.iManufacturer = KBD_MANUFACTURER_INDEX,
 	.iProduct = KBD_PRODUCT_INDEX,
-	.iSerialNumber = 0,
+	.iSerialNumber = KBD_SERIAL_NUMBER_INDEX,
 };
 
 /*------------------------------------------------------------------------*
@@ -210,7 +216,9 @@ keyboard_get_string_desc(uint16_t lang_id, uint8_t string_index)
 	static const void *ptr[KBD_MAX_INDEX] = {
 		[KBD_LANG_INDEX] = &usb_string_lang_en,
 		[KBD_INTERFACE_INDEX] = &kbd_interface,
+		[KBD_MANUFACTURER_INDEX] = &kbd_manufacturer,
 		[KBD_PRODUCT_INDEX] = &kbd_product,
+		[KBD_SERIAL_NUMBER_INDEX] = &kbd_serial_number,
 	};
 
 	if (string_index == 0) {
@@ -233,8 +241,12 @@ kbd_init(void *arg __unused)
 
 	usb_make_str_desc(&kbd_interface, sizeof(kbd_interface),
 	    KBD_DEFAULT_INTERFACE);
+	usb_make_str_desc(&kbd_manufacturer, sizeof(kbd_manufacturer),
+	    KBD_DEFAULT_MANUFACTURER);
 	usb_make_str_desc(&kbd_product, sizeof(kbd_product),
 	    KBD_DEFAULT_PRODUCT);
+	usb_make_str_desc(&kbd_serial_number, sizeof(kbd_serial_number),
+	    KBD_DEFAULT_SERIAL_NUMBER);
 
 	snprintf(parent_name, sizeof(parent_name), "%d", USB_TEMP_KBD);
 	sysctl_ctx_init(&kbd_ctx_list);
@@ -256,9 +268,17 @@ kbd_init(void *arg __unused)
 	    "A", "Interface string");
 #endif
 	SYSCTL_ADD_PROC(&kbd_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "manufacturer", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &kbd_manufacturer, sizeof(kbd_manufacturer), usb_temp_sysctl,
+	    "A", "Manufacturer string");
+	SYSCTL_ADD_PROC(&kbd_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
 	    "product", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    &kbd_product, sizeof(kbd_product), usb_temp_sysctl,
 	    "A", "Product string");
+	SYSCTL_ADD_PROC(&kbd_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "serial_number", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &kbd_serial_number, sizeof(kbd_serial_number), usb_temp_sysctl,
+	    "A", "Serial number string");
 }
 
 static void

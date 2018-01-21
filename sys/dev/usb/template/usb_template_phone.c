@@ -72,22 +72,28 @@ enum {
 	PHONE_MIXER_INDEX,
 	PHONE_RECORD_INDEX,
 	PHONE_PLAYBACK_INDEX,
-	PHONE_PRODUCT_INDEX,
 	PHONE_HID_INDEX,
+	PHONE_MANUFACTURER_INDEX,
+	PHONE_PRODUCT_INDEX,
+	PHONE_SERIAL_NUMBER_INDEX,
 	PHONE_MAX_INDEX,
 };
 
 #define	PHONE_DEFAULT_MIXER		"Mixer interface"
 #define	PHONE_DEFAULT_RECORD		"Record interface"
 #define	PHONE_DEFAULT_PLAYBACK		"Playback interface"
-#define	PHONE_DEFAULT_PRODUCT		"USB Phone Device"
 #define	PHONE_DEFAULT_HID		"HID interface"
+#define	PHONE_DEFAULT_MANUFACTURER	"FreeBSD foundation"
+#define	PHONE_DEFAULT_PRODUCT		"USB Phone Device"
+#define	PHONE_DEFAULT_SERIAL_NUMBER	"March 2008"
 
 static struct usb_string_descriptor	phone_mixer;
 static struct usb_string_descriptor	phone_record;
 static struct usb_string_descriptor	phone_playback;
-static struct usb_string_descriptor	phone_product;
 static struct usb_string_descriptor	phone_hid;
+static struct usb_string_descriptor	phone_manufacturer;
+static struct usb_string_descriptor	phone_product;
+static struct usb_string_descriptor	phone_serial_number;
 
 static struct sysctl_ctx_list		phone_ctx_list;
 
@@ -362,9 +368,9 @@ struct usb_temp_device_desc usb_template_phone = {
 	.bDeviceClass = UDCLASS_IN_INTERFACE,
 	.bDeviceSubClass = 0,
 	.bDeviceProtocol = 0,
-	.iManufacturer = 0,
+	.iManufacturer = PHONE_MANUFACTURER_INDEX,
 	.iProduct = PHONE_PRODUCT_INDEX,
-	.iSerialNumber = 0,
+	.iSerialNumber = PHONE_SERIAL_NUMBER_INDEX,
 };
 
 /*------------------------------------------------------------------------*
@@ -402,8 +408,10 @@ phone_get_string_desc(uint16_t lang_id, uint8_t string_index)
 		[PHONE_MIXER_INDEX] = &phone_mixer,
 		[PHONE_RECORD_INDEX] = &phone_record,
 		[PHONE_PLAYBACK_INDEX] = &phone_playback,
-		[PHONE_PRODUCT_INDEX] = &phone_product,
 		[PHONE_HID_INDEX] = &phone_hid,
+		[PHONE_MANUFACTURER_INDEX] = &phone_manufacturer,
+		[PHONE_PRODUCT_INDEX] = &phone_product,
+		[PHONE_SERIAL_NUMBER_INDEX] = &phone_serial_number,
 	};
 
 	if (string_index == 0) {
@@ -430,10 +438,14 @@ phone_init(void *arg __unused)
 	    PHONE_DEFAULT_RECORD);
 	usb_make_str_desc(&phone_playback, sizeof(phone_playback),
 	    PHONE_DEFAULT_PLAYBACK);
-	usb_make_str_desc(&phone_product, sizeof(phone_product),
-	    PHONE_DEFAULT_PRODUCT);
 	usb_make_str_desc(&phone_hid, sizeof(phone_hid),
 	    PHONE_DEFAULT_HID);
+	usb_make_str_desc(&phone_manufacturer, sizeof(phone_manufacturer),
+	    PHONE_DEFAULT_MANUFACTURER);
+	usb_make_str_desc(&phone_product, sizeof(phone_product),
+	    PHONE_DEFAULT_PRODUCT);
+	usb_make_str_desc(&phone_serial_number, sizeof(phone_serial_number),
+	    PHONE_DEFAULT_SERIAL_NUMBER);
 
 	snprintf(parent_name, sizeof(parent_name), "%d", USB_TEMP_PHONE);
 	sysctl_ctx_init(&phone_ctx_list);
@@ -461,15 +473,23 @@ phone_init(void *arg __unused)
 	    "playback", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    &phone_playback, sizeof(phone_playback), usb_temp_sysctl,
 	    "A", "Playback interface string");
+	SYSCTL_ADD_PROC(&phone_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "hid", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &phone_hid, sizeof(phone_hid), usb_temp_sysctl,
+	    "A", "HID interface string");
 #endif
+	SYSCTL_ADD_PROC(&phone_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "manufacturer", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &phone_manufacturer, sizeof(phone_manufacturer), usb_temp_sysctl,
+	    "A", "Manufacturer string");
 	SYSCTL_ADD_PROC(&phone_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
 	    "product", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    &phone_product, sizeof(phone_product), usb_temp_sysctl,
 	    "A", "Product string");
 	SYSCTL_ADD_PROC(&phone_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
-	    "hid", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
-	    &phone_hid, sizeof(phone_hid), usb_temp_sysctl,
-	    "A", "HID interface string");
+	    "serial_number", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &phone_serial_number, sizeof(phone_serial_number), usb_temp_sysctl,
+	    "A", "Serial number string");
 }
 
 static void
