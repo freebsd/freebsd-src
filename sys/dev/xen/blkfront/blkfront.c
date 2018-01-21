@@ -1306,8 +1306,8 @@ xbd_connect(struct xbd_softc *sc)
 	}
 
 	/* Per-transaction data allocation. */
-	sc->xbd_shadow = mallocarray(sc->xbd_max_requests,
-	    sizeof(*sc->xbd_shadow), M_XENBLOCKFRONT, M_NOWAIT|M_ZERO);
+	sc->xbd_shadow = malloc(sizeof(*sc->xbd_shadow) * sc->xbd_max_requests,
+	    M_XENBLOCKFRONT, M_NOWAIT|M_ZERO);
 	if (sc->xbd_shadow == NULL) {
 		bus_dma_tag_destroy(sc->xbd_io_dmat);
 		xenbus_dev_fatal(sc->xbd_dev, ENOMEM,
@@ -1320,8 +1320,9 @@ xbd_connect(struct xbd_softc *sc)
 		void * indirectpages;
 
 		cm = &sc->xbd_shadow[i];
-		cm->cm_sg_refs = mallocarray(sc->xbd_max_request_segments,
-		    sizeof(grant_ref_t), M_XENBLOCKFRONT, M_NOWAIT);
+		cm->cm_sg_refs = malloc(
+		    sizeof(grant_ref_t) * sc->xbd_max_request_segments,
+		    M_XENBLOCKFRONT, M_NOWAIT);
 		if (cm->cm_sg_refs == NULL)
 			break;
 		cm->cm_id = i;

@@ -110,7 +110,7 @@ lio_init_instr_queue(struct octeon_device *oct, union octeon_txpciq txpciq,
 	 * Initialize a list to holds requests that have been posted to
 	 * Octeon but has yet to be fetched by octeon
 	 */
-	iq->request_list = mallocarray(num_descs, sizeof(*iq->request_list),
+	iq->request_list = malloc(sizeof(*iq->request_list) * num_descs,
 				  M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (iq->request_list == NULL) {
 		lio_dev_err(oct, "Alloc failed for IQ[%d] nr free list\n",

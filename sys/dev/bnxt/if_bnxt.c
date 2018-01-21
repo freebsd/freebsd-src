@@ -351,7 +351,7 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 
 	softc = iflib_get_softc(ctx);
 
-	softc->tx_cp_rings = mallocarray(ntxqsets, sizeof(struct bnxt_cp_ring),
+	softc->tx_cp_rings = malloc(sizeof(struct bnxt_cp_ring) * ntxqsets,
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!softc->tx_cp_rings) {
 		device_printf(iflib_get_dev(ctx),
@@ -359,7 +359,7 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		rc = ENOMEM;
 		goto cp_alloc_fail;
 	}
-	softc->tx_rings = mallocarray(ntxqsets, sizeof(struct bnxt_ring),
+	softc->tx_rings = malloc(sizeof(struct bnxt_ring) * ntxqsets,
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!softc->tx_rings) {
 		device_printf(iflib_get_dev(ctx),
@@ -446,7 +446,7 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 
 	softc = iflib_get_softc(ctx);
 
-	softc->rx_cp_rings = mallocarray(nrxqsets, sizeof(struct bnxt_cp_ring),
+	softc->rx_cp_rings = malloc(sizeof(struct bnxt_cp_ring) * nrxqsets,
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!softc->rx_cp_rings) {
 		device_printf(iflib_get_dev(ctx),
@@ -454,7 +454,7 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		rc = ENOMEM;
 		goto cp_alloc_fail;
 	}
-	softc->rx_rings = mallocarray(nrxqsets, sizeof(struct bnxt_ring),
+	softc->rx_rings = malloc(sizeof(struct bnxt_ring) * nrxqsets,
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!softc->rx_rings) {
 		device_printf(iflib_get_dev(ctx),
@@ -462,7 +462,7 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		rc = ENOMEM;
 		goto ring_alloc_fail;
 	}
-	softc->ag_rings = mallocarray(nrxqsets, sizeof(struct bnxt_ring),
+	softc->ag_rings = malloc(sizeof(struct bnxt_ring) * nrxqsets,
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!softc->ag_rings) {
 		device_printf(iflib_get_dev(ctx),
@@ -470,7 +470,7 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		rc = ENOMEM;
 		goto ag_alloc_fail;
 	}
-	softc->grp_info = mallocarray(nrxqsets, sizeof(struct bnxt_grp_info),
+	softc->grp_info = malloc(sizeof(struct bnxt_grp_info) * nrxqsets,
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!softc->grp_info) {
 		device_printf(iflib_get_dev(ctx),
@@ -540,10 +540,9 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		softc->rx_rings[i].paddr = paddrs[i * nrxqs + 1];
 
 		/* Allocate the TPA start buffer */
-		softc->rx_rings[i].tpa_start = mallocarray(
-		    RX_TPA_START_CMPL_AGG_ID_MASK >> RX_TPA_START_CMPL_AGG_ID_SFT,
-		    sizeof(struct bnxt_full_tpa_start),	M_DEVBUF,
-		    M_NOWAIT | M_ZERO);
+		softc->rx_rings[i].tpa_start = malloc(sizeof(struct bnxt_full_tpa_start) *
+	    		(RX_TPA_START_CMPL_AGG_ID_MASK >> RX_TPA_START_CMPL_AGG_ID_SFT),
+	    		M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (softc->rx_rings[i].tpa_start == NULL) {
 			rc = -ENOMEM;
 			device_printf(softc->dev,

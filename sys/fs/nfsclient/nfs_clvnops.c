@@ -2666,7 +2666,7 @@ ncl_flush(struct vnode *vp, int waitfor, struct thread *td,
 #define	NFS_COMMITBVECSIZ	20
 #endif
 	struct buf *bvec_on_stack[NFS_COMMITBVECSIZ];
-	u_int bvecsize = 0, bveccount;
+	int bvecsize = 0, bveccount;
 
 	if (called_from_renewthread != 0)
 		slptimeo = hz;

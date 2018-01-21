@@ -159,7 +159,7 @@ sysinit_add(struct sysinit **set, struct sysinit **set_end)
 		count += newsysinit_end - newsysinit;
 	else
 		count += sysinit_end - sysinit;
-	newset = mallocarray(count, sizeof(*sipp), M_TEMP, M_NOWAIT);
+	newset = malloc(count * sizeof(*sipp), M_TEMP, M_NOWAIT);
 	if (newset == NULL)
 		panic("cannot malloc for sysinit");
 	xipp = newset;

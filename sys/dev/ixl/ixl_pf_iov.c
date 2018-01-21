@@ -1695,8 +1695,8 @@ ixl_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params)
 	pf_vsi = &pf->vsi;
 
 	IXL_PF_LOCK(pf);
-	pf->vfs = mallocarray(num_vfs, sizeof(struct ixl_vf), M_IXL,
-	    M_NOWAIT | M_ZERO);
+	pf->vfs = malloc(sizeof(struct ixl_vf) * num_vfs, M_IXL, M_NOWAIT |
+	    M_ZERO);
 
 	if (pf->vfs == NULL) {
 		error = ENOMEM;

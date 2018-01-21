@@ -692,7 +692,7 @@ vmem_rehash(vmem_t *vm, vmem_size_t newhashsize)
 
 	MPASS(newhashsize > 0);
 
-	newhashlist = mallocarray(newhashsize, sizeof(struct vmem_hashlist),
+	newhashlist = malloc(sizeof(struct vmem_hashlist) * newhashsize,
 	    M_VMEM, M_NOWAIT);
 	if (newhashlist == NULL)
 		return ENOMEM;

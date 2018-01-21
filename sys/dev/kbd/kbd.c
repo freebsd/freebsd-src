@@ -94,18 +94,17 @@ kbd_realloc_array(void)
 {
 	keyboard_t **new_kbd;
 	keyboard_switch_t **new_kbdsw;
-	u_int newsize;
+	int newsize;
 	int s;
 
 	s = spltty();
 	newsize = rounddown(keyboards + ARRAY_DELTA, ARRAY_DELTA);
-	new_kbd = mallocarray(newsize, sizeof(*new_kbd), M_DEVBUF,
-	    M_NOWAIT|M_ZERO);
+	new_kbd = malloc(sizeof(*new_kbd)*newsize, M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (new_kbd == NULL) {
 		splx(s);
 		return (ENOMEM);
 	}
-	new_kbdsw = mallocarray(newsize, sizeof(*new_kbdsw), M_DEVBUF,
+	new_kbdsw = malloc(sizeof(*new_kbdsw)*newsize, M_DEVBUF,
 			    M_NOWAIT|M_ZERO);
 	if (new_kbdsw == NULL) {
 		free(new_kbd, M_DEVBUF);

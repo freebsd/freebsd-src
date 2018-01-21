@@ -1119,7 +1119,7 @@ est_acpi_info(device_t dev, freq_info **freqs)
 		goto out;
 
 	/* Parse settings into our local table format. */
-	table = mallocarray(count + 1, sizeof(freq_info), M_DEVBUF, M_NOWAIT);
+	table = malloc((count + 1) * sizeof(freq_info), M_DEVBUF, M_NOWAIT);
 	if (table == NULL) {
 		error = ENOMEM;
 		goto out;

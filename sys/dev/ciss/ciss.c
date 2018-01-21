@@ -1427,7 +1427,7 @@ ciss_init_logical(struct ciss_softc *sc)
     }
 
     sc->ciss_logical =
-	mallocarray(sc->ciss_max_logical_bus, sizeof(struct ciss_ldrive *),
+	malloc(sc->ciss_max_logical_bus * sizeof(struct ciss_ldrive *),
 	       CISS_MALLOC_CLASS, M_NOWAIT | M_ZERO);
     if (sc->ciss_logical == NULL) {
 	error = ENXIO;
@@ -1436,7 +1436,7 @@ ciss_init_logical(struct ciss_softc *sc)
 
     for (i = 0; i < sc->ciss_max_logical_bus; i++) {
 	sc->ciss_logical[i] =
-	    mallocarray(sc->ciss_cfg->max_logical_supported,
+	    malloc(sc->ciss_cfg->max_logical_supported *
 		   sizeof(struct ciss_ldrive),
 		   CISS_MALLOC_CLASS, M_NOWAIT | M_ZERO);
 	if (sc->ciss_logical[i] == NULL) {
@@ -1549,7 +1549,7 @@ ciss_init_physical(struct ciss_softc *sc)
     }
 
     sc->ciss_controllers =
-	mallocarray(sc->ciss_max_logical_bus, sizeof(union ciss_device_address),
+	malloc(sc->ciss_max_logical_bus * sizeof (union ciss_device_address),
 	       CISS_MALLOC_CLASS, M_NOWAIT | M_ZERO);
 
     if (sc->ciss_controllers == NULL) {
@@ -1566,7 +1566,7 @@ ciss_init_physical(struct ciss_softc *sc)
     }
 
     sc->ciss_physical =
-	mallocarray(sc->ciss_max_physical_bus, sizeof(struct ciss_pdrive *),
+	malloc(sc->ciss_max_physical_bus * sizeof(struct ciss_pdrive *),
 	       CISS_MALLOC_CLASS, M_NOWAIT | M_ZERO);
     if (sc->ciss_physical == NULL) {
 	ciss_printf(sc, "Could not allocate memory for physical device map\n");
@@ -2873,7 +2873,7 @@ ciss_cam_init(struct ciss_softc *sc)
      */
     maxbus = max(sc->ciss_max_logical_bus, sc->ciss_max_physical_bus +
 		 CISS_PHYSICAL_BASE);
-    sc->ciss_cam_sim = mallocarray(maxbus, sizeof(struct cam_sim*),
+    sc->ciss_cam_sim = malloc(maxbus * sizeof(struct cam_sim*),
 			      CISS_MALLOC_CLASS, M_NOWAIT | M_ZERO);
     if (sc->ciss_cam_sim == NULL) {
 	ciss_printf(sc, "can't allocate memory for controller SIM\n");
