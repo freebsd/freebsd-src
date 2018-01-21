@@ -526,6 +526,7 @@ cpuctl_do_eval_cpu_features(int cpu, struct thread *td)
 	identify_cpu1();
 	identify_cpu2();
 	restore_cpu(oldcpu, is_bound, td);
+	printcpuinfo();
 	return (0);
 }
 
