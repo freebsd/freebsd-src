@@ -862,6 +862,20 @@ intr_restore(register_t rflags)
 	write_rflags(rflags);
 }
 
+static __inline void
+stac(void)
+{
+
+	__asm __volatile("stac" : : : "cc");
+}
+
+static __inline void
+clac(void)
+{
+
+	__asm __volatile("clac" : : : "cc");
+}
+
 #else /* !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */
 
 int	breakpoint(void);
