@@ -28,7 +28,7 @@
  * Copyright (c) 2013 Martin Matuska. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
- * Copyright 2016 Nexenta Systems, Inc.
+ * Copyright 2017 Nexenta Systems, Inc.
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
  * Copyright 2017 RackTop Systems.
  */
@@ -3476,6 +3476,10 @@ zfs_create(libzfs_handle_t *hdl, const char *path, zfs_type_t type,
 			    "pool must be upgraded to set this "
 			    "property or value"));
 			return (zfs_error(hdl, EZFS_BADVERSION, errbuf));
+		case ERANGE:
+			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+			    "invalid property value(s) specified"));
+			return (zfs_error(hdl, EZFS_BADPROP, errbuf));
 #ifdef _ILP32
 		case EOVERFLOW:
 			/*

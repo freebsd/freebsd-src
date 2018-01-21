@@ -28,7 +28,7 @@
 .\" Copyright (c) 2014 Integros [integros.com]
 .\" Copyright 2017 Nexenta Systems, Inc.
 .\"
-.Dd September 16, 2016
+.Dd December 6, 2017
 .Dt ZFS 1M
 .Os
 .Sh NAME
@@ -997,6 +997,10 @@ Please see
 for more information on these algorithms.
 .Pp
 Changing this property affects only newly-written data.
+.Pp
+Salted checksum algorithms
+.Pq Cm edonr , skein
+are currently not supported for any filesystem on the boot pools.
 .It Xo
 .Sy compression Ns = Ns Sy on Ns | Ns Sy off Ns | Ns Sy gzip Ns | Ns
 .Sy gzip- Ns Em N Ns | Ns Sy lz4 Ns | Ns Sy lzjb Ns | Ns Sy zle
