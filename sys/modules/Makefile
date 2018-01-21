@@ -60,6 +60,7 @@ SUBDIR=	\
 	${_autofs} \
 	${_auxio} \
 	${_bce} \
+	${_bcm283x_pwm} \
 	bfe \
 	bge \
 	bhnd \
@@ -804,6 +805,10 @@ _cloudabi32=	cloudabi32
 _cloudabi64=	cloudabi64
 .endif
 
+.endif
+
+.if ${MACHINE_ARCH:Marmv[67]*} != "" || ${MACHINE_CPUARCH} == "aarch64"
+_bcm283x_pwm=  bcm283x_pwm
 .endif
 
 .if ${MACHINE_ARCH:Marmv[67]*} != ""

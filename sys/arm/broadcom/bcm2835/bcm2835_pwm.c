@@ -160,6 +160,8 @@ bcm_pwm_reconf(struct bcm_pwm_softc *sc)
 
 	/* Config PWM */
 	W_RNG(sc, sc->period);
+	if (sc->ratio > sc->period)
+		sc->ratio = sc->period;
 	W_DAT(sc, sc->ratio);
 
 	/* Start PWM */
