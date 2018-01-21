@@ -155,7 +155,7 @@ fire_init(video_adapter_t *adp)
 	scrw = info.vi_width;
 	scrh = info.vi_height;
 
-	buf = (u_char *)mallocarray(scrw, scrh + 1, M_DEVBUF, M_NOWAIT);
+	buf = (u_char *)malloc(scrw * (scrh + 1), M_DEVBUF, M_NOWAIT);
 	if (buf) {
 		bzero(buf, scrw * (scrh + 1));
 	} else {

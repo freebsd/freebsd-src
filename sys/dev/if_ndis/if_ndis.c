@@ -665,8 +665,8 @@ ndis_attach(device_t dev)
 	if (sc->ndis_maxpkts == 0)
 		sc->ndis_maxpkts = 10;
 
-	sc->ndis_txarray = mallocarray(sc->ndis_maxpkts,
-	    sizeof(ndis_packet *), M_DEVBUF, M_NOWAIT|M_ZERO);
+	sc->ndis_txarray = malloc(sizeof(ndis_packet *) *
+	    sc->ndis_maxpkts, M_DEVBUF, M_NOWAIT|M_ZERO);
 
 	/* Allocate a pool of ndis_packets for TX encapsulation. */
 

@@ -907,7 +907,7 @@ ng_bridge_rehash(priv_p priv)
 	newMask = newNumBuckets - 1;
 
 	/* Allocate and initialize new table */
-	newTab = mallocarray(newNumBuckets, sizeof(*newTab),
+	newTab = malloc(newNumBuckets * sizeof(*newTab),
 	    M_NETGRAPH_BRIDGE, M_NOWAIT | M_ZERO);
 	if (newTab == NULL)
 		return;

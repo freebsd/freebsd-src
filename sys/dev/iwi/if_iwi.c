@@ -640,7 +640,7 @@ iwi_alloc_tx_ring(struct iwi_softc *sc, struct iwi_tx_ring *ring, int count,
 		goto fail;
 	}
 
-	ring->data = mallocarray(count, sizeof(struct iwi_tx_data), M_DEVBUF,
+	ring->data = malloc(count * sizeof (struct iwi_tx_data), M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
 	if (ring->data == NULL) {
 		device_printf(sc->sc_dev, "could not allocate soft data\n");
@@ -748,7 +748,7 @@ iwi_alloc_rx_ring(struct iwi_softc *sc, struct iwi_rx_ring *ring, int count)
 	ring->count = count;
 	ring->cur = 0;
 
-	ring->data = mallocarray(count, sizeof(struct iwi_rx_data), M_DEVBUF,
+	ring->data = malloc(count * sizeof (struct iwi_rx_data), M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
 	if (ring->data == NULL) {
 		device_printf(sc->sc_dev, "could not allocate soft data\n");

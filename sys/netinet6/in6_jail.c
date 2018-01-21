@@ -103,8 +103,8 @@ prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
 			 */
 			used = 1;
 			if (newip6 == NULL) {
-				newip6 = mallocarray(ppr->pr_ip6s,
-				    sizeof(*newip6), M_PRISON, M_NOWAIT);
+				newip6 = malloc(ppr->pr_ip6s * sizeof(*newip6),
+				    M_PRISON, M_NOWAIT);
 				if (newip6 != NULL)
 					used = 0;
 			}

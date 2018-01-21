@@ -444,7 +444,7 @@ cf_get_method(device_t dev, struct cf_level *level)
 	 * match of settings against each level.
 	 */
 	count = CF_MAX_LEVELS;
-	levels = mallocarray(count, sizeof(*levels), M_TEMP, M_NOWAIT);
+	levels = malloc(count * sizeof(*levels), M_TEMP, M_NOWAIT);
 	if (levels == NULL)
 		return (ENOMEM);
 	error = CPUFREQ_LEVELS(sc->dev, levels, &count);
@@ -969,7 +969,7 @@ cpufreq_settings_sysctl(SYSCTL_HANDLER_ARGS)
 
 	/* Get settings from the device and generate the output string. */
 	set_count = MAX_SETTINGS;
-	sets = mallocarray(set_count, sizeof(*sets), M_TEMP, M_NOWAIT);
+	sets = malloc(set_count * sizeof(*sets), M_TEMP, M_NOWAIT);
 	if (sets == NULL) {
 		sbuf_delete(&sb);
 		return (ENOMEM);
