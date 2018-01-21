@@ -1207,8 +1207,7 @@ ng_parse_composite(const struct ng_parse_type *type, const char *s,
 	int align, len, blen, error = 0;
 
 	/* Initialize */
-	foff = mallocarray(num, sizeof(*foff), M_NETGRAPH_PARSE,
-	    M_NOWAIT | M_ZERO);
+	foff = malloc(num * sizeof(*foff), M_NETGRAPH_PARSE, M_NOWAIT | M_ZERO);
 	if (foff == NULL) {
 		error = ENOMEM;
 		goto done;

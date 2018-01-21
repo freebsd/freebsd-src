@@ -515,8 +515,7 @@ npe_dma_setup(struct npe_softc *sc, struct npedma *dma,
 		return error;
 	}
 	/* XXX M_TEMP */
-	dma->buf = mallocarray(nbuf, sizeof(struct npebuf), M_TEMP,
-	    M_NOWAIT | M_ZERO);
+	dma->buf = malloc(nbuf * sizeof(struct npebuf), M_TEMP, M_NOWAIT | M_ZERO);
 	if (dma->buf == NULL) {
 		device_printf(sc->sc_dev,
 		     "unable to allocate memory for %s s/w buffers\n",

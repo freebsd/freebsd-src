@@ -479,7 +479,7 @@ vlan_growhash(struct ifvlantrunk *trunk, int howmuch)
 		return;
 
 	/* M_NOWAIT because we're called with trunk mutex held */
-	hash2 = mallocarray(n2, sizeof(struct ifvlanhead), M_VLAN, M_NOWAIT);
+	hash2 = malloc(sizeof(struct ifvlanhead) * n2, M_VLAN, M_NOWAIT);
 	if (hash2 == NULL) {
 		printf("%s: out of memory -- hash size not changed\n",
 		    __func__);

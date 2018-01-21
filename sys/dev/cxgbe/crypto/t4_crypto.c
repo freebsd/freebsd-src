@@ -1900,7 +1900,7 @@ ccr_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 		}
 	}
 	if (sess == -1) {
-		s = mallocarray(sc->nsessions + 1, sizeof(*s), M_CCR,
+		s = malloc(sizeof(*s) * (sc->nsessions + 1), M_CCR,
 		    M_NOWAIT | M_ZERO);
 		if (s == NULL) {
 			mtx_unlock(&sc->lock);

@@ -1104,7 +1104,7 @@ nicvf_init_snd_queue(struct nicvf *nic, struct snd_queue *sq, int q_len,
 	}
 
 	/* Allocate send buffers array */
-	sq->snd_buff = mallocarray(q_len, sizeof(*sq->snd_buff), M_NICVF,
+	sq->snd_buff = malloc(sizeof(*sq->snd_buff) * q_len, M_NICVF,
 	    (M_NOWAIT | M_ZERO));
 	if (sq->snd_buff == NULL) {
 		device_printf(nic->dev,

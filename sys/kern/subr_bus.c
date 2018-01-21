@@ -1464,7 +1464,7 @@ devclass_get_devices(devclass_t dc, device_t **devlistp, int *devcountp)
 	device_t *list;
 
 	count = devclass_get_count(dc);
-	list = mallocarray(count, sizeof(device_t), M_TEMP, M_NOWAIT|M_ZERO);
+	list = malloc(count * sizeof(device_t), M_TEMP, M_NOWAIT|M_ZERO);
 	if (!list)
 		return (ENOMEM);
 
@@ -1680,7 +1680,7 @@ devclass_alloc_unit(devclass_t dc, device_t dev, int *unitp)
 
 		oldlist = dc->devices;
 		newsize = roundup((unit + 1), MINALLOCSIZE / sizeof(device_t));
-		newlist = mallocarray(newsize, sizeof(device_t), M_BUS, M_NOWAIT);
+		newlist = malloc(sizeof(device_t) * newsize, M_BUS, M_NOWAIT);
 		if (!newlist)
 			return (ENOMEM);
 		if (oldlist != NULL)
@@ -2300,7 +2300,7 @@ device_get_children(device_t dev, device_t **devlistp, int *devcountp)
 		return (0);
 	}
 
-	list = mallocarray(count, sizeof(device_t), M_TEMP, M_NOWAIT|M_ZERO);
+	list = malloc(count * sizeof(device_t), M_TEMP, M_NOWAIT|M_ZERO);
 	if (!list)
 		return (ENOMEM);
 
