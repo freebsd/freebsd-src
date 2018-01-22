@@ -737,8 +737,18 @@ int uart_restore(struct uart_softc *sc, void *buffer, size_t buf_size)
 	sc->dll = old_sc->dll;
 	sc->dlh = old_sc->dlh;
 
-	sc->rxfifo = old_sc->rxfifo;
-	sc->thre_int_pending = old_sc->thre_int_pending;
+//	sc->rxfifo.buf = old_sc->rxfifo.buf;
+	sc->rxfifo.rindex = old_sc->rxfifo.rindex;
+	sc->rxfifo.windex = old_sc->rxfifo.windex;
+	sc->rxfifo.num = old_sc->rxfifo.num;
+	sc->rxfifo.size = old_sc->rxfifo.size;
+	memcpy(sc->rxfifo.buf, old_sc->rxfifo.buf, FIFOSZ);
+
+	sc->thre_int_pending = 1;
+//	sc->thre_int_pending = old_sc->thre_int_pending;
+
+//	sc->intr_assert = old_sc->intr_assert;
+//	sc->intr_deassert = old_sc->intr_deassert;
 
 	return (sizeof(*sc));
 }
