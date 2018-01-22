@@ -252,7 +252,6 @@ mevent_add(int tfd, enum ev_type type,
 {
 	struct mevent *lp, *mevp;
 
-	fprintf(stdout, "%s: fd = %d; type = %d\r\n", __func__, tfd, type);
 	if (tfd < 0 || func == NULL) {
 		return (NULL);
 	}
@@ -413,17 +412,13 @@ mevent_dispatch(void)
 	cap_rights_t rights;
 #endif
 
-	fprintf(stdout, "Before pthread_self...\r\n");
 	mevent_tid = pthread_self();
-	fprintf(stdout, "Before pthread_set_name...\r\n");
 	mevent_set_name();
 
-	fprintf(stdout, "Before kqueue...\r\n");
 	mfd = kqueue();
 	assert(mfd > 0);
 
 #ifndef WITHOUT_CAPSICUM
-	fprintf(stdout, "WITH CAPSICUM Before cap_rights_init...\r\n");
 	cap_rights_init(&rights, CAP_KQUEUE);
 	if (cap_rights_limit(mfd, &rights) == -1 && errno != ENOSYS)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
@@ -434,7 +429,6 @@ mevent_dispatch(void)
 	 * the blocking kqueue call to exit by writing to it. Set the
 	 * descriptor to non-blocking.
 	 */
-	fprintf(stdout, "Before pipe(mevent_pipefd)...\r\n");
 	ret = pipe(mevent_pipefd);
 	if (ret < 0) {
 		perror("pipe");
@@ -442,7 +436,6 @@ mevent_dispatch(void)
 	}
 
 #ifndef WITHOUT_CAPSICUM
-	fprintf(stdout, "WITH CAPSICUM Before cap_rights_init CAP_EVENT, CAP_READ, CAP_WRITE...\r\n");
 	cap_rights_init(&rights, CAP_EVENT, CAP_READ, CAP_WRITE);
 	if (cap_rights_limit(mevent_pipefd[0], &rights) == -1 && errno != ENOSYS)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
@@ -453,11 +446,9 @@ mevent_dispatch(void)
 	/*
 	 * Add internal event handler for the pipe write fd
 	 */
-	fprintf(stdout, "Before mevent_add...\r\n");
 	pipev = mevent_add(mevent_pipefd[0], EVF_READ, mevent_pipe_read, NULL);
 	assert(pipev != NULL);
 
-	fprintf(stdout, "Before while 1...\r\n");
 	for (;;) {
 		/*
 		 * Build changelist if required.
@@ -467,7 +458,6 @@ mevent_dispatch(void)
 		 */
 		numev = mevent_build(mfd, changelist);
 		if (numev) {
-			fprintf(stdout, "\t%s numev = %d\r\n", __func__, numev);
 			ret = kevent(mfd, changelist, numev, NULL, 0, NULL);
 			if (ret == -1) {
 				perror("Error return from kevent change");
