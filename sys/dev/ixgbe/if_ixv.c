@@ -662,10 +662,6 @@ ixv_if_init(if_ctx_t ctx)
 	/* And now turn on interrupts */
 	ixv_if_enable_intr(ctx);
 
-	/* Now inform the stack we're ready */
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
 	return;
 } /* ixv_if_init */
 
