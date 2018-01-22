@@ -150,13 +150,13 @@ bcm2835_clkman_set_frequency(device_t dev, uint32_t unit, uint32_t hz)
 	u = 500000000/hz;
 	if (u < 4) {
 		device_printf(sc->sc_dev,
-		    "Frequency too high for unit 0x%x (max: 125MHz)",
+		    "Frequency too high for unit 0x%x (max: 125 MHz)",
 		    unit);
 		return (0);
 	}
 	if (u > 0xfff) {
 		device_printf(sc->sc_dev,
-		    "Frequency too low for unit 0x%x (min: 123Hz)",
+		    "Frequency too low for unit 0x%x (min: 123 kHz)",
 		    unit);
 		return (0);
 	}
