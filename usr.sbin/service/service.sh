@@ -49,39 +49,9 @@ usage () {
 	echo ''
 }
 
-accepted_argstr='jehlrRv'
-
-# Only deal with the -j option here. If found, JAIL is set and the opt and
-# arg are shifted out. OPTIND is left untouched. We strip the -j option out
-# here because we'll be proxying this invocation through to the jail via
-# jls(8) instead of handling it ourselves.
-while getopts ${accepted_argstr} COMMAND_LINE_ARGUMENT ; do
+while getopts 'j:ehlrRv' COMMAND_LINE_ARGUMENT ; do
 	case "${COMMAND_LINE_ARGUMENT}" in
-	j)	JAIL="$2" ; shift ; shift ;;
-	esac
-done
-
-# If -j was provided, then we pass everthing along to the jexec command
-# and execute `service` within the named JAIL. Provided that the jail
-# actually exists, as checked by `jls`.
-# We do this so that if the jail does exist, we can then return the exit
-# code of `jexec` and it should be the exit code of whatever ran in the jail.
-# There is a race condition here in that the jail might exist at `jls` time
-# and be gone by `jexec` time, but it shouldn't be a big deal.
-if [ -n "$JAIL" ]; then
-	/usr/sbin/jls -j "$JAIL" 2>/dev/null >/dev/null
-	if [ $? -ne 0 ]; then
-		echo "Jail '$JAIL' does not exist."
-		exit 1
-	fi
-
-	/usr/sbin/jexec -l "$JAIL" /usr/sbin/service $*
-	exit $?
-fi
-
-OPTIND=1
-while getopts ${accepted_argstr} COMMAND_LINE_ARGUMENT ; do
-	case "${COMMAND_LINE_ARGUMENT}" in
+	j)	JAIL="${OPTARG}" ;;
 	e)	ENABLED=eopt ;;
 	h)	usage ; exit 0 ;;
 	l)	LIST=lopt ;;
@@ -92,6 +62,22 @@ while getopts ${accepted_argstr} COMMAND_LINE_ARGUMENT ; do
 	esac
 done
 shift $(( $OPTIND - 1 ))
+
+if [ -n "${JAIL}" ]; then
+	# We need to rebuild the command line before passing it on.
+	# We do not send the -j argument into the jail.
+	args=""
+	[ -n "${ENABLED}" ] && args="${args} -e"
+	[ -n "${LIST}" ] && args="${args} -l"
+	[ -n "${RCORDER}" ] && args="${args} -r"
+	[ -n "${RESTART}" ] && args="${args} -R"
+	[ -n "${VERBOSE}" ] && args="${args} -v"
+
+	# Call jexec(8) with the rebuild args and any positional args that
+	# were left in $@
+	/usr/sbin/jexec -l "${JAIL}" /usr/sbin/service $args "$@"
+	exit $?
+fi
 
 if [ -n "$RESTART" ]; then
 	skip="-s nostart"
