@@ -2249,9 +2249,7 @@ main(int argc, char *argv[])
 	 * build the guest tables, MP etc.
 	 */
 
-	fprintf(stdout, "If mptgen...\r\n");
 	if (mptgen) {
-		fprintf(stdout, "mpttable building...\r\n");
 		error = mptable_build(ctx, guest_ncpus);
 		if (error) {
 			perror("error to build the guest tables");
@@ -2259,18 +2257,14 @@ main(int argc, char *argv[])
 		}
 	}
 
-	fprintf(stdout, "smbios building...\r\n");
 	error = smbios_build(ctx);
 	assert(error == 0);
 
-	fprintf(stdout, "if acpi...\n");
 	if (acpi) {
-		fprintf(stdout, "Acpi building...\r\n");
 		error = acpi_build(ctx, guest_ncpus);
 		assert(error == 0);
 	}
 
-	fprintf(stdout, "if lpc_bootrom...\r\n");
 	if (lpc_bootrom())
 		fwctl_init();
 
@@ -2278,10 +2272,8 @@ main(int argc, char *argv[])
 	 * Change the proc title to include the VM name.
 	 */
 	setproctitle("%s", vmname);
-	fprintf(stdout, "After if lpc_bootrom...\r\n");
 
 #ifndef WITHOUT_CAPSICUM
-	fprintf(stdout, "without CAPSICUM capth cache catpages...\r\n");
 	caph_cache_catpages();
 
 	if (caph_limit_stdout() == -1 || caph_limit_stderr() == -1)
@@ -2291,7 +2283,6 @@ main(int argc, char *argv[])
 		errx(EX_OSERR, "cap_enter() failed");
 #endif
 
-	fprintf(stdout, "if restore_file is not NULL, destroy_restore_state...\r\n");
 	if (restore_file != NULL)
 		destroy_restore_state(&rstate);
 
@@ -2305,14 +2296,12 @@ main(int argc, char *argv[])
 	 * Add CPU 0
 	 * Change the proc title to include the VM name.
 	 */
-	fprintf(stdout, "Setting proctitle...\r\n");
 	setproctitle("%s", vmname); 
 
 	/* If we restore a VM, start all vCPUs now (including APs), otherwise,
 	 * let the guest OS to spin them up later via vmexits.
 	 */
 
-	fprintf(stdout, "If we restore a VM, start all vCPUs now, including APs, otherwise, let the guest OS to spin them up later via vmexits...\n");
 	for (vcpu = 0; vcpu < guest_ncpus; vcpu++)
 		if (vcpu == BSP || restore_file) {
 			fprintf(stdout, "spinning up vcpu no %d...\r\n", vcpu);
@@ -2322,9 +2311,7 @@ main(int argc, char *argv[])
 	/*
 	 * Head off to the main event dispatch loop
 	 */
-	fprintf(stdout, "Dispatching mevent -> mevent_dispatch()...\r\n");
 	mevent_dispatch();
-	fprintf(stdout, "Dispach finished...\r\n");
 
 	exit(4);
 }
