@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 16, 2016
+.Dd December 6, 2017
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -974,6 +974,10 @@ Please see
 for more information on these algorithms.
 .Pp
 Changing this property affects only newly-written data.
+.Pp
+Salted checksum algorithms
+.Pq Cm edonr , skein
+are currently not supported for any filesystem on the boot pools.
 .It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | Cm zle | Cm lz4
 Controls the compression algorithm used for this dataset.
 Setting compression to
