@@ -1560,7 +1560,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	struct unp_head *head;
 	struct xunpcb *xu;
 	u_int i;
-	int freeunp, error, n;
+	int error, freeunp, n;
 
 	switch ((intptr_t)arg1) {
 	case SOCK_STREAM:
