@@ -1164,7 +1164,7 @@ static int
 mps_alloc_queues(struct mps_softc *sc)
 {
 	struct mps_queue *q;
-	int nq, i;
+	u_int nq, i;
 
 	nq = sc->msi_msgs;
 	mps_dprint(sc, MPS_INIT|MPS_XINFO, "Allocating %d I/O queues\n", nq);

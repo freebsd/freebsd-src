@@ -97,10 +97,10 @@ typedef struct elf_file {
 	Elf_Shdr	*e_shdr;
 
 	Elf_progent	*progtab;
-	int		nprogtab;
+	u_int		nprogtab;
 
 	Elf_relaent	*relatab;
-	int		nrelatab;
+	u_int		nrelatab;
 
 	Elf_relent	*reltab;
 	int		nreltab;
@@ -985,7 +985,7 @@ static void
 link_elf_unload_file(linker_file_t file)
 {
 	elf_file_t ef = (elf_file_t) file;
-	int i;
+	u_int i;
 
 	/* Notify MD code that a module is being unloaded. */
 	elf_cpu_unload_file(file);
