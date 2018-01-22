@@ -354,6 +354,10 @@
         ..
         libproc
         ..
+        libregex
+            data
+            ..
+        ..
         librt
         ..
         libsbuf
