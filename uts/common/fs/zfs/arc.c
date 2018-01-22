@@ -23,7 +23,7 @@
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 by Saso Kiselkov. All rights reserved.
- * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2017 Nexenta Systems, Inc.  All rights reserved.
  */
 
 /*
@@ -1547,8 +1547,9 @@ arc_cksum_is_equal(arc_buf_hdr_t *hdr, zio_t *zio)
 		uint64_t lsize = HDR_GET_LSIZE(hdr);
 		uint64_t csize;
 
-		void *cbuf = zio_buf_alloc(HDR_GET_PSIZE(hdr));
-		csize = zio_compress_data(compress, zio->io_abd, cbuf, lsize);
+		abd_t *cdata = abd_alloc_linear(HDR_GET_PSIZE(hdr), B_TRUE);
+		csize = zio_compress_data(compress, zio->io_abd,
+		    abd_to_buf(cdata), lsize);
 
 		ASSERT3U(csize, <=, HDR_GET_PSIZE(hdr));
 		if (csize < HDR_GET_PSIZE(hdr)) {
@@ -1564,10 +1565,10 @@ arc_cksum_is_equal(arc_buf_hdr_t *hdr, zio_t *zio)
 			 * and zero out any part that should not contain
 			 * data.
 			 */
-			bzero((char *)cbuf + csize, HDR_GET_PSIZE(hdr) - csize);
+			abd_zero_off(cdata, csize, HDR_GET_PSIZE(hdr) - csize);
 			csize = HDR_GET_PSIZE(hdr);
 		}
-		zio_push_transform(zio, cbuf, csize, HDR_GET_PSIZE(hdr), NULL);
+		zio_push_transform(zio, cdata, csize, HDR_GET_PSIZE(hdr), NULL);
 	}
 
 	/*
