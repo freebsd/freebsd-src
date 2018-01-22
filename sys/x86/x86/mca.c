@@ -841,7 +841,7 @@ cmci_setup(void)
 static void
 amd_thresholding_setup(void)
 {
-	int i;
+	u_int i;
 
 	amd_et_state = malloc((mp_maxid + 1) * sizeof(struct amd_et_state *),
 	    M_MCA, M_WAITOK);

@@ -561,7 +561,7 @@ nandfs_read_structures(struct nandfs_device *fsdev)
 {
 	struct nandfs_fsdata *fsdata, *fsdatat;
 	struct nandfs_super_block *sblocks, *ssblock;
-	int nsbs, nfsds, i;
+	u_int nsbs, nfsds, i;
 	int error = 0;
 	int nrsbs;
 
