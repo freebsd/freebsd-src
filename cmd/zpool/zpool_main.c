@@ -440,7 +440,7 @@ add_prop_list(const char *propname, char *propval, nvlist_t **props,
 		 * feature@ properties and version should not be specified
 		 * at the same time.
 		 */
-		if ((prop == ZPROP_INVAL && zpool_prop_feature(propname) &&
+		if ((prop == ZPOOL_PROP_INVAL && zpool_prop_feature(propname) &&
 		    nvlist_exists(proplist, vname)) ||
 		    (prop == ZPOOL_PROP_VERSION &&
 		    prop_list_contains_feature(proplist))) {
