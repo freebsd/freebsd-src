@@ -78,6 +78,7 @@ MAN=	aac.4 \
 	axe.4 \
 	axge.4 \
 	bce.4 \
+	${_bcm283x_pwm.4} \
 	bcma.4 \
 	bfe.4 \
 	bge.4 \
@@ -881,6 +882,10 @@ _vmm.4=		vmm.4
 
 .if ${MACHINE_CPUARCH} == "mips"
 _nvram2env.4=	nvram2env.4
+.endif
+
+.if ${MACHINE_ARCH:Marmv[67]*} != "" || ${MACHINE_CPUARCH} == "aarch64"
+_bcm283x_pwm.4=  bcm283x_pwm.4
 .endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
