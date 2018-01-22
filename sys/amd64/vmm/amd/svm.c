@@ -2479,6 +2479,7 @@ svm_restore_vmcx(void *arg, struct vmcx_state *vmcx, int vcpu)
 		printf("%s: %s%d is running", __func__, vm_name(sc->vm), vcpu);
 		return (EINVAL);
 	}
+	printf("%s: Restore vmcx for processor %d\r\n", __func__, vcpu);
 
 	err += svm_setreg(sc, vcpu, VM_REG_GUEST_CR0, vmcx->guest_cr0);
 
@@ -2577,9 +2578,10 @@ svm_restore_vmi(void *arg, void *buffer, size_t size)
 	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
 	KASSERT(buffer != NULL, ("%s: buffer was NULL", __func__));
 
+	printf("%s: Restore vmi\r\n", __func__);
 	sc->nptp = from_sc->nptp;
 
-	memcpy(sc->iopm_bitmap, from_sc->iopm_bitmap, SVM_IO_BITMAP_SIZE);
+//	memcpy(sc->iopm_bitmap, from_sc->iopm_bitmap, SVM_IO_BITMAP_SIZE);
 
 //	memcpy(sc->msr_bitmap, from_sc->msr_bitmap, SVM_MSR_BITMAP_SIZE);
 
@@ -2591,7 +2593,7 @@ svm_restore_vmi(void *arg, void *buffer, size_t size)
 		sc->vcpu[i].vmcb.ctrl.v_tpr = from_sc->vcpu[i].vmcb.ctrl.v_tpr;
 		sc->vcpu[i].vmcb.ctrl.v_irq = from_sc->vcpu[i].vmcb.ctrl.v_irq;
 
-		sc->vcpu[i].vmcb.ctrl.iopm_base_pa = from_sc->vcpu[i].vmcb.ctrl.iopm_base_pa;
+//		sc->vcpu[i].vmcb.ctrl.iopm_base_pa = from_sc->vcpu[i].vmcb.ctrl.iopm_base_pa;
 //		sc->vcpu[i].vmcb.ctrl.msrpm_base_pa = from_sc->vcpu[i].vmcb.ctrl.msrpm_base_pa;
 
 		sc->vcpu[i].vmcb.ctrl.asid = from_sc->vcpu[i].vmcb.ctrl.asid;
