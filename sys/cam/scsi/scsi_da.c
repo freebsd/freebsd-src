@@ -2965,7 +2965,7 @@ more:
 
 		if (cam_iosched_has_work_flags(softc->cam_iosched, DA_WORK_TUR)) {
 			cam_iosched_clr_work_flags(softc->cam_iosched, DA_WORK_TUR);
-			cam_periph_release_locked(periph);	/* XXX is this still valid? I think so but unverified */
+			cam_periph_release_locked(periph);
 		}
 
 		if ((bp->bio_flags & BIO_ORDERED) != 0 ||
