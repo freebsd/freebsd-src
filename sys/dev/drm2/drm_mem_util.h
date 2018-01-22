@@ -36,19 +36,15 @@ __FBSDID("$FreeBSD$");
 
 static __inline__ void *drm_calloc_large(size_t nmemb, size_t size)
 {
-	if (size != 0 && nmemb > SIZE_MAX / size)
-		return NULL;
 
-	return malloc(nmemb * size, DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
+	return mallocarray(nmemb, size, DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 }
 
 /* Modeled after cairo's malloc_ab, it's like calloc but without the zeroing. */
 static __inline__ void *drm_malloc_ab(size_t nmemb, size_t size)
 {
-	if (size != 0 && nmemb > SIZE_MAX / size)
-		return NULL;
 
-	return malloc(nmemb * size, DRM_MEM_DRIVER, M_NOWAIT);
+	return mallocarray(nmemb, size, DRM_MEM_DRIVER, M_NOWAIT);
 }
 
 static __inline void drm_free_large(void *ptr)
