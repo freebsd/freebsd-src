@@ -389,6 +389,11 @@
 			};
 		};
 
+		cprman {
+			compatible = "broadcom,bcm2835-cprman";
+			reg = <0x101000 0x2000>;
+		};
+
 		rng {
 			compatible = "broadcom,bcm2835-rng",
 				     "broadcom,bcm2708-rng";
@@ -427,7 +432,7 @@
 
 		pwm0 {
 			compatible = "broadcom,bcm2835-pwm";
-			reg = <0x20c000 0x28>,<0x1010a0 8>;
+			reg = <0x20c000 0x28>;
 		};
 
 		dma: dma {
