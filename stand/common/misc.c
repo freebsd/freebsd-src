@@ -138,6 +138,7 @@ kern_pread(int fd, vm_offset_t dest, size_t len, off_t off)
  * Read the specified part of a file to a malloced buffer.  The file
  * pointer is advanced to the end of the read data.
  */
+/* coverity[ -tainted_data_return ] */
 void *
 alloc_pread(int fd, off_t off, size_t len)
 {
