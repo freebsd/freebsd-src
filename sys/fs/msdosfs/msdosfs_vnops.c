@@ -1891,14 +1891,14 @@ msdosfs_pathconf(struct vop_pathconf_args *ap)
 	struct msdosfsmount *pmp = VTODE(ap->a_vp)->de_pmp;
 
 	switch (ap->a_name) {
+	case _PC_FILESIZEBITS:
+		*ap->a_retval = 32;
+		return (0);
 	case _PC_LINK_MAX:
 		*ap->a_retval = 1;
 		return (0);
 	case _PC_NAME_MAX:
 		*ap->a_retval = pmp->pm_flags & MSDOSFSMNT_LONGNAME ? WIN_MAXLEN : 12;
-		return (0);
-	case _PC_PATH_MAX:
-		*ap->a_retval = PATH_MAX;
 		return (0);
 	case _PC_CHOWN_RESTRICTED:
 		*ap->a_retval = 1;
@@ -1907,7 +1907,7 @@ msdosfs_pathconf(struct vop_pathconf_args *ap)
 		*ap->a_retval = 0;
 		return (0);
 	default:
-		return (EINVAL);
+		return (vop_stdpathconf(ap));
 	}
 	/* NOTREACHED */
 }
