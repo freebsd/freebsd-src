@@ -301,6 +301,7 @@ setthetime(const char *fmt, const char *p, int jflag, int nflag)
 		/* set the time */
 		if (nflag || netsettime(tval)) {
 			utx.ut_type = OLD_TIME;
+			memset(utx.ut_id, 0, sizeof(utx.ut_id));
 			(void)gettimeofday(&utx.ut_tv, NULL);
 			pututxline(&utx);
 			tv.tv_sec = tval;
