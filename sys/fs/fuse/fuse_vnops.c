@@ -123,6 +123,7 @@ static vop_lookup_t fuse_vnop_lookup;
 static vop_mkdir_t fuse_vnop_mkdir;
 static vop_mknod_t fuse_vnop_mknod;
 static vop_open_t fuse_vnop_open;
+static vop_pathconf_t fuse_vnop_pathconf;
 static vop_read_t fuse_vnop_read;
 static vop_readdir_t fuse_vnop_readdir;
 static vop_readlink_t fuse_vnop_readlink;
@@ -155,7 +156,7 @@ struct vop_vector fuse_vnops = {
 	.vop_mkdir = fuse_vnop_mkdir,
 	.vop_mknod = fuse_vnop_mknod,
 	.vop_open = fuse_vnop_open,
-	.vop_pathconf = vop_stdpathconf,
+	.vop_pathconf = fuse_vnop_pathconf,
 	.vop_read = fuse_vnop_read,
 	.vop_readdir = fuse_vnop_readdir,
 	.vop_readlink = fuse_vnop_readlink,
@@ -1170,6 +1171,31 @@ fuse_vnop_open(struct vop_open_args *ap)
 	error = fuse_filehandle_open(vp, fufh_type, NULL, td, cred);
 
 	return error;
+}
+
+static int
+fuse_vnop_pathconf(struct vop_pathconf_args *ap)
+{
+
+	switch (ap->a_name) {
+	case _PC_FILESIZEBITS:
+		*ap->a_retval = 64;
+		return (0);
+	case _PC_NAME_MAX:
+		*ap->a_retval = NAME_MAX;
+		return (0);
+	case _PC_LINK_MAX:
+		*ap->a_retval = FUSE_LINK_MAX;
+		return (0);
+	case _PC_SYMLINK_MAX:
+		*ap->a_retval = MAXPATHLEN;
+		return (0);
+	case _PC_NO_TRUNC:
+		*ap->a_retval = 1;
+		return (0);
+	default:
+		return (vop_stdpathconf(ap));
+	}
 }
 
 /*

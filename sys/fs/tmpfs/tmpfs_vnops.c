@@ -1333,9 +1333,10 @@ tmpfs_print(struct vop_print_args *v)
 	return 0;
 }
 
-static int
+int
 tmpfs_pathconf(struct vop_pathconf_args *v)
 {
+	struct vnode *vp = v->a_vp;
 	int name = v->a_name;
 	register_t *retval = v->a_retval;
 
@@ -1352,12 +1353,11 @@ tmpfs_pathconf(struct vop_pathconf_args *v)
 		*retval = NAME_MAX;
 		break;
 
-	case _PC_PATH_MAX:
-		*retval = PATH_MAX;
-		break;
-
 	case _PC_PIPE_BUF:
-		*retval = PIPE_BUF;
+		if (vp->v_type == VDIR || vp->v_type == VFIFO)
+			*retval = PIPE_BUF;
+		else
+			error = EINVAL;
 		break;
 
 	case _PC_CHOWN_RESTRICTED:
@@ -1373,11 +1373,11 @@ tmpfs_pathconf(struct vop_pathconf_args *v)
 		break;
 
 	case _PC_FILESIZEBITS:
-		*retval = 0; /* XXX Don't know which value should I return. */
+		*retval = 64;
 		break;
 
 	default:
-		error = EINVAL;
+		error = vop_stdpathconf(v);
 	}
 
 	return error;
