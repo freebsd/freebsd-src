@@ -203,6 +203,11 @@ env_check() {
 		exit 1
 	fi
 
+	# Unset CHROOTBUILD_SKIP if the chroot(8) does not appear to exist.
+	if [ ! -z "${CHROOTBUILD_SKIP}" -a ! -e ${CHROOTDIR}/bin/sh ]; then
+		CHROOTBUILD_SKIP=
+	fi
+
 	CHROOT_MAKEENV="${CHROOT_MAKEENV} \
 		MAKEOBJDIRPREFIX=${CHROOTDIR}/tmp/obj"
 	CHROOT_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${CONF_FILES}"
