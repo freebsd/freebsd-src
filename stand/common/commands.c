@@ -91,10 +91,8 @@ help_getnext(int fd, char **topic, char **subtopic, char **desc)
 	    cp = ep;
 	}
 	if (*topic == NULL) {
-	    if (*subtopic != NULL)
-		free(*subtopic);
-	    if (*desc != NULL)
-		free(*desc);
+	    free(*subtopic);
+	    free(*desc);
 	    continue;
 	}
 	return(1);
@@ -169,7 +167,7 @@ command_help(int argc, char *argv[])
 
 	} else if (strcmp(topic, t)) {
 	    /* topic mismatch */
-	    if(matched)		/* nothing more on this topic, stop scanning */
+	    if (matched)	/* nothing more on this topic, stop scanning */
 		break;
 
 	} else {
@@ -178,7 +176,7 @@ command_help(int argc, char *argv[])
 	    if (((subtopic == NULL) && (s == NULL)) ||
 		((subtopic != NULL) && (s != NULL) && !strcmp(subtopic, s))) {
 		/* exact match, print text */
-		while((fgetstr(buf, 80, hfd) >= 0) && (buf[0] != '#')) {
+		while ((fgetstr(buf, 80, hfd) >= 0) && (buf[0] != '#')) {
 		    if (pager_output(buf))
 			break;
 		    if (pager_output("\n"))
@@ -193,23 +191,24 @@ command_help(int argc, char *argv[])
 	free(t);
 	free(s);
 	free(d);
+	t = s = d = NULL;
     }
+    free(t);
+    free(s);
+    free(d);
     pager_close();
     close(hfd);
     if (!matched) {
 	snprintf(command_errbuf, sizeof(command_errbuf),
 	    "no help available for '%s'", topic);
 	free(topic);
-	if (subtopic)
-	    free(subtopic);
+	free(subtopic);
 	return(CMD_ERROR);
     }
     free(topic);
-    if (subtopic)
-	free(subtopic);
+    free(subtopic);
     return(CMD_OK);
 }
-
 
 COMMAND_SET(commandlist, "?", "list commands", command_commandlist);
 
