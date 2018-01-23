@@ -1279,6 +1279,7 @@ main(int argc, char *argv[])
 			break;
 		case 'q':
 			opt_q = 1;
+			break;
 		case 'S':
 			opt_S = 1;
 			break;
