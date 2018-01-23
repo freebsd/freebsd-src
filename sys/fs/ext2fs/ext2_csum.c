@@ -535,12 +535,11 @@ static uint32_t
 ext2_ei_csum(struct inode *ip, struct ext2fs_dinode *ei)
 {
 	struct m_ext2fs *fs;
-	uint16_t old_lo, old_hi;
+	uint16_t old_hi;
 	uint32_t inum, gen, crc;
 
 	fs = ip->i_e2fs;
 
-	old_lo = ei->e2di_chksum_lo;
 	ei->e2di_chksum_lo = 0;
 	if ((EXT2_INODE_SIZE(ip->i_e2fs) > E2FS_REV0_INODE_SIZE &&
 	    ei->e2di_extra_isize >= EXT2_INODE_CSUM_HI_EXTRA_END)) {
