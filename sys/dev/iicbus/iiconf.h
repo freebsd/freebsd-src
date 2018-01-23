@@ -39,13 +39,14 @@
 #define LSB 0x1
 
 /*
- * How tsleep() is called in iic_request_bus().
+ * Options affecting iicbus_request_bus()
  */
 #define IIC_DONTWAIT	0
 #define IIC_NOINTR	0
 #define IIC_WAIT	0x1
 #define IIC_INTR	0x2
 #define IIC_INTRWAIT	(IIC_INTR | IIC_WAIT)
+#define IIC_RECURSIVE	0x4
 
 /*
  * i2c modes
