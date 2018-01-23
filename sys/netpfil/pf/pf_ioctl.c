@@ -2514,7 +2514,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_table);
-		pfrts = malloc(totlen, M_TEMP, M_WAITOK);
+		pfrts = mallocarray(io->pfrio_size, sizeof(struct pfr_table),
+		    M_TEMP, M_WAITOK);
+		if (! pfrts) {
+			error = ENOMEM;
+			break;
+		}
 		error = copyin(io->pfrio_buffer, pfrts, totlen);
 		if (error) {
 			free(pfrts, M_TEMP);
@@ -2538,7 +2543,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_table);
-		pfrts = malloc(totlen, M_TEMP, M_WAITOK);
+		pfrts = mallocarray(io->pfrio_size, sizeof(struct pfr_table),
+		    M_TEMP, M_WAITOK);
+		if (! pfrts) {
+			error = ENOMEM;
+			break;
+		}
 		error = copyin(io->pfrio_buffer, pfrts, totlen);
 		if (error) {
 			free(pfrts, M_TEMP);
@@ -2562,7 +2572,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_table);
-		pfrts = malloc(totlen, M_TEMP, M_WAITOK);
+		pfrts = mallocarray(io->pfrio_size, sizeof(struct pfr_table),
+		    M_TEMP, M_WAITOK);
+		if (! pfrts) {
+			error = ENOMEM;
+			break;
+		}
 		PF_RULES_RLOCK();
 		error = pfr_get_tables(&io->pfrio_table, pfrts,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
@@ -2583,7 +2598,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_tstats);
-		pfrtstats = malloc(totlen, M_TEMP, M_WAITOK);
+		pfrtstats = mallocarray(io->pfrio_size,
+		    sizeof(struct pfr_tstats), M_TEMP, M_WAITOK);
+		if (! pfrtstats) {
+			error = ENOMEM;
+			break;
+		}
 		PF_RULES_WLOCK();
 		error = pfr_get_tstats(&io->pfrio_table, pfrtstats,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
@@ -2604,7 +2624,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_table);
-		pfrts = malloc(totlen, M_TEMP, M_WAITOK);
+		pfrts = mallocarray(io->pfrio_size, sizeof(struct pfr_table),
+		    M_TEMP, M_WAITOK);
+		if (! pfrts) {
+			error = ENOMEM;
+			break;
+		}
 		error = copyin(io->pfrio_buffer, pfrts, totlen);
 		if (error) {
 			free(pfrts, M_TEMP);
@@ -2628,7 +2653,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_table);
-		pfrts = malloc(totlen, M_TEMP, M_WAITOK);
+		pfrts = mallocarray(io->pfrio_size, sizeof(struct pfr_table),
+		    M_TEMP, M_WAITOK);
+		if (! pfrts) {
+			error = ENOMEM;
+			break;
+		}
 		error = copyin(io->pfrio_buffer, pfrts, totlen);
 		if (error) {
 			free(pfrts, M_TEMP);
@@ -2667,7 +2697,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_addr);
-		pfras = malloc(totlen, M_TEMP, M_WAITOK);
+		pfras = mallocarray(io->pfrio_size, sizeof(struct pfr_addr),
+		    M_TEMP, M_WAITOK);
+		if (! pfras) {
+			error = ENOMEM;
+			break;
+		}
 		error = copyin(io->pfrio_buffer, pfras, totlen);
 		if (error) {
 			free(pfras, M_TEMP);
@@ -2694,7 +2729,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_addr);
-		pfras = malloc(totlen, M_TEMP, M_WAITOK);
+		pfras = mallocarray(io->pfrio_size, sizeof(struct pfr_addr),
+		    M_TEMP, M_WAITOK);
+		if (! pfras) {
+			error = ENOMEM;
+			break;
+		}
 		error = copyin(io->pfrio_buffer, pfras, totlen);
 		if (error) {
 			free(pfras, M_TEMP);
@@ -2722,7 +2762,12 @@ DIOCCHANGEADDR_error:
 		}
 		count = max(io->pfrio_size, io->pfrio_size2);
 		totlen = count * sizeof(struct pfr_addr);
-		pfras = malloc(totlen, M_TEMP, M_WAITOK);
+		pfras = mallocarray(count, sizeof(struct pfr_addr), M_TEMP,
+		    M_WAITOK);
+		if (! pfras) {
+			error = ENOMEM;
+			break;
+		}
 		error = copyin(io->pfrio_buffer, pfras, totlen);
 		if (error) {
 			free(pfras, M_TEMP);
@@ -2750,7 +2795,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_addr);
-		pfras = malloc(totlen, M_TEMP, M_WAITOK);
+		pfras = mallocarray(io->pfrio_size, sizeof(struct pfr_addr),
+		    M_TEMP, M_WAITOK);
+		if (! pfras) {
+			error = ENOMEM;
+			break;
+		}
 		PF_RULES_RLOCK();
 		error = pfr_get_addrs(&io->pfrio_table, pfras,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
@@ -2771,7 +2821,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_astats);
-		pfrastats = malloc(totlen, M_TEMP, M_WAITOK);
+		pfrastats = mallocarray(io->pfrio_size,
+		    sizeof(struct pfr_astats), M_TEMP, M_WAITOK);
+		if (! pfrastats) {
+			error = ENOMEM;
+			break;
+		}
 		PF_RULES_RLOCK();
 		error = pfr_get_astats(&io->pfrio_table, pfrastats,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
@@ -2792,7 +2847,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_addr);
-		pfras = malloc(totlen, M_TEMP, M_WAITOK);
+		pfras = mallocarray(io->pfrio_size, sizeof(struct pfr_addr),
+		    M_TEMP, M_WAITOK);
+		if (! pfras) {
+			error = ENOMEM;
+			break;
+		}
 		error = copyin(io->pfrio_buffer, pfras, totlen);
 		if (error) {
 			free(pfras, M_TEMP);
@@ -2819,7 +2879,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_addr);
-		pfras = malloc(totlen, M_TEMP, M_WAITOK);
+		pfras = mallocarray(io->pfrio_size, sizeof(struct pfr_addr),
+		    M_TEMP, M_WAITOK);
+		if (! pfras) {
+			error = ENOMEM;
+			break;
+		}
 		error = copyin(io->pfrio_buffer, pfras, totlen);
 		if (error) {
 			free(pfras, M_TEMP);
@@ -2846,7 +2911,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_addr);
-		pfras = malloc(totlen, M_TEMP, M_WAITOK);
+		pfras = mallocarray(io->pfrio_size, sizeof(struct pfr_addr),
+		    M_TEMP, M_WAITOK);
+		if (! pfras) {
+			error = ENOMEM;
+			break;
+		}
 		error = copyin(io->pfrio_buffer, pfras, totlen);
 		if (error) {
 			free(pfras, M_TEMP);
@@ -2888,7 +2958,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = sizeof(struct pfioc_trans_e) * io->size;
-		ioes = malloc(totlen, M_TEMP, M_WAITOK);
+		ioes = mallocarray(io->size, sizeof(struct pfioc_trans_e),
+		    M_TEMP, M_WAITOK);
+		if (! ioes) {
+			error = ENOMEM;
+			break;
+		}
 		error = copyin(io->array, ioes, totlen);
 		if (error) {
 			free(ioes, M_TEMP);
@@ -2954,7 +3029,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = sizeof(struct pfioc_trans_e) * io->size;
-		ioes = malloc(totlen, M_TEMP, M_WAITOK);
+		ioes = mallocarray(io->size, sizeof(struct pfioc_trans_e),
+		    M_TEMP, M_WAITOK);
+		if (! ioes) {
+			error = ENOMEM;
+			break;
+		}
 		error = copyin(io->array, ioes, totlen);
 		if (error) {
 			free(ioes, M_TEMP);
@@ -3020,7 +3100,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 		totlen = sizeof(struct pfioc_trans_e) * io->size;
-		ioes = malloc(totlen, M_TEMP, M_WAITOK);
+		ioes = mallocarray(io->size, sizeof(struct pfioc_trans_e),
+		    M_TEMP, M_WAITOK);
+		if (! ioes) {
+			error = ENOMEM;
+			break;
+		}
 		error = copyin(io->array, ioes, totlen);
 		if (error) {
 			free(ioes, M_TEMP);
@@ -3221,7 +3306,12 @@ DIOCCHANGEADDR_error:
 		}
 
 		bufsiz = io->pfiio_size * sizeof(struct pfi_kif);
-		ifstore = malloc(bufsiz, M_TEMP, M_WAITOK);
+		ifstore = mallocarray(io->pfiio_size, sizeof(struct pfi_kif),
+		    M_TEMP, M_WAITOK);
+		if (! ifstore) {
+			error = ENOMEM;
+			break;
+		}
 		PF_RULES_RLOCK();
 		pfi_get_ifaces(io->pfiio_name, ifstore, &io->pfiio_size);
 		PF_RULES_RUNLOCK();
