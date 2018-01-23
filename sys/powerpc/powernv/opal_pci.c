@@ -601,7 +601,13 @@ static void opalpic_pic_mask(device_t dev, u_int irq)
 
 static void opalpic_pic_unmask(device_t dev, u_int irq)
 {
+	struct opalpci_softc *sc;
+
+	sc = device_get_softc(dev);
+
 	PIC_UNMASK(root_pic, irq);
+
+	opal_call(OPAL_PCI_MSI_EOI, sc->phb_id, irq);
 }
 
 
