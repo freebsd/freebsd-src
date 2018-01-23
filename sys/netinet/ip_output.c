@@ -302,11 +302,8 @@ again:
 		    !RT_LINK_IS_UP(rte->rt_ifp) ||
 			  dst->sin_family != AF_INET ||
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
-		RTFREE(rte);
-		rte = ro->ro_rt = (struct rtentry *)NULL;
-		if (ro->ro_lle)
-			LLE_FREE(ro->ro_lle);	/* zeros ro_lle */
-		ro->ro_lle = (struct llentry *)NULL;
+		RO_INVALIDATE_CACHE(ro);
+		rte = NULL;
 	}
 	ia = NULL;
 	have_ia_ref = 0;
