@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2017
+.Dd January 23, 2018
 .Dt PS 1
 .Os
 .Sh NAME
@@ -148,12 +148,7 @@ This option is honored only if the UID of the user is 0.
 Display information about processes which are running with the specified
 real group IDs.
 .It Fl H
-Show all of the
-.Em kernel visible
-threads associated with each process.
-Depending on the threading package that
-is in use, this may show only the process, only the kernel scheduled entities,
-or all of the process threads.
+Show all of the threads associated with each process.
 .It Fl h
 Repeat the information header as often as necessary to guarantee one
 header per page of information.
@@ -588,7 +583,8 @@ login name of user who started the session
 .It Cm lstart
 time started
 .It Cm lwp
-process thread-id
+thread (light-weight process) ID (alias
+.Cm tid )
 .It Cm majflt
 total page faults
 .It Cm minflt
@@ -605,7 +601,7 @@ nice value (alias
 .It Cm nivcsw
 total involuntary context switches
 .It Cm nlwp
-number of threads tied to a process
+number of threads (light-weight processes) tied to a process
 .It Cm nsigs
 total signals taken (alias
 .Cm nsignals )
