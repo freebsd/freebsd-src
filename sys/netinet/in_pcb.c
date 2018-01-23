@@ -1319,9 +1319,7 @@ in_pcbfree(struct inpcb *inp)
 	if (inp->inp_moptions != NULL)
 		inp_freemoptions(inp->inp_moptions);
 #endif
-	RO_RTFREE(&inp->inp_route);
-	if (inp->inp_route.ro_lle)
-		LLE_FREE(inp->inp_route.ro_lle);	/* zeros ro_lle */
+	RO_INVALIDATE_CACHE(&inp->inp_route);
 
 	inp->inp_vflag = 0;
 	inp->inp_flags2 |= INP_FREED;
@@ -2259,9 +2257,7 @@ void
 in_losing(struct inpcb *inp)
 {
 
-	RO_RTFREE(&inp->inp_route);
-	if (inp->inp_route.ro_lle)
-		LLE_FREE(inp->inp_route.ro_lle);	/* zeros ro_lle */
+	RO_INVALIDATE_CACHE(&inp->inp_route);
 	return;
 }
 
