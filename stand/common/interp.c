@@ -250,6 +250,7 @@ include(const char *filename)
 		snprintf(command_errbuf, sizeof(command_errbuf),
 		    "file '%s' line %d: memory allocation failure - aborting",
 		    filename, line);
+		close(fd);
 		return (CMD_ERROR);
 	}
 	strcpy(sp->text, cp);
