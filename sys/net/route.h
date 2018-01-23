@@ -428,6 +428,10 @@ struct rt_addrinfo {
 			RTFREE((ro)->ro_rt);				\
 			(ro)->ro_rt = NULL;				\
 		}							\
+		if ((ro)->ro_lle != NULL) {					\
+			LLE_FREE((ro)->ro_lle);				\
+			(ro)->ro_lle = NULL;				\
+		}							\
 		*(cookiep) = cookie;					\
 	}								\
 } while (0)
