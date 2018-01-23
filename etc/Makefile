@@ -379,10 +379,10 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 		d=${DISTBASE}$$d; \
 		shift; \
 		test -d ${DESTDIR}/$$d || mkdir -p ${DESTDIR}/$$d; \
-		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K uname,gname | " \
+		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K all | " \
 		    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
 		${MTREE_FILTER} $$m | \
-		${MTREE_CMD:N-W} -C -K uname,gname | sed s#^\.#.$$d# | \
+		${MTREE_CMD:N-W} -C -K all | sed s#^\.#.$$d# | \
 		    ${METALOG.add} ; \
 	done; true
 .endif
