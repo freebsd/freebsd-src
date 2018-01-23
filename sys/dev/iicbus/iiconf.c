@@ -84,7 +84,7 @@ iicbus_poll(struct iicbus_softc *sc, int how)
 	int error;
 
 	IICBUS_ASSERT_LOCKED(sc);
-	switch (how) {
+	switch (how & IIC_INTRWAIT) {
 	case IIC_WAIT | IIC_INTR:
 		error = mtx_sleep(sc, &sc->lock, IICPRI|PCATCH, "iicreq", 0);
 		break;
@@ -115,8 +115,14 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 
 	IICBUS_LOCK(sc);
 
-	while (error == 0 && sc->owner != NULL && sc->owner != dev)
-		error = iicbus_poll(sc, how);
+	for (;;) {
+		if (sc->owner == NULL)
+			break;
+		if ((how & IIC_RECURSIVE) && sc->owner == dev)
+			break;
+		if ((error = iicbus_poll(sc, how)) != 0)
+			break;
+	}
 
 	if (error == 0) {
 		++sc->owncount;
