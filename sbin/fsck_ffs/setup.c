@@ -54,9 +54,11 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
+#include <libufs.h>
 
 #include "fsck.h"
 
+struct uufsd disk;
 struct bufarea asblk;
 #define altsblock (*asblk.b_un.b_fs)
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
@@ -124,7 +126,8 @@ setup(char *dev)
 			}
 		}
 	}
-	if ((fsreadfd = open(dev, O_RDONLY)) < 0) {
+	if ((fsreadfd = open(dev, O_RDONLY)) < 0 ||
+	    ufs_disk_fillout(&disk, dev) < 0) {
 		if (bkgrdflag) {
 			unlink(snapname);
 			bkgrdflag = 0;
@@ -168,7 +171,8 @@ setup(char *dev)
 	if (preen == 0)
 		printf("** %s", dev);
 	if (bkgrdflag == 0 &&
-	    (nflag || (fswritefd = open(dev, O_WRONLY)) < 0)) {
+	    (nflag || ufs_disk_write(&disk) < 0 ||
+	     (fswritefd = dup(disk.d_fd)) < 0)) {
 		fswritefd = -1;
 		if (preen)
 			pfatal("NO WRITE ACCESS");

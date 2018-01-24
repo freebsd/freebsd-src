@@ -352,20 +352,6 @@ flush(int fd, struct bufarea *bp)
 
 	if (!bp->b_dirty)
 		return;
-	/*
-	 * Calculate any needed check hashes.
-	 */
-	switch (bp->b_type) {
-	case BT_CYLGRP:
-		if ((sblock.fs_metackhash & CK_CYLGRP) == 0)
-			break;
-		bp->b_un.b_cg->cg_ckhash = 0;
-		bp->b_un.b_cg->cg_ckhash =
-		    calculate_crc32c(~0L, bp->b_un.b_buf, bp->b_size);
-		break;
-	default:
-		break;
-	}
 	bp->b_dirty = 0;
 	if (fswritefd < 0) {
 		pfatal("WRITING IN READ_ONLY MODE.\n");
@@ -376,13 +362,30 @@ flush(int fd, struct bufarea *bp)
 		    (bp->b_errs == bp->b_size / dev_bsize) ? "" : "PARTIALLY ",
 		    (long long)bp->b_bno);
 	bp->b_errs = 0;
-	blwrite(fd, bp->b_un.b_buf, bp->b_bno, bp->b_size);
-	if (bp != &sblk)
-		return;
-	for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize, j++) {
-		blwrite(fswritefd, (char *)sblock.fs_csp + i,
-		    fsbtodb(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),
-		    MIN(sblock.fs_cssize - i, sblock.fs_bsize));
+	/*
+	 * Write using the appropriate function.
+	 */
+	switch (bp->b_type) {
+	case BT_SUPERBLK:
+		if (bp != &sblk)
+			pfatal("BUFFER 0x%x DOES NOT MATCH SBLK 0x%x\n",
+			    (u_int)bp, (u_int)&sblk);
+		blwrite(fd, bp->b_un.b_buf, bp->b_bno, bp->b_size);
+		for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize,
+		   j++) {
+			blwrite(fswritefd, (char *)sblock.fs_csp + i,
+			    fsbtodb(&sblock,
+			    sblock.fs_csaddr + j * sblock.fs_frag),
+			    MIN(sblock.fs_cssize - i, sblock.fs_bsize));
+		}
+		break;
+	case BT_CYLGRP:
+		if (cgput(&disk, (struct cg *)bp->b_un.b_buf) == 0)
+			fsmodified = 1;
+		break;
+	default:
+		blwrite(fd, bp->b_un.b_buf, bp->b_bno, bp->b_size);
+		break;
 	}
 }
 
