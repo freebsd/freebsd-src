@@ -214,6 +214,7 @@ struct ccr_softc {
 	uint64_t stats_bad_session;
 	uint64_t stats_sglist_error;
 	uint64_t stats_process_error;
+	uint64_t stats_sw_fallback;
 };
 
 /*
@@ -1111,14 +1112,21 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 		return (EINVAL);
 
 	/*
+	 * The crypto engine doesn't handle GCM requests with an empty
+	 * payload, so handle those in software instead.
+	 */
+	if (crde->crd_len == 0)
+		return (EMSGSIZE);
+
+	/*
 	 * AAD is only permitted before the cipher/plain text, not
 	 * after.
 	 */
 	if (crda->crd_len + crda->crd_skip > crde->crd_len + crde->crd_skip)
-		return (EINVAL);
+		return (EMSGSIZE);
 
 	if (crda->crd_len + AES_BLOCK_LEN > MAX_AAD_LEN)
-		return (EINVAL);
+		return (EMSGSIZE);
 
 	hash_size_in_response = s->gmac.hash_len;
 
@@ -1371,18 +1379,54 @@ ccr_gcm_done(struct ccr_softc *sc, struct ccr_session *s,
 }
 
 /*
- * Handle a GCM request with an empty payload by performing the
- * operation in software.  Derived from swcr_authenc().
+ * Handle a GCM request that is not supported by the crypto engine by
+ * performing the operation in software.  Derived from swcr_authenc().
  */
 static void
 ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp,
     struct cryptodesc *crda, struct cryptodesc *crde)
 {
-	struct aes_gmac_ctx gmac_ctx;
+	struct auth_hash *axf;
+	struct enc_xform *exf;
+	void *auth_ctx;
+	uint8_t *kschedule;
 	char block[GMAC_BLOCK_LEN];
 	char digest[GMAC_DIGEST_LEN];
 	char iv[AES_BLOCK_LEN];
-	int i, len;
+	int error, i, len;
+
+	auth_ctx = NULL;
+	kschedule = NULL;
+
+	/* Initialize the MAC. */
+	switch (s->blkcipher.key_len) {
+	case 16:
+		axf = &auth_hash_nist_gmac_aes_128;
+		break;
+	case 24:
+		axf = &auth_hash_nist_gmac_aes_192;
+		break;
+	case 32:
+		axf = &auth_hash_nist_gmac_aes_256;
+		break;
+	default:
+		error = EINVAL;
+		goto out;
+	}
+	auth_ctx = malloc(axf->ctxsize, M_CCR, M_NOWAIT);
+	if (auth_ctx == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+	axf->Init(auth_ctx);
+	axf->Setkey(auth_ctx, s->blkcipher.enckey, s->blkcipher.key_len);
+
+	/* Initialize the cipher. */
+	exf = &enc_xform_aes_nist_gcm;
+	error = exf->setkey(&kschedule, s->blkcipher.enckey,
+	    s->blkcipher.key_len);
+	if (error)
+		goto out;
 
 	/*
 	 * This assumes a 12-byte IV from the crp.  See longer comment
@@ -1402,10 +1446,7 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp,
 	}
 	*(uint32_t *)&iv[12] = htobe32(1);
 
-	/* Initialize the MAC. */
-	AES_GMAC_Init(&gmac_ctx);
-	AES_GMAC_Setkey(&gmac_ctx, s->blkcipher.enckey, s->blkcipher.key_len);
-	AES_GMAC_Reinit(&gmac_ctx, iv, sizeof(iv));
+	axf->Reinit(auth_ctx, iv, sizeof(iv));
 
 	/* MAC the AAD. */
 	for (i = 0; i < crda->crd_len; i += sizeof(block)) {
@@ -1413,29 +1454,70 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp,
 		crypto_copydata(crp->crp_flags, crp->crp_buf, crda->crd_skip +
 		    i, len, block);
 		bzero(block + len, sizeof(block) - len);
-		AES_GMAC_Update(&gmac_ctx, block, sizeof(block));
+		axf->Update(auth_ctx, block, sizeof(block));
+	}
+
+	exf->reinit(kschedule, iv);
+
+	/* Do encryption with MAC */
+	for (i = 0; i < crde->crd_len; i += sizeof(block)) {
+		len = imin(crde->crd_len - i, sizeof(block));
+		crypto_copydata(crp->crp_flags, crp->crp_buf, crde->crd_skip +
+		    i, len, block);
+		bzero(block + len, sizeof(block) - len);
+		if (crde->crd_flags & CRD_F_ENCRYPT) {
+			exf->encrypt(kschedule, block);
+			axf->Update(auth_ctx, block, len);
+			crypto_copyback(crp->crp_flags, crp->crp_buf,
+			    crde->crd_skip + i, len, block);
+		} else {
+			axf->Update(auth_ctx, block, len);
+		}
 	}
 
 	/* Length block. */
 	bzero(block, sizeof(block));
 	((uint32_t *)block)[1] = htobe32(crda->crd_len * 8);
-	AES_GMAC_Update(&gmac_ctx, block, sizeof(block));
-	AES_GMAC_Final(digest, &gmac_ctx);
+	((uint32_t *)block)[3] = htobe32(crde->crd_len * 8);
+	axf->Update(auth_ctx, block, sizeof(block));
 
+	/* Finalize MAC. */
+	axf->Final(digest, auth_ctx);
+
+	/* Inject or validate tag. */
 	if (crde->crd_flags & CRD_F_ENCRYPT) {
 		crypto_copyback(crp->crp_flags, crp->crp_buf, crda->crd_inject,
 		    sizeof(digest), digest);
-		crp->crp_etype = 0;
+		error = 0;
 	} else {
 		char digest2[GMAC_DIGEST_LEN];
 
 		crypto_copydata(crp->crp_flags, crp->crp_buf, crda->crd_inject,
 		    sizeof(digest2), digest2);
-		if (timingsafe_bcmp(digest, digest2, sizeof(digest)) == 0)
-			crp->crp_etype = 0;
-		else
-			crp->crp_etype = EBADMSG;
+		if (timingsafe_bcmp(digest, digest2, sizeof(digest)) == 0) {
+			error = 0;
+
+			/* Tag matches, decrypt data. */
+			for (i = 0; i < crde->crd_len; i += sizeof(block)) {
+				len = imin(crde->crd_len - i, sizeof(block));
+				crypto_copydata(crp->crp_flags, crp->crp_buf,
+				    crde->crd_skip + i, len, block);
+				bzero(block + len, sizeof(block) - len);
+				exf->decrypt(kschedule, block);
+				crypto_copyback(crp->crp_flags, crp->crp_buf,
+				    crde->crd_skip + i, len, block);
+			}
+		} else
+			error = EBADMSG;
 	}
+
+	exf->zerokey(&kschedule);
+out:
+	if (auth_ctx != NULL) {
+		memset(auth_ctx, 0, axf->ctxsize);
+		free(auth_ctx, M_CCR);
+	}
+	crp->crp_etype = error;
 	crypto_done(crp);
 }
 
@@ -1513,6 +1595,9 @@ ccr_sysctls(struct ccr_softc *sc)
 	    "Requests for which DMA mapping failed");
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "process_error", CTLFLAG_RD,
 	    &sc->stats_process_error, 0, "Requests failed during queueing");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "sw_fallback", CTLFLAG_RD,
+	    &sc->stats_sw_fallback, 0,
+	    "Requests processed by falling back to software");
 }
 
 static int
@@ -2135,6 +2220,12 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 			return (0);
 		}
 		error = ccr_gcm(sc, sid, s, crp, crda, crde);
+		if (error == EMSGSIZE) {
+			sc->stats_sw_fallback++;
+			mtx_unlock(&sc->lock);
+			ccr_gcm_soft(s, crp, crda, crde);
+			return (0);
+		}
 		if (error == 0) {
 			if (crde->crd_flags & CRD_F_ENCRYPT)
 				sc->stats_gcm_encrypt++;
