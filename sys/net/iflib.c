@@ -480,7 +480,6 @@ MODULE_VERSION(iflib, 1);
 MODULE_DEPEND(iflib, pci, 1, 1, 1);
 MODULE_DEPEND(iflib, ether, 1, 1, 1);
 
-TASKQGROUP_DEFINE(if_io_tqg, mp_ncpus, 1);
 TASKQGROUP_DEFINE(if_config_tqg, 1, 1);
 
 #ifndef IFLIB_DEBUG_COUNTERS
@@ -3706,7 +3705,7 @@ iflib_device_deregister(if_ctx_t ctx)
 	if (ctx->ifc_led_dev != NULL)
 		led_destroy(ctx->ifc_led_dev);
 	/* XXX drain any dependent tasks */
-	tqg = qgroup_if_io_tqg;
+	tqg = qgroup_softirq;
 	for (txq = ctx->ifc_txqs, i = 0; i < NTXQSETS(ctx); i++, txq++) {
 		callout_drain(&txq->ift_timer);
 		callout_drain(&txq->ift_db_check);
@@ -4328,7 +4327,7 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 		q = &ctx->ifc_txqs[qid];
 		info = &ctx->ifc_txqs[qid].ift_filter_info;
 		gtask = &ctx->ifc_txqs[qid].ift_task;
-		tqg = qgroup_if_io_tqg;
+		tqg = qgroup_softirq;
 		tqrid = irq->ii_rid;
 		fn = _task_fn_tx;
 		break;
@@ -4336,7 +4335,7 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 		q = &ctx->ifc_rxqs[qid];
 		info = &ctx->ifc_rxqs[qid].ifr_filter_info;
 		gtask = &ctx->ifc_rxqs[qid].ifr_task;
-		tqg = qgroup_if_io_tqg;
+		tqg = qgroup_softirq;
 		tqrid = irq->ii_rid;
 		fn = _task_fn_rx;
 		break;
@@ -4384,13 +4383,13 @@ iflib_softirq_alloc_generic(if_ctx_t ctx, int rid, iflib_intr_type_t type,  void
 	case IFLIB_INTR_TX:
 		q = &ctx->ifc_txqs[qid];
 		gtask = &ctx->ifc_txqs[qid].ift_task;
-		tqg = qgroup_if_io_tqg;
+		tqg = qgroup_softirq;
 		fn = _task_fn_tx;
 		break;
 	case IFLIB_INTR_RX:
 		q = &ctx->ifc_rxqs[qid];
 		gtask = &ctx->ifc_rxqs[qid].ifr_task;
-		tqg = qgroup_if_io_tqg;
+		tqg = qgroup_softirq;
 		fn = _task_fn_rx;
 		break;
 	case IFLIB_INTR_ADMIN:
@@ -4441,7 +4440,7 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	q = &ctx->ifc_rxqs[0];
 	info = &rxq[0].ifr_filter_info;
 	gtask = &rxq[0].ifr_task;
-	tqg = qgroup_if_io_tqg;
+	tqg = qgroup_softirq;
 	tqrid = irq->ii_rid = *rid;
 	fn = _task_fn_rx;
 
@@ -4457,7 +4456,7 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	taskqgroup_attach(tqg, gtask, q, tqrid, name);
 
 	GROUPTASK_INIT(&txq->ift_task, 0, _task_fn_tx, txq);
-	taskqgroup_attach(qgroup_if_io_tqg, &txq->ift_task, txq, tqrid, "tx");
+	taskqgroup_attach(qgroup_softirq, &txq->ift_task, txq, tqrid, "tx");
 	GROUPTASK_INIT(&ctx->ifc_admin_task, 0, _task_fn_admin, ctx);
 	taskqgroup_attach(qgroup_if_config_tqg, &ctx->ifc_admin_task, ctx, -1, "admin/link");
 
@@ -4504,7 +4503,7 @@ void
 iflib_io_tqg_attach(struct grouptask *gt, void *uniq, int cpu, char *name)
 {
 
-	taskqgroup_attach_cpu(qgroup_if_io_tqg, gt, uniq, cpu, -1, name);
+	taskqgroup_attach_cpu(qgroup_softirq, gt, uniq, cpu, -1, name);
 }
 
 void
