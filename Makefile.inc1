@@ -637,7 +637,8 @@ XCFLAGS+=	-isystem ${WORLDTMP}/usr/include -L${WORLDTMP}/usr/lib
 # combined with --sysroot.
 XCFLAGS+=	-B${WORLDTMP}/usr/lib
 # Force using libc++ for external GCC.
-.if ${X_COMPILER_TYPE} == gcc && ${X_COMPILER_VERSION} >= 40800
+.if defined(X_COMPILER_TYPE) && \
+    ${X_COMPILER_TYPE} == gcc && ${X_COMPILER_VERSION} >= 40800
 XCXXFLAGS+=	-isystem ${WORLDTMP}/usr/include/c++/v1 -std=c++11 \
 		-nostdinc++
 .endif
@@ -2880,7 +2881,8 @@ CD2CFLAGS+=	-isystem ${XDDESTDIR}/usr/include -L${XDDESTDIR}/usr/lib
 # combined with --sysroot.
 CD2CFLAGS+=	-B${XDDESTDIR}/usr/lib
 # Force using libc++ for external GCC.
-.if ${X_COMPILER_TYPE} == gcc && ${X_COMPILER_VERSION} >= 40800
+.if defined(X_COMPILER_TYPE) && \
+    ${X_COMPILER_TYPE} == gcc && ${X_COMPILER_VERSION} >= 40800
 CD2CXXFLAGS+=	-isystem ${XDDESTDIR}/usr/include/c++/v1 -std=c++11 \
 		-nostdinc++
 .endif
