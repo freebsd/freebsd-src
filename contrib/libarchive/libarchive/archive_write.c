@@ -190,7 +190,7 @@ archive_write_get_bytes_in_last_block(struct archive *_a)
  * an archive to itself recursively.
  */
 int
-archive_write_set_skip_file(struct archive *_a, int64_t d, int64_t i)
+archive_write_set_skip_file(struct archive *_a, la_int64_t d, la_int64_t i)
 {
 	struct archive_write *a = (struct archive_write *)_a;
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
