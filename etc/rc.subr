@@ -775,6 +775,8 @@ check_startmsgs()
 #
 #	${name}_login_class n	Login class to use, else "daemon".
 #
+#	${name}_limits	n	limits(1) to apply to ${command}.
+#
 #	${rc_arg}_cmd	n	If set, use this as the method when invoked;
 #				Otherwise, use default command (see below)
 #
@@ -952,7 +954,7 @@ run_rc_command()
 	    _group=\$${name}_group	_groups=\$${name}_groups \
 	    _fib=\$${name}_fib		_env=\$${name}_env \
 	    _prepend=\$${name}_prepend	_login_class=\${${name}_login_class:-daemon} \
-	    _oomprotect=\$${name}_oomprotect
+	    _limits=\$${name}_limits    _oomprotect=\$${name}_oomprotect
 
 	if [ -n "$_user" ]; then	# unset $_user if running as that user
 		if [ "$_user" = "$(eval $IDCMD)" ]; then
@@ -1073,7 +1075,7 @@ $command $rc_flags $command_args"
 			fi
 
 					# Prepend default limits
-			_doit="$_cd limits -C $_login_class $_doit"
+			_doit="$_cd limits -C $_login_class $_limits $_doit"
 
 					# run the full command
 					#
