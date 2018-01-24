@@ -455,14 +455,15 @@ WEB_PAGES=	tz-art.html tz-how-to.html tz-link.html
 DOCS=		$(MANS) date.1 $(MANTXTS) $(WEB_PAGES)
 PRIMARY_YDATA=	africa antarctica asia australasia \
 		europe northamerica southamerica
-YDATA=		$(PRIMARY_YDATA) etcetera $(BACKWARD)
+YDATA=		$(PRIMARY_YDATA) etcetera
 NDATA=		systemv factory
-TDATA=		$(YDATA) $(NDATA)
+TDATA_TO_CHECK=	$(YDATA) $(NDATA) backward pacificnew
+TDATA=		$(YDATA) $(NDATA) $(BACKWARD)
 ZONETABLES=	zone1970.tab zone.tab
 TABDATA=	iso3166.tab $(TZDATA_TEXT) $(ZONETABLES)
 LEAP_DEPS=	leapseconds.awk leap-seconds.list
 TZDATA_ZI_DEPS=	zishrink.awk version $(TDATA) $(PACKRATDATA)
-DATA=		$(YDATA) $(NDATA) backzone iso3166.tab leap-seconds.list \
+DATA=		$(TDATA_TO_CHECK) backzone iso3166.tab leap-seconds.list \
 			leapseconds yearistype.sh $(ZONETABLES)
 AWK_SCRIPTS=	checklinks.awk checktab.awk leapseconds.awk zishrink.awk
 MISC=		$(AWK_SCRIPTS) zoneinfo2tdf.pl
@@ -670,7 +671,7 @@ check_character_set: $(ENCHILADA)
 			$(MISC) $(SOURCES) $(WEB_PAGES) \
 			CONTRIBUTING LICENSE Makefile README \
 			version tzdata.zi && \
-		! grep -Env $(SAFE_SHARP_LINE) $(TDATA) backzone \
+		! grep -Env $(SAFE_SHARP_LINE) $(TDATA_TO_CHECK) backzone \
 			leapseconds yearistype.sh zone.tab && \
 		! grep -Env $(OK_LINE) $(ENCHILADA); \
 	}
@@ -678,14 +679,16 @@ check_character_set: $(ENCHILADA)
 check_white_space: $(ENCHILADA)
 		patfmt=' \t|[\f\r\v]' && pat=`printf "$$patfmt\\n"` && \
 		! grep -En "$$pat" $(ENCHILADA)
-		! grep -n '[[:space:]]$$' $(ENCHILADA)
+		! grep -n '[[:space:]]$$' \
+			$$(ls $(ENCHILADA) | grep -Fvx leap-seconds.list)
 
 PRECEDES_FILE_NAME = ^(Zone|Link[[:space:]]+[^[:space:]]+)[[:space:]]+
 FILE_NAME_COMPONENT_TOO_LONG = \
   $(PRECEDES_FILE_NAME)[^[:space:]]*[^/[:space:]]{15}
 
-check_name_lengths: $(TDATA) backzone
-		! grep -En '$(FILE_NAME_COMPONENT_TOO_LONG)' $(TDATA) backzone
+check_name_lengths: $(TDATA_TO_CHECK) backzone
+		! grep -En '$(FILE_NAME_COMPONENT_TOO_LONG)' \
+			$(TDATA_TO_CHECK) backzone
 
 CHECK_CC_LIST = { n = split($$1,a,/,/); for (i=2; i<=n; i++) print a[1], a[i]; }
 
@@ -699,8 +702,8 @@ check_sorted: backward backzone iso3166.tab zone.tab zone1970.tab
 		$(AWK) '/^[^#]/ $(CHECK_CC_LIST)' zone1970.tab | \
 		  LC_ALL=C sort -cu
 
-check_links:	checklinks.awk $(TDATA)
-		$(AWK) -f checklinks.awk $(TDATA)
+check_links:	checklinks.awk $(TDATA_TO_CHECK)
+		$(AWK) -f checklinks.awk $(TDATA_TO_CHECK)
 		$(AWK) -f checklinks.awk tzdata.zi
 
 check_tables:	checktab.awk $(PRIMARY_YDATA) $(ZONETABLES)
@@ -803,10 +806,10 @@ check_public:
 		$(MAKE) maintainer-clean
 		$(MAKE) CFLAGS='$(GCC_DEBUG_FLAGS)' ALL
 		mkdir -p public.dir
-		for i in $(TDATA) tzdata.zi; do \
+		for i in $(TDATA_TO_CHECK) tzdata.zi; do \
 		  $(zic) -v -d public.dir $$i 2>&1 || exit; \
 		done
-		$(zic) -v -d public.dir $(TDATA)
+		$(zic) -v -d public.dir $(TDATA_TO_CHECK)
 		rm -fr public.dir
 
 # Check that the code works under various alternative
