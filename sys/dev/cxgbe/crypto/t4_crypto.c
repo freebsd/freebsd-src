@@ -116,11 +116,13 @@ __FBSDID("$FreeBSD$");
 #define	MAX_AAD_LEN		511
 
 /*
- * The documentation for CPL_RX_PHYS_DSGL claims a maximum of 32
- * SG entries.
+ * The documentation for CPL_RX_PHYS_DSGL claims a maximum of 32 SG
+ * entries.  While the CPL includes a 16-bit length field, the T6 can
+ * sometimes hang if an error occurs while processing a request with a
+ * single DSGL entry larger than 2k.
  */
 #define	MAX_RX_PHYS_DSGL_SGE	32
-#define	DSGL_SGE_MAXLEN		65535
+#define	DSGL_SGE_MAXLEN		2048
 
 /*
  * The adapter only supports requests with a total input or output
