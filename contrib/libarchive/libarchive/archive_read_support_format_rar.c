@@ -604,20 +604,6 @@ lzss_emit_match(struct rar *rar, int offset, int length)
   rar->lzss.position += length;
 }
 
-static void *
-ppmd_alloc(void *p, size_t size)
-{
-  (void)p;
-  return malloc(size);
-}
-static void
-ppmd_free(void *p, void *address)
-{
-  (void)p;
-  free(address);
-}
-static ISzAlloc g_szalloc = { ppmd_alloc, ppmd_free };
-
 static Byte
 ppmd_read(void *p)
 {
@@ -1038,7 +1024,7 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
   case COMPRESS_METHOD_BEST:
     ret = read_data_compressed(a, buff, size, offset);
     if (ret != ARCHIVE_OK && ret != ARCHIVE_WARN)
-      __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
+      __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context);
     break;
 
   default:
@@ -1253,7 +1239,7 @@ archive_read_format_rar_cleanup(struct archive_read *a)
   free(rar->dbo);
   free(rar->unp_buffer);
   free(rar->lzss.window);
-  __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
+  __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context);
   free(rar);
   (a->format->data) = NULL;
   return (ARCHIVE_OK);
@@ -1658,7 +1644,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   rar->unp_offset = 0;
   rar->unp_buffer_size = UNP_BUFFER_SIZE;
   memset(rar->lengthtable, 0, sizeof(rar->lengthtable));
-  __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
+  __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context);
   rar->ppmd_valid = rar->ppmd_eod = 0;
 
   /* Don't set any archive entries for non-file header types */
@@ -2122,7 +2108,7 @@ parse_codes(struct archive_read *a)
 
       /* Make sure ppmd7_contest is freed before Ppmd7_Construct
        * because reading a broken file cause this abnormal sequence. */
-      __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
+      __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context);
 
       rar->bytein.a = a;
       rar->bytein.Read = &ppmd_read;
@@ -2137,7 +2123,7 @@ parse_codes(struct archive_read *a)
       }
 
       if (!__archive_ppmd7_functions.Ppmd7_Alloc(&rar->ppmd7_context,
-        rar->dictionary_size, &g_szalloc))
+        rar->dictionary_size))
       {
         archive_set_error(&a->archive, ENOMEM,
                           "Out of memory");
