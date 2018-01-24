@@ -581,24 +581,11 @@ ccr_blkcipher(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	if (crd->crd_len > MAX_REQUEST_SIZE)
 		return (EFBIG);
 
-	if (crd->crd_flags & CRD_F_ENCRYPT) {
+	if (crd->crd_flags & CRD_F_ENCRYPT)
 		op_type = CHCR_ENCRYPT_OP;
-		if (crd->crd_flags & CRD_F_IV_EXPLICIT)
-			memcpy(iv, crd->crd_iv, s->blkcipher.iv_len);
-		else
-			arc4rand(iv, s->blkcipher.iv_len, 0);
-		if ((crd->crd_flags & CRD_F_IV_PRESENT) == 0)
-			crypto_copyback(crp->crp_flags, crp->crp_buf,
-			    crd->crd_inject, s->blkcipher.iv_len, iv);
-	} else {
+	else
 		op_type = CHCR_DECRYPT_OP;
-		if (crd->crd_flags & CRD_F_IV_EXPLICIT)
-			memcpy(iv, crd->crd_iv, s->blkcipher.iv_len);
-		else
-			crypto_copydata(crp->crp_flags, crp->crp_buf,
-			    crd->crd_inject, s->blkcipher.iv_len, iv);
-	}
-
+	
 	sglist_reset(sc->sg_dsgl);
 	error = sglist_append_sglist(sc->sg_dsgl, sc->sg_crp, crd->crd_skip,
 	    crd->crd_len);
@@ -640,6 +627,27 @@ ccr_blkcipher(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	}
 	crwr = wrtod(wr);
 	memset(crwr, 0, wr_len);
+
+	/*
+	 * Read the existing IV from the request or generate a random
+	 * one if none is provided.  Optionally copy the generated IV
+	 * into the output buffer if requested.
+	 */
+	if (op_type == CHCR_ENCRYPT_OP) {
+		if (crd->crd_flags & CRD_F_IV_EXPLICIT)
+			memcpy(iv, crd->crd_iv, s->blkcipher.iv_len);
+		else
+			arc4rand(iv, s->blkcipher.iv_len, 0);
+		if ((crd->crd_flags & CRD_F_IV_PRESENT) == 0)
+			crypto_copyback(crp->crp_flags, crp->crp_buf,
+			    crd->crd_inject, s->blkcipher.iv_len, iv);
+	} else {
+		if (crd->crd_flags & CRD_F_IV_EXPLICIT)
+			memcpy(iv, crd->crd_iv, s->blkcipher.iv_len);
+		else
+			crypto_copydata(crp->crp_flags, crp->crp_buf,
+			    crd->crd_inject, s->blkcipher.iv_len, iv);
+	}
 
 	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, sid, imm_len, sgl_len, 0,
 	    crp);
@@ -799,30 +807,10 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 
 	axf = s->hmac.auth_hash;
 	hash_size_in_response = s->hmac.hash_len;
-
-	/*
-	 * The IV is always stored at the start of the buffer even
-	 * though it may be duplicated in the payload.  The crypto
-	 * engine doesn't work properly if the IV offset points inside
-	 * of the AAD region, so a second copy is always required.
-	 */
-	if (crde->crd_flags & CRD_F_ENCRYPT) {
+	if (crde->crd_flags & CRD_F_ENCRYPT)
 		op_type = CHCR_ENCRYPT_OP;
-		if (crde->crd_flags & CRD_F_IV_EXPLICIT)
-			memcpy(iv, crde->crd_iv, s->blkcipher.iv_len);
-		else
-			arc4rand(iv, s->blkcipher.iv_len, 0);
-		if ((crde->crd_flags & CRD_F_IV_PRESENT) == 0)
-			crypto_copyback(crp->crp_flags, crp->crp_buf,
-			    crde->crd_inject, s->blkcipher.iv_len, iv);
-	} else {
+	else
 		op_type = CHCR_DECRYPT_OP;
-		if (crde->crd_flags & CRD_F_IV_EXPLICIT)
-			memcpy(iv, crde->crd_iv, s->blkcipher.iv_len);
-		else
-			crypto_copydata(crp->crp_flags, crp->crp_buf,
-			    crde->crd_inject, s->blkcipher.iv_len, iv);
-	}
 
 	/*
 	 * The output buffer consists of the cipher text followed by
@@ -876,6 +864,12 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	 * The input buffer consists of the IV, any AAD, and then the
 	 * cipher/plain text.  For decryption requests the hash is
 	 * appended after the cipher text.
+	 *
+	 * The IV is always stored at the start of the input buffer
+	 * even though it may be duplicated in the payload.  The
+	 * crypto engine doesn't work properly if the IV offset points
+	 * inside of the AAD region, so a second copy is always
+	 * required.
 	 */
 	input_len = aad_len + crde->crd_len;
 
@@ -963,6 +957,27 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	}
 	crwr = wrtod(wr);
 	memset(crwr, 0, wr_len);
+
+	/*
+	 * Read the existing IV from the request or generate a random
+	 * one if none is provided.  Optionally copy the generated IV
+	 * into the output buffer if requested.
+	 */
+	if (op_type == CHCR_ENCRYPT_OP) {
+		if (crde->crd_flags & CRD_F_IV_EXPLICIT)
+			memcpy(iv, crde->crd_iv, s->blkcipher.iv_len);
+		else
+			arc4rand(iv, s->blkcipher.iv_len, 0);
+		if ((crde->crd_flags & CRD_F_IV_PRESENT) == 0)
+			crypto_copyback(crp->crp_flags, crp->crp_buf,
+			    crde->crd_inject, s->blkcipher.iv_len, iv);
+	} else {
+		if (crde->crd_flags & CRD_F_IV_EXPLICIT)
+			memcpy(iv, crde->crd_iv, s->blkcipher.iv_len);
+		else
+			crypto_copydata(crp->crp_flags, crp->crp_buf,
+			    crde->crd_inject, s->blkcipher.iv_len, iv);
+	}
 
 	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, sid, imm_len, sgl_len,
 	    op_type == CHCR_DECRYPT_OP ? hash_size_in_response : 0, crp);
@@ -1129,47 +1144,30 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 		return (EMSGSIZE);
 
 	hash_size_in_response = s->gmac.hash_len;
-
-	/*
-	 * The IV is always stored at the start of the buffer even
-	 * though it may be duplicated in the payload.  The crypto
-	 * engine doesn't work properly if the IV offset points inside
-	 * of the AAD region, so a second copy is always required.
-	 *
-	 * The IV for GCM is further complicated in that IPSec
-	 * provides a full 16-byte IV (including the counter), whereas
-	 * the /dev/crypto interface sometimes provides a full 16-byte
-	 * IV (if no IV is provided in the ioctl) and sometimes a
-	 * 12-byte IV (if the IV was explicit).  For now the driver
-	 * always assumes a 12-byte IV and initializes the low 4 byte
-	 * counter to 1.
-	 */
-	if (crde->crd_flags & CRD_F_ENCRYPT) {
+	if (crde->crd_flags & CRD_F_ENCRYPT)
 		op_type = CHCR_ENCRYPT_OP;
-		if (crde->crd_flags & CRD_F_IV_EXPLICIT)
-			memcpy(iv, crde->crd_iv, s->blkcipher.iv_len);
-		else
-			arc4rand(iv, s->blkcipher.iv_len, 0);
-		if ((crde->crd_flags & CRD_F_IV_PRESENT) == 0)
-			crypto_copyback(crp->crp_flags, crp->crp_buf,
-			    crde->crd_inject, s->blkcipher.iv_len, iv);
-	} else {
+	else
 		op_type = CHCR_DECRYPT_OP;
-		if (crde->crd_flags & CRD_F_IV_EXPLICIT)
-			memcpy(iv, crde->crd_iv, s->blkcipher.iv_len);
-		else
-			crypto_copydata(crp->crp_flags, crp->crp_buf,
-			    crde->crd_inject, s->blkcipher.iv_len, iv);
-	}
 
 	/*
-	 * If the input IV is 12 bytes, append an explicit counter of
-	 * 1.
+	 * The IV handling for GCM in OCF is a bit more complicated in
+	 * that IPSec provides a full 16-byte IV (including the
+	 * counter), whereas the /dev/crypto interface sometimes
+	 * provides a full 16-byte IV (if no IV is provided in the
+	 * ioctl) and sometimes a 12-byte IV (if the IV was explicit).
+	 *
+	 * When provided a 12-byte IV, assume the IV is really 16 bytes
+	 * with a counter in the last 4 bytes initialized to 1.
+	 *
+	 * While iv_len is checked below, the value is currently
+	 * always set to 12 when creating a GCM session in this driver
+	 * due to limitations in OCF (there is no way to know what the
+	 * IV length of a given request will be).  This means that the
+	 * driver always assumes as 12-byte IV for now.
 	 */
-	if (s->blkcipher.iv_len == 12) {
-		*(uint32_t *)&iv[12] = htobe32(1);
+	if (s->blkcipher.iv_len == 12)
 		iv_len = AES_BLOCK_LEN;
-	} else
+	else
 		iv_len = s->blkcipher.iv_len;
 
 	/*
@@ -1220,6 +1218,12 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	 * The input buffer consists of the IV, any AAD, and then the
 	 * cipher/plain text.  For decryption requests the hash is
 	 * appended after the cipher text.
+	 *
+	 * The IV is always stored at the start of the input buffer
+	 * even though it may be duplicated in the payload.  The
+	 * crypto engine doesn't work properly if the IV offset points
+	 * inside of the AAD region, so a second copy is always
+	 * required.
 	 */
 	input_len = crda->crd_len + crde->crd_len;
 	if (op_type == CHCR_DECRYPT_OP)
@@ -1281,6 +1285,32 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	}
 	crwr = wrtod(wr);
 	memset(crwr, 0, wr_len);
+
+	/*
+	 * Read the existing IV from the request or generate a random
+	 * one if none is provided.  Optionally copy the generated IV
+	 * into the output buffer if requested.
+	 *
+	 * If the input IV is 12 bytes, append an explicit 4-byte
+	 * counter of 1.
+	 */
+	if (op_type == CHCR_ENCRYPT_OP) {
+		if (crde->crd_flags & CRD_F_IV_EXPLICIT)
+			memcpy(iv, crde->crd_iv, s->blkcipher.iv_len);
+		else
+			arc4rand(iv, s->blkcipher.iv_len, 0);
+		if ((crde->crd_flags & CRD_F_IV_PRESENT) == 0)
+			crypto_copyback(crp->crp_flags, crp->crp_buf,
+			    crde->crd_inject, s->blkcipher.iv_len, iv);
+	} else {
+		if (crde->crd_flags & CRD_F_IV_EXPLICIT)
+			memcpy(iv, crde->crd_iv, s->blkcipher.iv_len);
+		else
+			crypto_copydata(crp->crp_flags, crp->crp_buf,
+			    crde->crd_inject, s->blkcipher.iv_len, iv);
+	}
+	if (s->blkcipher.iv_len == 12)
+		*(uint32_t *)&iv[12] = htobe32(1);
 
 	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, sid, imm_len, sgl_len,
 	    0, crp);
