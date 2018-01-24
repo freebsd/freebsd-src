@@ -1405,6 +1405,7 @@ sched_setup(void *dummy)
 
 	/* Add thread0's load since it's running. */
 	TDQ_LOCK(tdq);
+	td_get_sched(&thread0)->ts_cpu = curcpu; /* Something valid to start */
 	thread0.td_lock = TDQ_LOCKPTR(TDQ_SELF());
 	tdq_load_add(tdq, &thread0);
 	tdq->tdq_lowpri = thread0.td_priority;
@@ -2454,6 +2455,7 @@ sched_add(struct thread *td, int flags)
 	 * Pick the destination cpu and if it isn't ours transfer to the
 	 * target cpu.
 	 */
+	td_get_sched(td)->ts_cpu = curcpu; /* Pick something valid to start */
 	cpu = sched_pickcpu(td, flags);
 	tdq = sched_setcpu(td, cpu, flags);
 	tdq_add(tdq, td, flags);
