@@ -111,6 +111,11 @@ __FBSDID("$FreeBSD$");
  */
 
 /*
+ * The crypto engine supports a maximum AAD size of 511 bytes.
+ */
+#define	MAX_AAD_LEN		511
+
+/*
  * The documentation for CPL_RX_PHYS_DSGL claims a maximum of 32
  * SG entries.
  */
@@ -760,10 +765,22 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 		return (EINVAL);
 
 	/*
-	 * AAD is only permitted before the cipher/plain text, not
-	 * after.
+	 * Compute the length of the AAD (data covered by the
+	 * authentication descriptor but not the encryption
+	 * descriptor).  To simplify the logic, AAD is only permitted
+	 * before the cipher/plain text, not after.  This is true of
+	 * all currently-generated requests.
 	 */
 	if (crda->crd_len + crda->crd_skip > crde->crd_len + crde->crd_skip)
+		return (EINVAL);
+	if (crda->crd_skip < crde->crd_skip) {
+		if (crda->crd_skip + crda->crd_len > crde->crd_skip)
+			aad_len = (crde->crd_skip - crda->crd_skip);
+		else
+			aad_len = crda->crd_len;
+	} else
+		aad_len = 0;
+	if (aad_len + s->blkcipher.iv_len > MAX_AAD_LEN)
 		return (EINVAL);
 
 	axf = s->hmac.auth_hash;
@@ -836,13 +853,6 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	 * cipher/plain text.  For decryption requests the hash is
 	 * appended after the cipher text.
 	 */
-	if (crda->crd_skip < crde->crd_skip) {
-		if (crda->crd_skip + crda->crd_len > crde->crd_skip)
-			aad_len = (crde->crd_skip - crda->crd_skip);
-		else
-			aad_len = crda->crd_len;
-	} else
-		aad_len = 0;
 	input_len = aad_len + crde->crd_len;
 
 	/*
@@ -1080,6 +1090,9 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	 * after.
 	 */
 	if (crda->crd_len + crda->crd_skip > crde->crd_len + crde->crd_skip)
+		return (EINVAL);
+
+	if (crda->crd_len + AES_BLOCK_LEN > MAX_AAD_LEN)
 		return (EINVAL);
 
 	hash_size_in_response = s->gmac.hash_len;
