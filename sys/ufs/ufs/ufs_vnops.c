@@ -2170,7 +2170,7 @@ ufs_readdir(ap)
 	off_t offset, startoffset;
 	size_t readcnt, skipcnt;
 	ssize_t startresid;
-	int ncookies;
+	u_int ncookies;
 	int error;
 
 	if (uio->uio_offset < 0)
