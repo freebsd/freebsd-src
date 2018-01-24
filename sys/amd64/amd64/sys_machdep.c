@@ -63,6 +63,9 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
+static void user_ldt_deref(struct proc_ldt *pldt);
+static void user_ldt_derefl(struct proc_ldt *pldt);
+
 #define	MAX_LD		8192
 
 int max_ldt_segment = 512;
@@ -80,8 +83,6 @@ max_ldt_segment_init(void *arg __unused)
 		max_ldt_segment = MAX_LD;
 }
 SYSINIT(maxldt, SI_SUB_VM_CONF, SI_ORDER_ANY, max_ldt_segment_init, NULL);
-
-static void user_ldt_derefl(struct proc_ldt *pldt);
 
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
@@ -529,7 +530,7 @@ user_ldt_derefl(struct proc_ldt *pldt)
 	}
 }
 
-void
+static void
 user_ldt_deref(struct proc_ldt *pldt)
 {
 

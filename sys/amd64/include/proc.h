@@ -90,7 +90,6 @@ struct syscall_args {
 
 struct proc_ldt *user_ldt_alloc(struct proc *, int);
 void user_ldt_free(struct thread *);
-void user_ldt_deref(struct proc_ldt *);
 struct sysarch_args;
 int sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space);
 int amd64_set_ldt_data(struct thread *td, int start, int num,
