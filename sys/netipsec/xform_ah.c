@@ -293,7 +293,7 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 		else
 			ip->ip_off = htons(0);
 
-		ptr = mtod(m, unsigned char *) + sizeof(struct ip);
+		ptr = mtod(m, unsigned char *);
 
 		/* IPv4 option processing */
 		for (off = sizeof(struct ip); off < skip;) {
@@ -374,7 +374,7 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 
 				/* Zeroize all other options. */
 				count = ptr[off + 1];
-				bcopy(ipseczeroes, ptr, count);
+				bcopy(ipseczeroes, ptr + off, count);
 				off += count;
 				break;
 			}
