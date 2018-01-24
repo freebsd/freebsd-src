@@ -7,9 +7,10 @@ LLD_SRCS=	${LLVM_SRCS}/tools/lld
 
 PACKAGE=	lld
 PROG_CXX=	ld.lld
-MAN=
+
 .if ${MK_LLD_IS_LD} != "no"
 SYMLINKS=	${PROG_CXX} ${BINDIR}/ld
+MLINKS=		ld.lld.1 ld.1
 .endif
 
 CFLAGS+=	-I${LLD_SRCS}/ELF
