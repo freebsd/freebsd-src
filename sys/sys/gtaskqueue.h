@@ -121,5 +121,6 @@ SYSINIT(taskqgroup_adj_##name, SI_SUB_SMP, SI_ORDER_ANY,		\
 struct __hack
 #endif
 TASKQGROUP_DECLARE(net);
+TASKQGROUP_DECLARE(softirq);
 
 #endif /* !_SYS_GTASKQUEUE_H_ */
