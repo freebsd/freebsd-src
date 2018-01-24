@@ -470,6 +470,8 @@ ccr_hmac(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	}
 
 	wr_len = roundup2(transhdr_len, 16) + roundup2(imm_len, 16) + sgl_len;
+	if (wr_len > SGE_MAX_WR_LEN)
+		return (EFBIG);
 	wr = alloc_wrqe(wr_len, sc->txq);
 	if (wr == NULL) {
 		sc->stats_wr_nomem++;
@@ -626,6 +628,8 @@ ccr_blkcipher(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 
 	wr_len = roundup2(transhdr_len, 16) + s->blkcipher.iv_len +
 	    roundup2(imm_len, 16) + sgl_len;
+	if (wr_len > SGE_MAX_WR_LEN)
+		return (EFBIG);
 	wr = alloc_wrqe(wr_len, sc->txq);
 	if (wr == NULL) {
 		sc->stats_wr_nomem++;
@@ -947,6 +951,8 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 
 	wr_len = roundup2(transhdr_len, 16) + s->blkcipher.iv_len +
 	    roundup2(imm_len, 16) + sgl_len;
+	if (wr_len > SGE_MAX_WR_LEN)
+		return (EFBIG);
 	wr = alloc_wrqe(wr_len, sc->txq);
 	if (wr == NULL) {
 		sc->stats_wr_nomem++;
@@ -1256,6 +1262,8 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 
 	wr_len = roundup2(transhdr_len, 16) + iv_len + roundup2(imm_len, 16) +
 	    sgl_len;
+	if (wr_len > SGE_MAX_WR_LEN)
+		return (EFBIG);
 	wr = alloc_wrqe(wr_len, sc->txq);
 	if (wr == NULL) {
 		sc->stats_wr_nomem++;
