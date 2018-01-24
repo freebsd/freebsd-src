@@ -546,7 +546,7 @@ ccr_blkcipher(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	struct wrqe *wr;
 	struct cryptodesc *crd;
 	char *dst;
-	u_int iv_loc, kctx_len, key_half, op_type, transhdr_len, wr_len;
+	u_int kctx_len, key_half, op_type, transhdr_len, wr_len;
 	u_int imm_len;
 	int dsgl_nsegs, dsgl_len;
 	int sgl_nsegs, sgl_len;
@@ -564,24 +564,22 @@ ccr_blkcipher(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	if (crd->crd_len > MAX_REQUEST_SIZE)
 		return (EFBIG);
 
-	iv_loc = IV_NOP;
 	if (crd->crd_flags & CRD_F_ENCRYPT) {
 		op_type = CHCR_ENCRYPT_OP;
 		if (crd->crd_flags & CRD_F_IV_EXPLICIT)
 			memcpy(iv, crd->crd_iv, s->blkcipher.iv_len);
 		else
 			arc4rand(iv, s->blkcipher.iv_len, 0);
-		iv_loc = IV_IMMEDIATE;
 		if ((crd->crd_flags & CRD_F_IV_PRESENT) == 0)
 			crypto_copyback(crp->crp_flags, crp->crp_buf,
 			    crd->crd_inject, s->blkcipher.iv_len, iv);
 	} else {
 		op_type = CHCR_DECRYPT_OP;
-		if (crd->crd_flags & CRD_F_IV_EXPLICIT) {
+		if (crd->crd_flags & CRD_F_IV_EXPLICIT)
 			memcpy(iv, crd->crd_iv, s->blkcipher.iv_len);
-			iv_loc = IV_IMMEDIATE;
-		} else
-			iv_loc = IV_DSGL;
+		else
+			crypto_copydata(crp->crp_flags, crp->crp_buf,
+			    crd->crd_inject, s->blkcipher.iv_len, iv);
 	}
 
 	sglist_reset(sc->sg_dsgl);
@@ -601,22 +599,11 @@ ccr_blkcipher(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	if (ccr_use_imm_data(transhdr_len, crd->crd_len +
 	    s->blkcipher.iv_len)) {
 		imm_len = crd->crd_len;
-		if (iv_loc == IV_DSGL) {
-			crypto_copydata(crp->crp_flags, crp->crp_buf,
-			    crd->crd_inject, s->blkcipher.iv_len, iv);
-			iv_loc = IV_IMMEDIATE;
-		}
 		sgl_nsegs = 0;
 		sgl_len = 0;
 	} else {
 		imm_len = 0;
 		sglist_reset(sc->sg_ulptx);
-		if (iv_loc == IV_DSGL) {
-			error = sglist_append_sglist(sc->sg_ulptx, sc->sg_crp,
-			    crd->crd_inject, s->blkcipher.iv_len);
-			if (error)
-				return (error);
-		}
 		error = sglist_append_sglist(sc->sg_ulptx, sc->sg_crp,
 		    crd->crd_skip, crd->crd_len);
 		if (error)
@@ -625,9 +612,8 @@ ccr_blkcipher(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 		sgl_len = ccr_ulptx_sgl_len(sgl_nsegs);
 	}
 
-	wr_len = roundup2(transhdr_len, 16) + roundup2(imm_len, 16) + sgl_len;
-	if (iv_loc == IV_IMMEDIATE)
-		wr_len += s->blkcipher.iv_len;
+	wr_len = roundup2(transhdr_len, 16) + s->blkcipher.iv_len +
+	    roundup2(imm_len, 16) + sgl_len;
 	wr = alloc_wrqe(wr_len, sc->txq);
 	if (wr == NULL) {
 		sc->stats_wr_nomem++;
@@ -637,7 +623,7 @@ ccr_blkcipher(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	memset(crwr, 0, wr_len);
 
 	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, sid, imm_len, sgl_len, 0,
-	    iv_loc, crp);
+	    IV_IMMEDIATE, crp);
 
 	/* XXX: Hardcodes SGE loopback channel of 0. */
 	crwr->sec_cpl.op_ivinsrtofst = htobe32(
@@ -700,10 +686,8 @@ ccr_blkcipher(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	dst = (char *)(crwr + 1) + kctx_len;
 	ccr_write_phys_dsgl(sc, dst, dsgl_nsegs);
 	dst += sizeof(struct cpl_rx_phys_dsgl) + dsgl_len;
-	if (iv_loc == IV_IMMEDIATE) {
-		memcpy(dst, iv, s->blkcipher.iv_len);
-		dst += s->blkcipher.iv_len;
-	}
+	memcpy(dst, iv, s->blkcipher.iv_len);
+	dst += s->blkcipher.iv_len;
 	if (imm_len != 0)
 		crypto_copydata(crp->crp_flags, crp->crp_buf, crd->crd_skip,
 		    crd->crd_len, dst);
@@ -755,7 +739,7 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	struct wrqe *wr;
 	struct auth_hash *axf;
 	char *dst;
-	u_int iv_loc, kctx_len, key_half, op_type, transhdr_len, wr_len;
+	u_int kctx_len, key_half, op_type, transhdr_len, wr_len;
 	u_int hash_size_in_response, imm_len, iopad_size;
 	u_int aad_start, aad_len, aad_stop;
 	u_int auth_start, auth_stop, auth_insert;
@@ -791,7 +775,6 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	 * engine doesn't work properly if the IV offset points inside
 	 * of the AAD region, so a second copy is always required.
 	 */
-	iv_loc = IV_IMMEDIATE;
 	if (crde->crd_flags & CRD_F_ENCRYPT) {
 		op_type = CHCR_ENCRYPT_OP;
 		if (crde->crd_flags & CRD_F_IV_EXPLICIT)
@@ -935,9 +918,8 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	else
 		auth_insert = 0;
 
-	wr_len = roundup2(transhdr_len, 16) + roundup2(imm_len, 16) + sgl_len;
-	if (iv_loc == IV_IMMEDIATE)
-		wr_len += s->blkcipher.iv_len;
+	wr_len = roundup2(transhdr_len, 16) + s->blkcipher.iv_len +
+	    roundup2(imm_len, 16) + sgl_len;
 	wr = alloc_wrqe(wr_len, sc->txq);
 	if (wr == NULL) {
 		sc->stats_wr_nomem++;
@@ -947,8 +929,8 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	memset(crwr, 0, wr_len);
 
 	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, sid, imm_len, sgl_len,
-	    op_type == CHCR_DECRYPT_OP ? hash_size_in_response : 0, iv_loc,
-	    crp);
+	    op_type == CHCR_DECRYPT_OP ? hash_size_in_response : 0,
+	    IV_IMMEDIATE, crp);
 
 	/* XXX: Hardcodes SGE loopback channel of 0. */
 	crwr->sec_cpl.op_ivinsrtofst = htobe32(
@@ -1022,10 +1004,8 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	dst = (char *)(crwr + 1) + kctx_len;
 	ccr_write_phys_dsgl(sc, dst, dsgl_nsegs);
 	dst += sizeof(struct cpl_rx_phys_dsgl) + dsgl_len;
-	if (iv_loc == IV_IMMEDIATE) {
-		memcpy(dst, iv, s->blkcipher.iv_len);
-		dst += s->blkcipher.iv_len;
-	}
+	memcpy(dst, iv, s->blkcipher.iv_len);
+	dst += s->blkcipher.iv_len;
 	if (imm_len != 0) {
 		if (aad_len != 0) {
 			crypto_copydata(crp->crp_flags, crp->crp_buf,
@@ -1085,7 +1065,7 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	struct chcr_wr *crwr;
 	struct wrqe *wr;
 	char *dst;
-	u_int iv_len, iv_loc, kctx_len, op_type, transhdr_len, wr_len;
+	u_int iv_len, kctx_len, op_type, transhdr_len, wr_len;
 	u_int hash_size_in_response, imm_len;
 	u_int aad_start, aad_stop, cipher_start, cipher_stop, auth_insert;
 	u_int hmac_ctrl, input_len;
@@ -1119,7 +1099,6 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	 * always assumes a 12-byte IV and initializes the low 4 byte
 	 * counter to 1.
 	 */
-	iv_loc = IV_IMMEDIATE;
 	if (crde->crd_flags & CRD_F_ENCRYPT) {
 		op_type = CHCR_ENCRYPT_OP;
 		if (crde->crd_flags & CRD_F_IV_EXPLICIT)
@@ -1237,9 +1216,8 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	else
 		auth_insert = 0;
 
-	wr_len = roundup2(transhdr_len, 16) + roundup2(imm_len, 16) + sgl_len;
-	if (iv_loc == IV_IMMEDIATE)
-		wr_len += iv_len;
+	wr_len = roundup2(transhdr_len, 16) + iv_len + roundup2(imm_len, 16) +
+	    sgl_len;
 	wr = alloc_wrqe(wr_len, sc->txq);
 	if (wr == NULL) {
 		sc->stats_wr_nomem++;
@@ -1249,7 +1227,7 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	memset(crwr, 0, wr_len);
 
 	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, sid, imm_len, sgl_len,
-	    0, iv_loc, crp);
+	    0, IV_IMMEDIATE, crp);
 
 	/* XXX: Hardcodes SGE loopback channel of 0. */
 	crwr->sec_cpl.op_ivinsrtofst = htobe32(
@@ -1307,10 +1285,8 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	dst = (char *)(crwr + 1) + kctx_len;
 	ccr_write_phys_dsgl(sc, dst, dsgl_nsegs);
 	dst += sizeof(struct cpl_rx_phys_dsgl) + dsgl_len;
-	if (iv_loc == IV_IMMEDIATE) {
-		memcpy(dst, iv, iv_len);
-		dst += iv_len;
-	}
+	memcpy(dst, iv, iv_len);
+	dst += iv_len;
 	if (imm_len != 0) {
 		if (crda->crd_len != 0) {
 			crypto_copydata(crp->crp_flags, crp->crp_buf,
