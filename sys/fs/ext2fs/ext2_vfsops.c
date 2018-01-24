@@ -400,9 +400,9 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		    fs->e2fs_bsize / sizeof(struct ext2_gd));
 	}
 	fs->e2fs_gdbcount = howmany(fs->e2fs_gcount, e2fs_descpb);
-	fs->e2fs_gd = mallocarray(e2fs_gdbcount_alloc, fs->e2fs_bsize,
+	fs->e2fs_gd = malloc(e2fs_gdbcount_alloc * fs->e2fs_bsize,
 	    M_EXT2MNT, M_WAITOK | M_ZERO);
-	fs->e2fs_contigdirs = mallocarray(fs->e2fs_gcount,
+	fs->e2fs_contigdirs = malloc(fs->e2fs_gcount *
 	    sizeof(*fs->e2fs_contigdirs), M_EXT2MNT, M_WAITOK | M_ZERO);
 
 	/*
@@ -683,8 +683,7 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 		for (i = 0; i < ump->um_e2fs->e2fs_gcount; i++, sump++) {
 			*lp++ = ump->um_e2fs->e2fs_contigsumsize;
 			sump->cs_init = 0;
-			sump->cs_sum = mallocarray(
-			    ump->um_e2fs->e2fs_contigsumsize + 1,
+			sump->cs_sum = malloc((ump->um_e2fs->e2fs_contigsumsize + 1) *
 			    sizeof(int32_t), M_EXT2MNT, M_WAITOK | M_ZERO);
 		}
 	}
