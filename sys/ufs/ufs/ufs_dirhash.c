@@ -349,8 +349,7 @@ ufsdirhash_build(struct inode *ip)
 	struct direct *ep;
 	struct vnode *vp;
 	doff_t bmask, pos;
-	int j, memreqd, slot;
-	u_int dirblocks, i, nblocks, narrays, nslots;
+	int dirblocks, i, j, memreqd, nblocks, narrays, nslots, slot;
 
 	/* Take care of a decreased sysctl value. */
 	while (ufs_dirhashmem > ufs_dirhashmaxmem) {
@@ -416,11 +415,11 @@ ufsdirhash_build(struct inode *ip)
 	 * Use non-blocking mallocs so that we will revert to a linear
 	 * lookup on failure rather than potentially blocking forever.
 	 */
-	dh->dh_hash = mallocarray(narrays, sizeof(dh->dh_hash[0]),
+	dh->dh_hash = malloc(narrays * sizeof(dh->dh_hash[0]),
 	    M_DIRHASH, M_NOWAIT | M_ZERO);
 	if (dh->dh_hash == NULL)
 		goto fail;
-	dh->dh_blkfree = mallocarray(nblocks, sizeof(dh->dh_blkfree[0]),
+	dh->dh_blkfree = malloc(nblocks * sizeof(dh->dh_blkfree[0]),
 	    M_DIRHASH, M_NOWAIT);
 	if (dh->dh_blkfree == NULL)
 		goto fail;

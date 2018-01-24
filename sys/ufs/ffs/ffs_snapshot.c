@@ -648,7 +648,7 @@ loop:
 	 * keep us out of deadlock until the full one is ready.
 	 */
 	if (xp == NULL) {
-		snapblklist = mallocarray(snaplistsize, sizeof(daddr_t),
+		snapblklist = malloc(snaplistsize * sizeof(daddr_t),
 		    M_UFSMNT, M_WAITOK);
 		blkp = &snapblklist[1];
 		*blkp++ = lblkno(fs, fs->fs_sblockloc);
@@ -729,7 +729,7 @@ out1:
 	/*
 	 * Allocate space for the full list of preallocated snapshot blocks.
 	 */
-	snapblklist = mallocarray(snaplistsize, sizeof(daddr_t),
+	snapblklist = malloc(snaplistsize * sizeof(daddr_t),
 	    M_UFSMNT, M_WAITOK);
 	ip->i_snapblklist = &snapblklist[1];
 	/*
