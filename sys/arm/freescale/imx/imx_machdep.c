@@ -105,10 +105,3 @@ imx_wdog_init_last_reset(vm_offset_t wdsr_phys)
 	}
 }
 
-u_int
-imx_soc_family(void)
-{
-	return (imx_soc_type() >> IMXSOC_FAMSHIFT);
-}
-
-
