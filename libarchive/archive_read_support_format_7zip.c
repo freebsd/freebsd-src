@@ -975,18 +975,6 @@ decode_codec_id(const unsigned char *codecId, size_t id_size)
 	return (id);
 }
 
-static void *
-ppmd_alloc(void *p, size_t size)
-{
-	(void)p;
-	return malloc(size);
-}
-static void
-ppmd_free(void *p, void *address)
-{
-	(void)p;
-	free(address);
-}
 static Byte
 ppmd_read(void *p)
 {
@@ -1005,8 +993,6 @@ ppmd_read(void *p)
 	zip->ppstream.total_in++;
 	return (b);
 }
-
-static ISzAlloc g_szalloc = { ppmd_alloc, ppmd_free };
 
 static int
 init_decompression(struct archive_read *a, struct _7zip *zip,
@@ -1237,7 +1223,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 
 		if (zip->ppmd7_valid) {
 			__archive_ppmd7_functions.Ppmd7_Free(
-			    &zip->ppmd7_context, &g_szalloc);
+			    &zip->ppmd7_context);
 			zip->ppmd7_valid = 0;
 		}
 
@@ -1256,7 +1242,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		}
 		__archive_ppmd7_functions.Ppmd7_Construct(&zip->ppmd7_context);
 		r = __archive_ppmd7_functions.Ppmd7_Alloc(
-			&zip->ppmd7_context, msize, &g_szalloc);
+			&zip->ppmd7_context, msize);
 		if (r == 0) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Coludn't allocate memory for PPMd");
@@ -1636,7 +1622,7 @@ free_decompression(struct archive_read *a, struct _7zip *zip)
 #endif
 	if (zip->ppmd7_valid) {
 		__archive_ppmd7_functions.Ppmd7_Free(
-			&zip->ppmd7_context, &g_szalloc);
+			&zip->ppmd7_context);
 		zip->ppmd7_valid = 0;
 	}
 	return (r);
@@ -2569,6 +2555,7 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 		case kDummy:
 			if (ll == 0)
 				break;
+			__LA_FALLTHROUGH;
 		default:
 			if (header_bytes(a, ll) == NULL)
 				return (-1);

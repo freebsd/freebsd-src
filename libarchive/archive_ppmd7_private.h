@@ -95,8 +95,8 @@ typedef struct
 {
   /* Base Functions */
   void (*Ppmd7_Construct)(CPpmd7 *p);
-  Bool (*Ppmd7_Alloc)(CPpmd7 *p, UInt32 size, ISzAlloc *alloc);
-  void (*Ppmd7_Free)(CPpmd7 *p, ISzAlloc *alloc);
+  Bool (*Ppmd7_Alloc)(CPpmd7 *p, UInt32 size);
+  void (*Ppmd7_Free)(CPpmd7 *p);
   void (*Ppmd7_Init)(CPpmd7 *p, unsigned maxOrder);
   #define Ppmd7_WasAllocated(p) ((p)->Base != NULL)
 
