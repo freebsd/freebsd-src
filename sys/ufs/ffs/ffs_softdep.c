@@ -2466,7 +2466,8 @@ softdep_mount(devvp, mp, fs, cred)
 	struct ufsmount *ump;
 	struct cg *cgp;
 	struct buf *bp;
-	int i, error, cyl;
+	u_int cyl, i;
+	int error;
 
 	sdp = malloc(sizeof(struct mount_softdeps), M_MOUNTDATA,
 	    M_WAITOK | M_ZERO);
