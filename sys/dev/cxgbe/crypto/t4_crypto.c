@@ -365,7 +365,7 @@ ccr_use_imm_data(u_int transhdr_len, u_int input_len)
 static void
 ccr_populate_wreq(struct ccr_softc *sc, struct chcr_wr *crwr, u_int kctx_len,
     u_int wr_len, uint32_t sid, u_int imm_len, u_int sgl_len, u_int hash_size,
-    u_int iv_loc, struct cryptop *crp)
+    struct cryptop *crp)
 {
 	u_int cctx_size;
 
@@ -383,7 +383,7 @@ ccr_populate_wreq(struct ccr_softc *sc, struct chcr_wr *crwr, u_int kctx_len,
 	    V_FW_CRYPTO_LOOKASIDE_WR_RX_CHID(sc->tx_channel_id) |
 	    V_FW_CRYPTO_LOOKASIDE_WR_LCB(0) |
 	    V_FW_CRYPTO_LOOKASIDE_WR_PHASH(0) |
-	    V_FW_CRYPTO_LOOKASIDE_WR_IV(iv_loc) |
+	    V_FW_CRYPTO_LOOKASIDE_WR_IV(IV_NOP) |
 	    V_FW_CRYPTO_LOOKASIDE_WR_FQIDX(0) |
 	    V_FW_CRYPTO_LOOKASIDE_WR_TX_CH(0) |
 	    V_FW_CRYPTO_LOOKASIDE_WR_RX_Q_ID(sc->rxq->iq.abs_id));
@@ -467,7 +467,7 @@ ccr_hmac(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	memset(crwr, 0, wr_len);
 
 	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, sid, imm_len, sgl_len,
-	    hash_size_in_response, IV_NOP, crp);
+	    hash_size_in_response, crp);
 
 	/* XXX: Hardcodes SGE loopback channel of 0. */
 	crwr->sec_cpl.op_ivinsrtofst = htobe32(
@@ -623,7 +623,7 @@ ccr_blkcipher(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	memset(crwr, 0, wr_len);
 
 	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, sid, imm_len, sgl_len, 0,
-	    IV_IMMEDIATE, crp);
+	    crp);
 
 	/* XXX: Hardcodes SGE loopback channel of 0. */
 	crwr->sec_cpl.op_ivinsrtofst = htobe32(
@@ -929,8 +929,7 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	memset(crwr, 0, wr_len);
 
 	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, sid, imm_len, sgl_len,
-	    op_type == CHCR_DECRYPT_OP ? hash_size_in_response : 0,
-	    IV_IMMEDIATE, crp);
+	    op_type == CHCR_DECRYPT_OP ? hash_size_in_response : 0, crp);
 
 	/* XXX: Hardcodes SGE loopback channel of 0. */
 	crwr->sec_cpl.op_ivinsrtofst = htobe32(
@@ -1227,7 +1226,7 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	memset(crwr, 0, wr_len);
 
 	ccr_populate_wreq(sc, crwr, kctx_len, wr_len, sid, imm_len, sgl_len,
-	    0, IV_IMMEDIATE, crp);
+	    0, crp);
 
 	/* XXX: Hardcodes SGE loopback channel of 0. */
 	crwr->sec_cpl.op_ivinsrtofst = htobe32(
