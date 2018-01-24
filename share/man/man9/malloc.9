@@ -29,7 +29,7 @@
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
-.Dd January 10, 2018
+.Dd January 24, 2018
 .Dt MALLOC 9
 .Os
 .Sh NAME
@@ -44,15 +44,15 @@
 .In sys/types.h
 .In sys/malloc.h
 .Ft void *
-.Fn malloc "unsigned long size" "struct malloc_type *type" "int flags"
+.Fn malloc "size_t size" "struct malloc_type *type" "int flags"
 .Ft void *
 .Fn mallocarray "size_t nmemb" "size_t size" "struct malloc_type *type" "int flags"
 .Ft void
 .Fn free "void *addr" "struct malloc_type *type"
 .Ft void *
-.Fn realloc "void *addr" "unsigned long size" "struct malloc_type *type" "int flags"
+.Fn realloc "void *addr" "size_t size" "struct malloc_type *type" "int flags"
 .Ft void *
-.Fn reallocf "void *addr" "unsigned long size" "struct malloc_type *type" "int flags"
+.Fn reallocf "void *addr" "size_t size" "struct malloc_type *type" "int flags"
 .Fn MALLOC_DECLARE type
 .In sys/param.h
 .In sys/malloc.h
