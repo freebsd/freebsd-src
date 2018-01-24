@@ -377,6 +377,7 @@ ip_reass(struct mbuf *m)
 		q->m_nextpkt = NULL;
 		m->m_pkthdr.csum_flags &= q->m_pkthdr.csum_flags;
 		m->m_pkthdr.csum_data += q->m_pkthdr.csum_data;
+		m_demote_pkthdr(q);
 		m_cat(m, q);
 	}
 	/*
