@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2017
+.Dd January 24, 2018
 .Dt UEFI 8
 .Os
 .Sh NAME
@@ -143,20 +143,13 @@ typical non-default kernel (optional)
 .Xr gpart 8 ,
 .Xr uefisign 8
 .Sh HISTORY
+EFI boot support for the ia64 architecture first appeared in
+.Fx 5.0 .
 .Nm
-boot support first appeared in
-.Fx 10.1 .
-.Sh AUTHORS
-.An -nosplit
-.Nm
-boot support was developed by
-.An Benno Rice Aq Mt benno@FreeBSD.org ,
-.An \&Ed Maste Aq Mt emaste@FreeBSD.org ,
-and
-.An Nathan Whitehorn Aq Mt nwhitehorn@FreeBSD.org .
-The
-.Fx
-Foundation sponsored portions of the work.
+boot support for amd64 first appeared in
+.Fx 10.1
+and for arm64 in
+.Fx 11.0 .
 .Sh CAVEATS
 EFI environment variables are not supported by
 .Xr loader 8
