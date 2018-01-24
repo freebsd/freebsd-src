@@ -178,6 +178,8 @@ intrcnt_add(const char *name, u_long **countp)
 	int idx;
 
 	idx = atomic_fetchadd_int(&intrcnt_index, 1);
+	KASSERT(idx < INTR_VECTORS, ("intrcnt_add: Interrupt counter index "
+	    "reached INTR_VECTORS"));
 	*countp = &intrcnt[idx];
 	intrcnt_setname(name, idx);
 }
