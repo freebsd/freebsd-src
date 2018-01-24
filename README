@@ -18,7 +18,7 @@ platform other than GNU/Linux.  Then run the following commands,
 substituting your desired installation directory for "$HOME/tzdir":
 
 	make TOPDIR=$HOME/tzdir install
-	$HOME/tzdir/etc/zdump -v America/Los_Angeles
+	$HOME/tzdir/usr/bin/zdump -v America/Los_Angeles
 
 Historical local time information has been included here to:
 

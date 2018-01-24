@@ -1464,17 +1464,17 @@ Zone	Asia/Jerusalem	2:20:54 -	LMT	1880
 # of the Japanese wanted to scrap daylight-saving time, as opposed to 30% who
 # wanted to keep it.)
 
-# From Paul Eggert (2006-03-22):
-# Shanks & Pottenger write that DST in Japan during those years was as follows:
+# From Takayuki Nikai (2018-01-19):
+# The source of information is Japanese law.
+# http://www.shugiin.go.jp/internet/itdb_housei.nsf/html/houritsu/00219480428029.htm
+# http://www.shugiin.go.jp/internet/itdb_housei.nsf/html/houritsu/00719500331039.htm
+# ... In summary, it is written as follows.  From 24:00 on the first Saturday
+# in May, until 0:00 on the day after the second Saturday in September.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Japan	1948	only	-	May	Sun>=1	2:00	1:00	D
-Rule	Japan	1948	1951	-	Sep	Sat>=8	2:00	0	S
-Rule	Japan	1949	only	-	Apr	Sun>=1	2:00	1:00	D
-Rule	Japan	1950	1951	-	May	Sun>=1	2:00	1:00	D
-# but the only locations using it (for birth certificates, presumably, since
-# their audience is astrologers) were US military bases.  For now, assume
-# that for most purposes daylight-saving time was observed; otherwise, what
-# would have been the point of the 1951 poll?
+Rule	Japan	1948	only	-	May	Sat>=1	24:00	1:00	D
+Rule	Japan	1948	1951	-	Sep	Sun>=9	 0:00	0	S
+Rule	Japan	1949	only	-	Apr	Sat>=1	24:00	1:00	D
+Rule	Japan	1950	1951	-	May	Sat>=1	24:00	1:00	D
 
 # From Hideyuki Suzuki (1998-11-09):
 # 'Tokyo' usually stands for the former location of Tokyo Astronomical
