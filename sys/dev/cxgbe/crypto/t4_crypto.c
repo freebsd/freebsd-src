@@ -190,6 +190,13 @@ struct ccr_softc {
 	struct sglist *sg_ulptx;
 	struct sglist *sg_dsgl;
 
+	/*
+	 * Pre-allocate a dummy output buffer for the IV and AAD for
+	 * AEAD requests.
+	 */
+	char *iv_aad_buf;
+	struct sglist *sg_iv_aad;
+
 	/* Statistics. */
 	uint64_t stats_blkcipher_encrypt;
 	uint64_t stats_blkcipher_decrypt;
@@ -814,15 +821,25 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	 * The output buffer consists of the cipher text followed by
 	 * the hash when encrypting.  For decryption it only contains
 	 * the plain text.
+	 *
+	 * Due to a firmware bug, the output buffer must include a
+	 * dummy output buffer for the IV and AAD prior to the real
+	 * output buffer.
 	 */
 	if (op_type == CHCR_ENCRYPT_OP) {
-		if (crde->crd_len + hash_size_in_response > MAX_REQUEST_SIZE)
+		if (s->blkcipher.iv_len + aad_len + crde->crd_len +
+		    hash_size_in_response > MAX_REQUEST_SIZE)
 			return (EFBIG);
 	} else {
-		if (crde->crd_len > MAX_REQUEST_SIZE)
+		if (s->blkcipher.iv_len + aad_len + crde->crd_len >
+		    MAX_REQUEST_SIZE)
 			return (EFBIG);
 	}
 	sglist_reset(sc->sg_dsgl);
+	error = sglist_append_sglist(sc->sg_dsgl, sc->sg_iv_aad, 0,
+	    s->blkcipher.iv_len + aad_len);
+	if (error)
+		return (error);
 	error = sglist_append_sglist(sc->sg_dsgl, sc->sg_crp, crde->crd_skip,
 	    crde->crd_len);
 	if (error)
@@ -977,7 +994,7 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	crwr->sec_cpl.ivgen_hdrlen = htobe32(
 	    V_SCMD_IV_GEN_CTRL(0) |
 	    V_SCMD_MORE_FRAGS(0) | V_SCMD_LAST_FRAG(0) | V_SCMD_MAC_ONLY(0) |
-	    V_SCMD_AADIVDROP(1) | V_SCMD_HDR_LEN(dsgl_len));
+	    V_SCMD_AADIVDROP(0) | V_SCMD_HDR_LEN(dsgl_len));
 
 	crwr->key_ctx.ctx_hdr = s->blkcipher.key_ctx_hdr;
 	switch (crde->crd_alg) {
@@ -1143,15 +1160,24 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	 * The output buffer consists of the cipher text followed by
 	 * the tag when encrypting.  For decryption it only contains
 	 * the plain text.
+	 *
+	 * Due to a firmware bug, the output buffer must include a
+	 * dummy output buffer for the IV and AAD prior to the real
+	 * output buffer.
 	 */
 	if (op_type == CHCR_ENCRYPT_OP) {
-		if (crde->crd_len + hash_size_in_response > MAX_REQUEST_SIZE)
+		if (iv_len + crda->crd_len + crde->crd_len +
+		    hash_size_in_response > MAX_REQUEST_SIZE)
 			return (EFBIG);
 	} else {
-		if (crde->crd_len > MAX_REQUEST_SIZE)
+		if (iv_len + crda->crd_len + crde->crd_len > MAX_REQUEST_SIZE)
 			return (EFBIG);
 	}
 	sglist_reset(sc->sg_dsgl);
+	error = sglist_append_sglist(sc->sg_dsgl, sc->sg_iv_aad, 0, iv_len +
+	    crda->crd_len);
+	if (error)
+		return (error);
 	error = sglist_append_sglist(sc->sg_dsgl, sc->sg_crp, crde->crd_skip,
 	    crde->crd_len);
 	if (error)
@@ -1287,7 +1313,7 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	crwr->sec_cpl.ivgen_hdrlen = htobe32(
 	    V_SCMD_IV_GEN_CTRL(0) |
 	    V_SCMD_MORE_FRAGS(0) | V_SCMD_LAST_FRAG(0) | V_SCMD_MAC_ONLY(0) |
-	    V_SCMD_AADIVDROP(1) | V_SCMD_HDR_LEN(dsgl_len));
+	    V_SCMD_AADIVDROP(0) | V_SCMD_HDR_LEN(dsgl_len));
 
 	crwr->key_ctx.ctx_hdr = s->blkcipher.key_ctx_hdr;
 	memcpy(crwr->key_ctx.key, s->blkcipher.enckey, s->blkcipher.key_len);
@@ -1511,6 +1537,8 @@ ccr_attach(device_t dev)
 	sc->sg_crp = sglist_alloc(TX_SGL_SEGS, M_WAITOK);
 	sc->sg_ulptx = sglist_alloc(TX_SGL_SEGS, M_WAITOK);
 	sc->sg_dsgl = sglist_alloc(MAX_RX_PHYS_DSGL_SGE, M_WAITOK);
+	sc->iv_aad_buf = malloc(MAX_AAD_LEN, M_CCR, M_WAITOK);
+	sc->sg_iv_aad = sglist_build(sc->iv_aad_buf, MAX_AAD_LEN, M_WAITOK);
 	ccr_sysctls(sc);
 
 	crypto_register(cid, CRYPTO_SHA1_HMAC, 0, 0);
@@ -1548,6 +1576,8 @@ ccr_detach(device_t dev)
 	crypto_unregister_all(sc->cid);
 	free(sc->sessions, M_CCR);
 	mtx_destroy(&sc->lock);
+	sglist_free(sc->sg_iv_aad);
+	free(sc->iv_aad_buf, M_CCR);
 	sglist_free(sc->sg_dsgl);
 	sglist_free(sc->sg_ulptx);
 	sglist_free(sc->sg_crp);
