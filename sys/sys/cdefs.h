@@ -239,8 +239,10 @@
 #endif
 #if __GNUC_PREREQ__(4, 3) || __has_attribute(__alloc_size__)
 #define	__alloc_size(x)	__attribute__((__alloc_size__(x)))
+#define	__alloc_size2(n, x)	__attribute__((__alloc_size__(n, x)))
 #else
 #define	__alloc_size(x)
+#define	__alloc_size2(n, x)
 #endif
 #if __GNUC_PREREQ__(4, 9) || __has_attribute(__alloc_align__)
 #define	__alloc_align(x)	__attribute__((__alloc_align__(x)))
