@@ -681,6 +681,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_zip_5.zip.uu \
 	libarchive/test/test_compat_zip_6.zip.uu \
 	libarchive/test/test_compat_zip_7.xps.uu \
+	libarchive/test/test_compat_zip_8.zip.uu \
 	libarchive/test/test_compat_zstd_1.tar.zst.uu \
 	libarchive/test/test_fuzz.cab.uu \
 	libarchive/test/test_fuzz.lzh.uu \
@@ -1282,6 +1283,7 @@ bsdcat_test_SOURCES= \
 	cat/test/test_expand_xz.c \
 	cat/test/test_expand_zstd.c \
 	cat/test/test_help.c \
+	cat/test/test_stdin.c \
 	cat/test/test_version.c
 
 bsdcat_test_CPPFLAGS= \
