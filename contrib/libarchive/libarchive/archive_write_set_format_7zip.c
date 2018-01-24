@@ -2095,19 +2095,6 @@ compression_init_encoder_lzma2(struct archive *a,
 /*
  * _7_PPMD compressor.
  */
-static void *
-ppmd_alloc(void *p, size_t size)
-{
-	(void)p;
-	return malloc(size);
-}
-static void
-ppmd_free(void *p, void *address)
-{
-	(void)p;
-	free(address);
-}
-static ISzAlloc g_szalloc = { ppmd_alloc, ppmd_free };
 static void
 ppmd_write(void *p, Byte b)
 {
@@ -2167,7 +2154,7 @@ compression_init_encoder_ppmd(struct archive *a,
 	archive_le32enc(props+1, msize);
 	__archive_ppmd7_functions.Ppmd7_Construct(&strm->ppmd7_context);
 	r = __archive_ppmd7_functions.Ppmd7_Alloc(
-		&strm->ppmd7_context, msize, &g_szalloc);
+		&strm->ppmd7_context, msize);
 	if (r == 0) {
 		free(strm->buff);
 		free(strm);
@@ -2243,7 +2230,7 @@ compression_end_ppmd(struct archive *a, struct la_zstream *lastrm)
 	(void)a; /* UNUSED */
 
 	strm = (struct ppmd_stream *)lastrm->real_stream;
-	__archive_ppmd7_functions.Ppmd7_Free(&strm->ppmd7_context, &g_szalloc);
+	__archive_ppmd7_functions.Ppmd7_Free(&strm->ppmd7_context);
 	free(strm->buff);
 	free(strm);
 	lastrm->real_stream = NULL;

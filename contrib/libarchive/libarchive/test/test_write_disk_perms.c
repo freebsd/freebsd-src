@@ -131,6 +131,8 @@ DEFINE_TEST(test_write_disk_perms)
 	struct archive *a;
 	struct archive_entry *ae;
 	struct stat st;
+	uid_t original_uid;
+	uid_t try_to_change_uid;
 
 	assertUmask(UMASK);
 
@@ -200,6 +202,37 @@ DEFINE_TEST(test_write_disk_perms)
 	assertEqualInt(0, stat("dir_overwrite_0744", &st));
 	failure("dir_overwrite_0744: st.st_mode=%o", st.st_mode);
 	assertEqualInt(st.st_mode & 0777, 0744);
+
+	/* For dir, the owner should get left when not overwritting. */
+	assertMakeDir("dir_owner", 0744);
+
+	if (getuid() == 0) {
+		original_uid = getuid() + 1;
+		try_to_change_uid = getuid();
+		assertEqualInt(0, chown("dir_owner", original_uid, getgid()));
+	} else {
+		original_uid = getuid();
+		try_to_change_uid = getuid() + 1;
+	}
+
+	/* Check original owner. */
+	assertEqualInt(0, stat("dir_owner", &st));
+	failure("dir_owner: st.st_uid=%d", st.st_uid);
+	assertEqualInt(st.st_uid, original_uid);
+	/* Shouldn't try to edit the owner when no overwrite option is set. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "dir_owner");
+	archive_entry_set_mode(ae, S_IFDIR | 0744);
+	archive_entry_set_uid(ae, try_to_change_uid);
+	archive_write_disk_set_options(a,
+	    ARCHIVE_EXTRACT_OWNER | ARCHIVE_EXTRACT_NO_OVERWRITE);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_finish_entry(a));
+	/* Make sure they're unchanged. */
+	assertEqualInt(0, stat("dir_owner", &st));
+	failure("dir_owner: st.st_uid=%d", st.st_uid);
+	assertEqualInt(st.st_uid, original_uid);
 
 	/* Write a regular file with SUID bit, but don't use _EXTRACT_PERM. */
 	assert((ae = archive_entry_new()) != NULL);
