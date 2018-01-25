@@ -3477,7 +3477,8 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 	clp->lc_stateid = malloc(sizeof(struct nfsstatehead) *
 	    nfsrv_statehashsize, M_NFSDCLIENT, M_WAITOK);
 	NFSINITSOCKMUTEX(&clp->lc_req.nr_mtx);
-	NFSSOCKADDRALLOC(clp->lc_req.nr_nam);
+	clp->lc_req.nr_nam = malloc(sizeof(*clp->lc_req.nr_nam), M_SONAME,
+	    M_WAITOK | M_ZERO);
 	NFSSOCKADDRSIZE(clp->lc_req.nr_nam, sizeof (struct sockaddr_in));
 	clp->lc_req.nr_cred = NULL;
 	NFSBCOPY(verf, clp->lc_verf, NFSX_VERF);
@@ -3533,7 +3534,7 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 		(void) nfsm_strtom(nd, addrbuf, strlen(addrbuf));
 	}
 	if (clp) {
-		NFSSOCKADDRFREE(clp->lc_req.nr_nam);
+		free(clp->lc_req.nr_nam, M_SONAME);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
 		free(clp->lc_stateid, M_NFSDCLIENT);
 		free(clp, M_NFSDCLIENT);
@@ -3551,7 +3552,7 @@ out:
 	return (0);
 nfsmout:
 	if (clp) {
-		NFSSOCKADDRFREE(clp->lc_req.nr_nam);
+		free(clp->lc_req.nr_nam, M_SONAME);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
 		free(clp->lc_stateid, M_NFSDCLIENT);
 		free(clp, M_NFSDCLIENT);
@@ -3753,7 +3754,8 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 	clp->lc_stateid = malloc(sizeof(struct nfsstatehead) *
 	    nfsrv_statehashsize, M_NFSDCLIENT, M_WAITOK);
 	NFSINITSOCKMUTEX(&clp->lc_req.nr_mtx);
-	NFSSOCKADDRALLOC(clp->lc_req.nr_nam);
+	clp->lc_req.nr_nam = malloc(sizeof(*clp->lc_req.nr_nam), M_SONAME,
+	    M_WAITOK | M_ZERO);
 	NFSSOCKADDRSIZE(clp->lc_req.nr_nam, sizeof (struct sockaddr_in));
 	sad = NFSSOCKADDR(nd->nd_nam, struct sockaddr_in *);
 	rad = NFSSOCKADDR(clp->lc_req.nr_nam, struct sockaddr_in *);
@@ -3813,7 +3815,7 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 	 */
 	nd->nd_repstat = nfsrv_setclient(nd, &clp, &clientid, &confirm, p);
 	if (clp != NULL) {
-		NFSSOCKADDRFREE(clp->lc_req.nr_nam);
+		free(clp->lc_req.nr_nam, M_SONAME);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
 		free(clp->lc_stateid, M_NFSDCLIENT);
 		free(clp, M_NFSDCLIENT);
@@ -3846,7 +3848,7 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 	return (0);
 nfsmout:
 	if (clp != NULL) {
-		NFSSOCKADDRFREE(clp->lc_req.nr_nam);
+		free(clp->lc_req.nr_nam, M_SONAME);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
 		free(clp->lc_stateid, M_NFSDCLIENT);
 		free(clp, M_NFSDCLIENT);
