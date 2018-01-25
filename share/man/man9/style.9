@@ -324,6 +324,10 @@ Userspace code should include
 while kernel code should include
 .In sys/types.h .
 .Pp
+Likewise, the project is moving to using the
+.St -isoC-99
+designated initializers when it makes sense to do so.
+.Pp
 Enumeration values are all uppercase.
 .Bd -literal
 enum enumtype { ONE, TWO } et;
