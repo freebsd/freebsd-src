@@ -85,14 +85,14 @@ static inline uint16_t
 RD2(struct imx_wdog_softc *sc, bus_size_t offs)
 {
 
-	return bus_read_2(sc->sc_res[MEMRES], offs);
+	return (bus_read_2(sc->sc_res[MEMRES], offs));
 }
 
 static inline void
 WR2(struct imx_wdog_softc *sc, bus_size_t offs, uint16_t val)
 {
 
-	return bus_write_2(sc->sc_res[MEMRES], offs, val);
+	bus_write_2(sc->sc_res[MEMRES], offs, val);
 }
 
 static void
