@@ -1245,7 +1245,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 #endif
 		nfsvno_relpathbuf(&named);
 		if (pathcp)
-			FREE(pathcp, M_TEMP);
+			free(pathcp, M_TEMP);
 		if (nd->nd_flag & ND_NFSV3)
 			nfsrv_wcc(nd, dirfor_ret, &dirfor, diraft_ret,
 			    &diraft);
@@ -1300,7 +1300,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 #ifdef NFS4_ACL_EXTATTR_NAME
 			acl_free(aclp);
 #endif
-			FREE(pathcp, M_TEMP);
+			free(pathcp, M_TEMP);
 			goto out;
 		}
 	}
@@ -1352,7 +1352,7 @@ nfsmout:
 	if (bufp)
 		nfsvno_relpathbuf(&named);
 	if (pathcp)
-		FREE(pathcp, M_TEMP);
+		free(pathcp, M_TEMP);
 
 	NFSEXITCODE2(error, nd);
 	return (error);
@@ -1775,7 +1775,7 @@ nfsrvd_symlink(struct nfsrv_descript *nd, __unused int isdgram,
 		vrele(dirp);
 	}
 	if (pathcp)
-		FREE(pathcp, M_TEMP);
+		free(pathcp, M_TEMP);
 
 	if (nd->nd_flag & ND_NFSV3) {
 		if (!nd->nd_repstat) {
@@ -2225,7 +2225,7 @@ nfsrvd_lock(struct nfsrv_descript *nd, __unused int isdgram,
 			nd->nd_repstat = NFSERR_BADXDR;
 			goto nfsmout;
 		}
-		MALLOC(stp, struct nfsstate *, sizeof (struct nfsstate) + i,
+		stp = malloc(sizeof (struct nfsstate) + i,
 			M_NFSDSTATE, M_WAITOK);
 		stp->ls_ownerlen = i;
 		stp->ls_op = nd->nd_rp;
@@ -2253,7 +2253,7 @@ nfsrvd_lock(struct nfsrv_descript *nd, __unused int isdgram,
 			goto nfsmout;
 	} else {
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_STATEID + NFSX_UNSIGNED);
-		MALLOC(stp, struct nfsstate *, sizeof (struct nfsstate),
+		stp = malloc(sizeof (struct nfsstate),
 			M_NFSDSTATE, M_WAITOK);
 		stp->ls_ownerlen = 0;
 		stp->ls_op = nd->nd_rp;
@@ -2276,7 +2276,7 @@ nfsrvd_lock(struct nfsrv_descript *nd, __unused int isdgram,
 			nd->nd_clientid.qval = clientid.qval;
 		}
 	}
-	MALLOC(lop, struct nfslock *, sizeof (struct nfslock),
+	lop = malloc(sizeof (struct nfslock),
 		M_NFSDLOCK, M_WAITOK);
 	lop->lo_first = offset;
 	if (len == NFS64BITSSET) {
@@ -2323,9 +2323,9 @@ nfsrvd_lock(struct nfsrv_descript *nd, __unused int isdgram,
 	nd->nd_repstat = nfsrv_lockctrl(vp, &stp, &lop, &cf, clientid, 
 		&stateid, exp, nd, p);
 	if (lop)
-		FREE((caddr_t)lop, M_NFSDLOCK);
+		free(lop, M_NFSDLOCK);
 	if (stp)
-		FREE((caddr_t)stp, M_NFSDSTATE);
+		free(stp, M_NFSDSTATE);
 	if (!nd->nd_repstat) {
 		NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID);
 		*tl++ = txdr_unsigned(stateid.seqid);
@@ -2354,7 +2354,7 @@ nfsrvd_lock(struct nfsrv_descript *nd, __unused int isdgram,
 nfsmout:
 	vput(vp);
 	if (stp)
-		free((caddr_t)stp, M_NFSDSTATE);
+		free(stp, M_NFSDSTATE);
 	NFSEXITCODE2(error, nd);
 	return (error);
 }
@@ -2382,7 +2382,7 @@ nfsrvd_lockt(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_repstat = NFSERR_BADXDR;
 		goto nfsmout;
 	}
-	MALLOC(stp, struct nfsstate *, sizeof (struct nfsstate) + i,
+	stp = malloc(sizeof (struct nfsstate) + i,
 	    M_NFSDSTATE, M_WAITOK);
 	stp->ls_ownerlen = i;
 	stp->ls_op = NULL;
@@ -2462,13 +2462,13 @@ nfsrvd_lockt(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 	vput(vp);
 	if (stp)
-		FREE((caddr_t)stp, M_NFSDSTATE);
+		free(stp, M_NFSDSTATE);
 	NFSEXITCODE2(0, nd);
 	return (0);
 nfsmout:
 	vput(vp);
 	if (stp)
-		free((caddr_t)stp, M_NFSDSTATE);
+		free(stp, M_NFSDSTATE);
 	NFSEXITCODE2(error, nd);
 	return (error);
 }
@@ -2490,9 +2490,9 @@ nfsrvd_locku(struct nfsrv_descript *nd, __unused int isdgram,
 	u_int64_t len;
 
 	NFSM_DISSECT(tl, u_int32_t *, 6 * NFSX_UNSIGNED + NFSX_STATEID);
-	MALLOC(stp, struct nfsstate *, sizeof (struct nfsstate),
+	stp = malloc(sizeof (struct nfsstate),
 	    M_NFSDSTATE, M_WAITOK);
-	MALLOC(lop, struct nfslock *, sizeof (struct nfslock),
+	lop = malloc(sizeof (struct nfslock),
 	    M_NFSDLOCK, M_WAITOK);
 	stp->ls_flags = NFSLCK_UNLOCK;
 	lop->lo_flags = NFSLCK_UNLOCK;
@@ -2557,9 +2557,9 @@ nfsrvd_locku(struct nfsrv_descript *nd, __unused int isdgram,
 	nd->nd_repstat = nfsrv_lockctrl(vp, &stp, &lop, NULL, clientid,
 	    &stateid, exp, nd, p);
 	if (stp)
-		FREE((caddr_t)stp, M_NFSDSTATE);
+		free(stp, M_NFSDSTATE);
 	if (lop)
-		free((caddr_t)lop, M_NFSDLOCK);
+		free(lop, M_NFSDLOCK);
 	if (!nd->nd_repstat) {
 		NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID);
 		*tl++ = txdr_unsigned(stateid.seqid);
@@ -2609,7 +2609,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_repstat = NFSERR_BADXDR;
 		goto nfsmout;
 	}
-	MALLOC(stp, struct nfsstate *, sizeof (struct nfsstate) + i,
+	stp = malloc(sizeof (struct nfsstate) + i,
 	    M_NFSDSTATE, M_WAITOK);
 	stp->ls_ownerlen = i;
 	stp->ls_op = nd->nd_rp;
@@ -2797,7 +2797,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 #ifdef NFS4_ACL_EXTATTR_NAME
 			acl_free(aclp);
 #endif
-			FREE((caddr_t)stp, M_NFSDSTATE);
+			free(stp, M_NFSDSTATE);
 			nfsvno_relpathbuf(&named);
 			NFSEXITCODE2(error, nd);
 			return (error);
@@ -2922,7 +2922,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	if (vp)
 		NFSVOPUNLOCK(vp, 0);
 	if (stp)
-		FREE((caddr_t)stp, M_NFSDSTATE);
+		free(stp, M_NFSDSTATE);
 	if (!nd->nd_repstat && dirp)
 		nd->nd_repstat = nfsvno_getattr(dirp, &diraft, nd->nd_cred, p,
 		    0);
@@ -3012,7 +3012,7 @@ nfsmout:
 	acl_free(aclp);
 #endif
 	if (stp)
-		FREE((caddr_t)stp, M_NFSDSTATE);
+		free(stp, M_NFSDSTATE);
 	NFSEXITCODE2(error, nd);
 	return (error);
 }
@@ -3682,7 +3682,7 @@ nfsrvd_releaselckown(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_repstat = NFSERR_BADXDR;
 		goto nfsmout;
 	}
-	MALLOC(stp, struct nfsstate *, sizeof (struct nfsstate) + len,
+	stp = malloc(sizeof (struct nfsstate) + len,
 	    M_NFSDSTATE, M_WAITOK);
 	stp->ls_ownerlen = len;
 	stp->ls_op = NULL;
@@ -3705,13 +3705,13 @@ nfsrvd_releaselckown(struct nfsrv_descript *nd, __unused int isdgram,
 	if (error)
 		goto nfsmout;
 	nd->nd_repstat = nfsrv_releaselckown(stp, clientid, p);
-	FREE((caddr_t)stp, M_NFSDSTATE);
+	free(stp, M_NFSDSTATE);
 
 	NFSEXITCODE2(0, nd);
 	return (0);
 nfsmout:
 	if (stp)
-		free((caddr_t)stp, M_NFSDSTATE);
+		free(stp, M_NFSDSTATE);
 	NFSEXITCODE2(error, nd);
 	return (error);
 }
