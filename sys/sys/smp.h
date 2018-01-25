@@ -240,7 +240,14 @@ extern	struct mtx smp_ipi_mtx;
 
 int	quiesce_all_cpus(const char *, int);
 int	quiesce_cpus(cpuset_t, const char *, int);
+/*
+ * smp_no_rendevous_barrier was renamed to smp_no_rendezvous_barrier
+ * in __FreeBSD_version 1101508, with the old name remaining in 11.x
+ * as an alias for compatibility.  The old name will be gone in 12.0
+ * (__FreeBSD_version >= 1200028).
+ */
 void	smp_no_rendevous_barrier(void *);
+void	smp_no_rendezvous_barrier(void *);
 void	smp_rendezvous(void (*)(void *), 
 		       void (*)(void *),
 		       void (*)(void *),

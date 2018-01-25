@@ -3367,7 +3367,7 @@ pmap_change_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va,
 		act.va = va;
 		act.npte1 = npte1;
 		act.update = PCPU_GET(cpuid);
-		smp_rendezvous_cpus(all_cpus, smp_no_rendevous_barrier,
+		smp_rendezvous_cpus(all_cpus, smp_no_rendezvous_barrier,
 		    pmap_update_pte1_action, NULL, &act);
 		sched_unpin();
 	} else {
