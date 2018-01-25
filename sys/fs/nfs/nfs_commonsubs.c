@@ -3067,7 +3067,7 @@ nfsrv_nfsuserdport(struct sockaddr *sad, u_short port, NFSPROC_T *p)
 	if (nfsrv_nfsuserd) {
 		NFSUNLOCKNAMEID();
 		error = EPERM;
-		NFSSOCKADDRFREE(sad);
+		free(sad, M_SONAME);
 		goto out;
 	}
 	nfsrv_nfsuserd = 1;
@@ -3088,7 +3088,8 @@ nfsrv_nfsuserdport(struct sockaddr *sad, u_short port, NFSPROC_T *p)
 		/* Use the port# for a UDP socket (old nfsuserd). */
 		rp->nr_sotype = SOCK_DGRAM;
 		rp->nr_soproto = IPPROTO_UDP;
-		NFSSOCKADDRALLOC(rp->nr_nam);
+		rp->nr_nam = malloc(sizeof(*rp->nr_nam), M_SONAME, M_WAITOK |
+		    M_ZERO);
 		NFSSOCKADDRSIZE(rp->nr_nam, sizeof (struct sockaddr_in));
 		ad = NFSSOCKADDR(rp->nr_nam, struct sockaddr_in *);
 		ad->sin_family = AF_INET;
@@ -3099,7 +3100,7 @@ nfsrv_nfsuserdport(struct sockaddr *sad, u_short port, NFSPROC_T *p)
 	rp->nr_vers = RPCNFSUSERD_VERS;
 	error = newnfs_connect(NULL, rp, NFSPROCCRED(p), p, 0);
 	if (error) {
-		NFSSOCKADDRFREE(rp->nr_nam);
+		free(rp->nr_nam, M_SONAME);
 		nfsrv_nfsuserd = 0;
 	}
 out:
@@ -3122,7 +3123,7 @@ nfsrv_nfsuserddelport(void)
 	nfsrv_nfsuserd = 0;
 	NFSUNLOCKNAMEID();
 	newnfs_disconnect(&nfsrv_nfsuserdsock);
-	NFSSOCKADDRFREE(nfsrv_nfsuserdsock.nr_nam);
+	free(nfsrv_nfsuserdsock.nr_nam, M_SONAME);
 }
 
 /*

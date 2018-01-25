@@ -1226,7 +1226,7 @@ nfsrv_zapclient(struct nfsclient *clp, NFSPROC_T *p)
 	}
 #endif
 	newnfs_disconnect(&clp->lc_req);
-	NFSSOCKADDRFREE(clp->lc_req.nr_nam);
+	free(clp->lc_req.nr_nam, M_SONAME);
 	NFSFREEMUTEX(&clp->lc_req.nr_mtx);
 	free(clp->lc_stateid, M_NFSDCLIENT);
 	free(clp, M_NFSDCLIENT);
