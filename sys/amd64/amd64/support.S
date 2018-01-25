@@ -50,7 +50,6 @@ ENTRY(bzero)
 	movq	%rsi,%rcx
 	xorl	%eax,%eax
 	shrq	$3,%rcx
-	cld
 	rep
 	stosq
 	movq	%rsi,%rcx
@@ -76,7 +75,6 @@ ENTRY(bcmp)
 	PUSH_FRAME_POINTER
 	movq	%rdx,%rcx
 	shrq	$3,%rcx
-	cld					/* compare forwards */
 	repe
 	cmpsq
 	jne	1f
@@ -108,7 +106,6 @@ ENTRY(bcopy)
 	jb	1f
 
 	shrq	$3,%rcx				/* copy by 64-bit words */
-	cld					/* nope, copy forwards */
 	rep
 	movsq
 	movq	%rdx,%rcx
@@ -147,7 +144,6 @@ ENTRY(memcpy)
 	movq	%rdi,%rax
 	movq	%rdx,%rcx
 	shrq	$3,%rcx				/* copy by 64-bit words */
-	cld					/* copy forwards */
 	rep
 	movsq
 	movq	%rdx,%rcx
@@ -194,7 +190,6 @@ ENTRY(fillw)
 	movq	%rdi,%rax
 	movq	%rsi,%rdi
 	movq	%rdx,%rcx
-	cld
 	rep
 	stosw
 	POP_FRAME_POINTER
@@ -251,7 +246,6 @@ ENTRY(copyout)
 	movq	%rdx,%rcx
 
 	shrq	$3,%rcx
-	cld
 	rep
 	movsq
 	movb	%dl,%cl
@@ -300,7 +294,6 @@ ENTRY(copyin)
 	movq	%rdx,%rcx
 	movb	%cl,%al
 	shrq	$3,%rcx				/* copy longword-wise */
-	cld
 	rep
 	movsq
 	movb	%al,%cl
@@ -597,7 +590,6 @@ ENTRY(copyinstr)
 	movq	%rax,%r8
 1:
 	incq	%rdx
-	cld
 
 2:
 	decq	%rdx
@@ -648,7 +640,6 @@ ENTRY(copystr)
 
 	xchgq	%rdi,%rsi
 	incq	%rdx
-	cld
 1:
 	decq	%rdx
 	jz	4f
