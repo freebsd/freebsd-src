@@ -163,7 +163,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 		}
 	}
 	if (error) {
-		FREE((caddr_t)nfhp, M_NFSFH);
+		free(nfhp, M_NFSFH);
 		return (error);
 	}
 	if (nvp != NULL) {
@@ -181,7 +181,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 		     dnp->n_fhp->nfh_len != np->n_v4->n4_fhlen ||
 		     NFSBCMP(dnp->n_fhp->nfh_fh, np->n_v4->n4_data,
 		     dnp->n_fhp->nfh_len))) {
-		    MALLOC(newd, struct nfsv4node *,
+		    newd = malloc(
 			sizeof (struct nfsv4node) + dnp->n_fhp->nfh_len +
 			+ cnp->cn_namelen - 1, M_NFSV4NODE, M_WAITOK);
 		    NFSLOCKNODE(np);
@@ -205,11 +205,11 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 		    NFSUNLOCKNODE(np);
 		}
 		if (newd != NULL)
-			FREE((caddr_t)newd, M_NFSV4NODE);
+			free(newd, M_NFSV4NODE);
 		if (oldd != NULL)
-			FREE((caddr_t)oldd, M_NFSV4NODE);
+			free(oldd, M_NFSV4NODE);
 		*npp = np;
-		FREE((caddr_t)nfhp, M_NFSFH);
+		free(nfhp, M_NFSFH);
 		return (0);
 	}
 	np = uma_zalloc(newnfsnode_zone, M_WAITOK | M_ZERO);
@@ -217,7 +217,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 	error = getnewvnode(nfs_vnode_tag, mntp, &newnfs_vnodeops, &nvp);
 	if (error) {
 		uma_zfree(newnfsnode_zone, np);
-		FREE((caddr_t)nfhp, M_NFSFH);
+		free(nfhp, M_NFSFH);
 		return (error);
 	}
 	vp = nvp;
@@ -252,7 +252,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 	 * file name, so that Open Ops can be done later.
 	 */
 	if (nmp->nm_flag & NFSMNT_NFSV4) {
-		MALLOC(np->n_v4, struct nfsv4node *, sizeof (struct nfsv4node)
+		np->n_v4 = malloc(sizeof (struct nfsv4node)
 		    + dnp->n_fhp->nfh_len + cnp->cn_namelen - 1, M_NFSV4NODE,
 		    M_WAITOK);
 		np->n_v4->n4_fhlen = dnp->n_fhp->nfh_len;
@@ -276,9 +276,9 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 		*npp = NULL;
 		mtx_destroy(&np->n_mtx);
 		lockdestroy(&np->n_excl);
-		FREE((caddr_t)nfhp, M_NFSFH);
+		free(nfhp, M_NFSFH);
 		if (np->n_v4 != NULL)
-			FREE((caddr_t)np->n_v4, M_NFSV4NODE);
+			free(np->n_v4, M_NFSV4NODE);
 		uma_zfree(newnfsnode_zone, np);
 		return (error);
 	}
@@ -320,7 +320,7 @@ nfscl_ngetreopen(struct mount *mntp, u_int8_t *fhp, int fhsize,
 	/* For forced dismounts, just return error. */
 	if (NFSCL_FORCEDISM(mntp))
 		return (EINTR);
-	MALLOC(nfhp, struct nfsfh *, sizeof (struct nfsfh) + fhsize,
+	nfhp = malloc(sizeof (struct nfsfh) + fhsize,
 	    M_NFSFH, M_WAITOK);
 	bcopy(fhp, &nfhp->nfh_fh[0], fhsize);
 	nfhp->nfh_len = fhsize;
@@ -355,7 +355,7 @@ nfscl_ngetreopen(struct mount *mntp, u_int8_t *fhp, int fhsize,
 			}
 		}
 	}
-	FREE(nfhp, M_NFSFH);
+	free(nfhp, M_NFSFH);
 	if (error)
 		return (error);
 	if (nvp != NULL) {

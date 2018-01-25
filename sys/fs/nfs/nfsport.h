@@ -630,7 +630,7 @@ void nfsrvd_rcv(struct socket *, void *, int);
 #define	NFSSOCKADDR(a, t)	((t)(a))
 #define	NFSSOCKADDRALLOC(a) 					\
     do {							\
-	MALLOC((a), struct sockaddr *, sizeof (struct sockaddr), \
+	(a) = malloc(sizeof (struct sockaddr),			\
 	    M_SONAME, M_WAITOK); 				\
 	NFSBZERO((a), sizeof (struct sockaddr)); 		\
     } while (0)
@@ -638,7 +638,7 @@ void nfsrvd_rcv(struct socket *, void *, int);
 #define	NFSSOCKADDRFREE(a) 					\
 	do { 							\
 		if (a) 						\
-			FREE((caddr_t)(a), M_SONAME); 		\
+			free((a), M_SONAME); 		\
 	} while (0)
 
 /*
