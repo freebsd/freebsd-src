@@ -152,7 +152,7 @@ typedef enum {
 	DA_CCB_BUFFER_IO	= 0x07,
 	DA_CCB_DUMP		= 0x0A,
 	DA_CCB_DELETE		= 0x0B,
- 	DA_CCB_TUR		= 0x0C,
+	DA_CCB_TUR		= 0x0C,
 	DA_CCB_PROBE_ZONE	= 0x0D,
 	DA_CCB_PROBE_ATA_LOGDIR	= 0x0E,
 	DA_CCB_PROBE_ATA_IDDIR	= 0x0F,
@@ -303,7 +303,7 @@ struct da_softc {
 	int	 error_inject;
 	int	 trim_max_ranges;
 	int	 delete_available;	/* Delete methods possibly available */
-	da_zone_mode 			zone_mode;
+	da_zone_mode			zone_mode;
 	da_zone_interface		zone_interface;
 	da_zone_flags			zone_flags;
 	struct ata_gp_log_dir		ata_logdir;
@@ -313,7 +313,7 @@ struct da_softc {
 	uint64_t			optimal_seq_zones;
 	uint64_t			optimal_nonseq_zones;
 	uint64_t			max_seq_zones;
-	u_int	 		maxio;
+	u_int			maxio;
 	uint32_t		unmap_max_ranges;
 	uint32_t		unmap_max_lba; /* Max LBAs in UNMAP req */
 	uint32_t		unmap_gran;
@@ -502,14 +502,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Generic*", "USB Flash Disk*",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
- 	{
- 		/*
- 		 * Creative Nomad MUVO mp3 player (USB)
- 		 * PR: kern/53094
- 		 */
- 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "CREATIVE", "NOMAD_MUVO", "*"},
- 		/*quirks*/ DA_Q_NO_SYNC_CACHE|DA_Q_NO_PREVENT
- 	},
+	{
+		/*
+		 * Creative Nomad MUVO mp3 player (USB)
+		 * PR: kern/53094
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "CREATIVE", "NOMAD_MUVO", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE|DA_Q_NO_PREVENT
+	},
 	{
 		/*
 		 * Jungsoft NEXDISK USB flash key
@@ -557,7 +557,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "iRiver", "iFP*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
- 	},
+	},
 	{
 		/*
 		 * Frontier Labs NEX IA+ Digital Audio Player, rev 1.10/0.01
@@ -3947,7 +3947,7 @@ cmd6workaround(union ccb *ccb)
 
 	xpt_print(ccb->ccb_h.path, "READ(6)/WRITE(6) not supported, "
 	    "increasing minimum_cmd_size to 10.\n");
- 	softc->minimum_cmd_size = 10;
+	softc->minimum_cmd_size = 10;
 
 	bcopy(cdb, &cmd6, sizeof(struct scsi_rw_6));
 	cmd10 = (struct scsi_rw_10 *)cdb;
@@ -3961,7 +3961,7 @@ cmd6workaround(union ccb *ccb)
 
 	/* Requeue request, unfreezing queue if necessary */
 	frozen = (ccb->ccb_h.status & CAM_DEV_QFRZN) != 0;
- 	ccb->ccb_h.status = CAM_REQUEUE_REQ;
+	ccb->ccb_h.status = CAM_REQUEUE_REQ;
 	xpt_action(ccb);
 	if (frozen) {
 		cam_release_devq(ccb->ccb_h.path,
@@ -5436,17 +5436,17 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct da_softc *)periph->softc;
 
- 	/*
+	/*
 	 * Automatically detect devices that do not support
- 	 * READ(6)/WRITE(6) and upgrade to using 10 byte cdbs.
- 	 */
+	 * READ(6)/WRITE(6) and upgrade to using 10 byte cdbs.
+	 */
 	error = 0;
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INVALID) {
 		error = cmd6workaround(ccb);
 	} else if (scsi_extract_sense_ccb(ccb,
 	    &error_code, &sense_key, &asc, &ascq)) {
 		if (sense_key == SSD_KEY_ILLEGAL_REQUEST)
- 			error = cmd6workaround(ccb);
+			error = cmd6workaround(ccb);
 		/*
 		 * If the target replied with CAPACITY DATA HAS CHANGED UA,
 		 * query the capacity and notify upper layers.
