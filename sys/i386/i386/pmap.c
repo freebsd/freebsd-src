@@ -1200,7 +1200,7 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 		act.newpde = newpde;
 		CPU_SET(cpuid, &active);
 		smp_rendezvous_cpus(active,
-		    smp_no_rendevous_barrier, pmap == kernel_pmap ?
+		    smp_no_rendezvous_barrier, pmap == kernel_pmap ?
 		    pmap_update_pde_kernel : pmap_update_pde_user,
 		    pmap_update_pde_teardown, &act);
 	} else {

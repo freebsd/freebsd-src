@@ -528,8 +528,8 @@ openfirmware(void *args)
 	#ifdef SMP
 	rv_args.args = args;
 	rv_args.in_progress = 1;
-	smp_rendezvous(smp_no_rendevous_barrier, ofw_rendezvous_dispatch,
-	    smp_no_rendevous_barrier, &rv_args);
+	smp_rendezvous(smp_no_rendezvous_barrier, ofw_rendezvous_dispatch,
+	    smp_no_rendezvous_barrier, &rv_args);
 	result = rv_args.retval;
 	#else
 	result = openfirmware_core(args);
