@@ -629,8 +629,9 @@ syscall(struct trapframe *frame)
 	 * Speculatively restore last user SLB segment, which we know is
 	 * invalid already, since we are likely to do copyin()/copyout().
 	 */
-	__asm __volatile ("slbmte %0, %1; isync" ::
-            "r"(td->td_pcb->pcb_cpu.aim.usr_vsid), "r"(USER_SLB_SLBE));
+	if (td->td_pcb->pcb_cpu.aim.usr_vsid != 0)
+		__asm __volatile ("slbmte %0, %1; isync" ::
+		    "r"(td->td_pcb->pcb_cpu.aim.usr_vsid), "r"(USER_SLB_SLBE));
 #endif
 
 	error = syscallenter(td);
@@ -690,6 +691,9 @@ handle_user_slb_spill(pmap_t pm, vm_offset_t addr)
 	struct slb *user_entry;
 	uint64_t esid;
 	int i;
+
+	if (pm->pm_slb == NULL)
+		return (-1);
 
 	esid = (uintptr_t)addr >> ADDR_SR_SHFT;
 
