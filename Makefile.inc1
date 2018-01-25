@@ -1447,20 +1447,26 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel .PHONY
 	false
 .endif
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Installing kernel ${INSTALLKERNEL}"
+	@echo ">>> Installing kernel ${INSTALLKERNEL} on $$(LC_ALL=C date)"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
 	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Installing kernel ${INSTALLKERNEL} completed on $$(LC_ALL=C date)"
+	@echo "--------------------------------------------------------------"
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Installing kernel ${_kernel}"
+	@echo ">>> Installing kernel ${_kernel} $$(LC_ALL=C date)"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
 	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME}.${_kernel} ${.TARGET:S/kernel//}
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Installing kernel ${_kernel} completed on $$(LC_ALL=C date)"
+	@echo "--------------------------------------------------------------"
 .endfor
 .endif
 
