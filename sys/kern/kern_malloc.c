@@ -453,7 +453,7 @@ contigfree(void *addr, unsigned long size, struct malloc_type *type)
 
 #ifdef MALLOC_DEBUG
 static int
-malloc_dbg(caddr_t *vap, unsigned long *sizep, struct malloc_type *mtp,
+malloc_dbg(caddr_t *vap, size_t *sizep, struct malloc_type *mtp,
     int flags)
 {
 #ifdef INVARIANTS
