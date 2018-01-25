@@ -240,7 +240,7 @@ rtl8366rb_attach(device_t dev)
 	for (i = 0; i < sc->numphys; i++) {
 		sc->ifp[i] = if_alloc(IFT_ETHER);
 		if (sc->ifp[i] == NULL) {
-			device_printf(sc->sc_dev, "couldn't allocate ifnet structure\n");
+			device_printf(dev, "couldn't allocate ifnet structure\n");
 			err = ENOMEM;
 			break;
 		}
