@@ -154,7 +154,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Fill siginfo structure.
 	 */
 	ksi->ksi_info.si_signo = ksi->ksi_signo;
-	ksi->ksi_info.si_addr = (void *)((tf->exc == EXC_DSI) ? 
+	ksi->ksi_info.si_addr =
+	    (void *)((tf->exc == EXC_DSI || tf->exc == EXC_DSE) ? 
 	    tf->dar : tf->srr0);
 
 	#ifdef COMPAT_FREEBSD32
