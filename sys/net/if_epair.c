@@ -402,8 +402,8 @@ epair_start_locked(struct ifnet *ifp)
 		return;
 
 	/*
-	 * We get patckets here from ether_output via if_handoff()
-	 * and ned to put them into the input queue of the oifp
+	 * We get packets here from ether_output via if_handoff()
+	 * and need to put them into the input queue of the oifp
 	 * and call oifp->if_input() via netisr/epair_sintr().
 	 */
 	oifp = sc->oifp;
