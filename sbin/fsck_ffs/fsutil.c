@@ -368,8 +368,8 @@ flush(int fd, struct bufarea *bp)
 	switch (bp->b_type) {
 	case BT_SUPERBLK:
 		if (bp != &sblk)
-			pfatal("BUFFER 0x%x DOES NOT MATCH SBLK 0x%x\n",
-			    (u_int)bp, (u_int)&sblk);
+			pfatal("BUFFER %p DOES NOT MATCH SBLK %p\n",
+			    bp, &sblk);
 		blwrite(fd, bp->b_un.b_buf, bp->b_bno, bp->b_size);
 		for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize,
 		   j++) {
