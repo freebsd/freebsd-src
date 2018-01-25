@@ -150,13 +150,6 @@ MALLOC_DECLARE(M_DEVBUF);
 MALLOC_DECLARE(M_TEMP);
 
 /*
- * Deprecated macro versions of not-quite-malloc() and free().
- */
-#define	MALLOC(space, cast, size, type, flags) \
-	((space) = (cast)malloc((u_long)(size), (type), (flags)))
-#define	FREE(addr, type) free((addr), (type))
-
-/*
  * XXX this should be declared in <sys/uio.h>, but that tends to fail
  * because <sys/uio.h> is included in a header before the source file
  * has a chance to include <sys/malloc.h> to get MALLOC_DECLARE() defined.

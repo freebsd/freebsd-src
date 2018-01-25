@@ -1193,7 +1193,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	 */
 	if (cnp->cn_nameiop == RENAME && (flags & ISLASTCN)) {
 		if (NFS_CMPFH(np, nfhp->nfh_fh, nfhp->nfh_len)) {
-			FREE((caddr_t)nfhp, M_NFSFH);
+			free(nfhp, M_NFSFH);
 			return (EISDIR);
 		}
 		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, NULL,
@@ -1248,7 +1248,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 			(void) nfscl_loadattrcache(&newvp, &nfsva, NULL, NULL,
 			    0, 1);
 	} else if (NFS_CMPFH(np, nfhp->nfh_fh, nfhp->nfh_len)) {
-		FREE((caddr_t)nfhp, M_NFSFH);
+		free(nfhp, M_NFSFH);
 		VREF(dvp);
 		newvp = dvp;
 		if (attrflag)
@@ -1817,7 +1817,7 @@ nfs_rename(struct vop_rename_args *ap)
 		 * For NFSv4, check to see if it is the same name and
 		 * replace the name, if it is different.
 		 */
-		MALLOC(newv4, struct nfsv4node *,
+		newv4 = malloc(
 		    sizeof (struct nfsv4node) +
 		    tdnp->n_fhp->nfh_len + tcnp->cn_namelen - 1,
 		    M_NFSV4NODE, M_WAITOK);
@@ -1838,7 +1838,7 @@ nnn[nnnl] = '\0';
 printf("ren replace=%s\n",nnn);
 }
 #endif
-			FREE((caddr_t)fnp->n_v4, M_NFSV4NODE);
+			free(fnp->n_v4, M_NFSV4NODE);
 			fnp->n_v4 = newv4;
 			newv4 = NULL;
 			fnp->n_v4->n4_fhlen = tdnp->n_fhp->nfh_len;
@@ -1851,7 +1851,7 @@ printf("ren replace=%s\n",nnn);
 		mtx_unlock(&tdnp->n_mtx);
 		mtx_unlock(&fnp->n_mtx);
 		if (newv4 != NULL)
-			FREE((caddr_t)newv4, M_NFSV4NODE);
+			free(newv4, M_NFSV4NODE);
 	}
 
 	if (fvp->v_type == VDIR) {
@@ -2389,7 +2389,7 @@ nfs_sillyrename(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 	cache_purge(dvp);
 	np = VTONFS(vp);
 	KASSERT(vp->v_type != VDIR, ("nfs: sillyrename dir"));
-	MALLOC(sp, struct sillyrename *, sizeof (struct sillyrename),
+	sp = malloc(sizeof (struct sillyrename),
 	    M_NEWNFSREQ, M_WAITOK);
 	sp->s_cred = crhold(cnp->cn_cred);
 	sp->s_dvp = dvp;
@@ -2423,7 +2423,7 @@ nfs_sillyrename(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 bad:
 	vrele(sp->s_dvp);
 	crfree(sp->s_cred);
-	free((caddr_t)sp, M_NEWNFSREQ);
+	free(sp, M_NEWNFSREQ);
 	return (error);
 }
 
@@ -2473,8 +2473,8 @@ nnn[nnnl] = '\0';
 printf("replace=%s\n",nnn);
 }
 #endif
-			    FREE((caddr_t)np->n_v4, M_NFSV4NODE);
-			    MALLOC(np->n_v4, struct nfsv4node *,
+			    free(np->n_v4, M_NFSV4NODE);
+			    np->n_v4 = malloc(
 				sizeof (struct nfsv4node) +
 				dnp->n_fhp->nfh_len + len - 1,
 				M_NFSV4NODE, M_WAITOK);
@@ -2493,10 +2493,10 @@ printf("replace=%s\n",nnn);
 		    vfs_hash_rehash(vp, hash);
 		    np->n_fhp = nfhp;
 		    if (onfhp != NULL)
-			FREE((caddr_t)onfhp, M_NFSFH);
+			free(onfhp, M_NFSFH);
 		    newvp = NFSTOV(np);
 		} else if (NFS_CMPFH(dnp, nfhp->nfh_fh, nfhp->nfh_len)) {
-		    FREE((caddr_t)nfhp, M_NFSFH);
+		    free(nfhp, M_NFSFH);
 		    VREF(dvp);
 		    newvp = dvp;
 		} else {

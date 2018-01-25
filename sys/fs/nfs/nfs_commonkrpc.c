@@ -676,7 +676,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		 * outstanding RPCs for nfsv4 client requests.
 		 */
 		if ((nd->nd_flag & ND_NFSV4) && procnum == NFSV4PROC_COMPOUND)
-			MALLOC(rep, struct nfsreq *, sizeof(struct nfsreq),
+			rep = malloc(sizeof(struct nfsreq),
 			    M_NFSDREQ, M_WAITOK);
 #ifdef KDTRACE_HOOKS
 		if (dtrace_nfscl_nfs234_start_probe != NULL) {
@@ -798,7 +798,7 @@ tryagain:
 		if (usegssname == 0)
 			AUTH_DESTROY(auth);
 		if (rep != NULL)
-			FREE((caddr_t)rep, M_NFSDREQ);
+			free(rep, M_NFSDREQ);
 		if (set_sigset)
 			newnfs_restore_sigmask(td, &oldset);
 		return (error);
@@ -1098,7 +1098,7 @@ tryagain:
 	if (usegssname == 0)
 		AUTH_DESTROY(auth);
 	if (rep != NULL)
-		FREE((caddr_t)rep, M_NFSDREQ);
+		free(rep, M_NFSDREQ);
 	if (set_sigset)
 		newnfs_restore_sigmask(td, &oldset);
 	return (0);
@@ -1108,7 +1108,7 @@ nfsmout:
 	if (usegssname == 0)
 		AUTH_DESTROY(auth);
 	if (rep != NULL)
-		FREE((caddr_t)rep, M_NFSDREQ);
+		free(rep, M_NFSDREQ);
 	if (set_sigset)
 		newnfs_restore_sigmask(td, &oldset);
 	return (error);

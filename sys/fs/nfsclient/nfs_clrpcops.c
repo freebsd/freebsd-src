@@ -538,7 +538,7 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 			      NFSCLFLAGS_FIRSTDELEG))
 				op->nfso_own->nfsow_clp->nfsc_flags |=
 				  (NFSCLFLAGS_FIRSTDELEG | NFSCLFLAGS_GOTDELEG);
-			MALLOC(ndp, struct nfscldeleg *,
+			ndp = malloc(
 			    sizeof (struct nfscldeleg) + newfhlen,
 			    M_NFSCLDELEG, M_WAITOK);
 			LIST_INIT(&ndp->nfsdl_owner);
@@ -634,7 +634,7 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 		    } while (ret == NFSERR_DELAY);
 		    if (ret) {
 			if (ndp != NULL) {
-				FREE((caddr_t)ndp, M_NFSCLDELEG);
+				free(ndp, M_NFSCLDELEG);
 				ndp = NULL;
 			}
 			if (ret == NFSERR_STALECLIENTID ||
@@ -652,7 +652,7 @@ nfsmout:
 	if (!error)
 		*dpp = ndp;
 	else if (ndp != NULL)
-		FREE((caddr_t)ndp, M_NFSCLDELEG);
+		free(ndp, M_NFSCLDELEG);
 	mbuf_freem(nd->nd_mrep);
 	return (error);
 }
@@ -1324,7 +1324,7 @@ nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
 		 * Just return the current dir's fh.
 		 */
 		np = VTONFS(dvp);
-		MALLOC(nfhp, struct nfsfh *, sizeof (struct nfsfh) +
+		nfhp = malloc(sizeof (struct nfsfh) +
 			np->n_fhp->nfh_len, M_NFSFH, M_WAITOK);
 		nfhp->nfh_len = np->n_fhp->nfh_len;
 		NFSBCOPY(np->n_fhp->nfh_fh, nfhp->nfh_fh, nfhp->nfh_len);
@@ -1356,7 +1356,7 @@ nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
 		 */
 		if (nd->nd_repstat == NFSERR_NOENT && lookupp) {
 		    np = VTONFS(dvp);
-		    MALLOC(nfhp, struct nfsfh *, sizeof (struct nfsfh) +
+		    nfhp = malloc(sizeof (struct nfsfh) +
 			np->n_fhp->nfh_len, M_NFSFH, M_WAITOK);
 		    nfhp->nfh_len = np->n_fhp->nfh_len;
 		    NFSBCOPY(np->n_fhp->nfh_fh, nfhp->nfh_fh, nfhp->nfh_len);
@@ -2182,7 +2182,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 			      NFSCLFLAGS_FIRSTDELEG))
 				owp->nfsow_clp->nfsc_flags |=
 				  (NFSCLFLAGS_FIRSTDELEG | NFSCLFLAGS_GOTDELEG);
-			MALLOC(dp, struct nfscldeleg *,
+			dp = malloc(
 			    sizeof (struct nfscldeleg) + NFSX_V4FHMAX,
 			    M_NFSCLDELEG, M_WAITOK);
 			LIST_INIT(&dp->nfsdl_owner);
@@ -2296,7 +2296,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		    } while (ret == NFSERR_DELAY);
 		    if (ret) {
 			if (dp != NULL) {
-				FREE((caddr_t)dp, M_NFSCLDELEG);
+				free(dp, M_NFSCLDELEG);
 				dp = NULL;
 			}
 			if (ret == NFSERR_STALECLIENTID ||
@@ -2316,7 +2316,7 @@ nfsmout:
 	if (!error)
 		*dpp = dp;
 	else if (dp != NULL)
-		FREE((caddr_t)dp, M_NFSCLDELEG);
+		free(dp, M_NFSCLDELEG);
 	mbuf_freem(nd->nd_mrep);
 	return (error);
 }
@@ -3568,7 +3568,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 					    goto nfsmout;
 				}
 				if (!attrflag && nfhp != NULL) {
-					FREE((caddr_t)nfhp, M_NFSFH);
+					free(nfhp, M_NFSFH);
 					nfhp = NULL;
 				}
 			} else {
@@ -3616,7 +3616,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				    VREF(vp);
 				    newvp = vp;
 				    unlocknewvp = 0;
-				    FREE((caddr_t)nfhp, M_NFSFH);
+				    free(nfhp, M_NFSFH);
 				    np = dnp;
 				} else if (isdotdot != 0) {
 				    /*
@@ -3674,7 +3674,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				}
 			    }
 			} else if (nfhp != NULL) {
-			    FREE((caddr_t)nfhp, M_NFSFH);
+			    free(nfhp, M_NFSFH);
 			}
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			more_dirs = fxdr_unsigned(int, *tl);
