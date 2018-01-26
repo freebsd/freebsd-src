@@ -105,6 +105,7 @@ abort(void)
  
 	printf("error: loader abort\n");
 	while (1);
+	__unreachable();
 }
 
 void
@@ -113,6 +114,7 @@ longjmperror(void)
  
 	printf("error: loader longjmp error\n");
 	while (1);
+	__unreachable();
 }
 
 int debug = 1;
