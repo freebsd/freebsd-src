@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2013-2017 The FreeBSD Foundation
+# Copyright (c) 2013-2018 The FreeBSD Foundation
 # Copyright (c) 2013 Glen Barber
 # Copyright (c) 2011 Nathan Whitehorn
 # All rights reserved.
@@ -201,6 +201,11 @@ env_check() {
 	if [ $(id -u) -ne 0 ]; then
 		echo "Needs to be run as root."
 		exit 1
+	fi
+
+	# Unset CHROOTBUILD_SKIP if the chroot(8) does not appear to exist.
+	if [ ! -z "${CHROOTBUILD_SKIP}" -a ! -e ${CHROOTDIR}/bin/sh ]; then
+		CHROOTBUILD_SKIP=
 	fi
 
 	CHROOT_MAKEENV="${CHROOT_MAKEENV} \
