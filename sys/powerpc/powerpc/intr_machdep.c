@@ -130,7 +130,7 @@ static u_int nirqs = 0;		/* Allocated IRQs. */
 static u_int stray_count;
 
 u_long intrcnt[INTR_VECTORS];
-char intrnames[INTR_VECTORS * MAXCOMLEN];
+char intrnames[INTR_VECTORS * (MAXCOMLEN + 1)];
 size_t sintrcnt = sizeof(intrcnt);
 size_t sintrnames = sizeof(intrnames);
 
