@@ -104,15 +104,6 @@ static void wtfs(ufs2_daddr_t, int, char *);
 static void cgckhash(struct cg *);
 static u_int32_t newfs_random(void);
 
-static int
-do_sbwrite(struct uufsd *disk)
-{
-	if (!disk->d_sblock)
-		disk->d_sblock = disk->d_fs.fs_sblockloc / disk->d_bsize;
-	return (pwrite(disk->d_fd, &disk->d_fs, SBLOCKSIZE, (off_t)((part_ofs +
-	    disk->d_sblock) * disk->d_bsize)));
-}
-
 void
 mkfs(struct partition *pp, char *fsys)
 {
@@ -277,6 +268,7 @@ restart:
 
 	if (Oflag == 1) {
 		sblock.fs_sblockloc = SBLOCK_UFS1;
+		sblock.fs_sblockactualloc = SBLOCK_UFS1;
 		sblock.fs_nindir = sblock.fs_bsize / sizeof(ufs1_daddr_t);
 		sblock.fs_inopb = sblock.fs_bsize / sizeof(struct ufs1_dinode);
 		sblock.fs_maxsymlinklen = ((UFS_NDADDR + UFS_NIADDR) *
@@ -296,6 +288,7 @@ restart:
 		sblock.fs_old_nrpos = 1;
 	} else {
 		sblock.fs_sblockloc = SBLOCK_UFS2;
+		sblock.fs_sblockactualloc = SBLOCK_UFS2;
 		sblock.fs_nindir = sblock.fs_bsize / sizeof(ufs2_daddr_t);
 		sblock.fs_inopb = sblock.fs_bsize / sizeof(struct ufs2_dinode);
 		sblock.fs_maxsymlinklen = ((UFS_NDADDR + UFS_NIADDR) *
@@ -544,7 +537,7 @@ restart:
 		}
 	}
 	if (!Nflag)
-		do_sbwrite(&disk);
+		sbput(disk.d_fd, &disk.d_fs, 0);
 	if (Xflag == 1) {
 		printf("** Exiting on Xflag 1\n");
 		exit(0);
@@ -562,24 +555,20 @@ restart:
 	i = 0;
 	width = charsperline();
 	/*
-	 * allocate space for superblock, cylinder group map, and
+	 * Allocate space for cylinder group map and
 	 * two sets of inode blocks.
 	 */
-	if (sblock.fs_bsize < SBLOCKSIZE)
-		iobufsize = SBLOCKSIZE + 3 * sblock.fs_bsize;
-	else
-		iobufsize = 4 * sblock.fs_bsize;
+	iobufsize = 3 * sblock.fs_bsize;
 	if ((iobuf = calloc(1, iobufsize)) == 0) {
 		printf("Cannot allocate I/O buffer\n");
 		exit(38);
 	}
 	/*
-	 * Make a copy of the superblock into the buffer that we will be
-	 * writing out in each cylinder group.
+	 * Write out all the cylinder groups and backup superblocks.
 	 */
-	bcopy((char *)&sblock, iobuf, SBLOCKSIZE);
 	for (cg = 0; cg < sblock.fs_ncg; cg++) {
-		initcg(cg, utime);
+		if (!Nflag)
+			initcg(cg, utime);
 		j = snprintf(tmpbuf, sizeof(tmpbuf), " %jd%s",
 		    (intmax_t)fsbtodb(&sblock, cgsblock(&sblock, cg)),
 		    cg < (sblock.fs_ncg-1) ? "," : "");
@@ -611,24 +600,22 @@ restart:
 		printf("** Exiting on Xflag 3\n");
 		exit(0);
 	}
-	if (!Nflag) {
-		do_sbwrite(&disk);
-		/*
-		 * For UFS1 filesystems with a blocksize of 64K, the first
-		 * alternate superblock resides at the location used for
-		 * the default UFS2 superblock. As there is a valid
-		 * superblock at this location, the boot code will use
-		 * it as its first choice. Thus we have to ensure that
-		 * all of its statistcs on usage are correct.
-		 */
-		if (Oflag == 1 && sblock.fs_bsize == 65536)
-			wtfs(fsbtodb(&sblock, cgsblock(&sblock, 0)),
-			    sblock.fs_bsize, (char *)&sblock);
-	}
-	for (i = 0; i < sblock.fs_cssize; i += sblock.fs_bsize)
-		wtfs(fsbtodb(&sblock, sblock.fs_csaddr + numfrags(&sblock, i)),
-			MIN(sblock.fs_cssize - i, sblock.fs_bsize),
-			((char *)fscs) + i);
+	/*
+	 * Reference the summary information so it will also be written.
+	 */
+	sblock.fs_csp = fscs;
+	sbput(disk.d_fd, &disk.d_fs, 0);
+	/*
+	 * For UFS1 filesystems with a blocksize of 64K, the first
+	 * alternate superblock resides at the location used for
+	 * the default UFS2 superblock. As there is a valid
+	 * superblock at this location, the boot code will use
+	 * it as its first choice. Thus we have to ensure that
+	 * all of its statistcs on usage are correct.
+	 */
+	if (Oflag == 1 && sblock.fs_bsize == 65536)
+		wtfs(fsbtodb(&sblock, cgsblock(&sblock, 0)),
+		    sblock.fs_bsize, (char *)&sblock);
 	/*
 	 * Read the last sector of the boot block, replace the last
 	 * 20 bytes with the recovery information, then write it back.
@@ -669,6 +656,7 @@ void
 initcg(int cylno, time_t utime)
 {
 	long blkno, start;
+	off_t savedactualloc;
 	uint i, j, d, dlower, dupper;
 	ufs2_daddr_t cbase, dmax;
 	struct ufs1_dinode *dp1;
@@ -802,10 +790,15 @@ initcg(int cylno, time_t utime)
 	*cs = acg.cg_cs;
 	cgckhash(&acg);
 	/*
-	 * Write out the duplicate super block, the cylinder group map
-	 * and two blocks worth of inodes in a single write.
+	 * Write out the duplicate super block. Then write the cylinder
+	 * group map and two blocks worth of inodes in a single write.
 	 */
-	start = MAX(sblock.fs_bsize, SBLOCKSIZE);
+	savedactualloc = sblock.fs_sblockactualloc;
+	sblock.fs_sblockactualloc =
+	    dbtob(fsbtodb(&sblock, cgsblock(&sblock, cylno)));
+	sbput(disk.d_fd, &disk.d_fs, 0);
+	sblock.fs_sblockactualloc = savedactualloc;
+	start = 0;
 	bcopy((char *)&acg, &iobuf[start], sblock.fs_cgsize);
 	start += sblock.fs_bsize;
 	dp1 = (struct ufs1_dinode *)(&iobuf[start]);
@@ -819,7 +812,7 @@ initcg(int cylno, time_t utime)
 			dp2++;
 		}
 	}
-	wtfs(fsbtodb(&sblock, cgsblock(&sblock, cylno)), iobufsize, iobuf);
+	wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)), iobufsize, iobuf);
 	/*
 	 * For the old file system, we have to initialize all the inodes.
 	 */

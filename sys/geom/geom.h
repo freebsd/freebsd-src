@@ -344,6 +344,8 @@ void * g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error
 int g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length);
 int g_delete_data(struct g_consumer *cp, off_t offset, off_t length);
 void g_print_bio(struct bio *bp);
+int g_use_g_read_data(void *, off_t, void **, int);
+int g_use_g_write_data(void *, off_t, void *, int);
 
 /* geom_kern.c / geom_kernsim.c */
 

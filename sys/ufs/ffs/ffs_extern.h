@@ -87,6 +87,10 @@ int	ffs_reallocblks(struct vop_reallocblks_args *);
 int	ffs_realloccg(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
 	    ufs2_daddr_t, int, int, int, struct ucred *, struct buf **);
 int	ffs_reload(struct mount *, struct thread *, int);
+int	ffs_sbget(void *, struct fs **, off_t, struct malloc_type *,
+	    int (*)(void *, off_t, void **, int));
+int	ffs_sbput(void *, struct fs *, off_t, int (*)(void *, off_t, void *,
+	    int));
 int	ffs_sbupdate(struct ufsmount *, int, int);
 void	ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_snapblkfree(struct fs *, struct vnode *, ufs2_daddr_t, long, ino_t,
@@ -95,18 +99,17 @@ void	ffs_snapremove(struct vnode *vp);
 int	ffs_snapshot(struct mount *mp, char *snapfile);
 void	ffs_snapshot_mount(struct mount *mp);
 void	ffs_snapshot_unmount(struct mount *mp);
-void	process_deferred_inactive(struct mount *mp);
+void	ffs_susp_initialize(void);
+void	ffs_susp_uninitialize(void);
 void	ffs_sync_snap(struct mount *, int);
 int	ffs_syncvnode(struct vnode *vp, int waitfor, int flags);
 int	ffs_truncate(struct vnode *, off_t, int, struct ucred *);
 int	ffs_update(struct vnode *, int);
 int	ffs_valloc(struct vnode *, int, struct ucred *, struct vnode **);
-
 int	ffs_vfree(struct vnode *, ino_t, int);
 vfs_vget_t ffs_vget;
 int	ffs_vgetf(struct mount *, ino_t, int, struct vnode **, int);
-void	ffs_susp_initialize(void);
-void	ffs_susp_uninitialize(void);
+void	process_deferred_inactive(struct mount *mp);
 
 #define	FFSV_FORCEINSMQ	0x0001
 

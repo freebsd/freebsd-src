@@ -133,6 +133,11 @@ static int	block_map(struct open_file *, ufs2_daddr_t, ufs2_daddr_t *);
 static int	buf_read_file(struct open_file *, char **, size_t *);
 static int	buf_write_file(struct open_file *, char *, size_t *);
 static int	search_directory(char *, struct open_file *, ino_t *);
+static int	ufs_use_sa_read(void *, off_t, void **, int);
+
+/* from ffs_subr.c */
+int	ffs_sbget(void *, struct fs **, off_t, char *,
+	    int (*)(void *, off_t, void **, int));
 
 /*
  * Read a new inode into a file structure.
@@ -485,8 +490,6 @@ search_directory(name, f, inumber_p)
 	return (ENOENT);
 }
 
-static int sblock_try[] = SBLOCKSEARCH;
-
 /*
  * Open a file.
  */
@@ -512,31 +515,11 @@ ufs_open(upath, f)
 	bzero(fp, sizeof(struct file));
 	f->f_fsdata = (void *)fp;
 
-	/* allocate space and read super block */
-	fs = malloc(SBLOCKSIZE);
-	fp->f_fs = fs;
+	/* read super block */
 	twiddle(1);
-	/*
-	 * Try reading the superblock in each of its possible locations.
-	 */
-	for (i = 0; sblock_try[i] != -1; i++) {
-		rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-		    sblock_try[i] / DEV_BSIZE, SBLOCKSIZE,
-		    (char *)fs, &buf_size);
-		if (rc)
-			goto out;
-		if ((fs->fs_magic == FS_UFS1_MAGIC ||
-		     (fs->fs_magic == FS_UFS2_MAGIC &&
-		      fs->fs_sblockloc == sblock_try[i])) &&
-		    buf_size == SBLOCKSIZE &&
-		    fs->fs_bsize <= MAXBSIZE &&
-		    fs->fs_bsize >= sizeof(struct fs))
-			break;
-	}
-	if (sblock_try[i] == -1) {
-		rc = EINVAL;
+	if ((rc = ffs_sbget(f, &fs, -1, 0, ufs_use_sa_read)) != 0)
 		goto out;
-	}
+	fp->f_fs = fs;
 	/*
 	 * Calculate indirect block levels.
 	 */
@@ -691,6 +674,28 @@ out:
 		free(fp);
 	}
 	return (rc);
+}
+
+/*
+ * A read function for use by standalone-layer routines.
+ */
+static int
+ufs_use_sa_read(void *devfd, off_t loc, void **bufp, int size)
+{
+	struct open_file *f;
+	size_t buf_size;
+	int error;
+
+	f = (struct open_file *)devfd;
+	if ((*bufp = malloc(size)) == NULL)
+		return (ENOSPC);
+	error = (f->f_dev->dv_strategy)(f->f_devdata, F_READ, loc / DEV_BSIZE,
+	    size, *bufp, &buf_size);
+	if (error != 0)
+		return (error);
+	if (buf_size != size)
+		return (EIO);
+	return (0);
 }
 
 static int
