@@ -897,7 +897,13 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 			struct nvme_dsm_range *dsm_range;
 
 			dsm_range =
-			    malloc(sizeof(*dsm_range), M_NVMEDA, M_ZERO | M_WAITOK);
+			    malloc(sizeof(*dsm_range), M_NVMEDA, M_ZERO | M_NOWAIT);
+			if (dsm_range == NULL) {
+				biofinish(bp, NULL, ENOMEM);
+				xpt_release_ccb(start_ccb);
+				ndaschedule(periph);
+				return;
+			}
 			dsm_range->length =
 			    bp->bio_bcount / softc->disk->d_sectorsize;
 			dsm_range->starting_lba =
