@@ -17,6 +17,7 @@ MAN=	sysdecode.3 \
 	sysdecode_cap_rights.3 \
 	sysdecode_enum.3 \
 	sysdecode_fcntl_arg.3 \
+	sysdecode_kevent.3 \
 	sysdecode_ioctlname.3 \
 	sysdecode_mask.3 \
 	sysdecode_quotactl_cmd.3 \
@@ -69,6 +70,9 @@ MLINKS+=sysdecode_enum.3 sysdecode_acltype.3 \
 	sysdecode_enum.3 sysdecode_vmresult.3 \
 	sysdecode_enum.3 sysdecode_whence.3
 MLINKS+=sysdecode_fcntl_arg.3 sysdecode_fcntl_arg_p.3
+MLINKS+=sysdecode_kevent.3 sysdecode_kevent_fflags.3 \
+	sysdecode_kevent.3 sysdecode_kevent_filter.3 \
+	sysdecode_kevent.3 sysdecode_kevent_flags.3
 MLINKS+=sysdecode_mask.3 sysdecode_accessmode.3 \
 	sysdecode_mask.3 sysdecode_atflags.3 \
 	sysdecode_mask.3 sysdecode_capfcntlrights.3 \

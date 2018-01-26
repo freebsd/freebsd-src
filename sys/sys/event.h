@@ -64,6 +64,17 @@ struct kevent {
 	void		*udata;		/* opaque user data identifier */
 };
 
+#if defined(_WANT_KEVENT32) || (defined(_KERNEL) && defined(__LP64__))
+struct kevent32 {
+	u_int32_t	ident;		/* identifier for this event */
+	short		filter;		/* filter for event */
+	u_short		flags;
+	u_int		fflags;
+	int32_t		data;
+	u_int32_t	udata;		/* opaque user data identifier */
+};
+#endif
+
 /* actions */
 #define EV_ADD		0x0001		/* add event to kq (implies enable) */
 #define EV_DELETE	0x0002		/* delete event from kq */
