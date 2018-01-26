@@ -130,7 +130,7 @@ main(int argc, const char **argv)
 void
 exit(int code)
 {
-	/* XXX: host_exit */
+	while (1); /* XXX: host_exit */
 }
 
 void
