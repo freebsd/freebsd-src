@@ -348,7 +348,6 @@ getblk(struct bufarea *bp, ufs2_daddr_t blk, long size)
 void
 flush(int fd, struct bufarea *bp)
 {
-	int i, j;
 
 	if (!bp->b_dirty)
 		return;
@@ -370,14 +369,8 @@ flush(int fd, struct bufarea *bp)
 		if (bp != &sblk)
 			pfatal("BUFFER %p DOES NOT MATCH SBLK %p\n",
 			    bp, &sblk);
-		blwrite(fd, bp->b_un.b_buf, bp->b_bno, bp->b_size);
-		for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize,
-		   j++) {
-			blwrite(fswritefd, (char *)sblock.fs_csp + i,
-			    fsbtodb(&sblock,
-			    sblock.fs_csaddr + j * sblock.fs_frag),
-			    MIN(sblock.fs_cssize - i, sblock.fs_bsize));
-		}
+		if (sbput(fd, (struct fs *)bp->b_un.b_buf, 0) == 0)
+			fsmodified = 1;
 		break;
 	case BT_CYLGRP:
 		if (cgput(&disk, (struct cg *)bp->b_un.b_buf) == 0)
@@ -439,6 +432,8 @@ ckfini(int markclean)
 	if (havesb && cursnapshot == 0 && sblock.fs_magic == FS_UFS2_MAGIC &&
 	    sblk.b_bno != sblock.fs_sblockloc / dev_bsize &&
 	    !preen && reply("UPDATE STANDARD SUPERBLOCK")) {
+		/* Change the write destination to standard superblock */
+		sblock.fs_sblockactualloc = sblock.fs_sblockloc;
 		sblk.b_bno = sblock.fs_sblockloc / dev_bsize;
 		sbdirty();
 		flush(fswritefd, &sblk);

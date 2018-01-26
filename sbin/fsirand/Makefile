@@ -4,6 +4,7 @@
 PACKAGE=runtime
 PROG=	fsirand
 MAN=	fsirand.8
+LIBADD=	ufs
 WARNS?=	3
 
 .include <bsd.prog.mk>

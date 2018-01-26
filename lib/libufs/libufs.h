@@ -99,6 +99,20 @@ __BEGIN_DECLS
  */
 
 /*
+ * ffs_subr.c
+ */
+void	ffs_clrblock(struct fs *, u_char *, ufs1_daddr_t);
+void	ffs_clusteracct(struct fs *, struct cg *, ufs1_daddr_t, int);
+void	ffs_fragacct(struct fs *, int, int32_t [], int);
+int	ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
+int	ffs_isfreeblock(struct fs *, u_char *, ufs1_daddr_t);
+void	ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
+int	ffs_sbget(void *, struct fs **, off_t, char *,
+	    int (*)(void *, off_t, void **, int));
+int	ffs_sbput(void *, struct fs *, off_t,
+	    int (*)(void *, off_t, void *, int));
+
+/*
  * block.c
  */
 ssize_t bread(struct uufsd *, ufs2_daddr_t, void *, size_t);
@@ -129,6 +143,9 @@ int putino(struct uufsd *);
  */
 int sbread(struct uufsd *);
 int sbwrite(struct uufsd *, int);
+/* low level superblock read/write functions */
+int sbget(int, struct fs **, off_t);
+int sbput(int, struct fs *, int);
 
 /*
  * type.c
@@ -137,16 +154,6 @@ int ufs_disk_close(struct uufsd *);
 int ufs_disk_fillout(struct uufsd *, const char *);
 int ufs_disk_fillout_blank(struct uufsd *, const char *);
 int ufs_disk_write(struct uufsd *);
-
-/*
- * ffs_subr.c
- */
-void	ffs_clrblock(struct fs *, u_char *, ufs1_daddr_t);
-void	ffs_clusteracct(struct fs *, struct cg *, ufs1_daddr_t, int);
-void	ffs_fragacct(struct fs *, int, int32_t [], int);
-int	ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
-int	ffs_isfreeblock(struct fs *, u_char *, ufs1_daddr_t);
-void	ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
 
 /*
  * crc32c.c
