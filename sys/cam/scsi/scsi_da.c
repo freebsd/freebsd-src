@@ -1589,7 +1589,7 @@ da_periph_release(struct cam_periph *periph, da_ref_token token)
 	    da_ref_text[token], token);
 	cnt = atomic_fetchadd_int(&softc->ref_flags[token], -1);
 	if (cnt != 1)
-		panic("Unholding %d with cnt = %d", token, cnt);
+		panic("Releasing %d with cnt = %d", token, cnt);
 }
 
 static inline void
