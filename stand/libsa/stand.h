@@ -347,6 +347,7 @@ extern ev_sethook_t	env_noset;		/* refuse set operation */
 extern ev_unsethook_t	env_nounset;		/* refuse unset operation */
 
 /* stdlib.h routines */
+extern int		abs(int a);
 extern void		abort(void);
 
 /* BCD conversions (undocumented) */
