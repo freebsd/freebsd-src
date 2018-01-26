@@ -368,7 +368,6 @@ static __inline quad_t qmin(quad_t a, quad_t b) { return (a < b ? a : b); }
 static __inline u_long ulmax(u_long a, u_long b) { return (a > b ? a : b); }
 static __inline u_long ulmin(u_long a, u_long b) { return (a < b ? a : b); }
 
-
 /* null functions for device/filesystem switches (undocumented) */
 extern int	nodev(void);
 extern int	noioctl(struct open_file *, u_long, void *);
@@ -387,13 +386,14 @@ extern int	null_readdir(struct open_file *f, struct dirent *d);
  * Machine dependent functions and data, must be provided or stubbed by 
  * the consumer 
  */
-extern void		exit(int);
+extern void		exit(int) __dead2;
 extern int		getchar(void);
 extern int		ischar(void);
 extern void		putchar(int);
 extern int		devopen(struct open_file *, const char *, const char **);
 extern int		devclose(struct open_file *f);
 extern void		panic(const char *, ...) __dead2 __printflike(1, 2);
+extern void		panic_action(void) __weak_symbol __dead2;
 extern time_t		getsecs(void);
 extern struct fs_ops	*file_system[];
 extern struct fs_ops	*exclusive_file_system;
