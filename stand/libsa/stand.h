@@ -346,6 +346,9 @@ extern int		unsetenv(const char *name);
 extern ev_sethook_t	env_noset;		/* refuse set operation */
 extern ev_unsethook_t	env_nounset;		/* refuse unset operation */
 
+/* stdlib.h routines */
+extern void		abort(void);
+
 /* BCD conversions (undocumented) */
 extern u_char const	bcd2bin_data[];
 extern u_char const	bin2bcd_data[];
