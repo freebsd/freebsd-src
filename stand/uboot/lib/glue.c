@@ -187,6 +187,7 @@ ub_reset(void)
 {
 
 	syscall(API_RESET, NULL);
+	while (1);		/* Can't tag syscall as __dead2 */
 }
 
 static struct mem_region mr[UB_MAX_MR];
