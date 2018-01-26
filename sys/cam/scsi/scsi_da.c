@@ -1497,9 +1497,6 @@ static MALLOC_DEFINE(M_SCSIDA, "scsi_da", "scsi_da buffers");
 #endif
 
 #if DA_TRACK_REFS > 1
-#define CAM_PERIPH_PRINT(p, msg, args...)				\
-    printf("%s%d:" msg, (periph)->periph_name, (periph)->unit_number, ##args)
-
 static const char *da_ref_text[] = {
 	"bogus",
 	"open",
