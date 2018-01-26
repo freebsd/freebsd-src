@@ -728,7 +728,7 @@ ctlfedata(struct ctlfe_lun_softc *softc, union ctl_io *io,
 		cam_sglist = cmd_info->cam_sglist;
 		*dxfer_len = 0;
 		for (i = 0; i < io->scsiio.kern_sg_entries - idx; i++) {
-			cam_sglist[i].ds_addr = (bus_addr_t)ctl_sglist[i + idx].addr + off;
+			cam_sglist[i].ds_addr = (bus_addr_t)(uintptr_t)ctl_sglist[i + idx].addr + off;
 			if (ctl_sglist[i + idx].len - off <= bus_softc->maxio - *dxfer_len) {
 				cam_sglist[i].ds_len = ctl_sglist[idx + i].len - off;
 				*dxfer_len += cam_sglist[i].ds_len;
