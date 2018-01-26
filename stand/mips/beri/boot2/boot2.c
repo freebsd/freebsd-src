@@ -137,7 +137,6 @@ static int comspeed = SIOSPD;
 struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
 
-void exit(int);
 void putchar(int);
 static void boot_fromdram(void);
 static void boot_fromfs(void);
@@ -276,12 +275,6 @@ main(u_int argc, const char *argv[], const char *envv[], uint64_t memsize)
 	else
 	    load();
     }
-}
-
-/* XXX - Needed for btxld to link the boot2 binary; do not remove. */
-void
-exit(int x)
-{
 }
 
 static void
