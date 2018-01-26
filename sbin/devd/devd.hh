@@ -147,7 +147,7 @@ class config
 {
 public:
 	config() { push_var_table(); }
-	~config() { reset(); }
+	virtual ~config() { reset(); }
 	void add_attach(int, event_proc *);
 	void add_detach(int, event_proc *);
 	void add_directory(const char *);
