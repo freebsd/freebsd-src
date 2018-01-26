@@ -951,12 +951,16 @@ static void addliteral (lua_State *L, luaL_Buffer *b, int arg) {
     case LUA_TNUMBER: {
       char *buff = luaL_prepbuffsize(b, MAX_ITEM);
       int nb;
+#if LUA_FLOAT_TYPE != LUA_FLOAT_INT64
       if (!lua_isinteger(L, arg)) {  /* float? */
         lua_Number n = lua_tonumber(L, arg);  /* write as hexa ('%a') */
         nb = lua_number2strx(L, buff, MAX_ITEM, "%" LUA_NUMBER_FRMLEN "a", n);
         checkdp(buff, nb);  /* ensure it uses a dot */
       }
       else {  /* integers */
+#else
+      {
+#endif
         lua_Integer n = lua_tointeger(L, arg);
         const char *format = (n == LUA_MININTEGER)  /* corner case? */
                            ? "0x%" LUA_INTEGER_FRMLEN "x"  /* use hexa */
