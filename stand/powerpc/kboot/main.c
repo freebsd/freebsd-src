@@ -131,6 +131,7 @@ void
 exit(int code)
 {
 	while (1); /* XXX: host_exit */
+	__unreachable();
 }
 
 void
