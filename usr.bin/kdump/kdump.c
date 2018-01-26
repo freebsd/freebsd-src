@@ -42,11 +42,15 @@ static char sccsid[] = "@(#)kdump.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #define _WANT_KERNEL_ERRNO
+#ifdef __LP64__
+#define	_WANT_KEVENT32
+#endif
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/uio.h>
+#include <sys/event.h>
 #include <sys/ktrace.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -109,6 +113,8 @@ void ktrstruct(char *, size_t);
 void ktrcapfail(struct ktr_cap_fail *);
 void ktrfault(struct ktr_fault *);
 void ktrfaultend(struct ktr_faultend *);
+void ktrkevent(struct kevent *);
+void ktrstructarray(struct ktr_struct_array *, size_t);
 void limitfd(int fd);
 void usage(void);
 
@@ -546,6 +552,9 @@ main(int argc, char *argv[])
 		case KTR_FAULTEND:
 			ktrfaultend((struct ktr_faultend *)m);
 			break;
+		case KTR_STRUCT_ARRAY:
+			ktrstructarray((struct ktr_struct_array *)m, ktrlen);
+			break;
 		default:
 			printf("\n");
 			break;
@@ -714,6 +723,7 @@ dumpheader(struct ktr_header *kth)
 		type = "USER";
 		break;
 	case KTR_STRUCT:
+	case KTR_STRUCT_ARRAY:
 		type = "STRU";
 		break;
 	case KTR_SYSCTL:
@@ -2106,6 +2116,104 @@ ktrfaultend(struct ktr_faultend *ktr)
 	else
 		printf("<invalid=%d>", ktr->result);
 	printf("\n");
+}
+
+void
+ktrkevent(struct kevent *kev)
+{
+
+	printf("{ ident=");
+	switch (kev->filter) {
+	case EVFILT_READ:
+	case EVFILT_WRITE:
+	case EVFILT_VNODE:
+	case EVFILT_PROC:
+	case EVFILT_TIMER:
+	case EVFILT_PROCDESC:
+		printf("%ju", (uintmax_t)kev->ident);
+		break;
+	case EVFILT_SIGNAL:
+		print_signal(kev->ident);
+		break;
+	default:
+		printf("%p", (void *)kev->ident);
+	}
+	printf(", filter=");
+	print_integer_arg(sysdecode_kevent_filter, kev->filter);
+	printf(", flags=");
+	print_mask_arg0(sysdecode_kevent_flags, kev->flags);
+	printf(", fflags=");
+	sysdecode_kevent_fflags(stdout, kev->filter, kev->fflags,
+	    decimal ? 10 : 16);
+	printf(", data=%#jx, udata=%p }", (uintmax_t)kev->data, kev->udata);
+}
+
+void
+ktrstructarray(struct ktr_struct_array *ksa, size_t buflen)
+{
+	struct kevent kev;
+	char *name, *data;
+	size_t namelen, datalen;
+	int i;
+	bool first;
+
+	buflen -= sizeof(*ksa);
+	for (name = (char *)(ksa + 1), namelen = 0;
+	     namelen < buflen && name[namelen] != '\0';
+	     ++namelen)
+		/* nothing */;
+	if (namelen == buflen)
+		goto invalid;
+	if (name[namelen] != '\0')
+		goto invalid;
+	/* sanity check */
+	for (i = 0; i < (int)namelen; ++i)
+		if (!isalnum(name[i]) && name[i] != '_')
+			goto invalid;
+	data = name + namelen + 1;
+	datalen = buflen - namelen - 1;
+	printf("struct %s[] = { ", name);
+	first = true;
+	for (; datalen >= ksa->struct_size;
+	    data += ksa->struct_size, datalen -= ksa->struct_size) {
+		if (!first)
+			printf("\n             ");
+		else
+			first = false;
+		if (strcmp(name, "kevent") == 0) {
+			if (ksa->struct_size != sizeof(kev))
+				goto bad_size;
+			memcpy(&kev, data, sizeof(kev));
+			ktrkevent(&kev);
+#ifdef _WANT_KEVENT32
+		} else if (strcmp(name, "kevent32") == 0) {
+			struct kevent32 kev32;
+
+			if (ksa->struct_size != sizeof(kev32))
+				goto bad_size;
+			memcpy(&kev32, data, sizeof(kev32));
+			memset(&kev, 0, sizeof(kev));
+			kev.ident = kev32.ident;
+			kev.filter = kev32.filter;
+			kev.flags = kev32.flags;
+			kev.fflags = kev32.fflags;
+			kev.data = kev32.data;
+			kev.udata = (void *)(uintptr_t)kev32.udata;
+			ktrkevent(&kev);
+#endif
+		} else {
+			printf("<unknown structure> }\n");
+			return;
+		}
+	}
+	printf(" }\n");
+	return;
+invalid:
+	printf("invalid record\n");
+	return;
+bad_size:
+	printf("<bad size> }\n");
+	return;
 }
 
 void

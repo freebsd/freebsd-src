@@ -638,43 +638,6 @@ struct xlat {
 #define	X(a)	{ a, #a },
 #define	XEND	{ 0, NULL }
 
-static struct xlat kevent_filters[] = {
-	X(EVFILT_READ) X(EVFILT_WRITE) X(EVFILT_AIO) X(EVFILT_VNODE)
-	X(EVFILT_PROC) X(EVFILT_SIGNAL) X(EVFILT_TIMER)
-	X(EVFILT_PROCDESC) X(EVFILT_FS) X(EVFILT_LIO) X(EVFILT_USER)
-	X(EVFILT_SENDFILE) XEND
-};
-
-static struct xlat kevent_flags[] = {
-	X(EV_ADD) X(EV_DELETE) X(EV_ENABLE) X(EV_DISABLE) X(EV_ONESHOT)
-	X(EV_CLEAR) X(EV_RECEIPT) X(EV_DISPATCH) X(EV_FORCEONESHOT)
-	X(EV_DROP) X(EV_FLAG1) X(EV_ERROR) X(EV_EOF) XEND
-};
-
-static struct xlat kevent_user_ffctrl[] = {
-	X(NOTE_FFNOP) X(NOTE_FFAND) X(NOTE_FFOR) X(NOTE_FFCOPY)
-	XEND
-};
-
-static struct xlat kevent_rdwr_fflags[] = {
-	X(NOTE_LOWAT) X(NOTE_FILE_POLL) XEND
-};
-
-static struct xlat kevent_vnode_fflags[] = {
-	X(NOTE_DELETE) X(NOTE_WRITE) X(NOTE_EXTEND) X(NOTE_ATTRIB)
-	X(NOTE_LINK) X(NOTE_RENAME) X(NOTE_REVOKE) XEND
-};
-
-static struct xlat kevent_proc_fflags[] = {
-	X(NOTE_EXIT) X(NOTE_FORK) X(NOTE_EXEC) X(NOTE_TRACK) X(NOTE_TRACKERR)
-	X(NOTE_CHILD) XEND
-};
-
-static struct xlat kevent_timer_fflags[] = {
-	X(NOTE_SECONDS) X(NOTE_MSECONDS) X(NOTE_USECONDS) X(NOTE_NSECONDS)
-	XEND
-};
-
 static struct xlat poll_flags[] = {
 	X(POLLSTANDARD) X(POLLIN) X(POLLPRI) X(POLLOUT) X(POLLERR)
 	X(POLLHUP) X(POLLNVAL) X(POLLRDNORM) X(POLLRDBAND)
@@ -1125,7 +1088,7 @@ strsig2(int sig)
 }
 
 static void
-print_kevent(FILE *fp, struct kevent *ke, int input)
+print_kevent(FILE *fp, struct kevent *ke)
 {
 
 	switch (ke->filter) {
@@ -1143,42 +1106,12 @@ print_kevent(FILE *fp, struct kevent *ke, int input)
 	default:
 		fprintf(fp, "%p", (void *)ke->ident);
 	}
-	fprintf(fp, ",%s,%s,", xlookup(kevent_filters, ke->filter),
-	    xlookup_bits(kevent_flags, ke->flags));
-	switch (ke->filter) {
-	case EVFILT_READ:
-	case EVFILT_WRITE:
-		fputs(xlookup_bits(kevent_rdwr_fflags, ke->fflags), fp);
-		break;
-	case EVFILT_VNODE:
-		fputs(xlookup_bits(kevent_vnode_fflags, ke->fflags), fp);
-		break;
-	case EVFILT_PROC:
-	case EVFILT_PROCDESC:
-		fputs(xlookup_bits(kevent_proc_fflags, ke->fflags), fp);
-		break;
-	case EVFILT_TIMER:
-		fputs(xlookup_bits(kevent_timer_fflags, ke->fflags), fp);
-		break;
-	case EVFILT_USER: {
-		int ctrl, data;
-
-		ctrl = ke->fflags & NOTE_FFCTRLMASK;
-		data = ke->fflags & NOTE_FFLAGSMASK;
-		if (input) {
-			fputs(xlookup(kevent_user_ffctrl, ctrl), fp);
-			if (ke->fflags & NOTE_TRIGGER)
-				fputs("|NOTE_TRIGGER", fp);
-			if (data != 0)
-				fprintf(fp, "|%#x", data);
-		} else {
-			fprintf(fp, "%#x", data);
-		}
-		break;
-	}
-	default:
-		fprintf(fp, "%#x", ke->fflags);
-	}
+	fprintf(fp, ",");
+	print_integer_arg(sysdecode_kevent_filter, fp, ke->filter);
+	fprintf(fp, ",");
+	print_mask_arg(sysdecode_kevent_flags, fp, ke->flags);
+	fprintf(fp, ",");
+	sysdecode_kevent_fflags(fp, ke->filter, ke->fflags, 16);
 	fprintf(fp, ",%p,%p", (void *)ke->data, (void *)ke->udata);
 }
 
@@ -1783,7 +1716,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			fputc('{', fp);
 			for (i = 0; i < numevents; i++) {
 				fputc(' ', fp);
-				print_kevent(fp, &ke[i], sc->offset == 1);
+				print_kevent(fp, &ke[i]);
 			}
 			fputs(" }", fp);
 		} else {

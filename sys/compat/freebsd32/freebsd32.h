@@ -135,15 +135,6 @@ struct statfs32 {
 	int32_t f_spare[2];
 };
 
-struct kevent32 {
-	u_int32_t	ident;		/* identifier for this event */
-	short		filter;		/* filter for event */
-	u_short		flags;
-	u_int		fflags;
-	int32_t		data;
-	u_int32_t	udata;		/* opaque user data identifier */
-};
-
 struct iovec32 {
 	u_int32_t iov_base;
 	int	iov_len;
