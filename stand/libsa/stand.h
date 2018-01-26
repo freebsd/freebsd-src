@@ -348,7 +348,7 @@ extern ev_unsethook_t	env_nounset;		/* refuse unset operation */
 
 /* stdlib.h routines */
 extern int		abs(int a);
-extern void		abort(void);
+extern void		abort(void) __dead2;
 
 /* BCD conversions (undocumented) */
 extern u_char const	bcd2bin_data[];
