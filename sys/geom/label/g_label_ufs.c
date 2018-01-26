@@ -32,11 +32,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/vnode.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
+#include <ufs/ufs/quota.h>
+#include <ufs/ufs/extattr.h>
+#include <ufs/ffs/ffs_extern.h>
 
 #include <geom/geom.h>
 #include <geom/label/g_label.h>
@@ -56,106 +59,63 @@ __FBSDID("$FreeBSD$");
 				< G_LABEL_UFS_MAXDIFF )
 #define	G_LABEL_UFS_MAXDIFF	0x100
 
-static const int superblocks[] = SBLOCKSEARCH;
-
+/*
+ * Try to find a superblock on the provider. If successful, then
+ * check that the size in the superblock corresponds to the size
+ * of the underlying provider. Finally, look for a volume label
+ * and create an appropriate provider based on that.
+ */
 static void
 g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int what)
 {
 	struct g_provider *pp;
-	int sb, superblock;
 	struct fs *fs;
 
 	g_topology_assert_not();
 	pp = cp->provider;
 	label[0] = '\0';
 
-	if (SBLOCKSIZE % cp->provider->sectorsize != 0)
+	if (SBLOCKSIZE % pp->sectorsize != 0 ||
+	    ffs_sbget(cp, &fs, -1, NULL, g_use_g_read_data) != 0)
 		return;
-
 	/*
-	 * Walk through the standard places that superblocks hide and look
-	 * for UFS magic. If we find magic, then check that the size in the
-	 * superblock corresponds to the size of the underlying provider.
-	 * Finally, look for a volume label and create an appropriate
-	 * provider based on that.
+	 * Check for magic. We also need to check if file system size
+	 * is almost equal to providers size, because sysinstall(8)
+	 * used to bogusly put first partition at offset 0
+	 * instead of 16, and glabel/ufs would find file system on slice
+	 * instead of partition.
+	 *
+	 * In addition, media size can be a bit bigger than file system
+	 * size. For instance, mkuzip can append bytes to align data
+	 * to large sector size (it improves compression rates).
 	 */
-	for (sb = 0; (superblock = superblocks[sb]) != -1; sb++) {
-		/*
-		 * Take care not to issue an invalid I/O request. The offset of
-		 * the superblock candidate must be multiples of the provider's
-		 * sector size, otherwise an FFS can't exist on the provider
-		 * anyway.
-		 */
-		if (superblock % cp->provider->sectorsize != 0)
-			continue;
-
-		fs = (struct fs *)g_read_data(cp, superblock, SBLOCKSIZE, NULL);
-		if (fs == NULL)
-			continue;
-		/*
-		 * Check for magic. We also need to check if file system size
-		 * is almost equal to providers size, because sysinstall(8)
-		 * used to bogusly put first partition at offset 0
-		 * instead of 16, and glabel/ufs would find file system on slice
-		 * instead of partition.
-		 *
-		 * In addition, media size can be a bit bigger than file system
-		 * size. For instance, mkuzip can append bytes to align data
-		 * to large sector size (it improves compression rates).
-		 */
-		switch (fs->fs_magic){
-		case FS_UFS1_MAGIC:
-		case FS_UFS2_MAGIC:
-			G_LABEL_DEBUG(1, "%s %s params: %jd, %d, %d, %jd\n",
-				fs->fs_magic == FS_UFS1_MAGIC ? "UFS1" : "UFS2",
-				pp->name, pp->mediasize, fs->fs_fsize,
-				fs->fs_old_size, fs->fs_providersize);
-			break;
-		default:
-			break;
-		}
-
-		if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_fsize > 0 &&
-		    ( G_LABEL_UFS_CMP(pp, fs, fs_old_size)
-			|| G_LABEL_UFS_CMP(pp, fs, fs_providersize))) {
-		    	/* Valid UFS1. */
-		} else if (fs->fs_magic == FS_UFS2_MAGIC && fs->fs_fsize > 0 &&
-		    ( G_LABEL_UFS_CMP(pp, fs, fs_size)
-			|| G_LABEL_UFS_CMP(pp, fs, fs_providersize))) {
-		    	/* Valid UFS2. */
-		} else {
-			g_free(fs);
-			continue;
-		}
-		if (fs->fs_sblockloc != superblock || fs->fs_ncg < 1 ||
-		    fs->fs_bsize < MINBSIZE ||
-		    fs->fs_bsize < sizeof(struct fs)) {
-			g_free(fs);
-			continue;
-		}
-		G_LABEL_DEBUG(1, "%s file system detected on %s.",
-		    fs->fs_magic == FS_UFS1_MAGIC ? "UFS1" : "UFS2", pp->name);
-		switch (what) {
-		case G_LABEL_UFS_VOLUME:
-			/* Check for volume label */
-			if (fs->fs_volname[0] == '\0') {
-				g_free(fs);
-				continue;
-			}
+	if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_fsize > 0 &&
+	    ( G_LABEL_UFS_CMP(pp, fs, fs_old_size)
+		|| G_LABEL_UFS_CMP(pp, fs, fs_providersize))) {
+		/* Valid UFS1. */
+	} else if (fs->fs_magic == FS_UFS2_MAGIC && fs->fs_fsize > 0 &&
+	    ( G_LABEL_UFS_CMP(pp, fs, fs_size)
+		|| G_LABEL_UFS_CMP(pp, fs, fs_providersize))) {
+		/* Valid UFS2. */
+	} else {
+		g_free(fs);
+		return;
+	}
+	G_LABEL_DEBUG(1, "%s file system detected on %s.",
+	    fs->fs_magic == FS_UFS1_MAGIC ? "UFS1" : "UFS2", pp->name);
+	switch (what) {
+	case G_LABEL_UFS_VOLUME:
+		/* Check for volume label */
+		if (fs->fs_volname[0] != '\0')
 			strlcpy(label, fs->fs_volname, size);
-			break;
-		case G_LABEL_UFS_ID:
-			if (fs->fs_id[0] == 0 && fs->fs_id[1] == 0) {
-				g_free(fs);
-				continue;
-			}
+		break;
+	case G_LABEL_UFS_ID:
+		if (fs->fs_id[0] != 0 || fs->fs_id[1] != 0)
 			snprintf(label, size, "%08x%08x", fs->fs_id[0],
 			    fs->fs_id[1]);
-			break;
-		}
-		g_free(fs);
 		break;
 	}
+	g_free(fs);
 }
 
 static void

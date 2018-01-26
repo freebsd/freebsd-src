@@ -141,6 +141,10 @@ SRCS+=	pkgfs.c
 SRCS+=	nandfs.c
 .endif
 
+# kernel ufs support
+.PATH: ${SRCTOP}/sys/ufs/ffs
+SRCS+=ffs_subr.c ffs_tables.c
+
 CFLAGS.bzipfs.c+= -I${SRCTOP}/contrib/bzip2
 
 # explicit_bzero

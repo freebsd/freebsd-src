@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <fstab.h>
 #include <errno.h>
+#include <libufs.h>
 #include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -535,16 +536,10 @@ usage(void)
 	exit(1);
 }
 
-/*
- * Possible superblock locations ordered from most to least likely.
- */
-static int sblock_try[] = SBLOCKSEARCH;
-static char superblock[SBLOCKSIZE];
-
 void
 quot(char *name, char *mp)
 {
-	int i, fd;
+	int fd;
 	struct fs *fs;
 
 	get_inode(-1, NULL, 0);		/* flush cache */
@@ -555,25 +550,15 @@ quot(char *name, char *mp)
 		close(fd);
 		return;
 	}
-	for (i = 0; sblock_try[i] != -1; i++) {
-		if (lseek(fd, sblock_try[i], 0) != sblock_try[i]) {
-			close(fd);
-			return;
-		}
-		if (read(fd, superblock, SBLOCKSIZE) != SBLOCKSIZE) {
-			close(fd);
-			return;
-		}
-		fs = (struct fs *)superblock;
-		if ((fs->fs_magic == FS_UFS1_MAGIC ||
-		     (fs->fs_magic == FS_UFS2_MAGIC &&
-		      fs->fs_sblockloc == sblock_try[i])) &&
-		    fs->fs_bsize <= MAXBSIZE &&
-		    fs->fs_bsize >= sizeof(struct fs))
-			break;
-	}
-	if (sblock_try[i] == -1) {
-		warnx("%s: not a BSD filesystem",name);
+	switch (sbget(fd, &fs, -1)) {
+	case 0:
+		break;
+	case ENOENT:
+		warn("Cannot find file system superblock");
+		close(fd);
+		return;
+	default:
+		warn("Unable to read file system superblock");
 		close(fd);
 		return;
 	}
