@@ -365,6 +365,7 @@ void
 exit(int x)
 {
 	while (1);
+	__unreachable();
 }
 
 static void
