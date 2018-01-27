@@ -21,4 +21,9 @@ LIBADD=	nv
 
 CFLAGS+=-I${.CURDIR}
 
+MAN+=	cap_random.3
+
+MLINKS+=cap_random.3 libcap_random.3
+MLINKS+=cap_random.3 cap_random_buf.3
+
 .include <bsd.lib.mk>
