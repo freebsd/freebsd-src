@@ -44,6 +44,10 @@ struct vmspace;
 #endif	/* _KERNEL */
 
 #if __ARM_ARCH >= 6
+/* Branch predictor hardening method */
+#define PCPU_BP_HARDEN_KIND_NONE		0
+#define PCPU_BP_HARDEN_KIND_BPIALL		1
+#define PCPU_BP_HARDEN_KIND_ICIALLU		2
 
 #define PCPU_MD_FIELDS							\
 	unsigned int pc_vfpsid;						\
@@ -59,7 +63,9 @@ struct vmspace;
 	void *pc_qmap_pte2p;						\
 	unsigned int pc_dbreg[32];					\
 	int pc_dbreg_cmd;						\
-	char __pad[155]
+	int pc_bp_harden_kind;						\
+	uint32_t pc_original_actlr;					\
+	char __pad[147]
 #else
 #define PCPU_MD_FIELDS							\
 	char __pad[93]
