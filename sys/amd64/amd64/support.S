@@ -802,3 +802,51 @@ msr_onfault:
 	movl	$EFAULT,%eax
 	POP_FRAME_POINTER
 	ret
+
+/*
+ * void pmap_pti_pcid_invalidate(uint64_t ucr3, uint64_t kcr3);
+ * Invalidates address space addressed by ucr3, then returns to kcr3.
+ * Done in assembler to ensure no other memory accesses happen while
+ * on ucr3.
+ */
+	ALIGN_TEXT
+ENTRY(pmap_pti_pcid_invalidate)
+	pushfq
+	cli
+	movq	%rdi,%cr3	/* to user page table */
+	movq	%rsi,%cr3	/* back to kernel */
+	popfq
+	retq
+
+/*
+ * void pmap_pti_pcid_invlpg(uint64_t ucr3, uint64_t kcr3, vm_offset_t va);
+ * Invalidates virtual address va in address space ucr3, then returns to kcr3.
+ */
+	ALIGN_TEXT
+ENTRY(pmap_pti_pcid_invlpg)
+	pushfq
+	cli
+	movq	%rdi,%cr3	/* to user page table */
+	invlpg	(%rdx)
+	movq	%rsi,%cr3	/* back to kernel */
+	popfq
+	retq
+
+/*
+ * void pmap_pti_pcid_invlrng(uint64_t ucr3, uint64_t kcr3, vm_offset_t sva,
+ *     vm_offset_t eva);
+ * Invalidates virtual addresses between sva and eva in address space ucr3,
+ * then returns to kcr3.
+ */
+	ALIGN_TEXT
+ENTRY(pmap_pti_pcid_invlrng)
+	pushfq
+	cli
+	movq	%rdi,%cr3	/* to user page table */
+1:	invlpg	(%rdx)
+	addq	$PAGE_SIZE,%rdx
+	cmpq	%rdx,%rcx
+	ja	1b
+	movq	%rsi,%cr3	/* back to kernel */
+	popfq
+	retq
