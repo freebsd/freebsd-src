@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2016 Adam Starak <starak.adam@gmail.com>
  * All rights reserved.
  *
