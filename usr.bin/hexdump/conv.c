@@ -54,6 +54,9 @@ conv_c(PR *pr, u_char *p, size_t bufsize)
 	size_t clen, oclen;
 	int converr, pad, width;
 	u_char peekbuf[MB_LEN_MAX];
+	u_char *op;
+
+	op = NULL;
 
 	if (pr->mbleft > 0) {
 		str = "**";
@@ -105,6 +108,15 @@ retry:
 		else if (clen == (size_t)-1 || (clen == (size_t)-2 &&
 		    p == peekbuf)) {
 			memset(&pr->mbstate, 0, sizeof(pr->mbstate));
+			if (p == peekbuf) {
+				/*
+				 * We peeked ahead, but that didn't help --
+				 * we either got an illegal sequence or still
+				 * can't complete; restore original character.
+				 */
+				oclen = 0;
+				p = op;
+			}
 			wc = *p;
 			clen = 1;
 			converr = 1;
@@ -114,6 +126,7 @@ retry:
 			 * can complete it.
 			 */
 			oclen = bufsize;
+			op = p;
 			bufsize = peek(p = peekbuf, MB_CUR_MAX);
 			goto retry;
 		}
@@ -126,7 +139,7 @@ retry:
 		if (!odmode) {
 			*pr->cchar = 'c';
 			(void)printf(pr->fmt, (int)wc);
-		} else {	
+		} else {
 			*pr->cchar = 'C';
 			assert(strcmp(pr->fmt, "%3C") == 0);
 			width = wcwidth(wc);
