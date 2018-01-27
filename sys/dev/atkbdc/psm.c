@@ -4187,7 +4187,7 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 	/* Determine packet format and do a sanity check for out of sync packets. */
 	if (ELANTECH_PKT_IS_DEBOUNCE(pb, sc->elanhw.hwversion))
 		pkt = ELANTECH_PKT_NOP;
-	else if (ELANTECH_PKT_IS_TRACKPOINT(pb))
+	else if (sc->elanhw.hastrackpoint && ELANTECH_PKT_IS_TRACKPOINT(pb))
 		pkt = ELANTECH_PKT_TRACKPOINT;
 	else
 	switch (sc->elanhw.hwversion) {
