@@ -1510,8 +1510,10 @@ static const char *da_ref_text[] = {
 	"max -- also bogus"
 };
 
+#define DA_PERIPH_PRINT(periph, msg, args...)		\
+	CAM_PERIPH_PRINT(periph, msg, ##args)
 #else
-#define CAM_PERIPH_PRINT(p, msg, args...)
+#define DA_PERIPH_PRINT(periph, msg, args...)
 #endif
 
 static inline void
@@ -1527,7 +1529,7 @@ da_periph_hold(struct cam_periph *periph, int priority, da_ref_token token)
 	int err = cam_periph_hold(periph, priority);
 
 	token_sanity(token);
-	CAM_PERIPH_PRINT(periph, "Holding device %s (%d): %d\n",
+	DA_PERIPH_PRINT(periph, "Holding device %s (%d): %d\n",
 	    da_ref_text[token], token, err);
 	if (err == 0) {
 		int cnt;
@@ -1548,7 +1550,7 @@ da_periph_unhold(struct cam_periph *periph, da_ref_token token)
 
 	token_sanity(token);
 	cam_periph_unhold(periph);
-	CAM_PERIPH_PRINT(periph, "Unholding device %s (%d)\n",
+	DA_PERIPH_PRINT(periph, "Unholding device %s (%d)\n",
 	    da_ref_text[token], token);
 	cnt = atomic_fetchadd_int(&softc->ref_flags[token], -1);
 	if (cnt != 1)
@@ -1561,7 +1563,7 @@ da_periph_acquire(struct cam_periph *periph, da_ref_token token)
 	int err = cam_periph_acquire(periph);
 
 	token_sanity(token);
-	CAM_PERIPH_PRINT(periph, "acquiring device %s (%d): %d\n",
+	DA_PERIPH_PRINT(periph, "acquiring device %s (%d): %d\n",
 	    da_ref_text[token], token, err);
 	if (err == CAM_REQ_CMP) {
 		int cnt;
@@ -1582,7 +1584,7 @@ da_periph_release(struct cam_periph *periph, da_ref_token token)
 
 	token_sanity(token);
 	cam_periph_release(periph);
-	CAM_PERIPH_PRINT(periph, "releasing device %s (%d)\n",
+	DA_PERIPH_PRINT(periph, "releasing device %s (%d)\n",
 	    da_ref_text[token], token);
 	cnt = atomic_fetchadd_int(&softc->ref_flags[token], -1);
 	if (cnt != 1)
@@ -1597,7 +1599,7 @@ da_periph_release_locked(struct cam_periph *periph, da_ref_token token)
 
 	token_sanity(token);
 	cam_periph_release_locked(periph);
-	CAM_PERIPH_PRINT(periph, "releasing device (locked) %s (%d)\n",
+	DA_PERIPH_PRINT(periph, "releasing device (locked) %s (%d)\n",
 	    da_ref_text[token], token);
 	cnt = atomic_fetchadd_int(&softc->ref_flags[token], -1);
 	if (cnt != 1)
