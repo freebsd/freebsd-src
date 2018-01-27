@@ -4745,10 +4745,12 @@ int
 pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 {
 #ifdef SMP
+	register_t intr;
 	uint64_t par;
-#endif
 
 	switch (ESR_ELx_EXCEPTION(esr)) {
+	case EXCP_INSN_ABORT_L:
+	case EXCP_INSN_ABORT:
 	case EXCP_DATA_ABORT_L:
 	case EXCP_DATA_ABORT:
 		break;
@@ -4756,7 +4758,7 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 		return (KERN_FAILURE);
 	}
 
-#ifdef SMP
+	/* Data and insn aborts use same encoding for FCS field. */
 	PMAP_LOCK(pmap);
 	switch (esr & ISS_DATA_DFSC_MASK) {
 	case ISS_DATA_DFSC_TF_L0:
@@ -4764,10 +4766,12 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 	case ISS_DATA_DFSC_TF_L2:
 	case ISS_DATA_DFSC_TF_L3:
 		/* Ask the MMU to check the address */
+		intr = intr_disable();
 		if (pmap == kernel_pmap)
 			par = arm64_address_translate_s1e1r(far);
 		else
 			par = arm64_address_translate_s1e0r(far);
+		intr_restore(intr);
 
 		/*
 		 * If the translation was successful the address was invalid
