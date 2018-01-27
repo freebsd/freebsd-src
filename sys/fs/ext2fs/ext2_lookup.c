@@ -145,14 +145,18 @@ ext2_readdir(struct vop_readdir_args *ap)
 	off_t offset, startoffset;
 	size_t readcnt, skipcnt;
 	ssize_t startresid;
-	u_int ncookies;
+	int ncookies;
 	int DIRBLKSIZ = VTOI(ap->a_vp)->i_e2fs->e2fs_bsize;
 	int error;
 
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 	ip = VTOI(vp);
+	if (uio->uio_resid < 0)
+		uio->uio_resid = 0;
 	if (ap->a_ncookies != NULL) {
+		if (uio->uio_resid > MAXPHYS)
+			uio->uio_resid = MAXPHYS;
 		ncookies = uio->uio_resid;
 		if (uio->uio_offset >= ip->i_size)
 			ncookies = 0;
