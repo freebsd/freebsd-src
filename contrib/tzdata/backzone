@@ -145,11 +145,6 @@ Zone	Africa/Gaborone	1:43:40 -	LMT	1885
 Zone	Africa/Harare	2:04:12 -	LMT	1903 Mar
 			2:00	-	CAT
 
-# South Sudan
-Zone	Africa/Juba	2:06:24 -	LMT	1931
-			2:00	Sudan	CA%sT	2000 Jan 15 12:00
-			3:00	-	EAT
-
 # Uganda
 Zone	Africa/Kampala	2:09:40 -	LMT	1928 Jul
 			3:00	-	EAT	1930
@@ -241,11 +236,6 @@ Zone Africa/Ouagadougou	-0:06:04 -	LMT	1912
 Zone Africa/Porto-Novo	0:10:28	-	LMT	1912 Jan  1
 			0:00	-	GMT	1934 Feb 26
 			1:00	-	WAT
-
-# São Tomé and Príncipe
-Zone	Africa/Sao_Tome	 0:26:56 -	LMT	1884
-			-0:36:32 -	LMT	1912 # Lisbon Mean Time
-			 0:00	-	GMT
 
 # Mali (northern)
 Zone	Africa/Timbuktu	-0:12:04 -	LMT	1912
