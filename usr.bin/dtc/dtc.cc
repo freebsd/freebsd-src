@@ -47,20 +47,25 @@
 using namespace dtc;
 using std::string;
 
+namespace {
+
 /**
  * The current major version of the tool.
  */
 int version_major = 0;
+int version_major_compatible = 1;
 /**
  * The current minor version of the tool.
  */
 int version_minor = 5;
+int version_minor_compatible = 4;
 /**
  * The current patch level of the tool.
  */
 int version_patch = 0;
+int version_patch_compatible = 0;
 
-static void usage(const string &argv0)
+void usage(const string &argv0)
 {
 	fprintf(stderr, "Usage:\n"
 		"\t%s\t[-fhsv@] [-b boot_cpu_id] [-d dependency_file]"
@@ -75,11 +80,15 @@ static void usage(const string &argv0)
 /**
  * Prints the current version of this program..
  */
-static void version(const char* progname)
+void version(const char* progname)
 {
-	fprintf(stderr, "Version: %s %d.%d.%d\n", progname, version_major,
-			version_minor, version_patch);
+	fprintf(stdout, "Version: %s %d.%d.%d compatible with gpl dtc %d.%d.%d\n", progname,
+		version_major, version_minor, version_patch,
+		version_major_compatible, version_minor_compatible,
+		version_patch_compatible);
 }
+
+} // Anonymous namespace
 
 using fdt::device_tree;
 

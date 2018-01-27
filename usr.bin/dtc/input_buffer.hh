@@ -164,6 +164,14 @@ class input_buffer
 		cursor++; 
 		return *this;
 	}
+	const char *begin()
+	{
+		return buffer;
+	}
+	const char *end()
+	{
+		return buffer + size;
+	}
 	/**
 	 * Consumes a character.  Moves the cursor one character forward if the
 	 * next character matches the argument, returning true.  If the current
@@ -523,6 +531,13 @@ class text_input_buffer
 	 * Prints a message indicating the location of a parse error.
 	 */
 	void parse_error(const char *msg);
+	/**
+	 * Reads the contents of a binary file into `b`.  The file name is assumed
+	 * to be relative to one of the include paths.
+	 *
+	 * Returns true if the file exists and can be read, false otherwise.
+	 */
+	bool read_binary_file(const std::string &filename, byte_buffer &b);
 	private:
 	/**
 	 * Prints a message indicating the location of a parse error, given a
