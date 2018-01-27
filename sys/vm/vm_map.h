@@ -172,15 +172,19 @@ vm_map_entry_system_wired_count(vm_map_entry_t entry)
  *	A map is a set of map entries.  These map entries are
  *	organized both as a binary search tree and as a doubly-linked
  *	list.  Both structures are ordered based upon the start and
- *	end addresses contained within each map entry.  Sleator and
- *	Tarjan's top-down splay algorithm is employed to control
- *	height imbalance in the binary search tree.
+ *	end addresses contained within each map entry.  The list
+ *	header has max start value and min end value to act as
+ *	sentinels for sequential search of the doubly-linked list.
+ *	Sleator and Tarjan's top-down splay algorithm is employed to
+ *	control height imbalance in the binary search tree.
  *
  * List of locks
  *	(c)	const until freed
  */
 struct vm_map {
 	struct vm_map_entry header;	/* List of entries */
+#define	min_offset	header.end	/* (c) */
+#define	max_offset	header.start	/* (c) */
 	struct sx lock;			/* Lock for map data */
 	struct mtx system_mtx;
 	int nentries;			/* Number of entries */
@@ -191,8 +195,6 @@ struct vm_map {
 	vm_flags_t flags;		/* flags for this vm_map */
 	vm_map_entry_t root;		/* Root of a binary search tree */
 	pmap_t pmap;			/* (c) Physical map */
-#define	min_offset	header.start	/* (c) */
-#define	max_offset	header.end	/* (c) */
 	int busy;
 };
 
