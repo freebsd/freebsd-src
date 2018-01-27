@@ -133,20 +133,30 @@ cpu_mp_start(void)
 	/* Install an inter-CPU IPI for TLB invalidation */
 	if (pmap_pcid_enabled) {
 		if (invpcid_works) {
-			setidt(IPI_INVLTLB, pti ? IDTVEC(invltlb_invpcid_pti) :
-			    IDTVEC(invltlb_invpcid), SDT_SYSIGT, SEL_KPL, 0);
+			setidt(IPI_INVLTLB, pti ?
+			    IDTVEC(invltlb_invpcid_pti_pti) :
+			    IDTVEC(invltlb_invpcid_nopti), SDT_SYSIGT,
+			    SEL_KPL, 0);
+			setidt(IPI_INVLPG, pti ? IDTVEC(invlpg_invpcid_pti) :
+			    IDTVEC(invlpg_invpcid), SDT_SYSIGT, SEL_KPL, 0);
+			setidt(IPI_INVLRNG, pti ? IDTVEC(invlrng_invpcid_pti) :
+			    IDTVEC(invlrng_invpcid), SDT_SYSIGT, SEL_KPL, 0);
 		} else {
 			setidt(IPI_INVLTLB, pti ? IDTVEC(invltlb_pcid_pti) :
 			    IDTVEC(invltlb_pcid), SDT_SYSIGT, SEL_KPL, 0);
+			setidt(IPI_INVLPG, pti ? IDTVEC(invlpg_pcid_pti) :
+			    IDTVEC(invlpg_pcid), SDT_SYSIGT, SEL_KPL, 0);
+			setidt(IPI_INVLRNG, pti ? IDTVEC(invlrng_pcid_pti) :
+			    IDTVEC(invlrng_pcid), SDT_SYSIGT, SEL_KPL, 0);
 		}
 	} else {
 		setidt(IPI_INVLTLB, pti ? IDTVEC(invltlb_pti) : IDTVEC(invltlb),
 		    SDT_SYSIGT, SEL_KPL, 0);
+		setidt(IPI_INVLPG, pti ? IDTVEC(invlpg_pti) : IDTVEC(invlpg),
+		    SDT_SYSIGT, SEL_KPL, 0);
+		setidt(IPI_INVLRNG, pti ? IDTVEC(invlrng_pti) : IDTVEC(invlrng),
+		    SDT_SYSIGT, SEL_KPL, 0);
 	}
-	setidt(IPI_INVLPG, pti ? IDTVEC(invlpg_pti) : IDTVEC(invlpg),
-	    SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IPI_INVLRNG, pti ? IDTVEC(invlrng_pti) : IDTVEC(invlrng),
-	    SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Install an inter-CPU IPI for cache invalidation. */
 	setidt(IPI_INVLCACHE, pti ? IDTVEC(invlcache_pti) : IDTVEC(invlcache),
@@ -440,9 +450,43 @@ invltlb_invpcid_handler(void)
 }
 
 void
+invltlb_invpcid_pti_handler(void)
+{
+	struct invpcid_descr d;
+	uint32_t generation;
+
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_gbl[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	generation = smp_tlb_generation;
+	d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+	d.pad = 0;
+	d.addr = 0;
+	if (smp_tlb_pmap == kernel_pmap) {
+		/*
+		 * This invalidation actually needs to clear kernel
+		 * mappings from the TLB in the current pmap, but
+		 * since we were asked for the flush in the kernel
+		 * pmap, achieve it by performing global flush.
+		 */
+		invpcid(&d, INVPCID_CTXGLOB);
+	} else {
+		invpcid(&d, INVPCID_CTX);
+		d.pcid |= PMAP_PCID_USER_PT;
+		invpcid(&d, INVPCID_CTX);
+	}
+	PCPU_SET(smp_tlb_done, generation);
+}
+
+void
 invltlb_pcid_handler(void)
 {
-	uint32_t generation;
+	uint64_t kcr3, ucr3;
+	uint32_t generation, pcid;
   
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_gbl[PCPU_GET(cpuid)]++;
@@ -463,9 +507,132 @@ invltlb_pcid_handler(void)
 		 * CPU.
 		 */
 		if (PCPU_GET(curpmap) == smp_tlb_pmap) {
-			load_cr3(smp_tlb_pmap->pm_cr3 |
-			    smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid);
+			pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+			kcr3 = smp_tlb_pmap->pm_cr3 | pcid;
+			ucr3 = smp_tlb_pmap->pm_ucr3;
+			if (ucr3 != PMAP_NO_CR3) {
+				ucr3 |= PMAP_PCID_USER_PT | pcid;
+				pmap_pti_pcid_invalidate(ucr3, kcr3);
+			} else
+				load_cr3(kcr3);
 		}
+	}
+	PCPU_SET(smp_tlb_done, generation);
+}
+
+void
+invlpg_invpcid_handler(void)
+{
+	struct invpcid_descr d;
+	uint32_t generation;
+
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_pg[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	generation = smp_tlb_generation;	/* Overlap with serialization */
+	invlpg(smp_tlb_addr1);
+	if (smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3) {
+		d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid |
+		    PMAP_PCID_USER_PT;
+		d.pad = 0;
+		d.addr = smp_tlb_addr1;
+		invpcid(&d, INVPCID_ADDR);
+	}
+	PCPU_SET(smp_tlb_done, generation);
+}
+
+void
+invlpg_pcid_handler(void)
+{
+	uint64_t kcr3, ucr3;
+	uint32_t generation;
+	uint32_t pcid;
+
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_pg[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	generation = smp_tlb_generation;	/* Overlap with serialization */
+	invlpg(smp_tlb_addr1);
+	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
+	    (ucr3 = smp_tlb_pmap->pm_ucr3) != PMAP_NO_CR3) {
+		pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+		kcr3 = smp_tlb_pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
+		ucr3 |= pcid | PMAP_PCID_USER_PT | CR3_PCID_SAVE;
+		pmap_pti_pcid_invlpg(ucr3, kcr3, smp_tlb_addr1);
+	}
+	PCPU_SET(smp_tlb_done, generation);
+}
+
+void
+invlrng_invpcid_handler(void)
+{
+	struct invpcid_descr d;
+	vm_offset_t addr, addr2;
+	uint32_t generation;
+
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_rng[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlrng_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	addr = smp_tlb_addr1;
+	addr2 = smp_tlb_addr2;
+	generation = smp_tlb_generation;	/* Overlap with serialization */
+	do {
+		invlpg(addr);
+		addr += PAGE_SIZE;
+	} while (addr < addr2);
+	if (smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3) {
+		d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid |
+		    PMAP_PCID_USER_PT;
+		d.pad = 0;
+		d.addr = smp_tlb_addr1;
+		do {
+			invpcid(&d, INVPCID_ADDR);
+			d.addr += PAGE_SIZE;
+		} while (d.addr < addr2);
+	}
+	PCPU_SET(smp_tlb_done, generation);
+}
+
+void
+invlrng_pcid_handler(void)
+{
+	vm_offset_t addr, addr2;
+	uint64_t kcr3, ucr3;
+	uint32_t generation;
+	uint32_t pcid;
+
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_rng[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlrng_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	addr = smp_tlb_addr1;
+	addr2 = smp_tlb_addr2;
+	generation = smp_tlb_generation;	/* Overlap with serialization */
+	do {
+		invlpg(addr);
+		addr += PAGE_SIZE;
+	} while (addr < addr2);
+	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
+	    (ucr3 = smp_tlb_pmap->pm_ucr3) != PMAP_NO_CR3) {
+		pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+		kcr3 = smp_tlb_pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
+		ucr3 |= pcid | PMAP_PCID_USER_PT | CR3_PCID_SAVE;
+		pmap_pti_pcid_invlrng(ucr3, kcr3, smp_tlb_addr1, addr2);
 	}
 	PCPU_SET(smp_tlb_done, generation);
 }
