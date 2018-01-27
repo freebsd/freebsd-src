@@ -69,6 +69,9 @@ PORTSMODULESENV=\
 	-u CC \
 	-u CXX \
 	-u CPP \
+	-u MAKESYSPATH \
+	MAKEFLAGS="${MAKEFLAGS:M*:tW:S/^-m /-m_/g:S/ -m / -m_/g:tw:N-m_*}" \
+	SYSDIR=${SYSDIR} \
 	PATH=${PATH}:${LOCALBASE}/bin:${LOCALBASE}/sbin \
 	SRC_BASE=${SRC_BASE} \
 	OSVERSION=${OSRELDATE} \
