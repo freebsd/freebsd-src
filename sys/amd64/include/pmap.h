@@ -225,6 +225,10 @@
 #define	PMAP_PCID_NONE		0xffffffff
 #define	PMAP_PCID_KERN		0
 #define	PMAP_PCID_OVERMAX	0x1000
+#define	PMAP_PCID_OVERMAX_KERN	0x800
+#define	PMAP_PCID_USER_PT	0x800
+
+#define	PMAP_NO_CR3		(~0UL)
 
 #ifndef LOCORE
 
@@ -433,6 +437,10 @@ boolean_t pmap_map_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);
 void	pmap_unmap_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);
 void	pmap_pti_add_kva(vm_offset_t sva, vm_offset_t eva, bool exec);
 void	pmap_pti_remove_kva(vm_offset_t sva, vm_offset_t eva);
+void	pmap_pti_pcid_invalidate(uint64_t ucr3, uint64_t kcr3);
+void	pmap_pti_pcid_invlpg(uint64_t ucr3, uint64_t kcr3, vm_offset_t va);
+void	pmap_pti_pcid_invlrng(uint64_t ucr3, uint64_t kcr3, vm_offset_t sva,
+	    vm_offset_t eva);
 #endif /* _KERNEL */
 
 /* Return various clipped indexes for a given VA */

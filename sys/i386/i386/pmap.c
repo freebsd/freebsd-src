@@ -1045,7 +1045,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 		CPU_AND(&other_cpus, &pmap->pm_active);
 		mask = &other_cpus;
 	}
-	smp_masked_invlpg(*mask, va);
+	smp_masked_invlpg(*mask, va, pmap);
 	sched_unpin();
 }
 
@@ -1079,7 +1079,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		CPU_AND(&other_cpus, &pmap->pm_active);
 		mask = &other_cpus;
 	}
-	smp_masked_invlpg_range(*mask, sva, eva);
+	smp_masked_invlpg_range(*mask, sva, eva, pmap);
 	sched_unpin();
 }
 
