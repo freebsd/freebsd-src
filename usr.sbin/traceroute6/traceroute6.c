@@ -274,6 +274,7 @@ static const char rcsid[] =
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
 #include <netinet/sctp.h>
+#include <netinet/sctp_header.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 
@@ -678,6 +679,11 @@ main(int argc, char *argv[])
 	}
 	if (useproto == IPPROTO_UDP)
 		datalen -= sizeof(struct udphdr);
+	if ((useproto == IPPROTO_SCTP) && (datalen & 3)) {
+		fprintf(stderr, 
+		    "traceroute6: packet size must be a multiple of 4.\n");
+		exit(1);
+	}
 	outpacket = malloc(datalen);
 	if (!outpacket) {
 		perror("malloc");
@@ -1051,6 +1057,8 @@ send_probe(int seq, u_long hops)
 	struct icmp6_hdr *icp;
 	struct sctphdr *sctp;
 	struct sctp_chunkhdr *chk;
+	struct sctp_init_chunk *init;
+	struct sctp_paramhdr *param;
 	struct tcphdr *tcp;
 	int i;
 
@@ -1082,23 +1090,64 @@ send_probe(int seq, u_long hops)
 
 		sctp->src_port = htons(ident);
 		sctp->dest_port = htons(port + seq);
-		sctp->v_tag = (sctp->src_port << 16) | sctp->dest_port;
+		if (datalen >= (u_long)(sizeof(struct sctphdr) +
+		    sizeof(struct sctp_init_chunk))) {
+			sctp->v_tag = 0;
+		} else {
+			sctp->v_tag = (sctp->src_port << 16) | sctp->dest_port;
+		}
 		sctp->checksum = htonl(0);
 		if (datalen >= (u_long)(sizeof(struct sctphdr) +
-		    sizeof(struct sctp_chunkhdr))) {
-			chk = (struct sctp_chunkhdr *)(sctp + 1);
-			chk->chunk_type = SCTP_SHUTDOWN_ACK;
-			chk->chunk_flags = 0;
-			chk->chunk_length = htons(4);
-		}
-		if (datalen >= (u_long)(sizeof(struct sctphdr) +
-		    2 * sizeof(struct sctp_chunkhdr))) {
-			chk = chk + 1;
-			chk->chunk_type = SCTP_PAD_CHUNK;
-			chk->chunk_flags = 0;
-			chk->chunk_length = htons((u_int16_t)(datalen -
-			    sizeof(struct sctphdr) -
-			    sizeof(struct sctp_chunkhdr)));
+		    sizeof(struct sctp_init_chunk))) {
+			/*
+			 * Send a packet containing an INIT chunk. This works
+			 * better in case of firewalls on the path, but
+			 * results in a probe packet containing at least
+			 * 32 bytes of payload. For shorter payloads, use
+			 * SHUTDOWN-ACK chunks.
+			 */
+			init = (struct sctp_init_chunk *)(sctp + 1);
+			init->ch.chunk_type = SCTP_INITIATION;
+			init->ch.chunk_flags = 0;
+			init->ch.chunk_length = htons((u_int16_t)(datalen -
+			    sizeof(struct sctphdr)));
+			init->init.initiate_tag = (sctp->src_port << 16) |
+			    sctp->dest_port;
+			init->init.a_rwnd = htonl(1500);
+			init->init.num_outbound_streams = htons(1);
+			init->init.num_inbound_streams = htons(1);
+			init->init.initial_tsn = htonl(0);
+			if (datalen >= (u_long)(sizeof(struct sctphdr) +
+			    sizeof(struct sctp_init_chunk) +
+			    sizeof(struct sctp_paramhdr))) {
+				param = (struct sctp_paramhdr *)(init + 1);
+				param->param_type = htons(SCTP_PAD);
+				param->param_length =
+				    htons((u_int16_t)(datalen -
+				    sizeof(struct sctphdr) -
+				    sizeof(struct sctp_init_chunk)));
+			}
+		} else {
+			/*
+			 * Send a packet containing a SHUTDOWN-ACK chunk,
+			 * possibly followed by a PAD chunk.
+			 */
+			if (datalen >= (u_long)(sizeof(struct sctphdr) +
+			    sizeof(struct sctp_chunkhdr))) {
+				chk = (struct sctp_chunkhdr *)(sctp + 1);
+				chk->chunk_type = SCTP_SHUTDOWN_ACK;
+				chk->chunk_flags = 0;
+				chk->chunk_length = htons(4);
+			}
+			if (datalen >= (u_long)(sizeof(struct sctphdr) +
+			    2 * sizeof(struct sctp_chunkhdr))) {
+				chk = chk + 1;
+				chk->chunk_type = SCTP_PAD_CHUNK;
+				chk->chunk_flags = 0;
+				chk->chunk_length = htons((u_int16_t)(datalen -
+				    sizeof(struct sctphdr) -
+				    sizeof(struct sctp_chunkhdr)));
+			}
 		}
 		sctp->checksum = sctp_crc32c(outpacket, datalen);
 		break;
@@ -1291,6 +1340,7 @@ packet_ok(struct msghdr *mhdr, int cc, int seq)
 	    || type == ICMP6_DST_UNREACH) {
 		struct ip6_hdr *hip;
 		struct icmp6_hdr *icmp;
+		struct sctp_init_chunk *init;
 		struct sctphdr *sctp;
 		struct tcphdr *tcp;
 		struct udphdr *udp;
@@ -1319,12 +1369,34 @@ packet_ok(struct msghdr *mhdr, int cc, int seq)
 			break;
 		case IPPROTO_SCTP:
 			sctp = (struct sctphdr *)up;
-			if (sctp->src_port == htons(ident) &&
-			    sctp->dest_port == htons(port + seq) &&
-			    sctp->v_tag ==
-			    (u_int32_t)((sctp->src_port << 16) | sctp->dest_port))
-				return (type == ICMP6_TIME_EXCEEDED ?
-				    -1 : code + 1);
+			if (sctp->src_port != htons(ident) ||
+			    sctp->dest_port != htons(port + seq)) {
+				break;
+			}
+			if (datalen >= (u_long)(sizeof(struct sctphdr) +
+			    sizeof(struct sctp_init_chunk))) {
+				if (sctp->v_tag != 0) {
+					break;
+				}
+				init = (struct sctp_init_chunk *)(sctp + 1);
+				/* Check the initiate tag, if available. */
+				if ((char *)&init->init.a_rwnd > buf + cc) {
+					return (type == ICMP6_TIME_EXCEEDED ?
+					    -1 : code + 1);
+				}
+				if (init->init.initiate_tag == (u_int32_t)
+				    ((sctp->src_port << 16) | sctp->dest_port)) {
+					return (type == ICMP6_TIME_EXCEEDED ?
+					    -1 : code + 1);
+				}
+			} else {
+				if (sctp->v_tag ==
+				    (u_int32_t)((sctp->src_port << 16) |
+				    sctp->dest_port)) {
+					return (type == ICMP6_TIME_EXCEEDED ?
+					    -1 : code + 1);
+				}
+			}
 			break;
 		case IPPROTO_TCP:
 			tcp = (struct tcphdr *)up;
