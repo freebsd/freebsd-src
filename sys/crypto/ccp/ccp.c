@@ -130,6 +130,9 @@ ccp_gcm_soft(struct ccp_session *s, struct cryptop *crp,
 			memcpy(iv, crde->crd_iv, 12);
 		else
 			arc4rand(iv, 12, 0);
+		if ((crde->crd_flags & CRD_F_IV_PRESENT) == 0)
+			crypto_copyback(crp->crp_flags, crp->crp_buf,
+			    crde->crd_inject, 12, iv);
 	} else {
 		if (crde->crd_flags & CRD_F_IV_EXPLICIT)
 			memcpy(iv, crde->crd_iv, 12);
