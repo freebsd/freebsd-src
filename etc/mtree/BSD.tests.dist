@@ -652,6 +652,8 @@
         ..
         head
         ..
+        hexdump
+        ..
         ident
         ..
         join
