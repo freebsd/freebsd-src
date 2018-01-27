@@ -95,6 +95,7 @@ next:			c = *fmt++;
 			case 'p':
 				pstr(fd, "0x");
 				islong = 1;
+				/* FALLTHROUGH */
 			case 'd':
 			case 'u':
 			case 'x':
