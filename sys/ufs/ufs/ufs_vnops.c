@@ -2170,7 +2170,7 @@ ufs_readdir(ap)
 	off_t offset, startoffset;
 	size_t readcnt, skipcnt;
 	ssize_t startresid;
-	u_int ncookies;
+	int ncookies;
 	int error;
 
 	if (uio->uio_offset < 0)
@@ -2178,7 +2178,11 @@ ufs_readdir(ap)
 	ip = VTOI(vp);
 	if (ip->i_effnlink == 0)
 		return (0);
+	if (uio->uio_resid < 0)
+		uio->uio_resid = 0;
 	if (ap->a_ncookies != NULL) {
+		if (uio->uio_resid > MAXPHYS)
+			uio->uio_resid = MAXPHYS;
 		ncookies = uio->uio_resid;
 		if (uio->uio_offset >= ip->i_size)
 			ncookies = 0;
