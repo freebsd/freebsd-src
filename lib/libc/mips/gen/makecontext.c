@@ -95,19 +95,18 @@ __makecontext(ucontext_t *ucp, void (*func)(void), int argc, ...)
 	for (i = 0; i < argc && i < 4; i++)
 		/* LINTED register_t is safe */
 		mc->mc_regs[A0 + i] = va_arg(ap, register_t);
-	/* Pass remaining arguments on the stack above the $a0-3 gap. */
-	sp += i;
+	/* Skip over the $a0-3 gap. */
+	sp += 4;
 #endif
 #if defined(__mips_n32) || defined(__mips_n64)
 	/* Up to the first 8 arguments are passed in $a0-7. */
 	for (i = 0; i < argc && i < 8; i++)
 		/* LINTED register_t is safe */
 		mc->mc_regs[A0 + i] = va_arg(ap, register_t);
-	/* Pass remaining arguments on the stack above the $a0-3 gap. */
 #endif
-	/* Pass remaining arguments on the stack above the $a0-3 gap. */
+	/* Pass remaining arguments on the stack. */
 	for (; i < argc; i++)
-		/* LINTED uintptr_t is safe */
+		/* LINTED register_t is safe */
 		*sp++ = va_arg(ap, register_t);
 	va_end(ap);
 }
