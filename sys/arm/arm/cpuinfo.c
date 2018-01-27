@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/pcpu.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 
 #include <machine/cpu.h>
@@ -40,6 +42,9 @@ __FBSDID("$FreeBSD$");
 
 #if __ARM_ARCH >= 6
 void reinit_mmu(uint32_t ttb, uint32_t aux_clr, uint32_t aux_set);
+
+int disable_bp_hardening;
+int spectre_v2_safe = 1;
 #endif
 
 struct cpuinfo cpuinfo =
@@ -255,6 +260,7 @@ cpuinfo_get_actlr_modifier(uint32_t *actlr_mask, uint32_t *actlr_set)
 
 	if (cpuinfo.implementer == CPU_IMPLEMENTER_ARM) {
 		switch (cpuinfo.part_number) {
+		case CPU_ARCH_CORTEX_A75:
 		case CPU_ARCH_CORTEX_A73:
 		case CPU_ARCH_CORTEX_A72:
 		case CPU_ARCH_CORTEX_A57:
@@ -337,5 +343,198 @@ cpuinfo_reinit_mmu(uint32_t ttb)
 	actlr_set |= cpu_quirks_actlr_set;
 	reinit_mmu(ttb, actlr_mask, actlr_set);
 }
+
+static bool
+modify_actlr(uint32_t clear, uint32_t set)
+{
+	uint32_t reg, newreg;
+
+	reg = cp15_actlr_get();
+	newreg = reg;
+	newreg &= ~clear;
+	newreg |= set;
+	if (reg == newreg)
+		return (true);
+	cp15_actlr_set(newreg);
+
+	reg = cp15_actlr_get();
+	if (reg == newreg)
+		return (true);
+	return (false);
+}
+
+/* Apply/restore BP hardening on current core. */
+static int
+apply_bp_hardening(bool enable, int kind, bool actrl, uint32_t set_mask)
+{
+	if (enable) {
+		if (actrl && !modify_actlr(0, set_mask))
+			return (-1);
+		PCPU_SET(bp_harden_kind, kind);
+	} else {
+		PCPU_SET(bp_harden_kind, PCPU_BP_HARDEN_KIND_NONE);
+		if (actrl)
+			modify_actlr(~0, PCPU_GET(original_actlr));
+		spectre_v2_safe = 0;
+	}
+	return (0);
+}
+
+static void
+handle_bp_hardening(bool enable)
+{
+	int kind;
+	char *kind_str;
+
+	kind = PCPU_BP_HARDEN_KIND_NONE;
+	/*
+	 * Note: Access to ACTRL is locked to secure world on most boards.
+	 * This means that full BP hardening depends on updated u-boot/firmware
+	 * or is impossible at all (if secure monitor is in on-chip ROM).
+	 */
+	if (cpuinfo.implementer == CPU_IMPLEMENTER_ARM) {
+		switch (cpuinfo.part_number) {
+		case CPU_ARCH_CORTEX_A8:
+			/*
+			 * For Cortex-A8, IBE bit must be set otherwise
+			 * BPIALL is effectively NOP.
+			 * Unfortunately, Cortex-A is also affected by
+			 * ARM erratum 687067 which causes non-working
+			 * BPIALL if IBE bit is set and 'Instruction L1 System
+			 * Array Debug Register 0' is not 0.
+			 * This register is not reset on power-up and is
+			 * accessible only from secure world, so we cannot do
+			 * nothing (nor detect) to fix this issue.
+			 * I afraid that on chip ROM based secure monitor on
+			 * AM335x (BeagleBone) doesn't reset this debug
+			 * register.
+			 */
+			kind = PCPU_BP_HARDEN_KIND_BPIALL;
+			if (apply_bp_hardening(enable, kind, true, 1 << 6) != 0)
+				goto actlr_err;
+			break;
+		break;
+
+		case CPU_ARCH_CORTEX_A9:
+		case CPU_ARCH_CORTEX_A12:
+		case CPU_ARCH_CORTEX_A17:
+		case CPU_ARCH_CORTEX_A57:
+		case CPU_ARCH_CORTEX_A72:
+		case CPU_ARCH_CORTEX_A73:
+		case CPU_ARCH_CORTEX_A75:
+			kind = PCPU_BP_HARDEN_KIND_BPIALL;
+			if (apply_bp_hardening(enable, kind, false, 0) != 0)
+				goto actlr_err;
+			break;
+
+		case CPU_ARCH_CORTEX_A15:
+			/*
+			 * For Cortex-A15, set 'Enable invalidates of BTB' bit.
+			 * Despite this, the BPIALL is still effectively NOP,
+			 * but with this bit set, the ICIALLU also flushes
+			 * branch predictor as side effect.
+			 */
+			kind = PCPU_BP_HARDEN_KIND_ICIALLU;
+			if (apply_bp_hardening(enable, kind, true, 1 << 0) != 0)
+				goto actlr_err;
+			break;
+
+		default:
+			break;
+		}
+	} else if (cpuinfo.implementer == CPU_IMPLEMENTER_QCOM) {
+		printf("!!!WARNING!!! CPU(%d) is vulnerable to speculative "
+		    "branch attacks. !!!\n"
+		    "Qualcomm Krait cores are known (or believed) to be "
+		    "vulnerable to \n"
+		    "speculative branch attacks, no mitigation exists yet.\n",
+		    PCPU_GET(cpuid));
+		goto unkonown_mitigation;
+	}  else {
+		goto unkonown_mitigation;
+	}
+
+	if (bootverbose) {
+		switch (kind) {
+		case PCPU_BP_HARDEN_KIND_NONE:
+			kind_str = "not necessary";
+			break;
+		case PCPU_BP_HARDEN_KIND_BPIALL:
+			kind_str = "BPIALL";
+			break;
+		case PCPU_BP_HARDEN_KIND_ICIALLU:
+			kind_str = "ICIALLU";
+			break;
+		default:
+			panic("Unknown BP hardering kind (%d).", kind);
+		}
+		printf("CPU(%d) applied BP hardening: %s\n", PCPU_GET(cpuid),
+		    kind_str);
+	}
+
+	return;
+
+unkonown_mitigation:
+	PCPU_SET(bp_harden_kind, PCPU_BP_HARDEN_KIND_NONE);
+	spectre_v2_safe = 0;
+	return;
+
+actlr_err:
+	PCPU_SET(bp_harden_kind, PCPU_BP_HARDEN_KIND_NONE);
+	spectre_v2_safe = 0;
+	printf("!!!WARNING!!! CPU(%d) is vulnerable to speculative branch "
+	    "attacks. !!!\n"
+	    "We cannot enable required bit(s) in ACTRL register\n"
+	    "because it's locked by secure monitor and/or firmware.\n",
+	    PCPU_GET(cpuid));
+}
+
+void
+cpuinfo_init_bp_hardening(void)
+{
+
+	/*
+	 * Store original unmodified ACTRL, so we can restore it when
+	 * BP hardening is disabled by sysctl.
+	 */
+	PCPU_SET(original_actlr, cp15_actlr_get());
+	handle_bp_hardening(true);
+}
+
+static void
+bp_hardening_action(void *arg)
+{
+
+	handle_bp_hardening(disable_bp_hardening == 0);
+}
+
+static int
+sysctl_disable_bp_hardening(SYSCTL_HANDLER_ARGS)
+{
+	int rv;
+
+	rv = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+
+	if (!rv && req->newptr) {
+		spectre_v2_safe = 1;
+		dmb();
+#ifdef SMP
+		smp_rendezvous_cpus(all_cpus, smp_no_rendezvous_barrier,
+		bp_hardening_action, NULL, NULL);
+#else
+		bp_hardening_action(NULL);
+#endif
+	}
+
+	return (rv);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, disable_bp_hardening,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    &disable_bp_hardening, 0, sysctl_disable_bp_hardening, "I",
+    "Disable BP hardening mitigation.");
+
+SYSCTL_INT(_machdep, OID_AUTO, spectre_v2_safe, CTLFLAG_RD,
+    &spectre_v2_safe, 0, "System is safe to Spectre Version 2 attacks");
 
 #endif /* __ARM_ARCH >= 6 */
