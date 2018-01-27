@@ -200,6 +200,7 @@ g_label_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	struct g_provider *pp2;
 	struct g_consumer *cp;
 	char name[64];
+	int n;
 
 	g_topology_assert();
 
@@ -213,7 +214,12 @@ g_label_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	}
 	gp = NULL;
 	cp = NULL;
-	snprintf(name, sizeof(name), "%s/%s", dir, label);
+	n = snprintf(name, sizeof(name), "%s/%s", dir, label);
+	if (n >= sizeof(name)) {
+		if (req != NULL)
+			gctl_error(req, "Label name %s is too long.", label);
+		return (NULL);
+	}
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		pp2 = LIST_FIRST(&gp->provider);
 		if (pp2 == NULL)
