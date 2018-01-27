@@ -2117,7 +2117,8 @@ native_lapic_ipi_alloc(inthand_t *ipifunc)
 	for (idx = IPI_DYN_FIRST; idx <= IPI_DYN_LAST; idx++) {
 		ip = &idt[idx];
 		func = (ip->gd_hioffset << 16) | ip->gd_looffset;
-		if (func == (uintptr_t)&IDTVEC(rsvd)) {
+		if ((!pti && func == (uintptr_t)&IDTVEC(rsvd)) ||
+		    (pti && func == (uintptr_t)&IDTVEC(rsvd_pti))) {
 			vector = idx;
 			setidt(vector, ipifunc, SDT_APIC, SEL_KPL, GSEL_APIC);
 			break;
