@@ -18,6 +18,8 @@
         ..
         modules
         ..
+        overlays
+        ..
         zfs
         ..
     ..
