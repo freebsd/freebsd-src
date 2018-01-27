@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #include "bootstrap.h"
 #include "fdt_platform.h"
-#include "fdt_overlay.h"
 
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
