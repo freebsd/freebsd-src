@@ -5060,6 +5060,7 @@ print_device_short(device_t dev, int indent)
 	    (dev->flags&DF_WILDCARD? "wildcard,":""),
 	    (dev->flags&DF_DESCMALLOCED? "descmalloced,":""),
 	    (dev->flags&DF_REBID? "rebiddable,":""),
+	    (dev->flags&DF_SUSPENDED? "suspended,":""),
 	    (dev->ivars? "":"no "),
 	    (dev->softc? "":"no "),
 	    dev->busy));
