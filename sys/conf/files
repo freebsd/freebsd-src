@@ -338,6 +338,17 @@ compat/freebsd32/freebsd32_ioctl.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_syscalls.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_sysent.c	optional compat_freebsd32
+contrib/ck/src/ck_array.c				standard compile-with "${NORMAL_C} -I$S/contrib/ck/include"
+contrib/ck/src/ck_barrier_centralized.c			standard compile-with "${NORMAL_C} -I$S/contrib/ck/include"
+contrib/ck/src/ck_barrier_combining.c			standard compile-with "${NORMAL_C} -I$S/contrib/ck/include"
+contrib/ck/src/ck_barrier_dissemination.c		standard compile-with "${NORMAL_C} -I$S/contrib/ck/include"
+contrib/ck/src/ck_barrier_mcs.c				standard compile-with "${NORMAL_C} -I$S/contrib/ck/include"
+contrib/ck/src/ck_barrier_tournament.c			standard compile-with "${NORMAL_C} -I$S/contrib/ck/include"
+contrib/ck/src/ck_epoch.c				standard compile-with "${NORMAL_C} -I$S/contrib/ck/include"
+contrib/ck/src/ck_hp.c					standard compile-with "${NORMAL_C} -I$S/contrib/ck/include"
+contrib/ck/src/ck_hs.c					standard compile-with "${NORMAL_C} -I$S/contrib/ck/include"
+contrib/ck/src/ck_ht.c					standard compile-with "${NORMAL_C} -I$S/contrib/ck/include"
+contrib/ck/src/ck_rhs.c					standard compile-with "${NORMAL_C} -I$S/contrib/ck/include"
 contrib/dev/acpica/common/ahids.c			optional acpi acpi_debug
 contrib/dev/acpica/common/ahuuids.c			optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbcmds.c		optional acpi acpi_debug
