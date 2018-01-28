@@ -2878,8 +2878,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		    ("pmap_enter: Invalid page entry, va: 0x%lx", va));
 		KASSERT(lvl == 2,
 		    ("pmap_enter: Invalid level %d", lvl));
-
-		l3 = pmap_l2_to_l3(pde, va);
 	} else {
 		/*
 		 * If we get a level 2 pde it must point to a level 3 entry
@@ -2923,6 +2921,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			case 1:
 				/* Get the l2 pde to update */
 				pde = pmap_l1_to_l2(pde, va);
+				KASSERT(pde != NULL, ("..."));
 
 				l3_m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
 				    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
@@ -2937,9 +2936,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				break;
 			}
 		}
-		l3 = pmap_l2_to_l3(pde, va);
-		pmap_invalidate_page(pmap, va);
 	}
+	l3 = pmap_l2_to_l3(pde, va);
 havel3:
 
 	om = NULL;
@@ -3011,15 +3009,29 @@ havel3:
 			vm_page_aflag_set(m, PGA_WRITEABLE);
 	}
 
-	/*
-	 * Update the L3 entry.
-	 */
-	if (orig_l3 != 0) {
 validate:
-		orig_l3 = pmap_load(l3);
-		opa = orig_l3 & ~ATTR_MASK;
+	/*
+	 * Sync icache if exec permission and attribute VM_MEMATTR_WRITE_BACK
+	 * is set. Do it now, before the mapping is stored and made
+	 * valid for hardware table walk. If done later, then other can
+	 * access this page before caches are properly synced.
+	 * Don't do it for kernel memory which is mapped with exec
+	 * permission even if the memory isn't going to hold executable
+	 * code. The only time when icache sync is needed is after
+	 * kernel module is loaded and the relocation info is processed.
+	 * And it's done in elf_cpu_load_file().
+	*/
+	if ((prot & VM_PROT_EXECUTE) &&  pmap != kernel_pmap &&
+	    m->md.pv_memattr == VM_MEMATTR_WRITE_BACK &&
+	    (opa != pa || (orig_l3 & ATTR_XN)))
+		cpu_icache_sync_range(PHYS_TO_DMAP(pa), PAGE_SIZE);
 
+	/*
+	 * Update the L3 entry
+	 */
+	if (pmap_l3_valid(orig_l3)) {
 		if (opa != pa) {
+			/* different PA  */
 			pmap_update_entry(pmap, l3, new_l3, va, PAGE_SIZE);
 			if ((orig_l3 & ATTR_SW_MANAGED) != 0) {
 				om = PHYS_TO_VM_PAGE(opa);
@@ -3035,23 +3047,34 @@ validate:
 				    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
 					vm_page_aflag_clear(om, PGA_WRITEABLE);
 			}
-		} else {
+		} else if ((orig_l3 & ~ATTR_AF) != (new_l3 & ~ATTR_AF)) {
+			/* same PA, different attributes */
 			pmap_load_store(l3, new_l3);
 			pmap_invalidate_page(pmap, va);
 			if (pmap_page_dirty(orig_l3) &&
 			    (orig_l3 & ATTR_SW_MANAGED) != 0)
 				vm_page_dirty(m);
+		} else {
+			/*
+			 * orig_l3 == new_l3
+			 * This can happens if multiple threads simultaneously
+			 * access not yet mapped page. This bad for performance
+			 * since this can cause full demotion-NOP-promotion
+			 * cycle.
+			 * Another possible reasons are:
+			 * - VM and pmap memory layout are diverged
+			 * - tlb flush is missing somewhere and CPU doesn't see
+			 *   actual mapping.
+			 */
+			CTR4(KTR_PMAP, "%s: already mapped page - "
+			    "pmap %p va 0x%#lx pte 0x%lx",
+			    __func__, pmap, va, new_l3);
 		}
+#endif
 	} else {
+		/* New mappig */
 		pmap_load_store(l3, new_l3);
 	}
-
-	pmap_invalidate_page(pmap, va);
-
-	if (pmap != pmap_kernel()) {
-		if (pmap == &curproc->p_vmspace->vm_pmap &&
-		    (prot & VM_PROT_EXECUTE) != 0)
-			cpu_icache_sync_range(va, PAGE_SIZE);
 
 #if VM_NRESERVLEVEL > 0
 		if ((mpte == NULL || mpte->wire_count == NL3PG) &&
@@ -3061,7 +3084,6 @@ validate:
 			pmap_promote_l2(pmap, pde, va, &lock);
 		}
 #endif
-	}
 
 	if (lock != NULL)
 		rw_wunlock(lock);
@@ -3135,7 +3157,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 {
 	struct spglist free;
 	pd_entry_t *pde;
-	pt_entry_t *l2, *l3;
+	pt_entry_t *l2, *l3, l3_val;
 	vm_paddr_t pa;
 	int lvl;
 
@@ -3232,19 +3254,26 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 */
 	pmap_resident_count_inc(pmap, 1);
 
-	pa = VM_PAGE_TO_PHYS(m) | ATTR_DEFAULT | ATTR_IDX(m->md.pv_memattr) |
+	pa = VM_PAGE_TO_PHYS(m);
+	l3_val = pa | ATTR_DEFAULT | ATTR_IDX(m->md.pv_memattr) |
 	    ATTR_AP(ATTR_AP_RO) | L3_PAGE;
 	if ((prot & VM_PROT_EXECUTE) == 0 || m->md.pv_memattr == DEVICE_MEMORY)
-		pa |= ATTR_XN;
+		l3_val |= ATTR_XN;
 	else if (va < VM_MAXUSER_ADDRESS)
-		pa |= ATTR_PXN;
+		l3_val |= ATTR_PXN;
 
 	/*
 	 * Now validate mapping with RO protection
 	 */
 	if ((m->oflags & VPO_UNMANAGED) == 0)
-		pa |= ATTR_SW_MANAGED;
-	pmap_load_store(l3, pa);
+		l3_val |= ATTR_SW_MANAGED;
+
+	/* Sync icache before the mapping is stored to PTE */
+	if ((prot & VM_PROT_EXECUTE) && pmap != kernel_pmap &&
+	    m->md.pv_memattr == VM_MEMATTR_WRITE_BACK)
+		cpu_icache_sync_range(PHYS_TO_DMAP(pa), PAGE_SIZE);
+
+	pmap_load_store(l3, l3_val);
 	pmap_invalidate_page(pmap, va);
 	return (mpte);
 }
