@@ -774,6 +774,7 @@ asis:
 	case CS94:
 		if (!(is94(string[0] & 0x7f)))
 			goto asis;
+		break;
 	case CS96:
 		if (!(is96(string[0] & 0x7f)))
 			goto asis;
