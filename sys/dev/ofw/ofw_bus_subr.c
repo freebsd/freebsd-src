@@ -90,6 +90,7 @@ ofw_bus_gen_child_pnpinfo_str(device_t cbdev, device_t child, char *buf,
     size_t buflen)
 {
 
+	*buf = '\0';
 	if (ofw_bus_get_name(child) != NULL) {
 		strlcat(buf, "name=", buflen);
 		strlcat(buf, ofw_bus_get_name(child), buflen);
