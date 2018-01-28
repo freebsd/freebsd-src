@@ -183,6 +183,16 @@ trapname(u_int vector)
 	return ("unknown");
 }
 
+static inline bool
+frame_is_trap_inst(struct trapframe *frame)
+{
+#ifdef AIM
+	return (frame->exc == EXC_PGM && frame->srr1 & EXC_PGM_TRAP);
+#else
+	return (frame->exc == EXC_DEBUG || frame->cpu.booke.esr & ESR_PTR);
+#endif
+}
+
 void
 trap(struct trapframe *frame)
 {
@@ -323,11 +333,7 @@ trap(struct trapframe *frame)
 
 		case EXC_PGM:
 			/* Identify the trap reason */
-#ifdef AIM
-			if (frame->srr1 & EXC_PGM_TRAP) {
-#else
-			if (frame->cpu.booke.esr & ESR_PTR) {
-#endif
+			if (frame_is_trap_inst(frame)) {
 #ifdef KDTRACE_HOOKS
 				inst = fuword32((const void *)frame->srr0);
 				if (inst == 0x0FFFDDDD &&
@@ -371,11 +377,7 @@ trap(struct trapframe *frame)
 		switch (type) {
 		case EXC_PGM:
 #ifdef KDTRACE_HOOKS
-#ifdef AIM
-			if (frame->srr1 & EXC_PGM_TRAP) {
-#else
-			if (frame->cpu.booke.esr & ESR_PTR) {
-#endif
+			if (frame_is_trap_inst(frame)) {
 				if (*(uint32_t *)frame->srr0 == EXC_DTRACE) {
 					if (dtrace_invop_jump_addr != NULL) {
 						dtrace_invop_jump_addr(frame);
@@ -886,13 +888,7 @@ db_trap_glue(struct trapframe *frame)
 
 	if (!(frame->srr1 & PSL_PR)
 	    && (frame->exc == EXC_TRC || frame->exc == EXC_RUNMODETRC
-#ifdef AIM
-		|| (frame->exc == EXC_PGM
-		    && (frame->srr1 & EXC_PGM_TRAP))
-#else
-		|| (frame->exc == EXC_DEBUG)
-		|| (frame->cpu.booke.esr & ESR_PTR)
-#endif
+	    	|| frame_is_trap_inst(frame)
 		|| frame->exc == EXC_BPT
 		|| frame->exc == EXC_DSI)) {
 		int type = frame->exc;
@@ -900,12 +896,7 @@ db_trap_glue(struct trapframe *frame)
 		/* Ignore DTrace traps. */
 		if (*(uint32_t *)frame->srr0 == EXC_DTRACE)
 			return (0);
-#ifdef AIM
-		if (type == EXC_PGM && (frame->srr1 & EXC_PGM_TRAP)) {
-#else
-		if (type == EXC_DEBUG ||
-		    (frame->cpu.booke.esr & ESR_PTR)) {
-#endif
+		if (frame_is_trap_inst(frame)) {
 			type = T_BREAKPOINT;
 		}
 		return (kdb_trap(type, 0, frame));
