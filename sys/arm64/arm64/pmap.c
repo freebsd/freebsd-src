@@ -3070,7 +3070,6 @@ validate:
 			    "pmap %p va 0x%#lx pte 0x%lx",
 			    __func__, pmap, va, new_l3);
 		}
-#endif
 	} else {
 		/* New mappig */
 		pmap_load_store(l3, new_l3);
