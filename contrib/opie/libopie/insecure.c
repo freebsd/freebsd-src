@@ -135,7 +135,8 @@ int opieinsecure FUNCTION_NOARGS
 	char host[sizeof(utmp.ut_host) + 1];
 	insecure = 1;
 
-	strncpy(host, utmp.ut_host, sizeof(host));
+	strncpy(host, utmp.ut_host, sizeof(utmp.ut_host));
+	host[sizeof(utmp.ut_host)] = 0;
 
 	if (s = strchr(host, ':')) {
 	  int n = s - host;
