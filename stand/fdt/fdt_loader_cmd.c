@@ -74,6 +74,7 @@ static vm_offset_t fdtp_va = 0;
 
 static int fdt_load_dtb(vm_offset_t va);
 static void fdt_print_overlay_load_error(int err, const char *filename);
+static int fdt_check_overlay_compatible(void *base_fdt, void *overlay_fdt);
 
 static int fdt_cmd_nyi(int argc, char *argv[]);
 static int fdt_load_dtb_overlays_string(const char * filenames);
@@ -374,6 +375,62 @@ fdt_load_dtb_overlays_string(const char * filenames)
 	return (0);
 }
 
+/*
+ * fdt_check_overlay_compatible - check that the overlay_fdt is compatible with
+ * base_fdt before we attempt to apply it. It will need to re-calculate offsets
+ * in the base every time, rather than trying to cache them earlier in the
+ * process, because the overlay application process can/will invalidate a lot of
+ * offsets.
+ */
+static int
+fdt_check_overlay_compatible(void *base_fdt, void *overlay_fdt)
+{
+	const char *compat;
+	int compat_len, ocompat_len;
+	int oroot_offset, root_offset;
+	int slidx, sllen;
+
+	oroot_offset = fdt_path_offset(overlay_fdt, "/");
+	if (oroot_offset < 0)
+		return (oroot_offset);
+	/*
+	 * If /compatible in the overlay does not exist or if it is empty, then
+	 * we're automatically compatible. We do this for the sake of rapid
+	 * overlay development for overlays that aren't intended to be deployed.
+	 * The user assumes the risk of using an overlay without /compatible.
+	 */
+	if (fdt_get_property(overlay_fdt, oroot_offset, "compatible",
+	    &ocompat_len) == NULL || ocompat_len == 0)
+		return (0);
+	root_offset = fdt_path_offset(base_fdt, "/");
+	if (root_offset < 0)
+		return (root_offset);
+	/*
+	 * However, an empty or missing /compatible on the base is an error,
+	 * because allowing this offers no advantages.
+	 */
+	if (fdt_get_property(base_fdt, root_offset, "compatible",
+	    &compat_len) == NULL)
+		return (compat_len);
+	else if(compat_len == 0)
+		return (1);
+
+	slidx = 0;
+	compat = fdt_stringlist_get(overlay_fdt, oroot_offset, "compatible",
+	    slidx, &sllen);
+	while (compat != NULL) {
+		if (fdt_stringlist_search(base_fdt, root_offset, "compatible",
+		    compat) >= 0)
+			return (0);
+		++slidx;
+		compat = fdt_stringlist_get(overlay_fdt, oroot_offset,
+		    "compatible", slidx, &sllen);
+	};
+
+	/* We've exhausted the overlay's /compatible property... no match */
+	return (1);
+}
+
 void
 fdt_apply_overlays()
 {
@@ -408,6 +465,13 @@ fdt_apply_overlays()
 	current_fdtp = fdtp;
 	current_fdtp_size = fdtp_size;
 	for (fp = file_findfile(NULL, "dtbo"); fp != NULL; fp = fp->f_next) {
+		COPYOUT(fp->f_addr, overlay, fp->f_size);
+		/* Check compatible first to avoid unnecessary allocation */
+		rv = fdt_check_overlay_compatible(current_fdtp, overlay);
+		if (rv != 0) {
+			printf("DTB overlay '%s' not compatible\n", fp->f_name);
+			continue;
+		}
 		printf("applying DTB overlay '%s'\n", fp->f_name);
 		next_fdtp_size = current_fdtp_size + fp->f_size;
 		next_fdtp = malloc(next_fdtp_size);
@@ -425,7 +489,6 @@ fdt_apply_overlays()
 			printf("failed to open base dtb into overlay base\n");
 			continue;
 		}
-		COPYOUT(fp->f_addr, overlay, fp->f_size);
 		/* Both overlay and new_fdtp may be modified in place */
 		rv = fdt_overlay_apply(next_fdtp, overlay);
 		if (rv == 0) {
