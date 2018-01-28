@@ -46,7 +46,7 @@ void fdt_fixup_stdout(const char *);
 void fdt_apply_overlays(void);
 int fdt_load_dtb_addr(struct fdt_header *);
 int fdt_load_dtb_file(const char *);
-int fdt_load_dtb_overlays(const char *);
+void fdt_load_dtb_overlays(const char *);
 int fdt_setup_fdtp(void);
 
 /* The platform library needs to implement these functions */
