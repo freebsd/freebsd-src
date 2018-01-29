@@ -151,6 +151,7 @@
 /bin/sync
 /usr/bin/tar
 /usr/bin/tail
+/usr/bin/timeout
 /usr/bin/touch
 /usr/bin/tr
 /usr/bin/true

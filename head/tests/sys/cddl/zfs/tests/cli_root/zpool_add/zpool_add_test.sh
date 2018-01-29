@@ -54,7 +54,7 @@ zpool_add_001_pos_cleanup()
 atf_test_case zpool_add_002_pos cleanup
 zpool_add_002_pos_head()
 {
-	atf_set "descr" "'zpool add -f <pool> <vdev> ...' can successfully adddevices to the pool in some cases."
+	atf_set "descr" "'zpool add -f <pool> <vdev> ...' can successfully add devices to the pool in some cases."
 	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
@@ -81,7 +81,7 @@ zpool_add_002_pos_cleanup()
 atf_test_case zpool_add_003_pos cleanup
 zpool_add_003_pos_head()
 {
-	atf_set "descr" "'zpool add -n <pool> <vdev> ...' can display the configurationwithout actually adding devices to the pool."
+	atf_set "descr" "'zpool add -n <pool> <vdev> ...' can display the configuration without actually adding devices to the pool."
 	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
@@ -267,6 +267,34 @@ zpool_add_009_neg_cleanup()
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
+# Regression test for PR 225546.  "zpool add" asserts if the pool contains a
+# replacing vdev with a spare child.
+# Assertion failed: (nvlist_lookup_string(cnv, "path", &path) == 0), file /usr/home/alans/freebsd/head/cddl/contrib/opensolaris/cmd/zpool/zpool_vdev.c, line 694. /usr/tests/sys/cddl/zfs/tests/cli_root/zpool_add/zpool_add_010_pos.ksh[54]: log_must[69]: log_pos: line 206: 27710: Abort(coredump)
+atf_test_case zpool_add_010_pos cleanup
+zpool_add_010_pos_head()
+{
+	atf_set "descr" "'zpool add' can add devices, even if a replacing vdev with a spare child is present"
+	atf_set "require.progs"  zpool
+}
+zpool_add_010_pos_body()
+{
+	. $(atf_get_srcdir)/../../../include/default.cfg
+	. $(atf_get_srcdir)/zpool_add.kshlib
+	. $(atf_get_srcdir)/zpool_add.cfg
+	atf_expect_fail "PR 225546 zpool add crashes in the presence of a replacing vdev with a spare child"
+
+	verify_disk_count "$DISKS" 5
+	ksh93 $(atf_get_srcdir)/zpool_add_010_pos.ksh || atf_fail "Testcase failed"
+}
+zpool_add_010_pos_cleanup()
+{
+	. $(atf_get_srcdir)/../../../include/default.cfg
+	. $(atf_get_srcdir)/zpool_add.kshlib
+	. $(atf_get_srcdir)/zpool_add.cfg
+
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
+}
+
 
 atf_init_test_cases()
 {
@@ -280,4 +308,5 @@ atf_init_test_cases()
 	atf_add_test_case zpool_add_007_neg
 	atf_add_test_case zpool_add_008_neg
 	atf_add_test_case zpool_add_009_neg
+	atf_add_test_case zpool_add_010_pos
 }
