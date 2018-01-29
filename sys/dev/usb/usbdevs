@@ -2580,6 +2580,7 @@ product JATON EDA		0x5704	Ethernet
 product JETI SPC1201		0x04b2	FTDI compatible adapter
 
 /* JMicron products */
+product JMICRON JMS567		0x0567	USB to SATA 6.0Gb/s bridge 
 product JMICRON JM20336		0x2336	USB to SATA Bridge
 product JMICRON JM20337		0x2338	USB to ATA/ATAPI Bridge
 
