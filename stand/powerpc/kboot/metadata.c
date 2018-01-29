@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/reboot.h>
 #include <sys/linker.h>
 #include <sys/boot.h>
@@ -157,7 +158,7 @@ md_copyenv(vm_offset_t addr)
 static int align;
 
 #define COPY32(v, a, c) {			\
-    u_int32_t	x = (v);			\
+    u_int32_t	x = htobe32(v);			\
     if (c)					\
         archsw.arch_copyin(&x, a, sizeof(x));	\
     a += sizeof(x);				\
@@ -254,11 +255,12 @@ md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
     vm_offset_t			fdtp;
     vm_offset_t			size;
     uint64_t			scratch64;
+    uint32_t			scratch32;
     char			*rootdevname;
     int				howto;
 
     align = kern64 ? 8 : 4;
-    howto = md_getboothowto(args);
+    howto = htobe32(md_getboothowto(args));
 
     /* 
      * Allow the environment variable 'rootdev' to override the supplied device 
@@ -300,16 +302,19 @@ md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
 	panic("can't find kernel file");
     file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
     if (kern64) {
-	scratch64 = envp;
+	scratch64 = htobe64(envp);
 	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof scratch64, &scratch64);
-	scratch64 = fdtp;
+	scratch64 = htobe64(fdtp);
 	file_addmetadata(kfp, MODINFOMD_DTBP, sizeof scratch64, &scratch64);
-	scratch64 = kernend;
+	scratch64 = htobe64(kernend);
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof scratch64, &scratch64);
     } else {
-	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
-	file_addmetadata(kfp, MODINFOMD_DTBP, sizeof fdtp, &fdtp);
-	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
+	scratch32 = htobe32(envp);
+	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof scratch32, &scratch32);
+	scratch32 = htobe32(fdtp);
+	file_addmetadata(kfp, MODINFOMD_DTBP, sizeof scratch32, &scratch32);
+	scratch32 = htobe32(kernend);
+	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof scratch32, &scratch32);
     }
 
     *modulep = addr;
@@ -318,7 +323,7 @@ md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
 
     md = file_findmetadata(kfp, MODINFOMD_KERNEND);
     if (kern64) {
-	scratch64 = kernend;
+	scratch64 = htobe64(kernend);
 	bcopy(&scratch64, md->md_data, sizeof scratch64);
     } else {
 	bcopy(&kernend, md->md_data, sizeof kernend);
