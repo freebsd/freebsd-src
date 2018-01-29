@@ -573,10 +573,8 @@ ip6_input(struct mbuf *m)
 		/*
 		 * Firewall changed destination to local.
 		 */
-		m->m_flags &= ~M_FASTFWD_OURS;
-		ours = 1;
 		ip6 = mtod(m, struct ip6_hdr *);
-		goto hbhcheck;
+		goto passin;
 	}
 
 	/*
@@ -737,10 +735,8 @@ ip6_input(struct mbuf *m)
 		if ((m = ip6_tryforward(m)) == NULL)
 			return;
 		if (m->m_flags & M_FASTFWD_OURS) {
-			m->m_flags &= ~M_FASTFWD_OURS;
-			ours = 1;
 			ip6 = mtod(m, struct ip6_hdr *);
-			goto hbhcheck;
+			goto passin;
 		}
 	}
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
@@ -771,13 +767,7 @@ ip6_input(struct mbuf *m)
 		return;
 	ip6 = mtod(m, struct ip6_hdr *);
 	srcrt = !IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst);
-
-	if (m->m_flags & M_FASTFWD_OURS) {
-		m->m_flags &= ~M_FASTFWD_OURS;
-		ours = 1;
-		goto hbhcheck;
-	}
-	if ((m->m_flags & M_IP6_NEXTHOP) &&
+	if ((m->m_flags & (M_IP6_NEXTHOP | M_FASTFWD_OURS)) == M_IP6_NEXTHOP &&
 	    m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL) {
 		/*
 		 * Directly ship the packet on.  This allows forwarding
@@ -807,6 +797,11 @@ passin:
 	    in6_setscope(&ip6->ip6_dst, rcvif, NULL)) {
 		IP6STAT_INC(ip6s_badscope);
 		goto bad;
+	}
+	if (m->m_flags & M_FASTFWD_OURS) {
+		m->m_flags &= ~M_FASTFWD_OURS;
+		ours = 1;
+		goto hbhcheck;
 	}
 	/*
 	 * Multicast check. Assume packet is for us to avoid
