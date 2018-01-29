@@ -107,15 +107,14 @@ function verify_assertion # dev
 	while (( i < iters )); do
 		start_all_wp
 		while true; do
-			if is_pool_resilvered "$TESTPOOL" -a \
-				[ -f "$TESTDIR/$TESTFILE.$i" ]; then
-				break;
+			if is_pool_resilvered "$TESTPOOL"; then
+				[ -s "$TESTDIR/$TESTFILE.$i" ] && break
 			fi
 			$SLEEP 2
 		done
 
 		kill_all_wp
-		log_must test -f $TESTDIR/$TESTFILE.$i
+		log_must test -s $TESTDIR/$TESTFILE.$i
 
 		log_must $ZPOOL offline $TESTPOOL $odev
 		log_must check_state $TESTPOOL $odev "offline"
