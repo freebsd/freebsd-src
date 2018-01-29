@@ -47,9 +47,31 @@ zpool_replace_001_neg_cleanup()
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
+atf_test_case zpool_replace_002_neg cleanup
+zpool_replace_002_neg_head()
+{
+	atf_set "descr" "'zpool replace' should fail if the new device is too small"
+	atf_set "require.progs"  zpool
+}
+zpool_replace_002_neg_body()
+{
+	. $(atf_get_srcdir)/../../../include/default.cfg
+	. $(atf_get_srcdir)/zpool_replace.cfg
+
+	ksh93 $(atf_get_srcdir)/zpool_replace_002_neg.ksh || atf_fail "Testcase failed"
+}
+zpool_replace_002_neg_cleanup()
+{
+	. $(atf_get_srcdir)/../../../include/default.cfg
+	. $(atf_get_srcdir)/zpool_replace.cfg
+
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
+}
+
 
 atf_init_test_cases()
 {
 
 	atf_add_test_case zpool_replace_001_neg
+	atf_add_test_case zpool_replace_002_neg
 }

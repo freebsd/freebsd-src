@@ -185,33 +185,6 @@ hotplug_006_pos_cleanup()
 }
 
 
-atf_test_case hotplug_007_pos cleanup
-hotplug_007_pos_head()
-{
-	atf_set "descr" "When autoreplace is 'on', replacing the device with a smaller one.Verify the device's status is 'UNAVAIL'. FMA fault has been generated."
-	atf_set "require.progs"  zpool lofiadm
-	atf_set "timeout" 1800
-}
-hotplug_007_pos_body()
-{
-	. $(atf_get_srcdir)/../../include/default.cfg
-	. $(atf_get_srcdir)/hotplug.kshlib
-	. $(atf_get_srcdir)/hotplug.cfg
-
-	atf_skip "TODO: move to cli_root/zpool_replace"
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	ksh93 $(atf_get_srcdir)/hotplug_007_pos.ksh || atf_fail "Testcase failed"
-}
-hotplug_007_pos_cleanup()
-{
-	. $(atf_get_srcdir)/../../include/default.cfg
-	. $(atf_get_srcdir)/hotplug.kshlib
-	. $(atf_get_srcdir)/hotplug.cfg
-
-	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
-}
-
-
 atf_test_case hotplug_008_pos cleanup
 hotplug_008_pos_head()
 {
@@ -327,7 +300,6 @@ atf_init_test_cases()
 	atf_add_test_case hotplug_004_pos
 	atf_add_test_case hotplug_005_pos
 	atf_add_test_case hotplug_006_pos
-	atf_add_test_case hotplug_007_pos
 	atf_add_test_case hotplug_008_pos
 	atf_add_test_case hotplug_009_pos
 	atf_add_test_case hotplug_010_pos

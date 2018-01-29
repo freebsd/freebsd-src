@@ -9,6 +9,7 @@ FILESDIR=${TESTSDIR}
 ATF_TESTS_KSH93+=	zpool_replace_test
 
 ${PACKAGE}FILES+=	zpool_replace_001_neg.ksh
+${PACKAGE}FILES+=	zpool_replace_002_neg.ksh
 ${PACKAGE}FILES+=	setup.ksh
 ${PACKAGE}FILES+=	cleanup.ksh
 ${PACKAGE}FILES+=	zpool_replace.cfg

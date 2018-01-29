@@ -12,7 +12,6 @@ ${PACKAGE}FILES+=	hotplug.cfg
 ${PACKAGE}FILES+=	hotplug_006_pos.ksh
 ${PACKAGE}FILES+=	hotplug_002_pos.ksh
 ${PACKAGE}FILES+=	cleanup.ksh
-${PACKAGE}FILES+=	hotplug_007_pos.ksh
 ${PACKAGE}FILES+=	hotplug_003_pos.ksh
 ${PACKAGE}FILES+=	setup.ksh
 ${PACKAGE}FILES+=	hotplug_005_pos.ksh
