@@ -128,6 +128,7 @@ powernv_attach(platform_t plat)
 	pcell_t prop;
 	phandle_t cpu;
 	int res, len, node, idx;
+	register_t msr;
 
 	/* Ping OPAL again just to make sure */
 	opal_check();
@@ -140,6 +141,19 @@ powernv_attach(platform_t plat)
 
 	cpu_idle_hook = powernv_cpu_idle;
 	powernv_boot_pir = mfspr(SPR_PIR);
+
+	/* LPID must not be altered when PSL_DR or PSL_IR is set */
+	msr = mfmsr();
+	mtmsr(msr & ~(PSL_DR | PSL_IR));
+
+	/* Direct interrupts to SRR instead of HSRR and reset LPCR otherwise */
+	mtspr(SPR_LPID, 0);
+	isync();
+
+	mtmsr(msr);
+
+	mtspr(SPR_LPCR, LPCR_LPES);
+	isync();
 
 	/* Init CPU bits */
 	powernv_smp_ap_init(plat);
@@ -444,21 +458,6 @@ powernv_reset(platform_t platform)
 static void
 powernv_smp_ap_init(platform_t platform)
 {
-	register_t msr;
-
-	/* LPID must not be altered when PSL_DR or PSL_IR is set */
-	msr = mfmsr();
-	mtmsr(msr & ~(PSL_DR | PSL_IR));
-
-	isync();
-	/* Direct interrupts to SRR instead of HSRR and reset LPCR otherwise */
-	mtspr(SPR_LPID, 0);
-	isync();
-
-	mtmsr(msr);
-
-	mtspr(SPR_LPCR, LPCR_LPES);
-	isync();
 }
 
 static void
